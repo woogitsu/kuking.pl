@@ -26,9 +26,17 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('CREATE EXTENSION IF NOT EXISTS pgcrypto');
-        DB::statement('CREATE EXTENSION IF NOT EXISTS pg_trgm');
-        DB::statement('CREATE EXTENSION IF NOT EXISTS unaccent');
+        // Schemat podany JAWNIE, nie „ten pierwszy z search_path".
+        //
+        // Od PostgreSQL 17 `CREATE INDEX` i `REINDEX` chodzą z ograniczonym
+        // `search_path`, więc `kuking_normalize()` musi wołać `public.unaccent`
+        // z pełną kwalifikacją (patrz 2026_09_05_001300_fix_search_indexes).
+        // Skoro tam zapisujemy `public.`, to tutaj musimy mieć pewność, że
+        // rozszerzenie naprawdę tam wyląduje — inaczej para się rozjedzie
+        // i zobaczymy to dopiero przy budowaniu indeksu.
+        DB::statement('CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public');
+        DB::statement('CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public');
+        DB::statement('CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public');
     }
 
     public function down(): void

@@ -26,8 +26,25 @@ use Illuminate\Support\Facades\Schema;
  * Jest tu jedna pułapka: `unaccent()` NIE jest funkcją IMMUTABLE (zależy od
  * słownika, który teoretycznie można podmienić), a PostgreSQL nie pozwala
  * indeksować wyrażeń nieimmutable. Dlatego opakowujemy ją we własną funkcję
- * `kuking_normalize()` z jawnie wskazanym słownikiem `'unaccent'` —
+ * `kuking_normalize()` z jawnie wskazanym słownikiem —
  * to jest udokumentowane podejście z dokumentacji PostgreSQL.
+ *
+ * DRUGA PUŁAPKA, i to ta, która wywaliła CI na PostgreSQL 18:
+ * od PostgreSQL 17 operacje utrzymaniowe — w tym `CREATE INDEX` i `REINDEX` —
+ * wykonują się z OGRANICZONYM `search_path` (`pg_catalog, pg_temp`).
+ * Ciało funkcji SQL jest re-parsowane przy inliningu, więc niekwalifikowane
+ * `unaccent(...)` przestaje być widoczne i budowanie indeksu pada:
+ *
+ *     ERROR: function unaccent(unknown, text) does not exist
+ *     CONTEXT: SQL function "kuking_normalize" during inlining
+ *
+ * Na PostgreSQL 16 (i lokalnie) przechodziło, bo tam tego ograniczenia
+ * jeszcze nie ma — czyli był to błąd niewidoczny do pierwszego przebiegu CI
+ * na wersji produkcyjnej.
+ *
+ * Dlatego WSZYSTKO w ciele funkcji jest kwalifikowane schematem: i sama
+ * funkcja `public.unaccent`, i słownik `'public.unaccent'::regdictionary`.
+ * Nie polegamy na `search_path`, bo przy budowaniu indeksu go nie ma.
  *
  * Konsekwencja, o której trzeba wiedzieć: gdyby ktoś kiedyś podmienił słownik
  * unaccent, indeksy trzeba przebudować (REINDEX). Nie robimy tego, więc
@@ -44,9 +61,9 @@ return new class extends Migration
         // Funkcja normalizująca — jedno miejsce, z którego korzystają
         // i indeksy, i zapytania.
         DB::statement(<<<'SQL'
-            CREATE OR REPLACE FUNCTION kuking_normalize(text)
+            CREATE OR REPLACE FUNCTION public.kuking_normalize(text)
             RETURNS text
-            AS $$ SELECT unaccent('unaccent', lower($1)) $$
+            AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, lower($1)) $$
             LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
         SQL);
 

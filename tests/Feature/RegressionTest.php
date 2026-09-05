@@ -226,4 +226,70 @@ class RegressionTest extends TestCase
         $this->assertCount(1, app(SearchQuery::class)->recipes('Żurek'));
         $this->assertCount(1, app(SearchQuery::class)->recipes('ZUREK'));
     }
+
+    // -----------------------------------------------------------------
+    // kuking_normalize() padało przy budowaniu indeksu na PostgreSQL 18
+    // -----------------------------------------------------------------
+
+    /**
+     * Od PostgreSQL 17 `CREATE INDEX` i `REINDEX` chodzą z ograniczonym
+     * `search_path` (`pg_catalog, pg_temp`). Ciało funkcji SQL jest wtedy
+     * re-parsowane przy inliningu, więc niekwalifikowane `unaccent(...)`
+     * przestaje być widoczne i migracja pada:
+     *
+     *     ERROR: function unaccent(unknown, text) does not exist
+     *     CONTEXT: SQL function "kuking_normalize" during inlining
+     *
+     * Na PostgreSQL 16 przechodziło, więc lokalnie nie było tego widać —
+     * błąd wyszedł dopiero przy pierwszym przebiegu CI na obrazie `postgres:18`.
+     *
+     * Ten test wymusza ograniczony `search_path` w ramach jednej transakcji
+     * i sprawdza, że funkcja nadal działa. Odtwarza mechanizm, nie wersję
+     * serwera, więc łapie regresję także na PostgreSQL 16.
+     */
+    public function test_normalizacja_dziala_przy_ograniczonym_search_path(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Dotyczy wyłącznie PostgreSQL.');
+        }
+
+        DB::transaction(function (): void {
+            // Dokładnie to, co PostgreSQL 17+ ustawia przy CREATE INDEX.
+            DB::statement('SET LOCAL search_path = pg_catalog, pg_temp');
+
+            $wynik = DB::selectOne("SELECT public.kuking_normalize('Żurek') AS wynik")->wynik;
+
+            $this->assertSame(
+                'zurek',
+                $wynik,
+                'kuking_normalize() nie przetrwało ograniczonego search_path — '
+                .'budowanie indeksu wywali się na PostgreSQL 17+.',
+            );
+        });
+    }
+
+    /**
+     * Druga połowa tej samej pułapki: samo ZBUDOWANIE indeksu na wyrażeniu
+     * `kuking_normalize(...)` przy ograniczonym `search_path`. To jest
+     * operacja, która realnie padła w CI — test wyżej sprawdza wywołanie,
+     * ten sprawdza to, o co się wywróciła migracja.
+     */
+    public function test_indeks_na_kuking_normalize_da_sie_zbudowac(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Dotyczy wyłącznie PostgreSQL.');
+        }
+
+        DB::transaction(function (): void {
+            DB::statement('CREATE TEMP TABLE probka_indeksu (tytul text)');
+            DB::statement('SET LOCAL search_path = pg_catalog, pg_temp');
+
+            DB::statement(
+                'CREATE INDEX probka_indeksu_idx ON probka_indeksu '
+                .'USING gin (public.kuking_normalize(tytul) public.gin_trgm_ops)',
+            );
+
+            $this->assertTrue(true, 'Indeks zbudowany bez błędu.');
+        });
+    }
 }

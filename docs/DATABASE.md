@@ -111,8 +111,8 @@ Później:
 Migracja `2026_09_05_001300_fix_search_indexes` wprowadza funkcję:
 
 ```sql
-CREATE FUNCTION kuking_normalize(text) RETURNS text
-AS $$ SELECT unaccent('unaccent', lower($1)) $$
+CREATE FUNCTION public.kuking_normalize(text) RETURNS text
+AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, lower($1)) $$
 LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE;
 ```
 
@@ -124,8 +124,29 @@ tabelę. Potwierdzone `EXPLAIN`-em przy `enable_seqscan = off`.
 
 **Dlaczego własna funkcja, a nie `unaccent()` wprost:** `unaccent()` nie jest
 `IMMUTABLE` (zależy od słownika), a PostgreSQL nie pozwala indeksować wyrażeń
-nieimmutable. Opakowanie z jawnie wskazanym słownikiem `'unaccent'` to
-udokumentowane obejście.
+nieimmutable. Opakowanie z jawnie wskazanym słownikiem to udokumentowane
+obejście.
+
+⚠️ **Dlaczego wszystko jest kwalifikowane `public.`:** od PostgreSQL 17
+operacje utrzymaniowe — w tym `CREATE INDEX` i `REINDEX` — wykonują się
+z ograniczonym `search_path` (`pg_catalog, pg_temp`). Ciało funkcji SQL jest
+re-parsowane przy inliningu, więc niekwalifikowane `unaccent(...)` przestaje
+być widoczne i budowanie indeksu pada:
+
+```text
+ERROR:  function unaccent(unknown, text) does not exist
+CONTEXT:  SQL function "kuking_normalize" during inlining
+```
+
+Na PostgreSQL 16 to przechodziło, więc błąd był niewidoczny lokalnie
+i wyszedł dopiero przy pierwszym przebiegu CI na `postgres:18`. Dlatego
+rozszerzenia zakładamy jawnie `WITH SCHEMA public`, a funkcja woła
+`public.unaccent` ze słownikiem `'public.unaccent'::regdictionary`.
+**Nie polegaj tu na `search_path` — przy budowaniu indeksu go nie ma.**
+
+Pilnują tego dwa testy: `RegressionTest::test_normalizacja_dziala_przy_ograniczonym_search_path`
+oraz `::test_indeks_na_kuking_normalize_da_sie_zbudowac`. Oba wymuszają
+ograniczony `search_path` ręcznie, więc łapią regresję także na PostgreSQL 16.
 
 ⚠️ **Konsekwencja:** podmiana słownika `unaccent` wymagałaby `REINDEX`.
 Nie robimy tego.
