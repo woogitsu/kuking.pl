@@ -79,7 +79,16 @@ class MediaUploadTest extends TestCase
 
         $this->assertStringNotContainsString('passwd', $media->object_key);
         $this->assertStringNotContainsString('..', $media->object_key);
-        $this->assertStringStartsWith('media/'.$basia->getKey().'/', $media->object_key);
+
+        // Prefiks to `incoming/`, nie `media/`: oryginał zachowuje EXIF z GPS,
+        // więc leży w prywatnej części storage, a publikowane są wyłącznie
+        // przekodowane warianty pod `media/` (audyt A02, OryginalZdjeciaTest).
+        //
+        // Sam test dotyczy czego innego — tego, że nazwa pliku od użytkownika
+        // nigdy nie trafia do ścieżki. Asercja na prefiksie jest tu po to, żeby
+        // klucz był w ogóle tam, gdzie ma być, więc aktualizuję ją zamiast
+        // usuwać.
+        $this->assertStringStartsWith('incoming/'.$basia->getKey().'/', $media->object_key);
     }
 
     public function test_nowe_zdjecie_nie_jest_gotowe_do_pokazania_przed_przetworzeniem(): void

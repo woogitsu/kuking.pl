@@ -75,7 +75,15 @@ class ProcessUploadedImage implements ShouldQueue
 
                 $encoded = $image->toWebp(quality: 82);
 
-                $variantKey = preg_replace('/\.[^.]+$/', '', $media->object_key)."_{$name}.webp";
+                // Wariant idzie do PUBLICZNEGO prefiksu `media/`, oryginał
+                // został w prywatnym `incoming/`. Sama zamiana prefiksu, nie
+                // przepisywanie ścieżki — dzięki temu stare wiersze, zapisane
+                // jeszcze pod `media/`, przetwarzają się bez zmian.
+                $publicznyKlucz = str_starts_with($media->object_key, 'incoming/')
+                    ? 'media/'.substr($media->object_key, strlen('incoming/'))
+                    : $media->object_key;
+
+                $variantKey = preg_replace('/\.[^.]+$/', '', $publicznyKlucz)."_{$name}.webp";
                 $disk->put($variantKey, (string) $encoded, 'public');
 
                 $variants[$name] = [
