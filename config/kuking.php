@@ -15,11 +15,21 @@ declare(strict_types=1);
 
 return [
 
-    // Dysk Laravel Filesystem, na którym żyją zdjęcia. Dzięki temu przejście
-    // z dysku lokalnego na Cloudflare R2 jest zmianą konfiguracji, nie kodu.
-    'media_disk' => env('KUKING_MEDIA_DISK', 'public'),
-
     'media' => [
+        // Dysk Laravel Filesystem, na którym żyją zdjęcia. Dzięki temu przejście
+        // z dysku lokalnego na Cloudflare R2 jest zmianą konfiguracji, nie kodu.
+        //
+        // Klucz mieszka TU, wewnątrz `media`, bo tak czyta go kod:
+        // `config('kuking.media.disk')`. Wcześniej leżał obok, jako
+        // `kuking.media_disk`, więc odczyt zwracał null — i nikt tego nie
+        // zauważył, bo `Storage::disk('')` po cichu bierze dysk domyślny.
+        // Cała zmienna KUKING_MEDIA_DISK nie robiła przez to nic.
+        //
+        // Domyślnie podążamy za `FILESYSTEM_DISK`, zamiast mieć własną wartość
+        // domyślną: inaczej środowisko przestawione na R2 nadal trzymałoby
+        // zdjęcia gdzie indziej, dopóki ktoś nie ustawi drugiej zmiennej.
+        'disk' => env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
+
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
         'max_bytes' => (int) env('KUKING_MEDIA_MAX_BYTES', 15 * 1024 * 1024),
 
