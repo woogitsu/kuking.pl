@@ -90,6 +90,34 @@ bo on się nie zmienia.
 Konta obsługi mają zastrzeżone nazwy legalnie, więc reguła działa tylko przy
 ZMIANIE nazwy — inaczej @moderacja nie zapisałaby już nigdy własnego bio.
 
+**Unikalność bez rozróżniania wielkości liter.** Unikalny indeks funkcyjny
+`profiles_username_lower_unique` na `lower(username)` (migracja
+`2026_09_05_220000_...`). Zwykły `UNIQUE` na `username` nie wystarczał, bo
+PostgreSQL porównuje przez `=`: „Basia" rejestrowała się obok „basia", a
+logowanie szuka nazwy JUŻ bez rozróżniania — przy dwóch pasujących wierszach
+`->first()` bez `ORDER BY` oddawał ten, który baza akurat podała pierwszy.
+Prawdziwa Basia mogła przez to dostawać „nieprawidłowe hasło" przy poprawnym
+haśle (audyt A25).
+
+Indeks jest funkcyjny, a nie na kolumnie, bo **nazwy zostają zapisane tak, jak
+ktoś je wpisał**: „AniaGotuje" zostaje „AniaGotuje". Rozróżnienie dotyczy
+wyłącznie tego, kto może nazwę zająć. Ten sam indeks obsługuje wyszukiwanie po
+`lower(username)` w logowaniu i na profilu publicznym.
+
+Migracja **nie przemianowuje** kont przy kolizji — sprawdza, czy takie pary
+istnieją, i przerywa z listą nazw. Migracja zmieniająca komuś nazwę po cichu
+jest gorsza niż migracja, która się nie wykonuje: kto zatrzymuje nazwę,
+decyduje człowiek. Rollback to `DROP INDEX`, bez utraty danych.
+
+### users
+Adres e-mail jest zapisywany **małymi literami** (mutator `User::email`,
+normalizacja w `User::normalizeEmail()`). Wszystkie miejsca, które szukają
+konta po adresie — rejestracja, logowanie, przypomnienie hasła i sam reset —
+przepuszczają wpisaną wartość przez tę jedną funkcję. Wcześniej walidacja
+pytała bazę o wartość surową, więc „Jan@Example.com" przechodziło
+`Rule::unique` i dopiero PostgreSQL odbijał duplikat: **HTTP 500 na
+rejestracji** zamiast komunikatu „na ten adres jest już konto" (audyt A25).
+
 ### follows
 `follower_id + followed_id` unique.
 

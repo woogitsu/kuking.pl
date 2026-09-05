@@ -71,8 +71,31 @@ class User extends Authenticatable implements MustVerifyEmailContract
     protected function email(): Attribute
     {
         return Attribute::make(
-            set: fn (string $value): string => mb_strtolower(trim($value)),
+            set: fn (string $value): string => self::normalizeEmail($value),
         );
+    }
+
+    /**
+     * Jedna definicja tego, czym jest „ten sam adres e-mail".
+     *
+     * Mutator wyżej zapisuje adres małymi literami, ale WALIDACJA pytała bazę
+     * o wartość surową — więc `Rule::unique` nie znajdowało nic dla
+     * „Jan@Example.com", zapis przechodził dalej i dopiero PostgreSQL odbijał
+     * duplikat kluczem unikalnym. Efekt: HTTP 500 na rejestracji, w miejscu,
+     * w którym powinien być zwykły komunikat „na ten adres jest już konto"
+     * (audyt A25).
+     *
+     * Ta metoda istnieje po to, żeby normalizacja miała JEDNO miejsce.
+     * Wcześniej `mb_strtolower(trim(...))` było przepisane w mutatorze
+     * i w logowaniu — a przypomnienie sobie o nim przy trzecim wywołaniu
+     * (odzyskiwanie hasła) już nie nastąpiło, więc człowiek, który wpisał
+     * adres z wielkiej litery, nie dostawał linku do zmiany hasła i nie
+     * dowiadywał się dlaczego: odpowiedź jest z założenia ta sama dla adresu
+     * istniejącego i nieistniejącego.
+     */
+    public static function normalizeEmail(string $value): string
+    {
+        return mb_strtolower(trim($value));
     }
 
     protected function casts(): array

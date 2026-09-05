@@ -88,12 +88,17 @@ class LoginController extends Controller
     private function findUser(string $login): ?User
     {
         if (str_contains($login, '@')) {
-            return User::where('email', mb_strtolower(trim($login)))->first();
+            return User::where('email', User::normalizeEmail($login))->first();
         }
 
         // Nazwa użytkownika też bez rozróżniania wielkości liter — „Basia"
         // i „basia" to ta sama osoba, a klawiatura telefonu podnosi pierwszą
         // literę bez pytania.
+        // Od migracji `..._add_username_case_insensitive_unique_index` baza
+        // gwarantuje, że pasujący wiersz jest najwyżej jeden. Wcześniej przy
+        // parze „basia" / „Basia" `first()` bez `ORDER BY` zwracał ten, który
+        // baza akurat podała pierwszy — więc prawdziwa Basia mogła dostawać
+        // „nieprawidłowe hasło" przy poprawnym haśle (audyt A25).
         return Profile::whereRaw('lower(username) = ?', [mb_strtolower(trim($login))])->first()?->user;
     }
 }
