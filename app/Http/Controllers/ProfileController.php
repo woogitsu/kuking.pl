@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\Profile;
 use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -46,15 +47,28 @@ class ProfileController extends Controller
             'tab' => $tab,
             'posts' => $tab === 'wszystko' ? $this->postsFor($owner, $viewer, $isOwner) : null,
             'recipes' => $tab === 'przepisy'
-                ? $owner->recipes()->published()->with('heroMedia')->latest('published_at')->paginate(12)->withQueryString()
+                ? $owner->recipes()
+                    ->published()
+                    ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+                    ->with('heroMedia')
+                    ->latest('published_at')
+                    ->paginate(12)
+                    ->withQueryString()
                 : null,
             'cookedEvents' => $tab === 'ugotowane'
-                ? $owner->cookedEvents()->with(['recipe.author.profile', 'media'])->paginate(12)->withQueryString()
+                ? $owner->cookedEvents()
+                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))
+                    ->with(['recipe.author.profile', 'media'])
+                    ->paginate(12)
+                    ->withQueryString()
                 : null,
             'stats' => [
-                'posts' => $owner->posts()->published()->count(),
-                'recipes' => $owner->recipes()->published()->count(),
-                'cooked' => $owner->cookedEvents()->count(),
+                'posts' => $owner->posts()->published()
+                    ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
+                'recipes' => $owner->recipes()->published()
+                    ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
+                'cooked' => $owner->cookedEvents()
+                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))->count(),
                 'followers' => $owner->followers()->count(),
                 'following' => $owner->following()->count(),
             ],
@@ -66,21 +80,60 @@ class ProfileController extends Controller
     {
         return $owner->posts()
             ->published()
-            ->when(! $isOwner, function ($query) use ($owner, $viewer): void {
-                // Wpisy "tylko dla obserwujących" widzi obserwujący; prywatne
-                // widzi wyłącznie autor.
-                $visibilities = [Post::VISIBILITY_PUBLIC];
-
-                if ($viewer !== null && $viewer->isFollowing($owner)) {
-                    $visibilities[] = Post::VISIBILITY_FOLLOWERS;
-                }
-
-                $query->whereIn('visibility', $visibilities);
-            })
+            ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
             ->with(['media', 'author.profile.avatar'])
             ->withCount('comments')
             ->latest('published_at')
             ->paginate(12)
             ->withQueryString();
+    }
+
+    /**
+     * Filtr widoczności wspólny dla wpisów i przepisów (issue #41).
+     *
+     * Wcześniej filtrowane były WYŁĄCZNIE wpisy. Zakładka „Przepisy" i liczniki
+     * pokazywały wszystko, co opublikowane — więc przepis oznaczony jako
+     * `private` albo `followers` był widoczny dla każdego, kto wszedł na profil.
+     *
+     * Policy tego nie łapała, bo Policy pilnuje WEJŚCIA NA ADRES treści, a nie
+     * zapytania budującego listę. To są dwie różne drogi i naprawienie jednej
+     * nie naprawia drugiej — dlatego macierz z issue #41 testuje je osobno.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     */
+    private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
+    {
+        if ($isOwner) {
+            return;
+        }
+
+        // „Tylko dla obserwujących" widzi obserwujący; prywatne — wyłącznie autor.
+        $widocznosci = ['public'];
+
+        if ($viewer !== null && $viewer->isFollowing($owner)) {
+            $widocznosci[] = 'followers';
+        }
+
+        $query->whereIn('visibility', $widocznosci);
+    }
+
+    /**
+     * Wykonania („Ugotowałem") nie mają własnej widoczności — idą za przepisem.
+     *
+     * Samo wykonanie nie jest tajne, ale ujawnia TYTUŁ przepisu. Lista wykonań
+     * bez tego filtra zdradzała tytuły przepisów prywatnych, mimo że sam przepis
+     * był nie do otwarcia. Wyciek przez tytuł to nadal wyciek.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     */
+    private function tylkoZWidocznychPrzepisow($query, $owner, $viewer, bool $isOwner): void
+    {
+        if ($isOwner) {
+            return;
+        }
+
+        $query->whereHas('recipe', function ($sub) use ($owner, $viewer): void {
+            $this->tylkoWidoczne($sub, $owner, $viewer, false);
+        });
     }
 }

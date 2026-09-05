@@ -6,6 +6,8 @@ namespace App\Domain\Search;
 
 use App\Models\Profile;
 use App\Models\Recipe;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -30,8 +32,11 @@ final class SearchQuery
     /** Poniżej tego progu podobieństwa wyniki są już przypadkowe. */
     private const SIMILARITY_THRESHOLD = 0.12;
 
-    /** @return Collection<int, Recipe> */
-    public function recipes(string $phrase, int $limit = 20): Collection
+    /**
+     * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
+     * @return Collection<int, Recipe>
+     */
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20): Collection
     {
         $phrase = trim($phrase);
 
@@ -43,6 +48,7 @@ final class SearchQuery
 
         return Recipe::query()
             ->publiclyVisible()
+            ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'recipes.author_id'))
             ->with(['author.profile', 'heroMedia'])
             ->withCount('cookedEvents')
             ->where(function ($query) use ($needle): void {
@@ -63,8 +69,11 @@ final class SearchQuery
             ->get();
     }
 
-    /** @return Collection<int, Profile> */
-    public function people(string $phrase, int $limit = 20): Collection
+    /**
+     * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
+     * @return Collection<int, Profile>
+     */
+    public function people(string $phrase, ?User $widz = null, int $limit = 20): Collection
     {
         $phrase = trim($phrase);
 
@@ -77,6 +86,7 @@ final class SearchQuery
         return Profile::query()
             ->with(['user', 'avatar'])
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
+            ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
             ->where(function ($query) use ($needle): void {
                 $query
                     ->whereRaw('kuking_normalize(display_name) LIKE ?', ['%'.$needle.'%'])
@@ -86,6 +96,45 @@ final class SearchQuery
             ->orderByRaw('similarity(kuking_normalize(display_name), ?) DESC', [$needle])
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * Wycięcie z wyników wszystkiego, co należy do osoby w relacji blokady
+     * z szukającym (issue #41).
+     *
+     * DLACZEGO TO MUSI BYĆ TUTAJ, A NIE W POLICY
+     * Wyszukiwarka to osobne zapytanie. Policy pilnuje wejścia na adres treści,
+     * filtry profilu pilnują listy profilu — żadne z nich nie dotyczy tego
+     * zapytania. Bez tego filtra blokada znaczyła tylko „nie zobaczę tej osoby,
+     * dopóki nie użyję wyszukiwarki", co jest obietnicą bez pokrycia.
+     *
+     * Blokada działa w OBIE strony (`AGENTS.md` §4): nieważne, kto kogo
+     * zablokował — stąd dwa warunki w `orWhere`.
+     *
+     * Dla gościa (`$widz === null`) nie ma czego filtrować: blokada jest relacją
+     * między dwoma kontami.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * @param  string  $kolumnaAutora  w pełni kwalifikowana kolumna z id właściciela treści
+     */
+    private function pomijajZablokowanych($query, ?User $widz, string $kolumnaAutora): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(function ($sub) use ($widz, $kolumnaAutora): void {
+            $sub->selectRaw('1')
+                ->from('blocks')
+                ->where(function ($w) use ($widz, $kolumnaAutora): void {
+                    $w->where('blocks.blocker_id', $widz->getKey())
+                        ->whereColumn('blocks.blocked_id', $kolumnaAutora);
+                })
+                ->orWhere(function ($w) use ($widz, $kolumnaAutora): void {
+                    $w->whereColumn('blocks.blocker_id', $kolumnaAutora)
+                        ->where('blocks.blocked_id', $widz->getKey());
+                });
+        });
     }
 
     /**

@@ -26,8 +26,10 @@ class SearchController extends Controller
         return view('pages.search', [
             'phrase' => $phrase,
             'section' => $section,
-            'recipes' => $section === 'przepisy' ? $this->search->recipes($phrase) : collect(),
-            'people' => $section === 'ludzie' ? $this->search->people($phrase) : collect(),
+            // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
+            // (issue #41). Bez niego blokada kończyła się na widoku i liście.
+            'recipes' => $section === 'przepisy' ? $this->search->recipes($phrase, $request->user()) : collect(),
+            'people' => $section === 'ludzie' ? $this->search->people($phrase, $request->user()) : collect(),
         ]);
     }
 }

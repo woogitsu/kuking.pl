@@ -116,6 +116,9 @@ jobs:
     # konfiguracyjny, analiza zaczyna działać i BLOKOWAĆ. Nie ma tu nic,
     # o czym trzeba pamiętać, żeby usunąć. Ta sama logika jest
     # w scripts/check.sh.
+    #
+    # Warunek MUSI używać `test -f ... || test -f ...`, nie `ls a b c` —
+    # patrz komentarz przy samym kroku niżej.
 
     steps:
       - uses: actions/checkout@v4
@@ -160,7 +163,12 @@ jobs:
       - name: Czy jest konfiguracja PHPStana?
         id: phpstan_config
         run: |
-          if ls phpstan.neon phpstan.neon.dist phpstan.dist.neon >/dev/null 2>&1; then
+          # UWAGA: `ls a b c` kończy się NIEZEROWO, jeśli brakuje
+          # KTÓREGOKOLWIEK z plików — a nie dopiero wtedy, gdy brakuje
+          # wszystkich. Poprzednia wersja tego kroku pomijała więc analizę
+          # także po dodaniu poprawnej konfiguracji, czyli obietnica „włączy
+          # się samo, gdy #32 doda plik" była nieprawdziwa.
+          if test -f phpstan.neon || test -f phpstan.neon.dist || test -f phpstan.dist.neon; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"

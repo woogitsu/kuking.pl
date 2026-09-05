@@ -96,7 +96,11 @@ class CookedEventController extends Controller
             'user.profile.avatar',
             'recipe.author.profile',
             'media',
+            // Komentarze filtrowane przez blokady (issue #41). Bez tego
+            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
+            'comments' => fn ($query) => $query->widoczneDla($request->user()),
             'comments.author.profile.avatar',
+            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
             'comments.replies.author.profile.avatar',
         ]);
 
