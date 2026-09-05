@@ -436,9 +436,39 @@ Lista wyżej zakłada, że pozostałe ~40 zmiennych ustawi `railway config apply
 **Serwis utworzony przez „New Project → Deploy from GitHub repo" nie wie nic
 o `railway.ts`** — trzeba mu je podać wprost.
 
-Jest to normalna droga na pierwszy zielony deploy: IaC można przyjąć później,
-a `railway.json` w katalogu głównym Railway czyta sam i bez niego build w ogóle
-nie ruszy (builder, komenda startowa, healthcheck, migracje w pre-deploy).
+Jest to normalna droga na pierwszy zielony deploy: IaC można przyjąć później.
+
+> ### `railway.json` NIE działa — sprawdzone na żywym projekcie
+>
+> Config as Code (`railway.json` / `railway.toml`) jest przez Railway
+> **wycofany**. API odpowiada wprost:
+>
+> ```
+> Config as Code (railway.json / railway.toml) is deprecated.
+> Use Infrastructure as Code (.railway/railway.ts) instead.
+> ```
+>
+> Plik w katalogu głównym jest po cichu ignorowany. Serwis utworzony klikaniem
+> startuje więc z **builderem RAILPACK**, bez komendy startowej, bez
+> healthchecku i **bez `preDeployCommand`** — czyli bez migracji. Objaw jest
+> mylący: build przechodzi, deploy melduje `SUCCESS`, a kontener chodzi
+> w pętli restartów na `relation "cache" does not exist`, bo schemat bazy
+> nigdy nie powstał.
+>
+> Do pierwszego uruchomienia ustaw to **wprost na serwisie** (Settings), albo
+> zastosuj IaC:
+>
+> | ustawienie | wartość |
+> |---|---|
+> | Builder | `Dockerfile`, ścieżka `Dockerfile` |
+> | Start Command | `/usr/local/bin/kuking-entrypoint all` |
+> | Pre-Deploy Command | `php artisan migrate --force --no-interaction` |
+> | Healthcheck Path | `/health`, timeout `180` |
+> | Restart Policy | `ON_FAILURE`, 10 prób |
+>
+> **Healthcheck nie jest ozdobnikiem.** Bez niego Railway przełącza ruch na
+> kontener, który się nie podniósł, i deploy jest „udany" mimo leżącej
+> aplikacji. Z nim deploy uczciwie pada na `Healthcheck failure`.
 
 → serwis → **Variables** → **Raw Editor** → wklej:
 
