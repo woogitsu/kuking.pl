@@ -349,7 +349,30 @@ export default defineRailway((ctx) => {
     build,
 
     deploy: {
-      startCommand: "/usr/local/bin/kuking-entrypoint web",
+      // -----------------------------------------------------------------------
+      //  ROLA MUSI PODĄŻAĆ ZA `splitServices`.
+      //
+      //  Entrypoint wybiera rolę tak: ROLE="${1:-${APP_ROLE:-web}}" — czyli
+      //  ARGUMENT WYGRYWA z APP_ROLE. Sprawdzone na samym skrypcie:
+      //
+      //      startCommand "...web" + APP_ROLE=all  →  ROLE=web
+      //      brak argumentu       + APP_ROLE=all  →  ROLE=all
+      //
+      //  Przy `splitServices=false` (staging, preview i produkcja w fazie alfa)
+      //  istnieje TYLKO ten jeden serwis, a APP_ROLE ustawiamy niżej na "all".
+      //  Zahardkodowane "web" nadpisywało to i kontener startował bez kolejki
+      //  i bez harmonogramu. Nic przy tym nie wybuchało — healthcheck zdaje,
+      //  strona działa. Ciche skutki:
+      //
+      //    * zdjęcia zostają na zawsze w stanie PENDING (warianty generuje
+      //      zadanie w kolejce), więc główna akcja serwisu nie kończy się;
+      //    * `kuking:zdejmij-wygasle-kary` nigdy nie chodzi, więc kara
+      //      „na 7 dni" staje się dożywotnia (#40);
+      //    * eksporty danych RODO nigdy nie powstają.
+      // -----------------------------------------------------------------------
+      startCommand: splitServices
+        ? "/usr/local/bin/kuking-entrypoint web"
+        : "/usr/local/bin/kuking-entrypoint all",
 
       // -----------------------------------------------------------------------
       //  MIGRACJE — faza RELEASE, nie BUILD.

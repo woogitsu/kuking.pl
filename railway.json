@@ -25,7 +25,7 @@
   },
 
   "deploy": {
-    "startCommand": "/usr/local/bin/kuking-entrypoint web",
+    "startCommand": "/usr/local/bin/kuking-entrypoint all",
     "preDeployCommand": ["php artisan migrate --force --no-interaction"],
     "preDeployTimeoutSeconds": 600,
     "healthcheckPath": "/health",
