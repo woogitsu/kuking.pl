@@ -20,6 +20,18 @@
 > | Spatie Permission | ⬜ do rozważenia — dziś `users.role` z `CHECK` (osobne issue) |
 > | Laravel Pennant | ⬜ do rozważenia (osobne issue) |
 >
+> **Research wykonany — wyniki w `docs/INSPIRATION_DECISIONS.md`.**
+> Issue #19 domknięte dla faz 1-3 (Laravel.io, Pixelfed, Fresns, Tandoor,
+> Mealie, Recipya, Discourse, Filament). Notatki z odwołaniami do plików
+> i linii leżą w `docs/research/repos/`. Ten dokument zostaje jako mapa
+> repozytoriów; **decyzje ADOPT/ADAPT/REJECT/LATER są w tamtym pliku**,
+> razem z sześcioma znalezionymi przy okazji błędami w naszym kodzie.
+> Fazy 4-5 (KitchenOwl, Grocy, Open Food Facts, importery) nieprzeanalizowane
+> — dotyczą V1/V2.
+>
+> Sprostowanie licencyjne: pozycja 4 (Tandoor) to AGPL-3.0 **+ Commons Clause**,
+> nie samo AGPL — szczegóły przy tej pozycji.
+>
 > Drobiazg do sprawdzenia przy okazji: pozycja 13 podaje `recipe-scrapers/recipe-scrapers`
 > jako TypeScript — powszechnie znany projekt o tej nazwie (`hhursev`) jest w Pythonie.
 > `[do weryfikacji przed pracami nad importem]`
@@ -106,7 +118,13 @@
 
 ### 4. `TandoorRecipes/recipes`
 - Repo: https://github.com/TandoorRecipes/recipes
-- Licencja: AGPL-3.0
+- Licencja: **AGPL-3.0 + „Commons Clause” v1.0** — sprostowane 5 września 2026
+  po lekturze `LICENSE.md` w repozytorium (issue #19). Commons Clause odbiera
+  prawo do „Sell the Software”, w tym do **płatnego hostingu i usług wsparcia**,
+  których wartość pochodzi w istotnej części z funkcjonalności tego
+  oprogramowania. Przy planach z `docs/MONETIZATION.md` to różnica istotna:
+  ograniczenie jest ostrzejsze niż samo AGPL.
+  Szczegóły: `docs/research/repos/TandoorRecipes-recipes.md` §1.
 - Po co: bardzo dobry wzorzec **modelu danych kulinarnych**.
 - Analizować:
   - foods/ingredients;
