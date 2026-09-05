@@ -3,8 +3,12 @@
     <div style="display:flex; gap:var(--spacing-4); align-items:flex-start;">
         @if($recipe->heroMedia)
             <a href="{{ route('recipes.show', $recipe->slug) }}" style="flex:none; width:120px;">
+                {{-- `zoom` wyłączone: miniatura jest już linkiem do przepisu.
+                     Zagnieżdżone `<a>` to nieprawidłowy HTML i psuje obsługę
+                     klawiaturą. Tu i tak sensowniejsze jest przejście do
+                     przepisu niż powiększenie zdjęcia. --}}
                 <x-photo :media="$recipe->heroMedia" variant="thumb"
-                         class="post-photo" />
+                         class="post-photo" :zoom="false" />
             </a>
         @endif
         <div style="min-width:0;">
