@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Http\Controllers\Controller;
+use App\Rules\ReservedUsername;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,12 +29,29 @@ class ProfileSettingsController extends Controller
         $user = $request->user();
         $profile = $user->profile;
 
+        // Druga — łatwiejsza do przeoczenia — droga do nazwy użytkownika.
+        // Sprawdzanie tylko przy rejestracji byłoby zabezpieczeniem na pokaz:
+        // wystarczyłoby założyć konto „basia" i zmienić je tutaj na „pomoc".
+        $usernameRules = [
+            'required', 'string', 'min:3', 'max:40', 'regex:/^[a-zA-Z0-9_]+$/',
+        ];
+
+        // Listę zastrzeżonych sprawdzamy TYLKO wtedy, gdy nazwa faktycznie się
+        // zmienia. Konta obsługi mają takie nazwy legalnie (w DemoSeederze jest
+        // @moderacja) — a formularz profilu wysyła wszystkie pola naraz, więc
+        // reguła działająca też przy niezmienionej nazwie zabrałaby takiej
+        // osobie możliwość zapisania czegokolwiek: bio, regionu, avatara.
+        // Odebranie komuś zastrzeżonej nazwy to sprawa moderacji, nie
+        // walidatora formularza ustawień.
+        if ($request->input('username') !== $profile->username) {
+            $usernameRules[] = new ReservedUsername;
+        }
+
+        $usernameRules[] = Rule::unique('profiles', 'username')->ignore($user->getKey(), 'user_id');
+
         $data = $request->validate([
             'display_name' => ['required', 'string', 'min:2', 'max:100'],
-            'username' => [
-                'required', 'string', 'min:3', 'max:40', 'regex:/^[a-zA-Z0-9_]+$/',
-                Rule::unique('profiles', 'username')->ignore($user->getKey(), 'user_id'),
-            ],
+            'username' => $usernameRules,
             'bio' => ['nullable', 'string', 'max:500'],
             'region' => ['nullable', 'string', 'max:80'],
             'speciality' => ['nullable', 'string', 'max:120'],
