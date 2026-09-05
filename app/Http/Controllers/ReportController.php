@@ -14,6 +14,7 @@ use App\Models\Report;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -67,7 +68,24 @@ class ReportController extends Controller
     {
         return match ($type) {
             'post' => Post::findOrFail($id),
-            'recipe' => Recipe::where('slug', $id)->orWhere('id', $id)->firstOrFail(),
+            // NIE `where('slug', $id)->orWhere('id', $id)`.
+            //
+            // `recipes.id` jest kolumną `uuid`, więc Postgres musi rzutować
+            // parametr na uuid, żeby w ogóle wykonać porównanie — niezależnie
+            // od tego, czy pierwszy warunek pasuje. Slug rzutowania nie
+            // przechodzi i całe zapytanie pada:
+            //
+            //   SQLSTATE[22P02]: invalid input syntax for type uuid: "rosol-babci"
+            //
+            // Skutek: przycisk „Zgłoś" pod KAŻDYM przepisem zwracał 500,
+            // bo widok przekazuje tam slug (pages/recipes/show.blade.php).
+            // Zgłaszanie treści to obowiązek z DSA art. 16, więc awaria
+            // dotyczyła nie wygody, tylko rzeczy, którą musimy zapewnić.
+            //
+            // Rozstrzygamy typ w PHP, zanim dotkniemy bazy.
+            'recipe' => Str::isUuid($id)
+                ? Recipe::findOrFail($id)
+                : Recipe::where('slug', $id)->firstOrFail(),
             'comment' => Comment::findOrFail($id),
             'cooked_event' => CookedEvent::findOrFail($id),
             'user' => Profile::where('username', $id)->firstOrFail()->user,
