@@ -45,7 +45,16 @@
             <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
             <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
             <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
-            <li><span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span></li>
+            <li>
+                <a href="{{ route('social.followers', $p->username) }}" style="text-decoration:none; color:inherit;">
+                    <span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('social.following', $p->username) }}" style="text-decoration:none; color:inherit;">
+                    <span class="stat-value">{{ $stats['following'] }}</span><span class="stat-label">obserwowanych</span>
+                </a>
+            </li>
         </ul>
 
         <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap; margin-top:var(--spacing-5);">

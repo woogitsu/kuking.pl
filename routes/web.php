@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
@@ -68,6 +69,12 @@ Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('priva
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
+
+// Listy relacji — publiczne jak sam profil, ale bez indeksowania (to nie
+// jest treść dla wyszukiwarki, tylko widok pomocniczy). Muszą stać PRZED
+// `/@{username}`, z tego samego powodu co reszta tras pod profilem.
+Route::get('/@{username}/obserwujacy', [SocialController::class, 'followers'])->name('social.followers');
+Route::get('/@{username}/obserwowani', [SocialController::class, 'following'])->name('social.following');
 
 // Profil na końcu, bo /@nazwa nie może przechwycić innych adresów.
 Route::get('/@{username}', [ProfileController::class, 'show'])->name('profile.show');
@@ -135,6 +142,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']}")
         ->name('posts.comment');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+
+    // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
+    // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.
+    Route::put('/komentarze/{comment}', [CommentController::class, 'update'])
+        ->middleware("throttle:{$limits['comment']}")
+        ->name('comments.update');
+    Route::delete('/komentarze/{comment}', [CommentController::class, 'destroy'])
+        ->middleware("throttle:{$limits['comment']}")
+        ->name('comments.destroy');
 
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::post('/dodaj/przepis', [RecipeController::class, 'store'])
