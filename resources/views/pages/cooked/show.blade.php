@@ -1,4 +1,12 @@
-<x-layout :title="$event->user->displayName().' ugotował: '.$event->recipe->title" :noindex="true">
+@php
+    // Przepis mógł zostać usunięty przez autora (audyt A23). Tytuł strony jest
+    // widoczny w karcie przeglądarki i w historii — nie wolno w nim przemycić
+    // nazwy przepisu, którego już nie ma.
+    $tytulStrony = $event->recipe
+        ? $event->user->displayName().' ugotował: '.$event->recipe->title
+        : $event->user->displayName().' — wykonanie przepisu';
+@endphp
+<x-layout :title="$tytulStrony" :noindex="true">
     <x-cooked-card :event="$event" :showRecipe="true" />
 
     @if(auth()->id() === $event->user_id)

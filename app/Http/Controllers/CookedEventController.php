@@ -59,6 +59,21 @@ class CookedEventController extends Controller
 
         $user = $request->user();
 
+        // „Zrobisz to jeszcze raz?" ma TRZY stany, nie dwa (audyt A22).
+        //
+        // Wcześniej stało tu `$request->boolean(...) ?: null`. Formularz wysyła
+        // value="0", więc świadome „Raczej nie powtórzę" wpadało w `?:`
+        // i lądowało w bazie jako `null`, czyli „nie zaznaczono". Zapisywały
+        // się wyłącznie pochwały, a gotowy render negatywnej odpowiedzi
+        // w karcie wykonania był kodem nie do wywołania.
+        //
+        // „Ugotowałem" to najcenniejszy sygnał jakości przepisu (AGENTS.md §1).
+        // Sygnał, w którym da się zapisać tylko „tak", nie jest sygnałem
+        // jakości — jest licznikiem pochwał.
+        $wouldMakeAgain = ($data['would_make_again'] ?? null) === null
+            ? null
+            : $request->boolean('would_make_again');
+
         try {
             $mediaIds = [];
 
@@ -71,7 +86,7 @@ class CookedEventController extends Controller
                 recipe: $model,
                 note: $data['note'] ?? null,
                 mediaIds: $mediaIds,
-                wouldMakeAgain: $request->boolean('would_make_again') ?: null,
+                wouldMakeAgain: $wouldMakeAgain,
                 perceivedDifficulty: $data['perceived_difficulty'] ?? null,
                 actualMinutes: $data['actual_minutes'] ?? null,
                 changesNote: $data['changes_note'] ?? null,
@@ -138,8 +153,21 @@ class CookedEventController extends Controller
     {
         $this->authorize('delete', $cookedEvent);
 
-        $slug = $cookedEvent->recipe->slug;
+        // Przepis mógł zostać usunięty (soft delete) po zapisaniu wykonania —
+        // wtedy relacja zwraca null (audyt A23). Wcześniej ta linia rzucała
+        // wyjątek PRZED skasowaniem, więc człowiek nie mógł usunąć własnego
+        // wykonania i zostawał z trwale zepsutą zakładką „Ugotowane".
+        $slug = $cookedEvent->recipe?->slug;
+        $wlascicielWykonania = $cookedEvent->user;
         $cookedEvent->delete();
+
+        if ($slug === null) {
+            // Nie ma dokąd wrócić „do przepisu" — wracamy tam, skąd człowiek
+            // to zobaczył, czyli do zakładki „Ugotowane" na jego profilu.
+            return redirect()
+                ->route('profile.show', ['username' => $wlascicielWykonania->profile->username, 'zakladka' => 'ugotowane'])
+                ->with('status', 'Wykonanie usunięte.');
+        }
 
         return redirect()->route('recipes.show', $slug)->with('status', 'Wykonanie usunięte.');
     }

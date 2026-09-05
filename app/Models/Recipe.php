@@ -259,6 +259,84 @@ class Recipe extends Model
         return 'PT'.($hours > 0 ? $hours.'H' : '').($rest > 0 ? $rest.'M' : '');
     }
 
+    /**
+     * Liczba porcji gotowa do pokazania człowiekowi (audyt A28).
+     *
+     * DLACZEGO TO NIE JEST `(int) $recipe->servings` W WIDOKU
+     * Kolumna `servings` to `decimal(6,2)`, a formularz dopuszcza `step=0.5`
+     * i `min=0.5`. Rzutowanie na `int` w widoku dawało:
+     *
+     *     w bazie 0.5  → „0 porcji"
+     *     w bazie 1.5  → „1 porcji"
+     *
+     * czyli przepis mówiący nieprawdę o samym sobie — a że ta sama wartość szła
+     * do JSON-LD jako `recipeYield`, nieprawda trafiała również do Google.
+     *
+     * Druga połowa to polszczyzna (AGENTS.md §11, docs/UX_50_PLUS.md).
+     * „1 porcji" i „2 porcji" to nie jest polski. Liczebnik rządzi
+     * rzeczownikiem, a ułamek zawsze bierze dopełniacz liczby mnogiej:
+     *
+     *     1        → porcja
+     *     2, 3, 4  → porcje    (ale 12, 13, 14 → porcji)
+     *     5 i dalej→ porcji
+     *     1,5      → porcji
+     *
+     * Separator dziesiętny po polsku to przecinek, nie kropka.
+     *
+     * Metoda siedzi na modelu, a nie w widoku, bo tę samą odpowiedź czyta
+     * i znaczek na stronie, i structured data — dwa różne teksty dla jednej
+     * liczby byłyby dwiema okazjami do pomyłki.
+     */
+    public function servingsLabel(): ?string
+    {
+        if ($this->servings === null) {
+            return null;
+        }
+
+        // decimal(6,2) — po zaokrągleniu do dwóch miejsc nie ma już „ogona"
+        // po arytmetyce zmiennoprzecinkowej.
+        $liczba = round((float) $this->servings, 2);
+
+        if ($liczba <= 0) {
+            return null;
+        }
+
+        $calkowita = abs($liczba - round($liczba)) < 0.005;
+
+        if ($calkowita) {
+            $ile = (int) round($liczba);
+
+            return $ile.' '.self::odmianaPorcji($ile);
+        }
+
+        // 1.5 → „1,5", 0.75 → „0,75". Zbędne zera z prawej znikają.
+        $tekst = rtrim(rtrim(number_format($liczba, 2, ',', ''), '0'), ',');
+
+        return $tekst.' porcji';
+    }
+
+    /**
+     * Odmiana rzeczownika „porcja" przez liczebnik główny.
+     *
+     * Pułapka jest w drugim warunku: 12, 13 i 14 mają końcówkę 2–4, ale idą
+     * jak „pięć". Bez `% 100` wychodzi „12 porcje".
+     */
+    private static function odmianaPorcji(int $ile): string
+    {
+        if ($ile === 1) {
+            return 'porcja';
+        }
+
+        $jednosci = $ile % 10;
+        $dwieOstatnie = $ile % 100;
+
+        if ($jednosci >= 2 && $jednosci <= 4 && ($dwieOstatnie < 12 || $dwieOstatnie > 14)) {
+            return 'porcje';
+        }
+
+        return 'porcji';
+    }
+
     public function difficultyLabel(): ?string
     {
         return $this->difficulty === null ? null : (self::DIFFICULTY_LABELS[$this->difficulty] ?? null);

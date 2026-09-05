@@ -1,6 +1,9 @@
 @php
     $isPublic = $recipe->visibility === 'public' && $recipe->isPublished();
     $total = $recipe->totalMinutes();
+    // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
+    // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
+    $porcje = $recipe->servingsLabel();
 @endphp
 <x-layout
     :title="$recipe->title"
@@ -28,7 +31,7 @@
                     'url' => route('profile.show', $recipe->author->profile->username),
                 ],
                 'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
-                'recipeYield' => $recipe->servings ? ((int) $recipe->servings).' porcji' : null,
+                'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
                 'totalTime' => $recipe->totalTimeIso(),
@@ -68,7 +71,20 @@
             <p class="meta" style="margin-bottom:var(--spacing-2);">{{ $recipe->attributionLine() }}</p>
             <h1 style="margin-top:0;">{{ $recipe->title }}</h1>
 
-            @if(! $recipe->isPublished())
+            @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
+                {{--
+                    Ukrycie przez moderację nie jest szkicem (audyt A08).
+                    Wcześniej autor dostawał tu komunikat „To jest szkic.
+                    Kliknij Edytuj”, a „Edytuj” oddawało 403 — interfejs
+                    obiecywał akcję, której nie ma, i nie mówił, co zrobić.
+                --}}
+                <p class="notice">
+                    <strong>Ten przepis jest ukryty przez moderację.</strong>
+                    Nie widzą go inne osoby i na razie nie da się go zmieniać.
+                    Jeśli uważasz, że to pomyłka, napisz do nas:
+                    {{ config('kuking.community.contact_email') }}
+                </p>
+            @elseif(! $recipe->isPublished())
                 <p class="notice"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
@@ -91,7 +107,7 @@
         @endif
 
         <ul class="recipe-facts">
-            @if($recipe->servings)<li><span class="badge">{{ (int) $recipe->servings }} porcji</span></li>@endif
+            @if($porcje)<li><span class="badge">{{ $porcje }}</span></li>@endif
             @if($total)<li><span class="badge">Razem około {{ $total }} min</span></li>@endif
             @if($recipe->difficultyLabel())<li><span class="badge">{{ $recipe->difficultyLabel() }}</span></li>@endif
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
@@ -192,8 +208,13 @@
 
         @auth
             <p>
+                {{-- Przycisk pyta Policy, a nie tylko o autorstwo: dla przepisu
+                     ukrytego przez moderację edycja jest zamknięta (audyt A08),
+                     więc nie pokazujemy guzika prowadzącego do 403. --}}
                 @if(auth()->id() === $recipe->author_id)
-                    <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Edytuj przepis</a>
+                    @can('update', $recipe)
+                        <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Edytuj przepis</a>
+                    @endcan
                 @else
                     <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'recipe', 'id' => $recipe->slug]) }}">Zgłoś</a>
                 @endif
