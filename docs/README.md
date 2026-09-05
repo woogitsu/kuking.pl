@@ -5,6 +5,10 @@ Decyzje już podjęte — i to, co musiałoby się stać, żeby je zmienić — 
 w [`DECISIONS.md`](./DECISIONS.md). **Przeczytaj go, zanim zaproponujesz
 zmianę architektury albo nowy pakiet.**
 
+Materiały pod konkretne decyzje właściciela (poczta transakcyjna, widoczność
+repozytorium, forma prawna operatora, kontrola językowa gry słowem „kuKING")
+są w [`decyzje/`](./decyzje/).
+
 Ten plik jest indeksem reszty.
 
 ## Produkt

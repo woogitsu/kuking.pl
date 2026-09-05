@@ -66,7 +66,10 @@
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 <img class="wordmark-mark" src="{{ asset('icons/kuking-mark.svg') }}" alt="" aria-hidden="true">
-                <span>KU<span class="wordmark-king">KING</span></span>
+                {{-- Wersaliki rozbite na dwa elementy są dla czytnika ekranu
+                     dwoma osobnymi napisami. Podajemy mu jeden, całą nazwę. --}}
+                <span aria-hidden="true">KU<span class="wordmark-king">KING</span></span>
+                <span class="visually-hidden">Kuking — strona główna</span>
             </a>
 
             <div style="display:flex; gap:var(--spacing-2); align-items:center;">
