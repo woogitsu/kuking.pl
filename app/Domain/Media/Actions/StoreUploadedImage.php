@@ -74,15 +74,38 @@ final class StoreUploadedImage
         // Klucz obiektu generujemy sami. Nazwa pliku od użytkownika nigdy nie
         // trafia do ścieżki — to zamyka drogę do path traversal i do plików
         // udających skrypty.
+        // PREFIKS `incoming/`, NIE `media/` — i zapis jako PRYWATNY.
+        //
+        // Warianty publikowane na stronie powstają przez przekodowanie do WebP,
+        // więc EXIF w nich nie ma. ORYGINAŁ zachowuje go w całości — łącznie
+        // ze współrzędnymi GPS, czyli adresem kuchni użytkownika.
+        //
+        // Wcześniej oryginał lądował pod `media/` jako `public`, a klucz
+        // wariantu powstawał z niego przez odcięcie rozszerzenia. Znając
+        // publiczny adres miniatury:
+        //
+        //     media/{id}/2026/09/{uuid}_feed.webp
+        //
+        // wystarczyło odciąć `_feed.webp` i dopisać `.jpg`, żeby pobrać
+        // oryginał w pełnej rozdzielczości, z GPS-em włącznie. Nic tego adresu
+        // nie publikowało, ale „nie linkujemy" nie jest zabezpieczeniem.
+        //
+        // Oryginału NIE kasujemy po przetworzeniu: eksport danych (RODO
+        // art. 20) ma oddać człowiekowi jego własne zdjęcie, a nie zmniejszoną
+        // kopię. Aplikacja czyta go po stronie serwera, więc prywatny dostęp
+        // niczego nie psuje.
+        //
+        // Zgodne z architekturą opisaną w INFRA_DECISION.md: `incoming/`
+        // prywatne, `media/…` publiczne.
         $objectKey = sprintf(
-            'media/%s/%s/%s.%s',
+            'incoming/%s/%s/%s.%s',
             $owner->getKey(),
             now()->format('Y/m'),
             Str::uuid()->toString(),
             $extension,
         );
 
-        Storage::disk($disk)->put($objectKey, $file->get(), 'public');
+        Storage::disk($disk)->put($objectKey, $file->get(), 'private');
 
         $media = Media::create([
             'owner_id' => $owner->getKey(),
