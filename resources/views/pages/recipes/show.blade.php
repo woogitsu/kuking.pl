@@ -46,7 +46,7 @@
                 'inLanguage' => 'pl-PL',
             ], static fn ($value) => $value !== null && $value !== []);
             @endphp
-            <script type="application/ld+json">{!! json_encode($recipeJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+            <x-json-ld :data="$recipeJsonLd" />
 
             @php
                 $breadcrumbJsonLd = [
@@ -59,7 +59,7 @@
                 ],
             ];
             @endphp
-            <script type="application/ld+json">{!! json_encode($breadcrumbJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+            <x-json-ld :data="$breadcrumbJsonLd" />
         @endif
     </x-slot:head>
 

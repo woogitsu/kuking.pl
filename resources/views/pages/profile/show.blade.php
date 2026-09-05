@@ -19,7 +19,7 @@
                 ],
             ];
             @endphp
-            <script type="application/ld+json">{!! json_encode($profileJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+            <x-json-ld :data="$profileJsonLd" />
         @endif
     </x-slot:head>
 
