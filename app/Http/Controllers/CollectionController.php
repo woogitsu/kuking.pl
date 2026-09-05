@@ -39,7 +39,14 @@ class CollectionController extends Controller
 
         return view('pages.collections.show', [
             'collection' => $collection,
+            // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
+            // o tym, co jest w środku. W środku są przepisy wielu różnych
+            // autorów, każdy z własną widocznością i własnymi blokadami —
+            // więc bez tego filtra publiczny zeszyt publikował cudze (albo
+            // własne) treści prywatne, a przepis osoby zablokowanej wracał do
+            // oglądającego przez cudzy pojemnik.
             'recipes' => $collection->recipes()
+                ->widoczneDla($request->user())
                 ->with(['author.profile', 'heroMedia'])
                 ->paginate(12),
         ]);

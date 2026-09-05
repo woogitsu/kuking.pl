@@ -151,6 +151,85 @@ class Recipe extends Model
         $query->published()->where('visibility', 'public');
     }
 
+    /**
+     * Przepisy, które wolno pokazać temu widzowi — niezależnie od tego, KTO
+     * jest ich autorem.
+     *
+     * DLACZEGO TO JEST SCOPE NA MODELU, A NIE HELPER W KONTROLERZE
+     * `ProfileController` ma własny, prywatny filtr — i to mu wystarcza,
+     * bo tam wszystkie przepisy należą do JEDNEGO właściciela profilu.
+     *
+     * W zeszycie tak nie jest: leżą tam przepisy wielu różnych autorów, każdy
+     * z własną widocznością i własnymi blokadami. Filtr musi więc pytać
+     * o relację widz ↔ autor osobno dla każdego wiersza, a nie raz dla całej
+     * listy.
+     *
+     * Kanoniczna tabela prawdy jest w `Tests\Feature\Visibility\WidocznoscTestCase`:
+     *
+     *   widz            | public | followers | private
+     *   ----------------|--------|-----------|--------
+     *   autor           |   ✓    |     ✓     |    ✓
+     *   obserwujący     |   ✓    |     ✓     |    ✗
+     *   obcy            |   ✓    |     ✗     |    ✗
+     *   zablokowany     |   ✗    |     ✗     |    ✗
+     *   niezalogowany   |   ✓    |     ✗     |    ✗
+     *
+     * Blokada ma pierwszeństwo przed wszystkim innym i działa w OBIE strony
+     * (`AGENTS.md` §4) — nieważne, kto kogo zablokował.
+     *
+     * @param  Builder<Recipe>  $query
+     */
+    public function scopeWidoczneDla(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            $query->published()->where('visibility', 'public');
+
+            return;
+        }
+
+        $widzId = $widz->getKey();
+
+        // 1. Blokada — pierwsza i bezwarunkowa, w obie strony.
+        $query->whereNotExists(function ($sub) use ($widzId): void {
+            $sub->selectRaw('1')
+                ->from('blocks')
+                ->where(function ($w) use ($widzId): void {
+                    $w->where('blocks.blocker_id', $widzId)
+                        ->whereColumn('blocks.blocked_id', 'recipes.author_id');
+                })
+                ->orWhere(function ($w) use ($widzId): void {
+                    $w->whereColumn('blocks.blocker_id', 'recipes.author_id')
+                        ->where('blocks.blocked_id', $widzId);
+                });
+        });
+
+        // 2. Widoczność, liczona per autor wiersza.
+        //
+        // `published()` celowo NIE obejmuje własnych przepisów widza. Autor ma
+        // widzieć swój szkic w swoim zeszycie — „poprawne dane nigdy nie
+        // znikają" (AGENTS.md, UX 50+). Gdyby filtr publikacji obowiązywał
+        // wszystkich, ta naprawa prywatności zabrałaby ludziom dostęp do
+        // własnych, niedokończonych przepisów.
+        $query->where(function ($w) use ($widzId): void {
+            $w->where('recipes.author_id', $widzId)
+                ->orWhere(function ($cudze) use ($widzId): void {
+                    $cudze->published()
+                        ->where(function ($widok) use ($widzId): void {
+                            $widok->where('visibility', 'public')
+                                ->orWhere(function ($obs) use ($widzId): void {
+                                    $obs->where('visibility', 'followers')
+                                        ->whereExists(function ($sub) use ($widzId): void {
+                                            $sub->selectRaw('1')
+                                                ->from('follows')
+                                                ->where('follows.follower_id', $widzId)
+                                                ->whereColumn('follows.followed_id', 'recipes.author_id');
+                                        });
+                                });
+                        });
+                });
+        });
+    }
+
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
