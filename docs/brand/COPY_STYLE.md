@@ -372,16 +372,35 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 
 ---
 
-## 8. Do rozstrzygnięcia przez właściciela
+## 8. Decyzje podjęte i te, które zostały
 
-1. **Jak mocno grać słowem kuKING.** Ten dokument zakłada dawkę umiarkowaną:
-   rejestracja, tablica polecanych, licznik społeczności, digest. Da się mocniej
-   (nazwy sekcji, powitania) albo słabiej (tylko nazwa i jedno hasło).
-2. **Czy „Zostań kuKINGiem" zastępuje „Załóż konto"** w każdym miejscu,
-   czy tylko na stronie głównej. Rekomendacja: tylko tam gdzie jest miejsce
-   na kontekst — w wąskim pasku nawigacji zostaje „Załóż konto".
-3. **Imię gospodarza w e-mailach.** Bez prawdziwego imienia digest traci
-   większość swojej wartości.
+### Podjęte
+
+**Dawka: umiarkowana** (decyzja właściciela, 5 września 2026 — `../DECISIONS.md` D-009).
+
+`kuKING` w 3-4 miejscach: rejestracja, tablica „kuKINGi na dziś", licznik
+społeczności, digest. Maksymalnie raz na ekran.
+
+Odrzucone świadomie:
+
+| Odrzucone | Dlaczego |
+|---|---|
+| `kuKINGujesz` | nowy czasownik trzeba zrozumieć, a nasz odbiorca nie lubi zgadywać |
+| `Mój kuKING` w nawigacji | nawigacja ma być przewidywalna, nie dowcipna |
+| forma żeńska | żadna nie brzmi po polsku dobrze |
+| dawka minimalna | „kuKINGi na dziś" to jedna z mocniejszych rzeczy w tym pomyśle, szkoda jej |
+
+**„Zostań kuKINGiem" zastępuje „Załóż konto"** tam, gdzie jest miejsce na
+kontekst: strona główna i nagłówek `/register`. W wąskim pasku nawigacji
+zostaje krótkie „Załóż konto".
+
+### Zostały
+
+1. **Imię gospodarza w e-mailach.** Bez prawdziwego imienia digest traci
+   większość swojej wartości. Czeka na rozstrzygnięcie, kto jest gospodarzem
+   (`../DECISIONS.md` D-012).
+2. **Weryfikacja u realnych użytkowników.** Dawka jest wybrana rozsądnie, ale
+   dopiero testy z osobami 50+ (#15) powiedzą, czy „kuKING" bawi, czy męczy.
 
 ## Referencje
 

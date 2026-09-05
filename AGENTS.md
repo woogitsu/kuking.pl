@@ -49,7 +49,10 @@ Przeczytaj w tej kolejności:
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
 7. `docs/ROADMAP.md` — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
-8. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
+8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
+   zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
+   Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
+9. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
 
 Jeśli pracujesz nad wyglądem: `docs/design/DESIGN_SYSTEM.md`.
 Jeśli nad moderacją lub prawem: `docs/legal/`.
@@ -287,6 +290,14 @@ Test na SQLite przechodziłby, nic nie sprawdzając.
 
 ```bash
 createdb kuking_test     # jednorazowo
+```
+
+**Jeśli pracujesz w worktree gita z dowiązanym `vendor`** — dodaj jawną ścieżkę
+bazową, inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy
+będą fałszywie zielone:
+
+```bash
+APP_BASE_PATH=$(pwd) php artisan test
 ```
 
 ### Pull Request zawiera

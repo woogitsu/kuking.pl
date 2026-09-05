@@ -60,3 +60,7 @@ php artisan migrate --force        # w przód
 php artisan migrate:refresh --force # i z powrotem: sprawdza down()
 php artisan test
 ```
+
+W worktree gita z dowiązanym `vendor` każda komenda artisana potrzebuje
+`APP_BASE_PATH=$(pwd)` — bez tego Laravel ładuje trasy i klasy z głównego
+katalogu, a testy są fałszywie zielone.

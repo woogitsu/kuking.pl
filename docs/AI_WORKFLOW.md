@@ -145,6 +145,29 @@ Cztery rzeczy, które sprawiają, że to działa:
 4. **Symlink na `vendor` i `node_modules`** z głównego katalogu zamiast
    ponownej instalacji — oszczędza minuty i omija limity pobierania z GitHuba.
 
+### ⚠️ Pułapka symlinku: `APP_BASE_PATH`
+
+Symlink na `vendor` ma jedną poważną konsekwencję, która potrafi zmarnować
+godzinę i — co gorsza — **dać fałszywie zielone testy**.
+
+Laravel wylicza `base_path()` z lokalizacji `vendor/composer/ClassLoader.php`.
+Gdy `vendor` jest dowiązaniem do głównego repozytorium, framework uruchomiony
+w worktree ładuje **trasy, konfigurację i klasy z głównego katalogu**, a nie
+z worktree. Objawy są mylące: `php artisan route:list` pokazuje nowe trasy
+poprawnie, ale test dostaje „Route not defined"; albo test przechodzi,
+mimo że w ogóle nie wykonał nowego kodu.
+
+Dlatego **każda komenda artisana w worktree** idzie z jawną ścieżką bazową:
+
+```bash
+APP_BASE_PATH=$(pwd) DB_DATABASE=kuking_test_b php artisan test
+APP_BASE_PATH=$(pwd) php artisan migrate --force
+APP_BASE_PATH=$(pwd) php artisan serve --port=8201
+```
+
+W głównym katalogu repozytorium nie jest to potrzebne — `vendor` jest tam
+prawdziwym katalogiem.
+
 Scalanie: gałęzie wracają pojedynczo, po każdej pełny `./scripts/check.sh`.
 Konflikt jest praktycznie zawsze w `routes/web.php` — dlatego każdy agent ma
 polecenie dopisywać tam tylko własne trasy i wspominać o tym w raporcie.

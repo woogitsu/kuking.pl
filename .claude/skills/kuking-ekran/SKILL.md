@@ -71,3 +71,7 @@ vendor/bin/pint
 php artisan test
 npm run build
 ```
+
+W worktree gita z dowiązanym `vendor` każda komenda artisana potrzebuje
+`APP_BASE_PATH=$(pwd)` — bez tego Laravel ładuje trasy i klasy z głównego
+katalogu, a testy są fałszywie zielone.

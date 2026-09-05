@@ -1,6 +1,10 @@
 # Dokumentacja Kuking.pl
 
 Zasady pracy dla agentów AI są w [`AGENTS.md`](../AGENTS.md) w katalogu głównym.
+Decyzje już podjęte — i to, co musiałoby się stać, żeby je zmienić — są
+w [`DECISIONS.md`](./DECISIONS.md). **Przeczytaj go, zanim zaproponujesz
+zmianę architektury albo nowy pakiet.**
+
 Ten plik jest indeksem reszty.
 
 ## Produkt
@@ -93,5 +97,6 @@ Znaki używane w produkcie: [`../public/icons/`](../public/icons/).
 | [`infra/INFRA_DECISION.md`](./infra/INFRA_DECISION.md) | Railway + Cloudflare, dlaczego bez Workers, koszty |
 | [`infra/DEPLOYMENT_RUNBOOK.md`](./infra/DEPLOYMENT_RUNBOOK.md) | krok po kroku, dla osoby nietechnicznej |
 | [`infra/CI_BEZ_ACTIONS.md`](./infra/CI_BEZ_ACTIONS.md) | jak mamy CI bez minut GitHub Actions i kiedy je włączyć |
+| [`infra/SELF_HOSTED_RUNNER.md`](./infra/SELF_HOSTED_RUNNER.md) | **instrukcja własnego runnera** — od pustego VPS-a do zielonego CI |
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | zarys z blueprintu |
 | [`COSTS.md`](./COSTS.md) | koszty startowe |
