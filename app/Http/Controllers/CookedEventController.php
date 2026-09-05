@@ -138,8 +138,21 @@ class CookedEventController extends Controller
     {
         $this->authorize('delete', $cookedEvent);
 
-        $slug = $cookedEvent->recipe->slug;
+        // Przepis mógł zostać usunięty (soft delete) po zapisaniu wykonania —
+        // wtedy relacja zwraca null (audyt A23). Wcześniej ta linia rzucała
+        // wyjątek PRZED skasowaniem, więc człowiek nie mógł usunąć własnego
+        // wykonania i zostawał z trwale zepsutą zakładką „Ugotowane".
+        $slug = $cookedEvent->recipe?->slug;
+        $wlascicielWykonania = $cookedEvent->user;
         $cookedEvent->delete();
+
+        if ($slug === null) {
+            // Nie ma dokąd wrócić „do przepisu" — wracamy tam, skąd człowiek
+            // to zobaczył, czyli do zakładki „Ugotowane" na jego profilu.
+            return redirect()
+                ->route('profile.show', ['username' => $wlascicielWykonania->profile->username, 'zakladka' => 'ugotowane'])
+                ->with('status', 'Wykonanie usunięte.');
+        }
 
         return redirect()->route('recipes.show', $slug)->with('status', 'Wykonanie usunięte.');
     }

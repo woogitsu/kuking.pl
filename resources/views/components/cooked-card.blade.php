@@ -19,7 +19,17 @@
 
     @if($showRecipe)
         <p style="margin:0 0 var(--spacing-3);">
-            z przepisu <a href="{{ route('recipes.show', $event->recipe->slug) }}">{{ $event->recipe->title }}</a>
+            @if($event->recipe)
+                z przepisu <a href="{{ route('recipes.show', $event->recipe->slug) }}">{{ $event->recipe->title }}</a>
+            @else
+                {{--
+                    Przepis został usunięty (audyt A23). Świadomie NIE sięgamy
+                    po withTrashed(): tytuł i adres przepisu, który autor sam
+                    skasował, nie mogą wrócić na ekran bocznymi drzwiami.
+                    Zdjęcie i notatka zostają, bo to jest treść kucharza.
+                --}}
+                Przepisu, z którego to powstało, już nie ma.
+            @endif
         </p>
     @endif
 
