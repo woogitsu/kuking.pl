@@ -51,13 +51,29 @@ final class PublishRecipe
         $cleanIngredients = $this->cleanIngredients($ingredients);
         $cleanSteps = $this->cleanSteps($steps);
 
-        if ($publish) {
+        // WARUNEK BRZMI „czy po zapisie przepis BĘDZIE publiczny", nie „czy
+        // ktoś kliknął Opublikuj".
+        //
+        // Wcześniej było `if ($publish)`, przez co zapis szkicu na JUŻ
+        // OPUBLIKOWANYM przepisie omijał kontrolę kompletności. `syncIngredients()`
+        // kasuje i odtwarza wiersze, a status zostawał `published` — więc jedno
+        // kliknięcie przycisku, który brzmi jak prywatny zapis roboczy,
+        // zamieniało opublikowany przepis w pustą skorupę:
+        //
+        //     status: published   ingredients: 0   steps: 0   versions: 0
+        //
+        // Strona publiczna nadal zwracała 200 i pokazywała „Autor jeszcze nie
+        // dodał składników". Bez ostrzeżenia i bez wersji do odtworzenia,
+        // bo snapshot powstaje tylko przy publikacji (audyt A07).
+        $bedziePubliczny = $publish || ($existing !== null && $existing->isPublished());
+
+        if ($bedziePubliczny) {
             if ($cleanIngredients === []) {
-                throw new RuntimeException('Dodaj przynajmniej jeden składnik, żeby opublikować przepis.');
+                throw new RuntimeException('Dodaj przynajmniej jeden składnik — bez tego przepis nie może być opublikowany.');
             }
 
             if ($cleanSteps === []) {
-                throw new RuntimeException('Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis.');
+                throw new RuntimeException('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
             }
         }
 

@@ -172,7 +172,9 @@
             @endfor
 
             <p class="field-help">
-                Potrzebujesz więcej wierszy? Zapisz szkic — po zapisaniu pojawi się kolejne puste pole.
+                @unless($isEdit && $recipe->isPublished())
+                    Potrzebujesz więcej wierszy? Zapisz szkic — po zapisaniu pojawi się kolejne puste pole.
+                @endunless
                 W <a href="{{ route('recipes.create') }}">kreatorze w trzech krokach</a> wiersze
                 dodaje się i usuwa od razu, bez zapisywania.
             </p>
@@ -203,7 +205,17 @@
             <button class="btn btn-primary" type="submit" name="action" value="publish">
                 {{ $isEdit && $recipe->isPublished() ? 'Zapisz zmiany' : 'Opublikuj przepis' }}
             </button>
-            <button class="btn btn-secondary" type="submit" name="action" value="draft">Zapisz szkic</button>
+            {{-- „Zapisz szkic" tylko dla przepisu, który JESZCZE nie jest
+                 opublikowany. Przy opublikowanym ten przycisk nie ma sensu:
+                 nie ma stanu roboczego, do którego można by wrócić, a jego
+                 nazwa obiecuje prywatny zapis, którym nie jest.
+
+                 Serwer i tak nie pozwoli opróżnić opublikowanego przepisu
+                 (PublishRecipe: warunek `$bedziePubliczny`) — ale przycisk,
+                 który zawsze kończy się błędem, jest gorszy niż jego brak. --}}
+            @unless($isEdit && $recipe->isPublished())
+                <button class="btn btn-secondary" type="submit" name="action" value="draft">Zapisz szkic</button>
+            @endunless
             <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
         </div>
     </form>
