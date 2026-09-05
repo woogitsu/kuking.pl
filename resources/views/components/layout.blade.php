@@ -172,6 +172,32 @@
                 <span class="site-version">{{ \App\Support\Wersja::pelna() }}</span>
             </div>
         </footer>
+
+        {{--
+            Powiększone zdjęcie.
+
+            Natywny `<dialog>`, nie własna nakładka z div-ów. Przeglądarka daje
+            za darmo rzeczy, które robi się źle ręcznie: pułapkę focusu,
+            zamykanie klawiszem Escape, poprawną rolę dla czytników ekranu
+            i tło blokujące klikanie tego, co pod spodem.
+
+            Element jest PUSTY do momentu otwarcia — zdjęcie wstawia skrypt.
+            Dzięki temu strona nie pobiera dużych wariantów wszystkich zdjęć
+            „na zapas", co przy feedzie z dwudziestoma pozycjami byłoby
+            kilkunastoma megabajtami na łączu, którego nikt nie prosił.
+
+            Bez JavaScriptu ten `<dialog>` nigdy się nie otwiera i nie
+            przeszkadza — kliknięcie w zdjęcie po prostu otwiera duży wariant
+            na osobnej stronie.
+        --}}
+        <dialog id="powiekszenie" class="lightbox" aria-label="Powiększone zdjęcie">
+            <img class="lightbox-obraz" src="" alt="">
+
+            {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
+            <form method="dialog" class="lightbox-akcje">
+                <button class="btn btn-secondary" type="submit">Zamknij</button>
+            </form>
+        </dialog>
     </div>
 
     @auth

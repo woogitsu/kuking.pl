@@ -92,3 +92,70 @@ document.addEventListener('change', (event) => {
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.error-summary')?.focus();
 });
+
+// --- Powiększanie zdjęć ---------------------------------------------------
+
+/*
+ * Kliknięcie w zdjęcie otwiera je w nakładce, bez opuszczania feedu.
+ *
+ * ZASADA TEGO PLIKU OBOWIĄZUJE I TUTAJ: bez skryptu link działa normalnie
+ * i otwiera duży wariant na osobnej stronie. Dlatego w Blade jest `<a href>`,
+ * a nie `<button onclick>` — nie odbieramy nikomu działającego zachowania,
+ * tylko dokładamy wygodniejsze.
+ *
+ * Używamy natywnego `<dialog>`, bo `showModal()` daje za darmo pułapkę
+ * focusu, zamykanie Escape'em i poprawną semantykę dla czytników ekranu.
+ * Ręczna nakładka z div-ów wymagałaby napisania tego wszystkiego od nowa —
+ * i zwykle jest napisana źle.
+ */
+
+(() => {
+    const okno = document.getElementById('powiekszenie');
+
+    if (!okno || typeof okno.showModal !== 'function') {
+        // Stara przeglądarka bez <dialog>. Zostawiamy linki w spokoju —
+        // klikanie nadal otwiera duże zdjęcie na osobnej stronie.
+        return;
+    }
+
+    const obraz = okno.querySelector('.lightbox-obraz');
+
+    document.addEventListener('click', (zdarzenie) => {
+        const link = zdarzenie.target.closest('a[data-powieksz]');
+
+        if (!link) {
+            return;
+        }
+
+        // Nie przechwytujemy kliknięć, które użytkownik ŚWIADOMIE kieruje
+        // gdzie indziej: nowa karta (Ctrl/Cmd), nowe okno (Shift), środkowy
+        // przycisk myszy. Odbieranie tego jest jednym z najbardziej
+        // irytujących zachowań w internecie.
+        if (zdarzenie.metaKey || zdarzenie.ctrlKey || zdarzenie.shiftKey || zdarzenie.button !== 0) {
+            return;
+        }
+
+        zdarzenie.preventDefault();
+
+        obraz.src = link.getAttribute('href');
+        obraz.alt = link.dataset.alt || '';
+
+        okno.showModal();
+    });
+
+    // Kliknięcie w tło zamyka. To jest DODATEK do przycisku „Zamknij”,
+    // nie jedyna droga — samo tło nie jest oczywiste dla nikogo, kto nie
+    // korzystał wcześniej z takich nakładek (UX_50_PLUS).
+    okno.addEventListener('click', (zdarzenie) => {
+        if (zdarzenie.target === okno) {
+            okno.close();
+        }
+    });
+
+    // Po zamknięciu zwalniamy zdjęcie z pamięci. Przy przeglądaniu feedu
+    // z wieloma dużymi zdjęciami inaczej zostają wszystkie naraz.
+    okno.addEventListener('close', () => {
+        obraz.removeAttribute('src');
+        obraz.alt = '';
+    });
+})();
