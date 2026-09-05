@@ -18,9 +18,57 @@ Konto:
 - email;
 - password;
 - status;
+- `status_expires_at` — kiedy kara mija (patrz niżej);
 - locale;
 - text_scale;
 - verified timestamps.
+
+#### `status_expires_at` — termin wygaśnięcia kary
+
+Migracja `2026_09_05_001400_add_status_expires_at_to_users` (issue #40).
+
+`docs/legal/MODERATION_PLAYBOOK.md` przewiduje blokady czasowe („7 dni"), ale
+do tej pory nie było gdzie zapisać, kiedy kara mija. Przy jednym moderatorze
+(D-012) nikt nie odklikuje tego ręcznie po tygodniu, więc **każda blokada
+czasowa stawała się w praktyce trwała** — playbook obiecywał coś, czego system
+nie umiał zrobić.
+
+```sql
+ALTER TABLE users
+ADD CONSTRAINT users_status_expires_at_check
+CHECK (status_expires_at IS NULL OR status = 'suspended');
+```
+
+**Termin dotyczy WYŁĄCZNIE statusu `suspended`:**
+
+- `banned` jest bezterminowy z definicji — odwołanie idzie ścieżką odwoławczą
+  (#10), nie zegarem;
+- `pending_delete` ma własny licznik (`delete_requested_at`);
+- `active` nie jest karą.
+
+Zawieszenie **bez** terminu nadal jest możliwe (`NULL`) — to jest zawieszenie
+do decyzji człowieka.
+
+Konsekwencja praktyczna, o której trzeba wiedzieć: eskalacja `suspended` →
+`banned` **musi** wyczyścić termin, inaczej baza odrzuci wiersz. Robi to
+`User::ban()`. Gdyby termin został, zadanie w harmonogramie przywróciłoby
+dostęp osobie właśnie zbanowanej — CHECK zamyka tę drogę na poziomie bazy,
+a nie tylko w PHP (`AGENTS.md` §6).
+
+Indeks częściowy `users_status_expires_at_idx` obejmuje wyłącznie wiersze
+z niepustym terminem — pyta o nie tylko `kuking:zdejmij-wygasle-kary`,
+a zdecydowana większość kont ma tu `NULL`.
+
+**Kto zdejmuje karę:**
+
+1. `kuking:zdejmij-wygasle-kary` — co godzinę, dla kont, które nie wracają same;
+2. middleware `EnsureAccountIsActive` — natychmiast, gdy karany wejdzie na
+   stronę po terminie (żeby nie czekał na crona w dniu końca kary).
+
+**Rollback:** `down()` zdejmuje CHECK, indeks i kolumnę. Tracimy terminy
+aktywnych zawieszeń — wraca więc problem sprzed migracji — ale żadne konto nie
+zmienia statusu i nikt nie traci dostępu. Konta zawieszone zostają zawieszone
+do ręcznej decyzji moderatora.
 
 ### profiles
 - user_id;

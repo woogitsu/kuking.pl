@@ -118,6 +118,33 @@
                     @endif
                 </div>
 
+                {{--
+                    Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
+
+                    Osoba zawieszona musi wiedzieć dwie rzeczy bez szukania:
+                    że nie może publikować i DO KIEDY. Pokazywanie tego dopiero
+                    przy nieudanej próbie publikacji znaczyłoby, że najpierw
+                    pisze wpis, a dopiero potem dowiaduje się, że nie ma to sensu.
+
+                    Data po polsku, nie ISO — docs/UX_50_PLUS.md.
+                    Bez gry słowem „kuKING" — D-009 zabrania jej w wiadomościach
+                    moderacyjnych.
+                --}}
+                @if(auth()->user()?->isSuspended())
+                    <div class="notice" role="status">
+                        @if(auth()->user()->status_expires_at)
+                            <strong>Twoje konto jest zawieszone do
+                                {{ auth()->user()->status_expires_at->translatedFormat('j F Y') }}.</strong>
+                            <span>Do tego czasu możesz czytać, ale nie opublikujesz wpisu ani komentarza.
+                                Konto wróci samo — nie musisz nic robić.</span>
+                        @else
+                            <strong>Twoje konto jest zawieszone.</strong>
+                            <span>Do odwołania możesz czytać, ale nie opublikujesz wpisu ani komentarza.
+                                Napisz do nas: {{ config('kuking.community.contact_email') }}</span>
+                        @endif
+                    </div>
+                @endif
+
                 {{ $slot }}
             </main>
         </div>

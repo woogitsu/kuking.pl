@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\ApplySecurityHeaders;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureUserIsModerator;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,6 +22,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             ApplySecurityHeaders::class,
+
+            // GLOBALNIE, nie wybiórczo na kontrolerach (issue #39).
+            // Wybiórczo znaczy: następny nowy kontroler o tym zapomni, a brak
+            // tej kontroli niczego nie wywala — po prostu przepuszcza konto,
+            // które miało być odcięte. Middleware sam sprawdza, czy ktoś jest
+            // zalogowany, więc na trasach gościa nie robi nic.
+            EnsureAccountIsActive::class,
         ]);
 
         $middleware->alias([
