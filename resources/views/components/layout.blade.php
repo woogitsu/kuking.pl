@@ -161,6 +161,15 @@
                 <a href="{{ route('rules') }}">Zasady</a>
                 <a href="{{ route('terms') }}">Regulamin</a>
                 <a href="{{ route('privacy') }}">Prywatność</a>
+
+                {{-- Wersja: etap produktu + skrót wdrożonego commita.
+                     Widoczna zawsze, żeby dało się jednym spojrzeniem
+                     sprawdzić, co dokładnie działa na tej stronie.
+
+                     Bez `title` z pełnym skrótem: na telefonie nie ma najazdu
+                     kursorem, a informacja dostępna tylko przez hover jest
+                     dla części osób niedostępna w ogóle (UX_50_PLUS). --}}
+                <span class="site-version">{{ \App\Support\Wersja::pelna() }}</span>
             </div>
         </footer>
     </div>

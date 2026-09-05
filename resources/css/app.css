@@ -625,6 +625,21 @@
     .site-footer { padding-bottom: var(--spacing-8); }
   }
 
+  /* Wersja aplikacji.
+     `margin-left: auto` odsuwa ją na koniec wiersza, żeby nie mieszała się
+     z linkami — ale przy zawijaniu (telefon) po prostu schodzi do nowej
+     linii, zamiast wypychać cokolwiek poza ekran.
+
+     Rozmiar zostaje taki jak reszta stopki. Kuszące jest zmniejszenie go
+     „bo to techniczny drobiazg", ale w serwisie dla osób 50+ nie robimy
+     tekstu, którego trzeba się domyślać (UX_50_PLUS). Odróżnia się kolorem,
+     nie wielkością. */
+  .site-version {
+    margin-left: auto;
+    color: var(--color-ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
   .skip-link {
     position: absolute;
     left: var(--spacing-4);
