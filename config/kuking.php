@@ -84,6 +84,24 @@ return [
         'search' => '60,1',
     ],
 
+    'exports' => [
+        // Paczka z danymi to kopia CAŁEGO konta — nie może leżeć na dysku
+        // publicznym. Dysk `local` jest prywatny; pobranie idzie przez trasę
+        // z podpisem, nie przez bezpośredni URL do pliku.
+        'disk' => env('KUKING_EXPORT_DISK', 'local'),
+
+        // Ile dni paczka jest do pobrania. Po tym czasie plik jest kasowany
+        // (komenda kuking:sprzataj-eksporty) — nie trzymamy w storage kopii
+        // konta bez końca.
+        'ttl_days' => (int) env('KUKING_EXPORT_TTL_DAYS', 7),
+
+        // Ile plików zdjęć wrzucamy do archiwum, zanim domkniemy je i otworzymy
+        // od nowa. ZipArchive wymaga, żeby dodane pliki istniały do momentu
+        // close(); ten próg ogranicza zużycie dysku tymczasowego przy koncie
+        // z tysiącem zdjęć.
+        'photo_flush_every' => 25,
+    ],
+
     'community' => [
         // Adres, na który idą zgłoszenia i sprawy moderacyjne.
         'contact_email' => env('KUKING_CONTACT_EMAIL', 'kontakt@kuking.pl'),
