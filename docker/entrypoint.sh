@@ -99,10 +99,35 @@ fi
 # deploy, zamiast wpuszczać ruch na coś zepsutego.
 php /app/artisan optimize --no-interaction
 
-# storage:link tworzy public/storage → storage/app/public.
-# Przy FILESYSTEM_DISK=r2 nie jest potrzebny, ale nic nie kosztuje i ratuje
-# sytuację, gdy ktoś zapisze coś na dysk lokalny.
-php /app/artisan storage:link --no-interaction >/dev/null 2>&1 || true
+# -----------------------------------------------------------------------------
+#  DYSK LOKALNY NA PLIKI UŻYTKOWNIKÓW
+#
+#  Katalogi MUSZĄ powstać PRZED `storage:link`. Symlink wskazujący na
+#  nieistniejący katalog jest martwy, a serwer zwraca wtedy 404 na każdy plik
+#  — mimo że `storage:link` „się udał".
+#
+#  Dokładnie to zdarzyło się na produkcji: wgrane zdjęcie przetwarzało się
+#  poprawnie (ProcessUploadedImage kończył się DONE), a w interfejsie była
+#  ikona zepsutego obrazka. `/storage/cokolwiek` zwracało 404, podczas gdy
+#  `/build/manifest.json` dawało 200 — czyli serwer działał, tylko ta jedna
+#  ścieżka prowadziła donikąd.
+#
+#  Wcześniej sekcja wyżej tworzyła `storage/framework/*` i `storage/logs`,
+#  ale nie `storage/app/*`, bo projekt zakłada docelowo R2. Założenie jest
+#  słuszne, tylko dopóki R2 nie działa, dysk lokalny musi być sprawny.
+#
+#  `private` to korzeń dysku `local` w Laravelu 11+ (oryginały zdjęć, audyt
+#  A02), `public` — dysku `public` (warianty publikowane na stronie).
+# -----------------------------------------------------------------------------
+mkdir -p /app/storage/app/public /app/storage/app/private
+
+# Błąd NIE jest już połykany. Wcześniej `|| true` z przekierowanym wyjściem
+# ukrywał niepowodzenie, więc awaria objawiała się dopiero jako zepsute
+# zdjęcia u użytkownika, bez śladu w logach.
+if ! php /app/artisan storage:link --no-interaction >/dev/null 2>&1; then
+  log "OSTRZEŻENIE: storage:link nie zadziałał — pliki z dysku lokalnego będą zwracać 404."
+  log "  Nie zatrzymuję startu: przy FILESYSTEM_DISK=r2 ten link nie jest potrzebny."
+fi
 
 # -----------------------------------------------------------------------------
 # 4. Graceful shutdown.
@@ -162,15 +187,46 @@ start_worker() {
 }
 
 start_scheduler() {
-  # schedule:work zamiast crona systemowego ani Railway Cron:
-  #   * Railway Cron ma minimalną granulację 5 minut, a Laravel scheduler
-  #     musi być odpytywany CO MINUTĘ, żeby everyMinute()/everyFiveMinutes()
-  #     działały zgodnie z definicją.
-  #     Źródło: https://docs.railway.com/cron-jobs (sekcja "Frequency")
-  #   * schedule:work to oficjalny, długożyjący odpowiednik crona w Laravelu.
+  # Pętla wokół `schedule:run` zamiast `schedule:work` — patrz uzasadnienie
+  # w harmonogram_raz(). Nie Railway Cron, bo ten ma minimalną granulację
+  # 5 minut, a Laravel scheduler musi być odpytywany CO MINUTĘ, żeby
+  # everyMinute()/everyFiveMinutes() działały zgodnie z definicją.
+  # Źródło: https://docs.railway.com/cron-jobs (sekcja "Frequency")
+  #
   # WAŻNE: dokładnie 1 replika. Dwie repliki = podwójne maile z digestem.
-  log "start schedule:work"
-  exec php /app/artisan schedule:work --no-interaction
+  log "start harmonogramu (schedule:run co 60 s)"
+
+  while true; do
+    harmonogram_raz
+    sleep 60
+  done
+}
+
+# -----------------------------------------------------------------------------
+#  DLACZEGO PĘTLA, A NIE `schedule:work`
+#
+#  `docker/php.ini` wyłącza `proc_open` (hardening — AGENTS.md zabrania go
+#  osłabiać). `schedule:work` uruchamia `schedule:run` przez Symfony Process,
+#  który tej funkcji wymaga, więc na produkcji kończył się natychmiast:
+#
+#      The Process class relies on proc_open, which is not available
+#      on your PHP installation.
+#
+#  W roli `all` śmierć któregokolwiek procesu potomnego kończy cały kontener
+#  (`wait -n`), więc harmonogram kładł CAŁY SERWIS co uruchomienie. Objawiało
+#  się to jako losowe 502 w trakcie normalnej pracy.
+#
+#  Ta pętla robi to, co robiłby cron systemowy, i nie potrzebuje proc_open.
+#  Same zadania są zdefiniowane jako `Schedule::call()` (routes/console.php),
+#  więc wykonują się w tym samym procesie PHP — też bez proc_open.
+#
+#  Błąd pojedynczego przebiegu NIE zatrzymuje pętli: nieudane sprzątanie
+#  eksportów nie jest powodem, żeby wyłączyć serwis. Za to trafia do logu.
+# -----------------------------------------------------------------------------
+harmonogram_raz() {
+  if ! php /app/artisan schedule:run --no-interaction; then
+    log "OSTRZEŻENIE: przebieg harmonogramu zakończył się błędem — próbuję dalej za minutę."
+  fi
 }
 
 case "${ROLE}" in
@@ -195,7 +251,11 @@ case "${ROLE}" in
       --tries=3 --max-time=3600 --memory=256 --sleep=1 --no-interaction &
     CHILD_PIDS+=("$!")
 
-    php /app/artisan schedule:work --no-interaction &
+    # Ta sama pętla co w roli `scheduler` — NIE `schedule:work`, bo ten
+    # wymaga proc_open, wyłączonego w docker/php.ini. Uzasadnienie przy
+    # harmonogram_raz(). To był powód losowych 502 na produkcji: harmonogram
+    # padał od razu, a `wait -n` niżej kończył wtedy cały kontener.
+    ( while true; do harmonogram_raz; sleep 60; done ) &
     CHILD_PIDS+=("$!")
 
     export SERVER_NAME=":${PORT}"
