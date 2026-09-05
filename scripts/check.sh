@@ -55,6 +55,10 @@ else
 fi
 
 # --- 4. Analiza statyczna (opcjonalna) ------------------------------------
+# UWAGA na warunek: `ls a b c` kończy się niezerowo, gdy brakuje
+# KTÓREGOKOLWIEK z plików, a nie dopiero gdy brakuje wszystkich. Użycie `ls`
+# pomijałoby analizę także po dodaniu poprawnej konfiguracji.
+#
 # Bez pliku konfiguracyjnego PHPStan nie ma czego analizować i kończy się
 # błędem „At least one path must be specified". Zgłaszanie tego jako problemu
 # do naprawienia sprawiłoby, że kontrola NIGDY nie jest zielona — a wtedy
@@ -63,7 +67,7 @@ fi
 krok "Analiza statyczna (PHPStan)"
 if [ ! -x vendor/bin/phpstan ]; then
     printf "  Pominięte: brak vendor/bin/phpstan (composer install)\n"
-elif ! ls phpstan.neon phpstan.neon.dist phpstan.dist.neon >/dev/null 2>&1; then
+elif ! { [ -f phpstan.neon ] || [ -f phpstan.neon.dist ] || [ -f phpstan.dist.neon ]; }; then
     printf "  Pominięte: brak konfiguracji PHPStana — issue #32\n"
 elif vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
     ok "PHPStan bez zastrzeżeń"
