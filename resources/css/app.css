@@ -1,0 +1,634 @@
+/*
+ * Kuking.pl — arkusz główny
+ * ---------------------------------------------------------------------------
+ * Tokeny i klasy bazowe siedzą w tokens.css (Tailwind 4, konfiguracja
+ * CSS-first). Tutaj są wyłącznie klasy układu i komponentów specyficznych
+ * dla Kuking.
+ *
+ * Zasada: żadnej wartości koloru, rozmiaru tekstu ani odstępu na sztywno —
+ * wszystko przez var(--...). Inaczej tryb ciemny i skala tekstu przestają
+ * działać po pierwszej "szybkiej poprawce".
+ */
+
+@import "./tokens.css";
+
+@layer components {
+
+  /* ---------------------------------------------------------------------
+     Szkielet strony
+     --------------------------------------------------------------------- */
+
+  .app-shell {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-main {
+    flex: 1;
+    width: 100%;
+    max-width: var(--container-content);
+    margin: 0 auto;
+    padding: var(--spacing-5) var(--spacing-4) var(--spacing-20);
+  }
+
+  /* Na desktopie dwie kolumny: nawigacja i treść. Nigdy więcej niż dwie
+     i nigdy ściana miniaturek (docs/UX_50_PLUS.md). */
+  @media (min-width: 64rem) {
+    .app-body {
+      display: grid;
+      grid-template-columns: var(--container-sidenav) minmax(0, 1fr);
+      gap: var(--spacing-8);
+      max-width: var(--container-wide);
+      margin: 0 auto;
+      padding: 0 var(--spacing-6);
+    }
+
+    .app-main {
+      padding-bottom: var(--spacing-12);
+      max-width: var(--container-content);
+      margin: 0;
+    }
+  }
+
+  /* --- Górny pasek --- */
+
+  .topbar {
+    background-color: var(--color-surface-raised);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .topbar-inner {
+    max-width: var(--container-wide);
+    margin: 0 auto;
+    padding: var(--spacing-3) var(--spacing-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--text-title-sm);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  /* „KING" w „KUKING" — subtelny akcent, nie fajerwerki. */
+  .wordmark-king { color: var(--color-brand); }
+
+  .wordmark-mark { width: 2rem; height: 2rem; flex: none; }
+
+  /* --- Dolna nawigacja (mobile) --- */
+
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background-color: var(--color-surface-raised);
+    border-top: 1px solid var(--color-border);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .bottom-nav-item {
+    min-height: var(--control-height-touch);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    /* Ikona NIGDY nie jest jedynym opisem — pod każdą jest podpis. */
+    font-size: var(--text-help);
+    font-weight: 600;
+    color: var(--color-ink-muted);
+    text-decoration: none;
+  }
+
+  .bottom-nav-item[aria-current="page"] {
+    color: var(--color-brand);
+    box-shadow: inset 0 3px 0 0 var(--color-brand);
+  }
+
+  .bottom-nav-icon { font-size: 1.4rem; line-height: 1; }
+
+  @media (min-width: 64rem) {
+    .bottom-nav { display: none; }
+  }
+
+  /* --- Nawigacja boczna (desktop) --- */
+
+  .side-nav { display: none; }
+
+  @media (min-width: 64rem) {
+    .side-nav {
+      display: block;
+      padding-top: var(--spacing-6);
+      position: sticky;
+      top: 5rem;
+      align-self: start;
+    }
+
+    .side-nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      min-height: var(--control-height-min);
+      padding: 0 var(--spacing-3);
+      border-radius: var(--radius-md);
+      font-size: var(--text-body);
+      font-weight: 600;
+      color: var(--color-ink);
+      text-decoration: none;
+    }
+
+    .side-nav-item:hover { background-color: var(--color-surface-sunken); }
+
+    .side-nav-item[aria-current="page"] {
+      background-color: var(--color-brand-tint);
+      color: var(--color-brand-dark);
+      font-weight: 800;
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     Komunikaty
+     --------------------------------------------------------------------- */
+
+  .flash {
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-5);
+    font-weight: 600;
+    background-color: var(--color-success-tint);
+    color: var(--color-success-tint-ink);
+    border: 2px solid var(--color-success);
+  }
+
+  .notice {
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-5);
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+    border: 1px solid var(--color-accent);
+  }
+
+  /* ---------------------------------------------------------------------
+     Treść społeczności
+     --------------------------------------------------------------------- */
+
+  .stack > * + * { margin-top: var(--spacing-5); }
+  .stack-tight > * + * { margin-top: var(--spacing-3); }
+
+  .post-card { padding: 0; overflow: hidden; }
+
+  .post-card-head {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+  }
+
+  .post-card-body {
+    padding: var(--spacing-4) var(--spacing-5);
+    font-size: var(--text-body);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  .post-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    padding: 0 var(--spacing-5) var(--spacing-5);
+  }
+
+  .post-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    background-color: var(--color-surface-sunken);
+  }
+
+  .photo-grid {
+    display: grid;
+    gap: 2px;
+    grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
+  }
+
+  .avatar {
+    border-radius: var(--radius-pill);
+    background-color: var(--color-brand-tint);
+    color: var(--color-brand-dark);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    flex: none;
+    object-fit: cover;
+    overflow: hidden;
+  }
+
+  .meta {
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .author-name {
+    font-weight: 700;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-help);
+    font-weight: 700;
+    background-color: var(--color-surface-sunken);
+    color: var(--color-ink-muted);
+  }
+
+  .badge-cooked {
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+  }
+
+  /* ---------------------------------------------------------------------
+     Przepis
+     --------------------------------------------------------------------- */
+
+  /* „Skąd ten przepis" stoi PRZED składnikami — to jest różnica między
+     bazą receptur i miejscem z duszą (docs/product/SOUL.md). */
+  .recipe-story {
+    background-color: var(--color-brand-tint);
+    border-left: 4px solid var(--color-brand);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-5);
+    font-size: var(--text-body-lg);
+  }
+
+  .recipe-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ingredient-list,
+  .step-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ingredient-list li {
+    padding: var(--spacing-3) 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--text-body-lg);
+  }
+
+  .step-list li {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--text-body-lg);
+  }
+
+  .step-number {
+    font-size: var(--text-title-sm);
+    font-weight: 800;
+    color: var(--color-brand);
+  }
+
+  /* ---------------------------------------------------------------------
+     Formularze
+     --------------------------------------------------------------------- */
+
+  .form-section {
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-6);
+    border-top: 2px solid var(--color-border);
+  }
+
+  .form-section:first-of-type {
+    margin-top: var(--spacing-5);
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .form-section-title {
+    font-size: var(--text-title-sm);
+    font-weight: 800;
+    margin-bottom: var(--spacing-2);
+  }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-8);
+  }
+
+  /* --- Kreator przepisu (3 kroki) --- */
+
+  /* Jeden wiersz składnika albo kroku przygotowania. Wydzielony ramką, bo
+     przy powiększonym tekście trzy pola i trzy przyciski bez wyraźnej
+     granicy zlewają się w jedną ścianę. */
+  .wizard-row {
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    background-color: var(--color-surface-raised);
+  }
+
+  .wizard-row + .wizard-row {
+    margin-top: var(--spacing-4);
+  }
+
+  /* Akcje wiersza: przenoszenie osobno, usuwanie osobno i daleko.
+     Odstęp --spacing-8 to wymóg z docs/design/DESIGN_SYSTEM.md — akcja
+     destrukcyjna nie może stać obok zwykłej. */
+  .wizard-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-3);
+  }
+
+  .wizard-row-move {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+
+  .wizard-row-remove {
+    margin-left: auto;
+  }
+
+  /* Plakietka autosave: „Szkic zapisany.” / „Zapisywanie…” / błąd. */
+  .autosave-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: 0;
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+  }
+
+  .autosave-badge[data-state="saved"] {
+    background-color: var(--color-success-tint);
+    color: var(--color-success-tint-ink);
+  }
+
+  .autosave-badge[data-state="error"] {
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+  }
+
+  .autosave-badge[data-state="waiting"],
+  .autosave-badge[data-state="saving"] {
+    background-color: var(--color-surface-sunken);
+    color: var(--color-ink);
+  }
+
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    min-height: var(--hit-area-min);
+    padding: var(--spacing-3);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background-color: var(--color-surface-raised);
+  }
+
+  .choice:has(input:checked) {
+    border-color: var(--color-brand);
+    background-color: var(--color-brand-tint);
+  }
+
+  .choice input {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-top: 0.15rem;
+    flex: none;
+    accent-color: var(--color-brand-solid);
+  }
+
+  .choice-label { font-weight: 700; margin: 0; }
+  .choice-help { font-size: var(--text-help); color: var(--color-ink-muted); }
+
+  .choice-grid {
+    display: grid;
+    gap: var(--spacing-3);
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+
+  /* ---------------------------------------------------------------------
+     Tablica „kuKINGi na dziś"
+
+     Świadomie NIE jest to siatka kafelków. Karta na osobę, w jednym rzędzie
+     z avatarem i przyciskiem — czytelne przy powiększonym tekście i na 320 px,
+     gdzie ściana miniaturek się rozsypuje (docs/UX_50_PLUS.md).
+     --------------------------------------------------------------------- */
+
+  /* Wersaliki w środku wyrazu. Sam <strong> wystarcza — nie zmieniamy
+     grubości, bo „KING" ma być zauważone, nie wykrzyczane. */
+  .kuking-word strong {
+    font-weight: inherit;
+    color: var(--color-brand);
+    letter-spacing: 0.01em;
+  }
+
+  .kuking-board-subtitle {
+    font-size: var(--text-help);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-ink-muted);
+    margin: var(--spacing-6) 0 var(--spacing-3);
+  }
+
+  .kuking-board-people,
+  .kuking-board-posts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .kuking-board-person,
+  .kuking-board-post {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+  }
+
+  .kuking-board-person:last-child,
+  .kuking-board-post:last-child {
+    border-bottom: 0;
+  }
+
+  .kuking-board-preview {
+    display: flex;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+  }
+
+  .kuking-board-preview img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface-sunken);
+    flex: none;
+  }
+
+  .kuking-board-post-photo img {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    flex: none;
+  }
+
+  .kuking-board-excerpt {
+    margin: 0 0 var(--spacing-2);
+    overflow-wrap: anywhere;
+  }
+
+  /* Jedno zdanie od gospodarza — dlaczego właśnie to. */
+  .kuking-board-note {
+    margin: var(--spacing-2) 0 0;
+    padding-left: var(--spacing-3);
+    border-left: 3px solid var(--color-accent);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .kuking-board-footer {
+    margin: var(--spacing-5) 0 0;
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* ---------------------------------------------------------------------
+     Pozostałe
+     --------------------------------------------------------------------- */
+
+  .prose { max-width: 38rem; }
+  .prose h2 { margin-top: var(--spacing-8); }
+  .prose ul, .prose ol { padding-left: var(--spacing-6); }
+  .prose li { margin-bottom: var(--spacing-2); }
+
+  .tabs {
+    display: flex;
+    gap: var(--spacing-2);
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-5);
+    overflow-x: auto;
+  }
+
+  .tab {
+    min-height: var(--control-height-min);
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--spacing-4);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .tab[aria-current="page"] {
+    color: var(--color-brand-dark);
+    box-shadow: inset 0 -3px 0 0 var(--color-brand);
+  }
+
+  .stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-5);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .stat-value { font-size: var(--text-title-sm); font-weight: 800; display: block; }
+  .stat-label { font-size: var(--text-help); color: var(--color-ink-muted); }
+
+  .site-footer {
+    border-top: 1px solid var(--color-border);
+    padding: var(--spacing-8) var(--spacing-4) var(--spacing-20);
+    background-color: var(--color-surface-raised);
+  }
+
+  .site-footer-inner {
+    max-width: var(--container-wide);
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-4) var(--spacing-6);
+    font-size: var(--text-help);
+  }
+
+  @media (min-width: 64rem) {
+    .site-footer { padding-bottom: var(--spacing-8); }
+  }
+
+  .skip-link {
+    position: absolute;
+    left: var(--spacing-4);
+    top: -4rem;
+    z-index: 50;
+    background-color: var(--color-surface-raised);
+    color: var(--color-ink);
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 2px solid var(--color-brand);
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    transition: top 120ms ease-out;
+  }
+
+  .skip-link:focus { top: var(--spacing-4); }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

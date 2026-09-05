@@ -1,0 +1,67 @@
+<x-layout title="Dodaj zdjęcie" :noindex="true">
+    <h1>Dodaj zdjęcie</h1>
+    <p style="margin-bottom:var(--spacing-5);">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
+
+    <x-error-summary />
+
+    <form class="card" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
+        @csrf
+
+        <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
+            <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
+            <span class="field-help" id="f-photos-help">
+                Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
+                Największy plik: {{ (int) round(config('kuking.media.max_bytes') / 1024 / 1024) }} MB.
+            </span>
+            <input class="field-input" id="f-photos" type="file" name="photos[]"
+                   accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                   multiple aria-describedby="f-photos-help">
+            @error('photos')<span class="field-error">{{ $message }}</span>@enderror
+            @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
+        </div>
+
+        <x-field
+            name="body"
+            label="Napisz kilka słów"
+            type="textarea"
+            :rows="5"
+            help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
+        />
+
+        <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
+            <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Kto ma to widzieć?</legend>
+
+            <div class="choice-grid">
+                <label class="choice">
+                    <input type="radio" name="visibility" value="public" @checked(old('visibility', 'public') === 'public')>
+                    <span>
+                        <span class="choice-label">Wszyscy</span>
+                        <span class="choice-help">Także osoby bez konta. Wpis może pojawić się w Google.</span>
+                    </span>
+                </label>
+
+                <label class="choice">
+                    <input type="radio" name="visibility" value="followers" @checked(old('visibility') === 'followers')>
+                    <span>
+                        <span class="choice-label">Tylko osoby, które mnie obserwują</span>
+                        <span class="choice-help">Nie trafi do Google ani do osób bez konta.</span>
+                    </span>
+                </label>
+
+                <label class="choice">
+                    <input type="radio" name="visibility" value="private" @checked(old('visibility') === 'private')>
+                    <span>
+                        <span class="choice-label">Tylko ja</span>
+                        <span class="choice-help">Twoje prywatne archiwum. Nikt inny tego nie zobaczy.</span>
+                    </span>
+                </label>
+            </div>
+            @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+        </fieldset>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Opublikuj</button>
+            <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
+        </div>
+    </form>
+</x-layout>

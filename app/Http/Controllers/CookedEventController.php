@@ -1,0 +1,142 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Models\CookedEvent;
+use App\Models\Recipe;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use RuntimeException;
+
+/**
+ * "Ugotowałem".
+ *
+ * Formularz ma jedno pole obowiązkowe: żadne. Wystarczy kliknąć i wysłać.
+ * Zdjęcie, uwaga, czas i "zrobię ponownie" są opcjonalne — bo próg wejścia
+ * musi być niższy niż przy komentarzu, a nie wyższy.
+ */
+class CookedEventController extends Controller
+{
+    public function __construct(
+        private readonly RecordCookedEvent $record,
+        private readonly StoreUploadedImage $storeImage,
+        private readonly PublishComment $publishComment,
+    ) {}
+
+    public function create(Request $request, string $recipe): View
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('cook', $model);
+
+        return view('pages.cooked.create', [
+            'recipe' => $model->load(['author.profile', 'heroMedia']),
+        ]);
+    }
+
+    public function store(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('cook', $model);
+
+        $data = $request->validate([
+            'photos' => ['nullable', 'array', 'max:4'],
+            'photos.*' => ['file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
+            'note' => ['nullable', 'string', 'max:2000'],
+            'changes_note' => ['nullable', 'string', 'max:1000'],
+            'would_make_again' => ['nullable', 'boolean'],
+            'perceived_difficulty' => ['nullable', 'in:easy,medium,hard'],
+            'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+        ], [
+            'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
+            'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
+        ]);
+
+        $user = $request->user();
+
+        try {
+            $mediaIds = [];
+
+            foreach ($request->file('photos', []) as $photo) {
+                $mediaIds[] = $this->storeImage->handle($user, $photo)->getKey();
+            }
+
+            $event = $this->record->handle(
+                cook: $user,
+                recipe: $model,
+                note: $data['note'] ?? null,
+                mediaIds: $mediaIds,
+                wouldMakeAgain: $request->boolean('would_make_again') ?: null,
+                perceivedDifficulty: $data['perceived_difficulty'] ?? null,
+                actualMinutes: $data['actual_minutes'] ?? null,
+                changesNote: $data['changes_note'] ?? null,
+                ip: $request->ip(),
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['note' => $e->getMessage()]);
+        }
+
+        $authorName = $model->author->displayName();
+
+        return redirect()->route('cooked.show', $event)->with('status',
+            "Zapisane. {$authorName} dowie się, że ktoś ugotował z tego przepisu.",
+        );
+    }
+
+    public function show(Request $request, CookedEvent $cookedEvent): View
+    {
+        $this->authorize('view', $cookedEvent);
+
+        $cookedEvent->load([
+            'user.profile.avatar',
+            'recipe.author.profile',
+            'media',
+            'comments.author.profile.avatar',
+            'comments.replies.author.profile.avatar',
+        ]);
+
+        return view('pages.cooked.show', ['event' => $cookedEvent]);
+    }
+
+    public function comment(Request $request, CookedEvent $cookedEvent): RedirectResponse
+    {
+        $this->authorize('view', $cookedEvent);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:4000'],
+            'parent_id' => ['nullable', 'uuid'],
+        ], [
+            'body.required' => 'Napisz coś, zanim wyślesz komentarz.',
+        ]);
+
+        try {
+            $this->publishComment->handle(
+                author: $request->user(),
+                subject: $cookedEvent,
+                body: $data['body'],
+                parent: $data['parent_id'] === null
+                    ? null
+                    : $cookedEvent->comments()->whereKey($data['parent_id'])->first(),
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['body' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Komentarz dodany.');
+    }
+
+    public function destroy(Request $request, CookedEvent $cookedEvent): RedirectResponse
+    {
+        $this->authorize('delete', $cookedEvent);
+
+        $slug = $cookedEvent->recipe->slug;
+        $cookedEvent->delete();
+
+        return redirect()->route('recipes.show', $slug)->with('status', 'Wykonanie usunięte.');
+    }
+}

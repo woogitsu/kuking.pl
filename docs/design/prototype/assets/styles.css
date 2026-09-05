@@ -1,0 +1,47 @@
+* { box-sizing: border-box; }
+:root { font-size: 18px; }
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.55;
+  background: #f7f7f5;
+  color: #222;
+}
+a { color: inherit; }
+.wrap { width: min(760px, calc(100% - 24px)); margin: 0 auto; }
+.top { background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 3; }
+.top-inner { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.logo { font-weight: 800; font-size: 24px; text-decoration: none; }
+.nav { display: flex; gap: 10px; flex-wrap: wrap; }
+.nav a { padding: 10px; }
+.card { background: white; border: 1px solid #ddd; border-radius: 10px; padding: 18px; margin: 18px 0; }
+.prompt h1 { font-size: 30px; margin: 0 0 8px; }
+.btn {
+  min-height: 48px; border: 1px solid #444; border-radius: 8px;
+  background: white; padding: 10px 16px; font: inherit; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none; cursor: pointer;
+}
+.btn.primary { background: #1f2937; color: white; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.post-head { display: flex; gap: 12px; align-items: center; }
+.avatar { width: 52px; height: 52px; border-radius: 50%; background: #ddd; display: grid; place-items: center; font-weight: 700; }
+.food { width: 100%; aspect-ratio: 4 / 3; background: #e8e3db; border-radius: 8px; display: grid; place-items: center; margin: 14px 0; font-weight: 700; }
+label { display: block; font-weight: 700; margin-top: 16px; }
+input, textarea, select { width: 100%; min-height: 48px; border: 1px solid #777; border-radius: 7px; font: inherit; padding: 10px; margin-top: 6px; }
+textarea { min-height: 130px; resize: vertical; }
+.help { color: #555; font-size: .95rem; }
+.bottom { display: none; }
+:focus-visible { outline: 3px solid #155eef; outline-offset: 2px; }
+
+@media (max-width: 620px) {
+  body { padding-bottom: 74px; }
+  .top .nav { display: none; }
+  .bottom {
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed;
+    bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ccc; z-index: 5;
+  }
+  .bottom a { min-height: 60px; display: grid; place-items: center; text-align: center; font-size: .82rem; text-decoration: none; }
+  .actions { flex-direction: column; }
+  .btn { width: 100%; }
+}

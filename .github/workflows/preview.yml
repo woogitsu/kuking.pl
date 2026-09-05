@@ -1,0 +1,275 @@
+# ---------------------------------------------------------------------------
+#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
+#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
+#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#
+#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
+#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#
+#  Żeby WŁĄCZYĆ CI, gdy będą minuty albo własny runner:
+#    1. odkomentuj blok `on:` poniżej,
+#    2. ustaw zmienną repozytorium CI_RUNNER:
+#         - `ubuntu-latest`  → runnery GitHuba (płatne dla repo prywatnych),
+#         - `self-hosted`    → własny runner (koszt tylko maszyny).
+#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+# ---------------------------------------------------------------------------
+
+# =============================================================================
+#  Kuking.pl — środowiska preview dla pull requestów
+#  Docelowa lokalizacja: .github/workflows/preview.yml
+# =============================================================================
+#
+#  PRZECZYTAJ NAJPIERW: TEN PLIK JEST OPCJONALNY
+#  ---------------------------------------------
+#  Railway ma NATYWNE środowiska PR. Włączasz je jednym przełącznikiem
+#  (Project Settings → Environments → Enable PR Environments) i wtedy:
+#
+#     otwarcie PR    → Railway tworzy kompletne środowisko (web + postgres),
+#                      nadaje domenę *.up.railway.app i komentuje URL w PR
+#     merge/zamknięcie → Railway USUWA całe środowisko, koniec kosztów
+#
+#  Nie trzeba do tego ANI JEDNEJ linii GitHub Actions. Zdecydowanie użyj
+#  tej drogi — mniej ruchomych części i nie trzeba trzymać tokenu Railway
+#  z uprawnieniami do tworzenia środowisk.
+#  https://docs.railway.com/guides/preview-deployments-with-pr-environments
+#
+#  CO ROBI TEN PLIK
+#  ----------------
+#  Dwie rzeczy, których natywne środowiska PR nie robią same:
+#
+#   1. `smoke` — testuje dymnie gotowe środowisko preview i komentuje wynik
+#      w PR. Przydatne, bo Railway mówi "wdrożone", ale nie "działa".
+#
+#   2. `manual-*` — RĘCZNA ścieżka tworzenia/usuwania środowiska przez CLI,
+#      wzorowana na dokumentacji Railway. Do użycia w jednym przypadku:
+#      gdy natywne środowiska PR nie zadziałają, bo PR pochodzi z forka
+#      od osoby spoza workspace'u — Railway wtedy celowo NIE tworzy
+#      środowiska (zabezpieczenie: obcy kod nie dostaje Twoich sekretów).
+#      Domyślnie WYŁĄCZONE (uruchamiane tylko z workflow_dispatch).
+#
+#  OSTRZEŻENIE O KOSZTACH: każde środowisko preview to działający kontener
+#  i osobna baza. Przy railway.ts mają włączony Serverless (usypianie), więc
+#  nieużywany preview kosztuje groszowo — ale 20 zapomnianych otwartych PR-ów
+#  to już realna kwota. Zamykaj PR-y.
+# =============================================================================
+
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Numer PR-a"
+        required: true
+        type: string
+      action:
+        description: "create = utwórz środowisko, delete = usuń"
+        required: true
+        type: choice
+        options: [create, delete]
+        default: create
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  #  1. Test dymny natywnego środowiska preview
+  # ===========================================================================
+  smoke:
+    name: Test dymny preview
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    # Bramka wdrożeniowa: dopóki nie ma środowisk Railway ani sekretów
+    # (D-011 odkłada deploy, issue #3), ten job nie ma dokąd strzelać
+    # i padał na KAŻDYM Pull Requeście. Stała czerwona lampka uczy ludzi,
+    # że czerwone CI się ignoruje — to gorsze niż brak testu dymnego.
+    #
+    # Pominięty job nie zużywa minut. Włączenie: ustaw zmienną repozytorium
+    # KUKING_DEPLOY_ENABLED na `true` (Settings → Secrets and variables →
+    # Actions → Variables) razem z zamknięciem #3.
+    if: >-
+      vars.KUKING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      # -----------------------------------------------------------------------
+      #  Railway raportuje gotowe środowisko przez Deployments API GitHuba.
+      #  Odpytujemy je, aż pojawi się URL dla tego PR-a. Nie da się tego
+      #  zrobić prościej: nie wiemy z góry, jaką domenę Railway wylosuje.
+      # -----------------------------------------------------------------------
+      - name: Poczekaj na adres środowiska preview
+        id: wait
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          url=""
+          # 40 prób co 15 s = 10 minut. Build obrazu PHP + npm zajmuje
+          # typowo 3-6 minut, więc to zapas z marginesem.
+          for i in $(seq 1 40); do
+            url=$(gh api "repos/${REPO}/deployments?sha=${SHA}&per_page=20" \
+                    --jq '[.[] | select(.environment | test("^pr-|preview"))][0].payload.web_url // empty' \
+                    2>/dev/null || true)
+
+            if [ -z "$url" ]; then
+              url=$(gh api "repos/${REPO}/deployments?sha=${SHA}&per_page=20" \
+                      --jq '[.[] | select(.environment | test("^pr-|preview"))][0].environment_url // empty' \
+                      2>/dev/null || true)
+            fi
+
+            if [ -n "$url" ]; then
+              echo "Znaleziono adres: $url"
+              break
+            fi
+            echo "Próba $i/40 — środowisko preview jeszcze nie gotowe, czekam 15 s..."
+            sleep 15
+          done
+
+          if [ -z "$url" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nie znaleziono środowiska preview. Sprawdź, czy PR Environments są włączone w Railway."
+          else
+            echo "found=true"    >> "$GITHUB_OUTPUT"
+            echo "url=${url%/}"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test dymny
+        id: smoke
+        if: steps.wait.outputs.found == 'true'
+        env:
+          BASE_URL: ${{ steps.wait.outputs.url }}
+        run: |
+          set -euo pipefail
+          fail=0
+          check() {
+            local path="$1" expected="$2"
+            local code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                     --max-time 30 --retry 5 --retry-delay 10 --retry-all-errors \
+                     "${BASE_URL}${path}" || echo "000")
+            if [ "$code" = "$expected" ]; then
+              printf 'OK    %-20s %s\n' "$path" "$code"
+            else
+              printf 'BLAD  %-20s %s, oczekiwano %s\n' "$path" "$code" "$expected"
+              fail=1
+            fi
+          }
+
+          echo "=== Preview: ${BASE_URL} ==="
+          # Pierwszy request budzi uśpiony serwis (Serverless jest włączony
+          # na preview), dlatego --retry powyżej jest istotne.
+          check /health 200
+          check /        200
+          exit $fail
+
+      - name: Komentarz w PR
+        if: always() && steps.wait.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          URL: ${{ steps.wait.outputs.url }}
+          RESULT: ${{ steps.smoke.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$RESULT" = "success" ]; then
+            icon="[OK]"; verdict="Środowisko preview odpowiada poprawnie."
+          else
+            icon="[BLAD]"; verdict="Środowisko preview NIE odpowiada poprawnie — sprawdź logi."
+          fi
+
+          body=$(printf '%s **Preview: %s**\n\n%s\n\n| Sprawdzenie | |\n|---|---|\n| `/health` | aplikacja + baza |\n| `/` | strona główna |\n\n_Pierwsze wejście może potrwać kilka sekund — środowiska preview mają włączone usypianie (Serverless)._\n' \
+            "$icon" "$URL" "$verdict")
+
+          # Nadpisujemy poprzedni komentarz bota zamiast zaśmiecać PR
+          # kolejnym przy każdym pushu.
+          existing=$(gh api "repos/${REPO}/issues/${PR}/comments" \
+                       --jq '[.[] | select(.body | startswith("[OK] **Preview:") or startswith("[BLAD] **Preview:"))][0].id // empty')
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${existing}" -f body="$body" >/dev/null
+            echo "Zaktualizowano komentarz $existing"
+          else
+            gh api -X POST "repos/${REPO}/issues/${PR}/comments" -f body="$body" >/dev/null
+            echo "Dodano nowy komentarz"
+          fi
+
+  # ===========================================================================
+  #  2. RĘCZNE tworzenie środowiska preview  (droga awaryjna)
+  # ===========================================================================
+  #  Wzorowane na https://docs.railway.com/guides/github-actions-pr-environment
+  #  Używaj TYLKO dla PR-ów z forków, dla których Railway nie utworzy
+  #  środowiska automatycznie.
+  #
+  #  UWAGA BEZPIECZEŃSTWA: uruchamiając to dla obcego forka, świadomie
+  #  wpuszczasz niezweryfikowany kod do środowiska z kopią zmiennych
+  #  środowiska bazowego. Dlatego środowiskiem bazowym PR-ów MUSI być
+  #  `staging` z własnymi, nieprodukcyjnymi sekretami — nigdy `production`.
+  # ===========================================================================
+  manual-create:
+    name: "Preview: utwórz (ręcznie)"
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
+    environment: staging
+
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+    steps:
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalacja Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Utwórz środowisko dla PR
+        run: |
+          set -euo pipefail
+          env_name="pr-${{ github.event.inputs.pr_number }}"
+          echo "Tworzę środowisko: $env_name (kopia staginu)"
+          railway environment new "$env_name" --copy staging
+          echo "Gotowe. Adres znajdziesz w panelu Railway."
+
+  manual-delete:
+    name: "Preview: usuń (ręcznie)"
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delete'
+    environment: staging
+
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+
+    steps:
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalacja Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Usuń środowisko PR
+        run: |
+          set -euo pipefail
+          env_name="pr-${{ github.event.inputs.pr_number }}"
+          echo "Usuwam środowisko: $env_name"
+          # `|| true`: jeśli środowisko już nie istnieje, to jest stan pożądany,
+          # a nie błąd. Job nie powinien świecić na czerwono za sukces.
+          railway environment delete "$env_name" --yes || true
+          echo "Gotowe."

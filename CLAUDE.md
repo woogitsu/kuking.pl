@@ -1,0 +1,33 @@
+# CLAUDE.md
+
+**Przeczytaj najpierw [`AGENTS.md`](./AGENTS.md).** To jest komplet zasad projektu
+i jedyne źródło prawdy — dla Claude, GPT, Gemini i każdego innego modelu.
+
+> **Uwaga:** ten plik jest tylko wskaźnikiem. Wszystkie zasady projektu żyją
+> w jednym miejscu: [`AGENTS.md`](./AGENTS.md). Nie duplikuj tu treści —
+> rozjazd między plikami instrukcji jest gorszy niż brak instrukcji.
+
+## Ściąga (pełne uzasadnienia w AGENTS.md)
+
+- Kuking = **społeczność ludzi, którzy gotują**, nie baza przepisów.
+- Grupa: **50+**, ale produkt nie jest oznaczany jako „dla seniorów”.
+- Stack: Laravel 13 · PHP 8.4 · Blade + Livewire 4 · Tailwind 4 · PostgreSQL 18 · Railway.
+- Modularny monolit. **Zero mikroserwisów, SPA, Redisa i osobnego search engine.**
+- Główna akcja: **Co dziś ugotowałeś?** → zdjęcie + kilka słów → Opublikuj.
+- **„Ugotowałem” jest ważniejsze niż lajk** i zawsze powiadamia autora przepisu.
+- Feed obserwowanych: **chronologiczny**, bez algorytmu.
+- UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, ikona nigdy sama, bez hover/swipe,
+  błędy po polsku mówiące co zrobić, poprawne dane nigdy nie znikają.
+- **Ważne funkcje działają bez JavaScriptu.**
+- Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback.
+- Bugfix = test regresyjny.
+- `status` i `role` użytkownika **nigdy** w `$fillable`.
+- **UUID w adresie to nie autoryzacja** — każde wejście przez Policy.
+- Testy chodzą na **PostgreSQL**, nie na SQLite.
+- Przed PR-em: `vendor/bin/pint` i `php artisan test`.
+- Brak destrukcyjnych operacji na produkcji bez jawnej zgody.
+
+## Zanim zaczniesz implementować
+
+Sprawdź `docs/ROADMAP.md`, żeby nie budować funkcji z V2 podczas prac nad MVP.
+Pracuj z issues po kolei: `P0` → `P1` → `P2`.
