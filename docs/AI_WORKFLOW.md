@@ -119,7 +119,37 @@ Kolejność jest według stosunku korzyści do kosztu tokenów.
 
 ---
 
-## 6. Praca wieloagentowa — kiedy się opłaca
+## 6. Aktualny układ zespołu agentów
+
+Projekt jest prowadzony w trybie **jeden agent researchu + kilku agentów kodu**,
+każdy w **osobnym worktree gita** i z **osobną bazą testową**.
+
+| Rola | Zakres | Baza testowa |
+|---|---|---|
+| research (ciągły) | `docs/research/repos/`, `docs/INSPIRATION_DECISIONS.md` — nie dotyka kodu | — |
+| kod: kreator przepisu | `resources/views/pages/recipes/`, `RecipeController`, `app/Domain/Recipes/` | `kuking_test_b` |
+| kod: eksport danych | `app/Jobs/`, `app/Mail/`, `app/Console/Commands/`, `app/Domain/Users/` | `kuking_test_c` |
+| kod: profil i komentarze | `ProfileController`, `SocialController`, `comment-thread`, `resources/views/pages/profile/` | `kuking_test_a` |
+
+Cztery rzeczy, które sprawiają, że to działa:
+
+1. **Rozłączne zakresy plików**, wypisane wprost w zadaniu każdego agenta —
+   razem z listą plików, których dotykać NIE wolno.
+2. **Osobne worktree** — agenci nie nadpisują sobie plików w trakcie pracy,
+   a każdy commituje na własną gałąź.
+3. **Osobne bazy testowe.** To jest najczęściej pomijany szczegół: `RefreshDatabase`
+   czyści bazę na starcie każdego testu, więc dwóch agentów na jednej bazie
+   testowej kasuje sobie dane w połowie przebiegu i dostaje losowe błędy.
+   Testy uruchamia się jako `DB_DATABASE=kuking_test_b php artisan test`
+   (`phpunit.xml` nie nadpisuje zmiennych już obecnych w środowisku).
+4. **Symlink na `vendor` i `node_modules`** z głównego katalogu zamiast
+   ponownej instalacji — oszczędza minuty i omija limity pobierania z GitHuba.
+
+Scalanie: gałęzie wracają pojedynczo, po każdej pełny `./scripts/check.sh`.
+Konflikt jest praktycznie zawsze w `routes/web.php` — dlatego każdy agent ma
+polecenie dopisywać tam tylko własne trasy i wspominać o tym w raporcie.
+
+## 7. Praca wieloagentowa — kiedy się opłaca
 
 Opłaca się przy zadaniach, które da się **rozdzielić bez wspólnych plików**:
 research, analiza konkurencji, dokumentacja obszarowa, przegląd kilku
@@ -141,7 +171,7 @@ Zasady, które sprawdziły się przy budowie tego repozytorium:
 
 ---
 
-## 7. Definicja gotowości
+## 8. Definicja gotowości
 
 Zmiana jest gotowa do PR-a, kiedy:
 

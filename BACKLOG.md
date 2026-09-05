@@ -8,6 +8,47 @@ Kolejność: `P0` → `P1` → `P2`, w ramach priorytetu według `docs/ROADMAP.m
 
 Legenda: ✅ zrobione · 🔨 w repozytorium, wymaga dokończenia · ⬜ do zrobienia
 
+Otwarte issues odpowiadające pozycjom z tej listy (stan na pierwszy commit):
+
+| # | Priorytet | Temat |
+|---|---|---|
+| [#1](../../issues/1) | P0 | Kreator przepisu 3-krokowy z autosave |
+| [#2](../../issues/2) | P0 | Eksport danych — job budujący paczkę ZIP |
+| [#3](../../issues/3) | P0 | Pierwszy deploy: Railway + Cloudflare + R2 |
+| [#4](../../issues/4) | P0 | CI bez minut GitHub Actions |
+| [#5](../../issues/5) | P0 | Maskotka Garnuś — finalna grafika i zastosowania |
+| [#6](../../issues/6) | P0 | Panel gospodarza: wpisy bez odpowiedzi |
+| [#7](../../issues/7) | P0 | Analityka i definicja Weekly Active Cooks |
+| [#8](../../issues/8) | P0 | Regulamin i polityka po prawniku |
+| [#9](../../issues/9) | P0 | Backup i przeprowadzony restore drill |
+| [#10](../../issues/10) | P0 | Ścieżka odwołania od decyzji moderacyjnej |
+| [#11](../../issues/11) | P0 | Tygodniowy digest e-mail |
+| [#12](../../issues/12) | P0 | CSP wymuszona, 2FA dla moderatorów, audit zależności |
+| [#13](../../issues/13) | P0 | Wiersze składników i kroków bez przeładowania |
+| [#14](../../issues/14) | P0 | Open Graph i przekierowania 301 po zmianie tytułu |
+| [#15](../../issues/15) | P0 | Testy z realnymi użytkownikami 50+ |
+| [#16](../../issues/16) | P0 | Listy relacji i edycja własnego komentarza |
+| [#29](../../issues/29) | P0 | Cold start: pierwszych 20 realnych użytkowników |
+| [#30](../../issues/30) | P0 | Przekaz „Twoje przepisy nie zginą” |
+| [#33](../../issues/33) | P0 | Sentry, PostHog, uptime i alerty |
+| [#17](../../issues/17) | P1 | Ekran „Komuś wyszło” |
+| [#18](../../issues/18) | P1 | Temat tygodnia i kalendarz polskiej kuchni |
+| [#19](../../issues/19) | P1 | Research repozytoriów → INSPIRATION_DECISIONS |
+| [#20](../../issues/20) | P1 | Decyzja: Filament czy własny panel |
+| [#21](../../issues/21) | P1 | Decyzje o pakietach: Permission, Pennant, Activitylog |
+| [#22](../../issues/22) | P1 | Grupy tematyczne (fotofora) |
+| [#23](../../issues/23) | P1 | „Moja wersja” — fork przepisu |
+| [#24](../../issues/24) | P1 | Tryb gotowania |
+| [#25](../../issues/25) | P1 | Logowanie linkiem e-mail |
+| [#26](../../issues/26) | P1 | Automaty dostępności (axe-core, Lighthouse) |
+| [#27](../../issues/27) | P1 | Planer posiłków i lista zakupów |
+| [#31](../../issues/31) | P1 | Zainteresowania i „Obserwuj temat” w bazie |
+| [#32](../../issues/32) | P1 | Larastan/PHPStan działający lokalnie |
+| [#34](../../issues/34) | P1 | „Rok temu gotowałaś…” |
+| [#35](../../issues/35) | P1 | Web Push (po ustaleniu limitów) |
+| [#28](../../issues/28) | P2 | OCR zeszytów i import z adresu strony |
+| [#36](../../issues/36) | P2 | Monetyzacja — co realnie sprzedać |
+
 ---
 
 ## P0 — fundament
