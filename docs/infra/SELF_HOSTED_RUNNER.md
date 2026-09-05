@@ -1,6 +1,14 @@
 # Własny runner GitHub Actions
 
-Decyzja D-010: repozytorium zostaje prywatne, CI chodzi na **własnym runnerze**.
+> **To jest plan awaryjny, nie droga podstawowa.**
+> Decyzja D-010 zmieniła się: repozytorium przenosi się pod nową organizację
+> GitHub, która ma własną, nieużywaną pulę 2 000 minut Actions miesięcznie —
+> patrz `PRZENIESIENIE_DO_ORGANIZACJI.md`.
+>
+> Ten dokument zostaje aktualny i przyda się, gdyby limit organizacji też się
+> wyczerpał albo gdyby przebiegi zrobiły się na tyle długie, że własna maszyna
+> zacznie się opłacać.
+
 Runner self-hosted **nie zużywa minut Actions** — płacisz tylko za maszynę.
 
 Ten dokument to instrukcja od zera do zielonego CI.

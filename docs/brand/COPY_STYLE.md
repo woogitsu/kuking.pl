@@ -218,6 +218,25 @@ Pusty stan:      Dziś jeszcze nikogo nie wybraliśmy. Zajrzyj do „Świeżo z 
 Ostatnie zdanie stopki jest ważne: mówi wprost, że to się zmienia i nie jest
 tabelą wyników.
 
+### ⚠️ Zastrzeżenie do sprawdzenia na ludziach
+
+Dla **rzeczownika osobowego** forma `kuKINGi` jest w polszczyźnie
+deprecjatywna — ta sama, która daje „profesory" i „chłopy".
+
+Nazwa zostaje, bo `kuKING` jest tu użyty w znaczeniu **rzeczy**
+(por. „mityng → mityngi"), a tablica pokazuje dania obok ludzi. Ale to jest
+rozumowanie zza biurka i musi zostać sprawdzone na realnych osobach
+w testach 50+ (issue #15), jednym pytaniem: **„o czym jest ta sekcja?"**
+
+Gotowe alternatywy, gdyby test wypadł źle:
+
+| Alternatywa | Dlaczego działa |
+|---|---|
+| **Dziś u kuKINGów** | dopełniacz mnogi nie jest formą deprecjatywną, gra słowem zostaje |
+| **Co się dziś gotuje** | nie odmienia słowa wcale, problem znika u źródła |
+
+Decyzja i uzasadnienie: `../DECISIONS.md` D-013.
+
 ### Nazwy odrzucone i dlaczego
 
 | Nazwa | Dlaczego nie |
