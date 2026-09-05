@@ -430,6 +430,76 @@ wtedy pokazywać wartość w panelu i w CLI.
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
 
+### Ścieżka bez IaC — serwis utworzony klikaniem w panelu
+
+Lista wyżej zakłada, że pozostałe ~40 zmiennych ustawi `railway config apply`.
+**Serwis utworzony przez „New Project → Deploy from GitHub repo" nie wie nic
+o `railway.ts`** — trzeba mu je podać wprost.
+
+Jest to normalna droga na pierwszy zielony deploy: IaC można przyjąć później,
+a `railway.json` w katalogu głównym Railway czyta sam i bez niego build w ogóle
+nie ruszy (builder, komenda startowa, healthcheck, migracje w pre-deploy).
+
+→ serwis → **Variables** → **Raw Editor** → wklej:
+
+```bash
+APP_NAME=Kuking
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://kuking.pl
+APP_LOCALE=pl
+APP_FALLBACK_LOCALE=pl
+APP_FAKER_LOCALE=pl_PL
+APP_TIMEZONE=UTC
+APP_ROLE=all
+APP_KEY=            # patrz KROK 7 — NIE zostawiaj pustego
+
+LOG_CHANNEL=stderr
+LOG_STDERR_FORMATTER=\Monolog\Formatter\JsonFormatter
+LOG_LEVEL=warning
+
+DB_CONNECTION=pgsql
+DB_URL=${{Postgres.DATABASE_URL}}
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=43200
+SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+TRUSTED_PROXIES=*
+
+FILESYSTEM_DISK=local
+MAIL_MAILER=log
+PHP_WORKER_MEMORY_LIMIT=512M
+```
+
+**`DB_URL`, nie `DATABASE_URL`.** Laravel czyta `env('DB_URL')`
+(`config/database.php`). `${{Postgres.DATABASE_URL}}` to składnia odwołań
+Railway: `${{NAZWA_SERWISU.ZMIENNA}}` — `Postgres` musi się zgadzać z nazwą
+serwisu bazy na kanwie.
+
+**`APP_ROLE=all`** — przy jednym serwisie web, worker i harmonogram chodzą
+w tym samym kontenerze. Bez tego kolejka nie działa, więc **zdjęcia zostają
+na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
+
+> ### Dwie wartości są TYMCZASOWE
+>
+> | zmienna | skutek | kiedy zmienić |
+> |---|---|---|
+> | `FILESYSTEM_DISK=local` | zdjęcia **znikają przy każdym redeployu** | gdy będzie bucket R2 → `r2` |
+> | `MAIL_MAILER=log` | nikt nie dostanie linku aktywacyjnego | gdy będzie SMTP → `smtp` |
+>
+> Obie są w porządku na pierwszy zielony deploy i **nie do przyjęcia**, gdy
+> wpuszczasz prawdziwych ludzi.
+
+Po dodaniu R2 i poczty dołóż: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `AWS_DEFAULT_REGION=auto`,
+`AWS_USE_PATH_STYLE_ENDPOINT=false`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
+`MAIL_PASSWORD`, `MAIL_SCHEME=tls`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`
+oraz opcjonalnie `SENTRY_LARAVEL_DSN` i `POSTHOG_KEY`.
+
 ### Środowisko `staging`
 
 → Górny wybierak środowiska → **+ New Environment** → **Duplicate**
@@ -684,6 +754,20 @@ Running pre-deploy command...         ← migracje
 ```
 
 ### 11.3 Checklista smoke testów
+
+**Wszystko poniżej robi jedno polecenie:**
+
+```bash
+./scripts/sprawdz-wdrozenie.sh kuking.pl
+```
+
+Skrypt nie potrzebuje żadnych kluczy ani dostępu do paneli — pyta z zewnątrz,
+tak jak przeglądarka użytkownika. Przerywa, gdy serwis nie odpowiada, zamiast
+meldować „w porządku" o czymś, czego nie sprawdził. Kod wyjścia `1` przy
+błędach, więc nadaje się też do CI.
+
+Polecenia niżej zostają jako źródło i do ręcznego dochodzenia, gdy skrypt
+pokaże problem.
 
 ```bash
 # 1. Healthcheck (aplikacja + baza)

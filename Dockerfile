@@ -54,8 +54,19 @@ WORKDIR /app
 
 # Najpierw manifesty — warstwa npm ci przeżywa zmiany w kodzie Blade/CSS.
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,id=s/kuking-npm-/root/.npm,target=/root/.npm \
-    npm ci --no-audit --no-fund
+# BEZ `--mount=type=cache`. Railway wymaga, żeby id cache'a zawierało LITERALNE
+# id serwisu (`id=s/<service id>-<ścieżka>`) i wprost zabrania użycia zmiennych
+# środowiskowych w tym miejscu. Każdy serwis (web, worker, scheduler) i każde
+# środowisko preview ma inne id, więc jednej wartości nie da się wpisać na
+# stałe — a wartość niepasująca do wzorca wywala build:
+#
+#   dockerfile invalid: flag '--mount=type=cache,id=s/kuking-npm-/root/.npm,
+#   target=/root/.npm' is missing the cacheKey prefix from its id at Line 57
+#
+# Strata jest mniejsza, niż się wydaje: warstwa i tak jest cache'owana przez
+# Dockera, dopóki nie zmieni się package-lock.json. Cache mount pomagał tylko
+# wtedy, gdy lock SIĘ zmienił — czyli rzadko.
+RUN npm ci --no-audit --no-fund
 
 # Vite potrzebuje configu, źródeł i widoków (Tailwind 4 skanuje Blade).
 COPY vite.config.js ./
@@ -96,8 +107,8 @@ COPY composer.json composer.lock ./
 
 # --no-scripts, bo skrypty post-install Laravela (package:discover) wymagają
 # pełnego drzewa aplikacji, którego jeszcze nie ma. Uruchamiamy je niżej.
-RUN --mount=type=cache,id=s/kuking-composer-/tmp/composer-cache,target=/tmp/composer-cache \
-    COMPOSER_CACHE_DIR=/tmp/composer-cache \
+# Bez cache mount — uzasadnienie przy `npm ci` wyżej.
+RUN COMPOSER_CACHE_DIR=/tmp/composer-cache \
     composer install \
       --no-dev \
       --no-interaction \
