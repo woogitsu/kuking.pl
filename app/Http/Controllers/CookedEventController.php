@@ -59,6 +59,21 @@ class CookedEventController extends Controller
 
         $user = $request->user();
 
+        // „Zrobisz to jeszcze raz?" ma TRZY stany, nie dwa (audyt A22).
+        //
+        // Wcześniej stało tu `$request->boolean(...) ?: null`. Formularz wysyła
+        // value="0", więc świadome „Raczej nie powtórzę" wpadało w `?:`
+        // i lądowało w bazie jako `null`, czyli „nie zaznaczono". Zapisywały
+        // się wyłącznie pochwały, a gotowy render negatywnej odpowiedzi
+        // w karcie wykonania był kodem nie do wywołania.
+        //
+        // „Ugotowałem" to najcenniejszy sygnał jakości przepisu (AGENTS.md §1).
+        // Sygnał, w którym da się zapisać tylko „tak", nie jest sygnałem
+        // jakości — jest licznikiem pochwał.
+        $wouldMakeAgain = ($data['would_make_again'] ?? null) === null
+            ? null
+            : $request->boolean('would_make_again');
+
         try {
             $mediaIds = [];
 
@@ -71,7 +86,7 @@ class CookedEventController extends Controller
                 recipe: $model,
                 note: $data['note'] ?? null,
                 mediaIds: $mediaIds,
-                wouldMakeAgain: $request->boolean('would_make_again') ?: null,
+                wouldMakeAgain: $wouldMakeAgain,
                 perceivedDifficulty: $data['perceived_difficulty'] ?? null,
                 actualMinutes: $data['actual_minutes'] ?? null,
                 changesNote: $data['changes_note'] ?? null,
