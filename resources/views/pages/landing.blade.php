@@ -24,6 +24,8 @@
         </ul>
     </section>
 
+    <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
+
     <h2>Świeżo z Kuking</h2>
     <p class="meta" style="margin-bottom:var(--spacing-5);">To, co ludzie ugotowali w ostatnich dniach.</p>
 

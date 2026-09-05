@@ -31,9 +31,13 @@
                             <x-avatar :user="$person" :size="48" />
                             <span>
                                 <span class="choice-label">{{ $person->displayName() }}</span>
+                                {{-- Świadomie BEZ liczby wpisów: osiem osób
+                                     obok siebie z licznikami zamienia wybór
+                                     w porównywanie. Lista jest już posortowana
+                                     po tym, kto ostatnio coś pokazał. --}}
                                 <span class="choice-help">
                                     {{ $person->profile->speciality ?? 'Gotuje w Kuking' }}
-                                    · {{ $person->posts_count }} {{ $person->posts_count === 1 ? 'wpis' : 'wpisów' }}
+                                    @if($person->profile->region) · {{ $person->profile->region }} @endif
                                 </span>
                             </span>
                         </span>

@@ -384,6 +384,97 @@
   }
 
   /* ---------------------------------------------------------------------
+     Tablica „kuKINGi na dziś"
+
+     Świadomie NIE jest to siatka kafelków. Karta na osobę, w jednym rzędzie
+     z avatarem i przyciskiem — czytelne przy powiększonym tekście i na 320 px,
+     gdzie ściana miniaturek się rozsypuje (docs/UX_50_PLUS.md).
+     --------------------------------------------------------------------- */
+
+  /* Wersaliki w środku wyrazu. Sam <strong> wystarcza — nie zmieniamy
+     grubości, bo „KING" ma być zauważone, nie wykrzyczane. */
+  .kuking-word strong {
+    font-weight: inherit;
+    color: var(--color-brand);
+    letter-spacing: 0.01em;
+  }
+
+  .kuking-board-subtitle {
+    font-size: var(--text-help);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-ink-muted);
+    margin: var(--spacing-6) 0 var(--spacing-3);
+  }
+
+  .kuking-board-people,
+  .kuking-board-posts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .kuking-board-person,
+  .kuking-board-post {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border);
+    flex-wrap: wrap;
+  }
+
+  .kuking-board-person:last-child,
+  .kuking-board-post:last-child {
+    border-bottom: 0;
+  }
+
+  .kuking-board-preview {
+    display: flex;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+  }
+
+  .kuking-board-preview img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface-sunken);
+    flex: none;
+  }
+
+  .kuking-board-post-photo img {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    flex: none;
+  }
+
+  .kuking-board-excerpt {
+    margin: 0 0 var(--spacing-2);
+    overflow-wrap: anywhere;
+  }
+
+  /* Jedno zdanie od gospodarza — dlaczego właśnie to. */
+  .kuking-board-note {
+    margin: var(--spacing-2) 0 0;
+    padding-left: var(--spacing-3);
+    border-left: 3px solid var(--color-accent);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .kuking-board-footer {
+    margin: var(--spacing-5) 0 0;
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* ---------------------------------------------------------------------
      Pozostałe
      --------------------------------------------------------------------- */
 

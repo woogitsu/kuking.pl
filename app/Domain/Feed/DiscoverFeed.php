@@ -7,7 +7,6 @@ namespace App\Domain\Feed;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
-use Illuminate\Support\Collection;
 
 /**
  * "Świeżo z Kuking" — to, co widzi ktoś, kto nikogo jeszcze nie obserwuje.
@@ -19,6 +18,10 @@ use Illuminate\Support\Collection;
  *
  * Cold start bez tego ekranu nie działa: feed obserwowanych nowego
  * użytkownika jest z definicji pusty (docs/product/COLD_START.md).
+ *
+ * Propozycje osób do obserwowania mieszkają w App\Domain\Feed\DailyBoard
+ * („kuKINGi na dziś"), bo tam mają kontekst: podgląd zdjęć i ewentualne
+ * jedno zdanie od gospodarza.
  */
 final class DiscoverFeed
 {
@@ -38,29 +41,6 @@ final class DiscoverFeed
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);
-    }
-
-    /**
-     * Propozycje osób do obserwowania. Kolejność: kto ostatnio publikował,
-     * bo obserwowanie kogoś, kto nic nie wrzuca, nie zapełnia feedu.
-     *
-     * @return Collection<int, User>
-     */
-    public function suggestedPeople(?User $viewer, int $limit = 6): Collection
-    {
-        $excluded = $viewer === null
-            ? []
-            : [...$this->hiddenAuthorIdsFor($viewer), $viewer->getKey(), ...$viewer->following()->pluck('users.id')->all()];
-
-        return User::query()
-            ->where('status', User::STATUS_ACTIVE)
-            ->whereNotIn('id', $excluded)
-            ->whereHas('posts', fn ($query) => $query->published())
-            ->with(['profile.avatar', 'posts' => fn ($query) => $query->published()->latest('published_at')->limit(3)->with('media')])
-            ->withCount(['posts' => fn ($query) => $query->published()])
-            ->orderByDesc('posts_count')
-            ->limit($limit)
-            ->get();
     }
 
     /** @return list<string> */

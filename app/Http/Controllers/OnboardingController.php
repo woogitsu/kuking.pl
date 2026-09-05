@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Feed\DiscoverFeed;
+use App\Domain\Feed\DailyBoard;
 use App\Domain\Social\Actions\FollowUser;
 use App\Models\Profile;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +43,7 @@ class OnboardingController extends Controller
     ];
 
     public function __construct(
-        private readonly DiscoverFeed $discover,
+        private readonly DailyBoard $board,
         private readonly FollowUser $followUser,
     ) {}
 
@@ -70,7 +70,7 @@ class OnboardingController extends Controller
     public function people(Request $request): View
     {
         return view('pages.onboarding.people', [
-            'people' => $this->discover->suggestedPeople($request->user(), 8),
+            'people' => $this->board->peopleToFollow($request->user(), 8),
         ]);
     }
 

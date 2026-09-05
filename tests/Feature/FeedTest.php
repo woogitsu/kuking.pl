@@ -47,11 +47,15 @@ class FeedTest extends TestCase
         $ktos = $this->user('ktos');
         Post::factory()->create(['author_id' => $ktos->getKey()]);
 
+        // Propozycje osób pokazuje tablica „kuKINGi na dziś" (DailyBoard),
+        // która zastąpiła osobną sekcję „Osoby, które tu gotują".
         $this->actingAs($nowy)
             ->get(route('home'))
             ->assertOk()
             ->assertSee('Świeżo z Kuking')
-            ->assertSee('Osoby, które tu gotują');
+            ->assertSee('na dziś')
+            ->assertSee('Testowa osoba')
+            ->assertSee('Jutro będzie tu ktoś inny.');
     }
 
     public function test_wpisy_zablokowanej_osoby_nie_pojawiaja_sie_w_odkrywaniu(): void

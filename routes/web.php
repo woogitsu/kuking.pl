@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
@@ -218,4 +219,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
 Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): void {
     Route::get('/zgloszenia', [ModerationController::class, 'reports'])->name('admin.reports');
     Route::post('/zgloszenia/{report}', [ModerationController::class, 'decide'])->name('admin.reports.decide');
+
+    // Wybór redakcyjny na tablicę „kuKINGi na dziś".
+    Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
+    Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
+    Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);
 });

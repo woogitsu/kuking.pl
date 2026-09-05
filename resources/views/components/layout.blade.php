@@ -92,7 +92,8 @@
                         <li><a class="side-nav-item" href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif><span aria-hidden="true">🍲</span> Świeżo z Kuking</a></li>
                         <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><span aria-hidden="true">⚙️</span> Ustawienia</a></li>
                         @if($user->isModerator())
-                            <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.*')) aria-current="page" @endif><span aria-hidden="true">🛡️</span> Zgłoszenia</a></li>
+                            <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><span aria-hidden="true">🛡️</span> Zgłoszenia</a></li>
+                            <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><span aria-hidden="true">📌</span> Tablica na dziś</a></li>
                         @endif
                     </ul>
                 </nav>

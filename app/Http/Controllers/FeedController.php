@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ class FeedController extends Controller
     public function __construct(
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
+        private readonly DailyBoard $dailyBoard,
     ) {}
 
     /**
@@ -29,6 +31,7 @@ class FeedController extends Controller
 
         return view('pages.landing', [
             'posts' => $this->discoverFeed->paginate(null, 9),
+            'board' => $this->dailyBoard->forViewer(null),
         ]);
     }
 
@@ -46,11 +49,11 @@ class FeedController extends Controller
 
         return view('pages.home', [
             'greeting' => $this->greeting($user->displayName()),
+            'board' => $this->dailyBoard->forViewer($user),
             'posts' => $feedIsEmpty
                 ? $this->discoverFeed->paginate($user)
                 : $this->followingFeed->paginate($user),
             'showingDiscover' => $feedIsEmpty,
-            'suggestedPeople' => $feedIsEmpty ? $this->discoverFeed->suggestedPeople($user) : collect(),
         ]);
     }
 
@@ -59,7 +62,7 @@ class FeedController extends Controller
     {
         return view('pages.discover', [
             'posts' => $this->discoverFeed->paginate($request->user()),
-            'suggestedPeople' => $this->discoverFeed->suggestedPeople($request->user()),
+            'board' => $this->dailyBoard->forViewer($request->user()),
         ]);
     }
 
