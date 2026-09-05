@@ -420,9 +420,23 @@ jobs:
           echo "--- Wersja PHP ---"
           docker run --rm kuking:ci-${{ github.sha }} php -v
 
+          # Listę rozszerzeń pobieramy RAZ, do zmiennej, i przeszukujemy ją
+          # here-stringiem — świadomie bez potoku.
+          #
+          # Wcześniej było `docker run ... php -m | grep -qix "$ext"` w pętli
+          # i to dawało FAŁSZYWE „BRAK": `grep -q` kończy się przy pierwszym
+          # trafieniu i zamyka potok, docker dostaje SIGPIPE („write /dev/stdout:
+          # broken pipe"), wychodzi z niezerowym kodem, a `set -o pipefail`
+          # przenosi to na cały warunek. Wynik zależy od tego, czy producent
+          # zdążył dopisać do bufora — czyli wyścig, który raz na jakiś czas
+          # wywala CI na losowym rozszerzeniu. Tak padło „BRAK zip", mimo że
+          # zip w obrazie JEST.
+          #
+          # Przy okazji: jedno `docker run` zamiast dziewięciu.
           echo "--- Wymagane rozszerzenia ---"
+          modules=$(docker run --rm kuking:ci-${{ github.sha }} php -m)
           for ext in pdo_pgsql pgsql intl gd zip exif pcntl bcmath opcache; do
-            if docker run --rm kuking:ci-${{ github.sha }} php -m | grep -qix "$ext"; then
+            if grep -qix "$ext" <<< "$modules"; then
               echo "OK   $ext"
             else
               echo "BRAK $ext"; exit 1
