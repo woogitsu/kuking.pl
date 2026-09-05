@@ -91,7 +91,11 @@ class PostController extends Controller
             'author.profile.avatar',
             'media',
             'recipe:id,title,slug',
+            // Komentarze filtrowane przez blokady (issue #41). Bez tego
+            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
+            'comments' => fn ($query) => $query->widoczneDla($request->user()),
             'comments.author.profile.avatar',
+            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
             'comments.replies.author.profile.avatar',
         ]);
 

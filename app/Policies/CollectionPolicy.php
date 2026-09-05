@@ -11,11 +11,22 @@ class CollectionPolicy
 {
     public function view(?User $user, Collection $collection): bool
     {
-        if ($collection->isPublic()) {
+        // Właściciel widzi zawsze — także wtedy, gdy kogoś zablokował.
+        if ($user !== null && $user->getKey() === $collection->owner_id) {
             return true;
         }
 
-        return $user !== null && $user->getKey() === $collection->owner_id;
+        // Blokada ma pierwszeństwo przed „publiczny" (issue #41).
+        //
+        // Bez tego warunku zeszyt był jedynym typem treści, który blokady nie
+        // respektował: wpis, przepis i wykonanie znikały zablokowanemu z oczu,
+        // a zeszyt — nie. Blokada, która działa „wszędzie poza jednym miejscem",
+        // nie jest blokadą, tylko obietnicą bez pokrycia.
+        if ($user !== null && $user->hasBlockRelationWith($collection->owner)) {
+            return false;
+        }
+
+        return $collection->isPublic();
     }
 
     public function update(User $user, Collection $collection): bool
