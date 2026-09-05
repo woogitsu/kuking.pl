@@ -99,19 +99,23 @@ jobs:
     name: Larastan (analiza statyczna)
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
-    # NIEBLOKUJĄCY — świadomie i tymczasowo, do czasu zamknięcia issue #32.
+    # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
+    # `phpstan analyse` kończyłby się „At least one path must be specified".
     #
-    # Powód: w repozytorium NIE MA jeszcze pliku `phpstan.neon`, więc
-    # `phpstan analyse` kończy się „At least one path must be specified".
-    # To nie jest job, który znajduje błędy i je zgłasza — to job, który
-    # nie może przejść, bo nie ma czego analizować. Blokujący byłby wtedy
-    # stałą czerwoną lampką, a od stałej czerwonej lampki ludzie się uczą,
-    # że czerwone CI się ignoruje. To gorsze niż brak tego joba.
+    # Krok PHPStana jest dlatego warunkowy: bez konfiguracji job kończy się
+    # ZIELONY z adnotacją w podsumowaniu, zamiast zapalać czerwoną lampkę,
+    # której nie da się naprawić kodem. Od stałej czerwonej lampki ludzie
+    # uczą się, że czerwone CI się ignoruje — i wtedy przestaje działać
+    # także to CI, które coś naprawdę sprawdza.
     #
-    # Issue #32 dokłada konfigurację i poziom. Po jego zamknięciu USUŃ
-    # `continue-on-error` — inaczej analiza statyczna nigdy nie zacznie
-    # niczego pilnować.
-    continue-on-error: true
+    # Świadomie NIE używamy `continue-on-error`: ono i tak raportuje check
+    # jako `failure`, tylko nie psuje przebiegu. Chcemy odwrotnie —
+    # uczciwie „pominięte", nie „padło, ale nieważne".
+    #
+    # To rozwiązanie samo się naprawia: w chwili, gdy #32 doda plik
+    # konfiguracyjny, analiza zaczyna działać i BLOKOWAĆ. Nie ma tu nic,
+    # o czym trzeba pamiętać, żeby usunąć. Ta sama logika jest
+    # w scripts/check.sh.
 
     steps:
       - uses: actions/checkout@v4
@@ -151,7 +155,26 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      # Bez tego kroku job nie wiedziałby, czy „brak wyniku" to brak
+      # konfiguracji, czy realny błąd analizy.
+      - name: Czy jest konfiguracja PHPStana?
+        id: phpstan_config
+        run: |
+          if ls phpstan.neon phpstan.neon.dist phpstan.dist.neon >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Analiza statyczna pominięta"
+              echo ""
+              echo "W repozytorium nie ma \`phpstan.neon\`, więc nie ma czego analizować."
+              echo "Konfigurację dokłada **issue #32** — po jej dodaniu ten job"
+              echo "zacznie działać i blokować sam z siebie, bez zmian w workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: PHPStan
+        if: steps.phpstan_config.outputs.exists == 'true'
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
   # ===========================================================================

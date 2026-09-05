@@ -152,6 +152,10 @@ Warto na niego zerknąć po pierwszym miesiącu, żeby zweryfikować szacunek
 ## Checklista włączenia CI
 
 - [x] Odkomentowany blok `on:` w `.github/workflows/ci.yml`
+- [x] Krok PHPStana warunkowy — bez `phpstan.neon` job kończy się zielony
+      z adnotacją, zamiast zapalać lampkę, której nie da się naprawić kodem.
+      Zacznie blokować sam, gdy #32 doda konfigurację — **nic nie trzeba
+      wtedy zmieniać w workflow**
 - [ ] Zmienna repozytorium `CI_RUNNER` **usunięta** albo ustawiona na
       `ubuntu-latest` (Settings → Secrets and variables → Actions → Variables).
       Workflowy mają `runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}`, więc
