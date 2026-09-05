@@ -116,4 +116,20 @@ return [
         // Adres, na który idą zgłoszenia i sprawy moderacyjne.
         'contact_email' => env('KUKING_CONTACT_EMAIL', 'kontakt@kuking.pl'),
     ],
+
+    'wersja' => [
+        // ETAP PRODUKTU — podbijany RĘCZNIE, przy kamieniach milowych
+        // z docs/ROADMAP.md. Trzymany w repo, nie w zmiennej środowiskowej,
+        // żeby zmiana wersji przechodziła przez recenzję jak każda inna.
+        //
+        // Numeracja: „Alfa 0.N" do czasu zamkniętej alfy (D-012), potem
+        // „Beta 0.N", potem 1.0. Bez SemVera — nie wydajemy biblioteki,
+        // której ktoś pilnuje zgodności API, tylko serwis dla ludzi.
+        'etykieta' => 'Alfa 0.1',
+
+        // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
+        // Ta sama wartość idzie do SENTRY_RELEASE (.railway/railway.ts), więc
+        // wersja w stopce i wersja przy błędzie w Sentry to ten sam commit.
+        'commit' => env('RAILWAY_GIT_COMMIT_SHA'),
+    ],
 ];
