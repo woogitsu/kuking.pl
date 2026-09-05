@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
+use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Models\AuditLogEntry;
 use App\Models\Ingredient;
 use App\Models\Recipe;
@@ -46,6 +47,17 @@ final class PublishRecipe
 
         if ($title === '') {
             throw new RuntimeException('Podaj nazwę przepisu — choćby roboczą, zmienisz ją później.');
+        }
+
+        // Statusy moderacyjne są dla autora końcowe (audyt A08). Policy pilnuje
+        // wejścia na adres, ale kreator Livewire i formularz bez JavaScriptu
+        // kończą w TEJ akcji — więc reguła musi stać także tutaj, żeby nie dało
+        // się jej obejść dodaniem drugiego endpointu (AGENTS.md §4).
+        if ($existing !== null && ! RecipeStatusTransitions::authorMayEdit($existing->status)) {
+            throw new RuntimeException(
+                'Ten przepis został ukryty przez moderację i nie można go teraz zmieniać. '
+                .'Jeśli uważasz, że to pomyłka, napisz do nas: '.config('kuking.community.contact_email'),
+            );
         }
 
         $cleanIngredients = $this->cleanIngredients($ingredients);
@@ -113,9 +125,20 @@ final class PublishRecipe
                     $payload['slug'] = $this->slugs->handle($title, $recipe->getKey());
                 }
 
-                if ($publish && ! $recipe->isPublished()) {
-                    $payload['status'] = Recipe::STATUS_PUBLISHED;
-                    $payload['published_at'] = now();
+                // O zmianie statusu decyduje macierz przejść, nie pytanie
+                // „czy przepis jest już opublikowany" (audyt A08). Tamto
+                // pytanie odpowiadało „nie" także dla przepisu UKRYTEGO przez
+                // moderatora, więc autor odzyskiwał go jednym kliknięciem.
+                $docelowy = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;
+
+                if (RecipeStatusTransitions::authorMay($recipe->status, $docelowy)) {
+                    $payload['status'] = $docelowy;
+
+                    // Data publikacji jest obietnicą w archiwum — ustawiamy ją
+                    // przy PIERWSZEJ publikacji i nie przestawiamy przy edycji.
+                    $payload['published_at'] = $docelowy === Recipe::STATUS_PUBLISHED
+                        ? ($recipe->published_at ?? now())
+                        : null;
                 }
 
                 $recipe->update($payload);

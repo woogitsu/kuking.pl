@@ -68,7 +68,20 @@
             <p class="meta" style="margin-bottom:var(--spacing-2);">{{ $recipe->attributionLine() }}</p>
             <h1 style="margin-top:0;">{{ $recipe->title }}</h1>
 
-            @if(! $recipe->isPublished())
+            @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
+                {{--
+                    Ukrycie przez moderację nie jest szkicem (audyt A08).
+                    Wcześniej autor dostawał tu komunikat „To jest szkic.
+                    Kliknij Edytuj”, a „Edytuj” oddawało 403 — interfejs
+                    obiecywał akcję, której nie ma, i nie mówił, co zrobić.
+                --}}
+                <p class="notice">
+                    <strong>Ten przepis jest ukryty przez moderację.</strong>
+                    Nie widzą go inne osoby i na razie nie da się go zmieniać.
+                    Jeśli uważasz, że to pomyłka, napisz do nas:
+                    {{ config('kuking.community.contact_email') }}
+                </p>
+            @elseif(! $recipe->isPublished())
                 <p class="notice"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
@@ -192,8 +205,13 @@
 
         @auth
             <p>
+                {{-- Przycisk pyta Policy, a nie tylko o autorstwo: dla przepisu
+                     ukrytego przez moderację edycja jest zamknięta (audyt A08),
+                     więc nie pokazujemy guzika prowadzącego do 403. --}}
                 @if(auth()->id() === $recipe->author_id)
-                    <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Edytuj przepis</a>
+                    @can('update', $recipe)
+                        <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Edytuj przepis</a>
+                    @endcan
                 @else
                     <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'recipe', 'id' => $recipe->slug]) }}">Zgłoś</a>
                 @endif

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Models\Recipe;
 use App\Models\User;
 
@@ -28,9 +29,21 @@ class RecipePolicy
         };
     }
 
+    /**
+     * Autorstwo to warunek konieczny, nie wystarczający (audyt A08).
+     *
+     * Sama odpowiedź „to Twój przepis" pozwalała autorowi wejść w edycję
+     * przepisu UKRYTEGO przez moderatora i opublikować go z powrotem.
+     * O tym, czy przepis w danym stanie wolno jeszcze zmieniać, decyduje
+     * jawna macierz przejść, a nie kolejny warunek dopisany w tym miejscu.
+     */
     public function update(User $user, Recipe $recipe): bool
     {
-        return $user->getKey() === $recipe->author_id;
+        if ($user->getKey() !== $recipe->author_id) {
+            return false;
+        }
+
+        return RecipeStatusTransitions::authorMayEdit($recipe->status);
     }
 
     public function delete(User $user, Recipe $recipe): bool
