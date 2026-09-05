@@ -204,6 +204,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ustawienia/twoje-dane/eksport', [DataSettingsController::class, 'requestExport'])->name('settings.data.export');
     Route::post('/ustawienia/twoje-dane/usun-konto', [DataSettingsController::class, 'requestDeletion'])->name('settings.data.delete');
 
+    // Pobranie paczki z danymi. `signed` = adres musi być podpisany przez nas
+    // i nieprzedawniony; właściciela sprawdza dodatkowo kontroler, bo podpis
+    // to nie autoryzacja (AGENTS.md, sekcja 7).
+    Route::get('/ustawienia/twoje-dane/pobierz/{export}', [DataSettingsController::class, 'download'])
+        ->middleware('signed')
+        ->name('settings.data.download');
+
     // Zgłaszanie treści
     Route::get('/zglos/{type}/{id}', [ReportController::class, 'create'])->name('reports.create');
     Route::post('/zglos/{type}/{id}', [ReportController::class, 'store'])

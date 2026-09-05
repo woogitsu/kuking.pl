@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Jobs\GenerateUserExport;
 use App\Models\DataExport;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -19,6 +21,11 @@ class DataRightsTest extends TestCase
 
     public function test_uzytkownik_moze_poprosic_o_eksport_swoich_danych(): void
     {
+        // Kolejka udawana: sprawdzamy TU samo przyjęcie żądania. Budowanie
+        // paczki ma własny plik testów (DataExportTest), a bez tego job
+        // wykonałby się w tym samym żądaniu i status byłby od razu `ready`.
+        Queue::fake();
+
         $basia = $this->user('basia');
 
         $this->actingAs($basia)->post(route('settings.data.export'))->assertRedirect();
@@ -27,16 +34,21 @@ class DataRightsTest extends TestCase
             'user_id' => $basia->getKey(),
             'status' => DataExport::STATUS_QUEUED,
         ]);
+
+        Queue::assertPushed(GenerateUserExport::class);
     }
 
     public function test_druga_prosba_nie_tworzy_kolejnego_zadania(): void
     {
+        Queue::fake();
+
         $basia = $this->user('basia');
 
         $this->actingAs($basia)->post(route('settings.data.export'));
         $this->actingAs($basia)->post(route('settings.data.export'));
 
         $this->assertSame(1, DataExport::count());
+        Queue::assertPushed(GenerateUserExport::class, 1);
     }
 
     public function test_usuniecie_konta_wymaga_hasla_i_potwierdzenia(): void

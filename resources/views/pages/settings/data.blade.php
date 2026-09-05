@@ -20,7 +20,7 @@
             <h3 style="margin-top:var(--spacing-6);">Twoje paczki</h3>
             <ul>
                 @foreach($exports as $export)
-                    <li>
+                    <li style="margin-bottom:var(--spacing-4);">
                         {{ $export->created_at->translatedFormat('j F Y, H:i') }} —
                         @switch($export->status)
                             @case('ready') gotowa @break
@@ -29,6 +29,16 @@
                             @case('failed') nie udało się przygotować @break
                             @default wygasła
                         @endswitch
+
+                        @if(isset($downloadUrls[$export->getKey()]))
+                            <br>
+                            <a class="btn btn-primary" style="margin-top:var(--spacing-2);"
+                               href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
+                            <br>
+                            <span class="field-help">Do pobrania do {{ $export->expires_at->translatedFormat('j F Y') }}.</span>
+                        @elseif($export->status === 'failed' && $export->failure_reason)
+                            <br><span class="field-help">{{ $export->failure_reason }}</span>
+                        @endif
                     </li>
                 @endforeach
             </ul>
