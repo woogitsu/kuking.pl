@@ -10,8 +10,10 @@ use App\Domain\Social\Actions\UnblockUser;
 use App\Domain\Social\Actions\UnfollowUser;
 use App\Models\Profile;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use RuntimeException;
 
 class SocialController extends Controller
@@ -70,6 +72,60 @@ class SocialController extends Controller
         $this->unblockUser->handle($request->user(), $target, $request->ip());
 
         return back()->with('status', 'Blokada zdjęta.');
+    }
+
+    /** Lista osób, które obserwują dany profil: /@{username}/obserwujacy */
+    public function followers(Request $request, string $username): Response
+    {
+        return $this->connections($request, $username, 'followers', 'Obserwujący');
+    }
+
+    /** Lista osób, które dany profil obserwuje: /@{username}/obserwowani */
+    public function following(Request $request, string $username): Response
+    {
+        return $this->connections($request, $username, 'following', 'Obserwowani');
+    }
+
+    /**
+     * Wspólna logika obu list relacji.
+     *
+     * Blokada w KTÓRĄKOLWIEK stronę chowa osobę z listy — stąd
+     * `hasBlockRelationWith()`, a nie sam `blocking()`. Blokada między
+     * obserwującym a obserwowanym zwykle i tak kasuje follow (patrz
+     * BlockUser), ale to nie zwalnia z filtrowania: na liście może się
+     * znaleźć ktoś, kogo zablokował akurat OSOBA OGLĄDAJĄCA listę, a nie
+     * właściciel profilu.
+     */
+    private function connections(Request $request, string $username, string $relation, string $title): Response
+    {
+        $target = $this->findUser($username);
+        $this->authorize('viewProfile', $target);
+
+        $viewer = $request->user();
+
+        /** @var LengthAwarePaginator $paginator */
+        $paginator = $target->{$relation}()
+            ->with('profile.avatar')
+            ->orderByPivot('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        if ($viewer !== null) {
+            $paginator->setCollection(
+                $paginator->getCollection()->reject(
+                    fn (User $person): bool => $viewer->hasBlockRelationWith($person),
+                )->values(),
+            );
+        }
+
+        $profile = $target->profile;
+
+        return response()->view('pages.profile.connections', [
+            'title' => $title,
+            'relation' => $relation,
+            'profile' => $profile,
+            'people' => $paginator,
+        ])->header('X-Robots-Tag', 'noindex, nofollow');
     }
 
     private function findUser(string $username): User
