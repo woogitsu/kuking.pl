@@ -321,9 +321,24 @@ do niepowiązanego PR-a.
   `/ustawienia`), z wyjątkiem `/home`, `/login`, `/register`.
 - Nazwy zdarzeń analitycznych: `snake_case` po angielsku.
 
-Słownik marki i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
-W skrócie — mówimy „Ugotowałem”, „Zapisuję”, „Zeszyt”, „Napisz kilka słów”.
-Nie mówimy „content”, „explore”, „engage”, „creator”, „tapnij”.
+**Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md`.**
+To jest dokument wiążący, nie inspiracja — ma gotowe teksty do wklejenia
+dla większości ekranów.
+
+W skrócie:
+
+- mówimy „Ugotowałem”, „Zapisuję”, „Zeszyt”, „Napisz kilka słów”;
+- nie mówimy „content”, „explore”, „engage”, „creator”, „tapnij”;
+- **`kuKING` to nazwa mieszkańca serwisu, nie komplement.** Wolno „Zostań
+  kuKINGiem”, nie wolno „Jesteś prawdziwym kuKINGiem!” ani „Top kuKINGi tygodnia”;
+- gra słowem `kuKING` **maksymalnie raz na ekran** i **nigdy** w komunikacie
+  błędu, wiadomości moderacyjnej ani tekście prawnym;
+- zero emoji w tekstach interfejsu, najwyżej jeden wykrzyknik na ekran;
+- komunikat błędu ma powiedzieć, **co zrobić**;
+- unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
+  („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+
+Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
 ---
 

@@ -80,6 +80,7 @@ poprawiać prawnik, a zmianę dało się zobaczyć w Pull Requeście.
 |---|---|
 | [`BRAND.md`](./BRAND.md) | nazwa, claim, osobowość |
 | [`brand/MASCOT_CONCEPT.md`](./brand/MASCOT_CONCEPT.md) | Garnuś — garnek z koroną, 7 konceptów, due diligence znaku |
+| [`brand/COPY_STYLE.md`](./brand/COPY_STYLE.md) | **głos Kuking** — jak piszemy, system „kuKING”, gotowe teksty do wklejenia |
 | [`brand/BRAND_EXTENDED.md`](./brand/BRAND_EXTENDED.md) | słownik marki, słowa zakazane, ton komunikatów |
 | [`brand/mascot-winner.svg`](./brand/mascot-winner.svg) | zwycięski koncept w kilku rozmiarach |
 
