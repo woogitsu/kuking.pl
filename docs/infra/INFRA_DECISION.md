@@ -103,7 +103,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
               │ (Wait for CI)                      │
 ╔═════════════╪════════════════════════════════════╪═════════════════════════╗
 ║                            GITHUB                                          ║
-║  matmaxalez/kuking.pl                                                      ║
+║  woogitsu/kuking.pl                                                        ║
 ║                                                                            ║
 ║  push main    ──► CI (Pint, Larastan, testy PG18, Vite, audyt, obraz)      ║
 ║                   └─ zielone ──► Railway buduje i wdraża production        ║

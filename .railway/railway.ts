@@ -48,7 +48,7 @@ import {
 //  Stałe projektu
 // -----------------------------------------------------------------------------
 
-const REPO = "matmaxalez/kuking.pl";
+const REPO = "woogitsu/kuking.pl";
 
 /**
  * EU West Metal, Amsterdam — najbliższy region dla polskich użytkowników
@@ -286,16 +286,19 @@ export default defineRailway((ctx) => {
   //  dla preview tę samą gałąź co produkcja i opisujemy to w komentarzu,
   //  zamiast udawać, że pole jest opcjonalne.
   // ---------------------------------------------------------------------------
-  //  UWAGA (wrzesień 2026): repozytorium jest prywatne i konto nie ma
-  //  dostępnych minut GitHub Actions, więc workflow CI jest wyłączony
-  //  z automatycznego uruchamiania. Przy `checkSuites: true` Railway czekałby
-  //  na check suite, który nigdy nie powstanie — i NIC BY SIĘ NIE ZDEPLOYOWAŁO.
-  //  Dlatego bramka jest sterowana zmienną środowiskową i domyślnie wyłączona.
+  //  UWAGA (wrzesień 2026): przy `checkSuites: true` Railway czeka na check
+  //  suite. Jeśli CI nie produkuje check suite dla danej gałęzi, Railway czeka
+  //  w nieskończoność — i NIC BY SIĘ NIE ZDEPLOYOWAŁO. Dlatego bramka jest
+  //  sterowana zmienną środowiskową i domyślnie wyłączona.
   //
-  //  Włącz ją (`KUKING_WAIT_FOR_CI=true`) w tej samej chwili, w której włączasz
-  //  CI — czyli gdy pojawią się minuty albo własny runner.
+  //  Stan: wyzwalacze CI są już włączone w .github/workflows/ci.yml (D-010),
+  //  ale `main` czeka jeszcze na pierwszy zielony przebieg.
+  //
+  //  Włącz bramkę (`KUKING_WAIT_FOR_CI=true`) DOPIERO PO pierwszym zielonym
+  //  przebiegu CI na gałęzi domyślnej — nie wcześniej. Kolejność jest częścią
+  //  decyzji D-010, nie preferencją.
   //  Do tego czasu bramką jakości jest lokalny hook pre-push
-  //  (scripts/install-hooks.sh). Porównanie opcji: docs/infra/CI_BEZ_ACTIONS.md
+  //  (scripts/install-hooks.sh). Szczegóły: docs/infra/CI_BEZ_ACTIONS.md
   const czekajNaCI = process.env.KUKING_WAIT_FOR_CI === "true";
 
   const source = github(REPO, {

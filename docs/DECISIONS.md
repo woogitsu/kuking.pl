@@ -160,7 +160,7 @@ forma żeńska (żadna nie brzmi po polsku dobrze).
 
 ## D-010 · CI na runnerach GitHuba, repozytorium w nowej organizacji
 
-**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **do wykonania**
+**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **wykonane w części repozytorium**
 
 > **Zmiana wcześniejszej decyzji.** Pierwotnie: własny self-hosted runner.
 > Powód zmiany: plan Free daje **2 000 minut miesięcznie także dla repozytoriów
@@ -182,6 +182,20 @@ przebiegi zrobiły się długie.
 ⚠️ **Kolejność ma znaczenie:** `KUKING_WAIT_FOR_CI=true` w `railway.ts`
 włączamy **dopiero po** pierwszym zielonym przebiegu CI. Wcześniej Railway
 czekałby na check suite, który nie powstaje, i nic by się nie zdeployowało.
+
+**Stan wykonania:**
+
+- ✅ organizacja `woogitsu`, transfer repozytorium, zachowane numery issues
+- ✅ `git remote` i wszystkie odwołania w repozytorium na `woogitsu/kuking.pl`
+- ✅ automatyczne wyzwalacze w `.github/workflows/ci.yml` (`push` i
+  `pull_request` na `main` i `staging`)
+- ⬜ **pierwszy zielony przebieg** — wymaga, żeby workflow znalazł się na
+  gałęzi domyślnej; `main` to dziś pusty commit inicjalizacyjny, więc do
+  czasu scalenia GitHub nie widzi żadnego workflow
+- ⬜ zmienna repozytorium `CI_RUNNER` usunięta albo `ubuntu-latest`
+  (ustawienia GitHuba, nie plik w repozytorium)
+- ⬜ ochrona gałęzi `main` wymagająca zielonego CI
+- ⬜ `KUKING_WAIT_FOR_CI=true` — **na samym końcu**
 
 **Zmiana wymaga:** wyczerpania limitu nowej organizacji albo potrzeby
 kontroli nad środowiskiem, której runnery GitHuba nie dają.

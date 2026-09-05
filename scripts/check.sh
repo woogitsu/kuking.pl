@@ -55,15 +55,20 @@ else
 fi
 
 # --- 4. Analiza statyczna (opcjonalna) ------------------------------------
+# Bez pliku konfiguracyjnego PHPStan nie ma czego analizować i kończy się
+# błędem „At least one path must be specified". Zgłaszanie tego jako problemu
+# do naprawienia sprawiłoby, że kontrola NIGDY nie jest zielona — a wtedy
+# przestaje cokolwiek znaczyć. Konfigurację dokłada issue #32; do tego czasu
+# krok jest świadomie pomijany (tak samo jak job `static-analysis` w CI).
 krok "Analiza statyczna (PHPStan)"
-if [ -x vendor/bin/phpstan ]; then
-    if vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
-        ok "PHPStan bez zastrzeżeń"
-    else
-        zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
-    fi
-else
+if [ ! -x vendor/bin/phpstan ]; then
     printf "  Pominięte: brak vendor/bin/phpstan (composer install)\n"
+elif ! ls phpstan.neon phpstan.neon.dist phpstan.dist.neon >/dev/null 2>&1; then
+    printf "  Pominięte: brak konfiguracji PHPStana — issue #32\n"
+elif vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
+    ok "PHPStan bez zastrzeżeń"
+else
+    zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
 fi
 
 # --- 5. Testy -------------------------------------------------------------

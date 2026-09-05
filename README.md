@@ -81,7 +81,7 @@ w [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 Wymagania: PHP 8.4, Composer, Node 22, PostgreSQL 16+.
 
 ```bash
-git clone https://github.com/matmaxalez/kuking.pl.git
+git clone https://github.com/woogitsu/kuking.pl.git
 cd kuking.pl
 
 composer install

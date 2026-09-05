@@ -42,7 +42,7 @@ gh --version
 
 | # | Co | Uwagi |
 |---|---|---|
-| 0.1 | Konto **GitHub** z repo `matmaxalez/kuking.pl` | prywatne lub publiczne |
+| 0.1 | Konto **GitHub** z repo `woogitsu/kuking.pl` | prywatne lub publiczne |
 | 0.2 | Konto **Railway** (railway.com) + karta płatnicza | plan **Hobby $5/mies.** na start |
 | 0.3 | Konto **Cloudflare** z domeną `kuking.pl` w strefie DNS | już masz |
 | 0.4 | Adres e-mail do alertów | np. `alerty@kuking.pl` |
@@ -313,7 +313,7 @@ Darmowy plan: 1 mln zdarzeń/mies. — na alfę i betę wystarczy z zapasem.
 ### 6.1 Projekt
 
 → railway.com → **New Project** → **Deploy from GitHub repo**
-→ wybierz `matmaxalez/kuking.pl` → **Add variables** (na razie pomiń) → **Deploy**
+→ wybierz `woogitsu/kuking.pl` → **Add variables** (na razie pomiń) → **Deploy**
 
 Pierwszy deploy **prawdopodobnie się nie uda** — brakuje jeszcze zmiennych.
 To normalne, poprawimy to w kroku 8.

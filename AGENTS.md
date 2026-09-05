@@ -266,15 +266,18 @@ jedyny realny wyróżnik Kuking — autentyczność — i jest nieodwracalne.
 ./scripts/check.sh       # formatowanie + składnia + testy + migracje + assety
 ```
 
-**GitHub Actions są wyłączone** — repozytorium jest prywatne, a konto nie ma
-dostępnych minut. Bramką jakości jest kontrola lokalna; nie zakładaj, że CI
-złapie cokolwiek za Ciebie. Zainstaluj hook raz:
+**GitHub Actions są włączone** (D-010): repozytorium żyje w organizacji
+`woogitsu`, która ma własną pulę 2 000 minut miesięcznie. CI chodzi na
+`push` do `main` i `staging` oraz na każdym Pull Requeście do tych gałęzi.
+
+Kontrola lokalna **zostaje mimo to** — jest szybsza i łapie błąd, zanim ten
+zje minuty z puli. Zainstaluj hook raz:
 
 ```bash
 ./scripts/install-hooks.sh
 ```
 
-Szczegóły i plan włączenia CI: `docs/infra/CI_BEZ_ACTIONS.md`.
+Szczegóły i plan awaryjny: `docs/infra/CI_BEZ_ACTIONS.md`.
 
 Pojedyncze kroki, gdy chcesz coś sprawdzić osobno:
 

@@ -12,6 +12,24 @@ use Illuminate\Support\Str;
 abstract class TestCase extends BaseTestCase
 {
     /**
+     * Testy nie zależą od zbudowanych assetów.
+     *
+     * Bez tego każdy test renderujący layout wymagałby wcześniejszego
+     * `npm run build`, bo `@vite` szuka `public/build/manifest.json` —
+     * a ten katalog jest w `.gitignore`. W CI job `test` celowo nie buduje
+     * front-endu (robi to osobny job `assets`), więc testy padałyby na
+     * ViteManifestNotFoundException zamiast sprawdzać cokolwiek z aplikacji.
+     *
+     * To, że manifest naprawdę powstaje, weryfikuje job `assets`.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+    }
+
+    /**
      * Skrót do tworzenia użytkownika z profilem i czytelną nazwą.
      *
      * Testy Kuking prawie zawsze potrzebują profilu (adresy /@nazwa, widoki),

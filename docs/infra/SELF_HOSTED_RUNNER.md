@@ -101,7 +101,7 @@ docker run --rm hello-world
 
 ## Rejestracja runnera
 
-1. GitHub → repozytorium `matmaxalez/kuking.pl` → **Settings** → **Actions**
+1. GitHub → repozytorium `woogitsu/kuking.pl` → **Settings** → **Actions**
    → **Runners** → **New self-hosted runner**
 2. Wybierz **Linux / x64**. GitHub pokaże gotowe komendy z tokenem —
    wykonaj je na maszynie:

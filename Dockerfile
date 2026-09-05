@@ -114,7 +114,7 @@ RUN --mount=type=cache,id=s/kuking-composer-/tmp/composer-cache,target=/tmp/comp
 FROM dunglas/frankenphp:1-php8.4-trixie AS runtime
 
 LABEL org.opencontainers.image.title="kuking.pl"
-LABEL org.opencontainers.image.source="https://github.com/matmaxalez/kuking.pl"
+LABEL org.opencontainers.image.source="https://github.com/woogitsu/kuking.pl"
 LABEL org.opencontainers.image.licenses="proprietary"
 
 # Te same rozszerzenia co w etapie vendor. Trzymaj listy zsynchronizowane.

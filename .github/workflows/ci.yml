@@ -1,17 +1,19 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
-#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
-#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#  CI JEST WŁĄCZONE (D-010, issue #4).
 #
-#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
-#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#  Repozytorium jest prywatne, ale żyje w organizacji `woogitsu` na planie Free,
+#  która ma własną, nieużywaną pulę 2 000 minut Actions miesięcznie.
+#  `./scripts/check.sh` trwa 4-8 minut → 250-500 przebiegów miesięcznie.
 #
-#  Żeby WŁĄCZYĆ CI, gdy będą minuty albo własny runner:
-#    1. odkomentuj blok `on:` poniżej,
-#    2. ustaw zmienną repozytorium CI_RUNNER:
-#         - `ubuntu-latest`  → runnery GitHuba (płatne dla repo prywatnych),
-#         - `self-hosted`    → własny runner (koszt tylko maszyny).
-#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+#  Kontrola lokalna ZOSTAJE mimo działającego CI — jest szybsza i łapie błąd,
+#  zanim ten trafi na GitHuba (i zanim zje minuty):
+#    ./scripts/check.sh           # to samo, co robi ten workflow
+#    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
+#
+#  PLAN AWARYJNY: gdyby limit organizacji się wyczerpał, przełączenie na własny
+#  runner to jedna zmienna repozytorium `CI_RUNNER` = `self-hosted` — dlatego
+#  `runs-on` niżej czyta ją z fallbackiem. Bez ustawionej zmiennej joby same
+#  wybierają runnery GitHuba. Instrukcja: docs/infra/SELF_HOSTED_RUNNER.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -32,15 +34,14 @@
 
 name: CI
 
-# Automatyczne wyzwalacze wyłączone (patrz nagłówek pliku).
-# Po włączeniu CI usuń `workflow_dispatch` i odkomentuj poniższe:
-# on:
-#   push:
-#     branches: [main, staging]
-#   pull_request:
-#     branches: [main, staging]
-
 on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  # Zostaje obok wyzwalaczy automatycznych: pozwala puścić przebieg ręcznie
+  # (Actions → CI → Run workflow) bez pustego commita — przydaje się przy
+  # pierwszym uruchomieniu i przy sprawdzaniu, czy problem nie był chwilowy.
   workflow_dispatch:
 
 # Uprawnienia minimalne — do uruchomienia testów nie potrzebujemy write.
@@ -98,6 +99,19 @@ jobs:
     name: Larastan (analiza statyczna)
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
+    # NIEBLOKUJĄCY — świadomie i tymczasowo, do czasu zamknięcia issue #32.
+    #
+    # Powód: w repozytorium NIE MA jeszcze pliku `phpstan.neon`, więc
+    # `phpstan analyse` kończy się „At least one path must be specified".
+    # To nie jest job, który znajduje błędy i je zgłasza — to job, który
+    # nie może przejść, bo nie ma czego analizować. Blokujący byłby wtedy
+    # stałą czerwoną lampką, a od stałej czerwonej lampki ludzie się uczą,
+    # że czerwone CI się ignoruje. To gorsze niż brak tego joba.
+    #
+    # Issue #32 dokłada konfigurację i poziom. Po jego zamknięciu USUŃ
+    # `continue-on-error` — inaczej analiza statyczna nigdy nie zacznie
+    # niczego pilnować.
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

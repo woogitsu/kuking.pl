@@ -1,27 +1,47 @@
-# CI bez minut GitHub Actions
+# CI: jak długo działaliśmy bez minut i jak je odzyskaliśmy
 
-## Sytuacja
+> **Stan: CI jest WŁĄCZONE** (D-010, issue #4).
+> Ten dokument opisuje, dlaczego przez pewien czas go nie było, i zostaje
+> w repozytorium jako **plan awaryjny** — opcje A-D niżej są nadal aktualne
+> i przydadzą się, gdyby limit organizacji się wyczerpał.
 
-Repozytorium `matmaxalez/kuking.pl` jest **prywatne**. Dla repozytoriów
-prywatnych GitHub nalicza minuty Actions z puli konta; konto tej puli
-obecnie nie ma. Dla repozytoriów **publicznych** standardowe runnery GitHuba
-są darmowe i bez limitu — to jedyna sytuacja, w której „darmowe CI na Actions”
-naprawdę istnieje.
+## Sytuacja pierwotna
 
-Wniosek: **workflow CI jest wyłączony z automatycznego uruchamiania**
-(`on: workflow_dispatch`, czyli tylko ręcznie), a bramką jakości jest
-kontrola lokalna. Pliki workflow zostają w repozytorium gotowe do włączenia.
+Repozytorium `woogitsu/kuking.pl` jest **prywatne**. Dla repozytoriów
+prywatnych GitHub nalicza minuty Actions z puli konta; konto właściciela tej
+puli nie miało — została zużyta na inny projekt. Dla repozytoriów
+**publicznych** standardowe runnery GitHuba są darmowe i bez limitu — to
+jedyna sytuacja, w której „darmowe CI na Actions” naprawdę istnieje.
 
-Konsekwencja, o której łatwo zapomnieć: `railway.ts` miał `checkSuites: true`
-(„Wait for CI”). Przy wyłączonym CI Railway czekałby na check suite, który
-nigdy nie powstanie, i **nic by się nie zdeployowało**. Dlatego ta bramka jest
-teraz sterowana zmienną `KUKING_WAIT_FOR_CI` i domyślnie wyłączona.
+Przez ten czas workflow CI był wyłączony z automatycznego uruchamiania
+(`on: workflow_dispatch`), a bramką jakości była kontrola lokalna.
+
+## Jak to rozwiązaliśmy
+
+Pula minut jest liczona **per konto lub organizacja**, nie globalnie na
+człowieka. Repozytorium przeniosło się więc pod nową organizację `woogitsu`
+na planie Free, która startuje z pełnym, nieużywanym limitem **2 000 minut
+miesięcznie** — także dla repozytoriów prywatnych.
+
+`./scripts/check.sh` trwa 4-8 minut, więc to jest **250-500 przebiegów
+miesięcznie**, z dużym zapasem przy obecnym tempie prac.
+
+Szczegóły transferu: `PRZENIESIENIE_DO_ORGANIZACJI.md`.
+
+⚠️ Konsekwencja, o której łatwo zapomnieć: `railway.ts` ma bramkę
+„Wait for CI” (`source.checkSuites`) sterowaną zmienną `KUKING_WAIT_FOR_CI`.
+Przy wyłączonym CI Railway czekałby na check suite, który nigdy nie powstanie,
+i **nic by się nie zdeployowało**. Dlatego `KUKING_WAIT_FOR_CI=true`
+ustawiamy **dopiero po pierwszym zielonym przebiegu**.
 
 ---
 
-## Co działa teraz, za zero złotych
+## Kontrola lokalna — zostaje mimo działającego CI
 
-### 1. Kontrola lokalna — dokładnie to samo, co robiłoby CI
+Hook `pre-push` **nie jest** zastąpiony przez CI. Jest szybszy i łapie błąd,
+zanim ten trafi na GitHuba — czyli zanim zje minuty z puli.
+
+### 1. Kontrola lokalna — dokładnie to samo, co robi CI
 
 ```bash
 ./scripts/check.sh          # pełna kontrola
@@ -47,9 +67,10 @@ zainstalowany, i nie widać wyniku w PR-ze.
 
 ---
 
-## Opcje, kiedy potrzebne będą sprawdzenia w PR-ach
+## Plan awaryjny: opcje, gdyby limit organizacji się wyczerpał
 
-Uporządkowane od najtańszej do najdroższej.
+Uporządkowane od najtańszej do najdroższej. **Żadna nie jest w tej chwili
+potrzebna** — są tu na wypadek, gdyby 2 000 minut przestało wystarczać.
 
 ### A. Repozytorium publiczne — 0 zł, CI bez limitu
 
@@ -113,21 +134,34 @@ warto po nią sięgnąć dopiero, jeśli A i B odpadną.
 
 ## Rekomendacja
 
-1. **Teraz:** `./scripts/install-hooks.sh` u każdej osoby pracującej nad kodem.
-   Zero kosztów, natychmiastowy efekt, łapie to samo, co CI.
-2. **Przy pierwszym deployu:** rozważ własny runner na Railway (opcja B) —
-   maszyna i tak tam stoi, a wtedy wracają sprawdzenia w PR-ach i można
-   przywrócić „Wait for CI”.
-3. **Jeśli projekt ma być otwarty:** opcja A rozwiązuje problem całkowicie
-   i za darmo.
+1. **Zawsze:** `./scripts/install-hooks.sh` u każdej osoby pracującej nad kodem.
+   Zero kosztów, natychmiastowy efekt, łapie to samo, co CI — tylko szybciej
+   i bez zużywania minut.
+2. **Gdy licznik zacznie się zbliżać do limitu:** własny runner (opcja B).
+   Instrukcja jest gotowa w `SELF_HOSTED_RUNNER.md`, przełączenie to jedna
+   zmienna repozytorium.
+3. **Jeśli projekt kiedykolwiek ma być otwarty:** opcja A znosi problem
+   całkowicie i na stałe.
+
+Licznik zużycia: Settings organizacji → **Billing and plans** → sekcja Actions.
+Warto na niego zerknąć po pierwszym miesiącu, żeby zweryfikować szacunek
+4-8 minut na przebieg.
 
 ---
 
-## Checklista włączenia CI, gdy przyjdzie na to czas
+## Checklista włączenia CI
 
-- [ ] Odkomentowany blok `on:` w `.github/workflows/ci.yml`
-- [ ] Ustawiona zmienna repozytorium `CI_RUNNER` (`ubuntu-latest` lub `self-hosted`)
-- [ ] `KUKING_WAIT_FOR_CI=true` przy stosowaniu konfiguracji Railway
-- [ ] Sekrety `RAILWAY_TOKEN_PRODUCTION` i `RAILWAY_TOKEN_STAGING` w repozytorium
-- [ ] Pierwszy przebieg uruchomiony ręcznie (`workflow_dispatch`) i zielony
+- [x] Odkomentowany blok `on:` w `.github/workflows/ci.yml`
+- [ ] Zmienna repozytorium `CI_RUNNER` **usunięta** albo ustawiona na
+      `ubuntu-latest` (Settings → Secrets and variables → Actions → Variables).
+      Workflowy mają `runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}`, więc
+      bez zmiennej same wybiorą runnery GitHuba — ale **jeśli zmienna przeżyła
+      transfer z wartością `self-hosted`, joby będą wisieć w kolejce
+      w nieskończoność**, czekając na runnera, którego nie ma
+- [ ] Uprawnienia Actions w organizacji pozwalają uruchamiać workflowy
+      (Settings → Actions → General)
+- [ ] Pierwszy przebieg zielony
 - [ ] Reguła ochrony gałęzi `main` wymagająca zielonego CI
+- [ ] Sekrety `RAILWAY_TOKEN_PRODUCTION` i `RAILWAY_TOKEN_STAGING`
+      (dopiero przy deployu — #3, zablokowane przez D-011)
+- [ ] **Na końcu** `KUKING_WAIT_FOR_CI=true` przy stosowaniu konfiguracji Railway

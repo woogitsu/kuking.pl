@@ -52,7 +52,7 @@ ani żadnego planu płatnego.** Więc albo:
 4. założenie jest po prostu nieaktualne.
 
 **Zanim podejmiesz tę decyzję, wejdź w Settings → Billing and licensing → Usage this month i sprawdź licznik.**
-To jedno kliknięcie, a może całkowicie unieważnić problem. `[do weryfikacji — stan konta matmaxalez]`
+To jedno kliknięcie, a może całkowicie unieważnić problem. `[do weryfikacji — stan limitu organizacji woogitsu]`
 
 **Ile CI da się kupić za 2 000 minut?**
 Pełna kontrola z `scripts/check.sh` (PostgreSQL jako service, `composer install` z cache, Pint, analiza statyczna,

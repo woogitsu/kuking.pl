@@ -7,6 +7,12 @@ miesięcznie.
 Ten dokument to lista kroków i — ważniejsze — lista rzeczy, które przy
 transferze **nie przenoszą się same**.
 
+> **Stan: transfer wykonany 5 września 2026.**
+> Repozytorium żyje pod adresem `woogitsu/kuking.pl`, wszystkie 38 issues
+> zachowało numery. Kroki 1 i 2 są historią; **kroki 3-5 zostają aktualne**,
+> bo opisują ustawienia, które trzeba było odtworzyć po stronie GitHuba
+> i Railwaya — a tego nie da się zrobić z poziomu repozytorium.
+
 ---
 
 ## Dlaczego transfer, a nie nowe repozytorium
@@ -35,8 +41,8 @@ Plan Free dla organizacji daje **2 000 minut Actions miesięcznie** dla
 repozytoriów prywatnych. Pula jest liczona per konto/organizacja, więc nowa
 organizacja startuje z pełnym limitem. `[do weryfikacji na liczniku po transferze]`
 
-Nazwa organizacji: warto, żeby była neutralna i trwała (np. `kuking`),
-bo trafi do adresu repozytorium i do wszystkich linków.
+Nazwa organizacji: warto, żeby była neutralna i trwała, bo trafi do adresu
+repozytorium i do wszystkich linków. **Wybrano `woogitsu`.**
 
 ### 2. Transfer
 
@@ -56,8 +62,8 @@ To jest najważniejsza część tego dokumentu. Transfer nie przenosi wszystkieg
 | **Ochrona gałęzi `main`** | Reguły trzeba ustawić od nowa. W organizacji można to zrobić raz, jako ruleset |
 | **Uprawnienia Actions** | Settings → Actions → General: sprawdź, czy workflowy mogą się w ogóle uruchamiać (organizacja może mieć restrykcyjne domyślne) |
 | **Integracja Railway ↔ GitHub** | Aplikacja GitHub Railway musi dostać dostęp do **organizacji**, nie tylko do konta osobistego. Bez tego deploy przestanie działać |
-| **Dostęp dla agentów AI** | Sesje Claude Code mają zakres ustawiony na `matmaxalez/kuking.pl`. Po transferze trzeba dodać nową ścieżkę `<organizacja>/kuking.pl` |
-| **Zdalne repozytorium lokalnie** | `git remote set-url origin https://github.com/<organizacja>/kuking.pl.git` — przekierowanie działa, ale lepiej mieć poprawny adres |
+| **Dostęp dla agentów AI** | Sesje Claude Code miały zakres ustawiony na starą ścieżkę. Po transferze trzeba dodać `woogitsu/kuking.pl` — inaczej agent traci dostęp do repozytorium. ✅ zrobione |
+| **Zdalne repozytorium lokalnie** | `git remote set-url origin https://github.com/woogitsu/kuking.pl.git` — przekierowanie działa, ale lepiej mieć poprawny adres. ✅ zrobione |
 
 ### 4. Włączenie CI
 
@@ -81,8 +87,11 @@ i nic by się nie zdeployowało.
 
 - Repozytorium **zostaje prywatne** — transfer nie zmienia widoczności
 - Historia gita, issues i ich numery są nienaruszone
-- Nic w kodzie nie wymaga zmiany. Jedyne miejsca z pełnym adresem to opisy
-  w dokumentacji — przekierowania GitHuba i tak je obsłużą
+- Przekierowania GitHuba obsługują stary adres, więc nic nie przestaje działać
+  z dnia na dzień. Pełny adres występował w `README.md`, `Dockerfile`
+  (`org.opencontainers.image.source`), `.railway/railway.ts` (stała `REPO`)
+  i w kilku dokumentach — **wszystkie zaktualizowano na `woogitsu/kuking.pl`**,
+  żeby nie polegać bezterminowo na przekierowaniu
 
 ---
 

@@ -1,14 +1,14 @@
 # Backlog Kuking.pl
 
 Ten plik jest **mapą**. Praca operacyjna idzie przez
-[Issues](https://github.com/matmaxalez/kuking.pl/issues) — tam są opisy,
+[Issues](https://github.com/woogitsu/kuking.pl/issues) — tam są opisy,
 uzasadnienia i kryteria akceptacji.
 
 Kolejność: `P0` → `P1` → `P2`, w ramach priorytetu według `docs/ROADMAP.md`.
 
 Legenda: ✅ zrobione · 🔨 w repozytorium, wymaga dokończenia · ⬜ do zrobienia
 
-Otwarte issues odpowiadające pozycjom z tej listy (stan na pierwszy commit):
+Otwarte issues odpowiadające pozycjom z tej listy:
 
 | # | Priorytet | Temat |
 |---|---|---|
@@ -46,8 +46,15 @@ Otwarte issues odpowiadające pozycjom z tej listy (stan na pierwszy commit):
 | [#32](../../issues/32) | P1 | Larastan/PHPStan działający lokalnie |
 | [#34](../../issues/34) | P1 | „Rok temu gotowałaś…” |
 | [#35](../../issues/35) | P1 | Web Push (po ustaleniu limitów) |
+| [#38](../../issues/38) | P0 | Przepisać teksty interfejsu według COPY_STYLE.md |
+| [#39](../../issues/39) | P0 | Zbanowane konto działa do końca sesji |
+| [#40](../../issues/40) | P0 | Kara czasowa bez terminu wygaśnięcia |
+| [#41](../../issues/41) | P1 | Testy widoczności: stan × typ obserwatora |
+| [#42](../../issues/42) | P1 | Lista zastrzeżonych nazw użytkownika |
+| [#43](../../issues/43) | P1 | Brakujące ograniczenia `UNIQUE` |
 | [#28](../../issues/28) | P2 | OCR zeszytów i import z adresu strony |
 | [#36](../../issues/36) | P2 | Monetyzacja — co realnie sprzedać |
+| [#44](../../issues/44) | P2 | `recipe_ingredients.no_amount` |
 
 ---
 
@@ -99,6 +106,8 @@ Otwarte issues odpowiadające pozycjom z tej listy (stan na pierwszy commit):
 - ✅ usunięcie konta z 30-dniowym okresem na zmianę zdania
 - 🔨 eksport danych — jest kolejka i model, brakuje joba budującego paczkę ZIP
 - ⬜ ścieżka odwołania od decyzji moderacyjnej (widok dla użytkownika)
+- ⬜ sprawdzanie statusu konta przy **każdym** żądaniu (dziś ban działa dopiero po wylogowaniu)
+- ⬜ `users.status_expires_at` — bez tego każda kara czasowa jest dożywotnia
 - ⬜ CSP w trybie wymuszającym (dziś: Report-Only)
 - ⬜ 2FA dla kont moderatorów i administratorów
 - ⬜ backup bazy + **przeprowadzony** restore drill
