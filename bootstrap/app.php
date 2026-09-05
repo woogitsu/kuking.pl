@@ -20,6 +20,26 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez
+        // Cloudflare, a potem przez brzeg Railway. Bez tej linii Laravel nie
+        // ufa żadnemu proxy i ignoruje nagłówki `X-Forwarded-*`, co psuje
+        // dwie rzeczy naraz, i to po cichu:
+        //
+        //   1. `X-Forwarded-Proto: https` przepada, więc `$request->secure()`
+        //      jest false, a `url()` generuje adresy po `http://`. Cloudflare
+        //      przekierowuje je z powrotem na https i robi się pętla.
+        //   2. `$request->ip()` zwraca adres brzegu Railway — ten sam dla
+        //      wszystkich. Limity z `config/kuking.php` liczyłyby się wtedy
+        //      wspólnie dla całego serwisu: jedna osoba wyczerpuje limit
+        //      rejestracji i blokuje wszystkich pozostałych.
+        //
+        // `at: '*'` znaczy „ufaj tej maszynie, która się właśnie połączyła".
+        // Jest tu bezpieczne, bo kontener nie ma publicznego adresu — dojść
+        // do niego można wyłącznie przez brzeg platformy. Lista konkretnych
+        // adresów IP nie wchodzi w grę: Railway ich nie gwarantuje, a zakresy
+        // Cloudflare zmieniają się bez zapowiedzi.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             ApplySecurityHeaders::class,
 
