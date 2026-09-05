@@ -62,8 +62,42 @@ mkdir -p \
 # -----------------------------------------------------------------------------
 log "rola=${ROLE} env=${APP_ENV:-?} port=${PORT}"
 log "przebudowa cache konfiguracji..."
-php /app/artisan optimize:clear --no-interaction >/dev/null
-php /app/artisan optimize      --no-interaction
+
+# Czyszczenie plikowe — nie dotyka bazy, więc musi się udać.
+php /app/artisan config:clear --no-interaction >/dev/null
+php /app/artisan route:clear  --no-interaction >/dev/null
+php /app/artisan view:clear   --no-interaction >/dev/null
+php /app/artisan event:clear  --no-interaction >/dev/null
+
+# -----------------------------------------------------------------------------
+#  `cache:clear` JEST INNY: przy CACHE_STORE=database uderza w tabelę `cache`.
+#
+#  Wcześniej stało tu `optimize:clear`, które woła cache:clear w środku.
+#  Przy `set -Eeuo pipefail` wyjątek z bazy kończył cały skrypt, więc kontener
+#  padał — i wstawał, i padał, w pętli. Zaobserwowane na produkcji przy
+#  pierwszym wdrożeniu, zanim wykonały się migracje:
+#
+#      SQLSTATE[42P01]: Undefined table: relation "cache" does not exist
+#
+#  Aplikacja nie wstawała nawet po to, żeby pokazać, co jest nie tak.
+#  Healthcheck nie miał czego odpytać, a w panelu było samo „CRASHED".
+#
+#  Niedostępny cache NIE JEST powodem, żeby nie uruchomić serwisu. Cache jest
+#  z definicji odtwarzalny — najgorsze, co się stanie, to wolniejsze pierwsze
+#  żądania. Dlatego to jedno polecenie ma prawo się nie udać, ale musi
+#  o tym GŁOŚNO powiedzieć w logu.
+# -----------------------------------------------------------------------------
+if ! php /app/artisan cache:clear --no-interaction >/dev/null 2>&1; then
+  log "OSTRZEŻENIE: nie udało się wyczyścić cache aplikacji."
+  log "  Najczęstsza przyczyna: brak tabeli 'cache', czyli niewykonane migracje."
+  log "  Startuję dalej — cache jest odtwarzalny, a serwis ma wstać i dać się zdiagnozować."
+fi
+
+# `optimize` zostaje BEZ tolerancji na błąd. Tu jest odwrotnie niż wyżej:
+# nieudane zapieczenie konfiguracji, tras i widoków znaczy, że aplikacja
+# naprawdę nie działa. Wtedy kontener MA paść, żeby healthcheck zatrzymał
+# deploy, zamiast wpuszczać ruch na coś zepsutego.
+php /app/artisan optimize --no-interaction
 
 # storage:link tworzy public/storage → storage/app/public.
 # Przy FILESYSTEM_DISK=r2 nie jest potrzebny, ale nic nie kosztuje i ratuje
