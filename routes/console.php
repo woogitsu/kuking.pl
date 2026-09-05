@@ -21,10 +21,30 @@ Artisan::command('inspire', function () {
 // dotyka storage, a w nocy nikt nie czeka na odpowiedź serwisu.
 // `withoutOverlapping` — przy dużej liczbie plików jedno uruchomienie może
 // trwać dłużej niż dobę i nie chcemy dwóch naraz.
-Schedule::command('kuking:sprzataj-eksporty')
+// UWAGA NA `Schedule::command()` — NIE UŻYWAMY GO TUTAJ.
+//
+// `Schedule::command()` uruchamia zadanie przez Symfony Process, a ten wymaga
+// `proc_open`, wyłączonego w `docker/php.ini` (hardening, AGENTS.md zabrania
+// go osłabiać). Na produkcji kończyło się to natychmiastowym:
+//
+//     The Process class relies on proc_open, which is not available
+//     on your PHP installation.
+//
+// a w roli `all` śmierć harmonogramu kładła CAŁY kontener — objawiało się to
+// losowymi 502 w trakcie zwykłej pracy.
+//
+// `Schedule::call()` wykonuje domknięcie w TYM SAMYM procesie PHP, więc
+// `proc_open` nie jest potrzebny. `Artisan::call()` uruchamia tę samą komendę
+// co wcześniej i zwraca jej kod wyjścia.
+//
+// Kosztem jest utrata `runInBackground()`: sprzątanie eksportów blokuje pętlę
+// harmonogramu na czas swojego działania. Przy jednym uruchomieniu na dobę
+// i `withoutOverlapping()` to jest do przyjęcia — a alternatywą byłoby
+// osłabienie zabezpieczenia, którego nie wolno ruszać.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
+    ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')
-    ->withoutOverlapping()
-    ->runInBackground();
+    ->withoutOverlapping();
 
 // Zdejmowanie kar, którym minął termin (issue #40).
 //
@@ -36,6 +56,8 @@ Schedule::command('kuking:sprzataj-eksporty')
 // karany wejdzie na stronę po terminie. Ta komenda pilnuje kont, które po
 // prostu nie wracają, żeby stan w bazie zgadzał się z rzeczywistością także
 // dla moderacji i statystyk.
-Schedule::command('kuking:zdejmij-wygasle-kary')
+// `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu wyżej.
+Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
+    ->name('kuking:zdejmij-wygasle-kary')
     ->hourly()
     ->withoutOverlapping();
