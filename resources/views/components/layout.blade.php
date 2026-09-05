@@ -91,7 +91,11 @@
     </header>
 
     <div class="app-shell">
-        <div class="app-body">
+        {{-- `app-body-solo` MUSI iść w parze z brakiem <nav class="side-nav">
+             niżej: siatka na desktopie rezerwuje pierwszą kolumnę na
+             nawigację, więc bez niej treść wpadłaby w kolumnę szeroką na
+             15rem. Pilnuje tego test UkladGosciaTest. --}}
+        <div class="app-body @guest app-body-solo @endguest">
             @auth
                 <nav class="side-nav" aria-label="Nawigacja główna">
                     <ul class="stack-tight" style="list-style:none; padding:0; margin:0;">

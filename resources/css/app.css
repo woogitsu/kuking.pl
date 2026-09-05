@@ -49,6 +49,27 @@
       max-width: var(--container-content);
       margin: 0;
     }
+
+    /* Gość nie ma nawigacji bocznej — i wtedy NIE WOLNO rezerwować na nią
+       kolumny.
+
+       Bez tego <main> jest pierwszym elementem siatki i ląduje w kolumnie
+       o szerokości --container-sidenav (15rem). Cała strona dla
+       niezalogowanych — powitalna, rejestracja, logowanie, „Świeżo z Kuking"
+       i strony statyczne — ściska się do 240 px na monitorze o szerokości
+       1920 px. Nagłówek łamie się po dwóch słowach, przyciski zawijają.
+
+       Usterka jest niewidoczna dla zalogowanego (nawigacja wypełnia pierwszą
+       kolumnę) i niewidoczna na telefonie (siatka włącza się dopiero od
+       64rem). Widzi ją wyłącznie nowa osoba na komputerze, czyli dokładnie
+       ten, kto ogląda Kuking pierwszy raz. */
+    .app-body-solo {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .app-body-solo .app-main {
+      margin: 0 auto;
+    }
   }
 
   /* --- Górny pasek --- */
