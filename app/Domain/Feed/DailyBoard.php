@@ -84,7 +84,7 @@ final class DailyBoard
             ->publiclyVisible()
             ->whereNotIn('author_id', $hidden)
             ->with(['author.profile.avatar', 'media'])
-            ->withCount('comments')
+            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->get();
 
         return [
@@ -148,7 +148,7 @@ final class DailyBoard
             ->publiclyVisible()
             ->when($hidden !== [], fn ($query) => $query->whereNotIn('author_id', $hidden))
             ->with(['author.profile.avatar', 'media'])
-            ->withCount('comments')
+            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             // Pobieramy z zapasem i dopiero potem odsiewamy powtórzonych

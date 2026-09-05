@@ -43,7 +43,7 @@ final class FollowingFeed
                 'media',
                 'recipe:id,title,slug',
             ])
-            ->withCount('comments')
+            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);

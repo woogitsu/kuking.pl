@@ -37,7 +37,7 @@ final class DiscoverFeed
                 $this->hiddenAuthorIdsFor($viewer),
             ))
             ->with(['author.profile.avatar', 'media', 'recipe:id,title,slug'])
-            ->withCount('comments')
+            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);
