@@ -69,7 +69,9 @@ jobs:
 
     # Warunek `head.repo.full_name == github.repository` blokuje uruchomienie
     # dla PR-ów z forków. Bez tego obcy fork dostałby dostęp do tokenu Railway.
+    # Bramka wdrożeniowa — patrz komentarz przy `apply` niżej.
     if: >-
+      vars.KUKING_DEPLOY_ENABLED == 'true' &&
       github.event.action != 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
 
@@ -104,7 +106,15 @@ jobs:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
 
+    # Bramka wdrożeniowa: bez projektu Railway i sekretu RAILWAY_TOKEN_PRODUCTION
+    # ten workflow pada na każdym Pull Requeście (D-011 odkłada deploy, #3).
+    # Pominięty job nie zużywa minut i nie zapala czerwonej lampki, której
+    # i tak nie da się naprawić kodem.
+    #
+    # Włączenie: zmienna repozytorium KUKING_DEPLOY_ENABLED = `true`,
+    # razem z zamknięciem #3.
     if: >-
+      vars.KUKING_DEPLOY_ENABLED == 'true' &&
       github.event.action == 'closed' &&
       github.event.pull_request.merged &&
       github.event.pull_request.head.repo.full_name == github.repository

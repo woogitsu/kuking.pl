@@ -160,6 +160,12 @@ Warto na niego zerknąć po pierwszym miesiącu, żeby zweryfikować szacunek
       w nieskończoność**, czekając na runnera, którego nie ma
 - [ ] Uprawnienia Actions w organizacji pozwalają uruchamiać workflowy
       (Settings → Actions → General)
+- [x] Workflowy wdrożeniowe (`preview.yml`, `railway-iac.yml`) zablokowane
+      zmienną `KUKING_DEPLOY_ENABLED`. Bez projektu Railway i sekretów padały
+      na każdym Pull Requeście (D-011 odkłada deploy, #3), a stała czerwona
+      lampka uczy, że czerwone CI się ignoruje. Pominięty job nie zużywa minut.
+      **Przy zamykaniu #3 ustaw tę zmienną na `true`** — inaczej deploy
+      i testy dymne zostaną wyłączone po cichu
 - [ ] Pierwszy przebieg zielony
 - [ ] Reguła ochrony gałęzi `main` wymagająca zielonego CI
 - [ ] Sekrety `RAILWAY_TOKEN_PRODUCTION` i `RAILWAY_TOKEN_STAGING`

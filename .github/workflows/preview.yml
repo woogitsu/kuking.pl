@@ -88,7 +88,16 @@ jobs:
     name: Test dymny preview
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
+    # Bramka wdrożeniowa: dopóki nie ma środowisk Railway ani sekretów
+    # (D-011 odkłada deploy, issue #3), ten job nie ma dokąd strzelać
+    # i padał na KAŻDYM Pull Requeście. Stała czerwona lampka uczy ludzi,
+    # że czerwone CI się ignoruje — to gorsze niż brak testu dymnego.
+    #
+    # Pominięty job nie zużywa minut. Włączenie: ustaw zmienną repozytorium
+    # KUKING_DEPLOY_ENABLED na `true` (Settings → Secrets and variables →
+    # Actions → Variables) razem z zamknięciem #3.
     if: >-
+      vars.KUKING_DEPLOY_ENABLED == 'true' &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
 
