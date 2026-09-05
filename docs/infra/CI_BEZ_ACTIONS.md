@@ -23,8 +23,44 @@ człowieka. Repozytorium przeniosło się więc pod nową organizację `woogitsu
 na planie Free, która startuje z pełnym, nieużywanym limitem **2 000 minut
 miesięcznie** — także dla repozytoriów prywatnych.
 
-`./scripts/check.sh` trwa 4-8 minut, więc to jest **250-500 przebiegów
-miesięcznie**, z dużym zapasem przy obecnym tempie prac.
+### Ile realnie kosztuje jeden przebieg — POMIAR, nie szacunek
+
+Pierwotny szacunek („4-8 minut na przebieg, 250-500 przebiegów") liczył czas
+`./scripts/check.sh` na jednej maszynie. **To była zła jednostka.**
+
+GitHub nalicza minuty **per job i zaokrągla każdy job w górę do pełnej minuty**.
+Nasze CI ma sześć równoległych jobów, więc jeden przebieg kosztuje minimum
+6 minut, nawet gdyby każdy job trwał po 10 sekund.
+
+Zmierzone na przebiegu z 5 września 2026 (repozytorium prywatne, `ubuntu-latest`,
+mnożnik ×1):
+
+| Job | Czas | Naliczone |
+|---|---|---|
+| Build assetów (Vite) | 15 s | 1 min |
+| Pint | 20 s | 1 min |
+| Larastan | 24 s | 1 min |
+| Audyt zależności | 17 s | 1 min |
+| Testy (PostgreSQL 18) | 61 s | 2 min |
+| **Build obrazu** | **184 s** | **4 min** |
+| **Razem** | ~3,3 min zegarowo | **≈10 min** |
+
+Czyli **2 000 minut to około 200 przebiegów miesięcznie**, nie 250-500.
+To nadal jest spory zapas — ~6-7 pushy dziennie przez cały miesiąc — ale
+warto planować na tej liczbie, a nie na tamtej.
+
+**Najdroższy pojedynczy job to build obrazu: 4 z 10 minut.** Gdyby zrobiło się
+ciasno, to on jest pierwszym kandydatem do ograniczenia (np. tylko przy zmianach
+`Dockerfile`, `composer.*`, `package*.json`, `docker/`). Nie robimy tego teraz,
+bo jest bramką deployu.
+
+Co już oszczędza minuty:
+
+- `concurrency: cancel-in-progress` w `ci.yml` — nowy push anuluje poprzedni
+  przebieg zamiast go dokańczać;
+- `preview.yml` i `railway-iac.yml` pomijane przez `KUKING_DEPLOY_ENABLED`
+  (pominięty job kosztuje 0);
+- hook `pre-push` — błąd złapany lokalnie to przebieg, który się nie odbył.
 
 Szczegóły transferu: `PRZENIESIENIE_DO_ORGANIZACJI.md`.
 

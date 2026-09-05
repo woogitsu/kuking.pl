@@ -171,8 +171,12 @@ forma żeńska (żadna nie brzmi po polsku dobrze).
 Repozytorium zostaje **prywatne** i przenosi się pod nową organizację.
 CI chodzi na standardowych runnerach GitHuba.
 
-Szacunek zużycia: `./scripts/check.sh` trwa 4-8 minut, więc 2 000 minut to
-**250-500 przebiegów miesięcznie** — z dużym zapasem przy obecnym tempie prac.
+Szacunek zużycia — **skorygowany po pomiarze**: pierwotnie zakładaliśmy 4-8 minut
+na przebieg (czas `./scripts/check.sh`), co dawało 250-500 przebiegów. Zła
+jednostka: GitHub nalicza **per job, zaokrąglając każdy w górę do minuty**,
+a mamy sześć równoległych jobów. Zmierzone: **≈10 minut na przebieg**, czyli
+**około 200 przebiegów miesięcznie**. Zapas nadal jest, ale mniejszy niż
+zapisano. Rozbicie na joby: `infra/CI_BEZ_ACTIONS.md`.
 
 Własny runner **zostaje jako plan awaryjny**, nie jako droga podstawowa.
 Instrukcja pozostaje w repozytorium (`infra/SELF_HOSTED_RUNNER.md`) i jest
