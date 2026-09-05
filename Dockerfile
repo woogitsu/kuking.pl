@@ -161,8 +161,20 @@ COPY --from=assets  /app/public/build ./public/build
 # Kasujemy binarkę w tej samej warstwie, w której jej używamy — inaczej
 # zostałaby w obrazie produkcyjnym, a `rm` w osobnym RUN i tak nie zmniejsza
 # obrazu (poprzednia warstwa nadal zawiera plik).
+#
+# `--no-scripts` jest tu KONIECZNE, nie kosmetyczne. Bez niego composer odpala
+# hook `post-autoload-dump`, czyli `Illuminate\Foundation\ComposerScripts::
+# postAutoloadDump`, a ten uruchamia `@php artisan package:discover` przez
+# Symfony Process — który wymaga `proc_open`. My mamy `proc_open` WYŁĄCZONE
+# w docker/php.ini (disable_functions, świadome utwardzenie), więc build padał na:
+#
+#     The Process class relies on proc_open, which is not available
+#     on your PHP installation.
+#
+# Nie osłabiamy z tego powodu php.ini. `package:discover` i tak wołamy niżej
+# wprost — bez Procesu, bez proc_open, z tym samym skutkiem.
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative --no-scripts \
  && php artisan package:discover --ansi \
  && rm -f /usr/bin/composer
 
