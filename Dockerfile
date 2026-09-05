@@ -152,8 +152,19 @@ COPY --from=assets  /app/public/build ./public/build
 
 # Skrypty Composera dopiero teraz — mają już pełne drzewo aplikacji.
 # artisan package:discover zapisuje bootstrap/cache/packages.php (nie zależy od env).
+#
+# Composer musi tu być SKOPIOWANY osobno: obraz `dunglas/frankenphp` go nie ma,
+# a etap `vendor` to inny stage — jego /usr/bin/composer nie przenosi się sam.
+# Bez tego build padał na `/bin/sh: 1: composer: not found` (exit 127), czyli
+# obrazu produkcyjnego NIE DAŁO SIĘ zbudować.
+#
+# Kasujemy binarkę w tej samej warstwie, w której jej używamy — inaczej
+# zostałaby w obrazie produkcyjnym, a `rm` w osobnym RUN i tak nie zmniejsza
+# obrazu (poprzednia warstwa nadal zawiera plik).
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
- && php artisan package:discover --ansi
+ && php artisan package:discover --ansi \
+ && rm -f /usr/bin/composer
 
 # ---------------------------------------------------------------------------
 # Czego świadomie NIE robimy w buildzie:
