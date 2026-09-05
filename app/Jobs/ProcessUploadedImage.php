@@ -62,8 +62,12 @@ class ProcessUploadedImage implements ShouldQueue
             $manager = ImageManager::gd();
             $variants = [];
 
+            $orientation = $media->metadata['exif_orientation'] ?? null;
+
             foreach (config('kuking.media.variants') as $name => $maxEdge) {
                 $image = $manager->read($original);
+
+                $this->applyOrientation($image, $orientation);
 
                 // scaleDown nigdy nie powiększa — małe zdjęcie zostaje małe,
                 // zamiast być rozmyte na siłę.
@@ -87,6 +91,7 @@ class ProcessUploadedImage implements ShouldQueue
                 'metadata' => array_merge($media->metadata ?? [], [
                     'variants' => $variants,
                     'exif_stripped' => true,
+                    'orientation_applied' => $orientation !== null && $orientation !== 1,
                     'processed_at' => now()->toIso8601String(),
                 ]),
             ]);
@@ -105,5 +110,31 @@ class ProcessUploadedImage implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Ustawia zdjęcie tak, jak trzymano telefon.
+     *
+     * Znacznik EXIF Orientation ma osiem wartości i cztery z nich to odbicia
+     * lustrzane, nie same obroty. Pomijanie ich dawałoby zdjęcia poprawnie
+     * obrócone, ale odbite — co przy zdjęciu kartki z przepisem oznacza tekst
+     * czytany od tyłu.
+     */
+    private function applyOrientation(object $image, ?int $orientation): void
+    {
+        if ($orientation === null || $orientation === 1) {
+            return;
+        }
+
+        match ($orientation) {
+            2 => $image->flop(),
+            3 => $image->rotate(180),
+            4 => $image->flip(),
+            5 => $image->rotate(-90)->flop(),
+            6 => $image->rotate(-90),
+            7 => $image->rotate(90)->flop(),
+            8 => $image->rotate(90),
+            default => null,
+        };
     }
 }

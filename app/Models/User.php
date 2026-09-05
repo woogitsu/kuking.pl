@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -55,6 +56,22 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'password',
         'remember_token',
     ];
+
+    /**
+     * Adres e-mail zawsze małymi literami i bez spacji.
+     *
+     * PostgreSQL porównuje teksty z uwzględnieniem wielkości liter, a klawiatury
+     * telefonów lubią automatycznie kapitalizować pierwszą literę. Bez tego
+     * konto założone jako „Jan@example.com" jest nie do zalogowania przez
+     * „jan@example.com" — z komunikatem sugerującym złe hasło, więc osoba
+     * szuka problemu w zupełnie złym miejscu.
+     */
+    protected function email(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => mb_strtolower(trim($value)),
+        );
+    }
 
     protected function casts(): array
     {

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -73,13 +74,40 @@ class Media extends Model
     /**
      * Publiczny URL wariantu zdjęcia.
      *
-     * `$variant` to jeden z kluczy config('kuking.media.variants').
-     * Jeśli wariant nie został jeszcze wygenerowany, wracamy do oryginału —
-     * lepiej pokazać większe zdjęcie niż pustą ramkę.
+     * NIGDY nie wraca do oryginału.
+     *
+     * Wcześniejsza wersja miała `?? $this->object_key` jako zabezpieczenie
+     * przed pustą ramką. To był wyciek: oryginał to plik przysłany przez
+     * użytkownika, z nietkniętym EXIF-em — czyli z dokładną lokalizacją
+     * kuchni, w której zrobiono zdjęcie. Wystarczyłoby dodać nowy wariant
+     * do konfiguracji, żeby fallback uruchomił się dla wszystkich istniejących
+     * zdjęć naraz.
+     *
+     * Kolejność: żądany wariant → dowolny wygenerowany → placeholder.
+     * Pusta ramka jest gorsza niż nic, ale wyciek cudzego adresu jest gorszy
+     * od pustej ramki.
      */
     public function url(string $variant = 'feed'): string
     {
-        $key = $this->metadata['variants'][$variant]['key'] ?? $this->object_key;
+        $variants = $this->metadata['variants'] ?? [];
+
+        $key = $variants[$variant]['key'] ?? null;
+
+        if ($key === null && $variants !== []) {
+            // Wariant nieznany, ale jakieś istnieją — bierzemy pierwszy lepszy.
+            // To znaczy, że ktoś dodał wariant do konfiguracji i nie przetworzył
+            // istniejących zdjęć; obraz będzie w złym rozmiarze, ale bezpieczny.
+            $key = reset($variants)['key'] ?? null;
+        }
+
+        if ($key === null) {
+            Log::warning('Zdjęcie bez wygenerowanych wariantów', [
+                'media_id' => $this->getKey(),
+                'status' => $this->status,
+            ]);
+
+            return asset('icons/kuking-mark.svg');
+        }
 
         return Storage::disk($this->disk)->url($key);
     }

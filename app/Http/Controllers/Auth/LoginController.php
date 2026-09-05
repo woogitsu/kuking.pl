@@ -88,9 +88,12 @@ class LoginController extends Controller
     private function findUser(string $login): ?User
     {
         if (str_contains($login, '@')) {
-            return User::where('email', $login)->first();
+            return User::where('email', mb_strtolower(trim($login)))->first();
         }
 
-        return Profile::where('username', $login)->first()?->user;
+        // Nazwa użytkownika też bez rozróżniania wielkości liter — „Basia"
+        // i „basia" to ta sama osoba, a klawiatura telefonu podnosi pierwszą
+        // literę bez pytania.
+        return Profile::whereRaw('lower(username) = ?', [mb_strtolower(trim($login))])->first()?->user;
     }
 }

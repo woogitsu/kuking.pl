@@ -106,4 +106,50 @@ Później:
 - subscriptions;
 - payments.
 
-Pełny referencyjny DDL jest w `database/schema_mvp.sql`.
+## Wyszukiwarka: funkcja `kuking_normalize()`
+
+Migracja `2026_09_05_001300_fix_search_indexes` wprowadza funkcję:
+
+```sql
+CREATE FUNCTION kuking_normalize(text) RETURNS text
+AS $$ SELECT unaccent('unaccent', lower($1)) $$
+LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE;
+```
+
+**Po co:** indeksy trigramowe muszą stać na DOKŁADNIE tym samym wyrażeniu,
+którego używa zapytanie. Pierwotne indeksy stały na surowych kolumnach
+(`gin (title gin_trgm_ops)`), a `SearchQuery` pytał o `unaccent(lower(title))` —
+w efekcie żaden indeks nie był używany i każde wyszukiwanie skanowało całą
+tabelę. Potwierdzone `EXPLAIN`-em przy `enable_seqscan = off`.
+
+**Dlaczego własna funkcja, a nie `unaccent()` wprost:** `unaccent()` nie jest
+`IMMUTABLE` (zależy od słownika), a PostgreSQL nie pozwala indeksować wyrażeń
+nieimmutable. Opakowanie z jawnie wskazanym słownikiem `'unaccent'` to
+udokumentowane obejście.
+
+⚠️ **Konsekwencja:** podmiana słownika `unaccent` wymagałaby `REINDEX`.
+Nie robimy tego.
+
+**Zasada dla przyszłych zmian:** jeśli zmieniasz wyrażenie w
+`App\Domain\Search\SearchQuery`, zmień też indeksy. Pilnuje tego test
+`RegressionTest::test_wyszukiwarka_korzysta_z_indeksu_trigramowego`, który
+wyłącza skan sekwencyjny i sprawdza plan zapytania.
+
+Indeksy na tej funkcji: `profiles` (username, display_name, speciality),
+`recipes` (title, summary), `ingredients` (normalized_name),
+`recipe_ingredients` (ingredient_text).
+
+## `daily_picks`
+
+Wybór redakcyjny na tablicę „kuKINGi na dziś". Świadomie bez kolumny
+z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
+(patrz `../AGENTS.md` §8).
+
+## Normalizacja adresu e-mail
+
+`User::email` ma mutator wymuszający małe litery i przycięcie spacji.
+PostgreSQL porównuje teksty z uwzględnieniem wielkości liter, a klawiatury
+telefonów kapitalizują pierwszą literę — bez tego konto założone jako
+`Jan@example.com` było nie do zalogowania przez `jan@example.com`.
+
+Pełny referencyjny DDL jest w `database/reference/schema_mvp.sql`.

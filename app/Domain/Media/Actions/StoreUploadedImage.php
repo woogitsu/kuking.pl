@@ -95,12 +95,43 @@ final class StoreUploadedImage
             'status' => Media::STATUS_PENDING,
             'alt_text' => $altText,
             'checksum_sha256' => hash_file('sha256', $file->getRealPath()) ?: null,
-            'metadata' => ['original_name_length' => mb_strlen($file->getClientOriginalName())],
+            'metadata' => [
+                'original_name_length' => mb_strlen($file->getClientOriginalName()),
+                // Orientację czytamy TERAZ, dopóki mamy plik na dysku.
+                // Zadanie w tle dostaje same bajty ze storage, a sterownik GD
+                // nie czyta EXIF-u — bez tej wartości zdjęcia z telefonu
+                // publikowałyby się obrócone. Osoba 50+ tego nie zgłosi,
+                // po prostu przestanie wrzucać zdjęcia.
+                'exif_orientation' => $this->readOrientation($file->getRealPath()),
+            ],
         ]);
 
         ProcessUploadedImage::dispatch($media->getKey());
 
         return $media;
+    }
+
+    /**
+     * Wartość znacznika EXIF Orientation (1-8) albo null.
+     *
+     * Czytamy wyłącznie ten jeden znacznik — reszta EXIF-u, w tym GPS,
+     * i tak znika przy re-enkodowaniu i nie chcemy jej nigdzie zapisywać.
+     */
+    private function readOrientation(string $path): ?int
+    {
+        if (! function_exists('exif_read_data')) {
+            return null;
+        }
+
+        $exif = @exif_read_data($path);
+
+        if ($exif === false || ! isset($exif['Orientation'])) {
+            return null;
+        }
+
+        $orientation = (int) $exif['Orientation'];
+
+        return ($orientation >= 1 && $orientation <= 8) ? $orientation : null;
     }
 
     private function extensionFor(string $mime): string
