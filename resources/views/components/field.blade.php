@@ -4,6 +4,16 @@
     Etykieta jest ZAWSZE widoczna — placeholder nie jest etykietą.
     Błąd jest powiązany z polem przez aria-describedby, więc czytnik ekranu
     przeczyta go razem z etykietą.
+
+    Pole działa w dwóch trybach:
+
+    - zwykły formularz HTML (domyślny): wartość bierze się z old() i przetrwa
+      nieudaną walidację bez JavaScriptu;
+    - kreator Livewire (`wire="nazwa.wlasciwosci"`): wartość bierze się ze
+      stanu komponentu, a `wire:model` ma ZAWSZE debounce — `wire:model.live`
+      bez debounce psuje INP (docs/seo/SEO_TECHNICAL.md). W tym trybie old()
+      jest świadomie pomijane, żeby dane z innego, wcześniejszego formularza
+      nie nadpisały tego, co człowiek widzi w kreatorze.
 --}}
 @props([
     'name',
@@ -19,10 +29,14 @@
     'min' => null,
     'max' => null,
     'step' => null,
+    'wire' => null,
+    'wireModifier' => 'live.debounce.3000ms',
 ])
 @php
     $id = 'f-'.str_replace(['[', ']', '.'], '-', $name);
     $error = $errors->first($name);
+    $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
+    $current = $wire === null ? old($name, $value) : $value;
     $describedBy = collect([
         $help ? $id.'-help' : null,
         $error ? $id.'-error' : null,
@@ -45,14 +59,16 @@
     @if($type === 'textarea')
         <textarea class="field-input" id="{{ $id }}" name="{{ $name }}"
                   rows="{{ $rows ?? 5 }}"
+                  @if($binding) {{ $binding }}="{{ $wire }}" @endif
                   @if($placeholder) placeholder="{{ $placeholder }}" @endif
                   @if($required) required @endif
                   @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
                   @if($error) aria-invalid="true" @endif
-        >{{ old($name, $value) }}</textarea>
+        >{{ $current }}</textarea>
     @else
         <input class="field-input" id="{{ $id }}" name="{{ $name }}" type="{{ $type }}"
-               value="{{ old($name, $value) }}"
+               value="{{ $current }}"
+               @if($binding) {{ $binding }}="{{ $wire }}" @endif
                @if($placeholder) placeholder="{{ $placeholder }}" @endif
                @if($autocomplete) autocomplete="{{ $autocomplete }}" @endif
                @if($inputmode) inputmode="{{ $inputmode }}" @endif

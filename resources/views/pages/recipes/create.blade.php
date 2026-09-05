@@ -14,9 +14,19 @@
     <h1>{{ $isEdit ? 'Edytuj przepis' : 'Dodaj przepis' }}</h1>
     <p style="margin-bottom:var(--spacing-5);">
         Wszystko jest na jednej stronie, żebyś nie musiał nic przewijać ani szukać.
-        Jeśli nie masz teraz czasu, kliknij na dole <strong>„Zapisz szkic”</strong> —
-        nic nie zginie i wrócisz do tego, kiedy zechcesz.
+        Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego,
+        kiedy zechcesz.
     </p>
+
+    @if(! $isEdit)
+        {{-- Ten formularz jest DROGĄ BEZ JAVASCRIPTU i taki zostaje.
+             Kreator w krokach jest wygodniejszy, ale wymaga skryptu,
+             więc nigdy nie może być jedyną drogą (AGENTS.md, punkt 5). --}}
+        <p class="field-help" style="margin-bottom:var(--spacing-5);">
+            Wolisz przechodzić to krok po kroku, z zapisywaniem po drodze?
+            <a href="{{ route('recipes.create') }}">Otwórz kreator w trzech krokach</a>.
+        </p>
+    @endif
 
     <x-error-summary />
 
@@ -163,6 +173,8 @@
 
             <p class="field-help">
                 Potrzebujesz więcej wierszy? Zapisz szkic — po zapisaniu pojawi się kolejne puste pole.
+                W <a href="{{ route('recipes.create') }}">kreatorze w trzech krokach</a> wiersze
+                dodaje się i usuwa od razu, bez zapisywania.
             </p>
         </section>
 
@@ -172,7 +184,7 @@
         <section class="form-section card">
             <h2 class="form-section-title">4. Przygotowanie</h2>
             <p class="meta" style="margin-bottom:var(--spacing-4);">
-                Jeden krok = jedna czynność. Krótkie kroki są łatwiejsze do czytania przy garnku.
+                Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
             </p>
 
             @for($i = 0; $i < $stepRows; $i++)

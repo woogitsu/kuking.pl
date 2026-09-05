@@ -349,6 +349,72 @@
     margin-top: var(--spacing-8);
   }
 
+  /* --- Kreator przepisu (3 kroki) --- */
+
+  /* Jeden wiersz składnika albo kroku przygotowania. Wydzielony ramką, bo
+     przy powiększonym tekście trzy pola i trzy przyciski bez wyraźnej
+     granicy zlewają się w jedną ścianę. */
+  .wizard-row {
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    background-color: var(--color-surface-raised);
+  }
+
+  .wizard-row + .wizard-row {
+    margin-top: var(--spacing-4);
+  }
+
+  /* Akcje wiersza: przenoszenie osobno, usuwanie osobno i daleko.
+     Odstęp --spacing-8 to wymóg z docs/design/DESIGN_SYSTEM.md — akcja
+     destrukcyjna nie może stać obok zwykłej. */
+  .wizard-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-3);
+  }
+
+  .wizard-row-move {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+
+  .wizard-row-remove {
+    margin-left: auto;
+  }
+
+  /* Plakietka autosave: „Szkic zapisany.” / „Zapisywanie…” / błąd. */
+  .autosave-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: 0;
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+  }
+
+  .autosave-badge[data-state="saved"] {
+    background-color: var(--color-success-tint);
+    color: var(--color-success-tint-ink);
+  }
+
+  .autosave-badge[data-state="error"] {
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+  }
+
+  .autosave-badge[data-state="waiting"],
+  .autosave-badge[data-state="saving"] {
+    background-color: var(--color-surface-sunken);
+    color: var(--color-ink);
+  }
+
   .choice {
     display: flex;
     align-items: flex-start;
