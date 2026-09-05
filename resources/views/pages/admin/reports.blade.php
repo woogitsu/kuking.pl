@@ -27,14 +27,12 @@
                     <fieldset style="border:0; padding:0;">
                         <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Decyzja</legend>
                         <div class="choice-grid">
-                            @foreach([
-                                'no_action' => 'Bez działania',
-                                'hide' => 'Ukryj treść',
-                                'remove' => 'Usuń treść',
-                                'warn' => 'Ostrzeżenie dla autora',
-                                'suspend' => 'Zawieś konto',
-                                'ban' => 'Zablokuj konto na stałe',
-                            ] as $value => $label)
+                            {{-- Tylko decyzje sensowne dla TEGO typu zgłoszenia
+                                 (ModerationAction::DOZWOLONE). Przy zgłoszeniu
+                                 osoby nie ma tu „Usuń treść" — ten przycisk
+                                 kasował całe konto bezpowrotnie, a jego napis
+                                 tego nie zdradzał. --}}
+                            @foreach(\App\Models\ModerationAction::dozwoloneDla($report->target_type) as $value => $label)
                                 <label class="choice">
                                     <input type="radio" name="action" value="{{ $value }}">
                                     <span class="choice-label">{{ $label }}</span>

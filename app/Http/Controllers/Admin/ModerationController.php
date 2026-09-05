@@ -53,8 +53,24 @@ class ModerationController extends Controller
     {
         $this->authorize('moderate', User::class);
 
+        // Zgłoszenie rozstrzygnięte nie przyjmuje drugiej decyzji.
+        //
+        // Bez tego dwie zakładki albo dwa kliknięcia zapisywały DWA wpisy
+        // w `moderation_actions` dla jednego zgłoszenia — a przy odwołaniu
+        // (DSA art. 17) log przestawał być jednoznaczny.
+        if ($report->status !== Report::STATUS_OPEN) {
+            return back()->withErrors([
+                'action' => 'To zgłoszenie zostało już rozstrzygnięte. Odśwież stronę, żeby zobaczyć decyzję.',
+            ]);
+        }
+
+        // Lista dozwolonych decyzji zależy od TYPU zgłoszenia — patrz
+        // ModerationAction::DOZWOLONE. Kombinacja spoza listy jest błędem,
+        // a nie cichym „zrób coś innego".
+        $dozwolone = array_keys(ModerationAction::dozwoloneDla($report->target_type));
+
         $data = $request->validate([
-            'action' => ['required', 'in:no_action,hide,remove,warn,suspend,ban'],
+            'action' => ['required', 'in:'.implode(',', $dozwolone)],
             'reason_code' => ['required', 'string', 'max:80'],
             'note' => ['nullable', 'string', 'max:2000'],
             'user_message' => ['nullable', 'string', 'max:2000'],
@@ -64,6 +80,7 @@ class ModerationController extends Controller
             'suspend_days' => ['nullable', 'in:1,7,30,bezterminowo'],
         ], [
             'action.required' => 'Wybierz decyzję.',
+            'action.in' => 'Ta decyzja nie ma zastosowania do tego zgłoszenia. Wybierz jedną z pokazanych.',
             'reason_code.required' => 'Podaj powód decyzji — bez niego nie da się odpowiedzieć na odwołanie.',
             'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',
         ]);
@@ -153,17 +170,50 @@ class ModerationController extends Controller
             return;
         }
 
+        // Kara dotyczy CZŁOWIEKA, więc przy zgłoszonej treści sięgamy po jej
+        // autora. Wcześniej „Zawieś konto" na zgłoszonym wpisie tylko ukrywało
+        // wpis, a konto zostawało aktywne — moderator był przekonany, że
+        // zawiesił kogoś, kogo nie zawiesił.
+        $osoba = $target instanceof User ? $target : $this->autorem($target);
+
         match ($action) {
             ModerationAction::ACTION_HIDE => $this->hide($target),
+
+            // `remove` nie jest dozwolone dla celu `user` (macierz
+            // ModerationAction::DOZWOLONE), więc tu nigdy nie trafi konto.
+            // Wcześniej trafiało i kasowało je bezpowrotnie.
             ModerationAction::ACTION_REMOVE => $target->delete(),
-            ModerationAction::ACTION_SUSPEND => $target instanceof User
-                ? $target->suspend($do)
-                : $this->hide($target),
-            ModerationAction::ACTION_BAN => $target instanceof User
-                ? $target->ban()
-                : $target->delete(),
+
+            ModerationAction::ACTION_SUSPEND => $osoba?->suspend($do),
+            ModerationAction::ACTION_BAN => $osoba?->ban(),
+
+            // `warn` nie ma tu nic do zrobienia: sama decyzja jest już
+            // zapisana w `moderation_actions` wraz z treścią wiadomości.
+            // UWAGA: dopóki nie ma powiadomienia, autor się o niej NIE DOWIE.
+            // To jest znane i osobno zgłoszone — patrz opis PR-a.
             default => null,
         };
+    }
+
+    /**
+     * Autor zgłoszonej treści.
+     *
+     * Modele używają różnych nazw relacji, więc pytamy o to, co faktycznie
+     * istnieje, zamiast zakładać jedną wspólną konwencję.
+     */
+    private function autorem(object $target): ?User
+    {
+        foreach (['author', 'user', 'owner'] as $relacja) {
+            if (method_exists($target, $relacja)) {
+                $osoba = $target->{$relacja};
+
+                if ($osoba instanceof User) {
+                    return $osoba;
+                }
+            }
+        }
+
+        return null;
     }
 
     private function hide(object $target): void
