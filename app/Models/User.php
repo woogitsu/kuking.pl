@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Konto użytkownika.
@@ -80,6 +82,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'email_verified_at' => 'datetime',
             'age_confirmed_at' => 'datetime',
             'delete_requested_at' => 'datetime',
+            'status_expires_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
         ];
@@ -171,6 +174,31 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->status === self::STATUS_ACTIVE;
     }
 
+    public function isSuspended(): bool
+    {
+        return $this->status === self::STATUS_SUSPENDED;
+    }
+
+    public function isBanned(): bool
+    {
+        return $this->status === self::STATUS_BANNED;
+    }
+
+    /**
+     * Czy kara już minęła.
+     *
+     * Zadanie w harmonogramie chodzi raz na jakiś czas, więc między upływem
+     * terminu a przywróceniem dostępu jest okno. Middleware pyta o to przy
+     * każdym żądaniu, żeby użytkownik nie czekał na cron — jeśli termin minął,
+     * konto wraca do `active` od razu, przy pierwszej próbie wejścia.
+     */
+    public function punishmentHasExpired(): bool
+    {
+        return $this->isSuspended()
+            && $this->status_expires_at !== null
+            && $this->status_expires_at->isPast();
+    }
+
     public function isModerator(): bool
     {
         return in_array($this->role, [self::ROLE_MODERATOR, self::ROLE_ADMIN], true);
@@ -252,14 +280,75 @@ class User extends Authenticatable implements MustVerifyEmailContract
         ])->save();
     }
 
-    public function suspend(): void
+    /**
+     * Zawieszenie konta — domyślnie bezterminowe.
+     *
+     * `$until` to termin, po którym konto wraca do `active` samo. Bez niego
+     * zawieszenie trwa do decyzji człowieka. CHECK w bazie pilnuje, że termin
+     * może istnieć wyłącznie przy statusie `suspended` (issue #40).
+     */
+    public function suspend(?DateTimeInterface $until = null): void
     {
-        $this->forceFill(['status' => self::STATUS_SUSPENDED])->save();
+        $this->forceFill([
+            'status' => self::STATUS_SUSPENDED,
+            'status_expires_at' => $until,
+        ])->save();
+
+        $this->invalidateSessions();
     }
 
+    /**
+     * Ban jest bezterminowy z definicji — odwołanie idzie przez ścieżkę
+     * odwoławczą (#10), nie przez zegar. Dlatego termin jest tu KASOWANY:
+     * gdyby konto było wcześniej zawieszone czasowo, zostawienie terminu
+     * złamałoby CHECK i — gorzej — zadanie w harmonogramie przywróciłoby
+     * dostęp osobie, którą właśnie zbanowano.
+     */
     public function ban(): void
     {
-        $this->forceFill(['status' => self::STATUS_BANNED])->save();
+        $this->forceFill([
+            'status' => self::STATUS_BANNED,
+            'status_expires_at' => null,
+        ])->save();
+
+        $this->invalidateSessions();
+    }
+
+    /**
+     * Przywrócenie konta po odsiedzeniu kary albo po decyzji moderatora.
+     */
+    public function reinstate(): void
+    {
+        $this->forceFill([
+            'status' => self::STATUS_ACTIVE,
+            'status_expires_at' => null,
+        ])->save();
+    }
+
+    /**
+     * Wyrzucenie użytkownika ze WSZYSTKICH aktywnych sesji.
+     *
+     * Bez tego zmiana `status` była tylko wpisem w kolumnie: osoba zbanowana
+     * za nękanie działała dalej, dopóki nie wylogowała się sama. Przy
+     * SESSION_LIFETIME=10080 to jest siedem dni (issue #39).
+     *
+     * Czyścimy tabelę `sessions` bezpośrednio, bo unieważniamy sesje CUDZE,
+     * z innych przeglądarek — `Auth::logout()` dotyczy tylko bieżącego żądania,
+     * a moderator nie siedzi w sesji karanego użytkownika.
+     *
+     * Przy sterowniku innym niż `database` (w testach bywa `array`) tabeli po
+     * prostu nie ma i nie ma czego kasować — samo sprawdzenie statusu przy
+     * każdym żądaniu i tak odcina dostęp.
+     */
+    private function invalidateSessions(): void
+    {
+        if (config('session.driver') !== 'database') {
+            return;
+        }
+
+        DB::table(config('session.table', 'sessions'))
+            ->where('user_id', $this->getKey())
+            ->delete();
     }
 
     public function promoteTo(string $role): void

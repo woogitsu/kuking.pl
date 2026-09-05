@@ -13,6 +13,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -57,9 +58,14 @@ class ModerationController extends Controller
             'reason_code' => ['required', 'string', 'max:80'],
             'note' => ['nullable', 'string', 'max:2000'],
             'user_message' => ['nullable', 'string', 'max:2000'],
+            // Długość zawieszenia w dniach. `bezterminowo` zostaje możliwe,
+            // ale wymaga świadomego wyboru — nie jest już domyślne przez
+            // przypadek, jak wtedy, gdy nie było gdzie zapisać terminu (#40).
+            'suspend_days' => ['nullable', 'in:1,7,30,bezterminowo'],
         ], [
             'action.required' => 'Wybierz decyzję.',
             'reason_code.required' => 'Podaj powód decyzji — bez niego nie da się odpowiedzieć na odwołanie.',
+            'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',
         ]);
 
         $moderator = $request->user();
@@ -75,7 +81,7 @@ class ModerationController extends Controller
             'user_message' => $data['user_message'] ?? null,
         ]);
 
-        $this->applyAction($report, $data['action']);
+        $this->applyAction($report, $data['action'], $this->terminKary($data));
 
         $report->update([
             'status' => $data['action'] === ModerationAction::ACTION_NONE
@@ -90,7 +96,11 @@ class ModerationController extends Controller
             action: 'moderation.decided',
             actor: $moderator,
             subject: $report,
-            metadata: ['decision' => $data['action'], 'reason_code' => $data['reason_code']],
+            metadata: [
+                'decision' => $data['action'],
+                'reason_code' => $data['reason_code'],
+                'suspend_days' => $data['suspend_days'] ?? null,
+            ],
             ip: $request->ip(),
         );
 
@@ -103,7 +113,28 @@ class ModerationController extends Controller
      * `hide` ukrywa treść (da się przywrócić), `remove` usuwa miękko.
      * Automat nigdy nie banuje sam — ban jest zawsze decyzją człowieka.
      */
-    private function applyAction(Report $report, string $action): void
+    /**
+     * Zamiana wyboru z formularza na konkretną datę.
+     *
+     * `null` znaczy „bezterminowo, do decyzji człowieka" — i tak ma zostać
+     * przy `bezterminowo` oraz przy każdej decyzji innej niż zawieszenie.
+     */
+    private function terminKary(array $data): ?CarbonInterface
+    {
+        if (($data['action'] ?? null) !== ModerationAction::ACTION_SUSPEND) {
+            return null;
+        }
+
+        $wybor = $data['suspend_days'] ?? null;
+
+        if ($wybor === null || $wybor === 'bezterminowo') {
+            return null;
+        }
+
+        return now()->addDays((int) $wybor);
+    }
+
+    private function applyAction(Report $report, string $action, ?CarbonInterface $do = null): void
     {
         if ($action === ModerationAction::ACTION_NONE) {
             return;
@@ -126,7 +157,7 @@ class ModerationController extends Controller
             ModerationAction::ACTION_HIDE => $this->hide($target),
             ModerationAction::ACTION_REMOVE => $target->delete(),
             ModerationAction::ACTION_SUSPEND => $target instanceof User
-                ? $target->suspend()
+                ? $target->suspend($do)
                 : $this->hide($target),
             ModerationAction::ACTION_BAN => $target instanceof User
                 ? $target->ban()

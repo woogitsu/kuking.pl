@@ -43,6 +43,42 @@
                         </div>
                     </fieldset>
 
+                    {{--
+                        Długość zawieszenia (issue #40).
+
+                        Bez tego pola każde zawieszenie było bezterminowe, bo nie
+                        było gdzie zapisać terminu — a przy jednym moderatorze
+                        nikt nie odklikuje kary po tygodniu ręcznie. Playbook
+                        obiecywał blokady czasowe, których system nie umiał zrobić.
+
+                        Pole nie jest ukrywane skryptem przy innych decyzjach:
+                        D-007 mówi, że ważne funkcje działają bez JavaScriptu,
+                        a kontroler i tak ignoruje tę wartość dla decyzji innych
+                        niż „Zawieś konto".
+                    --}}
+                    <fieldset style="border:0; padding:0; margin-top:var(--spacing-4);">
+                        <legend style="font-weight:700; margin-bottom:var(--spacing-3);">
+                            Na jak długo — jeśli zawieszasz konto
+                        </legend>
+                        <div class="choice-grid">
+                            @foreach([
+                                '1' => 'Na 1 dzień',
+                                '7' => 'Na 7 dni',
+                                '30' => 'Na 30 dni',
+                                'bezterminowo' => 'Bezterminowo, do mojej decyzji',
+                            ] as $value => $label)
+                                <label class="choice">
+                                    <input type="radio" name="suspend_days" value="{{ $value }}"
+                                           @checked(old('suspend_days') === $value)>
+                                    <span class="choice-label">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="meta" style="margin-top:var(--spacing-2);">
+                            Konto wraca samo po upływie terminu. Bez wyboru zawieszenie jest bezterminowe.
+                        </p>
+                    </fieldset>
+
                     <x-field name="reason_code" label="Powód decyzji (kod wewnętrzny)" required
                              placeholder="spam_link" help="Krótki, powtarzalny kod. Ułatwia późniejsze statystyki." />
                     <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" />

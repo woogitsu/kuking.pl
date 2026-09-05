@@ -25,3 +25,17 @@ Schedule::command('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Zdejmowanie kar, którym minął termin (issue #40).
+//
+// Co godzinę, nie raz na dobę: kara „do 12 września” ma się skończyć 12
+// września, a nie następnej nocy. Przy dobowym harmonogramie ktoś ukarany na
+// 7 dni siedziałby realnie do ośmiu — i to bez żadnej decyzji człowieka.
+//
+// Middleware EnsureAccountIsActive i tak przywraca konto natychmiast, gdy
+// karany wejdzie na stronę po terminie. Ta komenda pilnuje kont, które po
+// prostu nie wracają, żeby stan w bazie zgadzał się z rzeczywistością także
+// dla moderacji i statystyk.
+Schedule::command('kuking:zdejmij-wygasle-kary')
+    ->hourly()
+    ->withoutOverlapping();
