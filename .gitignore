@@ -25,6 +25,9 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
+# Katalogi robocze agentów AI (worktree gita) — nigdy do repozytorium.
+/.claude/worktrees/
+
 # Kuking — nie ignorujemy plików instrukcji dla agentów AI.
 # .cursor/rules/ jest częścią repozytorium (patrz AGENTS.md, sekcja 1).
 !/.cursor/rules/
