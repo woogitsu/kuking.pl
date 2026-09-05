@@ -77,6 +77,19 @@ do ręcznej decyzji moderatora.
 - bio;
 - avatar.
 
+**Nazwy zastrzeżone** (`admin`, `moderacja`, `pomoc`, `platnosci`…) są
+pilnowane w warstwie aplikacji: lista mieszka w `config/kuking.php`
+(`account.reserved_usernames`), a sprawdza ją `App\Rules\ReservedUsername`
+na obu drogach nadania nazwy — przy rejestracji i przy zmianie w ustawieniach
+profilu. Świadomie NIE ma tu CHECK-a w bazie, choć AGENTS.md §6 każe
+przedkładać ograniczenia bazodanowe nad walidację w PHP: ta lista będzie rosła
+przy każdym nowym pomyśle na phishing, a CHECK oznaczałby migrację
+za każdym razem. Sam kształt nazwy (`^[a-zA-Z0-9_]{3,40}$`) pilnuje CHECK,
+bo on się nie zmienia.
+
+Konta obsługi mają zastrzeżone nazwy legalnie, więc reguła działa tylko przy
+ZMIANIE nazwy — inaczej @moderacja nie zapisałaby już nigdy własnego bio.
+
 ### follows
 `follower_id + followed_id` unique.
 

@@ -80,6 +80,39 @@ return [
         // Ile dni konto czeka w stanie 'pending_delete', zanim dane zostaną
         // trwale usunięte. Daje szansę na "pomyliłem się".
         'delete_grace_days' => 30,
+
+        // Nazwy zastrzeżone dla obsługi serwisu.
+        //
+        // Konto o nazwie sugerującej Kuking („moderacja", „pomoc", „platnosci")
+        // to gotowe narzędzie phishingu: wiadomość od @moderacja z prośbą
+        // o hasło albo o „potwierdzenie płatności" wygląda wiarygodnie,
+        // a nasza grupa jest na to wyjątkowo podatna.
+        //
+        // Lista jest TUTAJ, a nie w walidatorach, bo obowiązuje na dwóch
+        // ścieżkach (rejestracja i zmiana nazwy w ustawieniach). Dopisanie
+        // nazwy w jednym miejscu ma domykać obie naraz — inaczej powstaje
+        // druga, cichsza furtka.
+        //
+        // Wpisy piszemy naturalnie, bez polskich znaków i bez wariantów
+        // zapisu: App\Rules\ReservedUsername normalizuje TAK SAMO obie strony
+        // porównania, więc „Moderacja", „m0deracja" i „m_o_d_e_r_a_c_j_a"
+        // trafiają na ten sam wpis.
+        'reserved_usernames' => [
+            'admin',
+            'administrator',
+            'moderacja',
+            'moderator',
+            'kuking',
+            'pomoc',
+            'support',
+            'obsluga',
+            'kontakt',
+            'zespol',
+            'oficjalne',
+            'redakcja',
+            'bezpieczenstwo',
+            'platnosci',
+        ],
     ],
 
     'limits' => [

@@ -9,6 +9,7 @@ use App\Models\AuditLogEntry;
 use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\User;
+use App\Rules\ReservedUsername;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,9 @@ class RegisterController extends Controller
             'username' => [
                 'required', 'string', 'min:3', 'max:40',
                 'regex:/^[a-zA-Z0-9_]+$/',
+                // Nazwy obsługi serwisu (issue #42). Lista jest w configu,
+                // porównanie odporne na warianty zapisu — patrz klasa reguły.
+                new ReservedUsername,
                 Rule::unique('profiles', 'username'),
             ],
             // Świadomie 'email:rfc' bez 'dns'. Sprawdzanie rekordów DNS wygląda
