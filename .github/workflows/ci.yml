@@ -435,13 +435,26 @@ jobs:
           # Przy okazji: jedno `docker run` zamiast dziewięciu.
           echo "--- Wymagane rozszerzenia ---"
           modules=$(docker run --rm kuking:ci-${{ github.sha }} php -m)
-          for ext in pdo_pgsql pgsql intl gd zip exif pcntl bcmath opcache; do
+          for ext in pdo_pgsql pgsql intl gd zip exif pcntl bcmath; do
             if grep -qix "$ext" <<< "$modules"; then
               echo "OK   $ext"
             else
               echo "BRAK $ext"; exit 1
             fi
           done
+
+          # opcache SPRAWDZAMY OSOBNO, bo to Zend Extension, nie zwykłe
+          # rozszerzenie: w `php -m` figuruje jako "Zend OPcache" (sekcja
+          # [Zend Modules]), NIGDY jako "opcache". Dokładne dopasowanie
+          # `grep -qix opcache` nie mogło przejść nigdy — ta pętla po prostu
+          # wcześniej padała na czymś innym i nikt nie doszedł do końca listy.
+          # Dopasowania podciągiem nie używamy dla całej listy, bo "pgsql"
+          # trafiłoby w "pdo_pgsql" i przepuściło brak prawdziwego pgsql.
+          if grep -qi "zend opcache" <<< "$modules"; then
+            echo "OK   opcache (Zend OPcache)"
+          else
+            echo "BRAK opcache"; exit 1
+          fi
 
           echo "--- Entrypoint musi odrzucić brak APP_KEY ---"
           if docker run --rm -e APP_KEY= kuking:ci-${{ github.sha }} \
