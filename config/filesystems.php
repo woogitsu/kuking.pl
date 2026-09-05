@@ -49,6 +49,36 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Cloudflare R2 — docelowy magazyn zdjęć (INFRA_DECISION.md §7).
+         *
+         * Dysk nazywa się `r2`, bo tak nazywa go infrastruktura: `railway.ts`
+         * ustawia FILESYSTEM_DISK="r2". Przed dodaniem tego bloku każdy upload
+         * na produkcji kończyłby się wyjątkiem
+         * „Disk [r2] does not have a configured driver" — czyli awarią głównej
+         * akcji serwisu, widoczną dopiero po wdrożeniu.
+         *
+         * `throw => true` w odróżnieniu od dysku `s3` niżej. Przy `false`
+         * nieudany zapis zwraca `false`, a kod leci dalej: użytkownik widzi
+         * „opublikowano", w bazie powstaje wiersz Media, a pliku nie ma nigdzie.
+         * Wyjątek jest tu uczciwszy — lepiej pokazać błąd niż skasować
+         * komuś zdjęcie i nie powiedzieć.
+         *
+         * `use_path_style_endpoint => false`: R2 adresuje bucket przez host,
+         * nie przez ścieżkę.
+         */
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'url' => env('AWS_URL'),
+            'use_path_style_endpoint' => false,
+            'throw' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
