@@ -175,9 +175,26 @@ jobs:
           # APP_DEBUG=true na produkcji ujawnia zmienne środowiskowe
           # (czyli sekrety) na stronie błędu. To najgorszy możliwy błąd
           # konfiguracji, więc sprawdzamy go wprost.
+          # UWAGA na konstrukcję: bez potoku, świadomie.
+          #
+          # Wersja `curl ... | grep -qiE ...` przy `set -o pipefail` ZAWODZIŁA
+          # OTWARCIE. Gdy strona NAPRAWDĘ wycieka, grep trafia i kończy się od
+          # razu, curl dostaje SIGPIPE i wychodzi z niezerowym kodem, pipefail
+          # przenosi to na cały potok, `if` wpada w `else` i wypisuje
+          # „nie ujawnia szczegółów". Czyli kontrola meldowała BEZPIECZNIE
+          # dokładnie w sytuacji, w której jest niebezpiecznie.
+          #
+          # Dodatkowo: nieudany curl nie jest dowodem, że debug jest wyłączony.
+          # Wcześniej też wpadał w gałąź „OK". Teraz jest to błąd.
           echo "--- Kontrola trybu debug ---"
-          if curl -sS --max-time 20 "${BASE_URL}/nie-ma-takiej-strony-$(date +%s)" \
-               | grep -qiE 'ignition|whoops|APP_KEY|vendor/laravel/framework'; then
+          strona=$(curl -sS --max-time 20 \
+                     "${BASE_URL}/nie-ma-takiej-strony-$(date +%s)") && kod=0 || kod=$?
+
+          if [ "$kod" -ne 0 ]; then
+            echo "BLAD  nie udało się pobrać strony błędu (curl $kod)"
+            echo "      to NIE jest potwierdzenie, że APP_DEBUG jest wyłączony"
+            fail=1
+          elif grep -qiE 'ignition|whoops|APP_KEY|vendor/laravel/framework' <<< "$strona"; then
             echo "BLAD  strona błędu ujawnia szczegóły — sprawdź APP_DEBUG=false!"
             fail=1
           else

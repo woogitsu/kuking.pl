@@ -456,10 +456,26 @@ jobs:
             echo "BRAK opcache"; exit 1
           fi
 
+          # Ten test sprawdza, że entrypoint PADA przy pustym APP_KEY.
+          # Producent ma tu więc wyjść z niezerowym kodem — to jest sedno testu,
+          # nie awaria. Poprzednia wersja robiła `docker run ... | grep -q`,
+          # a przy `set -o pipefail` kod błędu entrypointa przechodził na cały
+          # potok i warunek wpadał w gałąź "BŁĄD" DOKŁADNIE WTEDY, GDY WALIDACJA
+          # DZIAŁA. Test raportował odwrotność prawdy.
+          #
+          # Dlatego: przechwytujemy wyjście i kod osobno, bez potoku.
+          # Wymagamy OBU rzeczy naraz — niezerowego kodu ORAZ komunikatu o
+          # APP_KEY. To jest ostrzejsze niż poprzednia wersja: samo wypisanie
+          # słowa "APP_KEY" przy jednoczesnym wystartowaniu już nie wystarczy.
           echo "--- Entrypoint musi odrzucić brak APP_KEY ---"
-          if docker run --rm -e APP_KEY= kuking:ci-${{ github.sha }} \
-               /usr/local/bin/kuking-entrypoint web 2>&1 | grep -q "APP_KEY"; then
-            echo "OK   entrypoint waliduje APP_KEY"
+          wyjscie=$(docker run --rm -e APP_KEY= kuking:ci-${{ github.sha }} \
+                      /usr/local/bin/kuking-entrypoint web 2>&1) && kod=0 || kod=$?
+
+          if [ "$kod" -ne 0 ] && grep -q "APP_KEY" <<< "$wyjscie"; then
+            echo "OK   entrypoint odrzucił start i wyjaśnił dlaczego (kod $kod)"
           else
-            echo "BŁĄD: entrypoint wystartował bez APP_KEY"; exit 1
+            echo "BŁĄD: entrypoint nie odrzucił startu bez APP_KEY (kod $kod)"
+            echo "--- wyjście entrypointa ---"
+            printf '%s\n' "$wyjscie"
+            exit 1
           fi
