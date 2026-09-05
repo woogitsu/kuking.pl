@@ -7,9 +7,9 @@ namespace App\Http\Controllers\Settings;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
+use App\Rules\UsernameNotTaken;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -47,7 +47,10 @@ class ProfileSettingsController extends Controller
             $usernameRules[] = new ReservedUsername;
         }
 
-        $usernameRules[] = Rule::unique('profiles', 'username')->ignore($user->getKey(), 'user_id');
+        // Zajętość sprawdzamy bez rozróżniania wielkości liter (audyt A25) —
+        // inaczej ta droga zostawiałaby otwartą furtkę, którą rejestracja
+        // właśnie zamknęła: konto „basia2" zmieniające nazwę na „Basia".
+        $usernameRules[] = new UsernameNotTaken($user->getKey());
 
         $data = $request->validate([
             'display_name' => ['required', 'string', 'min:2', 'max:100'],

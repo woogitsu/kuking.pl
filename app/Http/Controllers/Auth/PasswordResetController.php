@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,7 +37,16 @@ class PasswordResetController extends Controller
             'email.email' => 'Ten adres wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
         ]);
 
-        Password::sendResetLink($request->only('email'));
+        // Adres z wielkiej litery musi trafić na to samo konto (audyt A25).
+        // `Password::sendResetLink` szuka przez `where email = ?`, a w bazie
+        // adres leży małymi literami — więc „Jan@Example.com" nie znajdowało
+        // niczego i wiadomość po prostu nie wychodziła. Bez śladu: odpowiedź
+        // niżej jest z założenia ta sama dla adresu istniejącego
+        // i nieistniejącego, więc człowiek czekał na list, który nigdy nie
+        // miał przyjść, i nie miał jak się domyślić dlaczego.
+        Password::sendResetLink([
+            'email' => User::normalizeEmail((string) $request->input('email', '')),
+        ]);
 
         return back()->with('status',
             'Jeśli na ten adres jest założone konto, wysłaliśmy na niego wiadomość z linkiem do ustawienia nowego hasła. Sprawdź też folder „Spam”.',
@@ -63,8 +73,14 @@ class PasswordResetController extends Controller
             'password.uncompromised' => 'To hasło pojawiło się w wyciekach danych. Wybierz inne.',
         ]);
 
+        // Ten sam powód co przy wysyłce linku: token jest przypisany do adresu
+        // zapisanego małymi literami. Formularz podstawia adres z linku, ale
+        // pole jest edytowalne i klawiatura telefonu podnosi pierwszą literę.
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
+            [
+                ...$request->only('password', 'password_confirmation', 'token'),
+                'email' => User::normalizeEmail((string) $request->input('email', '')),
+            ],
             function ($user, string $password): void {
                 $user->forceFill([
                     'password' => Hash::make($password),

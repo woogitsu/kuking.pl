@@ -22,8 +22,18 @@ class ProfileController extends Controller
 {
     public function show(Request $request, string $username): View
     {
+        // Adres profilu bez rozróżniania wielkości liter (audyt A25).
+        //
+        // Logowanie szukało nazwy bez rozróżniania, a profil publiczny —
+        // z rozróżnianiem, więc ta sama nazwa znaczyła tu i tam co innego.
+        // Po zamknięciu rejestracji na „Basia" obok „basia" nie ma powodu,
+        // żeby /@Basia oddawało 404: to jest jedno konto, a link mógł zostać
+        // przepisany ręcznie albo poprawiony przez autokorektę telefonu.
+        //
+        // Zapytanie trafia w unikalny indeks funkcyjny `lower(username)`,
+        // więc nie jest to skan tabeli.
         $profile = Profile::query()
-            ->where('username', $username)
+            ->whereRaw('lower(username) = ?', [mb_strtolower($username)])
             ->with(['user', 'avatar'])
             ->firstOrFail();
 

@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\User;
 use App\Rules\ReservedUsername;
+use App\Rules\UsernameNotTaken;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,6 +48,17 @@ class RegisterController extends Controller
 
         $minAge = (int) config('kuking.account.min_age');
 
+        // Adres normalizujemy PRZED walidacją, a nie dopiero przy zapisie
+        // (audyt A25). `User` zapisuje e-mail małymi literami, więc pytanie
+        // bazy o wartość surową sprawdzało coś innego, niż trafiało do bazy:
+        // dla „Jan@Example.com" `Rule::unique` nie znajdowało nic, zapis szedł
+        // dalej i dopiero PostgreSQL odbijał duplikat kluczem unikalnym.
+        // Zamiast komunikatu „na ten adres jest już konto" człowiek dostawał
+        // HTTP 500 — i nie miał pojęcia, że po prostu ma już konto.
+        $request->merge([
+            'email' => User::normalizeEmail((string) $request->input('email', '')),
+        ]);
+
         $data = $request->validate([
             'display_name' => ['required', 'string', 'min:2', 'max:100'],
             'username' => [
@@ -55,7 +67,11 @@ class RegisterController extends Controller
                 // Nazwy obsługi serwisu (issue #42). Lista jest w configu,
                 // porównanie odporne na warianty zapisu — patrz klasa reguły.
                 new ReservedUsername,
-                Rule::unique('profiles', 'username'),
+                // Bez rozróżniania wielkości liter (audyt A25). `Rule::unique`
+                // porównuje przez `=`, więc „Basia" przechodziła obok „basia" —
+                // a logowanie szuka nazwy JUŻ bez rozróżniania, przez co
+                // prawdziwa Basia zaczynała dostawać „nieprawidłowe hasło".
+                new UsernameNotTaken,
             ],
             // Świadomie 'email:rfc' bez 'dns'. Sprawdzanie rekordów DNS wygląda
             // na darmowe zabezpieczenie, ale w praktyce blokuje rejestrację przy
