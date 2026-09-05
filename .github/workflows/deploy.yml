@@ -1,0 +1,397 @@
+# ---------------------------------------------------------------------------
+#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
+#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
+#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#
+#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
+#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#
+#  Żeby WŁĄCZYĆ CI, gdy będą minuty albo własny runner:
+#    1. odkomentuj blok `on:` poniżej,
+#    2. ustaw zmienną repozytorium CI_RUNNER:
+#         - `ubuntu-latest`  → runnery GitHuba (płatne dla repo prywatnych),
+#         - `self-hosted`    → własny runner (koszt tylko maszyny).
+#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+# ---------------------------------------------------------------------------
+
+# =============================================================================
+#  Kuking.pl — deploy i operacje po deployu
+#  Docelowa lokalizacja: .github/workflows/deploy.yml
+# =============================================================================
+#
+#  JAK NAPRAWDĘ DZIAŁA DEPLOY W KUKING — przeczytaj, zanim będziesz to zmieniać
+#  --------------------------------------------------------------------------
+#  Sam BUILD i URUCHOMIENIE kodu robi integracja GitHub ↔ Railway, nie ten plik:
+#
+#      push do `main`     → Railway buduje i wdraża środowisko `production`
+#      push do `staging`  → Railway buduje i wdraża środowisko `staging`
+#      otwarcie PR        → Railway tworzy środowisko PR, zamknięcie je usuwa
+#
+#  Railway ma włączone "Wait for CI", więc czeka na zielony workflow CI.
+#  Migracje uruchamia Railway jako pre-deploy command (zadeklarowany
+#  w .railway/railway.ts) — czyli PO buildzie, PRZED przełączeniem ruchu,
+#  z dostępem do prywatnej sieci, i z blokadą deployu gdy migracja padnie.
+#
+#  DLACZEGO NIE `railway up` Z TEGO WORKFLOW?
+#  Kuszące jest wypchnąć kod z Actions przez `railway up`. Odrzuciliśmy to:
+#    1. `railway up` wysyła kod do JEDNEGO serwisu. Mamy trzy serwisy
+#       aplikacyjne (web, worker, scheduler) z tego samego repo — trzeba by
+#       zrobić trzy uploady i trzy niezależne buildy tego samego obrazu.
+#    2. Tracimy natywne środowiska PR, które wymagają źródła GitHub.
+#    3. Tracimy cache warstw buildu Railway (osobny per commit vs. per upload).
+#    4. Podwójny deploy: jeśli źródło GitHub zostanie podłączone, każdy push
+#       wywołałby build i z Railway, i z Actions.
+#  Wniosek: budowanie zostawiamy Railway, a Actions robi to, czego Railway
+#  nie robi — weryfikuje wynik i daje narzędzia operacyjne.
+#
+#  CO ROBI TEN PLIK
+#    A) po deployu: test dymny na żywym środowisku + rejestracja wydania w Sentry
+#    B) na żądanie (workflow_dispatch): migracje, rollback, redeploy
+#       — czyli to, co potrzebne podczas incydentu, bez wchodzenia w panel
+#
+#  WYMAGANE SEKRETY (Settings → Secrets and variables → Actions):
+#    RAILWAY_TOKEN_PRODUCTION  — token projektowy środowiska production
+#    RAILWAY_TOKEN_STAGING     — token projektowy środowiska staging
+#    SENTRY_AUTH_TOKEN         — opcjonalny, do rejestracji wydań
+#  ZMIENNE (Variables, nie Secrets — nie są tajne):
+#    SENTRY_ORG, SENTRY_PROJECT
+# =============================================================================
+
+name: Deploy
+
+on:
+  # ---------------------------------------------------------------------------
+  # Railway raportuje status deployu do GitHuba jako Deployment Status.
+  # Wchodzimy dopiero, gdy deploy faktycznie się UDAŁ — wtedy weryfikujemy
+  # go na żywym środowisku. To jedyny moment, w którym warto robić smoke test:
+  # po przełączeniu ruchu, na prawdziwym URL-u.
+  # https://docs.railway.com/guides/github-actions-post-deploy
+  # ---------------------------------------------------------------------------
+  deployment_status:
+
+  # Ścieżka operacyjna, uruchamiana ręcznie.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Środowisko docelowe"
+        required: true
+        type: choice
+        options: [staging, production]
+        default: staging
+      action:
+        description: >-
+          Co zrobić: smoke = tylko testy dymne;
+          migrate = uruchom migracje w kontenerze;
+          redeploy = ponowny deploy aktualnej wersji;
+          rollback = powrót do poprzedniego deployu
+        required: true
+        type: choice
+        options: [smoke, migrate, redeploy, rollback]
+        default: smoke
+
+permissions:
+  contents: read
+  deployments: read
+
+# Nie pozwalamy dwóm operacjom na tym samym środowisku biec równolegle.
+# cancel-in-progress: false — przerwanie migracji w połowie jest gorsze
+# niż poczekanie na jej koniec.
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || github.event.deployment.environment || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ===========================================================================
+  #  A) WERYFIKACJA PO DEPLOYU  (automatyczna)
+  # ===========================================================================
+  verify:
+    name: Test dymny po deployu
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+
+    # Tylko udane deploye na produkcję lub staging.
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.state == 'success' &&
+      contains(fromJSON('["production", "staging"]'), github.event.deployment.environment)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ustal adres środowiska
+        id: target
+        run: |
+          set -euo pipefail
+          env_name='${{ github.event.deployment.environment }}'
+          if [ "$env_name" = "production" ]; then
+            echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
+          fi
+          echo "env=$env_name" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      #  Test dymny. Cel: wyłapać "deploy się udał, ale strona nie działa".
+      #  Railway sprawdza tylko /health przy przełączaniu ruchu i NIE monitoruje
+      #  go później. My sprawdzamy realne ścieżki użytkownika przez Cloudflare.
+      # -----------------------------------------------------------------------
+      - name: Test dymny
+        env:
+          BASE_URL: ${{ steps.target.outputs.url }}
+        run: |
+          set -euo pipefail
+          fail=0
+
+          check() {
+            local path="$1" expected="$2" label="$3"
+            local code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                     --max-time 20 --retry 3 --retry-delay 5 --retry-all-errors \
+                     "${BASE_URL}${path}" || echo "000")
+            if [ "$code" = "$expected" ]; then
+              printf 'OK    %-28s %s (%s)\n' "$path" "$code" "$label"
+            else
+              printf 'BLAD  %-28s %s, oczekiwano %s (%s)\n' "$path" "$code" "$expected" "$label"
+              fail=1
+            fi
+          }
+
+          echo "=== Test dymny: ${BASE_URL} ==="
+          check /health          200 "healthcheck aplikacji i bazy"
+          check /                200 "strona główna"
+          check /logowanie       200 "formularz logowania"
+          check /robots.txt      200 "robots"
+          check /nie-ma-takiej-strony-$(date +%s) 404 "obsługa 404"
+
+          # HTTPS musi być wymuszony na krawędzi Cloudflare.
+          echo "--- Przekierowanie HTTP -> HTTPS ---"
+          redirect=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+                       "http://${BASE_URL#https://}/" || echo "000")
+          case "$redirect" in
+            301|302|307|308) echo "OK    HTTP przekierowuje ($redirect)" ;;
+            *) echo "BLAD  HTTP nie przekierowuje na HTTPS ($redirect)"; fail=1 ;;
+          esac
+
+          # APP_DEBUG=true na produkcji ujawnia zmienne środowiskowe
+          # (czyli sekrety) na stronie błędu. To najgorszy możliwy błąd
+          # konfiguracji, więc sprawdzamy go wprost.
+          echo "--- Kontrola trybu debug ---"
+          if curl -sS --max-time 20 "${BASE_URL}/nie-ma-takiej-strony-$(date +%s)" \
+               | grep -qiE 'ignition|whoops|APP_KEY|vendor/laravel/framework'; then
+            echo "BLAD  strona błędu ujawnia szczegóły — sprawdź APP_DEBUG=false!"
+            fail=1
+          else
+            echo "OK    strona błędu nie ujawnia szczegółów"
+          fi
+
+          exit $fail
+
+      # -----------------------------------------------------------------------
+      #  Rejestracja wydania w Sentry — bez tego Sentry nie wie, który commit
+      #  wprowadził błąd, i nie potrafi pokazać suspect commits.
+      #  Krok nieblokujący: brak wpisu w Sentry to nie powód do alarmu.
+      # -----------------------------------------------------------------------
+      - name: Rejestracja wydania w Sentry
+        if: vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
+        continue-on-error: true
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+        with:
+          environment: ${{ steps.target.outputs.env }}
+          version: ${{ github.sha }}
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "## Deploy: ${{ steps.target.outputs.env }}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Adres | ${{ steps.target.outputs.url }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Test dymny | ${{ job.status }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  #  B) OPERACJE NA ŻĄDANIE  (workflow_dispatch)
+  # ===========================================================================
+  #  Do użycia podczas incydentu albo przy migracji, którą trzeba puścić
+  #  poza deployem. Wszystko przez Railway CLI z tokenem środowiskowym.
+  # ===========================================================================
+  operate:
+    name: "Operacja: ${{ github.event.inputs.action }} (${{ github.event.inputs.environment }})"
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch'
+
+    # Dzięki temu produkcja może wymagać zatwierdzenia przez człowieka:
+    # Settings → Environments → production → Required reviewers.
+    # Zdecydowanie to włącz — inaczej jedno kliknięcie robi rollback produkcji.
+    environment: ${{ github.event.inputs.environment }}
+
+    env:
+      # Token projektowy jest przypisany do KONKRETNEGO środowiska Railway —
+      # dlatego mamy dwa osobne sekrety, a nie jeden. To ogranicza szkody:
+      # token staginu nie tknie produkcji.
+      RAILWAY_TOKEN: ${{ github.event.inputs.environment == 'production'
+        && secrets.RAILWAY_TOKEN_PRODUCTION
+        || secrets.RAILWAY_TOKEN_STAGING }}
+      TARGET_ENV: ${{ github.event.inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja Node (dla Railway CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalacja Railway CLI
+        run: |
+          npm install -g @railway/cli
+          railway --version
+
+      - name: Kontrola połączenia
+        run: |
+          set -euo pipefail
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "BLAD: brak tokenu Railway dla środowiska ${TARGET_ENV}."
+            echo "Dodaj sekret RAILWAY_TOKEN_$(echo "$TARGET_ENV" | tr '[:lower:]' '[:upper:]')."
+            exit 1
+          fi
+          railway status || {
+            echo "BLAD: nie udało się połączyć z projektem Railway."
+            exit 1
+          }
+
+      # -----------------------------------------------------------------------
+      #  MIGRACJE POZA DEPLOYEM
+      #
+      #  Normalnie migracje idą jako pre-deploy w railway.ts i NIE potrzebujesz
+      #  tego kroku. Jest tu na dwie sytuacje:
+      #    * długa migracja typu backfill, której nie chcesz trzymać w oknie
+      #      deployu (pre-deploy blokuje wdrożenie na czas działania);
+      #    * naprawa po nieudanym pre-deploy.
+      #
+      #  `railway ssh` wykonuje komendę WEWNĄTRZ działającego kontenera, więc
+      #  migracja idzie prywatną siecią do bazy — nie musimy wystawiać
+      #  Postgresa publicznie ani znać hasła.
+      #  [do weryfikacji] składnia nieinteraktywnego `railway ssh <serwis> <komenda>`
+      #  może się różnić między wersjami CLI — sprawdź `railway ssh --help`
+      #  przy pierwszym użyciu.
+      # -----------------------------------------------------------------------
+      - name: Migracje
+        if: github.event.inputs.action == 'migrate'
+        run: |
+          set -euo pipefail
+          echo "=== Stan migracji PRZED ==="
+          railway ssh --service web --environment "$TARGET_ENV" \
+            "php artisan migrate:status"
+
+          echo "=== Uruchamiam migracje ==="
+          railway ssh --service web --environment "$TARGET_ENV" \
+            "php artisan migrate --force --no-interaction"
+
+          echo "=== Stan migracji PO ==="
+          railway ssh --service web --environment "$TARGET_ENV" \
+            "php artisan migrate:status"
+
+      # -----------------------------------------------------------------------
+      #  REDEPLOY — ponowne wdrożenie AKTUALNEJ wersji.
+      #  Kiedy się przydaje: zmieniłeś zmienną środowiskową i chcesz, żeby
+      #  weszła w życie (config:cache przebudowuje się w entrypoincie przy
+      #  starcie kontenera, więc potrzebny jest restart).
+      # -----------------------------------------------------------------------
+      - name: Redeploy
+        if: github.event.inputs.action == 'redeploy'
+        run: |
+          set -euo pipefail
+          for svc in web worker scheduler; do
+            echo "--- redeploy: $svc ---"
+            railway redeploy --service "$svc" --environment "$TARGET_ENV" --yes \
+              || echo "UWAGA: serwis $svc nie istnieje w środowisku $TARGET_ENV (pomijam)"
+          done
+
+      # -----------------------------------------------------------------------
+      #  ROLLBACK
+      #
+      #  UWAGA — PRZECZYTAJ, ZANIM KLIKNIESZ:
+      #  Rollback cofa KOD, ale NIE cofa MIGRACJI. Jeśli wdrożenie dodało
+      #  kolumnę, stary kod zwykle da sobie z tym radę (ignoruje ją). Jeśli
+      #  wdrożenie USUNĘŁO albo ZMIENIŁO NAZWĘ kolumny, rollback kodu wyprodukuje
+      #  natychmiastowe błędy SQL — bo stary kod szuka czegoś, czego już nie ma.
+      #
+      #  Dlatego migracje MUSZĄ być backward-compatible (wzorzec
+      #  expand → migrate → switch → contract z docs/DEPLOYMENT.md), a odzyskanie
+      #  danych to osobna procedura — INFRA_DECISION.md, sekcja "Backupy i restore".
+      #
+      #  CLI nie ma jednej komendy "rollback", więc robimy to przez API GraphQL:
+      #  bierzemy poprzedni UDANY deploy i wskrzeszamy go.
+      #  [do weryfikacji] najprostsza i najpewniejsza droga to przycisk
+      #  "Redeploy" na poprzednim deployu w panelu Railway
+      #  (Service → Deployments → ... → Redeploy). Ten krok jest wygodą,
+      #  panel jest źródłem prawdy.
+      # -----------------------------------------------------------------------
+      - name: Rollback
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          set -euo pipefail
+          echo "=========================================================="
+          echo " ROLLBACK środowiska: ${TARGET_ENV}"
+          echo "=========================================================="
+          echo ""
+          echo "Ostatnie deploye serwisu web:"
+          railway deployment list --service web --environment "$TARGET_ENV" \
+            || echo "(nie udało się pobrać listy — użyj panelu)"
+          echo ""
+          echo "PAMIĘTAJ: rollback cofa KOD, nie MIGRACJE."
+          echo "Jeśli ostatni deploy zawierał migrację destrukcyjną"
+          echo "(DROP COLUMN / RENAME), rollback kodu NIE naprawi bazy."
+          echo "W takim przypadku przejdź do PITR — INFRA_DECISION.md."
+          echo ""
+          echo "Wykonaj rollback w panelu Railway:"
+          echo "  Service web → Deployments → poprzedni udany → ... → Redeploy"
+          echo "Powtórz dla worker i scheduler."
+          echo ""
+          echo "Krok celowo NIE wykonuje rollbacku automatycznie —"
+          echo "wymaga świadomej decyzji człowieka o stanie bazy."
+
+      # -----------------------------------------------------------------------
+      #  Test dymny po każdej operacji zmieniającej stan.
+      # -----------------------------------------------------------------------
+      - name: Test dymny po operacji
+        if: github.event.inputs.action != 'rollback'
+        run: |
+          set -euo pipefail
+          if [ "$TARGET_ENV" = "production" ]; then
+            base="https://kuking.pl"
+          else
+            base="https://staging.kuking.pl"
+          fi
+          echo "=== Test dymny: $base ==="
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                   --max-time 30 --retry 5 --retry-delay 10 --retry-all-errors \
+                   "$base/health" || echo "000")
+          if [ "$code" = "200" ]; then
+            echo "OK    /health => 200"
+          else
+            echo "BLAD  /health => $code"
+            exit 1
+          fi
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "## Operacja: ${{ github.event.inputs.action }}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Środowisko | ${{ github.event.inputs.environment }} |"
+            echo "| Uruchomił | @${{ github.actor }} |"
+            echo "| Wynik | ${{ job.status }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

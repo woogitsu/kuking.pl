@@ -1,0 +1,484 @@
+/*
+ * Kuking.pl — tokeny systemu designu (Tailwind CSS 4, konfiguracja CSS-first)
+ * ---------------------------------------------------------------------------
+ * Wszystkie kontrasty kolorów są policzone i udokumentowane w DESIGN_SYSTEM.md
+ * (skrypt: agents/ux/contrast.py). Nie zmieniaj wartości hex bez ponownego
+ * przeliczenia — zwłaszcza par tekst/tło opisanych w sekcji 1.3 tamtego pliku.
+ *
+ * Ten plik ma zostać zaimportowany jako pierwszy plik CSS aplikacji, np.:
+ *   resources/css/app.css:  @import "./tokens.css";
+ */
+
+@import "tailwindcss";
+
+/* =============================================================================
+   1. TOKENY MOTYWU (Tailwind @theme) — wartości domyślne = TRYB JASNY
+   Tailwind 4 generuje z tych zmiennych zarówno prawdziwe custom properties
+   (nadpisywalne kaskadowo dla trybu ciemnego, patrz sekcja 2), jak i klasy
+   utility (np. --color-brand => bg-brand, text-brand, border-brand).
+   ========================================================================== */
+@theme {
+  /* --- Kolory: powierzchnie i tekst --- */
+  --color-surface: #FAF6F0;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-sunken: #F1EBE1;
+  --color-border: #E4DACB;
+  --color-border-strong: #8A7A63;
+  --color-ink: #2B241D;
+  --color-ink-muted: #5C5347;
+  --color-ink-inverse: #FFFFFF;
+
+  /* --- Kolory: marka ---
+     --color-brand: kolor tekstu/linków marki (i tło przycisku primary w trybie jasnym).
+     --color-brand-solid / --color-brand-solid-hover: TŁO przycisku primary.
+     W trybie jasnym --color-brand-solid = --color-brand (ten sam odcień działa
+     jako tekst i jako tło). W trybie ciemnym rozjeżdżają się celowo: --color-brand
+     musi być jasny, żeby działać jako tekst na ciemnym tle, ale ten sam jasny
+     odcień jako TŁO przycisku z białym tekstem nie daje 4.5:1 — dlatego przycisk
+     primary w dark mode używa osobnego, przyciemnionego --color-brand-solid
+     (patrz DESIGN_SYSTEM.md §1.3, wiersz „biały / brand-solid"). */
+  --color-brand: #B3401F;
+  --color-brand-dark: #8C3018;
+  --color-brand-tint: #F5E4DC;
+  --color-brand-solid: #B3401F;
+  --color-brand-solid-hover: #8C3018;
+
+  /* --- Kolory: akcent (odznaki typu „Ugotowałem”) --- */
+  --color-accent: #7A5C10;
+  --color-accent-tint: #FCEACB;
+  --color-accent-tint-ink: #6B4E0C;
+
+  /* --- Kolory: stany --- */
+  --color-danger: #B3261E;
+  --color-danger-tint: #FBE2E0;
+  --color-danger-tint-ink: #8C1E17;
+  --color-success: #1E7B3E;
+  --color-success-tint: #DFF3E4;
+  --color-success-tint-ink: #155C2E;
+
+  /* --- Fokus klawiatury --- */
+  --color-focus: #155EEF;
+
+  /* --- Typografia: font --- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Noto Sans", "Liberation Sans", Arial, sans-serif;
+
+  /* --- Typografia: skala (skalowana przez --user-text-scale, patrz @layer base) --- */
+  --text-help: calc(1rem * var(--user-text-scale, 1));           /* 16px bazowo */
+  --text-body: calc(1.125rem * var(--user-text-scale, 1));       /* 18px — minimum produktowe */
+  --text-body-lg: calc(1.25rem * var(--user-text-scale, 1));     /* 20px */
+  --text-lead: calc(1.375rem * var(--user-text-scale, 1));       /* 22px */
+  --text-title-sm: calc(1.5rem * var(--user-text-scale, 1));     /* 24px */
+  --text-title: calc(1.75rem * var(--user-text-scale, 1));       /* 28px */
+  --text-title-lg: calc(2.25rem * var(--user-text-scale, 1));    /* 36px */
+
+  --leading-body: 1.55;
+  --leading-title: 1.4;
+
+  /* --- Spacing (baza 4px) — NIE skalowane przez text-scale, celowo --- */
+  --spacing-1: 0.25rem;   /* 4px */
+  --spacing-2: 0.5rem;    /* 8px */
+  --spacing-3: 0.75rem;   /* 12px */
+  --spacing-4: 1rem;      /* 16px */
+  --spacing-5: 1.25rem;   /* 20px */
+  --spacing-6: 1.5rem;    /* 24px */
+  --spacing-8: 2rem;      /* 32px */
+  --spacing-10: 2.5rem;   /* 40px */
+  --spacing-12: 3rem;     /* 48px */
+  --spacing-16: 4rem;     /* 64px */
+  --spacing-20: 5rem;     /* 80px */
+
+  /* --- Radius --- */
+  --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
+  --radius-md: 0.75rem;   /* 12px — przyciski, pola */
+  --radius-lg: 1rem;      /* 16px — karty */
+  --radius-pill: 999px;   /* avatar, tagi okrągłe */
+
+  /* --- Cień (barwiony w stronę ink, nie czysta czerń) --- */
+  --shadow-card: 0 1px 2px rgba(43,36,29,.06), 0 6px 16px rgba(43,36,29,.08);
+  --shadow-popover: 0 8px 24px rgba(43,36,29,.16);
+
+  /* --- Kontrolki: rozmiary minimalne --- */
+  --control-height-min: 3rem;       /* 48px — przyciski, pola, elementy BottomNav */
+  --control-height-touch: 3.75rem;  /* 60px — pozycje BottomNav (zapas ponad minimum) */
+  --hit-area-min: 2.75rem;          /* 44px — checkbox/radio obszar klikalny */
+
+  /* --- Breakpointy --- */
+  --breakpoint-sm: 40rem;   /* 640px */
+  --breakpoint-md: 48rem;   /* 768px */
+  --breakpoint-lg: 64rem;   /* 1024px — próg 2-kolumnowego układu desktop */
+  --breakpoint-xl: 80rem;   /* 1280px */
+
+  /* --- Kontenery treści --- */
+  --container-content: 45rem;  /* 720px — centralna kolumna, ~65–75 znaków przy 18-20px */
+  --container-sidenav: 15rem;  /* 240px — SideNav desktop */
+  --container-wide: 70rem;     /* 1120px — całość na dużym desktopie (SideNav + treść) */
+}
+
+/* =============================================================================
+   2. TRYB CIEMNY — te same role tokenów, osobno dobrana paleta.
+   Nadpisujemy zmienne na :root (nie w @theme), więc kaskada CSS
+   automatycznie „przepływa" do już wygenerowanych klas utility Tailwinda,
+   ponieważ te klasy odwołują się do var(--color-*), a nie do wartości „na sztywno".
+
+   Dwie ścieżki aktywacji, obie muszą działać niezależnie:
+   a) systemowa: @media (prefers-color-scheme: dark) — gdy użytkownik
+      nie wybrał jawnie motywu w ustawieniach Kuking;
+   b) jawna: [data-theme="dark"] na <html>, ustawiana przez przełącznik
+      w /settings/accessibility i zapamiętywana w profilu użytkownika.
+   [data-theme="light"] zawsze wygrywa z systemowym prefers-color-scheme.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface: #1E1A16;
+    --color-surface-raised: #2A241E;
+    --color-surface-sunken: #14110E;
+    --color-border: #382F27;
+    --color-border-strong: #8C7D68;
+    --color-ink: #F5EFE6;
+    --color-ink-muted: #C9BEB0;
+    --color-ink-inverse: #FFFFFF;
+
+    --color-brand: #F2986A;
+    --color-brand-dark: #A63F1F;   /* używane jako hover przycisku primary w dark mode */
+    --color-brand-tint: #3A2418;
+    --color-brand-solid: #C1502A;
+    --color-brand-solid-hover: #A63F1F;
+
+    --color-accent: #E3B341;
+    --color-accent-tint: #E3B341;
+    --color-accent-tint-ink: #3A2C0C;
+
+    --color-danger: #FF8A80;
+    --color-danger-tint: #5C1E17;
+    --color-danger-tint-ink: #FDECEA;
+    --color-success: #7BD79A;
+    --color-success-tint: #1E4A2C;
+    --color-success-tint-ink: #EAF9EE;
+
+    --color-focus: #6EA8FF;
+
+    --shadow-card: 0 1px 2px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.35);
+    --shadow-popover: 0 8px 24px rgba(0,0,0,.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-surface: #1E1A16;
+  --color-surface-raised: #2A241E;
+  --color-surface-sunken: #14110E;
+  --color-border: #382F27;
+  --color-border-strong: #8C7D68;
+  --color-ink: #F5EFE6;
+  --color-ink-muted: #C9BEB0;
+  --color-ink-inverse: #FFFFFF;
+
+  --color-brand: #F2986A;
+  --color-brand-dark: #A63F1F;
+  --color-brand-tint: #3A2418;
+  --color-brand-solid: #C1502A;
+  --color-brand-solid-hover: #A63F1F;
+
+  --color-accent: #E3B341;
+  --color-accent-tint: #E3B341;
+  --color-accent-tint-ink: #3A2C0C;
+
+  --color-danger: #FF8A80;
+  --color-danger-tint: #5C1E17;
+  --color-danger-tint-ink: #FDECEA;
+  --color-success: #7BD79A;
+  --color-success-tint: #1E4A2C;
+  --color-success-tint-ink: #EAF9EE;
+
+  --color-focus: #6EA8FF;
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.35);
+  --shadow-popover: 0 8px 24px rgba(0,0,0,.45);
+}
+
+/* =============================================================================
+   3. WARSTWA BASE — reset typografii, skala tekstu użytkownika, focus, redukcja ruchu
+   ========================================================================== */
+@layer base {
+  :root {
+    /* Domyślny mnożnik skali tekstu użytkownika — 100% */
+    --user-text-scale: 1;
+    color-scheme: light dark;
+  }
+
+  /* Ustawienie „Powiększ tekst" z /settings/accessibility — 4 kroki,
+     niezależne od zoomu przeglądarki. Skaluje WYŁĄCZNIE typografię
+     (tokeny --text-...), nigdy odstępów, promieni ani wysokości kontrolek,
+     dzięki czemu przyciski (min-height, nie height) najwyżej robią się
+     wyższe przy zawijaniu tekstu — layout się nie psuje. */
+  :root[data-text-scale="112"] { --user-text-scale: 1.12; }
+  :root[data-text-scale="125"] { --user-text-scale: 1.25; }
+  :root[data-text-scale="150"] { --user-text-scale: 1.5; }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    margin: 0;
+  }
+
+  h1, h2, h3 {
+    line-height: var(--leading-title);
+    font-weight: 800;
+    color: var(--color-ink);
+  }
+
+  h1 { font-size: var(--text-title); }
+  h2 { font-size: var(--text-title-sm); }
+
+  /* Tytuł hero (np. strona główna) — użyj klasy .text-title-lg z tekstem clamp */
+  .text-title-lg {
+    font-size: clamp(var(--text-title), 4vw + 1rem, var(--text-title-lg));
+  }
+
+  p { margin: 0 0 var(--spacing-4); }
+
+  a {
+    color: var(--color-brand);
+    text-underline-offset: 3px;
+  }
+  a:hover { text-decoration-thickness: 2px; }
+
+  label {
+    display: block;
+    font-weight: 700;
+    font-size: var(--text-body);
+    color: var(--color-ink);
+    margin-bottom: var(--spacing-2);
+  }
+
+  /* Focus widoczny wyłącznie przy nawigacji klawiaturą — nigdy przy kliknięciu myszą,
+     ale ZAWSZE przy Tab. Kontrast pierścienia policzony (DESIGN_SYSTEM.md §1.3). */
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Redukcja ruchu — respektujemy ustawienie systemowe użytkownika */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Windows High Contrast Mode / forced-colors — nie ukrywać obrysów systemowych */
+  @media (forced-colors: active) {
+    .btn, .field input, .field select, .field textarea {
+      forced-color-adjust: none;
+      border: 2px solid ButtonText;
+    }
+    :focus-visible {
+      outline: 3px solid Highlight;
+    }
+  }
+}
+
+/* =============================================================================
+   4. WARSTWA COMPONENTS — klasy wielokrotnego użytku
+   ========================================================================== */
+@layer components {
+
+  /* --- Przycisk bazowy --- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    min-height: var(--control-height-min);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  /* Halo pod pierścieniem fokusu — patrz DESIGN_SYSTEM.md §1.4.
+     Konieczne na przyciskach z kolorowym tłem (primary/danger), bo bezpośredni
+     kontrast niebieskiego --color-focus na tych tłach nie osiąga 3:1. */
+  .btn:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-surface),
+      0 0 0 5px var(--color-focus);
+  }
+
+  .btn-primary {
+    background-color: var(--color-brand-solid);
+    color: var(--color-ink-inverse);
+  }
+  .btn-primary:hover:not(:disabled) { background-color: var(--color-brand-solid-hover); }
+
+  .btn-secondary {
+    background-color: var(--color-surface-raised);
+    color: var(--color-ink);
+    border-color: var(--color-border-strong);
+  }
+  .btn-secondary:hover:not(:disabled) { background-color: var(--color-surface-sunken); }
+
+  .btn-quiet {
+    background-color: transparent;
+    color: var(--color-ink);
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .btn-quiet:hover:not(:disabled) { text-decoration: underline; }
+
+  .btn-danger {
+    background-color: var(--color-danger);
+    color: var(--color-ink-inverse);
+  }
+  .btn-danger:hover:not(:disabled) { background-color: var(--color-danger-tint-ink); }
+
+  /* Odstęp obowiązkowy między akcją zwykłą a destrukcyjną */
+  .danger-zone {
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* --- Pole formularza --- */
+  .field {
+    display: block;
+    margin-top: var(--spacing-4);
+  }
+  .field-input {
+    display: block;
+    width: 100%;
+    min-height: var(--control-height-min);
+    padding: var(--spacing-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    color: var(--color-ink);
+    background-color: var(--color-surface-sunken);
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+  }
+  textarea.field-input {
+    min-height: 8rem;
+    resize: vertical;
+  }
+  .field-input::placeholder {
+    color: var(--color-ink-muted);
+    opacity: 1;
+  }
+  .field-help {
+    display: block;
+    margin-top: var(--spacing-2);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+  .field-error {
+    display: block;
+    margin-top: var(--spacing-2);
+    font-size: var(--text-help);
+    font-weight: 700;
+    color: var(--color-danger);
+  }
+  .field.has-error .field-input {
+    border-color: var(--color-danger);
+  }
+
+  /* --- Karta --- */
+  .card {
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--spacing-5);
+  }
+
+  /* --- Empty state --- */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-3);
+    text-align: center;
+    padding: var(--spacing-10) var(--spacing-4);
+    color: var(--color-ink-muted);
+  }
+  .empty-state-title {
+    font-size: var(--text-body-lg);
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+
+  /* --- Podsumowanie błędów formularza --- */
+  .error-summary {
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+    border: 2px solid var(--color-danger);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+  }
+  .error-summary-title {
+    font-size: var(--text-body-lg);
+    font-weight: 800;
+    margin: 0 0 var(--spacing-2);
+  }
+  .error-summary ul {
+    margin: 0;
+    padding-left: var(--spacing-6);
+  }
+  .error-summary a {
+    color: var(--color-danger-tint-ink);
+    font-weight: 700;
+  }
+
+  /* --- Kroki kreatora (WizardSteps) --- */
+  .wizard-steps {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+  .wizard-steps-current {
+    font-size: var(--text-body);
+    font-weight: 800;
+    color: var(--color-ink);
+  }
+  .wizard-steps-track {
+    display: flex;
+    gap: var(--spacing-2);
+    flex: 1;
+  }
+  .wizard-steps-dot {
+    height: 8px;
+    flex: 1;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-border);
+  }
+  .wizard-steps-dot[data-done="true"] {
+    background-color: var(--color-brand-solid);
+  }
+}

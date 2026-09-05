@@ -1,0 +1,275 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Models\Recipe;
+use App\Models\Unit;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
+use RuntimeException;
+
+/**
+ * Przepisy.
+ *
+ * Formularz jest podzielony na trzy wyraźnie opisane sekcje (O przepisie /
+ * Składniki / Przygotowanie) na JEDNEJ stronie i działa bez JavaScriptu.
+ *
+ * Docelowo kreator ma być trzykrokowy z autosave'em szkicu po każdym kroku
+ * (docs/FLOWS_AND_SCREENS.md). Wersja jednostronicowa jest świadomym
+ * pierwszym etapem: nie da się zgubić danych, bo nie ma nawigacji między
+ * krokami. Kreator Livewire z autosave'em jest osobnym zadaniem w backlogu.
+ */
+class RecipeController extends Controller
+{
+    public function __construct(
+        private readonly PublishRecipe $publishRecipe,
+        private readonly StoreUploadedImage $storeImage,
+        private readonly PublishComment $publishComment,
+    ) {}
+
+    public function create(): View
+    {
+        return view('pages.recipes.create', [
+            'units' => Unit::orderBy('name')->get(),
+            'recipe' => null,
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $this->validated($request);
+        $user = $request->user();
+
+        try {
+            $heroMediaId = null;
+
+            if ($request->hasFile('hero_photo')) {
+                $heroMediaId = $this->storeImage->handle($user, $request->file('hero_photo'))->getKey();
+            }
+
+            $scanMediaId = null;
+
+            if ($request->hasFile('source_scan')) {
+                $scanMediaId = $this->storeImage->handle($user, $request->file('source_scan'))->getKey();
+            }
+
+            $recipe = $this->publishRecipe->handle(
+                author: $user,
+                attributes: [
+                    ...$data['recipe'],
+                    'hero_media_id' => $heroMediaId,
+                    'source_scan_media_id' => $scanMediaId,
+                ],
+                ingredients: $data['ingredients'],
+                steps: $data['steps'],
+                publish: $request->input('action') !== 'draft',
+                ip: $request->ip(),
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+        }
+
+        if (! $recipe->isPublished()) {
+            return redirect()->route('recipes.edit', $recipe)->with('status', 'Szkic zapisany. Możesz wrócić do niego, kiedy chcesz.');
+        }
+
+        return redirect()->route('recipes.show', $recipe)->with('status',
+            'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
+        );
+    }
+
+    public function edit(Request $request, Recipe $recipe): View
+    {
+        $this->authorize('update', $recipe);
+
+        return view('pages.recipes.create', [
+            'units' => Unit::orderBy('name')->get(),
+            'recipe' => $recipe->load(['ingredients', 'steps', 'heroMedia']),
+        ]);
+    }
+
+    public function update(Request $request, Recipe $recipe): RedirectResponse
+    {
+        $this->authorize('update', $recipe);
+
+        $data = $this->validated($request);
+        $user = $request->user();
+
+        try {
+            $heroMediaId = $recipe->hero_media_id;
+
+            if ($request->hasFile('hero_photo')) {
+                $heroMediaId = $this->storeImage->handle($user, $request->file('hero_photo'))->getKey();
+            }
+
+            $recipe = $this->publishRecipe->handle(
+                author: $user,
+                attributes: [...$data['recipe'], 'hero_media_id' => $heroMediaId],
+                ingredients: $data['ingredients'],
+                steps: $data['steps'],
+                publish: $request->input('action') !== 'draft',
+                existing: $recipe,
+                ip: $request->ip(),
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+        }
+
+        return redirect()->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
+            ->with('status', $recipe->isPublished() ? 'Przepis zapisany.' : 'Szkic zapisany.');
+    }
+
+    public function show(Request $request, string $recipe): View|RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->first();
+
+        // Stary adres przepisu musi działać po zmianie tytułu — ktoś mógł
+        // go zapisać w zakładkach albo wysłać rodzinie.
+        if ($model === null) {
+            $redirect = DB::table('recipe_slug_redirects')->where('slug', $recipe)->first();
+
+            if ($redirect === null) {
+                abort(404);
+            }
+
+            $target = Recipe::findOrFail($redirect->recipe_id);
+
+            return redirect()->route('recipes.show', $target, 301);
+        }
+
+        $this->authorize('view', $model);
+
+        $model->load([
+            'author.profile.avatar',
+            'heroMedia',
+            'sourceScan',
+            'ingredients.unit',
+            'steps.media',
+            'comments.author.profile.avatar',
+            'comments.replies.author.profile.avatar',
+        ]);
+
+        return view('pages.recipes.show', [
+            'recipe' => $model,
+            'cookedEvents' => $model->cookedEvents()
+                ->with(['user.profile.avatar', 'media'])
+                ->limit(12)
+                ->get(),
+            'cookedCount' => $model->cookedEvents()->count(),
+            'isSaved' => $request->user() !== null && $request->user()
+                ->collections()
+                ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
+                ->exists(),
+        ]);
+    }
+
+    public function comment(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:4000'],
+            'parent_id' => ['nullable', 'uuid'],
+        ], [
+            'body.required' => 'Napisz coś, zanim wyślesz komentarz.',
+        ]);
+
+        try {
+            $this->publishComment->handle(
+                author: $request->user(),
+                subject: $model,
+                body: $data['body'],
+                parent: $data['parent_id'] === null
+                    ? null
+                    : $model->comments()->whereKey($data['parent_id'])->first(),
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['body' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Komentarz dodany.');
+    }
+
+    public function destroy(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('delete', $model);
+
+        $model->delete();
+
+        return redirect()->route('home')->with('status', 'Przepis usunięty.');
+    }
+
+    /**
+     * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: list<array<string, mixed>>}
+     */
+    private function validated(Request $request): array
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'min:3', 'max:180'],
+            'summary' => ['nullable', 'string', 'max:2000'],
+            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
+            'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+            'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+            'difficulty' => ['nullable', 'in:easy,medium,hard'],
+            'visibility' => ['required', 'in:public,followers,private'],
+            'source_type' => ['required', 'in:own,family,adaptation,external'],
+            'source_person' => ['nullable', 'string', 'max:120'],
+            'source_note' => ['nullable', 'string', 'max:2000'],
+            'source_url' => ['nullable', 'url', 'max:2000'],
+            'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
+            'hero_photo' => ['nullable', 'file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
+            'source_scan' => ['nullable', 'file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
+            'ingredients' => ['nullable', 'array', 'max:120'],
+            'ingredients.*.text' => ['nullable', 'string', 'max:240'],
+            'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
+            'ingredients.*.note' => ['nullable', 'string', 'max:300'],
+            'steps' => ['nullable', 'array', 'max:60'],
+            'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
+        ], [
+            'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
+            'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki.',
+            'visibility.required' => 'Zaznacz, kto ma widzieć ten przepis.',
+            'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
+            'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
+            'hero_photo.image' => 'Zdjęcie główne musi być plikiem JPG, PNG lub WebP.',
+        ]);
+
+        return [
+            'recipe' => [
+                'title' => $data['title'],
+                'summary' => $data['summary'] ?? null,
+                'servings' => $data['servings'] ?? null,
+                'prep_minutes' => $data['prep_minutes'] ?? null,
+                'cook_minutes' => $data['cook_minutes'] ?? null,
+                'difficulty' => $data['difficulty'] ?? null,
+                'visibility' => $data['visibility'],
+                'source_type' => $data['source_type'],
+                'source_person' => $data['source_person'] ?? null,
+                'source_note' => $data['source_note'] ?? null,
+                'source_url' => $data['source_url'] ?? null,
+                'family_since_year' => $data['family_since_year'] ?? null,
+            ],
+            'ingredients' => array_values(array_map(
+                static fn (array $row): array => [
+                    'text' => $row['text'] ?? '',
+                    'group_name' => $row['group_name'] ?? null,
+                    'note' => $row['note'] ?? null,
+                ],
+                $data['ingredients'] ?? [],
+            )),
+            'steps' => array_values(array_map(
+                static fn (array $row): array => ['instruction' => $row['instruction'] ?? ''],
+                $data['steps'] ?? [],
+            )),
+        ];
+    }
+}

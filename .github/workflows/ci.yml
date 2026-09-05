@@ -1,0 +1,401 @@
+# ---------------------------------------------------------------------------
+#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
+#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
+#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#
+#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
+#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#
+#  Żeby WŁĄCZYĆ CI, gdy będą minuty albo własny runner:
+#    1. odkomentuj blok `on:` poniżej,
+#    2. ustaw zmienną repozytorium CI_RUNNER:
+#         - `ubuntu-latest`  → runnery GitHuba (płatne dla repo prywatnych),
+#         - `self-hosted`    → własny runner (koszt tylko maszyny).
+#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+# ---------------------------------------------------------------------------
+
+# =============================================================================
+#  Kuking.pl — Continuous Integration
+#  Docelowa lokalizacja: .github/workflows/ci.yml
+# =============================================================================
+#  Ten workflow jest BRAMKĄ DEPLOYU. W serwisach Railway włączone jest
+#  "Wait for CI" (source.checkSuites w railway.ts), więc Railway nie zbuduje
+#  deployu, dopóki te joby nie są zielone.
+#  Wniosek praktyczny: jeśli coś jest tu "tymczasowo wyłączone", to znaczy,
+#  że produkcja jest niezabezpieczona.
+#
+#  Podział na równoległe joby (nie jeden wielki) jest celowy:
+#    * szybsza informacja zwrotna — lint pada w ~40 s, nie po 6 minutach testów;
+#    * czytelny raport w PR: widać, CO dokładnie się zepsuło;
+#    * `audit` może być nieblokujący, a `test` nie.
+# =============================================================================
+
+name: CI
+
+# Automatyczne wyzwalacze wyłączone (patrz nagłówek pliku).
+# Po włączeniu CI usuń `workflow_dispatch` i odkomentuj poniższe:
+# on:
+#   push:
+#     branches: [main, staging]
+#   pull_request:
+#     branches: [main, staging]
+
+on:
+  workflow_dispatch:
+
+# Uprawnienia minimalne — do uruchomienia testów nie potrzebujemy write.
+permissions:
+  contents: read
+
+# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PHP_VERSION: "8.4"
+  NODE_VERSION: "22"
+
+jobs:
+  # ===========================================================================
+  #  1. Styl kodu — Laravel Pint
+  # ===========================================================================
+  lint:
+    name: Pint (styl kodu)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, tokenizer
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composera
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+
+      - name: Instalacja zależności
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # --test = tylko raportuj, nie modyfikuj plików.
+      # Naprawa lokalnie: `vendor/bin/pint`
+      - name: Pint
+        run: vendor/bin/pint --test
+
+  # ===========================================================================
+  #  2. Analiza statyczna — Larastan / PHPStan
+  # ===========================================================================
+  static-analysis:
+    name: Larastan (analiza statyczna)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          # Larastan bootuje aplikację Laravela, więc potrzebuje tych samych
+          # rozszerzeń co runtime — inaczej wysypie się na brakującym pdo_pgsql.
+          extensions: mbstring, intl, pdo_pgsql, gd, zip, exif, bcmath
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composera
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+
+      - name: Instalacja zależności
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # PHPStan cache'uje wyniki — bez tego każdy przebieg analizuje wszystko
+      # od zera (kilka minut zamiast kilkudziesięciu sekund).
+      - name: Cache PHPStana
+        uses: actions/cache@v4
+        with:
+          path: .phpstan-cache
+          key: phpstan-${{ runner.os }}-${{ github.sha }}
+          restore-keys: phpstan-${{ runner.os }}-
+
+      # Larastan potrzebuje .env, żeby zbootować aplikację.
+      - name: Przygotowanie .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+  # ===========================================================================
+  #  3. Testy — Pest/PHPUnit na prawdziwym PostgreSQL 18
+  # ===========================================================================
+  #  Testujemy na TEJ SAMEJ wersji majora co produkcja. SQLite in-memory byłby
+  #  szybszy, ale nie złapałby niczego, co dotyczy Postgresa: JSONB, FTS,
+  #  pg_trgm, indeksów GIN, ILIKE, ograniczeń unikalności z NULL-ami.
+  #  Wyszukiwanie w Kuking stoi na Postgres FTS (docs/ARCHITECTURE.md),
+  #  więc testowanie na innym silniku byłoby testowaniem czegoś innego.
+  # ===========================================================================
+  test:
+    name: Testy (PostgreSQL 18)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        # Bez healthchecku joby startują, zanim Postgres przyjmie połączenia,
+        # co daje losowo padające testy ("connection refused").
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      # Statyczny klucz testowy. To NIE jest sekret — służy tylko do tego,
+      # żeby szyfrowanie miało poprawnie sformatowany klucz w testach.
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      # Sterowniki, które nie dotykają sieci ani dysku — testy muszą być
+      # deterministyczne i nie wysyłać maili ani nie strzelać do R2.
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      # Wyłącz telemetrię w testach.
+      SENTRY_LARAVEL_DSN: ""
+      POSTHOG_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          # Ten zestaw MUSI odpowiadać rozszerzeniom z Dockerfile,
+          # inaczej CI przepuści kod, który nie wystartuje na produkcji.
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composera
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+
+      - name: Instalacja zależności
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Przygotowanie .env
+        run: cp .env.example .env
+
+      # Migracje osobnym krokiem, nie w ramach testów: jeśli padnie migracja,
+      # chcemy zobaczyć w raporcie "migracje", a nie 300 padniętych testów.
+      - name: Migracje
+        run: php artisan migrate --force --no-interaction
+
+      # Sanity check, że migracje da się WYCOFAĆ i puścić ponownie.
+      # `migrate:refresh` woła down() każdej migracji, więc łapie te bez
+      # działającego down() — czyli takie, których nie da się cofnąć podczas
+      # incydentu. `migrate:fresh` by tego nie wykrył, bo po prostu kasuje
+      # wszystkie tabele, nie uruchamiając down().
+      - name: Kontrola odwracalności migracji
+        run: php artisan migrate:refresh --force --no-interaction
+
+      - name: Testy
+        run: php artisan test
+
+  # ===========================================================================
+  #  4. Build assetów — Vite 7 + Tailwind 4
+  # ===========================================================================
+  #  Osobny job, bo build front-endu nie zależy od bazy ani od PHP.
+  #  Łapie błędy, które inaczej wyszłyby dopiero w buildzie obrazu na Railway
+  #  (a wtedy płacisz za nieudany build i czekasz kilka minut).
+  # ===========================================================================
+  assets:
+    name: Build assetów (Vite)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci` (nie `npm install`) — instaluje dokładnie to, co w lockfile,
+      # i pada, jeśli package.json rozjechał się z package-lock.json.
+      - name: Instalacja zależności
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
+      # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
+      # a wtedy produkcja dostaje stronę bez CSS.
+      - name: Weryfikacja manifestu Vite
+        run: |
+          test -f public/build/manifest.json \
+            || { echo "BŁĄD: brak public/build/manifest.json"; exit 1; }
+          echo "Manifest OK, wpisów: $(grep -o '"file"' public/build/manifest.json | wc -l)"
+
+      # Artefakt przydaje się do debugowania "u mnie działa" oraz do
+      # ręcznego porównania rozmiarów bundle'a między PR-ami.
+      - name: Zapis artefaktu
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-build-${{ github.sha }}
+          path: public/build
+          retention-days: 5
+
+  # ===========================================================================
+  #  5. Audyt bezpieczeństwa zależności
+  # ===========================================================================
+  #  Nie blokuje merge'a (continue-on-error), bo publikacja nowego CVE
+  #  w tranzytywnej zależności nie może zablokować pilnego hotfiksa.
+  #  Ale MUSI być widoczne — dlatego osobny job i podsumowanie w GITHUB_STEP_SUMMARY.
+  #  Przeglądaj to raz w tygodniu. Patrz DEPLOYMENT_RUNBOOK.md, sekcja "Rotacja".
+  # ===========================================================================
+  audit:
+    name: Audyt zależności
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring
+          coverage: none
+          tools: composer:v2
+
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # composer audit działa na composer.lock, więc nie musimy instalować vendora.
+      - name: composer audit
+        id: composer_audit
+        continue-on-error: true
+        run: composer audit --locked --no-interaction
+
+      - name: npm audit
+        id: npm_audit
+        continue-on-error: true
+        # --production: interesują nas podatności w kodzie, który trafia
+        # do przeglądarki, a nie w narzędziach buildu.
+        # --audit-level=high: ostrzeżenia "low" w narzędziach devowych to szum.
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "## Audyt zależności"
+            echo ""
+            echo "| Narzędzie | Wynik |"
+            echo "|---|---|"
+            echo "| composer audit | ${{ steps.composer_audit.outcome }} |"
+            echo "| npm audit | ${{ steps.npm_audit.outcome }} |"
+            echo ""
+            echo "Wynik \`failure\` nie blokuje merge'a, ale wymaga reakcji."
+            echo "Przegląd raz w tygodniu — DEPLOYMENT_RUNBOOK.md, sekcja Rotacja sekretów."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  #  6. Build obrazu Docker (weryfikacja, bez publikacji)
+  # ===========================================================================
+  #  Skoro deployujemy z własnego Dockerfile, CI musi sprawdzić, że ten
+  #  Dockerfile się BUDUJE — inaczej pierwszą informacją o błędzie jest
+  #  nieudany deploy na Railway.
+  #  Nie pushujemy nigdzie obrazu: obraz produkcyjny buduje Railway.
+  #  To wyłącznie test poprawności.
+  # ===========================================================================
+  docker-build:
+    name: Build obrazu (weryfikacja)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Konfiguracja Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build obrazu
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: kuking:ci-${{ github.sha }}
+          # Cache w GitHub Actions — bez tego każdy przebieg buduje
+          # od zera (composer install + npm ci = kilka minut).
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Test dymny obrazu: czy PHP wstaje, czy są wszystkie rozszerzenia,
+      # i czy entrypoint poprawnie odrzuca uruchomienie bez APP_KEY.
+      - name: Test dymny obrazu
+        run: |
+          set -euo pipefail
+
+          echo "--- Wersja PHP ---"
+          docker run --rm kuking:ci-${{ github.sha }} php -v
+
+          echo "--- Wymagane rozszerzenia ---"
+          for ext in pdo_pgsql pgsql intl gd zip exif pcntl bcmath opcache; do
+            if docker run --rm kuking:ci-${{ github.sha }} php -m | grep -qix "$ext"; then
+              echo "OK   $ext"
+            else
+              echo "BRAK $ext"; exit 1
+            fi
+          done
+
+          echo "--- Entrypoint musi odrzucić brak APP_KEY ---"
+          if docker run --rm -e APP_KEY= kuking:ci-${{ github.sha }} \
+               /usr/local/bin/kuking-entrypoint web 2>&1 | grep -q "APP_KEY"; then
+            echo "OK   entrypoint waliduje APP_KEY"
+          else
+            echo "BŁĄD: entrypoint wystartował bez APP_KEY"; exit 1
+          fi

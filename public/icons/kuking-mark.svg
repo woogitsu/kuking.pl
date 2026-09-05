@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Kuking — Garnuś. Garnek z koroną zamiast pokrywki: w słowie KUKING siedzi KING.
+     Geometria z docs/brand/MASCOT_CONCEPT.md. Wariant uproszczony (bez oczu i pereł)
+     jest jedynym, który zostaje czytelny w 32 px — dlatego to on jest znakiem. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Kuking">
+  <title>Kuking</title>
+  <g transform="translate(0,-23)">
+  <rect x="52" y="282" width="68" height="42" rx="21" fill="#A8452F"/>
+  <rect x="392" y="282" width="68" height="42" rx="21" fill="#A8452F"/>
+  <rect x="112" y="264" width="288" height="184" rx="40" fill="#C8781E"/>
+  <rect x="104" y="214" width="304" height="42" rx="14" fill="#E0A62B"/>
+  <polygon points="126,214 170,132 214,214" fill="#E0A62B"/>
+  <polygon points="214,214 256,110 298,214" fill="#E0A62B"/>
+  <polygon points="298,214 342,132 386,214" fill="#E0A62B"/>
+  </g>
+</svg>

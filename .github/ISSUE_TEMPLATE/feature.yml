@@ -1,0 +1,24 @@
+name: Funkcja
+description: Zaproponuj funkcję
+title: "[FEATURE] "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Jaki problem użytkownika rozwiązujemy?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Propozycja
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Faza
+      options:
+        - MVP
+        - V1
+        - V2
+        - Nie wiem

@@ -1,0 +1,172 @@
+# ---------------------------------------------------------------------------
+#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
+#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
+#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#
+#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
+#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#
+#  Żeby WŁĄCZYĆ CI, gdy będą minuty albo własny runner:
+#    1. odkomentuj blok `on:` poniżej,
+#    2. ustaw zmienną repozytorium CI_RUNNER:
+#         - `ubuntu-latest`  → runnery GitHuba (płatne dla repo prywatnych),
+#         - `self-hosted`    → własny runner (koszt tylko maszyny).
+#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+# ---------------------------------------------------------------------------
+
+# =============================================================================
+#  Kuking.pl — Infrastructure as Code: plan na PR, apply po merge'u
+#  Docelowa lokalizacja: .github/workflows/railway-iac.yml
+# =============================================================================
+#  Traktujemy infrastrukturę jak kod: zmiana w .railway/railway.ts przechodzi
+#  przez PR, a w PR-ze widać PLAN — czyli co dokładnie zmieni się w Railway.
+#  Dopiero merge stosuje zmiany.
+#
+#  To nie jest kosmetyka. Bez tego łatwo przez literówkę w railway.ts usunąć
+#  serwis albo odmontować volume, i dowiedzieć się o tym po fakcie.
+#
+#  Kluczowa własność: apply stosuje PRZYPIĘTY PLAN z PR-a (--plan), a nie
+#  planuje od nowa. Jeśli między planem a merge'em ktoś zmieni coś w panelu,
+#  apply ODRZUCI operację (niezgodność etagu) zamiast nadpisać cudzą zmianę.
+#
+#  Używamy oficjalnej akcji railwayapp/config@v1, która owija
+#  `railway config plan/apply` i komentuje plan w PR.
+#  https://github.com/railwayapp/config
+#  https://docs.railway.com/cli/config
+#
+#  WYMAGANE SEKRETY:
+#    RAILWAY_TOKEN_PRODUCTION — token projektowy środowiska production
+# =============================================================================
+
+name: Railway IaC
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    # Uruchamiaj tylko, gdy faktycznie zmienia się infrastruktura.
+    # Zmiana kontrolera nie ma powodu odpalać planu Railway.
+    paths:
+      - ".railway/**"
+      - ".github/workflows/railway-iac.yml"
+
+permissions:
+  contents: read
+  pull-requests: write # komentarz z planem w PR
+  actions: read # odczyt artefaktu z planem
+
+concurrency:
+  group: railway-iac-production
+  cancel-in-progress: false
+
+jobs:
+  # ===========================================================================
+  #  PLAN — na każdą zmianę w otwartym PR
+  # ===========================================================================
+  plan:
+    name: Plan (production)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+
+    # Warunek `head.repo.full_name == github.repository` blokuje uruchomienie
+    # dla PR-ów z forków. Bez tego obcy fork dostałby dostęp do tokenu Railway.
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # SDK `railway` musi być zainstalowane, żeby runner mógł wykonać
+      # .railway/railway.ts (plik importuje "railway/iac").
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalacja zależności
+        run: npm ci --no-audit --no-fund
+
+      - name: Plan zmian infrastruktury
+        uses: railwayapp/config@v1
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          # Wynik ląduje jako komentarz w PR i jako przypięty artefakt,
+          # który zużyje job `apply` po merge'u.
+          comment: true
+
+  # ===========================================================================
+  #  APPLY — dopiero po ZMERGOWANIU PR-a
+  # ===========================================================================
+  apply:
+    name: Apply (production)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 20
+
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged &&
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    # Wymuś zatwierdzenie przez człowieka:
+    # Settings → Environments → production → Required reviewers.
+    environment: production
+
+    steps:
+      # Wersja ZMERGOWANA, nie head PR-a — stosujemy to, co faktycznie
+      # weszło na main.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Instalacja zależności
+        run: npm ci --no-audit --no-fund
+
+      - name: Zastosowanie zmian
+        uses: railwayapp/config@v1
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          # confirm-destructive: akcja domyślnie ma to na `true`.
+          # Zostawiamy jawnie, żeby było widać, że zmiany destrukcyjne
+          # (usunięcie serwisu, odmontowanie volume'a) PRZEJDĄ.
+          # Bezpiecznikiem jest komentarz z planem w PR + review + wymagany
+          # reviewer środowiska production. Jeśli chcesz twardszej blokady,
+          # ustaw tu `false` i stosuj takie zmiany ręcznie z CLI.
+          confirm-destructive: true
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "## Railway IaC — apply"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| PR | #${{ github.event.pull_request.number }} |"
+            echo "| Commit | \`${{ github.event.pull_request.merge_commit_sha }}\` |"
+            echo "| Wynik | ${{ job.status }} |"
+            echo ""
+            echo "Zmiany w infrastrukturze NIE deployują kodu."
+            echo "Kod wdraża Railway po pushu do \`main\` (patrz deploy.yml)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+# =============================================================================
+#  ŚRODOWISKO STAGING
+#  Celowo NIE mamy tu joba dla staginu. Powód: `railway config apply` działa
+#  na środowisku, do którego przypisany jest token, a staging chcemy móc
+#  psuć i naprawiać szybko, bez ceremoniału PR-owego. Dla staginu uruchamiaj
+#  ręcznie z lokalnej maszyny:
+#      railway link --environment staging
+#      railway config plan
+#      railway config apply
+#  Gdy staging zacznie być krytyczny, skopiuj joby powyżej i podmień token
+#  na RAILWAY_TOKEN_STAGING.
+# =============================================================================

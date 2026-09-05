@@ -1,0 +1,262 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Seeders;
+
+use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
+use App\Models\Comment;
+use App\Models\CookedEvent;
+use App\Models\Notification;
+use App\Models\Post;
+use App\Models\Profile;
+use App\Models\Recipe;
+use App\Models\RecipeIngredient;
+use App\Models\RecipeStep;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+
+/**
+ * Dane demonstracyjne do pracy lokalnej.
+ *
+ * WAŻNE: ten seeder służy WYŁĄCZNIE do rozwoju i testów ręcznych.
+ * Nigdy nie uruchamiaj go na produkcji. Kuking nie zaczyna od wypełnienia
+ * serwisu wymyślonymi treściami — pierwsze konta mają być prawdziwe
+ * (docs/product/COLD_START.md, sekcja o anty-wzorcach).
+ *
+ * Persony pochodzą z docs/PRODUCT.md, żeby dane demo od razu obrazowały
+ * realnych użytkowników, a nie „User 1”, „User 2”.
+ */
+class DemoSeeder extends Seeder
+{
+    public function run(): void
+    {
+        if (app()->environment('production')) {
+            $this->command?->error('DemoSeeder nie może działać na produkcji.');
+
+            return;
+        }
+
+        $basia = $this->createUser('basia@example.test', 'basia', 'Basia', [
+            'bio' => 'Gotuję codziennie od czterdziestu lat. Najlepiej wychodzą mi zupy i ciasto drożdżowe.',
+            'region' => 'Podkarpacie',
+            'speciality' => 'zupy i ciasta',
+        ]);
+
+        $marek = $this->createUser('marek@example.test', 'marek', 'Marek', [
+            'bio' => 'Chleb na zakwasie, kiszonki, wędzenie. Lubię wiedzieć, dlaczego coś działa.',
+            'region' => 'Wielkopolska',
+            'speciality' => 'chleb i kiszonki',
+        ]);
+
+        $ania = $this->createUser('ania@example.test', 'ania', 'Ania', [
+            'bio' => 'Dwoje dzieci i praca na etacie. Szukam przepisów, które da się zrobić po pracy.',
+            'region' => 'Warszawa',
+            'speciality' => 'szybkie obiady',
+        ]);
+
+        $moderator = $this->createUser('moderacja@example.test', 'moderacja', 'Moderacja Kuking', [
+            'bio' => 'Konto zespołu Kuking.',
+        ], role: User::ROLE_MODERATOR);
+
+        // Graf społeczny
+        $ania->following()->syncWithoutDetaching([$basia->getKey() => ['created_at' => now()], $marek->getKey() => ['created_at' => now()]]);
+        $marek->following()->syncWithoutDetaching([$basia->getKey() => ['created_at' => now()]]);
+        $basia->following()->syncWithoutDetaching([$marek->getKey() => ['created_at' => now()]]);
+
+        // Wpisy
+        Post::create([
+            'author_id' => $basia->getKey(),
+            'body' => 'Rosół na niedzielę. Gotował się cztery godziny, jak trzeba.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(3),
+        ]);
+
+        Post::create([
+            'author_id' => $marek->getKey(),
+            'body' => 'Chleb z zakwasu, który hoduję od 2019 roku. Dziś wyszedł najlepszy do tej pory.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDays(1),
+        ]);
+
+        Post::create([
+            'author_id' => $ania->getKey(),
+            'body' => 'Naleśniki po pracy. Dzieci zjadły wszystko, więc chyba się udało.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subHours(5),
+        ]);
+
+        // Przepis rodzinny — pokazuje, po co jest sekcja „Skąd ten przepis”
+        $rosol = Recipe::create([
+            'author_id' => $basia->getKey(),
+            'title' => 'Rosół babci Zofii',
+            'slug' => 'rosol-babci-zofii',
+            'summary' => 'Rosół, który u nas w domu gotuje się na każdą niedzielę i na każde święta.',
+            'servings' => 6,
+            'prep_minutes' => 20,
+            'cook_minutes' => 240,
+            'difficulty' => 'easy',
+            'visibility' => 'public',
+            'status' => Recipe::STATUS_PUBLISHED,
+            'source_type' => Recipe::SOURCE_FAMILY,
+            'source_person' => 'babci Zofii',
+            'source_note' => 'Babcia mieszkała pod Rzeszowem i gotowała ten rosół w sobotę wieczorem, żeby w niedzielę tylko podgrzać. Mówiła, że rosół nie znosi pośpiechu i że nigdy nie wolno go zagotować na dużym ogniu, bo zrobi się mętny. Kartka z tym przepisem leżała w jej kredensie przez trzydzieści lat.',
+            'family_since_year' => 1974,
+            'published_at' => now()->subDays(10),
+        ]);
+
+        $this->addIngredients($rosol, [
+            '1 kurczak zagrodowy, najlepiej starsza kura',
+            '2 duże marchewki',
+            '1 pietruszka, korzeń',
+            'kawałek selera, wielkości pięści',
+            '1 por, sama biała część',
+            '1 cebula, opalona nad palnikiem',
+            '4 ziarna ziela angielskiego',
+            '2 liście laurowe',
+            'sól — do smaku, na końcu',
+            'natka pietruszki do podania',
+        ]);
+
+        $this->addSteps($rosol, [
+            'Kurczaka opłucz, włóż do dużego garnka i zalej zimną wodą tak, żeby był przykryty na dwa palce.',
+            'Zagotuj na średnim ogniu, a gdy zacznie wrzeć, zbierz łyżką szumowiny. To decyduje o tym, czy rosół będzie klarowny.',
+            'Zmniejsz ogień do najmniejszego. Od tej chwili rosół ma tylko „mrugać”, nigdy nie wrzeć.',
+            'Dodaj warzywa, ziele angielskie i liście laurowe. Cebulę wcześniej opal nad palnikiem — od niej rosół ma kolor.',
+            'Gotuj bez przykrycia przez cztery godziny. Nie mieszaj, nie dolewaj wody.',
+            'Posól dopiero na końcu. Odcedź, podawaj z makaronem i natką.',
+        ]);
+
+        app(SnapshotRecipeVersion::class)->handle($rosol, $basia, 'Pierwsza publikacja');
+
+        $chleb = Recipe::create([
+            'author_id' => $marek->getKey(),
+            'title' => 'Chleb pszenno-żytni na zakwasie',
+            'slug' => 'chleb-pszenno-zytni-na-zakwasie',
+            'summary' => 'Prosty chleb na co dzień. Wymaga czasu, ale nie wymaga wprawy.',
+            'servings' => 1,
+            'prep_minutes' => 30,
+            'cook_minutes' => 50,
+            'difficulty' => 'medium',
+            'visibility' => 'public',
+            'status' => Recipe::STATUS_PUBLISHED,
+            'source_type' => Recipe::SOURCE_OWN,
+            'source_note' => 'Doszedłem do tych proporcji po jakichś dwóch latach prób. Wcześniejsze wersje były za kwaśne.',
+            'published_at' => now()->subDays(6),
+        ]);
+
+        $this->addIngredients($chleb, [
+            '150 g aktywnego zakwasu żytniego',
+            '350 g mąki pszennej chlebowej typ 750',
+            '150 g mąki żytniej typ 720',
+            '350 ml letniej wody',
+            '10 g soli',
+        ]);
+
+        $this->addSteps($chleb, [
+            'Wymieszaj zakwas z wodą, dodaj obie mąki i wyrób ciasto. Odstaw na 30 minut.',
+            'Dodaj sól i wyrabiaj jeszcze pięć minut. Ciasto ma być klejące — tak ma być.',
+            'Fermentuj 3-4 godziny w temperaturze pokojowej, składając ciasto co godzinę.',
+            'Uformuj bochenek, przełóż do koszyka i wstaw na noc do lodówki.',
+            'Piecz 20 minut w 240 stopniach pod przykryciem, potem 30 minut w 210 stopniach bez przykrycia.',
+        ]);
+
+        app(SnapshotRecipeVersion::class)->handle($chleb, $marek, 'Pierwsza publikacja');
+
+        // „Ugotowałem” — najważniejsze zdarzenie w produkcie
+        $notify = app(NotifyUser::class);
+
+        $wykonanie = CookedEvent::create([
+            'user_id' => $ania->getKey(),
+            'recipe_id' => $rosol->getKey(),
+            'note' => 'Zrobiłam w sobotę, żeby w niedzielę tylko podgrzać. Rzeczywiście wyszedł klarowny.',
+            'changes_note' => 'Dałam pół selera zamiast całego, bo dzieci nie lubią.',
+            'would_make_again' => true,
+            'perceived_difficulty' => 'easy',
+            'actual_minutes' => 260,
+            'cooked_at' => now()->subDays(2),
+        ]);
+
+        $notify->handle($basia, Notification::TYPE_COOKED, $ania, [
+            'recipe_id' => $rosol->getKey(),
+            'recipe_title' => $rosol->title,
+            'recipe_slug' => $rosol->slug,
+            'cooked_event_id' => $wykonanie->getKey(),
+            'has_photo' => false,
+        ]);
+
+        CookedEvent::create([
+            'user_id' => $marek->getKey(),
+            'recipe_id' => $rosol->getKey(),
+            'note' => 'Klasyka. Zrobiłem dokładnie tak, jak napisane, i nie ma o czym dyskutować.',
+            'would_make_again' => true,
+            'perceived_difficulty' => 'easy',
+            'actual_minutes' => 250,
+            'cooked_at' => now()->subDay(),
+        ]);
+
+        Comment::create([
+            'author_id' => $ania->getKey(),
+            'recipe_id' => $rosol->getKey(),
+            'body' => 'Pani Basiu, a można dać kaczkę zamiast kury?',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+
+        $this->command?->info('Dane demo gotowe. Zaloguj się jako basia@example.test / haslo-testowe-123');
+        $this->command?->info('Konto moderatora: moderacja@example.test / haslo-testowe-123');
+        $this->command?->line('Moderator: '.$moderator->email);
+    }
+
+    /** @param  array<string, mixed>  $profile */
+    private function createUser(string $email, string $username, string $displayName, array $profile = [], string $role = User::ROLE_USER): User
+    {
+        $user = User::firstOrCreate(
+            ['email' => $email],
+            [
+                'password' => Hash::make('haslo-testowe-123'),
+                'status' => User::STATUS_ACTIVE,
+                'role' => $role,
+                'locale' => 'pl',
+                'text_scale' => 100,
+                'age_confirmed_at' => now(),
+                'email_verified_at' => now(),
+            ],
+        );
+
+        Profile::firstOrCreate(
+            ['user_id' => $user->getKey()],
+            array_merge(['username' => $username, 'display_name' => $displayName], $profile),
+        );
+
+        return $user->refresh();
+    }
+
+    /** @param  list<string>  $lines */
+    private function addIngredients(Recipe $recipe, array $lines): void
+    {
+        foreach ($lines as $position => $text) {
+            RecipeIngredient::create([
+                'recipe_id' => $recipe->getKey(),
+                'ingredient_text' => $text,
+                'position' => $position,
+            ]);
+        }
+    }
+
+    /** @param  list<string>  $lines */
+    private function addSteps(Recipe $recipe, array $lines): void
+    {
+        foreach ($lines as $position => $instruction) {
+            RecipeStep::create([
+                'recipe_id' => $recipe->getKey(),
+                'position' => $position,
+                'instruction' => $instruction,
+            ]);
+        }
+    }
+}
