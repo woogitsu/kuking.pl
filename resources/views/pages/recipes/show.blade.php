@@ -1,6 +1,9 @@
 @php
     $isPublic = $recipe->visibility === 'public' && $recipe->isPublished();
     $total = $recipe->totalMinutes();
+    // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
+    // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
+    $porcje = $recipe->servingsLabel();
 @endphp
 <x-layout
     :title="$recipe->title"
@@ -28,7 +31,7 @@
                     'url' => route('profile.show', $recipe->author->profile->username),
                 ],
                 'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
-                'recipeYield' => $recipe->servings ? ((int) $recipe->servings).' porcji' : null,
+                'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
                 'totalTime' => $recipe->totalTimeIso(),
@@ -104,7 +107,7 @@
         @endif
 
         <ul class="recipe-facts">
-            @if($recipe->servings)<li><span class="badge">{{ (int) $recipe->servings }} porcji</span></li>@endif
+            @if($porcje)<li><span class="badge">{{ $porcje }}</span></li>@endif
             @if($total)<li><span class="badge">Razem około {{ $total }} min</span></li>@endif
             @if($recipe->difficultyLabel())<li><span class="badge">{{ $recipe->difficultyLabel() }}</span></li>@endif
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
