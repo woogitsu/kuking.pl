@@ -12,19 +12,26 @@ use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
 
 /**
  * Przepisy.
  *
- * Formularz jest podzielony na trzy wyraźnie opisane sekcje (O przepisie /
- * Składniki / Przygotowanie) na JEDNEJ stronie i działa bez JavaScriptu.
+ * Dodawanie przepisu ma DWIE drogi i obie są prawdziwe:
  *
- * Docelowo kreator ma być trzykrokowy z autosave'em szkicu po każdym kroku
- * (docs/FLOWS_AND_SCREENS.md). Wersja jednostronicowa jest świadomym
- * pierwszym etapem: nie da się zgubić danych, bo nie ma nawigacji między
- * krokami. Kreator Livewire z autosave'em jest osobnym zadaniem w backlogu.
+ *  1. `/dodaj/przepis` — kreator trzykrokowy z autosave'em szkicu
+ *     (komponent Livewire `recipe-wizard`, docs/FLOWS_AND_SCREENS.md).
+ *     Wymaga JavaScriptu.
+ *  2. `/dodaj/przepis/jedna-strona` — ten sam formularz na jednej stronie,
+ *     zwykły POST, zero JavaScriptu. To NIE jest ustępstwo ani zaszłość:
+ *     przy słabym zasięgu skrypt się nie dociąga, a użytkownik zostaje
+ *     z martwym formularzem (AGENTS.md → „JavaScript jest ulepszeniem”).
+ *
+ * Obie drogi kończą się w tej samej akcji domenowej `PublishRecipe`, więc
+ * reguły („szkic da się zapisać z samym tytułem”, „publikacja wymaga
+ * składnika i kroku”) są jedne, nie dwie.
  */
 class RecipeController extends Controller
 {
@@ -34,7 +41,36 @@ class RecipeController extends Controller
         private readonly PublishComment $publishComment,
     ) {}
 
-    public function create(): View
+    /**
+     * Kreator trzykrokowy. `?szkic={uuid}` wraca do niedokończonego szkicu.
+     */
+    public function create(Request $request): View
+    {
+        $draftId = $request->query('szkic');
+        $draft = null;
+
+        // Str::isUuid, bo kolumna id jest typu uuid — byle jaki tekst
+        // w adresie wywaliłby zapytanie, a nie dał czytelnego 404.
+        if (is_string($draftId) && Str::isUuid($draftId)) {
+            $draft = Recipe::where('status', Recipe::STATUS_DRAFT)->findOrFail($draftId);
+            $this->authorize('update', $draft);
+        }
+
+        return view('pages.recipes.wizard', [
+            'draft' => $draft,
+            'drafts' => $request->user()
+                ->recipes()
+                ->where('status', Recipe::STATUS_DRAFT)
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get(),
+        ]);
+    }
+
+    /**
+     * Formularz na jednej stronie — droga bez JavaScriptu.
+     */
+    public function createSimple(): View
     {
         return view('pages.recipes.create', [
             'units' => Unit::orderBy('name')->get(),
@@ -109,9 +145,23 @@ class RecipeController extends Controller
                 $heroMediaId = $this->storeImage->handle($user, $request->file('hero_photo'))->getKey();
             }
 
+            // Zdjęcia, których ten formularz nie przesłał, MUSZĄ zostać
+            // przepisane ręcznie. PublishRecipe zapisuje dokładnie to, co
+            // dostanie — pominięcie source_scan_media_id skasowałoby
+            // zdjęcie kartki z zeszytu przy pierwszej edycji tytułu.
+            $scanMediaId = $recipe->source_scan_media_id;
+
+            if ($request->hasFile('source_scan')) {
+                $scanMediaId = $this->storeImage->handle($user, $request->file('source_scan'))->getKey();
+            }
+
             $recipe = $this->publishRecipe->handle(
                 author: $user,
-                attributes: [...$data['recipe'], 'hero_media_id' => $heroMediaId],
+                attributes: [
+                    ...$data['recipe'],
+                    'hero_media_id' => $heroMediaId,
+                    'source_scan_media_id' => $scanMediaId,
+                ],
                 ingredients: $data['ingredients'],
                 steps: $data['steps'],
                 publish: $request->input('action') !== 'draft',

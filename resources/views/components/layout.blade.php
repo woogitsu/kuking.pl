@@ -13,6 +13,11 @@
     'description' => null,
     'noindex' => false,
     'wide' => false,
+    // Livewire dociągamy TYLKO na stronach, które go naprawdę używają
+    // (dziś: kreator przepisu). Reszta serwisu działa bez tego skryptu
+    // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
+    // ulepszeniem, nie warunkiem.
+    'livewire' => false,
 ])
 
 @php
@@ -49,6 +54,9 @@
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if($livewire)
+        @livewireStyles
+    @endif
     {{ $head ?? '' }}
 </head>
 <body>
@@ -143,6 +151,8 @@
         </nav>
     @endauth
 
-    @livewireScriptConfig
+    @if($livewire)
+        @livewireScripts
+    @endif
 </body>
 </html>

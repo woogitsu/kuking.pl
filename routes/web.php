@@ -153,7 +153,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']}")
         ->name('comments.destroy');
 
+    // Dwie drogi do tego samego przepisu i obie są prawdziwe:
+    // /dodaj/przepis to kreator w krokach (Livewire, wymaga JS),
+    // /dodaj/przepis/jedna-strona to ten sam formularz zwykłym POST-em,
+    // bez JavaScriptu. Druga trasa nie jest zaszłością — bez niej słaby
+    // zasięg zostawia użytkownika z martwym formularzem.
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
+    Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     Route::post('/dodaj/przepis', [RecipeController::class, 'store'])
         ->middleware("throttle:{$limits['post']}")
         ->name('recipes.store');
