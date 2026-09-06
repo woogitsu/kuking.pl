@@ -322,6 +322,8 @@
   .stack > * + * { margin-top: var(--spacing-5); }
   .stack-tight > * + * { margin-top: var(--spacing-3); }
 
+  /* --- Karta wpisu (UI kit v2, etap B) --- */
+
   .post-card { padding: 0; overflow: hidden; }
 
   .post-card-head {
@@ -332,18 +334,79 @@
   }
 
   .post-card-body {
-    padding: var(--spacing-4) var(--spacing-5);
+    padding: 0 var(--spacing-5) var(--spacing-4);
     font-size: var(--text-body);
     white-space: pre-line;
     overflow-wrap: anywhere;
   }
 
+  /* Odnośnik do przepisu, z którego powstał wpis. Osobna klasa zamiast
+     stylu w atrybucie — inaczej odstępy karty żyją w dwóch miejscach. */
+  .post-card-recipe {
+    margin: 0;
+    padding: 0 var(--spacing-5) var(--spacing-4);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  /*
+   * Pasek akcji: kreska u góry, jak w mockupach 01 i 05.
+   *
+   * `flex-wrap` jest tu obowiązkowe, nie ozdobne — trzy przyciski z pełnym
+   * tekstem i 48 px wysokości nie mieszczą się w jednym wierszu na telefonie
+   * i muszą mieć gdzie zejść (issue #80, WCAG 1.4.10).
+   */
   .post-card-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--spacing-2);
-    padding: 0 var(--spacing-5) var(--spacing-5);
+    margin: 0 var(--spacing-5);
+    padding: var(--spacing-4) 0;
+    border-top: 1px solid var(--color-border);
   }
+
+  .post-card-actions .btn { max-width: 100%; }
+
+  /* Odsunięcie zgłoszenia na koniec wiersza. Przy zawijaniu po prostu
+     schodzi do nowej linii, zamiast wypychać cokolwiek poza ekran. */
+  .post-card-report { margin-left: auto; }
+
+  /* --- Zachęta do dodania wpisu („composer" z mockupów 01 i 05) ---
+
+     To jest ODNOŚNIK do strony dodawania, nie pole tekstowe udające formularz.
+     Pole, które po kliknięciu nic nie robi bez JavaScriptu, byłoby dokładnie
+     tą pułapką, przed którą ostrzega AGENTS.md §5. */
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    margin-bottom: var(--spacing-6);
+    text-decoration: none;
+    color: var(--color-ink);
+  }
+
+  .composer:hover { background-color: var(--color-surface-sunken); }
+
+  .composer-copy { min-width: 0; flex: 1; }
+
+  .composer-title {
+    display: block;
+    font-size: var(--text-body-lg);
+    font-weight: 800;
+    color: var(--color-brand);
+  }
+
+  .composer-help {
+    display: block;
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .composer .ikona { color: var(--color-brand); }
 
   .post-photo {
     display: block;
