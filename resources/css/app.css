@@ -85,20 +85,74 @@
     z-index: 20;
   }
 
+  /*
+   * PASEK GÓRNY NIE MOŻE ROZPYCHAĆ STRONY (issue #80).
+   *
+   * Poprzednia wersja: flex BEZ zawijania, logotyp plus dwa pełnotekstowe
+   * przyciski. Zmierzone w Chromium przy oknie 360 px: `scrollWidth` 386 dla
+   * gościa i 493 dla zalogowanego. Cała strona przewijała się w bok na każdym
+   * ekranie, a „Załóż konto" było ucięte w połowie słowa.
+   *
+   * `flex-wrap: wrap` to jedyne rozwiązanie, które NIE łamie innych zasad:
+   * przyciski zachowują tekst (nie zostaje sama ikona), zachowują 48 px
+   * wysokości i nikt nie zmniejsza pisma. Gdy zabraknie miejsca, akcje
+   * schodzą do drugiego wiersza — strona rośnie w dół, a nie w bok.
+   * Dokładnie tego wymaga WCAG 2.2 AA, kryterium 1.4.10 (Reflow).
+   *
+   * Świadomie NIE używamy `overflow-x: hidden` na <body>. To ukryłoby objaw
+   * (paska przewijania), zostawiając treść poza ekranem — i, co gorsza,
+   * ustawiłoby `scrollWidth` na równe `clientWidth`, przez co automat
+   * pilnujący tej usterki świeciłby na zielono przy zepsutym układzie.
+   */
   .topbar-inner {
     max-width: var(--container-wide);
     margin: 0 auto;
     padding: var(--spacing-3) var(--spacing-4);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--spacing-4);
+    /* Odstęp MIĘDZY wierszami zerowy, między kolumnami normalny. Pasek jest
+       przyklejony do góry ekranu, więc każdy piksel jego wysokości znika
+       z widoku treści na stałe — a przyciski i tak mają własne 48 px. */
+    gap: 0 var(--spacing-4);
+  }
+
+  .topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
+    /* Bez tego flex nie pozwala grupie zwęzić się poniżej szerokości
+       jej zawartości i cały pasek wystaje poza ekran. */
+    min-width: 0;
+  }
+
+  /* Przycisk w pasku zwija tekst do własnej szerokości zamiast wypychać
+     wiersz. Napis zostaje w całości — łamie się dopiero wtedy, gdy inaczej
+     nie zmieściłby się nawet w całej szerokości ekranu (skala tekstu 150%
+     przy 320 px). */
+  .topbar-actions .btn {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Pozycja paska górnego widoczna dopiero tam, gdzie znika pasek dolny.
+     Próg jest ten sam co w `.bottom-nav` — gdyby się rozjechały, „Dodaj"
+     zniknęłoby z obu pasków naraz albo pokazało się w obu. */
+  .topbar-desktop-only { display: none; }
+
+  @media (min-width: 64rem) {
+    .topbar-desktop-only { display: inline-flex; }
   }
 
   .wordmark {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-2);
+    /* Logotyp też musi umieć się zwęzić — inaczej to on wypycha akcje
+       poza ekran, zamiast pozwolić im zejść do drugiego wiersza. */
+    min-width: 0;
     font-size: var(--text-title-sm);
     font-weight: 850;
     /* Ujemny odstęp między literami jest częścią logotypu z UI kitu: napis
@@ -135,14 +189,28 @@
     left: 0;
     right: 0;
     z-index: 30;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /*
+     * Flex z zawijaniem, nie sztywne pięć kolumn (issue #80).
+     *
+     * Przy skali tekstu 150% podpis „Szukaj" potrzebuje ~78 px, a kolumna
+     * przy 320 px ma 64. Siatka `repeat(5, 1fr)` nie ma jak na to zareagować:
+     * podpisy wychodziły poza swoje kolumny i nachodziły na siebie.
+     *
+     * Przy `flex-basis: 4rem` pięć pozycji mieści się w jednym wierszu na
+     * każdym telefonie przy normalnym tekście (5 × 64 = 320). Gdy tekst
+     * urośnie, pozycje NIE ścisną się poniżej swojej treści — zawiną
+     * do drugiego wiersza z całym podpisem. Żadne słowo nie zostaje ucięte
+     * i żadna ikona nie zostaje bez napisu.
+     */
+    display: flex;
+    flex-wrap: wrap;
     background-color: var(--color-surface-raised);
     border-top: 1px solid var(--color-border);
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   .bottom-nav-item {
+    flex: 1 1 4rem;
     min-height: var(--control-height-touch);
     display: flex;
     flex-direction: column;

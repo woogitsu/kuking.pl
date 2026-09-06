@@ -1,7 +1,18 @@
 /*
  * =============================================================================
- *  Kuking.pl — automat dostępności (issue #26)
+ *  Kuking.pl — automat dostępności (issue #26) i układu (issue #80)
  * =============================================================================
+ *
+ *  DWA RÓŻNE POMIARY W JEDNYM SKRYPCIE
+ *  1. axe-core — analiza drzewa dokumentu: etykiety, nazwy dostępne, kontrast.
+ *  2. pomiar układu — czy strona przewija się w bok przy 320/360/414/768 px.
+ *
+ *  Drugi punkt istnieje, bo pierwszy nie mógł go złapać. Belka górna
+ *  wychodziła poza ekran telefonu na KAŻDEJ stronie serwisu (`scrollWidth`
+ *  493 px przy oknie 360 px), a axe świecił na zielono: reflow nie jest
+ *  regułą axe, bo wymaga ZMIERZENIA ułożonej strony, a nie sprawdzenia
+ *  drzewa elementów. To jest dokładnie ta klasa błędu, o której mówi #26 —
+ *  automat łapie 30%, reszta wymaga spojrzenia albo innego pomiaru.
  *
  *  CO TEN SKRYPT ŁAPIE, A CZEGO NIE
  *  Automaty wykrywają około 30% problemów z dostępnością. To jednak dokładnie
@@ -20,7 +31,7 @@
  *
  *  URUCHOMIENIE
  *      node scripts/dostepnosc.mjs                    # wszystko
- *      node scripts/dostepnosc.mjs --szybko           # tylko wariant jasny
+ *      node scripts/dostepnosc.mjs --szybko           # wariant jasny, węższy pomiar układu
  *      ADRES=http://127.0.0.1:8123 node scripts/...   # gotowy serwer
  *
  *  Bez zmiennej ADRES skrypt sam podnosi `php artisan serve` na wolnym porcie
@@ -95,6 +106,29 @@ const EKRANY = [
 ];
 
 /*
+ * Ekrany dla pomiaru układu (issue #80). To EKRANY plus dwa widoki wymienione
+ * w kryteriach akceptacji tamtego issue, których lista axe nie obejmowała.
+ * Osobna lista, a nie rozszerzone EKRANY: pomiar szerokości jest tani
+ * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
+ */
+const EKRANY_UKLADU = [
+  ...EKRANY,
+  { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
+  { nazwa: 'powiadomienia', adres: '/powiadomienia', zalogowany: true },
+];
+
+/*
+ * SZEROKOŚCI DO POMIARU PRZEPEŁNIENIA (issue #80)
+ *
+ * 320 px to minimum z WCAG 2.2 AA, kryterium 1.4.10 (Reflow). 360 i 414 to
+ * dwa najczęstsze telefony, 768 to tablet w pionie i próg tuż pod układem
+ * dwukolumnowym. Skala tekstu 150% jest tu obowiązkowa, bo nasza grupa
+ * realnie ją włącza — a to przy niej belka pękała najbrzydziej.
+ */
+const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768];
+const SKALE_UKLADU = SZYBKO ? [null] : [null, 150];
+
+/*
  * `skalaTekstu` ustawiamy atrybutem na <html>, tak samo jak robi to layout
  * dla zalogowanego z ustawieniem w profilu. Symulowanie tego zoomem
  * przeglądarki sprawdzałoby coś innego niż to, co dostaje człowiek.
@@ -147,7 +181,17 @@ async function podnies_serwer() {
   return { adres, zamknij: () => proces.kill('SIGTERM') };
 }
 
-async function zaloguj(kontekst, adres) {
+/*
+ * Logujemy się DOKŁADNIE RAZ i przenosimy ciasteczka do kolejnych kontekstów.
+ *
+ * `config/kuking.php` daje pięć prób logowania na minutę. Dopóki skrypt miał
+ * cztery warianty, mieścił się w tym limicie o włos. Pomiar układu (issue #80)
+ * dokłada kilkanaście kontekstów i przy logowaniu „za każdym razem" serwis
+ * odpowiadałby 429 — a skrypt raportowałby to jako błąd strony, nie jako
+ * własny. Ciasteczko sesji działa w każdym kontekście tak samo.
+ */
+async function stanZalogowanego(przegladarka, adres) {
+  const kontekst = await przegladarka.newContext();
   const strona = await kontekst.newPage();
   await strona.goto(`${adres}/login`);
   await strona.fill('input[name="login"]', 'basia');
@@ -156,7 +200,62 @@ async function zaloguj(kontekst, adres) {
     strona.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),
     strona.click('button[type="submit"]'),
   ]);
-  await strona.close();
+  const stan = await kontekst.storageState();
+  await kontekst.close();
+
+  return stan;
+}
+
+/*
+ * POMIAR PRZEPEŁNIENIA W POZIOMIE (issue #80, WCAG 2.2 AA — 1.4.10 Reflow)
+ *
+ * DLACZEGO POMIAR, A NIE REGUŁA AXE
+ * Reflow nie jest i nie może być regułą axe: żeby go stwierdzić, trzeba
+ * ZMIERZYĆ ułożony dokument, a nie przeanalizować drzewo elementów. Belka
+ * górna wychodziła poza ekran na KAŻDEJ stronie serwisu, a automat świecił
+ * na zielono, bo z punktu widzenia drzewa wszystko było w porządku.
+ *
+ * Sprawdzamy `documentElement`, czyli całą stronę. Szeroka treść — tabela,
+ * blok kodu — ma prawo się przewijać, ale we WŁASNYM kontenerze
+ * z `overflow-x: auto`, nie razem z całym dokumentem.
+ *
+ * Zwracamy też listę elementów, które wystają. Sam komunikat „strona ma
+ * 493 px zamiast 360" nie mówi, czego szukać w kodzie.
+ */
+async function zmierzUklad(strona) {
+  return strona.evaluate(() => {
+    const korzen = document.documentElement;
+    const winni = [];
+
+    if (korzen.scrollWidth > korzen.clientWidth) {
+      for (const el of document.querySelectorAll('body *')) {
+        const ramka = el.getBoundingClientRect();
+
+        // Element zerowej wielkości nie może niczego rozpychać, a jest ich
+        // na stronie sporo (choćby napisy tylko dla czytnika ekranu).
+        if (ramka.width === 0 && ramka.height === 0) continue;
+
+        if (ramka.right > korzen.clientWidth + 1 || ramka.left < -1) {
+          const klasy = typeof el.className === 'string'
+            ? el.className
+            : (el.className?.baseVal ?? '');
+
+          winni.push(
+            `${el.tagName.toLowerCase()}${klasy ? '.' + klasy.trim().split(/\s+/).slice(0, 2).join('.') : ''}`
+            + ` [${Math.round(ramka.left)}…${Math.round(ramka.right)}]`,
+          );
+        }
+      }
+    }
+
+    return {
+      scrollWidth: korzen.scrollWidth,
+      clientWidth: korzen.clientWidth,
+      // Pierwsze kilka wystarczy, żeby trafić w miejsce w kodzie. Element,
+      // który wystaje, zwykle pociąga za sobą wszystkich swoich rodziców.
+      winni: [...new Set(winni)].slice(0, 6),
+    };
+  });
 }
 
 const { adres, zamknij } = await podnies_serwer();
@@ -190,13 +289,18 @@ if (adresPrzepisu === null) {
 const wyniki = [];
 let blokujacych = 0;
 
+/** Przepełnienia w poziomie — osobna lista, bo to nie jest naruszenie axe. */
+const przepelnienia = [];
+
+const stanZalogowany = await stanZalogowanego(przegladarka, adres);
+
 for (const wariant of WARIANTY) {
   const kontekst = await przegladarka.newContext({
     colorScheme: wariant.motyw,
     viewport: { width: wariant.szerokosc, height: 900 },
+    storageState: stanZalogowany,
   });
 
-  await zaloguj(kontekst, adres);
   const strona = await kontekst.newPage();
 
   for (const ekran of EKRANY) {
@@ -252,6 +356,79 @@ for (const wariant of WARIANTY) {
   await kontekst.close();
 }
 
+/* =============================================================================
+   UKŁAD: strona nie przewija się w bok (issue #80)
+
+   Osobny przebieg, bo mierzymy coś innego niż axe i na innych szerokościach.
+   Jest tani: samo wczytanie strony i jedno `evaluate`, bez analizy drzewa.
+
+   GOŚĆ I ZALOGOWANY OSOBNO
+   Belka wyglądała inaczej dla jednego i drugiego — i to wersja zalogowanego
+   była gorsza (493 px zamiast 360). Do tego `/login` i `/register` odsyłają
+   zalogowanego na `/home`, więc w kontekście z ciasteczkiem sesji te dwa
+   ekrany w ogóle nie byłyby sprawdzone.
+   ========================================================================== */
+log('');
+log('Układ (przewijanie w bok):');
+
+for (const szerokosc of SZEROKOSCI_UKLADU) {
+  for (const skala of SKALE_UKLADU) {
+    const opis = `${szerokosc} px${skala ? ` / tekst ${skala}%` : ''}`;
+
+    const kontekstGoscia = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 740 },
+    });
+    const kontekstZalogowanego = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 740 },
+      storageState: stanZalogowany,
+    });
+
+    let zlych = 0;
+
+    for (const ekran of EKRANY_UKLADU) {
+      const sciezka = ekran.znajdz === 'przepis' ? adresPrzepisu : ekran.adres;
+
+      if (! sciezka) {
+        console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}".`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      const kontekst = ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia;
+      const strona = await kontekst.newPage();
+
+      await strona.goto(sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
+        { waitUntil: 'domcontentloaded' });
+
+      if (skala) {
+        await strona.evaluate(
+          (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+          skala,
+        );
+      }
+
+      const uklad = await zmierzUklad(strona);
+      await strona.close();
+
+      if (uklad.scrollWidth > uklad.clientWidth) {
+        zlych++;
+        przepelnienia.push({
+          ekran: ekran.nazwa,
+          wariant: opis,
+          scrollWidth: uklad.scrollWidth,
+          clientWidth: uklad.clientWidth,
+          winni: uklad.winni,
+        });
+      }
+    }
+
+    await kontekstGoscia.close();
+    await kontekstZalogowanego.close();
+
+    log(`  ${zlych === 0 ? '✓' : '✗'} ${opis}${zlych ? ` — ${zlych} z ${EKRANY_UKLADU.length} ekranów` : ''}`);
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -262,10 +439,26 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
   naruszen: wyniki.length,
   blokujacych,
   wyniki,
+  uklad: {
+    szerokosci: SZEROKOSCI_UKLADU,
+    skale: SKALE_UKLADU,
+    przepelnien: przepelnienia.length,
+    przepelnienia,
+  },
 }, null, 2));
 
 log('');
-log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, blokujących: ${blokujacych})`);
+log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
+  + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length})`);
+
+if (przepelnienia.length > 0) {
+  log('');
+  log('Strona przewija się w bok (WCAG 2.2 AA — 1.4.10 Reflow):');
+  for (const p of przepelnienia) {
+    log(`  ${p.ekran} / ${p.wariant}: ${p.scrollWidth} px przy ${p.clientWidth} px okna`);
+    log(`      wystaje: ${p.winni.join(' | ') || '(nie ustalono elementu)'}`);
+  }
+}
 
 if (blokujacych > 0) {
   log('');
@@ -273,5 +466,8 @@ if (blokujacych > 0) {
   for (const w of wyniki.filter((w) => BLOKUJACE.has(w.waga))) {
     log(`  [${w.waga}] ${w.ekran} / ${w.wariant}: ${w.regula} — ${w.opis} (${w.ile}x, ${w.gdzie})`);
   }
+}
+
+if (blokujacych > 0 || przepelnienia.length > 0) {
   process.exit(1);
 }

@@ -8,6 +8,7 @@
 #   ./scripts/check.sh          # pełna kontrola
 #   ./scripts/check.sh --szybko # bez budowania assetów (szybsze przy pracy nad PHP)
 #   ./scripts/check.sh --dostepnosc # dodatkowo axe na 11 ekranach w 4 wariantach
+#                                   # oraz pomiar układu przy 320/360/414/768 px
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -94,15 +95,21 @@ fi
 # DOMYŚLNIE POMIJANY, bo podnosi przeglądarkę i bazę: to jest kilkadziesiąt
 # sekund, a `check.sh` chodzi przed każdym commitem. Uruchamiaj przy zmianach
 # w widokach i w CSS-ie:  ./scripts/check.sh --dostepnosc
-krok "Dostępność (axe)"
+#
+# Ten sam przebieg mierzy też UKŁAD (issue #80): czy strona nie przewija się
+# w bok przy 320, 360, 414 i 768 px, także przy powiększonym tekście. Reflow
+# nie jest regułą axe — trzeba zmierzyć ułożoną stronę — a bez tego pomiaru
+# belka górna wychodziła poza ekran telefonu na każdej stronie serwisu
+# i żaden automat tego nie zgłaszał.
+krok "Dostępność (axe) i układ na wąskim ekranie"
 if [ "$SPRAWDZ_DOSTEPNOSC" -ne 1 ]; then
     printf "  Pominięte: uruchom './scripts/check.sh --dostepnosc' przy zmianach w widokach\n"
 elif [ ! -d node_modules/@axe-core ]; then
     printf "  Pominięte: brak @axe-core/playwright (npm install)\n"
 elif DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; then
-    ok "Zero naruszeń critical i serious"
+    ok "Zero naruszeń critical i serious, strona nie przewija się w bok"
 else
-    zle "Naruszenia dostępności — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
+    zle "Naruszenia dostępności albo przewijanie w bok — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
 fi
 
 # --- 4. Analiza statyczna --------------------------------------------------

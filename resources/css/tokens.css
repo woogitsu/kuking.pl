@@ -247,6 +247,28 @@
     font-size: var(--text-body);
     line-height: var(--leading-body);
     margin: 0;
+
+    /*
+     * DŁUGIE SŁOWO NIE ROZPYCHA STRONY (issue #80, WCAG 1.4.10).
+     *
+     * Przy 320 px i skali tekstu 150% powiadomienie „X ugotowała/ugotował
+     * z Twojego przepisu" wypychało układ do 366 px: przeglądarka nie ma
+     * gdzie złamać ciągu „ugotowała/ugotował". Ten sam problem robi każdy
+     * długi adres wklejony przez człowieka w komentarzu.
+     *
+     * `break-word`, nie `anywhere`: łamiemy słowo dopiero wtedy, gdy inaczej
+     * wystaje poza wiersz. Przy normalnej szerokości tekst wygląda tak samo
+     * jak wcześniej.
+     *
+     * CENA, KTÓRĄ ŚWIADOMIE PŁACIMY
+     * W kolumnie flexa z `min-width: 0` (na przykład opis osoby na tablicy
+     * „kuKINGi na dziś") przy 320 px słowo potrafi się przez to złamać
+     * w środku. Wygląda to gorzej niż zawinięcie po spacji — ale alternatywą
+     * jest tekst wychodzący poza ekran razem z całą stroną, a to jest
+     * złamanie WCAG, nie kwestia gustu. Miejsce, w którym to widać,
+     * naprawia się szerokością TAMTEJ kolumny, nie zdejmowaniem tej reguły.
+     */
+    overflow-wrap: break-word;
   }
 
   h1, h2, h3 {

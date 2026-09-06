@@ -126,7 +126,16 @@
                 <span class="visually-hidden">Kuking — strona główna</span>
             </a>
 
-            <div style="display:flex; gap:var(--spacing-2); align-items:center;">
+            {{--
+                Pasek akcji — klasa, nie styl wpisany w atrybucie (issue #80).
+
+                Poprzednia wersja miała tu `display:flex` bez zawijania i dwa
+                przyciski z pełnym tekstem. Przy oknie 360 px cała strona
+                przewijała się w bok (`scrollWidth` 493), a „Dodaj" leżało
+                całkowicie poza ekranem. Reguły układu muszą siedzieć w CSS,
+                bo tylko tam da się je uzależnić od szerokości ekranu.
+            --}}
+            <div class="topbar-actions">
                 @auth
                     <a class="btn btn-quiet" href="{{ route('notifications.index') }}">
                         Powiadomienia
@@ -135,7 +144,22 @@
                             <span class="visually-hidden">nieprzeczytanych</span>
                         @endif
                     </a>
-                    <a class="btn btn-primary" href="{{ route('add') }}">Dodaj</a>
+                    {{--
+                        „Dodaj" w pasku GÓRNYM pokazuje się dopiero tam, gdzie
+                        znika pasek DOLNY (od 64rem, patrz app.css).
+
+                        To nie jest ukrycie głównej akcji: na telefonie „Dodaj"
+                        stoi w pasku dolnym — z ikoną ORAZ podpisem, w środku
+                        ekranu, w zasięgu kciuka. Trzymanie go jednocześnie
+                        w obu paskach oznaczało dwa pełnotekstowe przyciski
+                        w belce, a to była bezpośrednia przyczyna przewijania
+                        w bok z issue #80.
+
+                        Ukrycie NAPISU przy ikonie byłoby złamaniem zasady
+                        „ikona nigdy sama" (AGENTS.md §5) — dlatego usuwamy
+                        pozycję z paska, a nie jej podpis.
+                    --}}
+                    <a class="btn btn-primary topbar-desktop-only" href="{{ route('add') }}">Dodaj</a>
                 @else
                     <a class="btn btn-quiet" href="{{ route('login') }}">Zaloguj się</a>
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto</a>
