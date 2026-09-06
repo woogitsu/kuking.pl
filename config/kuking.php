@@ -171,6 +171,11 @@ return [
         // wtyczka potrafi wysłać setki na minutę, a każde to wpis w logu —
         // stąd limit wyraźnie wyższy niż przy formularzach, ale skończony.
         'csp_report' => '60,1',
+        // Akcje w ustawieniach, które proszą o obecne hasło jako potwierdzenie
+        // tożsamości (zmiana hasła, „wyloguj mnie z innych urządzeń", issue #12).
+        // Ten sam rząd wielkości co 'password_reset' — to wciąż zgadywanie
+        // cudzego hasła, tyle że przez kogoś, kto już ma cudzą sesję.
+        'confirm_password' => '5,10',
     ],
 
     'exports' => [
