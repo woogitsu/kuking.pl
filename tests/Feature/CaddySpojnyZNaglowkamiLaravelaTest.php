@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -41,6 +42,11 @@ use Tests\TestCase;
  */
 class CaddySpojnyZNaglowkamiLaravelaTest extends TestCase
 {
+    // Test odpytuje `/`, a strona powitalna czyta wpisy z bazy. Bez tego
+    // przechodziłby wyłącznie na bazie zmigrowanej wcześniej przez inny
+    // test — czyli zielono z niewłaściwego powodu, a na świeżej bazie 500.
+    use RefreshDatabase;
+
     public function test_kazdy_naglowek_ustawiony_w_obu_warstwach_ma_te_sama_wartosc(): void
     {
         $zCaddy = $this->naglowkiZCaddyfile();
