@@ -12,6 +12,7 @@ use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\Report;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -23,6 +24,12 @@ use RuntimeException;
  *
  * Przycisk w interfejsie ma NAPIS "Zgłoś", nie ikonkę flagi — osoba, która
  * chce zgłosić oszustwo, nie ma zgadywać, co znaczy trójkącik.
+ *
+ * `resolveTarget()` niżej rozstrzyga TYLKO, czy cel ISTNIEJE — nie, czy
+ * zgłaszającemu wolno go zobaczyć. Widoczność sprawdza `ReportContent`
+ * (`authorize()`/`handle()`), nie ten kontroler (audyt W7-05, AGENTS.md §4):
+ * gdyby bramka siedziała tutaj, a nie w Domain, każdy kolejny endpoint
+ * budujący cel zgłoszenia musiałby o niej pamiętać z osobna.
  */
 class ReportController extends Controller
 {
@@ -30,10 +37,17 @@ class ReportController extends Controller
 
     public function create(Request $request, string $type, string $id): View
     {
+        $target = $this->resolveTarget($type, $id);
+
+        // Ta sama bramka co w `store()` (przez `handle()`) — inaczej sam
+        // formularz renderowałby się dla treści, której zgłaszający nie ma
+        // prawa zobaczyć, i byłby to oracle istnienia sam w sobie.
+        $this->report->authorize($request->user(), $target);
+
         return view('pages.report', [
             'targetType' => $type,
             'targetId' => $id,
-            'target' => $this->resolveTarget($type, $id),
+            'target' => $target,
             'reasons' => Report::REASONS,
         ]);
     }
@@ -55,6 +69,12 @@ class ReportController extends Controller
                 details: $data['details'] ?? null,
                 ip: $request->ip(),
             );
+        } catch (ModelNotFoundException $e) {
+            // `ModelNotFoundException` DZIEDZICZY po `RuntimeException` — bez
+            // tego jawnego wyjątku niżej ją złapałby i przerobił na zwykły
+            // błąd formularza (302 z komunikatem), a bramka widoczności ma
+            // dawać 404, nieodróżnialny od celu, który w ogóle nie istnieje.
+            throw $e;
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['reason' => $e->getMessage()]);
         }
