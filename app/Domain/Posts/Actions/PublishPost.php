@@ -7,6 +7,7 @@ namespace App\Domain\Posts\Actions;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Post;
+use App\Models\Topic;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -31,6 +32,7 @@ final class PublishPost
         array $mediaIds = [],
         string $visibility = Post::VISIBILITY_PUBLIC,
         ?string $recipeId = null,
+        ?string $topicId = null,
         ?string $ip = null,
     ): Post {
         $body = $this->cleanBody($body);
@@ -55,13 +57,21 @@ final class PublishPost
 
         $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
 
-        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $orderedMedia): Post {
+        // Temat jest OPCJONALNY i musi pochodzić z zamkniętej listy (issue #31).
+        // Sprawdzamy istnienie i to, czy temat nie jest wycofany — inaczej
+        // podstawiony identyfikator wpuściłby wpis do tematu, którego redakcja
+        // już nie prowadzi. `null` przy nieznanym: wpis bez tematu jest w pełni
+        // poprawny, więc lepiej opublikować bez niego niż odmówić publikacji.
+        $topicId = $topicId === null ? null : Topic::doWyboru()->whereKey($topicId)->value('id');
+
+        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $topicId, $orderedMedia): Post {
             $post = Post::create([
                 'author_id' => $author->getKey(),
                 'body' => $body,
                 'visibility' => $visibility,
                 'status' => Post::STATUS_PUBLISHED,
                 'recipe_id' => $recipeId,
+                'topic_id' => $topicId,
                 'published_at' => now(),
             ]);
 

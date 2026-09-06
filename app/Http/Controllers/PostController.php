@@ -8,6 +8,7 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Models\Post;
+use App\Models\Topic;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -30,7 +31,10 @@ class PostController extends Controller
 
     public function create(): View
     {
-        return view('pages.posts.create');
+        // Zamknięta lista tematów (issue #31). Wybór jest OPCJONALNY —
+        // wymuszanie go dokładałoby decyzję w momencie, w którym chcemy,
+        // żeby człowiek po prostu wrzucił zdjęcie.
+        return view('pages.posts.create', ['topics' => Topic::doWyboru()->get()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -44,6 +48,10 @@ class PostController extends Controller
             'photos.*' => ['file', 'image', 'max:'.$maxKilobytes],
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
+            // Temat opcjonalny, ale MUSI istnieć i być aktywny. Sprawdzenie
+            // po stronie akcji domenowej jest drugą bramką — ta tutaj jest
+            // po to, żeby człowiek dostał komunikat zamiast cichego pominięcia.
+            'topic_id' => ['nullable', 'uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
             'photos.*.max' => "Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to {$limitMb} MB.",
@@ -65,6 +73,7 @@ class PostController extends Controller
                 body: $data['body'] ?? null,
                 mediaIds: $mediaIds,
                 visibility: $data['visibility'],
+                topicId: $data['topic_id'] ?? null,
                 ip: $request->ip(),
             );
         } catch (RuntimeException $e) {
