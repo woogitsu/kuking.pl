@@ -65,9 +65,24 @@
                 <div class="post-card-menu-tresc">
                     <a href="{{ $post->url() }}">Otwórz wpis</a>
                     @if(auth()->id() === $post->author_id)
+                        <a href="{{ route('posts.edit', $post) }}">Edytuj wpis</a>
                         @if($post->media->count() > 1)
                             <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
                         @endif
+                        {{--
+                            „Usuń wpis" — akcja destrukcyjna, odsunięta od
+                            zwykłych akcji i wymagająca potwierdzenia
+                            (AGENTS.md §5). `.danger-zone` daje odstęp
+                            i kreskę, `x-confirm-button` to ten sam wzorzec
+                            potwierdzenia bez JavaScriptu co na stronie wpisu
+                            (`pages/posts/show.blade.php`).
+                        --}}
+                        <div class="danger-zone">
+                            <x-confirm-button
+                                :action="route('posts.destroy', $post)"
+                                label="Usuń wpis"
+                                question="Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie." />
+                        </div>
                     @else
                         <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
                     @endif
