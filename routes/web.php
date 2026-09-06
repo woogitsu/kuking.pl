@@ -40,6 +40,7 @@ use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TopicFollowController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -407,6 +408,29 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi
 // wyłącznie treści publiczne.
 Route::get('/temat/{topic}', [TopicController::class, 'show'])->name('topics.show');
+
+/*
+ * ZGŁOSZENIE NIELEGALNEJ TREŚCI — DROGA PUBLICZNA (DSA art. 16).
+ *
+ * POZA GRUPĄ `auth`, ŚWIADOMIE I Z KONIECZNOŚCI. Art. 16 wymaga mechanizmu
+ * dostępnego dla KAŻDEJ osoby i każdego podmiotu. Zgłasza prawnik w imieniu
+ * klienta, rodzic, który rozpoznał dziecko na cudzym zdjęciu, albo autor
+ * tekstu przepisanego tu bez zgody. Żadna z tych osób nie ma konta w serwisie
+ * kulinarnym i nie ma powodu, żeby je zakładać.
+ *
+ * Formularz „Zgłoś" pod treścią ZOSTAJE za logowaniem (`reports.create`
+ * wyżej) — on obsługuje nasze zasady, nie obowiązek z przepisu.
+ *
+ * Ochroną jest limit żądań, nie logowanie. Logowanie wykluczyłoby tych,
+ * dla których ten mechanizm istnieje.
+ */
+Route::get('/zglos-nielegalna-tresc', [ZgloszenieNielegalnejTresciController::class, 'create'])
+    ->name('zglos.nielegalna');
+Route::post('/zglos-nielegalna-tresc', [ZgloszenieNielegalnejTresciController::class, 'store'])
+    ->middleware('throttle:'.$limits['legal_notice'])
+    ->name('zglos.nielegalna.store');
+Route::get('/zglos-nielegalna-tresc/przyjete', [ZgloszenieNielegalnejTresciController::class, 'confirmation'])
+    ->name('zglos.nielegalna.potwierdzenie');
 
 // --------------------------------------------------------------------------
 // Zgłoszenia naruszeń CSP

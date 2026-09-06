@@ -12,10 +12,42 @@
         <article class="card mb-5">
             <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
             <p class="meta">
-                {{ $report->target_type }} · {{ $report->target_id }} ·
+                {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
-                @if($report->reporter) przez {{ $report->reporter->displayName() }} @else przez usunięte konto @endif
+                @if($report->jestZgloszeniemPrawnym())
+                    przez {{ $report->notifier_name }} (zgłoszenie prawne, DSA art. 16)
+                @elseif($report->reporter)
+                    przez {{ $report->reporter->displayName() }}
+                @else
+                    przez usunięte konto
+                @endif
             </p>
+
+            {{--
+                ZGŁOSZENIE PRAWNE POKAZUJE WIĘCEJ i musi.
+
+                Przy zgłoszeniu społecznościowym wystarczy typ i identyfikator
+                treści — przycisk stał pod nią, więc cel jest pewny. Tutaj cel
+                bywa nierozpoznany (ktoś wkleił link z pamięci), a decyzja
+                zapada na podstawie UZASADNIENIA, nie samej kategorii. Bez
+                tych dwóch rzeczy na ekranie moderator miał zamknąć sprawę,
+                której treści nie widział.
+            --}}
+            @if($report->jestZgloszeniemPrawnym())
+                @if($report->target_url)
+                    <p class="meta">
+                        Wskazany adres:
+                        <span class="kod-do-przepisania">{{ $report->target_url }}</span>
+                        @if($report->target_type === 'unknown')
+                            <strong>— nie rozpoznaliśmy, o którą treść chodzi.</strong>
+                        @endif
+                    </p>
+                @endif
+
+                @if($report->illegality_explanation)
+                    <p class="whitespace-pre-line">{{ $report->illegality_explanation }}</p>
+                @endif
+            @endif
 
             @if($report->details)
                 <p class="whitespace-pre-line">{{ $report->details }}</p>

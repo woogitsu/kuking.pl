@@ -126,8 +126,11 @@ class ModerationAction extends Model
      *
      * @return array<string, string> akcja => etykieta
      */
-    public static function dozwoloneDla(string $typCelu): array
+    public static function dozwoloneDla(?string $typCelu): array
     {
+        // Nieznany typ (np. `unknown` przy zgłoszeniu z nierozpoznanym
+        // adresem) daje samo `none`: sprawę można zamknąć i odpowiedzieć
+        // zgłaszającemu, ale nie da się ukryć treści, której nie wskazano.
         $akcje = self::DOZWOLONE[$typCelu] ?? [self::ACTION_NONE];
 
         return array_intersect_key(self::ETYKIETY, array_flip($akcje));

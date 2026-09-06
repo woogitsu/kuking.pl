@@ -12,10 +12,12 @@ use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Models\User;
+use App\Notifications\DecyzjaWSprawieZgloszenia;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -166,6 +168,23 @@ class ModerationController extends Controller
                     // KTÓREJ decyzji dotyczy (#10).
                     decyzjaModeracyjna: $akcja,
                 );
+            }
+
+            // POWIADOMIENIE ZGŁASZAJĄCEGO (DSA art. 16 ust. 5) — audyt W5-02.
+            //
+            // Osobny obowiązek od tego wyżej: tamto idzie do AUTORA treści
+            // (art. 17), to do osoby, która zgłosiła. Do tej pory zgłaszający
+            // nie dowiadywał się niczego, nawet tego, że sprawa jest zamknięta,
+            // a ekran obiecywał „odpiszemy Ci, co zrobiliśmy".
+            //
+            // Tylko dla zgłoszeń prawnych i tylko gdy jest adres: przy
+            // zgłoszeniu społecznościowym nie składaliśmy takiej obietnicy,
+            // a art. 16 ust. 2 lit. c dopuszcza zgłoszenie bez danych.
+            if ($zablokowane->maAdresDoOdpowiedzi()) {
+                Notification::route('mail', $zablokowane->notifier_email)
+                    ->notify(new DecyzjaWSprawieZgloszenia($zablokowane, $akcja));
+
+                $zablokowane->forceFill(['decision_sent_at' => now()])->save();
             }
 
             $zablokowane->update([

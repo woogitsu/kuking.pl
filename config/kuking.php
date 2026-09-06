@@ -241,6 +241,20 @@ return [
         'post' => '20,10',
         'report' => '10,10',
 
+        /*
+         * Zgłoszenie nielegalnej treści (DSA art. 16) — droga PUBLICZNA.
+         *
+         * Limit jest tu jedyną ochroną przed nadużyciem, bo logowania nie ma
+         * i być nie może: przepis wymaga mechanizmu dostępnego dla każdego,
+         * a wymóg konta wyklucza dokładnie tych, dla których on istnieje —
+         * prawnika, rodzica, osobę, która rozpoznała siebie na cudzym zdjęciu.
+         *
+         * Trzy na godzinę z jednego adresu: dość, żeby ktoś zgłosił kilka
+         * rzeczy naraz i poprawił literówkę, za mało na zalanie kolejki
+         * jedynego moderatora (D-012: zespół to 1-2 osoby).
+         */
+        'legal_notice' => '3,60',
+
         // Odwołanie od decyzji moderacyjnej. Limit jest niski, bo formularz
         // dla osób zablokowanych stoi PRZED logowaniem — a wszystko, co stoi
         // przed logowaniem, jest celem. Prawdziwe odwołanie składa się raz,

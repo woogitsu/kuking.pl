@@ -107,8 +107,16 @@ final class ModeratedContent
      * przywracaniu i przy odwołaniu od decyzji `remove`, bo tam celem jest
      * z definicji coś, czego zwykłe zapytanie już nie widzi.
      */
-    public static function znajdz(string $typ, string $id, bool $zUsunietymi = false): ?object
+    public static function znajdz(?string $typ, ?string $id, bool $zUsunietymi = false): ?object
     {
+        // NULL po obu stronach jest normalnym stanem, nie błędem wywołania:
+        // zgłoszenie nielegalnej treści (DSA art. 16) przyjmujemy nawet wtedy,
+        // gdy nie umieliśmy rozwiązać wklejonego adresu. Typ jest wtedy
+        // `unknown`, którego i tak nie ma w TYPY, a cel jest pusty.
+        if ($typ === null || $id === null) {
+            return null;
+        }
+
         $klasa = array_search($typ, self::TYPY, true);
 
         if ($klasa === false) {

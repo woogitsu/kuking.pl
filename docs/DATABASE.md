@@ -527,7 +527,73 @@ kończyłoby się błędem 500.
 In-app.
 
 ### reports
-Zgłoszenia.
+Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
+`source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
+audyt G-08 / W5-01 / W5-02).
+
+| `source` | Co to jest | Kto może zgłosić |
+|---|---|---|
+| `community` | Nasze zasady: spam, chamstwo, niebezpieczna porada. Przycisk „Zgłoś” pod treścią. | Tylko zalogowani. |
+| `legal_notice` | Treść **niezgodna z prawem** w rozumieniu DSA art. 16. | **Każdy, także bez konta.** |
+
+Nie robimy dwóch tabel, bo obie drogi kończą się tą samą decyzją moderatora,
+tym samym wpisem w `moderation_actions` i tą samą ścieżką odwołania. Dwie
+tabele znaczyłyby dwie kolejki, dwa ekrany i dwie okazje, żeby jedna z nich
+została z tyłu.
+
+Kolumny dołożone dla drogi prawnej:
+
+| Kolumna | Po co |
+|---|---|
+| `notifier_name` | Imię i nazwisko albo nazwa instytucji (art. 16 ust. 2 lit. b). |
+| `notifier_email` | **Może być `NULL`** — art. 16 ust. 2 lit. c zwalnia z podania danych przy zgłoszeniach dotyczących przestępstw z art. 3–7 dyrektywy 2011/93/UE. Wtedy nie ma komu odpowiedzieć i to jest zgodne z przepisem, a nie brak w danych. |
+| `target_url` | Adres wpisany przez człowieka, zapisany dosłownie (art. 16 ust. 2 lit. b — „dokładna lokalizacja elektroniczna”). |
+| `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
+| `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
+| `receipt_sent_at` | Potwierdzenie odbioru wysłane (ust. 4). |
+| `decision_sent_at` | Powiadomienie o decyzji wysłane (ust. 5). |
+
+Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
+wysłaliśmy”, a przy audycie to jest pierwsze pytanie.
+
+#### `target_type = 'unknown'` i puste `target_id`
+
+Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
+ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszenie
+i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
+przepis nakazuje udostępnić. Dlatego:
+
+- `reports_target_type_check` dopuszcza szósty typ, `unknown`;
+- `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
+
+`NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
+identyfikator i niczego nie wskazuje, prędzej czy później trafiłby do
+zapytania albo na ekran moderatora.
+
+Zgłoszenie **społecznościowe** dalej musi mieć cel — pilnuje tego
+`reports_community_target_check`. Tam przycisk stoi pod konkretną treścią,
+więc brak celu znaczyłby błąd w kodzie, a nie sytuację życiową.
+
+Konsekwencja w kodzie: `ModeratedContent::znajdz()` zwraca `null` dla typu
+`unknown`, a `ModerationAction::dozwoloneDla()` zwraca wtedy samo `none` —
+moderator może taką sprawę zamknąć i odpowiedzieć, ale nie ukryje treści,
+której mu nie wskazano.
+
+#### Pozostałe ograniczenia i indeksy
+
+| Nazwa | Co pilnuje |
+|---|---|
+| `reports_source_check` | `source IN ('community','legal_notice')`. |
+| `reports_legal_notice_complete_check` | Zgłoszenie prawne **musi** mieć uzasadnienie, `good_faith_at` i imię. CHECK, a nie sama walidacja formularza: przy audycie liczy się to, czego baza nie mogła przyjąć. |
+| `reports_source_status_idx (source, status, created_at)` | Kolejka moderatora filtruje po źródle — zgłoszenia prawne mają termin odpowiedzi, społecznościowe nie. |
+| `reports_pending_receipt_idx` | Indeks częściowy: zgłoszenia prawne z adresem, którym jeszcze nie potwierdzono odbioru. |
+
+**Rollback:** `down()` **odmawia**, gdy w tabeli są zgłoszenia prawne —
+usunięcie kolumn skasowałoby imię, adres i uzasadnienie, zostawiając samo
+`reason`, czyli zgłoszenie bez treści. To są dane, na podstawie których
+podjęto decyzje moderacyjne i na które ktoś mógł się powołać w odwołaniu.
+Świadome wymuszenie: `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE=1` (najpierw
+kopia tabeli).
 
 ### moderation_actions
 Decyzje moderatorów.
