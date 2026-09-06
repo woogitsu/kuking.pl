@@ -112,9 +112,20 @@ return [
     |
     */
 
+    /*
+    | Wartości domyślne są NASZE, nie Laravelowe (issue #79).
+    |
+    | Na Railway zmienne środowiskowe ustawia człowiek i człowiek potrafi ich
+    | nie ustawić — a wtedy zostaje to, co stoi w tej linii. Domyślne
+    | „Laravel <hello@example.com>" pod listem z linkiem do zmiany hasła to
+    | gotowy phishing: nieznany nadawca, obca nazwa, prośba o kliknięcie.
+    |
+    | Adres nadawcy jest skrzynką, na którą DA SIĘ odpisać. Żadnego
+    | `noreply@` — patrz docs/decyzje/POCZTA.md i docs/brand/BRAND_EXTENDED.md.
+    */
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+        'address' => env('MAIL_FROM_ADDRESS', 'kuchnia@kuking.pl'),
+        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Kuking')),
     ],
 
 ];

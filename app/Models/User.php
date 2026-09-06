@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Notifications\PotwierdzenieAdresu;
+use App\Notifications\UstawienieNowegoHasla;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -397,6 +399,32 @@ class User extends Authenticatable implements MustVerifyEmailContract
         $tresc = $ostatnie?->data['message'] ?? null;
 
         return is_string($tresc) && trim($tresc) !== '' ? $tresc : null;
+    }
+
+    // ---------------------------------------------------------------------
+    // Listy z systemu
+    //
+    // Domyślne powiadomienia Laravela są po angielsku (issue #79). List
+    // „Reset Password" od nieznanego nadawcy wygląda dla osoby 50+ dokładnie
+    // jak phishing, przed którym ostrzega ją bank — a odzyskiwanie hasła to
+    // jedyna droga powrotu dla kogoś, kto wypadł z konta.
+    //
+    // Podmieniamy je TUTAJ, a nie przez `ResetPassword::toMailUsing()`
+    // w service providerze: wtedy widać z modelu, co ta osoba naprawdę
+    // dostanie, a `Notification::fake()` w testach widzi nasze klasy.
+    // ---------------------------------------------------------------------
+
+    /**
+     * @param  string  $token
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new UstawienieNowegoHasla($token));
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new PotwierdzenieAdresu);
     }
 
     // ---------------------------------------------------------------------
