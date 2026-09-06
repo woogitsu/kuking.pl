@@ -30,12 +30,29 @@
             </x-empty-state>
             <p style="text-align:center;"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
         @else
-            <p class="meta">Znaleziono {{ $recipes->count() }} {{ $recipes->count() === 1 ? 'przepis' : 'przepisów' }}.</p>
+            <p class="meta">
+                @if($jestWiecej ?? false)
+                    Pokazujemy {{ $recipes->count() }} {{ \App\Support\Odmiana::rzeczownik($recipes->count(), 'przepis', 'przepisy', 'przepisów') }}. Jest ich więcej.
+                @else
+                    Znaleziono {{ $recipes->count() }} {{ \App\Support\Odmiana::rzeczownik($recipes->count(), 'przepis', 'przepisy', 'przepisów') }}.
+                @endif
+            </p>
             <div class="stack">
                 @foreach($recipes as $recipe)
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
+
+            @if($jestWiecej ?? false)
+                {{-- Zwykły odnośnik, nie przycisk sterowany skryptem: dalsze
+                     wyniki muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
+                <p style="text-align:center;">
+                    <a class="btn btn-quiet"
+                       href="{{ route('search', ['q' => $phrase, 'sekcja' => 'przepisy', 'ile' => $nastepneIle]) }}">
+                        Pokaż więcej przepisów
+                    </a>
+                </p>
+            @endif
         @endif
     @else
         @if($people->isEmpty())

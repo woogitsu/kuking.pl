@@ -89,7 +89,9 @@ class OnboardingController extends Controller
         $user = $request->user();
 
         foreach ($request->input('follow', []) as $username) {
-            $target = Profile::where('username', $username)->first()?->user;
+            // Bez rozróżniania wielkości liter, tak samo jak profil
+            // i listy obserwujących — patrz `Profile::poNazwie()`.
+            $target = Profile::poNazwie($username)?->user;
 
             if ($target === null) {
                 continue;

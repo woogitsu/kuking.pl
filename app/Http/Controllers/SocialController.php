@@ -103,20 +103,44 @@ class SocialController extends Controller
 
         $viewer = $request->user();
 
+        // FILTR BLOKAD W ZAPYTANIU, NIE W PHP.
+        //
+        // Wcześniej lista była paginowana, a dopiero potem odsiewana w PHP
+        // przez `hasBlockRelationWith()`, czyli osobny `SELECT EXISTS`
+        // na każdą osobę — dwadzieścia zapytań na stronę. Do tego widok pytał
+        // `isFollowing()` per wiersz: razem około czterdziestu.
+        //
+        // Cichszy skutek był gorszy od tamtego: filtr działał PO paginacji,
+        // więc licznik i liczba stron liczyły także osoby odfiltrowane. Strona
+        // pokazywała siedemnaście osób i mówiła, że jest ich dwadzieścia,
+        // a ostatnia strona potrafiła wyjść pusta. Licznik, który nie zgadza
+        // się z listą, wygląda jak zepsuty serwis.
         /** @var LengthAwarePaginator $paginator */
         $paginator = $target->{$relation}()
             ->with('profile.avatar')
+            ->when($viewer !== null, function ($query) use ($viewer): void {
+                $widzId = $viewer->getKey();
+
+                $query->whereNotExists(function ($sub) use ($widzId): void {
+                    $sub->selectRaw('1')
+                        ->from('blocks')
+                        ->where(function ($w) use ($widzId): void {
+                            $w->where('blocks.blocker_id', $widzId)
+                                ->whereColumn('blocks.blocked_id', 'users.id');
+                        })
+                        ->orWhere(function ($w) use ($widzId): void {
+                            $w->whereColumn('blocks.blocker_id', 'users.id')
+                                ->where('blocks.blocked_id', $widzId);
+                        });
+                });
+
+                // „Czy widz obserwuje tę osobę" — jednym zapytaniem dla całej
+                // strony zamiast jednego na wiersz. Widok czyta `obserwowany`.
+                $query->withExists(['followers as obserwowany' => fn ($f) => $f->where('users.id', $widzId)]);
+            })
             ->orderByPivot('created_at', 'desc')
             ->paginate(20)
             ->withQueryString();
-
-        if ($viewer !== null) {
-            $paginator->setCollection(
-                $paginator->getCollection()->reject(
-                    fn (User $person): bool => $viewer->hasBlockRelationWith($person),
-                )->values(),
-            );
-        }
 
         $profile = $target->profile;
 
@@ -130,6 +154,10 @@ class SocialController extends Controller
 
     private function findUser(string $username): User
     {
-        return Profile::where('username', $username)->firstOrFail()->user;
+        $profil = Profile::poNazwie($username);
+
+        abort_if($profil === null, 404);
+
+        return $profil->user;
     }
 }

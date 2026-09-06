@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Odmiana;
 use Database\Factories\RecipeFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -321,20 +322,15 @@ class Recipe extends Model
      * Pułapka jest w drugim warunku: 12, 13 i 14 mają końcówkę 2–4, ale idą
      * jak „pięć". Bez `% 100` wychodzi „12 porcje".
      */
+    /**
+     * Reguła odmiany mieszka w `App\\Support\\Odmiana` — ta sama, której
+     * używa wyszukiwarka. Wcześniej były dwie: pełna, trzystanowa tutaj
+     * i dwustanowa w widoku wyszukiwania, przez którą przy trzech wynikach
+     * pisało „Znaleziono 3 przepisów".
+     */
     private static function odmianaPorcji(int $ile): string
     {
-        if ($ile === 1) {
-            return 'porcja';
-        }
-
-        $jednosci = $ile % 10;
-        $dwieOstatnie = $ile % 100;
-
-        if ($jednosci >= 2 && $jednosci <= 4 && ($dwieOstatnie < 12 || $dwieOstatnie > 14)) {
-            return 'porcje';
-        }
-
-        return 'porcji';
+        return Odmiana::rzeczownik($ile, 'porcja', 'porcje', 'porcji');
     }
 
     public function difficultyLabel(): ?string
