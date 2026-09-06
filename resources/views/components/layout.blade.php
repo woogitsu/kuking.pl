@@ -167,8 +167,36 @@
                 całkowicie poza ekranem. Reguły układu muszą siedzieć w CSS,
                 bo tylko tam da się je uzależnić od szerokości ekranu.
             --}}
+            @auth
+                {{--
+                    SZUKAJ W BELCE (UI kit v2, ekran 01).
+
+                    Zwykły formularz GET — działa bez JavaScriptu i bez niczego
+                    poza przeglądarką. To jest ta sama trasa co pozycja „Szukaj"
+                    w nawigacji, więc obie drogi prowadzą w to samo miejsce
+                    i żadna nie jest jedyna.
+
+                    Na telefonie pole znika (patrz `.topbar-szukaj` w app.css):
+                    belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
+                    stoi w pasku dolnym, w zasięgu kciuka.
+                --}}
+                <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
+                    <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
+                    <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
+                    <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
+                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           placeholder="Szukaj przepisów, osób i składników…">
+                </form>
+            @endauth
+
             <div class="topbar-actions">
                 @auth
+                    {{-- Powiadomienia zostają TEKSTEM, choć kit ma tu samą
+                         ikonę dzwonka. „Ikona nigdy sama" jest twardą zasadą
+                         tego produktu (AGENTS.md §5), a dzwonek bez podpisu
+                         jest dla części naszych odbiorców po prostu nieczytelny.
+                         Na desktopie ta sama pozycja stoi jeszcze raz na dole
+                         nawigacji bocznej, tak jak w kicie. --}}
                     <a class="btn btn-quiet" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
@@ -192,6 +220,16 @@
                         pozycję z paska, a nie jej podpis.
                     --}}
                     <a class="btn btn-primary topbar-desktop-only" href="{{ route('add') }}">Dodaj</a>
+
+                    {{-- Awatar prowadzi na własny profil. W kicie jest tu menu
+                         rozwijane; menu, które bez skryptu nie otwiera się
+                         wcale, byłoby ozdobą udającą przycisk, więc na razie
+                         jest to zwykły odnośnik. Podpis dla czytnika ekranu,
+                         bo sam obrazek nie mówi, dokąd prowadzi. --}}
+                    <a class="topbar-awatar topbar-desktop-only" href="{{ route('profile.show', $user->profile->username) }}">
+                        <x-avatar :user="$user" :size="40" />
+                        <span class="visually-hidden">Mój profil</span>
+                    </a>
                 @else
                     <a class="btn btn-quiet" href="{{ route('login') }}">Zaloguj się</a>
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto</a>
@@ -205,17 +243,29 @@
              niżej: siatka na desktopie rezerwuje pierwszą kolumnę na
              nawigację, więc bez niej treść wpadłaby w kolumnę szeroką na
              15rem. Pilnuje tego test UkladGosciaTest. --}}
-        <div class="app-body @guest app-body-solo @endguest">
+        <div class="app-body @guest app-body-solo @endguest @if(isset($rail)) app-body-z-szyna @endif">
             @auth
+                {{--
+                    NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
+
+                    Pięć pozycji u góry, a Powiadomienia i Ustawienia ODDZIELNIE
+                    na dole kolumny. To nie jest kosmetyka: pierwsza piątka to
+                    rzeczy, po które człowiek przychodzi (czytać, szukać, dodać,
+                    wrócić do swojego), a dół to obsługa konta. Trzymanie
+                    wszystkiego w jednym ciągu siedmiu pozycji kazało czytać
+                    całą listę, żeby znaleźć „Dodaj".
+
+                    „Świeżo z Kuking" wypada z tej listy, bo w kicie jest
+                    zakładką feedu („Obserwowani / Odkrywaj") — czyli stoi
+                    tam, gdzie się go używa, a nie w osobnym menu.
+                --}}
                 <nav class="side-nav" aria-label="Nawigacja główna">
                     <ul class="stack-tight list-none p-0 m-0">
                         <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
                         <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
                         <li><a class="side-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Zeszyt</a></li>
-                        <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Mój profil</a></li>
-                        <li><a class="side-nav-item" href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif><x-ikona nazwa="chef" /> Świeżo z Kuking</a></li>
-                        <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
+                        <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
+                        <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
                         @if($user->isModerator())
                             <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi</a></li>
                             <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
@@ -226,6 +276,18 @@
                             <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
                             <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
                         @endif
+                    </ul>
+
+                    {{-- Dół kolumny: obsługa konta, nie treść. --}}
+                    <ul class="stack-tight list-none p-0 m-0 side-nav-dol">
+                        <li><a class="side-nav-item" href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.*')) aria-current="page" @endif>
+                            <x-ikona nazwa="bell" /> Powiadomienia
+                            @if($unread > 0)
+                                <span class="badge badge-cooked">{{ $unread }}</span>
+                                <span class="visually-hidden">nieprzeczytanych</span>
+                            @endif
+                        </a></li>
+                        <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
                     </ul>
                 </nav>
             @endauth
@@ -267,6 +329,23 @@
 
                 {{ $slot }}
             </main>
+
+            @isset($rail)
+                {{--
+                    PRAWA SZYNA (UI kit v2, ekran 01).
+
+                    `<aside>`, nie `<div>`: czytnik ekranu ma wiedzieć, że to
+                    treść poboczna, i móc ją pominąć jednym gestem. Bez tego
+                    osoba czytająca linijka po linijce przechodzi przez trzy
+                    bloki, zanim dojdzie do stopki.
+
+                    Poniżej 80rem szyna ląduje POD treścią — patrz `.app-rail`
+                    w app.css.
+                --}}
+                <aside class="app-rail" aria-label="Skróty i podpowiedzi">
+                    {{ $rail }}
+                </aside>
+            @endisset
         </div>
 
         <footer class="site-footer">
@@ -324,11 +403,14 @@
             <a class="bottom-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif>
                 <x-ikona nazwa="search" class="bottom-nav-icon" :rozmiar="26" /> Szukaj
             </a>
-            <a class="bottom-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif>
-                <x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /> Dodaj
+            {{-- Główna akcja produktu ma w kicie wyróżniony, okrągły znak
+                 na środku paska. Podpis „Dodaj" ZOSTAJE pod spodem: kółko jest
+                 wyróżnieniem, nie zastąpieniem napisu (AGENTS.md §5). --}}
+            <a class="bottom-nav-item bottom-nav-item-glowna" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif>
+                <span class="bottom-nav-kolko"><x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /></span> Dodaj
             </a>
             <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>
-                <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Zeszyt
+                <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Moje
             </a>
             <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>
                 <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil

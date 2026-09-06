@@ -75,6 +75,36 @@
     }
   }
 
+  /* --- Prawa szyna (UI kit v2, ekran 01) ---------------------------------
+     Trzecia kolumna: „Mój zeszyt", „kuKINGi na dziś", „Poznaj inspirujących
+     ludzi". Włącza się DOPIERO od 80rem, a nie razem z nawigacją boczną
+     (64rem) — inaczej przy 1024 px trzy kolumny ścisnęłyby środkową poniżej
+     szerokości, przy której tekst da się czytać.
+
+     Poniżej tego progu szyna nie znika: `.app-rail` ląduje POD treścią,
+     w jednej kolumnie. Kit nie pokazuje tego stanu, ale ukrycie „Mojego
+     zeszytu" na tablecie i telefonie znaczyłoby, że połowa użytkowników
+     nie ma do niego dojścia z ekranu startowego.
+     --------------------------------------------------------------------- */
+
+  .app-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-5);
+    padding: 0 var(--spacing-4) var(--spacing-10);
+  }
+
+  @media (min-width: 80rem) {
+    .app-body-z-szyna {
+      grid-template-columns: var(--container-sidenav) minmax(0, 1fr) var(--container-rail);
+      max-width: var(--container-ultra);
+    }
+
+    .app-rail {
+      padding: var(--spacing-5) 0 var(--spacing-12);
+    }
+  }
+
   /* --- Górny pasek --- */
 
   .topbar {
@@ -1445,4 +1475,211 @@
     flex-wrap: wrap;
     gap: var(--spacing-2);
     margin-top: var(--spacing-5);
+}
+
+/* ===========================================================================
+   SZKIELET WEDŁUG UI KITU v2 — belka, nawigacja, pasek dolny
+   (docs/design/kit-v2/html/01_desktop_feed.html i 05_mobile_feed.html)
+   =========================================================================== */
+
+/* --- Pole wyszukiwania w belce -------------------------------------------
+   Zwykły formularz GET, więc działa bez JavaScriptu. Na telefonie znika:
+   belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj" stoi w pasku
+   dolnym, w zasięgu kciuka. Ukrycie jest tu bezpieczne, bo ta sama trasa
+   jest w nawigacji — nie odbieramy jedynej drogi, tylko drugą.
+   ------------------------------------------------------------------------ */
+
+.topbar-szukaj {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .topbar-szukaj {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex: 1 1 auto;
+    max-width: 34rem;
+    margin: 0 var(--spacing-5);
+    padding: 0 var(--spacing-4);
+    min-height: var(--control-height-min);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+  }
+
+  .topbar-szukaj:focus-within {
+    border-color: var(--color-border-strong);
+  }
+
+  .topbar-szukaj-ikona {
+    color: var(--color-ink-muted);
+  }
+
+  .topbar-szukaj-pole {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--text-body);
+    color: var(--color-ink);
+    /* Wysokość bierze się z rodzica, więc pole nie dokłada własnej ramki
+       ani własnego tła — inaczej mielibyśmy dwie ramki jedna w drugiej. */
+    padding: var(--spacing-2) 0;
+  }
+
+  .topbar-szukaj-pole:focus {
+    outline: none;
+  }
+
+  .topbar-awatar {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+  }
+}
+
+/* --- Dolna grupa nawigacji bocznej ---------------------------------------
+   Powiadomienia i Ustawienia odsunięte na dół kolumny: to obsługa konta,
+   a nie treść, po którą człowiek przyszedł.
+   ------------------------------------------------------------------------ */
+
+.side-nav-dol {
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 64rem) {
+  .side-nav {
+    /* Dolna grupa naprawdę na dole, gdy kolumna jest wyższa niż jej treść. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .side-nav-dol {
+    margin-top: auto;
+  }
+}
+
+/* --- Wyróżniona główna akcja w pasku dolnym ------------------------------
+   Okrągły znak „+" w kolorze marki, jak w kicie (ekran 05). Podpis „Dodaj"
+   ZOSTAJE pod spodem — kółko jest wyróżnieniem, nie zastąpieniem napisu.
+
+   Kółko ma stałe 3rem i `flex: none`, więc nie rośnie ze skalą tekstu.
+   To celowe: pasek dolny musi mieścić pięć pozycji przy 320 px, a rosnące
+   kółko wypchnęłoby sąsiadów do drugiego wiersza przy każdym powiększeniu
+   tekstu (issue #80). Rośnie sam podpis — i to on niesie znaczenie.
+   ------------------------------------------------------------------------ */
+
+.bottom-nav-kolko {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand-solid);
+  color: var(--color-ink-inverse);
+  /* Wysunięte nad pasek, tak jak w kicie — ale tylko o 6 px. Głębsze
+     wysunięcie wychodzi poza pasek i przy zawinięciu pozycji do drugiego
+     wiersza nachodzi na treść strony. */
+  margin-top: -6px;
+}
+
+.bottom-nav-item-glowna {
+  color: var(--color-brand);
+}
+
+.bottom-nav-item-glowna[aria-current="page"] {
+  /* Bez paska u góry: wyróżnieniem jest samo kółko, a dwa wyróżnienia naraz
+     robią z tej pozycji migającą plamę. */
+  box-shadow: none;
+}
+
+/* --- Bloki w prawej szynie (UI kit v2, ekran 01) ------------------------- */
+
+.szyna-blok {
+  margin: 0;
+}
+
+.szyna-naglowek {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-4);
+}
+
+.szyna-tytul {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  font-size: var(--text-body-lg);
+}
+
+.szyna-wiecej {
+  font-size: var(--text-help);
+  font-weight: 600;
+}
+
+.szyna-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.szyna-pozycja-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  /* Cały wiersz jest celem dotknięcia, nie sam tytuł. Przy liście miniatur
+     trafianie w tekst obok obrazka jest dokładnie tym, co zawodzi ludziom
+     z mniej pewną ręką (docs/UX_50_PLUS.md). */
+  min-height: var(--control-height-min);
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+}
+
+.szyna-pozycja-link:hover {
+  background-color: var(--color-surface-sunken);
+}
+
+.szyna-miniatura {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--color-surface-sunken);
+}
+
+.szyna-miniatura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.szyna-nazwa {
+  display: block;
+  font-weight: 700;
+}
+
+.szyna-podpis {
+  display: block;
+}
+
+/* Zakładki feedu (UI kit v2). Ten sam wygląd co zakładki profilu — to jest
+   ta sama czynność, więc nie ma powodu, żeby wyglądała inaczej. */
+.feed-tabs {
+  margin: var(--spacing-5) 0;
 }

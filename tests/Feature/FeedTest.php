@@ -49,10 +49,15 @@ class FeedTest extends TestCase
 
         // Propozycje osób pokazuje tablica „kuKINGi na dziś" (DailyBoard),
         // która zastąpiła osobną sekcję „Osoby, które tu gotują".
+        //
+        // „Świeżo z Kuking" przestało być pozycją w nawigacji i jest teraz
+        // ZAKŁADKĄ feedu („Obserwowani / Odkrywaj", UI kit v2, ekran 01) —
+        // czyli stoi tam, gdzie się go używa. Test pyta więc o zakładkę,
+        // a nie o dawną nazwę pozycji w menu.
         $this->actingAs($nowy)
             ->get(route('home'))
             ->assertOk()
-            ->assertSee('Świeżo z Kuking')
+            ->assertSee('Odkrywaj')
             ->assertSee('na dziś')
             ->assertSee('Testowa osoba')
             ->assertSee('Jutro będzie tu ktoś inny.');

@@ -1,4 +1,16 @@
 <x-layout title="Start" :noindex="true">
+    {{--
+        PRAWA SZYNA (UI kit v2, ekran 01).
+
+        „kuKINGi na dziś" przeniosły się tutaj z głównej kolumny — decyzja
+        właściciela. W kicie tablicy nie ma w ogóle, ale usunięcie jej
+        zabrałoby jedyną rzecz, która ratuje pusty feed nowej osoby
+        (docs/product/COLD_START.md).
+    --}}
+    <x-slot:rail>
+        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
+    </x-slot:rail>
+
     <h1>{{ $greeting }}</h1>
 
     {{--
@@ -23,10 +35,6 @@
         <x-ikona nazwa="image" :rozmiar="28" />
     </a>
 
-    {{-- Tablica stoi NAD feedem: dla osoby z pustym feedem to jest jedyna
-         treść na tym ekranie, a dla pozostałych — powód, żeby kogoś nowego
-         zaobserwować. --}}
-    <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
 
     @if($wspomnienie ?? null)
         {{--
@@ -71,6 +79,19 @@
         </div>
     @endif
 
+    {{--
+        ZAKŁADKI FEEDU (UI kit v2, ekrany 01 i 05).
+
+        „Świeżo z Kuking" przestało być osobną pozycją w nawigacji i stoi tam,
+        gdzie się go używa — obok własnego feedu. Zwykłe odnośniki, więc
+        działają bez JavaScriptu; `aria-current` mówi czytnikowi ekranu,
+        na której zakładce jesteśmy.
+    --}}
+    <nav class="tabs feed-tabs" aria-label="Co pokazujemy">
+        <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>
+        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Odkrywaj</a>
+    </nav>
+
     @if($showingDiscover)
         {{--
             Feed obserwowanych jest pusty. Nie pokazujemy pustki — pokazujemy
@@ -82,8 +103,6 @@
             Poniżej pokazujemy to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
             obserwować, w tym miejscu będą pojawiać się jego wpisy.
         </div>
-
-        <h2>Świeżo z Kuking</h2>
     @endif
 
     @if($posts->count() === 0)
