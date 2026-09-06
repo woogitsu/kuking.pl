@@ -297,7 +297,12 @@ class PolitykaBezpieczenstwaTest extends TestCase
 
     public function test_zgloszenie_nie_zapisuje_fragmentu_kodu_ze_strony(): void
     {
-        Log::spy();
+        // Szpieg przez ZMIENNĄ, nie przez fasadę. `Log::shouldHaveReceived()`
+        // działa w czasie wykonania (fasada przekazuje wywołanie do obiektu
+        // Mockery), ale analiza statyczna widzi tylko fasadę, na której takiej
+        // metody nie ma — i to jeden z czterech błędów, które trzymały PHPStana
+        // na poziomie 0 dla całego repozytorium.
+        $log = Log::spy();
 
         $this->call('POST', route('csp.report'), [], [], [], [], json_encode([
             'csp-report' => [
@@ -313,7 +318,7 @@ class PolitykaBezpieczenstwaTest extends TestCase
 
         // Pilnujemy, CO trafia do logu: trzy wybrane pola i ani jednego znaku
         // z `script-sample`.
-        Log::shouldHaveReceived('info')->once()->withArgs(
+        $log->shouldHaveReceived('info')->once()->withArgs(
             function (string $wiadomosc, array $kontekst): bool {
                 return $wiadomosc === 'Naruszenie CSP'
                     && $kontekst === [

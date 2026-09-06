@@ -102,7 +102,7 @@ class Media extends Model
      */
     public function url(string $variant = 'feed'): string
     {
-        $variants = $this->metadata['variants'] ?? [];
+        $variants = $this->warianty();
 
         $key = $variants[$variant]['key'] ?? null;
 
@@ -127,11 +127,38 @@ class Media extends Model
 
     public function width(string $variant = 'feed'): ?int
     {
-        return $this->metadata['variants'][$variant]['width'] ?? $this->width;
+        return $this->warianty()[$variant]['width'] ?? $this->width;
     }
 
     public function height(string $variant = 'feed'): ?int
     {
-        return $this->metadata['variants'][$variant]['height'] ?? $this->height;
+        return $this->warianty()[$variant]['height'] ?? $this->height;
+    }
+
+    /**
+     * Warianty zdjęcia z metadanych, z JAWNIE OPISANYM KSZTAŁTEM.
+     *
+     * `metadata` to JSONB rzutowany na tablicę, więc dla analizy statycznej
+     * jest tablicą o nieznanej zawartości — stąd trzy ostrzeżenia
+     * „Offset 'variants' on array{} does not exist", które trzymały PHPStana
+     * na poziomie 0 dla całego repozytorium.
+     *
+     * To nie jest cisza dla analizatora. `ProcessUploadedImage` zapisuje tu
+     * strukturę, którą trzy metody niżej czytają na trzy różne sposoby, a
+     * jedyny opis tej struktury żył w komentarzu w jobie. Teraz kształt stoi
+     * w typie, obok kodu, który go czyta — i `is_array()` sprawdza go naprawdę,
+     * bo w bazie mogą leżeć wiersze sprzed każdej zmiany tego formatu.
+     *
+     * @return array<string, array{key?: string, width?: int, height?: int}>
+     */
+    private function warianty(): array
+    {
+        $metadata = $this->metadata;
+
+        if (! is_array($metadata) || ! is_array($metadata['variants'] ?? null)) {
+            return [];
+        }
+
+        return $metadata['variants'];
     }
 }
