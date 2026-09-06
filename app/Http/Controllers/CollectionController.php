@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Models\Collection;
 use App\Models\Recipe;
+use App\Rules\CollectionNameNotTaken;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -54,15 +56,30 @@ class CollectionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
         $data = $request->validate([
-            'name' => ['required', 'string', 'min:2', 'max:120'],
+            'name' => [
+                'required', 'string', 'min:2', 'max:120',
+                new CollectionNameNotTaken($user->getKey()),
+            ],
             'description' => ['nullable', 'string', 'max:500'],
             'visibility' => ['required', 'in:public,private'],
         ], [
             'name.required' => 'Podaj nazwę zeszytu — na przykład „Na święta”.',
         ]);
 
-        $collection = $request->user()->collections()->create($data);
+        try {
+            $collection = $user->collections()->create($data);
+        } catch (UniqueConstraintViolationException) {
+            // Walidacja wyżej sprawdza to samo, ale między jej SELECT-em
+            // a tym INSERT-em jest okno — a podwójne kliknięcie „Załóż zeszyt”
+            // to w grupie 50+ norma, nie wyjątek. Bez tego łapania drugie
+            // żądanie kończy się błędem 500 zamiast zdaniem po polsku.
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
+        }
 
         return redirect()->route('collections.show', $collection)->with('status', 'Zeszyt utworzony.');
     }
