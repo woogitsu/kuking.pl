@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
+use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\NotificationController;
@@ -238,3 +239,18 @@ Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): vo
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
     Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);
 });
+
+// --------------------------------------------------------------------------
+// Zgłoszenia naruszeń CSP
+// --------------------------------------------------------------------------
+//
+// Adres podawany przeglądarce w nagłówku Content-Security-Policy. Wysyła tu
+// SAMA PRZEGLĄDARKA, bez sesji i bez tokenu CSRF — dlatego trasa musi być
+// wyjęta spod ochrony CSRF (bootstrap/app.php) i mieć własny limit zapytań.
+//
+// Limit jest tu ważniejszy niż przy zwykłych formularzach: jedna zapętlona
+// wtyczka w przeglądarce potrafi wysłać setki zgłoszeń na minutę, a każde
+// z nich to wpis w logu.
+Route::post('/_csp', CspReportController::class)
+    ->middleware('throttle:'.$limits['csp_report'])
+    ->name('csp.report');
