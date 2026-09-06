@@ -4,7 +4,11 @@
 <x-layout
     :title="$post->author->displayName().' — wpis'"
     :description="\Illuminate\Support\Str::limit($post->body ?? 'Zdjęcie z Kuking', 155)"
-    :noindex="! $isPublic">
+    :noindex="! $isPublic"
+    {{-- Wpis to najczęściej samo zdjęcie z podpisem — bez `og:image` link
+         wklejony w Messengera nie pokazuje NICZEGO poza imieniem autora. --}}
+    :image="$isPublic ? $post->media->first() : null"
+    ogType="article">
 
     <x-post-card :post="$post" />
 

@@ -18,6 +18,12 @@
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
     // ulepszeniem, nie warunkiem.
     'livewire' => false,
+    // Zdjęcie do karty w mediach społecznościowych (issue #14). Przekazujemy
+    // model Media, a nie gotowy adres — komponent sam wybiera wariant i zna
+    // wymiary, których Facebook i WhatsApp wymagają, żeby nie przycinać
+    // obrazka na ślepo.
+    'image' => null,
+    'ogType' => 'website',
 ])
 
 @php
@@ -25,6 +31,31 @@
     $scale = $user?->text_scale ?? 100;
     $unread = $user?->unreadNotificationsCount() ?? 0;
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
+
+    // ------------------------------------------------------------------
+    //  KARTA DO WYSŁANIA RODZINIE (issue #14)
+    //
+    //  Link do przepisu wklejony w Messengera albo WhatsAppa pokazywał
+    //  do tej pory sam tytuł, bez zdjęcia. W serwisie o gotowaniu to jest
+    //  strata najważniejszej rzeczy: nikt nie klika w link do jedzenia,
+    //  którego nie widać.
+    //
+    //  Adres MUSI być bezwzględny. Scrapery Facebooka i WhatsAppa nie mają
+    //  kontekstu strony, więc `/storage/media/...` jest dla nich niczym —
+    //  cicho pomijają taki obrazek i karta wraca do postaci bez zdjęcia.
+    //  Dysk lokalny zwraca ścieżkę względną, R2 zwraca pełny adres, więc
+    //  sprawdzamy, co dostaliśmy, zamiast zakładać.
+    // ------------------------------------------------------------------
+    $ogImage = $image?->url('large');
+
+    if ($ogImage !== null && ! str_starts_with($ogImage, 'http')) {
+        $ogImage = url($ogImage);
+    }
+
+    // Zapasowa karta dla stron bez zdjęcia. SVG tu NIE ZADZIAŁA: Facebook,
+    // WhatsApp i Signal go nie renderują i pokazują pustą ramkę. Stąd PNG
+    // w formacie 1200×630, czyli tym, którego wszyscy oczekują.
+    $ogImage ??= asset('icons/kuking-udostepnianie.png');
 @endphp
 
 <!DOCTYPE html>
@@ -47,6 +78,27 @@
     @if($description)
         <meta property="og:description" content="{{ $description }}">
     @endif
+    <meta property="og:type" content="{{ $ogType }}">
+    <meta property="og:locale" content="pl_PL">
+    {{-- Adres kanoniczny bez parametrów zapytania: inaczej ten sam przepis
+         wysłany z „?zakladka=..." liczy się jako osobna strona i zbiera
+         własne polubienia zamiast dołożyć do wspólnej puli. --}}
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:alt" content="{{ $title ?? 'Kuking' }}">
+    @if($image?->width('large') && $image?->height('large'))
+        {{-- Wymiary podane wprost pozwalają pokazać kartę, ZANIM obrazek się
+             pobierze. Bez nich Messenger rezerwuje miejsce dopiero po
+             pobraniu i link przez chwilę wygląda na pusty. --}}
+        <meta property="og:image:width" content="{{ $image->width('large') }}">
+        <meta property="og:image:height" content="{{ $image->height('large') }}">
+    @endif
+
+    {{-- Duża karta tylko wtedy, gdy naprawdę jest zdjęcie. Przy zapasowym
+         logo duży format to wielka plama koloru z małym znaczkiem. --}}
+    <meta name="twitter:card" content="{{ $image ? 'summary_large_image' : 'summary' }}">
+
+    <link rel="canonical" href="{{ url()->current() }}">
     <meta name="theme-color" content="#B3401F">
 
     <link rel="icon" href="{{ asset('icons/kuking-mark.svg') }}" type="image/svg+xml">
