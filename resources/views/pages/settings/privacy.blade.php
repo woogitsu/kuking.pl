@@ -43,9 +43,9 @@
             <p>Te osoby nie widzą Twoich treści, a Ty nie widzisz ich.</p>
             <div class="stack-tight">
                 @foreach($blocked as $person)
-                    <div class="card" style="display:flex; align-items:center; gap:var(--spacing-3); flex-wrap:wrap;">
+                    <div class="card flex items-center gap-3 flex-wrap">
                         <x-avatar :user="$person" :size="44" />
-                        <span style="flex:1;">{{ $person->displayName() }}</span>
+                        <span class="flex-1">{{ $person->displayName() }}</span>
                         <form method="POST" action="{{ route('social.unblock', $person->profile->username) }}">
                             @csrf @method('DELETE')
                             <button class="btn btn-secondary" type="submit">Zdejmij blokadę</button>

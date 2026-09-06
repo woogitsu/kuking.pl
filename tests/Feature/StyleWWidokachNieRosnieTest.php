@@ -27,10 +27,24 @@ use Tests\TestCase;
  * `unsafe-inline` ze `style-src` w `ApplySecurityHeaders` i zamień ten test
  * na `assertSame(0, …)`.
  *
- * POCZTA JEST WYŁĄCZONA I TO NIE JEST WYJĄTEK „NA SKRÓTY"
- * Klienty pocztowe nie czytają arkuszy stylów — w e-mailu styl MUSI być
- * inline. CSP nie dotyczy poczty w ogóle, więc `resources/views/mail/**`
- * nie ma z tym problemem nic wspólnego.
+ * DWA KATALOGI SĄ WYŁĄCZONE I ŻADEN Z NICH NIE JEST WYJĄTKIEM „NA SKRÓTY"
+ *
+ * `resources/views/mail/**` — klienty pocztowe nie czytają arkuszy stylów,
+ * w e-mailu styl MUSI być inline. CSP nie dotyczy poczty w ogóle.
+ *
+ * `resources/views/exports/**` — paczka z danymi (RODO) to pliki HTML, które
+ * człowiek otwiera Z DYSKU, we własnej przeglądarce, bez serwera. Nie ma tam
+ * żadnych nagłówków, więc nie ma czego naruszać. Te widoki mają własny arkusz
+ * (`exports/styles.blade.php`) i nie znają klas Tailwinda — zamiana stylu na
+ * klasę zabrałaby im wygląd, nie poprawiając niczego.
+ *
+ * CZEGO NIE WYŁĄCZAMY, CHOĆ KUSI
+ * `errors/_prosty.blade.php` (strony 500 i 503) ma style inline celowo — ma
+ * działać, gdy arkusz się nie zbuduje. Ale ta strona idzie po HTTP, więc CSP
+ * JĄ OBEJMUJE i po zdjęciu `unsafe-inline` wyrenderuje się bez stylów.
+ * Rozwiązaniem będzie przeniesienie jej stylów do jednego bloku
+ * `<style nonce="…">` w tym samym pliku — nadal bez zewnętrznego arkusza,
+ * ale zgodnie z polityką. Dlatego zostaje policzona.
  */
 class StyleWWidokachNieRosnieTest extends TestCase
 {
@@ -38,7 +52,7 @@ class StyleWWidokachNieRosnieTest extends TestCase
      * Stan na dzień wprowadzenia strażnika. Tę liczbę wolno WYŁĄCZNIE
      * obniżać — razem z prawdziwym sprzątaniem widoków.
      */
-    private const LIMIT = 127;
+    private const LIMIT = 40;
 
     public function test_liczba_atrybutow_style_nie_rosnie(): void
     {
@@ -113,8 +127,8 @@ class StyleWWidokachNieRosnieTest extends TestCase
 
             $sciezka = str_replace('\\', '/', $plik->getPathname());
 
-            // Poczta zostaje — patrz opis klasy.
-            if (str_contains($sciezka, '/views/mail/')) {
+            // Poczta i paczka z danymi — patrz opis klasy.
+            if (str_contains($sciezka, '/views/mail/') || str_contains($sciezka, '/views/exports/')) {
                 continue;
             }
 

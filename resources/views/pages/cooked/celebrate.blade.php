@@ -17,7 +17,7 @@
 <x-layout title="{{ $kucharz->displayName() }} ugotowała/ugotował Twój przepis" :noindex="true">
     <article class="card stack text-center">
         <div>
-            <p class="meta" style="margin:0 0 var(--spacing-2);">Komuś wyszło</p>
+            <p class="meta m-0 mb-2">Komuś wyszło</p>
             <h1 class="text-title-lg m-0">
                 {{ $kucharz->displayName() }} ugotowała/ugotował
                 @if($tytulPrzepisu)
@@ -29,7 +29,7 @@
         </div>
 
         @if($maZdjecie)
-            <div style="border-radius:var(--radius-md); overflow:hidden;">
+            <div class="rounded-md overflow-hidden">
                 <x-photo :media="$zdjecia->first()" variant="large" :priority="true" class="post-photo" />
             </div>
         @endif
@@ -54,14 +54,14 @@
             <p class="meta m-0">Bez zdjęcia i bez notatki — ale to i tak się liczy.</p>
         @endif
 
-        <div style="max-width:32rem; margin:0 auto; text-align:left;">
+        <div class="max-w-[32rem] mx-auto text-left">
             <form method="POST" action="{{ route('cooked.thank', $event) }}">
                 @csrf
                 <x-field name="body" label="Podziękuj" type="textarea" :rows="3"
                          :value="$domyslnePodziekowanie"
                          help="Możesz zostawić ten tekst, jaki jest, albo dopisać coś swojego."
                          required />
-                <button class="btn btn-primary" type="submit" style="width:100%;">Podziękuj</button>
+                <button class="btn btn-primary w-full" type="submit">Podziękuj</button>
             </form>
         </div>
 

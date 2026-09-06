@@ -15,12 +15,12 @@
         @endphp
         <article class="card @if($notification->isUnread()) style-unread @endif"
                  style="margin-bottom:var(--spacing-3); @if($notification->isUnread()) border-left:4px solid var(--color-brand); @endif">
-            <div style="display:flex; gap:var(--spacing-3); align-items:flex-start;">
+            <div class="flex gap-3 items-start">
                 @if($actor)
                     <x-avatar :user="$actor" :size="44" />
                 @endif
                 <div class="min-w-0">
-                    <p style="margin:0 0 var(--spacing-1);">
+                    <p class="m-0 mb-1">
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
                                 <strong>{{ $actor?->displayName() }} ugotowała/ugotował z Twojego przepisu</strong>
@@ -110,7 +110,7 @@
                         };
                     @endphp
                     @if($link)
-                        <p style="margin:var(--spacing-3) 0 0;">
+                        <p class="mt-3 mx-0 mb-0">
                             <a class="btn btn-secondary" href="{{ $link }}">Zobacz</a>
                         </p>
                     @endif
@@ -125,7 +125,7 @@
                         nigdy nie jest jedynym opisem akcji (UX 50+).
                     --}}
                     @if(($data['appeal'] ?? false) && ($data['action_id'] ?? null))
-                        <p style="margin:var(--spacing-3) 0 0;">
+                        <p class="mt-3 mx-0 mb-0">
                             <a class="btn btn-secondary" href="{{ route('appeals.show', $data['action_id']) }}">
                                 Odwołanie od tej decyzji
                             </a>

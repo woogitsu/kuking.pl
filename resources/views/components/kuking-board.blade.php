@@ -36,7 +36,7 @@
                             <x-avatar :user="$person" :size="52" />
                         </a>
 
-                        <div style="min-width:0; flex:1;">
+                        <div class="min-w-0 flex-1">
                             <a class="author-name" href="{{ route('profile.show', $person->profile->username) }}">{{ $person->displayName() }}</a>
                             <p class="meta m-0">
                                 {{ $person->profile->speciality ?? 'Gotuje w Kuking' }}
@@ -93,7 +93,7 @@
                         </a>
 
                         <div class="min-w-0">
-                            <p style="margin:0 0 var(--spacing-1);">
+                            <p class="m-0 mb-1">
                                 <a class="author-name" href="{{ route('profile.show', $post->author->profile->username) }}">{{ $post->author->displayName() }}</a>
                             </p>
 

@@ -1066,23 +1066,23 @@ new class extends Component
                 @endif
 
                 @if(trim($summary) !== '')
-                    <p style="font-size:var(--text-lead);">{{ trim($summary) }}</p>
+                    <p class="text-lead">{{ trim($summary) }}</p>
                 @endif
 
                 @if(trim($source_person) !== '' || trim($source_note) !== '')
                     <section class="recipe-story">
-                        <h4 style="margin-top:0; font-size:var(--text-title-sm);">Skąd ten przepis</h4>
+                        <h4 class="mt-0 text-title-sm">Skąd ten przepis</h4>
                         @if(trim($source_person) !== '')
                             <p><strong>Po {{ trim($source_person) }}.</strong></p>
                         @endif
                         @if(trim($source_note) !== '')
-                            <p style="white-space:pre-line; margin-bottom:0;">{{ trim($source_note) }}</p>
+                            <p class="whitespace-pre-line mb-0">{{ trim($source_note) }}</p>
                         @endif
                     </section>
                 @endif
 
                 <section>
-                    <h4 style="font-size:var(--text-title-sm);">Składniki</h4>
+                    <h4 class="text-title-sm">Składniki</h4>
                     @php($previewGroups = $this->groupedIngredients())
                     @if($previewGroups === [])
                         <p class="field-error">Nie ma jeszcze żadnego składnika. Wróć do kroku 2 i dopisz przynajmniej jeden.</p>
@@ -1104,7 +1104,7 @@ new class extends Component
                 </section>
 
                 <section>
-                    <h4 style="font-size:var(--text-title-sm);">Przygotowanie</h4>
+                    <h4 class="text-title-sm">Przygotowanie</h4>
                     @php($previewSteps = $this->cleanSteps())
                     @if($previewSteps === [])
                         <p class="field-error">Nie ma jeszcze żadnego kroku. Wróć do kroku 3 i opisz przynajmniej jeden.</p>
@@ -1115,7 +1115,7 @@ new class extends Component
                                     <span class="step-number" aria-hidden="true">{{ $previewIndex + 1 }}</span>
                                     <div>
                                         <span class="visually-hidden">Krok {{ $previewIndex + 1 }}.</span>
-                                        <p style="margin:0; white-space:pre-line;">{{ $previewRow['instruction'] }}</p>
+                                        <p class="m-0 whitespace-pre-line">{{ $previewRow['instruction'] }}</p>
                                     </div>
                                 </li>
                             @endforeach

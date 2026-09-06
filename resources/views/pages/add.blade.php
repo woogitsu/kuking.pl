@@ -19,7 +19,7 @@
                 <strong>{{ $niedokonczoneSzkice->count() === 1 ? 'Masz niedokończony przepis.' : 'Masz niedokończone przepisy.' }}</strong>
                 Nic z nich nie zginęło — możesz wrócić do pisania.
             </p>
-            <ul class="stack-tight" style="list-style:none; padding:0; margin:0;">
+            <ul class="stack-tight list-none p-0 m-0">
                 @foreach($niedokonczoneSzkice as $szkic)
                     <li>
                         <a class="btn btn-secondary" href="{{ route('recipes.create', ['szkic' => $szkic->getKey()]) }}">
@@ -32,12 +32,12 @@
     @endif
 
     <div class="stack">
-        <a class="card" href="{{ route('posts.create') }}" style="display:block; text-decoration:none; color:inherit;">
+        <a class="card block no-underline text-inherit" href="{{ route('posts.create') }}">
             <h2 class="mt-0">Zdjęcie i kilka słów</h2>
             <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe. Zajmuje niecałą minutę.</p>
         </a>
 
-        <a class="card" href="{{ route('recipes.create') }}" style="display:block; text-decoration:none; color:inherit;">
+        <a class="card block no-underline text-inherit" href="{{ route('recipes.create') }}">
             <h2 class="mt-0">Cały przepis</h2>
             <p class="mb-0">Składniki i przygotowanie, żeby ktoś inny mógł to u siebie zrobić. Możesz zapisać szkic i wrócić później.</p>
         </a>

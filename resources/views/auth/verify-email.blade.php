@@ -12,7 +12,7 @@
         albo zechcesz pobrać wszystkie swoje dane.
     </p>
 
-    <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap; margin-top:var(--spacing-6);">
+    <div class="flex gap-3 flex-wrap mt-6">
         <a class="btn btn-primary" href="{{ route('home') }}">Przejdź do Kuking</a>
         <form method="POST" action="{{ route('verification.send') }}">
             @csrf

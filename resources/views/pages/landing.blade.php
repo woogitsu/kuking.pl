@@ -9,7 +9,7 @@
             z tego, co jest. Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
         </p>
 
-        <div style="display:flex; gap:var(--spacing-3); justify-content:center; flex-wrap:wrap;">
+        <div class="flex gap-3 justify-center flex-wrap">
             <a class="btn btn-primary" href="{{ route('register') }}">Zostań kuKINGiem — to darmowe</a>
             <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
         </div>
@@ -17,7 +17,7 @@
 
     <section class="card mb-8">
         <h2>Trzy rzeczy, które Kuking robi dla Ciebie</h2>
-        <ul style="padding-left:var(--spacing-6);">
+        <ul class="pl-6">
             <li><strong>Twoje przepisy nie zginą.</strong> Zeszyt z przepisami można zgubić, a telefon się psuje. Tu zostaje wszystko — i możesz to w każdej chwili pobrać na swój komputer.</li>
             <li><strong>Ktoś naprawdę ugotuje z Twojego przepisu.</strong> Kiedy komuś wyjdzie, dowiesz się o tym i zobaczysz zdjęcie. To jest tu najmilsza rzecz.</li>
             <li><strong>Przepisy po mamie i babci mają tu swoje miejsce.</strong> Możesz podpisać, po kim jest przepis, dopisać historię i dodać zdjęcie starej kartki z zeszytu.</li>
@@ -41,7 +41,7 @@
             @endforeach
         </div>
 
-        <p style="text-align:center; margin-top:var(--spacing-8);">
+        <p class="text-center mt-8">
             <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto i pokaż swoje</a>
         </p>
     @endif

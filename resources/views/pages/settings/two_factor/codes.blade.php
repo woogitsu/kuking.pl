@@ -22,11 +22,11 @@
 
     <ul class="card" style="list-style:none; padding:var(--spacing-5); font-size:20px; font-weight:700; letter-spacing:0.06em;">
         @foreach($kody as $kod)
-            <li style="padding:var(--spacing-2) 0;">{{ $kod }}</li>
+            <li class="py-2">{{ $kod }}</li>
         @endforeach
     </ul>
 
-    <p style="margin:var(--spacing-5) 0;">
+    <p class="my-5">
         Wydrukuj tę stronę (<kbd>Ctrl</kbd>+<kbd>P</kbd> na komputerze) albo przepisz kody na kartkę,
         zanim klikniesz dalej.
     </p>

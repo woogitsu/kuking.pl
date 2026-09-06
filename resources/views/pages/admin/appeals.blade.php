@@ -19,7 +19,7 @@
     @forelse($appeals as $appeal)
         @php($decyzja = $appeal->moderationAction)
         <article class="card mb-5">
-            <h2 style="margin-top:0; font-size:var(--text-title-sm);">
+            <h2 class="mt-0 text-title-sm">
                 Odwołanie od decyzji „{{ $decyzja->label() }}”
             </h2>
             <p class="meta">
@@ -32,10 +32,10 @@
                 @endif
             </p>
 
-            <h3 style="font-size:var(--text-title-sm);">Co pisze ta osoba</h3>
+            <h3 class="text-title-sm">Co pisze ta osoba</h3>
             <p class="whitespace-pre-line">{{ $appeal->body }}</p>
 
-            <h3 style="font-size:var(--text-title-sm);">Decyzja, od której się odwołuje</h3>
+            <h3 class="text-title-sm">Decyzja, od której się odwołuje</h3>
             <p class="meta">
                 {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y, H:i') }} ·
                 powód: {{ $decyzja->reason_code }} ·
@@ -82,7 +82,7 @@
                     <button class="btn btn-primary mt-4" type="submit">Wyślij odpowiedź</button>
                 </form>
             @else
-                <h3 style="font-size:var(--text-title-sm);">Odpowiedź</h3>
+                <h3 class="text-title-sm">Odpowiedź</h3>
                 <p class="badge">{{ $appeal->statusLabel() }}</p>
                 <p class="meta">
                     {{ \App\Support\Czas::dataLubNic($appeal->decided_at, 'j F Y, H:i') }} ·

@@ -27,7 +27,7 @@
                 @foreach($people as $person)
                     <label class="choice">
                         <input type="checkbox" name="follow[]" value="{{ $person->profile->username }}">
-                        <span style="display:flex; gap:var(--spacing-3); align-items:center; flex:1;">
+                        <span class="flex gap-3 items-center flex-1">
                             <x-avatar :user="$person" :size="48" />
                             <span>
                                 <span class="choice-label">{{ $person->displayName() }}</span>

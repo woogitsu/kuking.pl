@@ -17,7 +17,7 @@
             @foreach($collections as $collection)
                 <article class="card">
                     <h2 class="mt-0">
-                        <a href="{{ route('collections.show', $collection) }}" style="color:var(--color-ink);">{{ $collection->name }}</a>
+                        <a class="text-ink" href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a>
                     </h2>
                     <p class="meta m-0">
                         {{ $collection->recipes_count }} {{ $collection->recipes_count === 1 ? 'przepis' : 'przepisów' }}
@@ -40,7 +40,7 @@
             @csrf
             <x-field name="name" label="Nazwa zeszytu" required placeholder="Na święta" />
             <x-field name="description" label="Krótki opis" type="textarea" :rows="2" />
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-4);">
+            <fieldset class="border-0 p-0 mt-4">
                 <legend class="font-bold mb-3">Kto ma widzieć ten zeszyt?</legend>
                 <div class="choice-grid">
                     <label class="choice">

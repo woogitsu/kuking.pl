@@ -67,7 +67,7 @@
 
     @foreach($cooked as $event)
         <div class="karta">
-            <h3 class="mt-0">{{ $event['przepis'] ?? 'Przepis usunięty z serwisu' }}</h3>
+            <h3 style="margin-top:0;">{{ $event['przepis'] ?? 'Przepis usunięty z serwisu' }}</h3>
             <p class="podpis">
                 {{ $event['data'] ?? 'bez daty' }}
                 @if($event['autor']) · przepis od: {{ $event['autor'] }}@endif

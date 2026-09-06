@@ -17,7 +17,7 @@
 
     @forelse($comments as $comment)
         <article class="card">
-            <div style="display:flex; gap:var(--spacing-3); align-items:center; margin-bottom:var(--spacing-2);">
+            <div class="flex gap-3 items-center mb-2">
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $comment->author->profile->username) }}">{{ $comment->author->displayName() }}</a>
@@ -30,14 +30,14 @@
             @php($commentIsRemoved = $comment->body === 'Komentarz usunięty.')
 
             @if($commentIsRemoved)
-                <p class="meta" style="font-style:italic;">{{ $comment->body }}</p>
+                <p class="meta italic">{{ $comment->body }}</p>
             @else
                 <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $comment->body }}</p>
             @endif
 
             @foreach($comment->replies as $reply)
                 <div style="margin-left:var(--spacing-6); padding-left:var(--spacing-4); border-left:3px solid var(--color-border);">
-                    <div style="display:flex; gap:var(--spacing-2); align-items:center;">
+                    <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
                         <span class="meta">{{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}</span>
@@ -46,7 +46,7 @@
                     @php($replyIsRemoved = $reply->body === 'Komentarz usunięty.')
 
                     @if($replyIsRemoved)
-                        <p class="meta" style="font-style:italic;">{{ $reply->body }}</p>
+                        <p class="meta italic">{{ $reply->body }}</p>
                     @else
                         <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $reply->body }}</p>
 
@@ -70,7 +70,7 @@
                             @endcan
 
                             @can('delete', $reply)
-                                <div class="danger-zone" style="margin-top:var(--spacing-2); padding-top:var(--spacing-3);">
+                                <div class="danger-zone mt-2 pt-3">
                                     @if($replyContentOwnerRemovingOthers)
                                         <details>
                                             <summary class="btn btn-quiet inline-flex">Usuń</summary>
@@ -132,7 +132,7 @@
                     @endcan
 
                     @can('delete', $comment)
-                        <div class="danger-zone" style="margin-top:var(--spacing-2); padding-top:var(--spacing-3);">
+                        <div class="danger-zone mt-2 pt-3">
                             @if($commentContentOwnerRemovingOthers)
                                 <details>
                                     <summary class="btn btn-quiet inline-flex">Usuń</summary>

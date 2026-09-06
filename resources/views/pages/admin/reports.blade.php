@@ -10,7 +10,7 @@
 
     @forelse($reports as $report)
         <article class="card mb-5">
-            <h2 style="margin-top:0; font-size:var(--text-title-sm);">{{ $report->reasonLabel() }}</h2>
+            <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
             <p class="meta">
                 {{ $report->target_type }} · {{ $report->target_id }} ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
@@ -54,7 +54,7 @@
                         a kontroler i tak ignoruje tę wartość dla decyzji innych
                         niż „Zawieś konto".
                     --}}
-                    <fieldset style="border:0; padding:0; margin-top:var(--spacing-4);">
+                    <fieldset class="border-0 p-0 mt-4">
                         <legend class="font-bold mb-3">
                             Na jak długo — jeśli zawieszasz konto
                         </legend>
@@ -108,7 +108,7 @@
                 @if($przywracalne[$report->id] ?? false)
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
-                        <h3 style="font-size:var(--text-title-sm);">Przywróć treść</h3>
+                        <h3 class="text-title-sm">Przywróć treść</h3>
                         <p class="meta">
                             Treść wróci do stanu SPRZED ukrycia — szkic zostanie szkicem,
                             opublikowany wróci opublikowany. Autor dostanie powiadomienie.

@@ -14,7 +14,7 @@
     </ol>
 
     <section class="card text-center">
-        <div style="max-width:260px; margin:0 auto;">
+        <div class="max-w-[260px] mx-auto">
             {!! $qr !!}
         </div>
     </section>

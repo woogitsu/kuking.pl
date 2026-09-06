@@ -12,7 +12,7 @@
     @endif
     <p class="empty-state-title">{{ $title }}</p>
     @if(trim($slot) !== '')
-        <p style="max-width:34rem;">{{ $slot }}</p>
+        <p class="max-w-[34rem]">{{ $slot }}</p>
     @endif
     @if($action && $href)
         <a class="btn btn-primary" href="{{ $href }}">{{ $action }}</a>

@@ -29,16 +29,16 @@
     </x-slot:head>
 
     <header class="card mb-6">
-        <div style="display:flex; gap:var(--spacing-4); align-items:flex-start; flex-wrap:wrap;">
+        <div class="flex gap-4 items-start flex-wrap">
             <x-avatar :user="$owner" :size="88" />
-            <div style="flex:1; min-width:14rem;">
-                <h1 style="margin:0 0 var(--spacing-1);">{{ $p->display_name }}</h1>
-                <p class="meta" style="margin:0 0 var(--spacing-3);">
+            <div class="flex-1 min-w-[14rem]">
+                <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
+                <p class="meta m-0 mb-3">
                     &#64;{{ $p->username }}
                     @if($p->region) · {{ $p->region }} @endif
                 </p>
                 @if($p->speciality)
-                    <p style="margin:0 0 var(--spacing-3);"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
+                    <p class="m-0 mb-3"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
                 @endif
                 @if($p->bio)
                     <p class="whitespace-pre-line">{{ $p->bio }}</p>
@@ -62,7 +62,7 @@
             </li>
         </ul>
 
-        <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap; margin-top:var(--spacing-5);">
+        <div class="flex gap-3 flex-wrap mt-5">
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>

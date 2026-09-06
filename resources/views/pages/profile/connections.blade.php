@@ -40,11 +40,11 @@
                     // czyli osobny `SELECT EXISTS` na każdy wiersz listy.
                     $isFollowingPerson = $viewer !== null && ! $isSelf && (bool) ($person->obserwowany ?? false);
                 @endphp
-                <div class="card" style="display:flex; gap:var(--spacing-3); align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                <div class="card flex gap-3 items-center justify-between flex-wrap">
                     <a href="{{ $person->profile?->url() }}" style="display:flex; gap:var(--spacing-3); align-items:center; text-decoration:none; color:inherit; min-width:14rem;">
                         <x-avatar :user="$person" :size="56" />
                         <span>
-                            <span style="display:block; font-weight:600;">{{ $person->displayName() }}</span>
+                            <span class="block font-semibold">{{ $person->displayName() }}</span>
                             @if($personUsername)
                                 <span class="meta">&#64;{{ $personUsername }}</span>
                             @endif

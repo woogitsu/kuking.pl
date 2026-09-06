@@ -27,7 +27,7 @@
                         <input id="osoba-{{ $osoba->getKey() }}" type="checkbox" name="osoby[]"
                                value="{{ $osoba->getKey() }}"
                                @checked(in_array($osoba->getKey(), $wybraneOsoby, true))>
-                        <span style="display:flex; gap:var(--spacing-3); align-items:center; flex:1;">
+                        <span class="flex gap-3 items-center flex-1">
                             <x-avatar :user="$osoba" :size="44" />
                             <span>
                                 <span class="choice-label">{{ $osoba->displayName() }}</span>
@@ -63,7 +63,7 @@
                         <input id="wpis-{{ $wpis->getKey() }}" type="checkbox" name="wpisy[]"
                                value="{{ $wpis->getKey() }}"
                                @checked(in_array($wpis->getKey(), $wybraneWpisy, true))>
-                        <span style="display:flex; gap:var(--spacing-3); align-items:flex-start; flex:1;">
+                        <span class="flex gap-3 items-start flex-1">
                             @php $foto = $wpis->media->first(fn ($m) => $m->isReady()); @endphp
                             @if($foto)
                                 <img src="{{ $foto->url('thumb') }}" alt="" width="64" height="64"

@@ -6,7 +6,7 @@
 --}}
 @props(['event', 'showRecipe' => false])
 <article class="card">
-    <div style="display:flex; gap:var(--spacing-3); align-items:center; margin-bottom:var(--spacing-3);">
+    <div class="flex gap-3 items-center mb-3">
         <x-avatar :user="$event->user" :size="44" />
         <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $event->user->profile->username) }}">{{ $event->user->displayName() }}</a>
@@ -18,7 +18,7 @@
     </div>
 
     @if($showRecipe)
-        <p style="margin:0 0 var(--spacing-3);">
+        <p class="m-0 mb-3">
             @if($event->recipe)
                 z przepisu <a href="{{ route('recipes.show', $event->recipe->slug) }}">{{ $event->recipe->title }}</a>
             @else
@@ -34,7 +34,7 @@
     @endif
 
     @if($event->media->isNotEmpty())
-        <div class="photo-grid" style="margin-bottom:var(--spacing-3); border-radius:var(--radius-md); overflow:hidden;">
+        <div class="photo-grid mb-3 rounded-md overflow-hidden">
             @foreach($event->media as $media)
                 <x-photo :media="$media" />
             @endforeach

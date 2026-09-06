@@ -11,7 +11,7 @@
          adresy z tą samą treścią to duplikat, którego unikamy. --}}
     :noindex="true">
 
-    <article class="stack" style="max-width:38rem; margin-inline:auto;">
+    <article class="stack max-w-[38rem] mx-auto">
         <div class="cook-topbar">
             {{-- `aria-live`, żeby czytnik ekranu ogłosił zmianę kroku po
                  kliknięciu „Poprzedni/Następny krok" — inaczej ta jedyna

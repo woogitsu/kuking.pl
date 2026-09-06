@@ -14,7 +14,7 @@
     <x-error-summary />
 
     <article class="card">
-        <h2 style="margin-top:0; font-size:var(--text-title-sm);">Czego dotyczy sprawa</h2>
+        <h2 class="mt-0 text-title-sm">Czego dotyczy sprawa</h2>
         <p class="meta">
             {{ $decyzja->label() }} ·
             {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y') }}
@@ -31,7 +31,7 @@
              co napisał i co z tego wyszło — nie pusty formularz, który przy
              wysłaniu powie „już się odwoływałeś". --}}
         <article class="card mt-5">
-            <h2 style="margin-top:0; font-size:var(--text-title-sm);">Twoje odwołanie</h2>
+            <h2 class="mt-0 text-title-sm">Twoje odwołanie</h2>
             <p class="meta">Złożone {{ \App\Support\Czas::data($odwolanie->created_at, 'j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
             <p class="whitespace-pre-line">{{ $odwolanie->body }}</p>
 
@@ -40,7 +40,7 @@
                     Odpowiadamy w ciągu {{ config('kuking.moderation.appeal_response_working_days') }} dni roboczych.
                     Odpowiedź zobaczysz w powiadomieniach.</p>
             @else
-                <h3 style="font-size:var(--text-title-sm);">Nasza odpowiedź</h3>
+                <h3 class="text-title-sm">Nasza odpowiedź</h3>
                 <p class="meta">{{ \App\Support\Czas::data($odwolanie->decided_at, 'j F Y') }}</p>
                 <p class="whitespace-pre-line">{{ $odwolanie->decision_note }}</p>
                 <p class="meta">
@@ -51,7 +51,7 @@
         </article>
     @elseif(! $decyzja->isAppealable())
         <article class="card mt-5">
-            <h2 style="margin-top:0; font-size:var(--text-title-sm);">Tej decyzji nie da się już zakwestionować tutaj</h2>
+            <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest {{ config('kuking.moderation.appeal_days') }} dni od decyzji.
                 Ten termin minął {{ \App\Support\Czas::data($decyzja->appealDeadline(), 'j F Y') }}.
@@ -65,7 +65,7 @@
         <form class="card mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
             @csrf
 
-            <h2 style="margin-top:0; font-size:var(--text-title-sm);">Napisz, dlaczego to pomyłka</h2>
+            <h2 class="mt-0 text-title-sm">Napisz, dlaczego to pomyłka</h2>
             <p>
                 Wystarczy kilka zdań własnymi słowami. Napisz, co się według Ciebie
                 wydarzyło naprawdę — to trafi do osoby, która obejrzy sprawę drugi raz.

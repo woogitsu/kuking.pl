@@ -94,7 +94,7 @@
                 <p class="notice"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
-            <div style="display:flex; align-items:center; gap:var(--spacing-3); margin-bottom:var(--spacing-4);">
+            <div class="flex items-center gap-3 mb-4">
                 <x-avatar :user="$recipe->author" :size="44" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
@@ -127,22 +127,22 @@
         </ul>
 
         @if($recipe->summary)
-            <p style="font-size:var(--text-lead);">{{ $recipe->summary }}</p>
+            <p class="text-lead">{{ $recipe->summary }}</p>
         @endif
 
         {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
              produktowa, nie kolejność przypadkowa. --}}
         @if($recipe->source_note || $recipe->source_person)
             <section class="recipe-story">
-                <h2 style="margin-top:0; font-size:var(--text-title-sm);">Skąd ten przepis</h2>
+                <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
                 @if($recipe->source_person)
                     <p><strong>Po {{ $recipe->source_person }}.</strong></p>
                 @endif
                 @if($recipe->source_note)
-                    <p style="white-space:pre-line; margin-bottom:0;">{{ $recipe->source_note }}</p>
+                    <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>
                 @endif
                 @if($recipe->sourceScan)
-                    <div style="margin-top:var(--spacing-4); max-width:22rem;">
+                    <div class="mt-4 max-w-[22rem]">
                         <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
                         <p class="meta">Kartka, z której jest ten przepis.</p>
                     </div>
@@ -188,9 +188,9 @@
                             <span class="step-number" aria-hidden="true">{{ $step->position + 1 }}</span>
                             <div>
                                 <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
-                                <p style="margin:0; white-space:pre-line;">{{ $step->instruction }}</p>
+                                <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                 @if($step->media)
-                                    <div style="margin-top:var(--spacing-3); max-width:20rem;">
+                                    <div class="mt-3 max-w-[20rem]">
                                         <x-photo :media="$step->media" variant="feed" class="post-photo" />
                                     </div>
                                 @endif
@@ -202,10 +202,10 @@
         </section>
 
         {{-- Główna akcja przepisu. Nie „Lubię to”, a „Ugotowałem”. --}}
-        <section class="card" style="background-color:var(--color-brand-tint);">
+        <section class="card bg-brand-tint">
             <h2 class="mt-0">Gotujesz z tego przepisu?</h2>
             <p>Otwórz kroki na cały ekran w kuchni, a kiedy skończysz — {{ $recipe->author->displayName() }} naprawdę chce wiedzieć, że Ci wyszło.</p>
-            <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap;">
+            <div class="flex gap-3 flex-wrap">
                 {{--
                     „Gotuję” obok „Ugotowałem" (issue #24) — to jest PRZED
                     wykonaniem, w tym samym rzędzie przycisków co ten PO.

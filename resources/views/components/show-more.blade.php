@@ -6,7 +6,7 @@
 --}}
 @props(['paginator'])
 @if($paginator->hasMorePages())
-    <p style="text-align:center; margin-top:var(--spacing-6);">
+    <p class="text-center mt-6">
         <a class="btn btn-secondary" href="{{ $paginator->nextPageUrl() }}">Pokaż więcej wpisów</a>
     </p>
 @endif

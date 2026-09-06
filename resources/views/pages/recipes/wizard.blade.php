@@ -34,7 +34,7 @@
                 <strong>{{ $drafts->count() === 1 ? 'Masz niedokończony szkic.' : 'Masz niedokończone szkice.' }}</strong>
                 Nic z nich nie zginęło — możesz wrócić do pisania.
             </p>
-            <ul class="stack-tight" style="list-style:none; padding:0; margin:0;">
+            <ul class="stack-tight list-none p-0 m-0">
                 @foreach($drafts as $unfinished)
                     <li>
                         <a class="btn btn-secondary" href="{{ route('recipes.create', ['szkic' => $unfinished->getKey()]) }}">

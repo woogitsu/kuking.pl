@@ -67,7 +67,7 @@
             </p>
             <div class="stack-tight">
                 @foreach($people as $person)
-                    <div class="card" style="display:flex; gap:var(--spacing-3); align-items:center;">
+                    <div class="card flex gap-3 items-center">
                         <x-avatar :user="$person->user" :size="52" />
                         <div>
                             <a class="author-name" href="{{ route('profile.show', $person->username) }}">{{ $person->display_name }}</a>
