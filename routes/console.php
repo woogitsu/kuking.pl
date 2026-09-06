@@ -41,6 +41,14 @@ Artisan::command('inspire', function () {
 // harmonogramu na czas swojego działania. Przy jednym uruchomieniu na dobę
 // i `withoutOverlapping()` to jest do przyjęcia — a alternatywą byłoby
 // osłabienie zabezpieczenia, którego nie wolno ruszać.
+// Zdjęcia wgrane, ale do niczego nieprzypięte (audyt C1). Powstają, gdy ktoś
+// wybierze zdjęcia, dostanie błąd walidacji i zamknie kartę zamiast poprawić.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu niżej.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-osierocone-zdjecia'))
+    ->dailyAt('03:40')
+    ->name('sprzataj-osierocone-zdjecia')
+    ->withoutOverlapping();
+
 Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
     ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')

@@ -7,11 +7,14 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Topic;
+use App\Models\User;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -40,9 +43,50 @@ class PostController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        $user = $request->user();
+
+        // ZDJECIA WGRYWAMY PRZED WALIDACJA RESZTY — I TO JEST CALY SENS C1.
+        //
+        // Wczesniej walidacja szla najpierw, a przy bledzie leciało
+        // `back()->withInput()`. `withInput()` NIE PRZENOSI PLIKOW: przegladarka
+        // nie pozwala wypelnic `<input type="file">` z serwera i dobrze robi,
+        // bo inaczej strona mogla by podkrasc plik z dysku.
+        //
+        // Skutek byl taki: Basia wybierala trzy zdjecia, pisala dlugi tekst,
+        // przekraczala 4000 znakow — i traciła WYBOR Z GALERII TELEFONU.
+        // Tekst zostawal, zdjecia znikaly, bez slowa wyjasnienia. AGENTS.md
+        // par. 5 mowi „poprawne dane nigdy nie znikaja", a zdjecie jest w tym
+        // produkcie najwazniejsza wpisana dana.
+        //
+        // Teraz zdjecia trafiaja na dysk od razu, a przez blad walidacji
+        // przechodza jako identyfikatory w ukrytych polach formularza.
+        // Cena: zdjecia nieprzypiete do niczego, gdy ktos zamknie karte
+        // zamiast poprawic blad — sprzata je `kuking:sprzataj-osierocone-zdjecia`
+        // po dobie karencji.
+        $request->validate([
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'photos.*' => ['file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'media_ids.*' => ['uuid'],
+        ], [
+            'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
+            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+        ]);
+
+        try {
+            $mediaIds = $this->zebranZdjecia($request, $user);
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
+        }
+
+        // Walidacja przez `Validator::make`, a NIE `$request->validate()`.
+        //
+        // `$request->validate()` rzuca `ValidationException`, ktora sama
+        // odsyla z powrotem i sama zapisuje stare dane — nadpisujac przy tym
+        // `media_ids`, ktore wlasnie chcemy tam wlozyc. Kontrola nad tym,
+        // co trafia do starego wejscia, musi zostac tutaj.
+        $walidator = Validator::make($request->all(), [
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
             // Temat opcjonalny, ale MUSI istnieć i być aktywny. Sprawdzenie
@@ -50,21 +94,21 @@ class PostController extends Controller
             // po to, żeby człowiek dostał komunikat zamiast cichego pominięcia.
             'topic_id' => ['nullable', 'uuid'],
         ], [
-            'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
-            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
-            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
         ]);
 
-        $user = $request->user();
-        $mediaIds = [];
+        if ($walidator->fails()) {
+            // Zdjecia SA JUZ WGRANE — wracaja do formularza jako ukryte pola,
+            // zeby nie trzeba bylo przechodzic przez galerie telefonu drugi raz.
+            return back()
+                ->withInput($this->wejscieBezPlikow($request, $mediaIds))
+                ->withErrors($walidator);
+        }
+
+        $data = $walidator->validated();
 
         try {
-            foreach ($request->file('photos', []) as $photo) {
-                $mediaIds[] = $this->storeImage->handle($user, $photo)->getKey();
-            }
-
             $post = $this->publishPost->handle(
                 author: $user,
                 body: $data['body'] ?? null,
@@ -76,7 +120,9 @@ class PostController extends Controller
         } catch (RuntimeException $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
             // (docs/UX_50_PLUS.md).
-            return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
+            return back()
+                ->withInput($this->wejscieBezPlikow($request, $mediaIds))
+                ->withErrors(['photos' => $e->getMessage()]);
         }
 
         $isFirstPost = $user->posts()->published()->count() === 1;
@@ -98,6 +144,62 @@ class PostController extends Controller
                 default => 'Opublikowane. Dziękujemy.',
             },
         );
+    }
+
+    /**
+     * Stare wejscie formularza: wszystko poza plikami, plus identyfikatory
+     * zdjec, ktore juz sa na dysku.
+     *
+     * Pliki lecą do kosza świadomie — `withInput()` i tak ich nie przeniesie,
+     * a `UploadedFile` w sesji to obiekt wskazujący na plik tymczasowy,
+     * którego po żądaniu już nie ma.
+     *
+     * @param  list<string>  $mediaIds
+     * @return array<string, mixed>
+     */
+    private function wejscieBezPlikow(Request $request, array $mediaIds): array
+    {
+        return $request->except('photos', 'media_ids') + ['media_ids' => $mediaIds];
+    }
+
+    /**
+     * Zdjecia do tego wpisu: nowo wgrane plus te, ktore przetrwaly nieudana
+     * walidacje w ukrytych polach formularza.
+     *
+     * BRAMKA WLASNOSCI JEST TU JEDYNA I MUSI BYC SZCZELNA.
+     * `media_ids` przychodzi od klienta, wiec bez sprawdzenia mozna by
+     * podpiac pod wlasny wpis CUDZE zdjecie — wystarczylby identyfikator
+     * z adresu obrazka. Dlatego pytamy o wlasciciela ORAZ o to, czy zdjecie
+     * nie jest juz gdzies przypiete. UUID w formularzu to nie autoryzacja,
+     * dokladnie tak samo jak UUID w adresie (AGENTS.md par. 7).
+     *
+     * @return list<string>
+     */
+    private function zebranZdjecia(Request $request, User $user): array
+    {
+        $odzyskane = Media::query()
+            ->whereIn('id', (array) $request->input('media_ids', []))
+            ->where('owner_id', $user->getKey())
+            ->whereDoesntHave('posts')
+            ->pluck('id')
+            ->all();
+
+        $nowe = [];
+
+        foreach ($request->file('photos', []) as $photo) {
+            $nowe[] = $this->storeImage->handle($user, $photo)->getKey();
+        }
+
+        $wszystkie = array_values(array_unique([...$odzyskane, ...$nowe]));
+
+        // Limit liczony na SUMIE, nie osobno na kazdej z dwoch drog. Inaczej
+        // dalo by sie go obejsc, wysylajac polowe zdjec w plikach, a polowe
+        // w ukrytych polach.
+        if (count($wszystkie) > LimityZdjec::maksZdjecNaWysylke()) {
+            throw new RuntimeException(LimityZdjec::komunikatZaDuzoZdjec());
+        }
+
+        return $wszystkie;
     }
 
     public function show(Request $request, Post $post): View
