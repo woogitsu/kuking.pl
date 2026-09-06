@@ -651,6 +651,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Nowy komplet kodów zapasowych BEZ ruszania sekretu i bez wyłączania 2FA.
+     *
+     * DLACZEGO TO JEST OSOBNA METODA, A NIE „WYŁĄCZ I WŁĄCZ JESZCZE RAZ"
+     * Kody zapasowe pokazujemy raz. Kto ich nie zapisał, miał dotąd jedną
+     * drogę do nowych: zdjąć 2FA i włączyć od zera. To znaczy trzy złe rzeczy
+     * naraz — konto zostaje przez chwilę na samym haśle, moderator traci
+     * w tym czasie wejście do panelu (`EnsureModeratorHasTwoFactor`), a cały
+     * sekret trzeba przepisać do telefonu jeszcze raz, choć z nim nic nie
+     * było nie tak.
+     *
+     * Stare kody przestają działać w tej samej chwili — o to właśnie chodzi,
+     * bo powodem wymiany bywa „kartka gdzieś jest, tylko nie wiem gdzie".
+     *
+     * Kontroler MUSI sprawdzić hasło przed wywołaniem (jak przy wyłączaniu).
+     *
+     * @param  array<int, string>  $zahaszowaneKodyZapasowe
+     */
+    public function replaceTwoFactorBackupCodes(array $zahaszowaneKodyZapasowe): void
+    {
+        $this->forceFill(['two_factor_backup_codes' => $zahaszowaneKodyZapasowe])->save();
+    }
+
+    /**
      * Wyłączenie 2FA — kontroler MUSI sprawdzić hasło PRZED wywołaniem tej
      * metody (AGENTS.md §7: zmiana stanu konta jest jawną, nazwaną operacją,
      * ale to kontroler odpowiada za to, KTO może ją wywołać).

@@ -106,14 +106,59 @@ class TwoFactorSettingsController extends Controller
         $kody = $request->session()->get('kody_zapasowe');
 
         if (! is_array($kody)) {
+            // Komunikat mówi, CO ZROBIĆ, a nie tylko co się nie udało —
+            // i kieruje na przycisk „Wygeneruj nowe kody zapasowe", nie na
+            // wyłączanie i włączanie 2FA od zera. Tamta droga zdejmowała
+            // ochronę z konta na czas przeklikania i kazała przepisywać
+            // sekret do telefonu jeszcze raz, choć z sekretem nic nie było
+            // nie tak.
             return redirect()->route('settings.two_factor.edit')->with(
                 'status',
-                'Kody zapasowe pokazujemy tylko raz, zaraz po włączeniu. Jeśli ich nie zapisałeś/aś, wyłącz '
-                .'weryfikację dwuetapową i włącz ją jeszcze raz — dostaniesz nowy komplet.',
+                'Kody zapasowe pokazujemy tylko raz. Jeśli nie masz ich już pod ręką, '
+                .'wygeneruj nowy komplet przyciskiem niżej — stare przestaną wtedy działać.',
             );
         }
 
         return view('pages.settings.two_factor.codes', ['kody' => $kody]);
+    }
+
+    /**
+     * Nowy komplet kodów zapasowych, BEZ zdejmowania 2FA i bez ruszania
+     * sekretu (czyli bez przepisywania go do telefonu jeszcze raz).
+     *
+     * Hasło jak przy wyłączaniu: kody zapasowe omijają aplikację w telefonie,
+     * więc świeży komplet w rękach kogoś, kto akurat siedzi przy otwartej
+     * sesji, jest wart dokładnie tyle co zdjęcie 2FA.
+     *
+     * SMTP w tym serwisie jeszcze nie działa, więc nie ma linku odzyskiwania
+     * mailem. Utrata telefonu RAZEM z kodami zamyka konto do czasu wejścia
+     * na serwer (`kuking:2fa-wylacz`) — dlatego droga do nowych kodów musi
+     * być łatwa, dopóki człowiek ma jeszcze dostęp.
+     */
+    public function regenerateCodes(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'password' => ['required', 'string'],
+        ], [
+            'password.required' => 'Wpisz swoje hasło, żeby dostać nowe kody zapasowe.',
+        ]);
+
+        if (! $user->hasTwoFactorConfirmed()) {
+            return redirect()->route('settings.two_factor.edit');
+        }
+
+        if (! Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'Hasło jest nieprawidłowe.',
+            ]);
+        }
+
+        $kodyJawne = $this->totp->generateBackupCodes();
+        $user->replaceTwoFactorBackupCodes($this->totp->hashBackupCodes($kodyJawne));
+
+        return redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $kodyJawne);
     }
 
     /**

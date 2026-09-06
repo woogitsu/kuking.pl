@@ -323,6 +323,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['two_factor']}")
         ->name('settings.two_factor.confirm');
     Route::get('/ustawienia/2fa/kody-zapasowe', [TwoFactorSettingsController::class, 'codes'])->name('settings.two_factor.codes');
+    // Nowy komplet kodów zapasowych bez zdejmowania 2FA. Ten sam limit co
+    // reszta miejsc proszących o hasło — bo o hasło właśnie prosi.
+    Route::post('/ustawienia/2fa/nowe-kody', [TwoFactorSettingsController::class, 'regenerateCodes'])
+        ->middleware("throttle:{$limits['confirm_password']}")
+        ->name('settings.two_factor.regenerate');
     Route::post('/ustawienia/2fa/wylacz', [TwoFactorSettingsController::class, 'disable'])->name('settings.two_factor.disable');
 
     // Odwołanie od decyzji moderacyjnej — droga dla osób, które MOGĄ wejść

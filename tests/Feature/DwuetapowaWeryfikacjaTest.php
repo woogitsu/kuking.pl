@@ -342,4 +342,92 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $this->assertStringNotContainsString($sekret, (string) $surowyWiersz->two_factor_secret);
         $this->assertStringNotContainsString('ABCD-1234', (string) $surowyWiersz->two_factor_backup_codes);
     }
+
+    // -----------------------------------------------------------------
+    // Nowe kody zapasowe bez zdejmowania 2FA
+    // -----------------------------------------------------------------
+
+    public function test_nowe_kody_zapasowe_nie_wylaczaja_2fa_i_uniewazniaja_stare(): void
+    {
+        // POWÓD, DLA KTÓREGO TO W OGÓLE ISTNIEJE
+        // Kody pokazujemy raz. Kto zgubił kartkę, miał jedną drogę do nowych:
+        // zdjąć 2FA i włączyć od zera. To zdejmowało ochronę z konta na czas
+        // przeklikania, odbierało moderatorowi wejście do panelu i kazało
+        // przepisywać sekret do telefonu jeszcze raz — choć z sekretem nic
+        // nie było nie tak.
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $sekret = $this->totp()->generateSecret();
+        $basia->beginTwoFactorSetup($sekret);
+        $basia->confirmTwoFactor($this->totp()->hashBackupCodes(['ABCD-1234']));
+        $basia->refresh();
+
+        $odpowiedz = $this->actingAs($basia)->post(route('settings.two_factor.regenerate'), [
+            'password' => 'haslo-testowe-123',
+        ]);
+
+        $odpowiedz->assertRedirect(route('settings.two_factor.codes'));
+        $odpowiedz->assertSessionHas('kody_zapasowe');
+
+        $swiezy = $basia->fresh();
+
+        // 2FA ZOSTAJE WŁĄCZONE, a sekret ten sam — telefonu nie trzeba ruszać.
+        $this->assertTrue($swiezy->hasTwoFactorConfirmed());
+        $this->assertSame($sekret, $swiezy->two_factor_secret);
+
+        // Stary kod przestał działać w tej samej chwili. O to właśnie chodzi:
+        // powodem wymiany bywa „kartka gdzieś jest, tylko nie wiem gdzie".
+        $this->post(route('logout'));
+        $this->post('/login', ['login' => 'basia@example.com', 'password' => 'haslo-testowe-123']);
+        $this->post(route('login.two_factor.store'), ['backup_code' => 'ABCD-1234'])
+            ->assertSessionHasErrors('code');
+        $this->assertGuest();
+    }
+
+    public function test_nowy_kod_zapasowy_z_wymiany_naprawde_loguje(): void
+    {
+        // Bez tego testu poprzedni dowodziłby tylko, że stare kody padły —
+        // a konto bez działających kodów jest w gorszym stanie niż przed
+        // wymianą, nie w lepszym.
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $basia->beginTwoFactorSetup($this->totp()->generateSecret());
+        $basia->confirmTwoFactor($this->totp()->hashBackupCodes(['ABCD-1234']));
+        $basia->refresh();
+
+        $kody = $this->actingAs($basia)
+            ->post(route('settings.two_factor.regenerate'), ['password' => 'haslo-testowe-123'])
+            ->assertRedirect()
+            ->getSession()
+            ->get('kody_zapasowe');
+
+        $this->assertIsArray($kody);
+        $this->assertNotEmpty($kody);
+
+        $this->post(route('logout'));
+        $this->post('/login', ['login' => 'basia@example.com', 'password' => 'haslo-testowe-123']);
+        $this->post(route('login.two_factor.store'), ['backup_code' => $kody[0]])
+            ->assertRedirect(route('home'));
+
+        $this->assertAuthenticatedAs($basia->fresh());
+    }
+
+    public function test_nowe_kody_zapasowe_wymagaja_hasla(): void
+    {
+        // Kody zapasowe OMIJAJĄ aplikację w telefonie, więc świeży komplet
+        // w rękach kogoś, kto akurat siedzi przy otwartej sesji, jest wart
+        // dokładnie tyle co zdjęcie 2FA. Stąd to samo pytanie o hasło.
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $basia->beginTwoFactorSetup($this->totp()->generateSecret());
+        $basia->confirmTwoFactor($this->totp()->hashBackupCodes(['ABCD-1234']));
+        $basia->refresh();
+
+        $this->actingAs($basia)
+            ->post(route('settings.two_factor.regenerate'), ['password' => 'nie-to-haslo'])
+            ->assertSessionHasErrors('password');
+
+        // Stary kod dalej działa — nic się nie zmieniło.
+        $this->post(route('logout'));
+        $this->post('/login', ['login' => 'basia@example.com', 'password' => 'haslo-testowe-123']);
+        $this->post(route('login.two_factor.store'), ['backup_code' => 'ABCD-1234'])
+            ->assertRedirect(route('home'));
+    }
 }
