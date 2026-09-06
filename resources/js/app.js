@@ -82,6 +82,63 @@ document.addEventListener('change', (event) => {
     }
 });
 
+// --- Nieudana wysyłka zdjęcia w kreatorze (Livewire) ----------------------
+
+/*
+ * Kreator przepisu wysyła zdjęcie na wewnętrzny endpoint Livewire OD RAZU
+ * po wyborze pliku — zanim komponent Kuking cokolwiek o nim wie. Gdy tamten
+ * endpoint odrzuci plik (za duży, przerwane połączenie), Livewire ogłasza
+ * `livewire-upload-error`, ale w `detail` ma tylko `{id, property}`: treści
+ * błędu tam nie ma i nie będzie.
+ *
+ * Bez tej obsługi pasek postępu po prostu ZNIKA, pole zostaje puste i nikt
+ * nie mówi człowiekowi, co się stało ani co zrobić (issue #111). Tekst bierzemy
+ * z atrybutu `data-blad-wysylki`, który renderuje PHP — dzięki temu liczba
+ * megabajtów ma jedno źródło (`LimityZdjec`), a nie kopię w skrypcie.
+ */
+window.addEventListener('livewire-upload-error', (zdarzenie) => {
+    const input = zdarzenie.target;
+
+    if (! (input instanceof HTMLInputElement) || input.type !== 'file') {
+        return;
+    }
+
+    const komunikat = input.dataset.bladWysylki;
+
+    if (! komunikat) {
+        return;
+    }
+
+    const id = `${input.id}-blad-wysylki`;
+    let pole = document.getElementById(id);
+
+    if (! pole) {
+        pole = document.createElement('span');
+        pole.id = id;
+        pole.className = 'field-error';
+        // `alert`, nie `polite`: to jest odpowiedź na czynność, którą człowiek
+        // przed chwilą wykonał, i musi zostać przeczytana od razu.
+        pole.setAttribute('role', 'alert');
+        input.insertAdjacentElement('afterend', pole);
+    }
+
+    pole.textContent = komunikat;
+
+    // Podgląd miniatury dorysowany przy wyborze pliku kłamałby: zdjęcia
+    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu.
+    document.getElementById(`${input.id}-podglad`)?.replaceChildren();
+});
+
+// Kolejna udana wysyłka sprząta po poprzednim błędzie — inaczej czerwony
+// komunikat zostaje pod polem, w którym zdjęcie już się udało.
+window.addEventListener('livewire-upload-finish', (zdarzenie) => {
+    const input = zdarzenie.target;
+
+    if (input instanceof HTMLInputElement) {
+        document.getElementById(`${input.id}-blad-wysylki`)?.remove();
+    }
+});
+
 // --- Fokus na podsumowaniu błędów ----------------------------------------
 
 /*

@@ -821,8 +821,12 @@ new class extends Component
             <div class="field">
                 <label for="f-heroPhoto">Zdjęcie gotowego dania <span class="meta">(nieobowiązkowe)</span></label>
                 <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+                {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
+                     megabajtów miała jedno źródło (`LimityZdjec`) i nie
+                     rozjechała się z `config/kuking.php` — issue #111. --}}
                 <input class="field-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
                        accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                       data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
                        aria-describedby="f-heroPhoto-help">
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)

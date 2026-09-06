@@ -61,6 +61,24 @@ final class LimityZdjec
         return 'Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to '.self::maksMegabajtowDoKomunikatu().' MB.';
     }
 
+    /**
+     * Gdy zdjęcie odpadnie na wewnętrznym endpoincie uploadu Livewire.
+     *
+     * To jest INNA droga niż zwykła walidacja formularza: kreator przepisu
+     * wysyła plik od razu po wyborze, a odpowiedź 422 z tamtego endpointu nie
+     * trafia do worka błędów komponentu — zdarzenie `livewire-upload-error`
+     * niesie tylko `{id, property}`, bez treści. Dlatego tekst musi powstać
+     * po naszej stronie, inaczej pasek postępu po prostu znika i pole zostaje
+     * puste bez słowa wyjaśnienia (issue #111).
+     *
+     * Mówi CO ZROBIĆ, nie co się stało wewnątrz.
+     */
+    public static function komunikatNieudanejWysylki(): string
+    {
+        return 'Nie udało się wysłać tego zdjęcia. Sprawdź, czy plik waży mniej niż '
+            .self::maksMegabajtowDoKomunikatu().' MB, i spróbuj jeszcze raz.';
+    }
+
     public static function komunikatZaDuzoZdjec(): string
     {
         $limit = self::maksZdjecNaWysylke();
