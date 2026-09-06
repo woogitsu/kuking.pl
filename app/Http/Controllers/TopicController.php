@@ -39,6 +39,9 @@ class TopicController extends Controller
             // dla obserwujących i prywatne NIE MOGĄ wypłynąć przez temat.
             // Bez tego strona tematu byłaby obejściem ustawień prywatności.
             ->widoczneDla($widz)
+            // Strona tematu POLECA treść nieznajomym, tak jak „Świeżo z Kuking”:
+            // konto pod sankcją nie ma być z niej promowane (audyt A5).
+            ->tylkoOdDostepnychAutorow()
             ->with(['author.profile.avatar', 'media', 'topic'])
             ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
             ->latest('published_at')
@@ -49,6 +52,7 @@ class TopicController extends Controller
         return view('pages.topics.show', [
             'topic' => $topic,
             'posts' => $wpisy,
+            'obserwowany' => $widz !== null && $widz->isFollowingTopic($topic),
         ]);
     }
 }

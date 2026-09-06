@@ -32,6 +32,7 @@ use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TopicController;
+use App\Http\Controllers\TopicFollowController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -221,6 +222,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/przepisy/{recipe}/zapisz', [CollectionController::class, 'removeRecipe'])->name('collections.unsave');
 
     // Relacje społeczne
+    // Obserwowanie tematu: zwykłe formularze, bez JavaScriptu. Temat nie
+    // jest człowiekiem, więc nikogo nie powiadamiamy (issue #31).
+    Route::post('/temat/{topic}/obserwuj', [TopicFollowController::class, 'follow'])->name('topics.follow');
+    Route::delete('/temat/{topic}/obserwuj', [TopicFollowController::class, 'unfollow'])->name('topics.unfollow');
+
     Route::post('/@{username}/obserwuj', [SocialController::class, 'follow'])->name('social.follow');
     Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])->name('social.unfollow');
     Route::post('/@{username}/blokuj', [SocialController::class, 'block'])->name('social.block');
@@ -232,6 +238,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // Ustawienia
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update']);
+
+    Route::get('/ustawienia/tematy', [TopicFollowController::class, 'edit'])->name('settings.topics');
+    Route::put('/ustawienia/tematy', [TopicFollowController::class, 'update'])->name('settings.topics.update');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update']);
