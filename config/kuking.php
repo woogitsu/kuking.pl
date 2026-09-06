@@ -276,10 +276,27 @@ return [
     ],
 
     'exports' => [
-        // Paczka z danymi to kopia CAŁEGO konta — nie może leżeć na dysku
-        // publicznym. Dysk `local` jest prywatny; pobranie idzie przez trasę
-        // z podpisem, nie przez bezpośredni URL do pliku.
-        'disk' => env('KUKING_EXPORT_DISK', 'local'),
+        /*
+         * Paczka z danymi to kopia CAŁEGO konta — nie może leżeć na dysku
+         * publicznym. Pobranie idzie przez trasę z podpisem, nie przez
+         * bezpośredni URL do pliku.
+         *
+         * DYSK LOKALNY NIE WYSTARCZA NA PRODUKCJI (audyt W3-01).
+         * `web`, `worker` i `scheduler` to trzy osobne kontenery bez wspólnego
+         * wolumenu. Paczkę buduje worker, a pobranie obsługuje web — plik
+         * powstawał więc w jednym kontenerze, a szukano go w drugim: w bazie
+         * `ready`, a człowiek dostawał 404, i to w chwili, w której zwykle
+         * właśnie zamyka konto. Restart workera zabierał ją tak samo.
+         *
+         * Dlatego domyślnie podążamy za `FILESYSTEM_DISK`: gdy zdjęcia idą na
+         * R2, paczki idą na `r2_eksporty` — osobny, prywatny bucket, bez
+         * własnej domeny. `local` zostaje wyłącznie tam, gdzie jest jeden
+         * proces: lokalnie i w testach.
+         */
+        'disk' => env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        ),
 
         // Ile dni paczka jest do pobrania. Po tym czasie plik jest kasowany
         // (komenda kuking:sprzataj-eksporty) — nie trzymamy w storage kopii

@@ -133,6 +133,39 @@ return [
             'throw' => true,
         ],
 
+        /*
+         * Paczki z danymi (RODO art. 15 i 20) — WŁASNY bucket, prywatny.
+         *
+         * Nie `local`, bo produkcja ma OSOBNE kontenery `web`, `worker`
+         * i `scheduler`, bez wspólnego wolumenu. Paczkę buduje worker,
+         * a pobranie obsługuje web — na dysku lokalnym plik powstawał więc
+         * w jednym kontenerze, a szukano go w drugim. W bazie stało `ready`,
+         * a człowiek dostawał 404. Restart workera i tak by ją zabrał
+         * (audyt W3-01).
+         *
+         * Nie `r2_publiczne`, bo to jest kopia CAŁEGO konta: e-mail, wszystkie
+         * treści, wszystkie zdjęcia z pełnym EXIF-em. Ten bucket nie ma i nie
+         * może mieć własnej domeny — pobranie idzie WYŁĄCZNIE przez trasę
+         * z podpisem, po sprawdzeniu, że pyta właściciel.
+         *
+         * Świadomie bez `url`, z tego samego powodu co dysk oryginałów:
+         * `Storage::url()` ma wtedy rzucić wyjątek, a nie zwrócić adres,
+         * pod którym leży czyjeś całe konto.
+         */
+        'r2_eksporty' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_EXPORTS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => false,
+            // `throw => true`: nieudany zapis paczki MUSI być błędem.
+            // Przy `false` `writeStream()` zwraca `false`, job leci dalej,
+            // rekord dostaje `ready`, a pliku nie ma nigdzie.
+            'throw' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

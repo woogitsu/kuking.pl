@@ -241,6 +241,16 @@ export default defineRailway((ctx) => {
     AWS_SECRET_ACCESS_KEY: ctx.shared.R2_SECRET_ACCESS_KEY,
     AWS_BUCKET: ctx.shared.R2_BUCKET,
     AWS_PUBLIC_BUCKET: ctx.shared.R2_PUBLIC_BUCKET,
+    // Trzeci bucket, też prywatny: paczki z danymi (RODO). Osobny od
+    // oryginałów, bo to inny cykl życia (TTL 7 dni) i inna zawartość —
+    // kopia CAŁEGO konta w jednym pliku ZIP.
+    AWS_EXPORTS_BUCKET: ctx.shared.R2_EXPORTS_BUCKET,
+    // JAWNIE, nie z wartości domyślnej. Produkcja ma OSOBNE kontenery web,
+    // worker i scheduler bez wspólnego wolumenu: paczkę buduje worker,
+    // a pobranie obsługuje web. Na dysku `local` plik powstawał w jednym
+    // kontenerze, a szukano go w drugim — w bazie `ready`, u człowieka 404
+    // (audyt W3-01).
+    KUKING_EXPORT_DISK: "r2_eksporty",
     AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
     // Publiczny prefiks URL — własna domena bucketa PUBLICZNEGO za CDN
     // Cloudflare. Dotyczy dysku `r2_publiczne`; dysk `r2` z oryginałami

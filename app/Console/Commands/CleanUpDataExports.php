@@ -47,6 +47,7 @@ class CleanUpDataExports extends Command
         }
 
         $removed = 0;
+        $nieudane = 0;
 
         foreach ($expired as $export) {
             $label = $export->getKey().' (wygasła '.$export->expires_at->format('Y-m-d H:i').')';
@@ -57,28 +58,46 @@ class CleanUpDataExports extends Command
                 continue;
             }
 
-            if ($export->disk !== null && $export->object_key !== null) {
-                try {
-                    Storage::disk($export->disk)->delete($export->object_key);
-                } catch (Throwable $e) {
-                    // Brak pliku nie może zablokować sprzątania reszty —
-                    // inaczej jedna zepsuta paczka trzyma w storage sto innych.
-                    Log::warning('Nie udało się usunąć wygasłej paczki z danymi', [
-                        'data_export_id' => $export->getKey(),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            $skasowano = $this->skasujPlik($export);
+
+            // STATUS ZMIENIAMY ZAWSZE — plik ma przestać być do pobrania
+            // niezależnie od tego, czy udało się go usunąć ze storage.
+            //
+            // ADRESU NIE KASUJEMY, DOPÓKI PLIKU NAPRAWDĘ NIE MA (audyt W3-02).
+            // Wcześniej `disk` i `object_key` znikały bezwarunkowo, także po
+            // nieudanym kasowaniu — i to jest gorsze niż sama nieudana próba.
+            // Ta paczka to kopia CAŁEGO konta: e-mail, wszystkie treści,
+            // wszystkie zdjęcia. Wyczyszczenie adresu zamieniało odwracalną
+            // awarię sprzątania w plik, o którym nikt już nie wie, gdzie leży
+            // — czyli w bezterminowe przechowywanie danych osobowych, wbrew
+            // zasadzie minimalizacji, na którą powołuje się ta komenda.
+            //
+            // Z zachowanym adresem następne uruchomienie spróbuje ponownie:
+            // zapytanie wyżej obejmuje też paczki w stanie `expired`.
+            $export->update($skasowano
+                ? [
+                    'status' => DataExport::STATUS_EXPIRED,
+                    'disk' => null,
+                    'object_key' => null,
+                    'bytes' => null,
+                ]
+                : ['status' => DataExport::STATUS_EXPIRED]);
+
+            if ($skasowano) {
+                $removed++;
+                $this->line('Usunięto: '.$label);
+            } else {
+                $nieudane++;
+                $this->line('NIE UDAŁO SIĘ usunąć pliku (adres zachowany, spróbuję ponownie): '.$label);
             }
+        }
 
-            $export->update([
-                'status' => DataExport::STATUS_EXPIRED,
-                'disk' => null,
-                'object_key' => null,
-                'bytes' => null,
-            ]);
-
-            $removed++;
-            $this->line('Usunięto: '.$label);
+        if ($nieudane > 0) {
+            // `warn`, nie `line`: to musi być widoczne w logu harmonogramu.
+            // Paczka, której nie udało się usunąć, leży dalej w storage
+            // i wraca do kolejki przy następnym uruchomieniu.
+            $this->warn('Nie udało się usunąć '.$this->paczki($nieudane)
+                .'. Adresy zachowane — następne uruchomienie spróbuje ponownie.');
         }
 
         $this->info($dryRun
@@ -90,6 +109,55 @@ class CleanUpDataExports extends Command
     }
 
     /** Polska odmiana: „1 wygasłą paczkę”, „2 wygasłe paczki”, „5 wygasłych paczek”. */
+    /**
+     * Kasuje plik paczki i SPRAWDZA, czy naprawdę zniknął.
+     *
+     * Samo `delete()` nie wystarcza jako dowód. Dysk `local` ma
+     * `throw => false`, więc zwraca `false` zamiast rzucić wyjątek — a stary
+     * kod nie patrzył ani na wyjątek, ani na wynik. Nieudane kasowanie
+     * wyglądało dokładnie tak samo jak udane.
+     *
+     * Stąd `exists()` po fakcie: to jedyna odpowiedź, która nie zależy od
+     * tego, jak skonfigurowany jest dysk.
+     */
+    private function skasujPlik(DataExport $export): bool
+    {
+        if ($export->disk === null || $export->object_key === null) {
+            // Nie ma czego kasować — plik zniknął przy wcześniejszym przebiegu
+            // albo nigdy nie powstał. To jest sukces, nie awaria.
+            return true;
+        }
+
+        try {
+            $dysk = Storage::disk($export->disk);
+            $dysk->delete($export->object_key);
+
+            if ($dysk->exists($export->object_key)) {
+                Log::error('Paczka z danymi nadal istnieje po próbie usunięcia', [
+                    'data_export_id' => $export->getKey(),
+                    'disk' => $export->disk,
+                    'object_key' => $export->object_key,
+                ]);
+
+                return false;
+            }
+
+            return true;
+        } catch (Throwable $e) {
+            // Brak pliku nie może zablokować sprzątania reszty — inaczej jedna
+            // zepsuta paczka trzyma w storage sto innych. Ale MUSI zostawić
+            // ślad z adresem: bez niego nie da się tego dokończyć ręcznie.
+            Log::error('Nie udało się usunąć wygasłej paczki z danymi', [
+                'data_export_id' => $export->getKey(),
+                'disk' => $export->disk,
+                'object_key' => $export->object_key,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     private function paczki(int $n): string
     {
         $mod10 = $n % 10;
