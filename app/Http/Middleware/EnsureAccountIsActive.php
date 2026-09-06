@@ -133,8 +133,10 @@ class EnsureAccountIsActive
                 .($odModeratora !== null ? $odModeratora.' ' : '')
                 .'Jeśli uważasz, że to pomyłka, napisz do nas: '
                 .config('kuking.community.contact_email')
-            : 'To konto jest oznaczone do usunięcia. Jeśli chcesz je odzyskać, napisz do nas: '
-                .config('kuking.community.contact_email');
+            : 'To konto jest oznaczone do usunięcia, dlatego zostałeś/aś wylogowany/a. Jeśli chcesz je odzyskać, '
+                .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
+                .'hasłem, że to Ty. Jeśli dane zostały już usunięte na stałe, ta strona Cię o tym poinformuje — '
+                .'wtedy napisz do nas: '.config('kuking.community.contact_email');
 
         Auth::logout();
 

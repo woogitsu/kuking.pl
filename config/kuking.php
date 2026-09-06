@@ -120,6 +120,10 @@ return [
         'login' => '5,1',
         'register' => '5,10',
         'password_reset' => '5,10',
+        // Formularz cofnięcia usunięcia konta stoi PRZED logowaniem (audyt A8,
+        // ten sam powód co limit 'appeal' dla formularza odwołań #10) — jest
+        // celem do zgadywania haseł, więc 5 prób na godzinę, nie na minutę.
+        'cancel_delete' => '5,60',
         'upload' => '30,1',
         'comment' => '10,1',
         'post' => '20,10',
