@@ -222,6 +222,13 @@ class RecipeController extends Controller
                 ->limit(12)
                 ->get(),
             'cookedCount' => $model->cookedEvents()->count(),
+            // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
+            // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
+            // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
+            // gwiazdek nie ma i nie będzie, bo są abstrakcją, a zdanie
+            // „dziesięć z dwunastu osób zrobi to ponownie" rozumie każdy.
+            'zrobiaPonownie' => $model->cookedEvents()->where('would_make_again', true)->count(),
+            'oceniloWykonanie' => $model->cookedEvents()->whereNotNull('would_make_again')->count(),
             'isSaved' => $request->user() !== null && $request->user()
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))

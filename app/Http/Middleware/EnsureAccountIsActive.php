@@ -80,7 +80,15 @@ class EnsureAccountIsActive
         }
 
         if ($user->isSuspended() && $this->tozZapis($request)) {
-            return back()->withErrors(['konto' => $this->komunikatZawieszenia($user)]);
+            // `withInput()`, a nie samo `back()`. Osoba zawieszona, która mimo
+            // paska ostrzegawczego napisała komentarz albo wypełniła formularz
+            // przepisu, traciła cały tekst. To ta sama reguła co przy wygasłej
+            // sesji (#81) — „poprawne dane nigdy nie znikają" — tylko inna
+            // przyczyna: tu odmowa jest ZAMIERZONA, a mimo to nie ma powodu
+            // karać człowieka utratą tego, co napisał.
+            return back()
+                ->withInput()
+                ->withErrors(['konto' => $this->komunikatZawieszenia($user)]);
         }
 
         return $next($request);

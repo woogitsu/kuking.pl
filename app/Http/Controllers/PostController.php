@@ -116,7 +116,14 @@ class PostController extends Controller
             'comments.replies.author.profile.avatar',
         ]);
 
-        return view('pages.posts.show', ['post' => $post]);
+        return view('pages.posts.show', [
+            'post' => $post,
+            // Zachęta do kolejnego zdjęcia brzmi inaczej przy pierwszym wpisie
+            // (COLD_START.md). Liczymy TYLKO dla autora — dla kogokolwiek
+            // innego to dodatkowe zapytanie bez żadnego zastosowania.
+            'toPierwszyWpis' => $request->user()?->getKey() === $post->author_id
+                && $post->author->posts()->published()->count() === 1,
+        ]);
     }
 
     public function comment(Request $request, Post $post): RedirectResponse

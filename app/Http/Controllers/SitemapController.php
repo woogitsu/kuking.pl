@@ -91,9 +91,20 @@ class SitemapController extends Controller
             'User-agent: *',
             // Wyszukiwanie nigdy nie jest treścią — to nieskończone kombinacje
             // parametrów, klasyczna pułapka indeksowania.
-            'Disallow: /search',
+            // ADRESY MUSZĄ BYĆ TE, KTÓRE SERWIS NAPRAWDĘ MA.
+            // Wcześniej stało tu `/search`, `/home` i `/add` — po angielsku,
+            // czyli pod adresami, których w tym serwisie nie ma. Wyszukiwarka
+            // i ekran dodawania NIE BYŁY wyłączone z indeksowania.
+            //
+            // Ta sama lista, tylko poprawna, stała dziesięć plików dalej:
+            // `ApplySecurityHeaders` wysyła `X-Robots-Tag` na polskich
+            // prefiksach. Strony nie trafiały więc do indeksu, ale budżet
+            // indeksowania szedł na `/szukaj?q=...`, a plik twierdził coś,
+            // czego nie robił.
+            'Disallow: /szukaj',
             'Disallow: /home',
-            'Disallow: /add',
+            'Disallow: /dodaj',
+            'Disallow: /witaj',
             'Disallow: /powiadomienia',
             'Disallow: /ustawienia',
             'Disallow: /zeszyt',
