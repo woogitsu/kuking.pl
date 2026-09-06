@@ -12,6 +12,9 @@
 
 @import "./tokens.css";
 
+/* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
+@import "./fonts.css";
+
 @layer components {
 
   /* ---------------------------------------------------------------------
@@ -97,15 +100,31 @@
     align-items: center;
     gap: var(--spacing-2);
     font-size: var(--text-title-sm);
-    font-weight: 800;
-    letter-spacing: 0.02em;
+    font-weight: 850;
+    /* Ujemny odstęp między literami jest częścią logotypu z UI kitu: napis
+       ma być zwarty, żeby czytał się jako znak, a nie jako zdanie. Wartość
+       jest ułamkiem rozmiaru pisma (`em`), więc trzyma się przy każdej skali
+       tekstu — w px rozjechałaby się przy 150%. */
+    letter-spacing: -0.02em;
     color: var(--color-ink);
     text-decoration: none;
   }
 
-  /* „KING" w „KUKING" — subtelny akcent, nie fajerwerki. */
-  .wordmark-king { color: var(--color-brand); }
+  /* „.pl" w kolorze marki — logotyp z UI kitu v2 (decyzja właściciela).
+     Wcześniej akcentowane było „KING" w „KUKING". */
+  .wordmark-tld { color: var(--color-brand); }
 
+  /* Znak dziedziczy kolor po logotypie i przez to sam się przestawia
+     w trybie ciemnym. `flex: none` — inaczej flexbox ściska go przy
+     wąskim ekranie i garnek robi się owalny. */
+  .wordmark .kuking-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: none;
+    color: var(--color-brand);
+  }
+
+  /* Wersja dla <img>, używana jeszcze w pustych stanach. */
   .wordmark-mark { width: 2rem; height: 2rem; flex: none; }
 
   /* --- Dolna nawigacja (mobile) --- */

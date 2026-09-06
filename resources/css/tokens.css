@@ -59,9 +59,14 @@
   /* --- Fokus klawiatury --- */
   --color-focus: #155EEF;
 
-  /* --- Typografia: font --- */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Noto Sans", "Liberation Sans", Arial, sans-serif;
+  /* --- Typografia: font ---
+     „Inter Variable" wgrany lokalnie (resources/css/fonts.css). Reszta listy
+     to NIE ozdoba: dopóki font się nie pobierze, tekst jest rysowany fontem
+     systemowym — dzięki `font-display: swap` człowiek widzi treść od razu,
+     a nie puste miejsce. Dlatego fallback musi być prawdziwym stosem
+     systemowym, a nie samym `sans-serif`. */
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Noto Sans", "Liberation Sans", Arial, sans-serif;
 
   /* --- Typografia: skala (skalowana przez --user-text-scale, patrz @layer base) --- */
   --text-help: calc(1rem * var(--user-text-scale, 1));           /* 16px bazowo */

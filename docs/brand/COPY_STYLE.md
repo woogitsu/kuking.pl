@@ -26,6 +26,17 @@ tłumaczący coś babci — do przepisania.
 
 ## 2. kuKING — najważniejsza decyzja w całym systemie
 
+> **Trzy zapisy, trzy zastosowania — nie myl ich (D-015):**
+>
+> | zapis | gdzie | przykład |
+> |---|---|---|
+> | `KuKing.pl` | **tylko logotyp** — belka u góry, znak, materiały marki | — |
+> | `Kuking` | **tekst ciągły**, nagłówki, komunikaty | „Świeżo z Kuking" |
+> | `kuKING` | **o człowieku**, który tu gotuje | „Zostań kuKINGiem" |
+>
+> Wersalik w środku logotypu jest częścią znaku, a nie zasadą ortograficzną.
+> W zdaniu piszemy `Kuking` — `KuKing` w środku akapitu wygląda na literówkę.
+
 W słowie **Ku-KING** siedzi **KING**. To jest cała zabawa i trzeba ją rozegrać
 dokładnie w jeden sposób.
 
