@@ -414,6 +414,29 @@ for (const wariant of WARIANTY) {
    */
   const ustawienia = {
     viewport: { width: wariant.szerokosc, height: 900 },
+    /*
+     * `reducedMotion: 'reduce'` NIE JEST tu kosmetyką ani przyspieszeniem.
+     *
+     * `.btn` ma `transition: background-color .15s`. Odkąd motyw ciemny
+     * włącza się ATRYBUTEM (a nie `prefers-color-scheme` ustawionym przed
+     * wczytaniem strony), przełączenie uruchamia to przejście — a axe czytał
+     * kolory w jego trakcie i widział tło w POŁOWIE DROGI z białego do
+     * ciemnego. Przy jasnym tekście dawało to sześć fałszywych naruszeń
+     * kontrastu na `.btn-secondary`. Zmierzone: natychmiast po przełączeniu
+     * `rgb(255,255,255)`, po 400 ms `rgb(42,36,30)` — czyli poprawna wartość
+     * `--color-surface-raised`. Kontrast był poprawny cały czas; zły był
+     * moment pomiaru.
+     *
+     * Arkusz honoruje `prefers-reduced-motion: reduce` (tokens.css) i skraca
+     * wtedy przejścia do 0,01 ms, więc to ustawienie daje stan KOŃCOWY bez
+     * czekania i bez zgadywania. Wstrzyknięcie `<style>` z `transition: none`
+     * NIE WCHODZI W GRĘ: CSP jest wymuszające i słusznie je odrzuca (`style-src`
+     * bez `unsafe-inline`) — automat dostał tym po palcach i dobrze.
+     *
+     * Efekt uboczny jest pożądany: mierzymy stronę tak, jak widzi ją osoba,
+     * która w systemie poprosiła o ograniczenie animacji.
+     */
+    reducedMotion: 'reduce',
   };
 
   const kontekstGosciaAxe = await przegladarka.newContext(ustawienia);
@@ -468,6 +491,10 @@ for (const wariant of WARIANTY) {
     // Motyw ciemny — WYŁĄCZNIE ten atrybut go włącza (docs/DECISIONS.md,
     // D-019). Kontekst przeglądarki (`colorScheme`) już nic by tu nie dał —
     // arkusz stylów celowo nie ogląda się na `prefers-color-scheme`.
+    //
+    // Przejścia CSS są tu wyłączone przez `reducedMotion` na kontekście —
+    // patrz komentarz przy `ustawienia` wyżej. Bez tego axe mierzyłby kolory
+    // w połowie animacji przełączenia motywu.
     if (wariant.motyw === 'dark') {
       await strona.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     }
@@ -900,6 +927,8 @@ if (rozjazdyBelki.length > 0) {
     log(`  ${r.ekran} przy ${r.szerokosc} px:`);
     log(`      logotyp ${r.lewa} zamiast ${r.oczekiwanaLewa} (o ${r.bladLewej} px)`);
     log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
+    log(`      stopka  ${r.stopkaLewa}…${r.stopkaPrawa} zamiast `
+      + `${r.oczekiwanaLewa}…${r.oczekiwanaPrawa} (o ${r.bladStopkiL}/${r.bladStopkiP} px)`);
   }
 }
 

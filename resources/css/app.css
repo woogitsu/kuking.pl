@@ -1334,6 +1334,17 @@
 
   @media (min-width: 64rem) {
     .site-footer { padding-bottom: var(--spacing-8); }
+
+    /* Margines boczny oddaje `.site-footer-inner`, tak jak `.app-body` oddaje
+       go treści. Gdy dawały go OBA, stopka zaczynała się 16 px dalej niż
+       nawigacja — i to tylko przy oknach węższych niż pełna siatka, bo przy
+       1512 px zewnętrzny margines znikał w wyśrodkowaniu i przypadkiem
+       wychodziło równo. Zmierzone przy 1280 px: treść od 24 px, stopka od
+       40 px. Automat dostępności pilnuje tego teraz jawnie. */
+    .site-footer {
+      padding-left: 0;
+      padding-right: 0;
+    }
   }
 
   /* Wersja aplikacji.
