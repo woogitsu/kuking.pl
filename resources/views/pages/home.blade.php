@@ -28,6 +28,17 @@
          zaobserwować. --}}
     <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
 
+    @if(($zrodloFeedu ?? 'obserwowani') === 'tematy')
+        {{-- Feed tematów (issue #31). Człowiek MUSI wiedzieć, skąd się wzięły
+             te wpisy: feed, którego pochodzenia nie da się wytłumaczyć,
+             wygląda jak algorytm, a tego tu nie ma i nie będzie. --}}
+        <div class="notice">
+            <strong>To wpisy z tematów, które obserwujesz.</strong>
+            Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.
+            <a href="{{ route('settings.topics') }}">Zmień swoje tematy</a>.
+        </div>
+    @endif
+
     @if($showingDiscover)
         {{--
             Feed obserwowanych jest pusty. Nie pokazujemy pustki — pokazujemy

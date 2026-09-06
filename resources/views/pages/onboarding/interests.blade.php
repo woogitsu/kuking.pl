@@ -10,17 +10,18 @@
 
     <h1>Co lubisz gotować?</h1>
     <p style="margin-bottom:var(--spacing-5);">
-        Zaznacz, co Cię interesuje — podpowiemy Ci ludzi, którzy gotują podobnie.
-        Możesz też nic nie zaznaczać i przejść dalej.
+        Zaznacz, co Cię interesuje. Z tych tematów zbudujemy Twoją stronę
+        główną, żeby nie była pusta, zanim kogoś zaobserwujesz. Zawsze możesz
+        to zmienić w ustawieniach. Możesz też nic nie zaznaczać i przejść dalej.
     </p>
 
     <form method="POST" action="{{ route('onboarding.interests') }}">
         @csrf
         <div class="choice-grid">
-            @foreach($interests as $value => $label)
+            @foreach($topics as $topic)
                 <label class="choice">
-                    <input type="checkbox" name="interests[]" value="{{ $value }}">
-                    <span class="choice-label">{{ $label }}</span>
+                    <input type="checkbox" name="topics[]" value="{{ $topic->getKey() }}">
+                    <span class="choice-label">{{ $topic->name }}</span>
                 </label>
             @endforeach
         </div>

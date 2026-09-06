@@ -126,6 +126,26 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return Profile::whereRaw('lower(username) = ?', [mb_strtolower(trim($login))])->first()?->user;
     }
 
+    /**
+     * Tematy, które ta osoba obserwuje (issue #31).
+     *
+     * `withTimestamps()` NIE, bo `topic_follows` ma tylko `created_at` —
+     * to relacja, nie encja, i nie ma czego aktualizować. Data przydaje się
+     * wyłącznie do pytania „od kiedy", więc ustawiamy ją ręcznie przy
+     * podpięciu.
+     */
+    public function followedTopics(): BelongsToMany
+    {
+        return $this->belongsToMany(Topic::class, 'topic_follows')
+            ->withPivot('created_at')
+            ->orderBy('topics.position');
+    }
+
+    public function isFollowingTopic(Topic $topic): bool
+    {
+        return $this->followedTopics()->whereKey($topic->getKey())->exists();
+    }
+
     protected function casts(): array
     {
         return [

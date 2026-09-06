@@ -116,6 +116,30 @@ class Post extends Model
     }
 
     /**
+     * Wpisy autorów, których konto jest dostępne — bez zawieszonych,
+     * zablokowanych i zgłoszonych do usunięcia.
+     *
+     * ODDZIELNIE OD `widoczneDla`, I TO NIE JEST PRZEOCZENIE
+     * `widoczneDla` odpowiada na pytanie „czy TEN widz ma prawo to zobaczyć"
+     * — dotyczy relacji między dwiema osobami. Ten zakres odpowiada na inne
+     * pytanie: „czy ta treść ma prawo być POLECANA nieznajomym". Pierwsze
+     * obowiązuje wszędzie, drugie tylko tam, gdzie serwis sam podsuwa treść:
+     * „Świeżo z Kuking", wyszukiwarka, tablica na dziś, feed tematów.
+     *
+     * Rozdzielenie ma konkretny skutek: zawieszony autor dalej widzi własne
+     * wpisy i dalej działa bezpośredni link, ale serwis przestaje je
+     * podsuwać. Sklejenie obu warunków w jeden odcięłoby autora od własnych
+     * treści — a „poprawne dane nigdy nie znikają" obowiązuje także wtedy,
+     * gdy ktoś jest ukarany.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeTylkoOdDostepnychAutorow(Builder $query): void
+    {
+        $query->whereHas('author', fn ($autor) => $autor->where('status', User::STATUS_ACTIVE));
+    }
+
+    /**
      * Wpisy, które MOŻE zobaczyć konkretna osoba — licząc per autor wiersza.
      *
      * DLACZEGO TO MUSI BYĆ ZAKRES NA MODELU, A NIE POMOCNIK W KONTROLERZE

@@ -49,8 +49,27 @@ final class FollowingFeed
             ->cursorPaginate($perPage);
     }
 
+    /**
+     * Czy feed obserwowanych nie ma nic do pokazania POZA własnymi wpisami
+     * tej osoby.
+     *
+     * NAZWA MÓWIŁA JEDNO, KOD PYTAŁ O DRUGIE
+     * Wcześniej brzmiało to `following()->doesntExist() && posts()->doesntExist()`
+     * — czyli „czy ten człowiek zrobił już cokolwiek", a nie „czy feed jest
+     * pusty". Skutek: osoba, która opublikowała JEDEN wpis i nikogo nie
+     * obserwuje, dostawała feed złożony wyłącznie z własnego wpisu, a blok
+     * „Świeżo z Kuking" znikał jej z ekranu NA ZAWSZE. Pierwsza publikacja
+     * odcinała ją od reszty serwisu — dokładnie odwrotnie, niż powinna.
+     *
+     * Teraz pytamy o treść: czy jest tu cokolwiek od kogoś innego.
+     */
     public function isEmptyFor(User $viewer): bool
     {
-        return $viewer->following()->doesntExist() && $viewer->posts()->published()->doesntExist();
+        return Post::query()
+            ->published()
+            ->whereIn('author_id', $viewer->following()->pluck('users.id')->all())
+            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            ->tylkoOdDostepnychAutorow()
+            ->doesntExist();
     }
 }

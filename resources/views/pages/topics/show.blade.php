@@ -20,6 +20,24 @@
         <p class="lead">{{ $topic->description }}</p>
     @endif
 
+    @auth
+        {{-- Zwykły formularz, nie przycisk sterowany skryptem: bez JavaScriptu
+             ma działać jedno i drugie (AGENTS.md §5). --}}
+        <form method="POST"
+              action="{{ $obserwowany ? route('topics.unfollow', $topic) : route('topics.follow', $topic) }}"
+              style="margin-top:var(--spacing-4);">
+            @csrf
+            @if($obserwowany)
+                @method('DELETE')
+                <button class="btn btn-quiet" type="submit">Przestań obserwować ten temat</button>
+                <span class="meta">Wpisy z tego tematu trafiają na Twoją stronę główną.</span>
+            @else
+                <button class="btn btn-primary" type="submit">Obserwuj ten temat</button>
+                <span class="meta">Wpisy z tego tematu będą trafiać na Twoją stronę główną.</span>
+            @endif
+        </form>
+    @endauth
+
     <div class="stack" style="margin-top:var(--spacing-6);">
         @forelse($posts as $post)
             <x-post-card :post="$post" />

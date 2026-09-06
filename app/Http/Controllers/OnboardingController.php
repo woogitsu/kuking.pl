@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Social\Actions\FollowUser;
 use App\Models\Profile;
+use App\Models\Topic;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,46 +24,50 @@ use Illuminate\View\View;
  */
 class OnboardingController extends Controller
 {
-    /**
-     * Zamknięta lista zainteresowań. Świadomie krótka i konkretna —
-     * to polska kuchnia domowa, nie taksonomia gastronomiczna.
-     */
-    public const INTERESTS = [
-        'obiady' => 'Obiady na co dzień',
-        'ciasta' => 'Ciasta i wypieki',
-        'zupy' => 'Zupy',
-        'przetwory' => 'Przetwory i weki',
-        'chleb' => 'Chleb i zakwas',
-        'kiszonki' => 'Kiszonki',
-        'swieta' => 'Święta i uroczystości',
-        'grill' => 'Grill i ognisko',
-        'bezmiesne' => 'Bez mięsa',
-        'dla_dzieci' => 'Dla dzieci i wnuków',
-        'regionalne' => 'Kuchnia regionalna',
-        'szybkie' => 'Szybkie, na jedną patelnię',
-    ];
-
     public function __construct(
         private readonly DailyBoard $board,
         private readonly FollowUser $followUser,
     ) {}
 
+    /**
+     * Krok „co lubisz gotować".
+     *
+     * Lista przyszła z bazy, a nie ze stałej w tym pliku (issue #31).
+     * Wcześniej były DWIE listy: dwanaście pozycji tutaj i trzydzieści
+     * w seederze tematów — ta sama rzecz w dwóch miejscach, więc pytanie
+     * z onboardingu nie dawało się połączyć z niczym w serwisie.
+     */
     public function interests(): View
     {
-        return view('pages.onboarding.interests', ['interests' => self::INTERESTS]);
+        return view('pages.onboarding.interests', [
+            'topics' => Topic::doWyboru()->get(),
+        ]);
     }
 
     public function saveInterests(Request $request): RedirectResponse
     {
-        $request->validate([
-            'interests' => ['nullable', 'array'],
-            'interests.*' => ['string', 'in:'.implode(',', array_keys(self::INTERESTS))],
+        $dane = $request->validate([
+            'topics' => ['nullable', 'array'],
+            'topics.*' => ['string', 'exists:topics,id'],
         ]);
 
-        // Zainteresowania na tym etapie służą tylko do doboru propozycji
-        // i do wiedzy, jakie tematy tygodnia mają sens. Trzymamy je
-        // w sesji do końca onboardingu; osobna tabela to zadanie z backlogu.
-        $request->session()->put('onboarding.interests', $request->input('interests', []));
+        // TO JEST CAŁY SENS TEJ ZMIANY (issue #31).
+        //
+        // Wcześniej odpowiedź szła DO SESJI i ginęła na końcu onboardingu.
+        // Marnowaliśmy najcenniejsze dane, jakie mamy przy cold starcie —
+        // padają w jedynym momencie, w którym człowiek chętnie odpowiada
+        // na pytania o siebie, i decydują o tym, czy jego pierwszy feed
+        // będzie pusty.
+        $wybrane = array_values(array_intersect(
+            $dane['topics'] ?? [],
+            Topic::doWyboru()->pluck('id')->all(),
+        ));
+
+        if ($wybrane !== []) {
+            $request->user()->followedTopics()->syncWithoutDetaching(
+                array_fill_keys($wybrane, ['created_at' => now()]),
+            );
+        }
 
         return redirect()->route('onboarding.people');
     }
@@ -104,8 +109,6 @@ class OnboardingController extends Controller
 
     public function done(Request $request): View
     {
-        $request->session()->forget('onboarding.interests');
-
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
         ]);

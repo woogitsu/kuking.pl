@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
+use App\Domain\Feed\TopicFeed;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -15,6 +16,7 @@ class FeedController extends Controller
     public function __construct(
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
+        private readonly TopicFeed $topicFeed,
         private readonly DailyBoard $dailyBoard,
     ) {}
 
@@ -36,24 +38,47 @@ class FeedController extends Controller
     }
 
     /**
-     * /home — feed obserwowanych.
+     * /home — feed obserwowanych, a gdy go nie ma, feed tematów.
      *
-     * Gdy użytkownik nikogo nie obserwuje, feed jest z definicji pusty.
-     * Zamiast pokazywać pustkę, pokazujemy "Świeżo z Kuking" i propozycje
-     * ludzi. Bez tego cold start się nie udaje.
+     * TRZY STOPNIE, NIE DWA (issue #31)
+     * Do tej pory były dwa: albo wpisy obserwowanych, albo „Świeżo z Kuking"
+     * — czyli wszystko jak leci, identyczne dla każdego. Nowe konto dostawało
+     * więc ekran, który nie należał do niego.
+     *
+     * Między nie wchodzi feed TEMATÓW wybranych w onboardingu. To jedyna
+     * rzecz, którą o kimś wiemy w pierwszej minucie, i pierwszy ekran, który
+     * jest jego, a nie serwisu. Dopiero gdy i to jest puste — bo ktoś pominął
+     * onboarding albo w jego tematach nikt jeszcze nic nie ugotował —
+     * pokazujemy „Świeżo z Kuking".
+     *
+     * Kolejność jest ważna w drugą stronę też: człowiek, który KOGOŚ
+     * obserwuje, dostaje wpisy tych osób, nawet jeśli obserwuje też tematy.
+     * Ludzie są ważniejsi od kategorii — to jest serwis o ludziach,
+     * którzy gotują (AGENTS.md).
      */
     public function home(Request $request): View
     {
         $user = $request->user();
-        $feedIsEmpty = $this->followingFeed->isEmptyFor($user);
+
+        $zrodlo = match (true) {
+            ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
+            $this->topicFeed->maTresci($user) => 'tematy',
+            default => 'odkrywanie',
+        };
 
         return view('pages.home', [
             'greeting' => $this->greeting($user->displayName()),
             'board' => $this->dailyBoard->forViewer($user),
-            'posts' => $feedIsEmpty
-                ? $this->discoverFeed->paginate($user)
-                : $this->followingFeed->paginate($user),
-            'showingDiscover' => $feedIsEmpty,
+            'posts' => match ($zrodlo) {
+                'obserwowani' => $this->followingFeed->paginate($user),
+                'tematy' => $this->topicFeed->paginate($user),
+                default => $this->discoverFeed->paginate($user),
+            },
+            'zrodloFeedu' => $zrodlo,
+            'showingDiscover' => $zrodlo === 'odkrywanie',
+            'obserwowaneTematy' => $zrodlo === 'tematy'
+                ? $user->followedTopics()->get()
+                : collect(),
         ]);
     }
 
