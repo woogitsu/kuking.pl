@@ -35,7 +35,10 @@
                 @php
                     $personUsername = $person->profile?->username;
                     $isSelf = $viewer !== null && $viewer->getKey() === $person->getKey();
-                    $isFollowingPerson = $viewer !== null && ! $isSelf && $viewer->isFollowing($person);
+                    // `obserwowany` policzył `withExists` w kontrolerze — jednym
+                    // zapytaniem dla całej strony. Wcześniej było tu `isFollowing()`,
+                    // czyli osobny `SELECT EXISTS` na każdy wiersz listy.
+                    $isFollowingPerson = $viewer !== null && ! $isSelf && (bool) ($person->obserwowany ?? false);
                 @endphp
                 <div class="card" style="display:flex; gap:var(--spacing-3); align-items:center; justify-content:space-between; flex-wrap:wrap;">
                     <a href="{{ $person->profile?->url() }}" style="display:flex; gap:var(--spacing-3); align-items:center; text-decoration:none; color:inherit; min-width:14rem;">
