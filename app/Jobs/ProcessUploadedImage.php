@@ -30,6 +30,15 @@ use Intervention\Image\ImageManager;
  * Jeśli cokolwiek pójdzie nie tak, zdjęcie dostaje status `rejected`, a powód
  * ląduje w metadanych — użytkownik widzi wtedy komunikat po polsku, a nie
  * pustą ramkę.
+ *
+ * Zdjęcie NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
+ * w `handle()`, jak i hook `failed()`. Ten drugi jest konieczny, bo przy
+ * przekroczeniu `$timeout` proces dostaje sygnał w środku wykonania i nie ma
+ * już żadnego wyjątku do przechwycenia: `catch` się nie wykona, a zdjęcie
+ * zostałoby w `processing` na zawsze. Widok dla tego stanu mówi „odśwież
+ * stronę za chwilę”, więc bez `failed()` człowiek dostaje obietnicę, która
+ * nigdy się nie spełni, i nie ma w interfejsie żadnej drogi, żeby to naprawić
+ * samodzielnie (issue #112). Ten sam mechanizm ma `GenerateUserExport`.
  */
 class ProcessUploadedImage implements ShouldQueue
 {
@@ -118,6 +127,42 @@ class ProcessUploadedImage implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Ostatnia linia obrony: po wyczerpaniu prób — albo po timeoucie, po którym
+     * nie ma wyjątku w `handle()` — zdjęcie nie może zostać w `processing`.
+     *
+     * Dekodowanie zdjęcia 45 Mpx i budowa trzech wariantów w GD to jest realnie
+     * ten kawałek serwisu, który potrafi nie zmieścić się w limicie czasu
+     * i pamięci workera (`--memory=384`). Bez tego hooka takie zdjęcie zostaje
+     * w stanie przejściowym bez końca.
+     */
+    public function failed(?\Throwable $e): void
+    {
+        $media = Media::find($this->mediaId);
+
+        // `ready` zostawiamy nietknięte: `failed()` może dojść po spóźnionej
+        // próbie, która i tak zakończyła się sukcesem. Cofnięcie gotowego
+        // zdjęcia do `rejected` skasowałoby je z widoków bez powodu.
+        if ($media === null || $media->status === Media::STATUS_READY) {
+            return;
+        }
+
+        Log::warning('Przetwarzanie zdjęcia nie powiodło się do końca', [
+            'media_id' => $this->mediaId,
+            // Bez treści wyjątku przy timeoucie — wtedy wyjątku po prostu nie ma.
+            'error' => $e?->getMessage() ?? 'przekroczony limit czasu zadania',
+        ]);
+
+        $media->update([
+            'status' => Media::STATUS_REJECTED,
+            'metadata' => array_merge($media->metadata ?? [], [
+                'failure_reason' => $e === null
+                    ? 'processing_timeout'
+                    : 'processing_failed_or_timeout',
+            ]),
+        ]);
     }
 
     /**
