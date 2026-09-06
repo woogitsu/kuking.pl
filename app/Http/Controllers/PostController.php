@@ -96,6 +96,9 @@ class PostController extends Controller
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
+            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
+            // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
+            'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
         ]);
 
         if ($walidator->fails()) {

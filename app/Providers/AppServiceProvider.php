@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Support\KomunikatZaDuzaWysylka;
+use App\Support\OdmianaWalidacji;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -50,6 +52,23 @@ class AppServiceProvider extends ServiceProvider
 
                 return KomunikatZaDuzaWysylka::odpowiedz($request);
             },
+        );
+
+        // Issue #86: `lang/pl/validation.php` nie potrafi sam odmienić
+        // rzeczownika przy `:min`/`:max` (Laravel woła zwykłe `Lang::get()`,
+        // nie `trans_choice()`), więc komunikaty size'owe niosą tam wzorzec
+        // `:odmiana(jeden|kilka|wiele)`. Ten hak jest jedynym miejscem, które
+        // go rozumie — i jedynym, które w ogóle PODSTAWIA `:min`/`:max`
+        // rejestracja własnego replacera dla reguły wyłącza wbudowaną
+        // podmianę Laravela dla TEJ reguły, więc musimy zrobić to sami
+        // (patrz komentarz w `OdmianaWalidacji`).
+        Validator::replacer(
+            'min',
+            fn (string $message, string $attribute, string $rule, array $parameters): string => OdmianaWalidacji::podstaw($message, (int) ($parameters[0] ?? 0)),
+        );
+        Validator::replacer(
+            'max',
+            fn (string $message, string $attribute, string $rule, array $parameters): string => OdmianaWalidacji::podstaw($message, (int) ($parameters[0] ?? 0)),
         );
     }
 }

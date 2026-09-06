@@ -302,10 +302,37 @@ class RecipeController extends Controller
             'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
         ], [
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
-            'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki.',
+            'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
+            'title.max' => 'Nazwa przepisu jest za długa. Skróć ją do 180 znaków.',
+            'summary.max' => 'Krótki opis jest za długi. Zostaw najwyżej 2000 znaków — resztę wpisz w historii przepisu.',
+            'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
+            'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
+            'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
+            'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
+            'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
+            'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
+            'cook_minutes.integer' => 'Czas gotowania podaj w pełnych minutach, na przykład 90.',
+            'cook_minutes.min' => 'Czas gotowania nie może być ujemny. Wpisz na przykład 90.',
+            'cook_minutes.max' => 'Czas gotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
+            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest nieprawidłowa"
+            // (issue #86) — a te dwa pola akurat renderują się jako <select>,
+            // więc zdanie jest tym samym, co widać na ekranie.
+            'difficulty.in' => 'Wybierz poziom trudności: łatwy, średni albo trudny.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten przepis.',
+            'visibility.in' => 'Zaznacz, kto ma widzieć ten przepis: wszyscy, obserwujący czy tylko Ty.',
             'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
+            'source_type.in' => 'Zaznacz, skąd jest ten przepis: Twój własny, rodzinny, adaptacja czy z zewnątrz.',
+            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — samo imię wystarczy.',
+            'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
             'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
+            // Te trzy komunikaty są celowo IDENTYCZNE jak w komponencie
+            // `recipe-wizard` (droga z JavaScriptem) — to jest ten sam
+            // formularz na jednej stronie, więc ma mówić to samo (issue #86,
+            // przykład z treści zgłoszenia: „The family since year field
+            // must be at least 1850").
+            'family_since_year.integer' => 'Rok wpisz czterema cyframi, na przykład 1974.',
+            'family_since_year.min' => 'Ten rok jest za wczesny. Wpisz rok od 1850.',
+            'family_since_year.max' => 'Ten rok jest za późny. Wpisz rok do 2100.',
             'hero_photo.image' => 'Zdjęcie główne musi być plikiem JPG, PNG lub WebP.',
             // Wcześniej brakowało tych komunikatów — za duży plik pokazywał
             // domyślny, angielski błąd Laravela (narusza AGENTS.md).
