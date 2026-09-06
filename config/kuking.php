@@ -31,6 +31,16 @@ return [
         'disk' => env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
 
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
+        //
+        // UWAGA NA `docker/php.ini`: ta liczba, pomnożona przez
+        // `max_per_post` niżej, MUSI z zapasem mieścić się w `post_max_size`
+        // z `docker/php.ini` — inaczej PHP odrzuca całe żądanie (razem
+        // z tokenem CSRF) jeszcze zanim Laravel zdąży cokolwiek zwalidować,
+        // a człowiek dostaje "Page Expired" zamiast polskiego komunikatu
+        // (audyt A31). Test `UploadLimitsAgreementTest` pilnuje tej zgody,
+        // bo php.ini nie umie CZYTAĆ konfiguracji Laravela — dwa niezależne
+        // miejsca to jedyny sposób, więc musi je pilnować test, nie wspólny
+        // kod.
         'max_bytes' => (int) env('KUKING_MEDIA_MAX_BYTES', 15 * 1024 * 1024),
 
         // Ochrona przed "decompression bomb": plik może być mały, a obraz
@@ -53,7 +63,19 @@ return [
             'large' => 1600,
         ],
 
-        // Maksymalna liczba zdjęć w jednym wpisie.
+        // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
+        //
+        // DLACZEGO SZEŚĆ, A NIE JEDNO
+        // Audyt A31 zaproponował obniżenie do jednego zdjęcia, bo sześć razy
+        // 15 MB nie mieściło się w `post_max_size`. Właściciel rozstrzygnął
+        // inaczej: limit PHP jest do podniesienia, a część ludzi pokazuje
+        // danie w kilku ujęciach — kolaż, karuzela, krok po kroku. Odebranie
+        // im tego naprawiałoby rozjazd kosztem funkcji, o którą sami proszą.
+        //
+        // Ta liczba razy `max_bytes` MUSI z zapasem mieścić się
+        // w `post_max_size` z `docker/php.ini` — pilnuje tego
+        // `UploadLimitsAgreementTest`. Podniesienie tej liczby bez
+        // podniesienia limitu PHP oblewa test, i o to chodzi.
         'max_per_post' => 6,
     ],
 

@@ -11,7 +11,7 @@
             <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
             <span class="field-help" id="f-photos-help">
                 Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
-                Największy plik: {{ (int) round(config('kuking.media.max_bytes') / 1024 / 1024) }} MB.
+                Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
             </span>
             <input class="field-input" id="f-photos" type="file" name="photos[]"
                    accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"

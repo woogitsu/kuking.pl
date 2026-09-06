@@ -9,6 +9,7 @@ use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Models\Post;
 use App\Models\Topic;
+use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,13 +40,9 @@ class PostController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $maxBytes = (int) config('kuking.media.max_bytes');
-        $maxKilobytes = (int) floor($maxBytes / 1024);
-        $limitMb = (int) round($maxBytes / 1024 / 1024);
-
         $data = $request->validate([
-            'photos' => ['nullable', 'array', 'max:'.config('kuking.media.max_per_post')],
-            'photos.*' => ['file', 'image', 'max:'.$maxKilobytes],
+            'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'photos.*' => ['file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
             // Temat opcjonalny, ale MUSI istnieć i być aktywny. Sprawdzenie
@@ -54,8 +51,8 @@ class PostController extends Controller
             'topic_id' => ['nullable', 'uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
-            'photos.*.max' => "Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to {$limitMb} MB.",
-            'photos.max' => 'Do jednego wpisu można dodać maksymalnie '.config('kuking.media.max_per_post').' zdjęć.',
+            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
         ]);

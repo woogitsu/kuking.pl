@@ -9,6 +9,7 @@ use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -284,8 +285,8 @@ class RecipeController extends Controller
             'source_note' => ['nullable', 'string', 'max:2000'],
             'source_url' => ['nullable', 'url', 'max:2000'],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
-            'hero_photo' => ['nullable', 'file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
-            'source_scan' => ['nullable', 'file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
+            'hero_photo' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'source_scan' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:120'],
             'ingredients.*.text' => ['nullable', 'string', 'max:240'],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
@@ -299,6 +300,10 @@ class RecipeController extends Controller
             'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
             'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
             'hero_photo.image' => 'Zdjęcie główne musi być plikiem JPG, PNG lub WebP.',
+            // Wcześniej brakowało tych komunikatów — za duży plik pokazywał
+            // domyślny, angielski błąd Laravela (narusza AGENTS.md).
+            'hero_photo.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'source_scan.max' => LimityZdjec::komunikatZaDuzyPlik(),
         ]);
 
         return [

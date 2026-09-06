@@ -8,6 +8,7 @@ use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -58,13 +59,16 @@ class ProfileSettingsController extends Controller
             'bio' => ['nullable', 'string', 'max:500'],
             'region' => ['nullable', 'string', 'max:80'],
             'speciality' => ['nullable', 'string', 'max:120'],
-            'avatar' => ['nullable', 'file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
+            'avatar' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             'username.regex' => 'Nazwa użytkownika może zawierać tylko litery bez polskich znaków, cyfry i podkreślnik.',
             'username.unique' => 'Ta nazwa jest już zajęta.',
             'bio.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
             'avatar.image' => 'Zdjęcie profilowe musi być plikiem JPG, PNG lub WebP.',
+            // Wcześniej brakowało tego komunikatu — za duży plik pokazywał
+            // domyślny, angielski błąd Laravela (narusza AGENTS.md).
+            'avatar.max' => LimityZdjec::komunikatZaDuzyPlik(),
         ]);
 
         try {

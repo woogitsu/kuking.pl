@@ -9,6 +9,7 @@ use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Models\CookedEvent;
 use App\Models\Recipe;
+use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -45,8 +46,14 @@ class CookedEventController extends Controller
         $this->authorize('cook', $model);
 
         $data = $request->validate([
-            'photos' => ['nullable', 'array', 'max:4'],
-            'photos.*' => ['file', 'image', 'max:'.(int) floor(config('kuking.media.max_bytes') / 1024)],
+            // BYŁO "max:4" wpisane tu na sztywno, niezależnie od
+            // `config('kuking.media.max_per_post')` — dokładnie ten rozjazd
+            // (ta sama liczba w dwóch miejscach) pozwolił na wysyłkę do
+            // 4 × 15 MB = 60 MB w jednym żądaniu, ponad dwa razy więcej,
+            // niż mieści `post_max_size` z `docker/php.ini` (audyt A31).
+            // Teraz obowiązuje TEN SAM budżet co w PostController.
+            'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'photos.*' => ['file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'note' => ['nullable', 'string', 'max:2000'],
             'changes_note' => ['nullable', 'string', 'max:1000'],
             'would_make_again' => ['nullable', 'boolean'],
@@ -54,6 +61,11 @@ class CookedEventController extends Controller
             'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
+            // Wcześniej nie było tu komunikatu — przy przekroczeniu rozmiaru
+            // albo liczby zdjęć człowiek widziałby domyślny, angielski
+            // komunikat Laravela. To łamie "błędy po polsku" z AGENTS.md.
+            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
         ]);
 
