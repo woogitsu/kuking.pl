@@ -118,6 +118,29 @@ ORDER BY published_at DESC, id DESC
 
 Cursor pagination. Bez fanout-on-write.
 
+## Zdjęcia: adresem jest trasa aplikacji
+
+```text
+przeglądarka → /zdjecia/{uuid}/{wariant}
+             → MediaController
+             → DostepDoZdjecia → Policy treści NADRZĘDNEJ
+             → 302 na krótko podpisany adres w buckecie
+```
+
+Bucket wariantów **nie ma własnej domeny**. Bajty nie idą przez PHP — idzie
+przez nie wyłącznie decyzja, kto może je zobaczyć.
+
+Dlaczego to jest sprawa architektury, a nie szczegół implementacji: `media`
+nie ma i nie dostanie kolumny `visibility`. Widoczność zdjęcia to widoczność
+treści, do której jest przypięte, a rodziców jest sześciu i zdjęcie może mieć
+więcej niż jednego. Reguła żyje więc w `app/Domain/Media/DostepDoZdjecia`,
+która **woła istniejące Policy** zamiast powtarzać ich warunki — inaczej
+byłaby to siódma kopia reguły widoczności w tym repozytorium.
+
+Szczegóły, kompromisy i to, czego ta zmiana nie załatwia:
+`docs/MEDIA_PIPELINE.md` → „Adresem zdjęcia jest trasa aplikacji"
+oraz `docs/DECISIONS.md` → D-019.
+
 ## PWA
 
 Od początku:

@@ -48,8 +48,16 @@ class RegressionTest extends TestCase
         // czyli na plik z nietkniętym EXIF-em i lokalizacją kuchni.
         $url = $media->url('nieistniejacy_wariant');
 
-        $this->assertStringNotContainsString('oryginal-z-exif.jpg', $url);
-        $this->assertStringContainsString('_feed.webp', $url);
+        $this->assertStringNotContainsString('oryginal-z-exif', $url);
+
+        // Po W7-02 adresem zdjęcia nie jest już nazwa pliku w buckecie, tylko
+        // trasa aplikacji — stąd asercja na nazwę WARIANTU zamiast na klucz.
+        // Regresja, której ten test pilnuje, jest ta sama: zapasowym wariantem
+        // ma być jedyny wygenerowany (`feed`), a nigdy oryginał.
+        $this->assertSame(
+            route('media.show', ['media' => $media->getKey(), 'wariant' => 'feed']),
+            $url,
+        );
     }
 
     public function test_zdjecie_bez_wariantow_daje_placeholder_a_nie_oryginal(): void

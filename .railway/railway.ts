@@ -252,10 +252,23 @@ export default defineRailway((ctx) => {
     // (audyt W3-01).
     KUKING_EXPORT_DISK: "r2_eksporty",
     AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
-    // Publiczny prefiks URL — własna domena bucketa PUBLICZNEGO za CDN
-    // Cloudflare. Dotyczy dysku `r2_publiczne`; dysk `r2` z oryginałami
-    // świadomie nie ma żadnego URL-a.
-    AWS_URL: ctx.shared.R2_PUBLIC_URL,
+    //  AWS_URL ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (audyt W7-02, P0).
+    //
+    //  Była to własna domena bucketa wariantów za CDN Cloudflare i to ona
+    //  była adresem każdego zdjęcia w serwisie. Taki adres nikogo o nic nie
+    //  pyta: kto raz go skopiował, otwierał zdjęcie także po zablokowaniu,
+    //  po cofnięciu obserwowania i po przełączeniu przepisu na prywatny.
+    //  Najgorszy przypadek to skan odręcznej kartki z przepisem rodzinnym
+    //  (`recipes.source_scan_media_id`) — z nazwiskami i adresami.
+    //
+    //  Adresem zdjęcia jest teraz trasa aplikacji `/zdjecia/{id}/{wariant}`:
+    //  pyta Policy treści nadrzędnej i przekierowuje (302) na adres podpisany
+    //  kluczem S3, ważny kilka minut. Bajty dalej nie idą przez PHP.
+    //
+    //  ZDJĘCIE TEJ ZMIENNEJ NIE ZDEJMUJE DOMENY Z BUCKETU. Dopóki
+    //  `cdn.kuking.pl` wskazuje bucket wariantów, stare adresy działają dalej
+    //  — to jest ręczna czynność w panelu Cloudflare, issue #120, i należy
+    //  do właściciela.
 
     // --- Poczta transakcyjna --------------------------------------------------
     MAIL_MAILER: "smtp",

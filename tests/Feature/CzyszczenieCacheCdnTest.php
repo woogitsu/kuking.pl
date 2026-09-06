@@ -65,14 +65,30 @@ class CzyszczenieCacheCdnTest extends TestCase
 
         $this->assertTrue((new KasujZdjecie)->jesliNieuzywane($media));
 
-        Queue::assertPushed(PurgePublicMediaCache::class, function (PurgePublicMediaCache $job): bool {
-            // Czyścimy adresy WARIANTÓW — tylko one są publiczne. Oryginał
-            // leży w buckecie bez własnej domeny, więc w cache go nie ma.
-            $this->assertCount(2, $job->adresy);
+        Queue::assertPushed(PurgePublicMediaCache::class, function (PurgePublicMediaCache $job) use ($media): bool {
+            // DWA ADRESY NA WARIANT, czyli cztery przy dwóch wariantach
+            // (audyt W7-02):
+            //
+            //   * adres pliku w buckecie — istnieje już tylko dla dysków ze
+            //     starą, własną domeną (`r2_legacy`); tu udaje go dysk
+            //     testowy,
+            //   * adres TRASY `media.show` — dzisiejszy adres zdjęcia.
+            //
+            // Oryginału nie ma w żadnym z nich: leży w buckecie bez domeny,
+            // więc nie ma go też w cache.
+            $this->assertCount(4, $job->adresy);
 
             foreach ($job->adresy as $adres) {
-                $this->assertStringContainsString('_', $adres);
                 $this->assertStringNotContainsString('incoming/', $adres);
+            }
+
+            foreach (['thumb', 'feed'] as $nazwa) {
+                $this->assertContains(
+                    route('media.show', ['media' => $media->getKey(), 'wariant' => $nazwa]),
+                    $job->adresy,
+                    'Brak adresu trasy dla wariantu '.$nazwa.'. Po W7-02 to jest adres, '.
+                    'pod którym zdjęcie naprawdę się otwiera.',
+                );
             }
 
             return true;
@@ -89,8 +105,9 @@ class CzyszczenieCacheCdnTest extends TestCase
         $media = $this->zdjecieZWariantami();
         $spodziewane = [];
 
-        foreach ($media->metadata['variants'] as $wariant) {
+        foreach ($media->metadata['variants'] as $nazwa => $wariant) {
             $spodziewane[] = Storage::disk('publiczne')->url($wariant['key']);
+            $spodziewane[] = route('media.show', ['media' => $media->getKey(), 'wariant' => $nazwa]);
         }
 
         (new KasujZdjecie)->jesliNieuzywane($media);

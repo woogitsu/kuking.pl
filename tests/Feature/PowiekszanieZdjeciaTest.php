@@ -87,8 +87,15 @@ class PowiekszanieZdjeciaTest extends TestCase
 
         $link = $linki->item(0);
 
-        $this->assertStringContainsString(
-            'a_large.webp',
+        // Po W7-02 w `href` nie ma już nazwy pliku z bucketu — jest adres
+        // trasy `media.show` z nazwą wariantu. Sprawdzana rzecz się nie
+        // zmieniła: link ma prowadzić do wariantu DUŻEGO.
+        $zdjecie = $post->media()->first();
+
+        $this->assertNotNull($zdjecie);
+
+        $this->assertSame(
+            route('media.show', ['media' => $zdjecie->getKey(), 'wariant' => 'large']),
             $link->getAttribute('href'),
             'Link prowadzi do innego wariantu niż duży — powiększenie pokazałoby to samo, co miniatura.',
         );

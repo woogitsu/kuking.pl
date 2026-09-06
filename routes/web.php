@@ -20,6 +20,7 @@ use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostController;
@@ -96,6 +97,30 @@ Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
+
+/*
+ * Zdjęcia (audyt W7-02). ADRES ZDJĘCIA TO TA TRASA, nie plik w buckecie.
+ *
+ * Bucket wariantów nie ma już własnej domeny. `MediaController` pyta Policy
+ * treści NADRZĘDNEJ (`App\Domain\Media\DostepDoZdjecia`) i przekierowuje na
+ * krótko podpisany adres R2 — bajty nie idą przez PHP, idzie przez nie
+ * wyłącznie decyzja.
+ *
+ * PUBLICZNA, POZA `auth`, ŚWIADOMIE: zdjęcie publicznego przepisu ma się
+ * otwierać bez konta, tak jak sam przepis. Ochroną jest Policy plus limit
+ * zapytań, nie logowanie.
+ *
+ * `whereUuid` nie jest ozdobnikiem. Bez niego identyfikator, który nie jest
+ * UUID-em, leci wprost do Postgresa jako wartość kolumny `uuid`, a ten
+ * odpowiada błędem składni — czyli 500 zamiast 404. Odmowa ma wyglądać
+ * identycznie jak zdjęcie nieistniejące, a strona błędu serwera wygląda
+ * inaczej niż jedno i drugie.
+ */
+Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
+    ->whereUuid('media')
+    ->whereIn('wariant', array_keys((array) config('kuking.media.variants')))
+    ->middleware("throttle:{$limits['zdjecie']}")
+    ->name('media.show');
 
 // Listy relacji — publiczne jak sam profil, ale bez indeksowania (to nie
 // jest treść dla wyszukiwarki, tylko widok pomocniczy). Muszą stać PRZED

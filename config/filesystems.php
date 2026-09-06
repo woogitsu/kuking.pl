@@ -109,12 +109,42 @@ return [
         ],
 
         /*
-         * Bucket publiczny: wyłącznie przetworzone warianty WebP.
+         * Bucket wariantów: wyłącznie przetworzone pliki WebP.
          *
          * Wszystko, co tu trafia, przeszło przez `ProcessUploadedImage`, czyli
          * zostało zdekodowane i zapisane od nowa — a to zdejmuje EXIF razem
          * z GPS-em. Nic, co przyszło od użytkownika w oryginalnej postaci, nie
          * ma prawa się tu znaleźć.
+         *
+         * ======================================================================
+         *  NAZWA `r2_publiczne` ZOSTAJE, ALE TEN BUCKET NIE JEST JUŻ PUBLICZNY
+         *  (audyt W7-02, P0, prywatność).
+         * ======================================================================
+         *
+         * Brak EXIF-u to nie to samo co „wolno pokazać każdemu". Wariant
+         * przepisu prywatnego jest tak samo prywatny jak sam przepis, a
+         * `recipes.source_scan_media_id` to skan odręcznej kartki z nazwiskami
+         * i adresami. Dopóki bucket miał własną domenę CDN, adres takiego
+         * pliku działał WIECZNIE i dla każdego: kto raz go skopiował, otwierał
+         * zdjęcie po zablokowaniu, po cofnięciu obserwowania i po przełączeniu
+         * przepisu na prywatny.
+         *
+         * Dlatego `url` STĄD ZNIKA — tak samo i z tego samego powodu, z jakiego
+         * nigdy nie miały go dyski `r2` (oryginały) i `r2_eksporty` (paczki
+         * RODO). `Storage::url()` rzuci teraz wyjątek zamiast po cichu zwrócić
+         * adres, który nikogo o nic nie pyta.
+         *
+         * Adresem zdjęcia jest trasa aplikacji `media.show`: pyta Policy treści
+         * nadrzędnej i przekierowuje (302) na adres podpisany kluczem S3, ważny
+         * kilka minut (`kuking.media.signed_url_minutes`). Bajty dalej nie idą
+         * przez PHP.
+         *
+         * CZEGO TO NIE ZAŁATWIA, I TRZEBA TO POWIEDZIEĆ WPROST: zdjęcie tego
+         * klucza z konfiguracji nie zdejmuje własnej domeny z bucketu po
+         * stronie Cloudflare. Dopóki `cdn.kuking.pl` wskazuje ten bucket, stare
+         * adresy działają dalej. To jest ręczna czynność właściciela —
+         * issue #120 — i z tego kontenera nie da się jej ani wykonać, ani
+         * sprawdzić.
          *
          * `AWS_PUBLIC_BUCKET` domyślnie wraca do `AWS_BUCKET`, żeby środowisko
          * jeszcze nierozdzielone (staging sprzed tej zmiany) nie przestało
@@ -128,7 +158,7 @@ return [
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_PUBLIC_BUCKET', env('AWS_BUCKET')),
             'endpoint' => env('AWS_ENDPOINT'),
-            'url' => env('AWS_URL'),
+            // Świadomie BEZ `url`. Patrz komentarz wyżej (W7-02).
             'use_path_style_endpoint' => false,
             'throw' => true,
         ],
@@ -153,6 +183,13 @@ return [
          * z niego nie przeniesiemy, to stamtąd się wyświetlają. To jest stan
          * przejściowy: publiczności starego bucketu nie zdejmujemy, dopóki
          * `kuking:przenies-zdjecia` nie dojdzie do końca.
+         *
+         * PO W7-02 TO JEST JEDYNY DYSK ZDJĘĆ Z PUBLICZNYM ADRESEM i jedyny
+         * powód, dla którego `PurgePublicMediaCache` nadal ma co robić.
+         * Zapasowe `env('AWS_URL')` zostaje dla środowisk sprzed tej zmiany,
+         * ale wdrożenie tej zmiennej już nie ustawia (`.railway/railway.ts`) —
+         * gdzie stary bucket jest w użyciu, trzeba podać `AWS_LEGACY_URL`
+         * wprost.
          */
         'r2_legacy' => [
             'driver' => 's3',

@@ -93,6 +93,116 @@ WebP/AVIF, z fallbackiem zgodnym z support matrix.
 
 Nie musi być publicznie serwowany. Można go trzymać krótko do reprocessingu zgodnie z retention policy.
 
+## Adresem zdjęcia jest trasa aplikacji, nie plik w buckecie (W7-02)
+
+```text
+<img src="/zdjecia/{uuid}/{wariant}">
+        ↓
+MediaController
+        ↓
+DostepDoZdjecia  →  Policy treści NADRZĘDNEJ (Recipe/Post/CookedEvent/Profile/RecipeStep)
+        ↓
+302 → https://<bucket>/media/...?X-Amz-Signature=...   (ważne 5 minut)
+```
+
+**Bajty nie idą przez PHP.** Przez PHP idzie wyłącznie decyzja.
+
+### Co to naprawia
+
+Do W7-02 adresem zdjęcia był adres pliku w buckecie z własną domeną CDN.
+Taki adres nikogo o nic nie pyta i nie przestaje działać. Kto raz go skopiował
+— z podglądu źródła strony, z historii przeglądarki, z podglądu linku
+w komunikatorze — otwierał zdjęcie także:
+
+- po zablokowaniu,
+- po cofnięciu obserwowania,
+- po przełączeniu przepisu na prywatny,
+- po ukryciu treści przez moderatora,
+- po usunięciu wpisu.
+
+Cała macierz widoczności obowiązywała stronę HTML i nie obowiązywała ani
+jednego piksela. Najgorszy przypadek nazwał audyt wprost:
+`recipes.source_scan_media_id` — skan odręcznej kartki z rodzinnym przepisem,
+a na niej nazwiska, adresy i czyjeś pismo.
+
+### Zdjęcie nie zna swojej widoczności i nie będzie znało
+
+Nie ma na `media` kolumny `visibility` i nie ma jej dostać. Byłaby to siódma
+kopia tej samej reguły, a powtarzającą się przyczyną błędów w tym repozytorium
+jest „reguła istnieje poprawnie w jednej warstwie, a druga implementuje ją
+inaczej".
+
+Widoczność zdjęcia to widoczność treści, do której jest przypięte.
+`App\Domain\Media\DostepDoZdjecia` odwraca więc listę rodziców
+(tę samą co `KasujZdjecie::ODWOLANIA`, i test pilnuje, żeby były zgodne)
+i woła ich Policy przez `Gate`. Nie ma tam ani jednego własnego warunku
+widoczności. Rodzicom, którzy Policy nie mieli, dopisano ją delegującą do
+przepisu albo do konta: `RecipeStepPolicy`, `ProfilePolicy`.
+
+### Najszerszy rodzic wygrywa
+
+To samo zdjęcie da się przypiąć do kilku treści — ktoś dodaje niedzielny rosół
+jako wpis i to samo zdjęcie ustawia jako główne w przepisie. Przepuszcza więc
+KTÓRYKOLWIEK rodzic. Gdyby wygrywał rodzic najwęższy, publiczny przepis
+pokazywałby pustą ramkę tylko dlatego, że autor wrzucił to zdjęcie gdzieś
+jeszcze — a bajty i tak byłyby jawne przez ten przepis. To nie jest
+poluzowanie, tylko uczciwe nazwanie stanu faktycznego.
+
+### Odmowa to 404, nie 403
+
+I ma wyglądać dokładnie tak samo jak zdjęcie, którego nie ma — z treścią
+odpowiedzi włącznie (pilnuje tego test). 403 na cudzym zdjęciu odpowiada na
+pytanie, którego nikt nie miał prawa zadać: „czy taki plik istnieje". Przy
+skanie kartki z nazwiskami sama ta odpowiedź jest już informacją.
+
+Zdjęcie w stanie innym niż `ready` też jest 404, również dla właściciela
+(AGENTS.md §7): dopóki `ProcessUploadedImage` nie przekodował pliku, w EXIF-ie
+siedzi jeszcze lokalizacja GPS kuchni.
+
+### Nagłówki
+
+| kiedy | `Cache-Control` |
+|---|---|
+| zdjęcie widoczne dla niezalogowanego | `public, max-age=300` |
+| wszystko inne, razem z odmową | `private, no-store` |
+
+Wspólny cache wolno dopuścić wyłącznie dla odpowiedzi, która jest taka sama
+dla każdego — czyli dla zdjęcia, które i tak zobaczyłby ktoś bez konta.
+`max-age` równa się ważności podpisu (`kuking.media.signed_url_minutes`), bo
+jest górnym ograniczeniem na to, jak długo przełączenie przepisu na prywatny
+może nie dojść do skutku.
+
+### Dlaczego 302, a nie strumień przez PHP
+
+Jedno zdjęcie z feedu to kilkaset kilobajtów, a jedna strona feedu potrafi ich
+mieć kilkadziesiąt. Proces PHP zajęty przepisywaniem obrazka to proces, który
+nie obsługuje nikogo innego.
+
+Wariantu „serwer oddaje plik po nagłówku od aplikacji" (`X-Accel-Redirect`)
+nie ma i nie będzie: przed PHP stoi **Caddy, nie nginx**, a Caddy takiego
+mechanizmu nie zna.
+
+Na dysku lokalnym (praca lokalna, testy) nie ma ani S3, ani podpisów, więc tam
+i tylko tam kontroler oddaje plik sam. Ma to osobny test, żeby środowisko
+deweloperskie nie różniło się od produkcji akurat w miejscu, którego nikt by
+wtedy nie sprawdzał.
+
+### Czego ta zmiana NIE załatwia
+
+Usunięcie `url` z dysku `r2_publiczne` nie zdejmuje własnej domeny z bucketu
+po stronie Cloudflare. **Dopóki `cdn.kuking.pl` wskazuje bucket wariantów,
+stare adresy działają dalej.** To jest ręczna czynność w panelu Cloudflare —
+**issue #120** — i nie da się jej ani wykonać, ani sprawdzić z poziomu kodu.
+Do tego czasu W7-02 jest naprawione w aplikacji i nie jest naprawione
+w infrastrukturze.
+
+### Co jeszcze zostało otwarte
+
+Krok 1 świadomie nie optymalizuje. Każde żądanie zdjęcia to dziś kilka zapytań
+o rodziców. Przy stronie feedu z kilkudziesięcioma zdjęciami to widać —
+i dopiero pomiar z produkcji ma rozstrzygnąć, czy potrzebny jest cache decyzji,
+czy `Cache-Control` wystarczy.
+
 ## Moderacja
 
 Automatyka może flagować, ale nie powinna samodzielnie permanentnie banować bez odpowiedniej polityki.
@@ -111,6 +221,16 @@ adresem (audyt G-03).
 
 `KasujZdjecie` zbiera więc publiczne adresy wariantów **przed** skasowaniem
 plików (potem nie ma z czego ich zbudować) i zleca `PurgePublicMediaCache`.
+
+Po W7-02 zbiera **dwa rodzaje adresu na wariant**:
+
+- adres pliku w buckecie — istnieje już tylko dla dysku `r2_legacy`, jedynego
+  z własną domeną. Dla `r2_publiczne` `Storage::url()` rzuca wyjątek i nie ma
+  tam czego czyścić, bo bez domeny nie ma cache;
+- adres **trasy** `media.show` — dzisiejszy adres zdjęcia. Dla treści
+  chronionej odpowiedź ma `private, no-store` i w żadnym cache nie leży, ale
+  dla treści naprawdę publicznej przekierowanie wolno trzymać we wspólnym
+  cache.
 
 Zadanie jest osobne, bo cudze API bywa niedostępne, a kasowanie zdjęcia nie
 może się przez to nie udać: awaria Cloudflare zatrzymałaby wtedy wymazywanie
