@@ -54,6 +54,26 @@ else
     zle "Błąd składni PHP — szczegóły: find app -name '*.php' | xargs -n1 php -l"
 fi
 
+# --- 3b. Skrypty powłoki ---------------------------------------------------
+# Entrypoint kontenera to kod, który decyduje o tym, czy serwis w ogóle żyje —
+# a żaden test PHPUnit go nie dotknie. Awaria z 5–6 września 2026 (3,5 godziny
+# niedostępności) siedziała dokładnie tam: w tym, jak skrypt powłoki odróżnia
+# „proces się skończył" od „proces padł".
+krok "Skrypty powłoki"
+_bledy_bash=""
+for _skrypt in docker/entrypoint.sh scripts/*.sh tests/skrypty/*.sh; do
+    [ -f "$_skrypt" ] || continue
+    bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
+done
+
+if [ -n "$_bledy_bash" ]; then
+    zle "Błąd składni w:$_bledy_bash"
+elif bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
+    ok "Składnia i testy entrypointu przechodzą"
+else
+    zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+fi
+
 # --- 4. Analiza statyczna (opcjonalna) ------------------------------------
 # UWAGA na warunek: `ls a b c` kończy się niezerowo, gdy brakuje
 # KTÓREGOKOLWIEK z plików, a nie dopiero gdy brakuje wszystkich. Użycie `ls`
