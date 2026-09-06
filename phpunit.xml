@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -29,13 +29,22 @@
             Powód: schemat Kuking opiera się na rzeczach, których SQLite nie ma —
             indeksach częściowych, num_nonnulls(), gen_random_uuid(), pg_trgm
             i unaccent w wyszukiwarce. Test na SQLite przechodziłby, a produkcja
-            i tak by się wywaliła. Baza testowa musi istnieć wcześniej:
-              createdb kuking_test
+            i tak by się wywaliła. Baza testowa musi istnieć wcześniej — o to
+            (i o bazy per-worktree) dba `.claude/hooks/session-start.sh`.
         -->
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_PORT" value="5432"/>
-        <env name="DB_DATABASE" value="kuking_test"/>
+        <!--
+            DB_DATABASE celowo NIE jest tu ustawiane na sztywno (issue #66).
+
+            Nazwę wylicza `tests/bootstrap.php` — "kuking_test" w głównym
+            katalogu, "kuking_test_<worktree>" w każdym `git worktree` — żeby
+            dwa równoległe przebiegi `php artisan test` w różnych katalogach
+            nie zrzucały sobie nawzajem schematu w trakcie działania. Pełne
+            uzasadnienie i alternatywy, których nie wybrano: komentarz na
+            górze tests/bootstrap.php.
+        -->
         <env name="DB_USERNAME" value="kuking"/>
         <env name="DB_PASSWORD" value="kuking"/>
         <env name="DB_URL" value=""/>

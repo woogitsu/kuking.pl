@@ -30,11 +30,26 @@ if command -v pg_isready >/dev/null 2>&1; then
         echo "PostgreSQL: działa"
         su postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='kuking'\"" 2>/dev/null | grep -q 1 \
             || su postgres -c "psql -c \"CREATE ROLE kuking LOGIN PASSWORD 'kuking' SUPERUSER\"" >/dev/null 2>&1 || true
-        for db in kuking kuking_test; do
+
+        # Baza testowa TEJ sesji (issue #66): "kuking_test" w głównym
+        # katalogu, "kuking_test_<worktree>" w każdym `git worktree`. Nazwa
+        # MUSI dokładnie odpowiadać temu, co liczy tests/bootstrap.php —
+        # inaczej ten skrypt utworzyłby bazę, na którą testy i tak nie trafią.
+        baza_testowa="kuking_test"
+        if [ -f .git ]; then
+            wskaznik="$(sed -n 's/^gitdir:[[:space:]]*//p' .git)"
+            if printf '%s' "$wskaznik" | grep -q '/\.git/worktrees/'; then
+                nazwa_worktree="$(basename "$wskaznik")"
+                sufiks="$(printf '%s' "$nazwa_worktree" | tr -c 'a-zA-Z0-9_' '_' | cut -c1-50)"
+                baza_testowa="kuking_test_${sufiks}"
+            fi
+        fi
+
+        for db in kuking "$baza_testowa"; do
             su postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='$db'\"" 2>/dev/null | grep -q 1 \
                 || su postgres -c "createdb -O kuking $db" >/dev/null 2>&1 || true
         done
-        echo "Bazy: kuking, kuking_test"
+        echo "Bazy: kuking, $baza_testowa"
     else
         echo "PostgreSQL: NIE DZIAŁA — testy nie przejdą. Uruchom: pg_ctlcluster 16 main start"
     fi
