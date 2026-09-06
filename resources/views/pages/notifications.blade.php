@@ -96,7 +96,12 @@
 
                     @php
                         $link = match ($notification->type) {
-                            \App\Models\Notification::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.show', $data['cooked_event_id']) : null,
+                            // Prowadzi do pełnoekranowego ekranu „Komuś wyszło" (issue #17),
+                            // nie od razu do zwykłego wpisu — to jest najcenniejszy moment
+                            // w produkcie i zasługuje na własną stronę, nie jeden wiersz
+                            // na liście. `celebrate()` sam się cofa do `cooked.show`,
+                            // kiedy ekran już był raz pokazany.
+                            \App\Models\Notification::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.celebrate', $data['cooked_event_id']) : null,
                             \App\Models\Notification::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
                             \App\Models\Notification::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
                             \App\Models\Notification::TYPE_FIRST_POST => route('admin.unanswered'),
