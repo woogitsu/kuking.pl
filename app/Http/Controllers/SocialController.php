@@ -61,7 +61,7 @@ class SocialController extends Controller
         }
 
         return redirect()->route('home')->with('status',
-            $target->displayName().' została zablokowana. Nie zobaczycie już wzajemnie swoich treści.',
+            'Zablokowano '.$target->displayName().'. Nie zobaczycie już wzajemnie swoich treści.',
         );
     }
 

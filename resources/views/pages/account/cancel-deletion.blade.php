@@ -2,7 +2,7 @@
     <h1>Cofnij usunięcie konta</h1>
 
     <p style="margin-bottom:var(--spacing-5);">
-        Jeśli zgłosiłeś/aś chęć usunięcia konta i zmieniłeś/aś zdanie, potwierdź to poniżej swoim hasłem.
+        Jeśli chcesz cofnąć zgłoszone wcześniej usunięcie konta, potwierdź to poniżej swoim hasłem.
         Cofnięcie jest możliwe przez {{ $graceDays }} dni od zgłoszenia — potem dane zostają usunięte na stałe
         i tej strony nie da się już użyć.
     </p>

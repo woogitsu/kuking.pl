@@ -13,7 +13,7 @@
 <x-layout :title="$isEdit ? 'Edytuj przepis' : 'Dodaj przepis'" :noindex="true">
     <h1>{{ $isEdit ? 'Edytuj przepis' : 'Dodaj przepis' }}</h1>
     <p style="margin-bottom:var(--spacing-5);">
-        Wszystko jest na jednej stronie, żebyś nie musiał nic przewijać ani szukać.
+        Wszystko jest na jednej stronie — nie musisz nic przewijać ani szukać.
         Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego,
         kiedy zechcesz.
     </p>

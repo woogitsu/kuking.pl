@@ -1,6 +1,6 @@
 <x-layout title="Zeszyt" :noindex="true">
     <h1>Twój zeszyt</h1>
-    <p style="margin-bottom:var(--spacing-5);">Przepisy, które zapisałaś na potem. Tylko Ty je widzisz, chyba że sama ustawisz inaczej.</p>
+    <p style="margin-bottom:var(--spacing-5);">Przepisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
          komunikat „Masz już zeszyt o tej nazwie” nie miał gdzie się pokazać:

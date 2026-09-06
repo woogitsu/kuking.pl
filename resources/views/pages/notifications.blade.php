@@ -52,7 +52,7 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
-                                Zacznij od zdjęcia tego, co dziś ugotowałaś. Nie musi być ładne — ma być prawdziwe.
+                                Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
                                 @break
                             @case(\App\Models\Notification::TYPE_MODERATION)
                                 {{-- Nagłówek mówi, CO SIĘ STAŁO, a pod nim idzie treść

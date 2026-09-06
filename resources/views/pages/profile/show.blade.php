@@ -142,7 +142,7 @@
         @endif
     @else
         @if($cookedEvents->count() === 0)
-            <x-empty-state :title="$isOwner ? 'Nie zapisałaś jeszcze żadnego wykonania' : 'Brak wykonań'">
+            <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'">
                 @if($isOwner)
                     Kiedy ugotujesz z czyjegoś przepisu, kliknij „Ugotowałem”. Autor się o tym dowie, a Ty będziesz mieć to zapisane.
                 @endif

@@ -10,7 +10,7 @@
         </p>
 
         <div style="display:flex; gap:var(--spacing-3); justify-content:center; flex-wrap:wrap;">
-            <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto — to darmowe</a>
+            <a class="btn btn-primary" href="{{ route('register') }}">Zostań kuKINGiem — to darmowe</a>
             <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
         </div>
     </section>
