@@ -58,6 +58,13 @@
         @if($people->isEmpty())
             <x-empty-state title="Nikogo nie znaleźliśmy">Nie ma tu osoby o nazwie „{{ $phrase }}”.</x-empty-state>
         @else
+            <p class="meta">
+                @if($jestWiecejOsob ?? false)
+                    Pokazujemy {{ $people->count() }} {{ \App\Support\Odmiana::rzeczownik($people->count(), 'osobę', 'osoby', 'osób') }}. Jest ich więcej.
+                @else
+                    Znaleziono {{ $people->count() }} {{ \App\Support\Odmiana::rzeczownik($people->count(), 'osobę', 'osoby', 'osób') }}.
+                @endif
+            </p>
             <div class="stack-tight">
                 @foreach($people as $person)
                     <div class="card" style="display:flex; gap:var(--spacing-3); align-items:center;">
@@ -69,6 +76,17 @@
                     </div>
                 @endforeach
             </div>
+
+            @if($jestWiecejOsob ?? false)
+                {{-- Ten sam zwykły odnośnik co przy przepisach: dalsze wyniki
+                     muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
+                <p style="text-align:center;">
+                    <a class="btn btn-quiet"
+                       href="{{ route('search', ['q' => $phrase, 'sekcja' => 'ludzie', 'ile' => $nastepneIle]) }}">
+                        Pokaż więcej osób
+                    </a>
+                </p>
+            @endif
         @endif
     @endif
 </x-layout>
