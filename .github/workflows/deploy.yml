@@ -116,7 +116,7 @@ jobs:
       contains(fromJSON('["production", "staging"]'), github.event.deployment.environment)
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Ustal adres środowiska
         id: target
@@ -211,7 +211,7 @@ jobs:
       - name: Rejestracja wydania w Sentry
         if: vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
         continue-on-error: true
-        uses: getsentry/action-release@v1
+        uses: getsentry/action-release@v3
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
@@ -260,10 +260,10 @@ jobs:
       TARGET_ENV: ${{ github.event.inputs.environment }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Konfiguracja Node (dla Railway CLI)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
 
