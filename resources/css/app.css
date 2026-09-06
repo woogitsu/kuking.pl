@@ -247,8 +247,13 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
-    /* Ikona NIGDY nie jest jedynym opisem — pod każdą jest podpis. */
-    font-size: var(--text-help);
+    /* Ikona NIGDY nie jest jedynym opisem — pod każdą jest podpis.
+       Podpis idzie po `--text-body` (18 px), nie po `--text-help` (16 px):
+       „Start”, „Dodaj”, „Zeszyt” to CAŁA treść tego elementu, a nie dopisek
+       przy większym tekście obok. Reguła z DESIGN_SYSTEM.md pozwala na 16 px
+       tylko w tym drugim przypadku, a dolny pasek jest na telefonie jedyną
+       drogą do głównej akcji produktu (issue #110). */
+    font-size: var(--text-body);
     font-weight: 600;
     color: var(--color-ink-muted);
     text-decoration: none;
@@ -908,7 +913,9 @@
   }
 
   .kuking-board-subtitle {
-    font-size: var(--text-help);
+    /* To jest <h3>, nagłówek sekcji stojący samodzielnie nad listą — nagłówek
+       mniejszy od tekstu, który zapowiada, czyta się jak drobny druk (#110). */
+    font-size: var(--text-body);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -1032,7 +1039,10 @@
   }
 
   .stat-value { font-size: var(--text-title-sm); font-weight: 800; display: block; }
-  .stat-label { font-size: var(--text-help); color: var(--color-ink-muted); }
+  /* 18 px, nie 16: „wpisów”, „obserwujących” to jedyne wyjaśnienie, co znaczy
+     stojąca obok liczba. Bez podpisu liczba nic nie mówi, więc to nie jest
+     pomoc kontekstowa w rozumieniu DESIGN_SYSTEM.md (issue #110). */
+  .stat-label { font-size: var(--text-body); color: var(--color-ink-muted); }
 
   .site-footer {
     border-top: 1px solid var(--color-border);
