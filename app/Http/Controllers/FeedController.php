@@ -77,11 +77,22 @@ class FeedController extends Controller
         $wspomnienie = $this->wspomnienia->dlaOsoby($user);
 
         // Trzy ostatnio odłożone przepisy do prawej szyny (UI kit v2, ekran 01).
-        // Zapytanie idzie przez zeszyty TEGO CZŁOWIEKA, więc nie ma tu pytania
-        // o widoczność cudzych treści — a `published()` odsiewa przepis, który
-        // autor w międzyczasie schował do szkiców.
+        //
+        // `widoczneDla($user)`, NIE samo `published()` (audyt W3-12).
+        //
+        // Stał tu komentarz: „zapytanie idzie przez zeszyty TEGO CZŁOWIEKA,
+        // więc nie ma tu pytania o widoczność cudzych treści". To był błąd
+        // w rozumowaniu. Do zeszytu odkłada się CUDZE przepisy, a ich autor
+        // może po zapisaniu zmienić widoczność na prywatną, cofnąć obserwowanie
+        // albo zablokować osobę, która przepis odłożyła. Ekran zeszytu
+        // (`CollectionController::show()`) sprawdza to poprawnie — ta szyna nie
+        // sprawdzała, więc pokazywała tytuł, nazwisko autora i miniaturę
+        // przepisu, którego ta osoba nie ma już prawa zobaczyć.
+        //
+        // Ta sama treść nie może być bardziej widoczna przez inne miejsce
+        // w interfejsie. Jedna granica, jeden scope, wszędzie.
         $zeszyt = Recipe::query()
-            ->published()
+            ->widoczneDla($user)
             ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
             ->with(['heroMedia', 'author.profile'])
             ->latest('recipes.published_at')

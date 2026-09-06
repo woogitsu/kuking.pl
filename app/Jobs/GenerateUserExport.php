@@ -64,6 +64,20 @@ class GenerateUserExport implements ShouldQueue
     /** 15 minut. Konto z tysiącem zdjęć to setki megabajtów z object storage. */
     public int $timeout = 900;
 
+    /**
+     * Kolejka `low` (audyt W3-05).
+     *
+     * Budowa paczki z danymi trwa minuty i nikt na nią nie patrzy — przychodzi
+     * e-mailem. Zdjęcie z wpisu czeka natomiast człowiek, który właśnie kliknął
+     * „Opublikuj" i widzi „za chwilę będzie widoczne".
+     *
+     * Uwaga: sama kolejność kolejek nie wywłaszczy zadania, które już ruszyło.
+     * Przy jednym workerze eksport nadal zajmie go na te minuty. Rozdzielenie
+     * na osobne procesy dla `media` i `low` to następny krok, gdy pojawi się
+     * na to powód — dziś liczy się to, że kolejność w ogóle zaczęła działać.
+     */
+    private const KOLEJKA = 'low';
+
     /** Ponowienie po 2 i 5 minutach — awarie storage bywają chwilowe. */
     public array $backoff = [120, 300];
 
@@ -78,7 +92,10 @@ class GenerateUserExport implements ShouldQueue
 
     private ?string $tempZip = null;
 
-    public function __construct(public string $dataExportId) {}
+    public function __construct(public string $dataExportId)
+    {
+        $this->onQueue(self::KOLEJKA);
+    }
 
     public function handle(): void
     {

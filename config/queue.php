@@ -42,7 +42,27 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            /*
+             * MUSI BYĆ WIĘKSZE NIŻ NAJDŁUŻSZY `$timeout` JOBA (audyt W3-04).
+             *
+             * `retry_after` mówi, po ilu sekundach kolejka uznaje zarezerwowane
+             * zadanie za porzucone i daje je komuś innemu. Gdy stoi PONIŻEJ
+             * czasu, który zadanie legalnie zajmuje, drugi worker bierze je,
+             * kiedy pierwszy jeszcze pracuje:
+             *
+             *     ProcessUploadedImage::$timeout = 120 s
+             *     GenerateUserExport::$timeout   = 900 s
+             *
+             * Przy dawnych 90 s KAŻDY eksport i większość przetworzeń zdjęć
+             * kwalifikowały się do ponownego wydania. Dziś worker jest jeden,
+             * więc nie boli — ale to znaczy tylko, że usterka czeka na drugą
+             * replikę. Wtedy dwa procesy budowałyby tę samą paczkę z danymi
+             * i pisały pod te same klucze w R2.
+             *
+             * 960 = 900 (najdłuższy timeout) + minuta zapasu na start zadania
+             * i na zamknięcie archiwum. Pilnuje tego `UmowaKolejkiTest`.
+             */
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 960),
             'after_commit' => false,
         ],
 

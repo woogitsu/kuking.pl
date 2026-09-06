@@ -48,7 +48,21 @@ class ProcessUploadedImage implements ShouldQueue
 
     public int $timeout = 120;
 
-    public function __construct(public string $mediaId) {}
+    /**
+     * Kolejka `media`, nie `default` (audyt W3-05).
+     *
+     * `docker/entrypoint.sh` uruchamia workera z `--queue=high,default,media,low`
+     * i komentarz mówi, że interakcje użytkownika mają wyprzedzać ciężkie
+     * przetwarzanie obrazów. Żaden job nie przypisywał się jednak do kolejki,
+     * więc wszystkie lądowały na `default` — a kolejność w tej fladze nie
+     * robiła nic.
+     */
+    private const KOLEJKA = 'media';
+
+    public function __construct(public string $mediaId)
+    {
+        $this->onQueue(self::KOLEJKA);
+    }
 
     public function handle(): void
     {
