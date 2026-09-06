@@ -2,7 +2,12 @@
 <x-layout
     :title="$p->display_name.' (@'.$p->username.')'"
     :description="$p->bio ?: $p->display_name.' gotuje w Kuking.'"
-    :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0">
+    :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0"
+    {{-- Avatar, a nie zdjęcie potrawy: link do profilu ma pokazać CZŁOWIEKA.
+         Bez avatara wchodzi karta zapasowa — lepsza niż cudza fotografia,
+         która sugerowałaby, że to profil o tym daniu. --}}
+    :image="$p->avatar"
+    ogType="profile">
 
     <x-slot:head>
         @if($stats['posts'] > 0 || $stats['recipes'] > 0)

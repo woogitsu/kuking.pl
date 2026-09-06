@@ -95,4 +95,37 @@ for (const [zrodlo, nazwa] of [
   }
 }
 
+/*
+ * KARTA DO UDOSTĘPNIANIA (issue #14) — 1200×630.
+ *
+ * Trafia jako `og:image` na strony bez własnego zdjęcia. MUSI być PNG:
+ * Facebook, WhatsApp i Signal nie renderują SVG i pokazują wtedy pustą
+ * ramkę zamiast karty.
+ *
+ * 1200×630 to nie jest liczba wzięta z sufitu — na tym formacie wszystkie
+ * te serwisy pokazują duży podgląd. Przy innych proporcjach przycinają
+ * obrazek po swojemu i napis wychodzi poza kadr.
+ */
+await strona.setViewportSize({ width: 1200, height: 630 });
+await strona.setContent(`
+  <style>
+    html,body{margin:0;padding:0}
+    .karta{
+      width:1200px;height:630px;background:${TLO};
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+      font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+    }
+    .nazwa{font-size:92px;font-weight:850;letter-spacing:-3px;color:#2B241D}
+    .nazwa span{color:${MARKA}}
+    .haslo{font-size:34px;color:#5C5347}
+  </style>
+  <div class="karta">
+    <svg width="180" height="180" viewBox="0 0 64 64" fill="none">${ksztalt(TLO)}</svg>
+    <div class="nazwa">KuKing<span>.pl</span></div>
+    <div class="haslo">Pokaż, co dziś ugotowałeś</div>
+  </div>
+`);
+await strona.screenshot({ path: 'public/icons/kuking-udostepnianie.png' });
+console.log('zapisano public/icons/kuking-udostepnianie.png');
+
 await przegladarka.close();

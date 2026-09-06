@@ -8,7 +8,13 @@
 <x-layout
     :title="$recipe->title"
     :description="\Illuminate\Support\Str::limit($recipe->summary ?? $recipe->title, 155)"
-    :noindex="! $isPublic">
+    :noindex="! $isPublic"
+    {{-- Karta do wysłania rodzinie (issue #14). Zdjęcie podajemy TYLKO dla
+         przepisu publicznego: przy szkicu i przepisie dla znajomych nie ma
+         czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
+         który zbierają scrapery. --}}
+    :image="$isPublic ? $recipe->heroMedia : null"
+    ogType="article">
 
     <x-slot:head>
         @if($isPublic)
