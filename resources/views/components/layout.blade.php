@@ -146,7 +146,11 @@
 <body>
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
-    <header class="topbar">
+    {{-- `topbar-z-szyna` MUSI iść w parze z `app-body-z-szyna` niżej:
+         belka liczy swoją szerokość z tych samych tokenów co siatka pod
+         spodem, żeby logotyp licował z nawigacją, a akcje z szyną.
+         Warunek jest ten sam (`isset($rail)`) i to nie przypadek. --}}
+    <header class="topbar @guest topbar-solo @endguest @isset($rail) topbar-z-szyna @endisset">
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 {{-- Znak wklejony wprost, nie przez <img> — inaczej nie

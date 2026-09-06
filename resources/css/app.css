@@ -146,6 +146,8 @@
     max-width: var(--container-wide);
     margin: 0 auto;
     padding: var(--spacing-3) var(--spacing-4);
+    /* Marginesy boczne muszą być te same, co w `.app-body` pod spodem —
+       patrz blok „BELKA STOI W TEJ SAMEJ SIATCE" niżej. */
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -173,6 +175,68 @@
   .topbar-actions .btn {
     max-width: 100%;
     overflow-wrap: anywhere;
+  }
+
+  /*
+   * BELKA STOI W TEJ SAMEJ SIATCE CO TREŚĆ POD NIĄ.
+   *
+   * Logotyp ma się licować z lewą krawędzią nawigacji bocznej, a grupa akcji
+   * po prawej — z prawą krawędzią szyny. Dotąd nie licowały z dwóch powodów
+   * naraz: belka miała margines `--spacing-4`, a treść `--spacing-6`, i obie
+   * liczyły szerokość z innego tokenu.
+   *
+   * DRUGI POWÓD JEST WAŻNIEJSZY I NIE WIDAĆ GO W ARKUSZU.
+   * `.app-body` NIGDY nie ma szerokości `--container-wide` ani
+   * `--container-ultra`. Jest elementem `flex` (`.app-shell` to kolumna)
+   * z `margin: 0 auto`, a automatyczny margines w poprzek osi wyłącza
+   * rozciąganie — siatka zwęża się do zawartości. Te dwa tokeny są więc
+   * SUFITEM, którego nic nie dotyka, a nie szerokością. Ustawienie belki na
+   * `--container-ultra` wyrównałoby ją do liczby, której treść pod spodem
+   * nie używa.
+   *
+   * Zmierzone w Chromium przy oknie 1512 px, PRZED tą poprawką:
+   *
+   *   /home (z szyną)   treść 1424 px szeroka, belka 1120 px
+   *                     logotyp 212 vs nawigacja  68  → 144 px w prawo
+   *                     akcje  1300 vs szyna    1444  → 144 px w lewo
+   *   /zeszyt (bez)     treść 1040 px szeroka, belka 1120 px
+   *                     logotyp 220 vs nawigacja 260  →  40 px w lewo
+   *
+   * Zwróć uwagę, że rozjazd szedł raz w jedną, raz w drugą stronę — dlatego
+   * nie dało się go naprawić jednym przesunięciem.
+   *
+   * Dwie liczby na jedną krawędź to ta sama usterka, co dwie wartości
+   * `X-Frame-Options` w dwóch warstwach: pierwsza zmiana jednej z nich
+   * rozjeżdża układ i nikt nie wie dlaczego. Dlatego belka NIE dostaje
+   * własnych wartości — bierze dokładnie te same tokeny co `.app-body`,
+   * łącznie z progami, przy których się zmieniają.
+   *
+   * Zawijania (`flex-wrap`) NIE ruszamy — na wąskim ekranie akcje dalej mają
+   * prawo zejść do drugiego wiersza, bo alternatywą jest przewijanie strony
+   * w bok (issue #80, WCAG 2.2 AA 1.4.10). Poniżej 64rem nie ma zresztą
+   * nawigacji bocznej ani szyny, więc nie ma z czym licować.
+   */
+  @media (min-width: 64rem) {
+    .topbar-inner {
+      max-width: var(--container-belka);
+      padding-left: var(--spacing-6);
+      padding-right: var(--spacing-6);
+    }
+
+    /* Gość nie ma nawigacji bocznej ani szyny — jego `.app-body-solo` to jedna
+       kolumna. Belka szersza niż ta kolumna kładłaby logotyp na lewo od treści,
+       czyli dokładnie ten sam rozjazd, tylko w drugą stronę. */
+    .topbar-solo .topbar-inner {
+      max-width: var(--container-belka-solo);
+    }
+  }
+
+  @media (min-width: 80rem) {
+    /* Ten sam próg co `.app-body-z-szyna` — poniżej 80rem szyna leży POD
+       treścią, więc nie ma z czym licować prawej strony belki. */
+    .topbar-z-szyna .topbar-inner {
+      max-width: var(--container-belka-z-szyna);
+    }
   }
 
   /* Pozycja paska górnego widoczna dopiero tam, gdzie znika pasek dolny.

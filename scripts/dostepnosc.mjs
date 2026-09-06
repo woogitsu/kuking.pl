@@ -678,6 +678,107 @@ if (karuzelaBezJs) {
   }
 }
 
+/* =============================================================================
+   WYRÓWNANIE BELKI DO SIATKI TREŚCI
+
+   DLACZEGO TO NIE MOŻE BYĆ TEST PHPUnit
+   Ta sama przyczyna co przy przepełnieniu wyżej: żeby stwierdzić, że logotyp
+   stoi nad nawigacją, a nie 144 px na prawo od niej, trzeba ZMIERZYĆ ułożoną
+   stronę. Drzewo dokumentu wygląda poprawnie w obu przypadkach, a arkusz
+   stylów sam z siebie nie zdradza, że `.app-body` nigdy nie osiąga swojego
+   `max-width` (jest elementem `flex` z `margin: 0 auto`, więc zwęża się do
+   zawartości). Właśnie dlatego rozjazd przetrwał: liczby w CSS wyglądały
+   sensownie, a ułożona strona wyglądała inaczej.
+
+   CO DOKŁADNIE SPRAWDZAMY
+   Nie „czy logotyp jest przy nawigacji" (to wymagałoby innego punktu odniesienia
+   na każdym ekranie i przy każdej szerokości), tylko regułę ogólniejszą:
+
+       wewnętrzne krawędzie belki == wewnętrzne krawędzie `.app-body`
+
+   Kolumny siatki zaczynają się i kończą dokładnie na tych krawędziach, więc
+   z tej jednej równości wynikają obie rzeczy naraz — logotyp nad nawigacją
+   (albo nad treścią, gdy nawigacji nie ma) i akcje nad prawą szyną (albo nad
+   prawą krawędzią treści, gdy szyna zeszła pod spód).
+
+   Poniżej 64rem nie mierzymy: nie ma tam ani nawigacji bocznej, ani szyny,
+   a belce wolno zawijać akcje do drugiego wiersza (issue #80).
+   ========================================================================== */
+log('');
+log('Wyrównanie belki do siatki treści:');
+
+const EKRANY_WYROWNANIA = [
+  { nazwa: 'tablica (z szyną)', adres: '/home', zalogowany: true },
+  { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
+  { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
+];
+
+// 1024 to próg nawigacji bocznej, 1280 progu szyny, 1512 typowy laptop —
+// przy każdej z tych szerokości siatka liczy się inaczej, a rozjazd przed
+// poprawką szedł raz w lewo, raz w prawo.
+const SZEROKOSCI_WYROWNANIA = SZYBKO ? [1512] : [1024, 1280, 1512];
+
+const rozjazdyBelki = [];
+
+for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
+  const kontekstGoscia = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+  });
+  const kontekstZalogowanego = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+    storageState: stanZalogowany,
+  });
+
+  for (const ekran of EKRANY_WYROWNANIA) {
+    const kontekst = ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia;
+    const strona = await kontekst.newPage();
+
+    await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+
+    const pomiar = await strona.evaluate(() => {
+      const body = document.querySelector('.app-body');
+      const logotyp = document.querySelector('.wordmark');
+      const akcje = document.querySelector('.topbar-actions');
+
+      if (! body || ! logotyp || ! akcje) return null;
+
+      const ramka = body.getBoundingClientRect();
+      const styl = getComputedStyle(body);
+
+      return {
+        oczekiwanaLewa: Math.round(ramka.left + parseFloat(styl.paddingLeft)),
+        oczekiwanaPrawa: Math.round(ramka.right - parseFloat(styl.paddingRight)),
+        lewa: Math.round(logotyp.getBoundingClientRect().left),
+        prawa: Math.round(akcje.getBoundingClientRect().right),
+      };
+    });
+
+    await strona.close();
+
+    if (! pomiar) {
+      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje .app-body, .wordmark albo .topbar-actions.`);
+      process.exitCode = 1;
+      continue;
+    }
+
+    // Jeden piksel tolerancji na zaokrąglenie — układ liczy się w ułamkach.
+    const bladLewej = Math.abs(pomiar.lewa - pomiar.oczekiwanaLewa);
+    const bladPrawej = Math.abs(pomiar.prawa - pomiar.oczekiwanaPrawa);
+
+    if (bladLewej > 1 || bladPrawej > 1) {
+      rozjazdyBelki.push({ ekran: ekran.nazwa, szerokosc, ...pomiar, bladLewej, bladPrawej });
+    }
+  }
+
+  await kontekstGoscia.close();
+  await kontekstZalogowanego.close();
+
+  const zlych = rozjazdyBelki.filter((r) => r.szerokosc === szerokosc).length;
+
+  log(`  ${zlych === 0 ? '✓' : '✗'} ${szerokosc} px`
+    + (zlych ? ` — ${zlych} z ${EKRANY_WYROWNANIA.length} ekranów` : ''));
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -695,11 +796,17 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnienia,
   },
   karuzelaBezJs,
+  wyrownanieBelki: {
+    szerokosci: SZEROKOSCI_WYROWNANIA,
+    rozjazdow: rozjazdyBelki.length,
+    rozjazdy: rozjazdyBelki,
+  },
 }, null, 2));
 
 log('');
 log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
-  + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length})`);
+  + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
+  + `rozjazdów belki: ${rozjazdyBelki.length})`);
 
 if (przepelnienia.length > 0) {
   log('');
@@ -718,7 +825,17 @@ if (blokujacych > 0) {
   }
 }
 
-if (blokujacych > 0 || przepelnienia.length > 0) {
+if (rozjazdyBelki.length > 0) {
+  log('');
+  log('Belka nie licuje z siatką treści:');
+  for (const r of rozjazdyBelki) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    log(`      logotyp ${r.lewa} zamiast ${r.oczekiwanaLewa} (o ${r.bladLewej} px)`);
+    log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
+  }
+}
+
+if (blokujacych > 0 || przepelnienia.length > 0 || rozjazdyBelki.length > 0) {
   process.exit(1);
 }
 
