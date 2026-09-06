@@ -90,7 +90,7 @@ new class extends Component
 
     public string $family_since_year = '';
 
-    /** @var list<array{_key: string, group_name: string, text: string, note: string}> */
+    /** @var list<array{_key: string, group_name: string, text: string, note: string, no_amount: bool}> */
     public array $ingredients = [];
 
     /** @var list<array{_key: string, instruction: string}> */
@@ -161,6 +161,7 @@ new class extends Component
                 'group_name' => (string) $row->group_name,
                 'text' => (string) $row->ingredient_text,
                 'note' => (string) $row->note,
+                'no_amount' => (bool) $row->no_amount,
             ])
             ->all();
 
@@ -595,6 +596,8 @@ new class extends Component
                 'text' => mb_substr($text, 0, 240),
                 'group_name' => $this->clampOrNull($row['group_name'] ?? null, 120),
                 'note' => $this->clampOrNull($row['note'] ?? null, 300),
+                // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
+                'no_amount' => (bool) ($row['no_amount'] ?? false),
             ];
         }
 
@@ -656,10 +659,10 @@ new class extends Component
     // Drobne narzędzia
     // -----------------------------------------------------------------
 
-    /** @return array{_key: string, group_name: string, text: string, note: string} */
+    /** @return array{_key: string, group_name: string, text: string, note: string, no_amount: bool} */
     private function blankIngredient(): array
     {
-        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => ''];
+        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'no_amount' => false];
     }
 
     /** @return array{_key: string, instruction: string} */
@@ -943,6 +946,24 @@ new class extends Component
                                  :wire="'ingredients.'.$index.'.note'" :value="$row['note'] ?? ''"
                                  placeholder="albo masło roślinne" />
                     </div>
+
+                    {{--
+                        „BEZ ILOŚCI” — SÓL DO SMAKU (issue #44).
+
+                        Nieobowiązkowe i domyślnie wyłączone. Ma znaczenie
+                        dopiero przy przeliczaniu przepisu na inną liczbę porcji:
+                        przepis razy trzy poprosiłby inaczej o trzy szczypty
+                        soli i o trzy razy „ile weźmie”. To nie jest drobiazg
+                        kosmetyczny — to moment, w którym przepis przestaje
+                        wyglądać na napisany przez człowieka.
+                    --}}
+                    <label class="choice" style="margin-top:var(--spacing-3);">
+                        <input type="checkbox" wire:model="ingredients.{{ $index }}.no_amount">
+                        <span>
+                            <span class="choice-label">Bez ilości</span>
+                            <span class="choice-help">Zaznacz przy „do smaku”, „ile weźmie”, „szczypta”. Taki składnik nie będzie mnożony, gdy ktoś przeliczy przepis na więcej porcji.</span>
+                        </span>
+                    </label>
 
                     <div class="wizard-row-actions">
                         <div class="wizard-row-move">

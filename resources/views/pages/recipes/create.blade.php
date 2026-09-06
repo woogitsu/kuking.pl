@@ -6,7 +6,7 @@
     // niż gotowe pola do wypełnienia.
     $ingredientRows = max(3, count(old('ingredients', $isEdit ? $recipe->ingredients->all() : [])) + 1);
     $stepRows = max(3, count(old('steps', $isEdit ? $recipe->steps->all() : [])) + 1);
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note])->all() : []);
+    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
     $oldSteps = old('steps', $isEdit ? $recipe->steps->map(fn ($s) => ['instruction' => $s->instruction])->all() : []);
 @endphp
 
@@ -168,6 +168,19 @@
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
                            @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
                     @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+
+                    {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
+                         checkbox, działa bez JavaScriptu. Nieobowiązkowy
+                         i domyślnie wyłączony: ma znaczenie dopiero przy
+                         przeliczaniu przepisu na inną liczbę porcji. --}}
+                    <label class="choice" style="margin-top:var(--spacing-2);">
+                        <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
+                               @checked($oldIngredients[$i]['no_amount'] ?? false)>
+                        <span>
+                            <span class="choice-label">Bez ilości</span>
+                            <span class="choice-help">Na przykład „do smaku”, „ile weźmie”, „szczypta”.</span>
+                        </span>
+                    </label>
                 </div>
             @endfor
 

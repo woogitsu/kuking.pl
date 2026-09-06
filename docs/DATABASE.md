@@ -317,6 +317,29 @@ Podstawa search i późniejszego planera.
 ### recipe_ingredients
 Musi mieć `ingredient_text`, nawet jeśli normalizacja nie rozpozna składnika.
 
+**`no_amount boolean NOT NULL DEFAULT false`** (migracja
+`2026_09_06_130000_add_no_amount_to_recipe_ingredients`, issue #44) —
+„ten składnik nie ma wymiernej ilości": sól do smaku, pieprz, mleko — ile
+weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
+przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
+„ile weźmie".
+
+Kolumna weszła **przed** funkcją, która jej używa, i to jest jedyny powód,
+dla którego istnieje już teraz: dopisanie jej dziś kosztuje jedną linijkę,
+a po tym, jak w tabeli znajdą się przepisy prawdziwych ludzi, kosztowałoby
+migrację danych i **zgadywanie**, które składniki są „do smaku".
+
+CHECK `recipe_ingredients_no_amount_check`: `no_amount = false OR (quantity
+IS NULL AND unit_id IS NULL)`. Bez niego dałoby się zapisać wiersz mówiący
+naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować"
+nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
+zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
+
+**Rollback:** `down()` zdejmuje CHECK i kolumnę. Bezstratny tylko dopóki
+skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
+utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
+tabeli.
+
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 
