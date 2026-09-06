@@ -13,6 +13,32 @@
                 Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
                 Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
             </span>
+            @php
+                // Zdjęcia, które przetrwały nieudaną walidację (audyt C1).
+                // Wracają jako identyfikatory, bo przeglądarka nie pozwala
+                // wypełnić pola pliku z serwera — i dobrze robi, inaczej strona
+                // mogłaby podkraść plik z dysku.
+                $zachowane = \App\Models\Media::query()
+                    ->whereIn('id', (array) old('media_ids', []))
+                    ->where('owner_id', auth()->id())
+                    ->get();
+            @endphp
+
+            @if($zachowane->isNotEmpty())
+                <div class="notice">
+                    <strong>Twoje zdjęcia są zachowane.</strong>
+                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co jest zaznaczone na czerwono.
+                    <ul class="stack-tight" style="margin:var(--spacing-3) 0 0; padding:0; list-style:none;">
+                        @foreach($zachowane as $zdjecie)
+                            <li>
+                                <input type="hidden" name="media_ids[]" value="{{ $zdjecie->getKey() }}">
+                                <x-photo :media="$zdjecie" variant="thumb" :zoom="false" class="post-photo" />
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <input class="field-input" id="f-photos" type="file" name="photos[]"
                    accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
                    multiple aria-describedby="f-photos-help">

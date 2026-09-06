@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -59,6 +60,18 @@ class Media extends Model
             'width' => 'integer',
             'height' => 'integer',
         ];
+    }
+
+    /**
+     * Wpisy, do ktorych to zdjecie jest przypiete.
+     *
+     * Potrzebne do bramki wlasnosci przy odzyskiwaniu zdjec po nieudanej
+     * walidacji (audyt C1): zdjecie juz przypiete do wpisu nie moze zostac
+     * podpiete pod drugi.
+     */
+    public function posts(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'post_media');
     }
 
     public function owner(): BelongsTo
