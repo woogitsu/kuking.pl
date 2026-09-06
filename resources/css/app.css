@@ -161,7 +161,14 @@
     box-shadow: inset 0 3px 0 0 var(--color-brand);
   }
 
-  .bottom-nav-icon { font-size: 1.4rem; line-height: 1; }
+  /* Ikona SVG zamiast emoji (UI kit v2, etap B). Rozmiar w `rem`, nie w `px`:
+     przy skali tekstu 140% ikona ma rosnąć razem z podpisem, inaczej podpis
+     ucieka spod niej. `flex: none` — inaczej ściska się przy wąskim ekranie. */
+  .bottom-nav-icon { flex: none; }
+
+  /* Ikona w nawigacji bocznej i w przyciskach. Kolor bierze z otoczenia,
+     więc jedna ikona obsługuje motyw jasny, ciemny i stan „bieżąca pozycja". */
+  .ikona { flex: none; }
 
   @media (min-width: 64rem) {
     .bottom-nav { display: none; }
