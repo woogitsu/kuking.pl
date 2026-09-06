@@ -153,16 +153,16 @@
             @auth
                 <nav class="side-nav" aria-label="Nawigacja główna">
                     <ul class="stack-tight" style="list-style:none; padding:0; margin:0;">
-                        <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><span aria-hidden="true">🏠</span> Start</a></li>
-                        <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><span aria-hidden="true">🔍</span> Szukaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif><span aria-hidden="true">➕</span> Dodaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><span aria-hidden="true">📒</span> Zeszyt</a></li>
-                        <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><span aria-hidden="true">👤</span> Mój profil</a></li>
-                        <li><a class="side-nav-item" href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif><span aria-hidden="true">🍲</span> Świeżo z Kuking</a></li>
-                        <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><span aria-hidden="true">⚙️</span> Ustawienia</a></li>
+                        <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
+                        <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
+                        <li><a class="side-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
+                        <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Zeszyt</a></li>
+                        <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Mój profil</a></li>
+                        <li><a class="side-nav-item" href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif><x-ikona nazwa="chef" /> Świeżo z Kuking</a></li>
+                        <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
                         @if($user->isModerator())
-                            <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><span aria-hidden="true">🛡️</span> Zgłoszenia</a></li>
-                            <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><span aria-hidden="true">📌</span> Tablica na dziś</a></li>
+                            <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
+                            <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
                         @endif
                     </ul>
                 </nav>
@@ -257,19 +257,19 @@
     @auth
         <nav class="bottom-nav" aria-label="Nawigacja główna">
             <a class="bottom-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>
-                <span class="bottom-nav-icon" aria-hidden="true">🏠</span> Start
+                <x-ikona nazwa="home" class="bottom-nav-icon" :rozmiar="26" /> Start
             </a>
             <a class="bottom-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif>
-                <span class="bottom-nav-icon" aria-hidden="true">🔍</span> Szukaj
+                <x-ikona nazwa="search" class="bottom-nav-icon" :rozmiar="26" /> Szukaj
             </a>
             <a class="bottom-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif>
-                <span class="bottom-nav-icon" aria-hidden="true">➕</span> Dodaj
+                <x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /> Dodaj
             </a>
             <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>
-                <span class="bottom-nav-icon" aria-hidden="true">📒</span> Zeszyt
+                <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Zeszyt
             </a>
             <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>
-                <span class="bottom-nav-icon" aria-hidden="true">👤</span> Profil
+                <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil
             </a>
         </nav>
     @endauth
