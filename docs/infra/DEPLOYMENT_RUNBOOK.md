@@ -840,7 +840,7 @@ curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoop
 
 # 10. Nagłówki bezpieczeństwa
 curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
-# Oczekiwane: nosniff, SAMEORIGIN
+# Oczekiwane: nosniff, DENY
 ```
 
 **Testy ręczne w przeglądarce:**
