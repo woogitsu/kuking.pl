@@ -6,6 +6,7 @@ namespace App\Domain\Analytics;
 
 use App\Models\ProductSignal;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -77,9 +78,26 @@ final class ZapiszSygnal
             // Patrz komentarz klasy: zapis sygnału nie może wywrócić operacji,
             // którą opisuje — tylko log, żeby wiedzieć, że coś umyka, gdyby to
             // zaczęło się zdarzać częściej niż pojedynczo.
+            //
+            // KLASA I SQLSTATE, NIGDY `getMessage()`. To nie jest ostrożność
+            // na zapas — zmierzone. Gdy CHECK w bazie odrzuca wiersz z frazą
+            // wyszukiwania (czyli DOKŁADNIE wtedy, gdy ta ochrona działa),
+            // komunikat wyjątku zawiera tę frazę DWA RAZY: raz w postgresowym
+            // „DETAIL: Failing row contains (…)", raz w doklejonym przez
+            // Laravela „SQL: insert into … values (…)" z wstawionymi
+            // wartościami. Zalogowanie go znaczyłoby, że CHECK trzyma dane
+            // osobowe poza TABELĄ, a my wkładamy je do LOGU — czyli ta sama
+            // usterka co W7-07, tylko o warstwę dalej, i wprost wbrew
+            // AGENTS.md §7.
+            //
+            // Klasa wyjątku plus SQLSTATE wystarczą, żeby odpowiedzieć na
+            // jedyne pytanie, które ten log ma obsłużyć: „czy sygnały zaczęły
+            // padać i mniej więcej dlaczego". Konkretny wiersz do niczego
+            // się tu nie przydaje, bo i tak go nie ma.
             Log::warning('Nie udało się zapisać sygnału produktowego.', [
                 'signal_name' => $signalName,
-                'blad' => $e->getMessage(),
+                'wyjatek' => $e::class,
+                'sqlstate' => $e instanceof QueryException ? (string) $e->getCode() : null,
             ]);
         }
     }

@@ -9,6 +9,7 @@ use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Models\ProductSignal;
 use App\Models\Recipe;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -374,5 +375,63 @@ class SygnalyProduktoweTest extends TestCase
         // I samo, UDANE wgranie zdjęcia ma dalej działać.
         $media = app(StoreUploadedImage::class)->handle($basia, UploadedFile::fake()->image('obiad.jpg', 800, 600));
         $this->assertTrue($media->exists);
+    }
+
+    /**
+     * Gdy CHECK w bazie odrzuca wiersz z frazą wyszukiwania, ta fraza NIE MOŻE
+     * wylądować w logu.
+     *
+     * PO CO TO JEST, SKORO CHECK I TAK DZIAŁA
+     * Bo działa tylko w jedną stronę. CHECK trzyma dane osobowe poza TABELĄ —
+     * i robi to dobrze. Ale komunikat wyjątku, którym Postgres odmawia, zawiera
+     * odrzucony wiersz W CAŁOŚCI, a Laravel dokleja do niego jeszcze zapytanie
+     * SQL z wstawionymi wartościami. Zmierzone: fraza „Jan Kowalski, Kwiatowa 5"
+     * pojawiała się w kontekście logu DWA RAZY — raz w postgresowym
+     * „DETAIL: Failing row contains (…)", raz w „SQL: insert into … values (…)".
+     *
+     * Czyli w momencie, w którym ochrona prywatności ZADZIAŁAŁA, po cichu
+     * przenosiła chronione dane z bazy do pliku z logami. To jest dokładnie ta
+     * sama usterka co W7-07 (surowy wyjątek trafiający tam, gdzie nie powinien),
+     * tylko o warstwę dalej, i wprost wbrew AGENTS.md §7.
+     *
+     * Test celowo robi to, czego kod NIGDY nie powinien zrobić — wkłada
+     * `query_text` do właściwości — bo tylko tak da się sprawdzić, co się dzieje,
+     * gdy ktoś kiedyś popełni ten błąd.
+     */
+    public function test_odrzucony_wiersz_nie_przenosi_frazy_wyszukiwania_do_logu(): void
+    {
+        $zapisane = [];
+
+        Log::listen(function ($wiadomosc) use (&$zapisane): void {
+            $zapisane[] = $wiadomosc;
+        });
+
+        app(ZapiszSygnal::class)->handle(null, ZapiszSygnal::SEARCH_PERFORMED, [
+            'query_length' => 24,
+            'query_text' => 'Jan Kowalski, Kwiatowa 5',
+        ]);
+
+        $this->assertDatabaseCount('product_signals', 0);
+
+        $wpisy = array_values(array_filter(
+            $zapisane,
+            fn ($w) => str_contains($w->message, 'sygnału produktowego'),
+        ));
+
+        $this->assertCount(1, $wpisy, 'Nieudany zapis sygnału ma zostawić dokładnie jeden wpis w logu.');
+
+        $caly = json_encode($wpisy[0]->context, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringNotContainsString('Jan Kowalski', $caly);
+        $this->assertStringNotContainsString('Kwiatowa', $caly);
+        $this->assertStringNotContainsString('query_text', $caly);
+        $this->assertStringNotContainsString('Failing row', $caly);
+        $this->assertStringNotContainsString('insert into', $caly);
+
+        // To, co ZOSTAJE, ma wystarczyć do diagnozy: która nazwa sygnału,
+        // jaka klasa wyjątku, jaki SQLSTATE.
+        $this->assertSame(ZapiszSygnal::SEARCH_PERFORMED, $wpisy[0]->context['signal_name']);
+        $this->assertSame(QueryException::class, $wpisy[0]->context['wyjatek']);
+        $this->assertSame('23514', $wpisy[0]->context['sqlstate']);
     }
 }
