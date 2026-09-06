@@ -161,7 +161,7 @@ fi
 # nie tak. Sprawdzamy więc kod, a nie prozę: linie zaczynające się od `#`
 # lecą do kosza przed dopasowaniem. Pierwsza wersja tego testu tego nie
 # robiła i oblewała na własnym komentarzu z naprawy.
-if sed -n '/^  all)/,/^    ;;/p' "${ENTRYPOINT}" | sed 's/[[:space:]]*#.*$//' | grep -q 'wait -n'; then
+if sed -n '/^  all)/,/^    ;;/p' "${ENTRYPOINT}" | sed 's/[[:space:]]*#.*$//' | grep 'wait -n' >/dev/null; then
   sprawdz "rola 'all' nie czeka przez 'wait -n'" "brak" "jest"
 else
   sprawdz "rola 'all' nie czeka przez 'wait -n'" "brak" "brak"
@@ -179,9 +179,16 @@ fi
 #    (a nie przez `USER` w Dockerfile, bo wtedy nie ma czym zrobić chown),
 #    a `mkdir` na katalogu ze zdjęciami nie jest śmiertelny.
 # ---------------------------------------------------------------------------
+# UWAGA NA `grep -q` PO DRUGIEJ STRONIE RURY.
+# `grep -q` wychodzi przy pierwszym trafieniu, `sed` dostaje wtedy SIGPIPE,
+# a `set -o pipefail` uznaje CAŁĄ rurę za nieudaną — mimo że wzorzec został
+# znaleziony. Wynik zależy od tego, czy `sed` zdążył dopisać do bufora,
+# więc ten sam test raz przechodzi, a raz nie. Kosztowało to pół godziny
+# szukania nieistniejącej regresji w entrypoincie, w trakcie awarii
+# produkcji. Dlatego niżej jest `grep ... >/dev/null`, a nie `grep -q`.
 bez_komentarzy() { sed 's/[[:space:]]*#.*$//' "$1"; }
 
-if bez_komentarzy "${ENTRYPOINT}" | grep -q 'exec setpriv --reuid=www-data'; then
+if bez_komentarzy "${ENTRYPOINT}" | grep 'exec setpriv --reuid=www-data' >/dev/null; then
   sprawdz "entrypoint sam schodzi z uprawnień roota" "tak" "tak"
 else
   sprawdz "entrypoint sam schodzi z uprawnień roota" "tak" "nie"
@@ -197,16 +204,26 @@ else
   sprawdz "chown woluminu poprzedza zejście z uprawnień" "tak" "nie"
 fi
 
-if bez_komentarzy "${DOCKERFILE}" | grep -qE '^USER[[:space:]]'; then
+if bez_komentarzy "${DOCKERFILE}" | grep -E '^USER[[:space:]]' >/dev/null; then
   sprawdz "Dockerfile nie ustawia USER przed entrypointem" "brak" "jest"
 else
   sprawdz "Dockerfile nie ustawia USER przed entrypointem" "brak" "brak"
 fi
 
+# `storage:link` zakłada symlink w /app/public. Katalog przychodzi z obrazu
+# jako root:root, więc bez tego chown link nie powstaje — a wtedy KAŻDE
+# zdjęcie zwraca 404 przy stronie oddającej HTTP 200. Awaria niewidoczna
+# dla monitoringu, widoczna dla człowieka jako ikona zepsutego obrazka.
+if bez_komentarzy "${ENTRYPOINT}" | grep 'chown www-data:www-data /app/public' >/dev/null; then
+  sprawdz "katalog public dostaje właściciela przed storage:link" "tak" "tak"
+else
+  sprawdz "katalog public dostaje właściciela przed storage:link" "tak" "nie"
+fi
+
 # `mkdir` na katalogu ze zdjęciami wykonywany JAKO www-data (druga sekcja,
 # po zejściu z uprawnień) musi być nieśmiertelny.
 if bez_komentarzy "${ENTRYPOINT}" \
-  | grep -q 'mkdir -p /app/storage/app/public /app/storage/app/private 2>/dev/null || true'; then
+  | grep 'mkdir -p /app/storage/app/public /app/storage/app/private 2>/dev/null || true' >/dev/null; then
   sprawdz "brak prawa zapisu do zdjęć nie zabija startu" "tak" "tak"
 else
   sprawdz "brak prawa zapisu do zdjęć nie zabija startu" "tak" "nie"

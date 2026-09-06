@@ -50,6 +50,16 @@ if [[ "$(id -u)" == "0" ]]; then
     /app/storage/app/public \
     /app/storage/app/private
 
+  # `/app/public` też, i to nie jest dokładka „na wszelki wypadek".
+  # `storage:link` zakłada w tym katalogu symlink `storage`. Katalog przyszedł
+  # z obrazu jako `root:root`, więc `www-data` nie miał prawa nic w nim
+  # utworzyć — link nie powstawał, a KAŻDE zdjęcie zwracało 404 przy stronie
+  # oddającej HTTP 200. Awaria była niewidoczna dla monitoringu i widoczna
+  # dla człowieka jako ikona zepsutego obrazka.
+  #
+  # Bez `-R`: zmieniamy właściciela samego katalogu, a nie assetów w środku.
+  chown www-data:www-data /app/public
+
   if command -v setpriv >/dev/null 2>&1; then
     exec setpriv --reuid=www-data --regid=www-data --clear-groups "$0" "$@"
   fi
@@ -184,11 +194,13 @@ if [[ ! -w /app/storage/app ]] \
   log "  Nie zatrzymuję startu: strona bez wgrywania zdjęć jest lepsza niż 502."
 fi
 
-# Błąd NIE jest już połykany. Wcześniej `|| true` z przekierowanym wyjściem
-# ukrywał niepowodzenie, więc awaria objawiała się dopiero jako zepsute
-# zdjęcia u użytkownika, bez śladu w logach.
-if ! php /app/artisan storage:link --no-interaction >/dev/null 2>&1; then
+# Błąd NIE jest już połykany — ale samo „nie zadziałał" też okazało się
+# za mało. Log mówił, ŻE się nie udało, i nie mówił DLACZEGO, więc przyczyna
+# (brak prawa zapisu do /app/public) wyszła na jaw dopiero z `/health`,
+# długo po wdrożeniu. Wyjście polecenia idzie teraz do logu.
+if ! WYNIK_LINKU="$(php /app/artisan storage:link --no-interaction 2>&1)"; then
   log "OSTRZEŻENIE: storage:link nie zadziałał — pliki z dysku lokalnego będą zwracać 404."
+  log "  Powód podany przez Laravel: ${WYNIK_LINKU//$'\n'/ }"
   log "  Nie zatrzymuję startu: przy FILESYSTEM_DISK=r2 ten link nie jest potrzebny."
 fi
 
