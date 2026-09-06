@@ -67,6 +67,10 @@ class CookedEventController extends Controller
             'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
+            // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
+            // nieprawidłowa" (issue #86) — to pole renderuje się jako
+            // trzy przyciski, więc zdanie wymienia dokładnie te trzy.
+            'perceived_difficulty.in' => 'Wybierz, jak trudny był ten przepis: łatwy, średni albo trudny.',
         ]);
 
         $user = $request->user();

@@ -71,23 +71,11 @@ final class LimityZdjec
             return 'Do jednej wysyłki można dodać tylko jedno zdjęcie. Pozostałe wyślij osobno.';
         }
 
-        return 'Do jednej wysyłki można dodać maksymalnie '.$limit.' '.self::odmianaZdjecia($limit).'.';
-    }
-
-    /** Polska odmiana: 1 zdjęcie, 2-4 zdjęcia, 0/5+/12-14 zdjęć. */
-    private static function odmianaZdjecia(int $liczba): string
-    {
-        if ($liczba === 1) {
-            return 'zdjęcie';
-        }
-
-        $ostatniaCyfra = $liczba % 10;
-        $ostatnieDwieCyfry = $liczba % 100;
-
-        if ($ostatniaCyfra >= 2 && $ostatniaCyfra <= 4 && ($ostatnieDwieCyfry < 12 || $ostatnieDwieCyfry > 14)) {
-            return 'zdjęcia';
-        }
-
-        return 'zdjęć';
+        // Odmiana liczebnika NIE mieszka już tutaj (issue #86) — to była
+        // druga kopia dokładnie tej samej reguły co w `Odmiana::rzeczownik()`
+        // (nastki, 2-4 kontra 5+). Dwie kopie tej samej reguły to dokładnie
+        // to, przed czym ostrzega ten sam problem: rozjeżdżają się osobno.
+        return 'Do jednej wysyłki można dodać maksymalnie '.$limit.' '
+            .Odmiana::rzeczownik($limit, 'zdjęcie', 'zdjęcia', 'zdjęć').'.';
     }
 }

@@ -67,6 +67,9 @@ class CollectionController extends Controller
             'visibility' => ['required', 'in:public,private'],
         ], [
             'name.required' => 'Podaj nazwę zeszytu — na przykład „Na święta”.',
+            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
+            // nieprawidłowa" (issue #86) — dwie opcje z ekranu, wprost.
+            'visibility.in' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
         ]);
 
         try {
