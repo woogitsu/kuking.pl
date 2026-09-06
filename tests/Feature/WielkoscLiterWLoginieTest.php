@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Profile;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -229,7 +229,7 @@ class WielkoscLiterWLoginieTest extends TestCase
         // nie miała przyjść.
         Notification::assertSentTo(
             User::where('email', 'basia@example.com')->firstOrFail(),
-            ResetPassword::class,
+            UstawienieNowegoHasla::class,
         );
     }
 

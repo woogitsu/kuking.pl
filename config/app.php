@@ -15,7 +15,11 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    // Wartość domyślna jest nasza, nie Laravelowa (issue #79). Ta nazwa trafia
+    // m.in. do nazwy nadawcy poczty (config/mail.php) i do tytułu domyślnego
+    // szablonu wiadomości — brak zmiennej APP_NAME na serwerze nie może
+    // znaczyć, że listy do użytkowników podpisuje „Laravel".
+    'name' => env('APP_NAME', 'Kuking'),
 
     /*
     |--------------------------------------------------------------------------
@@ -80,9 +84,12 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // Kuking jest serwisem polskim i nie ma wersji angielskiej. Domyślne „en"
+    // znaczyło, że brak zmiennej APP_LOCALE na serwerze wyłącza CAŁE
+    // tłumaczenie z `lang/pl` — łącznie z treścią listów systemowych.
+    'locale' => env('APP_LOCALE', 'pl'),
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'pl'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
