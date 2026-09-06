@@ -159,3 +159,84 @@ document.addEventListener('DOMContentLoaded', () => {
         obraz.alt = '';
     });
 })();
+
+// --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
+
+/*
+ * WSZYSTKO PONIŻEJ JEST DODATKIEM, NIE WARUNKIEM.
+ *
+ * Karuzela przewija się sama: taśma to kontener z `overflow-x: auto`
+ * i `scroll-snap`, a „Poprzednie / Następne” to odnośniki do `#id` sąsiedniego
+ * slajdu. Przy wyłączonym skrypcie nie działają tylko dwie rzeczy, których bez
+ * skryptu zrobić się nie da — i obie są tutaj:
+ *
+ *  1. ogłoszenie zmiany slajdu w obszarze `aria-live` (bez skryptu numer
+ *     slajdu i tak jest widoczny pod zdjęciem oraz w jego tekście
+ *     alternatywnym, więc nikt nie gubi się w kolejności);
+ *  2. odsłonięcie wyboru wyglądu w formularzu publikacji po wybraniu drugiego
+ *     zdjęcia — serwer nie zna liczby plików, dopóki formularz nie zostanie
+ *     wysłany (bez skryptu ten sam wybór stoi na ekranie „Zdjęcia w tym
+ *     wpisie”, pod opublikowanym wpisem).
+ */
+
+for (const tasma of document.querySelectorAll('[data-karuzela-tasma]')) {
+    const ogloszenie = tasma.closest('.karuzela')?.querySelector('[data-karuzela-ogloszenie]');
+    const slajdy = [...tasma.querySelectorAll('.karuzela-slajd')];
+
+    if (! ogloszenie || slajdy.length < 2 || typeof IntersectionObserver !== 'function') {
+        continue;
+    }
+
+    // Pierwsze wywołanie obserwatora przychodzi zaraz po wczytaniu strony
+    // i dotyczy slajdu, który i tak jest na wierzchu. Wpisanie go do obszaru
+    // `aria-live` kazałoby czytnikowi ekranu ogłosić „Zdjęcie 1 z 3" komuś,
+    // kto niczego jeszcze nie zrobił. Ogłaszamy dopiero ZMIANĘ.
+    let pierwszeWywolanie = true;
+
+    const obserwator = new IntersectionObserver((wpisy) => {
+        if (pierwszeWywolanie) {
+            pierwszeWywolanie = false;
+
+            return;
+        }
+
+        for (const wpis of wpisy) {
+            // Ogłaszamy dopiero slajd, który zajmuje WIĘKSZOŚĆ taśmy. Przy
+            // niższym progu czytnik ekranu dostawałby dwa komunikaty na każde
+            // przewinięcie — także o slajdzie schodzącym z ekranu.
+            if (wpis.isIntersecting && wpis.intersectionRatio > 0.6) {
+                ogloszenie.textContent = `Zdjęcie ${wpis.target.dataset.karuzelaNumer} z ${slajdy.length}`;
+            }
+        }
+    }, { root: tasma, threshold: [0.6] });
+
+    for (const slajd of slajdy) {
+        obserwator.observe(slajd);
+    }
+}
+
+(() => {
+    const pole = document.getElementById('f-photos');
+    const wybor = document.querySelector('[data-wybor-wygladu]');
+
+    if (! pole || ! wybor) {
+        return;
+    }
+
+    pole.addEventListener('change', () => {
+        const kilka = (pole.files?.length ?? 0) >= 2;
+
+        wybor.hidden = ! kilka;
+
+        // Wybór, który znika z ekranu, wraca do „zwykle”. Inaczej ktoś
+        // zaznaczyłby kolaż przy trzech zdjęciach, zmienił wybór plików na
+        // jedno — i wysłałby ustawienie, którego już nie widzi.
+        if (! kilka) {
+            const zwykle = wybor.querySelector('input[value="normal"]');
+
+            if (zwykle) {
+                zwykle.checked = true;
+            }
+        }
+    });
+})();

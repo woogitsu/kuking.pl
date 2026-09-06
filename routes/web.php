@@ -21,6 +21,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
@@ -177,6 +178,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']}")
         ->name('posts.comment');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+
+    // Zdjęcia w opublikowanym wpisie: kolejność i sposób wyświetlania (#92).
+    // Zwykły GET i zwykły POST — bez JavaScriptu, bo to jedyna droga, na
+    // której serwer w ogóle WIE, ile zdjęć ma wpis (patrz komentarz
+    // w PostMediaController).
+    Route::get('/wpisy/{post}/zdjecia', [PostMediaController::class, 'edit'])->name('posts.media.edit');
+    Route::post('/wpisy/{post}/zdjecia', [PostMediaController::class, 'update'])
+        ->middleware("throttle:{$limits['post']}")
+        ->name('posts.media.update');
 
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.

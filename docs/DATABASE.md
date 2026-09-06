@@ -189,6 +189,45 @@ Tylko metadata, nie binary:
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+**`posts.display_mode` — jak autor chce pokazać kilka zdjęć** (issue #92,
+migracja `2026_09_06_120000_add_display_mode_to_posts`).
+
+```sql
+ALTER TABLE posts ADD COLUMN display_mode varchar(20) NOT NULL DEFAULT 'normal';
+ALTER TABLE posts ADD CONSTRAINT posts_display_mode_check
+    CHECK (display_mode IN ('normal','carousel','collage'));
+```
+
+- `normal` — zdjęcia jedno pod drugim (dotychczasowy i domyślny układ);
+- `carousel` — jedno zdjęcie naraz, przewijane w bok;
+- `collage` — siatka na jednym ekranie.
+
+CHECK jest w BAZIE, nie tylko w PHP: widok umie narysować dokładnie te trzy
+warianty, więc czwarty nie ma prawa się tam znaleźć żadną drogą — ani przez
+formularz, ani przez `php artisan tinker`, ani przez przyszłe API.
+
+Wartość domyślna wypełnia wszystkie istniejące wiersze bez migracji danych
+i bez przepisywania tabeli (PostgreSQL trzyma `DEFAULT` w katalogu). Wpis
+zapisany przed tą zmianą wyświetla się dokładnie jak dotąd.
+
+**Kolumna nie zastępuje liczby zdjęć.** Przy jednym zdjęciu wszystkie trzy
+tryby dają ten sam widok, więc `PublishPost` i `ArrangePostMedia` zapisują
+wtedy `normal`, a `Post::trybWyswietlaniaZdjec()` i tak liczy tryb na nowo
+przy renderowaniu — wpis może stracić zdjęcia (moderacja) długo po wyborze
+autora.
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` zdejmuje CHECK
+i kasuje kolumnę; traci się wyłącznie wybór autora (wszystko wraca do układu
+„zwykle"). Żadne zdjęcie, żaden wpis ani żadna pozycja w `post_media` nie
+ginie, więc cofnięcie jest bezpieczne także na produkcji w trakcie awarii.
+
+**Kolejność zdjęć zmienia `post_media.position`**, a nie kolejność wierszy.
+Zamiana dwóch zdjęć miejscami przechodziłaby przez stan łamiący
+`UNIQUE (post_id, position)`, więc `ArrangePostMedia` robi to w dwóch
+przebiegach w jednej transakcji: najpierw odsuwa wszystkie pozycje w zakres
+100+, potem ustawia docelowe `0, 1, 2…`. Wartości pośrednie są dodatnie,
+więc `CHECK (position >= 0)` obowiązuje przez cały czas.
+
 ### recipes
 Aktualny stan.
 
