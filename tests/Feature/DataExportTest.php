@@ -538,4 +538,41 @@ class DataExportTest extends TestCase
 
         return $zip;
     }
+
+    public function test_paczka_bez_zdjec_nie_obiecuje_katalogu_ktorego_nie_ma(): void
+    {
+        // ZipArchive nie tworzy pustych katalogów, więc `zdjecia/` powstaje
+        // w paczce TYLKO wtedy, gdy jest do niego co włożyć. Spis treści
+        // pokazywał mimo to link „Otwórz katalog ze zdjęciami" — u kogoś bez
+        // ani jednego zdjęcia prowadził w przeglądarce do „nie znaleziono pliku".
+        //
+        // Usterka dotyka WYŁĄCZNIE osoby najświeższej w serwisie i to w pliku,
+        // który ma być dowodem, że jej dane są bezpieczne. Wszystkie pozostałe
+        // testy budują eksport z gotowymi zdjęciami, więc żaden jej nie widział.
+        $user = $this->user('bezzdjec');
+
+        $export = DataExport::create([
+            'user_id' => $user->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+
+        (new GenerateUserExport($export->getKey()))->handle();
+
+        $zip = new ZipArchive;
+        $zip->open(Storage::disk($export->refresh()->disk)->path($export->object_key));
+
+        $index = $zip->getFromName('index.html');
+
+        // Katalogu naprawdę nie ma...
+        $this->assertFalse($zip->locateName('zdjecia/'));
+
+        // ...więc spis treści nie ma prawa do niego zapraszać.
+        $this->assertStringNotContainsString('href="zdjecia/"', $index);
+
+        // I mówi wprost, dlaczego go nie ma — pusta sekcja bez wyjaśnienia
+        // wygląda jak brakująca część paczki.
+        $this->assertStringContainsString('Nie masz jeszcze w Kuking żadnego zdjęcia', $index);
+
+        $zip->close();
+    }
 }
