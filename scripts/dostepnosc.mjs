@@ -295,15 +295,35 @@ const przepelnienia = [];
 const stanZalogowany = await stanZalogowanego(przegladarka, adres);
 
 for (const wariant of WARIANTY) {
-  const kontekst = await przegladarka.newContext({
+  /*
+   * DWA KONTEKSTY, NIE JEDEN (issue #89)
+   *
+   * Wcześniej wszystkie ekrany były badane w JEDNYM kontekście, zalogowanym.
+   * `/login` i `/register` mają middleware `guest`, więc dla zalogowanego
+   * odsyłały na `/home` — raport wypisywał „✓ logowanie" i „✓ rejestracja",
+   * ale oba wpisy dotyczyły STRONY GŁÓWNEJ PO ZALOGOWANIU.
+   *
+   * Dwa najważniejsze ekrany dla kogoś, kto dopiero wchodzi do serwisu, nie
+   * były zbadane nigdy — a raport wyglądał na kompletny. To jest fałszywa
+   * zieleń w narzędziu, którego jedynym zadaniem jest wykrywanie fałszywej
+   * zieleni.
+   */
+  const ustawienia = {
     colorScheme: wariant.motyw,
     viewport: { width: wariant.szerokosc, height: 900 },
+  };
+
+  const kontekstGosciaAxe = await przegladarka.newContext(ustawienia);
+  const kontekstZalogowanegoAxe = await przegladarka.newContext({
+    ...ustawienia,
     storageState: stanZalogowany,
   });
 
-  const strona = await kontekst.newPage();
+  const stronaGoscia = await kontekstGosciaAxe.newPage();
+  const stronaZalogowanego = await kontekstZalogowanegoAxe.newPage();
 
   for (const ekran of EKRANY) {
+    const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
     const sciezka = ekran.znajdz === 'przepis' ? adresPrzepisu : ekran.adres;
 
     if (! sciezka) {
@@ -314,8 +334,26 @@ for (const wariant of WARIANTY) {
       continue;
     }
 
-    await strona.goto(sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
-      { waitUntil: 'domcontentloaded' });
+    const zamowiony = sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`;
+
+    await strona.goto(zamowiony, { waitUntil: 'domcontentloaded' });
+
+    /*
+     * SPRAWDZAMY, CZY DOSTALIŚMY TO, O CO PROSILIŚMY.
+     *
+     * Samo przeniesienie ekranów do kontekstu gościa nie wystarcza: ta sama
+     * pomyłka wróci przy kolejnej trasie za `auth` albo `guest`, tylko wtedy
+     * nikt jej nie zauważy. Przekierowanie musi być BŁĘDEM, nie cichym
+     * zbadaniem innej strony.
+     */
+    if (new URL(strona.url()).pathname !== new URL(zamowiony).pathname) {
+      console.error(
+        `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odesłał na ${new URL(strona.url()).pathname}. `
+        + 'Raport badałby inną stronę niż zamówiona.',
+      );
+      process.exitCode = 1;
+      continue;
+    }
 
     if (wariant.skalaTekstu) {
       await strona.evaluate(
@@ -353,7 +391,8 @@ for (const wariant of WARIANTY) {
     log(`  ${ile === 0 ? '✓' : '✗'} ${ekran.nazwa} (${wariant.nazwa})${ile ? ` — ${ile}` : ''}`);
   }
 
-  await kontekst.close();
+  await kontekstGosciaAxe.close();
+  await kontekstZalogowanegoAxe.close();
 }
 
 /* =============================================================================
