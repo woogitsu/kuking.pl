@@ -1351,6 +1351,15 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019).
+     `margin: 0` zdejmuje domyślny odstęp formularza, żeby przycisk stał
+     w jednym rzędzie z linkami zamiast tworzyć własny akapit. */
+  .site-footer-motyw {
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+
   .skip-link {
     position: absolute;
     left: var(--spacing-4);

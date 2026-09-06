@@ -54,6 +54,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'password',
         'locale',
         'text_scale',
+        'theme',
         'wants_weekly_digest',
         'age_confirmed_at',
         // Wspomnienia „Rok temu gotowałaś…" (issue #34). Preferencja

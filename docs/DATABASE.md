@@ -24,7 +24,41 @@ Konto:
   (patrz niżej);
 - locale;
 - text_scale;
+- theme (patrz niżej);
 - verified timestamps.
+
+#### `theme` — jasny/ciemny wygląd (D-019)
+
+**Zgłoszenie właściciela:** telefon sam przełączał stronę w tryb nocny, choć
+nikt o to nie prosił — arkusz stylów szedł za `prefers-color-scheme`
+systemu, migracja `2026_09_06_210000_add_theme_to_users`.
+
+```sql
+ALTER TABLE users ADD COLUMN theme varchar(10) NOT NULL DEFAULT 'light';
+ALTER TABLE users ADD CONSTRAINT users_theme_check
+    CHECK (theme IN ('light','dark'));
+```
+
+- `light` — domyślny dla KAŻDEGO konta, także już istniejącego;
+- `dark` — wyłącznie na jawne życzenie, `/ustawienia/czytelnosc` albo
+  szybki przełącznik w stopce.
+
+Świadomie tylko dwie wartości, bez trzeciej „jak w systemie" — patrz
+uzasadnienie w samej migracji i w `docs/DECISIONS.md` (D-019): dodanie jej
+przywróciłoby dokładnie to zachowanie (motyw zmieniający się sam, bez
+pytania), które ta kolumna ma wyłączyć.
+
+Gość (bez konta) dostaje ten sam wybór w ciasteczku, nie na koncie —
+`App\Http\Controllers\ThemeController`, nazwa ciasteczka w
+`config('kuking.theme.cookie')`.
+
+CHECK jest w bazie, nie tylko w PHP — z tego samego powodu co
+`posts.display_mode` wyżej w tym dokumencie: walidator da się ominąć nowym
+endpointem, `CHECK` nie.
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` zdejmuje CHECK
+i kasuje kolumnę; traci się wyłącznie WYBÓR WYGLĄDU. Żadne konto, wpis ani
+zdjęcie nie ginie — bezpieczne na produkcji w trakcie awarii.
 
 #### `status_expires_at` — termin wygaśnięcia kary
 

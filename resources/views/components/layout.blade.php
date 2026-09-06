@@ -4,6 +4,9 @@
     Rzeczy, które MUSZĄ tu zostać:
     - `data-text-scale` z konta użytkownika — ustawienie rozmiaru tekstu
       przetrwa zmianę przeglądarki (docs/UX_50_PLUS.md);
+    - `data-theme="dark"` — WYŁĄCZNIE stąd bierze się ciemny motyw, arkusz
+      stylów już nie ogląda się na `prefers-color-scheme` (docs/DECISIONS.md,
+      D-019). Jasny jest domyślny, gdy atrybutu nie ma;
     - link „Przejdź do treści” dla klawiatury;
     - komunikaty w `aria-live`, żeby czytnik ekranu ogłosił „Szkic zapisany”;
     - podpis tekstowy pod każdą ikoną w nawigacji.
@@ -28,6 +31,12 @@
 @php
     $user = auth()->user();
     $scale = $user?->text_scale ?? 100;
+    // Jasny/ciemny wygląd (docs/DECISIONS.md, D-019). Zalogowany ma wybór
+    // na koncie; gość — w ciasteczku (ThemeController). Brak jednego
+    // i drugiego znaczy jasny, bo to jest teraz DOMYŚLNY motyw serwisu,
+    // niezależnie od tego, co ustawił system operacyjny odwiedzającego.
+    $theme = $user?->theme ?? request()->cookie(config('kuking.theme.cookie'));
+    $theme = $theme === 'dark' ? 'dark' : 'light';
     $unread = $user?->unreadNotificationsCount() ?? 0;
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
@@ -85,7 +94,7 @@
 @endphp
 
 <!DOCTYPE html>
-<html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif>
+<html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif @if($theme === 'dark') data-theme="dark" @endif>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -389,6 +398,36 @@
                      kursorem, a informacja dostępna tylko przez hover jest
                      dla części osób niedostępna w ogóle (UX_50_PLUS). --}}
                 <span class="site-version">{{ \App\Support\Wersja::pelna() }}</span>
+
+                {{--
+                    SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md, D-019).
+
+                    W stopce, bo stopka jest na KAŻDEJ stronie i widoczna też
+                    na telefonie — w przeciwieństwie do pełnego ustawienia na
+                    `/ustawienia/czytelnosc`, do którego na telefonie nie ma
+                    dziś dojścia bez zalogowania. Działa też dla gościa: nie
+                    ma tu `@auth`.
+
+                    ZWYKŁY FORMULARZ POST, NIE LINK GET (AGENTS.md §5, §7):
+                    zmiana stanu przez GET dałaby się wywołać samym linkiem
+                    (np. z prefetchu przeglądarki) i złamałaby CSRF.
+
+                    Przycisk niesie WIDOCZNY TEKST opisujący wynik kliknięcia
+                    („Włącz ciemny wygląd" / „Włącz jasny wygląd"), nie samą
+                    ikonę — „ikona nigdy sama" (AGENTS.md §5).
+
+                    `redirect_to` NIE istnieje: `back()` w ThemeController
+                    czyta nagłówek `Referer`, tak samo jak każdy inny formularz
+                    „Zapisz" w serwisie (np. AccessibilitySettingsController).
+                --}}
+                <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
+                    @csrf
+                    <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
+                    <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
+                    <button class="btn btn-quiet" type="submit">
+                        {{ $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd' }}
+                    </button>
+                </form>
             </div>
         </footer>
 

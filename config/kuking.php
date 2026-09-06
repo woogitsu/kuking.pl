@@ -153,6 +153,25 @@ return [
         'default_scale' => 100,
     ],
 
+    'theme' => [
+        // Jasny/ciemny wygląd — ustawiany na /ustawienia/czytelnosc i przez
+        // szybki przełącznik w stopce (docs/DECISIONS.md, D-019). Wartości
+        // muszą mieścić się w CHECK z migracji `..._add_theme_to_users`.
+        //
+        // Świadomie BEZ trzeciej wartości „jak w systemie" — patrz komentarz
+        // w tej migracji. Dodanie jej przywróciłoby dokładnie to zachowanie
+        // (motyw zmieniający się sam, bez pytania), które ta funkcja
+        // ma wyłączyć.
+        'options' => ['light', 'dark'],
+        'default' => 'light',
+
+        // Nazwa ciasteczka z wyborem GOŚCIA (bez konta). Zalogowany ma wybór
+        // na koncie (kolumna `theme`) — cookie i tak dostaje tę samą wartość,
+        // żeby wygląd nie mrugnął z powrotem do jasnego, gdyby ta sama osoba
+        // wylogowała się na tym samym urządzeniu.
+        'cookie' => 'motyw',
+    ],
+
     'account' => [
         'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
 
