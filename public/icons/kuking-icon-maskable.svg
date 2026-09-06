@@ -1,17 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Kuking — Garnuś. Garnek z koroną zamiast pokrywki: w słowie KUKING siedzi KING.
-     Geometria z docs/brand/MASCOT_CONCEPT.md. Wariant uproszczony (bez oczu i pereł)
-     jest jedynym, który zostaje czytelny w 32 px — dlatego to on jest znakiem. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Kuking">
+<!-- WYGENEROWANE przez scripts/generuj-ikony.mjs — nie edytuj ręcznie.
+     Zmieniasz znak? Popraw kształt w skrypcie i uruchom go ponownie,
+     inaczej sześć ikon rozjedzie się między sobą. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 103.22580645161291 103.22580645161291"
+     width="512" height="512" role="img" aria-label="Kuking">
   <title>Kuking</title>
-  <rect width="512" height="512" fill="#F7F4EE"/>
-  <g transform="translate(256,256) scale(0.773) translate(-256,-279)">
-  <rect x="52" y="282" width="68" height="42" rx="21" fill="#A8452F"/>
-  <rect x="392" y="282" width="68" height="42" rx="21" fill="#A8452F"/>
-  <rect x="112" y="264" width="288" height="184" rx="40" fill="#C8781E"/>
-  <rect x="104" y="214" width="304" height="42" rx="14" fill="#E0A62B"/>
-  <polygon points="126,214 170,132 214,214" fill="#E0A62B"/>
-  <polygon points="214,214 256,110 298,214" fill="#E0A62B"/>
-  <polygon points="298,214 342,132 386,214" fill="#E0A62B"/>
-  </g>
+  <rect width="103.22580645161291" height="103.22580645161291" fill="#F7F4EE"/>
+  <g transform="translate(19.612903225806456 19.612903225806456)">
+  <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z"
+        fill="#B3401F" stroke="#B3401F" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="16" cy="14" r="3.5" fill="#B3401F"/>
+  <circle cx="32" cy="9" r="3.5" fill="#B3401F"/>
+  <circle cx="48" cy="14" r="3.5" fill="#B3401F"/>
+  <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="#B3401F"/>
+  <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="#B3401F"
+        stroke-width="5" stroke-linecap="round"/>
+  <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="#B3401F"
+        stroke-width="5" stroke-linecap="round"/>
+  <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="#F7F4EE"
+        stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="#F7F4EE"
+        stroke-width="3" stroke-linecap="round"/>
+</g>
 </svg>

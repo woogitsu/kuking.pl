@@ -65,10 +65,12 @@
     <header class="topbar">
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
-                <img class="wordmark-mark" src="{{ asset('icons/kuking-mark.svg') }}" alt="" aria-hidden="true">
-                {{-- Wersaliki rozbite na dwa elementy są dla czytnika ekranu
+                {{-- Znak wklejony wprost, nie przez <img> — inaczej nie
+                     dziedziczy koloru i w trybie ciemnym zostaje czarny. --}}
+                <x-kuking-mark :rozmiar="36" />
+                {{-- Logotyp rozbity na dwa elementy jest dla czytnika ekranu
                      dwoma osobnymi napisami. Podajemy mu jeden, całą nazwę. --}}
-                <span aria-hidden="true">KU<span class="wordmark-king">KING</span></span>
+                <span aria-hidden="true">KuKing<span class="wordmark-tld">.pl</span></span>
                 <span class="visually-hidden">Kuking — strona główna</span>
             </a>
 
