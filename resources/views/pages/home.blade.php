@@ -28,6 +28,38 @@
          zaobserwować. --}}
     <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
 
+    @if($wspomnienie ?? null)
+        {{--
+            „ROK TEMU GOTOWAŁAŚ…" — WŁASNE ARCHIWUM JAKO POWÓD POWROTU (issue #34).
+
+            Dla osoby, która gotuje codziennie od czterdziestu lat, największą
+            wartością nie jest nowy przepis — jest zobaczenie, co gotowała
+            w tym dniu dwa lata temu (docs/product/SOUL.md).
+
+            TON JEST CICHY I TO JEST CAŁA RÓŻNICA MIĘDZY TĄ FUNKCJĄ A OKRUCIEŃSTWEM.
+            „Rok temu, 6 września" — stwierdzenie faktu. Nigdy „Pamiętasz ten
+            wspaniały dzień?!", bo nie wiemy, czy był wspaniały, i nie mamy
+            prawa tego zakładać. Wpis może być przepisem po kimś, kto właśnie
+            umarł.
+
+            Blok NIE MA pustego stanu i nigdy nie będzie miał: „nie masz jeszcze
+            wspomnień" jest wyrzutem wobec kogoś, kto dopiero zaczyna.
+        --}}
+        <section class="wspomnienie" aria-labelledby="wspomnienie-podpis">
+            <h2 id="wspomnienie-podpis" class="wspomnienie-podpis">{{ $podpisWspomnienia }}</h2>
+
+            <x-post-card :post="$wspomnienie" />
+
+            {{-- „Nie pokazuj mi tego więcej" stoi PRZY wspomnieniu, nie
+                 w ustawieniach: w chwili, w której coś zabolało, nikt nie
+                 szuka trzeciego menu. Zwykły formularz, działa bez JavaScriptu. --}}
+            <form method="POST" action="{{ route('wspomnienia.ukryj', $wspomnienie) }}" class="wspomnienie-akcje">
+                @csrf
+                <button class="btn btn-quiet" type="submit">Nie pokazuj mi tego więcej</button>
+            </form>
+        </section>
+    @endif
+
     @if(($zrodloFeedu ?? 'obserwowani') === 'tematy')
         {{-- Feed tematów (issue #31). Człowiek MUSI wiedzieć, skąd się wzięły
              te wpisy: feed, którego pochodzenia nie da się wytłumaczyć,

@@ -55,6 +55,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'text_scale',
         'wants_weekly_digest',
         'age_confirmed_at',
+        // Wspomnienia „Rok temu gotowałaś…" (issue #34). Preferencja
+        // wyświetlania, nie stan konta — dlatego wolno ją tu trzymać,
+        // w odróżnieniu od `status` i `role` (AGENTS.md §7).
+        'memories_enabled',
     ];
 
     protected $hidden = [
@@ -157,6 +161,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'status_expires_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
+            'memories_enabled' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
             // w transporcie) — wyciek kopii bazy nie może oddawać drugiego

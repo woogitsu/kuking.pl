@@ -63,6 +63,7 @@ class Post extends Model
     {
         return [
             'published_at' => 'datetime',
+            'hide_as_memory' => 'boolean',
         ];
     }
 

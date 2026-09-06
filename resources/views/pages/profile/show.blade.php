@@ -113,6 +113,32 @@
                 @endif
             </x-empty-state>
         @else
+            @if(($lata ?? collect())->count() > 1)
+                {{--
+                    NAWIGACJA PO LATACH (issue #34).
+
+                    Archiwum ma działać jak stary fotoblog, a fotoblog ma lata
+                    w bocznej kolumnie. Bez tego jedyną drogą do września sprzed
+                    trzech lat jest klikanie „starsze" dwadzieścia razy — czyli
+                    droga, której nikt nie przejdzie.
+
+                    Pokazujemy dopiero od DWÓCH lat: jeden rok to nie wybór,
+                    tylko rząd przycisków udający wybór.
+
+                    Zwykłe odnośniki, bez skryptu.
+                --}}
+                <nav class="lata-archiwum" aria-label="Lata w archiwum">
+                    <a class="tab" href="{{ route('profile.show', $p->username) }}"
+                       @if(! ($rok ?? null)) aria-current="page" @endif>Wszystko</a>
+
+                    @foreach($lata as $rokZListy)
+                        <a class="tab"
+                           href="{{ route('profile.show', ['username' => $p->username, 'rok' => $rokZListy]) }}"
+                           @if(($rok ?? null) === $rokZListy) aria-current="page" @endif>{{ $rokZListy }}</a>
+                    @endforeach
+                </nav>
+            @endif
+
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
             <div class="stack">

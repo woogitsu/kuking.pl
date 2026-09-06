@@ -1408,3 +1408,41 @@
     font-size: var(--text-help);
     color: var(--color-ink-muted);
 }
+
+/* ---------------------------------------------------------------------------
+   Wspomnienie „Rok temu gotowałaś…" (issue #34)
+
+   Blok ma być CICHY. Bez ramki w kolorze marki, bez ikony, bez wyróżnienia
+   krzyczącego „patrz tutaj". To jest przypomnienie, nie powiadomienie —
+   a wpis pod spodem bywa przepisem po kimś, kogo już nie ma.
+
+   Odróżnia go od feedu jedno: podpis nad nim i cienka linia. Tyle wystarczy,
+   żeby było wiadomo, że to nie jest nowy wpis.
+--------------------------------------------------------------------------- */
+
+.wspomnienie {
+    margin-bottom: var(--spacing-6);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+}
+
+.wspomnienie-podpis {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body-lg);
+    color: var(--color-ink-muted);
+    font-weight: 600;
+}
+
+.wspomnienie-akcje {
+    margin-top: var(--spacing-2);
+}
+
+/* Lata w archiwum profilu (issue #34). Ten sam wygląd co zakładki wyżej —
+   to jest ta sama czynność (wybór widoku), więc nie ma powodu, żeby
+   wyglądała inaczej i wymagała nauczenia się drugi raz. */
+.lata-archiwum {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-5);
+}

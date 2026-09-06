@@ -39,6 +39,7 @@ use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TopicFollowController;
+use App\Http\Controllers\WspomnienieController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -213,6 +214,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/wpisy/{post}/zdjecia', [PostMediaController::class, 'update'])
         ->middleware("throttle:{$limits['post']}")
         ->name('posts.media.update');
+
+    // „Nie pokazuj mi tego więcej" — ukrycie jednego wspomnienia (issue #34).
+    // Bez limitu zapytań: to jest jedno kliknięcie na własnym wpisie,
+    // ustawiające flagę na `true`. Powtórzenie nie zmienia niczego.
+    Route::post('/wspomnienia/{post}/ukryj', [WspomnienieController::class, 'ukryj'])
+        ->name('wspomnienia.ukryj');
 
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.

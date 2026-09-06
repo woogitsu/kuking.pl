@@ -10,6 +10,28 @@
                 <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów i co ciekawego się działo. Jeden e-mail tygodniowo, nigdy więcej.</span>
             </span>
         </label>
+
+        {{--
+            WSPOMNIENIA — WYŁĄCZNIK, KTÓRY MUSI BYĆ ŁATWY DO ZNALEZIENIA (issue #34).
+
+            To nie jest ustawienie wygody. Wpis z przepisem po mamie, która
+            zmarła w tym roku, wyświetlony bez ostrzeżenia na stronie głównej,
+            jest okrutny. Człowiek w żałobie ma to wyłączyć jednym kliknięciem,
+            a nie odklikiwać wspomnienia po kolei.
+
+            Domyślnie włączone: funkcja, którą trzeba najpierw włączyć, nie
+            istnieje dla nikogo poza tym, kto o niej wie — a to jest mechanika
+            dla osoby gotującej od czterdziestu lat, nie dla osoby, która czyta
+            ustawienia.
+        --}}
+        <label class="choice" for="f-wspomnienia" style="margin-top:var(--spacing-4);">
+            <input id="f-wspomnienia" type="checkbox" name="memories_enabled" value="1" @checked(auth()->user()->memories_enabled)>
+            <span>
+                <span class="choice-label">Przypominaj mi, co gotowałam w tym dniu w poprzednich latach</span>
+                <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
+            </span>
+        </label>
+
         <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Zapisz</button>
     </form>
 

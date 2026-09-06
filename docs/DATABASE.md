@@ -340,6 +340,29 @@ skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
 utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
 tabeli.
 
+### Wspomnienia „Rok temu gotowałaś…" (issue #34)
+
+Dwie kolumny z migracji `2026_09_06_140000_add_memories_to_users_and_posts`,
+bo są **dwa różne „nie chcę tego widzieć"**:
+
+- **`users.memories_enabled`** (`boolean NOT NULL DEFAULT true`) — wyłącznik
+  całej mechaniki. To nie jest ustawienie wygody: wpis z przepisem po mamie,
+  która zmarła w tym roku, wyświetlony bez ostrzeżenia na stronie głównej,
+  jest okrutny. Człowiek w żałobie ma to wyłączyć jednym kliknięciem, a nie
+  odklikiwać wspomnienia po kolei.
+- **`posts.hide_as_memory`** (`boolean NOT NULL DEFAULT false`) — ukrycie
+  JEDNEGO wpisu przy zachowaniu mechaniki, bo zwykle boli jedna rzecz,
+  a nie wszystkie. Wpis **zostaje** w archiwum profilu: „nie przypominaj mi
+  o tym" to nie to samo co „usuń to".
+
+Kolumna siedzi na `posts`, a nie w tabeli `(user_id, post_id)`, bo wspomnienie
+to zawsze **własny** wpis oglądającego — właściciel i osoba ukrywająca to ta
+sama osoba, więc druga kolumna zawsze wynikałaby z pierwszej.
+
+**Rollback:** `down()` zdejmuje obie kolumny i traci przy tym listę ukrytych
+wspomnień — po cofnięciu człowiek zobaczy z powrotem to, co świadomie schował.
+Na produkcji: najpierw kopia obu kolumn.
+
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 
