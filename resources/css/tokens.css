@@ -163,51 +163,25 @@
    automatycznie „przepływa" do już wygenerowanych klas utility Tailwinda,
    ponieważ te klasy odwołują się do var(--color-*), a nie do wartości „na sztywno".
 
-   Dwie ścieżki aktywacji, obie muszą działać niezależnie:
-   a) systemowa: @media (prefers-color-scheme: dark) — gdy użytkownik
-      nie wybrał jawnie motywu w ustawieniach Kuking;
-   b) jawna: [data-theme="dark"] na <html>, ustawiana przez przełącznik
-      w /settings/accessibility i zapamiętywana w profilu użytkownika.
-   [data-theme="light"] zawsze wygrywa z systemowym prefers-color-scheme.
+   JEDNA ŚCIEŻKA AKTYWACJI, NIE DWIE (docs/DECISIONS.md, D-019)
+   Było tu kiedyś DRUGIE, systemowe wejście: `@media
+   (prefers-color-scheme: dark)`, które włączało ten motyw samo, gdy telefon
+   albo komputer odwiedzającego miał ciemny wygląd — choćby przez własny
+   harmonogram „tryb nocny". Właściciel to zgłosił jako usterkę: część osób
+   z naszej grupy (50+) nie kojarzy, że to WŁASNE urządzenie zmieniło wygląd
+   strony, więc to wygląda na awarię serwisu, nie na ustawienie telefonu.
+
+   Jedyne wejście, jakie zostaje: JAWNE, atrybutem na <html>. Ustawia go
+   `resources/views/components/layout.blade.php` na podstawie konta
+   (zalogowany, kolumna `users.theme`) albo ciasteczka (gość,
+   `App\Http\Controllers\ThemeController`) — nigdy sam system. Brak
+   atrybutu ZNACZY jasny, bo jasny jest teraz motywem domyślnym dla każdego,
+   niezależnie od tego, co ustawia system operacyjny.
+
+   Testuje to `tests/Feature/WyborMotywuTest.php` — również sprawdzeniem
+   TEGO ARKUSZA, żeby reguła `prefers-color-scheme` nie wróciła po cichu
+   przy kolejnej zmianie.
    ========================================================================== */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-surface: #1E1A16;
-    --color-surface-raised: #2A241E;
-    --color-surface-sunken: #14110E;
-    --color-border: #382F27;
-    --color-border-strong: #8C7D68;
-    --color-ink: #F5EFE6;
-    --color-ink-muted: #C9BEB0;
-    --color-ink-inverse: #FFFFFF;
-
-    --color-brand: #F2986A;
-    --color-brand-dark: #A63F1F;   /* używane jako hover przycisku primary w dark mode */
-    --color-brand-tint: #3A2418;
-    --color-brand-tint-ink: #F2986A;   /* na brand-tint: 6.55:1 */
-    --color-brand-solid: #C1502A;
-    --color-brand-solid-hover: #A63F1F;
-
-    --color-accent: #E3B341;
-    --color-accent-tint: #E3B341;
-    --color-accent-tint-ink: #3A2C0C;
-
-    --color-danger: #FF8A80;
-    --color-danger-tint: #5C1E17;
-    --color-danger-tint-ink: #FDECEA;
-    --color-danger-solid: #C43127;        /* biały tekst: 5.50:1 */
-    --color-danger-solid-hover: #A3281F;  /* biały tekst: 7.29:1 */
-    --color-success: #7BD79A;
-    --color-success-tint: #1E4A2C;
-    --color-success-tint-ink: #EAF9EE;
-
-    --color-focus: #6EA8FF;
-
-    --shadow-card: 0 1px 2px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.35);
-    --shadow-popover: 0 8px 24px rgba(0,0,0,.45);
-  }
-}
-
 :root[data-theme="dark"] {
   --color-surface: #1E1A16;
   --color-surface-raised: #2A241E;
@@ -242,6 +216,11 @@
 
   --shadow-card: 0 1px 2px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.35);
   --shadow-popover: 0 8px 24px rgba(0,0,0,.45);
+
+  /* Pola formularza i paski przewijania mają zgadzać się z WYBRANYM
+     motywem, nie z systemowym — stąd jawna wartość tutaj, a nie
+     `light dark` jak w bazowym :root niżej. */
+  color-scheme: dark;
 }
 
 /* =============================================================================
@@ -251,7 +230,15 @@
   :root {
     /* Domyślny mnożnik skali tekstu użytkownika — 100% */
     --user-text-scale: 1;
-    color-scheme: light dark;
+
+    /* Jawnie `light`, NIE `light dark` (docs/DECISIONS.md, D-019). Wartość
+       `light dark` każe przeglądarce dobrać pola formularza i paski
+       przewijania do SYSTEMOWEGO `prefers-color-scheme` — czyli wróciłaby
+       tylnymi drzwiami dokładnie ta usterka, którą ta decyzja zamyka: strona
+       wyglądałaby na jasną, ale kontrolki przeglądarki byłyby ciemne
+       w nocy. `:root[data-theme="dark"]` niżej nadpisuje tę wartość na
+       `dark`, wyłącznie gdy motyw ciemny jest wybrany JAWNIE. */
+    color-scheme: light;
   }
 
   /* Ustawienie „Powiększ tekst" z /settings/accessibility — 4 kroki,

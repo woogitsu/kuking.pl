@@ -156,14 +156,22 @@ const SKALE_UKLADU = SZYBKO ? [null] : [null, 150];
  * `skalaTekstu` ustawiamy atrybutem na <html>, tak samo jak robi to layout
  * dla zalogowanego z ustawieniem w profilu. Symulowanie tego zoomem
  * przeglądarki sprawdzałoby coś innego niż to, co dostaje człowiek.
+ *
+ * `motyw` DZIAŁA TAK SAMO — `data-theme`, nie `colorScheme` kontekstu
+ * (docs/DECISIONS.md, D-019). Arkusz stylów już nie ogląda się na
+ * `prefers-color-scheme` — to była właśnie usterka, którą ta decyzja
+ * zamyka — więc `newContext({ colorScheme: 'dark' })` sam z siebie nie
+ * włączyłby już niczego. Ustawiamy atrybut wprost, tym samym mechanizmem
+ * co `skalaTekstu` niżej, żeby ten automat wymuszał ciemny motyw dokładnie
+ * tak, jak zrobiłby to prawdziwy przełącznik w stopce albo w ustawieniach.
  */
 const WARIANTY = SZYBKO
-  ? [{ nazwa: 'jasny', motyw: 'light', szerokosc: 1280 }]
+  ? [{ nazwa: 'jasny', motyw: null, szerokosc: 1280 }]
   : [
-    { nazwa: 'jasny', motyw: 'light', szerokosc: 1280 },
+    { nazwa: 'jasny', motyw: null, szerokosc: 1280 },
     { nazwa: 'ciemny', motyw: 'dark', szerokosc: 1280 },
-    { nazwa: 'tekst 140%', motyw: 'light', szerokosc: 1280, skalaTekstu: 140 },
-    { nazwa: '320 px', motyw: 'light', szerokosc: 320 },
+    { nazwa: 'tekst 140%', motyw: null, szerokosc: 1280, skalaTekstu: 140 },
+    { nazwa: '320 px', motyw: null, szerokosc: 320 },
   ];
 
 /** Naruszenia poniżej tej wagi notujemy, ale nie zatrzymują one wysyłki. */
@@ -405,7 +413,6 @@ for (const wariant of WARIANTY) {
    * zieleni.
    */
   const ustawienia = {
-    colorScheme: wariant.motyw,
     viewport: { width: wariant.szerokosc, height: 900 },
   };
 
@@ -456,6 +463,13 @@ for (const wariant of WARIANTY) {
         (skala) => document.documentElement.setAttribute('data-text-scale', String(skala)),
         wariant.skalaTekstu,
       );
+    }
+
+    // Motyw ciemny — WYŁĄCZNIE ten atrybut go włącza (docs/DECISIONS.md,
+    // D-019). Kontekst przeglądarki (`colorScheme`) już nic by tu nie dał —
+    // arkusz stylów celowo nie ogląda się na `prefers-color-scheme`.
+    if (wariant.motyw === 'dark') {
+      await strona.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     }
 
     const wynik = await new AxeBuilder({ page: strona })

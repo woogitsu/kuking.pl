@@ -37,6 +37,7 @@ use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
+use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TopicFollowController;
 use App\Http\Controllers\WspomnienieController;
@@ -80,6 +81,12 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+// Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
+// przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
+// (docs/DECISIONS.md, D-019). Wybór zalogowanego kontroler i tak zapisuje
+// na koncie — patrz ThemeController.
+Route::post('/motyw', [ThemeController::class, 'update'])->name('theme.update');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 

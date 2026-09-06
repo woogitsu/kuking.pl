@@ -50,6 +50,18 @@ Charakter: ciepła kuchnia, drewniany stół, pomidorowa zupa, poranne światło
 
 Nie jest to odwrócona jasność — to osobna, przemyślana paleta o tej samej strukturze ról.
 
+**Aktywacja — wyłącznie jawna (docs/DECISIONS.md, D-019).** Jasny jest
+motywem domyślnym dla każdego, zalogowanego i gościa — arkusz stylów NIE
+ogląda się na `prefers-color-scheme` systemu. Ciemny włącza wyłącznie atrybut
+`data-theme="dark"` na `<html>`, ustawiany po jawnym wyborze na
+`/ustawienia/czytelnosc` (zalogowany, zapisane na koncie w `users.theme`)
+albo przez szybki przełącznik w stopce (też dla gościa, zapamiętany
+w ciasteczku — `App\Http\Controllers\ThemeController`). Wcześniej istniało
+tu drugie, systemowe wejście przez `@media (prefers-color-scheme: dark)`;
+zostało usunięte, bo włączało ciemny motyw samo, gdy urządzenie
+odwiedzającego miało własny harmonogram „tryb nocny" — czego nikt nie
+zamawiał.
+
 | Token | Hex | Rola |
 |---|---|---|
 | `--color-surface` | `#1E1A16` | Tło strony (ciepła, prawie czarna czekolada — nie czysta czerń) |
