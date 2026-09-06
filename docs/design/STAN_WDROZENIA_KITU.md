@@ -4,7 +4,7 @@ Porównanie zrobione **przez zrzuty ekranu**: aplikacja lokalna i `kit-v2/html/`
 otwarte w tej samej przeglądarce, przy tej samej szerokości okna (1280 px
 i 390 px). Nie na oko z opisu.
 
-Data: 6 września 2026.
+Data: 6 września 2026. Aktualizacja tego samego dnia — etap C (ekran przepisu).
 
 ## Wniosek w jednym zdaniu
 
@@ -83,3 +83,39 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
   skrypcie. W tym produkcie to warunek, nie ulepszenie (AGENTS.md §5).
 - **Automat dostępności** przy każdej zmianie: axe na 14 ekranach w czterech
   wariantach plus pomiar przewijania w poziomie przy 320–768 px.
+
+---
+
+## Etap C — ekran przepisu (wdrożony 6 września 2026)
+
+| element z kitu (ekrany 02 i 06) | co jest w aplikacji |
+|---|---|
+| okruszki „Start › Przepisy” | **jest** |
+| hero: zdjęcie obok panelu | **jest**; bez zdjęcia panel bierze całą szerokość zamiast zostawiać pustą połowę |
+| kafle: czas / porcje / poziom | **jest**, ale tylko te, które autor podał — kafel „—” nie jest informacją |
+| akcje w panelu (Zapisz, Ugotowałem) | **jest**, w pionie i na pełną szerokość panelu; dochodzi trzecia, „Gotuję” |
+| „Skąd ten przepis?” w panelu | **jest**, razem ze zdjęciem kartki |
+| składniki obok kroków | **jest** (dwie kolumny od 60rem, składniki pierwsze niżej) |
+| składniki z kolumną ilości | **nie i nie będzie** — D-017 |
+| kroki z tytułami („Przygotuj ciasto”) | **nie i nie będzie** — D-017 |
+| „Jak wyszło innym?” | jest jako „Komu wyszło”; sam napis zmieni #38 |
+| znak „Uśmiech” w przycisku „Ugotowałem” | **świadomie nie**: znak rysuje garnek kolorem bieżącym, a uśmiech kolorem powierzchni — na tle marki wychodzi biała plama bez uśmiechu |
+
+Główna akcja przeniosła się z **dołu strony** do panelu przy zdjęciu. To jest
+największa zmiana produktowa w tym etapie, nie kosmetyczna: „Ugotowałem”
+leżało pod krokami, czyli widział je tylko ten, kto przewinął cały przepis.
+
+Nowe: `wide` w `<x-layout>` podnosi sufit kolumny z 45rem do całej szerokości
+po nawigacji. Sufit czytelności nie znika — przenosi się na pojedyncze bloki
+z ciągłym tekstem (`.kolumna-czytania`).
+
+### Zostaje z etapu C do zrobienia
+
+- `CookedCard` w układzie z kitu („Jak wyszło innym?” z paskiem liczb
+  i przyciskiem „Zobacz N wpisów”) — dziś to lista kart jedna pod drugą.
+
+### Nadal otwarte z listy tokenów
+
+`--leading-title` (1.25 w kicie, 1.4 u nas) zostaje **1.4**. Luźniejszy
+nagłówek jest tu decyzją dla grupy 50+, a nie rozjazdem — zmiana dotknęłaby
+każdego ekranu i należy do osobnej decyzji, nie do przestylowania przepisu.

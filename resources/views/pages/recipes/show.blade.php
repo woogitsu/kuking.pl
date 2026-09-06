@@ -14,6 +14,7 @@
          czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
          który zbierają scrapery. --}}
     :image="$isPublic ? $recipe->heroMedia : null"
+    :wide="true"
     ogType="article">
 
     <x-slot:head>
@@ -74,6 +75,19 @@
 
     <article class="stack">
         <header>
+            {{--
+                OKRUSZKI (kit v2, ekrany 02 i 06).
+
+                Na stronę przepisu wchodzi się najczęściej prosto z Google —
+                bez ekranu startowego po drodze i bez pojęcia, gdzie się jest.
+                Dane strukturalne wyżej mówią to samo Google'owi od dawna;
+                to jest ta sama informacja pokazana człowiekowi.
+            --}}
+            <ol class="okruchy">
+                <li><a href="{{ auth()->check() ? route('home') : route('landing') }}">Start</a></li>
+                <li><a href="{{ route('discover') }}">Przepisy</a></li>
+            </ol>
+
             <p class="meta mb-2">{{ $recipe->attributionLine() }}</p>
             <h1 class="mt-0">{{ $recipe->title }}</h1>
 
@@ -84,17 +98,17 @@
                     Kliknij Edytuj”, a „Edytuj” oddawało 403 — interfejs
                     obiecywał akcję, której nie ma, i nie mówił, co zrobić.
                 --}}
-                <p class="notice">
+                <p class="notice kolumna-czytania">
                     <strong>Ten przepis jest ukryty przez moderację.</strong>
                     Nie widzą go inne osoby i na razie nie da się go zmieniać.
                     Jeśli uważasz, że to pomyłka, napisz do nas:
                     {{ config('kuking.community.contact_email') }}
                 </p>
             @elseif(! $recipe->isPublished())
-                <p class="notice"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
+                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
-            <div class="flex items-center gap-3 mb-4 flex-wrap">
+            <div class="przepis-autor mb-4">
                 <x-avatar :user="$recipe->author" :size="44" />
                 <div class="min-w-0">
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
@@ -132,15 +146,136 @@
             </div>
         </header>
 
-        @if($recipe->heroMedia)
-            <x-photo :media="$recipe->heroMedia" variant="large" :priority="true"
-                     class="post-photo" />
-        @endif
+        {{--
+            HERO WEDŁUG KITU (ekran 02): zdjęcie po lewej, panel po prawej.
 
+            Kolejność w kodzie jest kolejnością na TELEFONIE i jest to
+            kolejność z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis".
+            Desktop tylko przesuwa panel obok zdjęcia — nie przestawia go
+            w innym miejscu drzewa, więc czytnik ekranu i klawiatura chodzą
+            w obu układach tak samo.
+
+            Bez zdjęcia panel bierze całą szerokość zamiast zostawiać po
+            lewej pustą połowę ekranu.
+        --}}
+        <div class="przepis-hero @if($recipe->heroMedia) przepis-hero-ze-zdjeciem @endif">
+            @if($recipe->heroMedia)
+                <div class="przepis-hero-zdjecie">
+                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                </div>
+            @endif
+
+            <div class="card przepis-panel">
+                {{--
+                    KAFLE LICZB: czas, porcje, poziom.
+
+                    Pokazujemy TYLKO to, co autor podał. Kit rysuje zawsze trzy
+                    kafle, ale kafel „—" nie jest informacją: mówi „nie wiemy",
+                    zajmując tyle miejsca, co odpowiedź.
+                --}}
+                @if($total || $porcje || $recipe->difficultyLabel())
+                    <ul class="przepis-liczby">
+                        @if($total)
+                            <li class="przepis-liczba">
+                                <x-ikona nazwa="clock" :rozmiar="26" />
+                                <div><strong>Około {{ $total }} min</strong><span>Czas</span></div>
+                            </li>
+                        @endif
+                        @if($porcje)
+                            <li class="przepis-liczba">
+                                <x-ikona nazwa="users" :rozmiar="26" />
+                                <div><strong>{{ $porcje }}</strong><span>Ilość</span></div>
+                            </li>
+                        @endif
+                        @if($recipe->difficultyLabel())
+                            <li class="przepis-liczba">
+                                <x-ikona nazwa="chef" :rozmiar="26" />
+                                <div><strong>{{ $recipe->difficultyLabel() }}</strong><span>Poziom</span></div>
+                            </li>
+                        @endif
+                    </ul>
+                @endif
+
+                {{--
+                    GŁÓWNA AKCJA PRZEPISU. Nie „Lubię to", a „Ugotowałem".
+
+                    Do etapu C stała na samym dole strony, pod składnikami
+                    i krokami — czyli tam, gdzie trafiał tylko ten, kto
+                    przewinął cały przepis. Kit stawia ją w panelu obok
+                    zdjęcia i to jest właściwe miejsce: widać ją od razu,
+                    a wraca się do niej po ugotowaniu bez szukania.
+                --}}
+                <div class="przepis-akcje">
+                    @auth
+                        {{--
+                            BEZ ZNAKU „UŚMIECH" W TYM PRZYCISKU, wbrew kitowi.
+
+                            Kit wkleja go tutaj, ale znak rysuje garnek kolorem
+                            bieżącym, a uśmiech kolorem powierzchni. Na tle
+                            marki daje to biały garnek z uśmiechem w kolorze
+                            białego tła — czyli plamę bez uśmiechu. Znak,
+                            którego nie widać, jest gorszy niż jego brak.
+                        --}}
+                        <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                        @if($isSaved)
+                            <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
+                                @csrf
+                                <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
+                            </form>
+                        @endif
+                    @else
+                        <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
+                    @endauth
+
+                    {{--
+                        „Gotuję" — tryb pełnoekranowy (issue #24). Widoczny
+                        tylko, gdy przepis w ogóle ma kroki: bez nich nie
+                        miałby czego pokazać, a kontroler i tak zawraca
+                        z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
+                    --}}
+                    @if($recipe->steps->isNotEmpty())
+                        <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                    @endif
+                </div>
+
+                {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
+                     produktowa, nie kolejność przypadkowa. --}}
+                @if($recipe->source_note || $recipe->source_person)
+                    <section class="recipe-story">
+                        <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
+                        @if($recipe->source_person)
+                            <p><strong>Po {{ $recipe->source_person }}.</strong></p>
+                        @endif
+                        @if($recipe->source_note)
+                            <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>
+                        @endif
+                        @if($recipe->sourceScan)
+                            <div class="mt-4">
+                                <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
+                                <p class="meta">Kartka, z której jest ten przepis.</p>
+                            </div>
+                        @endif
+                    </section>
+                @endif
+
+                @if($recipe->source_type === 'external' && $recipe->source_url)
+                    <p class="meta m-0">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
+                @endif
+            </div>
+        </div>
+
+        {{--
+            Plakietki, których kit nie ma, a które są tym, czym Kuking różni
+            się od bazy receptur: ile osób to naprawdę zrobiło i od kiedy
+            przepis jest w rodzinie. Zostają POD hero, żeby nie konkurowały
+            z trzema liczbami, które mówią „czy zdążę i dla ilu osób".
+        --}}
         <ul class="recipe-facts">
-            @if($porcje)<li><span class="badge">{{ $porcje }}</span></li>@endif
-            @if($total)<li><span class="badge">Razem około {{ $total }} min</span></li>@endif
-            @if($recipe->difficultyLabel())<li><span class="badge">{{ $recipe->difficultyLabel() }}</span></li>@endif
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
             {{-- „X z Y osób zrobi to ponownie" — od trzech ocen (SOUL 4.2).
                  Poniżej trzech jedna opinia waży za dużo, a zdanie brzmi jak
@@ -152,114 +287,72 @@
         </ul>
 
         @if($recipe->summary)
-            <p class="text-lead">{{ $recipe->summary }}</p>
+            <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
         @endif
 
-        {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
-             produktowa, nie kolejność przypadkowa. --}}
-        @if($recipe->source_note || $recipe->source_person)
-            <section class="recipe-story">
-                <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
-                @if($recipe->source_person)
-                    <p><strong>Po {{ $recipe->source_person }}.</strong></p>
-                @endif
-                @if($recipe->source_note)
-                    <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>
-                @endif
-                @if($recipe->sourceScan)
-                    <div class="mt-4 max-w-[22rem]">
-                        <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
-                        <p class="meta">Kartka, z której jest ten przepis.</p>
-                    </div>
+        {{--
+            SKŁADNIKI OBOK KROKÓW (kit, ekran 02).
+
+            Poniżej 60rem jedno pod drugim, składniki pierwsze: przy gotowaniu
+            najpierw sprawdza się, czy ma się z czego, a dopiero potem co po
+            kolei.
+
+            D-017: składnik zostaje JEDNYM polem wolnego tekstu, bez kolumny
+            ilości z kitu. Rozbijanie „500 g mąki pszennej" na dwie kolumny
+            wymagałoby zgadywania, gdzie kończy się ilość — a zgadywanie na
+            ekranie przepisu to zła ilość mąki.
+        --}}
+        <div class="przepis-siatka">
+            <section class="card">
+                <h2>Składniki</h2>
+                @if($recipe->ingredients->isEmpty())
+                    <p class="meta">Autor jeszcze nie dodał składników.</p>
+                @else
+                    <ul class="ingredient-list">
+                        @foreach($recipe->ingredients as $ingredient)
+                            <li>
+                                {{ $ingredient->ingredient_text }}
+                                {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
+                                     tego sam w tekście składnika (issue #44).
+                                     „Sól do smaku — do smaku” wygląda jak usterka,
+                                     a nie jak informacja. --}}
+                                @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
+                                    <span class="meta"> — do smaku</span>
+                                @endif
+                                @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                            </li>
+                        @endforeach
+                    </ul>
                 @endif
             </section>
-        @endif
 
-        @if($recipe->source_type === 'external' && $recipe->source_url)
-            <p class="meta">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
-        @endif
-
-        <section>
-            <h2>Składniki</h2>
-            @if($recipe->ingredients->isEmpty())
-                <p class="meta">Autor jeszcze nie dodał składników.</p>
-            @else
-                <ul class="ingredient-list">
-                    @foreach($recipe->ingredients as $ingredient)
-                        <li>
-                            {{ $ingredient->ingredient_text }}
-                            {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                 tego sam w tekście składnika (issue #44).
-                                 „Sól do smaku — do smaku” wygląda jak usterka,
-                                 a nie jak informacja. --}}
-                            @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
-                                <span class="meta"> — do smaku</span>
-                            @endif
-                            @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-        </section>
-
-        <section>
-            <h2>Przygotowanie</h2>
-            @if($recipe->steps->isEmpty())
-                <p class="meta">Autor jeszcze nie opisał przygotowania.</p>
-            @else
-                <ol class="step-list">
-                    @foreach($recipe->steps as $step)
-                        <li>
-                            <span class="step-number" aria-hidden="true">{{ $step->position + 1 }}</span>
-                            <div>
-                                <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
-                                <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
-                                @if($step->media)
-                                    <div class="mt-3 max-w-[20rem]">
-                                        <x-photo :media="$step->media" variant="feed" class="post-photo" />
-                                    </div>
-                                @endif
-                            </div>
-                        </li>
-                    @endforeach
-                </ol>
-            @endif
-        </section>
-
-        {{-- Główna akcja przepisu. Nie „Lubię to”, a „Ugotowałem”. --}}
-        <section class="card bg-brand-tint">
-            <h2 class="mt-0">Gotujesz z tego przepisu?</h2>
-            <p>Otwórz kroki na cały ekran w kuchni, a kiedy skończysz — {{ $recipe->author->displayName() }} naprawdę chce wiedzieć, że Ci wyszło.</p>
-            <div class="flex gap-3 flex-wrap">
-                {{--
-                    „Gotuję” obok „Ugotowałem" (issue #24) — to jest PRZED
-                    wykonaniem, w tym samym rzędzie przycisków co ten PO.
-                    Widoczny tylko, gdy przepis w ogóle ma kroki: bez nich
-                    tryb gotowania nie miałby czego pokazać, a kontroler
-                    i tak zawraca z czytelnym komunikatem, gdyby ktoś mimo
-                    to trafił pod ten adres wprost.
-                --}}
-                @if($recipe->steps->isNotEmpty())
-                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
-                @endif
-                @auth
-                    <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
-                    @if($isSaved)
-                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-secondary" type="submit">Usuń z zeszytu</button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
-                            @csrf
-                            <button class="btn btn-secondary" type="submit">Zapisuję</button>
-                        </form>
-                    @endif
+            <section class="card">
+                <h2>Przygotowanie</h2>
+                @if($recipe->steps->isEmpty())
+                    <p class="meta">Autor jeszcze nie opisał przygotowania.</p>
                 @else
-                    <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
-                @endauth
-            </div>
-        </section>
+                    {{-- D-017: numer i akapit, BEZ tytułu kroku z kitu.
+                         Autor pisze jeden ciąg zdań i nie ma skąd wziąć
+                         tytułu, którego nie napisał. --}}
+                    <ol class="step-list">
+                        @foreach($recipe->steps as $step)
+                            <li>
+                                <span class="step-number" aria-hidden="true">{{ $step->position + 1 }}</span>
+                                <div>
+                                    <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
+                                    <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
+                                    @if($step->media)
+                                        <div class="mt-3 max-w-[20rem]">
+                                            <x-photo :media="$step->media" variant="feed" class="post-photo" />
+                                        </div>
+                                    @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    </ol>
+                @endif
+            </section>
+        </div>
 
         @auth
             <p>
@@ -294,7 +387,7 @@
         </section>
 
         @if(auth()->id() === $recipe->author_id)
-            <div class="danger-zone">
+            <div class="danger-zone kolumna-czytania">
                 <x-confirm-button
                     :action="route('recipes.destroy', $recipe->slug)"
                     label="Usuń ten przepis"
@@ -302,6 +395,8 @@
             </div>
         @endif
 
-        <x-comment-thread :comments="$recipe->comments" :action="route('recipes.comment', $recipe->slug)" />
+        <div class="kolumna-czytania">
+            <x-comment-thread :comments="$recipe->comments" :action="route('recipes.comment', $recipe->slug)" />
+        </div>
     </article>
 </x-layout>

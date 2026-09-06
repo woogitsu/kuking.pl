@@ -53,6 +53,14 @@
       margin: 0;
     }
 
+    /* Ekran szeroki (dziś: przepis) bierze całą szerokość, jaka zostaje po
+       nawigacji — czyli około 53rem zamiast 45rem. Sufit czytelności nie
+       znika, tylko przenosi się na pojedyncze bloki tekstu
+       (`.kolumna-czytania`); patrz komentarz przy `<main>` w layout.blade.php. */
+    .app-main-szeroka {
+      max-width: none;
+    }
+
     /* Gość nie ma nawigacji bocznej — i wtedy NIE WOLNO rezerwować na nią
        kolumny.
 
@@ -716,12 +724,194 @@
     color: var(--color-accent-tint-ink);
   }
 
+  /* =====================================================================
+     EKRAN PRZEPISU — UI kit v2, etap C (ekrany 02 i 06)
+     =====================================================================
+
+     UKŁAD, NIE NOWE KOLORY. Paleta i typografia były zgodne z kitem od
+     etapu A; „nie wygląda jak kit" brało się z układu
+     (docs/design/STAN_WDROZENIA_KITU.md).
+
+     CO ZOSTAJE INACZEJ NIŻ W KICIE I DLACZEGO — decyzja D-017:
+       - składniki idą jako czytelna LISTA, bez kolumny ilości. Kit pokazuje
+         „Mąka pszenna | 500 g", ale u nas składnik to jedno pole wolnego
+         tekstu i taka kolumna musiałaby zgadywać, gdzie kończy się nazwa,
+         a zaczyna ilość. Zgadywanie na ekranie przepisu to zła ilość mąki;
+       - kroki to numerowane akapity BEZ wymyślonych tytułów. Kit ma
+         „1. Przygotuj ciasto", ale autor pisze jeden ciąg zdań i nie ma
+         skąd wziąć tytułu, którego nie napisał.
+
+     Kit jest referencją wyglądu, nie źródłem danych
+     (IMPLEMENTATION_GUIDE.md §4 punkt 5).
+     --------------------------------------------------------------------- */
+
+  /* Okruszki: „Start › Przepisy". W kicie są, ale u nas robią więcej niż
+     ozdobę — na stronie przepisu ląduje się najczęściej prosto z Google,
+     bez żadnego kontekstu, gdzie się jest. */
+  .okruchy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .okruchy li + li::before {
+    content: '›';
+    margin-right: var(--spacing-2);
+    color: var(--color-ink-muted);
+  }
+
+  /* --- Nagłówek: tytuł, autor, „Obserwuj" --- */
+
+  .przepis-autor {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+
+  /* --- Hero: zdjęcie obok panelu (desktop), jedno pod drugim (telefon) ---
+
+     Kolejność w KODZIE jest kolejnością na telefonie i jest to kolejność
+     z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis". Desktop tylko
+     przesuwa panel obok zdjęcia. Dzięki temu czytnik ekranu i klawiatura
+     chodzą tak samo w obu układach. */
+
+  .przepis-hero {
+    display: grid;
+    gap: var(--spacing-5);
+    align-items: start;
+  }
+
+  @media (min-width: 60rem) {
+    .przepis-hero-ze-zdjeciem {
+      grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+    }
+  }
+
+  .przepis-hero-zdjecie img {
+    border-radius: var(--radius-xl);
+  }
+
+  .przepis-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-5);
+    border-radius: var(--radius-xl);
+  }
+
+  /* --- Kafle liczb: czas, porcje, poziom ---
+
+     `auto-fit` zamiast trzech sztywnych kolumn, bo przepis nie musi mieć
+     wszystkich trzech: bez czasu i bez poziomu zostaje sama liczba porcji
+     i ma wtedy zająć całą szerokość, a nie jedną trzecią z dwiema dziurami.
+
+     `minmax(7rem, 1fr)` trzyma kafel czytelnym przy skali tekstu 150%,
+     przy której „4 porcje" nie mieści się w jednym wierszu. */
+  .przepis-liczby {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: var(--spacing-3);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .przepis-liczba {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    background-color: var(--color-surface-sunken);
+    border-radius: var(--radius-md);
+  }
+
+  .przepis-liczba svg {
+    flex: none;
+    color: var(--color-brand);
+  }
+
+  .przepis-liczba strong {
+    display: block;
+    font-size: var(--text-body);
+    line-height: 1.3;
+  }
+
+  .przepis-liczba span {
+    display: block;
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  /* --- Akcje ---
+
+     Pion, nie poziom. Kit ustawia „Zapisz" i „Ugotowałem" obok siebie, bo ma
+     dwa krótkie napisy — u nas trzeci przycisk brzmi „Gotuję — pokaż kroki
+     na cały ekran" i w rzędzie łamałby się na trzy wiersze w panelu szerokim
+     na 300 px. Pion jest też łatwiejszy do trafienia (docs/UX_50_PLUS.md).
+
+     Każdy przycisk na pełną szerokość panelu: cel większy niż wymagane
+     48 px i nie trzeba celować w napis. */
+  .przepis-akcje {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .przepis-akcje > form {
+    margin: 0;
+  }
+
+  .przepis-akcje .btn,
+  .przepis-akcje button {
+    width: 100%;
+    justify-content: center;
+  }
+
   /* ---------------------------------------------------------------------
      Przepis
      --------------------------------------------------------------------- */
 
+  /* Dwie kolumny: składniki i przygotowanie. Poniżej 60rem jedna pod drugą,
+     składniki PIERWSZE — przy gotowaniu najpierw sprawdza się, czy ma się
+     z czego, a dopiero potem co po kolei. */
+  .przepis-siatka {
+    display: grid;
+    gap: var(--spacing-5);
+    align-items: start;
+  }
+
+  @media (min-width: 60rem) {
+    .przepis-siatka {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    }
+  }
+
+  .przepis-siatka > .card {
+    border-radius: var(--radius-xl);
+  }
+
+  .przepis-siatka h2 {
+    margin-top: 0;
+  }
+
+  /* Sufit długości linii dla bloków z ciągłym tekstem na stronie szerokiej.
+     Bez tego wstęp i komentarze rozciągają się na całe 53rem, czyli około
+     95 znaków w wierszu — dokładnie to, przed czym broni domyślne 45rem. */
+  .kolumna-czytania {
+    max-width: var(--container-content);
+  }
+
   /* „Skąd ten przepis" stoi PRZED składnikami — to jest różnica między
-     bazą receptur i miejscem z duszą (docs/product/SOUL.md). */
+     bazą receptur i miejscem z duszą (docs/product/SOUL.md).
+
+     Od etapu C mieszka w panelu obok zdjęcia (kit, ekran 02), więc nie ma
+     już własnego marginesu ani obramowania z lewej — panel jest kartą. */
   .recipe-story {
     background-color: var(--color-brand-tint);
     border-left: 4px solid var(--color-brand);

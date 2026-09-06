@@ -292,7 +292,22 @@
                 </nav>
             @endauth
 
-            <main class="app-main" id="tresc">
+            {{--
+                `wide` PODNOSI SUFIT SZEROKOŚCI, NIE ZDEJMUJE GO.
+
+                Domyślna kolumna ma 45rem, bo tyle wychodzi 65–75 znaków przy
+                18–20 px (docs/UX_50_PLUS.md). Ekran przepisu z kitu v2 jest
+                jednak DWUKOLUMNOWY — zdjęcie obok panelu z liczbami, składniki
+                obok kroków — i w 45rem obie kolumny robią się węższe niż
+                jedna czytelna. Dlatego ten jeden ekran dostaje całą szerokość,
+                jaka zostaje po nawigacji.
+
+                Warunek: na stronie szerokiej NIE MOŻE stać akapit na pełną
+                szerokość. Każdy blok z ciągłym tekstem trzyma własny sufit
+                (`.kolumna-czytania`). Bez tego linia rośnie do ~95 znaków
+                i wracamy dokładnie do problemu, przed którym broni 45rem.
+            --}}
+            <main class="app-main @if($wide) app-main-szeroka @endif" id="tresc">
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił. --}}
                 <div aria-live="polite">
                     @if(session('status'))
