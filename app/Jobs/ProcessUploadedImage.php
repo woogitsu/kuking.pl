@@ -61,7 +61,13 @@ class ProcessUploadedImage implements ShouldQueue
         $media->update(['status' => Media::STATUS_PROCESSING]);
 
         try {
+            // DWA DYSKI, NIE JEDEN (audyt G-01). Oryginał czytamy z bucketu
+            // prywatnego, warianty zapisujemy do publicznego. Na R2
+            // publiczność jest cechą bucketu, nie obiektu, więc trzymanie obu
+            // w jednym buckecie wystawiało oryginały z EXIF-em i GPS-em pod
+            // adresem dającym się wyprowadzić z adresu wariantu.
             $disk = Storage::disk($media->disk);
+            $publiczny = Storage::disk($media->variantsDisk());
             $original = $disk->get($media->object_key);
 
             if ($original === null) {
@@ -93,7 +99,11 @@ class ProcessUploadedImage implements ShouldQueue
                     : $media->object_key;
 
                 $variantKey = preg_replace('/\.[^.]+$/', '', $publicznyKlucz)."_{$name}.webp";
-                $disk->put($variantKey, (string) $encoded, 'public');
+                // BEZ `'public'`. Na R2 `x-amz-acl: public-read` jest wprost
+                // nieobsługiwany dla `PutObject` — publiczność bierze się
+                // z własnej domeny bucketu, a nie z ACL na obiekcie. Ten
+                // argument nie dawał więc publiczności, a mógł żądanie wywrócić.
+                $publiczny->put($variantKey, (string) $encoded);
 
                 $variants[$name] = [
                     'key' => $variantKey,

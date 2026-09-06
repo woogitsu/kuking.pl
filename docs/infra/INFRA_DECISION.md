@@ -52,12 +52,21 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
                     │                          ╔═════════▼══════════════════╗
                     │                          ║  CLOUDFLARE R2             ║
                     │                          ║  bucket: kuking-media      ║
+                    │                          ║  (PUBLICZNY — własna       ║
+                    │                          ║   domena cdn.kuking.pl)    ║
                     │                          ║                            ║
-                    │                          ║  incoming/  (prywatne)     ║
                     │                          ║  media/…/thumb-320.webp    ║
                     │                          ║  media/…/feed-960.webp     ║
                     │                          ║  media/…/large-1600.webp   ║
                     │                          ║  egress do internetu: 0 zł ║
+                    │                          ╠════════════════════════════╣
+                    │                          ║  bucket: kuking-oryginaly  ║
+                    │                          ║  (PRYWATNY — bez domeny,   ║
+                    │                          ║   r2.dev wyłączone)        ║
+                    │                          ║                            ║
+                    │                          ║  incoming/{uuid}.jpg       ║
+                    │                          ║  pełny EXIF, GPS           ║
+                    │                          ║  dostęp: tylko API S3      ║
                     │                          ╚═════════▲══════════════════╝
                     │                                    │
                     │                          presigned PUT (upload)
@@ -125,6 +134,51 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
                     │  po deployu!)                  │
                     └────────────────────────────────┘
 ```
+
+## DWA BUCKETY R2, NIE JEDEN — to granica bezpieczeństwa
+
+Ten dokument mówił wcześniej „bucket: kuking-media, incoming/ (prywatne)".
+To założenie było nieprawdziwe i kosztowałoby wyciek danych osobowych
+(audyt G-01).
+
+**Cloudflare R2 nie implementuje S3-owych ACL na obiektach.** `x-amz-acl` jest
+w tabeli zgodności oznaczony jako NIEOBSŁUGIWANY dla `PutObject`. Publiczność
+w R2 jest cechą BUCKETU: własnej domeny albo `r2.dev`. Prefiks nie jest
+granicą uprawnień — jest tylko fragmentem nazwy klucza.
+
+Bucket wystawiony pod `cdn.kuking.pl` wystawiał więc CAŁĄ zawartość, razem
+z `incoming/`. A adres oryginału dawał się wyprowadzić z publicznego adresu
+wariantu, bo obie ścieżki dzielą UUID właściciela, datę i UUID pliku:
+
+```text
+https://cdn.kuking.pl/media/{wlasciciel}/2026/09/{uuid}_feed.webp   ← znany
+https://cdn.kuking.pl/incoming/{wlasciciel}/2026/09/{uuid}.jpg      ← oryginał
+```
+
+Wystarczyło zamienić prefiks, uciąć `_feed` i zgadnąć rozszerzenie spośród
+czterech dozwolonych. W oryginale siedzi pełny EXIF, czyli współrzędne GPS
+kuchni, w której zrobiono zdjęcie — dokładnie to, przed czym cały potok
+mediów miał chronić.
+
+| bucket | zawartość | własna domena | `r2.dev` | dostęp |
+|---|---|---|---|---|
+| `kuking-oryginaly` | `incoming/` — pliki od użytkownika, pełny EXIF | **NIE** | **wyłączone** | wyłącznie API S3 z serwera |
+| `kuking-media` | `media/` — warianty WebP bez EXIF | `cdn.kuking.pl` | — | publiczny odczyt |
+
+W aplikacji odpowiadają im dyski `r2` i `r2_publiczne`
+(`config/filesystems.php`), a w `railway.ts` zmienne `R2_BUCKET`
+i `R2_PUBLIC_BUCKET`. Dysk `r2` **świadomie nie ma klucza `url`** — dzięki
+temu `Storage::url()` na oryginale rzuci wyjątek zamiast po cichu zwrócić
+adres, który publiczny być nie może. Pilnuje tego `RozdzialMagazynowTest`.
+
+**Blokada WAF na `/incoming/*` nie jest równoważnikiem.** Jest lepsza niż nic,
+ale jedna omyłkowo usunięta reguła wystawia dane z powrotem; osobny bucket bez
+domeny nie ma czego wystawić.
+
+**Czego ten test NIE dowodzi:** że produkcyjne buckety są tak skonfigurowane.
+Tego z PHP nie widać. Przed wystawieniem produkcji trzeba przejść bramkę na
+prawdziwym R2 — sprawdzenie, że znany adres oryginału zwraca 403/404 przez
+każdą publiczną ścieżkę, a serwer czyta go po S3.
 
 ### Podział odpowiedzialności
 

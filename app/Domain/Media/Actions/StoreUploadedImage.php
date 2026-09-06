@@ -120,11 +120,29 @@ final class StoreUploadedImage
             $extension,
         );
 
-        Storage::disk($disk)->put($objectKey, $file->get(), 'private');
+        // BEZ TRZECIEGO ARGUMENTU (dawniej `'private'`).
+        //
+        // Na R2 widoczność obiektu nie istnieje: `x-amz-acl` jest w tabeli
+        // zgodności Cloudflare oznaczony jako NIEOBSŁUGIWANY dla `PutObject`.
+        // Ten argument nie robił więc tego, co obiecywał — prywatność
+        // oryginału zapewnia dziś to, że ten bucket nie ma własnej domeny
+        // ani `r2.dev` (audyt G-01, G-02).
+        //
+        // Sam Flysystem i tak dokłada `ACL` do każdego żądania (`upload()`
+        // w `AwsS3V3Adapter` liczy je zawsze, także bez podanej widoczności),
+        // ale domyślne `private` R2 traktuje jak brak żądania — w odróżnieniu
+        // od `public-read`, które szło tu dla wariantów. Całkowite pozbycie się
+        // ACL z żądania wymaga własnego adaptera i testu na prawdziwym R2 —
+        // patrz osobne zgłoszenie.
+        Storage::disk($disk)->put($objectKey, $file->get());
 
         $media = Media::create([
             'owner_id' => $owner->getKey(),
             'disk' => $disk,
+            // Gdzie trafią WARIANTY. Zapisujemy to teraz, a nie czytamy
+            // z konfiguracji przy każdym odczycie: konfiguracja może się
+            // zmienić, a pliki zostaną tam, gdzie je położono (audyt G-01).
+            'variants_disk' => (string) config('kuking.media.public_disk'),
             'object_key' => $objectKey,
             'mime_type' => $detectedMime,
             'bytes' => $bytes,

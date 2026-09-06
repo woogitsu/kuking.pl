@@ -215,19 +215,36 @@ export default defineRailway((ctx) => {
     // Implementacja: bootstrap/app.php → $middleware->trustProxies(at: '*')
     TRUSTED_PROXIES: "*",
 
-    // --- Storage zdjęć: Cloudflare R2 ----------------------------------------
-    // Dysk "r2" w config/filesystems.php to zwykły driver "s3".
-    // Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
-    // to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
+    // --- Storage zdjęć: Cloudflare R2, DWA BUCKETY ---------------------------
+    //
+    //  To jest granica bezpieczeństwa, a nie porządki (audyt G-01).
+    //
+    //  Cloudflare nie implementuje S3-owych ACL na obiektach — `x-amz-acl`
+    //  jest w tabeli zgodności oznaczony jako NIEOBSŁUGIWANY dla PutObject.
+    //  Publiczność w R2 jest cechą BUCKETU: własna domena albo r2.dev.
+    //  Jeden bucket pod `cdn.kuking.pl` wystawiał więc także prefiks
+    //  `incoming/` z ORYGINAŁAMI, a te niosą pełny EXIF, czyli współrzędne
+    //  GPS kuchni. Adres oryginału dawało się wyprowadzić z publicznego
+    //  adresu wariantu — ten sam UUID, ta sama data, inny prefiks.
+    //
+    //    R2_BUCKET         oryginały (`incoming/`). BEZ własnej domeny,
+    //                      r2.dev WYŁĄCZONE. Dostęp tylko przez API S3.
+    //    R2_PUBLIC_BUCKET  przetworzone warianty WebP (`media/`). TEN i tylko
+    //                      ten ma `cdn.kuking.pl`.
+    //
+    //  Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
+    //  to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
     FILESYSTEM_DISK: "r2",
     AWS_DEFAULT_REGION: "auto", // R2 wymaga literalnie "auto"
     AWS_USE_PATH_STYLE_ENDPOINT: "false",
     AWS_ACCESS_KEY_ID: ctx.shared.R2_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: ctx.shared.R2_SECRET_ACCESS_KEY,
     AWS_BUCKET: ctx.shared.R2_BUCKET,
+    AWS_PUBLIC_BUCKET: ctx.shared.R2_PUBLIC_BUCKET,
     AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
-    // Publiczny prefiks URL — własna domena bucketa za CDN Cloudflare.
-    // Dzięki temu Storage::url() zwraca https://cdn.kuking.pl/...
+    // Publiczny prefiks URL — własna domena bucketa PUBLICZNEGO za CDN
+    // Cloudflare. Dotyczy dysku `r2_publiczne`; dysk `r2` z oryginałami
+    // świadomie nie ma żadnego URL-a.
     AWS_URL: ctx.shared.R2_PUBLIC_URL,
 
     // --- Poczta transakcyjna --------------------------------------------------

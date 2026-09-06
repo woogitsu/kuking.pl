@@ -50,13 +50,42 @@ return [
         ],
 
         /*
-         * Cloudflare R2 — docelowy magazyn zdjęć (INFRA_DECISION.md §7).
+         * =====================================================================
+         *  DWA BUCKETY R2, NIE JEDEN. TO JEST GRANICA BEZPIECZEŃSTWA.
+         * =====================================================================
          *
-         * Dysk nazywa się `r2`, bo tak nazywa go infrastruktura: `railway.ts`
-         * ustawia FILESYSTEM_DISK="r2". Przed dodaniem tego bloku każdy upload
-         * na produkcji kończyłby się wyjątkiem
-         * „Disk [r2] does not have a configured driver" — czyli awarią głównej
-         * akcji serwisu, widoczną dopiero po wdrożeniu.
+         * Wcześniej był jeden dysk `r2`, jeden bucket i jeden `AWS_URL`.
+         * Oryginały leżały w nim pod prefiksem `incoming/` zapisane jako
+         * „private", warianty pod `media/` jako „public" — i cała prywatność
+         * oryginałów opierała się na tym rozróżnieniu.
+         *
+         * NA R2 TO ROZRÓŻNIENIE NIE ISTNIEJE. Cloudflare nie implementuje
+         * S3-owych ACL na obiektach: `x-amz-acl` jest w tabeli zgodności
+         * oznaczony jako nieobsługiwany dla `PutObject`. Publiczność w R2
+         * jest cechą BUCKETU (własna domena albo `r2.dev`), nie obiektu.
+         * Bucket wystawiony pod `cdn.kuking.pl` wystawia więc CAŁĄ zawartość,
+         * razem z `incoming/`.
+         *
+         * A adres oryginału daje się wyprowadzić z publicznego adresu wariantu:
+         * ten sam UUID właściciela, ta sama data, ten sam UUID pliku —
+         * wystarczy zamienić `media/` na `incoming/`, uciąć `_feed` i zgadnąć
+         * rozszerzenie z czterech możliwych. W oryginale siedzi pełny EXIF,
+         * czyli współrzędne GPS kuchni, w której zrobiono zdjęcie.
+         *
+         * Dlatego oryginały i warianty leżą w OSOBNYCH BUCKETACH:
+         *
+         *   r2            oryginały. Bez `url`, bez własnej domeny,
+         *                 `r2.dev` wyłączone. Dostęp wyłącznie przez API S3
+         *                 z serwera.
+         *   r2_publiczne  przetworzone warianty WebP (bez EXIF). Ten i tylko
+         *                 ten bucket ma `cdn.kuking.pl`.
+         *
+         * Nazwa `r2` zostaje dla oryginałów, bo tak ma w kolumnie `disk` każde
+         * zdjęcie zapisane do tej pory i tam te oryginały fizycznie leżą.
+         *
+         * BRAK `url` W DYSKU ORYGINAŁÓW JEST CELOWY. `Storage::disk('r2')->url()`
+         * rzuci wtedy wyjątek zamiast po cichu zwrócić publiczny adres pliku,
+         * który publiczny być nie może. Pilnuje tego `RozdzialMagazynowTest`.
          *
          * `throw => true` w odróżnieniu od dysku `s3` niżej. Przy `false`
          * nieudany zapis zwraca `false`, a kod leci dalej: użytkownik widzi
@@ -73,6 +102,31 @@ return [
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            // Świadomie BEZ `url`. Patrz komentarz wyżej.
+            'use_path_style_endpoint' => false,
+            'throw' => true,
+        ],
+
+        /*
+         * Bucket publiczny: wyłącznie przetworzone warianty WebP.
+         *
+         * Wszystko, co tu trafia, przeszło przez `ProcessUploadedImage`, czyli
+         * zostało zdekodowane i zapisane od nowa — a to zdejmuje EXIF razem
+         * z GPS-em. Nic, co przyszło od użytkownika w oryginalnej postaci, nie
+         * ma prawa się tu znaleźć.
+         *
+         * `AWS_PUBLIC_BUCKET` domyślnie wraca do `AWS_BUCKET`, żeby środowisko
+         * jeszcze nierozdzielone (staging sprzed tej zmiany) nie przestało
+         * działać z dnia na dzień. To jest jednak stan PRZEJŚCIOWY i test
+         * `RozdzialMagazynowTest` oblewa, gdy produkcja tak zostanie.
+         */
+        'r2_publiczne' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_PUBLIC_BUCKET', env('AWS_BUCKET')),
             'endpoint' => env('AWS_ENDPOINT'),
             'url' => env('AWS_URL'),
             'use_path_style_endpoint' => false,

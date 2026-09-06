@@ -40,6 +40,7 @@ class Media extends Model
     protected $fillable = [
         'owner_id',
         'disk',
+        'variants_disk',
         'object_key',
         'mime_type',
         'bytes',
@@ -122,7 +123,7 @@ class Media extends Model
             return asset('icons/kuking-mark.svg');
         }
 
-        return Storage::disk($this->disk)->url($key);
+        return Storage::disk($this->variantsDisk())->url($key);
     }
 
     public function width(string $variant = 'feed'): ?int
@@ -133,6 +134,25 @@ class Media extends Model
     public function height(string $variant = 'feed'): ?int
     {
         return $this->warianty()[$variant]['height'] ?? $this->height;
+    }
+
+    /**
+     * Dysk, na którym leżą PUBLICZNE WARIANTY tego zdjęcia.
+     *
+     * Oryginał (`disk`) i warianty mogą być w dwóch różnych bucketach —
+     * oryginał w prywatnym, warianty w tym za `cdn.kuking.pl` (audyt G-01).
+     * Na R2 publiczność jest cechą bucketu, nie obiektu, więc trzymanie obu
+     * w jednym buckecie wystawiało oryginały z EXIF-em i GPS-em.
+     *
+     * `null` znaczy „tam, gdzie oryginał" i tak jest dla każdego zdjęcia
+     * zapisanego przed rozdzieleniem bucketów. Nie backfillujemy tej kolumny:
+     * wpisanie tam nazwy nowego dysku byłoby stwierdzeniem nieprawdy o tym,
+     * gdzie te pliki fizycznie leżą, a `KasujZdjecie` szukałoby ich w złym
+     * buckecie i zostawiało publiczne kopie na zawsze.
+     */
+    public function variantsDisk(): string
+    {
+        return $this->variants_disk ?? $this->disk;
     }
 
     /**

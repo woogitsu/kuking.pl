@@ -30,6 +30,29 @@ return [
         // zdjęcia gdzie indziej, dopóki ktoś nie ustawi drugiej zmiennej.
         'disk' => env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
 
+        /*
+         * Dysk PUBLICZNYCH WARIANTÓW — osobny od dysku oryginałów.
+         *
+         * Oryginał niesie pełny EXIF, czyli współrzędne GPS kuchni. Wariant
+         * powstaje przez przekodowanie, więc EXIF-u już nie ma. To są dwie
+         * różne kategorie danych i dlatego leżą w dwóch różnych bucketach:
+         * na R2 publiczność jest cechą BUCKETU, nie obiektu, a `x-amz-acl`
+         * jest tam wprost nieobsługiwany (patrz `config/filesystems.php`).
+         *
+         * Domyślnie `r2_publiczne`, gdy oryginały idą na `r2`. Na dysku
+         * lokalnym (`public` w testach i przy pracy lokalnej) rozdział nie ma
+         * sensu — tam nie ma CDN-u ani bucketów — więc oba wskazują to samo
+         * i to jest w porządku. Sprawdza to `RozdzialMagazynowTest`, który
+         * wymaga rozdziału tylko tam, gdzie dysk oryginałów jest sterownikiem
+         * `s3`.
+         */
+        'public_disk' => env(
+            'KUKING_MEDIA_PUBLIC_DISK',
+            env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')) === 'r2'
+                ? 'r2_publiczne'
+                : env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
+        ),
+
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
         //
         // UWAGA NA `docker/php.ini`: ta liczba, pomnożona przez

@@ -285,7 +285,8 @@ Blokada ma pierwszeństwo przed follow.
 ### media
 Tylko metadata, nie binary:
 - owner;
-- disk;
+- disk (ORYGINAŁ — patrz niżej);
+- variants_disk (PUBLICZNE WARIANTY — patrz niżej);
 - object key;
 - MIME;
 - bytes;
@@ -294,6 +295,44 @@ Tylko metadata, nie binary:
 - checksum;
 - perceptual hash;
 - metadata.
+
+**Dwie kolumny dysku, bo to dwie różne kategorie danych** (migracja
+`2026_09_06_170000_add_variants_disk_to_media`, audyt G-01).
+
+```sql
+ALTER TABLE media ADD COLUMN variants_disk varchar(40);   -- NULL = tam, gdzie oryginał
+```
+
+`disk` mówi, gdzie leży ORYGINAŁ — plik dokładnie taki, jaki przyszedł od
+człowieka, z pełnym EXIF-em, czyli ze współrzędnymi GPS kuchni. `variants_disk`
+mówi, gdzie leżą PRZETWORZONE warianty WebP, z których re-enkodowanie zdjęło
+metadane.
+
+Do tej pory obie rzeczy leżały w jednym buckecie R2, a prywatność oryginału
+opierała się na zapisaniu go jako „private" pod prefiksem `incoming/`.
+**Na R2 to nie działa:** Cloudflare nie implementuje S3-owych ACL na obiektach
+(`x-amz-acl` jest oznaczony jako nieobsługiwany dla `PutObject`), a publiczność
+jest cechą BUCKETU — własnej domeny albo `r2.dev`. Bucket wystawiony pod
+`cdn.kuking.pl` wystawiał więc też `incoming/`. Adres oryginału dawał się przy
+tym wyprowadzić z publicznego adresu wariantu:
+
+```text
+media/{uuid_wlasciciela}/{rok}/{mc}/{uuid}_feed.webp    ← publiczny, znany
+incoming/{uuid_wlasciciela}/{rok}/{mc}/{uuid}.jpg       ← oryginał
+```
+
+**`NULL` znaczy „tam, gdzie oryginał"** i tak ma każdy wiersz sprzed tej
+migracji — bo tam te warianty naprawdę leżą. Kolumny NIE backfillujemy:
+wpisanie nazwy nowego dysku byłoby stwierdzeniem nieprawdy o położeniu plików,
+a `KasujZdjecie` szukałoby ich w niewłaściwym buckecie i zostawiało publiczne
+kopie na zawsze — także po wymazaniu konta. Przeniesienie starych wariantów to
+osobna praca: kopiowanie obiektów plus aktualizacja tej kolumny po każdym
+udanym kopiowaniu.
+
+Rollback: `DROP COLUMN`, bezstratnie — wiedza wraca do „ten sam dysk co
+oryginał", czyli do stanu sprzed rozdzielenia. **Cofać przed migracją danych,
+nie po:** po przeniesieniu wariantów ta kolumna niesie już prawdziwą wiedzę
+i jej utrata znaczy, że aplikacja szuka ich w starym buckecie.
 
 ### posts + post_media
 Najprostszy content społecznościowy.

@@ -82,9 +82,16 @@ final class KasujZdjecie
         // znalazłoby i po cichu zostawiło plik na zawsze.
         $dysk = Storage::disk($zdjecie->disk);
 
+        // WARIANTY MOGĄ LEŻEĆ NA INNYM DYSKU NIŻ ORYGINAŁ (audyt G-01).
+        // Kasowanie ich z dysku oryginałów kończyłoby się cichym niczym:
+        // `delete()` na nieistniejącym kluczu nie jest błędem, a publiczne
+        // kopie zostawałyby w buckecie za CDN-em na zawsze — także po
+        // wymazaniu konta.
+        $dyskWariantow = Storage::disk($zdjecie->variantsDisk());
+
         foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $wariant) {
             if (is_array($wariant) && isset($wariant['key'])) {
-                $dysk->delete((string) $wariant['key']);
+                $dyskWariantow->delete((string) $wariant['key']);
             }
         }
 
