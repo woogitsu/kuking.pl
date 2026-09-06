@@ -38,7 +38,7 @@
     <div class="naglowek">
         <h1>Twoje dane z Kuking</h1>
         <p class="podpis">
-            Paczka przygotowana {{ $generatedAt->translatedFormat('j F Y, H:i') }}
+            Paczka przygotowana {{ \App\Support\Czas::data($generatedAt, 'j F Y, H:i') }}
             @if($displayName) dla {{ $displayName }}@endif.
         </p>
     </div>

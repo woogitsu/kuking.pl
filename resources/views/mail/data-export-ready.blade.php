@@ -55,7 +55,7 @@
 
                         <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
                             @if($expiresAt)
-                                Link działa do <strong>{{ $expiresAt->translatedFormat('j F Y') }}</strong>.
+                                Link działa do <strong>{{ \App\Support\Czas::data($expiresAt, 'j F Y') }}</strong>.
                                 Potem paczka zostanie usunięta z naszych serwerów —
                                 nie trzymamy kopii Twojego konta bez końca.
                                 Jeśli nie zdążysz, po prostu poproś o nową paczkę w ustawieniach.

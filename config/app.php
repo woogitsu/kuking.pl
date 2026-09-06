@@ -71,6 +71,20 @@ return [
     |
     */
 
+    // UTC ZOSTAJE, I TO JEST ŚWIADOMA DECYZJA (issue #87).
+    //
+    // Pierwsza wersja naprawy ustawiała tu `Europe/Warsaw` — bo `.env`
+    // i `.env.example` mają `APP_TIMEZONE=Europe/Warsaw`, więc zmienna
+    // wyglądała, jakby coś robiła. Test pokazał, że to PSUJE DANE: Laravel
+    // wysyła do PostgreSQL czas bez informacji o strefie, a baza czyta go
+    // w strefie sesji. Godzina 23:30 czasu polskiego lądowała w kolumnie
+    // jako 23:30 UTC, czyli DWIE GODZINY ZA PÓŹNO — po cichu i nieodwracalnie,
+    // z rozjazdem między wierszami sprzed i po zmianie.
+    //
+    // Strefa wyświetlania mieszka więc gdzie indziej: `kuking.strefa`
+    // i pomocnik `App\Support\Czas`. Baza trzyma UTC, ekran pokazuje czas
+    // polski — to jest jedyny układ, który przeżywa zmianę czasu i przenosiny
+    // serwera.
     'timezone' => 'UTC',
 
     /*

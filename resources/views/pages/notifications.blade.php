@@ -83,7 +83,7 @@
                         @endswitch
                     </p>
                     <p class="meta" style="margin:0;">
-                        <time datetime="{{ $notification->created_at->toIso8601String() }}">{{ $notification->created_at->diffForHumans() }}</time>
+                        <time datetime="{{ $notification->created_at->toIso8601String() }}">{{ \App\Support\Czas::lokalnie($notification->created_at)->diffForHumans() }}</time>
                     </p>
 
                     @php

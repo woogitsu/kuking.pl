@@ -73,7 +73,7 @@
                             <span style="min-width:0;">
                                 <span class="choice-label">{{ $wpis->author->displayName() }}</span>
                                 <span class="choice-help">
-                                    {{ $wpis->published_at?->translatedFormat('j F, H:i') }}
+                                    {{ \App\Support\Czas::dataLubNic($wpis->published_at, 'j F, H:i') }}
                                     @if($wpis->body) — {{ \Illuminate\Support\Str::limit($wpis->body, 80) }} @endif
                                 </span>
                             </span>

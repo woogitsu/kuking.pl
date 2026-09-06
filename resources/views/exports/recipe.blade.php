@@ -27,9 +27,9 @@
         @endif
         <p class="podpis">
             @if($recipe->published_at)
-                Opublikowany {{ $recipe->published_at->translatedFormat('j F Y') }}.
+                Opublikowany {{ \App\Support\Czas::data($recipe->published_at, 'j F Y') }}.
             @elseif($recipe->created_at)
-                Zapisany {{ $recipe->created_at->translatedFormat('j F Y') }}.
+                Zapisany {{ \App\Support\Czas::data($recipe->created_at, 'j F Y') }}.
             @endif
             {{ $recipe->attributionLine() }}
         </p>
@@ -112,11 +112,11 @@
         </p>
         @foreach($comments as $comment)
             <div class="karta">
-                <p class="podpis"><strong>{{ $comment['autor'] }}</strong>@if($comment['napisano']) · {{ \Illuminate\Support\Carbon::parse($comment['napisano'])->translatedFormat('j F Y') }}@endif</p>
+                <p class="podpis"><strong>{{ $comment['autor'] }}</strong>@if($comment['napisano']) · {{ \App\Support\Czas::data(\Illuminate\Support\Carbon::parse($comment['napisano']), 'j F Y') }}@endif</p>
                 <p>{{ $comment['tresc'] }}</p>
                 @foreach($comment['odpowiedzi'] as $reply)
                     <div style="margin-left:24px;border-left:3px solid var(--ramka);padding-left:16px;">
-                        <p class="podpis"><strong>{{ $reply['autor'] }}</strong>@if($reply['napisano']) · {{ \Illuminate\Support\Carbon::parse($reply['napisano'])->translatedFormat('j F Y') }}@endif</p>
+                        <p class="podpis"><strong>{{ $reply['autor'] }}</strong>@if($reply['napisano']) · {{ \App\Support\Czas::data(\Illuminate\Support\Carbon::parse($reply['napisano']), 'j F Y') }}@endif</p>
                         <p>{{ $reply['tresc'] }}</p>
                     </div>
                 @endforeach
