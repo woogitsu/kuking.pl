@@ -42,4 +42,13 @@
         </p>
         <p><a href="{{ route('settings.data') }}">Twoje dane — pobranie i usunięcie konta</a></p>
     </section>
+
+    <section style="margin-top:var(--spacing-8);">
+        <h2>Bezpieczeństwo</h2>
+        <p>
+            Weryfikacja dwuetapowa dodaje do hasła drugi krok — kod z aplikacji w telefonie.
+            Jeśli ktoś pozna Twoje hasło, samo hasło mu nie wystarczy.
+        </p>
+        <p><a href="{{ route('settings.two_factor.edit') }}">Weryfikacja dwuetapowa</a></p>
+    </section>
 </x-layout>

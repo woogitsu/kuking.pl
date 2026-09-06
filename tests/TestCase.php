@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -55,8 +56,28 @@ abstract class TestCase extends BaseTestCase
         return $user->refresh();
     }
 
+    /**
+     * Moderator z POTWIERDZONYM 2FA — to jest domyślny, zgodny z produkcją
+     * stan tego konta (issue #12: 2FA jest obowiązkowe dla `/admin/**`,
+     * `EnsureModeratorHasTwoFactor`). Setki testów w tym repo wołają
+     * `$this->moderator()`, żeby sprawdzić coś w PANELU MODERACJI, a nie
+     * samo 2FA — gdyby ta metoda zwracała moderatora bez włączonego 2FA,
+     * każdy z nich padałby na 403 z naszego middleware, zanim w ogóle
+     * dotarłby do sprawdzanej logiki.
+     *
+     * Testy, którym zależy WŁAŚNIE na koncie moderatora BEZ 2FA (np.
+     * `DwuetapowaWeryfikacjaTest::test_moderator_bez_2fa_nie_wchodzi_do_panelu`),
+     * budują je same, bezpośrednio przez `$this->user(..., ['role' => ...])`
+     * — nie przez tę metodę.
+     */
     protected function moderator(): User
     {
-        return $this->user(null, ['role' => User::ROLE_MODERATOR]);
+        $moderator = $this->user(null, ['role' => User::ROLE_MODERATOR]);
+
+        $totp = app(TwoFactorAuthenticator::class);
+        $moderator->beginTwoFactorSetup($totp->generateSecret());
+        $moderator->confirmTwoFactor($totp->hashBackupCodes($totp->generateBackupCodes()));
+
+        return $moderator->refresh();
     }
 }
