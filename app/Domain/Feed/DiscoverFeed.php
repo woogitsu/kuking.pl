@@ -32,6 +32,12 @@ final class DiscoverFeed
 
         return Post::query()
             ->publiclyVisible()
+            // Konto autora musi być w pełni aktywne (audyt A5) — to jest
+            // surowszy próg niż w Policy pojedynczego wpisu. Odkrywanie
+            // aktywnie POLECA treść nieznajomym, więc zawieszenie (kara
+            // czasowa, nie tylko ban) też ma tu wystarczyć do zdjęcia —
+            // inaczej strona promowałaby konto będące właśnie pod sankcją.
+            ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->when($viewer !== null, fn ($query) => $query->whereNotIn(
                 'author_id',
                 $this->hiddenAuthorIdsFor($viewer),

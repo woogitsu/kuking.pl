@@ -22,6 +22,20 @@ class PostPolicy
             return $user !== null && $user->getKey() === $post->author_id;
         }
 
+        $isOwnerOrModerator = $user !== null
+            && ($user->getKey() === $post->author_id || $user->isModerator());
+
+        // Konto autora zbanowane albo oznaczone do usunięcia — ta sama granica
+        // co `UserPolicy::viewProfile` (audyt A5). Bez tego wpis zostawał
+        // dostępny pod bezpośrednim adresem, mimo że link „zobacz profil" pod
+        // nim dawał 403 — obietnica bez pokrycia w drugą stronę. Zawieszenie
+        // NIE wchodzi tutaj: to kara czasowa i tylko na publikowanie
+        // („dostęp tylko do ODCZYTU" — `EnsureAccountIsActive`), więc treść
+        // zawieszonej osoby zostaje widoczna tak jak jej profil.
+        if (! $isOwnerOrModerator && ! in_array($post->author->status, [User::STATUS_ACTIVE, User::STATUS_SUSPENDED], true)) {
+            return false;
+        }
+
         // Blokada działa w obie strony i ma pierwszeństwo przed wszystkim innym.
         if ($user !== null && $user->hasBlockRelationWith($post->author)) {
             return false;

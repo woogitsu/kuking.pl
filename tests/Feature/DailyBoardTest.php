@@ -248,4 +248,47 @@ class DailyBoardTest extends TestCase
     {
         $this->actingAs($this->user('basia'))->get(route('admin.daily-board'))->assertNotFound();
     }
+
+    // -----------------------------------------------------------------
+    // Status konta autora (audyt A5) — tablica żyje na tej samej stronie
+    // /odkryj co reszta feedu, więc dziedziczy ten sam wymóg.
+    // -----------------------------------------------------------------
+
+    public function test_automat_pomija_wpis_osoby_zawieszonej_lub_zbanowanej(): void
+    {
+        $zawieszona = $this->user('zawieszona');
+        $zbanowana = $this->user('zbanowana');
+        Post::factory()->create(['author_id' => $zawieszona->getKey()]);
+        Post::factory()->create(['author_id' => $zbanowana->getKey()]);
+
+        $zawieszona->suspend();
+        $zbanowana->ban();
+
+        $tablica = app(DailyBoard::class)->forViewer(null);
+
+        $this->assertCount(0, $tablica['posts']);
+    }
+
+    public function test_wybor_redakcyjny_pomija_wpis_osoby_ukaranej_po_wybraniu(): void
+    {
+        $gospodarz = $this->moderator();
+        $ukarany = $this->user('ukarany');
+        $wpis = Post::factory()->create(['author_id' => $ukarany->getKey()]);
+
+        DailyPick::create([
+            'shown_on' => now()->toDateString(),
+            'subject_type' => DailyPick::TYPE_POST,
+            'subject_id' => $wpis->getKey(),
+            'position' => 0,
+            'curator_id' => $gospodarz->getKey(),
+        ]);
+
+        // Redakcja wybrała wpis, ZANIM autora ukarano — pozycja i tak
+        // musi wypaść, gdy dziś stronę odwiedza ktoś zupełnie inny.
+        $ukarany->ban();
+
+        $tablica = app(DailyBoard::class)->forViewer(null);
+
+        $this->assertCount(0, $tablica['posts']);
+    }
 }

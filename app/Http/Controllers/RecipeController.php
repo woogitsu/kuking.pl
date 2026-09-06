@@ -212,7 +212,11 @@ class RecipeController extends Controller
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
+            // pokazywała każde wykonanie, nie pytając, czy widz zablokował
+            // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
             'cookedEvents' => $model->cookedEvents()
+                ->widoczneDla($request->user())
                 ->with(['user.profile.avatar', 'media'])
                 ->limit(12)
                 ->get(),

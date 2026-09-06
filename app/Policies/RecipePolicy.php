@@ -16,6 +16,20 @@ class RecipePolicy
             return $user !== null && ($user->getKey() === $recipe->author_id || $user->isModerator());
         }
 
+        $isOwnerOrModerator = $user !== null
+            && ($user->getKey() === $recipe->author_id || $user->isModerator());
+
+        // Konto autora zbanowane albo oznaczone do usunięcia — ta sama granica
+        // co `UserPolicy::viewProfile` (audyt A5). Bez tego przepis zostawał
+        // dostępny pod bezpośrednim adresem, mimo że link „zobacz profil" pod
+        // nim dawał 403 — obietnica bez pokrycia w drugą stronę. Zawieszenie
+        // NIE wchodzi tutaj: to kara czasowa i tylko na publikowanie
+        // („dostęp tylko do ODCZYTU" — `EnsureAccountIsActive`), więc treść
+        // zawieszonej osoby zostaje widoczna tak jak jej profil.
+        if (! $isOwnerOrModerator && ! in_array($recipe->author->status, [User::STATUS_ACTIVE, User::STATUS_SUSPENDED], true)) {
+            return false;
+        }
+
         if ($user !== null && $user->hasBlockRelationWith($recipe->author)) {
             return false;
         }

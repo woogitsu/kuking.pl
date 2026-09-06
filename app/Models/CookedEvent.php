@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\CookedEventFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -76,5 +77,54 @@ class CookedEvent extends Model
     public function url(): string
     {
         return route('cooked.show', ['cookedEvent' => $this->getKey()]);
+    }
+
+    // ---------------------------------------------------------------------
+    // Zakresy
+    // ---------------------------------------------------------------------
+
+    /**
+     * Wykonania, które WOLNO pokazać temu widzowi na liście — np. w galerii
+     * „Komu wyszło" pod przepisem (audyt A4).
+     *
+     * DLACZEGO TO JEST SCOPE, A NIE FILTR W BLADE
+     * `RecipeController::show` ładował do dwunastu wykonań jedną instrukcją
+     * SQL i renderował je w pętli bez pytania, kto je zrobił. Zablokowana
+     * osoba wracała więc oglądającemu przez CUDZY przepis — miejsce, na które
+     * `CookedEventPolicy::view` w ogóle nie ma wpływu, bo tam nikt nie klika
+     * pojedynczego wykonania, tylko przegląda galerię. Filtrowanie w pętli
+     * Blade byłoby też zapytaniem `hasBlockRelationWith()` per wiersz, czyli
+     * N+1 na stronie przepisu — jednej z najczęściej odwiedzanych.
+     *
+     * Wzorzec identyczny jak `Post::scopeWidoczneDla` i `Recipe::scopeWidoczneDla`:
+     * blokada pierwsza, bezwarunkowa, w OBIE strony. Wykonanie samo w sobie
+     * nie ma widoczności (public/followers/private) — idzie za przepisem,
+     * a widoczność przepisu jest już rozstrzygnięta wcześniej, jednym
+     * wywołaniem `RecipePolicy::view` na całą stronę. Tu liczy się wyłącznie
+     * to, KTO ugotował, bo to ta osoba (nie autor przepisu) może być
+     * zablokowana przez widza albo odwrotnie.
+     *
+     * @param  Builder<CookedEvent>  $query
+     */
+    public function scopeWidoczneDla(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $widzId = $widz->getKey();
+
+        $query->whereNotExists(function ($sub) use ($widzId): void {
+            $sub->selectRaw('1')
+                ->from('blocks')
+                ->where(function ($w) use ($widzId): void {
+                    $w->where('blocks.blocker_id', $widzId)
+                        ->whereColumn('blocks.blocked_id', 'cooked_events.user_id');
+                })
+                ->orWhere(function ($w) use ($widzId): void {
+                    $w->whereColumn('blocks.blocker_id', 'cooked_events.user_id')
+                        ->where('blocks.blocked_id', $widzId);
+                });
+        });
     }
 }

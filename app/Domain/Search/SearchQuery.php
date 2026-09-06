@@ -48,6 +48,11 @@ final class SearchQuery
 
         return Recipe::query()
             ->publiclyVisible()
+            // Konto autora aktywne (audyt A5) — bez tego wyszukiwarka
+            // wypychała przepisy osoby zawieszonej albo zbanowanej na widok
+            // każdego, kto akurat wpisał trafną frazę, mimo że jej profil
+            // (link pod wynikiem) dawał 403.
+            ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'recipes.author_id'))
             ->with(['author.profile', 'heroMedia'])
             ->withCount('cookedEvents')

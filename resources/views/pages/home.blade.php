@@ -1,9 +1,27 @@
 <x-layout title="Start" :noindex="true">
     <h1>{{ $greeting }}</h1>
 
-    <p style="margin-bottom:var(--spacing-6);">
-        <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie tego, co ugotowałeś</a>
-    </p>
+    {{--
+        Zachęta do dodania wpisu (UI kit v2, ekrany 01 i 05).
+
+        W mockupach to jest karta z awatarem, a nie samotny przycisk — dzięki
+        temu główna akcja produktu wygląda jak miejsce, w którym coś się pisze,
+        a nie jak jeden z wielu guzików na stronie.
+
+        Świadomie NIE jest to pole tekstowe udające formularz: takie pole
+        bez JavaScriptu nie robi po kliknięciu nic, a rejestracja, publikacja
+        i komentarz mają działać bez skryptu (AGENTS.md §5). To jest zwykły
+        odnośnik do strony dodawania — działa też z klawiatury i na czytniku
+        ekranu.
+    --}}
+    <a class="card composer" href="{{ route('posts.create') }}">
+        <x-avatar :user="auth()->user()" :size="48" />
+        <span class="composer-copy">
+            <span class="composer-title">Dodaj zdjęcie tego, co ugotowałeś</span>
+            <span class="composer-help">Nie musi być ładne — ma być prawdziwe.</span>
+        </span>
+        <x-ikona nazwa="image" :rozmiar="28" />
+    </a>
 
     {{-- Tablica stoi NAD feedem: dla osoby z pustym feedem to jest jedyna
          treść na tym ekranie, a dla pozostałych — powód, żeby kogoś nowego
