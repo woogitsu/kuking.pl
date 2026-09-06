@@ -117,4 +117,39 @@ class SzukajWidocznoscTest extends TestCase
 
         $this->szukaj($czytelnik, 'autorka', 'ludzie')->assertOk()->assertDontSee('@autorka');
     }
+
+    // -----------------------------------------------------------------
+    // Status konta autora (audyt A5)
+    // -----------------------------------------------------------------
+
+    public function test_wyszukiwarka_nie_pokazuje_przepisow_osoby_zawieszonej(): void
+    {
+        $this->przepis('public', 'Bigos zawieszonej');
+        $this->autor->suspend();
+
+        // Odkrywanie i wyszukiwarka aktywnie POLECAJĄ treść — surowszy próg
+        // niż bezpośredni link (tam zawieszenie zostaje bez zmian, patrz
+        // RecipePolicy i RecipeWidocznoscTest).
+        $this->szukaj($this->user('obca'), 'bigos')->assertOk()->assertDontSee('Bigos zawieszonej');
+    }
+
+    public function test_wyszukiwarka_nie_pokazuje_przepisow_osoby_zbanowanej(): void
+    {
+        $this->przepis('public', 'Bigos zbanowanej');
+        $this->autor->ban();
+
+        $this->szukaj($this->user('obca'), 'bigos')->assertOk()->assertDontSee('Bigos zbanowanej');
+    }
+
+    /**
+     * Kontrola przeciwna: naprawa nie może przez pomyłkę wyciąć wszystkich
+     * przepisów tylko dlatego, że KTOŚ w bazie jest zawieszony.
+     */
+    public function test_wyszukiwarka_nadal_pokazuje_przepisy_aktywnej_osoby_gdy_ktos_inny_jest_zawieszony(): void
+    {
+        $this->przepis('public', 'Bigos aktywnej');
+        $this->user('kimsinnym')->suspend();
+
+        $this->szukaj($this->user('obca'), 'bigos')->assertOk()->assertSee('Bigos aktywnej');
+    }
 }

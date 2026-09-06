@@ -90,4 +90,43 @@ class FeedTest extends TestCase
 
         $this->get(route('discover'))->assertOk()->assertDontSee('Tylko dla mnie');
     }
+
+    // -----------------------------------------------------------------
+    // Status konta autora (audyt A5)
+    // -----------------------------------------------------------------
+
+    public function test_wpisy_zawieszonej_osoby_nie_pojawiaja_sie_w_odkrywaniu(): void
+    {
+        $autor = $this->user('zawieszona');
+        Post::factory()->create(['author_id' => $autor->getKey(), 'body' => 'Rosol od zawieszonej']);
+
+        $autor->suspend();
+
+        $this->get(route('discover'))->assertOk()->assertDontSee('Rosol od zawieszonej');
+    }
+
+    public function test_wpisy_zbanowanej_osoby_nie_pojawiaja_sie_w_odkrywaniu(): void
+    {
+        $autor = $this->user('zbanowana');
+        Post::factory()->create(['author_id' => $autor->getKey(), 'body' => 'Rosol od zbanowanej']);
+
+        $autor->ban();
+
+        $this->get(route('discover'))->assertOk()->assertDontSee('Rosol od zbanowanej');
+    }
+
+    /**
+     * Kontrola przeciwna: filtr statusu nie może przez pomyłkę wyciąć
+     * wpisów osoby, która jest w pełni aktywna, tylko dlatego, że KTOŚ INNY
+     * w bazie jest akurat zawieszony albo zbanowany.
+     */
+    public function test_odkrywanie_nadal_pokazuje_wpisy_aktywnej_osoby_gdy_ktos_inny_jest_ukarany(): void
+    {
+        $aktywny = $this->user('aktywna');
+        Post::factory()->create(['author_id' => $aktywny->getKey(), 'body' => 'Rosol od aktywnej']);
+
+        $this->user('zbanowanainna')->ban();
+
+        $this->get(route('discover'))->assertOk()->assertSee('Rosol od aktywnej');
+    }
 }

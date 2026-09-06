@@ -83,6 +83,10 @@ final class DailyBoard
             ->whereIn('id', $picks->where('subject_type', DailyPick::TYPE_POST)->pluck('subject_id'))
             ->publiclyVisible()
             ->whereNotIn('author_id', $hidden)
+            // Konto autora aktywne (audyt A5) — ta tablica żyje na tej samej
+            // stronie /odkryj co reszta feedu i redakcja mogła wybrać wpis
+            // wcześniej, zanim autora zawieszono albo zbanowano.
+            ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->with(['author.profile.avatar', 'media'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->get();
@@ -147,6 +151,10 @@ final class DailyBoard
         return Post::query()
             ->publiclyVisible()
             ->when($hidden !== [], fn ($query) => $query->whereNotIn('author_id', $hidden))
+            // Konto autora aktywne (audyt A5) — patrz uzasadnienie przy
+            // DiscoverFeed::paginate(): to jest promowanie treści, więc próg
+            // jest surowszy niż zwykłe wejście na adres wpisu.
+            ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->with(['author.profile.avatar', 'media'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
