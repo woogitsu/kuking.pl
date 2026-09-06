@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Recipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -54,23 +55,153 @@ class PolitykaBezpieczenstwaTest extends TestCase
         $this->assertStringContainsString("frame-ancestors 'none'", $csp);
     }
 
-    public function test_wymuszana_polityka_nie_ma_default_src(): void
+    public function test_wymuszana_polityka_ma_juz_default_src(): void
     {
         $csp = $this->naglowekCsp();
 
-        // Najpierw: czy nagłówek W OGÓLE JEST. Bez tego test przechodzi
-        // na kodzie sprzed zmiany — pusty nagłówek też „nie zawiera"
-        // default-src, więc strażnik strzegłby pustego miejsca.
+        // TU BYŁ ODWROTNY STRAŻNIK — I MIAŁ RACJĘ, DOPÓKI JEJ NIE STRACIŁ.
+        //
+        // Do wersji sprzed issue #12 ten test pilnował, żeby `default-src`
+        // NIE trafił do nagłówka wymuszającego. Powód był prawdziwy:
+        // `default-src` jest wartością zapasową dla `script-src`, a Livewire
+        // z Alpine wstawiały skrypt inline i liczyły wyrażenia przez
+        // `new Function` — czyli dopisanie tej dyrektywy kładło kreator
+        // przepisu.
+        //
+        // Powód zniknął, bo go usunęliśmy, a nie obeszliśmy: skrypty dostają
+        // jednorazowy podpis (nonce), a Livewire chodzi w trybie `csp_safe`,
+        // czyli na bundlu Alpine bez `new Function`. Dlatego strażnik jest
+        // teraz odwrócony — bez `default-src` każdy rodzaj zasobu, którego
+        // nie wymieniliśmy osobno, wjeżdżałby na stronę bez ograniczeń.
         $this->assertNotSame('', $csp, 'Nie ma wymuszanego nagłówka CSP.');
+        $this->assertStringContainsString("default-src 'self'", $csp);
+    }
+
+    public function test_wymuszany_script_src_nie_dopuszcza_inline_ani_eval(): void
+    {
+        $csp = $this->naglowekCsp();
 
         // TO JEST NAJWAŻNIEJSZA ASERCJA W TYM PLIKU.
         //
-        // `default-src` jest wartością zapasową dla `script-src` i `style-src`.
-        // Dopisanie go do nagłówka WYMUSZAJĄCEGO wyłączyłoby inline'owe skrypty
-        // Livewire i Alpine — czyli położyłoby kreator przepisu. Wygląda to
-        // niewinnie („przecież domyślnie 'self'") i dlatego jest pilnowane
-        // osobno, a nie tylko komentarzem w kodzie.
-        $this->assertStringNotContainsString('default-src', $csp);
+        // Cała reszta polityki utrudnia atakującemu życie. Dopiero
+        // `script-src` bez `unsafe-inline` sprawia, że wstrzyknięty
+        // `<script>` NIE WYKONA SIĘ W OGÓLE. Gdyby ktoś dopisał tu
+        // `unsafe-inline` „bo coś nie działa", zostałby nagłówek, który
+        // wygląda na ochronę i nią nie jest.
+        $this->assertMatchesRegularExpression("/script-src [^;]*'self'/", $csp);
+        $this->assertStringNotContainsString('unsafe-inline', explode('style-src', $csp)[0]);
+        $this->assertStringNotContainsString('unsafe-eval', $csp);
+
+        // Podpis MUSI być w nagłówku — bez niego `script-src 'self'` wywala
+        // JSON-LD i konfigurację Livewire, czyli poprawna polityka psuje
+        // stronę zamiast jej bronić.
+        $this->assertMatchesRegularExpression("/'nonce-[A-Za-z0-9]{8,}'/", $csp);
+    }
+
+    public function test_podpis_z_naglowka_zgadza_sie_z_kazdym_skryptem_na_stronie(): void
+    {
+        // Strona z JSON-LD, czyli jedynym skryptem inline w całym serwisie
+        // (`<x-json-ld>`). Przeglądarka sprawdza `script-src` na KAŻDYM
+        // elemencie `<script>`, także takim, którego nie umie wykonać —
+        // więc blok bez podpisu po prostu znika z dokumentu i Google
+        // przestaje widzieć przepis jako przepis.
+        $autor = $this->user('kucharka');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+
+        $odpowiedz = $this->get(route('recipes.show', $przepis->slug))->assertOk();
+
+        $podpis = $this->podpisZNaglowka((string) $odpowiedz->headers->get('Content-Security-Policy'));
+        $html = $odpowiedz->getContent();
+
+        preg_match_all('/<script\b[^>]*>/i', (string) $html, $znaczniki);
+
+        $this->assertNotEmpty(
+            $znaczniki[0],
+            'Na tej stronie nie ma ani jednego <script> — test nie sprawdza tego, po co powstał.',
+        );
+
+        foreach ($znaczniki[0] as $znacznik) {
+            $this->assertStringContainsString(
+                'nonce="'.$podpis.'"',
+                $znacznik,
+                'Skrypt bez podpisu z nagłówka CSP: '.$znacznik.
+                ' — przeglądarka usunie go z dokumentu, a na ekranie nic tego nie pokaże.',
+            );
+        }
+    }
+
+    public function test_podpis_jest_inny_przy_kazdym_zadaniu(): void
+    {
+        // Podpis stały to podpis, który atakujący może odczytać raz
+        // i wpisać na zawsze — czyli `unsafe-inline` napisane trudniej.
+        $pierwszy = $this->podpisZNaglowka($this->naglowekCsp());
+        $drugi = $this->podpisZNaglowka($this->naglowekCsp());
+
+        $this->assertNotSame($pierwszy, $drugi);
+    }
+
+    public function test_livewire_chodzi_w_trybie_bez_new_function(): void
+    {
+        // `script-src` bez `unsafe-eval` i zwykły bundel Livewire wykluczają
+        // się nawzajem: Alpine liczy w nim wyrażenia przez `new Function`.
+        // Przestawienie tej opcji na `false` nie wywala żadnego testu
+        // renderującego — kreator przepisu po prostu przestaje reagować
+        // na kliknięcia u wszystkich naraz. Dlatego jest pilnowana wprost.
+        $this->assertTrue(
+            (bool) config('livewire.csp_safe'),
+            'livewire.csp_safe jest wyłączone, a CSP wymusza script-src bez unsafe-eval — '.
+            'kreator przepisu nie zadziała w żadnej przeglądarce.',
+        );
+    }
+
+    public function test_kreator_przepisu_dostaje_skrypty_livewire_z_podpisem(): void
+    {
+        $odpowiedz = $this->actingAs($this->user('piekarz'))
+            ->get(route('recipes.create'))
+            ->assertOk();
+
+        $podpis = $this->podpisZNaglowka((string) $odpowiedz->headers->get('Content-Security-Policy'));
+
+        preg_match_all('/<script\b[^>]*>/i', (string) $odpowiedz->getContent(), $znaczniki);
+
+        $this->assertNotEmpty($znaczniki[0], 'Kreator przepisu nie wciągnął ani jednego skryptu.');
+
+        foreach ($znaczniki[0] as $znacznik) {
+            $this->assertStringContainsString('nonce="'.$podpis.'"', $znacznik, 'Skrypt bez podpisu: '.$znacznik);
+        }
+    }
+
+    public function test_strona_z_podpisem_nie_moze_byc_cachowana_publicznie(): void
+    {
+        // NAJGROŹNIEJSZY SPOSÓB, ŻEBY TO ZEPSUĆ, NIE DOTYKA WCALE CSP.
+        //
+        // Podpis jest jednorazowy: siedzi RAZEM w nagłówku i w HTML-u.
+        // Gdyby ktoś kiedyś włączył publiczne cache'owanie stron (Cache Rule
+        // w Cloudflare albo `Cache-Control: public` w Caddym), krawędź
+        // zapamiętałaby HTML z jednym podpisem i podawała go ludziom razem
+        // ze świeżym nagłówkiem, w którym jest już inny. Efekt: strona bez
+        // ani jednego skryptu, u wszystkich naraz, bez żadnego błędu
+        // w logach serwera.
+        //
+        // Dlatego pilnujemy tego TUTAJ, w teście o CSP — a nie tylko
+        // komentarzem w Caddyfile, którego nikt nie czyta przy zmianie
+        // ustawień na krawędzi.
+        $cache = strtolower((string) $this->get(route('landing'))->assertOk()->headers->get('Cache-Control'));
+
+        $this->assertNotSame('', $cache, 'Odpowiedź nie mówi nic o cache — krawędź może uznać, że wolno.');
+
+        $this->assertMatchesRegularExpression(
+            '/private|no-store|no-cache/',
+            $cache,
+            'Strona niosąca podpis nonce musi być oznaczona jako nie do współdzielenia. Jest: '.$cache,
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/\bpublic\b|s-maxage/',
+            $cache,
+            'Strona niosąca podpis nonce jest oznaczona jako publicznie cache\'owalna — '.
+            'zapamiętany HTML dostanie kiedyś nagłówek z innym podpisem i zostanie bez skryptów.',
+        );
     }
 
     public function test_obie_polityki_podaja_adres_zgloszen(): void
@@ -93,21 +224,30 @@ class PolitykaBezpieczenstwaTest extends TestCase
         );
     }
 
-    public function test_polityka_docelowa_dalej_jest_tylko_mierzona(): void
+    public function test_polityka_mierzona_mierzy_nastepny_krok_a_nie_obecny(): void
     {
         $odpowiedz = $this->get(route('landing'))->assertOk();
 
-        // Strażnik przed nadgorliwością. Ktoś mógłby „dokończyć zadanie",
-        // przenosząc całą politykę do nagłówka wymuszającego — i wyłączyć
-        // Livewire wszystkim naraz. Do tego trzeba najpierw pozbyć się
-        // `unsafe-inline` i `unsafe-eval`, a nie przestawić nagłówek.
+        $wymuszana = (string) $odpowiedz->headers->get('Content-Security-Policy');
         $mierzona = (string) $odpowiedz->headers->get('Content-Security-Policy-Report-Only');
 
-        $this->assertStringContainsString("script-src 'self' 'unsafe-inline' 'unsafe-eval'", $mierzona);
+        // Nagłówek Report-Only ma sens tylko wtedy, kiedy jest OSTRZEJSZY
+        // od wymuszanego. Kiedy oba są identyczne, przeglądarka liczy
+        // naruszenia, których i tak już nie ma — i nikt się nie dowie,
+        // ile pracy naprawdę zostało.
+        //
+        // Różnica jest dziś dokładnie jedna: w widokach zostało ponad
+        // trzysta atrybutów `style="..."`, których żaden podpis nie ratuje
+        // (nonce działa na elementy `<style>`, nie na atrybut `style`).
+        // Wymuszana polityka je dopuszcza, mierzona już nie.
+        $this->assertStringContainsString("style-src 'self' 'unsafe-inline'", $wymuszana);
+        $this->assertStringNotContainsString('unsafe-inline', $mierzona);
 
-        $wymuszana = $this->naglowekCsp();
-        $this->assertNotSame('', $wymuszana, 'Nie ma wymuszanego nagłówka CSP.');
-        $this->assertStringNotContainsString('unsafe-inline', $wymuszana);
+        $this->assertNotSame(
+            $wymuszana,
+            $mierzona,
+            'Polityka mierzona jest identyczna z wymuszaną — nie mierzy niczego.',
+        );
     }
 
     public function test_przegladarka_moze_zglosic_naruszenie_bez_tokenu(): void
@@ -176,5 +316,19 @@ class PolitykaBezpieczenstwaTest extends TestCase
             $this->call('POST', route('csp.report'), [], [], [], [], $smiec)
                 ->assertNoContent();
         }
+    }
+
+    /**
+     * Jednorazowy podpis wyjęty z nagłówka. Brak podpisu to błąd testu,
+     * a nie „nic nie znaleziono" — inaczej porównanie z HTML-em przeszłoby
+     * na pustym ciągu.
+     */
+    private function podpisZNaglowka(string $csp): string
+    {
+        if (preg_match("/'nonce-([A-Za-z0-9+\\/=_-]+)'/", $csp, $trafienie) !== 1) {
+            $this->fail('W nagłówku CSP nie ma podpisu nonce: '.$csp);
+        }
+
+        return $trafienie[1];
     }
 }

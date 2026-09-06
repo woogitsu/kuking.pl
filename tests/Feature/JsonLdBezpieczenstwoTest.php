@@ -158,7 +158,13 @@ class JsonLdBezpieczenstwoTest extends TestCase
         $html = $this->get(route('recipes.show', $recipe->slug))->assertOk()->getContent();
 
         // Bezpieczeństwo nie może kosztować poprawności: SEO ma nadal działać.
-        preg_match('~<script type="application/ld\+json">(.*?)</script>~s', $html, $trafienia);
+        //
+        // `[^>]*` po typie, a nie sam `>`: znacznik nosi teraz jeszcze
+        // `nonce` z polityki CSP (issue #12). Wzorzec przybity do dokładnej
+        // postaci znacznika psuł się przy każdym dołożonym atrybucie —
+        // i wyglądał wtedy jak zniknięcie danych strukturalnych, a nie
+        // jak przestarzały wzorzec w teście.
+        preg_match('~<script type="application/ld\+json"[^>]*>(.*?)</script>~s', $html, $trafienia);
 
         $this->assertNotEmpty($trafienia, 'Brak sekcji JSON-LD na stronie przepisu.');
 
