@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Exceptions\DataExportStorageFailure;
 use App\Mail\DataExportReady;
 use App\Models\DataExport;
 use App\Models\Media;
@@ -54,6 +55,10 @@ use ZipArchive;
  * Rekord NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
  * w `handle()`, jak i hook `failed()` (ten łapie także timeout, po którym
  * nie ma już wyjątku do przechwycenia).
+ *
+ * `failure_reason` to KOD z `DataExport::REASONS`, nie zdanie (audyt W7-07)
+ * — patrz `reasonFor()`. Pełny `$e->getMessage()` (bywa nim SQLSTATE albo
+ * ścieżka na dysku tymczasowym) zostaje wyłącznie w `Log::warning` niżej.
  */
 class GenerateUserExport implements ShouldQueue
 {
@@ -114,7 +119,7 @@ class GenerateUserExport implements ShouldQueue
         $user = $export->user;
 
         if ($user === null) {
-            $this->markFailed($export, 'Konto nie istnieje.');
+            $this->markFailed($export, DataExport::REASON_ACCOUNT_MISSING);
 
             return;
         }
@@ -144,11 +149,16 @@ class GenerateUserExport implements ShouldQueue
             $stream = fopen($this->tempZip, 'rb');
 
             if ($stream === false) {
-                throw new \RuntimeException('Nie udało się otworzyć gotowego archiwum.');
+                throw new DataExportStorageFailure('Nie udało się otworzyć gotowego archiwum do wysyłki.');
             }
 
             try {
                 Storage::disk($disk)->writeStream($objectKey, $stream);
+            } catch (Throwable $e) {
+                // Zawinięte w typ, który `reasonFor()` rozpozna nawet po tym,
+                // jak `failed()` odtworzy joba od nowa z ładunku kolejki —
+                // patrz komentarz w App\Exceptions\DataExportStorageFailure.
+                throw new DataExportStorageFailure('Nie udało się zapisać paczki w magazynie plików.', previous: $e);
             } finally {
                 if (is_resource($stream)) {
                     fclose($stream);
@@ -171,7 +181,12 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
-                'error' => $e->getMessage(),
+                // `DataExportStorageFailure` zawija oryginalny wyjątek — tu, w logu,
+                // ma zostać JEGO pełny komunikat (SQLSTATE, ścieżka na dysku...),
+                // nie zdanie po polsku z opakowania. Do bazy idzie wyłącznie kod
+                // (patrz reasonFor()), więc to jest jedyne miejsce, gdzie ten
+                // szczegół w ogóle zostaje.
+                'error' => $e->getPrevious()?->getMessage() ?? $e->getMessage(),
             ]);
 
             $this->markFailed($export, $this->reasonFor($e));
@@ -195,7 +210,7 @@ class GenerateUserExport implements ShouldQueue
         }
 
         $this->markFailed($export, $e === null
-            ? 'Przygotowanie paczki przerwane (przekroczony limit czasu).'
+            ? DataExport::REASON_TIMEOUT
             : $this->reasonFor($e),
         );
 
@@ -479,16 +494,25 @@ class GenerateUserExport implements ShouldQueue
     {
         $export->update([
             'status' => DataExport::STATUS_FAILED,
-            'failure_reason' => Str::limit($reason, 480, ''),
+            'failure_reason' => $reason,
         ]);
     }
 
     /**
-     * Powód po polsku — trafia na ekran użytkownika, więc nie może to być
-     * „SQLSTATE[42P01]”. Techniczny szczegół zostaje w logu.
+     * Kod z `DataExport::REASONS` — NIGDY zdanie i NIGDY `$e->getMessage()`.
+     * Ten drugi trafia na ekran użytkownika przez `DataExport::
+     * failureReasonLabel()`, więc nie może to być „SQLSTATE[42P01]” ani
+     * ścieżka na dysku tymczasowym. Techniczny szczegół zostaje wyłącznie
+     * w logu (`Log::warning` w `handle()`, tuż przed wywołaniem tej metody).
+     *
+     * Rozpoznanie WYŁĄCZNIE po klasie wyjątku, celowo bez zaglądania w jego
+     * treść: string matching po komunikacie jest dokładnie tą kruchością,
+     * która już raz przepuściła surowy wyjątek na ekran (audyt W7-07).
      */
     private function reasonFor(Throwable $e): string
     {
-        return 'Nie udało się przygotować paczki: '.Str::limit($e->getMessage(), 300, '');
+        return $e instanceof DataExportStorageFailure
+            ? DataExport::REASON_STORAGE
+            : DataExport::REASON_UNKNOWN;
     }
 }

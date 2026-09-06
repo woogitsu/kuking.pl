@@ -36,8 +36,11 @@
                                href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
                             <br>
                             <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y') }}.</span>
-                        @elseif($export->status === 'failed' && $export->failure_reason)
-                            <br><span class="field-help">{{ $export->failure_reason }}</span>
+                        @elseif($export->status === 'failed')
+                            {{-- Nigdy surowa kolumna: failureReasonLabel() zamienia kod
+                                 (App\Models\DataExport::REASONS) na tekst po polsku,
+                                 nawet gdy kod jest nieznany albo pusty (audyt W7-07). --}}
+                            <br><span class="field-help">{{ $export->failureReasonLabel() }}</span>
                         @endif
                     </li>
                 @endforeach
