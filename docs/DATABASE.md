@@ -244,6 +244,38 @@ pytała bazę o wartość surową, więc „Jan@Example.com" przechodziło
 `Rule::unique` i dopiero PostgreSQL odbijał duplikat: **HTTP 500 na
 rejestracji** zamiast komunikatu „na ten adres jest już konto" (audyt A25).
 
+**Unikalność bez rozróżniania wielkości liter.** Unikalny indeks funkcyjny
+`users_email_lower_unique` na `lower(email)` (migracja
+`2026_09_06_120000_add_email_case_insensitive_unique_index`, issue #109).
+
+```sql
+CREATE UNIQUE INDEX users_email_lower_unique ON users (lower(email));
+```
+
+Mutator wyżej to warstwa PHP i obowiązuje **tylko** zapisom przez Eloquenta.
+`DB::table('users')->insert()`, seeder, przyszły import i ręczna naprawa danych
+w `psql` podczas incydentu omijają go w całości, a `UNIQUE (email)` porównuje
+bajty, więc `Jan@example.com` wchodziło obok `jan@example.com`. Przy dwóch
+takich kontach `User::findByLogin()` trafia raz na jedno, raz na drugie:
+człowiek loguje się i widzi „zniknięte" przepisy, a link do zmiany hasła
+dotyczy tylko jednego z kont — bez sposobu, żeby zgadnąć którego.
+AGENTS.md §6: walidacja w PHP jest dodatkiem, nie zamiennikiem.
+
+Indeks jest **funkcyjny**, a nie `citext` na kolumnie: `citext` zmieniłby
+zachowanie każdego porównania w kodzie, także tam, gdzie nikt się tego nie
+spodziewa. Indeks robi jedną rzecz — pilnuje, kto może zająć adres — i jest
+tym samym rozwiązaniem co `profiles_username_lower_unique`.
+
+Stary `users_email_unique` **zostaje**. Nowy jest od niego silniejszy, ale to
+stary obsługuje zwykłe `where('email', ?)` z `findByLogin()`; indeks funkcyjny
+takiego zapytania nie obsłuży.
+
+Migracja **nie scala ani nie kasuje kont**. Gdyby w bazie były już dwa adresy
+różniące się tylko wielkością liter, zgłasza je po nazwie i przerywa — decyzję,
+które konto zostaje, podejmuje człowiek. Rollback to `DROP INDEX IF EXISTS`,
+bez utraty danych; `users_email_unique` zostaje nietknięty przez cały czas,
+więc nawet w trakcie rollbacku adres nie zduplikuje się co do znaku.
+
 ### follows
 `follower_id + followed_id` unique.
 
@@ -621,5 +653,8 @@ z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 PostgreSQL porównuje teksty z uwzględnieniem wielkości liter, a klawiatury
 telefonów kapitalizują pierwszą literę — bez tego konto założone jako
 `Jan@example.com` było nie do zalogowania przez `jan@example.com`.
+
+Sama reguła stoi jednak w bazie, nie w mutatorze: unikalny indeks funkcyjny
+`users_email_lower_unique` — szczegóły i uzasadnienie przy tabeli `users` wyżej.
 
 Pełny referencyjny DDL jest w `database/reference/schema_mvp.sql`.
