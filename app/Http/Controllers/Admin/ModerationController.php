@@ -15,6 +15,7 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -62,11 +63,9 @@ class ModerationController extends Controller
     {
         $this->authorize('moderate', User::class);
 
-        // Zgłoszenie rozstrzygnięte nie przyjmuje drugiej decyzji.
-        //
-        // Bez tego dwie zakładki albo dwa kliknięcia zapisywały DWA wpisy
-        // w `moderation_actions` dla jednego zgłoszenia — a przy odwołaniu
-        // (DSA art. 17) log przestawał być jednoznaczny.
+        // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
+        // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
+        // niżej, pod blokadą wiersza.
         if ($report->status !== Report::STATUS_OPEN) {
             return back()->withErrors([
                 'action' => 'To zgłoszenie zostało już rozstrzygnięte. Odśwież stronę, żeby zobaczyć decyzję.',
@@ -98,69 +97,109 @@ class ModerationController extends Controller
 
         $termin = $this->terminKary($data);
 
-        // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej
-        // wykonaniem. Powodów są teraz dwa:
-        //  - `remove` kasuje cel, a wtedy nie ma już kogo zapytać o autora;
-        //  - do logu wchodzi STAN SPRZED decyzji (`previous_status`), więc
-        //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
-        //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
-        $cel = ModeratedContent::znajdz($report->target_type, $report->target_id);
-        $osoba = $cel === null ? null : ModeratedContent::osoba($cel);
+        /*
+         * WSZYSTKO PONIŻEJ W JEDNEJ TRANSAKCJI, POD BLOKADĄ WIERSZA
+         * (audyt W3-09, W6-01).
+         *
+         * Sprawdzenie statusu wyżej stało samo i miało komentarz mówiący, że
+         * chroni przed podwójną decyzją. Nie chroniło: między odczytem
+         * a zapisem jest okno, w którym drugie żądanie widzi jeszcze `open`.
+         * Dwie karty moderatora wykonywały więc dwie kary, tworzyły dwa wpisy
+         * w `moderation_actions` i wysyłały dwa powiadomienia — a przy
+         * odwołaniu (DSA art. 17) log przestawał być jednoznaczny. Baza też
+         * tego nie łapała: `moderation_actions.report_id` nie ma ograniczenia
+         * unikalności.
+         *
+         * To był komentarz pewniejszy niż kod — ten sam wzorzec, który audyty
+         * wskazują jako powtarzalny w tym repozytorium.
+         *
+         * `lockForUpdate()` wstrzymuje drugie żądanie do końca pierwszej
+         * transakcji, a ponowne sprawdzenie statusu JUŻ POD BLOKADĄ rozstrzyga
+         * je jednoznacznie. Powiadomienie zostaje w środku świadomie: ma nie
+         * wyjść, jeśli zapis się nie powiedzie.
+         */
+        $wynik = DB::transaction(function () use ($request, $report, $data, $moderator, $termin) {
+            $zablokowane = Report::query()->whereKey($report->getKey())->lockForUpdate()->first();
 
-        $akcja = ModerationAction::create([
-            'moderator_id' => $moderator->getKey(),
-            'report_id' => $report->getKey(),
-            'target_type' => $report->target_type,
-            'target_id' => $report->target_id,
-            'subject_user_id' => $osoba?->getKey(),
-            'action' => $data['action'],
-            'previous_status' => $cel === null ? null : ($cel->status ?? null),
-            'reason_code' => $data['reason_code'],
-            'note' => $data['note'] ?? null,
-            'user_message' => $data['user_message'] ?? null,
-        ]);
+            if ($zablokowane === null || $zablokowane->status !== Report::STATUS_OPEN) {
+                return null;
+            }
 
-        $this->applyAction($cel, $osoba, $data['action'], $termin);
+            // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej
+            // wykonaniem. Powodów są teraz dwa:
+            //  - `remove` kasuje cel, a wtedy nie ma już kogo zapytać o autora;
+            //  - do logu wchodzi STAN SPRZED decyzji (`previous_status`), więc
+            //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
+            //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
+            $cel = ModeratedContent::znajdz($report->target_type, $report->target_id);
+            $osoba = $cel === null ? null : ModeratedContent::osoba($cel);
 
-        // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
-        // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora
-        // poinformowano, a autor nie dostawał niczego (audyt A16).
-        //
-        // Dotyczyło to WSZYSTKICH decyzji zapisujących `user_message`, nie
-        // tylko `warn` — `hide`, `remove`, `suspend` i `ban` milczały tak samo.
-        if ($osoba !== null) {
-            $this->powiadom->handle(
-                osoba: $osoba,
-                decyzja: $data['action'],
-                wiadomoscModeratora: $data['user_message'] ?? null,
-                do: $termin,
-                // Bez tego powiadomienie mówi „możesz się odwołać" i nie ma
-                // gdzie kliknąć — a formularz odwołania musi wiedzieć,
-                // KTÓREJ decyzji dotyczy (#10).
-                decyzjaModeracyjna: $akcja,
-            );
-        }
-
-        $report->update([
-            'status' => $data['action'] === ModerationAction::ACTION_NONE
-                ? Report::STATUS_REJECTED
-                : Report::STATUS_RESOLVED,
-            'resolution_note' => $data['note'] ?? null,
-            'resolved_by' => $moderator->getKey(),
-            'resolved_at' => now(),
-        ]);
-
-        AuditLogEntry::record(
-            action: 'moderation.decided',
-            actor: $moderator,
-            subject: $report,
-            metadata: [
-                'decision' => $data['action'],
+            $akcja = ModerationAction::create([
+                'moderator_id' => $moderator->getKey(),
+                'report_id' => $report->getKey(),
+                'target_type' => $report->target_type,
+                'target_id' => $report->target_id,
+                'subject_user_id' => $osoba?->getKey(),
+                'action' => $data['action'],
+                'previous_status' => $cel === null ? null : ($cel->status ?? null),
                 'reason_code' => $data['reason_code'],
-                'suspend_days' => $data['suspend_days'] ?? null,
-            ],
-            ip: $request->ip(),
-        );
+                'note' => $data['note'] ?? null,
+                'user_message' => $data['user_message'] ?? null,
+            ]);
+
+            $this->applyAction($cel, $osoba, $data['action'], $termin);
+
+            // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
+            // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora
+            // poinformowano, a autor nie dostawał niczego (audyt A16).
+            //
+            // Dotyczyło to WSZYSTKICH decyzji zapisujących `user_message`, nie
+            // tylko `warn` — `hide`, `remove`, `suspend` i `ban` milczały tak samo.
+            if ($osoba !== null) {
+                $this->powiadom->handle(
+                    osoba: $osoba,
+                    decyzja: $data['action'],
+                    wiadomoscModeratora: $data['user_message'] ?? null,
+                    do: $termin,
+                    // Bez tego powiadomienie mówi „możesz się odwołać" i nie ma
+                    // gdzie kliknąć — a formularz odwołania musi wiedzieć,
+                    // KTÓREJ decyzji dotyczy (#10).
+                    decyzjaModeracyjna: $akcja,
+                );
+            }
+
+            $zablokowane->update([
+                'status' => $data['action'] === ModerationAction::ACTION_NONE
+                    ? Report::STATUS_REJECTED
+                    : Report::STATUS_RESOLVED,
+                'resolution_note' => $data['note'] ?? null,
+                'resolved_by' => $moderator->getKey(),
+                'resolved_at' => now(),
+            ]);
+
+            AuditLogEntry::record(
+                action: 'moderation.decided',
+                actor: $moderator,
+                subject: $zablokowane,
+                metadata: [
+                    'decision' => $data['action'],
+                    'reason_code' => $data['reason_code'],
+                    'suspend_days' => $data['suspend_days'] ?? null,
+                ],
+                ip: $request->ip(),
+            );
+
+            return $akcja;
+        });
+
+        if ($wynik === null) {
+            // Drugie żądanie doszło tu po tym, jak pierwsze już zapisało
+            // decyzję. Ten sam komunikat co przy wstępnym sprawdzeniu — dla
+            // człowieka to jest ta sama sytuacja.
+            return back()->withErrors([
+                'action' => 'To zgłoszenie zostało już rozstrzygnięte. Odśwież stronę, żeby zobaczyć decyzję.',
+            ]);
+        }
 
         return back()->with('status', 'Decyzja zapisana.');
     }
