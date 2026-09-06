@@ -28,6 +28,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
+use App\Http\Controllers\TopicController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -239,6 +240,16 @@ Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): vo
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
     Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);
 });
+
+// --------------------------------------------------------------------------
+// Tematy
+// --------------------------------------------------------------------------
+//
+// Strona tematu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
+// miejsc, w które ma sens trafić z wyszukiwarki. Sama lista wpisów jest
+// filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi
+// wyłącznie treści publiczne.
+Route::get('/temat/{topic}', [TopicController::class, 'show'])->name('topics.show');
 
 // --------------------------------------------------------------------------
 // Zgłoszenia naruszeń CSP

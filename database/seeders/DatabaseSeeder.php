@@ -13,6 +13,12 @@ class DatabaseSeeder extends Seeder
         // Jednostki miary są danymi referencyjnymi — potrzebne także na produkcji.
         $this->call(UnitSeeder::class);
 
+        // Tematy też są danymi referencyjnymi (issue #31): bez nich pole
+        // „Temat" przy publikacji jest puste, a strona tematu nie istnieje.
+        // Seeder jest idempotentny (`updateOrCreate` po slugu) i NIE nadpisuje
+        // `is_active`, więc temat wycofany ręcznie zostaje wycofany.
+        $this->call(TopicSeeder::class);
+
         // Dane demo wyłącznie poza produkcją.
         if (! app()->environment('production')) {
             $this->call(DemoSeeder::class);
