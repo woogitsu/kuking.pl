@@ -214,6 +214,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('cooked.comment');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])->name('cooked.destroy');
 
+    // „Komuś wyszło" (issue #17) — pełnoekranowa celebracja, wyłącznie dla
+    // autora przepisu, osiągana z linku w powiadomieniu. Adres celowo inny
+    // niż `cooked.show`, bo to inny ekran z inną autoryzacją (Policy::celebrate).
+    Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
+    Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
+        ->middleware("throttle:{$limits['comment']}")
+        ->name('cooked.thank');
+
     // Zeszyt (kolekcje)
     Route::get('/zeszyt', [CollectionController::class, 'index'])->name('collections.index');
     Route::post('/zeszyt', [CollectionController::class, 'store'])->name('collections.store');

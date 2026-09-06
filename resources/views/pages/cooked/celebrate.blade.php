@@ -1,0 +1,72 @@
+{{--
+    „Komuś wyszło" (issue #17) — najcenniejszy ekran w produkcie.
+
+    Zwykła strona, nie modal: żeby działała bez JavaScriptu, bez hover i bez
+    gestu, tak jak wymaga AGENTS.md. Zdjęcie i nagłówek idą PIERWSZE — to jest
+    dowód, że ktoś naprawdę stanął przy garnku, nie kolejny wiersz na liście.
+
+    Zero rankingu, zero liczb ("to już N. wykonanie") — SOUL.md §6. Zero
+    konfetti i animacji — to nie jest gra, to jest podziękowanie.
+--}}
+@php
+    $kucharz = $event->user;
+    $tytulPrzepisu = $event->recipe?->title;
+    $zdjecia = $event->media;
+    $maZdjecie = $zdjecia->isNotEmpty();
+@endphp
+<x-layout title="{{ $kucharz->displayName() }} ugotowała/ugotował Twój przepis" :noindex="true">
+    <article class="card stack" style="text-align:center;">
+        <div>
+            <p class="meta" style="margin:0 0 var(--spacing-2);">Komuś wyszło</p>
+            <h1 class="text-title-lg" style="margin:0;">
+                {{ $kucharz->displayName() }} ugotowała/ugotował
+                @if($tytulPrzepisu)
+                    z Twojego przepisu „{{ $tytulPrzepisu }}”
+                @else
+                    z Twojego przepisu
+                @endif
+            </h1>
+        </div>
+
+        @if($maZdjecie)
+            <div style="border-radius:var(--radius-md); overflow:hidden;">
+                <x-photo :media="$zdjecia->first()" variant="large" :priority="true" class="post-photo" />
+            </div>
+        @endif
+
+        @if($event->note)
+            {{--
+                Bez zdjęcia notatka jest jedynym dowodem, że to się wydarzyło —
+                dlatego dostaje większą czcionkę zamiast zwykłego akapitu
+                (issue #17: „ta sama struktura, mocniej wyeksponowana uwaga").
+            --}}
+            <p style="white-space:pre-line; overflow-wrap:anywhere; margin:0;
+                      @if(! $maZdjecie) font-size:var(--text-lead); font-weight:600; @endif">
+                „{{ $event->note }}”
+            </p>
+        @elseif(! $maZdjecie)
+            {{--
+                Ani zdjęcia, ani notatki — "Ugotowałem" nie wymaga żadnego pola
+                (patrz RecordCookedEvent), więc to prawdziwy, częsty przypadek,
+                nie błąd. Sam fakt ugotowania zostaje bohaterem ekranu zamiast
+                pustego miejsca po treści, której nigdy nie było.
+            --}}
+            <p class="meta" style="margin:0;">Bez zdjęcia i bez notatki — ale to i tak się liczy.</p>
+        @endif
+
+        <div style="max-width:32rem; margin:0 auto; text-align:left;">
+            <form method="POST" action="{{ route('cooked.thank', $event) }}">
+                @csrf
+                <x-field name="body" label="Podziękuj" type="textarea" :rows="3"
+                         :value="$domyslnePodziekowanie"
+                         help="Możesz zostawić ten tekst, jaki jest, albo dopisać coś swojego."
+                         required />
+                <button class="btn btn-primary" type="submit" style="width:100%;">Podziękuj</button>
+            </form>
+        </div>
+
+        <p style="margin:0;">
+            <a class="btn btn-quiet" href="{{ route('cooked.show', $event) }}">Zobacz cały wpis</a>
+        </p>
+    </article>
+</x-layout>
