@@ -152,7 +152,7 @@ godzinę i — co gorsza — **dać fałszywie zielone testy**.
 
 Laravel wylicza `base_path()` z lokalizacji `vendor/composer/ClassLoader.php`.
 Gdy `vendor` jest dowiązaniem do głównego repozytorium, framework uruchomiony
-w worktree ładuje **trasy, konfigurację i klasy z głównego katalogu**, a nie
+w worktree ładuje **trasy i konfigurację z głównego katalogu**, a nie
 z worktree. Objawy są mylące: `php artisan route:list` pokazuje nowe trasy
 poprawnie, ale test dostaje „Route not defined"; albo test przechodzi,
 mimo że w ogóle nie wykonał nowego kodu.
@@ -167,6 +167,45 @@ APP_BASE_PATH=$(pwd) php artisan serve --port=8201
 
 W głównym katalogu repozytorium nie jest to potrzebne — `vendor` jest tam
 prawdziwym katalogiem.
+
+### ⚠️ Druga połowa tej samej pułapki: `APP_BASE_PATH` NIE naprawia klas
+
+Ten akapit mówił wcześniej, że `APP_BASE_PATH` załatwia „trasy, konfigurację
+i klasy". Trzeci człon był nieprawdą i kosztował agenta pół zadania: pisał
+kod, którego testy w ogóle nie wykonywały.
+
+`composer.json` ma `optimize-autoloader: true`, więc
+`vendor/composer/autoload_classmap.php` jest **zamrożoną mapą klasa → ścieżka
+bezwzględna**, zapisaną tam, gdzie ktoś ostatnio uruchomił `composer install`.
+PHP wylicza `__DIR__` przez ścieżkę RZECZYWISTĄ, więc `$baseDir` w tej mapie
+zawsze wskazuje na główne repozytorium. Autoloader Composera to osobny,
+statyczny mechanizm i o `APP_BASE_PATH` nic nie wie.
+
+Zmierzone (gołe `require vendor/autoload.php`, bez bootstrapu Laravela,
+uruchomione z worktree):
+
+```text
+Post załadowany z: /workspace/kuking.pl/app/Models/Post.php
+worktree:          /workspace/kuking.pl/.claude/worktrees/sprawdzenie
+```
+
+Czyli: **każda klasa PHP dodana albo zmieniona w worktree jest dla testów
+niewidoczna** — ładuje się jej wersja z głównego katalogu. Test sprawdza kod,
+którego w tym worktree nie ma, i świeci na zielono albo na czerwono z zupełnie
+niezwiązanego powodu.
+
+Naprawa siedzi w `tests/bootstrap.php`: własny autoloader PSR-4 dla `App\`,
+`Database\Factories\`, `Database\Seeders\` i `Tests\`, wepchnięty PRZED
+classmap Composera (`spl_autoload_register(..., prepend: true)`) i wskazujący
+na katalogi tego checkoutu. W głównym katalogu nie zmienia niczego — wskazuje
+dokładnie te same pliki, co classmap.
+
+**To działa dla testów, nie dla całej reszty.** `php artisan tinker`,
+`migrate --seed` z własnym seederem czy `serve` w worktree dalej ładują klasy
+z głównego katalogu, bo nie przechodzą przez `tests/bootstrap.php`. Jeśli
+kiedyś będzie to potrzebne, właściwym rozwiązaniem jest prawdziwy `vendor`
+w worktree (dowiązania na pojedyncze pakiety + własny `vendor/composer`
+i `composer dump-autoload`), a nie kolejna łatka.
 
 Scalanie: gałęzie wracają pojedynczo, po każdej pełny `./scripts/check.sh`.
 Konflikt jest praktycznie zawsze w `routes/web.php` — dlatego każdy agent ma
