@@ -41,5 +41,6 @@
             albo tylko Ty. Możesz to zmienić w każdej chwili.
         </p>
         <p><a href="{{ route('settings.data') }}">Twoje dane — pobranie i usunięcie konta</a></p>
+        <p><a href="{{ route('settings.security') }}">Bezpieczeństwo — zmiana hasła, wylogowanie z innych urządzeń</a></p>
     </section>
 </x-layout>

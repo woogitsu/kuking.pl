@@ -30,6 +30,7 @@ use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
@@ -272,6 +273,17 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/twoje-dane/pobierz/{export}', [DataSettingsController::class, 'download'])
         ->middleware('signed')
         ->name('settings.data.download');
+
+    // Bezpieczeństwo konta (issue #12): zmiana hasła i „wyloguj mnie z innych
+    // urządzeń”. Obie akcje POST/PUT proszą o hasło, więc dostają ten sam
+    // limit co reszta miejsc, w których ktoś zgaduje cudze hasło.
+    Route::get('/ustawienia/bezpieczenstwo', [SecuritySettingsController::class, 'edit'])->name('settings.security');
+    Route::put('/ustawienia/bezpieczenstwo/haslo', [SecuritySettingsController::class, 'updatePassword'])
+        ->middleware("throttle:{$limits['confirm_password']}")
+        ->name('settings.security.password');
+    Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
+        ->middleware("throttle:{$limits['confirm_password']}")
+        ->name('settings.security.logout-others');
 
     // Odwołanie od decyzji moderacyjnej — droga dla osób, które MOGĄ wejść
     // do serwisu (aktywnych i zawieszonych). Wejście jest z powiadomienia

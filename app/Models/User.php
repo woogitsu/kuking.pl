@@ -551,7 +551,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
-     * Wyrzucenie użytkownika ze WSZYSTKICH aktywnych sesji.
+     * Wyrzucenie użytkownika ze WSZYSTKICH aktywnych sesji — albo ze
+     * wszystkich OPRÓCZ jednej, gdy $exceptSessionId jest podane.
      *
      * Bez tego zmiana `status` była tylko wpisem w kolumnie: osoba zbanowana
      * za nękanie działała dalej, dopóki nie wylogowała się sama. Przy
@@ -561,11 +562,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * z innych przeglądarek — `Auth::logout()` dotyczy tylko bieżącego żądania,
      * a moderator nie siedzi w sesji karanego użytkownika.
      *
+     * $exceptSessionId istnieje z jednego powodu (issue #12): przy „wyloguj
+     * mnie z innych urządzeń” i przy zmianie hasła to sama zainteresowana
+     * osoba naciska przycisk, w SWOJEJ, aktualnej sesji — i ta sesja ma
+     * zostać ważna. Wylogowanie kogoś z własnej przeglądarki zaraz po tym,
+     * jak zrobił dobrą rzecz (ustawił nowe hasło, zamknął dostęp reszcie
+     * urządzeń), wyglądałoby jak awaria serwisu, nie jak zabezpieczenie.
+     * Przy `ban()`/`suspend()`/`markForDeletion()` nie ma czego wyłączać
+     * z kasowania — tam działa moderator albo automat, nie właściciel konta,
+     * więc te wywołania zostają bez wyjątku (kasują WSZYSTKO).
+     *
      * Przy sterowniku innym niż `database` (w testach bywa `array`) tabeli po
      * prostu nie ma i nie ma czego kasować — samo sprawdzenie statusu przy
      * każdym żądaniu i tak odcina dostęp.
      */
-    private function invalidateSessions(): void
+    public function invalidateSessions(?string $exceptSessionId = null): void
     {
         if (config('session.driver') !== 'database') {
             return;
@@ -573,6 +584,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
         DB::table(config('session.table', 'sessions'))
             ->where('user_id', $this->getKey())
+            ->when(
+                $exceptSessionId !== null,
+                fn ($query) => $query->where('id', '!=', $exceptSessionId),
+            )
             ->delete();
     }
 

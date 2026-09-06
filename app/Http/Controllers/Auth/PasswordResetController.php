@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
@@ -81,11 +82,24 @@ class PasswordResetController extends Controller
                 ...$request->only('password', 'password_confirmation', 'token'),
                 'email' => User::normalizeEmail((string) $request->input('email', '')),
             ],
-            function ($user, string $password): void {
+            function ($user, string $password) use ($request): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'remember_token' => Str::random(60),
                 ])->save();
+
+                // Rotacja sesji (issue #12): to jest DOKŁADNIE sytuacja, w
+                // której zmiana hasła musi kasować stare sesje — ktoś prosi
+                // o reset właśnie DLATEGO, że podejrzewa, że jego hasło zna
+                // ktoś inny. Bez tego druga osoba zostałaby zalogowana dalej,
+                // a resetujący/a miałby/aby złudne poczucie, że problem
+                // zniknął. W tej ścieżce nie ma „bieżącej sesji do
+                // zachowania" — resetujący/a nie jest tu zalogowany/a
+                // (formularz jest publiczny), więc kasujemy WSZYSTKIE sesje
+                // bez wyjątku.
+                $user->invalidateSessions();
+
+                AuditLogEntry::record('account.password_reset', $user, $user, ip: $request->ip());
 
                 event(new PasswordReset($user));
             },
