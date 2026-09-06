@@ -224,29 +224,58 @@ class PolitykaBezpieczenstwaTest extends TestCase
         );
     }
 
-    public function test_polityka_mierzona_mierzy_nastepny_krok_a_nie_obecny(): void
+    public function test_styl_tez_jest_wymuszany_bez_unsafe_inline(): void
     {
         $odpowiedz = $this->get(route('landing'))->assertOk();
 
         $wymuszana = (string) $odpowiedz->headers->get('Content-Security-Policy');
         $mierzona = (string) $odpowiedz->headers->get('Content-Security-Policy-Report-Only');
 
-        // Nagłówek Report-Only ma sens tylko wtedy, kiedy jest OSTRZEJSZY
-        // od wymuszanego. Kiedy oba są identyczne, przeglądarka liczy
-        // naruszenia, których i tak już nie ma — i nikt się nie dowie,
-        // ile pracy naprawdę zostało.
+        // OSTATNIA FURTKA TEJ POLITYKI, ZAMKNIĘTA W ISSUE #107.
         //
-        // Różnica jest dziś dokładnie jedna: w widokach zostało ponad
-        // trzysta atrybutów `style="..."`, których żaden podpis nie ratuje
-        // (nonce działa na elementy `<style>`, nie na atrybut `style`).
-        // Wymuszana polityka je dopuszcza, mierzona już nie.
-        $this->assertStringContainsString("style-src 'self' 'unsafe-inline'", $wymuszana);
-        $this->assertStringNotContainsString('unsafe-inline', $mierzona);
+        // Do niedawna `style-src` musiał mieć `unsafe-inline`, bo w widokach
+        // było 355 atrybutów `style="..."`, a nonce ich nie obejmuje — działa
+        // na ELEMENT `<style>`, nie na atrybut. Teraz nie ma ani jednego,
+        // więc dyrektywa jest domknięta.
+        //
+        // Gdyby ktoś dopisał `unsafe-inline` z powrotem „bo coś nie wygląda",
+        // wróciłaby cała klasa ataków, którą to zamyka: zdalny arkusz
+        // wyciągający dane selektorami atrybutów i przemalowanie strony pod
+        // phishing. Poprawną drogą jest nazwana klasa w `app.css`, a dla
+        // strony, która musi działać bez arkusza — blok `<style nonce>`.
+        foreach (['wymuszana' => $wymuszana, 'mierzona' => $mierzona] as $nazwa => $polityka) {
+            $this->assertStringNotContainsString(
+                'unsafe-inline',
+                $polityka,
+                "Polityka {$nazwa} dopuszcza `unsafe-inline`. Zapisz styl klasą w app.css ".
+                'albo blokiem <style nonce>, nie atrybutem style= (issue #107).',
+            );
 
-        $this->assertNotSame(
-            $wymuszana,
-            $mierzona,
-            'Polityka mierzona jest identyczna z wymuszaną — nie mierzy niczego.',
+            $this->assertStringNotContainsString('unsafe-eval', $polityka);
+
+            $this->assertMatchesRegularExpression(
+                "/style-src [^;]*'nonce-[A-Za-z0-9]{8,}'/",
+                $polityka,
+                'style-src bez podpisu wywala <style> Livewire i blok na stronie awarii.',
+            );
+        }
+    }
+
+    public function test_polityka_mierzona_zostaje_jako_kanal_zgloszen(): void
+    {
+        $odpowiedz = $this->get(route('landing'))->assertOk();
+
+        // Report-Only jest dziś TAKI SAM jak wymuszany i to jest w porządku —
+        // wcześniej mierzył następny krok (`style-src` bez `unsafe-inline`),
+        // a ten krok został zrobiony.
+        //
+        // Nagłówek zostaje, bo jest jedynym kanałem, którym zobaczymy
+        // naruszenie niewidoczne w testach: pakiet dokładający własny `style=`,
+        // wklejony fragment cudzego HTML-a, wtyczkę przeglądarki. Bez niego
+        // dowiedzielibyśmy się o tym z pustej strony u użytkownika.
+        $this->assertNotEmpty(
+            (string) $odpowiedz->headers->get('Content-Security-Policy-Report-Only'),
+            'Zniknął nagłówek mierzony — zostaliśmy bez kanału zgłoszeń z produkcji.',
         );
     }
 

@@ -42,7 +42,7 @@
     @endif
 
     @if($event->note)
-        <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $event->note }}</p>
+        <p class="tekst-jak-napisano">{{ $event->note }}</p>
     @endif
 
     @if($event->changes_note)

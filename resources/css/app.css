@@ -1789,3 +1789,218 @@
   border-color: var(--color-brand-solid);
   color: var(--color-ink-inverse);
 }
+
+/* --- Klasy zamiast atrybutów style= (issue #107) -------------------------
+   `style-src` to jedyna dyrektywa polityki bezpieczeństwa, która nadal
+   potrzebuje `unsafe-inline`, i potrzebuje go WYŁĄCZNIE przez atrybuty
+   `style=` w widokach. Nonce ich nie ratuje: działa na element `<style>`,
+   nie na atrybut. Każda klasa niżej zastępuje taki atrybut jeden do jednego,
+   tymi samymi wartościami — to jest przeniesienie, nie przeprojektowanie.
+
+   Klasy są tu, a nie w Tailwindzie, bo albo składają kilka deklaracji naraz
+   (i mają wtedy nazwę mówiącą, CZYM jest element, nie jak wygląda), albo
+   sięgają po tokeny, których Tailwind nie zna. -------------------------- */
+
+/* Tekst wpisany przez człowieka: łamania wierszy zostają takie, jak je
+   wstukał, a bardzo długie słowo (adres, nazwa bez spacji) łamie się zamiast
+   rozpychać kartę poza ekran. */
+.tekst-jak-napisano {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Odpowiedź pod komentarzem. Wcięcie plus pionowa kreska — samo wcięcie przy
+   wąskim ekranie robi się nieczytelne, bo jest za małe, żeby je zauważyć. */
+.watek-odpowiedzi {
+  margin-left: var(--spacing-6);
+  padding-left: var(--spacing-4);
+  border-left: 3px solid var(--color-border);
+}
+
+/* Dwa pola obok siebie na szerokim ekranie, jedno pod drugim na telefonie.
+   `auto-fit` + `minmax` zamiast media query: pola układają się według miejsca,
+   które naprawdę mają, a nie według szerokości okna — komponent bywa w wąskiej
+   kolumnie na szerokim ekranie. */
+.siatka-pol {
+  display: grid;
+  gap: var(--spacing-4);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.siatka-pol-szeroka {
+  display: grid;
+  gap: var(--spacing-4);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+/* Lista bez kropek i bez wcięcia — używana tam, gdzie `<ul>` jest znacznikiem
+   struktury dla czytnika ekranu, a nie wyliczeniem do oglądania. */
+.lista-naga {
+  list-style: none;
+  padding: 0;
+}
+
+/* Link, który ma wyglądać jak otaczający go tekst: cała karta jest klikalna,
+   a podkreślony tytuł w środku wyglądałby jak druga, osobna akcja. Klikalny
+   obszar zostaje ten sam, więc to nie jest ubytek dostępności. */
+.link-jak-tekst {
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-tytul {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+/* Wiersz listy w panelu gospodarza: kreska pod spodem zamiast ramki dookoła.
+   Ramka przy kilkunastu wierszach z rzędu daje kratkę, w której nie widać,
+   gdzie kończy się jedna pozycja. */
+.wiersz-listy {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--spacing-3) 0;
+}
+
+.miniatura-64 {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex: none;
+}
+
+/* Powiadomienie nieprzeczytane. Pasek z boku, a nie samo tło: przy skali
+   tekstu 140% tło rozjeżdża się na kilka wierszy i przestaje czytać się jako
+   wyróżnienie, a pionowa kreska działa niezależnie od wysokości. */
+.notification-nieprzeczytane {
+  border-left: 4px solid var(--color-brand);
+}
+
+/* Osoba na liście obserwujących: zdjęcie i nazwa jako jeden cel do kliknięcia.
+   `min-width` pilnuje, żeby przy dwóch kolumnach nazwa nie łamała się po jednej
+   literze. */
+.osoba-link {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  min-width: 14rem;
+}
+
+/* Kod zapasowy i sekret dwuetapowej weryfikacji. Odstępy między znakami, bo
+   te ciągi się PRZEPISUJE z ekranu — bez nich „O" i „0" zlewają się w jedno.
+   `20px` na sztywno, nie token: to nie jest tekst do czytania, tylko do
+   odwzorowania znak po znaku, i ma zostać czytelny także wtedy, gdy ktoś
+   zmniejszy skalę tekstu. */
+.kod-do-przepisania {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.sekret-do-przepisania {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  word-break: break-all;
+}
+
+/* Miejsce po zdjęciu, którego jeszcze nie ma (albo już nie będzie).
+   Proporcje idą z klasy, nie z dokładnych wymiarów pliku — patrz komentarz
+   w `components/photo.blade.php`. */
+.photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
+  aspect-ratio: 4 / 3;
+}
+
+.photo-placeholder-kwadrat { aspect-ratio: 1 / 1; }
+.photo-placeholder-pion { aspect-ratio: 3 / 4; }
+.photo-placeholder-panorama { aspect-ratio: 16 / 9; }
+
+.photo-placeholder p {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-ink-muted);
+}
+
+.photo-placeholder-blad p {
+  color: var(--color-danger-tint-ink);
+}
+
+/* Podgląd rozmiaru tekstu w ustawieniach dostępności. Wartości są zamknięte
+   w `config/kuking.php` (`kuking.text.scales`), więc wystarczą trzy reguły —
+   nieznana wartość zostaje przy 100% i nic się nie psuje. */
+.choice-label[data-skala='112'] { font-size: 112%; }
+.choice-label[data-skala='125'] { font-size: 125%; }
+.choice-label[data-skala='140'] { font-size: 140%; }
+
+/* Rozmiary awatara. Selektor atrybutowy zamiast klasy na każdy rozmiar, bo
+   `x-avatar` dostaje LICZBĘ w px i tak samo trafia do atrybutów `width`
+   i `height` — jedna wartość, jedno miejsce. Rozmiar spoza listy zostaje przy
+   domyślnych 48 px z `.avatar`, więc nic nie znika. */
+.avatar[data-rozmiar='40'] { width: 40px; height: 40px; font-size: 17px; }
+.avatar[data-rozmiar='44'] { width: 44px; height: 44px; font-size: 18px; }
+.avatar[data-rozmiar='48'] { width: 48px; height: 48px; font-size: 20px; }
+.avatar[data-rozmiar='52'] { width: 52px; height: 52px; font-size: 22px; }
+.avatar[data-rozmiar='56'] { width: 56px; height: 56px; font-size: 24px; }
+.avatar[data-rozmiar='88'] { width: 88px; height: 88px; font-size: 37px; }
+
+/* Nagłówek przepisu w podglądzie kreatora. `margin: 0`, bo stoi jako pierwszy
+   element karty i własny odstęp odsuwałby go od jej krawędzi. */
+.naglowek-podgladu {
+  font-size: var(--text-title);
+  margin: 0;
+}
+
+/* Nazwa grupy składników („Na ciasto", „Na krem") — mniejsza od nagłówka
+   przepisu, ale nadal powyżej minimum 18 px, bo to jedyny opis tej listy. */
+.naglowek-grupy {
+  font-size: var(--text-body-lg);
+  margin-bottom: var(--spacing-2);
+}
+
+/* Miniatura przy przepisie na liście. `flex: none` — bez tego kurczy się przy
+   długim tytule i zdjęcie robi się paskiem. */
+.recipe-card-miniatura {
+  flex: none;
+  width: 120px;
+}
+
+/* Cichy przycisk wyrównany do lewej krawędzi karty. Domyślne wcięcie
+   `.btn-quiet` wysuwałoby go względem tekstu nad nim. */
+.btn-quiet-bez-wciecia {
+  padding-left: 0;
+}
+
+/* Lista kroków w instrukcji („Otwórz aplikację…", „Dodaj konto…"). Wcięcie
+   w `em`, nie w tokenie odstępu: ma rosnąć razem z numerem, gdy ktoś powiększy
+   tekst — inaczej „10." wychodzi poza wcięcie i lista się rozjeżdża. */
+.lista-krokow {
+  padding-left: 1.3em;
+}
+
+/* Notatka spod „Ugotowałem" wtedy, gdy nie ma zdjęcia. Bez fotografii to jedyna
+   treść tego ekranu, więc dostaje wagę akapitu wiodącego zamiast zwykłego
+   (issue #17: „ta sama struktura, mocniej wyeksponowana uwaga"). */
+.notatka-wyrozniona {
+  font-size: var(--text-lead);
+  font-weight: 600;
+}
+
+/* Ekran powitalny dla niezalogowanych. */
+.landing-hero {
+  text-align: center;
+  padding: var(--spacing-6) 0 var(--spacing-10);
+}
+
+.landing-lead {
+  font-size: var(--text-lead);
+  max-width: 34rem;
+  margin: 0 auto var(--spacing-6);
+}

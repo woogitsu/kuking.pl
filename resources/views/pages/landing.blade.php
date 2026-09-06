@@ -2,9 +2,9 @@
     title="Pokaż, co dziś ugotowałeś"
     description="Kuking to polska społeczność ludzi, którzy naprawdę gotują. Wrzuć zdjęcie obiadu, zapisz przepisy po mamie i zobacz, komu z Twojego przepisu wyszło.">
 
-    <section style="text-align:center; padding:var(--spacing-6) 0 var(--spacing-10);">
+    <section class="landing-hero">
         <h1 class="text-title-lg">Pokaż, co dziś ugotowałeś</h1>
-        <p style="font-size:var(--text-lead); max-width:34rem; margin:0 auto var(--spacing-6);">
+        <p class="landing-lead">
             Kuking to miejsce dla ludzi, którzy gotują naprawdę — w swojej kuchni,
             z tego, co jest. Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
         </p>

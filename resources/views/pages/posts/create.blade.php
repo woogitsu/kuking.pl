@@ -28,7 +28,7 @@
                 <div class="notice">
                     <strong>Twoje zdjęcia są zachowane.</strong>
                     Nie musisz wybierać ich jeszcze raz — popraw tylko to, co jest zaznaczone na czerwono.
-                    <ul class="stack-tight" style="margin:var(--spacing-3) 0 0; padding:0; list-style:none;">
+                    <ul class="stack-tight lista-naga mt-3">
                         @foreach($zachowane as $zdjecie)
                             <li>
                                 <input type="hidden" name="media_ids[]" value="{{ $zdjecie->getKey() }}">

@@ -7,7 +7,7 @@
 <x-layout title="Włącz weryfikację dwuetapową" :noindex="true">
     <h1>Włącz weryfikację dwuetapową</h1>
 
-    <ol style="margin-bottom:var(--spacing-5); padding-left:1.3em;">
+    <ol class="lista-krokow mb-5">
         <li>Otwórz aplikację uwierzytelniającą w telefonie (Google Authenticator, Aegis, 1Password…).</li>
         <li>Dodaj nowe konto — zeskanuj kod QR poniżej ALBO wpisz sekret ręcznie.</li>
         <li>Przepisz sześciocyfrowy kod, który aplikacja pokaże, do pola niżej.</li>
@@ -22,7 +22,7 @@
     <section class="card mt-5">
         <h2 class="mt-0">Nie możesz zeskanować kodu?</h2>
         <p>Wpisz ten sekret ręcznie, jako „klucz konfiguracji" albo „sekret":</p>
-        <p style="font-size:20px; font-weight:700; letter-spacing:0.08em; word-break:break-all;">
+        <p class="sekret-do-przepisania">
             {{ $sekret }}
         </p>
     </section>

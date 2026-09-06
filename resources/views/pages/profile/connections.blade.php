@@ -41,7 +41,7 @@
                     $isFollowingPerson = $viewer !== null && ! $isSelf && (bool) ($person->obserwowany ?? false);
                 @endphp
                 <div class="card flex gap-3 items-center justify-between flex-wrap">
-                    <a href="{{ $person->profile?->url() }}" style="display:flex; gap:var(--spacing-3); align-items:center; text-decoration:none; color:inherit; min-width:14rem;">
+                    <a href="{{ $person->profile?->url() }}" class="osoba-link">
                         <x-avatar :user="$person" :size="56" />
                         <span>
                             <span class="block font-semibold">{{ $person->displayName() }}</span>

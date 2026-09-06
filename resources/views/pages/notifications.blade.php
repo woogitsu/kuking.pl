@@ -13,8 +13,7 @@
             $actor = $notification->actor;
             $data = $notification->data ?? [];
         @endphp
-        <article class="card @if($notification->isUnread()) style-unread @endif"
-                 style="margin-bottom:var(--spacing-3); @if($notification->isUnread()) border-left:4px solid var(--color-brand); @endif">
+        <article class="card mb-3 @if($notification->isUnread()) style-unread notification-nieprzeczytane @endif">
             <div class="flex gap-3 items-start">
                 @if($actor)
                     <x-avatar :user="$actor" :size="44" />

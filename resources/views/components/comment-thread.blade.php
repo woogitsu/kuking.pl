@@ -32,11 +32,11 @@
             @if($commentIsRemoved)
                 <p class="meta italic">{{ $comment->body }}</p>
             @else
-                <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $comment->body }}</p>
+                <p class="tekst-jak-napisano">{{ $comment->body }}</p>
             @endif
 
             @foreach($comment->replies as $reply)
-                <div style="margin-left:var(--spacing-6); padding-left:var(--spacing-4); border-left:3px solid var(--color-border);">
+                <div class="watek-odpowiedzi">
                     <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
@@ -48,7 +48,7 @@
                     @if($replyIsRemoved)
                         <p class="meta italic">{{ $reply->body }}</p>
                     @else
-                        <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $reply->body }}</p>
+                        <p class="tekst-jak-napisano">{{ $reply->body }}</p>
 
                         @auth
                             @php($replyRemainingMinutes = 15 - (int) $reply->created_at->diffInMinutes(now()))

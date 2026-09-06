@@ -17,7 +17,7 @@
                         <span>
                             {{-- Podgląd w realnym rozmiarze — najlepszy sposób wyboru
                                  dla kogoś, kto nie myśli w procentach. --}}
-                            <span class="choice-label" style="font-size:{{ $scale }}%;">
+                            <span class="choice-label" data-skala="{{ $scale }}">
                                 Rosół na niedzielę wyszedł złoty.
                             </span>
                             <span class="choice-help">

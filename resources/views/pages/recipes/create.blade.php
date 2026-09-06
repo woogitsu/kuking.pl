@@ -57,7 +57,7 @@
                      :value="$isEdit ? $recipe->summary : null"
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
-            <div style="display:grid; gap:var(--spacing-4); grid-template-columns:repeat(auto-fit, minmax(12rem, 1fr));">
+            <div class="siatka-pol">
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
                          :value="$isEdit ? $recipe->servings : null" :min="0.5" :max="999" :step="0.5" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric"

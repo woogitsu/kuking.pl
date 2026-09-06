@@ -102,14 +102,36 @@
     --}}
     @php
         $jestWlascicielem = auth()->id() === $media->owner_id;
-        $proporcje = ($media->width && $media->height) ? $media->width.' / '.$media->height : '4 / 3';
         $padloNaDobre = $media->status === \App\Models\Media::STATUS_REJECTED;
+
+        /*
+         * PROPORCJE Z KLASY, NIE Z DOKŁADNYCH WYMIARÓW PLIKU (issue #107).
+         *
+         * Wcześniej szło tu `aspect-ratio:{szerokość} / {wysokość}` w atrybucie
+         * `style` — jedynej rzeczy, która trzyma `unsafe-inline` w `style-src`;
+         * nonce atrybutów nie obejmuje. Dokładnej liczby nie da się zapisać
+         * klasą, więc zaokrąglamy do czterech kształtów.
+         *
+         * Kosztem jest kilka procent różnicy między ramką a zdjęciem, które
+         * się w niej pojawi. To jest do przyjęcia AKURAT TUTAJ: ten prostokąt
+         * pokazuje się wyłącznie zanim zdjęcie będzie gotowe, a komentarz
+         * wyżej tłumaczy, że strona i tak przeładowuje się w całości, więc nie
+         * ma podmiany w locie, przy której ta różnica byłaby widoczna jako
+         * skok układu.
+         */
+        $stosunek = ($media->width && $media->height) ? $media->width / $media->height : 4 / 3;
+
+        $ksztalt = match (true) {
+            $stosunek >= 1.6 => ' photo-placeholder-panorama',
+            $stosunek >= 1.15 => '',            // domyślne 4 / 3
+            $stosunek >= 0.9 => ' photo-placeholder-kwadrat',
+            default => ' photo-placeholder-pion',
+        };
     @endphp
-    <div class="{{ $class }}"
-         role="status"
-         style="aspect-ratio:{{ $proporcje }}; display:flex; align-items:center; justify-content:center; text-align:center; padding:var(--spacing-4); border-radius:var(--radius-md);">
+    <div class="{{ $class }} photo-placeholder{{ $ksztalt }}{{ $padloNaDobre ? ' photo-placeholder-blad' : '' }}"
+         role="status">
         @if($padloNaDobre)
-            <p style="margin:0; font-weight:700; color:var(--color-danger-tint-ink);">
+            <p>
                 @if($jestWlascicielem)
                     Nie udało się przygotować tego zdjęcia. Wpis możesz usunąć i dodać ponownie z innym zdjęciem.
                 @else
@@ -117,7 +139,7 @@
                 @endif
             </p>
         @else
-            <p style="margin:0; font-weight:700; color:var(--color-ink-muted);">
+            <p>
                 @if($jestWlascicielem)
                     Twoje zdjęcie się jeszcze przygotowuje. Nic nie zginęło — odśwież stronę za chwilę, żeby je zobaczyć.
                 @else
