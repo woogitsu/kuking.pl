@@ -36,7 +36,7 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null): Collection
     {
         $phrase = trim($phrase);
 
@@ -68,6 +68,16 @@ final class SearchQuery
                             ->whereRaw('kuking_normalize(ingredient_text) LIKE ?', ['%'.$needle.'%']);
                     });
             })
+            // Filtr „Do 30 minut" (UI kit v2, ekran 03).
+            //
+            // Przepis BEZ podanych czasów wypada z tego filtra, a nie wpada.
+            // Brak danych nie znaczy „szybki" — obiecanie, że coś zajmie
+            // pół godziny, gdy nikt tego nie zmierzył, jest gorsze niż
+            // nieujęcie przepisu w wynikach.
+            ->when($maksMinut !== null, fn ($query) => $query
+                ->whereNotNull('prep_minutes')
+                ->whereNotNull('cook_minutes')
+                ->whereRaw('(prep_minutes + cook_minutes) <= ?', [$maksMinut]))
             ->orderByRaw('similarity(kuking_normalize(title), ?) DESC', [$needle])
             ->orderByDesc('published_at')
             ->limit($limit)

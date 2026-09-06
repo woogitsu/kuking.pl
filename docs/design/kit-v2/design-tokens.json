@@ -1,0 +1,68 @@
+{
+  "meta": {
+    "name": "KuKing.pl visual system",
+    "version": "2.0",
+    "direction": "Miękki minimalizm / ciepła kuchnia"
+  },
+  "color": {
+    "surface": "#FAF6F0",
+    "surfaceRaised": "#FFFFFF",
+    "surfaceSunken": "#F1EBE1",
+    "border": "#E4DACB",
+    "borderStrong": "#8A7A63",
+    "ink": "#2B241D",
+    "inkMuted": "#5C5347",
+    "brand": "#B3401F",
+    "brandDark": "#8C3018",
+    "brandTint": "#F5E4DC",
+    "accent": "#7A5C10",
+    "accentTint": "#FCEACB",
+    "focus": "#155EEF",
+    "success": "#1E7B3E",
+    "danger": "#B3261E"
+  },
+  "font": {
+    "primary": "Inter Variable",
+    "fallback": "system-ui",
+    "accessibilityOptional": "Atkinson Hyperlegible Next"
+  },
+  "typeScalePx": {
+    "help": 16,
+    "body": 18,
+    "bodyLarge": 20,
+    "lead": 22,
+    "section": 24,
+    "titleMobile": 28,
+    "titleDesktop": 36
+  },
+  "spacingPx": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64
+  ],
+  "radiusPx": {
+    "small": 8,
+    "control": 12,
+    "card": 16,
+    "shell": 24,
+    "pill": 999
+  },
+  "controls": {
+    "primaryMinHeightPx": 48,
+    "touchTargetPreferredPx": 48,
+    "bottomNavTargetPx": 60
+  },
+  "layout": {
+    "contentMaxPx": 720,
+    "sideNavPx": 240,
+    "desktopMainColumnsMax": 2,
+    "mobileNavItems": 5
+  }
+}

@@ -227,6 +227,12 @@ class RecipeController extends Controller
             // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
             // gwiazdek nie ma i nie będzie, bo są abstrakcją, a zdanie
             // „dziesięć z dwunastu osób zrobi to ponownie" rozumie każdy.
+            // Czy oglądający obserwuje autora — jedno zapytanie, żeby przycisk
+            // „Obserwuj" na stronie przepisu pokazywał prawdziwy stan
+            // (UI kit v2, ekran 02).
+            'obserwuje' => $request->user() !== null
+                && $request->user()->getKey() !== $model->author_id
+                && $request->user()->isFollowing($model->author),
             'zrobiaPonownie' => $model->cookedEvents()->where('would_make_again', true)->count(),
             'oceniloWykonanie' => $model->cookedEvents()->whereNotNull('would_make_again')->count(),
             'isSaved' => $request->user() !== null && $request->user()

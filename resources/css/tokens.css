@@ -88,7 +88,10 @@
   --text-title-lg: calc(2.25rem * var(--user-text-scale, 1));    /* 36px */
 
   --leading-body: 1.55;
-  --leading-title: 1.4;
+  /* 1.25 — wartość z paczki właściciela (docs/design/kit-v2/css/tokens.css).
+     Wcześniej stało tu 1.4; nagłówki były przez to wyraźnie luźniejsze niż
+     w wizualizacjach. */
+  --leading-title: 1.25;
 
   /* --- Spacing (baza 4px) — NIE skalowane przez text-scale, celowo --- */
   --spacing-1: 0.25rem;   /* 4px */
@@ -107,6 +110,7 @@
   --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
   --radius-md: 0.75rem;   /* 12px — przyciski, pola */
   --radius-lg: 1rem;      /* 16px — karty */
+  --radius-xl: 1.5rem;    /* 24px — duże karty i pola z kitu v2 */
   --radius-pill: 999px;   /* avatar, tagi okrągłe */
 
   /* --- Cień (barwiony w stronę ink, nie czysta czerń) --- */
@@ -128,6 +132,8 @@
   --container-content: 45rem;  /* 720px — centralna kolumna, ~65–75 znaków przy 18-20px */
   --container-sidenav: 15rem;  /* 240px — SideNav desktop */
   --container-wide: 70rem;     /* 1120px — całość na dużym desktopie (SideNav + treść) */
+  --container-rail: 22rem;     /* 352px — prawa szyna (UI kit v2, ekran 01) */
+  --container-ultra: 92rem;    /* 1472px — SideNav + treść + szyna */
 }
 
 /* =============================================================================

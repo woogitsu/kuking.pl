@@ -9,6 +9,7 @@ use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\TopicFeed;
 use App\Domain\Wspomnienia\Wspomnienia;
+use App\Models\Recipe;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -75,8 +76,21 @@ class FeedController extends Controller
         // zaczyna.
         $wspomnienie = $this->wspomnienia->dlaOsoby($user);
 
+        // Trzy ostatnio odłożone przepisy do prawej szyny (UI kit v2, ekran 01).
+        // Zapytanie idzie przez zeszyty TEGO CZŁOWIEKA, więc nie ma tu pytania
+        // o widoczność cudzych treści — a `published()` odsiewa przepis, który
+        // autor w międzyczasie schował do szkiców.
+        $zeszyt = Recipe::query()
+            ->published()
+            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
+            ->with(['heroMedia', 'author.profile'])
+            ->latest('recipes.published_at')
+            ->limit(3)
+            ->get();
+
         return view('pages.home', [
             'greeting' => $this->greeting($user->displayName()),
+            'zeszyt' => $zeszyt,
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),

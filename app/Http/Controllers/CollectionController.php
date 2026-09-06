@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Models\Collection;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Rules\CollectionNameNotTaken;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -18,7 +20,10 @@ use Illuminate\View\View;
  */
 class CollectionController extends Controller
 {
-    public function __construct(private readonly SaveRecipeToCollection $save) {}
+    public function __construct(
+        private readonly SaveRecipeToCollection $save,
+        private readonly SavePostToCollection $savePost,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -28,7 +33,7 @@ class CollectionController extends Controller
         // pokazujemy pustego folderu osobie, która nic jeszcze nie zapisała.
         return view('pages.collections.index', [
             'collections' => $user->collections()
-                ->withCount('recipes')
+                ->withCount(['recipes', 'posts'])
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
@@ -51,6 +56,27 @@ class CollectionController extends Controller
                 ->widoczneDla($request->user())
                 ->with(['author.profile', 'heroMedia'])
                 ->paginate(12),
+            // Wpisy przechodzą przez ten sam filtr widoczności co przepisy —
+            // zeszyt jest cudzym pojemnikiem i nie może pokazywać treści,
+            // do której oglądający nie ma prawa.
+            'posts' => $collection->posts()
+                ->widoczneDla($request->user())
+                ->tylkoOdDostepnychAutorow()
+                ->with(['author.profile.avatar', 'media'])
+                ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
+                ->get(),
+            // ILE POZYCJI SCHOWAŁ FILTR — I DLACZEGO TO W OGÓLE POKAZUJEMY.
+            //
+            // Wpis zapisany, gdy autor pokazywał go obserwującym, znika
+            // z widoku po tym, jak przestaniesz go obserwować. Ciche zniknięcie
+            // wygląda jak utrata danych („miałam to tu wczoraj"), a pokazanie
+            // treści łamie widoczność. Zostaje trzecia droga: powiedzieć, ile
+            // pozycji tu jest, nie mówiąc jakich.
+            'niewidoczne' => max(
+                0,
+                $collection->posts()->count()
+                    - $collection->posts()->widoczneDla($request->user())->tylkoOdDostepnychAutorow()->count(),
+            ),
         ]);
     }
 
@@ -108,6 +134,39 @@ class CollectionController extends Controller
         $model = Recipe::where('slug', $recipe)->firstOrFail();
 
         $this->save->remove($request->user(), $model);
+
+        return back()->with('status', 'Usunięte z zeszytu.');
+    }
+
+    /**
+     * „Zapisz" na karcie wpisu (UI kit v2, ekran 01).
+     *
+     * Policy `view` PRZED zapisem, nie po. Bez tego dałoby się odłożyć
+     * do zeszytu cudzy wpis prywatny, znając sam jego identyfikator —
+     * a UUID w adresie to nie autoryzacja (AGENTS.md §7).
+     */
+    public function savePost(Request $request, Post $post): RedirectResponse
+    {
+        $this->authorize('view', $post);
+
+        $collection = null;
+
+        if ($request->filled('collection_id')) {
+            $collection = $request->user()->collections()->findOrFail($request->input('collection_id'));
+        }
+
+        $target = $this->savePost->handle($request->user(), $post, $collection);
+
+        return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
+    }
+
+    public function removePost(Request $request, Post $post): RedirectResponse
+    {
+        // Bez `authorize`: usuwamy z WŁASNEGO zeszytu i tylko z własnego
+        // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
+        // wolno oglądać, tym bardziej musi dać się stamtąd wyjąć — inaczej
+        // zostawałby w zeszycie na zawsze.
+        $this->savePost->remove($request->user(), $post);
 
         return back()->with('status', 'Usunięte z zeszytu.');
     }

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -106,6 +107,20 @@ class Recipe extends Model
     public function sourceScan(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'source_scan_media_id');
+    }
+
+    /**
+     * Zeszyty, w których ten przepis został odłożony.
+     *
+     * Odwrotna strona `Collection::recipes()`. Potrzebna po to, żeby zapytać
+     * „co TA OSOBA ma w swoich zeszytach" jednym zapytaniem, zamiast pobierać
+     * wszystkie jej zeszyty i sklejać ich zawartość w PHP.
+     *
+     * @return BelongsToMany<Collection, $this>
+     */
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'collection_items');
     }
 
     public function ingredients(): HasMany

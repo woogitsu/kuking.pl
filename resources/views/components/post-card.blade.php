@@ -31,13 +31,49 @@
                 <a href="{{ $post->url() }}" style="color:inherit;">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
                 </a>
+                {{-- Widoczność przy dacie, tak jak w kicie (ekran 01: „2 godz.
+                     temu · publicznie"). Także dla wpisu publicznego: autor ma
+                     wiedzieć jednym spojrzeniem, kto to widzi, a nie dopiero
+                     po wejściu w edycję. --}}
                 @if($post->visibility === 'followers')
                     · <span class="badge">Tylko dla obserwujących</span>
                 @elseif($post->visibility === 'private')
                     · <span class="badge">Tylko dla mnie</span>
+                @else
+                    · <span>publicznie</span>
                 @endif
             </p>
         </div>
+
+        @auth
+            {{--
+                MENU „…" (UI kit v2, ekran 01).
+
+                `<details>`, nie przycisk sterowany skryptem: menu, które bez
+                JavaScriptu nie otwiera się wcale, jest ozdobą udającą przycisk
+                (AGENTS.md §5). Ten sam wzorzec co przy potwierdzeniach
+                kasowania.
+
+                W środku siedzą rzeczy, po które NIE sięga się odruchowo —
+                dlatego zeszły z paska akcji pod spodem: tam zostają tylko
+                „Ugotowałem" i komentarze.
+            --}}
+            <details class="post-card-menu">
+                <summary aria-label="Więcej przy tym wpisie">
+                    <span aria-hidden="true">···</span>
+                </summary>
+                <div class="post-card-menu-tresc">
+                    <a href="{{ $post->url() }}">Otwórz wpis</a>
+                    @if(auth()->id() === $post->author_id)
+                        @if($post->media->count() > 1)
+                            <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
+                        @endif
+                    @else
+                        <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
+                    @endif
+                </div>
+            </details>
+        @endauth
     </div>
 
     @if($post->body)
@@ -110,11 +146,33 @@
         </a>
 
         @auth
-            @if(auth()->id() !== $post->author_id)
-                {{-- Zgłoszenie odsunięte na koniec paska: to nie jest akcja,
-                     którą sięga się odruchowo. --}}
-                <a class="btn btn-quiet post-card-report" href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś</a>
-            @endif
+            {{--
+                „ZAPISZ" (UI kit v2, ekran 01) — decyzja właściciela.
+
+                Zeszyt przyjmuje od tej zmiany także wpisy. To jest inna
+                potrzeba niż zapisanie przepisu: zapisany przepis znaczy „chcę
+                to ugotować i mam listę składników", a zapisane zdjęcie —
+                „chcę kiedyś zrobić coś TAKIEGO". Przy wpisie żadnego przepisu
+                zwykle nie ma.
+
+                DLACZEGO ZAWSZE „ZAPISZ", A NIE „ZAPISANE"
+                Sprawdzenie stanu dla każdej karty to jedno zapytanie na wpis
+                — czyli dwadzieścia zapytań na przewinięcie feedu. Zapis jest
+                za to bezpieczny przy powtórzeniu: drugie kliknięcie daje
+                dokładnie ten sam skutek co pierwsze i nie przesuwa pozycji
+                w zeszycie (SavePostToCollection). Wyjąć z zeszytu można
+                w samym zeszycie.
+            --}}
+            <form method="POST" action="{{ route('collections.save-post', $post) }}">
+                @csrf
+                <button class="btn btn-secondary" type="submit">
+                    <x-ikona nazwa="book" :rozmiar="22" />
+                    Zapisz
+                </button>
+            </form>
         @endauth
+
+        {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).
+             Pasek akcji ma nieść to, po co człowiek tu przyszedł. --}}
     </div>
 </article>

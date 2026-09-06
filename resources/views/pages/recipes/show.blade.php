@@ -94,9 +94,9 @@
                 <p class="notice"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center gap-3 mb-4 flex-wrap">
                 <x-avatar :user="$recipe->author" :size="44" />
-                <div>
+                <div class="min-w-0">
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
                     <p class="meta m-0">
                         @if($recipe->published_at)
@@ -104,6 +104,31 @@
                         @endif
                     </p>
                 </div>
+
+                {{--
+                    „OBSERWUJ" PRZY AUTORZE (UI kit v2, ekran 02).
+
+                    To nie jest ozdoba przeniesiona z makiety. Strona przepisu
+                    jest najczęstszym wejściem z Google, a obserwowanie autora
+                    to jedyny powód, dla którego ktoś tu wróci. Do tej pory,
+                    żeby zacząć obserwować, trzeba było najpierw wejść na profil
+                    — czyli opuścić przepis, po który się przyszło.
+                --}}
+                @auth
+                    @if(auth()->id() !== $recipe->author_id)
+                        @if($obserwuje ?? false)
+                            <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
+                                @csrf
+                                <button class="btn btn-secondary" type="submit">Obserwuj</button>
+                            </form>
+                        @endif
+                    @endif
+                @endauth
             </div>
         </header>
 
