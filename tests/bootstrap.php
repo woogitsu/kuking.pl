@@ -60,6 +60,59 @@ if (getenv('DB_DATABASE') === false || getenv('DB_DATABASE') === '') {
 require __DIR__.'/../vendor/autoload.php';
 
 /**
+ * OMIJA ZASTYGŁY CLASSMAP COMPOSERA — DRUGA POŁOWA „pułapki symlinku"
+ * z `docs/AI_WORKFLOW.md`, której ten dokument jeszcze nie opisuje.
+ *
+ * `vendor` jest DOWIĄZANIEM do głównego katalogu, a `composer.json` ma
+ * `optimize-autoloader: true` — `vendor/composer/autoload_classmap.php`
+ * (i `autoload_psr4.php`) to więc ZAMROŻONA mapa klasa → ścieżka, zapisana
+ * jako ścieżki BEZWZGLĘDNE do miejsca, gdzie ktoś ostatnio uruchomił
+ * `composer install`. PHP wylicza `__DIR__`/`__FILE__` przez ścieżkę
+ * RZECZYWISTĄ (za dowiązaniem), więc `$baseDir` w tej mapie zawsze wskazuje
+ * na GŁÓWNY katalog repozytorium — sprawdzone empirycznie, także na gołym
+ * `require "vendor/autoload.php"` bez żadnego bootstrapu Laravela.
+ *
+ * `APP_BASE_PATH` (opisane w AI_WORKFLOW.md) TEGO NIE NAPRAWIA: poprawia
+ * wyłącznie `Illuminate\Foundation\Application::basePath()` — czyli trasy,
+ * config i widoki, które Laravel czyta sam z dysku. Autoloader Composera
+ * jest osobnym, statycznym mechanizmem i o `APP_BASE_PATH` nic nie wie.
+ *
+ * SKUTEK BEZ TEJ ŁATKI: każda klasa PHP zmieniona albo dodana w TYM
+ * worktree jest niewidoczna dla testów — ładuje się jej stara wersja
+ * z głównego katalogu, a test sprawdza kod, którego tu nie ma. Dokładnie
+ * ten kształt błędu, przed którym ostrzega AI_WORKFLOW.md („test przechodzi,
+ * mimo że w ogóle nie wykonał nowego kodu") — tylko że dotyczy też klas,
+ * nie tylko tras.
+ *
+ * NAPRAWA: własny autoloader PSR-4, wepchnięty PRZED classmap Composera
+ * (`spl_autoload_register(..., prepend: true)`), wskazujący na katalogi
+ * TEGO WORKTREE. Zero zmian w `vendor/` — zero ryzyka dla innych agentów
+ * albo dla głównego repozytorium, bo ten plik istnieje tylko tutaj.
+ */
+spl_autoload_register(static function (string $class): void {
+    static $mapowanie = [
+        'App\\' => __DIR__.'/../app/',
+        'Database\\Factories\\' => __DIR__.'/../database/factories/',
+        'Database\\Seeders\\' => __DIR__.'/../database/seeders/',
+        'Tests\\' => __DIR__.'/',
+    ];
+
+    foreach ($mapowanie as $prefiks => $katalog) {
+        if (! str_starts_with($class, $prefiks)) {
+            continue;
+        }
+
+        $sciezka = $katalog.str_replace('\\', '/', substr($class, strlen($prefiks))).'.php';
+
+        if (is_file($sciezka)) {
+            require $sciezka;
+        }
+
+        return;
+    }
+}, true, true);
+
+/**
  * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
  * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
  */

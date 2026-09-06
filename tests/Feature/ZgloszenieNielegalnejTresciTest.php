@@ -219,6 +219,54 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
         $this->assertDatabaseCount('reports', 0);
     }
 
+    /**
+     * Test regresyjny audytu SEC-08, blokujący cofnięcie ustalenia W7-10.
+     *
+     * `ZglosNielegalnaTresc` ŚWIADOMIE nie scala duplikatów — w przeciwieństwie
+     * do `ReportContent` (zgłoszenie społecznościowe), gdzie dwa kliknięcia tej
+     * SAMEJ osoby mają dać jeden wiersz. Tutaj dwa zgłoszenia tej samej treści
+     * mogą pochodzić od DWÓCH RÓŻNYCH osób, z DWÓCH RÓŻNYCH podstaw prawnych
+     * (np. praw autorskich i ochrony wizerunku), i każdej z nich należy się
+     * osobna odpowiedź (art. 16 ust. 4 i 5) — scalenie ukradłoby odpowiedź
+     * jednej z nich.
+     *
+     * Dziś nic tego nie pilnuje: gdyby ktoś kiedyś dopisał tu scalanie „przez
+     * analogię" do `ReportContent`, ten test ma to złapać.
+     */
+    public function test_dwa_zgloszenia_tej_samej_tresci_od_dwoch_osob_nie_scalaja_sie(): void
+    {
+        Notification::fake();
+
+        $autor = $this->user('autor_sec08');
+        $przepis = Recipe::factory()->for($autor, 'author')->create([
+            'status' => 'published',
+            'visibility' => 'public',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->post(route('zglos.nielegalna.store'), $this->poprawneZgloszenie([
+            'notifier_name' => 'Anna Kowalska',
+            'notifier_email' => 'anna@kancelaria.example',
+            'target_url' => 'https://kuking.pl/przepis/'.$przepis->slug,
+            'reason' => 'copyright',
+            'illegality_explanation' => 'To jest mój tekst, przepisany bez zgody z mojej książki.',
+        ]))->assertSessionHasNoErrors();
+
+        $this->post(route('zglos.nielegalna.store'), $this->poprawneZgloszenie([
+            'notifier_name' => 'Jan Nowak',
+            'notifier_email' => 'jan@example.com',
+            'target_url' => 'https://kuking.pl/przepis/'.$przepis->slug,
+            'reason' => 'personal_data',
+            'illegality_explanation' => 'To zdjęcie mojej twarzy bez mojej zgody.',
+        ]))->assertSessionHasNoErrors();
+
+        // Dwa wiersze, nie jeden — inaczej Jan Nowak nigdy nie dowie się,
+        // co zdecydowano w JEGO sprawie.
+        $this->assertSame(2, Report::where('target_type', 'recipe')->where('target_id', $przepis->getKey())->count());
+
+        Notification::assertSentOnDemandTimes(PotwierdzenieZgloszeniaNielegalnejTresci::class, 2);
+    }
+
     public function test_wpisane_dane_nie_znikaja_po_bledzie(): void
     {
         // docs/UX_50_PLUS.md: poprawnie wpisane dane nigdy nie znikają.

@@ -12,6 +12,8 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
 /**
@@ -23,6 +25,15 @@ use RuntimeException;
  *
  * To samo zgłoszenie od tej samej osoby nie tworzy duplikatów — zgłaszający
  * dostaje potwierdzenie, a kolejka moderacji nie puchnie od podwójnych kliknięć.
+ *
+ * BRAMKA WIDOCZNOŚCI ŻYJE TUTAJ, NIE W KONTROLERZE (audyt W7-05, AGENTS.md §4).
+ * `ReportController` ma DWA wejścia na cel zgłoszenia — `create()` (formularz)
+ * i `store()` (zapis, przez `handle()` niżej). Reguła sprawdzona tylko
+ * w jednym z nich dałaby się ominąć drugim. Dlatego `authorize()` jest
+ * publiczną metodą tej klasy: kontroler woła ją jawnie w `create()`, a
+ * `handle()` woła ją SAMA na wstępie — więc nawet gdyby w przyszłości
+ * powstał trzeci sposób wywołania `handle()` z pominięciem kontrolera,
+ * bramka i tak zadziała.
  */
 final class ReportContent
 {
@@ -34,6 +45,52 @@ final class ReportContent
         CookedEvent::class => 'cooked_event',
     ];
 
+    /**
+     * Nazwa zdolności w Policy dla każdego typu celu. Domyślnie `view` —
+     * `User` jest wyjątkiem, bo `UserPolicy` nie zna `view()`, tylko
+     * `viewProfile()` (to ta sama bramka, co strona profilu pod `/@login`).
+     */
+    private const VIEW_ABILITY = [
+        User::class => 'viewProfile',
+    ];
+
+    /**
+     * Bramka widoczności celu (audyt W7-05).
+     *
+     * Zanim COKOLWIEK powstanie w tabeli `reports`, zgłaszający musi mieć
+     * prawo ZOBACZYĆ to, co zgłasza — inaczej zgłoszenie samo w sobie jest
+     * przeciekiem: wskazuje istnienie i typ treści, do której nie ma dostępu.
+     *
+     * Sprawdzenie idzie przez ISTNIEJĄCĄ Policy każdego typu celu, nie przez
+     * powtórzenie jej warunków tutaj — warunki widoczności (blokady,
+     * widoczność `followers`/`private`, zawieszone/zbanowane konto autora)
+     * już raz są rozstrzygnięte w Policy i mają tam własne testy. Kopia
+     * tych warunków w drugim miejscu prędzej czy później rozjedzie się
+     * z oryginałem.
+     *
+     * Przy odmowie rzucamy TEN SAM wyjątek co przy nieznalezionym celu
+     * (`findOrFail`/`firstOrFail` w kontrolerze rzucają dokładnie
+     * `ModelNotFoundException`) — odpowiedź HTTP musi być 404 w OBU
+     * przypadkach i NIEODRÓŻNIALNA. Inny status albo inny komunikat
+     * zostawiałby otwartą furtkę: zalogowany mógłby po kodzie odpowiedzi
+     * stwierdzić, które prywatne sluggi istnieją w bazie.
+     *
+     * Autor WŁASNEJ treści przechodzi przez tę bramkę bez przeszkód —
+     * `RecipePolicy`/`PostPolicy::view()` i tak wpuszczają właściciela,
+     * a zgłoszenie własnej treści ma sens (np. przejęte konto, które
+     * publikuje coś w czyimś imieniu). Moderator przechodzi z tego samego
+     * powodu — jego Policy już wpuszcza go wszędzie tam, gdzie ma zaglądać
+     * z urzędu.
+     */
+    public function authorize(?User $reporter, Model $target): void
+    {
+        $ability = self::VIEW_ABILITY[$target::class] ?? 'view';
+
+        if (Gate::forUser($reporter)->denies($ability, $target)) {
+            throw (new ModelNotFoundException)->setModel($target::class, [$target->getKey()]);
+        }
+    }
+
     public function handle(
         ?User $reporter,
         Model $target,
@@ -41,6 +98,8 @@ final class ReportContent
         ?string $details = null,
         ?string $ip = null,
     ): Report {
+        $this->authorize($reporter, $target);
+
         $targetType = self::TARGET_TYPES[$target::class] ?? null;
 
         if ($targetType === null) {
