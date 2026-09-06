@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Support\LimityZdjec;
 
 return [
 
@@ -152,7 +153,7 @@ return [
          | jest obrazem, rozstrzygają magic bytes w `StoreUploadedImage`,
          | nie rozszerzenie od klienta (AGENTS.md §7).
          */
-        'rules' => ['required', 'file', 'max:'.\App\Support\LimityZdjec::maksKilobajtowDoWalidacji()],
+        'rules' => ['required', 'file', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
         'directory' => null,                                  // Example: 'tmp'                     | Default: 'livewire-tmp'
         'middleware' => null,                                 // Example: 'throttle:5,1'            | Default: 'throttle:60,1'
         'preview_mimes' => [                                  // Supported file types for temporary pre-signed file URLs...

@@ -59,6 +59,11 @@ final class CollectUserExportData
                 'co_zawiera' => 'Wszystkie treści tego konta — także wpisy prywatne i szkice przepisów.',
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
+                // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
+                // się tylko przy brakach zmusiłby program czytający paczkę do
+                // zgadywania, czy zera nie ma, bo braków nie było, czy dlatego,
+                // że paczkę zbudowała starsza wersja serwisu (issue #113).
+                'zdjec_jeszcze_w_przygotowaniu' => $photos->stillProcessingCount(),
             ],
             'konto' => $this->account($user),
             'profil' => $this->profile($user, $photos),

@@ -31,6 +31,9 @@ final class ExportPhotoPlan
     /** @var array<string, true> zajęte nazwy plików */
     private array $taken = [];
 
+    /** Ile zdjęć nie weszło do paczki, bo w tej chwili jeszcze się przetwarzało. */
+    private int $stillProcessing = 0;
+
     public function __construct(User $user)
     {
         $labels = $this->collectLabels($user);
@@ -50,6 +53,32 @@ final class ExportPhotoPlan
                 $labels[(string) $photo->getKey()] ?? null,
             );
         }
+
+        // Zdjęcia w drodze liczymy TU, a nie w jobie, bo tu stoi warunek
+        // `status = ready`, który je odsiewa — dwa miejsca rozjechałyby się
+        // przy pierwszej zmianie tego filtra.
+        //
+        // Tylko `pending` i `processing`: `rejected` też nie ma w paczce, ale
+        // to jest inna wiadomość. Zdjęcie odrzucone nie pojawi się w niej NIGDY,
+        // więc „poproś o nową paczkę za kilka minut" byłoby po prostu nieprawdą.
+        $this->stillProcessing = $user->media()
+            ->whereIn('status', [Media::STATUS_PENDING, Media::STATUS_PROCESSING])
+            ->count();
+    }
+
+    /**
+     * Ile zdjęć nie zmieściło się w paczce, bo wciąż się przygotowywały.
+     *
+     * Paczka, która WYGLĄDA na kompletną, a nie jest, jest gorsza od paczki,
+     * która wprost mówi o swoich brakach — RODO art. 15/20 obiecuje dostęp do
+     * wszystkich danych, nie do tych, które akurat zdążyły się przetworzyć.
+     * `GenerateUserExport` i `ProcessUploadedImage` dzielą tę samą kolejkę,
+     * więc eksport dużego konta realnie potrafi wystartować przed nimi
+     * (issue #113).
+     */
+    public function stillProcessingCount(): int
+    {
+        return $this->stillProcessing;
     }
 
     /**

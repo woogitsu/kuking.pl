@@ -107,6 +107,23 @@
     .fakty { color: var(--tekst-jasny); font-size: 18px; margin: 0 0 20px; }
     .fakty span { margin-right: 18px; white-space: nowrap; }
 
+    /* Ostrzeżenie o niekompletnej paczce. Osobne od `.karta`, bo ma się
+       RZUCAĆ W OCZY — człowiek czyta ten plik raz i musi zauważyć, że czegoś
+       brakuje, zanim skasuje konto. Kolor to sam dodatek: nośnikiem jest
+       samo zdanie i gruba lewa krawędź, więc komunikat działa też
+       na wydruku czarno-białym. */
+    .uwaga {
+        background: #FCEACB;
+        border: 1px solid #7A5C10;
+        border-left: 8px solid #7A5C10;
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin: 0 0 20px;
+        color: #4A3607;
+    }
+
+    .uwaga p { margin: 0; }
+
     .plakietka {
         display: inline-block;
         background: #FCEACB;

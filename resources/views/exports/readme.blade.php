@@ -44,6 +44,21 @@ zdjecia/
     Nazwa każdego zaczyna się od daty, na przykład:
     2027-03-14-rosol.webp
     Zdjęć w paczce: {{ $photoCount }}
+@if($photosStillProcessing > 0)
+@php
+    // Liczebnik i czasownik odmieniają się tak samo (1 / 2-4 / 5+ i nastki),
+    // więc obie formy bierze ta sama funkcja — inaczej wyszłoby
+    // „3 zdjęć nie zmieściło się", czyli zdanie po polsku niepoprawne.
+    $ile = $photosStillProcessing;
+    $zdjecia = \App\Support\Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć');
+    $zmiescilo = \App\Support\Odmiana::rzeczownik($ile, 'zmieściło', 'zmieściły', 'zmieściło');
+    $sie = \App\Support\Odmiana::rzeczownik($ile, 'przygotowywało', 'przygotowywały', 'przygotowywało');
+@endphp
+
+    UWAGA: {{ $ile }} {{ $zdjecia }} nie {{ $zmiescilo }} się w tej paczce.
+    W chwili jej budowania {{ $sie }} się jeszcze do pokazania w serwisie.
+    Nic nie zginęło. Poproś o nową paczkę za kilka minut — będzie w niej komplet.
+@endif
 
 dane.json
     Ten sam zestaw danych w formacie dla programów. Przydaje się,

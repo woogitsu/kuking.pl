@@ -291,6 +291,7 @@ class GenerateUserExport implements ShouldQueue
             'postCount' => count($data['wpisy']),
             'cookedCount' => count($data['ugotowalem']),
             'photoCount' => $photos->count(),
+            'photosStillProcessing' => $photos->stillProcessingCount(),
             'displayName' => $user->profile?->display_name,
             'generatedAt' => $generatedAt,
         ])->render());
@@ -303,6 +304,7 @@ class GenerateUserExport implements ShouldQueue
             'displayName' => $user->profile?->display_name,
             'recipeCount' => $user->recipes()->count(),
             'photoCount' => $photos->count(),
+            'photosStillProcessing' => $photos->stillProcessingCount(),
             'contactEmail' => config('kuking.community.contact_email'),
         ])->render();
 
