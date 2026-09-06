@@ -59,58 +59,94 @@ if (getenv('DB_DATABASE') === false || getenv('DB_DATABASE') === '') {
 
 require __DIR__.'/../vendor/autoload.php';
 
-/**
- * OMIJA ZASTYGŁY CLASSMAP COMPOSERA — DRUGA POŁOWA „pułapki symlinku"
- * z `docs/AI_WORKFLOW.md`, której ten dokument jeszcze nie opisuje.
+/*
+ * KLASY TEŻ MUSZĄ POCHODZIĆ Z TEGO KATALOGU, NIE TYLKO TRASY.
  *
- * `vendor` jest DOWIĄZANIEM do głównego katalogu, a `composer.json` ma
- * `optimize-autoloader: true` — `vendor/composer/autoload_classmap.php`
- * (i `autoload_psr4.php`) to więc ZAMROŻONA mapa klasa → ścieżka, zapisana
- * jako ścieżki BEZWZGLĘDNE do miejsca, gdzie ktoś ostatnio uruchomił
- * `composer install`. PHP wylicza `__DIR__`/`__FILE__` przez ścieżkę
- * RZECZYWISTĄ (za dowiązaniem), więc `$baseDir` w tej mapie zawsze wskazuje
- * na GŁÓWNY katalog repozytorium — sprawdzone empirycznie, także na gołym
- * `require "vendor/autoload.php"` bez żadnego bootstrapu Laravela.
+ * `AGENTS.md` §10 mówi, żeby w worktree uruchamiać testy z `APP_BASE_PATH`,
+ * „inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy będą
+ * fałszywie zielone". Pierwsza połowa tego zdania działa. DRUGA NIE DZIAŁAŁA
+ * i to jest dokładnie ten rodzaj obietnicy bez pokrycia w kodzie, przed
+ * którym ostrzega cała reszta tego repozytorium.
  *
- * `APP_BASE_PATH` (opisane w AI_WORKFLOW.md) TEGO NIE NAPRAWIA: poprawia
- * wyłącznie `Illuminate\Foundation\Application::basePath()` — czyli trasy,
- * config i widoki, które Laravel czyta sam z dysku. Autoloader Composera
- * jest osobnym, statycznym mechanizmem i o `APP_BASE_PATH` nic nie wie.
+ * Powód: `vendor/` w worktree jest DOWIĄZANIEM do głównego katalogu, a PHP
+ * rozwija dowiązania w `__DIR__`. Autoloader Composera liczy więc swój
+ * `$baseDir` od PRAWDZIWEGO położenia pliku, czyli od głównego checkoutu —
+ * i mapuje `App\` na `app/` głównego katalogu, niezależnie od tego, skąd
+ * uruchomiono testy i co stoi w `APP_BASE_PATH` (ten zmienia ścieżkę bazową
+ * Laravela, nie autoloadera). `composer.json` ma przy tym
+ * `optimize-autoloader`, więc jest to zamrożona mapa ścieżek bezwzględnych.
  *
- * SKUTEK BEZ TEJ ŁATKI: każda klasa PHP zmieniona albo dodana w TYM
- * worktree jest niewidoczna dla testów — ładuje się jej stara wersja
- * z głównego katalogu, a test sprawdza kod, którego tu nie ma. Dokładnie
- * ten kształt błędu, przed którym ostrzega AI_WORKFLOW.md („test przechodzi,
- * mimo że w ogóle nie wykonał nowego kodu") — tylko że dotyczy też klas,
- * nie tylko tras.
+ * Skutek był najgorszy z możliwych: PHPUnit ładował PLIKI TESTÓW z worktree
+ * (bo bierze je ze ścieżki), ale KLASY APLIKACJI z głównego katalogu. Testy
+ * przechodziły, sprawdzając cudzy kod. Agent widział 891 zielonych testów
+ * i nie miał żadnego sygnału, że jego zmiany w `app/` nie zostały nawet raz
+ * wykonane.
  *
- * NAPRAWA: własny autoloader PSR-4, wepchnięty PRZED classmap Composera
- * (`spl_autoload_register(..., prepend: true)`), wskazujący na katalogi
- * TEGO WORKTREE. Zero zmian w `vendor/` — zero ryzyka dla innych agentów
- * albo dla głównego repozytorium, bo ten plik istnieje tylko tutaj.
+ * Rejestrujemy więc własny autoloader PRZED composerowym, z mapami PSR-4
+ * przeczytanymi z `composer.json` tego katalogu. W zwykłym checkoucie ta
+ * funkcja nie robi nic (warunek niżej), więc CI i główny katalog zachowują
+ * się bez zmian. Zero zmian w `vendor/`, czyli zero ryzyka dla innych
+ * agentów pracujących równolegle.
  */
-spl_autoload_register(static function (string $class): void {
-    static $mapowanie = [
-        'App\\' => __DIR__.'/../app/',
-        'Database\\Factories\\' => __DIR__.'/../database/factories/',
-        'Database\\Seeders\\' => __DIR__.'/../database/seeders/',
-        'Tests\\' => __DIR__.'/',
-    ];
+kuking_klasy_z_tego_katalogu(__DIR__.'/..');
 
-    foreach ($mapowanie as $prefiks => $katalog) {
-        if (! str_starts_with($class, $prefiks)) {
-            continue;
-        }
+/**
+ * Rejestruje autoloader PSR-4 wskazujący na TEN katalog repozytorium.
+ *
+ * No-op wszędzie tam, gdzie `vendor/` leży naprawdę w tym katalogu — czyli
+ * w głównym checkoucie i w CI.
+ */
+function kuking_klasy_z_tego_katalogu(string $katalogRepo): void
+{
+    $repo = realpath($katalogRepo);
+    $autoloadComposera = realpath($katalogRepo.'/vendor/autoload.php');
 
-        $sciezka = $katalog.str_replace('\\', '/', substr($class, strlen($prefiks))).'.php';
-
-        if (is_file($sciezka)) {
-            require $sciezka;
-        }
-
+    if ($repo === false || $autoloadComposera === false) {
         return;
     }
-}, true, true);
+
+    // Katalog, od którego autoloader Composera liczy swoje ścieżki.
+    $repoComposera = dirname($autoloadComposera, 2);
+
+    if ($repoComposera === $repo) {
+        return;
+    }
+
+    $composerJson = @file_get_contents($repo.'/composer.json');
+
+    if ($composerJson === false) {
+        return;
+    }
+
+    /** @var array{autoload?: array{'psr-4'?: array<string, string>}, 'autoload-dev'?: array{'psr-4'?: array<string, string>}} $manifest */
+    $manifest = json_decode($composerJson, true) ?: [];
+
+    $mapy = array_merge(
+        $manifest['autoload']['psr-4'] ?? [],
+        $manifest['autoload-dev']['psr-4'] ?? [],
+    );
+
+    if ($mapy === []) {
+        return;
+    }
+
+    spl_autoload_register(function (string $klasa) use ($repo, $mapy): void {
+        foreach ($mapy as $prefiks => $katalog) {
+            if (! str_starts_with($klasa, $prefiks)) {
+                continue;
+            }
+
+            $sciezka = $repo.'/'.trim($katalog, '/').'/'
+                .str_replace('\\', '/', substr($klasa, strlen($prefiks))).'.php';
+
+            if (is_file($sciezka)) {
+                require_once $sciezka;
+
+                return;
+            }
+        }
+    }, prepend: true);
+}
 
 /**
  * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"

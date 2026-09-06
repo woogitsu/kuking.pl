@@ -61,10 +61,33 @@ class RozdzialMagazynowTest extends TestCase
             '`Storage::url()` rzuci wyjątek zamiast po cichu zwrócić publiczny adres.',
         );
 
-        $this->assertArrayHasKey(
+        // ODWRÓCONE PRZY W7-02. Wcześniej stało tu `assertArrayHasKey` z
+        // uzasadnieniem „bez tego zdjęcia nie wyświetlą się nikomu" — i to
+        // było prawdą dopóty, dopóki adresem zdjęcia był adres pliku. Dziś
+        // adresem jest trasa `media.show`, a klucz `url` na tym dysku
+        // znaczyłby, że bucket wariantów ma własną domenę: czyli że wariant
+        // przepisu PRYWATNEGO da się otworzyć bez pytania kogokolwiek o zgodę.
+        $this->assertArrayNotHasKey(
             'url',
             (array) config('filesystems.disks.r2_publiczne'),
-            'Dysk wariantów nie ma klucza `url` — zdjęcia nie wyświetlą się nikomu.',
+            'Dysk wariantów ma klucz `url`. Po W7-02 warianty nie mają publicznego '.
+            'adresu: adresem zdjęcia jest trasa `media.show`, która pyta Policy treści '.
+            'nadrzędnej i przekierowuje na adres podpisany na kilka minut.',
+        );
+    }
+
+    public function test_wdrozenie_nie_podaje_juz_publicznej_domeny_zdjec(): void
+    {
+        // Sam brak klucza `url` w `config/filesystems.php` nie wystarczy jako
+        // dowód: gdyby wdrożenie dalej ustawiało `AWS_URL`, następna osoba
+        // dopisałaby ten klucz z powrotem, „bo zmienna przecież jest".
+        $railway = (string) file_get_contents(base_path('.railway/railway.ts'));
+
+        $this->assertStringNotContainsString(
+            'AWS_URL:',
+            $railway,
+            'Wdrożenie nadal ustawia AWS_URL — publiczną domenę bucketu wariantów. '.
+            'Po W7-02 warianty nie mają publicznego adresu (audyt W7-02, issue #120).',
         );
     }
 

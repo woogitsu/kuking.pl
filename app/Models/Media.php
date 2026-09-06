@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Metadane zdjęcia. Sam plik żyje w object storage pod `object_key`.
@@ -86,16 +85,30 @@ class Media extends Model
     }
 
     /**
-     * Publiczny URL wariantu zdjęcia.
+     * Adres wariantu zdjęcia — TRASA APLIKACJI, nie adres pliku w buckecie
+     * (audyt W7-02).
      *
-     * NIGDY nie wraca do oryginału.
+     * DLACZEGO NIE `Storage::url()`, SKORO TAK BYŁO
+     * Bo adres pliku pod własną domeną CDN nikogo o nic nie pyta. Kto raz go
+     * skopiował, otwierał zdjęcie także po zablokowaniu, po cofnięciu
+     * obserwowania i po przełączeniu przepisu na prywatny — bez konta, bez
+     * sesji, bez śladu. Przy `recipes.source_scan_media_id` (skan odręcznej
+     * kartki z nazwiskami i adresami) to jest awaria prywatności, a nie
+     * niedogodność.
      *
-     * Wcześniejsza wersja miała `?? $this->object_key` jako zabezpieczenie
-     * przed pustą ramką. To był wyciek: oryginał to plik przysłany przez
-     * użytkownika, z nietkniętym EXIF-em — czyli z dokładną lokalizacją
-     * kuchni, w której zrobiono zdjęcie. Wystarczyłoby dodać nowy wariant
-     * do konfiguracji, żeby fallback uruchomił się dla wszystkich istniejących
-     * zdjęć naraz.
+     * Teraz adres prowadzi do `MediaController`, który pyta Policy treści
+     * NADRZĘDNEJ i przekierowuje (302) na krótko podpisany adres R2. Bajty
+     * nie idą przez PHP — idzie przez nie wyłącznie decyzja.
+     *
+     * TA METODA JEST JEDYNYM MIEJSCEM GENERUJĄCYM ADRES ZDJĘCIA i to jest
+     * warunek działania całej zmiany. Drugie miejsce, które zbuduje adres
+     * pliku samo, obchodzi kontrolę dostępu i nie wywali przy tym żadnego
+     * testu — pilnuje tego `ZdjeciaChronioneNieWyciekajaTest`.
+     *
+     * NIGDY nie wraca do oryginału. Wcześniejsza wersja miała
+     * `?? $this->object_key` jako zabezpieczenie przed pustą ramką i to był
+     * wyciek: oryginał to plik przysłany przez użytkownika, z nietkniętym
+     * EXIF-em, czyli z dokładną lokalizacją kuchni.
      *
      * Kolejność: żądany wariant → dowolny wygenerowany → placeholder.
      * Pusta ramka jest gorsza niż nic, ale wyciek cudzego adresu jest gorszy
@@ -103,18 +116,9 @@ class Media extends Model
      */
     public function url(string $variant = 'feed'): string
     {
-        $variants = $this->warianty();
+        $wybrany = $this->wariantDoSerwowania($variant);
 
-        $key = $variants[$variant]['key'] ?? null;
-
-        if ($key === null && $variants !== []) {
-            // Wariant nieznany, ale jakieś istnieją — bierzemy pierwszy lepszy.
-            // To znaczy, że ktoś dodał wariant do konfiguracji i nie przetworzył
-            // istniejących zdjęć; obraz będzie w złym rozmiarze, ale bezpieczny.
-            $key = reset($variants)['key'] ?? null;
-        }
-
-        if ($key === null) {
+        if ($wybrany === null) {
             Log::warning('Zdjęcie bez wygenerowanych wariantów', [
                 'media_id' => $this->getKey(),
                 'status' => $this->status,
@@ -123,7 +127,43 @@ class Media extends Model
             return asset('icons/kuking-mark.svg');
         }
 
-        return Storage::disk($this->variantsDisk())->url($key);
+        return route('media.show', [
+            'media' => $this->getKey(),
+            'wariant' => $wybrany['nazwa'],
+        ]);
+    }
+
+    /**
+     * Który wariant naprawdę pójdzie do przeglądarki i pod jakim kluczem.
+     *
+     * Rozstrzygnięcie „żądany wariant → dowolny wygenerowany → nic" musi być
+     * JEDNO, wspólne dla `url()` (buduje adres) i dla `MediaController`
+     * (serwuje bajty). Dwie kopie tej samej kolejności rozjechałyby się przy
+     * pierwszej zmianie listy wariantów: adres wskazywałby `large`, a
+     * kontroler oddawałby `feed` albo 404.
+     *
+     * @return array{nazwa: string, klucz: string}|null
+     */
+    public function wariantDoSerwowania(string $variant = 'feed'): ?array
+    {
+        $variants = $this->warianty();
+
+        $klucz = $variants[$variant]['key'] ?? null;
+
+        if ($klucz !== null) {
+            return ['nazwa' => $variant, 'klucz' => $klucz];
+        }
+
+        // Wariant nieznany, ale jakieś istnieją — bierzemy pierwszy lepszy.
+        // To znaczy, że ktoś dodał wariant do konfiguracji i nie przetworzył
+        // istniejących zdjęć; obraz będzie w złym rozmiarze, ale bezpieczny.
+        foreach ($variants as $nazwa => $dane) {
+            if (isset($dane['key'])) {
+                return ['nazwa' => $nazwa, 'klucz' => $dane['key']];
+            }
+        }
+
+        return null;
     }
 
     public function width(string $variant = 'feed'): ?int

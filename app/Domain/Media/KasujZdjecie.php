@@ -96,11 +96,28 @@ final class KasujZdjecie
         // cache CDN-u.
         $doWyczyszczenia = [];
 
-        foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $wariant) {
+        foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $nazwa => $wariant) {
             if (is_array($wariant) && isset($wariant['key'])) {
                 $klucz = (string) $wariant['key'];
 
+                // DWA RODZAJE ADRESU, BO PO W7-02 SĄ DWA ŚWIATY NARAZ.
+                //
+                // 1. Adres pliku w buckecie. Istnieje już TYLKO dla dysku
+                //    `r2_legacy` — jedynego, który ma jeszcze własną domenę.
+                //    Dysk `r2_publiczne` świadomie stracił klucz `url`, więc
+                //    `publicznyAdres()` zwróci dla niego `null` i nie ma tam
+                //    czego czyścić: bez domeny nie ma cache CDN-u.
+                //
+                // 2. Adres TRASY aplikacji — dzisiejszy adres zdjęcia.
+                //    Dla treści chronionej odpowiedź ma `private, no-store`
+                //    i w żadnym cache nie leży. Dla treści naprawdę publicznej
+                //    przekierowanie wolno trzymać we wspólnym cache, więc
+                //    czyścimy je tak samo jak dawniej plik — inaczej
+                //    „skasowane" znowu znaczyłoby „skasowane, ale jeszcze się
+                //    otwiera" (audyt G-03).
                 $doWyczyszczenia[] = $this->publicznyAdres($dyskWariantow, $klucz);
+                $doWyczyszczenia[] = $this->adresTrasy($zdjecie, (string) $nazwa);
+
                 $dyskWariantow->delete($klucz);
             }
         }
@@ -139,6 +156,29 @@ final class KasujZdjecie
         try {
             return $dysk->url($klucz);
         } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Adres trasy `media.show` dla jednego wariantu.
+     *
+     * Budujemy go z nazwy wariantu, a nie przez `Media::url()`: tamta metoda
+     * ma własną kolejność wyboru („żądany wariant → dowolny wygenerowany"),
+     * więc dla trzech wariantów oddałaby trzy razy ten sam adres, gdyby akurat
+     * któregoś brakowało. Do czyszczenia potrzebujemy każdego z osobna.
+     */
+    private function adresTrasy(Media $zdjecie, string $nazwaWariantu): ?string
+    {
+        try {
+            return route('media.show', [
+                'media' => $zdjecie->getKey(),
+                'wariant' => $nazwaWariantu,
+            ]);
+        } catch (\Throwable) {
+            // Z tego samego powodu co `publicznyAdres()` wyżej: budowanie
+            // adresu nie ma prawa wywrócić kasowania. Kasowanie zdjęcia musi
+            // się udać także wtedy, gdy nie da się powiedzieć, co wyczyścić.
             return null;
         }
     }

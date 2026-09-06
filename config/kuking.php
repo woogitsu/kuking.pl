@@ -124,6 +124,28 @@ return [
             'large' => 1600,
         ],
 
+        /*
+         * Ile minut żyje podpisany adres wariantu w buckecie (audyt W7-02).
+         *
+         * Adresem zdjęcia jest trasa aplikacji; `MediaController` sprawdza
+         * Policy treści nadrzędnej i przekierowuje na adres podpisany kluczem
+         * S3. Ta liczba jest oknem, w którym skopiowany adres jeszcze działa
+         * — czyli ceną całego rozwiązania, i dlatego stoi tutaj, a nie
+         * w kontrolerze.
+         *
+         * PIĘĆ MINUT, bo dwie wartości muszą tu zagrać naraz:
+         *
+         *   za krótko  wolne łącze nie zdąży pobrać dużego wariantu, a karta
+         *              zostawiona otwarta na kwadrans przestaje pokazywać
+         *              zdjęcia po odświeżeniu obrazków przez przeglądarkę;
+         *   za długo   przełączenie przepisu na prywatny albo zablokowanie
+         *              kogoś nie odcina dostępu przez ten cały czas.
+         *
+         * Ta sama liczba jest `max-age` odpowiedzi dla treści publicznej —
+         * dłuższy cache przekierowania nie miałby sensu, bo cel i tak wygasa.
+         */
+        'signed_url_minutes' => (int) env('KUKING_MEDIA_SIGNED_URL_MINUTES', 5),
+
         // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
         //
         // DLACZEGO SZEŚĆ, A NIE JEDNO
@@ -280,6 +302,27 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+
+        /*
+         * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
+         *
+         * Trasa jest PUBLICZNA i pyta bazę o rodziców zdjęcia przy każdym
+         * żądaniu, więc bez limitu byłaby nową, tanią drogą do zalania
+         * serwisu (i do zgadywania, choć samo zgadywanie UUID-a jest
+         * beznadziejne).
+         *
+         * DLACZEGO TAK WYSOKO NA TLE RESZTY TEGO PLIKU
+         * Bo to nie jest formularz, tylko zasób strony. Jedna strona feedu
+         * to do 20 wpisów po `max_per_post` = 6 zdjęć, plus awatary — czyli
+         * grubo ponad sto żądań na JEDNO otwarcie strony, wysłanych
+         * równolegle. Limit rzędu kilkudziesięciu na minutę wylogowywałby
+         * zdjęcia zwykłemu czytelnikowi po przewinięciu dwóch ekranów, a to
+         * wygląda dokładnie jak awaria serwisu.
+         *
+         * Liczy się PO ADRESIE IP dla gości (tak działa `throttle`), więc
+         * musi pomieścić też kilka osób za jednym łączem.
+         */
+        'zdjecie' => '600,1',
         // Odhaczanie kroku w trybie gotowania (issue #24). Zapisuje tylko
         // do sesji przeglądarki — bez ryzyka takiego jak przy komentarzu
         // czy zdjęciu — ale to i tak POST na cudzy (jeśli ktoś zgadnie
