@@ -757,6 +757,73 @@ wyłącznie w logu.
 
 Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
 
+### product_signals
+
+Sygnały produktowe (issue #115), migracja
+`2026_09_06_220000_create_product_signals_table`. Dziś dokładnie dwa
+zdarzenia: `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje
+— `App\Domain\Media\Actions\StoreUploadedImage`) i `search_performed`
+(wykonane wyszukiwanie — `App\Http\Controllers\SearchController`). Jedyne
+miejsce, które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+`docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
+i retencję (§3.2/§3.3), **nie istnieje w repozytorium** — ta tabela ma kształt
+wypisany wprost w treści issue, nie z tamtego dokumentu. Punkt odniesienia,
+który naprawdę istnieje, to `product_events` z `docs/seo/ANALYTICS.md` §7 —
+ta tabela jest jego świadomie okrojoną wersją (dwa zdarzenia zamiast
+dowolnych, bez `anonymous_id`/`session_id`/`platform`, bo dziś nic ich tu nie
+potrzebuje).
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
+| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
+| `signal_name` | `photo_upload_failed` \| `search_performed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. |
+
+#### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
+
+Issue #115 wymienia pięć powodów (`unreadable`, `too_large`, `not_an_image`,
+`unsupported_format`, `too_many_megapixels`). W `StoreUploadedImage::handle()`
+są naprawdę **cztery instrukcje `throw`**, nie pięć — a jedna z tych czterech
+jest dziś nieosiągalna (dead code, opisany tak wprost w komentarzu kodu, na
+długo przed tym zgłoszeniem). Trzy z pięciu kodów (`not_an_image`,
+`unsupported_format`, `too_many_megapixels`) odpowiadają trzem gałęziom
+WEWNĄTRZ jednego trzeciego `throw` (`RozpoznanieZdjecia::coJestNieTak()`),
+które wcześniej zwracały tylko komunikat po polsku, bez kodu maszynowego.
+`RozpoznanieZdjecia::rozpoznaj()` (nowa metoda, `WynikRozpoznania`) zwraca oba
+naraz, żeby sygnał dostał właściwy kod bez zgadywania go z treści zdania.
+
+| Kod | Skąd |
+|---|---|
+| `unreadable` | `$file->getSize()` zwraca `false`/`<=0`. |
+| `too_large` | Rozmiar przekracza `config('kuking.media.max_bytes')`. |
+| `not_an_image` | `getimagesize()` nie rozpoznaje pliku (w tym HEIC) — **oraz** nieosiągalny dziś drugi `getimagesize()` w `handle()`, zostawiony jako siatka bezpieczeństwa. |
+| `unsupported_format` | Rozpoznany typ MIME spoza `LimityZdjec::dozwoloneTypy()`. |
+| `too_many_megapixels` | Wymiary przekraczają `config('kuking.media.max_megapixels')`. |
+
+Indeksy: `product_signals_name_time_idx (signal_name, occurred_at DESC)` —
+dashboard „upload error rate" (`docs/seo/ANALYTICS.md` §6);
+`product_signals_occurred_idx (occurred_at)` — retencja poniżej, która nie
+filtruje po `signal_name`.
+
+**Retencja:** `config('kuking.analytics.signal_retention_days')` (domyślnie
+90 dni), egzekwowana przez `kuking:sprzataj-sygnaly`
+(`App\Domain\Analytics\PrzedawnioneSygnaly`), harmonogram codziennie o 04:00
+(`routes/console.php`). Zwykły masowy `DELETE ... WHERE occurred_at < ?` —
+bez `chunkById`, bo wiersz nie ma odpowiednika po stronie storage (w
+odróżnieniu od `OsieroconeZdjecia`).
+
+**Zapis sygnału nigdy nie wywraca operacji, którą opisuje:**
+`ZapiszSygnal::handle()` łapie każdy wyjątek i tylko go loguje
+(`Log::warning`) — wyszukiwarka ma pokazać wyniki, a komunikat o nieudanym
+wgraniu zdjęcia ma dojść do człowieka, nawet gdy zapis wiersza akurat się nie
+uda.
+
+**Rollback:** `DROP TABLE product_signals` bez zastrzeżeń — to są dane
+telemetryczne, nie dane, na podstawie których podjęto decyzję.
+
 ## V1 / V2
 
 Później:

@@ -25,9 +25,25 @@ namespace App\Support;
  * czyli listę wziętą z trzeciego miejsca (audyt W3-08).
  *
  * Jedna lista, jedno sprawdzenie, jedne komunikaty.
+ *
+ * OD ISSUE #115: TO SAMO SPRAWDZENIE, DRUGI KSZTAŁT ODPOWIEDZI
+ * Sygnał `photo_upload_failed` potrzebuje KODU powodu (`not_an_image`,
+ * `unsupported_format`, `too_many_megapixels`…), nie tylko komunikatu po
+ * polsku — a te trzy kody odpowiadają trzem gałęziom WEWNĄTRZ tego jednego
+ * sprawdzenia, które wcześniej znały tylko swój komunikat. `rozpoznaj()`
+ * zwraca oba kształty naraz (patrz `WynikRozpoznania`); `coJestNieTak()`
+ * zostaje tym, czym była — cienkim dostępem do samego komunikatu, używanym
+ * przez `ObslugiwaneZdjecie` — żeby nie trzeba było przepisywać reguły
+ * walidacji formularza.
  */
 final class RozpoznanieZdjecia
 {
+    public const POWOD_NIECZYTELNY = 'not_an_image';
+
+    public const POWOD_NIEOBSLUGIWANY_FORMAT = 'unsupported_format';
+
+    public const POWOD_ZA_DUZO_MEGAPIKSELI = 'too_many_megapixels';
+
     /**
      * `null`, gdy plik jest w porządku. Komunikat po polsku, gdy nie jest.
      *
@@ -35,20 +51,31 @@ final class RozpoznanieZdjecia
      */
     public static function coJestNieTak(string $sciezka): ?string
     {
+        return self::rozpoznaj($sciezka)?->komunikat;
+    }
+
+    /**
+     * To samo sprawdzenie co `coJestNieTak()`, ale z kodem powodu obok
+     * komunikatu — patrz `WynikRozpoznania` i komentarz klasy wyżej.
+     */
+    public static function rozpoznaj(string $sciezka): ?WynikRozpoznania
+    {
         // `getimagesize()` czyta sam nagłówek, więc jest tanie i przy okazji
         // odpowiada na pytanie „czy to na pewno obraz", niezależnie od tego,
         // co mówi rozszerzenie i nagłówek Content-Type od klienta.
         $info = @getimagesize($sciezka);
 
         if ($info === false) {
-            return self::komunikatNieczytelnegoPliku($sciezka);
+            return new WynikRozpoznania(self::POWOD_NIECZYTELNY, self::komunikatNieczytelnegoPliku($sciezka));
         }
 
         $wykryty = $info['mime'] ?? null;
 
         if (! in_array($wykryty, LimityZdjec::dozwoloneTypy(), true)) {
-            return 'Nie obsługujemy tego formatu zdjęć. Wybierz plik '
-                .LimityZdjec::formatyDlaCzlowieka().'.';
+            return new WynikRozpoznania(
+                self::POWOD_NIEOBSLUGIWANY_FORMAT,
+                'Nie obsługujemy tego formatu zdjęć. Wybierz plik '.LimityZdjec::formatyDlaCzlowieka().'.',
+            );
         }
 
         [$szerokosc, $wysokosc] = $info;
@@ -58,7 +85,11 @@ final class RozpoznanieZdjecia
         $megapiksele = ($szerokosc * $wysokosc) / 1_000_000;
 
         if ($megapiksele > (int) config('kuking.media.max_megapixels')) {
-            return 'To zdjęcie ma za duże wymiary. Zmniejsz je i spróbuj ponownie.';
+            return new WynikRozpoznania(
+                self::POWOD_ZA_DUZO_MEGAPIKSELI,
+                'To zdjęcie ma za duże wymiary. Zmniejsz je i spróbuj ponownie.',
+                ['megapixels' => round($megapiksele, 1)],
+            );
         }
 
         return null;

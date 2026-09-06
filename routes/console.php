@@ -83,3 +83,14 @@ Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
     ->name('kuking:usun-wygasle-konta')
     ->dailyAt('03:50')
     ->withoutOverlapping();
+
+// Retencja sygnałów produktowych (issue #115): `product_signals` starsze niż
+// `config('kuking.analytics.signal_retention_days')` (domyślnie 90 dni) nie
+// mają już żadnej wartości analitycznej, a minimalizacja danych (AGENTS.md
+// §7) jest zasadą domyślną. Codziennie w nocy, nie co godzinę — to nie jest
+// termin z konkretną godziną jak zawieszenie, dobowa dokładność wystarcza.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
+    ->name('kuking:sprzataj-sygnaly')
+    ->dailyAt('04:00')
+    ->withoutOverlapping();

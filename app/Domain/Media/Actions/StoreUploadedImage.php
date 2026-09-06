@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Media\Actions;
 
+use App\Domain\Analytics\ZapiszSygnal;
 use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
 use App\Models\User;
@@ -28,20 +29,48 @@ use RuntimeException;
  *
  * Wynikowy obiekt Media ma status `pending`. Widoki nie pokazują nic, co nie
  * jest `ready`, więc zdjęcie z nieusuniętym EXIF-em nigdy nie trafia na stronę.
+ *
+ * SYGNAŁ `photo_upload_failed` (issue #115)
+ * Każdy `throw` niżej zapisuje NAJPIERW jeden wiersz `product_signals`
+ * (przez `ZapiszSygnal` — jedyne miejsce, które tam pisze) i DOPIERO POTEM
+ * rzuca wyjątek. Kolejność jest celowa: zapis sygnału jest opakowany
+ * w try/catch WEWNĄTRZ `ZapiszSygnal::handle()`, więc nawet jego porażka
+ * nie przeszkodzi w rzuceniu wyjątku, a komunikat i tak dojdzie do człowieka.
+ *
+ * Właściwości sygnału niosą wyłącznie `reason` i — gdzie to ma sens —
+ * LICZBY (rozmiar w bajtach, megapiksele). NIGDY nazwy pliku od klienta:
+ * `$file->getClientOriginalName()` jest dokładnie tym, czemu AGENTS.md §7
+ * każe nie ufać, i tej samej natury co treść komentarza — a więc danymi
+ * osobowymi, nie telemetrią.
  */
 final class StoreUploadedImage
 {
+    /** Powody sygnału niezwiązane z rozpoznawaniem treści zdjęcia — patrz `RozpoznanieZdjecia` dla reszty. */
+    private const POWOD_NIECZYTELNY_PLIK = 'unreadable';
+
+    private const POWOD_ZA_DUZY_PLIK = 'too_large';
+
+    public function __construct(private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal) {}
+
     public function handle(User $owner, UploadedFile $file, ?string $altText = null): Media
     {
         $maxBytes = (int) config('kuking.media.max_bytes');
         $bytes = $file->getSize();
 
         if ($bytes === false || $bytes <= 0) {
+            $this->sygnaly->handle($owner, ZapiszSygnal::PHOTO_UPLOAD_FAILED, ['reason' => self::POWOD_NIECZYTELNY_PLIK]);
+
             throw new RuntimeException('Nie udało się odczytać pliku. Spróbuj wybrać zdjęcie jeszcze raz.');
         }
 
         if ($bytes > $maxBytes) {
             $limitMb = (int) round($maxBytes / 1024 / 1024);
+
+            $this->sygnaly->handle($owner, ZapiszSygnal::PHOTO_UPLOAD_FAILED, [
+                'reason' => self::POWOD_ZA_DUZY_PLIK,
+                'bytes' => $bytes,
+                'max_bytes' => $maxBytes,
+            ]);
 
             throw new RuntimeException(
                 "To zdjęcie waży za dużo. Maksymalny rozmiar to {$limitMb} MB — wybierz mniejsze zdjęcie.",
@@ -59,10 +88,19 @@ final class StoreUploadedImage
         // prawdziwa granica i musi trzymać także wtedy, gdy ktoś ominie
         // formularz. Reguła istnieje po to, żeby człowiek dostał komunikat
         // przy polu, a nie wyjątek.
-        $problem = RozpoznanieZdjecia::coJestNieTak($file->getRealPath());
+        //
+        // `rozpoznaj()`, NIE `coJestNieTak()` — potrzebujemy KODU powodu dla
+        // sygnału, nie tylko komunikatu (patrz `WynikRozpoznania`).
+        $wynik = RozpoznanieZdjecia::rozpoznaj($file->getRealPath());
 
-        if ($problem !== null) {
-            throw new RuntimeException($problem);
+        if ($wynik !== null) {
+            $this->sygnaly->handle(
+                $owner,
+                ZapiszSygnal::PHOTO_UPLOAD_FAILED,
+                ['reason' => $wynik->powod, ...$wynik->kontekst],
+            );
+
+            throw new RuntimeException($wynik->komunikat);
         }
 
         $info = @getimagesize($file->getRealPath());
@@ -70,7 +108,18 @@ final class StoreUploadedImage
         // Po sprawdzeniu wyżej `getimagesize` nie może już zawieść — ale kod
         // niżej potrzebuje wymiarów i typu, a udawanie, że `false` się nie
         // zdarzy, kończy się „Trying to access array offset on bool".
+        //
+        // Ten `throw` jest dziś NIEOSIĄGALNY (patrz komentarz wyżej — gdyby
+        // `getimagesize` miał zawieść, `RozpoznanieZdjecia::rozpoznaj()` już
+        // by to złapał i rzucił wcześniej) — zostaje jako siatka bezpieczeństwa,
+        // gdyby to się kiedyś rozjechało, więc sygnał zapisujemy i tutaj.
         if ($info === false) {
+            $this->sygnaly->handle(
+                $owner,
+                ZapiszSygnal::PHOTO_UPLOAD_FAILED,
+                ['reason' => RozpoznanieZdjecia::POWOD_NIECZYTELNY],
+            );
+
             throw new RuntimeException('Ten plik nie wygląda na zdjęcie. Spróbuj wybrać inne.');
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Search\SearchQuery;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -25,7 +26,10 @@ class SearchController extends Controller
      */
     private const MAKS = 200;
 
-    public function __construct(private readonly SearchQuery $search) {}
+    public function __construct(
+        private readonly SearchQuery $search,
+        private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -83,6 +87,18 @@ class SearchController extends Controller
         $ludzie = $szukaLudzi
             ? $this->search->people($phrase, $request->user(), $ile + 1)
             : collect();
+
+        // SYGNAŁ `search_performed` (issue #115) — PO POLICZENIU WYNIKÓW,
+        // NIE PRZED. `query_text` NIGDY nie trafia do właściwości: fraza
+        // wyszukiwania jest tekstem wpisanym przez człowieka, tej samej
+        // natury co treść komentarza (AGENTS.md §7 — żadnych PII w danych
+        // analitycznych), a `product_signals` ma nawet CHECK w bazie, który
+        // odrzuci wiersz, gdyby ten kod kiedyś zaczął ją tam wysyłać. Zamiast
+        // niej idzie wyłącznie DŁUGOŚĆ frazy i to, czy dała wynik.
+        $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
+            'query_length' => mb_strlen($phrase),
+            'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
+        ]);
 
         return view('pages.search', [
             'phrase' => $phrase,
