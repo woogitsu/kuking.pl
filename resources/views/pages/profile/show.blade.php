@@ -151,7 +151,7 @@
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $posts->links() }}</div>
+            <x-show-more :paginator="$posts" />
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -164,7 +164,7 @@
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $recipes->links() }}</div>
+            <x-show-more :paginator="$recipes" czego="przepisów" />
         @endif
     @else
         @if($cookedEvents->count() === 0)
@@ -179,7 +179,7 @@
                     <x-cooked-card :event="$event" :showRecipe="true" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $cookedEvents->links() }}</div>
+            <x-show-more :paginator="$cookedEvents" czego="wykonań" />
         @endif
     @endif
 </x-layout>

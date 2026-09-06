@@ -17,7 +17,7 @@
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $recipes->links() }}</div>
+            <x-show-more :paginator="$recipes" czego="przepisów" />
         @endif
 
         @if(($posts ?? collect())->count() > 0)

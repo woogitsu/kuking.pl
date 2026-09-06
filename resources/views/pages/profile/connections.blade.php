@@ -70,6 +70,6 @@
             @endforeach
         </div>
 
-        <div class="mt-6">{{ $people->links() }}</div>
+        <x-show-more :paginator="$people" czego="osób" />
     @endif
 </x-layout>

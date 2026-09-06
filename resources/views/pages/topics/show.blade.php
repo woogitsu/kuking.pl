@@ -54,6 +54,6 @@
     </div>
 
     @if($posts->hasPages())
-        <div class="mt-6">{{ $posts->links() }}</div>
+        <x-show-more :paginator="$posts" />
     @endif
 </x-layout>

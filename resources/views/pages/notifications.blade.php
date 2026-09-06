@@ -139,5 +139,5 @@
         </x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $notifications->links() }}</div>
+    <x-show-more :paginator="$notifications" czego="powiadomień" />
 </x-layout>
