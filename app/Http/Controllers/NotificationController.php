@@ -12,8 +12,15 @@ class NotificationController extends Controller
 {
     public function index(Request $request): View
     {
-        $notifications = $request->user()
+        $user = $request->user();
+
+        // `visibleTo` wycina powiadomienia od osób, z którymi łączy tę osobę
+        // blokada — także te sprzed blokady. Ten sam filtr chodzi w liczniku
+        // nieprzeczytanych (`User::unreadNotificationsCount()`); gdyby chodził
+        // tylko tutaj, w belce świeciłoby „3 nieprzeczytane" nad pustą listą.
+        $notifications = $user
             ->notifications()
+            ->visibleTo($user)
             ->with('actor.profile.avatar')
             ->paginate(30);
 

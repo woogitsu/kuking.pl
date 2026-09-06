@@ -274,9 +274,20 @@ class User extends Authenticatable implements MustVerifyEmailContract
         );
     }
 
+    /**
+     * Licznik w belce u góry.
+     *
+     * MUSI liczyć dokładnie to, co pokazuje lista (`Notification::scopeVisibleTo`).
+     * Licznik „3 nieprzeczytane" nad pustą listą powiadomień wygląda jak
+     * zepsuty serwis — a osoba, która właśnie kogoś zablokowała, klika w ten
+     * licznik po to, żeby sprawdzić, czy blokada zadziałała.
+     */
     public function unreadNotificationsCount(): int
     {
-        return $this->notifications()->whereNull('read_at')->count();
+        return $this->notifications()
+            ->visibleTo($this)
+            ->whereNull('read_at')
+            ->count();
     }
 
     // ---------------------------------------------------------------------

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * Powiadomienie w aplikacji.
@@ -64,5 +66,51 @@ class Notification extends Model
     public function isUnread(): bool
     {
         return $this->read_at === null;
+    }
+
+    /**
+     * Powiadomienia, które ta osoba ma prawo zobaczyć — bez tych od osób,
+     * z którymi łączy ją blokada.
+     *
+     * DLACZEGO FILTR PRZY ODCZYCIE, A NIE KASOWANIE PRZY BLOKADZIE
+     *
+     * `NotifyUser` od początku odmawiał tworzenia NOWYCH powiadomień, gdy
+     * między osobami jest blokada. Nie robił jednak nic z tymi, które już
+     * leżały na liście — a ludzie blokują właśnie PO nieprzyjemnym zdarzeniu,
+     * czyli wtedy, gdy powiadomienie o nim już istnieje. Blokada zostawiała
+     * więc na liście nazwisko i zdjęcie osoby, od której człowiek się odciął.
+     *
+     * Kasowanie wierszy przy blokadzie byłoby nieodwracalne: odblokowanie
+     * kogoś ma przywrócić stan sprzed blokady, a nie zostawić dziurę
+     * w historii (i w eksporcie danych — RODO art. 15). Dlatego filtrujemy
+     * przy odczycie.
+     *
+     * Blokada liczy się W OBIE STRONY, tak samo jak w
+     * `User::hasBlockRelationWith()` — inaczej byłaby ochroną połowiczną.
+     *
+     * Powiadomienia bez autora (`actor_id IS NULL` — powitanie, wiadomość
+     * od moderacji) zostają zawsze: `NOT EXISTS` nie ma wtedy do czego
+     * przyrównać `blocked_id` i nie znajduje żadnego wiersza.
+     *
+     * @param  Builder<Notification>  $query
+     * @return Builder<Notification>
+     */
+    public function scopeVisibleTo(Builder $query, User $viewer): Builder
+    {
+        return $query->whereNotExists(function (QueryBuilder $sub) use ($viewer): void {
+            $sub->selectRaw('1')
+                ->from('blocks')
+                ->where(function (QueryBuilder $warunek) use ($viewer): void {
+                    $warunek
+                        ->where(function (QueryBuilder $ja) use ($viewer): void {
+                            $ja->where('blocks.blocker_id', $viewer->getKey())
+                                ->whereColumn('blocks.blocked_id', 'notifications.actor_id');
+                        })
+                        ->orWhere(function (QueryBuilder $on) use ($viewer): void {
+                            $on->whereColumn('blocks.blocker_id', 'notifications.actor_id')
+                                ->where('blocks.blocked_id', $viewer->getKey());
+                        });
+                });
+        });
     }
 }
