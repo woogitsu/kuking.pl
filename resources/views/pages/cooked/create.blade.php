@@ -15,9 +15,12 @@
             <span class="field-help" id="f-photos-help">
                 To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
             </span>
+            {{-- BEZ `multiple` (audyt A31): jedna wysyłka to jedno zdjęcie —
+                 patrz `max_per_post` w `config/kuking.php`. --}}
             <input class="field-input" id="f-photos" type="file" name="photos[]"
                    accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
-                   multiple aria-describedby="f-photos-help">
+                   aria-describedby="f-photos-help">
+            @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 

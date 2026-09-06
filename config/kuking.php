@@ -31,6 +31,16 @@ return [
         'disk' => env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
 
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
+        //
+        // UWAGA NA `docker/php.ini`: ta liczba, pomnożona przez
+        // `max_per_post` niżej, MUSI z zapasem mieścić się w `post_max_size`
+        // z `docker/php.ini` — inaczej PHP odrzuca całe żądanie (razem
+        // z tokenem CSRF) jeszcze zanim Laravel zdąży cokolwiek zwalidować,
+        // a człowiek dostaje "Page Expired" zamiast polskiego komunikatu
+        // (audyt A31). Test `UploadLimitsAgreementTest` pilnuje tej zgody,
+        // bo php.ini nie umie CZYTAĆ konfiguracji Laravela — dwa niezależne
+        // miejsca to jedyny sposób, więc musi je pilnować test, nie wspólny
+        // kod.
         'max_bytes' => (int) env('KUKING_MEDIA_MAX_BYTES', 15 * 1024 * 1024),
 
         // Ochrona przed "decompression bomb": plik może być mały, a obraz
@@ -53,8 +63,29 @@ return [
             'large' => 1600,
         ],
 
-        // Maksymalna liczba zdjęć w jednym wpisie.
-        'max_per_post' => 6,
+        // Maksymalna liczba zdjęć w JEDNEJ wysyłce — dotyczy zarówno wpisu
+        // (PostController), jak i "Ugotowałem" (CookedEventController).
+        // To jest ta sama liczba w obu miejscach CELOWO: to jeden budżet
+        // "ile bajtów mieści się w jednym żądaniu HTTP", nie dwa osobne.
+        //
+        // BYŁO 6. Sześć zdjęć razy 15 MB to do 90 MB w jednym żądaniu —
+        // ponad trzy razy więcej, niż pozwala `post_max_size=28M` z
+        // `docker/php.ini`. Formularz obiecywał "wybierz kilka", a każda
+        // wysyłka powyżej ok. 28 MB kończyła się utratą wpisanego tekstu
+        // i angielskim "Page Expired" (audyt A31) — PHP odrzuca CAŁE
+        // żądanie, łącznie z tokenem CSRF, zanim Laravel je zobaczy.
+        //
+        // Rozwiązanie to NIE jest podniesienie limitu PHP do ~100 MB.
+        // Wysyłka rzędu 90 MB z telefonu na słabszym łączu (LTE, a czasem
+        // gorzej — patrz demografia w AGENTS.md) to długi czas przesyłania
+        // i realne ryzyko urwania połączenia w trakcie, a nie tylko kwestia
+        // limitu. Zamiast obiecywać więcej, niż da się niezawodnie dowieźć,
+        // OGRANICZAMY OBIETNICĘ do jednego zdjęcia na wysyłkę — dokładnie
+        // tyle, ile mówi hasło produktu: "zdjęcie + kilka słów"
+        // (AGENTS.md, docs/UX_50_PLUS.md „Dodanie wpisu"), liczba pojedyncza.
+        // 1 × 15 MB zostawia ~13 MB zapasu pod `post_max_size=28M` — margines
+        // na nagłówki multipart i pola formularza, nie liczenie styk w styk.
+        'max_per_post' => 1,
     ],
 
     'feed' => [
