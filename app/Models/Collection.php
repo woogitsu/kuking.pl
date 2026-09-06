@@ -48,6 +48,23 @@ class Collection extends Model
             ->orderByPivot('created_at', 'desc');
     }
 
+    /**
+     * Wpisy odłożone „na potem" (UI kit v2, ekran 01).
+     *
+     * Ta sama tabela co przepisy — `collection_items` ma dwie kolumny
+     * dopuszczające NULL i CHECK `num_nonnulls(recipe_id, post_id) = 1`,
+     * dokładnie jak `comments`. Wiersz jest więc ZAWSZE albo przepisem,
+     * albo wpisem, nigdy jednym i drugim ani niczym.
+     *
+     * @return BelongsToMany<Post, $this>
+     */
+    public function posts(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'collection_items')
+            ->withPivot(['note', 'created_at'])
+            ->orderByPivot('created_at', 'desc');
+    }
+
     public function isPublic(): bool
     {
         return $this->visibility === 'public';

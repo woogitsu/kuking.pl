@@ -90,6 +90,16 @@ class Post extends Model
         return $this->belongsTo(Topic::class);
     }
 
+    /**
+     * Zeszyty, w których ten wpis został odłożony (UI kit v2, ekran 01).
+     *
+     * @return BelongsToMany<Collection, $this>
+     */
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'collection_items');
+    }
+
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'post_media')

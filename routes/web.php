@@ -273,6 +273,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/zapisz', [CollectionController::class, 'saveRecipe'])->name('collections.save');
     Route::delete('/przepisy/{recipe}/zapisz', [CollectionController::class, 'removeRecipe'])->name('collections.unsave');
 
+    // Zeszyt przyjmuje też WPISY (UI kit v2, ekran 01 — decyzja właściciela).
+    // Ten sam limit co przy publikacji: to jest zapis do bazy wywołany
+    // jednym kliknięciem na karcie, więc zasługuje na ten sam refleks.
+    Route::post('/wpisy/{post}/zapisz', [CollectionController::class, 'savePost'])
+        ->middleware("throttle:{$limits['post']}")
+        ->name('collections.save-post');
+    Route::delete('/wpisy/{post}/zapisz', [CollectionController::class, 'removePost'])
+        ->middleware("throttle:{$limits['post']}")
+        ->name('collections.unsave-post');
+
     // Relacje społeczne
     // Obserwowanie tematu: zwykłe formularze, bez JavaScriptu. Temat nie
     // jest człowiekiem, więc nikogo nie powiadamiamy (issue #31).

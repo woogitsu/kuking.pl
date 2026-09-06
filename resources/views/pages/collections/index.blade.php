@@ -20,7 +20,12 @@
                         <a class="text-ink" href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a>
                     </h2>
                     <p class="meta m-0">
-                        {{ $collection->recipes_count }} {{ $collection->recipes_count === 1 ? 'przepis' : 'przepisów' }}
+                        {{-- Odmiana przez App\Support\Odmiana: dwustanowa
+                             pisała „3 przepisów" (B5). --}}
+                        {{ $collection->recipes_count }} {{ \App\Support\Odmiana::rzeczownik($collection->recipes_count, 'przepis', 'przepisy', 'przepisów') }}
+                        @if(($collection->posts_count ?? 0) > 0)
+                            · {{ $collection->posts_count }} {{ \App\Support\Odmiana::rzeczownik($collection->posts_count, 'wpis', 'wpisy', 'wpisów') }}
+                        @endif
                         · {{ $collection->isPublic() ? 'Widoczny dla wszystkich' : 'Tylko dla Ciebie' }}
                     </p>
                     @if($collection->description)

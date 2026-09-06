@@ -366,6 +366,35 @@ Na produkcji: najpierw kopia obu kolumn.
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 
+### collection_items — przepisy ORAZ wpisy
+
+Od migracji `2026_09_06_150000_collection_items_accept_posts` zeszyt przyjmuje
+także wpisy (UI kit v2, ekran 01 — decyzja właściciela). To dwie różne
+potrzeby: zapisany przepis znaczy „chcę to ugotować i mam listę składników",
+zapisane zdjęcie — „chcę kiedyś zrobić coś **takiego**".
+
+Wzorzec jest ten sam co przy komentarzach: dwie kolumny dopuszczające NULL
+i CHECK `collection_items_single_target_check`
+(`num_nonnulls(recipe_id, post_id) = 1`). **Nie polimorfizm** z
+`item_type`/`item_id`: tamten zapis nie ma kluczy obcych, więc skasowany wpis
+zostawia wiersz wskazujący w próżnię, a baza nie ma jak tego zauważyć.
+
+Klucz główny `(collection_id, recipe_id)` **musiał zniknąć** — kolumna klucza
+głównego nie może być NULL. Zastępują go dwa indeksy częściowe:
+`collection_items_recipe_unique` i `collection_items_post_unique`. Pilnują
+dokładnie tego samego co stary klucz: ta sama pozycja nie stanie w tym samym
+zeszycie dwa razy (issue #43).
+
+**Rollback jest STRATNY.** `down()` przywraca stary klucz główny, więc musi
+najpierw skasować wiersze z `post_id` — zapisane wpisy znikają z zeszytów
+bezpowrotnie. Przy cofaniu na produkcji: najpierw kopia tabeli.
+
+**Widoczność:** zeszyt jest pojemnikiem na CUDZE treści, więc `CollectionController`
+przepuszcza wpisy przez `widoczneDla()` i `tylkoOdDostepnychAutorow()`. Wpis,
+który przestał być widoczny, **zostaje w bazie**, a ekran mówi ile takich
+pozycji jest, nie mówiąc jakich — ciche zniknięcie wygląda jak utrata danych,
+a pokazanie treści łamie ustawienie autora.
+
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 

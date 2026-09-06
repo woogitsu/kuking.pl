@@ -145,6 +145,33 @@
             @endif
         </a>
 
+        @auth
+            {{--
+                „ZAPISZ" (UI kit v2, ekran 01) — decyzja właściciela.
+
+                Zeszyt przyjmuje od tej zmiany także wpisy. To jest inna
+                potrzeba niż zapisanie przepisu: zapisany przepis znaczy „chcę
+                to ugotować i mam listę składników", a zapisane zdjęcie —
+                „chcę kiedyś zrobić coś TAKIEGO". Przy wpisie żadnego przepisu
+                zwykle nie ma.
+
+                DLACZEGO ZAWSZE „ZAPISZ", A NIE „ZAPISANE"
+                Sprawdzenie stanu dla każdej karty to jedno zapytanie na wpis
+                — czyli dwadzieścia zapytań na przewinięcie feedu. Zapis jest
+                za to bezpieczny przy powtórzeniu: drugie kliknięcie daje
+                dokładnie ten sam skutek co pierwsze i nie przesuwa pozycji
+                w zeszycie (SavePostToCollection). Wyjąć z zeszytu można
+                w samym zeszycie.
+            --}}
+            <form method="POST" action="{{ route('collections.save-post', $post) }}">
+                @csrf
+                <button class="btn btn-secondary" type="submit">
+                    <x-ikona nazwa="book" :rozmiar="22" />
+                    Zapisz
+                </button>
+            </form>
+        @endauth
+
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).
              Pasek akcji ma nieść to, po co człowiek tu przyszedł. --}}
     </div>
