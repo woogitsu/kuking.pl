@@ -128,4 +128,90 @@ await strona.setContent(`
 await strona.screenshot({ path: 'public/icons/kuking-udostepnianie.png' });
 console.log('zapisano public/icons/kuking-udostepnianie.png');
 
+/*
+ * favicon.ico — 16×16 i 32×32 w jednym pliku (issue #5).
+ *
+ * PO CO TO JESZCZE ISTNIEJE, SKORO JEST FAVIKONA SVG
+ * Przeglądarki od lat wolą `<link rel="icon" type="image/svg+xml">`, ale
+ * `/favicon.ico` jest pobierany BEZWARUNKOWO i przez rzeczy, które o naszym
+ * <head> nic nie wiedzą: wyniki wyszukiwania, czytniki kanałów, podglądy
+ * w komunikatorach, starsze przeglądarki. Plik w repozytorium już był —
+ * i po zmianie znaku pokazywałby poprzednie logo w miejscach, w których
+ * nikt by tego nie szukał.
+ *
+ * Tło kremowe, nie przezroczyste: ikona 16 px na ciemnym pasku zakładek
+ * z przezroczystym tłem gubi kontury.
+ */
+const ikonyIco = [];
+for (const rozmiar of [16, 32]) {
+  await strona.setViewportSize({ width: rozmiar, height: rozmiar });
+  await strona.setContent(
+    `<style>html,body{margin:0;padding:0}img{display:block;width:${rozmiar}px;height:${rozmiar}px}</style>` +
+    `<img src="data:image/svg+xml;base64,${Buffer.from(warianty['public/icons/kuking-icon-any.svg']).toString('base64')}">`,
+  );
+  ikonyIco.push({ rozmiar, png: await strona.screenshot() });
+}
+
+/*
+ * Format ICO: 6-bajtowy nagłówek, po 16 bajtów na wpis katalogu, potem dane.
+ * Nowoczesne ICO wolno wypełnić PNG-ami zamiast bitmap BMP — to jest
+ * wspierane od Visty i pozwala uniknąć ręcznego składania BMP z maską
+ * przezroczystości.
+ */
+const naglowek = Buffer.alloc(6);
+naglowek.writeUInt16LE(0, 0);                 // zarezerwowane
+naglowek.writeUInt16LE(1, 2);                 // typ: 1 = ikona
+naglowek.writeUInt16LE(ikonyIco.length, 4);   // liczba obrazków
+
+let offset = 6 + ikonyIco.length * 16;
+const katalog = [];
+for (const { rozmiar, png } of ikonyIco) {
+  const wpis = Buffer.alloc(16);
+  wpis.writeUInt8(rozmiar, 0);        // szerokość
+  wpis.writeUInt8(rozmiar, 1);        // wysokość
+  wpis.writeUInt8(0, 2);              // liczba kolorów palety (0 = pełny kolor)
+  wpis.writeUInt8(0, 3);              // zarezerwowane
+  wpis.writeUInt16LE(1, 4);           // płaszczyzny kolorów
+  wpis.writeUInt16LE(32, 6);          // bitów na piksel
+  wpis.writeUInt32LE(png.length, 8);  // rozmiar danych
+  wpis.writeUInt32LE(offset, 12);     // przesunięcie danych
+  katalog.push(wpis);
+  offset += png.length;
+}
+
+writeFileSync('public/favicon.ico', Buffer.concat([
+  naglowek, ...katalog, ...ikonyIco.map((i) => i.png),
+]));
+console.log('zapisano public/favicon.ico (16 i 32 px)');
+
+/*
+ * Wariant jednokolorowy — do naklejek, ulotek i wszystkiego, co idzie
+ * na drukarkę jednobarwną (koła gospodyń, biblioteki, UTW). Czytelny
+ * od 20 mm, bo to jest realna wielkość naklejki na słoiku.
+ *
+ * `currentColor` jest tu POPRAWNY, w odróżnieniu od kuking-mark.svg:
+ * ten plik idzie do programów graficznych i na wydruk, gdzie kolor i tak
+ * ustawia człowiek, a nie przeglądarka.
+ */
+writeFileSync('public/icons/kuking-mark-mono.svg', `<?xml version="1.0" encoding="UTF-8"?>
+<!-- WYGENEROWANE przez scripts/generuj-ikony.mjs — nie edytuj ręcznie.
+     Wariant jednobarwny do druku. Bez połysku i uśmiechu: przy jednym
+     kolorze te linie zlewają się z tłem garnka i znak robi się plamą. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"
+     role="img" aria-label="Kuking" fill="none">
+  <title>Kuking</title>
+  <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z"
+        fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="16" cy="14" r="3.5" fill="currentColor"/>
+  <circle cx="32" cy="9" r="3.5" fill="currentColor"/>
+  <circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+  <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+  <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" stroke="currentColor"
+        stroke-width="5" stroke-linecap="round"/>
+  <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" stroke="currentColor"
+        stroke-width="5" stroke-linecap="round"/>
+</svg>
+`);
+console.log('zapisano public/icons/kuking-mark-mono.svg');
+
 await przegladarka.close();
