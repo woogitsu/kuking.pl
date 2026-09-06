@@ -12,7 +12,7 @@
             <a class="author-name" href="{{ route('profile.show', $event->user->profile->username) }}">{{ $event->user->displayName() }}</a>
             <p class="meta" style="margin:0;">
                 ugotowała/ugotował
-                <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ $event->cooked_at->translatedFormat('j F Y') }}</time>
+                <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}</time>
             </p>
         </div>
     </div>

@@ -96,7 +96,7 @@
         <p class="podpis">Komentarze, które napisałaś — także pod przepisami innych osób.</p>
         @foreach($ownComments as $comment)
             <div class="karta">
-                <p class="podpis">{{ $comment['napisano'] ? \Illuminate\Support\Carbon::parse($comment['napisano'])->translatedFormat('j F Y') : '' }}
+                <p class="podpis">{{ $comment['napisano'] ? \App\Support\Czas::data(\Illuminate\Support\Carbon::parse($comment['napisano']), 'j F Y') : '' }}
                     @if($comment['pod_czym']) · {{ $comment['pod_czym'] }}@endif</p>
                 <p>{{ $comment['tresc'] }}</p>
             </div>

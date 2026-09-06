@@ -100,7 +100,7 @@
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
                     <p class="meta" style="margin:0;">
                         @if($recipe->published_at)
-                            <time datetime="{{ $recipe->published_at->toIso8601String() }}">{{ $recipe->published_at->translatedFormat('j F Y') }}</time>
+                            <time datetime="{{ $recipe->published_at->toIso8601String() }}">{{ \App\Support\Czas::data($recipe->published_at, 'j F Y') }}</time>
                         @endif
                     </p>
                 </div>

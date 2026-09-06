@@ -22,7 +22,7 @@
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $comment->author->profile->username) }}">{{ $comment->author->displayName() }}</a>
                     <p class="meta" style="margin:0;">
-                        <time datetime="{{ $comment->created_at->toIso8601String() }}">{{ $comment->created_at->translatedFormat('j F Y, H:i') }}</time>
+                        <time datetime="{{ $comment->created_at->toIso8601String() }}">{{ \App\Support\Czas::data($comment->created_at, 'j F Y, H:i') }}</time>
                     </p>
                 </div>
             </div>
@@ -40,7 +40,7 @@
                     <div style="display:flex; gap:var(--spacing-2); align-items:center;">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
-                        <span class="meta">{{ $reply->created_at->translatedFormat('j F Y, H:i') }}</span>
+                        <span class="meta">{{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}</span>
                     </div>
 
                     @php($replyIsRemoved = $reply->body === 'Komentarz usunięty.')

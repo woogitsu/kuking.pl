@@ -7,7 +7,7 @@
 TWOJE DANE Z KUKING.PL
 ======================
 
-Paczka przygotowana: {{ $generatedAt->translatedFormat('j F Y, H:i') }}
+Paczka przygotowana: {{ \App\Support\Czas::data($generatedAt, 'j F Y, H:i') }}
 @if($displayName)
 Dla: {{ $displayName }}
 @endif

@@ -17,7 +17,7 @@
         <h2 style="margin-top:0; font-size:var(--text-title-sm);">Czego dotyczy sprawa</h2>
         <p class="meta">
             {{ $decyzja->label() }} ·
-            {{ $decyzja->created_at->translatedFormat('j F Y') }}
+            {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y') }}
         </p>
         @if($decyzja->user_message)
             <p style="white-space:pre-line;">„{{ $decyzja->user_message }}”</p>
@@ -32,7 +32,7 @@
              wysłaniu powie „już się odwoływałeś". --}}
         <article class="card" style="margin-top:var(--spacing-5);">
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">Twoje odwołanie</h2>
-            <p class="meta">Złożone {{ $odwolanie->created_at->translatedFormat('j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
+            <p class="meta">Złożone {{ \App\Support\Czas::data($odwolanie->created_at, 'j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
             <p style="white-space:pre-line;">{{ $odwolanie->body }}</p>
 
             @if($odwolanie->isOpen())
@@ -41,7 +41,7 @@
                     Odpowiedź zobaczysz w powiadomieniach.</p>
             @else
                 <h3 style="font-size:var(--text-title-sm);">Nasza odpowiedź</h3>
-                <p class="meta">{{ $odwolanie->decided_at->translatedFormat('j F Y') }}</p>
+                <p class="meta">{{ \App\Support\Czas::data($odwolanie->decided_at, 'j F Y') }}</p>
                 <p style="white-space:pre-line;">{{ $odwolanie->decision_note }}</p>
                 <p class="meta">
                     Odwołanie rozpatrujemy raz. Jeśli pojawiły się nowe okoliczności,
@@ -54,7 +54,7 @@
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest {{ config('kuking.moderation.appeal_days') }} dni od decyzji.
-                Ten termin minął {{ $decyzja->appealDeadline()->translatedFormat('j F Y') }}.
+                Ten termin minął {{ \App\Support\Czas::data($decyzja->appealDeadline(), 'j F Y') }}.
             </p>
             <p>
                 Jeśli pojawiły się nowe okoliczności, napisz na

@@ -253,7 +253,7 @@
                     <div class="notice" role="status">
                         @if(auth()->user()->status_expires_at)
                             <strong>Twoje konto jest zawieszone do
-                                {{ auth()->user()->status_expires_at->translatedFormat('j F Y') }}.</strong>
+                                {{ \App\Support\Czas::data(auth()->user()->status_expires_at, 'j F Y') }}.</strong>
                             <span>Do tego czasu możesz czytać, ale nie opublikujesz wpisu ani komentarza.
                                 Konto wróci samo — nie musisz nic robić.</span>
                         @else

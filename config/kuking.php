@@ -191,6 +191,13 @@ return [
         'photo_flush_every' => 25,
     ],
 
+    // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
+    //
+    // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
+    // aplikacja liczy i pisze do bazy. Ta tutaj dotyczy wyłącznie tego,
+    // co widzi człowiek (issue #87, pomocnik `App\Support\Czas`).
+    'strefa' => env('KUKING_STREFA', 'Europe/Warsaw'),
+
     'community' => [
         // Adres, na który idą zgłoszenia i sprawy moderacyjne.
         'contact_email' => env('KUKING_CONTACT_EMAIL', 'kontakt@kuking.pl'),

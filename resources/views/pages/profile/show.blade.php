@@ -117,7 +117,7 @@
             @php $currentMonth = null; @endphp
             <div class="stack">
                 @foreach($posts as $post)
-                    @php $month = $post->published_at?->translatedFormat('F Y'); @endphp
+                    @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
                         <h2 style="margin-top:var(--spacing-8);">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>

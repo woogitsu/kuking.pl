@@ -13,7 +13,7 @@
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">{{ $report->reasonLabel() }}</h2>
             <p class="meta">
                 {{ $report->target_type }} · {{ $report->target_id }} ·
-                zgłoszone {{ $report->created_at->translatedFormat('j F Y, H:i') }}
+                zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
                 @if($report->reporter) przez {{ $report->reporter->displayName() }} @else przez usunięte konto @endif
             </p>
 

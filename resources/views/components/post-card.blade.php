@@ -29,7 +29,7 @@
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
             <p class="meta" style="margin:0;">
                 <a href="{{ $post->url() }}" style="color:inherit;">
-                    <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ $post->published_at?->translatedFormat('j F Y, H:i') }}</time>
+                    <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
                 </a>
                 @if($post->visibility === 'followers')
                     · <span class="badge">Tylko dla obserwujących</span>

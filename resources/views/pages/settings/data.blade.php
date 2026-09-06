@@ -21,7 +21,7 @@
             <ul>
                 @foreach($exports as $export)
                     <li style="margin-bottom:var(--spacing-4);">
-                        {{ $export->created_at->translatedFormat('j F Y, H:i') }} —
+                        {{ \App\Support\Czas::data($export->created_at, 'j F Y, H:i') }} —
                         @switch($export->status)
                             @case('ready') gotowa @break
                             @case('queued') w kolejce @break
@@ -35,7 +35,7 @@
                             <a class="btn btn-primary" style="margin-top:var(--spacing-2);"
                                href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
                             <br>
-                            <span class="field-help">Do pobrania do {{ $export->expires_at->translatedFormat('j F Y') }}.</span>
+                            <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y') }}.</span>
                         @elseif($export->status === 'failed' && $export->failure_reason)
                             <br><span class="field-help">{{ $export->failure_reason }}</span>
                         @endif

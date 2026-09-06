@@ -24,11 +24,11 @@
             </h2>
             <p class="meta">
                 {{ $appeal->user?->displayName() ?? 'usunięte konto' }} ·
-                złożone {{ $appeal->created_at->translatedFormat('j F Y, H:i') }} ·
+                złożone {{ \App\Support\Czas::data($appeal->created_at, 'j F Y, H:i') }} ·
                 @if($appeal->isOverdue())
-                    <strong>termin odpowiedzi minął {{ $appeal->responseDeadline()->translatedFormat('j F Y') }}</strong>
+                    <strong>termin odpowiedzi minął {{ \App\Support\Czas::data($appeal->responseDeadline(), 'j F Y') }}</strong>
                 @else
-                    odpowiedz do {{ $appeal->responseDeadline()->translatedFormat('j F Y') }}
+                    odpowiedz do {{ \App\Support\Czas::data($appeal->responseDeadline(), 'j F Y') }}
                 @endif
             </p>
 
@@ -37,7 +37,7 @@
 
             <h3 style="font-size:var(--text-title-sm);">Decyzja, od której się odwołuje</h3>
             <p class="meta">
-                {{ $decyzja->created_at->translatedFormat('j F Y, H:i') }} ·
+                {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y, H:i') }} ·
                 powód: {{ $decyzja->reason_code }} ·
                 decyzję podjął(-ęła) {{ $decyzja->moderator?->displayName() ?? 'usunięte konto' }} ·
                 cel: {{ $decyzja->target_type }} {{ $decyzja->target_id }}
@@ -85,7 +85,7 @@
                 <h3 style="font-size:var(--text-title-sm);">Odpowiedź</h3>
                 <p class="badge">{{ $appeal->statusLabel() }}</p>
                 <p class="meta">
-                    {{ $appeal->decided_at?->translatedFormat('j F Y, H:i') }} ·
+                    {{ \App\Support\Czas::dataLubNic($appeal->decided_at, 'j F Y, H:i') }} ·
                     {{ $appeal->decider?->displayName() ?? 'usunięte konto' }}
                 </p>
                 <p style="white-space:pre-line;">{{ $appeal->decision_note }}</p>
