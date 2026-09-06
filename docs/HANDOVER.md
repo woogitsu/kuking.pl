@@ -21,10 +21,12 @@ owner asked for it in English.
    (light theme is always the default) and **D-020** (image URLs are an
    application route). Do not relitigate them.
 4. `docs/DATABASE.md`, `docs/ARCHITECTURE.md`, `docs/MEDIA_PIPELINE.md`.
-5. `docs/AI_WORKFLOW.md` — **read §6 before you spawn any agent in a worktree.**
+5. `docs/legal/BRAMKA_BETY.md` — what is actually closed from the wave 7
+   audit, with evidence, and what still blocks the beta decision.
+6. `docs/AI_WORKFLOW.md` — **read §6 before you spawn any agent in a worktree.**
    It documents two traps that cost real time today; the second one produced
    green tests that had not executed a single line of new code.
-6. `docs/design/kit-v2/IMPLEMENTATION_GUIDE.md` and
+7. `docs/design/kit-v2/IMPLEMENTATION_GUIDE.md` and
    `docs/design/STAN_WDROZENIA_KITU.md` — the UI kit and what of it is done.
    **Careful: the second file is stale outside the recipe screen** — its
    `/home` table describes a topbar, side nav and bottom nav that have since
@@ -147,12 +149,16 @@ equally forgeable there. Ask before implementing.
 
 ### 4.2 The beta gate
 
-The audit ends with one instruction: after the repairs, do a single
-evidence-based closure pass over every P0/P1 from waves 1–7, each marked
-FIXED / PARTIAL / OPEN / ACCEPTED with the commit SHA and the regression test
-name. Do that instead of a wave 8. **Only the wave 7 audit file was available
-in this session** — ask the owner to re-send waves 1–6 before attempting the
-matrix.
+**Started: `docs/legal/BRAMKA_BETY.md`.** Wave 7 is done there — all twelve
+findings with state, commit SHA and regression test name: 7 CLOSED, 2 PARTIAL,
+2 OPEN, 1 ACCEPTED. The four findings inherited from the previous session were
+re-falsified while writing it (revert the fix, watch the named tests go red,
+restore), because "the previous session says it fixed this" is not evidence.
+
+**Waves 1–6 are missing from it** and that is the next step: only the wave 7
+audit file was available in this session. Ask the owner to re-send waves 1–6,
+then extend the same table. Writing those rows from memory or second-hand
+would be exactly what the document exists to prevent.
 
 ### 4.3 Waiting on the owner (asked, answered, not yet built)
 
