@@ -63,29 +63,20 @@ return [
             'large' => 1600,
         ],
 
-        // Maksymalna liczba zdjęć w JEDNEJ wysyłce — dotyczy zarówno wpisu
-        // (PostController), jak i "Ugotowałem" (CookedEventController).
-        // To jest ta sama liczba w obu miejscach CELOWO: to jeden budżet
-        // "ile bajtów mieści się w jednym żądaniu HTTP", nie dwa osobne.
+        // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
         //
-        // BYŁO 6. Sześć zdjęć razy 15 MB to do 90 MB w jednym żądaniu —
-        // ponad trzy razy więcej, niż pozwala `post_max_size=28M` z
-        // `docker/php.ini`. Formularz obiecywał "wybierz kilka", a każda
-        // wysyłka powyżej ok. 28 MB kończyła się utratą wpisanego tekstu
-        // i angielskim "Page Expired" (audyt A31) — PHP odrzuca CAŁE
-        // żądanie, łącznie z tokenem CSRF, zanim Laravel je zobaczy.
+        // DLACZEGO SZEŚĆ, A NIE JEDNO
+        // Audyt A31 zaproponował obniżenie do jednego zdjęcia, bo sześć razy
+        // 15 MB nie mieściło się w `post_max_size`. Właściciel rozstrzygnął
+        // inaczej: limit PHP jest do podniesienia, a część ludzi pokazuje
+        // danie w kilku ujęciach — kolaż, karuzela, krok po kroku. Odebranie
+        // im tego naprawiałoby rozjazd kosztem funkcji, o którą sami proszą.
         //
-        // Rozwiązanie to NIE jest podniesienie limitu PHP do ~100 MB.
-        // Wysyłka rzędu 90 MB z telefonu na słabszym łączu (LTE, a czasem
-        // gorzej — patrz demografia w AGENTS.md) to długi czas przesyłania
-        // i realne ryzyko urwania połączenia w trakcie, a nie tylko kwestia
-        // limitu. Zamiast obiecywać więcej, niż da się niezawodnie dowieźć,
-        // OGRANICZAMY OBIETNICĘ do jednego zdjęcia na wysyłkę — dokładnie
-        // tyle, ile mówi hasło produktu: "zdjęcie + kilka słów"
-        // (AGENTS.md, docs/UX_50_PLUS.md „Dodanie wpisu"), liczba pojedyncza.
-        // 1 × 15 MB zostawia ~13 MB zapasu pod `post_max_size=28M` — margines
-        // na nagłówki multipart i pola formularza, nie liczenie styk w styk.
-        'max_per_post' => 1,
+        // Ta liczba razy `max_bytes` MUSI z zapasem mieścić się
+        // w `post_max_size` z `docker/php.ini` — pilnuje tego
+        // `UploadLimitsAgreementTest`. Podniesienie tej liczby bez
+        // podniesienia limitu PHP oblewa test, i o to chodzi.
+        'max_per_post' => 6,
     ],
 
     'feed' => [

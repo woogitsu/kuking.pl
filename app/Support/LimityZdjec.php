@@ -45,10 +45,11 @@ final class LimityZdjec
     /**
      * Ile zdjęć wolno dołączyć do JEDNEJ wysyłki (wpisu albo „Ugotowałem").
      *
-     * Świadomie 1, nie kilka — patrz komentarz przy `max_per_post`
-     * w `config/kuking.php`. Ta sama liczba steruje limitem w
-     * PostController I w CookedEventController: to jest właśnie ta
-     * "jedna wysyłka" z audytu A31, nie osobny limit na kontroler.
+     * Ta sama liczba steruje limitem w PostController I w
+     * CookedEventController: to jest właśnie ta „jedna wysyłka" z audytu
+     * A31, nie osobny limit na kontroler. Wcześniej „Ugotowałem" miało
+     * wpisane na sztywno `max:4`, niezależnie od konfiguracji — ten sam
+     * błąd, co rozjazd z `post_max_size`, tylko o jedno miejsce dalej.
      */
     public static function maksZdjecNaWysylke(): int
     {

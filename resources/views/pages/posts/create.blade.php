@@ -8,21 +8,14 @@
         @csrf
 
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
-            <label for="f-photos">Zdjęcie</label>
+            <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
             <span class="field-help" id="f-photos-help">
                 Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
                 Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
             </span>
-            {{--
-                BEZ atrybutu `multiple` (audyt A31): jedna wysyłka to jedno
-                zdjęcie — patrz komentarz przy `max_per_post`
-                w `config/kuking.php`. Pole zostaje nazwane `photos[]`,
-                bo tak czyta je kontroler (tablica o długości 0 albo 1);
-                zmiana nazwy pola byłaby zmianą bez powodu.
-            --}}
             <input class="field-input" id="f-photos" type="file" name="photos[]"
                    accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
-                   aria-describedby="f-photos-help">
+                   multiple aria-describedby="f-photos-help">
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
