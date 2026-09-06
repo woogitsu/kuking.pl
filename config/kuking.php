@@ -237,6 +237,34 @@ return [
             'bezpieczenstwo',
             'platnosci',
         ],
+
+        // Konta testowe/deweloperskie, wykluczone z metryk North Star
+        // (issue #114 — `kuking:wac` i kohorta retencji z
+        // `docs/seo/ANALYTICS.md` §2.2/§3.2).
+        //
+        // DLACZEGO KONFIGURACJA, A NIE KOLUMNA W BAZIE
+        // Issue #114 rozstrzyga to wprost: żadna nowa kolumna na tym etapie.
+        // Przy 20-50 kontach zamkniętej alfy konta testowe to garstka, którą
+        // zna jedna osoba (właściciel) i która zmienia się rzadko — dokładnie
+        // taki przypadek, dla którego reszta tego pliku istnieje (`comment`,
+        // `zone_id`+`token` wyżej): próg/lista bez migracji, bez deployu drugi
+        // raz, gdy trzeba dopisać jedno konto. Kolumna `users.is_test_account`
+        // byłaby uzasadniona dopiero, gdyby test'owych kont było wiele albo
+        // gdyby WIĘCEJ niż jedna metryka miała je wykluczać — a to jest
+        // dokładnie sytuacja, w której warto ją dodać (razem z migracją,
+        // testem i wpisem w `docs/DATABASE.md`, jak wymaga AGENTS.md §6).
+        //
+        // Nazwa użytkownika, tak jak `host_username` — to jest to, co widać
+        // i co da się sprawdzić okiem na liście kont, nie wewnętrzny UUID.
+        // Porównanie jest bez rozróżniania wielkości liter (jak
+        // `Profile::poNazwie()`), bez homoglifów — to nie jest ochrona przed
+        // podszywaniem się, tylko lista własnych kont, więc prostsze
+        // porównanie wystarcza.
+        //
+        // Puste domyślnie: bez tej zmiennej środowiskowej metryka liczy
+        // wszystkich tak jak dotąd (poza gospodarzem i kontami zbanowanymi/
+        // kasowanymi).
+        'test_usernames' => array_filter(explode(',', (string) env('KUKING_TEST_USERNAMES', ''))),
     ],
 
     'two_factor' => [

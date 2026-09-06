@@ -108,15 +108,39 @@ Zgodne 1:1 z definicją z `docs/PRODUCT.md` i `docs/SEO_ANALYTICS_GROWTH.md`. Ś
 
 Usunięte miękko rekordy (`deleted_at IS NOT NULL`) są wykluczone z `posts`/`recipes`; `cooked_events` nie ma soft delete w MVP, więc liczone są wszystkie.
 
+**Wykluczenia (issue #114).** Poniższe zapytania liczą tylko konta, które mają liczyć się do North Star — nie każde konto z wierszem w `posts`/`recipes`/`cooked_events`:
+
+- konta `status IN ('banned', 'pending_delete')`;
+- konto gospodarza (`config('kuking.community.host_username')`) — publikuje z definicji co tydzień (`docs/product/COLD_START.md`), więc bez wykluczenia byłby gwarantowanym, cotygodniowym wpisem do liczby, którą zespół czyta jako dowód sukcesu przy 20-50 kontach zamkniętej alfy;
+- konta testowe/deweloperskie z listy w konfiguracji (`config('kuking.account.test_usernames')` — świadomie konfiguracja, nie kolumna w bazie na tym etapie, patrz komentarz w `config/kuking.php`).
+
+Reguła „kto się liczy" mieszka w jednym miejscu w kodzie — `App\Domain\Analytics\CookEligibility` — i jest tam, nie tutaj, źródłem prawdy: to SQL niżej jest opisem tamtej klasy, nie odwrotnie.
+
 ### 2.2 Zapytanie SQL — WAC tygodniowo (zweryfikowane na `schema_mvp.sql`)
 
 ```sql
-WITH weekly_cook_activity AS (
+WITH wykluczeni_uzytkownicy AS (
+    SELECT id AS user_id
+    FROM users
+    WHERE status IN ('banned', 'pending_delete')
+
+    UNION
+
+    SELECT p.user_id
+    FROM profiles p
+    WHERE lower(p.username) IN (
+        -- gospodarz (kuking.community.host_username) i konta testowe
+        -- (kuking.account.test_usernames) z configu — tu przykładowe wartości:
+        'woogitsu', 'qa-wewnetrzne'
+    )
+),
+weekly_cook_activity AS (
     SELECT author_id AS user_id, published_at AS activity_at
     FROM posts
     WHERE status = 'published'
       AND published_at IS NOT NULL
       AND deleted_at IS NULL
+      AND author_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 
     UNION ALL
 
@@ -125,11 +149,13 @@ WITH weekly_cook_activity AS (
     WHERE status = 'published'
       AND published_at IS NOT NULL
       AND deleted_at IS NULL
+      AND author_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 
     UNION ALL
 
     SELECT user_id, cooked_at AS activity_at
     FROM cooked_events
+    WHERE user_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 )
 SELECT
     date_trunc('week', activity_at)::date AS week_start,
@@ -143,12 +169,24 @@ ORDER BY 1;
 Wariant „tylko bieżący tydzień” (do kafelka na dashboardzie, sekcja 6):
 
 ```sql
-WITH weekly_cook_activity AS (
+WITH wykluczeni_uzytkownicy AS (
+    SELECT id AS user_id
+    FROM users
+    WHERE status IN ('banned', 'pending_delete')
+
+    UNION
+
+    SELECT p.user_id
+    FROM profiles p
+    WHERE lower(p.username) IN ('woogitsu', 'qa-wewnetrzne')
+),
+weekly_cook_activity AS (
     SELECT author_id AS user_id, published_at AS activity_at
     FROM posts
     WHERE status = 'published'
       AND published_at IS NOT NULL
       AND deleted_at IS NULL
+      AND author_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 
     UNION ALL
 
@@ -157,17 +195,21 @@ WITH weekly_cook_activity AS (
     WHERE status = 'published'
       AND published_at IS NOT NULL
       AND deleted_at IS NULL
+      AND author_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 
     UNION ALL
 
     SELECT user_id, cooked_at AS activity_at
     FROM cooked_events
+    WHERE user_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 )
 SELECT count(DISTINCT user_id) AS weekly_active_cooks_current_week
 FROM weekly_cook_activity
 WHERE activity_at >= date_trunc('week', now())
   AND activity_at <  date_trunc('week', now()) + interval '7 days';
 ```
+
+Komenda `php artisan kuking:wac` liczy dokładnie to pierwsze zapytanie (wszystkie tygodnie, opcjonalnie ograniczone do `--tygodnie=N` najnowszych) — `App\Domain\Analytics\WeeklyActiveCooks`.
 
 Obie wersje przetestowane na lokalnej instancji PostgreSQL z realnym `schema_mvp.sql` i przykładowymi wierszami — zwracają poprawne wyniki (3 aktywnych „cooków” w tygodniu testowym dla 3 różnych typów aktywności).
 
@@ -261,19 +303,36 @@ FROM activation_signals;
 
 ### 3.2 Kohorta retencji tygodniowej (proxy „cook activity”, zweryfikowane)
 
+**To samo wykluczenie co §2.2 (issue #114)**, po obu stronach złączenia: konto gospodarza/zbanowane/`pending_delete`/testowe nie ma wchodzić do kohorty ani jako „aktywność”, ani jako sam tydzień rejestracji (`user_weeks`). Bez wykluczenia z `user_weeks` gospodarz i tak nie pojawiłby się w wyniku — złączenie z pustą aktywnością nic by nie dało — ale dwa miejsca wykluczenia to jaśniejszy dowód, że to jest TA SAMA reguła (`App\Domain\Analytics\CookEligibility`), nie efekt uboczny czegoś innego. Implementacja: `App\Domain\Analytics\CookRetentionCohorts`.
+
 ```sql
-WITH activity AS (
+WITH wykluczeni_uzytkownicy AS (
+    SELECT id AS user_id
+    FROM users
+    WHERE status IN ('banned', 'pending_delete')
+
+    UNION
+
+    SELECT p.user_id
+    FROM profiles p
+    WHERE lower(p.username) IN ('woogitsu', 'qa-wewnetrzne') -- z configu, patrz §2.2
+),
+activity AS (
     SELECT author_id AS user_id, published_at AS activity_at
     FROM posts WHERE status = 'published' AND published_at IS NOT NULL AND deleted_at IS NULL
+      AND author_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
     UNION ALL
     SELECT author_id, published_at FROM recipes
     WHERE status = 'published' AND published_at IS NOT NULL AND deleted_at IS NULL
+      AND author_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
     UNION ALL
     SELECT user_id, cooked_at FROM cooked_events
+    WHERE user_id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 ),
 user_weeks AS (
     SELECT u.id AS user_id, date_trunc('week', u.created_at)::date AS signup_week
     FROM users u
+    WHERE u.id NOT IN (SELECT user_id FROM wykluczeni_uzytkownicy)
 ),
 activity_weeks AS (
     SELECT user_id, date_trunc('week', activity_at)::date AS activity_week
