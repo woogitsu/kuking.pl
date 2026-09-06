@@ -157,6 +157,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'status_expires_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
+
+            // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
+            // w transporcie) — wyciek kopii bazy nie może oddawać drugiego
+            // składnika logowania (AGENTS.md §7, issue #12).
+            //
+            // `two_factor_last_used_at` NIE jest czasem w rozumieniu reszty
+            // modelu — to surowy licznik z biblioteki TOTP, patrz migracja
+            // `..._add_two_factor_to_users_table`. Zostaje bez castu.
+            'two_factor_secret' => 'encrypted',
+            'two_factor_backup_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -295,6 +306,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function isModerator(): bool
     {
         return in_array($this->role, [self::ROLE_MODERATOR, self::ROLE_ADMIN], true);
+    }
+
+    /**
+     * Czy 2FA jest naprawdę WŁĄCZONE na tym koncie (issue #12).
+     *
+     * Sekret bywa zapisany PRZED potwierdzeniem — ekran włączenia zapisuje go,
+     * żeby przetrwał odświeżenie strony, zanim człowiek zdąży wpisać pierwszy
+     * poprawny kod. Dopóki `two_factor_confirmed_at` jest NULL, logowanie
+     * i panel moderacji mają się zachowywać tak, jakby 2FA nie istniało —
+     * inaczej porzucony w połowie ekran włączenia zablokowałby dostęp bez
+     * jednego działającego kodu.
+     */
+    public function hasTwoFactorConfirmed(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
     }
 
     public function isAdmin(): bool
@@ -589,6 +615,54 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 fn ($query) => $query->where('id', '!=', $exceptSessionId),
             )
             ->delete();
+    }
+
+    /**
+     * Początek włączania 2FA — sekret zapisany, ale JESZCZE NIEPOTWIERDZONY.
+     *
+     * Zapisujemy sekret od razu (zaszyfrowany, cast `encrypted`), żeby
+     * odświeżenie ekranu włączenia albo powrót do niego po chwili pokazywały
+     * TEN SAM kod QR — inaczej każde odświeżenie unieważniałoby poprzedni
+     * skan i zmuszało do skanowania od nowa. `two_factor_confirmed_at` zostaje
+     * NULL, więc konto NIE wymaga jeszcze kodu przy logowaniu ani wejściu
+     * do panelu (`hasTwoFactorConfirmed()`).
+     */
+    public function beginTwoFactorSetup(string $secret): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => $secret,
+            'two_factor_confirmed_at' => null,
+            'two_factor_backup_codes' => null,
+            'two_factor_last_used_at' => null,
+        ])->save();
+    }
+
+    /**
+     * Potwierdzenie 2FA pierwszym poprawnym kodem — od teraz konto go wymaga.
+     *
+     * @param  array<int, string>  $zahaszowaneKodyZapasowe
+     */
+    public function confirmTwoFactor(array $zahaszowaneKodyZapasowe): void
+    {
+        $this->forceFill([
+            'two_factor_confirmed_at' => now(),
+            'two_factor_backup_codes' => $zahaszowaneKodyZapasowe,
+        ])->save();
+    }
+
+    /**
+     * Wyłączenie 2FA — kontroler MUSI sprawdzić hasło PRZED wywołaniem tej
+     * metody (AGENTS.md §7: zmiana stanu konta jest jawną, nazwaną operacją,
+     * ale to kontroler odpowiada za to, KTO może ją wywołać).
+     */
+    public function disableTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_confirmed_at' => null,
+            'two_factor_backup_codes' => null,
+            'two_factor_last_used_at' => null,
+        ])->save();
     }
 
     public function promoteTo(string $role): void

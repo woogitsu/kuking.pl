@@ -53,7 +53,12 @@ class LoginController extends Controller
 
         $user = $this->findUser($data['login']);
 
-        if ($user === null || ! Auth::attempt(['email' => $user->email, 'password' => $data['password']], remember: true)) {
+        // `Auth::validate()`, NIE `Auth::attempt()` — sprawdza hasło BEZ
+        // logowania. Różnica jest tu istotna: konto z potwierdzonym 2FA
+        // (niżej) nie może dostać zalogowanej sesji, dopóki nie poda też
+        // kodu z aplikacji. `attempt()` logowałby od razu, na chwilę
+        // otwierając serwis samym hasłem.
+        if ($user === null || ! Auth::validate(['email' => $user->email, 'password' => $data['password']])) {
             RateLimiter::hit($throttleKey, decaySeconds: 300);
 
             throw ValidationException::withMessages([
@@ -74,15 +79,30 @@ class LoginController extends Controller
         // Konto z minioną karą też przechodzi: `EnsureAccountIsActive`
         // przywraca je przy pierwszym żądaniu.
         if ($user->isBanned() || $user->status === User::STATUS_PENDING_DELETE) {
-            Auth::logout();
-
+            // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
+            // zalogowało, więc nie ma z czego wylogowywać.
             throw ValidationException::withMessages([
                 'login' => $this->komunikatOdmowy($user),
             ]);
         }
 
         RateLimiter::clear($throttleKey);
+
+        // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
+        // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji
+        // na osobnym ekranie. Zapisujemy w sesji WYŁĄCZNIE identyfikator
+        // konta, nie loginujemy go: sesja nieuwierzytelniona nie daje dostępu
+        // do niczego, a `TwoFactorChallengeController` sam sprawdza, czy ten
+        // klucz w ogóle istnieje.
+        if ($user->hasTwoFactorConfirmed()) {
+            $request->session()->regenerate();
+            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+
+            return redirect()->route('login.two_factor');
+        }
+
         $request->session()->regenerate();
+        Auth::login($user, remember: true);
 
         return redirect()->intended(route('home'));
     }

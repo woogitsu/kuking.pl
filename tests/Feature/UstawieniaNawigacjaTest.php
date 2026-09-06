@@ -46,6 +46,7 @@ class UstawieniaNawigacjaTest extends TestCase
             'settings.accessibility',
             'settings.topics',
             'settings.security',
+            'settings.two_factor.edit',
             'settings.privacy',
             'settings.data',
         ];

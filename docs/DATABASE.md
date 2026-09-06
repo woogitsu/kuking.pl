@@ -119,6 +119,83 @@ już wymazano, ten rollback NIE przywraca e-maila ani hasła — tych danych po
 prostu już nie ma, to nie jest strata spowodowana cofnięciem migracji. Same
 konta nie zmieniają zachowania: nadal się nie logują.
 
+#### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
+
+Migracja `2026_09_06_120000_add_two_factor_to_users_table` (issue #12).
+`docs/SECURITY_PRIVACY_LEGAL.md`: „MFA obowiązkowe dla adminów" — konto
+moderatora widzi zgłoszenia, cudze ukryte treści i odwołania, więc samo
+hasło już nie wystarcza jako jedyna ochrona.
+
+**DLACZEGO TOTP, NIE KOD E-MAILEM.** Serwis nie ma dziś działającego SMTP
+(zadanie po stronie właściciela) — drugi składnik oparty o e-mail zależałby
+od kanału, który nie działa. TOTP liczy kod lokalnie w aplikacji telefonu
+(Google Authenticator, Aegis, 1Password…), offline, z samego sekretu
+i aktualnego czasu. Biblioteka: `pragmarx/google2fa` (RFC 6238, jedna
+zależność — `paragonie/constant_time_encoding`) plus `bacon/bacon-qr-code`
+do narysowania kodu QR jako SVG bez żadnego wywołania sieciowego (patrz
+`App\Domain\Security\TwoFactorAuthenticator` — uzasadnienie wyboru obu
+bibliotek jest w komentarzu klasy).
+
+Kolumny na `users`:
+
+- `two_factor_secret` — sekret TOTP, **zaszyfrowany** (cast `encrypted`
+  w `App\Models\User`). Wyciek kopii bazy nie może oddawać drugiego
+  składnika logowania.
+- `two_factor_backup_codes` — kody zapasowe, **wyłącznie jako tablica
+  skrótów** (cast `encrypted:array`, każdy element to `Hash::make()`, nigdy
+  kod wprost). Kod jest USUWANY z tablicy po zużyciu — to jednocześnie
+  realizuje „kod działa raz" i nie potrzebuje osobnej kolumny na zliczanie.
+- `two_factor_confirmed_at` — 2FA jest zapisane na koncie od razu przy
+  wejściu na ekran włączenia (żeby kod QR nie zmieniał się przy
+  odświeżeniu), ale NIEAKTYWNE, dopóki człowiek nie poda pierwszego
+  poprawnego kodu. Dopiero wtedy ta kolumna się wypełnia — i dopiero wtedy
+  `User::hasTwoFactorConfirmed()` zaczyna wymagać kodu przy logowaniu
+  i wejściu do `/admin`.
+- `two_factor_last_used_at` — **NIE jest to `timestamptz`**, mimo nazwy: to
+  surowy licznik czasu Uniksa zwracany przez `Google2FA::verifyKeyNewer()`,
+  używany wyłącznie do odrzucenia PONOWNIE wpisanego kodu (ochrona przed
+  atakiem powtórzenia — bez tego ten sam sześciocyfrowy kod, ważny przez
+  całe okno tolerancji ±30 s, dałoby się użyć dwukrotnie). Aplikacja nigdy
+  nie odpytuje tej kolumny funkcjami dat, tylko przekazuje ją z powrotem do
+  tej samej biblioteki — stąd `bigint`, nie `timestamptz`.
+
+```sql
+ALTER TABLE users
+ADD CONSTRAINT users_two_factor_confirmed_requires_secret_check
+CHECK (two_factor_confirmed_at IS NULL OR two_factor_secret IS NOT NULL);
+```
+
+Bez tego CHECK dałoby się (błędem aplikacji albo ręczną operacją na bazie)
+zapisać konto z `confirmed_at` bez sekretu — czyli konto, które wymaga kodu
+2FA, ale nie ma z czego go policzyć. Baza tego po prostu nie przyjmie
+(AGENTS.md §6: ograniczenie ma być w bazie, nie tylko w walidacji PHP).
+
+**Limit prób** kodu (`config('kuking.limits.two_factor')`, domyślnie 5 prób
+na minutę) liczy się PO KONCIE, nie po adresie IP — kod ma sześć cyfr, więc
+bez limitu jest do odgadnięcia, a limit tylko po IP omijałby rozproszony
+atak z wielu adresów.
+
+**Blokada `/admin/**`:** middleware `EnsureModeratorHasTwoFactor` (alias
+`moderator.2fa`), zawsze DRUGI w trasie po `moderator` — dzięki temu zwykły
+użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
+sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
+z przyciskiem do włączenia (403), nie ścianę.
+
+**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
+bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
+zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
+SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
+znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
+awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+
+**Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
+ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".
+Jedyna droga to `php artisan kuking:2fa-wylacz {login}` — komenda konsolowa
+wymagająca dostępu do serwera, uruchamiana PO zweryfikowaniu tożsamości tej
+osoby poza serwisem. Celowo bez ścieżki samoobsługowej: samoobsługowy reset
+2FA zwykłym linkiem unieważniałby sens 2FA (ktoś, kto ukradnie samo hasło,
+resetowałby drugi składnik tą samą drogą).
+
 ### profiles
 - user_id;
 - username;

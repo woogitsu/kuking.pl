@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
@@ -124,6 +126,16 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
         ->middleware("throttle:{$limits['password_reset']}")
         ->name('password.update');
+
+    // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
+    // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze
+    // NIE JEST sesja zalogowana (LoginController zapisuje tu tylko
+    // identyfikator konta w sesji, patrz TwoFactorChallengeController) —
+    // ktoś już zalogowany nie ma po co tu wracać.
+    Route::get('/logowanie/kod', [TwoFactorChallengeController::class, 'show'])->name('login.two_factor');
+    Route::post('/logowanie/kod', [TwoFactorChallengeController::class, 'store'])
+        ->middleware("throttle:{$limits['two_factor']}")
+        ->name('login.two_factor.store');
 
     // Cofnięcie zgłoszonego usunięcia konta — dla osoby, którą
     // `EnsureAccountIsActive` już wylogowało (status `pending_delete`
@@ -302,6 +314,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
         ->middleware("throttle:{$limits['confirm_password']}")
         ->name('settings.security.logout-others');
+    // Weryfikacja dwuetapowa (2FA), issue #12. Obowiązkowa do wejścia
+    // w panel moderacji (patrz middleware 'moderator.2fa' w grupie /admin
+    // niżej), dla zwykłego konta zostaje opcjonalna.
+    Route::get('/ustawienia/2fa', [TwoFactorSettingsController::class, 'edit'])->name('settings.two_factor.edit');
+    Route::get('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'create'])->name('settings.two_factor.enable');
+    Route::post('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'confirm'])
+        ->middleware("throttle:{$limits['two_factor']}")
+        ->name('settings.two_factor.confirm');
+    Route::get('/ustawienia/2fa/kody-zapasowe', [TwoFactorSettingsController::class, 'codes'])->name('settings.two_factor.codes');
+    Route::post('/ustawienia/2fa/wylacz', [TwoFactorSettingsController::class, 'disable'])->name('settings.two_factor.disable');
 
     // Odwołanie od decyzji moderacyjnej — droga dla osób, które MOGĄ wejść
     // do serwisu (aktywnych i zawieszonych). Wejście jest z powiadomienia
@@ -325,7 +347,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
 // Moderacja
 // --------------------------------------------------------------------------
 
-Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): void {
+// 'moderator.2fa' (issue #12) idzie ZAWSZE po 'moderator': zwykły
+// użytkownik ma dalej dostawać 404 z EnsureUserIsModerator, nie dotrzeć
+// do sprawdzenia 2FA, o którym nie musi wiedzieć, że istnieje.
+Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->group(function (): void {
     Route::get('/zgloszenia', [ModerationController::class, 'reports'])->name('admin.reports');
     Route::post('/zgloszenia/{report}', [ModerationController::class, 'decide'])->name('admin.reports.decide');
 

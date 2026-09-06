@@ -27,6 +27,7 @@
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
         'topics' => ['settings.topics', 'Tematy', 'Co Cię interesuje w kuchni'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
+        'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
         'data' => ['settings.data', 'Twoje dane', 'Pobranie danych i usunięcie konta'],
     ];
