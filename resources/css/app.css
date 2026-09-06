@@ -315,6 +315,24 @@
     border: 1px solid var(--color-accent);
   }
 
+  /*
+     Link w ramce informacyjnej bierze kolor RAMKI, nie marki.
+
+     Kolor marki jest dobrany do tła strony. W trybie ciemnym to jasny łosoś
+     (#F2986A) — a `.notice` ma wtedy jasne, bursztynowe tło (#E3B341).
+     Jasne na jasnym: axe policzył kontrast poniżej progu AA i miał rację.
+
+     Zauważył to dopiero automat naprawiony w #89. Wcześniej strona przepisu
+     była badana WYŁĄCZNIE jako zalogowany, a tę ramkę („zaloguj się, żeby
+     zapisać przepis") widzi tylko gość — więc ten element nie trafił pod
+     axe ani razu.
+
+     Podkreślenie zostaje, więc link nadal odróżnia się nie tylko kolorem.
+     --------------------------------------------------------------------- */
+  .notice a {
+    color: var(--color-accent-tint-ink);
+  }
+
   /* ---------------------------------------------------------------------
      Treść społeczności
      --------------------------------------------------------------------- */
