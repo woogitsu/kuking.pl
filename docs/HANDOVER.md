@@ -60,12 +60,14 @@ owner asked for it in English.
 
 - **950 tests pass** (was 889 at the start of this session), PHPStan clean
   (level 1 + Larastan), Pint clean.
-- Accessibility automation (`node scripts/dostepnosc.mjs`): **0 axe violations**
-  across all four variants, 0 topbar misalignments, 0 inconsistent page widths.
-  One **known and pre-existing** horizontal overflow remains: the recipe screen
-  at 320 px with text at 150% (327 px against a 320 px window, `section.card`).
-  Verified as pre-existing by running the automation on the code from before
-  this session's changes.
+- Accessibility automation (`node scripts/dostepnosc.mjs`): **everything green**
+  — 0 axe violations across all four variants, 0 horizontal overflows,
+  0 topbar misalignments, 0 inconsistent page widths. The last overflow (the
+  recipe screen at 320 px with text at 150%) was fixed at the end of the
+  session: `.przepis-siatka` had no `grid-template-columns`, so its single
+  column sized to `auto` and a grid item will not shrink below its min-content
+  width — 310.5 px against a 288 px container. `minmax(0, 1fr)` fixes it, the
+  same idiom the ≥60rem rule a few lines below already used.
 - Seven audit waves have been delivered by the owner. **Wave 7 is now mostly
   closed** — see §4.
 - Closed in the previous session: **#107, #109, #110, #111, #112, #113, #116**.
@@ -176,10 +178,11 @@ matrix.
 - **#114 / #115** — analytics: the `kuking:wac` command (P0) and
   `photo_upload_failed` / `search_performed` instrumentation.
 - **UI kit v2 stage D** — search, profile/archive as a photo grid, the `/dodaj`
-  flow, mobile menu. Two findings from the survey are worth carrying over: the
-  profile still uses Laravel's numbered pagination instead of `<x-show-more>`
-  (against AGENTS.md §5), and **Settings are unreachable by touch on a phone** —
-  the theme switch in the footer only partly fixes this.
+  flow, mobile menu. One finding from the survey is still open: **Settings are
+  unreachable by touch on a phone** — the theme switch in the footer only
+  partly fixes this. (The other one, numbered pagination on the profile, was
+  fixed; `PaginacjaToPokazWiecejTest` now guards the rule, with the moderation
+  queue deliberately exempt.)
 - Leftovers from waves 3, 5 and 6 that were never reached: W3-03, W3-06, W3-07,
   W3-10, W3-11, W3-15..W3-18; W5-03, W5-04, W5-06, W5-07, W5-10..W5-25;
   W6-03, W6-04, W6-08, W6-09, W6-10, W6-11, W6-13..W6-17. (W5-05 is now closed
