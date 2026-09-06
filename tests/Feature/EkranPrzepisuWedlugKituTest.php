@@ -147,17 +147,36 @@ class EkranPrzepisuWedlugKituTest extends TestCase
             ->assertSee('Zalej mięso zimną wodą i gotuj bez pokrywki.', escape: false);
     }
 
-    public function test_ekran_przepisu_jest_szeroki_a_tekst_ciagly_nie(): void
+    public function test_ekran_przepisu_nie_ma_wlasnej_szerokosci_a_tekst_ciagly_ma_sufit(): void
     {
-        // Sufit czytelności nie znika razem z szerszą kolumną — przenosi się
-        // na pojedyncze bloki. Bez `kolumna-czytania` wstęp i komentarze
-        // rozciągają się na ~95 znaków w wierszu.
+        // TEN TEST ZMIENIŁ ZNAK, I TO NIE JEST POMYŁKA.
+        //
+        // Etap C kitu dał ekranowi przepisu wyjątek `app-main-szeroka`:
+        // dwukolumnowy układ (zdjęcie obok panelu, składniki obok kroków)
+        // dusił się w 45rem, więc ten jeden ekran brał całą szerokość, jaka
+        // zostawała po nawigacji. Test pilnował, żeby wyjątek nie zniknął.
+        //
+        // Właściciel zdecydował inaczej: szerokość strony ma być IDENTYCZNA na
+        // każdej podstronie, bo nawigacja boczna przeskakiwała mu między
+        // ekranami. Przy stałej siatce (nawigacja + treść + szyna, zawsze trzy
+        // kolumny) `max-width: none` na <main> i tak przestało cokolwiek
+        // robić — kolumna środkowa ma 45rem niezależnie od ekranu. Wyjątek
+        // został więc usunięty razem z martwą regułą CSS, a nie „zapomniany".
+        //
+        // Co zostaje bez zmian i dlatego dalej jest asertowane: sufit
+        // czytelności na POJEDYNCZYCH blokach ciągłego tekstu. Bez
+        // `kolumna-czytania` wstęp i komentarze rozciągnęłyby się na całą
+        // szerokość kolumny, a to jest ta sama usterka co zawsze.
+        //
+        // Jeśli ekran przepisu okaże się przez to za ciasny, właściwą
+        // odpowiedzią jest oddanie mu KOLUMNY SZYNY (której nie używa), a nie
+        // przywrócenie osobnej szerokości całej strony.
         $przepis = $this->przepis();
         $przepis->update(['summary' => 'Rosół, który u nas stoi na kuchni od niedzieli rano.']);
 
         $html = $this->get(route('recipes.show', $przepis->slug))->assertOk()->getContent();
 
-        $this->assertStringContainsString('app-main-szeroka', $html);
+        $this->assertStringNotContainsString('app-main-szeroka', $html);
         $this->assertStringContainsString('kolumna-czytania', $html);
     }
 }

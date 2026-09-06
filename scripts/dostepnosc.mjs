@@ -710,6 +710,7 @@ log('Wyrównanie belki do siatki treści:');
 const EKRANY_WYROWNANIA = [
   { nazwa: 'tablica (z szyną)', adres: '/home', zalogowany: true },
   { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
+  { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
   { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
 ];
 
@@ -719,6 +720,12 @@ const EKRANY_WYROWNANIA = [
 const SZEROKOSCI_WYROWNANIA = SZYBKO ? [1512] : [1024, 1280, 1512];
 
 const rozjazdyBelki = [];
+
+/** Krawędzie siatki pierwszego zmierzonego ekranu zalogowanego, per szerokość. */
+const krawedzieZalogowanego = new Map();
+
+/** Podstrony zalogowanego, które mają inną szerokość niż pierwsza zmierzona. */
+const niespojneSzerokosci = [];
 
 for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
   const kontekstGoscia = await przegladarka.newContext({
@@ -745,11 +752,21 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       const ramka = body.getBoundingClientRect();
       const styl = getComputedStyle(body);
 
+      const stopka = document.querySelector('.site-footer-inner');
+      const stylStopki = stopka ? getComputedStyle(stopka) : null;
+      const ramkaStopki = stopka ? stopka.getBoundingClientRect() : null;
+
       return {
         oczekiwanaLewa: Math.round(ramka.left + parseFloat(styl.paddingLeft)),
         oczekiwanaPrawa: Math.round(ramka.right - parseFloat(styl.paddingRight)),
         lewa: Math.round(logotyp.getBoundingClientRect().left),
         prawa: Math.round(akcje.getBoundingClientRect().right),
+        stopkaLewa: ramkaStopki
+          ? Math.round(ramkaStopki.left + parseFloat(stylStopki.paddingLeft))
+          : null,
+        stopkaPrawa: ramkaStopki
+          ? Math.round(ramkaStopki.right - parseFloat(stylStopki.paddingRight))
+          : null,
       };
     });
 
@@ -764,19 +781,53 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     // Jeden piksel tolerancji na zaokrąglenie — układ liczy się w ułamkach.
     const bladLewej = Math.abs(pomiar.lewa - pomiar.oczekiwanaLewa);
     const bladPrawej = Math.abs(pomiar.prawa - pomiar.oczekiwanaPrawa);
+    const bladStopkiL = pomiar.stopkaLewa === null
+      ? 0 : Math.abs(pomiar.stopkaLewa - pomiar.oczekiwanaLewa);
+    const bladStopkiP = pomiar.stopkaPrawa === null
+      ? 0 : Math.abs(pomiar.stopkaPrawa - pomiar.oczekiwanaPrawa);
 
-    if (bladLewej > 1 || bladPrawej > 1) {
-      rozjazdyBelki.push({ ekran: ekran.nazwa, szerokosc, ...pomiar, bladLewej, bladPrawej });
+    if (bladLewej > 1 || bladPrawej > 1 || bladStopkiL > 1 || bladStopkiP > 1) {
+      rozjazdyBelki.push({
+        ekran: ekran.nazwa, szerokosc, ...pomiar,
+        bladLewej, bladPrawej, bladStopkiL, bladStopkiP,
+      });
+    }
+
+    // DRUGA, OSOBNA REGUŁA: siatka ma stać w TYM SAMYM MIEJSCU na wszystkich
+    // ekranach zalogowanego. To jest dokładnie to, co zgłosił właściciel —
+    // nawigacja boczna przeskakiwała mu między podstronami, bo strona
+    // z prawą szyną była szersza niż strona bez niej. Sprawdzenie wyżej tego
+    // nie łapie: tam każda podstrona porównuje się sama ze sobą.
+    if (! ekran.zalogowany) continue;
+
+    const wzorzec = krawedzieZalogowanego.get(szerokosc);
+
+    if (! wzorzec) {
+      krawedzieZalogowanego.set(szerokosc, { ekran: ekran.nazwa, ...pomiar });
+    } else if (
+      Math.abs(wzorzec.oczekiwanaLewa - pomiar.oczekiwanaLewa) > 1
+      || Math.abs(wzorzec.oczekiwanaPrawa - pomiar.oczekiwanaPrawa) > 1
+    ) {
+      niespojneSzerokosci.push({
+        szerokosc,
+        pierwszy: wzorzec.ekran,
+        pierwszyOd: wzorzec.oczekiwanaLewa,
+        pierwszyDo: wzorzec.oczekiwanaPrawa,
+        drugi: ekran.nazwa,
+        drugiOd: pomiar.oczekiwanaLewa,
+        drugiDo: pomiar.oczekiwanaPrawa,
+      });
     }
   }
 
   await kontekstGoscia.close();
   await kontekstZalogowanego.close();
 
-  const zlych = rozjazdyBelki.filter((r) => r.szerokosc === szerokosc).length;
+  const zlych = rozjazdyBelki.filter((r) => r.szerokosc === szerokosc).length
+    + niespojneSzerokosci.filter((r) => r.szerokosc === szerokosc).length;
 
   log(`  ${zlych === 0 ? '✓' : '✗'} ${szerokosc} px`
-    + (zlych ? ` — ${zlych} z ${EKRANY_WYROWNANIA.length} ekranów` : ''));
+    + (zlych ? ` — ${zlych} niezgodności` : ''));
 }
 
 await przegladarka.close();
@@ -800,13 +851,16 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     szerokosci: SZEROKOSCI_WYROWNANIA,
     rozjazdow: rozjazdyBelki.length,
     rozjazdy: rozjazdyBelki,
+    niespojnychSzerokosci: niespojneSzerokosci.length,
+    niespojneSzerokosci,
   },
 }, null, 2));
 
 log('');
 log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
-  + `rozjazdów belki: ${rozjazdyBelki.length})`);
+  + `rozjazdów belki: ${rozjazdyBelki.length}, `
+  + `niespójnych szerokości: ${niespojneSzerokosci.length})`);
 
 if (przepelnienia.length > 0) {
   log('');
@@ -835,7 +889,21 @@ if (rozjazdyBelki.length > 0) {
   }
 }
 
-if (blokujacych > 0 || przepelnienia.length > 0 || rozjazdyBelki.length > 0) {
+if (niespojneSzerokosci.length > 0) {
+  log('');
+  log('Podstrony zalogowanego mają różną szerokość (nawigacja przeskakuje):');
+  for (const n of niespojneSzerokosci) {
+    log(`  przy ${n.szerokosc} px: „${n.pierwszy}" ${n.pierwszyOd}…${n.pierwszyDo}, `
+      + `a „${n.drugi}" ${n.drugiOd}…${n.drugiDo}`);
+  }
+}
+
+if (
+  blokujacych > 0
+  || przepelnienia.length > 0
+  || rozjazdyBelki.length > 0
+  || niespojneSzerokosci.length > 0
+) {
   process.exit(1);
 }
 

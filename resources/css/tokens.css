@@ -131,30 +131,42 @@
   /* --- Kontenery treści --- */
   --container-content: 45rem;  /* 720px — centralna kolumna, ~65–75 znaków przy 18-20px */
   --container-sidenav: 15rem;  /* 240px — SideNav desktop */
-  --container-wide: 70rem;     /* 1120px — całość na dużym desktopie (SideNav + treść) */
   --container-rail: 22rem;     /* 352px — prawa szyna (UI kit v2, ekran 01) */
-  --container-ultra: 92rem;    /* 1472px — SideNav + treść + szyna */
+  --container-wide: 70rem;     /* 1120px — patrz uwaga niżej, dziś nieużywane */
+  --container-ultra: 92rem;    /* 1472px — patrz uwaga niżej, dziś nieużywane */
 
-  /* Szerokości BELKI GÓRNEJ — patrz „BELKA STOI W TEJ SAMEJ SIATCE" w app.css.
-     To nie są nowe wymiary, tylko suma tego, co `.app-body` naprawdę zajmuje:
-     jego kolumny plus odstępy między nimi plus marginesy boczne. Siatka jest
-     zwężana do zawartości (jest elementem `flex` z `margin: 0 auto`), więc
-     NIGDY nie dochodzi do `--container-wide` ani `--container-ultra` — te dwa
-     tokeny są sufitem, nie szerokością. Zmierzone w Chromium: 1040 px bez
-     szyny i 1424 px z szyną, przy oknie 1512 px.
+  /* --- SZEROKOŚĆ STRONY: JEDNA LICZBA DLA TRZECH WARSTW -------------------
+     Belka górna, siatka treści i stopka MUSZĄ mieć tę samą szerokość, bo
+     inaczej logotyp nie stoi nad nawigacją, a stopka zaczyna się w innym
+     miejscu niż treść. Wcześniej każda z tych trzech warstw liczyła sobie
+     szerokość osobno i żadna nie zgadzała się z pozostałymi.
 
-     Gdy zmieni się którykolwiek składnik siatki, te sumy zmienią się razem
-     z nim — dlatego calc(), a nie wpisane 65rem i 89rem. */
-  --container-belka: calc(
+     Do tego siatka nie osiągała nawet swojego `max-width`: `.app-body` jest
+     elementem `flex` z `margin: 0 auto`, a automatyczny margines w poprzek
+     osi wyłącza rozciąganie, więc zwężała się do zawartości. Skutek widział
+     właściciel: nawigacja boczna przeskakiwała między podstronami, bo
+     szerokość strony zależała od tego, czy dana podstrona ma prawą szynę.
+     Zmierzone przy oknie 1512 px: 1424 px z szyną, 1040 px bez, 768 px
+     u gościa — trzy różne strony w jednym serwisie.
+
+     Teraz jest jedna szerokość dla wszystkich ekranów zalogowanego:
+     nawigacja + treść + szyna, nawet gdy szyny na danym ekranie nie ma
+     (wtedy trzecia kolumna zostaje pusta). Dzięki temu kolumna czytania ma
+     zawsze 45rem, a nawigacja zawsze ten sam x.
+
+     `--container-wide` i `--container-ultra` zostają na razie w pliku, ale
+     NIC ich już nie używa — były sufitem, którego układ nigdy nie dotykał.
+     ------------------------------------------------------------------- */
+  --container-strona: calc(
     var(--container-sidenav) + var(--spacing-8) + var(--container-content)
     + 2 * var(--spacing-6)
-  );                           /* 1040px — belka nad układem bez szyny */
-  --container-belka-z-szyna: calc(
-    var(--container-belka) + var(--spacing-8) + var(--container-rail)
-  );                           /* 1424px — belka nad układem z szyną */
-  --container-belka-solo: calc(
+  );                           /* 1040px — dwie kolumny (64rem–80rem) */
+  --container-strona-z-szyna: calc(
+    var(--container-strona) + var(--spacing-8) + var(--container-rail)
+  );                           /* 1424px — trzy kolumny (od 80rem) */
+  --container-strona-solo: calc(
     var(--container-content) + 2 * var(--spacing-6)
-  );                           /* 768px — belka nad stroną gościa (bez nawigacji) */
+  );                           /* 768px — gość: bez nawigacji i bez szyny */
 }
 
 /* =============================================================================

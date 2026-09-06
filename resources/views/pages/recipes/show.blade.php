@@ -14,7 +14,6 @@
          czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
          który zbierają scrapery. --}}
     :image="$isPublic ? $recipe->heroMedia : null"
-    :wide="true"
     ogType="article">
 
     <x-slot:head>

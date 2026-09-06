@@ -12,7 +12,6 @@
     'title' => null,
     'description' => null,
     'noindex' => false,
-    'wide' => false,
     // Livewire dociągamy TYLKO na stronach, które go naprawdę używają
     // (dziś: kreator przepisu). Reszta serwisu działa bez tego skryptu
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
@@ -143,14 +142,14 @@
     @endif
     {{ $head ?? '' }}
 </head>
-<body>
+{{-- `uklad-solo` steruje szerokością belki i stopki dla gościa — musi iść
+     w parze z `app-body-solo` na siatce niżej. Jedna klasa na <body>, bo
+     belka i stopka stoją POZA `.app-body` i inaczej nie mają skąd wiedzieć,
+     że ta strona nie ma ani nawigacji bocznej, ani szyny. --}}
+<body class="@guest uklad-solo @endguest">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
-    {{-- `topbar-z-szyna` MUSI iść w parze z `app-body-z-szyna` niżej:
-         belka liczy swoją szerokość z tych samych tokenów co siatka pod
-         spodem, żeby logotyp licował z nawigacją, a akcje z szyną.
-         Warunek jest ten sam (`isset($rail)`) i to nie przypadek. --}}
-    <header class="topbar @guest topbar-solo @endguest @isset($rail) topbar-z-szyna @endisset">
+    <header class="topbar">
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 {{-- Znak wklejony wprost, nie przez <img> — inaczej nie
@@ -247,7 +246,7 @@
              niżej: siatka na desktopie rezerwuje pierwszą kolumnę na
              nawigację, więc bez niej treść wpadłaby w kolumnę szeroką na
              15rem. Pilnuje tego test UkladGosciaTest. --}}
-        <div class="app-body @guest app-body-solo @endguest @if(isset($rail)) app-body-z-szyna @endif">
+        <div class="app-body @guest app-body-solo @endguest">
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
@@ -297,21 +296,22 @@
             @endauth
 
             {{--
-                `wide` PODNOSI SUFIT SZEROKOŚCI, NIE ZDEJMUJE GO.
+                KOLUMNA CZYTANIA MA 45rem NA KAŻDYM EKRANIE.
 
-                Domyślna kolumna ma 45rem, bo tyle wychodzi 65–75 znaków przy
-                18–20 px (docs/UX_50_PLUS.md). Ekran przepisu z kitu v2 jest
-                jednak DWUKOLUMNOWY — zdjęcie obok panelu z liczbami, składniki
-                obok kroków — i w 45rem obie kolumny robią się węższe niż
-                jedna czytelna. Dlatego ten jeden ekran dostaje całą szerokość,
-                jaka zostaje po nawigacji.
+                Tyle wychodzi 65–75 znaków przy 18–20 px (docs/UX_50_PLUS.md).
+                Wcześniej ekran przepisu miał od tego wyjątek (`wide`), bo
+                jego dwukolumnowy układ z kitu v2 dusił się w 45rem. Wyjątek
+                zniknął razem ze stałą siatką: właściciel zdecydował, że
+                szerokość strony ma być identyczna na każdej podstronie, a przy
+                stałej siatce `max-width: none` na <main> i tak nie robiło już
+                nic — kolumna środkowa ma dokładnie 45rem niezależnie od tego,
+                czy dany ekran podaje szynę.
 
-                Warunek: na stronie szerokiej NIE MOŻE stać akapit na pełną
-                szerokość. Każdy blok z ciągłym tekstem trzyma własny sufit
-                (`.kolumna-czytania`). Bez tego linia rośnie do ~95 znaków
-                i wracamy dokładnie do problemu, przed którym broni 45rem.
+                Jeśli ekran przepisu okaże się przez to za ciasny, właściwą
+                odpowiedzią jest oddanie mu KOLUMNY SZYNY (której i tak nie
+                używa), a nie rozpychanie całej strony.
             --}}
-            <main class="app-main @if($wide) app-main-szeroka @endif" id="tresc">
+            <main class="app-main" id="tresc">
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił. --}}
                 <div aria-live="polite">
                     @if(session('status'))
