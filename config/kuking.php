@@ -125,6 +125,10 @@ return [
         'post' => '20,10',
         'report' => '10,10',
         'search' => '60,1',
+        // Zgłoszenia naruszeń CSP wysyła sama przeglądarka. Jedna zapętlona
+        // wtyczka potrafi wysłać setki na minutę, a każde to wpis w logu —
+        // stąd limit wyraźnie wyższy niż przy formularzach, ale skończony.
+        'csp_report' => '60,1',
     ],
 
     'exports' => [

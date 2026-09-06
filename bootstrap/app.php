@@ -57,7 +57,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Gdy sesja wygaśnie w trakcie wypełniania formularza, użytkownik
         // wraca na tę samą stronę z wpisanymi danymi, a nie na ekran błędu.
-        $middleware->validateCsrfTokens(except: []);
+        // Zgłoszenia naruszeń CSP wysyła SAMA PRZEGLĄDARKA: bez sesji,
+        // bez tokenu, często z innego kontekstu niż strona. Token CSRF jest
+        // tu niemożliwy do podania, a nie „pominięty dla wygody".
+        // Endpoint niczego nie zapisuje do bazy i zawsze zwraca 204 —
+        // patrz CspReportController.
+        $middleware->validateCsrfTokens(except: ['_csp']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
