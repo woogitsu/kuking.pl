@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Domain\Notifications\Actions\NotifyUser;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
+use App\Models\Notification;
 use App\Models\Post;
+use App\Models\Profile;
 use App\Models\Topic;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +26,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class PublishPost
 {
+    public function __construct(private readonly NotifyUser $notify) {}
+
     /**
      * @param  list<string>  $mediaIds  identyfikatory już wgranych zdjęć, w kolejności
      */
@@ -90,7 +95,63 @@ final class PublishPost
             ip: $ip,
         );
 
+        $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
+
         return $post;
+    }
+
+    /**
+     * Pierwszy wpis nowej osoby — powiadomienie dla gospodarza (issue #6).
+     *
+     * 55% osób 55-64 i 62% osób 65+ w mediach społecznościowych to WYŁĄCZNIE
+     * odbiorcy treści. Kto opublikuje pierwszy raz, robi to wbrew własnemu
+     * nawykowi — i jeśli nikt nie odpowie, drugi raz już nie spróbuje.
+     *
+     * Powiadomienie idzie NATYCHMIAST, a nie przy najbliższym zajrzeniu
+     * do panelu: doba to cały budżet czasu, jaki mamy na odpowiedź.
+     *
+     * Wpis prywatny pomijamy — nikt poza autorem go nie widzi, więc nie ma
+     * na co odpowiadać.
+     */
+    private function powiadomGospodarzaOPierwszymWpisie(User $author, Post $post): void
+    {
+        if ($post->visibility === Post::VISIBILITY_PRIVATE) {
+            return;
+        }
+
+        // Liczymy DOKŁADNIE DO DWÓCH: przy autorze z dwustoma wpisami
+        // pełne `count()` przelicza całą historię, żeby odpowiedzieć
+        // na pytanie „czy to pierwszy".
+        $ilePierwszych = Post::query()
+            ->where('author_id', $author->getKey())
+            ->published()
+            ->limit(2)
+            ->count();
+
+        if ($ilePierwszych !== 1) {
+            return;
+        }
+
+        $nazwaGospodarza = (string) config('kuking.community.host_username');
+
+        if ($nazwaGospodarza === '') {
+            return;
+        }
+
+        $gospodarz = Profile::poNazwie($nazwaGospodarza)?->user;
+
+        // `NotifyUser` sam pomija sytuację, w której gospodarz jest autorem —
+        // a to jest częsty przypadek przy pierwszych dwudziestu osobach.
+        if ($gospodarz === null) {
+            return;
+        }
+
+        $this->notify->handle(
+            recipient: $gospodarz,
+            type: Notification::TYPE_FIRST_POST,
+            actor: $author,
+            data: ['post_id' => $post->getKey(), 'display_name' => $author->displayName()],
+        );
     }
 
     private function cleanBody(?string $body): ?string

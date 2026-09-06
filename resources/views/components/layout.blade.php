@@ -217,6 +217,7 @@
                         <li><a class="side-nav-item" href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif><x-ikona nazwa="chef" /> Świeżo z Kuking</a></li>
                         <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
                         @if($user->isModerator())
+                            <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi</a></li>
                             <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
                             {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
                                  to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
