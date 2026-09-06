@@ -56,6 +56,63 @@ final class LimityZdjec
         return (int) config('kuking.media.max_per_post');
     }
 
+    /**
+     * Formaty, które naprawdę umiemy przetworzyć.
+     *
+     * @return list<string>
+     */
+    public static function dozwoloneTypy(): array
+    {
+        return array_values((array) config('kuking.media.accepted_mime_types'));
+    }
+
+    /**
+     * Wartość atrybutu `accept` dla pola wyboru pliku.
+     *
+     * DLACZEGO Z KONFIGURACJI, A NIE WPISANA W WIDOKU
+     * Ta lista stała wpisana na sztywno w SIEDMIU widokach. Gdy okazało się,
+     * że HEIC-a nie umiemy przetworzyć, trzeba było poprawić siedem miejsc
+     * zamiast jednego — a przeoczenie jednego z nich znaczyłoby, że jeden
+     * formularz nadal podpowiada format, który serwis odrzuci. To ten sam
+     * rodzaj rozjazdu, dla którego powstała cała ta klasa.
+     *
+     * `accept` NIE JEST WALIDACJĄ — to podpowiedź dla okna wyboru pliku,
+     * którą da się obejść. Prawdziwe sprawdzenie jest w `StoreUploadedImage`,
+     * po zawartości pliku. Ale ta podpowiedź ma znaczenie: iOS potrafi
+     * przekonwertować zdjęcie HEIC do JPEG przy wysyłce WŁAŚNIE WTEDY, gdy
+     * formularz nie deklaruje, że HEIC przyjmie. Deklarowanie go było więc
+     * gorsze niż bezużyteczne — mogło wyłączać konwersję, która działa sama.
+     */
+    public static function atrybutAccept(): string
+    {
+        return implode(',', self::dozwoloneTypy());
+    }
+
+    /**
+     * Nazwy formatów dla człowieka — do komunikatów, nie do walidacji.
+     */
+    public static function formatyDlaCzlowieka(): string
+    {
+        $nazwy = array_map(
+            static fn (string $mime): string => match ($mime) {
+                'image/jpeg' => 'JPG',
+                'image/png' => 'PNG',
+                'image/webp' => 'WebP',
+                'image/avif' => 'AVIF',
+                default => mb_strtoupper(str_replace('image/', '', $mime)),
+            },
+            self::dozwoloneTypy(),
+        );
+
+        if (count($nazwy) < 2) {
+            return implode('', $nazwy);
+        }
+
+        $ostatni = array_pop($nazwy);
+
+        return implode(', ', $nazwy).' albo '.$ostatni;
+    }
+
     public static function komunikatZaDuzyPlik(): string
     {
         return 'Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to '.self::maksMegabajtowDoKomunikatu().' MB.';

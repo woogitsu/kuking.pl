@@ -47,13 +47,26 @@ return [
         // gigantyczny. Limit liczony przed dekodowaniem całości.
         'max_megapixels' => (int) env('KUKING_MEDIA_MAX_MEGAPIXELS', 50),
 
+        // Formaty, które NAPRAWDĘ umiemy przetworzyć — nie te, które umiemy
+        // rozpoznać. To dwie różne listy i pomylenie ich było błędem.
+        //
+        // BEZ HEIC/HEIF, ŚWIADOMIE. Były tu, bo `mime_content_type()` je
+        // rozpoznaje. Ale rozpoznanie nie jest obsługą:
+        //   * PHP 8.4 nie ma `IMAGETYPE_HEIC` ani `IMAGETYPE_HEIF`, więc
+        //     `getimagesize()` w `StoreUploadedImage` zwraca dla nich `false`;
+        //   * GD (`ImageManager::gd()` w `ProcessUploadedImage`) nie dekoduje
+        //     HEIC — obraz `gd_info()` ma JPEG, PNG, WebP, AVIF i GIF, nic więcej.
+        // Wpisanie ich tutaj nie dawało więc obsługi, tylko obietnicę: pole
+        // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
+        // wygląda na zdjęcie" komuś, kto trzyma w ręku zwykłą fotografię.
+        //
+        // Dodanie prawdziwej obsługi (libheif + Imagick albo vips w obrazie
+        // Dockera) to osobna decyzja z realnym kosztem — patrz issue o HEIC.
         'accepted_mime_types' => [
             'image/jpeg',
             'image/png',
             'image/webp',
             'image/avif',
-            'image/heic',
-            'image/heif',
         ],
 
         // Warianty generowane w tle (docs/MEDIA_PIPELINE.md).

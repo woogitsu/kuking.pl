@@ -825,7 +825,7 @@ new class extends Component
                      megabajtów miała jedno źródło (`LimityZdjec`) i nie
                      rozjechała się z `config/kuking.php` — issue #111. --}}
                 <input class="field-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
-                       accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
                        aria-describedby="f-heroPhoto-help">
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror

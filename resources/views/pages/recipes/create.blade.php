@@ -48,7 +48,7 @@
                 <label for="f-hero_photo">Zdjęcie gotowego dania</label>
                 <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
                 <input class="field-input" id="f-hero_photo" type="file" name="hero_photo"
-                       accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-describedby="f-hero_photo-help">
                 @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
             </div>
@@ -140,7 +140,7 @@
                     Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.
                 </span>
                 <input class="field-input" id="f-source_scan" type="file" name="source_scan"
-                       accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-describedby="f-source_scan-help">
                 @error('source_scan')<span class="field-error">{{ $message }}</span>@enderror
             </div>

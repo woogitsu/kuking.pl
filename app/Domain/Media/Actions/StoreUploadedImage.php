@@ -7,6 +7,7 @@ namespace App\Domain\Media\Actions;
 use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
 use App\Models\User;
+use App\Support\LimityZdjec;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -52,14 +53,28 @@ final class StoreUploadedImage
         $info = @getimagesize($file->getRealPath());
 
         if ($info === false) {
-            throw new RuntimeException('Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.');
+            // ZANIM POWIEMY „to nie jest zdjęcie", SPRAWDŹMY, CZY TO NIE HEIC.
+            //
+            // `getimagesize()` nie zna HEIC — PHP 8.4 nie ma nawet stałej
+            // `IMAGETYPE_HEIC` — więc dla zdjęcia prosto z iPhone'a zwraca
+            // `false`. Bez tego rozróżnienia serwis mówił „ten plik nie wygląda
+            // na zdjęcie" komuś, kto właśnie zrobił zdjęcie sernika telefonem.
+            // Człowiek nie ma wtedy żadnej drogi dalej: plik JEST zdjęciem,
+            // widzi go w galerii, a komunikat twierdzi coś przeciwnego.
+            //
+            // `mime_content_type()` HEIC rozpoznaje (to inna biblioteka niż
+            // `getimagesize`), więc da się powiedzieć, co jest naprawdę nie tak
+            // i co z tym zrobić.
+            throw new RuntimeException($this->komunikatNieczytelnegoPliku($file));
         }
 
         [$width, $height] = $info;
         $detectedMime = $info['mime'] ?? null;
 
         if (! in_array($detectedMime, config('kuking.media.accepted_mime_types'), true)) {
-            throw new RuntimeException('Nie obsługujemy tego formatu zdjęć. Wybierz plik JPG, PNG lub WebP.');
+            throw new RuntimeException(
+                'Nie obsługujemy tego formatu zdjęć. Wybierz plik '.LimityZdjec::formatyDlaCzlowieka().'.',
+            );
         }
 
         $megapixels = ($width * $height) / 1_000_000;
@@ -157,6 +172,33 @@ final class StoreUploadedImage
         return ($orientation >= 1 && $orientation <= 8) ? $orientation : null;
     }
 
+    /**
+     * Co powiedzieć, gdy PHP nie umie odczytać pliku jako obrazu.
+     *
+     * HEIC jest domyślnym formatem aparatu w iPhonie od 2017 roku, więc to nie
+     * jest przypadek brzegowy — to najzwyklejszy sposób, w jaki nasza grupa
+     * robi zdjęcia. Zwykle iOS konwertuje takie zdjęcie do JPEG przy wysyłce
+     * sam, ale nie zawsze: przy udostępnianiu z Plików albo z aplikacji innej
+     * niż aparat plik idzie w oryginale.
+     *
+     * Komunikat mówi, CO ZROBIĆ, i podaje drogę, którą da się przejść raz
+     * i mieć spokój — a nie „zmień format", bo osoba, która nie wie, co to
+     * format, nie ma po tym zdaniu żadnego kolejnego kroku.
+     */
+    private function komunikatNieczytelnegoPliku(UploadedFile $file): string
+    {
+        $wykryty = @mime_content_type($file->getRealPath());
+
+        if (in_array($wykryty, ['image/heic', 'image/heif'], true)) {
+            return 'To zdjęcie jest w formacie HEIC, którego jeszcze nie umiemy otworzyć. '
+                .'W iPhonie wejdź w Ustawienia → Aparat → Formaty i wybierz „Najbardziej zgodny” — '
+                .'kolejne zdjęcia zapiszą się jako JPG. To zdjęcie możesz wysłać sobie e-mailem '
+                .'albo otworzyć w Zdjęciach i użyć „Duplikuj”, żeby dostać wersję JPG.';
+        }
+
+        return 'Ten plik nie wygląda na zdjęcie. Wybierz plik '.LimityZdjec::formatyDlaCzlowieka().'.';
+    }
+
     private function extensionFor(string $mime): string
     {
         return match ($mime) {
@@ -164,6 +206,11 @@ final class StoreUploadedImage
             'image/png' => 'png',
             'image/webp' => 'webp',
             'image/avif' => 'avif',
+            // HEIC nie przejdzie już walidacji wyżej, więc tej gałęzi nie da
+            // się dziś osiągnąć. Zostaje, bo w bazie MOGĄ leżeć wiersze zapisane,
+            // gdy format był na liście dozwolonych, a `ExportPhotoPlan` nazywa
+            // po niej pliki w paczce RODO. Usunięcie jej dałoby tym zdjęciom
+            // rozszerzenie `.bin` w archiwum człowieka.
             'image/heic', 'image/heif' => 'heic',
             default => 'bin',
         };

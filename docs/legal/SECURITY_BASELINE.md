@@ -125,7 +125,13 @@ Zgodnie z założeniami z `docs/MEDIA_PIPELINE.md` (flow: signed upload → back
 ### 5.1 Walidacja pliku (nie ufaj rozszerzeniu ani nagłówkowi `Content-Type` z klienta)
 
 - **Magic bytes:** sprawdź rzeczywisty typ pliku po pierwszych bajtach (np. przez `finfo_file()` / bibliotekę typu `league/mime-type-detection`, której Laravel/Flysystem i tak używa wewnętrznie) — porównaj z deklarowanym rozszerzeniem i odrzuć niezgodność.
-- **Dozwolone typy:** whitelist (`image/jpeg`, `image/png`, `image/webp`, ewentualnie `image/heic` z konwersją) — **nigdy** blacklist.
+- **Dozwolone typy:** whitelist (`image/jpeg`, `image/png`, `image/webp`, `image/avif`) — **nigdy** blacklist.
+  Lista jest w `config/kuking.php` → `media.accepted_mime_types` i musi zawierać
+  wyłącznie formaty, które NAPRAWDĘ umiemy otworzyć, a nie te, które umiemy
+  rozpoznać. HEIC/HEIF były tu kiedyś, bo rozpoznaje je `mime_content_type()` —
+  ale `getimagesize()` ich nie czyta (PHP nie ma `IMAGETYPE_HEIC`), a GD nie
+  dekoduje. Efektem była obietnica bez pokrycia. Pilnuje tego test
+  `ObiecujemyTylkoFormatyKtoreUmiemyTest`.
 - **Limit rozmiaru pliku:** np. 15 MB per zdjęcie (dopasuj do realnych potrzeb telefonów użytkowników 50+, które często robią duże zdjęcia).
 - **Limit megapikseli (decompression bomb):** sprawdź wymiary **przed** pełnym dekodowaniem obrazu (np. z nagłówków pliku, nie ładując całego bitmapa do pamięci) i odrzuć obrazy powyżej rozsądnego limitu (np. 40–50 megapikseli) — to chroni przed atakiem typu "mały plik, gigantyczny rozpakowany bitmap", który potrafi zjeść całą pamięć procesu przetwarzającego.
 - **Czy plik faktycznie się dekoduje:** spróbuj dekodować obraz biblioteką przetwarzania (np. Intervention Image / Imagick) w izolowanym procesie/joblu — błąd dekodowania = odrzucenie, nie próba "naprawy" pliku.

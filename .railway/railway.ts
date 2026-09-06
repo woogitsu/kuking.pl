@@ -525,8 +525,15 @@ export default defineRailway((ctx) => {
 
       limitOverride: {
         containers: {
-          // Więcej RAM niż web: dekodowanie zdjęcia 24 Mpx w gd to ~100 MB
-          // na sam bitmap, plus narzut Laravela.
+          // Więcej RAM niż web. Liczby są ZMIERZONE (szczyt RSS procesu przy
+          // przetworzeniu jednego zdjęcia wraz z trzema wariantami, gd, PHP 8.4):
+          //     12 Mpx → 161 MB      24 Mpx → 254 MB      50 Mpx → 452 MB
+          // 50 Mpx to limit z `config/kuking.php`, czyli najgorszy dozwolony
+          // przypadek. 1024 MB zostawia nad nim ponad dwukrotny zapas.
+          //
+          // Wcześniej stało tu „24 Mpx to ~100 MB" — pomiar pokazał 254 MB.
+          // Zapas był więc liczony od liczby wziętej z szacunku 4 bajtów
+          // na piksel, który pomija bufory pośrednie przy skalowaniu.
           memoryBytes: 1024 * MB,
           cpu: 2,
         },

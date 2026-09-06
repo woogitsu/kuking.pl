@@ -16,7 +16,7 @@
                 To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
             </span>
             <input class="field-input" id="f-photos" type="file" name="photos[]"
-                   accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple aria-describedby="f-photos-help">
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
