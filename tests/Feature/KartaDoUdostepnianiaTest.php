@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Posts\Actions\PublishPost;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
@@ -159,6 +161,62 @@ class KartaDoUdostepnianiaTest extends TestCase
         );
 
         $this->assertStringNotContainsString('kuking-udostepnianie.png', $m[1]);
+    }
+
+    /**
+     * Audyt A3: świeżo opublikowany wpis, zdjęcie jeszcze `pending`.
+     *
+     * CO SIĘ DZIAŁO
+     * `Media::url()` wraca do `asset('icons/kuking-mark.svg')`, kiedy
+     * zdjęcie nie ma jeszcze wygenerowanych wariantów (linia z komentarzem
+     * „Pusta ramka jest gorsza niż nic” w app/Models/Media.php) — a warianty
+     * powstają dopiero w zadaniu w tle. Warstwa OG w layout.blade.php woła
+     * `$image?->url('large')` NIE SPRAWDZAJĄC `isReady()`, więc dla świeżego
+     * wpisu `og:image` wskazywał na TEN WŁAŚNIE SVG, mimo że komentarz
+     * kawałek wyżej w tym samym pliku („Zapasowa karta dla stron bez
+     * zdjęcia. SVG tu NIE ZADZIAŁA: Facebook, WhatsApp i Signal go nie
+     * renderują…") sam siebie ostrzega przed dokładnie tym.
+     *
+     * Facebook, Messenger i WhatsApp zapamiętują PIERWSZY pobrany podgląd —
+     * więc link wysłany zaraz po publikacji zostaje bez zdjęcia NA ZAWSZE,
+     * nawet gdy zdjęcie dawno jest gotowe.
+     */
+    public function test_wpis_ze_zdjeciem_niegotowym_nie_podaje_svg_w_karcie(): void
+    {
+        Queue::fake();
+
+        $basia = $this->user('kucharka');
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $basia->getKey(),
+            'status' => Media::STATUS_PENDING,
+        ]);
+
+        $wpis = app(PublishPost::class)->handle(
+            author: $basia,
+            body: null,
+            mediaIds: [$zdjecie->getKey()],
+            visibility: 'public',
+        );
+
+        $html = $this->get(route('posts.show', $wpis))->assertOk()->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match('~<meta property="og:image" content="([^"]+)">~', $html, $m),
+            'Wpis nie podaje w ogóle znacznika og:image.',
+        );
+
+        // Fałszywa zieleń, przed którą ostrzega audyt: „nie ma .svg" przechodzi
+        // też wtedy, gdy znacznika w ogóle nie ma. Dlatego asercja na
+        // ISTNIENIU tagu jest WYŻEJ, a dopiero potem sprawdzamy rozszerzenie.
+        $this->assertStringEndsNotWith('.svg', $m[1], 'og:image wskazuje na SVG — Facebook/WhatsApp/Messenger tego nie pokażą.');
+        $this->assertStringEndsWith('.png', $m[1]);
+        $this->assertFileExists(public_path('icons/kuking-udostepnianie.png'));
+
+        // Wymiary karty muszą pasować do PLIKU, na który wskazuje og:image —
+        // inaczej scraper dostaje wymiary prawdziwego (jeszcze nieistniejącego
+        // publicznie) zdjęcia naklejone na zapasowe logo.
+        $this->assertStringNotContainsString('og:image:width', $html);
     }
 
     public function test_kazda_strona_ma_adres_kanoniczny(): void
