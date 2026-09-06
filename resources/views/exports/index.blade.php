@@ -83,12 +83,32 @@
     </ul>
 
     <h2>Zdjęcia ({{ $photoCount }})</h2>
-    <p>
-        Wszystkie Twoje zdjęcia leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
-        Nazwa każdego pliku zaczyna się od daty, więc łatwo je posortować —
-        na przykład <em>2027-03-14-rosol.webp</em>.
-    </p>
-    <p><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
+    {{--
+        Katalog `zdjecia/` powstaje w paczce TYLKO wtedy, gdy jest do niego
+        co włożyć — ZipArchive nie tworzy pustych katalogów. Bez tego warunku
+        człowiek bez ani jednego zdjęcia dostawał zaproszenie „Otwórz katalog
+        ze zdjęciami" prowadzące do miejsca, którego w paczce nie ma:
+        przeglądarka pokazywała wtedy „nie znaleziono pliku".
+
+        Usterka wychodzi WYŁĄCZNIE u kogoś, kto nie dodał jeszcze zdjęcia —
+        czyli u osoby najświeższej w serwisie, i to w pliku, który ma być
+        dowodem, że jej dane są bezpieczne. Żaden test tego nie łapał, bo
+        wszystkie budowały eksport z gotowymi zdjęciami.
+    --}}
+    @if($photoCount > 0)
+        <p>
+            Wszystkie Twoje zdjęcia leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
+            Nazwa każdego pliku zaczyna się od daty, więc łatwo je posortować —
+            na przykład <em>2027-03-14-rosol.webp</em>.
+        </p>
+        <p><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
+    @else
+        <p>
+            Nie masz jeszcze w Kuking żadnego zdjęcia, więc w tej paczce nie ma
+            katalogu ze zdjęciami. Kiedy dodasz pierwsze i poprosisz o paczkę
+            ponownie, znajdziesz je tutaj.
+        </p>
+    @endif
 
     <h2>Pliki techniczne</h2>
     <ul class="spis">
