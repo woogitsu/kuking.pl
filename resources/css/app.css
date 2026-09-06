@@ -963,6 +963,19 @@
      z czego, a dopiero potem co po kolei. */
   .przepis-siatka {
     display: grid;
+    /* `minmax(0, 1fr)`, NIE samo `grid`.
+
+       Bez tego jedyna kolumna ma rozmiar `auto`, a element siatki nie
+       zwęża się poniżej swojej szerokości min-content. Przy 320 px i skali
+       tekstu 150% min-content kart „Składniki" i „Przygotowanie" wychodzi
+       310,5 px, kontener ma 288 px — i cała strona przewija się w bok
+       (zmierzone: `scrollWidth` 327 przy oknie 320, WCAG 2.2 AA 1.4.10).
+
+       To ta sama sztuczka, która stoi już w regule dla 60rem niżej. Tam
+       ktoś o niej pomyślał, tutaj nie — a usterki nie było widać, bo pokazuje
+       się dopiero przy 150% tekstu, czyli u tych osób, dla których ten
+       produkt w ogóle powstał. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-5);
     align-items: start;
   }
