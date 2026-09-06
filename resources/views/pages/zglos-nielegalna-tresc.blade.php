@@ -14,7 +14,17 @@
     pola więcej — a każde tłumaczy po ludzku, bo wypełnia to człowiek
     zdenerwowany, nie prawnik z listą przepisów w ręku.
 --}}
-<x-layout title="Zgłoś treść niezgodną z prawem" :noindex="true">
+{{--
+    BEZ `noindex` — świadomie, wbrew regule dla reszty ekranów formularzy.
+
+    DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO DOSTĘPNEGO. Człowiek, który
+    znalazł tu swoje zdjęcie albo swój tekst, nie zna naszej stopki — wpisuje
+    w wyszukiwarkę „kuking zgłoszenie nielegalnej treści". Strona wyjęta
+    z indeksu jest wtedy stroną, której nie ma.
+
+    Ekran potwierdzenia zostaje `noindex`: niesie numer sprawy.
+--}}
+<x-layout title="Zgłoś treść niezgodną z prawem">
     <h1>Zgłoś treść niezgodną z prawem</h1>
 
     <p class="mb-5">

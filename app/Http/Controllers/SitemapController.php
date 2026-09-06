@@ -121,7 +121,13 @@ class SitemapController extends Controller
             'Disallow: /ustawienia',
             'Disallow: /zeszyt',
             'Disallow: /admin',
-            'Disallow: /zglos',
+            // UKOŚNIK NA KOŃCU MA ZNACZENIE. `Disallow: /zglos` to dopasowanie
+            // po przedrostku, więc blokowało też `/zglos-nielegalna-tresc` —
+            // publiczną drogę zgłoszenia nielegalnej treści, którą DSA art. 16
+            // ust. 1 każe udostępnić w sposób ŁATWO DOSTĘPNY. Formularz
+            // społecznościowy stoi pod `/zglos/{typ}/{id}` i tylko on ma tu
+            // zostać: jest za logowaniem i dotyczy konkretnej treści.
+            'Disallow: /zglos/',
             '',
             'Sitemap: '.route('sitemap'),
         ];

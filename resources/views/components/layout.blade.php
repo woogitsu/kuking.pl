@@ -356,6 +356,11 @@
                 <a href="{{ route('rules') }}">Zasady</a>
                 <a href="{{ route('terms') }}">Regulamin</a>
                 <a href="{{ route('privacy') }}">Prywatność</a>
+                {{-- DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO DOSTĘPNEGO.
+                     Formularz, do którego nie ma skąd kliknąć, tego nie
+                     spełnia — a przez chwilę dokładnie taki był: istniał
+                     pod adresem, którego nikt nie miał prawa znać. --}}
+                <a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a>
 
                 {{-- Wersja: etap produktu + skrót wdrożonego commita.
                      Widoczna zawsze, żeby dało się jednym spojrzeniem

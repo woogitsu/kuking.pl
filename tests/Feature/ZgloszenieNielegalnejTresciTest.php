@@ -240,6 +240,42 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
             ->assertSee('Zaznacz oświadczenie na dole formularza.', escape: false);
     }
 
+    public function test_formularz_da_sie_znalezc(): void
+    {
+        // Art. 16 ust. 1: mechanizm ma być ŁATWO DOSTĘPNY. Formularz, do
+        // którego nie ma skąd kliknąć i którego nie widzi wyszukiwarka,
+        // tego nie spełnia — a dokładnie taki był przez pierwszą wersję tej
+        // zmiany: istniał pod adresem, którego nikt nie miał prawa znać.
+
+        // 1. Widać go ze stopki KAŻDEJ strony, także bez zalogowania.
+        $this->get(route('landing'))
+            ->assertOk()
+            ->assertSee(route('zglos.nielegalna'), escape: false);
+
+        // 2. Nie jest wyjęty z indeksu. Człowiek, który znalazł tu swoje
+        //    zdjęcie, wpisuje to w wyszukiwarkę, a nie szuka naszej stopki.
+        $this->get(route('zglos.nielegalna'))
+            ->assertOk()
+            ->assertDontSee('name="robots"', escape: false);
+
+        // 3. robots.txt też go nie blokuje. `Disallow: /zglos` bez ukośnika
+        //    dopasowuje się po przedrostku i odcinało `/zglos-nielegalna-tresc`
+        //    razem z formularzem społecznościowym.
+        $robots = $this->get('/robots.txt')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString(
+            "Disallow: /zglos\n",
+            $robots,
+            'robots.txt blokuje po przedrostku `/zglos`, więc odcina także publiczną drogę z DSA art. 16.',
+        );
+        $this->assertStringContainsString('Disallow: /zglos/', $robots);
+
+        // Ekran potwierdzenia ZOSTAJE poza indeksem — niesie numer sprawy.
+        $this->get(route('zglos.nielegalna.potwierdzenie'))
+            ->assertOk()
+            ->assertSee('name="robots"', escape: false);
+    }
+
     public function test_zwykle_zgloszenie_spolecznosciowe_dalej_wymaga_zalogowania(): void
     {
         // Dwie różne drogi i mają takie zostać. Otwarcie tamtej dla wszystkich
