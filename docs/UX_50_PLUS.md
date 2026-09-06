@@ -74,6 +74,26 @@ Tak:
 
 Błąd przy polu + podsumowanie. Poprawne dane nie znikają.
 
+### Strony błędów
+
+`resources/views/errors/` — po polsku, w layoucie serwisu, każda mówi **co zrobić**
+i daje drogę powrotu. Kod (404, 419, 500…) zostaje w statusie HTTP, ale nie jest
+treścią ekranu — dla człowieka nie znaczy nic.
+
+Wyjątkiem są **500 i 503**: te nie używają `x-layout`, bo layout pyta bazę
+(`auth()->user()`, licznik powiadomień), a strona awarii nie może zależeć od tego,
+co właśnie padło. Mają własny, samowystarczalny szkielet: `errors/_prosty.blade.php`.
+
+### Wygasła sesja (419) nie kasuje wpisanego tekstu
+
+Po odbiciu tokenu CSRF Kuking **wystawia ten sam formularz jeszcze raz**, z treścią
+z odbitego żądania i ze świeżym tokenem. Jedno kliknięcie „Wyślij jeszcze raz”
+i wpis idzie tam, gdzie miał iść. Działa bez JavaScriptu.
+
+Ochrona CSRF zostaje nietknięta — ponowne wysłanie idzie przez nią normalnie,
+a żądanie bez tokenu dalej kończy się na 419. Hasła i pola wrażliwe nie wracają.
+Uzasadnienie wyboru (i odrzucenia `back()->withInput()`): `App\Exceptions\OdzyskanyFormularz`.
+
 ## Autosave
 
 Użytkownik widzi:
