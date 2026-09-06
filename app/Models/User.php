@@ -274,9 +274,39 @@ class User extends Authenticatable implements MustVerifyEmailContract
         );
     }
 
+    /**
+     * Licznik w belce u góry.
+     *
+     * MUSI liczyć dokładnie to, co pokazuje lista (`Notification::scopeVisibleTo`).
+     * Licznik „3 nieprzeczytane" nad pustą listą powiadomień wygląda jak
+     * zepsuty serwis — a osoba, która właśnie kogoś zablokowała, klika w ten
+     * licznik po to, żeby sprawdzić, czy blokada zadziałała.
+     */
     public function unreadNotificationsCount(): int
     {
-        return $this->notifications()->whereNull('read_at')->count();
+        return $this->notifications()
+            ->visibleTo($this)
+            ->whereNull('read_at')
+            ->count();
+    }
+
+    /**
+     * Treść ostatniej decyzji moderacyjnej skierowanej do tej osoby.
+     *
+     * Potrzebna poza listą powiadomień, bo osoba zbanowana do serwisu nie
+     * wejdzie — jedynym miejscem, w którym cokolwiek od nas przeczyta, jest
+     * ekran logowania.
+     */
+    public function latestModerationMessage(): ?string
+    {
+        // Relacja `notifications()` jest już posortowana malejąco po dacie.
+        $ostatnie = $this->notifications()
+            ->where('type', Notification::TYPE_MODERATION)
+            ->first();
+
+        $tresc = $ostatnie?->data['message'] ?? null;
+
+        return is_string($tresc) && trim($tresc) !== '' ? $tresc : null;
     }
 
     // ---------------------------------------------------------------------

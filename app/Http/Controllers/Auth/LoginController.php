@@ -62,11 +62,23 @@ class LoginController extends Controller
             ]);
         }
 
-        if (! $user->isActive()) {
+        // UWAGA: warunkiem NIE jest `isActive()`.
+        //
+        // Zawieszenie jest z założenia karą „tylko do odczytu": konto żyje,
+        // treści są widoczne, nie da się nic opublikować (EnsureAccountIsActive,
+        // pasek w layoucie, issue #40). Odmowa logowania wywracała ten projekt
+        // do góry nogami — `suspend()` kasuje sesje, więc osoba wylatywała
+        // z serwisu i NIE MOGŁA WRÓCIĆ. Nie zobaczyłaby ani wiadomości od
+        // moderacji, ani terminu końca kary, ani własnych przepisów. Kara
+        // czasowa działała jak blokada na zawsze.
+        //
+        // Konto z minioną karą też przechodzi: `EnsureAccountIsActive`
+        // przywraca je przy pierwszym żądaniu.
+        if ($user->isBanned() || $user->status === User::STATUS_PENDING_DELETE) {
             Auth::logout();
 
             throw ValidationException::withMessages([
-                'login' => 'To konto jest obecnie zablokowane. Napisz do nas: '.config('kuking.community.contact_email'),
+                'login' => $this->komunikatOdmowy($user),
             ]);
         }
 
@@ -74,6 +86,30 @@ class LoginController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended(route('home'));
+    }
+
+    /**
+     * Dlaczego nie wpuszczamy — z treścią napisaną przez moderatora.
+     *
+     * Powiadomienie o decyzji leży w serwisie, do którego ta osoba właśnie nie
+     * weszła. Ekran logowania jest jedynym miejscem, w którym zbanowany
+     * człowiek cokolwiek od nas przeczyta, więc to tutaj musi trafić odpowiedź
+     * na pytanie „za co" — inaczej DSA art. 17 zostaje spełniony tylko
+     * na papierze.
+     */
+    private function komunikatOdmowy(User $user): string
+    {
+        if ($user->status === User::STATUS_PENDING_DELETE) {
+            return 'To konto jest oznaczone do usunięcia. Jeśli chcesz je odzyskać, napisz do nas: '
+                .config('kuking.community.contact_email');
+        }
+
+        $odModeratora = $user->latestModerationMessage();
+
+        return 'To konto zostało zablokowane. '
+            .($odModeratora !== null ? $odModeratora.' ' : '')
+            .'Jeśli uważasz, że to pomyłka, napisz do nas: '
+            .config('kuking.community.contact_email');
     }
 
     public function destroy(Request $request): RedirectResponse

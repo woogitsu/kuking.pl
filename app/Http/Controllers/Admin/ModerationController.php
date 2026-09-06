@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
@@ -27,6 +28,8 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
+    public function __construct(private readonly NotifyModerationDecision $powiadom) {}
+
     public function reports(Request $request): View
     {
         $this->authorize('moderate', User::class);
@@ -98,7 +101,29 @@ class ModerationController extends Controller
             'user_message' => $data['user_message'] ?? null,
         ]);
 
-        $this->applyAction($report, $data['action'], $this->terminKary($data));
+        $termin = $this->terminKary($data);
+
+        // Cel i osobę wyznaczamy PRZED wykonaniem decyzji: `remove` kasuje
+        // cel, a wtedy nie ma już kogo zapytać o autora.
+        $cel = $this->cel($report);
+        $osoba = $cel instanceof User ? $cel : ($cel === null ? null : $this->autorem($cel));
+
+        $this->applyAction($cel, $osoba, $data['action'], $termin);
+
+        // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
+        // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora
+        // poinformowano, a autor nie dostawał niczego (audyt A16).
+        //
+        // Dotyczyło to WSZYSTKICH decyzji zapisujących `user_message`, nie
+        // tylko `warn` — `hide`, `remove`, `suspend` i `ban` milczały tak samo.
+        if ($osoba !== null) {
+            $this->powiadom->handle(
+                osoba: $osoba,
+                decyzja: $data['action'],
+                wiadomoscModeratora: $data['user_message'] ?? null,
+                do: $termin,
+            );
+        }
 
         $report->update([
             'status' => $data['action'] === ModerationAction::ACTION_NONE
@@ -125,12 +150,6 @@ class ModerationController extends Controller
     }
 
     /**
-     * Wykonanie decyzji na obiekcie.
-     *
-     * `hide` ukrywa treść (da się przywrócić), `remove` usuwa miękko.
-     * Automat nigdy nie banuje sam — ban jest zawsze decyzją człowieka.
-     */
-    /**
      * Zamiana wyboru z formularza na konkretną datę.
      *
      * `null` znaczy „bezterminowo, do decyzji człowieka" — i tak ma zostać
@@ -151,13 +170,15 @@ class ModerationController extends Controller
         return now()->addDays((int) $wybor);
     }
 
-    private function applyAction(Report $report, string $action, ?CarbonInterface $do = null): void
+    /**
+     * Obiekt, którego dotyczy zgłoszenie.
+     *
+     * Wyjęte z `applyAction`, bo tej samej odpowiedzi potrzebuje powiadomienie
+     * o decyzji — i musi ją dostać, ZANIM `remove` skasuje cel.
+     */
+    private function cel(Report $report): ?object
     {
-        if ($action === ModerationAction::ACTION_NONE) {
-            return;
-        }
-
-        $target = match ($report->target_type) {
+        return match ($report->target_type) {
             'post' => Post::find($report->target_id),
             'recipe' => Recipe::find($report->target_id),
             'comment' => Comment::find($report->target_id),
@@ -165,16 +186,25 @@ class ModerationController extends Controller
             'user' => User::find($report->target_id),
             default => null,
         };
+    }
 
-        if ($target === null) {
+    /**
+     * Wykonanie decyzji na obiekcie.
+     *
+     * `hide` ukrywa treść (da się przywrócić), `remove` usuwa miękko.
+     * Automat nigdy nie banuje sam — ban jest zawsze decyzją człowieka.
+     *
+     * @param  ?User  $osoba  autor zgłoszonej treści albo zgłoszona osoba.
+     *                        Kara dotyczy CZŁOWIEKA, więc przy zgłoszonej treści
+     *                        sięgamy po jej autora — wcześniej „Zawieś konto" na
+     *                        zgłoszonym wpisie tylko ukrywało wpis, a konto
+     *                        zostawało aktywne.
+     */
+    private function applyAction(?object $target, ?User $osoba, string $action, ?CarbonInterface $do = null): void
+    {
+        if ($action === ModerationAction::ACTION_NONE || $target === null) {
             return;
         }
-
-        // Kara dotyczy CZŁOWIEKA, więc przy zgłoszonej treści sięgamy po jej
-        // autora. Wcześniej „Zawieś konto" na zgłoszonym wpisie tylko ukrywało
-        // wpis, a konto zostawało aktywne — moderator był przekonany, że
-        // zawiesił kogoś, kogo nie zawiesił.
-        $osoba = $target instanceof User ? $target : $this->autorem($target);
 
         match ($action) {
             ModerationAction::ACTION_HIDE => $this->hide($target),
@@ -187,10 +217,9 @@ class ModerationController extends Controller
             ModerationAction::ACTION_SUSPEND => $osoba?->suspend($do),
             ModerationAction::ACTION_BAN => $osoba?->ban(),
 
-            // `warn` nie ma tu nic do zrobienia: sama decyzja jest już
-            // zapisana w `moderation_actions` wraz z treścią wiadomości.
-            // UWAGA: dopóki nie ma powiadomienia, autor się o niej NIE DOWIE.
-            // To jest znane i osobno zgłoszone — patrz opis PR-a.
+            // `warn` nie robi nic z treścią ani z kontem — całą jego siłą jest
+            // wiadomość do autora. Wysyła ją `NotifyModerationDecision`
+            // w `decide()`, wspólnie dla wszystkich decyzji.
             default => null,
         };
     }
