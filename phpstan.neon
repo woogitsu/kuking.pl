@@ -1,0 +1,84 @@
+# =============================================================================
+#  Kuking.pl — konfiguracja Larastan/PHPStan (issue #32)
+# =============================================================================
+#
+#  Ta sama konfiguracja jest używana lokalnie (`./scripts/check.sh`,
+#  `vendor/bin/phpstan analyse`) i w CI (job `static-analysis` w
+#  .github/workflows/ci.yml, krok "PHPStan": `vendor/bin/phpstan analyse
+#  --no-progress --memory-limit=1G`, bez własnego `-c` — PHPStan sam
+#  znajduje ten plik w katalogu głównym). Rozjazd między lokalną a CI-ową
+#  konfiguracją byłby gorszy niż brak lokalnej w ogóle: ludzie przestają
+#  ufać lokalnemu wynikowi, gdy CI mówi co innego tym samym poleceniem.
+#
+#  POZIOM: 0 (nie 5, jak proponowało issue #32)
+#  ---------------------------------------------------------------------------
+#  Issue #32 zakładało start od poziomu 5. Po realnym uruchomieniu (dopiero
+#  po zainstalowaniu Larastana — w środowisku, w którym powstawało issue,
+#  `codeload.github.com` blokował pobranie samego pakietu) poziom 5 daje
+#  158 błędów, a już poziom 1 daje błędy w kodzie PRODUKCYJNYM (patrz niżej).
+#  Zadanie tej zmiany wprost zabrania poprawiania kodu produkcyjnego przy
+#  okazji włączania analizy — więc poziomem „dziś zielonym" jest 0, nie 5.
+#
+#  Baseline z dziesiątkami wyjątków byłby GORSZY niż uczciwie niski poziom:
+#  baseline usypia — wygląda na „przeanalizowane", a w rzeczywistości każdy
+#  z tych błędów jest na stałe wyciszony i nikt już go nie zobaczy. Poziom 0
+#  jest niższy, ale każdy błąd, który się pojawi, faktycznie zablokuje CI.
+#
+#  ILE BŁĘDÓW NA POZIOMIE 1 (kolejnym) I CO TRZEBA ZROBIĆ, ŻEBY GO OSIĄGNĄĆ:
+#  4 błędy, wszystkie w kodzie, którego ta zmiana świadomie nie rusza:
+#
+#    - app/Models/Media.php (3 błędy, linie 94, 117, 122): `$this->metadata`
+#      jest rzutowane na `array` (cast Eloquent), ale PHPStan/Larastan nie
+#      zna JEGO KSZTAŁTU — stąd „Offset 'variants' on array{}|string does
+#      not exist" przy `$this->metadata['variants'] ?? []`. Naprawa: dodać
+#      typ kształtu (np. `@property-read array{variants?: array<string,
+#      array{key: string, width?: int, height?: int}>} $metadata` w PHPDoc
+#      klasy, ewentualnie osobny `@phpstan-type` alias) albo przenieść
+#      dostęp do wariantów za dedykowaną metodę z jawnym typem zwracanym.
+#      To jest DOKŁADNIE to miejsce, które samo issue #32 przewidziało
+#      z góry („dostęp do metadata['variants'] w App\Models\Media —
+#      tablica bez kształtu") — czyli poziom 1 wymaga tej samej pracy,
+#      niezależnie od tego, kto go podniesie.
+#
+#    - tests/Feature/PolitykaBezpieczenstwaTest.php (1 błąd, linia 147):
+#      `Log::shouldHaveReceived()` — taka metoda nie istnieje na fasadzie
+#      `Illuminate\Support\Facades\Log`; prawdopodobnie brakuje wcześniejszego
+#      `Log::spy()` (który podmienia fasadę na obiekt Mockery rozumiejący
+#      `shouldHaveReceived`) albo to literówka zamiast `Log::shouldReceive()`.
+#      To też nie jest kod produkcyjny, ale wymaga decyzji o zachowaniu testu,
+#      nie tylko o konfiguracji analizy — stąd zostawione do issue #32/oddzielnej
+#      poprawki, nie naprawione przy okazji tej zmiany.
+#
+#  Powyżej poziomu 1 (do docelowego 8, jak chce issue #32) błędów jest więcej
+#  (158 na poziomie 5) — one też czekają na #32, nie na tę zmianę.
+#
+#  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
+#  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
+#  wywołaniem `env()` poza katalogiem `config/`, bo w produkcji (po
+#  `config:cache`) taki `env()` cicho zwraca null. W testach ten sam `env()`
+#  jest CELOWY: `tests/Feature/KonfiguracjaDyskowTest.php` sprawdza właśnie
+#  to, czy zmienna środowiskowa faktycznie trafia do configu — musi więc
+#  odczytać obie strony niezależnie. To jeden, nazwany, uzasadniony wyjątek
+#  ograniczony do `tests/`, nie baseline zamiatający błędy pod dywan.
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 0
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests
+
+    # Współdzielony z krokiem cache w CI ("Cache PHPStana", path: .phpstan-cache)
+    # — bez tego CI cache'owałoby katalog, którego PHPStan nigdy by nie użył,
+    # i każdy przebieg analizowałby wszystko od zera.
+    tmpDir: .phpstan-cache
+
+    ignoreErrors:
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            path: tests/*
