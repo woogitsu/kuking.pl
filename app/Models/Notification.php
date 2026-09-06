@@ -38,6 +38,18 @@ class Notification extends Model
 
     public const TYPE_WELCOME = 'account.welcome';
 
+    /**
+     * Pierwszy wpis nowej osoby — powiadomienie dla GOSPODARZA, nie dla
+     * autora (issue #6).
+     *
+     * 55% osób 55-64 i 62% osób 65+ w mediach społecznościowych to wyłącznie
+     * odbiorcy treści. Kto opublikuje pierwszy raz, robi to wbrew własnemu
+     * nawykowi — i jeśli nikt nie odpowie, drugi raz już nie spróbuje.
+     * Gospodarz musi się o tym dowiedzieć NATYCHMIAST, a nie przy najbliższym
+     * zajrzeniu do panelu.
+     */
+    public const TYPE_FIRST_POST = 'post.first';
+
     protected $fillable = [
         'user_id',
         'actor_id',

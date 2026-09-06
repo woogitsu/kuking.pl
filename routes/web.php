@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
+use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\AppealController;
@@ -296,6 +297,12 @@ Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): vo
     Route::post('/odwolania/{appeal}', [AdminAppealController::class, 'resolve'])->name('admin.appeals.resolve');
 
     // Wybór redakcyjny na tablicę „kuKINGi na dziś".
+    // Wpisy bez odpowiedzi (issue #6). To nie jest panel statystyk, tylko
+    // lista rzeczy do zrobienia dzisiaj — odpowiedź od człowieka w ciągu doby
+    // na pierwszy wpis jest ważniejsza niż którakolwiek funkcja z MVP.
+    Route::get('/bez-odpowiedzi', [BezOdpowiedziController::class, 'index'])->name('admin.unanswered');
+    Route::post('/bez-odpowiedzi/{post}', [BezOdpowiedziController::class, 'odpowiedz'])->name('admin.unanswered.reply');
+
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
     Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);

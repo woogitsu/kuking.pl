@@ -965,3 +965,26 @@
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+   Wpisy bez odpowiedzi (issue #6)
+
+   Pilność pokazuje KOLOROWY PASEK PLUS NAPIS „czeka X godzin". Sam kolor
+   nie wystarcza: rozróżnianie barw słabnie z wiekiem, a ten ekran ma działać
+   także dla kogoś, kto czerwieni od pomarańczu nie odróżni.
+   --------------------------------------------------------------------------- */
+.czeka {
+    border-left: 6px solid var(--color-border);
+}
+
+.czeka-uwaga {
+    border-left-color: var(--color-accent);
+}
+
+.czeka-alarm {
+    border-left-color: var(--color-danger-solid);
+}
+
+.czeka-pierwszy {
+    color: var(--color-brand-tint-ink);
+}

@@ -42,6 +42,14 @@
                                 <strong>{{ $actor?->displayName() }} zapisała/zapisał Twój przepis</strong>
                                 „{{ $data['recipe_title'] ?? '' }}” do swojego zeszytu.
                                 @break
+                            @case(\App\Models\Notification::TYPE_FIRST_POST)
+                                {{-- Powiadomienie dla GOSPODARZA, nie dla autora
+                                     (issue #6). Pierwszy wpis to jedyna okazja,
+                                     żeby ktoś poczuł, że jest tu ktoś po drugiej
+                                     stronie — i mamy na to dobę. --}}
+                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} opublikowała pierwszy wpis.</strong>
+                                Odpowiedz jak najszybciej — pierwszy wpis bez reakcji zwykle bywa ostatnim.
+                                @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
                                 Zacznij od zdjęcia tego, co dziś ugotowałaś. Nie musi być ładne — ma być prawdziwe.
@@ -91,6 +99,7 @@
                             \App\Models\Notification::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.show', $data['cooked_event_id']) : null,
                             \App\Models\Notification::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
                             \App\Models\Notification::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
+                            \App\Models\Notification::TYPE_FIRST_POST => route('admin.unanswered'),
                             \App\Models\Notification::TYPE_WELCOME => route('posts.create'),
                             default => $data['url'] ?? null,
                         };
