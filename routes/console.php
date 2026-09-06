@@ -61,3 +61,17 @@ Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
     ->name('kuking:zdejmij-wygasle-kary')
     ->hourly()
     ->withoutOverlapping();
+
+// Egzekucja 30-dniowej karencji po zgłoszeniu usunięcia konta (audyt A8).
+//
+// Bez tego zadania obietnica z `docs/legal/COMPLIANCE.md` i z ekranu
+// „Twoje dane" ("po 30 dniach dane zostaną usunięte na stałe") jest fikcją —
+// nic wcześniej nie egzekwowało karencji, konto zostawało `pending_delete`
+// bez końca. Codziennie w nocy, nie co godzinę: to nie kara z konkretną
+// godziną wygaśnięcia jak zawieszenie, tylko okno na zmianę zdania liczone
+// w dniach — dobowa dokładność wystarcza.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
+    ->name('kuking:usun-wygasle-konta')
+    ->dailyAt('03:50')
+    ->withoutOverlapping();

@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Users\Actions;
+
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
+
+/**
+ * Cofnięcie zgłoszonego usunięcia konta (audyt A8, RODO art. 17).
+ *
+ * DLACZEGO TO NIE JEST TYLKO `$user->cancelDeletion()` W KONTROLERZE
+ * Reguła „kiedy wolno cofnąć" jest regułą domenową, nie szczegółem HTTP —
+ * gdyby żyła w kontrolerze, drugi endpoint (np. panel admina) mógłby ją
+ * ominąć i cofnąć usunięcie kontu, którego dane już nie istnieją.
+ *
+ * Dwa warunki muszą być spełnione RAZEM:
+ *
+ *  1. Konto faktycznie jest `pending_delete` — cofać można tylko to, co
+ *     zostało zgłoszone. Osoba, która pomyliła się co do własnego stanu
+ *     konta, ma to usłyszeć wprost, a nie zobaczyć ciche „nic się nie stało".
+ *  2. `data_erased_at` jest puste — jeśli egzekutor karencji
+ *     (`kuking:usun-wygasle-konta`) już wymazał dane, „cofnięcie" ustawiłoby
+ *     tylko `status = active` na koncie bez e-maila, hasła i profilu: pusta
+ *     powłoka, która wygląda jak wskrzeszone konto, a nie jest nim. To gorsze
+ *     niż odmowa — więc odmawiamy, z wyjaśnieniem, co się stało i dokąd pisać.
+ */
+final class CancelAccountDeletion
+{
+    public function handle(User $user): void
+    {
+        // Transakcja z blokadą, nie odczyt z argumentu: formularz i egzekutor
+        // karencji (`kuking:usun-wygasle-konta`) mogą teoretycznie zetknąć się
+        // w tej samej chwili (ktoś klika „cofnij” dokładnie wtedy, gdy zegar
+        // wykonuje karencję) — bez blokady wygrałby ten, kto zapisał drugi,
+        // a „cofnięcie” mogłoby ustawić `active` na koncie, któremu w
+        // międzyczasie wymazano e-mail i hasło.
+        DB::transaction(function () use ($user): void {
+            $fresh = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+
+            if ($fresh === null || $fresh->status !== User::STATUS_PENDING_DELETE) {
+                throw new RuntimeException(
+                    'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
+                    .'Jeśli spodziewałeś/aś się czegoś innego, napisz do nas: '
+                    .config('kuking.community.contact_email').'.',
+                );
+            }
+
+            if ($fresh->data_erased_at !== null) {
+                throw new RuntimeException(
+                    'Tego konta nie da się już odzyskać — dane zostały trwale usunięte '
+                    .$fresh->data_erased_at->translatedFormat('j F Y').'. Jeśli to pomyłka, '
+                    .'napisz do nas: '.config('kuking.community.contact_email').'.',
+                );
+            }
+
+            $fresh->cancelDeletion();
+        });
+    }
+}

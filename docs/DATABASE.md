@@ -19,6 +19,9 @@ Konto:
 - password;
 - status;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
+- `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
+- `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
+  (patrz niżej);
 - locale;
 - text_scale;
 - verified timestamps.
@@ -69,6 +72,52 @@ a zdecydowana większość kont ma tu `NULL`.
 aktywnych zawieszeń — wraca więc problem sprzed migracji — ale żadne konto nie
 zmienia statusu i nikt nie traci dostępu. Konta zawieszone zostają zawieszone
 do ręcznej decyzji moderatora.
+
+#### `data_erased_at` — egzekucja karencji po zgłoszeniu usunięcia konta
+
+Migracja `2026_09_06_110000_add_data_erased_at_to_users` (audyt A8).
+
+`delete_requested_at` mówi tylko KIEDY zgłoszono usunięcie. Nic wcześniej nie
+egzekwowało obietnicy „po 30 dniach dane znikną na stałe" z ekranu „Twoje
+dane" i z `docs/legal/COMPLIANCE.md` — konto zostawało `pending_delete` bez
+końca. `data_erased_at` to znacznik, że karencja się WYKONAŁA: komenda
+`kuking:usun-wygasle-konta` (codziennie w nocy) go ustawia, a
+`App\Domain\Users\Actions\EraseAccountData` w tym samym przebiegu anonimizuje
+`email`, `password`, `remember_token` na koncie oraz `username`,
+`display_name`, `bio`, `avatar_media_id`, `region`, `speciality` na profilu.
+
+**Świadomie NIE dodajemy nowej wartości do `users_status_check`.** Konto
+pozostaje `pending_delete` na zawsze — z punktu widzenia logowania i tak nic
+się nie zmienia (nie logowało się od zgłoszenia usunięcia). Jedyna nowa
+informacja to właśnie ten znacznik.
+
+```sql
+ALTER TABLE users
+ADD CONSTRAINT users_data_erased_at_check
+CHECK (data_erased_at IS NULL OR status = 'pending_delete');
+```
+
+**Treści (posty, przepisy, komentarze) NIE są kasowane** przez ten mechanizm —
+zostają przy już zanonimizowanym koncie, zgodnie z `docs/legal/COMPLIANCE.md`
+§2 (dopuszczalne zachowanie treści o wartości społecznej w formie
+zanonimizowanej: „autor: konto usunięte"). Kasowane są wyłącznie dane, po
+których da się rozpoznać konkretnego człowieka.
+
+**Cofnięcie usunięcia** (`App\Domain\Users\Actions\CancelAccountDeletion`,
+formularz `AccountDeletionController` — publiczny, bo osoba `pending_delete`
+jest wylogowywana natychmiast i nie może się zalogować) jest możliwe TYLKO
+dopóki `data_erased_at` jest puste. Po jego ustawieniu e-mail i hasło już nie
+istnieją — nie ma czym się zalogować, więc formularz cofnięcia świadomie to
+odmawia z wyjaśnieniem, zamiast po cichu wskrzeszać pustą powłokę konta.
+
+Indeks częściowy `users_pending_erase_idx` obejmuje wyłącznie konta
+`pending_delete` bez wykonanej jeszcze anonimizacji — dokładnie to, o co pyta
+`kuking:usun-wygasle-konta`.
+
+**Rollback:** `down()` zdejmuje CHECK, indeks i kolumnę. Kontom, którym dane
+już wymazano, ten rollback NIE przywraca e-maila ani hasła — tych danych po
+prostu już nie ma, to nie jest strata spowodowana cofnięciem migracji. Same
+konta nie zmieniają zachowania: nadal się nie logują.
 
 ### profiles
 - user_id;

@@ -94,4 +94,59 @@ class DataRightsTest extends TestCase
 
         $this->assertGuest();
     }
+
+    // -----------------------------------------------------------------
+    // Audyt A8 — ślepy zaułek kasowania konta.
+    //
+    // Zgłoszenie usunięcia wylogowywało od razu (test wyżej), ale komunikat
+    // obiecywał "wystarczy, że się zalogujesz" — czyli drogę, która jest
+    // zamknięta w tym samym pliku, dwa testy wyżej. Te testy pilnują, żeby
+    // komunikat, który człowiek FAKTYCZNIE widzi, wskazywał drogę, która
+    // NAPRAWDĘ działa.
+    // -----------------------------------------------------------------
+
+    public function test_zgloszenie_usuniecia_wylogowuje_w_tym_samym_zadaniu(): void
+    {
+        $basia = $this->user('basia');
+
+        // Bez wylogowania TUTAJ, `EnsureAccountIsActive` zrobiłoby to samo
+        // przy kolejnym żądaniu (przekierowaniu na `landing`) i PODMIENIŁO
+        // komunikat ustawiony niżej na swój własny — flash z tego żądania
+        // nigdy nie docierałby do człowieka.
+        $this->actingAs($basia)->post(route('settings.data.delete'), [
+            'password' => 'haslo-testowe-123',
+            'confirm' => '1',
+        ]);
+
+        $this->assertGuest();
+    }
+
+    public function test_komunikat_po_zgloszeniu_wskazuje_dzialajaca_strone_cofniecia(): void
+    {
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)->post(route('settings.data.delete'), [
+            'password' => 'haslo-testowe-123',
+            'confirm' => '1',
+        ])->assertSessionHas('status');
+
+        $komunikat = session('status');
+
+        // Adres MUSI być tą stroną, na której cofnięcie faktycznie działa —
+        // nie samym "zaloguj się", bo logowanie dla tego konta jest zamknięte
+        // (test `test_konto_oznaczone_do_usuniecia_nie_moze_sie_zalogowac`).
+        $this->assertStringContainsString(route('account.delete.cancel'), $komunikat);
+    }
+
+    public function test_odmowa_logowania_na_konto_do_usuniecia_wskazuje_strone_cofniecia(): void
+    {
+        $basia = $this->user('basia', ['status' => User::STATUS_PENDING_DELETE, 'delete_requested_at' => now()]);
+
+        $this->post('/login', ['login' => 'basia', 'password' => 'haslo-testowe-123'])
+            ->assertSessionHasErrors('login');
+
+        $blad = session('errors')->getBag('default')->first('login');
+
+        $this->assertStringContainsString(route('account.delete.cancel'), $blad);
+    }
 }

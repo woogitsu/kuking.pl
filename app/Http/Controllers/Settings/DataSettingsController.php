@@ -11,6 +11,7 @@ use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -29,6 +30,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Usunięcie konta jest DWUETAPOWE: konto przechodzi w stan `pending_delete`
  * i przez 30 dni da się je odzyskać. Nieodwracalne usunięcie po jednym
  * kliknięciu byłoby okrutne wobec osoby, która pomyliła przycisk.
+ *
+ * Odzyskanie NIE dzieje się tutaj. Zgłoszenie usunięcia wylogowuje od razu
+ * (patrz niżej), więc formularz „Twoje dane" jest dla tej osoby niedostępny
+ * — cofnięcie idzie przez publiczny `AccountDeletionController`, tym samym
+ * wzorcem identyfikacji co formularz odwołań dla zablokowanych kont
+ * (issue #10). Egzekucję karencji po 30 dniach wykonuje komenda
+ * `kuking:usun-wygasle-konta` (`App\Domain\Users\Actions\EraseAccountData`).
  */
 class DataSettingsController extends Controller
 {
@@ -133,8 +141,24 @@ class DataSettingsController extends Controller
 
         $days = (int) config('kuking.account.delete_grace_days');
 
+        // Wylogowujemy w TYM SAMYM żądaniu, nie czekamy, aż zrobi to
+        // `EnsureAccountIsActive` przy kolejnym wejściu (audyt A8).
+        //
+        // Bez tego przeglądarka i tak szła za przekierowaniem niżej, ale po
+        // drodze middleware widziało jeszcze zalogowane, oznaczone do
+        // usunięcia konto — wylogowywało je SAMO i PODMIENIAŁO to
+        // przekierowanie na ekran logowania z zupełnie INNYM komunikatem.
+        // Flash ustawiony tutaj nigdy nie docierał do człowieka: widział
+        // tylko komunikat z `LoginController::komunikatOdmowy()`, który do
+        // niedawna w ogóle nie wspominał o istnieniu drogi powrotu.
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()->route('landing')->with('status',
-            "Konto zostało oznaczone do usunięcia. Masz {$days} dni, żeby zmienić zdanie — wystarczy, że się zalogujesz i napiszesz do nas.",
+            "Konto zostało oznaczone do usunięcia i zostałeś/aś wylogowany/a. Masz {$days} dni, żeby zmienić zdanie — "
+            .'zrobisz to na stronie „Cofnij usunięcie konta” ('.route('account.delete.cancel').'), podając e-mail '
+            .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała.',
         );
     }
 }

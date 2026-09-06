@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
@@ -106,6 +107,17 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
         ->middleware("throttle:{$limits['password_reset']}")
         ->name('password.update');
+
+    // Cofnięcie zgłoszonego usunięcia konta — dla osoby, którą
+    // `EnsureAccountIsActive` już wylogowało (status `pending_delete`
+    // nie loguje się, patrz `LoginController`). Publiczne z konieczności,
+    // tak samo jak formularz odwołań dla zablokowanych kont (issue #10) —
+    // patrz komentarz w `AccountDeletionController` (audyt A8).
+    Route::get('/cofnij-usuniecie-konta', [AccountDeletionController::class, 'showCancelForm'])
+        ->name('account.delete.cancel');
+    Route::post('/cofnij-usuniecie-konta', [AccountDeletionController::class, 'cancel'])
+        ->middleware("throttle:{$limits['cancel_delete']}")
+        ->name('account.delete.cancel.store');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])

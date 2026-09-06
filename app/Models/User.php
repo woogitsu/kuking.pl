@@ -104,11 +104,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
     /**
      * Konto po tym, co człowiek wpisał w pole „e-mail albo nazwa użytkownika”.
      *
-     * Mieszka w modelu, bo pytają o to DWA miejsca: logowanie
-     * (`LoginController`) i formularz odwołania dla osób zablokowanych
-     * (`AppealController`). Osoba zablokowana nie wejdzie do serwisu, więc
-     * odwołanie musi ją rozpoznać PRZED zalogowaniem — a druga kopia tej
-     * logiki rozjechałaby się przy pierwszej zmianie zasad nazewnictwa.
+     * Mieszka w modelu, bo pytają o to TRZY miejsca: logowanie
+     * (`LoginController`), formularz odwołania dla osób zablokowanych
+     * (`AppealController`, #10) i formularz cofnięcia usunięcia konta
+     * (`AccountDeletionController`, audyt A8). Dwa ostatnie muszą rozpoznać
+     * człowieka PRZED zalogowaniem, bo takie konto do serwisu nie wejdzie.
+     * Druga kopia tej logiki rozjechałaby się przy pierwszej zmianie zasad
+     * nazewnictwa — a to już raz się zdarzyło (audyt A25).
      *
      * Bez rozróżniania wielkości liter po obu stronach — klawiatura telefonu
      * podnosi pierwszą literę bez pytania.
@@ -131,6 +133,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'email_verified_at' => 'datetime',
             'age_confirmed_at' => 'datetime',
             'delete_requested_at' => 'datetime',
+            'data_erased_at' => 'datetime',
             'status_expires_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
@@ -441,6 +444,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'status' => self::STATUS_PENDING_DELETE,
             'delete_requested_at' => now(),
         ])->save();
+
+        // Ta sama zasada co przy `ban()`/`suspend()`: zmiana stanu konta, która
+        // ma odciąć dostęp, musi kasować sesje z INNYCH przeglądarek, nie tylko
+        // bieżącą. Bez tego telefon, na którym ta osoba akurat siedziała, gdy
+        // zgłaszała usunięcie na komputerze, działałby dalej aż do wygaśnięcia
+        // sesji — przy `SESSION_LIFETIME=10080` to siedem dni „usuniętego"
+        // konta, które nadal publikuje (znalezione przy audycie A8, przy okazji
+        // punktu o ślepym zaułku kasowania konta — nie było to zgłoszone wprost,
+        // ale to ta sama klasa błędu co issue #39).
+        $this->invalidateSessions();
     }
 
     public function cancelDeletion(): void

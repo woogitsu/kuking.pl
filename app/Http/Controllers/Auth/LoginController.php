@@ -99,8 +99,10 @@ class LoginController extends Controller
     private function komunikatOdmowy(User $user): string
     {
         if ($user->status === User::STATUS_PENDING_DELETE) {
-            return 'To konto jest oznaczone do usunięcia. Jeśli chcesz je odzyskać, napisz do nas: '
-                .config('kuking.community.contact_email');
+            return 'To konto jest oznaczone do usunięcia, dlatego logowanie jest zamknięte. Jeśli chcesz je odzyskać, '
+                .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
+                .'hasłem, że to Ty. Jeśli dane zostały już usunięte na stałe, ta strona Cię o tym poinformuje — '
+                .'wtedy napisz do nas: '.config('kuking.community.contact_email');
         }
 
         $odModeratora = $user->latestModerationMessage();
@@ -128,9 +130,10 @@ class LoginController extends Controller
      * więc prawdziwa Basia mogła dostawać „nieprawidłowe hasło" przy
      * poprawnym haśle (audyt A25).
      *
-     * Sama logika przeniosła się do `User::findByLogin()`, bo pyta o to samo
-     * także formularz odwołania dla osób zablokowanych — te nie mogą się
-     * zalogować, a muszą dać się rozpoznać (#10).
+     * Sama logika przeniosła się do `User::findByLogin()`, bo pytają o to samo
+     * DWA formularze dostępne PRZED zalogowaniem: odwołanie dla osób
+     * zablokowanych (#10) i cofnięcie usunięcia konta (audyt A8). Obie te
+     * osoby nie mogą wejść do serwisu, a muszą dać się rozpoznać.
      */
     private function findUser(string $login): ?User
     {
