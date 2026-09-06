@@ -48,10 +48,5 @@
         </p>
     </section>
 
-    <section style="margin-top:var(--spacing-8);">
-        <h2>Inne ustawienia</h2>
-        <p><a href="{{ route('settings.security') }}">Bezpieczeństwo — zmiana hasła, wylogowanie z innych urządzeń</a></p>
-        <p><a href="{{ route('settings.privacy') }}">Prywatność — kto widzi Twoje treści, zablokowane osoby</a></p>
-        <p><a href="{{ route('settings.data') }}">Twoje dane — pobranie i usunięcie konta</a></p>
-    </section>
+    <x-ustawienia-nawigacja aktywne="accessibility" />
 </x-layout>

@@ -1153,3 +1153,60 @@
     font-size: var(--text-help);
     color: var(--color-ink-muted);
 }
+
+/* ---------------------------------------------------------------------------
+   Spis ekranów ustawień (komponent `ustawienia-nawigacja`)
+
+   Każdy wiersz to nazwa ekranu i jedno zdanie, co się w nim robi. Zdanie NIE
+   jest ozdobą: „Prywatność" i „Twoje dane" brzmią dla wielu osób tak samo,
+   a różnią się tym, że jedno decyduje o widoczności, a drugie kasuje konto.
+
+   Nazwa jest osobnym wierszem, żeby cel dotknięcia był duży — nie chcemy
+   trafiania w słowo w środku akapitu.
+--------------------------------------------------------------------------- */
+
+.ustawienia-nawigacja {
+    margin-top: var(--spacing-8);
+}
+
+.ustawienia-nawigacja-tytul {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--text-body-lg);
+}
+
+.ustawienia-nawigacja-lista {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ustawienia-nawigacja-pozycja {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    padding: var(--spacing-3) 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.ustawienia-nawigacja-pozycja:first-child {
+    border-top: 0;
+}
+
+.ustawienia-nawigacja-pozycja > a,
+.ustawienia-nawigacja-pozycja > strong {
+    font-size: var(--text-body-lg);
+    /* Cel dotknięcia ≥ 48 px także wtedy, gdy sama nazwa jest krótka. */
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ustawienia-nawigacja-tu {
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+}
+
+.ustawienia-nawigacja-opis {
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+}

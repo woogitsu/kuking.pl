@@ -71,4 +71,6 @@
             </form>
         </details>
     </div>
+
+    <x-ustawienia-nawigacja aktywne="data" />
 </x-layout>

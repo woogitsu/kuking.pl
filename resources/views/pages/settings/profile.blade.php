@@ -28,4 +28,6 @@
             <a class="btn btn-quiet" href="{{ route('profile.show', $profile->username) }}">Zobacz swój profil</a>
         </div>
     </form>
+
+    <x-ustawienia-nawigacja aktywne="profile" />
 </x-layout>

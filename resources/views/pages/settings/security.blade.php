@@ -58,4 +58,6 @@
             </div>
         </form>
     </section>
+
+    <x-ustawienia-nawigacja aktywne="security" />
 </x-layout>
