@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Media\KasujZdjecie;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -26,12 +27,12 @@ use Illuminate\Support\Str;
  *    ich osobno byłoby kasowaniem cudzej historii gotowania (komuś innemu
  *    ktoś kiedyś odpowiedział w komentarzu) bez żadnej korzyści prawnej —
  *    RODO chroni DANE OSOBOWE, nie fakt istnienia wpisu.
- *  - odpina zdjęcie profilowe (`avatar_media_id = null`) — samego pliku
- *    w object storage świadomie NIE kasujemy w tym przebiegu: w repozytorium
- *    nie ma dziś żadnego mechanizmu bezpiecznego usuwania wariantów
- *    thumb/feed/large ani sprawdzania, czy to samo zdjęcie nie jest gdzieś
- *    jeszcze referencjonowane. Zgadywanie tego tutaj groziłoby usunięciem
- *    złego pliku. To realna, świadomie zostawiona luka — patrz raport agenta.
+ *  - odpina zdjęcie profilowe i KASUJE PLIK razem z wariantami (issue #93),
+ *    o ile nic innego na nie nie wskazuje. Wcześniej odpinana była sama
+ *    referencja: zdjęcie twarzy — a często zdjęcie z nietkniętym EXIF-em,
+ *    czyli modelem telefonu i współrzędnymi miejsca — leżało dalej pod
+ *    adresem, który wciąż działał. Człowiek prosił o usunięcie konta,
+ *    dostawał potwierdzenie, że dane zostały usunięte, i to nie była prawda.
  *
  * IDEMPOTENCJA I ODPORNOŚĆ NA PRZERWANIE
  * Cała anonimizacja jednego konta idzie w JEDNEJ transakcji z `lockForUpdate`
@@ -44,10 +45,14 @@ use Illuminate\Support\Str;
  */
 final class EraseAccountData
 {
+    public function __construct(private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie) {}
+
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
     public function handle(User $user): bool
     {
-        return DB::transaction(function () use ($user): bool {
+        $doSkasowania = null;
+
+        $wymazano = DB::transaction(function () use ($user, &$doSkasowania): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -62,6 +67,10 @@ final class EraseAccountData
             }
 
             $profile = $fresh->profile;
+
+            // Zdjęcie zapamiętujemy TERAZ, bo za chwilę odepniemy referencję
+            // i nie będzie już czego szukać.
+            $doSkasowania = $profile?->avatar;
 
             if ($profile !== null) {
                 $profile->forceFill([
@@ -96,6 +105,22 @@ final class EraseAccountData
 
             return true;
         });
+
+        // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.
+        //
+        // Wycofanie transakcji nie przywróci skasowanego pliku. Gdyby coś
+        // padło po usunięciu zdjęcia, a przed zapisem wiersza, konto zostałoby
+        // nietknięte, a zdjęcie zniknęłoby bez śladu i bez powodu. Kasujemy
+        // więc dopiero wtedy, gdy anonimizacja jest już zatwierdzona.
+        //
+        // Kolejność ma i drugi skutek: w tym momencie referencja z profilu
+        // jest już usunięta, więc sprawdzenie „czy ktoś tego jeszcze używa"
+        // nie zobaczy samego siebie.
+        if ($wymazano && $doSkasowania !== null) {
+            $this->kasujZdjecie->jesliNieuzywane($doSkasowania);
+        }
+
+        return $wymazano;
     }
 
     /**

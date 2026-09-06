@@ -6,7 +6,6 @@ namespace App\Domain\Media;
 
 use App\Models\Media;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Zdjęcia wgrane, ale do niczego nieprzypięte.
@@ -29,26 +28,14 @@ use Illuminate\Support\Facades\Storage;
 final class OsieroconeZdjecia
 {
     /**
-     * Tabele i kolumny, które mogą wskazywać na `media`.
-     *
-     * LISTA MUSI BYĆ PEŁNA, I TO JEST JEJ JEDYNE RYZYKO.
-     * Pominięcie jednej kolumny znaczy kasowanie zdjęć, które ktoś ma
-     * przypięte do przepisu albo do awatara — a pliku nie da się przywrócić.
-     * Dlatego towarzyszy jej test, który czyta schemat bazy i pada, gdy
-     * pojawi się kolumna wskazująca na `media`, której tu nie ma.
-     *
-     * @var list<array{0: string, 1: string}>
+     * Lista odwołań mieszka w `KasujZdjecie` — kasowanie zdjęcia i sprzątanie
+     * osieroconych to dwie drogi do tej samej, nieodwracalnej operacji,
+     * a dwie kopie listy to dwie okazje do rozjazdu.
      */
-    public const ODWOLANIA = [
-        ['post_media', 'media_id'],
-        ['cooked_event_media', 'media_id'],
-        ['profiles', 'avatar_media_id'],
-        ['recipes', 'hero_media_id'],
-        ['recipes', 'source_scan_media_id'],
-        ['recipe_steps', 'media_id'],
-    ];
-
-    public function __construct(private readonly int $godzinKarencji = 24) {}
+    public function __construct(
+        private readonly int $godzinKarencji = 24,
+        private readonly KasujZdjecie $kasowanie = new KasujZdjecie,
+    ) {}
 
     /**
      * @return int ile zdjęć skasowano
@@ -57,7 +44,7 @@ final class OsieroconeZdjecia
     {
         $zapytanie = Media::query()->where('created_at', '<', now()->subHours($this->godzinKarencji));
 
-        foreach (self::ODWOLANIA as [$tabela, $kolumna]) {
+        foreach (KasujZdjecie::ODWOLANIA as [$tabela, $kolumna]) {
             $zapytanie->whereNotExists(function ($sub) use ($tabela, $kolumna): void {
                 $sub->selectRaw('1')->from($tabela)->whereColumn("{$tabela}.{$kolumna}", 'media.id');
             });
@@ -77,39 +64,13 @@ final class OsieroconeZdjecia
                 }
 
                 DB::transaction(function () use ($zdjecie, &$skasowane): void {
-                    $this->skasujPliki($zdjecie);
-                    $zdjecie->delete();
-                    $skasowane++;
+                    if ($this->kasowanie->jesliNieuzywane($zdjecie)) {
+                        $skasowane++;
+                    }
                 });
             }
         });
 
         return $skasowane;
-    }
-
-    /**
-     * Oryginał i wszystkie warianty.
-     *
-     * Kolejność jest tu odwrotna do intuicyjnej: NAJPIERW pliki, POTEM wiersz.
-     * Wiersz bez plików da się jeszcze zauważyć i posprzątać; pliki bez wiersza
-     * są niewidoczne dla całej aplikacji i zostają na dysku na zawsze.
-     */
-    private function skasujPliki(Media $zdjecie): void
-    {
-        // Dysk BIERZEMY Z WIERSZA, a nie z konfiguracji. Zdjęcie wgrane
-        // przed przejściem na R2 ma w kolumnie `disk` starą wartość i tam
-        // fizycznie leży — sięgnięcie po `config()` szukałoby go na nowym
-        // dysku, nie znalazłoby i po cichu zostawiło plik na zawsze.
-        $dysk = Storage::disk($zdjecie->disk);
-
-        foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $wariant) {
-            if (is_array($wariant) && isset($wariant['key'])) {
-                $dysk->delete((string) $wariant['key']);
-            }
-        }
-
-        if ($zdjecie->object_key !== null) {
-            $dysk->delete($zdjecie->object_key);
-        }
     }
 }

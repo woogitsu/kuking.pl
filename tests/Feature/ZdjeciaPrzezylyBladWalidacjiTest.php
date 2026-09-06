@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Media\KasujZdjecie;
 use App\Domain\Media\OsieroconeZdjecia;
 use App\Models\Media;
 use App\Models\Post;
@@ -231,7 +232,7 @@ class ZdjeciaPrzezylyBladWalidacjiTest extends TestCase
     {
         // TO JEST TEST, KTÓRY PILNUJE JEDYNEGO RYZYKA SPRZĄTANIA.
         //
-        // Pominięcie jednej kolumny w `OsieroconeZdjecia::ODWOLANIA` znaczy
+        // Pominięcie jednej kolumny w `KasujZdjecie::ODWOLANIA` znaczy
         // kasowanie zdjęć, które ktoś ma przypięte do przepisu albo do awatara.
         // Czytamy więc schemat bazy i porównujemy z listą — jeśli ktoś doda
         // nową kolumnę wskazującą na `media` i zapomni o sprzątaczce,
@@ -250,7 +251,7 @@ class ZdjeciaPrzezylyBladWalidacjiTest extends TestCase
             ->values()
             ->all();
 
-        $zListy = collect(OsieroconeZdjecia::ODWOLANIA)
+        $zListy = collect(KasujZdjecie::ODWOLANIA)
             ->sortBy(fn ($p) => implode('.', $p))
             ->values()
             ->all();
