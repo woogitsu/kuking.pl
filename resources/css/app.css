@@ -1683,3 +1683,63 @@
 .feed-tabs {
   margin: var(--spacing-5) 0;
 }
+
+/* --- Menu „…" nad wpisem (UI kit v2, ekran 01) ---------------------------
+   `<details>`, więc działa bez JavaScriptu. Znacznik `summary` dostaje
+   pełny rozmiar celu dotknięcia, bo trzy kropki same w sobie są malutkie —
+   a to jest dokładnie ten rodzaj celu, w który nie trafia osoba z mniej
+   pewną ręką (docs/UX_50_PLUS.md).
+   ------------------------------------------------------------------------ */
+
+.post-card-menu {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+}
+
+.post-card-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height-min);
+  min-height: var(--control-height-min);
+  border-radius: var(--radius-pill);
+  color: var(--color-ink-muted);
+  font-size: var(--text-body-lg);
+  cursor: pointer;
+  list-style: none;
+}
+
+.post-card-menu > summary::-webkit-details-marker { display: none; }
+
+.post-card-menu > summary:hover {
+  background-color: var(--color-surface-sunken);
+}
+
+.post-card-menu-tresc {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  min-width: 14rem;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+}
+
+.post-card-menu-tresc a {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height-min);
+  padding: 0 var(--spacing-3);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+
+.post-card-menu-tresc a:hover {
+  background-color: var(--color-surface-sunken);
+}

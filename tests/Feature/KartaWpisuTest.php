@@ -236,4 +236,75 @@ class KartaWpisuTest extends TestCase
 
         return substr($html, $start, $koniec - $start);
     }
+
+    // -----------------------------------------------------------------
+    // Menu „…" nad wpisem (UI kit v2, ekran 01)
+    // -----------------------------------------------------------------
+
+    public function test_zglos_nie_zniknelo_razem_z_przeniesieniem_do_menu(): void
+    {
+        // „Zgłoś" zeszło z paska akcji do menu „…". Przeniesienie akcji
+        // moderacyjnej w mniej widoczne miejsce jest o krok od jej zgubienia
+        // — a zgłoszenie treści to jedyna droga, jaką ma człowiek, któremu
+        // coś się na tej stronie stało.
+        $autor = $this->user('autor');
+        $widz = $this->user('widz');
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $html = (string) $this->actingAs($widz)->get(route('home'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            route('reports.create', ['type' => 'post', 'id' => $wpis->getKey()]),
+            $html,
+            'Z karty wpisu nie da się już zgłosić treści.',
+        );
+    }
+
+    public function test_menu_karty_otwiera_sie_bez_javascriptu(): void
+    {
+        $autor = $this->user('autor');
+        $widz = $this->user('widz');
+        Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $html = (string) $this->actingAs($widz)->get(route('home'))->assertOk()->getContent();
+
+        // `<details>`, nie przycisk sterowany skryptem. Menu, które bez
+        // JavaScriptu nie otwiera się wcale, jest ozdobą udającą przycisk.
+        $this->assertStringContainsString('<details class="post-card-menu">', $html);
+        $this->assertMatchesRegularExpression(
+            '~<details class="post-card-menu">.*?<summary~s',
+            $html,
+        );
+    }
+
+    public function test_autor_nie_zglasza_sam_siebie(): void
+    {
+        // Zgłoszenie własnego wpisu nie ma sensu i nie może się pojawić —
+        // ani na pasku, ani w menu.
+        $autor = $this->user('autor');
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $html = (string) $this->actingAs($autor)->get(route('home'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString(
+            route('reports.create', ['type' => 'post', 'id' => $wpis->getKey()]),
+            $html,
+        );
+    }
+
+    public function test_karta_mowi_kto_widzi_ten_wpis(): void
+    {
+        // Kit pokazuje widoczność przy dacie („2 godz. temu · publicznie").
+        // Autor ma wiedzieć jednym spojrzeniem, kto to widzi, a nie dopiero
+        // po wejściu w edycję.
+        $autor = $this->user('autor');
+        Post::factory()->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $this->actingAs($autor)->get(route('home'))
+            ->assertOk()
+            ->assertSee('publicznie', escape: false);
+    }
 }
