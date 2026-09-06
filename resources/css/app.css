@@ -195,9 +195,24 @@
 
     .side-nav-item:hover { background-color: var(--color-surface-sunken); }
 
+    /*
+     * Kolor tekstu na podświetleniu bieżącej pozycji (issue #26).
+     *
+     * `--color-brand-dark` na `--color-brand-tint` daje w trybie ciemnym
+     * kontrast 2.32 — ciemny pomarańcz na ciemnym brązie. Bieżąca pozycja
+     * nawigacji, czyli ta, która MA się wyróżniać, była najsłabiej czytelnym
+     * elementem całego menu. W trybie jasnym ta sama para daje 6.67, więc
+     * usterki nie dało się zobaczyć bez przełączenia motywu — złapał ją
+     * dopiero automat.
+     *
+     * Naprawą NIE jest podstawienie `--color-brand`: w trybie jasnym dałoby
+     * to 4.64, czyli spadek z 6.67 tuż nad próg. Brakowało TOKENU dla roli
+     * „tekst na brand-tint" — jego odpowiedniki istnieją dla akcentu, błędu
+     * i sukcesu. `--color-brand-tint-ink` daje 6.67 (jasny) i 6.55 (ciemny).
+     */
     .side-nav-item[aria-current="page"] {
       background-color: var(--color-brand-tint);
-      color: var(--color-brand-dark);
+      color: var(--color-brand-tint-ink);
       font-weight: 800;
     }
   }
@@ -271,7 +286,10 @@
   .avatar {
     border-radius: var(--radius-pill);
     background-color: var(--color-brand-tint);
-    color: var(--color-brand-dark);
+    /* Inicjały na brand-tint — ta sama para co w nawigacji, ta sama usterka:
+       2.32 w trybie ciemnym. Widać ją tylko u osób BEZ zdjęcia profilowego,
+       czyli u nowych — u tych, którzy oglądają Kuking pierwszy raz. */
+    color: var(--color-brand-tint-ink);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -608,8 +626,15 @@
     white-space: nowrap;
   }
 
+  /*
+   * Bieżąca zakładka: `--color-brand-dark` na TLE STRONY (nie na tincie)
+   * dawało w trybie ciemnym 2.76. Tu właściwym tokenem jest `--color-brand`,
+   * bo to jest jego roli — kolor tekstu marki na powierzchni: 5.31 w jasnym,
+   * 7.80 w ciemnym. `--color-brand-dark` jest tokenem HOVERU przycisku
+   * i nigdy nie był przeznaczony na tekst.
+   */
   .tab[aria-current="page"] {
-    color: var(--color-brand-dark);
+    color: var(--color-brand);
     box-shadow: inset 0 -3px 0 0 var(--color-brand);
   }
 

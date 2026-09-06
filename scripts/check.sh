@@ -7,12 +7,24 @@
 #
 #   ./scripts/check.sh          # pełna kontrola
 #   ./scripts/check.sh --szybko # bez budowania assetów (szybsze przy pracy nad PHP)
+#   ./scripts/check.sh --dostepnosc # dodatkowo axe na 11 ekranach w 4 wariantach
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 SZYBKO=0
-[ "${1:-}" = "--szybko" ] && SZYBKO=1
+SPRAWDZ_DOSTEPNOSC=0
+
+# Pętla, a nie `[ "$1" = ... ]`: flagi mają działać w dowolnej kolejności
+# i dowolnej liczbie. Poprzednia wersja czytała wyłącznie PIERWSZY argument,
+# więc `--dostepnosc --szybko` po cichu gubiłoby drugą flagę.
+for _arg in "$@"; do
+    case "$_arg" in
+        --szybko) SZYBKO=1 ;;
+        --dostepnosc) SPRAWDZ_DOSTEPNOSC=1 ;;
+        *) printf "Nieznana opcja: %s\n" "$_arg" >&2; exit 2 ;;
+    esac
+done
 
 CZERWONY='\033[0;31m'; ZIELONY='\033[0;32m'; ZOLTY='\033[0;33m'; RESET='\033[0m'
 BLEDY=0
@@ -72,6 +84,25 @@ elif bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     ok "Składnia i testy entrypointu przechodzą"
 else
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+fi
+
+# --- 3c. Dostępność (opcjonalna) -------------------------------------------
+# Automat axe łapie około 30% problemów z dostępnością — ale dokładnie te,
+# które najłatwiej wprowadzić przypadkiem: pole bez etykiety, przycisk bez
+# nazwy dostępnej, kontrast zepsuty jedną „drobną poprawką" koloru.
+#
+# DOMYŚLNIE POMIJANY, bo podnosi przeglądarkę i bazę: to jest kilkadziesiąt
+# sekund, a `check.sh` chodzi przed każdym commitem. Uruchamiaj przy zmianach
+# w widokach i w CSS-ie:  ./scripts/check.sh --dostepnosc
+krok "Dostępność (axe)"
+if [ "$SPRAWDZ_DOSTEPNOSC" -ne 1 ]; then
+    printf "  Pominięte: uruchom './scripts/check.sh --dostepnosc' przy zmianach w widokach\n"
+elif [ ! -d node_modules/@axe-core ]; then
+    printf "  Pominięte: brak @axe-core/playwright (npm install)\n"
+elif DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; then
+    ok "Zero naruszeń critical i serious"
+else
+    zle "Naruszenia dostępności — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
 fi
 
 # --- 4. Analiza statyczna (opcjonalna) ------------------------------------

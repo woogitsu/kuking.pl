@@ -40,6 +40,12 @@
   --color-brand: #B3401F;
   --color-brand-dark: #8C3018;
   --color-brand-tint: #F5E4DC;
+  /* Tekst NA --color-brand-tint. Ten token brakował, choć jego odpowiedniki
+     istnieją dla akcentu, błędu i sukcesu (--color-*-tint-ink) — i właśnie
+     dlatego bieżąca pozycja nawigacji miała w trybie ciemnym kontrast 2.32.
+     55 policzonych par tej jednej nie objęło, bo w trybie jasnym była
+     poprawna (issue #26). */
+  --color-brand-tint-ink: #8C3018;      /* na brand-tint: 6.67:1 */
   --color-brand-solid: #B3401F;
   --color-brand-solid-hover: #8C3018;
 
@@ -52,6 +58,10 @@
   --color-danger: #B3261E;
   --color-danger-tint: #FBE2E0;
   --color-danger-tint-ink: #8C1E17;
+  /* TŁO przycisku destrukcyjnego. W trybie jasnym to ten sam odcień co
+     --color-danger; w ciemnym rozjeżdżają się celowo — patrz .btn-danger. */
+  --color-danger-solid: #B3261E;        /* biały tekst: 6.54:1 */
+  --color-danger-solid-hover: #8C1E17;  /* biały tekst: 9.08:1 */
   --color-success: #1E7B3E;
   --color-success-tint: #DFF3E4;
   --color-success-tint-ink: #155C2E;
@@ -147,6 +157,7 @@
     --color-brand: #F2986A;
     --color-brand-dark: #A63F1F;   /* używane jako hover przycisku primary w dark mode */
     --color-brand-tint: #3A2418;
+    --color-brand-tint-ink: #F2986A;   /* na brand-tint: 6.55:1 */
     --color-brand-solid: #C1502A;
     --color-brand-solid-hover: #A63F1F;
 
@@ -157,6 +168,8 @@
     --color-danger: #FF8A80;
     --color-danger-tint: #5C1E17;
     --color-danger-tint-ink: #FDECEA;
+    --color-danger-solid: #C43127;        /* biały tekst: 5.50:1 */
+    --color-danger-solid-hover: #A3281F;  /* biały tekst: 7.29:1 */
     --color-success: #7BD79A;
     --color-success-tint: #1E4A2C;
     --color-success-tint-ink: #EAF9EE;
@@ -181,6 +194,7 @@
   --color-brand: #F2986A;
   --color-brand-dark: #A63F1F;
   --color-brand-tint: #3A2418;
+  --color-brand-tint-ink: #F2986A;   /* na brand-tint: 6.55:1 */
   --color-brand-solid: #C1502A;
   --color-brand-solid-hover: #A63F1F;
 
@@ -191,6 +205,8 @@
   --color-danger: #FF8A80;
   --color-danger-tint: #5C1E17;
   --color-danger-tint-ink: #FDECEA;
+  --color-danger-solid: #C43127;        /* biały tekst: 5.50:1 */
+  --color-danger-solid-hover: #A3281F;  /* biały tekst: 7.29:1 */
   --color-success: #7BD79A;
   --color-success-tint: #1E4A2C;
   --color-success-tint-ink: #EAF9EE;
@@ -249,8 +265,25 @@
 
   p { margin: 0 0 var(--spacing-4); }
 
+  /*
+   * LINK MUSI BYĆ PODKREŚLONY, A NIE TYLKO KOLOROWY (WCAG 1.4.1, issue #26).
+   *
+   * Reset Tailwinda ustawia `a { text-decoration: inherit }`, a nasza reguła
+   * podawała wcześniej sam kolor. Skutek: link dziedziczył `none` po akapicie
+   * i w tekście ciągłym odróżniał się WYŁĄCZNIE kolorem. Automat axe złapał
+   * to jako `link-in-text-block` na formularzu przepisu.
+   *
+   * Dla naszej grupy to nie jest formalność. Rozróżnianie barw słabnie z
+   * wiekiem, a przy zaćmie i po operacji zaćmy — wyraźnie. Podkreślenie jest
+   * jedyną wskazówką, która działa niezależnie od tego, jak ktoś widzi kolory.
+   *
+   * Linki, które są przyciskami, kafelkami albo nawigacją, zdejmują
+   * podkreślenie u siebie (`.btn`, `.side-nav-item`, `.wordmark`, karty) —
+   * tam kształt i tło mówią wystarczająco dużo.
+   */
   a {
     color: var(--color-brand);
+    text-decoration: underline;
     text-underline-offset: 3px;
   }
   a:hover { text-decoration-thickness: 2px; }
@@ -355,11 +388,23 @@
   }
   .btn-quiet:hover:not(:disabled) { text-decoration: underline; }
 
+  /*
+   * TŁO przycisku to OSOBNY token, nie `--color-danger` (issue #26).
+   *
+   * `--color-danger` musi być JASNY w trybie ciemnym, żeby działać jako kolor
+   * tekstu na ciemnym tle. Ten sam jasny odcień jako TŁO przycisku z białym
+   * napisem dawał kontrast 2.28 — czyli połowę wymaganego minimum. Przycisk
+   * „Usuń" był w trybie ciemnym praktycznie nieczytelny.
+   *
+   * To jest dokładnie ten sam podział, który system designu ma już dla marki
+   * (`--color-brand` kontra `--color-brand-solid`). Brakowało go dla stanu
+   * błędu — i dlatego 55 policzonych par kontrastu tej jednej nie objęło.
+   */
   .btn-danger {
-    background-color: var(--color-danger);
+    background-color: var(--color-danger-solid);
     color: var(--color-ink-inverse);
   }
-  .btn-danger:hover:not(:disabled) { background-color: var(--color-danger-tint-ink); }
+  .btn-danger:hover:not(:disabled) { background-color: var(--color-danger-solid-hover); }
 
   /* Odstęp obowiązkowy między akcją zwykłą a destrukcyjną */
   .danger-zone {

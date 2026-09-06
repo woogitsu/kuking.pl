@@ -329,6 +329,147 @@ jobs:
           retention-days: 5
 
   # ===========================================================================
+  #  4b. Dostępność — axe-core na 11 ekranach w 4 wariantach
+  # ===========================================================================
+  #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Repozytorium jest
+  #  prywatne, więc każda minuta Actions kosztuje; ten job podnosi przeglądarkę
+  #  i bazę, czyli jest najdroższy z całego CI. Filtr ścieżek sprawia, że nie
+  #  płacimy za niego przy zmianie w kontrolerze albo w migracji.
+  #
+  #  Bez tego joba automat chodziłby tylko wtedy, gdy ktoś PAMIĘTA o fladze
+  #  `./scripts/check.sh --dostepnosc` — a o rzeczach, o których trzeba
+  #  pamiętać, się zapomina. Trzy usterki, które ten automat złapał przy
+  #  pierwszym uruchomieniu, siedziały w kodzie miesiącami.
+  # ===========================================================================
+  dostepnosc:
+    name: Dostępność (axe-core)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      # Sesja w pliku, nie w tablicy: skrypt loguje się przez prawdziwy
+      # formularz i musi utrzymać sesję między żądaniami.
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+      POSTHOG_KEY: ""
+
+    steps:
+      # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
+      # i sprawdzić, CZY ten PR w ogóle rusza warstwę widoku.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # GitHub Actions nie umie filtrować ścieżek per JOB (tylko per workflow),
+      # więc robimy to sami. Wszystkie kolejne kroki są za tym warunkiem —
+      # przy zmianie w kontrolerze albo w migracji job kończy się w kilka
+      # sekund, zamiast pobierać przeglądarkę i podnosić bazę.
+      - name: Czy zmieniła się warstwa widoku
+        id: zmiany
+        run: |
+          set -euo pipefail
+          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
+
+          # Przy pierwszym pushu na gałąź `before` to same zera — nie ma
+          # z czym porównywać, więc sprawdzamy wszystko. Lepiej raz zapłacić
+          # za niepotrzebny przebieg niż przepuścić regresję.
+          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
+            echo "warto=1" >> "$GITHUB_OUTPUT"
+            echo "Brak punktu odniesienia — sprawdzam."
+            exit 0
+          fi
+
+          zmienione="$(git diff --name-only "$baza" HEAD)"
+          echo "Zmienione pliki:"; echo "$zmienione"
+
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/dostepnosc\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+            echo "warto=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "warto=0" >> "$GITHUB_OUTPUT"
+            echo "Warstwa widoku nietknięta — pomijam."
+          fi
+
+      - name: Konfiguracja PHP
+        if: steps.zmiany.outputs.warto == '1'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Konfiguracja Node
+        if: steps.zmiany.outputs.warto == '1'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalacja zależności
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+
+      # Na runnerze GitHuba nie ma gotowego Chromium — pobieramy tylko jego,
+      # bez Firefoksa i WebKita, których ten automat nie używa.
+      - name: Przeglądarka
+        if: steps.zmiany.outputs.warto == '1'
+        run: npx playwright install --with-deps chromium
+
+      - name: Przygotowanie
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          cp .env.example .env
+          php artisan storage:link
+          npm run build
+
+      # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
+      # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
+      # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
+      - name: axe-core (11 ekranów × 4 warianty)
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/dostepnosc.mjs
+
+      # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
+      # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
+      - name: Zapis wyniku
+        if: always() && steps.zmiany.outputs.warto == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dostepnosc-${{ github.sha }}
+          path: storage/dostepnosc.json
+          retention-days: 14
+
+  # ===========================================================================
   #  5. Audyt bezpieczeństwa zależności
   # ===========================================================================
   #  Nie blokuje merge'a (continue-on-error), bo publikacja nowego CVE
