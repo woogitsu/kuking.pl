@@ -373,8 +373,8 @@ class DataExportTest extends TestCase
         $export->refresh();
 
         $this->assertSame(DataExport::STATUS_FAILED, $export->status);
-        $this->assertNotNull($export->failure_reason);
-        $this->assertStringContainsString('Nie udało się przygotować paczki', $export->failure_reason);
+        // Kod, nie zdanie (audyt W7-07) — patrz reasonFor() w GenerateUserExport.
+        $this->assertSame(DataExport::REASON_STORAGE, $export->failure_reason);
     }
 
     public function test_job_nie_zostawia_rekordu_w_stanie_przygotowywania(): void
@@ -391,7 +391,85 @@ class DataExportTest extends TestCase
         $export->refresh();
 
         $this->assertSame(DataExport::STATUS_FAILED, $export->status);
-        $this->assertStringContainsString('limit czasu', (string) $export->failure_reason);
+        $this->assertSame(DataExport::REASON_TIMEOUT, $export->failure_reason);
+    }
+
+    /**
+     * Powtórzenie scenariusza wyżej, ale z naciskiem na to, co NIE ma prawa
+     * trafić do kolumny: komentarz nad starym `reasonFor()` ostrzegał wprost
+     * przed „SQLSTATE[42P01]" na ekranie, a kod robił dokładnie to (audyt W7-07).
+     */
+    public function test_powod_niepowodzenia_eksportu_nigdy_nie_zawiera_surowego_komunikatu_wyjatku(): void
+    {
+        $basia = $this->user('basia');
+        $export = DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+
+        // Dysk, którego nie ma w konfiguracji — realny odpowiednik awarii storage.
+        // Bez tej zmiany w reasonFor() SQLSTATE albo nazwa dysku z tej awarii
+        // wylądowałyby wprost w failure_reason i na ekranie ustawień.
+        config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
+
+        try {
+            (new GenerateUserExport((string) $export->getKey()))->handle();
+            $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
+        } catch (\Throwable) {
+            // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
+        }
+
+        $export->refresh();
+
+        $this->assertContains($export->failure_reason, array_keys(DataExport::REASONS));
+
+        $powod = (string) $export->failure_reason;
+
+        $this->assertStringNotContainsString('SQLSTATE', $powod);
+        $this->assertStringNotContainsString('Exception', $powod);
+        $this->assertStringNotContainsString('dysk-ktorego-nie-ma', $powod);
+        $this->assertStringNotContainsString(sys_get_temp_dir(), $powod);
+    }
+
+    public function test_widok_pokazuje_ludzki_tekst_powodu_a_nie_kod(): void
+    {
+        $basia = $this->user('basia');
+
+        DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_FAILED,
+            'failure_reason' => DataExport::REASON_STORAGE,
+        ]);
+
+        $response = $this->actingAs($basia)->get(route('settings.data'));
+
+        $response->assertOk();
+        $response->assertSee('Nie udało się zapisać paczki w naszym magazynie plików.');
+        $response->assertSee((string) config('kuking.community.contact_email'));
+        $response->assertDontSee(DataExport::REASON_STORAGE, false);
+    }
+
+    /**
+     * Nieznany/stary kod (albo wiersz sprzed migracji W7-07, jeszcze z wolnym
+     * tekstem) ma dać sensowny tekst, nie pusty ekran i nie surowy ciąg
+     * z bazy — patrz DataExport::failureReasonLabel().
+     */
+    public function test_widok_pokazuje_bezpieczny_tekst_dla_nieznanego_kodu(): void
+    {
+        $basia = $this->user('basia');
+
+        DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_FAILED,
+            'failure_reason' => 'Nie udało się przygotować paczki: SQLSTATE[42P01]: Undefined table',
+        ]);
+
+        $response = $this->actingAs($basia)->get(route('settings.data'));
+
+        $response->assertOk();
+        $response->assertSee('Nie udało się przygotować paczki z Twoimi danymi.');
+        $response->assertDontSee('SQLSTATE', false);
+        $response->assertDontSee('42P01', false);
     }
 
     public function test_prosba_o_eksport_kolejkuje_job(): void

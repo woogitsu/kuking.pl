@@ -676,6 +676,53 @@ odpowiedzieliśmy na odwołania (dokładnie to, o co zapyta regulator).
 ### audit_log
 Wysokiego znaczenia zmiany.
 
+### data_exports
+Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
+przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |
+| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`). |
+| `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
+| `bytes` | Rozmiar gotowego pliku. |
+| `completed_at` | Kiedy paczka była gotowa. |
+| `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
+| `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
+
+Kolumna jest renderowana wprost na ekranie ustawień
+(`resources/views/pages/settings/data.blade.php`), więc nie może zawierać
+technicznego szczegółu wyjątku (SQLSTATE, ścieżka na dysku tymczasowym).
+Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
+(ten sam wzorzec co `Report::REASONS`):
+
+| Kod | Kiedy |
+|---|---|
+| `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
+| `unknown` | Worek na resztę — każda inna awaria. |
+
+`DataExport::failureReasonLabel()` zamienia kod na zdanie po polsku (z adresem
+kontaktowym z `config('kuking.community.contact_email')`) i **nigdy** nie
+pokazuje surowego kodu ani starego wolnego tekstu — nieznany albo pusty kod
+dostaje tekst spod `unknown`. Pełny `$e->getMessage()` zostaje wyłącznie
+w logu aplikacji (`Log::warning` w `GenerateUserExport::handle()`).
+
+Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych czterech
+wartości — dokładnie jak `reports.reason` (patrz wyżej), które też jest
+kodem z zamkniętym mapowaniem w PHP, a nie w bazie.
+
+Migracja `2026_09_06_210000_convert_data_export_failure_reason_to_codes`
+zamienia istniejące wiersze z wolnego tekstu na kody (backfill po dokładnym
+dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
+`NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
+wyłącznie w logu.
+
+Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
+
 ## V1 / V2
 
 Później:
