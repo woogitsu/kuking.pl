@@ -48,29 +48,45 @@ Zaznacz, jeśli dotyczy tego PR-a. Jeśli PR nie zmienia UI, zaznacz wszystko ja
 
 ## C. Automaty — narzędzia i komendy CI
 
-### axe-core + Playwright (rekomendowane jako główny automat)
+### axe-core + Playwright — DZIAŁA, `scripts/dostepnosc.mjs` (issue #26)
 
 ```bash
-npm install -D @axe-core/playwright @playwright/test
+./scripts/check.sh --dostepnosc      # w ramach kontroli przed wysłaniem
+node scripts/dostepnosc.mjs          # osobno, z pełnym wynikiem na konsoli
+node scripts/dostepnosc.mjs --szybko # sam wariant jasny, gdy się spieszysz
 ```
 
-```ts
-// tests/a11y/axe.spec.ts
-import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+Skrypt sam podnosi `php artisan serve` i sam go gasi, sam zasiewa dane
+z `DemoSeeder` i sam się loguje przez prawdziwy formularz. Nie trzeba
+niczego przygotowywać.
 
-const paths = ['/', '/discover', '/add', '/posts/create', '/recipes/create', '/@basia68', '/recipes/sernik-babci-heleny'];
+**11 ekranów × 4 warianty = 44 przebiegi:**
 
-for (const path of paths) {
-  test(`axe: ${path} nie ma naruszeń WCAG 2.2 AA`, async ({ page }) => {
-    await page.goto(path);
-    const results = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag22aa'])
-      .analyze();
-    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
-  });
-}
-```
+| | |
+|---|---|
+| ekrany | powitalna, „Świeżo z Kuking", logowanie, rejestracja, przepis, profil, tablica, dodaj zdjęcie, dodaj przepis, czytelność, szukaj |
+| warianty | jasny · ciemny · tekst 140% · szerokość 320 px |
+
+Warianty nie są ozdobą. **Kontrast liczy się osobno dla każdego motywu**,
+a przy skali tekstu 140% i szerokości 320 px wychodzą nakładające się
+elementy. Sprawdzanie samego „normalnego" widoku przepuszczało dokładnie
+te usterki, które dotykają naszej grupy najczęściej — bo to ona włącza
+większy tekst.
+
+Wynik idzie do **`storage/dostepnosc.json`**, nie tylko na konsolę: przy 44
+przebiegach lista naruszeń nie mieści się w oknie terminala. Kod wyjścia jest
+niezerowy tylko przy wagach `critical` i `serious`.
+
+**Co złapało przy pierwszym uruchomieniu** — trzy usterki niewidoczne
+w codziennej pracy, bo wszystkie trzy dotyczyły trybu ciemnego albo linków
+w tekście ciągłym:
+
+- bieżąca pozycja nawigacji: kontrast **2.32** w trybie ciemnym (w jasnym 6.67);
+- przycisk „Usuń": kontrast **2.28** w trybie ciemnym;
+- linki w tekście pomocniczym odróżnione **wyłącznie kolorem** (WCAG 1.4.1).
+
+To jest dokładnie ta klasa błędów, po którą się sięga po automat: żaden
+z nich nie psuł niczego widocznego przy zwykłym przeglądaniu strony.
 
 ```bash
 npx playwright test tests/a11y/axe.spec.ts
