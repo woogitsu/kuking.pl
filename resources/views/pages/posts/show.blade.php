@@ -39,6 +39,28 @@
             </p>
         </div>
 
+        @if($post->media->count() > 1)
+            {{--
+                Wygląd i kolejność zdjęć (issue #92).
+
+                Stoi TYLKO przy dwóch zdjęciach i większej liczbie — przy
+                jednym nie ma czego ustawiać, a link do ekranu, który mówi
+                „nie ma tu czego ustawiać", jest gorszy niż brak linku.
+
+                To jest zarazem jedyna droga dla osoby BEZ JavaScriptu:
+                w formularzu publikacji wybór wygląda inaczej, bo tam serwer
+                nie zna jeszcze liczby zdjęć (patrz PostMediaController).
+            --}}
+            <div class="notice">
+                <strong>Ten wpis ma kilka zdjęć.</strong>
+                Możesz ustawić ich kolejność i wybrać, jak mają się wyświetlić:
+                zwykle, karuzelą albo kolażem.
+                <p style="margin-bottom:0;">
+                    <a class="btn btn-secondary" href="{{ route('posts.media.edit', $post) }}">Kolejność i wygląd zdjęć</a>
+                </p>
+            </div>
+        @endif
+
         <div class="danger-zone">
             <h2>Ten wpis jest Twój</h2>
             <p>Możesz go usunąć. Zniknie ze strony głównej i z Twojego archiwum.</p>

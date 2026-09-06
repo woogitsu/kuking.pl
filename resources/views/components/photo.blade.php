@@ -7,7 +7,29 @@
     §7) — ale „nie pokazuj zdjęcia” i „nie pokazuj NIC” to dwie różne rzeczy.
     Ta druga gałąź niżej istnieje właśnie po to, żeby to rozróżnić.
 --}}
-@props(['media' => null, 'variant' => 'feed', 'priority' => false, 'class' => 'post-photo', 'zoom' => true])
+{{--
+    `alt` i `sizes` (issue #92).
+
+    `alt` — tekst alternatywny nie jest przy publikacji wymagany (to by
+    dokładało pracę w momencie, w którym chcemy, żeby człowiek po prostu
+    wrzucił zdjęcie), więc `alt_text` bywa pusty. Puste `alt` jest poprawne
+    dla ozdobnika, ale zdjęcie w karuzeli JEST treścią i musi mieć jakikolwiek
+    opis — choćby „Zdjęcie 2 z 4 w tym wpisie", które przynajmniej mówi,
+    gdzie się jest. Ta prop pozwala podać taki zastępczy opis.
+
+    `sizes` — w kolażu zdjęcie zajmuje pół szerokości karty, nie całą.
+    Bez tego przeglądarka pobierałaby wariant dwa razy za duży dla każdego
+    pola siatki, czyli sześć razy przy sześciu zdjęciach.
+--}}
+@props([
+    'media' => null,
+    'variant' => 'feed',
+    'priority' => false,
+    'class' => 'post-photo',
+    'zoom' => true,
+    'alt' => null,
+    'sizes' => '(min-width: 64rem) 720px, 100vw',
+])
 @if($media && $media->isReady())
     @if($zoom)
         {{--
@@ -34,8 +56,8 @@
     <img class="{{ $class }}"
          src="{{ $media->url($variant) }}"
          srcset="{{ $media->url('thumb') }} 320w, {{ $media->url('feed') }} 960w, {{ $media->url('large') }} 1600w"
-         sizes="(min-width: 64rem) 720px, 100vw"
-         alt="{{ $media->alt_text ?? '' }}"
+         sizes="{{ $sizes }}"
+         alt="{{ $alt ?: ($media->alt_text ?? '') }}"
          width="{{ $media->width($variant) }}"
          height="{{ $media->height($variant) }}"
          @if($priority) fetchpriority="high" @else loading="lazy" decoding="async" @endif>

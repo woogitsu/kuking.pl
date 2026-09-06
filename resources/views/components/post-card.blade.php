@@ -44,12 +44,40 @@
         <div class="post-card-body">{{ $post->body }}</div>
     @endif
 
+    {{--
+        TRZY SPOSOBY POKAZANIA ZDJĘĆ, JEDNA DECYZJA AUTORA (issue #92)
+
+        Wpis może mieć do sześciu zdjęć i to autor wybiera, jak mają się
+        pokazać: zwykle (jedno pod drugim), karuzelą albo kolażem. Nie jest to
+        ustawienie widza ani zgadywanie po liczbie zdjęć — człowiek, który
+        fotografował danie z czterech stron, wie lepiej niż my, czy chce
+        pokazać je obok siebie, czy po kolei.
+
+        `trybWyswietlaniaZdjec()` liczy się na modelu, nie tutaj: przy jednym
+        zdjęciu wszystkie trzy tryby dają ten sam widok, a wpis może stracić
+        zdjęcia długo po wyborze autora. Widok pyta o gotową odpowiedź.
+
+        Wpis zapisany przed tą zmianą ma `display_mode = 'normal'` z wartości
+        domyślnej w bazie, więc trafia w tę samą gałąź co zawsze i wygląda
+        dokładnie jak wczoraj — bez migracji danych.
+    --}}
     @if($post->media->isNotEmpty())
-        <div class="photo-grid">
-            @foreach($post->media as $media)
-                <x-photo :media="$media" />
-            @endforeach
-        </div>
+        @switch($post->trybWyswietlaniaZdjec())
+            @case(\App\Models\Post::DISPLAY_CAROUSEL)
+                <x-karuzela-zdjec :post="$post" />
+                @break
+
+            @case(\App\Models\Post::DISPLAY_COLLAGE)
+                <x-kolaz-zdjec :post="$post" />
+                @break
+
+            @default
+                <div class="photo-grid">
+                    @foreach($post->media as $media)
+                        <x-photo :media="$media" />
+                    @endforeach
+                </div>
+        @endswitch
     @endif
 
     @if($post->recipe)

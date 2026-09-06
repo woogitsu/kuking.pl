@@ -39,6 +39,7 @@ final class PublishPost
         ?string $recipeId = null,
         ?string $topicId = null,
         ?string $ip = null,
+        string $displayMode = Post::DISPLAY_NORMAL,
     ): Post {
         $body = $this->cleanBody($body);
 
@@ -69,12 +70,23 @@ final class PublishPost
         // poprawny, więc lepiej opublikować bez niego niż odmówić publikacji.
         $topicId = $topicId === null ? null : Topic::doWyboru()->whereKey($topicId)->value('id');
 
-        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $topicId, $orderedMedia): Post {
+        // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu wybór nie
+        // znaczy nic — karuzela z jednym slajdem i kolaż z jednym polem to ten
+        // sam widok co „zwykle" — więc zapisujemy `normal` zamiast trzymać
+        // w bazie deklarację, której nie da się zobaczyć. Wartość spoza listy
+        // też schodzi do `normal`: baza odrzuciłaby ją CHECK-iem, a wpis, który
+        // nie zostaje opublikowany z powodu wyboru układu, to zła zamiana.
+        $displayMode = count($orderedMedia) < 2 || ! in_array($displayMode, Post::dozwoloneTrybyWyswietlania(), true)
+            ? Post::DISPLAY_NORMAL
+            : $displayMode;
+
+        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $topicId, $orderedMedia, $displayMode): Post {
             $post = Post::create([
                 'author_id' => $author->getKey(),
                 'body' => $body,
                 'visibility' => $visibility,
                 'status' => Post::STATUS_PUBLISHED,
+                'display_mode' => $displayMode,
                 'recipe_id' => $recipeId,
                 'topic_id' => $topicId,
                 'published_at' => now(),
@@ -91,7 +103,7 @@ final class PublishPost
             action: 'post.published',
             actor: $author,
             subject: $post,
-            metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility],
+            metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode],
             ip: $ip,
         );
 

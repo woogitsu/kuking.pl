@@ -39,11 +39,21 @@ class Post extends Model
 
     public const VISIBILITY_PRIVATE = 'private';
 
+    /** Zdjęcia jedno pod drugim — jedyny wariant do issue #92 i domyślny. */
+    public const DISPLAY_NORMAL = 'normal';
+
+    /** Jedno zdjęcie naraz, przewijane w bok we własnym kontenerze. */
+    public const DISPLAY_CAROUSEL = 'carousel';
+
+    /** Siatka: wszystkie zdjęcia na jednym ekranie. */
+    public const DISPLAY_COLLAGE = 'collage';
+
     protected $fillable = [
         'author_id',
         'body',
         'visibility',
         'status',
+        'display_mode',
         'recipe_id',
         'topic_id',
         'published_at',
@@ -204,6 +214,43 @@ class Post extends Model
                         });
                 });
         });
+    }
+
+    /**
+     * Tryby wyświetlania zdjęć, które baza w ogóle przyjmie (issue #92).
+     *
+     * Ta lista jest ODBICIEM ograniczenia CHECK z migracji
+     * `2026_09_06_120000_add_display_mode_to_posts`, nie drugim źródłem
+     * prawdy: gdy się rozjadą, baza odrzuci zapis, a nie zapisze cicho
+     * tryb, którego widok nie umie narysować.
+     *
+     * @return list<string>
+     */
+    public static function dozwoloneTrybyWyswietlania(): array
+    {
+        return [self::DISPLAY_NORMAL, self::DISPLAY_CAROUSEL, self::DISPLAY_COLLAGE];
+    }
+
+    /**
+     * Tryb, w którym zdjęcia tego wpisu MAJĄ SIĘ NAPRAWDĘ pokazać.
+     *
+     * DLACZEGO NIE WYSTARCZY SAMA KOLUMNA
+     * Karuzela z jednym zdjęciem to przyciski „poprzednie/następne", które
+     * nie mają dokąd prowadzić, a kolaż z jednym zdjęciem to siatka z jednym
+     * polem. Wpis może stracić zdjęcia (moderacja, usunięcie pliku) długo po
+     * tym, jak autor wybrał tryb — i wtedy zapisana wartość przestaje mieć
+     * sens. Pytanie „co narysować" ma więc jedną odpowiedź, liczoną w jednym
+     * miejscu, zamiast trzech warunków rozsianych po widokach.
+     */
+    public function trybWyswietlaniaZdjec(): string
+    {
+        if ($this->media->count() < 2) {
+            return self::DISPLAY_NORMAL;
+        }
+
+        return in_array($this->display_mode, self::dozwoloneTrybyWyswietlania(), true)
+            ? (string) $this->display_mode
+            : self::DISPLAY_NORMAL;
     }
 
     public function isPublished(): bool

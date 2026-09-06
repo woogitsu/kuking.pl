@@ -93,12 +93,17 @@ class PostController extends Controller
             // po stronie akcji domenowej jest drugą bramką — ta tutaj jest
             // po to, żeby człowiek dostał komunikat zamiast cichego pominięcia.
             'topic_id' => ['nullable', 'uuid'],
+            // Sposób wyświetlania zdjęć (issue #92). NULLABLE, bo formularz
+            // pokazuje ten wybór dopiero od drugiego zdjęcia — brak pola
+            // znaczy „zwykle", a nie „błąd formularza".
+            'display_mode' => ['nullable', 'in:'.implode(',', Post::dozwoloneTrybyWyswietlania())],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
             // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
             'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
+            'display_mode.in' => 'Zaznacz, jak mają się wyświetlić zdjęcia: zwykle, karuzela czy kolaż.',
         ]);
 
         if ($walidator->fails()) {
@@ -119,6 +124,7 @@ class PostController extends Controller
                 visibility: $data['visibility'],
                 topicId: $data['topic_id'] ?? null,
                 ip: $request->ip(),
+                displayMode: $data['display_mode'] ?? Post::DISPLAY_NORMAL,
             );
         } catch (RuntimeException $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną

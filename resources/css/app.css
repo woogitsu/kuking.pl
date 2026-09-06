@@ -439,6 +439,176 @@
     grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
   }
 
+  /* ---------------------------------------------------------------------
+     KARUZELA ZDJĘĆ (issue #92)
+
+     CAŁE PRZEWIJANIE ROBI PRZEGLĄDARKA, NIE SKRYPT
+     Taśma ma `overflow-x: auto` i `scroll-snap-type`, a przyciski
+     „Poprzednie / Następne" to odnośniki do `#id` sąsiedniego slajdu. Skok do
+     kotwicy przewija najbliższego przewijalnego przodka — czyli taśmę —
+     więc karuzela działa przy wyłączonym JavaScripcie (AGENTS.md §5).
+
+     PRZEWIJA SIĘ TAŚMA, NIGDY <body>
+     `overflow-x: auto` na taśmie i `min-width: 0` na slajdzie to warunek,
+     żeby szeroka treść nie rozpychała całego dokumentu (WCAG 2.2 AA,
+     1.4.10 Reflow — mierzy to scripts/dostepnosc.mjs, issue #80).
+
+     `overscroll-behavior-x: contain` — przewinięcie do końca taśmy NIE
+     przenosi się na stronę (i na gest „wstecz" w przeglądarce). Bez tego
+     dojechanie do ostatniego zdjęcia potrafi cofnąć do poprzedniej strony,
+     co dla osoby, która właśnie oglądała czyjś obiad, wygląda jak awaria.
+     --------------------------------------------------------------------- */
+
+  .karuzela-tasma {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+  }
+
+  .karuzela-slajd {
+    /* Dokładnie jeden slajd na ekran — o to chodzi w karuzeli. */
+    flex: 0 0 100%;
+    min-width: 0;
+    scroll-snap-align: start;
+    /* Zapas pod paskiem górnym: skok do kotwicy przewija też stronę
+       w pionie, a bez tego zdjęcie chowa się pod belką. */
+    scroll-margin-top: 5rem;
+  }
+
+  .karuzela-pasek {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-5);
+  }
+
+  .karuzela-licznik {
+    margin: 0;
+    font-size: var(--text-body);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+  }
+
+  /* `flex-wrap` jest tu obowiązkowe, nie ozdobne: dwa przyciski z pełnym
+     napisem i 48 px wysokości nie mieszczą się w jednym wierszu przy 320 px
+     ani przy powiększonym tekście i muszą mieć gdzie zejść. */
+  .karuzela-sterowanie {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-left: auto;
+  }
+
+  .karuzela-sterowanie .btn { max-width: 100%; }
+
+  /* ---------------------------------------------------------------------
+     KOLAŻ (issue #92)
+
+     KOLAŻ NIE OBCINA JEDZENIA
+     Pola siatki są równe (kwadrat), ale zdjęcie mieści się w polu w CAŁOŚCI:
+     `object-fit: contain`, nie `cover`. Kadrowanie do kwadratu ucina to, co
+     człowiek chciał pokazać — a zdjęcie jedzenia jest w tym produkcie samą
+     treścią wpisu, nie tłem pod tekstem.
+
+     Cena jest widoczna: przy zdjęciach o różnych proporcjach zostają puste
+     marginesy na tle `--color-surface-sunken`. To jest świadomy wybór —
+     pusty margines da się zignorować, uciętego jedzenia nie da się odzyskać.
+
+     DWIE KOLUMNY TAKŻE PRZY 320 px
+     Kolaż ma pokazywać wszystko na jednym ekranie; zwinięcie go do jednej
+     kolumny na telefonie zamieniłoby wybór autora w widok „zwykły" i nic
+     by z niego nie zostało. Zdjęcie w polu jest wtedy małe — dlatego każde
+     pole zostaje odnośnikiem do powiększenia (x-photo).
+     --------------------------------------------------------------------- */
+
+  .kolaz {
+    display: grid;
+    gap: 2px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .kolaz-pole {
+    aspect-ratio: 1;
+    background-color: var(--color-surface-sunken);
+    display: flex;
+  }
+
+  .kolaz-pole .photo-zoom,
+  .kolaz-pole .post-photo {
+    width: 100%;
+    height: 100%;
+  }
+
+  .kolaz-pole .post-photo {
+    object-fit: contain;
+  }
+
+  /* ---------------------------------------------------------------------
+     WYBÓR WYGLĄDU I KOLEJNOŚCI ZDJĘĆ (issue #92)
+     --------------------------------------------------------------------- */
+
+  .wybor-wygladu {
+    border: 0;
+    padding: 0;
+    margin: var(--spacing-6) 0 0;
+  }
+
+  .wybor-wygladu > legend {
+    font-weight: 700;
+    margin-bottom: var(--spacing-3);
+  }
+
+  /* Ukryty wybór (jedno zdjęcie) MUSI zniknąć naprawdę — `display: grid`
+     ze środka komponentu wygrałby ze zwykłym `[hidden]`. */
+  .wybor-wygladu[hidden] { display: none; }
+
+  .lista-zdjec {
+    list-style: none;
+    margin: 0 0 var(--spacing-6);
+    padding: 0;
+  }
+
+  .lista-zdjec-wiersz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .lista-zdjec-podglad {
+    flex: 0 0 auto;
+    width: 8rem;
+    max-width: 100%;
+  }
+
+  .lista-zdjec-tresc {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  .lista-zdjec-numer {
+    margin: 0 0 var(--spacing-2);
+    font-weight: 700;
+  }
+
+  .lista-zdjec-akcje {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+  }
+
+  .lista-zdjec-akcje .btn { max-width: 100%; }
+
   .avatar {
     border-radius: var(--radius-pill);
     background-color: var(--color-brand-tint);
