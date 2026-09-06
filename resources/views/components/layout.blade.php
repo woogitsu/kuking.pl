@@ -45,17 +45,44 @@
     //  cicho pomijają taki obrazek i karta wraca do postaci bez zdjęcia.
     //  Dysk lokalny zwraca ścieżkę względną, R2 zwraca pełny adres, więc
     //  sprawdzamy, co dostaliśmy, zamiast zakładać.
-    // ------------------------------------------------------------------
-    $ogImage = $image?->url('large');
+    //
+    //  AUDYT A3 — DLACZEGO JEST TU `isReady()`, A NIE SAMO `$image?->url()`
+    //  `Media::url()` ma WŁASNY fallback na `kuking-mark.svg`, kiedy zdjęcie
+    //  nie ma jeszcze wygenerowanych wariantów (patrz komentarz w
+    //  app/Models/Media.php: „Pusta ramka jest gorsza niż nic"). Słuszne
+    //  wewnątrz strony — ale świeży wpis ma `Media` w stanie `pending` przez
+    //  kilka sekund, zanim zadanie w tle skończy przetwarzanie, więc bez tego
+    //  warunku `og:image` regularnie wskazywał na TEN WŁAŚNIE SVG. Facebook,
+    //  WhatsApp i Messenger nie renderują SVG w podglądzie linku — i
+    //  zapamiętują PIERWSZY pobrany podgląd na zawsze, więc link wysłany
+    //  zaraz po publikacji zostawał bez zdjęcia na stałe, nawet gdy
+    //  zdjęcie dawno było gotowe (KartaDoUdostepnianiaTest,
+    //  test_wpis_ze_zdjeciem_niegotowym_nie_podaje_svg_w_karcie).
+    //
+    //  CZEGO NIE WYBRANO: pokazywania prawdziwego zdjęcia „na wyrost", zanim
+    //  jest `ready`. Egzemplarz przed przetworzeniem bywa z nietkniętym
+    //  EXIF-em i współrzędnymi GPS kuchni autora (AGENTS.md §7) — podanie go
+    //  scraperowi byłoby dokładnie tym wyciekiem, przed którym ten sam
+    //  paragraf ostrzega. Zapasowa karta, którą serwis społecznościowy
+    //  odświeży, gdy ktoś wklei link ponownie już po tym, jak zdjęcie będzie
+    //  gotowe, jest bezpieczniejsza niż karta, która nigdy się nie odświeży.
+    $ogImage = ($image !== null && $image->isReady()) ? $image->url('large') : null;
 
     if ($ogImage !== null && ! str_starts_with($ogImage, 'http')) {
         $ogImage = url($ogImage);
     }
 
-    // Zapasowa karta dla stron bez zdjęcia. SVG tu NIE ZADZIAŁA: Facebook,
-    // WhatsApp i Signal go nie renderują i pokazują pustą ramkę. Stąd PNG
+    // Zapasowa karta dla stron bez zdjęcia (i dla zdjęcia jeszcze
+    // niegotowego — patrz wyżej). SVG tu NIE ZADZIAŁA: Facebook, WhatsApp
+    // i Signal go nie renderują i pokazują pustą ramkę. Stąd PNG
     // w formacie 1200×630, czyli tym, którego wszyscy oczekują.
     $ogImage ??= asset('icons/kuking-udostepnianie.png');
+
+    // Wymiary MUSZĄ opisywać PLIK, na który wskazuje `$ogImage` powyżej —
+    // inaczej scraper dostaje rozmiar prawdziwego (jeszcze niegotowego)
+    // zdjęcia doklejony do zapasowego logo 1200×630 i przycina kartę źle.
+    // Stąd ten sam warunek `isReady()`, nie sam fakt, że `$image` istnieje.
+    $ogImageGotowe = $image !== null && $image->isReady();
 @endphp
 
 <!DOCTYPE html>
@@ -86,7 +113,11 @@
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:image" content="{{ $ogImage }}">
     <meta property="og:image:alt" content="{{ $title ?? 'Kuking' }}">
-    @if($image?->width('large') && $image?->height('large'))
+    {{-- `$ogImageGotowe`, nie sam `$image` (audyt A3): dla zdjęcia jeszcze
+         niegotowego `og:image` powyżej i tak pokazuje zapasowe PNG
+         1200×630, więc wymiary PRAWDZIWEGO (jeszcze nieopublikowanego)
+         zdjęcia byłyby tu kłamstwem naklejonym na cudzy plik. --}}
+    @if($ogImageGotowe && $image->width('large') && $image->height('large'))
         {{-- Wymiary podane wprost pozwalają pokazać kartę, ZANIM obrazek się
              pobierze. Bez nich Messenger rezerwuje miejsce dopiero po
              pobraniu i link przez chwilę wygląda na pusty. --}}
@@ -94,9 +125,10 @@
         <meta property="og:image:height" content="{{ $image->height('large') }}">
     @endif
 
-    {{-- Duża karta tylko wtedy, gdy naprawdę jest zdjęcie. Przy zapasowym
-         logo duży format to wielka plama koloru z małym znaczkiem. --}}
-    <meta name="twitter:card" content="{{ $image ? 'summary_large_image' : 'summary' }}">
+    {{-- Duża karta tylko wtedy, gdy naprawdę jest gotowe zdjęcie. Przy
+         zapasowym logo duży format to wielka plama koloru z małym znaczkiem —
+         a niegotowe zdjęcie dostaje dokładnie tę zapasową kartę (patrz wyżej). --}}
+    <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
     <link rel="canonical" href="{{ url()->current() }}">
     <meta name="theme-color" content="#B3401F">

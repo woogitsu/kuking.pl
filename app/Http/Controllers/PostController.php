@@ -81,11 +81,22 @@ class PostController extends Controller
 
         $isFirstPost = $user->posts()->published()->count() === 1;
 
+        // Zdjęcie przetwarza się w kolejce (StoreUploadedImage) — w chwili
+        // tego przekierowania prawie na pewno jeszcze nie jest `ready`.
+        // Autor MUSI się o tym dowiedzieć TERAZ, na najbardziej widocznym
+        // komunikacie na stronie, a nie dopiero z placeholdera przy zdjęciu
+        // niżej (audyt A2) — inaczej pusta ramka wygląda jak porażka
+        // publikacji, nie jak „chwilę potrwa".
+        $maZdjecie = $mediaIds !== [];
+
         return redirect()->route('posts.show', $post)->with(
             'status',
-            $isFirstPost
-                ? 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.'
-                : 'Opublikowane. Dziękujemy.',
+            match (true) {
+                $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
+                $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.',
+                $maZdjecie => 'Opublikowane. Zdjęcie za chwilę będzie widoczne — nic nie zginęło.',
+                default => 'Opublikowane. Dziękujemy.',
+            },
         );
     }
 

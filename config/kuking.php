@@ -184,6 +184,22 @@ return [
     'community' => [
         // Adres, na który idą zgłoszenia i sprawy moderacyjne.
         'contact_email' => env('KUKING_CONTACT_EMAIL', 'kontakt@kuking.pl'),
+
+        // GOSPODARZ — konto, które nowe osoby zaczynają obserwować przy
+        // rejestracji (docs/product/COLD_START.md).
+        //
+        // Feed obserwowanych nowego konta jest z definicji pusty, a pusty
+        // ekran dla kogoś po sześćdziesiątce znaczy „to nie jest dla mnie".
+        // Gospodarz publikuje codziennie, więc jest jedyną treścią, na którą
+        // można liczyć od pierwszej sekundy.
+        //
+        // To jest decyzja podjęta ZA CZŁOWIEKA, więc obowiązkowo z widoczną
+        // możliwością cofnięcia — przycisk „Nie obserwuj" na profilu istnieje.
+        // Pusta wartość wyłącza mechanizm całkowicie.
+        //
+        // Nazwa użytkownika, nie identyfikator: gospodarz może się zmienić,
+        // a nazwa jest tym, co widać i co da się sprawdzić okiem.
+        'host_username' => env('KUKING_HOST_USERNAME', 'woogitsu'),
     ],
 
     'moderation' => [

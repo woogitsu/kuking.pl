@@ -26,7 +26,10 @@ final class NotifyUser
             return null;
         }
 
-        if (! $recipient->isActive()) {
+        // Pytanie brzmi „czy ten człowiek może to jeszcze przeczytać",
+        // a nie „czy konto jest aktywne". Zawieszenie odcina od PISANIA,
+        // nie od życia serwisu — patrz `User::mozeCzytac()`.
+        if (! $recipient->mozeCzytac()) {
             return null;
         }
 
