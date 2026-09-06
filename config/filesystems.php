@@ -134,6 +134,39 @@ return [
         ],
 
         /*
+         * STARY, JEDEN BUCKET — dysk zgodności (audyt W4-03).
+         *
+         * Rozdzielenie oryginałów i wariantów było potrzebne, ale samo w sobie
+         * NIE PRZENOSI plików. Wiersze zapisane wcześniej mają w kolumnie
+         * `disk` wartość `r2` i tam ich pliki fizycznie leżą — w JEDNYM,
+         * publicznym buckecie. Po przestawieniu `AWS_BUCKET` na nowy, prywatny
+         * bucket ta sama nazwa `r2` zaczęłaby wskazywać miejsce, w którym tych
+         * plików nie ma: warianty przestałyby się wyświetlać, a oryginałów nie
+         * dałoby się dołączyć do paczki RODO.
+         *
+         * Komentarz w migracji `..._add_variants_disk_to_media` twierdził, że
+         * „oba źródła współistnieją i kod obsługuje jedno i drugie". Nie było
+         * to prawdą, dopóki nie istniał ten dysk — i jest to dokładnie ten
+         * rodzaj komentarza pewniejszego niż kod, przed którym ostrzegał audyt.
+         *
+         * `url` TU ZOSTAJE, bo stary bucket jest publiczny i dopóki wariantów
+         * z niego nie przeniesiemy, to stamtąd się wyświetlają. To jest stan
+         * przejściowy: publiczności starego bucketu nie zdejmujemy, dopóki
+         * `kuking:przenies-zdjecia` nie dojdzie do końca.
+         */
+        'r2_legacy' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_LEGACY_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'url' => env('AWS_LEGACY_URL', env('AWS_URL')),
+            'use_path_style_endpoint' => false,
+            'throw' => true,
+        ],
+
+        /*
          * Paczki z danymi (RODO art. 15 i 20) — WŁASNY bucket, prywatny.
          *
          * Nie `local`, bo produkcja ma OSOBNE kontenery `web`, `worker`

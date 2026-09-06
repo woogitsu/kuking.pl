@@ -31,9 +31,16 @@ use Illuminate\Support\Facades\Schema;
  * naprawdę są — i `KasujZdjecie` szukałby ich w niewłaściwym buckecie,
  * zostawiając publiczne kopie na zawsze.
  *
- * Przeniesienie starych wariantów do nowego bucketu to osobna praca: kopiowanie
- * obiektów w R2 plus aktualizacja tej kolumny po każdym udanym kopiowaniu.
- * Do tego czasu oba źródła współistnieją i kod obsługuje jedno i drugie.
+ * Przeniesienie starych plików do nowych bucketów to osobna praca: robi ją
+ * komenda `kuking:przenies-zdjecia`, kopiując obiekty i aktualizując wiersz
+ * dopiero po sprawdzeniu, że kopia naprawdę powstała.
+ *
+ * SPROSTOWANIE DO PIERWSZEJ WERSJI TEGO KOMENTARZA (audyt W4-03).
+ * Stało tu, że „oba źródła współistnieją i kod obsługuje jedno i drugie".
+ * Nie było to prawdą: stare wiersze mają `disk = 'r2'`, a ta nazwa po
+ * rozdzieleniu wskazuje NOWY, prywatny bucket, w którym tych plików nie ma.
+ * Współistnienie wymaga osobnego dysku `r2_legacy` wskazującego stary bucket —
+ * i dopiero on istnieje. To był komentarz pewniejszy niż kod.
  *
  * ROLLBACK: `down()` usuwa samą kolumnę. Bezstratnie — informacja o dysku
  * wariantów wraca wtedy do „ten sam co oryginał", czyli do stanu sprzed
