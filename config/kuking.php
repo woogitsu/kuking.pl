@@ -386,6 +386,16 @@ return [
         'photo_flush_every' => 25,
     ],
 
+    'analytics' => [
+        // Ile dni trzymamy wiersze `product_signals` (issue #115), zanim
+        // komenda `kuking:sprzataj-sygnaly` je skasuje. To są zdarzenia
+        // techniczne (nieudane wgranie zdjęcia, wykonane wyszukiwanie),
+        // przydatne do wykrywania trendu w ostatnich tygodniach — nie mamy
+        // powodu trzymać ich bezterminowo, a minimalizacja danych (AGENTS.md
+        // §7) jest zasadą domyślną, nie wyjątkiem od niej.
+        'signal_retention_days' => (int) env('KUKING_SIGNAL_RETENTION_DAYS', 90),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
