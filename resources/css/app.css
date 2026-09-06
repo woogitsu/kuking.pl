@@ -1743,3 +1743,39 @@
 .post-card-menu-tresc a:hover {
   background-color: var(--color-surface-sunken);
 }
+
+/* --- Chipsy zakresu wyszukiwania (UI kit v2, ekran 03) -------------------
+   Zwykłe odnośniki w kształcie pigułki. `aria-current` niesie stan dla
+   czytnika ekranu, kolor i tło dla oka — jedno nie zastępuje drugiego.
+   ------------------------------------------------------------------------ */
+
+.chipsy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: var(--spacing-6) 0 var(--spacing-5);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-min);
+  padding: 0 var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-raised);
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-ink);
+}
+
+.chip:hover {
+  background-color: var(--color-surface-sunken);
+}
+
+.chip[aria-current="page"] {
+  background-color: var(--color-brand-solid);
+  border-color: var(--color-brand-solid);
+  color: var(--color-ink-inverse);
+}

@@ -30,7 +30,29 @@ class SearchController extends Controller
     public function index(Request $request): View
     {
         $phrase = trim((string) $request->query('q', ''));
-        $section = $request->query('sekcja') === 'ludzie' ? 'ludzie' : 'przepisy';
+
+        // ZAKRESY WEDŁUG KITU (ekran 03): Wszystko / Przepisy / Ludzie / Do 30 minut.
+        //
+        // Domyślnie „wszystko" — człowiek, który wpisał „pierogi", nie wie
+        // jeszcze, czy szuka przepisu, czy osoby, która je robi. Wymuszanie
+        // tego wyboru PRZED wynikami to pytanie zadane za wcześnie.
+        //
+        // Czego tu NIE MA: chipa „Składniki" z makiety. Wyszukiwarka i tak
+        // przeszukuje składniki wewnątrz przepisów (`recipe_ingredients`
+        // w SearchQuery), więc osobny zakres sugerowałby, że gdzie indziej
+        // ich nie szuka — a to nieprawda.
+        $section = match ($request->query('sekcja')) {
+            'ludzie' => 'ludzie',
+            'przepisy' => 'przepisy',
+            'szybkie' => 'szybkie',
+            default => 'wszystko',
+        };
+
+        // „Do 30 minut" to zakres przepisów z dodatkowym warunkiem, nie
+        // osobny rodzaj treści.
+        $maksMinut = $section === 'szybkie' ? 30 : null;
+        $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'szybkie'], true);
+        $szukaLudzi = in_array($section, ['wszystko', 'ludzie'], true);
 
         // ILE WYNIKÓW, I SKĄD SIĘ BIERZE „POKAŻ WIĘCEJ"
         //
@@ -46,10 +68,10 @@ class SearchController extends Controller
         // kursor z feedu tu nie zadziała.
         $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
 
-        $przepisy = $section === 'przepisy'
+        $przepisy = $szukaPrzepisow
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ile + 1)
+            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -58,13 +80,15 @@ class SearchController extends Controller
         // dalej. Nie kłamała wprost (nie było licznika), ale kończyła się
         // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
         // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
-        $ludzie = $section === 'ludzie'
+        $ludzie = $szukaLudzi
             ? $this->search->people($phrase, $request->user(), $ile + 1)
             : collect();
 
         return view('pages.search', [
             'phrase' => $phrase,
             'section' => $section,
+            'szukaPrzepisow' => $szukaPrzepisow,
+            'szukaLudzi' => $szukaLudzi,
             'recipes' => $przepisy->take($ile),
             'people' => $ludzie->take($ile),
             'jestWiecej' => $przepisy->count() > $ile,

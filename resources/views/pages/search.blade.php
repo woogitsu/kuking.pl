@@ -15,21 +15,63 @@
         <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
     </form>
 
-    <nav class="tabs mt-6" aria-label="Co przeszukujemy">
-        <a class="tab" href="{{ route('search', ['q' => $phrase, 'sekcja' => 'przepisy']) }}" @if($section === 'przepisy') aria-current="page" @endif>Przepisy</a>
-        <a class="tab" href="{{ route('search', ['q' => $phrase, 'sekcja' => 'ludzie']) }}" @if($section === 'ludzie') aria-current="page" @endif>Ludzie</a>
+    {{--
+        ZAKRESY Z KITU (ekran 03_desktop_search_discover).
+
+        To są zwykłe odnośniki, nie przyciski sterowane skryptem — zawężenie
+        wyników musi działać bez JavaScriptu (AGENTS.md), a każdy zakres ma
+        własny adres, który da się zapisać w zakładkach i wysłać komuś.
+
+        `aria-current="page"` zamiast samego koloru: który zakres jest włączony,
+        musi być słyszalne dla czytnika ekranu, a nie tylko widoczne.
+    --}}
+    <nav class="chipsy mt-6" aria-label="Co przeszukujemy">
+        @foreach([
+            'wszystko' => 'Wszystko',
+            'przepisy' => 'Przepisy',
+            'ludzie' => 'Ludzie',
+            'szybkie' => 'Do 30 minut',
+        ] as $klucz => $etykieta)
+            <a class="chip"
+               href="{{ route('search', ['q' => $phrase, 'sekcja' => $klucz]) }}"
+               @if($section === $klucz) aria-current="page" @endif>{{ $etykieta }}</a>
+        @endforeach
     </nav>
 
     @if($phrase === '')
         <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
-    @elseif($section === 'przepisy')
-        @if($recipes->isEmpty())
+    @else
+        @php
+            // Puste jest dopiero wtedy, gdy pusty jest KAŻDY przeszukiwany
+            // zakres. Przy „Wszystko" samo zero przepisów nie znaczy jeszcze
+            // „nic nie znaleźliśmy" — obok mogą być ludzie.
+            $nicNieMa = (! $szukaPrzepisow || $recipes->isEmpty())
+                && (! $szukaLudzi || $people->isEmpty());
+        @endphp
+
+        @if($nicNieMa)
             <x-empty-state title="Nic nie znaleźliśmy">
-                Nie ma jeszcze przepisu, który by pasował do „{{ $phrase }}”.
-                Może to Ty go dodasz?
+                @if($section === 'szybkie')
+                    Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w pół godziny.
+                    Spróbuj zakresu „Przepisy” — może być trochę dłuższy.
+                @elseif($section === 'ludzie')
+                    Nie ma tu osoby o nazwie „{{ $phrase }}”.
+                @else
+                    Nie ma jeszcze niczego, co pasowałoby do „{{ $phrase }}”.
+                    Może to Ty dodasz taki przepis?
+                @endif
             </x-empty-state>
-            <p class="text-center"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
-        @else
+
+            @if($section !== 'ludzie')
+                <p class="text-center"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
+            @endif
+        @endif
+
+        @if($szukaPrzepisow && $recipes->isNotEmpty())
+            @if($section === 'wszystko')
+                <h2 class="mt-6">Przepisy</h2>
+            @endif
+
             <p class="meta">
                 @if($jestWiecej ?? false)
                     Pokazujemy {{ $recipes->count() }} {{ \App\Support\Odmiana::rzeczownik($recipes->count(), 'przepis', 'przepisy', 'przepisów') }}. Jest ich więcej.
@@ -48,16 +90,18 @@
                      wyniki muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
                 <p class="text-center">
                     <a class="btn btn-quiet"
-                       href="{{ route('search', ['q' => $phrase, 'sekcja' => 'przepisy', 'ile' => $nastepneIle]) }}">
+                       href="{{ route('search', ['q' => $phrase, 'sekcja' => $section, 'ile' => $nastepneIle]) }}">
                         Pokaż więcej przepisów
                     </a>
                 </p>
             @endif
         @endif
-    @else
-        @if($people->isEmpty())
-            <x-empty-state title="Nikogo nie znaleźliśmy">Nie ma tu osoby o nazwie „{{ $phrase }}”.</x-empty-state>
-        @else
+
+        @if($szukaLudzi && $people->isNotEmpty())
+            @if($section === 'wszystko')
+                <h2 class="mt-8">Ludzie</h2>
+            @endif
+
             <p class="meta">
                 @if($jestWiecejOsob ?? false)
                     Pokazujemy {{ $people->count() }} {{ \App\Support\Odmiana::rzeczownik($people->count(), 'osobę', 'osoby', 'osób') }}. Jest ich więcej.
@@ -82,7 +126,7 @@
                      muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
                 <p class="text-center">
                     <a class="btn btn-quiet"
-                       href="{{ route('search', ['q' => $phrase, 'sekcja' => 'ludzie', 'ile' => $nastepneIle]) }}">
+                       href="{{ route('search', ['q' => $phrase, 'sekcja' => $section, 'ile' => $nastepneIle]) }}">
                         Pokaż więcej osób
                     </a>
                 </p>
