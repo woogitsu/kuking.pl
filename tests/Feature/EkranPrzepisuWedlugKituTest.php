@@ -135,7 +135,7 @@ class EkranPrzepisuWedlugKituTest extends TestCase
             ->assertDontSee('>Czas<', escape: false);
     }
 
-    public function test_skladnik_i_krok_ida_na_ekran_w_calosci_D017(): void
+    public function test_skladnik_i_krok_ida_na_ekran_w_calosci_d017(): void
     {
         $przepis = $this->przepis();
 

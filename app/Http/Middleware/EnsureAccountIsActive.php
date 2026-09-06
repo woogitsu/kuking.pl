@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Support\OdzyskiwalneDane;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -80,14 +81,28 @@ class EnsureAccountIsActive
         }
 
         if ($user->isSuspended() && $this->tozZapis($request)) {
-            // `withInput()`, a nie samo `back()`. Osoba zawieszona, która mimo
-            // paska ostrzegawczego napisała komentarz albo wypełniła formularz
-            // przepisu, traciła cały tekst. To ta sama reguła co przy wygasłej
-            // sesji (#81) — „poprawne dane nigdy nie znikają" — tylko inna
-            // przyczyna: tu odmowa jest ZAMIERZONA, a mimo to nie ma powodu
-            // karać człowieka utratą tego, co napisał.
+            // Zwracamy treść, a nie sekrety (audyt W7-03).
+            //
+            // Osoba zawieszona, która mimo paska ostrzegawczego napisała
+            // komentarz albo wypełniła formularz przepisu, traciła cały tekst.
+            // To ta sama reguła co przy wygasłej sesji (#81) — „poprawne dane
+            // nigdy nie znikają" — tylko inna przyczyna: tu odmowa jest
+            // ZAMIERZONA, a mimo to nie ma powodu karać człowieka utratą tego,
+            // co napisał.
+            //
+            // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa jest
+            // podczas zawieszenia do odczytu. Osoba zawieszona, która wysłała
+            // formularz zmiany hasła, wkładała w ten sposób `password`
+            // i `current_password` do sesji, skąd `old()` wstawiało je
+            // z powrotem do `value=` pola typu password. Sesja jest na
+            // produkcji szyfrowana, ale hasło i tak wracało do DOM-u.
+            //
+            // `OdzyskiwalneDane` przepuszcza tylko trasy, na których człowiek
+            // pisze własnymi słowami. Zmiana hasła, 2FA i usuwanie konta nie
+            // odzyskują niczego — i nie muszą, bo to są pola do wpisania
+            // z pamięci, nie tekst, którego szkoda.
             return back()
-                ->withInput()
+                ->withInput(OdzyskiwalneDane::zZadania($request))
                 ->withErrors(['konto' => $this->komunikatZawieszenia($user)]);
         }
 

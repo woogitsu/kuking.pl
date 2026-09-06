@@ -36,7 +36,22 @@
     $id = 'f-'.str_replace(['[', ']', '.'], '-', $name);
     $error = $errors->first($name);
     $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
-    $current = $wire === null ? old($name, $value) : $value;
+
+    /*
+     * POLE HASŁA NIGDY NIE WRACA Z WARTOŚCIĄ (audyt W7-03).
+     *
+     * To jest druga warstwa, nie pierwsza. Pierwszą jest `OdzyskiwalneDane`:
+     * hasło nie ma prawa trafić do flasha sesji, więc `old()` nie ma czego
+     * zwrócić. Ale to jest umowa, o której nowe pośrednie warstwy mogą
+     * zapomnieć — a każde zapomnienie kończy się hasłem w atrybucie `value`
+     * w HTML-u, czyli w DOM-ie, w narzędziach deweloperskich i w zasięgu
+     * każdego dodatku do przeglądarki.
+     *
+     * Utrata wpisanego hasła po nieudanej walidacji jest kosztem żadnym:
+     * hasło wpisuje się z pamięci albo z menedżera, a nie pisze się go
+     * przez kwadrans jak przepis.
+     */
+    $current = $type === 'password' ? null : ($wire === null ? old($name, $value) : $value);
     $describedBy = collect([
         $help ? $id.'-help' : null,
         $error ? $id.'-error' : null,

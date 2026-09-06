@@ -250,9 +250,22 @@ class CookedEventController extends Controller
                 author: $request->user(),
                 subject: $cookedEvent,
                 body: $data['body'],
-                parent: $data['parent_id'] === null
+                // `?? null`, bo `validate()` NIE zwraca klucza, którego
+                // w żądaniu nie było — a `parent_id` jest `nullable`.
+                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
+                // formularza, który zawsze wysyła puste) kończył się błędem
+                // „Undefined array key", czyli 500 zamiast komentarza.
+                //
+                // `widoczneDla()` — audyt W7-06. Bez tego można było podać
+                // UUID komentarza ukrytego przez blokadę i podpiąć się pod
+                // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
+                // kontrolerów jest kilka.
+                parent: ($data['parent_id'] ?? null) === null
                     ? null
-                    : $cookedEvent->comments()->whereKey($data['parent_id'])->first(),
+                    : $cookedEvent->comments()
+                        ->widoczneDla($request->user())
+                        ->whereKey($data['parent_id'])
+                        ->first(),
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);

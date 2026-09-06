@@ -43,6 +43,44 @@ final class PublishComment
             throw new RuntimeException('Nie można tu komentować.');
         }
 
+        /*
+         * BLOKADA OBOWIĄZUJE TAKŻE PRZY ODPOWIADANIU (audyt W7-06).
+         *
+         * Blokada działała dotąd na trzech powierzchniach: renderowanie
+         * (`Comment::scopeWidoczneDla`), powiadomienia (`NotifyUser`) i tu —
+         * ale tylko wobec WŁAŚCICIELA treści. Wobec autora komentarza,
+         * pod którym się odpowiada, nie działała nigdzie.
+         *
+         * Scenariusz: A i B są w relacji blokady, ale oboje mogą komentować
+         * u C. B pisze komentarz X. A go nie widzi, bo filtr go ukrywa —
+         * ale znając UUID komentarza X (ze wspólnego znajomego, ze zrzutu
+         * ekranu, sprzed blokady) A mógł wysłać `parent_id = X` i utworzyć
+         * odpowiedź STRUKTURALNIE podpiętą pod wątek B.
+         *
+         * Powiadomienie do B i tak nie szło, bo warstwa powiadomień
+         * sprawdza blokadę osobno — więc nękania z tego nie było. Ale zapis
+         * przekraczał granicę, o której interfejs mówi, że jej nie da się
+         * przekroczyć, a wątek B rósł o cudzą odpowiedź.
+         *
+         * Sprawdzenie stoi TUTAJ, a nie tylko w kontrolerze, bo kontrolery
+         * są trzy (wpis, przepis, „Ugotowałem") i czwarty by o tym zapomniał.
+         */
+        if ($parent !== null) {
+            if (! $this->naleziDo($parent, $subject)) {
+                throw new RuntimeException('Nie można tu komentować.');
+            }
+
+            $autorRodzica = $parent->author;
+
+            if ($autorRodzica !== null && $author->hasBlockRelationWith($autorRodzica)) {
+                // Ten sam komunikat co przy blokadzie z autorem treści —
+                // celowo. Osobny tekst („ta osoba Cię zablokowała")
+                // potwierdzałby, kto kogo zablokował, komuś, kto właśnie
+                // próbuje to obejść.
+                throw new RuntimeException('Nie można tu komentować.');
+            }
+        }
+
         // Spłaszczamy wątki: odpowiedź na odpowiedź trafia do korzenia wątku.
         $parentId = $parent?->parent_id ?? $parent?->getKey();
 
@@ -83,6 +121,24 @@ final class PublishComment
         }
 
         return $comment;
+    }
+
+    /**
+     * Czy ten komentarz naprawdę stoi pod tą treścią.
+     *
+     * Kontrolery szukają rodzica przez relację treści, więc same z siebie
+     * tego nie przepuszczą. Powtarzamy to tutaj, bo akcja domenowa nie może
+     * zakładać, że każdy przyszły wywołujący zrobi to samo — a odpowiedź
+     * podpięta pod komentarz z INNEJ strony rozjeżdża wątek w obie strony:
+     * u siebie jej nie widać, a w cudzym wątku wisi.
+     */
+    private function naleziDo(Comment $parent, Post|Recipe|CookedEvent $subject): bool
+    {
+        return match (true) {
+            $subject instanceof Post => $parent->post_id === $subject->getKey(),
+            $subject instanceof Recipe => $parent->recipe_id === $subject->getKey(),
+            $subject instanceof CookedEvent => $parent->cooked_event_id === $subject->getKey(),
+        };
     }
 
     private function ownerOf(Post|Recipe|CookedEvent $subject): User
