@@ -49,8 +49,48 @@
         <h2>Usunięcie konta</h2>
         <p>
             Konto zostanie oznaczone do usunięcia i zniknie ze strony od razu.
-            Przez <strong>{{ $graceDays }} dni</strong> możesz jeszcze zmienić zdanie — potem dane zostaną usunięte na stałe.
+            Przez <strong>{{ $graceDays }} dni</strong> możesz jeszcze zmienić zdanie.
         </p>
+
+        {{--
+            CO DOKŁADNIE ZNIKA, A CO ZOSTAJE (decyzja D-018, audyt W4-01).
+
+            Stało tu „dane zostaną usunięte na stałe", a niżej trzeba było
+            potwierdzić „moje wpisy, przepisy i zdjęcia zostaną usunięte na
+            stałe". Kod tego nie robił: kasował zdjęcie profilowe, a resztę
+            zostawiał przy zanonimizowanym koncie. Obietnica złożona
+            konkretnym zdaniem i niedotrzymana.
+
+            Zdjęcia kasujemy teraz naprawdę — wszystkie. Tekst zostaje
+            zanonimizowany i trzeba to powiedzieć WPROST, bo człowiek ma
+            prawo wiedzieć, co po nim zostanie w cudzych zeszytach.
+        --}}
+        <div class="card mt-4">
+            <h3 class="mt-0">Co zniknie, a co zostanie</h3>
+
+            <p><strong>Znikną na stałe:</strong></p>
+            <ul>
+                <li>Twój adres e-mail, hasło i nazwa użytkownika.</li>
+                <li>Twoje zdjęcie profilowe, opis i wszystko, co Cię nazywa.</li>
+                <li><strong>Wszystkie Twoje zdjęcia</strong> — te we wpisach, w przepisach
+                    i w wykonaniach. Także oryginały, razem z zapisaną w nich datą,
+                    modelem telefonu i miejscem, w którym powstały.</li>
+            </ul>
+
+            <p><strong>Zostanie, ale bez Twojego nazwiska:</strong></p>
+            <ul>
+                <li>Tekst przepisów, wpisów i komentarzy — podpisany
+                    „Użytkownik usunięty".</li>
+            </ul>
+
+            <p>
+                Zostaje, bo to jest już także cudza historia: ktoś odpowiedział
+                Ci w komentarzu, ktoś ugotował z Twojego przepisu i ma go
+                w swoim zeszycie. Skasowanie tego zabrałoby coś ludziom, którzy
+                o nic nie prosili. Jeśli chcesz usunąć konkretny przepis albo
+                wpis w całości — usuń go sam, zanim skasujesz konto.
+            </p>
+        </div>
         <p><strong>Zanim to zrobisz, warto najpierw pobrać swoje dane.</strong></p>
 
         <x-error-summary />
@@ -64,7 +104,7 @@
 
                 <label class="choice mt-4" for="f-confirm">
                     <input id="f-confirm" type="checkbox" name="confirm" value="1">
-                    <span class="choice-label">Rozumiem, że po {{ $graceDays }} dniach moje wpisy, przepisy i zdjęcia zostaną usunięte na stałe</span>
+                    <span class="choice-label">Rozumiem, że po {{ $graceDays }} dniach moje zdjęcia i dane zostaną usunięte na stałe, a teksty zostaną bez mojego nazwiska</span>
                 </label>
 
                 <button class="btn btn-danger mt-5" type="submit">Usuń moje konto</button>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Media\KasujZdjecie;
+use App\Models\Media;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -22,11 +23,23 @@ use Illuminate\Support\Str;
  *
  *  - anonimizuje `users` (e-mail, hasło, token) i `profiles` (nazwa, bio,
  *    avatar) — to są dane, po których da się rozpoznać konkretnego człowieka;
- *  - NIE kasuje `posts`, `recipes`, `comments`, `cooked_events` ani innych
- *    treści — te zostają, przypisane do już zanonimizowanego konta. Usuwanie
- *    ich osobno byłoby kasowaniem cudzej historii gotowania (komuś innemu
- *    ktoś kiedyś odpowiedział w komentarzu) bez żadnej korzyści prawnej —
- *    RODO chroni DANE OSOBOWE, nie fakt istnienia wpisu.
+ *  - NIE kasuje `posts`, `recipes`, `comments`, `cooked_events` — TEKST
+ *    zostaje, przypisany do już zanonimizowanego konta. Usuwanie go byłoby
+ *    kasowaniem cudzej historii gotowania: komuś ktoś kiedyś odpowiedział
+ *    w komentarzu, ktoś ugotował z tego przepisu i ma go w zeszycie.
+ *    RODO chroni DANE OSOBOWE, nie fakt istnienia wpisu, a zanonimizowany
+ *    tekst przepisu danymi osobowymi nie jest.
+ *  - KASUJE WSZYSTKIE ZDJĘCIA TEJ OSOBY, nie tylko profilowe (audyt W4-01,
+ *    decyzja D-018). Ze zdjęciem jest inaczej niż z tekstem: samo w sobie
+ *    bywa danymi osobowymi — twarz, wnętrze mieszkania, dokument na stole,
+ *    a w oryginale jeszcze EXIF ze współrzędnymi. Anonimizacja podpisu nie
+ *    zmienia tam niczego, bo dane są w pikselach.
+ *
+ *    Do tej pory kasowane było wyłącznie zdjęcie profilowe, a ekran usuwania
+ *    konta kazał potwierdzić: „Rozumiem, że po 30 dniach moje wpisy, przepisy
+ *    i zdjęcia zostaną usunięte na stałe". Kod tego nie robił. To nie jest
+ *    spór o interpretację przepisu — to obietnica złożona konkretnym zdaniem
+ *    i niedotrzymana.
  *  - odpina zdjęcie profilowe i KASUJE PLIK razem z wariantami (issue #93),
  *    o ile nic innego na nie nie wskazuje. Wcześniej odpinana była sama
  *    referencja: zdjęcie twarzy — a często zdjęcie z nietkniętym EXIF-em,
@@ -50,7 +63,8 @@ final class EraseAccountData
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
     public function handle(User $user): bool
     {
-        $doSkasowania = null;
+        /** @var list<Media> $doSkasowania */
+        $doSkasowania = [];
 
         $wymazano = DB::transaction(function () use ($user, &$doSkasowania): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
@@ -68,9 +82,10 @@ final class EraseAccountData
 
             $profile = $fresh->profile;
 
-            // Zdjęcie zapamiętujemy TERAZ, bo za chwilę odepniemy referencję
-            // i nie będzie już czego szukać.
-            $doSkasowania = $profile?->avatar;
+            // WSZYSTKIE zdjęcia tej osoby, nie tylko profilowe (D-018).
+            // Zbieramy TERAZ, bo za chwilę odepniemy referencję z profilu
+            // i awatara nie dałoby się już znaleźć tą drogą.
+            $doSkasowania = $fresh->media()->get()->all();
 
             if ($profile !== null) {
                 $profile->forceFill([
@@ -116,8 +131,24 @@ final class EraseAccountData
         // Kolejność ma i drugi skutek: w tym momencie referencja z profilu
         // jest już usunięta, więc sprawdzenie „czy ktoś tego jeszcze używa"
         // nie zobaczy samego siebie.
-        if ($wymazano && $doSkasowania !== null) {
-            $this->kasujZdjecie->jesliNieuzywane($doSkasowania);
+        if ($wymazano && $doSkasowania !== []) {
+            foreach ($doSkasowania as $zdjecie) {
+                // `skasujPliki()` + `delete()`, a NIE `jesliNieuzywane()`.
+                //
+                // Tamta metoda odmawia skasowania zdjęcia, do którego coś
+                // jeszcze wskazuje — a tu wskazują WŁASNE wpisy i przepisy tej
+                // osoby, które zostają. Przy `jesliNieuzywane()` nie
+                // skasowałoby się więc nic poza awatarem, czyli dokładnie stan
+                // sprzed tej naprawy.
+                //
+                // To jest jedyne miejsce w serwisie, w którym wolno tak zrobić,
+                // i wolno wyłącznie dlatego, że kasujemy KOMPLET zdjęć jednej
+                // osoby na jej własne żądanie. Wpisy zostają wtedy bez zdjęcia
+                // — `x-photo` pokazuje w tym stanie komunikat, a nie pustą
+                // ramkę.
+                $this->kasujZdjecie->skasujPliki($zdjecie);
+                $zdjecie->delete();
+            }
         }
 
         return $wymazano;

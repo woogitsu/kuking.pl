@@ -66,7 +66,8 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 |---|---|---|---|
 | Założenie i obsługa konta | e-mail, hasło (hash), status konta, ustawienia (locale, text_scale) | Art. 6(1)(b) — wykonanie umowy (regulamin = umowa o świadczenie usługi drogą elektroniczną) | Przez czas trwania konta + [do ustalenia z prawnikiem, zwykle 30–90 dni] okres "soft delete" na wypadek pomyłki, potem trwałe usunięcie |
 | Profil publiczny (username, display name, bio, avatar) | dane podane dobrowolnie przez użytkownika | Art. 6(1)(b) — realizacja funkcji usługi, do której użytkownik się zapisał | Do usunięcia konta lub zmiany przez użytkownika |
-| Treści (posty, przepisy, zdjęcia, komentarze) | treść, metadane pliku, EXIF (o ile nie usunięty), historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia treści przez użytkownika lub konta; wersje historyczne przepisu — do ustalenia limitu (np. ostatnie N wersji) |
+| Zdjęcia (oryginały i warianty) | piksele, EXIF w oryginale (data, model aparatu, GPS) | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia zdjęcia przez użytkownika **lub do usunięcia konta — wtedy kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) |
+| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia treści przez użytkownika. Przy usunięciu konta **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); wersje historyczne przepisu — do ustalenia limitu (np. ostatnie N wersji) |
 | Relacje społecznościowe (follow, block) | ID obserwującego/obserwowanego | Art. 6(1)(b) | Do usunięcia relacji lub konta |
 | Zgłoszenia treści i moderacja | zgłaszający, zgłoszony, powód, decyzja, uzasadnienie | Art. 6(1)(c) — obowiązek prawny (DSA Art. 16–18) oraz Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo platformy) | Dłuższa niż dane samej treści — rekomendacja [do ustalenia z prawnikiem]: 12–24 miesiące od zamknięcia sprawy, dla obrony przed roszczeniami i nadzoru DSA |
 | Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | Krótka — rekomendacja 90 dni dla logów ogólnych, dłużej tylko dla zdarzeń związanych z aktywnym incydentem bezpieczeństwa |
@@ -74,6 +75,16 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 | Analityka produktowa (PostHog) | zdarzenia UI, w miarę możliwości bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes, **o ile** spełnione warunki testu równoważenia i **niezależnie** od wymogu zgody na poziomie ePrivacy dla cookies/localStorage (patrz sekcja 5) | Krótka, rekomendacja 6–14 miesięcy, zagregowane dane bez limitu |
 | Błędy aplikacji (Sentry) | stack trace, czasem fragmenty requestu — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | Rekomendacja 30–90 dni; **skonfigurować scrubbing PII w Sentry (data scrubbing rules) przed startem** |
 | Newsletter/e-mail transakcyjny (reset hasła, powiadomienia) | e-mail, treść wiadomości | Art. 6(1)(b) dla e-maili transakcyjnych; Art. 6(1)(a) zgoda dla e-maili marketingowych, jeśli takie się pojawią | Jak konto / do wycofania zgody |
+
+**Dlaczego zdjęcia i tekst są tu rozdzielone** (D-018, audyt W4-01): tekst
+przepisu po podmianie podpisu przestaje być danymi osobowymi. Zdjęcie nie —
+dane są w pikselach (twarz, wnętrze mieszkania, dokument na stole), a
+w oryginale dodatkowo w EXIF-ie. Anonimizacja podpisu nie zmienia tam niczego,
+więc zdjęcia przy usunięciu konta kasujemy w całości.
+
+Tekst zostaje, bo to jest już także cudza historia: ktoś odpowiedział
+w komentarzu, ktoś ugotował z tego przepisu i ma go w swoim zeszycie.
+Ekran usuwania konta wymienia obie te rzeczy wprost, w dwóch listach.
 
 ### 2.3 Powierzenie przetwarzania (processors) — co zrobić
 
