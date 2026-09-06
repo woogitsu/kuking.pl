@@ -7,7 +7,7 @@ namespace App\Domain\Media\Actions;
 use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
 use App\Models\User;
-use App\Support\LimityZdjec;
+use App\Support\RozpoznanieZdjecia;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -48,40 +48,34 @@ final class StoreUploadedImage
             );
         }
 
-        // getimagesize czyta tylko nagłówek pliku, więc jest tanie i przy okazji
-        // odpowiada na pytanie "czy to na pewno obraz", niezależnie od rozszerzenia.
+        // JEDNO SPRAWDZENIE, TO SAMO CO W WALIDACJI FORMULARZA (audyt W3-08).
+        //
+        // Wcześniej formularze używały laravelowej reguły `image`, a to jest
+        // inna lista formatów niż nasza: bez AVIF, za to z GIF-em, BMP i SVG.
+        // Zdjęcie AVIF odpadało więc w formularzu, mimo że potok umie je
+        // przetworzyć, a komunikat wymieniał trzeci zestaw formatów.
+        //
+        // To sprawdzenie zostaje TUTAJ mimo reguły walidacyjnej: to jest
+        // prawdziwa granica i musi trzymać także wtedy, gdy ktoś ominie
+        // formularz. Reguła istnieje po to, żeby człowiek dostał komunikat
+        // przy polu, a nie wyjątek.
+        $problem = RozpoznanieZdjecia::coJestNieTak($file->getRealPath());
+
+        if ($problem !== null) {
+            throw new RuntimeException($problem);
+        }
+
         $info = @getimagesize($file->getRealPath());
 
+        // Po sprawdzeniu wyżej `getimagesize` nie może już zawieść — ale kod
+        // niżej potrzebuje wymiarów i typu, a udawanie, że `false` się nie
+        // zdarzy, kończy się „Trying to access array offset on bool".
         if ($info === false) {
-            // ZANIM POWIEMY „to nie jest zdjęcie", SPRAWDŹMY, CZY TO NIE HEIC.
-            //
-            // `getimagesize()` nie zna HEIC — PHP 8.4 nie ma nawet stałej
-            // `IMAGETYPE_HEIC` — więc dla zdjęcia prosto z iPhone'a zwraca
-            // `false`. Bez tego rozróżnienia serwis mówił „ten plik nie wygląda
-            // na zdjęcie" komuś, kto właśnie zrobił zdjęcie sernika telefonem.
-            // Człowiek nie ma wtedy żadnej drogi dalej: plik JEST zdjęciem,
-            // widzi go w galerii, a komunikat twierdzi coś przeciwnego.
-            //
-            // `mime_content_type()` HEIC rozpoznaje (to inna biblioteka niż
-            // `getimagesize`), więc da się powiedzieć, co jest naprawdę nie tak
-            // i co z tym zrobić.
-            throw new RuntimeException($this->komunikatNieczytelnegoPliku($file));
+            throw new RuntimeException('Ten plik nie wygląda na zdjęcie. Spróbuj wybrać inne.');
         }
 
         [$width, $height] = $info;
-        $detectedMime = $info['mime'] ?? null;
-
-        if (! in_array($detectedMime, config('kuking.media.accepted_mime_types'), true)) {
-            throw new RuntimeException(
-                'Nie obsługujemy tego formatu zdjęć. Wybierz plik '.LimityZdjec::formatyDlaCzlowieka().'.',
-            );
-        }
-
-        $megapixels = ($width * $height) / 1_000_000;
-
-        if ($megapixels > (int) config('kuking.media.max_megapixels')) {
-            throw new RuntimeException('To zdjęcie ma za duże wymiary. Zmniejsz je i spróbuj ponownie.');
-        }
+        $detectedMime = (string) ($info['mime'] ?? '');
 
         $disk = (string) config('kuking.media.disk');
         $extension = $this->extensionFor($detectedMime);
@@ -188,33 +182,6 @@ final class StoreUploadedImage
         $orientation = (int) $exif['Orientation'];
 
         return ($orientation >= 1 && $orientation <= 8) ? $orientation : null;
-    }
-
-    /**
-     * Co powiedzieć, gdy PHP nie umie odczytać pliku jako obrazu.
-     *
-     * HEIC jest domyślnym formatem aparatu w iPhonie od 2017 roku, więc to nie
-     * jest przypadek brzegowy — to najzwyklejszy sposób, w jaki nasza grupa
-     * robi zdjęcia. Zwykle iOS konwertuje takie zdjęcie do JPEG przy wysyłce
-     * sam, ale nie zawsze: przy udostępnianiu z Plików albo z aplikacji innej
-     * niż aparat plik idzie w oryginale.
-     *
-     * Komunikat mówi, CO ZROBIĆ, i podaje drogę, którą da się przejść raz
-     * i mieć spokój — a nie „zmień format", bo osoba, która nie wie, co to
-     * format, nie ma po tym zdaniu żadnego kolejnego kroku.
-     */
-    private function komunikatNieczytelnegoPliku(UploadedFile $file): string
-    {
-        $wykryty = @mime_content_type($file->getRealPath());
-
-        if (in_array($wykryty, ['image/heic', 'image/heif'], true)) {
-            return 'To zdjęcie jest w formacie HEIC, którego jeszcze nie umiemy otworzyć. '
-                .'W iPhonie wejdź w Ustawienia → Aparat → Formaty i wybierz „Najbardziej zgodny” — '
-                .'kolejne zdjęcia zapiszą się jako JPG. To zdjęcie możesz wysłać sobie e-mailem '
-                .'albo otworzyć w Zdjęciach i użyć „Duplikuj”, żeby dostać wersję JPG.';
-        }
-
-        return 'Ten plik nie wygląda na zdjęcie. Wybierz plik '.LimityZdjec::formatyDlaCzlowieka().'.';
     }
 
     private function extensionFor(string $mime): string

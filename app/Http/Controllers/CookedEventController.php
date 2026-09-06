@@ -10,6 +10,7 @@ use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,7 +67,7 @@ class CookedEventController extends Controller
             // niż mieści `post_max_size` z `docker/php.ini` (audyt A31).
             // Teraz obowiązuje TEN SAM budżet co w PostController.
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
-            'photos.*' => ['file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'note' => ['nullable', 'string', 'max:2000'],
             'changes_note' => ['nullable', 'string', 'max:1000'],
             'would_make_again' => ['nullable', 'boolean'],

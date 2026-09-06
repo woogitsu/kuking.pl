@@ -9,6 +9,7 @@ use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -298,8 +299,8 @@ class RecipeController extends Controller
             'source_note' => ['nullable', 'string', 'max:2000'],
             'source_url' => ['nullable', 'url', 'max:2000'],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
-            'hero_photo' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
-            'source_scan' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:120'],
             'ingredients.*.text' => ['nullable', 'string', 'max:240'],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],

@@ -11,6 +11,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\Topic;
 use App\Models\User;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,7 +66,7 @@ class PostController extends Controller
         // po dobie karencji.
         $request->validate([
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
-            'photos.*' => ['file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'media_ids.*' => ['uuid'],
         ], [
