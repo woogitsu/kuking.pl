@@ -119,6 +119,83 @@ już wymazano, ten rollback NIE przywraca e-maila ani hasła — tych danych po
 prostu już nie ma, to nie jest strata spowodowana cofnięciem migracji. Same
 konta nie zmieniają zachowania: nadal się nie logują.
 
+#### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
+
+Migracja `2026_09_06_120000_add_two_factor_to_users_table` (issue #12).
+`docs/SECURITY_PRIVACY_LEGAL.md`: „MFA obowiązkowe dla adminów" — konto
+moderatora widzi zgłoszenia, cudze ukryte treści i odwołania, więc samo
+hasło już nie wystarcza jako jedyna ochrona.
+
+**DLACZEGO TOTP, NIE KOD E-MAILEM.** Serwis nie ma dziś działającego SMTP
+(zadanie po stronie właściciela) — drugi składnik oparty o e-mail zależałby
+od kanału, który nie działa. TOTP liczy kod lokalnie w aplikacji telefonu
+(Google Authenticator, Aegis, 1Password…), offline, z samego sekretu
+i aktualnego czasu. Biblioteka: `pragmarx/google2fa` (RFC 6238, jedna
+zależność — `paragonie/constant_time_encoding`) plus `bacon/bacon-qr-code`
+do narysowania kodu QR jako SVG bez żadnego wywołania sieciowego (patrz
+`App\Domain\Security\TwoFactorAuthenticator` — uzasadnienie wyboru obu
+bibliotek jest w komentarzu klasy).
+
+Kolumny na `users`:
+
+- `two_factor_secret` — sekret TOTP, **zaszyfrowany** (cast `encrypted`
+  w `App\Models\User`). Wyciek kopii bazy nie może oddawać drugiego
+  składnika logowania.
+- `two_factor_backup_codes` — kody zapasowe, **wyłącznie jako tablica
+  skrótów** (cast `encrypted:array`, każdy element to `Hash::make()`, nigdy
+  kod wprost). Kod jest USUWANY z tablicy po zużyciu — to jednocześnie
+  realizuje „kod działa raz" i nie potrzebuje osobnej kolumny na zliczanie.
+- `two_factor_confirmed_at` — 2FA jest zapisane na koncie od razu przy
+  wejściu na ekran włączenia (żeby kod QR nie zmieniał się przy
+  odświeżeniu), ale NIEAKTYWNE, dopóki człowiek nie poda pierwszego
+  poprawnego kodu. Dopiero wtedy ta kolumna się wypełnia — i dopiero wtedy
+  `User::hasTwoFactorConfirmed()` zaczyna wymagać kodu przy logowaniu
+  i wejściu do `/admin`.
+- `two_factor_last_used_at` — **NIE jest to `timestamptz`**, mimo nazwy: to
+  surowy licznik czasu Uniksa zwracany przez `Google2FA::verifyKeyNewer()`,
+  używany wyłącznie do odrzucenia PONOWNIE wpisanego kodu (ochrona przed
+  atakiem powtórzenia — bez tego ten sam sześciocyfrowy kod, ważny przez
+  całe okno tolerancji ±30 s, dałoby się użyć dwukrotnie). Aplikacja nigdy
+  nie odpytuje tej kolumny funkcjami dat, tylko przekazuje ją z powrotem do
+  tej samej biblioteki — stąd `bigint`, nie `timestamptz`.
+
+```sql
+ALTER TABLE users
+ADD CONSTRAINT users_two_factor_confirmed_requires_secret_check
+CHECK (two_factor_confirmed_at IS NULL OR two_factor_secret IS NOT NULL);
+```
+
+Bez tego CHECK dałoby się (błędem aplikacji albo ręczną operacją na bazie)
+zapisać konto z `confirmed_at` bez sekretu — czyli konto, które wymaga kodu
+2FA, ale nie ma z czego go policzyć. Baza tego po prostu nie przyjmie
+(AGENTS.md §6: ograniczenie ma być w bazie, nie tylko w walidacji PHP).
+
+**Limit prób** kodu (`config('kuking.limits.two_factor')`, domyślnie 5 prób
+na minutę) liczy się PO KONCIE, nie po adresie IP — kod ma sześć cyfr, więc
+bez limitu jest do odgadnięcia, a limit tylko po IP omijałby rozproszony
+atak z wielu adresów.
+
+**Blokada `/admin/**`:** middleware `EnsureModeratorHasTwoFactor` (alias
+`moderator.2fa`), zawsze DRUGI w trasie po `moderator` — dzięki temu zwykły
+użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
+sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
+z przyciskiem do włączenia (403), nie ścianę.
+
+**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
+bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
+zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
+SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
+znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
+awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+
+**Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
+ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".
+Jedyna droga to `php artisan kuking:2fa-wylacz {login}` — komenda konsolowa
+wymagająca dostępu do serwera, uruchamiana PO zweryfikowaniu tożsamości tej
+osoby poza serwisem. Celowo bez ścieżki samoobsługowej: samoobsługowy reset
+2FA zwykłym linkiem unieważniałby sens 2FA (ktoś, kto ukradnie samo hasło,
+resetowałby drugi składnik tą samą drogą).
+
 ### profiles
 - user_id;
 - username;
@@ -189,6 +266,45 @@ Tylko metadata, nie binary:
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+**`posts.display_mode` — jak autor chce pokazać kilka zdjęć** (issue #92,
+migracja `2026_09_06_120000_add_display_mode_to_posts`).
+
+```sql
+ALTER TABLE posts ADD COLUMN display_mode varchar(20) NOT NULL DEFAULT 'normal';
+ALTER TABLE posts ADD CONSTRAINT posts_display_mode_check
+    CHECK (display_mode IN ('normal','carousel','collage'));
+```
+
+- `normal` — zdjęcia jedno pod drugim (dotychczasowy i domyślny układ);
+- `carousel` — jedno zdjęcie naraz, przewijane w bok;
+- `collage` — siatka na jednym ekranie.
+
+CHECK jest w BAZIE, nie tylko w PHP: widok umie narysować dokładnie te trzy
+warianty, więc czwarty nie ma prawa się tam znaleźć żadną drogą — ani przez
+formularz, ani przez `php artisan tinker`, ani przez przyszłe API.
+
+Wartość domyślna wypełnia wszystkie istniejące wiersze bez migracji danych
+i bez przepisywania tabeli (PostgreSQL trzyma `DEFAULT` w katalogu). Wpis
+zapisany przed tą zmianą wyświetla się dokładnie jak dotąd.
+
+**Kolumna nie zastępuje liczby zdjęć.** Przy jednym zdjęciu wszystkie trzy
+tryby dają ten sam widok, więc `PublishPost` i `ArrangePostMedia` zapisują
+wtedy `normal`, a `Post::trybWyswietlaniaZdjec()` i tak liczy tryb na nowo
+przy renderowaniu — wpis może stracić zdjęcia (moderacja) długo po wyborze
+autora.
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` zdejmuje CHECK
+i kasuje kolumnę; traci się wyłącznie wybór autora (wszystko wraca do układu
+„zwykle"). Żadne zdjęcie, żaden wpis ani żadna pozycja w `post_media` nie
+ginie, więc cofnięcie jest bezpieczne także na produkcji w trakcie awarii.
+
+**Kolejność zdjęć zmienia `post_media.position`**, a nie kolejność wierszy.
+Zamiana dwóch zdjęć miejscami przechodziłaby przez stan łamiący
+`UNIQUE (post_id, position)`, więc `ArrangePostMedia` robi to w dwóch
+przebiegach w jednej transakcji: najpierw odsuwa wszystkie pozycje w zakres
+100+, potem ustawia docelowe `0, 1, 2…`. Wartości pośrednie są dodatnie,
+więc `CHECK (position >= 0)` obowiązuje przez cały czas.
+
 ### recipes
 Aktualny stan.
 
@@ -200,6 +316,52 @@ Podstawa search i późniejszego planera.
 
 ### recipe_ingredients
 Musi mieć `ingredient_text`, nawet jeśli normalizacja nie rozpozna składnika.
+
+**`no_amount boolean NOT NULL DEFAULT false`** (migracja
+`2026_09_06_130000_add_no_amount_to_recipe_ingredients`, issue #44) —
+„ten składnik nie ma wymiernej ilości": sól do smaku, pieprz, mleko — ile
+weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
+przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
+„ile weźmie".
+
+Kolumna weszła **przed** funkcją, która jej używa, i to jest jedyny powód,
+dla którego istnieje już teraz: dopisanie jej dziś kosztuje jedną linijkę,
+a po tym, jak w tabeli znajdą się przepisy prawdziwych ludzi, kosztowałoby
+migrację danych i **zgadywanie**, które składniki są „do smaku".
+
+CHECK `recipe_ingredients_no_amount_check`: `no_amount = false OR (quantity
+IS NULL AND unit_id IS NULL)`. Bez niego dałoby się zapisać wiersz mówiący
+naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować"
+nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
+zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
+
+**Rollback:** `down()` zdejmuje CHECK i kolumnę. Bezstratny tylko dopóki
+skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
+utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
+tabeli.
+
+### Wspomnienia „Rok temu gotowałaś…" (issue #34)
+
+Dwie kolumny z migracji `2026_09_06_140000_add_memories_to_users_and_posts`,
+bo są **dwa różne „nie chcę tego widzieć"**:
+
+- **`users.memories_enabled`** (`boolean NOT NULL DEFAULT true`) — wyłącznik
+  całej mechaniki. To nie jest ustawienie wygody: wpis z przepisem po mamie,
+  która zmarła w tym roku, wyświetlony bez ostrzeżenia na stronie głównej,
+  jest okrutny. Człowiek w żałobie ma to wyłączyć jednym kliknięciem, a nie
+  odklikiwać wspomnienia po kolei.
+- **`posts.hide_as_memory`** (`boolean NOT NULL DEFAULT false`) — ukrycie
+  JEDNEGO wpisu przy zachowaniu mechaniki, bo zwykle boli jedna rzecz,
+  a nie wszystkie. Wpis **zostaje** w archiwum profilu: „nie przypominaj mi
+  o tym" to nie to samo co „usuń to".
+
+Kolumna siedzi na `posts`, a nie w tabeli `(user_id, post_id)`, bo wspomnienie
+to zawsze **własny** wpis oglądającego — właściciel i osoba ukrywająca to ta
+sama osoba, więc druga kolumna zawsze wynikałaby z pierwszej.
+
+**Rollback:** `down()` zdejmuje obie kolumny i traci przy tym listę ukrytych
+wspomnień — po cofnięciu człowiek zobaczy z powrotem to, co świadomie schował.
+Na produkcji: najpierw kopia obu kolumn.
 
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.

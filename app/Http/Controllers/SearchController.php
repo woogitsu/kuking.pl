@@ -52,15 +52,24 @@ class SearchController extends Controller
             ? $this->search->recipes($phrase, $request->user(), $ile + 1)
             : collect();
 
-        $jestWiecej = $przepisy->count() > $ile;
+        // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
+        //
+        // Wcześniej dostawała sztywne dwadzieścia wyników bez żadnej drogi
+        // dalej. Nie kłamała wprost (nie było licznika), ale kończyła się
+        // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
+        // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
+        $ludzie = $section === 'ludzie'
+            ? $this->search->people($phrase, $request->user(), $ile + 1)
+            : collect();
 
         return view('pages.search', [
             'phrase' => $phrase,
             'section' => $section,
             'recipes' => $przepisy->take($ile),
-            'jestWiecej' => $jestWiecej,
+            'people' => $ludzie->take($ile),
+            'jestWiecej' => $przepisy->count() > $ile,
+            'jestWiecejOsob' => $ludzie->count() > $ile,
             'nastepneIle' => min($ile + self::NA_STRONIE, self::MAKS),
-            'people' => $section === 'ludzie' ? $this->search->people($phrase, $request->user()) : collect(),
         ]);
     }
 }

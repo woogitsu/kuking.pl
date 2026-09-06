@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
@@ -42,7 +43,20 @@ class PanelBezOdpowiedziTest extends TestCase
         // Pamiętane w polu, bo `user()` przy każdym wywołaniu ZAKŁADA konto —
         // a nazwa `gospodarz` musi być stała i jedna, żeby dało się sprawdzić,
         // do kogo trafia alert o pierwszym wpisie.
-        return $this->gospodarz ??= $this->user('gospodarz', ['role' => User::ROLE_MODERATOR]);
+        if ($this->gospodarz !== null) {
+            return $this->gospodarz;
+        }
+
+        $gospodarz = $this->user('gospodarz', ['role' => User::ROLE_MODERATOR]);
+
+        // 2FA potwierdzone — inaczej middleware EnsureModeratorHasTwoFactor
+        // (issue #12) blokuje wejście do panelu `/admin/bez-odpowiedzi`,
+        // zanim ten test w ogóle sprawdzi coś ze swojej właściwej sprawy.
+        $totp = app(TwoFactorAuthenticator::class);
+        $gospodarz->beginTwoFactorSetup($totp->generateSecret());
+        $gospodarz->confirmTwoFactor($totp->hashBackupCodes($totp->generateBackupCodes()));
+
+        return $this->gospodarz = $gospodarz->refresh();
     }
 
     private function wpis(User $autor, string $tresc, mixed $kiedy = null): Post

@@ -119,6 +119,10 @@ class PostController extends Controller
                 visibility: $data['visibility'],
                 topicId: $data['topic_id'] ?? null,
                 ip: $request->ip(),
+                // Wygląd zdjęć ustawia się DOPIERO PO publikacji, na osobnym
+                // ekranie — patrz komentarz przy przekierowaniu niżej. Wpis
+                // powstaje więc zawsze jako „zwykle".
+                displayMode: Post::DISPLAY_NORMAL,
             );
         } catch (RuntimeException $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
@@ -137,6 +141,30 @@ class PostController extends Controller
         // niżej (audyt A2) — inaczej pusta ramka wygląda jak porażka
         // publikacji, nie jak „chwilę potrwa".
         $maZdjecie = $mediaIds !== [];
+
+        // KROK POŚREDNI PRZY KILKU ZDJĘCIACH — DECYZJA WŁAŚCICIELA.
+        //
+        // Wybór „zwykle / karuzela / kolaż" stał wcześniej w formularzu
+        // publikacji, ukryty, i odsłaniał go skrypt po wybraniu drugiego
+        // pliku. Działało to wyłącznie u osób, którym skrypt się dociągnął:
+        // zanim ktoś kliknie „Opublikuj", zdjęcia SĄ JESZCZE W PRZEGLĄDARCE,
+        // więc serwer nie zna ich liczby i bez JavaScriptu nie ma jak pokazać
+        // tego wyboru w odpowiednim momencie.
+        //
+        // Teraz pytamy po publikacji, na ekranie „Zdjęcia w tym wpisie" —
+        // ta droga działa u wszystkich tak samo, bez linijki skryptu.
+        //
+        // TYLKO OD DWÓCH ZDJĘĆ. Przy jednym karuzela, kolaż i „zwykle" dają
+        // dokładnie ten sam widok, a „przenieś w górę" nie ma dokąd
+        // przenosić — pytanie bez treści jest gorsze niż brak pytania,
+        // zwłaszcza na drodze do opublikowania zdjęcia.
+        if (count($mediaIds) >= 2) {
+            return redirect()->route('posts.media.edit', $post)
+                ->with('poPublikacji', true)
+                ->with('status', $isFirstPost
+                    ? 'Opublikowane. To Twój pierwszy wpis w Kuking — od teraz masz swoje archiwum.'
+                    : 'Opublikowane.');
+        }
 
         return redirect()->route('posts.show', $post)->with(
             'status',

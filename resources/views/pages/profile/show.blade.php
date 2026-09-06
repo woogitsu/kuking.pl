@@ -28,25 +28,25 @@
         @endif
     </x-slot:head>
 
-    <header class="card" style="margin-bottom:var(--spacing-6);">
-        <div style="display:flex; gap:var(--spacing-4); align-items:flex-start; flex-wrap:wrap;">
+    <header class="card mb-6">
+        <div class="flex gap-4 items-start flex-wrap">
             <x-avatar :user="$owner" :size="88" />
-            <div style="flex:1; min-width:14rem;">
-                <h1 style="margin:0 0 var(--spacing-1);">{{ $p->display_name }}</h1>
-                <p class="meta" style="margin:0 0 var(--spacing-3);">
+            <div class="flex-1 min-w-[14rem]">
+                <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
+                <p class="meta m-0 mb-3">
                     &#64;{{ $p->username }}
                     @if($p->region) · {{ $p->region }} @endif
                 </p>
                 @if($p->speciality)
-                    <p style="margin:0 0 var(--spacing-3);"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
+                    <p class="m-0 mb-3"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
                 @endif
                 @if($p->bio)
-                    <p style="white-space:pre-line;">{{ $p->bio }}</p>
+                    <p class="whitespace-pre-line">{{ $p->bio }}</p>
                 @endif
             </div>
         </div>
 
-        <ul class="stat-row" style="margin-top:var(--spacing-5);">
+        <ul class="stat-row mt-5">
             <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
             <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
             <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
@@ -62,7 +62,7 @@
             </li>
         </ul>
 
-        <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap; margin-top:var(--spacing-5);">
+        <div class="flex gap-3 flex-wrap mt-5">
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
@@ -113,6 +113,32 @@
                 @endif
             </x-empty-state>
         @else
+            @if(($lata ?? collect())->count() > 1)
+                {{--
+                    NAWIGACJA PO LATACH (issue #34).
+
+                    Archiwum ma działać jak stary fotoblog, a fotoblog ma lata
+                    w bocznej kolumnie. Bez tego jedyną drogą do września sprzed
+                    trzech lat jest klikanie „starsze" dwadzieścia razy — czyli
+                    droga, której nikt nie przejdzie.
+
+                    Pokazujemy dopiero od DWÓCH lat: jeden rok to nie wybór,
+                    tylko rząd przycisków udający wybór.
+
+                    Zwykłe odnośniki, bez skryptu.
+                --}}
+                <nav class="lata-archiwum" aria-label="Lata w archiwum">
+                    <a class="tab" href="{{ route('profile.show', $p->username) }}"
+                       @if(! ($rok ?? null)) aria-current="page" @endif>Wszystko</a>
+
+                    @foreach($lata as $rokZListy)
+                        <a class="tab"
+                           href="{{ route('profile.show', ['username' => $p->username, 'rok' => $rokZListy]) }}"
+                           @if(($rok ?? null) === $rokZListy) aria-current="page" @endif>{{ $rokZListy }}</a>
+                    @endforeach
+                </nav>
+            @endif
+
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
             <div class="stack">
@@ -120,12 +146,12 @@
                     @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
-                        <h2 style="margin-top:var(--spacing-8);">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
+                        <h2 class="mt-8">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
                     @endif
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <div style="margin-top:var(--spacing-6);">{{ $posts->links() }}</div>
+            <div class="mt-6">{{ $posts->links() }}</div>
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -138,11 +164,11 @@
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <div style="margin-top:var(--spacing-6);">{{ $recipes->links() }}</div>
+            <div class="mt-6">{{ $recipes->links() }}</div>
         @endif
     @else
         @if($cookedEvents->count() === 0)
-            <x-empty-state :title="$isOwner ? 'Nie zapisałaś jeszcze żadnego wykonania' : 'Brak wykonań'">
+            <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'">
                 @if($isOwner)
                     Kiedy ugotujesz z czyjegoś przepisu, kliknij „Ugotowałem”. Autor się o tym dowie, a Ty będziesz mieć to zapisane.
                 @endif
@@ -153,7 +179,7 @@
                     <x-cooked-card :event="$event" :showRecipe="true" />
                 @endforeach
             </div>
-            <div style="margin-top:var(--spacing-6);">{{ $cookedEvents->links() }}</div>
+            <div class="mt-6">{{ $cookedEvents->links() }}</div>
         @endif
     @endif
 </x-layout>

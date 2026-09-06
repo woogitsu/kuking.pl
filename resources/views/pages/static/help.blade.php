@@ -2,7 +2,7 @@
     <article class="prose">
         <h1>Pomoc</h1>
 
-        <h2>Jak dodać zdjęcie tego, co ugotowałem?</h2>
+        <h2>Jak dodać zdjęcie swojego dania?</h2>
         <ol>
             <li>Kliknij <strong>Dodaj</strong> — na telefonie znajdziesz ten przycisk na dole ekranu, pośrodku.</li>
             <li>Wybierz <strong>Zdjęcie i kilka słów</strong>.</li>
@@ -20,7 +20,7 @@
 
         <h2>Co to znaczy „Ugotowałem”?</h2>
         <p>
-            To najważniejszy przycisk w Kuking. Klikasz go, kiedy naprawdę ugotowałeś coś
+            To najważniejszy przycisk w Kuking. Klikasz go, kiedy naprawdę ugotujesz coś
             z czyjegoś przepisu. Autor dostanie o tym wiadomość — i to jest tu najmilsza rzecz.
             Możesz dodać zdjęcie, ale nie musisz.
         </p>

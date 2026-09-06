@@ -2,7 +2,7 @@
     <h1>Powiadomienia</h1>
 
     @if($notifications->total() > 0)
-        <form method="POST" action="{{ route('notifications.read') }}" style="margin-bottom:var(--spacing-5);">
+        <form class="mb-5" method="POST" action="{{ route('notifications.read') }}">
             @csrf
             <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
         </form>
@@ -15,12 +15,12 @@
         @endphp
         <article class="card @if($notification->isUnread()) style-unread @endif"
                  style="margin-bottom:var(--spacing-3); @if($notification->isUnread()) border-left:4px solid var(--color-brand); @endif">
-            <div style="display:flex; gap:var(--spacing-3); align-items:flex-start;">
+            <div class="flex gap-3 items-start">
                 @if($actor)
                     <x-avatar :user="$actor" :size="44" />
                 @endif
-                <div style="min-width:0;">
-                    <p style="margin:0 0 var(--spacing-1);">
+                <div class="min-w-0">
+                    <p class="m-0 mb-1">
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
                                 <strong>{{ $actor?->displayName() }} ugotowała/ugotował z Twojego przepisu</strong>
@@ -52,7 +52,7 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
-                                Zacznij od zdjęcia tego, co dziś ugotowałaś. Nie musi być ładne — ma być prawdziwe.
+                                Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
                                 @break
                             @case(\App\Models\Notification::TYPE_MODERATION)
                                 {{-- Nagłówek mówi, CO SIĘ STAŁO, a pod nim idzie treść
@@ -90,13 +90,18 @@
                                 {{ $notification->type }}
                         @endswitch
                     </p>
-                    <p class="meta" style="margin:0;">
+                    <p class="meta m-0">
                         <time datetime="{{ $notification->created_at->toIso8601String() }}">{{ \App\Support\Czas::lokalnie($notification->created_at)->diffForHumans() }}</time>
                     </p>
 
                     @php
                         $link = match ($notification->type) {
-                            \App\Models\Notification::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.show', $data['cooked_event_id']) : null,
+                            // Prowadzi do pełnoekranowego ekranu „Komuś wyszło" (issue #17),
+                            // nie od razu do zwykłego wpisu — to jest najcenniejszy moment
+                            // w produkcie i zasługuje na własną stronę, nie jeden wiersz
+                            // na liście. `celebrate()` sam się cofa do `cooked.show`,
+                            // kiedy ekran już był raz pokazany.
+                            \App\Models\Notification::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.celebrate', $data['cooked_event_id']) : null,
                             \App\Models\Notification::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
                             \App\Models\Notification::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
                             \App\Models\Notification::TYPE_FIRST_POST => route('admin.unanswered'),
@@ -105,7 +110,7 @@
                         };
                     @endphp
                     @if($link)
-                        <p style="margin:var(--spacing-3) 0 0;">
+                        <p class="mt-3 mx-0 mb-0">
                             <a class="btn btn-secondary" href="{{ $link }}">Zobacz</a>
                         </p>
                     @endif
@@ -120,7 +125,7 @@
                         nigdy nie jest jedynym opisem akcji (UX 50+).
                     --}}
                     @if(($data['appeal'] ?? false) && ($data['action_id'] ?? null))
-                        <p style="margin:var(--spacing-3) 0 0;">
+                        <p class="mt-3 mx-0 mb-0">
                             <a class="btn btn-secondary" href="{{ route('appeals.show', $data['action_id']) }}">
                                 Odwołanie od tej decyzji
                             </a>
@@ -135,5 +140,5 @@
         </x-empty-state>
     @endforelse
 
-    <div style="margin-top:var(--spacing-6);">{{ $notifications->links() }}</div>
+    <div class="mt-6">{{ $notifications->links() }}</div>
 </x-layout>

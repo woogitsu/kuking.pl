@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Odmiana;
 use Database\Factories\RecipeStepFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -43,5 +44,36 @@ class RecipeStep extends Model
     public function media(): BelongsTo
     {
         return $this->belongsTo(Media::class);
+    }
+
+    /**
+     * Czas minutnika po polsku — "12 minut", "1 minuta i 30 sekund".
+     *
+     * Metoda siedzi na modelu, nie w widoku trybu gotowania (issue #24):
+     * ten sam tekst czyta zarówno widoczny akapit („ustaw sobie minutnik
+     * na…"), jak i etykieta przy przycisku uruchamiającym minutnik w JS —
+     * dwa miejsca liczące to samo osobno to dwie okazje, żeby się rozjechały
+     * (ten sam powód co `Recipe::servingsLabel()` wyżej w kodzie bazy).
+     */
+    public function timerLabel(): ?string
+    {
+        if ($this->timer_seconds === null || $this->timer_seconds <= 0) {
+            return null;
+        }
+
+        $minuty = intdiv($this->timer_seconds, 60);
+        $sekundy = $this->timer_seconds % 60;
+
+        $czesci = [];
+
+        if ($minuty > 0) {
+            $czesci[] = $minuty.' '.Odmiana::rzeczownik($minuty, 'minuta', 'minuty', 'minut');
+        }
+
+        if ($sekundy > 0) {
+            $czesci[] = $sekundy.' '.Odmiana::rzeczownik($sekundy, 'sekunda', 'sekundy', 'sekund');
+        }
+
+        return implode(' i ', $czesci);
     }
 }

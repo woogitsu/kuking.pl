@@ -214,4 +214,48 @@ class ListyIWyszukiwarkaTest extends TestCase
             ->assertSee('Znaleziono 3 przepisy', escape: false)
             ->assertDontSee('Znaleziono 3 przepisów', escape: false);
     }
+
+    public function test_zakladka_ludzie_tez_nie_konczy_sie_po_cichu(): void
+    {
+        // Zakładka „Ludzie" nie kłamała wprost — nie miała licznika — ale
+        // urywała się na dwudziestu wynikach w sposób nie do rozpoznania:
+        // dwudziesta pierwsza Basia po prostu nie istniała dla szukającego.
+        // Ten sam błąd co przy przepisach, tylko cichszy.
+        foreach (range(1, 25) as $numer) {
+            $this->user('basia'.$numer, ['display_name' => "Basia Numer {$numer}"]);
+        }
+
+        $this->get(route('search', ['q' => 'basia', 'sekcja' => 'ludzie']))
+            ->assertOk()
+            ->assertSee('Jest ich więcej', escape: false)
+            ->assertSee('Pokaż więcej osób', escape: false)
+            ->assertDontSee('Znaleziono 20 osób', escape: false);
+    }
+
+    public function test_pokaz_wiecej_osob_dowozi_dalsze_wyniki(): void
+    {
+        foreach (range(1, 25) as $numer) {
+            $this->user('basia'.$numer, ['display_name' => "Basia Numer {$numer}"]);
+        }
+
+        $odpowiedz = $this->get(route('search', [
+            'q' => 'basia', 'sekcja' => 'ludzie', 'ile' => 40,
+        ]))->assertOk();
+
+        $this->assertSame(25, $odpowiedz->viewData('people')->count());
+        $odpowiedz->assertDontSee('Jest ich więcej', escape: false);
+    }
+
+    public function test_liczebnik_przy_ludziach_tez_odmienia_sie_po_polsku(): void
+    {
+        foreach (range(1, 3) as $numer) {
+            $this->user('basia'.$numer, ['display_name' => "Basia Numer {$numer}"]);
+        }
+
+        // Dwustanowa odmiana napisałaby „Znaleziono 3 osób".
+        $this->get(route('search', ['q' => 'basia', 'sekcja' => 'ludzie']))
+            ->assertOk()
+            ->assertSee('Znaleziono 3 osoby', escape: false)
+            ->assertDontSee('Znaleziono 3 osób', escape: false);
+    }
 }

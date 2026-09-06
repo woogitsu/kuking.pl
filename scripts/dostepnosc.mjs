@@ -97,6 +97,25 @@ const EKRANY = [
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
+  // Tryb gotowania (issue #24) — jeden krok na cały ekran, bardzo dużym
+  // tekstem. Ten sam przepis co ekran „przepis” wyżej, bo demo ma dla niego
+  // gotowe kroki — patrz komentarz przy `adresPrzepisu` niżej w tym pliku.
+  { nazwa: 'tryb gotowania', adres: null, znajdz: 'gotowanie' },
+
+  /*
+   * Trzy sposoby wyświetlania zdjęć we wpisie (issue #92).
+   *
+   * DLACZEGO TRZY OSOBNE EKRANY, A NIE JEDEN „WPIS"
+   * To są trzy różne układy, nie trzy warianty jednego. Karuzela jest jedynym
+   * miejscem w serwisie, gdzie coś przewija się w POZIOMIE — a właśnie
+   * przewijanie w poziomie mierzy ta druga połowa skryptu (issue #80).
+   * Kolaż jest jedynym miejscem z siatką dwóch kolumn zdjęć przy 320 px.
+   * Sprawdzanie tylko trybu domyślnego przepuszczałoby dokładnie te dwa
+   * układy, które w tym issue są ryzykiem.
+   */
+  { nazwa: 'wpis — zdjęcia zwykle', adres: null, znajdz: 'wpis:normal' },
+  { nazwa: 'wpis — karuzela', adres: null, znajdz: 'wpis:carousel' },
+  { nazwa: 'wpis — kolaż', adres: null, znajdz: 'wpis:collage' },
   { nazwa: 'profil', adres: '/@basia' },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
@@ -115,6 +134,11 @@ const EKRANY_UKLADU = [
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   { nazwa: 'powiadomienia', adres: '/powiadomienia', zalogowany: true },
+  // Ekran autora: kolejność zdjęć i wybór wyglądu (issue #92). Miniatura,
+  // dwa przyciski „w górę / w dół" i trzy kafelki wyboru w jednym wierszu —
+  // to jest układ, który przy 320 px i tekście 150% ma najwięcej okazji,
+  // żeby wypchnąć stronę w bok.
+  { nazwa: 'kolejność i wygląd zdjęć', adres: null, znajdz: 'wpis:carousel:zdjecia', zalogowany: true },
 ];
 
 /*
@@ -279,11 +303,83 @@ const adresPrzepisu = (() => {
   return slug === '' ? null : `/przepisy/${slug}`;
 })();
 
+// Tryb gotowania tego samego przepisu — DemoSeeder daje mu kroki, więc ekran
+// pokazuje prawdziwą treść, nie pustą kartę „autor jeszcze nie opisał
+// przygotowania” (a pusty ekran przechodzi każdy test dostępności, nie
+// sprawdzając niczego — patrz nagłówek tego pliku).
+const adresGotowania = adresPrzepisu === null ? null : `${adresPrzepisu}/gotuj`;
+
 if (adresPrzepisu === null) {
   console.error('BŁĄD: w bazie nie ma opublikowanego przepisu — ekran przepisu nie zostałby sprawdzony.');
   console.error('       Uruchom seeder albo wskaż inną bazę przez DB_DATABASE.');
   zamknij();
   process.exit(1);
+}
+
+/*
+ * Adresy wpisów z KILKOMA zdjęciami — po jednym na każdy tryb (issue #92).
+ *
+ * Ta sama zasada co przy przepisie: pytamy BAZĘ, a nie stronę. Wpis z jednym
+ * zdjęciem nie ma ani karuzeli, ani kolażu (przy jednym zdjęciu wszystkie
+ * tryby dają ten sam widok), więc szukamy wyłącznie takich, które naprawdę
+ * mają co pokazać — inaczej mierzylibyśmy trzy razy ten sam układ i raport
+ * wyglądałby na kompletny.
+ */
+const wpisyPoTrybie = (() => {
+  const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "foreach (['normal','carousel','collage'] as $t) { "
+    + "$w = App\\Models\\Post::where('display_mode', $t)->where('status','published')"
+    + "->where('visibility','public')->has('media', '>=', 2)->first(); "
+    + "echo $t.'='.($w?->getKey() ?? '').PHP_EOL; }",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' } })
+    .toString();
+
+  const mapa = {};
+
+  for (const linia of wynik.split('\n')) {
+    const [tryb, id] = linia.trim().split('=');
+
+    if (tryb && id) {
+      mapa[tryb] = id;
+    }
+  }
+
+  return mapa;
+})();
+
+/*
+ * Adres ekranu z listy: `adres` wprost albo `znajdz` do rozwiązania z bazy.
+ *
+ * `znajdz: 'przepis'` → dowolny opublikowany przepis z demo,
+ * `znajdz: 'gotowanie'` → tryb gotowania tego samego przepisu,
+ * `znajdz: 'wpis:carousel'` → wpis w tym trybie,
+ * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu.
+ *
+ * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
+ * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
+ * ze sprawdzania, jest gorszy niż ekran, który oblewa.
+ */
+function sciezkaEkranu(ekran) {
+  if (! ekran.znajdz) {
+    return ekran.adres;
+  }
+
+  if (ekran.znajdz === 'przepis') {
+    return adresPrzepisu;
+  }
+
+  if (ekran.znajdz === 'gotowanie') {
+    return adresGotowania;
+  }
+
+  const [, tryb, sufiks] = ekran.znajdz.split(':');
+  const id = wpisyPoTrybie[tryb];
+
+  if (! id) {
+    return null;
+  }
+
+  return sufiks ? `/wpisy/${id}/${sufiks}` : `/wpisy/${id}`;
 }
 
 const wyniki = [];
@@ -324,7 +420,7 @@ for (const wariant of WARIANTY) {
 
   for (const ekran of EKRANY) {
     const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
-    const sciezka = ekran.znajdz === 'przepis' ? adresPrzepisu : ekran.adres;
+    const sciezka = sciezkaEkranu(ekran);
 
     if (! sciezka) {
       // Ciche pominięcie ekranu jest gorsze niż błąd: raport wygląda
@@ -425,7 +521,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
     let zlych = 0;
 
     for (const ekran of EKRANY_UKLADU) {
-      const sciezka = ekran.znajdz === 'przepis' ? adresPrzepisu : ekran.adres;
+      const sciezka = sciezkaEkranu(ekran);
 
       if (! sciezka) {
         console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}".`);
@@ -468,6 +564,120 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
   }
 }
 
+/* =============================================================================
+   KARUZELA Z WYŁĄCZONYM JAVASCRIPTEM (issue #92)
+
+   DLACZEGO TO NIE MOŻE BYĆ TEST PHPUnit
+   Test w PHP potrafi sprawdzić, że odnośnik „Następne zdjęcie" prowadzi pod
+   istniejącą kotwicę — i taki test jest (WygladZdjecWeWpisieTest). Nie potrafi
+   natomiast sprawdzić rzeczy, która w tym issue jest warunkiem: czy po
+   kliknięciu PRZEGLĄDARKA naprawdę przewinęła taśmę do następnego zdjęcia.
+   To wymaga ułożonej strony, tak samo jak pomiar przepełnienia wyżej.
+
+   `javaScriptEnabled: false` to nie symulacja — to przeglądarka bez skryptów,
+   czyli dokładnie to, co ma człowiek przy słabym zasięgu, gdy plik JS się nie
+   dociągnie (AGENTS.md §5).
+
+   Sprawdzamy trzy rzeczy naraz:
+     1. da się dojść do OSTATNIEGO zdjęcia, klikając „Następne zdjęcie";
+     2. przewija się TAŚMA, a nie strona (`documentElement` bez zmian);
+     3. droga powrotna działa tak samo.
+   ========================================================================== */
+log('');
+log('Karuzela bez JavaScriptu:');
+
+const karuzelaBezJs = await (async () => {
+  const sciezka = sciezkaEkranu({ znajdz: 'wpis:carousel' });
+
+  if (! sciezka) {
+    console.error('BŁĄD: brak wpisu z karuzelą — warunek z issue #92 nie zostałby sprawdzony.');
+    process.exitCode = 1;
+
+    return null;
+  }
+
+  // 320 px: najwęższy ekran z WCAG 2.2 AA. Jeśli karuzela ma gdzieś pęknąć,
+  // pęknie tutaj.
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: 320, height: 740 },
+    javaScriptEnabled: false,
+  });
+
+  const strona = await kontekst.newPage();
+  await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
+
+  const ile = await strona.locator('.karuzela-slajd').count();
+
+  /** Numer slajdu, który jest teraz na wierzchu taśmy (liczony od 1). */
+  const widocznySlajd = () => strona.evaluate(() => {
+    const tasma = document.querySelector('.karuzela-tasma');
+    const slajdy = [...tasma.querySelectorAll('.karuzela-slajd')];
+    const srodek = tasma.getBoundingClientRect().left + tasma.clientWidth / 2;
+
+    const numer = slajdy.findIndex((s) => {
+      const ramka = s.getBoundingClientRect();
+
+      return ramka.left <= srodek && ramka.right >= srodek;
+    });
+
+    return {
+      numer: numer + 1,
+      przewinieteTasma: Math.round(tasma.scrollLeft),
+      przewinietaStrona: Math.round(document.documentElement.scrollLeft),
+    };
+  });
+
+  const droga = [(await widocznySlajd()).numer];
+
+  for (let i = 1; i < ile; i++) {
+    await strona.locator('.karuzela-slajd').nth(i - 1)
+      .getByRole('link', { name: 'Następne zdjęcie' }).click();
+    await strona.waitForTimeout(200);
+    droga.push((await widocznySlajd()).numer);
+  }
+
+  const naKoncu = await widocznySlajd();
+
+  const powrot = [];
+
+  for (let i = ile - 1; i > 0; i--) {
+    await strona.locator('.karuzela-slajd').nth(i)
+      .getByRole('link', { name: 'Poprzednie zdjęcie' }).click();
+    await strona.waitForTimeout(200);
+    powrot.push((await widocznySlajd()).numer);
+  }
+
+  await kontekst.close();
+
+  const oczekiwana = Array.from({ length: ile }, (_, i) => i + 1);
+
+  return {
+    slajdow: ile,
+    droga,
+    powrot,
+    przewinieteTasma: naKoncu.przewinieteTasma,
+    przewinietaStrona: naKoncu.przewinietaStrona,
+    dotarloDoKonca: JSON.stringify(droga) === JSON.stringify(oczekiwana),
+    wrocilo: JSON.stringify(powrot) === JSON.stringify(oczekiwana.slice(0, -1).reverse()),
+    przewijaSieTasmaNieStrona: naKoncu.przewinieteTasma > 0 && naKoncu.przewinietaStrona === 0,
+  };
+})();
+
+if (karuzelaBezJs) {
+  const dobrze = karuzelaBezJs.dotarloDoKonca
+    && karuzelaBezJs.wrocilo
+    && karuzelaBezJs.przewijaSieTasmaNieStrona;
+
+  log(`  ${dobrze ? '✓' : '✗'} zdjęć: ${karuzelaBezJs.slajdow}, droga ${karuzelaBezJs.droga.join('→')}`
+    + `, powrót ${karuzelaBezJs.powrot.join('→')}`
+    + `, taśma przewinięta o ${karuzelaBezJs.przewinieteTasma} px`
+    + `, strona o ${karuzelaBezJs.przewinietaStrona} px`);
+
+  if (! dobrze) {
+    process.exitCode = 1;
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -484,6 +694,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnien: przepelnienia.length,
     przepelnienia,
   },
+  karuzelaBezJs,
 }, null, 2));
 
 log('');
@@ -510,3 +721,9 @@ if (blokujacych > 0) {
 if (blokujacych > 0 || przepelnienia.length > 0) {
   process.exit(1);
 }
+
+// `process.exitCode` mógł zostać ustawiony wyżej (nierozwiązany adres ekranu,
+// karuzela nieprzechodząca bez JavaScriptu). Wychodzimy z nim, zamiast go
+// zgubić — cichy kod 0 przy niesprawdzonym ekranie to dokładnie ta fałszywa
+// zieleń, przed którą ten skrypt ma bronić.
+process.exit(process.exitCode ?? 0);

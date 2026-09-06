@@ -12,8 +12,8 @@
 <x-layout title="Dodaj przepis" :noindex="true" :livewire="true">
     <noscript>
         <div class="notice">
-            <p style="margin-top:0;"><strong>Ta przeglądarka nie wykonuje skryptów, więc kreator w krokach nie zadziała.</strong></p>
-            <p style="margin-bottom:0;">
+            <p class="mt-0"><strong>Ta przeglądarka nie wykonuje skryptów, więc kreator w krokach nie zadziała.</strong></p>
+            <p class="mb-0">
                 Nic nie szkodzi — jest druga droga.
                 <a href="{{ route('recipes.create.simple') }}">Otwórz formularz na jednej stronie</a>.
                 Zapisuje przepis dokładnie tak samo.
@@ -22,7 +22,7 @@
     </noscript>
 
     <h1>{{ $draft === null ? 'Dodaj przepis' : 'Dokończ przepis' }}</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Przechodzimy przez to w trzech krokach: najpierw o przepisie, potem składniki,
         potem przygotowanie. Na końcu zobaczysz podgląd.
         <strong>Szkic zapisuje się sam</strong> — możesz przerwać w każdej chwili i wrócić później.
@@ -30,11 +30,11 @@
 
     @if($draft === null && $drafts->isNotEmpty())
         <div class="notice">
-            <p style="margin-top:0;">
+            <p class="mt-0">
                 <strong>{{ $drafts->count() === 1 ? 'Masz niedokończony szkic.' : 'Masz niedokończone szkice.' }}</strong>
                 Nic z nich nie zginęło — możesz wrócić do pisania.
             </p>
-            <ul class="stack-tight" style="list-style:none; padding:0; margin:0;">
+            <ul class="stack-tight list-none p-0 m-0">
                 @foreach($drafts as $unfinished)
                     <li>
                         <a class="btn btn-secondary" href="{{ route('recipes.create', ['szkic' => $unfinished->getKey()]) }}">
@@ -48,7 +48,7 @@
 
     <livewire:recipe-wizard :recipe-id="$draft?->getKey()" />
 
-    <p class="field-help" style="margin-top:var(--spacing-8);">
+    <p class="field-help mt-8">
         Wolisz wszystko na jednej stronie, bez kroków?
         <a href="{{ route('recipes.create.simple') }}">Otwórz formularz na jednej stronie</a>.
     </p>

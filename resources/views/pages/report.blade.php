@@ -1,6 +1,6 @@
 <x-layout title="Zgłoś treść" :noindex="true">
     <h1>Zgłoś tę treść</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Powiedz nam, co jest nie tak. Sprawdzimy to i odpiszemy Ci, co zrobiliśmy.
         Zgłoszenie jest anonimowe dla osoby, której dotyczy.
     </p>
@@ -10,8 +10,8 @@
     <form class="card" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
         @csrf
 
-        <fieldset style="border:0; padding:0;">
-            <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Co jest nie tak?</legend>
+        <fieldset class="border-0 p-0">
+            <legend class="font-bold mb-3">Co jest nie tak?</legend>
             <div class="stack-tight">
                 @foreach($reasons as $value => $label)
                     <label class="choice">

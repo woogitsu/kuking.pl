@@ -41,4 +41,6 @@
             <a class="btn btn-quiet" href="{{ route('home') }}">Wróć na stronę główną</a>
         </div>
     </form>
+
+    <x-ustawienia-nawigacja aktywne="topics" />
 </x-layout>

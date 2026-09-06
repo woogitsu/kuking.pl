@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Middleware\ApplySecurityHeaders;
 use App\Http\Middleware\EnsureAccountIsActive;
+use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -56,6 +57,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'moderator' => EnsureUserIsModerator::class,
+            // Zawsze DRUGI w trasie, po 'moderator' — issue #12, patrz
+            // komentarz klasy: zakłada, że użytkownik jest już moderatorem.
+            'moderator.2fa' => EnsureModeratorHasTwoFactor::class,
         ]);
 
         // JEDYNY adres wyjęty spod ochrony CSRF i jedyny, który ma prawo nim

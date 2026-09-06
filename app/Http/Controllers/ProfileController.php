@@ -9,6 +9,7 @@ use App\Models\Profile;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -48,6 +49,11 @@ class ProfileController extends Controller
         $viewer = $request->user();
         $isOwner = $viewer !== null && $viewer->getKey() === $owner->getKey();
 
+        // Rok z adresu, ale tylko jeśli wygląda na rok. `?rok=cokolwiek`
+        // ma dać całe archiwum, a nie pustą stronę ani błąd.
+        $rok = (int) $request->query('rok', 0);
+        $rok = $rok >= 1990 && $rok <= 2999 ? $rok : null;
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -55,7 +61,12 @@ class ProfileController extends Controller
             'isFollowing' => $viewer !== null && ! $isOwner && $viewer->isFollowing($owner),
             'hasBlocked' => $viewer !== null && ! $isOwner && $viewer->hasBlocked($owner),
             'tab' => $tab,
-            'posts' => $tab === 'wszystko' ? $this->postsFor($owner, $viewer, $isOwner) : null,
+            'posts' => $tab === 'wszystko' ? $this->postsFor($owner, $viewer, $isOwner, $rok) : null,
+            // Nawigacja po latach w archiwum (issue #34). Lista lat pochodzi
+            // z BAZY, nie z zakresu „od pierwszego wpisu do dziś": rok bez
+            // ani jednego wpisu byłby linkiem do pustej strony.
+            'lata' => $tab === 'wszystko' ? $this->lataZWpisami($owner, $viewer, $isOwner) : collect(),
+            'rok' => $rok,
             'recipes' => $tab === 'przepisy'
                 ? $owner->recipes()
                     ->published()
@@ -86,16 +97,37 @@ class ProfileController extends Controller
     }
 
     /** @return Paginator<int, Post> */
-    private function postsFor($owner, $viewer, bool $isOwner)
+    private function postsFor($owner, $viewer, bool $isOwner, ?int $rok = null)
     {
         return $owner->posts()
             ->published()
             ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+            ->when($rok !== null, fn ($query) => $query->whereRaw('extract(year from published_at) = ?', [$rok]))
             ->with(['media', 'author.profile.avatar'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->latest('published_at')
             ->paginate(12)
             ->withQueryString();
+    }
+
+    /**
+     * Lata, w których ta osoba coś opublikowała — widziane oczami OGLĄDAJĄCEGO.
+     *
+     * Ten sam filtr widoczności co lista wpisów (issue #41), bo inaczej rok,
+     * w którym są wyłącznie wpisy prywatne, byłby dla obcej osoby linkiem
+     * prowadzącym donikąd — i zdradzałby, że coś tam jednak jest.
+     *
+     * @return Collection<int, int>
+     */
+    private function lataZWpisami($owner, $viewer, bool $isOwner)
+    {
+        return $owner->posts()
+            ->published()
+            ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+            ->selectRaw('distinct extract(year from published_at)::int as rok')
+            ->orderByRaw('rok desc')
+            ->pluck('rok')
+            ->map(fn ($rok): int => (int) $rok);
     }
 
     /**

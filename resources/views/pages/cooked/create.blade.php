@@ -1,6 +1,6 @@
 <x-layout title="Ugotowałem" :noindex="true">
     <h1>Ugotowałem: {{ $recipe->title }}</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         {{ $recipe->author->displayName() }} dowie się, że ktoś ugotował z tego przepisu.
         <strong>Nie musisz wypełniać żadnego pola</strong> — wystarczy, że klikniesz „Wyślij”.
     </p>
@@ -31,8 +31,8 @@
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />
 
-        <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-            <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Zrobisz to jeszcze raz?</legend>
+        <fieldset class="border-0 p-0 mt-6">
+            <legend class="font-bold mb-3">Zrobisz to jeszcze raz?</legend>
             <div class="choice-grid">
                 <label class="choice">
                     <input type="radio" name="would_make_again" value="1" @checked(old('would_make_again') === '1')>
@@ -45,8 +45,8 @@
             </div>
         </fieldset>
 
-        <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-            <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Jak trudne to było dla Ciebie?</legend>
+        <fieldset class="border-0 p-0 mt-6">
+            <legend class="font-bold mb-3">Jak trudne to było dla Ciebie?</legend>
             <div class="choice-grid">
                 @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
                     <label class="choice">

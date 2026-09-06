@@ -2,8 +2,8 @@
     <article class="prose">
         <h1>O Kuking</h1>
 
-        <p style="font-size:var(--text-lead);">
-            Kuking to miejsce, w którym pokazujesz, co ugotowałeś, zapisujesz swoje przepisy
+        <p class="text-lead">
+            Kuking to miejsce, w którym pokazujesz, co dziś gotujesz, zapisujesz swoje przepisy
             i poznajesz ludzi, którzy naprawdę gotują.
         </p>
 

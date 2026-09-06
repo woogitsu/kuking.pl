@@ -9,12 +9,12 @@
 <x-layout title="Nie znaleźliśmy tej strony" :noindex="true">
     <h1>Nie znaleźliśmy tej strony</h1>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Adres jest niepełny albo strona została usunięta przez osobę, która ją
         dodała. To nie jest Twoja wina i nic się nie zepsuło.
     </p>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Jeśli adres przepisywałeś z kartki — sprawdź, czy nie zgubiła się kropka
         albo ukośnik. Jeśli przyszedł mailem, otwórz go jeszcze raz z wiadomości,
         zamiast przepisywać.

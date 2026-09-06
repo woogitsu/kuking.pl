@@ -10,7 +10,7 @@
 
     <h1>Wszystko gotowe, {{ $name }}</h1>
 
-    <p style="font-size:var(--text-lead);">
+    <p class="text-lead">
         Konto jest założone. Możesz od razu pokazać, co dziś ugotowałaś —
         albo najpierw się rozejrzeć. Jedno i drugie jest w porządku.
     </p>
@@ -21,9 +21,9 @@
         <a class="btn btn-secondary" href="{{ route('home') }}">Na razie tylko pooglądam</a>
     </div>
 
-    <section class="card" style="margin-top:var(--spacing-8);">
+    <section class="card mt-8">
         <h2>Trzy rzeczy, które warto wiedzieć</h2>
-        <ul style="padding-left:var(--spacing-6);">
+        <ul class="pl-6">
             <li><strong>Tekst da się powiększyć.</strong> W <a href="{{ route('settings.accessibility') }}">Ustawieniach</a> możesz ustawić większy tekst — na stałe, na każdym urządzeniu.</li>
             <li><strong>Możesz decydować, kto widzi Twoje wpisy.</strong> Przy każdym wpisie wybierasz: wszyscy, tylko obserwujący albo tylko Ty.</li>
             <li><strong>Twoje dane są Twoje.</strong> W każdej chwili możesz je pobrać na swój komputer albo usunąć konto.</li>

@@ -6,14 +6,14 @@
     // niż gotowe pola do wypełnienia.
     $ingredientRows = max(3, count(old('ingredients', $isEdit ? $recipe->ingredients->all() : [])) + 1);
     $stepRows = max(3, count(old('steps', $isEdit ? $recipe->steps->all() : [])) + 1);
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note])->all() : []);
+    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
     $oldSteps = old('steps', $isEdit ? $recipe->steps->map(fn ($s) => ['instruction' => $s->instruction])->all() : []);
 @endphp
 
 <x-layout :title="$isEdit ? 'Edytuj przepis' : 'Dodaj przepis'" :noindex="true">
     <h1>{{ $isEdit ? 'Edytuj przepis' : 'Dodaj przepis' }}</h1>
-    <p style="margin-bottom:var(--spacing-5);">
-        Wszystko jest na jednej stronie, żebyś nie musiał nic przewijać ani szukać.
+    <p class="mb-5">
+        Wszystko jest na jednej stronie — nie musisz nic przewijać ani szukać.
         Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego,
         kiedy zechcesz.
     </p>
@@ -22,7 +22,7 @@
         {{-- Ten formularz jest DROGĄ BEZ JAVASCRIPTU i taki zostaje.
              Kreator w krokach jest wygodniejszy, ale wymaga skryptu,
              więc nigdy nie może być jedyną drogą (AGENTS.md, punkt 5). --}}
-        <p class="field-help" style="margin-bottom:var(--spacing-5);">
+        <p class="field-help mb-5">
             Wolisz przechodzić to krok po kroku, z zapisywaniem po drodze?
             <a href="{{ route('recipes.create') }}">Otwórz kreator w trzech krokach</a>.
         </p>
@@ -66,8 +66,8 @@
                          :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
             </div>
 
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Jak trudny jest ten przepis?</legend>
+            <fieldset class="border-0 p-0 mt-6">
+                <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
                         <label class="choice">
@@ -79,8 +79,8 @@
                 </div>
             </fieldset>
 
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Kto ma widzieć ten przepis?</legend>
+            <fieldset class="border-0 p-0 mt-6">
+                <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
                 <div class="choice-grid">
                     <label class="choice">
                         <input type="radio" name="visibility" value="public" @checked(old('visibility', $isEdit ? $recipe->visibility : 'public') === 'public')>
@@ -104,12 +104,12 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section card">
             <h2 class="form-section-title">2. Skąd ten przepis</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.
             </p>
 
-            <fieldset style="border:0; padding:0;">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Ten przepis jest…</legend>
+            <fieldset class="border-0 p-0">
+                <legend class="font-bold mb-3">Ten przepis jest…</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                         <label class="choice">
@@ -155,7 +155,7 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section card">
             <h2 class="form-section-title">3. Składniki</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
             </p>
@@ -168,6 +168,19 @@
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
                            @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
                     @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+
+                    {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
+                         checkbox, działa bez JavaScriptu. Nieobowiązkowy
+                         i domyślnie wyłączony: ma znaczenie dopiero przy
+                         przeliczaniu przepisu na inną liczbę porcji. --}}
+                    <label class="choice mt-2">
+                        <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
+                               @checked($oldIngredients[$i]['no_amount'] ?? false)>
+                        <span>
+                            <span class="choice-label">Bez ilości</span>
+                            <span class="choice-help">Na przykład „do smaku”, „ile weźmie”, „szczypta”.</span>
+                        </span>
+                    </label>
                 </div>
             @endfor
 
@@ -185,7 +198,7 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section card">
             <h2 class="form-section-title">4. Przygotowanie</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
             </p>
 

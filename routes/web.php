@@ -12,15 +12,18 @@ use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
+use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
@@ -29,11 +32,14 @@ use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TopicFollowController;
+use App\Http\Controllers\WspomnienieController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -75,6 +81,18 @@ Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+
+// Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
+// komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
+// bez wymogu zalogowania, a nie w grupie `auth` niżej. Zapis (odznaczanie
+// kroku) ma własny, niski limit zapytań: to POST na cudzy slug, więc nawet
+// bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
+// endpointów zmieniających stan.
+Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
+Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
+    ->middleware("throttle:{$limits['cooking_krok']}")
+    ->name('cooking.zaznacz');
+
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
 
@@ -109,6 +127,16 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
         ->middleware("throttle:{$limits['password_reset']}")
         ->name('password.update');
+
+    // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
+    // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze
+    // NIE JEST sesja zalogowana (LoginController zapisuje tu tylko
+    // identyfikator konta w sesji, patrz TwoFactorChallengeController) —
+    // ktoś już zalogowany nie ma po co tu wracać.
+    Route::get('/logowanie/kod', [TwoFactorChallengeController::class, 'show'])->name('login.two_factor');
+    Route::post('/logowanie/kod', [TwoFactorChallengeController::class, 'store'])
+        ->middleware("throttle:{$limits['two_factor']}")
+        ->name('login.two_factor.store');
 
     // Cofnięcie zgłoszonego usunięcia konta — dla osoby, którą
     // `EnsureAccountIsActive` już wylogowało (status `pending_delete`
@@ -178,6 +206,21 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('posts.comment');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
 
+    // Zdjęcia w opublikowanym wpisie: kolejność i sposób wyświetlania (#92).
+    // Zwykły GET i zwykły POST — bez JavaScriptu, bo to jedyna droga, na
+    // której serwer w ogóle WIE, ile zdjęć ma wpis (patrz komentarz
+    // w PostMediaController).
+    Route::get('/wpisy/{post}/zdjecia', [PostMediaController::class, 'edit'])->name('posts.media.edit');
+    Route::post('/wpisy/{post}/zdjecia', [PostMediaController::class, 'update'])
+        ->middleware("throttle:{$limits['post']}")
+        ->name('posts.media.update');
+
+    // „Nie pokazuj mi tego więcej" — ukrycie jednego wspomnienia (issue #34).
+    // Bez limitu zapytań: to jest jedno kliknięcie na własnym wpisie,
+    // ustawiające flagę na `true`. Powtórzenie nie zmienia niczego.
+    Route::post('/wspomnienia/{post}/ukryj', [WspomnienieController::class, 'ukryj'])
+        ->name('wspomnienia.ukryj');
+
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.
     Route::put('/komentarze/{comment}', [CommentController::class, 'update'])
@@ -213,6 +256,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']}")
         ->name('cooked.comment');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])->name('cooked.destroy');
+
+    // „Komuś wyszło" (issue #17) — pełnoekranowa celebracja, wyłącznie dla
+    // autora przepisu, osiągana z linku w powiadomieniu. Adres celowo inny
+    // niż `cooked.show`, bo to inny ekran z inną autoryzacją (Policy::celebrate).
+    Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
+    Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
+        ->middleware("throttle:{$limits['comment']}")
+        ->name('cooked.thank');
 
     // Zeszyt (kolekcje)
     Route::get('/zeszyt', [CollectionController::class, 'index'])->name('collections.index');
@@ -260,6 +311,32 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware('signed')
         ->name('settings.data.download');
 
+    // Bezpieczeństwo konta (issue #12): zmiana hasła i „wyloguj mnie z innych
+    // urządzeń”. Obie akcje POST/PUT proszą o hasło, więc dostają ten sam
+    // limit co reszta miejsc, w których ktoś zgaduje cudze hasło.
+    Route::get('/ustawienia/bezpieczenstwo', [SecuritySettingsController::class, 'edit'])->name('settings.security');
+    Route::put('/ustawienia/bezpieczenstwo/haslo', [SecuritySettingsController::class, 'updatePassword'])
+        ->middleware("throttle:{$limits['confirm_password']}")
+        ->name('settings.security.password');
+    Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
+        ->middleware("throttle:{$limits['confirm_password']}")
+        ->name('settings.security.logout-others');
+    // Weryfikacja dwuetapowa (2FA), issue #12. Obowiązkowa do wejścia
+    // w panel moderacji (patrz middleware 'moderator.2fa' w grupie /admin
+    // niżej), dla zwykłego konta zostaje opcjonalna.
+    Route::get('/ustawienia/2fa', [TwoFactorSettingsController::class, 'edit'])->name('settings.two_factor.edit');
+    Route::get('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'create'])->name('settings.two_factor.enable');
+    Route::post('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'confirm'])
+        ->middleware("throttle:{$limits['two_factor']}")
+        ->name('settings.two_factor.confirm');
+    Route::get('/ustawienia/2fa/kody-zapasowe', [TwoFactorSettingsController::class, 'codes'])->name('settings.two_factor.codes');
+    // Nowy komplet kodów zapasowych bez zdejmowania 2FA. Ten sam limit co
+    // reszta miejsc proszących o hasło — bo o hasło właśnie prosi.
+    Route::post('/ustawienia/2fa/nowe-kody', [TwoFactorSettingsController::class, 'regenerateCodes'])
+        ->middleware("throttle:{$limits['confirm_password']}")
+        ->name('settings.two_factor.regenerate');
+    Route::post('/ustawienia/2fa/wylacz', [TwoFactorSettingsController::class, 'disable'])->name('settings.two_factor.disable');
+
     // Odwołanie od decyzji moderacyjnej — droga dla osób, które MOGĄ wejść
     // do serwisu (aktywnych i zawieszonych). Wejście jest z powiadomienia
     // o decyzji, więc adres zawiera identyfikator TEJ decyzji.
@@ -282,7 +359,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
 // Moderacja
 // --------------------------------------------------------------------------
 
-Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): void {
+// 'moderator.2fa' (issue #12) idzie ZAWSZE po 'moderator': zwykły
+// użytkownik ma dalej dostawać 404 z EnsureUserIsModerator, nie dotrzeć
+// do sprawdzenia 2FA, o którym nie musi wiedzieć, że istnieje.
+Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->group(function (): void {
     Route::get('/zgloszenia', [ModerationController::class, 'reports'])->name('admin.reports');
     Route::post('/zgloszenia/{report}', [ModerationController::class, 'decide'])->name('admin.reports.decide');
 

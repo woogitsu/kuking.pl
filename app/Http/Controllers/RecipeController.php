@@ -298,6 +298,10 @@ class RecipeController extends Controller
             'ingredients.*.text' => ['nullable', 'string', 'max:240'],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
             'ingredients.*.note' => ['nullable', 'string', 'max:300'],
+            // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
+            // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
+            // nie przychodzi wcale.
+            'ingredients.*.no_amount' => ['nullable', 'boolean'],
             'steps' => ['nullable', 'array', 'max:60'],
             'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
         ], [
@@ -360,6 +364,7 @@ class RecipeController extends Controller
                     'text' => $row['text'] ?? '',
                     'group_name' => $row['group_name'] ?? null,
                     'note' => $row['note'] ?? null,
+                    'no_amount' => (bool) ($row['no_amount'] ?? false),
                 ],
                 $data['ingredients'] ?? [],
             )),

@@ -90,7 +90,7 @@ new class extends Component
 
     public string $family_since_year = '';
 
-    /** @var list<array{_key: string, group_name: string, text: string, note: string}> */
+    /** @var list<array{_key: string, group_name: string, text: string, note: string, no_amount: bool}> */
     public array $ingredients = [];
 
     /** @var list<array{_key: string, instruction: string}> */
@@ -161,6 +161,7 @@ new class extends Component
                 'group_name' => (string) $row->group_name,
                 'text' => (string) $row->ingredient_text,
                 'note' => (string) $row->note,
+                'no_amount' => (bool) $row->no_amount,
             ])
             ->all();
 
@@ -595,6 +596,8 @@ new class extends Component
                 'text' => mb_substr($text, 0, 240),
                 'group_name' => $this->clampOrNull($row['group_name'] ?? null, 120),
                 'note' => $this->clampOrNull($row['note'] ?? null, 300),
+                // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
+                'no_amount' => (bool) ($row['no_amount'] ?? false),
             ];
         }
 
@@ -656,10 +659,10 @@ new class extends Component
     // Drobne narzędzia
     // -----------------------------------------------------------------
 
-    /** @return array{_key: string, group_name: string, text: string, note: string} */
+    /** @return array{_key: string, group_name: string, text: string, note: string, no_amount: bool} */
     private function blankIngredient(): array
     {
-        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => ''];
+        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'no_amount' => false];
     }
 
     /** @return array{_key: string, instruction: string} */
@@ -807,7 +810,7 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 1 z {{ $this::STEPS }}: o przepisie</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Wystarczy nazwa, żeby ruszyć dalej.
                 Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz.
             </p>
@@ -823,7 +826,7 @@ new class extends Component
                        aria-describedby="f-heroPhoto-help">
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
-                    <p class="meta" style="margin-top:var(--spacing-2);">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
+                    <p class="meta mt-2">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
                 @endif
             </div>
 
@@ -840,8 +843,8 @@ new class extends Component
                          :value="$cook_minutes" :min="0" :max="10080" />
             </div>
 
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Jak trudny jest ten przepis?</legend>
+            <fieldset class="border-0 p-0 mt-6">
+                <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
                         <label class="choice">
@@ -853,8 +856,8 @@ new class extends Component
                 @error('difficulty')<span class="field-error">{{ $message }}</span>@enderror
             </fieldset>
 
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Kto ma widzieć ten przepis?</legend>
+            <fieldset class="border-0 p-0 mt-6">
+                <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
                 <div class="choice-grid">
                     <label class="choice">
                         <input type="radio" wire:model="visibility" value="public">
@@ -874,12 +877,12 @@ new class extends Component
 
             <div class="form-section">
                 <h3 class="form-section-title">Skąd ten przepis</h3>
-                <p class="meta" style="margin-bottom:var(--spacing-4);">
+                <p class="meta mb-4">
                     To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.
                 </p>
 
-                <fieldset style="border:0; padding:0;">
-                    <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Ten przepis jest…</legend>
+                <fieldset class="border-0 p-0">
+                    <legend class="font-bold mb-3">Ten przepis jest…</legend>
                     <div class="choice-grid">
                         @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                             <label class="choice">
@@ -919,7 +922,7 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 2 z {{ $this::STEPS }}: składniki</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
                 {{-- Zdanie wyżej jest wprost z docs/brand/COPY_STYLE.md, §6 „Przepis”. --}}
@@ -927,7 +930,7 @@ new class extends Component
                 Przyciski „Przenieś w górę” i „Przenieś w dół” są nieaktywne tam, gdzie nie ma już gdzie przenosić.
             </p>
 
-            @error('ingredients')<p class="field-error" style="margin-bottom:var(--spacing-4);">{{ $message }}</p>@enderror
+            @error('ingredients')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             @foreach($ingredients as $index => $row)
                 <div class="wizard-row" wire:key="skladnik-{{ $row['_key'] ?? $index }}">
@@ -943,6 +946,24 @@ new class extends Component
                                  :wire="'ingredients.'.$index.'.note'" :value="$row['note'] ?? ''"
                                  placeholder="albo masło roślinne" />
                     </div>
+
+                    {{--
+                        „BEZ ILOŚCI” — SÓL DO SMAKU (issue #44).
+
+                        Nieobowiązkowe i domyślnie wyłączone. Ma znaczenie
+                        dopiero przy przeliczaniu przepisu na inną liczbę porcji:
+                        przepis razy trzy poprosiłby inaczej o trzy szczypty
+                        soli i o trzy razy „ile weźmie”. To nie jest drobiazg
+                        kosmetyczny — to moment, w którym przepis przestaje
+                        wyglądać na napisany przez człowieka.
+                    --}}
+                    <label class="choice mt-3">
+                        <input type="checkbox" wire:model="ingredients.{{ $index }}.no_amount">
+                        <span>
+                            <span class="choice-label">Bez ilości</span>
+                            <span class="choice-help">Zaznacz przy „do smaku”, „ile weźmie”, „szczypta”. Taki składnik nie będzie mnożony, gdy ktoś przeliczy przepis na więcej porcji.</span>
+                        </span>
+                    </label>
 
                     <div class="wizard-row-actions">
                         <div class="wizard-row-move">
@@ -973,13 +994,13 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 3 z {{ $this::STEPS }}: przygotowanie</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
                 Puste wiersze zostaną pominięte.
                 Przyciski „Przenieś w górę” i „Przenieś w dół” są nieaktywne tam, gdzie nie ma już gdzie przenosić.
             </p>
 
-            @error('steps')<p class="field-error" style="margin-bottom:var(--spacing-4);">{{ $message }}</p>@enderror
+            @error('steps')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             @foreach($steps as $index => $row)
                 <div class="wizard-row" wire:key="krok-{{ $row['_key'] ?? $index }}">
@@ -1016,11 +1037,11 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Podgląd: tak zobaczą to inni</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Sprawdź spokojnie. Jeśli coś jest nie tak, wróć przyciskiem „Wstecz” — nic nie zginie.
             </p>
 
-            @error('publikacja')<p class="field-error" style="margin-bottom:var(--spacing-4);">{{ $message }}</p>@enderror
+            @error('publikacja')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             <article class="stack">
                 <h3 style="font-size:var(--text-title); margin:0;">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>
@@ -1045,23 +1066,23 @@ new class extends Component
                 @endif
 
                 @if(trim($summary) !== '')
-                    <p style="font-size:var(--text-lead);">{{ trim($summary) }}</p>
+                    <p class="text-lead">{{ trim($summary) }}</p>
                 @endif
 
                 @if(trim($source_person) !== '' || trim($source_note) !== '')
                     <section class="recipe-story">
-                        <h4 style="margin-top:0; font-size:var(--text-title-sm);">Skąd ten przepis</h4>
+                        <h4 class="mt-0 text-title-sm">Skąd ten przepis</h4>
                         @if(trim($source_person) !== '')
                             <p><strong>Po {{ trim($source_person) }}.</strong></p>
                         @endif
                         @if(trim($source_note) !== '')
-                            <p style="white-space:pre-line; margin-bottom:0;">{{ trim($source_note) }}</p>
+                            <p class="whitespace-pre-line mb-0">{{ trim($source_note) }}</p>
                         @endif
                     </section>
                 @endif
 
                 <section>
-                    <h4 style="font-size:var(--text-title-sm);">Składniki</h4>
+                    <h4 class="text-title-sm">Składniki</h4>
                     @php($previewGroups = $this->groupedIngredients())
                     @if($previewGroups === [])
                         <p class="field-error">Nie ma jeszcze żadnego składnika. Wróć do kroku 2 i dopisz przynajmniej jeden.</p>
@@ -1083,7 +1104,7 @@ new class extends Component
                 </section>
 
                 <section>
-                    <h4 style="font-size:var(--text-title-sm);">Przygotowanie</h4>
+                    <h4 class="text-title-sm">Przygotowanie</h4>
                     @php($previewSteps = $this->cleanSteps())
                     @if($previewSteps === [])
                         <p class="field-error">Nie ma jeszcze żadnego kroku. Wróć do kroku 3 i opisz przynajmniej jeden.</p>
@@ -1094,7 +1115,7 @@ new class extends Component
                                     <span class="step-number" aria-hidden="true">{{ $previewIndex + 1 }}</span>
                                     <div>
                                         <span class="visually-hidden">Krok {{ $previewIndex + 1 }}.</span>
-                                        <p style="margin:0; white-space:pre-line;">{{ $previewRow['instruction'] }}</p>
+                                        <p class="m-0 whitespace-pre-line">{{ $previewRow['instruction'] }}</p>
                                     </div>
                                 </li>
                             @endforeach

@@ -17,11 +17,11 @@
 
     @forelse($comments as $comment)
         <article class="card">
-            <div style="display:flex; gap:var(--spacing-3); align-items:center; margin-bottom:var(--spacing-2);">
+            <div class="flex gap-3 items-center mb-2">
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $comment->author->profile->username) }}">{{ $comment->author->displayName() }}</a>
-                    <p class="meta" style="margin:0;">
+                    <p class="meta m-0">
                         <time datetime="{{ $comment->created_at->toIso8601String() }}">{{ \App\Support\Czas::data($comment->created_at, 'j F Y, H:i') }}</time>
                     </p>
                 </div>
@@ -30,14 +30,14 @@
             @php($commentIsRemoved = $comment->body === 'Komentarz usunięty.')
 
             @if($commentIsRemoved)
-                <p class="meta" style="font-style:italic;">{{ $comment->body }}</p>
+                <p class="meta italic">{{ $comment->body }}</p>
             @else
                 <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $comment->body }}</p>
             @endif
 
             @foreach($comment->replies as $reply)
                 <div style="margin-left:var(--spacing-6); padding-left:var(--spacing-4); border-left:3px solid var(--color-border);">
-                    <div style="display:flex; gap:var(--spacing-2); align-items:center;">
+                    <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
                         <span class="meta">{{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}</span>
@@ -46,7 +46,7 @@
                     @php($replyIsRemoved = $reply->body === 'Komentarz usunięty.')
 
                     @if($replyIsRemoved)
-                        <p class="meta" style="font-style:italic;">{{ $reply->body }}</p>
+                        <p class="meta italic">{{ $reply->body }}</p>
                     @else
                         <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $reply->body }}</p>
 
@@ -56,10 +56,10 @@
 
                             @can('update', $reply)
                                 @if($replyRemainingMinutes > 0)
-                                    <details style="margin-top:var(--spacing-2);">
-                                        <summary class="btn btn-quiet" style="display:inline-flex;">Popraw</summary>
+                                    <details class="mt-2">
+                                        <summary class="btn btn-quiet inline-flex">Popraw</summary>
                                         <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \Illuminate\Support\Str::plural('minutę', $replyRemainingMinutes) }}.</p>
-                                        <form method="POST" action="{{ route('comments.update', $reply) }}" style="margin-top:var(--spacing-2);">
+                                        <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
                                             @csrf
                                             @method('PUT')
                                             <x-field name="body" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
@@ -70,11 +70,11 @@
                             @endcan
 
                             @can('delete', $reply)
-                                <div class="danger-zone" style="margin-top:var(--spacing-2); padding-top:var(--spacing-3);">
+                                <div class="danger-zone mt-2 pt-3">
                                     @if($replyContentOwnerRemovingOthers)
                                         <details>
-                                            <summary class="btn btn-quiet" style="display:inline-flex;">Usuń</summary>
-                                            <form method="POST" action="{{ route('comments.destroy', $reply) }}" style="margin-top:var(--spacing-2);">
+                                            <summary class="btn btn-quiet inline-flex">Usuń</summary>
+                                            <form class="mt-2" method="POST" action="{{ route('comments.destroy', $reply) }}">
                                                 @csrf
                                                 @method('DELETE')
                                                 <x-field name="reason" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2"
@@ -100,9 +100,9 @@
             @endforeach
 
             @auth
-                <details style="margin-top:var(--spacing-3);">
-                    <summary class="btn btn-quiet" style="display:inline-flex;">Odpowiedz</summary>
-                    <form method="POST" action="{{ $action }}" style="margin-top:var(--spacing-3);">
+                <details class="mt-3">
+                    <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
+                    <form class="mt-3" method="POST" action="{{ $action }}">
                         @csrf
                         <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
                         <x-field name="body" label="Twoja odpowiedź" type="textarea" :rows="3" required />
@@ -118,10 +118,10 @@
 
                     @can('update', $comment)
                         @if($commentRemainingMinutes > 0)
-                            <details style="margin-top:var(--spacing-2);">
-                                <summary class="btn btn-quiet" style="display:inline-flex;">Popraw</summary>
+                            <details class="mt-2">
+                                <summary class="btn btn-quiet inline-flex">Popraw</summary>
                                 <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \Illuminate\Support\Str::plural('minutę', $commentRemainingMinutes) }}.</p>
-                                <form method="POST" action="{{ route('comments.update', $comment) }}" style="margin-top:var(--spacing-2);">
+                                <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
                                     @csrf
                                     @method('PUT')
                                     <x-field name="body" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
@@ -132,11 +132,11 @@
                     @endcan
 
                     @can('delete', $comment)
-                        <div class="danger-zone" style="margin-top:var(--spacing-2); padding-top:var(--spacing-3);">
+                        <div class="danger-zone mt-2 pt-3">
                             @if($commentContentOwnerRemovingOthers)
                                 <details>
-                                    <summary class="btn btn-quiet" style="display:inline-flex;">Usuń</summary>
-                                    <form method="POST" action="{{ route('comments.destroy', $comment) }}" style="margin-top:var(--spacing-2);">
+                                    <summary class="btn btn-quiet inline-flex">Usuń</summary>
+                                    <form class="mt-2" method="POST" action="{{ route('comments.destroy', $comment) }}">
                                         @csrf
                                         @method('DELETE')
                                         <x-field name="reason" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2"

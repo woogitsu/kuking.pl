@@ -121,8 +121,11 @@ class OdmianaPorcjiTest extends TestCase
         // Dekodujemy blok JSON-LD zamiast szukać podciągu: koder celowo
         // zamienia cudzysłowy na sekwencje " (audyt A01), więc
         // porównywanie tekstu sprawdzałoby zapis, a nie wartość.
+        // `[^>]*` po typie: znacznik nosi jeszcze `nonce` z polityki CSP
+        // (issue #12), a wzorzec przybity do dokładnej postaci znacznika
+        // psuje się przy każdym dołożonym atrybucie.
         $this->assertSame(1, preg_match(
-            '#<script type="application/ld\+json">(.*?)</script>#s', $html, $dopasowanie,
+            '#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $dopasowanie,
         ));
 
         $dane = json_decode($dopasowanie[1], true, 512, JSON_THROW_ON_ERROR);

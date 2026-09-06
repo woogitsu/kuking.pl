@@ -10,10 +10,32 @@
                 <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów i co ciekawego się działo. Jeden e-mail tygodniowo, nigdy więcej.</span>
             </span>
         </label>
-        <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Zapisz</button>
+
+        {{--
+            WSPOMNIENIA — WYŁĄCZNIK, KTÓRY MUSI BYĆ ŁATWY DO ZNALEZIENIA (issue #34).
+
+            To nie jest ustawienie wygody. Wpis z przepisem po mamie, która
+            zmarła w tym roku, wyświetlony bez ostrzeżenia na stronie głównej,
+            jest okrutny. Człowiek w żałobie ma to wyłączyć jednym kliknięciem,
+            a nie odklikiwać wspomnienia po kolei.
+
+            Domyślnie włączone: funkcja, którą trzeba najpierw włączyć, nie
+            istnieje dla nikogo poza tym, kto o niej wie — a to jest mechanika
+            dla osoby gotującej od czterdziestu lat, nie dla osoby, która czyta
+            ustawienia.
+        --}}
+        <label class="choice mt-4" for="f-wspomnienia">
+            <input id="f-wspomnienia" type="checkbox" name="memories_enabled" value="1" @checked(auth()->user()->memories_enabled)>
+            <span>
+                <span class="choice-label">Przypominaj mi, co gotowałam w tym dniu w poprzednich latach</span>
+                <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
+            </span>
+        </label>
+
+        <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
     </form>
 
-    <section style="margin-top:var(--spacing-8);">
+    <section class="mt-8">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty())
             <p class="meta">Nikogo nie zablokowałaś.</p>
@@ -21,9 +43,9 @@
             <p>Te osoby nie widzą Twoich treści, a Ty nie widzisz ich.</p>
             <div class="stack-tight">
                 @foreach($blocked as $person)
-                    <div class="card" style="display:flex; align-items:center; gap:var(--spacing-3); flex-wrap:wrap;">
+                    <div class="card flex items-center gap-3 flex-wrap">
                         <x-avatar :user="$person" :size="44" />
-                        <span style="flex:1;">{{ $person->displayName() }}</span>
+                        <span class="flex-1">{{ $person->displayName() }}</span>
                         <form method="POST" action="{{ route('social.unblock', $person->profile->username) }}">
                             @csrf @method('DELETE')
                             <button class="btn btn-secondary" type="submit">Zdejmij blokadę</button>
@@ -34,12 +56,13 @@
         @endif
     </section>
 
-    <section style="margin-top:var(--spacing-8);">
+    <section class="mt-8">
         <h2>Kto widzi Twoje treści</h2>
         <p>
             Przy każdym wpisie i przepisie sama decydujesz: wszyscy, tylko osoby które Cię obserwują,
             albo tylko Ty. Możesz to zmienić w każdej chwili.
         </p>
-        <p><a href="{{ route('settings.data') }}">Twoje dane — pobranie i usunięcie konta</a></p>
     </section>
+
+    <x-ustawienia-nawigacja aktywne="privacy" />
 </x-layout>

@@ -36,6 +36,11 @@ class RecipeIngredient extends Model
         'unit_id',
         'note',
         'position',
+        // „Ten składnik nie ma wymiernej ilości" — sól do smaku, mleko ile
+        // weźmie (issue #44). Przy skalowaniu porcji (V2) takiego składnika
+        // się NIE mnoży: trzy szczypty soli są śmieszne, a trzy razy
+        // „ile weźmie" nie znaczy nic.
+        'no_amount',
     ];
 
     protected function casts(): array
@@ -43,6 +48,7 @@ class RecipeIngredient extends Model
         return [
             'quantity' => 'float',
             'position' => 'integer',
+            'no_amount' => 'boolean',
         ];
     }
 

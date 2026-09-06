@@ -137,6 +137,25 @@ return [
         ],
     ],
 
+    'two_factor' => [
+        // Nazwa serwisu pokazywana w aplikacji uwierzytelniającej (Google
+        // Authenticator, Aegis…) obok konta — inaczej wpis w aplikacji
+        // nazywałby się samym adresem e-mail i nie dałoby się go odróżnić
+        // od innych kont TOTP na tym samym telefonie.
+        'issuer' => 'Kuking',
+
+        // Ile jednorazowych kodów zapasowych dostaje osoba przy włączeniu
+        // 2FA. Pokazywane RAZ, do wydruku — bez nich zgubiony telefon
+        // to utracone konto moderatora na zawsze.
+        'recovery_codes' => 8,
+
+        // Okno tolerancji: jeden krok WSTECZ i jeden W PRZÓD (czyli ±30 s
+        // przy standardowym kroku 30 s) — zegar telefonu potrafi się rozjechać
+        // o kilkadziesiąt sekund, ale szersze okno zwiększa szansę odgadnięcia
+        // kodu. Przekazywane wprost do `Google2FA::verifyKeyNewer()`.
+        'window' => 1,
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         'login' => '5,1',
@@ -167,10 +186,32 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Odhaczanie kroku w trybie gotowania (issue #24). Zapisuje tylko
+        // do sesji przeglądarki — bez ryzyka takiego jak przy komentarzu
+        // czy zdjęciu — ale to i tak POST na cudzy (jeśli ktoś zgadnie
+        // slug) przepis, więc limit stoi tu z tego samego powodu co reszta:
+        // jeden formularz nie ma prawa zalać serwera. Wyżej niż `comment`,
+        // bo klikanie „poprzedni/następny krok” w trakcie gotowania zdarza
+        // się częściej niż pisanie komentarzy.
+        'cooking_krok' => '60,1',
+
+        // Weryfikacja kodu 2FA (logowanie i wyłączanie, issue #12). Kod ma
+        // sześć cyfr — milion możliwości brzmi dużo, ale bez limitu prób to
+        // pytanie o minuty, nie o bezpieczeństwo. Format „próby,minuty” jak
+        // reszta tego pliku; blokada liczy się PO KONCIE (adres e-mail albo
+        // nazwa użytkownika), nie po adresie IP — inaczej rozproszony atak
+        // z wielu adresów obchodziłby limit, zostawiając samo konto bez
+        // żadnej ochrony.
+        'two_factor' => '5,1',
         // Zgłoszenia naruszeń CSP wysyła sama przeglądarka. Jedna zapętlona
         // wtyczka potrafi wysłać setki na minutę, a każde to wpis w logu —
         // stąd limit wyraźnie wyższy niż przy formularzach, ale skończony.
         'csp_report' => '60,1',
+        // Akcje w ustawieniach, które proszą o obecne hasło jako potwierdzenie
+        // tożsamości (zmiana hasła, „wyloguj mnie z innych urządzeń", issue #12).
+        // Ten sam rząd wielkości co 'password_reset' — to wciąż zgadywanie
+        // cudzego hasła, tyle że przez kogoś, kto już ma cudzą sesję.
+        'confirm_password' => '5,10',
     ],
 
     'exports' => [

@@ -10,11 +10,11 @@
     zamienia dzielenie się jedzeniem w konkurs.
 --}}
 <x-layout :title="$topic->name" :description="$topic->description">
-    <p class="meta" style="margin-bottom:var(--spacing-2);">
+    <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z Kuking</a> · temat
     </p>
 
-    <h1 style="margin-top:0;">{{ $topic->name }}</h1>
+    <h1 class="mt-0">{{ $topic->name }}</h1>
 
     @if($topic->description)
         <p class="lead">{{ $topic->description }}</p>
@@ -23,9 +23,8 @@
     @auth
         {{-- Zwykły formularz, nie przycisk sterowany skryptem: bez JavaScriptu
              ma działać jedno i drugie (AGENTS.md §5). --}}
-        <form method="POST"
-              action="{{ $obserwowany ? route('topics.unfollow', $topic) : route('topics.follow', $topic) }}"
-              style="margin-top:var(--spacing-4);">
+        <form class="mt-4" method="POST"
+              action="{{ $obserwowany ? route('topics.unfollow', $topic) : route('topics.follow', $topic) }}">
             @csrf
             @if($obserwowany)
                 @method('DELETE')
@@ -38,7 +37,7 @@
         </form>
     @endauth
 
-    <div class="stack" style="margin-top:var(--spacing-6);">
+    <div class="stack mt-6">
         @forelse($posts as $post)
             <x-post-card :post="$post" />
         @empty
@@ -47,7 +46,7 @@
                     Ten temat czeka na pierwszy wpis. Jeśli gotujesz coś, co tu pasuje,
                     możesz być pierwszą osobą.
                 </p>
-                <p style="margin-bottom:0;">
+                <p class="mb-0">
                     <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
                 </p>
             </x-empty-state>
@@ -55,6 +54,6 @@
     </div>
 
     @if($posts->hasPages())
-        <div style="margin-top:var(--spacing-6);">{{ $posts->links() }}</div>
+        <div class="mt-6">{{ $posts->links() }}</div>
     @endif
 </x-layout>

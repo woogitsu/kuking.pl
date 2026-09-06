@@ -1,11 +1,11 @@
 <x-layout title="Twoje dane" :noindex="true">
     <h1>Twoje dane</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Wszystko, co tu wrzuciłaś, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
     </p>
 
     <section class="card">
-        <h2 style="margin-top:0;">Pobierz swoje dane</h2>
+        <h2 class="mt-0">Pobierz swoje dane</h2>
         <p>
             Przygotujemy paczkę ze wszystkimi Twoimi wpisami, przepisami, zdjęciami i komentarzami.
             Dostaniesz plik ZIP, który otworzysz na komputerze — także wtedy, gdyby Kuking kiedyś przestał istnieć.
@@ -17,10 +17,10 @@
         </form>
 
         @if($exports->isNotEmpty())
-            <h3 style="margin-top:var(--spacing-6);">Twoje paczki</h3>
+            <h3 class="mt-6">Twoje paczki</h3>
             <ul>
                 @foreach($exports as $export)
-                    <li style="margin-bottom:var(--spacing-4);">
+                    <li class="mb-4">
                         {{ \App\Support\Czas::data($export->created_at, 'j F Y, H:i') }} —
                         @switch($export->status)
                             @case('ready') gotowa @break
@@ -32,7 +32,7 @@
 
                         @if(isset($downloadUrls[$export->getKey()]))
                             <br>
-                            <a class="btn btn-primary" style="margin-top:var(--spacing-2);"
+                            <a class="btn btn-primary mt-2"
                                href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
                             <br>
                             <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y') }}.</span>
@@ -56,19 +56,21 @@
         <x-error-summary />
 
         <details>
-            <summary class="btn btn-secondary" style="display:inline-flex;">Chcę usunąć swoje konto</summary>
-            <form method="POST" action="{{ route('settings.data.delete') }}" style="margin-top:var(--spacing-4);">
+            <summary class="btn btn-secondary inline-flex">Chcę usunąć swoje konto</summary>
+            <form class="mt-4" method="POST" action="{{ route('settings.data.delete') }}">
                 @csrf
                 <x-field name="password" label="Wpisz swoje hasło" type="password" required autocomplete="current-password"
                          help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
 
-                <label class="choice" for="f-confirm" style="margin-top:var(--spacing-4);">
+                <label class="choice mt-4" for="f-confirm">
                     <input id="f-confirm" type="checkbox" name="confirm" value="1">
                     <span class="choice-label">Rozumiem, że po {{ $graceDays }} dniach moje wpisy, przepisy i zdjęcia zostaną usunięte na stałe</span>
                 </label>
 
-                <button class="btn btn-danger" type="submit" style="margin-top:var(--spacing-5);">Usuń moje konto</button>
+                <button class="btn btn-danger mt-5" type="submit">Usuń moje konto</button>
             </form>
         </details>
     </div>
+
+    <x-ustawienia-nawigacja aktywne="data" />
 </x-layout>

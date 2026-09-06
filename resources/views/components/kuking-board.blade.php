@@ -14,13 +14,13 @@
 
 @php $pusta = $people->isEmpty() && $posts->isEmpty(); @endphp
 
-<section class="card kuking-board" aria-labelledby="kuking-na-dzis" style="margin-bottom:var(--spacing-6);">
-    <h2 id="kuking-na-dzis" style="margin-top:0;">
+<section class="card kuking-board mb-6" aria-labelledby="kuking-na-dzis">
+    <h2 class="mt-0" id="kuking-na-dzis">
         <x-kuking-word forma="i" /> na dziś
     </h2>
 
     @if($pusta)
-        <p class="meta" style="margin-bottom:0;">
+        <p class="meta mb-0">
             Dziś jeszcze nikogo nie wybraliśmy.
             Zajrzyj do <a href="{{ route('discover') }}">Świeżo z Kuking</a>.
         </p>
@@ -36,9 +36,9 @@
                             <x-avatar :user="$person" :size="52" />
                         </a>
 
-                        <div style="min-width:0; flex:1;">
+                        <div class="min-w-0 flex-1">
                             <a class="author-name" href="{{ route('profile.show', $person->profile->username) }}">{{ $person->displayName() }}</a>
-                            <p class="meta" style="margin:0;">
+                            <p class="meta m-0">
                                 {{ $person->profile->speciality ?? 'Gotuje w Kuking' }}
                                 @if($person->profile->region) · {{ $person->profile->region }} @endif
                             </p>
@@ -92,8 +92,8 @@
                             @endif
                         </a>
 
-                        <div style="min-width:0;">
-                            <p style="margin:0 0 var(--spacing-1);">
+                        <div class="min-w-0">
+                            <p class="m-0 mb-1">
                                 <a class="author-name" href="{{ route('profile.show', $post->author->profile->username) }}">{{ $post->author->displayName() }}</a>
                             </p>
 

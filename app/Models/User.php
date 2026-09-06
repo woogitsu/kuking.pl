@@ -55,6 +55,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'text_scale',
         'wants_weekly_digest',
         'age_confirmed_at',
+        // Wspomnienia „Rok temu gotowałaś…" (issue #34). Preferencja
+        // wyświetlania, nie stan konta — dlatego wolno ją tu trzymać,
+        // w odróżnieniu od `status` i `role` (AGENTS.md §7).
+        'memories_enabled',
     ];
 
     protected $hidden = [
@@ -157,6 +161,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'status_expires_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
+            'memories_enabled' => 'boolean',
+
+            // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
+            // w transporcie) — wyciek kopii bazy nie może oddawać drugiego
+            // składnika logowania (AGENTS.md §7, issue #12).
+            //
+            // `two_factor_last_used_at` NIE jest czasem w rozumieniu reszty
+            // modelu — to surowy licznik z biblioteki TOTP, patrz migracja
+            // `..._add_two_factor_to_users_table`. Zostaje bez castu.
+            'two_factor_secret' => 'encrypted',
+            'two_factor_backup_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -295,6 +311,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function isModerator(): bool
     {
         return in_array($this->role, [self::ROLE_MODERATOR, self::ROLE_ADMIN], true);
+    }
+
+    /**
+     * Czy 2FA jest naprawdę WŁĄCZONE na tym koncie (issue #12).
+     *
+     * Sekret bywa zapisany PRZED potwierdzeniem — ekran włączenia zapisuje go,
+     * żeby przetrwał odświeżenie strony, zanim człowiek zdąży wpisać pierwszy
+     * poprawny kod. Dopóki `two_factor_confirmed_at` jest NULL, logowanie
+     * i panel moderacji mają się zachowywać tak, jakby 2FA nie istniało —
+     * inaczej porzucony w połowie ekran włączenia zablokowałby dostęp bez
+     * jednego działającego kodu.
+     */
+    public function hasTwoFactorConfirmed(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
     }
 
     public function isAdmin(): bool
@@ -551,7 +582,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
-     * Wyrzucenie użytkownika ze WSZYSTKICH aktywnych sesji.
+     * Wyrzucenie użytkownika ze WSZYSTKICH aktywnych sesji — albo ze
+     * wszystkich OPRÓCZ jednej, gdy $exceptSessionId jest podane.
      *
      * Bez tego zmiana `status` była tylko wpisem w kolumnie: osoba zbanowana
      * za nękanie działała dalej, dopóki nie wylogowała się sama. Przy
@@ -561,11 +593,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * z innych przeglądarek — `Auth::logout()` dotyczy tylko bieżącego żądania,
      * a moderator nie siedzi w sesji karanego użytkownika.
      *
+     * $exceptSessionId istnieje z jednego powodu (issue #12): przy „wyloguj
+     * mnie z innych urządzeń” i przy zmianie hasła to sama zainteresowana
+     * osoba naciska przycisk, w SWOJEJ, aktualnej sesji — i ta sesja ma
+     * zostać ważna. Wylogowanie kogoś z własnej przeglądarki zaraz po tym,
+     * jak zrobił dobrą rzecz (ustawił nowe hasło, zamknął dostęp reszcie
+     * urządzeń), wyglądałoby jak awaria serwisu, nie jak zabezpieczenie.
+     * Przy `ban()`/`suspend()`/`markForDeletion()` nie ma czego wyłączać
+     * z kasowania — tam działa moderator albo automat, nie właściciel konta,
+     * więc te wywołania zostają bez wyjątku (kasują WSZYSTKO).
+     *
      * Przy sterowniku innym niż `database` (w testach bywa `array`) tabeli po
      * prostu nie ma i nie ma czego kasować — samo sprawdzenie statusu przy
      * każdym żądaniu i tak odcina dostęp.
      */
-    private function invalidateSessions(): void
+    public function invalidateSessions(?string $exceptSessionId = null): void
     {
         if (config('session.driver') !== 'database') {
             return;
@@ -573,7 +615,82 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
         DB::table(config('session.table', 'sessions'))
             ->where('user_id', $this->getKey())
+            ->when(
+                $exceptSessionId !== null,
+                fn ($query) => $query->where('id', '!=', $exceptSessionId),
+            )
             ->delete();
+    }
+
+    /**
+     * Początek włączania 2FA — sekret zapisany, ale JESZCZE NIEPOTWIERDZONY.
+     *
+     * Zapisujemy sekret od razu (zaszyfrowany, cast `encrypted`), żeby
+     * odświeżenie ekranu włączenia albo powrót do niego po chwili pokazywały
+     * TEN SAM kod QR — inaczej każde odświeżenie unieważniałoby poprzedni
+     * skan i zmuszało do skanowania od nowa. `two_factor_confirmed_at` zostaje
+     * NULL, więc konto NIE wymaga jeszcze kodu przy logowaniu ani wejściu
+     * do panelu (`hasTwoFactorConfirmed()`).
+     */
+    public function beginTwoFactorSetup(string $secret): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => $secret,
+            'two_factor_confirmed_at' => null,
+            'two_factor_backup_codes' => null,
+            'two_factor_last_used_at' => null,
+        ])->save();
+    }
+
+    /**
+     * Potwierdzenie 2FA pierwszym poprawnym kodem — od teraz konto go wymaga.
+     *
+     * @param  array<int, string>  $zahaszowaneKodyZapasowe
+     */
+    public function confirmTwoFactor(array $zahaszowaneKodyZapasowe): void
+    {
+        $this->forceFill([
+            'two_factor_confirmed_at' => now(),
+            'two_factor_backup_codes' => $zahaszowaneKodyZapasowe,
+        ])->save();
+    }
+
+    /**
+     * Nowy komplet kodów zapasowych BEZ ruszania sekretu i bez wyłączania 2FA.
+     *
+     * DLACZEGO TO JEST OSOBNA METODA, A NIE „WYŁĄCZ I WŁĄCZ JESZCZE RAZ"
+     * Kody zapasowe pokazujemy raz. Kto ich nie zapisał, miał dotąd jedną
+     * drogę do nowych: zdjąć 2FA i włączyć od zera. To znaczy trzy złe rzeczy
+     * naraz — konto zostaje przez chwilę na samym haśle, moderator traci
+     * w tym czasie wejście do panelu (`EnsureModeratorHasTwoFactor`), a cały
+     * sekret trzeba przepisać do telefonu jeszcze raz, choć z nim nic nie
+     * było nie tak.
+     *
+     * Stare kody przestają działać w tej samej chwili — o to właśnie chodzi,
+     * bo powodem wymiany bywa „kartka gdzieś jest, tylko nie wiem gdzie".
+     *
+     * Kontroler MUSI sprawdzić hasło przed wywołaniem (jak przy wyłączaniu).
+     *
+     * @param  array<int, string>  $zahaszowaneKodyZapasowe
+     */
+    public function replaceTwoFactorBackupCodes(array $zahaszowaneKodyZapasowe): void
+    {
+        $this->forceFill(['two_factor_backup_codes' => $zahaszowaneKodyZapasowe])->save();
+    }
+
+    /**
+     * Wyłączenie 2FA — kontroler MUSI sprawdzić hasło PRZED wywołaniem tej
+     * metody (AGENTS.md §7: zmiana stanu konta jest jawną, nazwaną operacją,
+     * ale to kontroler odpowiada za to, KTO może ją wywołać).
+     */
+    public function disableTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_confirmed_at' => null,
+            'two_factor_backup_codes' => null,
+            'two_factor_last_used_at' => null,
+        ])->save();
     }
 
     public function promoteTo(string $role): void

@@ -21,7 +21,7 @@
     <form class="card" method="POST" action="{{ route('appeals.guest.store') }}">
         @csrf
 
-        <h2 style="margin-top:0; font-size:var(--text-title-sm);">Powiedz, kim jesteś</h2>
+        <h2 class="mt-0 text-title-sm">Powiedz, kim jesteś</h2>
         <p>
             Prosimy o hasło tylko po to, żeby mieć pewność, że odwołanie składa
             właściciel konta. To Cię nigdzie nie zaloguje i nie zdejmuje blokady.
@@ -33,7 +33,7 @@
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
 
-        <h2 style="font-size:var(--text-title-sm);">Napisz, dlaczego to pomyłka</h2>
+        <h2 class="text-title-sm">Napisz, dlaczego to pomyłka</h2>
 
         <x-field name="body" label="Twoje wyjaśnienie" type="textarea" :rows="6" required
                  help="Od 10 do 2000 znaków. Wystarczy kilka zdań własnymi słowami." />
@@ -51,7 +51,7 @@
         </div>
     </form>
 
-    <p style="margin-top:var(--spacing-6);">
+    <p class="mt-6">
         Nie pamiętasz hasła i nie masz dostępu do skrzynki? Napisz do nas na
         {{ config('kuking.community.contact_email') }} — odwołanie złożone e-mailem
         też rozpatrujemy.

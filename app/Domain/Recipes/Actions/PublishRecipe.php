@@ -31,7 +31,7 @@ final class PublishRecipe
 
     /**
      * @param  array<string, mixed>  $attributes
-     * @param  list<array{text: string, group_name?: ?string, quantity?: ?float, unit_id?: ?string, note?: ?string}>  $ingredients
+     * @param  list<array{text: string, group_name?: ?string, quantity?: ?float, unit_id?: ?string, note?: ?string, no_amount?: bool}>  $ingredients
      * @param  list<array{instruction: string, timer_seconds?: ?int, media_id?: ?string}>  $steps
      */
     public function handle(
@@ -180,12 +180,22 @@ final class PublishRecipe
                 continue;
             }
 
+            // „Bez ilości" (issue #44) WYGRYWA z ilością, a nie kłóci się z nią.
+            //
+            // Baza ma na to CHECK, więc wiersz z `no_amount = true` i wpisaną
+            // ilością nie przeszedłby w ogóle — a to znaczy błąd 500 na
+            // publikacji przepisu, czyli utratę całej pracy autora. Skoro
+            // człowiek powiedział „do smaku", ilość jest tym, co odpada:
+            // to jedyna interpretacja, która nie każe mu niczego poprawiać.
+            $bezIlosci = (bool) ($row['no_amount'] ?? false);
+
             $clean[] = [
                 'group_name' => $this->nullIfBlank($row['group_name'] ?? null),
                 'ingredient_text' => mb_substr($text, 0, 240),
-                'quantity' => $row['quantity'] ?? null,
-                'unit_id' => $row['unit_id'] ?? null,
+                'quantity' => $bezIlosci ? null : ($row['quantity'] ?? null),
+                'unit_id' => $bezIlosci ? null : ($row['unit_id'] ?? null),
                 'note' => $this->nullIfBlank($row['note'] ?? null),
+                'no_amount' => $bezIlosci,
             ];
         }
 
@@ -233,6 +243,7 @@ final class PublishRecipe
                 'quantity' => $row['quantity'],
                 'unit_id' => $row['unit_id'],
                 'note' => $row['note'],
+                'no_amount' => $row['no_amount'] ?? false,
                 'position' => $position,
             ]);
         }

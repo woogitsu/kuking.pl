@@ -15,7 +15,7 @@
 
     @if($wpisy->isEmpty())
         <x-empty-state title="Nikt nie czeka">
-            <p style="margin-bottom:0;">
+            <p class="mb-0">
                 Każdy opublikowany wpis ma odpowiedź. To jest dokładnie ten stan,
                 o który chodzi.
             </p>

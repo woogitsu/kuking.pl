@@ -10,6 +10,24 @@ Konfiguracja przez middleware (np. pakiet `spatie/laravel-csp` lub własny middl
 
 ### Content-Security-Policy (CSP) — realna propozycja dla Livewire + Alpine.js
 
+> **STAN NA WRZESIEŃ 2026 — TO JEST JUŻ WDROŻONE, nie propozycja.**
+> Kod: `app/Http/Middleware/ApplySecurityHeaders.php`, testy:
+> `tests/Feature/PolitykaBezpieczenstwaTest.php`, odbiornik zgłoszeń:
+> `app/Http/Controllers/CspReportController.php` (issue #12).
+>
+> Wymuszamy `default-src 'self'` i `script-src 'self' 'nonce-…'` — bez
+> `unsafe-inline` i bez `unsafe-eval`. Nonce powstaje w middleware przed
+> wyrenderowaniem widoku (`Vite::useCspNonce()`), więc `@vite`,
+> `@livewireScripts` i `<x-json-ld>` dopisują go sobie same. `unsafe-eval`
+> przestało być potrzebne dzięki `livewire.csp_safe = true` (bundel Alpine
+> bez `new Function`).
+>
+> **Jedyna niedomknięta dyrektywa:** `style-src` ma jeszcze `unsafe-inline`,
+> bo w widokach zostało 355 atrybutów `style="…"` w 57 plikach. Nonce ich nie
+> ratuje — działa na elementy `<style>`, a nie na atrybut `style`. Nagłówek
+> `Report-Only` jest ustawiony ostrzej (`style-src` z samym nonce), żeby
+> mierzyć dokładnie tę pozostałość, a nie coś, co jest już w porządku.
+
 Livewire i Alpine wymagają dopuszczenia inline `<script>` generowanych przez Livewire (do przesyłania stanu komponentów) — to najczęstsza pułapka przy pisaniu CSP dla tego stacku. Praktyczne podejście: **nonce per-request** zamiast `unsafe-inline`.
 
 ```

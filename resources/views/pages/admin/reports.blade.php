@@ -9,8 +9,8 @@
     </nav>
 
     @forelse($reports as $report)
-        <article class="card" style="margin-bottom:var(--spacing-5);">
-            <h2 style="margin-top:0; font-size:var(--text-title-sm);">{{ $report->reasonLabel() }}</h2>
+        <article class="card mb-5">
+            <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
             <p class="meta">
                 {{ $report->target_type }} · {{ $report->target_id }} ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
@@ -18,14 +18,14 @@
             </p>
 
             @if($report->details)
-                <p style="white-space:pre-line;">{{ $report->details }}</p>
+                <p class="whitespace-pre-line">{{ $report->details }}</p>
             @endif
 
             @if($report->isOpen())
                 <form method="POST" action="{{ route('admin.reports.decide', $report) }}">
                     @csrf
-                    <fieldset style="border:0; padding:0;">
-                        <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Decyzja</legend>
+                    <fieldset class="border-0 p-0">
+                        <legend class="font-bold mb-3">Decyzja</legend>
                         <div class="choice-grid">
                             {{-- Tylko decyzje sensowne dla TEGO typu zgłoszenia
                                  (ModerationAction::DOZWOLONE). Przy zgłoszeniu
@@ -54,8 +54,8 @@
                         a kontroler i tak ignoruje tę wartość dla decyzji innych
                         niż „Zawieś konto".
                     --}}
-                    <fieldset style="border:0; padding:0; margin-top:var(--spacing-4);">
-                        <legend style="font-weight:700; margin-bottom:var(--spacing-3);">
+                    <fieldset class="border-0 p-0 mt-4">
+                        <legend class="font-bold mb-3">
                             Na jak długo — jeśli zawieszasz konto
                         </legend>
                         <div class="choice-grid">
@@ -72,7 +72,7 @@
                                 </label>
                             @endforeach
                         </div>
-                        <p class="meta" style="margin-top:var(--spacing-2);">
+                        <p class="meta mt-2">
                             Konto wraca samo po upływie terminu. Bez wyboru zawieszenie jest bezterminowe.
                         </p>
                     </fieldset>
@@ -83,7 +83,7 @@
                     <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="3"
                              help="Wymóg DSA: jeśli ograniczasz treść, autor musi wiedzieć dlaczego i że może się odwołać." />
 
-                    <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Zapisz decyzję</button>
+                    <button class="btn btn-primary mt-4" type="submit">Zapisz decyzję</button>
                 </form>
             @else
                 <p class="badge">{{ $report->status }} · {{ $report->resolver?->displayName() }}</p>
@@ -106,10 +106,9 @@
                     przywracać — treść istnieje i nadal jest schowana.
                 --}}
                 @if($przywracalne[$report->id] ?? false)
-                    <form method="POST" action="{{ route('admin.reports.restore', $report) }}"
-                          style="margin-top:var(--spacing-4);">
+                    <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
-                        <h3 style="font-size:var(--text-title-sm);">Przywróć treść</h3>
+                        <h3 class="text-title-sm">Przywróć treść</h3>
                         <p class="meta">
                             Treść wróci do stanu SPRZED ukrycia — szkic zostanie szkicem,
                             opublikowany wróci opublikowany. Autor dostanie powiadomienie.
@@ -130,5 +129,5 @@
         <x-empty-state title="Nic tu nie ma">Brak zgłoszeń w tej kategorii.</x-empty-state>
     @endforelse
 
-    <div style="margin-top:var(--spacing-6);">{{ $reports->links() }}</div>
+    <div class="mt-6">{{ $reports->links() }}</div>
 </x-layout>

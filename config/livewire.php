@@ -260,9 +260,25 @@ return [
     | of Alpine in its bundle. This is useful for applications that are using
     | strict Content Security Policy (CSP) to protect against XSS attacks.
     |
+    | WLACZONE CELOWO (issue #12) — I NIE WOLNO TEGO ODKRECIC BEZ ZMIANY CSP.
+    |
+    | Kuking wymusza `script-src` bez `unsafe-eval` (App\Http\Middleware\
+    | ApplySecurityHeaders). Zwykly bundel Livewire wiezie Alpine, ktory
+    | wylicza wyrazenia przez `new Function` — a to jest dokladnie to, czego
+    | `unsafe-eval` dotyczy. Ten przelacznik podmienia bundel na wersje bez
+    | `new Function`, dzieki czemu kreator przepisu dziala przy zaostrzonej
+    | polityce.
+    |
+    | Cena: w atrybutach `wire:` i `x-` wolno pisac tylko proste wyrazenia
+    | (wywolania metod, odczyt wlasciwosci). Zlozone wyrazenie z funkcja
+    | w srodku nie zadziala i zglosi blad w konsoli. Dzisiejszy kreator
+    | uzywa wylacznie `wire:click="nazwaMetody(...)"`, wiec nic to nie psuje.
+    |
+    | Ustawienie `false` przy wlaczonej CSP polozy kreator przepisu w calosci
+    | — pilnuje tego PolitykaBezpieczenstwaTest.
     */
 
-    'csp_safe' => false,
+    'csp_safe' => true,
 
     /*
     |---------------------------------------------------------------------------

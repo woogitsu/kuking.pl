@@ -439,6 +439,204 @@
     grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
   }
 
+  /* ---------------------------------------------------------------------
+     KARUZELA ZDJĘĆ (issue #92)
+
+     CAŁE PRZEWIJANIE ROBI PRZEGLĄDARKA, NIE SKRYPT
+     Taśma ma `overflow-x: auto` i `scroll-snap-type`, a przyciski
+     „Poprzednie / Następne" to odnośniki do `#id` sąsiedniego slajdu. Skok do
+     kotwicy przewija najbliższego przewijalnego przodka — czyli taśmę —
+     więc karuzela działa przy wyłączonym JavaScripcie (AGENTS.md §5).
+
+     PRZEWIJA SIĘ TAŚMA, NIGDY <body>
+     `overflow-x: auto` na taśmie i `min-width: 0` na slajdzie to warunek,
+     żeby szeroka treść nie rozpychała całego dokumentu (WCAG 2.2 AA,
+     1.4.10 Reflow — mierzy to scripts/dostepnosc.mjs, issue #80).
+
+     `overscroll-behavior-x: contain` — przewinięcie do końca taśmy NIE
+     przenosi się na stronę (i na gest „wstecz" w przeglądarce). Bez tego
+     dojechanie do ostatniego zdjęcia potrafi cofnąć do poprzedniej strony,
+     co dla osoby, która właśnie oglądała czyjś obiad, wygląda jak awaria.
+     --------------------------------------------------------------------- */
+
+  .karuzela-tasma {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+  }
+
+  .karuzela-slajd {
+    /* Dokładnie jeden slajd na ekran — o to chodzi w karuzeli. */
+    flex: 0 0 100%;
+    min-width: 0;
+    scroll-snap-align: start;
+    /* Zapas pod paskiem górnym: skok do kotwicy przewija też stronę
+       w pionie, a bez tego zdjęcie chowa się pod belką. */
+    scroll-margin-top: 5rem;
+  }
+
+  .karuzela-pasek {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-5);
+  }
+
+  .karuzela-licznik {
+    margin: 0;
+    font-size: var(--text-body);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+  }
+
+  /* `flex-wrap` jest tu obowiązkowe, nie ozdobne: dwa przyciski z pełnym
+     napisem i 48 px wysokości nie mieszczą się w jednym wierszu przy 320 px
+     ani przy powiększonym tekście i muszą mieć gdzie zejść. */
+  .karuzela-sterowanie {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-left: auto;
+  }
+
+  .karuzela-sterowanie .btn { max-width: 100%; }
+
+  /* ---------------------------------------------------------------------
+     KOLAŻ (issue #92)
+
+     KOLAŻ NIE OBCINA JEDZENIA
+     Pola siatki są równe (kwadrat), ale zdjęcie mieści się w polu w CAŁOŚCI:
+     `object-fit: contain`, nie `cover`. Kadrowanie do kwadratu ucina to, co
+     człowiek chciał pokazać — a zdjęcie jedzenia jest w tym produkcie samą
+     treścią wpisu, nie tłem pod tekstem.
+
+     Cena jest widoczna: przy zdjęciach o różnych proporcjach zostają puste
+     marginesy na tle `--color-surface-sunken`. To jest świadomy wybór —
+     pusty margines da się zignorować, uciętego jedzenia nie da się odzyskać.
+
+     NA WĄSKIM TELEFONIE KOLAŻ SCHODZI DO JEDNEJ KOLUMNY — DECYZJA WŁAŚCICIELA
+     Przy 320 px pole ma około 155 px, a przy zdjęciu poziomym zostaje z tego
+     jakieś 116 px wysokości obrazu. To jest za mało, żeby obejrzeć jedzenie —
+     a oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
+     Poniżej 30rem kolaż pokazuje się więc jako zwykła lista dużych zdjęć.
+
+     TO NIE JEST CICHE ZIGNOROWANIE WYBORU AUTORA
+     Autor dowiaduje się o tym przy samym wyborze wyglądu (patrz
+     `resources/views/components/wybor-wygladu.blade.php`) — inaczej byłaby
+     to obietnica bez pokrycia: „wybrałem kolaż, a na telefonie go nie ma".
+     Kolaż zostaje kolażem od tabletu w górę, czyli tam, gdzie ma sens.
+     --------------------------------------------------------------------- */
+
+  .kolaz {
+    display: grid;
+    gap: 2px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .kolaz-pole {
+    aspect-ratio: 1;
+    background-color: var(--color-surface-sunken);
+    display: flex;
+  }
+
+  .kolaz-pole .photo-zoom,
+  .kolaz-pole .post-photo {
+    width: 100%;
+    height: 100%;
+  }
+
+  .kolaz-pole .post-photo {
+    object-fit: contain;
+  }
+
+  /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
+     dokładnie to samo, co widok „zwykły". Kwadratowe pole i `contain` mają
+     sens dopiero wtedy, gdy pole jest na tyle duże, żeby coś w nim było
+     widać. `aspect-ratio: auto` zdejmuje kwadrat, a `height: auto` pozwala
+     zdjęciu zająć tyle, ile potrzebuje. */
+  @media (max-width: 30rem) {
+    .kolaz {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
+    }
+
+    .kolaz-pole {
+      aspect-ratio: auto;
+      background-color: transparent;
+    }
+
+    .kolaz-pole .photo-zoom,
+    .kolaz-pole .post-photo {
+      height: auto;
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     WYBÓR WYGLĄDU I KOLEJNOŚCI ZDJĘĆ (issue #92)
+     --------------------------------------------------------------------- */
+
+  .wybor-wygladu {
+    border: 0;
+    padding: 0;
+    margin: var(--spacing-6) 0 0;
+  }
+
+  .wybor-wygladu > legend {
+    font-weight: 700;
+    margin-bottom: var(--spacing-3);
+  }
+
+  /* Ukryty wybór (jedno zdjęcie) MUSI zniknąć naprawdę — `display: grid`
+     ze środka komponentu wygrałby ze zwykłym `[hidden]`. */
+  .wybor-wygladu[hidden] { display: none; }
+
+  .lista-zdjec {
+    list-style: none;
+    margin: 0 0 var(--spacing-6);
+    padding: 0;
+  }
+
+  .lista-zdjec-wiersz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .lista-zdjec-podglad {
+    flex: 0 0 auto;
+    width: 8rem;
+    max-width: 100%;
+  }
+
+  .lista-zdjec-tresc {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  .lista-zdjec-numer {
+    margin: 0 0 var(--spacing-2);
+    font-weight: 700;
+  }
+
+  .lista-zdjec-akcje {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+  }
+
+  .lista-zdjec-akcje .btn { max-width: 100%; }
+
   .avatar {
     border-radius: var(--radius-pill);
     background-color: var(--color-brand-tint);
@@ -987,4 +1185,264 @@
 
 .czeka-pierwszy {
     color: var(--color-brand-tint-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Tryb gotowania (issue #24)
+
+   Człowiek stoi przy blacie z rękami w cieście, telefon oparty dalej niż
+   zwykle. Stąd DWA świadome, LOKALNE odstępstwa od reszty serwisu — nie
+   zmiana reguły w DESIGN_SYSTEM.md, tylko dodatek dla tego jednego ekranu:
+
+     1. tekst kroku jest większy niż najwyższy token typografii
+        (`--text-title-lg`, 36px) — ten sam ekran czyta się teraz
+        z odległości wyciągniętej ręki, nie kanapy;
+     2. główne przyciski są WYŻSZE niż standardowe --control-height-min
+        (48px) — umączony albo mokry palec trafia gorzej. DESIGN_SYSTEM.md
+        §„Tekst i dostępność” mówi, że skala tekstu skaluje WYŁĄCZNIE tekst,
+        nigdy wysokość kontrolek — i to zostaje prawdą: `--user-text-scale`
+        rośnie tu, `min-height` w rem poniżej nie.
+   --------------------------------------------------------------------------- */
+
+.cook-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+}
+
+.cook-progress {
+    font-size: var(--text-body-lg);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+    margin: 0;
+}
+
+/* Wyjście z trybu musi być oczywiste — własny, nazwany przycisk, nie
+   ikona ani link schowany w tekście (AGENTS.md: ikona nigdy sama). */
+.cook-exit {
+    min-height: 3.75rem;
+    font-size: var(--text-body);
+}
+
+.cook-ingredients {
+    background-color: var(--color-surface-raised);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2) var(--spacing-5);
+}
+
+.cook-ingredients > summary {
+    cursor: pointer;
+    font-size: var(--text-body-lg);
+    font-weight: 800;
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+}
+
+.cook-ingredients .ingredient-list {
+    margin: 0 0 var(--spacing-3);
+}
+
+.cook-step {
+    background-color: var(--color-surface-raised);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--spacing-6);
+}
+
+.cook-step-numer {
+    font-size: var(--text-title-sm);
+    font-weight: 800;
+    color: var(--color-brand);
+    margin: 0 0 var(--spacing-4);
+}
+
+.cook-step-tekst {
+    /* Świadomie ponad --text-title-lg (36px) — patrz komentarz na górze
+       bloku. `calc()` zewnętrzny utrzymuje skalowanie przez
+       --user-text-scale tak jak każdy inny token w tokens.css. */
+    font-size: calc(clamp(1.75rem, 1.1rem + 3vw, 2.75rem) * var(--user-text-scale, 1));
+    line-height: 1.4;
+    font-weight: 600;
+    white-space: pre-line;
+    margin: 0;
+}
+
+.cook-step-zdjecie {
+    margin-top: var(--spacing-5);
+    max-width: 24rem;
+}
+
+.cook-timer {
+    margin-top: var(--spacing-5);
+    padding: var(--spacing-4);
+    border-left: 4px solid var(--color-accent);
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body-lg);
+}
+
+.cook-timer p {
+    margin: 0;
+}
+
+.cook-timer-odliczanie {
+    font-size: var(--text-title);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.cook-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+/* Ogromne cele dotykowe (issue #24): dużo więcej niż zwykłe 48px, bo to
+   jest przycisk klikany mokrą albo umączoną ręką, wielokrotnie w trakcie
+   jednego gotowania. `width:100%` — pełna szerokość, jak wymaga issue. */
+.btn-cook {
+    width: 100%;
+    min-height: 4.5rem;
+    font-size: var(--text-body-lg);
+    border-radius: var(--radius-lg);
+}
+
+.cook-zaznacz {
+    display: inline-block;
+    width: 100%;
+}
+
+.cook-finish {
+    background-color: var(--color-brand-tint);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-6);
+    text-align: center;
+}
+
+/* Przełącznik Wake Locka — ukryty w HTML domyślnie (`hidden`) i odkrywany
+   WYŁĄCZNIE skryptem, kiedy przeglądarka naprawdę obsługuje to API. Bez
+   tego dopisku ukrycie w CSS i odkrycie w JS rozjeżdżałyby się cicho przy
+   następnej zmianie jednego z tych dwóch plików. */
+.cook-wakelock {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    min-height: 4rem;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body);
+    cursor: pointer;
+}
+
+.cook-wakelock input[type="checkbox"] {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+}
+
+.cook-wakelock-status {
+    margin: var(--spacing-2) 0 0;
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Spis ekranów ustawień (komponent `ustawienia-nawigacja`)
+
+   Każdy wiersz to nazwa ekranu i jedno zdanie, co się w nim robi. Zdanie NIE
+   jest ozdobą: „Prywatność" i „Twoje dane" brzmią dla wielu osób tak samo,
+   a różnią się tym, że jedno decyduje o widoczności, a drugie kasuje konto.
+
+   Nazwa jest osobnym wierszem, żeby cel dotknięcia był duży — nie chcemy
+   trafiania w słowo w środku akapitu.
+--------------------------------------------------------------------------- */
+
+.ustawienia-nawigacja {
+    margin-top: var(--spacing-8);
+}
+
+.ustawienia-nawigacja-tytul {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--text-body-lg);
+}
+
+.ustawienia-nawigacja-lista {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ustawienia-nawigacja-pozycja {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    padding: var(--spacing-3) 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.ustawienia-nawigacja-pozycja:first-child {
+    border-top: 0;
+}
+
+.ustawienia-nawigacja-pozycja > a,
+.ustawienia-nawigacja-pozycja > strong {
+    font-size: var(--text-body-lg);
+    /* Cel dotknięcia ≥ 48 px także wtedy, gdy sama nazwa jest krótka. */
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ustawienia-nawigacja-tu {
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+}
+
+.ustawienia-nawigacja-opis {
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Wspomnienie „Rok temu gotowałaś…" (issue #34)
+
+   Blok ma być CICHY. Bez ramki w kolorze marki, bez ikony, bez wyróżnienia
+   krzyczącego „patrz tutaj". To jest przypomnienie, nie powiadomienie —
+   a wpis pod spodem bywa przepisem po kimś, kogo już nie ma.
+
+   Odróżnia go od feedu jedno: podpis nad nim i cienka linia. Tyle wystarczy,
+   żeby było wiadomo, że to nie jest nowy wpis.
+--------------------------------------------------------------------------- */
+
+.wspomnienie {
+    margin-bottom: var(--spacing-6);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+}
+
+.wspomnienie-podpis {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body-lg);
+    color: var(--color-ink-muted);
+    font-weight: 600;
+}
+
+.wspomnienie-akcje {
+    margin-top: var(--spacing-2);
+}
+
+/* Lata w archiwum profilu (issue #34). Ten sam wygląd co zakładki wyżej —
+   to jest ta sama czynność (wybór widoku), więc nie ma powodu, żeby
+   wyglądała inaczej i wymagała nauczenia się drugi raz. */
+.lata-archiwum {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-5);
 }

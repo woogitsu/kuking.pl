@@ -208,7 +208,7 @@
         <div class="app-body @guest app-body-solo @endguest">
             @auth
                 <nav class="side-nav" aria-label="Nawigacja główna">
-                    <ul class="stack-tight" style="list-style:none; padding:0; margin:0;">
+                    <ul class="stack-tight list-none p-0 m-0">
                         <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
                         <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
                         <li><a class="side-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>

@@ -6,11 +6,11 @@
 --}}
 @props(['event', 'showRecipe' => false])
 <article class="card">
-    <div style="display:flex; gap:var(--spacing-3); align-items:center; margin-bottom:var(--spacing-3);">
+    <div class="flex gap-3 items-center mb-3">
         <x-avatar :user="$event->user" :size="44" />
-        <div style="min-width:0;">
+        <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $event->user->profile->username) }}">{{ $event->user->displayName() }}</a>
-            <p class="meta" style="margin:0;">
+            <p class="meta m-0">
                 ugotowała/ugotował
                 <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}</time>
             </p>
@@ -18,7 +18,7 @@
     </div>
 
     @if($showRecipe)
-        <p style="margin:0 0 var(--spacing-3);">
+        <p class="m-0 mb-3">
             @if($event->recipe)
                 z przepisu <a href="{{ route('recipes.show', $event->recipe->slug) }}">{{ $event->recipe->title }}</a>
             @else
@@ -34,7 +34,7 @@
     @endif
 
     @if($event->media->isNotEmpty())
-        <div class="photo-grid" style="margin-bottom:var(--spacing-3); border-radius:var(--radius-md); overflow:hidden;">
+        <div class="photo-grid mb-3 rounded-md overflow-hidden">
             @foreach($event->media as $media)
                 <x-photo :media="$media" />
             @endforeach
@@ -61,7 +61,7 @@
         @endif
     </ul>
 
-    <p style="margin-top:var(--spacing-3);">
+    <p class="mt-3">
         <a class="btn btn-secondary" href="{{ route('cooked.show', $event) }}">Zobacz i skomentuj</a>
     </p>
 </article>

@@ -8,6 +8,7 @@ use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Profile;
@@ -16,7 +17,9 @@ use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Dane demonstracyjne do pracy lokalnej.
@@ -90,6 +93,35 @@ class DemoSeeder extends Seeder
             'status' => Post::STATUS_PUBLISHED,
             'published_at' => now()->subHours(5),
         ]);
+
+        // Wpisy z KILKOMA zdjęciami — po jednym na każdy tryb wyświetlania
+        // (issue #92). Bez nich automat układu (scripts/dostepnosc.mjs) nie ma
+        // czego zmierzyć: karuzela i kolaż istnieją wyłącznie wtedy, gdy wpis
+        // ma co najmniej dwa zdjęcia, a pusty ekran przechodzi każdy pomiar,
+        // nie sprawdzając niczego.
+        $this->wpisZKilkomaZdjeciami(
+            $basia,
+            'Rosół krok po kroku: warzywa, szumowiny, gotowy talerz.',
+            Post::DISPLAY_CAROUSEL,
+            ['Warzywa do rosołu na desce', 'Garnek z rosołem w trakcie gotowania', 'Talerz gotowego rosołu z makaronem'],
+            now()->subHours(9),
+        );
+
+        $this->wpisZKilkomaZdjeciami(
+            $basia,
+            'Ciasto drożdżowe — cztery ujęcia, bo za pierwszym razem nie widać, jak wyrosło.',
+            Post::DISPLAY_COLLAGE,
+            ['Ciasto drożdżowe przed wyrastaniem', 'Ciasto po wyrośnięciu', 'Ciasto w blaszce', 'Upieczone ciasto na kratce'],
+            now()->subHours(7),
+        );
+
+        $this->wpisZKilkomaZdjeciami(
+            $basia,
+            'Pierogi z niedzieli, po prostu jedno pod drugim.',
+            Post::DISPLAY_NORMAL,
+            ['Lepione pierogi na stolnicy', 'Pierogi na talerzu ze skwarkami'],
+            now()->subHours(6),
+        );
 
         // Przepis rodzinny — pokazuje, po co jest sekcja „Skąd ten przepis”
         $rosol = Recipe::create([
@@ -234,6 +266,52 @@ class DemoSeeder extends Seeder
         );
 
         return $user->refresh();
+    }
+
+    /**
+     * Wpis z kilkoma zdjęciami i wybranym trybem wyświetlania (issue #92).
+     *
+     * Zdjęcia demonstracyjne nie mają wygenerowanych wariantów — `Media::url()`
+     * podstawia wtedy znak Kuking. Do pomiaru układu to wystarcza: przeglądarka
+     * układa `<img>` po `width`/`height` i CSS-ie, a nie po tym, co jest
+     * w pliku. Do pracy nad wyglądem trzeba wgrać prawdziwe zdjęcia — dlatego
+     * teksty alternatywne są tu prawdziwe, żeby przynajmniej czytnik ekranu
+     * dostał to, co dostanie u człowieka.
+     *
+     * @param  list<string>  $opisy  teksty alternatywne, po jednym na zdjęcie
+     */
+    private function wpisZKilkomaZdjeciami(
+        User $autor,
+        string $tresc,
+        string $tryb,
+        array $opisy,
+        Carbon $kiedy,
+    ): void {
+        $wpis = Post::create([
+            'author_id' => $autor->getKey(),
+            'body' => $tresc,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'display_mode' => $tryb,
+            'published_at' => $kiedy,
+        ]);
+
+        foreach ($opisy as $pozycja => $opis) {
+            $zdjecie = Media::create([
+                'owner_id' => $autor->getKey(),
+                'disk' => 'public',
+                'object_key' => 'media/demo/'.Str::uuid()->toString().'.webp',
+                'mime_type' => 'image/webp',
+                'bytes' => 180_000,
+                'width' => 1600,
+                'height' => 1200,
+                'status' => Media::STATUS_READY,
+                'alt_text' => $opis,
+                'metadata' => ['variants' => []],
+            ]);
+
+            $wpis->media()->attach($zdjecie->getKey(), ['position' => $pozycja]);
+        }
     }
 
     /** @param  list<string>  $lines */

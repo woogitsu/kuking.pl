@@ -8,6 +8,7 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\TopicFeed;
+use App\Domain\Wspomnienia\Wspomnienia;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -18,6 +19,7 @@ class FeedController extends Controller
         private readonly DiscoverFeed $discoverFeed,
         private readonly TopicFeed $topicFeed,
         private readonly DailyBoard $dailyBoard,
+        private readonly Wspomnienia $wspomnienia,
     ) {}
 
     /**
@@ -66,8 +68,17 @@ class FeedController extends Controller
             default => 'odkrywanie',
         };
 
+        // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
+        // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
+        // człowiek wyłączył tę mechanikę; widok NIE ma pustego stanu, bo
+        // „nie masz jeszcze wspomnień" jest wyrzutem wobec kogoś, kto dopiero
+        // zaczyna.
+        $wspomnienie = $this->wspomnienia->dlaOsoby($user);
+
         return view('pages.home', [
             'greeting' => $this->greeting($user->displayName()),
+            'wspomnienie' => $wspomnienie,
+            'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
             'board' => $this->dailyBoard->forViewer($user),
             'posts' => match ($zrodlo) {
                 'obserwowani' => $this->followingFeed->paginate($user),
@@ -103,7 +114,7 @@ class FeedController extends Controller
         return match (true) {
             $hour < 10 => "Dzień dobry, {$name}. Co dziś gotujesz?",
             $hour < 15 => "Dzień dobry, {$name}. Co dziś na obiad?",
-            $hour < 21 => "Dobry wieczór, {$name}. Co dziś ugotowałeś?",
+            $hour < 21 => "Dobry wieczór, {$name}. Co dziś wyszło?",
             default => "Dobry wieczór, {$name}. Pokaż, co dziś wyszło.",
         };
     }
