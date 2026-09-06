@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Konto użytkownika.
@@ -64,8 +65,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
      *
      * PostgreSQL porównuje teksty z uwzględnieniem wielkości liter, a klawiatury
      * telefonów lubią automatycznie kapitalizować pierwszą literę. Bez tego
-     * konto założone jako „Jan@example.com" jest nie do zalogowania przez
-     * „jan@example.com" — z komunikatem sugerującym złe hasło, więc osoba
+     * konto założone jako „Jan@example.com” jest nie do zalogowania przez
+     * „jan@example.com” — z komunikatem sugerującym złe hasło, więc osoba
      * szuka problemu w zupełnie złym miejscu.
      */
     protected function email(): Attribute
@@ -76,13 +77,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
-     * Jedna definicja tego, czym jest „ten sam adres e-mail".
+     * Jedna definicja tego, czym jest „ten sam adres e-mail”.
      *
      * Mutator wyżej zapisuje adres małymi literami, ale WALIDACJA pytała bazę
      * o wartość surową — więc `Rule::unique` nie znajdowało nic dla
-     * „Jan@Example.com", zapis przechodził dalej i dopiero PostgreSQL odbijał
+     * „Jan@Example.com”, zapis przechodził dalej i dopiero PostgreSQL odbijał
      * duplikat kluczem unikalnym. Efekt: HTTP 500 na rejestracji, w miejscu,
-     * w którym powinien być zwykły komunikat „na ten adres jest już konto"
+     * w którym powinien być zwykły komunikat „na ten adres jest już konto”
      * (audyt A25).
      *
      * Ta metoda istnieje po to, żeby normalizacja miała JEDNO miejsce.
@@ -268,10 +269,58 @@ class User extends Authenticatable implements MustVerifyEmailContract
     /** Kolekcja "Zapisane", tworzona przy pierwszym zapisie przepisu. */
     public function defaultCollection(): Collection
     {
-        return $this->collections()->firstOrCreate(
-            ['is_default' => true],
-            ['name' => 'Zapisane', 'visibility' => 'private'],
-        );
+        $istniejaca = $this->collections()->where('is_default', true)->first();
+
+        if ($istniejaca !== null) {
+            return $istniejaca;
+        }
+
+        return $this->collections()->create([
+            'name' => $this->wolnaNazwaDomyslnegoZeszytu(),
+            'visibility' => 'private',
+            'is_default' => true,
+        ]);
+    }
+
+    /**
+     * Nazwa dla domyślnego zeszytu, która nie koliduje z niczym, co ta osoba
+     * już ma (issue #43).
+     *
+     * Od kiedy `collections` ma unikalny indeks na `(owner_id, lower(name))`,
+     * ktoś, kto SAM założył wcześniej zeszyt „Zapisane”, nie mógłby zapisać
+     * pierwszego przepisu — pierwsze kliknięcie „Zapisuję” kończyłoby się
+     * błędem 500 na tworzeniu domyślnego zeszytu.
+     *
+     * Świadomie NIE przejmujemy tu cudzego zeszytu „Zapisane” jako domyślnego,
+     * choć byłoby to kuszące. Po pierwsze, `CollectionPolicy::delete()` nie
+     * pozwala usunąć zeszytu domyślnego — czyjś własny zeszyt przestałby się
+     * dać skasować. Po drugie, jeśli ten zeszyt jest PUBLICZNY, wszystkie
+     * przyszłe zapisy „na potem” trafiałyby do niego na widok publiczny,
+     * czego nikt nie zamawiał (docs/DECISIONS.md: zeszyt domyślnie prywatny).
+     * Zakładamy więc nowy, pod pierwszą wolną nazwą.
+     */
+    private function wolnaNazwaDomyslnegoZeszytu(): string
+    {
+        $zajete = $this->collections()
+            ->pluck('name')
+            ->map(fn (string $nazwa): string => mb_strtolower(trim($nazwa)))
+            ->all();
+
+        if (! in_array('zapisane', $zajete, true)) {
+            return 'Zapisane';
+        }
+
+        // Sufiks liczbowy zamiast „Zapisane (kopia)” czy losowego ciągu:
+        // ma być od razu widać, że to ten sam rodzaj zeszytu, tylko drugi.
+        for ($numer = 2; $numer <= 100; $numer++) {
+            if (! in_array('zapisane '.$numer, $zajete, true)) {
+                return 'Zapisane '.$numer;
+            }
+        }
+
+        // Sto zeszytów „Zapisane” to nie jest scenariusz z życia, ale zapis
+        // przepisu nie może się wywalić nawet wtedy.
+        return 'Zapisane '.Str::lower(Str::random(6));
     }
 
     /**

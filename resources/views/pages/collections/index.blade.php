@@ -2,6 +2,11 @@
     <h1>Twój zeszyt</h1>
     <p style="margin-bottom:var(--spacing-5);">Przepisy, które zapisałaś na potem. Tylko Ty je widzisz, chyba że sama ustawisz inaczej.</p>
 
+    {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
+         komunikat „Masz już zeszyt o tej nazwie” nie miał gdzie się pokazać:
+         jedyny formularz na tej stronie siedzi w zwiniętym <details>. --}}
+    <x-error-summary />
+
     @if($collections->isEmpty())
         <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('discover')">
             Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję”.
@@ -26,7 +31,10 @@
         </div>
     @endif
 
-    <details class="card" style="margin-top:var(--spacing-8);">
+    {{-- Po nieudanej walidacji formularz zostaje ROZWINIĘTY — inaczej człowiek
+         wraca na stronę, na której nic się nie stało, a jego tekst jest
+         schowany pod zwiniętym „Załóż nowy zeszyt”. --}}
+    <details class="card" style="margin-top:var(--spacing-8);" {{ $errors->any() ? 'open' : '' }}>
         <summary class="btn btn-secondary" style="display:inline-flex;">Załóż nowy zeszyt</summary>
         <form method="POST" action="{{ route('collections.store') }}" style="margin-top:var(--spacing-4);">
             @csrf

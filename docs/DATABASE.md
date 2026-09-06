@@ -167,6 +167,51 @@ Komentarz dotyczy dokładnie jednego:
 ### collections + collection_items
 Osobisty zeszyt.
 
+**`collection_items` ma `PRIMARY KEY (collection_id, recipe_id)`** od migracji
+zakładającej tabelę (`2026_09_05_000800_create_collections_tables`). Ten sam
+przepis nie może stanąć w tym samym zeszycie dwa razy. Issue #43 zgłaszało tu
+brak ograniczenia — zgłoszenie było nieaktualne, klucz jest na miejscu.
+Pilnuje tego `tests/Feature/UnikalnoscZeszytowTest`.
+
+To samo dotyczy `post_media` — `PRIMARY KEY (post_id, media_id)` plus
+`UNIQUE (post_id, position)` stoją tam od migracji zakładającej tabelę.
+
+**Nazwa zeszytu jest unikalna w obrębie jednej osoby, bez rozróżniania
+wielkości liter.** Unikalny indeks funkcyjny
+`collections_owner_name_lower_unique` na `(owner_id, lower(name))`
+(migracja `2026_09_06_090000_add_collections_name_unique_index`, issue #43).
+
+```sql
+CREATE UNIQUE INDEX collections_owner_name_lower_unique
+ON collections (owner_id, lower(name));
+```
+
+Bez tego jedna osoba mogła mieć dwa zeszyty „Obiady”. Lista zeszytów pokazuje
+nazwę, liczbę przepisów i widoczność — dwa takie wiersze są nie do odróżnienia
+i trzeba wejść do obu, żeby sprawdzić, w którym leży szukany przepis. Zwykle
+nie brało się to ze złego nazewnictwa, tylko z podwójnego wysłania formularza.
+
+Indeks jest **funkcyjny**, a nie na kolumnie, z tego samego powodu co przy
+`profiles_username_lower_unique`: nazwa zostaje zapisana tak, jak ktoś ją
+wpisał („Na Święta” zostaje „Na Święta”), a bez rozróżniania wielkości liter
+sprawdzamy tylko, czy jest już zajęta. Dla człowieka „Obiady” i „obiady” to
+ta sama nazwa.
+
+Ograniczenie jest **per właściciel** — dwie różne osoby mogą mieć zeszyt
+„Obiady” i nic w tym dziwnego.
+
+Migracja **nie scala i nie kasuje** zeszytów przy kolizji: sprawdza, czy takie
+pary istnieją, i przerywa z ich listą. Dwa zeszyty o tej samej nazwie to dwa
+różne pojemniki, z różną zawartością i możliwie różną widocznością — scalenie
+albo skasowanie jednego jest nieodwracalne i mogłoby upublicznić prywatne
+zapisy. Decyzję podejmuje człowiek. Rollback to `DROP INDEX`, bez utraty
+danych.
+
+Konsekwencja dla domyślnego zeszytu: `User::defaultCollection()` szuka
+pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł sam założyć
+zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
+kończyłoby się błędem 500.
+
 ### notifications
 In-app.
 
