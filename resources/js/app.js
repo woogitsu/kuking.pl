@@ -373,28 +373,3 @@ for (const tasma of document.querySelectorAll('[data-karuzela-tasma]')) {
     }
 }
 
-(() => {
-    const pole = document.getElementById('f-photos');
-    const wybor = document.querySelector('[data-wybor-wygladu]');
-
-    if (! pole || ! wybor) {
-        return;
-    }
-
-    pole.addEventListener('change', () => {
-        const kilka = (pole.files?.length ?? 0) >= 2;
-
-        wybor.hidden = ! kilka;
-
-        // Wybór, który znika z ekranu, wraca do „zwykle”. Inaczej ktoś
-        // zaznaczyłby kolaż przy trzech zdjęciach, zmienił wybór plików na
-        // jedno — i wysłałby ustawienie, którego już nie widzi.
-        if (! kilka) {
-            const zwykle = wybor.querySelector('input[value="normal"]');
-
-            if (zwykle) {
-                zwykle.checked = true;
-            }
-        }
-    });
-})();

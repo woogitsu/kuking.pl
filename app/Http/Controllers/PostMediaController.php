@@ -20,10 +20,15 @@ use Illuminate\View\View;
  * JavaScriptu nie ma jak pokazać wyboru „dopiero od drugiego zdjęcia" ani
  * przycisków „w górę / w dół" przy konkretnym zdjęciu.
  *
- * Ten ekran jest odpowiedzią na to ograniczenie i jest DROGĄ PODSTAWOWĄ,
- * a nie zapasową: działa zwykłym POST-em, bez linijki skryptu, i tak samo
- * na starym telefonie przy słabym zasięgu (AGENTS.md §5). Wybór w formularzu
- * publikacji jest ulepszeniem dla osób, którym skrypt się dociągnął.
+ * Ten ekran jest odpowiedzią na to ograniczenie i jest JEDYNĄ drogą, nie
+ * zapasową: działa zwykłym POST-em, bez linijki skryptu, i tak samo na starym
+ * telefonie przy słabym zasięgu (AGENTS.md §5).
+ *
+ * Przez chwilę wybór stał także w formularzu publikacji — ukryty, odsłaniany
+ * skryptem po wybraniu drugiego pliku. Właściciel zdecydował inaczej: funkcja,
+ * która u części ludzi po prostu nie istnieje, jest gorsza niż jeden ekran
+ * więcej dla wszystkich. `PostController::store()` przekierowuje tu po
+ * opublikowaniu wpisu z dwoma zdjęciami albo większą ich liczbą.
  *
  * Wejście przez Policy, nie przez UUID w adresie (AGENTS.md §7): identyfikator
  * wpisu widać w linku pod każdym zdjęciem, więc sam jego brak w cudzych rękach
@@ -50,6 +55,10 @@ class PostMediaController extends Controller
             'display_mode' => ['nullable', 'in:'.implode(',', Post::dozwoloneTrybyWyswietlania())],
             'przenies_w_gore' => ['nullable', 'uuid'],
             'przenies_w_dol' => ['nullable', 'uuid'],
+            // Znacznik „przyszedłem tu prosto z publikacji" (issue #92).
+            // Nie zmienia niczego w danych — decyduje wyłącznie o tym, dokąd
+            // odsyłamy po zapisaniu.
+            'wroc_do_wpisu' => ['nullable', 'in:1'],
         ], [
             // Komunikat mówi, CO WYBRAĆ — nazwami z ekranu, nie nazwami
             // z bazy (issue #86).
@@ -73,9 +82,32 @@ class PostMediaController extends Controller
             displayMode: $dane['display_mode'] ?? $post->display_mode ?? Post::DISPLAY_NORMAL,
         );
 
+        $przestawiono = $przesuniete['komunikat'] !== null;
+        $prostoZPublikacji = ($dane['wroc_do_wpisu'] ?? null) === '1';
+
+        // PRZESTAWIENIE ZDJĘCIA NIE JEST KOŃCEM PRACY.
+        //
+        // „Przenieś w górę" i „Zapisz" wysyłają TEN SAM formularz, więc bez
+        // tego rozróżnienia pierwsze kliknięcie w strzałkę wyrzucałoby
+        // człowieka do wpisu w połowie ustawiania kolejności. Przy zmianie
+        // kolejności zostajemy tu i zabieramy znacznik ze sobą, żeby ekran
+        // dalej wyglądał jak ostatni krok publikacji.
+        if ($przestawiono) {
+            return redirect()
+                ->route('posts.media.edit', $post)
+                ->with('poPublikacji', $prostoZPublikacji)
+                ->with('status', $przesuniete['komunikat']);
+        }
+
+        if ($prostoZPublikacji) {
+            return redirect()
+                ->to($post->url())
+                ->with('status', 'Opublikowane. Tak zobaczą ten wpis inni.');
+        }
+
         return redirect()
             ->route('posts.media.edit', $post)
-            ->with('status', $przesuniete['komunikat'] ?? 'Zapisane. Tak zobaczą ten wpis inni.');
+            ->with('status', 'Zapisane. Tak zobaczą ten wpis inni.');
     }
 
     /**

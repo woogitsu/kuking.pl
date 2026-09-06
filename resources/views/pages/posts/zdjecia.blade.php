@@ -1,9 +1,20 @@
 @php
     $zdjecia = $post->media;
     $ile = $zdjecia->count();
+
+    // Ten sam ekran w dwóch rolach: zaraz po opublikowaniu (wtedy jest
+    // ostatnim krokiem publikacji) i później, przy poprawianiu wpisu.
+    // Różnią się nagłówkiem i tym, dokąd prowadzi „Zapisz" — nie treścią.
+    $poPublikacji = (bool) session('poPublikacji');
 @endphp
 <x-layout title="Zdjęcia w tym wpisie" :noindex="true">
-    <h1>Zdjęcia w tym wpisie</h1>
+    <h1>
+        @if($poPublikacji && $ile >= 2)
+            Masz {{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć') }} — jak je pokazać?
+        @else
+            Zdjęcia w tym wpisie
+        @endif
+    </h1>
 
     @if($ile < 2)
         {{--
@@ -23,15 +34,33 @@
         </div>
     @else
         <p style="margin-bottom:var(--spacing-5);">
-            Ten wpis ma {{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć') }}.
-            Ustaw kolejność i wybierz, jak mają się wyświetlić.
-            Zmiany zobaczą wszyscy, którzy patrzą na ten wpis.
+            @if($poPublikacji)
+                {{-- Wpis JEST już opublikowany — to zdanie musi to powiedzieć
+                     wprost. Ekran, który wygląda na kolejny krok formularza,
+                     kazałby myśleć, że bez kliknięcia „Zapisz" nic się nie
+                     stało — i człowiek zamykający kartę byłby przekonany,
+                     że stracił wpis. --}}
+                Wpis jest już opublikowany. Możesz jeszcze ustawić kolejność zdjęć
+                i wybrać, jak mają się wyświetlić — albo zostawić tak, jak jest.
+            @else
+                Ten wpis ma {{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć') }}.
+                Ustaw kolejność i wybierz, jak mają się wyświetlić.
+                Zmiany zobaczą wszyscy, którzy patrzą na ten wpis.
+            @endif
         </p>
 
         <x-error-summary />
 
         <form class="card" method="POST" action="{{ route('posts.media.update', $post) }}">
             @csrf
+
+            {{-- Po publikacji „Zapisz" ma zaprowadzić do WPISU, a nie z powrotem
+                 tutaj: to jest ostatni krok publikacji, a nie osobna praca.
+                 Poza tą sytuacją zostajemy na ekranie, bo wtedy człowiek
+                 zwykle poprawia kilka rzeczy po kolei. --}}
+            @if($poPublikacji)
+                <input type="hidden" name="wroc_do_wpisu" value="1">
+            @endif
 
             {{--
                 DOMYŚLNY PRZYCISK FORMULARZA — ZAPIS, NIE PRZESUNIĘCIE ZDJĘCIA.
@@ -93,8 +122,13 @@
             <x-wybor-wygladu :wartosc="$post->display_mode ?? \App\Models\Post::DISPLAY_NORMAL" />
 
             <div class="form-actions">
-                <button class="btn btn-primary" type="submit">Zapisz</button>
-                <a class="btn btn-quiet" href="{{ $post->url() }}">Wróć do wpisu</a>
+                @if($poPublikacji)
+                    <button class="btn btn-primary" type="submit">Zapisz i pokaż wpis</button>
+                    <a class="btn btn-quiet" href="{{ $post->url() }}">Zostaw tak, jak jest</a>
+                @else
+                    <button class="btn btn-primary" type="submit">Zapisz</button>
+                    <a class="btn btn-quiet" href="{{ $post->url() }}">Wróć do wpisu</a>
+                @endif
             </div>
         </form>
     @endif

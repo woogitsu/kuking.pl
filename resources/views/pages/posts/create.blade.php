@@ -46,35 +46,6 @@
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 
-        {{--
-            Sposób wyświetlania zdjęć — WIDOCZNY DOPIERO OD DRUGIEGO ZDJĘCIA
-            (issue #92).
-
-            Przy jednym zdjęciu trzy przyciski to decyzja bez znaczenia,
-            dołożona w momencie, w którym chcemy, żeby człowiek po prostu
-            wrzucił zdjęcie. Cel produktowy to poniżej 60 sekund od wejścia
-            do opublikowania.
-
-            CZEGO TU NIE DA SIĘ ZROBIĆ I DLACZEGO NIE JEST TO WADA
-            Zanim ktoś kliknie „Opublikuj", zdjęcia SĄ JESZCZE W PRZEGLĄDARCE
-            — serwer nie zna ich liczby, więc bez JavaScriptu nie ma jak
-            odsłonić tego wyboru w odpowiednim momencie. Dlatego:
-
-              • gdy zdjęcia już są znane (wróciły po nieudanej walidacji jako
-                `media_ids`), wybór stoi tu od razu, bez skryptu;
-              • gdy nie są — pole jest ukryte, a skrypt odsłania je po wybraniu
-                drugiego pliku (resources/js/app.js);
-              • gdy skryptu nie ma w ogóle, wpis publikuje się „zwykle",
-                a wygląd ustawia się na ekranie „Zdjęcia w tym wpisie", do
-                którego prowadzi link spod świeżo opublikowanego wpisu.
-
-            Trzecia droga jest pełnoprawna, a nie awaryjna: to zwykły formularz
-            POST-em, ten sam, na którym ustawia się kolejność zdjęć.
-        --}}
-        <x-wybor-wygladu
-            :wartosc="old('display_mode', \App\Models\Post::DISPLAY_NORMAL)"
-            :ukryty="$zachowane->count() < 2" />
-
         <x-field
             name="body"
             label="Napisz kilka słów"

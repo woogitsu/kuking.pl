@@ -519,11 +519,17 @@
      marginesy na tle `--color-surface-sunken`. To jest świadomy wybór —
      pusty margines da się zignorować, uciętego jedzenia nie da się odzyskać.
 
-     DWIE KOLUMNY TAKŻE PRZY 320 px
-     Kolaż ma pokazywać wszystko na jednym ekranie; zwinięcie go do jednej
-     kolumny na telefonie zamieniłoby wybór autora w widok „zwykły" i nic
-     by z niego nie zostało. Zdjęcie w polu jest wtedy małe — dlatego każde
-     pole zostaje odnośnikiem do powiększenia (x-photo).
+     NA WĄSKIM TELEFONIE KOLAŻ SCHODZI DO JEDNEJ KOLUMNY — DECYZJA WŁAŚCICIELA
+     Przy 320 px pole ma około 155 px, a przy zdjęciu poziomym zostaje z tego
+     jakieś 116 px wysokości obrazu. To jest za mało, żeby obejrzeć jedzenie —
+     a oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
+     Poniżej 30rem kolaż pokazuje się więc jako zwykła lista dużych zdjęć.
+
+     TO NIE JEST CICHE ZIGNOROWANIE WYBORU AUTORA
+     Autor dowiaduje się o tym przy samym wyborze wyglądu (patrz
+     `resources/views/components/wybor-wygladu.blade.php`) — inaczej byłaby
+     to obietnica bez pokrycia: „wybrałem kolaż, a na telefonie go nie ma".
+     Kolaż zostaje kolażem od tabletu w górę, czyli tam, gdzie ma sens.
      --------------------------------------------------------------------- */
 
   .kolaz {
@@ -549,6 +555,28 @@
 
   .kolaz-pole .post-photo {
     object-fit: contain;
+  }
+
+  /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
+     dokładnie to samo, co widok „zwykły". Kwadratowe pole i `contain` mają
+     sens dopiero wtedy, gdy pole jest na tyle duże, żeby coś w nim było
+     widać. `aspect-ratio: auto` zdejmuje kwadrat, a `height: auto` pozwala
+     zdjęciu zająć tyle, ile potrzebuje. */
+  @media (max-width: 30rem) {
+    .kolaz {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
+    }
+
+    .kolaz-pole {
+      aspect-ratio: auto;
+      background-color: transparent;
+    }
+
+    .kolaz-pole .photo-zoom,
+    .kolaz-pole .post-photo {
+      height: auto;
+    }
   }
 
   /* ---------------------------------------------------------------------

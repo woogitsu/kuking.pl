@@ -161,7 +161,7 @@ class WygladZdjecWeWpisieTest extends TestCase
 
         $html = $this->actingAs($autor)->get(route('posts.media.edit', $wpis))->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('data-wybor-wygladu', $html, 'Przy jednym zdjęciu wybór trybu jednak się renderuje.');
+        $this->assertStringNotContainsString('wybor-wygladu', $html, 'Przy jednym zdjęciu wybór trybu jednak się renderuje.');
         $this->assertStringNotContainsString('Przenieś w górę', $html, 'Przy jednym zdjęciu nie ma czego przenosić.');
         $this->assertStringContainsString('nie ma tu czego ustawiać', $html);
     }
@@ -173,32 +173,42 @@ class WygladZdjecWeWpisieTest extends TestCase
 
         $html = $this->actingAs($autor)->get(route('posts.media.edit', $wpis))->assertOk()->getContent();
 
-        $this->assertStringContainsString('data-wybor-wygladu', $html);
-        $this->assertDoesNotMatchRegularExpression(
-            '~<fieldset class="wybor-wygladu"[^>]*\bhidden\b~',
-            $html,
+        $this->assertStringContainsString('<fieldset class="wybor-wygladu">', $html);
+        $this->assertStringNotContainsString(
+            'hidden',
+            explode('</fieldset>', explode('<fieldset class="wybor-wygladu">', $html)[1])[0],
             'Wybór wyglądu jest ukryty mimo dwóch zdjęć.',
         );
         $this->assertStringContainsString('Karuzela', $html);
         $this->assertStringContainsString('Kolaż', $html);
     }
 
-    public function test_formularz_publikacji_ukrywa_wybor_dopoki_nie_ma_drugiego_zdjecia(): void
+    public function test_formularz_publikacji_nie_pyta_juz_o_wyglad(): void
     {
-        $autor = $this->user('basia');
+        // DECYZJA WŁAŚCICIELA, NIE UPROSZCZENIE.
+        //
+        // Wybór stał wcześniej w tym formularzu — ukryty, odsłaniany skryptem
+        // po wybraniu drugiego pliku. Działał więc WYŁĄCZNIE u osób, którym
+        // skrypt się dociągnął, bo zanim ktoś kliknie „Opublikuj", zdjęcia są
+        // jeszcze w przeglądarce i serwer nie zna ich liczby.
+        //
+        // Funkcja, która u części ludzi po prostu nie istnieje, jest gorsza
+        // niż jeden ekran więcej dla wszystkich. Pytamy teraz po publikacji.
+        $html = (string) $this->actingAs($this->user('basia'))
+            ->get(route('posts.create'))
+            ->assertOk()
+            ->getContent();
 
-        $html = $this->actingAs($autor)->get(route('posts.create'))->assertOk()->getContent();
-
-        $this->assertStringContainsString('data-wybor-wygladu', $html, 'Wybór wyglądu w ogóle nie trafił do formularza.');
-        $this->assertMatchesRegularExpression(
-            '~<fieldset class="wybor-wygladu"[^>]*\bhidden\b~',
-            $html,
-            'Wybór wyglądu jest widoczny, zanim w formularzu są dwa zdjęcia.',
-        );
+        $this->assertStringNotContainsString('wybor-wygladu', $html);
+        $this->assertStringNotContainsString('name="display_mode"', $html);
     }
 
-    public function test_wpis_z_jednym_zdjeciem_zapisuje_tryb_zwykly_mimo_wyboru_karuzeli(): void
+    public function test_publikacja_ignoruje_wyglad_podany_recznie(): void
     {
+        // Formularz publikacji nie ma już pola `display_mode`, ale FORMULARZ
+        // to nie to samo co ENDPOINT: wysłać da się cokolwiek. Wpis powstaje
+        // zawsze jako „zwykle", a wygląd ustawia się dopiero na osobnym
+        // ekranie, gdzie zdjęcia już są i widać, o czym się decyduje.
         $autor = $this->user('basia');
         $zdjecie = Media::factory()->create(['owner_id' => $autor->getKey()]);
 
@@ -209,13 +219,100 @@ class WygladZdjecWeWpisieTest extends TestCase
             'display_mode' => Post::DISPLAY_CAROUSEL,
         ])->assertRedirect();
 
+        $this->assertSame(Post::DISPLAY_NORMAL, Post::firstOrFail()->display_mode);
+    }
+
+    // -----------------------------------------------------------------
+    // 2b. Krok pośredni po „Opublikuj" (decyzja właściciela)
+    // -----------------------------------------------------------------
+
+    public function test_po_opublikowaniu_dwoch_zdjec_pytamy_jak_je_pokazac(): void
+    {
+        $autor = $this->user('basia');
+        $zdjecia = Media::factory()->count(2)->create(['owner_id' => $autor->getKey()]);
+
+        $odpowiedz = $this->actingAs($autor)->post(route('posts.store'), [
+            'body' => 'Obiad w dwóch odsłonach.',
+            'visibility' => 'public',
+            'media_ids' => $zdjecia->pluck('id')->all(),
+        ]);
+
         $wpis = Post::firstOrFail();
 
-        $this->assertSame(
-            Post::DISPLAY_NORMAL,
-            $wpis->display_mode,
-            'Przy jednym zdjęciu w bazie zostaje deklaracja, której nie da się zobaczyć.',
-        );
+        // Ta droga działa u WSZYSTKICH, także bez JavaScriptu — i to jest cały
+        // powód, dla którego wybór zniknął z formularza publikacji.
+        $odpowiedz->assertRedirect(route('posts.media.edit', $wpis));
+        $odpowiedz->assertSessionHas('poPublikacji', true);
+
+        $html = (string) $this->actingAs($autor)->get(route('posts.media.edit', $wpis))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Masz 2 zdjęcia — jak je pokazać?', $html);
+
+        // Wpis JEST już opublikowany. Ekran wyglądający na kolejny krok
+        // formularza kazałby myśleć, że bez „Zapisz" nic się nie stało —
+        // i człowiek zamykający kartę byłby pewien, że stracił wpis.
+        $this->assertStringContainsString('Wpis jest już opublikowany', $html);
+        $this->assertStringContainsString('Zostaw tak, jak jest', $html);
+    }
+
+    public function test_przy_jednym_zdjeciu_nic_nie_stoi_na_drodze_do_wpisu(): void
+    {
+        // Przy jednym zdjęciu karuzela, kolaż i „zwykle" dają dokładnie ten
+        // sam widok. Pytanie bez treści na drodze do opublikowania zdjęcia
+        // jest gorsze niż brak pytania — cel to poniżej 60 sekund.
+        $autor = $this->user('basia');
+        $zdjecie = Media::factory()->create(['owner_id' => $autor->getKey()]);
+
+        $this->actingAs($autor)->post(route('posts.store'), [
+            'body' => 'Rosół.',
+            'visibility' => 'public',
+            'media_ids' => [$zdjecie->getKey()],
+        ])->assertRedirect(route('posts.show', Post::firstOrFail()));
+    }
+
+    public function test_wpis_bez_zdjec_tez_idzie_prosto_do_wpisu(): void
+    {
+        $autor = $this->user('basia');
+
+        $this->actingAs($autor)->post(route('posts.store'), [
+            'body' => 'Dziś bez zdjęcia, ale ugotowane.',
+            'visibility' => 'public',
+        ])->assertRedirect(route('posts.show', Post::firstOrFail()));
+    }
+
+    public function test_zapisz_i_pokaz_wpis_konczy_publikacje(): void
+    {
+        $autor = $this->user('basia');
+        $wpis = $this->wpisZeZdjeciami($autor, 2, Post::DISPLAY_NORMAL);
+
+        $this->actingAs($autor)->post(route('posts.media.update', $wpis), [
+            'display_mode' => Post::DISPLAY_CAROUSEL,
+            'wroc_do_wpisu' => '1',
+        ])->assertRedirect($wpis->url());
+
+        $this->assertSame(Post::DISPLAY_CAROUSEL, $wpis->fresh()->display_mode);
+    }
+
+    public function test_przestawienie_zdjecia_nie_wyrzuca_z_ekranu_w_polowie_pracy(): void
+    {
+        // „Przenieś w górę" i „Zapisz" wysyłają TEN SAM formularz. Bez
+        // rozróżnienia pierwsze kliknięcie w strzałkę wyrzucałoby człowieka
+        // do wpisu w połowie ustawiania kolejności.
+        $autor = $this->user('basia');
+        $wpis = $this->wpisZeZdjeciami($autor, 3, Post::DISPLAY_CAROUSEL);
+        $drugie = $wpis->media[1];
+
+        $odpowiedz = $this->actingAs($autor)->post(route('posts.media.update', $wpis), [
+            'przenies_w_gore' => $drugie->getKey(),
+            'wroc_do_wpisu' => '1',
+        ]);
+
+        $odpowiedz->assertRedirect(route('posts.media.edit', $wpis));
+
+        // Znacznik jedzie dalej — ekran ma nadal wyglądać jak ostatni krok
+        // publikacji, a nie nagle zmienić się w zwykłą edycję.
+        $odpowiedz->assertSessionHas('poPublikacji', true);
     }
 
     // -----------------------------------------------------------------
@@ -395,6 +492,36 @@ class WygladZdjecWeWpisieTest extends TestCase
             $css,
             'Kolaż zaczął kadrować zdjęcia. Kadrowanie do kwadratu ucina to, co człowiek chciał pokazać.',
         );
+    }
+
+    public function test_na_waskim_telefonie_kolaz_schodzi_do_jednej_kolumny(): void
+    {
+        // DECYZJA WŁAŚCICIELA. Przy 320 px pole kolażu ma około 155 px,
+        // a przy zdjęciu poziomym zostaje z tego jakieś 116 px wysokości
+        // obrazu — za mało, żeby obejrzeć jedzenie, czyli jedyną rzecz,
+        // po którą ktoś tu przyszedł.
+        //
+        // Strażnik, nie dowód: sprawdza arkusz, nie wygląd. Prawdziwy dowód
+        // wymagałby porównania zrzutów ekranu, czego w tym repozytorium nie ma.
+        $css = (string) file_get_contents(resource_path('css/app.css'));
+
+        $this->assertMatchesRegularExpression(
+            '~@media \(max-width: 30rem\) \{\s*\.kolaz \{\s*grid-template-columns: minmax\(0, 1fr\);~',
+            $css,
+            'Kolaż wrócił do dwóch kolumn na wąskim telefonie — zdjęcia są tam za małe, żeby cokolwiek zobaczyć.',
+        );
+
+        // I DRUGA POŁOWA TEJ SAMEJ DECYZJI: autor MA SIĘ O TYM DOWIEDZIEĆ.
+        // Bez tego zdania wybrałby kolaż, obejrzał wpis na własnym telefonie
+        // i zobaczył coś innego, niż zaznaczył — czyli świadoma decyzja
+        // projektowa wyglądałaby jak usterka.
+        $autor = $this->user('basia');
+        $wpis = $this->wpisZeZdjeciami($autor, 2, Post::DISPLAY_NORMAL);
+
+        $html = (string) $this->actingAs($autor)->get(route('posts.media.edit', $wpis))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Na wąskim telefonie zdjęcia pokazują się jedno pod drugim', $html);
     }
 
     // -----------------------------------------------------------------
