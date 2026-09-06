@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -121,20 +120,20 @@ class LoginController extends Controller
         return redirect()->route('landing')->with('status', 'Wylogowano. Do zobaczenia.');
     }
 
+    /**
+     * Nazwa użytkownika i e-mail bez rozróżniania wielkości liter — „Basia"
+     * i „basia" to ta sama osoba, a klawiatura telefonu podnosi pierwszą
+     * literę bez pytania. Wcześniej przy parze „basia" / „Basia" `first()`
+     * bez `ORDER BY` zwracał ten wiersz, który baza akurat podała pierwszy —
+     * więc prawdziwa Basia mogła dostawać „nieprawidłowe hasło" przy
+     * poprawnym haśle (audyt A25).
+     *
+     * Sama logika przeniosła się do `User::findByLogin()`, bo pyta o to samo
+     * także formularz odwołania dla osób zablokowanych — te nie mogą się
+     * zalogować, a muszą dać się rozpoznać (#10).
+     */
     private function findUser(string $login): ?User
     {
-        if (str_contains($login, '@')) {
-            return User::where('email', User::normalizeEmail($login))->first();
-        }
-
-        // Nazwa użytkownika też bez rozróżniania wielkości liter — „Basia"
-        // i „basia" to ta sama osoba, a klawiatura telefonu podnosi pierwszą
-        // literę bez pytania.
-        // Od migracji `..._add_username_case_insensitive_unique_index` baza
-        // gwarantuje, że pasujący wiersz jest najwyżej jeden. Wcześniej przy
-        // parze „basia" / „Basia" `first()` bez `ORDER BY` zwracał ten, który
-        // baza akurat podała pierwszy — więc prawdziwa Basia mogła dostawać
-        // „nieprawidłowe hasło" przy poprawnym haśle (audyt A25).
-        return Profile::whereRaw('lower(username) = ?', [mb_strtolower(trim($login))])->first()?->user;
+        return User::findByLogin($login);
     }
 }

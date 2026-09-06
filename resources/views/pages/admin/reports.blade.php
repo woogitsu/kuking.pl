@@ -90,6 +90,40 @@
                 @if($report->resolution_note)
                     <p class="meta">{{ $report->resolution_note }}</p>
                 @endif
+
+                {{--
+                    Przywrócenie treści (issue #65).
+
+                    Do tej pory decyzja „Ukryj treść" była nieodwracalna z
+                    poziomu serwisu — jedyną drogą powrotu był UPDATE w
+                    produkcyjnej bazie, czyli operacja, której AGENTS.md §6
+                    zabrania bez zgody właściciela. Boli to najbardziej tam,
+                    gdzie podręcznik każe ukrywać TYMCZASOWO („najpierw ukryć,
+                    dać szansę poprawy" przy prawach autorskich): autor
+                    poprawiał tekst i nie miał kto zdjąć ukrycia.
+
+                    Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
+                    przywracać — treść istnieje i nadal jest schowana.
+                --}}
+                @if($przywracalne[$report->id] ?? false)
+                    <form method="POST" action="{{ route('admin.reports.restore', $report) }}"
+                          style="margin-top:var(--spacing-4);">
+                        @csrf
+                        <h3 style="font-size:var(--text-title-sm);">Przywróć treść</h3>
+                        <p class="meta">
+                            Treść wróci do stanu SPRZED ukrycia — szkic zostanie szkicem,
+                            opublikowany wróci opublikowany. Autor dostanie powiadomienie.
+                        </p>
+
+                        <x-field name="reason_code" label="Powód przywrócenia (kod wewnętrzny)" required
+                                 placeholder="autor_poprawil"
+                                 help="Krótki, powtarzalny kod. Cofnięcie kary też zostaje w logu." />
+                        <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="2"
+                                 help="Nieobowiązkowa. Bez niej wyślemy zdanie domyślne." />
+
+                        <button class="btn btn-secondary" type="submit">Przywróć treść</button>
+                    </form>
+                @endif
             @endif
         </article>
     @empty

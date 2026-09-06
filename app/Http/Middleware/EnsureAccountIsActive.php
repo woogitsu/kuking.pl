@@ -46,11 +46,18 @@ class EnsureAccountIsActive
      * `logout` musi zostać, bo to jedyne wyjście. `settings.data` zostaje,
      * bo prawo do kopii swoich danych (RODO art. 15 i 20) nie znika przez
      * decyzję moderacyjną.
+     *
+     * `appeals.store` zostaje z tego samego powodu, tylko mocniejszego:
+     * zawieszenie JEST decyzją, od której człowiek ma prawo się odwołać
+     * (DSA art. 20). Blokowanie tu zapisu znaczyłoby, że kara odbiera prawo
+     * do jej zakwestionowania — czyli odwołanie istnieje dla wszystkich poza
+     * tymi, których dotyczy (#10).
      */
     private const DOZWOLONE_MIMO_ZAWIESZENIA = [
         'logout',
         'settings.data',
         'settings.data.export',
+        'appeals.store',
     ];
 
     public function handle(Request $request, Closure $next): Response

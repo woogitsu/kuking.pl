@@ -59,9 +59,23 @@
                                      z martwym kontaktem. --}}
                                 @if($data['appeal'] ?? false)
                                     <br>
-                                    <span>Jeśli uważasz, że to pomyłka, możesz się odwołać:
-                                        napisz na {{ config('kuking.community.contact_email') }}.
-                                        Sprawdzimy decyzję jeszcze raz.</span>
+                                    @if($data['action_id'] ?? null)
+                                        {{-- Odwołanie składa się w serwisie, nie mailem
+                                             (issue #10). Przycisk jest niżej — tu zostaje
+                                             samo zdanie, żeby człowiek wiedział, czego
+                                             dotyczy. --}}
+                                        <span>Jeśli uważasz, że to pomyłka, możesz się odwołać.
+                                            Sprawdzimy decyzję jeszcze raz.</span>
+                                    @else
+                                        {{-- Powiadomienia sprzed issue #10 nie wiedzą,
+                                             której decyzji dotyczą — dla nich zostaje
+                                             adres e-mail. Adres bierzemy z konfiguracji,
+                                             żeby jego zmiana nie zostawiła starych
+                                             powiadomień z martwym kontaktem. --}}
+                                        <span>Jeśli uważasz, że to pomyłka, możesz się odwołać:
+                                            napisz na {{ config('kuking.community.contact_email') }}.
+                                            Sprawdzimy decyzję jeszcze raz.</span>
+                                    @endif
                                 @endif
                                 @break
                             @default
@@ -84,6 +98,23 @@
                     @if($link)
                         <p style="margin:var(--spacing-3) 0 0;">
                             <a class="btn btn-secondary" href="{{ $link }}">Zobacz</a>
+                        </p>
+                    @endif
+
+                    {{--
+                        Droga do odwołania (issue #10, DSA art. 17 i 20).
+
+                        Przycisk prowadzi do sprawy, nie do samego formularza:
+                        ta sama strona pokazuje formularz, złożone już odwołanie
+                        albo minięty termin. Dzięki temu nigdy nie prowadzi do
+                        ściany 403 — a napis mówi, co się za nim kryje, bo ikona
+                        nigdy nie jest jedynym opisem akcji (UX 50+).
+                    --}}
+                    @if(($data['appeal'] ?? false) && ($data['action_id'] ?? null))
+                        <p style="margin:var(--spacing-3) 0 0;">
+                            <a class="btn btn-secondary" href="{{ route('appeals.show', $data['action_id']) }}">
+                                Odwołanie od tej decyzji
+                            </a>
                         </p>
                     @endif
                 </div>

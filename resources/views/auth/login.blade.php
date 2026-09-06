@@ -19,4 +19,16 @@
     </form>
 
     <p style="margin-top:var(--spacing-6);">Nie masz konta? <a href="{{ route('register') }}">Załóż konto</a>.</p>
+
+    {{--
+        Droga odwoławcza dla osoby, której konto zamknięto (issue #10, DSA art. 20).
+
+        Musi być TUTAJ, bo ekran logowania to jedyne miejsce w serwisie, które
+        taka osoba zobaczy — komunikat o blokadzie wyświetla się dokładnie nad
+        tym formularzem (LoginController). Link jest widoczny zawsze, bez
+        warunków: warunek wymagałby wiedzy, kto próbuje się zalogować, a tej
+        nie mamy, dopóki ktoś nie wyśle formularza.
+    --}}
+    <p>Twoje konto zostało zablokowane albo zawieszone i uważasz, że to pomyłka?
+        <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
 </x-layout>

@@ -221,6 +221,81 @@ Zgłoszenia.
 ### moderation_actions
 Decyzje moderatorów.
 
+Od migracji `2026_09_06_100000_add_context_to_moderation_actions` (issues #65 i #10)
+wiersz zapisuje dwie rzeczy więcej:
+
+| Kolumna | Po co |
+|---|---|
+| `previous_status` | Status treści **sprzed** decyzji (`draft`, `published`…). Bez tego ukrycia nie da się cofnąć do właściwego stanu. |
+| `subject_user_id` | Osoba, której decyzja dotyczy — autor treści albo zgłoszone konto. |
+
+#### `previous_status` — dlaczego tutaj, a nie w tabelach z treścią
+
+`posts.status`, `recipes.status` i `comments.status` trzymają wyłącznie stan
+bieżący. Po ukryciu widać tylko `hidden`, więc przywracanie „na sztywno do
+`published`" **upubliczniłoby cudzy szkic** — treść, której autor nigdy nikomu
+nie pokazał. To jest wyciek, nie drobiazg.
+
+Rozważana i odrzucona alternatywa: kolumna `status_before_moderation` na każdej
+z trzech tabel z treścią. Powody odrzucenia:
+
+1. trzy kolumny zamiast jednej, każda sensowna wyłącznie wtedy, gdy wiersz jest
+   akurat ukryty — czyli prawie zawsze pusta i prawie zawsze myląca;
+2. stan sprzed decyzji jest faktem **o decyzji**, nie o treści; tu leży już
+   `reason_code`, `note` i `user_message` z tego samego powodu;
+3. przy dwóch ukryciach pod rząd kolumna na treści zna tylko ostatnie, a log
+   moderacji zna każde — przy odwołaniu liczy się historia, nie migawka.
+
+Odczyt idzie po istniejącym indeksie
+`moderation_actions_target_idx (target_type, target_id, created_at DESC)`.
+Gdy wartości brak (treść ukryta przed tą migracją albo ręcznie w psql),
+`App\Domain\Moderation\ModeratedContent` przywraca treść do **szkicu** —
+pomyłkę w tę stronę autor cofa jednym kliknięciem, pomyłki w drugą nie cofnie
+nikt.
+
+Nowy indeks: `moderation_actions_subject_idx (subject_user_id, created_at DESC)`.
+
+**Rollback:** `DROP` obu kolumn (`down()` migracji). Bezpieczny — czyta je
+wyłącznie ścieżka przywracania i odwołań. Cena: dla treści już ukrytych ginie
+zapisany stan sprzed ukrycia i po ponownym wdrożeniu wrócą one jako szkice.
+
+### appeals
+Odwołania od decyzji moderacyjnych (migracja
+`2026_09_06_100100_create_appeals_table`, issue #10, DSA art. 17 i 20).
+
+| Kolumna | Uwagi |
+|---|---|
+| `moderation_action_id` | **`UNIQUE`** — jedno odwołanie na jedną decyzję. |
+| `user_id` | Odwołujący się. `cascadeOnDelete` — po usunięciu konta sprawa jest bezprzedmiotowa (RODO art. 17); ślad samej decyzji zostaje w `moderation_actions`. |
+| `body` | Własne słowa człowieka, do 2000 znaków. |
+| `status` | `open` · `upheld` (podtrzymana) · `overturned` (cofnięta). |
+| `decided_by`, `decision_note`, `decided_at` | Odpowiedź — kto, co napisał, kiedy. |
+
+Ograniczenia w bazie:
+
+```sql
+CHECK (status IN ('open','upheld','overturned'));
+
+-- Rozpatrzone = jest data ORAZ jest uzasadnienie. Otwarte = nie ma ani jednego.
+CHECK ((status = 'open'  AND decided_at IS NULL     AND decision_note IS NULL)
+    OR (status <> 'open' AND decided_at IS NOT NULL AND decision_note IS NOT NULL));
+```
+
+Drugi CHECK jest wprost przepisaniem DSA art. 20: odpowiedź **musi** mieć
+uzasadnienie, więc „podtrzymuję" bez zdania wyjaśniającego nie da się zapisać.
+
+`UNIQUE (moderation_action_id)` jest limitem odwołań i stoi w bazie, bo to
+jedyne miejsce, którego nie obejdzie drugi endpoint ani podwójne kliknięcie.
+Termin 14 dni na złożenie liczy kod (`ModerationAction::appealDeadline()`) —
+CHECK nie sięga do drugiej tabeli.
+
+Indeksy: `appeals_status_created_idx (status, created_at)`,
+`appeals_user_idx (user_id, created_at DESC)`.
+
+**Rollback:** `DROP TABLE appeals` — to jest **utrata danych**. Przed cofnięciem
+na produkcji zrób `COPY appeals TO ...`, inaczej tracisz dowód, że
+odpowiedzieliśmy na odwołania (dokładnie to, o co zapyta regulator).
+
 ### audit_log
 Wysokiego znaczenia zmiany.
 

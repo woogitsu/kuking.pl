@@ -99,6 +99,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return mb_strtolower(trim($value));
     }
 
+    /**
+     * Konto po tym, co człowiek wpisał w pole „e-mail albo nazwa użytkownika”.
+     *
+     * Mieszka w modelu, bo pytają o to DWA miejsca: logowanie
+     * (`LoginController`) i formularz odwołania dla osób zablokowanych
+     * (`AppealController`). Osoba zablokowana nie wejdzie do serwisu, więc
+     * odwołanie musi ją rozpoznać PRZED zalogowaniem — a druga kopia tej
+     * logiki rozjechałaby się przy pierwszej zmianie zasad nazewnictwa.
+     *
+     * Bez rozróżniania wielkości liter po obu stronach — klawiatura telefonu
+     * podnosi pierwszą literę bez pytania.
+     */
+    public static function findByLogin(string $login): ?self
+    {
+        if (str_contains($login, '@')) {
+            return self::where('email', self::normalizeEmail($login))->first();
+        }
+
+        // Od migracji `..._add_username_case_insensitive_unique_index` baza
+        // gwarantuje, że pasujący wiersz jest najwyżej jeden.
+        return Profile::whereRaw('lower(username) = ?', [mb_strtolower(trim($login))])->first()?->user;
+    }
+
     protected function casts(): array
     {
         return [
@@ -348,9 +371,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function latestModerationMessage(): ?string
     {
-        // Relacja `notifications()` jest już posortowana malejąco po dacie.
+        // Relacja `notifications()` jest już posortowana malejąco po dacie,
+        // ale to NIE WYSTARCZA: `notifications.created_at` ma w bazie typ
+        // `timestamp(0)`, czyli dokładność do SEKUNDY. Dwa powiadomienia
+        // moderacyjne wysłane w tej samej sekundzie są dla `ORDER BY
+        // created_at DESC` nierozróżnialne i baza oddaje je w dowolnej
+        // kolejności — w praktyce w kolejności wstawienia, czyli NAJSTARSZE
+        // PIERWSZE.
+        //
+        // Znalezione przy issue #10 i to nie jest przypadek brzegowy:
+        // odpowiedź na odwołanie powstaje w tym samym żądaniu co przywrócenie
+        // treści, a przy blokadzie konta ten komunikat jest JEDYNYM, który
+        // do człowieka dociera (ekran logowania). Bez rozstrzygnięcia remisu
+        // zablokowana osoba czytała po odwołaniu starą decyzję zamiast
+        // odpowiedzi na swoje pismo.
+        //
+        // `id` rozstrzyga remis, bo klucze są UUID-ami w wersji 7 —
+        // uporządkowanymi po czasie, więc większy identyfikator znaczy
+        // „wstawiony później".
         $ostatnie = $this->notifications()
             ->where('type', Notification::TYPE_MODERATION)
+            ->orderByDesc('id')
             ->first();
 
         $tresc = $ostatnie?->data['message'] ?? null;

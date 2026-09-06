@@ -162,6 +162,11 @@
                         <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
                         @if($user->isModerator())
                             <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
+                            {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
+                                 to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
+                                 i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
+                                 ikon, która należy do prac nad UI kitem. --}}
+                            <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
                             <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
                         @endif
                     </ul>

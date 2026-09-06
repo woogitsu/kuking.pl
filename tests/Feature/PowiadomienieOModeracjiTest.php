@@ -76,7 +76,10 @@ class PowiadomienieOModeracjiTest extends TestCase
             ->assertSee('Komentarz pod przepisem na żurek obraża inną osobę.')
             // Prawo do odwołania (DSA art. 17) ma być napisane wprost.
             ->assertSee('możesz się odwołać')
-            ->assertSee(config('kuking.community.contact_email'));
+            // Od issue #10 odwołanie ma DOKĄD prowadzić. Wcześniej stał tu
+            // sam adres e-mail — czyli zdanie „możesz się odwołać" bez
+            // żadnego mechanizmu po drugiej stronie.
+            ->assertSee('Odwołanie od tej decyzji');
     }
 
     public function test_powiadomienie_moderacyjne_nie_pokazuje_ktory_moderator_decydowal(): void
