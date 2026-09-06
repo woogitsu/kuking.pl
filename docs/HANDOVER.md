@@ -1,6 +1,6 @@
 # Handover — kuking.pl, branch `claude/kuking-development-muukrs`
 
-Written 2026-09-06, updated the same day at commit `a8b2861`. This is a session
+Written 2026-09-06, updated the same day at commit `5b90d72`. This is a session
 handover for the next model. Everything below is verified against the
 repository at that commit, not recalled from memory.
 
@@ -58,7 +58,7 @@ owner asked for it in English.
 
 ## 2. Where things stand
 
-- **950 tests pass** (was 889 at the start of this session), PHPStan clean
+- **979 tests pass** (was 889 at the start of this session), PHPStan clean
   (level 1 + Larastan), Pint clean.
 - Accessibility automation (`node scripts/dostepnosc.mjs`): **everything green**
   — 0 axe violations across all four variants, 0 horizontal overflows,
@@ -102,6 +102,8 @@ All merged into `claude/kuking-development-muukrs` and pushed.
 | **W7-09** (part) | `npm audit --omit=dev` was auditing an empty list: `npm ls --all` sees 106 packages, `--omit=dev` sees 41, and the only top-level survivor was `@laravel/multiplex`. Flag removed. `continue-on-error` deliberately left alone — that is a policy call for the owner. |
 | **UI** | One page width everywhere (owner request); topbar, grid and footer aligned; post editing and deletion (an MVP gap, not a missing button); light theme always default with an explicit theme switch (**D-019**). |
 | **Diagnostics** | A 429 now leaves a trace naming the route that produced it. It used to leave none at all, which is why the owner's "429 on my first photo upload" could not be diagnosed. |
+| **#114** (P0) | `php artisan kuking:wac` counts Weekly Active Cooks from Postgres, excluding banned / `pending_delete` accounts, the host account and a configurable list of test accounts. The eligibility rule lives in one class used by both the command and the D1/D7/D30 cohort query. `docs/seo/ANALYTICS.md` §2.2 and §3.2 updated so the document does not say something different from the code. Two errors in the issue itself, caught by checking: `host_username` lives under `community`, not `account`, and the referenced `docs/research/ANALITYKA.md` does not exist. |
+| **#115** (P1) | `product_signals` table plus instrumentation for `photo_upload_failed` (per-reason) and `search_performed`. The search phrase is refused **by Postgres itself** — a CHECK constraint rejects any row whose `properties` contains `query_text`, verified with a real INSERT. Retention job at 04:00 drops rows older than 90 days. Also found: the issue says five error paths, the code has four `throw`s and one of them is unreachable; and a plain try/catch around the signal insert did **not** protect the parent operation on PostgreSQL, because a failed INSERT poisons the surrounding transaction — fixed with `DB::transaction()` (savepoint) and pinned by a test. |
 
 **The W7-02 warning, in full, because it is easy to misread as done:** removing
 `url` and `AWS_URL` from the configuration does **not** detach `cdn.kuking.pl`
@@ -172,11 +174,16 @@ matrix.
 
 ### 4.4 Still queued
 
+- **`docs/research/ANALITYKA.md` does not exist.** Issues #114 and #115 both
+  cite it — for the WAC query, the `product_signals` schema and the retention
+  policy — and it was never committed. Both were implementable anyway (the WAC
+  query is in `docs/seo/ANALYTICS.md` §2.1-2.2, the schema is spelled out in
+  #115's own body), but the references are dangling. Either commit the document
+  or fix the issues.
+
 - **#38** — rewrite UI copy per `docs/brand/COPY_STYLE.md`. The kit says
   "Jak wyszło innym?" where the app says "Komu wyszło"; that rename belongs
   here, not to the kit work.
-- **#114 / #115** — analytics: the `kuking:wac` command (P0) and
-  `photo_upload_failed` / `search_performed` instrumentation.
 - **UI kit v2 stage D** — search, profile/archive as a photo grid, the `/dodaj`
   flow, mobile menu. One finding from the survey is still open: **Settings are
   unreachable by touch on a phone** — the theme switch in the footer only
