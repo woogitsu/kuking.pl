@@ -140,14 +140,20 @@ fi
 # -----------------------------------------------------------------------------
 CHILD_PIDS=()
 
+# Kod wyjścia jest ARGUMENTEM, bo od niego zależy, czy Railway wskrzesi
+# kontener. Zatrzymanie sygnałem (deploy, skalowanie) to kod 0 — wszystko
+# w porządku, nie restartuj. Śmierć serwera WWW to kod 1 — to jest awaria
+# i kontener MA wrócić. Wcześniej obie sytuacje kończyły się zerem, więc
+# awaria wyglądała dla Railway jak zaplanowane wyłączenie.
 shutdown() {
-  log "otrzymano sygnał zatrzymania — zamykam procesy potomne..."
+  local kod="${1:-0}"
+  log "zamykam procesy potomne..."
   for pid in "${CHILD_PIDS[@]:-}"; do
     [[ -n "${pid}" ]] && kill -TERM "${pid}" 2>/dev/null || true
   done
   wait || true
-  log "zamknięte."
-  exit 0
+  log "zamknięte (kod ${kod})."
+  exit "${kod}"
 }
 
 # -----------------------------------------------------------------------------
@@ -161,8 +167,72 @@ start_web() {
   exec frankenphp run --config /etc/frankenphp/Caddyfile
 }
 
+# -----------------------------------------------------------------------------
+#  NADZORCA PROCESU, KTÓRY MA PRAWO SIĘ SKOŃCZYĆ
+#
+#  AWARIA 5–6 WRZEŚNIA 2026, 3,5 GODZINY NIEDOSTĘPNOŚCI — przeczytaj, zanim
+#  uprościsz cokolwiek poniżej.
+#
+#  `queue:work --max-time=3600` kończy się CELOWO po godzinie i wychodzi
+#  z kodem 0. Tak działa Laravel: długożyjący proces PHP puchnie w pamięci,
+#  więc worker planowo popełnia samobójstwo i ma zostać wskrzeszony.
+#
+#  Rola `all` czekała na potomków przez `wait -n`, czyli „skończył się
+#  KTÓRYKOLWIEK → zamykam kontener". Dokładnie godzinę po wdrożeniu worker
+#  zrobił to, do czego został zaprogramowany, i zabrał ze sobą serwer WWW:
+#
+#      Worker STOPPED  Maximum run time exceeded
+#      [entrypoint] jeden z procesów potomnych zakończył się — zamykam kontener
+#      shutdown complete  exit_code=0
+#
+#  Drugi błąd dołożył się do pierwszego: kontener wychodził z kodem 0, więc
+#  polityka restartu Railway uznała to za „zakończone poprawnie" i NIE
+#  wskrzesiła serwisu. Cloudflare oddawał 502 przez trzy i pół godziny.
+#
+#  Wniosek, który jest tu prawdziwą naprawą: „proces się skończył" i „proces
+#  padł" to DWIE RÓŻNE RZECZY. Wcześniej entrypoint traktował je tak samo —
+#  i dlatego naprawa harmonogramu (proc_open, PR #60) nie objęła kolejki,
+#  mimo że pułapka była ta sama.
+#
+#  Nadzorca: restartuje proces w miejscu, a eskaluje dopiero wtedy, gdy proces
+#  pada NATYCHMIAST i wielokrotnie — bo to już nie jest recykling, tylko
+#  awaria (padła baza, zły APP_KEY). Kontener wychodzi wtedy z kodem 1,
+#  żeby Railway zobaczył porażkę i zrestartował, zamiast uznać ciszę za sukces.
+# -----------------------------------------------------------------------------
+nadzoruj() {
+  local nazwa="$1"; shift
+  local minimalny_czas_zycia="${NADZOR_MIN_CZAS:-30}"
+  local limit_szybkich_smierci="${NADZOR_LIMIT:-5}"
+  local szybkie_smierci=0
+
+  while true; do
+    local start; start="$(date +%s)"
+    "$@" || true
+    local przezyl=$(( $(date +%s) - start ))
+
+    if (( przezyl >= minimalny_czas_zycia )); then
+      # Normalny recykling — worker po --max-time, harmonogram po przebiegu.
+      # Licznik zerujemy, bo poprzednie potknięcia już się nie liczą.
+      szybkie_smierci=0
+      log "${nazwa}: zakończył się po ${przezyl} s — uruchamiam ponownie"
+    else
+      szybkie_smierci=$(( szybkie_smierci + 1 ))
+      log "OSTRZEŻENIE: ${nazwa} padł po ${przezyl} s (${szybkie_smierci}/${limit_szybkich_smierci})"
+
+      if (( szybkie_smierci >= limit_szybkich_smierci )); then
+        log "BŁĄD: ${nazwa} pada natychmiast ${limit_szybkich_smierci} razy z rzędu — to nie jest recykling."
+        return 1
+      fi
+
+      # Odstęp rośnie z każdą porażką: 2, 4, 8, 16, 32 s. Bez tego pętla
+      # zalewa logi i bazę przy awarii, która i tak potrwa dłużej.
+      sleep $(( 2 ** szybkie_smierci ))
+    fi
+  done
+}
+
 start_worker() {
-  # --max-time=3600   → worker sam się kończy po godzinie; Railway go wskrzesza.
+  # --max-time=3600   → worker sam się kończy po godzinie; NADZORCA go wskrzesza.
   #                     Zapobiega wyciekom pamięci w długożyjącym PHP.
   # --max-jobs=500    → to samo, ale liczone jobami.
   # --memory=384      → zabij workera, gdy przekroczy 384 MB (limit RAM serwisu).
@@ -175,7 +245,17 @@ start_worker() {
   # w gd potrzebuje ~4 bajty na piksel. php.ini nie umie wartości domyślnych,
   # więc podajemy to flagą -d.
   log "start queue:work (memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M})"
-  exec php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
+
+  # Pętla także w roli OSOBNEGO serwisu, nie tylko w `all`. Bez niej kontener
+  # workera wychodzi co godzinę z kodem 0 i jego powrót zależy od tego, jak
+  # ustawiona jest polityka restartu w panelu — czyli od czegoś, czego nie ma
+  # w repozytorium i o czym nikt nie pamięta. Kolejka ma działać niezależnie
+  # od tego ustawienia.
+  nadzoruj "kolejka" jeden_przebieg_kolejki
+}
+
+jeden_przebieg_kolejki() {
+  php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
     --queue="${QUEUE_NAMES:-high,default,media,low}" \
     --tries="${QUEUE_TRIES:-3}" \
     --backoff="${QUEUE_BACKOFF:-10,60,300}" \
@@ -243,31 +323,45 @@ case "${ROLE}" in
     ;;
 
   all)
-    log "tryb ALL (staging/preview) — web + worker + scheduler w jednym kontenerze"
+    log "tryb ALL — web + worker + scheduler w jednym kontenerze"
     trap shutdown SIGTERM SIGINT
 
-    php /app/artisan queue:work \
-      --queue="${QUEUE_NAMES:-high,default,media,low}" \
-      --tries=3 --max-time=3600 --memory=256 --sleep=1 --no-interaction &
-    CHILD_PIDS+=("$!")
+    # Kolejka i harmonogram idą pod NADZORCĄ, bo oba KOŃCZĄ SIĘ PLANOWO:
+    # worker po --max-time, harmonogram po każdym przebiegu. Wcześniej ich
+    # normalne zakończenie kładło cały serwis — patrz opis przy nadzoruj().
+    nadzoruj "kolejka" jeden_przebieg_kolejki &
+    PID_KOLEJKI="$!"
+    CHILD_PIDS+=("${PID_KOLEJKI}")
 
-    # Ta sama pętla co w roli `scheduler` — NIE `schedule:work`, bo ten
-    # wymaga proc_open, wyłączonego w docker/php.ini. Uzasadnienie przy
-    # harmonogram_raz(). To był powód losowych 502 na produkcji: harmonogram
-    # padał od razu, a `wait -n` niżej kończył wtedy cały kontener.
+    # NIE `schedule:work`: ten wymaga proc_open, wyłączonego w docker/php.ini.
+    # Uzasadnienie przy harmonogram_raz().
     ( while true; do harmonogram_raz; sleep 60; done ) &
-    CHILD_PIDS+=("$!")
+    PID_HARMONOGRAMU="$!"
+    CHILD_PIDS+=("${PID_HARMONOGRAMU}")
 
     export SERVER_NAME=":${PORT}"
     frankenphp run --config /etc/frankenphp/Caddyfile &
-    CHILD_PIDS+=("$!")
+    PID_WWW="$!"
+    CHILD_PIDS+=("${PID_WWW}")
 
-    # Jeśli PADNIE KTÓRYKOLWIEK proces, kończymy cały kontener — Railway
-    # zrestartuje go zgodnie z restart policy. Lepsze niż cichy kontener
-    # bez workera, który zdaje healthcheck.
-    wait -n
-    log "jeden z procesów potomnych zakończył się — zamykam kontener"
-    shutdown
+    # ---------------------------------------------------------------------
+    #  CZEKAMY NA SERWER WWW, NIE NA „KTÓREGOKOLWIEK" (`wait -n`).
+    #
+    #  Serwer WWW jest jedynym procesem, który NIE MA PRAWA się skończyć:
+    #  jego wyjście zawsze znaczy awarię. Kolejka i harmonogram kończą się
+    #  planowo i wracają same, więc ich zakończenie nie może zamykać serwisu.
+    #
+    #  `wait -n` nie odróżniał tych dwóch sytuacji i dlatego dokładnie
+    #  godzinę po każdym wdrożeniu recykling workera gasił całą stronę.
+    # ---------------------------------------------------------------------
+    wait "${PID_WWW}"
+    KOD_WWW=$?
+    log "serwer WWW zakończył się (kod ${KOD_WWW}) — zamykam kontener"
+
+    # Kod NIEZEROWY jest tu istotny: przy zerowym Railway uznaje, że kontener
+    # „skończył pracę poprawnie", i nie restartuje go. Tak właśnie trzy i pół
+    # godziny niedostępności zaczęło się od procesu, który wyszedł z kodem 0.
+    shutdown 1
     ;;
 
   # Role pomocnicze, uruchamiane ręcznie przez `railway ssh` albo lokalnie.
