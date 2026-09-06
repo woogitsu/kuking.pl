@@ -26,7 +26,7 @@ class RecipePolicy
         // NIE wchodzi tutaj: to kara czasowa i tylko na publikowanie
         // („dostęp tylko do ODCZYTU" — `EnsureAccountIsActive`), więc treść
         // zawieszonej osoby zostaje widoczna tak jak jej profil.
-        if (! $isOwnerOrModerator && ! in_array($recipe->author->status, [User::STATUS_ACTIVE, User::STATUS_SUSPENDED], true)) {
+        if (! $isOwnerOrModerator && ! $recipe->author->jestDostepnyJakoAutor()) {
             return false;
         }
 

@@ -41,7 +41,7 @@ class TopicController extends Controller
             ->widoczneDla($widz)
             // Strona tematu POLECA treść nieznajomym, tak jak „Świeżo z Kuking”:
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
-            ->tylkoOdDostepnychAutorow()
+            ->tylkoOdAktywnychAutorow()
             ->with(['author.profile.avatar', 'media', 'topic'])
             ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
             ->latest('published_at')

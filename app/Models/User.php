@@ -9,6 +9,7 @@ use App\Notifications\UstawienieNowegoHasla;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -276,6 +277,51 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function mozeCzytac(): bool
     {
         return ! in_array($this->status, [self::STATUS_BANNED, self::STATUS_PENDING_DELETE], true);
+    }
+
+    /**
+     * Czy treści tej osoby wolno w ogóle komukolwiek pokazywać.
+     *
+     * TA SAMA REGUŁA CO `mozeCzytac()`, ale patrzona z drugiej strony: tamta
+     * odpowiada „czy ta osoba może czytać serwis", ta — „czy jej wpisy i
+     * przepisy mogą się komuś wyświetlić". Zbiór statusów jest ten sam
+     * (`banned` i `pending_delete` odpadają, `suspended` zostaje: kara za
+     * pisanie nie kasuje tego, co już napisał), więc jest jedna definicja.
+     *
+     * DLACZEGO OSOBNA NAZWA, SKORO WYNIK IDENTYCZNY
+     * Bo w kodzie występuje w innych miejscach i inaczej się czyta:
+     * `mozeCzytac()` pytamy o widza, `jestDostepnyJakoAutor()` o autora
+     * oglądanej treści. Pomylenie tych dwóch to dokładnie ten rodzaj błędu,
+     * którym są audytowe „ta sama reguła w dwóch warstwach".
+     */
+    public function jestDostepnyJakoAutor(): bool
+    {
+        return $this->mozeCzytac();
+    }
+
+    /**
+     * Ta sama reguła W ZAPYTANIU — i to jest cały powód istnienia tej metody
+     * (audyt W5-08, W5-09).
+     *
+     * Reguła „autor dostępny" żyła dotąd WYŁĄCZNIE jako powtórzony warunek
+     * w trzech politykach (`RecipePolicy`, `PostPolicy`, `UserPolicy`), po
+     * jednym `in_array(...)` w każdej. Polityka pilnuje jednak WEJŚCIA NA
+     * JEDNĄ TREŚĆ. Listy — zeszyt, mapa strony, profil — budują własne
+     * zapytania i tej reguły nie miały skąd wziąć.
+     *
+     * Skutek był taki, że wejście na `/przepisy/{slug}` autora zbanowanego
+     * dawało 403, ale ten sam przepis dalej stał w cudzym zeszycie z tytułem,
+     * nazwiskiem i miniaturą, a mapa strony podawała jego adres Google'owi.
+     * Treść była mniej dostępna przez drzwi frontowe niż przez okno.
+     *
+     * Jedno miejsce dla obu warstw. Kto doda czwarty status, poprawi tutaj —
+     * i poprawi wszędzie.
+     *
+     * @param  Builder<User>  $query
+     */
+    public function scopeDostepnyJakoAutor(Builder $query): void
+    {
+        $query->whereNotIn('status', [self::STATUS_BANNED, self::STATUS_PENDING_DELETE]);
     }
 
     public function isActive(): bool

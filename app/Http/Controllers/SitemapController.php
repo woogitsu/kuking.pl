@@ -32,8 +32,15 @@ class SitemapController extends Controller
                 ['loc' => route('rules'), 'priority' => '0.3', 'changefreq' => 'monthly'],
             ];
 
+            // `dostepnyJakoAutor()` OBOK `publiclyVisible()` — to są dwie
+            // różne granice (audyt W5-09). `publiclyVisible` koduje status
+            // i widoczność TREŚCI; nie wie nic o tym, że autor został
+            // zbanowany albo kasuje konto. Bez tego mapa podawała Google'owi
+            // adresy, pod którymi zwykły człowiek dostaje 403 — czyli
+            // zapraszała do drzwi, które sama zamknęła.
             Recipe::query()
                 ->publiclyVisible()
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->select(['id', 'slug', 'updated_at'])
                 ->orderByDesc('published_at')
                 ->chunkById(500, function ($recipes) use (&$urls): void {
@@ -49,6 +56,7 @@ class SitemapController extends Controller
 
             Post::query()
                 ->publiclyVisible()
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->whereNotNull('body')
                 ->select(['id', 'updated_at'])
                 ->orderByDesc('published_at')
@@ -63,7 +71,11 @@ class SitemapController extends Controller
                     }
                 });
 
+            // Profil też — `UserPolicy::viewProfile()` odrzuca konto
+            // zbanowane i kasowane tą samą regułą, więc mapa nie może go
+            // ogłaszać. Audyt tego wprost nie wymienił, ale to ten sam brak.
             Profile::query()
+                ->whereHas('user', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {

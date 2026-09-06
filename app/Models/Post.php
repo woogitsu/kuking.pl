@@ -153,9 +153,20 @@ class Post extends Model
      * treści — a „poprawne dane nigdy nie znikają" obowiązuje także wtedy,
      * gdy ktoś jest ukarany.
      *
+     * UWAGA NA NAZWĘ (audyt W5-08). Ten scope znaczy „tylko konta AKTYWNE"
+     * i jest WĘŻSZY niż granica z polityk, która dopuszcza też konto
+     * zawieszone (`User::jestDostepnyJakoAutor()`). Nazywał się wcześniej
+     * `tylkoOdDostepnychAutorow` i przez to czytał się jak ta druga reguła —
+     * a wtedy łatwo użyć go tam, gdzie potrzebna jest granica polityki,
+     * albo odwrotnie.
+     *
+     * Tu wąsko jest CELOWO: te zapytania polecają treści nieznajomym.
+     * Zawieszenie jest karą za pisanie i nie kasuje tego, co ktoś już
+     * napisał — ale nie jest też powodem, żeby akurat teraz go promować.
+     *
      * @param  Builder<Post>  $query
      */
-    public function scopeTylkoOdDostepnychAutorow(Builder $query): void
+    public function scopeTylkoOdAktywnychAutorow(Builder $query): void
     {
         $query->whereHas('author', fn ($autor) => $autor->where('status', User::STATUS_ACTIVE));
     }

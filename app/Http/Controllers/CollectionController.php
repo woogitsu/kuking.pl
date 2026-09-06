@@ -52,8 +52,15 @@ class CollectionController extends Controller
             // więc bez tego filtra publiczny zeszyt publikował cudze (albo
             // własne) treści prywatne, a przepis osoby zablokowanej wracał do
             // oglądającego przez cudzy pojemnik.
+            // `dostepnyJakoAutor()` OBOK `widoczneDla()` — to są dwie różne
+            // granice (audyt W5-08). `widoczneDla` liczy blokady i widoczność
+            // wpisaną przez autora; nie wie nic o tym, że autor został
+            // zbanowany albo kasuje konto. Bez tego przepis dawał 403 przy
+            // wejściu wprost, a w cudzym zeszycie stał dalej z tytułem,
+            // nazwiskiem autora i miniaturą.
             'recipes' => $collection->recipes()
                 ->widoczneDla($request->user())
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->with(['author.profile', 'heroMedia'])
                 ->paginate(12),
             // Wpisy przechodzą przez ten sam filtr widoczności co przepisy —
@@ -61,7 +68,7 @@ class CollectionController extends Controller
             // do której oglądający nie ma prawa.
             'posts' => $collection->posts()
                 ->widoczneDla($request->user())
-                ->tylkoOdDostepnychAutorow()
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->with(['author.profile.avatar', 'media'])
                 ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
                 ->get(),
@@ -75,7 +82,7 @@ class CollectionController extends Controller
             'niewidoczne' => max(
                 0,
                 $collection->posts()->count()
-                    - $collection->posts()->widoczneDla($request->user())->tylkoOdDostepnychAutorow()->count(),
+                    - $collection->posts()->widoczneDla($request->user())->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())->count(),
             ),
         ]);
     }

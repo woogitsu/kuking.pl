@@ -69,7 +69,7 @@ final class FollowingFeed
             ->published()
             ->whereIn('author_id', $viewer->following()->pluck('users.id')->all())
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
-            ->tylkoOdDostepnychAutorow()
+            ->tylkoOdAktywnychAutorow()
             ->doesntExist();
     }
 }

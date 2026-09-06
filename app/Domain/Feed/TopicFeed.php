@@ -39,7 +39,7 @@ final class TopicFeed
             // Ta sama macierz widoczności co wszędzie indziej: temat NIE MOŻE
             // być obejściem ustawień prywatności ani blokady.
             ->widoczneDla($viewer)
-            ->tylkoOdDostepnychAutorow()
+            ->tylkoOdAktywnychAutorow()
             ->with([
                 'author.profile.avatar',
                 'media',
@@ -71,7 +71,7 @@ final class TopicFeed
         return Post::query()
             ->whereIn('topic_id', $tematy)
             ->widoczneDla($viewer)
-            ->tylkoOdDostepnychAutorow()
+            ->tylkoOdAktywnychAutorow()
             ->exists();
     }
 

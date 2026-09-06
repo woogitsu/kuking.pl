@@ -10,7 +10,7 @@ class UserPolicy
 {
     public function viewProfile(?User $viewer, User $target): bool
     {
-        if (! in_array($target->status, [User::STATUS_ACTIVE, User::STATUS_SUSPENDED], true)) {
+        if (! $target->jestDostepnyJakoAutor()) {
             return $viewer !== null && $viewer->isModerator();
         }
 

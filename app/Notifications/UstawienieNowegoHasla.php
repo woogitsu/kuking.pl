@@ -6,6 +6,8 @@ namespace App\Notifications;
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
@@ -26,8 +28,27 @@ use Illuminate\Notifications\Messages\MailMessage;
  *
  * Bez gry słowem „kuKING" — D-009 zabrania jej w komunikatach technicznych.
  */
-final class UstawienieNowegoHasla extends ResetPassword
+final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
 {
+    /*
+     * KOLEJKA, NIE WYSYŁKA W ŻĄDANIU (audyt W3-13).
+     *
+     * Bez tego awaria serwera poczty zamieniała UDANĄ czynność w błąd 500.
+     * Przy rejestracji wyglądało to tak: konto i profil zapisują się
+     * w transakcji, transakcja się zatwierdza, potem leci `event(new
+     * Registered($user))`, a listener Laravela wysyła list SYNCHRONICZNIE.
+     * Wyjątek z SMTP przewracał więc żądanie PO utworzeniu konta — człowiek
+     * widział błąd, próbował jeszcze raz i słyszał „na ten adres jest już
+     * założone konto". Wyglądało to jak zgubiona rejestracja, choć konto
+     * istniało.
+     *
+     * Z kolejką list jest zadaniem: nieudana wysyłka ponawia się i zostawia
+     * ślad w `failed_jobs`, a czynność człowieka kończy się tak, jak
+     * powinna. Kolejka to `database`, ta sama co reszta — nic nowego
+     * nie dokładamy.
+     */
+    use Queueable;
+
     /**
      * @param  User  $notifiable
      */
