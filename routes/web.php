@@ -15,6 +15,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
+use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
@@ -75,6 +76,18 @@ Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+
+// Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
+// komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
+// bez wymogu zalogowania, a nie w grupie `auth` niżej. Zapis (odznaczanie
+// kroku) ma własny, niski limit zapytań: to POST na cudzy slug, więc nawet
+// bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
+// endpointów zmieniających stan.
+Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
+Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
+    ->middleware("throttle:{$limits['cooking_krok']}")
+    ->name('cooking.zaznacz');
+
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
 
