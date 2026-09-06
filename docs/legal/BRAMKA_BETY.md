@@ -1,0 +1,205 @@
+# Bramka bety — macierz zamknięcia fali 7
+
+> Audyt fali 7 kończy się jednym poleceniem: zamiast fali 8 zrobić **jedno
+> przejście domykające z dowodami** po każdym ustaleniu P0/P1, z oznaczeniem
+> ZAMKNIĘTE / CZĘŚCIOWE / OTWARTE / PRZYJĘTE, numerem commita i nazwą testu
+> regresyjnego. To jest ten dokument.
+>
+> Cytat z audytu, po co: *„This prevents »commit title says fixed« from becoming
+> the acceptance criterion"*.
+
+Stan na commit `1e9dd5c`, 6 września 2026. **979 testów przechodzi**, PHPStan
+czysty (poziom 1 + Larastan), Pint czysty, automat dostępności bez naruszeń.
+
+---
+
+## 1. Jak czytać tę tabelę
+
+- **ZAMKNIĘTE** — poprawka jest w kodzie, ma test regresyjny i test został
+  sprawdzony przez OBALENIE: poprawkę cofnięto, test naprawdę zaczerwieniał,
+  poprawkę przywrócono. Nie „powinien oblać", tylko „obalił się, sprawdziłem".
+
+  Dotyczy to również czterech ustaleń z poprzedniej sesji, których nie
+  domykałem osobiście. Obalenie dla nich zrobiłem przy pisaniu tej macierzy,
+  bo „poprzednia sesja mówi, że naprawiła" nie jest dowodem:
+
+  ```text
+  cofnięte: OdzyskanyFormularz, EnsureAccountIsActive, OdzyskiwalneDane
+  → 5 testów czerwonych (W7-03, W7-04, W7-12):
+      test_zawieszone_konto_nie_odklada_hasla_do_sesji
+      test_ekran_419_nie_oddaje_kodu_zapasowego_do_2fa
+      test_ekran_419_nie_oddaje_niczego_z_logowania_ani_ze_zmiany_hasla
+      test_nawet_na_trasie_tresci_pole_z_sekretem_nie_wraca
+      test_419_nie_odklada_niczego_z_logowania
+
+  cofnięte: PublishComment + trzy kontrolery
+  → BlokadaObowiazujeTakzePrzyOdpowiadaniuTest czerwony (W7-06)
+  ```
+
+  Zastrzeżenie do ostatniego: bez poprawki test kończy się BŁĘDEM
+  („Undefined array key »parent_id«"), a nie czystą nieudaną asercją — stara
+  ścieżka kodu nie znała tego pola. Łapie regresję, ale nie tak elegancko,
+  jak gdyby asertował zachowanie.
+- **CZĘŚCIOWE** — aplikacja domknięta, coś poza nią nie.
+- **OTWARTE** — nie zrobione, z podanym powodem.
+- **PRZYJĘTE** — świadoma decyzja, że tak zostaje.
+
+Kolumna „dowód" podaje plik testu, nie tylko commit. Commit mówi, co ktoś
+CHCIAŁ zrobić; test mówi, co zostanie sprawdzone przy następnej zmianie.
+
+---
+
+## 2. Macierz
+
+| ID | Waga | Stan | Commit | Dowód |
+|---|---|---|---|---|
+| **W7-01** | P0 warunkowy | **OTWARTE** | — | Zmierzone, nie naprawione. Patrz §3. |
+| **W7-02** | P0 | **CZĘŚCIOWE** | `58ed626`, scalone `a8b2861`, poprawka cache `ddfc79a` | `ZdjeciaChronioneNieWyciekajaTest` (23 testy). Patrz §4. |
+| **W7-03** | P1 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest` (6 testów) |
+| **W7-04** | P1 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest`, `StronyBleduPoPolskuTest` |
+| **W7-05** | P1 | **ZAMKNIĘTE** | `80c37c7` | `ZgloszenieNieUjawniaPrywatnejTresciTest` (11 testów) |
+| **W7-06** | P1/P2 | **ZAMKNIĘTE** | `79d4919` | `BlokadaObowiazujeTakzePrzyOdpowiadaniuTest` (3 testy) |
+| **W7-07** | P2 | **ZAMKNIĘTE** | `18842de` | `DataExportTest::test_powod_niepowodzenia_eksportu_nigdy_nie_zawiera_surowego_komunikatu_wyjatku` + `DataExportFailureReasonMigrationTest` |
+| **W7-08** | P1/P2 | **OTWARTE** | — | Poza repozytorium. Patrz §5. |
+| **W7-09** | P2 | **CZĘŚCIOWE** | `1e37019` | Zmierzone, nie oszacowane: `npm ls --all` 106 pakietów, z `--omit=dev` 41. Patrz §5. |
+| **W7-10** | P1 utajony | **PRZYJĘTE** | `80c37c7` | `ZgloszenieNielegalnejTresciTest::test_dwa_zgloszenia_tej_samej_tresci_od_dwoch_osob_nie_scalaja_sie` (test SEC-08 z audytu) |
+| **W7-11** | P2 | **ZAMKNIĘTE** | `fba0a39` | `CaddySpojnyZNaglowkamiLaravelaTest` (2 testy) |
+| **W7-12** | P2 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest` — `App\Support\OdzyskiwalneDane` jest jedyną odpowiedzią na „które pola wolno pokazać z powrotem", i jest to BIAŁA LISTA nazw tras, nie czarna lista nazw pól |
+
+---
+
+## 3. W7-01 — jedyne P0, które zostaje otwarte
+
+**Połowa aplikacyjna jest zmierzona, nie domniemana.** Przez prawdziwy stos
+middleware tego repozytorium:
+
+```text
+bez nagłówków              ip=127.0.0.1     (prawdziwy REMOTE_ADDR)
+X-Forwarded-For pojedynczy ip=203.0.113.7   (wartość od klienta)
+X-Forwarded-For łańcuch    ip=203.0.113.7   (pierwszy element wygrywa)
+XFF + CF-Connecting-IP     ip=203.0.113.7   (CF-Connecting-IP ignorowany)
+XFF + X-Forwarded-Proto    secure()=true    (i dlatego trustProxies jest potrzebne)
+
+limit logowania bez XFF        → blokada przy 6. próbie (limit to 5/min)
+limit logowania ze zmiennym XFF → NIE BLOKUJE ANI RAZU w ośmiu próbach
+```
+
+Czyli w aplikacji nagłówek od klienta w całości decyduje o `$request->ip()`,
+kasuje każdy limit liczony po adresie i wybiera wartość hashowaną do
+`audit_log.ip_hash`.
+
+**Czego z kontenera nie da się rozstrzygnąć:** czy Cloudflare albo Railway
+czyszczą podstawiony `X-Forwarded-For`, zanim dojdzie do kontenera. To jest test
+SEC-01 z audytu i wymaga stagingu.
+
+**Czego NIE robić:** usuwać `trustProxies(at: '*')`. Komentarz w
+`bootstrap/app.php` ma rację co do `X-Forwarded-Proto` — bez niego
+`$request->secure()` jest fałszem, `url()` generuje `http://`, a Cloudflare
+wpada w pętlę przekierowań. Bezpieczniejszy projekt ufa kanonicznemu,
+jednowartościowemu nagłówkowi zamiast dowolnego łańcucha, ale ma niewiadomą
+infrastrukturalną: środowiska preview (`*.up.railway.app`) **nie mają przed sobą
+Cloudflare** (`docs/infra/INFRA_DECISION.md`), więc `CF-Connecting-IP` byłby tam
+równie fałszowalny. To jest decyzja właściciela.
+
+---
+
+## 4. W7-02 — dlaczego CZĘŚCIOWE, a nie ZAMKNIĘTE
+
+W aplikacji zamknięte i dobrze przetestowane: adresem zdjęcia jest trasa, która
+pyta Policy treści nadrzędnej i przekierowuje na krótko podpisany adres.
+Odmowa to 404 nieodróżnialne od braku. Domyka to również starsze ustalenie
+**W5-05** (ukrycie moderacyjne nie odbierało bajtów z CDN).
+
+**Poza aplikacją NIE.** Usunięcie `url` i `AWS_URL` z konfiguracji **nie
+zdejmuje `cdn.kuking.pl` z bucketu wariantów po stronie Cloudflare**. Dopóki ta
+domena tam wskazuje, każdy wcześniej skopiowany adres działa i wyciek trwa.
+To jest **issue #120** i należy do właściciela. Do tego czasu W7-02 nie wolno
+raportować jako zamknięte.
+
+Drugi otwarty wątek: `r2_legacy` jest nadal publiczny, celowo, do zakończenia
+`kuking:przenies-zdjecia`. Po tej zmianie to jedyny publiczny adres zdjęć
+w serwisie.
+
+---
+
+## 5. W7-08 i W7-09 — co da się z repozytorium, a co nie
+
+**Zrobione w repozytorium** (`1e37019`): `npm audit` przestał audytować pustą
+listę. `package.json` nie ma sekcji `dependencies` w ogóle — Vite, Tailwind
+i `laravel-vite-plugin` siedzą w `devDependencies` i to one produkują CSS oraz
+JS, który dostaje przeglądarka. Flaga `--omit=dev` zostawiała 41 pakietów ze
+106, a jedynym pakietem najwyższego poziomu był `@laravel/multiplex`. Krok
+zawsze świecił na zielono — najgorszy rodzaj kontroli, bo wygląda jak działająca.
+
+**Świadomie NIE zmienione:** `continue-on-error: true` na audycie zależności.
+Uzasadnienie z nagłówka joba jest trafne (publikacja CVE w zależności
+tranzytywnej nie może zablokować pilnego hotfiksa), a zmiana polityki
+blokowania to decyzja właściciela, nie agenta.
+
+**Poza repozytorium, do zrobienia przez właściciela:**
+
+1. ochrona gałęzi `main` (GitHub nie trzyma tego w plikach repo — nie ma
+   `.github/settings.yml` ani rulesets-as-code);
+2. wymóg Pull Requesta dla gałęzi naprawczych (konsekwencja punktu 1);
+3. `KUKING_WAIT_FOR_CI=true` faktycznie zastosowane w Railway — kod
+   (`.railway/railway.ts`) tylko deklaruje tę wartość;
+4. przypięcie akcji GitHub i obrazów bazowych do SHA/digestów — wymaga dostępu
+   do rejestrów, którego ten kontener nie ma. Lista wszystkich wystąpień:
+   `ci.yml` (`checkout@v7`, `setup-php@v2`, `cache@v6`, `setup-node@v7`,
+   `upload-artifact@v7`, `setup-buildx-action@v4`, `build-push-action@v7`),
+   `deploy.yml` (`action-release@v3`), `railway-iac.yml` (`config@v1`),
+   `Dockerfile` (`node:22-bookworm-slim`, `dunglas/frankenphp:1-php8.4-trixie`
+   ×2, `composer:2`), `ci.yml` (`postgres:18-alpine` w dwóch jobach).
+
+---
+
+## 6. Czego ta macierz NIE obejmuje
+
+**Fale 1–6.** Audyt prosi o przejście domykające po każdym P0/P1 ze WSZYSTKICH
+siedmiu fal. W sesji, która to pisała, dostępny był wyłącznie plik audytu fali 7
+— pozostałych sześciu nikt nie przesłał i nie ma ich w repozytorium. Wypisanie
+ich z pamięci albo z drugiej ręki byłoby dokładnie tym, przed czym audyt
+ostrzega. **Poproś właściciela o fale 1–6 i dopisz je tutaj.**
+
+Znane, niezamknięte pozostałości z tamtych fal (z notatki przekazania, jako
+lista do sprawdzenia, nie jako ocena): W3-03, W3-06, W3-07, W3-10, W3-11,
+W3-15..W3-18; W5-03, W5-04, W5-06, W5-07, W5-10..W5-25; W6-03, W6-04, W6-08,
+W6-09, W6-10, W6-11, W6-13..W6-17. **W5-05 jest zamknięte** przez W7-02.
+
+---
+
+## 7. Znalezione przy domykaniu, poza zakresem audytu
+
+Rzeczy, których fala 7 nie wymieniła, a które wyszły przy jej zamykaniu.
+Wszystkie naprawione i przypięte testami, ale warto je znać, bo pokazują, gdzie
+ten kod pęka:
+
+- **Telemetria mogła wywrócić wgrywanie zdjęcia.** Samo `try/catch` wokół
+  zapisu sygnału nie chroni operacji nadrzędnej na PostgreSQL: nieudany INSERT
+  w trakcie otaczającej transakcji zatruwa ją całą. Naprawione przez
+  `DB::transaction()` (SAVEPOINT).
+- **Cache przekierowania do zdjęcia** miał `max-age` równy ważności podpisu
+  w adresie docelowym, więc 302 wyjęte z cache pod koniec okna prowadziło pod
+  adres już wygasły. Teraz połowa okna.
+- **Testy w `git worktree` nie wykonywały nowego kodu.** Dowiązany `vendor`
+  plus `optimize-autoloader` znaczy zamrożoną mapę klas ze ścieżkami
+  bezwzględnymi do głównego katalogu. Naprawione w `tests/bootstrap.php`.
+  Skutek dla tej macierzy: część wcześniejszych „zielonych" przebiegów agentów
+  była bezwartościowa i **wszystkie testy w tabeli wyżej zostały puszczone
+  ponownie po tej naprawie**.
+- **Sześć naruszeń kontrastu w motywie ciemnym było artefaktem pomiaru** —
+  axe czytał kolory w połowie animacji przełączenia motywu. Paleta nie została
+  ruszona. Zapisane tutaj, bo następny automat równie łatwo zgłosi to samo.
+
+---
+
+## 8. Decyzja o becie — czego brakuje
+
+Zanim ktokolwiek powie „można otwierać":
+
+1. **#120** — dowód, że produkcyjny bucket wariantów nie jest publicznie
+   osiągalny. Bez tego W7-02 jest naprawione tylko w kodzie.
+2. **SEC-01 na stagingu** — rozstrzygnięcie W7-01.
+3. **Fale 1–6 w tej macierzy** (§6).
+4. **Ochrona `main` i bramka CI** (§5) — audyt wymienia to wprost w sekcji
+   „Release safety".
