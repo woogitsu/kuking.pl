@@ -9,7 +9,7 @@
     </p>
 
     <h1>Co lubisz gotować?</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Zaznacz, co Cię interesuje. Z tych tematów zbudujemy Twoją stronę
         główną, żeby nie była pusta, zanim kogoś zaobserwujesz. Zawsze możesz
         to zmienić w ustawieniach. Możesz też nic nie zaznaczać i przejść dalej.

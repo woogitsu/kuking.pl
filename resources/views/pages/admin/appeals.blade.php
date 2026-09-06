@@ -18,7 +18,7 @@
 
     @forelse($appeals as $appeal)
         @php($decyzja = $appeal->moderationAction)
-        <article class="card" style="margin-bottom:var(--spacing-5);">
+        <article class="card mb-5">
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">
                 Odwołanie od decyzji „{{ $decyzja->label() }}”
             </h2>
@@ -33,7 +33,7 @@
             </p>
 
             <h3 style="font-size:var(--text-title-sm);">Co pisze ta osoba</h3>
-            <p style="white-space:pre-line;">{{ $appeal->body }}</p>
+            <p class="whitespace-pre-line">{{ $appeal->body }}</p>
 
             <h3 style="font-size:var(--text-title-sm);">Decyzja, od której się odwołuje</h3>
             <p class="meta">
@@ -44,18 +44,18 @@
             </p>
             {{-- DOKŁADNIE to, co ta osoba wtedy dostała. Bez tego nie da się
                  ocenić, czy pisze o tym samym, co jej powiedzieliśmy. --}}
-            <p style="white-space:pre-line;">
+            <p class="whitespace-pre-line">
                 Wysłane wtedy do niej: {{ $decyzja->user_message ?: '— (nie napisano nic)' }}
             </p>
             @if($decyzja->note)
-                <p class="meta" style="white-space:pre-line;">Notatka wewnętrzna: {{ $decyzja->note }}</p>
+                <p class="meta whitespace-pre-line">Notatka wewnętrzna: {{ $decyzja->note }}</p>
             @endif
 
             @if($appeal->isOpen())
                 <form method="POST" action="{{ route('admin.appeals.resolve', $appeal) }}">
                     @csrf
-                    <fieldset style="border:0; padding:0;">
-                        <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Odpowiedź</legend>
+                    <fieldset class="border-0 p-0">
+                        <legend class="font-bold mb-3">Odpowiedź</legend>
                         <div class="choice-grid">
                             <label class="choice">
                                 <input type="radio" name="outcome" value="upheld"
@@ -79,7 +79,7 @@
                         od jej podjęcia (podręcznik moderacji, sekcja 3).
                     </p>
 
-                    <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Wyślij odpowiedź</button>
+                    <button class="btn btn-primary mt-4" type="submit">Wyślij odpowiedź</button>
                 </form>
             @else
                 <h3 style="font-size:var(--text-title-sm);">Odpowiedź</h3>
@@ -88,12 +88,12 @@
                     {{ \App\Support\Czas::dataLubNic($appeal->decided_at, 'j F Y, H:i') }} ·
                     {{ $appeal->decider?->displayName() ?? 'usunięte konto' }}
                 </p>
-                <p style="white-space:pre-line;">{{ $appeal->decision_note }}</p>
+                <p class="whitespace-pre-line">{{ $appeal->decision_note }}</p>
             @endif
         </article>
     @empty
         <x-empty-state title="Nic tu nie ma">Brak odwołań w tej kategorii.</x-empty-state>
     @endforelse
 
-    <div style="margin-top:var(--spacing-6);">{{ $appeals->links() }}</div>
+    <div class="mt-6">{{ $appeals->links() }}</div>
 </x-layout>

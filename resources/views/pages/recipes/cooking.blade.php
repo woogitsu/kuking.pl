@@ -29,7 +29,7 @@
             </a>
         </div>
 
-        <p class="meta" style="margin:0;">{{ $recipe->title }}</p>
+        <p class="meta m-0">{{ $recipe->title }}</p>
 
         {{--
             Składniki dostępne bez wychodzenia z trybu (issue #24) — natywny
@@ -156,7 +156,7 @@
                 o ekran logowania.
             --}}
             <section class="cook-finish">
-                <h2 style="margin-top:0;">To już ostatni krok.</h2>
+                <h2 class="mt-0">To już ostatni krok.</h2>
                 @auth
                     <p>Skończyłeś/aś gotować? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
                     <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>

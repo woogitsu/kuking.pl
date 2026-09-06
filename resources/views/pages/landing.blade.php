@@ -15,7 +15,7 @@
         </div>
     </section>
 
-    <section class="card" style="margin-bottom:var(--spacing-8);">
+    <section class="card mb-8">
         <h2>Trzy rzeczy, które Kuking robi dla Ciebie</h2>
         <ul style="padding-left:var(--spacing-6);">
             <li><strong>Twoje przepisy nie zginą.</strong> Zeszyt z przepisami można zgubić, a telefon się psuje. Tu zostaje wszystko — i możesz to w każdej chwili pobrać na swój komputer.</li>
@@ -27,7 +27,7 @@
     <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
 
     <h2>Świeżo z Kuking</h2>
-    <p class="meta" style="margin-bottom:var(--spacing-5);">To, co ludzie ugotowali w ostatnich dniach.</p>
+    <p class="meta mb-5">To, co ludzie ugotowali w ostatnich dniach.</p>
 
     @if($posts->count() === 0)
         <x-empty-state title="Kuking dopiero się zaczyna">

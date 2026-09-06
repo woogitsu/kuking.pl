@@ -8,9 +8,9 @@
 <article class="card">
     <div style="display:flex; gap:var(--spacing-3); align-items:center; margin-bottom:var(--spacing-3);">
         <x-avatar :user="$event->user" :size="44" />
-        <div style="min-width:0;">
+        <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $event->user->profile->username) }}">{{ $event->user->displayName() }}</a>
-            <p class="meta" style="margin:0;">
+            <p class="meta m-0">
                 ugotowała/ugotował
                 <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}</time>
             </p>
@@ -61,7 +61,7 @@
         @endif
     </ul>
 
-    <p style="margin-top:var(--spacing-3);">
+    <p class="mt-3">
         <a class="btn btn-secondary" href="{{ route('cooked.show', $event) }}">Zobacz i skomentuj</a>
     </p>
 </article>

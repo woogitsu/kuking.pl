@@ -1,6 +1,6 @@
 <x-layout title="Zeszyt" :noindex="true">
     <h1>Twój zeszyt</h1>
-    <p style="margin-bottom:var(--spacing-5);">Przepisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
+    <p class="mb-5">Przepisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
          komunikat „Masz już zeszyt o tej nazwie” nie miał gdzie się pokazać:
@@ -16,15 +16,15 @@
         <div class="stack">
             @foreach($collections as $collection)
                 <article class="card">
-                    <h2 style="margin-top:0;">
+                    <h2 class="mt-0">
                         <a href="{{ route('collections.show', $collection) }}" style="color:var(--color-ink);">{{ $collection->name }}</a>
                     </h2>
-                    <p class="meta" style="margin:0;">
+                    <p class="meta m-0">
                         {{ $collection->recipes_count }} {{ $collection->recipes_count === 1 ? 'przepis' : 'przepisów' }}
                         · {{ $collection->isPublic() ? 'Widoczny dla wszystkich' : 'Tylko dla Ciebie' }}
                     </p>
                     @if($collection->description)
-                        <p style="margin-top:var(--spacing-3);">{{ $collection->description }}</p>
+                        <p class="mt-3">{{ $collection->description }}</p>
                     @endif
                 </article>
             @endforeach
@@ -34,14 +34,14 @@
     {{-- Po nieudanej walidacji formularz zostaje ROZWINIĘTY — inaczej człowiek
          wraca na stronę, na której nic się nie stało, a jego tekst jest
          schowany pod zwiniętym „Załóż nowy zeszyt”. --}}
-    <details class="card" style="margin-top:var(--spacing-8);" {{ $errors->any() ? 'open' : '' }}>
-        <summary class="btn btn-secondary" style="display:inline-flex;">Załóż nowy zeszyt</summary>
-        <form method="POST" action="{{ route('collections.store') }}" style="margin-top:var(--spacing-4);">
+    <details class="card mt-8" {{ $errors->any() ? 'open' : '' }}>
+        <summary class="btn btn-secondary inline-flex">Załóż nowy zeszyt</summary>
+        <form class="mt-4" method="POST" action="{{ route('collections.store') }}">
             @csrf
             <x-field name="name" label="Nazwa zeszytu" required placeholder="Na święta" />
             <x-field name="description" label="Krótki opis" type="textarea" :rows="2" />
             <fieldset style="border:0; padding:0; margin-top:var(--spacing-4);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Kto ma widzieć ten zeszyt?</legend>
+                <legend class="font-bold mb-3">Kto ma widzieć ten zeszyt?</legend>
                 <div class="choice-grid">
                     <label class="choice">
                         <input type="radio" name="visibility" value="private" checked>
@@ -53,7 +53,7 @@
                     </label>
                 </div>
             </fieldset>
-            <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Załóż zeszyt</button>
+            <button class="btn btn-primary mt-4" type="submit">Załóż zeszyt</button>
         </form>
     </details>
 </x-layout>

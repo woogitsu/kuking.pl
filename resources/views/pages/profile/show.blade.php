@@ -28,7 +28,7 @@
         @endif
     </x-slot:head>
 
-    <header class="card" style="margin-bottom:var(--spacing-6);">
+    <header class="card mb-6">
         <div style="display:flex; gap:var(--spacing-4); align-items:flex-start; flex-wrap:wrap;">
             <x-avatar :user="$owner" :size="88" />
             <div style="flex:1; min-width:14rem;">
@@ -41,12 +41,12 @@
                     <p style="margin:0 0 var(--spacing-3);"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
                 @endif
                 @if($p->bio)
-                    <p style="white-space:pre-line;">{{ $p->bio }}</p>
+                    <p class="whitespace-pre-line">{{ $p->bio }}</p>
                 @endif
             </div>
         </div>
 
-        <ul class="stat-row" style="margin-top:var(--spacing-5);">
+        <ul class="stat-row mt-5">
             <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
             <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
             <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
@@ -146,12 +146,12 @@
                     @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
-                        <h2 style="margin-top:var(--spacing-8);">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
+                        <h2 class="mt-8">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
                     @endif
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <div style="margin-top:var(--spacing-6);">{{ $posts->links() }}</div>
+            <div class="mt-6">{{ $posts->links() }}</div>
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -164,7 +164,7 @@
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <div style="margin-top:var(--spacing-6);">{{ $recipes->links() }}</div>
+            <div class="mt-6">{{ $recipes->links() }}</div>
         @endif
     @else
         @if($cookedEvents->count() === 0)
@@ -179,7 +179,7 @@
                     <x-cooked-card :event="$event" :showRecipe="true" />
                 @endforeach
             </div>
-            <div style="margin-top:var(--spacing-6);">{{ $cookedEvents->links() }}</div>
+            <div class="mt-6">{{ $cookedEvents->links() }}</div>
         @endif
     @endif
 </x-layout>

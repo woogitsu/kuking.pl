@@ -51,7 +51,7 @@
         </div>
     </form>
 
-    <p style="margin-top:var(--spacing-6);">
+    <p class="mt-6">
         Nie pamiętasz hasła i nie masz dostępu do skrzynki? Napisz do nas na
         {{ config('kuking.community.contact_email') }} — odwołanie złożone e-mailem
         też rozpatrujemy.

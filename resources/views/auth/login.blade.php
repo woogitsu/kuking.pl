@@ -18,7 +18,7 @@
         </div>
     </form>
 
-    <p style="margin-top:var(--spacing-6);">Nie masz konta? <a href="{{ route('register') }}">Załóż konto</a>.</p>
+    <p class="mt-6">Nie masz konta? <a href="{{ route('register') }}">Załóż konto</a>.</p>
 
     {{--
         Droga odwoławcza dla osoby, której konto zamknięto (issue #10, DSA art. 20).

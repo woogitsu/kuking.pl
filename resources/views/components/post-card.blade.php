@@ -25,9 +25,9 @@
         <a href="{{ route('profile.show', $author->profile->username) }}" aria-hidden="true" tabindex="-1">
             <x-avatar :user="$author" :size="52" />
         </a>
-        <div style="min-width:0;">
+        <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
-            <p class="meta" style="margin:0;">
+            <p class="meta m-0">
                 <a href="{{ $post->url() }}" style="color:inherit;">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
                 </a>

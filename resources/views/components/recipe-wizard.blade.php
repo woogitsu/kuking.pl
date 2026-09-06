@@ -810,7 +810,7 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 1 z {{ $this::STEPS }}: o przepisie</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Wystarczy nazwa, żeby ruszyć dalej.
                 Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz.
             </p>
@@ -826,7 +826,7 @@ new class extends Component
                        aria-describedby="f-heroPhoto-help">
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
-                    <p class="meta" style="margin-top:var(--spacing-2);">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
+                    <p class="meta mt-2">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
                 @endif
             </div>
 
@@ -843,8 +843,8 @@ new class extends Component
                          :value="$cook_minutes" :min="0" :max="10080" />
             </div>
 
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Jak trudny jest ten przepis?</legend>
+            <fieldset class="border-0 p-0 mt-6">
+                <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
                         <label class="choice">
@@ -856,8 +856,8 @@ new class extends Component
                 @error('difficulty')<span class="field-error">{{ $message }}</span>@enderror
             </fieldset>
 
-            <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-                <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Kto ma widzieć ten przepis?</legend>
+            <fieldset class="border-0 p-0 mt-6">
+                <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
                 <div class="choice-grid">
                     <label class="choice">
                         <input type="radio" wire:model="visibility" value="public">
@@ -877,12 +877,12 @@ new class extends Component
 
             <div class="form-section">
                 <h3 class="form-section-title">Skąd ten przepis</h3>
-                <p class="meta" style="margin-bottom:var(--spacing-4);">
+                <p class="meta mb-4">
                     To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.
                 </p>
 
-                <fieldset style="border:0; padding:0;">
-                    <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Ten przepis jest…</legend>
+                <fieldset class="border-0 p-0">
+                    <legend class="font-bold mb-3">Ten przepis jest…</legend>
                     <div class="choice-grid">
                         @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                             <label class="choice">
@@ -922,7 +922,7 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 2 z {{ $this::STEPS }}: składniki</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
                 {{-- Zdanie wyżej jest wprost z docs/brand/COPY_STYLE.md, §6 „Przepis”. --}}
@@ -930,7 +930,7 @@ new class extends Component
                 Przyciski „Przenieś w górę” i „Przenieś w dół” są nieaktywne tam, gdzie nie ma już gdzie przenosić.
             </p>
 
-            @error('ingredients')<p class="field-error" style="margin-bottom:var(--spacing-4);">{{ $message }}</p>@enderror
+            @error('ingredients')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             @foreach($ingredients as $index => $row)
                 <div class="wizard-row" wire:key="skladnik-{{ $row['_key'] ?? $index }}">
@@ -957,7 +957,7 @@ new class extends Component
                         kosmetyczny — to moment, w którym przepis przestaje
                         wyglądać na napisany przez człowieka.
                     --}}
-                    <label class="choice" style="margin-top:var(--spacing-3);">
+                    <label class="choice mt-3">
                         <input type="checkbox" wire:model="ingredients.{{ $index }}.no_amount">
                         <span>
                             <span class="choice-label">Bez ilości</span>
@@ -994,13 +994,13 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 3 z {{ $this::STEPS }}: przygotowanie</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
                 Puste wiersze zostaną pominięte.
                 Przyciski „Przenieś w górę” i „Przenieś w dół” są nieaktywne tam, gdzie nie ma już gdzie przenosić.
             </p>
 
-            @error('steps')<p class="field-error" style="margin-bottom:var(--spacing-4);">{{ $message }}</p>@enderror
+            @error('steps')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             @foreach($steps as $index => $row)
                 <div class="wizard-row" wire:key="krok-{{ $row['_key'] ?? $index }}">
@@ -1037,11 +1037,11 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Podgląd: tak zobaczą to inni</h2>
-            <p class="meta" style="margin-bottom:var(--spacing-4);">
+            <p class="meta mb-4">
                 Sprawdź spokojnie. Jeśli coś jest nie tak, wróć przyciskiem „Wstecz” — nic nie zginie.
             </p>
 
-            @error('publikacja')<p class="field-error" style="margin-bottom:var(--spacing-4);">{{ $message }}</p>@enderror
+            @error('publikacja')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             <article class="stack">
                 <h3 style="font-size:var(--text-title); margin:0;">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>

@@ -24,7 +24,7 @@
             dla osoby gotującej od czterdziestu lat, nie dla osoby, która czyta
             ustawienia.
         --}}
-        <label class="choice" for="f-wspomnienia" style="margin-top:var(--spacing-4);">
+        <label class="choice mt-4" for="f-wspomnienia">
             <input id="f-wspomnienia" type="checkbox" name="memories_enabled" value="1" @checked(auth()->user()->memories_enabled)>
             <span>
                 <span class="choice-label">Przypominaj mi, co gotowałam w tym dniu w poprzednich latach</span>
@@ -32,10 +32,10 @@
             </span>
         </label>
 
-        <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Zapisz</button>
+        <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
     </form>
 
-    <section style="margin-top:var(--spacing-8);">
+    <section class="mt-8">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty())
             <p class="meta">Nikogo nie zablokowałaś.</p>
@@ -56,7 +56,7 @@
         @endif
     </section>
 
-    <section style="margin-top:var(--spacing-8);">
+    <section class="mt-8">
         <h2>Kto widzi Twoje treści</h2>
         <p>
             Przy każdym wpisie i przepisie sama decydujesz: wszyscy, tylko osoby które Cię obserwują,

@@ -44,7 +44,7 @@
     </div>
 
     <div class="karta">
-        <p style="margin-bottom:0;">
+        <p class="mb-0">
             To jest kopia wszystkiego, co zapisałaś w Kuking: przepisy, wpisy,
             zdjęcia i notatki. Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś

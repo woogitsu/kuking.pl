@@ -1,6 +1,6 @@
 <x-layout title="Nie pamiętam hasła" :noindex="true">
     <h1>Nie pamiętam hasła</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Podaj adres e-mail, na który zakładałaś konto. Wyślemy na niego wiadomość z linkiem do ustawienia nowego hasła.
     </p>
 
@@ -15,7 +15,7 @@
         </div>
     </form>
 
-    <p class="notice" style="margin-top:var(--spacing-6);">
+    <p class="notice mt-6">
         <strong>Wiadomość nie przychodzi?</strong> Sprawdź folder „Spam” albo „Oferty”.
         Jeśli nadal nic nie ma, napisz do nas: {{ config('kuking.community.contact_email') }}
     </p>

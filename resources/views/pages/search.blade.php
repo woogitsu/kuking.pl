@@ -12,10 +12,10 @@
                    aria-describedby="f-q-help" placeholder="żurek, pierogi, Basia">
         </div>
         <input type="hidden" name="sekcja" value="{{ $section }}">
-        <button class="btn btn-primary" type="submit" style="margin-top:var(--spacing-4);">Szukaj</button>
+        <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
     </form>
 
-    <nav class="tabs" style="margin-top:var(--spacing-6);" aria-label="Co przeszukujemy">
+    <nav class="tabs mt-6" aria-label="Co przeszukujemy">
         <a class="tab" href="{{ route('search', ['q' => $phrase, 'sekcja' => 'przepisy']) }}" @if($section === 'przepisy') aria-current="page" @endif>Przepisy</a>
         <a class="tab" href="{{ route('search', ['q' => $phrase, 'sekcja' => 'ludzie']) }}" @if($section === 'ludzie') aria-current="page" @endif>Ludzie</a>
     </nav>
@@ -28,7 +28,7 @@
                 Nie ma jeszcze przepisu, który by pasował do „{{ $phrase }}”.
                 Może to Ty go dodasz?
             </x-empty-state>
-            <p style="text-align:center;"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
+            <p class="text-center"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
         @else
             <p class="meta">
                 @if($jestWiecej ?? false)
@@ -46,7 +46,7 @@
             @if($jestWiecej ?? false)
                 {{-- Zwykły odnośnik, nie przycisk sterowany skryptem: dalsze
                      wyniki muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
-                <p style="text-align:center;">
+                <p class="text-center">
                     <a class="btn btn-quiet"
                        href="{{ route('search', ['q' => $phrase, 'sekcja' => 'przepisy', 'ile' => $nastepneIle]) }}">
                         Pokaż więcej przepisów
@@ -71,7 +71,7 @@
                         <x-avatar :user="$person->user" :size="52" />
                         <div>
                             <a class="author-name" href="{{ route('profile.show', $person->username) }}">{{ $person->display_name }}</a>
-                            <p class="meta" style="margin:0;">&#64;{{ $person->username }} @if($person->speciality) · {{ $person->speciality }} @endif</p>
+                            <p class="meta m-0">&#64;{{ $person->username }} @if($person->speciality) · {{ $person->speciality }} @endif</p>
                         </div>
                     </div>
                 @endforeach
@@ -80,7 +80,7 @@
             @if($jestWiecejOsob ?? false)
                 {{-- Ten sam zwykły odnośnik co przy przepisach: dalsze wyniki
                      muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
-                <p style="text-align:center;">
+                <p class="text-center">
                     <a class="btn btn-quiet"
                        href="{{ route('search', ['q' => $phrase, 'sekcja' => 'ludzie', 'ile' => $nastepneIle]) }}">
                         Pokaż więcej osób

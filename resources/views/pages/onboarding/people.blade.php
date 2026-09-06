@@ -9,7 +9,7 @@
     </p>
 
     <h1>Kogo chcesz obserwować?</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         To są ludzie, którzy tu gotują. Zaznacz, kogo chcesz widzieć na swojej stronie głównej.
         Zawsze możesz to zmienić.
     </p>

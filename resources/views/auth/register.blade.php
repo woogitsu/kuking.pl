@@ -1,6 +1,6 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
     <h1>Zostań <x-kuking-word forma="iem" /></h1>
-    <p style="margin-bottom:var(--spacing-5);">Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia.</p>
+    <p class="mb-5">Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia.</p>
 
     <x-error-summary />
 
@@ -23,7 +23,7 @@
                  autocomplete="new-password"
                  help="Co najmniej 10 znaków. Najprościej wpisać trzy słowa razem, na przykład: zielonapietruszkarano." />
 
-        <div class="field @error('age_confirmed') has-error @enderror" style="margin-top:var(--spacing-6);">
+        <div class="field @error('age_confirmed') has-error @enderror mt-6">
             <label class="choice" for="f-age_confirmed">
                 <input id="f-age_confirmed" type="checkbox" name="age_confirmed" value="1" @checked(old('age_confirmed'))>
                 <span class="choice-label">Mam co najmniej {{ config('kuking.account.min_age') }} lat</span>
@@ -47,5 +47,5 @@
         </div>
     </form>
 
-    <p style="margin-top:var(--spacing-6);">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+    <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

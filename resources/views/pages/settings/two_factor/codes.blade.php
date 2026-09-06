@@ -7,17 +7,17 @@
 <x-layout title="Zapisz swoje kody zapasowe" :noindex="true">
     <h1>Zapisz swoje kody zapasowe</h1>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Weryfikacja dwuetapowa jest już włączona. Te osiem kodów pokazujemy <strong>tylko teraz</strong> —
         po opuszczeniu tej strony nie zobaczysz ich już nigdzie w serwisie. Zapisz je albo wydrukuj
         i schowaj w bezpiecznym miejscu.
     </p>
 
-    <div class="card" style="margin-bottom:var(--spacing-5);">
-        <p style="margin-top:0;"><strong>Do czego służą?</strong> Jeśli zgubisz telefon albo stracisz dostęp
+    <div class="card mb-5">
+        <p class="mt-0"><strong>Do czego służą?</strong> Jeśli zgubisz telefon albo stracisz dostęp
             do aplikacji uwierzytelniającej, każdy z tych kodów pozwala zalogować się <strong>zamiast</strong>
             kodu z aplikacji. Bez nich, po zgubieniu telefonu, konto zostaje zamknięte na dobre.</p>
-        <p style="margin-bottom:0;">Każdy kod działa <strong>tylko raz</strong>.</p>
+        <p class="mb-0">Każdy kod działa <strong>tylko raz</strong>.</p>
     </div>
 
     <ul class="card" style="list-style:none; padding:var(--spacing-5); font-size:20px; font-weight:700; letter-spacing:0.06em;">

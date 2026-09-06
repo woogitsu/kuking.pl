@@ -70,6 +70,6 @@
             @endforeach
         </div>
 
-        <div style="margin-top:var(--spacing-6);">{{ $people->links() }}</div>
+        <div class="mt-6">{{ $people->links() }}</div>
     @endif
 </x-layout>

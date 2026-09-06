@@ -22,7 +22,7 @@
 <x-layout title="Za dużo prób" :noindex="true">
     <h1>Za dużo prób</h1>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         To samo działanie powtórzyło się kilka razy pod rząd, więc Kuking robi
         krótką przerwę.
         @if($minuty)
@@ -32,7 +32,7 @@
         @endif
     </p>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Nic się nie zepsuło i nic nie przepadło — ta przerwa mija sama.
         Klikanie „odśwież" jej nie skróci.
     </p>

@@ -2,7 +2,7 @@
     <h1>Powiadomienia</h1>
 
     @if($notifications->total() > 0)
-        <form method="POST" action="{{ route('notifications.read') }}" style="margin-bottom:var(--spacing-5);">
+        <form class="mb-5" method="POST" action="{{ route('notifications.read') }}">
             @csrf
             <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
         </form>
@@ -19,7 +19,7 @@
                 @if($actor)
                     <x-avatar :user="$actor" :size="44" />
                 @endif
-                <div style="min-width:0;">
+                <div class="min-w-0">
                     <p style="margin:0 0 var(--spacing-1);">
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
@@ -90,7 +90,7 @@
                                 {{ $notification->type }}
                         @endswitch
                     </p>
-                    <p class="meta" style="margin:0;">
+                    <p class="meta m-0">
                         <time datetime="{{ $notification->created_at->toIso8601String() }}">{{ \App\Support\Czas::lokalnie($notification->created_at)->diffForHumans() }}</time>
                     </p>
 
@@ -140,5 +140,5 @@
         </x-empty-state>
     @endforelse
 
-    <div style="margin-top:var(--spacing-6);">{{ $notifications->links() }}</div>
+    <div class="mt-6">{{ $notifications->links() }}</div>
 </x-layout>

@@ -1,6 +1,6 @@
 <x-layout title="Dodaj zdjęcie" :noindex="true">
     <h1>Dodaj zdjęcie</h1>
-    <p style="margin-bottom:var(--spacing-5);">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
+    <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
     <x-error-summary />
 
@@ -54,8 +54,8 @@
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
 
-        <fieldset style="border:0; padding:0; margin-top:var(--spacing-6);">
-            <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Kto ma to widzieć?</legend>
+        <fieldset class="border-0 p-0 mt-6">
+            <legend class="font-bold mb-3">Kto ma to widzieć?</legend>
 
             <div class="choice-grid">
                 <label class="choice">
@@ -98,10 +98,10 @@
             a wybór tematu nie jest decyzją, nad którą trzeba się zastanawiać.
             Bez JavaScriptu — `<details>` i `<select>` działają same z siebie.
         --}}
-        <details class="temat-wybor" style="margin-top:var(--spacing-6);" @if(old('topic_id')) open @endif>
+        <details class="temat-wybor mt-6" @if(old('topic_id')) open @endif>
             <summary>Dodaj temat (nieobowiązkowo)</summary>
 
-            <p class="field-help" style="margin-top:var(--spacing-3);">
+            <p class="field-help mt-3">
                 Temat pomaga innym znaleźć Twój wpis, a Tobie — trafić na ludzi,
                 którzy gotują to samo. Możesz to pominąć.
             </p>

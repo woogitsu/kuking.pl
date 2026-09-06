@@ -8,12 +8,12 @@
 <x-layout title="Ta strona nie jest dla Ciebie" :noindex="true">
     <h1>Ta strona nie jest dla Ciebie</h1>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Ta treść jest dostępna tylko dla wybranych osób. Autor mógł ją schować
         albo udostępnić wyłącznie tym, którzy go obserwują.
     </p>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Jeśli spodziewasz się tu czegoś swojego, sprawdź, czy to na pewno
         to konto, na którym zwykle gotujesz.
     </p>

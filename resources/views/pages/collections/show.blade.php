@@ -3,7 +3,7 @@
     @if($collection->description)
         <p>{{ $collection->description }}</p>
     @endif
-    <p class="meta" style="margin-bottom:var(--spacing-5);">
+    <p class="meta mb-5">
         {{ $collection->isPublic() ? 'Ten zeszyt widzą wszyscy.' : 'Ten zeszyt widzisz tylko Ty.' }}
     </p>
 
@@ -15,7 +15,7 @@
                 <x-recipe-card :recipe="$recipe" />
             @endforeach
         </div>
-        <div style="margin-top:var(--spacing-6);">{{ $recipes->links() }}</div>
+        <div class="mt-6">{{ $recipes->links() }}</div>
     @endif
 
     @if(auth()->id() === $collection->owner_id && ! $collection->is_default)

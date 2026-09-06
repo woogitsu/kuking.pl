@@ -15,10 +15,10 @@
     $maZdjecie = $zdjecia->isNotEmpty();
 @endphp
 <x-layout title="{{ $kucharz->displayName() }} ugotowała/ugotował Twój przepis" :noindex="true">
-    <article class="card stack" style="text-align:center;">
+    <article class="card stack text-center">
         <div>
             <p class="meta" style="margin:0 0 var(--spacing-2);">Komuś wyszło</p>
-            <h1 class="text-title-lg" style="margin:0;">
+            <h1 class="text-title-lg m-0">
                 {{ $kucharz->displayName() }} ugotowała/ugotował
                 @if($tytulPrzepisu)
                     z Twojego przepisu „{{ $tytulPrzepisu }}”
@@ -51,7 +51,7 @@
                 nie błąd. Sam fakt ugotowania zostaje bohaterem ekranu zamiast
                 pustego miejsca po treści, której nigdy nie było.
             --}}
-            <p class="meta" style="margin:0;">Bez zdjęcia i bez notatki — ale to i tak się liczy.</p>
+            <p class="meta m-0">Bez zdjęcia i bez notatki — ale to i tak się liczy.</p>
         @endif
 
         <div style="max-width:32rem; margin:0 auto; text-align:left;">
@@ -65,7 +65,7 @@
             </form>
         </div>
 
-        <p style="margin:0;">
+        <p class="m-0">
             <a class="btn btn-quiet" href="{{ route('cooked.show', $event) }}">Zobacz cały wpis</a>
         </p>
     </article>

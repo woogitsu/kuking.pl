@@ -11,13 +11,13 @@
                          class="post-photo" :zoom="false" />
             </a>
         @endif
-        <div style="min-width:0;">
+        <div class="min-w-0">
             <h3 style="margin:0 0 var(--spacing-2);">
                 <a href="{{ route('recipes.show', $recipe->slug) }}" style="color:var(--color-ink); text-decoration:none;">{{ $recipe->title }}</a>
             </h3>
             <p class="meta" style="margin:0 0 var(--spacing-2);">{{ $recipe->attributionLine() }}</p>
             @if(($recipe->cooked_events_count ?? 0) > 0)
-                <p style="margin:0;"><span class="badge badge-cooked">Ugotowane {{ $recipe->cooked_events_count }} ×</span></p>
+                <p class="m-0"><span class="badge badge-cooked">Ugotowane {{ $recipe->cooked_events_count }} ×</span></p>
             @endif
         </div>
     </div>

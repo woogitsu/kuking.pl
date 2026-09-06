@@ -35,7 +35,7 @@
     <h1>Ta strona była otwarta zbyt długo</h1>
 
     @if($formularz->maCoOdzyskac())
-        <p style="margin-bottom:var(--spacing-5);">
+        <p class="mb-5">
             Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
             a ten był otwarty dłużej. <strong>Twój tekst jest na miejscu</strong> —
             nic nie przepadło. Kliknij „Wyślij jeszcze raz”, a wpis pójdzie tam,
@@ -48,7 +48,7 @@
                  trafi na ekran logowania i drugi raz zobaczy pusty formularz.
                  Link otwiera się w nowej karcie właśnie po to, żeby ta strona
                  — jedyne miejsce, w którym jest jego tekst — została otwarta. --}}
-            <div class="notice" role="status" style="margin-bottom:var(--spacing-5);">
+            <div class="notice mb-5" role="status">
                 <strong>Najpierw zaloguj się jeszcze raz.</strong>
                 <span>
                     <a href="{{ route('login') }}" target="_blank" rel="noopener">
@@ -117,7 +117,7 @@
             </div>
         </form>
     @else
-        <p style="margin-bottom:var(--spacing-5);">
+        <p class="mb-5">
             Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
             a ten był otwarty dłużej. Nie było w nim jednak nic do zapisania —
             wystarczy otworzyć stronę od nowa i zrobić to jeszcze raz.

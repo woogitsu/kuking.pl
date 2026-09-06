@@ -33,7 +33,7 @@
             <a class="btn btn-secondary" href="{{ $post->url() }}">Wróć do wpisu</a>
         </div>
     @else
-        <p style="margin-bottom:var(--spacing-5);">
+        <p class="mb-5">
             @if($poPublikacji)
                 {{-- Wpis JEST już opublikowany — to zdanie musi to powiedzieć
                      wprost. Ekran, który wygląda na kolejny krok formularza,

@@ -20,7 +20,7 @@
             {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y') }}
         </p>
         @if($decyzja->user_message)
-            <p style="white-space:pre-line;">„{{ $decyzja->user_message }}”</p>
+            <p class="whitespace-pre-line">„{{ $decyzja->user_message }}”</p>
         @else
             <p>Nie zapisaliśmy przy tej decyzji osobnej wiadomości do Ciebie.</p>
         @endif
@@ -30,10 +30,10 @@
         {{-- Sprawa już u nas leży albo jest zamknięta. Człowiek ma zobaczyć,
              co napisał i co z tego wyszło — nie pusty formularz, który przy
              wysłaniu powie „już się odwoływałeś". --}}
-        <article class="card" style="margin-top:var(--spacing-5);">
+        <article class="card mt-5">
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">Twoje odwołanie</h2>
             <p class="meta">Złożone {{ \App\Support\Czas::data($odwolanie->created_at, 'j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
-            <p style="white-space:pre-line;">{{ $odwolanie->body }}</p>
+            <p class="whitespace-pre-line">{{ $odwolanie->body }}</p>
 
             @if($odwolanie->isOpen())
                 <p><strong>Czekamy na rozpatrzenie.</strong>
@@ -42,7 +42,7 @@
             @else
                 <h3 style="font-size:var(--text-title-sm);">Nasza odpowiedź</h3>
                 <p class="meta">{{ \App\Support\Czas::data($odwolanie->decided_at, 'j F Y') }}</p>
-                <p style="white-space:pre-line;">{{ $odwolanie->decision_note }}</p>
+                <p class="whitespace-pre-line">{{ $odwolanie->decision_note }}</p>
                 <p class="meta">
                     Odwołanie rozpatrujemy raz. Jeśli pojawiły się nowe okoliczności,
                     napisz na {{ config('kuking.community.contact_email') }}.
@@ -50,7 +50,7 @@
             @endif
         </article>
     @elseif(! $decyzja->isAppealable())
-        <article class="card" style="margin-top:var(--spacing-5);">
+        <article class="card mt-5">
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest {{ config('kuking.moderation.appeal_days') }} dni od decyzji.
@@ -62,8 +62,7 @@
             </p>
         </article>
     @else
-        <form class="card" method="POST" action="{{ route('appeals.store', $decyzja) }}"
-              style="margin-top:var(--spacing-5);">
+        <form class="card mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
             @csrf
 
             <h2 style="margin-top:0; font-size:var(--text-title-sm);">Napisz, dlaczego to pomyłka</h2>

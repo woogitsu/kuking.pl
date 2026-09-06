@@ -8,7 +8,7 @@
 <x-layout title="Kod z aplikacji" :noindex="true">
     <h1>Wpisz kod z aplikacji</h1>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Twoje hasło jest poprawne. To konto ma włączoną weryfikację dwuetapową — otwórz aplikację
         uwierzytelniającą w telefonie (na przykład Google Authenticator, Aegis albo 1Password)
         i przepisz sześciocyfrowy kod, który tam widzisz.
@@ -27,9 +27,9 @@
         </div>
     </form>
 
-    <details class="card" style="margin-top:var(--spacing-5);">
-        <summary class="btn btn-secondary" style="display:inline-flex;">Nie mam dostępu do telefonu</summary>
-        <div style="margin-top:var(--spacing-4);">
+    <details class="card mt-5">
+        <summary class="btn btn-secondary inline-flex">Nie mam dostępu do telefonu</summary>
+        <div class="mt-4">
             <p>
                 Możesz zamiast tego użyć jednego z kodów zapasowych, które dostałeś/aś przy włączaniu
                 weryfikacji dwuetapowej. Każdy kod zapasowy działa tylko raz.

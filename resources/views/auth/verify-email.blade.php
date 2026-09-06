@@ -20,5 +20,5 @@
         </form>
     </div>
 
-    <p class="meta" style="margin-top:var(--spacing-5);">Wiadomość nie przyszła? Zajrzyj do folderu „Spam”.</p>
+    <p class="meta mt-5">Wiadomość nie przyszła? Zajrzyj do folderu „Spam”.</p>
 </x-layout>

@@ -74,8 +74,8 @@
 
     <article class="stack">
         <header>
-            <p class="meta" style="margin-bottom:var(--spacing-2);">{{ $recipe->attributionLine() }}</p>
-            <h1 style="margin-top:0;">{{ $recipe->title }}</h1>
+            <p class="meta mb-2">{{ $recipe->attributionLine() }}</p>
+            <h1 class="mt-0">{{ $recipe->title }}</h1>
 
             @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
                 {{--
@@ -98,7 +98,7 @@
                 <x-avatar :user="$recipe->author" :size="44" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
-                    <p class="meta" style="margin:0;">
+                    <p class="meta m-0">
                         @if($recipe->published_at)
                             <time datetime="{{ $recipe->published_at->toIso8601String() }}">{{ \App\Support\Czas::data($recipe->published_at, 'j F Y') }}</time>
                         @endif
@@ -203,7 +203,7 @@
 
         {{-- Główna akcja przepisu. Nie „Lubię to”, a „Ugotowałem”. --}}
         <section class="card" style="background-color:var(--color-brand-tint);">
-            <h2 style="margin-top:0;">Gotujesz z tego przepisu?</h2>
+            <h2 class="mt-0">Gotujesz z tego przepisu?</h2>
             <p>Otwórz kroki na cały ekran w kuchni, a kiedy skończysz — {{ $recipe->author->displayName() }} naprawdę chce wiedzieć, że Ci wyszło.</p>
             <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap;">
                 {{--
@@ -263,7 +263,7 @@
                      po prostu znikała ze strony. SOUL 4.2 wymienia to jako
                      ryzyko wprost i podaje ten tekst. --}}
                 <x-empty-state title="Jeszcze nikt tego nie gotował">
-                    <p style="margin-bottom:0;">Będziesz pierwsza albo pierwszy?</p>
+                    <p class="mb-0">Będziesz pierwsza albo pierwszy?</p>
                 </x-empty-state>
             @endif
         </section>

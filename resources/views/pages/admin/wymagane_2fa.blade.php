@@ -8,13 +8,13 @@
 <x-layout title="Włącz weryfikację dwuetapową" :noindex="true">
     <h1>Ten panel wymaga weryfikacji dwuetapowej</h1>
 
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Panel moderacji pokazuje zgłoszenia, ukryte treści i odwołania — konta z dostępem do niego
         chronimy mocniej niż zwykłe konto. Zanim wejdziesz, włącz weryfikację dwuetapową: to kod
         z aplikacji w telefonie, obok hasła.
     </p>
 
-    <p style="margin-bottom:var(--spacing-5);">Zajmuje mniej niż dwie minuty.</p>
+    <p class="mb-5">Zajmuje mniej niż dwie minuty.</p>
 
     <div class="form-actions">
         <a class="btn btn-primary" href="{{ route('settings.two_factor.enable') }}">Włącz weryfikację dwuetapową</a>

@@ -4,7 +4,7 @@
     <x-error-summary />
 
     <section class="card">
-        <h2 style="margin-top:0;">Zmień hasło</h2>
+        <h2 class="mt-0">Zmień hasło</h2>
         <p>
             Zmień hasło, jeśli podejrzewasz, że ktoś inny je zna — na przykład je zgadł
             albo zobaczył, jak je wpisujesz.
@@ -23,7 +23,7 @@
             <x-field name="password_confirmation" label="Powtórz nowe hasło" type="password" required
                      autocomplete="new-password" />
 
-            <p class="field-help" style="margin-top:var(--spacing-3);">
+            <p class="field-help mt-3">
                 Po zmianie hasła wylogujemy wszystkie inne urządzenia zalogowane na to konto.
                 Ten komputer/telefon zostaje zalogowany.
             </p>
@@ -34,8 +34,8 @@
         </form>
     </section>
 
-    <section class="card" style="margin-top:var(--spacing-8);">
-        <h2 style="margin-top:0;">Wyloguj mnie z innych urządzeń</h2>
+    <section class="card mt-8">
+        <h2 class="mt-0">Wyloguj mnie z innych urządzeń</h2>
         <p>
             Użyj tego, jeśli zostałaś/eś zalogowana/y na cudzym telefonie albo komputerze —
             na przykład u wnuka, w bibliotece albo u znajomych — i nie masz jak się tam

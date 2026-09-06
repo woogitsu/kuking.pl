@@ -1,6 +1,6 @@
 <x-layout title="Czytelność" :noindex="true">
     <h1>Rozmiar tekstu</h1>
-    <p style="margin-bottom:var(--spacing-5);">
+    <p class="mb-5">
         Wybierz rozmiar, przy którym czyta Ci się wygodnie. Ustawienie zapisze się na Twoim koncie —
         będzie takie samo na telefonie, tablecie i komputerze.
     </p>
@@ -8,8 +8,8 @@
     <form class="card" method="POST" action="{{ route('settings.accessibility') }}">
         @csrf @method('PUT')
 
-        <fieldset style="border:0; padding:0;">
-            <legend style="font-weight:700; margin-bottom:var(--spacing-3);">Rozmiar tekstu</legend>
+        <fieldset class="border-0 p-0">
+            <legend class="font-bold mb-3">Rozmiar tekstu</legend>
             <div class="stack-tight">
                 @foreach($scales as $scale)
                     <label class="choice">
@@ -35,7 +35,7 @@
         </div>
     </form>
 
-    <section class="card" style="margin-top:var(--spacing-8);">
+    <section class="card mt-8">
         <h2>Można jeszcze więcej</h2>
         <p>
             Jeśli to wciąż za mało, powiększ całą stronę w przeglądarce:
@@ -43,7 +43,7 @@
             na telefonie zmień rozmiar czcionki w ustawieniach systemu.
             Kuking działa poprawnie także wtedy.
         </p>
-        <p style="margin-bottom:0;">
+        <p class="mb-0">
             Jasny i ciemny wygląd dobierają się same, według ustawień Twojego telefonu lub komputera.
         </p>
     </section>

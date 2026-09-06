@@ -34,7 +34,7 @@
                 <strong>Gotujesz dziś coś jeszcze?</strong>
                 Dodanie kolejnego zdjęcia zajmuje mniej niż minutę.
             @endif
-            <p style="margin-bottom:0;">
+            <p class="mb-0">
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj kolejne zdjęcie</a>
             </p>
         </div>
@@ -55,7 +55,7 @@
                 <strong>Ten wpis ma kilka zdjęć.</strong>
                 Możesz ustawić ich kolejność i wybrać, jak mają się wyświetlić:
                 zwykle, karuzelą albo kolażem.
-                <p style="margin-bottom:0;">
+                <p class="mb-0">
                     <a class="btn btn-secondary" href="{{ route('posts.media.edit', $post) }}">Kolejność i wygląd zdjęć</a>
                 </p>
             </div>

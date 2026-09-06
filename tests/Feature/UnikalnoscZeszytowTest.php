@@ -185,7 +185,17 @@ class UnikalnoscZeszytowTest extends TestCase
         $strona->assertSee($komunikat, escape: false);
         $strona->assertSee('value="Na święta"', escape: false);
         $strona->assertSee('class="error-summary"', escape: false);
-        $strona->assertSee('--spacing-8);" open>', escape: false);
+
+        // „Formularz jest rozwinięty" pytamy o SAM ZNACZNIK `<details open>`,
+        // a nie o odstęp nad nim. Wcześniej stało tu `'--spacing-8);" open>'`
+        // — asercja przybita do inline'owego stylu, która padła w chwili,
+        // gdy ten sam odstęp zapisano klasą zamiast atrybutem `style`
+        // (issue #107). Sprawdzała zapis, nie stan ekranu.
+        $this->assertMatchesRegularExpression(
+            '~<details[^>]*\bopen\b~',
+            (string) $strona->getContent(),
+            'Formularz zeszytu jest zwinięty, więc komunikat błędu wisi nad czymś, czego nie widać.',
+        );
 
         // D-009: gra słowem kuKING nigdy w komunikacie błędu.
         $this->assertStringNotContainsStringIgnoringCase('kuking', $komunikat);

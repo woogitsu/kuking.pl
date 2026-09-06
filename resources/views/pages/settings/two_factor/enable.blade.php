@@ -13,14 +13,14 @@
         <li>Przepisz sześciocyfrowy kod, który aplikacja pokaże, do pola niżej.</li>
     </ol>
 
-    <section class="card" style="text-align:center;">
+    <section class="card text-center">
         <div style="max-width:260px; margin:0 auto;">
             {!! $qr !!}
         </div>
     </section>
 
-    <section class="card" style="margin-top:var(--spacing-5);">
-        <h2 style="margin-top:0;">Nie możesz zeskanować kodu?</h2>
+    <section class="card mt-5">
+        <h2 class="mt-0">Nie możesz zeskanować kodu?</h2>
         <p>Wpisz ten sekret ręcznie, jako „klucz konfiguracji" albo „sekret":</p>
         <p style="font-size:20px; font-weight:700; letter-spacing:0.08em; word-break:break-all;">
             {{ $sekret }}
@@ -29,7 +29,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('settings.two_factor.confirm') }}" style="margin-top:var(--spacing-5);">
+    <form class="card mt-5" method="POST" action="{{ route('settings.two_factor.confirm') }}">
         @csrf
 
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required
