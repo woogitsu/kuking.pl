@@ -1,8 +1,11 @@
 # Handover — kuking.pl, branch `claude/kuking-development-muukrs`
 
-Written 2026-09-06 at commit `79d4919`. This is a session handover for the next
-model. Everything below is verified against the repository at that commit, not
-recalled from memory.
+Written 2026-09-06, updated the same day at commit `a8b2861`. This is a session
+handover for the next model. Everything below is verified against the
+repository at that commit, not recalled from memory.
+
+This file is the one deliberate exception to the Polish-only rule, because the
+owner asked for it in English.
 
 ---
 
@@ -13,53 +16,62 @@ recalled from memory.
    them.**
 2. `docs/ROADMAP.md` — what is MVP and what is V2. Issues **#22 (groups),
    #23 (forks), #27 (meal planner)** are out of scope, gated by this file.
-3. `docs/DECISIONS.md` — especially **D-017** (recipe stays free text) and
-   **D-018** (account deletion erases photos, anonymises text). Both are owner
-   decisions taken in this session; do not relitigate them.
+3. `docs/DECISIONS.md` — especially **D-017** (recipe stays free text),
+   **D-018** (account deletion erases photos, anonymises text), **D-019**
+   (light theme is always the default) and **D-020** (image URLs are an
+   application route). Do not relitigate them.
 4. `docs/DATABASE.md`, `docs/ARCHITECTURE.md`, `docs/MEDIA_PIPELINE.md`.
-5. `docs/design/kit-v2/IMPLEMENTATION_GUIDE.md` and
+5. `docs/AI_WORKFLOW.md` — **read §6 before you spawn any agent in a worktree.**
+   It documents two traps that cost real time today; the second one produced
+   green tests that had not executed a single line of new code.
+6. `docs/design/kit-v2/IMPLEMENTATION_GUIDE.md` and
    `docs/design/STAN_WDROZENIA_KITU.md` — the UI kit and what of it is done.
+   **Careful: the second file is stale outside the recipe screen** — its
+   `/home` table describes a topbar, side nav and bottom nav that have since
+   been built. Verify against the code before trusting it.
 
 ## 1. Non-negotiables (short version — the long one is in AGENTS.md)
 
 - **Everything in Polish**: UI text, code comments, commit messages, docs.
-  Comments explain **why**, and often record what went wrong before. Do not
-  switch the repo to English. This handover file is the one exception, because
-  the owner asked for it in English.
+  Comments explain **why**, and often record what went wrong before.
 - Stack: Laravel 13 · PHP 8.4 · Blade + Livewire 4 · Tailwind 4 (CSS-first
   `@theme`, no `tailwind.config.js`) · PostgreSQL 18 · Railway · FrankenPHP.
 - **Tests run on PostgreSQL, never SQLite** — search depends on `pg_trgm`,
   `unaccent`, `similarity()`.
 - Before every push: `vendor/bin/pint`, `vendor/bin/phpstan analyse`,
   `php artisan test`, plus `npm run build` if you touched `resources/`.
-  `php artisan test --parallel` does **not** work here (no ParaTest); run serial.
+  `php artisan test --parallel` does **not** work here (no ParaTest).
 - A bugfix without a regression test is not a bugfix. A schema change is:
   migration + test + `docs/DATABASE.md` + rollback plan.
 - `status` and `role` on `User` are never in `$fillable`. **A UUID in a URL is
   not authorization** — every access to someone else's content goes through a
-  Policy and gets a test proving a stranger gets 403.
+  Policy and gets a test proving a stranger gets 403 (or 404 where the
+  existence itself must stay hidden — see W7-05 below).
 - CSP is enforcing; `config/livewire.php` has `csp_safe => true` and it stays
-  true. No `style=` attributes in views (there is a test:
-  `BrakAtrybutowStyleWWidokachTest`).
-- Never run destructive operations against the production database. Ask first,
-  every time.
+  true. No `style=` attributes in views (`BrakAtrybutowStyleWWidokachTest`).
+  CSP is enforced against tooling too: an attempt to inject `<style>` from the
+  accessibility automation was refused, and correctly so.
+- Never run destructive operations against the production database.
 - Answer the owner **in Polish**. Present genuine owner decisions as short
   clickable choices (`AskUserQuestion`), not walls of prose.
-- Develop on `claude/kuking-development-muukrs`, push with
-  `git push -u origin claude/kuking-development-muukrs`. Do not open a PR unless
-  asked.
+- Develop on `claude/kuking-development-muukrs`. Do not open a PR unless asked.
 
 ## 2. Where things stand
 
-- 26 commits ahead of `main`, all pushed.
-- **889 tests pass**, PHPStan clean (level 1 + Larastan), Pint clean.
-- Seven audit waves have been delivered by the owner. Waves 1–6 are largely
-  worked through; **wave 7 (final security) has just started** — see §4.
-- Closed in this session: issues **#107, #109, #110, #111, #112, #113, #116**.
-- Filed and still open because they need real infrastructure:
-  **#119** (real HEIC support / libheif decision) and
-  **#120** (R2 staging gate: ACL-free write path, proof originals are not
-  publicly reachable).
+- **950 tests pass** (was 889 at the start of this session), PHPStan clean
+  (level 1 + Larastan), Pint clean.
+- Accessibility automation (`node scripts/dostepnosc.mjs`): **0 axe violations**
+  across all four variants, 0 topbar misalignments, 0 inconsistent page widths.
+  One **known and pre-existing** horizontal overflow remains: the recipe screen
+  at 320 px with text at 150% (327 px against a 320 px window, `section.card`).
+  Verified as pre-existing by running the automation on the code from before
+  this session's changes.
+- Seven audit waves have been delivered by the owner. **Wave 7 is now mostly
+  closed** — see §4.
+- Closed in the previous session: **#107, #109, #110, #111, #112, #113, #116**.
+- Still open because they need real infrastructure: **#119** (real HEIC support)
+  and **#120** (R2 staging gate). **#120 is now blocking, not merely open** —
+  see the warning in §3.
 
 ### The recurring root cause worth keeping in mind
 
@@ -68,145 +80,194 @@ Across all seven audits the same shape keeps appearing:
 > a rule exists correctly in one layer, and a second layer re-implements it
 > differently or bypasses it entirely.
 
-Examples fixed so far: three copies of the "author is available" boundary; the
-photo format list hardcoded in seven views; blocking enforced when rendering but
-not when creating a reply; two separate blacklists deciding which form fields
-are secret. When you fix one of these, put the rule in **one** place and add a
-cross-layer invariant test, rather than fixing the second copy.
+It appeared three more times today: the post card decided who may edit a post
+with `auth()->id() === $post->author_id` while the controller asked
+`PostPolicy`; Caddy and Laravel disagreed on `X-Frame-Options`; and the topbar,
+the content grid and the footer each computed the page width from a different
+number. When you fix one of these, put the rule in **one** place and add a
+cross-layer invariant test rather than fixing the second copy.
 
-## 3. Just finished (last four commits)
+## 3. What this session did
 
-| commit | what |
+All merged into `claude/kuking-development-muukrs` and pushed.
+
+| area | what |
 |---|---|
-| `e45c8f2` | Public DSA art. 16 notice path (`/zglos-nielegalna-tresc`), no account needed; receipt + decision notifications; `target_type = 'unknown'` with nullable `target_id` for unresolvable URLs |
-| `ed381b9` | Made that form findable: footer link, indexable, `Disallow: /zglos/` with the trailing slash that was swallowing it |
-| `5f6c43c` | **UI kit v2 stage C** — the recipe screen |
-| `79d4919` | Wave 7: W7-03, W7-04, W7-06, W7-12 (secret recovery policy + blocking on reply) |
+| **W7-02** (P0) | Image URLs are now an application route (`/zdjecia/{uuid}/{wariant}`) that asks the parent content's Policy and 302s to a short-lived signed R2 URL. Bytes do not pass through PHP. `App\Domain\Media\DostepDoZdjecia` calls the existing Policies instead of repeating their conditions; missing ones (`RecipeStepPolicy`, `ProfilePolicy`) were added as delegations. 24 tests built on `WidocznoscTestCase`, including the handwritten source scan and an image with two parents of different visibility. Closes W5-05 by the same mechanism. **D-020.** |
+| **W7-05** (P1) | The existence oracle is closed: refusal throws the same `ModelNotFoundException` as a missing target, so the 404 is indistinguishable. The gate lives in `ReportContent`, not the controller. `CommentPolicy` gained the missing `view()`. Also added the audit's SEC-08 test locking in that DSA notices are deliberately **not** deduplicated. |
+| **W7-07** (P2) | `data_exports.failure_reason` is now a closed set of codes (the `Report::REASONS` pattern); the raw exception text stays in the log only. Data migration included. `docs/DATABASE.md` gained the whole `data_exports` table, which it had never documented. |
+| **W7-11** (P2) | Caddy and Laravel both send `DENY`. The test pins the *rule* (any header set in both layers must match), not the literal. |
+| **W7-09** (part) | `npm audit --omit=dev` was auditing an empty list: `npm ls --all` sees 106 packages, `--omit=dev` sees 41, and the only top-level survivor was `@laravel/multiplex`. Flag removed. `continue-on-error` deliberately left alone — that is a policy call for the owner. |
+| **UI** | One page width everywhere (owner request); topbar, grid and footer aligned; post editing and deletion (an MVP gap, not a missing button); light theme always default with an explicit theme switch (**D-019**). |
+| **Diagnostics** | A 429 now leaves a trace naming the route that produced it. It used to leave none at all, which is why the owner's "429 on my first photo upload" could not be diagnosed. |
 
-Notes on the last two, because they carry decisions:
-
-- **Stage C**: the biggest change is not cosmetic — "Ugotowałem" moved from the
-  bottom of the page into the panel next to the photo. `wide` on `<x-layout>`
-  now works and raises the column ceiling; the readability ceiling moves onto
-  individual prose blocks (`.kolumna-czytania`). D-017 is held: ingredients are
-  a plain list with no amount column, steps are numbered paragraphs with no
-  invented titles.
-- **W7-03/04**: `App\Support\OdzyskiwalneDane` is now the single answer to
-  "which fields may be shown back to the user". It is an **allowlist of route
-  names**, not a denylist of field names. If you add a form where losing the
-  text would hurt, add its route name there — and never add an auth route.
+**The W7-02 warning, in full, because it is easy to misread as done:** removing
+`url` and `AWS_URL` from the configuration does **not** detach `cdn.kuking.pl`
+from the variants bucket on Cloudflare's side. While that domain still points
+there, every previously copied address keeps working and the leak continues.
+W7-02 is fixed in the application, not in the infrastructure. That is issue
+**#120** and it belongs to the owner.
 
 ## 4. What to do next
 
-### 4.1 Wave 7 security audit — the remaining items
+### 4.1 W7-01 — measured today, decision pending
 
-The audit file the owner uploaded is
-`kuking_audit_wave7_final_security_20260906.md`. It is pinned to commit
-`6bb65df`, so re-verify anything before calling it open. Done: W7-03, W7-04,
-W7-06, W7-12. W7-10 was already addressed by design — `ZglosNielegalnaTresc`
-deliberately does **not** deduplicate legal notices (two people may report the
-same content on different legal grounds and each is owed an answer); it would be
-worth adding the audit's SEC-08 test to lock that in.
+**The application-layer half is no longer a hypothesis. It is measured.**
+Run through the real middleware stack in this repository:
 
-Remaining, in the audit's own recommended order:
+```text
+no headers                 ip=127.0.0.1     (real REMOTE_ADDR)
+X-Forwarded-For single     ip=203.0.113.7   (the client's own value)
+X-Forwarded-For chain      ip=203.0.113.7   (first element wins, chain stripped)
+XFF + CF-Connecting-IP     ip=203.0.113.7   (CF-Connecting-IP ignored entirely)
+XFF + X-Forwarded-Proto    secure()=true    (this is why trustProxies is needed)
 
-1. **W7-02 (P0, privacy)** — every processed image variant goes to the public
-   CDN bucket regardless of the parent content's visibility. A follower who
-   copied a CDN URL keeps it after being blocked, unfollowed, or after the
-   recipe goes private. The source-scan photo (a scanned handwritten recipe,
-   possibly with names and addresses) is the worst case. This is the largest
-   remaining piece of work and needs a storage design, not a patch. It overlaps
-   with earlier finding W5-05 (moderation hide/remove does not revoke public
-   CDN bytes). **This is on the audit's "no public beta while open" list.**
-2. **W7-01 (P0 conditional)** — `bootstrap/app.php` has
-   `trustProxies(at: '*')` and `docker/Caddyfile` has
-   `trusted_proxies static 0.0.0.0/0 ::/0`. If a client can control
-   `X-Forwarded-For`, it can reset IP-based rate limits and choose its own audit
-   attribution. **Cannot be confirmed from code alone** — Cloudflare or Railway
-   may normalise the chain. Either run the audit's SEC-01 test on staging, or
-   implement the safer design (trust the Railway/Cloudflare canonical
-   single-valued header, not an arbitrary XFF chain) and document it.
-3. **W7-05 (P1)** — the authenticated report endpoint resolves targets with
-   `findOrFail` and never applies the target's `view` policy. It is an existence
-   oracle for private/draft recipe slugs and lets someone report content they
-   are not allowed to see. Fix the community path; the public DSA path is
-   separate and must stay permissive but uniform in its responses.
-4. **W7-07 (P2)** — `GenerateUserExport::reasonFor()` stores the raw exception
-   message in `data_exports.failure_reason`, which is rendered to the user. The
-   comment right above the method says it must not contain SQLSTATE. Replace
-   with a small set of public codes; technical text goes to logs only.
-5. **W7-11 (P2)** — Laravel sends `X-Frame-Options: DENY`, Caddy sends
-   `SAMEORIGIN`. Pick DENY in both.
-6. **W7-08 / W7-09 (P1/P2)** — release chain: `main` is unprotected, the repair
-   branch has no PR so CI never runs on it, Railway's "wait for CI" is opt-in,
-   GitHub Actions are pinned to moving tags, container images to mutable tags,
-   and `composer audit` / `npm audit` are `continue-on-error`. Note
-   `npm audit --omit=dev` omits almost everything, because this project's
-   front-end toolchain is all `devDependencies`.
+login rate limit, no XFF          -> blocked on attempt 6 (limit is 5/min)
+login rate limit, XFF changed     -> NEVER blocked in 8 attempts
+```
 
-The audit ends with a **beta gate**: after the repairs, do one evidence-based
-closure pass over every P0/P1 from waves 1–7, each marked FIXED / PARTIAL /
-OPEN / ACCEPTED with the commit SHA and the regression test name. Do that
-instead of a wave 8.
+So inside the application a client-controlled header fully determines
+`$request->ip()`, resets every IP-keyed limit, and chooses the value hashed
+into `audit_log.ip_hash`. What is **still** unknown is only whether Cloudflare
+or Railway strip a client-supplied `X-Forwarded-For` before it reaches the
+container. That is the audit's SEC-01 staging test and it belongs to the owner.
 
-### 4.2 UI kit v2 — stages C and D
+Do not "fix" this by removing `trustProxies(at: '*')`. The comment in
+`bootstrap/app.php` is right about `X-Forwarded-Proto`: without it
+`$request->secure()` is false, `url()` emits `http://` and Cloudflare loops.
+The safer design trusts a canonical single-valued header instead of an
+arbitrary chain — but it has an infrastructure unknown the owner must settle
+first: preview environments (`*.up.railway.app`) have **no Cloudflare in front
+of them** (`docs/infra/INFRA_DECISION.md`), so `CF-Connecting-IP` would be
+equally forgeable there. Ask before implementing.
 
-Stage C is done except one item: `CookedCard` in the kit's layout
-("Jak wyszło innym?" with a counts bar and a "Zobacz N wpisów" button) — today
-it is a plain list of cards.
+### 4.2 The beta gate
 
-**Stage D is untouched**: search screen and chips, profile and archive as a
-photo grid, the `/dodaj` flow, mobile menu and mobile profile.
-`docs/design/STAN_WDROZENIA_KITU.md` has a screen-by-screen comparison; it was
-made from actual screenshots at 1280 px and 390 px, so trust it.
+The audit ends with one instruction: after the repairs, do a single
+evidence-based closure pass over every P0/P1 from waves 1–7, each marked
+FIXED / PARTIAL / OPEN / ACCEPTED with the commit SHA and the regression test
+name. Do that instead of a wave 8. **Only the wave 7 audit file was available
+in this session** — ask the owner to re-send waves 1–6 before attempting the
+matrix.
 
-Two things the kit gets wrong for this product, already recorded: the recipe
-ingredient/step columns (D-017), and the "Uśmiech" mark inside a primary button
-(it renders as a white blob — the mark draws the pot in `currentColor` and the
-smile in the surface colour).
+### 4.3 Waiting on the owner (asked, answered, not yet built)
 
-### 4.3 Other queued work
+- **Tags.** The owner chose open user-created tags plus AI suggestions. Note
+  before building: `Topic` already exists as a closed editorial dictionary with
+  follow/unfollow and its own public page, and posts carry one. Either merge the
+  two or you will maintain two systems. Still needs: model provider, cost per
+  post, and a no-JavaScript path.
+- **Recipe screen width.** The `wide` exception was removed with the fixed
+  grid. If that screen turns out too cramped, give it the rail column it does
+  not use — do not reintroduce a per-page page width.
+- **W7-08 remainder.** Protecting `main`, pinning actions and base images to
+  SHAs, and Railway's "wait for CI" are settings outside the repository (SHA
+  pinning also needs registry access this container does not have).
+- **429 on photo upload.** Root cause still unknown. The log now records the
+  route, so the next occurrence is diagnosable. Measured on framework code:
+  for routes behind `auth` the throttle key is the **account id**, not the IP,
+  and `post` is 20 per 10 minutes.
 
-- **#38** — rewrite UI copy per `docs/brand/COPY_STYLE.md`. Note the kit says
-  "Jak wyszło innym?" where the app says "Komu wyszło"; that rename belongs to
-  this issue, not to the kit work.
+### 4.4 Still queued
+
+- **#38** — rewrite UI copy per `docs/brand/COPY_STYLE.md`. The kit says
+  "Jak wyszło innym?" where the app says "Komu wyszło"; that rename belongs
+  here, not to the kit work.
 - **#114 / #115** — analytics: the `kuking:wac` command (P0) and
   `photo_upload_failed` / `search_performed` instrumentation.
-- Leftovers from waves 3, 5 and 6 that were not reached: W3-03, W3-06, W3-07,
-  W3-10, W3-11, W3-15..W3-18; W5-03 (structured art. 17 statement of reasons),
-  W5-04, W5-06, W5-07, W5-10..W5-25; W6-03 (recipe lost updates), W6-04 (version
-  sequence race), W6-08 (orphan cleanup TOCTOU), W6-09 (follow+block race),
-  W6-10, W6-11 (concurrent export requests), W6-13..W6-17.
+- **UI kit v2 stage D** — search, profile/archive as a photo grid, the `/dodaj`
+  flow, mobile menu. Two findings from the survey are worth carrying over: the
+  profile still uses Laravel's numbered pagination instead of `<x-show-more>`
+  (against AGENTS.md §5), and **Settings are unreachable by touch on a phone** —
+  the theme switch in the footer only partly fixes this.
+- Leftovers from waves 3, 5 and 6 that were never reached: W3-03, W3-06, W3-07,
+  W3-10, W3-11, W3-15..W3-18; W5-03, W5-04, W5-06, W5-07, W5-10..W5-25;
+  W6-03, W6-04, W6-08, W6-09, W6-10, W6-11, W6-13..W6-17. (W5-05 is now closed
+  by W7-02.)
+- **Open, found while fixing W7-05, not filed yet:** `PostPolicy::view()` does
+  not let a moderator see an unpublished post, while `RecipePolicy::view()`
+  does; and neither lets a moderator see published-but-`private`/`followers`
+  content. "A moderator sees everything" is therefore not true today. Worth an
+  issue about the intended scope of moderator access.
 
 ## 5. Working method that has held up
 
 - **Verify every audit claim in the code (or in `vendor/`) before fixing it.**
-  Several were wrong: this Laravel's `image` rule already includes AVIF and
-  excludes SVG; cancelling account deletion does not auto-login; the queue
-  worker has 1024 MB against a measured 452 MB peak. Say so plainly in the
-  commit message when an audit is wrong — do not fix a phantom.
-- **Measure instead of estimating.** There is a `kuking_bench` database and an
-  RSS measurement harness from the image-memory work. A first estimate of
-  735 MB turned out to be 452 MB because fixed overhead was counted twice.
-- **Write the test so that it fails without the fix.** Two traps found the hard
-  way, both now documented in the tests themselves:
-  `assertSessionHasNoErrors()` passes on a 500 (the session is clean because
-  validation never ran — pair it with `assertRedirect`), and `old()` outside a
-  request lifecycle reads an empty session, so a test using it measures nothing.
-- **Forcing a real 419 in tests**: CSRF is skipped whenever the app runs under
-  PHPUnit. Swap `$this->app['env']` to `'production'` around the call — see
-  `zPrawdziwymCsrf()` in `tests/Feature/StronyBleduPoPolskuTest.php` and
-  `ekran419()` in `tests/Feature/SekretyNieWracajaNaEkranTest.php`.
-- **Watch out for Pint after you edit.** It reorders imports, hoists FQCNs into
-  `use` statements and adds trailing commas, so exact-match patch scripts stop
-  matching after the first run. Re-read the file before the second patch.
-- **Test assertions that hit their own justification.** Asserting a literal word
-  can match the comment explaining why the rule exists. Assert a full sentence,
-  or strip `{{-- --}}` comments first.
+  Several were wrong. Say so plainly in the commit message when an audit is
+  wrong — do not fix a phantom. This paid off again today: six dark-theme
+  contrast violations turned out to be a measurement artifact (see below), and
+  "fixing" the palette would have made the product worse for no reason.
+- **Measure instead of estimating.** Every claim in this session's commits has
+  numbers behind it: 106 vs 41 audited packages, logo at 212 px against nav at
+  68 px, `rgb(255,255,255)` immediately after a theme switch against
+  `rgb(42,36,30)` after 400 ms, login blocked on attempt 6 without XFF and
+  never with it.
+- **Write the test so that it fails without the fix, then actually check that.**
+  Four traps now documented, all found the hard way:
+  - `assertSessionHasNoErrors()` passes on a 500 — pair it with `assertRedirect`
+    or a status assertion;
+  - `old()` outside a request lifecycle reads an empty session;
+  - a test asserting a single word can match the comment explaining the rule —
+    assert a whole sentence, or strip comments first;
+  - **a test that renders a page needs `RefreshDatabase`** even when it seems to
+    be about something else. One committed today passed only because an earlier
+    test had migrated the database.
+- **Forcing a real 419 in tests**: CSRF is skipped under PHPUnit. Swap
+  `$this->app['env']` to `'production'` around the call — see `zPrawdziwymCsrf()`
+  in `tests/Feature/StronyBleduPoPolskuTest.php`.
+- **Watch out for Pint after you edit.** It reorders imports, hoists FQCNs and
+  adds trailing commas, so exact-match patch scripts stop matching after the
+  first run. Re-read the file before the second patch.
 
-## 6. One open product question the owner has not been asked
+### Two traps specific to running agents in worktrees
+
+Both cost real time today. `docs/AI_WORKFLOW.md` §6 now documents them.
+
+1. **`APP_BASE_PATH` does not fix classes.** `vendor` is a symlink and
+   `composer.json` has `optimize-autoloader: true`, so the classmap is frozen
+   with absolute paths into the main checkout. Every new or changed `App\`
+   class in a worktree was invisible to tests — they ran the main checkout's
+   copy and went green without executing a line of new code. Fixed in
+   `tests/bootstrap.php` with a PSR-4 autoloader registered ahead of Composer's
+   classmap; it reads the mappings from `composer.json` and no-ops in a normal
+   checkout. **Two agents wrote this fix independently and git merged both
+   copies into one file.** Check for that if you see it again.
+2. **Never tell an agent to `cp` a shared file into its worktree.** One agent
+   had already written its own uncommitted fix to exactly that file; the copy
+   would have destroyed it. Ask for `git diff --stat <file>` first.
+
+### The measurement artifact worth remembering
+
+`.btn` has `transition: background-color .15s`. Since the dark theme is now
+activated by an attribute rather than `prefers-color-scheme` set before page
+load, flipping it starts that transition — and axe read the colours mid-flight,
+seeing a background halfway between white and dark. Six false `color-contrast`
+violations. The fix is `reducedMotion: 'reduce'` on the Playwright context (the
+stylesheet honours it and collapses transitions to 0.01 ms), not a palette
+change. Injecting a `<style>` with `transition: none` does not work here: CSP
+refuses it, correctly.
+
+### Environment notes for this container
+
+- `composer install` cannot fetch dist archives: the proxy answers 403 for
+  `api.github.com/.../zipball` and `codeload`. Source (git) installs work, so
+  `--prefer-source` gets everything except `phpstan/phpstan`, which has no
+  source in `composer.lock`. Workaround used: clone the tagged commit, zip it
+  in GitHub-zipball shape and seed Composer's file cache.
+- Each `git worktree` needs its own PostgreSQL database. The name is computed
+  by `tests/bootstrap.php` as `kuking_test_<worktree>`; create it before
+  running tests there.
+
+## 6. Open product questions the owner has not been asked
 
 Adding "Zapisz" to a post (not just a recipe) is a **new product feature**, not
 a missing button — the notebook currently holds recipes only. The kit shows it
 on the post card. `docs/design/STAN_WDROZENIA_KITU.md` flags it as needing an
 owner decision. Do not decide it yourself.
+
+Two smaller ones, both surfaced today and both unanswered:
+
+- The bottom navigation says "Moje" while `AGENTS.md` §5 still specifies
+  "Zeszyt". Code and contract disagree; one of them has to move.
+- Stage D's mobile menu screen would change where the "Profil" tab leads. That
+  is an information-architecture decision, not CSS.
