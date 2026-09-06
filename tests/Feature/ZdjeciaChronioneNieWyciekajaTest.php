@@ -543,11 +543,28 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
         $cache = (string) $odpowiedz->headers->get('Cache-Control');
 
         $this->assertStringContainsString('public', $cache);
-        $this->assertStringContainsString(
-            'max-age='.(60 * (int) config('kuking.media.signed_url_minutes')),
-            $cache,
-            'Cache przekierowania ma wygasać razem z podpisem. Dłuższy znaczy, '.
-            'że przełączenie przepisu na prywatny nie odcina dostępu przez ten czas.',
+
+        preg_match('/max-age=(\d+)/', $cache, $dopasowanie);
+        $maxAge = (int) ($dopasowanie[1] ?? -1);
+        $waznoscPodpisu = 60 * (int) config('kuking.media.signed_url_minutes');
+
+        $this->assertGreaterThan(
+            0,
+            $maxAge,
+            'Zdjęcie treści publicznej ma dostać cache — bez niego każde '.
+            'wyświetlenie feedu to komplet żądań do aplikacji.',
+        );
+
+        $this->assertLessThan(
+            $waznoscPodpisu,
+            $maxAge,
+            'Cache przekierowania musi wygasać WCZEŚNIEJ niż podpis w adresie, '.
+            'na który ono prowadzi. Przy równych wartościach klient, który '.
+            'dostał 302 w pierwszej sekundzie okna, może użyć go ponownie '.
+            'w ostatniej i pójść po adres już wygasły — pusta ramka znikająca '.
+            'po odświeżeniu, czyli usterka nie do powtórzenia na żądanie. '.
+            'Osobno: krótki cache jest też górnym ograniczeniem na to, jak '.
+            'długo przełączenie przepisu na prywatny może nie odciąć dostępu.',
         );
     }
 

@@ -141,8 +141,11 @@ return [
          *   za długo   przełączenie przepisu na prywatny albo zablokowanie
          *              kogoś nie odcina dostępu przez ten cały czas.
          *
-         * Ta sama liczba jest `max-age` odpowiedzi dla treści publicznej —
-         * dłuższy cache przekierowania nie miałby sensu, bo cel i tak wygasa.
+         * `max-age` odpowiedzi dla treści publicznej to POŁOWA tej liczby,
+         * nie ona sama: przeglądarka cache'uje przekierowanie razem z już
+         * podpisanym adresem, więc przy równych wartościach 302 wyjęte
+         * z cache w ostatniej sekundzie okna prowadziłoby pod adres, który
+         * właśnie wygasa. Szczegóły w `MediaController::sekundyCache()`.
          */
         'signed_url_minutes' => (int) env('KUKING_MEDIA_SIGNED_URL_MINUTES', 5),
 

@@ -70,9 +70,9 @@ class MediaController extends Controller
                 // Krótko, nie „na rok". Widoczność treści potrafi się zmienić
                 // w każdej chwili — autor przełącza przepis na prywatny, ktoś
                 // kogoś blokuje, moderator ukrywa wpis. `max-age` jest górnym
-                // ograniczeniem na to, jak długo taka zmiana może nie dojść do
-                // skutku, więc trzymamy go równo z ważnością podpisu.
-                'Cache-Control' => 'public, max-age='.(60 * $this->minutyWaznosci()),
+                // ograniczeniem na to, jak długo taka zmiana może nie dojść
+                // do skutku.
+                'Cache-Control' => 'public, max-age='.$this->sekundyCache(),
             ]
             : [
                 // `no-store`, nie samo `private`: `private` pozwala jeszcze
@@ -105,5 +105,29 @@ class MediaController extends Controller
     private function minutyWaznosci(): int
     {
         return max(1, (int) config('kuking.media.signed_url_minutes'));
+    }
+
+    /**
+     * Jak długo wolno trzymać w cache SAMO PRZEKIEROWANIE.
+     *
+     * KRÓCEJ NIŻ ŻYJE PODPIS, I TO NIE JEST OSTROŻNOŚĆ NA ZAPAS.
+     *
+     * Przeglądarka cache'uje odpowiedź 302 razem z jej nagłówkiem `Location`,
+     * czyli razem z konkretnym, już podpisanym adresem. Gdyby `max-age`
+     * równał się ważności podpisu, klient, który dostał przekierowanie
+     * w pierwszej sekundzie okna, mógłby użyć go ponownie w ostatniej —
+     * i poszedłby po adres ważny jeszcze przez chwilę albo już wygasły.
+     * Objaw: pusta ramka zamiast zdjęcia, znikająca po odświeżeniu, czyli
+     * najgorszy rodzaj usterki — taki, którego nie da się powtórzyć na
+     * żądanie.
+     *
+     * Połowa okna daje każdemu przekierowaniu wyjętemu z cache co najmniej
+     * tyle samo czasu życia, ile już przeżyło. Pilnuje tego test
+     * `ZdjeciaChronioneNieWyciekajaTest`, i pilnuje REGUŁY (krócej niż
+     * podpis), nie tej konkretnej liczby.
+     */
+    private function sekundyCache(): int
+    {
+        return max(1, intdiv(60 * $this->minutyWaznosci(), 2));
     }
 }
