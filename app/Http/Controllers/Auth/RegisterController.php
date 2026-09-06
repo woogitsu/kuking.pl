@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Social\Actions\FollowUser;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
@@ -129,10 +130,49 @@ class RegisterController extends Controller
             ip: $request->ip(),
         );
 
+        $this->zaobserwujGospodarza($user);
+
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
         return redirect()->route('onboarding.interests')
             ->with('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
+    }
+
+    /**
+     * Nowe konto zaczyna obserwować gospodarza (docs/product/COLD_START.md).
+     *
+     * DLACZEGO POZA TRANSAKCJĄ
+     * Rejestracja MUSI się udać. Gdyby konto gospodarza było źle wpisane
+     * w konfiguracji, zawieszone albo skasowane, wyjątek wewnątrz transakcji
+     * wycofałby całe założenie konta — i człowiek nie miałby gdzie wrócić.
+     * Brak jednego obserwowania jest problemem mniejszym o kilka rzędów
+     * wielkości niż rejestracja, która się nie udała.
+     *
+     * DLACZEGO NIE CICHY `catch` NA WSZYSTKO
+     * Łapiemy tylko `RuntimeException`, który `FollowUser` rzuca świadomie
+     * (konto niedostępne, blokada, próba obserwowania samego siebie).
+     * Błąd programisty ma dalej wybuchać głośno.
+     */
+    private function zaobserwujGospodarza(User $user): void
+    {
+        $nazwa = (string) config('kuking.community.host_username');
+
+        if ($nazwa === '') {
+            return;
+        }
+
+        $gospodarz = Profile::where('username', $nazwa)->first()?->user;
+
+        if ($gospodarz === null || $gospodarz->getKey() === $user->getKey()) {
+            return;
+        }
+
+        try {
+            app(FollowUser::class)->handle($user, $gospodarz);
+        } catch (\RuntimeException) {
+            // Gospodarz zawieszony albo źle wpisany w konfiguracji. Rejestracja
+            // idzie dalej; feed ratują tematy z onboardingu (#31).
+        }
     }
 }

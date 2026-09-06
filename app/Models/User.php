@@ -241,6 +241,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // Pytania o stan konta
     // ---------------------------------------------------------------------
 
+    /**
+     * Czy ten człowiek może jeszcze CZYTAĆ serwis.
+     *
+     * `isActive()` odpowiada na inne pytanie: czy konto może DZIAŁAĆ.
+     * Zawieszenie jest karą czasową i tylko na pisanie — `EnsureAccountIsActive`
+     * i `LoginController` wpuszczają zawieszonych właśnie po to, żeby mogli
+     * czytać. Bramka w `NotifyUser` pytała jednak o `isActive()`, więc konto
+     * zawieszone nie dostawało ŻADNEGO powiadomienia: nie opóźnionego,
+     * tylko nieistniejącego.
+     *
+     * Skutek był asymetryczny wobec kary. Ktoś ugotował z przepisu Haliny
+     * w czwartym dniu jej tygodniowego zawieszenia; Halina nie dowiedziała
+     * się o tym nigdy. „Ugotowałem" jest najcenniejszym sygnałem w tym
+     * produkcie i jedynym powodem, dla którego ludzie tu publikują —
+     * a skasowała go kara, która miała dotyczyć wyłącznie pisania.
+     */
+    public function mozeCzytac(): bool
+    {
+        return ! in_array($this->status, [self::STATUS_BANNED, self::STATUS_PENDING_DELETE], true);
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
