@@ -47,8 +47,22 @@
                                 Zacznij od zdjęcia tego, co dziś ugotowałaś. Nie musi być ładne — ma być prawdziwe.
                                 @break
                             @case(\App\Models\Notification::TYPE_MODERATION)
-                                <strong>Wiadomość od moderacji Kuking.</strong>
+                                {{-- Nagłówek mówi, CO SIĘ STAŁO, a pod nim idzie treść
+                                     napisana przez moderatora. Starsze powiadomienia
+                                     (usunięcie komentarza przez autora treści) nie mają
+                                     `title` — dla nich zostaje dawny nagłówek. --}}
+                                <strong>{{ $data['title'] ?? 'Wiadomość od moderacji Kuking.' }}</strong>
                                 {{ $data['message'] ?? '' }}
+                                {{-- Prawo do odwołania (DSA art. 17) musi być NAPISANE,
+                                     nie domyślne. Adres bierzemy z konfiguracji, żeby
+                                     jego zmiana nie zostawiła starych powiadomień
+                                     z martwym kontaktem. --}}
+                                @if($data['appeal'] ?? false)
+                                    <br>
+                                    <span>Jeśli uważasz, że to pomyłka, możesz się odwołać:
+                                        napisz na {{ config('kuking.community.contact_email') }}.
+                                        Sprawdzimy decyzję jeszcze raz.</span>
+                                @endif
                                 @break
                             @default
                                 {{ $notification->type }}
