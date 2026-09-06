@@ -23,6 +23,7 @@ set -uo pipefail
 
 KATALOG="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENTRYPOINT="${KATALOG}/docker/entrypoint.sh"
+DOCKERFILE="${KATALOG}/Dockerfile"
 
 zdane=0
 oblane=0
@@ -164,6 +165,51 @@ if sed -n '/^  all)/,/^    ;;/p' "${ENTRYPOINT}" | sed 's/[[:space:]]*#.*$//' | 
   sprawdz "rola 'all' nie czeka przez 'wait -n'" "brak" "jest"
 else
   sprawdz "rola 'all' nie czeka przez 'wait -n'" "brak" "brak"
+fi
+
+# ---------------------------------------------------------------------------
+# 6. WOLUMIN NA ZDJĘCIA NIE MOŻE ZABIĆ CAŁEJ STRONY.
+#
+#    Railway montuje świeży wolumin jako root:root. Kontener startujący od
+#    razu jako www-data nie ma prawa założyć w nim katalogu: `mkdir` pada,
+#    `set -e` zabija start, kontener wpada w pętlę i znika CAŁA STRONA —
+#    mimo że problem dotyczy wyłącznie zdjęć. Tak poszła produkcja w 404.
+#
+#    Dwie rzeczy muszą być prawdą naraz: entrypoint schodzi z roota SAM
+#    (a nie przez `USER` w Dockerfile, bo wtedy nie ma czym zrobić chown),
+#    a `mkdir` na katalogu ze zdjęciami nie jest śmiertelny.
+# ---------------------------------------------------------------------------
+bez_komentarzy() { sed 's/[[:space:]]*#.*$//' "$1"; }
+
+if bez_komentarzy "${ENTRYPOINT}" | grep -q 'exec setpriv --reuid=www-data'; then
+  sprawdz "entrypoint sam schodzi z uprawnień roota" "tak" "tak"
+else
+  sprawdz "entrypoint sam schodzi z uprawnień roota" "tak" "nie"
+fi
+
+# Kolejność, nie samo istnienie: chown musi być PRZED zejściem z uprawnień,
+# inaczej robi go ktoś, kto już nie ma do tego prawa.
+linia_chown="$(bez_komentarzy "${ENTRYPOINT}" | grep -n 'chown www-data:www-data' | head -1 | cut -d: -f1)"
+linia_setpriv="$(bez_komentarzy "${ENTRYPOINT}" | grep -n 'exec setpriv' | head -1 | cut -d: -f1)"
+if [[ -n "${linia_chown}" && -n "${linia_setpriv}" ]] && (( linia_chown < linia_setpriv )); then
+  sprawdz "chown woluminu poprzedza zejście z uprawnień" "tak" "tak"
+else
+  sprawdz "chown woluminu poprzedza zejście z uprawnień" "tak" "nie"
+fi
+
+if bez_komentarzy "${DOCKERFILE}" | grep -qE '^USER[[:space:]]'; then
+  sprawdz "Dockerfile nie ustawia USER przed entrypointem" "brak" "jest"
+else
+  sprawdz "Dockerfile nie ustawia USER przed entrypointem" "brak" "brak"
+fi
+
+# `mkdir` na katalogu ze zdjęciami wykonywany JAKO www-data (druga sekcja,
+# po zejściu z uprawnień) musi być nieśmiertelny.
+if bez_komentarzy "${ENTRYPOINT}" \
+  | grep -q 'mkdir -p /app/storage/app/public /app/storage/app/private 2>/dev/null || true'; then
+  sprawdz "brak prawa zapisu do zdjęć nie zabija startu" "tak" "tak"
+else
+  sprawdz "brak prawa zapisu do zdjęć nie zabija startu" "tak" "nie"
 fi
 
 echo

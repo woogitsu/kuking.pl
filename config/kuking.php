@@ -124,6 +124,12 @@ return [
         'comment' => '10,1',
         'post' => '20,10',
         'report' => '10,10',
+
+        // Odwołanie od decyzji moderacyjnej. Limit jest niski, bo formularz
+        // dla osób zablokowanych stoi PRZED logowaniem — a wszystko, co stoi
+        // przed logowaniem, jest celem. Prawdziwe odwołanie składa się raz,
+        // więc pięć prób na godzinę nikomu nie przeszkadza.
+        'appeal' => '5,60',
         'search' => '60,1',
         // Zgłoszenia naruszeń CSP wysyła sama przeglądarka. Jedna zapętlona
         // wtyczka potrafi wysłać setki na minutę, a każde to wpis w logu —
@@ -152,6 +158,38 @@ return [
     'community' => [
         // Adres, na który idą zgłoszenia i sprawy moderacyjne.
         'contact_email' => env('KUKING_CONTACT_EMAIL', 'kontakt@kuking.pl'),
+    ],
+
+    'moderation' => [
+        // TERMINY ODWOŁANIA (issue #10, DSA art. 20).
+        //
+        // Te liczby nie są wymyślone tutaj — stoją w
+        // `docs/legal/MODERATION_PLAYBOOK.md` (szablony 4.1-4.5 i §3
+        // „Ścieżka odwołania") i są OBIETNICĄ złożoną użytkownikowi.
+        // Dlatego mieszkają w konfiguracji, a nie w trzech miejscach w kodzie:
+        // rozjazd między dokumentem a systemem jest gorszy niż brak obu.
+
+        // Ile dni od decyzji można złożyć odwołanie. Playbook obiecuje 14
+        // w każdym szablonie wiadomości do użytkownika.
+        'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 14),
+
+        // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
+        // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich
+        // dni wolnych. Termin jest więc celem operacyjnym pokazywanym
+        // moderatorowi, nie zobowiązaniem co do godziny.
+        'appeal_response_working_days' => (int) env('KUKING_APPEAL_RESPONSE_DAYS', 7),
+
+        // Ile godzin ten sam moderator musi odczekać, zanim PODTRZYMA własną
+        // decyzję. Playbook §3: „jedna osoba nie powinna być jednocześnie
+        // moderatorem i jedynym organem odwoławczym dla własnych decyzji —
+        // jeśli to niemożliwe personalnie, przynajmniej odczekaj i spójrz na
+        // sprawę drugi raz po czasie".
+        //
+        // COFNIĘCIE własnej decyzji nie czeka ani chwili — przyznanie się do
+        // pomyłki jest dokładnie tym, po co odwołanie istnieje, a kazanie
+        // komuś siedzieć dobę z ukrytą treścią „dla higieny procesu" szkodzi
+        // tej osobie, nie procesowi.
+        'appeal_self_uphold_hours' => (int) env('KUKING_APPEAL_SELF_UPHOLD_HOURS', 24),
     ],
 
     'wersja' => [

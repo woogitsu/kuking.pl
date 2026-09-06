@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Decyzja moderatora wraz z uzasadnieniem.
@@ -23,6 +25,17 @@ class ModerationAction extends Model
     public const ACTION_NONE = 'no_action';
 
     public const ACTION_HIDE = 'hide';
+
+    /**
+     * Zdjęcie ukrycia (issue #65).
+     *
+     * ŚWIADOMIE NIE MA GO W `DOZWOLONE`. Ta macierz opisuje decyzje możliwe
+     * przy ROZPATRYWANIU ZGŁOSZENIA — a przywrócenie nie jest odpowiedzią na
+     * zgłoszenie, tylko cofnięciem wcześniejszej decyzji. Zgłoszenie jest
+     * wtedy dawno rozstrzygnięte i `decide()` słusznie nie przyjmuje drugiej
+     * decyzji. Przywracanie ma własny endpoint i własny przycisk.
+     */
+    public const ACTION_UNHIDE = 'unhide';
 
     public const ACTION_REMOVE = 'remove';
 
@@ -66,13 +79,42 @@ class ModerationAction extends Model
         'post' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
         'recipe' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
         'comment' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
-        'cooked_event' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
+
+        // ŚWIADOMIE BRAK `hide` PRZY `cooked_event`. „Ugotowałem" nie ma
+        // kolumny `status` — nie ma czego ustawić na `hidden`. Przycisk
+        // istniał i nie robił NIC: zgłoszenie dostawało status
+        // „rozstrzygnięte", autor dostawał powiadomienie „ukryliśmy Twoją
+        // treść", a wykonanie stało w serwisie dalej. Moderator był
+        // przekonany, że coś zrobił (znalezione przy #65).
+        //
+        // Wykonanie zdejmuje się z widoku przez `remove` (soft delete) —
+        // i ono działa naprawdę.
+        'cooked_event' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
+    ];
+
+    /**
+     * Decyzje, od których wolno się odwołać (issue #10, DSA art. 20).
+     *
+     * Brakuje tu `no_action` — zgłoszenie odrzucone nie dotknęło nikogo, więc
+     * nie ma się od czego odwoływać (zgłaszający ma osobną drogę: dopisać
+     * nowe fakty do zgłoszenia). Brakuje też `unhide` — nikt nie odwołuje się
+     * od dobrej wiadomości.
+     *
+     * @var list<string>
+     */
+    public const ODWOLYWALNE = [
+        self::ACTION_HIDE,
+        self::ACTION_REMOVE,
+        self::ACTION_WARN,
+        self::ACTION_SUSPEND,
+        self::ACTION_BAN,
     ];
 
     /** Etykiety po polsku — jedno źródło dla formularza i dla komunikatów. */
     public const ETYKIETY = [
         self::ACTION_NONE => 'Bez działania',
         self::ACTION_HIDE => 'Ukryj treść',
+        self::ACTION_UNHIDE => 'Przywróć treść',
         self::ACTION_REMOVE => 'Usuń treść',
         self::ACTION_WARN => 'Ostrzeżenie dla autora',
         self::ACTION_SUSPEND => 'Zawieś konto autora',
@@ -96,11 +138,20 @@ class ModerationAction extends Model
         'report_id',
         'target_type',
         'target_id',
+        'subject_user_id',
         'action',
+        'previous_status',
         'reason_code',
         'note',
         'user_message',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'created_at' => 'datetime',
+        ];
+    }
 
     public function moderator(): BelongsTo
     {
@@ -110,5 +161,42 @@ class ModerationAction extends Model
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class);
+    }
+
+    /** Osoba, której ta decyzja dotyczy — autor treści albo zgłoszone konto. */
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'subject_user_id');
+    }
+
+    /** Odwołanie od tej decyzji. Najwyżej jedno — `UNIQUE` w bazie. */
+    public function appeal(): HasOne
+    {
+        return $this->hasOne(Appeal::class);
+    }
+
+    public function label(): string
+    {
+        return self::ETYKIETY[$this->action] ?? $this->action;
+    }
+
+    /**
+     * Do kiedy można się odwołać.
+     *
+     * Termin z `docs/legal/MODERATION_PLAYBOOK.md` (szablony 4.1-4.5 mówią
+     * „w ciągu 14 dni"). Liczony od DECYZJI, nie od przeczytania jej przez
+     * użytkownika — inaczej termin nigdy by nie mijał komuś, kto nie zagląda
+     * do serwisu.
+     */
+    public function appealDeadline(): CarbonInterface
+    {
+        return $this->created_at->copy()->addDays((int) config('kuking.moderation.appeal_days'));
+    }
+
+    /** Czy od tej decyzji da się jeszcze złożyć odwołanie. */
+    public function isAppealable(): bool
+    {
+        return in_array($this->action, self::ODWOLYWALNE, true)
+            && $this->appealDeadline()->isFuture();
     }
 }

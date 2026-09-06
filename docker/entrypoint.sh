@@ -24,6 +24,44 @@ log() { printf '[entrypoint] %s\n' "$*" >&2; }
 die() { printf '[entrypoint] BŁĄD: %s\n' "$*" >&2; exit 1; }
 
 # -----------------------------------------------------------------------------
+# 0. ZEJŚCIE Z ROOTA — ale dopiero PO przygotowaniu woluminu.
+#
+#  Kontener startuje jako root wyłącznie po to, żeby przekazać katalog
+#  z plikami użytkowników na własność `www-data`, i natychmiast schodzi
+#  na `www-data`. Aplikacja NIE działa jako root.
+#
+#  DLACZEGO NIE `USER www-data` W DOCKERFILE
+#  Railway montuje świeży wolumin jako `root:root`. Obraz startujący od razu
+#  jako `www-data` nie ma wtedy prawa nawet założyć podkatalogu — `mkdir`
+#  pada na „Permission denied", `set -e` zabija start, kontener wpada w pętlę
+#  i CAŁA STRONA znika. Dokładnie to się stało przy podpinaniu woluminu:
+#  produkcja poszła w 404, choć problem dotyczył wyłącznie zdjęć.
+#
+#  Kolejność jest tu jedyną rzeczą, która się liczy: najpierw `chown`, potem
+#  zejście z uprawnień, dopiero na końcu cokolwiek innego.
+# -----------------------------------------------------------------------------
+if [[ "$(id -u)" == "0" ]]; then
+  mkdir -p /app/storage/app/public /app/storage/app/private
+
+  # Bez `-R`: pliki w środku i tak zapisał `www-data`, a rekurencja po
+  # woluminie z tysiącami zdjęć wydłużałaby każdy start kontenera.
+  chown www-data:www-data \
+    /app/storage/app \
+    /app/storage/app/public \
+    /app/storage/app/private
+
+  if command -v setpriv >/dev/null 2>&1; then
+    exec setpriv --reuid=www-data --regid=www-data --clear-groups "$0" "$@"
+  fi
+
+  # Świadomie NIE przerywamy startu. Strona działająca z nadmiarem uprawnień
+  # jest lepsza niż strona, której nie ma — a ten komunikat jest na tyle
+  # głośny, żeby nie został przeoczony.
+  log 'OSTRZEŻENIE: brak setpriv w obrazie — aplikacja zostaje jako root.'
+  log "  To jest nadmiar uprawnień, nie awaria. Do naprawy w Dockerfile."
+fi
+
+# -----------------------------------------------------------------------------
 # 1. Walidacja wstępna — lepiej padnąć czytelnie tu, niż zwrócić białą stronę.
 # -----------------------------------------------------------------------------
 [[ -f /app/artisan ]] || die "brak /app/artisan — obraz zbudowany niepoprawnie"
@@ -118,8 +156,33 @@ php /app/artisan optimize --no-interaction
 #
 #  `private` to korzeń dysku `local` w Laravelu 11+ (oryginały zdjęć, audyt
 #  A02), `public` — dysku `public` (warianty publikowane na stronie).
+#
+#  WOLUMIN, A NIE DYSK KONTENERA
+#
+#  `/app/storage/app` jest punktem montowania woluminu Railway. Bez niego
+#  katalog żyje na dysku kontenera, który Railway kasuje przy KAŻDYM wdrożeniu
+#  i restarcie — i dokładnie to się stało: wszystkie wgrane zdjęcia przepadły,
+#  a strona dalej zwracała HTTP 200, bo baza była cała. Widać to było tylko
+#  jako połamane obrazki.
+#
+#  Kontener chodzi jako `www-data` (Dockerfile), a świeży wolumin bywa
+#  zamontowany jako `root:root`. Wtedy `mkdir` poniżej NIE MA PRAWA zapisu.
+#  Z `set -e` wywaliłoby to cały start i dałoby 502 zamiast działającej strony
+#  bez wgrywania zdjęć — czyli awaria większa niż problem. Dlatego sprawdzamy
+#  osobno i mówimy wprost, co jest nie tak.
 # -----------------------------------------------------------------------------
-mkdir -p /app/storage/app/public /app/storage/app/private
+mkdir -p /app/storage/app/public /app/storage/app/private 2>/dev/null || true
+
+if [[ ! -w /app/storage/app ]] \
+  || [[ ! -d /app/storage/app/public ]] \
+  || [[ ! -d /app/storage/app/private ]]; then
+  log "OSTRZEŻENIE: /app/storage/app nie jest zapisywalne dla $(id -un)."
+  log "  Wgrywanie zdjęć będzie padać, a już wgrane będą zwracać 404."
+  log "  Najczęstsza przyczyna: świeży wolumin Railway zamontowany jako root,"
+  log "  podczas gdy obraz chodzi jako www-data (USER w Dockerfile)."
+  log "  Sprawdź stan przez /health — pole checks.media mówi, co dokładnie padło."
+  log "  Nie zatrzymuję startu: strona bez wgrywania zdjęć jest lepsza niż 502."
+fi
 
 # Błąd NIE jest już połykany. Wcześniej `|| true` z przekierowanym wyjściem
 # ukrywał niepowodzenie, więc awaria objawiała się dopiero jako zepsute

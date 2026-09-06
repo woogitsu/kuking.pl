@@ -22,7 +22,7 @@ Krótka, ludzka wersja — do publikacji na `/zasady` i linkowania z formularza 
 > 8. **Szanuj dzieci.** Kuking jest dla osób od 16 lat. Nie publikuj danych ani zdjęć cudzych dzieci bez zgody rodzica.
 > 9. **Nie publikuj cudzych danych osobowych** (adresu, telefonu, danych finansowych) bez zgody tej osoby.
 > 10. **Zgłaszaj, co Cię niepokoi.** Widzisz coś złego? Kliknij "Zgłoś". Przeczytamy każde zgłoszenie.
-> 11. **Możesz się odwołać.** Jeśli usunęliśmy Twoją treść lub zawiesiliśmy konto, a uważasz, że to pomyłka — napisz do nas. Sprawdzimy to jeszcze raz.
+> 11. **Możesz się odwołać.** Jeśli usunęliśmy Twoją treść lub zawiesiliśmy konto, a uważasz, że to pomyłka — w powiadomieniu o decyzji jest przycisk „Odwołanie od tej decyzji”. Masz na to 14 dni, odpowiadamy w ciągu 7 dni roboczych. Jeśli konto zostało zablokowane, link „Złóż odwołanie” znajdziesz na ekranie logowania.
 > 12. **Reagujemy na zgłoszenia, nie inwigilujemy.** Nie czytamy Twoich prywatnych wiadomości ani nie oceniamy Cię z góry — sprawdzamy tylko to, co ktoś zgłosił, albo co jest wyraźnie publiczne i budzi wątpliwości.
 
 ---
@@ -72,11 +72,46 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
 
 ### Ścieżka odwołania
 
-1. Użytkownik dostaje wiadomość o decyzji z **jasnym uzasadnieniem** (Art. 17 DSA — patrz `COMPLIANCE.md` 1.1) i linkiem/instrukcją "jak się odwołać".
-2. Odwołanie = odpowiedź na e-mail lub formularz z krótkim wyjaśnieniem, dlaczego użytkownik uważa decyzję za błędną.
-3. Ktoś inny niż pierwotny decydent (lub ta sama osoba po odczekaniu min. 24h) ponownie ocenia sprawę.
-4. Odpowiedź w ciągu 7 dni roboczych — decyzja podtrzymana lub cofnięta, zawsze z krótkim wyjaśnieniem.
-5. Wynik odwołania jest **ostateczny w ramach Kuking** — nie ma formalnego obowiązku ODS (Kuking jest zwolniony jako mały podmiot, patrz `COMPLIANCE.md` 1.2), ale warto **poinformować użytkownika**, że może zgłosić sprawę do UODO (dane osobowe) lub do Koordynatora ds. Usług Cyfrowych (UKE), jeśli uważa, że naruszono jego prawa — to buduje zaufanie i jest zgodne z duchem przejrzystości DSA.
+> **Ta sekcja opisuje mechanizm, który DZIAŁA W PRODUKCIE** (issue #10).
+> Liczby (14 dni, 7 dni roboczych, 24 godziny) siedzą w
+> `config/kuking.php` → `kuking.moderation` i są egzekwowane przez kod.
+> Zmieniasz je tu — zmień je i tam, inaczej znowu obiecujemy coś, czego
+> system nie robi.
+
+1. Użytkownik dostaje **powiadomienie w serwisie** o decyzji, z uzasadnieniem
+   napisanym przez moderatora (Art. 17 DSA — patrz `COMPLIANCE.md` 1.1)
+   i przyciskiem „Odwołanie od tej decyzji".
+2. Odwołanie składa się **formularzem w produkcie**:
+   - osoba aktywna albo zawieszona — z powiadomienia (`/odwolanie/{decyzja}`);
+     zawieszenie nie blokuje wysłania odwołania, choć blokuje wszystko inne;
+   - osoba **zablokowana** — `/odwolanie`, formularz przed logowaniem,
+     zamknięty loginem i hasłem (nie loguje i nie zdejmuje blokady). Link jest
+     na ekranie logowania, bo to jedyny ekran, który taka osoba zobaczy;
+   - kto nie pamięta hasła — zostaje adres e-mail, wypisany na obu
+     formularzach. Odwołanie z e-maila moderator wprowadza ręcznie.
+3. **Termin na złożenie: 14 dni od decyzji.** Po nim formularz mówi wprost, że
+   termin minął, i kieruje na adres e-mail dla nowych okoliczności.
+4. **Jedno odwołanie od jednej decyzji.** Pilnuje tego `UNIQUE` w bazie.
+   Przy 1–2 osobach brak limitu znaczy, że jedna sprawa potrafi zająć całą
+   moderację na tydzień, a kolejne pismo w tej samej sprawie nie wnosi nowych
+   faktów. DSA art. 20 wymaga dostępu do wewnętrznego rozpatrzenia skargi,
+   nie nieskończonej liczby instancji.
+5. Sprawę ocenia ktoś inny niż pierwotny decydent. Gdy zespół ma jedną osobę,
+   system egzekwuje to, co da się wyegzekwować: **ten sam moderator nie
+   podtrzyma własnej decyzji przez 24 godziny** od jej podjęcia. Cofnąć własną
+   decyzję może natychmiast — przyznanie się do pomyłki nie ma powodu czekać,
+   a doba z niesłusznie ukrytą treścią szkodzi wyłącznie poszkodowanemu.
+6. **Odpowiedź w ciągu 7 dni roboczych** — decyzja podtrzymana albo cofnięta,
+   **zawsze z uzasadnieniem** (pole obowiązkowe, pilnuje tego także CHECK
+   w bazie). Kolejka `/admin/odwolania` pokazuje termin przy każdej sprawie
+   i wyróżnia te po terminie. Dni roboczych liczymy bez weekendów; świąt
+   system nie zna, więc to cel operacyjny, nie zobowiązanie co do godziny.
+7. Cofnięcie decyzji **realnie ją cofa**: treść wraca do stanu sprzed ukrycia
+   (szkic zostaje szkicem), konto wraca do aktywnego. Odwołanie, po którym nic
+   się nie zmienia, nie jest odwołaniem.
+8. Odpowiedź dociera powiadomieniem; osoba zablokowana czyta ją **na ekranie
+   logowania**, bo do serwisu nie wejdzie.
+9. Wynik odwołania jest **ostateczny w ramach Kuking** — nie ma formalnego obowiązku ODS (Kuking jest zwolniony jako mały podmiot, patrz `COMPLIANCE.md` 1.2), ale warto **poinformować użytkownika**, że może zgłosić sprawę do UODO (dane osobowe) lub do Koordynatora ds. Usług Cyfrowych (UKE), jeśli uważa, że naruszono jego prawa — to buduje zaufanie i jest zgodne z duchem przejrzystości DSA.
 
 ---
 
@@ -90,7 +125,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 >
 > Usunęliśmy Twoją treść „[tytuł/fragment]” opublikowaną [data], ponieważ narusza nasze Zasady Kuking — konkretnie: [krótki, konkretny powód, np. "zawierała link reklamowy niezwiązany z przepisem"].
 >
-> Jeśli uważasz, że to pomyłka, odpisz na tego maila w ciągu 14 dni, a przyjrzymy się sprawie jeszcze raz.
+> Jeśli uważasz, że to pomyłka, kliknij „Odwołanie od tej decyzji” w powiadomieniu w serwisie — masz na to 14 dni. Przyjrzymy się sprawie jeszcze raz i odpowiemy w ciągu 7 dni roboczych.
 >
 > Pozdrawiamy,
 > Zespół Kuking
@@ -101,7 +136,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 >
 > Ukryliśmy Twoją treść „[tytuł]” — nie jest teraz widoczna dla innych, ale nadal masz do niej dostęp na swoim koncie. Powód: [np. "przepis wygląda na skopiowany z innej strony — poprawiłbyś to na własne słowa?"].
 >
-> Możesz ją poprawić i zgłosić nam do ponownego sprawdzenia, pisząc na [e-mail]. Jeśli nic się nie zmieni w ciągu 14 dni, treść zostanie usunięta.
+> Możesz ją poprawić i zgłosić nam do ponownego sprawdzenia — w powiadomieniu jest przycisk „Odwołanie od tej decyzji”. Gdy uznamy sprawę za wyjaśnioną, przywrócimy treść do stanu sprzed ukrycia (jeśli była szkicem, zostanie szkicem). Jeśli nic się nie zmieni w ciągu 14 dni, treść zostanie usunięta.
 >
 > Pozdrawiamy,
 > Zespół Kuking
@@ -123,7 +158,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 >
 > Zablokowaliśmy Twoje konto na [X] dni (do [data]), ponieważ [konkretny powód, np. "kilka Twoich komentarzy naruszyło zasadę szacunku wobec innych — mimo wcześniejszego ostrzeżenia"].
 >
-> Po tym czasie konto odblokuje się samo. Jeśli uważasz, że to pomyłka, odpisz na tego maila — sprawdzimy to jeszcze raz.
+> Po tym czasie konto odblokuje się samo. Jeśli uważasz, że to pomyłka, kliknij „Odwołanie od tej decyzji” w powiadomieniu — zawieszenie nie blokuje wysłania odwołania. Odpowiemy w ciągu 7 dni roboczych.
 >
 > Pozdrawiamy,
 > Zespół Kuking
@@ -134,7 +169,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 >
 > Zamknęliśmy Twoje konto na stałe. Powód: [konkretny powód, np. "wielokrotne naruszenia zasad dotyczących [...] mimo wcześniejszych ostrzeżeń" / "treść naruszająca prawo"].
 >
-> Jeśli uważasz, że to błąd, możesz się odwołać, pisząc na [e-mail], w ciągu 14 dni. Po tym terminie decyzja jest ostateczna, chyba że pojawią się nowe okoliczności.
+> Jeśli uważasz, że to błąd, możesz się odwołać w ciągu 14 dni: na ekranie logowania jest link „Złóż odwołanie”. Poprosimy tam o Twój login i hasło — tylko po to, żeby mieć pewność, że piszesz Ty; to nie odblokuje konta. Odpowiedź zobaczysz na tym samym ekranie logowania. Po tym terminie decyzja jest ostateczna, chyba że pojawią się nowe okoliczności.
 >
 > Zespół Kuking
 
@@ -156,6 +191,8 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 > Ponownie przeanalizowaliśmy Twoją sprawę dotyczącą [treść/konto] z [data].
 >
 > **Decyzja:** [podtrzymujemy poprzednią decyzję / cofamy poprzednią decyzję i przywracamy treść/konto].
+>
+> [Uwaga: odwołanie od jednej decyzji rozpatrujemy raz. Jeśli pojawią się nowe okoliczności, napisz do nas.]
 >
 > [Krótkie uzasadnienie].
 >

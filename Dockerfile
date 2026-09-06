@@ -227,7 +227,27 @@ RUN mkdir -p \
 # Nie działamy jako root. Port > 1024, więc CAP_NET_BIND_SERVICE nie jest
 # potrzebne — Caddy słucha na :8080 (patrz SERVER_NAME w entrypoincie).
 RUN chown -R www-data:www-data /data/caddy /config/caddy
-USER www-data
+
+# ŚWIADOMIE BEZ `USER www-data`, mimo że aplikacja NIE działa jako root.
+#
+# Zejście na `www-data` robi entrypoint (sekcja 0), a nie ta instrukcja —
+# i to jest jedyna różnica, ale różnica istotna. Railway montuje świeży
+# wolumin jako `root:root`. Obraz startujący od razu jako `www-data` nie ma
+# prawa założyć w nim podkatalogu: `mkdir` pada, `set -e` zabija start,
+# kontener wpada w pętlę i znika CAŁA STRONA — mimo że problem dotyczy
+# wyłącznie katalogu ze zdjęciami. Dokładnie to zdarzyło się na produkcji
+# przy podpinaniu woluminu: serwis poszedł w 404.
+#
+# Entrypoint przekazuje katalog na własność `www-data` i natychmiast schodzi
+# z uprawnień przez `setpriv`. Efekt jest ten sam co `USER www-data`, tylko
+# o kilka instrukcji później — po tej jednej rzeczy, do której root jest
+# potrzebny.
+#
+# Sprawdzenie w BUILDZIE, nie w runtime: bez `setpriv` entrypoint zostawiłby
+# aplikację jako root i powiedziałby o tym wyłącznie w logu, którego nikt
+# nie czyta. Lepiej, żeby nie zbudował się obraz.
+RUN command -v setpriv >/dev/null 2>&1 \
+ || { echo 'BŁĄD: brak setpriv — entrypoint nie zejdzie z uprawnień roota'; exit 1; }
 
 # Wartości domyślne. Railway nadpisze PORT i wszystkie sekrety.
 ENV APP_ROLE=web \

@@ -59,6 +59,7 @@ final class NotifyModerationDecision
     private const TYTULY = [
         ModerationAction::ACTION_WARN => 'Ostrzeżenie od moderacji Kuking.',
         ModerationAction::ACTION_HIDE => 'Moderacja Kuking ukryła Twoją treść.',
+        ModerationAction::ACTION_UNHIDE => 'Twoja treść jest z powrotem na miejscu.',
         ModerationAction::ACTION_REMOVE => 'Moderacja Kuking usunęła Twoją treść.',
         ModerationAction::ACTION_SUSPEND => 'Twoje konto zostało zawieszone.',
         ModerationAction::ACTION_BAN => 'Twoje konto zostało zablokowane.',
@@ -77,16 +78,24 @@ final class NotifyModerationDecision
     private const DOMYSLNE = [
         ModerationAction::ACTION_WARN => 'Zwracamy uwagę na Twoją ostatnią treść. Nic nie zostało ukryte ani usunięte.',
         ModerationAction::ACTION_HIDE => 'Ta treść nie jest już widoczna dla innych osób.',
+        ModerationAction::ACTION_UNHIDE => 'Zdjęliśmy ukrycie. Treść wróciła do stanu sprzed decyzji — jeśli przed ukryciem była szkicem, jest nim dalej.',
         ModerationAction::ACTION_REMOVE => 'Ta treść została usunięta z serwisu.',
         ModerationAction::ACTION_SUSPEND => 'W czasie zawieszenia możesz czytać, ale nie opublikujesz wpisu ani komentarza.',
         ModerationAction::ACTION_BAN => 'To konto nie ma już dostępu do serwisu.',
     ];
 
+    /**
+     * @param  ?ModerationAction  $decyzjaModeracyjna  wiersz w logu, którego to
+     *                                                 powiadomienie dotyczy. Bez niego przycisk „Odwołanie od tej
+     *                                                 decyzji" nie ma dokąd prowadzić i zostaje samo zdanie z adresem
+     *                                                 e-mail (tak wyglądają powiadomienia sprzed issue #10).
+     */
     public function handle(
         User $osoba,
         string $decyzja,
         ?string $wiadomoscModeratora = null,
         ?CarbonInterface $do = null,
+        ?ModerationAction $decyzjaModeracyjna = null,
     ): ?Notification {
         // „Bez działania" znaczy, że zgłoszenie zostało odrzucone i tej osobie
         // nic się nie stało. Powiadomienie byłoby tu szkodliwe: powiedziałoby
@@ -110,7 +119,15 @@ final class NotifyModerationDecision
                 // Widok dokleja zdanie o odwołaniu z aktualnego adresu
                 // kontaktowego. Zamrożenie adresu w `data` znaczyłoby, że po
                 // jego zmianie stare powiadomienia wysyłają ludzi w próżnię.
-                'appeal' => true,
+                //
+                // `false` przy przywróceniu treści: nikt nie odwołuje się od
+                // dobrej wiadomości, a zdanie „jeśli uważasz, że to pomyłka"
+                // pod komunikatem o zdjęciu ukrycia brzmi jak groźba.
+                'appeal' => in_array($decyzja, ModerationAction::ODWOLYWALNE, true),
+                // Adres formularza odwołania. Trzymamy sam identyfikator,
+                // nie gotowy URL — trasy się zmieniają, historia powiadomień
+                // zostaje na lata.
+                'action_id' => $decyzjaModeracyjna?->getKey(),
             ],
         ]);
     }

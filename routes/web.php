@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -109,6 +111,22 @@ Route::middleware('guest')->group(function () use ($limits): void {
 Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+// --------------------------------------------------------------------------
+// Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
+// --------------------------------------------------------------------------
+//
+// Ta trasa NIE jest w grupie `auth` ani `guest` i to jest jej sedno: człowiek,
+// któremu zamknięto konto, nie wejdzie do serwisu, a DSA art. 20 daje mu prawo
+// do odwołania właśnie od tej decyzji. Formularz zamiast tego prosi o login
+// i hasło — sprawdzamy je, ale NIE logujemy nikogo i nie zdejmujemy blokady.
+//
+// Uzasadnienie wyboru „formularz zamknięty hasłem" zamiast formularza
+// całkiem otwartego albo samego adresu e-mail: `AppealController`.
+Route::get('/odwolanie', [AppealController::class, 'guestForm'])->name('appeals.guest');
+Route::post('/odwolanie', [AppealController::class, 'guestStore'])
+    ->middleware("throttle:{$limits['appeal']}")
+    ->name('appeals.guest.store');
 
 // --------------------------------------------------------------------------
 // Zalogowany
@@ -220,6 +238,17 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware('signed')
         ->name('settings.data.download');
 
+    // Odwołanie od decyzji moderacyjnej — droga dla osób, które MOGĄ wejść
+    // do serwisu (aktywnych i zawieszonych). Wejście jest z powiadomienia
+    // o decyzji, więc adres zawiera identyfikator TEJ decyzji.
+    //
+    // `EnsureAccountIsActive` przepuszcza tu POST mimo zawieszenia —
+    // odwołanie, którego zawieszony nie może wysłać, nie jest odwołaniem.
+    Route::get('/odwolanie/{action}', [AppealController::class, 'show'])->name('appeals.show');
+    Route::post('/odwolanie/{action}', [AppealController::class, 'store'])
+        ->middleware("throttle:{$limits['appeal']}")
+        ->name('appeals.store');
+
     // Zgłaszanie treści
     Route::get('/zglos/{type}/{id}', [ReportController::class, 'create'])->name('reports.create');
     Route::post('/zglos/{type}/{id}', [ReportController::class, 'store'])
@@ -234,6 +263,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
 Route::middleware(['auth', 'moderator'])->prefix('admin')->group(function (): void {
     Route::get('/zgloszenia', [ModerationController::class, 'reports'])->name('admin.reports');
     Route::post('/zgloszenia/{report}', [ModerationController::class, 'decide'])->name('admin.reports.decide');
+
+    // Cofnięcie ukrycia albo usunięcia treści (#65). Osobno od `decide`, bo
+    // przywrócenie przychodzi PO rozstrzygnięciu zgłoszenia, a `decide`
+    // słusznie nie przyjmuje drugiej decyzji do tego samego zgłoszenia.
+    Route::post('/zgloszenia/{report}/przywroc', [ModerationController::class, 'restore'])
+        ->name('admin.reports.restore');
+
+    // Kolejka odwołań (#10).
+    Route::get('/odwolania', [AdminAppealController::class, 'index'])->name('admin.appeals');
+    Route::post('/odwolania/{appeal}', [AdminAppealController::class, 'resolve'])->name('admin.appeals.resolve');
 
     // Wybór redakcyjny na tablicę „kuKINGi na dziś".
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
