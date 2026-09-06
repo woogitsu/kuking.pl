@@ -452,9 +452,9 @@ jobs:
           php artisan storage:link
           npm run build
 
-      # CHROMIUM_PATH pusty = Playwright bierze swoją pobraną przeglądarkę.
-      # Zmienna istnieje dla obrazu deweloperskiego, gdzie Chromium leży
-      # pod stałą ścieżką i wersje się nie zgadzają.
+      # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
+      # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
+      # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
       - name: axe-core (11 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs

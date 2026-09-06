@@ -35,11 +35,45 @@
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 
 const SZYBKO = process.argv.includes('--szybko');
-const CHROMIUM = process.env.CHROMIUM_PATH
-  || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+
+/*
+ * Skąd wziąć Chromium — dwa różne światy, jedna reguła.
+ *
+ * Obraz deweloperski ma gotowe Chromium pod stałą ścieżką i NIE MA tej
+ * wersji, której szuka paczka `playwright`. Runner GitHuba jest odwrotnie:
+ * pobiera własną przeglądarkę przez `playwright install`, a tamtej ścieżki
+ * nie zna w ogóle.
+ *
+ * Pierwsza wersja robiła `process.env.CHROMIUM_PATH || '/opt/...'` —
+ * czyli przy NIEUSTAWIONEJ zmiennej i tak wskazywała ścieżkę deweloperską.
+ * Na CI dawało to natychmiastowe „executable doesn't exist", mimo że
+ * Playwright miał swoją przeglądarkę gotową. Komentarz w workflow opisywał
+ * zachowanie, którego kod nie miał.
+ *
+ * Teraz: bierzemy stałą ścieżkę TYLKO wtedy, gdy plik pod nią istnieje.
+ * `undefined` znaczy dla Playwrighta „użyj swojej".
+ */
+function znajdzChromium() {
+  const wskazana = process.env.CHROMIUM_PATH;
+
+  if (wskazana) {
+    if (! existsSync(wskazana)) {
+      console.error(`BŁĄD: CHROMIUM_PATH wskazuje na ${wskazana}, a tam nic nie ma.`);
+      process.exit(1);
+    }
+
+    return wskazana;
+  }
+
+  const deweloperska = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+
+  return existsSync(deweloperska) ? deweloperska : undefined;
+}
+
+const CHROMIUM = znajdzChromium();
 
 /*
  * Ekrany z issue #26. Te wymagające logowania są oznaczone — Playwright
