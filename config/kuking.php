@@ -167,6 +167,14 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Odhaczanie kroku w trybie gotowania (issue #24). Zapisuje tylko
+        // do sesji przeglądarki — bez ryzyka takiego jak przy komentarzu
+        // czy zdjęciu — ale to i tak POST na cudzy (jeśli ktoś zgadnie
+        // slug) przepis, więc limit stoi tu z tego samego powodu co reszta:
+        // jeden formularz nie ma prawa zalać serwera. Wyżej niż `comment`,
+        // bo klikanie „poprzedni/następny krok” w trakcie gotowania zdarza
+        // się częściej niż pisanie komentarzy.
+        'cooking_krok' => '60,1',
         // Zgłoszenia naruszeń CSP wysyła sama przeglądarka. Jedna zapętlona
         // wtyczka potrafi wysłać setki na minutę, a każde to wpis w logu —
         // stąd limit wyraźnie wyższy niż przy formularzach, ale skończony.

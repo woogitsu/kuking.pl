@@ -196,9 +196,20 @@
 
         {{-- Główna akcja przepisu. Nie „Lubię to”, a „Ugotowałem”. --}}
         <section class="card" style="background-color:var(--color-brand-tint);">
-            <h2 style="margin-top:0;">Ugotowałeś z tego przepisu?</h2>
-            <p>{{ $recipe->author->displayName() }} naprawdę chce o tym wiedzieć. Wystarczy jedno kliknięcie.</p>
+            <h2 style="margin-top:0;">Gotujesz z tego przepisu?</h2>
+            <p>Otwórz kroki na cały ekran w kuchni, a kiedy skończysz — {{ $recipe->author->displayName() }} naprawdę chce wiedzieć, że Ci wyszło.</p>
             <div style="display:flex; gap:var(--spacing-3); flex-wrap:wrap;">
+                {{--
+                    „Gotuję” obok „Ugotowałem" (issue #24) — to jest PRZED
+                    wykonaniem, w tym samym rzędzie przycisków co ten PO.
+                    Widoczny tylko, gdy przepis w ogóle ma kroki: bez nich
+                    tryb gotowania nie miałby czego pokazać, a kontroler
+                    i tak zawraca z czytelnym komunikatem, gdyby ktoś mimo
+                    to trafił pod ten adres wprost.
+                --}}
+                @if($recipe->steps->isNotEmpty())
+                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                @endif
                 @auth
                     <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                     @if($isSaved)

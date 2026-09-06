@@ -988,3 +988,168 @@
 .czeka-pierwszy {
     color: var(--color-brand-tint-ink);
 }
+
+/* ---------------------------------------------------------------------------
+   Tryb gotowania (issue #24)
+
+   Człowiek stoi przy blacie z rękami w cieście, telefon oparty dalej niż
+   zwykle. Stąd DWA świadome, LOKALNE odstępstwa od reszty serwisu — nie
+   zmiana reguły w DESIGN_SYSTEM.md, tylko dodatek dla tego jednego ekranu:
+
+     1. tekst kroku jest większy niż najwyższy token typografii
+        (`--text-title-lg`, 36px) — ten sam ekran czyta się teraz
+        z odległości wyciągniętej ręki, nie kanapy;
+     2. główne przyciski są WYŻSZE niż standardowe --control-height-min
+        (48px) — umączony albo mokry palec trafia gorzej. DESIGN_SYSTEM.md
+        §„Tekst i dostępność” mówi, że skala tekstu skaluje WYŁĄCZNIE tekst,
+        nigdy wysokość kontrolek — i to zostaje prawdą: `--user-text-scale`
+        rośnie tu, `min-height` w rem poniżej nie.
+   --------------------------------------------------------------------------- */
+
+.cook-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+}
+
+.cook-progress {
+    font-size: var(--text-body-lg);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+    margin: 0;
+}
+
+/* Wyjście z trybu musi być oczywiste — własny, nazwany przycisk, nie
+   ikona ani link schowany w tekście (AGENTS.md: ikona nigdy sama). */
+.cook-exit {
+    min-height: 3.75rem;
+    font-size: var(--text-body);
+}
+
+.cook-ingredients {
+    background-color: var(--color-surface-raised);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2) var(--spacing-5);
+}
+
+.cook-ingredients > summary {
+    cursor: pointer;
+    font-size: var(--text-body-lg);
+    font-weight: 800;
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+}
+
+.cook-ingredients .ingredient-list {
+    margin: 0 0 var(--spacing-3);
+}
+
+.cook-step {
+    background-color: var(--color-surface-raised);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--spacing-6);
+}
+
+.cook-step-numer {
+    font-size: var(--text-title-sm);
+    font-weight: 800;
+    color: var(--color-brand);
+    margin: 0 0 var(--spacing-4);
+}
+
+.cook-step-tekst {
+    /* Świadomie ponad --text-title-lg (36px) — patrz komentarz na górze
+       bloku. `calc()` zewnętrzny utrzymuje skalowanie przez
+       --user-text-scale tak jak każdy inny token w tokens.css. */
+    font-size: calc(clamp(1.75rem, 1.1rem + 3vw, 2.75rem) * var(--user-text-scale, 1));
+    line-height: 1.4;
+    font-weight: 600;
+    white-space: pre-line;
+    margin: 0;
+}
+
+.cook-step-zdjecie {
+    margin-top: var(--spacing-5);
+    max-width: 24rem;
+}
+
+.cook-timer {
+    margin-top: var(--spacing-5);
+    padding: var(--spacing-4);
+    border-left: 4px solid var(--color-accent);
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body-lg);
+}
+
+.cook-timer p {
+    margin: 0;
+}
+
+.cook-timer-odliczanie {
+    font-size: var(--text-title);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.cook-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+/* Ogromne cele dotykowe (issue #24): dużo więcej niż zwykłe 48px, bo to
+   jest przycisk klikany mokrą albo umączoną ręką, wielokrotnie w trakcie
+   jednego gotowania. `width:100%` — pełna szerokość, jak wymaga issue. */
+.btn-cook {
+    width: 100%;
+    min-height: 4.5rem;
+    font-size: var(--text-body-lg);
+    border-radius: var(--radius-lg);
+}
+
+.cook-zaznacz {
+    display: inline-block;
+    width: 100%;
+}
+
+.cook-finish {
+    background-color: var(--color-brand-tint);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-6);
+    text-align: center;
+}
+
+/* Przełącznik Wake Locka — ukryty w HTML domyślnie (`hidden`) i odkrywany
+   WYŁĄCZNIE skryptem, kiedy przeglądarka naprawdę obsługuje to API. Bez
+   tego dopisku ukrycie w CSS i odkrycie w JS rozjeżdżałyby się cicho przy
+   następnej zmianie jednego z tych dwóch plików. */
+.cook-wakelock {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    min-height: 4rem;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body);
+    cursor: pointer;
+}
+
+.cook-wakelock input[type="checkbox"] {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+}
+
+.cook-wakelock-status {
+    margin: var(--spacing-2) 0 0;
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+}

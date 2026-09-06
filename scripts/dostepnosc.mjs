@@ -97,6 +97,10 @@ const EKRANY = [
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
+  // Tryb gotowania (issue #24) — jeden krok na cały ekran, bardzo dużym
+  // tekstem. Ten sam przepis co ekran „przepis” wyżej, bo demo ma dla niego
+  // gotowe kroki — patrz komentarz przy `adresPrzepisu` niżej w tym pliku.
+  { nazwa: 'tryb gotowania', adres: null, znajdz: 'gotowanie' },
   { nazwa: 'profil', adres: '/@basia' },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
@@ -279,6 +283,30 @@ const adresPrzepisu = (() => {
   return slug === '' ? null : `/przepisy/${slug}`;
 })();
 
+/*
+ * Adres ekranu, który nie ma stałej wartości `adres` i musi go „znaleźć”
+ * w bazie (`przepis`, `gotowanie`). Jedna funkcja zamiast powtórzonego
+ * łańcucha `?:` w dwóch pętlach niżej — inaczej dodanie TRZECIEGO takiego
+ * ekranu wymagałoby pamiętać o poprawieniu obu miejsc naraz.
+ */
+function znajdzAdres(ekran) {
+  if (ekran.znajdz === 'przepis') {
+    return adresPrzepisu;
+  }
+
+  if (ekran.znajdz === 'gotowanie') {
+    return adresGotowania;
+  }
+
+  return ekran.adres;
+}
+
+// Tryb gotowania tego samego przepisu — DemoSeeder daje mu kroki, więc ekran
+// pokazuje prawdziwą treść, nie pustą kartę „autor jeszcze nie opisał
+// przygotowania” (a pusty ekran przechodzi każdy test dostępności, nie
+// sprawdzając niczego — patrz nagłówek tego pliku).
+const adresGotowania = adresPrzepisu === null ? null : `${adresPrzepisu}/gotuj`;
+
 if (adresPrzepisu === null) {
   console.error('BŁĄD: w bazie nie ma opublikowanego przepisu — ekran przepisu nie zostałby sprawdzony.');
   console.error('       Uruchom seeder albo wskaż inną bazę przez DB_DATABASE.');
@@ -324,7 +352,7 @@ for (const wariant of WARIANTY) {
 
   for (const ekran of EKRANY) {
     const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
-    const sciezka = ekran.znajdz === 'przepis' ? adresPrzepisu : ekran.adres;
+    const sciezka = znajdzAdres(ekran);
 
     if (! sciezka) {
       // Ciche pominięcie ekranu jest gorsze niż błąd: raport wygląda
@@ -425,7 +453,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
     let zlych = 0;
 
     for (const ekran of EKRANY_UKLADU) {
-      const sciezka = ekran.znajdz === 'przepis' ? adresPrzepisu : ekran.adres;
+      const sciezka = znajdzAdres(ekran);
 
       if (! sciezka) {
         console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}".`);
