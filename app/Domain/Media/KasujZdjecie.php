@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Jobs\PurgePublicMediaCache;
 use App\Models\Media;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -89,14 +91,55 @@ final class KasujZdjecie
         // wymazaniu konta.
         $dyskWariantow = Storage::disk($zdjecie->variantsDisk());
 
+        // Adresy zbieramy PRZED kasowaniem: po usunięciu pliku `url()` nie ma
+        // już z czego ich zbudować, a to właśnie ich trzeba do wyczyszczenia
+        // cache CDN-u.
+        $doWyczyszczenia = [];
+
         foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $wariant) {
             if (is_array($wariant) && isset($wariant['key'])) {
-                $dyskWariantow->delete((string) $wariant['key']);
+                $klucz = (string) $wariant['key'];
+
+                $doWyczyszczenia[] = $this->publicznyAdres($dyskWariantow, $klucz);
+                $dyskWariantow->delete($klucz);
             }
         }
 
         if ($zdjecie->object_key !== null) {
             $dysk->delete($zdjecie->object_key);
+        }
+
+        // SKASOWANIE PLIKU TO NIE TO SAMO CO ZNIKNIĘCIE Z INTERNETU (audyt G-03).
+        //
+        // Cloudflare ostrzega wprost: przy cache na własnej domenie skasowany
+        // obiekt bywa dalej serwowany aż do wygaśnięcia. Przy wymazaniu konta
+        // albo decyzji moderacyjnej znaczy to, że serwis mówi „skasowane",
+        // a zdjęcie nadal się otwiera.
+        //
+        // Osobne zadanie, bo cudze API bywa niedostępne, a kasowanie zdjęcia
+        // nie może się przez to nie udać — awaria Cloudflare zatrzymałaby
+        // wtedy wymazywanie kont.
+        $doWyczyszczenia = array_values(array_filter($doWyczyszczenia));
+
+        if ($doWyczyszczenia !== []) {
+            PurgePublicMediaCache::dispatch($doWyczyszczenia);
+        }
+    }
+
+    /**
+     * Publiczny adres wariantu albo `null`, gdy dysk go nie zna.
+     *
+     * Dysk bez skonfigurowanego `url` (lokalny, testowy, a także dysk
+     * ORYGINAŁÓW — tam brak URL-a jest celowy) rzuca wyjątek zamiast zwracać
+     * adres. To jest poprawne zachowanie i nie może wywrócić kasowania:
+     * po prostu nie ma wtedy czego czyścić w CDN-ie.
+     */
+    private function publicznyAdres(Filesystem $dysk, string $klucz): ?string
+    {
+        try {
+            return $dysk->url($klucz);
+        } catch (\Throwable) {
+            return null;
         }
     }
 }

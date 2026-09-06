@@ -97,6 +97,32 @@ Nie musi być publicznie serwowany. Można go trzymać krótko do reprocessingu 
 
 Automatyka może flagować, ale nie powinna samodzielnie permanentnie banować bez odpowiedniej polityki.
 
+## Kasowanie: plik, wiersz i cache CDN-u
+
+Skasowanie obiektu w buckecie **nie jest** skasowaniem go z internetu.
+Cloudflare ostrzega wprost w dokumentacji spójności R2: przy włączonym cache
+na własnej domenie usunięty obiekt bywa dalej serwowany aż do wygaśnięcia albo
+wypchnięcia z cache.
+
+Dla miniatury to niedogodność. Dla wymazania konta po karencji, żądania z RODO,
+decyzji moderacyjnej albo zdjęcia wgranego przez pomyłkę to jest awaria
+prywatności — serwis mówi „skasowane", a plik nadal się otwiera pod tym samym
+adresem (audyt G-03).
+
+`KasujZdjecie` zbiera więc publiczne adresy wariantów **przed** skasowaniem
+plików (potem nie ma z czego ich zbudować) i zleca `PurgePublicMediaCache`.
+
+Zadanie jest osobne, bo cudze API bywa niedostępne, a kasowanie zdjęcia nie
+może się przez to nie udać: awaria Cloudflare zatrzymałaby wtedy wymazywanie
+kont. Jest idempotentne — czyszczenie adresu, którego w cache nie ma, to
+poprawna operacja bez skutku.
+
+Brak konfiguracji (`CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN`) wyłącza
+czyszczenie, ale **głośno**, wpisem w logu. Ciche wyłączenie wygląda dokładnie
+tak samo jak czyszczenie, które działa. Po wyczerpaniu prób w logu zostają
+konkretne adresy — bez nich nie da się tego dokończyć ręcznie, a przy wymazaniu
+konta ktoś dokończyć musi.
+
 ## Storage
 
 Kod biznesowy korzysta z Laravel Filesystem.

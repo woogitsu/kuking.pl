@@ -92,6 +92,31 @@ return [
             'image/avif',
         ],
 
+        /*
+         * Czyszczenie cache CDN po skasowaniu zdjęcia (audyt G-03).
+         *
+         * Cloudflare wprost ostrzega: przy włączonym cache na własnej domenie
+         * skasowany obiekt R2 BYWA DALEJ SERWOWANY z cache aż do wygaśnięcia,
+         * dopóki ktoś go stamtąd nie usunie. Dla miniatury to niedogodność.
+         * Dla wymazania konta, żądania z RODO, decyzji moderacyjnej albo
+         * zdjęcia wgranego przez pomyłkę to jest awaria prywatności: serwis
+         * mówi „skasowane", a plik nadal się otwiera.
+         *
+         * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
+         * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
+         * Ale wyłączenie jest GŁOŚNE: `PurgePublicMediaCache` zapisuje wtedy
+         * ostrzeżenie w logu, bo cicha rezygnacja z czyszczenia wygląda
+         * dokładnie tak samo jak czyszczenie, które działa.
+         */
+        'cdn_purge' => [
+            'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+            'token' => env('CLOUDFLARE_PURGE_TOKEN'),
+            'endpoint' => env(
+                'CLOUDFLARE_PURGE_ENDPOINT',
+                'https://api.cloudflare.com/client/v4/zones/{zone}/purge_cache',
+            ),
+        ],
+
         // Warianty generowane w tle (docs/MEDIA_PIPELINE.md).
         'variants' => [
             'thumb' => 320,
