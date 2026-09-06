@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 /**
@@ -232,9 +233,70 @@ class PowiadomienieOModeracjiTest extends TestCase
 
         // I uczciwie: do serwisu ta osoba nie wejdzie, więc tego powiadomienia
         // nie zobaczy. Kanałem, który naprawdę widzi, jest komunikat przy
-        // logowaniu — pilnuje go AccountStatusTest.
+        // logowaniu — pilnują go dwa testy niżej.
         $this->actingAs($basia->refresh())
             ->get(route('notifications.index'))
             ->assertRedirect(route('login'));
+    }
+
+    public function test_zablokowany_czyta_wiadomosc_moderatora_przy_logowaniu(): void
+    {
+        $moderator = $this->moderator();
+        $basia = $this->user('basia');
+
+        $this->decyzja($moderator, $this->zgloszenie('user', $basia->getKey()), [
+            'action' => ModerationAction::ACTION_BAN,
+            'reason_code' => 'harassment',
+            'user_message' => 'Konto zablokowane za nękanie innych osób w komentarzach.',
+        ]);
+
+        // Trasa logowania jest za `guest` — moderator, który przed chwilą
+        // podejmował decyzję, musi zejść z sesji.
+        Auth::logout();
+
+        $this->post(route('login'), [
+            'login' => $basia->email,
+            'password' => 'haslo-testowe-123',
+        ])->assertSessionHasErrors('login');
+
+        $blad = session('errors')->getBag('default')->first('login');
+
+        // Sam fakt „konto zablokowane" nie mówi za co. Odpowiedź na to
+        // pytanie napisał moderator — i to jest jedyne miejsce, w którym
+        // ta osoba ją przeczyta.
+        $this->assertStringContainsString('Konto zablokowane za nękanie innych osób w komentarzach.', $blad);
+        $this->assertStringContainsString(config('kuking.community.contact_email'), $blad);
+    }
+
+    public function test_zawieszony_moze_sie_zalogowac_i_przeczytac_decyzje(): void
+    {
+        $moderator = $this->moderator();
+        $basia = $this->user('basia');
+        $post = Post::factory()->create(['author_id' => $basia->getKey(), 'visibility' => 'public']);
+
+        $this->decyzja($moderator, $this->zgloszenie('post', $post->getKey()), [
+            'action' => ModerationAction::ACTION_SUSPEND,
+            'reason_code' => 'harassment',
+            'suspend_days' => '7',
+            'user_message' => 'Zawieszamy konto na tydzień za obraźliwe komentarze.',
+        ]);
+
+        // `suspend()` kasuje sesje, więc osoba wylatuje z serwisu od razu.
+        // Jeśli nie może wrócić, kara „tylko do odczytu" zamienia się w
+        // blokadę na zawsze — i nie ma jak przeczytać, za co i na jak długo.
+        Auth::logout();
+
+        $this->post(route('login'), [
+            'login' => $basia->email,
+            'password' => 'haslo-testowe-123',
+        ])->assertRedirect(route('home'));
+
+        $this->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee('Zawieszamy konto na tydzień za obraźliwe komentarze.');
+
+        // Zawieszenie nadal zabiera prawo do publikowania — wpuszczenie
+        // do środka nie może tego zdjąć.
+        $this->assertTrue($basia->fresh()->isSuspended());
     }
 }

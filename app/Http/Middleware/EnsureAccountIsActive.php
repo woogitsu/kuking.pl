@@ -115,8 +115,16 @@ class EnsureAccountIsActive
 
     private function wyloguj(Request $request, User $user): Response
     {
+        // Przy blokadzie doklejamy treść napisaną przez moderatora. Osoba
+        // zbanowana nie zobaczy powiadomienia o decyzji — leży ono w serwisie,
+        // z którego właśnie ją wylogowaliśmy. Ten komunikat jest jedynym,
+        // który do niej dotrze (DSA art. 17).
+        $odModeratora = $user->isBanned() ? $user->latestModerationMessage() : null;
+
         $powod = $user->isBanned()
-            ? 'To konto zostało zablokowane. Jeśli uważasz, że to pomyłka, napisz do nas: '
+            ? 'To konto zostało zablokowane. '
+                .($odModeratora !== null ? $odModeratora.' ' : '')
+                .'Jeśli uważasz, że to pomyłka, napisz do nas: '
                 .config('kuking.community.contact_email')
             : 'To konto jest oznaczone do usunięcia. Jeśli chcesz je odzyskać, napisz do nas: '
                 .config('kuking.community.contact_email');

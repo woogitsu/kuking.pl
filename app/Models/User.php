@@ -290,6 +290,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->count();
     }
 
+    /**
+     * Treść ostatniej decyzji moderacyjnej skierowanej do tej osoby.
+     *
+     * Potrzebna poza listą powiadomień, bo osoba zbanowana do serwisu nie
+     * wejdzie — jedynym miejscem, w którym cokolwiek od nas przeczyta, jest
+     * ekran logowania.
+     */
+    public function latestModerationMessage(): ?string
+    {
+        // Relacja `notifications()` jest już posortowana malejąco po dacie.
+        $ostatnie = $this->notifications()
+            ->where('type', Notification::TYPE_MODERATION)
+            ->first();
+
+        $tresc = $ostatnie?->data['message'] ?? null;
+
+        return is_string($tresc) && trim($tresc) !== '' ? $tresc : null;
+    }
+
     // ---------------------------------------------------------------------
     // Zmiany stanu konta
     //
