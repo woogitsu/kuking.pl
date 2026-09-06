@@ -148,6 +148,64 @@ class LogotypIMarkaTest extends TestCase
         $this->assertStringContainsString('prefers-color-scheme: dark', $svg);
     }
 
+    public function test_favicon_ico_pokazuje_nowy_znak(): void
+    {
+        // `/favicon.ico` jest pobierany BEZWARUNKOWO i przez rzeczy, które
+        // o naszym <head> nic nie wiedzą: wyniki wyszukiwania, czytniki
+        // kanałów, podglądy w komunikatorach. Plik już istniał, więc po
+        // zmianie znaku pokazywałby poprzednie logo w miejscach, w których
+        // nikt by go nie szukał.
+        $ico = file_get_contents(public_path('favicon.ico'));
+
+        $this->assertNotFalse($ico);
+
+        // Nagłówek ICO: 2 bajty zarezerwowane, 2 bajty typu (1 = ikona),
+        // 2 bajty liczby obrazków.
+        $naglowek = unpack('vzarezerwowane/vtyp/vile', substr($ico, 0, 6));
+
+        $this->assertSame(1, $naglowek['typ'], 'To nie jest plik ikony.');
+        $this->assertSame(2, $naglowek['ile'], 'Favikona nie ma obu rozmiarów, 16 i 32 px.');
+
+        $rozmiary = [];
+
+        for ($i = 0; $i < $naglowek['ile']; $i++) {
+            $wpis = unpack('Cszerokosc/Cwysokosc', substr($ico, 6 + $i * 16, 2));
+            $rozmiary[] = $wpis['szerokosc'];
+        }
+
+        $this->assertSame([16, 32], $rozmiary);
+    }
+
+    public function test_wariant_jednobarwny_nadaje_sie_na_wydruk(): void
+    {
+        $mono = $this->bezKomentarzy(file_get_contents(public_path('icons/kuking-mark-mono.svg')));
+
+        // Tu `currentColor` jest POPRAWNY — odwrotnie niż w kuking-mark.svg.
+        // Ten plik idzie do programów graficznych i na drukarkę, gdzie kolor
+        // ustawia człowiek. Łatwo pomylić te dwie zasady, stąd osobny test.
+        $this->assertStringContainsString('currentColor', $mono);
+        $this->assertStringNotContainsString('#B3401F', $mono);
+
+        // Bez połysku i uśmiechu: przy jednym kolorze te linie zlewają się
+        // z tłem garnka i znak robi się plamą. Naklejka ma 20 mm.
+        $this->assertStringNotContainsString('M24 43 C28 47 36 47 40 41', $mono);
+    }
+
+    public function test_karta_do_udostepniania_ma_wlasciwe_proporcje(): void
+    {
+        $png = public_path('icons/kuking-udostepnianie.png');
+
+        $this->assertFileExists($png);
+
+        [$szerokosc, $wysokosc] = getimagesize($png);
+
+        // 1200×630 to format, na którym Facebook, WhatsApp i Signal pokazują
+        // DUŻY podgląd. Przy innych proporcjach przycinają obrazek po swojemu
+        // i napis wychodzi poza kadr.
+        $this->assertSame(1200, $szerokosc);
+        $this->assertSame(630, $wysokosc);
+    }
+
     public function test_wszystkie_ikony_pokazuja_ten_sam_znak(): void
     {
         // Ikona PWA rozjechana ze znakiem na stronie to najbardziej
@@ -157,7 +215,12 @@ class LogotypIMarkaTest extends TestCase
         // charakterystycznego fragmentu ścieżki korony.
         $korona = 'M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22';
 
-        foreach (['kuking-mark.svg', 'kuking-icon-any.svg', 'kuking-icon-maskable.svg'] as $plik) {
+        foreach ([
+            'kuking-mark.svg',
+            'kuking-mark-mono.svg',
+            'kuking-icon-any.svg',
+            'kuking-icon-maskable.svg',
+        ] as $plik) {
             $this->assertStringContainsString(
                 $korona,
                 file_get_contents(public_path('icons/'.$plik)),
