@@ -146,7 +146,17 @@ return [
         // ten sam powód co limit 'appeal' dla formularza odwołań #10) — jest
         // celem do zgadywania haseł, więc 5 prób na godzinę, nie na minutę.
         'cancel_delete' => '5,60',
-        'upload' => '30,1',
+        // 'upload' USUNIĘTY, a nie poprawiony.
+        //
+        // Ten wpis nie był podpięty do żadnej trasy: wgrywanie zdjęć chodzi
+        // w ramach `posts.store`, `cooked.store` i `recipes.store`, czyli pod
+        // limitem `post`. Limit istniał, tylko inny — a w pliku stała liczba,
+        // która wyglądała, jakby coś robiła, i nie robiła nic.
+        //
+        // Dokładnie ten sam kształt błędu co udokumentowany wyżej
+        // `kuking.media_disk`. AGENTS.md §7 mówi, że ten plik jest jedynym
+        // źródłem prawdy o limitach — martwy wpis jest tu gorszy niż jego brak,
+        // bo następna osoba podniesie tę liczbę i uzna sprawę za załatwioną.
         'comment' => '10,1',
         'post' => '20,10',
         'report' => '10,10',

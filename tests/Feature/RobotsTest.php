@@ -36,7 +36,22 @@ class RobotsTest extends TestCase
 
         $this->assertStringContainsString('Sitemap: '.route('sitemap'), $tresc);
 
-        foreach (['/search', '/ustawienia', '/zeszyt', '/admin', '/zglos'] as $adres) {
+        // Druga strona reguły: adresy po angielsku byłyby znakiem, że ktoś
+        // przywrócił listę spod złej konwencji.
+        foreach (['/search', '/add'] as $nieistniejacy) {
+            $this->assertStringNotContainsString(
+                "Disallow: {$nieistniejacy}",
+                $tresc,
+                "robots.txt blokuje adres {$nieistniejacy}, którego serwis nie ma.",
+            );
+        }
+
+        // ADRESY POLSKIE, BO TAKIE MA TEN SERWIS.
+        //
+        // Kontroler wypisywał wcześniej `/search`, `/home` i `/add` — czyli
+        // adresy, których w Kuking nie ma. Wyszukiwarka i ekran dodawania
+        // NIE BYŁY wyłączone z indeksowania, a plik twierdził, że są.
+        foreach (['/szukaj', '/dodaj', '/witaj', '/ustawienia', '/zeszyt', '/admin', '/zglos'] as $adres) {
             $this->assertStringContainsString("Disallow: {$adres}", $tresc);
         }
     }

@@ -117,6 +117,12 @@
             @if($total)<li><span class="badge">Razem około {{ $total }} min</span></li>@endif
             @if($recipe->difficultyLabel())<li><span class="badge">{{ $recipe->difficultyLabel() }}</span></li>@endif
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
+            {{-- „X z Y osób zrobi to ponownie" — od trzech ocen (SOUL 4.2).
+                 Poniżej trzech jedna opinia waży za dużo, a zdanie brzmi jak
+                 werdykt, którym nie jest. --}}
+            @if($oceniloWykonanie >= 3)
+                <li><span class="badge badge-cooked">{{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} {{ \App\Support\Odmiana::rzeczownik($oceniloWykonanie, 'osoby', 'osób', 'osób') }} zrobi to ponownie</span></li>
+            @endif
             @if($recipe->family_since_year)<li><span class="badge badge-cooked">W rodzinie od {{ $recipe->family_since_year }}</span></li>@endif
         </ul>
 
@@ -227,15 +233,22 @@
             </p>
         @endauth
 
-        @if($cookedEvents->isNotEmpty())
-            <section class="stack">
-                <h2>Komu wyszło</h2>
+        <section class="stack">
+            <h2>Komu wyszło</h2>
+            @if($cookedEvents->isNotEmpty())
                 <p class="meta">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
                 @foreach($cookedEvents as $event)
                     <x-cooked-card :event="$event" />
                 @endforeach
-            </section>
-        @endif
+            @else
+                {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
+                     po prostu znikała ze strony. SOUL 4.2 wymienia to jako
+                     ryzyko wprost i podaje ten tekst. --}}
+                <x-empty-state title="Jeszcze nikt tego nie gotował">
+                    <p style="margin-bottom:0;">Będziesz pierwsza albo pierwszy?</p>
+                </x-empty-state>
+            @endif
+        </section>
 
         @if(auth()->id() === $recipe->author_id)
             <div class="danger-zone">

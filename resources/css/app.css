@@ -905,3 +905,45 @@
   .lightbox:not([open]) {
     display: none;
   }
+
+/* ---------------------------------------------------------------------------
+   Potwierdzenie akcji destrukcyjnej (bez JavaScriptu)
+
+   `<details>` zamiast `confirm()`: pierwsze kliknięcie rozwija pytanie,
+   prawdziwy przycisk stoi dopiero w środku. Patrz komentarz w komponencie
+   `confirm-button` — chodzi zarówno o działanie bez skryptu, jak o to, że
+   okno przeglądarki bywa dla osób 50+ niewidoczne.
+   --------------------------------------------------------------------------- */
+.confirm {
+    display: inline-block;
+}
+
+/* `summary` udaje przycisk, więc musi mieć jego rozmiar dotykowy i nie może
+   pokazywać domyślnego trójkąta rozwijania. */
+.confirm-summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirm-summary::-webkit-details-marker {
+    display: none;
+}
+
+.confirm-body {
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-4);
+    border: 2px solid var(--color-danger-solid);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    /* Pytanie ma być czytelne, a nie wciśnięte w róg — to jest ostatni moment,
+       w którym da się zawrócić. */
+    max-width: 32rem;
+}
+
+.confirm-question {
+    margin: 0 0 var(--spacing-3);
+    font-weight: 600;
+}

@@ -13,6 +13,32 @@
     <x-post-card :post="$post" />
 
     @if(auth()->id() === $post->author_id)
+        {{--
+            Zachęta do kolejnego zdjęcia (COLD_START.md).
+
+            „Po publikacji od razu proponujemy dodanie następnego — człowiek
+            ma w telefonie czterdzieści zdjęć obiadów i jest w trybie »już
+            wiem, jak to działa«". To jest jedyny moment, w którym opór przed
+            publikacją jest zerowy, bo właśnie się udało.
+
+            Stoi NAD strefą usuwania i wygląda inaczej niż ona: pierwszą
+            rzeczą, którą autor widzi po publikacji, nie może być przycisk
+            „Usuń ten wpis".
+        --}}
+        <div class="notice">
+            @if($toPierwszyWpis ?? false)
+                <strong>To Twój pierwszy wpis. Gratulacje.</strong>
+                Masz pewnie w telefonie więcej zdjęć — teraz idzie najszybciej,
+                bo już wiesz, jak to działa.
+            @else
+                <strong>Gotujesz dziś coś jeszcze?</strong>
+                Dodanie kolejnego zdjęcia zajmuje mniej niż minutę.
+            @endif
+            <p style="margin-bottom:0;">
+                <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj kolejne zdjęcie</a>
+            </p>
+        </div>
+
         <div class="danger-zone">
             <h2>Ten wpis jest Twój</h2>
             <p>Możesz go usunąć. Zniknie ze strony głównej i z Twojego archiwum.</p>
