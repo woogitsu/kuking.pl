@@ -9,6 +9,7 @@ use App\Models\Collection;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * "Zapisuję" — dodanie przepisu do zeszytu.
@@ -25,9 +26,45 @@ final class SaveRecipeToCollection
     {
         $collection ??= $user->defaultCollection();
 
-        $collection->recipes()->syncWithoutDetaching([
-            $recipe->getKey() => ['note' => $note, 'created_at' => now()],
-        ]);
+        // DRUGIE KLIKNIĘCIE „ZAPISUJĘ” NIE JEST NOWYM ZAPISEM (issue #43).
+        //
+        // Klucz główny `collection_items (collection_id, recipe_id)` pilnował
+        // bazy przed drugim wierszem, więc na pierwszy rzut oka wszystko było
+        // w porządku. Ale `syncWithoutDetaching` na istniejącej parze robi
+        // UPDATE, a nie nic — i to miało dwa widoczne skutki:
+        //
+        //  1. `created_at` w zeszycie było nadpisywane, więc przepis skakał
+        //     na górę listy (zeszyt jest ułożony od najnowszego zapisu).
+        //     Człowiek nie zrobił nic poza powtórzeniem tej samej akcji,
+        //     a kolejność jego zeszytu się zmieniała;
+        //  2. autor przepisu dostawał DRUGIE powiadomienie „ktoś zapisał
+        //     Twój przepis" — od jednej osoby, za jedno zapisanie.
+        //
+        // Podwójne kliknięcie w grupie 50+ to norma, nie pomyłka, więc
+        // sprawdzamy stan przed zapisem: dwa kliknięcia mają dać dokładnie
+        // ten sam skutek co jedno.
+        if ($collection->recipes()->whereKey($recipe->getKey())->exists()) {
+            // Jedyne, co wolno tu zmienić, to notatka — jeśli ktoś ją
+            // faktycznie podał. `created_at` zostaje takie, jak było.
+            if ($note !== null) {
+                $collection->recipes()->updateExistingPivot($recipe->getKey(), ['note' => $note]);
+            }
+
+            return $collection;
+        }
+
+        try {
+            $collection->recipes()->attach($recipe->getKey(), [
+                'note' => $note,
+                'created_at' => now(),
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // Dwa kliknięcia potrafią wejść RÓWNOCZEŚNIE — wtedy oba przechodzą
+            // sprawdzenie wyżej i drugie odbija się o klucz główny. Dla
+            // człowieka to nadal jest jedno zapisanie, więc kończymy cicho,
+            // bez błędu 500 i bez drugiego powiadomienia dla autora.
+            return $collection;
+        }
 
         // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
         // To jedno z najprzyjemniejszych powiadomień w serwisie.
