@@ -103,7 +103,7 @@ class FeedController extends Controller
         return match (true) {
             $hour < 10 => "Dzień dobry, {$name}. Co dziś gotujesz?",
             $hour < 15 => "Dzień dobry, {$name}. Co dziś na obiad?",
-            $hour < 21 => "Dobry wieczór, {$name}. Co dziś ugotowałeś?",
+            $hour < 21 => "Dobry wieczór, {$name}. Co dziś wyszło?",
             default => "Dobry wieczór, {$name}. Pokaż, co dziś wyszło.",
         };
     }

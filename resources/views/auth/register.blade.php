@@ -1,5 +1,5 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
-    <h1>Załóż konto</h1>
+    <h1>Zostań <x-kuking-word forma="iem" /></h1>
     <p style="margin-bottom:var(--spacing-5);">Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia.</p>
 
     <x-error-summary />
