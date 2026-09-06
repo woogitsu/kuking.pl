@@ -205,6 +205,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/wpisy/{post}/komentarz', [PostController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']}")
         ->name('posts.comment');
+    // Edycja wpisu: tekst, widoczność, temat — nie zdjęcia (patrz komentarz
+    // w PostController::edit i w EditPost). Ten sam limit co przy publikacji,
+    // z config/kuking.php, a nie osobno wpisana liczba (AGENTS.md §7).
+    Route::get('/wpisy/{post}/edycja', [PostController::class, 'edit'])->name('posts.edit');
+    Route::put('/wpisy/{post}', [PostController::class, 'update'])
+        ->middleware("throttle:{$limits['post']}")
+        ->name('posts.update');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
 
     // Zdjęcia w opublikowanym wpisie: kolejność i sposób wyświetlania (#92).

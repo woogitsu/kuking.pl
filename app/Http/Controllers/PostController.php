@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Models\Media;
 use App\Models\Post;
@@ -30,6 +31,7 @@ class PostController extends Controller
 {
     public function __construct(
         private readonly PublishPost $publishPost,
+        private readonly EditPost $editPost,
         private readonly StoreUploadedImage $storeImage,
         private readonly PublishComment $publishComment,
     ) {}
@@ -299,6 +301,55 @@ class PostController extends Controller
         }
 
         return back()->with('status', 'Komentarz dodany.');
+    }
+
+    /**
+     * Edycja wpisu: tekst, widoczność, temat — nie zdjęcia (issue: menu „…"
+     * pokazywało autorowi tylko „Otwórz wpis", mimo że `docs/FEATURES.md`
+     * i `docs/ROADMAP.md` wymieniają edycję jako część MVP).
+     *
+     * Zdjęcia mają już swój ekran, patrz komentarz przy `EditPost`.
+     */
+    public function edit(Request $request, Post $post): View
+    {
+        $this->authorize('update', $post);
+
+        return view('pages.posts.edit', [
+            'post' => $post,
+            'topics' => Topic::doWyboru()->get(),
+        ]);
+    }
+
+    public function update(Request $request, Post $post): RedirectResponse
+    {
+        $this->authorize('update', $post);
+
+        $data = $request->validate([
+            'body' => ['nullable', 'string', 'max:4000'],
+            'visibility' => ['required', 'in:public,followers,private'],
+            'topic_id' => ['nullable', 'uuid'],
+        ], [
+            'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
+            'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
+            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
+            // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
+            'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
+        ]);
+
+        try {
+            $this->editPost->handle(
+                post: $post,
+                body: $data['body'] ?? null,
+                visibility: $data['visibility'],
+                topicId: $data['topic_id'] ?? null,
+            );
+        } catch (RuntimeException $e) {
+            // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
+            // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md).
+            return back()->withInput()->withErrors(['body' => $e->getMessage()]);
+        }
+
+        return redirect()->route('posts.show', $post)->with('status', 'Wpis zapisany.');
     }
 
     public function destroy(Request $request, Post $post): RedirectResponse
