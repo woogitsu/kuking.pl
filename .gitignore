@@ -8,6 +8,7 @@
 /.codex
 /.idea
 /.nova
+/.phpstan-cache
 /.phpunit.cache
 /.vscode
 /.zed
