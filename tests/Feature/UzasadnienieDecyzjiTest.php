@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\UzasadnienieDecyzji;
 use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\Czas;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -218,12 +223,19 @@ class UzasadnienieDecyzjiTest extends TestCase
     }
 
     /**
-     * Przywrócenie treści idzie z NASZEJ inicjatywy i tak ma być opisane —
-     * ale tylko wtedy, gdy naprawdę nie stoi za nim zgłoszenie. Cofnięcie
-     * ukrycia przy zgłoszeniu zapisuje `report_id`, więc zdanie „nikt tego
-     * nie zgłosił" nie ma prawa się tam pojawić.
+     * ZDANIE „NIKT TEGO NIE ZGŁOSIŁ" NIE MA PRAWA TRAFIĆ DO PRZYWRÓCENIA.
+     *
+     * `RestoreContent` zapisuje `report_id` jako NULL i musi tak robić:
+     * indeks częściowy `moderation_actions_one_per_report` (migracja
+     * 2026_09_06_190000) dopuszcza JEDNĄ decyzję na zgłoszenie, a
+     * przywrócenie jest drugą. Gdyby uzasadnienie powstawało dla `unhide`,
+     * autor przeczytałby „nikt tego nie zgłosił" o sprawie, która od
+     * zgłoszenia się zaczęła.
+     *
+     * Dlatego `UzasadnienieDecyzji::zdania()` nie tworzy uzasadnienia dla
+     * decyzji nieodwoływalnych — a ten test pilnuje jednego i drugiego.
      */
-    public function test_przywrocenie_przy_zgloszeniu_pamieta_zgloszenie(): void
+    public function test_przywrocenie_nie_dostaje_uzasadnienia(): void
     {
         $moderator = $this->moderator();
         $basia = $this->user('basia');
@@ -248,13 +260,41 @@ class UzasadnienieDecyzjiTest extends TestCase
             ->where('action', ModerationAction::ACTION_UNHIDE)
             ->firstOrFail();
 
-        $this->assertSame($report->getKey(), $przywrocenie->report_id);
+        // Tak wygląda ograniczenie bazy: druga decyzja dla tego samego
+        // zgłoszenia nie może nieść jego identyfikatora.
+        $this->assertNull($przywrocenie->report_id);
 
-        // KONTROLA: przywrócenie NIE dostaje akapitu o podstawie i odwołaniu.
-        // Od dobrej wiadomości nikt się nie odwołuje.
+        // WŁAŚCIWY POMIAR: skoro `report_id` jest puste, uzasadnienia dla tej
+        // decyzji nie wolno budować wcale.
+        $this->assertSame([], UzasadnienieDecyzji::zdania($przywrocenie));
+
         $tresc = $this->actingAs($basia)->get(route('notifications.index'))->assertOk()->getContent();
+
+        // ASERCJA NEGATYWNA: nigdzie ani słowa o tym, że sprawy nikt nie
+        // zgłosił — a to właśnie to zdanie byłoby tu nieprawdą.
+        $this->assertStringNotContainsString('Nikt tego nie zgłosił', $tresc);
+
+        // Na stronie są DWA powiadomienia: ukrycie i przywrócenie. Akapit
+        // o podstawie ma być dokładnie jeden — ten od ukrycia. Zliczamy,
+        // bo `assertStringNotContainsString` nie odróżni jednego od dwóch.
+        $this->assertSame(
+            1,
+            substr_count($tresc, 'Podstawą tej decyzji'),
+            'Przywrócenie treści dostało własny akapit z podstawą decyzji.',
+        );
+
+        // KONTROLA: sama wiadomość o przywróceniu jednak dociera.
         $this->assertStringContainsString('Dziękujemy za poprawienie komentarza.', $tresc);
-        $this->assertStringNotContainsString('Podstawą tej decyzji', $tresc);
+
+        // KONTROLA DRUGIEJ STRONY: pierwotna decyzja `hide` MA `report_id`,
+        // więc zdanie „sprawa zaczęła się od zgłoszenia" jest przy niej
+        // prawdziwe. Bez tego test przeszedłby też wtedy, gdyby `report_id`
+        // przestało być zapisywane w ogóle.
+        $ukrycie = ModerationAction::query()
+            ->where('action', ModerationAction::ACTION_HIDE)
+            ->firstOrFail();
+
+        $this->assertSame($report->getKey(), $ukrycie->report_id);
     }
 
     // -----------------------------------------------------------------
@@ -316,16 +356,71 @@ class UzasadnienieDecyzjiTest extends TestCase
         );
 
         // ASERCJA POZYTYWNA na poziomie bazy: bez moderatora wiersz nie wejdzie.
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         ModerationAction::create([
             'moderator_id' => null,
             'report_id' => null,
             'target_type' => 'post',
-            'target_id' => (string) \Illuminate\Support\Str::uuid7(),
+            'target_id' => (string) Str::uuid7(),
             'action' => ModerationAction::ACTION_HIDE,
             'reason_code' => 'obrazanie-nekanie',
         ]);
+    }
+
+    /**
+     * DRUGA POŁOWA TEGO SAMEGO ZDANIA: „automat, który sam ukrywa, usuwa albo
+     * blokuje".
+     *
+     * Test wyżej pilnuje LOGU decyzji. Ten pilnuje SKUTKÓW: kara mogłaby
+     * przecież zadziałać bez wiersza w `moderation_actions` — wystarczyłoby
+     * zadanie w harmonogramie wołające `$user->ban()` albo ustawiające status
+     * treści na ukryty. Wtedy wiersza w logu nie ma, test wyżej jest zielony,
+     * a zdanie w powiadomieniu — nieprawdziwe.
+     *
+     * Dlatego kara i ukrycie wolno wywołać z JEDNEGO miejsca: z kontrolera
+     * moderacji, za `authorize('moderate', User::class)`.
+     */
+    public function test_nie_ma_automatu_ktory_sam_ukrywa_albo_blokuje(): void
+    {
+        $oczekiwane = [
+            // Kara na koncie — wyłącznie z panelu moderacji.
+            '->ban()' => ['app/Http/Controllers/Admin/ModerationController.php'],
+            '->suspend(' => ['app/Http/Controllers/Admin/ModerationController.php'],
+            // Ustawienie statusu „ukryte" — panel plus słownik statusów,
+            // który tę wartość tylko definiuje i czyta. Szukamy `UKRYTY[`
+            // bez nazwy klasy, bo w samym słowniku odwołanie brzmi `self::`.
+            'UKRYTY[' => [
+                'app/Domain/Moderation/ModeratedContent.php',
+                'app/Http/Controllers/Admin/ModerationController.php',
+            ],
+        ];
+
+        foreach ($oczekiwane as $wywolanie => $dozwolone) {
+            $znalezione = [];
+
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(base_path('app')));
+
+            foreach ($iterator as $plik) {
+                if (! $plik->isFile() || $plik->getExtension() !== 'php') {
+                    continue;
+                }
+
+                if (str_contains((string) file_get_contents($plik->getPathname()), $wywolanie)) {
+                    $znalezione[] = str_replace(base_path().'/', '', $plik->getPathname());
+                }
+            }
+
+            sort($znalezione);
+            sort($dozwolone);
+
+            $this->assertSame(
+                $dozwolone,
+                $znalezione,
+                "Wywołanie `{$wywolanie}` pojawiło się w nowym miejscu. Jeśli to droga, "
+                .'która działa bez człowieka, powiadomienie o decyzji zaczyna kłamać.',
+            );
+        }
     }
 
     // -----------------------------------------------------------------
@@ -340,7 +435,7 @@ class UzasadnienieDecyzjiTest extends TestCase
 
         $this->assertStringContainsString('możesz się odwołać', $tresc);
         $this->assertStringContainsString(
-            \App\Support\Czas::data($decyzja->appealDeadline(), 'j F Y'),
+            Czas::data($decyzja->appealDeadline(), 'j F Y'),
             $tresc,
             'Powiadomienie nie podaje terminu na odwołanie.',
         );
@@ -355,6 +450,42 @@ class UzasadnienieDecyzjiTest extends TestCase
 
         $this->assertStringNotContainsString('14 dni', $tresc);
         $this->assertStringNotContainsString('czternastu dni', $tresc);
+    }
+
+    /**
+     * PO UPŁYWIE SZEŚCIU MIESIĘCY pouczenie nie może zapraszać na stronę,
+     * która odmówi. `ModerationAction::isAppealable()` przestaje wtedy
+     * przepuszczać odwołanie, a powiadomienie zostaje w serwisie na lata.
+     */
+    public function test_po_terminie_nie_zapraszamy_juz_do_odwolania(): void
+    {
+        $moderator = $this->moderator();
+        $basia = $this->user();
+        $post = Post::factory()->create(['author_id' => $basia->getKey(), 'visibility' => 'public']);
+
+        $this->decyzja($moderator, $this->zgloszenie('post', $post->getKey()), [
+            'action' => ModerationAction::ACTION_HIDE,
+            'reason_code' => 'obrazanie-nekanie',
+            'user_message' => 'Wpis obraża inną osobę.',
+        ]);
+
+        $decyzja = ModerationAction::query()->where('action', ModerationAction::ACTION_HIDE)->firstOrFail();
+        // Wiersz cofnięty w czasie, nie `travel()`: chodzi o decyzję STARĄ,
+        // a nie o serwis przeniesiony w przyszłość razem z sesją i limitami.
+        $decyzja->forceFill(['created_at' => now()->subMonths(7)])->save();
+
+        $zdania = implode(' ', UzasadnienieDecyzji::zdania($decyzja->refresh()));
+
+        // WŁAŚCIWY POMIAR.
+        $this->assertStringContainsString('ten termin już minął', $zdania);
+        $this->assertStringNotContainsString('możesz się odwołać', $zdania);
+
+        // KONTROLA: pozostałe dwie drogi zostają — one się nie przedawniają
+        // razem z naszym formularzem.
+        $this->assertStringContainsString('pozasądowego organu', $zdania);
+        $this->assertStringContainsString('sądu', $zdania);
+        // KONTROLA: podstawa decyzji nadal jest podana.
+        $this->assertStringContainsString('punkt 4 zasad Kuking', $zdania);
     }
 
     /**
@@ -388,6 +519,10 @@ class UzasadnienieDecyzjiTest extends TestCase
             'user_message' => 'Nękanie innej osoby w komentarzach.',
         ]);
 
+        // Bez tego POST /login odbija się od grupy `guest` — w teście wciąż
+        // trwa sesja moderatora, który właśnie wydał decyzję.
+        Auth::logout();
+
         $this->post('/login', [
             'login' => $basia->email,
             'password' => 'tajne-haslo-123',
@@ -403,5 +538,14 @@ class UzasadnienieDecyzjiTest extends TestCase
         $this->assertStringContainsString('zablokowane', $blad);
         // NEGATYWNA: żadnych danych zgłaszającego ani nazwiska moderatora.
         $this->assertStringNotContainsString((string) $moderator->email, $blad);
+
+        // NEGATYWNA: jedno pouczenie, nie dwa. Zdanie „jeśli uważasz, że to
+        // pomyłka" stało tu od zawsze, a uzasadnienie niesie je teraz samo —
+        // powtórzone dwa razy w jednym komunikacie wygląda jak usterka.
+        $this->assertSame(
+            1,
+            substr_count(mb_strtolower($blad), 'jeśli uważasz, że to pomyłka'),
+            'Komunikat powtarza to samo pouczenie dwa razy.',
+        );
     }
 }

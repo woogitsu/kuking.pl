@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Moderation\UzasadnienieDecyzji;
 use App\Http\Controllers\Controller;
+use App\Models\ModerationAction;
 use App\Models\User;
 use App\Support\KluczeLimitow;
 use Illuminate\Http\RedirectResponse;
@@ -168,9 +170,46 @@ class LoginController extends Controller
 
         $odModeratora = $user->latestModerationMessage();
 
+        /*
+         * UZASADNIENIE Z ART. 17 UST. 3 TEŻ MUSI BYĆ TUTAJ.
+         *
+         * Powiadomienie w serwisie niesie od dziś podstawę decyzji, informację
+         * o tym, czy sprawa zaczęła się od zgłoszenia, zdanie o braku automatu
+         * i pełne pouczenie o środkach odwoławczych z terminem
+         * (`UzasadnienieDecyzji`). Osoba ZABLOKOWANA tego powiadomienia nie
+         * przeczyta — do serwisu nie wejdzie. Gdyby uzasadnienie zostało tylko
+         * tam, art. 17 byłby spełniony dla wszystkich POZA tymi, których
+         * dotyczy najmocniejsza z decyzji.
+         *
+         * Bierzemy ostatnią BLOKADĘ tej osoby, nie ostatnią decyzję w ogóle:
+         * komunikat wyżej mówi „to konto zostało zablokowane" i uzasadnienie
+         * musi dotyczyć tej samej decyzji, a nie ukrycia wpisu z zeszłego roku.
+         */
+        $blokada = ModerationAction::query()
+            ->where('subject_user_id', $user->getKey())
+            ->where('action', ModerationAction::ACTION_BAN)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $uzasadnienie = $blokada === null ? [] : UzasadnienieDecyzji::zdania($blokada);
+
         return 'To konto zostało zablokowane. '
             .($odModeratora !== null ? $odModeratora.' ' : '')
-            .'Jeśli uważasz, że to pomyłka, napisz do nas: '
+            .($uzasadnienie === [] ? '' : implode(' ', $uzasadnienie).' ')
+            // Odwołanie dla osoby zablokowanej ma osobny, PUBLICZNY formularz
+            // (#10) — bez niego zdanie „możesz się odwołać" wyżej nie miałoby
+            // dokąd prowadzić, bo do serwisu ta osoba nie wejdzie.
+            .($blokada !== null && $blokada->isAppealable()
+                ? 'Odwołanie złożysz na '.route('appeals.guest').'. '
+                : '')
+            // Dwa warianty ostatniego zdania, bo uzasadnienie mówi już
+            // „jeśli uważasz, że to pomyłka, możesz się odwołać". Powtórzenie
+            // tego samego wtrętu dwa zdania później wygląda jak usterka
+            // i wydłuża komunikat, który i tak jest długi.
+            .($uzasadnienie === []
+                ? 'Jeśli uważasz, że to pomyłka, napisz do nas: '
+                : 'Możesz też napisać do nas: ')
             .config('kuking.community.contact_email');
     }
 

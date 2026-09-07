@@ -84,6 +84,18 @@ final class RestoreContent
 
         $decyzja = ModerationAction::create([
             'moderator_id' => $moderator->getKey(),
+            // ŚWIADOMIE NULL, a nie identyfikator zgłoszenia, z którego
+            // moderator kliknął „Przywróć treść". Indeks częściowy
+            // `moderation_actions_one_per_report` dopuszcza JEDNĄ decyzję na
+            // zgłoszenie (migracja 2026_09_06_190000) — przywrócenie jest
+            // drugą i nie ma prawa zająć tego miejsca.
+            //
+            // Uzasadnienie z art. 17 czyta `report_id` po to, żeby powiedzieć
+            // autorowi, czy sprawa zaczęła się od zgłoszenia. Puste pole
+            // tutaj nic nie psuje: `UzasadnienieDecyzji::zdania()` nie tworzy
+            // uzasadnienia dla `unhide` wcale — od zdjęcia ukrycia nikt się
+            // nie odwołuje, więc zdanie o pochodzeniu sprawy nigdzie nie
+            // trafia i nie ma jak stać się nieprawdą.
             'report_id' => null,
             'target_type' => $typ,
             'target_id' => $target->getKey(),

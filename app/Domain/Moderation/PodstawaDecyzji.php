@@ -193,18 +193,20 @@ final class PodstawaDecyzji
     public static function zdanie(?string $kod): string
     {
         $rozpoznana = self::rozpoznaj($kod);
-        $zasady = url('/zasady');
+        $zasady = route('rules');
 
         if ($rozpoznana === null) {
             return 'Podstawą tej decyzji są zasady Kuking, które obowiązują wszystkich w serwisie ('.$zasady.').';
         }
 
-        if (($self = self::SYNONIMY[$kod] ?? $kod) === self::NIEZGODNE_Z_PRAWEM) {
+        $klucz = self::SYNONIMY[$kod] ?? $kod;
+
+        if ($klucz === self::NIEZGODNE_Z_PRAWEM) {
             return 'Podstawą tej decyzji jest prawo, a nie tylko nasze zasady: uznaliśmy tę treść '
                 .'za niezgodną z prawem. Wyjaśnienie masz w wiadomości od moderacji powyżej.';
         }
 
-        if ($self === self::KRZYWDZENIE_DZIECI) {
+        if ($klucz === self::KRZYWDZENIE_DZIECI) {
             return 'Podstawą tej decyzji jest zasada, od której nie ma u nas wyjątku: treści '
                 .'krzywdzące dzieci usuwamy natychmiast ('.$zasady.').';
         }

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\PodstawaDecyzji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -79,11 +80,37 @@ class ModerationController extends Controller
         // a nie cichym „zrób coś innego".
         $dozwolone = array_keys(ModerationAction::dozwoloneDla($report->target_type));
 
+        /*
+         * PODSTAWA DECYZJI IDZIE DO CZŁOWIEKA (DSA art. 17 ust. 3 lit. d i e).
+         *
+         * `reason_code` przestał być „kodem wewnętrznym": formularz oferuje
+         * teraz wyłącznie zamkniętą listę `PodstawaDecyzji`, a każdy jej
+         * element wskazuje konkretny punkt `resources/legal/zasady.md`, który
+         * autor treści przeczyta w powiadomieniu.
+         *
+         * REGUŁA ZOSTAJE ŚWIADOMIE MIĘKKA (`string`, nie `in:`). W bazie leżą
+         * decyzje sprzed tej zmiany, a `RestoreContent` z odwołania zapisuje
+         * `appeal_overturned` — twarda lista unieważniłaby jedno i drugie.
+         * Kod spoza listy po prostu nie dostaje numeru punktu:
+         * `PodstawaDecyzji::zdanie()` mówi wtedy prawdę ogólną, zamiast
+         * wymyślać numer, którego nie zna.
+         */
         $data = $request->validate([
             'action' => ['required', 'in:'.implode(',', $dozwolone)],
             'reason_code' => ['required', 'string', 'max:80'],
             'note' => ['nullable', 'string', 'max:2000'],
-            'user_message' => ['nullable', 'string', 'max:2000'],
+            /*
+             * WIADOMOŚĆ OBOWIĄZKOWA PRZY PODSTAWIE PRAWNEJ.
+             *
+             * Przy „treść niezgodna z prawem" uzasadnienie mówi autorowi:
+             * „Wyjaśnienie masz w wiadomości od moderacji powyżej"
+             * (`PodstawaDecyzji::zdanie()`). Nie ma dziś kolumny na konkretny
+             * przepis — `reason_code` mieści 80 znaków i trzyma sam rodzaj
+             * podstawy — więc to jedyne miejsce, w którym człowiek dowie się,
+             * CO uznaliśmy za niezgodne z prawem. Puste pole zamieniłoby
+             * tamto zdanie w odesłanie w próżnię.
+             */
+            'user_message' => ['nullable', 'string', 'max:2000', 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM],
             // Długość zawieszenia w dniach. `bezterminowo` zostaje możliwe,
             // ale wymaga świadomego wyboru — nie jest już domyślne przez
             // przypadek, jak wtedy, gdy nie było gdzie zapisać terminu (#40).
@@ -91,7 +118,9 @@ class ModerationController extends Controller
         ], [
             'action.required' => 'Wybierz decyzję.',
             'action.in' => 'Ta decyzja nie ma zastosowania do tego zgłoszenia. Wybierz jedną z pokazanych.',
-            'reason_code.required' => 'Podaj powód decyzji — bez niego nie da się odpowiedzieć na odwołanie.',
+            'reason_code.required' => 'Wybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu.',
+            'user_message.required_if' => 'Przy podstawie „treść niezgodna z prawem" napisz autorowi, '
+                .'co dokładnie uznaliśmy za niezgodne z prawem. Bez tego uzasadnienie odsyła w próżnię.',
             'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',
         ]);
 

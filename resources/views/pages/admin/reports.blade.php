@@ -119,11 +119,48 @@
                         </p>
                     </fieldset>
 
-                    <x-field name="reason_code" label="Powód decyzji (kod wewnętrzny)" required
-                             placeholder="spam_link" help="Krótki, powtarzalny kod. Ułatwia późniejsze statystyki." />
+                    {{--
+                        PODSTAWA DECYZJI — TO ZDANIE PRZECZYTA AUTOR TREŚCI.
+
+                        Do dziś było tu wolne pole „Powód decyzji (kod
+                        wewnętrzny)": moderator wpisywał `spam_link` albo
+                        `nekanie`, a autor treści nie dowiadywał się o podstawie
+                        NICZEGO — mimo że DSA art. 17 ust. 3 lit. d i e wymaga
+                        albo punktu zasad, albo podstawy prawnej.
+
+                        Lista jest zamknięta, bo zdanie „naruszyłeś punkt 4
+                        zasad" wolno wysłać wyłącznie wtedy, gdy numer bierze
+                        się z odwzorowania (`PodstawaDecyzji`), a nie ze
+                        zgadywania. Zwykły <select>, bez JavaScriptu (D-007),
+                        z widoczną etykietą.
+                    --}}
+                    @php($bladPodstawy = $errors->first('reason_code'))
+                    <div class="field @if($bladPodstawy) has-error @endif">
+                        <label for="podstawa-{{ $report->id }}">
+                            Podstawa decyzji <span class="meta">(wymagane)</span>
+                        </label>
+                        <span class="field-help" id="podstawa-{{ $report->id }}-help">
+                            Autor treści zobaczy to jako „Podstawą tej decyzji jest punkt N zasad Kuking”.
+                            Przy „treść niezgodna z prawem” wiadomość niżej jest OBOWIĄZKOWA — to w niej
+                            piszesz, czego dotyczy naruszenie prawa.
+                        </span>
+                        <select class="field-input" id="podstawa-{{ $report->id }}" name="reason_code" required
+                                aria-describedby="podstawa-{{ $report->id }}-help"
+                                @if($bladPodstawy) aria-invalid="true" @endif>
+                            <option value="">— wybierz podstawę —</option>
+                            @foreach(\App\Domain\Moderation\PodstawaDecyzji::dlaFormularza() as $kod => $etykieta)
+                                <option value="{{ $kod }}" @selected(old('reason_code') === $kod)>{{ $etykieta }}</option>
+                            @endforeach
+                        </select>
+                        @if($bladPodstawy)
+                            <span class="field-error">{{ $bladPodstawy }}</span>
+                        @endif
+                    </div>
                     <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" />
                     <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="3"
-                             help="Wymóg DSA: jeśli ograniczasz treść, autor musi wiedzieć dlaczego i że może się odwołać." />
+                             help="Co konkretnie się stało — własnymi słowami. Podstawę, informację o zgłoszeniu,
+                                   brak automatu, termin odwołania i drogę do organu pozasądowego oraz sądu
+                                   powiadomienie dopisuje samo (DSA art. 17 ust. 3)." />
 
                     <button class="btn btn-primary mt-4" type="submit">Zapisz decyzję</button>
                 </form>
