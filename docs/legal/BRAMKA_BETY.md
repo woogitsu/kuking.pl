@@ -300,6 +300,38 @@ ten kod pęka:
   obu połów naraz: że w odpowiedzi nie ma szczegółu ORAZ że w logu jest —
   „naprawa" polegająca na oślepieniu monitoringu oblałaby ten test.
 
+## 7b. Polityka prywatności — SZKIC JEST PUBLICZNIE SERWOWANY
+
+Znalezione 2026-09-07 przy ocenie planu integracji AI. Nie jest to problem
+AI — jest problemem dzisiejszym.
+
+`resources/legal/polityka-prywatnosci.md` zaczyna się zdaniem
+„**SZKIC — wymaga weryfikacji prawnika przed publikacją**" i zawiera
+placeholdery `[NAZWA OPERATORA]`, `[ADRES]`, `[E-MAIL KONTAKTOWY]`.
+`StaticPageController::privacy()` renderuje ten plik DOSŁOWNIE
+(`app/Http/Controllers/StaticPageController.php:41-53`), a trasa
+`/prywatnosc` jest publiczna i bez logowania (`routes/web.php`). Czyli
+każdy, kto tam wejdzie, czyta dokument, który sam o sobie mówi, że nie jest
+gotowy do publikacji, plus trzy nieuzupełnione pola.
+
+**Druga rzecz, ważniejsza dla decyzji o AI.** Ten sam dokument obiecuje:
+„Dane przechowujemy na serwerach w Unii Europejskiej". Dziś infrastruktura
+tę obietnicę TRZYMA — Railway `europe-west4-drams3a` (Amsterdam), kubełek R2
+w UE, Sentry w regionie EU (`docs/infra/INFRA_DECISION.md`,
+`docs/infra/DEPLOYMENT_RUNBOOK.md`). Wysyłanie treści wpisu albo zdjęcia do
+modelu firmy trzeciej poza UE tę obietnicę ŁAMIE, a dostawca domyślnie
+trzyma treść żądania przez 30 dni na potrzeby monitorowania nadużyć.
+
+**Kolejność jest więc wymuszona, nie do wyboru:** dokument musi być
+skończony i sprawdzony przez prawnika (z listą podprocesorów i podstawą
+przekazywania poza EOG) ZANIM włączy się jakąkolwiek integrację AI na
+treściach użytkownika. To nie jest formalność do odhaczenia po wdrożeniu —
+to jest obietnica złożona człowiekowi na stronie, której kod ma dotrzymać.
+
+Sam tekst prawny nie jest do napisania przez agenta: nazwa operatora, adres
+i adres kontaktowy są danymi właściciela, a tabela podstaw prawnych wymaga
+prawnika. Sam dokument zresztą tak mówi w dwóch miejscach.
+
 ## 7a. Zmierzone, NIE naprawione — do decyzji właściciela
 
 **35 tras zapisujących nie ma limitu zapytań na poziomie trasy.** AGENTS.md §7
