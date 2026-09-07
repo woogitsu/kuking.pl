@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Media\DostepDoZdjecia;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Social\Actions\BlockUser;
+use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
@@ -159,6 +160,47 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
     }
 
     // =================================================================
+    //  Zdjęcie "Ugotowałem" — jedyny rodzic bez własnego testu macierzy
+    // =================================================================
+
+    /**
+     * `cooked_event_media` jest w obu listach ODWOLANIA i `CookedEventPolicy`
+     * ma `view()` od dawna — ale przed tym testem NIC w tym pliku nie
+     * przechodziło tą trasą przez `MediaController`. Bez niego regresja
+     * w `CookedEventPolicy::view()` albo literówka w nazwie klasy przy
+     * odgadywaniu Policy przez Gate przeszłaby tu niezauważona: reguła w
+     * `DostepDoZdjecia::rodzice()` istnieje, ale nikt nie sprawdzał, czy
+     * Gate naprawdę znajduje politykę i naprawdę zwraca to, co trzeba
+     * (patrz `DostepDoZdjeciaBezPolicyRodzicaTest` — dowód, że brakująca
+     * Policy NIE rzuca wyjątkiem, tylko cicho odmawia).
+     *
+     * Widoczność wykonania idzie za widocznością PRZEPISU (delegacja
+     * w `CookedEventPolicy::view`), więc macierz jest ta sama.
+     */
+    public function test_macierz_widoku_zdjecia_wykonania(): void
+    {
+        $this->sprawdzMacierz('zdjęcie „Ugotowałem"', function (string $widocznosc): string {
+            $zdjecie = $this->zdjecie();
+
+            $przepis = Recipe::factory()->create([
+                'author_id' => $this->autor->getKey(),
+                'visibility' => $widocznosc,
+                'title' => 'Zurek do ugotowania '.$widocznosc,
+                'slug' => 'zurek-ugotowany-'.$widocznosc.'-'.Str::lower(Str::random(6)),
+            ]);
+
+            $wykonanie = CookedEvent::factory()->create([
+                'user_id' => $this->autor->getKey(),
+                'recipe_id' => $przepis->getKey(),
+            ]);
+
+            $wykonanie->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+            return $zdjecie->url('feed');
+        });
+    }
+
+    // =================================================================
     //  Skan odręcznej kartki — najgorszy przypadek z audytu
     // =================================================================
 
@@ -296,6 +338,89 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
             'ukryte przez moderatora' => [Recipe::STATUS_HIDDEN, Post::STATUS_HIDDEN],
             'usunięte przez moderatora' => [Recipe::STATUS_REMOVED, Post::STATUS_REMOVED],
         ];
+    }
+
+    // =================================================================
+    //  Autor zbanowany albo pending_delete — nie tylko awatar
+    // =================================================================
+
+    /**
+     * `test_awatar_zbanowanego_konta_znika_razem_z_profilem` niżej sprawdza
+     * TYLKO awatar. `PostPolicy::view` i `RecipePolicy::view` mają ten sam
+     * warunek (`! $post->author->jestDostepnyJakoAutor()`) — ale to jest
+     * DRUGA kopia tej reguły w innym pliku, a BRAMKA_BETY.md §7 wprost ostrzega,
+     * że reguła bywa poprawna w jednej warstwie i inna w drugiej. Sam fakt, że
+     * `/wpisy/{id}` i `/przepisy/{slug}` dają 403 dla zbanowanego autora, NIE
+     * dowodzi niczego o adresie ZDJĘCIA — to jest dokładnie ta sama różnica,
+     * którą całe W7-02 miało zamknąć (adres HTML vs adres pliku).
+     *
+     * Zawieszenie (`suspended`) NIE wchodzi tutaj celowo — to kara czasowa
+     * tylko na PUBLIKOWANIE, treść zawieszonej osoby zostaje widoczna
+     * (`jestDostepnyJakoAutor()`, patrz `User::mozeCzytac()`).
+     */
+    #[DataProvider('stanyNiedostepnegoAutora')]
+    public function test_zdjecie_wpisu_i_przepisu_autora_niedostepnego_znika_dla_widzow(string $stanAutora): void
+    {
+        $zdjecieWpisu = $this->zdjecie();
+        $wpis = Post::factory()->create([
+            'author_id' => $this->autor->getKey(),
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+        $wpis->media()->attach($zdjecieWpisu->getKey(), ['position' => 0]);
+
+        $zdjeciePrzepisu = $this->zdjecie();
+        Recipe::factory()->create([
+            'author_id' => $this->autor->getKey(),
+            'visibility' => 'public',
+            'hero_media_id' => $zdjeciePrzepisu->getKey(),
+            'title' => 'Zurek autora '.$stanAutora,
+            'slug' => 'zurek-autora-'.$stanAutora.'-'.Str::lower(Str::random(6)),
+        ]);
+
+        match ($stanAutora) {
+            'banned' => $this->autor->ban(),
+            'pending_delete' => $this->autor->markForDeletion(),
+        };
+
+        foreach ([$zdjecieWpisu, $zdjeciePrzepisu] as $zdjecie) {
+            $adres = $zdjecie->url('feed');
+
+            $this->actingAs($this->obcy)->get($adres)->assertNotFound();
+            $this->actingAs($this->obserwujacy)->get($adres)->assertNotFound();
+
+            Auth::logout();
+            $this->get($adres)->assertNotFound();
+
+            // Moderator dalej widzi — inaczej nie dałoby się rozpatrzyć zgłoszenia.
+            $this->actingAs($this->moderator())->get($adres)->assertStatus(302);
+        }
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function stanyNiedostepnegoAutora(): array
+    {
+        return [
+            'zbanowany' => ['banned'],
+            'oczekujący na usunięcie konta' => ['pending_delete'],
+        ];
+    }
+
+    /**
+     * KONTROLA do testu wyżej: zawieszenie NIE ukrywa zdjęć, bo to kara
+     * wyłącznie na publikowanie nowej treści, nie na to, co już opublikowano.
+     */
+    public function test_zdjecie_wpisu_autora_zawieszonego_zostaje_widoczne(): void
+    {
+        $zdjecie = $this->zdjecie();
+        $wpis = Post::factory()->create([
+            'author_id' => $this->autor->getKey(),
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+        $wpis->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+        $this->autor->suspend();
+
+        $this->actingAs($this->obcy)->get($zdjecie->url('feed'))->assertStatus(302);
     }
 
     // =================================================================
