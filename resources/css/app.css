@@ -854,6 +854,22 @@
     color: var(--color-accent-tint-ink);
   }
 
+  /*
+     „Konto przykładowe" (D-025) — CELOWO WIĘKSZE i z ramką, nie wariant
+     ciszej od `.badge-cooked`. Grupa 50+ ma to zauważyć bez czytania
+     drobnego druku, więc tekst stoi na `--text-body` (18px, minimum
+     produktowe), nie na `--text-help` (16px) jak reszta odznak — i ma
+     ramkę tego samego koloru co tło, tak jak `.notice`, żeby nie dało się
+     jej pomylić z odznaką „Ugotowane N razy" na tym samym tle.
+  */
+  .badge-przykladowe {
+    font-size: var(--text-body);
+    font-weight: 700;
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+    border: 1px solid var(--color-accent);
+  }
+
   /* =====================================================================
      EKRAN PRZEPISU — UI kit v2, etap C (ekrany 02 i 06)
      =====================================================================
@@ -1129,11 +1145,15 @@
     margin-top: var(--spacing-8);
   }
 
-  /* --- Kreator przepisu (3 kroki) --- */
+  /* --- Wiersze składników i kroków (kreator ORAZ formularz jednostronicowy) --- */
 
   /* Jeden wiersz składnika albo kroku przygotowania. Wydzielony ramką, bo
      przy powiększonym tekście trzy pola i trzy przyciski bez wyraźnej
-     granicy zlewają się w jedną ścianę. */
+     granicy zlewają się w jedną ścianę.
+     Ta sama klasa obsługuje kroki w formularzu bez JavaScriptu
+     (`pages/recipes/create.blade.php`): od kiedy krok ma minutnik i zdjęcie,
+     jeden krok to trzy pola, a nie jedno pole tekstowe — bez ramki nie
+     widać, gdzie kończy się krok drugi i zaczyna trzeci. */
   .wizard-row {
     border: 2px solid var(--color-border);
     border-radius: var(--radius-lg);
@@ -1164,6 +1184,23 @@
 
   .wizard-row-remove {
     margin-left: auto;
+  }
+
+  /* Miniatura zdjęcia, które krok JUŻ MA — w formularzu edycji przepisu.
+     Mała i z ramką: to podgląd „tu jest zdjęcie", a nie treść do oglądania,
+     a obok stoi checkbox „Usuń to zdjęcie", od którego musi być odróżnialna. */
+  .krok-zdjecie {
+    display: block;
+    max-width: 10rem;
+    margin-top: var(--spacing-3);
+  }
+
+  .krok-zdjecie-obraz {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
   }
 
   /* Plakietka autosave: „Szkic zapisany.” / „Zapisywanie…” / błąd. */
@@ -1330,6 +1367,24 @@
   .prose h2 { margin-top: var(--spacing-8); }
   .prose ul, .prose ol { padding-left: var(--spacing-6); }
   .prose li { margin-bottom: var(--spacing-2); }
+
+  /*
+   * Tabele w dokumentach prawnych (polityka prywatności) NIE MIESZCZĄ SIĘ
+   * przy 320 px — jedna kolumna sama ma 302…441 px, więc cała tabela
+   * wypychała CAŁĄ STRONĘ w bok (zmierzone: scripts/dostepnosc.mjs,
+   * „polityka prywatności / 320 px: 589 px przy 320 px okna"). Dla osoby
+   * z powiększonym tekstem na wąskim ekranie strona przewijała się
+   * w poziomie razem z nagłówkiem i stopką — po każdym przewinięciu w bok
+   * trzeba było wracać, żeby w ogóle widzieć logotyp i nawigację. To jest
+   * naruszenie WCAG 2.2 AA, kryterium 1.4.10 (Reflow).
+   *
+   * `.table-scroll` to owinięcie dokładane w `StaticPageController` wokół
+   * każdej tabeli z Markdown, z `tabindex="0"` — samo `overflow-x: auto`
+   * bez czegoś sfokusowalnego w środku było niedostępne z klawiatury
+   * (axe: `scrollable-region-focusable`, WCAG 2.1.1). Ten sam efekt co przy
+   * `.tabs` niżej, tylko dla tabel z dokumentów prawnych, nie zakładek.
+   */
+  .prose .table-scroll { max-width: 100%; overflow-x: auto; }
 
   .tabs {
     display: flex;

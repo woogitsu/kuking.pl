@@ -136,6 +136,44 @@ const EKRANY = [
    */
   { nazwa: 'strona tagu (gość)', adres: '/tag/zupy' },
   { nazwa: 'twoje tagi', adres: '/ustawienia/tagi', zalogowany: true },
+
+  /*
+   * EKRANY DOPISANE 7 WRZEŚNIA — zmienione albo nowe tego dnia i dotąd
+   * nienotowane przez ten automat.
+   *
+   * „Twoje dane" (D-022) jest tu z jednego powodu: to jedyny formularz
+   * w serwisie, którego skutku nie da się cofnąć bez czekania 30 dni,
+   * a od dziś ma dodatkowy haczyk zakresu i trzy listy „co znika / co
+   * zostaje". Musi dać się przeczytać i obsłużyć klawiaturą, bo to jest
+   * dokładnie ten ekran, na którym pomyłka najwięcej kosztuje.
+   */
+  { nazwa: 'twoje dane (usunięcie konta)', adres: '/ustawienia/twoje-dane', zalogowany: true },
+
+  // Zgłoszenie treści niezgodnej z prawem (DSA art. 16). Publiczny, bez
+  // logowania — pole imienia jest od dziś opcjonalne, z nowym wyjaśnieniem
+  // przy polu. Mierzymy jako gościa, bo dla gościa ten formularz istnieje.
+  { nazwa: 'zgłoś treść niezgodną z prawem', adres: '/zglos-nielegalna-tresc' },
+
+  /*
+   * Odwołanie od decyzji moderacyjnej (issue #10). DemoSeeder NIE tworzy
+   * żadnej `ModerationAction`, więc bez tego bloku ten ekran nie miałby
+   * czego pokazać — pusty/404 ekran przechodzi każdy test dostępności, nie
+   * sprawdzając niczego (patrz nagłówek pliku). Seedujemy TU, w automacie,
+   * a nie w `DemoSeeder` (nie nasze do ruszania) — dokładnie tym samym
+   * mechanizmem, którym `adresPrzepisu` niżej pyta bazę o gotowe dane.
+   * Rozwiązywane przez `znajdz: 'odwolanie'` w `sciezkaEkranu`.
+   */
+  { nazwa: 'odwołanie od decyzji', adres: null, znajdz: 'odwolanie', zalogowany: true },
+
+  /*
+   * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
+   * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
+   * przy 320 px i przy tekście 150% ma największą szansę wypchnąć całą
+   * stronę w bok, gdy tabela nie ma własnego przewijania (issue #80).
+   */
+  { nazwa: 'polityka prywatności', adres: '/prywatnosc' },
+  { nazwa: 'regulamin', adres: '/regulamin' },
+  { nazwa: 'zasady', adres: '/zasady' },
 ];
 
 /*
@@ -191,6 +229,18 @@ const WARIANTY = SZYBKO
 /** Naruszenia poniżej tej wagi notujemy, ale nie zatrzymują one wysyłki. */
 const BLOKUJACE = new Set(['critical', 'serious']);
 
+// BAZA DOMYŚLNA TEGO AUTOMATU. Do 7 września 2026 stało tu `kuking_test`,
+// czyli baza, na której chodzi `php artisan test` — a ten skrypt wykonuje
+// `migrate:fresh --seed`. Uruchomienie automatu bez `DB_DATABASE` KASOWAŁO
+// więc schemat bazy testowej, i to w środku ewentualnego przebiegu testów.
+// Dokładnie ta klasa wypadku zdarzyła się w tym projekcie raz, na bazie
+// deweloperskiej (AGENTS.md: nigdy `migrate:fresh` bez jawnego
+// `DB_DATABASE`) — nie ma powodu, żeby automat dostępności był wyjątkiem.
+//
+// Stała stoi w zasięgu MODUŁU, nie funkcji, bo czytają ją cztery różne
+// miejsca w tym pliku.
+const BAZA_DOMYSLNA = 'kuking_a11y';
+
 function log(...args) {
   console.log(...args);
 }
@@ -200,18 +250,18 @@ async function podnies_serwer() {
     return { adres: process.env.ADRES, zamknij: () => {} };
   }
 
-  const port = 8000 + Math.floor(Math.random() * 900);
+const port = 8000 + Math.floor(Math.random() * 900);
   const adres = `http://127.0.0.1:${port}`;
 
   log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
     stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' },
+    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
   });
 
   const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
     stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' },
+    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
   });
 
   // Czekamy na serwer zamiast zgadywać czas startu — na wolnej maszynie
@@ -319,7 +369,7 @@ const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
 const adresPrzepisu = (() => {
   const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
     "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')->first())->slug;",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' } })
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString().trim();
 
   return slug === '' ? null : `/przepisy/${slug}`;
@@ -353,7 +403,7 @@ const wpisyPoTrybie = (() => {
     + "$w = App\\Models\\Post::where('display_mode', $t)->where('status','published')"
     + "->where('visibility','public')->has('media', '>=', 2)->first(); "
     + "echo $t.'='.($w?->getKey() ?? '').PHP_EOL; }",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' } })
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString();
 
   const mapa = {};
@@ -370,12 +420,67 @@ const wpisyPoTrybie = (() => {
 })();
 
 /*
+ * Decyzja moderacyjna, od której `basia` może się odwołać (issue #10).
+ *
+ * DemoSeeder NIE tworzy żadnej `ModerationAction` — sprawdzone przez
+ * `grep -n ModerationAction database/seeders/DemoSeeder.php`, zero wyników.
+ * Bez tego bloku ekran „/odwolanie/{id}" nie miałby czego pokazać dla
+ * żadnego konta z demo, więc dopisujemy dane TUTAJ, tym samym mechanizmem
+ * co `adresPrzepisu` i `wpisyPoTrybie` wyżej — pytaniem (i, gdy trzeba,
+ * jednym zapisem) do bazy przez `tinker` — a NIE zmianą `DemoSeeder`, który
+ * jest czyjąś cudzą, trwającą pracą.
+ *
+ * Sprawdzenie „czy już jest" PRZED zapisem czyni to bezpiecznym do
+ * odpalenia także wtedy, gdy `ADRES` wskazuje serwer już postawiony wcześniej
+ * (bez świeżego `migrate:fresh`) — drugie uruchomienie znajdzie ten sam
+ * wiersz zamiast dokładać kolejny.
+ *
+ * `warn` na `recipe`: jest w `ODWOLYWALNE` (da się odwołać) i w `DOZWOLONE`
+ * dla przepisu, a przy przepisie basi (znaleziony wyżej jako `adresPrzepisu`,
+ * o ile jest jej autorstwa — w przeciwnym razie bierzemy dowolny jej wpis)
+ * nie zmienia widoczności treści, więc nie kolidujemy z żadnym innym
+ * ekranem, który tę samą treść ogląda.
+ */
+const idOdwolania = (() => {
+  const id = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    // `username` mieszka na `Profile` (klucz główny `user_id`), nie na
+    // `User` — patrz komentarz w App\Models\User o danych publicznych.
+    + "$b = App\\Models\\Profile::where('username','basia')->value('user_id'); "
+    + "if (!$m || !$b) { echo ''; exit; } "
+    + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
+    + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
+    + "if (!$a) { "
+    + "$cel = App\\Models\\Recipe::where('author_id',$b)->value('id') "
+    + "?? App\\Models\\Post::where('author_id',$b)->value('id') "
+    + "?? (string) Illuminate\\Support\\Str::uuid(); "
+    + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>'recipe',"
+    + "'target_id'=>$cel,'subject_user_id'=>$b,'action'=>'warn','reason_code'=>'niezgodne_z_zasadami',"
+    + "'note'=>'Utworzone przez automat dostępności (scripts/dostepnosc.mjs) do zmierzenia ekranu odwołania.',"
+    + "'user_message'=>'Ten przepis reklamował konkretny sklep, co jest niezgodne z naszymi zasadami. "
+    + "Poprawiliśmy opis i przepis zostaje widoczny — to ostrzeżenie zapisujemy do wiadomości.']); "
+    + "} echo $a->getKey();",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return id === '' ? null : id;
+})();
+
+if (idOdwolania === null) {
+  console.error('BŁĄD: nie udało się przygotować decyzji moderacyjnej dla „basia" — '
+    + 'ekran odwołania nie zostałby sprawdzony (brak konta moderatora albo basi w bazie).');
+  zamknij();
+  process.exit(1);
+}
+
+/*
  * Adres ekranu z listy: `adres` wprost albo `znajdz` do rozwiązania z bazy.
  *
  * `znajdz: 'przepis'` → dowolny opublikowany przepis z demo,
  * `znajdz: 'gotowanie'` → tryb gotowania tego samego przepisu,
  * `znajdz: 'wpis:carousel'` → wpis w tym trybie,
- * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu.
+ * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu,
+ * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla basi.
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
@@ -392,6 +497,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'gotowanie') {
     return adresGotowania;
+  }
+
+  if (ekran.znajdz === 'odwolanie') {
+    return `/odwolanie/${idOdwolania}`;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');
@@ -548,6 +657,27 @@ for (const wariant of WARIANTY) {
         requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
       }));
     }
+
+    /*
+     * OTWIERAMY KAŻDY `<details>` PRZED POMIAREM.
+     *
+     * Treść zamkniętego `<details>` nie ma `display: none` w arkuszu stylów
+     * — ale przeglądarka i tak traktuje ją jak niewidoczną (`checkVisibility()`
+     * zwraca `false`), bo tak każe robić specyfikacja HTML z zamkniętym
+     * `<details>`. Axe pomija to, co niewidoczne, tak samo jak pomija tekst
+     * `sr-only` odwrócony transformacją. Zmierzone wprost na ekranie „twoje
+     * dane": axe analizuje 8 węzłów wewnątrz zamkniętego `<details>` (sam
+     * `<summary>`), a 34, gdy jest otwarty — różnica to dokładnie hasło,
+     * oba haczyki i przycisk „Usuń moje konto" formularza usunięcia konta
+     * (D-022). Bez tego otwarcia automat NIGDY nie sprawdziłby etykiet ani
+     * kontrastu w najważniejszym nieodwracalnym formularzu serwisu — zielony
+     * wynik na tym ekranie nic by nie znaczył.
+     */
+    await strona.evaluate(() => {
+      for (const el of document.querySelectorAll('details:not([open])')) {
+        el.open = true;
+      }
+    });
 
     const wynik = await new AxeBuilder({ page: strona })
       // Reguły WCAG 2.2 AA — cel produktowy z docs/design/DESIGN_SYSTEM.md.
