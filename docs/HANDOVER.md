@@ -653,14 +653,10 @@ CI run. **Do not report it as checked.**
 
 ### 8.4 What is waiting, in the order I would take it
 
-1. **PR #125 is waiting for the runner pool.** After D-028 nothing in this
-   repository targets GitHub-hosted runners, so its CI will sit in `Queued`
-   until `woogitsu-linux-01`–`10` are online with all six labels. The owner
-   chose to wait rather than merge without CI. What the machines need:
-   `docs/infra/WYMAGANIA_RUNNERA.md`. **The trap that is easiest to miss:**
-   the `test` and `dostepnosc` jobs both map host port 5432, so two runner
-   processes on one machine collide on `port is already allocated` — one
-   machine, one job at a time.
+1. **PR #125 is red on CI, and every failure so far is runner-side.** See
+   8.7 for the measured state — that is the first thing to read, because it
+   changed three times during this session and the older paragraphs above
+   were written before it settled.
 2. **Design work** (was §7.4 pkt 5, untouched). The owner is unhappy with the
    current look. 60 real screenshots; `scripts/zrzuty-wygladu.mjs`
    regenerates them. The two shortest real fixes are still the English
@@ -692,5 +688,78 @@ the legal documents; a mail provider (the art. 20 DSA appeal right is
 implemented but undeliverable); branch protection on `main`. Eleven unused
 branches still exist on GitHub — before deleting any of them, repeat the
 check that rescued six documents in #123.
+
+---
+
+### 8.7 CI state at the end of this session — read this before touching #125
+
+`main` never ran on these runners, so there is no "green on base" to compare
+against. Everything below is read from job logs, not inferred.
+
+**The runners exist and take jobs.** Twelve registrations
+(`woogitsu-linux-01`…`-12`), all six labels correct, runner version 2.337.0.
+They are **WSL 2 distributions on one Windows machine** — every one reports
+`Machine name: 'DOM'` and works under `/home/matma/actions-runner/<name>/`.
+That is the same machine whose name is inside the old pool's names
+(`woogitsu-wsl-DOM-NEW-*`); the label split separates *registrations*, not
+hardware. D-028 was decided before this was known. It is not wrong, but the
+sentence "own pool" means something narrower than it sounds.
+
+**Three CI runs happened, and the picture improved twice:**
+
+| Run | Head | Result |
+|---|---|---|
+| 34158198715 | `18499b8` | 6 of 7 jobs failed. `docker` resolved to the *Windows* binary via `/mnt/c/Program Files/Docker/…` → `could not be found in this WSL 2 distro`. `setup-php` failed on a stale path. Only `Build assetów` (no PHP, no Docker) passed. |
+| 34158439173 | `071a0b0` | identical, on different runners — which proved the stale-path problem is pool-wide, not one machine. |
+| 34159140175 | `bcbf04a` | Docker is now **native** (`/usr/bin/docker`) — that part the owner fixed. Two things remain. |
+
+**What still has to happen on the machines (neither is fixable from the
+repository):**
+
+1. **`permission denied while trying to connect to the docker API at
+   unix:///var/run/docker.sock`.** The runner user is not in the `docker`
+   group. `sudo usermod -aG docker matma` **and a restart of the runner
+   service** — the group does not apply to an already-running process. Kills
+   `test`, `dostepnosc` and `docker-build`.
+2. **`ENOENT … /home/matma/actions-runner/woogitsu-run-NN/_work/_actions/shivammathur/setup-php/v2/src/scripts/linux.sh`.**
+   The runner works in `woogitsu-linux-NN`, the action looks in
+   `woogitsu-run-NN`. Seen on `-01`, `-02`, `-06`, `-08`, `-09`, `-10`.
+   `actions/checkout` is fine, so it is specific to what the runner exports
+   as its `_work`/`_actions` location. Looks like a leftover from renaming
+   the runner directories without reconfiguring. Kills `lint`,
+   `static-analysis` and `audit`.
+
+Both are written up with commands and verification steps in
+`docs/infra/WYMAGANIA_RUNNERA.md` §12, and reported in two comments on #125.
+**Do not "fix" either from the repo side** — replacing `setup-php` with a
+hand-rolled PHP install, or dropping the service container for a host
+PostgreSQL, would trade a five-minute machine fix for a permanent weakening
+of CI.
+
+**What is already fixed in the repo, and what it is worth.** Both PostgreSQL
+service containers now map a **dynamic** host port (`ports: - 5432`), and the
+first step of each job publishes the chosen port through `$GITHUB_ENV`.
+Static `DB_HOST`/`DB_PORT` were removed from those jobs' `env:` so they
+cannot shadow it. Measured, so nobody rewrites `.env.example` or
+`phpunit.xml` "to be safe": an environment variable beats both
+(`DB_PORT=6543 php artisan tinker` → `config('…pgsql.port') = 6543`;
+`DB_PORT=6543 php artisan test` → `connection … port 6543 failed`). The
+5432 in those two files is the local default, not a path CI can take.
+
+**This is not yet proven end to end.** The collision it prevents needs two
+PostgreSQL containers actually running side by side, and Docker has not let
+one start yet. Treat the port change as correct-by-construction and
+verified only in syntax and step order until a run gets past
+`Initialize containers`.
+
+**Nothing about the application code has been verified by CI yet** — not one
+test, not one Larastan pass. Verification of #125 rests entirely on local
+runs: 1636 tests / 56064 assertions on PostgreSQL, pint clean,
+`npm run build` clean, `node scripts/dostepnosc.mjs` clean with a confirmed
+HTTP 200 on all 23 screens. PHPStan is the one real gap (8.3).
+
+**Pushing to this branch costs a CI cycle that currently fails the same way
+every time.** I stopped after `bcbf04a` on purpose. When the pool is ready,
+one small commit is enough to trigger a full run.
 
 ---
