@@ -7,6 +7,23 @@
     <form class="card" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
 
+        {{-- Tożsamość TEGO wysłania formularza (ADR
+             docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md). Dzięki niej drugie
+             kliknięcie „Opublikuj" — a w grupie 50+ jest ono normalnym
+             sposobem obsługi komputera — nie tworzy drugiego wpisu.
+
+             Zwykłe ukryte pole, bez linijki JavaScriptu: publikacja musi
+             działać bez skryptu, bo przy słabym łączu skrypt się nie dociąga,
+             a to jest ten sam moment, w którym strona myśli i klika się drugi
+             raz (AGENTS.md §5, D-007).
+
+             Nazwa NIE MOŻE zawierać fragmentu „token": OdzyskiwalneDane
+             wycina takie pola, więc na ekranie 419 klucz by nie wrócił
+             (zmierzone, ADR §1.4.4). --}}
+        @if(($kluczWyslania ?? null) !== null)
+            <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
+        @endif
+
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
             <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
 

@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\Report;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -35,13 +36,53 @@ use Illuminate\View\View;
  */
 class ZgloszenieNielegalnejTresciController extends Controller
 {
+    /**
+     * Wyłącznik mechanizmu klucza wysłania (ADR
+     * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §8.4, „Wyjście 1").
+     * Docelowo `config('kuking.formularze.klucz_wyslania_wlaczony')` — stała
+     * stoi tu, bo `config/kuking.php` jest w tym zleceniu zablokowany przez
+     * inną pracę (wartość do przeniesienia jest w raporcie ze wdrożenia).
+     */
+    private const KLUCZ_WYSLANIA_WLACZONY = true;
+
     public function __construct(private readonly ZglosNielegalnaTresc $zglos) {}
 
     public function create(): View
     {
         return view('pages.zglos-nielegalna-tresc', [
             'reasons' => Report::REASONS,
+            'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
+    }
+
+    /**
+     * Klucz wysłania dla świeżo renderowanego formularza.
+     *
+     * `old()` pierwsze: ten formularz ma pięć pól wymaganych i długie
+     * uzasadnienie, więc nieudana walidacja jest tu częstsza niż gdziekolwiek
+     * indziej — a po niej klucz musi zostać ten sam.
+     */
+    private function kluczDlaFormularza(): ?string
+    {
+        if (! self::KLUCZ_WYSLANIA_WLACZONY) {
+            return null;
+        }
+
+        $stary = old('klucz_wyslania');
+
+        return is_string($stary) && Str::isUuid($stary) ? $stary : (string) Str::uuid7();
+    }
+
+    /**
+     * Klucz wysłania z żądania. Wartość niebędąca UUID-em schodzi do `null`,
+     * czyli do „przyjmij normalnie" — nigdy do odmowy. Odmowa zamknęłaby
+     * drogę, którą DSA art. 16 nakazuje udostępnić każdemu.
+     */
+    private function kluczZZadania(Request $request): ?string
+    {
+        $klucz = $request->input('klucz_wyslania');
+
+        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
     }
 
     public function store(Request $request): RedirectResponse
@@ -83,6 +124,7 @@ class ZgloszenieNielegalnejTresciController extends Controller
             powod: $data['reason'],
             typCelu: $typ,
             idCelu: $id,
+            kluczWyslania: $this->kluczZZadania($request),
         );
 
         $numer = mb_strtoupper(mb_substr((string) $zgloszenie->getKey(), 0, 8));

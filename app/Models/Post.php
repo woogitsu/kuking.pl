@@ -55,6 +55,11 @@ class Post extends Model
         'status',
         'display_mode',
         'recipe_id',
+        // Tożsamość JEDNEGO wysłania formularza „Opublikuj" — nie treść i nie
+        // stan wpisu. Częściowy indeks UNIQUE `posts_one_per_klucz_wyslania`
+        // na parze (autor, klucz) sprawia, że drugie kliknięcie nie tworzy
+        // drugiego wpisu (ADR `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
+        'klucz_wyslania',
         'published_at',
     ];
 

@@ -6,6 +6,7 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Models\Report;
 use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
@@ -38,6 +39,22 @@ use Illuminate\Support\Facades\Notification;
  * ta sama osoba klika dwa razy. Tutaj dwa zgłoszenia tej samej treści mogą
  * pochodzić od dwóch różnych osób, z dwóch różnych podstaw prawnych, i każdej
  * z nich należy się osobna odpowiedź.
+ *
+ * ALE JEDNO KLIKNIĘCIE TO JEDNA SPRAWA (decyzja właściciela, ADR
+ * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`, pytanie P4).
+ *
+ * To nie jest sprzeczność z akapitem wyżej, bo mówi o czym innym: tam o dwóch
+ * WYSŁANIACH tej samej treści, tu o jednym wysłaniu policzonym dwa razy.
+ * Zmierzone (ADR §1.4.3): indeks `reports_one_open_per_pair` tych wierszy nie
+ * widzi, bo `reporter_id` jest tu `NULL` — więc podwójne kliknięcie zakładało
+ * DRUGĄ sprawę, z własnym terminem odpowiedzi z art. 16 i własną decyzją do
+ * wydania. Dlatego formularz niesie `klucz_wyslania`, a tabela ma na nim
+ * częściowy indeks UNIQUE.
+ *
+ * Nieznany klucz albo brak klucza znaczy „przyjmij normalnie", nigdy
+ * „odmawiam" (ADR §4.3): odmowa zamknęłaby drogę, którą przepis nakazuje
+ * udostępnić każdemu, i uderzyłaby najmocniej w osoby z najstarszymi
+ * przeglądarkami.
  */
 final class ZglosNielegalnaTresc
 {
@@ -52,6 +69,8 @@ final class ZglosNielegalnaTresc
      *                              puste: uzasadnienie i dobra wiara zostają
      *                              wymagane, także w CHECK-u w bazie
      *                              (migracja `allow_anonymous_legal_notices`).
+     * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
+     *                                      „nie wiemy, przyjmuj normalnie"
      */
     public function handle(
         ?string $imie,
@@ -61,9 +80,11 @@ final class ZglosNielegalnaTresc
         string $powod,
         ?string $typCelu = null,
         ?string $idCelu = null,
+        ?string $kluczWyslania = null,
     ): Report {
-        $zgloszenie = DB::transaction(fn (): Report => Report::create([
+        $zapisz = fn (?string $klucz): Report => DB::transaction(fn (): Report => Report::create([
             'source' => Report::SOURCE_LEGAL_NOTICE,
+            'klucz_wyslania' => $klucz,
             'notifier_name' => $imie,
             'notifier_email' => $email,
             // Adres mógł się nie rozwiązać — wtedy typ to `unknown`, a cel
@@ -82,6 +103,34 @@ final class ZglosNielegalnaTresc
             'status' => Report::STATUS_OPEN,
         ]));
 
+        try {
+            $zgloszenie = $zapisz($kluczWyslania);
+        } catch (UniqueConstraintViolationException $e) {
+            if ($kluczWyslania === null) {
+                // Bez klucza nie ma jak odbić się o
+                // `reports_one_per_klucz_wyslania` — to inne ograniczenie
+                // i nie wolno go tu wyciszyć, bo zgłoszenie prawne, które
+                // po cichu nie powstało, jest najgorszym z możliwych skutków.
+                throw $e;
+            }
+
+            $istniejace = $this->zgloszenieZTegoWyslania($kluczWyslania, $adres, $powod, $uzasadnienie);
+
+            if ($istniejace !== null) {
+                // Drugie kliknięcie ma być nieodróżnialne od pierwszego:
+                // ten sam wiersz, ten sam numer sprawy na ekranie i ANI JEDNO
+                // potwierdzenie odbioru więcej (art. 16 ust. 4 mówi o jednym
+                // potwierdzeniu jednej sprawy, nie o liście na każde
+                // kliknięcie).
+                return $istniejace;
+            }
+
+            // Klucz jest zajęty, ale nie przez to zgłoszenie. Przyjmujemy
+            // sprawę BEZ klucza — nigdy nie oddajemy cudzego wiersza ani
+            // cudzego numeru sprawy, i nigdy nie odmawiamy przyjęcia.
+            $zgloszenie = $zapisz(null);
+        }
+
         // POTWIERDZENIE ODBIORU (art. 16 ust. 4) — poza transakcją.
         //
         // Wysyłka listu nie może wycofać zapisanego zgłoszenia, a zapisane
@@ -96,5 +145,35 @@ final class ZglosNielegalnaTresc
         }
 
         return $zgloszenie;
+    }
+
+    /**
+     * Zgłoszenie przyjęte z TEGO wysłania formularza — jeśli zostało przyjęte.
+     *
+     * Klucz nie wystarcza sam: przy zgłoszeniu bez konta nie ma kolumny, która
+     * mówiłaby, KTO wysłał formularz, więc gdyby ktoś podstawił cudzą wartość
+     * klucza, oddanie tamtego wiersza pokazałoby mu numer cudzej sprawy. UUID
+     * w żądaniu nie jest autoryzacją (`AGENTS.md` §7). Dlatego wiersz musi
+     * zgadzać się także treścią zgłoszenia — dla prawdziwego podwójnego
+     * kliknięcia jest identyczna, bo to bajt w bajt to samo żądanie.
+     */
+    private function zgloszenieZTegoWyslania(
+        ?string $kluczWyslania,
+        string $adres,
+        string $powod,
+        string $uzasadnienie,
+    ): ?Report {
+        if ($kluczWyslania === null) {
+            return null;
+        }
+
+        return Report::query()
+            ->where('klucz_wyslania', $kluczWyslania)
+            ->where('source', Report::SOURCE_LEGAL_NOTICE)
+            ->whereNull('reporter_id')
+            ->where('target_url', $adres)
+            ->where('reason', $powod)
+            ->where('illegality_explanation', $uzasadnienie)
+            ->first();
     }
 }

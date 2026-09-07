@@ -52,6 +52,18 @@
     <form class="card" method="POST" action="{{ route('zglos.nielegalna.store') }}">
         @csrf
 
+        {{-- Tożsamość TEGO wysłania formularza (ADR
+             docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md, pytanie P4).
+             Zgłoszenia bez konta są poza indeksem częściowym w bazie
+             (`reporter_id` jest tu NULL), a duplikat zakłada DRUGĄ sprawę
+             z własnym terminem odpowiedzi z DSA art. 16.
+
+             Zwykłe ukryte pole, bez JavaScriptu. Nazwa bez fragmentu
+             „token", inaczej pole ginie na ekranie 419 (ADR §1.4.4). --}}
+        @if(($kluczWyslania ?? null) !== null)
+            <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
+        @endif
+
         <x-field name="target_url" label="Adres strony z tą treścią" required
                  :value="old('target_url')"
                  placeholder="https://kuking.pl/przepis/..."

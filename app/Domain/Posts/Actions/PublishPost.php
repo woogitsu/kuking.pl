@@ -13,6 +13,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +25,25 @@ use Illuminate\Support\Facades\DB;
  *
  * Jedyny twardy warunek: wpis musi mieć CO NAJMNIEJ zdjęcie ALBO tekst.
  * Puste wpisy nie wnoszą nic i tylko zaśmiecają archiwum.
+ *
+ * JEDNO WYSŁANIE FORMULARZA TO JEDEN WPIS (ADR
+ * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`, wariant A3).
+ *
+ * Zmierzone przed zmianą: dwa kliknięcia „Opublikuj" dawały dwa wpisy i dwa
+ * różne adresy w `Location`, czyli serwis odsyłał człowieka do DRUGIEGO
+ * wpisu, o którego istnieniu ten człowiek nie wiedział. W grupie 50+ drugie
+ * kliknięcie nie jest pomyłką, tylko sposobem obsługi komputera: strona myśli
+ * chwilę, więc klika się drugi raz.
+ *
+ * Formularz dostaje przy renderowaniu jednorazowy `klucz_wyslania` w ukrytym
+ * polu, a tabela ma na parze (autor, klucz) częściowy indeks UNIQUE. Zapis
+ * idzie „WSTAW I ZŁAP WYJĄTEK", nie „sprawdź, potem wstaw" — check-then-act
+ * przepuszcza dwa równoległe żądania, bo między odczytem a zapisem jest okno
+ * (zmierzone w ADR §1.3 na dwóch połączeniach).
+ *
+ * Mechanizm zawodzi OTWARCIE: brak albo nieznany klucz znaczy „opublikuj
+ * normalnie", nigdy „odmawiam". Zduplikowany wpis jest dla odbiorcy 50+ mniej
+ * szkodliwy niż wpis utracony (ADR §4.3).
  */
 final class PublishPost
 {
@@ -35,6 +55,8 @@ final class PublishPost
     /**
      * @param  list<string>  $mediaIds  identyfikatory już wgranych zdjęć, w kolejności
      * @param  list<string>  $tagNames  to, co ktoś WPISAŁ jako tagi (wolny tekst, nie id) — D-021
+     * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
+     *                                      „nie wiemy, wysyłaj normalnie" (ADR §4.3)
      */
     public function handle(
         User $author,
@@ -45,6 +67,7 @@ final class PublishPost
         array $tagNames = [],
         ?string $ip = null,
         string $displayMode = Post::DISPLAY_NORMAL,
+        ?string $kluczWyslania = null,
     ): Post {
         $body = $this->cleanBody($body);
 
@@ -85,27 +108,61 @@ final class PublishPost
             ? Post::DISPLAY_NORMAL
             : $displayMode;
 
-        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags): Post {
-            $post = Post::create([
-                'author_id' => $author->getKey(),
-                'body' => $body,
-                'visibility' => $visibility,
-                'status' => Post::STATUS_PUBLISHED,
-                'display_mode' => $displayMode,
-                'recipe_id' => $recipeId,
-                'published_at' => now(),
-            ]);
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags, $klucz): Post {
+                $post = Post::create([
+                    'author_id' => $author->getKey(),
+                    'body' => $body,
+                    'visibility' => $visibility,
+                    'status' => Post::STATUS_PUBLISHED,
+                    'display_mode' => $displayMode,
+                    'recipe_id' => $recipeId,
+                    'klucz_wyslania' => $klucz,
+                    'published_at' => now(),
+                ]);
 
-            foreach ($orderedMedia as $position => $mediaId) {
-                $post->media()->attach($mediaId, ['position' => $position]);
+                foreach ($orderedMedia as $position => $mediaId) {
+                    $post->media()->attach($mediaId, ['position' => $position]);
+                }
+
+                foreach ($tags as $position => $tag) {
+                    $post->tags()->attach($tag->getKey(), ['position' => $position]);
+                }
+
+                return $post;
+            });
+        };
+
+        try {
+            $post = $zapisz($kluczWyslania);
+        } catch (UniqueConstraintViolationException $e) {
+            if ($kluczWyslania === null) {
+                // Bez klucza nie ma jak odbić się o `posts_one_per_klucz_wyslania`
+                // — więc to jest inne ograniczenie (np. dwa razy to samo
+                // zdjęcie na tej samej pozycji) i nie wolno go tu wyciszyć.
+                throw $e;
             }
 
-            foreach ($tags as $position => $tag) {
-                $post->tags()->attach($tag->getKey(), ['position' => $position]);
+            // Indeks `posts_one_per_klucz_wyslania` odbił wiersz: to wysłanie
+            // już raz zapisało wpis. Cała transakcja jest wycofana, więc nie
+            // ma tu połowy zmian — zdjęcia i tagi drugiego żądania nie
+            // zostały podpięte do niczego (osierocone zdjęcia sprząta
+            // `kuking:sprzataj-osierocone-zdjecia` po dobie karencji).
+            $istniejacy = $this->wpisZTegoWyslania($author, $kluczWyslania);
+
+            if ($istniejacy !== null) {
+                // Drugie kliknięcie ma być NIEODRÓŻNIALNE od pierwszego:
+                // oddajemy wpis, który wtedy powstał, i nie powtarzamy ani
+                // audytu, ani powiadomienia gospodarza.
+                return $istniejacy;
             }
 
-            return $post;
-        });
+            // Klucz jest zajęty, ale wpisu, którego dotyczył, już nie widać
+            // (usunięty miękko — indeks obejmuje też takie wiersze). Nie
+            // odmawiamy: publikujemy bez klucza, z ryzykiem duplikatu.
+            // Utrata cudzego wpisu jest gorsza niż duplikat (ADR §4.3).
+            $post = $zapisz(null);
+        }
 
         AuditLogEntry::record(
             action: 'post.published',
@@ -118,6 +175,27 @@ final class PublishPost
         $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
 
         return $post;
+    }
+
+    /**
+     * Wpis, który powstał z TEGO wysłania formularza — jeśli powstał.
+     *
+     * Pytanie jest zawężone do autora, a nie zadane samemu kluczowi:
+     * `klucz_wyslania` przychodzi z żądania, a UUID w żądaniu nie jest
+     * autoryzacją (`AGENTS.md` §7). Klucz podstawiony z cudzego formularza
+     * nie może więc pokazać cudzego wpisu — indeks jest na parze
+     * (autor, klucz), więc nawet nie zablokuje własnego wysłania.
+     */
+    private function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
+    {
+        if ($kluczWyslania === null) {
+            return null;
+        }
+
+        return Post::query()
+            ->where('author_id', $author->getKey())
+            ->where('klucz_wyslania', $kluczWyslania)
+            ->first();
     }
 
     /**
