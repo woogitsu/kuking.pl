@@ -1,0 +1,333 @@
+{
+  "data": "2026-09-07",
+  "liczba_przepisow": 40,
+  "zgodnosc_md_json": true,
+  "podsumowanie": {
+    "POPRAW": 28,
+    "CZYSTY": 9,
+    "DO WIEDZY": 2,
+    "BLOKUJE": 1
+  },
+  "oceny": [
+    {
+      "ref": "p1",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Chłodzenie nabiału",
+      "problem": "Noc „w chłodzie” nie wskazuje lodówki; to istotne przy serniku z twarogiem i jajami. [F1]",
+      "proponowane_zdanie": "Po pieczeniu studzę sernik sprawnie i najpóźniej w ciągu dwóch godzin wkładam go do lodówki, w której jest nie więcej niż 5°C.",
+      "tytul": "Sernik po mamie"
+    },
+    {
+      "ref": "p2",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Lektyny; chłodzenie; ponowne użycie",
+      "problem": "Sucha fasola wymaga rzeczywistego wrzenia, a nie tylko łagodnego podgrzewania; opis trzeciego dnia nie określa historii chłodzenia. Nie twierdzę, że każda porcja trzeciego dnia jest zatruta. [F1,F4]",
+      "proponowane_zdanie": "Namoczoną fasolę gotuję w świeżej wodzie co najmniej pół godziny we wrzeniu i dalej do miękkości, gotowe danie szybko studzę w mniejszych porcjach i w ciągu dwóch godzin wkładam do lodówki, a porcję na trzeci dzień od razu po schłodzeniu zamrażam.",
+      "tytul": "Fasola z pomidorami na dwa dni"
+    },
+    {
+      "ref": "p3",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Kiszenie; warunki dalszego przechowywania",
+      "problem": "Nie utożsamiam kiszenia z niebezpiecznym wekowaniem ani 2–3 dni z ukończoną fermentacją; nieokreślone „chłodniejsze miejsce” nie jest jednak kontrolowanym przechowywaniem gotowych ogórków. Dopisek ogranicza zastosowanie do bieżącego jedzenia, nie zatwierdza trwałości zimowej. [F1,F8]",
+      "proponowane_zdanie": "Po tych dwóch–trzech dniach przenoszę ogórki do lodówki, gdzie jest najwyżej 5°C, pilnuję, żeby były całkiem pod zalewą, i robię je do bieżącego jedzenia, a nie jako zapas na zimę.",
+      "tytul": "Ogórki kiszone jak w domu"
+    },
+    {
+      "ref": "p4",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Zwykły placek ze śliwkami"
+    },
+    {
+      "ref": "p5",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Surowe jajo i mąka; danie na kolejny dzień",
+      "problem": "Opis urywa przygotowanie klusek na dodaniu jajka i mąki — nie ma ich gotowania; to pominięcie obróbki, nie zarzut braku minut. Rolada jest duszona do miękkości. [F1,F5]",
+      "proponowane_zdanie": "Uformowane kluski wkładam do wrzącej wody i gotuję, aż także w środku nie ma surowego ciasta, a porcję obiadu na jutro szybko studzę i w ciągu dwóch godzin chowam do lodówki.",
+      "tytul": "Rolada, kluski i modra kapusta"
+    },
+    {
+      "ref": "p6",
+      "ocena": "DO WIEDZY",
+      "kategoria_ryzyka": "Pieczywo",
+      "problem": "Czerstwe nie znaczy spleśniałe; tekst nie poleca zjadania pleśni, więc nie wymaga poprawki. Gorąca woda nie jest sposobem ratowania pieczywa z pleśnią. [F3]",
+      "proponowane_zdanie": "Nie trzeba zmieniać.",
+      "tytul": "Wodzionka na czerstwy chleb"
+    },
+    {
+      "ref": "p7",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Placki ziemniaczane bez kombinowania"
+    },
+    {
+      "ref": "p8",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Kapusta z grochem"
+    },
+    {
+      "ref": "p9",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Ryba — zakończenie obróbki",
+      "problem": "Zalecenie bardzo krótkiego gotowania i niedopuszczenia do rozpadu ryby nie daje niezależnego kryterium dogotowania; nie wymagam pół godziny gotowania. [F2]",
+      "proponowane_zdanie": "Gotuję rybę tylko tak długo, jak trzeba, ale sprawdzam czystym termometrem, czy najgrubszy kawałek osiągnął w środku co najmniej 63°C.",
+      "tytul": "Zupa rybna z warzywami"
+    },
+    {
+      "ref": "p10",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Ryba gotowa do jedzenia; chłodzenie",
+      "problem": "Moczenie w „zimnej wodzie” i zostawienie do jutra nie zapewniają chłodzenia; musi też chodzić o filety przygotowane do spożycia bez gotowania, nie surową rybę. [F1]",
+      "proponowane_zdanie": "Biorę filety śledziowe przeznaczone do jedzenia bez gotowania, moczę je w lodówce i gotowe śledzie z jabłkiem też trzymam w lodówce, najwyżej 5°C, nie dłużej niż dwa dni i zgodnie z krótszym terminem z opakowania.",
+      "tytul": "Śledzie z cebulą i jabłkiem"
+    },
+    {
+      "ref": "p11",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Wielodniowe przygotowanie; utrwalanie",
+      "problem": "Garnek jest podgrzewany w odstępach dobowych bez opisania chłodzenia, a samo zamknięcie na gorąco nie jest zweryfikowanym sposobem uzyskania trwałości w szafce; kwaśne śliwki nie mają identycznego profilu ryzyka jak mięso w słoiku. [F1,F8]",
+      "proponowane_zdanie": "Między kolejnymi gotowaniami szybko studzę powidła w mniejszych pojemnikach i w ciągu dwóch godzin chowam do lodówki, a gotowe przechowuję tam do dwóch dni albo zamrażam zamiast odkładać niepasteryzowane słoiki do szafki.",
+      "tytul": "Powidła ze śliwek bez pilnowania całego dnia"
+    },
+    {
+      "ref": "p12",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Chleb żytni na zakwasie"
+    },
+    {
+      "ref": "p13",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Danie na dwa dni",
+      "problem": "Porcja na kolejny obiad wymaga szybkiego schłodzenia; nie wystarczy pozostawić dużego garnka do następnego dnia. [F1]",
+      "proponowane_zdanie": "Część na jutro przekładam do mniejszych pojemników, szybko studzę i najpóźniej w ciągu dwóch godzin chowam do lodówki, a następnego dnia odgrzewam tylko potrzebną porcję, aż będzie gorąca także w środku.",
+      "tytul": "Garnek cukinii z pomidorami i kiełbasą"
+    },
+    {
+      "ref": "p14",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Drób; resztki do sałatki",
+      "problem": "Godzina w piekarniku nie gwarantuje temperatury rdzenia wszystkich kawałków; wykorzystanie kurczaka na zimno następnego dnia dodatkowo wymaga poprawnego chłodzenia. [F1,F6]",
+      "proponowane_zdanie": "Przed wyjęciem sprawdzam czystym termometrem najgrubsze kawałki przy kości, ale bez dotykania jej sondą, i czekam, aż mają co najmniej 75°C przez 30 sekund, a resztki szybko studzę i w ciągu dwóch godzin chowam do lodówki.",
+      "tytul": "Kurczak pieczony razem z ziemniakami"
+    },
+    {
+      "ref": "p15",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Identyfikacja grzybów",
+      "problem": "Nie podano gatunku; gotowanie do miękkości ani cedzenie wody po moczeniu nie unieszkodliwia grzybów trujących. Dopisek nie jest instrukcją rozpoznawania grzybów. [F7]",
+      "proponowane_zdanie": "Używam tylko pewnie rozpoznanych grzybów jadalnych z pewnego źródła, przygotowanych odpowiednio do gatunku, a kiedy zupę mają jeść małe dzieci, wybieram grzyby uprawne zamiast leśnych.",
+      "tytul": "Zupa grzybowa z ziemniakami"
+    },
+    {
+      "ref": "p16",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Niedostatecznie ścięte jaja",
+      "problem": "Zdejmowanie „trochę wcześniej” może pozostawić niedogrzaną masę jajeczną; świeżość jaj sama nie usuwa ryzyka. Wyjątków dla określonych brytyjskich systemów produkcji jaj nie przenoszę na polskie jaja. [F2,F3]",
+      "proponowane_zdanie": "Zdejmuję patelnię dopiero wtedy, gdy cała masa jajeczna jest ścięta i nie ma już płynnego jajka, szczególnie gdy gotuję dla dzieci lub kogoś z obniżoną odpornością.",
+      "tytul": "Jajecznica z pomidorami i cebulą"
+    },
+    {
+      "ref": "p17",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Przechowanie klusek z jajem i mlekiem",
+      "problem": "Niewielkie pyzy gotowane na parze około 10 minut nie są z samego tego opisu niebezpieczne; doprecyzowania wymaga przechowanie do podsmażenia jutro. [F1]",
+      "proponowane_zdanie": "Pyzy na następny dzień szybko studzę, w ciągu dwóch godzin wkładam do lodówki i później podgrzewam także w środku, nie tylko rumienię z zewnątrz.",
+      "tytul": "Pyzy drożdżowe do sosu"
+    },
+    {
+      "ref": "p18",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Szare kluchy z kapustą"
+    },
+    {
+      "ref": "p19",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Drożdżowiec ze śliwkami i kruszonką"
+    },
+    {
+      "ref": "p20",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Kompot z jabłek i śliwek"
+    },
+    {
+      "ref": "p21",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Surowa mąka w zakwasie",
+      "problem": "Po wlaniu domowego zakwasu następuje próbowanie bez ponownego zagotowania; fermentacja nie jest potwierdzonym etapem eliminacji drobnoustrojów z surowej mąki. [F5]",
+      "proponowane_zdanie": "Po każdej dolewce zakwasu najpierw doprowadzam całą zupę do wrzenia i gotuję, zanim spróbuję jej smaku, a zakwas z pleśnią wyrzucam w całości.",
+      "tytul": "Żurek na domowym zakwasie"
+    },
+    {
+      "ref": "p22",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Farsz dzień wcześniej; grzyby",
+      "problem": "Jawne przygotowanie farszu dzień wcześniej i odsmażanie pierogów wymagają chłodzenia; suszenie i gotowanie nie zastępują prawidłowej identyfikacji grzybów. [F1,F7]",
+      "proponowane_zdanie": "Do farszu biorę tylko pewnie rozpoznane grzyby jadalne, a farsz przygotowany wcześniej i pierogi pozostawione na jutro szybko studzę i w ciągu dwóch godzin chowam do lodówki.",
+      "tytul": "Pierogi z kapustą i grzybami"
+    },
+    {
+      "ref": "p23",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Ugotowane ziemniaki z poprzedniego dnia",
+      "problem": "„Zimne” ziemniaki nie oznaczają prawidłowo przechowywanych ziemniaków; ponowne gotowanie nie naprawia każdej wcześniejszej nieprawidłowości. [F1]",
+      "proponowane_zdanie": "Biorę tylko ziemniaki, które po wczorajszym obiedzie szybko ostygły i w ciągu dwóch godzin trafiły do lodówki, a nie takie, które całą noc stały w kuchni.",
+      "tytul": "Kopytka z ziemniaków z poprzedniego dnia"
+    },
+    {
+      "ref": "p24",
+      "ocena": "BLOKUJE",
+      "kategoria_ryzyka": "Przetwór pomidorowy na zimę — kwasowość i proces",
+      "problem": "Tekst obiecuje przechowanie do zimy po około 20 minutach pasteryzacji, bez zweryfikowanej kwasowości, wielkości słoika i odpowiadającego im procesu; pomidory nie zawsze zapewniają dostatecznie kwaśne środowisko. Nie podaję dowolnego nowego czasu jako naprawy. [F9]",
+      "proponowane_zdanie": "Nie dopisywać jednego zdania: wstrzymać tę wersję i zastąpić cały etap utrwalania sprawdzonym przepisem dla określonego słoika, sposobu zakwaszenia i obróbki albo opracować oddzielną wersję do zamrażania.",
+      "tytul": "Pomidory we własnym soku do słoików"
+    },
+    {
+      "ref": "p25",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Cebularze z dużą ilością cebuli"
+    },
+    {
+      "ref": "p26",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Pierogi z twarogiem na kolejny dzień",
+      "problem": "Zostawienie części do odsmażenia wymaga chłodzenia; sama późniejsza patelnia nie jest zabezpieczeniem. [F1]",
+      "proponowane_zdanie": "Pierogi, które zostawiam na jutro, szybko studzę w niewielkich porcjach i w ciągu dwóch godzin wkładam do lodówki, a przy odsmażaniu podgrzewam je również w środku.",
+      "tytul": "Pierogi z ziemniakami i twarogiem"
+    },
+    {
+      "ref": "p27",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Resztki fasoli z innego obiadu",
+      "problem": "Dodanie resztek do nowego dania nie rozpoczyna ich czasu bezpiecznego przechowywania od nowa. [F1]",
+      "proponowane_zdanie": "Dorzucam tylko fasolę szybko schłodzoną po poprzednim obiedzie i przechowywaną w lodówce, a czas na zjedzenie leczo liczę od ugotowania tej starszej porcji, nie od ponownego podgrzania.",
+      "tytul": "Leczo z tego, co akurat dojrzało"
+    },
+    {
+      "ref": "p28",
+      "ocena": "DO WIEDZY",
+      "kategoria_ryzyka": "Ryba — temperatura rdzenia",
+      "problem": "Opis uwzględnia grubość filetów, około pół godziny w 190°C i uprzednio podgotowane ziemniaki; nie ma podstaw, by sam brak termometru nazwać niebezpieczną instrukcją. Bezpieczny punkt odniesienia dla ryby: 63°C w środku. [F2]",
+      "proponowane_zdanie": "Nie trzeba zmieniać; pomiar temperatury może być dobrowolnym doprecyzowaniem.",
+      "tytul": "Ryba pieczona z cebulą i ziemniakami"
+    },
+    {
+      "ref": "p29",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Sałatka z resztek ziemniaków, jaj i nabiału",
+      "problem": "Wykorzystuje ziemniaki z poprzedniego dnia, a godzinnego przegryzania smaków nie powiązano z lodówką. [F1]",
+      "proponowane_zdanie": "Używam ziemniaków schłodzonych i schowanych wczoraj do lodówki w ciągu dwóch godzin od gotowania, a gotową sałatkę też odkładam na tę godzinę do lodówki.",
+      "tytul": "Sałatka ziemniaczana z ogórkiem kiszonym"
+    },
+    {
+      "ref": "p30",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Zupa na dwa dni",
+      "problem": "Gotowanie większej ilości z myślą o kolejnym dniu wymaga dopisania warunków chłodzenia. [F1]",
+      "proponowane_zdanie": "Zupę na jutro przelewam do mniejszych pojemników, szybko studzę i w ciągu dwóch godzin wkładam do lodówki, a następnego dnia odgrzewam tylko porcję do zjedzenia.",
+      "tytul": "Ogórkowa na kwaśnych ogórkach"
+    },
+    {
+      "ref": "p31",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Grzyby — gatunek i susz",
+      "problem": "Smażenie i kilkanaście minut duszenia nie są uniwersalną instrukcją dla wszystkich grzybów; zamiana na susz wymaga gotowania, nie tylko namoczenia. [F7]",
+      "proponowane_zdanie": "Biorę wyłącznie pewnie rozpoznane grzyby jadalne i gotuję je odpowiednio do gatunku, a susz najpierw moczę i gotuję, zamiast traktować samo namoczenie jako przygotowanie do jedzenia.",
+      "tytul": "Kasza gryczana z sosem grzybowym"
+    },
+    {
+      "ref": "p32",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Wędzone mięso; zupa na jutro",
+      "problem": "Wędzone mięso może wymagać pełnego gotowania; opis nie rozróżnia takiego surowca od wyrobu gotowego, a resztki są podawane kolejnego dnia. [F1,F6]",
+      "proponowane_zdanie": "Jeśli wędzone mięso wymaga gotowania, doprowadzam je w środku do co najmniej 70°C na dwie minuty, a porcję zupy na jutro szybko studzę i w ciągu dwóch godzin chowam do lodówki.",
+      "tytul": "Kapuśniak z ziemniakami"
+    },
+    {
+      "ref": "p33",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Zanieczyszczenie krzyżowe surowym ciastem",
+      "problem": "Anegdota normalizuje zjedzenie farszu z miski po cieście zawierającym surowe jaja i mąkę; problemem nie jest jedynie rzadka konsystencja. ZASTĄPIĆ trzy końcowe zdania, nie dopisać po „dało się zjeść”. [F5]",
+      "proponowane_zdanie": "Farsz mieszam w osobnej czystej misce, bo resztki surowego ciasta z jajkiem i mąką nie powinny trafić do twarogu, który można zjeść bez dalszego smażenia.",
+      "tytul": "Naleśniki z twarogiem"
+    },
+    {
+      "ref": "p34",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Surowy zakwas; próbowanie po dolewce",
+      "problem": "Wielokrotne próbowanie od razu po dodaniu zakwasu i odkładanie porcji wnukom może poprzedzać obróbkę surowej mąki. ZASTĄPIĆ zdanie o próbowaniu po każdej dolewce. [F5]",
+      "proponowane_zdanie": "Po każdej dolewce zakwasu najpierw zagotowuję całą zupę i chwilę ją gotuję, a dopiero potem próbuję i odkładam porcję dla wnuków.",
+      "tytul": "Zalewajka z ziemniakami"
+    },
+    {
+      "ref": "p35",
+      "ocena": "CZYSTY",
+      "kategoria_ryzyka": "",
+      "problem": "",
+      "proponowane_zdanie": "",
+      "tytul": "Ucierane ciasto z jabłkami"
+    },
+    {
+      "ref": "p36",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Rosół z poprzedniego dnia; ryż",
+      "problem": "Historia chłodzenia rosołu nie jest podana; oddzielne gotowanie ryżu nie chroni go, jeśli stoi przez noc w małym garnku na kuchence. [F1,F3]",
+      "proponowane_zdanie": "Wczorajszy rosół wykorzystuję tylko wtedy, gdy w ciągu dwóch godzin trafił do lodówki, ryż chłodzę jeszcze szybciej, najlepiej w godzinę, i zużywam z lodówki w ciągu doby, a każdą porcję odgrzewam tylko raz.",
+      "tytul": "Pomidorowa z wczorajszego rosołu"
+    },
+    {
+      "ref": "p37",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Lektyny w fasolce; resztki",
+      "problem": "Próbowanie po 10 minutach jest krótsze niż konserwatywne zalecenie BfR dla świeżej fasoli; nie oznacza to, że dowiedziono zatrucia po każdych 10 minutach. Na jutro trzeba też zachować łańcuch chłodzenia. [F4,F1]",
+      "proponowane_zdanie": "Fasolkę gotuję we wrzącej wodzie co najmniej pół godziny i dopiero wtedy próbuję, a porcję na jutro szybko studzę i w ciągu dwóch godzin wkładam do lodówki.",
+      "tytul": "Fasolka szparagowa z bułką tartą"
+    },
+    {
+      "ref": "p38",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Mleko fermentowane a zepsute",
+      "problem": "„Kwaśne mleko, którego nikt już nie chce pić” nie rozróżnia kontrolowanej fermentacji od zepsucia; smażenie nie jest sposobem ratowania zepsutego surowca. ZASTĄPIĆ zdanie o zużywaniu niechcianego mleka. [F1,F10]",
+      "proponowane_zdanie": "Używam zsiadłego mleka lub kefiru z pasteryzowanego mleka, prawidłowo przechowywanego i w terminie przydatności, a nie mleka, które samo się zepsuło.",
+      "tytul": "Racuchy z jabłkami na kwaśnym mleku"
+    },
+    {
+      "ref": "p39",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Wędzone mięso — obróbka",
+      "problem": "Miękkość kapusty nie jest pomiarem obróbki kawałka mięsa; określenie „wędzone” nie znaczy automatycznie gotowe do spożycia. [F6]",
+      "proponowane_zdanie": "Jeśli moje wędzone mięso wymaga gotowania, sprawdzam czystym termometrem, czy osiągnęło w środku co najmniej 70°C przez dwie minuty, niezależnie od tego, czy kapusta już zmiękła.",
+      "tytul": "Kwaśna kapuśnica z ziemniakami"
+    },
+    {
+      "ref": "p40",
+      "ocena": "POPRAW",
+      "kategoria_ryzyka": "Grzyby; sos przechowywany do jutra",
+      "problem": "Odparowanie nie jest uniwersalnym kryterium obróbki grzybów; czas pół godziny opisuje jedną wcześniejszą, wyjątkowo mokrą partię, a nie zalecenie dla każdej. [F7,F1]",
+      "proponowane_zdanie": "Do sosu biorę tylko pewnie rozpoznane grzyby jadalne i gotuję je odpowiednio do gatunku, a pozostały sos szybko studzę i w ciągu dwóch godzin chowam do lodówki na następny dzień.",
+      "tytul": "Placki ziemniaczane z sosem grzybowym"
+    }
+  ]
+}
