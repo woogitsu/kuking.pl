@@ -493,10 +493,46 @@ for (const wariant of WARIANTY) {
     // arkusz stylów celowo nie ogląda się na `prefers-color-scheme`.
     //
     // Przejścia CSS są tu wyłączone przez `reducedMotion` na kontekście —
-    // patrz komentarz przy `ustawienia` wyżej. Bez tego axe mierzyłby kolory
-    // w połowie animacji przełączenia motywu.
+    // patrz komentarz przy `ustawienia` wyżej.
+    //
+    // ALE TO NIE WYSTARCZA i to jest zmierzone, nie założone. Przy pełnym
+    // przebiegu ten automat zgłaszał `color-contrast` na elemencie `<time>`
+    // w karcie wpisu („Świeżo z Kuking / ciemny", 6 węzłów, waga serious).
+    // Bezpośredni pomiar tego samego elementu dał kontrast 8,38:1 przy
+    // wymaganym 4,5:1 (`rgb(201,190,176)` na `rgb(42,36,30)`), a izolowany
+    // przebieg TEJ SAMEJ strony w TYM SAMYM wariancie nie zgłaszał niczego.
+    // Czyli naruszenie zależało od kolejności ekranów w przebiegu, a nie od
+    // palety — axe czytał kolory, zanim przeglądarka przemalowała stronę po
+    // zmianie atrybutu.
+    //
+    // To już drugi raz, gdy ten automat oskarżył paletę o coś, czego w niej
+    // nie ma (poprzedni raz: sześć naruszeń w motywie ciemnym, też artefakt
+    // pomiaru). Fałszywy alarm z wagą „blokujące" jest gorszy niż brak
+    // sprawdzenia, bo uczy ludzi ignorować wynik.
+    //
+    // Dlatego nie czekamy tu na sztywną liczbę milisekund, tylko na WARUNEK:
+    // aż tło strony faktycznie zmieni wartość. Warunek nie zgaduje i nie
+    // rozjedzie się na szybszej ani wolniejszej maszynie.
     if (wariant.motyw === 'dark') {
+      const tloPrzed = await strona.evaluate(
+        () => getComputedStyle(document.body).backgroundColor,
+      );
+
       await strona.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+
+      await strona.waitForFunction(
+        (przed) => getComputedStyle(document.body).backgroundColor !== przed,
+        tloPrzed,
+        { timeout: 5000 },
+      );
+
+      // Dwa pełne obiegi klatki: pierwszy kończy przeliczanie stylów, drugi
+      // daje pewność, że przemalowanie już się odbyło. Bez tego `waitForFunction`
+      // potrafi wrócić w momencie, w którym styl JEST policzony, ale piksele
+      // jeszcze nie.
+      await strona.evaluate(() => new Promise((gotowe) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
+      }));
     }
 
     const wynik = await new AxeBuilder({ page: strona })
