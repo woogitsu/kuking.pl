@@ -117,7 +117,7 @@ class SocialController extends Controller
         // się z listą, wygląda jak zepsuty serwis.
         /** @var LengthAwarePaginator $paginator */
         $paginator = $target->{$relation}()
-            // KONTO ZBANOWANE ALBO KASUJĄCE SIĘ NIE MA PRAWA STAĆ NA LIŚCIE.
+            // KONTO ZAMKNIĘTE NIE MA PRAWA STAĆ NA LIŚCIE OSÓB.
             //
             // `UserPolicy::viewProfile()` daje 403 pod adresem tej osoby (chyba
             // że patrzy moderator), ale to zapytanie budowało listę bez tego
@@ -128,7 +128,14 @@ class SocialController extends Controller
             // i co W5-08: konto mniej dostępne przez drzwi frontowe niż przez
             // okno. `ban()`/`markForDeletion()` nie kasują wierszy z `follows`,
             // więc bez tego warunku wiersz zostaje na liście na zawsze.
-            ->dostepnyJakoAutor()
+            //
+            // `widocznyJakoOsoba()`, NIE `dostepnyJakoAutor()` — od D-022 te
+            // dwie granice się rozjeżdżają. Zanonimizowany PRZEPIS konta
+            // `erased` ma zostać widoczny; KARTA OSOBY z awatarem, linkiem
+            // do profilu i przyciskiem „Obserwuj" — nie ma, bo obserwować
+            // nie da się już nikogo (`UserPolicy::follow()` wymaga
+            // `isActive()`), a lista obserwujących nie jest archiwum.
+            ->widocznyJakoOsoba()
             ->with('profile.avatar')
             ->when($viewer !== null, function ($query) use ($viewer): void {
                 $widzId = $viewer->getKey();

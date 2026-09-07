@@ -22,6 +22,8 @@ Konto:
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
   (patrz niżej);
+- `delete_scope` — ZAKRES usunięcia wybrany przez człowieka: `minimum`
+  (domyślny — teksty zostają zanonimizowane) albo `everything` (patrz niżej);
 - locale;
 - text_scale;
 - theme (patrz niżej);
@@ -161,12 +163,19 @@ końca. `data_erased_at` to znacznik, że karencja się WYKONAŁA: komenda
 `email`, `password`, `remember_token` na koncie oraz `username`,
 `display_name`, `bio`, `avatar_media_id`, `region`, `speciality` na profilu.
 
-**Świadomie NIE dodajemy nowej wartości do `users_status_check`.** Konto
+> ⚠️ **AKAPIT PONIŻEJ BYŁ BŁĘDNY I ZOSTAŁ ZASTĄPIONY** przez migrację
+> `2026_09_07_500000_add_erased_status_and_delete_scope_to_users` (D-022).
+> Zostaje tu w całości, bo jest to najtańszy zapisany dowód, jak wyglądało
+> rozumowanie, które kosztowało dowiezienie połowy D-018 — patrz sekcja
+> „`status = 'erased'` i `delete_scope`" niżej.
+
+**~~Świadomie NIE dodajemy nowej wartości do `users_status_check`.~~** Konto
 pozostaje `pending_delete` na zawsze — z punktu widzenia logowania i tak nic
 się nie zmienia (nie logowało się od zgłoszenia usunięcia). Jedyna nowa
 informacja to właśnie ten znacznik.
 
 ```sql
+-- STAN SPRZED D-022 (nieaktualne):
 ALTER TABLE users
 ADD CONSTRAINT users_data_erased_at_check
 CHECK (data_erased_at IS NULL OR status = 'pending_delete');
@@ -176,7 +185,8 @@ CHECK (data_erased_at IS NULL OR status = 'pending_delete');
 zostają przy już zanonimizowanym koncie, zgodnie z `docs/legal/COMPLIANCE.md`
 §2 (dopuszczalne zachowanie treści o wartości społecznej w formie
 zanonimizowanej: „autor: konto usunięte"). Kasowane są wyłącznie dane, po
-których da się rozpoznać konkretnego człowieka.
+których da się rozpoznać konkretnego człowieka. **Od D-022 zależy to od
+`delete_scope`** — człowiek może poprosić o usunięcie także treści.
 
 **Cofnięcie usunięcia** (`App\Domain\Users\Actions\CancelAccountDeletion`,
 formularz `AccountDeletionController` — publiczny, bo osoba `pending_delete`
@@ -193,6 +203,101 @@ Indeks częściowy `users_pending_erase_idx` obejmuje wyłącznie konta
 już wymazano, ten rollback NIE przywraca e-maila ani hasła — tych danych po
 prostu już nie ma, to nie jest strata spowodowana cofnięciem migracji. Same
 konta nie zmieniają zachowania: nadal się nie logują.
+
+#### `status = 'erased'` i `delete_scope` — stan końcowy konta oraz zakres usunięcia
+
+Migracja `2026_09_07_500000_add_erased_status_and_delete_scope_to_users`
+(decyzja D-022, weryfikacja W1).
+
+**Co było zepsute.** Akapit wyżej („nie dodajemy nowej wartości do
+`users_status_check`, bo z punktu widzenia logowania nic się nie zmienia")
+patrzył wyłącznie na logowanie. Na statusie `pending_delete` stoi jednak także
+`User::jestDostepnyJakoAutor()`, sześć Policy i kilka zapytań budujących
+listy. Skutek, zmierzony na żywej bazie i w
+`tests/Feature/UsunieteKontoTresciZostajaWidoczneTest.php`:
+
+| Co | Przed anonimizacją | Po anonimizacji (przed D-022) |
+|---|---|---|
+| przepis | 200 | **403** |
+| wpis | 200 | **403** |
+| profil | 200 | **403** |
+| przepis w CUDZYM zeszycie | widoczny | **wypadał z listy** |
+| komentarz w cudzym wątku | widoczny | **niewidoczny** |
+
+Czyli D-018 obiecało „tekst zostaje zanonimizowany", a serwis go ukrywał —
+na zawsze, bo `pending_delete` nigdy z tego konta nie schodziło.
+
+**Dwa stany, dwie wartości:**
+
+| Status | Co znaczy | Czy treść widać | Czy da się zalogować/odzyskać |
+|---|---|---|---|
+| `pending_delete` | trwa 30-dniowa karencja | **nie** | nie / **tak** |
+| `erased` | karencja wykonana, dane wymazane | **tak** (zanonimizowana) | nie / nie |
+
+```sql
+ALTER TABLE users
+ADD CONSTRAINT users_status_check
+CHECK (status IN ('active','suspended','banned','pending_delete','erased'));
+
+-- RÓWNOWAŻNOŚĆ, nie implikacja: nie da się ani mieć wymazanych danych bez
+-- statusu końcowego, ani postawić statusu końcowego bez wymazania danych.
+ALTER TABLE users
+ADD CONSTRAINT users_data_erased_at_check
+CHECK ((data_erased_at IS NOT NULL) = (status = 'erased'));
+
+ALTER TABLE users
+ADD CONSTRAINT users_delete_scope_check
+CHECK (delete_scope IS NULL OR delete_scope IN ('minimum','everything'));
+```
+
+**`delete_scope` — zakres wybiera człowiek (D-022).** Haczyk „Usuń także moje
+przepisy, wpisy, komentarze, wykonania i zeszyty" na ekranie „Twoje dane" jest
+**domyślnie pusty**:
+
+- `minimum` — znikają zdjęcia (wszystkie, D-018) i dane osobowe, teksty
+  zostają zanonimizowane i **widoczne**;
+- `everything` — `EraseAccountData::usunTresci()` kasuje na stałe
+  (`withTrashed()->forceDelete()`) komentarze, wykonania, wpisy, przepisy
+  i zeszyty tej osoby. Kaskady zabierają razem z nimi cudze komentarze
+  i cudze wykonania stojące pod tą treścią — i ekran mówi to wprost.
+
+Wybór jest zapisywany **przy zgłoszeniu** (`User::markForDeletion($scope)`),
+nie odczytywany przy egzekucji: między jednym a drugim mija 30 dni.
+`cancelDeletion()` zeruje kolumnę razem ze statusem.
+
+`NULL` w tej kolumnie znaczy `minimum` — `User::chceUsunacTresci()` porównuje
+wprost do `everything`. Świadomie NIE MA CHECK-a wymuszającego wartość przy
+statusach usuwania: `NULL` ma już bezpieczne znaczenie („nie kasuj tekstów"),
+a jedyną drogą do `pending_delete` w kodzie produkcyjnym jest
+`markForDeletion()`, które zakres ustawia zawsze (`status` jest poza
+`$fillable`).
+
+**Trzy granice widoczności konta — jedna definicja każdej** (`App\Models\User`):
+
+| Metoda / zakres | Statusy odrzucone | Kto pyta |
+|---|---|---|
+| `mozeCzytac()` | `banned`, `pending_delete`, `erased` | logowanie, `EnsureAccountIsActive`, powiadomienia |
+| `jestDostepnyJakoAutor()` / `scopeDostepnyJakoAutor` | `banned`, `pending_delete` | Policy treści, feed, zeszyty, mapa strony dla treści |
+| `jestWidocznyJakoOsoba()` / `scopeWidocznyJakoOsoba` | `banned`, `pending_delete`, `erased` | listy obserwujących i ich liczniki, mapa strony dla profili, analityka, panel „bez odpowiedzi" |
+
+Profil konta `erased` jest **dostępny** (`UserPolicy::viewProfile`), bo to
+adres, pod który prowadzi każdy podpis „Użytkownik usunięty". Nie jest za to
+nigdzie podpowiadany: wyszukiwarka osób pyta o `status = 'active'`, listy osób
+i mapa strony — o `widocznyJakoOsoba()`.
+
+**Migracja danych istniejących:** konta z niepustym `data_erased_at` przechodzą
+na `erased` (ich zanonimizowany tekst wraca wtedy na serwis, zgodnie z D-018),
+a konta w usuwaniu dostają `delete_scope = 'minimum'` — jedyny zakres, jaki
+wtedy istniał.
+
+**Rollback:** `down()` cofa `erased` → `pending_delete`, zdejmuje oba nowe
+CHECK-i, przywraca poprzedni `users_data_erased_at_check` i `users_status_check`
+i kasuje kolumnę. Sprawdzone na bazie testowej w obie strony
+(`migrate` → `migrate:rollback --step=1` → `migrate`). Skutek jest ZNANY:
+wraca usterka opisana wyżej (teksty wymazanych kont znowu oddają 403). Żadne
+dane nie giną — tracimy wyłącznie zapisany zakres kont, które JESZCZE czekają
+w karencji, a te wracają wtedy do zachowania D-018, czyli do wariantu mniej
+nieodwracalnego.
 
 #### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
 

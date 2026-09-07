@@ -66,6 +66,30 @@
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
+            {{--
+                KONTO WYMAZANE (`erased`, D-022) NIE PRZYJMUJE ŻADNEJ AKCJI.
+
+                Profil takiego konta jest dostępny celowo — to adres, pod
+                który prowadzi podpis „Użytkownik usunięty" pod każdą
+                zanonimizowaną treścią. Ale „Obserwuj", „Zgłoś" i „Zablokuj"
+                nie mają tu żadnego sensu: `UserPolicy::follow()` wymaga konta
+                aktywnego, a zgłaszać i blokować nie ma już kogo. Przycisk,
+                który zawsze kończy się 403 albo niczym, jest gorszy niż jego
+                brak — to ta sama klasa błędu co karta osoby z linkiem do 403
+                (audyt W5-08).
+
+                Ta gałąź łapie też konto `banned`/`pending_delete` OGLĄDANE
+                PRZEZ MODERATORA (jedyny, kogo `viewProfile` tam wpuszcza) —
+                dlatego komunikat rozróżnia te dwa przypadki. Powiedzenie
+                moderatorowi „to konto zostało usunięte" przy koncie
+                zablokowanym byłoby nieprawdą.
+            --}}
+            @elseif(auth()->check() && ! $owner->jestWidocznyJakoOsoba())
+                @if($owner->isErased())
+                    <p class="mb-0">To konto zostało usunięte. Nie da się go już obserwować ani zgłosić.</p>
+                @else
+                    <p class="mb-0">To konto jest zablokowane albo zgłoszone do usunięcia. Widzisz je, bo jesteś moderatorem.</p>
+                @endif
             @elseif(auth()->check())
                 @if($isFollowing)
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">

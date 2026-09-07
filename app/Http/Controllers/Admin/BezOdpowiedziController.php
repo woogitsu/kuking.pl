@@ -54,11 +54,10 @@ class BezOdpowiedziController extends Controller
             // autorem ich nie widzi, więc brak komentarza nie jest problemem.
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
             ->whereDoesntHave('allComments', fn ($q) => $q->where('status', 'published'))
-            // Konto zbanowane albo zgłoszone do usunięcia nie czeka na powitanie.
-            ->whereHas('author', fn ($q) => $q->whereNotIn('status', [
-                User::STATUS_BANNED,
-                User::STATUS_PENDING_DELETE,
-            ]))
+            // Konto zamknięte nie czeka na powitanie — zbanowane, zgłoszone
+            // do usunięcia ani wymazane (D-022). Przy tym ostatnim nie ma już
+            // nawet do kogo napisać: adres e-mail jest anonimowy.
+            ->whereHas('author', fn ($q) => $q->widocznyJakoOsoba())
             ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
             ->orderBy('published_at')
             ->limit(50)

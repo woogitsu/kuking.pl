@@ -49,9 +49,15 @@ class AccountDeletionPurgeTest extends TestCase
         $this->assertFalse(Hash::check('haslo-testowe-123', $basia->password));
         $this->assertNull($basia->remember_token);
 
-        // Status ZOSTAJE pending_delete — nie wprowadzamy nowej wartości do
-        // CHECK-a, to `data_erased_at` niesie informację o wykonaniu.
-        $this->assertSame(User::STATUS_PENDING_DELETE, $basia->status);
+        // STAN KOŃCOWY, NIE `pending_delete` (D-022).
+        //
+        // Ten test asertował wcześniej odwrotnie — „status ZOSTAJE
+        // pending_delete" — i to była właśnie usterka: na tym statusie stoi
+        // `User::jestDostepnyJakoAutor()`, więc zanonimizowany tekst konta
+        // znikał z serwisu na zawsze, choć D-018 obiecywało, że zostanie.
+        // Widoczności pilnuje `UsunieteKontoTresciZostajaWidoczneTest`; tu
+        // pilnujemy samego stanu, bo od niego zależy wszystko powyżej.
+        $this->assertSame(User::STATUS_ERASED, $basia->status);
 
         $this->assertSame('Użytkownik usunięty', $profil->display_name);
         $this->assertNull($profil->bio);

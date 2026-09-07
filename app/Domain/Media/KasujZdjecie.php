@@ -8,7 +8,9 @@ use App\Jobs\PurgePublicMediaCache;
 use App\Models\Media;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * Kasowanie zdjęcia razem z plikami — ale tylko wtedy, gdy nic go nie używa.
@@ -47,7 +49,22 @@ final class KasujZdjecie
     /**
      * Kasuje zdjęcie i jego pliki, jeśli nic już na nie nie wskazuje.
      *
-     * @return bool czy faktycznie skasowano
+     * WIERSZ ZNIKA WYŁĄCZNIE PO KOMPLETNYM SKASOWANIU PLIKÓW (audyt/issue #17).
+     *
+     * Wcześniej wiersz znikał BEZWARUNKOWO, niezależnie od tego, czy
+     * `skasujPliki()` naprawdę usunęła każdy plik. Awaria dysku w połowie
+     * pętli (wyjątek z R2 — albo, gorzej, cichy `false` z dysku
+     * `throw => false`) kasowała wiersz tak samo jak sukces: plik zostawał
+     * na dysku na zawsze, a jedyny ślad, po którym dało się to zauważyć
+     * i dokończyć — wiersz w `media` — znikał razem z nim.
+     *
+     * Niepełne skasowanie zostawia więc wiersz NA MIEJSCU. To jest cały
+     * mechanizm ponowienia: `OsieroconeZdjecia`/`kuking:sprzataj-osierocone-zdjecia`
+     * wybiera zdjęcia po wieku, nie po tym, czy poprzednia próba się nie
+     * udała, więc wiersz, który przetrwał nieudaną próbę, trafi w kolejny
+     * przebieg tak samo jak każdy inny — bez żadnej dodatkowej kolejki.
+     *
+     * @return bool czy faktycznie skasowano W KOMPLECIE (wiersz i wszystkie pliki)
      */
     public function jesliNieuzywane(Media $zdjecie): bool
     {
@@ -58,7 +75,10 @@ final class KasujZdjecie
         // Pliki PRZED wierszem. Wiersz bez plików da się jeszcze zauważyć
         // i posprzątać; pliki bez wiersza są dla całej aplikacji niewidoczne
         // i zostają na dysku na zawsze.
-        $this->skasujPliki($zdjecie);
+        if (! $this->skasujPliki($zdjecie)) {
+            return false;
+        }
+
         $zdjecie->delete();
 
         return true;
@@ -75,26 +95,54 @@ final class KasujZdjecie
         return false;
     }
 
-    /** Oryginał i wszystkie warianty. */
-    public function skasujPliki(Media $zdjecie): void
+    /**
+     * Oryginał i wszystkie warianty — na wszystkich dyskach, na których mogą
+     * fizycznie leżeć.
+     *
+     * ODPORNOŚĆ NA AWARIĘ W POŁOWIE PĘTLI (audyt/issue #17).
+     *
+     * Stary kod wywoływał `delete()` po kolei i nie patrzył ani na wyjątek,
+     * ani na wynik. Dwa różne dyski w tym serwisie zachowują się przy awarii
+     * inaczej, i oba psuły to samo:
+     *
+     *  - `r2`/`r2_publiczne`/`r2_legacy` mają `throw => true` — nieudane
+     *    wywołanie RZUCA WYJĄTKIEM. Wyjątek z DRUGIEGO wariantu z trzech
+     *    przerywał całą metodę: trzeci wariant i oryginał nie były nawet
+     *    PRÓBOWANE, a wywołujący (`jesliNieuzywane()`, `EraseAccountData`)
+     *    dostawał surowy wyjątek zamiast decyzji „udało się czy nie".
+     *  - dysk `local`/`public` z `throw => false` (patrz `CleanUpDataExports`,
+     *    ten sam wzorzec) zwraca po prostu `false` — BEZ WYJĄTKU. Stary kod
+     *    tego wyniku w ogóle nie czytał, więc `jesliNieuzywane()` kasowała
+     *    wiersz `media`, mimo że plik fizycznie zostawał na dysku. To jest
+     *    dokładnie „wiersz w bazie już nie istnieje, więc nie ma z czego
+     *    ponowić" z opisu tego zadania.
+     *
+     * Dlatego każde pojedyncze kasowanie idzie przez `skasujZDysku()`, która
+     * łapie wyjątek, SPRAWDZA WYNIK PRZEZ `exists()` (jedyna odpowiedź
+     * niezależna od tego, jak skonfigurowany jest dysk — patrz uzasadnienie
+     * w `CleanUpDataExports::skasujPlik()`), loguje porażkę z pełnym
+     * kontekstem i — najważniejsze — NIE PRZERYWA reszty pętli. Próbujemy
+     * skasować KAŻDY plik z KAŻDEGO dysku, niezależnie od tego, co się stało
+     * z poprzednim, i dopiero na końcu zwracamy jedną odpowiedź: czy
+     * WSZYSTKO się udało.
+     *
+     * @return bool czy WSZYSTKIE pliki (warianty, oryginał, kopia z r2_legacy)
+     *              naprawdę zniknęły ze wszystkich dysków, na których mogły leżeć
+     */
+    public function skasujPliki(Media $zdjecie): bool
     {
-        // Dysk BIERZEMY Z WIERSZA, a nie z konfiguracji. Zdjęcie wgrane przed
-        // przejściem na R2 ma w kolumnie `disk` starą wartość i tam fizycznie
-        // leży — sięgnięcie po `config()` szukałoby go na nowym dysku, nie
-        // znalazłoby i po cichu zostawiło plik na zawsze.
-        $dysk = Storage::disk($zdjecie->disk);
-
-        // WARIANTY MOGĄ LEŻEĆ NA INNYM DYSKU NIŻ ORYGINAŁ (audyt G-01).
-        // Kasowanie ich z dysku oryginałów kończyłoby się cichym niczym:
-        // `delete()` na nieistniejącym kluczu nie jest błędem, a publiczne
-        // kopie zostawałyby w buckecie za CDN-em na zawsze — także po
-        // wymazaniu konta.
-        $dyskWariantow = Storage::disk($zdjecie->variantsDisk());
+        $dyski = $this->dyskiDoWyczyszczenia($zdjecie);
 
         // Adresy zbieramy PRZED kasowaniem: po usunięciu pliku `url()` nie ma
         // już z czego ich zbudować, a to właśnie ich trzeba do wyczyszczenia
         // cache CDN-u.
         $doWyczyszczenia = [];
+        $wszystkoSieUdalo = true;
+
+        // Do budowania publicznego adresu bierzemy dysk wariantów Z WIERSZA —
+        // dokładnie ten sam, na którym `MediaController` naprawdę je serwuje,
+        // niezależnie od tego, ile dysków sprzątamy poniżej.
+        $dyskWariantow = Storage::disk($zdjecie->variantsDisk());
 
         foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $nazwa => $wariant) {
             if (is_array($wariant) && isset($wariant['key'])) {
@@ -118,12 +166,15 @@ final class KasujZdjecie
                 $doWyczyszczenia[] = $this->publicznyAdres($dyskWariantow, $klucz);
                 $doWyczyszczenia[] = $this->adresTrasy($zdjecie, (string) $nazwa);
 
-                $dyskWariantow->delete($klucz);
+                if (! $this->skasujZKazdegoDysku($zdjecie, $klucz, $dyski)) {
+                    $wszystkoSieUdalo = false;
+                }
             }
         }
 
-        if ($zdjecie->object_key !== null) {
-            $dysk->delete($zdjecie->object_key);
+        if ($zdjecie->object_key !== null
+            && ! $this->skasujZKazdegoDysku($zdjecie, $zdjecie->object_key, $dyski)) {
+            $wszystkoSieUdalo = false;
         }
 
         // SKASOWANIE PLIKU TO NIE TO SAMO CO ZNIKNIĘCIE Z INTERNETU (audyt G-03).
@@ -135,11 +186,128 @@ final class KasujZdjecie
         //
         // Osobne zadanie, bo cudze API bywa niedostępne, a kasowanie zdjęcia
         // nie może się przez to nie udać — awaria Cloudflare zatrzymałaby
-        // wtedy wymazywanie kont.
+        // wtedy wymazywanie kont. Zlecamy je nawet przy częściowej porażce
+        // powyżej: adresy, których PLIK naprawdę zniknął, mają prawo zniknąć
+        // też z cache, niezależnie od losu pozostałych.
         $doWyczyszczenia = array_values(array_filter($doWyczyszczenia));
 
         if ($doWyczyszczenia !== []) {
             PurgePublicMediaCache::dispatch($doWyczyszczenia);
+        }
+
+        return $wszystkoSieUdalo;
+    }
+
+    /**
+     * Nazwy WSZYSTKICH dysków, na których ten klucz mógł fizycznie zostać
+     * zapisany — czyli dysk oryginału, dysk wariantów, i (audyt N01)
+     * `r2_legacy`.
+     *
+     * DLACZEGO `r2_legacy` DOCHODZI TU, A NIE TYLKO PRZY STARYCH WIERSZACH
+     * `kuking:przenies-zdjecia` kopiuje plik pod TYM SAMYM KLUCZEM do nowego
+     * bucketu i CELOWO NIE KASUJE starej kopii — dopóki migracja trwa, stary
+     * bucket jest jedyną kopią zapasową. Ale to jest decyzja o MIGRACJI
+     * WSZYSTKICH zdjęć naraz, nie o losie JEDNEGO zdjęcia, które ktoś właśnie
+     * każe skasować (wymazanie konta, decyzja moderacyjna, sprzątanie
+     * osieroconych). Zdjęcie przeniesione do nowych bucketów ma dziś
+     * `disk = r2` / `variants_disk = r2_publiczne` — `KasujZdjecie` nigdy nie
+     * spojrzy więc na `r2_legacy`, a klucz zostawiony tam przez migrację
+     * zostaje w publicznym buckecie NA ZAWSZE, mimo że wiersz `media` już
+     * nie istnieje i nikt już nie wie, że tam jest.
+     *
+     * Sprawdzamy `exists()` per klucz (w `skasujZDysku()`), więc dopisanie
+     * tego dysku dla zdjęcia, które nigdy przez `r2_legacy` nie przechodziło,
+     * jest nieszkodliwym no-opem — nie inną operacją niż to, co
+     * `kuking:przenies-zdjecia::skopiuj()` już zakłada o brakującym kluczu.
+     *
+     * Pomijamy `r2_legacy`, gdy: nie ma skonfigurowanego bucketu (środowisko
+     * bez zmiennej `AWS_LEGACY_BUCKET` — lokalnie i w testach nie ma go wcale)
+     * albo gdy TO WŁAŚNIE JEST dysk oryginału/wariantów tego zdjęcia — wtedy
+     * już jest na liście i podwójna próba niczego by nie dodała.
+     *
+     * @return list<string>
+     */
+    private function dyskiDoWyczyszczenia(Media $zdjecie): array
+    {
+        $dyski = array_values(array_unique([$zdjecie->disk, $zdjecie->variantsDisk()]));
+
+        if (in_array('r2_legacy', $dyski, true)) {
+            return $dyski;
+        }
+
+        if ((string) config('filesystems.disks.r2_legacy.bucket') === '') {
+            return $dyski;
+        }
+
+        $dyski[] = 'r2_legacy';
+
+        return $dyski;
+    }
+
+    /**
+     * Kasuje jeden klucz z każdego z podanych dysków, PRÓBUJĄC WSZYSTKIE —
+     * porażka na jednym dysku nie ma prawa pominąć pozostałych.
+     */
+    private function skasujZKazdegoDysku(Media $zdjecie, string $klucz, array $nazwyDyskow): bool
+    {
+        $wszystkoSieUdalo = true;
+
+        foreach ($nazwyDyskow as $nazwaDysku) {
+            if (! $this->skasujZDysku($zdjecie, $nazwaDysku, $klucz)) {
+                $wszystkoSieUdalo = false;
+            }
+        }
+
+        return $wszystkoSieUdalo;
+    }
+
+    /**
+     * Kasuje jeden plik z jednego dysku i SPRAWDZA, czy naprawdę zniknął —
+     * dokładnie ten sam wzorzec co `CleanUpDataExports::skasujPlik()`, z tego
+     * samego powodu: samo `delete()` nie jest dowodem, bo dysk z
+     * `throw => false` zwraca po prostu `false`, a dysk z `throw => true`
+     * potrafi rzucić w dowolnym miejscu serii wywołań.
+     *
+     * Plik, którego na tym dysku nigdy nie było (najczęstszy przypadek dla
+     * `r2_legacy` — zdjęcie, które nigdy nie przeszło przez stary bucket),
+     * liczy się jako sukces: nie ma czego kasować.
+     */
+    private function skasujZDysku(Media $zdjecie, string $nazwaDysku, string $klucz): bool
+    {
+        try {
+            $dysk = Storage::disk($nazwaDysku);
+
+            if (! $dysk->exists($klucz)) {
+                return true;
+            }
+
+            $dysk->delete($klucz);
+
+            if ($dysk->exists($klucz)) {
+                Log::error('Plik zdjęcia nadal istnieje po próbie usunięcia', [
+                    'media_id' => $zdjecie->getKey(),
+                    'dysk' => $nazwaDysku,
+                    'klucz' => $klucz,
+                ]);
+
+                return false;
+            }
+
+            return true;
+        } catch (Throwable $e) {
+            // Wyjątek na JEDNYM pliku/dysku nie ma prawa pominąć reszty —
+            // inaczej jedno padłe wywołanie R2 zostawia wszystkie kolejne
+            // warianty (i oryginał) nietknięte, bez śladu w bazie, po którym
+            // dałoby się to zauważyć. Log MUSI zostać: bez klucza i dysku nie
+            // da się tego dokończyć ręcznie.
+            Log::error('Nie udało się usunąć pliku zdjęcia', [
+                'media_id' => $zdjecie->getKey(),
+                'dysk' => $nazwaDysku,
+                'klucz' => $klucz,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
         }
     }
 
@@ -155,7 +323,7 @@ final class KasujZdjecie
     {
         try {
             return $dysk->url($klucz);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
@@ -175,7 +343,7 @@ final class KasujZdjecie
                 'media' => $zdjecie->getKey(),
                 'wariant' => $nazwaWariantu,
             ]);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Z tego samego powodu co `publicznyAdres()` wyżej: budowanie
             // adresu nie ma prawa wywrócić kasowania. Kasowanie zdjęcia musi
             // się udać także wtedy, gdy nie da się powiedzieć, co wyczyścić.

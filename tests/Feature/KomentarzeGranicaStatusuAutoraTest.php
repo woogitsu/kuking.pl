@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Feed\DiscoverFeed;
+use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
@@ -34,6 +35,13 @@ use Tests\TestCase;
  *     mówił 2 — czyli dokładnie ta sama usterka co licznik obserwujących
  *     pokazujący 2 zamiast 1.
  *
+ * D-022 PRZEPISAŁO WIERSZ DANYCH, NIE WYCISZYŁO TESTU.
+ * Zestaw `statusy()` niżej pilnował wcześniej ZAPRZECZENIA obietnicy
+ * D-018: że komentarz konta po wykonanej anonimizacji nie wraca nigdy.
+ * Rozdzielenie stanu „trwa karencja" od „dane wymazane" jest właśnie tą
+ * zmianą, razem z którą ten wiersz musiał się zmienić — patrz komentarz
+ * przy dostawcy danych.
+ *
  * KAŻDY TEST MA ASERCJĘ KONTROLNĄ. „Nie widać komentarza zbanowanego"
  * przechodzi także wtedy, gdy nie widać NICZEGO — dlatego w tej samej
  * odpowiedzi musi być widoczny identyczny komentarz osoby bez sankcji,
@@ -51,6 +59,23 @@ class KomentarzeGranicaStatusuAutoraTest extends TestCase
      * już wszedł. Ten wiersz danych jest zabezpieczeniem przed NAPRAWĄ ZBYT
      * SZEROKĄ, czyli sięgnięciem po `Post::scopeTylkoOdAktywnychAutorow`.
      *
+     * WIERSZ „konto wymazane" PRZEPISANY ŚWIADOMIE (D-022, weryfikacja W1).
+     * Ten zestaw danych miał wcześniej JEDEN wiersz na usuwanie konta —
+     * `pending_delete` z oczekiwaniem `false` — i przez to zamroził jako
+     * poprawne coś, czego D-018 nigdy nie chciało: że po WYKONANEJ
+     * anonimizacji komentarz znika z cudzego wątku na zawsze. Test
+     * przechodził, więc nikt tego nie ruszał przez kilkanaście commitów.
+     *
+     * Teraz są dwa wiersze, bo są dwa różne stany i dwie różne odpowiedzi:
+     *
+     *  - `pending_delete` — karencja TRWA, komentarz jest schowany. Nadal
+     *    `false`, bo to jest poprawne: człowiek poprosił o usunięcie, ma
+     *    30 dni na zmianę zdania, a w tym czasie jego treści nie ma na
+     *    stronie. Cofnięcie przywraca wszystko.
+     *  - `erased` — karencja WYKONANA, dane wymazane. `true`: zanonimizowany
+     *    komentarz zostaje w cudzej rozmowie, podpisany „Użytkownik
+     *    usunięty". To jest dosłownie treść D-018, dowieziona dopiero teraz.
+     *
      * @return array<string, array{0: string, 1: bool}>
      */
     public static function statusy(): array
@@ -59,7 +84,8 @@ class KomentarzeGranicaStatusuAutoraTest extends TestCase
             'aktywny' => [User::STATUS_ACTIVE, true],
             'zawieszony' => [User::STATUS_SUSPENDED, true],
             'zbanowany' => [User::STATUS_BANNED, false],
-            'kasuje konto' => [User::STATUS_PENDING_DELETE, false],
+            'trwa karencja na usunięcie' => [User::STATUS_PENDING_DELETE, false],
+            'konto wymazane' => [User::STATUS_ERASED, true],
         ];
     }
 
@@ -93,15 +119,42 @@ class KomentarzeGranicaStatusuAutoraTest extends TestCase
 
         // Status ustawiamy JAWNĄ metodą stanu konta, nie masowym
         // przypisaniem — `status` jest celowo poza `$fillable` (AGENTS.md §7).
+        //
+        // Stanu `erased` NIE da się (i nie wolno) ustawić wprost: baza
+        // wymaga równoważności z `data_erased_at`, a jedyną drogą do niego
+        // jest przejście PEŁNEJ ścieżki produkcyjnej — zgłoszenie plus
+        // egzekucja karencji. Test, który by tu wstawił sam status, mógłby
+        // przechodzić przy zepsutej anonimizacji.
         match ($statusDrugiegoAutora) {
             User::STATUS_ACTIVE => null,
             User::STATUS_SUSPENDED => $zeStatusem->suspend(now()->addWeek()),
             User::STATUS_BANNED => $zeStatusem->ban(),
             User::STATUS_PENDING_DELETE => $zeStatusem->markForDeletion(),
+            User::STATUS_ERASED => $this->wymazKonto($zeStatusem),
             default => throw new \LogicException('Nieznany status w teście.'),
         };
 
         return [$autorWpisu, $wpis, $zeStatusem->refresh()];
+    }
+
+    /**
+     * Pełna ścieżka do stanu końcowego: zgłoszenie w zakresie domyślnym
+     * (`minimum` — teksty zostają) plus egzekucja karencji.
+     */
+    private function wymazKonto(User $user): void
+    {
+        $user->markForDeletion(User::DELETE_SCOPE_MINIMUM);
+
+        $this->assertTrue(
+            (new EraseAccountData)->handle($user->refresh()),
+            'Anonimizacja nie wykonała się — test sprawdzałby inny stan, niż zakłada.',
+        );
+
+        $this->assertSame(
+            User::STATUS_ERASED,
+            $user->refresh()->status,
+            'Konto po wykonanej karencji nie jest w stanie końcowym — to była usterka D-022.',
+        );
     }
 
     #[DataProvider('statusy')]

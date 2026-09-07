@@ -98,7 +98,11 @@ class LoginController extends Controller
         //
         // Konto z minioną karą też przechodzi: `EnsureAccountIsActive`
         // przywraca je przy pierwszym żądaniu.
-        if ($user->isBanned() || $user->status === User::STATUS_PENDING_DELETE) {
+        // `STATUSY_ZAMKNIETEGO_KONTA` zamiast dwóch wypisanych statusów:
+        // od D-022 jest trzeci (`erased`) i to jest właśnie ten status, przy
+        // którym wpuszczenie kogokolwiek byłoby najgorsze — konto po
+        // wymazaniu danych nie ma już właściciela, a jego hasło jest losowe.
+        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
             // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
             // zalogowało, więc nie ma z czego wylogowywać.
             throw ValidationException::withMessages([
@@ -146,6 +150,15 @@ class LoginController extends Controller
      */
     private function komunikatOdmowy(User $user): string
     {
+        // Konto po wykonanej karencji (D-022): nie ma czego odzyskiwać
+        // i trzeba to powiedzieć wprost, a nie odsyłać do formularza
+        // cofnięcia, który tej osobie odmówi.
+        if ($user->isErased()) {
+            return 'To konto zostało usunięte na Twoją prośbę, razem z danymi do logowania, '
+                .'i nie da się go odzyskać. Jeśli chcesz wrócić do Kuking, założysz nowe konto. '
+                .'Jeśli to pomyłka, napisz do nas: '.config('kuking.community.contact_email');
+        }
+
         if ($user->status === User::STATUS_PENDING_DELETE) {
             return 'To konto jest oznaczone do usunięcia, dlatego logowanie jest zamknięte. Jeśli chcesz je odzyskać, '
                 .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '

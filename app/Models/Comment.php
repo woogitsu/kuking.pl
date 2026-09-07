@@ -51,6 +51,15 @@ class Comment extends Model
      *    napisał). Ta sama granica co `User::jestDostepnyJakoAutor()`,
      *    `UserPolicy::viewProfile()` i `RecipePolicy::view()`.
      *
+     *    `erased` TEŻ ZOSTAJE (D-022) — i to jest ta jedna rzecz, przez którą
+     *    ta granica przestała być tożsama z „czy to konto może czytać
+     *    serwis". Komentarz osoby, która usunęła konto i nie poprosiła
+     *    o usunięcie treści, zostaje w cudzej rozmowie pod podpisem
+     *    „Użytkownik usunięty". Wcześniej znikał, bo status konta po
+     *    anonimizacji zostawał na `pending_delete` —
+     *    `KomentarzeGranicaStatusuAutoraTest` ma teraz osobny wiersz danych
+     *    na każdy z tych dwóch stanów.
+     *
      *    TEGO TU NIE BYŁO I TO BYŁA LUKA — zmierzona przed poprawką.
      *    Komentarz osoby zbanowanej stał pod publicznym wpisem z jej nazwą,
      *    awatarem i linkiem do profilu, a ten link dawał 403. To dokładnie

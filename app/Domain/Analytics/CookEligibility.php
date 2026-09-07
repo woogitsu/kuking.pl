@@ -41,7 +41,11 @@ final class CookEligibility
     public function excludedUserIds(): array
     {
         $zStatusu = User::query()
-            ->whereIn('status', [User::STATUS_BANNED, User::STATUS_PENDING_DELETE])
+            // `STATUSY_ZAMKNIETEGO_KONTA`, czyli razem z `erased` (D-022):
+            // konto po wykonanej karencji już nie gotuje i nie ma zasilać
+            // liczby, która ma mierzyć żywą społeczność. Jego wykonania
+            // zostają widoczne w serwisie — to dwie różne rzeczy.
+            ->whereIn('status', User::STATUSY_ZAMKNIETEGO_KONTA)
             ->pluck('id')
             ->all();
 

@@ -74,8 +74,17 @@ class SitemapController extends Controller
             // Profil też — `UserPolicy::viewProfile()` odrzuca konto
             // zbanowane i kasowane tą samą regułą, więc mapa nie może go
             // ogłaszać. Audyt tego wprost nie wymienił, ale to ten sam brak.
+            //
+            // Tu jednak `widocznyJakoOsoba()`, a NIE `dostepnyJakoAutor()`
+            // (D-022). Profil konta `erased` da się otworzyć — jest adresem,
+            // pod który prowadzi podpis „Użytkownik usunięty" — ale nie ma po
+            // co zapraszać do niego wyszukiwarek. Nie ma tam ani nazwy, ani
+            // opisu, ani zdjęcia: to strona bez treści własnej, a takich mapa
+            // strony nie ogłasza (patrz nagłówek tego pliku: „Puste profile
+            // to cienka treść"). Treści tej osoby zostają w mapie osobno,
+            // wyżej — bo tam granicą jest autorstwo, nie osoba.
             Profile::query()
-                ->whereHas('user', fn ($autor) => $autor->dostepnyJakoAutor())
+                ->whereHas('user', fn ($autor) => $autor->widocznyJakoOsoba())
                 ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {

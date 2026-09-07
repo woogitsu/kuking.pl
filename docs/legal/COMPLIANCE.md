@@ -67,7 +67,7 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 | Założenie i obsługa konta | e-mail, hasło (hash), status konta, ustawienia (locale, text_scale) | Art. 6(1)(b) — wykonanie umowy (regulamin = umowa o świadczenie usługi drogą elektroniczną) | Przez czas trwania konta + [do ustalenia z prawnikiem, zwykle 30–90 dni] okres "soft delete" na wypadek pomyłki, potem trwałe usunięcie |
 | Profil publiczny (username, display name, bio, avatar) | dane podane dobrowolnie przez użytkownika | Art. 6(1)(b) — realizacja funkcji usługi, do której użytkownik się zapisał | Do usunięcia konta lub zmiany przez użytkownika |
 | Zdjęcia (oryginały i warianty) | piksele, EXIF w oryginale (data, model aparatu, GPS) | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia zdjęcia przez użytkownika **lub do usunięcia konta — wtedy kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) |
-| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia treści przez użytkownika. Przy usunięciu konta **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); wersje historyczne przepisu — do ustalenia limitu (np. ostatnie N wersji) |
+| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia treści przez użytkownika. Przy usunięciu konta **decyduje sam użytkownik** (D-022, `users.delete_scope`): domyślnie **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); po zaznaczeniu haczyka na ekranie usuwania konta tekst jest **kasowany na stałe** razem z wpisami, przepisami, komentarzami, wykonaniami i zeszytami; wersje historyczne przepisu — do ustalenia limitu (np. ostatnie N wersji) |
 | Relacje społecznościowe (follow, block) | ID obserwującego/obserwowanego | Art. 6(1)(b) | Do usunięcia relacji lub konta |
 | Zgłoszenia treści i moderacja | zgłaszający, zgłoszony, powód, decyzja, uzasadnienie | Art. 6(1)(c) — obowiązek prawny (DSA Art. 16–18) oraz Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo platformy) | Dłuższa niż dane samej treści — rekomendacja [do ustalenia z prawnikiem]: 12–24 miesiące od zamknięcia sprawy, dla obrony przed roszczeniami i nadzoru DSA |
 | Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | Krótka — rekomendacja 90 dni dla logów ogólnych, dłużej tylko dla zdarzeń związanych z aktywnym incydentem bezpieczeństwa |
@@ -84,7 +84,23 @@ więc zdjęcia przy usunięciu konta kasujemy w całości.
 
 Tekst zostaje, bo to jest już także cudza historia: ktoś odpowiedział
 w komentarzu, ktoś ugotował z tego przepisu i ma go w swoim zeszycie.
-Ekran usuwania konta wymienia obie te rzeczy wprost, w dwóch listach.
+
+**Od D-022 to jest jednak DOMYŚLNA opcja, a nie jedyna.** Anonimizacja jest
+naszą oceną, że tak jest lepiej dla społeczności — a tej oceny nie wolno robić
+za kogoś przy jego własnych danych: część ludzi usuwa konto właśnie po to, żeby
+ich słowa zniknęły. Ekran usuwania konta ma więc odhaczony haczyk „Usuń także
+moje przepisy, wpisy, komentarze, wykonania i zeszyty", a wybór zapisuje się
+w `users.delete_scope` przy zgłoszeniu (`minimum` / `everything`). Ekran
+wymienia w TRZECH listach: co znika zawsze, co zostaje przy haczyku
+nietkniętym i co znika dodatkowo po jego zaznaczeniu — razem z ceną, czyli
+cudzymi komentarzami i wykonaniami stojącymi pod kasowaną treścią.
+
+**Stan końcowy konta ma od D-022 własny status** (`users.status = 'erased'`).
+Do tej pory konto zostawało po anonimizacji na `pending_delete`, na którym stoi
+granica widoczności treści — więc zanonimizowany tekst zostawał w bazie i
+znikał ze serwisu (403). Obietnica z tego akapitu nie była spełniona przez
+kilkanaście commitów; szczegóły i pomiar: `docs/DATABASE.md`, sekcja
+„`status = 'erased'` i `delete_scope`".
 
 ### 2.3 Powierzenie przetwarzania (processors) — co zrobić
 

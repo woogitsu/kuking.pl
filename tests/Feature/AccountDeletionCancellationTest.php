@@ -131,10 +131,17 @@ class AccountDeletionCancellationTest extends TestCase
         // które ta osoba kiedyś znała — nie ma więc jak trafić tu z prawdziwym
         // hasłem. Test i tak sprawdza regułę wprost, ustawiając stan bazy
         // ręcznie, żeby nie zależeć od implementacji egzekutora.
+        //
+        // STATUS `erased`, NIE `pending_delete` (D-022). Stan po wykonanej
+        // karencji ma od tej decyzji własną wartość, a CHECK w bazie wymaga
+        // równoważności z `data_erased_at` — wiersz w starym kształcie
+        // (`pending_delete` z wypełnionym `data_erased_at`) po prostu nie
+        // przechodzi już zapisu, i o to chodziło.
         $basia = $this->user('basia', [
-            'status' => User::STATUS_PENDING_DELETE,
+            'status' => User::STATUS_ERASED,
             'delete_requested_at' => now()->subDays(40),
             'data_erased_at' => now()->subDays(10),
+            'delete_scope' => User::DELETE_SCOPE_MINIMUM,
         ]);
 
         $this->post(route('account.delete.cancel.store'), [
@@ -144,7 +151,7 @@ class AccountDeletionCancellationTest extends TestCase
 
         $basia = $basia->fresh();
 
-        $this->assertSame(User::STATUS_PENDING_DELETE, $basia->status);
+        $this->assertSame(User::STATUS_ERASED, $basia->status);
         $this->assertNotNull($basia->data_erased_at);
     }
 }

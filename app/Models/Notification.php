@@ -136,6 +136,14 @@ class Notification extends Model
          * (`suspended`) CELOWO tu nie wchodzi — to kara za pisanie, a nie za
          * bycie widzianym, i `jestDostepnyJakoAutor()` też ją pomija.
          *
+         * Od D-022 lista statusów jest JEDNĄ STAŁĄ
+         * (`User::STATUSY_UKRYWAJACE_TRESC`), a nie czwartą kopią tego
+         * samego `whereIn`. Powód jest zmierzony: `erased` powstał właśnie
+         * dlatego, że dołożenie stanu do jednej warstwy nie dołożyło go do
+         * pozostałych. `erased` w tej stałej NIE JEST — powiadomienie
+         * o wykonaniu, którego autor wymazał konto, ma zostać widoczne
+         * dokładnie tak samo jak samo wykonanie.
+         *
          * Powiadomienia bez sprawcy (`actor_id IS NULL`) przechodzą zawsze,
          * z tego samego powodu co przy blokadzie wyżej.
          */
@@ -143,7 +151,7 @@ class Notification extends Model
             $sub->selectRaw('1')
                 ->from('users as sprawcy')
                 ->whereColumn('sprawcy.id', 'notifications.actor_id')
-                ->whereIn('sprawcy.status', [User::STATUS_BANNED, User::STATUS_PENDING_DELETE]);
+                ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
         });
 
         /*
@@ -239,7 +247,7 @@ class Notification extends Model
                                 $autor->selectRaw('1')
                                     ->from('users as autorzy_tresci')
                                     ->whereColumn('autorzy_tresci.id', 'tw.author_id')
-                                    ->whereIn('autorzy_tresci.status', [User::STATUS_BANNED, User::STATUS_PENDING_DELETE]);
+                                    ->whereIn('autorzy_tresci.status', User::STATUSY_UKRYWAJACE_TRESC);
                             })
                             // Blokada między ODBIORCĄ a AUTOREM TREŚCI — może
                             // być inna osoba niż sprawca zdarzenia (odpowiedź

@@ -229,9 +229,12 @@ class ProfileController extends Controller
      * brakujące wiersze zdradzają widzowi, że coś tam jednak jest, mimo że
      * nie wolno mu tego zobaczyć. Dwa warunki muszą się więc zgadzać z listą:
      *
-     *  - `dostepnyJakoAutor()` — konto zbanowane albo kasujące się nie ma
-     *    prawa stać ani na liście, ani w liczniku nad nią (ten sam błąd,
-     *    zmierzony `ProfilListyRelacjiUkrywajaZbanowaneKontaTest`);
+     *  - `widocznyJakoOsoba()` — konto zamknięte (zbanowane, kasujące się
+     *    albo już wymazane, D-022) nie ma prawa stać ani na liście, ani
+     *    w liczniku nad nią (ten sam błąd, zmierzony
+     *    `ProfilListyRelacjiUkrywajaZbanowaneKontaTest`). MUSI to być ta sama
+     *    granica co w `SocialController::connections()`, bo licznik i lista
+     *    odpowiadają na to samo pytanie;
      *  - blokada MIĘDZY WIDZEM A OSOBĄ NA LIŚCIE (nie: między widzem
      *    a właścicielem profilu — to osobna reguła, `UserPolicy::viewProfile`).
      *    `SocialController::connections()` filtruje to samo w zapytaniu
@@ -243,7 +246,7 @@ class ProfileController extends Controller
     private function liczbaPolaczen($owner, string $relation, $viewer): int
     {
         return $owner->{$relation}()
-            ->dostepnyJakoAutor()
+            ->widocznyJakoOsoba()
             ->when($viewer !== null, function ($query) use ($viewer): void {
                 $widzId = $viewer->getKey();
 

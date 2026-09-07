@@ -43,6 +43,74 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public const STATUS_PENDING_DELETE = 'pending_delete';
 
+    /**
+     * STAN KOŃCOWY: karencja wykonana, dane osobowe wymazane (D-022).
+     *
+     * OSOBNA WARTOŚĆ, A NIE `pending_delete` NA ZAWSZE — i to jest cała
+     * naprawa D-018. Te dwa stany różnią się w jedynej rzeczy, która tu
+     * cokolwiek znaczy:
+     *
+     *  - `pending_delete` — karencja trwa, treści są SCHOWANE, bo człowiek
+     *    poprosił o usunięcie i jeszcze da się to cofnąć;
+     *  - `erased` — karencja wykonana, konta nie da się zalogować, odzyskać
+     *    ani wyszukać, ale zanonimizowany TEKST jest widoczny (o ile człowiek
+     *    nie wybrał `delete_scope = everything`).
+     *
+     * Baza pilnuje równoważności `(data_erased_at IS NOT NULL) = (status =
+     * 'erased')`, więc tego stanu nie da się ustawić bez faktycznego
+     * wymazania danych — ani odwrotnie.
+     */
+    public const STATUS_ERASED = 'erased';
+
+    /**
+     * ZAKRES USUNIĘCIA, WYBRANY PRZEZ CZŁOWIEKA I ZAPISANY PRZY ŻĄDANIU
+     * (D-022). Domyślny jest `minimum`, bo domyślna opcja ma być tą, której
+     * skutków nie da się cofnąć w mniejszym stopniu: zostawiony tekst da się
+     * skasować później, skasowanego nie da się przywrócić.
+     */
+    public const DELETE_SCOPE_MINIMUM = 'minimum';
+
+    /** Pełne usunięcie: razem z przepisami, wpisami, komentarzami i wykonaniami. */
+    public const DELETE_SCOPE_EVERYTHING = 'everything';
+
+    /**
+     * Statusy, przy których TREŚĆ konta jest ukryta przed wszystkimi poza
+     * autorem i moderatorem.
+     *
+     * JEDNA DEFINICJA DLA WSZYSTKICH WARSTW — Policy, zakresy zapytań
+     * i powiadomienia pytały o to samo czterema własnymi `in_array`/`whereIn`.
+     * Dokładnie tak powstała usterka D-022: dodano `data_erased_at`, a te
+     * cztery listy zostały nietknięte.
+     *
+     * `erased` TU NIE WCHODZI (D-022): tekst wymazanego konta zostaje
+     * widoczny. `suspended` też nie — zawieszenie jest karą za pisanie i nie
+     * kasuje tego, co ktoś już napisał.
+     *
+     * @var list<string>
+     */
+    public const STATUSY_UKRYWAJACE_TRESC = [
+        self::STATUS_BANNED,
+        self::STATUS_PENDING_DELETE,
+    ];
+
+    /**
+     * Statusy konta ZAMKNIĘTEGO: nie wpuszczamy go do serwisu i nie
+     * pokazujemy go jako OSOBY — ani w wyszukiwarce, ani na liście
+     * obserwujących, ani w mapie strony, ani w liczbach analitycznych.
+     *
+     * Różnica wobec `STATUSY_UKRYWAJACE_TRESC` to `erased` i jest ona
+     * sednem D-022: tekst zostaje, człowiek nie. Karta osoby z linkiem do
+     * profilu konta, którego już nie ma, jest zaproszeniem w martwe miejsce;
+     * podpis „Użytkownik usunięty" pod przepisem — nie jest.
+     *
+     * @var list<string>
+     */
+    public const STATUSY_ZAMKNIETEGO_KONTA = [
+        self::STATUS_BANNED,
+        self::STATUS_PENDING_DELETE,
+        self::STATUS_ERASED,
+    ];
+
     public const ROLE_USER = 'user';
 
     public const ROLE_MODERATOR = 'moderator';
@@ -281,7 +349,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function mozeCzytac(): bool
     {
-        return ! in_array($this->status, [self::STATUS_BANNED, self::STATUS_PENDING_DELETE], true);
+        return ! in_array($this->status, self::STATUSY_ZAMKNIETEGO_KONTA, true);
     }
 
     /**
@@ -293,15 +361,64 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * (`banned` i `pending_delete` odpadają, `suspended` zostaje: kara za
      * pisanie nie kasuje tego, co już napisał), więc jest jedna definicja.
      *
-     * DLACZEGO OSOBNA NAZWA, SKORO WYNIK IDENTYCZNY
-     * Bo w kodzie występuje w innych miejscach i inaczej się czyta:
-     * `mozeCzytac()` pytamy o widza, `jestDostepnyJakoAutor()` o autora
-     * oglądanej treści. Pomylenie tych dwóch to dokładnie ten rodzaj błędu,
-     * którym są audytowe „ta sama reguła w dwóch warstwach".
+     * WYNIK NIE JEST JUŻ IDENTYCZNY Z `mozeCzytac()` I TO JEST NAPRAWA D-022.
+     * Te dwie metody rozjeżdżają się dokładnie na jednym statusie: `erased`.
+     * Konto z wymazanymi danymi NIE MOŻE czytać serwisu (nie da się do niego
+     * wejść), ale JEST dostępne jako autor — jego zanonimizowany tekst
+     * zostaje widoczny, bo to właśnie obiecało D-018.
+     *
+     * Dopóki obie metody odpowiadały tym samym zbiorem statusów, jedna
+     * z nich była niepotrzebna. Teraz obie są konieczne, a pomylenie ich ma
+     * widoczny skutek — dlatego nazwy mówią, o KOGO pytamy: `mozeCzytac()`
+     * o widza, `jestDostepnyJakoAutor()` o autora oglądanej treści.
      */
     public function jestDostepnyJakoAutor(): bool
     {
-        return $this->mozeCzytac();
+        return ! in_array($this->status, self::STATUSY_UKRYWAJACE_TRESC, true);
+    }
+
+    /**
+     * Czy tę osobę wolno pokazać JAKO OSOBĘ — na liście obserwujących,
+     * w wyszukiwarce ludzi, w mapie strony, w liczniku nad listą (D-022).
+     *
+     * TRZECIA GRANICA, POTRZEBNA OD MOMENTU, W KTÓRYM POWSTAŁ `erased`.
+     * `dostepnyJakoAutor()` obsługiwał dotąd oba pytania, bo odpowiedź była
+     * ta sama. Od D-022 nie jest: podpis „Użytkownik usunięty" pod przepisem
+     * ma zostać, ale karta z awatarem i linkiem do profilu na liście
+     * „obserwujący" — nie. Karta osoby jest zaproszeniem do relacji
+     * (obserwuj, napisz), a tej relacji nie da się już z nikim nawiązać:
+     * `UserPolicy::follow()` wymaga `isActive()`.
+     *
+     * To ta sama klasa błędu, którą zamknęło W5-08 — tylko z drugiej strony.
+     * Wtedy treść była mniej dostępna przez drzwi niż przez okno; tu byłaby
+     * BARDZIEJ.
+     */
+    public function jestWidocznyJakoOsoba(): bool
+    {
+        return ! in_array($this->status, self::STATUSY_ZAMKNIETEGO_KONTA, true);
+    }
+
+    public function isErased(): bool
+    {
+        return $this->status === self::STATUS_ERASED;
+    }
+
+    /**
+     * Czy człowiek poprosił o usunięcie RAZEM Z TREŚCIAMI (D-022).
+     *
+     * Czytane przy egzekucji karencji, nie w chwili kliknięcia — dlatego
+     * wybór jest w kolumnie, a nie w żądaniu HTTP.
+     *
+     * `NULL` znaczy `minimum` I TO JEST ŚWIADOMA, BEZPIECZNA STRONA BŁĘDU.
+     * Porównujemy wprost do `everything`, więc każda wartość inna od niej —
+     * w tym brak wartości na koncie sprzed tej zmiany — daje „zostaw
+     * teksty". Odwrotna konwencja (`!== minimum`) kasowałaby czyjeś przepisy
+     * przy każdej niespodziance w danych, a to jest dokładnie ten kierunek
+     * pomyłki, którego nie da się odwrócić.
+     */
+    public function chceUsunacTresci(): bool
+    {
+        return $this->delete_scope === self::DELETE_SCOPE_EVERYTHING;
     }
 
     /**
@@ -326,7 +443,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function scopeDostepnyJakoAutor(Builder $query): void
     {
-        $query->whereNotIn('status', [self::STATUS_BANNED, self::STATUS_PENDING_DELETE]);
+        $query->whereNotIn('status', self::STATUSY_UKRYWAJACE_TRESC);
+    }
+
+    /**
+     * `jestWidocznyJakoOsoba()` W ZAPYTANIU — dla list ludzi i liczników
+     * nad nimi (D-022).
+     *
+     * Istnieje z tego samego powodu co zakres wyżej: reguła trzymana tylko
+     * w metodzie na modelu nie ma jak trafić do zapytania budującego listę.
+     *
+     * @param  Builder<User>  $query
+     */
+    public function scopeWidocznyJakoOsoba(Builder $query): void
+    {
+        $query->whereNotIn('status', self::STATUSY_ZAMKNIETEGO_KONTA);
     }
 
     public function isActive(): bool
@@ -561,11 +692,28 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // jawną, nazwaną operacją, nie efektem ubocznym update().
     // ---------------------------------------------------------------------
 
-    public function markForDeletion(): void
+    /**
+     * Zgłoszenie usunięcia konta — RAZEM Z WYBRANYM ZAKRESEM (D-022).
+     *
+     * DLACZEGO ZAKRES ZAPISUJEMY TERAZ, A NIE CZYTAMY PRZY EGZEKUCJI
+     * Między zgłoszeniem a wykonaniem mija 30 dni. Ekran, na którym człowiek
+     * stawiał haczyk, może już wtedy nie istnieć w tej formie — a jedyny
+     * moment, w którym ta osoba naprawdę powiedziała, czego chce, jest tutaj.
+     *
+     * Domyślnie `minimum`: znikają zdjęcia i dane osobowe, tekst zostaje
+     * zanonimizowany. Nie jest to wygoda dla serwisu, tylko wybór mniej
+     * nieodwracalnej ścieżki dla osoby, która klika w pośpiechu.
+     */
+    public function markForDeletion(string $scope = self::DELETE_SCOPE_MINIMUM): void
     {
+        if (! in_array($scope, [self::DELETE_SCOPE_MINIMUM, self::DELETE_SCOPE_EVERYTHING], true)) {
+            throw new \InvalidArgumentException("Nieznany zakres usunięcia konta: {$scope}");
+        }
+
         $this->forceFill([
             'status' => self::STATUS_PENDING_DELETE,
             'delete_requested_at' => now(),
+            'delete_scope' => $scope,
         ])->save();
 
         // Ta sama zasada co przy `ban()`/`suspend()`: zmiana stanu konta, która
@@ -579,11 +727,41 @@ class User extends Authenticatable implements MustVerifyEmailContract
         $this->invalidateSessions();
     }
 
+    /**
+     * Cofnięcie zgłoszenia — razem z zapisanym zakresem.
+     *
+     * Zakres jest zerowany, bo przestał do czegokolwiek się odnosić: konto
+     * wraca do `active`, a CHECK w bazie wiąże `delete_scope` wyłącznie ze
+     * stanami usuwania. Kto zgłosi usunięcie ponownie, wybierze na nowo —
+     * i to jest poprawne: po miesiącu ta decyzja może być inna.
+     */
     public function cancelDeletion(): void
     {
         $this->forceFill([
             'status' => self::STATUS_ACTIVE,
             'delete_requested_at' => null,
+            'delete_scope' => null,
+        ])->save();
+    }
+
+    /**
+     * STAN KOŃCOWY: karencja wykonana, dane wymazane (D-022).
+     *
+     * Osobna, nazwana metoda — a nie kolejne pole w `forceFill` gdzieś
+     * w akcji domenowej — bo to jest zmiana STANU KONTA, a te w tym modelu
+     * są zawsze jawnie nazwane (AGENTS.md §7). Dodatkowo trzyma razem dwie
+     * kolumny, których baza nie pozwala rozdzielić: CHECK wymaga
+     * równoważności `(data_erased_at IS NOT NULL) = (status = 'erased')`,
+     * więc ustawienie jednej bez drugiej nie przejdzie.
+     *
+     * Wywołuje ją WYŁĄCZNIE `EraseAccountData`, wewnątrz swojej transakcji
+     * i po sprawdzeniu pod blokadą, że jest co wymazywać.
+     */
+    public function markDataErased(): void
+    {
+        $this->forceFill([
+            'status' => self::STATUS_ERASED,
+            'data_erased_at' => now(),
         ])->save();
     }
 

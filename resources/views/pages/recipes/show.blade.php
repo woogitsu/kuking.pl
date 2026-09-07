@@ -129,16 +129,30 @@
                 --}}
                 @auth
                     @if(auth()->id() !== $recipe->author_id)
+                        {{--
+                            Przycisk „Obserwuj" przez POLICY, nie przez samo
+                            „nie jestem autorem" (D-022). Przepis konta
+                            wymazanego (`erased`) zostaje widoczny, a polityka
+                            obserwowania wymaga konta AKTYWNEGO — bez tego
+                            warunku stałby tu przycisk, który zawsze kończy się
+                            403. Przycisk zapraszający w ścianę to ta sama
+                            klasa błędu co karta osoby z linkiem do 403
+                            (audyt W5-08). „Przestań obserwować" zostaje bez
+                            warunku: kto zaczął obserwować przed wymazaniem
+                            konta, musi mieć jak przestać.
+                        --}}
                         @if($obserwuje ?? false)
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
                         @else
-                            <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
-                                @csrf
-                                <button class="btn btn-secondary" type="submit">Obserwuj</button>
-                            </form>
+                            @can('follow', $recipe->author)
+                                <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
+                                    @csrf
+                                    <button class="btn btn-secondary" type="submit">Obserwuj</button>
+                                </form>
+                            @endcan
                         @endif
                     @endif
                 @endauth
