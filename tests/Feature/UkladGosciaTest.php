@@ -28,10 +28,51 @@ use Tests\TestCase;
  *
  * Test pilnuje NIEZMIENNIKA, nie konkretnej klasy: liczba kolumn siatki ma
  * odpowiadać temu, czy nawigacja boczna w ogóle istnieje w dokumencie.
+ *
+ * I DŁUGO TEGO NIE ROBIŁ, mimo że tak było napisane w tym akapicie.
+ * Sprawdzał obecność literału `app-body-solo`. Gdy strona powitalna dostała
+ * własny, szerszy układ jednokolumnowy (`app-body-powitalny`, 7 września),
+ * niezmiennik był spełniony — jedna kolumna, żadnej rezerwacji na menu — a
+ * test i tak się oblał, bo szukał nazwy, nie reguły. To jest dokładnie ta
+ * klasa rozbieżności, którą ten projekt zbiera od tygodnia: obietnica
+ * w komentarzu mocniejsza niż to, co sprawdza kod pod nią.
+ *
+ * Teraz klasy zwijające siatkę do jednej kolumny są ODCZYTYWANE Z ARKUSZA
+ * STYLÓW — tak samo, jak `CaddySpojnyZNaglowkamiLaravelaTest` odczytuje
+ * nagłówki z pliku konfiguracyjnego Caddy. Dodanie jutro trzeciego układu
+ * jednokolumnowego nie wymaga ruszania tego testu; dodanie klasy, która
+ * siatki NIE zwija, obleje go natychmiast.
  */
 class UkladGosciaTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Klasy `app-body-*`, które w arkuszu stylów zwijają siatkę do JEDNEJ
+     * kolumny — czyli nie rezerwują miejsca na nawigację boczną.
+     *
+     * Czytane z pliku, nie wypisane tutaj: lista wypisana w teście rozjeżdża
+     * się z arkuszem przy pierwszej zmianie i wtedy test zaczyna pilnować
+     * swojej własnej kopii reguły zamiast reguły.
+     *
+     * @return list<string>
+     */
+    private function klasyJednokolumnowe(): array
+    {
+        $css = (string) file_get_contents(resource_path('css/app.css'));
+
+        preg_match_all('/\.(app-body-[a-z-]+)\s*\{([^}]*)\}/', $css, $trafienia, PREG_SET_ORDER);
+
+        $klasy = [];
+
+        foreach ($trafienia as $trafienie) {
+            if (preg_match('/grid-template-columns:\s*minmax\(\s*0\s*,\s*1fr\s*\)/', $trafienie[2]) === 1) {
+                $klasy[] = $trafienie[1];
+            }
+        }
+
+        return array_values(array_unique($klasy));
+    }
 
     /** @return array{solo: bool, maNawigacje: bool} */
     private function zbadajUklad(string $html): array
@@ -47,8 +88,28 @@ class UkladGosciaTest extends TestCase
 
         $klasy = ' '.preg_replace('/\s+/', ' ', (string) $body->getAttribute('class')).' ';
 
+        $jednokolumnowe = $this->klasyJednokolumnowe();
+
+        $this->assertNotEmpty(
+            $jednokolumnowe,
+            'W `resources/css/app.css` nie ma ani jednej klasy `app-body-*` '
+            .'zwijającej siatkę do jednej kolumny. Albo arkusz zmienił kształt, '
+            .'albo ten test przestał cokolwiek sprawdzać — jedno i drugie '
+            .'wymaga poprawki tutaj.',
+        );
+
+        $solo = false;
+
+        foreach ($jednokolumnowe as $klasa) {
+            if (str_contains($klasy, ' '.$klasa.' ')) {
+                $solo = true;
+
+                break;
+            }
+        }
+
         return [
-            'solo' => str_contains($klasy, ' app-body-solo '),
+            'solo' => $solo,
             'maNawigacje' => $xpath->query("//nav[contains(concat(' ', normalize-space(@class), ' '), ' side-nav ')]")->length > 0,
         ];
     }

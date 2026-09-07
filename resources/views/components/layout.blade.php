@@ -20,6 +20,14 @@
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
     // ulepszeniem, nie warunkiem.
     'livewire' => false,
+    // Strona powitalna dostaje SZERSZY układ niż reszta widoków gościa.
+    //
+    // Reszta gościa (`/odkryj`, logowanie, rejestracja) to ekrany do CZYTANIA
+    // i zostaje przy jednej kolumnie 720 px — długość linii jest tam ważniejsza
+    // niż zapełnienie ekranu. Strona powitalna czytania prawie nie ma: to
+    // nagłówek, dwie karty i siatka zdjęć. Przy jednej kolumnie zostawiała
+    // po bokach pustkę na połowie ekranu (zgłoszenie właściciela z 7 września).
+    'powitalny' => false,
     // Zdjęcie do karty w mediach społecznościowych (issue #14). Przekazujemy
     // model Media, a nie gotowy adres — komponent sam wybiera wariant i zna
     // wymiary, których Facebook i WhatsApp wymagają, żeby nie przycinać
@@ -155,7 +163,7 @@
      w parze z `app-body-solo` na siatce niżej. Jedna klasa na <body>, bo
      belka i stopka stoją POZA `.app-body` i inaczej nie mają skąd wiedzieć,
      że ta strona nie ma ani nawigacji bocznej, ani szyny. --}}
-<body class="@guest uklad-solo @endguest">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo' }} @endguest">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     <header class="topbar">
@@ -255,7 +263,7 @@
              niżej: siatka na desktopie rezerwuje pierwszą kolumnę na
              nawigację, więc bez niej treść wpadłaby w kolumnę szeroką na
              15rem. Pilnuje tego test UkladGosciaTest. --}}
-        <div class="app-body @guest app-body-solo @endguest">
+        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo' }} @endguest">
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).

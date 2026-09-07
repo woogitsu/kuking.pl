@@ -1,4 +1,5 @@
 <x-layout
+    :powitalny="true"
     title="Pokaż, co dziś ugotowałeś"
     description="Kuking to polska społeczność ludzi, którzy naprawdę gotują. Wrzuć zdjęcie obiadu, zapisz przepisy po mamie i zobacz, komu z Twojego przepisu wyszło.">
 
@@ -15,7 +16,11 @@
         </div>
     </section>
 
-    <section class="card mb-8">
+    {{-- Dwie karty w jednym paśmie: na szerokim ekranie obok siebie, na
+         telefonie jedna pod drugą. To one zapełniają boki, których wcześniej
+         nie zapełniał nikt — a nie rozciągnięty tekst. --}}
+    <div class="landing-pasmo landing-pasmo-dwie">
+    <section class="card">
         <h2>Trzy rzeczy, które Kuking robi dla Ciebie</h2>
         <ul class="pl-6">
             <li><strong>Twoje przepisy nie zginą.</strong> Zeszyt z przepisami można zgubić, a telefon się psuje. Tu zostaje wszystko — i możesz to w każdej chwili pobrać na swój komputer.</li>
@@ -25,6 +30,7 @@
     </section>
 
     <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
+    </div>
 
     <h2>Świeżo z Kuking</h2>
     <p class="meta mb-5">To, co ludzie ugotowali w ostatnich dniach.</p>
@@ -35,7 +41,10 @@
             które tu coś pokażą.
         </x-empty-state>
     @else
-        <div class="stack">
+        {{-- Tylko `landing-wpisy`, BEZ `stack`. `.stack` to margines na
+             dzieciach, a nie flex — w siatce dodawałby się do `gap`
+             i pierwsza karta w rzędzie miałaby inny odstęp niż druga. --}}
+        <div class="landing-wpisy">
             @foreach($posts as $post)
                 <x-post-card :post="$post" />
             @endforeach
