@@ -190,6 +190,38 @@ ten kod pęka:
 - **Sześć naruszeń kontrastu w motywie ciemnym było artefaktem pomiaru** —
   axe czytał kolory w połowie animacji przełączenia motywu. Paleta nie została
   ruszona. Zapisane tutaj, bo następny automat równie łatwo zgłosi to samo.
+- **CHECK chronił bazę, a kod wkładał te same dane do logu.** `ZapiszSygnal`
+  logował `$e->getMessage()`, a komunikat odrzucenia z Postgresa zawiera cały
+  odrzucony wiersz („DETAIL: Failing row contains…") plus doklejone przez
+  Laravela „SQL: insert into … values (…)". Czyli dokładnie wtedy, gdy ochrona
+  prywatności DZIAŁAŁA, przenosiła chronione dane z tabeli do pliku z logami.
+  Naprawione (klasa wyjątku i SQLSTATE zamiast komunikatu), przypięte testem.
+- **Wspomnienia gubiły wpisy opublikowane po północy.** Zapytanie robiło
+  `extract(day from published_at)` na kolumnie `timestamptz`, czyli czytało
+  dzień w UTC, i porównywało go z dniem czytelnika. Wpis z 00:30 czasu
+  polskiego miał rocznicę przesuniętą o dobę wstecz. Naprawione przez
+  `at time zone`; test ma zamrożony zegar, bo to jest błąd o porze doby.
+
+## 7a. Zmierzone, NIE naprawione — do decyzji właściciela
+
+**35 tras zapisujących nie ma limitu zapytań na poziomie trasy.** AGENTS.md §7
+mówi, że każdy endpoint przechodzi przez pięć pytań, w tym „rate limit", a
+limity mają mieszkać w `config/kuking.php`. Pełna lista wychodzi z
+`php artisan route:list --json` (filtruj po `ThrottleRequests` w middleware —
+uwaga, słowo „throttle" małą literą tam nie występuje i łatwo o tym pomyłkę).
+
+**Ocena wagi, uczciwie: to dryf polityki, nie otwarta dziura.** Sprawdziłem
+najgroźniej wyglądający przypadek — `POST /ustawienia/twoje-dane/eksport`
+kolejkuje ciężkie zadanie w tle, ale kontroler ma WŁASNĄ bramkę i odrzuca
+kolejne żądanie, gdy poprzednia paczka jeszcze się robi. Usunięcie konta
+wymaga hasła. Reszta to w większości tanie zapisy jednego wiersza za `auth`
+(obserwowanie, zapis do zeszytu, oznaczenie powiadomień).
+
+Nie dobrałem tych 35 limitów sam, bo dobranie liczby to decyzja produktowa
+(ile obserwowań na minutę to jeszcze człowiek, a ile już skrypt), a nie
+techniczna. Warto rozstrzygnąć przed betą, bo `follow`/`unfollow` generuje
+powiadomienia u drugiej osoby.
+
 
 ---
 
