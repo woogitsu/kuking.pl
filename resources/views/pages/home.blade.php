@@ -68,10 +68,21 @@
         </section>
     @endif
 
-    @if(($zrodloFeedu ?? 'obserwowani') === 'tematy')
-        {{-- Feed tematów (issue #31). Człowiek MUSI wiedzieć, skąd się wzięły
-             te wpisy: feed, którego pochodzenia nie da się wytłumaczyć,
-             wygląda jak algorytm, a tego tu nie ma i nie będzie. --}}
+    @if(($zrodloFeedu ?? 'obserwowani') === 'tagi')
+        {{-- Feed tagów (D-021, zastępuje feed tematów). Człowiek MUSI wiedzieć,
+             skąd się wzięły te wpisy: feed, którego pochodzenia nie da się
+             wytłumaczyć, wygląda jak algorytm, a tego tu nie ma i nie będzie. --}}
+        <div class="notice">
+            <strong>To wpisy z tagów, które obserwujesz.</strong>
+            Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.
+            <a href="{{ route('settings.tags') }}">Zmień swoje tagi</a>.
+        </div>
+    @elseif(($zrodloFeedu ?? 'obserwowani') === 'tematy')
+        {{--
+            Feed tematów (issue #31) — Temat znika w kolejnym etapie D-021.
+            Ten blok obsługuje konta, które obserwowały tematy, zanim tagi
+            wystartowały; nowy onboarding zapisuje już wyłącznie do tagów.
+        --}}
         <div class="notice">
             <strong>To wpisy z tematów, które obserwujesz.</strong>
             Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.

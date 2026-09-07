@@ -152,6 +152,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->followedTopics()->whereKey($topic->getKey())->exists();
     }
 
+    /**
+     * Tagi, które ta osoba obserwuje (D-021) — zastępuje `followedTopics()`.
+     *
+     * `withTimestamps()` NIE, bo `tag_follows` ma tylko `created_at` — to
+     * relacja, nie encja (ten sam powód co przy `followedTopics()`).
+     * Kolejność alfabetyczna po nazwie: w odróżnieniu od Tematu, tagi nie
+     * mają redakcyjnej kolejności (`position`) — to jest atrybut PROMOCJI
+     * (`tag_promotions.position`), nie samego tagu.
+     */
+    public function followedTags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'tag_follows')
+            ->withPivot('created_at')
+            ->orderBy('tags.name');
+    }
+
+    public function isFollowingTag(Tag $tag): bool
+    {
+        return $this->followedTags()->whereKey($tag->getKey())->exists();
+    }
+
     protected function casts(): array
     {
         return [

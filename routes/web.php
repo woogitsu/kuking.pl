@@ -38,6 +38,8 @@ use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
+use App\Http\Controllers\TagController;
+use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TopicFollowController;
@@ -329,6 +331,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/temat/{topic}/obserwuj', [TopicFollowController::class, 'follow'])->name('topics.follow');
     Route::delete('/temat/{topic}/obserwuj', [TopicFollowController::class, 'unfollow'])->name('topics.unfollow');
 
+    // Obserwowanie tagu (D-021, zastępuje temat) — ten sam wzorzec: zwykłe
+    // formularze, bez JavaScriptu, bez powiadomienia (tag nie jest człowiekiem).
+    Route::post('/tag/{tag}/obserwuj', [TagFollowController::class, 'follow'])->name('tags.follow');
+    Route::delete('/tag/{tag}/obserwuj', [TagFollowController::class, 'unfollow'])->name('tags.unfollow');
+
     Route::post('/@{username}/obserwuj', [SocialController::class, 'follow'])->name('social.follow');
     Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])->name('social.unfollow');
     Route::post('/@{username}/blokuj', [SocialController::class, 'block'])->name('social.block');
@@ -343,6 +350,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     Route::get('/ustawienia/tematy', [TopicFollowController::class, 'edit'])->name('settings.topics');
     Route::put('/ustawienia/tematy', [TopicFollowController::class, 'update'])->name('settings.topics.update');
+
+    // „Twoje tagi" (D-021) — trasa `settings.topics` zostaje na miejscu
+    // (dostępna bezpośrednio, ale zdjęta z `x-ustawienia-nawigacja`) do
+    // kolejnego etapu D-021, który usuwa Tematy w całości.
+    Route::get('/ustawienia/tagi', [TagFollowController::class, 'edit'])->name('settings.tags');
+    Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])->name('settings.tags.update');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update']);
@@ -447,6 +460,14 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi
 // wyłącznie treści publiczne.
 Route::get('/temat/{topic}', [TopicController::class, 'show'])->name('topics.show');
+
+// --------------------------------------------------------------------------
+// Tagi (D-021, zastępuje Tematy)
+// --------------------------------------------------------------------------
+//
+// Ten sam powód, ta sama trasa publiczna: strona tagu ma sens jako cel
+// z wyszukiwarki, a widoczność wpisów filtruje `Post::scopeWidoczneDla`.
+Route::get('/tag/{tag}', [TagController::class, 'show'])->name('tags.show');
 
 /*
  * ZGŁOSZENIE NIELEGALNEJ TREŚCI — DROGA PUBLICZNA (DSA art. 16).

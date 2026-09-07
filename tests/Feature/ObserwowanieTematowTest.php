@@ -52,57 +52,20 @@ class ObserwowanieTematowTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // Onboarding
+    // Onboarding — PRZENIESIONE DO TAGÓW (D-021, etap 3/5)
+    //
+    // `OnboardingController::interests()`/`saveInterests()` czytają dziś
+    // `Tag::promowane()`, nie `Topic::doWyboru()` — onboarding zapisuje
+    // wybór do `tag_follows`. Trzy testy, które tu stały
+    // (`test_onboarding_zapisuje_tematy_do_bazy_a_nie_do_sesji`,
+    // `test_pominiecie_kroku_nie_blokuje_onboardingu`,
+    // `test_onboarding_pokazuje_tematy_z_bazy_bez_wycofanych`) sprawdzałyby
+    // dziś ekran, który już nie istnieje — przeniesione i przepisane na
+    // tagi w `tests/Feature/TagiObserwowanieTest.php`. Reszta tego pliku
+    // (obserwowanie ZE STRONY TEMATU i feed TEMATÓW) zostaje bez zmian:
+    // `TopicFollowController`/`TopicFeed` i ich trasy nadal działają,
+    // znikną dopiero w kolejnym etapie D-021 razem z całym Tematem.
     // ---------------------------------------------------------------
-
-    public function test_onboarding_zapisuje_tematy_do_bazy_a_nie_do_sesji(): void
-    {
-        $zupy = $this->temat('zupy', 'Zupy');
-        $ciasta = $this->temat('ciasta', 'Ciasta');
-        $basia = $this->user('basia');
-
-        // TO JEST NAJWAŻNIEJSZY TEST W TYM PLIKU.
-        //
-        // Odpowiedź z onboardingu szła do sesji i ginęła po zakończeniu kroku.
-        // Marnowaliśmy najcenniejsze dane, jakie mamy przy cold starcie — bo
-        // padają w jedynym momencie, w którym człowiek chętnie odpowiada
-        // na pytania o siebie.
-        $this->actingAs($basia)
-            ->post(route('onboarding.interests'), ['topics' => [$zupy->getKey()]])
-            ->assertRedirect(route('onboarding.people'));
-
-        $this->assertTrue($basia->fresh()->isFollowingTopic($zupy));
-        $this->assertFalse($basia->fresh()->isFollowingTopic($ciasta));
-
-        // Przejście do końca onboardingu NIE MOŻE tego zabrać — wcześniej
-        // ostatni krok robił `session()->forget('onboarding.interests')`.
-        $this->actingAs($basia)->get(route('onboarding.done'))->assertOk();
-        $this->assertTrue($basia->fresh()->isFollowingTopic($zupy));
-    }
-
-    public function test_pominiecie_kroku_nie_blokuje_onboardingu(): void
-    {
-        $this->temat('zupy', 'Zupy');
-
-        // Cel produktowy: człowiek ma dojść do końca. Krok, którego nie da się
-        // pominąć, jest ścianą postawioną przed kimś, kto jeszcze niczego
-        // od nas nie dostał.
-        $this->actingAs($this->user('basia'))
-            ->post(route('onboarding.interests'), [])
-            ->assertRedirect(route('onboarding.people'));
-    }
-
-    public function test_onboarding_pokazuje_tematy_z_bazy_bez_wycofanych(): void
-    {
-        $this->temat('zupy', 'Zupy');
-        $this->temat('stary', 'Wycofany temat', aktywny: false);
-
-        $html = $this->actingAs($this->user('basia'))
-            ->get(route('onboarding.interests'))->assertOk()->getContent();
-
-        $this->assertStringContainsString('Zupy', $html);
-        $this->assertStringNotContainsString('Wycofany temat', $html);
-    }
 
     // ---------------------------------------------------------------
     // Obserwowanie ze strony tematu

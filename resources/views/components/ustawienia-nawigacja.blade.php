@@ -22,10 +22,14 @@
 --}}
 
 @php
+    // 'topics' → 'tags' (D-021): ekran „Twoje tematy" ustępuje „Twoim
+    // tagom" w SAMEJ nawigacji, choć trasa `settings.topics` fizycznie
+    // istnieje jeszcze do kolejnego etapu D-021 (usunięcie Tematów) — nikt
+    // nowy nie ma jej już z tego miejsca odnaleźć.
     $ekrany = [
         'profile' => ['settings.profile', 'Profil', 'Nazwa, zdjęcie, kilka słów o Tobie'],
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
-        'topics' => ['settings.topics', 'Tematy', 'Co Cię interesuje w kuchni'],
+        'tags' => ['settings.tags', 'Tagi', 'Co Cię interesuje w kuchni'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
