@@ -10,8 +10,10 @@ use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\User;
 use App\Support\Czas;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -77,35 +79,53 @@ class DailyBoardController extends Controller
         $notatki = $data['notatki'] ?? [];
         $moderator = $request->user();
 
-        // Wybór na dany dzień zastępujemy w całości — to jest prostsze
-        // w obsłudze niż dokładanie i odejmowanie pozycji.
-        DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
+        // WYŚCIG PRZY PODWÓJNYM ZAPISIE (audyt zewnętrzny, "wyścig w
+        // daily_board"): strona wolno się ładuje, gospodarz klika "Zapisz"
+        // drugi raz z TĄ SAMĄ treścią formularza — dokładnie ten przypadek,
+        // który AGENTS.md każe traktować jako normę w grupie 50+, nie jako
+        // brzeg. Dwa niemal jednoczesne żądania mogą przeplatać się tak, że
+        // oba wykonują DELETE (widząc jeszcze pustą tablicę), a potem oba
+        // próbują wstawić TĘ SAMĄ pozycję (ta sama osoba/wpis, ten sam
+        // dzień) — drugi INSERT zderza się z UNIQUE
+        // (`daily_picks.unique(['shown_on','subject_type','subject_id'])`,
+        // migracja `create_daily_picks_table`).
+        //
+        // CAŁOŚĆ W JEDNEJ TRANSAKCJI, A KAŻDY INSERT Z PRZECHWYCENIEM
+        // ZDERZENIA — ten sam wzorzec co `SaveRecipeToCollection`/
+        // `SavePostToCollection` (issue #43): dla człowieka, który kliknął
+        // "Zapisz" dwa razy z tym samym wyborem, wynik ma być JEDNĄ pozycją
+        // na tablicy, nie błędem 500. Transakcja pilnuje, że DELETE i INSERT-y
+        // JEDNEGO zapisu widać razem albo wcale — bez niej przerwanie
+        // w połowie zostawiałoby tablicę w stanie ani starym, ani nowym.
+        DB::transaction(function () use ($data, $notatki, $moderator): void {
+            // Wybór na dany dzień zastępujemy w całości — to jest prostsze
+            // w obsłudze niż dokładanie i odejmowanie pozycji.
+            DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
 
-        $position = 0;
+            $position = 0;
 
-        foreach ($data['osoby'] ?? [] as $userId) {
-            DailyPick::create([
-                'shown_on' => Czas::dzisiajData(),
-                'subject_type' => DailyPick::TYPE_USER,
-                'subject_id' => $userId,
-                'position' => $position++,
-                'curator_id' => $moderator->getKey(),
-                'note' => $this->nullIfBlank($notatki[$userId] ?? null),
-            ]);
-        }
+            foreach ($data['osoby'] ?? [] as $userId) {
+                $this->utworzPozycje(
+                    DailyPick::TYPE_USER,
+                    $userId,
+                    $position++,
+                    $moderator,
+                    $this->nullIfBlank($notatki[$userId] ?? null),
+                );
+            }
 
-        $position = 0;
+            $position = 0;
 
-        foreach ($data['wpisy'] ?? [] as $postId) {
-            DailyPick::create([
-                'shown_on' => Czas::dzisiajData(),
-                'subject_type' => DailyPick::TYPE_POST,
-                'subject_id' => $postId,
-                'position' => $position++,
-                'curator_id' => $moderator->getKey(),
-                'note' => $this->nullIfBlank($notatki[$postId] ?? null),
-            ]);
-        }
+            foreach ($data['wpisy'] ?? [] as $postId) {
+                $this->utworzPozycje(
+                    DailyPick::TYPE_POST,
+                    $postId,
+                    $position++,
+                    $moderator,
+                    $this->nullIfBlank($notatki[$postId] ?? null),
+                );
+            }
+        });
 
         AuditLogEntry::record(
             action: 'daily_board.updated',
@@ -132,6 +152,46 @@ class DailyBoardController extends Controller
         DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
 
         return back()->with('status', 'Wyczyszczone. Tablica dobierze treści sama.');
+    }
+
+    /**
+     * Jedna pozycja tablicy — z przechwyceniem zderzenia z UNIQUE.
+     *
+     * Zderzenie znaczy: konkurencyjne żądanie (drugie kliknięcie "Zapisz"
+     * z tym samym wyborem) zdążyło wstawić DOKŁADNIE tę samą pozycję (ta
+     * sama osoba/wpis, ten sam dzień) w tej samej szczelinie między naszym
+     * DELETE-em a naszym INSERT-em. Dla człowieka to wciąż jest JEDEN zapis,
+     * więc kończymy cicho — bez błędu 500 i bez drugiego wiersza, którego
+     * UNIQUE i tak by nie przepuścił.
+     */
+    private function utworzPozycje(string $typ, string $subjectId, int $pozycja, User $moderator, ?string $notatka): void
+    {
+        try {
+            // WŁASNA ZAGNIEŻDŻONA TRANSAKCJA, NIE SAM `try/catch`.
+            //
+            // W PostgreSQL zderzenie z UNIQUE nie tylko rzuca wyjątkiem —
+            // oznacza CAŁĄ otaczającą transakcję jako nieużywalną
+            // ("current transaction is aborted") aż do jej zakończenia.
+            // Samo złapanie wyjątku w PHP nic by tu nie dało: kolejny
+            // `INSERT` w tej samej transakcji i tak by już padł. Zagnieżdżone
+            // `DB::transaction()` Laravel zamienia na `SAVEPOINT`, więc
+            // wycofuje się TYLKO ten jeden `INSERT`, nie cały zapis tablicy —
+            // dokładnie ten mechanizm, którego `Builder::createOrFirst()`
+            // (`firstOrCreate()`) używa wewnętrznie dla tego samego problemu.
+            DB::transaction(function () use ($typ, $subjectId, $pozycja, $moderator, $notatka): void {
+                DailyPick::create([
+                    'shown_on' => Czas::dzisiajData(),
+                    'subject_type' => $typ,
+                    'subject_id' => $subjectId,
+                    'position' => $pozycja,
+                    'curator_id' => $moderator->getKey(),
+                    'note' => $notatka,
+                ]);
+            });
+        } catch (UniqueConstraintViolationException) {
+            // Nic do zrobienia — konkurencyjne żądanie już zapisało dokładnie
+            // tę pozycję na dziś.
+        }
     }
 
     private function nullIfBlank(?string $value): ?string
