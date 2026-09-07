@@ -205,7 +205,18 @@ class ZglaszajacyMaDostepDoSkargTest extends TestCase
 
         // Zmieniamy jeden znak w podpisie — link ma wyglądać niemal
         // identycznie, ale nie przejść.
-        $zepsuty = preg_replace('/signature=([0-9a-f])/', 'signature=0', $link, 1);
+        //
+        // Podmiana MUSI zależeć od tego, jaki znak tam stoi. Pierwsza wersja
+        // tego testu wstawiała na sztywno „0" i padała raz na szesnaście
+        // uruchomień: gdy podpis sam zaczynał się od zera, link wychodził
+        // identyczny i zapalała się asercja kontrolna niżej. Test, który
+        // pada losowo, jest gorszy niż jego brak — uczy ignorować czerwień.
+        $zepsuty = (string) preg_replace_callback(
+            '/signature=([0-9a-f])/',
+            static fn (array $t): string => 'signature='.($t[1] === '0' ? '1' : '0'),
+            $link,
+            1,
+        );
         $this->assertNotSame($link, $zepsuty, 'Test nie zmienił niczego w linku — sprawdź wzorzec.');
 
         $this->get($zepsuty)->assertForbidden();
