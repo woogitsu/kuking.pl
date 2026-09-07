@@ -11,11 +11,12 @@ przewracać się na pierwszym kroku. A CI jest bramką deployu (Railway ma
 Ten dokument opisuje **stan zastany w workflowach**, nie życzenia. Każda
 pozycja ma wskazany plik i job, z którego wynika.
 
-> **Jeśli czytasz to, żeby naprawić pulę — zacznij od sekcji 12.** Pierwszy
-> przebieg na tej puli już się odbył (7 września, 20:07 UTC) i brakuje
-> dokładnie dwóch rzeczy: Dockera widocznego z WSL-a i poprawnych ścieżek
-> w konfiguracji runnerów. Sekcja 12 ma to z logami. Reszta dokumentu jest
-> po to, żeby po naprawieniu tych dwóch nie wyszło trzecie.
+> **Historia tej puli jest w sekcji 12.** Pierwszy przebieg (7 września,
+> 20:07 UTC) padł w sześciu z siedmiu jobów na dwóch rzeczach: Dockerze
+> niewidocznym z WSL-a i starych ścieżkach `woogitsu-run-NN`
+> w konfiguracji runnerów. **Właściciel zgłosił jedno i drugie jako
+> naprawione.** Sekcja 12 zostaje jako zapis objawów — gdyby któraś z tych
+> rzeczy wróciła, rozpoznanie jej zajmie minutę, a nie godzinę.
 
 ---
 
@@ -48,48 +49,62 @@ trafiałyby także na nią.
 > `/home/matma/actions-runner/woogitsu-linux-NN/`. To są dystrybucje WSL 2 na
 > tej samej maszynie Windows, której nazwa siedzi też w nazwach starej puli
 > (`woogitsu-wsl-DOM-NEW-*`) — tylko bez etykiety `wsl2`. Rozdzielenie po
-> etykietach jest więc rozdzieleniem REJESTRACJI, nie maszyn, i wszystko
-> z sekcji 2 poniżej dotyczy ich realnie, a nie teoretycznie.
+> etykietach jest więc rozdzieleniem REJESTRACJI, nie maszyn. Dla Postgresa
+> przestało to mieć znaczenie (sekcja 2), ale dla obciążenia maszyny — ma.
 
 ---
 
-## 2. Jedna maszyna = JEDEN job naraz
+## 2. Port Postgresa jest DYNAMICZNY — wiele runnerów na jednej maszynie jest OK
 
-To jest wymóg, który najłatwiej przeoczyć i który daje najbrzydszą awarię.
+**Ta sekcja mówiła wcześniej „jedna maszyna = jeden job naraz". Już nie
+musi.** Powód tamtego wymogu został usunięty w kodzie.
 
-Dwa joby — `test` (`ci.yml:213-228`) i `dostepnosc` (`ci.yml:360-373`) —
-podnoszą kontener usługi z **mapowaniem portu na hosta**:
+Dwa joby — `test` i `dostepnosc` — podnoszą kontener usługi z PostgreSQL.
+Do 7 września miały sztywne mapowanie:
 
 ```yaml
-services:
-  postgres:
-    image: postgres:18-alpine
-    ports:
-      - 5432:5432
+ports:
+  - 5432:5432          # BYŁO
 ```
 
-Na runnerach GitHuba każdy job dostaje własną maszynę wirtualną, więc port
-5432 jest wolny za każdym razem. **Na jednej maszynie z dwoma procesami
-runnera oba joby walczą o ten sam port hosta** i drugi przewraca się na
-`driver failed programming external connectivity: Bind for 0.0.0.0:5432
-failed: port is already allocated`. Oba joby tego samego przebiegu CI mogą
-wystartować równocześnie.
+Runnery Kuking wykonują joby **prosto na hoście** (nie w kontenerze joba)
+i dzielą jeden demon Dockera, więc drugi taki job padał na
+`Bind for 0.0.0.0:5432 failed: port is already allocated`. Nie było to
+teoretyczne: w przebiegu 34158198715 oba te joby wystartowały w tej samej
+sekundzie (20:07:39), na `-02` i `-07`, a co najmniej dwa runnery tej puli
+raportują tę samą maszynę `DOM`.
 
-**To NIE jest hipoteza.** Zmierzone 7 września: siedem jobów jednego
-przebiegu wylądowało na `woogitsu-linux-01`, `-02`, `-05`, `-06`, `-07`,
-`-08` i `-12`, a co najmniej dwa z tych runnerów raportują tę samą maszynę
-(`DOM`). Joby `test` i `dostepnosc` trafiły na `-02` i `-07` i wystartowały
-w tej samej sekundzie. Gdyby Docker działał, drugi z nich przewróciłby się na
-zajętym porcie.
+Teraz jest:
 
-Dlatego: **na każdej maszynie dokładnie jeden zarejestrowany runner
-i jeden job jednocześnie.** Jeśli dziesięć rejestracji stoi na jednej
-maszynie, to jest dokładnie ten układ, którego być nie może.
+```yaml
+ports:
+  - 5432               # JEST — Docker wybiera wolny port hosta
+```
 
-Jeśli z jakiegoś powodu na jednej maszynie ma stać więcej runnerów, trzeba
-najpierw zdjąć mapowanie portów z obu jobów i wpisać im `DB_HOST` kontenera
-usługi — to jest zmiana w `ci.yml`, nie na maszynie, i wtedy proszę o issue,
-a nie o obejście po cichu.
+Numer, który Docker wybrał, czyta pierwszy krok każdego z tych jobów
+i wystawia go dalej przez `$GITHUB_ENV`:
+
+```yaml
+- name: Konfiguracja dynamicznego połączenia z PostgreSQL
+  run: |
+    echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+    echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+    echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
+```
+
+Port **wewnątrz** kontenera zostaje 5432; dynamiczny jest wyłącznie port
+hosta. Obraz, zmienne, healthcheck i dane dostępowe bez zmian.
+
+**Co to znaczy dla konfiguracji maszyn:** dziesięć rejestracji na jednej
+maszynie **nie jest już problemem** dla Postgresa. Zostaje zwykły rachunek
+zasobów — równoległe joby dzielą CPU, RAM i dysk tej maszyny, a `test`
+i `dostepnosc` to najcięższe z nich (patrz sekcja 8). Jeśli przebiegi zaczną
+padać na timeout, przyczyną będzie obciążenie, nie port.
+
+**Czego NIE wolno tu „uprościć":** usunięcie `ports:` w całości. Joby chodzą
+na hoście, nie w kontenerze joba, więc bez mapowanego portu nie mają jak
+dosięgnąć kontenera usługi — nazwa `postgres` rozwiązuje się tylko wewnątrz
+sieci Dockera, a `127.0.0.1` bez mapowania nie prowadzi nikąd.
 
 ---
 
