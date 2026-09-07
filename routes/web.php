@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
@@ -438,6 +439,14 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
     Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);
+
+    // Tagi promowane (D-021, „tag promowany — lista gospodarza") — panel
+    // zastępujący redakcyjną rolę dawnego Tematu. Trasa z `{tag}` wiąże się
+    // po slugu (Tag::getRouteKeyName()), tak jak publiczna strona tagu.
+    Route::get('/tagi-promowane', [TagPromotionController::class, 'edit'])->name('admin.tag-promotions');
+    Route::post('/tagi-promowane', [TagPromotionController::class, 'store'])->name('admin.tag-promotions.store');
+    Route::put('/tagi-promowane/{tag}', [TagPromotionController::class, 'update'])->name('admin.tag-promotions.update');
+    Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])->name('admin.tag-promotions.destroy');
 });
 
 // --------------------------------------------------------------------------
