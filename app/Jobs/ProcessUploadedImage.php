@@ -88,7 +88,35 @@ class ProcessUploadedImage implements ShouldQueue
                 throw new \RuntimeException('Brak pliku źródłowego w storage.');
             }
 
-            $manager = ImageManager::gd();
+            // `autoOrientation: false` — I TO NIE JEST OSTROŻNOŚĆ, TO
+            // NAPRAWA PODWÓJNEGO OBROTU (audyt zewnętrzny T11).
+            //
+            // ZMIERZONE: plik 100×50 px z EXIF `Orientation = 6` (obróć
+            // o 90° w prawo) wychodził z tego potoku jako wariant 100×50,
+            // czyli POZIOMY — a poprawny wynik jest pionowy. Obrót liczył
+            // się dwa razy.
+            //
+            // Dlaczego, mimo komentarza obok, że „GD nie czyta EXIF-u":
+            // Intervention ma własny dekoder, który EXIF CZYTA, i domyślnie
+            // orientuje obraz sam (`Config::$autoOrientation = true`,
+            // `Drivers/Gd/Decoders/BinaryImageDecoder.php`). Nasze
+            // `applyOrientation()` obracało go wtedy po raz drugi.
+            //
+            // WYŁĄCZAMY BIBLIOTEKĘ, A NIE USUWAMY WŁASNEGO OBROTU, i to
+            // jest świadomy wybór między dwiema poprawkami:
+            //   * zostawiamy jedną, jawną drogę obrotu, którą sami
+            //     testujemy — zamiast polegać na domyślnej wartości
+            //     biblioteki, która może się zmienić przy aktualizacji
+            //     i cicho odwrócić zdjęcia wszystkim;
+            //   * orientację i tak czytamy przy WGRANIU
+            //     (`StoreUploadedImage`), bo zadanie w tle dostaje same
+            //     bajty — ta wartość już istnieje i jest zapisana
+            //     w `metadata`, więc nie ma czego oszczędzać na usuwaniu.
+            //
+            // Dla grupy 50+ obrócone zdjęcie nie jest drobiazgiem: osoba,
+            // która wrzuci danie do góry nogami, nie zgłosi błędu — po
+            // prostu przestanie wrzucać zdjęcia.
+            $manager = ImageManager::gd(autoOrientation: false);
             $variants = [];
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
