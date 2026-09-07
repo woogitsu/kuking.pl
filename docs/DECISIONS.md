@@ -804,3 +804,254 @@ Normalizacja nazwy tagu do UNIKALNOŚCI nie może używać `unaccent` — inacze
 Istniejąca funkcja `kuking_normalize()` (`pg_trgm` + `unaccent`, migracja
 `2026_09_05_001300_fix_search_indexes.php`) służy do SZUKANIA i PODPOWIADANIA,
 nie do rozstrzygania tożsamości tagu.
+## D-022 · Zakres usunięcia konta wybiera człowiek; domyślnie tekst zostaje
+
+**Data:** 7 września 2026 · Status: **obowiązuje** · rozszerza D-018 ·
+weryfikacja W1 (pomiar), issue #8
+
+D-018 rozstrzygnęło: zdjęcia kasujemy wszystkie, tekst zostaje
+zanonimizowany. **Pomiar z 7 września pokazał, że druga połowa tej decyzji
+nigdy nie działała.**
+
+### Co było zepsute i dlaczego nikt tego nie zauważył
+
+`EraseAccountData` nie zmienia `users.status` — po zakończonej anonimizacji
+konto zostaje na `pending_delete`. Na tym statusie stoi
+`User::jestDostepnyJakoAutor()` i sześć Policy. Zmierzone na żywej bazie:
+
+| Co | Przed anonimizacją | Po anonimizacji |
+|---|---|---|
+| przepis | 200 | **403** |
+| wpis | 200 | **403** |
+| profil | 200 | **403** |
+| przepis w CUDZYM zeszycie | widoczny | **wypada z listy** |
+| komentarz | widoczny | **niewidoczny nawet dla autora wpisu** |
+
+Czyli: tekst zostawał w bazie, ale znikał ze serwisu. D-018 obiecało jedno,
+a serwis robił drugie — i to jest **dokładnie ten nawracający wzorzec, który
+opisuje `docs/HANDOVER.md`**: reguła istnieje poprawnie w jednej warstwie,
+a druga implementuje ją inaczej.
+
+Nie zauważono tego, bo test `test_tekst_zostaje_ale_bez_nazwiska` asertuje
+**wyłącznie obecność wiersza w bazie**. Widoczności nie sprawdza wcale. Test
+przechodził i „dowodził" czegoś, czego nie było. Drugi test,
+`KomentarzeGranicaStatusuAutoraTest:62`, **aktywnie pilnował zaprzeczenia**
+tej obietnicy — zamroził stan faktyczny jako oczekiwany.
+
+### Co odrzucono
+
+**Sam nowy status końcowy, bez pytania człowieka.** Naprawiłoby D-018
+dosłownie i było najtańsze. Odrzucone, bo zostawia jedno rozstrzygnięcie
+narzucone wszystkim: część ludzi usuwa konto właśnie po to, żeby ich słowa
+zniknęły, i dla nich „tekst zostaje, tylko bez podpisu" nie jest tym, o co
+prosili. Anonimizacja jest naszą oceną, że tak jest lepiej dla społeczności
+— a to nie jest ocena, którą wolno robić za kogoś przy jego własnych
+danych.
+
+**Kasowanie wszystkiego, na powrót do wariantu odrzuconego w D-018.**
+Argument z D-018 nadal obowiązuje: cudze wątki urywają się w połowie, cudze
+zeszyty gubią przepisy. Nie ma powodu unieważniać tamtej analizy.
+
+### Co wybrano
+
+**Ekran usuwania konta pyta, a domyślnie kasuje MINIMUM.**
+
+Haczyk „usuń także moje wpisy, przepisy i komentarze" jest **odhaczony**.
+Kto go nie tknie, dostaje D-018: zdjęcia znikają, tekst zostaje
+zanonimizowany i — po tej naprawie — **nadal widoczny**. Kto go zaznaczy,
+dostaje pełne usunięcie razem z tekstem.
+
+Uzasadnienie domyślnej wartości: domyślna opcja ma być tą, której skutków
+nie da się cofnąć w mniejszym stopniu. Zostawiony tekst da się skasować
+później; skasowanego nie da się przywrócić. Domyślne odhaczenie nie jest
+więc wygodą dla serwisu, tylko wyborem mniej nieodwracalnej ścieżki dla
+osoby, która klika w pośpiechu.
+
+### Co to wymaga od kodu
+
+1. **Stan końcowy konta** obok `pending_delete` — inaczej granica
+   autoryzacji dalej ukrywa tekst i cała ta decyzja jest fasadą.
+   `data_erased_at` już istnieje, ale `jestDostepnyJakoAutor()` go nie
+   czyta.
+2. Wybór człowieka **zapisany razem z żądaniem usunięcia**, nie odczytany
+   w chwili wykonania — między jednym a drugim mija 30 dni i ekran, na
+   którym stawiano haczyk, może już nie istnieć w tej formie.
+3. `KomentarzeGranicaStatusuAutoraTest:62` do świadomego przepisania. To
+   nie jest test do wyciszenia — to jest test, który trzeba zmienić razem
+   z decyzją, którą zamroził.
+4. Test na WIDOCZNOŚĆ, nie na obecność wiersza. Poprzedni test przechodził
+   właśnie dlatego, że sprawdzał to drugie.
+
+📄 `app/Domain/Users/Actions/EraseAccountData.php` · `app/Models/User.php` ·
+`resources/views/pages/settings/data.blade.php` · D-018
+
+---
+
+## D-023 · Oryginał zdjęcia traci współrzędne GPS przy wgraniu
+
+**Data:** 7 września 2026 · Status: **obowiązuje** · weryfikacja W5 (pomiar)
+
+Warianty pokazywane w serwisie powstają przez przekodowanie do WebP, więc
+EXIF w nich nie ma. **Oryginał był zapisywany bajt w bajt** —
+`StoreUploadedImage.php:180`, `put($objectKey, $file->get())` — i komentarz
+w kodzie mówił to wprost: *„ORYGINAŁ zachowuje go w całości — łącznie ze
+współrzędnymi GPS, czyli adresem kuchni użytkownika"*.
+
+Oryginał nie jest kasowany po przetworzeniu (eksport RODO ma oddać
+człowiekowi jego zdjęcie, nie zmniejszoną kopię) i **trafia do paczki
+danych**.
+
+**Dlaczego to jest problem, a nie świadomy kompromis:** obecna, opublikowana
+polityka prywatności mówi *„Nie zbieramy: numeru telefonu, dokładnego adresu
+zamieszkania, **lokalizacji GPS**"*. To zdanie było nieprawdziwe. RODO patrzy
+na przechowywanie, nie na użycie — „nie czytamy tego pola" nie znaczy „nie
+zbieramy".
+
+### Co odrzucono
+
+**Zostawić oryginał w całości i poprawić politykę.** Uczciwe i tanie.
+Odrzucone, bo cena jest realna: przechowujemy adres domu grupy 50+ w pliku,
+którego do niczego nie używamy. Zdanie w polityce nie jest tu problemem —
+problemem jest samo dane. Poprawianie dokumentu, żeby pasował do
+niepotrzebnego zbierania, jest odwrotnością minimalizacji.
+
+**Wyczyścić też oryginały już wgrane.** Najczystszy stan końcowy. Odrzucone
+NA TERAZ, bo modyfikuje pliki, które ludzie już wgrali, i tego nie da się
+cofnąć. Do zrobienia osobno, świadomie, po sprawdzeniu, ile takich plików
+w ogóle jest.
+
+### Co wybrano
+
+**Blok GPS wypada z oryginału w chwili wgrania. Reszta EXIF zostaje.**
+
+Aparat, obiektyw, data, orientacja — wszystko to zostaje, bo to jest
+informacja o zdjęciu, którą właściciel może chcieć odzyskać z eksportu.
+Wypada wyłącznie lokalizacja, bo to jest informacja o CZŁOWIEKU, nie
+o zdjęciu.
+
+Zdanie w polityce staje się prawdziwe bez zmiany dokumentu — a to jest
+lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
+
+📄 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
+`resources/legal/polityka-prywatnosci.md`
+
+---
+
+## D-024 · Dokumenty prawne idą na produkcję poprawione, a nieprawda z nich wypada od razu
+
+**Data:** 7 września 2026 · Status: **obowiązuje** · weryfikacja W1–W5 · issue #8
+
+Właściciel dostarczył trzy kompletne szkice (polityka prywatności,
+regulamin, zasady) przygotowane do przeglądu przez prawnika. Pięć
+przebiegów weryfikacyjnych sprawdziło każde twierdzenie o systemie
+przeciwko kodowi.
+
+### Rzeczy, które obecna, PUBLICZNIE SERWOWANA treść twierdzi nieprawdziwie
+
+`GET https://kuking.pl/prywatnosc` → HTTP 200 (zmierzone). Czyli poniższe
+zdania są dziś obowiązującą obietnicą, nie wersją roboczą:
+
+1. **Sentry i PostHog w tabeli podprocesorów, z lokalizacjami.** Żadnego
+   z nich nie ma w kodzie: brak `config/sentry.php`, brak pakietu
+   w `composer.json`, brak integracji; PostHog to dwie puste zmienne
+   w `.env.example`. Dokument wymienia podmioty, które nie przetwarzają
+   niczego — to wprowadza w błąd co do tego, kto ma dane użytkownika.
+2. **„Każdy z tych dostawców ma podpisaną z nami umowę powierzenia."**
+   Właściciel potwierdził: **żadna nie jest podpisana.**
+3. **„Nie zbieramy lokalizacji GPS"** — patrz D-023.
+4. **„hasło przechowywane w postaci zaszyfrowanej"** — jest bcrypt o koszcie
+   12 (zmierzone: `$2y$12$`), czyli nieodwracalny skrót, nie szyfrowanie.
+5. **Notatki redakcyjne w treści widocznej dla użytkownika**: „[Wariant A —
+   jeśli wdrożony baner:] … [Wariant B …]".
+6. **Opublikowane placeholdery** w zdaniach o retencji: „[X dni — do
+   ustalenia]".
+
+### Co wybrano
+
+**Poprawiona treść wchodzi teraz; usunięcie nieprawdy nie czeka na
+prawnika.**
+
+Rozróżnienie, na którym stoi ta decyzja: **wykreślenie zdania
+nieprawdziwego nie jest decyzją prawną.** Nie wymaga niczyjej opinii — kod
+mówi, że jest fałszywe. Czekanie z tym na przegląd oznaczałoby świadome
+utrzymywanie fałszu przez czas, którego nie kontrolujemy.
+
+Osobno i inaczej traktujemy zdania, które są PROPOZYCJĄ, nie stanem: okresy
+retencji. Tu obowiązuje zasada autora szkicu, przyjęta bez zmian:
+**proponowanego okresu nie wolno opublikować, dopóki automatyczne zadanie
+go nie wykonuje.** Zmierzone: kod egzekwuje dokładnie dwa okresy —
+`product_signals` 90 dni i paczki eksportu 7 dni. `audit_log`,
+`notifications`, `reports`, `appeals` i `moderation_actions` nie mają
+retencji żadnej, więc żadna liczba przy nich nie może się pojawić.
+
+### Co zostaje jawną luką, bo należy do właściciela albo prawnika
+
+- **Umowy powierzenia z Railway i Cloudflare — do zawarcia przed betą.**
+  To warunek zgodności, nie formalność: bez DPA powierzenie danych
+  procesorowi nie ma podstawy.
+- **Dostawca poczty nie jest wybrany.** A maile weryfikacyjne i resetu hasła
+  są dziś czymś wysyłane — więc jakiś podmiot przetwarza adresy e-mail
+  wszystkich kont i nie wiemy który. `docs/decyzje/POCZTA.md` rekomenduje
+  EmailLabs, ale decyzji nie ma w tym pliku.
+- **Jurysdykcja bucketów R2.** Z kodu nieudowadnialna, a poszlaka jest
+  NEGATYWNA: udokumentowany endpoint nie zawiera `.eu.`, a bucket
+  z ograniczeniem jurysdykcyjnym UE jest osiągalny tylko pod
+  `<ACCOUNT_ID>.eu.r2.cloudflarestorage.com`. Pogrubione zdanie „Dane
+  przechowujemy na serwerach w Unii Europejskiej" wymaga potwierdzenia
+  w panelu, zanim zostanie utrzymane.
+- **Minimalny wiek: 16 lat** — to NIE jest luka, odpowiedź jest w kodzie
+  (`config/kuking.php:228`) i w obu opublikowanych dokumentach. Otwarte
+  zostaje węższe pytanie do prawnika: czy 16 lat wystarcza wobec
+  ograniczonej zdolności do czynności prawnych osób 13–17.
+
+### Czego nie wolno wpisać, bo kod nie zna celu
+
+`media.checksum_sha256` jest zapisywany i **nigdy nieczytany** (indeks
+`media_checksum_idx` nie obsługuje żadnego zapytania).
+`media.perceptual_hash` **nie jest nawet zapisywany** przez kod produkcyjny
+— zmierzone `count(perceptual_hash) = 0`. Kolumna zapisywana i nieczytana
+nie ma celu przetwarzania, a wpisanie do polityki, że służy „moderacji"
+albo „wykrywaniu duplikatów", byłoby wymyśleniem podstawy prawnej pod
+funkcję, której nie ma.
+
+📄 `resources/legal/*.md` · `docs/legal/BRAMKA_BETY.md` · issue #8
+
+---
+
+## D-025 · Treść zaląźkowa wchodzi na produkcję, ale jawnie oznaczona
+
+**Data:** 7 września 2026 · Status: **obowiązuje**
+
+Serwis działa i nie jest promowany — nikt z niego nie korzysta. Powstała
+treść zaląźkowa: 12 kont, 40 przepisów, 80 wpisów, 60 komentarzy, bez zdjęć.
+
+### Co odrzucono
+
+**Pusty serwis.** `docs/product/COLD_START.md` §6.3 stawia właśnie na to:
+„jest nas tu 87 osób" jako przewagę, nie wstyd. Odrzucone, bo obecna skala
+to nie 87 osób, a zero — a pierwsza osoba, która wejdzie na pusty feed, nie
+ma po co wrócić.
+
+**Treść bez oznaczenia.** Serwis wyglądałby na żywy od pierwszego dnia.
+Odrzucone wprost jako wprowadzanie w błąd co do skali — a grupa 50+ opiera
+decyzję o zostaniu właśnie na zaufaniu. To jest cena, której nie warto
+zapłacić za wrażenie ruchu.
+
+### Co wybrano
+
+**Konta zaląźkowe z widocznym oznaczeniem, że są przykładowe.**
+
+Nowa osoba nie trafia na pustkę, a nikt nie jest wprowadzony w błąd.
+Kosztuje jedną kolumnę i etykietę w interfejsie — przy koncie, nie tylko
+w regulaminie, bo nikt nie czyta regulaminu, żeby dowiedzieć się, czy pisze
+do człowieka.
+
+**Otwarte, do rozstrzygnięcia przed końcem bety:** co się stanie z tymi
+kontami, gdy przyjdą prawdziwi ludzie. Zostawienie ich na zawsze zamienia
+oznaczenie w stały element serwisu; usunięcie zabiera treść, do której
+prawdziwi ludzie mogli już coś dopisać. Ta decyzja nie musi paść teraz, ale
+musi paść przed otwarciem rejestracji.
+
+📄 `database/seeders/dane/tresc-zalazkowa.json` · `docs/product/COLD_START.md`
+
+---

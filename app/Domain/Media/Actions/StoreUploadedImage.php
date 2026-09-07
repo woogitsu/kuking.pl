@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Media\Actions;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Media\UsunGps;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
@@ -135,8 +136,11 @@ final class StoreUploadedImage
         // PREFIKS `incoming/`, NIE `media/` — i zapis jako PRYWATNY.
         //
         // Warianty publikowane na stronie powstają przez przekodowanie do WebP,
-        // więc EXIF w nich nie ma. ORYGINAŁ zachowuje go w całości — łącznie
-        // ze współrzędnymi GPS, czyli adresem kuchni użytkownika.
+        // więc EXIF w nich nie ma. ORYGINAŁ zachowuje go prawie w całości —
+        // BEZ WSPÓŁRZĘDNYCH GPS, które zdejmuje `UsunGps` niżej (D-023).
+        // Aparat, obiektyw i data zostają, bo to informacja o ZDJĘCIU, którą
+        // właściciel może chcieć odzyskać z eksportu. Lokalizacja wypada, bo
+        // to informacja o CZŁOWIEKU — adres jego kuchni.
         //
         // Wcześniej oryginał lądował pod `media/` jako `public`, a klucz
         // wariantu powstawał z niego przez odcięcie rozszerzenia. Znając
@@ -177,7 +181,12 @@ final class StoreUploadedImage
         // od `public-read`, które szło tu dla wariantów. Całkowite pozbycie się
         // ACL z żądania wymaga własnego adaptera i testu na prawdziwym R2 —
         // patrz osobne zgłoszenie.
-        Storage::disk($disk)->put($objectKey, $file->get());
+        // GPS wypada TU, a nie w zadaniu w tle: gdyby leciało asynchronicznie,
+        // między wgraniem a przetworzeniem istniałoby okno, w którym w
+        // buckecie leży plik ze współrzędnymi. Krótkie okno to nadal okno.
+        $oryginal = UsunGps::zBajtow($file->get());
+
+        Storage::disk($disk)->put($objectKey, $oryginal);
 
         $media = Media::create([
             'owner_id' => $owner->getKey(),
@@ -193,7 +202,11 @@ final class StoreUploadedImage
             'height' => $height,
             'status' => Media::STATUS_PENDING,
             'alt_text' => $altText,
-            'checksum_sha256' => hash_file('sha256', $file->getRealPath()) ?: null,
+            // Suma z tego, CO NAPRAWDĘ LEŻY W BUCKECIE, nie z pliku przed
+            // zdjęciem GPS-u — inaczej opisywałaby plik, którego nigdzie nie
+            // ma. Nic jej dziś nie czyta, ale suma kontrolna, która nie
+            // zgadza się z obiektem, jest gorsza niż jej brak.
+            'checksum_sha256' => hash('sha256', $oryginal),
             'metadata' => [
                 'original_name_length' => mb_strlen($file->getClientOriginalName()),
                 // Orientację czytamy TERAZ, dopóki mamy plik na dysku.
