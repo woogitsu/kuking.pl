@@ -20,18 +20,20 @@ Imię, nazwisko i adres do korespondencji administratora podamy w tym miejscu, z
 
 | Po co zbieramy | Jakie dane | Podstawa prawna | Jak długo przechowujemy |
 |---|---|---|---|
-| Założenie i prowadzenie konta | e-mail, hasło (przechowywane jako nieodwracalny skrót — z tego, co mamy w bazie, nie da się odtworzyć Twojego hasła; my też go nie znamy), status konta | Wykonanie umowy o świadczenie usługi (regulamin, który akceptujesz przy rejestracji) | Do usunięcia konta + krótki okres karencji na wypadek pomyłki (patrz sekcja 7) |
+| Założenie i prowadzenie konta | e-mail, hasło (przechowywane jako nieodwracalny skrót, nigdy jako zwykły tekst — my Twojego hasła nie znamy i nie umiemy go odczytać z bazy; ale skrótu krótkiego albo popularnego hasła da się dojść zgadywaniem, więc opłaca się mieć hasło długie i używane tylko tutaj), status konta | Wykonanie umowy o świadczenie usługi (regulamin, który akceptujesz przy rejestracji) | Do usunięcia konta + krótki okres karencji na wypadek pomyłki (patrz sekcja 7) |
 | Twój publiczny profil | nazwa użytkownika, wyświetlana nazwa, opis (bio), zdjęcie profilowe | Wykonanie umowy — to funkcje, z których świadomie korzystasz | Do usunięcia lub zmiany przez Ciebie |
 | Publikowanie treści | zdjęcia, przepisy, wpisy, komentarze i ich historia edycji | Wykonanie umowy | Do usunięcia treści lub konta przez Ciebie |
 | Relacje w serwisie | kogo obserwujesz, kogo zablokowałeś | Wykonanie umowy | Do usunięcia relacji lub konta |
 | Obsługa zgłoszeń i moderacji | treść zgłoszenia, decyzja moderatora, uzasadnienie | Obowiązek prawny (przepisy o usługach cyfrowych) oraz nasz uzasadniony interes w utrzymaniu bezpieczeństwa serwisu | Dłużej niż inne dane. **Nie mamy dziś automatycznego usuwania tych danych** — zgłoszenia i decyzje moderacyjne zostają w bazie do czasu, gdy taki mechanizm wprowadzimy. Wtedy podamy tu konkretny okres. Nie chcemy pisać liczby, której serwis nie pilnuje |
-| Bezpieczeństwo (dziennik ważnych zdarzeń, próby logowania) | **skrót** adresu IP (nie sam adres — z zapisu w bazie nie da się odczytać, z jakiego adresu ktoś korzystał), znacznik czasu, typ zdarzenia | Nasz uzasadniony interes w ochronie serwisu przed nadużyciami | **Bez automatycznego usuwania** — tak samo jak przy zgłoszeniach. Gdy wprowadzimy usuwanie, podamy tu okres |
+| Bezpieczeństwo (dziennik ważnych zdarzeń, próby logowania) | **skrót** adresu IP (samego adresu w bazie nie ma; skrót liczymy z użyciem klucza, który żyje poza bazą, więc kto dostanie sam zrzut tabeli, adresu z niego nie wyczyta — ale to nie to samo co „nie da się go odtworzyć nigdy i nikomu"), znacznik czasu, typ zdarzenia | Nasz uzasadniony interes w ochronie serwisu przed nadużyciami | **Bez automatycznego usuwania** — tak samo jak przy zgłoszeniach. Gdy wprowadzimy usuwanie, podamy tu okres |
 | Powiadomienia w serwisie | treść powiadomienia, informacja czy przeczytane | Wykonanie umowy | Do usunięcia konta. **Powiadomień nie usuwamy dziś automatycznie po czasie** — „bufor techniczny" znaczyłby w praktyce „bezterminowo", więc piszemy to wprost |
-| Analiza działania serwisu (statystyki, ulepszanie produktu) | zdarzenia dotyczące korzystania z aplikacji, w miarę możliwości bez danych identyfikujących wprost | Nasz uzasadniony interes w ulepszaniu serwisu / Twoja zgoda (jeśli wymagana — patrz sekcja 5 o plikach cookies) | **90 dni** — i to jest okres, który serwis naprawdę pilnuje: raz na dobę usuwa zdarzenia starsze niż 90 dni. Dane zbiorcze (same liczby, bez zdarzeń) zostają dłużej |
+| Analiza działania serwisu (statystyki, ulepszanie produktu) | zdarzenia dotyczące korzystania z aplikacji, w miarę możliwości bez danych identyfikujących wprost | Nasz uzasadniony interes w ulepszaniu serwisu. Nie zbieramy tych zdarzeń przez zewnętrzne narzędzie i nie sięgamy po nic zapisanego na Twoim urządzeniu poza tym, co jest potrzebne, żeby serwis działał — dlatego nie prosimy tu o zgodę. Gdyby to się zmieniło, poprosimy, zanim cokolwiek zbierzemy | **90 dni** — i to jest okres, który serwis naprawdę pilnuje: raz na dobę usuwa zdarzenia starsze niż 90 dni. Dane zbiorcze (same liczby, bez zdarzeń) zostają dłużej |
 | Wykrywanie i naprawa błędów technicznych | zapis błędu w dzienniku serwera (bez zamierzonego zbierania treści prywatnych) | Nasz uzasadniony interes w utrzymaniu działania serwisu | Dzienniki serwera żyją tyle, ile działająca instancja serwisu — nie mamy dziś zewnętrznego narzędzia do zbierania błędów |
 | Wiadomości e-mail (reset hasła, powiadomienia) | adres e-mail, treść wiadomości | Wykonanie umowy (wiadomości niezbędne do działania konta) | Do usunięcia konta |
 
-Nie zbieramy: numeru telefonu, dokładnego adresu zamieszkania, lokalizacji GPS, płci, pełnej daty urodzenia ani danych o zdrowiu — chyba że sam zdecydujesz się je opisać w treści, którą publikujesz (np. w komentarzu wspomnisz o swojej diecie) — to Twoja decyzja i Twoja odpowiedzialność za to, co ujawniasz publicznie.
+Nie pytamy o: numer telefonu, dokładny adres zamieszkania, lokalizację GPS, płeć, pełną datę urodzenia ani o dane o zdrowiu. Żadne z tych pól nie istnieje w formularzach.
+
+Może się jednak zdarzyć, że sam opiszesz coś takiego w treści, którą publikujesz — na przykład wspomnisz w komentarzu o swojej diecie albo o chorobie w rodzinie. Wtedy **te dane też przetwarzamy**: przechowujemy je razem z Twoją treścią, pokazujemy je tym, komu tę treść udostępniłeś, i obowiązują wobec nich te same Twoje prawa co wobec reszty danych (sekcja 4). To, że wpisałeś je dobrowolnie, nie zwalnia nas z niczego — decydujesz, czy je napisać, ale odpowiedzialność za to, jak z nimi potem postępujemy, jest nasza. To samo dotyczy sytuacji, gdy w swojej treści piszesz o kimś innym albo publikujesz zdjęcie, na którym ktoś jest widoczny.
 
 ## 3. Komu przekazujemy dane
 
@@ -72,15 +74,20 @@ Masz też prawo złożyć skargę do **Prezesa Urzędu Ochrony Danych Osobowych 
 
 ## 6. Bezpieczeństwo danych
 
-Stosujemy techniczne i organizacyjne środki bezpieczeństwa: hasła przechowujemy jako nieodwracalne skróty (nie szyfrujemy ich — szyfrowanie dałoby się odwrócić, skrót nie), połączenie z serwisem jest szyfrowane (HTTPS), a dostęp do danych ma wyłącznie osoba prowadząca serwis. Szczegóły techniczne opisujemy w naszym wewnętrznym dokumencie bezpieczeństwa.
+Stosujemy techniczne i organizacyjne środki bezpieczeństwa: hasła przechowujemy jako nieodwracalne skróty (nie szyfrujemy ich — szyfrowanie dałoby się odwrócić, skrót nie), połączenie z serwisem jest szyfrowane (HTTPS), a po stronie Kuking dostęp do danych ma jedna osoba — ta, która prowadzi serwis. Nie jest to jednak wyłączność techniczna: dane leżą u dostawców wymienionych w sekcji 3 (hosting i przechowywanie zdjęć), a to znaczy, że mają do nich dostęp także ich uprawnieni pracownicy w zakresie, w jakim obsługują usługę. Szczegóły techniczne opisujemy w naszym wewnętrznym dokumencie bezpieczeństwa.
 
 Jeśli dojdzie do naruszenia ochrony danych, które stwarza ryzyko dla Twoich praw i wolności, **zgłosimy to do UODO w ciągu 72 godzin** od stwierdzenia naruszenia, a jeśli ryzyko dla Ciebie będzie wysokie — **poinformujemy Cię bezpośrednio**, bez zbędnej zwłoki.
 
 ## 7. Usunięcie konta — co się dzieje krok po kroku
 
 1. Klikasz "Usuń konto" w ustawieniach.
-2. Konto przechodzi w stan tymczasowy — **na 30 dni** — w którym możesz jeszcze zmienić zdanie i je przywrócić. Ten okres serwis naprawdę pilnuje: po 30 dniach codzienne zadanie dokańcza usunięcie.
-3. Po tym okresie dane osobowe konta są trwale usuwane lub anonimizowane. Niektóre treści o wartości dla społeczności (np. przepis, do którego odwoływali się inni użytkownicy) mogą zostać zachowane, ale z usuniętym powiązaniem z Twoją tożsamością (np. "autor: konto usunięte").
+2. Konto przechodzi w stan tymczasowy — **na 30 dni** — w którym możesz jeszcze zmienić zdanie i je przywrócić. Ten okres serwis naprawdę pilnuje: po 30 dniach codzienne zadanie dokańcza usunięcie. Te 30 dni są dla Ciebie, nie dla nas — jeśli nie chcesz czekać i wolisz, żeby stało się to od razu, napisz na **kontakt@kuking.pl**; te trzydzieści dni nie jest terminem, którym zasłonimy się przed Twoim żądaniem usunięcia danych.
+3. Po tym okresie dane osobowe konta są trwale usuwane lub anonimizowane. **Co dokładnie się dzieje z Twoimi treściami, wybierasz sam** na ekranie usuwania konta:
+
+   - Jeśli nie zaznaczysz nic (tak jest domyślnie): zdjęcia znikają wszystkie, a teksty — wpisy, przepisy, komentarze — zostają, ale bez Twojego podpisu, jako **„Użytkownik usunięty"**. Robimy tak domyślnie, bo cudze wątki i cudze zeszyty przestałyby się trzymać kupy, gdyby Twoje przepisy zniknęły z nich bez śladu. Ten wybór da się cofnąć później — teksty zawsze możesz usunąć osobno; odwrotnego kierunku cofnąć się nie da.
+   - Jeśli zaznaczysz **„Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty"**: znikają razem z kontem i nikt ich już nie przywróci.
+
+   Uczciwie o granicy tego pierwszego wariantu: **zdjęcie usuniętego podpisu nie czyni tekstu anonimowym.** Jeśli w przepisie napisałeś, jak nazywała się Twoja babcia, z jakiej jesteście miejscowości albo co się u Was działo w zeszłe święta — to zostanie w treści, bo to jest treść, a nie podpis. Jeżeli zależy Ci na tym, żeby nie zostało nic, wybierz drugi wariant.
 4. Kopie zapasowe bazy tworzy nasz dostawca hostingu i mogą one zawierać Twoje dane jeszcze przez pewien czas po usunięciu konta. **Nie podajemy tu liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą** — podamy ją, gdy będzie potwierdzona. Kopie zapasowe nie są używane do niczego poza awaryjnym przywróceniem serwisu.
 
 ## 8. Dzieci
