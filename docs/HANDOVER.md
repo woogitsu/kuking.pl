@@ -60,7 +60,7 @@ owner asked for it in English.
 
 ## 2. Where things stand
 
-- **988 tests pass** (was 889 at the start of this session), PHPStan clean
+- **989 tests pass** (was 889 at the start of this session), PHPStan clean
   (level 1 + Larastan), Pint clean.
 - Accessibility automation (`node scripts/dostepnosc.mjs`): **everything green**
   — 0 axe violations across all four variants, 0 horizontal overflows,
@@ -180,12 +180,15 @@ would be exactly what the document exists to prevent.
 
 ### 4.4 Still queued
 
-- **`docs/research/ANALITYKA.md` does not exist.** Issues #114 and #115 both
-  cite it — for the WAC query, the `product_signals` schema and the retention
-  policy — and it was never committed. Both were implementable anyway (the WAC
-  query is in `docs/seo/ANALYTICS.md` §2.1-2.2, the schema is spelled out in
-  #115's own body), but the references are dangling. Either commit the document
-  or fix the issues.
+- ~~**`docs/research/ANALITYKA.md` does not exist.**~~ **Written 2026-09-07.**
+  It is deliberately NOT a reconstruction of the document #114/#115 cite — no
+  one knows what was in that one — but a record of the analytics that actually
+  exist in the code: what WAC counts and who is excluded from it, the
+  `product_signals` schema and its two CHECK constraints, exactly which fields
+  each of the two signals carries, the 90-day retention, and a section listing
+  what from `docs/seo/ANALYTICS.md` is still only a plan (PostHog is not wired
+  up at all). Writing it exposed one real gap, now closed: nothing tested that
+  the database refuses a `signal_name` outside the closed set.
 
 - **#38** — rewrite UI copy per `docs/brand/COPY_STYLE.md`. The kit says
   "Jak wyszło innym?" where the app says "Komu wyszło"; that rename belongs

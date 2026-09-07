@@ -434,4 +434,44 @@ class SygnalyProduktoweTest extends TestCase
         $this->assertSame(QueryException::class, $wpisy[0]->context['wyjatek']);
         $this->assertSame('23514', $wpisy[0]->context['sqlstate']);
     }
+
+    /**
+     * Drugi CHECK z migracji: zamknięty zbiór nazw zdarzeń.
+     *
+     * DLACZEGO OSOBNY TEST, SKORO NAZWY SĄ STAŁYMI W `ZapiszSygnal`
+     * Bo stała w PHP mówi tylko, co kod pisze DZIŚ. CHECK mówi, czego baza
+     * NIE PRZYJMIE — także od migracji danych, od `php artisan tinker`,
+     * od przyszłego kodu, który doda trzecie zdarzenie i zapomni rozszerzyć
+     * ograniczenie. To jest ta sama różnica, którą ten projekt już raz
+     * zapłacił: reguła istnieje poprawnie w jednej warstwie, a druga
+     * implementuje ją inaczej.
+     *
+     * Brakowało go: `docs/research/ANALITYKA.md` §5 notował tę lukę, zamiast
+     * jej domknąć. Teraz notuje, że jest domknięta.
+     */
+    public function test_baza_odrzuca_nazwe_zdarzenia_spoza_zamknietego_zbioru(): void
+    {
+        $zapisane = [];
+
+        Log::listen(function ($wiadomosc) use (&$zapisane): void {
+            $zapisane[] = $wiadomosc;
+        });
+
+        app(ZapiszSygnal::class)->handle(null, 'wymyslone_zdarzenie', ['cokolwiek' => 1]);
+
+        $this->assertSame(
+            0,
+            ProductSignal::query()->count(),
+            'Baza przyjęła nazwę zdarzenia spoza zbioru z `product_signals_signal_name_check`. '
+            .'Ograniczenie albo zniknęło, albo ktoś je rozszerzył i nie dopisał nazwy tutaj.',
+        );
+
+        $wpisy = array_values(array_filter(
+            $zapisane,
+            fn ($w) => str_contains($w->message, 'sygnału produktowego'),
+        ));
+
+        $this->assertCount(1, $wpisy);
+        $this->assertSame('23514', $wpisy[0]->context['sqlstate']);
+    }
 }
