@@ -236,6 +236,29 @@ ten kod pęka:
   układający ją PO PÓŁNOCY zapisywał ją pod datą wczorajszą — widział ją
   jeszcze godzinę-dwie i znikała mu tego samego dnia. Naprawione nowym
   `Czas::dzisiajData()`, żeby „dziś człowieka" miało jedno źródło.
+- **ZNALEZIONA PRZYCZYNA ZGŁOSZENIA „429 PRZY PIERWSZYM DODANIU ZDJĘCIA".**
+  Wszystkie limity zapytań dzieliły JEDEN licznik na osobę.
+  `ThrottleRequests::resolveRequestSignature()` buduje klucz wyłącznie
+  z identyfikatora zalogowanego konta (dla gościa: z domeny i IP) — nazwy
+  trasy w kluczu NIE MA. Rozróżnia je dopiero TRZECI parametr middleware'u,
+  którego nie przekazywało ani jedno z 32 wywołań `throttle:` w
+  `routes/web.php`. Każda trasa nabijała wspólne wiadro i porównywała jego
+  stan ze SWOIM maksimum.
+  Zmierzone: 25 zapytań o warianty zdjęć (limit tej trasy to 600/min, więc
+  żadne nie odbiło) i **pierwsza** próba publikacji (limit 20/10 min)
+  dostawała 429 z `Retry-After: 59` — słowo w słowo to, co zobaczył
+  właściciel. **Dlaczego wyszło dopiero teraz:** trasa
+  `/zdjecia/{media}/{wariant}` powstała razem z zamknięciem W7-02. Wcześniej
+  zdjęcia szły prosto z CDN-u i nie przechodziły przez limiter w ogóle —
+  poprawka bezpieczeństwa wpuściła kilkadziesiąt zapytań na KAŻDE otwarcie
+  strony do licznika współdzielonego z publikacją.
+  Naprawione prefiksem równym kluczowi limitu (`throttle:20,10,post`), co
+  ZACHOWUJE świadome współdzielenie budżetu `post` przez wpis, przepis
+  i „Ugotowałem". Dwa testy pilnują reguły: że każda nasza trasa ma prefiks
+  ORAZ że jeden prefiks to zawsze ten sam limit — bez drugiego pierwszy dałby
+  się przejść, dając dwóm różnym limitom tę samą nazwę.
+  Znalezione przez agenta przy niezależnej weryfikacji W7-02, potwierdzone
+  osobnym pomiarem.
 - **Wpis zbanowanego autora dalej stał w feedzie obserwowanych.**
   `PostPolicy::view()` dawał 403 pod adresem wpisu, a `FollowingFeed::
   paginate()` tej reguły nie miał — mimo że `isEmptyFor()`, kilkanaście

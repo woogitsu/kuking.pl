@@ -70,7 +70,7 @@ $limits = config('kuking.limits');
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
 Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
 Route::get('/szukaj', [SearchController::class, 'index'])
-    ->middleware("throttle:{$limits['search']}")
+    ->middleware("throttle:{$limits['search']},search")
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
@@ -99,7 +99,7 @@ Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recip
 // endpointów zmieniających stan.
 Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
-    ->middleware("throttle:{$limits['cooking_krok']}")
+    ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
@@ -126,7 +126,7 @@ Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->
 Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
     ->whereUuid('media')
     ->whereIn('wariant', array_keys((array) config('kuking.media.variants')))
-    ->middleware("throttle:{$limits['zdjecie']}")
+    ->middleware("throttle:{$limits['zdjecie']},zdjecie")
     ->name('media.show');
 
 // Listy relacji — publiczne jak sam profil, ale bez indeksowania (to nie
@@ -145,20 +145,20 @@ Route::get('/@{username}', [ProfileController::class, 'show'])->name('profile.sh
 Route::middleware('guest')->group(function () use ($limits): void {
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])
-        ->middleware("throttle:{$limits['register']}");
+        ->middleware("throttle:{$limits['register']},register");
 
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])
-        ->middleware("throttle:{$limits['login']}");
+        ->middleware("throttle:{$limits['login']},login");
 
     Route::get('/nie-pamietam-hasla', [PasswordResetController::class, 'requestForm'])->name('password.request');
     Route::post('/nie-pamietam-hasla', [PasswordResetController::class, 'sendLink'])
-        ->middleware("throttle:{$limits['password_reset']}")
+        ->middleware("throttle:{$limits['password_reset']},password_reset")
         ->name('password.email');
 
     Route::get('/nowe-haslo/{token}', [PasswordResetController::class, 'resetForm'])->name('password.reset');
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
-        ->middleware("throttle:{$limits['password_reset']}")
+        ->middleware("throttle:{$limits['password_reset']},password_reset")
         ->name('password.update');
 
     // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
@@ -168,7 +168,7 @@ Route::middleware('guest')->group(function () use ($limits): void {
     // ktoś już zalogowany nie ma po co tu wracać.
     Route::get('/logowanie/kod', [TwoFactorChallengeController::class, 'show'])->name('login.two_factor');
     Route::post('/logowanie/kod', [TwoFactorChallengeController::class, 'store'])
-        ->middleware("throttle:{$limits['two_factor']}")
+        ->middleware("throttle:{$limits['two_factor']},two_factor")
         ->name('login.two_factor.store');
 
     // Cofnięcie zgłoszonego usunięcia konta — dla osoby, którą
@@ -179,7 +179,7 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::get('/cofnij-usuniecie-konta', [AccountDeletionController::class, 'showCancelForm'])
         ->name('account.delete.cancel');
     Route::post('/cofnij-usuniecie-konta', [AccountDeletionController::class, 'cancel'])
-        ->middleware("throttle:{$limits['cancel_delete']}")
+        ->middleware("throttle:{$limits['cancel_delete']},cancel_delete")
         ->name('account.delete.cancel.store');
 });
 
@@ -200,7 +200,7 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 // całkiem otwartego albo samego adresu e-mail: `AppealController`.
 Route::get('/odwolanie', [AppealController::class, 'guestForm'])->name('appeals.guest');
 Route::post('/odwolanie', [AppealController::class, 'guestStore'])
-    ->middleware("throttle:{$limits['appeal']}")
+    ->middleware("throttle:{$limits['appeal']},appeal")
     ->name('appeals.guest.store');
 
 // --------------------------------------------------------------------------
@@ -217,7 +217,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware('signed')
         ->name('verification.verify');
     Route::post('/potwierdz-email/wyslij-ponownie', [EmailVerificationController::class, 'resend'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:6,1,verification_resend')
         ->name('verification.send');
 
     // Onboarding
@@ -232,17 +232,17 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     Route::get('/dodaj/zdjecie', [PostController::class, 'create'])->name('posts.create');
     Route::post('/dodaj/zdjecie', [PostController::class, 'store'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('posts.store');
     Route::post('/wpisy/{post}/komentarz', [PostController::class, 'comment'])
-        ->middleware("throttle:{$limits['comment']}")
+        ->middleware("throttle:{$limits['comment']},comment")
         ->name('posts.comment');
     // Edycja wpisu: tekst, widoczność, temat — nie zdjęcia (patrz komentarz
     // w PostController::edit i w EditPost). Ten sam limit co przy publikacji,
     // z config/kuking.php, a nie osobno wpisana liczba (AGENTS.md §7).
     Route::get('/wpisy/{post}/edycja', [PostController::class, 'edit'])->name('posts.edit');
     Route::put('/wpisy/{post}', [PostController::class, 'update'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('posts.update');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
 
@@ -252,7 +252,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // w PostMediaController).
     Route::get('/wpisy/{post}/zdjecia', [PostMediaController::class, 'edit'])->name('posts.media.edit');
     Route::post('/wpisy/{post}/zdjecia', [PostMediaController::class, 'update'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('posts.media.update');
 
     // „Nie pokazuj mi tego więcej" — ukrycie jednego wspomnienia (issue #34).
@@ -264,10 +264,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.
     Route::put('/komentarze/{comment}', [CommentController::class, 'update'])
-        ->middleware("throttle:{$limits['comment']}")
+        ->middleware("throttle:{$limits['comment']},comment")
         ->name('comments.update');
     Route::delete('/komentarze/{comment}', [CommentController::class, 'destroy'])
-        ->middleware("throttle:{$limits['comment']}")
+        ->middleware("throttle:{$limits['comment']},comment")
         ->name('comments.destroy');
 
     // Dwie drogi do tego samego przepisu i obie są prawdziwe:
@@ -278,22 +278,22 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     Route::post('/dodaj/przepis', [RecipeController::class, 'store'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.store');
     Route::get('/przepisy/{recipe}/edycja', [RecipeController::class, 'edit'])->name('recipes.edit');
     Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
-        ->middleware("throttle:{$limits['comment']}")
+        ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])->name('recipes.destroy');
 
     // "Ugotowałem" — najważniejsza akcja w produkcie.
     Route::get('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'create'])->name('cooked.create');
     Route::post('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'store'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('cooked.store');
     Route::post('/ugotowane/{cookedEvent}/komentarz', [CookedEventController::class, 'comment'])
-        ->middleware("throttle:{$limits['comment']}")
+        ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.comment');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])->name('cooked.destroy');
 
@@ -302,7 +302,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // niż `cooked.show`, bo to inny ekran z inną autoryzacją (Policy::celebrate).
     Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
-        ->middleware("throttle:{$limits['comment']}")
+        ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
 
     // Zeszyt (kolekcje)
@@ -317,10 +317,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // Ten sam limit co przy publikacji: to jest zapis do bazy wywołany
     // jednym kliknięciem na karcie, więc zasługuje na ten sam refleks.
     Route::post('/wpisy/{post}/zapisz', [CollectionController::class, 'savePost'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('collections.save-post');
     Route::delete('/wpisy/{post}/zapisz', [CollectionController::class, 'removePost'])
-        ->middleware("throttle:{$limits['post']}")
+        ->middleware("throttle:{$limits['post']},post")
         ->name('collections.unsave-post');
 
     // Relacje społeczne
@@ -366,10 +366,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // limit co reszta miejsc, w których ktoś zgaduje cudze hasło.
     Route::get('/ustawienia/bezpieczenstwo', [SecuritySettingsController::class, 'edit'])->name('settings.security');
     Route::put('/ustawienia/bezpieczenstwo/haslo', [SecuritySettingsController::class, 'updatePassword'])
-        ->middleware("throttle:{$limits['confirm_password']}")
+        ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.security.password');
     Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
-        ->middleware("throttle:{$limits['confirm_password']}")
+        ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.security.logout-others');
     // Weryfikacja dwuetapowa (2FA), issue #12. Obowiązkowa do wejścia
     // w panel moderacji (patrz middleware 'moderator.2fa' w grupie /admin
@@ -377,13 +377,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/2fa', [TwoFactorSettingsController::class, 'edit'])->name('settings.two_factor.edit');
     Route::get('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'create'])->name('settings.two_factor.enable');
     Route::post('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'confirm'])
-        ->middleware("throttle:{$limits['two_factor']}")
+        ->middleware("throttle:{$limits['two_factor']},two_factor")
         ->name('settings.two_factor.confirm');
     Route::get('/ustawienia/2fa/kody-zapasowe', [TwoFactorSettingsController::class, 'codes'])->name('settings.two_factor.codes');
     // Nowy komplet kodów zapasowych bez zdejmowania 2FA. Ten sam limit co
     // reszta miejsc proszących o hasło — bo o hasło właśnie prosi.
     Route::post('/ustawienia/2fa/nowe-kody', [TwoFactorSettingsController::class, 'regenerateCodes'])
-        ->middleware("throttle:{$limits['confirm_password']}")
+        ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.two_factor.regenerate');
     Route::post('/ustawienia/2fa/wylacz', [TwoFactorSettingsController::class, 'disable'])->name('settings.two_factor.disable');
 
@@ -395,13 +395,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // odwołanie, którego zawieszony nie może wysłać, nie jest odwołaniem.
     Route::get('/odwolanie/{action}', [AppealController::class, 'show'])->name('appeals.show');
     Route::post('/odwolanie/{action}', [AppealController::class, 'store'])
-        ->middleware("throttle:{$limits['appeal']}")
+        ->middleware("throttle:{$limits['appeal']},appeal")
         ->name('appeals.store');
 
     // Zgłaszanie treści
     Route::get('/zglos/{type}/{id}', [ReportController::class, 'create'])->name('reports.create');
     Route::post('/zglos/{type}/{id}', [ReportController::class, 'store'])
-        ->middleware("throttle:{$limits['report']}")
+        ->middleware("throttle:{$limits['report']},report")
         ->name('reports.store');
 });
 
@@ -466,7 +466,7 @@ Route::get('/temat/{topic}', [TopicController::class, 'show'])->name('topics.sho
 Route::get('/zglos-nielegalna-tresc', [ZgloszenieNielegalnejTresciController::class, 'create'])
     ->name('zglos.nielegalna');
 Route::post('/zglos-nielegalna-tresc', [ZgloszenieNielegalnejTresciController::class, 'store'])
-    ->middleware('throttle:'.$limits['legal_notice'])
+    ->middleware('throttle:'.$limits['legal_notice'].',legal_notice')
     ->name('zglos.nielegalna.store');
 Route::get('/zglos-nielegalna-tresc/przyjete', [ZgloszenieNielegalnejTresciController::class, 'confirmation'])
     ->name('zglos.nielegalna.potwierdzenie');
@@ -483,5 +483,5 @@ Route::get('/zglos-nielegalna-tresc/przyjete', [ZgloszenieNielegalnejTresciContr
 // wtyczka w przeglądarce potrafi wysłać setki zgłoszeń na minutę, a każde
 // z nich to wpis w logu.
 Route::post('/_csp', CspReportController::class)
-    ->middleware('throttle:'.$limits['csp_report'])
+    ->middleware('throttle:'.$limits['csp_report'].',csp_report')
     ->name('csp.report');
