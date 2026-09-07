@@ -1,5 +1,25 @@
 # Pomiar obowiązków DSA w kodzie Kuking.pl
 
+> **AKTUALIZACJA 7 września 2026, po tym pomiarze: część braków z art. 17
+> została ZAMKNIĘTA (commit `21129a1`), a część zdań z listy „czego NIE WOLNO
+> napisać" jest od tego commita PRAWDĄ.** Ten dokument zostaje w pierwotnym
+> brzmieniu, bo jest zapisem pomiaru na konkretnym HEAD (`3805ac0`), a nie
+> bieżącym stanem serwisu — i dlatego trzeba go czytać razem z tą ramką.
+>
+> Od tego commita autor treści dostaje: podstawę decyzji (punkt zasad
+> z numerem, weryfikowanym testem czytającym `resources/legal/zasady.md`),
+> informację, czy sprawa zaczęła się od zgłoszenia, zdanie o braku automatu
+> (z trzema niezależnymi dowodami w testach), termin odwołania (sześć
+> miesięcy, art. 20) oraz pouczenie o organie pozasądowym i sądzie — to samo,
+> które od dawna dostawał zgłaszający. Osoba ZABLOKOWANA widzi to samo na
+> ekranie logowania, bo to jej jedyny kanał.
+>
+> **Otwarte zostaje:** konkretny przepis prawny (lit. d) — `reason_code`
+> trzyma sam rodzaj podstawy, więc przy podstawie „treść niezgodna z prawem"
+> obowiązkowa jest wiadomość od moderacji i tylko na nią się powołujemy;
+> oraz dostęp ZGŁASZAJĄCEGO do systemu skarg (art. 20) i odwołanie od decyzji
+> „bez działania" — jedno i drugie wymaga zmiany schematu.
+
 > **Czym jest ten dokument.** Pomiarem kodu, nie opinią prawną. Dla każdego
 > obowiązku z rozporządzenia 2022/2065 podaję: co jest w kodzie (plik i linia),
 > czy to wystarcza, oraz **jakie zdanie wolno wpisać do regulaminu dosłownie,
