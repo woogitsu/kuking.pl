@@ -10,10 +10,21 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  PLAN AWARYJNY: gdyby limit organizacji się wyczerpał, przełączenie na własny
-#  runner to jedna zmienna repozytorium `CI_RUNNER` = `self-hosted` — dlatego
-#  `runs-on` niżej czyta ją z fallbackiem. Bez ustawionej zmiennej joby same
-#  wybierają runnery GitHuba. Instrukcja: docs/infra/SELF_HOSTED_RUNNER.md
+#  GDZIE TO CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`,
+#  wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie zmienną repozytorium:
+#
+#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#
+#  Dlaczego etykiety, a nie nazwa: nazwa przypina job do JEDNEJ maszyny, więc
+#  jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe: `i5-10400f`
+#  i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
+#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
+#
+#  KOSZT TEJ DECYZJI, ŻEBY BYŁ ZAPISANY: te joby NIE mają już zapasu
+#  w runnerach GitHuba. Gdy cała pula jest offline, przebiegi stoją w kolejce
+#  bez końca — a CI jest bramką deployu (Railway ma „Wait for CI"), więc stoi
+#  wtedy także wdrożenie. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -63,7 +74,7 @@ jobs:
   # ===========================================================================
   lint:
     name: Pint (styl kodu)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     steps:
@@ -97,7 +108,7 @@ jobs:
   # ===========================================================================
   static-analysis:
     name: Larastan (analiza statyczna)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 15
     # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
     # `phpstan analyse` kończyłby się „At least one path must be specified".
@@ -196,7 +207,7 @@ jobs:
   # ===========================================================================
   test:
     name: Testy (PostgreSQL 18)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 20
 
     services:
@@ -290,7 +301,7 @@ jobs:
   # ===========================================================================
   assets:
     name: Build assetów (Vite)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     steps:
@@ -343,7 +354,7 @@ jobs:
   # ===========================================================================
   dostepnosc:
     name: Dostępność (axe-core)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 15
 
     services:
@@ -479,7 +490,7 @@ jobs:
   # ===========================================================================
   audit:
     name: Audyt zależności
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     steps:
@@ -556,7 +567,7 @@ jobs:
   # ===========================================================================
   docker-build:
     name: Build obrazu (weryfikacja)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 20
 
     steps:

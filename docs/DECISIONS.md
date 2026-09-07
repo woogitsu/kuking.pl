@@ -160,7 +160,8 @@ forma żeńska (żadna nie brzmi po polsku dobrze).
 
 ## D-010 · CI na runnerach GitHuba, repozytorium w nowej organizacji
 
-**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **wykonane w części repozytorium**
+**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-028
+w części dotyczącej runnerów** (organizacja i prywatność repozytorium zostają)
 
 > **Zmiana wcześniejszej decyzji.** Pierwotnie: własny self-hosted runner.
 > Powód zmiany: plan Free daje **2 000 minut miesięcznie także dla repozytoriów
@@ -196,8 +197,8 @@ czekałby na check suite, który nie powstaje, i nic by się nie zdeployowało.
 - ⬜ **pierwszy zielony przebieg** — wymaga, żeby workflow znalazł się na
   gałęzi domyślnej; `main` to dziś pusty commit inicjalizacyjny, więc do
   czasu scalenia GitHub nie widzi żadnego workflow
-- ⬜ zmienna repozytorium `CI_RUNNER` usunięta albo `ubuntu-latest`
-  (ustawienia GitHuba, nie plik w repozytorium)
+- ⬜ zmienna repozytorium `CI_RUNNER` **usunięta** (ustawienia GitHuba, nie
+  plik w repozytorium) — po D-028 nie czyta jej już żaden workflow
 - ⬜ ochrona gałęzi `main` wymagająca zielonego CI
 - ⬜ `KUKING_WAIT_FOR_CI=true` — **na samym końcu**
 
@@ -1230,5 +1231,54 @@ samego mechanizmu.
 `app/Domain/Posts/Actions/PublishPost.php` ·
 `app/Domain/Recipes/Actions/RecordCookedEvent.php` ·
 `app/Domain/Moderation/Actions/ReportContent.php`
+
+---
+
+## D-028 · CI wraca na własne runnery — wybierane etykietami, nie nazwą
+
+**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+> **Zmiana D-010.** D-010 przeniosło CI na runnery GitHuba, bo nowa
+> organizacja `woogitsu` dawała nieużywane 2 000 minut miesięcznie. Ta decyzja
+> to odwraca: wszystkie joby chodzą na własnej puli
+> `woogitsu-linux-01`–`woogitsu-linux-10`.
+
+Wszystkie **14 jobów** w czterech workflow-ach (`ci.yml` 7, `deploy.yml` 2,
+`preview.yml` 3, `railway-iac.yml` 2) ma dokładnie:
+
+```yaml
+runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+```
+
+**Etykiety, nie nazwa runnera.** Nazwa w `runs-on` przypina job do jednej
+maszyny, więc jej awaria zatrzymuje całe CI, a dziesięciu maszyn nie da się
+tak obsłużyć bez macierzy.
+
+**Dlaczego akurat te dwie dodatkowe.** Stara pula WSL-owa
+(`woogitsu-wsl-DOM-NEW-01`–`04`) ma etykiety `self-hosted`, `Linux`, `X64`,
+`wsl2`, `woogitsu` — czyli samo `self-hosted` wpuściłoby joby także na nie.
+`i5-10400f` i `nvidia-gtx1070` występują wyłącznie na nowej puli i to one
+są tu bramką.
+
+**Co zniknęło.** Poprzednio runnera wybierała zmienna repozytorium
+`CI_RUNNER` z fallbackiem `ubuntu-latest`. Zmiennej nie czyta już nic i można
+ją usunąć. Zmierzone przed zmianą (przebieg CI nr 141 dla `main`, commit
+`e24f30d`): wszystkie siedem jobów wykonało się na runnerach GitHuba
+(`runner_group_name: "GitHub Actions"`, etykiety `["ubuntu-latest"]`), czyli
+zmienna nie była ustawiona, a stare runnery WSL-owe nigdy w tym repozytorium
+nie pracowały — nie było też w nim ani jednego odwołania do ich nazw.
+
+**Koszt, żeby był zapisany.** Joby nie mają już zapasu w runnerach GitHuba.
+Gdy cała pula jest offline, przebiegi stoją w kolejce bez końca — a CI jest
+bramką deployu (Railway ma „Wait for CI"), więc stoi wtedy także wdrożenie.
+Właściciel wybrał tę opcję świadomie, znając ten skutek.
+
+**Zmiana wymaga:** decyzji właściciela — albo dłuższej niedostępności puli,
+która ten koszt zamieni z hipotetycznego na zmierzony.
+
+📄 `.github/workflows/ci.yml` · `.github/workflows/deploy.yml` ·
+`.github/workflows/preview.yml` · `.github/workflows/railway-iac.yml` ·
+`docs/infra/SELF_HOSTED_RUNNER.md` · `docs/infra/CI_BEZ_ACTIONS.md` ·
+`docs/infra/PRZENIESIENIE_DO_ORGANIZACJI.md`
 
 ---

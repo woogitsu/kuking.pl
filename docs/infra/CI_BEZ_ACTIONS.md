@@ -130,10 +130,14 @@ i tak stoi włączony.
 
 Kroki:
 
-1. Ustaw zmienną repozytorium `CI_RUNNER` na `self-hosted`
-   (Settings → Secrets and variables → Actions → Variables).
-   Workflowy już to czytają: `runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.
+1. Nic nie ustawiaj — workflowy nie czytają już żadnej zmiennej. Każdy job ma
+   wpisany zestaw etykiet:
+   `runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]`.
 2. Zarejestruj runnera: Settings → Actions → Runners → New self-hosted runner.
+   Przy `./config.sh` podaj WSZYSTKIE sześć etykiet — brak jednej wystarcza,
+   żeby job nigdy nie wystartował. Dodatkowe `i5-10400f` i `nvidia-gtx1070`
+   są tam po to, żeby joby nie trafiały na starą pulę WSL-ową
+   (`woogitsu-wsl-DOM-NEW-01`–`04`), która ich nie ma.
 3. Odkomentuj blok `on:` w `ci.yml`.
 4. Ustaw `KUKING_WAIT_FOR_CI=true` przy `railway config apply`, żeby przywrócić
    bramkę „Wait for CI”.
@@ -192,12 +196,12 @@ Warto na niego zerknąć po pierwszym miesiącu, żeby zweryfikować szacunek
       z adnotacją, zamiast zapalać lampkę, której nie da się naprawić kodem.
       Zacznie blokować sam, gdy #32 doda konfigurację — **nic nie trzeba
       wtedy zmieniać w workflow**
-- [ ] Zmienna repozytorium `CI_RUNNER` **usunięta** albo ustawiona na
-      `ubuntu-latest` (Settings → Secrets and variables → Actions → Variables).
-      Workflowy mają `runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}`, więc
-      bez zmiennej same wybiorą runnery GitHuba — ale **jeśli zmienna przeżyła
-      transfer z wartością `self-hosted`, joby będą wisieć w kolejce
-      w nieskończoność**, czekając na runnera, którego nie ma
+- [ ] Runnery `woogitsu-linux-01`–`woogitsu-linux-10` są **Idle** w panelu
+      i mają wszystkie sześć etykiet z `runs-on`. Zmienna `CI_RUNNER` nie jest
+      już przez nic czytana i można ją usunąć. **Joby nie mają zapasu
+      w runnerach GitHuba** — gdy cała pula jest offline, przebiegi wiszą
+      w kolejce w nieskończoność, a razem z nimi wdrożenie (Railway ma
+      „Wait for CI")
 - [ ] Uprawnienia Actions w organizacji pozwalają uruchamiać workflowy
       (Settings → Actions → General)
 - [x] Workflowy wdrożeniowe (`preview.yml`, `railway-iac.yml`) zablokowane
