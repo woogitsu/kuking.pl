@@ -13,14 +13,62 @@ use App\Models\User;
 class CommentPolicy
 {
     /**
-     * Komentarz nie ma własnej widoczności (`Comment::scopeWidoczneDla`) —
-     * dziedziczy ją po rodzicu, dokładnie tak jak `CookedEventPolicy::view()`
-     * deleguje do `RecipePolicy`. Rodzic jest dokładnie jeden z trzech
-     * (CHECK w bazie, `Comment::subject()`), więc `null` nie powinno się
-     * zdarzyć — a jeśli się zdarzy, odmawiamy, zamiast zgadywać.
+     * Czy ten człowiek ma prawo zobaczyć TEN komentarz.
+     *
+     * TA METODA ODPOWIADAŁA TYLKO NA POŁOWĘ PYTANIA (audyt komentarzy).
+     * Cała treść brzmiała „widoczność komentarza to widoczność jego rodzica"
+     * i delegowała do `PostPolicy`/`RecipePolicy`/`CookedEventPolicy`. Rodzic
+     * jest jednak tylko JEDNĄ z granic — `Comment::scopeWidoczneDla()` liczy
+     * dwie kolejne (blokada widz↔autor komentarza, status konta autora), a
+     * relacje `comments()` trzecią (status samego komentarza). Polityka nie
+     * znała żadnej z nich.
+     *
+     * ZMIERZONY SKUTEK. Jedynym miejscem, które pyta tę metodę, jest bramka
+     * zgłoszeń (`ReportContent::authorize()`, audyt W7-05) — i to wystarczało:
+     * pod publicznym wpisem osoba, która KOGOŚ ZABLOKOWAŁA, dostawała na
+     * `/zglos/comment/{uuid}` odpowiedź 200 na komentarz, którego na stronie
+     * nie widzi, zamiast 404 nieodróżnialnego od „nie ma takiej treści".
+     * To samo dla komentarza UKRYTEGO przez moderację. Formularz zgłoszenia
+     * nie pokazuje treści, ale sam kod odpowiedzi jest oracle'em istnienia —
+     * a dokładnie po to ta bramka powstała. Dodatkowo pozwalało to wciągnąć
+     * do moderacji komentarz, którego zgłaszający nie ma prawa przeczytać.
+     *
+     * Kolejność warunków jest ta sama co w `Comment::scopeWidoczneDla()`, żeby
+     * dało się je czytać obok siebie. Różnice są dwie i obie celowe: polityka
+     * pilnuje wejścia na JEDNĄ treść, więc może mieć furtki dla autora i dla
+     * moderatora (dokładnie tak jak `RecipePolicy::view()` przy nieopublikowanym
+     * przepisie), a zakres buduje LISTĘ dla wielu autorów naraz i furtek
+     * nie ma — tam pominięcie ich jest ostrzejsze, a więc bezpieczniejsze.
      */
     public function view(?User $user, Comment $comment): bool
     {
+        $autorKomentarza = $comment->author;
+        $jestAutorem = $user !== null && $user->getKey() === $comment->author_id;
+        $jestAutoremLubModeratorem = $jestAutorem || ($user !== null && $user->isModerator());
+
+        // 1. Blokada — pierwsza, bezwarunkowa, w obie strony (`AGENTS.md` §4).
+        //    Ani moderator, ani autor treści nie obchodzą tej granicy: to nie
+        //    jest kwestia uprawnień, tylko relacji dwóch osób.
+        if ($user !== null && $autorKomentarza !== null && $user->hasBlockRelationWith($autorKomentarza)) {
+            return false;
+        }
+
+        // 2. Konto autora komentarza zbanowane albo oznaczone do usunięcia —
+        //    ta sama granica co `UserPolicy::viewProfile()` i `RecipePolicy::view()`.
+        //    Zawieszenie NIE wchodzi: kara za pisanie nie kasuje napisanego.
+        if ($autorKomentarza !== null && ! $autorKomentarza->jestDostepnyJakoAutor() && ! $jestAutoremLubModeratorem) {
+            return false;
+        }
+
+        // 3. Komentarz ukryty przez moderację widzi jeszcze jego autor
+        //    (potrzebuje tego, żeby się odwołać — DSA art. 20) i moderator.
+        if ($comment->status !== Comment::STATUS_PUBLISHED && ! $jestAutoremLubModeratorem) {
+            return false;
+        }
+
+        // 4. Rodzic. Dokładnie jeden z trzech (CHECK w bazie,
+        //    `Comment::subject()`), więc `null` nie powinno się zdarzyć —
+        //    a jeśli się zdarzy, odmawiamy, zamiast zgadywać.
         $subject = $comment->subject();
 
         return match (true) {
