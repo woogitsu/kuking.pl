@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Media\KasujZdjecie;
+use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +107,32 @@ final class EraseAccountData
                 'wants_weekly_digest' => false,
                 'data_erased_at' => now(),
             ])->save();
+
+            // GOTOWA PACZKA DANYCH PRZESTAJE BYĆ DO POBRANIA.
+            //
+            // Paczka to kopia CAŁEGO konta: adres e-mail, wszystkie treści,
+            // wszystkie zdjęcia — w tym oryginały. Wisiała pod podpisanym
+            // adresem jeszcze do siedmiu dni PO wymazaniu konta, bo ta akcja
+            // nie tykała `data_exports` wcale. Człowiek, który poprosił
+            // o usunięcie konta, nie ma powodu zakładać, że najpełniejsza
+            // kopia jego danych zostaje osiągalna pod adresem, który kiedyś
+            // dostał mailem.
+            //
+            // PRZESTAWIAMY TERMIN, A NIE KASUJEMY PLIKU TUTAJ. Kasowanie
+            // z weryfikacją (`exists()` po fakcie) i z ponawianiem przy
+            // porażce jest już napisane i przetestowane
+            // w `kuking:sprzataj-eksporty`. Duplikowanie go tu dałoby drugą
+            // implementację tej samej rzeczy — i to ta gorsza wersja
+            // musiałaby żyć wewnątrz transakcji, gdzie kasowanie pliku jest
+            // nieodwracalne przy wycofaniu.
+            //
+            // Skutek jest natychmiastowy tam, gdzie ma być: `isDownloadable()`
+            // patrzy na `expires_at`, więc dostęp znika w tej samej sekundzie.
+            // Sam plik znika tą samą drogą co każda inna wygasła paczka.
+            DataExport::query()
+                ->where('user_id', $fresh->getKey())
+                ->whereIn('status', [DataExport::STATUS_READY, DataExport::STATUS_QUEUED, DataExport::STATUS_PROCESSING])
+                ->update(['expires_at' => now()->subSecond()]);
 
             // Defensywnie: `markForDeletion()` kasuje sesje z innych
             // przeglądarek już przy zgłoszeniu, ale między zgłoszeniem

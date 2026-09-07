@@ -328,7 +328,21 @@ final class CollectUserExportData
     /** @return list<array<string, mixed>> */
     private function notifications(User $user): array
     {
+        // `visibleTo()` TAK SAMO JAK NA EKRANIE — to jest ta sama granica,
+        // nie druga jej wersja.
+        //
+        // Bez tego paczka niosła powiadomienia, których człowiek w serwisie
+        // NIE WIDZI: od kont zbanowanych, od kont po prośbie o usunięcie,
+        // od osób wzajemnie zablokowanych, oraz o komentarzach pod treścią,
+        // która zniknęła. Razem z nimi wychodziło pole `excerpt` — 120
+        // znaków CUDZEGO tekstu, w tym tekstu z konta, które prosiło
+        // o usunięcie.
+        //
+        // Paczka RODO ma oddać człowiekowi to, co jego — nie wszystko, co
+        // o nim leży w bazie. Powiadomienie ukryte w serwisie nie staje się
+        // jego danymi przez to, że kiedyś powstał na nie wiersz.
         $notifications = $user->notifications()
+            ->visibleTo($user)
             ->with('actor.profile')
             ->reorder('created_at')
             ->get();

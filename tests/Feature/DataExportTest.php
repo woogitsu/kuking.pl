@@ -230,6 +230,66 @@ class DataExportTest extends TestCase
         $this->assertArrayNotHasKey('autor_id', $comments[0]);
     }
 
+    /**
+     * Paczka RODO ma pokazywać to, co człowiek WIDZI w serwisie — nie
+     * wszystko, co o nim leży w bazie.
+     *
+     * `$user->notifications()` w eksporcie nie miało `visibleTo()`, którym
+     * filtruje się lista powiadomień na ekranie. Skutek: powiadomienie
+     * ukryte w serwisie (bo jego sprawca został zbanowany albo poprosił
+     * o usunięcie konta) i tak trafiało do paczki — RAZEM z polem
+     * `excerpt`, czyli 120 znakami CUDZEGO tekstu.
+     *
+     * To jest ten sam nawracający wzorzec, o którym mówi
+     * `docs/HANDOVER.md`: reguła istnieje poprawnie w jednej warstwie
+     * (`Notification::scopeVisibleTo`), a druga jej nie woła.
+     */
+    public function test_paczka_nie_niesie_powiadomien_ukrytych_w_serwisie(): void
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $zenek = $this->user('zenek', ['display_name' => 'Zenek']);
+        $widmo = $this->user('widmo', ['display_name' => 'Widmo']);
+
+        // KONTROLA: zwykłe powiadomienie od aktywnego konta ma zostać.
+        Notification::create([
+            'user_id' => $basia->getKey(),
+            'actor_id' => $zenek->getKey(),
+            'type' => Notification::TYPE_FOLLOW,
+            'data' => ['excerpt' => 'zaczął Cię obserwować'],
+        ]);
+
+        Notification::create([
+            'user_id' => $basia->getKey(),
+            'actor_id' => $widmo->getKey(),
+            'type' => Notification::TYPE_FOLLOW,
+            'data' => ['excerpt' => 'TEKST KTORY NIE MA PRAWA WYJSC'],
+        ]);
+
+        // Bez tego kroku oba powiadomienia są widoczne i test przechodziłby
+        // niezależnie od naprawy.
+        $widmo->forceFill(['status' => User::STATUS_BANNED])->save();
+
+        $data = $this->jsonFromArchive($this->runExportFor($basia));
+
+        // `JSON_UNESCAPED_UNICODE`, bo bez niego polskie znaki uciekają do
+        // `\u0105` i asercja kontrolna nie znajduje własnego tekstu.
+        $wszystko = json_encode($data['powiadomienia'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringContainsString(
+            'zaczął Cię obserwować',
+            $wszystko,
+            'Zniknęło także zwykłe powiadomienie — filtr jest za szeroki.',
+        );
+
+        $this->assertStringNotContainsString(
+            'TEKST KTORY NIE MA PRAWA WYJSC',
+            $wszystko,
+            'Fragment cudzego tekstu z powiadomienia ukrytego w serwisie trafił do paczki RODO.',
+        );
+
+        $this->assertCount(1, $data['powiadomienia']);
+    }
+
     public function test_powiadomienia_nie_przenosza_cudzych_identyfikatorow(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
