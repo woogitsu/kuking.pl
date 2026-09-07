@@ -918,6 +918,74 @@
       ]
     },
     {
+      "nazwa": "barszcz",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kotlety",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "kotlet"
+      ]
+    },
+    {
+      "nazwa": "krem",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "kremy"
+      ]
+    },
+    {
+      "nazwa": "kasza",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "kasze"
+      ]
+    },
+    {
+      "nazwa": "sok",
+      "kategoria": "przetwory",
+      "aliasy": [
+        "soki"
+      ]
+    },
+    {
+      "nazwa": "syrop",
+      "kategoria": "przetwory",
+      "aliasy": [
+        "syropy"
+      ]
+    },
+    {
+      "nazwa": "pasta",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "pasty"
+      ]
+    },
+    {
+      "nazwa": "placki",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "placek"
+      ]
+    },
+    {
+      "nazwa": "nalewka",
+      "kategoria": "przetwory",
+      "aliasy": [
+        "nalewki"
+      ]
+    },
+    {
+      "nazwa": "ser",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "sery"
+      ]
+    },
+    {
       "nazwa": "kuchnia bliskowschodnia",
       "kategoria": "kuchnie-swiata",
       "aliasy": []

@@ -1096,9 +1096,9 @@ umie ustawić). Informacja zostaje w pliku.
 **Dane w dwóch plikach JSON, czytanych przez `TagSeeder`:**
 `slownik-tagow.json` (dostarczony, nietknięty — razem z polem `uwagi`,
 44 rozstrzygnięciami autora, z odsyłaczami do WSJP PAN i Listy Produktów
-Tradycyjnych MRiRW) oraz `slownik-tagow-uzupelnienia.json` (159 pojęć
-z poprzedniej bazy, których słownik nie ma ani jako nazwy, ani jako aliasu).
-Razem **1409 tagów i 2439 aliasów**. Dwa pliki, a nie jeden, żeby kolejna
+Tradycyjnych MRiRW) oraz `slownik-tagow-uzupelnienia.json` (169 pojęć,
+których słownik nie ma ani jako nazwy, ani jako aliasu).
+Razem **1419 tagów i 2448 aliasów**. Dwa pliki, a nie jeden, żeby kolejna
 wersja słownika podmieniała JEDEN plik bez scalania cudzych zmian w środku
 listy.
 
@@ -1108,6 +1108,28 @@ w piętnaście minut"), nazwy marki („termomix" — słownik ma potoczne
 `w termomiksie` małą literą) oraz tagów **„fit", „dieta odchudzająca"
 i „dieta sportowca"**, które łamią tę samą regułę o języku dietetycznym,
 jaką postawiono słownikowi. Test tego pilnuje, więc nie wrócą.
+
+**Dziesięć pojęć ogólnych dołożonych po pomiarze podpowiedzi.** Wgranie
+słownika pozwoliło zmierzyć coś, czego na 651 tagach nie było widać: dla
+każdej złożonej nazwy sprawdzone, czy jej pierwsze słowo istnieje
+samodzielnie. Nie istniało dla `barszcz`, `kotlety`, `krem`, `kasza`, `sok`,
+`syrop`, `pasta`, `placki`, `nalewka`, `ser` — więc wpisanie samego słowa
+„barszcz" podpowiadało „barszcz biały", rozstrzygając za człowieka, którego
+barszczu mu trzeba. Nie jest to zarzut do słownika: jego uwaga 25 mówi, że
+nazwy ogólne i odmiany celowo współistnieją, po prostu tych dziesięciu
+zabrakło.
+
+**Ranking podpowiedzi doprecyzowany, bo przy 1419 tagach przestał
+wystarczać.** SPEC §1.5 mówił „dokładne dopasowanie początku nazwy →
+dokładny alias → trigram", a wszystkie trafienia z pierwszej gałęzi miały
+tę samą wagę — czyli ich kolejność brała się z fizycznej kolejności wierszy.
+Zmierzone: wpisane „chleb" dawało jako pierwszą podpowiedź „chlebek
+bananowy", a wpisane „marchewka" — „marchewkę z groszkiem", mimo że
+„marchewka" jest dokładnym aliasem „marchwi". Ten sam błąd w dwóch
+miejscach: dopasowanie DOKŁADNE przegrywało z częściowym. Nowa kolejność:
+dokładna nazwa → dokładny alias → początek nazwy od najkrótszej → trigram,
+a na końcu alfabet, żeby ta sama fraza dawała ZAWSZE tę samą listę
+(`docs/UX_50_PLUS.md`: przewidywalność przed bogactwem).
 
 **Kolizja aliasu z istniejącym tagiem: scalenie, nie odrzucenie** —
 `MergeTags` (SPEC §1.8), ale WYŁĄCZNIE gdy stary tag jest pusty
@@ -1139,7 +1161,8 @@ formularz wpisu — a „zupy" rozwiązuje się przy okazji do kanonicznego
 `database/seeders/dane/slownik-tagow-uzupelnienia.json` ·
 `database/seeders/dane/README.md` · `database/seeders/TagSeeder.php` ·
 `app/Domain/Tags/Actions/MergeTags.php` ·
-`tests/Feature/SlownikTagowTest.php` ·
+`app/Domain/Tags/TagSuggester.php` · `tests/Feature/SlownikTagowTest.php` ·
+`tests/Feature/PodpowiedziNaPelnymSlownikuTest.php` ·
 `tests/Feature/TagSeederZeSlownikaTest.php` ·
 `tests/Feature/ScalanieTagowTest.php`
 

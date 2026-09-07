@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
  * jedynym miejscem, w którym zapisano, dlaczego „żur" i „żurek" NIE są
  * aliasami, a „pyzy" nie są aliasem „klusek na parze".
  *
- * `dane/slownik-tagow-uzupelnienia.json` — 159 nazw z poprzedniej,
+ * `dane/slownik-tagow-uzupelnienia.json` — 169 nazw: 159 z poprzedniej,
  * wpisanej tutaj na sztywno bazy redakcyjnej (651 nazw), zawężonej do
  * pojęć, których duży słownik nie zawiera ANI jako nazwy kanonicznej, ANI
  * jako aliasu: podstawowe składniki („kapusta", „seler", „fasola", „olej"),

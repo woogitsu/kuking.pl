@@ -65,7 +65,7 @@ i wszystkie znalazł dopiero ten pomiar.
 
 # Uzupełnienia — `slownik-tagow-uzupelnienia.json`
 
-159 nazw z poprzedniej bazy redakcyjnej (651 nazw wpisanych na sztywno
+169 nazw: 159 z poprzedniej bazy redakcyjnej (651 nazw wpisanych na sztywno
 w `TagSeeder`), zawężonych do pojęć, których duży słownik nie ma ANI jako
 nazwy kanonicznej, ANI jako aliasu: podstawowe składniki („kapusta",
 „seler", „fasola", „olej", „orzechy"), części mięsa („polędwica",
@@ -87,6 +87,16 @@ niż to, co przeniesiono:
 - **tagów „fit", „dieta odchudzająca" i „dieta sportowca"** — łamią tę samą
   regułę o języku dietetycznym, jaką postawiono słownikowi. Poprzednia baza
   je miała; ta ich nie ma i test tego pilnuje.
+
+**Dziesięć pojęć OGÓLNYCH dołożonych po pomiarze podpowiedzi.** Dla każdej
+złożonej nazwy w słowniku sprawdziłem, czy jej pierwsze słowo istnieje
+samodzielnie. Nie istniało dla: `barszcz` (cztery odmiany, żadnego tagu
+ogólnego — wpisanie samego słowa „barszcz" podpowiadało „barszcz biały",
+czyli rozstrzygało za człowieka), `kotlety` (trzynaście odmian), `krem`,
+`kasza`, `sok` (po osiem), `syrop`, `pasta`, `placki`, `nalewka`, `ser`.
+Dołożenie ich jest zgodne z zasadą samego słownika — jego uwaga 25 mówi
+wprost, że „nazwy ogólne i ich wyraźne odmiany celowo współistnieją".
+Pilnuje tego `tests/Feature/PodpowiedziNaPelnymSlownikuTest.php`.
 
 Rozdzielenie na dwa pliki jest celowe: kolejna wersja słownika podmienia
 JEDEN plik, bez scalania cudzych zmian w środku listy.

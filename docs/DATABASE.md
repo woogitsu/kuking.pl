@@ -908,8 +908,8 @@ jako czysto addytywne, bez zmierzonej potrzeby przy 20–50 kontach
 **Skąd bierze się początkowa baza (D-026).** Nie z kodu: `TagSeeder` czyta
 `database/seeders/dane/slownik-tagow.json` (1250 nazw kanonicznych, 2366
 aliasów, 13 kategorii, pole `uwagi` z 44 rozstrzygnięciami autora — nie
-kasować) oraz `database/seeders/dane/slownik-tagow-uzupelnienia.json` (159
-pojęć, których duży słownik nie ma). Razem 1409 tagów i 2439 aliasów.
+kasować) oraz `database/seeders/dane/slownik-tagow-uzupelnienia.json` (169
+pojęć, których duży słownik nie ma). Razem 1419 tagów i 2448 aliasów.
 Zawartość plików jest sprawdzana maszynowo BEZ uruchamiania seedera
 (`tests/Feature/SlownikTagowTest.php`), bo kolizji aliasu z nazwą kanoniczną
 innego tagu nie widać okiem. Pole `sezonowy` z pliku (226 tagów) świadomie
