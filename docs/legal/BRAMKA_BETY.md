@@ -201,6 +201,17 @@ ten kod pęka:
   dzień w UTC, i porównywało go z dniem czytelnika. Wpis z 00:30 czasu
   polskiego miał rocznicę przesuniętą o dobę wstecz. Naprawione przez
   `at time zone`; test ma zamrożony zegar, bo to jest błąd o porze doby.
+- **`/health` pokazywał surowy komunikat wyjątku CAŁEMU INTERNETOWI.** To ten
+  sam błąd co W7-07 (`failure_reason` eksportu RODO), tylko na trasie bez
+  `auth` i bez limitu zapytań — bo mieć ich nie może: Railway odpytuje ją
+  z zewnątrz przy każdym wdrożeniu. Przy awarii bazy pole `error` niosło
+  komunikat PDO, czyli adres hosta, port, nazwę bazy i nazwę użytkownika;
+  przy awarii dysku — ścieżkę na serwerze. Naprawione tym samym wzorcem:
+  pole `error` to teraz kod z zamkniętego zbioru `HealthController::POWODY`,
+  a pełna treść wyjątku idzie wyłącznie do logu, pod tym samym kodem, żeby
+  dało się jedno połączyć z drugim. `HealthNieZdradzaSzczegolowTest` pilnuje
+  obu połów naraz: że w odpowiedzi nie ma szczegółu ORAZ że w logu jest —
+  „naprawa" polegająca na oślepieniu monitoringu oblałaby ten test.
 
 ## 7a. Zmierzone, NIE naprawione — do decyzji właściciela
 
