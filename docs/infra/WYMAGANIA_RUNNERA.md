@@ -11,6 +11,12 @@ przewracać się na pierwszym kroku. A CI jest bramką deployu (Railway ma
 Ten dokument opisuje **stan zastany w workflowach**, nie życzenia. Każda
 pozycja ma wskazany plik i job, z którego wynika.
 
+> **Jeśli czytasz to, żeby naprawić pulę — zacznij od sekcji 12.** Pierwszy
+> przebieg na tej puli już się odbył (7 września, 20:07 UTC) i brakuje
+> dokładnie dwóch rzeczy: Dockera widocznego z WSL-a i poprawnych ścieżek
+> w konfiguracji runnerów. Sekcja 12 ma to z logami. Reszta dokumentu jest
+> po to, żeby po naprawieniu tych dwóch nie wyszło trzecie.
+
 ---
 
 ## 1. Etykiety — dokładnie sześć, bez wyjątku
@@ -36,6 +42,15 @@ trafiałyby także na nią.
 > Etykieta `nvidia-gtx1070` **nie znaczy, że Kuking potrzebuje GPU.** Żaden
 > job go nie używa. Jest wyłącznie znacznikiem tożsamości nowej puli.
 
+> **ZMIERZONE 7 września (przebieg 34158198715): etykiety NIE rozdzielają
+> sprzętu.** Runnery `woogitsu-linux-01` i `woogitsu-linux-02` raportują
+> `Machine name: 'DOM'`, a wszystkie katalogi robocze leżą pod
+> `/home/matma/actions-runner/woogitsu-linux-NN/`. To są dystrybucje WSL 2 na
+> tej samej maszynie Windows, której nazwa siedzi też w nazwach starej puli
+> (`woogitsu-wsl-DOM-NEW-*`) — tylko bez etykiety `wsl2`. Rozdzielenie po
+> etykietach jest więc rozdzieleniem REJESTRACJI, nie maszyn, i wszystko
+> z sekcji 2 poniżej dotyczy ich realnie, a nie teoretycznie.
+
 ---
 
 ## 2. Jedna maszyna = JEDEN job naraz
@@ -60,9 +75,16 @@ runnera oba joby walczą o ten sam port hosta** i drugi przewraca się na
 failed: port is already allocated`. Oba joby tego samego przebiegu CI mogą
 wystartować równocześnie.
 
+**To NIE jest hipoteza.** Zmierzone 7 września: siedem jobów jednego
+przebiegu wylądowało na `woogitsu-linux-01`, `-02`, `-05`, `-06`, `-07`,
+`-08` i `-12`, a co najmniej dwa z tych runnerów raportują tę samą maszynę
+(`DOM`). Joby `test` i `dostepnosc` trafiły na `-02` i `-07` i wystartowały
+w tej samej sekundzie. Gdyby Docker działał, drugi z nich przewróciłby się na
+zajętym porcie.
+
 Dlatego: **na każdej maszynie dokładnie jeden zarejestrowany runner
-i jeden job jednocześnie.** Dziesięć maszyn = dziesięć jednoczesnych jobów,
-co przy siedmiu jobach w `ci.yml` wystarcza z zapasem.
+i jeden job jednocześnie.** Jeśli dziesięć rejestracji stoi na jednej
+maszynie, to jest dokładnie ten układ, którego być nie może.
 
 Jeśli z jakiegoś powodu na jednej maszynie ma stać więcej runnerów, trzeba
 najpierw zdjąć mapowanie portów z obu jobów i wpisać im `DB_HOST` kontenera
@@ -236,3 +258,92 @@ kto otworzy PR. Sprawa jest otwarta w `docs/decyzje/REPO_PUBLICZNE.md`.
 
 Objawy i przyczyny są w `docs/infra/SELF_HOSTED_RUNNER.md`, sekcja
 „Gdy coś nie działa".
+
+---
+
+## 12. PIERWSZY PRZEBIEG NA TEJ PULI — co konkretnie padło
+
+**Przebieg [34158198715](https://github.com/woogitsu/kuking.pl/actions/runs/34158198715),
+7 września 2026, 20:07 UTC, PR #125, commit `18499b8`.** To nie jest lista
+obaw — to odczyt z logów. Sześć z siedmiu jobów padło, **żaden na kodzie
+aplikacji**: wszystkie na kroku przygotowania środowiska, zanim wykonał się
+jakikolwiek test.
+
+| Job | Runner | Krok, na którym padł | Błąd |
+|---|---|---|---|
+| Build assetów (Vite) | `-08` | — | **PRZESZEDŁ** |
+| Pint (styl kodu) | `-06` | Konfiguracja PHP | `ENOENT … woogitsu-run-06/_work/_actions/shivammathur/setup-php/v2/src/scripts/linux.sh` |
+| Larastan | `-05` | Konfiguracja PHP | jak wyżej |
+| Audyt zależności | `-01` | Konfiguracja PHP | `ENOENT … woogitsu-run-01/_work/_actions/…` |
+| Testy (PostgreSQL 18) | `-02` | Initialize containers | `The command 'docker' could not be found in this WSL 2 distro` → `Value cannot be null. (Parameter 'network')` |
+| Dostępność (axe-core) | `-07` | Initialize containers | jak wyżej |
+| Build obrazu | `-12` | Konfiguracja Buildx | `The command 'docker' could not be found in this WSL 2 distro` |
+
+**Job, który przeszedł, jest tu najważniejszą informacją.** „Build assetów"
+to jedyny job, który nie potrzebuje ani PHP, ani Dockera — i przeszedł
+w całości (Node 22, `npm ci`, `vite build`, weryfikacja manifestu, artefakt).
+Czyli runnery, sieć, checkout, cache i artefakty **działają**. Brakuje
+dokładnie dwóch rzeczy.
+
+### 12.1 Docker nie jest widoczny z WSL-a
+
+```text
+[command]/mnt/c/Program Files/Docker/Docker/resources/bin/docker version
+The command 'docker' could not be found in this WSL 2 distro.
+We recommend to activate the WSL integration in Docker Desktop settings.
+```
+
+Jedyny `docker` w `PATH` to **windowsowy plik Docker Desktopa**, wywoływany
+z WSL-a przez `/mnt/c/…`, a integracja WSL dla tej dystrybucji jest
+wyłączona. Skutek: nie wstaje kontener usługi `postgres:18-alpine` (sekcja 3),
+więc **testy nie mają na czym się uruchomić**, i nie działa buildx.
+
+Do zrobienia, jedno z dwóch:
+
+- **Docker Desktop → Settings → Resources → WSL integration** → włączyć dla
+  dystrybucji, w której stoją runnery; albo
+- zainstalować w tej dystrybucji **native Docker Engine** (`docker.io` /
+  `docker-ce`) i dopisać użytkownika `matma` do grupy `docker`. Ta droga jest
+  pewniejsza: nie zależy od tego, czy Docker Desktop w Windowsie jest
+  uruchomiony.
+
+Sprawdzenie: `docker version` **w tej dystrybucji WSL** ma pokazać serwer,
+a `which docker` **nie** ma wskazywać na `/mnt/c/…`.
+
+### 12.2 W runnerach została stara ścieżka `woogitsu-run-NN`
+
+```text
+Working directory is '/home/matma/actions-runner/woogitsu-linux-01/_work/…'
+##[error]ENOENT: no such file or directory, open
+  '/home/matma/actions-runner/woogitsu-run-01/_work/_actions/shivammathur/setup-php/v2/src/scripts/linux.sh'
+```
+
+Runner pracuje w katalogu `woogitsu-linux-01`, a akcja szuka swoich plików
+w `woogitsu-run-01`. Ta sama rozbieżność jest na `-06`. `actions/checkout`
+przechodzi (używa poprawnej ścieżki), więc problem dotyczy tego, co runner
+eksportuje do akcji jako lokalizację `_work`/`_tool`/`_actions`.
+
+Wygląda to na **pozostałość po zmianie nazwy katalogów runnerów** z
+`woogitsu-run-NN` na `woogitsu-linux-NN` bez ponownej konfiguracji. Do
+sprawdzenia w katalogu każdego runnera:
+
+- plik **`.env`** — wpisy `RUNNER_TOOL_CACHE`, `AGENT_TOOLSDIRECTORY`
+  i podobne, wskazujące na starą nazwę;
+- plik **`.path`**;
+- **`.runner`** i **`.credentials`** (pole z katalogiem roboczym);
+- zmienne w definicji usługi systemd runnera
+  (`/etc/systemd/system/actions.runner.*.service` albo `svc.sh`).
+
+Najpewniejsza naprawa, jeśli grzebanie w plikach nie pomoże: **wyrejestrować
+i zarejestrować runnera od nowa** w katalogu o docelowej nazwie
+(`./config.sh remove`, potem `./config.sh` z sześcioma etykietami z sekcji 1).
+Zmiana nazwy katalogu po konfiguracji nie jest wspierana.
+
+### 12.3 Czego ten przebieg NIE sprawdził
+
+Ani jeden test aplikacji nie został wykonany, więc **przebieg nie mówi nic
+o kodzie z PR #125** — w szczególności PHPStan/Larastan nie zobaczył tej
+zmiany ani razu, bo padł przed uruchomieniem. Lokalnie w sesji, która ten PR
+przygotowała, zielone były: `pint`, `php artisan test` (1636 testów, 56064
+asercji, PostgreSQL) i `npm run build`; PHPStana nie dało się tam
+zainstalować z powodu opisanego w sekcji 7.
