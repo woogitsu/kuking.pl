@@ -78,6 +78,34 @@ class EdycjaWpisuTest extends TestCase
         $this->assertTrue($post->isPublished());
     }
 
+    /**
+     * Tagi (D-021) mają własny, obszerny plik testów
+     * (`tests/Feature/TagiWpisowTest.php`) — ten test pilnuje TYLKO tego,
+     * że edycja zapisuje tekst, widoczność I tagi RAZEM, w jednym żądaniu,
+     * dokładnie jak test wyżej robi to dla tematu.
+     */
+    public function test_autor_zapisuje_zmiane_tekstu_widocznosci_i_tagow(): void
+    {
+        $basia = $this->user('basia');
+        $post = Post::factory()->create([
+            'author_id' => $basia->getKey(),
+            'body' => 'Wersja pierwsza.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+
+        $response = $this->actingAs($basia)->put(route('posts.update', $post), [
+            'body' => 'Wersja poprawiona, po korekcie.',
+            'visibility' => 'private',
+            'tag_names' => ['sernik', 'zupy'],
+        ]);
+
+        $response->assertRedirect(route('posts.show', $post));
+
+        $post->refresh();
+        $this->assertSame('Wersja poprawiona, po korekcie.', $post->body);
+        $this->assertSame(['sernik', 'zupy'], $post->tags->pluck('name')->all());
+    }
+
     public function test_obcy_dostaje_odmowe_przy_otwieraniu_edycji(): void
     {
         $basia = $this->user('basia');

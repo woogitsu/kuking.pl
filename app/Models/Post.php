@@ -107,6 +107,18 @@ class Post extends Model
             ->orderBy('post_media.position');
     }
 
+    /**
+     * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
+     * dodał. Limit i tworzenie nowych tagów pilnuje
+     * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'post_tags')
+            ->withPivot('position')
+            ->orderBy('post_tags.position');
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)

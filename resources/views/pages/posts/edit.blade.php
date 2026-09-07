@@ -77,6 +77,8 @@
             @error('topic_id')<span class="field-error">{{ $message }}</span>@enderror
         </details>
 
+        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zapisz zmiany</button>
             <a class="btn btn-quiet" href="{{ route('posts.show', $post) }}">Nie teraz</a>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Posts\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
@@ -27,10 +28,14 @@ use Illuminate\Support\Facades\DB;
  */
 final class PublishPost
 {
-    public function __construct(private readonly NotifyUser $notify) {}
+    public function __construct(
+        private readonly NotifyUser $notify,
+        private readonly ResolveTagsForPost $resolveTags,
+    ) {}
 
     /**
      * @param  list<string>  $mediaIds  identyfikatory już wgranych zdjęć, w kolejności
+     * @param  list<string>  $tagNames  to, co ktoś WPISAŁ jako tagi (wolny tekst, nie id) — D-021
      */
     public function handle(
         User $author,
@@ -39,6 +44,7 @@ final class PublishPost
         string $visibility = Post::VISIBILITY_PUBLIC,
         ?string $recipeId = null,
         ?string $topicId = null,
+        array $tagNames = [],
         ?string $ip = null,
         string $displayMode = Post::DISPLAY_NORMAL,
     ): Post {
@@ -71,6 +77,12 @@ final class PublishPost
         // poprawny, więc lepiej opublikować bez niego niż odmówić publikacji.
         $topicId = $topicId === null ? null : Topic::doWyboru()->whereKey($topicId)->value('id');
 
+        // Tagi (D-021) — rozwiązywane PRZED transakcją tworzącą wpis, żeby
+        // `BladDlaCzlowieka` za zbyt wiele tagów przerwało publikację, zanim
+        // cokolwiek trafi do bazy (dokładnie tak samo jak sprawdzenie
+        // pustego wpisu wyżej).
+        $tags = $this->resolveTags->handle($tagNames);
+
         // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu wybór nie
         // znaczy nic — karuzela z jednym slajdem i kolaż z jednym polem to ten
         // sam widok co „zwykle" — więc zapisujemy `normal` zamiast trzymać
@@ -81,7 +93,7 @@ final class PublishPost
             ? Post::DISPLAY_NORMAL
             : $displayMode;
 
-        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $topicId, $orderedMedia, $displayMode): Post {
+        $post = DB::transaction(function () use ($author, $body, $visibility, $recipeId, $topicId, $orderedMedia, $displayMode, $tags): Post {
             $post = Post::create([
                 'author_id' => $author->getKey(),
                 'body' => $body,
@@ -97,6 +109,10 @@ final class PublishPost
                 $post->media()->attach($mediaId, ['position' => $position]);
             }
 
+            foreach ($tags as $position => $tag) {
+                $post->tags()->attach($tag->getKey(), ['position' => $position]);
+            }
+
             return $post;
         });
 
@@ -104,7 +120,7 @@ final class PublishPost
             action: 'post.published',
             actor: $author,
             subject: $post,
-            metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode],
+            metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode, 'tag_count' => count($tags)],
             ip: $ip,
         );
 

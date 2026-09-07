@@ -116,6 +116,8 @@
             @error('topic_id')<span class="field-error">{{ $message }}</span>@enderror
         </details>
 
+        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Opublikuj</button>
             <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
