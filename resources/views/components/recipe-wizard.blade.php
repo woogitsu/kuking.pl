@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\StepTimer;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use Illuminate\Support\Facades\Gate;
@@ -326,7 +327,7 @@ new class extends Component
 
         try {
             $this->persist(publish: false);
-        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
             $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — to, co wpisałeś, jest dalej w formularzu.';
 
@@ -388,7 +389,7 @@ new class extends Component
 
         try {
             $recipe = $this->persist(publish: true);
-        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
             $this->saveDraft();
 
@@ -484,7 +485,7 @@ new class extends Component
                 $this->steps[$index]['mediaId'] = app(StoreUploadedImage::class)
                     ->handle(auth()->user(), $photo)
                     ->getKey();
-            } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+            } catch (BladDlaCzlowieka $e) {
                 $this->addError("steps.{$index}.photo", $e->getMessage());
                 $ok = false;
             }
@@ -526,7 +527,7 @@ new class extends Component
             $this->heroMediaId = app(StoreUploadedImage::class)
                 ->handle(auth()->user(), $photo)
                 ->getKey();
-        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->addError('heroPhoto', $e->getMessage());
 
             return false;
@@ -636,7 +637,7 @@ new class extends Component
             // odrzuci — i odrzuci ją nad całym formularzem, a nie przy polu.
             try {
                 StepTimer::secondsFromMinutes($row['timer_minutes'] ?? null);
-            } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+            } catch (BladDlaCzlowieka $e) {
                 $this->addError("steps.{$index}.timer_minutes", $e->getMessage());
                 $badStep = true;
             }
@@ -760,7 +761,7 @@ new class extends Component
     {
         try {
             $seconds = StepTimer::secondsFromMinutes($minutes);
-        } catch (\App\Exceptions\BladDlaCzlowieka) {
+        } catch (BladDlaCzlowieka) {
             return null;
         }
 
@@ -943,16 +944,23 @@ new class extends Component
             <x-field name="title" label="Nazwa przepisu" required wire="title"
                      :value="$title" placeholder="Rosół babci Zofii" />
 
-            <div class="field">
+            <div class="field @error('heroPhoto') has-error @enderror">
                 <label for="f-heroPhoto">Zdjęcie gotowego dania <span class="meta">(nieobowiązkowe)</span></label>
-                <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
-                {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
-                     megabajtów miała jedno źródło (`LimityZdjec`) i nie
-                     rozjechała się z `config/kuking.php` — issue #111. --}}
-                <input class="field-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
-                       aria-describedby="f-heroPhoto-help">
+                {{-- Duży obszar wyboru zdjęcia (UI kit v2, `PhotoPicker` —
+                     patrz komentarz w resources/css/ekran-dodawania.css).
+                     `wire:model` i pozostałe atrybuty pola są niezmienione. --}}
+                <div class="pole-zdjecia">
+                    <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                    <p class="pole-zdjecia-tytul">{{ $heroMediaId !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                    <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+                    {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
+                         megabajtów miała jedno źródło (`LimityZdjec`) i nie
+                         rozjechała się z `config/kuking.php` — issue #111. --}}
+                    <input class="field-input pole-zdjecia-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
+                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                           data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
+                           aria-describedby="f-heroPhoto-help">
+                </div>
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
                     <p class="meta mt-2">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
@@ -1149,19 +1157,25 @@ new class extends Component
                              :min="0" :max="\App\Domain\Recipes\StepTimer::MAX_MINUTES"
                              help="Wpisz liczbę minut — na przykład 45. Przy gotowaniu pokażemy wtedy: „Ustaw sobie kuchenny minutnik na 45 minut”. Zostaw puste, jeśli ten krok nie potrzebuje odliczania." />
 
-                    <div class="field">
+                    <div class="field @error("steps.{$index}.photo") has-error @enderror">
                         <label for="f-steps-{{ $index }}-photo">
                             Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span>
                         </label>
-                        <span class="field-help" id="f-steps-{{ $index }}-photo-help">
-                            Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
-                            jak gęsty ma być sos.
-                        </span>
-                        <input class="field-input" id="f-steps-{{ $index }}-photo" type="file"
-                               wire:model="steps.{{ $index }}.photo"
-                               accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                               data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
-                               aria-describedby="f-steps-{{ $index }}-photo-help">
+                        {{-- Duży obszar wyboru zdjęcia — ten sam wzorzec co
+                             przy „Zdjęcie gotowego dania" wyżej w tym pliku. --}}
+                        <div class="pole-zdjecia">
+                            <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                            <p class="pole-zdjecia-tytul">{{ ($row['mediaId'] ?? null) !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                            <span class="field-help" id="f-steps-{{ $index }}-photo-help">
+                                Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
+                                jak gęsty ma być sos.
+                            </span>
+                            <input class="field-input pole-zdjecia-input" id="f-steps-{{ $index }}-photo" type="file"
+                                   wire:model="steps.{{ $index }}.photo"
+                                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                                   data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
+                                   aria-describedby="f-steps-{{ $index }}-photo-help">
+                        </div>
                         @error("steps.{$index}.photo")<span class="field-error">{{ $message }}</span>@enderror
 
                         @if(($row['mediaId'] ?? null) !== null)
