@@ -290,7 +290,12 @@ async function stanZalogowanego(przegladarka, adres) {
   const kontekst = await przegladarka.newContext();
   const strona = await kontekst.newPage();
   await strona.goto(`${adres}/login`);
-  await strona.fill('input[name="login"]', 'basia');
+  // `ania`, nie `basia`: „basia" jest jednocześnie personą treści
+  // zalążkowej, a persony mają hasło LOSOWE i nie są logowalne (D-025).
+  // `DemoSeeder` znajdował wtedy personę i nie ustawiał jej hasła demo, więc
+  // logowanie tutaj cicho padało — automat mierzył ekrany GOŚCIA, będąc
+  // pewnym, że mierzy ekrany zalogowanej osoby.
+  await strona.fill('input[name="login"]', 'ania');
   await strona.fill('input[name="password"]', 'haslo-testowe-123');
   await Promise.all([
     strona.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),

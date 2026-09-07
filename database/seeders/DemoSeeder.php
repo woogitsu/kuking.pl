@@ -243,9 +243,7 @@ class DemoSeeder extends Seeder
             'status' => Comment::STATUS_PUBLISHED,
         ]);
 
-        $this->command?->info('Dane demo gotowe. Zaloguj się jako basia@example.test / haslo-testowe-123');
-        $this->command?->info('Konto moderatora: moderacja@example.test / haslo-testowe-123');
-        $this->command?->line('Moderator: '.$moderator->email);
+        $this->komunikatKoncowy($moderator->email);
     }
 
     /** @param  array<string, mixed>  $profile */
@@ -317,6 +315,15 @@ class DemoSeeder extends Seeder
         ]);
     }
 
+    /**
+     * @var list<string> adresy, pod którymi DA SIĘ zalogować hasłem demo —
+     *                   sprawdzone, nie założone (patrz `komunikatKoncowy()`)
+     */
+    private array $logowalne = [];
+
+    /** @var list<string> wszystkie adresy, o które ten seeder prosił */
+    private array $probowane = [];
+
     private function createUser(string $email, string $username, string $displayName, array $profile = [], string $role = User::ROLE_USER): User
     {
         $user = User::firstOrCreate(
@@ -336,6 +343,33 @@ class DemoSeeder extends Seeder
             ['user_id' => $user->getKey()],
             array_merge(['username' => $username, 'display_name' => $displayName], $profile),
         );
+
+        /*
+         * KOLIZJA Z PERSONAMI TREŚCI ZALĄŻKOWEJ — sprawdzana, nie zakładana.
+         *
+         * `TrescZalazkowaSeeder` tworzy dwanaście person pod adresami
+         * `{nazwa}@example.test` i nadaje im hasło LOSOWE, bo D-025 mówi
+         * wprost, że te konta nie mają być logowalne przez nikogo — to
+         * persony, nie ludzie. Jedno imię, `basia`, jest jednocześnie na
+         * liście person i na liście kont demonstracyjnych.
+         *
+         * `firstOrCreate()` znajduje wtedy personę i NIE ustawia jej hasła
+         * demo (bo nie tworzy wiersza) — a poprzednia wersja tej klasy i tak
+         * wypisywała „Zaloguj się jako basia@example.test". To zdanie było
+         * nieprawdą przy każdym uruchomieniu `db:seed`, w którym oba seedery
+         * szły po kolei, i przez to `scripts/dostepnosc.mjs` nie logował się
+         * wcale: automat dostępności mierzył ekrany gościa, będąc pewnym, że
+         * mierzy ekrany zalogowanej osoby.
+         *
+         * Nie „naprawiamy" tego, nadpisując hasło persony — to złamałoby
+         * D-025 w drugą stronę. Zapamiętujemy, komu hasło demo NAPRAWDĘ
+         * działa, i tylko o takich kontach mówimy człowiekowi.
+         */
+        $this->probowane[] = $email;
+
+        if (Hash::check('haslo-testowe-123', (string) $user->password)) {
+            $this->logowalne[] = $email;
+        }
 
         return $user->refresh();
     }
@@ -407,6 +441,48 @@ class DemoSeeder extends Seeder
                 'position' => $position,
                 'instruction' => $instruction,
             ]);
+        }
+    }
+
+    /**
+     * Komunikat końcowy wypisuje TYLKO konta, pod którymi hasło demo
+     * naprawdę działa — sprawdzone `Hash::check()` w `createUser()`.
+     *
+     * Wcześniej ta metoda podawała dwa adresy na sztywno i jeden z nich
+     * (`basia@example.test`) nie działał, gdy `TrescZalazkowaSeeder` zdążył
+     * utworzyć personę o tym imieniu. Człowiek dostawał gotowe dane do
+     * logowania, wpisywał je i widział „nieprawidłowe hasło" — i nie miał
+     * skąd wiedzieć, że wina nie jest jego.
+     */
+    private function komunikatKoncowy(string $emailModeratora): void
+    {
+        $logowalne = array_values(array_unique($this->logowalne));
+
+        if ($logowalne === []) {
+            // Seeder, który nie zostawia ŻADNEGO konta do zalogowania, jest
+            // bezużyteczny do pracy nad wyglądem i do automatu dostępności.
+            // Cisza w tym miejscu byłaby gorsza niż ostrzeżenie.
+            $this->command?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła „haslo-testowe-123”. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
+
+            return;
+        }
+
+        $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: haslo-testowe-123');
+
+        foreach ($logowalne as $email) {
+            $rola = $email === $emailModeratora ? ' (moderator)' : '';
+            $this->command?->line('  '.$email.$rola);
+        }
+
+        $zajete = array_values(array_diff($this->probowane, $logowalne));
+
+        if ($zajete !== []) {
+            $this->command?->line('');
+            $this->command?->warn('Te adresy demo należą do person treści zalążkowej i NIE przyjmują hasła demo (D-025 — persony nie są logowalne):');
+
+            foreach ($zajete as $email) {
+                $this->command?->line('  '.$email);
+            }
         }
     }
 }
