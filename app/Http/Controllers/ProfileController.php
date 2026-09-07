@@ -91,8 +91,8 @@ class ProfileController extends Controller
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
                 'cooked' => $owner->cookedEvents()
                     ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))->count(),
-                'followers' => $owner->followers()->count(),
-                'following' => $owner->following()->count(),
+                'followers' => $this->liczbaPolaczen($owner, 'followers', $viewer),
+                'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
             ],
         ]);
     }
@@ -194,5 +194,48 @@ class ProfileController extends Controller
         $query->whereHas('recipe', function ($sub) use ($owner, $viewer): void {
             $this->tylkoWidoczne($sub, $owner, $viewer, false);
         });
+    }
+
+    /**
+     * Licznik obserwujących/obserwowanych — POLICZONY DOKŁADNIE TAK, JAK
+     * WYGLĄDA LISTA POD TYM LICZNIKIEM (`SocialController::connections()`).
+     *
+     * Licznik na profilu jest oracle'em istnienia (ta sama klasa co zamknięte
+     * W7-05): jeśli mówi „12", a lista pod spodem pokazuje 10, to te dwa
+     * brakujące wiersze zdradzają widzowi, że coś tam jednak jest, mimo że
+     * nie wolno mu tego zobaczyć. Dwa warunki muszą się więc zgadzać z listą:
+     *
+     *  - `dostepnyJakoAutor()` — konto zbanowane albo kasujące się nie ma
+     *    prawa stać ani na liście, ani w liczniku nad nią (ten sam błąd,
+     *    zmierzony `ProfilListyRelacjiUkrywajaZbanowaneKontaTest`);
+     *  - blokada MIĘDZY WIDZEM A OSOBĄ NA LIŚCIE (nie: między widzem
+     *    a właścicielem profilu — to osobna reguła, `UserPolicy::viewProfile`).
+     *    `SocialController::connections()` filtruje to samo w zapytaniu
+     *    budującym listę; bez tego samego warunku tutaj widz zablokowałby
+     *    kogoś i zobaczyłby licznik, który się nie zgadza z tym, co klika.
+     *
+     * @param  'followers'|'following'  $relation
+     */
+    private function liczbaPolaczen($owner, string $relation, $viewer): int
+    {
+        return $owner->{$relation}()
+            ->dostepnyJakoAutor()
+            ->when($viewer !== null, function ($query) use ($viewer): void {
+                $widzId = $viewer->getKey();
+
+                $query->whereNotExists(function ($sub) use ($widzId): void {
+                    $sub->selectRaw('1')
+                        ->from('blocks')
+                        ->where(function ($w) use ($widzId): void {
+                            $w->where('blocks.blocker_id', $widzId)
+                                ->whereColumn('blocks.blocked_id', 'users.id');
+                        })
+                        ->orWhere(function ($w) use ($widzId): void {
+                            $w->whereColumn('blocks.blocker_id', 'users.id')
+                                ->where('blocks.blocked_id', $widzId);
+                        });
+                });
+            })
+            ->count();
     }
 }

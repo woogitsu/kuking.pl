@@ -16,6 +16,26 @@ class CollectionPolicy
             return true;
         }
 
+        // Konto bez właściciela nie powinno istnieć (klucz obcy z `cascade`),
+        // ale odczyt w połowie kasowania konta może zwrócić `null` — tak samo
+        // jak w `ProfilePolicy::view()`. Odmowa jest jedyną bezpieczną
+        // odpowiedzią.
+        if ($collection->owner === null) {
+            return false;
+        }
+
+        // TA SAMA REGUŁA CO `UserPolicy::viewProfile()` — i z tego samego
+        // powodu: `/@konto-zbanowane` daje 403 (chyba że patrzy moderator),
+        // ale bez tego warunku publiczny zeszyt tej samej osoby zostawał pod
+        // swoim adresem dalej widoczny dla każdego, kto ten adres miał —
+        // konto zbanowane albo kasujące się mniej dostępne przez profil niż
+        // przez bezpośredni link do zeszytu. Ten sam rozjazd co wpis
+        // zbanowanego autora w feedzie obserwowanych (commit 964b99c), tylko
+        // na poziomie POJEMNIKA, nie pojedynczej treści w środku.
+        if (! $collection->owner->jestDostepnyJakoAutor()) {
+            return $user !== null && $user->isModerator();
+        }
+
         // Blokada ma pierwszeństwo przed „publiczny" (issue #41).
         //
         // Bez tego warunku zeszyt był jedynym typem treści, który blokady nie
