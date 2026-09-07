@@ -171,6 +171,29 @@ return [
         'page_size' => (int) env('KUKING_FEED_PAGE_SIZE', 15),
     ],
 
+    'tags' => [
+        // Otwarte tagi użytkowników, zastępują Tematy (D-021,
+        // docs/DECISIONS.md). Liczby stąd czyta WYŁĄCZNIE App\Support\LimityTagow
+        // — patrz komentarz w tamtym pliku, dlaczego żadna z nich nie ma
+        // prawa być wpisana wprost w kontrolerze, widoku ani akcji domenowej.
+
+        // Minimum — TEN SAM próg, którego używa wyszukiwarka
+        // (App\Domain\Search\SearchQuery::recipes()/people()).
+        'min_length' => (int) env('KUKING_TAG_MIN_LENGTH', 2),
+
+        'max_length' => (int) env('KUKING_TAG_MAX_LENGTH', 30),
+
+        // Ile RÓŻNYCH tagów (po unikalnych tag_id, patrz LimityTagow) wolno
+        // przypiąć do jednego wpisu. Dość, żeby oznaczyć danie, okazję
+        // i dietę naraz; za mało, żeby stać się polem na słowa kluczowe SEO
+        // wklejone hurtem.
+        'max_per_post' => (int) env('KUKING_TAG_MAX_PER_POST', 5),
+
+        // Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5) — zarówno
+        // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
+        'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
+    ],
+
     'text' => [
         // Skala tekstu ustawiana przez użytkownika w /settings/accessibility.
         // Wartości w procentach; muszą mieścić się w CHECK z migracji (90–140).
@@ -333,6 +356,12 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
+        // wielkości co 'search' — to jest ten sam rodzaj zapytania
+        // (trigramowe podobieństwo po kuking_normalize()), tylko na innej
+        // tabeli, i ta sama osoba już i tak korzysta z jednego budżetu
+        // zapytań na konto.
+        'tag_suggest' => '60,1',
 
         /*
          * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
