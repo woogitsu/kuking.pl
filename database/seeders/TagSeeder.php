@@ -4,545 +4,534 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\FiltrWulgaryzmow;
 use App\Models\Tag;
 use App\Models\TagAlias;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Początkowa baza tagów (SPEC §1.4, D-021).
+ * Początkowa baza tagów (SPEC §1.4, D-021, D-026).
  *
- * PO CO TAKA DUŻA BAZA NA START
- * `TopicSeeder` (którego ta klasa zastępuje razem z całym mechanizmem
- * Tematu) miał w komentarzu ostrzeżenie: „wolne tagi rozsypują się
- * natychmiast: zakwas / na zakwasie / chleb zakwas / ZAKWAS — po miesiącu
- * nie ma czego obserwować, bo każdy wpis ma własny tag". Duża, gotowa baza
- * kanonicznych nazw + aliasów jest jedyną obroną przed tym scenariuszem BEZ
- * przywracania zamkniętej listy: gdy ktoś zacznie pisać „sernik", podpowiedź
- * (`App\Domain\Tags\TagSuggester`) ma szansę zaproponować już istniejący tag,
- * zanim powstanie jego trzecia, czwarta i piąta wersja.
+ * DANE SĄ W PLIKACH JSON, NIE W TEJ KLASIE
+ * `dane/slownik-tagow.json` — 1250 nazw kanonicznych i 2366 aliasów,
+ * ułożonych pod polską kuchnię domową i pod grupę 50+ (kategorie `pamiec`:
+ * „przepis po babci", „z rodzinnego zeszytu", i `okolicznosci`: „dla wnuków",
+ * „z czerstwego chleba"). Plik ma pole `uwagi` — 44 świadome rozstrzygnięcia
+ * autora słownika, w tym te z odsyłaczami do WSJP PAN i Listy Produktów
+ * Tradycyjnych MRiRW. NIE KASOWAĆ tego pola przy aktualizacji: ono jest
+ * jedynym miejscem, w którym zapisano, dlaczego „żur" i „żurek" NIE są
+ * aliasami, a „pyzy" nie są aliasem „klusek na parze".
  *
- * DLACZEGO `updateOrCreate` PO `normalized_name`, A NIE `insert`
- * Seeder chodzi też na istniejącej bazie (`db:seed` bez `migrate:fresh`),
- * dokładnie jak `TopicSeeder`. Aktualizacja po znormalizowanej nazwie
- * pozwala poprawić `internal_category` przy kolejnym uruchomieniu bez
- * dublowania wiersza — ale ŚWIADOMIE NIE nadpisuje `slug` (redakcyjnie
- * ustalony raz, bo adres strony tagu mógł już zostać komuś wysłany) ani
- * `status`/`merged_into_tag_id` (poza `$fillable` na modelu — patrz `Tag`).
+ * `dane/slownik-tagow-uzupelnienia.json` — 159 nazw z poprzedniej,
+ * wpisanej tutaj na sztywno bazy redakcyjnej (651 nazw), zawężonej do
+ * pojęć, których duży słownik nie zawiera ANI jako nazwy kanonicznej, ANI
+ * jako aliasu: podstawowe składniki („kapusta", „seler", „fasola", „olej"),
+ * części mięsa, klasyki bez odpowiednika („zrazy", „tatar", „sękacz").
+ * Z tamtej listy świadomie NIE przeniesiono: nazw angielskich i modnych
+ * („cookies", „smoothie bowl", „chia pudding"), fraz zamiast pojęć („obiad
+ * w piętnaście minut", „deser dla dzieci"), nazw urządzeń w formie
+ * rzeczownika, gdy słownik ma tę samą rzecz w swojej formie („piekarnik" →
+ * „z piekarnika", „blender" → „miksowane"), NAZWY MARKI („termomix" —
+ * słownik ma potoczne „w termomiksie" małą literą i to jest cała różnica)
+ * oraz — najważniejsze — tagów „fit", „dieta odchudzająca" i „dieta
+ * sportowca", które łamią tę samą regułę o języku dietetycznym, jaką
+ * postawiono słownikowi.
+ *
+ * DWA POWODY, DLA KTÓRYCH TO SĄ PLIKI, A NIE TABLICE W PHP
+ *   1. Kolejna wersja słownika podmienia jeden plik, bez ruszania kodu
+ *      i bez scalania cudzych zmian w środku tablicy.
+ *   2. Zawartość da się sprawdzić maszynowo BEZ uruchamiania seedera —
+ *      `tests/Feature/SlownikTagowTest.php` czyta te same pliki i pilnuje
+ *      kolizji, których nie widać okiem (alias równy nazwie kanonicznej
+ *      innego tagu to najczęstszy błąd w takich listach; przy pierwszej
+ *      wersji uzupełnień było ich pięć).
  *
  * PIĘĆ KROKÓW WALIDACJI Z SPEC §1.4, W TEJ KOLEJNOŚCI
  *   1. normalizacja (`Tag::znormalizujNazwe` — BEZ unaccent, patrz D-021),
  *   2. wykrycie duplikatu (ta sama znormalizowana nazwa dwa razy na liście),
  *   3. lokalna baza wulgaryzmów (`FiltrWulgaryzmow`) — tag odrzucony tu
- *      nigdy nie trafia do bazy, niezależnie od tego, skąd przyszedł;
+ *      nigdy nie trafia do bazy, niezależnie od tego, skąd przyszedł,
  *   4. kolizja slugu (rozwiązywana numerycznym sufiksem, jak
- *      `GenerateRecipeSlug` dla przepisów);
- *   5. raport na końcu (`$this->command?->info(...)`) — liczba tagów,
- *      aliasów i odrzuconych rekordów, z powodem odrzucenia każdego.
+ *      `GenerateRecipeSlug` dla przepisów),
+ *   5. raport na końcu — liczba tagów, aliasów, scaleń i odrzuceń,
+ *      z powodem każdego odrzucenia.
+ *
+ * IDEMPOTENCJA. Seeder chodzi też na istniejącej bazie (`db:seed` bez
+ * `migrate:fresh`). Tag rozpoznajemy po `normalized_name` i ŚWIADOMIE NIE
+ * nadpisujemy `slug` (redakcyjnie ustalony raz, bo adres strony tagu mógł
+ * już zostać komuś wysłany) ani `status`/`merged_into_tag_id` (poza
+ * `$fillable` — patrz `Tag`). Aktualizujemy wyłącznie `internal_category`.
  *
  * ALIASY: DWA ŹRÓDŁA
+ *   - Z PLIKU — liczba mnoga, potoczna nazwa, częsty synonim.
  *   - AUTOMATYCZNE, transliterowane (`Str::ascii`) — dla „żurek" powstaje
- *     alias „zurek". To jest dokładnie przypadek dozwolony przez SPEC §1.2:
- *     „wariant bez znaków może być aliasem przypiętym do kanonicznego
- *     „żurek", ale ta relacja musi pochodzić z seedów" — pochodzi stąd.
- *     NIGDY automatycznie, jeśli transliteracja pokrywa się z normalized_name
- *     innego kanonicznego tagu (wtedy to nie jest alias, tylko kolizja —
- *     odrzucone i zaraportowane).
- *   - RĘCZNE, z `ALIASY` niżej — liczba mnoga, częsty synonim, potoczna
- *     nazwa („kotlet schabowy" / „schabowy"). Te nie dają się wyprowadzić
- *     żadną regułą, więc są wypisane wprost — dokładnie tak, jak
- *     `TopicSeeder::TEMATY` był ręcznie ułożoną listą, a nie zrzutem.
+ *     „zurek". SPEC §1.2 dozwala to wprost: „wariant bez znaków może być
+ *     aliasem przypiętym do kanonicznego »żurek«, ale ta relacja musi
+ *     pochodzić z seedów" — pochodzi stąd. Nigdy, jeśli transliteracja
+ *     pokrywa się z nazwą kanoniczną innego tagu (wtedy to nie alias,
+ *     tylko kolizja — odrzucona i zaraportowana).
  *
- * CZEGO ŚWIADOMIE NIE MA: pełnej fleksji polskiej (przypadki, zdrobnienia)
- * ani reguł ortograficznych do generowania wariantów. R1 §8 nazywa to wprost
- * jako przerost inżynierski przy tej skali — dokładnie ten sam powód, dla
- * którego lista wulgaryzmów niżej jest krótka i ręczna, a nie „odporna na
- * obejścia".
+ * KOLIZJA ALIASU Z ISTNIEJĄCYM TAGIEM: SCALAMY, ZAMIAST ODRZUCAĆ (D-026)
+ * Poprzednia baza redakcyjna miała 43 nazwy, które nowy słownik traktuje
+ * jako alias czegoś innego („marchewka" → „marchew", „schabowy" → „kotlet
+ * schabowy", „pieczenie" → „pieczone"). Samo odrzucenie takiego aliasu nie
+ * jest neutralne: w bazie, na której stary seeder już chodził, zostawałyby
+ * DWA żywe tagi na jedno pojęcie — czyli dokładnie to rozsypanie, przed
+ * którym cała ta baza ma chronić. Dlatego seeder scala stary tag w nowy
+ * kanoniczny (`MergeTags`, SPEC §1.8) — ale TYLKO gdy stary tag jest
+ * pusty i redakcyjny: `is_seeded`, `active`, bez wpisów, bez obserwujących,
+ * bez promocji i sam nieobecny w słowniku. Tag, który ktoś już użył albo
+ * utworzył ręcznie, NIE JEST RUSZANY — wtedy alias jest odrzucany
+ * i zgłaszany, a decyzja zostaje przy człowieku.
  */
 class TagSeeder extends Seeder
 {
-    /**
-     * Kanoniczne nazwy pogrupowane kategorią TECHNICZNĄ (SPEC §1.3:
-     * `internal_category`, niewidoczną dla użytkownika — służy wyłącznie
-     * do raportu z importu i do przyszłego sortowania panelu administratora).
-     *
-     * @var array<string, list<string>>
-     */
-    private const KATEGORIE = [
-        // --- Dania obiadowe i główne ---
-        'danie' => [
-            'obiad', 'kotlet schabowy', 'kotlet mielony', 'kotlet de volaille',
-            'schabowy', 'gulasz', 'bigos', 'pierogi', 'pierogi ruskie',
-            'pierogi z mięsem', 'pierogi z kapustą i grzybami', 'pierogi z jagodami',
-            'naleśniki', 'placki ziemniaczane', 'kopytka', 'kluski śląskie',
-            'kluski leniwe', 'knedle', 'gołąbki', 'zrazy', 'roladki wołowe',
-            'żeberka', 'karkówka', 'pieczeń', 'schab pieczony', 'udka z kurczaka',
-            'kurczak pieczony', 'kurczak w sosie', 'kaczka pieczona', 'gęś pieczona',
-            'indyk pieczony', 'stek', 'befsztyk', 'flaki', 'zapiekanka ziemniaczana',
-            'zapiekanka makaronowa', 'lasagne', 'spaghetti', 'spaghetti bolognese',
-            'makaron z sosem', 'makaron carbonara', 'risotto', 'pizza domowa',
-            'kasza gryczana z mięsem', 'ryż z warzywami', 'kurczak curry',
-            'chili con carne', 'burger domowy', 'hot dog domowy', 'tortilla',
-            'burrito', 'kebab domowy', 'kotlet z kurczaka', 'kotlet sojowy',
-            'kotlet z ciecierzycy', 'pyzy', 'kluski z serem', 'racuchy',
-            'placki z cukinii', 'placki drożdżowe', 'jajecznica', 'omlet',
-            'frytki domowe', 'purée ziemniaczane', 'ziemniaki pieczone',
-            'zapiekanka warzywna', 'gulasz wegetariański', 'curry warzywne',
-            'kluski francuskie', 'dania jednogarnkowe', 'obiad w piętnaście minut',
-        ],
-
-        // --- Zupy ---
-        'danie_zupa' => [
-            'rosół', 'żurek', 'barszcz czerwony', 'zupa pomidorowa', 'zupa ogórkowa',
-            'zupa grzybowa', 'zupa jarzynowa', 'zupa krem z dyni', 'zupa krem z brokuła',
-            'zupa krem z pomidorów', 'zupa cebulowa', 'zupa czosnkowa', 'zupa fasolowa',
-            'zupa grochowa', 'kapuśniak', 'zupa szczawiowa', 'zupa koperkowa',
-            'zupa mleczna', 'zupa rybna', 'zupa krupnik', 'chłodnik', 'zupa gulaszowa',
-            'zupa z soczewicy', 'zupa minestrone', 'zupa tajska', 'zupa miso',
-            'zupa cebulowa francuska', 'zupa z zielonego groszku', 'zupa z pieczarek',
-            'zupa neapolitanka', 'zupa krem z kalafiora', 'żur', 'flaczki',
-            'zupa na wywarze warzywnym', 'zupa na maślance', 'zupa ziemniaczana',
-            'zupa buraczkowa', 'zupa z kurczaka', 'zupa z indyka',
-        ],
-
-        // --- Wypieki i ciasta ---
-        'danie_wypiek' => [
-            'chleb', 'chleb na zakwasie', 'zakwas', 'bułki drożdżowe', 'bagietka',
-            'focaccia', 'chałka', 'bułka maślana', 'ciasto drożdżowe', 'drożdżówki',
-            'sernik', 'sernik na zimno', 'sernik wiedeński', 'szarlotka', 'jabłecznik',
-            'makowiec', 'piernik', 'placek ucierany', 'ciasto marchewkowe',
-            'ciasto czekoladowe', 'brownie', 'murzynek', 'ciasto cytrynowe',
-            'ciasto orzechowe', 'ciasto biszkoptowe', 'biszkopt', 'rolada biszkoptowa',
-            'kruche ciasteczka', 'pierniczki', 'rogaliki', 'croissanty', 'eklerki',
-            'pączki', 'faworki', 'chrust', 'tarta', 'tarta z owocami', 'tarta cytrynowa',
-            'ciasto bez pieczenia', 'ciasto na zimno', 'kremówka', 'napoleonka',
-            'mazurek', 'keks', 'babka wielkanocna', 'babka piaskowa', 'muffinki',
-            'babeczki', 'cupcakes', 'ciasto marmurkowe', 'ciasto orzechowo-czekoladowe',
-            'strudel', 'ciasto bezowe', 'beza', 'pavlova', 'tort urodzinowy',
-            'tort weselny', 'tort czekoladowy', 'tort owocowy', 'wafle domowe',
-            'gofry', 'ciasteczka owsiane', 'ciasteczka czekoladowe', 'cookies',
-            'ciasto jogurtowe', 'ciasto z rabarbarem', 'ciasto ze śliwkami',
-            'ciasto z owocami sezonowymi', 'sękacz', 'keks świąteczny', 'pierniki lukrowane',
-        ],
-
-        // --- Desery i słodkości (poza pieczeniem) ---
-        'danie_deser' => [
-            'lody domowe', 'sorbet', 'mus czekoladowy', 'panna cotta', 'tiramisu',
-            'budyń', 'kisiel', 'kompot', 'galaretka', 'krem waniliowy', 'krem czekoladowy',
-            'deser bez pieczenia', 'deser z owocami', 'sałatka owocowa', 'owoce w czekoladzie',
-            'trufle czekoladowe', 'domowe cukierki', 'chałwa', 'krówki', 'ptasie mleczko',
-            'deser jogurtowy', 'smoothie bowl', 'granola domowa', 'deser z granolą',
-            'lody na patyku', 'sernik w słoiku', 'deser w słoiku', 'creme brulee',
-            'deser czekoladowy', 'deser dla dzieci', 'wafle ryżowe z czekoladą',
-        ],
-
-        // --- Śniadania ---
-        'danie_sniadanie' => [
-            'śniadanie', 'kanapki', 'kanapki na słodko', 'jajka w koszulkach',
-            'jajka sadzone', 'jajka po wiedeńsku', 'owsianka', 'płatki owsiane',
-            'jogurt z owocami', 'smoothie', 'koktajl owocowy', 'kasza jaglana na śniadanie',
-            'tosty', 'tosty francuskie', 'pankejki', 'placuszki na słodko',
-            'chia pudding', 'awokado na kanapce', 'szakszuka', 'śniadanie do pracy',
-            'śniadanie na słodko', 'śniadanie na słono', 'jajecznica na maśle',
-            'twarożek na śniadanie', 'musli domowe',
-        ],
-
-        // --- Kolacje i przekąski ---
-        'danie_kolacja' => [
-            'kolacja', 'kanapki na kolację', 'sałatka na kolację', 'lekka kolacja',
-            'przekąski na imprezę', 'paluszki serowe', 'nachos', 'domowe chipsy',
-            'pasta jajeczna', 'pasta z tuńczyka', 'pasta z awokado', 'hummus',
-            'tzatziki', 'guacamole', 'dip czosnkowy', 'krakersy domowe', 'sałatka jarzynowa',
-            'tatar', 'carpaccio', 'przystawki', 'deska serów', 'deska wędlin',
-            'koreczki', 'tapas', 'quiche', 'placek z serem na słono',
-        ],
-
-        // --- Sałatki i surówki ---
-        'danie_salatka' => [
-            'sałatka', 'surówka z kapusty', 'surówka z marchewki', 'coleslaw',
-            'sałatka grecka', 'sałatka cezar', 'sałatka z tuńczykiem', 'sałatka z kurczakiem',
-            'sałatka ziemniaczana', 'sałatka jarzynowa świąteczna', 'sałatka z buraczków',
-            'sałatka z rukolą', 'sałatka caprese', 'sałatka z quinoa', 'sałatka śledziowa',
-            'sałatka z fetą', 'surówka z selera', 'mizeria', 'sałatka z awokado',
-            'sałatka z komosą ryżową',
-        ],
-
-        // --- Mięsa ---
-        'skladnik_mieso' => [
-            'kurczak', 'indyk', 'wołowina', 'wieprzowina', 'schab', 'boczek',
-            'kiełbasa', 'kiełbasa domowa', 'baranina', 'jagnięcina', 'cielęcina',
-            'kaczka', 'gęś', 'królik', 'dziczyzna', 'mielone mięso', 'polędwica',
-            'żeberka wieprzowe', 'karkówka wieprzowa', 'udziec z kurczaka', 'pierś z kurczaka',
-            'skrzydełka z kurczaka', 'wątróbka', 'ozorki', 'boczek wędzony',
-            'kabanosy', 'parówki domowe', 'pasztet', 'salceson', 'smalec',
-        ],
-
-        // --- Ryby i owoce morza ---
-        'skladnik_ryba' => [
-            'łosoś', 'dorsz', 'śledź', 'pstrąg', 'makrela', 'karp', 'tuńczyk',
-            'krewetki', 'małże', 'kalmary', 'ryba po grecku', 'ryba w cieście',
-            'ryba pieczona', 'ryba wędzona', 'ryba smażona', 'karp na wigilię',
-            'sushi domowe', 'ryba na parze', 'owoce morza',
-        ],
-
-        // --- Warzywa ---
-        'skladnik_warzywo' => [
-            'ziemniaki', 'marchewka', 'cebula', 'czosnek', 'pomidory', 'ogórki',
-            'papryka', 'cukinia', 'bakłażan', 'kapusta', 'kapusta kiszona',
-            'brokuły', 'kalafior', 'brukselka', 'szpinak', 'sałata', 'rukola',
-            'burak', 'seler', 'pietruszka', 'por', 'rzodkiewka', 'groszek zielony',
-            'fasolka szparagowa', 'fasola', 'soczewica', 'ciecierzyca', 'bób',
-            'dynia', 'kukurydza', 'szparagi', 'karczochy', 'grzyby', 'grzyby leśne',
-            'pieczarki', 'borowiki', 'kurki', 'jarmuż', 'boćwina', 'chrzan',
-            'rzepa', 'topinambur', 'kalarepa', 'szczypiorek', 'koper', 'natka pietruszki',
-            'awokado', 'imbir świeży', 'chili świeże', 'oliwki', 'kapary',
-        ],
-
-        // --- Owoce ---
-        'skladnik_owoc' => [
-            'jabłka', 'gruszki', 'śliwki', 'wiśnie', 'czereśnie', 'truskawki',
-            'maliny', 'jagody', 'borówki', 'porzeczki', 'agrest', 'rabarbar',
-            'brzoskwinie', 'morele', 'winogrona', 'arbuz', 'melon', 'cytryna',
-            'limonka', 'pomarańcza', 'grejpfrut', 'mandarynki', 'banany', 'ananas',
-            'mango', 'kiwi', 'granat', 'żurawina', 'figi', 'daktyle', 'orzechy włoskie',
-            'orzechy laskowe', 'migdały', 'orzechy nerkowca', 'pistacje', 'kasztany jadalne',
-        ],
-
-        // --- Przetwory i kiszonki ---
-        'skladnik_przetwor' => [
-            'przetwory', 'dżem', 'powidła', 'konfitura', 'kompot w słoiku',
-            'ogórki kiszone', 'ogórki konserwowe', 'kapusta kiszona domowa',
-            'kimchi', 'sok jabłkowy', 'przecier pomidorowy', 'passata', 'ketchup domowy',
-            'musztarda domowa', 'chutney', 'marynaty', 'grzyby marynowane',
-            'papryka konserwowa', 'cukinia w słoiku', 'sałatka ogórkowa na zimę',
-            'syrop z czarnego bzu', 'syrop malinowy', 'nalewka wiśniowa',
-            'nalewka orzechowa', 'wino domowe', 'octówka', 'suszone owoce',
-            'suszone grzyby', 'kwas chlebowy', 'kombucha',
-        ],
-
-        // --- Napoje ---
-        'napoj' => [
-            'herbata', 'kawa', 'kawa mrożona', 'lemoniada', 'kompot owocowy',
-            'sok owocowy', 'sok warzywny', 'koktajl mleczny', 'kakao', 'grzane wino',
-            'poncz', 'mrożona herbata', 'napój izotoniczny domowy', 'oranżada',
-            'napój z imbirem', 'herbata ziołowa', 'nalewki', 'drink bezalkoholowy',
-        ],
-
-        // --- Święta i okazje ---
-        'okazja' => [
-            'wigilia', 'boże narodzenie', 'wielkanoc', 'śniadanie wielkanocne',
-            'tłusty czwartek', 'andrzejki', 'sylwester', 'urodziny', 'imieniny',
-            'komunia', 'wesele', 'grill', 'ognisko', 'majówka', 'walentynki',
-            'dzień matki', 'dzień dziecka', 'pierwszy dzień szkoły', 'halloween',
-            'mikołajki', 'dożynki', 'piknik', 'impreza rodzinna', 'przyjęcie',
-            'wielkanocne jajka', 'świąteczny stół', 'kolacja wigilijna',
-        ],
-
-        // --- Kuchnie świata i regionalne ---
-        'kuchnia' => [
-            'kuchnia polska', 'kuchnia włoska', 'kuchnia francuska', 'kuchnia hiszpańska',
-            'kuchnia grecka', 'kuchnia turecka', 'kuchnia meksykańska', 'kuchnia amerykańska',
-            'kuchnia indyjska', 'kuchnia tajska', 'kuchnia wietnamska', 'kuchnia chińska',
-            'kuchnia japońska', 'kuchnia koreańska', 'kuchnia bliskowschodnia',
-            'kuchnia marokańska', 'kuchnia niemiecka', 'kuchnia węgierska',
-            'kuchnia skandynawska', 'kuchnia żydowska', 'kuchnia śląska',
-            'kuchnia podlaska', 'kuchnia kresowa', 'kuchnia góralska', 'kuchnia nadmorska',
-            'kuchnia wielkopolska', 'kuchnia kaszubska', 'kuchnia karaibska',
-            'kuchnia brazylijska', 'kuchnia peruwiańska', 'kuchnia libańska',
-            'kuchnia wegetariańska świata', 'kuchnia fusion', 'kuchnia śródziemnomorska',
-            'kuchnia bałkańska', 'kuchnia rosyjska', 'kuchnia ukraińska', 'kuchnia austriacka',
-            'kuchnia portugalska', 'kuchnia holenderska',
-        ],
-
-        // --- Techniki gotowania ---
-        'technika' => [
-            'pieczenie', 'gotowanie na parze', 'smażenie', 'duszenie', 'grillowanie',
-            'wędzenie', 'peklowanie', 'kiszenie', 'fermentacja', 'blanszowanie',
-            'confit', 'sous vide', 'karmelizowanie', 'flambirowanie', 'marynowanie',
-            'panierowanie', 'gotowanie na wolnym ogniu', 'pieczenie w rękawie',
-            'gotowanie w wodzie', 'gotowanie beztłuszczowe', 'pieczenie na grillu węglowym',
-            'gotowanie na parze w bambusie', 'pieczenie chleba', 'wyrabianie ciasta',
-            'zaprawianie zupy',
-        ],
-
-        // --- Urządzenia ---
-        'urzadzenie' => [
-            'air fryer', 'wolnowar', 'multicooker', 'termomix', 'piekarnik',
-            'grill elektryczny', 'kuchenka indukcyjna', 'robot kuchenny', 'blender',
-            'sokowirówka', 'gofrownica', 'opiekacz do kanapek', 'maszynka do mielenia mięsa',
-            'parowar', 'ekspres do kawy',
-        ],
-
-        // --- Diety i ograniczenia żywieniowe ---
-        'dieta' => [
-            'bez glutenu', 'bez laktozy', 'wegetariańskie', 'wegańskie', 'keto',
-            'niskowęglowodanowe', 'wysokobiałkowe', 'dieta cukrzycowa', 'bez cukru',
-            'fit', 'lekkostrawne', 'dla alergików', 'bez orzechów', 'dieta odchudzająca',
-            'paleo', 'niskotłuszczowe', 'dla dzieci', 'dla niemowląt', 'bez jajek',
-            'dieta sportowca',
-        ],
-
-        // --- Podstawowe składniki i przyprawy ---
-        'skladnik_podstawowy' => [
-            'mąka', 'mąka pszenna', 'mąka żytnia', 'mąka orkiszowa', 'mąka migdałowa',
-            'cukier', 'cukier trzcinowy', 'miód', 'masło', 'olej', 'oliwa z oliwek',
-            'jajka', 'mleko', 'śmietana', 'jogurt naturalny', 'twaróg', 'ser żółty',
-            'ser feta', 'ser pleśniowy', 'mozzarella', 'parmezan', 'ser wiejski',
-            'drożdże', 'soda oczyszczona', 'proszek do pieczenia', 'wanilia',
-            'cynamon', 'imbir', 'kurkuma', 'papryka słodka', 'papryka ostra',
-            'pieprz', 'sól', 'liść laurowy', 'ziele angielskie', 'majeranek',
-            'oregano', 'bazylia', 'tymianek', 'rozmaryn', 'kolendra', 'kminek',
-            'gałka muszkatołowa', 'wanilia w strąku', 'czekolada', 'kakao w proszku',
-            'orzechy', 'sezam', 'siemię lniane', 'żelatyna', 'agar', 'ocet balsamiczny',
-            'sos sojowy', 'musztarda', 'majonez', 'ketchup', 'chrzan tarty',
-        ],
+    /** Pliki danych w kolejności ważności — pierwszy wpis dla danej nazwy wygrywa. */
+    private const PLIKI = [
+        'slownik-tagow.json',
+        'slownik-tagow-uzupelnienia.json',
     ];
 
+    /** @var array<string, string> normalized_name => slug (istniejące + świeżo policzone) */
+    private array $zajeteSlugi = [];
+
+    /** @var array<string, int> slug => 1 */
+    private array $zajeteSlugiOdwrotnie = [];
+
     /**
-     * Aliasy RĘCZNE — liczba mnoga, potoczna nazwa, częsty synonim. Klucz to
-     * KANONICZNA nazwa (musi wystąpić w `KATEGORIE` wyżej), wartość to lista
-     * wariantów. Nie każdy tag ma tu wpis — to jest dopisek dla tych, gdzie
-     * warto, nie wymóg dla wszystkich 600+.
-     *
-     * @var array<string, list<string>>
+     * @var array{tagi: int, kategorie: int, aliasy: int, scalenia: list<string>, odrzucone_tagi: list<string>, odrzucone_aliasy: list<string>}
      */
-    private const ALIASY = [
-        'sernik' => ['serniki', 'sernik babci'],
-        'pierogi' => ['pierogi domowe'],
-        'kotlet schabowy' => ['schabowe', 'kotlety schabowe'],
-        'kotlet mielony' => ['kotlety mielone', 'mielone'],
-        'gołąbki' => ['gołąbek'],
-        'żurek' => ['żur', 'żurek na zakwasie'],
-        'barszcz czerwony' => ['barszcz', 'czerwony barszcz'],
-        'zupa pomidorowa' => ['pomidorówka'],
-        'zupa ogórkowa' => ['ogórkowa'],
-        'zupa grzybowa' => ['grzybowa'],
-        'kapuśniak' => ['zupa kapuśniak'],
-        'chleb na zakwasie' => ['chleb żytni na zakwasie'],
-        'placki ziemniaczane' => ['placki kartoflane', 'placuszki ziemniaczane'],
-        'naleśniki' => ['naleśnik'],
-        'ciasto marchewkowe' => ['ciasto z marchewki'],
-        'szarlotka' => ['jabłecznik z kruszonką'],
-        'ciasteczka owsiane' => ['ciastka owsiane'],
-        'kanapki' => ['kanapka'],
-        'jajecznica' => ['jajecznica na maśle domowa'],
-        'surówka z kapusty' => ['surówka', 'kapusta surówka'],
-        'ziemniaki' => ['kartofle'],
-        'pomidory' => ['pomidor'],
-        'ogórki' => ['ogórek'],
-        'grzyby' => ['grzybki'],
-        'jabłka' => ['jabłko'],
-        'truskawki' => ['truskawka'],
-        'kiełbasa domowa' => ['domowa kiełbasa'],
-        'wołowina' => ['mięso wołowe'],
-        'wieprzowina' => ['mięso wieprzowe'],
-        'ryba po grecku' => ['ryba po grecku wigilijna'],
-        'karp na wigilię' => ['karp wigilijny'],
-        'bez glutenu' => ['gluten free', 'bezglutenowe'],
-        'wegetariańskie' => ['wege', 'wegetariańska'],
-        'wegańskie' => ['wegan', 'roślinne'],
-        'air fryer' => ['frytkownica beztłuszczowa', 'airfryer'],
-        'wolnowar' => ['slow cooker'],
-        'kuchnia śląska' => ['śląskie'],
-        'kuchnia podlaska' => ['podlaskie'],
-        'kuchnia góralska' => ['góralskie'],
-        'grill' => ['grillowanie na ruszcie'],
-        'wigilia' => ['wieczerza wigilijna'],
-        'tłusty czwartek' => ['pączkowy czwartek'],
+    private array $raport = [
+        'tagi' => 0,
+        'kategorie' => 0,
+        'aliasy' => 0,
+        'scalenia' => [],
+        'odrzucone_tagi' => [],
+        'odrzucone_aliasy' => [],
     ];
 
     public function run(): void
     {
-        $raport = [
-            'utworzone_tagi' => 0,
-            'zaktualizowane_tagi' => 0,
-            'utworzone_aliasy' => 0,
-            'odrzucone_tagi' => [],
-            'odrzucone_aliasy' => [],
-        ];
+        $wpisy = $this->wczytajSlowniki();
 
-        $zajeteSlugi = Tag::query()->pluck('slug', 'normalized_name')->all();
+        $this->utworzBrakujaceTagi($wpisy);
+        $this->zaktualizujKategorie($wpisy);
+        $this->utworzAliasy($wpisy);
 
-        foreach (self::KATEGORIE as $kategoria => $nazwy) {
-            // Kategoria techniczna jest tylko etykietą raportową na potrzeby
-            // tego seedera — dwie sekcje mogą dzielić ten sam
-            // `internal_category` w bazie (np. wszystkie podkategorie
-            // "danie_*" zapisują po prostu "danie").
-            $techniczna = str_starts_with($kategoria, 'danie_') ? 'danie'
-                : (str_starts_with($kategoria, 'skladnik_') ? 'skladnik' : $kategoria);
-
-            foreach ($nazwy as $surowaNazwa) {
-                $this->importujTag($surowaNazwa, $techniczna, $zajeteSlugi, $raport);
-            }
-        }
-
-        foreach (self::ALIASY as $kanoniczna => $warianty) {
-            $tag = Tag::query()->where('normalized_name', Tag::znormalizujNazwe($kanoniczna))->first();
-
-            if ($tag === null) {
-                // Literówka w `ALIASY` wskazująca na nazwę spoza `KATEGORIE`.
-                // Zgłaszamy to jako odrzucenie, zamiast cicho pomijać —
-                // seeder ma być narzędziem, które wykrywa własne pomyłki.
-                $raport['odrzucone_aliasy'][] = "„{$kanoniczna}” (brak takiego tagu kanonicznego)";
-
-                continue;
-            }
-
-            foreach ($warianty as $alias) {
-                $this->importujAlias($tag, $alias, TagAlias::SOURCE_SEED, $raport);
-            }
-        }
-
-        // Aliasy AUTOMATYCZNE — transliterowany wariant bez polskich znaków,
-        // dla KAŻDEGO kanonicznego tagu, który je ma (SPEC §1.2, patrz
-        // komentarz klasy). Osobny przebieg PO imporcie kanonicznych nazw,
-        // żeby sprawdzenie kolizji widziało już całą świeżo wstawioną bazę.
-        foreach (Tag::query()->where('is_seeded', true)->get() as $tag) {
-            $transliterowany = Str::ascii($tag->name);
-
-            if (mb_strtolower($transliterowany) === mb_strtolower($tag->name)) {
-                // Nazwa bez diakrytyków od początku — nie ma czego dodawać
-                // ("obiad" nie potrzebuje aliasu "obiad").
-                continue;
-            }
-
-            $this->importujAlias($tag, $transliterowany, TagAlias::SOURCE_SEED, $raport);
-        }
-
-        $this->zgloscRaport($raport);
+        $this->zgloscRaport();
     }
 
     /**
-     * @param  array<string, string>  $zajeteSlugi  normalized_name => slug, aktualizowane w miejscu
-     * @param  array{utworzone_tagi: int, zaktualizowane_tagi: int, utworzone_aliasy: int, odrzucone_tagi: list<string>, odrzucone_aliasy: list<string>}  $raport
+     * Krok 1–3: wczytanie, normalizacja, odsiew duplikatów i wulgaryzmów.
+     *
+     * @return list<array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}>
      */
-    private function importujTag(string $surowaNazwa, string $kategoria, array &$zajeteSlugi, array &$raport): void
+    private function wczytajSlowniki(): array
     {
-        $nazwa = trim($surowaNazwa);
-        $znormalizowana = Tag::znormalizujNazwe($nazwa);
+        /** @var array<string, array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}> $wpisy */
+        $wpisy = [];
 
-        if (FiltrWulgaryzmow::zawieraNiedozwoloneSlowo($znormalizowana)) {
-            $raport['odrzucone_tagi'][] = "„{$nazwa}” (lokalna baza wulgaryzmów)";
+        foreach (self::PLIKI as $plik) {
+            foreach ($this->wczytajPlik($plik) as $tag) {
+                $nazwa = trim((string) ($tag['nazwa'] ?? ''));
+                $znormalizowana = Tag::znormalizujNazwe($nazwa);
 
-            return;
+                if ($znormalizowana === '') {
+                    $this->raport['odrzucone_tagi'][] = "(pusta nazwa w {$plik})";
+
+                    continue;
+                }
+
+                if (isset($wpisy[$znormalizowana])) {
+                    $this->raport['odrzucone_tagi'][] = "„{$nazwa}” ({$plik}: ta nazwa już jest w słowniku)";
+
+                    continue;
+                }
+
+                if (FiltrWulgaryzmow::zawieraNiedozwoloneSlowo($znormalizowana)) {
+                    $this->raport['odrzucone_tagi'][] = "„{$nazwa}” (lokalna baza wulgaryzmów)";
+
+                    continue;
+                }
+
+                /** @var list<string> $aliasy */
+                $aliasy = array_values(array_filter(
+                    (array) ($tag['aliasy'] ?? []),
+                    static fn ($alias): bool => is_string($alias) && trim($alias) !== '',
+                ));
+
+                $wpisy[$znormalizowana] = [
+                    'nazwa' => $nazwa,
+                    'znormalizowana' => $znormalizowana,
+                    'kategoria' => (string) ($tag['kategoria'] ?? ''),
+                    'aliasy' => $aliasy,
+                ];
+            }
         }
 
-        $istniejacySlug = $zajeteSlugi[$znormalizowana] ?? null;
-        $slug = $istniejacySlug ?? $this->wolnySlug(Tag::slugDlaNazwy($nazwa), $zajeteSlugi);
+        return array_values($wpisy);
+    }
 
-        $tag = Tag::query()->where('normalized_name', $znormalizowana)->first();
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function wczytajPlik(string $plik): array
+    {
+        $sciezka = database_path('seeders/dane/'.$plik);
+        $surowe = file_get_contents($sciezka);
 
-        if ($tag === null) {
-            Tag::create([
-                'name' => $nazwa,
-                'normalized_name' => $znormalizowana,
+        if ($surowe === false) {
+            // Brak pliku danych to nie jest sytuacja, którą wolno przemilczeć:
+            // seeder bez słownika utworzyłby zero tagów i zaraportował sukces.
+            throw new \RuntimeException("Nie da się wczytać słownika tagów: {$sciezka}");
+        }
+
+        $dane = json_decode($surowe, true, 512, JSON_THROW_ON_ERROR);
+
+        if (! is_array($dane) || ! isset($dane['tagi']) || ! is_array($dane['tagi'])) {
+            throw new \RuntimeException("Słownik tagów {$plik} nie ma tablicy `tagi`.");
+        }
+
+        /** @var list<array<string, mixed>> $tagi */
+        $tagi = array_values(array_filter($dane['tagi'], 'is_array'));
+
+        return $tagi;
+    }
+
+    /**
+     * Krok 4: slug i zapis. Wstawianie hurtowe (`insert` po 500 wierszy),
+     * bo 1409 tagów × `Tag::create()` to 1409 osobnych `INSERT`-ów plus
+     * tyle samo `SELECT`-ów — na tej liczbie wierszy to już jest różnica
+     * między sekundą i minutą, także w testach.
+     *
+     * @param  list<array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}>  $wpisy
+     */
+    private function utworzBrakujaceTagi(array $wpisy): void
+    {
+        $this->zajeteSlugi = Tag::query()->pluck('slug', 'normalized_name')->all();
+        $this->zajeteSlugiOdwrotnie = array_fill_keys(array_values($this->zajeteSlugi), 1);
+
+        $istniejace = Tag::query()->pluck('normalized_name')->all();
+        $istniejace = array_fill_keys($istniejace, true);
+
+        $teraz = now();
+        $doWstawienia = [];
+
+        foreach ($wpisy as $wpis) {
+            if (isset($istniejace[$wpis['znormalizowana']])) {
+                continue;
+            }
+
+            $slug = $this->wolnySlug(Tag::slugDlaNazwy($wpis['nazwa']));
+
+            $doWstawienia[] = [
+                'id' => (string) Str::uuid(),
+                'name' => $wpis['nazwa'],
+                'normalized_name' => $wpis['znormalizowana'],
                 'slug' => $slug,
+                'status' => Tag::STATUS_ACTIVE,
                 'is_seeded' => true,
-                'internal_category' => $kategoria,
-            ]);
-            $zajeteSlugi[$znormalizowana] = $slug;
-            $raport['utworzone_tagi']++;
+                'internal_category' => $wpis['kategoria'],
+                'created_at' => $teraz,
+                'updated_at' => $teraz,
+            ];
 
-            return;
+            $this->zajeteSlugi[$wpis['znormalizowana']] = $slug;
         }
 
-        // Aktualizujemy TYLKO kategorię — nazwa i slug redakcyjnie ustalone
-        // raz, patrz komentarz klasy.
-        if ($tag->internal_category !== $kategoria) {
-            $tag->forceFill(['internal_category' => $kategoria])->save();
-            $raport['zaktualizowane_tagi']++;
+        foreach (array_chunk($doWstawienia, 500) as $paczka) {
+            DB::table('tags')->insert($paczka);
+        }
+
+        $this->raport['tagi'] = count($doWstawienia);
+    }
+
+    /**
+     * Kategoria techniczna jest jedynym polem, które seeder aktualizuje na
+     * istniejącym wierszu (patrz komentarz klasy). Jedno `UPDATE ... WHERE
+     * normalized_name IN (...)` na kategorię, nie jedno na tag.
+     *
+     * @param  list<array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}>  $wpisy
+     */
+    private function zaktualizujKategorie(array $wpisy): void
+    {
+        /** @var array<string, list<string>> $poKategorii */
+        $poKategorii = [];
+
+        foreach ($wpisy as $wpis) {
+            $poKategorii[$wpis['kategoria']][] = $wpis['znormalizowana'];
+        }
+
+        foreach ($poKategorii as $kategoria => $nazwy) {
+            foreach (array_chunk($nazwy, 500) as $paczka) {
+                $this->raport['kategorie'] += Tag::query()
+                    ->whereIn('normalized_name', $paczka)
+                    ->where(function ($query) use ($kategoria): void {
+                        $query->where('internal_category', '!=', $kategoria)
+                            ->orWhereNull('internal_category');
+                    })
+                    ->update(['internal_category' => $kategoria]);
+            }
         }
     }
 
     /**
-     * @param  array{utworzone_tagi: int, zaktualizowane_tagi: int, utworzone_aliasy: int, odrzucone_tagi: list<string>, odrzucone_aliasy: list<string>}  $raport
+     * Aliasy z pliku ORAZ automatyczne transliteracje, jednym przebiegiem po
+     * pełnym, świeżo wstawionym stanie bazy — inaczej sprawdzenie kolizji
+     * widziałoby tylko część tagów.
+     *
+     * @param  list<array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}>  $wpisy
      */
-    private function importujAlias(Tag $tag, string $alias, string $zrodlo, array &$raport): void
+    private function utworzAliasy(array $wpisy): void
     {
-        $alias = trim($alias);
-        $znormalizowanyAlias = Tag::znormalizujNazwe($alias);
+        /** @var array<string, string> $tagiPoNazwie normalized_name => id */
+        $tagiPoNazwie = Tag::query()->pluck('id', 'normalized_name')->all();
 
-        if ($znormalizowanyAlias === $tag->normalized_name) {
-            // Transliteracja, która nic nie zmieniła (np. tag bez diakrytyków
-            // podany też w ALIASY przez pomyłkę) — nie jest to błąd, po
-            // prostu nie ma czego dodawać.
-            return;
+        /** @var array<string, string> $wlascicieleAliasow normalized_alias => tag_id */
+        $wlascicieleAliasow = TagAlias::query()->pluck('tag_id', 'normalized_alias')->all();
+
+        // Nazwy ze słownika — potrzebne, żeby NIGDY nie scalić tagu, który
+        // sam jest w słowniku nazwą kanoniczną (patrz komentarz klasy).
+        $nazwyZeSlownika = [];
+        foreach ($wpisy as $wpis) {
+            $nazwyZeSlownika[$wpis['znormalizowana']] = true;
         }
 
-        if (FiltrWulgaryzmow::zawieraNiedozwoloneSlowo($znormalizowanyAlias)) {
-            $raport['odrzucone_aliasy'][] = "„{$alias}” (lokalna baza wulgaryzmów)";
+        $teraz = now();
+        $doWstawienia = [];
 
-            return;
-        }
+        foreach ($wpisy as $wpis) {
+            $idTagu = $tagiPoNazwie[$wpis['znormalizowana']] ?? null;
 
-        // Kolizja z NAZWĄ KANONICZNĄ innego tagu — to nie jest bezpieczny
-        // alias, tylko dwa różne pojęcia, które akurat transliterują się
-        // tak samo (D-021: „ta relacja musi pochodzić z bezpiecznej reguły" —
-        // kolizja z cudzym tagiem kanonicznym bezpieczną regułą nie jest).
-        $kolidujeZTagiem = Tag::query()
-            ->where('normalized_name', $znormalizowanyAlias)
-            ->where('id', '!=', $tag->getKey())
-            ->exists();
-
-        if ($kolidujeZTagiem) {
-            $raport['odrzucone_aliasy'][] = "„{$alias}” (koliduje z istniejącym tagiem kanonicznym)";
-
-            return;
-        }
-
-        $istniejacy = TagAlias::query()->where('normalized_alias', $znormalizowanyAlias)->first();
-
-        if ($istniejacy !== null) {
-            // Alias już istnieje — dla TEGO SAMEGO tagu to nieszkodliwe
-            // powtórzenie (seeder chodzi na istniejącej bazie), dla INNEGO
-            // to prawdziwa kolizja do zaraportowania.
-            if ($istniejacy->tag_id !== $tag->getKey()) {
-                $raport['odrzucone_aliasy'][] = "„{$alias}” (już przypięty do innego tagu)";
+            if ($idTagu === null) {
+                // Tag odrzucony wyżej (wulgaryzm) — jego aliasy nie mają
+                // do czego się przypiąć.
+                continue;
             }
 
-            return;
+            $kandydaci = $wpis['aliasy'];
+
+            // Automatyczna transliteracja nazwy kanonicznej, jeśli coś zmienia.
+            $bezZnakow = Str::ascii($wpis['nazwa']);
+            if (Tag::znormalizujNazwe($bezZnakow) !== $wpis['znormalizowana']) {
+                $kandydaci[] = $bezZnakow;
+            }
+
+            foreach ($kandydaci as $alias) {
+                $wynik = $this->rozstrzygnijAlias(
+                    $alias,
+                    $idTagu,
+                    $wpis,
+                    $tagiPoNazwie,
+                    $wlascicieleAliasow,
+                    $nazwyZeSlownika,
+                );
+
+                if ($wynik === null) {
+                    continue;
+                }
+
+                $doWstawienia[] = $wynik + ['created_at' => $teraz];
+                $wlascicieleAliasow[(string) $wynik['normalized_alias']] = $idTagu;
+            }
         }
 
-        TagAlias::create([
-            'tag_id' => $tag->getKey(),
-            'alias' => $alias,
-            'normalized_alias' => $znormalizowanyAlias,
-            'source' => $zrodlo,
-        ]);
-        $raport['utworzone_aliasy']++;
+        foreach (array_chunk($doWstawienia, 500) as $paczka) {
+            DB::table('tag_aliases')->insert($paczka);
+        }
+
+        $this->raport['aliasy'] = count($doWstawienia);
     }
 
-    /** @param  array<string, string>  $zajete */
-    private function wolnySlug(string $baza, array &$zajete): string
+    /**
+     * @param  array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}  $wpis
+     * @param  array<string, string>  $tagiPoNazwie
+     * @param  array<string, string>  $wlascicieleAliasow
+     * @param  array<string, true>  $nazwyZeSlownika
+     * @return array{tag_id: string, alias: string, normalized_alias: string, source: string}|null
+     */
+    private function rozstrzygnijAlias(
+        string $alias,
+        string $idTagu,
+        array $wpis,
+        array $tagiPoNazwie,
+        array $wlascicieleAliasow,
+        array $nazwyZeSlownika,
+    ): ?array {
+        $alias = trim($alias);
+        $znormalizowany = Tag::znormalizujNazwe($alias);
+
+        if ($znormalizowany === '' || $znormalizowany === $wpis['znormalizowana']) {
+            // Transliteracja, która nic nie zmieniła — nie błąd, po prostu
+            // nie ma czego dodawać.
+            return null;
+        }
+
+        if (FiltrWulgaryzmow::zawieraNiedozwoloneSlowo($znormalizowany)) {
+            $this->raport['odrzucone_aliasy'][] = "„{$alias}” (lokalna baza wulgaryzmów)";
+
+            return null;
+        }
+
+        // KOLIZJA Z NAZWĄ KANONICZNĄ IDZIE PIERWSZA, PRZED sprawdzeniem, czy
+        // alias już istnieje. Kolejność nie jest kosmetyczna: gdy alias
+        // „marchewka” już wisi na „marchew”, a tag „marchewka” nadal żyje
+        // z poprzedniej bazy (dowolna kolejność uruchomień to wytwarza),
+        // wyjście na samym „alias już istnieje” zostawiłoby DWA żywe tagi na
+        // jedno pojęcie na zawsze — czyli dokładnie to rozsypanie, przed
+        // którym ta baza ma chronić. Scalenie musi więc dostać szansę
+        // niezależnie od tego, czy alias jest już w bazie.
+        $kolidujacyTag = $tagiPoNazwie[$znormalizowany] ?? null;
+
+        if ($kolidujacyTag !== null && $kolidujacyTag !== $idTagu) {
+            if (! $this->scalKolidujacyTag($znormalizowany, $alias, $idTagu, $nazwyZeSlownika)) {
+                return null;
+            }
+        }
+
+        $wlascicielAliasu = $wlascicieleAliasow[$znormalizowany] ?? null;
+
+        if ($wlascicielAliasu !== null) {
+            // Ten sam tag — nieszkodliwe powtórzenie (seeder chodzi na
+            // istniejącej bazie). Inny tag — prawdziwa kolizja.
+            if ($wlascicielAliasu !== $idTagu) {
+                $this->raport['odrzucone_aliasy'][] = "„{$alias}” (już przypięty do innego tagu)";
+            }
+
+            return null;
+        }
+
+        return [
+            'tag_id' => $idTagu,
+            'alias' => $alias,
+            'normalized_alias' => $znormalizowany,
+            'source' => TagAlias::SOURCE_SEED,
+        ];
+    }
+
+    /**
+     * Kolizja aliasu z ISTNIEJĄCYM tagiem kanonicznym (D-026, patrz
+     * komentarz klasy). Zwraca `true`, gdy po scaleniu wolno dopisać alias.
+     *
+     * @param  array<string, true>  $nazwyZeSlownika
+     */
+    private function scalKolidujacyTag(
+        string $znormalizowany,
+        string $alias,
+        string $idTagu,
+        array $nazwyZeSlownika,
+    ): bool {
+        $stary = Tag::query()->where('normalized_name', $znormalizowany)->first();
+
+        if ($stary === null) {
+            return true;
+        }
+
+        if ($stary->isMerged()) {
+            // Już scalony — jeśli w TEN tag, to jest to drugie uruchomienie
+            // seedera i alias wolno dopisać. Jeśli w inny, człowiek podjął
+            // inną decyzję i nie ruszamy jej.
+            if ($stary->merged_into_tag_id === $idTagu) {
+                return true;
+            }
+
+            $this->raport['odrzucone_aliasy'][] = "„{$alias}” (tag o tej nazwie jest scalony w inny tag)";
+
+            return false;
+        }
+
+        if (isset($nazwyZeSlownika[$znormalizowany])) {
+            // Słownik sam ma ten tag jako nazwę kanoniczną — wtedy to nie
+            // jest stara pozostałość, tylko sprzeczność WEWNĄTRZ słownika.
+            // `SlownikTagowTest` pilnuje, żeby taka nie powstała; tutaj jest
+            // druga bramka, bo plik można podmienić bez uruchomienia testów.
+            $this->raport['odrzucone_aliasy'][] = "„{$alias}” (słownik ma tag i alias o tej samej nazwie)";
+
+            return false;
+        }
+
+        $powod = $this->dlaczegoNieWolnoScalic($stary);
+
+        if ($powod !== null) {
+            $this->raport['odrzucone_aliasy'][] = "„{$alias}” ({$powod})";
+
+            return false;
+        }
+
+        /** @var Tag $cel */
+        $cel = Tag::query()->findOrFail($idTagu);
+
+        app(MergeTags::class)->handle($stary, $cel);
+
+        $this->raport['scalenia'][] = "„{$stary->name}” → „{$cel->name}”";
+
+        // `MergeTags` samo dopisuje nazwę źródła jako alias celu, więc
+        // dokładnie ten alias już istnieje — nie wstawiamy go drugi raz.
+        return false;
+    }
+
+    /** Powód, dla którego stary tag zostaje nietknięty, albo `null`, gdy wolno scalić. */
+    private function dlaczegoNieWolnoScalic(Tag $stary): ?string
     {
-        $zajeteSlugi = array_flip($zajete);
+        if (! $stary->is_seeded) {
+            return 'tag o tej nazwie utworzył człowiek, nie seeder';
+        }
+
+        if (! $stary->isActive()) {
+            return 'tag o tej nazwie jest ukryty przez moderację';
+        }
+
+        if (DB::table('post_tags')->where('tag_id', $stary->getKey())->exists()) {
+            return 'tag o tej nazwie ma oznaczone wpisy';
+        }
+
+        if (DB::table('tag_follows')->where('tag_id', $stary->getKey())->exists()) {
+            return 'tag o tej nazwie ma obserwujących';
+        }
+
+        if (DB::table('tag_promotions')->where('tag_id', $stary->getKey())->exists()) {
+            return 'tag o tej nazwie jest na liście promowanych';
+        }
+
+        return null;
+    }
+
+    private function wolnySlug(string $baza): string
+    {
         $slug = $baza;
         $sufiks = 2;
 
-        while (isset($zajeteSlugi[$slug]) || Tag::query()->where('slug', $slug)->exists()) {
+        while (isset($this->zajeteSlugiOdwrotnie[$slug])) {
             $slug = $baza.'-'.$sufiks;
             $sufiks++;
         }
 
+        $this->zajeteSlugiOdwrotnie[$slug] = 1;
+
         return $slug;
     }
 
-    /** @param  array{utworzone_tagi: int, zaktualizowane_tagi: int, utworzone_aliasy: int, odrzucone_tagi: list<string>, odrzucone_aliasy: list<string>}  $raport */
-    private function zgloscRaport(array $raport): void
+    private function zgloscRaport(): void
     {
-        $wiersz = sprintf(
-            'TagSeeder: %d nowych tagów, %d zaktualizowanych, %d nowych aliasów, %d odrzuconych tagów, %d odrzuconych aliasów.',
-            $raport['utworzone_tagi'],
-            $raport['zaktualizowane_tagi'],
-            $raport['utworzone_aliasy'],
-            count($raport['odrzucone_tagi']),
-            count($raport['odrzucone_aliasy']),
-        );
+        $this->command?->info(sprintf(
+            'TagSeeder: %d nowych tagów, %d zaktualizowanych kategorii, %d nowych aliasów, '
+            .'%d scaleń, %d odrzuconych tagów, %d odrzuconych aliasów.',
+            $this->raport['tagi'],
+            $this->raport['kategorie'],
+            $this->raport['aliasy'],
+            count($this->raport['scalenia']),
+            count($this->raport['odrzucone_tagi']),
+            count($this->raport['odrzucone_aliasy']),
+        ));
 
-        $this->command?->info($wiersz);
+        foreach ($this->raport['scalenia'] as $scalenie) {
+            $this->command?->line('  scalono: '.$scalenie);
+        }
 
-        foreach ([...$raport['odrzucone_tagi'], ...$raport['odrzucone_aliasy']] as $powod) {
+        foreach ([...$this->raport['odrzucone_tagi'], ...$this->raport['odrzucone_aliasy']] as $powod) {
             $this->command?->warn('  odrzucono: '.$powod);
         }
     }

@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
+use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -15,7 +16,6 @@ use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
-use App\Models\Tag;
 use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -269,25 +269,40 @@ class DemoSeeder extends Seeder
      */
     private function otagujWpisy(Post $rosol, Post $chleb, Post $nalesniki, User $basia, User $ania): void
     {
-        $tagi = [];
+        // `ResolveTagsForPost`, NIE `Tag::create()`. Trzy powody, każdy
+        // zmierzony:
+        //   1. `db:seed` (bez `--seeder`) woła najpierw `TagSeeder`, więc
+        //      „chleb na zakwasie" i „zupy" JUŻ SĄ w bazie — `Tag::create()`
+        //      leciało wtedy na `UNIQUE(normalized_name)` i cały `db:seed`
+        //      kończył się wyjątkiem (zmierzone na czystej bazie);
+        //   2. „zupy" jest w słowniku ALIASEM tagu „zupa" — ta akcja
+        //      rozwiązuje alias do tagu kanonicznego, zamiast tworzyć drugi
+        //      tag na to samo pojęcie;
+        //   3. to jest ta sama bramka, przez którą idzie prawdziwy formularz
+        //      wpisu, więc treść demo nie może być „bardziej poprawna" niż
+        //      to, co da się wpisać ręcznie.
+        $rozwiazane = app(ResolveTagsForPost::class)->handle(['zupy', 'chleb na zakwasie', 'szybkie obiady']);
 
-        foreach (['zupy', 'chleb na zakwasie', 'szybkie obiady'] as $nazwa) {
-            $tagi[$nazwa] = Tag::create([
-                'name' => $nazwa,
-                'normalized_name' => Tag::znormalizujNazwe($nazwa),
-                'slug' => Tag::slugDlaNazwy($nazwa),
-                'status' => Tag::STATUS_ACTIVE,
-            ]);
+        $tagi = [];
+        foreach ($rozwiazane as $tag) {
+            $tagi[$tag->normalized_name] = $tag;
         }
 
-        $rosol->tags()->attach($tagi['zupy']->getKey(), ['position' => 0]);
-        $chleb->tags()->attach($tagi['chleb na zakwasie']->getKey(), ['position' => 0]);
-        $nalesniki->tags()->attach($tagi['szybkie obiady']->getKey(), ['position' => 0]);
+        // Klucze po nazwie KANONICZNEJ, nie po tym, co wpisaliśmy wyżej —
+        // „zupy" rozwiązuje się do „zupa", gdy słownik jest w bazie, i do
+        // „zupy", gdy go nie ma (`--seeder=DemoSeeder`). Oba przypadki muszą
+        // działać, bo automat dostępności uruchamia właśnie ten drugi.
+        $zupa = $tagi['zupa'] ?? $tagi['zupy'];
+        $chlebNaZakwasie = $tagi['chleb na zakwasie'];
+        $szybkieObiady = $tagi['szybkie obiady'];
+
+        $rosol->tags()->syncWithoutDetaching([$zupa->getKey() => ['position' => 0]]);
+        $chleb->tags()->syncWithoutDetaching([$chlebNaZakwasie->getKey() => ['position' => 0]]);
+        $nalesniki->tags()->syncWithoutDetaching([$szybkieObiady->getKey() => ['position' => 0]]);
 
         // Jeden tag promowany — to jest lista, którą czyta onboarding i szyna
         // na stronie głównej, więc bez niej te dwa ekrany też mierzyłyby pustkę.
-        TagPromotion::create([
-            'tag_id' => $tagi['zupy']->getKey(),
+        TagPromotion::query()->firstOrCreate(['tag_id' => $zupa->getKey()], [
             'position' => 1,
             'note' => 'Zupa na listopad — najłatwiejszy tydzień w całym kalendarzu.',
         ]);
@@ -295,10 +310,10 @@ class DemoSeeder extends Seeder
         // Ktoś MUSI obserwować tag, żeby ekran „Twoje tagi" miał co pokazać
         // poza stanem pustym, i żeby `TagFeed` nie był pusty dla tego konta.
         $ania->followedTags()->syncWithoutDetaching([
-            $tagi['zupy']->getKey() => ['created_at' => now()],
+            $zupa->getKey() => ['created_at' => now()],
         ]);
         $basia->followedTags()->syncWithoutDetaching([
-            $tagi['chleb na zakwasie']->getKey() => ['created_at' => now()],
+            $chlebNaZakwasie->getKey() => ['created_at' => now()],
         ]);
     }
 

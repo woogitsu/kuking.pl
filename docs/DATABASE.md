@@ -903,7 +903,32 @@ jako czysto addytywne, bez zmierzonej potrzeby przy 20–50 kontach
 | `status` | `active` \| `hidden` \| `merged`. CHECK w bazie. |
 | `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`. |
 | `is_seeded` | Tag z początkowej bazy redakcyjnej (SPEC §1.4) — atrybut pochodzenia danych, nie osobny system widoczny dla użytkownika. |
-| `internal_category` | Techniczna (`danie`, `skladnik`, `kuchnia`, `technika`, `okazja`, `dieta`, `urzadzenie`, `napoj`) — do raportu z importu, nigdy pokazywana użytkownikowi. |
+| `internal_category` | Techniczna, jedna z trzynastu kategorii słownika tagów (`potrawy`, `wypieki`, `skladniki`, `przygotowanie`, `przetwory`, `okazje`, `sezon`, `regiony`, `kuchnie-swiata`, `diety`, `okolicznosci`, `sprzet`, `pamiec`) — do raportu z importu i sortowania panelu, **nigdy** pokazywana użytkownikowi. Wcześniej było tu osiem innych wartości (`danie`, `skladnik`, `kuchnia`, `technika`, `okazja`, `dieta`, `urzadzenie`, `napoj`) — pochodziły z bazy wpisanej na sztywno w `TagSeeder`, zastąpionej słownikiem z pliku (D-026). `TagSeeder` aktualizuje tę kolumnę na istniejących wierszach, więc migracja danych nie była potrzebna. |
+
+**Skąd bierze się początkowa baza (D-026).** Nie z kodu: `TagSeeder` czyta
+`database/seeders/dane/slownik-tagow.json` (1250 nazw kanonicznych, 2366
+aliasów, 13 kategorii, pole `uwagi` z 44 rozstrzygnięciami autora — nie
+kasować) oraz `database/seeders/dane/slownik-tagow-uzupelnienia.json` (159
+pojęć, których duży słownik nie ma). Razem 1409 tagów i 2439 aliasów.
+Zawartość plików jest sprawdzana maszynowo BEZ uruchamiania seedera
+(`tests/Feature/SlownikTagowTest.php`), bo kolizji aliasu z nazwą kanoniczną
+innego tagu nie widać okiem. Pole `sezonowy` z pliku (226 tagów) świadomie
+NIE MA kolumny w bazie — funkcja sezonowości nie istnieje, a kolumna bez
+drogi zapisu i odczytu to ten sam błąd, który opisuje zadanie o minutniku
+kroku.
+
+**Scalanie tagów ma wreszcie drogę zapisu.** `status = 'merged'`
+i `merged_into_tag_id` istniały od tej migracji, a mechanizm ich CZYTANIA
+był kompletny (przekierowanie strony tagu, wykluczenie z podpowiedzi,
+`ResolveTagsForPost` rozwiązujące nazwę do tagu kanonicznego) — ustawiał je
+natomiast wyłącznie `forceFill` w testach. Od D-026 robi to nazwana akcja
+`App\Domain\Tags\Actions\MergeTags` (zapowiadana w komentarzu modelu
+`Tag` i w komentarzu przy indeksie `tag_aliases.tag_id` w tej migracji):
+przepina wpisy i obserwujących, przepina aliasy źródła, dopisuje nazwę
+źródła jako alias celu, przenosi promocję, ustawia `status`. Wiersz źródła
+NIE JEST kasowany (SPEC §1.8), więc jego adres `/tag/{slug}` nadal działa
+i przekierowuje. `audit_log` zapisuje wywołujący, nie ta akcja — scalenie
+z panelu ma autora, scalenie z seedera nie ma go wcale.
 
 `tag_aliases`: `id` **bigserial**, nie `uuid` — wiersz nigdy nie jest
 adresowany z zewnątrz (ten sam wybór co `product_signals`/`audit_log`).
