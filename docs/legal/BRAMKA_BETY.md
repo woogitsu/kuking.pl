@@ -259,6 +259,19 @@ ten kod pęka:
   się przejść, dając dwóm różnym limitom tę samą nazwę.
   Znalezione przez agenta przy niezależnej weryfikacji W7-02, potwierdzone
   osobnym pomiarem.
+- **Trzecie miejsce z tą samą luką: szyna „Mój zeszyt" na stronie głównej.**
+  `FeedController::home()` budował ją zapytaniem z `widoczneDla($user)`, a nad
+  tym zapytaniem stał komentarz kończący się zdaniem „Jedna granica, jeden
+  scope, wszędzie". To zdanie nie było prawdą: `widoczneDla()` liczy blokady
+  i widoczność, a NIE liczy statusu konta autora — to osobna granica
+  `User::scopeDostepnyJakoAutor()` (W5-08: dwie reguły, obie obowiązkowe).
+  `CollectionController::show()` miał obie od tamtego audytu, ta szyna jedną.
+  Skutek: przepis autora zbanowanego albo `pending_delete` znikał z ekranu
+  zeszytu i JEDNOCZEŚNIE stał na stronie głównej z tytułem, nazwiskiem autora
+  i miniaturą. Znalezione przez agenta przy ocenie specyfikacji, potwierdzone
+  pomiarem (trzy testy czerwone przed poprawką), naprawione tą samą granicą,
+  którą ma ekran zeszytu. Trzeci test pilnuje REGUŁY: ekran zeszytu i szyna
+  muszą odpowiadać tak samo.
 - **Wpis zbanowanego autora dalej stał w feedzie obserwowanych.**
   `PostPolicy::view()` dawał 403 pod adresem wpisu, a `FollowingFeed::
   paginate()` tej reguły nie miał — mimo że `isEmptyFor()`, kilkanaście

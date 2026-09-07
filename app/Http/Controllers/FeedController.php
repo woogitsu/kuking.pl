@@ -91,8 +91,22 @@ class FeedController extends Controller
         //
         // Ta sama treść nie może być bardziej widoczna przez inne miejsce
         // w interfejsie. Jedna granica, jeden scope, wszędzie.
+        //
+        // I DOKŁADNIE TO ZDANIE BYŁO NIEPRAWDĄ. Stało tu samo
+        // `widoczneDla($user)`, a to jest tylko JEDNA z dwóch granic:
+        // liczy blokady i ustawienie widoczności, ale NIE liczy statusu konta
+        // autora — tym zajmuje się `User::scopeDostepnyJakoAutor()`
+        // (ustalenie audytowe W5-08: dwie różne reguły, obie obowiązkowe).
+        // `CollectionController::show()` ma obie od tamtego audytu; ta szyna
+        // miała jedną, więc przepis autora zbanowanego albo oznaczonego do
+        // usunięcia znikał z ekranu zeszytu i JEDNOCZEŚNIE stał na stronie
+        // głównej — z tytułem, nazwiskiem autora i miniaturą.
+        //
+        // Zmierzone, nie założone: `SzynaZeszytuUkrywaZbanowanegoAutoraTest`
+        // oblewał się na wszystkich trzech przypadkach przed tą linijką.
         $zeszyt = Recipe::query()
             ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
             ->with(['heroMedia', 'author.profile'])
             ->latest('recipes.published_at')
