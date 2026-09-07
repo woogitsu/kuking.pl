@@ -46,11 +46,6 @@ use Illuminate\Support\Str;
  */
 final class StoreUploadedImage
 {
-    /** Powody sygnału niezwiązane z rozpoznawaniem treści zdjęcia — patrz `RozpoznanieZdjecia` dla reszty. */
-    private const POWOD_NIECZYTELNY_PLIK = 'unreadable';
-
-    private const POWOD_ZA_DUZY_PLIK = 'too_large';
-
     public function __construct(private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal) {}
 
     public function handle(User $owner, UploadedFile $file, ?string $altText = null): Media
@@ -59,7 +54,7 @@ final class StoreUploadedImage
         $bytes = $file->getSize();
 
         if ($bytes === false || $bytes <= 0) {
-            $this->sygnaly->handle($owner, ZapiszSygnal::PHOTO_UPLOAD_FAILED, ['reason' => self::POWOD_NIECZYTELNY_PLIK]);
+            $this->sygnaly->handle($owner, ZapiszSygnal::PHOTO_UPLOAD_FAILED, ['reason' => ZapiszSygnal::REASON_UNREADABLE]);
 
             throw new BladDlaCzlowieka('Nie udało się odczytać pliku. Spróbuj wybrać zdjęcie jeszcze raz.');
         }
@@ -68,7 +63,7 @@ final class StoreUploadedImage
             $limitMb = (int) round($maxBytes / 1024 / 1024);
 
             $this->sygnaly->handle($owner, ZapiszSygnal::PHOTO_UPLOAD_FAILED, [
-                'reason' => self::POWOD_ZA_DUZY_PLIK,
+                'reason' => ZapiszSygnal::REASON_TOO_LARGE,
                 'bytes' => $bytes,
                 'max_bytes' => $maxBytes,
             ]);

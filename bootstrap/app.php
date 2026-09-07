@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Middleware\ApplySecurityHeaders;
 use App\Http\Middleware\EnsureAccountIsActive;
@@ -144,7 +145,27 @@ return Application::configure(basePath: dirname(__DIR__))
         //  Zapisujemy WZORZEC trasy i samą informację, czy limit liczył się
         //  po zalogowanym koncie, czy po adresie. Do ustalenia „który limit
         //  i jak długo trwa" to wystarcza, a do zidentyfikowania osoby nie.
-        // ------------------------------------------------------------------
+        //
+        //  DRUGI ZAPIS OBOK LOGU: `photo_upload_failed` (audyt zewnętrzny,
+        //  punkt N05). Żądanie ze zdjęciem odrzucone TU nigdy nie dociera do
+        //  kontrolera — `StoreUploadedImage` i `ObslugiwaneZdjecie` (walidacja
+        //  formularza) o nim nie wiedzą, więc bez tego wpisu ta droga była
+        //  równie niewidoczna z Postgresa jak wcześniej zła walidacja.
+        //
+        //  WARUNEK PO PLIKU, NIE PO NAZWIE TRASY: throttle na `posts.store`
+        //  (limiter `post`) obsługuje TAKŻE wpisy czysto tekstowe — 429 przy
+        //  publikowaniu samego tekstu nie ma nic wspólnego ze zdjęciem i nie
+        //  powinien zaśmiecać tego sygnału. `hasFile()`/`file()` czytają
+        //  `$_FILES`, które PHP wypełnia PRZED middleware'ami Laravela, więc
+        //  ten odczyt jest wiarygodny nawet na etapie throttle, zanim
+        //  jakakolwiek walidacja czy kontroler się uruchomiły. Sprawdzenie po
+        //  nazwie pola, nie po nazwie trasy, bo automatycznie obejmuje każdy
+        //  dzisiejszy i przyszły formularz przyjmujący zdjęcie — bez listy
+        //  tras do pamiętania osobno (ten sam powód co `LimityZdjec`).
+        //
+        //  BEZ WŁASNOŚCI DODATKOWYCH: throttle działa przed jakąkolwiek
+        //  walidacją, więc na tym etapie nie wiadomo jeszcze, czy plik w ogóle
+        //  dałoby się odczytać — jedyne, co wiadomo NA PEWNO, to sam powód.
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
             Log::info('Limit zapytań zadziałał', [
                 'trasa' => $request->route()?->getName() ?? '(bez nazwy)',
@@ -152,6 +173,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 'liczony_po' => $request->user() !== null ? 'koncie' : 'adresie',
                 'ponow_za_s' => $e->getHeaders()['Retry-After'] ?? null,
             ]);
+
+            $mialoZdjecie = ! empty($request->file('photos', []))
+                || $request->hasFile('avatar')
+                || $request->hasFile('hero_photo')
+                || $request->hasFile('source_scan');
+
+            if ($mialoZdjecie) {
+                app(ZapiszSygnal::class)->handle($request->user(), ZapiszSygnal::PHOTO_UPLOAD_FAILED, [
+                    'reason' => ZapiszSygnal::REASON_RATE_LIMITED,
+                ]);
+            }
 
             return null;
         });

@@ -60,6 +60,37 @@ final class ZapiszSygnal
     public const SEARCH_PERFORMED = 'search_performed';
 
     /**
+     * Zamknięty zbiór `properties.reason` dla `PHOTO_UPLOAD_FAILED`
+     * (issue #115), rozszerzony o dwie drogi odrzucenia, które NIE
+     * przechodzą przez `StoreUploadedImage::handle()` (audyt zewnętrzny,
+     * punkt N05): walidację formularza i limit żądań.
+     *
+     * `REASON_UNREADABLE` i `REASON_TOO_LARGE` są tu JEDYNYM źródłem tych
+     * dwóch wartości: `StoreUploadedImage` (droga domenowa) i
+     * `ObslugiwaneZdjecie` (walidacja formularza) wskazują na te same stałe.
+     * Wcześniej `StoreUploadedImage` miał własne, prywatne kopie o tych samych
+     * wartościach — dwie kopie tej samej liczby w różnych miejscach rozjeżdżają
+     * się osobno w każdym (ta sama pułapka, którą opisuje `LimityZdjec`), a tu
+     * rozjazd byłby cichy: dashboard liczy `properties->>'reason'` i zamiast
+     * błędu pokazałby dwa osobne słupki dla jednego powodu.
+     *
+     * Trzy powody treści zdjęcia (`not_an_image`, `unsupported_format`,
+     * `too_many_megapixels`) NIE są tu duplikowane — `RozpoznanieZdjecia`
+     * już je eksportuje publicznie i to jest ich jedyne źródło, używane
+     * zarówno przez `StoreUploadedImage`, jak i przez `ObslugiwaneZdjecie`.
+     *
+     * `REASON_RATE_LIMITED` jest zupełnie nowy: żądanie ze zdjęciem odrzucone
+     * limitem żądań (429, `bootstrap/app.php`) nie ma pliku do zbadania —
+     * throttle działa PRZED kontrolerem, więc to jedyny powód z tego zbioru
+     * bez żadnych dodatkowych właściwości w `properties`.
+     */
+    public const REASON_UNREADABLE = 'unreadable';
+
+    public const REASON_TOO_LARGE = 'too_large';
+
+    public const REASON_RATE_LIMITED = 'rate_limited';
+
+    /**
      * @param  array<string, mixed>  $properties  NIGDY frazy wyszukiwania, nazwy
      *                                            pliku ani innego tekstu wpisanego
      *                                            przez człowieka — patrz AGENTS.md §7.
