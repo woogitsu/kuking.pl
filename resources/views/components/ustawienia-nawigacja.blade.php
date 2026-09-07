@@ -22,10 +22,9 @@
 --}}
 
 @php
-    // 'topics' → 'tags' (D-021): ekran „Twoje tematy" ustępuje „Twoim
-    // tagom" w SAMEJ nawigacji, choć trasa `settings.topics` fizycznie
-    // istnieje jeszcze do kolejnego etapu D-021 (usunięcie Tematów) — nikt
-    // nowy nie ma jej już z tego miejsca odnaleźć.
+    // 'topics' → 'tags' (D-021): ekran „Twoje tematy" ustąpił „Twoim tagom".
+    // Trasa `settings.topics` już nie istnieje — usunięta razem z Tematami
+    // w etapie 4/5, więc ta lista jest jedynym, spójnym źródłem ekranów.
     $ekrany = [
         'profile' => ['settings.profile', 'Profil', 'Nazwa, zdjęcie, kilka słów o Tobie'],
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
