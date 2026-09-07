@@ -23,6 +23,7 @@
 @import "./ekran-wyszukiwania.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
+@import "./karta-ugotowania.css";
 
 @layer components {
 

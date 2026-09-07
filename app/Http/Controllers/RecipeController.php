@@ -249,37 +249,56 @@ class RecipeController extends Controller
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
+        // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
+        // pokazywała każde wykonanie, nie pytając, czy widz zablokował
+        // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
+        //
+        // PAGINOWANE, nie `->limit(12)->get()` (do 7 września 2026). Limit
+        // bez paginacji wygląda niewinnie — strona się nie wykłada, zapytanie
+        // zostaje jedno — ale dla przepisu z więcej niż 12 wykonaniami
+        // wykonania 13. i dalsze są NIEOSIĄGALNE z tego ekranu w ogóle:
+        // żadnego przycisku, żadnego adresu, żadnego śladu, że istnieją.
+        // Ten sam kształt błędu co T20/N03 dla komentarzy
+        // (`KomentarzeStronamiTest`), tylko że tam był chociaż widoczny ślad
+        // (nagłówek liczący WSZYSTKIE), a tu i ślad był ucięty — znaczek nad
+        // hero liczył uczciwie 30, ale strona nie dawała żadnej drogi do
+        // wykonań 13–30. Zmierzone w `KomuWyszloWydajnoscTest`.
+        //
+        // Nazwa strony `wykonania`, nie `komentarze` — obie paginacje żyją
+        // na tym samym ekranie i muszą mieć niezależne parametry adresu.
+        $cookedEvents = $model->cookedEvents()
+            ->widoczneDla($request->user())
+            ->with(['user.profile.avatar', 'media'])
+            ->paginate(12, ['*'], 'wykonania')
+            ->withQueryString();
+
         return view('pages.recipes.show', [
             'recipe' => $model,
             'komentarze' => $komentarze,
             // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
             // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
             'komentarzyRazem' => $komentarze->total(),
-            // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
-            // pokazywała każde wykonanie, nie pytając, czy widz zablokował
-            // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
-            'cookedEvents' => $model->cookedEvents()
-                ->widoczneDla($request->user())
-                ->with(['user.profile.avatar', 'media'])
-                ->limit(12)
-                ->get(),
+            'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //
-            // Stało tu gołe `count()` na całej relacji, dziesięć linijek pod
-            // galerią, która filtr `widoczneDla()` miała od audytu A4. Reguła
-            // była więc w warstwie LISTY i nie było jej w warstwie LICZBY.
-            // Zmierzone przy dwóch wykonaniach, z których jedno należało do
-            // osoby zablokowanej przez widza: galeria pokazywała jedną kartę,
+            // `$cookedEvents->total()`, nie osobne `->count()` — do 7 września
+            // 2026 stało tu gołe zapytanie, dziesięć linijek pod galerią, która
+            // filtr `widoczneDla()` miała od audytu A4. Reguła była więc
+            // w warstwie LISTY i nie było jej w warstwie LICZBY. Zmierzone
+            // przy dwóch wykonaniach, z których jedno należało do osoby
+            // zablokowanej przez widza: galeria pokazywała jedną kartę,
             // a znaczek nad nią „Ugotowane 2 ×" i JSON-LD
             // `"userInteractionCount":2`. Czyli sama strona meldowała widzowi,
             // że osoba, którą zablokował, ugotowała ten przepis — ten sam
             // „oracle istnienia" co zamknięte W7-05 i co licznik obserwujących
-            // na profilu.
+            // na profilu. Czytanie z paginatora usuwa też drugie, zbędne
+            // zapytanie `count()` — ten sam `total()`, który i tak liczy
+            // Laravel budując stronę.
             //
             // Skutek świadomy: liczba jest per widz, tak jak per widz jest już
             // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
             // więc dane dla wyszukiwarek zostają bez zmian.
-            'cookedCount' => $model->cookedEvents()->widoczneDla($request->user())->count(),
+            'cookedCount' => $cookedEvents->total(),
             // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
             // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
             // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
