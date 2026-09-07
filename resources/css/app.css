@@ -15,6 +15,15 @@
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";
 
+/* Arkusze pojedynczych obszarów ekranów (UI kit v2, etap D). Osobne pliki,
+   bo etap D wdrażało kilka równoległych zleceń — wspólny plik znaczyłby, że
+   jedno nadpisuje drugie. Kolejność importów nie ma tu znaczenia: każdy
+   z nich dopisuje własne klasy do @layer components, żadny nie nadpisuje
+   klasy z innego. */
+@import "./ekran-wyszukiwania.css";
+@import "./ekran-profilu.css";
+@import "./ekran-dodawania.css";
+
 @layer components {
 
   /* ---------------------------------------------------------------------

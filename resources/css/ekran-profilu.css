@@ -1,0 +1,14 @@
+/*
+ * ekran-profilu.css — arkusz jednego obszaru ekranów (UI kit v2, etap D).
+ *
+ * PO CO OSOBNY PLIK, A NIE KOLEJNA SEKCJA W app.css
+ * Etap D był wdrażany przez kilka równoległych zleceń jednocześnie. Jeden
+ * wspólny app.css znaczyłby, że drugie zlecenie nadpisuje pierwsze — więc
+ * każdy obszar dostał własny plik, wpięty importem w app.css.
+ *
+ * Zasada z app.css obowiązuje tu bez zmian: żadnej wartości koloru,
+ * rozmiaru tekstu ani odstępu na sztywno — wszystko przez var(--...).
+ */
+
+@layer components {
+}
