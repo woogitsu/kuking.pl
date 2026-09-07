@@ -46,6 +46,15 @@
     $theme = $user?->theme ?? request()->cookie(config('kuking.theme.cookie'));
     $theme = $theme === 'dark' ? 'dark' : 'light';
     $unread = $user?->unreadNotificationsCount() ?? 0;
+
+    // Pozycja „Dodaj" (pasek dolny i nawigacja boczna, UI kit v2 etap D)
+    // zostaje bieżącą pozycją przez CAŁY proces dodawania, nie tylko na
+    // ekranie wyboru. `/dodaj` to pierwszy krok; wybór zdjęcia i kreator
+    // przepisu (obie odmiany) to jego dalszy ciąg pod własnymi trasami —
+    // dokładnie ten sam kształt co „Moje" (`collections.*`), które od dawna
+    // dopasowuje się przez wzorzec. Bez tego menu przestawało pokazywać,
+    // gdzie jest użytkownik, w chwili gdy naprawdę coś dodawał.
+    $naDodaj = request()->routeIs(['add', 'posts.create', 'recipes.create*']);
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
     // ------------------------------------------------------------------
@@ -283,7 +292,7 @@
                     <ul class="stack-tight list-none p-0 m-0">
                         <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
                         <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
+                        <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
                         <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
                         <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
                         @if($user->isModerator())
@@ -480,7 +489,7 @@
             {{-- Główna akcja produktu ma w kicie wyróżniony, okrągły znak
                  na środku paska. Podpis „Dodaj" ZOSTAJE pod spodem: kółko jest
                  wyróżnieniem, nie zastąpieniem napisu (AGENTS.md §5). --}}
-            <a class="bottom-nav-item bottom-nav-item-glowna" href="{{ route('add') }}" @if(request()->routeIs('add')) aria-current="page" @endif>
+            <a class="bottom-nav-item bottom-nav-item-glowna" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif>
                 <span class="bottom-nav-kolko"><x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /></span> Dodaj
             </a>
             <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>
