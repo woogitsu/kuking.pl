@@ -83,6 +83,29 @@
     .app-body-solo .app-main {
       margin: 0 auto;
     }
+
+    /* Strona powitalna: jedna kolumna, ale SZEROKA — dokładnie tyle, ile ma
+       układ zalogowanego. Dzięki temu logotyp i przyciski w belce stoją
+       w tym samym miejscu przed i po zalogowaniu, a nie przeskakują.
+       Wewnątrz treść dzieli się na pasma (`.landing-pasmo`), więc żadna
+       linia tekstu nie robi się od tego dłuższa. */
+    .app-body-powitalny {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: var(--container-strona-z-szyna);
+    }
+
+    /* ZDJĘTY LIMIT SZEROKOŚCI, nie samo wyśrodkowanie.
+       `.app-main` ma `max-width: var(--container-content)` (720 px) i to jest
+       poprawne wszędzie tam, gdzie w środku jest jedna kolumna tekstu.
+       Na stronie powitalnej treść dzieli się na pasma, które SAME pilnują
+       długości linii — więc limit musi tu zniknąć, inaczej poszerza się
+       kontener, a nie zawartość. Pierwsza wersja tej poprawki miała tylko
+       `margin: 0 auto` i zmierzone wyszło z tego: siatka 1424 px, a pasmo
+       treści dalej 688 px wyśrodkowane, czyli puste boki bez zmian. */
+    .app-body-powitalny .app-main {
+      max-width: none;
+      margin: 0;
+    }
   }
 
   /* --- Prawa szyna (UI kit v2, ekran 01) ---------------------------------
@@ -123,6 +146,16 @@
     .app-body-solo {
       grid-template-columns: minmax(0, 1fr);
       max-width: var(--container-strona-solo);
+    }
+
+    .app-body-powitalny {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: var(--container-strona-z-szyna);
+    }
+
+    .app-body-powitalny .app-main {
+      max-width: none;
+      margin: 0;
     }
 
     .app-rail {
@@ -241,6 +274,14 @@
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
     }
+
+    /* Belka i stopka MUSZĄ iść za szerokością treści, inaczej automat
+       dostępności zgłosi rozjazd — i słusznie, bo logotyp wisiałby wtedy
+       nad pustym miejscem obok siatki. */
+    .uklad-powitalny .topbar-inner,
+    .uklad-powitalny .site-footer-inner {
+      max-width: var(--container-strona-z-szyna);
+    }
   }
 
   @media (min-width: 80rem) {
@@ -253,6 +294,14 @@
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
+    }
+
+    /* Belka i stopka MUSZĄ iść za szerokością treści, inaczej automat
+       dostępności zgłosi rozjazd — i słusznie, bo logotyp wisiałby wtedy
+       nad pustym miejscem obok siatki. */
+    .uklad-powitalny .topbar-inner,
+    .uklad-powitalny .site-footer-inner {
+      max-width: var(--container-strona-z-szyna);
     }
   }
 
@@ -2309,4 +2358,52 @@
   font-size: var(--text-lead);
   max-width: 34rem;
   margin: 0 auto var(--spacing-6);
+}
+
+/* --- Pasma strony powitalnej -------------------------------------------
+   Strona jest szeroka, ale TEKST w niej nie. Każde pasmo dzieli szerokość
+   na kolumny zamiast rozciągać wiersz: przy 1424 px dwie kolumny dają
+   po ~690 px, czyli dalej mieszczą się w zakresie ~65–75 znaków, na który
+   wyliczony jest `--container-content`.
+
+   `minmax(0, 1fr)`, nigdy `1fr` — element siatki nie zejdzie poniżej swojej
+   szerokości min-content i przy 320 px z tekstem 150% zrobi przewijanie
+   w bok. Ta pomyłka wywróciła już raz ekran przepisu (`.przepis-siatka`). */
+.landing-pasmo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-6);
+  align-items: start;
+  margin-bottom: var(--spacing-8);
+}
+
+@media (min-width: 64rem) {
+  .landing-pasmo-dwie {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Siatka wpisów pod nagłówkiem „Świeżo z Kuking". Karta wpisu niesie
+   zdjęcie i kilka zdań, więc dwie kolumny są dla niej wygodne — jedna
+   kolumna na tak szerokim ekranie zostawiałaby pustkę, o którą zgłosił
+   się właściciel. Trzeciej kolumny NIE dodajemy: przy 1424 px karta
+   zeszłaby do ~450 px i zdjęcie zrobiłoby się znaczkiem.
+
+   SIATKA OD RAZU, NIE `.stack` PLUS SIATKA OD 64REM. Pierwsza wersja tego
+   kodu miała na tym elemencie obie klasy naraz, a `.stack` to
+   `> * + * { margin-top }`, nie flex. W siatce ten margines DODAJE się do
+   `gap`, więc pierwsza karta w każdym rzędzie miałaby inny odstęp od góry
+   niż druga — rozjazd widoczny tylko na szerokim ekranie i tylko w drugim
+   rzędzie, czyli dokładnie taki, jakiego nikt nie zauważa przed wdrożeniem. */
+.landing-wpisy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-5);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .landing-wpisy {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

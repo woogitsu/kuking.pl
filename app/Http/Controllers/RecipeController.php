@@ -15,6 +15,7 @@ use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -193,6 +194,24 @@ class RecipeController extends Controller
 
             $target = Recipe::findOrFail($redirect->recipe_id);
 
+            // TA SAMA BRAMKA CO POD NOWYM ADRESEM.
+            //
+            // Autoryzacja stała wcześniej TYLKO w gałęzi „przepis znaleziony
+            // pod tym slugiem", więc przekierowanie odsyłało 301 bez pytania
+            // o Policy. Slug powstaje z tytułu, więc sam nagłówek `Location`
+            // oddawał tytuł przepisu prywatnego albo autora zbanowanego —
+            // czyli treść była mniej dostępna przez drzwi frontowe (403) niż
+            // przez okno. Zmierzone: `301 → /przepisy/nalewka-na-ziolach-babci-wandy`
+            // dla przepisu `visibility = private` oglądanego przez obcego.
+            //
+            // 404, a nie 403: pod NOWYM adresem odmowa to 403 i tak zostaje,
+            // ale tu odpowiadamy dokładnie tym samym, co na slug nieistniejący.
+            // 403 potwierdzałoby, że ten stary adres jest znanym
+            // przekierowaniem, czyli że przepis o takim tytule istnieje.
+            if (! Gate::forUser($request->user())->allows('view', $target)) {
+                abort(404);
+            }
+
             return redirect()->route('recipes.show', $target, 301);
         }
 
@@ -222,7 +241,23 @@ class RecipeController extends Controller
                 ->with(['user.profile.avatar', 'media'])
                 ->limit(12)
                 ->get(),
-            'cookedCount' => $model->cookedEvents()->count(),
+            // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
+            //
+            // Stało tu gołe `count()` na całej relacji, dziesięć linijek pod
+            // galerią, która filtr `widoczneDla()` miała od audytu A4. Reguła
+            // była więc w warstwie LISTY i nie było jej w warstwie LICZBY.
+            // Zmierzone przy dwóch wykonaniach, z których jedno należało do
+            // osoby zablokowanej przez widza: galeria pokazywała jedną kartę,
+            // a znaczek nad nią „Ugotowane 2 ×" i JSON-LD
+            // `"userInteractionCount":2`. Czyli sama strona meldowała widzowi,
+            // że osoba, którą zablokował, ugotowała ten przepis — ten sam
+            // „oracle istnienia" co zamknięte W7-05 i co licznik obserwujących
+            // na profilu.
+            //
+            // Skutek świadomy: liczba jest per widz, tak jak per widz jest już
+            // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
+            // więc dane dla wyszukiwarek zostają bez zmian.
+            'cookedCount' => $model->cookedEvents()->widoczneDla($request->user())->count(),
             // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
             // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
             // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
@@ -234,8 +269,18 @@ class RecipeController extends Controller
             'obserwuje' => $request->user() !== null
                 && $request->user()->getKey() !== $model->author_id
                 && $request->user()->isFollowing($model->author),
-            'zrobiaPonownie' => $model->cookedEvents()->where('would_make_again', true)->count(),
-            'oceniloWykonanie' => $model->cookedEvents()->whereNotNull('would_make_again')->count(),
+            // Oba liczniki opinii — ta sama granica co przy `cookedCount`
+            // wyżej. Bez niej znaczek pisał „3 z 4 osób zrobi to ponownie"
+            // przy trzech widocznych wykonaniach (zmierzone), czyli zdradzał
+            // istnienie czwartego i JESZCZE jego odpowiedź.
+            'zrobiaPonownie' => $model->cookedEvents()
+                ->widoczneDla($request->user())
+                ->where('would_make_again', true)
+                ->count(),
+            'oceniloWykonanie' => $model->cookedEvents()
+                ->widoczneDla($request->user())
+                ->whereNotNull('would_make_again')
+                ->count(),
             'isSaved' => $request->user() !== null && $request->user()
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))

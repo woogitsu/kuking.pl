@@ -259,6 +259,20 @@ ten kod pęka:
   się przejść, dając dwóm różnym limitom tę samą nazwę.
   Znalezione przez agenta przy niezależnej weryfikacji W7-02, potwierdzone
   osobnym pomiarem.
+- **Zakładka „Ugotowane" na cudzym profilu zdradzała tytuł przepisu.**
+  Nad filtrem, który miał tego pilnować, stało zdanie „Wyciek przez tytuł to
+  nadal wyciek" — reguła była więc UZNANA, a sprawdzenie obejmowało wyłącznie
+  kolumnę `visibility`. Zmierzone: obcy widział tytuł przepisu ukrytego przez
+  moderację ORAZ przepisu autora zbanowanego, mimo że i adres wykonania,
+  i adres przepisu dawały mu 403. Trzeci przypadek subtelniejszy: filtr
+  dostawał jako „właściciela" KUCHARZA, a `visibility: followers` dotyczy
+  relacji z AUTOREM PRZEPISU — kto obserwował kucharza, ale nie autora,
+  widział tytuł przepisu „tylko dla obserwujących" tego autora.
+  Naprawione przez USUNIĘCIE ręcznego filtra, nie jego rozbudowę:
+  `Recipe::scopeWidoczneDla()` odpowiada na to pytanie i ma własną macierz
+  testów, a filtr w kontrolerze był drugą implementacją tej samej reguły.
+  Znalezione przez agenta audytującego komentarze, z pomiarem; plik był poza
+  jego zakresem, więc zgłosił go z gotowym patchem.
 - **Trzecie miejsce z tą samą luką: szyna „Mój zeszyt" na stronie głównej.**
   `FeedController::home()` budował ją zapytaniem z `widoczneDla($user)`, a nad
   tym zapytaniem stał komentarz kończący się zdaniem „Jedna granica, jeden

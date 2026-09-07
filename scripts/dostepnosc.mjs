@@ -789,6 +789,12 @@ const EKRANY_WYROWNANIA = [
   { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
   { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
   { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
+  // Strona powitalna ma OD 7 WRZEŚNIA własną, szerszą siatkę
+  // (`app-body-powitalny`) — a więc i własną okazję do rozjazdu belki.
+  // Reguła spójności szerokości jej nie dotyczy, bo ta liczy wyłącznie
+  // ekrany zalogowanego; ta pozycja pilnuje drugiej reguły: że logotyp
+  // i przyciski stoją dokładnie nad krawędziami treści.
+  { nazwa: 'strona powitalna (gość)', adres: '/' },
 ];
 
 // 1024 to próg nawigacji bocznej, 1280 progu szyny, 1512 typowy laptop —

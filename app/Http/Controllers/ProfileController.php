@@ -79,7 +79,7 @@ class ProfileController extends Controller
                 : null,
             'cookedEvents' => $tab === 'ugotowane'
                 ? $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))
+                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
                     ->with(['recipe.author.profile', 'media'])
                     ->paginate(12)
                     ->withQueryString()
@@ -90,7 +90,7 @@ class ProfileController extends Controller
                 'recipes' => $owner->recipes()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
                 'cooked' => $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))->count(),
+                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))->count(),
                 'followers' => $this->liczbaPolaczen($owner, 'followers', $viewer),
                 'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
             ],
@@ -183,16 +183,40 @@ class ProfileController extends Controller
      * bez tego filtra zdradzała tytuły przepisów prywatnych, mimo że sam przepis
      * był nie do otwarcia. Wyciek przez tytuł to nadal wyciek.
      *
+     * I DOKŁADNIE TO ZDANIE STAŁO TU, GDY FILTR BYŁ NIEPEŁNY.
+     * Reguła była uznana, a sprawdzenie obejmowało WYŁĄCZNIE kolumnę
+     * `visibility`. Zmierzone: obcy na cudzym profilu widział tytuł przepisu
+     * ukrytego przez moderację ORAZ tytuł przepisu autora zbanowanego, mimo
+     * że adres wykonania i adres przepisu dawały mu 403. Trzeci przypadek był
+     * subtelniejszy: filtr dostawał jako „właściciela" KUCHARZA, a
+     * `visibility: followers` dotyczy relacji z AUTOREM PRZEPISU — kto
+     * obserwował kucharza, ale nie autora, widział tytuł przepisu „tylko dla
+     * obserwujących" tego autora.
+     *
+     * DLATEGO RĘCZNY FILTR ZNIKA, A NIE ZOSTAJE ROZBUDOWANY.
+     * `Recipe::scopeWidoczneDla()` odpowiada na dokładnie to pytanie i ma
+     * własną macierz testów: widoczność liczoną względem autora przepisu,
+     * blokady w obie strony, status przepisu. `tylkoWidoczne()` w tym
+     * kontrolerze było DRUGĄ implementacją tej samej reguły — czyli tym, co
+     * w tym repozytorium pęka najczęściej. Zostaje jeden zakres plus granica
+     * polityki `dostepnyJakoAutor()`, której ten zakres celowo nie zawiera
+     * (patrz komentarz przy `User::scopeDostepnyJakoAutor`: to są dwie różne
+     * granice i obie są potrzebne).
+     *
+     * `$owner` nie jest już potrzebny i dlatego go tu nie ma — parametr,
+     * który wygląda na używany, a nie jest, to zaproszenie do pomyłki.
+     *
      * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
      */
-    private function tylkoZWidocznychPrzepisow($query, $owner, $viewer, bool $isOwner): void
+    private function tylkoZWidocznychPrzepisow($query, $viewer, bool $isOwner): void
     {
         if ($isOwner) {
             return;
         }
 
-        $query->whereHas('recipe', function ($sub) use ($owner, $viewer): void {
-            $this->tylkoWidoczne($sub, $owner, $viewer, false);
+        $query->whereHas('recipe', function ($sub) use ($viewer): void {
+            $sub->widoczneDla($viewer)
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
         });
     }
 
