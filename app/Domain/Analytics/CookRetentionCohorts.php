@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Analytics;
 
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -38,18 +39,25 @@ final class CookRetentionCohorts
     {
         $wykluczeni = $this->eligibility->excludedUserIds();
 
+        // Ta sama strefa co w `WeeklyActiveCooks` i z tego samego powodu —
+        // patrz `Czas::wStrefieCzlowieka()`. Tydzień rejestracji i tydzień
+        // aktywności MUSZĄ być liczone tak samo, bo `week_offset` to różnica
+        // między nimi: rozjazd o jeden dzień przesuwałby całe kohorty.
+        $tydzienRejestracji = "date_trunc('week', ".Czas::wStrefieCzlowieka('created_at').')';
+        $tydzienAktywnosci = "date_trunc('week', ".Czas::wStrefieCzlowieka('activity_at').')';
+
         $userWeeks = User::query()
             ->select('id as user_id')
-            ->selectRaw("date_trunc('week', created_at)::date as signup_week")
+            ->selectRaw("{$tydzienRejestracji}::date as signup_week")
             ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('id', $wykluczeni))
             ->toBase();
 
         $activityWeeks = DB::query()
             ->fromSub($this->activity->unionQuery($wykluczeni), 'activity')
             ->select('user_id')
-            ->selectRaw("date_trunc('week', activity_at)::date as activity_week")
+            ->selectRaw("{$tydzienAktywnosci}::date as activity_week")
             ->groupBy('user_id')
-            ->groupByRaw("date_trunc('week', activity_at)::date");
+            ->groupByRaw("{$tydzienAktywnosci}::date");
 
         return DB::query()
             ->fromSub($userWeeks, 'uw')

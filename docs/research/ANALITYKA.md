@@ -34,7 +34,7 @@ plan. Wszystko, co dziś realnie mierzymy, liczy się z PostgreSQL.
 ## 1. North Star: Weekly Active Cooks
 
 **Definicja operacyjna:** liczba różnych kont, które w danym tygodniu
-kalendarzowym (poniedziałek–niedziela, `date_trunc('week', …)`) zrobiły
+kalendarzowym (poniedziałek–niedziela **czasu polskiego**) zrobiły
 przynajmniej jedną z trzech rzeczy:
 
 - opublikowały wpis (`posts`, `published()`),
@@ -82,6 +82,27 @@ w pełni widoczny — po prostu nie zasila metryki.
 Soft delete jest wykluczony globalnym scope'em `SoftDeletes` na `Post`
 i `Recipe`. `cooked_events` nie ma soft delete w MVP, więc liczone są
 wszystkie wiersze.
+
+### 1.3 Tydzień jest polski i to nie jest drobiazg
+
+`date_trunc('week', activity_at)` na kolumnie `timestamptz` obcina tydzień
+w strefie SESJI Postgresa. To repozytorium tej strefy **nigdzie nie ustawia** —
+`config/database.php` nie ma klucza `timezone` dla `pgsql` — więc sesja brała
+domyślną strefę SERWERA bazy. Wynikały z tego dwie rzeczy:
+
+1. Aktywność z poniedziałku 00:30 czasu polskiego wpadała do tygodnia
+   poprzedniego.
+2. Te same dane dawały **inny WAC na innym serwerze**, bez jednej zmiany
+   w kodzie i bez żadnego sygnału.
+
+Oba zapytania używają teraz `Czas::wStrefieCzlowieka()`, które wstawia
+`at time zone 'Europe/Warsaw'` jawnie. `WacLiczyTydzienWStrefieCzlowiekaTest`
+pilnuje jednego i drugiego — drugi test przestawia strefę sesji w locie
+(`SET TIME ZONE`) i wymaga, żeby wynik się nie zmienił.
+
+Kohorty liczą tydzień rejestracji i tydzień aktywności tą samą funkcją,
+celowo: `week_offset` to różnica między nimi, więc rozjazd o jeden dzień
+przesuwałby całe kohorty.
 
 ---
 

@@ -236,6 +236,19 @@ ten kod pęka:
   układający ją PO PÓŁNOCY zapisywał ją pod datą wczorajszą — widział ją
   jeszcze godzinę-dwie i znikała mu tego samego dnia. Naprawione nowym
   `Czas::dzisiajData()`, żeby „dziś człowieka" miało jedno źródło.
+- **Trzecie miejsce z tą strefą było w metrykach — i psuło je inaczej.**
+  `date_trunc('week', activity_at)` w `WeeklyActiveCooks`
+  i `CookRetentionCohorts` obcinał tydzień w strefie SESJI Postgresa, której
+  to repozytorium NIGDZIE nie ustawia (`config/database.php` nie ma klucza
+  `timezone` dla `pgsql`). Poza znanym już przesunięciem o dwie godziny
+  znaczyło to, że **te same dane dają inny WAC na innym serwerze bazy**, bez
+  jednej zmiany w kodzie. Zmierzone wprost: samo `SET TIME ZONE` w sesji
+  przesunęło wynik o cały tydzień. Naprawione przez
+  `Czas::wStrefieCzlowieka()`, a test przestawia strefę w locie i wymaga, żeby
+  liczba się nie ruszyła. Przy okazji: nagłówek `WeeklyActiveCooksTest`
+  twierdził, że strefę sesji ustawia `config/database.php` — nieprawda, i to
+  dlatego nikt tego nie widział: daty w testach były dobrane tak, żeby omijać
+  granicę tygodnia.
 - **`/health` pokazywał surowy komunikat wyjątku CAŁEMU INTERNETOWI.** To ten
   sam błąd co W7-07 (`failure_reason` eksportu RODO), tylko na trasie bez
   `auth` i bez limitu zapytań — bo mieć ich nie może: Railway odpytuje ją

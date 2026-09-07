@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Analytics;
 
+use App\Support\Czas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -38,7 +39,12 @@ final class WeeklyActiveCooks
     public function weekly(?int $ileTygodni = null): Collection
     {
         $wykluczeni = $this->eligibility->excludedUserIds();
-        $tydzien = "date_trunc('week', activity_at)";
+        // Tydzień POLSKI, nie tydzień sesji bazy. Bez `at time zone`
+        // aktywność z poniedziałku 00:30 czasu polskiego wpadała do tygodnia
+        // poprzedniego, a cała granica tygodnia zależała od domyślnej strefy
+        // serwera Postgresa — ustawienia, którego to repozytorium nie
+        // kontroluje. Patrz `Czas::wStrefieCzlowieka()`.
+        $tydzien = "date_trunc('week', ".Czas::wStrefieCzlowieka('activity_at').')';
 
         $zapytanie = DB::query()
             ->fromSub($this->activity->unionQuery($wykluczeni), 'weekly_cook_activity')

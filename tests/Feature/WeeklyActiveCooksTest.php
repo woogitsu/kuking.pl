@@ -25,11 +25,17 @@ use Tests\TestCase;
  * MUSI oblać bez `App\Domain\Analytics\CookEligibility` (sprawdzone ręcznie
  * przed dopisaniem poprawki).
  *
- * Tydzień w tych testach to ZAWSZE UTC (kolumny są `timestamptz`, sesja
- * Postgresa w testach chodzi na `Etc/UTC` — patrz `config/database.php` i
- * `App\Support\Czas`, który rozdziela strefę ZAPISU od strefy WYŚWIETLANIA).
- * Daty poniżej są dobrane ręcznie tak, żeby granica tygodnia była granicą
- * KALENDARZOWĄ (poniedziałek), a nie efektem przesunięcia strefy czasu.
+ * Tydzień w tych testach to tydzień POLSKI — `WeeklyActiveCooks` obcina go
+ * przez `Czas::wStrefieCzlowieka()`. Kolumny są `timestamptz`, więc momenty
+ * poniżej zapisujemy w UTC, ale granica tygodnia biegnie polską północą.
+ *
+ * TEN AKAPIT MÓWIŁ WCZEŚNIEJ COŚ INNEGO I BYŁO TO NIEPRAWDĄ. Twierdził,
+ * że tydzień jest „ZAWSZE UTC, patrz `config/database.php`". `config/
+ * database.php` nie ma klucza `timezone` dla `pgsql` i nigdy nie miał —
+ * sesja brała domyślną strefę SERWERA bazy, czyli ustawienie spoza tego
+ * repozytorium. Daty w testach były dobrane tak, żeby omijać granicę
+ * tygodnia, więc nikt tego nie zauważył. Patrz
+ * `WacLiczyTydzienWStrefieCzlowiekaTest`, który pilnuje jednego i drugiego.
  */
 class WeeklyActiveCooksTest extends TestCase
 {
@@ -280,18 +286,22 @@ class WeeklyActiveCooksTest extends TestCase
 
     public function test_granica_tygodnia_niedziela_i_poniedzialek_licza_sie_osobno(): void
     {
+        // Granica biegnie polską północą, więc momenty są dobrane w POLSKIEJ
+        // strefie i dopiero przeliczone na UTC. Wrzesień to czas letni (CEST,
+        // UTC+2), stąd przesunięcie o dwie godziny wstecz.
         $wNiedziele = $this->user('w_niedziele');
         Post::factory()->create([
             'author_id' => $wNiedziele->getKey(),
-            // Ostatnia sekunda tygodnia testowego (niedziela, 23:59:59 UTC).
-            'published_at' => CarbonImmutable::parse(self::TYDZIEN_KONIEC.' 23:59:59', 'UTC'),
+            // Niedziela 6 września, 23:59:59 czasu polskiego.
+            'published_at' => CarbonImmutable::parse('2026-09-06 21:59:59', 'UTC'),
         ]);
 
         $wPoniedzialek = $this->user('w_poniedzialek');
         Post::factory()->create([
             'author_id' => $wPoniedzialek->getKey(),
-            // Pierwsza sekunda KOLEJNEGO tygodnia (poniedziałek, 00:00:00 UTC).
-            'published_at' => CarbonImmutable::parse('2026-09-07 00:00:00', 'UTC'),
+            // Poniedziałek 7 września, 00:00:00 czasu polskiego — sekundę
+            // później, a już w kolejnym tygodniu.
+            'published_at' => CarbonImmutable::parse('2026-09-06 22:00:00', 'UTC'),
         ]);
 
         $tygodnie = $this->wac()->weekly();
