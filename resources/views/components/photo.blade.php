@@ -53,9 +53,53 @@
            data-alt="{{ $media->alt_text ?? '' }}"
            aria-label="Powiększ zdjęcie{{ $media->alt_text ? ': '.$media->alt_text : '' }}">
     @endif
+    @php
+        /*
+         * `srcset` Z PRAWDZIWYCH SZEROKOŚCI, nie z maksimów konfiguracji
+         * (audyt zewnętrzny T30).
+         *
+         * Deskryptory były wpisane na sztywno: `320w, 960w, 1600w`, czyli
+         * MAKSYMALNE krawędzie z `config('kuking.media.variants')`. Ale
+         * `ProcessUploadedImage` skaluje przez `scaleDown()`, które NIGDY
+         * NIE POWIĘKSZA — i to jest świadoma decyzja („małe zdjęcie zostaje
+         * małe, zamiast być rozmyte na siłę").
+         *
+         * Zmierzone: dla zdjęcia 400×300 wszystkie trzy warianty mają
+         * najwyżej 400 px, a `srcset` twierdził, że jeden ma 1600. To psuje
+         * dokładnie ten mechanizm, dla którego `srcset` istnieje:
+         * przeglądarka widzi „1600w", pobiera przy szerokim widoku NAJWIĘKSZY
+         * z trzech plików, dostaje 400 px i rozciąga je. Użytkownik płaci
+         * transferem za rozmyte zdjęcie.
+         *
+         * Prawdziwe szerokości leżą w `metadata.variants[*].width`, a
+         * `Media::width()` je zwraca — ten sam komponent używał tej metody
+         * w atrybucie `width` obok `srcset`, który mówił co innego o tym
+         * samym pliku.
+         *
+         * DEDUPLIKACJA po szerokości: przy małym zdjęciu `feed` i `large`
+         * mają tę samą szerokość, a dwa kandydaty o identycznym deskryptorze
+         * nie dają przeglądarce żadnego wyboru — zostaje pierwszy, mniejszy
+         * plik. Bierzemy więc jeden wariant na szerokość, od najmniejszego.
+         */
+        $kandydaci = [];
+
+        foreach (['thumb', 'feed', 'large'] as $nazwaWariantu) {
+            $szerokoscWariantu = $media->width($nazwaWariantu);
+
+            if ($szerokoscWariantu === null || isset($kandydaci[$szerokoscWariantu])) {
+                continue;
+            }
+
+            $kandydaci[$szerokoscWariantu] = $media->url($nazwaWariantu).' '.$szerokoscWariantu.'w';
+        }
+
+        ksort($kandydaci);
+
+        $srcset = implode(', ', $kandydaci);
+    @endphp
     <img class="{{ $class }}"
          src="{{ $media->url($variant) }}"
-         srcset="{{ $media->url('thumb') }} 320w, {{ $media->url('feed') }} 960w, {{ $media->url('large') }} 1600w"
+         srcset="{{ $srcset }}"
          sizes="{{ $sizes }}"
          alt="{{ $alt ?: ($media->alt_text ?? '') }}"
          width="{{ $media->width($variant) }}"
