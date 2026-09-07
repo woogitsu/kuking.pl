@@ -187,6 +187,28 @@ Powtórz dla staginu (token `kuking-staging`, zakres `kuking-media-staging`).
 
 ### 2.3 Własna domena `cdn.kuking.pl`
 
+> ## ⛔ TEGO KROKU NIE WYKONUJ — jest sprzeczny z decyzją właściciela D-020
+>
+> Ten rozdział powstał, gdy adresem zdjęcia był adres pliku w buckecie.
+> **Decyzja D-020 (6 września 2026) to odwróciła:** adresem zdjęcia jest
+> trasa aplikacji, która sprawdza uprawnienia, a bucket wariantów traci
+> własną domenę. Utworzenie `cdn.kuking.pl` na buckecie wariantów —
+> a zwłaszcza razem z regułą „Cache Everything" z §7, Edge i Browser TTL
+> 30 dni — **odtworzyłoby dokładnie tę lukę**, którą zamknęło ustalenie
+> audytowe W7-02: adres raz skopiowany działa dalej po zablokowaniu, po
+> cofnięciu obserwowania i po decyzji moderacyjnej. Najgorszy przypadek
+> nazwał audyt wprost: skan odręcznej kartki z rodzinnym przepisem,
+> a na niej nazwiska i adresy.
+>
+> Zmierzone 7 września 2026: `cdn.kuking.pl` nie odpowiada, czyli krok nie
+> został wykonany. Ma tak zostać. To samo dotyczy reguły 4 w §7.
+>
+> Rozdział zostaje w dokumencie, a nie jest kasowany, bo `R2_PUBLIC_URL`
+> i `r2_legacy` mają swoją historię, którą trzeba rozumieć przy migracji
+> starych zdjęć (`kuking:przenies-zdjecia`). Ale jako INSTRUKCJA jest
+> wycofany.
+
+
 → R2 → bucket `kuking-media` → **Settings** → **Custom Domains** → **Add**
 
 - Domena: `cdn.kuking.pl`
