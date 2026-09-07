@@ -55,6 +55,14 @@ final class FiltrWulgaryzmow
      * Rdzenie słów, PO transliteracji i małych literach. Krótka lista,
      * ręcznie utrzymywana — patrz komentarz klasy.
      *
+     * „PO TRANSLITERACJI" TO NIE OPIS, A WARUNEK POPRAWNOŚCI.
+     * Hasło zapisane tutaj z polskim znakiem nie zablokuje NIGDY niczego:
+     * do porównania dochodzi już `pedal`, nie `pedał`. Dwa hasła stały tu
+     * właśnie w ten sposób (`pedał`, `jebnięty`), więc lista wyglądała na
+     * dłuższą, niż była — 40 pozycji, z których działało 38.
+     * `Tests\Unit\FiltrWulgaryzmowBezMartwychHaselTest` pilnuje teraz tego
+     * niezmiennika dla każdej pozycji, także dla tych dopisanych w przyszłości.
+     *
      * @var list<string>
      */
     private const SLOWA = [
@@ -62,8 +70,8 @@ final class FiltrWulgaryzmow
         'chujowy', 'chujowa', 'pierdol', 'pierdole', 'pierdolony', 'pierdolona',
         'jebac', 'jebany', 'jebana', 'zajebisty', 'zajebista', 'spierdalaj',
         'pizda', 'pizdy', 'cipa', 'cipy', 'dziwka', 'dziwki', 'kutas', 'kutasa',
-        'skurwysyn', 'skurwysynu', 'huj', 'huja', 'jebnij', 'jebnięty',
-        'pedał', 'pedaly', 'ciota', 'menda', 'debil', 'debilu', 'idiota',
+        'skurwysyn', 'skurwysynu', 'huj', 'huja', 'jebnij', 'jebniety',
+        'pedal', 'pedaly', 'ciota', 'menda', 'debil', 'debilu', 'idiota',
         'kretyn', 'kretynie', 'gnida', 'gnoj', 'gnoju', 'szmata', 'szmato',
     ];
 
