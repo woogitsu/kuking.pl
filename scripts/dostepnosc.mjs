@@ -122,6 +122,20 @@ const EKRANY = [
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
   { nazwa: 'czytelność', adres: '/ustawienia/czytelnosc', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
+  /*
+   * EKRANY TAGÓW (D-021). Publiczna strona tagu jest jednym z niewielu
+   * miejsc, w które ma sens trafić z wyszukiwarki, więc mierzymy ją jako
+   * GOŚCIA, nie jako zalogowanego.
+   *
+   * `/ustawienia/tagi` i sekcja tagów w formularzu wpisu (mierzona przez
+   * „dodaj zdjęcie" i „dodaj przepis", które ją zawierają) to rzędy
+   * przycisków „Dodaj"/„Usuń" obok tekstu — dokładnie ten układ, który przy
+   * 320 px i tekście 140% ma najwięcej okazji, żeby wypchnąć stronę w bok.
+   * Slug `zupy` pochodzi z `DemoSeeder::otagujWpisy()`; gdyby ten seeder
+   * przestał go tworzyć, ta pozycja zgłosi 404 zamiast po cichu przejść.
+   */
+  { nazwa: 'strona tagu (gość)', adres: '/tag/zupy' },
+  { nazwa: 'twoje tagi', adres: '/ustawienia/tagi', zalogowany: true },
 ];
 
 /*

@@ -25,7 +25,48 @@ Konto:
 - locale;
 - text_scale;
 - theme (patrz niżej);
+- `wants_weekly_digest` — zgoda na cotygodniowy przegląd (patrz niżej);
 - verified timestamps.
+
+#### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
+
+Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
+
+Kolumna powstała z `DEFAULT true`, a formularz rejestracji o tę zgodę
+**nigdy nie pytał** — `resources/views/auth/register.blade.php` ma tylko
+`age_confirmed` i `terms_accepted`. Każde nowe konto wstawało więc zapisane
+na wysyłkę, o którą nikt go nie zapytał, a polityka prywatności opiera tę
+wysyłkę na art. 6 ust. 1 lit. a RODO — czyli na zgodzie.
+
+```sql
+ALTER TABLE users ALTER COLUMN wants_weekly_digest SET DEFAULT false;
+UPDATE users SET wants_weekly_digest = false WHERE wants_weekly_digest = true;
+```
+
+Migracja rusza także ISTNIEJĄCE wiersze, i wolno jej, bo nie ma czego
+stracić — oba fakty zmierzone:
+
+1. zgody nie da się wyrazić przy rejestracji (pola nie ma), więc żadne
+   `true` w bazie nie pochodzi z decyzji człowieka, tylko z tego `DEFAULT`;
+2. cotygodniowego przeglądu **nie ma w kodzie w ogóle** — zero mailable'i,
+   zero notyfikacji, zero jobów, a żadne odczytanie tej kolumny nie jest
+   klauzulą `where` wybierającą odbiorców. Nic nie zostało wysłane.
+
+Kto chce ten przegląd, włącza go haczykiem na `/ustawienia/prywatnosc`.
+Pilnuje tego test KONTROLNY w `ZgodaNaPrzegladNieJestDomyslnaTest` — bez
+niego reszta tego testu przechodziłaby także wtedy, gdyby ktoś przez pomyłkę
+zabetonował pole na `false` i odebrał ludziom możliwość zapisania się.
+
+**Czego ta migracja NIE naprawia:** nie ma kolumny z datą wyrażenia i datą
+wycofania zgody, więc **wycofania nie da się dziś wykazać**. Jeśli przegląd
+kiedyś powstanie, trzeba je dodać razem z nim — inaczej zostaje obietnica
+bez dowodu.
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` przywraca
+`DEFAULT true` dla NOWYCH wierszy i świadomie **nie** dotyka istniejących:
+cofnięcie migracji jest operacją techniczną i nie może samo z siebie
+zapisać ludzi na wysyłkę. Powrót do stanu sprzed migracji w całości wymaga
+osobnego, jawnego `UPDATE` — i wtedy jest to decyzja człowieka.
 
 #### `theme` — jasny/ciemny wygląd (D-019)
 
