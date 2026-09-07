@@ -18,10 +18,17 @@ use Tests\TestCase;
  * Retencja SPRAWY MODERACYJNEJ — `reports` + `moderation_actions` + `appeals`
  * (issue #19, docs/decyzje/ADR_RETENCJE.md §4, §5.3-5.5).
  *
- * DECYZJA WŁAŚCICIELA (2026-09-07): 36 miesięcy od zamknięcia sprawy,
- * art. 442¹ k.c. — testy niżej używają tej liczby wprost, nie zmiennej,
- * żeby faktyczna wartość domyślna configu miała choć jeden test, który by
- * złapał jej przypadkową zmianę.
+ * DECYZJA WŁAŚCICIELA (2026-09-07): 36 miesięcy od zamknięcia sprawy —
+ * testy niżej używają tej liczby wprost, nie zmiennej, żeby faktyczna
+ * wartość domyślna configu miała choć jeden test, który by złapał jej
+ * przypadkową zmianę.
+ *
+ * PODSTAWA PRAWNA (druga tura, po zewnętrznej ocenie prawnej —
+ * `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §A/§B.1): art. 6 ust. 1 lit. f
+ * RODO z pisemnym testem równowagi (ADR §5.6), NIE art. 442¹ k.c. wprost —
+ * ten ostatni ustala przedawnienie roszczenia, nie obowiązek archiwizacji,
+ * i zostaje w teście równowagi wyłącznie jako element oceny czasu trwania
+ * sporu. Ta zmiana nie dotyka liczby ani zachowania testowanego niżej.
  *
  * NAJWAŻNIEJSZY TEST W TYM PLIKU:
  * `test_kaskada_nie_zabiera_odwolania_przed_jego_wlasnym_czasem` — pilnuje

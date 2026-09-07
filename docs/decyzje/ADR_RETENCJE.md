@@ -1,17 +1,33 @@
 # ADR — Retencja dla `audit_log`, `notifications`, `reports`, `appeals`, `moderation_actions`
 
-**Status: PROPOZYCJA DO ZATWIERDZENIA. Nic z tego dokumentu nie jest wdrożone.**
-Data: 7 września 2026 · Dotyczy: issue #19 · Autor: agent badawczy (Claude),
-na zlecenie właściciela · Stan repozytorium zmierzony na `HEAD` z 7 września 2026.
+**Status: WDROŻONE, PO DRUGIEJ TURZE ZEWNĘTRZNEJ OCENY PRAWNEJ.**
+Pierwsza wersja (7 września 2026, poniżej w §1-§9 w pierwotnym brzmieniu,
+z poprawkami tam, gdzie druga tura zmieniła liczbę albo podstawę) była
+propozycją agenta badawczego; właściciel zatwierdził warianty 36/24/24
+z §6 i automat (`app/Domain/Compliance/**`, komendy `kuking:sprzataj-*`)
+powstał na tej podstawie. **10.** niżej opisuje drugą turę (7 września 2026,
+później tego samego dnia): zamówiona zewnętrzna ocena prawna
+(`docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md`) podważyła podstawę prawną
+`moderation.case_retention_months` i uznała 24/24 za nieuzasadnione —
+właściciel przyjął wariant „podstawa plus skrócenie": 36 miesięcy zostaje,
+ale z podstawą przeniesioną na art. 6 ust. 1 lit. f RODO (§5.6), a
+`audit_log`/`notifications` skrócono do 12/3 miesięcy. §5.1, §5.2, §5.3-5.5
+i §6 niżej są już zaktualizowane do stanu PO tej decyzji — nie trzeba
+czytać ich jako historycznej propozycji.
+Data pierwszej wersji: 7 września 2026 · Dotyczy: issue #19 · Autor: agent
+badawczy (Claude), na zlecenie właściciela · Stan repozytorium zmierzony na
+`HEAD` z 7 września 2026.
 
-Ten dokument **nie zmienia kodu, migracji ani `resources/legal/polityka-prywatnosci.md`**.
-Każde twierdzenie o stanie systemu poniżej ma cytat `plik:linia`. Tam, gdzie
-proponuję liczbę, mówię to wprost i osobno od zmierzonego faktu — zgodnie
-z rozróżnieniem, które `docs/DECISIONS.md` już przyjął w D-024 (patrz §0).
+Ten dokument opisuje kod, który **już istnieje** (§1 poniżej jest więc
+historyczne — opisuje stan SPRZED wdrożenia, zachowane jako zapis tego, co
+zmierzono przed decyzją). Każde twierdzenie o ówczesnym stanie systemu ma
+cytat `plik:linia`. Tam, gdzie ta wersja nadal mówi „proponuję" albo
+„rekomendacja", odnosi się to do stanu SPRZED zatwierdzenia — zgodnie
+z rozróżnieniem, które `docs/DECISIONS.md` przyjął w D-024 (patrz §0).
 
 ---
 
-## 0. Zasada nadrzędna — już obowiązuje, ten ADR jej nie zmienia
+## 0. Zasada nadrzędna — już obowiązywała, ten ADR ją wypełnił treścią
 
 `docs/DECISIONS.md:979-985` (D-024) rozstrzygnęło to wcześniej i poprawnie:
 
@@ -21,18 +37,18 @@ z rozróżnieniem, które `docs/DECISIONS.md` już przyjął w D-024 (patrz §0)
 > `notifications`, `reports`, `appeals` i `moderation_actions` nie mają
 > retencji żadnej, więc żadna liczba przy nich nie może się pojawić."
 
-Zmierzyłem to zdanie niezależnie (§1.2 niżej) — **jest dziś prawdziwe**.
-Ten ADR proponuje liczby. Same z siebie nic nie znaczą i nie wolno ich
-przenieść do `resources/legal/polityka-prywatnosci.md` (ani do
-`docs/legal/COMPLIANCE.md` jako czegoś więcej niż rekomendacji) **dopóki**:
+Zmierzyłem to zdanie niezależnie (§1.2 niżej) — **było prawdziwe w chwili
+pisania pierwszej wersji tego ADR-u**. Trzy warunki, pod którymi liczba mogła
+przejść do `resources/legal/polityka-prywatnosci.md`:
 
-1. właściciel zatwierdzi konkretną liczbę tam, gdzie ten dokument daje warianty (§6),
-2. automat, który ją egzekwuje, istnieje, ma test i jest w harmonogramie (§5),
-3. działanie automatu zostało zaobserwowane na produkcji co najmniej raz.
+1. właściciel zatwierdza konkretną liczbę tam, gdzie ten dokument dawał warianty (§6) — **spełnione**, dwukrotnie (§6, potem §10),
+2. automat, który ją egzekwuje, istnieje, ma test i jest w harmonogramie (§5) — **spełnione**, `app/Domain/Compliance/**` + `routes/console.php`,
+3. działanie automatu zostało zaobserwowane na produkcji co najmniej raz — **NIEPOTWIERDZONE w tym zleceniu**: ten agent nie ma dostępu do produkcji i nie zmienia tego stanu; właściciel powinien to potwierdzić przed wklejeniem liczb do `resources/legal/polityka-prywatnosci.md` (§9 ma gotowe zdania, warunkowane tym samym punktem 3).
 
 Odwrócenie tej kolejności — najpierw zdanie w polityce, potem kod — jest
 dokładnie tym, co D-024 już nazwało problemem (i co nadal, dziś, wisi w
-dwóch miejscach polityki — §2 niżej).
+dwóch miejscach polityki — §2 niżej, niezmienione tą turą: `resources/legal/**`
+nie jest w zakresie plików tego zlecenia).
 
 ---
 
@@ -374,20 +390,22 @@ iluzoryczną liczbą, którą kasuje FK zanim zdąży zadziałać.
 
 ---
 
-## 5. Propozycja retencji, tabela po tabeli
+## 5. Retencja, tabela po tabeli
 
-Każda pozycja: okres (i od czego liczony), wyjątek, co robi automat, jak
-często, co przy błędzie. Nazwy komend i configu są PROPOZYCJĄ do przeglądu,
-nie są utworzone.
+**Zaktualizowane do stanu PO decyzji właściciela (§10)** — okresy i
+wyjątki niżej są tym, co egzekwuje kod dziś, nie propozycją. Każda pozycja:
+okres (i od czego liczony), wyjątek, co robi automat, jak często, co przy
+błędzie. Nazwy komend i configu są tym, co powstało — nie propozycją do
+przeglądu.
 
 ### 5.1 `audit_log`
 
 | | |
 |---|---|
-| **Okres (domyślny, nie-wyjątkowe kategorie)** | Wariant do decyzji właściciela — §6. Rekomendacja: **24 miesiące** od `created_at`. |
-| **Wyjątek — nigdy nie kasować automatem** | `account.data_erased`, `account.delete_requested`, `account.delete_cancelled` — z powodów w §3.1. |
+| **Okres (domyślny, nie-wyjątkowe kategorie)** | **DECYZJA WŁAŚCICIELA (druga tura, §10): 12 miesięcy** od `created_at` — nie 24. Pierwsza tura przyjęła rekomendację agenta badawczego (24 miesiące) bez oceny prawnika; ocena zewnętrzna (`OCENA_RETENCJI_ZEWNETRZNA.md` §B.6) nazwała ją nieuzasadnioną i zaproponowała 12, właściciel to przyjął. |
+| **Wyjątek — nigdy nie kasować automatem** | `account.data_erased`, `account.delete_requested`, `account.delete_cancelled` — z powodów w §3.1. Zamknięta stała: `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`. |
 | **Co robi automat** | Wzorzec B (§1.3): `DELETE FROM audit_log WHERE created_at < próg AND action NOT IN (wyjątki)`. Bez efektu ubocznego poza bazą — jeden `DELETE`, bez `chunkById`. |
-| **Harmonogram** | Codziennie w nocy, np. 04:10 (po `kuking:sprzataj-sygnaly` o 04:00) — `Schedule::call()`, `withoutOverlapping()`, `dailyAt`. |
+| **Harmonogram** | Codziennie w nocy, 04:10 (po `kuking:sprzataj-sygnaly` o 04:00) — `Schedule::call()`, `withoutOverlapping()`, `dailyAt`, `routes/console.php`. |
 | **Błąd** | Pojedyncze zapytanie DB — albo się wykona w całości, albo w ogóle (atomowość jednej instrukcji SQL). Przy porażce: `Log::error` z komunikatem, następny przebieg dobiera to samo (predykat to sam wiek wiersza, nic do „zapamiętania" między przebiegami). |
 
 **Dlaczego lista wyjątków nie jest dłuższa.** `moderation.decided`,
@@ -395,81 +413,104 @@ nie są utworzone.
 — te pięć kategorii TEŻ dotyczy spraw moderacyjnych, ale ich pełny,
 autorytatywny zapis żyje w `moderation_actions`/`appeals`/`reports`, którym
 ten ADR daje **dłuższy** okres (36 miesięcy, §5.3-5.5) niż domyślny okres
-`audit_log` (24 miesiące, rekomendacja). Wpis w `audit_log` o tych
-zdarzeniach jest więc **cieńszą kopią**, która może wygasnąć wcześniej bez
-utraty dowodu — dowód pełny nadal stoi w tabeli dedykowanej. To wymaga
-utrzymania relacji: **domyślny okres `audit_log` nie powinien być dłuższy
-niż okres `moderation_actions`/`appeals`/`reports`** — inaczej echo w logu
-przeżyłoby własne źródło, co nie jest błędem technicznym, ale jest
-nielogiczne i warte uniknięcia przy wyborze liczb w §6.
+`audit_log` (12 miesięcy). Wpis w `audit_log` o tych zdarzeniach jest więc
+**cieńszą kopią**, która może wygasnąć wcześniej bez utraty dowodu — dowód
+pełny nadal stoi w tabeli dedykowanej. To utrzymuje relację, którą pierwsza
+tura już zapisała jako regułę: **domyślny okres `audit_log` nie powinien być
+dłuższy niż okres `moderation_actions`/`appeals`/`reports`** — inaczej echo
+w logu przeżyłoby własne źródło. 12 miesięcy < 36 miesięcy, więc reguła
+nadal jest spełniona po skróceniu.
 
 ### 5.2 `notifications`
 
 | | |
 |---|---|
-| **Okres** | Wariant — §6. Rekomendacja: **24 miesiące** od `created_at`, niezależnie od `read_at`. |
-| **Wyjątek** | Brak kategorii dowodowej — to nie jest tabela o charakterze audytowym. |
-| **Co robi automat** | Wzorzec B: `DELETE FROM notifications WHERE created_at < próg`. |
-| **Harmonogram** | Codziennie w nocy, np. 04:20. |
-| **Błąd** | Jak w §5.1 — pojedynczy `DELETE`, naturalny retry następnego dnia. |
+| **Okres (ogólny)** | **DECYZJA WŁAŚCICIELA (druga tura, §10): 3 miesiące** od `created_at`, niezależnie od `read_at` — nie 24. Ocena zewnętrzna (§B.6): powiadomienie ma zwrócić uwagę na zdarzenie, nie zastępować bezterminowego archiwum relacji ani dokumentacji decyzji dostępnej do odwołania. |
+| **Wyjątek — własny, dłuższy termin** | Typy z `App\Models\Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` (dziś: `TYPE_MODERATION` — decyzja moderacyjna I wynik odwołania) żyją do `ModerationAction::appealDeadline()` powiązanej decyzji (co najmniej 6 miesięcy, DSA art. 20 ust. 1), NIE wg tej liczby. Patrz akapit „Kolizja z prawem do odwołania" niżej — to jest NOWA treść tej sekcji, dodana w drugiej turze (§10), nie było jej w pierwszej wersji ADR-u. |
+| **Co robi automat** | Dwuczęściowy: Wzorzec B dla typów spoza wyjątku (`DELETE FROM notifications WHERE created_at < próg AND type NOT IN (wyjątki)`); Wzorzec C (transakcja/sprawdzenie per wiersz) dla typów z wyjątku — każdy sprawdzany osobno wg WŁASNEGO `appealDeadline()`, bo to nie jest jedna liczba dla całej grupy. |
+| **Harmonogram** | Codziennie w nocy, 04:20 — `routes/console.php`. |
+| **Błąd** | Zwykłe: jak w §5.1. Moderacyjne: błąd kasowania pojedynczego wiersza logowany i pomijany (retry następnego dnia); powiadomienie, którego powiązanej decyzji nie da się ustalić, NIE jest kasowane (patrz `Notification::terminOchronyOdwolawczej()`) — zostaje do wyjaśnienia zamiast zniknąć bez śladu. |
+
+**KOLIZJA Z PRAWEM DO ODWOŁANIA (DSA ART. 20 UST. 1) — dodane w drugiej
+turze, §10.** Trzy miesiące ogólnej retencji są KRÓTSZE niż sześć miesięcy,
+przez które prawo do odwołania od decyzji moderacyjnej ma obowiązywać.
+Powiadomienie o decyzji niesie jedyny w serwisie link „Odwołaj się"
+(`app/Domain/Moderation/Actions/NotifyModerationDecision.php`,
+`data.action_id` → `route('appeals.show', ...)` w
+`resources/views/pages/notifications.blade.php`) — wygaszenie go po trzech
+miesiącach odbierałoby prawo, które obowiązuje jeszcze trzy miesiące dłużej.
+Rozwiązanie jest tego samego kształtu co `AuditLogEntry::NIGDY_NIE_KASUJ`
+(zamknięta stała w kodzie, nie w configu — patrz uzasadnienie przy stałej),
+ale z JEDNĄ różnicą istotną: to NIE jest bezterminowy wyjątek. Gdy termin
+odwołania mija, powiadomienie wraca do bycia zwykłym kandydatem do
+usunięcia. Termin liczy się przez wywołanie `ModerationAction::appealDeadline()`
+powiązanej decyzji (znalezionej przez `data.action_id` albo, dla
+powiadomienia o wyniku odwołania, przez `data.appeal_id` →
+`Appeal::moderationAction()`), NIE przez drugą, osobno wpisaną liczbę
+miesięcy — druga kopia rozjechałaby się z prawdziwym terminem przy
+pierwszej zmianie `config('kuking.moderation.appeal_days')` albo
+ustawowego minimum wewnątrz samej `appealDeadline()`.
 
 **Napięcie, które trzeba nazwać, nie ukryć.** `AGENTS.md` (część 1) mówi
 wprost: „«Ugotowałem» … generuje najcenniejsze powiadomienie w całym
 serwisie" — `Notification::TYPE_COOKED` (`app/Models/Notification.php:27`).
-To jest jedyna z pięciu tabel, gdzie retencja koliduje nie z prawem, tylko
-z **produktem**: usunięcie starego powiadomienia „ktoś ugotował z Twojego
-przepisu" kasuje coś, co dla użytkownika 50+ ma wartość emocjonalną, nie
-tylko informacyjną. Rekomendacja 24 miesięcy jest kompromisem — dłużej niż
-`audit_log` nie musi być, bo `notifications.data` jest kopią treści
-zdenormalizowaną w chwili powstania (`app/Domain/Moderation/Actions/NotifyModerationDecision.php:109-131` —
-`title`/`message`/`decision` zapisane wprost, nie przez `join`), więc nawet
-gdy powiadomienie moderacyjne przeżyje swoją `moderation_actions`, treść,
-którą użytkownik zobaczył, zostaje czytelna sama w sobie.
+To jest jedyna z pięciu tabel, gdzie retencja koliduje nie tylko z prawem
+(wyżej), ale też z **produktem**: usunięcie po trzech miesiącach starego
+powiadomienia „ktoś ugotował z Twojego przepisu" kasuje coś, co dla
+użytkownika 50+ ma wartość emocjonalną, nie tylko informacyjną. Ten ADR nie
+rozstrzyga tego napięcia — właściciel przyjął rekomendację zewnętrznej
+oceny prawnej (minimalizacja) świadomie kosztem tej wartości; jeśli dane
+pokażą realny problem z retencją, to jest osobna decyzja produktowa, nie
+poprawka do tej ADR.
 
-**Skutek uboczny do odnotowania (nie do rozwiązania tutaj, patrz §7):**
+**Skutek uboczny, POTWIERDZONY NIEISTOTNYM przez wyjątek wyżej (był otwartym
+ryzykiem w pierwszej wersji, patrz historia niżej w tym akapicie).**
 `notifications.data.action_id` bywa identyfikatorem `moderation_actions`
 używanym w linku „Odwołaj się"
 (`resources/views/pages/notifications.blade.php:126-128`,
-`route('appeals.show', $data['action_id'])`). Gdyby `moderation_actions`
-zostało skasowane (po 36 miesiącach), a powiadomienie o nim przeżyło (bo ma
-inny, dłuższy zegar) — link prowadziłby donikąd. W praktyce to się nie
-zdarzy w ciągu okna odwołania (14 dni, `config/kuking.php:560`), ale przy
-rekomendowanych liczbach (`notifications` 24 mies. < `moderation_actions`
-36 mies.) powiadomienie i tak wygaśnie pierwsze — kolejność w tym ADR-ze
-jest dobrana właśnie tak, żeby to ryzyko było zerowe przy zalecanych
-wartościach domyślnych, nie przypadkiem.
+`route('appeals.show', $data['action_id'])`). Pierwsza wersja tego ADR-u (24
+miesiące dla `notifications`, 36 dla `moderation_actions`) argumentowała, że
+kolejność liczb (24 < 36) wystarczy, żeby powiadomienie zawsze wygasło
+pierwsze. Druga tura skróciła `notifications` do 3 miesięcy — czyli
+KRÓCEJ niż okno odwołania — więc ten argument już by nie wystarczył: bez
+wyjątku wyżej powiadomienie zniknęłoby, ZANIM `moderation_actions` w ogóle
+byłoby kandydatem do usunięcia (36 miesięcy), i to w oknie, w którym prawo
+do odwołania jeszcze obowiązuje. Wyjątek z tej sekcji jest odpowiedzią na
+dokładnie to ryzyko, nie tylko na literę DSA art. 20 — po jego wdrożeniu
+ryzyko martwego linku w oknie odwołania jest zero niezależnie od tego, jak
+krótka jest ogólna retencja `notifications`, bo powiadomienie moderacyjne
+już nie podlega tej liczbie w ogóle, dopóki trwa jego własny termin.
 
 ### 5.3 `reports`
 
 | | |
 |---|---|
-| **Okres** | Wariant — §6 (12 / 24 / 36 miesięcy). **Rekomendacja: 36 miesięcy** od zamknięcia sprawy. |
+| **Okres** | **DECYZJA WŁAŚCICIELA: 36 miesięcy** od zamknięcia sprawy — patrz §5.6 dla podstawy prawnej (art. 6 ust. 1 lit. f RODO, nie art. 442¹ k.c. wprost). |
 | **Liczone od** | `resolved_at` dla `status IN ('resolved','rejected')`. Wiersze w `status IN ('open','triage','reviewing')` **nigdy nie są kandydatem do usunięcia**, niezależnie od `created_at` — sprawa otwarta nie ma „zamknięcia", od którego liczyć. |
 | **Wyjątek wewnątrz tabeli** | Brak osobnej kategorii do wyłączenia (w odróżnieniu od `audit_log`) — cała tabela ma jeden reżim. Zobacz jednak wariant „podział wg `source`" w §6, wynikający z §3.3. |
 | **Co robi automat** | Wzorzec C (transakcja per wiersz, nie ślepy masowy `DELETE`) — bo usunięcie `reports` jest bezpieczne samo z siebie (`nullOnDelete` na `moderation_actions.report_id`), ale komenda powinna i tak iść wiersz po wierszu w RAMACH tej samej rutyny co §5.4-5.5, żeby dziennik działania (`--dry-run`, logi, liczniki) opisywał całą „sprawę" spójnie, a nie trzema niezależnymi komendami, które ktoś uruchomi w złej kolejności. |
 | **Harmonogram** | Codziennie w nocy, np. 04:30 — razem z §5.4 i §5.5 jako jedna komenda, patrz niżej. |
 | **Błąd** | Osobna transakcja na sprawę (wzorzec C) — porażka jednej sprawy nie blokuje reszty, log z identyfikatorem `reports.id`, naturalny retry następnego dnia. |
 
-**Uzasadnienie 36, nie 12 ani 24 (odpowiedź na wprost zadane pytanie).**
-Polskie ogólne terminy przedawnienia roszczeń cywilnych to zwykle 6 lat
-(art. 118 k.c.), a dla czynów niedozwolonych — 3 lata od dowiedzenia się
-o szkodzie i osobie odpowiedzialnej (art. 442¹ k.c.). Spór o decyzję
-moderacyjną ([rzekomo] bezpodstawne ukrycie/zablokowanie) najbliżej pasuje
-do tego drugiego reżimu. DSA nie ma jeszcze w Polsce ugruntowanej,
-odrębnej instytucji przedawnienia dla skarg do Koordynatora ds. Usług
-Cyfrowych — więc oparcie się o ogólny, trzyletni termin deliktowy jest
-najbardziej bronioną z trzech opcji, a nie liczbą wybraną „w sam raz między
-12 a 36". **12 miesięcy** minimalizuje dane najmocniej, ale zostawia
-operatora bez obrony, jeśli ktoś zgłosi sprawę do UODO albo pozwie
-w 13. miesiącu. **24 miesiące** to bezpieczny środek, spójny z domyślnym
-`audit_log` (§5.1) — dobra opcja, jeśli właściciel chce jednej liczby
-w całym systemie zamiast dwóch.
+**Uzasadnienie 36, nie 12 ani 24 — ZASTĄPIONE w drugiej turze, patrz §5.6.**
+Ten akapit w pierwszej wersji opierał 36 miesięcy WPROST na art. 442¹ k.c.
+(3 lata na roszczenie deliktowe od dowiedzenia się o szkodzie i osobie
+odpowiedzialnej) jako „najbardziej broniona kotwica". Zewnętrzna ocena
+prawna (`OCENA_RETENCJI_ZEWNETRZNA.md` §B.1) wskazała, że to pomyliło
+PRZEDAWNIENIE roszczenia z OBOWIĄZKIEM ARCHIWIZACJI — art. 442¹ k.c. nie
+nakazuje nikomu przechowywać niczego, tylko mówi, kiedy dane roszczenie
+przestaje być skuteczne. Sama możliwość, że „ktoś kiedyś pozwie", jest za
+ogólną podstawą przetwarzania. **36 miesięcy zostaje jako liczba** (decyzja
+właściciela), ale podstawą jest teraz art. 6 ust. 1 lit. f RODO z pisemnym
+testem równowagi — pełny test w §5.6, gdzie art. 442¹ k.c. wraca jako JEDEN
+z elementów oceny (pomaga oszacować, jak długo spór jest prawdopodobny), nie
+jako samodzielna podstawa.
 
 ### 5.4 `moderation_actions`
 
 | | |
 |---|---|
-| **Okres** | Ten sam wariant co `reports` — **rekomendacja 36 miesięcy** od `created_at` (kolumna jest niemutowalna — `public const UPDATED_AT = null;`, `app/Models/ModerationAction.php:23` — decyzja jest ostateczna w chwili zapisu). |
+| **Okres** | Ten sam okres co `reports` — **DECYZJA WŁAŚCICIELA: 36 miesięcy** od `created_at` (kolumna jest niemutowalna — `public const UPDATED_AT = null;`, `app/Models/ModerationAction.php:23` — decyzja jest ostateczna w chwili zapisu). Podstawa prawna: §5.6. |
 | **Wyjątek/blokada** | **Nigdy, jeśli ma powiązany `appeals` w stanie `open`** — reguła z §4. To nie jest wyjątek kategorii zdarzenia (jak w `audit_log`), tylko wyjątek stanu relacji. |
 | **Co robi automat** | Wzorzec C, część tej samej komendy co §5.3/§5.5. Kolejność wewnątrz jednego przebiegu: **najpierw `appeals`, potem `moderation_actions`, na końcu `reports`** (patrz reguła §4 — usuwając `appeals` jako pierwsze, `moderation_actions` już „wie", czy ma jeszcze żywe odwołanie, bez dodatkowego zapytania specjalnego). |
 | **Harmonogram** | Jak §5.3 — jedna komenda, jedno uruchomienie dziennie. |
@@ -489,7 +530,7 @@ decyzji przeżywa odejście osoby, która ją podjęła) — odnotowuję je jako
 
 | | |
 |---|---|
-| **Okres** | Ten sam wariant co `reports`/`moderation_actions` — **rekomendacja 36 miesięcy** od `decided_at`. |
+| **Okres** | Ten sam okres co `reports`/`moderation_actions` — **DECYZJA WŁAŚCICIELA: 36 miesięcy** od `decided_at`. Podstawa prawna: §5.6. |
 | **Liczone od** | `decided_at`, tylko dla `status IN ('upheld','overturned')`. `status = 'open'` **nigdy** nie jest kandydatem — CHECK w bazie (`appeals_decision_complete_check`, `database/migrations/2026_09_06_100100_create_appeals_table.php:77`) i tak wymusza, że otwarte odwołanie nie ma `decided_at`, więc formalnie nie da się go objąć warunkiem czasowym opartym o tę kolumnę — dodatkowy `WHERE status <> 'open'` jest tu obroną w głąb, nie samą tylko konsekwencją CHECK-a. |
 | **Wyjątek** | Brak osobnej kategorii — cała tabela jeden reżim, jak `reports`. |
 | **Co robi automat** | Wzorzec C, **pierwszy krok** wspólnej komendy (§4, §5.4). |
@@ -504,23 +545,163 @@ jego odwołanie — czyli realny okres `moderation_actions` byłby okresem
 liczby dla obu usuwają tę pułapkę wprost, zamiast zostawiać ją do odkrycia
 przy pierwszym audycie.
 
+### 5.6 Podstawa prawna i test równowagi (art. 6 ust. 1 lit. f RODO) dla §5.3–5.5
+
+**DODANE W DRUGIEJ TURZE (§10) — zastępuje odwołanie do art. 442¹ k.c. jako
+podstawy w §5.3.** Zamówiona zewnętrzna ocena prawna
+(`docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §A, §B.1) uznała pierwotną
+podstawę za błędną: art. 442¹ k.c. ustala PRZEDAWNIENIE roszczenia, nie
+obowiązek archiwizacji, a „sama możliwość, że ktoś kiedyś pozwie, jest za
+ogólną" podstawą przetwarzania. Właściciel wybrał wariant „podstawa plus
+skrócenie": 36 miesięcy zostaje, ale podstawą jest art. 6 ust. 1 lit. f RODO
+(uzasadniony interes) z poniższym testem celu, konieczności i równowagi, plus
+art. 17 ust. 3 lit. e RODO jako WYJĄTEK od usunięcia w konkretnym przypadku —
+nie jako samodzielna podstawa całego archiwum.
+
+Ocena zewnętrzna wymieniła wprost, co taki test musi zawierać — poniższe
+podpunkty to ta lista, wypełniona na podstawie tego, co da się ustalić
+z kodu i istniejącej dokumentacji. Tam, gdzie kod nie daje odpowiedzi, jest
+to nazwane wprost jako luka dla właściciela, nie domyślone.
+
+1. **Jakie rzeczywiste rodzaje sporów są prawdopodobne.** Z kształtu danych
+   w `moderation_actions`/`reports`/`appeals` (§1.1, §3.3) i z macierzy
+   `ModerationAction::DOZWOLONE`: (a) autor treści kwestionuje decyzję o
+   ukryciu/usunięciu/zawieszeniu/blokadzie jako bezpodstawną — spór
+   „czy naruszyłem regulamin"; (b) zgłaszający kwestionuje brak działania
+   albo zbyt łagodną decyzję (DSA art. 20 ust. 1, druga droga odwołania,
+   `Appeal::APPELLANT_REPORTER`) — spór „czy zignorowaliście moje
+   zgłoszenie"; (c) osoba trzecia opisana w zgłoszeniu (nie strona decyzji)
+   twierdzi, że dane o niej w treści zgłoszenia są nieprawdziwe albo
+   nadmiarowe — spór o SAM zapis zgłoszenia, nie o decyzję; (d) skarga do
+   Koordynatora ds. Usług Cyfrowych albo do UODO dotycząca sposobu
+   prowadzenia moderacji jako takiej (systemowa, nie jedna sprawa). Art.
+   442¹ k.c. wchodzi tu WYŁĄCZNIE jako pomoc w oszacowaniu (a) i (b) — ile
+   czasu ma osoba na realne dochodzenie roszczenia, gdy uzna decyzję za
+   naruszenie jej dóbr — nie jako podstawa przetwarzania.
+2. **Który element dokumentacji pozwala odpowiedzieć na zarzut.**
+   `moderation_actions.reason_code`, `.note`, `.user_message` (uzasadnienie
+   dane osobie ukaranej — DSA art. 17), `.previous_status` (stan przed
+   decyzją), `appeals.body`/`.decision_note` (treść odwołania i odpowiedź —
+   DSA art. 20, CHECK `appeals_decision_complete_check` wymusza istnienie
+   uzasadnienia), `reports.reason`/`.target_url`/`.notifier_email`
+   (kto, co i dlaczego zgłosił). Bez tego kompletu operator nie potrafi
+   odtworzyć, dlaczego decyzja była taka, jaka była — co jest właśnie
+   przedmiotem sporów (1)(a)-(b).
+3. **Dlaczego wystarczy albo nie wystarczy streszczenie.** Streszczenie
+   NIE wystarcza dla `user_message` i `decision_note` — to są dosłowne
+   teksty pokazane stronie sporu (DSA art. 17 i 20 wymagają, żeby wiedziała
+   DOKŁADNIE, co jej powiedziano, nie parafrazę z pamięci moderatora rok
+   później). Streszczenie MOŻE wystarczyć dla treści zgłoszonej pierwotnie
+   (np. `posts`/`comments` w chwili zgłoszenia), JEŚLI kluczowy fragment
+   (cytat naruszający regulamin) jest zachowany dosłownie — ale kod DZIŚ nie
+   robi żadnego streszczenia: `reports.target_url` wskazuje na treść, która
+   mogła w międzyczasie zniknąć albo się zmienić (§7 tego ADR-u to
+   odnotowuje jako lukę), więc ten punkt testu jest dziś częściowo
+   NIEWYPEŁNIONY przez kod — patrz punkt 8 (czego test nie rozstrzyga)
+   i „luki" w §10.
+4. **Jaki jest wpływ na zgłaszającego i na osoby opisane w zgłoszeniu.**
+   Zgłaszający: adres e-mail i nazwa (`reports.notifier_name/email`, tylko
+   dla `source = 'legal_notice'`) oraz `reporter_id` dla zgłoszeń
+   społecznościowych pozostają powiązane ze sprawą przez cały okres 36
+   miesięcy — właściciel NIE wybrał ich wcześniejszego usunięcia/redakcji
+   (rekomendacja zewnętrznej oceny, §B.5) mimo słabszej podstawy do
+   długiego trzymania tożsamości osoby, której jedyną rolą jest bycie
+   źródłem informacji; to jest ŚWIADOMIE NIEZREALIZOWANA rekomendacja,
+   opisana i uzasadniona w §10. Osoba opisana w treści zgłoszenia (może
+   nie być stroną decyzji wcale — zgłoszenie mogło dotyczyć kogoś trzeciego
+   wspomnianego w treści) ma wpływ NAJTRUDNIEJSZY do ocenienia z kodu: nic
+   dziś nie ogranicza, jakie dane o niej mogą się znaleźć w `reports.reason`
+   jako wolny tekst — to jest luka, patrz punkt 8.
+5. **Kto ma dostęp.** `Policy` (nie sama obecność UUID w adresie —
+   AGENTS.md §7) ogranicza panel moderacji do `role = moderator`
+   (`EnsureModeratorHasTwoFactor`, 2FA obowiązkowe). Poza panelem: sam
+   zainteresowany (autor/zgłaszający) widzi WŁASNĄ sprawę przez
+   `notifications`/`appeals.show`, nie cudzą. Brak dziś oddzielnego,
+   węższego dostępu „tylko do odczytu dowodu bez PII" dla np. obsługi
+   sporu prawnego bez pełnych uprawnień moderatora — to nie jest dziś
+   potrzebne przy zespole 1-2 osób (D-012), ale rośnięcie zespołu
+   moderacji powinno to ponownie otworzyć.
+6. **Kiedy usuwa się identyfikatory.** Po 36 miesiącach od zamknięcia
+   sprawy — cała sprawa (`reports`+`moderation_actions`+`appeals`) znika
+   naraz wg reguły kaskady z §4, egzekwowanej przez
+   `PrzedawnioneSprawyModeracyjne`. Nie ma dziś WCZEŚNIEJSZEGO usunięcia
+   samych identyfikatorów przy zachowaniu reszty sprawy (rekomendacja
+   zewnętrznej oceny — kontakt zgłaszającego po 12 miesiącach, §B.5) —
+   patrz §10, świadomie niezrealizowane.
+7. **Jak działa sprzeciw, usunięcie i wstrzymanie kasowania konkretnego
+   dowodu.** SPRZECIW (RODO art. 21) wobec przetwarzania na podstawie
+   uzasadnionego interesu: kod dziś NIE MA dedykowanego mechanizmu — trafia
+   do `kontakt@kuking.pl` (`config('kuking.community.contact_email')`) do
+   ręcznej obsługi, tak jak inne żądania RODO nieobsłużone samoobsługowo.
+   USUNIĘCIE KONTA (art. 17) NIE kasuje sprawy moderacyjnej — `EraseAccountData`
+   (§3.2 tego ADR-u) anonimizuje wiersz `users`, nie rusza
+   `reports`/`moderation_actions`/`appeals` w ogóle; to jest ZAMIERZONE:
+   art. 17 ust. 3 lit. e działa tu jako wyjątek od usunięcia dla materiału
+   objętego sprawą. WSTRZYMANIE KASOWANIA KONKRETNEGO DOWODU (dla trwającego
+   sporu prawnego, dłużej niż 36 miesięcy) — kod dziś NIE MA takiego pola
+   ani mechanizmu; `PrzedawnioneSprawyModeracyjne` kasuje wg wieku bez
+   wyjątku „ta konkretna sprawa jest zablokowana". To jest zmierzona luka
+   (nie było jej w treści zadania pierwszej tury) — patrz §10.
+8. **Czego ten test NIE rozstrzyga.** Dane szczególnych kategorii (RODO
+   art. 9 — np. stan zdrowia wspomniany w treści zgłoszenia albo w
+   uzasadnieniu decyzji) i dane o wyrokach/przestępstwach (art. 10) w
+   TREŚCI zgłoszenia czy uzasadnienia wymagają OSOBNEJ oceny, której ten
+   test nie robi — kod dziś nie rozpoznaje takich danych w `reports.reason`
+   ani w `moderation_actions.note`/`.user_message` (wolny tekst, bez
+   klasyfikacji). Rozstrzygnięcie odłożone do przyszłego zlecenia, jeśli
+   właściciel zdecyduje się je otworzyć — nie jest tu domyślnie
+   rozstrzygnięte jako „nieistotne".
+
+**Wniosek testu.** Interes operatora w zachowaniu dokumentacji sprawy
+moderacyjnej przez 36 miesięcy jest KONKRETNY (punkty 1-2, oparty na
+rzeczywistym kształcie sporów i danych, nie na ogólnym „ktoś może pozwać")
+i PROPORCJONALNY dla RDZENIA sprawy (decyzja, uzasadnienie, przebieg
+odwołania) — ale test ujawnia trzy miejsca, gdzie zakres danych trzymanych
+przez pełne 36 miesięcy jest szerszy, niż to konieczne (punkty 3, 4, 6),
+i jedno miejsce, gdzie brakuje mechanizmu, który sam test zakłada (punkt 7,
+wstrzymanie kasowania konkretnego dowodu). Właściciel przyjął te luki
+świadomie w tej turze — nie są ukryte, są wypisane w §10 jako niezrealizowane
+rekomendacje z powodem.
+
 ---
 
-## 6. Warianty do decyzji właściciela — zbiorczo
+## 6. Decyzje właściciela — zbiorczo
 
-| Decyzja | Warianty | Rekomendacja | Uzasadnienie skrótowo |
+**Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie
+wariantami do wyboru.** Pierwsze trzy wiersze zmieniły wartość albo
+uzasadnienie względem pierwszej tury; pozostałe trzy zostają otwarte tak,
+jak było, bo żadna z nich nie była przedmiotem drugiej oceny prawnej.
+
+| Decyzja | Warianty (pierwsza tura) | **Decyzja właściciela** | Uzasadnienie skrótowo |
 |---|---|---|---|
-| Wspólny okres `reports` + `moderation_actions` + `appeals` | 12 / 24 / **36** miesięcy od zamknięcia sprawy | **36** | Art. 442¹ k.c. (3 lata na roszczenie deliktowe) jako najbardziej broniona kotwica przy braku ugruntowanego terminu DSA w polskim prawie (§5.3). |
-| Domyślny okres `audit_log` (kategorie nie-wyjątkowe) | 12 / **24** / 36 miesięcy od `created_at` | **24** | Krócej niż „sprawy moderacyjne" (bo pełny dowód i tak żyje w tabelach dedykowanych, §5.1), dłużej niż `product_signals` (bo `audit_log` z definicji dokumentuje „zmiany wysokiego znaczenia", `docs/DATABASE.md:752`, nie czystą telemetrię). |
-| Okres `notifications` | 12 / **24** / 36 miesięcy od `created_at` | **24** | Zgodność z `audit_log`, z zastrzeżeniem napięcia produktowego opisanego w §5.2. |
-| `notifications`: liczyć wiek od `created_at` niezależnie od `read_at`, czy inaczej dla przeczytanych/nieprzeczytanych | (A) jeden wiek dla wszystkich (B) nieprzeczytane nigdy nie wygasają, przeczytane liczą wiek od `read_at` | **(A)** | Prostsze, zgodne z zasadą minimalizacji wprost — (B) ryzykuje bezterminowe trzymanie powiadomień, których ktoś nigdy nie otworzy (czyli już nigdy nie otworzy). |
-| `reports`: jeden okres dla całej tabeli, czy osobno dla `source = 'community'` i `source = 'legal_notice'` | (A) jeden okres (B) `legal_notice` dłużej, bo niesie więcej PII zgłaszającego i ma własny reżim DSA art. 16 | **(A) na start**, (B) jeśli przyszły audyt DSA tego zażąda | Podział zwiększa złożoność automatu (dwa progi w jednej tabeli) bez zmierzonej dziś potrzeby — `reports_source_status_idx` (`2026_09_06_200000...php:131`) już rozróżnia źródło, więc dodanie drugiego progu później jest tanie, gdyby było potrzebne. |
-| `audit_log`: czy `moderation.decided`/`content.reported`/`appeal.*` też mają wejść na listę NIGDY-NIE-KASUJ | (A) nie — echo krótsze niż źródło (rekomendowane, §5.1) (B) tak — podwójne zabezpieczenie kosztem większej tabeli bezterminowej | **(A)** | Patrz uzasadnienie w §5.1 — (B) jest bronioną opcją, jeśli właściciel woli redundancję nad rozmiar tabeli. |
+| Wspólny okres `reports` + `moderation_actions` + `appeals` | 12 / 24 / 36 miesięcy od zamknięcia sprawy | **36 miesięcy — LICZBA NIEZMIENIONA, PODSTAWA ZMIENIONA** | Nie art. 442¹ k.c. wprost (błędna podstawa, §B.1 oceny zewnętrznej) — art. 6 ust. 1 lit. f RODO z testem równowagi (§5.6), gdzie art. 442¹ jest jednym z elementów oceny czasu trwania sporu. |
+| Domyślny okres `audit_log` (kategorie nie-wyjątkowe) | 12 / 24 / 36 miesięcy od `created_at` | **12 miesięcy — ZMIENIONE z 24** | Ocena zewnętrzna (§B.6): brak uzasadnienia dla dwóch lat KAŻDEGO zdarzenia, gdy konkretny dowód sporu i tak żyje osobno w tabelach dedykowanych (§5.1); 12 miesięcy wystarcza na przegląd uprawnień i odtworzenie niedawnego incydentu. |
+| Okres `notifications` | 12 / 24 / 36 miesięcy od `created_at` | **3 miesiące — ZMIENIONE z 24, Z WYJĄTKIEM opisanym w §5.2** | Ocena zewnętrzna (§B.6): powiadomienie ma zwrócić uwagę na zdarzenie, nie zastępować archiwum ani dokumentacji dostępnej do odwołania. Wyjątek dla typów moderacyjnych (§5.2, `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`) jest NOWĄ decyzją tej tury, wymuszoną kolizją 3 mies. < 6 mies. (DSA art. 20 ust. 1) — nie było jej do zdecydowania w pierwszej turze, bo 24 miesiące tej kolizji nie miały. |
+| `notifications`: liczyć wiek od `created_at` niezależnie od `read_at`, czy inaczej dla przeczytanych/nieprzeczytanych | (A) jeden wiek dla wszystkich (B) nieprzeczytane nigdy nie wygasają, przeczytane liczą wiek od `read_at` | **(A) — NIEZMIENIONE** | Nie było przedmiotem drugiej oceny. Prostsze, zgodne z minimalizacją — (B) ryzykuje bezterminowe trzymanie nieotwartych powiadomień. |
+| `reports`: jeden okres dla całej tabeli, czy osobno dla `source = 'community'` i `source = 'legal_notice'` | (A) jeden okres (B) `legal_notice` dłużej | **(A) na start — NIEZMIENIONE, wciąż OTWARTE** | Nie było przedmiotem drugiej oceny. Podział zwiększa złożoność bez zmierzonej dziś potrzeby; `reports_source_status_idx` już rozróżnia źródło, gdyby było potrzebne później. |
+| `audit_log`: czy `moderation.decided`/`content.reported`/`appeal.*` też mają wejść na listę NIGDY-NIE-KASUJ | (A) nie (B) tak | **(A) — NIEZMIENIONE** | Nie było przedmiotem drugiej oceny. Patrz uzasadnienie w §5.1. |
 
-**Każda liczba w tej tabeli jest rekomendacją agenta badawczego, nie decyzją
-właściciela.** Dopóki właściciel nie wybierze wiersza w każdej z pięciu
-pozycji, żadna z nich nie trafia do `resources/legal/polityka-prywatnosci.md`
-(§0, §9).
+**Nowa, siódma pozycja tej tury — ŚWIADOMIE NIEZREALIZOWANA.** Zewnętrzna
+ocena (§B.5) rekomendowała pełną minimalizację zakresu: rozdzielenie
+„materiału dowodowego" sprawy (decyzja, uzasadnienie, przebieg odwołania) od
+reszty danych w tych samych tabelach (kontakt zgłaszającego, metadane), tak
+żeby kontakt mógł wygasać po 12 miesiącach, a rdzeń dowodowy dopiero po 36.
+**Właściciel tego NIE wybrał w tej turze.** Powód nazwany wprost: to wymaga
+migracji i przeprojektowania schematu (nowe kolumny albo tabela na rdzeń
+dowodowy, redakcja pól kontaktowych po pierwszym progu, osobny termin
+redakcji i termin usunięcia — dokładnie tak, jak opisuje
+`OCENA_RETENCJI_ZEWNETRZNA.md` §B.5, akapit „Minimalny zakres zmiany"), nie
+jest zmianą jednej liczby w configu — a `database/migrations/**` jest poza
+zakresem plików tego zlecenia. To NIE jest przeoczenie: jest opisane tutaj
+właśnie po to, żeby nie wyglądało na jedno. Pozostaje jako punkt do przyszłego
+zlecenia, jeśli właściciel zdecyduje się je otworzyć.
+
+**Numery w tej tabeli są teraz decyzją właściciela, nie rekomendacją agenta
+badawczego** — dwukrotnie: pierwsza tura wybrała 36/24/24 z wariantów, druga
+tura (po zewnętrznej ocenie prawnej) przyjęła 12/3 zamiast 24/24 i podstawę
+art. 6 ust. 1 lit. f zamiast art. 442¹ k.c. Trzy warunki z §0 (zatwierdzenie,
+automat, obserwacja na produkcji) nadal rządzą tym, kiedy liczby mogą trafić
+do `resources/legal/polityka-prywatnosci.md` — patrz §9.
 
 ---
 
@@ -538,10 +719,23 @@ pozycji, żadna z nich nie trafia do `resources/legal/polityka-prywatnosci.md`
   teoretyczne, bo taka ścieżka nie istnieje.
 - **Podział `reports` wg `source`** (§6, wariant B) — zostawiony jako
   opcja, nie decyzja.
+- **Pełna minimalizacja zakresu — rozdzielenie „materiału dowodowego" od
+  reszty danych sprawy** (rekomendacja zewnętrznej oceny prawnej, §B.5) —
+  ŚWIADOMIE NIEZREALIZOWANA w tej turze, patrz §6 „Nowa, siódma pozycja" po
+  pełne uzasadnienie (wymaga migracji i przeprojektowania schematu, nie
+  zmiany liczby w configu — `database/migrations/**` poza zakresem tego
+  zlecenia).
 - **Martwe linki `notifications.data.action_id`/`appeal_id`** po wygaśnięciu
-  `moderation_actions`/`appeals` (§5.2) — dziś ryzyko praktycznie zerowe przy
-  rekomendowanych liczbach, ale widok (`resources/views/pages/notifications.blade.php:126-128`)
-  nie ma dziś obsługi „ten cel już nie istnieje" i ten ADR jej nie dodaje.
+  `moderation_actions`/`appeals` — CZĘŚCIOWO ROZWIĄZANE w drugiej turze przez
+  wyjątek retencji (§5.2, `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`):
+  powiadomienie moderacyjne dziś nie może wygasnąć w oknie, w którym prawo
+  do odwołania jeszcze obowiązuje. Nie jest to jednak rozwiązane w OGÓLE —
+  po własnym terminie powiadomienia (`appealDeadline()`) `moderation_actions`
+  wciąż żyje osobne 36 miesięcy, więc od tego momentu do wygaśnięcia decyzji
+  link nadal może wskazywać na wiersz, który akurat zniknął z innego powodu
+  (błąd usunięcia, ręczna interwencja) — a widok
+  (`resources/views/pages/notifications.blade.php:126-128`) nadal nie ma
+  obsługi „ten cel już nie istnieje". Ten ADR jej nie dodaje.
 - **Retencja `product_signals` i `data_exports`** — już mają automat i
   własne decyzje (issue #115, D-018/A8) — nie są tu ruszane ani na nowo
   uzasadniane.
@@ -595,22 +789,29 @@ Dziś: *„Obsługa zgłoszeń i moderacji … Dłużej niż inne dane —
 [do ustalenia z prawnikiem, orientacyjnie 12–24 miesiące od zamknięcia
 sprawy]"*
 
-Po wdrożeniu (przy przyjęciu rekomendacji §6 — 36 miesięcy), nowe zdanie
-w tej samej komórce tabeli:
+Po wdrożeniu (36 miesięcy, §5.3-5.5, §5.6), nowe zdanie w tej samej komórce
+tabeli:
 
 > „36 miesięcy od zamknięcia sprawy (decyzji moderatora albo rozstrzygnięcia
-> odwołania, jeśli je złożono)."
+> odwołania, jeśli je złożono), na podstawie naszego uzasadnionego interesu
+> w obronie przed roszczeniami i wyjaśnianiu sporów dotyczących decyzji
+> moderacyjnych. Dane kontaktowe zgłaszającego pozostają powiązane ze
+> sprawą przez cały ten okres."
+
+(Zdanie o kontakcie zgłaszającego jest UCZCIWE wobec §6/§10: właściciel nie
+wybrał wcześniejszego usunięcia kontaktu, więc polityka nie może obiecywać
+czegoś, czego kod nie robi.)
 
 ### 9.2 `resources/legal/polityka-prywatnosci.md:26`
 
 Dziś: *„Bezpieczeństwo (logi, próby logowania, adresy IP) … Krótko,
 orientacyjnie do 90 dni"*
 
-Po wdrożeniu (przy przyjęciu rekomendacji §6 — 24 miesiące), nowe zdanie —
-**musi zawierać wyjątek**, bo RODO wymaga przejrzystości co do wyjątków od
-ogólnej zasady, nie tylko co do samej zasady:
+Po wdrożeniu (**12 miesięcy**, §5.1 — nie 24), nowe zdanie — **musi zawierać
+wyjątek**, bo RODO wymaga przejrzystości co do wyjątków od ogólnej zasady,
+nie tylko co do samej zasady:
 
-> „24 miesiące od zapisania wpisu w dzienniku zdarzeń — z wyjątkiem wpisów
+> „12 miesięcy od zapisania wpisu w dzienniku zdarzeń — z wyjątkiem wpisów
 > potwierdzających zgłoszenie, cofnięcie albo wykonanie usunięcia Twojego
 > konta, które zachowujemy bezterminowo jako dowód, że Twoje żądanie
 > zostało wykonane."
@@ -620,10 +821,14 @@ ogólnej zasady, nie tylko co do samej zasady:
 Dziś: *„Powiadomienia w serwisie … Do przeczytania/usunięcia + rozsądny
 bufor techniczny"*
 
-Po wdrożeniu (przy przyjęciu rekomendacji §6 — 24 miesiące):
+Po wdrożeniu (**3 miesiące**, §5.2 — nie 24), nowe zdanie — **musi zawierać
+wyjątek**, z tego samego powodu prawnego co wyżej, a nie tylko dla
+kompletności:
 
-> „24 miesiące od otrzymania powiadomienia, niezależnie od tego, czy
-> zostało przeczytane."
+> „3 miesiące od otrzymania powiadomienia, niezależnie od tego, czy zostało
+> przeczytane — z wyjątkiem powiadomień o decyzji moderacyjnej i o wyniku
+> odwołania, które zachowujemy do upływu terminu na odwołanie (co najmniej
+> sześć miesięcy od decyzji)."
 
 **Żadne z tych trzech zdań nie wolno wkleić do pliku, dopóki liczba w nim
 nie jest tą samą liczbą, którą wykonuje kod — nie przybliżoną, nie
@@ -631,3 +836,63 @@ zaokrągloną „dla ładności zdania".** To jest dokładnie błąd, który D-0
 już raz znalazło i nazwało (opublikowany placeholder retencji,
 `docs/DECISIONS.md:966`) — ten ADR istnieje, żeby drugi raz się nie
 powtórzył.
+
+---
+
+## 10. Druga tura — zewnętrzna ocena prawna podważyła podstawę, nie liczby (2026-09-07)
+
+**Co się stało.** Pierwsza wersja tego ADR-u (§0-§9 wyżej, zaktualizowane
+in-place tam, gdzie ta tura zmieniła liczbę albo podstawę) była propozycją
+agenta badawczego. Właściciel zatwierdził wariant 36/24/24 z §6 w pierwotnym
+kształcie, automat powstał (`app/Domain/Compliance/**`, trzy komendy
+`kuking:sprzataj-*`, 17 testów w chwili tej tury) i wszedł do harmonogramu.
+**Tego samego dnia** zamówiona zewnętrzna ocena prawna
+(`docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md`, źródła w
+`docs/decyzje/ZRODLA_PRAWNE_ZEWNETRZNE.md` [L1-L3]) wróciła i podważyła —
+cytując jej własne słowa — **nie liczby, tylko PODSTAWĘ**.
+
+**Trzy werdykty oceny i decyzja właściciela wobec każdego:**
+
+1. **Sprawy moderacyjne, 36 miesięcy — zła podstawa.** Art. 442¹ k.c.
+   określa przedawnienie roszczeń, nie obowiązek archiwizacji. Właściwa
+   podstawa: art. 6 ust. 1 lit. f RODO z pisemnym testem równowagi, plus
+   art. 17 ust. 3 lit. e jako wyjątek w konkretnym przypadku.
+   **Decyzja właściciela: 36 miesięcy ZOSTAJE, podstawa się zmienia** —
+   §5.3-5.5 (liczba), §5.6 (test równowagi).
+2. **Dziennik zdarzeń, 24 miesiące — za długo.** Ocena zaproponowała 12.
+   **Decyzja właściciela: przyjęte, 12 miesięcy** — §5.1.
+3. **Powiadomienia, 24 miesiące — za długo.** Ocena zaproponowała 3.
+   **Decyzja właściciela: przyjęte, 3 miesiące**, Z NOWYM WYJĄTKIEM dla
+   powiadomień moderacyjnych, wymuszonym kolizją z sześciomiesięcznym
+   terminem odwołania z DSA art. 20 ust. 1 — §5.2,
+   `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`.
+
+**Wariant, który właściciel wybrał, nazwany wprost: „podstawa plus
+skrócenie".** Nie pełna minimalizacja zakresu (rozdzielenie materiału
+dowodowego od reszty danych w schemacie, §6 „Nowa, siódma pozycja") — to
+zostaje jako niezrealizowana rekomendacja z nazwanym powodem (migracja
+i przeprojektowanie, nie zmiana liczby), nie jako przeoczenie.
+
+**Co NIE się zmieniło w tej turze, mimo że mogłoby wyglądać na powiązane:**
+
+- Numeracja sekcji §5.1, §5.2, §5.3-5.5, §6 — zachowana, bo kod cytuje ją
+  wprost w kilkunastu miejscach (zweryfikowane grepem, nie z pamięci —
+  patrz lista w raporcie tego zlecenia). Nowa treść (test równowagi) weszła
+  jako §5.6, między §5.5 i (dawnym) §6 — nic nie przesunęło się o numer.
+- `resources/legal/polityka-prywatnosci.md` — wciąż nie dostaje żadnej
+  z tych liczb (§0, warunek 3 — obserwacja na produkcji wciąż niepotwierdzona
+  w tym zleceniu). §9 ma zaktualizowane, gotowe zdania do wklejenia PO
+  spełnieniu tego warunku.
+- `docs/DATABASE.md`, `docs/DECISIONS.md`, `docs/legal/COMPLIANCE.md` —
+  poza zakresem plików tej tury; treść do wklejenia jest w raporcie tego
+  zlecenia, nie w tym pliku.
+- Trzy tabele bez zmiany liczby: `reports`/`moderation_actions`/`appeals`
+  zostają na 36 miesiącach — zmieniła się WYŁĄCZNIE podstawa prawna (§5.6),
+  nie zachowanie automatu ani testy, które je pilnują.
+
+**Gdzie ta tura nie zgadza się z oceną zewnętrzną, jeśli gdziekolwiek: NIE
+zgadza się — przyjęto wszystkie trzy werdykty i obie liczbowe rekomendacje
+bez zastrzeżeń.** Jedyne miejsce do odnotowania to zakres: ocena wymieniła
+dodatkowo rekomendację pełnej minimalizacji (§B.5) i wstrzymania kasowania
+konkretnego dowodu w trwającym sporze (§5.6 punkt 7) — obie pozostają
+otwarte, nie odrzucone, z nazwanym powodem w §6.

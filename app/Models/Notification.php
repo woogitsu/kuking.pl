@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -50,6 +51,48 @@ class Notification extends Model
      */
     public const TYPE_FIRST_POST = 'post.first';
 
+    /**
+     * Typy powiadomień WYŁĄCZONE Z OGÓLNEGO OKRESU RETENCJI (issue #19,
+     * docs/decyzje/ADR_RETENCJE.md §5.2, §5.6) — kolizja trzymiesięcznej
+     * retencji (`config('kuking.notifications.retention_months')`) z
+     * sześciomiesięcznym terminem na odwołanie od decyzji moderacyjnej
+     * (DSA art. 20 ust. 1, `ModerationAction::appealDeadline()`).
+     *
+     * INNY KSZTAŁT WYJĄTKU NIŻ `AuditLogEntry::NIGDY_NIE_KASUJ`. Tam wyjątek
+     * jest bezterminowy (dowód RODO art. 17 nie ma innego zapisu w bazie).
+     * Tutaj NIE chodzi o wieczne przechowywanie — chodzi o to, że WŁASNY
+     * termin ważności tego powiadomienia nie jest liczbą tego configu, tylko
+     * terminem na odwołanie od decyzji, do której się odnosi. Gdy ten termin
+     * minie, powiadomienie wraca do bycia zwykłym kandydatem do usunięcia —
+     * patrz `terminOchronyOdwolawczej()` niżej i
+     * `App\Domain\Compliance\PrzedawnionePowiadomienia`.
+     *
+     * `TYPE_MODERATION` — JEDYNY typ, którym serwis niesie: (a) decyzję
+     * moderacyjną wraz z linkiem „Odwołaj się"
+     * (`NotifyModerationDecision::handle()`, `data.action_id` wskazuje
+     * `moderation_actions.id` wprost), (b) wynik już złożonego odwołania
+     * (`NotifyAppealOutcome::handle()`, `data.appeal_id` wskazuje
+     * `appeals.id`, z którego termin dochodzimy przez `Appeal::moderationAction()`).
+     * Obie ścieżki prowadzą do tej samej decyzji, więc obie mierzymy tym
+     * samym terminem — `ModerationAction::appealDeadline()` — a NIE osobno
+     * wpisaną liczbą miesięcy: druga kopia terminu rozjechałaby się
+     * z prawdziwym terminem przy pierwszej zmianie `appeal_days` w configu
+     * albo ustawowego minimum wewnątrz samej `appealDeadline()`.
+     *
+     * Dla zgłaszającego BEZ konta droga do odwołania jest inna (mail,
+     * `App\Notifications\DecyzjaWSprawieZgloszenia`) i w ogóle nie dotyka
+     * tej tabeli — poczta nie jest tu zapisywana jako wiersz.
+     *
+     * LISTA JEST ZAMKNIĘTA, z tego samego powodu co `AuditLogEntry::NIGDY_NIE_KASUJ`:
+     * trzymanie jej w configu dałoby się wyczyścić jedną zmianą wdrożeniową
+     * bez recenzji kodu — dokładnie tego ta lista ma nie dopuścić.
+     *
+     * @var list<string>
+     */
+    public const WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA = [
+        self::TYPE_MODERATION,
+    ];
+
     protected $fillable = [
         'user_id',
         'actor_id',
@@ -78,6 +121,53 @@ class Notification extends Model
     public function isUnread(): bool
     {
         return $this->read_at === null;
+    }
+
+    /**
+     * Termin, do którego retencja (issue #19, ADR §5.2/§5.6) NIE MOŻE
+     * skasować tego powiadomienia — wyłącznie dla typów z
+     * `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`. `null` dla pozostałych
+     * typów znaczy „brak wydłużenia — obowiązuje ogólny okres wprost",
+     * NIE „można skasować natychmiast".
+     *
+     * `null` wraca też, gdy powiązanej decyzji moderacyjnej nie da się
+     * ustalić (odniesienie puste albo wiersz już nie istnieje) — retencja
+     * (`PrzedawnionePowiadomienia`) świadomie NIE zgaduje w tej sytuacji:
+     * traktuje `null` jak "nie wiadomo, więc nie kasujemy w tym przebiegu",
+     * dokładnie tak samo, jak błąd kasowania w `PrzedawnioneSprawyModeracyjne`
+     * nie może "zgadywać", że się udało.
+     */
+    public function terminOchronyOdwolawczej(): ?CarbonInterface
+    {
+        if (! in_array($this->type, self::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA, true)) {
+            return null;
+        }
+
+        return $this->decyzjaModeracyjnaDlaRetencji()?->appealDeadline();
+    }
+
+    /**
+     * `ModerationAction`, z którą to powiadomienie jest związane — przez
+     * `data.action_id` wprost (`NotifyModerationDecision`) albo przez
+     * `data.appeal_id` → `Appeal::moderationAction()` (`NotifyAppealOutcome`).
+     * Patrz komentarz `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` po pełne
+     * uzasadnienie obu ścieżek.
+     */
+    private function decyzjaModeracyjnaDlaRetencji(): ?ModerationAction
+    {
+        $akcjaId = $this->data['action_id'] ?? null;
+
+        if (is_string($akcjaId) && $akcjaId !== '') {
+            return ModerationAction::find($akcjaId);
+        }
+
+        $odwolanieId = $this->data['appeal_id'] ?? null;
+
+        if (is_string($odwolanieId) && $odwolanieId !== '') {
+            return Appeal::find($odwolanieId)?->moderationAction;
+        }
+
+        return null;
     }
 
     /**
