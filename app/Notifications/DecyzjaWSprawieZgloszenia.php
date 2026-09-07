@@ -104,8 +104,25 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
             ->line((string) $this->zgloszenie->target_url)
             ->line('---')
             ->line('**Jeśli się z nami nie zgadzasz**')
+            // NIE OBIECUJEMY „INNEGO CZŁOWIEKA". Do dziś stało tu zdanie
+            // „sprawa wróci do człowieka, który jej wcześniej nie prowadził"
+            // — i kod nie czynił go prawdą. Przy zespole 1-2 osób nic tego
+            // nie zapewnia; jedyne, co jest egzekwowane, to karencja
+            // z `ResolveAppeal` (ten sam moderator nie PODTRZYMA własnej
+            // decyzji przez `appeal_self_uphold_hours`), a ona dotyczy
+            // odwołania AUTORA treści, nie pisma od zgłaszającego —
+            // zgłaszający nie ma dziś w ogóle dostępu do systemu odwołań
+            // (`appeals.user_id` jest NOT NULL i wskazuje autora).
+            // Komentarz `ResolveAppeal` mówi to samo wprost: „przy zespole
+            // 1-2 osób wymóg »ktoś inny« jest nie do spełnienia, więc
+            // egzekwujemy to, co da się spełnić".
+            //
+            // Zostaje więc zdanie, które jest prawdą: napisz, zajmiemy się
+            // sprawą ponownie. Tego akurat nie obiecuje żaden mechanizm
+            // w kodzie, tylko człowiek czytający skrzynkę — i dokładnie tak
+            // to brzmi.
             ->line('Napisz do nas na '.(string) config('kuking.community.contact_email')
-                .', podając numer sprawy — sprawa wróci do człowieka, który jej wcześniej nie prowadził.')
+                .', podając numer sprawy — zajmiemy się nią ponownie.')
             ->line('Możesz też zwrócić się do pozasądowego organu rozstrzygania sporów '
                 .'albo do sądu. Decyzja, którą tu opisujemy, nie zamyka Ci żadnej z tych dróg.')
             ->salutation('Zespół Kuking.pl');

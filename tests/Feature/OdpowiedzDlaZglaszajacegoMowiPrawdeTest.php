@@ -152,6 +152,54 @@ class OdpowiedzDlaZglaszajacegoMowiPrawdeTest extends TestCase
      * osobowe osoby trzeciej, a mechanizm zgłoszeń nie jest narzędziem do
      * ustalania, kogo ukarano.
      */
+    /**
+     * WŁAŚCIWY POMIAR (pomiar DSA, `docs/decyzje/DSA_POMIAR.md`): pouczenie
+     * o środkach odwoławczych nie może obiecywać INNEGO człowieka.
+     *
+     * Do dziś stało tam: „sprawa wróci do człowieka, który jej wcześniej nie
+     * prowadził". Nic w kodzie tego nie zapewniało. Jedyna egzekwowana
+     * reguła tego rodzaju to karencja z `ResolveAppeal` — ten sam moderator
+     * nie PODTRZYMA własnej decyzji przez `appeal_self_uphold_hours` — i ona
+     * dotyczy odwołania AUTORA treści, a nie pisma od zgłaszającego, który
+     * dostępu do systemu odwołań nie ma wcale (`appeals.user_id` jest NOT
+     * NULL i wskazuje autora). Przy zespole 1-2 osób obietnica „ktoś inny"
+     * jest niewykonalna, co komentarz `ResolveAppeal` mówi wprost.
+     *
+     * Ten test nie pilnuje brzmienia zdania — pilnuje, żeby OBIETNICA nie
+     * wróciła, i żeby pouczenie o organie pozasądowym i sądzie (art. 17
+     * ust. 3 lit. f) zostało, bo ono jest prawdziwe: nie zamykamy nikomu
+     * żadnej z tych dróg.
+     */
+    public function test_pouczenie_nie_obiecuje_innego_czlowieka(): void
+    {
+        foreach ([
+            ModerationAction::ACTION_REMOVE,
+            ModerationAction::ACTION_HIDE,
+            ModerationAction::ACTION_WARN,
+            ModerationAction::ACTION_NONE,
+        ] as $akcja) {
+            $tresc = $this->tresc($akcja);
+
+            $this->assertStringNotContainsString(
+                'wcześniej nie prowadził',
+                $tresc,
+                "Przy akcji „{$akcja}” list obiecuje, że sprawą zajmie się inny człowiek — kod tego nie zapewnia.",
+            );
+            $this->assertStringNotContainsString('inny moderator', $tresc);
+            $this->assertStringNotContainsString('niezależn', $tresc);
+
+            // KONTROLA: pouczenie nadal JEST — chodzi o wycięcie nieprawdy,
+            // nie o wycięcie całego akapitu.
+            $this->assertStringContainsString(
+                'Jeśli się z nami nie zgadzasz',
+                $tresc,
+                'Zniknęło całe pouczenie o środkach odwoławczych.',
+            );
+            $this->assertStringContainsString('pozasądowego organu', $tresc);
+            $this->assertStringContainsString((string) config('kuking.community.contact_email'), $tresc);
+        }
+    }
+
     public function test_mail_nie_zdradza_kogo_ukarano(): void
     {
         foreach ([ModerationAction::ACTION_WARN, ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN, ModerationAction::ACTION_REMOVE] as $akcja) {
