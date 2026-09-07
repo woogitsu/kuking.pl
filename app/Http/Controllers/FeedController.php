@@ -8,7 +8,6 @@ use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\TagFeed;
-use App\Domain\Feed\TopicFeed;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
 use Illuminate\Http\Request;
@@ -20,7 +19,6 @@ class FeedController extends Controller
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
         private readonly TagFeed $tagFeed,
-        private readonly TopicFeed $topicFeed,
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
     ) {}
@@ -43,21 +41,19 @@ class FeedController extends Controller
     }
 
     /**
-     * /home — feed obserwowanych, a gdy go nie ma, feed tagów (D-021).
+     * /home — feed obserwowanych, a gdy go nie ma, feed tagów (D-021,
+     * zastępuje usunięty już feed tematów z issue #31).
      *
-     * CZTERY STOPNIE, NIE TRZY (issue #31, rozszerzone przez D-021)
-     * Zaczęło się od dwóch: albo wpisy obserwowanych, albo „Świeżo z Kuking"
+     * TRZY STOPNIE
+     * Do niedawna były dwa: albo wpisy obserwowanych, albo „Świeżo z Kuking"
      * — czyli wszystko jak leci, identyczne dla każdego. Nowe konto dostawało
      * więc ekran, który nie należał do niego.
      *
-     * Między nie wszedł feed TEMATÓW wybranych w onboardingu, a teraz —
-     * feed TAGÓW: onboarding od D-021 zapisuje wybór do `tag_follows`, nie
-     * do `topic_follows`, więc to TAGI są tym, co o kimś wiemy w pierwszej
-     * minucie. `TopicFeed` zostaje na miejscu (Tematy znikają dopiero
-     * w kolejnym etapie D-021) jako TRZECI stopień — obsługuje konta, które
-     * obserwowały tematy, zanim ten etap wszedł, oraz istniejące testy
-     * tamtej ścieżki. Dopiero gdy WSZYSTKIE trzy są puste — bo ktoś pominął
-     * onboarding albo nigdzie, co obserwuje, nikt jeszcze nic nie ugotował —
+     * Między nie wchodzi feed TAGÓW wybranych w onboardingu
+     * (`Tag::promowane()` — lista gospodarza, D-021). To jedyna rzecz,
+     * którą o kimś wiemy w pierwszej minucie, i pierwszy ekran, który jest
+     * jego, a nie serwisu. Dopiero gdy i to jest puste — bo ktoś pominął
+     * onboarding albo w jego tagach nikt jeszcze nic nie ugotował —
      * pokazujemy „Świeżo z Kuking".
      *
      * Kolejność jest ważna w drugą stronę też: człowiek, który KOGOŚ
@@ -72,7 +68,6 @@ class FeedController extends Controller
         $zrodlo = match (true) {
             ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
             $this->tagFeed->maTresci($user) => 'tagi',
-            $this->topicFeed->maTresci($user) => 'tematy',
             default => 'odkrywanie',
         };
 
@@ -129,7 +124,6 @@ class FeedController extends Controller
             'posts' => match ($zrodlo) {
                 'obserwowani' => $this->followingFeed->paginate($user),
                 'tagi' => $this->tagFeed->paginate($user),
-                'tematy' => $this->topicFeed->paginate($user),
                 default => $this->discoverFeed->paginate($user),
             },
             'zrodloFeedu' => $zrodlo,

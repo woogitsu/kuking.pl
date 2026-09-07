@@ -41,8 +41,6 @@ use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\ThemeController;
-use App\Http\Controllers\TopicController;
-use App\Http\Controllers\TopicFollowController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -326,13 +324,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('collections.unsave-post');
 
     // Relacje społeczne
-    // Obserwowanie tematu: zwykłe formularze, bez JavaScriptu. Temat nie
-    // jest człowiekiem, więc nikogo nie powiadamiamy (issue #31).
-    Route::post('/temat/{topic}/obserwuj', [TopicFollowController::class, 'follow'])->name('topics.follow');
-    Route::delete('/temat/{topic}/obserwuj', [TopicFollowController::class, 'unfollow'])->name('topics.unfollow');
-
-    // Obserwowanie tagu (D-021, zastępuje temat) — ten sam wzorzec: zwykłe
-    // formularze, bez JavaScriptu, bez powiadomienia (tag nie jest człowiekiem).
+    // Obserwowanie tagu (D-021, zastępuje usunięty już Temat z issue #31):
+    // zwykłe formularze, bez JavaScriptu, bez powiadomienia (tag nie jest
+    // człowiekiem, więc nikogo nie powiadamiamy).
     Route::post('/tag/{tag}/obserwuj', [TagFollowController::class, 'follow'])->name('tags.follow');
     Route::delete('/tag/{tag}/obserwuj', [TagFollowController::class, 'unfollow'])->name('tags.unfollow');
 
@@ -348,12 +342,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update']);
 
-    Route::get('/ustawienia/tematy', [TopicFollowController::class, 'edit'])->name('settings.topics');
-    Route::put('/ustawienia/tematy', [TopicFollowController::class, 'update'])->name('settings.topics.update');
-
-    // „Twoje tagi" (D-021) — trasa `settings.topics` zostaje na miejscu
-    // (dostępna bezpośrednio, ale zdjęta z `x-ustawienia-nawigacja`) do
-    // kolejnego etapu D-021, który usuwa Tematy w całości.
+    // „Twoje tagi" (D-021, zastępuje usunięty już `/ustawienia/tematy`).
     Route::get('/ustawienia/tagi', [TagFollowController::class, 'edit'])->name('settings.tags');
     Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])->name('settings.tags.update');
 
@@ -452,21 +441,13 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
 });
 
 // --------------------------------------------------------------------------
-// Tematy
+// Tagi (D-021, zastępuje usunięty już Temat z issue #31)
 // --------------------------------------------------------------------------
 //
-// Strona tematu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
+// Strona tagu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
 // miejsc, w które ma sens trafić z wyszukiwarki. Sama lista wpisów jest
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi
 // wyłącznie treści publiczne.
-Route::get('/temat/{topic}', [TopicController::class, 'show'])->name('topics.show');
-
-// --------------------------------------------------------------------------
-// Tagi (D-021, zastępuje Tematy)
-// --------------------------------------------------------------------------
-//
-// Ten sam powód, ta sama trasa publiczna: strona tagu ma sens jako cel
-// z wyszukiwarki, a widoczność wpisów filtruje `Post::scopeWidoczneDla`.
 Route::get('/tag/{tag}', [TagController::class, 'show'])->name('tags.show');
 
 /*

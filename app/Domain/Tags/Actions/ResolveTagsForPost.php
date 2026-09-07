@@ -28,12 +28,12 @@ use App\Support\LimityTagow;
  * nie ma jak wymusić niczego po swojej stronie. Każda reguła (długość,
  * dozwolone znaki, wulgaryzmy, limit 5) jest więc sprawdzana TUTAJ, drugi
  * raz, niezależnie od tego, co pokazał wcześniej interaktywny krok
- * „Dodaj"/„Usuń" w `PostController` — dokładnie tak, jak `PublishPost`
- * niezależnie re-weryfikuje `topic_id` mimo że formularz już go ograniczał
- * do zamkniętej listy.
+ * „Dodaj"/„Usuń" w `PostController` — ten sam rodzaj bramki, jaką dawniej
+ * (issue #31, usunięte w D-021) `PublishPost` stawiał niezależnie przed
+ * `topic_id`, mimo że formularz już go ograniczał do zamkniętej listy.
  *
  * NIEPOPRAWNE NAZWY SĄ CICHO POMIJANE, NIE ODRZUCAJĄ CAŁEJ PUBLIKACJI.
- * Ten sam wybór co przy nieznanym/wycofanym `topic_id` w `PublishPost`:
+ * Ten sam wybór, jaki dawniej działał dla nieznanego/wycofanego `topic_id`:
  * „wpis bez tego tagu jest w pełni poprawny, więc lepiej opublikować bez
  * niego niż odmówić publikacji z powodu jednej złej nazwy wśród pięciu
  * poprawnych". WYJĄTEK: samą LICZBĘ tagów (>5) traktujemy twardo — to jest

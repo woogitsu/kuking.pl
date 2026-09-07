@@ -13,7 +13,6 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
-use App\Models\Topic;
 use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTagow;
@@ -43,11 +42,7 @@ class PostController extends Controller
 
     public function create(): View
     {
-        // Zamknięta lista tematów (issue #31). Wybór jest OPCJONALNY —
-        // wymuszanie go dokładałoby decyzję w momencie, w którym chcemy,
-        // żeby człowiek po prostu wrzucił zdjęcie.
         return view('pages.posts.create', [
-            'topics' => Topic::doWyboru()->get(),
             'tagNames' => (array) old('tag_names', []),
             'sugestieTagow' => $this->sugestieDlaZapytania(),
         ]);
@@ -122,10 +117,6 @@ class PostController extends Controller
         $walidator = Validator::make($request->all(), [
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
-            // Temat opcjonalny, ale MUSI istnieć i być aktywny. Sprawdzenie
-            // po stronie akcji domenowej jest drugą bramką — ta tutaj jest
-            // po to, żeby człowiek dostał komunikat zamiast cichego pominięcia.
-            'topic_id' => ['nullable', 'uuid'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
@@ -151,7 +142,6 @@ class PostController extends Controller
                 body: $data['body'] ?? null,
                 mediaIds: $mediaIds,
                 visibility: $data['visibility'],
-                topicId: $data['topic_id'] ?? null,
                 tagNames: $tagNames,
                 ip: $request->ip(),
                 // Wygląd zdjęć ustawia się DOPIERO PO publikacji, na osobnym
@@ -457,7 +447,7 @@ class PostController extends Controller
     }
 
     /**
-     * Edycja wpisu: tekst, widoczność, temat — nie zdjęcia (issue: menu „…"
+     * Edycja wpisu: tekst, widoczność, tagi — nie zdjęcia (issue: menu „…"
      * pokazywało autorowi tylko „Otwórz wpis", mimo że `docs/FEATURES.md`
      * i `docs/ROADMAP.md` wymieniają edycję jako część MVP).
      *
@@ -469,7 +459,6 @@ class PostController extends Controller
 
         return view('pages.posts.edit', [
             'post' => $post,
-            'topics' => Topic::doWyboru()->get(),
             // Lista robocza tagów: to, co ktoś zdążył zmienić w tym
             // formularzu (`old()`), a jeśli to pierwsze wejście na ekran —
             // tagi, które wpis ma już dziś.
@@ -498,7 +487,6 @@ class PostController extends Controller
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
-            'topic_id' => ['nullable', 'uuid'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
@@ -512,7 +500,6 @@ class PostController extends Controller
                 post: $post,
                 body: $data['body'] ?? null,
                 visibility: $data['visibility'],
-                topicId: $data['topic_id'] ?? null,
                 tagNames: $tagNames,
             );
         } catch (BladDlaCzlowieka $e) {

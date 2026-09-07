@@ -29,7 +29,8 @@ class TagiSchematTest extends TestCase
 
     public function test_nowy_tag_od_razu_zna_swoj_identyfikator(): void
     {
-        // Ten sam błąd co przy `Topic` (patrz `TematyWpisowTest`): bez
+        // Ten sam błąd co dawniej przy `Topic` (usunięty już wraz z całym
+        // Tematem, D-021 etap 4/5 — patrz historia `TematyWpisowTest.php`): bez
         // `HasUuids` `getKey()` po `create()` oddaje `null`, mimo że baza
         // sama nadała wierszowi identyfikator przez `DEFAULT gen_random_uuid()`.
         $tag = Tag::create(['name' => 'Sernik', 'normalized_name' => 'sernik', 'slug' => 'sernik']);

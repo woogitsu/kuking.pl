@@ -55,7 +55,6 @@ class Post extends Model
         'status',
         'display_mode',
         'recipe_id',
-        'topic_id',
         'published_at',
     ];
 
@@ -75,19 +74,6 @@ class Post extends Model
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
-    }
-
-    /**
-     * Temat wpisu — opcjonalny (issue #31).
-     *
-     * Wpis bez tematu jest w pełni poprawny i tak zostaje: wymuszanie wyboru
-     * dokładałoby decyzję w momencie, w którym chcemy, żeby człowiek po prostu
-     * wrzucił zdjęcie. Cel produktowy to poniżej 60 sekund od wejścia
-     * do opublikowania.
-     */
-    public function topic(): BelongsTo
-    {
-        return $this->belongsTo(Topic::class);
     }
 
     /**

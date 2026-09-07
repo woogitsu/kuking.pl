@@ -829,8 +829,18 @@ telemetryczne, nie dane, na podstawie których podjęto decyzję.
 Otwarta taksonomia użytkowników, zastępująca Tematy (D-021, migracje
 `2026_09_07_100000_create_tags_tables` i `2026_09_07_100100_create_tag_promotions_table`).
 Ta sekcja była wcześniej wpisana do „V1 / V2 — Później" — D-021 przenosi ją
-do MVP i jednocześnie każe skasować `topics`/`topic_follows`/`posts.topic_id`
-(osobna, późniejsza migracja — patrz commit usuwający Tematy).
+do MVP.
+
+**`topics`/`topic_follows`/`posts.topic_id` są USUNIĘTE** (migracja
+`2026_09_07_300000_drop_topics`). Migracja sprawdza przed usunięciem, czy
+`topic_follows` ma jakiekolwiek wiersze i czy jakikolwiek wpis ma niepusty
+`topic_id` — jeśli tak, przerywa operację (`RuntimeException`) zamiast po
+cichu skasować dane (SPEC §1.1, D-021: „właściciel musi to zrobić przed
+migracją, bo od tego zależy, czy usunięcie tematów jest zmianą schematu, czy
+rozmową z ludźmi, którym coś zniknie z profilu"). Stara migracja tworząca
+Tematy (`2026_09_06_100000_create_topics_tables`) ZOSTAJE w repozytorium
+bez zmian — inne środowiska mogły ją już wykonać, a przepisywanie historii
+migracji złamałoby je przy kolejnym `php artisan migrate`.
 
 **Cztery tabele rdzenia, nie sześć.** Specyfikacja właściciela projektowała
 też `tag_relations` (podpowiedzi semantyczne) i `tag_merge_suggestions`

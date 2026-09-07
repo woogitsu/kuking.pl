@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Post;
-use App\Models\Topic;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,24 +15,12 @@ use Tests\TestCase;
  *
  * Zdjęcia ZOSTAJĄ POZA tym ekranem — mają już swój, „Zdjęcia w tym wpisie"
  * (`PostMediaController`, patrz `EdycjaZdjecWpisuTest` gdzieś indziej, jeśli
- * istnieje). Ten plik sprawdza tylko tekst, widoczność i temat.
+ * istnieje). Ten plik sprawdza tylko tekst, widoczność i tagi (D-021 —
+ * Temat, który tu kiedyś stał obok widoczności, został usunięty w całości).
  */
 class EdycjaWpisuTest extends TestCase
 {
     use RefreshDatabase;
-
-    private function temat(string $slug = 'zupy', array $nadpisz = []): Topic
-    {
-        // `is_active` celowo nie jest w `$fillable` na modelu Topic — patrz
-        // komentarz przy `TematyWpisowTest::temat()`, ten sam powód tutaj.
-        return Topic::create(array_merge([
-            'slug' => $slug,
-            'name' => 'Zupy',
-            'description' => 'Od rosołu po krem.',
-            'position' => 1,
-            'is_active' => true,
-        ], $nadpisz));
-    }
 
     public function test_autor_widzi_swoj_tekst_na_ekranie_edycji(): void
     {
@@ -49,40 +36,10 @@ class EdycjaWpisuTest extends TestCase
         $response->assertSee('Rosół na niedzielę. Wyszedł złoty.', false);
     }
 
-    public function test_autor_zapisuje_zmiane_tekstu_widocznosci_i_tematu(): void
-    {
-        $basia = $this->user('basia');
-        $temat = $this->temat();
-        $post = Post::factory()->create([
-            'author_id' => $basia->getKey(),
-            'body' => 'Wersja pierwsza.',
-            'visibility' => Post::VISIBILITY_PUBLIC,
-        ]);
-
-        $response = $this->actingAs($basia)->put(route('posts.update', $post), [
-            'body' => 'Wersja poprawiona, po korekcie.',
-            'visibility' => 'private',
-            'topic_id' => $temat->getKey(),
-        ]);
-
-        $response->assertRedirect(route('posts.show', $post));
-        $response->assertSessionHas('status');
-
-        $post->refresh();
-        $this->assertSame('Wersja poprawiona, po korekcie.', $post->body);
-        $this->assertSame('private', $post->visibility);
-        $this->assertSame($temat->getKey(), $post->topic_id);
-        // Publikacja zostaje na miejscu — zmiana widoczności to nie to samo
-        // co wycofanie wpisu (Post::isPublished() patrzy na status i datę,
-        // nie na widoczność).
-        $this->assertTrue($post->isPublished());
-    }
-
     /**
      * Tagi (D-021) mają własny, obszerny plik testów
      * (`tests/Feature/TagiWpisowTest.php`) — ten test pilnuje TYLKO tego,
-     * że edycja zapisuje tekst, widoczność I tagi RAZEM, w jednym żądaniu,
-     * dokładnie jak test wyżej robi to dla tematu.
+     * że edycja zapisuje tekst, widoczność I tagi RAZEM, w jednym żądaniu.
      */
     public function test_autor_zapisuje_zmiane_tekstu_widocznosci_i_tagow(): void
     {
@@ -100,10 +57,17 @@ class EdycjaWpisuTest extends TestCase
         ]);
 
         $response->assertRedirect(route('posts.show', $post));
+        $response->assertSessionHas('status');
 
         $post->refresh();
         $this->assertSame('Wersja poprawiona, po korekcie.', $post->body);
+        $this->assertSame('private', $post->visibility);
         $this->assertSame(['sernik', 'zupy'], $post->tags->pluck('name')->all());
+        // Publikacja zostaje na miejscu — zmiana widoczności to nie to samo
+        // co wycofanie wpisu (Post::isPublished() patrzy na status i datę,
+        // nie na widoczność). Ta asercja stała wcześniej w usuniętym już
+        // teście o Temacie — przeniesiona tutaj, żeby nie zniknąć razem z nim.
+        $this->assertTrue($post->isPublished());
     }
 
     public function test_obcy_dostaje_odmowe_przy_otwieraniu_edycji(): void

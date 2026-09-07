@@ -59,7 +59,7 @@ class BezOdpowiedziController extends Controller
                 User::STATUS_BANNED,
                 User::STATUS_PENDING_DELETE,
             ]))
-            ->with(['author.profile.avatar', 'media', 'topic:id,slug,name'])
+            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
             ->orderBy('published_at')
             ->limit(50)
             ->get();
