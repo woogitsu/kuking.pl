@@ -1,0 +1,238 @@
+# Czego workflowy Kuking wymagają od runnera
+
+**Dla osoby (albo modelu) konfigurującej pulę `woogitsu-linux-01`–`woogitsu-linux-10`.**
+
+Od decyzji D-028 wszystkie 14 jobów Kuking chodzi wyłącznie na tej puli
+i **nie mają zapasu w runnerach GitHuba**. Jeśli czegoś tu brakuje, joby nie
+padną „na czerwono z sensownym komunikatem" — będą wisieć w kolejce albo
+przewracać się na pierwszym kroku. A CI jest bramką deployu (Railway ma
+„Wait for CI"), więc razem z nimi stoi wdrożenie.
+
+Ten dokument opisuje **stan zastany w workflowach**, nie życzenia. Każda
+pozycja ma wskazany plik i job, z którego wynika.
+
+---
+
+## 1. Etykiety — dokładnie sześć, bez wyjątku
+
+Przy `./config.sh` runner musi zarejestrować się z etykietami:
+
+```text
+self-hosted,Linux,X64,woogitsu,i5-10400f,nvidia-gtx1070
+```
+
+Wszystkie joby mają:
+
+```yaml
+runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+```
+
+**Brak choćby jednej etykiety = job nigdy nie wystartuje** (nie „padnie" —
+będzie wisiał jako `Queued`). Etykiety `i5-10400f` i `nvidia-gtx1070` są
+w zestawie celowo: stara pula WSL-owa (`woogitsu-wsl-DOM-NEW-01`–`04`) ma
+tylko `self-hosted`, `Linux`, `X64`, `wsl2`, `woogitsu`, więc bez nich joby
+trafiałyby także na nią.
+
+> Etykieta `nvidia-gtx1070` **nie znaczy, że Kuking potrzebuje GPU.** Żaden
+> job go nie używa. Jest wyłącznie znacznikiem tożsamości nowej puli.
+
+---
+
+## 2. Jedna maszyna = JEDEN job naraz
+
+To jest wymóg, który najłatwiej przeoczyć i który daje najbrzydszą awarię.
+
+Dwa joby — `test` (`ci.yml:213-228`) i `dostepnosc` (`ci.yml:360-373`) —
+podnoszą kontener usługi z **mapowaniem portu na hosta**:
+
+```yaml
+services:
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - 5432:5432
+```
+
+Na runnerach GitHuba każdy job dostaje własną maszynę wirtualną, więc port
+5432 jest wolny za każdym razem. **Na jednej maszynie z dwoma procesami
+runnera oba joby walczą o ten sam port hosta** i drugi przewraca się na
+`driver failed programming external connectivity: Bind for 0.0.0.0:5432
+failed: port is already allocated`. Oba joby tego samego przebiegu CI mogą
+wystartować równocześnie.
+
+Dlatego: **na każdej maszynie dokładnie jeden zarejestrowany runner
+i jeden job jednocześnie.** Dziesięć maszyn = dziesięć jednoczesnych jobów,
+co przy siedmiu jobach w `ci.yml` wystarcza z zapasem.
+
+Jeśli z jakiegoś powodu na jednej maszynie ma stać więcej runnerów, trzeba
+najpierw zdjąć mapowanie portów z obu jobów i wpisać im `DB_HOST` kontenera
+usługi — to jest zmiana w `ci.yml`, nie na maszynie, i wtedy proszę o issue,
+a nie o obejście po cichu.
+
+---
+
+## 3. Docker — obowiązkowy, z dostępem dla użytkownika runnera
+
+Trzy rzeczy w Kuking bez Dockera nie działają:
+
+| Co | Gdzie | Po co |
+|---|---|---|
+| kontener usługi `postgres:18-alpine` | `ci.yml` joby `test`, `dostepnosc` | Testy chodzą na PostgreSQL, nigdy na SQLite (D-002). Schemat używa indeksów częściowych, `num_nonnulls()`, `gen_random_uuid()`, `pg_trgm` i `unaccent` — na innym silniku test przechodziłby, nic nie sprawdzając |
+| `docker/setup-buildx-action@v4` | `ci.yml` job `docker-build` | Build obrazu jako weryfikacja przed wypchnięciem na Railway |
+| `docker/build-push-action@v7` | `ci.yml` job `docker-build` | To samo |
+
+Wymagania:
+
+- Docker Engine działający jako usługa (`systemctl status docker`).
+- **Użytkownik runnera w grupie `docker`** (`sudo usermod -aG docker <user>`,
+  potem restart usługi runnera). Bez tego kontener usługi nie wstanie,
+  a komunikat mówi tylko `permission denied`.
+- Runner **nie może** sam siedzieć w kontenerze bez docker-in-docker.
+- Możliwość pobrania obrazów z Docker Huba (`postgres:18-alpine`,
+  obrazy buildx).
+
+Kontener usługi ma healthcheck (`pg_isready -U kuking -d kuking_test`,
+`--health-retries=10`), więc job nie startuje przed przyjęciem połączeń.
+Nie trzeba nic dodawać.
+
+---
+
+## 4. PHP — 8.4, dziesięć rozszerzeń
+
+Joby stawiają PHP przez `shivammathur/setup-php@v2`. Ta akcja **działa na
+self-hosted Linuksie, ale wymaga `sudo` bez hasła** i sieci do repozytoriów
+pakietów. Bez tego pada na pierwszym kroku.
+
+```text
+PHP_VERSION: 8.4     (ci.yml:68 — minimum frameworka to 8.3)
+```
+
+Rozszerzenia, w sumie ze wszystkich jobów:
+
+```text
+mbstring, tokenizer, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+```
+
+- `pdo_pgsql` i `pgsql` — bez nich testy padają na `could not find driver`;
+- `gd` i `exif` — pipeline zdjęć (re-enkodowanie zdejmujące EXIF/GPS);
+- `intl`, `bcmath`, `zip`, `pcntl`, `mbstring`, `tokenizer` — Laravel, Composer, Pint.
+
+**Zalecenie, nie wymóg:** wstępna instalacja PHP 8.4 z tymi rozszerzeniami
+na obrazie maszyny. `setup-php` wykryje gotową wersję i skróci krok do
+kilku sekund. Przy instalacji od zera każdy job traci na to 1-2 minuty,
+a joby mają `timeout-minutes` od 10 do 30.
+
+Do tego **Composer 2** (`tools: composer:v2`) — akcja dociąga go sama,
+o ile ma sieć.
+
+---
+
+## 5. Node — 22
+
+```text
+NODE_VERSION: 22     (ci.yml:69)
+```
+
+Stawiany przez `actions/setup-node@v7` z `cache: npm`. Wymaga sieci do
+`registry.npmjs.org`. Joby: `assets`, `dostepnosc`, `audit`, a w `deploy.yml`
+job `operate` dokłada `npm install -g @railway/cli` — czyli **globalna
+instalacja npm musi się udać bez `sudo`** (prefiks npm w katalogu domowym
+użytkownika runnera albo nvm).
+
+---
+
+## 6. Chromium dla automatu dostępności
+
+Job `dostepnosc` (`ci.yml:457`) robi:
+
+```bash
+npx playwright install --with-deps chromium
+```
+
+`--with-deps` uruchamia `apt-get install` dla bibliotek systemowych
+przeglądarki, więc znowu potrzebne jest **`sudo` bez hasła**.
+
+Alternatywa, która oszczędza ~26 sekund na przebieg: wstępnie zainstalowane
+Chromium plus zmienna `PLAYWRIGHT_BROWSERS_PATH`. `scripts/dostepnosc.mjs`
+sam wykrywa, skąd wziąć przeglądarkę (`znajdzChromium()`): bierze
+`CHROMIUM_PATH`, jeśli jest ustawiona i plik istnieje; potem stałą ścieżkę
+obrazu deweloperskiego; a gdy nie ma żadnej — przeglądarkę Playwrighta.
+Nie trzeba niczego podawać w workflow.
+
+---
+
+## 7. Sieć wychodząca
+
+Bez tych hostów joby padają, a komunikaty bywają mylące (`403`, timeout
+proxy, „could not authenticate"):
+
+| Host | Kto go potrzebuje |
+|---|---|
+| `github.com`, `api.github.com`, `objects.githubusercontent.com` | `actions/checkout`, wszystkie akcje, `actions/cache`, `upload-artifact` |
+| `repo.packagist.org` | `composer install` (metadane) |
+| **`api.github.com` dla dowolnego repozytorium** | `composer install` — pakiety dystrybucyjne idą z `https://api.github.com/repos/<owner>/<repo>/zipball/<ref>`. **To jest realna pułapka:** `phpstan/phpstan` ma w `composer.lock` `"source": null`, czyli JEDYNIE dystrybucję z tego adresu. Środowisko, które ogranicza `api.github.com` do własnych repozytoriów, nie zainstaluje go w ogóle (zmierzone w tej sesji: HTTP 403 i `Could not authenticate against github.com`) |
+| `registry.npmjs.org` | `npm ci`, `npx playwright install` |
+| Docker Hub | `postgres:18-alpine`, buildx |
+| repozytoria pakietów systemowych (`ppa.launchpadcontent.net`, `deb.debian.org` / `archive.ubuntu.com`) | `setup-php`, `playwright install --with-deps` |
+| `railway.com` / API Railway | tylko `deploy.yml` i `railway-iac.yml` |
+| `sentry.io` | tylko `deploy.yml`, krok `getsentry/action-release@v3` |
+
+---
+
+## 8. Miejsce na dysku i pamięć
+
+Zmierzone w środowisku deweloperskim tego repozytorium:
+
+| Co | Ile | Skąd ta liczba |
+|---|---|---|
+| `node_modules/` po `npm ci` | **168 MB** | zmierzone (`du -sh node_modules`) |
+| przeglądarka Chromium Playwrighta | **597 MB** | zmierzone (`du -sh /opt/pw-browsers/chromium-1194`) |
+| `vendor/` bez katalogów `.git` | **1,3 GB** | zmierzone (`du -sh --exclude=.git vendor`) — tyle zajmuje instalacja `--prefer-dist`, czyli ta, którą robi CI |
+| `vendor/` z klonami git | 5,0 GB | zmierzone; dotyczy instalacji ze ŹRÓDEŁ (121 klonów). CI używa `--prefer-dist`, więc nie powinno tu trafić — ale jeśli dystrybucje z `api.github.com` będą blokowane (sekcja 7), Composer sam przejdzie na źródła i tyle zajmie |
+| cache Composera | 4,0 GB | zmierzone dla instalacji ze źródeł; przy `--prefer-dist` jest to rząd setek MB |
+| obrazy Dockera (`postgres:18-alpine` + warstwy buildu Kuking) | ~1,5 GB | szacunek, NIE pomiar |
+
+Liczby poza obrazami Dockera są zmierzone w środowisku deweloperskim tej
+sesji (PHP 8.4, Node 22), nie przepisane z dokumentacji.
+
+**Rekomendacja: minimum 20 GB wolnego na maszynę** i okresowe
+`docker system prune`. Pamięci: 4 GB starcza, przy równoległym buildzie
+obrazu i kontenerze Postgresa wygodniej 8 GB — to jest szacunek, nie pomiar.
+
+---
+
+## 9. Sekrety i zmienne repozytorium
+
+- **`CI_RUNNER` — do usunięcia.** Po D-028 nie czyta jej już żaden workflow.
+  Dopóki istnieje, jest tylko mylącym śladem.
+- Sekrety potrzebne **wyłącznie** workflowom wdrożeniowym (dziś zablokowanym
+  zmienną `KUKING_DEPLOY_ENABLED`): `RAILWAY_TOKEN_PRODUCTION`,
+  `RAILWAY_TOKEN_STAGING`, `SENTRY_AUTH_TOKEN`.
+- `ci.yml` **nie potrzebuje żadnego sekretu.** `APP_KEY` w jobie `test` jest
+  statyczną wartością wpisaną w workflow i nie jest sekretem — służy tylko
+  do tego, żeby szyfrowanie miało poprawnie sformatowany klucz.
+
+---
+
+## 10. Bezpieczeństwo — jedna rzecz, o której trzeba wiedzieć
+
+Runner self-hosted **wykonuje kod z repozytorium**. Dla repozytorium
+prywatnego z zaufanym zespołem to jest w porządku. **Gdyby Kuking kiedyś
+stał się publiczny i przyjmował Pull Requesty od obcych, tej puli nie wolno
+zostawić podpiętej** — to byłoby oddanie powłoki na tych maszynach każdemu,
+kto otworzy PR. Sprawa jest otwarta w `docs/decyzje/REPO_PUBLICZNE.md`.
+
+---
+
+## 11. Jak sprawdzić, że jest dobrze
+
+1. W panelu GitHuba: **Settings → Actions → Runners** — dziesięć runnerów
+   `Idle`, każdy z sześcioma etykietami.
+2. Ręczny przebieg: `ci.yml` ma `workflow_dispatch`, więc da się go odpalić
+   bez pushowania czegokolwiek.
+3. Zielony przebieg oznacza, że wszystko z tego dokumentu jest na miejscu.
+   Do przejrzenia po przebiegu: czy `Konfiguracja PHP` i `Przeglądarka`
+   trwają sekundy (wstępna instalacja działa), czy minuty (instalują od zera).
+
+Objawy i przyczyny są w `docs/infra/SELF_HOSTED_RUNNER.md`, sekcja
+„Gdy coś nie działa".

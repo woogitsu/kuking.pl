@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Post;
 use App\Models\Report;
+use App\Support\NumerSprawy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -53,6 +54,12 @@ class IdempotencjaMigracjiTest extends TestCase
         foreach ([1, 2] as $ktore) {
             DB::table('reports')->insert([
                 'id' => (string) Str::uuid7(),
+                // Surowy `INSERT` omija model, a `reports.numer_sprawy` jest
+                // `NOT NULL` (D-029) — numer trzeba więc podać tutaj, tak
+                // samo jak identyfikator. Osobny dla każdego wiersza, bo
+                // inaczej odbiłby się indeks numeru, a nie ten, o który
+                // w tym teście chodzi.
+                'numer_sprawy' => NumerSprawy::wygeneruj(),
                 'reporter_id' => $zglaszajacy->getKey(),
                 'target_type' => 'post',
                 'target_id' => $wpis->getKey(),

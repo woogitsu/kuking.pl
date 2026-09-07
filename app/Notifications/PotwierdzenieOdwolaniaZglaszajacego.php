@@ -31,7 +31,7 @@ final class PotwierdzenieOdwolaniaZglaszajacego extends Notification implements 
 
     public function toMail(object $notifiable): MailMessage
     {
-        $numer = mb_strtoupper(mb_substr((string) $this->zgloszenie->getKey(), 0, 8));
+        $numer = $this->zgloszenie->numer_sprawy;
 
         return (new MailMessage)
             ->subject("Dostaliśmy Twoje odwołanie (sprawa nr {$numer})")

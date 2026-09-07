@@ -36,7 +36,11 @@ final class OdpowiedzNaOdwolanieZglaszajacego extends Notification implements Sh
     public function toMail(object $notifiable): MailMessage
     {
         $utrzymana = $this->odwolanie->status === Appeal::STATUS_UPHELD;
-        $numer = mb_strtoupper(mb_substr((string) $this->odwolanie->report_id, 0, 8));
+        // Numer bierzemy z powiązanego zgłoszenia, nie z `report_id`:
+        // to ta sama wartość, którą zgłaszający dostał w potwierdzeniu odbioru
+        // i w decyzji, a nie druga, wyliczona osobno (D-027 wcześniej wyliczał
+        // ją z UUID-a w pięciu miejscach — i w każdym mógł się rozjechać).
+        $numer = $this->odwolanie->report?->numer_sprawy ?? '—';
 
         return (new MailMessage)
             ->subject("Sprawdziliśmy Twoje odwołanie (sprawa nr {$numer})")

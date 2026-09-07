@@ -933,6 +933,8 @@ której mu nie wskazano.
 |---|---|
 | `reports_source_check` | `source IN ('community','legal_notice')`. |
 | `reports_legal_notice_complete_check` | Zgłoszenie prawne **musi** mieć uzasadnienie i `good_faith_at`. CHECK, a nie sama walidacja formularza: przy audycie liczy się to, czego baza nie mogła przyjąć. **Imienia (`notifier_name`) już NIE wymaga** — migracja `2026_09_07_600000_allow_anonymous_legal_notices`. Art. 16 ust. 2 lit. c DSA zwalnia z podania DANYCH zgłaszającego (nie tylko adresu e-mail) przy zgłoszeniach dotyczących przestępstw z art. 3-7 dyrektywy 2011/93/UE, a wcześniej reguła była w kodzie w połowie: brak adresu wolno, brak nazwiska nie. `down()` tej migracji **przerywa się**, jeśli w bazie są już anonimowe zgłoszenia — przywrócenie starego warunku wymagałoby albo wpisania im wymyślonego nazwiska (kłamstwo w kolumnie), albo skasowania (zniszczenie dowodu w najcięższej możliwej sprawie). |
+| `reports_numer_sprawy_unique (numer_sprawy)` | Numer sprawy jest UNIKALNY — pilnuje tego baza, nie PHP (D-029, migracja `2026_09_07_910000_add_numer_sprawy_to_reports`). |
+| `reports_numer_sprawy_check` | Format numeru: `^KU-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{4}-[…]{4}$`. CHECK, nie sam wzór w PHP: ten numer trafia do korespondencji i do pisma, więc wartość w innym formacie nie ma prawa wejść żadną drogą. |
 | `reports_source_status_idx (source, status, created_at)` | Kolejka moderatora filtruje po źródle — zgłoszenia prawne mają termin odpowiedzi, społecznościowe nie. |
 | `reports_pending_receipt_idx` | Indeks częściowy: zgłoszenia prawne z adresem, którym jeszcze nie potwierdzono odbioru. |
 | `reports_one_open_per_pair (reporter_id, target_type, target_id)` | Indeks częściowy `WHERE reporter_id IS NOT NULL AND status IN ('open','triage','reviewing')`: jedno OTWARTE zgłoszenie na parę osoba–treść (D-027, migracja `2026_09_07_900000_one_open_report_per_pair`). Dedup w PHP już to robił w zwykłym ruchu, ale nie chronił przed seederem, komendą ani wyścigiem. Nowe zgłoszenie po zamknięciu poprzedniego przechodzi — bo zamknięte statusy są poza indeksem. **Zgłoszeń bez konta ten indeks nie obejmuje** (`reporter_id IS NULL`); te pilnuje `klucz_wyslania`. |
@@ -953,6 +955,47 @@ Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
 `moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
 harmonogram codziennie o 04:30.
+
+**`numer_sprawy` — to, co człowiek zapisuje na kartce** (D-029, migracja
+`2026_09_07_910000_add_numer_sprawy_to_reports`).
+
+```sql
+ALTER TABLE reports ADD COLUMN numer_sprawy varchar(12) NOT NULL;
+CREATE UNIQUE INDEX reports_numer_sprawy_unique ON reports (numer_sprawy);
+```
+
+Do 7 września 2026 numer nie był kolumną — liczył się w pięciu miejscach kodu
+jako osiem pierwszych znaków UUID-a wiersza. **Nie był przez to unikalny:**
+w UUID-zie v7 pierwsze 48 bitów to znacznik czasu w milisekundach, więc osiem
+znaków szesnastkowych to jego 32 górne bity i zmieniają się raz na 65,5
+sekundy. Zmierzone: `Str::uuid7('19:00:30')` i `Str::uuid7('19:01:10')` dają
+oba `01A07D3E`. Dwie sprawy przyjęte w tym samym okienku miały ten sam numer,
+a dla zgłaszającego bez konta ten numer jest jedynym śladem sprawy.
+
+Format `KU-XXXX-XXXX` z 30-znakowego alfabetu bez `0`, `1`, `I`, `L`, `O`
+i `U` — numer jest przepisywany ręcznie z ekranu i dyktowany przez telefon,
+a `0`/`O`, `1`/`I` i `1`/`L` są wtedy tym samym znakiem
+(`App\Support\NumerSprawy`). 30^8 to 656 miliardów kombinacji; szansa
+kolizji przekracza 50% dopiero przy ~954 tys. spraw, a powtórzenia i tak nie
+zapisze indeks.
+
+**Nadaje go model, nie kontroler** (`Report::booted()`, hak `creating`), więc
+każda droga powstania wiersza — formularz, seeder, komenda, `tinker` — numer
+dostaje. `numer_sprawy` **nie jest w `$fillable`**: to tożsamość nadana przez
+serwer, nie dana od człowieka (ta sama zasada co `status` i `role`
+użytkownika). Surowy `INSERT` omijający model nie przechodzi wcale, bo kolumna
+jest `NOT NULL`.
+
+**Rollback:** `DROP CONSTRAINT reports_numer_sprawy_check`, `DROP INDEX`,
+`DROP COLUMN`. `down()` **ODMAWIA**, gdy w tabeli są zgłoszenia prawne:
+numery są losowe, więc po skasowaniu kolumny nie da się ich odtworzyć,
+a zgłaszający bez konta traci jedyny sposób rozpoznania własnej sprawy.
+Świadome wymuszenie: `KUKING_ROLLBACK_KASUJE_NUMERY_SPRAW=1`.
+
+**Backfill** nadał numery istniejącym wierszom. Bezpieczny dokładnie dziś:
+poczty serwis nie wysyła (`docs/decyzje/POCZTA.md`), więc żaden numer nie
+został jeszcze nikomu przekazany. Po pierwszym wysłanym liście ta sama
+migracja byłaby zmianą numeru pod ręką zgłaszającego.
 
 **`klucz_wyslania` — dwa mechanizmy, nie jeden** (D-027,
 `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`). Ta tabela ma dwa różne indeksy

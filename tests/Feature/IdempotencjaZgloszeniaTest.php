@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\NumerSprawy;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,26 @@ class IdempotencjaZgloszeniaTest extends TestCase
         return preg_match('/name="klucz_wyslania" value="([^"]+)"/', $html, $trafienia) === 1
             ? $trafienia[1]
             : null;
+    }
+
+    /**
+     * Identyfikatory, które przy surowym `INSERT` musi podać test.
+     *
+     * Surowy `INSERT` omija model, więc nie działa ani `HasUuids`, ani hak
+     * nadający numer sprawy — a `reports.numer_sprawy` jest `NOT NULL`
+     * i UNIQUE (D-029). Numer jest tu ZA KAŻDYM RAZEM inny celowo: przy
+     * dwóch wierszach z tym samym numerem odbiłby się indeks numeru sprawy,
+     * a testy niżej sprawdzają zupełnie inne ograniczenia i przechodziłyby
+     * z niewłaściwego powodu.
+     *
+     * @return array{id: string, numer_sprawy: string}
+     */
+    private function identyfikatory(): array
+    {
+        return [
+            'id' => (string) Str::uuid7(),
+            'numer_sprawy' => NumerSprawy::wygeneruj(),
+        ];
     }
 
     private function wpis(?User $autor = null): Post
@@ -86,11 +107,15 @@ class IdempotencjaZgloszeniaTest extends TestCase
             'updated_at' => now(),
         ];
 
-        DB::table('reports')->insert(['id' => (string) Str::uuid7()] + $wiersz);
+        DB::table('reports')->insert($this->identyfikatory() + $wiersz);
 
         $this->expectException(QueryException::class);
+        // Nazwa indeksu w komunikacie, a nie sam typ wyjątku: tabela ma dziś
+        // trzy ograniczenia unikalności i test, który tego nie sprawdza,
+        // przeszedłby także wtedy, gdyby odbiło się któreś z pozostałych.
+        $this->expectExceptionMessageMatches('/reports_one_open_per_pair/');
 
-        DB::table('reports')->insert(['id' => (string) Str::uuid7()] + $wiersz);
+        DB::table('reports')->insert($this->identyfikatory() + $wiersz);
     }
 
     public function test_nowe_zgloszenie_po_zamknieciu_poprzedniego_przechodzi(): void
@@ -265,10 +290,13 @@ class IdempotencjaZgloszeniaTest extends TestCase
             'updated_at' => now(),
         ];
 
-        DB::table('reports')->insert(['id' => (string) Str::uuid7()] + $wiersz);
+        DB::table('reports')->insert($this->identyfikatory() + $wiersz);
 
         $this->expectException(QueryException::class);
+        // Ten sam powód co wyżej: sprawdzamy, że odbił się indeks KLUCZA
+        // WYSŁANIA, a nie numeru sprawy ani pary (zgłaszający, treść).
+        $this->expectExceptionMessageMatches('/reports_one_per_klucz_wyslania/');
 
-        DB::table('reports')->insert(['id' => (string) Str::uuid7()] + $wiersz);
+        DB::table('reports')->insert($this->identyfikatory() + $wiersz);
     }
 }

@@ -120,7 +120,7 @@ class ZgloszenieNielegalnejTresciController extends Controller
             kluczWyslania: $this->kluczZZadania($request),
         );
 
-        $numer = mb_strtoupper(mb_substr((string) $zgloszenie->getKey(), 0, 8));
+        $numer = $zgloszenie->numer_sprawy;
 
         return redirect()->route('zglos.nielegalna.potwierdzenie')->with('numer', $numer);
     }

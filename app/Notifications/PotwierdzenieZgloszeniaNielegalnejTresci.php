@@ -37,7 +37,7 @@ final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implem
     {
         // Numer zgłoszenia w temacie: człowiek ma się móc na niego powołać,
         // a my — odnaleźć sprawę, gdy napisze ponownie.
-        $numer = mb_strtoupper(mb_substr((string) $this->zgloszenie->getKey(), 0, 8));
+        $numer = $this->zgloszenie->numer_sprawy;
 
         return (new MailMessage)
             ->subject("Przyjęliśmy Twoje zgłoszenie (nr {$numer})")

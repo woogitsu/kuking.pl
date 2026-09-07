@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Report;
+use App\Support\NumerSprawy;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -149,6 +150,10 @@ class ZgloszeniePrawneBezDanychTest extends TestCase
 
         DB::table('reports')->insert([
             'id' => (string) Str::uuid(),
+            // Surowy `INSERT` omija model, a `numer_sprawy` jest `NOT NULL`
+            // (D-029) — patrz komentarz w
+            // `IdempotencjaZgloszeniaTest::identyfikatory()`.
+            'numer_sprawy' => NumerSprawy::wygeneruj(),
             'source' => Report::SOURCE_LEGAL_NOTICE,
             'target_type' => 'unknown',
             'target_url' => 'https://kuking.pl/cos',
@@ -170,6 +175,10 @@ class ZgloszeniePrawneBezDanychTest extends TestCase
     {
         DB::table('reports')->insert([
             'id' => (string) Str::uuid(),
+            // Surowy `INSERT` omija model, a `numer_sprawy` jest `NOT NULL`
+            // (D-029) — patrz komentarz w
+            // `IdempotencjaZgloszeniaTest::identyfikatory()`.
+            'numer_sprawy' => NumerSprawy::wygeneruj(),
             'source' => Report::SOURCE_LEGAL_NOTICE,
             'target_type' => 'unknown',
             'target_url' => 'https://kuking.pl/cos',

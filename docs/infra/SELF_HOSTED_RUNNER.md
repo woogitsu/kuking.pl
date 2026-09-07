@@ -99,6 +99,11 @@ docker run --rm hello-world
 
 ---
 
+> **Konfigurujesz pulę od zera?** Kompletna lista tego, czego workflowy
+> Kuking wymagają od maszyny — etykiety, Docker, rozszerzenia PHP, sieć
+> wychodząca, miejsce na dysku i jedna pułapka z portem 5432 — jest
+> w [`WYMAGANIA_RUNNERA.md`](./WYMAGANIA_RUNNERA.md).
+
 ## Rejestracja runnera
 
 1. GitHub → repozytorium `woogitsu/kuking.pl` → **Settings** → **Actions**

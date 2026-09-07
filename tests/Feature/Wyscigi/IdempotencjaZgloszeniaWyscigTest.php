@@ -7,6 +7,7 @@ namespace Tests\Feature\Wyscigi;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Models\Post;
 use App\Models\Report;
+use App\Support\NumerSprawy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -68,6 +69,10 @@ class IdempotencjaZgloszeniaWyscigTest extends TestCase
             // gdy pierwsze już sprawdziło, że go nie ma.
             DB::table('reports')->insert([
                 'id' => $konkurencyjneId,
+                // Surowy `INSERT` omija model, a `numer_sprawy` jest
+                // `NOT NULL` (D-029) — patrz komentarz w
+                // `IdempotencjaZgloszeniaTest::identyfikatory()`.
+                'numer_sprawy' => NumerSprawy::wygeneruj(),
                 'reporter_id' => $zglaszajacy->getKey(),
                 'target_type' => 'post',
                 'target_id' => $wpis->getKey(),
