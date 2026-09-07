@@ -393,6 +393,27 @@ return [
          * strona ma prawo o nim wiedzieć.
          */
         'okno_powtorzenia_godzin' => (int) env('KUKING_OKNO_POWTORZENIA_GODZIN', 24),
+
+        // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
+        //
+        // REKOMENDACJA AGENTA BADAWCZEGO, NIE DECYZJA WŁAŚCICIELA — patrz ADR
+        // §6. Jeden wiek dla WSZYSTKICH powiadomień liczony od `created_at`,
+        // NIEZALEŻNIE od `read_at` (wariant A z §6, nie B) — prostsze i zgodne
+        // z minimalizacją danych wprost; wariant B (nieprzeczytane nigdy nie
+        // wygasają) ryzykowałby bezterminowe trzymanie powiadomień, których
+        // ktoś nigdy nie otworzy (czyli już nigdy nie otworzy).
+        //
+        // Krócej niż `moderation.case_retention_months` NIE JEST wymogiem
+        // technicznym, ale ADR dobiera liczby domyślne tak, żeby powiadomienie
+        // o decyzji moderacyjnej wygasło pierwsze, zanim wygaśnie sama decyzja
+        // — `notifications.data` jest kopią treści zapisaną w chwili powstania
+        // (nie przez `join`), więc nawet gdy `moderation_actions` przeżyje
+        // swoje powiadomienie, treść, którą użytkownik zobaczył, i tak była
+        // czytelna, dopóki powiadomienie istniało.
+        //
+        // Egzekwuje `kuking:sprzataj-powiadomienia`
+        // (`App\Domain\Compliance\PrzedawnionePowiadomienia`).
+        'retention_months' => (int) env('KUKING_NOTIFICATIONS_RETENTION_MONTHS', 24),
     ],
 
     'limits' => [
@@ -544,6 +565,33 @@ return [
         'signal_retention_days' => (int) env('KUKING_SIGNAL_RETENTION_DAYS', 90),
     ],
 
+    'audit_log' => [
+        // RETENCJA `audit_log` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.1).
+        //
+        // REKOMENDACJA AGENTA BADAWCZEGO, NIE DECYZJA WŁAŚCICIELA — patrz
+        // ADR §6, wiersz „Domyślny okres audit_log". Krócej niż okres spraw
+        // moderacyjnych (`moderation.case_retention_months` niżej), bo pełny,
+        // autorytatywny dowód decyzji i tak żyje w `reports`/`moderation_actions`/
+        // `appeals` — wpis w `audit_log` o tych samych zdarzeniach
+        // (`moderation.decided`, `content.reported`, `appeal.*`) jest cieńszą
+        // kopią, która może wygasnąć wcześniej bez utraty dowodu. Dłużej niż
+        // `product_signals`, bo `audit_log` z definicji dokumentuje "zmiany
+        // wysokiego znaczenia" (`docs/DATABASE.md`), nie czystą telemetrię.
+        //
+        // Egzekwuje `kuking:sprzataj-audyt`
+        // (`App\Domain\Compliance\PrzedawnioneWpisyAudytu`).
+        //
+        // KATEGORIE, KTÓRYCH TA RETENCJA NIGDY NIE RUSZA, NIEZALEŻNIE OD WIEKU,
+        // NIE SĄ TUTAJ — celowo. Lista jest zamkniętą stałą w kodzie
+        // (`App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`), z uzasadnieniem dla
+        // każdej pozycji przy samej stałej. Trzymanie jej w configu (a więc
+        // w zmiennej środowiskowej albo pliku edytowalnym bez code review)
+        // otwierałoby drogę do wykasowania dowodu wykonania RODO/DSA jedną
+        // zmianą wdrożeniową bez recenzji kodu — dokładnie tego ta lista ma
+        // nie dopuścić.
+        'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 24),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
@@ -618,6 +666,39 @@ return [
         // komuś siedzieć dobę z ukrytą treścią „dla higieny procesu" szkodzi
         // tej osobie, nie procesowi.
         'appeal_self_uphold_hours' => (int) env('KUKING_APPEAL_SELF_UPHOLD_HOURS', 24),
+
+        // RETENCJA SPRAWY MODERACYJNEJ — `reports` + `moderation_actions` +
+        // `appeals` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.3-5.5).
+        //
+        // DECYZJA WŁAŚCICIELA, 2026-09-07 — w odróżnieniu od pozostałych
+        // liczb tego pliku dodanych tym samym zleceniem, TA liczba nie jest
+        // rekomendacją agenta. Wspólny okres dla wszystkich trzech tabel,
+        // liczony od ZAMKNIĘCIA sprawy: `reports.resolved_at` dla
+        // status IN ('resolved','rejected'), `moderation_actions.created_at`
+        // (decyzja jest niemutowalna — `ModerationAction::UPDATED_AT === null`),
+        // `appeals.decided_at` dla status IN ('upheld','overturned'). Sprawy
+        // wciąż otwarte NIGDY nie są kandydatem, niezależnie od wieku.
+        //
+        // Zakotwiczone w art. 442¹ k.c. — trzy lata na roszczenie deliktowe od
+        // dowiedzenia się o szkodzie i osobie odpowiedzialnej. Spór o decyzję
+        // moderacyjną (rzekomo bezpodstawne ukrycie/zablokowanie) najbliżej
+        // pasuje do tego reżimu, nie do ogólnego sześcioletniego z art. 118
+        // k.c. — DSA nie ma dziś w Polsce odrębnej, ugruntowanej instytucji
+        // przedawnienia dla skarg do Koordynatora ds. Usług Cyfrowych.
+        //
+        // TA SAMA LICZBA DLA WSZYSTKICH TRZECH TABEL, CELOWO. Gdyby `appeals`
+        // miało dłuższy okres niż `moderation_actions`, reguła kaskady
+        // (`appeals.moderation_action_id` ma `cascadeOnDelete` — patrz ADR §4)
+        // skutecznie wymuszałaby, że realny okres `moderation_actions` jest
+        // okresem jego odwołania, niezależnie od tego, co tu wpisano. Równa
+        // liczba usuwa tę pułapkę wprost, zamiast zostawiać ją do odkrycia
+        // przy pierwszym audycie.
+        //
+        // Egzekwuje `kuking:sprzataj-sprawy-moderacyjne` (jedna komenda dla
+        // wszystkich trzech tabel — ADR §5.3: dziennik działania ma opisywać
+        // całą "sprawę" spójnie, a nie trzy niezależne komendy uruchamiane
+        // w dowolnej kolejności), `App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`.
+        'case_retention_months' => (int) env('KUKING_CASE_RETENTION_MONTHS', 36),
     ],
 
     'wersja' => [
