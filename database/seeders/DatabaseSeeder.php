@@ -19,6 +19,12 @@ class DatabaseSeeder extends Seeder
         // komentarz klasy.
         $this->call(TagSeeder::class);
 
+        // Startowa lista tagów promowanych — „lista gospodarza" (D-021).
+        // Bezpieczne na produkcji: seeder działa TYLKO na pustej liście, więc
+        // nie ma jak nadpisać ani przywrócić tego, co gospodarz zdjął
+        // w panelu (uzasadnienie w komentarzu tamtej klasy).
+        $this->call(TagPromotionSeeder::class);
+
         // Dane demo wyłącznie poza produkcją.
         if (! app()->environment('production')) {
             $this->call(DemoSeeder::class);

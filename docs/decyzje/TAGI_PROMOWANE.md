@@ -67,6 +67,22 @@ Kolejność w tabeli to proponowane `position` — od tego, co najbardziej sezon
   autora wpisu, nie sprawdzony fakt (uwaga 31 w słowniku). Na liście
   promowanej gospodarza wyglądałyby jak zapewnienie serwisu.
 
+## Status: WPISANE KODEM (decyzja właściciela, 7 września 2026)
+
+Właściciel wybrał „zrób to za mnie kodem", więc lista jest w repozytorium:
+`database/seeders/dane/tagi-promowane.json` + `TagPromotionSeeder`, wołany
+z `DatabaseSeeder` także na produkcji.
+
+**Reguła, która czyni to bezpiecznym: seeder działa TYLKO na pustej liście.**
+Jeśli `tag_promotions` ma choćby jeden wiersz, nie robi nic i mówi to
+w raporcie. Bez tego warunku każde `db:seed` po deployu cofałoby zmiany
+gospodarza — a co gorsza, przywracałoby tagi, które świadomie z listy ZDJĄŁ,
+i nie miałby jak się zorientować, dlaczego wracają. Pilnuje tego osobny test
+(`test_seeder_nie_przywraca_tagu_zdjetego_przez_gospodarza`).
+
+Zmiana listy po tym, jak raz weszła, należy więc do panelu, nie do pliku:
+`/admin/tagi-promowane`.
+
 ## Co trzeba zrobić w panelu
 
 `/admin/tagi-promowane`, dla każdego tagu: nazwa + pozycja + opcjonalna
