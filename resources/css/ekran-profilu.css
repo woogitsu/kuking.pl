@@ -1,0 +1,52 @@
+/*
+ * ekran-profilu.css — arkusz jednego obszaru ekranów (UI kit v2, etap D).
+ *
+ * PO CO OSOBNY PLIK, A NIE KOLEJNA SEKCJA W app.css
+ * Etap D był wdrażany przez kilka równoległych zleceń jednocześnie. Jeden
+ * wspólny app.css znaczyłby, że drugie zlecenie nadpisuje pierwsze — więc
+ * każdy obszar dostał własny plik, wpięty importem w app.css.
+ *
+ * Zasada z app.css obowiązuje tu bez zmian: żadnej wartości koloru,
+ * rozmiaru tekstu ani odstępu na sztywno — wszystko przez var(--...).
+ */
+
+@layer components {
+
+  /* -------------------------------------------------------------------
+     NAGŁÓWEK PROFILU (UI kit v2, ekran 04 — desktop_profile).
+
+     W kicie awatar i kolumna „imię + opis + liczniki" stoją w jednym
+     wierszu, liczniki są POD opisem (nie osobnym pełnoszerokim wierszem
+     pod całą główką, jak było wcześniej w tej aplikacji). Przycisk akcji
+     ("Obserwuj" w kicie) zostaje osobnym, pełnoszerokim wierszem pod całą
+     główką — w tej aplikacji tym miejscem bywa nawet trzy przyciski
+     naraz („Przestań obserwować" · „Zgłoś" · „Zablokuj"), a kit rysuje
+     zawsze dokładnie jeden. Wciśnięcie trzech przycisków, w tym
+     destrukcyjnego „Zablokuj", w wąską trzecią kolumnę siatki złamałoby
+     regułę „min. odstęp między akcją zwykłą a destrukcyjną — --space-8
+     LUB osobny wiersz" (DESIGN_SYSTEM.md §3.1) już przy 720 px szerokości
+     kolumny treści. Stąd świadomy wybór: dopasowany do kitu jest blok
+     awatar+treść, akcje zostają w osobnym wierszu, tak jak wcześniej.
+     ------------------------------------------------------------------- */
+
+  .profil-glowka-tresc {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+  }
+
+  /* Od `--breakpoint-md` (768px) jest miejsce na awatar OBOK tekstu —
+     poniżej awatar nad opisem ściskałby bio do wąskiego paska liter. */
+  @media (min-width: 48rem) {
+    .profil-glowka-tresc {
+      grid-template-columns: auto 1fr;
+      align-items: start;
+      gap: var(--spacing-6);
+    }
+  }
+
+  /* Nagłówki miesięcy w archiwum („archive-title" w kicie) i odstęp lat
+     nad nimi (`.lata-archiwum`) już mają właściwy rozmiar i odstęp z
+     `tokens.css` przez klasę `h2` i utility `mt-8` w widoku — nie ma tu
+     nic do dopisania bez powtarzania cudzej reguły. */
+}

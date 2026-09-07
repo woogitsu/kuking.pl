@@ -680,6 +680,30 @@ Na produkcji: najpierw kopia obu kolumn.
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 
+`timer_seconds` i `media_id` ustawia od migracji poza schematem — czyli od
+issue #21 — **formularz przepisu**, obiema drogami: `/dodaj/przepis/jedna-strona`
+(zwykły POST) i kreator Livewire. Wcześniej obie kolumny czytał tryb gotowania,
+a nie zapisywała ich żadna droga dostępna człowiekowi.
+
+Człowiek wpisuje **minuty**; zamiana na sekundy należy do
+`App\Domain\Recipes\StepTimer` — jedynego miejsca tego przelicznika — i tam
+też stoją granice (0–10080 minut, pełne minuty, zero znaczy „bez minutnika",
+nie „minutnik na zero"). CHECK `timer_seconds IS NULL OR timer_seconds >= 0`
+zostaje ostatnią linią obrony dla dróg omijających aplikację.
+
+Zdjęcie kroku idzie tym samym potokiem co każde inne (`ObslugiwaneZdjecie`
+w walidacji, `StoreUploadedImage` w zapisie) i liczy się do budżetu
+`App\Support\LimityZdjec::maksZdjecKrokowNaZapis()` (= `max_per_post − 2`,
+dziś 4 na jeden zapis, bo dwa pola plikowe formularz ma zawsze).
+
+Formularz identyfikuje krok **ukrytym `steps[i][id]`, nie pozycją**:
+`PublishRecipe::cleanSteps()` pomija puste wiersze, więc numer wiersza w
+formularzu nie równa się pozycji w bazie. `PublishRecipe` dziedziczy zdjęcie po
+tożsamości kroku, dzięki czemu wyczyszczenie albo przestawienie wiersza nie
+przenosi zdjęcia na sąsiedni krok. Mapa tożsamości jest budowana wyłącznie
+z kroków tego przepisu i **przed** `delete()` — to jest cała autoryzacja tego
+identyfikatora.
+
 ### collection_items — przepisy ORAZ wpisy
 
 Od migracji `2026_09_06_150000_collection_items_accept_posts` zeszyt przyjmuje
@@ -769,6 +793,14 @@ kończyłoby się błędem 500.
 ### notifications
 In-app.
 
+**Retencja:** `config('kuking.notifications.retention_months')` (domyślnie
+24 miesiące, **rekomendacja agenta** — `docs/decyzje/ADR_RETENCJE.md` §5.2,
+nie decyzja właściciela) od `created_at`, **niezależnie od `read_at`** — jeden
+wiek dla wszystkich (wariant A, ADR §6). Egzekwuje
+`kuking:sprzataj-powiadomienia` (`App\Domain\Compliance\PrzedawnionePowiadomienia`),
+harmonogram codziennie o 04:20. Zwykły masowy `DELETE` — wiersz nie ma
+odpowiednika w storage.
+
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
@@ -838,6 +870,15 @@ podjęto decyzje moderacyjne i na które ktoś mógł się powołać w odwołani
 Świadome wymuszenie: `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE=1` (najpierw
 kopia tabeli).
 
+**Retencja:** `config('kuking.moderation.case_retention_months')` (domyślnie
+36 miesięcy — **decyzja właściciela**, 2026-09-07, art. 442¹ k.c.) od
+`resolved_at`, tylko dla `status IN ('resolved','rejected')`. Sprawy
+`open`/`triage`/`reviewing` nie są kandydatem **nigdy**, niezależnie od wieku.
+Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
+(`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
+`moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
+harmonogram codziennie o 04:30.
+
 ### moderation_actions
 Decyzje moderatorów.
 
@@ -879,14 +920,28 @@ Nowy indeks: `moderation_actions_subject_idx (subject_user_id, created_at DESC)`
 wyłącznie ścieżka przywracania i odwołań. Cena: dla treści już ukrytych ginie
 zapisany stan sprzed ukrycia i po ponownym wdrożeniu wrócą one jako szkice.
 
+**Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
+36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
+niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem
+dopiero wtedy, gdy DODATKOWO nie zostaje po nim **żaden** wiersz w `appeals`;
+inaczej kaskada `appeals.moderation_action_id` (`cascadeOnDelete`) zabrałaby
+odwołanie przed jego własnym czasem (ADR §4). Kolejność w komendzie:
+`appeals` → `moderation_actions` → `reports`. Zapytanie idzie wprost do tabeli
+`appeals` przez `moderation_action_id`, a nie przez nazwaną relację Eloquent —
+blokada działa przy każdym żywym odwołaniu, niezależnie od roli odwołującego.
+
 ### appeals
-Odwołania od decyzji moderacyjnych (migracja
-`2026_09_06_100100_create_appeals_table`, issue #10, DSA art. 17 i 20).
+Odwołania od decyzji moderacyjnych — **AUTORA treści I ZGŁASZAJĄCEGO**
+(migracje `2026_09_06_100100_create_appeals_table` i
+`2026_09_07_800000_appeals_open_to_reporters`, issues #10 i #23, DSA art. 17
+i 20).
 
 | Kolumna | Uwagi |
 |---|---|
-| `moderation_action_id` | **`UNIQUE`** — jedno odwołanie na jedną decyzję. |
-| `user_id` | Odwołujący się. `cascadeOnDelete` — po usunięciu konta sprawa jest bezprzedmiotowa (RODO art. 17); ślad samej decyzji zostaje w `moderation_actions`. |
+| `moderation_action_id` | FK → `moderation_actions`, `cascadeOnDelete`. |
+| `appellant` | `author` \| `reporter` — **kto** się odwołuje. |
+| `user_id` | Odwołujący się **autor**. NULL przy `appellant='reporter'`. `cascadeOnDelete` — po usunięciu konta sprawa jest bezprzedmiotowa (RODO art. 17); ślad samej decyzji zostaje w `moderation_actions`. |
+| `report_id` | Zgłoszenie **zgłaszającego**. NULL przy `appellant='author'`. FK → `reports`, `nullOnDelete`. |
 | `body` | Własne słowa człowieka, do 2000 znaków. |
 | `status` | `open` · `upheld` (podtrzymana) · `overturned` (cofnięta). |
 | `decided_by`, `decision_note`, `decided_at` | Odpowiedź — kto, co napisał, kiedy. |
@@ -899,25 +954,73 @@ CHECK (status IN ('open','upheld','overturned'));
 -- Rozpatrzone = jest data ORAZ jest uzasadnienie. Otwarte = nie ma ani jednego.
 CHECK ((status = 'open'  AND decided_at IS NULL     AND decision_note IS NULL)
     OR (status <> 'open' AND decided_at IS NOT NULL AND decision_note IS NOT NULL));
+
+-- appeals_appellant_check
+CHECK (appellant IN ('author','reporter'));
+
+-- appeals_appellant_identity_check
+CHECK ((appellant = 'author'   AND user_id   IS NOT NULL AND report_id IS NULL)
+    OR (appellant = 'reporter' AND report_id IS NOT NULL AND user_id   IS NULL));
 ```
 
 Drugi CHECK jest wprost przepisaniem DSA art. 20: odpowiedź **musi** mieć
 uzasadnienie, więc „podtrzymuję" bez zdania wyjaśniającego nie da się zapisać.
 
-`UNIQUE (moderation_action_id)` jest limitem odwołań i stoi w bazie, bo to
-jedyne miejsce, którego nie obejdzie drugi endpoint ani podwójne kliknięcie.
-Termin 14 dni na złożenie liczy kod (`ModerationAction::appealDeadline()`) —
-CHECK nie sięga do drugiej tabeli.
+Czwarty CHECK jest wypisany **jawnie per rola**, a nie przez `num_nonnulls()`
+jak w `comments` i `collection_items`. Tamten wzorzec sprawdza tylko, ile
+kolumn jest wypełnionych — przepuściłby więc `appellant='reporter'`
+z wypełnionym `user_id` zamiast `report_id`, czyli rolę niezgodną z danymi.
+
+`UNIQUE (moderation_action_id, appellant)` — zastąpiło dawne
+`UNIQUE (moderation_action_id)`. **Jedno odwołanie na rolę na decyzję:** od
+jednej decyzji mogą dziś istnieć **dwa** niezależne odwołania, autora
+i zgłaszającego. Limit stoi w bazie, bo to jedyne miejsce, którego nie
+obejdzie drugi endpoint ani podwójne kliknięcie. Termin — **SZEŚĆ MIESIĘCY,
+nie 14 dni** (DSA art. 20 ust. 1) — liczy kod
+(`ModerationAction::appealDeadline()`), identycznie dla obu ról; CHECK nie
+sięga do drugiej tabeli.
 
 Indeksy: `appeals_status_created_idx (status, created_at)`,
-`appeals_user_idx (user_id, created_at DESC)`.
+`appeals_user_idx (user_id, created_at DESC)`,
+`appeals_report_idx (report_id, created_at DESC) WHERE report_id IS NOT NULL`.
 
-**Rollback:** `DROP TABLE appeals` — to jest **utrata danych**. Przed cofnięciem
-na produkcji zrób `COPY appeals TO ...`, inaczej tracisz dowód, że
-odpowiedzieliśmy na odwołania (dokładnie to, o co zapyta regulator).
+**Dostęp zgłaszającego** to podpisany, wygasający link
+(`URL::temporarySignedRoute`, ten sam mechanizm co `settings.data.download`),
+a nie sesja ani token w kolumnie — zgłaszający może nie mieć konta (art. 16
+ust. 2 lit. c). UUID zgłoszenia w adresie **sam w sobie autoryzacją nie jest**;
+podpisem HMAC z `APP_KEY` jest. Link wygasa dokładnie z `appealDeadline()`.
+**Zgłoszenie anonimowe (bez adresu e-mail) dostępu NIE dostaje** — nie ma
+kanału doręczenia linku, i to jest świadome: naprawa wymagałaby naruszenia
+samej anonimowości, o którą art. 16 ust. 2 lit. c prosi.
+
+**Retencja:** ten sam okres co `reports` i `moderation_actions` (domyślnie
+36 miesięcy), liczony od `decided_at`, tylko dla
+`status IN ('upheld','overturned')` — `open` nie jest kandydatem nigdy. Ta sama
+liczba miesięcy co przy `moderation_actions` jest **celowa, nie przypadkowa**:
+dłuższy okres tutaj wymuszałby przez kaskadę dłuższy realny okres
+`moderation_actions`, niezależnie od tego, co wpisano wprost (ADR §5.5).
+
+**Rollback:** migracja `2026_09_07_800000` **ODMAWIA** cofnięcia, gdy w bazie
+jest choć jeden wiersz `appellant='reporter'` — stary schemat wymaga
+`user_id NOT NULL`, więc cofnięcie musiałoby albo wymyślić takiemu wierszowi
+autora, albo go skasować. Poza tym `DROP TABLE appeals` to **utrata danych**:
+przed cofnięciem na produkcji zrób `COPY appeals TO ...`, inaczej tracisz dowód,
+że odpowiedzieliśmy na odwołania (dokładnie to, o co zapyta regulator).
 
 ### audit_log
 Wysokiego znaczenia zmiany.
+
+**Retencja:** `config('kuking.audit_log.retention_months')` (domyślnie
+24 miesiące, **rekomendacja agenta** — ADR §5.1, nie decyzja właściciela) od
+`created_at`, **Z WYJĄTKIEM** kategorii z `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`
+(`account.data_erased`, `account.delete_requested`, `account.delete_cancelled`),
+które nie są kandydatem **nigdy**, niezależnie od wieku. Powód: wiersz `users`
+jest anonimizowany, a nie kasowany, więc te wpisy są jedynym dowodem, że
+żądanie z art. 17 RODO zostało wykonane — a `User::cancelDeletion()` zeruje
+`delete_requested_at`, więc bez nich nie ma śladu, że ktoś zgłosił i cofnął
+usunięcie konta. Lista jest **zamkniętą stałą w kodzie**, nie w configu:
+w configu dałaby się wyczyścić jedną zmianą wdrożeniową bez recenzji kodu.
+Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
 
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle

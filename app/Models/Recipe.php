@@ -53,6 +53,21 @@ class Recipe extends Model
         'hard' => 'Wymagający',
     ];
 
+    /**
+     * Ile najwyżej kroków i składników przyjmuje jeden przepis.
+     *
+     * Te dwie liczby stały wpisane na sztywno w regułach walidacji
+     * `RecipeController` (`'steps' => ['array', 'max:60']`) i nigdzie więcej.
+     * Wyszły na stałe klasy, bo formularz jednostronicowy renderuje „tyle
+     * wierszy, ile jest, plus jeden" BEZ SUFITU — czyli przy pełnym przepisie
+     * rysował wiersz sześćdziesiąty pierwszy i odbijał własny POST
+     * komunikatem o zbyt wielu krokach. Sufit musi być tą samą liczbą co
+     * granica walidacji, a więc musi być JEDNĄ liczbą.
+     */
+    public const MAX_STEPS = 60;
+
+    public const MAX_INGREDIENTS = 120;
+
     protected $fillable = [
         'author_id',
         'title',

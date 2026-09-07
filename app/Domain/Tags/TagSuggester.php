@@ -6,6 +6,7 @@ namespace App\Domain\Tags;
 
 use App\Models\Tag;
 use App\Support\LimityTagow;
+use App\Support\ProgPodobienstwa;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -69,6 +70,18 @@ final class TagSuggester
 
         $needle = $this->normalize($fraza);
         $limit = LimityTagow::maksPodpowiedzi();
+
+        // TA SAMA POPRAWKA CO W `SearchQuery` (7 września 2026): operator `%`
+        // w trzeciej gałęzi niżej brał domyślny próg 0.3 zamiast progu, który
+        // ten projekt uznał za granicę sensu (0.12).
+        //
+        // Tutaj skutek był mniej widoczny i dlatego groźniejszy: nazwy tagów
+        // są KRÓTKIE, więc `similarity('sernik', 'sernk')` wychodzi ponad 0.5
+        // i literówka trafiała mimo złego progu. Funkcja wyglądała na
+        // działającą, bo testowaliśmy ją na krótkich słowach — a rozsypywała
+        // się dokładnie tam, gdzie tag jest dłuższy („przepis po babci",
+        // „zakwas na barszcz biały").
+        ProgPodobienstwa::ustaw();
 
         // WAGA W PIERWSZEJ GAŁĘZI NIE JEST STAŁA — patrz komentarz klasy
         // („dokładna nazwa przed dłuższą"). Zmierzone na prawdziwym słowniku

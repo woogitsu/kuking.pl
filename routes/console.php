@@ -94,3 +94,37 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
     ->name('kuking:sprzataj-sygnaly')
     ->dailyAt('04:00')
     ->withoutOverlapping();
+
+// Retencja `audit_log` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.1):
+// `config('kuking.audit_log.retention_months')` miesięcy od `created_at`,
+// z wyjątkiem kategorii dowodowych RODO/DSA
+// (`App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`, nigdy nie kasowane).
+// Codziennie w nocy, po sygnałach produktowych — dobowa dokładność
+// wystarcza, liczymy w miesiącach, nie w konkretnej godzinie wygaśnięcia.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
+    ->name('kuking:sprzataj-audyt')
+    ->dailyAt('04:10')
+    ->withoutOverlapping();
+
+// Retencja `notifications` (issue #19, ADR_RETENCJE.md §5.2):
+// `config('kuking.notifications.retention_months')` miesięcy od
+// `created_at`, niezależnie od `read_at`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-powiadomienia'))
+    ->name('kuking:sprzataj-powiadomienia')
+    ->dailyAt('04:20')
+    ->withoutOverlapping();
+
+// Retencja sprawy moderacyjnej — `appeals` + `moderation_actions` + `reports`
+// razem, w tej kolejności (issue #19, ADR_RETENCJE.md §4, §5.3-5.5):
+// `config('kuking.moderation.case_retention_months')` miesięcy (decyzja
+// właściciela, art. 442¹ k.c.) od zamknięcia każdej sprawy. Jedna komenda dla
+// trzech tabel, bo kasowanie `moderation_actions` przed jego `appeals`
+// zabrałoby odwołanie kaskadą, zanim minął jego własny czas — patrz
+// `App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
+    ->name('kuking:sprzataj-sprawy-moderacyjne')
+    ->dailyAt('04:30')
+    ->withoutOverlapping();

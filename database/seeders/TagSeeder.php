@@ -89,10 +89,21 @@ use Illuminate\Support\Str;
  */
 class TagSeeder extends Seeder
 {
-    /** Pliki danych w kolejności ważności — pierwszy wpis dla danej nazwy wygrywa. */
-    private const PLIKI = [
+    /**
+     * Pliki danych w kolejności ważności — pierwszy wpis dla danej nazwy
+     * wygrywa.
+     *
+     * Publiczna, bo testy pilnujące „wszystko z plików jest w bazie" muszą
+     * liczyć z TEJ listy, a nie z własnej kopii nazw plików. Kopia rozjeżdża
+     * się przy pierwszej nowej wersji słownika i wtedy test albo pada bez
+     * powodu, albo — gorzej — przestaje cokolwiek sprawdzać.
+     *
+     * @var list<string>
+     */
+    public const PLIKI = [
         'slownik-tagow.json',
         'slownik-tagow-uzupelnienia.json',
+        'slownik-tagow-v1.1.json',
     ];
 
     /** @var array<string, string> normalized_name => slug (istniejące + świeżo policzone) */
@@ -172,7 +183,80 @@ class TagSeeder extends Seeder
             }
         }
 
+        $this->dolozNoweAliasy($wpisy);
+
         return array_values($wpisy);
+    }
+
+    /**
+     * Klucz `nowe_aliasy` — aliasy do tagów, KTÓRE JUŻ ISTNIEJĄ.
+     *
+     * Wersja 1.1 słownika wnosi 37 takich aliasów do 32 istniejących nazw
+     * („zupki" → „zupa", „pyra" → „ziemniaki"). To osobna operacja niż
+     * dodanie tagu i wcześniej seeder jej nie znał, więc te aliasy
+     * wczytałyby się jako zero — a raport i tak powiedziałby „0 odrzuconych",
+     * bo seeder nie wiedziałby, że coś pominął. Dlatego alias wskazujący na
+     * nazwę, której w słowniku nie ma, ląduje tutaj w `odrzucone_aliasy`,
+     * a nie znika po cichu.
+     *
+     * Dopisujemy do tablicy wpisów, a nie wprost do bazy, żeby te aliasy
+     * przeszły dokładnie tę samą drogę co aliasy przy nazwach: normalizację,
+     * odsiew duplikatów i `rozstrzygnijAlias()`, które umie odmówić, gdy
+     * alias koliduje z tagiem, którego ktoś już użył.
+     *
+     * @param  array<string, array{nazwa: string, znormalizowana: string, kategoria: string, aliasy: list<string>}>  $wpisy
+     */
+    private function dolozNoweAliasy(array &$wpisy): void
+    {
+        foreach (self::PLIKI as $plik) {
+            foreach ($this->wczytajNoweAliasy($plik) as $wpis) {
+                $cel = Tag::znormalizujNazwe((string) ($wpis['tag'] ?? ''));
+
+                /** @var list<string> $aliasy */
+                $aliasy = array_values(array_filter(
+                    (array) ($wpis['aliasy'] ?? []),
+                    static fn ($alias): bool => is_string($alias) && trim($alias) !== '',
+                ));
+
+                if (! isset($wpisy[$cel])) {
+                    foreach ($aliasy as $alias) {
+                        $this->raport['odrzucone_aliasy'][] = "„{$alias}” ({$plik}: docelowa nazwa „{$wpis['tag']}” nie istnieje w słowniku)";
+                    }
+
+                    continue;
+                }
+
+                $wpisy[$cel]['aliasy'] = array_values(array_unique(
+                    array_merge($wpisy[$cel]['aliasy'], $aliasy),
+                ));
+            }
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function wczytajNoweAliasy(string $plik): array
+    {
+        $sciezka = database_path('seeders/dane/'.$plik);
+        $surowe = file_get_contents($sciezka);
+
+        if ($surowe === false) {
+            throw new \RuntimeException("Nie da się wczytać słownika tagów: {$sciezka}");
+        }
+
+        $dane = json_decode($surowe, true, 512, JSON_THROW_ON_ERROR);
+
+        if (! is_array($dane) || ! is_array($dane['nowe_aliasy'] ?? null)) {
+            // Brak tego klucza jest normalny — mają go tylko pliki wersji
+            // uzupełniających, nie słownik główny.
+            return [];
+        }
+
+        /** @var list<array<string, mixed>> $wpisy */
+        $wpisy = array_values(array_filter($dane['nowe_aliasy'], 'is_array'));
+
+        return $wpisy;
     }
 
     /**

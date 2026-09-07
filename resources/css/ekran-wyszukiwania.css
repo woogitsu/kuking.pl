@@ -1,0 +1,44 @@
+/*
+ * ekran-wyszukiwania.css — arkusz jednego obszaru ekranów (UI kit v2, etap D).
+ *
+ * PO CO OSOBNY PLIK, A NIE KOLEJNA SEKCJA W app.css
+ * Etap D był wdrażany przez kilka równoległych zleceń jednocześnie. Jeden
+ * wspólny app.css znaczyłby, że drugie zlecenie nadpisuje pierwsze — więc
+ * każdy obszar dostał własny plik, wpięty importem w app.css.
+ *
+ * Zasada z app.css obowiązuje tu bez zmian: żadnej wartości koloru,
+ * rozmiaru tekstu ani odstępu na sztywno — wszystko przez var(--...).
+ */
+
+@layer components {
+  /* --- Duże pole wyszukiwania (UI kit v2, ekrany 03 i 07) ------------------
+     Kit rysuje pole wyszukiwania wyraźnie większe niż zwykłe pole formularza,
+     z lupą w środku. Etykieta i tekst pomocy zostają jak w każdym innym polu
+     (`.field`, `.field-help` z tokens.css) — zmienia się tylko sam wiersz
+     z ikoną i polem, opisany niżej.
+     ------------------------------------------------------------------------ */
+
+  .wyszukiwarka-pole-wiersz {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+
+  /* Lupa nie jest klikalna i nic nie ogłasza — pole obok ma własną,
+     widoczną etykietę (patrz komentarz w search.blade.php). */
+  .wyszukiwarka-ikona {
+    flex: none;
+    color: var(--color-ink-muted);
+  }
+
+  .wyszukiwarka-input {
+    flex: 1;
+    min-width: 0;
+    /* Wyżej i z większym tekstem niż zwykłe `.field-input` — to jest
+       GŁÓWNE pole na tej stronie, nie jedno z wielu w formularzu. */
+    min-height: var(--control-height-touch);
+    padding: 0 var(--spacing-4);
+    font-size: var(--text-body-lg);
+    border-radius: var(--radius-lg);
+  }
+}

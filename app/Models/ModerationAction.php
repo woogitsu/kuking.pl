@@ -93,12 +93,22 @@ class ModerationAction extends Model
     ];
 
     /**
-     * Decyzje, od których wolno się odwołać (issue #10, DSA art. 20).
+     * Decyzje, od których AUTOR TREŚCI wolno się odwołać (issue #10, DSA
+     * art. 20 ust. 1, druga część: odwołanie od decyzji, która kogoś
+     * dotknęła).
      *
-     * Brakuje tu `no_action` — zgłoszenie odrzucone nie dotknęło nikogo, więc
-     * nie ma się od czego odwoływać (zgłaszający ma osobną drogę: dopisać
-     * nowe fakty do zgłoszenia). Brakuje też `unhide` — nikt nie odwołuje się
-     * od dobrej wiadomości.
+     * Brakuje tu `no_action` — zgłoszenie odrzucone nie dotknęło AUTORA
+     * niczym, więc jemu nie ma się od czego odwoływać. To NIE znaczy, że od
+     * `no_action` nie ma odwołania w ogóle: ZGŁASZAJĄCY ma własną, osobną
+     * drogę (`ModerationAction::isAppealableByReporter()`,
+     * `FileReporterAppeal`, issue #23) — art. 20 ust. 1 wymienia decyzje
+     * „o niepodjęciu działania" wprost, a stroną, którą taka decyzja
+     * dotyka, jest zgłaszający, nie autor. Ta stała opisuje wyłącznie
+     * ścieżkę autora i celowo nie miesza obu ról w jedną listę: to, co jest
+     * dla autora oczywiste („mnie to nie dotyczy") jest dla zgłaszającego
+     * całą treścią jego skargi.
+     *
+     * Brakuje też `unhide` — nikt nie odwołuje się od dobrej wiadomości.
      *
      * @var list<string>
      */
@@ -172,10 +182,31 @@ class ModerationAction extends Model
         return $this->belongsTo(User::class, 'subject_user_id');
     }
 
-    /** Odwołanie od tej decyzji. Najwyżej jedno — `UNIQUE` w bazie. */
-    public function appeal(): HasOne
+    /**
+     * Odwołanie AUTORA treści od tej decyzji. Najwyżej jedno — `UNIQUE
+     * (moderation_action_id, appellant)` w bazie (issue #23, DSA art. 20).
+     *
+     * Nazwane wprost `authorAppeal`, nie `appeal`: od jednej decyzji mogą
+     * dziś istnieć DWA odwołania naraz — autora treści i zgłaszającego
+     * (`reporterAppeal` niżej), np. przy `warn`: autor odwołuje się od
+     * ostrzeżenia, zgłaszający — bo uważa je za zbyt łagodne. Nazwa bez
+     * rozróżnienia wróciłaby do błędu, który ta zmiana naprawia: `hasOne`
+     * bierze dowolny pasujący wiersz, więc odwołanie zgłaszającego
+     * potrafiłoby fałszywie „zająć" to miejsce i zablokować autorowi jego
+     * własne, niepowiązane prawo do odwołania.
+     */
+    public function authorAppeal(): HasOne
     {
-        return $this->hasOne(Appeal::class);
+        return $this->hasOne(Appeal::class)->where('appellant', Appeal::APPELLANT_AUTHOR);
+    }
+
+    /**
+     * Odwołanie ZGŁASZAJĄCEGO od tej decyzji (issue #23, DSA art. 20 ust. 1).
+     * Najwyżej jedno — ten sam `UNIQUE` co wyżej.
+     */
+    public function reporterAppeal(): HasOne
+    {
+        return $this->hasOne(Appeal::class)->where('appellant', Appeal::APPELLANT_REPORTER);
     }
 
     public function label(): string
@@ -209,10 +240,31 @@ class ModerationAction extends Model
         return $zKonfiguracji->greaterThan($szescMiesiecy) ? $zKonfiguracji : $szescMiesiecy;
     }
 
-    /** Czy od tej decyzji da się jeszcze złożyć odwołanie. */
+    /** Czy AUTOR treści może jeszcze złożyć odwołanie od tej decyzji. */
     public function isAppealable(): bool
     {
         return in_array($this->action, self::ODWOLYWALNE, true)
+            && $this->appealDeadline()->isFuture();
+    }
+
+    /**
+     * Czy ZGŁASZAJĄCY, którego zgłoszenie doprowadziło do tej decyzji, może
+     * się jeszcze odwołać (issue #23, DSA art. 20 ust. 1).
+     *
+     * ŚWIADOMIE BEZ FILTRU PO `action` — w przeciwieństwie do
+     * `isAppealable()`. Art. 20 ust. 1 wymienia wprost „decyzje o niepodjęciu
+     * działania" jako jedną z rzeczy, od których zgłaszający ma prawo się
+     * odwołać, więc `no_action` musi tu przejść — to jest dokładnie ta
+     * decyzja, dla której to prawo istnieje. Termin jest ten sam, bo przepis
+     * nie różnicuje go między stronami.
+     *
+     * `report_id === null` znaczy: ta decyzja nie powstała z niczyjego
+     * zgłoszenia (inicjatywa własna moderatora) — nie ma więc zgłaszającego,
+     * który mógłby się odwołać.
+     */
+    public function isAppealableByReporter(): bool
+    {
+        return $this->report_id !== null
             && $this->appealDeadline()->isFuture();
     }
 }

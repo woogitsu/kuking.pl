@@ -92,6 +92,62 @@ class SearchTest extends TestCase
     }
 
     /**
+     * Etap D kitu v2 — „za krótka" i „bez wyników" to DWA RÓŻNE stany, nie
+     * jeden. Przy jednym znaku SearchQuery w ogóle nie odpytuje bazy (patrz
+     * wyżej), więc ekran „Nic nie znaleźliśmy" kłamałby: sugerowałby, że
+     * przeszukaliśmy Kuking i nic tam nie ma pasującego do „a".
+     */
+    public function test_fraza_jednoznakowa_pokazuje_uczciwy_komunikat_a_nie_brak_wynikow(): void
+    {
+        $this->get(route('search', ['q' => 'a']))
+            ->assertOk()
+            ->assertSee('za krótka, żeby zacząć szukać')
+            ->assertDontSee('Nic nie znaleźliśmy');
+    }
+
+    /**
+     * Tekst „Nic nie znaleźliśmy" + wyjaśnienie jest dosłownym cytatem
+     * z docs/brand/COPY_STYLE.md §6 „Puste stany" — ten dokument wiąże
+     * każdy tekst widoczny dla użytkownika (AGENTS.md §11).
+     */
+    public function test_brak_wynikow_uzywa_tekstu_z_copy_style_i_daje_droge_dalej(): void
+    {
+        $html = $this->get(route('search', ['q' => 'kartacze']))
+            ->assertOk()
+            ->assertSee('Nic nie znaleźliśmy')
+            ->assertSee('Nie ma jeszcze przepisu, który by pasował do „kartacze”. Może to Ty go dodasz?')
+            ->getContent();
+
+        // Człowiek, który nic nie znalazł, dostaje DWIE drogi dalej, nie
+        // ślepy zaułek: dodanie własnego przepisu i Świeżo z Kuking.
+        $this->assertMatchesRegularExpression(
+            '~href="[^"]*'.preg_quote(route('recipes.create'), '~').'"~',
+            (string) $html,
+        );
+        $this->assertMatchesRegularExpression(
+            '~href="[^"]*'.preg_quote(route('discover'), '~').'"~',
+            (string) $html,
+        );
+    }
+
+    /**
+     * Wejście na /szukaj bez frazy nie może kończyć się na samej instrukcji
+     * „wpisz coś" — to też ślepy zaułek dla kogoś, kto nie wie, czego szukać
+     * (docs/product/SOUL.md 4.11).
+     */
+    public function test_pusta_fraza_ma_droge_dalej_do_swiezo_z_kuking(): void
+    {
+        $html = $this->get(route('search'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '~href="[^"]*'.preg_quote(route('discover'), '~').'"~',
+            (string) $html,
+        );
+    }
+
+    /**
      * Domyślny zakres „Wszystko" (UI kit v2, ekran 03).
      *
      * Człowiek, który wpisał „Basia", nie zadeklarował, czy szuka osoby,

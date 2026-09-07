@@ -1,15 +1,47 @@
 <x-layout title="Szukaj" :noindex="true">
+    {{--
+        PRAWA SZYNA (UI kit v2, ekran 03 „Szukaj i odkrywaj").
+
+        Nazwa nagłówka ZOSTAJE „Szukaj", nie „Szukaj i odkrywaj" z makiety —
+        `docs/brand/BRAND_EXTENDED.md` §1.1 ma to rozstrzygnięte wprost dla
+        pojęcia „Wyszukiwanie": nazwa obowiązująca to „Szukaj", a „Odkrywaj"/
+        „Discover" są na liście „nigdy". To jest ten sam rodzaj rozjazdu kitu
+        z COPY_STYLE co „Komu wyszło" na ekranie przepisu (STAN_WDROZENIA_KITU
+        z 7 września) — i tak samo rozstrzygnięty na rzecz COPY_STYLE.
+
+        Treść szyny: patrz komentarz w `SearchController::__construct()` —
+        to jest tablica „kuKINGi na dziś", nie dosłowne „Smaki września"
+        z liczbami przepisów i nie lista osób z liczbą obserwujących.
+    --}}
+    <x-slot:rail>
+        <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
+    </x-slot:rail>
+
     <h1>Szukaj</h1>
 
-    <form class="card" method="GET" action="{{ route('search') }}">
+    {{--
+        POLE WYSZUKIWANIA W WIĘKSZYM UKŁADZIE Z KITU (ekrany 03 i 07).
+
+        Etykieta ZOSTAJE widoczna nad polem — `docs/UX_50_PLUS.md`: „etykieta
+        pola jest zawsze widoczna; placeholder nie jest etykietą". Kit rysuje
+        samą ikonę lupy i tekst wewnątrz pola bez osobnej etykiety nad nim;
+        to jest dopuszczalne w statycznej makiecie, ale nie w produkcie, który
+        ma czytnikom ekranu i osobom słabiej widzącym pokazać, czym jest to
+        pole, ZANIM w nie klikną. Ikona więc DOCHODZI do istniejącego pola,
+        etykieta i tekst pomocy zostają bez zmian.
+    --}}
+    <form class="card wyszukiwarka-formularz" method="GET" action="{{ route('search') }}">
         <div class="field">
             <label for="f-q">Czego szukasz?</label>
             <span class="field-help" id="f-q-help">
                 Możesz wpisać nazwę dania, składnik albo imię osoby. Polskie znaki nie mają znaczenia —
                 „zurek” znajdzie „żurek”.
             </span>
-            <input class="field-input" id="f-q" name="q" type="search" value="{{ $phrase }}"
-                   aria-describedby="f-q-help" placeholder="żurek, pierogi, Basia">
+            <div class="wyszukiwarka-pole-wiersz">
+                <x-ikona nazwa="search" :rozmiar="24" class="wyszukiwarka-ikona" />
+                <input class="field-input wyszukiwarka-input" id="f-q" name="q" type="search" value="{{ $phrase }}"
+                       aria-describedby="f-q-help" placeholder="żurek, pierogi, Basia">
+            </div>
         </div>
         <input type="hidden" name="sekcja" value="{{ $section }}">
         <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
@@ -40,6 +72,19 @@
 
     @if($phrase === '')
         <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
+        {{--
+            Ekran wyszukiwania bez frazy nie może kończyć się na samej
+            instrukcji — to ślepy zaułek (docs/product/SOUL.md 4.11: pusty
+            stan to zaproszenie, nie ściana). Ten sam odnośnik używa już
+            `kuking-board.blade.php` i `tags/show.blade.php` w tej samej roli.
+        --}}
+        <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z Kuking</a>.</p>
+    @elseif($zaKrotka)
+        {{--
+            Osobny, uczciwy tekst — nie „Nic nie znaleźliśmy" (SearchController
+            tłumaczy dlaczego: przy jednym znaku silnik w ogóle nie szukał).
+        --}}
+        <p class="meta">Fraza „{{ $phrase }}” jest za krótka, żeby zacząć szukać. Wpisz co najmniej dwa znaki.</p>
     @else
         @php
             // Puste jest dopiero wtedy, gdy pusty jest KAŻDY przeszukiwany
@@ -50,6 +95,12 @@
         @endphp
 
         @if($nicNieMa)
+            {{--
+                Tekst domyślnej gałęzi (przepisy/wszystko) jest dosłownym
+                cytatem z docs/brand/COPY_STYLE.md §6 „Puste stany" — ten
+                dokument wiąże każdy tekst widoczny dla użytkownika i ma tu
+                gotowe brzmienie, nie tylko przykład.
+            --}}
             <x-empty-state title="Nic nie znaleźliśmy">
                 @if($section === 'szybkie')
                     Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w pół godziny.
@@ -57,14 +108,22 @@
                 @elseif($section === 'ludzie')
                     Nie ma tu osoby o nazwie „{{ $phrase }}”.
                 @else
-                    Nie ma jeszcze niczego, co pasowałoby do „{{ $phrase }}”.
-                    Może to Ty dodasz taki przepis?
+                    Nie ma jeszcze przepisu, który by pasował do „{{ $phrase }}”. Może to Ty go dodasz?
                 @endif
             </x-empty-state>
 
-            @if($section !== 'ludzie')
-                <p class="text-center"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
-            @endif
+            {{--
+                Droga dalej, nie ślepy zaułek (SOUL.md 4.11, IMPLEMENTATION_GUIDE
+                etap D). Kto szuka przepisu — może go dodać. Każdy, niezależnie
+                od zakresu — może zamiast tego zobaczyć, co dzieje się w Kuking
+                teraz, tym samym odnośnikiem co przy pustej frazie wyżej.
+            --}}
+            <p class="text-center">
+                @if($section !== 'ludzie')
+                    <a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a>
+                @endif
+                <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z Kuking</a>
+            </p>
         @endif
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())

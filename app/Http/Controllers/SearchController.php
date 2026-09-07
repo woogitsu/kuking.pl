@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Feed\DailyBoard;
 use App\Domain\Search\SearchQuery;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -28,6 +29,18 @@ class SearchController extends Controller
 
     public function __construct(
         private readonly SearchQuery $search,
+        // Etap D kitu v2 (ekran 03) — prawa szyna obok wyników. Kit rysuje
+        // tam podpowiedzi sezonowych tagów z liczbą przepisów i listę osób
+        // z liczbą obserwujących; obu świadomie tu NIE MA (raport etapu D
+        // tłumaczy dlaczego — liczba obserwujących jest anty-wzorcem
+        // wprost zakazanym w AGENTS.md, a „sezonowość tagów" to funkcja,
+        // której DECISIONS.md świadomie jeszcze nie zbudował).
+        //
+        // Zamiast tego szyna pokazuje TĘ SAMĄ tablicę „kuKINGi na dziś",
+        // której już używają `/home` (prawa szyna) i `/odkryj` (główna
+        // treść) — ten sam cel („coś do zobaczenia, kogoś do obserwowania"),
+        // zero nowej logiki domenowej, zero nowych liczników.
+        private readonly DailyBoard $dailyBoard,
         private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal,
     ) {}
 
@@ -72,6 +85,19 @@ class SearchController extends Controller
         // kursor z feedu tu nie zadziała.
         $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
 
+        // „ZA KRÓTKA" TO NIE „BEZ WYNIKÓW"
+        //
+        // SearchQuery::recipes()/people() pomija frazy krótsze niż 2 znaki —
+        // nie szuka wcale, tylko od razu zwraca pustą kolekcję. Pokazanie
+        // wtedy ekranu „Nic nie znaleźliśmy" mówiłoby: przeszukaliśmy bazę
+        // i nie ma tam nic pasującego do „a" — a to nieprawda, bo baza w ogóle
+        // nie została odpytana. To dokładnie ta sama klasa nieuczciwości co
+        // „Znaleziono 20 przepisów" liczone z POBRANYCH wyżej w tym pliku.
+        //
+        // Próg 2 MUSI się zgadzać z SearchQuery — jeśli go tam zmienisz,
+        // zmień i tutaj.
+        $zaKrotka = $phrase !== '' && mb_strlen($phrase) < 2;
+
         $przepisy = $szukaPrzepisow
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
@@ -101,8 +127,10 @@ class SearchController extends Controller
         ]);
 
         return view('pages.search', [
+            'board' => $this->dailyBoard->forViewer($request->user()),
             'phrase' => $phrase,
             'section' => $section,
+            'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,
             'recipes' => $przepisy->take($ile),

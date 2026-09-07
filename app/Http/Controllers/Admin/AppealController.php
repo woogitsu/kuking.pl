@@ -44,7 +44,7 @@ class AppealController extends Controller
             'status' => $status,
             'appeals' => Appeal::query()
                 ->when($status !== 'wszystkie', fn ($query) => $query->where('status', $status))
-                ->with(['user.profile', 'decider.profile', 'moderationAction.moderator.profile'])
+                ->with(['user.profile', 'report', 'decider.profile', 'moderationAction.moderator.profile'])
                 // Otwarte najstarsze na górze: termin odpowiedzi liczy się od
                 // złożenia, więc kolejność „najnowsze pierwsze" gwarantowałaby,
                 // że przeterminowane leżą najgłębiej i nikt ich nie widzi.

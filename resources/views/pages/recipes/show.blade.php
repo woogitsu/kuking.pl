@@ -383,13 +383,57 @@
             </p>
         @endauth
 
-        <section class="stack">
-            <h2>Komu wyszło</h2>
+        {{--
+            KOMU WYSZŁO — UI kit v2, ekrany 02/06, domknięcie etapu C.
+
+            Nagłówek zostaje „Komu wyszło" (COPY_STYLE.md §6), nie „Jak wyszło
+            innym?" z kitu — wdrażamy UKŁAD kitu, nie jego tekst
+            (docs/design/STAN_WDROZENIA_KITU.md, konflikt rozstrzygnięty
+            7 IX 2026 na rzecz COPY_STYLE).
+
+            PASEK LICZB jest tym, czym w kicie („18 osób ugotowało · 92%
+            zrobi ponownie"): te same wartości, które kontroler liczy dla
+            znaczków nad zdjęciem (`cookedCount`, `zrobiaPonownie`,
+            `oceniloWykonanie`) — żadnego nowego zapytania, żadnego
+            szacowania. Ten sam próg trzech ocen co przy znaczku wyżej.
+
+            BEZ „jednego reprezentatywnego wiersza ze zdjęciem-miniaturą"
+            z kitu — świadomie. Zdjęcie cudzego wykonania jest tu
+            najważniejszym elementem (UX_50_PLUS.md) i nie wolno go zmniejszać
+            do ikonki w imię układu, więc karty zostają pełnowymiarowe
+            (`x-cooked-card`), a „układ z kitu" przechodzi na to, co
+            NIEZALEŻNE od rozmiaru zdjęcia: pasek liczb nad listą i przycisk
+            prowadzący do reszty.
+
+            PRZYCISK „Zobacz N wpisów" z kitu → `x-show-more` z „wykonań"
+            (ten sam komponent i to samo słowo, którego już używa zakładka
+            „Ugotowane" na profilu) zamiast nowego, wymyślonego tekstu —
+            COPY_STYLE nie przewiduje osobnego brzmienia dla tego przycisku,
+            a spójny czasownik w całym serwisie jest ważniejszy niż literalna
+            zgodność z makietą. Prowadzi naprawdę do reszty wykonań: strona
+            jest paginowana (`RecipeController::show()`, parametr `wykonania`,
+            osobny od `komentarze` obok), więc kliknięcie pokazuje kolejne
+            PRAWDZIWE wykonania, nie placeholder.
+        --}}
+        <section class="stack" aria-labelledby="komu-wyszlo">
+            <div class="komu-wyszlo-naglowek">
+                <h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
+                @if($cookedCount > 0)
+                    <p class="pasek-liczb meta m-0">
+                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'osoba ugotowała', 'osoby ugotowały', 'osób ugotowało') }} to danie
+                        @if($oceniloWykonanie >= 3)
+                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% zrobi to ponownie
+                        @endif
+                    </p>
+                @endif
+            </div>
+
             @if($cookedEvents->isNotEmpty())
                 <p class="meta">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
                 @foreach($cookedEvents as $event)
                     <x-cooked-card :event="$event" />
                 @endforeach
+                <x-show-more :paginator="$cookedEvents" czego="wykonań" />
             @else
                 {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
                      po prostu znikała ze strony. SOUL 4.2 wymienia to jako

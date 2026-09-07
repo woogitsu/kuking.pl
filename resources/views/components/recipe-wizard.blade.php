@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\StepTimer;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
+use App\Models\RecipeStep;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Locked;
@@ -93,7 +96,17 @@ new class extends Component
     /** @var list<array{_key: string, group_name: string, text: string, note: string, no_amount: bool}> */
     public array $ingredients = [];
 
-    /** @var list<array{_key: string, instruction: string}> */
+    /**
+     * Wiersze przygotowania.
+     *
+     * `mediaId` I `timer_minutes` NIOSĄ SIĘ W WIERSZU, nie w osobnej tablicy
+     * trzymanej obok. `moveStepUp/Down` i `removeStep` przestawiają CAŁE
+     * elementy tej tablicy, więc zdjęcie i minutnik jadą razem ze swoim
+     * krokiem — a tego nie dałaby druga tablica indeksowana pozycją
+     * (audyt T12/T24: przestawienie kroków przypisywało zdjęcie do złego).
+     *
+     * @var list<array{_key: string, instruction: string, timer_minutes: string, mediaId: ?string, photo: mixed}>
+     */
     public array $steps = [];
 
     public $heroPhoto = null;
@@ -169,6 +182,12 @@ new class extends Component
             ->map(fn ($row): array => [
                 '_key' => $this->nextRowKey(),
                 'instruction' => (string) $row->instruction,
+                // Baza trzyma sekundy (tego czyta tryb gotowania), człowiek
+                // wpisuje minuty. Przelicznik jest jeden — `StepTimer` —
+                // i ten sam po obu stronach zapisu.
+                'timer_minutes' => $this->numberToText(StepTimer::minutesFromSeconds($row->timer_seconds)),
+                'mediaId' => $row->media_id,
+                'photo' => null,
             ])
             ->all();
 
@@ -295,7 +314,7 @@ new class extends Component
             return $this->saveState === 'saved';
         }
 
-        $this->storePendingPhoto();
+        $this->storePendingPhotos();
 
         if (mb_strlen(trim($this->title)) < 3) {
             // Bez nazwy nie da się utworzyć przepisu (PublishRecipe tego pilnuje),
@@ -308,7 +327,7 @@ new class extends Component
 
         try {
             $this->persist(publish: false);
-        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
             $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — to, co wpisałeś, jest dalej w formularzu.';
 
@@ -330,7 +349,7 @@ new class extends Component
     {
         $this->resetErrorBag();
 
-        if (! $this->storePendingPhoto()) {
+        if (! $this->storePendingPhotos()) {
             // Zdjęcie się nie przyjęło. Nie publikujemy w ciszy — człowiek
             // ma zobaczyć dlaczego. Reszta danych zostaje zapisana w szkicu.
             $this->step = 1;
@@ -370,7 +389,7 @@ new class extends Component
 
         try {
             $recipe = $this->persist(publish: true);
-        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
             $this->saveDraft();
 
@@ -439,10 +458,60 @@ new class extends Component
     }
 
     /**
-     * Wybrane zdjęcie idzie przez zwykły pipeline mediów (magic bytes, limit
-     * megapikseli, zdjęcie EXIF w tle). Zwraca false, jeśli plik odpadł.
+     * Wybrane zdjęcia idą przez zwykły pipeline mediów (magic bytes, limit
+     * megapikseli, zdjęcie EXIF w tle). Zwraca false, jeśli którykolwiek plik
+     * odpadł.
+     *
+     * Zdjęcie gotowego dania I zdjęcia kroków przechodzą tu razem, bo idą tą
+     * samą drogą i mają te same limity — dwie osobne metody to dwa miejsca,
+     * w których można zapomnieć o jednym ze sprawdzeń.
      */
-    private function storePendingPhoto(): bool
+    private function storePendingPhotos(): bool
+    {
+        $ok = $this->storePendingHeroPhoto();
+
+        foreach ($this->steps as $index => $row) {
+            if (($row['photo'] ?? null) === null) {
+                continue;
+            }
+
+            $photo = $row['photo'];
+
+            // Zerujemy od razu, żeby odrzucony plik nie blokował każdego
+            // następnego autosave'u tym samym błędem.
+            $this->steps[$index]['photo'] = null;
+
+            try {
+                $this->steps[$index]['mediaId'] = app(StoreUploadedImage::class)
+                    ->handle(auth()->user(), $photo)
+                    ->getKey();
+            } catch (BladDlaCzlowieka $e) {
+                $this->addError("steps.{$index}.photo", $e->getMessage());
+                $ok = false;
+            }
+        }
+
+        return $ok;
+    }
+
+    /**
+     * „Usuń zdjęcie z tego kroku" — osobna akcja, nie efekt uboczny czegoś
+     * innego. Zdjęcie zostaje w `media` (właściciel ma je w eksporcie RODO),
+     * odpięty zostaje tylko krok.
+     */
+    public function removeStepPhoto(int $index): void
+    {
+        if (! isset($this->steps[$index])) {
+            return;
+        }
+
+        $this->steps[$index]['mediaId'] = null;
+        $this->steps[$index]['photo'] = null;
+
+        $this->saveDraft();
+    }
+
+    private function storePendingHeroPhoto(): bool
     {
         if ($this->heroPhoto === null) {
             return true;
@@ -458,7 +527,7 @@ new class extends Component
             $this->heroMediaId = app(StoreUploadedImage::class)
                 ->handle(auth()->user(), $photo)
                 ->getKey();
-        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
+        } catch (BladDlaCzlowieka $e) {
             $this->addError('heroPhoto', $e->getMessage());
 
             return false;
@@ -561,6 +630,17 @@ new class extends Component
                 $this->addError("steps.{$index}.instruction", 'Ten krok jest za długi. Zostaw najwyżej 4000 znaków albo podziel go na dwa kroki.');
                 $badStep = true;
             }
+
+            // Minutnik sprawdzamy TĄ SAMĄ bramką, która go potem przelicza
+            // (`StepTimer`), a nie osobnym zestawem reguł obok. Inaczej
+            // kreator przyjmowałby wartość, którą akcja domenowa i tak
+            // odrzuci — i odrzuci ją nad całym formularzem, a nie przy polu.
+            try {
+                StepTimer::secondsFromMinutes($row['timer_minutes'] ?? null);
+            } catch (BladDlaCzlowieka $e) {
+                $this->addError("steps.{$index}.timer_minutes", $e->getMessage());
+                $badStep = true;
+            }
         }
 
         if ($badIngredient) {
@@ -604,7 +684,9 @@ new class extends Component
         return $clean;
     }
 
-    /** @return list<array{instruction: string}> */
+    /**
+     * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string}>
+     */
     public function cleanSteps(): array
     {
         $clean = [];
@@ -616,7 +698,23 @@ new class extends Component
                 continue;
             }
 
-            $clean[] = ['instruction' => mb_substr($instruction, 0, 4000)];
+            $clean[] = [
+                // `id` ZAWSZE null, i to jest świadome.
+                //
+                // Formularz bez JavaScriptu musi odesłać identyfikator kroku,
+                // bo zdjęcia nie umie przysłać drugi raz. Kreator zdjęcie
+                // NIESIE — `mediaId` siedzi w wierszu i przeżywa każde
+                // przestawienie kolejności, bo `swapRows()` przenosi cały
+                // wiersz. Podanie tu `id` dodałoby DRUGĄ drogę do tego samego
+                // zdjęcia, a przy pierwszym rozjeździe między nimi wygrywałaby
+                // ta, o której nikt nie pamięta.
+                'id' => null,
+                'instruction' => mb_substr($instruction, 0, 4000),
+                'timer_minutes' => (string) ($row['timer_minutes'] ?? ''),
+                // Brak `mediaId` znaczy tu „bez zdjęcia" wprost: nie ma `id`,
+                // z którego dałoby się cokolwiek odziedziczyć.
+                'media_id' => $row['mediaId'] ?? null,
+            ];
         }
 
         return $clean;
@@ -648,6 +746,28 @@ new class extends Component
         return $this->numberOrNull($this->servings);
     }
 
+    /**
+     * Etykieta minutnika do podglądu — liczona TYM SAMYM kodem, co w trybie
+     * gotowania (`RecipeStep::timerLabel()`), a nie drugą kopią odmiany
+     * liczebnika obok. Model nie jest zapisywany; służy wyłącznie do
+     * policzenia zdania „45 minut".
+     *
+     * Wartość niemożliwą zwracamy jako `null`, a nie jako wyjątek: na podgląd
+     * da się wejść przyciskiem „Dalej", który sprawdza tylko krok pierwszy,
+     * więc render nie może się wywalić na tym, o czym i tak powie dopiero
+     * „Opublikuj przepis".
+     */
+    public function previewTimerLabel(mixed $minutes): ?string
+    {
+        try {
+            $seconds = StepTimer::secondsFromMinutes($minutes);
+        } catch (BladDlaCzlowieka) {
+            return null;
+        }
+
+        return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel();
+    }
+
     public function totalMinutes(): ?int
     {
         $total = (int) $this->intOrNull($this->prep_minutes) + (int) $this->intOrNull($this->cook_minutes);
@@ -665,10 +785,16 @@ new class extends Component
         return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'no_amount' => false];
     }
 
-    /** @return array{_key: string, instruction: string} */
+    /** @return array{_key: string, instruction: string, timer_minutes: string, mediaId: ?string, photo: mixed} */
     private function blankStep(): array
     {
-        return ['_key' => $this->nextRowKey(), 'instruction' => ''];
+        return [
+            '_key' => $this->nextRowKey(),
+            'instruction' => '',
+            'timer_minutes' => '',
+            'mediaId' => null,
+            'photo' => null,
+        ];
     }
 
     private function nextRowKey(): string
@@ -818,16 +944,23 @@ new class extends Component
             <x-field name="title" label="Nazwa przepisu" required wire="title"
                      :value="$title" placeholder="Rosół babci Zofii" />
 
-            <div class="field">
+            <div class="field @error('heroPhoto') has-error @enderror">
                 <label for="f-heroPhoto">Zdjęcie gotowego dania <span class="meta">(nieobowiązkowe)</span></label>
-                <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
-                {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
-                     megabajtów miała jedno źródło (`LimityZdjec`) i nie
-                     rozjechała się z `config/kuking.php` — issue #111. --}}
-                <input class="field-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
-                       aria-describedby="f-heroPhoto-help">
+                {{-- Duży obszar wyboru zdjęcia (UI kit v2, `PhotoPicker` —
+                     patrz komentarz w resources/css/ekran-dodawania.css).
+                     `wire:model` i pozostałe atrybuty pola są niezmienione. --}}
+                <div class="pole-zdjecia">
+                    <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                    <p class="pole-zdjecia-tytul">{{ $heroMediaId !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                    <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+                    {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
+                         megabajtów miała jedno źródło (`LimityZdjec`) i nie
+                         rozjechała się z `config/kuking.php` — issue #111. --}}
+                    <input class="field-input pole-zdjecia-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
+                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                           data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
+                           aria-describedby="f-heroPhoto-help">
+                </div>
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
                     <p class="meta mt-2">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
@@ -1008,9 +1141,55 @@ new class extends Component
 
             @foreach($steps as $index => $row)
                 <div class="wizard-row" wire:key="krok-{{ $row['_key'] ?? $index }}">
-                    <x-field :name="'steps.'.$index.'.instruction'" :label="'Krok '.($index + 1)" type="textarea" :rows="3"
+                    <x-field :name="'steps.'.$index.'.instruction'" :label="'Krok '.($index + 1).': co się robi'" type="textarea" :rows="3"
                              :wire="'steps.'.$index.'.instruction'" :value="$row['instruction'] ?? ''"
                              :placeholder="$index === 0 ? 'Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.' : null" />
+
+                    {{-- `x-field` wolno tu użyć, choć nazwa ma kropki: kreator
+                         wysyła dane przez `wire:model`, a nie POST-em, więc
+                         atrybut `name` nigdy nie przechodzi przez parser
+                         formularzy PHP-a (który zamienia kropki na
+                         podkreślenia). W formularzu bez JavaScriptu to samo
+                         pole jest rozpisane ręcznie, z nawiasami w `name`. --}}
+                    <x-field :name="'steps.'.$index.'.timer_minutes'" label="Ile minut ma trwać ten krok?"
+                             type="number" inputmode="numeric"
+                             :wire="'steps.'.$index.'.timer_minutes'" :value="$row['timer_minutes'] ?? ''"
+                             :min="0" :max="\App\Domain\Recipes\StepTimer::MAX_MINUTES"
+                             help="Wpisz liczbę minut — na przykład 45. Przy gotowaniu pokażemy wtedy: „Ustaw sobie kuchenny minutnik na 45 minut”. Zostaw puste, jeśli ten krok nie potrzebuje odliczania." />
+
+                    <div class="field @error("steps.{$index}.photo") has-error @enderror">
+                        <label for="f-steps-{{ $index }}-photo">
+                            Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span>
+                        </label>
+                        {{-- Duży obszar wyboru zdjęcia — ten sam wzorzec co
+                             przy „Zdjęcie gotowego dania" wyżej w tym pliku. --}}
+                        <div class="pole-zdjecia">
+                            <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                            <p class="pole-zdjecia-tytul">{{ ($row['mediaId'] ?? null) !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                            <span class="field-help" id="f-steps-{{ $index }}-photo-help">
+                                Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
+                                jak gęsty ma być sos.
+                            </span>
+                            <input class="field-input pole-zdjecia-input" id="f-steps-{{ $index }}-photo" type="file"
+                                   wire:model="steps.{{ $index }}.photo"
+                                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                                   data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
+                                   aria-describedby="f-steps-{{ $index }}-photo-help">
+                        </div>
+                        @error("steps.{$index}.photo")<span class="field-error">{{ $message }}</span>@enderror
+
+                        @if(($row['mediaId'] ?? null) !== null)
+                            <p class="meta mt-2">
+                                Zdjęcie do tego kroku jest już dodane. Wybierz plik jeszcze raz,
+                                jeśli chcesz je zmienić.
+                            </p>
+                            <button class="btn btn-secondary mt-2" type="button"
+                                    wire:click="removeStepPhoto({{ $index }})"
+                                    wire:confirm="Na pewno usunąć zdjęcie z tego kroku? Sam krok zostanie.">
+                                Usuń zdjęcie z tego kroku
+                            </button>
+                        @endif
+                    </div>
 
                     <div class="wizard-row-actions">
                         <div class="wizard-row-move">
@@ -1120,6 +1299,17 @@ new class extends Component
                                     <div>
                                         <span class="visually-hidden">Krok {{ $previewIndex + 1 }}.</span>
                                         <p class="m-0 whitespace-pre-line">{{ $previewRow['instruction'] }}</p>
+                                        {{-- Minutnik i zdjęcie w podglądzie, bo podgląd obiecuje
+                                             „tak zobaczą to inni" — a przy gotowaniu widać jedno
+                                             i drugie. Etykietę liczy `RecipeStep::timerLabel()`,
+                                             ten sam kod co w trybie gotowania. --}}
+                                        @php($previewTimer = $this->previewTimerLabel($previewRow['timer_minutes']))
+                                        @if($previewTimer !== null)
+                                            <p class="meta m-0">Ustaw sobie kuchenny minutnik na {{ $previewTimer }}.</p>
+                                        @endif
+                                        @if($previewRow['media_id'] !== null)
+                                            <p class="meta m-0">Zdjęcie do tego kroku jest dodane.</p>
+                                        @endif
                                     </div>
                                 </li>
                             @endforeach

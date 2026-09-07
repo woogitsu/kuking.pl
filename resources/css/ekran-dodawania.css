@@ -1,0 +1,99 @@
+/*
+ * ekran-dodawania.css — arkusz jednego obszaru ekranów (UI kit v2, etap D).
+ *
+ * PO CO OSOBNY PLIK, A NIE KOLEJNA SEKCJA W app.css
+ * Etap D był wdrażany przez kilka równoległych zleceń jednocześnie. Jeden
+ * wspólny app.css znaczyłby, że drugie zlecenie nadpisuje pierwsze — więc
+ * każdy obszar dostał własny plik, wpięty importem w app.css.
+ *
+ * Zasada z app.css obowiązuje tu bez zmian: żadnej wartości koloru,
+ * rozmiaru tekstu ani odstępu na sztywno — wszystko przez var(--...).
+ */
+
+@layer components {
+
+  /* -------------------------------------------------------------------
+     `PhotoPicker` — duży obszar wyboru zdjęcia
+     -------------------------------------------------------------------
+     Wzorzec z docs/design/kit-v2/html/08_mobile_add.html (`.photo-picker`)
+     i ze specyfikacji w docs/design/DESIGN_SYSTEM.md §5 („duży obszar
+     »Dodaj zdjęcie«, min. 120px wysokości, wyraźny obrys przerywany + tekst
+     + ikona"). Dziś ten sam efekt dawał goły `<input type="file">` w zwykłym
+     bordowanym polu (`.field-input`) — czytelny, ale bez tej wizualnej wagi,
+     jaką ma główna czynność ekranu.
+
+     ŚWIADOMIE BEZ JAVASCRIPTU I BEZ ALPINE.
+     `COMPONENTS_BLADE.md` §7 pokazuje wersję z podglądem miniatury przez
+     Alpine (`x-data`, `URL.createObjectURL`) — ale trzy miejsca, które tu
+     stylujemy, żyją także na drodze `/dodaj/zdjecie` i
+     `/dodaj/przepis/jedna-strona`, czyli na drodze BEZ JavaScriptu
+     (AGENTS.md §5, „Rejestracja... publikacja wpisu, przepis... muszą
+     działać bez JavaScriptu"). Prawdziwy `<input type="file">` zostaje więc
+     w pełni widoczny i klikalny wewnątrz tego obszaru — nic go nie chowa,
+     nic nie podmienia. Atrybuty `id`/`name`/`wire:model`/`accept`/
+     `aria-describedby` w widokach, które to pole otaczają, są dokładnie
+     te same, co przed tą zmianą.
+  */
+  .pole-zdjecia {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-6) var(--spacing-4);
+    text-align: center;
+    background-color: var(--color-surface-sunken);
+    border: 2px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Ten sam sygnał błędu co `.field.has-error .field-input` w tokens.css —
+     obrys na czerwono, żeby błąd walidacji było widać już na samym obszarze,
+     nie dopiero w komunikacie pod nim. */
+  .field.has-error .pole-zdjecia {
+    border-color: var(--color-danger);
+  }
+
+  .pole-zdjecia-ikona {
+    display: inline-flex;
+    color: var(--color-brand);
+  }
+
+  .pole-zdjecia-tytul {
+    margin: 0;
+    font-weight: 700;
+    font-size: var(--text-body-lg);
+  }
+
+  /* Ten sam <span id="…-help"> co wcześniej, tylko przeniesiony pod tytuł —
+     pomoc ma być STAŁA i widoczna (DESIGN_SYSTEM.md §4.2), a nie zniknąć
+     przy przenoszeniu pola do nowego miejsca. */
+  .pole-zdjecia .field-help {
+    margin-top: 0;
+  }
+
+  .pole-zdjecia-input {
+    margin-top: var(--spacing-3);
+    max-width: 100%;
+    background-color: var(--color-surface-raised);
+  }
+
+  /* Przycisk „Wybierz plik" natywnego pola pliku — żeby w środku
+     odświeżonego obszaru nie został surowy, systemowy wygląd przeglądarki.
+     `::file-selector-button` ma wsparcie w Chrome/Edge/Firefoksie i Safari
+     16.4+; starsze silniki dostają zwykły, wciąż w pełni działający
+     przycisk systemowy — to jest ulepszenie wizualne, nie warunek działania. */
+  .pole-zdjecia-input::file-selector-button,
+  .pole-zdjecia-input::-webkit-file-upload-button {
+    margin-right: var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-4);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    font-weight: 700;
+    color: var(--color-ink);
+    background-color: var(--color-surface-raised);
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+}

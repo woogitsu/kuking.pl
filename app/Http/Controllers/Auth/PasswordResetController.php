@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Support\Poczta;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,16 @@ class PasswordResetController extends Controller
         // niżej jest z założenia ta sama dla adresu istniejącego
         // i nieistniejącego, więc człowiek czekał na list, który nigdy nie
         // miał przyjść, i nie miał jak się domyślić dlaczego.
+        // POCZTA MOŻE NIE DZIAŁAĆ, a `sendResetLink` i tak zwróci sukces —
+        // przy `MAIL_MAILER=log` wiadomość idzie do dziennika. Formularz jest
+        // wtedy schowany (`auth/forgot-password.blade.php`), ale ta trasa
+        // pozostaje osiągalna wprost, więc odpowiedź musi mówić prawdę także
+        // tutaj. Bez tego człowiek, który trafił tu ze starego adresu albo
+        // z zakładki, dostawał „wysłaliśmy wiadomość" i czekał.
+        if (! Poczta::dziala()) {
+            return back()->with('status', Poczta::komunikatBrakuPoczty());
+        }
+
         Password::sendResetLink([
             'email' => User::normalizeEmail((string) $request->input('email', '')),
         ]);

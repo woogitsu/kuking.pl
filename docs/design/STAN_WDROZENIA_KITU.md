@@ -111,14 +111,22 @@ z ciągłym tekstem (`.kolumna-czytania`).
 
 ### Zostaje z etapu C do zrobienia
 
-- `CookedCard` w układzie z kitu („Jak wyszło innym?” z paskiem liczb
-  i przyciskiem „Zobacz N wpisów”) — dziś to lista kart jedna pod drugą.
+Nic — `CookedCard` w układzie z kitu wdrożony 7 września 2026: pasek liczb
+plus realna paginacja `x-show-more` w miejsce `->limit(12)->get()`, które nie
+dawało żadnej drogi do wykonań 13. i dalszych. Świadomie BEZ „jednego
+reprezentatywnego wiersza ze zdjęciem-miniaturą" z kitu: zdjęcie cudzego
+wykonania zostaje pełnowymiarowe (`docs/UX_50_PLUS.md`). Zmierzone
+w `tests/Feature/KomuWyszloWydajnoscTest.php`.
 
 ### Nadal otwarte z listy tokenów
 
 `--leading-title` (1.25 w kicie, 1.4 u nas) zostaje **1.4**. Luźniejszy
 nagłówek jest tu decyzją dla grupy 50+, a nie rozjazdem — zmiana dotknęłaby
 każdego ekranu i należy do osobnej decyzji, nie do przestylowania przepisu.
+
+`DESIGN_SYSTEM.md` §9 pytał o domyślny limit `CookedCard` (sugerował 5) —
+**rozstrzygnięte 7 IX 2026 na 12**, spójnie z `ProfileController` i
+`comments.page_size`. Jeden krok „Pokaż więcej" ma być wszędzie podobny.
 
 ---
 
@@ -162,3 +170,117 @@ zmiennymi PHP (`$user`) i operatorem `!==` w blokach `@php`.
 Wniosek dla #38: zostaje praca redakcyjna nad KONKRETNYMI ekranami (kit etap
 D), a nie przegląd całego interfejsu pod kątem słów zakazanych — ten przegląd
 jest zrobiony i wychodzi czysto.
+
+---
+
+## Etap D — cztery obszary ekranów (wdrożony 7 września 2026)
+
+Etap D wdrażało pięć równoległych zleceń. Żadne nie mogło pisać w tym samym
+pliku, więc każdy obszar dostał **własny arkusz CSS** wpięty importem
+(`ekran-wyszukiwania.css`, `ekran-profilu.css`, `ekran-dodawania.css`,
+`karta-ugotowania.css`), a `app.css` został przy szkielecie strony i menu.
+Wspólny plik oznaczałby, że drugie zlecenie zapisuje stan sprzed pierwszego —
+czyli cicha utrata pracy, nie konflikt, który cokolwiek zgłasza.
+
+**Wniosek przekrojowy z całego etapu: kit przegrywa z COPY_STYLE za każdym
+razem, gdy się różnią, i nie jest to wyjątek — to reguła.** Rozstrzygnięcie
+z sekcji wyżej („Komu wyszło" zamiast „Jak wyszło innym?") powtórzyło się na
+trzech kolejnych ekranach: „Szukaj" zamiast „Szukaj i odkrywaj", pełny podpis
+„Powiadomienia" zamiast samej ikony dzwonka, trzy karty widoczności zamiast
+listy rozwijanej. Makiety HTML w `kit-v2/` są materiałem projektowym
+z wcześniejszego etapu; tam, gdzie mówią coś innego niż `COPY_STYLE.md`,
+`BRAND_EXTENDED.md` albo `UX_50_PLUS.md`, wiążą te trzy.
+
+### Wyszukiwarka i „odkrywaj" (ekrany 03, 07)
+
+| element z kitu | co jest w aplikacji |
+|---|---|
+| nagłówek „Szukaj i odkrywaj" | **„Szukaj"** — `BRAND_EXTENDED.md` §1.1 ma „Odkrywaj"/„Discover" na liście słów, których nie używamy |
+| duże pole z lupą | **jest**; etykieta „Czego szukasz?" ZOSTAJE widoczna nad polem — kit ma tam tylko placeholder, `UX_50_PLUS.md` wymaga etykiety |
+| prawa szyna | **jest** — tablica „kuKINGi na dziś", ta sama usługa domenowa co na `/home` i `/odkryj`. Kolumna była zarezerwowana od etapu A/B i zawsze pusta; brakowało treści, nie mechanizmu |
+| przycisk „Filtry" | **świadomie nie** — nie ma dziś wymiaru filtrowania poza chipami, byłby ozdobą prowadzącą w nikąd |
+| „Smaki września" (tagi sezonowe z liczbą przepisów) | **nie i nie teraz** — `DECISIONS.md` świadomie odrzucił kolumnę `sezonowy`; zbudowanie tego przez czytanie słownika w locie byłoby cichą decyzją architektoniczną w widoku |
+| liczba obserwujących przy osobie | **nigdy** — anty-wzorzec zakazany wprost w `AGENTS.md` §12 |
+| „Popularne teraz" (wyniki bez frazy) | **nie** — ranking bez pomiaru, `AGENTS.md` §8 |
+| karta wyniku z czasem i porcjami w wierszu | `recipe-card` tego nie ma; wymagałoby zmiany komponentu współdzielonego z feedem i profilem |
+| ekran mobilny (07) | ten sam szablon Blade, różnica wyłącznie w CSS |
+
+Bugfix przy okazji: pusty stan `/odkryj` łamał regułę zapisaną w komentarzu
+własnego komponentu (brak przycisku, tekst mówiący o serwisie zamiast o tym,
+co człowiek może zrobić). Naprawione, test regresyjny `OdkrywaniePustyStanTest`.
+
+axe-core (WCAG 2a/2aa/21aa): 0 naruszeń na `/szukaj` i `/odkryj` przy 1280,
+390 i 320 px. Bez przewijania w poziomie.
+
+### Profil i archiwum (ekran 04)
+
+| element z kitu | co jest w aplikacji |
+|---|---|
+| awatar + imię + `@login · region` + bio w jednej kolumnie | **jest** |
+| liczniki pod opisem, w tej samej kolumnie co imię | **jest** — wcześniej stały jako osobny, pełnoszerokościowy wiersz pod całą główką |
+| przycisk akcji w trzeciej kolumnie obok imienia | **świadomie nie** — kit rysuje zawsze jeden przycisk, a tutaj bywają trzy naraz, w tym destrukcyjny „Zablokuj"; wciśnięcie ich w wąską kolumnę przy 720 px złamałoby regułę odstępu akcja/destrukcja (`DESIGN_SYSTEM.md` §3.1) |
+| siatka dwukolumnowa miniatur w archiwum | **nie i jeszcze nie** — wymaga wariantu „mini" we współdzielonym `x-post-card`; decyzja właściciela, nie techniczna |
+| duży awatar „xl" | **nie** — `app.css` definiuje rozmiary awatara do 88 px, a to już maksimum |
+
+Przełamanie układu główki (awatar obok tekstu) następuje od `--breakpoint-md`
+(768 px), nie od progu bocznej nawigacji (1024 px): kolumna treści ma stałe
+45rem powyżej 1024 px, więc szerokość dostępna dla główki jest ta sama od
+768 px w górę i nie ma na co czekać.
+
+Kit nie ma mobilnej makiety profilu — `09_mobile_menu_profile.html` to ekran
+menu konta, nie profil z archiwum. Jedna kolumna na telefonie jest własną
+interpretacją zgodną z resztą aplikacji, nie odwzorowaniem czegokolwiek
+narysowanego.
+
+### Ekran dodawania (ekran 08)
+
+| element z kitu | co jest w aplikacji |
+|---|---|
+| duży obszar `.photo-picker` (ikona + „Dodaj zdjęcie" + pomoc) | **jest**, na wszystkich trzech drogach dodawania; natywny `<input type="file">` zostaje w pełni widoczny i klikalny w jego wnętrzu |
+| napis zmienia się na „Zmień zdjęcie", gdy pole ma już plik | **jest** |
+| `.m-info` pod przyciskiem publikacji | **jest** na `/dodaj/zdjecie`: „Możesz zmienić lub usunąć wpis później. Zdjęcia publikujemy bez danych EXIF i GPS." |
+| `.select` „Kto może zobaczyć?" | **świadomie nie** — trzy duże, zawsze widoczne karty. Ten sam wzorzec co D-017: kit bywa uproszczony kosztem czytelności dla tej grupy |
+| karty wyboru „Zdjęcie z gotowania" / „Pełny przepis" na jednym ekranie z formularzem | **nie i nie teraz** — `/dodaj` zostaje dwuetapowe; scalenie to zmiana produktowa, nie CSS |
+| kolejność pól, etykiety, błędy przy polu plus podsumowanie, karta formularza | **już było zgodne** — zmierzone, nieprzestylowane na siłę |
+
+`PhotoPicker` wdrożony **bez** wersji z `COMPONENTS_BLADE.md` §7 (Alpine
+i `URL.createObjectURL`), bo dwie z trzech dróg dodawania istnieją właśnie po
+to, żeby działać bez JavaScriptu. Mechanika minutnika i tożsamości kroku
+(issue #21, wdrożone tego samego dnia) nietknięta: `MinutnikIZdjecieKrokuTest`
+32/32 przed i po.
+
+### Menu mobilne (ekran 09, część menu)
+
+| element z kitu | co jest w aplikacji |
+|---|---|
+| logo i wordmark w lewym rogu, pasek dolny z pięcioma pozycjami, „Dodaj" w uniesionym kółku | **jest** od etapów A/B |
+| bieżąca pozycja kolorem i pogrubieniem | **jest**, plus pasek 3px u góry — kolor nigdy nie jest jedynym sygnałem (WCAG 1.4.1) |
+| „Dodaj" aktywne przez cały proces dodawania | **było brakujące, naprawione** — podświetlało się wyłącznie na `/dodaj`, nie na `/dodaj/zdjecie`, `/dodaj/przepis` ani `/dodaj/przepis/jedna-strona`. Menu przestawało pokazywać, gdzie jest użytkownik, dokładnie wtedy, gdy coś dodawał |
+| dzwonek jako sama ikona | **świadomie nie** — pełny podpis „Powiadomienia" z licznikiem na każdej szerokości; ikona bez podpisu łamałaby `AGENTS.md` §5 |
+| pasek dolny znika na desktopie, zastępuje go nawigacja boczna | **jest**, próg 64rem |
+
+Zmierzone Playwrightem na własnej bazie z produkcyjnym buildem: 11 ekranów ×
+3 szerokości (320/390/768 px) × gość i zalogowany, plus skala tekstu 140%
+i motyw ciemny. Zero przewijania w bok, zero naruszeń axe-core na obu paskach.
+
+**Menu działa bez JavaScriptu i to jest zmierzone, nie zadeklarowane**:
+Playwright z `javaScriptEnabled: false` — logowanie zwykłym POST-em
+i nawigacja obu pasków prowadzą na właściwe adresy. Żadnego „hamburgera" ani
+`<details>` w menu dziś nie ma; kit też go tu nie ma, więc nie było czego
+portować.
+
+### Otwarte po etapie D — wymaga decyzji właściciela
+
+- **Wariant „mini" `x-post-card`** dla dwukolumnowej siatki archiwum. Zdanie
+  wykonawcy: pełne karty są lepsze dla 50+ (większe zdjęcie, czytelniejszy
+  tekst, bez nauki nowego wzorca), ale to decyzja produktowa.
+- **Scalenie `/dodaj`** z formularzem w jeden ekran, jak rysuje kit.
+- **`text_scale` w bazie ograniczone do 90–140**, a `DESIGN_SYSTEM.md`
+  dokumentuje krok 150%. Constraint siedzi w migracji.
+- **Gość nie ma pola wyszukiwania** — pole w górnej belce jest `@auth`-owane.
+  Realna luka nawigacyjna dla niezalogowanych, dotyczy globalnej belki.
+- **`recipe-card` bez czasu i porcji** obok tytułu, jak w kicie.
+- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 23 ekranach ×
+  4 warianty nie był uruchamiany w trakcie etapu D, bo pięć zleceń pisało
+  równocześnie w tym samym repozytorium i wynik nie byłby miarodajny dla
+  żadnej pojedynczej zmiany. Do uruchomienia teraz, na scalonym stanie.

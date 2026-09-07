@@ -1,13 +1,58 @@
 @php
+    /* Nazwy klas pełne, nie przez `use` — ten plik trzyma tę konwencję od
+       początku (`\App\Models\Recipe::DIFFICULTY_LABELS` niżej). */
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
-    // Trzy pierwsze puste wiersze składników i kroków są od razu widoczne —
-    // pusta lista z jednym przyciskiem „Dodaj składnik” jest mniej zrozumiała
-    // niż gotowe pola do wypełnienia.
-    $ingredientRows = max(3, count(old('ingredients', $isEdit ? $recipe->ingredients->all() : [])) + 1);
-    $stepRows = max(3, count(old('steps', $isEdit ? $recipe->steps->all() : [])) + 1);
+
     $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
-    $oldSteps = old('steps', $isEdit ? $recipe->steps->map(fn ($s) => ['instruction' => $s->instruction])->all() : []);
+
+    /*
+     * KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ (audyt zewnętrzny T12/T24).
+     *
+     * `id` to identyfikator kroku, który JUŻ ISTNIEJE w bazie. Wraca do
+     * serwera ukrytym polem, bo zdjęcia przypiętego do kroku przeglądarka nie
+     * umie wysłać drugi raz — plik, którego człowiek nie wybrał w TYM
+     * żądaniu, po prostu nie istnieje w POST-cie.
+     *
+     * Bez tego identyfikatora serwer musiałby dopasowywać zdjęcia PO POZYCJI
+     * kroku w bazie. A pozycja w bazie NIE JEST numerem wiersza formularza:
+     * puste wiersze są przy zapisie pomijane, więc wyczyszczenie kroku
+     * drugiego przesuwa wszystkie następne o jedno miejsce w górę i zdjęcie
+     * „obierz ziemniaki" ląduje przy „wyjmij z piekarnika". Nikt tego nie
+     * zgłosi, bo to nie wygląda na awarię — przepis po prostu kłamie obrazkiem.
+     *
+     * `old('steps')` zwraca dokładnie to, co przyszło POST-em, razem z `id`,
+     * więc po nieudanej walidacji wiersze wracają w TEJ SAMEJ kolejności,
+     * z tymi samymi identyfikatorami i tymi samymi minutnikami.
+     */
+    $oldSteps = old('steps', $isEdit
+        ? $recipe->steps->map(fn ($s) => [
+            'id' => $s->getKey(),
+            'instruction' => $s->instruction,
+            // Baza trzyma sekundy (tego czyta tryb gotowania), człowiek
+            // wpisuje minuty. Jeden przelicznik, ten sam co przy zapisie.
+            'timer_minutes' => \App\Domain\Recipes\StepTimer::minutesFromSeconds($s->timer_seconds),
+        ])->all()
+        : []);
+
+    /*
+     * Kroki z bazy pod ich identyfikatorami — po to, żeby pokazać zdjęcie,
+     * które dany krok JUŻ MA. Szukamy po `id` z wiersza, nie po numerze
+     * wiersza: to ta sama reguła, co przy zapisie.
+     */
+    $krokiWBazie = $isEdit ? $recipe->steps->keyBy(fn ($s) => (string) $s->getKey()) : collect();
+
+    /*
+     * Trzy pierwsze puste wiersze składników i kroków są od razu widoczne —
+     * pusta lista z jednym przyciskiem „Dodaj składnik” jest mniej zrozumiała
+     * niż gotowe pola do wypełnienia.
+     *
+     * Sufit z `Recipe::MAX_*`, bo „liczba wierszy + 1" bez granicy renderuje
+     * o jeden wiersz WIĘCEJ, niż przyjmuje walidacja — przy pełnym przepisie
+     * formularz odbijałby własny POST komunikatem o zbyt wielu krokach.
+     */
+    $ingredientRows = min(\App\Models\Recipe::MAX_INGREDIENTS, max(3, count($oldIngredients) + 1));
+    $stepRows = min(\App\Models\Recipe::MAX_STEPS, max(3, count($oldSteps) + 1));
 @endphp
 
 <x-layout :title="$isEdit ? 'Edytuj przepis' : 'Dodaj przepis'" :noindex="true">
@@ -44,12 +89,16 @@
                      :value="$isEdit ? $recipe->title : null"
                      placeholder="Rosół babci Zofii" />
 
-            <div class="field">
+            <div class="field @error('hero_photo') has-error @enderror">
                 <label for="f-hero_photo">Zdjęcie gotowego dania</label>
-                <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
-                <input class="field-input" id="f-hero_photo" type="file" name="hero_photo"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       aria-describedby="f-hero_photo-help">
+                <div class="pole-zdjecia">
+                    <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                    <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                    <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+                    <input class="field-input pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
+                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                           aria-describedby="f-hero_photo-help">
+                </div>
                 @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
             </div>
 
@@ -134,14 +183,18 @@
                      :value="$isEdit ? $recipe->family_since_year : null" :min="1850" :max="2100"
                      placeholder="1974" />
 
-            <div class="field">
+            <div class="field @error('source_scan') has-error @enderror">
                 <label for="f-source_scan">Zdjęcie starej kartki albo zeszytu</label>
-                <span class="field-help" id="f-source_scan-help">
-                    Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.
-                </span>
-                <input class="field-input" id="f-source_scan" type="file" name="source_scan"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       aria-describedby="f-source_scan-help">
+                <div class="pole-zdjecia">
+                    <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                    <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                    <span class="field-help" id="f-source_scan-help">
+                        Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.
+                    </span>
+                    <input class="field-input pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
+                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                           aria-describedby="f-source_scan-help">
+                </div>
                 @error('source_scan')<span class="field-error">{{ $message }}</span>@enderror
             </div>
 
@@ -196,21 +249,111 @@
         {{-- ---------------------------------------------------------------
              4. Przygotowanie
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section card" id="f-steps">
             <h2 class="form-section-title">4. Przygotowanie</h2>
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
+                Przy każdym kroku możesz dopisać, ile minut ma trwać, i dodać zdjęcie —
+                jedno i drugie jest nieobowiązkowe.
             </p>
+            @error('steps')<p class="field-error">{{ $message }}</p>@enderror
 
             @for($i = 0; $i < $stepRows; $i++)
-                <div class="field">
-                    <label for="f-steps-{{ $i }}-instruction">Krok {{ $i + 1 }}</label>
-                    <textarea class="field-input" id="f-steps-{{ $i }}-instruction"
-                              name="steps[{{ $i }}][instruction]" rows="3"
-                              @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
-                    >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
-                    @error("steps.$i.instruction")<span class="field-error">{{ $message }}</span>@enderror
-                </div>
+                @php
+                    $idKroku = $oldSteps[$i]['id'] ?? null;
+                    $zdjecieKroku = $idKroku === null ? null : $krokiWBazie->get((string) $idKroku)?->media;
+                @endphp
+                <fieldset class="wizard-row">
+                    <legend class="font-bold mb-3">Krok {{ $i + 1 }}</legend>
+
+                    {{-- Tożsamość tego kroku. Wraca niezmieniona, żeby zdjęcie
+                         zostało przy SWOIM kroku także po wyczyszczeniu innego
+                         wiersza i po nieudanej walidacji. --}}
+                    <input type="hidden" name="steps[{{ $i }}][id]" value="{{ $idKroku }}">
+
+                    <div class="field">
+                        <label for="f-steps-{{ $i }}-instruction">Co się robi w tym kroku</label>
+                        <textarea class="field-input" id="f-steps-{{ $i }}-instruction"
+                                  name="steps[{{ $i }}][instruction]" rows="3"
+                                  @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
+                        >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
+                        @error("steps.$i.instruction")<span class="field-error">{{ $message }}</span>@enderror
+                    </div>
+
+                    {{-- Ręczna rozpiska, a nie `x-field`, i to jest świadome.
+                         `x-field` liczy atrybut `name` z tej samej wartości,
+                         z której liczy `id` i klucz błędu — a tu te dwie
+                         rzeczy MUSZĄ się różnić: PHP zamienia kropki w nazwie
+                         pola na podkreślenia, więc pole nazwane
+                         `steps.0.timer_minutes` przyszłoby jako
+                         `steps_0_timer_minutes` i nie trafiłoby do tablicy
+                         `steps`. Nawiasy w `name`, kropki w `id` i w `@error`
+                         — dokładnie tak, jak stojące wyżej pola składników. --}}
+                    <div class="field">
+                        <label for="f-steps-{{ $i }}-timer_minutes">
+                            Ile minut ma trwać ten krok? <span class="meta">(nieobowiązkowe)</span>
+                        </label>
+                        <span class="field-help" id="f-steps-{{ $i }}-timer_minutes-help">
+                            Wpisz liczbę minut — na przykład 45. Przy gotowaniu pokażemy wtedy:
+                            „Ustaw sobie kuchenny minutnik na 45 minut”.
+                            Zostaw puste, jeśli ten krok nie potrzebuje odliczania.
+                        </span>
+                        <input class="field-input" id="f-steps-{{ $i }}-timer_minutes"
+                               type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
+                               min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
+                               value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
+                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
+                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
+                    </div>
+
+                    <div class="field @error("steps.$i.photo") has-error @enderror">
+                        <label for="f-steps-{{ $i }}-photo">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></label>
+
+                        @if($zdjecieKroku)
+                            {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim
+                                 samo — nie trzeba go wybierać drugi raz. --}}
+                            <span class="krok-zdjecie">
+                                <x-photo :media="$zdjecieKroku" variant="thumb" :zoom="false"
+                                         class="krok-zdjecie-obraz"
+                                         :alt="'Zdjęcie przy kroku '.($i + 1)"
+                                         sizes="160px" />
+                            </span>
+                            <label class="choice mt-2">
+                                <input type="checkbox" name="steps[{{ $i }}][remove_photo]" value="1">
+                                <span>
+                                    <span class="choice-label">Usuń to zdjęcie</span>
+                                    <span class="choice-help">Zaznacz i zapisz przepis. Krok zostanie bez zdjęcia.</span>
+                                </span>
+                            </label>
+                        @endif
+
+                        {{-- Duży obszar wyboru zdjęcia — patrz komentarz przy
+                             polu „Zdjęcie gotowego dania" wyżej w tym pliku.
+                             Atrybuty pola (`id`, `name`, `accept`,
+                             `aria-describedby`) są NIEZMIENIONE: to ten sam
+                             identyfikator kroku w `name`, po którym serwer
+                             i tak szuka pliku (komentarz na górze pliku,
+                             „KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ"). --}}
+                        <div class="pole-zdjecia">
+                            <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                            <p class="pole-zdjecia-tytul">{{ $zdjecieKroku ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                            <span class="field-help" id="f-steps-{{ $i }}-photo-help">
+                                Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
+                                jak gęsty ma być sos. Za jednym razem można dodać najwyżej
+                                {{ \App\Support\LimityZdjec::maksZdjecKrokowNaZapis() }}
+                                {{-- Odmiana liczebnika z JEDNEGO miejsca (issue #86) — inaczej
+                                     zmiana limitu dawałaby „5 zdjęcia do kroków". --}}
+                                {{ \App\Support\Odmiana::rzeczownik(\App\Support\LimityZdjec::maksZdjecKrokowNaZapis(), 'zdjęcie', 'zdjęcia', 'zdjęć') }}
+                                do kroków.
+                            </span>
+                            <input class="field-input pole-zdjecia-input" id="f-steps-{{ $i }}-photo" type="file"
+                                   name="steps[{{ $i }}][photo]"
+                                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                                   aria-describedby="f-steps-{{ $i }}-photo-help">
+                        </div>
+                        @error("steps.$i.photo")<span class="field-error">{{ $message }}</span>@enderror
+                    </div>
+                </fieldset>
             @endfor
         </section>
 

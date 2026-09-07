@@ -21,6 +21,53 @@ class AuditLogEntry extends Model
 
     public const UPDATED_AT = null;
 
+    /**
+     * Kategorie zdarzeń, których RETENCJA (issue #19,
+     * docs/decyzje/ADR_RETENCJE.md §3.1, §5.1) NIGDY nie kasuje — niezależnie
+     * od wieku wiersza. Zamknięta stała, nie config: zmiana tej listy ma
+     * przechodzić przez code review, nie przez zmienną środowiskową ani plik
+     * konfiguracyjny edytowalny bez recenzji (patrz `config/kuking.php` →
+     * `audit_log.retention_months`, gdzie ta decyzja jest wyjaśniona z drugiej
+     * strony).
+     *
+     * `App\Domain\Compliance\PrzedawnioneWpisyAudytu::posprzataj()` filtruje
+     * właśnie po tej stałej — `AuditLogEntryNigdyNieKasujTest` pilnuje, że
+     * żaden wiersz o `action` z tej listy nie znika, niezależnie od tego, jak
+     * bardzo jest stary.
+     *
+     * `account.data_erased` — JEDYNY dowód, że prawo do usunięcia konta
+     * (RODO art. 17) zostało FAKTYCZNIE wykonane. Po wykonaniu wiersz `users`
+     * jest zanonimizowany (`EraseAccountData`), nie skasowany — nie ma więc
+     * żadnego innego miejsca w bazie, które odpowie na pytanie "czy i kiedy
+     * to konto zostało usunięte".
+     *
+     * `account.delete_requested` i `account.delete_cancelled` —
+     * `User::cancelDeletion()` ZERUJE `delete_requested_at` na wierszu
+     * `users` (`forceFill(['delete_requested_at' => null, ...])`). Po
+     * cofnięciu jedynym miejscem w CAŁEJ bazie, które mówi, że ktoś w ogóle
+     * zgłosił usunięcie konta i potem zmienił zdanie, są te dwa wpisy tutaj.
+     * Skasowanie ich po ogólnym okresie retencji usuwałoby jedyny ślad
+     * własnej decyzji użytkownika — dowód, o który zapyta regulator albo sam
+     * użytkownik przy sporze ("nigdy nie prosiłem o usunięcie konta").
+     *
+     * LISTA JEST ZAMKNIĘTA. Rozszerzenie wymaga tego samego zmierzonego
+     * powodu co powyższe trzy pozycje ("ten wiersz jest jedynym dowodem
+     * czegoś, co RODO/DSA wymaga umieć wykazać") — nie samej ostrożności.
+     * `moderation.decided`, `content.reported` i `appeal.*` ŚWIADOMIE tu nie
+     * są — ich pełny, autorytatywny zapis żyje w `reports`/`moderation_actions`/
+     * `appeals`, którym retencja daje dłuższy okres niż domyślny `audit_log`
+     * (`config('kuking.moderation.case_retention_months')` vs
+     * `config('kuking.audit_log.retention_months')`) — wpis tutaj jest
+     * cieńszą kopią, która może wygasnąć wcześniej bez utraty dowodu.
+     *
+     * @var list<string>
+     */
+    public const NIGDY_NIE_KASUJ = [
+        'account.data_erased',
+        'account.delete_requested',
+        'account.delete_cancelled',
+    ];
+
     protected $fillable = [
         'actor_id',
         'action',

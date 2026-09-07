@@ -29,9 +29,17 @@
     </x-slot:head>
 
     <header class="card mb-6">
-        <div class="flex gap-4 items-start flex-wrap">
+        {{--
+            UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem
+            razem, LICZNIKI POD OPISEM — nie osobnym pełnoszerokim wierszem
+            pod całym nagłówkiem, jak dawniej. `.profil-glowka-tresc`
+            w ekran-profilu.css robi z tego siatkę (awatar | treść) i wraca
+            do jednej kolumny poniżej `--breakpoint-md`, żeby przy 320 px
+            awatar nie ściskał opisu do wąskiego paska tekstu.
+        --}}
+        <div class="profil-glowka-tresc">
             <x-avatar :user="$owner" :size="88" />
-            <div class="flex-1 min-w-[14rem]">
+            <div class="min-w-0">
                 <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
                 @if($owner->isSeeded())
                     <p class="mb-3"><x-konto-przykladowe :user="$owner" /></p>
@@ -56,26 +64,26 @@
                     <p class="m-0 mb-3"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
                 @endif
                 @if($p->bio)
-                    <p class="whitespace-pre-line">{{ $p->bio }}</p>
+                    <p class="whitespace-pre-line mb-4">{{ $p->bio }}</p>
                 @endif
+
+                <ul class="stat-row">
+                    <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
+                    <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
+                    <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
+                    <li>
+                        <a href="{{ route('social.followers', $p->username) }}" class="link-jak-tekst">
+                            <span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('social.following', $p->username) }}" class="link-jak-tekst">
+                            <span class="stat-value">{{ $stats['following'] }}</span><span class="stat-label">obserwowanych</span>
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
-
-        <ul class="stat-row mt-5">
-            <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
-            <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
-            <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
-            <li>
-                <a href="{{ route('social.followers', $p->username) }}" class="link-jak-tekst">
-                    <span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span>
-                </a>
-            </li>
-            <li>
-                <a href="{{ route('social.following', $p->username) }}" class="link-jak-tekst">
-                    <span class="stat-value">{{ $stats['following'] }}</span><span class="stat-label">obserwowanych</span>
-                </a>
-            </li>
-        </ul>
 
         <div class="flex gap-3 flex-wrap mt-5">
             @if($isOwner)

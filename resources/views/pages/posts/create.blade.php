@@ -9,10 +9,7 @@
 
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
             <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
-            <span class="field-help" id="f-photos-help">
-                Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
-                Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
-            </span>
+
             @php
                 // Zdjęcia, które przetrwały nieudaną walidację (audyt C1).
                 // Wracają jako identyfikatory, bo przeglądarka nie pozwala
@@ -39,9 +36,21 @@
                 </div>
             @endif
 
-            <input class="field-input" id="f-photos" type="file" name="photos[]"
-                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                   multiple aria-describedby="f-photos-help">
+            {{-- Duży obszar wyboru zdjęcia (UI kit v2, 08_mobile_add.html →
+                 `PhotoPicker`, docs/design/ekran-dodawania.css). Prawdziwy
+                 <input type="file"> zostaje w środku, w pełni widoczny
+                 i klikalny — to wciąż ta sama droga bez JavaScriptu. --}}
+            <div class="pole-zdjecia">
+                <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                <span class="field-help" id="f-photos-help">
+                    Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
+                    Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
+                </span>
+                <input class="field-input pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                       multiple aria-describedby="f-photos-help">
+            </div>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
@@ -91,5 +100,13 @@
             <button class="btn btn-primary" type="submit">Opublikuj</button>
             <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
         </div>
+
+        {{-- Zapewnienie z kitu (08_mobile_add.html, `.m-info`) — dwa fakty,
+             oba prawdziwe: wpis da się później zmienić/usunąć (posts.edit,
+             posts.destroy) i pipeline zdjęć zdejmuje EXIF/GPS przy zapisie
+             (AGENTS.md §7, „Pipeline zdjęć"). --}}
+        <p class="field-help text-center mt-4">
+            Możesz zmienić lub usunąć wpis później. Zdjęcia publikujemy bez danych EXIF i GPS.
+        </p>
     </form>
 </x-layout>

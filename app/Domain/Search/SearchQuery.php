@@ -7,6 +7,7 @@ namespace App\Domain\Search;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\ProgPodobienstwa;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -29,8 +30,19 @@ use Illuminate\Support\Str;
  */
 final class SearchQuery
 {
-    /** Poniżej tego progu podobieństwa wyniki są już przypadkowe. */
-    private const SIMILARITY_THRESHOLD = 0.12;
+    // PRÓG PODOBIEŃSTWA MIESZKA W `App\Support\ProgPodobienstwa`, nie tutaj.
+    //
+    // Do 7 września 2026 stała `SIMILARITY_THRESHOLD = 0.12` była w tym pliku
+    // — i NIGDY nie była używana. Operator `%` nie przyjmuje progu jako
+    // argumentu, bierze go z ustawienia sesji, którego nikt nie ustawiał,
+    // czyli z domyślnego 0.3. Zmierzone: literówka „sernk" nie znajdowała
+    // „Sernika babci Haliny", mimo że podobieństwo wynosiło 0.1818, czyli
+    // POWYŻEJ udokumentowanego progu. Cała odporność na literówki, którą
+    // obiecuje komentarz klasy, była martwa.
+    //
+    // Uzasadnienie wyboru `set_limit()` zamiast `similarity(...) >= ?`
+    // (indeks trigramowy obsługuje `%`, nie porównanie wyniku funkcji) —
+    // w komentarzu tamtej klasy.
 
     /**
      * Identyfikatory przepisów pasujących do frazy — CZTERY OSOBNE ZAPYTANIA
@@ -96,6 +108,10 @@ final class SearchQuery
 
         $needle = $this->normalize($phrase);
 
+        // Bez tego gałąź trigramowa niżej milczy przy literówkach — patrz
+        // komentarz przy zniesionej stałej wyżej.
+        ProgPodobienstwa::ustaw();
+
         return Recipe::query()
             ->publiclyVisible()
             // Konto autora aktywne (audyt A5) — bez tego wyszukiwarka
@@ -154,6 +170,8 @@ final class SearchQuery
         }
 
         $needle = $this->normalize($phrase);
+
+        ProgPodobienstwa::ustaw();
 
         return Profile::query()
             ->with(['user', 'avatar'])

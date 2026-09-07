@@ -7,9 +7,11 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -107,7 +110,7 @@ class RecipeController extends Controller
                     'source_scan_media_id' => $scanMediaId,
                 ],
                 ingredients: $data['ingredients'],
-                steps: $data['steps'],
+                steps: $this->withStepPhotos($request, $user, $data['steps']),
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
             );
@@ -130,7 +133,10 @@ class RecipeController extends Controller
 
         return view('pages.recipes.create', [
             'units' => Unit::orderBy('name')->get(),
-            'recipe' => $recipe->load(['ingredients', 'steps', 'heroMedia']),
+            // `steps.media`, bo formularz pokazuje zdjęcie, które krok już ma
+            // — bez tego byłoby to jedno zapytanie na wiersz (N+1), czyli
+            // dwadzieścia zapytań przy przepisie o dwudziestu krokach.
+            'recipe' => $recipe->load(['ingredients', 'steps.media', 'heroMedia']),
         ]);
     }
 
@@ -166,7 +172,7 @@ class RecipeController extends Controller
                     'source_scan_media_id' => $scanMediaId,
                 ],
                 ingredients: $data['ingredients'],
-                steps: $data['steps'],
+                steps: $this->withStepPhotos($request, $user, $data['steps']),
                 publish: $request->input('action') !== 'draft',
                 existing: $recipe,
                 ip: $request->ip(),
@@ -243,37 +249,56 @@ class RecipeController extends Controller
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
+        // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
+        // pokazywała każde wykonanie, nie pytając, czy widz zablokował
+        // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
+        //
+        // PAGINOWANE, nie `->limit(12)->get()` (do 7 września 2026). Limit
+        // bez paginacji wygląda niewinnie — strona się nie wykłada, zapytanie
+        // zostaje jedno — ale dla przepisu z więcej niż 12 wykonaniami
+        // wykonania 13. i dalsze są NIEOSIĄGALNE z tego ekranu w ogóle:
+        // żadnego przycisku, żadnego adresu, żadnego śladu, że istnieją.
+        // Ten sam kształt błędu co T20/N03 dla komentarzy
+        // (`KomentarzeStronamiTest`), tylko że tam był chociaż widoczny ślad
+        // (nagłówek liczący WSZYSTKIE), a tu i ślad był ucięty — znaczek nad
+        // hero liczył uczciwie 30, ale strona nie dawała żadnej drogi do
+        // wykonań 13–30. Zmierzone w `KomuWyszloWydajnoscTest`.
+        //
+        // Nazwa strony `wykonania`, nie `komentarze` — obie paginacje żyją
+        // na tym samym ekranie i muszą mieć niezależne parametry adresu.
+        $cookedEvents = $model->cookedEvents()
+            ->widoczneDla($request->user())
+            ->with(['user.profile.avatar', 'media'])
+            ->paginate(12, ['*'], 'wykonania')
+            ->withQueryString();
+
         return view('pages.recipes.show', [
             'recipe' => $model,
             'komentarze' => $komentarze,
             // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
             // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
             'komentarzyRazem' => $komentarze->total(),
-            // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
-            // pokazywała każde wykonanie, nie pytając, czy widz zablokował
-            // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
-            'cookedEvents' => $model->cookedEvents()
-                ->widoczneDla($request->user())
-                ->with(['user.profile.avatar', 'media'])
-                ->limit(12)
-                ->get(),
+            'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //
-            // Stało tu gołe `count()` na całej relacji, dziesięć linijek pod
-            // galerią, która filtr `widoczneDla()` miała od audytu A4. Reguła
-            // była więc w warstwie LISTY i nie było jej w warstwie LICZBY.
-            // Zmierzone przy dwóch wykonaniach, z których jedno należało do
-            // osoby zablokowanej przez widza: galeria pokazywała jedną kartę,
+            // `$cookedEvents->total()`, nie osobne `->count()` — do 7 września
+            // 2026 stało tu gołe zapytanie, dziesięć linijek pod galerią, która
+            // filtr `widoczneDla()` miała od audytu A4. Reguła była więc
+            // w warstwie LISTY i nie było jej w warstwie LICZBY. Zmierzone
+            // przy dwóch wykonaniach, z których jedno należało do osoby
+            // zablokowanej przez widza: galeria pokazywała jedną kartę,
             // a znaczek nad nią „Ugotowane 2 ×" i JSON-LD
             // `"userInteractionCount":2`. Czyli sama strona meldowała widzowi,
             // że osoba, którą zablokował, ugotowała ten przepis — ten sam
             // „oracle istnienia" co zamknięte W7-05 i co licznik obserwujących
-            // na profilu.
+            // na profilu. Czytanie z paginatora usuwa też drugie, zbędne
+            // zapytanie `count()` — ten sam `total()`, który i tak liczy
+            // Laravel budując stronę.
             //
             // Skutek świadomy: liczba jest per widz, tak jak per widz jest już
             // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
             // więc dane dla wyszukiwarek zostają bez zmian.
-            'cookedCount' => $model->cookedEvents()->widoczneDla($request->user())->count(),
+            'cookedCount' => $cookedEvents->total(),
             // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
             // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
             // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
@@ -356,7 +381,7 @@ class RecipeController extends Controller
     }
 
     /**
-     * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: list<array<string, mixed>>}
+     * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}
      */
     private function validated(Request $request): array
     {
@@ -375,7 +400,7 @@ class RecipeController extends Controller
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
-            'ingredients' => ['nullable', 'array', 'max:120'],
+            'ingredients' => ['nullable', 'array', 'max:'.Recipe::MAX_INGREDIENTS],
             'ingredients.*.text' => ['nullable', 'string', 'max:240'],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
             'ingredients.*.note' => ['nullable', 'string', 'max:300'],
@@ -383,8 +408,26 @@ class RecipeController extends Controller
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
             'ingredients.*.no_amount' => ['nullable', 'boolean'],
-            'steps' => ['nullable', 'array', 'max:60'],
+            'steps' => ['nullable', 'array', 'max:'.Recipe::MAX_STEPS],
+            // TOŻSAMOŚĆ KROKU, przenoszona przez POST w ukrytym polu.
+            //
+            // `uuid`, bo kolumna `recipe_steps.id` jest typu uuid — byle jaki
+            // tekst wywaliłby zapytanie zamiast dać komunikat. To pole NIE
+            // JEST autoryzacją: `PublishRecipe` dopasowuje je wyłącznie do
+            // kroków tego przepisu, więc cudzy identyfikator nic nie daje.
+            'steps.*.id' => ['nullable', 'uuid'],
             'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
+            // Człowiek wpisuje MINUTY, bo tak myśli o gotowaniu. Sekundy
+            // (`recipe_steps.timer_seconds`, `data-timer-sekundy` w trybie
+            // gotowania) liczy `StepTimer` w warstwie domenowej — tu stoi
+            // tylko ta sama granica, żeby błąd trafił PRZY POLU, a nie
+            // wyjątkiem nad całym formularzem.
+            'steps.*.timer_minutes' => ['nullable', 'integer', 'min:0', 'max:'.StepTimer::MAX_MINUTES],
+            // Zdjęcie kroku idzie DOKŁADNIE tą samą drogą co każde inne
+            // zdjęcie w tym serwisie: `ObslugiwaneZdjecie` w walidacji,
+            // `StoreUploadedImage` w zapisie, ten sam limit rozmiaru.
+            'steps.*.photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'steps.*.remove_photo' => ['nullable', 'boolean'],
         ], [
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
@@ -423,7 +466,37 @@ class RecipeController extends Controller
             // domyślny, angielski błąd Laravela (narusza AGENTS.md).
             'hero_photo.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'source_scan.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            // Komunikaty minutnika są WSPÓLNE z warstwą domenową
+            // (`StepTimer::KOMUNIKAT_*`), a nie przepisane drugi raz. Ta sama
+            // wartość odrzucona przez formularz i przez akcję domenową musi
+            // mówić to samo zdanie — inaczej człowiek widzi dwa różne
+            // tłumaczenia jednej reguły, zależnie od tego, którą drogą szedł.
+            'steps.*.timer_minutes.integer' => StepTimer::KOMUNIKAT_NIE_LICZBA,
+            'steps.*.timer_minutes.min' => StepTimer::KOMUNIKAT_UJEMNY,
+            'steps.*.timer_minutes.max' => StepTimer::KOMUNIKAT_ZA_DUZO,
+            'steps.*.photo.max' => LimityZdjec::komunikatZaDuzyPlik(),
         ]);
+
+        // BUDŻET ZDJĘĆ KROKÓW — sprawdzany PRZED wgraniem czegokolwiek.
+        //
+        // Bez tego nadmiarowe zdjęcia albo znikałyby bez słowa (PHP obcina
+        // części żądania po `max_file_uploads`), albo całe żądanie odpadałoby
+        // na `post_max_size` razem z tokenem CSRF i całym wpisanym tekstem
+        // (audyt A31). Limit MUSI więc powiedzieć, co zrobić, i musi to
+        // powiedzieć, zanim zaczniemy cokolwiek zapisywać.
+        $zdjeciaKrokow = 0;
+
+        foreach (array_keys($data['steps'] ?? []) as $index) {
+            if ($request->hasFile("steps.{$index}.photo")) {
+                $zdjeciaKrokow++;
+            }
+        }
+
+        if ($zdjeciaKrokow > LimityZdjec::maksZdjecKrokowNaZapis()) {
+            throw ValidationException::withMessages([
+                'steps' => LimityZdjec::komunikatZaDuzoZdjecKrokow(),
+            ]);
+        }
 
         return [
             'recipe' => [
@@ -449,10 +522,83 @@ class RecipeController extends Controller
                 ],
                 $data['ingredients'] ?? [],
             )),
-            'steps' => array_values(array_map(
-                static fn (array $row): array => ['instruction' => $row['instruction'] ?? ''],
+            // KOLEJNOŚĆ WIERSZY ZOSTAJE TAKA, JAK PRZYSZŁA W POST-CIE, a każdy
+            // wiersz niesie SWOJĄ tożsamość, swój minutnik i swoje zdjęcie.
+            // Pozycja w bazie bierze się z miejsca wiersza w tej tablicy
+            // (`PublishRecipe::syncSteps`), więc przestawienie wierszy
+            // przestawia kroki — i przestawia je RAZEM z ich zdjęciami, bo
+            // zdjęcie jest rozwiązywane po `id`, nie po pozycji.
+            //
+            // KLUCZE ZOSTAJĄ TAKIE, JAK W ŻĄDANIU — bez `array_values()`.
+            // Po nich `withStepPhotos()` szuka pliku (`steps.3.photo`)
+            // i po nich adresuje komunikat błędu, a widok wypisuje go przez
+            // `@error("steps.3.photo")` z numerem WIERSZA FORMULARZA. Gdyby
+            // klucze zostały tu przenumerowane, plik z wiersza o numerze
+            // nieciągłym nie zostałby znaleziony, a błąd wylądowałby pod
+            // cudzym wierszem. Kolejność zapisu bierze się z kolejności
+            // elementów tablicy, nie z wartości kluczy, więc numeracja
+            // pozycji w bazie na tym nie traci.
+            'steps' => array_map(
+                static fn (array $row): array => [
+                    'id' => $row['id'] ?? null,
+                    'instruction' => $row['instruction'] ?? '',
+                    'timer_minutes' => $row['timer_minutes'] ?? null,
+                    // ZAWSZE null: identyfikator zdjęcia NIE JEST polem tego
+                    // formularza i nie ma go w regułach walidacji wyżej.
+                    // Wypełnia go wyłącznie `withStepPhotos()` — z pliku,
+                    // który naprawdę przyszedł w TYM żądaniu. Ukryte pole
+                    // z `media_id` dałoby klientowi możliwość podania cudzego
+                    // identyfikatora; tożsamość, której formularz potrzebuje,
+                    // niesie `id` KROKU, a to jest dopasowywane wyłącznie
+                    // wewnątrz tego przepisu.
+                    'media_id' => null,
+                    'remove_media' => (bool) ($row['remove_photo'] ?? false),
+                ],
                 $data['steps'] ?? [],
-            )),
+            ),
         ];
+    }
+
+    /**
+     * Wgranie zdjęć kroków — po jednym na wiersz, tą samą drogą co każde inne
+     * zdjęcie w serwisie.
+     *
+     * ZDJĘCIE WGRYWAMY TYLKO DLA WIERSZA, KTÓRY MA TREŚĆ. Wiersz bez opisu
+     * kroku jest pomijany przy zapisie (`PublishRecipe::cleanSteps`), więc
+     * zdjęcie do niego dołączone byłoby wierszem w `media`, do którego nic
+     * nie prowadzi — śmieciem w buckecie i w eksporcie RODO tego człowieka.
+     *
+     * Wchodzi tablica O KLUCZACH Z ŻĄDANIA, wychodzi zwykła lista — od tego
+     * miejsca numery wierszy formularza nie są już do niczego potrzebne.
+     *
+     * @param  array<array-key, array<string, mixed>>  $steps
+     * @return list<array<string, mixed>>
+     *
+     * @throws ValidationException gdy zdjęcie odpadnie — komunikat trafia
+     *                             PRZY POLE tego kroku, nie nad formularzem
+     */
+    private function withStepPhotos(Request $request, User $user, array $steps): array
+    {
+        foreach ($steps as $index => $row) {
+            if (! $request->hasFile("steps.{$index}.photo")) {
+                continue;
+            }
+
+            if (trim((string) ($row['instruction'] ?? '')) === '') {
+                continue;
+            }
+
+            try {
+                $steps[$index]['media_id'] = $this->storeImage
+                    ->handle($user, $request->file("steps.{$index}.photo"))
+                    ->getKey();
+            } catch (BladDlaCzlowieka $e) {
+                throw ValidationException::withMessages([
+                    "steps.{$index}.photo" => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return array_values($steps);
     }
 }

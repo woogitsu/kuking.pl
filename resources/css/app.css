@@ -15,6 +15,16 @@
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";
 
+/* Arkusze pojedynczych obszarów ekranów (UI kit v2, etap D). Osobne pliki,
+   bo etap D wdrażało kilka równoległych zleceń — wspólny plik znaczyłby, że
+   jedno nadpisuje drugie. Kolejność importów nie ma tu znaczenia: każdy
+   z nich dopisuje własne klasy do @layer components, żadny nie nadpisuje
+   klasy z innego. */
+@import "./ekran-wyszukiwania.css";
+@import "./ekran-profilu.css";
+@import "./ekran-dodawania.css";
+@import "./karta-ugotowania.css";
+
 @layer components {
 
   /* ---------------------------------------------------------------------
@@ -1159,6 +1169,13 @@
     border-radius: var(--radius-lg);
     padding: var(--spacing-4);
     background-color: var(--color-surface-raised);
+    /* `min-width: 0`, bo w formularzu bez JavaScriptu ta klasa siedzi na
+       `<fieldset>` (trzy pola jednego kroku + legenda „Krok 1", żeby czytnik
+       ekranu wiedział, którego kroku dotyczy pole). Przeglądarki narzucają
+       fieldsetowi `min-inline-size: min-content`, liczone z pola tekstowego
+       w środku — a to jest jedyna droga, którą ten formularz mógłby wypchnąć
+       stronę w bok przy 320 px (issue #80). */
+    min-width: 0;
   }
 
   .wizard-row + .wizard-row {

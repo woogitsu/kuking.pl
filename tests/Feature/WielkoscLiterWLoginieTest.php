@@ -213,6 +213,17 @@ class WielkoscLiterWLoginieTest extends TestCase
 
     public function test_link_do_zmiany_hasla_dochodzi_takze_z_wielkiej_litery(): void
     {
+        // TEN TEST ZAKŁADA DZIAŁAJĄCĄ POCZTĘ i od 7 września 2026 musi to
+        // powiedzieć wprost. `PasswordResetController` sprawdza teraz
+        // `App\Support\Poczta::dziala()` i przy sterowniku, który nie
+        // dostarcza (dziś na produkcji `log`, w suicie `array`), NIE WYSYŁA
+        // linku — bo obiecywanie listu, który nie przyjdzie, zostawia
+        // człowieka bez konta i bez informacji, że nie ma na co czekać
+        // (`ResetHaslaMowiPrawdeTest`). Tu mierzymy inną regułę: że adres
+        // z wielkiej litery trafia na to samo konto (audyt A25) — więc
+        // ustawiamy sterownik, przy którym ta reguła w ogóle ma sens.
+        config(['mail.default' => 'smtp']);
+
         Notification::fake();
 
         $this->zarejestruj();

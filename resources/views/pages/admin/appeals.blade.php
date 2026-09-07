@@ -21,9 +21,20 @@
         <article class="card mb-5">
             <h2 class="mt-0 text-title-sm">
                 Odwołanie od decyzji „{{ $decyzja->label() }}”
+                @if($appeal->isFromReporter())
+                    <span class="badge">od zgłaszającego</span>
+                @endif
             </h2>
             <p class="meta">
-                {{ $appeal->user?->displayName() ?? 'usunięte konto' }} ·
+                @if($appeal->isFromReporter())
+                    {{-- Zgłaszający może nie mieć konta wcale (art. 16 ust. 2
+                         lit. c) — jedyna tożsamość, jaką mamy, leży na jego
+                         zgłoszeniu, nie na koncie. --}}
+                    {{ $appeal->report?->notifier_name ?? 'zgłaszający bez podanych danych' }}
+                    (zgłoszenie {{ $appeal->report ? \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr((string) $appeal->report->getKey(), 0, 8)) : '—' }}) ·
+                @else
+                    {{ $appeal->user?->displayName() ?? 'usunięte konto' }} ·
+                @endif
                 złożone {{ \App\Support\Czas::data($appeal->created_at, 'j F Y, H:i') }} ·
                 @if($appeal->isOverdue())
                     <strong>termin odpowiedzi minął {{ \App\Support\Czas::data($appeal->responseDeadline(), 'j F Y') }}</strong>
@@ -52,6 +63,11 @@
             @endif
 
             @if($appeal->isOpen())
+                @php($skutekCofniecia = match(true) {
+                    in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_HIDE, \App\Models\ModerationAction::ACTION_REMOVE], true) => 'Cofam decyzję — treść wraca',
+                    in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true) => 'Cofam decyzję — konto wraca',
+                    default => 'Cofam decyzję',
+                })
                 <form method="POST" action="{{ route('admin.appeals.resolve', $appeal) }}">
                     @csrf
                     <fieldset class="border-0 p-0">
@@ -65,10 +81,17 @@
                             <label class="choice">
                                 <input type="radio" name="outcome" value="overturned"
                                        @checked(old('outcome') === 'overturned')>
-                                <span class="choice-label">Cofam decyzję — treść wraca, konto wraca</span>
+                                <span class="choice-label">{{ $skutekCofniecia }}</span>
                             </label>
                         </div>
                     </fieldset>
+                    @if($appeal->isFromReporter() && $decyzja->action === \App\Models\ModerationAction::ACTION_NONE)
+                        <p class="meta">
+                            Ta decyzja to „bez działania" — system nie umie sam podjąć nowej
+                            decyzji na już rozstrzygniętym zgłoszeniu. Jeśli cofasz, napisz
+                            w uzasadnieniu, co konkretnie zrobisz z treścią, i zrób to osobno.
+                        </p>
+                    @endif
 
                     <x-field name="decision_note" label="Uzasadnienie dla tej osoby" type="textarea" :rows="4" required
                              help="To jest odpowiedź, którą ona przeczyta. Wymóg DSA art. 20: wynik bez wyjaśnienia nie jest odpowiedzią." />

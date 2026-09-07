@@ -29,6 +29,7 @@ use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
@@ -203,6 +204,26 @@ Route::get('/odwolanie', [AppealController::class, 'guestForm'])->name('appeals.
 Route::post('/odwolanie', [AppealController::class, 'guestStore'])
     ->middleware("throttle:{$limits['appeal']},appeal")
     ->name('appeals.guest.store');
+
+// --------------------------------------------------------------------------
+// Odwołanie od decyzji moderacyjnej — droga dla ZGŁASZAJĄCEGO (issue #23,
+// DSA art. 20 ust. 1)
+// --------------------------------------------------------------------------
+//
+// Zgłaszający może nie mieć konta wcale (art. 16 ust. 2 lit. c) — nie ma więc
+// sesji ani hasła, którym mógłby się rozliczyć jak autor treści powyżej.
+// Autoryzacją jest PODPISANY, WYGASAJĄCY link (`middleware('signed')`, ten
+// sam mechanizm co `verification.verify` wyżej i `settings.data.download`),
+// wysyłany mailem razem z decyzją (`DecyzjaWSprawieZgloszenia`). UUID
+// zgłoszenia w adresie sam w sobie NIE JEST autoryzacją (AGENTS.md §7) —
+// to podpis czyni ten link nie do podrobienia, nie sam identyfikator.
+//
+// Jedna trasa, dwie metody: formularz (GET) i wysyłka (POST) dzielą ten sam
+// adres, więc jeden podpisany link z maila obsługuje obie — inaczej trzeba
+// by podpisywać dwa osobne adresy i wygasłby tylko jeden z nich.
+Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealController::class, 'handle'])
+    ->middleware(['signed', "throttle:{$limits['appeal']},appeal"])
+    ->name('appeals.reporter');
 
 // --------------------------------------------------------------------------
 // Zalogowany
