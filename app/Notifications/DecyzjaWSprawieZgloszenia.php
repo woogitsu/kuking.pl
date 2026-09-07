@@ -10,6 +10,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Powiadomienie ZGŁASZAJĄCEGO o decyzji (DSA art. 16 ust. 5).
@@ -99,29 +100,57 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
                 .'Nie znaleźliśmy w niej naruszenia, które by to uzasadniało.',
         });
 
-        return $list
+        $list
             ->line('Zgłoszona przez Ciebie strona:')
             ->line((string) $this->zgloszenie->target_url)
             ->line('---')
-            ->line('**Jeśli się z nami nie zgadzasz**')
+            ->line('**Jeśli się z nami nie zgadzasz**');
+
+        // ODWOŁANIE W NASZYM SYSTEMIE SKARG (issue #23, DSA art. 20 ust. 1).
+        //
+        // Do 7 września 2026 zgłaszający nie miał tu ŻADNEJ drogi poza
+        // napisaniem maila — `appeals.user_id` było `NOT NULL` i wskazywało
+        // wyłącznie autora treści (pomiar: `docs/decyzje/DSA_POMIAR.md` §3
+        // punkt 2, potwierdzony testami w `PomiarBrakowArt20Test` PRZED
+        // migracją `appeals_open_to_reporters`). Link jest PODPISANY
+        // i WYGASAJĄCY (`URL::temporarySignedRoute`, ten sam mechanizm co
+        // `DataExportReady`) — UUID zgłoszenia w adresie sam w sobie nie
+        // byłby autoryzacją (AGENTS.md §7), podpis jest tym, co czyni link
+        // nie do podrobienia. Wygasa DOKŁADNIE z terminem na odwołanie, nie
+        // wcześniej i nie później.
+        //
+        // `report_id` na decyzji powinno tu być zawsze — ta notyfikacja
+        // idzie wyłącznie z `ModerationController::decide()`, który tworzy
+        // `$decyzja` Z tego właśnie zgłoszenia. Warunek zostaje jako obrona
+        // w głąb, nie jako ścieżka realnie osiągana.
+        if ($this->decyzja->report_id !== null) {
+            $link = URL::temporarySignedRoute(
+                'appeals.reporter',
+                $this->decyzja->appealDeadline(),
+                ['report' => $this->zgloszenie->getKey()],
+            );
+
+            $list->line('Jeśli się nie zgadzasz z tą decyzją — także jeśli chodzi o brak działania '
+                .'z naszej strony — możesz się odwołać w naszym systemie skarg:')
+                ->action('Złóż odwołanie', $link)
+                ->line('Na odwołanie masz sześć miesięcy od tej decyzji, czyli do '
+                    .$this->decyzja->appealDeadline()->translatedFormat('j F Y').'.');
+        }
+
+        return $list
             // NIE OBIECUJEMY „INNEGO CZŁOWIEKA". Do dziś stało tu zdanie
             // „sprawa wróci do człowieka, który jej wcześniej nie prowadził"
             // — i kod nie czynił go prawdą. Przy zespole 1-2 osób nic tego
             // nie zapewnia; jedyne, co jest egzekwowane, to karencja
             // z `ResolveAppeal` (ten sam moderator nie PODTRZYMA własnej
-            // decyzji przez `appeal_self_uphold_hours`), a ona dotyczy
-            // odwołania AUTORA treści, nie pisma od zgłaszającego —
-            // zgłaszający nie ma dziś w ogóle dostępu do systemu odwołań
-            // (`appeals.user_id` jest NOT NULL i wskazuje autora).
-            // Komentarz `ResolveAppeal` mówi to samo wprost: „przy zespole
-            // 1-2 osób wymóg »ktoś inny« jest nie do spełnienia, więc
-            // egzekwujemy to, co da się spełnić".
+            // decyzji przez `appeal_self_uphold_hours`) — i dziś dotyczy
+            // OBU dróg odwołania, autora i zgłaszającego, jednakowo.
             //
             // Zostaje więc zdanie, które jest prawdą: napisz, zajmiemy się
             // sprawą ponownie. Tego akurat nie obiecuje żaden mechanizm
             // w kodzie, tylko człowiek czytający skrzynkę — i dokładnie tak
             // to brzmi.
-            ->line('Napisz do nas na '.(string) config('kuking.community.contact_email')
+            ->line('Możesz też napisać do nas na '.(string) config('kuking.community.contact_email')
                 .', podając numer sprawy — zajmiemy się nią ponownie.')
             ->line('Możesz też zwrócić się do pozasądowego organu rozstrzygania sporów '
                 .'albo do sądu. Decyzja, którą tu opisujemy, nie zamyka Ci żadnej z tych dróg.')

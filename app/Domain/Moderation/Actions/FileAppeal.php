@@ -12,7 +12,11 @@ use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
- * Złożenie odwołania od decyzji moderacyjnej (issue #10, DSA art. 20).
+ * Złożenie odwołania od decyzji moderacyjnej PRZEZ AUTORA TREŚCI (issue #10,
+ * DSA art. 20). Zgłaszający ma osobną klasę — `FileReporterAppeal`
+ * (issue #23) — bo wchodzi inną drogą (podpisany link z maila, nie sesja),
+ * odwołuje się od INNEGO zestawu decyzji (włącznie z `no_action`) i nie ma
+ * gwarancji posiadania konta.
  *
  * TRZY REGUŁY, KTÓRE MUSZĄ ŻYĆ TUTAJ, A NIE W KONTROLERZE
  *
@@ -48,7 +52,7 @@ final class FileAppeal
             throw new BladDlaCzlowieka('Od tej decyzji nie ma odwołania — nic nie zostało ograniczone.');
         }
 
-        if ($decyzja->appeal()->exists()) {
+        if ($decyzja->authorAppeal()->exists()) {
             throw new BladDlaCzlowieka(
                 'Odwołanie od tej decyzji już do nas trafiło. Odpowiemy na nie w ciągu '
                 .config('kuking.moderation.appeal_response_working_days').' dni roboczych. '
@@ -70,6 +74,7 @@ final class FileAppeal
             $odwolanie = Appeal::create([
                 'moderation_action_id' => $decyzja->getKey(),
                 'user_id' => $osoba->getKey(),
+                'appellant' => Appeal::APPELLANT_AUTHOR,
                 'body' => trim($tresc),
                 'status' => Appeal::STATUS_OPEN,
             ]);

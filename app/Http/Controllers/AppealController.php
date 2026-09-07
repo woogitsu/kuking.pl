@@ -67,7 +67,7 @@ class AppealController extends Controller
 
         return view('pages.appeals.create', [
             'decyzja' => $action,
-            'odwolanie' => $action->appeal,
+            'odwolanie' => $action->authorAppeal,
         ]);
     }
 
@@ -171,7 +171,7 @@ class AppealController extends Controller
         return ModerationAction::query()
             ->where('subject_user_id', $osoba->getKey())
             ->whereIn('action', ModerationAction::ODWOLYWALNE)
-            ->whereDoesntHave('appeal')
+            ->whereDoesntHave('authorAppeal')
             ->orderByDesc('created_at')
             ->get()
             ->first(fn (ModerationAction $decyzja): bool => $decyzja->isAppealable());

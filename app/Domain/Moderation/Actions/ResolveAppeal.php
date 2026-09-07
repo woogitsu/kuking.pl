@@ -33,12 +33,34 @@ use App\Models\User;
  * zorientował się w pomyłce za szybko, szkodziłoby wyłącznie poszkodowanemu.
  * Karencja ma powstrzymać odruchowe „podtrzymuję", a nie przyznanie się
  * do błędu.
+ *
+ * DWIE ROLE ODWOŁUJĄCEGO SIĘ, JEDNA ŚCIEŻKA ROZPATRZENIA (issue #23)
+ * Ta klasa nie wie ani nie musi wiedzieć, kto się odwołał — karencja,
+ * cofnięcie skutków i log audytu są identyczne dla obu ról. Różni się
+ * wyłącznie DORĘCZENIE odpowiedzi na końcu: autor ma konto i powiadomienia
+ * w serwisie (`NotifyAppealOutcome`), zgłaszający może nie mieć konta wcale
+ * i dostaje odpowiedź mailem (`NotifyReporterAppealOutcome`) na adres
+ * zapisany przy jego zgłoszeniu.
+ *
+ * GRANICA, KTÓREJ TA KLASA ŚWIADOMIE NIE PRZESUWA: cofnięcie decyzji
+ * `no_action` po odwołaniu ZGŁASZAJĄCEGO nie ma dziś żadnego mechanicznego
+ * odpowiednika — `cofnij()` niżej poprawnie nic nie robi (nic nie było
+ * ukryte), a rzeczywiste podjęcie działania wobec zgłoszonej treści
+ * wymagałoby NOWEJ decyzji moderacyjnej na już rozstrzygniętym zgłoszeniu,
+ * czego `moderation_actions_one_per_report` i `ModerationController::decide()`
+ * dziś nie dopuszczają. To jest świadomie zostawiona granica tej zmiany, nie
+ * przeoczenie: naprawia dostęp do systemu skarg (art. 20), nie dodaje
+ * mechanizmu ponownego rozpatrzenia zgłoszenia. Jeśli moderator uzna
+ * odwołanie za zasadne, realne działanie na treści wykonuje dziś ręcznie,
+ * tak jak każdą decyzję poza tym systemem — `decision_note` jest miejscem,
+ * w którym mówi zgłaszającemu, co konkretnie zrobi.
  */
 final class ResolveAppeal
 {
     public function __construct(
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
+        private readonly NotifyReporterAppealOutcome $powiadomZglaszajacego,
     ) {}
 
     /**
@@ -84,7 +106,13 @@ final class ResolveAppeal
             'decided_at' => now(),
         ]);
 
-        $this->powiadom->handle($odwolanie->refresh());
+        $odwolanie->refresh();
+
+        if ($odwolanie->isFromReporter()) {
+            $this->powiadomZglaszajacego->handle($odwolanie);
+        } else {
+            $this->powiadom->handle($odwolanie);
+        }
 
         AuditLogEntry::record(
             action: 'appeal.resolved',
@@ -92,6 +120,7 @@ final class ResolveAppeal
             subject: $odwolanie,
             metadata: [
                 'outcome' => $wynik,
+                'appellant' => $odwolanie->appellant,
                 'original_decision' => $decyzja->action,
                 'original_moderator_id' => (string) $decyzja->moderator_id,
             ],
