@@ -25,6 +25,14 @@ class DatabaseSeeder extends Seeder
         // w panelu (uzasadnienie w komentarzu tamtej klasy).
         $this->call(TagPromotionSeeder::class);
 
+        // Treść zalążkowa, JAWNIE OZNACZONA (D-025, `docs/DECISIONS.md`) —
+        // wołany TAKŻE na produkcji, bo to jest dosłownie treść decyzji: pusty
+        // serwis był odrzucony, treść bez oznaczenia też. Idempotentny (patrz
+        // komentarz klasy) — drugie i kolejne uruchomienia nic nie zmieniają.
+        // Wołany PO `TagSeeder`, żeby tagi wpisów rozwiązywały się do
+        // kanonicznych nazw ze słownika, gdy ten jest już w bazie.
+        $this->call(TrescZalazkowaSeeder::class);
+
         // Dane demo wyłącznie poza produkcją.
         if (! app()->environment('production')) {
             $this->call(DemoSeeder::class);

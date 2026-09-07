@@ -111,6 +111,7 @@
                 <x-avatar :user="$recipe->author" :size="44" />
                 <div class="min-w-0">
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
+                    <x-konto-przykladowe :user="$recipe->author" />
                     <p class="meta m-0">
                         @if($recipe->published_at)
                             <time datetime="{{ $recipe->published_at->toIso8601String() }}">{{ \App\Support\Czas::data($recipe->published_at, 'j F Y') }}</time>

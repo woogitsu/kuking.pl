@@ -16,6 +16,7 @@
                 <a href="{{ route('recipes.show', $recipe->slug) }}" class="link-tytul">{{ $recipe->title }}</a>
             </h3>
             <p class="meta m-0 mb-2">{{ $recipe->attributionLine() }}</p>
+            <x-konto-przykladowe :user="$recipe->author" />
             @if(($recipe->cooked_events_count ?? 0) > 0)
                 <p class="m-0"><span class="badge badge-cooked">Ugotowane {{ $recipe->cooked_events_count }} ×</span></p>
             @endif

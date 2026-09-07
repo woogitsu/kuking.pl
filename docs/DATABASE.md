@@ -456,6 +456,69 @@ które konto zostaje, podejmuje człowiek. Rollback to `DROP INDEX IF EXISTS`,
 bez utraty danych; `users_email_unique` zostaje nietknięty przez cały czas,
 więc nawet w trakcie rollbacku adres nie zduplikuje się co do znaku.
 
+#### `is_seeded` — treść zalążkowa na produkcji, ale jawnie oznaczona (D-025)
+
+Migracja `2026_09_07_700000_add_is_seeded_to_users`. Boolean, domyślnie
+`false`, bez backfillu (żadne wcześniejsze konto nie pochodzi z pliku).
+
+**Ten sam kształt co `tags.is_seeded`** (migracja
+`2026_09_07_100000_create_tags_tables`), i z tego samego powodu: **atrybut
+POCHODZENIA danych, nie nowy system widoczności obok `status`/`role`.**
+Konto z `is_seeded = true` przechodzi przez dokładnie te same bramki co
+każde inne — `status` rozstrzyga, czy może czytać/pisać, `role`, czy
+moderuje. Ta kolumna nic w tych bramkach nie zmienia; dokłada tylko dwie
+rzeczy, obie **czytające** kolumnę, żadna jej nie interpretująca jako nowy
+poziom uprawnień:
+
+1. **Etykietę w interfejsie**, wszędzie tam, gdzie serwis pokazuje AUTORA —
+   profil, karta wpisu, karta przepisu, komentarz (komponent
+   `x-konto-przykladowe`, czytany przez `User::isSeeded()`). D-025 wprost:
+   „przy koncie, nie tylko w regulaminie — nikt nie czyta regulaminu, żeby
+   dowiedzieć się, czy pisze do człowieka".
+2. **Wykluczenie z Weekly Active Cooks i z kohorty retencji**
+   (`App\Domain\Analytics\CookEligibility::excludedUserIds()`) — dwanaście
+   person publikuje z definicji plikowej i nie ma zasilać liczby, która ma
+   mierzyć żywą społeczność (issue #114, ten sam powód, dla którego tamta
+   klasa już wyklucza gospodarza i konta testowe).
+
+**Dlaczego na `users`, nie na `profiles`.** Wszystkie cztery miejsca z punktu
+1 i tak już ładują `User` (`$post->author`, `$recipe->author`,
+`$comment->author`), a `is_seeded` jest faktem o KONCIE (kto może się nim
+posługiwać), nie o publicznej twarzy — ten sam podział, jaki `profiles` już
+ma wobec `users` gdzie indziej w tym pliku.
+
+**Świadomie poza `User::$fillable`**, tym samym powodem co `status`/`role`
+(komentarz przy `$fillable` w `User`, AGENTS.md §7): jedyne miejsce, które to
+ustawia, to `Database\Seeders\TrescZalazkowaSeeder`, wprost przez
+`DB::table('users')->insert()` — ten sam wzorzec zapisu, którego używa
+`TagSeeder::utworzBrakujaceTagi()` dla `tags.is_seeded`.
+
+**Skąd te konta.** `database/seeders/dane/tresc-zalazkowa.json` — dwanaście
+person, czterdzieści przepisów, osiemdziesiąt wpisów, sześćdziesiąt
+komentarzy (D-025, `docs/DECISIONS.md`). Seeder jest idempotentny: drugie
+uruchomienie na tej samej bazie nic nie zmienia (dopasowanie po
+`lower(username)` dla kont, po `(author_id, title)`/`(author_id, body)` dla
+treści) i nigdy nie dotyka konta, którego ta sama nazwa użytkownika należy
+już do prawdziwego człowieka — wtedy import tego jednego konta jest
+pomijany i zgłaszany w raporcie, dokładnie jak `TagSeeder` przy kolizji
+z tagiem utworzonym ręcznie.
+
+**Co ta kolumna świadomie NIE rozstrzyga** — i D-025 zostawia to wprost
+otwarte: co się stanie z tymi dwunastoma kontami, gdy do serwisu dołączą
+prawdziwi ludzie. Zostawienie ich na zawsze zamienia etykietę w stały
+element serwisu; usunięcie kont zabrałoby treść, do której realni
+użytkownicy mogli już coś dopisać (komentarz, „Ugotowałem"). Decyzja
+właściciela, do podjęcia przed otwarciem rejestracji.
+
+**Rollback:** `down()` zdejmuje kolumnę. Nic poza etykietą w interfejsie
+i wykluczeniem z WAC nie czyta `is_seeded`, więc rollback nie kasuje żadnego
+wiersza `users`/`posts`/`recipes`/`comments` — dwanaście kont z pliku staje
+się po prostu nie do odróżnienia od kont zwykłych, a ich treść (i wpływ na
+WAC) wraca do tego, jak wygląda dla każdego innego konta. To jest znany,
+opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
+rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
+co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
+
 ### follows
 `follower_id + followed_id` unique.
 

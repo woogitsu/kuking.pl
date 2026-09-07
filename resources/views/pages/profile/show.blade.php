@@ -33,6 +33,21 @@
             <x-avatar :user="$owner" :size="88" />
             <div class="flex-1 min-w-[14rem]">
                 <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
+                @if($owner->isSeeded())
+                    <p class="mb-3"><x-konto-przykladowe :user="$owner" /></p>
+                    {{--
+                        D-025: oznaczenie MUSI stać przy koncie, nie tylko
+                        w regulaminie. Profil jest jedynym z czterech miejsc
+                        (obok karty wpisu, karty przepisu i komentarza), gdzie
+                        jest miejsce na pełne zdanie, nie tylko na etykietę —
+                        więc tu, i tylko tu, jest ono wypisane wprost.
+                    --}}
+                    <p class="notice">
+                        To konto jest przykładowe: nie ma za nim prawdziwej osoby.
+                        Treści dodała redakcja Kuking, żeby na początek było tu
+                        co poczytać.
+                    </p>
+                @endif
                 <p class="meta m-0 mb-3">
                     &#64;{{ $p->username }}
                     @if($p->region) · {{ $p->region }} @endif

@@ -236,6 +236,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
+            'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
             // w transporcie) — wyciek kopii bazy nie może oddawać drugiego
@@ -401,6 +402,24 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function isErased(): bool
     {
         return $this->status === self::STATUS_ERASED;
+    }
+
+    /**
+     * Konto z treści zalążkowej (`database/seeders/dane/tresc-zalazkowa.json`,
+     * D-025) — atrybut POCHODZENIA danych, tego samego kształtu co
+     * `Tag::is_seeded` (patrz komentarz migracji `..._add_is_seeded_to_users`).
+     *
+     * Nie zmienia NICZEGO w tym, co to konto może czytać/pisać — o tym
+     * decydują `status` i `role`, jak zawsze. Dwa jedyne miejsca, które o to
+     * pytają: widoki, żeby pokazać etykietę „Konto przykładowe" przy autorze
+     * (D-025: „przy koncie, nie tylko w regulaminie" — profil, karta wpisu,
+     * karta przepisu, komentarz), i `App\Domain\Analytics\CookEligibility`,
+     * żeby wykluczyć te konta z Weekly Active Cooks tak samo, jak już są
+     * wykluczone konta testowe i gospodarz (issue #114).
+     */
+    public function isSeeded(): bool
+    {
+        return (bool) $this->is_seeded;
     }
 
     /**
@@ -690,6 +709,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // `status` i `role` są CELOWO poza $fillable — nie wolno ich ustawić
     // masowym przypisaniem z danych żądania. Zmiana stanu konta jest zawsze
     // jawną, nazwaną operacją, nie efektem ubocznym update().
+    //
+    // `is_seeded` jest poza $fillable z tego samego powodu (D-025): jedyne
+    // miejsce, które je ustawia, to `TrescZalazkowaSeeder`, i robi to wprost
+    // przez `DB::table('users')->insert()`, nie przez formularz.
     // ---------------------------------------------------------------------
 
     /**

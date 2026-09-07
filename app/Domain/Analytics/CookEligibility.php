@@ -30,6 +30,17 @@ use App\Models\User;
  * policzyć do North Star" (analityka). Gospodarz jest w pełni widoczny i jego
  * treść ma się wyświetlać — po prostu nie ma zasilać liczby, która ma mierzyć
  * PRAWDZIWE zaangażowanie społeczności.
+ *
+ * KONTA ZALĄŻKOWE (`users.is_seeded`, D-025) SĄ TU Z TEGO SAMEGO POWODU
+ * Dwanaście person z `tresc-zalazkowa.json` publikuje z definicji plikowej,
+ * jednorazowo przy imporcie — ale ich treść zostaje na zawsze, więc
+ * jakiekolwiek późniejsze „Ugotowałem"/wpis/przepis PRZYPISANY do takiego
+ * konta (np. przez pomyłkę importu albo ręczną edycję w panelu) i tak
+ * fałszowałby liczbę tak samo, jak zrobiłby to gospodarz. Wykluczenie idzie
+ * po KOLUMNIE, nie po liście nazw w configu (jak konta testowe): `is_seeded`
+ * jest już jedynym źródłem prawdy o tym, które konta pochodzą z pliku,
+ * a druga lista obok niej rozjechałaby się przy pierwszej aktualizacji
+ * treści zalążkowej.
  */
 final class CookEligibility
 {
@@ -49,10 +60,15 @@ final class CookEligibility
             ->pluck('id')
             ->all();
 
+        $zZalazka = User::query()
+            ->where('is_seeded', true)
+            ->pluck('id')
+            ->all();
+
         $nazwy = $this->wykluczoneNazwy();
 
         if ($nazwy === []) {
-            return array_values(array_unique($zStatusu));
+            return array_values(array_unique([...$zStatusu, ...$zZalazka]));
         }
 
         $zNazwy = Profile::query()
@@ -63,7 +79,7 @@ final class CookEligibility
             ->pluck('user_id')
             ->all();
 
-        return array_values(array_unique([...$zStatusu, ...$zNazwy]));
+        return array_values(array_unique([...$zStatusu, ...$zZalazka, ...$zNazwy]));
     }
 
     /**

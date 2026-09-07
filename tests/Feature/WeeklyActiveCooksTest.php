@@ -212,6 +212,33 @@ class WeeklyActiveCooksTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // Konta zalążkowe (`users.is_seeded`, D-025) — po kolumnie, nie po
+    // liście nazw w configu jak konta testowe wyżej.
+    // ---------------------------------------------------------------
+
+    public function test_konto_zalazkowe_jest_wykluczone(): void
+    {
+        $basia = $this->user('basia');
+        Post::factory()->create([
+            'author_id' => $basia->getKey(),
+            'published_at' => $this->wTygodniu(),
+        ]);
+
+        $persona = $this->user('halina', ['is_seeded' => true]);
+        Post::factory()->create([
+            'author_id' => $persona->getKey(),
+            'published_at' => $this->wTygodniu('11:00:00'),
+        ]);
+
+        $tydzien = $this->tydzienZWyniku($this->wac()->weekly(), self::TYDZIEN_START);
+
+        // Bez wykluczenia ten tydzień pokazuje 2 (Basia + persona) — dokładnie
+        // to zniekształcenie, przed którym `CookEligibility` już chroni dla
+        // gospodarza i kont testowych (issue #114).
+        $this->assertSame(1, (int) $tydzien->weekly_active_cooks);
+    }
+
+    // ---------------------------------------------------------------
     // Definicja WAC (kontrola: poprawka nie psuje tego, co już działało)
     // ---------------------------------------------------------------
 
