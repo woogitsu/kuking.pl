@@ -236,6 +236,22 @@ ten kod pęka:
   układający ją PO PÓŁNOCY zapisywał ją pod datą wczorajszą — widział ją
   jeszcze godzinę-dwie i znikała mu tego samego dnia. Naprawione nowym
   `Czas::dzisiajData()`, żeby „dziś człowieka" miało jedno źródło.
+- **Wpis zbanowanego autora dalej stał w feedzie obserwowanych.**
+  `PostPolicy::view()` dawał 403 pod adresem wpisu, a `FollowingFeed::
+  paginate()` tej reguły nie miał — mimo że `isEmptyFor()`, kilkanaście
+  linijek niżej W TYM SAMYM PLIKU, stosowało ją od początku. Ten sam wpis
+  znikał więc spod własnego adresu i jednocześnie stał w feedzie każdego,
+  kto tę osobę obserwował, ze zdjęciem, nazwą i treścią; strona główna
+  zalogowanej osoby pokazuje ten sam feed, więc leciało na dwa ekrany.
+  To jest dokładnie usterka W5-08 (zeszyt, mapa strony) w miejscu, do
+  którego tamta poprawka nie dotarła. `DiscoverFeed`, `TopicFeed`,
+  `CollectionController` i `SitemapController` regułę miały — zmierzone,
+  nie założone. Naprawione wąskim progiem `tylkoOdAktywnychAutorow()`, tym
+  samym, którego używa `isEmptyFor()`: te dwie metody muszą się zgadzać,
+  inaczej feed złożony wyłącznie z wpisów osoby ZAWIESZONEJ meldowałby
+  „pusto" i jednocześnie coś pokazywał. Poluzowanie progu do granicy
+  z polityki (czyli wpuszczenie zawieszonych) to osobna decyzja, nie
+  poprawka luki.
 - **Trzecie miejsce z tą strefą było w metrykach — i psuło je inaczej.**
   `date_trunc('week', activity_at)` w `WeeklyActiveCooks`
   i `CookRetentionCohorts` obcinał tydzień w strefie SESJI Postgresa, której

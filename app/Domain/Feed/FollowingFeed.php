@@ -38,6 +38,21 @@ final class FollowingFeed
             ->whereIn('author_id', $authorIds)
             // Wpisy "tylko dla obserwujących" widzi obserwujący i autor.
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            // TEGO TU NIE BYŁO, a `isEmptyFor()` kilkanaście linijek niżej
+            // stosowało to od początku. Skutek: wpis zbanowanego autora
+            // znikał spod własnego adresu (`PostPolicy::view` dawał 403),
+            // ale dalej stał w feedzie każdego, kto tę osobę obserwował —
+            // ze zdjęciem, nazwą i treścią. Ta sama usterka co W5-08
+            // (zeszyt i mapa strony), tylko w innym miejscu i o dwie metody
+            // od kodu, który regułę znał.
+            //
+            // Wąski próg (`status = active`), nie `jestDostepnyJakoAutor()`:
+            // taki stosuje `isEmptyFor()`, a te dwie metody MUSZĄ się
+            // zgadzać — inaczej feed złożony wyłącznie z wpisów osoby
+            // zawieszonej meldowałby „pusto" i jednocześnie coś pokazywał.
+            // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
+            // zawieszonych) to osobna decyzja, nie poprawka luki.
+            ->tylkoOdAktywnychAutorow()
             ->with([
                 'author.profile.avatar',
                 'media',
