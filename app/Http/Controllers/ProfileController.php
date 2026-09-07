@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Profile;
+use App\Support\Czas;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -102,7 +103,17 @@ class ProfileController extends Controller
         return $owner->posts()
             ->published()
             ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
-            ->when($rok !== null, fn ($query) => $query->whereRaw('extract(year from published_at) = ?', [$rok]))
+            // `at time zone`, a nie samo `extract(year from …)`. `published_at`
+            // jest kolumną `timestamptz`, więc gołe `extract()` czyta rok w UTC,
+            // a człowiek widzi przy tym wpisie datę lokalną (`App\Support\Czas`).
+            // Wpis z sylwestrowej nocy — 1 stycznia 00:30 czasu polskiego, czyli
+            // 31 grudnia 23:30 UTC — lądował w archiwum pod poprzednim rokiem,
+            // z kartą pokazującą „1 stycznia" pod nagłówkiem roku wcześniejszego.
+            // Ten sam błąd co we `Wspomnieniach`, tylko o rok zamiast o dobę.
+            ->when($rok !== null, fn ($query) => $query->whereRaw(
+                'extract(year from published_at at time zone ?) = ?',
+                [Czas::strefa(), $rok],
+            ))
             ->with(['media', 'author.profile.avatar'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->latest('published_at')
@@ -124,7 +135,13 @@ class ProfileController extends Controller
         return $owner->posts()
             ->published()
             ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
-            ->selectRaw('distinct extract(year from published_at)::int as rok')
+            // Ta sama strefa co filtr w `postsFor()` — inaczej lista lat i lista
+            // wpisów odpowiadałyby na to samo pytanie inaczej, i rok kliknięty
+            // z listy potrafiłby nie mieć ani jednego wpisu.
+            ->selectRaw(
+                'distinct extract(year from published_at at time zone ?)::int as rok',
+                [Czas::strefa()],
+            )
             ->orderByRaw('rok desc')
             ->pluck('rok')
             ->map(fn ($rok): int => (int) $rok);

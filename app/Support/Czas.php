@@ -54,6 +54,19 @@ final class Czas
         return $moment === null ? '' : self::data($moment, $format);
     }
 
+    /**
+     * Dzisiejsza DATA w strefie człowieka, jako `Y-m-d`.
+     *
+     * Nie `now()->toDateString()`. To drugie liczy dzień w `app.timezone`,
+     * czyli w UTC, i przez pierwsze dwie godziny polskiej doby (jedną zimą)
+     * zwraca datę wczorajszą. Wszędzie, gdzie „dzień" jest pojęciem człowieka
+     * — tablica dnia, archiwum, wspomnienia — musi być stąd, a nie z `now()`.
+     */
+    public static function dzisiajData(): string
+    {
+        return self::lokalnie(now())->toDateString();
+    }
+
     public static function strefa(): string
     {
         return (string) config('kuking.strefa', 'Europe/Warsaw');

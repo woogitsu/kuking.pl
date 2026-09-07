@@ -221,6 +221,21 @@ ten kod pęka:
   Dwa miejsca połykały taki wyjątek CAŁKIEM (`RegisterController`
   i `OnboardingController` przy obserwowaniu po rejestracji, `ResolveAppeal`
   przy cofaniu decyzji) — tam awaria bazy nie zostawiała żadnego śladu.
+- **Ta sama pomyłka ze strefą czasu była jeszcze w dwóch miejscach.**
+  Po `Wspomnieniach` przeszukałem kod pod kątem tej samej klasy błędu
+  („dzień/rok liczony z `timestamptz` w UTC, pokazywany człowiekowi lokalnie")
+  i znalazłem dwa kolejne, oba potwierdzone pomiarem, zanim je ruszyłem:
+  **(1) archiwum profilu** — `extract(year from published_at)` bez
+  `at time zone`, więc wpis z 1 stycznia 00:30 czasu polskiego lądował pod
+  poprzednim rokiem, a jego własna karta pokazywała przy nim „1 stycznia"
+  nowego roku; lista lat miała ten sam błąd, więc obie strony ekranu
+  odpowiadały na to samo pytanie zgodnie i zgodnie źle.
+  **(2) „Kuking na dziś"** — `shown_on` to zwykła kolumna `date`, a zapis
+  (`now()->toDateString()`) i odczyt (`whereDate('shown_on', now())`) liczyły
+  „dziś" w UTC. Tablica zmieniała się o 02:00 czasu polskiego, a gospodarz
+  układający ją PO PÓŁNOCY zapisywał ją pod datą wczorajszą — widział ją
+  jeszcze godzinę-dwie i znikała mu tego samego dnia. Naprawione nowym
+  `Czas::dzisiajData()`, żeby „dziś człowieka" miało jedno źródło.
 - **`/health` pokazywał surowy komunikat wyjątku CAŁEMU INTERNETOWI.** To ten
   sam błąd co W7-07 (`failure_reason` eksportu RODO), tylko na trasie bez
   `auth` i bez limitu zapytań — bo mieć ich nie może: Railway odpytuje ją
