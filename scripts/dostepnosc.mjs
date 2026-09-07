@@ -161,6 +161,9 @@ const EKRANY = [
    * sprawdzając niczego (patrz nagłówek pliku). Seedujemy TU, w automacie,
    * a nie w `DemoSeeder` (nie nasze do ruszania) — dokładnie tym samym
    * mechanizmem, którym `adresPrzepisu` niżej pyta bazę o gotowe dane.
+   * Decyzja MUSI dotyczyć konta, którym automat się loguje: ten ekran widzi
+   * wyłącznie osoba, której decyzja dotyczy, a dla każdej innej serwis
+   * odpowiada 403 — czyli stroną błędu, która przechodzi audyt.
    * Rozwiązywane przez `znajdz: 'odwolanie'` w `sciezkaEkranu`.
    */
   { nazwa: 'odwołanie od decyzji', adres: null, znajdz: 'odwolanie', zalogowany: true },
@@ -241,6 +244,25 @@ const BLOKUJACE = new Set(['critical', 'serious']);
 // miejsca w tym pliku.
 const BAZA_DOMYSLNA = 'kuking_a11y';
 
+/*
+ * KONTO, KTÓRYM AUTOMAT SIĘ LOGUJE — jedna nazwa, czytana w trzech miejscach.
+ *
+ * `ania`, nie `basia`: „basia" jest jednocześnie personą treści zalążkowej,
+ * a persony mają hasło LOSOWE i nie są logowalne (D-025). `DemoSeeder`
+ * znajdował wtedy personę i nie ustawiał jej hasła demo, więc logowanie cicho
+ * padało — automat mierzył ekrany GOŚCIA, będąc pewnym, że mierzy ekrany
+ * zalogowanej osoby.
+ *
+ * Stała stoi w zasięgu modułu, bo tę samą nazwę musi znać logowanie ORAZ dwa
+ * ekrany, które są dostępne WYŁĄCZNIE dla właściciela treści: odwołanie od
+ * decyzji (dla osoby, której decyzja dotyczy) i kolejność zdjęć we wpisie
+ * (`PostPolicy::update` — tylko autor). Gdy te trzy miejsca rozjeżdżały się
+ * na dwa różne konta, serwis odpowiadał 403, a automat wpisywał „✓": mierzył
+ * stronę błędu, która przechodzi każdy audyt dostępności, nie sprawdzając
+ * niczego. Zmierzone 7 września, po dodaniu sprawdzenia kodu HTTP niżej.
+ */
+const KONTO_ZALOGOWANE = 'ania';
+
 function log(...args) {
   console.log(...args);
 }
@@ -290,12 +312,8 @@ async function stanZalogowanego(przegladarka, adres) {
   const kontekst = await przegladarka.newContext();
   const strona = await kontekst.newPage();
   await strona.goto(`${adres}/login`);
-  // `ania`, nie `basia`: „basia" jest jednocześnie personą treści
-  // zalążkowej, a persony mają hasło LOSOWE i nie są logowalne (D-025).
-  // `DemoSeeder` znajdował wtedy personę i nie ustawiał jej hasła demo, więc
-  // logowanie tutaj cicho padało — automat mierzył ekrany GOŚCIA, będąc
-  // pewnym, że mierzy ekrany zalogowanej osoby.
-  await strona.fill('input[name="login"]', 'ania');
+  // Nazwa konta — `KONTO_ZALOGOWANE` wyżej, razem z uzasadnieniem.
+  await strona.fill('input[name="login"]', KONTO_ZALOGOWANE);
   await strona.fill('input[name="password"]', 'haslo-testowe-123');
   await Promise.all([
     strona.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),
@@ -451,7 +469,7 @@ const idOdwolania = (() => {
     "$m = App\\Models\\User::where('role','moderator')->value('id'); "
     // `username` mieszka na `Profile` (klucz główny `user_id`), nie na
     // `User` — patrz komentarz w App\Models\User o danych publicznych.
-    + "$b = App\\Models\\Profile::where('username','basia')->value('user_id'); "
+    + `$b = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
     + "if (!$m || !$b) { echo ''; exit; } "
     + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
     + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
@@ -472,8 +490,8 @@ const idOdwolania = (() => {
 })();
 
 if (idOdwolania === null) {
-  console.error('BŁĄD: nie udało się przygotować decyzji moderacyjnej dla „basia" — '
-    + 'ekran odwołania nie zostałby sprawdzony (brak konta moderatora albo basi w bazie).');
+  console.error(`BŁĄD: nie udało się przygotować decyzji moderacyjnej dla „${KONTO_ZALOGOWANE}" — `
+    + 'ekran odwołania nie zostałby sprawdzony (brak konta moderatora albo tego konta w bazie).');
   zamknij();
   process.exit(1);
 }
@@ -485,7 +503,8 @@ if (idOdwolania === null) {
  * `znajdz: 'gotowanie'` → tryb gotowania tego samego przepisu,
  * `znajdz: 'wpis:carousel'` → wpis w tym trybie,
  * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu,
- * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla basi.
+ * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla konta,
+ *                        którym automat się loguje (`KONTO_ZALOGOWANE`).
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
@@ -590,7 +609,37 @@ for (const wariant of WARIANTY) {
 
     const zamowiony = sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`;
 
-    await strona.goto(zamowiony, { waitUntil: 'domcontentloaded' });
+    const odpowiedz = await strona.goto(zamowiony, { waitUntil: 'domcontentloaded' });
+
+    /*
+     * KOD HTTP MUSI BYĆ 200 — I TO JEST OSOBNE SPRAWDZENIE NIŻ ŚCIEŻKA NIŻEJ.
+     *
+     * Strona 404 ma tę samą ścieżkę, o którą prosiliśmy, więc porównanie
+     * ścieżek jej NIE łapie. A strona błędu to kilka wierszy tekstu i jeden
+     * link: przechodzi każdy audyt dostępności, nie sprawdzając niczego —
+     * dokładnie ta klasa fałszywej zieleni, przed którą ostrzega nagłówek
+     * tego pliku i przez którą ekran przepisu raz już po cichu wypadł
+     * z raportu.
+     *
+     * ZMIERZONE 7 września: `/tag/zupy` odpowiada 200, a `/tag/zupa` — 404,
+     * czyli odwrotnie niż mówi notatka w `docs/HANDOVER.md` §7.2.2. Powód:
+     * ten skrypt sieje SAMYM `DemoSeeder`-em, bez `TagSeeder`-a, więc słownika
+     * tagów w bazie nie ma i `ResolveTagsForPost` nie ma czego scalać —
+     * „zupy" zostaje tagiem kanonicznym. Scalenie do „zupa" z D-026 zachodzi
+     * dopiero po `php artisan db:seed` z oboma seederami. Gdyby `DemoSeeder`
+     * kiedyś przestał tworzyć ten tag, TO sprawdzenie o tym powie — samo
+     * porównanie ścieżek milczało.
+     */
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(
+        `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odpowiedział kodem ${kod}. `
+        + 'Raport badałby stronę błędu, która przechodzi audyt, nie sprawdzając niczego.',
+      );
+      process.exitCode = 1;
+      continue;
+    }
 
     /*
      * SPRAWDZAMY, CZY DOSTALIŚMY TO, O CO PROSILIŚMY.
@@ -758,8 +807,24 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
       const kontekst = ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia;
       const strona = await kontekst.newPage();
 
-      await strona.goto(sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
-        { waitUntil: 'domcontentloaded' });
+      const odpowiedzUkladu = await strona.goto(
+        sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
+        { waitUntil: 'domcontentloaded' },
+      );
+
+      // Ten sam powód co w pętli axe wyżej: strona błędu nie przewija się
+      // w bok, więc bez tego sprawdzenia zgłaszałaby się jako poprawna.
+      const kodUkladu = odpowiedzUkladu?.status() ?? 0;
+
+      if (kodUkladu !== 200) {
+        console.error(
+          `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odpowiedział kodem ${kodUkladu} `
+          + 'przy pomiarze układu.',
+        );
+        process.exitCode = 1;
+        await strona.close();
+        continue;
+      }
 
       if (skala) {
         await strona.evaluate(
