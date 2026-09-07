@@ -60,8 +60,27 @@ owner asked for it in English.
 
 ## 2. Where things stand
 
-- **1097 tests pass** (was 889 at the start of this session), PHPStan clean
+- **1152 tests pass** (was 889 at the start of this session), PHPStan clean
   (level 1 + Larastan), Pint clean.
+- **Topics are gone; tags replaced them** (D-021, owner's decision „Tematy
+  usuwamy, tylko tagi"). Five tables (`tags`, `tag_aliases`, `post_tags`,
+  `tag_follows`, `tag_promotions`), a public `/tag/{slug}` page, tag
+  following, a JS-free tag field on the post form, `TagFeed` in place of
+  `TopicFeed`, and a host screen at `/admin/tagi-promowane` for the
+  promoted-tag list that onboarding reads. The drop migration refuses to
+  run if `topic_follows` or `posts.topic_id` carry any data — it measures
+  instead of trusting the note in D-021.
+- **A named tag caretaker („ambasador") is NOT built** and must not be
+  promised: `tag_promotions` has no `curator_id` and there is no screen to
+  assign people. `docs/product/COLD_START.md` §5 now says this in place of
+  the old „Ambasadorzy tematów" row.
+- `phpstan-bootstrap.php` is the PHPStan half of the worktree trap that
+  `tests/bootstrap.php` documents for PHPUnit: with a symlinked `vendor/`,
+  Larastan instantiates models through Composer's frozen classmap, which
+  points at the main checkout — so a model that exists only in the worktree
+  gets a false „undefined property", and one that exists in both is
+  analysed from the **stale** copy. That second case is false green, which
+  is worse. No-op in the main checkout and in CI.
 - Accessibility automation (`node scripts/dostepnosc.mjs`): **everything green**
   — 0 axe violations across all four variants, 0 horizontal overflows,
   0 topbar misalignments, 0 inconsistent page widths. The last overflow (the

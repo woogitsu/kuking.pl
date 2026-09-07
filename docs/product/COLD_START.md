@@ -123,7 +123,7 @@ Nakład: **2–2,5 h dziennie, 7 dni w tygodniu.** To jest cena tego projektu i 
 | **Publikacja własna 13:00** | 15 min | Gospodarz wrzuca swój obiad — zdjęcie + kilka słów. Raz w tygodniu pełny przepis z wypełnionym „skąd ten przepis” (wzorzec dla innych) |
 | **Południe 14:00–14:30** | 30 min | Druga tura komentarzy. `Ugotowałem` z przepisu kogoś z klubu (min. 3 w tygodniu — to napędza najważniejszą pętlę) |
 | **Wieczór 19:30–20:30** | 60 min | Godzina szczytu (ludzie wrzucają po obiedzie/kolacji). Komentarze, odpowiedzi, prywatne przywitanie nowych osób. Zaproszenie 1–2 nowych osób do klubu |
-| **Poniedziałek +30 min** | 30 min | Ogłoszenie tematu tygodnia + własny wpis do tematu jako pierwszy |
+| **Poniedziałek +30 min** | 30 min | Ogłoszenie **tagu tygodnia** (dodanie tagu do listy promowanych, `/admin/tagi-promowane`) + własny wpis z tym tagiem jako pierwszy |
 | **Piątek +30 min** | 30 min | Kolekcja tygodnia z treści użytkowników (maks. 2 wpisy od jednej osoby) + przygotowanie digestu |
 
 ### 4.3 Zasady komentowania (twarde)
@@ -156,7 +156,7 @@ Nakład: **2–2,5 h dziennie, 7 dni w tygodniu.** To jest cena tego projektu i 
 | 1 | Prosi 2 osoby z klubu, żeby też skomentowały („trzy odpowiedzi” to progowa liczba, przy której człowiek czuje się przyjęty) |
 | 2–3 | Podsuwa jej 1 przepis dopasowany do tego, co gotuje: „Pani Anno, tu jest przepis na sernik, o który Pani pytała” |
 | 4–5 | Jeśli nie ma drugiego wpisu — komentarz pod pierwszym, nie mail |
-| 7 | Jeśli publikuje: zaproszenie do tematu tygodnia. Jeśli milczy: jedna wiadomość, potem cisza (nie nagabujemy) |
+| 7 | Jeśli publikuje: zaproszenie do tagu tygodnia. Jeśli milczy: jedna wiadomość, potem cisza (nie nagabujemy) |
 
 ---
 
@@ -166,12 +166,12 @@ Tu **musi** się zmienić model, bo gospodarz przestaje wyrabiać. Zmiana polega
 
 | Dźwignia | Co robimy | Warunek wejścia |
 |---|---|---|
-| **Ambasadorzy tematów** | 8–12 najaktywniejszych osób dostaje osobiste zaproszenie: „prowadź temat »chleb i zakwas«”. Zadanie: 3 komentarze dziennie pod nowymi wpisami w temacie. Nagroda: widoczna rola „prowadzi temat”, wpływ na kolekcje, kontakt z redakcją | ≥200 użytkowników, ≥5 tematów z ruchem |
+| **Opiekunowie tagów** | 8–12 najaktywniejszych osób dostaje osobiste zaproszenie: „prowadź tag »chleb i zakwas«”. Zadanie: 3 komentarze dziennie pod nowymi wpisami z tym tagiem. Nagroda: widoczna rola „prowadzi tag”, wpływ na kolekcje, kontakt z gospodarzem. **Kod tego dziś nie umie** — nie ma kolumny `curator_id` na `tag_promotions` ani ekranu do przypisywania osób (D-021 świadomie tego nie objęło). Do czasu dołożenia tej kolumny rola jest umową społeczną, nie funkcją serwisu, i tak trzeba ją zapowiadać | ≥200 użytkowników, ≥5 tagów z ruchem |
 | **Otwarcie kół** (V1) | Otwieramy 3–5 kół z najdłuższymi listami zapisów (mechanika z `SOUL.md` 4.7), każde z wyznaczonym gospodarzem | Gotowa funkcja grup + ambasadorzy działają ≥6 tygodni |
 | **Zaproszenia rodzinne** | „Zaproś córkę / siostrę / sąsiadkę” — z realnym powodem: „żeby zobaczyła Twoją rodzinną książkę”. Nie punkty za zaproszenia | ≥1000 dań w serwisie (żeby zaproszony coś zobaczył) |
 | **Koła Gospodyń — z jednego na wiele** | Pierwsze koło jako referencja („KGW z X już z nami”). Wtedy list do 100 kół konwertuje znacznie lepiej niż zimny | 1 aktywne koło z ≥5 publikującymi osobami |
 | **Prasa lokalna i senioralna** | Gazety powiatowe, portale miejskie, prasa dla 50+ („Przyjaciółka”-typ, „Świat Seniora”-typ), audycje lokalnego radia. Temat dla nich: „Polacy ratują przepisy po babciach” — nie „nowy startup” | Historia do opowiedzenia: 3–5 realnych rodzinnych receptur z fotografiami zeszytów, za zgodą właścicielek |
-| **Wielkie momenty roku** | Wigilia (24 XII 2026), tłusty czwartek (4 II 2027), Wielkanoc (28 III 2027) jako naturalne szczyty — do każdego przygotowany temat i kolekcja | Zaplanować 3 tygodnie wcześniej |
+| **Wielkie momenty roku** | Wigilia (24 XII 2026), tłusty czwartek (4 II 2027), Wielkanoc (28 III 2027) jako naturalne szczyty — do każdego przygotowany tag promowany i kolekcja. Sezonowa okazja nie potrzebuje osobnego mechanizmu: gospodarz dodaje tag „wigilia” do listy kilka tygodni wcześniej, z notatką, tym samym formularzem co na co dzień | Zaplanować 3 tygodnie wcześniej |
 | **SEO — dopiero teraz** | Publiczne przepisy, `Recipe` schema, sitemapa (już w MVP technicznie), ale **aktywna praca nad ruchem z Google startuje przy ~1500 przepisach z prawdziwą treścią** | Nigdy przed 200 użytkownikami — patrz anty-wzorce |
 
 Skalowanie odzewu przy 2000 użytkowników:
@@ -179,7 +179,7 @@ Skalowanie odzewu przy 2000 użytkowników:
 | Warstwa | Kto odpowiada |
 |---|---|
 | Nowi użytkownicy (pierwsze 3 wpisy) | Gospodarz — nadal ręcznie, bez wyjątku |
-| Wpisy w tematach | Ambasadorzy tematów |
+| Wpisy z promowanym tagiem | Opiekunowie tagów (patrz zastrzeżenie wyżej) |
 | Reszta | Społeczność (mierzymy `% wpisów z ≥1 odpowiedzią` — patrz `RETENTION_LOOPS.md`) |
 
 ---
@@ -194,9 +194,9 @@ Rozwiązanie: `/home` to nie „feed”, to **strona z blokami**, których kolej
 
 | Stan użytkownika | Kolejność bloków na `/home` |
 |---|---|
-| **0 obserwowanych, 0 wpisów** (dzień 1) | 1. Powitanie z imieniem + `[ Dodaj pierwsze zdjęcie ]` · 2. **Temat tygodnia** · 3. „Świeżo z Kuking” (ostatnie 20 publicznych wpisów, chronologicznie) · 4. „Ludzie, którzy gotują jak Ty” (5 osób wg zainteresowań z onboardingu, z podglądem 3 zdjęć każdej) · 5. „Teraz sezon na…” |
-| **0–4 obserwowanych, ≥1 wpis** | 1. Pytanie dnia · 2. Feed obserwowanych (jeśli niepusty) · 3. „Świeżo z Kuking” · 4. Temat tygodnia · 5. Propozycje osób |
-| **5+ obserwowanych, aktywny** | 1. Pytanie dnia · 2. **Feed obserwowanych** (dominuje) · 3. Na końcu feedu: „To wszystko z dzisiaj” + „Świeżo z Kuking” jako dokładka · 4. Temat tygodnia raz w tygodniu na górze (poniedziałek–wtorek) |
+| **0 obserwowanych, 0 wpisów** (dzień 1) | 1. Powitanie z imieniem + `[ Dodaj pierwsze zdjęcie ]` · 2. **Tag tygodnia** · 3. „Świeżo z Kuking” (ostatnie 20 publicznych wpisów, chronologicznie) · 4. „Ludzie, którzy gotują jak Ty” (5 osób wg zainteresowań z onboardingu, z podglądem 3 zdjęć każdej) · 5. „Teraz sezon na…” |
+| **0–4 obserwowanych, ≥1 wpis** | 1. Pytanie dnia · 2. Feed obserwowanych (jeśli niepusty) · 3. „Świeżo z Kuking” · 4. Tag tygodnia · 5. Propozycje osób |
+| **5+ obserwowanych, aktywny** | 1. Pytanie dnia · 2. **Feed obserwowanych** (dominuje) · 3. Na końcu feedu: „To wszystko z dzisiaj” + „Świeżo z Kuking” jako dokładka · 4. Tag tygodnia raz w tygodniu na górze (poniedziałek–wtorek) |
 | **Wracający po >14 dniach** | 1. „Dobrze, że wracasz” + 3 rzeczy, które go dotyczą (kto ugotował z jego przepisu, kto skomentował) · 2. Feed obserwowanych · 3. Reszta |
 
 ### 6.2 „Świeżo z Kuking” — zasady, żeby nie było algorytmem
@@ -227,7 +227,7 @@ Uczciwość co do skali („jest nas 87”) jest przewagą, nie wstydem: człowi
 | Mechanizm | Efekt |
 |---|---|
 | Automatyczne obserwowanie gospodarza po rejestracji (z możliwością cofnięcia) | Feed nigdy nie jest pusty — gospodarz publikuje codziennie |
-| Obserwowanie **tematu**, nie tylko osoby (`SOUL.md` 4.7) | Osoba z 0 obserwowanymi, ale obserwująca „przetwory”, ma pełny feed |
+| Obserwowanie **tagu**, nie tylko osoby (`SOUL.md` 4.7) | Osoba z 0 obserwowanymi, ale obserwująca „przetwory”, ma pełny feed (`TagFeed`) |
 | Propozycje osób z podglądem 3 zdjęć | Ludzie 50+ nie klikają w listę nazwisk; klikają w zdjęcie zupy |
 | Jawny koniec feedu | Zamiast pustego przewijania w nieskończoność: „To wszystko z dzisiaj” |
 
@@ -263,9 +263,17 @@ Cel liczbowy: **od kliknięcia „Załóż konto” do pierwszego komentarza pod
 
 ## 8. Kalendarz pierwszych 12 tygodni (T1 = 2–8 XI 2026)
 
-Zasady: jeden temat na tydzień, ogłaszany w poniedziałek, gospodarz publikuje pierwszy, w piątek kolekcja z wpisów uczestników. Temat ma być **łatwy** (każdy to gotuje), a nie ambitny.
+Zasady: jeden tag na tydzień, ogłaszany w poniedziałek, gospodarz publikuje pierwszy, w piątek kolekcja z wpisów uczestników. Tag tygodnia ma być **łatwy** (każdy to gotuje), a nie ambitny.
 
-| # | Tydzień | Temat tygodnia | Zaczepienie sezonowe / kalendarzowe | Cel dodatkowy |
+> **Słownictwo po D-021.** Ten kalendarz był pisany, gdy w serwisie istniały
+> Tematy — osobny typ obiektu z zamkniętą listą 30 pozycji. Tematów już nie ma
+> (D-021, „Tematy usuwamy, tylko tagi”). „Tag tygodnia” to zwykły tag, który
+> gospodarz na czas akcji trzyma na liście promowanych — ta lista zasila
+> onboarding i szynę na stronie głównej. Nazwy tygodni niżej są nazwami
+> **akcji**, nie identyfikatorami tagów: tydzień „Twoje pierogi” prowadzi się
+> na tagu `pierogi`, a nie tworzy się tagu o nazwie całego hasła.
+
+| # | Tydzień | Tag tygodnia (hasło akcji) | Zaczepienie sezonowe / kalendarzowe | Cel dodatkowy |
 |---|---|---|---|---|
 | T1 | 2–8 XI | **„Co dziś ugotowałaś?”** — bez tematu, tylko rytuał | Start klubu, po Zaduszkach | Nauczyć podstawowej czynności: zdjęcie + kilka słów |
 | T2 | 9–15 XI | **„Coś z pieca”** — pieczone mięso, warzywa, zapiekanki | **Św. Marcin 11 XI** — gęsina; początek pieczenia na zimno | Pierwsze przepisy pełne, nie tylko wpisy |
@@ -282,10 +290,10 @@ Zasady: jeden temat na tydzień, ogłaszany w poniedziałek, gospodarz publikuje
 
 Dalej (poza pierwszymi 12): tłusty czwartek **4 II 2027** (pączki i faworki — łatwy wiralny moment), post i śledzie, Wielkanoc **28 III 2027** (mazurki, żurek, jajka), szparagi i rabarbar (V), truskawki (VI), ogórki i kiszenie (VII–VIII), przetwory i powidła ze śliwek (IX), grzyby (IX–X), dynia i wykopki (X), kapusta kiszona (X–XI).
 
-Reguły prowadzenia tematów:
-1. Temat to **zaproszenie, nie konkurs** — nie ma zwycięzcy, nie ma jury, nie ma nagrody.
-2. Uczestnictwo w temacie = zwykły wpis z wybranym tematem. Nie osobny formularz.
-3. Jeśli w temacie jest <5 wpisów do środy, gospodarz osobiście prosi 5 osób z klubu. Temat bez uczestników jest gorszy niż brak tematu.
+Reguły prowadzenia tagu tygodnia:
+1. Tag tygodnia to **zaproszenie, nie konkurs** — nie ma zwycięzcy, nie ma jury, nie ma nagrody.
+2. Uczestnictwo = zwykły wpis z wybranym tagiem. Nie osobny formularz — i to jest dziś literalnie prawda, bo formularz wpisu ma pole tagów, działające bez JavaScriptu.
+3. Jeśli pod tagiem jest <5 wpisów do środy, gospodarz osobiście prosi 5 osób z klubu. Tag tygodnia bez uczestników jest gorszy niż brak akcji.
 4. W piątek kolekcja: „Wasze pierogi — 23 dania od 14 osób”, maks. 2 wpisy od jednej osoby.
 
 ---
@@ -319,7 +327,7 @@ Definicje spójne z `docs/PRODUCT.md` i `docs/SEO_ANALYTICS_GROWTH.md`. **WAC** 
 | `Ugotowałem` / tydzień | ≥40 |
 | Przepisy z ≥3 wykonaniami | ≥15 |
 | **% odpowiedzi udzielonych nie przez redakcję** | ≥60% |
-| Ambasadorzy tematów działający ≥4 tygodnie | ≥6 |
+| Opiekunowie tagów działający ≥4 tygodnie | ≥6 |
 | Zgłoszenia / 1000 wpisów | <5, kolejka moderacji obsługiwana <24 h |
 | Restore drill wykonany | tak |
 
@@ -334,7 +342,7 @@ Definicje spójne z `docs/PRODUCT.md` i `docs/SEO_ANALYTICS_GROWTH.md`. **WAC** 
 | WAC | ≥600 |
 | WAU/MAU | ≥40% |
 | Wpisy z ≥1 odpowiedzią (bez redakcji) | ≥70% |
-| Koła / tematy z własnym życiem (≥10 wpisów/tydz.) | ≥5 |
+| Koła / tagi z własnym życiem (≥10 wpisów/tydz.) | ≥5 |
 
 ### Tablica cotygodniowa gospodarza (7 liczb, nic więcej)
 
@@ -350,14 +358,14 @@ Diagnoza zawsze przed leczeniem. Cztery typowe awarie i odpowiedź na każdą:
 |---|---|---|
 | **Ludzie zakładają konta i nie publikują** | Za wysoki próg albo wstyd przed zdjęciem | Wrócić do concierge onboardingu 1:1 dla 100% nowych. Skrócić onboarding do dwóch ekranów. Sprawdzić na 5 osobach 60+, gdzie pada pytanie „co mam kliknąć” |
 | **Publikują raz i nie wracają** | Brak odzewu albo brak powodu powrotu | Sprawdzić `% wpisów bez odpowiedzi`. Jeśli >0 — to jest cała odpowiedź. Jeśli 0 — problem w powiadomieniach (czy człowiek w ogóle widzi, że mu odpowiedziano?) |
-| **Publikują, ale nikt nie gotuje z przepisów** | Za mało przepisów albo przepisy nieprzydatne teraz | Tematy sezonowe pod natychmiastową potrzebę (T6 „kapusta i grzyby”). Gospodarz gotuje 3× w tygodniu z cudzych przepisów. Wprowadzić „Będziesz pierwsza?” pod przepisami bez wykonań |
+| **Publikują, ale nikt nie gotuje z przepisów** | Za mało przepisów albo przepisy nieprzydatne teraz | Tagi sezonowe pod natychmiastową potrzebę (T6 „kapusta i grzyby”). Gospodarz gotuje 3× w tygodniu z cudzych przepisów. Wprowadzić „Będziesz pierwsza?” pod przepisami bez wykonań |
 | **Nic nie rośnie mimo dobrej retencji** | Problem akwizycji, nie produktu — to najlepszy z problemów | Zwiększyć liczbę kanałów rekrutacji (KGW, UTW, prasa lokalna), nie zmieniać produktu |
 
 ### Drabinka odwrotu (jeśli po 6 miesiącach WAC < 50)
 
 | Wariant | Na czym polega | Kiedy wybrać |
 |---|---|---|
-| **B1: Jedna nisza zamiast całej kuchni** | Skupić się na jednym silnym temacie („przetwory i kiszenie” albo „chleb na zakwasie”) i stać się w nim najlepszym miejscem w Polsce. Rosnąć potem | Jeden temat wyraźnie żyje, resztę trzeba popychać |
+| **B1: Jedna nisza zamiast całej kuchni** | Skupić się na jednym silnym tagu („przetwory i kiszenie” albo „chleb na zakwasie”) i stać się w nim najlepszym miejscem w Polsce. Rosnąć potem | Jeden tag wyraźnie żyje, resztę trzeba popychać |
 | **B2: Jedno koło zamiast portalu** | Obsłużyć jedną realną, offline'ową grupę (KGW, parafia, UTW) jako narzędzie dla nich. Zdobyć retencję z relacji offline | Mamy jedną grupę, w której działa, i zero organicznego wzrostu |
 | **B3: Rodzinne archiwum jako produkt główny** | Przestawić pozycjonowanie: nie społeczność, a **ratowanie rodzinnych przepisów** (prywatne książki, skany zeszytów, wydruk dla rodziny). Społeczność jako dodatek. To ścieżka z realną monetyzacją (druk, PDF) | Ludzie wypełniają „po kim ten przepis” i „skąd ten przepis”, ale nie komentują sobie wzajemnie |
 | **B4: Pauza, nie śmierć** | Utrzymać serwis w trybie tanim (koszty hostingu minimalne), zatrzymać rozwój, zostawić eksport danych. Wrócić z inną hipotezą | Wszystkie powyższe sprawdzone i nie działają |
