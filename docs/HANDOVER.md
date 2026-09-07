@@ -1,7 +1,7 @@
 # Handover — kuking.pl, branch `claude/kuking-development-muukrs`
 
-Written 2026-09-06, updated the same day at commit `5b90d72`. This is a session
-handover for the next model. Everything below is verified against the
+Written 2026-09-06, last updated 2026-09-07 at commit `36d6579`. This is a
+session handover for the next model. Everything below is verified against the
 repository at that commit, not recalled from memory.
 
 This file is the one deliberate exception to the Polish-only rule, because the
@@ -60,8 +60,59 @@ owner asked for it in English.
 
 ## 2. Where things stand
 
-- **1152 tests pass** (was 889 at the start of this session), PHPStan clean
-  (level 1 + Larastan), Pint clean.
+- **1304 tests pass** (889 two sessions ago, 1152 one session ago), 53998
+  assertions, PHPStan clean (level 1 + Larastan), Pint clean. The suite runs
+  serially — `--parallel` does not work in this container.
+- **The tag base is now a delivered dictionary, not a hand-written array**
+  (D-026): `database/seeders/dane/slownik-tagow.json` (1250 canonical names,
+  2366 aliases, 13 categories, and a `uwagi` field with 44 editorial rulings
+  that must not be deleted) plus a curated `-uzupelnienia.json` (169 concepts
+  the dictionary lacks). 1419 tags, 2448 aliases, seeded in 0.4 s, idempotent.
+  Two categories exist only because of the 50+ audience and no tag in the old
+  base covered them: `pamiec` („przepis po babci", „z rodzinnego zeszytu") and
+  `okolicznosci` („dla wnuków", „z czerstwego chleba", „mało zmywania").
+- **`MergeTags` exists at last** (`app/Domain/Tags/Actions/MergeTags.php`).
+  `tags.status = 'merged'` and `merged_into_tag_id` had a complete READ path
+  since the tags migration — the tag page redirects, suggestions exclude
+  merged tags, `ResolveTagsForPost` resolves through `tagKanoniczny()` — and
+  no write path at all outside `forceFill` in tests, even though the model
+  comment and the migration comment both referred to `MergeTags` as if it
+  existed. The seeder uses it to merge the 43 old canonical names the new
+  dictionary treats as aliases, but only when the old tag is empty and
+  editorial (`is_seeded`, active, no posts, no followers, no promotion).
+- **D-018 was never delivered and is now delivered** (D-022). Measured by
+  asking what a human SEES: an anonymised account returned 403 on its recipes,
+  posts and profile, and its comments vanished from other people's threads.
+  `EraseAccountData` never changed `users.status`, so the account stayed
+  `pending_delete`, which six Policies treat as "hide everything". There is now
+  a terminal `erased` status, three separate visibility boundaries instead of
+  two, and a deletion-scope checkbox (unchecked by default) that lets the human
+  decide whether their texts survive anonymised or go with the account.
+- **The three legal documents no longer lie.** `/prywatnosc`, `/regulamin` and
+  `/zasady` are live pages rendered from `resources/legal/*.md`, and until
+  today they showed users `[NAZWA OPERATORA]`, `[ADRES]`,
+  `[Wariant A — jeśli wdrożony baner:]`, Sentry and PostHog as
+  sub-processors (neither is wired), the sentence "every one of these providers
+  has a signed data-processing agreement with us" (the owner, asked directly:
+  none are signed), a 48-hour response promise with nothing measuring it, and
+  retention periods for data nothing deletes. `DokumentyPrawneNieKlamiaTest`
+  now guards all of it — including the rule that **every number of days left in
+  the policy must match the configuration that enforces it**.
+- **The appeal window was 14 days; art. 20(1) DSA requires at least six
+  months.** The 14 came from `MODERATION_PLAYBOOK.md`, where it came from
+  operational common sense rather than the regulation.
+  `ModerationAction::appealDeadline()` now adds six calendar months and the
+  config value is only a floor.
+- **A legal notice may now be filed without giving any name**
+  (art. 16(2)(c) DSA). `notifier_email` was already optional, with a comment
+  citing the exact provision that also exempts the NAME — the rule existed in
+  the code by half. The database CHECK still demands the illegality
+  explanation and the good-faith statement: anonymous is not empty.
+- Two measurement documents were produced and are the base for the next
+  legal work: `docs/decyzje/DSA_POMIAR.md` (obligation → what the code does,
+  file:line → whether it suffices → what may and may not be written in the
+  terms) and `docs/decyzje/ADR_RETENCJE.md` (five tables with no retention
+  mechanism; awaiting the owner's choice of periods).
 - **Topics are gone; tags replaced them** (D-021, owner's decision „Tematy
   usuwamy, tylko tagi"). Five tables (`tags`, `tag_aliases`, `post_tags`,
   `tag_follows`, `tag_promotions`), a public `/tag/{slug}` page, tag
@@ -110,7 +161,21 @@ the content grid and the footer each computed the page width from a different
 number. When you fix one of these, put the rule in **one** place and add a
 cross-layer invariant test rather than fixing the second copy.
 
-## 3. What this session did
+## 3. What the sessions did
+
+### 2026-09-07 (the most recent session)
+
+| area | what |
+|---|---|
+| **Tags** | The delivered 1250-tag dictionary went in as data files, `MergeTags` was written, and the suggester ranking was fixed after measuring it on real data: typing „chleb" put „chlebek bananowy" first, typing „marchewka" put „marchewka z groszkiem" ahead of „marchew" whose exact alias it is. Exact match now beats partial, shortest name next, alphabet last so the same phrase always yields the same list. Ten general concepts the dictionary lacked („barszcz", „kotlety", „krem", „kasza", „sok" …) were added after measuring which first words of compound names had no standalone tag. |
+| **D-022 / D-018** | Terminal `erased` status, deletion-scope checkbox, three visibility boundaries. See §2. |
+| **#17** | Photo deletion survives a mid-loop storage failure: every file goes through a per-file path that catches, verifies with `exists()`, logs and never aborts the loop; the row is deleted only on full success so the orphan sweeper has something to retry; the `r2_legacy` copy is finally targeted (audit N01). |
+| **N02** | `Cache-Control: no-store` reached only the 302; the signed R2 URL now carries `ResponseCacheControl`, so the response that actually holds the bytes carries the same rule. Whether R2 honours it needs a real bucket — written down, not assumed. |
+| **N05** | `photo_upload_failed` was recorded only when a file reached `StoreUploadedImage`. Form validation and rate limiting — probably the most common ways a human hits "the photo would not upload" — were invisible from Postgres. Both now record, with the reason, no PII. `post_max_size` remains unmeasurable in-process and is documented as such rather than papered over. |
+| **Legal** | Placeholders, unwired tools, the DPA sentence, the 48-hour promise, unenforced retention periods and "password is encrypted" all removed; the appeal window raised to six months; anonymous legal notices allowed; §5.2 of the terms now describes the deletion-scope choice that D-022 actually implements. |
+| **Measurement** | `DSA_POMIAR.md`, `ADR_RETENCJE.md`, and a false sentence withdrawn from a live notification: the decision letter promised the case would return to "a person who had not handled it before", which nothing in the code provides — a one-person service cannot promise an independent reviewer. |
+
+### 2026-09-06 (previous session)
 
 All merged into `claude/kuking-development-muukrs` and pushed.
 
@@ -181,11 +246,13 @@ would be exactly what the document exists to prevent.
 
 ### 4.3 Waiting on the owner (asked, answered, not yet built)
 
-- **Tags.** The owner chose open user-created tags plus AI suggestions. Note
-  before building: `Topic` already exists as a closed editorial dictionary with
-  follow/unfollow and its own public page, and posts carry one. Either merge the
-  two or you will maintain two systems. Still needs: model provider, cost per
-  post, and a no-JavaScript path.
+- **Tags — BUILT, this note is kept only for its lesson.** D-021 removed
+  Topics entirely and D-026 replaced the hand-written tag base with the
+  delivered dictionary. The warning in the original note („either merge the two
+  or you will maintain two systems") turned out to be exactly right twice: once
+  for Topics versus tags, and again for the old 651-name array versus the new
+  dictionary, where 43 names collided and doing nothing would have produced 43
+  live duplicate pairs. **Doing nothing was not the neutral option.**
 - **Recipe screen width.** The `wide` exception was removed with the fixed
   grid. If that screen turns out too cramped, give it the rail column it does
   not use — do not reintroduce a per-page page width.
@@ -305,6 +372,20 @@ refuses it, correctly.
   running tests there.
 
 ## 6. Open product questions the owner has not been asked
+
+**Answered on 2026-09-07, so no longer open:** the 48-hour response promise
+(remove the number, write „bez zbędnej zwłoki"), anonymous legal notices (name
+optional for the legal path), and the contact address (`kontakt@kuking.pl` in
+both directions — the Railway variable is still the owner's to change).
+
+**Two blockers that cannot be solved with code**, both now written into the
+published documents as explicit gaps rather than silently missing: the
+administrator's identity and correspondence address, and the fact that
+`MAIL_MAILER=log` means the service sends no e-mail at all — so a password
+reset never arrives. For a 50+ audience the second one means the first person
+to forget their password loses the account, and cannot even write in, because
+the mailbox is not chosen yet.
+
 
 Adding "Zapisz" to a post (not just a recipe) is a **new product feature**, not
 a missing button — the notebook currently holds recipes only. The kit shows it
