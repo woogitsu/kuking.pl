@@ -21,9 +21,13 @@ use Tests\TestCase;
  *     Str::ascii('pedał')    => 'pedal'
  *     Str::ascii('jebnięty') => 'jebniety'
  *
- * Lista wyglądała więc na dłuższą, niż była: 40 haseł, z których 38
- * działało. To jest ta sama klasa błędu co martwa stała progu podobieństwa
- * w wyszukiwaniu — kod deklarował ochronę, której nie miał.
+ * Lista wyglądała więc na dłuższą, niż była: 48 haseł, z których 46
+ * działało. (Wiadomość commita, która to naprawiła, mówi „40 haseł,
+ * z których 38" — policzyłem wtedy pozycje z oka, a nie odbiciem stałej.
+ * Prawdziwa liczba to 48, sprawdzalna jednym wywołaniem
+ * `getConstant('SLOWA')`.) To jest ta sama klasa błędu co martwa stała
+ * progu podobieństwa w wyszukiwaniu — kod deklarował ochronę, której
+ * nie miał.
  *
  * Ten test nie pilnuje dwóch konkretnych słów, a NIEZMIENNIKA: żadne hasło
  * na liście nie może różnić się od własnej postaci po transliteracji.
