@@ -117,6 +117,18 @@ class SocialController extends Controller
         // się z listą, wygląda jak zepsuty serwis.
         /** @var LengthAwarePaginator $paginator */
         $paginator = $target->{$relation}()
+            // KONTO ZBANOWANE ALBO KASUJĄCE SIĘ NIE MA PRAWA STAĆ NA LIŚCIE.
+            //
+            // `UserPolicy::viewProfile()` daje 403 pod adresem tej osoby (chyba
+            // że patrzy moderator), ale to zapytanie budowało listę bez tego
+            // warunku — miało już filtr blokad, nie miało `dostepnyJakoAutor()`.
+            // Skutek: karta z awatarem, wyświetlaną nazwą i linkiem do profilu,
+            // który — kliknięty wprost — daje 403. Ta sama klasa błędu co
+            // wpis zbanowanego autora w feedzie obserwowanych (commit 964b99c)
+            // i co W5-08: konto mniej dostępne przez drzwi frontowe niż przez
+            // okno. `ban()`/`markForDeletion()` nie kasują wierszy z `follows`,
+            // więc bez tego warunku wiersz zostaje na liście na zawsze.
+            ->dostepnyJakoAutor()
             ->with('profile.avatar')
             ->when($viewer !== null, function ($query) use ($viewer): void {
                 $widzId = $viewer->getKey();
