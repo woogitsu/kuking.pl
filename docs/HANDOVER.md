@@ -1,16 +1,23 @@
-# Handover — kuking.pl, branch `claude/kuking-development-muukrs`
+# Handover — kuking.pl, branch `claude/kuking-development-handover-o5r19z`
 
-Written 2026-09-06, last updated 2026-09-07 at commit `857d8a3`. This is a
-session handover for the next model. Everything below is verified against the
-repository at that commit, not recalled from memory.
+Written 2026-09-06, last updated 2026-09-07 (later evening) on branch
+`claude/kuking-development-handover-o5r19z`, with `main` at `e24f30d`. This is
+a session handover for the next model. Everything below is verified against
+the repository, not recalled from memory.
 
-**If you are picking this up in a new session, read section 7 first** — it is
-the newest and it supersedes anything older that contradicts it.
+**If you are picking this up in a new session, read section 8 first** — it is
+the newest and it supersedes anything older that contradicts it. Section 8
+also lists two things earlier sections got wrong.
 
 This file is the one deliberate exception to the Polish-only rule, because the
 owner asked for it in English.
 
 ---
+
+> **Newest section wins.** As of 2026-09-07 (later evening) that is
+> **section 8**. Where it contradicts anything above, section 8 is right and
+> the older text is a record of what was believed at the time — section 8
+> corrects two claims from section 7 explicitly.
 
 ## 0. Read these first, in this order
 
@@ -533,3 +540,157 @@ already was "0").
   does not keep.
 - Branch protection on `main`, and the five smaller design questions listed at
   the end of `docs/design/STAN_WDROZENIA_KITU.md`.
+
+## 8. Session of 2026-09-07, later evening — what landed and what is waiting
+
+Everything in this section is **on branch `claude/kuking-development-handover-o5r19z`
+and in open pull request #125**, not on `main`. The owner decided to hold the
+merge until the new runner pool is online (see 8.4).
+
+Note on branch names: section 7 names `claude/kuking-development-muukrs`. That
+branch is finished; this session worked on
+`claude/kuking-development-handover-o5r19z`.
+
+### 8.1 What was delivered
+
+All four queued items from §7.4 are done, plus one request that arrived
+mid-session.
+
+1. **The accessibility automation was run on merged `main` — and it was
+   lying.** The first run came back clean (23 screens × 4 variants, zero
+   violations). It was clean too cheaply: the script checked the response
+   *path*, never the response *code*. A 404 and a 403 have the path you asked
+   for, so path comparison cannot see them — and an error page is a few lines
+   of text and one link, which passes any accessibility audit without
+   checking anything.
+
+   After adding an HTTP-status assertion, **two of the twenty-three screens
+   turned out to be 403 with a `✓` in the report**:
+   - *odwołanie od decyzji* — the script seeded the moderation decision for
+     `basia` while logging in as `ania` (the fix from earlier that day). Only
+     the person a decision concerns can open that screen.
+   - *kolejność i wygląd zdjęć* — the carousel post belonged to `basia`, and
+     `/wpisy/{post}/zdjecia` is author-only (`PostPolicy::update`).
+
+   Fixed by putting the account name in one module constant
+   (`KONTO_ZALOGOWANE`), read by both the login and the decision seeding, and
+   by giving the carousel post to `ania` in `DemoSeeder`. Verified by
+   sabotage: pointing one screen at a non-existent path now prints
+   `BŁĄD: … odpowiedział kodem 404` and exits 1.
+
+   **Correction to §7.2.2:** it is `/tag/zupa` that returns 404 and
+   `/tag/zupy` that returns 200, not the other way round. The reason is
+   mechanical: the script seeds with `DemoSeeder` alone, without `TagSeeder`,
+   so there is no tag dictionary and `ResolveTagsForPost` has nothing to merge
+   into — `zupy` stays canonical. The merge to `zupa` from D-026 only happens
+   after `db:seed` with both seeders.
+
+   Final state of the run: 92 axe passes, 0 violations, 0 blocking,
+   0 horizontal overflow, 0 header misalignment, exit code 0, **and every
+   screen with a confirmed 200**.
+
+2. **The idempotency kill switch is in `config/kuking.php`** as
+   `kuking.formularze.klucz_wyslania_wlaczony` (env `KUKING_KLUCZ_WYSLANIA`).
+   It had **no test at all** — a switch that is only exercised during an
+   incident, with nobody checking whether it does anything. It has one now
+   (`WylacznikKluczaWyslaniaTest`, 7 cases), including two control assertions
+   and a test that the switch does **not** undo `reports_one_open_per_pair`.
+
+3. **The prepared documentation is pasted.** `docs/DECISIONS.md` has
+   **D-027** (the text from ADR §10, plus a paragraph on the switch).
+   `docs/DATABASE.md` has the paragraphs `AGENTS.md` §6 requires at `posts`,
+   `cooked_events` and `reports`.
+
+4. **The case number is unique now — D-029.** It was computed in five places
+   in code and two views as the first 8 characters of the row's UUID v7, which
+   is the top 32 bits of a millisecond timestamp and advances once every 65.5
+   seconds. Measured: `Str::uuid7('19:00:30')` and `Str::uuid7('19:01:10')`
+   both give `01A07D3E`. Now: `reports.numer_sprawy varchar(12) NOT NULL`,
+   UNIQUE, with a CHECK on the format, assigned by the model's `creating`
+   hook, not in `$fillable`. Format `KU-XXXX-XXXX` from a 30-character
+   alphabet without `0`, `1`, `I`, `L`, `O`, `U`.
+
+5. **All 14 CI jobs are pinned to the new runner pool — D-028**, on the
+   owner's instruction, by label set rather than runner name. Plus
+   `docs/infra/WYMAGANIA_RUNNERA.md`, which lists what the machines must
+   provide.
+
+Tests: **1636 passed, 56064 assertions** (from 1621 / 56014). Pint clean.
+`npm run build` passes.
+
+### 8.2 Two mistakes worth keeping, one mine
+
+1. **The alphabet said one thing, the comment said another.** The first
+   version of `NumerSprawy::ALFABET` contained `U`, while the comment beside
+   it said `U` was excluded. It surfaced on a generated number,
+   `KU-F6XC-9U7Y`. The test did not catch it because it checked the
+   **randomly drawn value**, so it passed in roughly three runs out of four.
+   It now checks the alphabet itself and its length. This is the fourth time
+   in this repository that a rule lived in a comment and not in the code.
+
+2. **Five existing tests do raw `INSERT`s into `reports`** to test database
+   constraints while bypassing the model, so the `NOT NULL` column broke
+   them. They now supply a number — a different one per row, because
+   otherwise the case-number index would fire instead of the constraint each
+   test is actually about. Two of them (`test_baza_odbija_…`) also gained an
+   assertion on the **index name in the exception message**: the table has
+   three uniqueness constraints now, and a test that only checks the
+   exception type would pass for the wrong reason.
+
+### 8.3 What could not be verified here
+
+**PHPStan was not run.** `phpstan/phpstan` has `"source": null` in
+`composer.lock`, so its only installation path is
+`api.github.com/repos/phpstan/phpstan/zipball/…`, and this session's
+environment returns HTTP 403 for repositories outside its own scope. To get
+the rest of the dependencies installed at all, the whole `vendor/` had to be
+built from git sources (`--prefer-install=source`), and `larastan/larastan`
+was removed locally for the duration (`composer.json` and `composer.lock`
+were restored from git afterwards and are untouched in the diff).
+
+Static analysis for this change therefore rests entirely on the first green
+CI run. **Do not report it as checked.**
+
+### 8.4 What is waiting, in the order I would take it
+
+1. **PR #125 is waiting for the runner pool.** After D-028 nothing in this
+   repository targets GitHub-hosted runners, so its CI will sit in `Queued`
+   until `woogitsu-linux-01`–`10` are online with all six labels. The owner
+   chose to wait rather than merge without CI. What the machines need:
+   `docs/infra/WYMAGANIA_RUNNERA.md`. **The trap that is easiest to miss:**
+   the `test` and `dostepnosc` jobs both map host port 5432, so two runner
+   processes on one machine collide on `port is already allocated` — one
+   machine, one job at a time.
+2. **Design work** (was §7.4 pkt 5, untouched). The owner is unhappy with the
+   current look. 60 real screenshots; `scripts/zrzuty-wygladu.mjs`
+   regenerates them. The two shortest real fixes are still the English
+   "Choose File" inside the Polish photo picker and radio labels running into
+   their help text („WszyscyTakże osoby bez konta").
+3. **Three of the eight commissioned documents are still not acted on** (was
+   §7.4 pkt 6): the DPIA screening, 17 questions for a lawyer, and
+   empty-state copy for 19 screens — that last one stale since stage D.
+4. **A sentence to verify, not to fix blindly.** `docs/DATABASE.md`, the
+   `reports` retention paragraph, still says the 36 months rest on
+   art. 442¹ k.c., while §7.3 records that the retention basis moved to
+   art. 6(1)(f) GDPR. These may be two different things (the processing basis
+   versus the reason for the length) — but somebody who knows should read both
+   sentences side by side. I did not touch it, because guessing here would
+   put a false sentence into a legal document.
+
+### 8.5 One handover claim that was not true
+
+§7 says an hourly pulse routine (`trig_017xRL6PBoJtmXzfkVmiUh2B`) is pinned
+to the previous session and keeps waking it. **That routine does not exist.**
+The account's routine list holds only Lockstate, two Osadale ones, METRO BXL
+(disabled) and a daily limit reset. Nothing was waking that session and
+nothing was consuming the limit.
+
+### 8.6 Still blocked on the owner
+
+Unchanged from §7.5: administrator identity and a correspondence address in
+the legal documents; a mail provider (the art. 20 DSA appeal right is
+implemented but undeliverable); branch protection on `main`. Eleven unused
+branches still exist on GitHub — before deleting any of them, repeat the
+check that rescued six documents in #123.
+
+---
