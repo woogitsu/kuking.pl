@@ -64,6 +64,11 @@ class Report extends Model
 
     protected $fillable = [
         'reporter_id',
+        // Tożsamość jednego wysłania formularza zgłoszenia BEZ KONTA (DSA
+        // art. 16 ust. 2 lit. c). Częściowy indeks UNIQUE
+        // `reports_one_per_klucz_wyslania` sprawia, że podwójne kliknięcie
+        // nie zakłada drugiej sprawy z własnym terminem odpowiedzi.
+        'klucz_wyslania',
         'source',
         'notifier_name',
         'notifier_email',

@@ -5,23 +5,117 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Models\Notification;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
- * Retencja `notifications` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
+ * Retencja `notifications` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2, §5.6).
  *
  * Domyślnie `config('kuking.notifications.retention_months')` miesięcy od
  * `created_at`, NIEZALEŻNIE od `read_at` — jeden wiek dla wszystkich
- * powiadomień (wariant A z ADR §6). Żadna kategoria nie jest wyjątkiem:
- * `notifications` nie ma charakteru audytowego, w odróżnieniu od `audit_log`.
+ * powiadomień, poza jednym wyjątkiem (wariant A z ADR §6).
  *
- * Zwykły masowy `DELETE` (wzorzec B) — wiersz nie ma odpowiednika w storage.
+ * WYJĄTEK — TYPY Z `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`.
+ * Trzy miesiące (decyzja właściciela, druga tura, po zewnętrznej ocenie
+ * prawnej) są KRÓTSZE niż sześć miesięcy, przez które prawo do odwołania od
+ * decyzji moderacyjnej ma obowiązywać (DSA art. 20 ust. 1). Powiadomienie
+ * o decyzji niesie jedyny w serwisie link „Odwołaj się" — wygaszenie go po
+ * ogólnym okresie odbierałoby prawo, które jeszcze obowiązuje. Dla tych
+ * typów WŁASNY termin to `Notification::terminOchronyOdwolawczej()`
+ * (`ModerationAction::appealDeadline()` powiązanej decyzji), NIE liczba
+ * z configu — więc ta klasa sprawdza je JEDNO PO JEDNYM (Wzorzec C), a nie
+ * jednym masowym `DELETE`, jak resztę tabeli.
+ *
+ * Powiadomienie, którego powiązanej decyzji nie da się ustalić (odniesienie
+ * puste albo skasowane), NIE jest kasowane automatycznie — patrz komentarz
+ * `Notification::terminOchronyOdwolawczej()`. To nie powinno się zdarzać
+ * w praktyce (obaj producenci `TYPE_MODERATION`, `NotifyModerationDecision`
+ * i `NotifyAppealOutcome`, zawsze zapisują odniesienie), ale błąd w tym
+ * miejscu ma kosztować "zostaje o kilka miesięcy dłużej", nie "zniknęło,
+ * zanim ktoś zdążył się odwołać".
  */
 final class PrzedawnionePowiadomienia
 {
-    public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): int
+    public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): RaportRetencjiPowiadomien
     {
-        $zapytanie = Notification::query()->where('created_at', '<', now()->subMonths($miesiecyKarencji));
+        $prog = now()->subMonths($miesiecyKarencji);
 
-        return $naSucho ? $zapytanie->count() : $zapytanie->delete();
+        // Zwykłe powiadomienia — Wzorzec B (masowy DELETE), tak jak
+        // audit_log/product_signals: wiersz nie ma odpowiednika w storage.
+        $zwykle = Notification::query()
+            ->whereNotIn('type', Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA)
+            ->where('created_at', '<', $prog);
+
+        $usunieteZwykle = $naSucho ? $zwykle->count() : $zwykle->delete();
+
+        [$usunieteModeracyjne, $zatrzymane, $bezDecyzji] = $this->posprzatajModeracyjne($prog, $naSucho);
+
+        return new RaportRetencjiPowiadomien(
+            usunieteZwykle: $usunieteZwykle,
+            usunieteModeracyjne: $usunieteModeracyjne,
+            zatrzymaneTerminemOdwolania: $zatrzymane,
+            bezPowiazanejDecyzji: $bezDecyzji,
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int, 2: int} [usunięto, zatrzymano terminem
+     *                                       odwołania, pominięto bez decyzji]
+     */
+    private function posprzatajModeracyjne(CarbonInterface $prog, bool $naSucho): array
+    {
+        // Wstępny filtr po ogólnym progu jest wyłącznie optymalizacją: termin
+        // odwołania (created_at + co najmniej 6 miesięcy) jest ZAWSZE późniejszy
+        // niż ogólny próg (created_at + 3 miesiące), więc wiersz młodszy niż
+        // ten próg i tak zostałby zatrzymany terminem odwołania niżej —
+        // pomijamy go tu bez sprawdzania, żeby nie liczyć `appealDeadline()`
+        // dla powiadomień, które oczywiście jeszcze nie są kandydatem.
+        $kandydaci = Notification::query()
+            ->whereIn('type', Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA)
+            ->where('created_at', '<', $prog)
+            ->get();
+
+        $usuniete = 0;
+        $zatrzymane = 0;
+        $bezDecyzji = 0;
+
+        foreach ($kandydaci as $powiadomienie) {
+            $termin = $powiadomienie->terminOchronyOdwolawczej();
+
+            if ($termin === null) {
+                $bezDecyzji++;
+                Log::warning('Powiadomienie moderacyjne bez ustalalnej decyzji — pominięte przy retencji, nie kasowane.', [
+                    'notification_id' => $powiadomienie->getKey(),
+                    'type' => $powiadomienie->type,
+                ]);
+
+                continue;
+            }
+
+            if ($termin->isFuture()) {
+                $zatrzymane++;
+
+                continue;
+            }
+
+            if ($naSucho) {
+                $usuniete++;
+
+                continue;
+            }
+
+            try {
+                $powiadomienie->delete();
+                $usuniete++;
+            } catch (Throwable $e) {
+                Log::error('Nie udało się skasować przedawnionego powiadomienia moderacyjnego', [
+                    'notification_id' => $powiadomienie->getKey(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return [$usuniete, $zatrzymane, $bezDecyzji];
     }
 }

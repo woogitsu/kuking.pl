@@ -10,6 +10,21 @@
     <form class="card" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
         @csrf
 
+        {{-- Tożsamość TEGO wysłania formularza (ADR
+             docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md). Bez niej dwa
+             kliknięcia „Wyślij" dawały dwa wykonania i DWA powiadomienia
+             u autora — a powiadomienia nie da się cofnąć.
+
+             To NIE jest unikalność na parze (osoba, przepis): drugie
+             prawdziwe gotowanie przychodzi z nowego formularza, więc z nowym
+             kluczem, i zapisuje się normalnie (D-005).
+
+             Zwykłe ukryte pole, bez JavaScriptu. Nazwa bez fragmentu
+             „token", inaczej pole ginie na ekranie 419 (ADR §1.4.4). --}}
+        @if(($kluczWyslania ?? null) !== null)
+            <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
+        @endif
+
         <div class="field">
             <label for="f-photos">Zdjęcie tego, co Ci wyszło</label>
             <span class="field-help" id="f-photos-help">

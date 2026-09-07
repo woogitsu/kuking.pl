@@ -21,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -32,6 +33,23 @@ use Illuminate\View\View;
  */
 class PostController extends Controller
 {
+    /**
+     * Wyłącznik mechanizmu klucza wysłania — jedyna droga wycofania, która
+     * nie wymaga wdrożenia migracji (ADR
+     * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §8.4, „Wyjście 1").
+     *
+     * Po ustawieniu na `false` formularz renderuje się bez ukrytego pola,
+     * kolumna dostaje `NULL`, indeks częściowy takiego wiersza nie obejmuje
+     * i serwis wraca dokładnie do zachowania sprzed tej zmiany — z
+     * duplikatami, ale bez ryzyka zablokowanej wysyłki.
+     *
+     * DOCELOWO to jest `config('kuking.formularze.klucz_wyslania_wlaczony')`
+     * z `env()`. Stała stoi tu, bo `config/kuking.php` jest w tym zleceniu
+     * zablokowany przez inną pracę — wartość do przeniesienia jest wypisana
+     * w raporcie ze wdrożenia.
+     */
+    private const KLUCZ_WYSLANIA_WLACZONY = true;
+
     public function __construct(
         private readonly PublishPost $publishPost,
         private readonly EditPost $editPost,
@@ -45,7 +63,44 @@ class PostController extends Controller
         return view('pages.posts.create', [
             'tagNames' => (array) old('tag_names', []),
             'sugestieTagow' => $this->sugestieDlaZapytania(),
+            'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
+    }
+
+    /**
+     * Klucz wysłania dla świeżo renderowanego formularza.
+     *
+     * `old()` PIERWSZE, i to jest tu najważniejsza linijka: po nieudanej
+     * walidacji formularz wystawiamy od nowa, a klucz MUSI zostać ten sam.
+     * Gdyby powstawał nowy, ochrona znikałaby po pierwszym błędzie walidacji
+     * — czyli dokładnie wtedy, gdy człowiek klika drugi raz. Klucza nie zużywa
+     * żadne wysłanie, które wpisu nie utworzyło (błąd walidacji, „Dodaj tag").
+     */
+    private function kluczDlaFormularza(): ?string
+    {
+        if (! self::KLUCZ_WYSLANIA_WLACZONY) {
+            return null;
+        }
+
+        $stary = old('klucz_wyslania');
+
+        return is_string($stary) && Str::isUuid($stary) ? $stary : (string) Str::uuid7();
+    }
+
+    /**
+     * Klucz wysłania z żądania.
+     *
+     * Wartość niebędąca UUID-em schodzi do `null`, czyli do „wyślij
+     * normalnie" — a nie do błędu walidacji. To jest zawodzenie OTWARTE
+     * (ADR §4.3): wpis utracony boli w tej grupie odbiorców bardziej niż
+     * wpis zduplikowany, a formularz z popsutym ukrytym polem to nie jest
+     * coś, co człowiek umie naprawić.
+     */
+    private function kluczZZadania(Request $request): ?string
+    {
+        $klucz = $request->input('klucz_wyslania');
+
+        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
     }
 
     public function store(Request $request): RedirectResponse
@@ -148,6 +203,7 @@ class PostController extends Controller
                 // ekranie — patrz komentarz przy przekierowaniu niżej. Wpis
                 // powstaje więc zawsze jako „zwykle".
                 displayMode: Post::DISPLAY_NORMAL,
+                kluczWyslania: $this->kluczZZadania($request),
             );
         } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
@@ -161,6 +217,22 @@ class PostController extends Controller
             return back()
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
                 ->withErrors([$pole => $e->getMessage()]);
+        }
+
+        // DRUGIE KLIKNIĘCIE „OPUBLIKUJ" — wpis jest ten sam, co przy pierwszym.
+        //
+        // `wasRecentlyCreated` jest `false`, gdy akcja domenowa oddała wpis
+        // ODCZYTANY z bazy, czyli gdy to wysłanie już raz się zapisało.
+        // Odsyłamy tam, gdzie odesłałoby pierwsze kliknięcie — bez błędu, bo
+        // drugie kliknięcie nie jest pomyłką człowieka. Komunikat mówi wprost,
+        // że nic się nie zepsuło, i pokazuje drogę do wpisu OSOBNEGO, gdyby
+        // ktoś naprawdę chciał dodać drugi.
+        if (! $post->wasRecentlyCreated) {
+            return redirect()->route('posts.show', $post)->with(
+                'status',
+                'Ten wpis jest już opublikowany. Kliknięcie drugi raz nic nie zepsuło — wpis jest jeden. '
+                .'Chcesz dodać osobny wpis? Otwórz „Dodaj zdjęcie” jeszcze raz — wtedy powstanie nowy.',
+            );
         }
 
         $isFirstPost = $user->posts()->published()->count() === 1;

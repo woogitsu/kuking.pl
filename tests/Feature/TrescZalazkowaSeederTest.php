@@ -30,7 +30,13 @@ class TrescZalazkowaSeederTest extends TestCase
         $this->seed(TrescZalazkowaSeeder::class);
 
         $this->assertSame(12, User::query()->where('is_seeded', true)->count());
-        $this->assertSame(40, Recipe::query()->count());
+        // 39, nie 40: przepis p24 („Pomidory we własnym soku do słoików”)
+        // został wstrzymany przeglądem bezpieczeństwa żywności
+        // (`docs/decyzje/PRZEGLAD_BEZPIECZENSTWA_ZYWNOSCI.md`, jedyna ocena
+        // BLOKUJE) i decyzją właściciela usunięty z treści startowej. Że to
+        // jest usunięcie, a nie zguba — i że nic nie wskazuje już w próżnię —
+        // pilnuje `BezpieczenstwoZywnosciWTresciZalazkowejTest`.
+        $this->assertSame(39, Recipe::query()->count());
         $this->assertSame(80, Post::query()->count());
         $this->assertSame(60, Comment::query()->count());
 
@@ -53,7 +59,7 @@ class TrescZalazkowaSeederTest extends TestCase
         $this->seed(TrescZalazkowaSeeder::class);
 
         $this->assertSame(12, User::query()->where('is_seeded', true)->count());
-        $this->assertSame(40, Recipe::query()->count());
+        $this->assertSame(39, Recipe::query()->count());
         $this->assertSame(80, Post::query()->count());
         $this->assertSame(60, Comment::query()->count());
 

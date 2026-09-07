@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Skrot;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Hash;
@@ -106,7 +107,7 @@ class AuditLogEntry extends Model
             'action' => $action,
             'subject_type' => $subject === null ? null : class_basename($subject),
             'subject_id' => $subject?->getKey(),
-            'ip_hash' => $ip === null ? null : hash('sha256', $ip.config('app.key')),
+            'ip_hash' => $ip === null ? null : Skrot::hmac($ip),
             'metadata' => $metadata,
         ]);
     }

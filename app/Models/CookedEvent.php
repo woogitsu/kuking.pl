@@ -19,6 +19,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Nie ma tu unikalności (user_id, recipe_id) i nigdy jej nie dodawaj:
  * ta sama osoba może gotować ten sam przepis dziesiątki razy i każde
  * wykonanie jest osobnym wydarzeniem.
+ *
+ * JEST NATOMIAST UNIKALNOŚĆ NA (user_id, klucz_wyslania) i to jest CO INNEGO.
+ * `klucz_wyslania` to tożsamość jednego wysłania formularza, nie tożsamość
+ * przepisu: nowe gotowanie przychodzi z nowego formularza, więc z nowym
+ * kluczem, i przechodzi bez przeszkód (zmierzone — ADR
+ * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §3.4, POMIAR 2d, wiersz 3).
+ * Zakazane jest wyłącznie policzenie JEDNEGO wysłania dwa razy, bo dawało
+ * autorowi przepisu dwa powiadomienia za jedno gotowanie.
  */
 class CookedEvent extends Model
 {
@@ -32,6 +40,8 @@ class CookedEvent extends Model
     protected $fillable = [
         'user_id',
         'recipe_id',
+        // Patrz komentarz klasy: to tożsamość WYSŁANIA, nie przepisu.
+        'klucz_wyslania',
         'note',
         'would_make_again',
         'perceived_difficulty',

@@ -1,8 +1,11 @@
 # Handover — kuking.pl, branch `claude/kuking-development-muukrs`
 
-Written 2026-09-06, last updated 2026-09-07 at commit `36d6579`. This is a
+Written 2026-09-06, last updated 2026-09-07 at commit `857d8a3`. This is a
 session handover for the next model. Everything below is verified against the
 repository at that commit, not recalled from memory.
+
+**If you are picking this up in a new session, read section 7 first** — it is
+the newest and it supersedes anything older that contradicts it.
 
 This file is the one deliberate exception to the Polish-only rule, because the
 owner asked for it in English.
@@ -398,3 +401,135 @@ Two smaller ones, both surfaced today and both unanswered:
   "Zeszyt". Code and contract disagree; one of them has to move.
 - Stage D's mobile menu screen would change where the "Profil" tab leads. That
   is an information-architecture decision, not CSS.
+
+---
+
+## 7. Session of 2026-09-07, evening — what landed and what is waiting
+
+This section was written as the session was ending on a usage limit. It is
+deliberately blunt about what is unfinished.
+
+**Everything described here is merged to `main`.** Two pull requests went in
+during this session (#122, #123) and a third carries the work below. Eleven
+stale branches were identified for deletion but **could not be deleted**: the
+session's git proxy returns HTTP 403 on ref deletion and no branch-delete tool
+was available. The owner has the exact command list in the chat; before
+deleting, note that six documents lived *only* on those branches and were
+rescued to `main` in #123 — do not skip that check if more branches appear.
+
+### 7.1 What was delivered
+
+**From an external review package the owner commissioned** (all source
+material is in the repository, under `docs/decyzje/` and
+`database/seeders/dane/`, and must not be "corrected" to agree with later
+edits — it is evidence of what the reviewer said):
+
+- **Food safety.** Recipe `p24` ("Pomidory we własnym soku do słoików") is
+  gone from the seed content — the only BLOKUJE verdict, promising winter
+  storage after ~20 minutes of pasteurisation without verified acidity. 28
+  further recipes carry safety corrections rewritten in the authors' voice,
+  with every number and condition preserved. `BezpieczenstwoZywnosciW...Test`
+  pins the numbers, not the wording, so a future style edit cannot lose a
+  temperature. Seed content is now **39 recipes**, and the `ref` numbering
+  deliberately has a hole at `p24`.
+- **Profanity filter: 48 hand-written entries → 463** from a commissioned
+  language curation, with the source JSON in the repository and a test that
+  pins the constant to it in both directions. Five families the supplier
+  excluded on false-positive grounds were **restored to blocking** as a
+  deliberate decision (`PRZYWROCONE_WBREW_ZRODLU`), and five were accepted as
+  exclusions (`PRZYJETE_WYLACZENIA`); both lists carry their reasoning.
+- **Tag dictionary v1.1**: 27 general concepts and three techniques, plus a
+  new `nowe_aliasy` key the seeder had to learn (37 aliases to existing tags
+  would otherwise have loaded as zero while the report said "0 rejected").
+- **Retention**: legal basis moved off art. 442(1) k.c. to art. 6(1)(f) GDPR
+  with a written balancing test (ADR §5.6, including four named gaps the code
+  cannot close). Audit log 24 → 12 months, notifications 24 → 3.
+- **Privacy policy**: seven false or overreaching sentences fixed (the
+  password claim, the IP-hash claim, shifting responsibility for
+  self-disclosed data, "only the operator has access", the 30-day grace vs
+  art. 17, the anonymisation limit, the analytics legal basis).
+
+**From the ADR decided this session**: `klucz_wyslania` idempotency for
+`posts`, `cooked_events` and both reporting paths, four partial-unique
+migrations, 37 tests. Fails **open** by design.
+
+**UI kit stage D** finished (search, profile, add screen, mobile menu) plus
+the stage-C leftover ("Komu wyszło" with a real number bar and pagination).
+
+### 7.2 Three bugs found by accident that matter more than they look
+
+1. **The accessibility automation had not been logging in.**
+   `TrescZalazkowaSeeder` creates a persona `basia@example.test` with a random
+   password (D-025: personas are not loggable), `DemoSeeder` then found it via
+   `firstOrCreate` and never set the demo password — while still printing
+   "log in as basia@example.test". So `scripts/dostepnosc.mjs` measured
+   **guest** screens while believing it measured logged-in ones, for twelve of
+   its twenty-three screens. Fixed: the seeder now prints only accounts where
+   `Hash::check` actually passes, and the automation logs in as `ania`.
+   **Re-run the full accessibility automation on merged `main` — its last
+   results for logged-in screens cannot be trusted.**
+2. **`/tag/zupy` in that automation returns 404**, because `zupy` is an alias
+   of `zupa` in the delivered dictionary. Left as-is on purpose (its comment
+   says it should report 404 rather than pass silently) but it needs settling.
+3. **The audit log hashed IPs with `hash('sha256', $ip.$key)`** — the exact
+   construction the rate-limiter audit had rejected in favour of `hash_hmac`,
+   with a comment explaining why. One line, written twice, only one copy
+   correct. Now both go through `App\Support\Skrot::hmac()`.
+
+Also fixed: a test that failed **one run in sixteen** (it corrupted a
+signature by hard-coding "0" over the first hex character, which sometimes
+already was "0").
+
+### 7.3 What the owner decided, so do not re-ask
+
+- p24: **remove**, not rewrite.
+- The 28 safety corrections: apply **in the authors' voice**, numbers unchanged.
+- Retention: **change the basis and shorten to 36/12/3**; full scope
+  minimisation explicitly **rejected** (needs a migration and redesign).
+- Idempotency: **sending key in a database column**, not cache, not a window.
+- **W7-01 (`trustProxies(at: '*')`) is deferred by the owner** — "later, no
+  time". Do not bring it back without new information. The measurement stands:
+  a client-supplied `X-Forwarded-For` fully determines `$request->ip()` and
+  resets every IP-keyed limit.
+
+### 7.4 What is waiting, in the order I would take it
+
+1. **Re-run `node scripts/dostepnosc.mjs` on merged `main`** — see 7.2.1. This
+   is first because the last known-good result is not known-good.
+2. **Move the idempotency kill switch into `config/kuking.php`.** It currently
+   sits as `private const KLUCZ_WYSLANIA_WLACZONY = true;` in three
+   controllers, because that file was held by a parallel task at the time. The
+   config snippet is in the session report and in ADR §8.4.
+3. **Paste the prepared documentation blocks.** Three finished tasks handed
+   back text for `docs/DATABASE.md` and `docs/DECISIONS.md` (entry **D-027**,
+   number still unassigned) rather than editing those files themselves. The
+   text is in the session transcript; the ADRs carry the same content.
+4. **The report case number shown to reporters without an account is not
+   unique** — the first 8 characters of a UUID v7 advance roughly once every
+   65 seconds, so two cases accepted in the same window get the same number.
+   For an anonymous reporter that number is the only trace of their case.
+5. **Design system.** The owner is unhappy with the current look and has a
+   package of 60 real screenshots (15 screens × desktop/mobile × light/dark),
+   the binding documents, all stylesheets and a list of 25 Blade components.
+   `scripts/zrzuty-wygladu.mjs` regenerates the screenshots. Eleven concrete
+   problems are named in that package's brief; the shortest real ones are the
+   English "Choose File" inside the Polish file picker and radio labels
+   running into their help text ("WszyscyTakże osoby bez konta").
+6. **Three of the eight commissioned documents are not yet acted on**: the
+   DPIA screening (verdict: cannot be settled without two facts the owner must
+   establish), 17 questions for a lawyer (ready to take to a meeting), and
+   empty-state copy for 19 screens — that last one is **stale**, because stage
+   D changed several of those screens after the inventory was made.
+
+### 7.5 Still blocked on the owner
+
+- **Administrator identity and a correspondence address** in the legal
+  documents. Everything else in those documents is now true; this is the last
+  placeholder, and the external review says a closed beta does not excuse it.
+- **A mail provider.** The art. 20 DSA appeal right is implemented but
+  **undeliverable**: the reporter's access is a signed link in the decision
+  e-mail, and nothing sends e-mail. This is why the appeal right was
+  deliberately *not* written into the terms — it would be a promise the site
+  does not keep.
+- Branch protection on `main`, and the five smaller design questions listed at
+  the end of `docs/design/STAN_WDROZENIA_KITU.md`.

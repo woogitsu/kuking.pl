@@ -76,6 +76,6 @@ final class KluczeLimitow
      */
     private function skrot(string $wartosc): string
     {
-        return hash_hmac('sha256', $wartosc, (string) config('app.key'));
+        return Skrot::hmac($wartosc);
     }
 }

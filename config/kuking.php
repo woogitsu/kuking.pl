@@ -396,24 +396,43 @@ return [
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
         //
-        // REKOMENDACJA AGENTA BADAWCZEGO, NIE DECYZJA WŁAŚCICIELA — patrz ADR
-        // §6. Jeden wiek dla WSZYSTKICH powiadomień liczony od `created_at`,
-        // NIEZALEŻNIE od `read_at` (wariant A z §6, nie B) — prostsze i zgodne
-        // z minimalizacją danych wprost; wariant B (nieprzeczytane nigdy nie
-        // wygasają) ryzykowałby bezterminowe trzymanie powiadomień, których
-        // ktoś nigdy nie otworzy (czyli już nigdy nie otworzy).
+        // DECYZJA WŁAŚCICIELA, 2026-09-07 (druga tura, po zewnętrznej ocenie
+        // prawnej — `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §D/§6) —
+        // 3 MIESIĄCE, NIE 24. Pierwsza wersja tego automatu (24 miesiące)
+        // była rekomendacją agenta badawczego, nie oceną prawnika. Ocena
+        // zewnętrzna nazwała ją wprost za długą: powiadomienie ma zwrócić
+        // uwagę na zdarzenie, nie zastępować bezterminowego archiwum relacji
+        // ani dokumentacji decyzji dostępnej do odwołania — ta ostatnia żyje
+        // osobno, w `reports`/`moderation_actions`/`appeals`
+        // (`moderation.case_retention_months` niżej), nie w tej tabeli.
         //
-        // Krócej niż `moderation.case_retention_months` NIE JEST wymogiem
-        // technicznym, ale ADR dobiera liczby domyślne tak, żeby powiadomienie
-        // o decyzji moderacyjnej wygasło pierwsze, zanim wygaśnie sama decyzja
-        // — `notifications.data` jest kopią treści zapisaną w chwili powstania
-        // (nie przez `join`), więc nawet gdy `moderation_actions` przeżyje
-        // swoje powiadomienie, treść, którą użytkownik zobaczył, i tak była
-        // czytelna, dopóki powiadomienie istniało.
+        // Jeden wiek dla WSZYSTKICH powiadomień liczony od `created_at`,
+        // NIEZALEŻNIE od `read_at` (wariant A z ADR §6, nie B) — prostsze
+        // i zgodne z minimalizacją danych wprost; wariant B (nieprzeczytane
+        // nigdy nie wygasają) ryzykowałby bezterminowe trzymanie powiadomień,
+        // których ktoś nigdy nie otworzy (czyli już nigdy nie otworzy).
+        //
+        // WYJĄTEK — KOLIZJA Z SZEŚCIOMIESIĘCZNYM TERMINEM ODWOŁANIA (DSA
+        // ART. 20 UST. 1). Trzy miesiące są KRÓTSZE niż sześć miesięcy, w
+        // które prawo do odwołania od decyzji moderacyjnej ma obowiązywać
+        // (`ModerationAction::appealDeadline()`). Powiadomienie o decyzji
+        // niesie jedyny w serwisie link „Odwołaj się"
+        // (`app/Domain/Moderation/Actions/NotifyModerationDecision.php`,
+        // `data.action_id`) — wygaszenie go po trzech miesiącach odbierałoby
+        // prawo, które obowiązuje jeszcze trzy miesiące dłużej.
+        //
+        // Rozwiązanie jest tego samego kształtu co `AuditLogEntry::NIGDY_NIE_KASUJ`
+        // (zamknięta stała w kodzie, nie w configu — zmiana ma przechodzić
+        // przez code review, nie przez zmienną środowiskową): TYPY powiadomień
+        // z `App\Models\Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`
+        // NIE są kandydatem do usunięcia wg TEJ liczby — ich własny termin to
+        // `ModerationAction::appealDeadline()`, wyliczony z powiązanej decyzji,
+        // NIE druga, osobno wpisana liczba miesięcy (rozjechałaby się z
+        // prawdziwym terminem przy pierwszej zmianie `appeal_days`).
         //
         // Egzekwuje `kuking:sprzataj-powiadomienia`
         // (`App\Domain\Compliance\PrzedawnionePowiadomienia`).
-        'retention_months' => (int) env('KUKING_NOTIFICATIONS_RETENTION_MONTHS', 24),
+        'retention_months' => (int) env('KUKING_NOTIFICATIONS_RETENTION_MONTHS', 3),
     ],
 
     'limits' => [
@@ -568,15 +587,23 @@ return [
     'audit_log' => [
         // RETENCJA `audit_log` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.1).
         //
-        // REKOMENDACJA AGENTA BADAWCZEGO, NIE DECYZJA WŁAŚCICIELA — patrz
-        // ADR §6, wiersz „Domyślny okres audit_log". Krócej niż okres spraw
-        // moderacyjnych (`moderation.case_retention_months` niżej), bo pełny,
-        // autorytatywny dowód decyzji i tak żyje w `reports`/`moderation_actions`/
-        // `appeals` — wpis w `audit_log` o tych samych zdarzeniach
-        // (`moderation.decided`, `content.reported`, `appeal.*`) jest cieńszą
-        // kopią, która może wygasnąć wcześniej bez utraty dowodu. Dłużej niż
-        // `product_signals`, bo `audit_log` z definicji dokumentuje "zmiany
-        // wysokiego znaczenia" (`docs/DATABASE.md`), nie czystą telemetrię.
+        // DECYZJA WŁAŚCICIELA, 2026-09-07 (druga tura, po zewnętrznej ocenie
+        // prawnej — `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §D/§6) —
+        // 12 MIESIĘCY, NIE 24. Pierwsza wersja tego automatu (24 miesiące)
+        // była rekomendacją agenta badawczego, nie oceną prawnika, i ocena
+        // zewnętrzna nazwała ją wprost nieuzasadnioną: brakuje powodu, żeby
+        // trzymać KAŻDE zdarzenie dwa lata, skoro konkretny dowód konkretnego
+        // sporu i tak trafia do osobnej, dłużej trzymanej dokumentacji sprawy
+        // (`moderation.case_retention_months` niżej) — 12 miesięcy wystarcza
+        // na przegląd uprawnień, istotne zmiany i odtworzenie niedawnego
+        // incydentu. Krócej niż okres spraw moderacyjnych z tego samego
+        // powodu co wcześniej: pełny, autorytatywny dowód decyzji żyje w
+        // `reports`/`moderation_actions`/`appeals` — wpis w `audit_log`
+        // o tych samych zdarzeniach (`moderation.decided`, `content.reported`,
+        // `appeal.*`) jest cieńszą kopią, która może wygasnąć wcześniej bez
+        // utraty dowodu. Dłużej niż `product_signals`, bo `audit_log`
+        // z definicji dokumentuje "zmiany wysokiego znaczenia"
+        // (`docs/DATABASE.md`), nie czystą telemetrię.
         //
         // Egzekwuje `kuking:sprzataj-audyt`
         // (`App\Domain\Compliance\PrzedawnioneWpisyAudytu`).
@@ -589,7 +616,7 @@ return [
         // otwierałoby drogę do wykasowania dowodu wykonania RODO/DSA jedną
         // zmianą wdrożeniową bez recenzji kodu — dokładnie tego ta lista ma
         // nie dopuścić.
-        'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 24),
+        'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
@@ -670,21 +697,29 @@ return [
         // RETENCJA SPRAWY MODERACYJNEJ — `reports` + `moderation_actions` +
         // `appeals` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.3-5.5).
         //
-        // DECYZJA WŁAŚCICIELA, 2026-09-07 — w odróżnieniu od pozostałych
-        // liczb tego pliku dodanych tym samym zleceniem, TA liczba nie jest
-        // rekomendacją agenta. Wspólny okres dla wszystkich trzech tabel,
-        // liczony od ZAMKNIĘCIA sprawy: `reports.resolved_at` dla
-        // status IN ('resolved','rejected'), `moderation_actions.created_at`
-        // (decyzja jest niemutowalna — `ModerationAction::UPDATED_AT === null`),
-        // `appeals.decided_at` dla status IN ('upheld','overturned'). Sprawy
-        // wciąż otwarte NIGDY nie są kandydatem, niezależnie od wieku.
+        // DECYZJA WŁAŚCICIELA, 2026-09-07 — 36 MIESIĘCY. Liczba jest
+        // niezmieniona od pierwszej wersji tego automatu, ale PODSTAWA
+        // PRAWNA ZMIENIŁA SIĘ w drugiej turze (po zewnętrznej ocenie prawnej,
+        // `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §A/§B.1): pierwsza
+        // wersja opierała retencję WPROST na art. 442¹ k.c., a ten przepis
+        // ustala PRZEDAWNIENIE roszczenia, nie obowiązek archiwizacji —
+        // sam fakt, że ktoś kiedyś może pozwać, jest za ogólną podstawą
+        // przetwarzania. Właściwa podstawa to art. 6 ust. 1 lit. f RODO
+        // (uzasadniony interes) z pisemnym testem celu, konieczności
+        // i równowagi — patrz ADR §5.6. Art. 442¹ k.c. ZOSTAJE w tym teście
+        // jako JEDEN Z ELEMENTÓW oceny interesu (pomaga oszacować, jak długo
+        // spór o decyzję moderacyjną jest prawdopodobny), nie jako samodzielna
+        // podstawa przechowywania. Art. 17 ust. 3 lit. e RODO działa jako
+        // wyjątek od usunięcia w KONKRETNYM, udokumentowanym przypadku
+        // (`docs/legal/MODERATION_PLAYBOOK.md`), nie jako uniwersalna podstawa
+        // całego archiwum.
         //
-        // Zakotwiczone w art. 442¹ k.c. — trzy lata na roszczenie deliktowe od
-        // dowiedzenia się o szkodzie i osobie odpowiedzialnej. Spór o decyzję
-        // moderacyjną (rzekomo bezpodstawne ukrycie/zablokowanie) najbliżej
-        // pasuje do tego reżimu, nie do ogólnego sześcioletniego z art. 118
-        // k.c. — DSA nie ma dziś w Polsce odrębnej, ugruntowanej instytucji
-        // przedawnienia dla skarg do Koordynatora ds. Usług Cyfrowych.
+        // Wspólny okres dla wszystkich trzech tabel, liczony od ZAMKNIĘCIA
+        // sprawy: `reports.resolved_at` dla status IN ('resolved','rejected'),
+        // `moderation_actions.created_at` (decyzja jest niemutowalna —
+        // `ModerationAction::UPDATED_AT === null`), `appeals.decided_at` dla
+        // status IN ('upheld','overturned'). Sprawy wciąż otwarte NIGDY nie
+        // są kandydatem, niezależnie od wieku.
         //
         // TA SAMA LICZBA DLA WSZYSTKICH TRZECH TABEL, CELOWO. Gdyby `appeals`
         // miało dłuższy okres niż `moderation_actions`, reguła kaskady
