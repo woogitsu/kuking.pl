@@ -352,6 +352,23 @@ return [
         'adres' => ['proby' => 100, 'sekundy' => 300],
     ],
 
+    'notifications' => [
+        /*
+         * Okno, w którym powiadomienie o STANIE nie wraca (R3 §7).
+         *
+         * Dotyczy wyłącznie rodzajów z `NotifyUser::TYPY_WYCISZANE_W_OKNIE`
+         * — dziś samego „X Cię obserwuje". Komentarze i „Ugotowałem" to
+         * ZDARZENIA i dochodzą zawsze, bo drugi komentarz jest nową rzeczą.
+         *
+         * Doba, nie godzina: chodzi o wzorzec rozłożony na godziny (ktoś
+         * odobserwowuje i wraca, sprawdzając, czy dana osoba zniknie mu
+         * z tablicy), a nie o spam w obrębie minuty — tamten łapie limit
+         * liczby żądań. Po dobie powrót jest już nową informacją i druga
+         * strona ma prawo o nim wiedzieć.
+         */
+        'okno_powtorzenia_godzin' => (int) env('KUKING_OKNO_POWTORZENIA_GODZIN', 24),
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
