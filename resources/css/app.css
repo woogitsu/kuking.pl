@@ -1159,6 +1159,13 @@
     border-radius: var(--radius-lg);
     padding: var(--spacing-4);
     background-color: var(--color-surface-raised);
+    /* `min-width: 0`, bo w formularzu bez JavaScriptu ta klasa siedzi na
+       `<fieldset>` (trzy pola jednego kroku + legenda „Krok 1", żeby czytnik
+       ekranu wiedział, którego kroku dotyczy pole). Przeglądarki narzucają
+       fieldsetowi `min-inline-size: min-content`, liczone z pola tekstowego
+       w środku — a to jest jedyna droga, którą ten formularz mógłby wypchnąć
+       stronę w bok przy 320 px (issue #80). */
+    min-width: 0;
   }
 
   .wizard-row + .wizard-row {

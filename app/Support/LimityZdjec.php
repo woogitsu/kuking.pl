@@ -57,6 +57,53 @@ final class LimityZdjec
     }
 
     /**
+     * Ile pól plikowych ma formularz przepisu POZA krokami: zdjęcie gotowego
+     * dania i zdjęcie starej kartki z zeszytu.
+     */
+    private const ZDJEC_STALYCH_W_FORMULARZU_PRZEPISU = 2;
+
+    /**
+     * Ile ZDJĘĆ KROKÓW wolno dołączyć do JEDNEGO zapisu przepisu.
+     *
+     * DLACZEGO TO NIE JEST „ILE KROKÓW, TYLE ZDJĘĆ"
+     * Formularz przepisu bez JavaScriptu wysyła wszystko jednym POST-em,
+     * razem ze zdjęciem gotowego dania i zdjęciem kartki. Budżet bajtów
+     * jednego żądania to `post_max_size` z `docker/php.ini`, a jedno zdjęcie
+     * może ważyć `max_bytes`. Przepis o dwudziestu krokach ze zdjęciem przy
+     * każdym z nich to dwadzieścia dwa razy `max_bytes` — czyli żądanie,
+     * które PHP odrzuca W CAŁOŚCI, razem z tokenem CSRF i całym wpisanym
+     * tekstem. Człowiek widzi wtedy „Page Expired" i traci pracę (audyt A31).
+     *
+     * DLACZEGO WŁAŚNIE `maksZdjecNaWysylke()` MINUS DWA
+     * Bo „ile zdjęć wchodzi w jedną wysyłkę" to pytanie, na które ten serwis
+     * ma już odpowiedź, i jest to odpowiedź o tym samym budżecie bajtów —
+     * ta, którą pilnuje `UploadLimitsAgreementTest` wobec `docker/php.ini`.
+     * Osobna liczba obok byłaby drugą kopią tego samego limitu, czyli
+     * dokładnie tym, przed czym istnieje cała ta klasa. Minus dwa, bo dwa
+     * pola plikowe formularz przepisu ma zawsze.
+     *
+     * CENA, WPROST: przy dłuższym przepisie zdjęcia kroków dodaje się
+     * w kilku zapisach, po kilka na raz. Da się, bo zdjęcie już zapisane
+     * ZOSTAJE przy swoim kroku przy następnej edycji (`PublishRecipe`
+     * rozwiązuje je po tożsamości kroku). Alternatywą było ciche gubienie
+     * nadmiarowych zdjęć — a to jest gorsze niż limit, o którym się mówi.
+     */
+    public static function maksZdjecKrokowNaZapis(): int
+    {
+        return max(1, self::maksZdjecNaWysylke() - self::ZDJEC_STALYCH_W_FORMULARZU_PRZEPISU);
+    }
+
+    public static function komunikatZaDuzoZdjecKrokow(): string
+    {
+        $limit = self::maksZdjecKrokowNaZapis();
+
+        return 'Za jednym razem można dodać najwyżej '.$limit.' '
+            .Odmiana::rzeczownik($limit, 'zdjęcie', 'zdjęcia', 'zdjęć').' do kroków. '
+            .'Zapisz przepis z tymi zdjęciami, a potem dodaj kolejne — '
+            .'zdjęcia już zapisane zostaną przy swoich krokach.';
+    }
+
+    /**
      * Formaty, które naprawdę umiemy przetworzyć.
      *
      * @return list<string>
