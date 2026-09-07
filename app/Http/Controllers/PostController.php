@@ -33,23 +33,6 @@ use Illuminate\View\View;
  */
 class PostController extends Controller
 {
-    /**
-     * Wyłącznik mechanizmu klucza wysłania — jedyna droga wycofania, która
-     * nie wymaga wdrożenia migracji (ADR
-     * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §8.4, „Wyjście 1").
-     *
-     * Po ustawieniu na `false` formularz renderuje się bez ukrytego pola,
-     * kolumna dostaje `NULL`, indeks częściowy takiego wiersza nie obejmuje
-     * i serwis wraca dokładnie do zachowania sprzed tej zmiany — z
-     * duplikatami, ale bez ryzyka zablokowanej wysyłki.
-     *
-     * DOCELOWO to jest `config('kuking.formularze.klucz_wyslania_wlaczony')`
-     * z `env()`. Stała stoi tu, bo `config/kuking.php` jest w tym zleceniu
-     * zablokowany przez inną pracę — wartość do przeniesienia jest wypisana
-     * w raporcie ze wdrożenia.
-     */
-    private const KLUCZ_WYSLANIA_WLACZONY = true;
-
     public function __construct(
         private readonly PublishPost $publishPost,
         private readonly EditPost $editPost,
@@ -78,7 +61,9 @@ class PostController extends Controller
      */
     private function kluczDlaFormularza(): ?string
     {
-        if (! self::KLUCZ_WYSLANIA_WLACZONY) {
+        // Wyłącznik awaryjny mechanizmu — `config/kuking.php`, sekcja
+        // `formularze` (tam stoi całe uzasadnienie i skutek wyłączenia).
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
             return null;
         }
 

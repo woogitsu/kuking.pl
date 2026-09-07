@@ -619,6 +619,39 @@ przebiegach w jednej transakcji: najpierw odsuwa wszystkie pozycje w zakres
 100+, potem ustawia docelowe `0, 1, 2…`. Wartości pośrednie są dodatnie,
 więc `CHECK (position >= 0)` obowiązuje przez cały czas.
 
+
+**`klucz_wyslania` — jedno wysłanie formularza to jeden wiersz** (D-027,
+migracja `2026_09_07_900200_add_klucz_wyslania_to_posts`).
+
+```sql
+ALTER TABLE posts ADD COLUMN klucz_wyslania uuid NULL;
+CREATE UNIQUE INDEX posts_one_per_klucz_wyslania
+    ON posts (author_id, klucz_wyslania)
+    WHERE klucz_wyslania IS NOT NULL;
+```
+
+Klucz jest w indeksie razem z `author_id`, nie sam: klucz wygenerowany
+w cudzej przeglądarce nie ma prawa wskazywać na wpis innej osoby, a przy
+kolizji kontroler odsyła człowieka do **jego** pierwszego wpisu. Bez
+`author_id` byłoby to odesłanie pod cudzy adres.
+
+**Kolumna jest `NULL`-owalna i nie ma backfillu.** Wiersze sprzed tej
+migracji, wiersze z seederów i wiersze z fabryk mają `NULL` i indeks ich nie
+obejmuje — w PostgreSQL indeks częściowy z `WHERE klucz_wyslania IS NOT NULL`
+mówi to wprost, zamiast liczyć na to, że czytelnik pamięta, iż zwykły UNIQUE
+przepuszcza dowolnie wiele `NULL`-i. `NOT NULL` rozwaliłoby `database/seeders/`
+i każdy test tworzący wiersz fabryką.
+
+**Wyłącznik:** `kuking.formularze.klucz_wyslania_wlaczony` (`false` →
+formularz nie renderuje ukrytego pola, kolumna dostaje `NULL`, indeks
+przestaje cokolwiek odbijać). To jedyna droga wycofania bez wdrażania
+migracji — dlatego jest w konfiguracji.
+
+**Rollback:** `DROP INDEX IF EXISTS posts_one_per_klucz_wyslania`, potem `DROP COLUMN
+klucz_wyslania`. Bezstratnie i dlatego `down()` niczego nie odmawia: kolumna
+niesie wyłącznie identyfikator wysłania wygenerowany przez serwer, ani jednego
+słowa napisanego przez człowieka.
+
 ### recipes
 Aktualny stan.
 
@@ -735,6 +768,46 @@ a pokazanie treści łamie ustawienie autora.
 
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
+
+
+**`klucz_wyslania` — jedno wysłanie formularza to jeden wiersz** (D-027,
+migracja `2026_09_07_900100_add_klucz_wyslania_to_cooked_events`).
+
+```sql
+ALTER TABLE cooked_events ADD COLUMN klucz_wyslania uuid NULL;
+CREATE UNIQUE INDEX cooked_events_one_per_klucz_wyslania
+    ON cooked_events (user_id, klucz_wyslania)
+    WHERE klucz_wyslania IS NOT NULL;
+```
+
+**To NIE jest `UNIQUE (user_id, recipe_id)` i zakaz z AGENTS.md §6 zostaje
+nienaruszony.** Ta sama osoba może gotować ten sam przepis dziesiątki razy
+przez lata i każde wykonanie jest osobnym wydarzeniem — indeks pilnuje
+wyłącznie tego, żeby JEDNO wysłanie formularza dało JEDEN wiersz. Nowe
+gotowanie otwiera nowy formularz, więc dostaje nowy klucz i przechodzi
+(zmierzone, ADR §3.4 wiersz 3).
+
+Stawka jest tu wyższa niż przy wpisie: podwójne „Ugotowałem" dawało dwa
+wykonania **i dwa powiadomienia** u autora przepisu — a to jest
+najcenniejsze powiadomienie w całym serwisie i nie może przychodzić podwójnie
+za jedno gotowanie.
+
+**Kolumna jest `NULL`-owalna i nie ma backfillu.** Wiersze sprzed tej
+migracji, wiersze z seederów i wiersze z fabryk mają `NULL` i indeks ich nie
+obejmuje — w PostgreSQL indeks częściowy z `WHERE klucz_wyslania IS NOT NULL`
+mówi to wprost, zamiast liczyć na to, że czytelnik pamięta, iż zwykły UNIQUE
+przepuszcza dowolnie wiele `NULL`-i. `NOT NULL` rozwaliłoby `database/seeders/`
+i każdy test tworzący wiersz fabryką.
+
+**Wyłącznik:** `kuking.formularze.klucz_wyslania_wlaczony` (`false` →
+formularz nie renderuje ukrytego pola, kolumna dostaje `NULL`, indeks
+przestaje cokolwiek odbijać). To jedyna droga wycofania bez wdrażania
+migracji — dlatego jest w konfiguracji.
+
+**Rollback:** `DROP INDEX IF EXISTS cooked_events_one_per_klucz_wyslania`, potem `DROP COLUMN
+klucz_wyslania`. Bezstratnie i dlatego `down()` niczego nie odmawia: kolumna
+niesie wyłącznie identyfikator wysłania wygenerowany przez serwer, ani jednego
+słowa napisanego przez człowieka.
 
 ### comments
 Komentarz dotyczy dokładnie jednego:
@@ -862,6 +935,8 @@ której mu nie wskazano.
 | `reports_legal_notice_complete_check` | Zgłoszenie prawne **musi** mieć uzasadnienie i `good_faith_at`. CHECK, a nie sama walidacja formularza: przy audycie liczy się to, czego baza nie mogła przyjąć. **Imienia (`notifier_name`) już NIE wymaga** — migracja `2026_09_07_600000_allow_anonymous_legal_notices`. Art. 16 ust. 2 lit. c DSA zwalnia z podania DANYCH zgłaszającego (nie tylko adresu e-mail) przy zgłoszeniach dotyczących przestępstw z art. 3-7 dyrektywy 2011/93/UE, a wcześniej reguła była w kodzie w połowie: brak adresu wolno, brak nazwiska nie. `down()` tej migracji **przerywa się**, jeśli w bazie są już anonimowe zgłoszenia — przywrócenie starego warunku wymagałoby albo wpisania im wymyślonego nazwiska (kłamstwo w kolumnie), albo skasowania (zniszczenie dowodu w najcięższej możliwej sprawie). |
 | `reports_source_status_idx (source, status, created_at)` | Kolejka moderatora filtruje po źródle — zgłoszenia prawne mają termin odpowiedzi, społecznościowe nie. |
 | `reports_pending_receipt_idx` | Indeks częściowy: zgłoszenia prawne z adresem, którym jeszcze nie potwierdzono odbioru. |
+| `reports_one_open_per_pair (reporter_id, target_type, target_id)` | Indeks częściowy `WHERE reporter_id IS NOT NULL AND status IN ('open','triage','reviewing')`: jedno OTWARTE zgłoszenie na parę osoba–treść (D-027, migracja `2026_09_07_900000_one_open_report_per_pair`). Dedup w PHP już to robił w zwykłym ruchu, ale nie chronił przed seederem, komendą ani wyścigiem. Nowe zgłoszenie po zamknięciu poprzedniego przechodzi — bo zamknięte statusy są poza indeksem. **Zgłoszeń bez konta ten indeks nie obejmuje** (`reporter_id IS NULL`); te pilnuje `klucz_wyslania`. |
+| `reports_one_per_klucz_wyslania (klucz_wyslania)` | Indeks częściowy `WHERE klucz_wyslania IS NOT NULL`: jedno wysłanie formularza to jeden wiersz (D-027, migracja `2026_09_07_900300_add_klucz_wyslania_to_reports`). Bez `reporter_id` w kluczu, inaczej niż w `posts` i `cooked_events` — droga prawna jest otwarta dla osób bez konta, więc `reporter_id` bywa `NULL` i nie może być częścią warunku unikalności. |
 
 **Rollback:** `down()` **odmawia**, gdy w tabeli są zgłoszenia prawne —
 usunięcie kolumn skasowałoby imię, adres i uzasadnienie, zostawiając samo
@@ -878,6 +953,36 @@ Egzekwuje `kuking:sprzataj-sprawy-moderacyjne`
 (`App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`) razem z
 `moderation_actions` i `appeals`, w jednej komendzie, transakcja per wiersz,
 harmonogram codziennie o 04:30.
+
+**`klucz_wyslania` — dwa mechanizmy, nie jeden** (D-027,
+`docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`). Ta tabela ma dwa różne indeksy
+częściowe, bo chroni dwie różne rzeczy, i żaden nie zastępuje drugiego:
+
+- `reports_one_open_per_pair` pilnuje **stanu**: ta sama osoba nie ma dwóch
+  otwartych spraw o tę samą treść, niezależnie od tego, którą drogą przyszły.
+  Działa tylko dla zgłoszeń z konta.
+- `reports_one_per_klucz_wyslania` pilnuje **wysłania**: jedno kliknięcie
+  „Wyślij zgłoszenie" to jeden wiersz, także gdy zgłasza ktoś bez konta.
+
+**Wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` cofa tylko drugi
+z nich.** Pierwszy nie zależy od niczego, co wysyła formularz, więc jego
+wycofanie to osobna migracja i osobne wdrożenie (`DROP INDEX IF EXISTS
+reports_one_open_per_pair`) — to jest zapisane, żeby nikt w trakcie awarii nie
+liczył na to, że zmiana zmiennej środowiskowej wystarczy.
+
+**Rollback (`klucz_wyslania`):** `DROP INDEX IF EXISTS
+reports_one_per_klucz_wyslania`, potem `DROP COLUMN klucz_wyslania`.
+Bezstratnie — inaczej niż `down()` dla kolumn drogi prawnej wyżej, które
+odmawia: w `klucz_wyslania` nie ma ani jednego słowa napisanego przez
+człowieka, a samo zgłoszenie (adres, uzasadnienie, dobra wiara, numer sprawy)
+zostaje nietknięte.
+
+**Rollback (`reports_one_open_per_pair`):** `DROP INDEX IF EXISTS`,
+bezstratnie. `up()` tej migracji natomiast **ODMAWIA**, gdy w bazie są już
+duplikaty — dokładnie jak `2026_09_06_190000_one_decision_per_report` i z tego
+samego powodu: ciche skasowanie „nadmiarowego" zgłoszenia byłoby skasowaniem
+sprawy DSA, na którą ktoś mógł się powołać. Który wiersz obowiązuje,
+rozstrzyga człowiek.
 
 ### moderation_actions
 Decyzje moderatorów.

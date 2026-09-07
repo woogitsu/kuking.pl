@@ -435,6 +435,42 @@ return [
         'retention_months' => (int) env('KUKING_NOTIFICATIONS_RETENTION_MONTHS', 3),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Formularze — klucz wysłania (idempotencja)
+    |--------------------------------------------------------------------------
+    |
+    | Jedno wysłanie formularza to jeden zapis. Formularz niesie ukryte pole
+    | `klucz_wyslania`, a częściowy indeks UNIQUE w bazie odbija drugi zapis
+    | z tym samym kluczem (D-027, `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
+    |
+    */
+
+    'formularze' => [
+        // WYŁĄCZNIK AWARYJNY MECHANIZMU KLUCZA WYSŁANIA (ADR §8.4, „Wyjście 1").
+        //
+        // Awaria, przed którą to chroni, jest wąska, ale najgorsza z możliwych
+        // dla tego mechanizmu: gdyby klucz przestał przechodzić przez `old()`
+        // poprawnie, drugie — POPRAWIONE — wysłanie zostałoby uznane za
+        // duplikat pierwszego. Skutek dla człowieka: poprawiony wpis nie
+        // powstaje, a serwis odsyła go do wpisu, którego nie ma.
+        //
+        // Po ustawieniu na `false` formularze renderują się BEZ ukrytego pola,
+        // kolumna dostaje `NULL`, częściowy indeks takiego wiersza nie obejmuje
+        // i serwis wraca dokładnie do zachowania sprzed D-027 — z duplikatami,
+        // ale bez ryzyka zablokowanej wysyłki.
+        //
+        // To jest jedyna droga wycofania, która NIE wymaga wdrożenia migracji.
+        // Dlatego jest zmienną środowiskową: na Railway zmiana wartości i
+        // restart to minuty, a wdrożenie migracji — nie.
+        //
+        // UWAGA: dla zgłoszeń (`reports`) ten wyłącznik NIE cofa wszystkiego.
+        // Drugi indeks tej tabeli — `reports_one_open_per_pair` (jedno otwarte
+        // zgłoszenie na parę zgłaszający–treść) — nie zależy od niczego, co
+        // wysyła formularz, więc jego wycofanie to osobna migracja (ADR §8.4).
+        'klucz_wyslania_wlaczony' => (bool) env('KUKING_KLUCZ_WYSLANIA', true),
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
