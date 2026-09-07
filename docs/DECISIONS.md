@@ -757,13 +757,30 @@ Otwarte tagi nie unoszą żadnej z tych trzech rzeczy: nie da się powierzyć
 komuś prowadzenia tagu, który każdy może utworzyć, ani zagwarantować, że nowe
 konto trafi tydzień przed Wigilią na coś sensownego.
 
-**Założenie przyjęte do dalszej pracy (do potwierdzenia albo zmiany przez
-właściciela):** rolę redakcyjną przejmuje **wąska lista tagów promowanych**,
-prowadzona przez gospodarza — te same trzy funkcje (temat tygodnia,
-ambasador, tag sezonowy) realizowane na tagach, bez drugiego typu obiektu
-w interfejsie. To nie jest powrót Tematów: promowany tag jest zwykłym tagiem,
-który dodatkowo stoi na liście gospodarza. `docs/product/COLD_START.md`
-wymaga aktualizacji pod tym kątem.
+**POTWIERDZONE PRZEZ WŁAŚCICIELA 7 września 2026:** rolę redakcyjną przejmuje
+**wąska lista tagów promowanych**, prowadzona przez gospodarza — te same trzy
+funkcje (temat tygodnia, ambasador, tag sezonowy) realizowane na tagach, bez
+drugiego typu obiektu w interfejsie. To nie jest powrót Tematów: promowany tag
+jest zwykłym tagiem, który dodatkowo stoi na liście gospodarza, z kolejnością
+i opcjonalnym jednym zdaniem od niego. `docs/product/COLD_START.md` wymaga
+aktualizacji pod tym kątem.
+
+**Co odrzucono i dlaczego.** Rozważane były trzy inne warianty.
+*Lista po popularności* — najprostsza, ale przy zerowym ruchu popularność nie
+istnieje, więc nowe konto zobaczyłoby pustą albo losową listę, czyli dokładnie
+problem, który Tematy rozwiązywały. *Wykorzystanie istniejących mechanizmów
+redakcyjnych* — projekt ma już tablicę dnia („kuKINGi na dziś": do 6 wpisów
+i 6 osób z notatką) oraz publiczne zeszyty, i one pokrywają „co gospodarz dziś
+pokazuje" oraz „zestaw, który gospodarz złożył". Nie pokrywają jednego:
+NAZWANEJ RZECZY, DO KTÓREJ SPOŁECZNOŚĆ SAMA DOSYPUJE TREŚĆ — zeszyt składa
+gospodarz, tag rośnie od użytkowników, a „temat tygodnia" ma z definicji
+rosnąć. *Odłożenie decyzji* — odrzucone, bo rdzeń tagów był budowany w tej
+chwili, a dodanie promocji później oznaczałoby przebudowę onboardingu, strony
+tagu, strony głównej i panelu.
+
+**Opiekun tagu (ambasador) NIE jest jeszcze zbudowany.** Zatwierdzona została
+sama możliwość promowania tagu. Przypisanie konkretnej osoby do prowadzenia
+tagu to osobny krok.
 
 ### Stan danych w chwili decyzji
 
