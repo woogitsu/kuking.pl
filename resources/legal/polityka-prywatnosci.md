@@ -1,32 +1,34 @@
-# Polityka Prywatności Kuking.pl (SZKIC — wymaga weryfikacji prawnika przed publikacją)
+# Polityka Prywatności Kuking.pl
 
-> **UWAGA: To jest wersja robocza (draft), nie dokument gotowy do publikacji.** Zawiera placeholdery `[NAZWA OPERATORA]`, `[ADRES]`, `[E-MAIL KONTAKTOWY]` do uzupełnienia. Przed wstawieniem na `/prywatnosc` dokument musi zostać sprawdzony przez prawnika — zwłaszcza tabela podstaw prawnych, okresy retencji i lista podprocesorów, które mogą się zmienić wraz z rozwojem produktu. Zobacz też `COMPLIANCE.md` dla uzasadnienia poszczególnych zapisów.
+> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.** Nie zawiera okresów przechowywania, których serwis jeszcze nie egzekwuje — tam, gdzie czegoś nie robimy albo nie umiemy jeszcze robić, jest to napisane wprost. Dokument nie był weryfikowany przez prawnika.
 
 ---
 
 ## W skrócie
 
-Zbieramy tylko te dane, które są potrzebne, żeby Kuking działał: Twój e-mail i hasło, dane profilu, które sam uzupełniasz, i treści, które publikujesz. Nie sprzedajemy Twoich danych nikomu. Dane przechowujemy na serwerach w Unii Europejskiej. W każdej chwili możesz pobrać kopię swoich danych albo usunąć konto — opisujemy dokładnie, jak to zrobić i co się wtedy dzieje z Twoimi treściami. Jeśli masz pytania, napisz do nas na **[E-MAIL KONTAKTOWY]**.
+Zbieramy tylko te dane, które są potrzebne, żeby Kuking działał: Twój e-mail i hasło, dane profilu, które sam uzupełniasz, i treści, które publikujesz. Nie sprzedajemy Twoich danych nikomu. Dane przechowujemy na serwerach w Unii Europejskiej. W każdej chwili możesz pobrać kopię swoich danych albo usunąć konto — opisujemy dokładnie, jak to zrobić i co się wtedy dzieje z Twoimi treściami. Jeśli masz pytania, napisz do nas na **kontakt@kuking.pl**.
 
 ---
 
 ## 1. Kto administruje Twoimi danymi
 
-Administratorem Twoich danych osobowych jest **[NAZWA OPERATORA]**, z siedzibą w **[ADRES]**. Kontakt w sprawach ochrony danych: **[E-MAIL KONTAKTOWY]**.
+Kuking.pl prowadzi osoba fizyczna i ta osoba jest administratorem Twoich danych. Kontakt w sprawach ochrony danych: **kontakt@kuking.pl** — na ten adres odpowiada człowiek, nie automat.
+
+Imię, nazwisko i adres do korespondencji administratora podamy w tym miejscu, zanim otworzymy rejestrację dla wszystkich. Dopóki tego tu nie ma, wiedz o tym, korzystając z serwisu: masz prawo znać tożsamość administratora i możesz o nią poprosić e-mailem, a my ją podamy.
 
 ## 2. Jakie dane zbieramy, po co i jak długo je przechowujemy
 
 | Po co zbieramy | Jakie dane | Podstawa prawna | Jak długo przechowujemy |
 |---|---|---|---|
-| Założenie i prowadzenie konta | e-mail, hasło (przechowywane w postaci zaszyfrowanej, nie w formie jawnej), status konta | Wykonanie umowy o świadczenie usługi (regulamin, który akceptujesz przy rejestracji) | Do usunięcia konta + krótki okres karencji na wypadek pomyłki (patrz sekcja 7) |
+| Założenie i prowadzenie konta | e-mail, hasło (przechowywane jako nieodwracalny skrót — z tego, co mamy w bazie, nie da się odtworzyć Twojego hasła; my też go nie znamy), status konta | Wykonanie umowy o świadczenie usługi (regulamin, który akceptujesz przy rejestracji) | Do usunięcia konta + krótki okres karencji na wypadek pomyłki (patrz sekcja 7) |
 | Twój publiczny profil | nazwa użytkownika, wyświetlana nazwa, opis (bio), zdjęcie profilowe | Wykonanie umowy — to funkcje, z których świadomie korzystasz | Do usunięcia lub zmiany przez Ciebie |
 | Publikowanie treści | zdjęcia, przepisy, wpisy, komentarze i ich historia edycji | Wykonanie umowy | Do usunięcia treści lub konta przez Ciebie |
 | Relacje w serwisie | kogo obserwujesz, kogo zablokowałeś | Wykonanie umowy | Do usunięcia relacji lub konta |
-| Obsługa zgłoszeń i moderacji | treść zgłoszenia, decyzja moderatora, uzasadnienie | Obowiązek prawny (przepisy o usługach cyfrowych) oraz nasz uzasadniony interes w utrzymaniu bezpieczeństwa serwisu | Dłużej niż inne dane — [do ustalenia z prawnikiem, orientacyjnie 12–24 miesiące od zamknięcia sprawy] |
-| Bezpieczeństwo (logi, próby logowania, adresy IP) | adres IP, znacznik czasu, typ zdarzenia | Nasz uzasadniony interes w ochronie serwisu przed nadużyciami | Krótko, orientacyjnie do 90 dni |
-| Powiadomienia w serwisie | treść powiadomienia, informacja czy przeczytane | Wykonanie umowy | Do przeczytania/usunięcia + rozsądny bufor techniczny |
-| Analiza działania serwisu (statystyki, ulepszanie produktu) | zdarzenia dotyczące korzystania z aplikacji, w miarę możliwości bez danych identyfikujących wprost | Nasz uzasadniony interes w ulepszaniu serwisu / Twoja zgoda (jeśli wymagana — patrz sekcja 5 o plikach cookies) | Orientacyjnie 6–14 miesięcy, dane zbiorcze bez ograniczenia czasowego |
-| Wykrywanie i naprawa błędów technicznych | informacje techniczne o błędzie (bez zamierzonego zbierania treści prywatnych) | Nasz uzasadniony interes w utrzymaniu działania serwisu | Orientacyjnie 30–90 dni |
+| Obsługa zgłoszeń i moderacji | treść zgłoszenia, decyzja moderatora, uzasadnienie | Obowiązek prawny (przepisy o usługach cyfrowych) oraz nasz uzasadniony interes w utrzymaniu bezpieczeństwa serwisu | Dłużej niż inne dane. **Nie mamy dziś automatycznego usuwania tych danych** — zgłoszenia i decyzje moderacyjne zostają w bazie do czasu, gdy taki mechanizm wprowadzimy. Wtedy podamy tu konkretny okres. Nie chcemy pisać liczby, której serwis nie pilnuje |
+| Bezpieczeństwo (dziennik ważnych zdarzeń, próby logowania) | **skrót** adresu IP (nie sam adres — z zapisu w bazie nie da się odczytać, z jakiego adresu ktoś korzystał), znacznik czasu, typ zdarzenia | Nasz uzasadniony interes w ochronie serwisu przed nadużyciami | **Bez automatycznego usuwania** — tak samo jak przy zgłoszeniach. Gdy wprowadzimy usuwanie, podamy tu okres |
+| Powiadomienia w serwisie | treść powiadomienia, informacja czy przeczytane | Wykonanie umowy | Do usunięcia konta. **Powiadomień nie usuwamy dziś automatycznie po czasie** — „bufor techniczny" znaczyłby w praktyce „bezterminowo", więc piszemy to wprost |
+| Analiza działania serwisu (statystyki, ulepszanie produktu) | zdarzenia dotyczące korzystania z aplikacji, w miarę możliwości bez danych identyfikujących wprost | Nasz uzasadniony interes w ulepszaniu serwisu / Twoja zgoda (jeśli wymagana — patrz sekcja 5 o plikach cookies) | **90 dni** — i to jest okres, który serwis naprawdę pilnuje: raz na dobę usuwa zdarzenia starsze niż 90 dni. Dane zbiorcze (same liczby, bez zdarzeń) zostają dłużej |
+| Wykrywanie i naprawa błędów technicznych | zapis błędu w dzienniku serwera (bez zamierzonego zbierania treści prywatnych) | Nasz uzasadniony interes w utrzymaniu działania serwisu | Dzienniki serwera żyją tyle, ile działająca instancja serwisu — nie mamy dziś zewnętrznego narzędzia do zbierania błędów |
 | Wiadomości e-mail (reset hasła, powiadomienia) | adres e-mail, treść wiadomości | Wykonanie umowy (wiadomości niezbędne do działania konta) | Do usunięcia konta |
 
 Nie zbieramy: numeru telefonu, dokładnego adresu zamieszkania, lokalizacji GPS, płci, pełnej daty urodzenia ani danych o zdrowiu — chyba że sam zdecydujesz się je opisać w treści, którą publikujesz (np. w komentarzu wspomnisz o swojej diecie) — to Twoja decyzja i Twoja odpowiedzialność za to, co ujawniasz publicznie.
@@ -39,11 +41,12 @@ Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicz
 |---|---|---|
 | Railway | Hosting serwera i bazy danych | Unia Europejska |
 | Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska |
-| Sentry | Wykrywanie błędów technicznych aplikacji | Unia Europejska (region wybrany przez nas) |
-| PostHog | Statystyki korzystania z serwisu | Unia Europejska (Frankfurt) |
-| [Dostawca poczty e-mail] | Wysyłka e-maili transakcyjnych (reset hasła, powiadomienia) | [do uzupełnienia] |
 
-Każdy z tych dostawców ma podpisaną z nami umowę powierzenia przetwarzania danych i może przetwarzać dane wyłącznie zgodnie z naszymi instrukcjami.
+Statystyki liczymy sami, w naszej własnej bazie — **nie korzystamy z żadnego zewnętrznego narzędzia analitycznego** (ani Google Analytics, ani żadnego innego). Nie korzystamy też z zewnętrznej usługi zbierania błędów aplikacji.
+
+**Dostawcy poczty e-mail jeszcze nie wybraliśmy**, więc serwis dziś nie wysyła wiadomości. Gdy go wybierzemy, dopiszemy go do tabeli wyżej, zanim pierwsza wiadomość wyjdzie.
+
+**Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych** i mówimy to wprost, zamiast pisać, że mamy. Korzystamy z ich standardowych warunków usługi. Podpisanie umów powierzenia jest na naszej liście rzeczy do zrobienia przed otwarciem rejestracji dla wszystkich.
 
 **Przekazywanie danych poza Europejski Obszar Gospodarczy:** staramy się, żeby wszystkie dane pozostawały w UE. Jeśli którykolwiek z naszych dostawców jest firmą spoza UE (np. z USA), sprawdzamy, czy korzysta z uznanego mechanizmu ochrony danych (np. certyfikacji EU-US Data Privacy Framework) lub standardowych klauzul umownych zatwierdzonych przez Komisję Europejską.
 
@@ -64,21 +67,21 @@ Masz też prawo złożyć skargę do **Prezesa Urzędu Ochrony Danych Osobowych 
 ## 5. Pliki cookies i podobne technologie
 
 - Używamy technicznie niezbędnych plików cookies (np. do utrzymania sesji logowania) — te nie wymagają Twojej zgody, bo bez nich serwis nie mógłby działać.
-- [Jeśli dotyczy — do potwierdzenia przed publikacją] Używamy narzędzia statystycznego (PostHog), które pomaga nam zrozumieć, jak korzystacie z Kuking. [Wariant A — jeśli wdrożony baner:] Włączamy to narzędzie tylko po Twojej zgodzie, o którą pytamy przy pierwszej wizycie. Możesz zmienić zdanie w każdej chwili w ustawieniach cookies w stopce strony. [Wariant B — jeśli wdrożona konfiguracja bez identyfikatorów:] Narzędzie to działa w trybie zbiorczych statystyk, bez zapisywania plików na Twoim urządzeniu i bez identyfikowania Cię jako konkretnej osoby.
+- **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma na co jej udzielać. Statystyki korzystania z serwisu liczymy po stronie serwera, w naszej własnej bazie, bez zapisywania czegokolwiek na Twoim urządzeniu.
 - Nie używamy plików cookies do reklam ukierunkowanych ani nie sprzedajemy danych o Twoim zachowaniu reklamodawcom.
 
 ## 6. Bezpieczeństwo danych
 
-Stosujemy techniczne i organizacyjne środki bezpieczeństwa (szyfrowanie hasła, połączenie szyfrowane HTTPS, ograniczony dostęp do danych wewnątrz zespołu). Szczegóły techniczne opisujemy w naszym wewnętrznym dokumencie bezpieczeństwa.
+Stosujemy techniczne i organizacyjne środki bezpieczeństwa: hasła przechowujemy jako nieodwracalne skróty (nie szyfrujemy ich — szyfrowanie dałoby się odwrócić, skrót nie), połączenie z serwisem jest szyfrowane (HTTPS), a dostęp do danych ma wyłącznie osoba prowadząca serwis. Szczegóły techniczne opisujemy w naszym wewnętrznym dokumencie bezpieczeństwa.
 
 Jeśli dojdzie do naruszenia ochrony danych, które stwarza ryzyko dla Twoich praw i wolności, **zgłosimy to do UODO w ciągu 72 godzin** od stwierdzenia naruszenia, a jeśli ryzyko dla Ciebie będzie wysokie — **poinformujemy Cię bezpośrednio**, bez zbędnej zwłoki.
 
 ## 7. Usunięcie konta — co się dzieje krok po kroku
 
 1. Klikasz "Usuń konto" w ustawieniach.
-2. Konto przechodzi w stan tymczasowy (przez **[X dni — do ustalenia, orientacyjnie 30 dni]**), w którym możesz jeszcze zmienić zdanie i je przywrócić.
+2. Konto przechodzi w stan tymczasowy — **na 30 dni** — w którym możesz jeszcze zmienić zdanie i je przywrócić. Ten okres serwis naprawdę pilnuje: po 30 dniach codzienne zadanie dokańcza usunięcie.
 3. Po tym okresie dane osobowe konta są trwale usuwane lub anonimizowane. Niektóre treści o wartości dla społeczności (np. przepis, do którego odwoływali się inni użytkownicy) mogą zostać zachowane, ale z usuniętym powiązaniem z Twoją tożsamością (np. "autor: konto usunięte").
-4. Kopie zapasowe (backupy) naszej bazy danych mogą zawierać Twoje dane jeszcze przez pewien czas po usunięciu konta, ze względów technicznych — maksymalnie przez **[X dni — do ustalenia]**. Backupy nie są używane do niczego poza awaryjnym przywróceniem serwisu.
+4. Kopie zapasowe bazy tworzy nasz dostawca hostingu i mogą one zawierać Twoje dane jeszcze przez pewien czas po usunięciu konta. **Nie podajemy tu liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą** — podamy ją, gdy będzie potwierdzona. Kopie zapasowe nie są używane do niczego poza awaryjnym przywróceniem serwisu.
 
 ## 8. Dzieci
 
@@ -86,15 +89,15 @@ Kuking jest przeznaczony dla osób od 16 roku życia. Nie zbieramy świadomie da
 
 ## 9. Zmiany Polityki Prywatności
 
-Możemy aktualizować tę Politykę Prywatności, np. gdy zmienia się prawo lub dodajemy nowe funkcje. O istotnych zmianach poinformujemy z wyprzedzeniem (e-mailem lub powiadomieniem w serwisie).
+Możemy aktualizować tę Politykę Prywatności, np. gdy zmienia się prawo lub dodajemy nowe funkcje. O istotnych zmianach poinformujemy z wyprzedzeniem powiadomieniem w serwisie (a gdy będziemy już wysyłać wiadomości — także e-mailem).
 
 ## 10. Kontakt
 
-W sprawach dotyczących Twoich danych osobowych napisz do nas: **[E-MAIL KONTAKTOWY]**.
+W sprawach dotyczących Twoich danych osobowych napisz do nas: **kontakt@kuking.pl**.
 
 ---
 
-*Ten dokument to szkic roboczy przygotowany na potrzeby planowania produktu. Wymaga pełnej weryfikacji prawnej przed publikacją na stronie serwisu — w szczególności tabeli podstaw prawnych i okresów retencji, listy podprocesorów i ich lokalizacji, oraz decyzji dotyczącej cookies/PostHog. Patrz `COMPLIANCE.md` dla pełnego uzasadnienia.*
+*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu administratora, dostawcy poczty, okresów przechowywania zgłoszeń, dziennika zdarzeń i powiadomień (dopiszemy je, gdy serwis zacznie je egzekwować — nie wcześniej) oraz liczby dni, przez które dane żyją w kopiach zapasowych. Dokument nie był weryfikowany przez prawnika.*
 
 ## Źródła
 

@@ -186,14 +186,27 @@ class ModerationAction extends Model
     /**
      * Do kiedy można się odwołać.
      *
-     * Termin z `docs/legal/MODERATION_PLAYBOOK.md` (szablony 4.1-4.5 mówią
-     * „w ciągu 14 dni"). Liczony od DECYZJI, nie od przeczytania jej przez
-     * użytkownika — inaczej termin nigdy by nie mijał komuś, kto nie zagląda
-     * do serwisu.
+     * SZEŚĆ MIESIĘCY, bo tyle wymaga art. 20 ust. 1 DSA („co najmniej sześć
+     * miesięcy od decyzji"). Wcześniej było 14 dni — liczba wzięta
+     * z `docs/legal/MODERATION_PLAYBOOK.md`, gdzie powstała z rozsądku
+     * operacyjnego, nie z przepisu (pomiar: `docs/decyzje/DSA_POMIAR.md`).
+     *
+     * Liczone od DECYZJI, nie od przeczytania jej przez użytkownika —
+     * inaczej termin nigdy by nie mijał komuś, kto nie zagląda do serwisu.
+     *
+     * `addMonths(6)`, a nie `addDays(180)`: regulamin mówi ludziom „6
+     * miesięcy", a sześć miesięcy kalendarzowych jest zawsze DŁUŻSZE niż 180
+     * dni, więc liczenie w miesiącach nie potrafi wypaść na niekorzyść osoby,
+     * która policzyła termin z kalendarza. `appeal_days` z konfiguracji
+     * zostaje jako DOLNA GRANICA, poniżej której termin nie ma prawa zejść —
+     * gdyby ktoś ustawił ją niżej niż wymaga DSA, bierzemy sześć miesięcy.
      */
     public function appealDeadline(): CarbonInterface
     {
-        return $this->created_at->copy()->addDays((int) config('kuking.moderation.appeal_days'));
+        $zKonfiguracji = $this->created_at->copy()->addDays((int) config('kuking.moderation.appeal_days'));
+        $szescMiesiecy = $this->created_at->copy()->addMonths(6);
+
+        return $zKonfiguracji->greaterThan($szescMiesiecy) ? $zKonfiguracji : $szescMiesiecy;
     }
 
     /** Czy od tej decyzji da się jeszcze złożyć odwołanie. */

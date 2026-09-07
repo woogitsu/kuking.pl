@@ -139,7 +139,7 @@ class AppealController extends Controller
         if ($decyzja === null) {
             throw ValidationException::withMessages([
                 'login' => 'Nie mamy decyzji, od której można się teraz odwołać. Możliwe, że odwołanie już złożono '
-                    .'albo minął termin 14 dni. Napisz do nas: '.config('kuking.community.contact_email'),
+                    .'albo minęło sześć miesięcy od decyzji. Napisz do nas: '.config('kuking.community.contact_email'),
             ]);
         }
 

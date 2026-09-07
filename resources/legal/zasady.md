@@ -21,4 +21,4 @@ Treści przedstawiające krzywdzenie dzieci usuwamy natychmiast i zgłaszamy odp
 
 ## Jak to działa w praktyce
 
-Zgłoszenia czyta człowiek, nie automat. Staramy się odpowiadać w ciągu 48 godzin, a sprawy poważne — tego samego dnia. Kiedy ograniczamy albo usuwamy treść, piszemy autorowi dlaczego i jak może się odwołać.
+Zgłoszenia czyta człowiek, nie automat. Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze — nie podajemy tu liczby godzin, bo nie mamy dziś w serwisie nic, co ten termin mierzy i pilnuje. Kiedy ograniczamy albo usuwamy treść, piszemy autorowi dlaczego i jak może się odwołać.

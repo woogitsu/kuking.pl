@@ -555,9 +555,25 @@ return [
         // Dlatego mieszkają w konfiguracji, a nie w trzech miejscach w kodzie:
         // rozjazd między dokumentem a systemem jest gorszy niż brak obu.
 
-        // Ile dni od decyzji można złożyć odwołanie. Playbook obiecuje 14
-        // w każdym szablonie wiadomości do użytkownika.
-        'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 14),
+        // Ile dni od decyzji można złożyć odwołanie.
+        //
+        // 180 DNI, NIE 14 — I TO NIE JEST PREFERENCJA.
+        // Art. 20 ust. 1 DSA wymaga, żeby wewnętrzny system rozpatrywania
+        // skarg był dostępny przez CO NAJMNIEJ SZEŚĆ MIESIĘCY od decyzji.
+        // Do 7 września 2026 stało tu 14 dni — liczba przepisana
+        // z `docs/legal/MODERATION_PLAYBOOK.md`, gdzie wzięła się z rozsądku
+        // operacyjnego, nie z przepisu (pomiar: `docs/decyzje/DSA_POMIAR.md`,
+        // sekcja o art. 20). Przy 14 dniach człowiek, który wrócił do serwisu
+        // po miesiącu, nie miał już czego kliknąć.
+        //
+        // 180, a nie „6 miesięcy" liczone kalendarzowo: termin ma być
+        // policzalny w dniach, bo tak jest pokazywany („Ten termin minął
+        // 3 marca 2027"), a 180 dni jest KRÓTSZE niż sześć miesięcy w każdym
+        // wariancie kalendarza — dlatego regulamin mówi „6 miesięcy", a kod
+        // liczy z zapasem w drugą stronę: `appealDeadline()` dodaje 6
+        // miesięcy kalendarzowych, a ta liczba jest tylko dolną granicą,
+        // której nie wolno zejść poniżej (pilnuje jej test).
+        'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 180),
 
         // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
         // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich

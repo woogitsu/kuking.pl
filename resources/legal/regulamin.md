@@ -1,6 +1,6 @@
-# Regulamin Kuking.pl (SZKIC — wymaga weryfikacji prawnika przed publikacją)
+# Regulamin Kuking.pl
 
-> **UWAGA: To jest wersja robocza (draft), nie dokument gotowy do publikacji.** Zawiera placeholdery `[NAZWA OPERATORA]`, `[ADRES]`, `[E-MAIL KONTAKTOWY]` do uzupełnienia. Przed wstawieniem na `/regulamin` dokument musi zostać sprawdzony i zatwierdzony przez prawnika, zwłaszcza w zakresie: licencji na treści użytkownika, ograniczeń odpowiedzialności, procedury reklamacyjnej i zgodności z Rozporządzeniem DSA oraz ustawą o świadczeniu usług drogą elektroniczną. Zobacz też `COMPLIANCE.md` dla uzasadnienia poszczególnych zapisów.
+> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.** Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać. Dokument nie był weryfikowany przez prawnika.
 
 ---
 
@@ -12,7 +12,9 @@ Kuking to serwis, w którym pokazujesz, co ugotowałeś, zapisujesz swoje przepi
 
 ## 1. Kto prowadzi Kuking
 
-Serwis Kuking.pl prowadzi **[NAZWA OPERATORA]**, z siedzibą w **[ADRES]**. Kontakt: **[E-MAIL KONTAKTOWY]**.
+Serwis Kuking.pl prowadzi osoba fizyczna. Kontakt: **kontakt@kuking.pl** — na ten adres odpowiada człowiek, nie automat.
+
+Imię, nazwisko i adres do korespondencji podamy w tym miejscu, zanim otworzymy rejestrację dla wszystkich. Do tego czasu możesz o nie poprosić e-mailem i je otrzymasz.
 
 Ten sam adres e-mail służy do:
 - zgłaszania treści i pytań dotyczących Twojego konta,
@@ -96,7 +98,7 @@ Pełną, bardziej szczegółową listę i przykłady znajdziesz w Zasadach Kukin
 
 ## 7. Zgłaszanie treści
 
-Jeśli widzisz treść, która narusza Regulamin lub Zasady Kuking, zgłoś ją przyciskiem **"Zgłoś"** widocznym przy każdej treści. Możesz też napisać do nas na **[E-MAIL KONTAKTOWY]**.
+Jeśli widzisz treść, która narusza Regulamin lub Zasady Kuking, zgłoś ją przyciskiem **"Zgłoś"** widocznym przy każdej treści. Możesz też napisać do nas na **kontakt@kuking.pl**.
 
 Każde zgłoszenie sprawdzamy. Poinformujemy Cię o wyniku. Staramy się odpowiadać szybko, ale przy dużej liczbie zgłoszeń może to potrwać kilka dni.
 
@@ -112,7 +114,9 @@ Zawsze, gdy to możliwe, **wyjaśnimy powód decyzji** i poinformujemy, jak się
 
 ### Odwołanie
 
-Jeśli nie zgadzasz się z naszą decyzją, napisz do nas na **[E-MAIL KONTAKTOWY]** w ciągu 14 dni od otrzymania informacji o decyzji. Ponownie przeanalizujemy sprawę i odpowiemy w ciągu 7 dni roboczych.
+Jeśli nie zgadzasz się z naszą decyzją, masz **6 miesięcy** od otrzymania informacji o niej na złożenie odwołania — przyciskiem „Odwołaj się" przy powiadomieniu o decyzji albo pisząc na **kontakt@kuking.pl**. Ponownie przeanalizujemy sprawę i odpowiemy w ciągu 7 dni roboczych.
+
+Serwis prowadzi jedna osoba, więc nie obiecujemy, że Twoje odwołanie rozpatrzy ktoś inny niż autor pierwszej decyzji — obiecujemy natomiast, że tej samej decyzji nie da się podtrzymać od razu: przez pierwsze 24 godziny nie można potwierdzić własnego rozstrzygnięcia, żeby „podtrzymuję" nie było odruchem. Cofnięcie własnej decyzji działa natychmiast.
 
 Możesz też zgłosić sprawę do organów nadzorujących zgodność z prawem: w sprawach danych osobowych — do Prezesa Urzędu Ochrony Danych Osobowych (UODO), w sprawach związanych z Rozporządzeniem o usługach cyfrowych — do Prezesa Urzędu Komunikacji Elektronicznej (Koordynator ds. Usług Cyfrowych).
 
@@ -125,19 +129,19 @@ Jak przetwarzamy Twoje dane, opisujemy szczegółowo w osobnym dokumencie: **Pol
 - Kuking to platforma, na której użytkownicy publikują własne treści (User Generated Content). **Nie jesteśmy autorami** przepisów, zdjęć ani komentarzy publikowanych przez użytkowników i nie odpowiadamy za ich prawdziwość, bezpieczeństwo czy zgodność z prawem, chyba że wiedzieliśmy o naruszeniu i nie zareagowaliśmy.
 - Przepisy i porady publikowane przez użytkowników to ich prywatne opinie i doświadczenia, **nie są to porady medyczne ani dietetyczne**. Stosuj je na własną odpowiedzialność, zwłaszcza w przypadku alergii, chorób czy specjalnej diety — skonsultuj się z lekarzem lub dietetykiem.
 - Staramy się utrzymywać Kuking dostępny i bezpieczny, ale nie gwarantujemy nieprzerwanego działania serwisu.
-- [do uzupełnienia przez prawnika: precyzyjne ograniczenie odpowiedzialności zgodne z bezwzględnie obowiązującymi przepisami prawa polskiego i unijnego, w tym zasadami dot. odpowiedzialności dostawcy hostingu z DSA]
+- Odpowiadamy za szkodę wyrządzoną z naszej winy, na zasadach przewidzianych prawem. Nie ograniczamy tu odpowiedzialności w sposób, którego prawo nie pozwala ograniczyć — a jeśli jesteś konsumentem, żaden zapis tego Regulaminu nie odbiera Ci uprawnień wynikających z bezwzględnie obowiązujących przepisów prawa konsumenckiego.
 
 ## 11. Zmiany Regulaminu
 
-Możemy zmieniać ten Regulamin — np. gdy zmienia się prawo albo dodajemy nowe funkcje. O istotnych zmianach poinformujemy z wyprzedzeniem (np. e-mailem lub powiadomieniem w serwisie) co najmniej **[X dni — do ustalenia, rekomendacja 14–30 dni]** przed ich wejściem w życie. Dalsze korzystanie z Kuking po tym terminie oznacza akceptację zmian.
+Możemy zmieniać ten Regulamin — np. gdy zmienia się prawo albo dodajemy nowe funkcje. O istotnych zmianach poinformujemy z wyprzedzeniem (np. e-mailem lub powiadomieniem w serwisie) co najmniej **14 dni** przed ich wejściem w życie. Dalsze korzystanie z Kuking po tym terminie oznacza akceptację zmian.
 
 ## 12. Prawo właściwe i spory
 
-Ten Regulamin podlega prawu polskiemu. [do uzupełnienia przez prawnika: właściwość sądu, tryb rozstrzygania sporów z konsumentami, informacja o platformie ODR (jeśli dotyczy) — sprawdzić aktualność wymogu w kontekście DSA/prawa konsumenckiego].
+Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe według przepisów prawa polskiego — jeśli jesteś konsumentem, są to zasady ogólne, których ten Regulamin nie zmienia i nie może zmienić na Twoją niekorzyść. Zanim sprawa trafi do sądu, napisz do nas: większość spraw da się zamknąć rozmową.
 
 ---
 
-*Ten dokument to szkic roboczy przygotowany na potrzeby planowania produktu. Wymaga pełnej weryfikacji prawnej przed publikacją na stronie serwisu — patrz `COMPLIANCE.md` dla listy punktów wymagających konsultacji prawnika.*
+*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu osoby prowadzącej serwis. Dokument nie był weryfikowany przez prawnika.*
 
 ## Źródła
 

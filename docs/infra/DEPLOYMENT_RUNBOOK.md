@@ -1150,7 +1150,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
-| 13 | Adres nadawcy poczty | `kuchnia@kuking.pl` | `railway.ts` |
+| 13 | Adres nadawcy poczty | `kontakt@kuking.pl` — **jeden adres w obie strony** (decyzja właściciela, 7 IX 2026: kod pokazywał ludziom `kontakt@`, a wysyłał z `kuchnia@`; z kodu nie dało się ustalić, która skrzynka odbiera). W repozytorium poprawione (`config/mail.php`, `.env.example`); **zmienna `MAIL_FROM_ADDRESS` na Railway należy do właściciela i trzeba ją tam zmienić ręcznie** | `railway.ts` |
 
 ### Sekrety do wygenerowania i bezpiecznego zapisania
 
