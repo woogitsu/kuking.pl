@@ -105,7 +105,20 @@ final class SearchQuery
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'recipes.author_id'))
             ->with(['author.profile', 'heroMedia'])
-            ->withCount('cookedEvents')
+            // `widoczneDla($widz)` W LICZNIKU, nie gołe `withCount`.
+            //
+            // Karta wyniku pokazuje „Ugotowane N ×" tą samą etykietą, którą
+            // pokazuje strona przepisu — a tamta liczy od dziś tylko wykonania
+            // widoczne dla TEGO widza (audyt przepisów: gołe `count()` stało
+            // dziesięć linijek pod galerią, która filtr miała od audytu A4,
+            // i zdradzało istnienie wykonania osoby zablokowanej). Bez tej
+            // samej granicy tutaj ta sama etykieta znaczyłaby dwie różne
+            // rzeczy zależnie od ekranu — czyli ta klasa błędu przeniesiona
+            // o jeden plik dalej, a nie zamknięta.
+            //
+            // Dla gościa `widoczneDla(null)` nie filtruje niczego, więc
+            // liczby publiczne i dane dla wyszukiwarek zostają bez zmian.
+            ->withCount(['cookedEvents' => fn ($q) => $q->widoczneDla($widz)])
             ->whereRaw('recipes.id IN ('.self::KANDYDACI_SQL.')', [
                 $needle,
                 '%'.$needle.'%',
