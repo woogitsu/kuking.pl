@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -12,7 +13,6 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * "Ugotowałem" — zapis realnego wykonania przepisu.
@@ -43,11 +43,11 @@ final class RecordCookedEvent
         ?string $ip = null,
     ): CookedEvent {
         if (! $recipe->isPublished()) {
-            throw new RuntimeException('Tego przepisu nie ma jeszcze opublikowanego.');
+            throw new BladDlaCzlowieka('Tego przepisu nie ma jeszcze opublikowanego.');
         }
 
         if ($cook->hasBlockRelationWith($recipe->author)) {
-            throw new RuntimeException('Nie można dodać wykonania do tego przepisu.');
+            throw new BladDlaCzlowieka('Nie można dodać wykonania do tego przepisu.');
         }
 
         $ownedMedia = Media::query()

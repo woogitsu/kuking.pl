@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -185,6 +186,6 @@ final class ModeratedContent
         }
 
         return self::DOMYSLNY_PO_PRZYWROCENIU[$model::class]
-            ?? throw new \RuntimeException('Tej treści nie da się przywrócić.');
+            ?? throw new BladDlaCzlowieka('Tej treści nie da się przywrócić.');
     }
 }

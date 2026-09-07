@@ -201,6 +201,26 @@ ten kod pęka:
   dzień w UTC, i porównywało go z dniem czytelnika. Wpis z 00:30 czasu
   polskiego miał rocznicę przesuniętą o dobę wstecz. Naprawione przez
   `at time zone`; test ma zamrożony zegar, bo to jest błąd o porze doby.
+- **Kilkanaście ekranów pokazywało człowiekowi adres bazy i całe zapytanie.**
+  Warstwa domenowa rzucała zwykłym `RuntimeException` z komunikatem dla
+  człowieka, a kontrolery robiły `catch (RuntimeException)` i wkładały
+  `$e->getMessage()` do worka błędów formularza. Wzorzec dobry — tyle że
+  `PDOException` DZIEDZICZY po `RuntimeException`, więc ten sam `catch` łapał
+  też `QueryException` z dowolnego zapytania w środku bloku `try`. Zmierzone:
+  po ukryciu tabeli `follows` kliknięcie „Obserwuj" wypisało w formularzu
+  `SQLSTATE[42P01] … (Connection: pgsql, Host: …, Port: 5432, Database: …,
+  SQL: select exists(… "follows"."follower_id" = 01a079be-… ))`, czyli adres
+  bazy, jej nazwę, schemat zapytania i identyfikatory obu kont. Dotyczyło
+  wpisów, przepisów, komentarzy, wykonań, zgłoszeń, odwołań, moderacji,
+  awatara i usuwania konta. Naprawione znacznikiem
+  `App\Exceptions\BladDlaCzlowieka`: na ekran idzie wyłącznie to, co ktoś
+  świadomie napisał dla człowieka, reszta leci do procedury obsługi błędów.
+  **Skutek widoczny dla człowieka:** awaria techniczna daje teraz stronę 500
+  zamiast komunikatu przy polu formularza. Tak ma być — to nie jest nic,
+  co on mógłby poprawić, i nie ma prawa wyglądać jak jego pomyłka.
+  Dwa miejsca połykały taki wyjątek CAŁKIEM (`RegisterController`
+  i `OnboardingController` przy obserwowaniu po rejestracji, `ResolveAppeal`
+  przy cofaniu decyzji) — tam awaria bazy nie zostawiała żadnego śladu.
 - **`/health` pokazywał surowy komunikat wyjątku CAŁEMU INTERNETOWI.** To ten
   sam błąd co W7-07 (`failure_reason` eksportu RODO), tylko na trasie bez
   `auth` i bez limitu zapytań — bo mieć ich nie może: Railway odpytuje ją

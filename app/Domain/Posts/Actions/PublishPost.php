@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Posts\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Notification;
@@ -44,7 +45,7 @@ final class PublishPost
         $body = $this->cleanBody($body);
 
         if ($body === null && $mediaIds === []) {
-            throw new \RuntimeException('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
+            throw new BladDlaCzlowieka('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
         }
 
         // Bierzemy tylko zdjęcia należące do tej osoby. Bez tego ktoś mógłby

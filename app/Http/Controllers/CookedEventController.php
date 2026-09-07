@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
@@ -15,7 +16,6 @@ use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * "Ugotowałem".
@@ -122,7 +122,7 @@ class CookedEventController extends Controller
                 changesNote: $data['changes_note'] ?? null,
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['note' => $e->getMessage()]);
         }
 
@@ -224,7 +224,7 @@ class CookedEventController extends Controller
                 subject: $cookedEvent,
                 body: $data['body'],
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
@@ -267,7 +267,7 @@ class CookedEventController extends Controller
                         ->whereKey($data['parent_id'])
                         ->first(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
-use RuntimeException;
 
 /**
  * Rozpatrzenie odwołania (issue #10, DSA art. 20).
@@ -44,7 +44,7 @@ final class ResolveAppeal
     /**
      * @param  string  $wynik  Appeal::STATUS_UPHELD albo Appeal::STATUS_OVERTURNED
      *
-     * @throws RuntimeException gdy odwołania nie wolno teraz zamknąć
+     * @throws BladDlaCzlowieka gdy odwołania nie wolno teraz zamknąć
      */
     public function handle(
         User $moderator,
@@ -54,17 +54,17 @@ final class ResolveAppeal
         ?string $ip = null,
     ): Appeal {
         if (! $odwolanie->isOpen()) {
-            throw new RuntimeException('To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.');
+            throw new BladDlaCzlowieka('To odwołanie zostało już rozpatrzone. Odśwież stronę, żeby zobaczyć odpowiedź.');
         }
 
         if (! in_array($wynik, [Appeal::STATUS_UPHELD, Appeal::STATUS_OVERTURNED], true)) {
-            throw new RuntimeException('Wybierz, czy podtrzymujesz decyzję, czy ją cofasz.');
+            throw new BladDlaCzlowieka('Wybierz, czy podtrzymujesz decyzję, czy ją cofasz.');
         }
 
         $uzasadnienie = trim($uzasadnienie);
 
         if ($uzasadnienie === '') {
-            throw new RuntimeException('Napisz, dlaczego tak zdecydowałeś. Bez tego nie da się wysłać odpowiedzi.');
+            throw new BladDlaCzlowieka('Napisz, dlaczego tak zdecydowałeś. Bez tego nie da się wysłać odpowiedzi.');
         }
 
         $decyzja = $odwolanie->moderationAction;
@@ -111,7 +111,7 @@ final class ResolveAppeal
         $mozliwe = $decyzja->created_at->copy()->addHours($godziny);
 
         if ($mozliwe->isFuture()) {
-            throw new RuntimeException(
+            throw new BladDlaCzlowieka(
                 'To Twoja własna decyzja sprzed niecałych '.$godziny.' godzin. '
                 .'Podtrzymać ją możesz od '.$mozliwe->translatedFormat('j F Y, H:i')
                 .' — do tego czasu sprawę może zamknąć druga osoba z zespołu. '
@@ -159,8 +159,11 @@ final class ResolveAppeal
                 // Odpowiedź na odwołanie idzie osobno i mówi to samo lepiej.
                 zPowiadomieniem: false,
             );
-        } catch (RuntimeException) {
+        } catch (BladDlaCzlowieka) {
             // „Ta treść jest już widoczna" — nie ma czego cofać. Patrz wyżej.
+            // Tylko to: `RuntimeException` połykałby tu także `QueryException`
+            // (dziedziczy po nim przez `PDOException`), czyli awaria bazy
+            // w środku cofania decyzji zniknęłaby bez śladu.
         }
     }
 }

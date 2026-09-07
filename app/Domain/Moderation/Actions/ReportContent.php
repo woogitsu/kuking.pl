@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation\Actions;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -14,7 +15,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Gate;
-use RuntimeException;
 
 /**
  * Zgłoszenie treści.
@@ -103,11 +103,11 @@ final class ReportContent
         $targetType = self::TARGET_TYPES[$target::class] ?? null;
 
         if ($targetType === null) {
-            throw new RuntimeException('Tej treści nie można zgłosić.');
+            throw new BladDlaCzlowieka('Tej treści nie można zgłosić.');
         }
 
         if (! array_key_exists($reason, Report::REASONS)) {
-            throw new RuntimeException('Wybierz powód zgłoszenia.');
+            throw new BladDlaCzlowieka('Wybierz powód zgłoszenia.');
         }
 
         $existing = Report::query()

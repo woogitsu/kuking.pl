@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Recipes\RecipeStatusTransitions;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Ingredient;
 use App\Models\Recipe;
@@ -12,7 +13,6 @@ use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Zapis przepisu — szkicu albo publikacji.
@@ -46,7 +46,7 @@ final class PublishRecipe
         $title = trim((string) ($attributes['title'] ?? ''));
 
         if ($title === '') {
-            throw new RuntimeException('Podaj nazwę przepisu — choćby roboczą, zmienisz ją później.');
+            throw new BladDlaCzlowieka('Podaj nazwę przepisu — choćby roboczą, zmienisz ją później.');
         }
 
         // Statusy moderacyjne są dla autora końcowe (audyt A08). Policy pilnuje
@@ -54,7 +54,7 @@ final class PublishRecipe
         // kończą w TEJ akcji — więc reguła musi stać także tutaj, żeby nie dało
         // się jej obejść dodaniem drugiego endpointu (AGENTS.md §4).
         if ($existing !== null && ! RecipeStatusTransitions::authorMayEdit($existing->status)) {
-            throw new RuntimeException(
+            throw new BladDlaCzlowieka(
                 'Ten przepis został ukryty przez moderację i nie można go teraz zmieniać. '
                 .'Jeśli uważasz, że to pomyłka, napisz do nas: '.config('kuking.community.contact_email'),
             );
@@ -81,11 +81,11 @@ final class PublishRecipe
 
         if ($bedziePubliczny) {
             if ($cleanIngredients === []) {
-                throw new RuntimeException('Dodaj przynajmniej jeden składnik — bez tego przepis nie może być opublikowany.');
+                throw new BladDlaCzlowieka('Dodaj przynajmniej jeden składnik — bez tego przepis nie może być opublikowany.');
             }
 
             if ($cleanSteps === []) {
-                throw new RuntimeException('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
+                throw new BladDlaCzlowieka('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
             }
         }
 

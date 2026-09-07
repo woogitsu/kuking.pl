@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Social\Actions\FollowUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\Topic;
 use Illuminate\Http\RedirectResponse;
@@ -99,9 +100,15 @@ class OnboardingController extends Controller
 
             try {
                 $this->followUser->handle($user, $target);
-            } catch (\RuntimeException) {
+            } catch (BladDlaCzlowieka) {
                 // Pojedyncza nieudana próba (np. konto w międzyczasie
                 // zablokowane) nie może przerwać całego onboardingu.
+                //
+                // Znacznik, a nie `RuntimeException`: ten drugi połykał tu
+                // również `QueryException` (dziedziczy po nim przez
+                // `PDOException`), więc awaria bazy udawała „konto
+                // niedostępne" i onboarding kończył się bez ani jednego
+                // obserwowania, nie mówiąc o tym nikomu.
                 continue;
             }
         }

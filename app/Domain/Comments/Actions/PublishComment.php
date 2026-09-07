@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Comments\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
-use RuntimeException;
 
 /**
  * Dodanie komentarza pod wpisem, przepisem albo "Ugotowałem".
@@ -34,13 +34,13 @@ final class PublishComment
         $body = trim($body);
 
         if ($body === '') {
-            throw new RuntimeException('Napisz coś, zanim wyślesz komentarz.');
+            throw new BladDlaCzlowieka('Napisz coś, zanim wyślesz komentarz.');
         }
 
         $subjectOwner = $this->ownerOf($subject);
 
         if ($author->hasBlockRelationWith($subjectOwner)) {
-            throw new RuntimeException('Nie można tu komentować.');
+            throw new BladDlaCzlowieka('Nie można tu komentować.');
         }
 
         /*
@@ -67,7 +67,7 @@ final class PublishComment
          */
         if ($parent !== null) {
             if (! $this->naleziDo($parent, $subject)) {
-                throw new RuntimeException('Nie można tu komentować.');
+                throw new BladDlaCzlowieka('Nie można tu komentować.');
             }
 
             $autorRodzica = $parent->author;
@@ -77,7 +77,7 @@ final class PublishComment
                 // celowo. Osobny tekst („ta osoba Cię zablokowała")
                 // potwierdzałby, kto kogo zablokował, komuś, kto właśnie
                 // próbuje to obejść.
-                throw new RuntimeException('Nie można tu komentować.');
+                throw new BladDlaCzlowieka('Nie można tu komentować.');
             }
         }
 

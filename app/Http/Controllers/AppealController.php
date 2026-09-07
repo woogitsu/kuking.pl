@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\FileAppeal;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Odwołanie od decyzji moderacyjnej — strona człowieka (issue #10).
@@ -85,7 +85,7 @@ class AppealController extends Controller
 
         try {
             $this->zloz->handle($request->user(), $action, $data['body'], $request->ip());
-        } catch (RuntimeException $blad) {
+        } catch (BladDlaCzlowieka $blad) {
             return back()->withErrors(['body' => $blad->getMessage()])->withInput();
         }
 
@@ -145,7 +145,7 @@ class AppealController extends Controller
 
         try {
             $this->zloz->handle($osoba, $decyzja, $data['body'], $request->ip());
-        } catch (RuntimeException $blad) {
+        } catch (BladDlaCzlowieka $blad) {
             throw ValidationException::withMessages(['body' => $blad->getMessage()]);
         }
 

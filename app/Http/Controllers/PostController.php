@@ -8,6 +8,7 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Topic;
@@ -18,7 +19,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Wpisy: zdjęcie + kilka słów.
@@ -79,7 +79,7 @@ class PostController extends Controller
 
         try {
             $mediaIds = $this->zebranZdjecia($request, $user);
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
         }
 
@@ -127,7 +127,7 @@ class PostController extends Controller
                 // powstaje więc zawsze jako „zwykle".
                 displayMode: Post::DISPLAY_NORMAL,
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
             // (docs/UX_50_PLUS.md).
             return back()
@@ -230,7 +230,7 @@ class PostController extends Controller
         // dalo by sie go obejsc, wysylajac polowe zdjec w plikach, a polowe
         // w ukrytych polach.
         if (count($wszystkie) > LimityZdjec::maksZdjecNaWysylke()) {
-            throw new RuntimeException(LimityZdjec::komunikatZaDuzoZdjec());
+            throw new BladDlaCzlowieka(LimityZdjec::komunikatZaDuzoZdjec());
         }
 
         return $wszystkie;
@@ -296,7 +296,7 @@ class PostController extends Controller
                         ->whereKey($data['parent_id'])
                         ->first(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
@@ -343,7 +343,7 @@ class PostController extends Controller
                 visibility: $data['visibility'],
                 topicId: $data['topic_id'] ?? null,
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
             // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md).
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);

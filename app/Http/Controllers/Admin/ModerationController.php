@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\ModeratedContent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
@@ -19,7 +20,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Kolejka moderacji dla 1-2 osobowego zespołu.
@@ -264,7 +264,7 @@ class ModerationController extends Controller
                 userMessage: $data['user_message'] ?? null,
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $blad) {
+        } catch (BladDlaCzlowieka $blad) {
             return back()->withErrors(['reason_code' => $blad->getMessage()]);
         }
 

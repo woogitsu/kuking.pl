@@ -308,7 +308,7 @@ new class extends Component
 
         try {
             $this->persist(publish: false);
-        } catch (\RuntimeException $e) {
+        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
             $this->saveState = 'error';
             $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — to, co wpisałeś, jest dalej w formularzu.';
 
@@ -370,7 +370,7 @@ new class extends Component
 
         try {
             $recipe = $this->persist(publish: true);
-        } catch (\RuntimeException $e) {
+        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
             $this->saveDraft();
 
@@ -458,7 +458,7 @@ new class extends Component
             $this->heroMediaId = app(StoreUploadedImage::class)
                 ->handle(auth()->user(), $photo)
                 ->getKey();
-        } catch (\RuntimeException $e) {
+        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
             $this->addError('heroPhoto', $e->getMessage());
 
             return false;

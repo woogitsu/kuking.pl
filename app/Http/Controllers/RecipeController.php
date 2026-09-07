@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\Unit;
 use App\Rules\ObslugiwaneZdjecie;
@@ -16,7 +17,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Przepisy.
@@ -110,7 +110,7 @@ class RecipeController extends Controller
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
         }
 
@@ -170,7 +170,7 @@ class RecipeController extends Controller
                 existing: $recipe,
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
         }
 
@@ -277,7 +277,7 @@ class RecipeController extends Controller
                         ->whereKey($data['parent_id'])
                         ->first(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Post;
 use App\Models\Topic;
-use RuntimeException;
 
 /**
  * Edycja wpisu: tekst, widoczność, temat (issue: menu „…" pokazywało tylko
@@ -35,7 +35,7 @@ final class EditPost
         // mieć CO NAJMNIEJ zdjęcie ALBO tekst. Zdjęć ten ekran nie dotyka,
         // więc liczy się to, co wpis ma już przypięte.
         if ($body === null && $post->media()->count() === 0) {
-            throw new RuntimeException('Wpis nie może być całkiem pusty. Napisz kilka słów.');
+            throw new BladDlaCzlowieka('Wpis nie może być całkiem pusty. Napisz kilka słów.');
         }
 
         // Temat musi pochodzić z zamkniętej listy i być wciąż aktywny — ta

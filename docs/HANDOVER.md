@@ -60,7 +60,7 @@ owner asked for it in English.
 
 ## 2. Where things stand
 
-- **985 tests pass** (was 889 at the start of this session), PHPStan clean
+- **988 tests pass** (was 889 at the start of this session), PHPStan clean
   (level 1 + Larastan), Pint clean.
 - Accessibility automation (`node scripts/dostepnosc.mjs`): **everything green**
   — 0 axe violations across all four variants, 0 horizontal overflows,

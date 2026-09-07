@@ -8,13 +8,13 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Social\Actions\UnblockUser;
 use App\Domain\Social\Actions\UnfollowUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use RuntimeException;
 
 class SocialController extends Controller
 {
@@ -32,7 +32,7 @@ class SocialController extends Controller
 
         try {
             $followed = $this->followUser->handle($request->user(), $target);
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withErrors(['follow' => $e->getMessage()]);
         }
 
@@ -56,7 +56,7 @@ class SocialController extends Controller
 
         try {
             $this->blockUser->handle($request->user(), $target, $request->ip());
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withErrors(['block' => $e->getMessage()]);
         }
 

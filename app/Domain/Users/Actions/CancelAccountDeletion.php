@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Cofnięcie zgłoszonego usunięcia konta (audyt A8, RODO art. 17).
@@ -41,7 +41,7 @@ final class CancelAccountDeletion
             $fresh = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
             if ($fresh === null || $fresh->status !== User::STATUS_PENDING_DELETE) {
-                throw new RuntimeException(
+                throw new BladDlaCzlowieka(
                     'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
                     .'Jeśli spodziewałeś/aś się czegoś innego, napisz do nas: '
                     .config('kuking.community.contact_email').'.',
@@ -49,7 +49,7 @@ final class CancelAccountDeletion
             }
 
             if ($fresh->data_erased_at !== null) {
-                throw new RuntimeException(
+                throw new BladDlaCzlowieka(
                     'Tego konta nie da się już odzyskać — dane zostały trwale usunięte '
                     .$fresh->data_erased_at->translatedFormat('j F Y').'. Jeśli to pomyłka, '
                     .'napisz do nas: '.config('kuking.community.contact_email').'.',

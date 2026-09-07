@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\ReportContent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -69,13 +70,13 @@ class ReportController extends Controller
                 details: $data['details'] ?? null,
                 ip: $request->ip(),
             );
-        } catch (ModelNotFoundException $e) {
-            // `ModelNotFoundException` DZIEDZICZY po `RuntimeException` — bez
-            // tego jawnego wyjątku niżej ją złapałby i przerobił na zwykły
-            // błąd formularza (302 z komunikatem), a bramka widoczności ma
-            // dawać 404, nieodróżnialny od celu, który w ogóle nie istnieje.
-            throw $e;
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
+            // Stał tu wcześniej jawny `catch (ModelNotFoundException) { throw; }`,
+            // bo poprzedni `catch (RuntimeException)` łapał także ją — a bramka
+            // widoczności ma dawać 404 nieodróżnialne od celu, którego w ogóle
+            // nie ma, nie zwykły błąd formularza. Znacznik `BladDlaCzlowieka`
+            // rozwiązuje to u źródła: `ModelNotFoundException` nim nie jest
+            // i przechodzi dalej sama.
             return back()->withInput()->withErrors(['reason' => $e->getMessage()]);
         }
 

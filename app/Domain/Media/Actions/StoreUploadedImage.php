@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Media\Actions;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
 use App\Models\User;
@@ -12,7 +13,6 @@ use App\Support\RozpoznanieZdjecia;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 /**
  * Przyjęcie zdjęcia od użytkownika.
@@ -60,7 +60,7 @@ final class StoreUploadedImage
         if ($bytes === false || $bytes <= 0) {
             $this->sygnaly->handle($owner, ZapiszSygnal::PHOTO_UPLOAD_FAILED, ['reason' => self::POWOD_NIECZYTELNY_PLIK]);
 
-            throw new RuntimeException('Nie udało się odczytać pliku. Spróbuj wybrać zdjęcie jeszcze raz.');
+            throw new BladDlaCzlowieka('Nie udało się odczytać pliku. Spróbuj wybrać zdjęcie jeszcze raz.');
         }
 
         if ($bytes > $maxBytes) {
@@ -72,7 +72,7 @@ final class StoreUploadedImage
                 'max_bytes' => $maxBytes,
             ]);
 
-            throw new RuntimeException(
+            throw new BladDlaCzlowieka(
                 "To zdjęcie waży za dużo. Maksymalny rozmiar to {$limitMb} MB — wybierz mniejsze zdjęcie.",
             );
         }
@@ -100,7 +100,7 @@ final class StoreUploadedImage
                 ['reason' => $wynik->powod, ...$wynik->kontekst],
             );
 
-            throw new RuntimeException($wynik->komunikat);
+            throw new BladDlaCzlowieka($wynik->komunikat);
         }
 
         $info = @getimagesize($file->getRealPath());
@@ -120,7 +120,7 @@ final class StoreUploadedImage
                 ['reason' => RozpoznanieZdjecia::POWOD_NIECZYTELNY],
             );
 
-            throw new RuntimeException('Ten plik nie wygląda na zdjęcie. Spróbuj wybrać inne.');
+            throw new BladDlaCzlowieka('Ten plik nie wygląda na zdjęcie. Spróbuj wybrać inne.');
         }
 
         [$width, $height] = $info;
