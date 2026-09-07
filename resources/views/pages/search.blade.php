@@ -40,6 +40,19 @@
 
     @if($phrase === '')
         <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
+        {{--
+            Ekran wyszukiwania bez frazy nie może kończyć się na samej
+            instrukcji — to ślepy zaułek (docs/product/SOUL.md 4.11: pusty
+            stan to zaproszenie, nie ściana). Ten sam odnośnik używa już
+            `kuking-board.blade.php` i `tags/show.blade.php` w tej samej roli.
+        --}}
+        <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z Kuking</a>.</p>
+    @elseif($zaKrotka)
+        {{--
+            Osobny, uczciwy tekst — nie „Nic nie znaleźliśmy" (SearchController
+            tłumaczy dlaczego: przy jednym znaku silnik w ogóle nie szukał).
+        --}}
+        <p class="meta">Fraza „{{ $phrase }}” jest za krótka, żeby zacząć szukać. Wpisz co najmniej dwa znaki.</p>
     @else
         @php
             // Puste jest dopiero wtedy, gdy pusty jest KAŻDY przeszukiwany
@@ -50,6 +63,12 @@
         @endphp
 
         @if($nicNieMa)
+            {{--
+                Tekst domyślnej gałęzi (przepisy/wszystko) jest dosłownym
+                cytatem z docs/brand/COPY_STYLE.md §6 „Puste stany" — ten
+                dokument wiąże każdy tekst widoczny dla użytkownika i ma tu
+                gotowe brzmienie, nie tylko przykład.
+            --}}
             <x-empty-state title="Nic nie znaleźliśmy">
                 @if($section === 'szybkie')
                     Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w pół godziny.
@@ -57,14 +76,22 @@
                 @elseif($section === 'ludzie')
                     Nie ma tu osoby o nazwie „{{ $phrase }}”.
                 @else
-                    Nie ma jeszcze niczego, co pasowałoby do „{{ $phrase }}”.
-                    Może to Ty dodasz taki przepis?
+                    Nie ma jeszcze przepisu, który by pasował do „{{ $phrase }}”. Może to Ty go dodasz?
                 @endif
             </x-empty-state>
 
-            @if($section !== 'ludzie')
-                <p class="text-center"><a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a></p>
-            @endif
+            {{--
+                Droga dalej, nie ślepy zaułek (SOUL.md 4.11, IMPLEMENTATION_GUIDE
+                etap D). Kto szuka przepisu — może go dodać. Każdy, niezależnie
+                od zakresu — może zamiast tego zobaczyć, co dzieje się w Kuking
+                teraz, tym samym odnośnikiem co przy pustej frazie wyżej.
+            --}}
+            <p class="text-center">
+                @if($section !== 'ludzie')
+                    <a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a>
+                @endif
+                <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z Kuking</a>
+            </p>
         @endif
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())

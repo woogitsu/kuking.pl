@@ -72,6 +72,19 @@ class SearchController extends Controller
         // kursor z feedu tu nie zadziała.
         $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
 
+        // „ZA KRÓTKA" TO NIE „BEZ WYNIKÓW"
+        //
+        // SearchQuery::recipes()/people() pomija frazy krótsze niż 2 znaki —
+        // nie szuka wcale, tylko od razu zwraca pustą kolekcję. Pokazanie
+        // wtedy ekranu „Nic nie znaleźliśmy" mówiłoby: przeszukaliśmy bazę
+        // i nie ma tam nic pasującego do „a" — a to nieprawda, bo baza w ogóle
+        // nie została odpytana. To dokładnie ta sama klasa nieuczciwości co
+        // „Znaleziono 20 przepisów" liczone z POBRANYCH wyżej w tym pliku.
+        //
+        // Próg 2 MUSI się zgadzać z SearchQuery — jeśli go tam zmienisz,
+        // zmień i tutaj.
+        $zaKrotka = $phrase !== '' && mb_strlen($phrase) < 2;
+
         $przepisy = $szukaPrzepisow
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
@@ -103,6 +116,7 @@ class SearchController extends Controller
         return view('pages.search', [
             'phrase' => $phrase,
             'section' => $section,
+            'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,
             'recipes' => $przepisy->take($ile),
