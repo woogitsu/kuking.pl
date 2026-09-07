@@ -172,6 +172,27 @@ dla każdego — czyli dla zdjęcia, które i tak zobaczyłby ktoś bez konta.
 jest górnym ograniczeniem na to, jak długo przełączenie przepisu na prywatny
 może nie dojść do skutku.
 
+**Ten nagłówek chroni SAM ADRES, nie treść, do której on prowadzi — chyba że
+adres niesie tę regułę dalej (audyt zewnętrzny N02).** Nagłówek `Cache-Control`
+wyliczony wyżej trafia na odpowiedź 302 (`Location: <podpisany adres>`). Bez
+dodatkowego kroku odpowiedź, którą R2 odda NA TEN podpisany adres — czyli
+odpowiedź z bajtami zdjęcia, jedyna, którą pośrednik (proxy, CDN, cache
+przeglądarki) miałby faktycznie co zapisywać — nie niesie żadnego zakazu:
+`no-store` na przekierowaniu nie zabrania nikomu zapisać treści, na którą ono
+wskazuje. `MediaController` przekazuje więc tę samą regułę jako
+`ResponseCacheControl` w opcjach `temporaryUrl()` — to parametr GetObject S3,
+który staje się `response-cache-control` w podpisanym zapytaniu i każe
+serwerowi obiektów dołożyć ten nagłówek do SWOJEJ odpowiedzi.
+
+Że AWS SDK potrafi zbudować taki podpisany adres, jest zmierzone lokalnie
+(`ZdjecieObiektuDostajeTenSamNoStoreCoPrzekierowanieTest`, offline — signing
+nie łączy się z siecią). Że Cloudflare R2 naprawdę uwzględnia ten parametr
+w odpowiedzi na żądanie GET, **nie jest zmierzone z tego repozytorium** —
+wymaga prawdziwego bucketu R2. Do czasu takiego pomiaru to jest zamknięcie
+w aplikacji, analogiczne do samego W7-02: strona aplikacyjna robi, co może;
+czy infrastruktura to honoruje, rozstrzyga wyłącznie test na produkcji albo
+na stagingu z prawdziwym R2.
+
 ### Dlaczego 302, a nie strumień przez PHP
 
 Jedno zdjęcie z feedu to kilkaset kilobajtów, a jedna strona feedu potrafi ich

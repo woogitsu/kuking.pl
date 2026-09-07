@@ -96,7 +96,24 @@ class MediaController extends Controller
         }
 
         return redirect()->away(
-            $dysk->temporaryUrl($wybrany['klucz'], now()->addMinutes($this->minutyWaznosci())),
+            $dysk->temporaryUrl(
+                $wybrany['klucz'],
+                now()->addMinutes($this->minutyWaznosci()),
+                // BEZ TEGO `Cache-Control` chroni tylko PRZEKIEROWANIE, nie
+                // treść, do której ono prowadzi (audyt zewnętrzny N02).
+                // `temporaryUrl()` bez trzeciej opcji podpisuje adres tak samo
+                // dla zdjęcia prywatnego i publicznego — sama sygnatura S3
+                // niczego nie zabrania cache'ować. `ResponseCacheControl`
+                // (parametr GetObject, `Illuminate\Filesystem\AwsS3V3Adapter`
+                // wkłada go wprost do podpisywanego zapytania) każe R2 dodać
+                // TEN SAM `Cache-Control` do odpowiedzi z bajtami zdjęcia —
+                // czyli do jedynej odpowiedzi, którą pośrednik (proxy, CDN,
+                // cache przeglądarki) miałby faktycznie co zapisywać.
+                // Świadomie ta sama wartość co `$naglowki['Cache-Control']`:
+                // to jedna reguła, nie dwie liczby do rozjechania się przy
+                // następnej zmianie.
+                ['ResponseCacheControl' => $naglowki['Cache-Control']],
+            ),
             302,
             $naglowki,
         );
