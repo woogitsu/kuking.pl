@@ -133,23 +133,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
-     * Tematy, które ta osoba obserwuje (issue #31).
+     * Tagi, które ta osoba obserwuje (D-021 — zastępuje usunięte już
+     * `followedTopics()`/`isFollowingTopic()` z issue #31).
      *
-     * `withTimestamps()` NIE, bo `topic_follows` ma tylko `created_at` —
-     * to relacja, nie encja, i nie ma czego aktualizować. Data przydaje się
+     * `withTimestamps()` NIE, bo `tag_follows` ma tylko `created_at` — to
+     * relacja, nie encja, i nie ma czego aktualizować. Data przydaje się
      * wyłącznie do pytania „od kiedy", więc ustawiamy ją ręcznie przy
-     * podpięciu.
+     * podpięciu (ten sam powód, dla którego `followedTopics()` robił to
+     * samo). Kolejność alfabetyczna po nazwie: w odróżnieniu od Tematu,
+     * tagi nie mają redakcyjnej kolejności (`position`) — to jest atrybut
+     * PROMOCJI (`tag_promotions.position`), nie samego tagu.
      */
-    public function followedTopics(): BelongsToMany
+    public function followedTags(): BelongsToMany
     {
-        return $this->belongsToMany(Topic::class, 'topic_follows')
+        return $this->belongsToMany(Tag::class, 'tag_follows')
             ->withPivot('created_at')
-            ->orderBy('topics.position');
+            ->orderBy('tags.name');
     }
 
-    public function isFollowingTopic(Topic $topic): bool
+    public function isFollowingTag(Tag $tag): bool
     {
-        return $this->followedTopics()->whereKey($topic->getKey())->exists();
+        return $this->followedTags()->whereKey($tag->getKey())->exists();
     }
 
     protected function casts(): array

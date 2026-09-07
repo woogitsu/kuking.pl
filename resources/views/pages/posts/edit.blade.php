@@ -1,5 +1,5 @@
 {{--
-    Edycja wpisu: tekst, widoczność, temat.
+    Edycja wpisu: tekst, widoczność, tagi.
 
     ZDJĘCIA CELOWO NIE SĄ TU — mają już swój ekran, „Zdjęcia w tym wpisie"
     (`posts.media.edit`, `PostMediaController`). Powielenie tego pola tutaj
@@ -58,24 +58,7 @@
             @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
         </fieldset>
 
-        {{-- Temat — opcjonalny, jak w formularzu publikacji (issue #31). --}}
-        <details class="temat-wybor mt-6" @if(old('topic_id', $post->topic_id)) open @endif>
-            <summary>Dodaj temat (nieobowiązkowo)</summary>
-
-            <p class="field-help mt-3">
-                Temat pomaga innym znaleźć Twój wpis, a Tobie — trafić na ludzi,
-                którzy gotują to samo. Możesz to pominąć.
-            </p>
-
-            <label for="topic_id">Temat</label>
-            <select id="topic_id" name="topic_id">
-                <option value="">— bez tematu —</option>
-                @foreach($topics as $topic)
-                    <option value="{{ $topic->id }}" @selected(old('topic_id', $post->topic_id) === $topic->id)>{{ $topic->name }}</option>
-                @endforeach
-            </select>
-            @error('topic_id')<span class="field-error">{{ $message }}</span>@enderror
-        </details>
+        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zapisz zmiany</button>

@@ -49,9 +49,9 @@
                         czeka {{ $wpis->godzinCzekania }}
                         {{ \App\Support\Odmiana::rzeczownik($wpis->godzinCzekania, 'godzinę', 'godziny', 'godzin') }}
                     </time>
-                    @if($wpis->topic)
-                        · <a href="{{ route('topics.show', $wpis->topic) }}">{{ $wpis->topic->name }}</a>
-                    @endif
+                    @foreach($wpis->tags as $tag)
+                        · <a href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
+                    @endforeach
                 </p>
 
                 @if($wpis->body)

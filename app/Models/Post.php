@@ -55,7 +55,6 @@ class Post extends Model
         'status',
         'display_mode',
         'recipe_id',
-        'topic_id',
         'published_at',
     ];
 
@@ -78,19 +77,6 @@ class Post extends Model
     }
 
     /**
-     * Temat wpisu — opcjonalny (issue #31).
-     *
-     * Wpis bez tematu jest w pełni poprawny i tak zostaje: wymuszanie wyboru
-     * dokładałoby decyzję w momencie, w którym chcemy, żeby człowiek po prostu
-     * wrzucił zdjęcie. Cel produktowy to poniżej 60 sekund od wejścia
-     * do opublikowania.
-     */
-    public function topic(): BelongsTo
-    {
-        return $this->belongsTo(Topic::class);
-    }
-
-    /**
      * Zeszyty, w których ten wpis został odłożony (UI kit v2, ekran 01).
      *
      * @return BelongsToMany<Collection, $this>
@@ -105,6 +91,18 @@ class Post extends Model
         return $this->belongsToMany(Media::class, 'post_media')
             ->withPivot('position')
             ->orderBy('post_media.position');
+    }
+
+    /**
+     * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
+     * dodał. Limit i tworzenie nowych tagów pilnuje
+     * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'post_tags')
+            ->withPivot('position')
+            ->orderBy('post_tags.position');
     }
 
     public function comments(): HasMany

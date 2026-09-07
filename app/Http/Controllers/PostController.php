@@ -8,15 +8,18 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
 use App\Models\Post;
-use App\Models\Topic;
+use App\Models\Tag;
 use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\LimityTagow;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
@@ -34,14 +37,15 @@ class PostController extends Controller
         private readonly EditPost $editPost,
         private readonly StoreUploadedImage $storeImage,
         private readonly PublishComment $publishComment,
+        private readonly TagSuggester $tagSuggester,
     ) {}
 
     public function create(): View
     {
-        // Zamknięta lista tematów (issue #31). Wybór jest OPCJONALNY —
-        // wymuszanie go dokładałoby decyzję w momencie, w którym chcemy,
-        // żeby człowiek po prostu wrzucił zdjęcie.
-        return view('pages.posts.create', ['topics' => Topic::doWyboru()->get()]);
+        return view('pages.posts.create', [
+            'tagNames' => (array) old('tag_names', []),
+            'sugestieTagow' => $this->sugestieDlaZapytania(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -83,6 +87,27 @@ class PostController extends Controller
             return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
         }
 
+        $tagNames = $this->tagiZFormularza($request);
+
+        // TAGI: „Szukaj tagów" / „Dodaj" / „Usuń" — TRZY OSOBNE SUBMITY
+        // w TYM SAMYM formularzu co „Opublikuj" (SPEC §1.6, R1 §6.2).
+        //
+        // Żaden z nich nie publikuje wpisu — rozpoznajemy to PRZED walidacją
+        // treści/widoczności, bo na tym etapie mogą być jeszcze puste albo
+        // niedokończone (ktoś dodaje tagi, zanim napisze tekst). Bez tego
+        // rozróżnienia kliknięcie „Dodaj" próbowałoby opublikować wpis.
+        if ($this->toAkcjaTagow($request)) {
+            [$tagNames, $bladTagow] = $this->zastosujAkcjeTagow($request, $tagNames);
+
+            // Fragment `#tagi` w adresie, żeby przeglądarka wróciła w miejsce,
+            // gdzie ta osoba faktycznie pracuje, a nie na górę formularza
+            // z tekstem i zdjęciami nad sekcją tagów (R1 §6.1).
+            $powrot = redirect(url()->previous().'#tagi')
+                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames));
+
+            return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
+        }
+
         // Walidacja przez `Validator::make`, a NIE `$request->validate()`.
         //
         // `$request->validate()` rzuca `ValidationException`, ktora sama
@@ -92,10 +117,6 @@ class PostController extends Controller
         $walidator = Validator::make($request->all(), [
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
-            // Temat opcjonalny, ale MUSI istnieć i być aktywny. Sprawdzenie
-            // po stronie akcji domenowej jest drugą bramką — ta tutaj jest
-            // po to, żeby człowiek dostał komunikat zamiast cichego pominięcia.
-            'topic_id' => ['nullable', 'uuid'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
@@ -105,10 +126,11 @@ class PostController extends Controller
         ]);
 
         if ($walidator->fails()) {
-            // Zdjecia SA JUZ WGRANE — wracaja do formularza jako ukryte pola,
-            // zeby nie trzeba bylo przechodzic przez galerie telefonu drugi raz.
+            // Zdjecia SA JUZ WGRANE, a TAGI JUZ WYBRANE — wracaja do formularza
+            // jako ukryte pola, zeby poprawnie wpisane dane nigdy nie zniknely
+            // (AGENTS.md §5), dokladnie tak jak zdjecia od audytu C1.
             return back()
-                ->withInput($this->wejscieBezPlikow($request, $mediaIds))
+                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
                 ->withErrors($walidator);
         }
 
@@ -120,7 +142,7 @@ class PostController extends Controller
                 body: $data['body'] ?? null,
                 mediaIds: $mediaIds,
                 visibility: $data['visibility'],
-                topicId: $data['topic_id'] ?? null,
+                tagNames: $tagNames,
                 ip: $request->ip(),
                 // Wygląd zdjęć ustawia się DOPIERO PO publikacji, na osobnym
                 // ekranie — patrz komentarz przy przekierowaniu niżej. Wpis
@@ -129,10 +151,16 @@ class PostController extends Controller
             );
         } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
-            // (docs/UX_50_PLUS.md).
+            // (docs/UX_50_PLUS.md). Dwa różne powody mogą tu wylądować
+            // (wpis całkiem pusty ALBO za dużo tagów po rozwiązaniu nazw
+            // na aliasy) — komunikat trafia pod pole, którego naprawdę
+            // dotyczy, żeby „Poprawne dane nigdy nie znikają" nie zgubiło
+            // się w złym miejscu ekranu.
+            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow() ? 'tagi' : 'photos';
+
             return back()
-                ->withInput($this->wejscieBezPlikow($request, $mediaIds))
-                ->withErrors(['photos' => $e->getMessage()]);
+                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
+                ->withErrors([$pole => $e->getMessage()]);
         }
 
         $isFirstPost = $user->posts()->published()->count() === 1;
@@ -194,6 +222,121 @@ class PostController extends Controller
     private function wejscieBezPlikow(Request $request, array $mediaIds): array
     {
         return $request->except('photos', 'media_ids') + ['media_ids' => $mediaIds];
+    }
+
+    /**
+     * To samo co `wejscieBezPlikow()`, plus zachowana lista tagów — dwa
+     * niezależne mechanizmy ratowania danych, bo dwa niezależne rodzaje
+     * danych o innym kształcie (identyfikatory zdjęć kontra wolny tekst).
+     *
+     * @param  list<string>  $mediaIds
+     * @param  list<string>  $tagNames
+     * @return array<string, mixed>
+     */
+    private function wejscieBezPlikowITagow(Request $request, array $mediaIds, array $tagNames): array
+    {
+        // UWAGA NA `+`: operator sumy tablic zachowuje wartość z LEWEJ
+        // strony przy zbieżnych kluczach. `wejscieBezPlikow()` zwraca
+        // `tag_names` wprost z żądania (STARĄ listę, sprzed „Dodaj"/„Usuń"),
+        // więc doklejenie `+ ['tag_names' => $tagNames]` po prawej NIC by
+        // nie zmieniło — nowa lista przegrywałaby ze starą. `except()`
+        // usuwa klucz PRZED złożeniem, więc kolizji już nie ma.
+        return $request->except('photos', 'media_ids', 'tag_names')
+            + ['media_ids' => $mediaIds, 'tag_names' => $tagNames];
+    }
+
+    /**
+     * Tagi wpisane do tej pory — z ukrytych pól `tag_names[]`, w kolejności
+     * dodania. To jest WOLNY TEKST od klienta, nie identyfikatory: prawdziwa
+     * walidacja i tworzenie tagów dzieje się dopiero w
+     * `App\Domain\Tags\Actions\ResolveTagsForPost`, wołanej przez akcję
+     * domenową w chwili publikacji/zapisu — to pole tylko PRZENOSI stan
+     * formularza między requestami.
+     *
+     * @return list<string>
+     */
+    private function tagiZFormularza(Request $request): array
+    {
+        return array_values(array_filter(
+            (array) $request->input('tag_names', []),
+            static fn ($nazwa): bool => is_string($nazwa) && trim($nazwa) !== '',
+        ));
+    }
+
+    /**
+     * Czy to żądanie to krok POŚREDNI („Szukaj tagów"/„Dodaj"/„Usuń"), a nie
+     * próba publikacji/zapisu (R1 §6.2 — SPEC nie precyzuje tego rozróżnienia
+     * wprost, ale formularz bez JS potrzebuje go, żeby kliknięcie „Dodaj"
+     * nie próbowało jednocześnie opublikować niedokończonego wpisu).
+     */
+    private function toAkcjaTagow(Request $request): bool
+    {
+        return $request->has('szukaj_tagu') || $request->filled('dodaj_tag') || $request->filled('usun_tag');
+    }
+
+    /**
+     * Wykonuje DOKŁADNIE JEDNĄ z trzech akcji tagowych na liście roboczej.
+     *
+     * „Szukaj tagów" sam w sobie NIE zmienia listy — tylko czyta
+     * `tag_query` przy następnym renderze (patrz `sugestieDlaZapytania()`).
+     * „Dodaj" i „Usuń" są tu, a nie w `ResolveTagsForPost`, bo dotyczą listy
+     * ROBOCZEJ (wolny tekst w sesji formularza), nie prawdziwych wierszy
+     * `Tag` — te powstają dopiero przy właściwej publikacji/zapisie.
+     *
+     * @param  list<string>  $tagNames
+     * @return array{0: list<string>, 1: string|null} nowa lista i komunikat błędu (albo null)
+     */
+    private function zastosujAkcjeTagow(Request $request, array $tagNames): array
+    {
+        if ($request->filled('usun_tag')) {
+            $doUsuniecia = Tag::znormalizujNazwe((string) $request->input('usun_tag'));
+
+            $tagNames = array_values(array_filter(
+                $tagNames,
+                static fn (string $nazwa): bool => Tag::znormalizujNazwe($nazwa) !== $doUsuniecia,
+            ));
+
+            return [$tagNames, null];
+        }
+
+        if ($request->filled('dodaj_tag')) {
+            $nowa = trim((string) $request->input('dodaj_tag'));
+            $znormalizowana = Tag::znormalizujNazwe($nowa);
+
+            if (! LimityTagow::dlugoscOk($znormalizowana) || ! LimityTagow::pasujeDoWzorca($znormalizowana)) {
+                return [$tagNames, LimityTagow::komunikatNiepoprawnaNazwa()];
+            }
+
+            $jestJuzDodany = collect($tagNames)
+                ->contains(fn (string $istniejacy): bool => Tag::znormalizujNazwe($istniejacy) === $znormalizowana);
+
+            if ($jestJuzDodany) {
+                return [$tagNames, LimityTagow::komunikatTagJuzDodany()];
+            }
+
+            if (count($tagNames) >= LimityTagow::maksTagowNaWpis()) {
+                return [$tagNames, LimityTagow::komunikatZaDuzoTagow()];
+            }
+
+            $tagNames[] = $nowa;
+
+            return [$tagNames, null];
+        }
+
+        // Zostaje tylko „Szukaj tagów" — lista niezmieniona.
+        return [$tagNames, null];
+    }
+
+    /**
+     * Podpowiedzi do pokazania pod polem „Znajdź tag" — z `tag_query`
+     * wpisanego przez tę osobę (`old()`, żeby przetrwało kolejne kliknięcia
+     * „Dodaj"/„Usuń" bez ponownego wpisywania frazy).
+     */
+    private function sugestieDlaZapytania(): Collection
+    {
+        $fraza = (string) old('tag_query', '');
+
+        return $fraza === '' ? collect() : $this->tagSuggester->sugeruj($fraza);
     }
 
     /**
@@ -304,7 +447,7 @@ class PostController extends Controller
     }
 
     /**
-     * Edycja wpisu: tekst, widoczność, temat — nie zdjęcia (issue: menu „…"
+     * Edycja wpisu: tekst, widoczność, tagi — nie zdjęcia (issue: menu „…"
      * pokazywało autorowi tylko „Otwórz wpis", mimo że `docs/FEATURES.md`
      * i `docs/ROADMAP.md` wymieniają edycję jako część MVP).
      *
@@ -316,7 +459,11 @@ class PostController extends Controller
 
         return view('pages.posts.edit', [
             'post' => $post,
-            'topics' => Topic::doWyboru()->get(),
+            // Lista robocza tagów: to, co ktoś zdążył zmienić w tym
+            // formularzu (`old()`), a jeśli to pierwsze wejście na ekran —
+            // tagi, które wpis ma już dziś.
+            'tagNames' => (array) old('tag_names', $post->tags->pluck('name')->all()),
+            'sugestieTagow' => $this->sugestieDlaZapytania(),
         ]);
     }
 
@@ -324,10 +471,22 @@ class PostController extends Controller
     {
         $this->authorize('update', $post);
 
+        $tagNames = $this->tagiZFormularza($request);
+
+        // Ten sam rozdział „akcja pośrednia" / „zapis" co w `store()` —
+        // patrz komentarz tam.
+        if ($this->toAkcjaTagow($request)) {
+            [$tagNames, $bladTagow] = $this->zastosujAkcjeTagow($request, $tagNames);
+
+            $powrot = redirect(url()->previous().'#tagi')
+                ->withInput($request->except('tag_names') + ['tag_names' => $tagNames]);
+
+            return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
+        }
+
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
-            'topic_id' => ['nullable', 'uuid'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
@@ -341,12 +500,15 @@ class PostController extends Controller
                 post: $post,
                 body: $data['body'] ?? null,
                 visibility: $data['visibility'],
-                topicId: $data['topic_id'] ?? null,
+                tagNames: $tagNames,
             );
         } catch (BladDlaCzlowieka $e) {
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
-            // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md).
-            return back()->withInput()->withErrors(['body' => $e->getMessage()]);
+            // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md). Ten sam rozdział
+            // pola błędu co w `store()` — patrz komentarz tam.
+            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow() ? 'tagi' : 'body';
+
+            return back()->withInput()->withErrors([$pole => $e->getMessage()]);
         }
 
         return redirect()->route('posts.show', $post)->with('status', 'Wpis zapisany.');

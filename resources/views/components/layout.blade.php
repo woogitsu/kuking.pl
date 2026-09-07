@@ -295,6 +295,9 @@
                                  ikon, która należy do prac nad UI kitem. --}}
                             <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
                             <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                            {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
+                                 co tablica na dziś, stąd ta sama ikona. --}}
+                            <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
                         @endif
                     </ul>
 

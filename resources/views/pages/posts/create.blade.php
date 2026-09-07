@@ -85,36 +85,7 @@
             @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
         </fieldset>
 
-        {{--
-            Temat — OPCJONALNY i celowo na końcu formularza (issue #31).
-
-            Cel produktowy to poniżej 60 sekund od wejścia do opublikowania,
-            więc nic tutaj nie może zatrzymać osoby, która chce tylko wrzucić
-            zdjęcie. Pole jest zwinięte, domyślnie puste i pierwsze zdanie
-            mówi wprost, że można je pominąć.
-
-            Zwykłe `<select>`, nie siatka kafelków jak przy widoczności:
-            trzydzieści pozycji w kafelkach to ekran przewijany trzy razy,
-            a wybór tematu nie jest decyzją, nad którą trzeba się zastanawiać.
-            Bez JavaScriptu — `<details>` i `<select>` działają same z siebie.
-        --}}
-        <details class="temat-wybor mt-6" @if(old('topic_id')) open @endif>
-            <summary>Dodaj temat (nieobowiązkowo)</summary>
-
-            <p class="field-help mt-3">
-                Temat pomaga innym znaleźć Twój wpis, a Tobie — trafić na ludzi,
-                którzy gotują to samo. Możesz to pominąć.
-            </p>
-
-            <label for="topic_id">Temat</label>
-            <select id="topic_id" name="topic_id">
-                <option value="">— bez tematu —</option>
-                @foreach($topics as $topic)
-                    <option value="{{ $topic->id }}" @selected(old('topic_id') === $topic->id)>{{ $topic->name }}</option>
-                @endforeach
-            </select>
-            @error('topic_id')<span class="field-error">{{ $message }}</span>@enderror
-        </details>
+        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Opublikuj</button>

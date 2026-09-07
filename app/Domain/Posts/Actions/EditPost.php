@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Post;
-use App\Models\Topic;
+use App\Models\Tag;
 
 /**
- * Edycja wpisu: tekst, widoczność, temat (issue: menu „…" pokazywało tylko
+ * Edycja wpisu: tekst, widoczność, tagi (issue: menu „…" pokazywało tylko
  * „Otwórz wpis" dla autora — luka MVP, `docs/FEATURES.md` sekcja „Wpis").
  *
  * ZDJĘCIA ZOSTAJĄ POZA TĄ AKCJĄ. Kolejność i sposób wyświetlania zdjęć mają
@@ -23,11 +24,14 @@ use App\Models\Topic;
  */
 final class EditPost
 {
+    public function __construct(private readonly ResolveTagsForPost $resolveTags) {}
+
+    /** @param  list<string>  $tagNames  to, co ktoś WPISAŁ jako tagi (wolny tekst, nie id) — D-021 */
     public function handle(
         Post $post,
         ?string $body,
         string $visibility,
-        ?string $topicId = null,
+        array $tagNames = [],
     ): Post {
         $body = $this->cleanBody($body);
 
@@ -38,11 +42,9 @@ final class EditPost
             throw new BladDlaCzlowieka('Wpis nie może być całkiem pusty. Napisz kilka słów.');
         }
 
-        // Temat musi pochodzić z zamkniętej listy i być wciąż aktywny — ta
-        // sama zasada co w PublishPost. `null` przy nieznanym/wycofanym
-        // identyfikatorze: zapisanie poprawki nie może się nie udać z powodu
-        // tematu, który redakcja właśnie wycofała.
-        $topicId = $topicId === null ? null : Topic::doWyboru()->whereKey($topicId)->value('id');
+        // Tagi (D-021) — ta sama bramka co przy publikacji, rzuca
+        // `BladDlaCzlowieka`, jeśli po rozwiązaniu zostaje więcej niż limit.
+        $tags = $this->resolveTags->handle($tagNames);
 
         // Zmiana widoczności z publicznej na prywatną (i odwrotnie) nie
         // rusza `published_at` — `Post::isPublished()` patrzy tylko na status
@@ -53,10 +55,29 @@ final class EditPost
         $post->forceFill([
             'body' => $body,
             'visibility' => $visibility,
-            'topic_id' => $topicId,
         ])->save();
 
+        // Zastępujemy CAŁY zestaw tagów — to jest edycja, nie dopisywanie.
+        // `sync()` samo liczy różnicę (dodaj/usuń), więc tag, który zostaje
+        // na miejscu, nie traci i nie zyskuje niczego w pivotach bez potrzeby.
+        $post->tags()->sync($this->pozycje($tags));
+
         return $post;
+    }
+
+    /**
+     * @param  list<Tag>  $tags
+     * @return array<string, array{position: int}>
+     */
+    private function pozycje(array $tags): array
+    {
+        $mapa = [];
+
+        foreach ($tags as $position => $tag) {
+            $mapa[$tag->getKey()] = ['position' => $position];
+        }
+
+        return $mapa;
     }
 
     private function cleanBody(?string $body): ?string

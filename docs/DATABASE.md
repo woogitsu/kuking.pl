@@ -824,6 +824,78 @@ uda.
 **Rollback:** `DROP TABLE product_signals` bez zastrzeżeń — to są dane
 telemetryczne, nie dane, na podstawie których podjęto decyzję.
 
+### tags + tag_aliases + post_tags + tag_follows + tag_promotions
+
+Otwarta taksonomia użytkowników, zastępująca Tematy (D-021, migracje
+`2026_09_07_100000_create_tags_tables` i `2026_09_07_100100_create_tag_promotions_table`).
+Ta sekcja była wcześniej wpisana do „V1 / V2 — Później" — D-021 przenosi ją
+do MVP.
+
+**`topics`/`topic_follows`/`posts.topic_id` są USUNIĘTE** (migracja
+`2026_09_07_300000_drop_topics`). Migracja sprawdza przed usunięciem, czy
+`topic_follows` ma jakiekolwiek wiersze i czy jakikolwiek wpis ma niepusty
+`topic_id` — jeśli tak, przerywa operację (`RuntimeException`) zamiast po
+cichu skasować dane (SPEC §1.1, D-021: „właściciel musi to zrobić przed
+migracją, bo od tego zależy, czy usunięcie tematów jest zmianą schematu, czy
+rozmową z ludźmi, którym coś zniknie z profilu"). Stara migracja tworząca
+Tematy (`2026_09_06_100000_create_topics_tables`) ZOSTAJE w repozytorium
+bez zmian — inne środowiska mogły ją już wykonać, a przepisywanie historii
+migracji złamałoby je przy kolejnym `php artisan migrate`.
+
+**Cztery tabele rdzenia, nie sześć.** Specyfikacja właściciela projektowała
+też `tag_relations` (podpowiedzi semantyczne) i `tag_merge_suggestions`
+(skrzynka odbiorcza AI dla kandydatów do scalenia) — obie świadomie odłożone
+jako czysto addytywne, bez zmierzonej potrzeby przy 20–50 kontach
+(AGENTS.md §3). Uzasadnienie w komentarzu migracji `create_tags_tables`.
+
+| Kolumna (`tags`) | Uwagi |
+|---|---|
+| `id` | `uuid` — encja publiczna (ma slug, ma własną stronę `/tag/{slug}`). |
+| `name` | Nazwa kanoniczna, z zachowanymi polskimi znakami. |
+| `normalized_name` | `UNIQUE`. Do UNIKALNOŚCI — `mb_strtolower(trim(...))` + redukcja białych znaków + Unicode NFC, **BEZ `unaccent`** (`App\Models\Tag::znormalizujNazwe`). **Nigdy** `kuking_normalize()` — ta funkcja robi `unaccent` i służy wyłącznie wyszukiwaniu/podpowiadaniu; użyta tutaj złamałaby wymóg, że `zurek` i `żurek` to dwa różne tagi. |
+| `slug` | `UNIQUE`, CHECK `^[a-z0-9-]{1,40}$`, liczony osobno od `name`. |
+| `status` | `active` \| `hidden` \| `merged`. CHECK w bazie. |
+| `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`. |
+| `is_seeded` | Tag z początkowej bazy redakcyjnej (SPEC §1.4) — atrybut pochodzenia danych, nie osobny system widoczny dla użytkownika. |
+| `internal_category` | Techniczna (`danie`, `skladnik`, `kuchnia`, `technika`, `okazja`, `dieta`, `urzadzenie`, `napoj`) — do raportu z importu, nigdy pokazywana użytkownikowi. |
+
+`tag_aliases`: `id` **bigserial**, nie `uuid` — wiersz nigdy nie jest
+adresowany z zewnątrz (ten sam wybór co `product_signals`/`audit_log`).
+`normalized_alias` `UNIQUE` w całej tabeli. `source`: `seed` \| `admin` \|
+`ai_suggestion`, CHECK w bazie. Wejście na alias przekierowuje na tag
+kanoniczny (`Tag::tagKanoniczny()`) — bez osobnej tabeli przekierowań, bo
+scalony tag zostaje w `tags` ze swoim slugiem.
+
+`post_tags`: pivot **bez własnego `id`**, `PRIMARY KEY(post_id, tag_id)` —
+relacja, nie encja, dokładnie jak `post_media`. `position` (CHECK `>= 0`,
+`UNIQUE(post_id, position)`) — kolejność, w jakiej autor dodawał tagi.
+Limit 5 tagów/wpis egzekwowany w `App\Domain\Tags\Actions\ResolveTagsForPost`
+(`App\Support\LimityTagow`), liczony na unikalnych `tag_id`, nie na wpisanych
+frazach.
+
+`tag_follows`: **bez własnego `id`**, `PRIMARY KEY(user_id, tag_id)` —
+jeden do jednego z (usuwanym) `topic_follows`.
+
+`tag_promotions` (D-021, „tag promowany — lista gospodarza"): promocja
+zamiast drugiego typu obiektu. `PRIMARY KEY` to `tag_id` (relacja 1:1
+z tagiem, jak `profiles.user_id`) — jeden tag ma najwyżej jedną promocję.
+`position` (CHECK `>= 0`) i opcjonalna `note` (jedno zdanie od gospodarza,
+odpowiednik `topics.description`). Panel: `Admin\TagPromotionController`,
+za tą samą bramką co „kuKINGi na dziś" (`Gate` `moderate` na `User`).
+„Kto i kiedy" zmienił listę zapisuje `audit_log`, bez osobnej kolumny
+`promoted_by` — ten sam wzorzec co `daily_board.updated`.
+
+Indeksy trigramowe (Postgres, na `kuking_normalize()` z migracji
+`2026_09_05_001300_fix_search_indexes`): `tags_name_trgm_idx`,
+`tag_aliases_alias_trgm_idx` — używane przez `App\Domain\Tags\TagSuggester`
+(SPEC §1.5: prefiks → alias dokładny → podobieństwo trigramowe →
+popularność liczona `withCount('posts')`, bez utrzymywanego ręcznie licznika).
+
+**Rollback:** `DROP TABLE` w kolejności `tag_promotions`, `tag_follows`,
+`post_tags`, `tag_aliases`, `tags` — bezpieczne bez zastrzeżeń, to jest
+funkcja budowana od zera przy zerowym ruchu produkcyjnym (D-021: „0 tematów,
+0 wpisów z tematem" w chwili decyzji, a tagi jeszcze nie istniały).
+
 ## V1 / V2
 
 Później:
@@ -836,7 +908,6 @@ Później:
 - meal_plans;
 - shopping_lists;
 - pantry_items;
-- tags;
 - subscriptions;
 - payments.
 

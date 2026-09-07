@@ -48,11 +48,22 @@
 #  to, czy zmienna środowiskowa faktycznie trafia do configu — musi więc
 #  odczytać obie strony niezależnie. To jeden, nazwany, uzasadniony wyjątek
 #  ograniczony do `tests/`, nie baseline zamiatający błędy pod dywan.
+#
+#  `bootstrapFiles: phpstan-bootstrap.php` (D-021, praca nad tagami) — druga
+#  połowa pułapki opisanej w `tests/bootstrap.php`, tym razem w Larastanie:
+#  bez tego KAŻDY nowy model dodany w git worktree z dowiązanym `vendor/`
+#  dostaje fałszywe „Access to an undefined property”, bo Larastan próbuje
+#  go PRAWDZIWIE zainstancjonować przez classmap Composera, a ten wskazuje
+#  na główny checkout, w którym ta klasa jeszcze nie istnieje. Uzasadnienie
+#  i pomiar w komentarzu tamtego pliku. No-op w głównym katalogu i w CI.
 includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
     level: 1
+
+    bootstrapFiles:
+        - phpstan-bootstrap.php
 
     paths:
         - app

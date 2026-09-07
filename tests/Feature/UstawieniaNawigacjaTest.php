@@ -37,6 +37,12 @@ class UstawieniaNawigacjaTest extends TestCase
      * Wszystkie ekrany ustawień. Nowy dopisz TUTAJ — brak wpisu w tej liście
      * jest tak samo błędem jak brak odnośnika na stronie.
      *
+     * `settings.topics` → `settings.tags` (D-021): `x-ustawienia-nawigacja`
+     * przestała linkować do „Twoich tematów", więc ten test — który sprawdza
+     * dokładnie to, co widać w nawigacji — musi śledzić tę samą zmianę.
+     * Trasa `settings.topics` fizycznie istnieje jeszcze do kolejnego etapu
+     * D-021 (usunięcie Tematów), ale nie jest już częścią tego spisu.
+     *
      * @return list<string>
      */
     private function ekrany(): array
@@ -44,7 +50,7 @@ class UstawieniaNawigacjaTest extends TestCase
         return [
             'settings.profile',
             'settings.accessibility',
-            'settings.topics',
+            'settings.tags',
             'settings.security',
             'settings.two_factor.edit',
             'settings.privacy',

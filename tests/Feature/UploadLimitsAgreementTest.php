@@ -24,7 +24,7 @@ class UploadLimitsAgreementTest extends TestCase
 {
     /**
      * Margines na nagłówki multipart/form-data i pozostałe pola formularza
-     * (tekst wpisu, token CSRF, `visibility`, `topic_id`...). To NIE jest
+     * (tekst wpisu, token CSRF, `visibility`, `tag_names[]`...). To NIE jest
      * kodowanie base64 — multipart dokłada tylko kilkaset bajtów granic
      * i nagłówków na plik — ale mimo to liczymy z zapasem, nie styk w styk.
      */

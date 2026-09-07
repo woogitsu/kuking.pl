@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
@@ -38,9 +39,9 @@ use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
+use App\Http\Controllers\TagController;
+use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\ThemeController;
-use App\Http\Controllers\TopicController;
-use App\Http\Controllers\TopicFollowController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -324,10 +325,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('collections.unsave-post');
 
     // Relacje społeczne
-    // Obserwowanie tematu: zwykłe formularze, bez JavaScriptu. Temat nie
-    // jest człowiekiem, więc nikogo nie powiadamiamy (issue #31).
-    Route::post('/temat/{topic}/obserwuj', [TopicFollowController::class, 'follow'])->name('topics.follow');
-    Route::delete('/temat/{topic}/obserwuj', [TopicFollowController::class, 'unfollow'])->name('topics.unfollow');
+    // Obserwowanie tagu (D-021, zastępuje usunięty już Temat z issue #31):
+    // zwykłe formularze, bez JavaScriptu, bez powiadomienia (tag nie jest
+    // człowiekiem, więc nikogo nie powiadamiamy).
+    Route::post('/tag/{tag}/obserwuj', [TagFollowController::class, 'follow'])->name('tags.follow');
+    Route::delete('/tag/{tag}/obserwuj', [TagFollowController::class, 'unfollow'])->name('tags.unfollow');
 
     Route::post('/@{username}/obserwuj', [SocialController::class, 'follow'])->name('social.follow');
     Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])->name('social.unfollow');
@@ -341,8 +343,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update']);
 
-    Route::get('/ustawienia/tematy', [TopicFollowController::class, 'edit'])->name('settings.topics');
-    Route::put('/ustawienia/tematy', [TopicFollowController::class, 'update'])->name('settings.topics.update');
+    // „Twoje tagi" (D-021, zastępuje usunięty już `/ustawienia/tematy`).
+    Route::get('/ustawienia/tagi', [TagFollowController::class, 'edit'])->name('settings.tags');
+    Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])->name('settings.tags.update');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update']);
@@ -436,17 +439,25 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
     Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);
+
+    // Tagi promowane (D-021, „tag promowany — lista gospodarza") — panel
+    // zastępujący redakcyjną rolę dawnego Tematu. Trasa z `{tag}` wiąże się
+    // po slugu (Tag::getRouteKeyName()), tak jak publiczna strona tagu.
+    Route::get('/tagi-promowane', [TagPromotionController::class, 'edit'])->name('admin.tag-promotions');
+    Route::post('/tagi-promowane', [TagPromotionController::class, 'store'])->name('admin.tag-promotions.store');
+    Route::put('/tagi-promowane/{tag}', [TagPromotionController::class, 'update'])->name('admin.tag-promotions.update');
+    Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])->name('admin.tag-promotions.destroy');
 });
 
 // --------------------------------------------------------------------------
-// Tematy
+// Tagi (D-021, zastępuje usunięty już Temat z issue #31)
 // --------------------------------------------------------------------------
 //
-// Strona tematu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
+// Strona tagu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
 // miejsc, w które ma sens trafić z wyszukiwarki. Sama lista wpisów jest
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi
 // wyłącznie treści publiczne.
-Route::get('/temat/{topic}', [TopicController::class, 'show'])->name('topics.show');
+Route::get('/tag/{tag}', [TagController::class, 'show'])->name('tags.show');
 
 /*
  * ZGŁOSZENIE NIELEGALNEJ TREŚCI — DROGA PUBLICZNA (DSA art. 16).
