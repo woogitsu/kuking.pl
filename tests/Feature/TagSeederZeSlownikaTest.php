@@ -25,7 +25,8 @@ use Tests\TestCase;
  *      gubienia wierszy (raport seedera mówi „0 odrzuconych", ale raport też
  *      trzeba czymś sprawdzić).
  *   2. Czy wpisanie ALIASU w formularzu prowadzi do tagu kanonicznego —
- *      bo to jest jedyny powód, dla którego 2439 aliasów w ogóle istnieje.
+ *      bo to jest jedyny powód, dla którego kilka tysięcy aliasów
+ *      w ogóle istnieje.
  *   3. Czy stary tag, który nowy słownik traktuje jako alias czegoś innego
  *      („marchewka" → „marchew"), zostaje SCALONY, a nie zdublowany — i czy
  *      scalenie NIE dotyka tagu, którego ktoś już użył albo utworzył sam.
@@ -48,7 +49,10 @@ class TagSeederZeSlownikaTest extends TestCase
         $tagi = 0;
         $aliasy = 0;
 
-        foreach (['slownik-tagow.json', 'slownik-tagow-uzupelnienia.json'] as $plik) {
+        // Lista plików pochodzi z SEEDERA, nie z kopii nazw w teście: kopia
+        // rozjeżdża się przy pierwszej nowej wersji słownika i wtedy test
+        // albo pada bez powodu, albo przestaje cokolwiek sprawdzać.
+        foreach (TagSeeder::PLIKI as $plik) {
             $dane = json_decode(
                 (string) file_get_contents(database_path('seeders/dane/'.$plik)),
                 true, 512, JSON_THROW_ON_ERROR,
@@ -61,6 +65,15 @@ class TagSeederZeSlownikaTest extends TestCase
                 $this->assertIsArray($tag);
                 $tagi++;
                 $aliasy += is_array($tag['aliasy'] ?? null) ? count($tag['aliasy']) : 0;
+            }
+
+            // Od wersji 1.1 plik może nieść też aliasy do tagów, które już
+            // istnieją (klucz `nowe_aliasy`). Bez tej pętli test liczyłby
+            // mniej aliasów, niż jest w plikach, i przepuściłby ich cichą
+            // utratę — czyli dokładnie to, przed czym ma chronić.
+            foreach ($dane['nowe_aliasy'] ?? [] as $wpis) {
+                $this->assertIsArray($wpis);
+                $aliasy += is_array($wpis['aliasy'] ?? null) ? count($wpis['aliasy']) : 0;
             }
         }
 
