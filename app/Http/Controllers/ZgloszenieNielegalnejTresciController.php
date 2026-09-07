@@ -47,17 +47,24 @@ class ZgloszenieNielegalnejTresciController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'notifier_name' => ['required', 'string', 'max:120'],
-            // NIE `required`. Art. 16 ust. 2 lit. c zwalnia z podania danych
-            // przy zgłoszeniach dotyczących przestępstw z art. 3-7 dyrektywy
-            // 2011/93/UE. Formularz mówi o tym wprost przy polu.
+            // ANI IMIĘ, ANI ADRES NIE SĄ WYMAGANE. Art. 16 ust. 2 lit. c
+            // zwalnia z podania danych zgłaszającego przy zgłoszeniach
+            // dotyczących przestępstw z art. 3-7 dyrektywy 2011/93/UE —
+            // i zwalnia z podania DANYCH, nie tylko adresu e-mail. Do
+            // 7 września 2026 reguła była tu w połowie: brak adresu wolno,
+            // brak nazwiska nie (pomiar: `docs/decyzje/DSA_POMIAR.md`).
+            //
+            // Wymóg nazwiska zamykał drogę prawną dokładnie w najcięższych
+            // sprawach: przy społeczności z jednej okolicy człowiek
+            // zgłaszający kogoś z rodziny albo z sąsiedztwa nie podpisze się
+            // nazwiskiem. Formularz mówi o tym wprost przy obu polach.
+            'notifier_name' => ['nullable', 'string', 'max:120'],
             'notifier_email' => ['nullable', 'email:rfc', 'max:255'],
             'target_url' => ['required', 'string', 'max:2000'],
             'reason' => ['required', 'string', 'in:'.implode(',', array_keys(Report::REASONS))],
             'illegality_explanation' => ['required', 'string', 'min:20', 'max:5000'],
             'good_faith' => ['accepted'],
         ], [
-            'notifier_name.required' => 'Podaj imię i nazwisko albo nazwę instytucji, w imieniu której zgłaszasz.',
             'notifier_email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
             'target_url.required' => 'Wklej adres strony, na której jest ta treść.',
             'reason.required' => 'Wybierz, czego dotyczy zgłoszenie.',
@@ -69,7 +76,7 @@ class ZgloszenieNielegalnejTresciController extends Controller
         [$typ, $id] = $this->rozpoznajAdres($data['target_url']);
 
         $zgloszenie = $this->zglos->handle(
-            imie: $data['notifier_name'],
+            imie: $data['notifier_name'] ?? null,
             email: $data['notifier_email'] ?? null,
             adres: $data['target_url'],
             uzasadnienie: $data['illegality_explanation'],

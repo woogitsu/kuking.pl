@@ -64,6 +64,10 @@ Publikując zdjęcie, przepis, komentarz lub jakąkolwiek inną treść, oświad
 
 Ta licencja **kończy się, gdy usuniesz treść** — z zastrzeżeniem, że kopie zapasowe (backupy) mogą przechowywać usuniętą treść jeszcze przez pewien czas ze względów technicznych i bezpieczeństwa danych (szczegóły w Polityce Prywatności).
 
+**Gdy usuwasz konto, sam decydujesz, co dzieje się z Twoimi tekstami.** W formularzu usuwania konta jest haczyk „Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty". Jest domyślnie pusty i to znaczy: Twoje teksty zostają w serwisie, ale podpisane „Użytkownik usunięty" — bez Twojego nazwiska, nazwy użytkownika, opisu i zdjęcia profilowego, których już wtedy nie ma. Jeśli haczyk zaznaczysz, teksty znikają razem z kontem i nikt ich nie przywróci.
+
+Niezależnie od tego wyboru **wszystkie Twoje zdjęcia są usuwane** — także oryginały, razem z zapisaną w nich datą i modelem urządzenia. Zdjęcia nie zostają nigdy.
+
 Nie sprzedajemy Twoich treści osobom trzecim ani nie udzielamy im licencji na Twoje treści bez Twojej odrębnej zgody.
 
 ### 5.3 Przepisy — co wolno, a czego nie

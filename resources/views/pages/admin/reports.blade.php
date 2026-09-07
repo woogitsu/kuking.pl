@@ -15,7 +15,17 @@
                 {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
                 @if($report->jestZgloszeniemPrawnym())
-                    przez {{ $report->notifier_name }} (zgłoszenie prawne, DSA art. 16)
+                    {{-- Zgłoszenie prawne wolno złożyć bez podania danych
+                         (art. 16 ust. 2 lit. c DSA, migracja
+                         `allow_anonymous_legal_notices`). Bez tego warunku
+                         kolejka pokazywałaby „przez " i puste miejsce, co
+                         wygląda jak błąd danych, a jest poprawnym
+                         zgłoszeniem. --}}
+                    @if($report->notifier_name)
+                        przez {{ $report->notifier_name }} (zgłoszenie prawne, DSA art. 16)
+                    @else
+                        bez podania danych zgłaszającego (zgłoszenie prawne, DSA art. 16)
+                    @endif
                 @elseif($report->reporter)
                     przez {{ $report->reporter->displayName() }}
                 @else

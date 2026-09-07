@@ -76,9 +76,9 @@
 
         <h2>Jak się z Tobą skontaktować</h2>
 
-        <x-field name="notifier_name" label="Imię i nazwisko albo nazwa instytucji" required
+        <x-field name="notifier_name" label="Imię i nazwisko albo nazwa instytucji"
                  :value="old('notifier_name')"
-                 help="Jeśli zgłaszasz w czyimś imieniu — podaj, w czyim." />
+                 help="Możesz zostawić puste — zgłoszenie i tak sprawdzimy. Prawo wprost pozwala zgłosić najcięższe sprawy anonimowo, a my nie chcemy, żeby ktokolwiek milczał, bo boi się podpisać. Jeśli zgłaszasz w czyimś imieniu, podaj, w czyim." />
 
         <x-field name="notifier_email" label="Adres e-mail" type="email"
                  :value="old('notifier_email')"

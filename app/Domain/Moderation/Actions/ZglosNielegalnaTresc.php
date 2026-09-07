@@ -42,13 +42,19 @@ use Illuminate\Support\Facades\Notification;
 final class ZglosNielegalnaTresc
 {
     /**
+     * @param  string|null  $imie  NULL jest dopuszczalny — patrz niżej
      * @param  string|null  $email  NULL jest dopuszczalny — art. 16 ust. 2
-     *                              lit. c zwalnia z podania danych przy
+     *                              lit. c zwalnia z podania DANYCH
+     *                              zgłaszającego (nie tylko adresu) przy
      *                              zgłoszeniach dotyczących przestępstw
-     *                              z art. 3-7 dyrektywy 2011/93/UE
+     *                              z art. 3-7 dyrektywy 2011/93/UE.
+     *                              Zgłoszenie anonimowe to nie zgłoszenie
+     *                              puste: uzasadnienie i dobra wiara zostają
+     *                              wymagane, także w CHECK-u w bazie
+     *                              (migracja `allow_anonymous_legal_notices`).
      */
     public function handle(
-        string $imie,
+        ?string $imie,
         ?string $email,
         string $adres,
         string $uzasadnienie,
