@@ -22,7 +22,7 @@ Krótka, ludzka wersja — do publikacji na `/zasady` i linkowania z formularza 
 > 8. **Szanuj dzieci.** Kuking jest dla osób od 16 lat. Nie publikuj danych ani zdjęć cudzych dzieci bez zgody rodzica.
 > 9. **Nie publikuj cudzych danych osobowych** (adresu, telefonu, danych finansowych) bez zgody tej osoby.
 > 10. **Zgłaszaj, co Cię niepokoi.** Widzisz coś złego? Kliknij "Zgłoś". Przeczytamy każde zgłoszenie.
-> 11. **Możesz się odwołać.** Jeśli usunęliśmy Twoją treść lub zawiesiliśmy konto, a uważasz, że to pomyłka — w powiadomieniu o decyzji jest przycisk „Odwołanie od tej decyzji”. Masz na to 14 dni, odpowiadamy w ciągu 7 dni roboczych. Jeśli konto zostało zablokowane, link „Złóż odwołanie” znajdziesz na ekranie logowania.
+> 11. **Możesz się odwołać.** Jeśli usunęliśmy Twoją treść lub zawiesiliśmy konto, a uważasz, że to pomyłka — w powiadomieniu o decyzji jest przycisk „Odwołanie od tej decyzji”. Masz na to 6 miesięcy, odpowiadamy w ciągu 7 dni roboczych. Jeśli konto zostało zablokowane, link „Złóż odwołanie” znajdziesz na ekranie logowania.
 > 12. **Reagujemy na zgłoszenia, nie inwigilujemy.** Nie czytamy Twoich prywatnych wiadomości ani nie oceniamy Cię z góry — sprawdzamy tylko to, co ktoś zgłosił, albo co jest wyraźnie publiczne i budzi wątpliwości.
 
 ---
@@ -73,7 +73,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
 ### Ścieżka odwołania
 
 > **Ta sekcja opisuje mechanizm, który DZIAŁA W PRODUKCIE** (issue #10).
-> Liczby (14 dni, 7 dni roboczych, 24 godziny) siedzą w
+> Liczby (6 miesięcy, 7 dni roboczych, 24 godziny) siedzą w
 > `config/kuking.php` → `kuking.moderation` i są egzekwowane przez kod.
 > Zmieniasz je tu — zmień je i tam, inaczej znowu obiecujemy coś, czego
 > system nie robi.
@@ -89,7 +89,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
      na ekranie logowania, bo to jedyny ekran, który taka osoba zobaczy;
    - kto nie pamięta hasła — zostaje adres e-mail, wypisany na obu
      formularzach. Odwołanie z e-maila moderator wprowadza ręcznie.
-3. **Termin na złożenie: 14 dni od decyzji.** Po nim formularz mówi wprost, że
+3. **Termin na złożenie: 6 miesięcy od decyzji.** Art. 20 ust. 1 DSA wymaga co najmniej tyle; do 7 IX 2026 stało tu 14 dni, wzięte z rozsądku operacyjnego, nie z przepisu (patrz `docs/decyzje/DSA_POMIAR.md`). Po nim formularz mówi wprost, że
    termin minął, i kieruje na adres e-mail dla nowych okoliczności.
 4. **Jedno odwołanie od jednej decyzji.** Pilnuje tego `UNIQUE` w bazie.
    Przy 1–2 osobach brak limitu znaczy, że jedna sprawa potrafi zająć całą
@@ -125,7 +125,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 >
 > Usunęliśmy Twoją treść „[tytuł/fragment]” opublikowaną [data], ponieważ narusza nasze Zasady Kuking — konkretnie: [krótki, konkretny powód, np. "zawierała link reklamowy niezwiązany z przepisem"].
 >
-> Jeśli uważasz, że to pomyłka, kliknij „Odwołanie od tej decyzji” w powiadomieniu w serwisie — masz na to 14 dni. Przyjrzymy się sprawie jeszcze raz i odpowiemy w ciągu 7 dni roboczych.
+> Jeśli uważasz, że to pomyłka, kliknij „Odwołanie od tej decyzji” w powiadomieniu w serwisie — masz na to 6 miesięcy. Przyjrzymy się sprawie jeszcze raz i odpowiemy w ciągu 7 dni roboczych.
 >
 > Pozdrawiamy,
 > Zespół Kuking
@@ -169,7 +169,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 >
 > Zamknęliśmy Twoje konto na stałe. Powód: [konkretny powód, np. "wielokrotne naruszenia zasad dotyczących [...] mimo wcześniejszych ostrzeżeń" / "treść naruszająca prawo"].
 >
-> Jeśli uważasz, że to błąd, możesz się odwołać w ciągu 14 dni: na ekranie logowania jest link „Złóż odwołanie”. Poprosimy tam o Twój login i hasło — tylko po to, żeby mieć pewność, że piszesz Ty; to nie odblokuje konta. Odpowiedź zobaczysz na tym samym ekranie logowania. Po tym terminie decyzja jest ostateczna, chyba że pojawią się nowe okoliczności.
+> Jeśli uważasz, że to błąd, możesz się odwołać w ciągu 6 miesięcy: na ekranie logowania jest link „Złóż odwołanie”. Poprosimy tam o Twój login i hasło — tylko po to, żeby mieć pewność, że piszesz Ty; to nie odblokuje konta. Odpowiedź zobaczysz na tym samym ekranie logowania. Po tym terminie decyzja jest ostateczna, chyba że pojawią się nowe okoliczności.
 >
 > Zespół Kuking
 

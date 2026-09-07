@@ -17,8 +17,15 @@ use Tests\TestCase;
  *
  * NA CZYM POLEGAŁ BŁĄD
  * Warianty publikowane na stronie powstają przez przekodowanie do WebP, więc
- * EXIF w nich nie ma. ORYGINAŁ zachowuje go w całości — łącznie ze
+ * EXIF w nich nie ma. ORYGINAŁ zachowywał go wtedy w całości — łącznie ze
  * współrzędnymi GPS, czyli adresem kuchni użytkownika.
+ *
+ * OD 7 WRZEŚNIA 2026 ORYGINAŁ NIE MA JUŻ WSPÓŁRZĘDNYCH (D-023) — zdejmuje je
+ * `App\Domain\Media\UsunGps`, a pilnuje `OryginalTraciWspolrzedneGpsTest`.
+ * Ten test dotyczy DRUGIEJ, niezależnej połowy tamtego audytu: oryginał ma
+ * być nieosiągalny publicznie, i to pozostaje prawdą niezależnie od tego,
+ * jakie metadane w nim siedzą. Zdjęcie z kuchni bez GPS-u to nadal wnętrze
+ * czyjegoś mieszkania.
  *
  * Oryginał lądował pod `media/` jako `public`, a klucz wariantu powstawał
  * z niego przez odcięcie rozszerzenia:

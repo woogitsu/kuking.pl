@@ -7,14 +7,15 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * "Ugotowałem".
@@ -66,7 +67,7 @@ class CookedEventController extends Controller
             // niż mieści `post_max_size` z `docker/php.ini` (audyt A31).
             // Teraz obowiązuje TEN SAM budżet co w PostController.
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
-            'photos.*' => ['file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'note' => ['nullable', 'string', 'max:2000'],
             'changes_note' => ['nullable', 'string', 'max:1000'],
             'would_make_again' => ['nullable', 'boolean'],
@@ -121,7 +122,7 @@ class CookedEventController extends Controller
                 changesNote: $data['changes_note'] ?? null,
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['note' => $e->getMessage()]);
         }
 
@@ -223,7 +224,7 @@ class CookedEventController extends Controller
                 subject: $cookedEvent,
                 body: $data['body'],
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
@@ -249,11 +250,24 @@ class CookedEventController extends Controller
                 author: $request->user(),
                 subject: $cookedEvent,
                 body: $data['body'],
-                parent: $data['parent_id'] === null
+                // `?? null`, bo `validate()` NIE zwraca klucza, którego
+                // w żądaniu nie było — a `parent_id` jest `nullable`.
+                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
+                // formularza, który zawsze wysyła puste) kończył się błędem
+                // „Undefined array key", czyli 500 zamiast komentarza.
+                //
+                // `widoczneDla()` — audyt W7-06. Bez tego można było podać
+                // UUID komentarza ukrytego przez blokadę i podpiąć się pod
+                // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
+                // kontrolerów jest kilka.
+                parent: ($data['parent_id'] ?? null) === null
                     ? null
-                    : $cookedEvent->comments()->whereKey($data['parent_id'])->first(),
+                    : $cookedEvent->comments()
+                        ->widoczneDla($request->user())
+                        ->whereKey($data['parent_id'])
+                        ->first(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 

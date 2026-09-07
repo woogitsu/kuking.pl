@@ -210,7 +210,30 @@ kontroli nad środowiskiem, której runnery GitHuba nie dają.
 
 ## D-011 · Deploy odłożony, praca idzie w kodzie
 
-**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **obowiązuje do odwołania**
+**Data:** 5 września 2026 · **Decyzja właściciela** ·
+Status: **NIEAKTUALNE — serwis JEST na produkcji (zmierzone 7 września 2026)**
+
+> **UWAGA, TA DECYZJA JUŻ NIE OPISUJE RZECZYWISTOŚCI.** `https://kuking.pl`
+> odpowiada HTTP/2 200 z `server: cloudflare` i pełnym zestawem nagłówków
+> bezpieczeństwa tej aplikacji (własne CSP z nonce, `kuking-session`).
+> Zgłoszenia właściciela z 6 września — ciemny motyw na telefonie i strona
+> „Za dużo prób" przy dodawaniu zdjęcia — pochodzą więc z produkcji, nie
+> z lokalnego środowiska.
+>
+> **Dlaczego to jest zapisane, a nie po prostu skasowane:** ta nieaktualność
+> ma konsekwencje. Agent analizujący storage oparł na niej wniosek, że
+> `cdn.kuking.pl` „na pewno jeszcze nie istnieje", a `docs/infra/
+> DEPLOYMENT_RUNBOOK.md` §2.3 i §7 dalej KAŻĄ tę domenę utworzyć razem
+> z regułą „Cache Everything" na 30 dni — czyli odtworzyć lukę zamkniętą
+> przez D-020. Patrz ostrzeżenie dopisane w runbooku.
+>
+> Zmierzone przy okazji: `cdn.kuking.pl` dziś **nie odpowiada** (tak samo jak
+> nieistniejący `www.kuking.pl`), więc luka z issue #120 najprawdopodobniej
+> nie jest otwarta — ale potwierdzić to musi właściciel z panelu Cloudflare,
+> bo pomiar z kontenera roboczego nie odróżnia „host nie istnieje" od
+> „proxy nie przepuściło".
+>
+> Właściciel powinien zamknąć albo przepisać tę decyzję i issue #3.
 
 Pierwszy deploy (#3) czeka. Praca skupia się na funkcjach, które nie wymagają
 produkcji.
@@ -434,6 +457,263 @@ zmiany wielkości zespołu moderacji (wtedy karencja przestaje być potrzebna).
 
 ---
 
+## D-017 · Przepis zostaje wolnym tekstem; to kit dopasowuje się do danych
+
+**Data:** 6 września 2026 · Status: **obowiązuje** · issues #44, #92, UI kit v2 etap C
+
+Ekran przepisu w UI kicie v2 rysuje składniki jako wiersze **nazwa + ilość**
+w dwóch kolumnach, a kroki z **pogrubionymi tytułami**. Produkt tych danych
+świadomie NIE zbiera: formularz przepisu mówi „Pisz tak, jak mówisz:
+«szklanka mąki»", a kroki są zwykłym tekstem bez nagłówka.
+
+Zbudowanie układu z kitu oznaczało więc jedno z dwojga: albo udawać strukturę,
+której nie ma, albo zmienić to, o co pytamy człowieka. Właściciel rozstrzygnął.
+
+### Co odrzucono
+
+**Rozbicie składnika na ilość i nazwę w formularzu.** Ma realną zaletę:
+odblokowuje skalowanie porcji i zamienniki (AGENTS.md §9) oraz zamyka #44
+(„sól do smaku nie skaluje się razy trzy"). Cena jest jednak dokładnie tam,
+gdzie produkt najmniej może sobie na nią pozwolić — w pierwszym formularzu,
+który wypełnia osoba przepisująca zeszyt babci. „Szczypta soli", „tyle, żeby
+ciasto było miękkie" i „pół szklanki, ale mama dawała więcej" nie mają pola
+na ilość. Formularz, który każe je rozbić, każe też zdecydować, czego nie
+zapisać — a to jest odwrotność obietnicy „Twoje przepisy nie zginą".
+
+**Wpisanie struktury na siłę do widoku.** Rysowanie kolumny „ilość" wypełnianej
+zgadywanką z tekstu daje ekran, który wygląda jak kit i kłamie w połowie
+wierszy. Gorzej: kłamie akurat tam, gdzie autor był najbardziej precyzyjny.
+
+### Co wybrano
+
+**Model wpisywania zostaje bez zmian.** Układ ekranu przepisu budujemy według
+kitu — panel boczny ze zdjęciem, kafle liczb, akcje, „Skąd ten przepis?" —
+ale **składniki idą jako czytelna lista bez kolumny ilości**, a kroki jako
+numerowane akapity bez wymyślonych tytułów.
+
+**Cena, wprost:** ekran przepisu nie będzie wyglądał jeden do jednego jak
+plansza z kitu. To jest świadome: kit rysował dane, których ten produkt nie ma
+i mieć nie chce. Zamknięte zostaje też, na teraz, skalowanie porcji po stronie
+danych — #44 zostaje otwarte i czeka.
+
+**Zmiana wymaga:** danych z realnego użycia, że ludzie sami wpisują ilości
+w przewidywalnym kształcie, albo gotowego parsera/AI, który proponuje rozbicie
+JAKO PODPOWIEDŹ DO POTWIERDZENIA, nigdy jako wymagane pole (AGENTS.md §9,
+ROADMAP → V2). Źródłem prawdy zostaje wtedy nadal to, co człowiek napisał.
+
+📄 `docs/design/kit-v2/IMPLEMENTATION_GUIDE.md` etap C ·
+`docs/brand/COPY_STYLE.md` · `docs/ROADMAP.md` → V2 · issue #44
+
+---
+
+## D-018 · Usunięcie konta kasuje wszystkie zdjęcia, tekst zostaje zanonimizowany
+
+**Data:** 6 września 2026 · Status: **obowiązuje** · audyt W4-01, issue #93
+
+Ekran usuwania konta kazał potwierdzić: „Rozumiem, że po 30 dniach moje wpisy,
+przepisy i zdjęcia zostaną usunięte na stałe". `EraseAccountData` kasował
+jednak wyłącznie zdjęcie profilowe, a resztę — wpisy, przepisy, komentarze
+i WSZYSTKIE pozostałe zdjęcia — zostawiał przy zanonimizowanym koncie,
+z komentarzem tłumaczącym, dlaczego tak jest lepiej.
+
+To nie był spór o interpretację RODO. To była obietnica złożona konkretnym
+zdaniem, pod którym człowiek musiał postawić haczyk, i niedotrzymana.
+
+### Co odrzucono
+
+**Kasowanie wszystkiego, tak jak mówił ekran.** Kod robiłby wtedy dokładnie to,
+co obiecuje, bez żadnych gwiazdek — i to jest realna zaleta. Cena: znikają
+cudze wątki. Komentarz, na który ktoś odpowiedział, urywa się w połowie.
+Przepis, który ktoś ugotował i ma w swoim zeszycie, przestaje istnieć. Przy
+społeczności liczonej w dziesiątkach osób to są widoczne dziury, a zabieramy
+je ludziom, którzy o nic nie prosili.
+
+**Zostawienie kodu i poprawienie samego ekranu.** Najtańsze. Ale wymagałoby
+świadomej podstawy prawnej na trzymanie CZYJEGOŚ ZDJĘCIA po tym, jak ta osoba
+poprosiła o usunięcie konta — a takiej podstawy nie ma sensu szukać, skoro
+zdjęcie da się skasować bez straty dla nikogo innego.
+
+### Co wybrano
+
+**Zdjęcia kasujemy wszystkie. Tekst zostaje, zanonimizowany.**
+
+Ze zdjęciem jest inaczej niż z tekstem i to jest sedno tej decyzji. Tekst
+przepisu po podmianie podpisu przestaje być danymi osobowymi. Zdjęcie nie:
+dane są w pikselach — twarz, wnętrze mieszkania, dokument na stole — a
+w oryginale jeszcze EXIF z datą, modelem telefonu i miejscem. Anonimizacja
+podpisu nie zmienia tam absolutnie niczego.
+
+Kasujemy oryginały, warianty i czyścimy cache CDN-u — bo skasowanie pliku
+w buckecie to nie to samo co zniknięcie z internetu (audyt G-03).
+
+**Cena, wprost:** wpis, w którym było zdjęcie, zostaje bez niego. Komponent
+`x-photo` pokazuje w takim stanie komunikat, a nie pustą ramkę. Kto chce
+usunąć konkretny przepis albo wpis w całości, ma to zrobić sam przed
+skasowaniem konta — i ekran mówi mu to wprost.
+
+**Ekran mówi teraz dokładnie to, co kod robi**, w dwóch listach: co znika i co
+zostaje. Test wiąże te dwie rzeczy ze sobą, bo raz już się rozjechały i nikt
+tego nie zauważył przez kilkanaście commitów.
+
+**Zmiana wymaga:** potwierdzenia prawnika przy okazji weryfikacji regulaminu
+(issue #8), gdyby uznał, że zanonimizowany tekst też wymaga innej podstawy.
+
+📄 `app/Domain/Users/Actions/EraseAccountData.php` ·
+`resources/views/pages/settings/data.blade.php` · `docs/legal/COMPLIANCE.md` ·
+issue #8
+
+---
+
+## D-019 · Jasny motyw zawsze domyślny; ciemny wyłącznie na jawne życzenie
+
+**Data:** 6 września 2026 · Status: **obowiązuje** · zgłoszenie właściciela
+
+Właściciel, cytat: „Na telefonie pokazuje mi się tryb nocny, jak wchodzę na
+kuking.pl w nocy, na komputerowej wersji tego nie ma. Trzeba gdzieś dodać
+w menu albo stopce przycisk zmiany trybu. Jasny zawsze domyślny i użytkownik
+decyduje, czy chce nocny w ogóle mieć, bo większość starszych osób woli
+jasne."
+
+Arkusz stylów szedł za `@media (prefers-color-scheme: dark)` — czyli telefon
+(albo komputer) przełączał WYGLĄD SERWISU sam, za każdym razem, gdy system
+miał włączony harmonogram „tryb nocny" albo był ustawiony na ciemny z innego
+powodu. Nikt tego nie zamawiał, a część naszej grupy (50+) nie kojarzy, że to
+WŁASNE urządzenie zmieniło wygląd strony — dla niej to wygląda na awarię
+serwisu, nie na ustawienie telefonu.
+
+### Co odrzucono
+
+**Zostawienie `prefers-color-scheme` jako jedynego wejścia, z samym
+przełącznikiem obok.** Nawet z widocznym przełącznikiem ktoś, kto nigdy go
+nie dotknął, nadal dostawałby ciemny motyw w nocy — dokładnie to zgłoszenie
+by nie zamykało, tylko dawało furtkę awaryjną komuś, kto już zauważył
+problem.
+
+**Trzecia wartość „jak w systemie", ustawiona jako domyślna.** Rozważona
+wprost (patrz komentarz w migracji `2026_09_06_210000_add_theme_to_users`).
+Odrzucona, bo jako wartość DOMYŚLNA odtwarzałaby identyczne zachowanie, które
+właściciel zgłosił jako błąd — czyli byłaby tym samym problemem pod nową
+nazwą. Jako opcja NIEdomyślna (obok „jasny" i „ciemny", z jasnym jako
+domyślnym) jest dopuszczalna później, jeśli ktoś jej zażąda — ale nie ma dla
+niej dziś ani jednego zgłoszenia, więc dokładanie jej teraz byłoby budowaniem
+funkcji bez popytu (AGENTS.md → zakaz overengineeringu).
+
+### Co wybrano
+
+**Jasny jest teraz jedynym motywem domyślnym — dla każdego konta, także już
+istniejącego, i dla każdego gościa.** Ciemny włącza się WYŁĄCZNIE atrybutem
+`data-theme="dark"` na `<html>`, ustawianym jawnie przez człowieka —
+`/ustawienia/czytelnosc` (obok rozmiaru tekstu: to ta sama sprawa,
+czytelność) albo szybki przełącznik w stopce, widoczny na każdej stronie
+i dla gościa też. Zalogowany ma wybór na koncie (kolumna `users.theme`, ten
+sam wzorzec co `text_scale`); gość — w ciasteczku
+(`App\Http\Controllers\ThemeController`), bo `localStorage` wymaga
+JavaScriptu i dałby błysk złego wyglądu przy pierwszym renderze (AGENTS.md
+§5: ważne funkcje działają bez JavaScriptu).
+
+Arkusz stylów (`resources/css/tokens.css`) stracił CAŁKOWICIE ścieżkę
+systemową — nie ma tam już żadnego `@media (prefers-color-scheme)`. Test
+`tests/Feature/WyborMotywuTest.php` sprawdza to wprost na treści pliku
+(bez komentarzy), żeby reguła nie wróciła po cichu przy kolejnej zmianie
+kolorów.
+
+**Cena, wprost:** ktoś, kto NAPRAWDĘ woli, żeby serwis podążał za jego
+systemem (a nie tylko dostał ciemny raz i zapomniał), musi teraz przełączać
+ręcznie, gdy zmienia porę dnia. To jest świadomy kompromis: badana grupa
+(50+) w cytowanym zgłoszeniu wyraźnie woli stabilność nad automatykę, którą
+łatwo pomylić z usterką.
+
+**Zmiana wymaga:** zgłoszenia od użytkowników, że chcą automatycznego
+podążania za systemem — wtedy wraca jako TRZECIA, nadal niedomyślna opcja
+(patrz wyżej), nie jako powrót do obecnego zachowania.
+
+📄 `database/migrations/2026_09_06_210000_add_theme_to_users.php` ·
+`app/Http/Controllers/ThemeController.php` ·
+`resources/views/components/layout.blade.php` · `resources/css/tokens.css` ·
+`resources/views/pages/settings/accessibility.blade.php` ·
+`tests/Feature/WyborMotywuTest.php`
+
+---
+
+## D-020 · Adresem zdjęcia jest trasa aplikacji, a bucket wariantów traci domenę
+
+**Data:** 6 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+audyt W7-02 (P0, prywatność), issue #120
+
+Adresem każdego zdjęcia w serwisie był adres pliku w buckecie z własną domeną
+CDN. Taki adres nikogo o nic nie pyta i nie przestaje działać: kto raz go
+skopiował — z podglądu źródła strony, z historii przeglądarki, z podglądu
+linku w komunikatorze — otwierał zdjęcie także po zablokowaniu, po cofnięciu
+obserwowania, po przełączeniu przepisu na prywatny i po decyzji moderacyjnej.
+
+Cała macierz widoczności obowiązywała stronę HTML i nie obowiązywała ani
+jednego piksela. Najgorszy przypadek nazwał audyt wprost:
+`recipes.source_scan_media_id` — skan odręcznej kartki z rodzinnym przepisem,
+a na niej nazwiska, adresy i czyjeś pismo.
+
+### Co odrzucono
+
+**Adres nie do zgadnięcia („security through obscurity").** Klucze i tak są
+UUID-ami, więc to jest stan obecny opisany ładniejszym słowem. Nie rozwiązuje
+niczego, o co chodzi: adres raz ujawniony zostaje ważny na zawsze.
+
+**Podpisywanie adresów CDN-u bez trasy aplikacji.** Krótszy termin ważności
+zamiast kontroli dostępu. Nadal odpowiada „tak" komuś, kogo autor właśnie
+zablokował, tyle że przez pięć minut zamiast przez lata — i nie da się tego
+związać z Policy, bo podpis powstaje bez wiedzy o tym, kto pyta.
+
+**Strumieniowanie bajtów przez PHP.** Najprostsze do napisania i najdroższe
+w działaniu: jedna strona feedu to kilkadziesiąt zdjęć po kilkaset kilobajtów,
+a proces zajęty przepisywaniem obrazka nie obsługuje nikogo innego.
+`X-Accel-Redirect` odpadł osobno i twardo: **przed PHP stoi Caddy, nie nginx**,
+a Caddy takiego mechanizmu nie zna.
+
+**Kolumna `visibility` na `media`.** Wygląda najtaniej i jest najdroższa:
+byłaby SIÓDMĄ kopią reguły widoczności w tym repozytorium, w dodatku
+denormalizowaną, więc rozjeżdżającą się przy każdej zmianie widoczności
+rodzica. Powtarzającą się przyczyną błędów jest tu dokładnie to — „reguła
+istnieje poprawnie w jednej warstwie, a druga implementuje ją inaczej".
+
+### Co wybrano
+
+**Wszystkie warianty w buckecie BEZ domeny publicznej. Adresem zdjęcia jest
+trasa aplikacji, która pyta Policy treści nadrzędnej i przekierowuje (302) na
+krótko podpisany adres. Bajty nie idą przez PHP.**
+
+Reguła widoczności zdjęcia nie powstaje na nowo. `DostepDoZdjecia` odwraca
+listę rodziców (tę samą, co `KasujZdjecie::ODWOLANIA`) i woła ICH Policy przez
+`Gate`. Rodzicom, którzy Policy nie mieli, dopisano ją delegującą do przepisu
+albo do konta, zamiast wpisywać warunek u siebie.
+
+**Najszerszy rodzic wygrywa.** Zdjęcie da się przypiąć do kilku treści naraz,
+a przez rodzica publicznego bajty i tak są jawne. Rodzic najwęższy dawałby
+pustą ramkę w publicznym przepisie bez żadnego zysku dla prywatności.
+
+**Odmowa to 404 nieodróżnialne od zdjęcia nieistniejącego**, z treścią
+odpowiedzi włącznie.
+
+**Cena, wprost:** każde żądanie zdjęcia to teraz żądanie do Laravela i kilka
+zapytań o rodziców. Krok 1 świadomie tego nie optymalizuje — dopiero pomiar
+z produkcji ma rozstrzygnąć, czy potrzebny jest cache decyzji. Druga cena:
+podgląd linku w serwisach społecznościowych idzie teraz przez przekierowanie
+(`og:image` wskazuje trasę), co część scraperów obsługuje wolniej.
+
+**Czego to NIE załatwia i nie da się załatwić z kodu:** zdjęcie klucza `url`
+z konfiguracji nie zdejmuje domeny `cdn.kuking.pl` z bucketu po stronie
+Cloudflare. Dopóki ta domena tam wskazuje, stare adresy działają dalej.
+To jest **issue #120** i należy do właściciela.
+
+**Zmiana wymaga:** zmierzonego kosztu tej trasy na produkcji (wtedy zmienia się
+sposób, nie zasada) albo image CDN-u z własną autoryzacją na brzegu, który
+umiałby zapytać Kuking o decyzję, zanim odda plik.
+
+📄 `app/Domain/Media/DostepDoZdjecia.php` ·
+`app/Http/Controllers/MediaController.php` · `app/Models/Media.php` ·
+`config/filesystems.php` · `docs/MEDIA_PIPELINE.md` ·
+`tests/Feature/ZdjeciaChronioneNieWyciekajaTest.php` · issue #120
+
+---
+
 ## Jak dopisywać decyzje
 
 Nowa decyzja trafia tutaj, gdy: zamyka dyskusję, którą ktoś mógłby otworzyć
@@ -441,3 +721,449 @@ ponownie, albo gdy odrzuca oczywiste na pierwszy rzut oka rozwiązanie.
 
 Rzeczy, które **nie są** decyzją do zapisania: wybór nazwy zmiennej, kolejność
 pól w formularzu, sposób sformułowania jednego komunikatu.
+
+---
+
+## D-021 · Tematy znikają, zostają same tagi
+
+**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+zastępuje mechanizm z issue #31 (`topics`, `topic_follows`, `posts.topic_id`)
+
+Właściciel: „Tematy usuwamy, tylko tagi."
+
+Zamknięty słownik redakcyjny (`Topic`) ustępuje otwartym tagom użytkowników.
+Jeden mechanizm klasyfikacji treści zamiast dwóch — bo dwa znaczyłyby, że
+osoba 50+ musi zrozumieć, czym „temat" różni się od „tagu", a to jest
+pytanie, na które sam produkt nie ma dobrej odpowiedzi.
+
+### Czego ta decyzja NIE rozstrzyga, a co trzeba rozstrzygnąć
+
+**Tematy powstały dzień przed tą decyzją i powstały po coś.** Migracja
+`2026_09_06_100000_create_topics_tables.php`, commity `eb235fc` (#31 część A)
+i `ce6f48d` — „Nowe konto przestaje widzieć pusty ekran" (#31 część B). Nie
+jest to stary dług, tylko świeża odpowiedź na udokumentowany problem
+cold-startu.
+
+Na tematach stoi w `docs/product/COLD_START.md` cały plan startu, nie tylko
+pierwszy feed:
+
+- **temat tygodnia** ogłaszany przez gospodarza,
+- **ambasadorzy tematów** — 8–12 osób z osobistym zaproszeniem „prowadź temat
+  »chleb i zakwas«", z widoczną rolą i zadaniem trzech komentarzy dziennie,
+- przygotowane tematy na **Wigilię, tłusty czwartek i Wielkanoc**, planowane
+  trzy tygodnie wcześniej.
+
+Otwarte tagi nie unoszą żadnej z tych trzech rzeczy: nie da się powierzyć
+komuś prowadzenia tagu, który każdy może utworzyć, ani zagwarantować, że nowe
+konto trafi tydzień przed Wigilią na coś sensownego.
+
+**POTWIERDZONE PRZEZ WŁAŚCICIELA 7 września 2026:** rolę redakcyjną przejmuje
+**wąska lista tagów promowanych**, prowadzona przez gospodarza — te same trzy
+funkcje (temat tygodnia, ambasador, tag sezonowy) realizowane na tagach, bez
+drugiego typu obiektu w interfejsie. To nie jest powrót Tematów: promowany tag
+jest zwykłym tagiem, który dodatkowo stoi na liście gospodarza, z kolejnością
+i opcjonalnym jednym zdaniem od niego. `docs/product/COLD_START.md` wymaga
+aktualizacji pod tym kątem.
+
+**Co odrzucono i dlaczego.** Rozważane były trzy inne warianty.
+*Lista po popularności* — najprostsza, ale przy zerowym ruchu popularność nie
+istnieje, więc nowe konto zobaczyłoby pustą albo losową listę, czyli dokładnie
+problem, który Tematy rozwiązywały. *Wykorzystanie istniejących mechanizmów
+redakcyjnych* — projekt ma już tablicę dnia („kuKINGi na dziś": do 6 wpisów
+i 6 osób z notatką) oraz publiczne zeszyty, i one pokrywają „co gospodarz dziś
+pokazuje" oraz „zestaw, który gospodarz złożył". Nie pokrywają jednego:
+NAZWANEJ RZECZY, DO KTÓREJ SPOŁECZNOŚĆ SAMA DOSYPUJE TREŚĆ — zeszyt składa
+gospodarz, tag rośnie od użytkowników, a „temat tygodnia" ma z definicji
+rosnąć. *Odłożenie decyzji* — odrzucone, bo rdzeń tagów był budowany w tej
+chwili, a dodanie promocji później oznaczałoby przebudowę onboardingu, strony
+tagu, strony głównej i panelu.
+
+**Opiekun tagu (ambasador) NIE jest jeszcze zbudowany.** Zatwierdzona została
+sama możliwość promowania tagu. Przypisanie konkretnej osoby do prowadzenia
+tagu to osobny krok.
+
+### Stan danych w chwili decyzji
+
+W lokalnej bazie deweloperskiej: **0 tematów, 0 wpisów z tematem, 0
+obserwacji tematów**. Stanu produkcji nie da się sprawdzić z kontenera
+roboczego — właściciel musi to zrobić przed migracją, bo od tego zależy, czy
+usunięcie tematów jest zmianą schematu, czy rozmową z ludźmi, którym coś
+zniknie z profilu.
+
+### Co konkretnie znika
+
+`topics`, `topic_follows`, `posts.topic_id`, `TopicFeed`, `TopicController`,
+trasy `topics.*`, strona tematu, wybór tematów w onboardingu i wpisy tematów
+w mapie strony. Każde z tych miejsc jest dziś pokryte testami — po usunięciu
+testy mają zniknąć razem z kodem, a nie zostać wyciszone.
+
+### Poprawka techniczna, która wychodzi razem z tagami
+
+Normalizacja nazwy tagu do UNIKALNOŚCI nie może używać `unaccent` — inaczej
+`zurek` i `żurek` stają się jednym tagiem, a to są dwie różne rzeczy.
+Istniejąca funkcja `kuking_normalize()` (`pg_trgm` + `unaccent`, migracja
+`2026_09_05_001300_fix_search_indexes.php`) służy do SZUKANIA i PODPOWIADANIA,
+nie do rozstrzygania tożsamości tagu.
+## D-022 · Zakres usunięcia konta wybiera człowiek; domyślnie tekst zostaje
+
+**Data:** 7 września 2026 · Status: **obowiązuje** · rozszerza D-018 ·
+weryfikacja W1 (pomiar), issue #8
+
+D-018 rozstrzygnęło: zdjęcia kasujemy wszystkie, tekst zostaje
+zanonimizowany. **Pomiar z 7 września pokazał, że druga połowa tej decyzji
+nigdy nie działała.**
+
+### Co było zepsute i dlaczego nikt tego nie zauważył
+
+`EraseAccountData` nie zmienia `users.status` — po zakończonej anonimizacji
+konto zostaje na `pending_delete`. Na tym statusie stoi
+`User::jestDostepnyJakoAutor()` i sześć Policy. Zmierzone na żywej bazie:
+
+| Co | Przed anonimizacją | Po anonimizacji |
+|---|---|---|
+| przepis | 200 | **403** |
+| wpis | 200 | **403** |
+| profil | 200 | **403** |
+| przepis w CUDZYM zeszycie | widoczny | **wypada z listy** |
+| komentarz | widoczny | **niewidoczny nawet dla autora wpisu** |
+
+Czyli: tekst zostawał w bazie, ale znikał ze serwisu. D-018 obiecało jedno,
+a serwis robił drugie — i to jest **dokładnie ten nawracający wzorzec, który
+opisuje `docs/HANDOVER.md`**: reguła istnieje poprawnie w jednej warstwie,
+a druga implementuje ją inaczej.
+
+Nie zauważono tego, bo test `test_tekst_zostaje_ale_bez_nazwiska` asertuje
+**wyłącznie obecność wiersza w bazie**. Widoczności nie sprawdza wcale. Test
+przechodził i „dowodził" czegoś, czego nie było. Drugi test,
+`KomentarzeGranicaStatusuAutoraTest:62`, **aktywnie pilnował zaprzeczenia**
+tej obietnicy — zamroził stan faktyczny jako oczekiwany.
+
+### Co odrzucono
+
+**Sam nowy status końcowy, bez pytania człowieka.** Naprawiłoby D-018
+dosłownie i było najtańsze. Odrzucone, bo zostawia jedno rozstrzygnięcie
+narzucone wszystkim: część ludzi usuwa konto właśnie po to, żeby ich słowa
+zniknęły, i dla nich „tekst zostaje, tylko bez podpisu" nie jest tym, o co
+prosili. Anonimizacja jest naszą oceną, że tak jest lepiej dla społeczności
+— a to nie jest ocena, którą wolno robić za kogoś przy jego własnych
+danych.
+
+**Kasowanie wszystkiego, na powrót do wariantu odrzuconego w D-018.**
+Argument z D-018 nadal obowiązuje: cudze wątki urywają się w połowie, cudze
+zeszyty gubią przepisy. Nie ma powodu unieważniać tamtej analizy.
+
+### Co wybrano
+
+**Ekran usuwania konta pyta, a domyślnie kasuje MINIMUM.**
+
+Haczyk „usuń także moje wpisy, przepisy i komentarze" jest **odhaczony**.
+Kto go nie tknie, dostaje D-018: zdjęcia znikają, tekst zostaje
+zanonimizowany i — po tej naprawie — **nadal widoczny**. Kto go zaznaczy,
+dostaje pełne usunięcie razem z tekstem.
+
+Uzasadnienie domyślnej wartości: domyślna opcja ma być tą, której skutków
+nie da się cofnąć w mniejszym stopniu. Zostawiony tekst da się skasować
+później; skasowanego nie da się przywrócić. Domyślne odhaczenie nie jest
+więc wygodą dla serwisu, tylko wyborem mniej nieodwracalnej ścieżki dla
+osoby, która klika w pośpiechu.
+
+### Co to wymaga od kodu
+
+1. **Stan końcowy konta** obok `pending_delete` — inaczej granica
+   autoryzacji dalej ukrywa tekst i cała ta decyzja jest fasadą.
+   `data_erased_at` już istnieje, ale `jestDostepnyJakoAutor()` go nie
+   czyta.
+2. Wybór człowieka **zapisany razem z żądaniem usunięcia**, nie odczytany
+   w chwili wykonania — między jednym a drugim mija 30 dni i ekran, na
+   którym stawiano haczyk, może już nie istnieć w tej formie.
+3. `KomentarzeGranicaStatusuAutoraTest:62` do świadomego przepisania. To
+   nie jest test do wyciszenia — to jest test, który trzeba zmienić razem
+   z decyzją, którą zamroził.
+4. Test na WIDOCZNOŚĆ, nie na obecność wiersza. Poprzedni test przechodził
+   właśnie dlatego, że sprawdzał to drugie.
+
+📄 `app/Domain/Users/Actions/EraseAccountData.php` · `app/Models/User.php` ·
+`resources/views/pages/settings/data.blade.php` · D-018
+
+---
+
+## D-023 · Oryginał zdjęcia traci współrzędne GPS przy wgraniu
+
+**Data:** 7 września 2026 · Status: **obowiązuje** · weryfikacja W5 (pomiar)
+
+Warianty pokazywane w serwisie powstają przez przekodowanie do WebP, więc
+EXIF w nich nie ma. **Oryginał był zapisywany bajt w bajt** —
+`StoreUploadedImage.php:180`, `put($objectKey, $file->get())` — i komentarz
+w kodzie mówił to wprost: *„ORYGINAŁ zachowuje go w całości — łącznie ze
+współrzędnymi GPS, czyli adresem kuchni użytkownika"*.
+
+Oryginał nie jest kasowany po przetworzeniu (eksport RODO ma oddać
+człowiekowi jego zdjęcie, nie zmniejszoną kopię) i **trafia do paczki
+danych**.
+
+**Dlaczego to jest problem, a nie świadomy kompromis:** obecna, opublikowana
+polityka prywatności mówi *„Nie zbieramy: numeru telefonu, dokładnego adresu
+zamieszkania, **lokalizacji GPS**"*. To zdanie było nieprawdziwe. RODO patrzy
+na przechowywanie, nie na użycie — „nie czytamy tego pola" nie znaczy „nie
+zbieramy".
+
+### Co odrzucono
+
+**Zostawić oryginał w całości i poprawić politykę.** Uczciwe i tanie.
+Odrzucone, bo cena jest realna: przechowujemy adres domu grupy 50+ w pliku,
+którego do niczego nie używamy. Zdanie w polityce nie jest tu problemem —
+problemem jest samo dane. Poprawianie dokumentu, żeby pasował do
+niepotrzebnego zbierania, jest odwrotnością minimalizacji.
+
+**Wyczyścić też oryginały już wgrane.** Najczystszy stan końcowy. Odrzucone
+NA TERAZ, bo modyfikuje pliki, które ludzie już wgrali, i tego nie da się
+cofnąć. Do zrobienia osobno, świadomie, po sprawdzeniu, ile takich plików
+w ogóle jest.
+
+### Co wybrano
+
+**Blok GPS wypada z oryginału w chwili wgrania. Reszta EXIF zostaje.**
+
+Aparat, obiektyw, data, orientacja — wszystko to zostaje, bo to jest
+informacja o zdjęciu, którą właściciel może chcieć odzyskać z eksportu.
+Wypada wyłącznie lokalizacja, bo to jest informacja o CZŁOWIEKU, nie
+o zdjęciu.
+
+Zdanie w polityce staje się prawdziwe bez zmiany dokumentu — a to jest
+lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
+
+📄 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
+`resources/legal/polityka-prywatnosci.md`
+
+---
+
+## D-024 · Dokumenty prawne idą na produkcję poprawione, a nieprawda z nich wypada od razu
+
+**Data:** 7 września 2026 · Status: **obowiązuje** · weryfikacja W1–W5 · issue #8
+
+Właściciel dostarczył trzy kompletne szkice (polityka prywatności,
+regulamin, zasady) przygotowane do przeglądu przez prawnika. Pięć
+przebiegów weryfikacyjnych sprawdziło każde twierdzenie o systemie
+przeciwko kodowi.
+
+### Rzeczy, które obecna, PUBLICZNIE SERWOWANA treść twierdzi nieprawdziwie
+
+`GET https://kuking.pl/prywatnosc` → HTTP 200 (zmierzone). Czyli poniższe
+zdania są dziś obowiązującą obietnicą, nie wersją roboczą:
+
+1. **Sentry i PostHog w tabeli podprocesorów, z lokalizacjami.** Żadnego
+   z nich nie ma w kodzie: brak `config/sentry.php`, brak pakietu
+   w `composer.json`, brak integracji; PostHog to dwie puste zmienne
+   w `.env.example`. Dokument wymienia podmioty, które nie przetwarzają
+   niczego — to wprowadza w błąd co do tego, kto ma dane użytkownika.
+2. **„Każdy z tych dostawców ma podpisaną z nami umowę powierzenia."**
+   Właściciel potwierdził: **żadna nie jest podpisana.**
+3. **„Nie zbieramy lokalizacji GPS"** — patrz D-023.
+4. **„hasło przechowywane w postaci zaszyfrowanej"** — jest bcrypt o koszcie
+   12 (zmierzone: `$2y$12$`), czyli nieodwracalny skrót, nie szyfrowanie.
+5. **Notatki redakcyjne w treści widocznej dla użytkownika**: „[Wariant A —
+   jeśli wdrożony baner:] … [Wariant B …]".
+6. **Opublikowane placeholdery** w zdaniach o retencji: „[X dni — do
+   ustalenia]".
+
+### Co wybrano
+
+**Poprawiona treść wchodzi teraz; usunięcie nieprawdy nie czeka na
+prawnika.**
+
+Rozróżnienie, na którym stoi ta decyzja: **wykreślenie zdania
+nieprawdziwego nie jest decyzją prawną.** Nie wymaga niczyjej opinii — kod
+mówi, że jest fałszywe. Czekanie z tym na przegląd oznaczałoby świadome
+utrzymywanie fałszu przez czas, którego nie kontrolujemy.
+
+Osobno i inaczej traktujemy zdania, które są PROPOZYCJĄ, nie stanem: okresy
+retencji. Tu obowiązuje zasada autora szkicu, przyjęta bez zmian:
+**proponowanego okresu nie wolno opublikować, dopóki automatyczne zadanie
+go nie wykonuje.** Zmierzone: kod egzekwuje dokładnie dwa okresy —
+`product_signals` 90 dni i paczki eksportu 7 dni. `audit_log`,
+`notifications`, `reports`, `appeals` i `moderation_actions` nie mają
+retencji żadnej, więc żadna liczba przy nich nie może się pojawić.
+
+### Co zostaje jawną luką, bo należy do właściciela albo prawnika
+
+- **Umowy powierzenia z Railway i Cloudflare — do zawarcia przed betą.**
+  To warunek zgodności, nie formalność: bez DPA powierzenie danych
+  procesorowi nie ma podstawy.
+- **Dostawca poczty nie jest wybrany.** A maile weryfikacyjne i resetu hasła
+  są dziś czymś wysyłane — więc jakiś podmiot przetwarza adresy e-mail
+  wszystkich kont i nie wiemy który. `docs/decyzje/POCZTA.md` rekomenduje
+  EmailLabs, ale decyzji nie ma w tym pliku.
+- **Jurysdykcja bucketów R2.** Z kodu nieudowadnialna, a poszlaka jest
+  NEGATYWNA: udokumentowany endpoint nie zawiera `.eu.`, a bucket
+  z ograniczeniem jurysdykcyjnym UE jest osiągalny tylko pod
+  `<ACCOUNT_ID>.eu.r2.cloudflarestorage.com`. Pogrubione zdanie „Dane
+  przechowujemy na serwerach w Unii Europejskiej" wymaga potwierdzenia
+  w panelu, zanim zostanie utrzymane.
+- **Minimalny wiek: 16 lat** — to NIE jest luka, odpowiedź jest w kodzie
+  (`config/kuking.php:228`) i w obu opublikowanych dokumentach. Otwarte
+  zostaje węższe pytanie do prawnika: czy 16 lat wystarcza wobec
+  ograniczonej zdolności do czynności prawnych osób 13–17.
+
+### Czego nie wolno wpisać, bo kod nie zna celu
+
+`media.checksum_sha256` jest zapisywany i **nigdy nieczytany** (indeks
+`media_checksum_idx` nie obsługuje żadnego zapytania).
+`media.perceptual_hash` **nie jest nawet zapisywany** przez kod produkcyjny
+— zmierzone `count(perceptual_hash) = 0`. Kolumna zapisywana i nieczytana
+nie ma celu przetwarzania, a wpisanie do polityki, że służy „moderacji"
+albo „wykrywaniu duplikatów", byłoby wymyśleniem podstawy prawnej pod
+funkcję, której nie ma.
+
+📄 `resources/legal/*.md` · `docs/legal/BRAMKA_BETY.md` · issue #8
+
+---
+
+## D-025 · Treść zaląźkowa wchodzi na produkcję, ale jawnie oznaczona
+
+**Data:** 7 września 2026 · Status: **obowiązuje**
+
+Serwis działa i nie jest promowany — nikt z niego nie korzysta. Powstała
+treść zaląźkowa: 12 kont, 40 przepisów, 80 wpisów, 60 komentarzy, bez zdjęć.
+
+### Co odrzucono
+
+**Pusty serwis.** `docs/product/COLD_START.md` §6.3 stawia właśnie na to:
+„jest nas tu 87 osób" jako przewagę, nie wstyd. Odrzucone, bo obecna skala
+to nie 87 osób, a zero — a pierwsza osoba, która wejdzie na pusty feed, nie
+ma po co wrócić.
+
+**Treść bez oznaczenia.** Serwis wyglądałby na żywy od pierwszego dnia.
+Odrzucone wprost jako wprowadzanie w błąd co do skali — a grupa 50+ opiera
+decyzję o zostaniu właśnie na zaufaniu. To jest cena, której nie warto
+zapłacić za wrażenie ruchu.
+
+### Co wybrano
+
+**Konta zaląźkowe z widocznym oznaczeniem, że są przykładowe.**
+
+Nowa osoba nie trafia na pustkę, a nikt nie jest wprowadzony w błąd.
+Kosztuje jedną kolumnę i etykietę w interfejsie — przy koncie, nie tylko
+w regulaminie, bo nikt nie czyta regulaminu, żeby dowiedzieć się, czy pisze
+do człowieka.
+
+**Otwarte, do rozstrzygnięcia przed końcem bety:** co się stanie z tymi
+kontami, gdy przyjdą prawdziwi ludzie. Zostawienie ich na zawsze zamienia
+oznaczenie w stały element serwisu; usunięcie zabiera treść, do której
+prawdziwi ludzie mogli już coś dopisać. Ta decyzja nie musi paść teraz, ale
+musi paść przed otwarciem rejestracji.
+
+📄 `database/seeders/dane/tresc-zalazkowa.json` · `docs/product/COLD_START.md`
+
+---
+
+## D-026 · Baza tagów pochodzi ze słownika w pliku, a stare nazwy są scalane, nie dublowane
+
+**Data:** 7 września 2026 · Status: **obowiązuje**
+
+Początkowa baza tagów (SPEC §1.4) była wpisana na sztywno w `TagSeeder`:
+651 nazw i 53 aliasy, ułożone przeze mnie przy okazji implementacji D-021.
+Zamówiony osobno słownik ma 1250 nazw kanonicznych i 2366 aliasów, w 13
+kategoriach, i jest ułożony pod polską kuchnię domową oraz pod grupę 50+ —
+dwie kategorie istnieją tylko dlatego: `pamiec` („przepis po babci",
+„z rodzinnego zeszytu") i `okolicznosci` („dla wnuków", „z czerstwego
+chleba", „mało zmywania", „dla niejadka"). Poprzednia baza nie miała ani
+jednego takiego tagu.
+
+### Co odrzucono
+
+**Zostawienie starej bazy i wpięcie słownika obok.** Zmierzone: 43 nazwy ze
+starej bazy nowy słownik traktuje jako alias czegoś innego („marchewka" →
+„marchew", „schabowy" → „kotlet schabowy", „pieczenie" → „pieczone").
+Wpięcie obok daje 43 pary żywych tagów na jedno pojęcie — czyli dokładnie
+to rozsypanie taksonomii, przed którym cała ta baza ma chronić („zakwas /
+na zakwasie / chleb zakwas / ZAKWAS — po miesiącu nie ma czego obserwować").
+**Zaniechanie nie było tu neutralne.**
+
+**Wyrzucenie starej bazy w całości.** Zmierzone: słownik nie ma 293 pojęć,
+które stara baza miała — w tym podstawowych składników („kapusta", „seler",
+„fasola", „olej", „orzechy"), części mięsa i klasyków bez odpowiednika
+(„zrazy", „tatar", „sękacz"). Wymiana jednego kompletu na drugi zabierałaby
+je bez powodu.
+
+**Dodanie kolumny na `sezonowy`.** 226 tagów w słowniku ma podpowiedź
+sezonu. Nic w kodzie nie umie z niej korzystać, a funkcji sezonowości nie
+ma. Kolumna bez drogi zapisu i odczytu to ten sam błąd, który opisuje
+zadanie o minutniku kroku (kompletna funkcja za polem, którego nikt nie
+umie ustawić). Informacja zostaje w pliku.
+
+### Co wybrano
+
+**Dane w dwóch plikach JSON, czytanych przez `TagSeeder`:**
+`slownik-tagow.json` (dostarczony, nietknięty — razem z polem `uwagi`,
+44 rozstrzygnięciami autora, z odsyłaczami do WSJP PAN i Listy Produktów
+Tradycyjnych MRiRW) oraz `slownik-tagow-uzupelnienia.json` (169 pojęć,
+których słownik nie ma ani jako nazwy, ani jako aliasu).
+Razem **1419 tagów i 2448 aliasów**. Dwa pliki, a nie jeden, żeby kolejna
+wersja słownika podmieniała JEDEN plik bez scalania cudzych zmian w środku
+listy.
+
+Z poprzedniej bazy świadomie NIE przeniesiono nazw angielskich i modnych
+(„cookies", „smoothie bowl", „chia pudding"), fraz zamiast pojęć („obiad
+w piętnaście minut"), nazwy marki („termomix" — słownik ma potoczne
+`w termomiksie` małą literą) oraz tagów **„fit", „dieta odchudzająca"
+i „dieta sportowca"**, które łamią tę samą regułę o języku dietetycznym,
+jaką postawiono słownikowi. Test tego pilnuje, więc nie wrócą.
+
+**Dziesięć pojęć ogólnych dołożonych po pomiarze podpowiedzi.** Wgranie
+słownika pozwoliło zmierzyć coś, czego na 651 tagach nie było widać: dla
+każdej złożonej nazwy sprawdzone, czy jej pierwsze słowo istnieje
+samodzielnie. Nie istniało dla `barszcz`, `kotlety`, `krem`, `kasza`, `sok`,
+`syrop`, `pasta`, `placki`, `nalewka`, `ser` — więc wpisanie samego słowa
+„barszcz" podpowiadało „barszcz biały", rozstrzygając za człowieka, którego
+barszczu mu trzeba. Nie jest to zarzut do słownika: jego uwaga 25 mówi, że
+nazwy ogólne i odmiany celowo współistnieją, po prostu tych dziesięciu
+zabrakło.
+
+**Ranking podpowiedzi doprecyzowany, bo przy 1419 tagach przestał
+wystarczać.** SPEC §1.5 mówił „dokładne dopasowanie początku nazwy →
+dokładny alias → trigram", a wszystkie trafienia z pierwszej gałęzi miały
+tę samą wagę — czyli ich kolejność brała się z fizycznej kolejności wierszy.
+Zmierzone: wpisane „chleb" dawało jako pierwszą podpowiedź „chlebek
+bananowy", a wpisane „marchewka" — „marchewkę z groszkiem", mimo że
+„marchewka" jest dokładnym aliasem „marchwi". Ten sam błąd w dwóch
+miejscach: dopasowanie DOKŁADNE przegrywało z częściowym. Nowa kolejność:
+dokładna nazwa → dokładny alias → początek nazwy od najkrótszej → trigram,
+a na końcu alfabet, żeby ta sama fraza dawała ZAWSZE tę samą listę
+(`docs/UX_50_PLUS.md`: przewidywalność przed bogactwem).
+
+**Kolizja aliasu z istniejącym tagiem: scalenie, nie odrzucenie** —
+`MergeTags` (SPEC §1.8), ale WYŁĄCZNIE gdy stary tag jest pusty
+i redakcyjny: `is_seeded`, `active`, bez wpisów, bez obserwujących, bez
+promocji i sam nieobecny w słowniku. Tag, którego ktoś już użył albo który
+powstał z ręki człowieka, zostaje nietknięty — alias jest wtedy odrzucany
+i zgłaszany w raporcie, a decyzja zostaje przy człowieku. Cena tego
+zaniechania (dwa tagi na jedno pojęcie do czasu decyzji) jest niższa niż
+cena scalenia komuś tagu, którego używa.
+
+**`MergeTags` powstało przy tej okazji i to jest osobne ustalenie.**
+Kolumny `tags.status = 'merged'` i `tags.merged_into_tag_id` istniały od
+migracji `create_tags_tables`, a mechanizm ich czytania był kompletny:
+strona tagu przekierowuje, podpowiedzi wykluczają, `ResolveTagsForPost`
+rozwiązuje wpisaną nazwę do tagu kanonicznego. Ustawiał je natomiast
+wyłącznie `forceFill` w testach — mimo że komentarz modelu `Tag` i komentarz
+migracji odsyłały do `MergeTags` jako do istniejącej klasy. **Trzeci taki
+przypadek w tym repozytorium** (po minutniku kroku i po D-018): reguła
+zapisana w jednej warstwie, a w drugiej niewykonalna.
+
+**Zmierzony efekt uboczny:** `php artisan db:seed` na czystej bazie kończył
+się wyjątkiem, bo `DemoSeeder` tworzył tag „chleb na zakwasie", który
+`TagSeeder` już wstawił (`UNIQUE(normalized_name)`). Naprawione: `DemoSeeder`
+idzie teraz przez `ResolveTagsForPost`, czyli tę samą bramkę, co prawdziwy
+formularz wpisu — a „zupy" rozwiązuje się przy okazji do kanonicznego
+„zupa", zamiast tworzyć drugi tag na to samo.
+
+📄 `database/seeders/dane/slownik-tagow.json` ·
+`database/seeders/dane/slownik-tagow-uzupelnienia.json` ·
+`database/seeders/dane/README.md` · `database/seeders/TagSeeder.php` ·
+`app/Domain/Tags/Actions/MergeTags.php` ·
+`app/Domain/Tags/TagSuggester.php` · `tests/Feature/SlownikTagowTest.php` ·
+`tests/Feature/PodpowiedziNaPelnymSlownikuTest.php` ·
+`tests/Feature/TagSeederZeSlownikaTest.php` ·
+`tests/Feature/ScalanieTagowTest.php`
+
+---

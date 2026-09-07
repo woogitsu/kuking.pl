@@ -45,12 +45,35 @@ class Report extends Model
         'other' => 'Coś innego',
     ];
 
+    /**
+     * Zgłoszenie społecznościowe: „to jest spam", „to jest chamskie".
+     * Nasze zasady, nasza kolejka, może wymagać zalogowania.
+     */
+    public const SOURCE_COMMUNITY = 'community';
+
+    /**
+     * Zgłoszenie nielegalnej treści w rozumieniu DSA art. 16.
+     *
+     * Inna rzecz niż wyżej i dlatego ma osobną nazwę. Ten mechanizm MUSI być
+     * dostępny dla każdej osoby i każdego podmiotu, także bez konta — nie
+     * wolno kazać komuś zakładać konta w serwisie kulinarnym po to, żeby mógł
+     * zgłosić przestępstwo. Niesie też własne obowiązki: potwierdzenie odbioru
+     * i powiadomienie o decyzji z pouczeniem o środkach odwoławczych.
+     */
+    public const SOURCE_LEGAL_NOTICE = 'legal_notice';
+
     protected $fillable = [
         'reporter_id',
+        'source',
+        'notifier_name',
+        'notifier_email',
         'target_type',
         'target_id',
+        'target_url',
         'reason',
         'details',
+        'illegality_explanation',
+        'good_faith_at',
         'status',
         'resolution_note',
         'resolved_by',
@@ -61,6 +84,9 @@ class Report extends Model
     {
         return [
             'resolved_at' => 'datetime',
+            'good_faith_at' => 'datetime',
+            'receipt_sent_at' => 'datetime',
+            'decision_sent_at' => 'datetime',
         ];
     }
 
@@ -82,5 +108,23 @@ class Report extends Model
     public function isOpen(): bool
     {
         return in_array($this->status, [self::STATUS_OPEN, self::STATUS_TRIAGE, self::STATUS_REVIEWING], true);
+    }
+
+    public function jestZgloszeniemPrawnym(): bool
+    {
+        return $this->source === self::SOURCE_LEGAL_NOTICE;
+    }
+
+    /**
+     * Czy mamy komu odpowiedzieć.
+     *
+     * Art. 16 ust. 2 lit. c przewiduje wyjątek: przy zgłoszeniach dotyczących
+     * przestępstw z art. 3-7 dyrektywy 2011/93/UE dane zgłaszającego nie są
+     * wymagane. Wtedy nie ma adresu i to jest zgodne z przepisem, a nie brak
+     * w naszych danych.
+     */
+    public function maAdresDoOdpowiedzi(): bool
+    {
+        return $this->jestZgloszeniemPrawnym() && $this->notifier_email !== null;
     }
 }

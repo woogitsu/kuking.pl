@@ -34,22 +34,27 @@ use Symfony\Component\HttpFoundation\Response;
  *      wersję Alpine bez `new Function`, więc `unsafe-eval` przestało być
  *      potrzebne (patrz komentarz przy tej opcji w config/livewire.php).
  *
- * CO ZOSTAŁO NIEDOMKNIĘTE I DLACZEGO TO WIDAĆ, A NIE JEST ZAMIECIONE
- * `style-src` nadal ma `unsafe-inline`. W widokach jest ponad trzysta
- * atrybutów `style="..."` i każdy z nich jest naruszeniem tej dyrektywy.
- * Podpis nonce ich NIE ratuje: nonce działa na elementy `<style>` i
- * `<script>`, a nie na atrybut `style` — jedyne, co go dopuszcza, to
- * `unsafe-inline`. Przepisanie tych trzystu miejsc na klasy CSS to osobna,
- * duża praca (issue założone przy tej zmianie), więc na razie:
+ *   3. ZERO ATRYBUTÓW `style=` W WIDOKACH (issue #107). Nonce ich nie ratuje:
+ *      działa na ELEMENTY `<style>` i `<script>`, a nie na atrybut `style` —
+ *      jedyne, co go dopuszcza, to `unsafe-inline`. Wszystkie 355 atrybutów
+ *      zostało przeniesione do nazwanych klas w `resources/css/app.css`,
+ *      a strona awarii (`errors/_prosty.blade.php`), która musi działać bez
+ *      zewnętrznego arkusza, dostała jeden blok `<style nonce>`.
  *
- *   WYMUSZANA     — pełna polityka z `default-src 'self'` i `script-src`
- *                   bez `unsafe-inline` i bez `unsafe-eval`. Działa dziś.
- *   REPORT-ONLY   — ta sama polityka, ale ze `style-src` bez `unsafe-inline`
- *                   (samo `'self'` i podpis). Nie blokuje niczego, tylko
- *                   liczy, ile tych atrybutów naprawdę zostało na produkcji.
+ * POLITYKA JEST DOMKNIĘTA. `style-src` nie ma już `unsafe-inline`.
  *
- * Nagłówek mierzony ma więc dalej sens: mierzy NASTĘPNY krok, a nie ten,
- * który właśnie zrobiliśmy.
+ * Nagłówek REPORT-ONLY zostaje mimo to i nadal mierzy NASTĘPNY krok — dziś
+ * jest to ta sama polityka co wymuszana. Zostawiamy go, bo zgłoszenia
+ * z produkcji są jedynym sposobem, żeby zobaczyć naruszenie, którego nie
+ * widać w testach: pakiet dokładający własny `style=`, wklejony fragment
+ * cudzego HTML-a, wtyczka przeglądarki. Bez tego kanału dowiedzielibyśmy się
+ * o tym z pustej strony u użytkownika.
+ *
+ * DWA NIE-WYJĄTKI, ŻEBY NIKT ICH NIE „POPRAWIŁ":
+ * `resources/views/mail/**` ma style inline i tak ma zostać — klienty pocztowe
+ * nie czytają arkuszy, a CSP nie dotyczy poczty w ogóle.
+ * `resources/views/exports/**` to pliki HTML z paczki RODO, otwierane Z DYSKU:
+ * nie ma tam żadnych nagłówków, więc nie ma czego naruszać.
  *
  * Co realnie daje część wymuszająca — to nie są dyrektywy dekoracyjne:
  *
@@ -124,26 +129,26 @@ class ApplySecurityHeaders
             'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host']]),
         ];
 
-        // WYMUSZANA: to, co działa dziś. `style-src` z `unsafe-inline`,
-        // bo w widokach są jeszcze atrybuty `style="..."`.
+        // `style-src` bez `unsafe-inline` — od issue #107 w widokach nie ma
+        // ani jednego atrybutu `style=`. Podpis zostaje, bo obejmuje `<style>`
+        // wstawiany przez Livewire i blok w `errors/_prosty.blade.php`.
+        $styleSrc = 'style-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host']]);
+
         $response->headers->set('Content-Security-Policy', implode('; ', [
             ...$wspolne,
-            'style-src '.implode(' ', ["'self'", "'unsafe-inline'", ...$vite['host']]),
+            $styleSrc,
             'report-uri '.$zgloszenia,
         ]));
 
-        // MIERZONA: następny krok, czyli `style-src` bez `unsafe-inline`.
-        // Nagłówek nic nie blokuje — tylko liczy, ile tych atrybutów
-        // naprawdę zostało na stronach, których nie ruszaliśmy.
-        //
-        // Podpis jest tu POTRZEBNY, choć w polityce wymuszanej go nie ma.
-        // Bez niego przeglądarka zgłaszałaby także `<style>` wstawiany przez
-        // Livewire — czyli coś, co jest już w porządku — i pomiar tonąłby
-        // w szumie. Z podpisem zostają dokładnie atrybuty `style="..."`,
-        // bo tych żaden nonce nie obejmuje.
+        // MIERZONA: dziś to ta sama polityka co wymuszana, i tak ma być.
+        // Nagłówek zostaje jako KANAŁ ZGŁOSZEŃ, nie jako zapowiedź kolejnego
+        // kroku: pokazuje naruszenia, których nie widać w testach — pakiet
+        // dokładający własny `style=`, wklejony fragment cudzego HTML-a,
+        // wtyczkę przeglądarki. Bez niego dowiedzielibyśmy się o takim
+        // naruszeniu dopiero z pustej strony u użytkownika.
         $response->headers->set('Content-Security-Policy-Report-Only', implode('; ', [
             ...$wspolne,
-            'style-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host']]),
+            $styleSrc,
             'report-uri '.$zgloszenia,
         ]));
 

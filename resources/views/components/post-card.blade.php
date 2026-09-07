@@ -27,8 +27,9 @@
         </a>
         <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
+            <x-konto-przykladowe :user="$author" />
             <p class="meta m-0">
-                <a href="{{ $post->url() }}" style="color:inherit;">
+                <a href="{{ $post->url() }}" class="link-jak-tekst">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
                 </a>
                 {{-- Widoczność przy dacie, tak jak w kicie (ekran 01: „2 godz.
@@ -64,13 +65,34 @@
                 </summary>
                 <div class="post-card-menu-tresc">
                     <a href="{{ $post->url() }}">Otwórz wpis</a>
-                    @if(auth()->id() === $post->author_id)
+                    {{-- `@can`, a nie `auth()->id() === $post->author_id`: reguła
+                         „kto może zmieniać ten wpis" ma jedno miejsce
+                         (`PostPolicy::update`), a nie kopię w widoku obok kopii
+                         w kontrolerze (AGENTS.md §7). Dziś obie mówiły to samo;
+                         jutro ktoś poprawi jedną i menu pokaże „Edytuj" komuś,
+                         kto po kliknięciu dostanie 403. --}}
+                    @can('update', $post)
+                        <a href="{{ route('posts.edit', $post) }}">Edytuj wpis</a>
                         @if($post->media->count() > 1)
                             <a href="{{ route('posts.media.edit', $post) }}">Zdjęcia w tym wpisie</a>
                         @endif
+                        {{--
+                            „Usuń wpis" — akcja destrukcyjna, odsunięta od
+                            zwykłych akcji i wymagająca potwierdzenia
+                            (AGENTS.md §5). `.danger-zone` daje odstęp
+                            i kreskę, `x-confirm-button` to ten sam wzorzec
+                            potwierdzenia bez JavaScriptu co na stronie wpisu
+                            (`pages/posts/show.blade.php`).
+                        --}}
+                        <div class="danger-zone">
+                            <x-confirm-button
+                                :action="route('posts.destroy', $post)"
+                                label="Usuń wpis"
+                                question="Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie." />
+                        </div>
                     @else
                         <a href="{{ route('reports.create', ['type' => 'post', 'id' => $post->getKey()]) }}">Zgłoś ten wpis</a>
-                    @endif
+                    @endcan
                 </div>
             </details>
         @endauth

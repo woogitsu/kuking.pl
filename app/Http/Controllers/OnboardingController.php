@@ -6,8 +6,9 @@ namespace App\Http\Controllers;
 
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Social\Actions\FollowUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
-use App\Models\Topic;
+use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -30,41 +31,44 @@ class OnboardingController extends Controller
     ) {}
 
     /**
-     * Krok „co lubisz gotować".
+     * Krok „co lubisz gotować" (D-021 — czyta teraz `Tag`, nie `Topic`).
      *
-     * Lista przyszła z bazy, a nie ze stałej w tym pliku (issue #31).
-     * Wcześniej były DWIE listy: dwanaście pozycji tutaj i trzydzieści
-     * w seederze tematów — ta sama rzecz w dwóch miejscach, więc pytanie
-     * z onboardingu nie dawało się połączyć z niczym w serwisie.
+     * Lista to `Tag::scopePromowane()` — tagi z listy gospodarza (D-021,
+     * „tag promowany"), NIE „najpopularniejsze tagi". Przy zerowym ruchu
+     * produkcyjnym popularność nie istnieje, więc lista po popularności
+     * dałaby nowemu kontu pusty albo losowy ekran — dokładnie problem,
+     * który ten krok ma rozwiązywać. Widok radzi sobie z pustą listą
+     * (gospodarz jeszcze niczego nie promował) pokazując zachętę do
+     * pominięcia kroku zamiast pustej siatki checkboxów.
      */
     public function interests(): View
     {
         return view('pages.onboarding.interests', [
-            'topics' => Topic::doWyboru()->get(),
+            'tags' => Tag::promowane()->get(),
         ]);
     }
 
     public function saveInterests(Request $request): RedirectResponse
     {
         $dane = $request->validate([
-            'topics' => ['nullable', 'array'],
-            'topics.*' => ['string', 'exists:topics,id'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['string', 'exists:tags,id'],
         ]);
 
-        // TO JEST CAŁY SENS TEJ ZMIANY (issue #31).
+        // TO JEST CAŁY SENS TEJ ZMIANY (issue #31, kontynuowane przez D-021).
         //
-        // Wcześniej odpowiedź szła DO SESJI i ginęła na końcu onboardingu.
-        // Marnowaliśmy najcenniejsze dane, jakie mamy przy cold starcie —
-        // padają w jedynym momencie, w którym człowiek chętnie odpowiada
-        // na pytania o siebie, i decydują o tym, czy jego pierwszy feed
-        // będzie pusty.
+        // Odpowiedź idzie DO BAZY, nie do sesji, gdzie ginęłaby po
+        // zakończeniu kroku. Marnowalibyśmy najcenniejsze dane, jakie mamy
+        // przy cold starcie — padają w jedynym momencie, w którym człowiek
+        // chętnie odpowiada na pytania o siebie, i decydują o tym, czy jego
+        // pierwszy feed będzie pusty.
         $wybrane = array_values(array_intersect(
-            $dane['topics'] ?? [],
-            Topic::doWyboru()->pluck('id')->all(),
+            $dane['tags'] ?? [],
+            Tag::promowane()->pluck('id')->all(),
         ));
 
         if ($wybrane !== []) {
-            $request->user()->followedTopics()->syncWithoutDetaching(
+            $request->user()->followedTags()->syncWithoutDetaching(
                 array_fill_keys($wybrane, ['created_at' => now()]),
             );
         }
@@ -99,9 +103,15 @@ class OnboardingController extends Controller
 
             try {
                 $this->followUser->handle($user, $target);
-            } catch (\RuntimeException) {
+            } catch (BladDlaCzlowieka) {
                 // Pojedyncza nieudana próba (np. konto w międzyczasie
                 // zablokowane) nie może przerwać całego onboardingu.
+                //
+                // Znacznik, a nie `RuntimeException`: ten drugi połykał tu
+                // również `QueryException` (dziedziczy po nim przez
+                // `PDOException`), więc awaria bazy udawała „konto
+                // niedostępne" i onboarding kończył się bez ani jednego
+                // obserwowania, nie mówiąc o tym nikomu.
                 continue;
             }
         }

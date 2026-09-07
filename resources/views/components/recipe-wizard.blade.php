@@ -308,7 +308,7 @@ new class extends Component
 
         try {
             $this->persist(publish: false);
-        } catch (\RuntimeException $e) {
+        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
             $this->saveState = 'error';
             $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — to, co wpisałeś, jest dalej w formularzu.';
 
@@ -370,7 +370,7 @@ new class extends Component
 
         try {
             $recipe = $this->persist(publish: true);
-        } catch (\RuntimeException $e) {
+        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
             $this->saveDraft();
 
@@ -458,7 +458,7 @@ new class extends Component
             $this->heroMediaId = app(StoreUploadedImage::class)
                 ->handle(auth()->user(), $photo)
                 ->getKey();
-        } catch (\RuntimeException $e) {
+        } catch (\App\Exceptions\BladDlaCzlowieka $e) {
             $this->addError('heroPhoto', $e->getMessage());
 
             return false;
@@ -821,8 +821,12 @@ new class extends Component
             <div class="field">
                 <label for="f-heroPhoto">Zdjęcie gotowego dania <span class="meta">(nieobowiązkowe)</span></label>
                 <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+                {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
+                     megabajtów miała jedno źródło (`LimityZdjec`) i nie
+                     rozjechała się z `config/kuking.php` — issue #111. --}}
                 <input class="field-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
-                       accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                       data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
                        aria-describedby="f-heroPhoto-help">
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
@@ -834,7 +838,7 @@ new class extends Component
                      :value="$summary"
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
-            <div style="display:grid; gap:var(--spacing-4); grid-template-columns:repeat(auto-fit, minmax(12rem, 1fr));">
+            <div class="siatka-pol">
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal" wire="servings"
                          :value="$servings" :min="0.5" :max="999" :step="0.5" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric" wire="prep_minutes"
@@ -938,7 +942,7 @@ new class extends Component
                              :wire="'ingredients.'.$index.'.text'" :value="$row['text'] ?? ''"
                              :placeholder="$index === 0 ? '1 kurczak, najlepiej zagrodowy' : null" />
 
-                    <div style="display:grid; gap:var(--spacing-4); grid-template-columns:repeat(auto-fit, minmax(14rem, 1fr));">
+                    <div class="siatka-pol-szeroka">
                         <x-field :name="'ingredients.'.$index.'.group_name'" label="Grupa składników"
                                  :wire="'ingredients.'.$index.'.group_name'" :value="$row['group_name'] ?? ''"
                                  placeholder="Ciasto" />
@@ -1044,7 +1048,7 @@ new class extends Component
             @error('publikacja')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
             <article class="stack">
-                <h3 style="font-size:var(--text-title); margin:0;">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>
+                <h3 class="naglowek-podgladu">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>
 
                 <ul class="recipe-facts">
                     @if($this->previewServings() !== null)
@@ -1089,7 +1093,7 @@ new class extends Component
                     @else
                         @foreach($previewGroups as $groupName => $groupRows)
                             @if($groupName !== '')
-                                <h5 style="font-size:var(--text-body-lg); margin-bottom:var(--spacing-2);">{{ $groupName }}</h5>
+                                <h5 class="naglowek-grupy">{{ $groupName }}</h5>
                             @endif
                             <ul class="ingredient-list">
                                 @foreach($groupRows as $groupRow)

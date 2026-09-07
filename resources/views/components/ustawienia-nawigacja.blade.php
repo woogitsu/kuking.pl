@@ -22,10 +22,13 @@
 --}}
 
 @php
+    // 'topics' → 'tags' (D-021): ekran „Twoje tematy" ustąpił „Twoim tagom".
+    // Trasa `settings.topics` już nie istnieje — usunięta razem z Tematami
+    // w etapie 4/5, więc ta lista jest jedynym, spójnym źródłem ekranów.
     $ekrany = [
         'profile' => ['settings.profile', 'Profil', 'Nazwa, zdjęcie, kilka słów o Tobie'],
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
-        'topics' => ['settings.topics', 'Tematy', 'Co Cię interesuje w kuchni'],
+        'tags' => ['settings.tags', 'Tagi', 'Co Cię interesuje w kuchni'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],

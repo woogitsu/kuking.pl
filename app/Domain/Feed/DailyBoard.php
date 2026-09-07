@@ -8,6 +8,7 @@ use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * „kuKINGi na dziś" — kilka osób i kilka dań wartych zobaczenia dzisiaj.
@@ -172,25 +173,63 @@ final class DailyBoard
     {
         $hidden = $this->hiddenAuthorIdsFor($viewer);
 
-        return Post::query()
+        // DISTINCT ON (author_id), NIE „pobierz z zapasem i odsiej".
+        //
+        // Wcześniej ta metoda brała 24 najnowsze wpisy (`POSTS * 6`) i
+        // dopiero potem odsiewała powtórzonych autorów przez
+        // `unique('author_id')`. Komentarz nazywał to świadomym
+        // kompromisem, ale zapas 6× był ZGADYWANY, nie gwarantowany —
+        // i zmierzone: gdy jedna osoba opublikowała 30 najnowszych wpisów,
+        // odsiew zostawiał z nich JEDEN i tablica pokazywała jedną kartę
+        // zamiast czterech, mimo że trzech innych autorów miało dostępne
+        // (tylko starsze) treści.
+        //
+        // To nie był przypadek teoretyczny: `COLD_START.md` §4.2 każe
+        // gospodarzowi publikować codziennie, więc jeden bardzo aktywny
+        // autor jest wzorcem wpisanym w plan startu, nie anomalią.
+        //
+        // Postgresowy `DISTINCT ON` daje NAJNOWSZY wpis KAŻDEGO autora
+        // niezależnie od tego, ilu wpisów dodał — a dopiero z tego zbioru
+        // bierzemy cztery najnowsze. Liczba autorów na tablicy nie zależy
+        // już od rozkładu publikacji.
+        //
+        // `ORDER BY` w podzapytaniu MUSI zaczynać się od `author_id` —
+        // tego wymaga Postgres od `DISTINCT ON`. Dalsze kolumny wybierają,
+        // KTÓRY wpis danego autora wygrywa: najnowszy, a przy równej
+        // sekundzie większe `id`.
+        $najnowszyKazdegoAutora = Post::query()
+            ->selectRaw('DISTINCT ON (posts.author_id) posts.id, posts.published_at')
             ->publiclyVisible()
             ->when($hidden !== [], fn ($query) => $query->whereNotIn('author_id', $hidden))
             // Konto autora aktywne (audyt A5) — patrz uzasadnienie przy
             // DiscoverFeed::paginate(): to jest promowanie treści, więc próg
             // jest surowszy niż zwykłe wejście na adres wpisu.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
+            ->orderBy('posts.author_id')
+            ->orderByDesc('posts.published_at')
+            ->orderByDesc('posts.id');
+
+        $wybrane = DB::query()
+            ->fromSub($najnowszyKazdegoAutora, 'najnowsze')
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit(self::POSTS)
+            ->pluck('id');
+
+        if ($wybrane->isEmpty()) {
+            return new Collection;
+        }
+
+        // Drugie zapytanie po pełne modele z relacjami. Osobno, bo
+        // `DISTINCT ON` nie znosi `with()`/`withCount()` w tym samym
+        // przebiegu, a kolejność i tak trzeba narzucić na zewnątrz.
+        return Post::query()
+            ->whereIn('id', $wybrane)
             ->with(['author.profile.avatar', 'media'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            // Pobieramy z zapasem i dopiero potem odsiewamy powtórzonych
-            // autorów. Przy tej skali to jest tańsze i prostsze niż okienkowe
-            // zapytanie z DISTINCT ON.
-            ->limit(self::POSTS * 6)
-            ->get()
-            ->unique('author_id')
-            ->take(self::POSTS)
-            ->values();
+            ->get();
     }
 
     /** @return list<string> */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Users\Actions\CancelAccountDeletion;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -12,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Cofnięcie zgłoszonego usunięcia konta — dla osoby, która NIE MOŻE się
@@ -93,7 +93,7 @@ class AccountDeletionController extends Controller
 
         try {
             $this->cofnij->handle($osoba);
-        } catch (RuntimeException $blad) {
+        } catch (BladDlaCzlowieka $blad) {
             throw ValidationException::withMessages(['login' => $blad->getMessage()]);
         }
 

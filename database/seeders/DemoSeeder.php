@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
+use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -15,6 +16,7 @@ use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
+use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -70,7 +72,7 @@ class DemoSeeder extends Seeder
         $basia->following()->syncWithoutDetaching([$marek->getKey() => ['created_at' => now()]]);
 
         // Wpisy
-        Post::create([
+        $rosolWpis = Post::create([
             'author_id' => $basia->getKey(),
             'body' => 'Rosół na niedzielę. Gotował się cztery godziny, jak trzeba.',
             'visibility' => Post::VISIBILITY_PUBLIC,
@@ -78,7 +80,7 @@ class DemoSeeder extends Seeder
             'published_at' => now()->subDays(3),
         ]);
 
-        Post::create([
+        $chlebWpis = Post::create([
             'author_id' => $marek->getKey(),
             'body' => 'Chleb z zakwasu, który hoduję od 2019 roku. Dziś wyszedł najlepszy do tej pory.',
             'visibility' => Post::VISIBILITY_PUBLIC,
@@ -86,13 +88,15 @@ class DemoSeeder extends Seeder
             'published_at' => now()->subDays(1),
         ]);
 
-        Post::create([
+        $nalesnikiWpis = Post::create([
             'author_id' => $ania->getKey(),
             'body' => 'Naleśniki po pracy. Dzieci zjadły wszystko, więc chyba się udało.',
             'visibility' => Post::VISIBILITY_PUBLIC,
             'status' => Post::STATUS_PUBLISHED,
             'published_at' => now()->subHours(5),
         ]);
+
+        $this->otagujWpisy($rosolWpis, $chlebWpis, $nalesnikiWpis, $basia, $ania);
 
         // Wpisy z KILKOMA zdjęciami — po jednym na każdy tryb wyświetlania
         // (issue #92). Bez nich automat układu (scripts/dostepnosc.mjs) nie ma
@@ -245,6 +249,74 @@ class DemoSeeder extends Seeder
     }
 
     /** @param  array<string, mixed>  $profile */
+    /**
+     * TAGI W DANYCH DEMONSTRACYJNYCH (D-021).
+     *
+     * PO CO TO JEST, skoro `TagSeeder` istnieje osobno: `scripts/dostepnosc.mjs`
+     * uruchamia `migrate:fresh --seed --seeder=DemoSeeder`, czyli WYŁĄCZNIE ten
+     * seeder — `TagSeeder` wołany z `DatabaseSeeder` wtedy nie idzie. Bez tego
+     * kroku publiczna strona tagu dawałaby 404, „Twoje tagi" byłyby puste,
+     * a sekcja tagów w formularzu wpisu nigdy nie pokazałaby ani jednej
+     * podpowiedzi. Pusty ekran przechodzi każdy pomiar dostępności i układu,
+     * więc automat mierzyłby wtedy nic — dokładnie ta sama pułapka, którą
+     * komentarz przy wpisach z kilkoma zdjęciami opisuje dla karuzeli i kolażu.
+     *
+     * NIE WOŁAMY TU `TagSeeder` przez `$this->call()`: on wgrywa pełny słownik
+     * (~1200 tagów), co przy każdym przebiegu automatu byłoby kilkusekundowym
+     * kosztem za coś, czego pomiar nie potrzebuje. Trzy tagi wystarczą, żeby
+     * każdy ekran miał realną treść, a `TagSeeder` zostaje jedynym źródłem
+     * słownika produkcyjnego.
+     */
+    private function otagujWpisy(Post $rosol, Post $chleb, Post $nalesniki, User $basia, User $ania): void
+    {
+        // `ResolveTagsForPost`, NIE `Tag::create()`. Trzy powody, każdy
+        // zmierzony:
+        //   1. `db:seed` (bez `--seeder`) woła najpierw `TagSeeder`, więc
+        //      „chleb na zakwasie" i „zupy" JUŻ SĄ w bazie — `Tag::create()`
+        //      leciało wtedy na `UNIQUE(normalized_name)` i cały `db:seed`
+        //      kończył się wyjątkiem (zmierzone na czystej bazie);
+        //   2. „zupy" jest w słowniku ALIASEM tagu „zupa" — ta akcja
+        //      rozwiązuje alias do tagu kanonicznego, zamiast tworzyć drugi
+        //      tag na to samo pojęcie;
+        //   3. to jest ta sama bramka, przez którą idzie prawdziwy formularz
+        //      wpisu, więc treść demo nie może być „bardziej poprawna" niż
+        //      to, co da się wpisać ręcznie.
+        $rozwiazane = app(ResolveTagsForPost::class)->handle(['zupy', 'chleb na zakwasie', 'szybkie obiady']);
+
+        $tagi = [];
+        foreach ($rozwiazane as $tag) {
+            $tagi[$tag->normalized_name] = $tag;
+        }
+
+        // Klucze po nazwie KANONICZNEJ, nie po tym, co wpisaliśmy wyżej —
+        // „zupy" rozwiązuje się do „zupa", gdy słownik jest w bazie, i do
+        // „zupy", gdy go nie ma (`--seeder=DemoSeeder`). Oba przypadki muszą
+        // działać, bo automat dostępności uruchamia właśnie ten drugi.
+        $zupa = $tagi['zupa'] ?? $tagi['zupy'];
+        $chlebNaZakwasie = $tagi['chleb na zakwasie'];
+        $szybkieObiady = $tagi['szybkie obiady'];
+
+        $rosol->tags()->syncWithoutDetaching([$zupa->getKey() => ['position' => 0]]);
+        $chleb->tags()->syncWithoutDetaching([$chlebNaZakwasie->getKey() => ['position' => 0]]);
+        $nalesniki->tags()->syncWithoutDetaching([$szybkieObiady->getKey() => ['position' => 0]]);
+
+        // Jeden tag promowany — to jest lista, którą czyta onboarding i szyna
+        // na stronie głównej, więc bez niej te dwa ekrany też mierzyłyby pustkę.
+        TagPromotion::query()->firstOrCreate(['tag_id' => $zupa->getKey()], [
+            'position' => 1,
+            'note' => 'Zupa na listopad — najłatwiejszy tydzień w całym kalendarzu.',
+        ]);
+
+        // Ktoś MUSI obserwować tag, żeby ekran „Twoje tagi" miał co pokazać
+        // poza stanem pustym, i żeby `TagFeed` nie był pusty dla tego konta.
+        $ania->followedTags()->syncWithoutDetaching([
+            $zupa->getKey() => ['created_at' => now()],
+        ]);
+        $basia->followedTags()->syncWithoutDetaching([
+            $chlebNaZakwasie->getKey() => ['created_at' => now()],
+        ]);
+    }
+
     private function createUser(string $email, string $username, string $displayName, array $profile = [], string $role = User::ROLE_USER): User
     {
         $user = User::firstOrCreate(

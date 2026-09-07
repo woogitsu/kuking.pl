@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Profile;
+use App\Support\Czas;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -78,7 +79,7 @@ class ProfileController extends Controller
                 : null,
             'cookedEvents' => $tab === 'ugotowane'
                 ? $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))
+                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
                     ->with(['recipe.author.profile', 'media'])
                     ->paginate(12)
                     ->withQueryString()
@@ -89,9 +90,9 @@ class ProfileController extends Controller
                 'recipes' => $owner->recipes()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
                 'cooked' => $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $owner, $viewer, $isOwner))->count(),
-                'followers' => $owner->followers()->count(),
-                'following' => $owner->following()->count(),
+                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))->count(),
+                'followers' => $this->liczbaPolaczen($owner, 'followers', $viewer),
+                'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
             ],
         ]);
     }
@@ -102,7 +103,17 @@ class ProfileController extends Controller
         return $owner->posts()
             ->published()
             ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
-            ->when($rok !== null, fn ($query) => $query->whereRaw('extract(year from published_at) = ?', [$rok]))
+            // `at time zone`, a nie samo `extract(year from …)`. `published_at`
+            // jest kolumną `timestamptz`, więc gołe `extract()` czyta rok w UTC,
+            // a człowiek widzi przy tym wpisie datę lokalną (`App\Support\Czas`).
+            // Wpis z sylwestrowej nocy — 1 stycznia 00:30 czasu polskiego, czyli
+            // 31 grudnia 23:30 UTC — lądował w archiwum pod poprzednim rokiem,
+            // z kartą pokazującą „1 stycznia" pod nagłówkiem roku wcześniejszego.
+            // Ten sam błąd co we `Wspomnieniach`, tylko o rok zamiast o dobę.
+            ->when($rok !== null, fn ($query) => $query->whereRaw(
+                'extract(year from published_at at time zone ?) = ?',
+                [Czas::strefa(), $rok],
+            ))
             ->with(['media', 'author.profile.avatar'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->latest('published_at')
@@ -124,7 +135,13 @@ class ProfileController extends Controller
         return $owner->posts()
             ->published()
             ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
-            ->selectRaw('distinct extract(year from published_at)::int as rok')
+            // Ta sama strefa co filtr w `postsFor()` — inaczej lista lat i lista
+            // wpisów odpowiadałyby na to samo pytanie inaczej, i rok kliknięty
+            // z listy potrafiłby nie mieć ani jednego wpisu.
+            ->selectRaw(
+                'distinct extract(year from published_at at time zone ?)::int as rok',
+                [Czas::strefa()],
+            )
             ->orderByRaw('rok desc')
             ->pluck('rok')
             ->map(fn ($rok): int => (int) $rok);
@@ -166,16 +183,86 @@ class ProfileController extends Controller
      * bez tego filtra zdradzała tytuły przepisów prywatnych, mimo że sam przepis
      * był nie do otwarcia. Wyciek przez tytuł to nadal wyciek.
      *
+     * I DOKŁADNIE TO ZDANIE STAŁO TU, GDY FILTR BYŁ NIEPEŁNY.
+     * Reguła była uznana, a sprawdzenie obejmowało WYŁĄCZNIE kolumnę
+     * `visibility`. Zmierzone: obcy na cudzym profilu widział tytuł przepisu
+     * ukrytego przez moderację ORAZ tytuł przepisu autora zbanowanego, mimo
+     * że adres wykonania i adres przepisu dawały mu 403. Trzeci przypadek był
+     * subtelniejszy: filtr dostawał jako „właściciela" KUCHARZA, a
+     * `visibility: followers` dotyczy relacji z AUTOREM PRZEPISU — kto
+     * obserwował kucharza, ale nie autora, widział tytuł przepisu „tylko dla
+     * obserwujących" tego autora.
+     *
+     * DLATEGO RĘCZNY FILTR ZNIKA, A NIE ZOSTAJE ROZBUDOWANY.
+     * `Recipe::scopeWidoczneDla()` odpowiada na dokładnie to pytanie i ma
+     * własną macierz testów: widoczność liczoną względem autora przepisu,
+     * blokady w obie strony, status przepisu. `tylkoWidoczne()` w tym
+     * kontrolerze było DRUGĄ implementacją tej samej reguły — czyli tym, co
+     * w tym repozytorium pęka najczęściej. Zostaje jeden zakres plus granica
+     * polityki `dostepnyJakoAutor()`, której ten zakres celowo nie zawiera
+     * (patrz komentarz przy `User::scopeDostepnyJakoAutor`: to są dwie różne
+     * granice i obie są potrzebne).
+     *
+     * `$owner` nie jest już potrzebny i dlatego go tu nie ma — parametr,
+     * który wygląda na używany, a nie jest, to zaproszenie do pomyłki.
+     *
      * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
      */
-    private function tylkoZWidocznychPrzepisow($query, $owner, $viewer, bool $isOwner): void
+    private function tylkoZWidocznychPrzepisow($query, $viewer, bool $isOwner): void
     {
         if ($isOwner) {
             return;
         }
 
-        $query->whereHas('recipe', function ($sub) use ($owner, $viewer): void {
-            $this->tylkoWidoczne($sub, $owner, $viewer, false);
+        $query->whereHas('recipe', function ($sub) use ($viewer): void {
+            $sub->widoczneDla($viewer)
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
         });
+    }
+
+    /**
+     * Licznik obserwujących/obserwowanych — POLICZONY DOKŁADNIE TAK, JAK
+     * WYGLĄDA LISTA POD TYM LICZNIKIEM (`SocialController::connections()`).
+     *
+     * Licznik na profilu jest oracle'em istnienia (ta sama klasa co zamknięte
+     * W7-05): jeśli mówi „12", a lista pod spodem pokazuje 10, to te dwa
+     * brakujące wiersze zdradzają widzowi, że coś tam jednak jest, mimo że
+     * nie wolno mu tego zobaczyć. Dwa warunki muszą się więc zgadzać z listą:
+     *
+     *  - `widocznyJakoOsoba()` — konto zamknięte (zbanowane, kasujące się
+     *    albo już wymazane, D-022) nie ma prawa stać ani na liście, ani
+     *    w liczniku nad nią (ten sam błąd, zmierzony
+     *    `ProfilListyRelacjiUkrywajaZbanowaneKontaTest`). MUSI to być ta sama
+     *    granica co w `SocialController::connections()`, bo licznik i lista
+     *    odpowiadają na to samo pytanie;
+     *  - blokada MIĘDZY WIDZEM A OSOBĄ NA LIŚCIE (nie: między widzem
+     *    a właścicielem profilu — to osobna reguła, `UserPolicy::viewProfile`).
+     *    `SocialController::connections()` filtruje to samo w zapytaniu
+     *    budującym listę; bez tego samego warunku tutaj widz zablokowałby
+     *    kogoś i zobaczyłby licznik, który się nie zgadza z tym, co klika.
+     *
+     * @param  'followers'|'following'  $relation
+     */
+    private function liczbaPolaczen($owner, string $relation, $viewer): int
+    {
+        return $owner->{$relation}()
+            ->widocznyJakoOsoba()
+            ->when($viewer !== null, function ($query) use ($viewer): void {
+                $widzId = $viewer->getKey();
+
+                $query->whereNotExists(function ($sub) use ($widzId): void {
+                    $sub->selectRaw('1')
+                        ->from('blocks')
+                        ->where(function ($w) use ($widzId): void {
+                            $w->where('blocks.blocker_id', $widzId)
+                                ->whereColumn('blocks.blocked_id', 'users.id');
+                        })
+                        ->orWhere(function ($w) use ($widzId): void {
+                            $w->whereColumn('blocks.blocker_id', 'users.id')
+                                ->where('blocks.blocked_id', $widzId);
+                        });
+                });
+            })
+            ->count();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Czas;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,9 @@ class DailyPick extends Model
     /** @param  Builder<DailyPick>  $query */
     public function scopeForDate(Builder $query, ?\DateTimeInterface $date = null): void
     {
-        $query->whereDate('shown_on', $date ?? now())->orderBy('position');
+        // `Czas::dzisiajData()`, nie `now()`: `shown_on` jest zwykłą kolumną
+        // `date`, a „dziś" na tablicy dnia to dzień, który widzi człowiek.
+        // Przez `now()` (UTC) tablica zmieniała się o 02:00 czasu polskiego.
+        $query->whereDate('shown_on', $date ?? Czas::dzisiajData())->orderBy('position');
     }
 }

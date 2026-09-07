@@ -53,9 +53,53 @@
            data-alt="{{ $media->alt_text ?? '' }}"
            aria-label="Powiększ zdjęcie{{ $media->alt_text ? ': '.$media->alt_text : '' }}">
     @endif
+    @php
+        /*
+         * `srcset` Z PRAWDZIWYCH SZEROKOŚCI, nie z maksimów konfiguracji
+         * (audyt zewnętrzny T30).
+         *
+         * Deskryptory były wpisane na sztywno: `320w, 960w, 1600w`, czyli
+         * MAKSYMALNE krawędzie z `config('kuking.media.variants')`. Ale
+         * `ProcessUploadedImage` skaluje przez `scaleDown()`, które NIGDY
+         * NIE POWIĘKSZA — i to jest świadoma decyzja („małe zdjęcie zostaje
+         * małe, zamiast być rozmyte na siłę").
+         *
+         * Zmierzone: dla zdjęcia 400×300 wszystkie trzy warianty mają
+         * najwyżej 400 px, a `srcset` twierdził, że jeden ma 1600. To psuje
+         * dokładnie ten mechanizm, dla którego `srcset` istnieje:
+         * przeglądarka widzi „1600w", pobiera przy szerokim widoku NAJWIĘKSZY
+         * z trzech plików, dostaje 400 px i rozciąga je. Użytkownik płaci
+         * transferem za rozmyte zdjęcie.
+         *
+         * Prawdziwe szerokości leżą w `metadata.variants[*].width`, a
+         * `Media::width()` je zwraca — ten sam komponent używał tej metody
+         * w atrybucie `width` obok `srcset`, który mówił co innego o tym
+         * samym pliku.
+         *
+         * DEDUPLIKACJA po szerokości: przy małym zdjęciu `feed` i `large`
+         * mają tę samą szerokość, a dwa kandydaty o identycznym deskryptorze
+         * nie dają przeglądarce żadnego wyboru — zostaje pierwszy, mniejszy
+         * plik. Bierzemy więc jeden wariant na szerokość, od najmniejszego.
+         */
+        $kandydaci = [];
+
+        foreach (['thumb', 'feed', 'large'] as $nazwaWariantu) {
+            $szerokoscWariantu = $media->width($nazwaWariantu);
+
+            if ($szerokoscWariantu === null || isset($kandydaci[$szerokoscWariantu])) {
+                continue;
+            }
+
+            $kandydaci[$szerokoscWariantu] = $media->url($nazwaWariantu).' '.$szerokoscWariantu.'w';
+        }
+
+        ksort($kandydaci);
+
+        $srcset = implode(', ', $kandydaci);
+    @endphp
     <img class="{{ $class }}"
          src="{{ $media->url($variant) }}"
-         srcset="{{ $media->url('thumb') }} 320w, {{ $media->url('feed') }} 960w, {{ $media->url('large') }} 1600w"
+         srcset="{{ $srcset }}"
          sizes="{{ $sizes }}"
          alt="{{ $alt ?: ($media->alt_text ?? '') }}"
          width="{{ $media->width($variant) }}"
@@ -102,14 +146,36 @@
     --}}
     @php
         $jestWlascicielem = auth()->id() === $media->owner_id;
-        $proporcje = ($media->width && $media->height) ? $media->width.' / '.$media->height : '4 / 3';
         $padloNaDobre = $media->status === \App\Models\Media::STATUS_REJECTED;
+
+        /*
+         * PROPORCJE Z KLASY, NIE Z DOKŁADNYCH WYMIARÓW PLIKU (issue #107).
+         *
+         * Wcześniej szło tu `aspect-ratio:{szerokość} / {wysokość}` w atrybucie
+         * `style` — jedynej rzeczy, która trzyma `unsafe-inline` w `style-src`;
+         * nonce atrybutów nie obejmuje. Dokładnej liczby nie da się zapisać
+         * klasą, więc zaokrąglamy do czterech kształtów.
+         *
+         * Kosztem jest kilka procent różnicy między ramką a zdjęciem, które
+         * się w niej pojawi. To jest do przyjęcia AKURAT TUTAJ: ten prostokąt
+         * pokazuje się wyłącznie zanim zdjęcie będzie gotowe, a komentarz
+         * wyżej tłumaczy, że strona i tak przeładowuje się w całości, więc nie
+         * ma podmiany w locie, przy której ta różnica byłaby widoczna jako
+         * skok układu.
+         */
+        $stosunek = ($media->width && $media->height) ? $media->width / $media->height : 4 / 3;
+
+        $ksztalt = match (true) {
+            $stosunek >= 1.6 => ' photo-placeholder-panorama',
+            $stosunek >= 1.15 => '',            // domyślne 4 / 3
+            $stosunek >= 0.9 => ' photo-placeholder-kwadrat',
+            default => ' photo-placeholder-pion',
+        };
     @endphp
-    <div class="{{ $class }}"
-         role="status"
-         style="aspect-ratio:{{ $proporcje }}; display:flex; align-items:center; justify-content:center; text-align:center; padding:var(--spacing-4); border-radius:var(--radius-md);">
+    <div class="{{ $class }} photo-placeholder{{ $ksztalt }}{{ $padloNaDobre ? ' photo-placeholder-blad' : '' }}"
+         role="status">
         @if($padloNaDobre)
-            <p style="margin:0; font-weight:700; color:var(--color-danger-tint-ink);">
+            <p>
                 @if($jestWlascicielem)
                     Nie udało się przygotować tego zdjęcia. Wpis możesz usunąć i dodać ponownie z innym zdjęciem.
                 @else
@@ -117,7 +183,7 @@
                 @endif
             </p>
         @else
-            <p style="margin:0; font-weight:700; color:var(--color-ink-muted);">
+            <p>
                 @if($jestWlascicielem)
                     Twoje zdjęcie się jeszcze przygotowuje. Nic nie zginęło — odśwież stronę za chwilę, żeby je zobaczyć.
                 @else

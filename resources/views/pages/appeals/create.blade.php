@@ -53,7 +53,7 @@
         <article class="card mt-5">
             <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
-                Na odwołanie jest {{ config('kuking.moderation.appeal_days') }} dni od decyzji.
+                Na odwołanie jest sześć miesięcy od decyzji.
                 Ten termin minął {{ \App\Support\Czas::data($decyzja->appealDeadline(), 'j F Y') }}.
             </p>
             <p>

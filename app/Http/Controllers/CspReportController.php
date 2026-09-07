@@ -76,8 +76,8 @@ class CspReportController extends Controller
                     ?? $naruszenie['effectiveDirective']
                     ?? $naruszenie['violated-directive']
                     ?? null),
-                'zablokowane' => $this->skroc($naruszenie['blocked-uri'] ?? $naruszenie['blockedURL'] ?? null),
-                'strona' => $this->skroc($naruszenie['document-uri'] ?? $naruszenie['documentURL'] ?? null),
+                'zablokowane' => $this->bezpiecznyAdres($naruszenie['blocked-uri'] ?? $naruszenie['blockedURL'] ?? null),
+                'strona' => $this->bezpiecznyAdres($naruszenie['document-uri'] ?? $naruszenie['documentURL'] ?? null),
             ]);
         }
 
@@ -91,5 +91,94 @@ class CspReportController extends Controller
         }
 
         return mb_substr($wartosc, 0, 300);
+    }
+
+    /**
+     * Adres BEZ sekretów — do logu trafia trasa, nie tożsamość ani token.
+     *
+     * DLACZEGO SAMO PRZYCIĘCIE NIE WYSTARCZAŁO (audyt W3-14)
+     * Zgłoszenie CSP przysyła PEŁNY adres strony, na której doszło do
+     * naruszenia. A adresy tego serwisu niosą sekrety wprost w ścieżce
+     * i w zapytaniu:
+     *
+     *     /nowe-haslo/{token}
+     *     /potwierdz-email/{id}/{hash}?expires=…&signature=…
+     *
+     * Naruszenie na takiej stronie — wystarczy wtyczka przeglądarki
+     * blokująca skrypt — wysyłało więc token resetu hasła prosto do naszego
+     * logu, gdzie zostawał. To jest ta sama klasa błędu, co logowanie hasła:
+     * dane trafiają tam, gdzie nikt ich nie szuka, i leżą.
+     *
+     * Zapytanie i fragment wycinamy w CAŁOŚCI. Ścieżkę zostawiamy, ale
+     * segmenty, które mogą być sekretem albo identyfikatorem, zastępujemy
+     * znacznikiem. Do policzenia, KTÓRA STRONA psuje politykę, tyle wystarcza —
+     * a po to jest ten log.
+     */
+    private function bezpiecznyAdres(mixed $wartosc): ?string
+    {
+        if (! is_string($wartosc) || $wartosc === '') {
+            return null;
+        }
+
+        // Wartości nie-adresowe: `inline`, `eval`, `data`, `blob`.
+        // Nie mają ścieżki i nic z nich nie wycieka.
+        if (! str_contains($wartosc, '/')) {
+            return $this->skroc($wartosc);
+        }
+
+        $czesci = parse_url($wartosc);
+
+        if ($czesci === false) {
+            // Nie da się rozłożyć — lepiej zapisać samą informację, że coś
+            // przyszło, niż nierozpoznany ciąg z nieznaną zawartością.
+            return '[NIEROZPOZNANY ADRES]';
+        }
+
+        $poczatek = '';
+
+        if (isset($czesci['scheme'], $czesci['host'])) {
+            $poczatek = $czesci['scheme'].'://'.$czesci['host'];
+        } elseif (isset($czesci['host'])) {
+            $poczatek = $czesci['host'];
+        }
+
+        $sciezka = $czesci['path'] ?? '';
+
+        // `expires`, `signature`, `token` — całe zapytanie idzie do kosza.
+        // Nie ma w nim niczego, co byłoby nam potrzebne do diagnozy.
+        return $this->skroc($poczatek.$this->sciezkaBezSekretow($sciezka));
+    }
+
+    /**
+     * Segmenty wyglądające na token albo identyfikator zastąpione znacznikiem.
+     *
+     * Nie lista tras, tylko KSZTAŁT segmentu: lista musiałaby rosnąć razem
+     * z `routes/web.php`, a o dopisaniu do niej nikt by nie pamiętał przy
+     * dodawaniu nowej trasy z tokenem. Kształt jest odporny na to zaniedbanie.
+     */
+    private function sciezkaBezSekretow(string $sciezka): string
+    {
+        $segmenty = array_map(static function (string $segment): string {
+            if ($segment === '') {
+                return $segment;
+            }
+
+            // UUID — identyfikator konta albo treści.
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $segment) === 1) {
+                return '[ID]';
+            }
+
+            // Długi ciąg bez spacji i bez myślników w środku wyrazu to token
+            // resetu, skrót weryfikacyjny albo podpis. Slug przepisu ma
+            // myślniki i polskie słowa, więc się tu nie łapie.
+            if (mb_strlen($segment) >= 20 && preg_match('/^[A-Za-z0-9_-]+$/', $segment) === 1
+                && ! str_contains($segment, '-')) {
+                return '[UKRYTE]';
+            }
+
+            return $segment;
+        }, explode('/', $sciezka));
+
+        return implode('/', $segmenty);
     }
 }

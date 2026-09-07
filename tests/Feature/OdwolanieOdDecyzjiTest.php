@@ -146,13 +146,27 @@ class OdwolanieOdDecyzjiTest extends TestCase
         $this->assertDatabaseCount('appeals', 0);
     }
 
-    public function test_po_14_dniach_formularz_mowi_ze_termin_minal(): void
+    /**
+     * SZEŚĆ MIESIĘCY, nie czternaście dni (art. 20 ust. 1 DSA — pomiar
+     * w `docs/decyzje/DSA_POMIAR.md`). Wcześniej ten test pilnował 14 dni,
+     * czyli utrwalał termin krótszy, niż wymaga przepis: człowiek, który
+     * wrócił do serwisu po miesiącu, nie miał już czego kliknąć.
+     */
+    public function test_po_szesciu_miesiacach_formularz_mowi_ze_termin_minal(): void
     {
         [, $autor, , $decyzja] = $this->ukrytyPrzepis();
 
-        // Termin z docs/legal/MODERATION_PLAYBOOK.md §4 — każdy szablon
-        // wiadomości obiecuje „w ciągu 14 dni".
-        $decyzja->forceFill(['created_at' => now()->subDays(15)])->save();
+        // KONTROLA: po miesiącu odwołanie NADAL działa — bez tego pomiar
+        // niżej przechodziłby też przy powrocie do czternastu dni.
+        $decyzja->forceFill(['created_at' => now()->subDays(30)])->save();
+
+        $this->actingAs($autor)
+            ->get(route('appeals.show', $decyzja))
+            ->assertOk()
+            ->assertSee('Wyślij odwołanie')
+            ->assertDontSee('Tej decyzji nie da się już zakwestionować tutaj');
+
+        $decyzja->forceFill(['created_at' => now()->subMonths(6)->subDay()])->save();
 
         $this->actingAs($autor)
             ->get(route('appeals.show', $decyzja))

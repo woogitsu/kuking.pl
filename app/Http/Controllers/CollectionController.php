@@ -52,19 +52,46 @@ class CollectionController extends Controller
             // więc bez tego filtra publiczny zeszyt publikował cudze (albo
             // własne) treści prywatne, a przepis osoby zablokowanej wracał do
             // oglądającego przez cudzy pojemnik.
+            // `dostepnyJakoAutor()` OBOK `widoczneDla()` — to są dwie różne
+            // granice (audyt W5-08). `widoczneDla` liczy blokady i widoczność
+            // wpisaną przez autora; nie wie nic o tym, że autor został
+            // zbanowany albo kasuje konto. Bez tego przepis dawał 403 przy
+            // wejściu wprost, a w cudzym zeszycie stał dalej z tytułem,
+            // nazwiskiem autora i miniaturą.
             'recipes' => $collection->recipes()
                 ->widoczneDla($request->user())
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->with(['author.profile', 'heroMedia'])
                 ->paginate(12),
             // Wpisy przechodzą przez ten sam filtr widoczności co przepisy —
             // zeszyt jest cudzym pojemnikiem i nie może pokazywać treści,
             // do której oglądający nie ma prawa.
+            //
+            // PAGINACJA, NIE `->get()` (audyt zewnętrzny T20).
+            //
+            // Zeszyt rośnie z użyciem serwisu: każde „Zapisz" na cudzej
+            // karcie wpisu (`post-card.blade.php`) dokłada tu jedną pozycję,
+            // bez górnej granicy — dokładnie ten sam kształt problemu co
+            // wpisy, komentarze czy powiadomienia, nie jak lista jednostek
+            // miary. `recipes()` wyżej paginuje od początku; ten `->get()`
+            // był jedynym miejscem w tej metodzie, które tego nie robiło —
+            // zmierzone (`ZeszytZapisanychWpisowWydajnoscTest`): przy 30
+            // zapisanych wpisach strona ładowała wszystkie 30 naraz.
+            //
+            // Osobna nazwa strony (`wpisy`, nie domyślne `page`) — inaczej
+            // przycisk „Pokaż więcej" pod tą listą przesuwałby PRZY OKAZJI
+            // też stronę `recipes()` obok, bo oba paginatory czytałyby ten
+            // sam parametr z adresu.
             'posts' => $collection->posts()
                 ->widoczneDla($request->user())
-                ->tylkoOdDostepnychAutorow()
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->with(['author.profile.avatar', 'media'])
                 ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
-                ->get(),
+                ->paginate(
+                    (int) config('kuking.collections.saved_posts_page_size'),
+                    ['*'],
+                    'wpisy',
+                ),
             // ILE POZYCJI SCHOWAŁ FILTR — I DLACZEGO TO W OGÓLE POKAZUJEMY.
             //
             // Wpis zapisany, gdy autor pokazywał go obserwującym, znika
@@ -75,7 +102,7 @@ class CollectionController extends Controller
             'niewidoczne' => max(
                 0,
                 $collection->posts()->count()
-                    - $collection->posts()->widoczneDla($request->user())->tylkoOdDostepnychAutorow()->count(),
+                    - $collection->posts()->widoczneDla($request->user())->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())->count(),
             ),
         ]);
     }

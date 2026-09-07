@@ -508,10 +508,27 @@ jobs:
       - name: npm audit
         id: npm_audit
         continue-on-error: true
-        # --production: interesują nas podatności w kodzie, który trafia
-        # do przeglądarki, a nie w narzędziach buildu.
-        # --audit-level=high: ostrzeżenia "low" w narzędziach devowych to szum.
-        run: npm audit --audit-level=high --omit=dev
+        # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09).
+        #
+        # Stał tu komentarz: „interesują nas podatności w kodzie, który trafia
+        # do przeglądarki, a nie w narzędziach buildu". W tym projekcie to jest
+        # odwrócone. `package.json` NIE MA sekcji "dependencies" w ogóle —
+        # cały front-end (Vite, Tailwind, laravel-vite-plugin) siedzi
+        # w devDependencies. To właśnie te pakiety produkują CSS i JS, który
+        # dostaje przeglądarka.
+        #
+        # Zmierzone: `npm ls --all` widzi 106 pakietów, `npm ls --all --omit=dev`
+        # tylko 41, a jedynym pakietem najwyższego poziomu, który zostawał, było
+        # `@laravel/multiplex` z optionalDependencies. Ten krok audytował więc
+        # praktycznie pustą listę i zawsze świecił na zielono — najgorszy rodzaj
+        # kontroli, bo wygląda jak działająca.
+        #
+        # --audit-level=high zostaje: ostrzeżenia "low" w narzędziach buildu to
+        # szum. `continue-on-error` też zostaje — publikacja nowego CVE
+        # w tranzytywnej zależności nie może zablokować pilnego hotfiksa
+        # (uzasadnienie w nagłówku tego joba). Zmienia się to, CO jest w ogóle
+        # sprawdzane, a nie to, czy blokuje.
+        run: npm audit --audit-level=high
 
       - name: Podsumowanie
         if: always()

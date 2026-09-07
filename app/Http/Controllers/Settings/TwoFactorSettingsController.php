@@ -36,19 +36,46 @@ class TwoFactorSettingsController extends Controller
      * Ekran włączenia: kod QR ORAZ sekret przepisany tekstem — nie każdy
      * zeskanuje kod, a część osób woli (albo musi) wpisać go ręcznie.
      */
-    public function create(Request $request): View
+    public function create(Request $request): View|RedirectResponse
     {
         $user = $request->user();
+
+        // ŻĄDANIE GET NIE MOŻE ZDJĄĆ DZIAŁAJĄCEJ 2FA (audyt W4-02).
+        //
+        // Wcześniej stał tu warunek `|| $user->hasTwoFactorConfirmed()`, więc
+        // samo WEJŚCIE na ten adres przy włączonej 2FA wołało
+        // `beginTwoFactorSetup()`: podmieniało sekret i zerowało
+        // `two_factor_confirmed_at`, kody zapasowe oraz znacznik ostatniego
+        // użycia. Drugi składnik przestawał działać, zanim ktokolwiek
+        // potwierdził nowy — bez hasła, bez POST-a, bez tokenu CSRF.
+        //
+        // Wystarczyło kliknąć link. Dla konta moderatora oznaczało to
+        // natychmiastową utratę dostępu do `/admin`, bo `moderator.2fa` widzi
+        // konto jako niepotwierdzone. Do tego żądania GET są przepuszczane
+        // kontom zawieszonym, więc ta jedna ścieżka omijała także tryb
+        // „tylko do odczytu".
+        //
+        // Zmiana drugiego składnika idzie teraz przez wyłączenie, które JEST
+        // POST-em i prosi o hasło. To jedno kliknięcie więcej dla czynności
+        // wykonywanej raz na kilka lat — i żadnej drogi, w której samo wejście
+        // na stronę zdejmuje zabezpieczenie.
+        if ($user->hasTwoFactorConfirmed()) {
+            return redirect()->route('settings.two_factor.edit')->with(
+                'status',
+                'Weryfikacja dwuetapowa jest już włączona. Żeby ustawić ją na nowym telefonie, '
+                .'najpierw ją wyłącz — poprosimy o hasło.',
+            );
+        }
 
         // Sekret zapisujemy PRZY WEJŚCIU na ten ekran, nie dopiero po
         // potwierdzeniu kodem — inaczej odświeżenie strony (albo powrót do
         // niej za chwilę, żeby dokończyć skanowanie) pokazywałoby INNY sekret
         // i INNY kod QR niż ten, który człowiek już zeskanował.
         //
-        // Jeśli 2FA jest już włączone, a ktoś mimo to wraca na ten ekran
-        // (np. cofnięciem w przeglądarce), zaczynamy od nowa świeżym
-        // sekretem — nie pokazujemy ponownie sekretu KONTA JUŻ AKTYWNEGO.
-        if ($user->two_factor_secret === null || $user->hasTwoFactorConfirmed()) {
+        // Tu jesteśmy wyłącznie wtedy, gdy 2FA NIE jest potwierdzone, więc nie
+        // ma czego zepsuć: albo zaczynamy od zera, albo wracamy do przerwanego
+        // ustawiania i pokazujemy ten sam sekret co poprzednio.
+        if ($user->two_factor_secret === null) {
             $user->beginTwoFactorSetup($this->totp->generateSecret());
             $user->refresh();
         }

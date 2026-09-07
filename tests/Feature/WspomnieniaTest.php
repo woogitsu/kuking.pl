@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -24,9 +26,38 @@ class WspomnieniaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Wpis sprzed `$lat` lat, z TEGO SAMEGO DNIA CO DZIŚ W STREFIE CZYTELNIKA.
+     *
+     * DLACZEGO `Czas::lokalnie`, A NIE SAMO `Carbon::now()`
+     * Bo inaczej ten test przechodzi tylko 22 godziny na dobę, a przez
+     * pozostałe dwie jest czerwony bez żadnej zmiany w kodzie.
+     *
+     * `config('app.timezone')` to UTC — baza trzyma czas w UTC celowo (patrz
+     * `App\Support\Czas`). `Wspomnienia::dlaOsoby()` szuka natomiast dnia
+     * w strefie CZYTELNIKA, i to jest poprawne: „rok temu, 6 września" ma
+     * znaczyć szósty września u człowieka, nie w UTC. Komentarz w tamtej
+     * klasie mówi to wprost.
+     *
+     * Skutek: między 22:00 a 24:00 UTC latem (i 23:00–24:00 zimą) w Polsce
+     * jest już następny dzień. Zmierzone przy pisaniu tej poprawki:
+     *
+     *     Carbon::now()        2026-09-06T23:37:37+00:00   → dzień 6
+     *     Czas::lokalnie(now)  2026-09-07T01:37:37+02:00   → dzień 7
+     *
+     * Stary kod budował wpis na dniu 6, a funkcja szukała dnia 7 — trzy testy
+     * w tym pliku robiły się czerwone o 22:00 UTC i zielone o północy.
+     *
+     * PRODUKT JEST TU DOBRY, TEST BYŁ ZŁY. Gdyby ktoś zobaczył tę czerwień
+     * i „naprawił" `Wspomnienia`, zepsułby działającą funkcję — dlatego ten
+     * akapit jest długi.
+     *
+     * Godzina 12:00 lokalnie, nie 0:00: południe leży bezpiecznie w środku
+     * tego samego dnia po obu stronach przeliczenia stref.
+     */
     private function wpisSprzed(User $autor, int $lat, string $tresc = 'Rosół jak zawsze.'): Post
     {
-        $kiedy = Carbon::now()->subYears($lat)->setTime(12, 0);
+        $kiedy = Czas::lokalnie(Carbon::now())->subYears($lat)->setTime(12, 0);
 
         $wpis = Post::create([
             'author_id' => $autor->getKey(),
@@ -185,7 +216,7 @@ class WspomnieniaTest extends TestCase
         $this->wpisSprzed($basia, 1, 'Rosół sprzed roku.');
         $this->wpisSprzed($basia, 3, 'Pierogi sprzed trzech lat.');
 
-        $rokTrzyLataTemu = Carbon::now()->subYears(3)->year;
+        $rokTrzyLataTemu = Czas::lokalnie(Carbon::now())->subYears(3)->year;
 
         $this->actingAs($basia)
             ->get(route('profile.show', ['username' => 'basia', 'rok' => $rokTrzyLataTemu]))
@@ -231,7 +262,7 @@ class WspomnieniaTest extends TestCase
         $prywatny = $this->wpisSprzed($basia, 4, 'Tylko dla mnie.');
         $prywatny->forceFill(['visibility' => Post::VISIBILITY_PRIVATE])->save();
 
-        $rokPrywatnego = Carbon::now()->subYears(4)->year;
+        $rokPrywatnego = Czas::lokalnie(Carbon::now())->subYears(4)->year;
 
         $html = (string) $this->actingAs($halina)
             ->get(route('profile.show', 'basia'))
@@ -243,5 +274,52 @@ class WspomnieniaTest extends TestCase
         // Sanity: rok publicznego wpisu jest w bazie, więc gdyby lista lat
         // w ogóle nie działała, ten test przechodziłby z niewłaściwego powodu.
         $this->assertNotNull($publiczny->published_at);
+    }
+
+    /**
+     * Wpis opublikowany PO PÓŁNOCY czasu lokalnego wraca w swoją prawdziwą
+     * rocznicę, a nie dzień wcześniej.
+     *
+     * CO TU BYŁO ZEPSUTE
+     * `published_at` to `timestamptz`, więc `extract(day from published_at)`
+     * czyta dzień W UTC. Porównywaliśmy go z dniem CZYTELNIKA. Dla wpisu
+     * z 00:30 czasu polskiego te dwa dni są różne — UTC pokazuje jeszcze
+     * poprzedni — więc rocznica przesuwała się o dobę wstecz i w prawdziwy
+     * dzień wspomnienie po prostu nie przychodziło.
+     *
+     * Dotyczyło każdego wpisu z przedziału 00:00–02:00 czasu polskiego
+     * (00:00–01:00 zimą). Dla serwisu o gotowaniu to nie jest przypadek
+     * teoretyczny: ktoś ugotował późno i wrzucił zdjęcie po północy.
+     *
+     * ZEGAR JEST ZAMROŻONY CELOWO. Bez tego test sprawdzałby coś innego
+     * o każdej porze doby, a akurat ten błąd JEST błędem o porze doby —
+     * i dokładnie dlatego przeżył tak długo.
+     */
+    public function test_wpis_z_pierwszej_w_nocy_wraca_w_swoja_rocznice(): void
+    {
+        // 15 marca 2026, 10:00 w Warszawie. Zima, czyli UTC+1.
+        $this->travelTo(Carbon::parse('2026-03-15 09:00:00', 'UTC'));
+
+        $basia = $this->user('basia');
+
+        // 15 marca 2025, 00:30 w Warszawie — czyli 14 marca 23:30 w UTC.
+        // Dzień lokalny: 15. Dzień UTC: 14. Na tej różnicy funkcja się wywracała.
+        Post::create([
+            'author_id' => $basia->getKey(),
+            'body' => 'Rosół nastawiony po północy.',
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => Carbon::parse('2025-03-14 23:30:00', 'UTC'),
+        ]);
+
+        $wspomnienie = app(Wspomnienia::class)->dlaOsoby($basia->fresh());
+
+        $this->assertNotNull(
+            $wspomnienie,
+            'Wpis z 15 marca 00:30 czasu polskiego ma wrócić 15 marca, nie 14. '
+            .'Jeśli ten test jest czerwony, zapytanie znowu czyta dzień z UTC '
+            .'zamiast ze strefy czytelnika.',
+        );
+        $this->assertSame('Rosół nastawiony po północy.', $wspomnienie->body);
     }
 }

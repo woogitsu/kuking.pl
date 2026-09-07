@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Support\OdzyskiwalneDane;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -75,19 +76,38 @@ class EnsureAccountIsActive
             $user->reinstate();
         }
 
-        if ($user->isBanned() || $user->status === User::STATUS_PENDING_DELETE) {
+        // Trzy statusy, nie dwa (D-022): `erased` to stan końcowy po
+        // wykonanej karencji. Sesji na takim koncie nie powinno już być
+        // (`markForDeletion()` je kasuje, egzekutor kasuje ponownie), ale
+        // bramka na wejściu jest tym miejscem, które nie może zakładać, że
+        // każde inne miejsce zadziałało.
+        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
             return $this->wyloguj($request, $user);
         }
 
         if ($user->isSuspended() && $this->tozZapis($request)) {
-            // `withInput()`, a nie samo `back()`. Osoba zawieszona, która mimo
-            // paska ostrzegawczego napisała komentarz albo wypełniła formularz
-            // przepisu, traciła cały tekst. To ta sama reguła co przy wygasłej
-            // sesji (#81) — „poprawne dane nigdy nie znikają" — tylko inna
-            // przyczyna: tu odmowa jest ZAMIERZONA, a mimo to nie ma powodu
-            // karać człowieka utratą tego, co napisał.
+            // Zwracamy treść, a nie sekrety (audyt W7-03).
+            //
+            // Osoba zawieszona, która mimo paska ostrzegawczego napisała
+            // komentarz albo wypełniła formularz przepisu, traciła cały tekst.
+            // To ta sama reguła co przy wygasłej sesji (#81) — „poprawne dane
+            // nigdy nie znikają" — tylko inna przyczyna: tu odmowa jest
+            // ZAMIERZONA, a mimo to nie ma powodu karać człowieka utratą tego,
+            // co napisał.
+            //
+            // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa jest
+            // podczas zawieszenia do odczytu. Osoba zawieszona, która wysłała
+            // formularz zmiany hasła, wkładała w ten sposób `password`
+            // i `current_password` do sesji, skąd `old()` wstawiało je
+            // z powrotem do `value=` pola typu password. Sesja jest na
+            // produkcji szyfrowana, ale hasło i tak wracało do DOM-u.
+            //
+            // `OdzyskiwalneDane` przepuszcza tylko trasy, na których człowiek
+            // pisze własnymi słowami. Zmiana hasła, 2FA i usuwanie konta nie
+            // odzyskują niczego — i nie muszą, bo to są pola do wpisania
+            // z pamięci, nie tekst, którego szkoda.
             return back()
-                ->withInput()
+                ->withInput(OdzyskiwalneDane::zZadania($request))
                 ->withErrors(['konto' => $this->komunikatZawieszenia($user)]);
         }
 
@@ -136,15 +156,25 @@ class EnsureAccountIsActive
         // który do niej dotrze (DSA art. 17).
         $odModeratora = $user->isBanned() ? $user->latestModerationMessage() : null;
 
-        $powod = $user->isBanned()
-            ? 'To konto zostało zablokowane. '
+        if ($user->isBanned()) {
+            $powod = 'To konto zostało zablokowane. '
                 .($odModeratora !== null ? $odModeratora.' ' : '')
                 .'Jeśli uważasz, że to pomyłka, napisz do nas: '
-                .config('kuking.community.contact_email')
-            : 'To konto jest oznaczone do usunięcia, dlatego zostałeś/aś wylogowany/a. Jeśli chcesz je odzyskać, '
+                .config('kuking.community.contact_email');
+        } elseif ($user->isErased()) {
+            // Konto po wykonanej karencji (D-022) NIE MOŻE dostać zaproszenia
+            // na stronę cofnięcia usunięcia: tam czeka je odmowa. Ta sama
+            // zasada co przy odmowie logowania — komunikat ma mówić prawdę
+            // o stanie, w którym to konto naprawdę jest.
+            $powod = 'To konto zostało usunięte na Twoją prośbę i nie da się go odzyskać. '
+                .'Jeśli chcesz wrócić do Kuking, założysz nowe konto. Jeśli to pomyłka, napisz do nas: '
+                .config('kuking.community.contact_email');
+        } else {
+            $powod = 'To konto jest oznaczone do usunięcia, dlatego zostałeś/aś wylogowany/a. Jeśli chcesz je odzyskać, '
                 .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
                 .'hasłem, że to Ty. Jeśli dane zostały już usunięte na stałe, ta strona Cię o tym poinformuje — '
                 .'wtedy napisz do nas: '.config('kuking.community.contact_email');
+        }
 
         Auth::logout();
 

@@ -10,47 +10,35 @@
 #  konfiguracją byłby gorszy niż brak lokalnej w ogóle: ludzie przestają
 #  ufać lokalnemu wynikowi, gdy CI mówi co innego tym samym poleceniem.
 #
-#  POZIOM: 0 (nie 5, jak proponowało issue #32)
+#  POZIOM: 1 (docelowo 8 — issue #32, audyt F-11)
 #  ---------------------------------------------------------------------------
-#  Issue #32 zakładało start od poziomu 5. Po realnym uruchomieniu (dopiero
-#  po zainstalowaniu Larastana — w środowisku, w którym powstawało issue,
-#  `codeload.github.com` blokował pobranie samego pakietu) poziom 5 daje
-#  158 błędów, a już poziom 1 daje błędy w kodzie PRODUKCYJNYM (patrz niżej).
-#  Zadanie tej zmiany wprost zabrania poprawiania kodu produkcyjnego przy
-#  okazji włączania analizy — więc poziomem „dziś zielonym" jest 0, nie 5.
+#  Issue #32 zakładało start od poziomu 5. Pierwsze uruchomienie dało na nim
+#  158 błędów, więc zaczęliśmy od 0 — świadomie nisko, ale bez baseline'u.
 #
 #  Baseline z dziesiątkami wyjątków byłby GORSZY niż uczciwie niski poziom:
-#  baseline usypia — wygląda na „przeanalizowane", a w rzeczywistości każdy
-#  z tych błędów jest na stałe wyciszony i nikt już go nie zobaczy. Poziom 0
-#  jest niższy, ale każdy błąd, który się pojawi, faktycznie zablokuje CI.
+#  usypia, bo wygląda na „przeanalizowane", a każdy wyciszony błąd znika
+#  z pola widzenia na zawsze. Ta zasada zostaje.
 #
-#  ILE BŁĘDÓW NA POZIOMIE 1 (kolejnym) I CO TRZEBA ZROBIĆ, ŻEBY GO OSIĄGNĄĆ:
-#  4 błędy, wszystkie w kodzie, którego ta zmiana świadomie nie rusza:
+#  Poziom 1 kosztował cztery poprawki i wszystkie były realną robotą, nie
+#  uciszaniem analizatora:
 #
-#    - app/Models/Media.php (3 błędy, linie 94, 117, 122): `$this->metadata`
-#      jest rzutowane na `array` (cast Eloquent), ale PHPStan/Larastan nie
-#      zna JEGO KSZTAŁTU — stąd „Offset 'variants' on array{}|string does
-#      not exist" przy `$this->metadata['variants'] ?? []`. Naprawa: dodać
-#      typ kształtu (np. `@property-read array{variants?: array<string,
-#      array{key: string, width?: int, height?: int}>} $metadata` w PHPDoc
-#      klasy, ewentualnie osobny `@phpstan-type` alias) albo przenieść
-#      dostęp do wariantów za dedykowaną metodę z jawnym typem zwracanym.
-#      To jest DOKŁADNIE to miejsce, które samo issue #32 przewidziało
-#      z góry („dostęp do metadata['variants'] w App\Models\Media —
-#      tablica bez kształtu") — czyli poziom 1 wymaga tej samej pracy,
-#      niezależnie od tego, kto go podniesie.
+#    - `App\Models\Media` (3 błędy): `metadata` to JSONB rzutowane na tablicę,
+#      więc dla analizy było tablicą o nieznanej zawartości. Kształt wariantów
+#      opisywał wyłącznie komentarz w `ProcessUploadedImage`, a trzy metody
+#      czytały go na trzy sposoby. Teraz jest jedna metoda `warianty()`
+#      z jawnym typem zwracanym i prawdziwym `is_array()` — w bazie mogą leżeć
+#      wiersze sprzed każdej zmiany tego formatu.
 #
-#    - tests/Feature/PolitykaBezpieczenstwaTest.php (1 błąd, linia 147):
-#      `Log::shouldHaveReceived()` — taka metoda nie istnieje na fasadzie
-#      `Illuminate\Support\Facades\Log`; prawdopodobnie brakuje wcześniejszego
-#      `Log::spy()` (który podmienia fasadę na obiekt Mockery rozumiejący
-#      `shouldHaveReceived`) albo to literówka zamiast `Log::shouldReceive()`.
-#      To też nie jest kod produkcyjny, ale wymaga decyzji o zachowaniu testu,
-#      nie tylko o konfiguracji analizy — stąd zostawione do issue #32/oddzielnej
-#      poprawki, nie naprawione przy okazji tej zmiany.
+#    - `PolitykaBezpieczenstwaTest` (1 błąd): `Log::shouldHaveReceived()`
+#      działa w czasie wykonania (fasada przekazuje wywołanie do obiektu
+#      Mockery), ale analiza widzi samą fasadę. Szpieg trafił do zmiennej.
 #
-#  Powyżej poziomu 1 (do docelowego 8, jak chce issue #32) błędów jest więcej
-#  (158 na poziomie 5) — one też czekają na #32, nie na tę zmianę.
+#  GDZIE STOI NASTĘPNY PRÓG (zmierzone, nie zgadnięte):
+#      poziom 2 → 172 błędy      poziom 3 → 194
+#      poziom 4 → 232            poziom 5 → 299
+#
+#  Skok z 0 na 1 był tani, z 1 na 2 nie jest. To osobna praca i należy do
+#  issue #32 — nie do PR-a, który akurat przechodził obok.
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
@@ -60,11 +48,22 @@
 #  to, czy zmienna środowiskowa faktycznie trafia do configu — musi więc
 #  odczytać obie strony niezależnie. To jeden, nazwany, uzasadniony wyjątek
 #  ograniczony do `tests/`, nie baseline zamiatający błędy pod dywan.
+#
+#  `bootstrapFiles: phpstan-bootstrap.php` (D-021, praca nad tagami) — druga
+#  połowa pułapki opisanej w `tests/bootstrap.php`, tym razem w Larastanie:
+#  bez tego KAŻDY nowy model dodany w git worktree z dowiązanym `vendor/`
+#  dostaje fałszywe „Access to an undefined property”, bo Larastan próbuje
+#  go PRAWDZIWIE zainstancjonować przez classmap Composera, a ten wskazuje
+#  na główny checkout, w którym ta klasa jeszcze nie istnieje. Uzasadnienie
+#  i pomiar w komentarzu tamtego pliku. No-op w głównym katalogu i w CI.
 includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    level: 0
+    level: 1
+
+    bootstrapFiles:
+        - phpstan-bootstrap.php
 
     paths:
         - app

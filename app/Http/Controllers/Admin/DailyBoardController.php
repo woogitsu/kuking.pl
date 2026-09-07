@@ -9,6 +9,7 @@ use App\Models\AuditLogEntry;
 use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -78,13 +79,13 @@ class DailyBoardController extends Controller
 
         // Wybór na dany dzień zastępujemy w całości — to jest prostsze
         // w obsłudze niż dokładanie i odejmowanie pozycji.
-        DailyPick::query()->whereDate('shown_on', now())->delete();
+        DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
 
         $position = 0;
 
         foreach ($data['osoby'] ?? [] as $userId) {
             DailyPick::create([
-                'shown_on' => now()->toDateString(),
+                'shown_on' => Czas::dzisiajData(),
                 'subject_type' => DailyPick::TYPE_USER,
                 'subject_id' => $userId,
                 'position' => $position++,
@@ -97,7 +98,7 @@ class DailyBoardController extends Controller
 
         foreach ($data['wpisy'] ?? [] as $postId) {
             DailyPick::create([
-                'shown_on' => now()->toDateString(),
+                'shown_on' => Czas::dzisiajData(),
                 'subject_type' => DailyPick::TYPE_POST,
                 'subject_id' => $postId,
                 'position' => $position++,
@@ -128,7 +129,7 @@ class DailyBoardController extends Controller
     {
         $this->authorize('moderate', User::class);
 
-        DailyPick::query()->whereDate('shown_on', now())->delete();
+        DailyPick::query()->whereDate('shown_on', Czas::dzisiajData())->delete();
 
         return back()->with('status', 'Wyczyszczone. Tablica dobierze treści sama.');
     }

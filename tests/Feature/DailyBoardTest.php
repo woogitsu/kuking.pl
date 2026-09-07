@@ -9,6 +9,8 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Models\Comment;
 use App\Models\DailyPick;
 use App\Models\Post;
+use App\Support\Czas;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -33,7 +35,7 @@ class DailyBoardTest extends TestCase
         $wpis = Post::factory()->create(['author_id' => $inny->getKey(), 'published_at' => now()]);
 
         DailyPick::create([
-            'shown_on' => now()->toDateString(),
+            'shown_on' => Czas::dzisiajData(),
             'subject_type' => DailyPick::TYPE_USER,
             'subject_id' => $wybrany->getKey(),
             'position' => 0,
@@ -101,7 +103,7 @@ class DailyBoardTest extends TestCase
         $spam = $this->user('spam');
 
         DailyPick::create([
-            'shown_on' => now()->toDateString(),
+            'shown_on' => Czas::dzisiajData(),
             'subject_type' => DailyPick::TYPE_USER,
             'subject_id' => $spam->getKey(),
             'position' => 0,
@@ -146,7 +148,7 @@ class DailyBoardTest extends TestCase
         $ktos = $this->user('ktos');
 
         DailyPick::create([
-            'shown_on' => now()->subDay()->toDateString(),
+            'shown_on' => Czas::lokalnie(now())->subDay()->toDateString(),
             'subject_type' => DailyPick::TYPE_USER,
             'subject_id' => $ktos->getKey(),
             'position' => 0,
@@ -276,7 +278,7 @@ class DailyBoardTest extends TestCase
         $wpis = Post::factory()->create(['author_id' => $ukarany->getKey()]);
 
         DailyPick::create([
-            'shown_on' => now()->toDateString(),
+            'shown_on' => Czas::dzisiajData(),
             'subject_type' => DailyPick::TYPE_POST,
             'subject_id' => $wpis->getKey(),
             'position' => 0,
@@ -290,5 +292,44 @@ class DailyBoardTest extends TestCase
         $tablica = app(DailyBoard::class)->forViewer(null);
 
         $this->assertCount(0, $tablica['posts']);
+    }
+
+    public function test_tablica_dziala_takze_po_22_utc_czyli_gdy_polska_data_jest_juz_inna(): void
+    {
+        // TEN TEST PILNUJE DANYCH TESTOWYCH, NIE KODU PRODUKCYJNEGO.
+        //
+        // `DailyPick::forDate()` czyta „dziś" przez `Czas::dzisiajData()`
+        // (data POLSKA). Dane w tym pliku były wcześniej budowane przez
+        // `now()->toDateString()` (data UTC). Te dwie wartości są równe przez
+        // 22 godziny na dobę i różne między 22:00 a 24:00 UTC — czyli testy
+        // przechodziły cały dzień i padłyby wieczorem, bez żadnej zmiany
+        // w kodzie. Dokładnie ten sam mechanizm wywrócił już raz
+        // `WspomnieniaTest` o 22:00 UTC (`docs/HANDOVER.md`).
+        //
+        // Zamrożony zegar zamiast czekania na wieczór: 7 września 22:30 UTC
+        // to 8 września 00:30 w Polsce.
+        $this->travelTo(Carbon::parse('2026-09-07 22:30:00', 'UTC'));
+
+        $gospodarz = $this->moderator();
+        $ktos = $this->user('ktos_wieczorem');
+        $wpis = Post::factory()->create(['author_id' => $ktos->getKey()]);
+
+        DailyPick::create([
+            'shown_on' => Czas::dzisiajData(),
+            'subject_type' => DailyPick::TYPE_POST,
+            'subject_id' => $wpis->getKey(),
+            'position' => 0,
+            'curator_id' => $gospodarz->getKey(),
+        ]);
+
+        $tablica = app(DailyBoard::class)->forViewer(null);
+
+        $this->assertTrue(
+            $tablica['curated'],
+            'Tablica nie znalazła wyboru redakcyjnego zapisanego tego samego '
+            .'polskiego dnia. Dane testu i kod czytający je liczą „dziś" '
+            .'w różnych strefach.',
+        );
+        $this->assertCount(1, $tablica['posts']);
     }
 }

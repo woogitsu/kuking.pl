@@ -8,9 +8,28 @@ use App\Models\User;
 
 class UserPolicy
 {
+    /**
+     * Wejście na profil.
+     *
+     * `jestDostepnyJakoAutor()`, a NIE `jestWidocznyJakoOsoba()` — i to jest
+     * świadoma różnica (D-022).
+     *
+     * Konto `erased` (karencja wykonana, dane wymazane) tę bramkę PRZECHODZI.
+     * Profil jest wtedy stroną z podpisem „Użytkownik usunięty" i listą
+     * zanonimizowanych treści — a jest to adres, pod który prowadzi każdy
+     * podpis pod tymi treściami. Gdyby dawał 403, każdy przepis, który
+     * D-018 obiecało zostawić, miałby pod tytułem link do ściany.
+     *
+     * Konto `erased` nie jest za to NIGDZIE PODPOWIADANE: nie ma go
+     * w wyszukiwarce osób (`SearchQuery::people()` pyta o `status = active`),
+     * na listach obserwujących (`widocznyJakoOsoba()`), w mapie strony ani
+     * w podpowiedziach. Różnica jest więc taka: pod ten adres można DOJŚĆ
+     * z treści, ale nikt do niego nie zaprasza. `follow()` niżej i tak
+     * odmawia — obserwować da się wyłącznie konto aktywne.
+     */
     public function viewProfile(?User $viewer, User $target): bool
     {
-        if (! in_array($target->status, [User::STATUS_ACTIVE, User::STATUS_SUSPENDED], true)) {
+        if (! $target->jestDostepnyJakoAutor()) {
             return $viewer !== null && $viewer->isModerator();
         }
 

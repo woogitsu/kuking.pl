@@ -30,6 +30,29 @@ return [
         // zdjęcia gdzie indziej, dopóki ktoś nie ustawi drugiej zmiennej.
         'disk' => env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
 
+        /*
+         * Dysk PUBLICZNYCH WARIANTÓW — osobny od dysku oryginałów.
+         *
+         * Oryginał niesie pełny EXIF, czyli współrzędne GPS kuchni. Wariant
+         * powstaje przez przekodowanie, więc EXIF-u już nie ma. To są dwie
+         * różne kategorie danych i dlatego leżą w dwóch różnych bucketach:
+         * na R2 publiczność jest cechą BUCKETU, nie obiektu, a `x-amz-acl`
+         * jest tam wprost nieobsługiwany (patrz `config/filesystems.php`).
+         *
+         * Domyślnie `r2_publiczne`, gdy oryginały idą na `r2`. Na dysku
+         * lokalnym (`public` w testach i przy pracy lokalnej) rozdział nie ma
+         * sensu — tam nie ma CDN-u ani bucketów — więc oba wskazują to samo
+         * i to jest w porządku. Sprawdza to `RozdzialMagazynowTest`, który
+         * wymaga rozdziału tylko tam, gdzie dysk oryginałów jest sterownikiem
+         * `s3`.
+         */
+        'public_disk' => env(
+            'KUKING_MEDIA_PUBLIC_DISK',
+            env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')) === 'r2'
+                ? 'r2_publiczne'
+                : env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
+        ),
+
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
         //
         // UWAGA NA `docker/php.ini`: ta liczba, pomnożona przez
@@ -47,13 +70,51 @@ return [
         // gigantyczny. Limit liczony przed dekodowaniem całości.
         'max_megapixels' => (int) env('KUKING_MEDIA_MAX_MEGAPIXELS', 50),
 
+        // Formaty, które NAPRAWDĘ umiemy przetworzyć — nie te, które umiemy
+        // rozpoznać. To dwie różne listy i pomylenie ich było błędem.
+        //
+        // BEZ HEIC/HEIF, ŚWIADOMIE. Były tu, bo `mime_content_type()` je
+        // rozpoznaje. Ale rozpoznanie nie jest obsługą:
+        //   * PHP 8.4 nie ma `IMAGETYPE_HEIC` ani `IMAGETYPE_HEIF`, więc
+        //     `getimagesize()` w `StoreUploadedImage` zwraca dla nich `false`;
+        //   * GD (`ImageManager::gd()` w `ProcessUploadedImage`) nie dekoduje
+        //     HEIC — obraz `gd_info()` ma JPEG, PNG, WebP, AVIF i GIF, nic więcej.
+        // Wpisanie ich tutaj nie dawało więc obsługi, tylko obietnicę: pole
+        // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
+        // wygląda na zdjęcie" komuś, kto trzyma w ręku zwykłą fotografię.
+        //
+        // Dodanie prawdziwej obsługi (libheif + Imagick albo vips w obrazie
+        // Dockera) to osobna decyzja z realnym kosztem — patrz issue o HEIC.
         'accepted_mime_types' => [
             'image/jpeg',
             'image/png',
             'image/webp',
             'image/avif',
-            'image/heic',
-            'image/heif',
+        ],
+
+        /*
+         * Czyszczenie cache CDN po skasowaniu zdjęcia (audyt G-03).
+         *
+         * Cloudflare wprost ostrzega: przy włączonym cache na własnej domenie
+         * skasowany obiekt R2 BYWA DALEJ SERWOWANY z cache aż do wygaśnięcia,
+         * dopóki ktoś go stamtąd nie usunie. Dla miniatury to niedogodność.
+         * Dla wymazania konta, żądania z RODO, decyzji moderacyjnej albo
+         * zdjęcia wgranego przez pomyłkę to jest awaria prywatności: serwis
+         * mówi „skasowane", a plik nadal się otwiera.
+         *
+         * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
+         * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
+         * Ale wyłączenie jest GŁOŚNE: `PurgePublicMediaCache` zapisuje wtedy
+         * ostrzeżenie w logu, bo cicha rezygnacja z czyszczenia wygląda
+         * dokładnie tak samo jak czyszczenie, które działa.
+         */
+        'cdn_purge' => [
+            'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+            'token' => env('CLOUDFLARE_PURGE_TOKEN'),
+            'endpoint' => env(
+                'CLOUDFLARE_PURGE_ENDPOINT',
+                'https://api.cloudflare.com/client/v4/zones/{zone}/purge_cache',
+            ),
         ],
 
         // Warianty generowane w tle (docs/MEDIA_PIPELINE.md).
@@ -62,6 +123,31 @@ return [
             'feed' => 960,
             'large' => 1600,
         ],
+
+        /*
+         * Ile minut żyje podpisany adres wariantu w buckecie (audyt W7-02).
+         *
+         * Adresem zdjęcia jest trasa aplikacji; `MediaController` sprawdza
+         * Policy treści nadrzędnej i przekierowuje na adres podpisany kluczem
+         * S3. Ta liczba jest oknem, w którym skopiowany adres jeszcze działa
+         * — czyli ceną całego rozwiązania, i dlatego stoi tutaj, a nie
+         * w kontrolerze.
+         *
+         * PIĘĆ MINUT, bo dwie wartości muszą tu zagrać naraz:
+         *
+         *   za krótko  wolne łącze nie zdąży pobrać dużego wariantu, a karta
+         *              zostawiona otwarta na kwadrans przestaje pokazywać
+         *              zdjęcia po odświeżeniu obrazków przez przeglądarkę;
+         *   za długo   przełączenie przepisu na prywatny albo zablokowanie
+         *              kogoś nie odcina dostępu przez ten cały czas.
+         *
+         * `max-age` odpowiedzi dla treści publicznej to POŁOWA tej liczby,
+         * nie ona sama: przeglądarka cache'uje przekierowanie razem z już
+         * podpisanym adresem, więc przy równych wartościach 302 wyjęte
+         * z cache w ostatniej sekundzie okna prowadziłoby pod adres, który
+         * właśnie wygasa. Szczegóły w `MediaController::sekundyCache()`.
+         */
+        'signed_url_minutes' => (int) env('KUKING_MEDIA_SIGNED_URL_MINUTES', 5),
 
         // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
         //
@@ -85,11 +171,79 @@ return [
         'page_size' => (int) env('KUKING_FEED_PAGE_SIZE', 15),
     ],
 
+    'comments' => [
+        // Ile komentarzy GŁÓWNYCH (wątków) pokazuje strona wpisu i przepisu.
+        //
+        // Komentarze rosną z popularnością treści, bez górnej granicy — a do
+        // 7 września 2026 `RecipeController::show()` i `PostController::show()`
+        // ładowały je WSZYSTKIE przez `->load()`. Nie wyszło to w audycie
+        // zapytań bez limitu (T20), bo tam szukano `->get()`, a to jest ten
+        // sam kształt ryzyka pod inną nazwą.
+        //
+        // 12, tak jak zapisane wpisy w zeszycie — jeden krok „Pokaż więcej"
+        // ma być wszędzie podobny, żeby człowiek wiedział, czego się
+        // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
+        'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+    ],
+
+    'collections' => [
+        // Ile ZAPISANYCH WPISÓW pokazuje zeszyt na "stronę" (audyt
+        // zewnętrzny T20). Zeszyt rośnie z użyciem serwisu — każde
+        // kliknięcie "Zapisz" na cudzym wpisie dokłada tam jedną pozycję,
+        // bez górnej granicy — więc `CollectionController::show()` MUSI
+        // paginować, tak jak od początku robi to obok stojące `recipes()`.
+        // Ta sama wartość co tam (12), żeby dwie sekcje tego samego ekranu
+        // nie skakały o różne kroki.
+        'saved_posts_page_size' => (int) env('KUKING_COLLECTION_SAVED_POSTS_PAGE_SIZE', 12),
+    ],
+
+    'tags' => [
+        // Otwarte tagi użytkowników, zastępują Tematy (D-021,
+        // docs/DECISIONS.md). Liczby stąd czyta WYŁĄCZNIE App\Support\LimityTagow
+        // — patrz komentarz w tamtym pliku, dlaczego żadna z nich nie ma
+        // prawa być wpisana wprost w kontrolerze, widoku ani akcji domenowej.
+
+        // Minimum — TEN SAM próg, którego używa wyszukiwarka
+        // (App\Domain\Search\SearchQuery::recipes()/people()).
+        'min_length' => (int) env('KUKING_TAG_MIN_LENGTH', 2),
+
+        'max_length' => (int) env('KUKING_TAG_MAX_LENGTH', 30),
+
+        // Ile RÓŻNYCH tagów (po unikalnych tag_id, patrz LimityTagow) wolno
+        // przypiąć do jednego wpisu. Dość, żeby oznaczyć danie, okazję
+        // i dietę naraz; za mało, żeby stać się polem na słowa kluczowe SEO
+        // wklejone hurtem.
+        'max_per_post' => (int) env('KUKING_TAG_MAX_PER_POST', 5),
+
+        // Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5) — zarówno
+        // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
+        'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
+    ],
+
     'text' => [
         // Skala tekstu ustawiana przez użytkownika w /settings/accessibility.
         // Wartości w procentach; muszą mieścić się w CHECK z migracji (90–140).
         'scales' => [100, 112, 125, 140],
         'default_scale' => 100,
+    ],
+
+    'theme' => [
+        // Jasny/ciemny wygląd — ustawiany na /ustawienia/czytelnosc i przez
+        // szybki przełącznik w stopce (docs/DECISIONS.md, D-019). Wartości
+        // muszą mieścić się w CHECK z migracji `..._add_theme_to_users`.
+        //
+        // Świadomie BEZ trzeciej wartości „jak w systemie" — patrz komentarz
+        // w tej migracji. Dodanie jej przywróciłoby dokładnie to zachowanie
+        // (motyw zmieniający się sam, bez pytania), które ta funkcja
+        // ma wyłączyć.
+        'options' => ['light', 'dark'],
+        'default' => 'light',
+
+        // Nazwa ciasteczka z wyborem GOŚCIA (bez konta). Zalogowany ma wybór
+        // na koncie (kolumna `theme`) — cookie i tak dostaje tę samą wartość,
+        // żeby wygląd nie mrugnął z powrotem do jasnego, gdyby ta sama osoba
+        // wylogowała się na tym samym urządzeniu.
+        'cookie' => 'motyw',
     ],
 
     'account' => [
@@ -135,6 +289,34 @@ return [
             'bezpieczenstwo',
             'platnosci',
         ],
+
+        // Konta testowe/deweloperskie, wykluczone z metryk North Star
+        // (issue #114 — `kuking:wac` i kohorta retencji z
+        // `docs/seo/ANALYTICS.md` §2.2/§3.2).
+        //
+        // DLACZEGO KONFIGURACJA, A NIE KOLUMNA W BAZIE
+        // Issue #114 rozstrzyga to wprost: żadna nowa kolumna na tym etapie.
+        // Przy 20-50 kontach zamkniętej alfy konta testowe to garstka, którą
+        // zna jedna osoba (właściciel) i która zmienia się rzadko — dokładnie
+        // taki przypadek, dla którego reszta tego pliku istnieje (`comment`,
+        // `zone_id`+`token` wyżej): próg/lista bez migracji, bez deployu drugi
+        // raz, gdy trzeba dopisać jedno konto. Kolumna `users.is_test_account`
+        // byłaby uzasadniona dopiero, gdyby test'owych kont było wiele albo
+        // gdyby WIĘCEJ niż jedna metryka miała je wykluczać — a to jest
+        // dokładnie sytuacja, w której warto ją dodać (razem z migracją,
+        // testem i wpisem w `docs/DATABASE.md`, jak wymaga AGENTS.md §6).
+        //
+        // Nazwa użytkownika, tak jak `host_username` — to jest to, co widać
+        // i co da się sprawdzić okiem na liście kont, nie wewnętrzny UUID.
+        // Porównanie jest bez rozróżniania wielkości liter (jak
+        // `Profile::poNazwie()`), bez homoglifów — to nie jest ochrona przed
+        // podszywaniem się, tylko lista własnych kont, więc prostsze
+        // porównanie wystarcza.
+        //
+        // Puste domyślnie: bez tej zmiennej środowiskowej metryka liczy
+        // wszystkich tak jak dotąd (poza gospodarzem i kontami zbanowanymi/
+        // kasowanymi).
+        'test_usernames' => array_filter(explode(',', (string) env('KUKING_TEST_USERNAMES', ''))),
     ],
 
     'two_factor' => [
@@ -156,8 +338,70 @@ return [
         'window' => 1,
     ],
 
+    /*
+     * TRZY KOSZYKI LIMITERA LOGOWANIA (W7-01, R3 §5).
+     *
+     * Osobno od `limits` niżej, bo to nie są limity `throttle:` na trasie —
+     * to trzy niezależne liczniki wewnątrz `LoginController`, każdy liczony
+     * po innym kluczu (patrz `App\Support\KluczeLimitow`).
+     *
+     * DLACZEGO TRZY, A NIE JEDEN. Licznik przywiązany do ADRESU
+     * strukturalnie nie widzi ataku rozproszonego po wielu adresach na jedno
+     * konto — a zmiana adresu jest dla napastnika tania (botnet, sieć
+     * mobilna, chmura), niezależnie od tego, czy `trustProxies` ufa
+     * nagłówkowi. Zmierzone przed naprawą: 20 nieudanych prób na to samo
+     * konto z 20 różnych adresów nie wywoływało żadnej blokady.
+     *
+     * SKĄD TE LICZBY:
+     *
+     *  - para konto+adres 5/1 min — dokładnie tyle, ile miał dotychczasowy
+     *    limiter, czyli wartość już skalibrowana na tę grupę użytkowników;
+     *    nikt się dotąd nie skarżył, że jest za ostra. Osoba, która pomyli
+     *    hasło dwa-trzy razy i kliknie dwa razy, mieści się z zapasem. Piąta
+     *    pomyłka w minucie z tego samego adresu na to samo konto to wzorzec
+     *    bota, nie palca.
+     *
+     *  - konto 15/15 min — WYŻSZE niż suma kilku okien koszyka pary, i to
+     *    jest celowe. Rolą tego koszyka nie jest chronić przed pomyłką
+     *    człowieka, tylko przed atakiem, którego dwa pozostałe nie widzą.
+     *    Osoba 50+ próbująca różnych starych haseł przez kwadrans mieści się
+     *    w nim z zapasem.
+     *
+     *  - adres 100/5 min — dostatecznie wysoko, żeby nie karać biura,
+     *    rodziny za jednym ruterem ani operatora komórkowego pod wspólnym
+     *    NAT-em (typowe dla starszych użytkowników), i dostatecznie nisko,
+     *    żeby złapać rozpylanie po wielu kontach z jednego miejsca.
+     */
+    'login_limits' => [
+        'para' => ['proby' => 5, 'sekundy' => 60],
+        'konto' => ['proby' => 15, 'sekundy' => 900],
+        'adres' => ['proby' => 100, 'sekundy' => 300],
+    ],
+
+    'notifications' => [
+        /*
+         * Okno, w którym powiadomienie o STANIE nie wraca (R3 §7).
+         *
+         * Dotyczy wyłącznie rodzajów z `NotifyUser::TYPY_WYCISZANE_W_OKNIE`
+         * — dziś samego „X Cię obserwuje". Komentarze i „Ugotowałem" to
+         * ZDARZENIA i dochodzą zawsze, bo drugi komentarz jest nową rzeczą.
+         *
+         * Doba, nie godzina: chodzi o wzorzec rozłożony na godziny (ktoś
+         * odobserwowuje i wraca, sprawdzając, czy dana osoba zniknie mu
+         * z tablicy), a nie o spam w obrębie minuty — tamten łapie limit
+         * liczby żądań. Po dobie powrót jest już nową informacją i druga
+         * strona ma prawo o nim wiedzieć.
+         */
+        'okno_powtorzenia_godzin' => (int) env('KUKING_OKNO_POWTORZENIA_GODZIN', 24),
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
+        //
+        // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem
+        // — ale prawdziwą ochronę niosą trzy koszyki z `login_limits` wyżej.
+        // Ten wpis liczy się po `domain|ip` dla gościa, więc sam z siebie nie
+        // widzi ataku rozproszonego po adresach.
         'login' => '5,1',
         'register' => '5,10',
         'password_reset' => '5,10',
@@ -180,12 +424,53 @@ return [
         'post' => '20,10',
         'report' => '10,10',
 
+        /*
+         * Zgłoszenie nielegalnej treści (DSA art. 16) — droga PUBLICZNA.
+         *
+         * Limit jest tu jedyną ochroną przed nadużyciem, bo logowania nie ma
+         * i być nie może: przepis wymaga mechanizmu dostępnego dla każdego,
+         * a wymóg konta wyklucza dokładnie tych, dla których on istnieje —
+         * prawnika, rodzica, osobę, która rozpoznała siebie na cudzym zdjęciu.
+         *
+         * Trzy na godzinę z jednego adresu: dość, żeby ktoś zgłosił kilka
+         * rzeczy naraz i poprawił literówkę, za mało na zalanie kolejki
+         * jedynego moderatora (D-012: zespół to 1-2 osoby).
+         */
+        'legal_notice' => '3,60',
+
         // Odwołanie od decyzji moderacyjnej. Limit jest niski, bo formularz
         // dla osób zablokowanych stoi PRZED logowaniem — a wszystko, co stoi
         // przed logowaniem, jest celem. Prawdziwe odwołanie składa się raz,
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
+        // wielkości co 'search' — to jest ten sam rodzaj zapytania
+        // (trigramowe podobieństwo po kuking_normalize()), tylko na innej
+        // tabeli, i ta sama osoba już i tak korzysta z jednego budżetu
+        // zapytań na konto.
+        'tag_suggest' => '60,1',
+
+        /*
+         * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
+         *
+         * Trasa jest PUBLICZNA i pyta bazę o rodziców zdjęcia przy każdym
+         * żądaniu, więc bez limitu byłaby nową, tanią drogą do zalania
+         * serwisu (i do zgadywania, choć samo zgadywanie UUID-a jest
+         * beznadziejne).
+         *
+         * DLACZEGO TAK WYSOKO NA TLE RESZTY TEGO PLIKU
+         * Bo to nie jest formularz, tylko zasób strony. Jedna strona feedu
+         * to do 20 wpisów po `max_per_post` = 6 zdjęć, plus awatary — czyli
+         * grubo ponad sto żądań na JEDNO otwarcie strony, wysłanych
+         * równolegle. Limit rzędu kilkudziesięciu na minutę wylogowywałby
+         * zdjęcia zwykłemu czytelnikowi po przewinięciu dwóch ekranów, a to
+         * wygląda dokładnie jak awaria serwisu.
+         *
+         * Liczy się PO ADRESIE IP dla gości (tak działa `throttle`), więc
+         * musi pomieścić też kilka osób za jednym łączem.
+         */
+        'zdjecie' => '600,1',
         // Odhaczanie kroku w trybie gotowania (issue #24). Zapisuje tylko
         // do sesji przeglądarki — bez ryzyka takiego jak przy komentarzu
         // czy zdjęciu — ale to i tak POST na cudzy (jeśli ktoś zgadnie
@@ -215,10 +500,27 @@ return [
     ],
 
     'exports' => [
-        // Paczka z danymi to kopia CAŁEGO konta — nie może leżeć na dysku
-        // publicznym. Dysk `local` jest prywatny; pobranie idzie przez trasę
-        // z podpisem, nie przez bezpośredni URL do pliku.
-        'disk' => env('KUKING_EXPORT_DISK', 'local'),
+        /*
+         * Paczka z danymi to kopia CAŁEGO konta — nie może leżeć na dysku
+         * publicznym. Pobranie idzie przez trasę z podpisem, nie przez
+         * bezpośredni URL do pliku.
+         *
+         * DYSK LOKALNY NIE WYSTARCZA NA PRODUKCJI (audyt W3-01).
+         * `web`, `worker` i `scheduler` to trzy osobne kontenery bez wspólnego
+         * wolumenu. Paczkę buduje worker, a pobranie obsługuje web — plik
+         * powstawał więc w jednym kontenerze, a szukano go w drugim: w bazie
+         * `ready`, a człowiek dostawał 404, i to w chwili, w której zwykle
+         * właśnie zamyka konto. Restart workera zabierał ją tak samo.
+         *
+         * Dlatego domyślnie podążamy za `FILESYSTEM_DISK`: gdy zdjęcia idą na
+         * R2, paczki idą na `r2_eksporty` — osobny, prywatny bucket, bez
+         * własnej domeny. `local` zostaje wyłącznie tam, gdzie jest jeden
+         * proces: lokalnie i w testach.
+         */
+        'disk' => env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        ),
 
         // Ile dni paczka jest do pobrania. Po tym czasie plik jest kasowany
         // (komenda kuking:sprzataj-eksporty) — nie trzymamy w storage kopii
@@ -230,6 +532,16 @@ return [
         // close(); ten próg ogranicza zużycie dysku tymczasowego przy koncie
         // z tysiącem zdjęć.
         'photo_flush_every' => 25,
+    ],
+
+    'analytics' => [
+        // Ile dni trzymamy wiersze `product_signals` (issue #115), zanim
+        // komenda `kuking:sprzataj-sygnaly` je skasuje. To są zdarzenia
+        // techniczne (nieudane wgranie zdjęcia, wykonane wyszukiwanie),
+        // przydatne do wykrywania trendu w ostatnich tygodniach — nie mamy
+        // powodu trzymać ich bezterminowo, a minimalizacja danych (AGENTS.md
+        // §7) jest zasadą domyślną, nie wyjątkiem od niej.
+        'signal_retention_days' => (int) env('KUKING_SIGNAL_RETENTION_DAYS', 90),
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
@@ -269,9 +581,25 @@ return [
         // Dlatego mieszkają w konfiguracji, a nie w trzech miejscach w kodzie:
         // rozjazd między dokumentem a systemem jest gorszy niż brak obu.
 
-        // Ile dni od decyzji można złożyć odwołanie. Playbook obiecuje 14
-        // w każdym szablonie wiadomości do użytkownika.
-        'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 14),
+        // Ile dni od decyzji można złożyć odwołanie.
+        //
+        // 180 DNI, NIE 14 — I TO NIE JEST PREFERENCJA.
+        // Art. 20 ust. 1 DSA wymaga, żeby wewnętrzny system rozpatrywania
+        // skarg był dostępny przez CO NAJMNIEJ SZEŚĆ MIESIĘCY od decyzji.
+        // Do 7 września 2026 stało tu 14 dni — liczba przepisana
+        // z `docs/legal/MODERATION_PLAYBOOK.md`, gdzie wzięła się z rozsądku
+        // operacyjnego, nie z przepisu (pomiar: `docs/decyzje/DSA_POMIAR.md`,
+        // sekcja o art. 20). Przy 14 dniach człowiek, który wrócił do serwisu
+        // po miesiącu, nie miał już czego kliknąć.
+        //
+        // 180, a nie „6 miesięcy" liczone kalendarzowo: termin ma być
+        // policzalny w dniach, bo tak jest pokazywany („Ten termin minął
+        // 3 marca 2027"), a 180 dni jest KRÓTSZE niż sześć miesięcy w każdym
+        // wariancie kalendarza — dlatego regulamin mówi „6 miesięcy", a kod
+        // liczy z zapasem w drugą stronę: `appealDeadline()` dodaje 6
+        // miesięcy kalendarzowych, a ta liczba jest tylko dolną granicą,
+        // której nie wolno zejść poniżej (pilnuje jej test).
+        'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 180),
 
         // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
         // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich

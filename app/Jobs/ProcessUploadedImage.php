@@ -30,6 +30,15 @@ use Intervention\Image\ImageManager;
  * Jeśli cokolwiek pójdzie nie tak, zdjęcie dostaje status `rejected`, a powód
  * ląduje w metadanych — użytkownik widzi wtedy komunikat po polsku, a nie
  * pustą ramkę.
+ *
+ * Zdjęcie NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
+ * w `handle()`, jak i hook `failed()`. Ten drugi jest konieczny, bo przy
+ * przekroczeniu `$timeout` proces dostaje sygnał w środku wykonania i nie ma
+ * już żadnego wyjątku do przechwycenia: `catch` się nie wykona, a zdjęcie
+ * zostałoby w `processing` na zawsze. Widok dla tego stanu mówi „odśwież
+ * stronę za chwilę”, więc bez `failed()` człowiek dostaje obietnicę, która
+ * nigdy się nie spełni, i nie ma w interfejsie żadnej drogi, żeby to naprawić
+ * samodzielnie (issue #112). Ten sam mechanizm ma `GenerateUserExport`.
  */
 class ProcessUploadedImage implements ShouldQueue
 {
@@ -39,7 +48,21 @@ class ProcessUploadedImage implements ShouldQueue
 
     public int $timeout = 120;
 
-    public function __construct(public string $mediaId) {}
+    /**
+     * Kolejka `media`, nie `default` (audyt W3-05).
+     *
+     * `docker/entrypoint.sh` uruchamia workera z `--queue=high,default,media,low`
+     * i komentarz mówi, że interakcje użytkownika mają wyprzedzać ciężkie
+     * przetwarzanie obrazów. Żaden job nie przypisywał się jednak do kolejki,
+     * więc wszystkie lądowały na `default` — a kolejność w tej fladze nie
+     * robiła nic.
+     */
+    private const KOLEJKA = 'media';
+
+    public function __construct(public string $mediaId)
+    {
+        $this->onQueue(self::KOLEJKA);
+    }
 
     public function handle(): void
     {
@@ -52,14 +75,48 @@ class ProcessUploadedImage implements ShouldQueue
         $media->update(['status' => Media::STATUS_PROCESSING]);
 
         try {
+            // DWA DYSKI, NIE JEDEN (audyt G-01). Oryginał czytamy z bucketu
+            // prywatnego, warianty zapisujemy do publicznego. Na R2
+            // publiczność jest cechą bucketu, nie obiektu, więc trzymanie obu
+            // w jednym buckecie wystawiało oryginały z EXIF-em i GPS-em pod
+            // adresem dającym się wyprowadzić z adresu wariantu.
             $disk = Storage::disk($media->disk);
+            $publiczny = Storage::disk($media->variantsDisk());
             $original = $disk->get($media->object_key);
 
             if ($original === null) {
                 throw new \RuntimeException('Brak pliku źródłowego w storage.');
             }
 
-            $manager = ImageManager::gd();
+            // `autoOrientation: false` — I TO NIE JEST OSTROŻNOŚĆ, TO
+            // NAPRAWA PODWÓJNEGO OBROTU (audyt zewnętrzny T11).
+            //
+            // ZMIERZONE: plik 100×50 px z EXIF `Orientation = 6` (obróć
+            // o 90° w prawo) wychodził z tego potoku jako wariant 100×50,
+            // czyli POZIOMY — a poprawny wynik jest pionowy. Obrót liczył
+            // się dwa razy.
+            //
+            // Dlaczego, mimo komentarza obok, że „GD nie czyta EXIF-u":
+            // Intervention ma własny dekoder, który EXIF CZYTA, i domyślnie
+            // orientuje obraz sam (`Config::$autoOrientation = true`,
+            // `Drivers/Gd/Decoders/BinaryImageDecoder.php`). Nasze
+            // `applyOrientation()` obracało go wtedy po raz drugi.
+            //
+            // WYŁĄCZAMY BIBLIOTEKĘ, A NIE USUWAMY WŁASNEGO OBROTU, i to
+            // jest świadomy wybór między dwiema poprawkami:
+            //   * zostawiamy jedną, jawną drogę obrotu, którą sami
+            //     testujemy — zamiast polegać na domyślnej wartości
+            //     biblioteki, która może się zmienić przy aktualizacji
+            //     i cicho odwrócić zdjęcia wszystkim;
+            //   * orientację i tak czytamy przy WGRANIU
+            //     (`StoreUploadedImage`), bo zadanie w tle dostaje same
+            //     bajty — ta wartość już istnieje i jest zapisana
+            //     w `metadata`, więc nie ma czego oszczędzać na usuwaniu.
+            //
+            // Dla grupy 50+ obrócone zdjęcie nie jest drobiazgiem: osoba,
+            // która wrzuci danie do góry nogami, nie zgłosi błędu — po
+            // prostu przestanie wrzucać zdjęcia.
+            $manager = ImageManager::gd(autoOrientation: false);
             $variants = [];
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
@@ -84,7 +141,11 @@ class ProcessUploadedImage implements ShouldQueue
                     : $media->object_key;
 
                 $variantKey = preg_replace('/\.[^.]+$/', '', $publicznyKlucz)."_{$name}.webp";
-                $disk->put($variantKey, (string) $encoded, 'public');
+                // BEZ `'public'`. Na R2 `x-amz-acl: public-read` jest wprost
+                // nieobsługiwany dla `PutObject` — publiczność bierze się
+                // z własnej domeny bucketu, a nie z ACL na obiekcie. Ten
+                // argument nie dawał więc publiczności, a mógł żądanie wywrócić.
+                $publiczny->put($variantKey, (string) $encoded);
 
                 $variants[$name] = [
                     'key' => $variantKey,
@@ -118,6 +179,42 @@ class ProcessUploadedImage implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Ostatnia linia obrony: po wyczerpaniu prób — albo po timeoucie, po którym
+     * nie ma wyjątku w `handle()` — zdjęcie nie może zostać w `processing`.
+     *
+     * Dekodowanie zdjęcia 45 Mpx i budowa trzech wariantów w GD to jest realnie
+     * ten kawałek serwisu, który potrafi nie zmieścić się w limicie czasu
+     * i pamięci workera (`--memory=384`). Bez tego hooka takie zdjęcie zostaje
+     * w stanie przejściowym bez końca.
+     */
+    public function failed(?\Throwable $e): void
+    {
+        $media = Media::find($this->mediaId);
+
+        // `ready` zostawiamy nietknięte: `failed()` może dojść po spóźnionej
+        // próbie, która i tak zakończyła się sukcesem. Cofnięcie gotowego
+        // zdjęcia do `rejected` skasowałoby je z widoków bez powodu.
+        if ($media === null || $media->status === Media::STATUS_READY) {
+            return;
+        }
+
+        Log::warning('Przetwarzanie zdjęcia nie powiodło się do końca', [
+            'media_id' => $this->mediaId,
+            // Bez treści wyjątku przy timeoucie — wtedy wyjątku po prostu nie ma.
+            'error' => $e?->getMessage() ?? 'przekroczony limit czasu zadania',
+        ]);
+
+        $media->update([
+            'status' => Media::STATUS_REJECTED,
+            'metadata' => array_merge($media->metadata ?? [], [
+                'failure_reason' => $e === null
+                    ? 'processing_timeout'
+                    : 'processing_failed_or_timeout',
+            ]),
+        ]);
     }
 
     /**

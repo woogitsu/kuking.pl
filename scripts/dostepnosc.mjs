@@ -122,6 +122,58 @@ const EKRANY = [
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
   { nazwa: 'czytelność', adres: '/ustawienia/czytelnosc', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
+  /*
+   * EKRANY TAGÓW (D-021). Publiczna strona tagu jest jednym z niewielu
+   * miejsc, w które ma sens trafić z wyszukiwarki, więc mierzymy ją jako
+   * GOŚCIA, nie jako zalogowanego.
+   *
+   * `/ustawienia/tagi` i sekcja tagów w formularzu wpisu (mierzona przez
+   * „dodaj zdjęcie" i „dodaj przepis", które ją zawierają) to rzędy
+   * przycisków „Dodaj"/„Usuń" obok tekstu — dokładnie ten układ, który przy
+   * 320 px i tekście 140% ma najwięcej okazji, żeby wypchnąć stronę w bok.
+   * Slug `zupy` pochodzi z `DemoSeeder::otagujWpisy()`; gdyby ten seeder
+   * przestał go tworzyć, ta pozycja zgłosi 404 zamiast po cichu przejść.
+   */
+  { nazwa: 'strona tagu (gość)', adres: '/tag/zupy' },
+  { nazwa: 'twoje tagi', adres: '/ustawienia/tagi', zalogowany: true },
+
+  /*
+   * EKRANY DOPISANE 7 WRZEŚNIA — zmienione albo nowe tego dnia i dotąd
+   * nienotowane przez ten automat.
+   *
+   * „Twoje dane" (D-022) jest tu z jednego powodu: to jedyny formularz
+   * w serwisie, którego skutku nie da się cofnąć bez czekania 30 dni,
+   * a od dziś ma dodatkowy haczyk zakresu i trzy listy „co znika / co
+   * zostaje". Musi dać się przeczytać i obsłużyć klawiaturą, bo to jest
+   * dokładnie ten ekran, na którym pomyłka najwięcej kosztuje.
+   */
+  { nazwa: 'twoje dane (usunięcie konta)', adres: '/ustawienia/twoje-dane', zalogowany: true },
+
+  // Zgłoszenie treści niezgodnej z prawem (DSA art. 16). Publiczny, bez
+  // logowania — pole imienia jest od dziś opcjonalne, z nowym wyjaśnieniem
+  // przy polu. Mierzymy jako gościa, bo dla gościa ten formularz istnieje.
+  { nazwa: 'zgłoś treść niezgodną z prawem', adres: '/zglos-nielegalna-tresc' },
+
+  /*
+   * Odwołanie od decyzji moderacyjnej (issue #10). DemoSeeder NIE tworzy
+   * żadnej `ModerationAction`, więc bez tego bloku ten ekran nie miałby
+   * czego pokazać — pusty/404 ekran przechodzi każdy test dostępności, nie
+   * sprawdzając niczego (patrz nagłówek pliku). Seedujemy TU, w automacie,
+   * a nie w `DemoSeeder` (nie nasze do ruszania) — dokładnie tym samym
+   * mechanizmem, którym `adresPrzepisu` niżej pyta bazę o gotowe dane.
+   * Rozwiązywane przez `znajdz: 'odwolanie'` w `sciezkaEkranu`.
+   */
+  { nazwa: 'odwołanie od decyzji', adres: null, znajdz: 'odwolanie', zalogowany: true },
+
+  /*
+   * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
+   * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
+   * przy 320 px i przy tekście 150% ma największą szansę wypchnąć całą
+   * stronę w bok, gdy tabela nie ma własnego przewijania (issue #80).
+   */
+  { nazwa: 'polityka prywatności', adres: '/prywatnosc' },
+  { nazwa: 'regulamin', adres: '/regulamin' },
+  { nazwa: 'zasady', adres: '/zasady' },
 ];
 
 /*
@@ -156,18 +208,38 @@ const SKALE_UKLADU = SZYBKO ? [null] : [null, 150];
  * `skalaTekstu` ustawiamy atrybutem na <html>, tak samo jak robi to layout
  * dla zalogowanego z ustawieniem w profilu. Symulowanie tego zoomem
  * przeglądarki sprawdzałoby coś innego niż to, co dostaje człowiek.
+ *
+ * `motyw` DZIAŁA TAK SAMO — `data-theme`, nie `colorScheme` kontekstu
+ * (docs/DECISIONS.md, D-019). Arkusz stylów już nie ogląda się na
+ * `prefers-color-scheme` — to była właśnie usterka, którą ta decyzja
+ * zamyka — więc `newContext({ colorScheme: 'dark' })` sam z siebie nie
+ * włączyłby już niczego. Ustawiamy atrybut wprost, tym samym mechanizmem
+ * co `skalaTekstu` niżej, żeby ten automat wymuszał ciemny motyw dokładnie
+ * tak, jak zrobiłby to prawdziwy przełącznik w stopce albo w ustawieniach.
  */
 const WARIANTY = SZYBKO
-  ? [{ nazwa: 'jasny', motyw: 'light', szerokosc: 1280 }]
+  ? [{ nazwa: 'jasny', motyw: null, szerokosc: 1280 }]
   : [
-    { nazwa: 'jasny', motyw: 'light', szerokosc: 1280 },
+    { nazwa: 'jasny', motyw: null, szerokosc: 1280 },
     { nazwa: 'ciemny', motyw: 'dark', szerokosc: 1280 },
-    { nazwa: 'tekst 140%', motyw: 'light', szerokosc: 1280, skalaTekstu: 140 },
-    { nazwa: '320 px', motyw: 'light', szerokosc: 320 },
+    { nazwa: 'tekst 140%', motyw: null, szerokosc: 1280, skalaTekstu: 140 },
+    { nazwa: '320 px', motyw: null, szerokosc: 320 },
   ];
 
 /** Naruszenia poniżej tej wagi notujemy, ale nie zatrzymują one wysyłki. */
 const BLOKUJACE = new Set(['critical', 'serious']);
+
+// BAZA DOMYŚLNA TEGO AUTOMATU. Do 7 września 2026 stało tu `kuking_test`,
+// czyli baza, na której chodzi `php artisan test` — a ten skrypt wykonuje
+// `migrate:fresh --seed`. Uruchomienie automatu bez `DB_DATABASE` KASOWAŁO
+// więc schemat bazy testowej, i to w środku ewentualnego przebiegu testów.
+// Dokładnie ta klasa wypadku zdarzyła się w tym projekcie raz, na bazie
+// deweloperskiej (AGENTS.md: nigdy `migrate:fresh` bez jawnego
+// `DB_DATABASE`) — nie ma powodu, żeby automat dostępności był wyjątkiem.
+//
+// Stała stoi w zasięgu MODUŁU, nie funkcji, bo czytają ją cztery różne
+// miejsca w tym pliku.
+const BAZA_DOMYSLNA = 'kuking_a11y';
 
 function log(...args) {
   console.log(...args);
@@ -178,18 +250,18 @@ async function podnies_serwer() {
     return { adres: process.env.ADRES, zamknij: () => {} };
   }
 
-  const port = 8000 + Math.floor(Math.random() * 900);
+const port = 8000 + Math.floor(Math.random() * 900);
   const adres = `http://127.0.0.1:${port}`;
 
   log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
     stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' },
+    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
   });
 
   const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
     stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' },
+    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
   });
 
   // Czekamy na serwer zamiast zgadywać czas startu — na wolnej maszynie
@@ -297,7 +369,7 @@ const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
 const adresPrzepisu = (() => {
   const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
     "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')->first())->slug;",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' } })
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString().trim();
 
   return slug === '' ? null : `/przepisy/${slug}`;
@@ -331,7 +403,7 @@ const wpisyPoTrybie = (() => {
     + "$w = App\\Models\\Post::where('display_mode', $t)->where('status','published')"
     + "->where('visibility','public')->has('media', '>=', 2)->first(); "
     + "echo $t.'='.($w?->getKey() ?? '').PHP_EOL; }",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || 'kuking_test' } })
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString();
 
   const mapa = {};
@@ -348,12 +420,67 @@ const wpisyPoTrybie = (() => {
 })();
 
 /*
+ * Decyzja moderacyjna, od której `basia` może się odwołać (issue #10).
+ *
+ * DemoSeeder NIE tworzy żadnej `ModerationAction` — sprawdzone przez
+ * `grep -n ModerationAction database/seeders/DemoSeeder.php`, zero wyników.
+ * Bez tego bloku ekran „/odwolanie/{id}" nie miałby czego pokazać dla
+ * żadnego konta z demo, więc dopisujemy dane TUTAJ, tym samym mechanizmem
+ * co `adresPrzepisu` i `wpisyPoTrybie` wyżej — pytaniem (i, gdy trzeba,
+ * jednym zapisem) do bazy przez `tinker` — a NIE zmianą `DemoSeeder`, który
+ * jest czyjąś cudzą, trwającą pracą.
+ *
+ * Sprawdzenie „czy już jest" PRZED zapisem czyni to bezpiecznym do
+ * odpalenia także wtedy, gdy `ADRES` wskazuje serwer już postawiony wcześniej
+ * (bez świeżego `migrate:fresh`) — drugie uruchomienie znajdzie ten sam
+ * wiersz zamiast dokładać kolejny.
+ *
+ * `warn` na `recipe`: jest w `ODWOLYWALNE` (da się odwołać) i w `DOZWOLONE`
+ * dla przepisu, a przy przepisie basi (znaleziony wyżej jako `adresPrzepisu`,
+ * o ile jest jej autorstwa — w przeciwnym razie bierzemy dowolny jej wpis)
+ * nie zmienia widoczności treści, więc nie kolidujemy z żadnym innym
+ * ekranem, który tę samą treść ogląda.
+ */
+const idOdwolania = (() => {
+  const id = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    // `username` mieszka na `Profile` (klucz główny `user_id`), nie na
+    // `User` — patrz komentarz w App\Models\User o danych publicznych.
+    + "$b = App\\Models\\Profile::where('username','basia')->value('user_id'); "
+    + "if (!$m || !$b) { echo ''; exit; } "
+    + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
+    + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
+    + "if (!$a) { "
+    + "$cel = App\\Models\\Recipe::where('author_id',$b)->value('id') "
+    + "?? App\\Models\\Post::where('author_id',$b)->value('id') "
+    + "?? (string) Illuminate\\Support\\Str::uuid(); "
+    + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>'recipe',"
+    + "'target_id'=>$cel,'subject_user_id'=>$b,'action'=>'warn','reason_code'=>'niezgodne_z_zasadami',"
+    + "'note'=>'Utworzone przez automat dostępności (scripts/dostepnosc.mjs) do zmierzenia ekranu odwołania.',"
+    + "'user_message'=>'Ten przepis reklamował konkretny sklep, co jest niezgodne z naszymi zasadami. "
+    + "Poprawiliśmy opis i przepis zostaje widoczny — to ostrzeżenie zapisujemy do wiadomości.']); "
+    + "} echo $a->getKey();",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return id === '' ? null : id;
+})();
+
+if (idOdwolania === null) {
+  console.error('BŁĄD: nie udało się przygotować decyzji moderacyjnej dla „basia" — '
+    + 'ekran odwołania nie zostałby sprawdzony (brak konta moderatora albo basi w bazie).');
+  zamknij();
+  process.exit(1);
+}
+
+/*
  * Adres ekranu z listy: `adres` wprost albo `znajdz` do rozwiązania z bazy.
  *
  * `znajdz: 'przepis'` → dowolny opublikowany przepis z demo,
  * `znajdz: 'gotowanie'` → tryb gotowania tego samego przepisu,
  * `znajdz: 'wpis:carousel'` → wpis w tym trybie,
- * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu.
+ * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu,
+ * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla basi.
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
@@ -370,6 +497,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'gotowanie') {
     return adresGotowania;
+  }
+
+  if (ekran.znajdz === 'odwolanie') {
+    return `/odwolanie/${idOdwolania}`;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');
@@ -405,8 +536,30 @@ for (const wariant of WARIANTY) {
    * zieleni.
    */
   const ustawienia = {
-    colorScheme: wariant.motyw,
     viewport: { width: wariant.szerokosc, height: 900 },
+    /*
+     * `reducedMotion: 'reduce'` NIE JEST tu kosmetyką ani przyspieszeniem.
+     *
+     * `.btn` ma `transition: background-color .15s`. Odkąd motyw ciemny
+     * włącza się ATRYBUTEM (a nie `prefers-color-scheme` ustawionym przed
+     * wczytaniem strony), przełączenie uruchamia to przejście — a axe czytał
+     * kolory w jego trakcie i widział tło w POŁOWIE DROGI z białego do
+     * ciemnego. Przy jasnym tekście dawało to sześć fałszywych naruszeń
+     * kontrastu na `.btn-secondary`. Zmierzone: natychmiast po przełączeniu
+     * `rgb(255,255,255)`, po 400 ms `rgb(42,36,30)` — czyli poprawna wartość
+     * `--color-surface-raised`. Kontrast był poprawny cały czas; zły był
+     * moment pomiaru.
+     *
+     * Arkusz honoruje `prefers-reduced-motion: reduce` (tokens.css) i skraca
+     * wtedy przejścia do 0,01 ms, więc to ustawienie daje stan KOŃCOWY bez
+     * czekania i bez zgadywania. Wstrzyknięcie `<style>` z `transition: none`
+     * NIE WCHODZI W GRĘ: CSP jest wymuszające i słusznie je odrzuca (`style-src`
+     * bez `unsafe-inline`) — automat dostał tym po palcach i dobrze.
+     *
+     * Efekt uboczny jest pożądany: mierzymy stronę tak, jak widzi ją osoba,
+     * która w systemie poprosiła o ograniczenie animacji.
+     */
+    reducedMotion: 'reduce',
   };
 
   const kontekstGosciaAxe = await przegladarka.newContext(ustawienia);
@@ -457,6 +610,74 @@ for (const wariant of WARIANTY) {
         wariant.skalaTekstu,
       );
     }
+
+    // Motyw ciemny — WYŁĄCZNIE ten atrybut go włącza (docs/DECISIONS.md,
+    // D-019). Kontekst przeglądarki (`colorScheme`) już nic by tu nie dał —
+    // arkusz stylów celowo nie ogląda się na `prefers-color-scheme`.
+    //
+    // Przejścia CSS są tu wyłączone przez `reducedMotion` na kontekście —
+    // patrz komentarz przy `ustawienia` wyżej.
+    //
+    // ALE TO NIE WYSTARCZA i to jest zmierzone, nie założone. Przy pełnym
+    // przebiegu ten automat zgłaszał `color-contrast` na elemencie `<time>`
+    // w karcie wpisu („Świeżo z Kuking / ciemny", 6 węzłów, waga serious).
+    // Bezpośredni pomiar tego samego elementu dał kontrast 8,38:1 przy
+    // wymaganym 4,5:1 (`rgb(201,190,176)` na `rgb(42,36,30)`), a izolowany
+    // przebieg TEJ SAMEJ strony w TYM SAMYM wariancie nie zgłaszał niczego.
+    // Czyli naruszenie zależało od kolejności ekranów w przebiegu, a nie od
+    // palety — axe czytał kolory, zanim przeglądarka przemalowała stronę po
+    // zmianie atrybutu.
+    //
+    // To już drugi raz, gdy ten automat oskarżył paletę o coś, czego w niej
+    // nie ma (poprzedni raz: sześć naruszeń w motywie ciemnym, też artefakt
+    // pomiaru). Fałszywy alarm z wagą „blokujące" jest gorszy niż brak
+    // sprawdzenia, bo uczy ludzi ignorować wynik.
+    //
+    // Dlatego nie czekamy tu na sztywną liczbę milisekund, tylko na WARUNEK:
+    // aż tło strony faktycznie zmieni wartość. Warunek nie zgaduje i nie
+    // rozjedzie się na szybszej ani wolniejszej maszynie.
+    if (wariant.motyw === 'dark') {
+      const tloPrzed = await strona.evaluate(
+        () => getComputedStyle(document.body).backgroundColor,
+      );
+
+      await strona.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+
+      await strona.waitForFunction(
+        (przed) => getComputedStyle(document.body).backgroundColor !== przed,
+        tloPrzed,
+        { timeout: 5000 },
+      );
+
+      // Dwa pełne obiegi klatki: pierwszy kończy przeliczanie stylów, drugi
+      // daje pewność, że przemalowanie już się odbyło. Bez tego `waitForFunction`
+      // potrafi wrócić w momencie, w którym styl JEST policzony, ale piksele
+      // jeszcze nie.
+      await strona.evaluate(() => new Promise((gotowe) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
+      }));
+    }
+
+    /*
+     * OTWIERAMY KAŻDY `<details>` PRZED POMIAREM.
+     *
+     * Treść zamkniętego `<details>` nie ma `display: none` w arkuszu stylów
+     * — ale przeglądarka i tak traktuje ją jak niewidoczną (`checkVisibility()`
+     * zwraca `false`), bo tak każe robić specyfikacja HTML z zamkniętym
+     * `<details>`. Axe pomija to, co niewidoczne, tak samo jak pomija tekst
+     * `sr-only` odwrócony transformacją. Zmierzone wprost na ekranie „twoje
+     * dane": axe analizuje 8 węzłów wewnątrz zamkniętego `<details>` (sam
+     * `<summary>`), a 34, gdy jest otwarty — różnica to dokładnie hasło,
+     * oba haczyki i przycisk „Usuń moje konto" formularza usunięcia konta
+     * (D-022). Bez tego otwarcia automat NIGDY nie sprawdziłby etykiet ani
+     * kontrastu w najważniejszym nieodwracalnym formularzu serwisu — zielony
+     * wynik na tym ekranie nic by nie znaczył.
+     */
+    await strona.evaluate(() => {
+      for (const el of document.querySelectorAll('details:not([open])')) {
+        el.open = true;
+      }
+    });
 
     const wynik = await new AxeBuilder({ page: strona })
       // Reguły WCAG 2.2 AA — cel produktowy z docs/design/DESIGN_SYSTEM.md.
@@ -678,6 +899,164 @@ if (karuzelaBezJs) {
   }
 }
 
+/* =============================================================================
+   WYRÓWNANIE BELKI DO SIATKI TREŚCI
+
+   DLACZEGO TO NIE MOŻE BYĆ TEST PHPUnit
+   Ta sama przyczyna co przy przepełnieniu wyżej: żeby stwierdzić, że logotyp
+   stoi nad nawigacją, a nie 144 px na prawo od niej, trzeba ZMIERZYĆ ułożoną
+   stronę. Drzewo dokumentu wygląda poprawnie w obu przypadkach, a arkusz
+   stylów sam z siebie nie zdradza, że `.app-body` nigdy nie osiąga swojego
+   `max-width` (jest elementem `flex` z `margin: 0 auto`, więc zwęża się do
+   zawartości). Właśnie dlatego rozjazd przetrwał: liczby w CSS wyglądały
+   sensownie, a ułożona strona wyglądała inaczej.
+
+   CO DOKŁADNIE SPRAWDZAMY
+   Nie „czy logotyp jest przy nawigacji" (to wymagałoby innego punktu odniesienia
+   na każdym ekranie i przy każdej szerokości), tylko regułę ogólniejszą:
+
+       wewnętrzne krawędzie belki == wewnętrzne krawędzie `.app-body`
+
+   Kolumny siatki zaczynają się i kończą dokładnie na tych krawędziach, więc
+   z tej jednej równości wynikają obie rzeczy naraz — logotyp nad nawigacją
+   (albo nad treścią, gdy nawigacji nie ma) i akcje nad prawą szyną (albo nad
+   prawą krawędzią treści, gdy szyna zeszła pod spód).
+
+   Poniżej 64rem nie mierzymy: nie ma tam ani nawigacji bocznej, ani szyny,
+   a belce wolno zawijać akcje do drugiego wiersza (issue #80).
+   ========================================================================== */
+log('');
+log('Wyrównanie belki do siatki treści:');
+
+const EKRANY_WYROWNANIA = [
+  { nazwa: 'tablica (z szyną)', adres: '/home', zalogowany: true },
+  { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
+  { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
+  { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
+  // Strona powitalna ma OD 7 WRZEŚNIA własną, szerszą siatkę
+  // (`app-body-powitalny`) — a więc i własną okazję do rozjazdu belki.
+  // Reguła spójności szerokości jej nie dotyczy, bo ta liczy wyłącznie
+  // ekrany zalogowanego; ta pozycja pilnuje drugiej reguły: że logotyp
+  // i przyciski stoją dokładnie nad krawędziami treści.
+  { nazwa: 'strona powitalna (gość)', adres: '/' },
+];
+
+// 1024 to próg nawigacji bocznej, 1280 progu szyny, 1512 typowy laptop —
+// przy każdej z tych szerokości siatka liczy się inaczej, a rozjazd przed
+// poprawką szedł raz w lewo, raz w prawo.
+const SZEROKOSCI_WYROWNANIA = SZYBKO ? [1512] : [1024, 1280, 1512];
+
+const rozjazdyBelki = [];
+
+/** Krawędzie siatki pierwszego zmierzonego ekranu zalogowanego, per szerokość. */
+const krawedzieZalogowanego = new Map();
+
+/** Podstrony zalogowanego, które mają inną szerokość niż pierwsza zmierzona. */
+const niespojneSzerokosci = [];
+
+for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
+  const kontekstGoscia = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+  });
+  const kontekstZalogowanego = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+    storageState: stanZalogowany,
+  });
+
+  for (const ekran of EKRANY_WYROWNANIA) {
+    const kontekst = ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia;
+    const strona = await kontekst.newPage();
+
+    await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+
+    const pomiar = await strona.evaluate(() => {
+      const body = document.querySelector('.app-body');
+      const logotyp = document.querySelector('.wordmark');
+      const akcje = document.querySelector('.topbar-actions');
+
+      if (! body || ! logotyp || ! akcje) return null;
+
+      const ramka = body.getBoundingClientRect();
+      const styl = getComputedStyle(body);
+
+      const stopka = document.querySelector('.site-footer-inner');
+      const stylStopki = stopka ? getComputedStyle(stopka) : null;
+      const ramkaStopki = stopka ? stopka.getBoundingClientRect() : null;
+
+      return {
+        oczekiwanaLewa: Math.round(ramka.left + parseFloat(styl.paddingLeft)),
+        oczekiwanaPrawa: Math.round(ramka.right - parseFloat(styl.paddingRight)),
+        lewa: Math.round(logotyp.getBoundingClientRect().left),
+        prawa: Math.round(akcje.getBoundingClientRect().right),
+        stopkaLewa: ramkaStopki
+          ? Math.round(ramkaStopki.left + parseFloat(stylStopki.paddingLeft))
+          : null,
+        stopkaPrawa: ramkaStopki
+          ? Math.round(ramkaStopki.right - parseFloat(stylStopki.paddingRight))
+          : null,
+      };
+    });
+
+    await strona.close();
+
+    if (! pomiar) {
+      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje .app-body, .wordmark albo .topbar-actions.`);
+      process.exitCode = 1;
+      continue;
+    }
+
+    // Jeden piksel tolerancji na zaokrąglenie — układ liczy się w ułamkach.
+    const bladLewej = Math.abs(pomiar.lewa - pomiar.oczekiwanaLewa);
+    const bladPrawej = Math.abs(pomiar.prawa - pomiar.oczekiwanaPrawa);
+    const bladStopkiL = pomiar.stopkaLewa === null
+      ? 0 : Math.abs(pomiar.stopkaLewa - pomiar.oczekiwanaLewa);
+    const bladStopkiP = pomiar.stopkaPrawa === null
+      ? 0 : Math.abs(pomiar.stopkaPrawa - pomiar.oczekiwanaPrawa);
+
+    if (bladLewej > 1 || bladPrawej > 1 || bladStopkiL > 1 || bladStopkiP > 1) {
+      rozjazdyBelki.push({
+        ekran: ekran.nazwa, szerokosc, ...pomiar,
+        bladLewej, bladPrawej, bladStopkiL, bladStopkiP,
+      });
+    }
+
+    // DRUGA, OSOBNA REGUŁA: siatka ma stać w TYM SAMYM MIEJSCU na wszystkich
+    // ekranach zalogowanego. To jest dokładnie to, co zgłosił właściciel —
+    // nawigacja boczna przeskakiwała mu między podstronami, bo strona
+    // z prawą szyną była szersza niż strona bez niej. Sprawdzenie wyżej tego
+    // nie łapie: tam każda podstrona porównuje się sama ze sobą.
+    if (! ekran.zalogowany) continue;
+
+    const wzorzec = krawedzieZalogowanego.get(szerokosc);
+
+    if (! wzorzec) {
+      krawedzieZalogowanego.set(szerokosc, { ekran: ekran.nazwa, ...pomiar });
+    } else if (
+      Math.abs(wzorzec.oczekiwanaLewa - pomiar.oczekiwanaLewa) > 1
+      || Math.abs(wzorzec.oczekiwanaPrawa - pomiar.oczekiwanaPrawa) > 1
+    ) {
+      niespojneSzerokosci.push({
+        szerokosc,
+        pierwszy: wzorzec.ekran,
+        pierwszyOd: wzorzec.oczekiwanaLewa,
+        pierwszyDo: wzorzec.oczekiwanaPrawa,
+        drugi: ekran.nazwa,
+        drugiOd: pomiar.oczekiwanaLewa,
+        drugiDo: pomiar.oczekiwanaPrawa,
+      });
+    }
+  }
+
+  await kontekstGoscia.close();
+  await kontekstZalogowanego.close();
+
+  const zlych = rozjazdyBelki.filter((r) => r.szerokosc === szerokosc).length
+    + niespojneSzerokosci.filter((r) => r.szerokosc === szerokosc).length;
+
+  log(`  ${zlych === 0 ? '✓' : '✗'} ${szerokosc} px`
+    + (zlych ? ` — ${zlych} niezgodności` : ''));
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -695,11 +1074,20 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnienia,
   },
   karuzelaBezJs,
+  wyrownanieBelki: {
+    szerokosci: SZEROKOSCI_WYROWNANIA,
+    rozjazdow: rozjazdyBelki.length,
+    rozjazdy: rozjazdyBelki,
+    niespojnychSzerokosci: niespojneSzerokosci.length,
+    niespojneSzerokosci,
+  },
 }, null, 2));
 
 log('');
 log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
-  + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length})`);
+  + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
+  + `rozjazdów belki: ${rozjazdyBelki.length}, `
+  + `niespójnych szerokości: ${niespojneSzerokosci.length})`);
 
 if (przepelnienia.length > 0) {
   log('');
@@ -718,7 +1106,33 @@ if (blokujacych > 0) {
   }
 }
 
-if (blokujacych > 0 || przepelnienia.length > 0) {
+if (rozjazdyBelki.length > 0) {
+  log('');
+  log('Belka nie licuje z siatką treści:');
+  for (const r of rozjazdyBelki) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    log(`      logotyp ${r.lewa} zamiast ${r.oczekiwanaLewa} (o ${r.bladLewej} px)`);
+    log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
+    log(`      stopka  ${r.stopkaLewa}…${r.stopkaPrawa} zamiast `
+      + `${r.oczekiwanaLewa}…${r.oczekiwanaPrawa} (o ${r.bladStopkiL}/${r.bladStopkiP} px)`);
+  }
+}
+
+if (niespojneSzerokosci.length > 0) {
+  log('');
+  log('Podstrony zalogowanego mają różną szerokość (nawigacja przeskakuje):');
+  for (const n of niespojneSzerokosci) {
+    log(`  przy ${n.szerokosc} px: „${n.pierwszy}" ${n.pierwszyOd}…${n.pierwszyDo}, `
+      + `a „${n.drugi}" ${n.drugiOd}…${n.drugiDo}`);
+  }
+}
+
+if (
+  blokujacych > 0
+  || przepelnienia.length > 0
+  || rozjazdyBelki.length > 0
+  || niespojneSzerokosci.length > 0
+) {
   process.exit(1);
 }
 

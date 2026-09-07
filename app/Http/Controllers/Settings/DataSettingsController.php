@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -119,14 +120,27 @@ class DataSettingsController extends Controller
         );
     }
 
+    /**
+     * ZAKRES USUNIĘCIA WYBIERA CZŁOWIEK (D-022).
+     *
+     * Haczyk „usuń także moje treści" jest DOMYŚLNIE ODHACZONY i dlatego
+     * nie ma tu żadnej reguły `required`: brak pola w żądaniu to poprawna,
+     * najczęstsza odpowiedź, znacząca „zostaw teksty". `boolean` pilnuje
+     * tylko, żeby nie dało się wcisnąć tam czegoś innego niż tak/nie.
+     *
+     * Wybór idzie do KOLUMNY, nie do sesji ani do zadania w kolejce —
+     * egzekucja jest 30 dni później (D-022, punkt 2).
+     */
     public function requestDeletion(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'password' => ['required', 'string'],
             'confirm' => ['accepted'],
+            'usun_tresci' => ['nullable', 'boolean'],
         ], [
             'password.required' => 'Wpisz swoje hasło, żeby potwierdzić, że to Ty.',
             'confirm.accepted' => 'Zaznacz, że rozumiesz, co się stanie.',
+            'usun_tresci.boolean' => 'Zaznacz haczyk albo zostaw go pustym.',
         ]);
 
         $user = $request->user();
@@ -135,11 +149,29 @@ class DataSettingsController extends Controller
             return back()->withErrors(['password' => 'To hasło jest nieprawidłowe.']);
         }
 
-        $user->markForDeletion();
+        $zakres = $request->boolean('usun_tresci')
+            ? User::DELETE_SCOPE_EVERYTHING
+            : User::DELETE_SCOPE_MINIMUM;
 
-        AuditLogEntry::record('account.delete_requested', $user, $user, ip: $request->ip());
+        $user->markForDeletion($zakres);
+
+        // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
+        // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy
+        // zniknęły" (albo „dlaczego NIE zniknęły"), odpowiedź musi dać się
+        // znaleźć bez zgadywania.
+        AuditLogEntry::record(
+            'account.delete_requested',
+            $user,
+            $user,
+            metadata: ['zakres' => $zakres],
+            ip: $request->ip(),
+        );
 
         $days = (int) config('kuking.account.delete_grace_days');
+
+        $coZTekstami = $zakres === User::DELETE_SCOPE_EVERYTHING
+            ? "Po {$days} dniach usuniemy też Twoje przepisy, wpisy, komentarze, wykonania i zeszyty — tak jak mówi zaznaczony haczyk. "
+            : "Po {$days} dniach Twoje przepisy, wpisy i komentarze zostaną w serwisie bez Twojego nazwiska, podpisane „Użytkownik usunięty”. ";
 
         // Wylogowujemy w TYM SAMYM żądaniu, nie czekamy, aż zrobi to
         // `EnsureAccountIsActive` przy kolejnym wejściu (audyt A8).
@@ -158,7 +190,8 @@ class DataSettingsController extends Controller
         return redirect()->route('landing')->with('status',
             "Konto zostało oznaczone do usunięcia i zostałeś/aś wylogowany/a. Masz {$days} dni, żeby zmienić zdanie — "
             .'zrobisz to na stronie „Cofnij usunięcie konta” ('.route('account.delete.cancel').'), podając e-mail '
-            .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała.',
+            .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała. '
+            .$coZTekstami,
         );
     }
 }

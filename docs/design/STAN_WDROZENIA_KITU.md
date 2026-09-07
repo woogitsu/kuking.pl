@@ -4,7 +4,7 @@ Porównanie zrobione **przez zrzuty ekranu**: aplikacja lokalna i `kit-v2/html/`
 otwarte w tej samej przeglądarce, przy tej samej szerokości okna (1280 px
 i 390 px). Nie na oko z opisu.
 
-Data: 6 września 2026.
+Data: 6 września 2026. Aktualizacja tego samego dnia — etap C (ekran przepisu).
 
 ## Wniosek w jednym zdaniu
 
@@ -83,3 +83,82 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
   skrypcie. W tym produkcie to warunek, nie ulepszenie (AGENTS.md §5).
 - **Automat dostępności** przy każdej zmianie: axe na 14 ekranach w czterech
   wariantach plus pomiar przewijania w poziomie przy 320–768 px.
+
+---
+
+## Etap C — ekran przepisu (wdrożony 6 września 2026)
+
+| element z kitu (ekrany 02 i 06) | co jest w aplikacji |
+|---|---|
+| okruszki „Start › Przepisy” | **jest** |
+| hero: zdjęcie obok panelu | **jest**; bez zdjęcia panel bierze całą szerokość zamiast zostawiać pustą połowę |
+| kafle: czas / porcje / poziom | **jest**, ale tylko te, które autor podał — kafel „—” nie jest informacją |
+| akcje w panelu (Zapisz, Ugotowałem) | **jest**, w pionie i na pełną szerokość panelu; dochodzi trzecia, „Gotuję” |
+| „Skąd ten przepis?” w panelu | **jest**, razem ze zdjęciem kartki |
+| składniki obok kroków | **jest** (dwie kolumny od 60rem, składniki pierwsze niżej) |
+| składniki z kolumną ilości | **nie i nie będzie** — D-017 |
+| kroki z tytułami („Przygotuj ciasto”) | **nie i nie będzie** — D-017 |
+| „Jak wyszło innym?” | jest jako „Komu wyszło”; sam napis zmieni #38 |
+| znak „Uśmiech” w przycisku „Ugotowałem” | **świadomie nie**: znak rysuje garnek kolorem bieżącym, a uśmiech kolorem powierzchni — na tle marki wychodzi biała plama bez uśmiechu |
+
+Główna akcja przeniosła się z **dołu strony** do panelu przy zdjęciu. To jest
+największa zmiana produktowa w tym etapie, nie kosmetyczna: „Ugotowałem”
+leżało pod krokami, czyli widział je tylko ten, kto przewinął cały przepis.
+
+Nowe: `wide` w `<x-layout>` podnosi sufit kolumny z 45rem do całej szerokości
+po nawigacji. Sufit czytelności nie znika — przenosi się na pojedyncze bloki
+z ciągłym tekstem (`.kolumna-czytania`).
+
+### Zostaje z etapu C do zrobienia
+
+- `CookedCard` w układzie z kitu („Jak wyszło innym?” z paskiem liczb
+  i przyciskiem „Zobacz N wpisów”) — dziś to lista kart jedna pod drugą.
+
+### Nadal otwarte z listy tokenów
+
+`--leading-title` (1.25 w kicie, 1.4 u nas) zostaje **1.4**. Luźniejszy
+nagłówek jest tu decyzją dla grupy 50+, a nie rozjazdem — zmiana dotknęłaby
+każdego ekranu i należy do osobnej decyzji, nie do przestylowania przepisu.
+
+---
+
+## Konflikt kitu z COPY_STYLE — rozstrzygnięty na rzecz COPY_STYLE (7 IX 2026)
+
+`docs/HANDOVER.md` wymieniał to jako pracę do issue #38: „kit mówi »Jak wyszło
+innym?«, a aplikacja »Komu wyszło«". **Zmierzone: to nie jest błąd aplikacji.**
+
+- `docs/brand/COPY_STYLE.md` §6 („Ugotowałem", wiersz „sekcja pod przepisem")
+  mówi **„Komu wyszło"** — i ten dokument jest wprost wiążący dla każdego
+  tekstu widocznego dla użytkownika.
+- `docs/design/kit-v2/html/02_desktop_recipe.html` i
+  `docs/design/prototype/recipe.html` mówią **„Jak wyszło innym?"**.
+- `resources/views/pages/recipes/show.blade.php` mówi **„Komu wyszło"**,
+  czyli zgadza się z COPY_STYLE.
+
+Do przepisania jest więc KIT, nie aplikacja — a dokładniej: makiety HTML
+w tym katalogu są materiałem projektowym z wcześniejszego etapu i tam, gdzie
+mówią coś innego niż COPY_STYLE, **wiąże COPY_STYLE**. Nie zmieniam samych
+plików makiet, bo są zapisem tego, co projektant narysował; zmieniam status
+tej rozbieżności z „zaległość w aplikacji" na „makieta jest starsza niż
+decyzja o głosie marki".
+
+### Przy okazji zmierzone: tekstów do przepisania po #38 jest mniej, niż zapisano
+
+Przeskanowałem wszystkie widoki (`resources/views/**/*.blade.php`) pod listę
+słów zakazanych z `docs/brand/BRAND_EXTENDED.md` §2.1 (`feed`, `explore`,
+`content`, `onboarding`, `punkty`, `poziom`, `odznaka`, `senior`, `kolekcja`,
+`swipe`, `mniam`…), pod wykrzykniki (twardy zakaz w produkcie) i pod emoji.
+
+**W tekstach widocznych dla człowieka: zero trafień.** Wszystkie dwadzieścia
+trafień siedzi w KOMENTARZACH w kodzie widoków — i to takich, które wprost
+tłumaczą, dlaczego czegoś nie ma: `ikona.blade.php` wypisuje emoji, których
+nawigacja już NIE używa; `home.blade.php` cytuje zakazane „wspaniały dzień?!"
+jako przykład tekstu, którego nie piszemy; `karuzela-zdjec.blade.php` cytuje
+zakaz swipe'a z `UX_50_PLUS.md`. To jest dokładnie ta klasa fałszywego
+trafienia, przed którą trzeba się bronić przy pisaniu takiego pomiaru:
+pierwsza wersja mojego skryptu zgłosiła 74 problemy, z czego wszystkie były
+zmiennymi PHP (`$user`) i operatorem `!==` w blokach `@php`.
+
+Wniosek dla #38: zostaje praca redakcyjna nad KONKRETNYMI ekranami (kit etap
+D), a nie przegląd całego interfejsu pod kątem słów zakazanych — ten przegląd
+jest zrobiony i wychodzi czysto.

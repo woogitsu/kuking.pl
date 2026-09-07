@@ -33,6 +33,21 @@
             <x-avatar :user="$owner" :size="88" />
             <div class="flex-1 min-w-[14rem]">
                 <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
+                @if($owner->isSeeded())
+                    <p class="mb-3"><x-konto-przykladowe :user="$owner" /></p>
+                    {{--
+                        D-025: oznaczenie MUSI stać przy koncie, nie tylko
+                        w regulaminie. Profil jest jedynym z czterech miejsc
+                        (obok karty wpisu, karty przepisu i komentarza), gdzie
+                        jest miejsce na pełne zdanie, nie tylko na etykietę —
+                        więc tu, i tylko tu, jest ono wypisane wprost.
+                    --}}
+                    <p class="notice">
+                        To konto jest przykładowe: nie ma za nim prawdziwej osoby.
+                        Treści dodała redakcja Kuking, żeby na początek było tu
+                        co poczytać.
+                    </p>
+                @endif
                 <p class="meta m-0 mb-3">
                     &#64;{{ $p->username }}
                     @if($p->region) · {{ $p->region }} @endif
@@ -51,12 +66,12 @@
             <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
             <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
             <li>
-                <a href="{{ route('social.followers', $p->username) }}" style="text-decoration:none; color:inherit;">
+                <a href="{{ route('social.followers', $p->username) }}" class="link-jak-tekst">
                     <span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span>
                 </a>
             </li>
             <li>
-                <a href="{{ route('social.following', $p->username) }}" style="text-decoration:none; color:inherit;">
+                <a href="{{ route('social.following', $p->username) }}" class="link-jak-tekst">
                     <span class="stat-value">{{ $stats['following'] }}</span><span class="stat-label">obserwowanych</span>
                 </a>
             </li>
@@ -66,6 +81,30 @@
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
+            {{--
+                KONTO WYMAZANE (`erased`, D-022) NIE PRZYJMUJE ŻADNEJ AKCJI.
+
+                Profil takiego konta jest dostępny celowo — to adres, pod
+                który prowadzi podpis „Użytkownik usunięty" pod każdą
+                zanonimizowaną treścią. Ale „Obserwuj", „Zgłoś" i „Zablokuj"
+                nie mają tu żadnego sensu: `UserPolicy::follow()` wymaga konta
+                aktywnego, a zgłaszać i blokować nie ma już kogo. Przycisk,
+                który zawsze kończy się 403 albo niczym, jest gorszy niż jego
+                brak — to ta sama klasa błędu co karta osoby z linkiem do 403
+                (audyt W5-08).
+
+                Ta gałąź łapie też konto `banned`/`pending_delete` OGLĄDANE
+                PRZEZ MODERATORA (jedyny, kogo `viewProfile` tam wpuszcza) —
+                dlatego komunikat rozróżnia te dwa przypadki. Powiedzenie
+                moderatorowi „to konto zostało usunięte" przy koncie
+                zablokowanym byłoby nieprawdą.
+            --}}
+            @elseif(auth()->check() && ! $owner->jestWidocznyJakoOsoba())
+                @if($owner->isErased())
+                    <p class="mb-0">To konto zostało usunięte. Nie da się go już obserwować ani zgłosić.</p>
+                @else
+                    <p class="mb-0">To konto jest zablokowane albo zgłoszone do usunięcia. Widzisz je, bo jesteś moderatorem.</p>
+                @endif
             @elseif(auth()->check())
                 @if($isFollowing)
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">
@@ -151,7 +190,7 @@
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $posts->links() }}</div>
+            <x-show-more :paginator="$posts" />
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -164,7 +203,7 @@
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $recipes->links() }}</div>
+            <x-show-more :paginator="$recipes" czego="przepisów" />
         @endif
     @else
         @if($cookedEvents->count() === 0)
@@ -179,7 +218,7 @@
                     <x-cooked-card :event="$event" :showRecipe="true" />
                 @endforeach
             </div>
-            <div class="mt-6">{{ $cookedEvents->links() }}</div>
+            <x-show-more :paginator="$cookedEvents" czego="wykonań" />
         @endif
     @endif
 </x-layout>

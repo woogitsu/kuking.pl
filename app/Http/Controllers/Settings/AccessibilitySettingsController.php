@@ -24,6 +24,10 @@ class AccessibilitySettingsController extends Controller
         return view('pages.settings.accessibility', [
             'scales' => config('kuking.text.scales'),
             'current' => $request->user()->text_scale,
+            // Kolory (jasny/ciemny) — zapis idzie przez ThemeController,
+            // ten sam mechanizm co szybki przełącznik w stopce (D-019).
+            'themeOptions' => config('kuking.theme.options'),
+            'currentTheme' => $request->user()->theme,
         ]);
     }
 

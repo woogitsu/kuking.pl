@@ -33,6 +33,56 @@ final class SearchQuery
     private const SIMILARITY_THRESHOLD = 0.12;
 
     /**
+     * Identyfikatory przepisów pasujących do frazy — CZTERY OSOBNE ZAPYTANIA
+     * sklejone przez `UNION ALL`, a nie jeden warunek z `OR` (issue #116).
+     *
+     * DLACZEGO NIE `OR`
+     * Cztery warunki na czterech różnych kolumnach (a jeden na innej tabeli)
+     * połączone przez `OR` nie dają się PostgreSQL złożyć w jeden plan
+     * z czterech indeksów. Planner poddawał się i skanował całe tabele —
+     * przy większej liczbie kont brał `users` jako sterownik pętli, więc koszt
+     * wyszukiwania rósł z liczbą KONT W SERWISIE, a nie z liczbą trafień.
+     * Indeksy trigramowe dla wszystkich czterech warunków istnieją od migracji
+     * `2026_09_05_001300` — problemem był kształt zapytania, nie brak indeksu.
+     *
+     * Rozbite na gałęzie — każda dostaje własny skan, który może pójść po
+     * indeksie. Zmierzone (PostgreSQL 16.13, bufory ciepłe, mediana z 5
+     * przebiegów `EXPLAIN (ANALYZE, FORMAT JSON)`, fraza „pierogi"):
+     *
+     *     100 kont /   200 przepisów    1,57 ms →  0,49 ms
+     *    1000 kont /  2000 przepisów   14,04 ms →  3,10 ms
+     *    5000 kont / 10000 przepisów   68,16 ms → 14,12 ms
+     *
+     * UCZCIWA UWAGA DO ISSUE: na PostgreSQL 16.13 nie odtworzyłem planu,
+     * w którym `users` steruje pętlą po `recipes` — przy stałej liczbie
+     * przepisów, a rosnącej liczbie kont (100 → 5000) stara wersja trzymała
+     * się 13,4–14,5 ms. Odtworzyłem PRZYCZYNĘ opisaną w issue: warunek z `OR`
+     * nie sięgał po żaden z indeksów na `recipes` i czytał tabelę w całości,
+     * więc koszt zależał od jej ROZMIARU, a nie od liczby trafień. To jest
+     * naprawione i to pilnuje test.
+     *
+     * `UNION ALL`, nie `UNION`: usuwanie duplikatów nie zmienia wyniku `IN`,
+     * a kosztuje `HashAggregate` — na tyle, że planner wracał do skanowania
+     * sekwencyjnego dwóch gałęzi (10,9 ms kontra 2,8 ms na samym zapytaniu
+     * kandydatów).
+     *
+     * To jest zmiana PLANU, nie semantyki: zbiór pasujących przepisów jest
+     * dokładnie ten sam co przy `OR`, razem z sortowaniem po podobieństwie
+     * na całości wyniku. Dlatego świadomie nie ma tu limitu ani osobnej rundy
+     * „najpierw tytuł, doszukaj resztę tylko gdy mało wyników" — tamto
+     * zmieniałoby kolejność wyników przy nielicznych trafieniach w tytule.
+     */
+    private const KANDYDACI_SQL = <<<'SQL'
+        SELECT id FROM recipes WHERE kuking_normalize(title) % ?
+        UNION ALL
+        SELECT id FROM recipes WHERE kuking_normalize(title) LIKE ?
+        UNION ALL
+        SELECT id FROM recipes WHERE kuking_normalize(coalesce(summary, '')) LIKE ?
+        UNION ALL
+        SELECT recipe_id FROM recipe_ingredients WHERE kuking_normalize(ingredient_text) LIKE ?
+        SQL;
+
+    /**
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Recipe>
      */
@@ -55,19 +105,26 @@ final class SearchQuery
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'recipes.author_id'))
             ->with(['author.profile', 'heroMedia'])
-            ->withCount('cookedEvents')
-            ->where(function ($query) use ($needle): void {
-                $query
-                    ->whereRaw('kuking_normalize(title) % ?', [$needle])
-                    ->orWhereRaw('kuking_normalize(title) LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('kuking_normalize(coalesce(summary, \'\')) LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereExists(function ($sub) use ($needle): void {
-                        $sub->selectRaw('1')
-                            ->from('recipe_ingredients')
-                            ->whereColumn('recipe_ingredients.recipe_id', 'recipes.id')
-                            ->whereRaw('kuking_normalize(ingredient_text) LIKE ?', ['%'.$needle.'%']);
-                    });
-            })
+            // `widoczneDla($widz)` W LICZNIKU, nie gołe `withCount`.
+            //
+            // Karta wyniku pokazuje „Ugotowane N ×" tą samą etykietą, którą
+            // pokazuje strona przepisu — a tamta liczy od dziś tylko wykonania
+            // widoczne dla TEGO widza (audyt przepisów: gołe `count()` stało
+            // dziesięć linijek pod galerią, która filtr miała od audytu A4,
+            // i zdradzało istnienie wykonania osoby zablokowanej). Bez tej
+            // samej granicy tutaj ta sama etykieta znaczyłaby dwie różne
+            // rzeczy zależnie od ekranu — czyli ta klasa błędu przeniesiona
+            // o jeden plik dalej, a nie zamknięta.
+            //
+            // Dla gościa `widoczneDla(null)` nie filtruje niczego, więc
+            // liczby publiczne i dane dla wyszukiwarek zostają bez zmian.
+            ->withCount(['cookedEvents' => fn ($q) => $q->widoczneDla($widz)])
+            ->whereRaw('recipes.id IN ('.self::KANDYDACI_SQL.')', [
+                $needle,
+                '%'.$needle.'%',
+                '%'.$needle.'%',
+                '%'.$needle.'%',
+            ])
             // Filtr „Do 30 minut" (UI kit v2, ekran 03).
             //
             // Przepis BEZ podanych czasów wypada z tego filtra, a nie wpada.

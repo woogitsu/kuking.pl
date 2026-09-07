@@ -310,15 +310,34 @@ start_worker() {
   # --max-time=3600   → worker sam się kończy po godzinie; NADZORCA go wskrzesza.
   #                     Zapobiega wyciekom pamięci w długożyjącym PHP.
   # --max-jobs=500    → to samo, ale liczone jobami.
-  # --memory=384      → zabij workera, gdy przekroczy 384 MB (limit RAM serwisu).
+  # --memory=700      → zabij workera, gdy przekroczy 700 MB.
+  #
+  #                     BYŁO 384 I TO BYŁA ZA MAŁA LICZBA. Zmierzone szczyty
+  #                     RSS przy przetwarzaniu jednego zdjęcia (gd, warianty
+  #                     thumb/feed/large, PHP 8.4):
+  #
+  #                         12 Mpx → 161 MB, 1,3 s
+  #                         24 Mpx → 254 MB, 2,4 s
+  #                         50 Mpx → 452 MB, 4,6 s   ← limit z config/kuking.php
+  #
+  #                     Przy 384 MB worker restartował się po KAŻDYM dużym
+  #                     zdjęciu — nie dlatego, że coś przeciekało, tylko dlatego,
+  #                     że próg stał poniżej normalnego kosztu jednego zadania.
+  #                     700 MB leży nad najgorszym przypadkiem i pod limitem
+  #                     kontenera (1024 MB, .railway/railway.ts).
   # --tries=3         → 3 próby, potem failed_jobs; ProcessUploadedImage musi
   #                     być idempotentny (patrz docs/MEDIA_PIPELINE.md).
   # --backoff=10,60,300 → rosnące opóźnienie między próbami.
   # --queue           → kolejność priorytetów: interakcje użytkownika przed
   #                     ciężkim przetwarzaniem obrazów.
-  # Worker dostaje wyższy limit pamięci niż web — dekodowanie zdjęcia 24 Mpx
-  # w gd potrzebuje ~4 bajty na piksel. php.ini nie umie wartości domyślnych,
-  # więc podajemy to flagą -d.
+  # Worker dostaje wyższy limit pamięci niż web. php.ini nie umie wartości
+  # domyślnych, więc podajemy to flagą -d.
+  #
+  # UWAGA: `memory_limit` PHP NIE OBEJMUJE BUFORÓW GD. Zmierzone: przy zdjęciu
+  # 50 Mpx licznik PHP pokazuje 28 MB, a RSS procesu 452 MB — libgd alokuje
+  # bitmapę poza licznikiem PHP. Ten limit chroni więc kod PHP, a przed
+  # wyczerpaniem pamięci przy dekodowaniu obrazu chroni `--memory` wyżej
+  # i limit kontenera, nie ta wartość.
   log "start queue:work (memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M})"
 
   # Pętla także w roli OSOBNEGO serwisu, nie tylko w `all`. Bez niej kontener
@@ -336,7 +355,7 @@ jeden_przebieg_kolejki() {
     --backoff="${QUEUE_BACKOFF:-10,60,300}" \
     --max-time="${QUEUE_MAX_TIME:-3600}" \
     --max-jobs="${QUEUE_MAX_JOBS:-500}" \
-    --memory="${QUEUE_MEMORY:-384}" \
+    --memory="${QUEUE_MEMORY:-700}" \
     --sleep=1 \
     --no-interaction
 }

@@ -50,13 +50,42 @@ return [
         ],
 
         /*
-         * Cloudflare R2 — docelowy magazyn zdjęć (INFRA_DECISION.md §7).
+         * =====================================================================
+         *  DWA BUCKETY R2, NIE JEDEN. TO JEST GRANICA BEZPIECZEŃSTWA.
+         * =====================================================================
          *
-         * Dysk nazywa się `r2`, bo tak nazywa go infrastruktura: `railway.ts`
-         * ustawia FILESYSTEM_DISK="r2". Przed dodaniem tego bloku każdy upload
-         * na produkcji kończyłby się wyjątkiem
-         * „Disk [r2] does not have a configured driver" — czyli awarią głównej
-         * akcji serwisu, widoczną dopiero po wdrożeniu.
+         * Wcześniej był jeden dysk `r2`, jeden bucket i jeden `AWS_URL`.
+         * Oryginały leżały w nim pod prefiksem `incoming/` zapisane jako
+         * „private", warianty pod `media/` jako „public" — i cała prywatność
+         * oryginałów opierała się na tym rozróżnieniu.
+         *
+         * NA R2 TO ROZRÓŻNIENIE NIE ISTNIEJE. Cloudflare nie implementuje
+         * S3-owych ACL na obiektach: `x-amz-acl` jest w tabeli zgodności
+         * oznaczony jako nieobsługiwany dla `PutObject`. Publiczność w R2
+         * jest cechą BUCKETU (własna domena albo `r2.dev`), nie obiektu.
+         * Bucket wystawiony pod `cdn.kuking.pl` wystawia więc CAŁĄ zawartość,
+         * razem z `incoming/`.
+         *
+         * A adres oryginału daje się wyprowadzić z publicznego adresu wariantu:
+         * ten sam UUID właściciela, ta sama data, ten sam UUID pliku —
+         * wystarczy zamienić `media/` na `incoming/`, uciąć `_feed` i zgadnąć
+         * rozszerzenie z czterech możliwych. W oryginale siedzi pełny EXIF,
+         * czyli współrzędne GPS kuchni, w której zrobiono zdjęcie.
+         *
+         * Dlatego oryginały i warianty leżą w OSOBNYCH BUCKETACH:
+         *
+         *   r2            oryginały. Bez `url`, bez własnej domeny,
+         *                 `r2.dev` wyłączone. Dostęp wyłącznie przez API S3
+         *                 z serwera.
+         *   r2_publiczne  przetworzone warianty WebP (bez EXIF). Ten i tylko
+         *                 ten bucket ma `cdn.kuking.pl`.
+         *
+         * Nazwa `r2` zostaje dla oryginałów, bo tak ma w kolumnie `disk` każde
+         * zdjęcie zapisane do tej pory i tam te oryginały fizycznie leżą.
+         *
+         * BRAK `url` W DYSKU ORYGINAŁÓW JEST CELOWY. `Storage::disk('r2')->url()`
+         * rzuci wtedy wyjątek zamiast po cichu zwrócić publiczny adres pliku,
+         * który publiczny być nie może. Pilnuje tego `RozdzialMagazynowTest`.
          *
          * `throw => true` w odróżnieniu od dysku `s3` niżej. Przy `false`
          * nieudany zapis zwraca `false`, a kod leci dalej: użytkownik widzi
@@ -74,8 +103,136 @@ return [
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
             'bucket' => env('AWS_BUCKET'),
             'endpoint' => env('AWS_ENDPOINT'),
-            'url' => env('AWS_URL'),
+            // Świadomie BEZ `url`. Patrz komentarz wyżej.
             'use_path_style_endpoint' => false,
+            'throw' => true,
+        ],
+
+        /*
+         * Bucket wariantów: wyłącznie przetworzone pliki WebP.
+         *
+         * Wszystko, co tu trafia, przeszło przez `ProcessUploadedImage`, czyli
+         * zostało zdekodowane i zapisane od nowa — a to zdejmuje EXIF razem
+         * z GPS-em. Nic, co przyszło od użytkownika w oryginalnej postaci, nie
+         * ma prawa się tu znaleźć.
+         *
+         * ======================================================================
+         *  NAZWA `r2_publiczne` ZOSTAJE, ALE TEN BUCKET NIE JEST JUŻ PUBLICZNY
+         *  (audyt W7-02, P0, prywatność).
+         * ======================================================================
+         *
+         * Brak EXIF-u to nie to samo co „wolno pokazać każdemu". Wariant
+         * przepisu prywatnego jest tak samo prywatny jak sam przepis, a
+         * `recipes.source_scan_media_id` to skan odręcznej kartki z nazwiskami
+         * i adresami. Dopóki bucket miał własną domenę CDN, adres takiego
+         * pliku działał WIECZNIE i dla każdego: kto raz go skopiował, otwierał
+         * zdjęcie po zablokowaniu, po cofnięciu obserwowania i po przełączeniu
+         * przepisu na prywatny.
+         *
+         * Dlatego `url` STĄD ZNIKA — tak samo i z tego samego powodu, z jakiego
+         * nigdy nie miały go dyski `r2` (oryginały) i `r2_eksporty` (paczki
+         * RODO). `Storage::url()` rzuci teraz wyjątek zamiast po cichu zwrócić
+         * adres, który nikogo o nic nie pyta.
+         *
+         * Adresem zdjęcia jest trasa aplikacji `media.show`: pyta Policy treści
+         * nadrzędnej i przekierowuje (302) na adres podpisany kluczem S3, ważny
+         * kilka minut (`kuking.media.signed_url_minutes`). Bajty dalej nie idą
+         * przez PHP.
+         *
+         * CZEGO TO NIE ZAŁATWIA, I TRZEBA TO POWIEDZIEĆ WPROST: zdjęcie tego
+         * klucza z konfiguracji nie zdejmuje własnej domeny z bucketu po
+         * stronie Cloudflare. Dopóki `cdn.kuking.pl` wskazuje ten bucket, stare
+         * adresy działają dalej. To jest ręczna czynność właściciela —
+         * issue #120 — i z tego kontenera nie da się jej ani wykonać, ani
+         * sprawdzić.
+         *
+         * `AWS_PUBLIC_BUCKET` domyślnie wraca do `AWS_BUCKET`, żeby środowisko
+         * jeszcze nierozdzielone (staging sprzed tej zmiany) nie przestało
+         * działać z dnia na dzień. To jest jednak stan PRZEJŚCIOWY i test
+         * `RozdzialMagazynowTest` oblewa, gdy produkcja tak zostanie.
+         */
+        'r2_publiczne' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_PUBLIC_BUCKET', env('AWS_BUCKET')),
+            'endpoint' => env('AWS_ENDPOINT'),
+            // Świadomie BEZ `url`. Patrz komentarz wyżej (W7-02).
+            'use_path_style_endpoint' => false,
+            'throw' => true,
+        ],
+
+        /*
+         * STARY, JEDEN BUCKET — dysk zgodności (audyt W4-03).
+         *
+         * Rozdzielenie oryginałów i wariantów było potrzebne, ale samo w sobie
+         * NIE PRZENOSI plików. Wiersze zapisane wcześniej mają w kolumnie
+         * `disk` wartość `r2` i tam ich pliki fizycznie leżą — w JEDNYM,
+         * publicznym buckecie. Po przestawieniu `AWS_BUCKET` na nowy, prywatny
+         * bucket ta sama nazwa `r2` zaczęłaby wskazywać miejsce, w którym tych
+         * plików nie ma: warianty przestałyby się wyświetlać, a oryginałów nie
+         * dałoby się dołączyć do paczki RODO.
+         *
+         * Komentarz w migracji `..._add_variants_disk_to_media` twierdził, że
+         * „oba źródła współistnieją i kod obsługuje jedno i drugie". Nie było
+         * to prawdą, dopóki nie istniał ten dysk — i jest to dokładnie ten
+         * rodzaj komentarza pewniejszego niż kod, przed którym ostrzegał audyt.
+         *
+         * `url` TU ZOSTAJE, bo stary bucket jest publiczny i dopóki wariantów
+         * z niego nie przeniesiemy, to stamtąd się wyświetlają. To jest stan
+         * przejściowy: publiczności starego bucketu nie zdejmujemy, dopóki
+         * `kuking:przenies-zdjecia` nie dojdzie do końca.
+         *
+         * PO W7-02 TO JEST JEDYNY DYSK ZDJĘĆ Z PUBLICZNYM ADRESEM i jedyny
+         * powód, dla którego `PurgePublicMediaCache` nadal ma co robić.
+         * Zapasowe `env('AWS_URL')` zostaje dla środowisk sprzed tej zmiany,
+         * ale wdrożenie tej zmiennej już nie ustawia (`.railway/railway.ts`) —
+         * gdzie stary bucket jest w użyciu, trzeba podać `AWS_LEGACY_URL`
+         * wprost.
+         */
+        'r2_legacy' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_LEGACY_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'url' => env('AWS_LEGACY_URL', env('AWS_URL')),
+            'use_path_style_endpoint' => false,
+            'throw' => true,
+        ],
+
+        /*
+         * Paczki z danymi (RODO art. 15 i 20) — WŁASNY bucket, prywatny.
+         *
+         * Nie `local`, bo produkcja ma OSOBNE kontenery `web`, `worker`
+         * i `scheduler`, bez wspólnego wolumenu. Paczkę buduje worker,
+         * a pobranie obsługuje web — na dysku lokalnym plik powstawał więc
+         * w jednym kontenerze, a szukano go w drugim. W bazie stało `ready`,
+         * a człowiek dostawał 404. Restart workera i tak by ją zabrał
+         * (audyt W3-01).
+         *
+         * Nie `r2_publiczne`, bo to jest kopia CAŁEGO konta: e-mail, wszystkie
+         * treści, wszystkie zdjęcia z pełnym EXIF-em. Ten bucket nie ma i nie
+         * może mieć własnej domeny — pobranie idzie WYŁĄCZNIE przez trasę
+         * z podpisem, po sprawdzeniu, że pyta właściciel.
+         *
+         * Świadomie bez `url`, z tego samego powodu co dysk oryginałów:
+         * `Storage::url()` ma wtedy rzucić wyjątek, a nie zwrócić adres,
+         * pod którym leży czyjeś całe konto.
+         */
+        'r2_eksporty' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_EXPORTS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => false,
+            // `throw => true`: nieudany zapis paczki MUSI być błędem.
+            // Przy `false` `writeStream()` zwraca `false`, job leci dalej,
+            // rekord dostaje `ready`, a pliku nie ma nigdzie.
             'throw' => true,
         ],
 

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Appeal;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Kolejka odwołań (issue #10, DSA art. 20).
@@ -81,7 +81,7 @@ class AppealController extends Controller
                 uzasadnienie: $data['decision_note'],
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $blad) {
+        } catch (BladDlaCzlowieka $blad) {
             return back()->withErrors(['outcome' => $blad->getMessage()])->withInput();
         }
 

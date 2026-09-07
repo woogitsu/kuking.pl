@@ -12,9 +12,30 @@
         @php
             $actor = $notification->actor;
             $data = $notification->data ?? [];
+
+            /*
+             * UZASADNIENIE DECYZJI MODERACYJNEJ (DSA art. 17 ust. 3).
+             *
+             * Zdania powstają z WIERSZA DECYZJI, nie z zamrożonego tekstu
+             * w `data`: termin na odwołanie liczy
+             * `ModerationAction::appealDeadline()`, a zamrożona data
+             * pokazywałaby po zmianie konfiguracji termin KRÓTSZY niż
+             * prawdziwy — czyli odstraszałaby od odwołania, do którego
+             * człowiek ma jeszcze prawo.
+             *
+             * Powiadomienia sprzed tej zmiany nie mają `action_id` i dla nich
+             * lista jest pusta — zostaje wtedy dawne, krótsze zdanie niżej.
+             * Wiersze decyzji wczytuje `NotificationController` jednym
+             * zapytaniem na stronę, żeby nie było N+1.
+             */
+            $decyzjaModeracyjna = $notification->type === \App\Models\Notification::TYPE_MODERATION
+                ? ($decyzjeModeracyjne[$data['action_id'] ?? ''] ?? null)
+                : null;
+            $uzasadnienie = $decyzjaModeracyjna === null
+                ? []
+                : \App\Domain\Moderation\UzasadnienieDecyzji::zdania($decyzjaModeracyjna);
         @endphp
-        <article class="card @if($notification->isUnread()) style-unread @endif"
-                 style="margin-bottom:var(--spacing-3); @if($notification->isUnread()) border-left:4px solid var(--color-brand); @endif">
+        <article class="card mb-3 @if($notification->isUnread()) style-unread notification-nieprzeczytane @endif">
             <div class="flex gap-3 items-start">
                 @if($actor)
                     <x-avatar :user="$actor" :size="44" />
@@ -65,7 +86,7 @@
                                      nie domyślne. Adres bierzemy z konfiguracji, żeby
                                      jego zmiana nie zostawiła starych powiadomień
                                      z martwym kontaktem. --}}
-                                @if($data['appeal'] ?? false)
+                                @if(($data['appeal'] ?? false) && $uzasadnienie === [])
                                     <br>
                                     @if($data['action_id'] ?? null)
                                         {{-- Odwołanie składa się w serwisie, nie mailem
@@ -90,6 +111,18 @@
                                 {{ $notification->type }}
                         @endswitch
                     </p>
+                    {{--
+                        Uzasadnienie w OSOBNYCH akapitach, nie jednym blokiem
+                        rozdzielonym `<br>`. Sześć zdań prawnych zbitych
+                        w jeden akapit jest nie do przeczytania, a to jest
+                        dokładnie ten list, z którego 60-latek ma zrozumieć,
+                        co zrobił nie tak i co może zrobić dalej
+                        (`docs/UX_50_PLUS.md`).
+                    --}}
+                    @foreach($uzasadnienie as $zdanie)
+                        <p class="m-0 mb-2">{{ $zdanie }}</p>
+                    @endforeach
+
                     <p class="meta m-0">
                         <time datetime="{{ $notification->created_at->toIso8601String() }}">{{ \App\Support\Czas::lokalnie($notification->created_at)->diffForHumans() }}</time>
                     </p>
@@ -140,5 +173,5 @@
         </x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $notifications->links() }}</div>
+    <x-show-more :paginator="$notifications" czego="powiadomień" />
 </x-layout>

@@ -30,10 +30,25 @@ use Illuminate\Support\Facades\Schema;
  * które pilnują dokładnie tego samego: ten sam przepis (albo ten sam wpis)
  * nie stanie w tym samym zeszycie dwa razy (issue #43).
  *
- * ROLLBACK — I TU JEST PUŁAPKA
- * `down()` przywraca stary klucz główny, więc MUSI najpierw usunąć wiersze
- * z `post_id`. To jest utrata danych: zapisane wpisy znikają z zeszytów
- * bezpowrotnie. Przy cofaniu na produkcji najpierw kopia tabeli.
+ * ROLLBACK ODMAWIA WYKONANIA, ZAMIAST KASOWAĆ (audyt F-02)
+ * Stary klucz główny `(collection_id, recipe_id)` nie dopuszcza NULL, więc
+ * wiersze z zapisanymi wpisami nie mają jak przetrwać cofnięcia. Pierwsza
+ * wersja tego pliku po prostu je usuwała — z komentarzem, że to „utrata danych,
+ * świadoma i jedyna możliwa".
+ *
+ * Świadoma nie znaczy dopuszczalna. `php artisan migrate:rollback` wpisuje się
+ * odruchowo, zwykle w pośpiechu i zwykle wtedy, gdy coś już poszło nie tak —
+ * a jedyne ostrzeżenie stało w komentarzu, którego w takiej chwili nikt nie
+ * czyta. Zeszyt to rzecz, którą człowiek budował miesiącami; skasowanie go
+ * przy cofaniu MIGRACJI jest utratą danych bez związku z tym, co się psuło.
+ *
+ * Dlatego `down()` sprawdza, czy są takie wiersze, i jeśli są — PRZERYWA
+ * z instrukcją, co zrobić. Gdy ich nie ma (świeże środowisko, staging tuż po
+ * migracji, testy), cofa się normalnie i bez pytania.
+ *
+ * Wymuszenie: `KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY=1`. Zmienna, nie flaga
+ * artisana, bo ma być czynnością osobną i zapamiętaną — nie czymś, co da się
+ * dopisać do polecenia, którego i tak się nie doczytało.
  */
 return new class extends Migration
 {
@@ -66,9 +81,10 @@ return new class extends Migration
             DB::statement('DROP INDEX IF EXISTS collection_items_recipe_unique');
             DB::statement('ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS collection_items_single_target_check');
 
-            // UTRATA DANYCH, ŚWIADOMA I JEDYNA MOŻLIWA.
-            // Stary klucz główny nie dopuszcza NULL w `recipe_id`, więc wiersze
-            // z zapisanymi wpisami nie mają jak przetrwać cofnięcia.
+            $this->upewnijSieZeWolnoKasowacZapisaneWpisy();
+
+            // Dochodzimy tu wyłącznie wtedy, gdy nie ma czego stracić albo gdy
+            // człowiek świadomie się na to zgodził zmienną środowiskową.
             DB::statement('DELETE FROM collection_items WHERE post_id IS NOT NULL');
         }
 
@@ -80,6 +96,46 @@ return new class extends Migration
             DB::statement('ALTER TABLE collection_items ALTER COLUMN recipe_id SET NOT NULL');
             DB::statement('ALTER TABLE collection_items ADD PRIMARY KEY (collection_id, recipe_id)');
         }
+    }
+
+    /**
+     * Przerywa cofanie, jeśli w zeszytach leżą zapisane wpisy.
+     *
+     * Liczba w komunikacie jest ważniejsza, niż wygląda: „ktoś coś straci" nie
+     * skłania do zatrzymania się, „stracisz 1 483 zapisane wpisy" owszem.
+     */
+    private function upewnijSieZeWolnoKasowacZapisaneWpisy(): void
+    {
+        $ile = (int) DB::table('collection_items')->whereNotNull('post_id')->count();
+
+        if ($ile === 0) {
+            return;
+        }
+
+        // `getenv()`, NIE `env()`. Na produkcji konfiguracja jest zbuforowana
+        // (`config:cache`), a wtedy `env()` zwraca `null` — czyli furtka nie
+        // zadziałałaby dokładnie tam, gdzie jest potrzebna, i wyglądałoby to
+        // jak awaria migracji. `getenv()` czyta środowisko procesu i buforowanie
+        // konfiguracji go nie dotyczy. Złapał to PHPStan.
+        if (getenv('KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY') === '1') {
+            return;
+        }
+
+        $instrukcja = <<<TEKST
+            Cofnięcie tej migracji skasuje {$ile} zapisanych wpisów z zeszytów — bezpowrotnie.
+            Stary klucz główny nie dopuszcza NULL w `recipe_id`, więc te wiersze nie mają jak przetrwać.
+
+            Zanim cofniesz:
+              1. zrób kopię tabeli:
+                 CREATE TABLE collection_items_kopia AS TABLE collection_items;
+              2. sprawdź, czy naprawdę potrzebujesz cofnięcia SCHEMATU — problem z widokiem
+                 albo z akcją zapisu naprawia się bez ruszania bazy;
+              3. jeśli tak, uruchom ponownie z KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY=1.
+
+            Na świeżym środowisku, gdzie nikt jeszcze nic nie zapisał, cofnięcie działa bez pytania.
+            TEKST;
+
+        throw new RuntimeException($instrukcja);
     }
 
     private function isPostgres(): bool

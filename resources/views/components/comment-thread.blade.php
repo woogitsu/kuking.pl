@@ -11,9 +11,16 @@
     odpowiedzi — w tym komponencie nie ma wygodnego miejsca na współdzielony
     podkomponent bez zakładania nowego pliku.
 --}}
-@props(['comments', 'action'])
+{{--
+    `ile` to LICZBA WSZYSTKICH wątków, nie tylko tych na stronie. Bez tego
+    parametru nagłówek przy paginacji kłamałby: pokazywałby „Komentarze (12)"
+    pod treścią, która ma ich sto. Domyślnie `null`, więc ekrany bez
+    paginacji nie muszą nic przekazywać i liczą jak dotąd.
+--}}
+@props(['comments', 'action', 'ile' => null])
+@php($wszystkich = $ile ?? $comments->count())
 <section class="stack" aria-labelledby="komentarze">
-    <h2 id="komentarze">Komentarze @if($comments->count()) ({{ $comments->count() }}) @endif</h2>
+    <h2 id="komentarze">Komentarze @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
 
     @forelse($comments as $comment)
         <article class="card">
@@ -21,6 +28,7 @@
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $comment->author->profile->username) }}">{{ $comment->author->displayName() }}</a>
+                    <x-konto-przykladowe :user="$comment->author" />
                     <p class="meta m-0">
                         <time datetime="{{ $comment->created_at->toIso8601String() }}">{{ \App\Support\Czas::data($comment->created_at, 'j F Y, H:i') }}</time>
                     </p>
@@ -32,14 +40,15 @@
             @if($commentIsRemoved)
                 <p class="meta italic">{{ $comment->body }}</p>
             @else
-                <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $comment->body }}</p>
+                <p class="tekst-jak-napisano">{{ $comment->body }}</p>
             @endif
 
             @foreach($comment->replies as $reply)
-                <div style="margin-left:var(--spacing-6); padding-left:var(--spacing-4); border-left:3px solid var(--color-border);">
+                <div class="watek-odpowiedzi">
                     <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
+                        <x-konto-przykladowe :user="$reply->author" />
                         <span class="meta">{{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}</span>
                     </div>
 
@@ -48,7 +57,7 @@
                     @if($replyIsRemoved)
                         <p class="meta italic">{{ $reply->body }}</p>
                     @else
-                        <p style="white-space:pre-line; overflow-wrap:anywhere;">{{ $reply->body }}</p>
+                        <p class="tekst-jak-napisano">{{ $reply->body }}</p>
 
                         @auth
                             @php($replyRemainingMinutes = 15 - (int) $reply->created_at->diffInMinutes(now()))
@@ -176,4 +185,8 @@
             albo <a href="{{ route('register') }}">załóż konto</a>. Zajmuje to minutę.
         </p>
     @endauth
+
+    @if($comments instanceof \Illuminate\Contracts\Pagination\Paginator)
+        <x-show-more :paginator="$comments" czego="komentarzy" />
+    @endif
 </section>

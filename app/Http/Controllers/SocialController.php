@@ -8,13 +8,13 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Social\Actions\UnblockUser;
 use App\Domain\Social\Actions\UnfollowUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use RuntimeException;
 
 class SocialController extends Controller
 {
@@ -32,7 +32,7 @@ class SocialController extends Controller
 
         try {
             $followed = $this->followUser->handle($request->user(), $target);
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withErrors(['follow' => $e->getMessage()]);
         }
 
@@ -56,7 +56,7 @@ class SocialController extends Controller
 
         try {
             $this->blockUser->handle($request->user(), $target, $request->ip());
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withErrors(['block' => $e->getMessage()]);
         }
 
@@ -117,6 +117,25 @@ class SocialController extends Controller
         // się z listą, wygląda jak zepsuty serwis.
         /** @var LengthAwarePaginator $paginator */
         $paginator = $target->{$relation}()
+            // KONTO ZAMKNIĘTE NIE MA PRAWA STAĆ NA LIŚCIE OSÓB.
+            //
+            // `UserPolicy::viewProfile()` daje 403 pod adresem tej osoby (chyba
+            // że patrzy moderator), ale to zapytanie budowało listę bez tego
+            // warunku — miało już filtr blokad, nie miało `dostepnyJakoAutor()`.
+            // Skutek: karta z awatarem, wyświetlaną nazwą i linkiem do profilu,
+            // który — kliknięty wprost — daje 403. Ta sama klasa błędu co
+            // wpis zbanowanego autora w feedzie obserwowanych (commit 964b99c)
+            // i co W5-08: konto mniej dostępne przez drzwi frontowe niż przez
+            // okno. `ban()`/`markForDeletion()` nie kasują wierszy z `follows`,
+            // więc bez tego warunku wiersz zostaje na liście na zawsze.
+            //
+            // `widocznyJakoOsoba()`, NIE `dostepnyJakoAutor()` — od D-022 te
+            // dwie granice się rozjeżdżają. Zanonimizowany PRZEPIS konta
+            // `erased` ma zostać widoczny; KARTA OSOBY z awatarem, linkiem
+            // do profilu i przyciskiem „Obserwuj" — nie ma, bo obserwować
+            // nie da się już nikogo (`UserPolicy::follow()` wymaga
+            // `isActive()`), a lista obserwujących nie jest archiwum.
+            ->widocznyJakoOsoba()
             ->with('profile.avatar')
             ->when($viewer !== null, function ($query) use ($viewer): void {
                 $widzId = $viewer->getKey();

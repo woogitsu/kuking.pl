@@ -79,24 +79,44 @@ class AwatarZnikaZDyskuTest extends TestCase
         $this->assertNull($user->fresh()->profile->avatar_media_id);
     }
 
-    public function test_plik_uzywany_przez_kogos_innego_zostaje_nietkniety(): void
+    public function test_zdjecie_znika_takze_gdy_ktos_inny_na_nie_wskazuje(): void
     {
+        /*
+         * TA REGUŁA ZOSTAŁA ODWRÓCONA (decyzja D-018, audyt W4-01).
+         *
+         * Wcześniej ten test wymagał, żeby zdjęcie wskazywane przez kogoś
+         * innego PRZETRWAŁO wymazanie konta — z uzasadnieniem, że kasowanie
+         * za dużo jest nieodwracalne i dotyka osoby, która o niczym nie wie.
+         * To było rozsądne przy dawnej regule „kasujemy tylko awatar".
+         *
+         * Teraz obowiązuje inna: zdjęcia osoby, która prosi o usunięcie konta,
+         * kasujemy WSZYSTKIE. Zdjęcie jest jej danymi osobowymi — twarz,
+         * wnętrze mieszkania, EXIF z miejscem — a nie zasobem, który ktoś inny
+         * może zatrzymać, bo zdążył go sobie przypiąć. Prośba o usunięcie
+         * danych wygrywa z czyjąś wygodą.
+         *
+         * Ten stan i tak jest w produkcie nieosiągalny: każde wgranie tworzy
+         * nowy wiersz `media` z `owner_id` osoby wgrywającej, więc Marek nie
+         * ma jak wskazać na zdjęcie Haliny. Test zostaje jako opis reguły
+         * i jako dowód, że nie zostawiamy po sobie wskaźnika w próżnię.
+         */
         Storage::fake('public');
         [$user, $avatar] = $this->kontoZAwatarem('halina');
 
-        // Ktoś inny wskazuje na to samo zdjęcie. Sytuacja rzadka, ale
-        // kasowanie za dużo jest tu NIEODWRACALNE — pliku nie da się
-        // przywrócić, a szkoda dotyczy kogoś, kto o niczym nie wie.
         $ktosInny = $this->user('marek');
         $ktosInny->profile->forceFill(['avatar_media_id' => $avatar->getKey()])->save();
 
         app(EraseAccountData::class)->handle($user);
 
-        Storage::disk('public')->assertExists($avatar->object_key);
-        $this->assertNotNull($avatar->fresh());
+        // Zdjęcie Haliny znika: plik i wiersz.
+        Storage::disk('public')->assertMissing($avatar->object_key);
+        $this->assertNull($avatar->fresh());
 
-        // Konto i tak jest wymazane — plik zostaje, bo należy już do kogoś
-        // innego, ale referencja z wymazanego profilu znika.
+        // U Marka NIE zostaje wskaźnik w próżnię — klucz obcy ma
+        // `nullOnDelete()`, więc referencja zeruje się sama. Bez tego profil
+        // Marka pytałby o wiersz, którego nie ma.
+        $this->assertNull($ktosInny->fresh()->profile->avatar_media_id);
+
         $this->assertNull($user->fresh()->profile->avatar_media_id);
     }
 

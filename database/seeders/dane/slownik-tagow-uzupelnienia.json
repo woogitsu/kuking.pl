@@ -1,0 +1,1006 @@
+{
+  "wersja": "1.0",
+  "zrodlo": "kuracja z poprzedniej bazy redakcyjnej TagSeeder (651 nazw), zawężona do pojęć, których slownik-tagow.json nie zawiera ani jako nazwy kanonicznej, ani jako aliasu.",
+  "tagi": [
+    {
+      "nazwa": "kapusta",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "seler",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "pietruszka",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "fasola",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "karczochy",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "jarmuż",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "jarmuz"
+      ]
+    },
+    {
+      "nazwa": "kalarepa",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "topinambur",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "koper",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "oliwki",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kapary",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "awokado",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "avocado"
+      ]
+    },
+    {
+      "nazwa": "grzyby leśne",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "grzyby lesne"
+      ]
+    },
+    {
+      "nazwa": "boćwina",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "bocwina"
+      ]
+    },
+    {
+      "nazwa": "imbir świeży",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "imbir swiezy",
+        "świeży imbir"
+      ]
+    },
+    {
+      "nazwa": "chili świeże",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "chili swieze",
+        "papryczka chili"
+      ]
+    },
+    {
+      "nazwa": "borówki",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "borowki"
+      ]
+    },
+    {
+      "nazwa": "limonka",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "mango",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "granat",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "figi",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "daktyle",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "orzechy nerkowca",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "nerkowce"
+      ]
+    },
+    {
+      "nazwa": "pistacje",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kasztany jadalne",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "kasztany"
+      ]
+    },
+    {
+      "nazwa": "orzechy",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "olej",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "mąka migdałowa",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "maka migdalowa"
+      ]
+    },
+    {
+      "nazwa": "cukier trzcinowy",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ser pleśniowy",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "ser plesniowy"
+      ]
+    },
+    {
+      "nazwa": "ser wiejski",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kurkuma",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "papryka słodka",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "papryka slodka"
+      ]
+    },
+    {
+      "nazwa": "papryka ostra",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kolendra",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "gałka muszkatołowa",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "galka muszkatolowa"
+      ]
+    },
+    {
+      "nazwa": "wanilia w strąku",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "wanilia w straku"
+      ]
+    },
+    {
+      "nazwa": "ocet balsamiczny",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "sos sojowy",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ketchup",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "chrzan tarty",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "tarty chrzan"
+      ]
+    },
+    {
+      "nazwa": "polędwica",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "poledwica"
+      ]
+    },
+    {
+      "nazwa": "kabanosy",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "salceson",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ozorki",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "boczek wędzony",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "boczek wedzony",
+        "wędzony boczek"
+      ]
+    },
+    {
+      "nazwa": "kiełbasa domowa",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "kielbasa domowa",
+        "domowa kiełbasa"
+      ]
+    },
+    {
+      "nazwa": "żeberka wieprzowe",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "zeberka wieprzowe"
+      ]
+    },
+    {
+      "nazwa": "karkówka wieprzowa",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "karkowka wieprzowa"
+      ]
+    },
+    {
+      "nazwa": "udziec z kurczaka",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "skrzydełka z kurczaka",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "skrzydelka z kurczaka",
+        "skrzydełka"
+      ]
+    },
+    {
+      "nazwa": "małże",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "malze"
+      ]
+    },
+    {
+      "nazwa": "kalmary",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "owoce morza",
+      "kategoria": "skladniki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "zrazy",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "roladki wołowe",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "roladki wolowe"
+      ]
+    },
+    {
+      "nazwa": "pieczeń",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "pieczen"
+      ]
+    },
+    {
+      "nazwa": "udka z kurczaka",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "udka"
+      ]
+    },
+    {
+      "nazwa": "kurczak w sosie",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kasza gryczana z mięsem",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "kasza gryczana z miesem"
+      ]
+    },
+    {
+      "nazwa": "kluski francuskie",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "tłuczone ziemniaki",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "tluczone ziemniaki"
+      ]
+    },
+    {
+      "nazwa": "placki drożdżowe",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "placki drozdzowe"
+      ]
+    },
+    {
+      "nazwa": "stek",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "befsztyk",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "spaghetti",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "makaron z sosem",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "makaron carbonara",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "carbonara"
+      ]
+    },
+    {
+      "nazwa": "tortilla",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "karp na wigilię",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "karp na wigilie",
+        "karp wigilijny"
+      ]
+    },
+    {
+      "nazwa": "zupa z pieczarek",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "zupa buraczkowa",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "zupa na maślance",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "zupa na maslance"
+      ]
+    },
+    {
+      "nazwa": "jajka w koszulkach",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "jajka po wiedeńsku",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "jajka po wiedensku"
+      ]
+    },
+    {
+      "nazwa": "jogurt z owocami",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "koktajl owocowy",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "tosty francuskie",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "twarożek na śniadanie",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "twarozek na sniadanie"
+      ]
+    },
+    {
+      "nazwa": "musli domowe",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "musli"
+      ]
+    },
+    {
+      "nazwa": "kanapki na słodko",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "kanapki na slodko"
+      ]
+    },
+    {
+      "nazwa": "pasta z tuńczyka",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "pasta z tunczyka"
+      ]
+    },
+    {
+      "nazwa": "hummus",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "humus"
+      ]
+    },
+    {
+      "nazwa": "tzatziki",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "dip czosnkowy",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "krakersy domowe",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "tatar",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "carpaccio",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "przystawki",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "deska serów",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "deska serow"
+      ]
+    },
+    {
+      "nazwa": "deska wędlin",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "deska wedlin"
+      ]
+    },
+    {
+      "nazwa": "koreczki",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "quiche",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "paluszki serowe",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "surówka z kapusty",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "surowka z kapusty"
+      ]
+    },
+    {
+      "nazwa": "coleslaw",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "sałatka cezar",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "salatka cezar"
+      ]
+    },
+    {
+      "nazwa": "sałatka z buraczków",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "salatka z buraczkow"
+      ]
+    },
+    {
+      "nazwa": "sałatka caprese",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "salatka caprese",
+        "caprese"
+      ]
+    },
+    {
+      "nazwa": "sałatka z fetą",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "salatka z feta"
+      ]
+    },
+    {
+      "nazwa": "galaretka",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "herbata ziołowa",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "herbata ziolowa"
+      ]
+    },
+    {
+      "nazwa": "kawa mrożona",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "kawa mrozona"
+      ]
+    },
+    {
+      "nazwa": "mrożona herbata",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "mrozona herbata"
+      ]
+    },
+    {
+      "nazwa": "koktajl mleczny",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "grzane wino",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "poncz",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "oranżada",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "oranzada"
+      ]
+    },
+    {
+      "nazwa": "napój z imbirem",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "napoj z imbirem"
+      ]
+    },
+    {
+      "nazwa": "sok owocowy",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "sok warzywny",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "bułki drożdżowe",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "bulki drozdzowe"
+      ]
+    },
+    {
+      "nazwa": "bułka maślana",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "bulka maslana"
+      ]
+    },
+    {
+      "nazwa": "murzynek",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ciasto biszkoptowe",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ciasto cytrynowe",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ciasto marmurkowe",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "babka wielkanocna",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "sękacz",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "sekacz"
+      ]
+    },
+    {
+      "nazwa": "keks świąteczny",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "keks swiateczny"
+      ]
+    },
+    {
+      "nazwa": "pierniki lukrowane",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "tort urodzinowy",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "tort weselny",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "tort owocowy",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ciasto bez pieczenia",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "ciasto bezowe",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "wafle domowe",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "lody domowe",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "mus czekoladowy",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "krem waniliowy",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "krem czekoladowy",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "chałwa",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "chalwa"
+      ]
+    },
+    {
+      "nazwa": "krówki",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "krowki"
+      ]
+    },
+    {
+      "nazwa": "ptasie mleczko",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "sałatka owocowa",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "salatka owocowa"
+      ]
+    },
+    {
+      "nazwa": "owoce w czekoladzie",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "domowe cukierki",
+      "kategoria": "wypieki",
+      "aliasy": []
+    },
+    {
+      "nazwa": "zakwas",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kimchi",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "passata",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "musztarda domowa",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "chutney",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "marynaty",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "papryka konserwowa",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "wino domowe",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kwas chlebowy",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "suszone owoce",
+      "kategoria": "przetwory",
+      "aliasy": []
+    },
+    {
+      "nazwa": "w sokowirówce",
+      "kategoria": "sprzet",
+      "aliasy": [
+        "w sokowirowce"
+      ]
+    },
+    {
+      "nazwa": "w blenderze",
+      "kategoria": "sprzet",
+      "aliasy": []
+    },
+    {
+      "nazwa": "keto",
+      "kategoria": "diety",
+      "aliasy": []
+    },
+    {
+      "nazwa": "niskowęglowodanowe",
+      "kategoria": "diety",
+      "aliasy": [
+        "niskoweglowodanowe"
+      ]
+    },
+    {
+      "nazwa": "dla alergików",
+      "kategoria": "diety",
+      "aliasy": [
+        "dla alergikow"
+      ]
+    },
+    {
+      "nazwa": "dla niemowląt",
+      "kategoria": "diety",
+      "aliasy": [
+        "dla niemowlat"
+      ]
+    },
+    {
+      "nazwa": "grill",
+      "kategoria": "okazje",
+      "aliasy": [
+        "na grilla",
+        "z grilla"
+      ]
+    },
+    {
+      "nazwa": "ognisko",
+      "kategoria": "okazje",
+      "aliasy": [
+        "przy ognisku"
+      ]
+    },
+    {
+      "nazwa": "śniadanie wielkanocne",
+      "kategoria": "okazje",
+      "aliasy": [
+        "sniadanie wielkanocne",
+        "wielkanocne śniadanie"
+      ]
+    },
+    {
+      "nazwa": "barszcz",
+      "kategoria": "potrawy",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kotlety",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "kotlet"
+      ]
+    },
+    {
+      "nazwa": "krem",
+      "kategoria": "wypieki",
+      "aliasy": [
+        "kremy"
+      ]
+    },
+    {
+      "nazwa": "kasza",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "kasze"
+      ]
+    },
+    {
+      "nazwa": "sok",
+      "kategoria": "przetwory",
+      "aliasy": [
+        "soki"
+      ]
+    },
+    {
+      "nazwa": "syrop",
+      "kategoria": "przetwory",
+      "aliasy": [
+        "syropy"
+      ]
+    },
+    {
+      "nazwa": "pasta",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "pasty"
+      ]
+    },
+    {
+      "nazwa": "placki",
+      "kategoria": "potrawy",
+      "aliasy": [
+        "placek"
+      ]
+    },
+    {
+      "nazwa": "nalewka",
+      "kategoria": "przetwory",
+      "aliasy": [
+        "nalewki"
+      ]
+    },
+    {
+      "nazwa": "ser",
+      "kategoria": "skladniki",
+      "aliasy": [
+        "sery"
+      ]
+    },
+    {
+      "nazwa": "kuchnia bliskowschodnia",
+      "kategoria": "kuchnie-swiata",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kuchnia skandynawska",
+      "kategoria": "kuchnie-swiata",
+      "aliasy": []
+    },
+    {
+      "nazwa": "kuchnia śródziemnomorska",
+      "kategoria": "kuchnie-swiata",
+      "aliasy": [
+        "kuchnia srodziemnomorska"
+      ]
+    }
+  ]
+}

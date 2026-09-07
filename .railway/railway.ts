@@ -215,20 +215,60 @@ export default defineRailway((ctx) => {
     // Implementacja: bootstrap/app.php → $middleware->trustProxies(at: '*')
     TRUSTED_PROXIES: "*",
 
-    // --- Storage zdjęć: Cloudflare R2 ----------------------------------------
-    // Dysk "r2" w config/filesystems.php to zwykły driver "s3".
-    // Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
-    // to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
+    // --- Storage zdjęć: Cloudflare R2, DWA BUCKETY ---------------------------
+    //
+    //  To jest granica bezpieczeństwa, a nie porządki (audyt G-01).
+    //
+    //  Cloudflare nie implementuje S3-owych ACL na obiektach — `x-amz-acl`
+    //  jest w tabeli zgodności oznaczony jako NIEOBSŁUGIWANY dla PutObject.
+    //  Publiczność w R2 jest cechą BUCKETU: własna domena albo r2.dev.
+    //  Jeden bucket pod `cdn.kuking.pl` wystawiał więc także prefiks
+    //  `incoming/` z ORYGINAŁAMI, a te niosą pełny EXIF, czyli współrzędne
+    //  GPS kuchni. Adres oryginału dawało się wyprowadzić z publicznego
+    //  adresu wariantu — ten sam UUID, ta sama data, inny prefiks.
+    //
+    //    R2_BUCKET         oryginały (`incoming/`). BEZ własnej domeny,
+    //                      r2.dev WYŁĄCZONE. Dostęp tylko przez API S3.
+    //    R2_PUBLIC_BUCKET  przetworzone warianty WebP (`media/`). TEN i tylko
+    //                      ten ma `cdn.kuking.pl`.
+    //
+    //  Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
+    //  to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
     FILESYSTEM_DISK: "r2",
     AWS_DEFAULT_REGION: "auto", // R2 wymaga literalnie "auto"
     AWS_USE_PATH_STYLE_ENDPOINT: "false",
     AWS_ACCESS_KEY_ID: ctx.shared.R2_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: ctx.shared.R2_SECRET_ACCESS_KEY,
     AWS_BUCKET: ctx.shared.R2_BUCKET,
+    AWS_PUBLIC_BUCKET: ctx.shared.R2_PUBLIC_BUCKET,
+    // Trzeci bucket, też prywatny: paczki z danymi (RODO). Osobny od
+    // oryginałów, bo to inny cykl życia (TTL 7 dni) i inna zawartość —
+    // kopia CAŁEGO konta w jednym pliku ZIP.
+    AWS_EXPORTS_BUCKET: ctx.shared.R2_EXPORTS_BUCKET,
+    // JAWNIE, nie z wartości domyślnej. Produkcja ma OSOBNE kontenery web,
+    // worker i scheduler bez wspólnego wolumenu: paczkę buduje worker,
+    // a pobranie obsługuje web. Na dysku `local` plik powstawał w jednym
+    // kontenerze, a szukano go w drugim — w bazie `ready`, u człowieka 404
+    // (audyt W3-01).
+    KUKING_EXPORT_DISK: "r2_eksporty",
     AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
-    // Publiczny prefiks URL — własna domena bucketa za CDN Cloudflare.
-    // Dzięki temu Storage::url() zwraca https://cdn.kuking.pl/...
-    AWS_URL: ctx.shared.R2_PUBLIC_URL,
+    //  AWS_URL ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (audyt W7-02, P0).
+    //
+    //  Była to własna domena bucketa wariantów za CDN Cloudflare i to ona
+    //  była adresem każdego zdjęcia w serwisie. Taki adres nikogo o nic nie
+    //  pyta: kto raz go skopiował, otwierał zdjęcie także po zablokowaniu,
+    //  po cofnięciu obserwowania i po przełączeniu przepisu na prywatny.
+    //  Najgorszy przypadek to skan odręcznej kartki z przepisem rodzinnym
+    //  (`recipes.source_scan_media_id`) — z nazwiskami i adresami.
+    //
+    //  Adresem zdjęcia jest teraz trasa aplikacji `/zdjecia/{id}/{wariant}`:
+    //  pyta Policy treści nadrzędnej i przekierowuje (302) na adres podpisany
+    //  kluczem S3, ważny kilka minut. Bajty dalej nie idą przez PHP.
+    //
+    //  ZDJĘCIE TEJ ZMIENNEJ NIE ZDEJMUJE DOMENY Z BUCKETU. Dopóki
+    //  `cdn.kuking.pl` wskazuje bucket wariantów, stare adresy działają dalej
+    //  — to jest ręczna czynność w panelu Cloudflare, issue #120, i należy
+    //  do właściciela.
 
     // --- Poczta transakcyjna --------------------------------------------------
     MAIL_MAILER: "smtp",
@@ -525,8 +565,15 @@ export default defineRailway((ctx) => {
 
       limitOverride: {
         containers: {
-          // Więcej RAM niż web: dekodowanie zdjęcia 24 Mpx w gd to ~100 MB
-          // na sam bitmap, plus narzut Laravela.
+          // Więcej RAM niż web. Liczby są ZMIERZONE (szczyt RSS procesu przy
+          // przetworzeniu jednego zdjęcia wraz z trzema wariantami, gd, PHP 8.4):
+          //     12 Mpx → 161 MB      24 Mpx → 254 MB      50 Mpx → 452 MB
+          // 50 Mpx to limit z `config/kuking.php`, czyli najgorszy dozwolony
+          // przypadek. 1024 MB zostawia nad nim ponad dwukrotny zapas.
+          //
+          // Wcześniej stało tu „24 Mpx to ~100 MB" — pomiar pokazał 254 MB.
+          // Zapas był więc liczony od liczby wziętej z szacunku 4 bajtów
+          // na piksel, który pomija bufory pośrednie przy skalowaniu.
           memoryBytes: 1024 * MB,
           cpu: 2,
         },

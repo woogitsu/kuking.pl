@@ -7,15 +7,17 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use RuntimeException;
 
 /**
  * Przepisy.
@@ -109,7 +111,7 @@ class RecipeController extends Controller
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
         }
 
@@ -169,7 +171,7 @@ class RecipeController extends Controller
                 existing: $recipe,
                 ip: $request->ip(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
         }
 
@@ -192,6 +194,24 @@ class RecipeController extends Controller
 
             $target = Recipe::findOrFail($redirect->recipe_id);
 
+            // TA SAMA BRAMKA CO POD NOWYM ADRESEM.
+            //
+            // Autoryzacja stała wcześniej TYLKO w gałęzi „przepis znaleziony
+            // pod tym slugiem", więc przekierowanie odsyłało 301 bez pytania
+            // o Policy. Slug powstaje z tytułu, więc sam nagłówek `Location`
+            // oddawał tytuł przepisu prywatnego albo autora zbanowanego —
+            // czyli treść była mniej dostępna przez drzwi frontowe (403) niż
+            // przez okno. Zmierzone: `301 → /przepisy/nalewka-na-ziolach-babci-wandy`
+            // dla przepisu `visibility = private` oglądanego przez obcego.
+            //
+            // 404, a nie 403: pod NOWYM adresem odmowa to 403 i tak zostaje,
+            // ale tu odpowiadamy dokładnie tym samym, co na slug nieistniejący.
+            // 403 potwierdzałoby, że ten stary adres jest znanym
+            // przekierowaniem, czyli że przepis o takim tytule istnieje.
+            if (! Gate::forUser($request->user())->allows('view', $target)) {
+                abort(404);
+            }
+
             return redirect()->route('recipes.show', $target, 301);
         }
 
@@ -203,16 +223,32 @@ class RecipeController extends Controller
             'sourceScan',
             'ingredients.unit',
             'steps.media',
-            // Komentarze filtrowane przez blokady (issue #41). Bez tego
-            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
-            'comments' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.author.profile.avatar',
-            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.replies.author.profile.avatar',
+            // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
+            // treści bez górnej granicy, więc idą osobnym, paginowanym
+            // zapytaniem. `->load()` wciągał je wszystkie naraz.
         ]);
+
+        // Komentarze filtrowane przez blokady (issue #41) — bez tego
+        // zablokowana osoba nadal była widoczna pod cudzymi treściami — i od
+        // dziś PAGINOWANE. Odpowiedzi jednego wątku dociągamy w całości: mają
+        // tylko jeden poziom (`comment-thread.blade.php`) i są ograniczone
+        // liczbą osób, które weszły w JEDNĄ rozmowę, a nie popularnością
+        // całego przepisu.
+        $komentarze = $model->comments()
+            ->widoczneDla($request->user())
+            ->with([
+                'author.profile.avatar',
+                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                'replies.author.profile.avatar',
+            ])
+            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            'komentarze' => $komentarze,
+            // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
+            // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
+            'komentarzyRazem' => $komentarze->total(),
             // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
             // pokazywała każde wykonanie, nie pytając, czy widz zablokował
             // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
@@ -221,7 +257,23 @@ class RecipeController extends Controller
                 ->with(['user.profile.avatar', 'media'])
                 ->limit(12)
                 ->get(),
-            'cookedCount' => $model->cookedEvents()->count(),
+            // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
+            //
+            // Stało tu gołe `count()` na całej relacji, dziesięć linijek pod
+            // galerią, która filtr `widoczneDla()` miała od audytu A4. Reguła
+            // była więc w warstwie LISTY i nie było jej w warstwie LICZBY.
+            // Zmierzone przy dwóch wykonaniach, z których jedno należało do
+            // osoby zablokowanej przez widza: galeria pokazywała jedną kartę,
+            // a znaczek nad nią „Ugotowane 2 ×" i JSON-LD
+            // `"userInteractionCount":2`. Czyli sama strona meldowała widzowi,
+            // że osoba, którą zablokował, ugotowała ten przepis — ten sam
+            // „oracle istnienia" co zamknięte W7-05 i co licznik obserwujących
+            // na profilu.
+            //
+            // Skutek świadomy: liczba jest per widz, tak jak per widz jest już
+            // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
+            // więc dane dla wyszukiwarek zostają bez zmian.
+            'cookedCount' => $model->cookedEvents()->widoczneDla($request->user())->count(),
             // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
             // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
             // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
@@ -233,8 +285,18 @@ class RecipeController extends Controller
             'obserwuje' => $request->user() !== null
                 && $request->user()->getKey() !== $model->author_id
                 && $request->user()->isFollowing($model->author),
-            'zrobiaPonownie' => $model->cookedEvents()->where('would_make_again', true)->count(),
-            'oceniloWykonanie' => $model->cookedEvents()->whereNotNull('would_make_again')->count(),
+            // Oba liczniki opinii — ta sama granica co przy `cookedCount`
+            // wyżej. Bez niej znaczek pisał „3 z 4 osób zrobi to ponownie"
+            // przy trzech widocznych wykonaniach (zmierzone), czyli zdradzał
+            // istnienie czwartego i JESZCZE jego odpowiedź.
+            'zrobiaPonownie' => $model->cookedEvents()
+                ->widoczneDla($request->user())
+                ->where('would_make_again', true)
+                ->count(),
+            'oceniloWykonanie' => $model->cookedEvents()
+                ->widoczneDla($request->user())
+                ->whereNotNull('would_make_again')
+                ->count(),
             'isSaved' => $request->user() !== null && $request->user()
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
@@ -259,11 +321,24 @@ class RecipeController extends Controller
                 author: $request->user(),
                 subject: $model,
                 body: $data['body'],
-                parent: $data['parent_id'] === null
+                // `?? null`, bo `validate()` NIE zwraca klucza, którego
+                // w żądaniu nie było — a `parent_id` jest `nullable`.
+                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
+                // formularza, który zawsze wysyła puste) kończył się błędem
+                // „Undefined array key", czyli 500 zamiast komentarza.
+                //
+                // `widoczneDla()` — audyt W7-06. Bez tego można było podać
+                // UUID komentarza ukrytego przez blokadę i podpiąć się pod
+                // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
+                // kontrolerów jest kilka.
+                parent: ($data['parent_id'] ?? null) === null
                     ? null
-                    : $model->comments()->whereKey($data['parent_id'])->first(),
+                    : $model->comments()
+                        ->widoczneDla($request->user())
+                        ->whereKey($data['parent_id'])
+                        ->first(),
             );
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
@@ -298,8 +373,8 @@ class RecipeController extends Controller
             'source_note' => ['nullable', 'string', 'max:2000'],
             'source_url' => ['nullable', 'url', 'max:2000'],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
-            'hero_photo' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
-            'source_scan' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:120'],
             'ingredients.*.text' => ['nullable', 'string', 'max:240'],
             'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation\Actions;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
-use RuntimeException;
 
 /**
  * Złożenie odwołania od decyzji moderacyjnej (issue #10, DSA art. 20).
@@ -41,15 +41,15 @@ final class FileAppeal
     public function handle(User $osoba, ModerationAction $decyzja, string $tresc, ?string $ip = null): Appeal
     {
         if ($decyzja->subject_user_id === null || $decyzja->subject_user_id !== $osoba->getKey()) {
-            throw new RuntimeException('Ta decyzja nie dotyczy Twojego konta.');
+            throw new BladDlaCzlowieka('Ta decyzja nie dotyczy Twojego konta.');
         }
 
         if (! in_array($decyzja->action, ModerationAction::ODWOLYWALNE, true)) {
-            throw new RuntimeException('Od tej decyzji nie ma odwołania — nic nie zostało ograniczone.');
+            throw new BladDlaCzlowieka('Od tej decyzji nie ma odwołania — nic nie zostało ograniczone.');
         }
 
         if ($decyzja->appeal()->exists()) {
-            throw new RuntimeException(
+            throw new BladDlaCzlowieka(
                 'Odwołanie od tej decyzji już do nas trafiło. Odpowiemy na nie w ciągu '
                 .config('kuking.moderation.appeal_response_working_days').' dni roboczych. '
                 .'Jeśli pojawiły się nowe okoliczności, napisz na '
@@ -58,7 +58,7 @@ final class FileAppeal
         }
 
         if (! $decyzja->appealDeadline()->isFuture()) {
-            throw new RuntimeException(
+            throw new BladDlaCzlowieka(
                 'Termin na odwołanie od tej decyzji minął '
                 .$decyzja->appealDeadline()->translatedFormat('j F Y').'. '
                 .'Jeśli pojawiły się nowe okoliczności, napisz na '
@@ -76,7 +76,7 @@ final class FileAppeal
         } catch (UniqueConstraintViolationException) {
             // Dwa kliknięcia „Wyślij" albo dwie zakładki. Baza odbiła drugie —
             // i dobrze. Człowiek ma zobaczyć „mamy to", nie błąd serwera.
-            throw new RuntimeException(
+            throw new BladDlaCzlowieka(
                 'Odwołanie od tej decyzji już do nas trafiło. Nie trzeba wysyłać go drugi raz.',
             );
         }

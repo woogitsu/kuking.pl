@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use RuntimeException;
 
 /**
  * Cofnięcie ukrycia albo usunięcia treści (issue #65).
@@ -51,7 +51,7 @@ final class RestoreContent
      *                                 — a dwa powiadomienia o jednym zdarzeniu wyglądają jak
      *                                 usterka.
      *
-     * @throws RuntimeException gdy tej treści nie da się przywrócić
+     * @throws BladDlaCzlowieka gdy tej treści nie da się przywrócić
      */
     public function handle(
         User $moderator,
@@ -65,14 +65,14 @@ final class RestoreContent
         $typ = ModeratedContent::typ($target);
 
         if ($typ === null || ! ModeratedContent::daSieUkryc($target)) {
-            throw new RuntimeException('Tej treści nie da się przywrócić.');
+            throw new BladDlaCzlowieka('Tej treści nie da się przywrócić.');
         }
 
         $bylaUkryta = ModeratedContent::jestUkryta($target);
         $bylaUsunieta = method_exists($target, 'trashed') && $target->trashed();
 
         if (! $bylaUkryta && ! $bylaUsunieta) {
-            throw new RuntimeException('Ta treść jest już widoczna — nie ma czego przywracać.');
+            throw new BladDlaCzlowieka('Ta treść jest już widoczna — nie ma czego przywracać.');
         }
 
         $poprzedni = $this->statusSprzedUkrycia($typ, (string) $target->getKey());
@@ -84,6 +84,18 @@ final class RestoreContent
 
         $decyzja = ModerationAction::create([
             'moderator_id' => $moderator->getKey(),
+            // ŚWIADOMIE NULL, a nie identyfikator zgłoszenia, z którego
+            // moderator kliknął „Przywróć treść". Indeks częściowy
+            // `moderation_actions_one_per_report` dopuszcza JEDNĄ decyzję na
+            // zgłoszenie (migracja 2026_09_06_190000) — przywrócenie jest
+            // drugą i nie ma prawa zająć tego miejsca.
+            //
+            // Uzasadnienie z art. 17 czyta `report_id` po to, żeby powiedzieć
+            // autorowi, czy sprawa zaczęła się od zgłoszenia. Puste pole
+            // tutaj nic nie psuje: `UzasadnienieDecyzji::zdania()` nie tworzy
+            // uzasadnienia dla `unhide` wcale — od zdjęcia ukrycia nikt się
+            // nie odwołuje, więc zdanie o pochodzeniu sprawy nigdzie nie
+            // trafia i nie ma jak stać się nieprawdą.
             'report_id' => null,
             'target_type' => $typ,
             'target_id' => $target->getKey(),

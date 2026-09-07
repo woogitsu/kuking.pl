@@ -105,7 +105,7 @@
                                 <p class="kuking-board-note">{{ $notes[$post->getKey()] }}</p>
                             @endif
 
-                            <a class="btn btn-quiet" href="{{ $post->url() }}" style="padding-left:0;">Zobacz</a>
+                            <a class="btn btn-quiet btn-quiet-bez-wciecia" href="{{ $post->url() }}">Zobacz</a>
                         </div>
                     </li>
                 @endforeach

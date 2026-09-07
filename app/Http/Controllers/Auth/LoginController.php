@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Moderation\UzasadnienieDecyzji;
 use App\Http\Controllers\Controller;
+use App\Models\ModerationAction;
 use App\Models\User;
+use App\Support\KluczeLimitow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,15 +43,32 @@ class LoginController extends Controller
             'password.required' => 'Wpisz hasło.',
         ]);
 
-        $throttleKey = mb_strtolower($data['login']).'|'.$request->ip();
+        // TRZY KOSZYKI, NIE JEDEN (W7-01, R3 §5). Liczby w
+        // `config/kuking.php` → `login_limits`, klucze w `KluczeLimitow`.
+        //
+        // Wcześniej był jeden licznik po kluczu `login|ip`. Zmierzone: 20
+        // nieudanych prób na TO SAMO konto z 20 różnych adresów nie
+        // wywoływało żadnej blokady — bo licznik przywiązany do adresu
+        // strukturalnie nie widzi ataku rozproszonego. To nie jest skutek
+        // `trustProxies`: zmiana adresu jest dla napastnika tania także bez
+        // podszywania się pod proxy (botnet, sieć mobilna, chmura).
+        //
+        // Koszyk KONTA zamyka tę lukę i jest jedyny, który nie zależy od
+        // adresu wcale.
+        $koszyki = $this->koszyki($data['login'], (string) $request->ip());
 
-        if (RateLimiter::tooManyAttempts($throttleKey, maxAttempts: 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            $minutes = max(1, (int) ceil($seconds / 60));
+        foreach ($koszyki as $koszyk) {
+            if (RateLimiter::tooManyAttempts($koszyk['klucz'], $koszyk['proby'])) {
+                $minutes = max(1, (int) ceil(RateLimiter::availableIn($koszyk['klucz']) / 60));
 
-            throw ValidationException::withMessages([
-                'login' => "Za dużo prób logowania. Spróbuj ponownie za {$minutes} min.",
-            ]);
+                // JEDEN KOMUNIKAT DLA WSZYSTKICH TRZECH KOSZYKÓW, świadomie.
+                // Rozróżnienie („to Twoje konto jest zablokowane" kontra „to
+                // Twój adres") powiedziałoby napastnikowi, który licznik
+                // trafił — czyli czy konto o tym loginie w ogóle istnieje.
+                throw ValidationException::withMessages([
+                    'login' => "Za dużo prób logowania. Spróbuj ponownie za {$minutes} min.",
+                ]);
+            }
         }
 
         $user = $this->findUser($data['login']);
@@ -59,7 +79,9 @@ class LoginController extends Controller
         // kodu z aplikacji. `attempt()` logowałby od razu, na chwilę
         // otwierając serwis samym hasłem.
         if ($user === null || ! Auth::validate(['email' => $user->email, 'password' => $data['password']])) {
-            RateLimiter::hit($throttleKey, decaySeconds: 300);
+            foreach ($koszyki as $koszyk) {
+                RateLimiter::hit($koszyk['klucz'], decaySeconds: $koszyk['sekundy']);
+            }
 
             throw ValidationException::withMessages([
                 'login' => 'Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.',
@@ -78,7 +100,11 @@ class LoginController extends Controller
         //
         // Konto z minioną karą też przechodzi: `EnsureAccountIsActive`
         // przywraca je przy pierwszym żądaniu.
-        if ($user->isBanned() || $user->status === User::STATUS_PENDING_DELETE) {
+        // `STATUSY_ZAMKNIETEGO_KONTA` zamiast dwóch wypisanych statusów:
+        // od D-022 jest trzeci (`erased`) i to jest właśnie ten status, przy
+        // którym wpuszczenie kogokolwiek byłoby najgorsze — konto po
+        // wymazaniu danych nie ma już właściciela, a jego hasło jest losowe.
+        if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
             // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
             // zalogowało, więc nie ma z czego wylogowywać.
             throw ValidationException::withMessages([
@@ -86,7 +112,15 @@ class LoginController extends Controller
             ]);
         }
 
-        RateLimiter::clear($throttleKey);
+        // CZYŚCIMY PARĘ I KONTO, NIGDY ADRES.
+        //
+        // Gdyby poprawne logowanie czyściło koszyk ADRESU, napastnik
+        // zalogowałby się na WŁASNE, jednorazowe konto z tego samego
+        // adresu, żeby zresetować licznik adresowy — i wrócił do rozpylania
+        // po cudzych kontach z czystym licznikiem. To jednozdaniowa reguła,
+        // bardzo łatwa do pominięcia, więc pilnuje jej osobny test.
+        RateLimiter::clear($koszyki['para']['klucz']);
+        RateLimiter::clear($koszyki['konto']['klucz']);
 
         // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
         // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji
@@ -118,6 +152,15 @@ class LoginController extends Controller
      */
     private function komunikatOdmowy(User $user): string
     {
+        // Konto po wykonanej karencji (D-022): nie ma czego odzyskiwać
+        // i trzeba to powiedzieć wprost, a nie odsyłać do formularza
+        // cofnięcia, który tej osobie odmówi.
+        if ($user->isErased()) {
+            return 'To konto zostało usunięte na Twoją prośbę, razem z danymi do logowania, '
+                .'i nie da się go odzyskać. Jeśli chcesz wrócić do Kuking, założysz nowe konto. '
+                .'Jeśli to pomyłka, napisz do nas: '.config('kuking.community.contact_email');
+        }
+
         if ($user->status === User::STATUS_PENDING_DELETE) {
             return 'To konto jest oznaczone do usunięcia, dlatego logowanie jest zamknięte. Jeśli chcesz je odzyskać, '
                 .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
@@ -127,9 +170,46 @@ class LoginController extends Controller
 
         $odModeratora = $user->latestModerationMessage();
 
+        /*
+         * UZASADNIENIE Z ART. 17 UST. 3 TEŻ MUSI BYĆ TUTAJ.
+         *
+         * Powiadomienie w serwisie niesie od dziś podstawę decyzji, informację
+         * o tym, czy sprawa zaczęła się od zgłoszenia, zdanie o braku automatu
+         * i pełne pouczenie o środkach odwoławczych z terminem
+         * (`UzasadnienieDecyzji`). Osoba ZABLOKOWANA tego powiadomienia nie
+         * przeczyta — do serwisu nie wejdzie. Gdyby uzasadnienie zostało tylko
+         * tam, art. 17 byłby spełniony dla wszystkich POZA tymi, których
+         * dotyczy najmocniejsza z decyzji.
+         *
+         * Bierzemy ostatnią BLOKADĘ tej osoby, nie ostatnią decyzję w ogóle:
+         * komunikat wyżej mówi „to konto zostało zablokowane" i uzasadnienie
+         * musi dotyczyć tej samej decyzji, a nie ukrycia wpisu z zeszłego roku.
+         */
+        $blokada = ModerationAction::query()
+            ->where('subject_user_id', $user->getKey())
+            ->where('action', ModerationAction::ACTION_BAN)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $uzasadnienie = $blokada === null ? [] : UzasadnienieDecyzji::zdania($blokada);
+
         return 'To konto zostało zablokowane. '
             .($odModeratora !== null ? $odModeratora.' ' : '')
-            .'Jeśli uważasz, że to pomyłka, napisz do nas: '
+            .($uzasadnienie === [] ? '' : implode(' ', $uzasadnienie).' ')
+            // Odwołanie dla osoby zablokowanej ma osobny, PUBLICZNY formularz
+            // (#10) — bez niego zdanie „możesz się odwołać" wyżej nie miałoby
+            // dokąd prowadzić, bo do serwisu ta osoba nie wejdzie.
+            .($blokada !== null && $blokada->isAppealable()
+                ? 'Odwołanie złożysz na '.route('appeals.guest').'. '
+                : '')
+            // Dwa warianty ostatniego zdania, bo uzasadnienie mówi już
+            // „jeśli uważasz, że to pomyłka, możesz się odwołać". Powtórzenie
+            // tego samego wtrętu dwa zdania później wygląda jak usterka
+            // i wydłuża komunikat, który i tak jest długi.
+            .($uzasadnienie === []
+                ? 'Jeśli uważasz, że to pomyłka, napisz do nas: '
+                : 'Możesz też napisać do nas: ')
             .config('kuking.community.contact_email');
     }
 
@@ -155,6 +235,29 @@ class LoginController extends Controller
      * zablokowanych (#10) i cofnięcie usunięcia konta (audyt A8). Obie te
      * osoby nie mogą wejść do serwisu, a muszą dać się rozpoznać.
      */
+    /**
+     * Trzy koszyki limitera z kluczami i liczbami z konfiguracji.
+     *
+     * @return array{para: array{klucz: string, proby: int, sekundy: int}, konto: array{klucz: string, proby: int, sekundy: int}, adres: array{klucz: string, proby: int, sekundy: int}}
+     */
+    private function koszyki(string $login, string $adres): array
+    {
+        $klucze = app(KluczeLimitow::class);
+        $limity = (array) config('kuking.login_limits');
+
+        $koszyk = fn (string $nazwa, string $klucz): array => [
+            'klucz' => $klucz,
+            'proby' => (int) ($limity[$nazwa]['proby'] ?? 5),
+            'sekundy' => (int) ($limity[$nazwa]['sekundy'] ?? 60),
+        ];
+
+        return [
+            'para' => $koszyk('para', $klucze->para($login, $adres)),
+            'konto' => $koszyk('konto', $klucze->konto($login)),
+            'adres' => $koszyk('adres', $klucze->adres($adres)),
+        ];
+    }
+
     private function findUser(string $login): ?User
     {
         return User::findByLogin($login);

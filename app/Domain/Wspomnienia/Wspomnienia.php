@@ -65,9 +65,30 @@ final class Wspomnienia
             // ta jedna osoba — to samo, co widzi na swoim profilu.
             ->where('hide_as_memory', false)
             ->whereNotNull('published_at')
+            // `at time zone` NIE JEST TU OZDOBĄ — bez niego ta funkcja gubi
+            // wspomnienia. `published_at` to `timestamptz`, więc `extract`
+            // czyta z niego dzień W UTC, a porównujemy go z dniem CZYTELNIKA
+            // wyliczonym linijkę wyżej. Dla wpisu opublikowanego po północy
+            // czasu lokalnego te dwa dni są różne i rocznica po cichu
+            // przesuwa się o dobę wstecz.
+            //
+            // Zmierzone na zamrożonym zegarze (15 marca 2026, 10:00 lokalnie),
+            // wpis z 15 marca 2025 o 00:30 lokalnie, czyli 14 marca 23:30 UTC:
+            //
+            //     dzień UTC wpisu:     14
+            //     dzień lokalny wpisu: 15
+            //     wspomnienie:         NIE ZNALEZIONE
+            //
+            // Dotyczy każdego wpisu z przedziału 00:00–02:00 czasu polskiego
+            // (00:00–01:00 zimą) — czyli osoby, która ugotowała późno i wrzuciła
+            // zdjęcie po północy. Akurat w funkcji, której cała treść brzmi
+            // „ten sam dzień, rok temu".
+            //
+            // Indeksu to nie psuje: `extract(...)` i tak nie korzystał z żadnego.
             ->whereRaw(
-                'extract(month from published_at) = ? and extract(day from published_at) = ?',
-                [$dzis->month, $dzis->day],
+                'extract(month from published_at at time zone ?) = ? '
+                .'and extract(day from published_at at time zone ?) = ?',
+                [Czas::strefa(), $dzis->month, Czas::strefa(), $dzis->day],
             )
             // Ostro odcinamy dzisiejszy dzień: wpis z dzisiaj nie jest
             // wspomnieniem, tylko wpisem, i wisi kilka centymetrów niżej.

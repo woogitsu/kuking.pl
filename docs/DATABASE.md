@@ -22,9 +22,86 @@ Konto:
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
   (patrz niżej);
+- `delete_scope` — ZAKRES usunięcia wybrany przez człowieka: `minimum`
+  (domyślny — teksty zostają zanonimizowane) albo `everything` (patrz niżej);
 - locale;
 - text_scale;
+- theme (patrz niżej);
+- `wants_weekly_digest` — zgoda na cotygodniowy przegląd (patrz niżej);
 - verified timestamps.
+
+#### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
+
+Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
+
+Kolumna powstała z `DEFAULT true`, a formularz rejestracji o tę zgodę
+**nigdy nie pytał** — `resources/views/auth/register.blade.php` ma tylko
+`age_confirmed` i `terms_accepted`. Każde nowe konto wstawało więc zapisane
+na wysyłkę, o którą nikt go nie zapytał, a polityka prywatności opiera tę
+wysyłkę na art. 6 ust. 1 lit. a RODO — czyli na zgodzie.
+
+```sql
+ALTER TABLE users ALTER COLUMN wants_weekly_digest SET DEFAULT false;
+UPDATE users SET wants_weekly_digest = false WHERE wants_weekly_digest = true;
+```
+
+Migracja rusza także ISTNIEJĄCE wiersze, i wolno jej, bo nie ma czego
+stracić — oba fakty zmierzone:
+
+1. zgody nie da się wyrazić przy rejestracji (pola nie ma), więc żadne
+   `true` w bazie nie pochodzi z decyzji człowieka, tylko z tego `DEFAULT`;
+2. cotygodniowego przeglądu **nie ma w kodzie w ogóle** — zero mailable'i,
+   zero notyfikacji, zero jobów, a żadne odczytanie tej kolumny nie jest
+   klauzulą `where` wybierającą odbiorców. Nic nie zostało wysłane.
+
+Kto chce ten przegląd, włącza go haczykiem na `/ustawienia/prywatnosc`.
+Pilnuje tego test KONTROLNY w `ZgodaNaPrzegladNieJestDomyslnaTest` — bez
+niego reszta tego testu przechodziłaby także wtedy, gdyby ktoś przez pomyłkę
+zabetonował pole na `false` i odebrał ludziom możliwość zapisania się.
+
+**Czego ta migracja NIE naprawia:** nie ma kolumny z datą wyrażenia i datą
+wycofania zgody, więc **wycofania nie da się dziś wykazać**. Jeśli przegląd
+kiedyś powstanie, trzeba je dodać razem z nim — inaczej zostaje obietnica
+bez dowodu.
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` przywraca
+`DEFAULT true` dla NOWYCH wierszy i świadomie **nie** dotyka istniejących:
+cofnięcie migracji jest operacją techniczną i nie może samo z siebie
+zapisać ludzi na wysyłkę. Powrót do stanu sprzed migracji w całości wymaga
+osobnego, jawnego `UPDATE` — i wtedy jest to decyzja człowieka.
+
+#### `theme` — jasny/ciemny wygląd (D-019)
+
+**Zgłoszenie właściciela:** telefon sam przełączał stronę w tryb nocny, choć
+nikt o to nie prosił — arkusz stylów szedł za `prefers-color-scheme`
+systemu, migracja `2026_09_06_210000_add_theme_to_users`.
+
+```sql
+ALTER TABLE users ADD COLUMN theme varchar(10) NOT NULL DEFAULT 'light';
+ALTER TABLE users ADD CONSTRAINT users_theme_check
+    CHECK (theme IN ('light','dark'));
+```
+
+- `light` — domyślny dla KAŻDEGO konta, także już istniejącego;
+- `dark` — wyłącznie na jawne życzenie, `/ustawienia/czytelnosc` albo
+  szybki przełącznik w stopce.
+
+Świadomie tylko dwie wartości, bez trzeciej „jak w systemie" — patrz
+uzasadnienie w samej migracji i w `docs/DECISIONS.md` (D-019): dodanie jej
+przywróciłoby dokładnie to zachowanie (motyw zmieniający się sam, bez
+pytania), które ta kolumna ma wyłączyć.
+
+Gość (bez konta) dostaje ten sam wybór w ciasteczku, nie na koncie —
+`App\Http\Controllers\ThemeController`, nazwa ciasteczka w
+`config('kuking.theme.cookie')`.
+
+CHECK jest w bazie, nie tylko w PHP — z tego samego powodu co
+`posts.display_mode` wyżej w tym dokumencie: walidator da się ominąć nowym
+endpointem, `CHECK` nie.
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` zdejmuje CHECK
+i kasuje kolumnę; traci się wyłącznie WYBÓR WYGLĄDU. Żadne konto, wpis ani
+zdjęcie nie ginie — bezpieczne na produkcji w trakcie awarii.
 
 #### `status_expires_at` — termin wygaśnięcia kary
 
@@ -86,12 +163,19 @@ końca. `data_erased_at` to znacznik, że karencja się WYKONAŁA: komenda
 `email`, `password`, `remember_token` na koncie oraz `username`,
 `display_name`, `bio`, `avatar_media_id`, `region`, `speciality` na profilu.
 
-**Świadomie NIE dodajemy nowej wartości do `users_status_check`.** Konto
+> ⚠️ **AKAPIT PONIŻEJ BYŁ BŁĘDNY I ZOSTAŁ ZASTĄPIONY** przez migrację
+> `2026_09_07_500000_add_erased_status_and_delete_scope_to_users` (D-022).
+> Zostaje tu w całości, bo jest to najtańszy zapisany dowód, jak wyglądało
+> rozumowanie, które kosztowało dowiezienie połowy D-018 — patrz sekcja
+> „`status = 'erased'` i `delete_scope`" niżej.
+
+**~~Świadomie NIE dodajemy nowej wartości do `users_status_check`.~~** Konto
 pozostaje `pending_delete` na zawsze — z punktu widzenia logowania i tak nic
 się nie zmienia (nie logowało się od zgłoszenia usunięcia). Jedyna nowa
 informacja to właśnie ten znacznik.
 
 ```sql
+-- STAN SPRZED D-022 (nieaktualne):
 ALTER TABLE users
 ADD CONSTRAINT users_data_erased_at_check
 CHECK (data_erased_at IS NULL OR status = 'pending_delete');
@@ -101,7 +185,8 @@ CHECK (data_erased_at IS NULL OR status = 'pending_delete');
 zostają przy już zanonimizowanym koncie, zgodnie z `docs/legal/COMPLIANCE.md`
 §2 (dopuszczalne zachowanie treści o wartości społecznej w formie
 zanonimizowanej: „autor: konto usunięte"). Kasowane są wyłącznie dane, po
-których da się rozpoznać konkretnego człowieka.
+których da się rozpoznać konkretnego człowieka. **Od D-022 zależy to od
+`delete_scope`** — człowiek może poprosić o usunięcie także treści.
 
 **Cofnięcie usunięcia** (`App\Domain\Users\Actions\CancelAccountDeletion`,
 formularz `AccountDeletionController` — publiczny, bo osoba `pending_delete`
@@ -118,6 +203,101 @@ Indeks częściowy `users_pending_erase_idx` obejmuje wyłącznie konta
 już wymazano, ten rollback NIE przywraca e-maila ani hasła — tych danych po
 prostu już nie ma, to nie jest strata spowodowana cofnięciem migracji. Same
 konta nie zmieniają zachowania: nadal się nie logują.
+
+#### `status = 'erased'` i `delete_scope` — stan końcowy konta oraz zakres usunięcia
+
+Migracja `2026_09_07_500000_add_erased_status_and_delete_scope_to_users`
+(decyzja D-022, weryfikacja W1).
+
+**Co było zepsute.** Akapit wyżej („nie dodajemy nowej wartości do
+`users_status_check`, bo z punktu widzenia logowania nic się nie zmienia")
+patrzył wyłącznie na logowanie. Na statusie `pending_delete` stoi jednak także
+`User::jestDostepnyJakoAutor()`, sześć Policy i kilka zapytań budujących
+listy. Skutek, zmierzony na żywej bazie i w
+`tests/Feature/UsunieteKontoTresciZostajaWidoczneTest.php`:
+
+| Co | Przed anonimizacją | Po anonimizacji (przed D-022) |
+|---|---|---|
+| przepis | 200 | **403** |
+| wpis | 200 | **403** |
+| profil | 200 | **403** |
+| przepis w CUDZYM zeszycie | widoczny | **wypadał z listy** |
+| komentarz w cudzym wątku | widoczny | **niewidoczny** |
+
+Czyli D-018 obiecało „tekst zostaje zanonimizowany", a serwis go ukrywał —
+na zawsze, bo `pending_delete` nigdy z tego konta nie schodziło.
+
+**Dwa stany, dwie wartości:**
+
+| Status | Co znaczy | Czy treść widać | Czy da się zalogować/odzyskać |
+|---|---|---|---|
+| `pending_delete` | trwa 30-dniowa karencja | **nie** | nie / **tak** |
+| `erased` | karencja wykonana, dane wymazane | **tak** (zanonimizowana) | nie / nie |
+
+```sql
+ALTER TABLE users
+ADD CONSTRAINT users_status_check
+CHECK (status IN ('active','suspended','banned','pending_delete','erased'));
+
+-- RÓWNOWAŻNOŚĆ, nie implikacja: nie da się ani mieć wymazanych danych bez
+-- statusu końcowego, ani postawić statusu końcowego bez wymazania danych.
+ALTER TABLE users
+ADD CONSTRAINT users_data_erased_at_check
+CHECK ((data_erased_at IS NOT NULL) = (status = 'erased'));
+
+ALTER TABLE users
+ADD CONSTRAINT users_delete_scope_check
+CHECK (delete_scope IS NULL OR delete_scope IN ('minimum','everything'));
+```
+
+**`delete_scope` — zakres wybiera człowiek (D-022).** Haczyk „Usuń także moje
+przepisy, wpisy, komentarze, wykonania i zeszyty" na ekranie „Twoje dane" jest
+**domyślnie pusty**:
+
+- `minimum` — znikają zdjęcia (wszystkie, D-018) i dane osobowe, teksty
+  zostają zanonimizowane i **widoczne**;
+- `everything` — `EraseAccountData::usunTresci()` kasuje na stałe
+  (`withTrashed()->forceDelete()`) komentarze, wykonania, wpisy, przepisy
+  i zeszyty tej osoby. Kaskady zabierają razem z nimi cudze komentarze
+  i cudze wykonania stojące pod tą treścią — i ekran mówi to wprost.
+
+Wybór jest zapisywany **przy zgłoszeniu** (`User::markForDeletion($scope)`),
+nie odczytywany przy egzekucji: między jednym a drugim mija 30 dni.
+`cancelDeletion()` zeruje kolumnę razem ze statusem.
+
+`NULL` w tej kolumnie znaczy `minimum` — `User::chceUsunacTresci()` porównuje
+wprost do `everything`. Świadomie NIE MA CHECK-a wymuszającego wartość przy
+statusach usuwania: `NULL` ma już bezpieczne znaczenie („nie kasuj tekstów"),
+a jedyną drogą do `pending_delete` w kodzie produkcyjnym jest
+`markForDeletion()`, które zakres ustawia zawsze (`status` jest poza
+`$fillable`).
+
+**Trzy granice widoczności konta — jedna definicja każdej** (`App\Models\User`):
+
+| Metoda / zakres | Statusy odrzucone | Kto pyta |
+|---|---|---|
+| `mozeCzytac()` | `banned`, `pending_delete`, `erased` | logowanie, `EnsureAccountIsActive`, powiadomienia |
+| `jestDostepnyJakoAutor()` / `scopeDostepnyJakoAutor` | `banned`, `pending_delete` | Policy treści, feed, zeszyty, mapa strony dla treści |
+| `jestWidocznyJakoOsoba()` / `scopeWidocznyJakoOsoba` | `banned`, `pending_delete`, `erased` | listy obserwujących i ich liczniki, mapa strony dla profili, analityka, panel „bez odpowiedzi" |
+
+Profil konta `erased` jest **dostępny** (`UserPolicy::viewProfile`), bo to
+adres, pod który prowadzi każdy podpis „Użytkownik usunięty". Nie jest za to
+nigdzie podpowiadany: wyszukiwarka osób pyta o `status = 'active'`, listy osób
+i mapa strony — o `widocznyJakoOsoba()`.
+
+**Migracja danych istniejących:** konta z niepustym `data_erased_at` przechodzą
+na `erased` (ich zanonimizowany tekst wraca wtedy na serwis, zgodnie z D-018),
+a konta w usuwaniu dostają `delete_scope = 'minimum'` — jedyny zakres, jaki
+wtedy istniał.
+
+**Rollback:** `down()` cofa `erased` → `pending_delete`, zdejmuje oba nowe
+CHECK-i, przywraca poprzedni `users_data_erased_at_check` i `users_status_check`
+i kasuje kolumnę. Sprawdzone na bazie testowej w obie strony
+(`migrate` → `migrate:rollback --step=1` → `migrate`). Skutek jest ZNANY:
+wraca usterka opisana wyżej (teksty wymazanych kont znowu oddają 403). Żadne
+dane nie giną — tracimy wyłącznie zapisany zakres kont, które JESZCZE czekają
+w karencji, a te wracają wtedy do zachowania D-018, czyli do wariantu mniej
+nieodwracalnego.
 
 #### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
 
@@ -244,6 +424,101 @@ pytała bazę o wartość surową, więc „Jan@Example.com" przechodziło
 `Rule::unique` i dopiero PostgreSQL odbijał duplikat: **HTTP 500 na
 rejestracji** zamiast komunikatu „na ten adres jest już konto" (audyt A25).
 
+**Unikalność bez rozróżniania wielkości liter.** Unikalny indeks funkcyjny
+`users_email_lower_unique` na `lower(email)` (migracja
+`2026_09_06_120000_add_email_case_insensitive_unique_index`, issue #109).
+
+```sql
+CREATE UNIQUE INDEX users_email_lower_unique ON users (lower(email));
+```
+
+Mutator wyżej to warstwa PHP i obowiązuje **tylko** zapisom przez Eloquenta.
+`DB::table('users')->insert()`, seeder, przyszły import i ręczna naprawa danych
+w `psql` podczas incydentu omijają go w całości, a `UNIQUE (email)` porównuje
+bajty, więc `Jan@example.com` wchodziło obok `jan@example.com`. Przy dwóch
+takich kontach `User::findByLogin()` trafia raz na jedno, raz na drugie:
+człowiek loguje się i widzi „zniknięte" przepisy, a link do zmiany hasła
+dotyczy tylko jednego z kont — bez sposobu, żeby zgadnąć którego.
+AGENTS.md §6: walidacja w PHP jest dodatkiem, nie zamiennikiem.
+
+Indeks jest **funkcyjny**, a nie `citext` na kolumnie: `citext` zmieniłby
+zachowanie każdego porównania w kodzie, także tam, gdzie nikt się tego nie
+spodziewa. Indeks robi jedną rzecz — pilnuje, kto może zająć adres — i jest
+tym samym rozwiązaniem co `profiles_username_lower_unique`.
+
+Stary `users_email_unique` **zostaje**. Nowy jest od niego silniejszy, ale to
+stary obsługuje zwykłe `where('email', ?)` z `findByLogin()`; indeks funkcyjny
+takiego zapytania nie obsłuży.
+
+Migracja **nie scala ani nie kasuje kont**. Gdyby w bazie były już dwa adresy
+różniące się tylko wielkością liter, zgłasza je po nazwie i przerywa — decyzję,
+które konto zostaje, podejmuje człowiek. Rollback to `DROP INDEX IF EXISTS`,
+bez utraty danych; `users_email_unique` zostaje nietknięty przez cały czas,
+więc nawet w trakcie rollbacku adres nie zduplikuje się co do znaku.
+
+#### `is_seeded` — treść zalążkowa na produkcji, ale jawnie oznaczona (D-025)
+
+Migracja `2026_09_07_700000_add_is_seeded_to_users`. Boolean, domyślnie
+`false`, bez backfillu (żadne wcześniejsze konto nie pochodzi z pliku).
+
+**Ten sam kształt co `tags.is_seeded`** (migracja
+`2026_09_07_100000_create_tags_tables`), i z tego samego powodu: **atrybut
+POCHODZENIA danych, nie nowy system widoczności obok `status`/`role`.**
+Konto z `is_seeded = true` przechodzi przez dokładnie te same bramki co
+każde inne — `status` rozstrzyga, czy może czytać/pisać, `role`, czy
+moderuje. Ta kolumna nic w tych bramkach nie zmienia; dokłada tylko dwie
+rzeczy, obie **czytające** kolumnę, żadna jej nie interpretująca jako nowy
+poziom uprawnień:
+
+1. **Etykietę w interfejsie**, wszędzie tam, gdzie serwis pokazuje AUTORA —
+   profil, karta wpisu, karta przepisu, komentarz (komponent
+   `x-konto-przykladowe`, czytany przez `User::isSeeded()`). D-025 wprost:
+   „przy koncie, nie tylko w regulaminie — nikt nie czyta regulaminu, żeby
+   dowiedzieć się, czy pisze do człowieka".
+2. **Wykluczenie z Weekly Active Cooks i z kohorty retencji**
+   (`App\Domain\Analytics\CookEligibility::excludedUserIds()`) — dwanaście
+   person publikuje z definicji plikowej i nie ma zasilać liczby, która ma
+   mierzyć żywą społeczność (issue #114, ten sam powód, dla którego tamta
+   klasa już wyklucza gospodarza i konta testowe).
+
+**Dlaczego na `users`, nie na `profiles`.** Wszystkie cztery miejsca z punktu
+1 i tak już ładują `User` (`$post->author`, `$recipe->author`,
+`$comment->author`), a `is_seeded` jest faktem o KONCIE (kto może się nim
+posługiwać), nie o publicznej twarzy — ten sam podział, jaki `profiles` już
+ma wobec `users` gdzie indziej w tym pliku.
+
+**Świadomie poza `User::$fillable`**, tym samym powodem co `status`/`role`
+(komentarz przy `$fillable` w `User`, AGENTS.md §7): jedyne miejsce, które to
+ustawia, to `Database\Seeders\TrescZalazkowaSeeder`, wprost przez
+`DB::table('users')->insert()` — ten sam wzorzec zapisu, którego używa
+`TagSeeder::utworzBrakujaceTagi()` dla `tags.is_seeded`.
+
+**Skąd te konta.** `database/seeders/dane/tresc-zalazkowa.json` — dwanaście
+person, czterdzieści przepisów, osiemdziesiąt wpisów, sześćdziesiąt
+komentarzy (D-025, `docs/DECISIONS.md`). Seeder jest idempotentny: drugie
+uruchomienie na tej samej bazie nic nie zmienia (dopasowanie po
+`lower(username)` dla kont, po `(author_id, title)`/`(author_id, body)` dla
+treści) i nigdy nie dotyka konta, którego ta sama nazwa użytkownika należy
+już do prawdziwego człowieka — wtedy import tego jednego konta jest
+pomijany i zgłaszany w raporcie, dokładnie jak `TagSeeder` przy kolizji
+z tagiem utworzonym ręcznie.
+
+**Co ta kolumna świadomie NIE rozstrzyga** — i D-025 zostawia to wprost
+otwarte: co się stanie z tymi dwunastoma kontami, gdy do serwisu dołączą
+prawdziwi ludzie. Zostawienie ich na zawsze zamienia etykietę w stały
+element serwisu; usunięcie kont zabrałoby treść, do której realni
+użytkownicy mogli już coś dopisać (komentarz, „Ugotowałem"). Decyzja
+właściciela, do podjęcia przed otwarciem rejestracji.
+
+**Rollback:** `down()` zdejmuje kolumnę. Nic poza etykietą w interfejsie
+i wykluczeniem z WAC nie czyta `is_seeded`, więc rollback nie kasuje żadnego
+wiersza `users`/`posts`/`recipes`/`comments` — dwanaście kont z pliku staje
+się po prostu nie do odróżnienia od kont zwykłych, a ich treść (i wpływ na
+WAC) wraca do tego, jak wygląda dla każdego innego konta. To jest znany,
+opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
+rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
+co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
+
 ### follows
 `follower_id + followed_id` unique.
 
@@ -253,7 +528,8 @@ Blokada ma pierwszeństwo przed follow.
 ### media
 Tylko metadata, nie binary:
 - owner;
-- disk;
+- disk (ORYGINAŁ — patrz niżej);
+- variants_disk (PUBLICZNE WARIANTY — patrz niżej);
 - object key;
 - MIME;
 - bytes;
@@ -262,6 +538,44 @@ Tylko metadata, nie binary:
 - checksum;
 - perceptual hash;
 - metadata.
+
+**Dwie kolumny dysku, bo to dwie różne kategorie danych** (migracja
+`2026_09_06_170000_add_variants_disk_to_media`, audyt G-01).
+
+```sql
+ALTER TABLE media ADD COLUMN variants_disk varchar(40);   -- NULL = tam, gdzie oryginał
+```
+
+`disk` mówi, gdzie leży ORYGINAŁ — plik dokładnie taki, jaki przyszedł od
+człowieka, z pełnym EXIF-em, czyli ze współrzędnymi GPS kuchni. `variants_disk`
+mówi, gdzie leżą PRZETWORZONE warianty WebP, z których re-enkodowanie zdjęło
+metadane.
+
+Do tej pory obie rzeczy leżały w jednym buckecie R2, a prywatność oryginału
+opierała się na zapisaniu go jako „private" pod prefiksem `incoming/`.
+**Na R2 to nie działa:** Cloudflare nie implementuje S3-owych ACL na obiektach
+(`x-amz-acl` jest oznaczony jako nieobsługiwany dla `PutObject`), a publiczność
+jest cechą BUCKETU — własnej domeny albo `r2.dev`. Bucket wystawiony pod
+`cdn.kuking.pl` wystawiał więc też `incoming/`. Adres oryginału dawał się przy
+tym wyprowadzić z publicznego adresu wariantu:
+
+```text
+media/{uuid_wlasciciela}/{rok}/{mc}/{uuid}_feed.webp    ← publiczny, znany
+incoming/{uuid_wlasciciela}/{rok}/{mc}/{uuid}.jpg       ← oryginał
+```
+
+**`NULL` znaczy „tam, gdzie oryginał"** i tak ma każdy wiersz sprzed tej
+migracji — bo tam te warianty naprawdę leżą. Kolumny NIE backfillujemy:
+wpisanie nazwy nowego dysku byłoby stwierdzeniem nieprawdy o położeniu plików,
+a `KasujZdjecie` szukałoby ich w niewłaściwym buckecie i zostawiało publiczne
+kopie na zawsze — także po wymazaniu konta. Przeniesienie starych wariantów to
+osobna praca: kopiowanie obiektów plus aktualizacja tej kolumny po każdym
+udanym kopiowaniu.
+
+Rollback: `DROP COLUMN`, bezstratnie — wiedza wraca do „ten sam dysk co
+oryginał", czyli do stanu sprzed rozdzielenia. **Cofać przed migracją danych,
+nie po:** po przeniesieniu wariantów ta kolumna niesie już prawdziwą wiedzę
+i jej utrata znaczy, że aplikacja szuka ich w starym buckecie.
 
 ### posts + post_media
 Najprostszy content społecznościowy.
@@ -456,7 +770,73 @@ kończyłoby się błędem 500.
 In-app.
 
 ### reports
-Zgłoszenia.
+Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
+`source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
+audyt G-08 / W5-01 / W5-02).
+
+| `source` | Co to jest | Kto może zgłosić |
+|---|---|---|
+| `community` | Nasze zasady: spam, chamstwo, niebezpieczna porada. Przycisk „Zgłoś” pod treścią. | Tylko zalogowani. |
+| `legal_notice` | Treść **niezgodna z prawem** w rozumieniu DSA art. 16. | **Każdy, także bez konta.** |
+
+Nie robimy dwóch tabel, bo obie drogi kończą się tą samą decyzją moderatora,
+tym samym wpisem w `moderation_actions` i tą samą ścieżką odwołania. Dwie
+tabele znaczyłyby dwie kolejki, dwa ekrany i dwie okazje, żeby jedna z nich
+została z tyłu.
+
+Kolumny dołożone dla drogi prawnej:
+
+| Kolumna | Po co |
+|---|---|
+| `notifier_name` | Imię i nazwisko albo nazwa instytucji (art. 16 ust. 2 lit. b). |
+| `notifier_email` | **Może być `NULL`** — art. 16 ust. 2 lit. c zwalnia z podania danych przy zgłoszeniach dotyczących przestępstw z art. 3–7 dyrektywy 2011/93/UE. Wtedy nie ma komu odpowiedzieć i to jest zgodne z przepisem, a nie brak w danych. |
+| `target_url` | Adres wpisany przez człowieka, zapisany dosłownie (art. 16 ust. 2 lit. b — „dokładna lokalizacja elektroniczna”). |
+| `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
+| `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
+| `receipt_sent_at` | Potwierdzenie odbioru wysłane (ust. 4). |
+| `decision_sent_at` | Powiadomienie o decyzji wysłane (ust. 5). |
+
+Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
+wysłaliśmy”, a przy audycie to jest pierwsze pytanie.
+
+#### `target_type = 'unknown'` i puste `target_id`
+
+Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
+ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszenie
+i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
+przepis nakazuje udostępnić. Dlatego:
+
+- `reports_target_type_check` dopuszcza szósty typ, `unknown`;
+- `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
+
+`NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
+identyfikator i niczego nie wskazuje, prędzej czy później trafiłby do
+zapytania albo na ekran moderatora.
+
+Zgłoszenie **społecznościowe** dalej musi mieć cel — pilnuje tego
+`reports_community_target_check`. Tam przycisk stoi pod konkretną treścią,
+więc brak celu znaczyłby błąd w kodzie, a nie sytuację życiową.
+
+Konsekwencja w kodzie: `ModeratedContent::znajdz()` zwraca `null` dla typu
+`unknown`, a `ModerationAction::dozwoloneDla()` zwraca wtedy samo `none` —
+moderator może taką sprawę zamknąć i odpowiedzieć, ale nie ukryje treści,
+której mu nie wskazano.
+
+#### Pozostałe ograniczenia i indeksy
+
+| Nazwa | Co pilnuje |
+|---|---|
+| `reports_source_check` | `source IN ('community','legal_notice')`. |
+| `reports_legal_notice_complete_check` | Zgłoszenie prawne **musi** mieć uzasadnienie i `good_faith_at`. CHECK, a nie sama walidacja formularza: przy audycie liczy się to, czego baza nie mogła przyjąć. **Imienia (`notifier_name`) już NIE wymaga** — migracja `2026_09_07_600000_allow_anonymous_legal_notices`. Art. 16 ust. 2 lit. c DSA zwalnia z podania DANYCH zgłaszającego (nie tylko adresu e-mail) przy zgłoszeniach dotyczących przestępstw z art. 3-7 dyrektywy 2011/93/UE, a wcześniej reguła była w kodzie w połowie: brak adresu wolno, brak nazwiska nie. `down()` tej migracji **przerywa się**, jeśli w bazie są już anonimowe zgłoszenia — przywrócenie starego warunku wymagałoby albo wpisania im wymyślonego nazwiska (kłamstwo w kolumnie), albo skasowania (zniszczenie dowodu w najcięższej możliwej sprawie). |
+| `reports_source_status_idx (source, status, created_at)` | Kolejka moderatora filtruje po źródle — zgłoszenia prawne mają termin odpowiedzi, społecznościowe nie. |
+| `reports_pending_receipt_idx` | Indeks częściowy: zgłoszenia prawne z adresem, którym jeszcze nie potwierdzono odbioru. |
+
+**Rollback:** `down()` **odmawia**, gdy w tabeli są zgłoszenia prawne —
+usunięcie kolumn skasowałoby imię, adres i uzasadnienie, zostawiając samo
+`reason`, czyli zgłoszenie bez treści. To są dane, na podstawie których
+podjęto decyzje moderacyjne i na które ktoś mógł się powołać w odwołaniu.
+Świadome wymuszenie: `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE=1` (najpierw
+kopia tabeli).
 
 ### moderation_actions
 Decyzje moderatorów.
@@ -539,6 +919,222 @@ odpowiedzieliśmy na odwołania (dokładnie to, o co zapyta regulator).
 ### audit_log
 Wysokiego znaczenia zmiany.
 
+### data_exports
+Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
+przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |
+| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`). |
+| `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
+| `bytes` | Rozmiar gotowego pliku. |
+| `completed_at` | Kiedy paczka była gotowa. |
+| `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
+| `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
+
+#### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
+
+Kolumna jest renderowana wprost na ekranie ustawień
+(`resources/views/pages/settings/data.blade.php`), więc nie może zawierać
+technicznego szczegółu wyjątku (SQLSTATE, ścieżka na dysku tymczasowym).
+Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
+(ten sam wzorzec co `Report::REASONS`):
+
+| Kod | Kiedy |
+|---|---|
+| `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
+| `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
+| `unknown` | Worek na resztę — każda inna awaria. |
+
+`DataExport::failureReasonLabel()` zamienia kod na zdanie po polsku (z adresem
+kontaktowym z `config('kuking.community.contact_email')`) i **nigdy** nie
+pokazuje surowego kodu ani starego wolnego tekstu — nieznany albo pusty kod
+dostaje tekst spod `unknown`. Pełny `$e->getMessage()` zostaje wyłącznie
+w logu aplikacji (`Log::warning` w `GenerateUserExport::handle()`).
+
+Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych czterech
+wartości — dokładnie jak `reports.reason` (patrz wyżej), które też jest
+kodem z zamkniętym mapowaniem w PHP, a nie w bazie.
+
+Migracja `2026_09_06_210000_convert_data_export_failure_reason_to_codes`
+zamienia istniejące wiersze z wolnego tekstu na kody (backfill po dokładnym
+dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
+`NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
+wyłącznie w logu.
+
+Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
+
+### product_signals
+
+Sygnały produktowe (issue #115), migracja
+`2026_09_06_220000_create_product_signals_table`. Dziś dokładnie dwa
+zdarzenia: `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje
+— `App\Domain\Media\Actions\StoreUploadedImage`) i `search_performed`
+(wykonane wyszukiwanie — `App\Http\Controllers\SearchController`). Jedyne
+miejsce, które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+`docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
+i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
+inaczej i była nieprawdziwa (sprostowanie: dokument leżał na gałęziach
+`research/*`, nigdy nie scalony, więc nie było go w drzewie roboczym; „nie
+ma go tutaj" to nie to samo co „nikt go nie napisał"). Ta tabela powstała
+z kształtu wypisanego wprost w treści issue, nie z tamtego dokumentu — i
+**okazała się z nim zgodna**, w tym co do 90 dni retencji, których
+uzasadnienie stoi w §3.5 tamtego pliku. Drugi punkt odniesienia to
+`product_events` z `docs/seo/ANALYTICS.md` §7 —
+ta tabela jest jego świadomie okrojoną wersją (dwa zdarzenia zamiast
+dowolnych, bez `anonymous_id`/`session_id`/`platform`, bo dziś nic ich tu nie
+potrzebuje).
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
+| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
+| `signal_name` | `photo_upload_failed` \| `search_performed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. |
+
+#### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
+
+Issue #115 wymienia pięć powodów (`unreadable`, `too_large`, `not_an_image`,
+`unsupported_format`, `too_many_megapixels`). W `StoreUploadedImage::handle()`
+są naprawdę **cztery instrukcje `throw`**, nie pięć — a jedna z tych czterech
+jest dziś nieosiągalna (dead code, opisany tak wprost w komentarzu kodu, na
+długo przed tym zgłoszeniem). Trzy z pięciu kodów (`not_an_image`,
+`unsupported_format`, `too_many_megapixels`) odpowiadają trzem gałęziom
+WEWNĄTRZ jednego trzeciego `throw` (`RozpoznanieZdjecia::coJestNieTak()`),
+które wcześniej zwracały tylko komunikat po polsku, bez kodu maszynowego.
+`RozpoznanieZdjecia::rozpoznaj()` (nowa metoda, `WynikRozpoznania`) zwraca oba
+naraz, żeby sygnał dostał właściwy kod bez zgadywania go z treści zdania.
+
+| Kod | Skąd |
+|---|---|
+| `unreadable` | `$file->getSize()` zwraca `false`/`<=0`. |
+| `too_large` | Rozmiar przekracza `config('kuking.media.max_bytes')`. |
+| `not_an_image` | `getimagesize()` nie rozpoznaje pliku (w tym HEIC) — **oraz** nieosiągalny dziś drugi `getimagesize()` w `handle()`, zostawiony jako siatka bezpieczeństwa. |
+| `unsupported_format` | Rozpoznany typ MIME spoza `LimityZdjec::dozwoloneTypy()`. |
+| `too_many_megapixels` | Wymiary przekraczają `config('kuking.media.max_megapixels')`. |
+
+Indeksy: `product_signals_name_time_idx (signal_name, occurred_at DESC)` —
+dashboard „upload error rate" (`docs/seo/ANALYTICS.md` §6);
+`product_signals_occurred_idx (occurred_at)` — retencja poniżej, która nie
+filtruje po `signal_name`.
+
+**Retencja:** `config('kuking.analytics.signal_retention_days')` (domyślnie
+90 dni), egzekwowana przez `kuking:sprzataj-sygnaly`
+(`App\Domain\Analytics\PrzedawnioneSygnaly`), harmonogram codziennie o 04:00
+(`routes/console.php`). Zwykły masowy `DELETE ... WHERE occurred_at < ?` —
+bez `chunkById`, bo wiersz nie ma odpowiednika po stronie storage (w
+odróżnieniu od `OsieroconeZdjecia`).
+
+**Zapis sygnału nigdy nie wywraca operacji, którą opisuje:**
+`ZapiszSygnal::handle()` łapie każdy wyjątek i tylko go loguje
+(`Log::warning`) — wyszukiwarka ma pokazać wyniki, a komunikat o nieudanym
+wgraniu zdjęcia ma dojść do człowieka, nawet gdy zapis wiersza akurat się nie
+uda.
+
+**Rollback:** `DROP TABLE product_signals` bez zastrzeżeń — to są dane
+telemetryczne, nie dane, na podstawie których podjęto decyzję.
+
+### tags + tag_aliases + post_tags + tag_follows + tag_promotions
+
+Otwarta taksonomia użytkowników, zastępująca Tematy (D-021, migracje
+`2026_09_07_100000_create_tags_tables` i `2026_09_07_100100_create_tag_promotions_table`).
+Ta sekcja była wcześniej wpisana do „V1 / V2 — Później" — D-021 przenosi ją
+do MVP.
+
+**`topics`/`topic_follows`/`posts.topic_id` są USUNIĘTE** (migracja
+`2026_09_07_300000_drop_topics`). Migracja sprawdza przed usunięciem, czy
+`topic_follows` ma jakiekolwiek wiersze i czy jakikolwiek wpis ma niepusty
+`topic_id` — jeśli tak, przerywa operację (`RuntimeException`) zamiast po
+cichu skasować dane (SPEC §1.1, D-021: „właściciel musi to zrobić przed
+migracją, bo od tego zależy, czy usunięcie tematów jest zmianą schematu, czy
+rozmową z ludźmi, którym coś zniknie z profilu"). Stara migracja tworząca
+Tematy (`2026_09_06_100000_create_topics_tables`) ZOSTAJE w repozytorium
+bez zmian — inne środowiska mogły ją już wykonać, a przepisywanie historii
+migracji złamałoby je przy kolejnym `php artisan migrate`.
+
+**Cztery tabele rdzenia, nie sześć.** Specyfikacja właściciela projektowała
+też `tag_relations` (podpowiedzi semantyczne) i `tag_merge_suggestions`
+(skrzynka odbiorcza AI dla kandydatów do scalenia) — obie świadomie odłożone
+jako czysto addytywne, bez zmierzonej potrzeby przy 20–50 kontach
+(AGENTS.md §3). Uzasadnienie w komentarzu migracji `create_tags_tables`.
+
+| Kolumna (`tags`) | Uwagi |
+|---|---|
+| `id` | `uuid` — encja publiczna (ma slug, ma własną stronę `/tag/{slug}`). |
+| `name` | Nazwa kanoniczna, z zachowanymi polskimi znakami. |
+| `normalized_name` | `UNIQUE`. Do UNIKALNOŚCI — `mb_strtolower(trim(...))` + redukcja białych znaków + Unicode NFC, **BEZ `unaccent`** (`App\Models\Tag::znormalizujNazwe`). **Nigdy** `kuking_normalize()` — ta funkcja robi `unaccent` i służy wyłącznie wyszukiwaniu/podpowiadaniu; użyta tutaj złamałaby wymóg, że `zurek` i `żurek` to dwa różne tagi. |
+| `slug` | `UNIQUE`, CHECK `^[a-z0-9-]{1,40}$`, liczony osobno od `name`. |
+| `status` | `active` \| `hidden` \| `merged`. CHECK w bazie. |
+| `merged_into_tag_id` | Nullable, self-FK **bez `ON DELETE`** — domyślne `NO ACTION` Postgresa blokuje skasowanie tagu kanonicznego, dopóki są do niego przypięte tagi scalone. Dodatkowy CHECK `(status='merged') = (merged_into_tag_id IS NOT NULL)`. |
+| `is_seeded` | Tag z początkowej bazy redakcyjnej (SPEC §1.4) — atrybut pochodzenia danych, nie osobny system widoczny dla użytkownika. |
+| `internal_category` | Techniczna, jedna z trzynastu kategorii słownika tagów (`potrawy`, `wypieki`, `skladniki`, `przygotowanie`, `przetwory`, `okazje`, `sezon`, `regiony`, `kuchnie-swiata`, `diety`, `okolicznosci`, `sprzet`, `pamiec`) — do raportu z importu i sortowania panelu, **nigdy** pokazywana użytkownikowi. Wcześniej było tu osiem innych wartości (`danie`, `skladnik`, `kuchnia`, `technika`, `okazja`, `dieta`, `urzadzenie`, `napoj`) — pochodziły z bazy wpisanej na sztywno w `TagSeeder`, zastąpionej słownikiem z pliku (D-026). `TagSeeder` aktualizuje tę kolumnę na istniejących wierszach, więc migracja danych nie była potrzebna. |
+
+**Skąd bierze się początkowa baza (D-026).** Nie z kodu: `TagSeeder` czyta
+`database/seeders/dane/slownik-tagow.json` (1250 nazw kanonicznych, 2366
+aliasów, 13 kategorii, pole `uwagi` z 44 rozstrzygnięciami autora — nie
+kasować) oraz `database/seeders/dane/slownik-tagow-uzupelnienia.json` (169
+pojęć, których duży słownik nie ma). Razem 1419 tagów i 2448 aliasów.
+Zawartość plików jest sprawdzana maszynowo BEZ uruchamiania seedera
+(`tests/Feature/SlownikTagowTest.php`), bo kolizji aliasu z nazwą kanoniczną
+innego tagu nie widać okiem. Pole `sezonowy` z pliku (226 tagów) świadomie
+NIE MA kolumny w bazie — funkcja sezonowości nie istnieje, a kolumna bez
+drogi zapisu i odczytu to ten sam błąd, który opisuje zadanie o minutniku
+kroku.
+
+**Scalanie tagów ma wreszcie drogę zapisu.** `status = 'merged'`
+i `merged_into_tag_id` istniały od tej migracji, a mechanizm ich CZYTANIA
+był kompletny (przekierowanie strony tagu, wykluczenie z podpowiedzi,
+`ResolveTagsForPost` rozwiązujące nazwę do tagu kanonicznego) — ustawiał je
+natomiast wyłącznie `forceFill` w testach. Od D-026 robi to nazwana akcja
+`App\Domain\Tags\Actions\MergeTags` (zapowiadana w komentarzu modelu
+`Tag` i w komentarzu przy indeksie `tag_aliases.tag_id` w tej migracji):
+przepina wpisy i obserwujących, przepina aliasy źródła, dopisuje nazwę
+źródła jako alias celu, przenosi promocję, ustawia `status`. Wiersz źródła
+NIE JEST kasowany (SPEC §1.8), więc jego adres `/tag/{slug}` nadal działa
+i przekierowuje. `audit_log` zapisuje wywołujący, nie ta akcja — scalenie
+z panelu ma autora, scalenie z seedera nie ma go wcale.
+
+`tag_aliases`: `id` **bigserial**, nie `uuid` — wiersz nigdy nie jest
+adresowany z zewnątrz (ten sam wybór co `product_signals`/`audit_log`).
+`normalized_alias` `UNIQUE` w całej tabeli. `source`: `seed` \| `admin` \|
+`ai_suggestion`, CHECK w bazie. Wejście na alias przekierowuje na tag
+kanoniczny (`Tag::tagKanoniczny()`) — bez osobnej tabeli przekierowań, bo
+scalony tag zostaje w `tags` ze swoim slugiem.
+
+`post_tags`: pivot **bez własnego `id`**, `PRIMARY KEY(post_id, tag_id)` —
+relacja, nie encja, dokładnie jak `post_media`. `position` (CHECK `>= 0`,
+`UNIQUE(post_id, position)`) — kolejność, w jakiej autor dodawał tagi.
+Limit 5 tagów/wpis egzekwowany w `App\Domain\Tags\Actions\ResolveTagsForPost`
+(`App\Support\LimityTagow`), liczony na unikalnych `tag_id`, nie na wpisanych
+frazach.
+
+`tag_follows`: **bez własnego `id`**, `PRIMARY KEY(user_id, tag_id)` —
+jeden do jednego z (usuwanym) `topic_follows`.
+
+`tag_promotions` (D-021, „tag promowany — lista gospodarza"): promocja
+zamiast drugiego typu obiektu. `PRIMARY KEY` to `tag_id` (relacja 1:1
+z tagiem, jak `profiles.user_id`) — jeden tag ma najwyżej jedną promocję.
+`position` (CHECK `>= 0`) i opcjonalna `note` (jedno zdanie od gospodarza,
+odpowiednik `topics.description`). Panel: `Admin\TagPromotionController`,
+za tą samą bramką co „kuKINGi na dziś" (`Gate` `moderate` na `User`).
+„Kto i kiedy" zmienił listę zapisuje `audit_log`, bez osobnej kolumny
+`promoted_by` — ten sam wzorzec co `daily_board.updated`.
+
+Indeksy trigramowe (Postgres, na `kuking_normalize()` z migracji
+`2026_09_05_001300_fix_search_indexes`): `tags_name_trgm_idx`,
+`tag_aliases_alias_trgm_idx` — używane przez `App\Domain\Tags\TagSuggester`
+(SPEC §1.5: prefiks → alias dokładny → podobieństwo trigramowe →
+popularność liczona `withCount('posts')`, bez utrzymywanego ręcznie licznika).
+
+**Rollback:** `DROP TABLE` w kolejności `tag_promotions`, `tag_follows`,
+`post_tags`, `tag_aliases`, `tags` — bezpieczne bez zastrzeżeń, to jest
+funkcja budowana od zera przy zerowym ruchu produkcyjnym (D-021: „0 tematów,
+0 wpisów z tematem" w chwili decyzji, a tagi jeszcze nie istniały).
+
 ## V1 / V2
 
 Później:
@@ -551,7 +1147,6 @@ Później:
 - meal_plans;
 - shopping_lists;
 - pantry_items;
-- tags;
 - subscriptions;
 - payments.
 
@@ -621,5 +1216,8 @@ z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 PostgreSQL porównuje teksty z uwzględnieniem wielkości liter, a klawiatury
 telefonów kapitalizują pierwszą literę — bez tego konto założone jako
 `Jan@example.com` było nie do zalogowania przez `jan@example.com`.
+
+Sama reguła stoi jednak w bazie, nie w mutatorze: unikalny indeks funkcyjny
+`users_email_lower_unique` — szczegóły i uzasadnienie przy tabeli `users` wyżej.
 
 Pełny referencyjny DDL jest w `database/reference/schema_mvp.sql`.

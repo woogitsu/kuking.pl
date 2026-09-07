@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Actions;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Block;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Zablokowanie kogoś.
@@ -22,7 +22,7 @@ final class BlockUser
     public function handle(User $blocker, User $target, ?string $ip = null): void
     {
         if ($blocker->getKey() === $target->getKey()) {
-            throw new RuntimeException('Nie można zablokować samego siebie.');
+            throw new BladDlaCzlowieka('Nie można zablokować samego siebie.');
         }
 
         DB::transaction(function () use ($blocker, $target): void {

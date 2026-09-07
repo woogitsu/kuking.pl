@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Social\Actions\FollowUser;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
@@ -150,9 +151,12 @@ class RegisterController extends Controller
      * wielkości niż rejestracja, która się nie udała.
      *
      * DLACZEGO NIE CICHY `catch` NA WSZYSTKO
-     * Łapiemy tylko `RuntimeException`, który `FollowUser` rzuca świadomie
+     * Łapiemy tylko `BladDlaCzlowieka`, który `FollowUser` rzuca świadomie
      * (konto niedostępne, blokada, próba obserwowania samego siebie).
-     * Błąd programisty ma dalej wybuchać głośno.
+     * Błąd programisty ma dalej wybuchać głośno — a przez pewien czas nie
+     * wybuchał: stało tu `RuntimeException`, po którym dziedziczy
+     * `PDOException`, więc awaria bazy w tym miejscu była nieodróżnialna
+     * od „gospodarz źle wpisany w konfiguracji".
      */
     private function zaobserwujGospodarza(User $user): void
     {
@@ -170,7 +174,7 @@ class RegisterController extends Controller
 
         try {
             app(FollowUser::class)->handle($user, $gospodarz);
-        } catch (\RuntimeException) {
+        } catch (BladDlaCzlowieka) {
             // Gospodarz zawieszony albo źle wpisany w konfiguracji. Rejestracja
             // idzie dalej; feed ratują tematy z onboardingu (#31).
         }

@@ -124,7 +124,7 @@ return [
     | `noreply@` — patrz docs/decyzje/POCZTA.md i docs/brand/BRAND_EXTENDED.md.
     */
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'kuchnia@kuking.pl'),
+        'address' => env('MAIL_FROM_ADDRESS', 'kontakt@kuking.pl'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Kuking')),
     ],
 

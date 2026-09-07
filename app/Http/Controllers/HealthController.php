@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * /health — punkt kontrolny dla Railway i monitoringu zewnętrznego.
@@ -34,6 +37,15 @@ use Illuminate\Support\Str;
  * meldował „ok", bo baza była cała. Awaria dotyczyła GŁÓWNEJ akcji produktu
  * („zdjęcie + kilka słów") i nie zauważył jej żaden automat — dopiero
  * człowiek, który zobaczył ikony zepsutych obrazków.
+ *
+ * TA ODPOWIEDŹ JEST PUBLICZNA
+ * Trasa nie ma `auth` i mieć nie może: Railway odpytuje ją z zewnątrz, zanim
+ * cokolwiek się zaloguje. Wszystko, co tu wkładamy, czyta więc dowolna osoba
+ * w internecie — łącznie z osobą, która właśnie szuka, po czym uderzyć.
+ * Dlatego pole `error` to KOD z `POWODY`, a nie `$e->getMessage()`; ten drugi
+ * przy awarii bazy zawiera adres hosta, port, nazwę bazy i nazwę użytkownika
+ * z komunikatu PDO. Szczegół techniczny zostaje w logu (`Log::error` niżej),
+ * gdzie ma dostęp do niego wyłącznie właściciel.
  */
 class HealthController extends Controller
 {
@@ -43,20 +55,65 @@ class HealthController extends Controller
      */
     private const KRYTYCZNE = ['database', 'migrations'];
 
+    /**
+     * Zamknięty zbiór powodów, które WOLNO pokazać publicznie w polu `error`.
+     *
+     * Każdy z nich mówi operatorowi, gdzie szukać, i nie mówi nikomu innemu
+     * nic o infrastrukturze: żadnego hosta, portu, nazwy bazy, ścieżki na
+     * dysku ani kodu SQLSTATE. Reszta — z pełnym komunikatem wyjątku — idzie
+     * do logu pod tym samym kodem, więc jedno da się połączyć z drugim.
+     *
+     * `HealthNieZdradzaSzczegolowTest` pilnuje, że w odpowiedzi nie pojawi
+     * się nic spoza tego zbioru.
+     */
+    public const POWODY = [
+        self::POWOD_BAZA,
+        self::POWOD_BRAK_MIGRACJI,
+        self::POWOD_ZDJECIA,
+        self::POWOD_ZAPIS_NIEMOZLIWY,
+        self::POWOD_ODCZYT_NIEZGODNY,
+        self::POWOD_BRAK_DROGI_PUBLICZNEJ,
+        self::POWOD_DROGA_GDZIE_INDZIEJ,
+    ];
+
+    /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
+    private const POWOD_BAZA = 'baza_nie_odpowiada';
+
+    /** Połączenie z bazą jest, ale tabela `migrations` jest pusta — deploy nie dokończył migracji. */
+    private const POWOD_BRAK_MIGRACJI = 'brak_migracji';
+
+    /** Worek na resztę awarii dysku ze zdjęciami — powód domyślny sprawdzenia `media`. */
+    private const POWOD_ZDJECIA = 'zdjecia_niedostepne';
+
+    /** Nie udało się zapisać pliku próbnego na dysku ze zdjęciami. */
+    private const POWOD_ZAPIS_NIEMOZLIWY = 'zapis_niemozliwy';
+
+    /** Zapis się udał, a odczyt zwrócił co innego albo się nie udał. */
+    private const POWOD_ODCZYT_NIEZGODNY = 'odczyt_niezgodny';
+
+    /** Brak `public/storage` — zdjęcia są na dysku, ale przeglądarka dostaje 404. */
+    private const POWOD_BRAK_DROGI_PUBLICZNEJ = 'brak_drogi_publicznej';
+
+    /** `public/storage` istnieje, ale prowadzi do innego katalogu niż dysk ze zdjęciami. */
+    private const POWOD_DROGA_GDZIE_INDZIEJ = 'droga_publiczna_gdzie_indziej';
+
     public function __invoke(): JsonResponse
     {
         $checks = [
-            'database' => $this->check(static function (): void {
+            'database' => $this->check('database', self::POWOD_BAZA, static function (): void {
                 DB::select('select 1');
             }),
-            'migrations' => $this->check(static function (): void {
+            'migrations' => $this->check('migrations', self::POWOD_BAZA, static function (): void {
                 $pending = DB::table('migrations')->count();
 
                 if ($pending === 0) {
-                    throw new \RuntimeException('Brak wykonanych migracji.');
+                    throw new KontrolaZdrowiaNieprzeszla(
+                        self::POWOD_BRAK_MIGRACJI,
+                        'Tabela `migrations` jest pusta — deploy nie dokończył migracji.',
+                    );
                 }
             }),
-            'media' => $this->check(fn () => $this->sprawdzDyskZeZdjeciami()),
+            'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -88,18 +145,37 @@ class HealthController extends Controller
     private function sprawdzDyskZeZdjeciami(): void
     {
         $nazwaDysku = (string) config('kuking.media.disk');
-        $dysk = Storage::disk($nazwaDysku);
 
         // Nazwa z kropką na początku i losowym sufiksem: nie zderzy się
         // z niczyim plikiem i nie trafi do listingów.
         $probka = '.health/'.Str::uuid()->toString();
 
-        $dysk->put($probka, 'kuking');
+        try {
+            // `Storage::disk()` jest TUTAJ, a nie wyżej, bo dla dysku lokalnego
+            // to ono tworzy katalog główny — awaria woluminu bez prawa zapisu
+            // wychodzi więc już na tej linijce, a nie dopiero na `put()`.
+            $dysk = Storage::disk($nazwaDysku);
+            $dysk->put($probka, 'kuking');
+        } catch (Throwable $e) {
+            // Bez `finally` z kasowaniem: skoro zapis się nie udał, nie ma
+            // czego kasować, a `delete()` na zepsutym dysku rzuciłby drugi
+            // wyjątek i przykrył ten prawdziwy.
+            throw new KontrolaZdrowiaNieprzeszla(self::POWOD_ZAPIS_NIEMOZLIWY, $e->getMessage(), $e);
+        }
 
         try {
             if ($dysk->get($probka) !== 'kuking') {
-                throw new \RuntimeException('Zapis się udał, ale odczyt zwrócił co innego.');
+                throw new KontrolaZdrowiaNieprzeszla(
+                    self::POWOD_ODCZYT_NIEZGODNY,
+                    'Zapis się udał, ale odczyt zwrócił co innego.',
+                );
             }
+        } catch (KontrolaZdrowiaNieprzeszla $e) {
+            // Nasz własny wyjątek ma już kod — przepuszczamy go bez zmian,
+            // inaczej gałąź niżej owinęłaby go po raz drugi.
+            throw $e;
+        } catch (Throwable $e) {
+            throw new KontrolaZdrowiaNieprzeszla(self::POWOD_ODCZYT_NIEZGODNY, $e->getMessage(), $e);
         } finally {
             $dysk->delete($probka);
         }
@@ -122,7 +198,8 @@ class HealthController extends Controller
         $cel = (string) config("filesystems.disks.{$nazwaDysku}.root");
 
         if (! is_dir($link)) {
-            throw new \RuntimeException(
+            throw new KontrolaZdrowiaNieprzeszla(
+                self::POWOD_BRAK_DROGI_PUBLICZNEJ,
                 "Brak drogi publicznej do zdjęć: {$link} nie prowadzi do katalogu. "
                 .'Uruchom `php artisan storage:link`.',
             );
@@ -132,21 +209,46 @@ class HealthController extends Controller
         // w którym link istnieje, ale wskazuje na poprzedni katalog —
         // np. sprzed zamontowania woluminu.
         if (realpath($link) !== realpath($cel)) {
-            throw new \RuntimeException(
-                "Droga publiczna do zdjęć prowadzi gdzie indziej niż dysk `{$nazwaDysku}`.",
+            throw new KontrolaZdrowiaNieprzeszla(
+                self::POWOD_DROGA_GDZIE_INDZIEJ,
+                "Droga publiczna do zdjęć (`{$link}`) prowadzi gdzie indziej "
+                ."niż dysk `{$nazwaDysku}` (`{$cel}`).",
             );
         }
     }
 
-    /** @return array{ok: bool, error?: string} */
-    private function check(callable $probe): array
+    /**
+     * Uruchamia jedną sondę i zamienia jej awarię na KOD, nigdy na komunikat.
+     *
+     * `$powodDomyslny` dotyczy wyjątków, których sonda nie rozpoznała sama —
+     * np. `QueryException` z sondy bazy. Zgadywanie powodu z treści takiego
+     * komunikatu byłoby kruche dokładnie tak, jak w audycie W7-07, więc
+     * zamiast tego każde sprawdzenie z góry deklaruje, co znaczy jego
+     * „coś poszło nie tak".
+     *
+     * @return array{ok: bool, error?: string}
+     */
+    private function check(string $nazwa, string $powodDomyslny, callable $probe): array
     {
         try {
             $probe();
 
             return ['ok' => true];
-        } catch (\Throwable $e) {
-            return ['ok' => false, 'error' => $e->getMessage()];
+        } catch (Throwable $e) {
+            $powod = $e instanceof KontrolaZdrowiaNieprzeszla ? $e->kod : $powodDomyslny;
+
+            // Jedyne miejsce, w którym pełna treść wyjątku ma prawo się
+            // pojawić. Nie ma tu danych osobowych: sondy nie dotykają
+            // niczyich wpisów ani kont, chodzą po `select 1`, po liczniku
+            // migracji i po własnym pliku próbnym.
+            Log::error('Kontrola /health nie przeszła.', [
+                'kontrola' => $nazwa,
+                'powod' => $powod,
+                'wyjatek' => $e::class,
+                'komunikat' => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'error' => $powod];
         }
     }
 }

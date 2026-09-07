@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Support\OdzyskiwalneDane;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 
@@ -55,33 +56,27 @@ use Illuminate\Support\Arr;
  *  • Nikogo nie logujemy i niczego nie zapisujemy w cudzym imieniu. Ta
  *    odpowiedź tylko rysuje formularz; wpis powstaje dopiero przy ponownym
  *    wysłaniu, z pełną autoryzacją.
- *  • Hasła i pola wrażliwe NIE wracają — patrz `POLA_WRAZLIWE`. Utrata
- *    hasła przy 419 jest kosztem, który godzimy się ponieść.
+ *  • ODZYSKUJEMY TYLKO NA TRASACH TREŚCI — patrz `App\Support\OdzyskiwalneDane`.
+ *
+ *    Wcześniej stała tu czarna lista fragmentów nazw pól (`password`,
+ *    `haslo`, `token`, `secret`, `otp`, `cvv`) i komentarz „hasła i pola
+ *    wrażliwe nie wracają". Kod znaczył co innego: „nie wracają pola,
+ *    których nazwa zawiera jedną z sześciu cząstek". Ekran drugiego
+ *    składnika nazywa swoje pola `code` i `backup_code` — żadne z nich nie
+ *    zawiera którejkolwiek z nich, więc KOD ZAPASOWY do 2FA wracał
+ *    do HTML-a w ukrytym polu (audyt W7-04). Kod jednorazowy żyje
+ *    30 sekund; zapasowy jest ważny do użycia.
+ *
+ *    Dlatego decyduje teraz NAZWA TRASY, nie nazwa pola: logowanie, 2FA,
+ *    hasła i usuwanie konta nie odzyskują niczego, a każda nowa trasa
+ *    domyślnie też nie. Utrata hasła przy 419 jest kosztem, który godzimy
+ *    się ponieść.
  *  • Nic z tego nie trafia do logów: `TokenMismatchException` jest wyjęty
  *    ze zgłaszania (`dontReport` w bootstrap/app.php), a treść żyje wyłącznie
  *    w wygenerowanym HTML-u.
  */
 final class OdzyskanyFormularz
 {
-    /**
-     * Fragmenty nazw pól, których nie wolno pokazać z powrotem.
-     *
-     * Dopasowanie po fragmencie, nie po pełnej nazwie: `password`
-     * łapie też `password_confirmation` i `current_password`.
-     */
-    private const POLA_WRAZLIWE = [
-        'password',
-        'haslo',
-        'hasło',
-        'token',
-        'secret',
-        'otp',
-        'cvv',
-    ];
-
-    /** Pola techniczne — wracają inną drogą albo nie wracają wcale. */
-    private const POLA_TECHNICZNE = ['_token', '_method'];
-
     /**
      * Bezpiecznik na wielkość odpowiedzi. Przy formularzu przepisu pól bywa
      * kilkadziesiąt, ale gdyby ktoś wysłał żądanie z tysiącami kluczy,
@@ -107,10 +102,13 @@ final class OdzyskanyFormularz
         $znakow = 0;
         $obciete = false;
 
-        foreach (Arr::dot($request->except(self::POLA_TECHNICZNE)) as $klucz => $wartosc) {
+        // Deny-by-default: poza trasami treści `zZadania()` zwraca pustą
+        // tablicę, `maCoOdzyskac()` daje `false`, a ekran 419 pokazuje samą
+        // informację o wygasłej sesji. Tak ma być na logowaniu i na 2FA.
+        foreach (Arr::dot(OdzyskiwalneDane::zZadania($request)) as $klucz => $wartosc) {
             $klucz = (string) $klucz;
 
-            if (self::jestWrazliwe($klucz) || ! self::daSieOdlozyc($wartosc)) {
+            if (OdzyskiwalneDane::jestWrazliwe($klucz) || ! self::daSieOdlozyc($wartosc)) {
                 continue;
             }
 
@@ -185,19 +183,6 @@ final class OdzyskanyFormularz
         return in_array($this->metoda, ['PUT', 'PATCH', 'DELETE'], strict: true)
             ? $this->metoda
             : null;
-    }
-
-    private static function jestWrazliwe(string $klucz): bool
-    {
-        $maly = mb_strtolower($klucz);
-
-        foreach (self::POLA_WRAZLIWE as $fragment) {
-            if (str_contains($maly, $fragment)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static function daSieOdlozyc(mixed $wartosc): bool

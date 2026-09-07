@@ -204,10 +204,22 @@ final class StronyBleduPoPolskuTest extends TestCase
     }
 
     /**
-     * Hasło nie może wrócić w odzyskiwanym formularzu — ani jawnie,
-     * ani w ukrytym polu. To jest jedyna treść, którą wolno stracić.
+     * Z formularza logowania nie wraca NIC (audyt W7-04).
+     *
+     * Ten test mówił wcześniej: hasło nie wraca, ale nazwa użytkownika już
+     * tak, „bo to nie jest dana wrażliwa". Reguła była jednak realizowana
+     * jako czarna lista fragmentów nazw pól — i ta lista nie znała pól
+     * `code` ani `backup_code` z ekranu drugiego składnika, więc KOD
+     * ZAPASOWY do 2FA wracał do HTML-a w ukrytym polu.
+     *
+     * Odzyskiwanie decyduje teraz po NAZWIE TRASY
+     * (`App\Support\OdzyskiwalneDane`): tylko trasy, na których człowiek
+     * pisze własnymi słowami. Logowanie na nią nie wchodzi i nie ma po co —
+     * login wpisuje się z pamięci, a nie pisze przez kwadrans jak przepis.
+     * Utrata nazwy użytkownika przy 419 jest ceną, którą płacimy za to,
+     * że lista nie musi zgadywać, jak następny formularz nazwie swój sekret.
      */
-    public function test_419_nie_odklada_hasla(): void
+    public function test_419_nie_odklada_niczego_z_logowania(): void
     {
         $odpowiedz = $this->zPrawdziwymCsrf(fn () => $this
             ->withSession(['_token' => 'token-sesji'])
@@ -223,8 +235,8 @@ final class StronyBleduPoPolskuTest extends TestCase
 
         $this->assertStringNotContainsString('TajneHaslo123!', $tresc);
         $this->assertStringNotContainsString('name="password"', $tresc);
-        // …ale nazwa użytkownika już tak — to nie jest dane wrażliwe.
-        $this->assertStringContainsString('basia', $tresc);
+        // I nazwa użytkownika też nie — patrz uzasadnienie nad tym testem.
+        $this->assertStringNotContainsString('basia', $tresc);
     }
 
     // -----------------------------------------------------------------

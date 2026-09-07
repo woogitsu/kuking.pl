@@ -32,7 +32,7 @@ class PostPolicy
         // NIE wchodzi tutaj: to kara czasowa i tylko na publikowanie
         // („dostęp tylko do ODCZYTU" — `EnsureAccountIsActive`), więc treść
         // zawieszonej osoby zostaje widoczna tak jak jej profil.
-        if (! $isOwnerOrModerator && ! in_array($post->author->status, [User::STATUS_ACTIVE, User::STATUS_SUSPENDED], true)) {
+        if (! $isOwnerOrModerator && ! $post->author->jestDostepnyJakoAutor()) {
             return false;
         }
 

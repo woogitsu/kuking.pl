@@ -99,7 +99,7 @@
                     </span>
                     <input class="field-input" id="odzyskany-plik-{{ $loop->index }}" type="file"
                            name="{{ $plik['nazwa'] }}" @if($plik['wiele']) multiple @endif
-                           accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                            aria-describedby="odzyskany-plik-{{ $loop->index }}-help">
                 </div>
             @endforeach

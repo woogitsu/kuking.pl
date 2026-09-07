@@ -59,6 +59,11 @@ final class CollectUserExportData
                 'co_zawiera' => 'Wszystkie treści tego konta — także wpisy prywatne i szkice przepisów.',
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
+                // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
+                // się tylko przy brakach zmusiłby program czytający paczkę do
+                // zgadywania, czy zera nie ma, bo braków nie było, czy dlatego,
+                // że paczkę zbudowała starsza wersja serwisu (issue #113).
+                'zdjec_jeszcze_w_przygotowaniu' => $photos->stillProcessingCount(),
             ],
             'konto' => $this->account($user),
             'profil' => $this->profile($user, $photos),
@@ -323,7 +328,21 @@ final class CollectUserExportData
     /** @return list<array<string, mixed>> */
     private function notifications(User $user): array
     {
+        // `visibleTo()` TAK SAMO JAK NA EKRANIE — to jest ta sama granica,
+        // nie druga jej wersja.
+        //
+        // Bez tego paczka niosła powiadomienia, których człowiek w serwisie
+        // NIE WIDZI: od kont zbanowanych, od kont po prośbie o usunięcie,
+        // od osób wzajemnie zablokowanych, oraz o komentarzach pod treścią,
+        // która zniknęła. Razem z nimi wychodziło pole `excerpt` — 120
+        // znaków CUDZEGO tekstu, w tym tekstu z konta, które prosiło
+        // o usunięcie.
+        //
+        // Paczka RODO ma oddać człowiekowi to, co jego — nie wszystko, co
+        // o nim leży w bazie. Powiadomienie ukryte w serwisie nie staje się
+        // jego danymi przez to, że kiedyś powstał na nie wiersz.
         $notifications = $user->notifications()
+            ->visibleTo($user)
             ->with('actor.profile')
             ->reorder('created_at')
             ->get();

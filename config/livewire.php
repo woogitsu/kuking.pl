@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Support\LimityZdjec;
 
 return [
 
@@ -132,7 +133,27 @@ return [
 
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'), // Example: 'local', 's3'             | Default: 'default'
-        'rules' => null,                                      // Example: ['file', 'mimes:png,jpg'] | Default: ['required', 'file', 'max:12288'] (12MB)
+        /*
+         | Limit rozmiaru MUSI iść z `config/kuking.php`, nie z domyślnej
+         | wartości pakietu.
+         |
+         | Domyślne `null` znaczy `['required', 'file', 'max:12288']`, czyli
+         | 12 MB — o 3 MB mniej niż obiecuje produkt i mniej niż przepuszcza
+         | `docker/php.ini`. Kreator przepisu wgrywa zdjęcie przez ten
+         | endpoint NATYCHMIAST po wyborze pliku, więc zdjęcie 13 MB odpadało
+         | tutaj, zanim `LimityZdjec` czy `StoreUploadedImage` w ogóle je
+         | zobaczyły — a formularz jednej strony to samo zdjęcie przyjmował
+         | (issue #111). To jest ten sam rozjazd co audyt A31, tylko o jedno
+         | miejsce dalej: Livewire ma WŁASNĄ warstwę walidacji uploadu.
+         |
+         | ŚWIADOMIE BEZ REGUŁY `image`. Wygląda na oczywistą, a wycięłaby
+         | HEIC/HEIF — `image` w Laravelu to `mimes:jpg,jpeg,png,gif,bmp,svg,webp`,
+         | bez formatu, w którym fotografuje domyślnie każdy nowszy iPhone,
+         | a który `config/kuking.php` jawnie dopuszcza. Czy plik NAPRAWDĘ
+         | jest obrazem, rozstrzygają magic bytes w `StoreUploadedImage`,
+         | nie rozszerzenie od klienta (AGENTS.md §7).
+         */
+        'rules' => ['required', 'file', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
         'directory' => null,                                  // Example: 'tmp'                     | Default: 'livewire-tmp'
         'middleware' => null,                                 // Example: 'throttle:5,1'            | Default: 'throttle:60,1'
         'preview_mimes' => [                                  // Supported file types for temporary pre-signed file URLs...

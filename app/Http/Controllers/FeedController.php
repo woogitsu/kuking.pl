@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
-use App\Domain\Feed\TopicFeed;
+use App\Domain\Feed\TagFeed;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ class FeedController extends Controller
     public function __construct(
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
-        private readonly TopicFeed $topicFeed,
+        private readonly TagFeed $tagFeed,
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
     ) {}
@@ -41,21 +41,23 @@ class FeedController extends Controller
     }
 
     /**
-     * /home — feed obserwowanych, a gdy go nie ma, feed tematów.
+     * /home — feed obserwowanych, a gdy go nie ma, feed tagów (D-021,
+     * zastępuje usunięty już feed tematów z issue #31).
      *
-     * TRZY STOPNIE, NIE DWA (issue #31)
-     * Do tej pory były dwa: albo wpisy obserwowanych, albo „Świeżo z Kuking"
+     * TRZY STOPNIE
+     * Do niedawna były dwa: albo wpisy obserwowanych, albo „Świeżo z Kuking"
      * — czyli wszystko jak leci, identyczne dla każdego. Nowe konto dostawało
      * więc ekran, który nie należał do niego.
      *
-     * Między nie wchodzi feed TEMATÓW wybranych w onboardingu. To jedyna
-     * rzecz, którą o kimś wiemy w pierwszej minucie, i pierwszy ekran, który
-     * jest jego, a nie serwisu. Dopiero gdy i to jest puste — bo ktoś pominął
-     * onboarding albo w jego tematach nikt jeszcze nic nie ugotował —
+     * Między nie wchodzi feed TAGÓW wybranych w onboardingu
+     * (`Tag::promowane()` — lista gospodarza, D-021). To jedyna rzecz,
+     * którą o kimś wiemy w pierwszej minucie, i pierwszy ekran, który jest
+     * jego, a nie serwisu. Dopiero gdy i to jest puste — bo ktoś pominął
+     * onboarding albo w jego tagach nikt jeszcze nic nie ugotował —
      * pokazujemy „Świeżo z Kuking".
      *
      * Kolejność jest ważna w drugą stronę też: człowiek, który KOGOŚ
-     * obserwuje, dostaje wpisy tych osób, nawet jeśli obserwuje też tematy.
+     * obserwuje, dostaje wpisy tych osób, nawet jeśli obserwuje też tagi.
      * Ludzie są ważniejsi od kategorii — to jest serwis o ludziach,
      * którzy gotują (AGENTS.md).
      */
@@ -65,7 +67,7 @@ class FeedController extends Controller
 
         $zrodlo = match (true) {
             ! $this->followingFeed->isEmptyFor($user) => 'obserwowani',
-            $this->topicFeed->maTresci($user) => 'tematy',
+            $this->tagFeed->maTresci($user) => 'tagi',
             default => 'odkrywanie',
         };
 
@@ -77,11 +79,36 @@ class FeedController extends Controller
         $wspomnienie = $this->wspomnienia->dlaOsoby($user);
 
         // Trzy ostatnio odłożone przepisy do prawej szyny (UI kit v2, ekran 01).
-        // Zapytanie idzie przez zeszyty TEGO CZŁOWIEKA, więc nie ma tu pytania
-        // o widoczność cudzych treści — a `published()` odsiewa przepis, który
-        // autor w międzyczasie schował do szkiców.
+        //
+        // `widoczneDla($user)`, NIE samo `published()` (audyt W3-12).
+        //
+        // Stał tu komentarz: „zapytanie idzie przez zeszyty TEGO CZŁOWIEKA,
+        // więc nie ma tu pytania o widoczność cudzych treści". To był błąd
+        // w rozumowaniu. Do zeszytu odkłada się CUDZE przepisy, a ich autor
+        // może po zapisaniu zmienić widoczność na prywatną, cofnąć obserwowanie
+        // albo zablokować osobę, która przepis odłożyła. Ekran zeszytu
+        // (`CollectionController::show()`) sprawdza to poprawnie — ta szyna nie
+        // sprawdzała, więc pokazywała tytuł, nazwisko autora i miniaturę
+        // przepisu, którego ta osoba nie ma już prawa zobaczyć.
+        //
+        // Ta sama treść nie może być bardziej widoczna przez inne miejsce
+        // w interfejsie. Jedna granica, jeden scope, wszędzie.
+        //
+        // I DOKŁADNIE TO ZDANIE BYŁO NIEPRAWDĄ. Stało tu samo
+        // `widoczneDla($user)`, a to jest tylko JEDNA z dwóch granic:
+        // liczy blokady i ustawienie widoczności, ale NIE liczy statusu konta
+        // autora — tym zajmuje się `User::scopeDostepnyJakoAutor()`
+        // (ustalenie audytowe W5-08: dwie różne reguły, obie obowiązkowe).
+        // `CollectionController::show()` ma obie od tamtego audytu; ta szyna
+        // miała jedną, więc przepis autora zbanowanego albo oznaczonego do
+        // usunięcia znikał z ekranu zeszytu i JEDNOCZEŚNIE stał na stronie
+        // głównej — z tytułem, nazwiskiem autora i miniaturą.
+        //
+        // Zmierzone, nie założone: `SzynaZeszytuUkrywaZbanowanegoAutoraTest`
+        // oblewał się na wszystkich trzech przypadkach przed tą linijką.
         $zeszyt = Recipe::query()
-            ->published()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
             ->with(['heroMedia', 'author.profile'])
             ->latest('recipes.published_at')
@@ -96,14 +123,11 @@ class FeedController extends Controller
             'board' => $this->dailyBoard->forViewer($user),
             'posts' => match ($zrodlo) {
                 'obserwowani' => $this->followingFeed->paginate($user),
-                'tematy' => $this->topicFeed->paginate($user),
+                'tagi' => $this->tagFeed->paginate($user),
                 default => $this->discoverFeed->paginate($user),
             },
             'zrodloFeedu' => $zrodlo,
             'showingDiscover' => $zrodlo === 'odkrywanie',
-            'obserwowaneTematy' => $zrodlo === 'tematy'
-                ? $user->followedTopics()->get()
-                : collect(),
         ]);
     }
 

@@ -20,7 +20,7 @@
         <p class="mb-0">Każdy kod działa <strong>tylko raz</strong>.</p>
     </div>
 
-    <ul class="card" style="list-style:none; padding:var(--spacing-5); font-size:20px; font-weight:700; letter-spacing:0.06em;">
+    <ul class="card lista-naga kod-do-przepisania p-5">
         @foreach($kody as $kod)
             <li class="py-2">{{ $kod }}</li>
         @endforeach

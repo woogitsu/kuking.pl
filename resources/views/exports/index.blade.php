@@ -102,12 +102,44 @@
             na przykład <em>2027-03-14-rosol.webp</em>.
         </p>
         <p><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
-    @else
+    @elseif($photosStillProcessing === 0)
+        {{--
+            Ten tekst jest prawdziwy TYLKO wtedy, gdy zdjęć naprawdę nie ma.
+            Przy zdjęciach w drodze mówiłby „nie masz żadnego zdjęcia" komuś,
+            kto wgrał je pięć minut wcześniej — czyli dokładnie odwrotnie,
+            niż jest (issue #113). Wtedy wchodzi ostrzeżenie niżej.
+        --}}
         <p>
             Nie masz jeszcze w Kuking żadnego zdjęcia, więc w tej paczce nie ma
             katalogu ze zdjęciami. Kiedy dodasz pierwsze i poprosisz o paczkę
             ponownie, znajdziesz je tutaj.
         </p>
+    @endif
+
+    {{--
+        Paczka, która WYGLĄDA na kompletną, a nie jest, jest gorsza od paczki,
+        która wprost mówi o swoich brakach. RODO art. 15/20 — cytowane
+        w `dane.json` — obiecuje dostęp do WSZYSTKICH danych, nie do tych,
+        które akurat zdążyły się przetworzyć. Eksport i przetwarzanie zdjęć
+        idą tą samą kolejką, więc na dużym koncie eksport realnie potrafi
+        wystartować pierwszy (issue #113).
+    --}}
+    @if($photosStillProcessing > 0)
+        @php
+            // Liczebnik i czasownik odmieniają się tak samo (1 / 2-4 / 5+
+            // i nastki) — obie formy z tej samej funkcji, inaczej wyszłoby
+            // „3 zdjęć nie zmieściło się".
+            $zdjecia = \App\Support\Odmiana::rzeczownik($photosStillProcessing, 'zdjęcie', 'zdjęcia', 'zdjęć');
+            $zmiescilo = \App\Support\Odmiana::rzeczownik($photosStillProcessing, 'zmieściło', 'zmieściły', 'zmieściło');
+            $przygotowywalo = \App\Support\Odmiana::rzeczownik($photosStillProcessing, 'przygotowywało', 'przygotowywały', 'przygotowywało');
+        @endphp
+        <div class="uwaga">
+            <p>
+                <strong>UWAGA: {{ $photosStillProcessing }} {{ $zdjecia }} nie {{ $zmiescilo }} się w tej paczce.</strong>
+                W chwili jej budowania {{ $przygotowywalo }} się jeszcze do pokazania w serwisie.
+                Nic nie zginęło. Poproś o nową paczkę za kilka minut — będzie w niej komplet.
+            </p>
+        </div>
     @endif
 
     <h2>Pliki techniczne</h2>

@@ -230,6 +230,66 @@ class DataExportTest extends TestCase
         $this->assertArrayNotHasKey('autor_id', $comments[0]);
     }
 
+    /**
+     * Paczka RODO ma pokazywać to, co człowiek WIDZI w serwisie — nie
+     * wszystko, co o nim leży w bazie.
+     *
+     * `$user->notifications()` w eksporcie nie miało `visibleTo()`, którym
+     * filtruje się lista powiadomień na ekranie. Skutek: powiadomienie
+     * ukryte w serwisie (bo jego sprawca został zbanowany albo poprosił
+     * o usunięcie konta) i tak trafiało do paczki — RAZEM z polem
+     * `excerpt`, czyli 120 znakami CUDZEGO tekstu.
+     *
+     * To jest ten sam nawracający wzorzec, o którym mówi
+     * `docs/HANDOVER.md`: reguła istnieje poprawnie w jednej warstwie
+     * (`Notification::scopeVisibleTo`), a druga jej nie woła.
+     */
+    public function test_paczka_nie_niesie_powiadomien_ukrytych_w_serwisie(): void
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $zenek = $this->user('zenek', ['display_name' => 'Zenek']);
+        $widmo = $this->user('widmo', ['display_name' => 'Widmo']);
+
+        // KONTROLA: zwykłe powiadomienie od aktywnego konta ma zostać.
+        Notification::create([
+            'user_id' => $basia->getKey(),
+            'actor_id' => $zenek->getKey(),
+            'type' => Notification::TYPE_FOLLOW,
+            'data' => ['excerpt' => 'zaczął Cię obserwować'],
+        ]);
+
+        Notification::create([
+            'user_id' => $basia->getKey(),
+            'actor_id' => $widmo->getKey(),
+            'type' => Notification::TYPE_FOLLOW,
+            'data' => ['excerpt' => 'TEKST KTORY NIE MA PRAWA WYJSC'],
+        ]);
+
+        // Bez tego kroku oba powiadomienia są widoczne i test przechodziłby
+        // niezależnie od naprawy.
+        $widmo->forceFill(['status' => User::STATUS_BANNED])->save();
+
+        $data = $this->jsonFromArchive($this->runExportFor($basia));
+
+        // `JSON_UNESCAPED_UNICODE`, bo bez niego polskie znaki uciekają do
+        // `\u0105` i asercja kontrolna nie znajduje własnego tekstu.
+        $wszystko = json_encode($data['powiadomienia'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringContainsString(
+            'zaczął Cię obserwować',
+            $wszystko,
+            'Zniknęło także zwykłe powiadomienie — filtr jest za szeroki.',
+        );
+
+        $this->assertStringNotContainsString(
+            'TEKST KTORY NIE MA PRAWA WYJSC',
+            $wszystko,
+            'Fragment cudzego tekstu z powiadomienia ukrytego w serwisie trafił do paczki RODO.',
+        );
+
+        $this->assertCount(1, $data['powiadomienia']);
+    }
+
     public function test_powiadomienia_nie_przenosza_cudzych_identyfikatorow(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
@@ -373,8 +433,8 @@ class DataExportTest extends TestCase
         $export->refresh();
 
         $this->assertSame(DataExport::STATUS_FAILED, $export->status);
-        $this->assertNotNull($export->failure_reason);
-        $this->assertStringContainsString('Nie udało się przygotować paczki', $export->failure_reason);
+        // Kod, nie zdanie (audyt W7-07) — patrz reasonFor() w GenerateUserExport.
+        $this->assertSame(DataExport::REASON_STORAGE, $export->failure_reason);
     }
 
     public function test_job_nie_zostawia_rekordu_w_stanie_przygotowywania(): void
@@ -391,7 +451,85 @@ class DataExportTest extends TestCase
         $export->refresh();
 
         $this->assertSame(DataExport::STATUS_FAILED, $export->status);
-        $this->assertStringContainsString('limit czasu', (string) $export->failure_reason);
+        $this->assertSame(DataExport::REASON_TIMEOUT, $export->failure_reason);
+    }
+
+    /**
+     * Powtórzenie scenariusza wyżej, ale z naciskiem na to, co NIE ma prawa
+     * trafić do kolumny: komentarz nad starym `reasonFor()` ostrzegał wprost
+     * przed „SQLSTATE[42P01]" na ekranie, a kod robił dokładnie to (audyt W7-07).
+     */
+    public function test_powod_niepowodzenia_eksportu_nigdy_nie_zawiera_surowego_komunikatu_wyjatku(): void
+    {
+        $basia = $this->user('basia');
+        $export = DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+
+        // Dysk, którego nie ma w konfiguracji — realny odpowiednik awarii storage.
+        // Bez tej zmiany w reasonFor() SQLSTATE albo nazwa dysku z tej awarii
+        // wylądowałyby wprost w failure_reason i na ekranie ustawień.
+        config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
+
+        try {
+            (new GenerateUserExport((string) $export->getKey()))->handle();
+            $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
+        } catch (\Throwable) {
+            // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
+        }
+
+        $export->refresh();
+
+        $this->assertContains($export->failure_reason, array_keys(DataExport::REASONS));
+
+        $powod = (string) $export->failure_reason;
+
+        $this->assertStringNotContainsString('SQLSTATE', $powod);
+        $this->assertStringNotContainsString('Exception', $powod);
+        $this->assertStringNotContainsString('dysk-ktorego-nie-ma', $powod);
+        $this->assertStringNotContainsString(sys_get_temp_dir(), $powod);
+    }
+
+    public function test_widok_pokazuje_ludzki_tekst_powodu_a_nie_kod(): void
+    {
+        $basia = $this->user('basia');
+
+        DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_FAILED,
+            'failure_reason' => DataExport::REASON_STORAGE,
+        ]);
+
+        $response = $this->actingAs($basia)->get(route('settings.data'));
+
+        $response->assertOk();
+        $response->assertSee('Nie udało się zapisać paczki w naszym magazynie plików.');
+        $response->assertSee((string) config('kuking.community.contact_email'));
+        $response->assertDontSee(DataExport::REASON_STORAGE, false);
+    }
+
+    /**
+     * Nieznany/stary kod (albo wiersz sprzed migracji W7-07, jeszcze z wolnym
+     * tekstem) ma dać sensowny tekst, nie pusty ekran i nie surowy ciąg
+     * z bazy — patrz DataExport::failureReasonLabel().
+     */
+    public function test_widok_pokazuje_bezpieczny_tekst_dla_nieznanego_kodu(): void
+    {
+        $basia = $this->user('basia');
+
+        DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_FAILED,
+            'failure_reason' => 'Nie udało się przygotować paczki: SQLSTATE[42P01]: Undefined table',
+        ]);
+
+        $response = $this->actingAs($basia)->get(route('settings.data'));
+
+        $response->assertOk();
+        $response->assertSee('Nie udało się przygotować paczki z Twoimi danymi.');
+        $response->assertDontSee('SQLSTATE', false);
+        $response->assertDontSee('42P01', false);
     }
 
     public function test_prosba_o_eksport_kolejkuje_job(): void

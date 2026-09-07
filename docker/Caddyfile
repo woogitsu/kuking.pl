@@ -51,7 +51,17 @@
 		-Server
 		-X-Powered-By
 		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
+		# DENY, nie SAMEORIGIN. Laravel (ApplySecurityHeaders) wysyła DENY,
+		# a CSP ma `frame-ancestors 'none'` — SAMEORIGIN był tu trzecią,
+		# luźniejszą odpowiedzią na to samo pytanie. Kuking nigdzie nie
+		# osadza sam siebie w ramce, więc SAMEORIGIN niczego nie umożliwiał;
+		# dawał tylko rozjazd między warstwami. A to, która z dwóch wartości
+		# faktycznie dojdzie do przeglądarki, zależy od kolejności
+		# middleware'ów w Caddy, nie od Laravela — runbook wdrożeniowy
+		# notował jako wartość oczekiwaną na produkcji właśnie SAMEORIGIN,
+		# czyli w praktyce wygrywał ten plik. Pilnuje tego teraz
+		# CaddySpojnyZNaglowkamiLaravelaTest (ustalenie W7-11).
+		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Cross-Origin-Opener-Policy "same-origin"
 		# CSP celowo NIE tutaj — Livewire wstrzykuje inline skrypty i CSP

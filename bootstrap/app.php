@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Middleware\ApplySecurityHeaders;
 use App\Http\Middleware\EnsureAccountIsActive;
@@ -10,8 +11,10 @@ use App\Http\Middleware\EnsureUserIsModerator;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -120,6 +123,69 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->view('errors.419', [
                 'formularz' => OdzyskanyFormularz::zZadania($request),
             ], 419);
+        });
+
+        // ------------------------------------------------------------------
+        //  429 ZOSTAWIA ŚLAD, KTÓRA TRASA GO WYWOŁAŁA
+        //
+        //  `ThrottleRequestsException` dziedziczy po `HttpException`, a tej
+        //  Laravel z zasady nie raportuje — więc do tej pory limit zapytań
+        //  nie zostawiał w logu ANI JEDNEJ linijki. Człowiek widział „Za dużo
+        //  prób", a po naszej stronie nie było jak ustalić, czy chodziło
+        //  o publikację wpisu, o komentarz, czy o coś zupełnie innego.
+        //  Dokładnie tak wyglądało zgłoszenie właściciela: 429 przy pierwszej
+        //  próbie dodania zdjęcia danego dnia, bez żadnego sposobu, żeby
+        //  sprawdzić, który limit zadziałał.
+        //
+        //  Zwracamy `null`, więc renderowanie idzie dalej normalnie —
+        //  to jest wyłącznie zapis do logu, nie zmiana zachowania.
+        //
+        //  CZEGO TU NIE MA, ŚWIADOMIE: adresu IP, identyfikatora konta ani
+        //  ścieżki z prawdziwym slugiem (AGENTS.md §7 — żadnych PII w logach).
+        //  Zapisujemy WZORZEC trasy i samą informację, czy limit liczył się
+        //  po zalogowanym koncie, czy po adresie. Do ustalenia „który limit
+        //  i jak długo trwa" to wystarcza, a do zidentyfikowania osoby nie.
+        //
+        //  DRUGI ZAPIS OBOK LOGU: `photo_upload_failed` (audyt zewnętrzny,
+        //  punkt N05). Żądanie ze zdjęciem odrzucone TU nigdy nie dociera do
+        //  kontrolera — `StoreUploadedImage` i `ObslugiwaneZdjecie` (walidacja
+        //  formularza) o nim nie wiedzą, więc bez tego wpisu ta droga była
+        //  równie niewidoczna z Postgresa jak wcześniej zła walidacja.
+        //
+        //  WARUNEK PO PLIKU, NIE PO NAZWIE TRASY: throttle na `posts.store`
+        //  (limiter `post`) obsługuje TAKŻE wpisy czysto tekstowe — 429 przy
+        //  publikowaniu samego tekstu nie ma nic wspólnego ze zdjęciem i nie
+        //  powinien zaśmiecać tego sygnału. `hasFile()`/`file()` czytają
+        //  `$_FILES`, które PHP wypełnia PRZED middleware'ami Laravela, więc
+        //  ten odczyt jest wiarygodny nawet na etapie throttle, zanim
+        //  jakakolwiek walidacja czy kontroler się uruchomiły. Sprawdzenie po
+        //  nazwie pola, nie po nazwie trasy, bo automatycznie obejmuje każdy
+        //  dzisiejszy i przyszły formularz przyjmujący zdjęcie — bez listy
+        //  tras do pamiętania osobno (ten sam powód co `LimityZdjec`).
+        //
+        //  BEZ WŁASNOŚCI DODATKOWYCH: throttle działa przed jakąkolwiek
+        //  walidacją, więc na tym etapie nie wiadomo jeszcze, czy plik w ogóle
+        //  dałoby się odczytać — jedyne, co wiadomo NA PEWNO, to sam powód.
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
+            Log::info('Limit zapytań zadziałał', [
+                'trasa' => $request->route()?->getName() ?? '(bez nazwy)',
+                'wzorzec' => $request->method().' /'.($request->route()?->uri() ?? '?'),
+                'liczony_po' => $request->user() !== null ? 'koncie' : 'adresie',
+                'ponow_za_s' => $e->getHeaders()['Retry-After'] ?? null,
+            ]);
+
+            $mialoZdjecie = ! empty($request->file('photos', []))
+                || $request->hasFile('avatar')
+                || $request->hasFile('hero_photo')
+                || $request->hasFile('source_scan');
+
+            if ($mialoZdjecie) {
+                app(ZapiszSygnal::class)->handle($request->user(), ZapiszSygnal::PHOTO_UPLOAD_FAILED, [
+                    'reason' => ZapiszSygnal::REASON_RATE_LIMITED,
+                ]);
+            }
+
+            return null;
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go

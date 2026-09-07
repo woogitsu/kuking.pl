@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\AuditLogEntry;
+use App\Models\DataExport;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,14 +49,63 @@ class AccountDeletionPurgeTest extends TestCase
         $this->assertFalse(Hash::check('haslo-testowe-123', $basia->password));
         $this->assertNull($basia->remember_token);
 
-        // Status ZOSTAJE pending_delete — nie wprowadzamy nowej wartości do
-        // CHECK-a, to `data_erased_at` niesie informację o wykonaniu.
-        $this->assertSame(User::STATUS_PENDING_DELETE, $basia->status);
+        // STAN KOŃCOWY, NIE `pending_delete` (D-022).
+        //
+        // Ten test asertował wcześniej odwrotnie — „status ZOSTAJE
+        // pending_delete" — i to była właśnie usterka: na tym statusie stoi
+        // `User::jestDostepnyJakoAutor()`, więc zanonimizowany tekst konta
+        // znikał z serwisu na zawsze, choć D-018 obiecywało, że zostanie.
+        // Widoczności pilnuje `UsunieteKontoTresciZostajaWidoczneTest`; tu
+        // pilnujemy samego stanu, bo od niego zależy wszystko powyżej.
+        $this->assertSame(User::STATUS_ERASED, $basia->status);
 
         $this->assertSame('Użytkownik usunięty', $profil->display_name);
         $this->assertNull($profil->bio);
         $this->assertNull($profil->avatar_media_id);
         $this->assertNotSame('basia', $profil->username);
+    }
+
+    /**
+     * Gotowa paczka danych przestaje być do pobrania razem z kontem.
+     *
+     * Paczka to kopia CAŁEGO konta: adres e-mail, wszystkie treści,
+     * wszystkie zdjęcia — w tym oryginały. Wisiała pod podpisanym adresem
+     * jeszcze do siedmiu dni PO tym, jak konto zostało wymazane, bo
+     * `EraseAccountData` nie tykało tabeli `data_exports` wcale.
+     *
+     * Człowiek, który poprosił o usunięcie konta, nie ma powodu zakładać, że
+     * najpełniejsza kopia jego danych zostaje osiągalna pod adresem, który
+     * kiedyś dostał mailem.
+     *
+     * DLACZEGO PRZESTAWIAMY TERMIN, A NIE KASUJEMY PLIKU TUTAJ: kasowanie
+     * z weryfikacją i ponawianiem jest już napisane i przetestowane
+     * w `kuking:sprzataj-eksporty`. Przestawienie terminu odbiera dostęp
+     * NATYCHMIAST (`isDownloadable()` patrzy na `expires_at`), a plik
+     * znika tą samą, sprawdzoną drogą co każda inna wygasła paczka.
+     */
+    public function test_gotowa_paczka_danych_przestaje_byc_do_pobrania(): void
+    {
+        $basia = $this->kontoPoTerminie();
+
+        $paczka = DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_READY,
+            'disk' => 'local',
+            'object_key' => 'eksporty/paczka.zip',
+            'expires_at' => now()->addDays(5),
+        ]);
+
+        // KONTROLA: przed wymazaniem paczka NAPRAWDĘ jest do pobrania.
+        // Bez tej asercji test przechodziłby także wtedy, gdyby paczka od
+        // początku była niedostępna z całkiem innego powodu.
+        $this->assertTrue($paczka->isDownloadable(), 'Paczka nie była do pobrania jeszcze przed wymazaniem konta.');
+
+        $this->artisan('kuking:usun-wygasle-konta')->assertSuccessful();
+
+        $this->assertFalse(
+            $paczka->fresh()->isDownloadable(),
+            'Gotowa paczka z kopią całego konta została do pobrania po wymazaniu tego konta.',
+        );
     }
 
     public function test_egzekutor_zapisuje_wpis_w_dzienniku_audytu(): void

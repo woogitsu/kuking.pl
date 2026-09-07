@@ -22,7 +22,7 @@
             <p class="meta">Najwyżej 6. Przy każdej możesz dopisać jedno zdanie — pokaże się pod jej kartą.</p>
 
             @forelse($osoby as $osoba)
-                <div style="border-bottom:1px solid var(--color-border); padding:var(--spacing-3) 0;">
+                <div class="wiersz-listy">
                     <label class="choice" for="osoba-{{ $osoba->getKey() }}">
                         <input id="osoba-{{ $osoba->getKey() }}" type="checkbox" name="osoby[]"
                                value="{{ $osoba->getKey() }}"
@@ -58,7 +58,7 @@
             <p class="meta">Najwyżej 6.</p>
 
             @forelse($wpisy as $wpis)
-                <div style="border-bottom:1px solid var(--color-border); padding:var(--spacing-3) 0;">
+                <div class="wiersz-listy">
                     <label class="choice" for="wpis-{{ $wpis->getKey() }}">
                         <input id="wpis-{{ $wpis->getKey() }}" type="checkbox" name="wpisy[]"
                                value="{{ $wpis->getKey() }}"
@@ -67,7 +67,7 @@
                             @php $foto = $wpis->media->first(fn ($m) => $m->isReady()); @endphp
                             @if($foto)
                                 <img src="{{ $foto->url('thumb') }}" alt="" width="64" height="64"
-                                     style="width:64px;height:64px;object-fit:cover;border-radius:var(--radius-sm);flex:none;"
+                                     class="miniatura-64"
                                      loading="lazy">
                             @endif
                             <span class="min-w-0">

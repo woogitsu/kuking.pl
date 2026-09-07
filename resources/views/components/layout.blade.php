@@ -4,6 +4,9 @@
     Rzeczy, które MUSZĄ tu zostać:
     - `data-text-scale` z konta użytkownika — ustawienie rozmiaru tekstu
       przetrwa zmianę przeglądarki (docs/UX_50_PLUS.md);
+    - `data-theme="dark"` — WYŁĄCZNIE stąd bierze się ciemny motyw, arkusz
+      stylów już nie ogląda się na `prefers-color-scheme` (docs/DECISIONS.md,
+      D-019). Jasny jest domyślny, gdy atrybutu nie ma;
     - link „Przejdź do treści” dla klawiatury;
     - komunikaty w `aria-live`, żeby czytnik ekranu ogłosił „Szkic zapisany”;
     - podpis tekstowy pod każdą ikoną w nawigacji.
@@ -12,12 +15,19 @@
     'title' => null,
     'description' => null,
     'noindex' => false,
-    'wide' => false,
     // Livewire dociągamy TYLKO na stronach, które go naprawdę używają
     // (dziś: kreator przepisu). Reszta serwisu działa bez tego skryptu
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
     // ulepszeniem, nie warunkiem.
     'livewire' => false,
+    // Strona powitalna dostaje SZERSZY układ niż reszta widoków gościa.
+    //
+    // Reszta gościa (`/odkryj`, logowanie, rejestracja) to ekrany do CZYTANIA
+    // i zostaje przy jednej kolumnie 720 px — długość linii jest tam ważniejsza
+    // niż zapełnienie ekranu. Strona powitalna czytania prawie nie ma: to
+    // nagłówek, dwie karty i siatka zdjęć. Przy jednej kolumnie zostawiała
+    // po bokach pustkę na połowie ekranu (zgłoszenie właściciela z 7 września).
+    'powitalny' => false,
     // Zdjęcie do karty w mediach społecznościowych (issue #14). Przekazujemy
     // model Media, a nie gotowy adres — komponent sam wybiera wariant i zna
     // wymiary, których Facebook i WhatsApp wymagają, żeby nie przycinać
@@ -29,6 +39,12 @@
 @php
     $user = auth()->user();
     $scale = $user?->text_scale ?? 100;
+    // Jasny/ciemny wygląd (docs/DECISIONS.md, D-019). Zalogowany ma wybór
+    // na koncie; gość — w ciasteczku (ThemeController). Brak jednego
+    // i drugiego znaczy jasny, bo to jest teraz DOMYŚLNY motyw serwisu,
+    // niezależnie od tego, co ustawił system operacyjny odwiedzającego.
+    $theme = $user?->theme ?? request()->cookie(config('kuking.theme.cookie'));
+    $theme = $theme === 'dark' ? 'dark' : 'light';
     $unread = $user?->unreadNotificationsCount() ?? 0;
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
@@ -86,7 +102,7 @@
 @endphp
 
 <!DOCTYPE html>
-<html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif>
+<html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif @if($theme === 'dark') data-theme="dark" @endif>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -143,7 +159,11 @@
     @endif
     {{ $head ?? '' }}
 </head>
-<body>
+{{-- `uklad-solo` steruje szerokością belki i stopki dla gościa — musi iść
+     w parze z `app-body-solo` na siatce niżej. Jedna klasa na <body>, bo
+     belka i stopka stoją POZA `.app-body` i inaczej nie mają skąd wiedzieć,
+     że ta strona nie ma ani nawigacji bocznej, ani szyny. --}}
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo' }} @endguest">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     <header class="topbar">
@@ -243,7 +263,7 @@
              niżej: siatka na desktopie rezerwuje pierwszą kolumnę na
              nawigację, więc bez niej treść wpadłaby w kolumnę szeroką na
              15rem. Pilnuje tego test UkladGosciaTest. --}}
-        <div class="app-body @guest app-body-solo @endguest @if(isset($rail)) app-body-z-szyna @endif">
+        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo' }} @endguest">
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
@@ -275,6 +295,9 @@
                                  ikon, która należy do prac nad UI kitem. --}}
                             <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
                             <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                            {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
+                                 co tablica na dziś, stąd ta sama ikona. --}}
+                            <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
                         @endif
                     </ul>
 
@@ -292,6 +315,22 @@
                 </nav>
             @endauth
 
+            {{--
+                KOLUMNA CZYTANIA MA 45rem NA KAŻDYM EKRANIE.
+
+                Tyle wychodzi 65–75 znaków przy 18–20 px (docs/UX_50_PLUS.md).
+                Wcześniej ekran przepisu miał od tego wyjątek (`wide`), bo
+                jego dwukolumnowy układ z kitu v2 dusił się w 45rem. Wyjątek
+                zniknął razem ze stałą siatką: właściciel zdecydował, że
+                szerokość strony ma być identyczna na każdej podstronie, a przy
+                stałej siatce `max-width: none` na <main> i tak nie robiło już
+                nic — kolumna środkowa ma dokładnie 45rem niezależnie od tego,
+                czy dany ekran podaje szynę.
+
+                Jeśli ekran przepisu okaże się przez to za ciasny, właściwą
+                odpowiedzią jest oddanie mu KOLUMNY SZYNY (której i tak nie
+                używa), a nie rozpychanie całej strony.
+            --}}
             <main class="app-main" id="tresc">
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił. --}}
                 <div aria-live="polite">
@@ -356,6 +395,11 @@
                 <a href="{{ route('rules') }}">Zasady</a>
                 <a href="{{ route('terms') }}">Regulamin</a>
                 <a href="{{ route('privacy') }}">Prywatność</a>
+                {{-- DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO DOSTĘPNEGO.
+                     Formularz, do którego nie ma skąd kliknąć, tego nie
+                     spełnia — a przez chwilę dokładnie taki był: istniał
+                     pod adresem, którego nikt nie miał prawa znać. --}}
+                <a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a>
 
                 {{-- Wersja: etap produktu + skrót wdrożonego commita.
                      Widoczna zawsze, żeby dało się jednym spojrzeniem
@@ -365,6 +409,36 @@
                      kursorem, a informacja dostępna tylko przez hover jest
                      dla części osób niedostępna w ogóle (UX_50_PLUS). --}}
                 <span class="site-version">{{ \App\Support\Wersja::pelna() }}</span>
+
+                {{--
+                    SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md, D-019).
+
+                    W stopce, bo stopka jest na KAŻDEJ stronie i widoczna też
+                    na telefonie — w przeciwieństwie do pełnego ustawienia na
+                    `/ustawienia/czytelnosc`, do którego na telefonie nie ma
+                    dziś dojścia bez zalogowania. Działa też dla gościa: nie
+                    ma tu `@auth`.
+
+                    ZWYKŁY FORMULARZ POST, NIE LINK GET (AGENTS.md §5, §7):
+                    zmiana stanu przez GET dałaby się wywołać samym linkiem
+                    (np. z prefetchu przeglądarki) i złamałaby CSRF.
+
+                    Przycisk niesie WIDOCZNY TEKST opisujący wynik kliknięcia
+                    („Włącz ciemny wygląd" / „Włącz jasny wygląd"), nie samą
+                    ikonę — „ikona nigdy sama" (AGENTS.md §5).
+
+                    `redirect_to` NIE istnieje: `back()` w ThemeController
+                    czyta nagłówek `Referer`, tak samo jak każdy inny formularz
+                    „Zapisz" w serwisie (np. AccessibilitySettingsController).
+                --}}
+                <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
+                    @csrf
+                    <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
+                    <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
+                    <button class="btn btn-quiet" type="submit">
+                        {{ $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd' }}
+                    </button>
+                </form>
             </div>
         </footer>
 

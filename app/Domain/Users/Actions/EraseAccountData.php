@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Media\KasujZdjecie;
+use App\Models\DataExport;
+use App\Models\Media;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -22,11 +24,30 @@ use Illuminate\Support\Str;
  *
  *  - anonimizuje `users` (e-mail, hasło, token) i `profiles` (nazwa, bio,
  *    avatar) — to są dane, po których da się rozpoznać konkretnego człowieka;
- *  - NIE kasuje `posts`, `recipes`, `comments`, `cooked_events` ani innych
- *    treści — te zostają, przypisane do już zanonimizowanego konta. Usuwanie
- *    ich osobno byłoby kasowaniem cudzej historii gotowania (komuś innemu
- *    ktoś kiedyś odpowiedział w komentarzu) bez żadnej korzyści prawnej —
- *    RODO chroni DANE OSOBOWE, nie fakt istnienia wpisu.
+ *  - PRZY ZAKRESIE `minimum` (domyślnym, D-022) NIE kasuje `posts`,
+ *    `recipes`, `comments`, `cooked_events` — TEKST zostaje, przypisany do
+ *    już zanonimizowanego konta i — od D-022 — NADAL WIDOCZNY. Usuwanie go byłoby
+ *    kasowaniem cudzej historii gotowania: komuś ktoś kiedyś odpowiedział
+ *    w komentarzu, ktoś ugotował z tego przepisu i ma go w zeszycie.
+ *    RODO chroni DANE OSOBOWE, nie fakt istnienia wpisu, a zanonimizowany
+ *    tekst przepisu danymi osobowymi nie jest.
+ *
+ *    ZAKRES WYBIERA JEDNAK CZŁOWIEK, NIE MY (D-022). Powyższe jest naszą
+ *    oceną, że tak jest lepiej dla społeczności — a tej oceny nie wolno
+ *    robić za kogoś przy jego własnych danych. Kto zaznaczy haczyk na
+ *    ekranie usuwania konta, dostaje `delete_scope = everything`
+ *    i `usunTresci()` niżej kasuje wszystko na stałe.
+ *  - KASUJE WSZYSTKIE ZDJĘCIA TEJ OSOBY, nie tylko profilowe (audyt W4-01,
+ *    decyzja D-018). Ze zdjęciem jest inaczej niż z tekstem: samo w sobie
+ *    bywa danymi osobowymi — twarz, wnętrze mieszkania, dokument na stole,
+ *    a w oryginale jeszcze EXIF ze współrzędnymi. Anonimizacja podpisu nie
+ *    zmienia tam niczego, bo dane są w pikselach.
+ *
+ *    Do tej pory kasowane było wyłącznie zdjęcie profilowe, a ekran usuwania
+ *    konta kazał potwierdzić: „Rozumiem, że po 30 dniach moje wpisy, przepisy
+ *    i zdjęcia zostaną usunięte na stałe". Kod tego nie robił. To nie jest
+ *    spór o interpretację przepisu — to obietnica złożona konkretnym zdaniem
+ *    i niedotrzymana.
  *  - odpina zdjęcie profilowe i KASUJE PLIK razem z wariantami (issue #93),
  *    o ile nic innego na nie nie wskazuje. Wcześniej odpinana była sama
  *    referencja: zdjęcie twarzy — a często zdjęcie z nietkniętym EXIF-em,
@@ -50,7 +71,34 @@ final class EraseAccountData
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
     public function handle(User $user): bool
     {
-        $doSkasowania = null;
+        $fresh = User::query()->whereKey($user->getKey())->first();
+
+        // PONOWIENIE (audyt/issue #17): konto jest JUŻ zanonimizowane
+        // (`data_erased_at` ustawione w poprzednim, udanym uruchomieniu), ale
+        // zostały nieskasowane zdjęcia — bo poprzednia próba kasowania plików,
+        // niżej w tej metodzie, PADŁA W POŁOWIE (na przykład: R2 rzuciło na
+        // drugim z trzech wariantów). Anonimizacja to osobna, już zatwierdzona
+        // transakcja i nie ma czego w niej powtarzać — tu kończymy WYŁĄCZNIE
+        // kasowanie plików, tych samych zdjęć, tą samą metodą.
+        //
+        // Bez tej gałęzi takie zdjęcie nie miało ŻADNEJ drogi powrotnej:
+        // `PurgeExpiredAccountDeletions` wybiera konta do PEŁNEJ egzekucji po
+        // `whereNull('data_erased_at')`, a to konto już go nie ma. Wiersz
+        // `media` — i plik z pełnym, nietkniętym EXIF-em — zostawałby więc
+        // bezterminowo, mimo że człowiek dostał potwierdzenie usunięcia
+        // danych.
+        if ($fresh !== null && $fresh->data_erased_at !== null) {
+            $zostaly = $fresh->media()->get()->all();
+
+            if ($zostaly === []) {
+                return false;
+            }
+
+            return $this->dokonczKasowanieZdjec($zostaly) > 0;
+        }
+
+        /** @var list<Media> $doSkasowania */
+        $doSkasowania = [];
 
         $wymazano = DB::transaction(function () use ($user, &$doSkasowania): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
@@ -68,9 +116,20 @@ final class EraseAccountData
 
             $profile = $fresh->profile;
 
-            // Zdjęcie zapamiętujemy TERAZ, bo za chwilę odepniemy referencję
-            // i nie będzie już czego szukać.
-            $doSkasowania = $profile?->avatar;
+            // WSZYSTKIE zdjęcia tej osoby, nie tylko profilowe (D-018).
+            // Zbieramy TERAZ, bo za chwilę odepniemy referencję z profilu
+            // i awatara nie dałoby się już znaleźć tą drogą.
+            $doSkasowania = $fresh->media()->get()->all();
+
+            // ZAKRES WYBRANY PRZEZ CZŁOWIEKA 30 DNI TEMU (D-022).
+            //
+            // Czytamy KOLUMNĘ, nie żądanie HTTP — ekran, na którym stawiano
+            // haczyk, dawno się zamknął. Domyślny `minimum` (haczyk
+            // nietknięty) zostawia teksty; `everything` kasuje je razem
+            // z resztą.
+            if ($fresh->chceUsunacTresci()) {
+                $this->usunTresci($fresh);
+            }
 
             if ($profile !== null) {
                 $profile->forceFill([
@@ -89,8 +148,49 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
-                'data_erased_at' => now(),
             ])->save();
+
+            // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.
+            //
+            // Do tej pory konto zostawało tu na `pending_delete`, a ten status
+            // znaczy „karencja trwa, treści schowane". Skutek był taki, że
+            // zanonimizowany tekst zostawał w bazie i znikał z serwisu na
+            // zawsze: przepis 403, wpis 403, profil 403, komentarz niewidoczny
+            // nawet dla autora wpisu. D-018 obiecało jedno, serwis robił
+            // drugie — i nikt tego nie zauważył, bo test asertował obecność
+            // wiersza w bazie, nie widoczność na ekranie.
+            //
+            // `erased` jest stanem KOŃCOWYM i osobnym: logowania nie ma,
+            // odzyskania nie ma, wyszukiwarka i listy osób tego konta nie
+            // pokazują — ale tekst, który po tej osobie został, jest widoczny
+            // pod podpisem „Użytkownik usunięty".
+            $fresh->markDataErased();
+
+            // GOTOWA PACZKA DANYCH PRZESTAJE BYĆ DO POBRANIA.
+            //
+            // Paczka to kopia CAŁEGO konta: adres e-mail, wszystkie treści,
+            // wszystkie zdjęcia — w tym oryginały. Wisiała pod podpisanym
+            // adresem jeszcze do siedmiu dni PO wymazaniu konta, bo ta akcja
+            // nie tykała `data_exports` wcale. Człowiek, który poprosił
+            // o usunięcie konta, nie ma powodu zakładać, że najpełniejsza
+            // kopia jego danych zostaje osiągalna pod adresem, który kiedyś
+            // dostał mailem.
+            //
+            // PRZESTAWIAMY TERMIN, A NIE KASUJEMY PLIKU TUTAJ. Kasowanie
+            // z weryfikacją (`exists()` po fakcie) i z ponawianiem przy
+            // porażce jest już napisane i przetestowane
+            // w `kuking:sprzataj-eksporty`. Duplikowanie go tu dałoby drugą
+            // implementację tej samej rzeczy — i to ta gorsza wersja
+            // musiałaby żyć wewnątrz transakcji, gdzie kasowanie pliku jest
+            // nieodwracalne przy wycofaniu.
+            //
+            // Skutek jest natychmiastowy tam, gdzie ma być: `isDownloadable()`
+            // patrzy na `expires_at`, więc dostęp znika w tej samej sekundzie.
+            // Sam plik znika tą samą drogą co każda inna wygasła paczka.
+            DataExport::query()
+                ->where('user_id', $fresh->getKey())
+                ->whereIn('status', [DataExport::STATUS_READY, DataExport::STATUS_QUEUED, DataExport::STATUS_PROCESSING])
+                ->update(['expires_at' => now()->subSecond()]);
 
             // Defensywnie: `markForDeletion()` kasuje sesje z innych
             // przeglądarek już przy zgłoszeniu, ale między zgłoszeniem
@@ -116,11 +216,93 @@ final class EraseAccountData
         // Kolejność ma i drugi skutek: w tym momencie referencja z profilu
         // jest już usunięta, więc sprawdzenie „czy ktoś tego jeszcze używa"
         // nie zobaczy samego siebie.
-        if ($wymazano && $doSkasowania !== null) {
-            $this->kasujZdjecie->jesliNieuzywane($doSkasowania);
+        if ($wymazano && $doSkasowania !== []) {
+            $this->dokonczKasowanieZdjec($doSkasowania);
         }
 
         return $wymazano;
+    }
+
+    /**
+     * Kasuje komplet plików podanych zdjęć i, TYLKO PRZY PEŁNYM SUKCESIE,
+     * sam wiersz `media` — dla konta, którego anonimizacja jest już
+     * zatwierdzona (audyt/issue #17).
+     *
+     * `skasujPliki()` + `delete()`, a NIE `jesliNieuzywane()`.
+     *
+     * Tamta metoda odmawia skasowania zdjęcia, do którego coś jeszcze
+     * wskazuje — a tu wskazują WŁASNE wpisy i przepisy tej osoby, które
+     * zostają. Przy `jesliNieuzywane()` nie skasowałoby się więc nic poza
+     * awatarem, czyli dokładnie stan sprzed naprawy W4-01.
+     *
+     * To jest jedyne miejsce w serwisie, w którym wolno tak zrobić, i wolno
+     * wyłącznie dlatego, że kasujemy KOMPLET zdjęć jednej osoby na jej
+     * własne żądanie. Wpisy zostają wtedy bez zdjęcia — `x-photo` pokazuje
+     * w tym stanie komunikat, a nie pustą ramkę.
+     *
+     * WIERSZ ZOSTAJE PRZY NIEPEŁNYM SKASOWANIU (audyt/issue #17), a nie
+     * znika razem z plikiem, którego kasowanie się nie udało. Ten wiersz
+     * jest jedynym śladem, po którym `handle()` — wywołane ponownie dla tego
+     * samego, już zanonimizowanego konta (gałąź na górze tej klasy) — wie, co
+     * jeszcze dokończyć. `skasujPliki()` sama próbuje KAŻDY plik na KAŻDYM
+     * dysku niezależnie od porażki poprzedniego, więc jedna nieudana próba
+     * nie blokuje reszty zdjęć w tej pętli.
+     *
+     * @param  list<Media>  $zdjecia
+     * @return int ile zdjęć skasowano W KOMPLECIE (wiersz i wszystkie pliki)
+     */
+    private function dokonczKasowanieZdjec(array $zdjecia): int
+    {
+        $skasowane = 0;
+
+        foreach ($zdjecia as $zdjecie) {
+            if ($this->kasujZdjecie->skasujPliki($zdjecie)) {
+                $zdjecie->delete();
+                $skasowane++;
+            }
+        }
+
+        return $skasowane;
+    }
+
+    /**
+     * PEŁNE USUNIĘCIE TREŚCI — tylko przy `delete_scope = everything` (D-022).
+     *
+     * CO KASUJEMY I W JAKIEJ KOLEJNOŚCI
+     * Komentarze i wykonania przed wpisami i przepisami — nie z powodu
+     * kluczy obcych (te i tak mają `ON DELETE CASCADE`), a żeby liczba
+     * skasowanych wierszy była przewidywalna, gdyby ktoś kiedyś dopisał tu
+     * raportowanie.
+     *
+     * `withTrashed()` PRZY KAŻDYM ZAPYTANIU, I TO NIE JEST DROBIAZG.
+     * Przepis, który ta osoba skasowała sama pół roku wcześniej, leży dalej
+     * w tabeli z pełnym tekstem — soft delete to ukrycie, nie usunięcie.
+     * Bez `withTrashed()` „usuń wszystko" pomijałoby dokładnie te wiersze,
+     * o których człowiek jest najbardziej przekonany, że ich już nie ma.
+     *
+     * `forceDelete()`, NIE `delete()`. Soft delete zostawiłby tekst
+     * w bazie i zamienił obietnicę „usuwamy wszystko" w to samo, czym była
+     * przed D-022: zapis w kolumnie.
+     *
+     * CENA, KTÓRĄ EKRAN MUSI POWIEDZIEĆ WPROST (i mówi):
+     * kaskady zabierają razem z przepisem cudze komentarze i cudze
+     * wykonania pod nim, a razem ze wpisem — cudze komentarze. To jest
+     * dokładnie ten skutek, przez który D-018 odrzuciło kasowanie treści
+     * jako zachowanie DOMYŚLNE. Tutaj dzieje się wyłącznie na wyraźne
+     * życzenie, po zaznaczeniu odhaczonego haczyka.
+     */
+    private function usunTresci(User $user): void
+    {
+        $user->comments()->withTrashed()->forceDelete();
+        $user->cookedEvents()->delete();
+        $user->posts()->withTrashed()->forceDelete();
+        $user->recipes()->withTrashed()->forceDelete();
+
+        // Zeszyty (`collections`) razem z zawartością — `collection_items`
+        // mają kaskadę. To jest własna półka tej osoby, nie cudza historia:
+        // nikt inny nie traci tu niczego poza tym, że przestaje istnieć
+        // publiczny zeszyt konta, którego już nie ma.
+        $user->collections()->delete();
     }
 
     /**

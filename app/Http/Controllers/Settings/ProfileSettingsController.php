@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use RuntimeException;
 
 class ProfileSettingsController extends Controller
 {
@@ -59,7 +60,7 @@ class ProfileSettingsController extends Controller
             'bio' => ['nullable', 'string', 'max:500'],
             'region' => ['nullable', 'string', 'max:80'],
             'speciality' => ['nullable', 'string', 'max:120'],
-            'avatar' => ['nullable', 'file', 'image', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'avatar' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             'username.regex' => 'Nazwa użytkownika może zawierać tylko litery bez polskich znaków, cyfry i podkreślnik.',
@@ -75,7 +76,7 @@ class ProfileSettingsController extends Controller
             if ($request->hasFile('avatar')) {
                 $data['avatar_media_id'] = $this->storeImage->handle($user, $request->file('avatar'))->getKey();
             }
-        } catch (RuntimeException $e) {
+        } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['avatar' => $e->getMessage()]);
         }
 

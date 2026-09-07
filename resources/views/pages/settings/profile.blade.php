@@ -18,7 +18,7 @@
             <label for="f-avatar">Zdjęcie profilowe</label>
             <span class="field-help" id="f-avatar-help">Nieobowiązkowe. Bez niego pokazujemy pierwszą literę Twojego imienia.</span>
             <input class="field-input" id="f-avatar" type="file" name="avatar"
-                   accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif"
+                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    aria-describedby="f-avatar-help">
             @error('avatar')<span class="field-error">{{ $message }}</span>@enderror
         </div>

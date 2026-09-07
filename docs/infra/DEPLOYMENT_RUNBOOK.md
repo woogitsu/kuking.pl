@@ -187,6 +187,28 @@ Powtórz dla staginu (token `kuking-staging`, zakres `kuking-media-staging`).
 
 ### 2.3 Własna domena `cdn.kuking.pl`
 
+> ## ⛔ TEGO KROKU NIE WYKONUJ — jest sprzeczny z decyzją właściciela D-020
+>
+> Ten rozdział powstał, gdy adresem zdjęcia był adres pliku w buckecie.
+> **Decyzja D-020 (6 września 2026) to odwróciła:** adresem zdjęcia jest
+> trasa aplikacji, która sprawdza uprawnienia, a bucket wariantów traci
+> własną domenę. Utworzenie `cdn.kuking.pl` na buckecie wariantów —
+> a zwłaszcza razem z regułą „Cache Everything" z §7, Edge i Browser TTL
+> 30 dni — **odtworzyłoby dokładnie tę lukę**, którą zamknęło ustalenie
+> audytowe W7-02: adres raz skopiowany działa dalej po zablokowaniu, po
+> cofnięciu obserwowania i po decyzji moderacyjnej. Najgorszy przypadek
+> nazwał audyt wprost: skan odręcznej kartki z rodzinnym przepisem,
+> a na niej nazwiska i adresy.
+>
+> Zmierzone 7 września 2026: `cdn.kuking.pl` nie odpowiada, czyli krok nie
+> został wykonany. Ma tak zostać. To samo dotyczy reguły 4 w §7.
+>
+> Rozdział zostaje w dokumencie, a nie jest kasowany, bo `R2_PUBLIC_URL`
+> i `r2_legacy` mają swoją historię, którą trzeba rozumieć przy migracji
+> starych zdjęć (`kuking:przenies-zdjecia`). Ale jako INSTRUKCJA jest
+> wycofany.
+
+
 → R2 → bucket `kuking-media` → **Settings** → **Custom Domains** → **Add**
 
 - Domena: `cdn.kuking.pl`
@@ -840,7 +862,7 @@ curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoop
 
 # 10. Nagłówki bezpieczeństwa
 curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
-# Oczekiwane: nosniff, SAMEORIGIN
+# Oczekiwane: nosniff, DENY
 ```
 
 **Testy ręczne w przeglądarce:**
@@ -1128,7 +1150,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
-| 13 | Adres nadawcy poczty | `kuchnia@kuking.pl` | `railway.ts` |
+| 13 | Adres nadawcy poczty | `kontakt@kuking.pl` — **jeden adres w obie strony** (decyzja właściciela, 7 IX 2026: kod pokazywał ludziom `kontakt@`, a wysyłał z `kuchnia@`; z kodu nie dało się ustalić, która skrzynka odbiera). W repozytorium poprawione (`config/mail.php`, `.env.example`); **zmienna `MAIL_FROM_ADDRESS` na Railway należy do właściciela i trzeba ją tam zmienić ręcznie** | `railway.ts` |
 
 ### Sekrety do wygenerowania i bezpiecznego zapisania
 

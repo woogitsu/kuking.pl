@@ -40,8 +40,7 @@
                 dlatego dostaje większą czcionkę zamiast zwykłego akapitu
                 (issue #17: „ta sama struktura, mocniej wyeksponowana uwaga").
             --}}
-            <p style="white-space:pre-line; overflow-wrap:anywhere; margin:0;
-                      @if(! $maZdjecie) font-size:var(--text-lead); font-weight:600; @endif">
+            <p class="tekst-jak-napisano m-0 @if(! $maZdjecie) notatka-wyrozniona @endif">
                 „{{ $event->note }}”
             </p>
         @elseif(! $maZdjecie)
