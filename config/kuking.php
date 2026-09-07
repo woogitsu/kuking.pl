@@ -171,6 +171,17 @@ return [
         'page_size' => (int) env('KUKING_FEED_PAGE_SIZE', 15),
     ],
 
+    'collections' => [
+        // Ile ZAPISANYCH WPISÓW pokazuje zeszyt na "stronę" (audyt
+        // zewnętrzny T20). Zeszyt rośnie z użyciem serwisu — każde
+        // kliknięcie "Zapisz" na cudzym wpisie dokłada tam jedną pozycję,
+        // bez górnej granicy — więc `CollectionController::show()` MUSI
+        // paginować, tak jak od początku robi to obok stojące `recipes()`.
+        // Ta sama wartość co tam (12), żeby dwie sekcje tego samego ekranu
+        // nie skakały o różne kroki.
+        'saved_posts_page_size' => (int) env('KUKING_COLLECTION_SAVED_POSTS_PAGE_SIZE', 12),
+    ],
+
     'tags' => [
         // Otwarte tagi użytkowników, zastępują Tematy (D-021,
         // docs/DECISIONS.md). Liczby stąd czyta WYŁĄCZNIE App\Support\LimityTagow

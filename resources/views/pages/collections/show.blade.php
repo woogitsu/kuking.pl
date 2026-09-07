@@ -30,6 +30,7 @@
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
+            <x-show-more :paginator="$posts" czego="zapisanych wpisów" />
         @endif
 
         @if(($niewidoczne ?? 0) > 0)
