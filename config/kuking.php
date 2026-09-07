@@ -171,6 +171,21 @@ return [
         'page_size' => (int) env('KUKING_FEED_PAGE_SIZE', 15),
     ],
 
+    'comments' => [
+        // Ile komentarzy GŁÓWNYCH (wątków) pokazuje strona wpisu i przepisu.
+        //
+        // Komentarze rosną z popularnością treści, bez górnej granicy — a do
+        // 7 września 2026 `RecipeController::show()` i `PostController::show()`
+        // ładowały je WSZYSTKIE przez `->load()`. Nie wyszło to w audycie
+        // zapytań bez limitu (T20), bo tam szukano `->get()`, a to jest ten
+        // sam kształt ryzyka pod inną nazwą.
+        //
+        // 12, tak jak zapisane wpisy w zeszycie — jeden krok „Pokaż więcej"
+        // ma być wszędzie podobny, żeby człowiek wiedział, czego się
+        // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
+        'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+    ],
+
     'collections' => [
         // Ile ZAPISANYCH WPISÓW pokazuje zeszyt na "stronę" (audyt
         // zewnętrzny T20). Zeszyt rośnie z użyciem serwisu — każde

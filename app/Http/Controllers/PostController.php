@@ -387,15 +387,25 @@ class PostController extends Controller
             'author.profile.avatar',
             'media',
             'recipe:id,title,slug',
-            // Komentarze filtrowane przez blokady (issue #41). Bez tego
-            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
-            'comments' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.author.profile.avatar',
-            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.replies.author.profile.avatar',
+            // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
+            // treści bez górnej granicy, więc idą osobnym, paginowanym
+            // zapytaniem. `->load()` wciągał je wszystkie naraz.
         ]);
 
+        // Jak przy przepisie — te same dwa powody: blokady (issue #41)
+        // i paginacja wątków.
+        $komentarze = $post->comments()
+            ->widoczneDla($request->user())
+            ->with([
+                'author.profile.avatar',
+                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                'replies.author.profile.avatar',
+            ])
+            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+
         return view('pages.posts.show', [
+            'komentarze' => $komentarze,
+            'komentarzyRazem' => $komentarze->total(),
             'post' => $post,
             // Zachęta do kolejnego zdjęcia brzmi inaczej przy pierwszym wpisie
             // (COLD_START.md). Liczymy TYLKO dla autora — dla kogokolwiek

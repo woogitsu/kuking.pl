@@ -11,9 +11,16 @@
     odpowiedzi — w tym komponencie nie ma wygodnego miejsca na współdzielony
     podkomponent bez zakładania nowego pliku.
 --}}
-@props(['comments', 'action'])
+{{--
+    `ile` to LICZBA WSZYSTKICH wątków, nie tylko tych na stronie. Bez tego
+    parametru nagłówek przy paginacji kłamałby: pokazywałby „Komentarze (12)"
+    pod treścią, która ma ich sto. Domyślnie `null`, więc ekrany bez
+    paginacji nie muszą nic przekazywać i liczą jak dotąd.
+--}}
+@props(['comments', 'action', 'ile' => null])
+@php($wszystkich = $ile ?? $comments->count())
 <section class="stack" aria-labelledby="komentarze">
-    <h2 id="komentarze">Komentarze @if($comments->count()) ({{ $comments->count() }}) @endif</h2>
+    <h2 id="komentarze">Komentarze @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
 
     @forelse($comments as $comment)
         <article class="card">
@@ -178,4 +185,8 @@
             albo <a href="{{ route('register') }}">załóż konto</a>. Zajmuje to minutę.
         </p>
     @endauth
+
+    @if($comments instanceof \Illuminate\Contracts\Pagination\Paginator)
+        <x-show-more :paginator="$comments" czego="komentarzy" />
+    @endif
 </section>

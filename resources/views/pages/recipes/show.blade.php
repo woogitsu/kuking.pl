@@ -410,7 +410,7 @@
         @endif
 
         <div class="kolumna-czytania">
-            <x-comment-thread :comments="$recipe->comments" :action="route('recipes.comment', $recipe->slug)" />
+            <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" />
         </div>
     </article>
 </x-layout>

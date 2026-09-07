@@ -223,16 +223,32 @@ class RecipeController extends Controller
             'sourceScan',
             'ingredients.unit',
             'steps.media',
-            // Komentarze filtrowane przez blokady (issue #41). Bez tego
-            // zablokowana osoba nadal była widoczna pod cudzymi treściami.
-            'comments' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.author.profile.avatar',
-            'comments.replies' => fn ($query) => $query->widoczneDla($request->user()),
-            'comments.replies.author.profile.avatar',
+            // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
+            // treści bez górnej granicy, więc idą osobnym, paginowanym
+            // zapytaniem. `->load()` wciągał je wszystkie naraz.
         ]);
+
+        // Komentarze filtrowane przez blokady (issue #41) — bez tego
+        // zablokowana osoba nadal była widoczna pod cudzymi treściami — i od
+        // dziś PAGINOWANE. Odpowiedzi jednego wątku dociągamy w całości: mają
+        // tylko jeden poziom (`comment-thread.blade.php`) i są ograniczone
+        // liczbą osób, które weszły w JEDNĄ rozmowę, a nie popularnością
+        // całego przepisu.
+        $komentarze = $model->comments()
+            ->widoczneDla($request->user())
+            ->with([
+                'author.profile.avatar',
+                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                'replies.author.profile.avatar',
+            ])
+            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            'komentarze' => $komentarze,
+            // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
+            // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
+            'komentarzyRazem' => $komentarze->total(),
             // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
             // pokazywała każde wykonanie, nie pytając, czy widz zablokował
             // osobę, która ugotowała, albo czy ta osoba zablokowała widza.
