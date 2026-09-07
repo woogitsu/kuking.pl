@@ -312,8 +312,53 @@ return [
         'window' => 1,
     ],
 
+    /*
+     * TRZY KOSZYKI LIMITERA LOGOWANIA (W7-01, R3 §5).
+     *
+     * Osobno od `limits` niżej, bo to nie są limity `throttle:` na trasie —
+     * to trzy niezależne liczniki wewnątrz `LoginController`, każdy liczony
+     * po innym kluczu (patrz `App\Support\KluczeLimitow`).
+     *
+     * DLACZEGO TRZY, A NIE JEDEN. Licznik przywiązany do ADRESU
+     * strukturalnie nie widzi ataku rozproszonego po wielu adresach na jedno
+     * konto — a zmiana adresu jest dla napastnika tania (botnet, sieć
+     * mobilna, chmura), niezależnie od tego, czy `trustProxies` ufa
+     * nagłówkowi. Zmierzone przed naprawą: 20 nieudanych prób na to samo
+     * konto z 20 różnych adresów nie wywoływało żadnej blokady.
+     *
+     * SKĄD TE LICZBY:
+     *
+     *  - para konto+adres 5/1 min — dokładnie tyle, ile miał dotychczasowy
+     *    limiter, czyli wartość już skalibrowana na tę grupę użytkowników;
+     *    nikt się dotąd nie skarżył, że jest za ostra. Osoba, która pomyli
+     *    hasło dwa-trzy razy i kliknie dwa razy, mieści się z zapasem. Piąta
+     *    pomyłka w minucie z tego samego adresu na to samo konto to wzorzec
+     *    bota, nie palca.
+     *
+     *  - konto 15/15 min — WYŻSZE niż suma kilku okien koszyka pary, i to
+     *    jest celowe. Rolą tego koszyka nie jest chronić przed pomyłką
+     *    człowieka, tylko przed atakiem, którego dwa pozostałe nie widzą.
+     *    Osoba 50+ próbująca różnych starych haseł przez kwadrans mieści się
+     *    w nim z zapasem.
+     *
+     *  - adres 100/5 min — dostatecznie wysoko, żeby nie karać biura,
+     *    rodziny za jednym ruterem ani operatora komórkowego pod wspólnym
+     *    NAT-em (typowe dla starszych użytkowników), i dostatecznie nisko,
+     *    żeby złapać rozpylanie po wielu kontach z jednego miejsca.
+     */
+    'login_limits' => [
+        'para' => ['proby' => 5, 'sekundy' => 60],
+        'konto' => ['proby' => 15, 'sekundy' => 900],
+        'adres' => ['proby' => 100, 'sekundy' => 300],
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
+        //
+        // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem
+        // — ale prawdziwą ochronę niosą trzy koszyki z `login_limits` wyżej.
+        // Ten wpis liczy się po `domain|ip` dla gościa, więc sam z siebie nie
+        // widzi ataku rozproszonego po adresach.
         'login' => '5,1',
         'register' => '5,10',
         'password_reset' => '5,10',

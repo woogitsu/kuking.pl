@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\KluczeLimitow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,15 +41,32 @@ class LoginController extends Controller
             'password.required' => 'Wpisz hasło.',
         ]);
 
-        $throttleKey = mb_strtolower($data['login']).'|'.$request->ip();
+        // TRZY KOSZYKI, NIE JEDEN (W7-01, R3 §5). Liczby w
+        // `config/kuking.php` → `login_limits`, klucze w `KluczeLimitow`.
+        //
+        // Wcześniej był jeden licznik po kluczu `login|ip`. Zmierzone: 20
+        // nieudanych prób na TO SAMO konto z 20 różnych adresów nie
+        // wywoływało żadnej blokady — bo licznik przywiązany do adresu
+        // strukturalnie nie widzi ataku rozproszonego. To nie jest skutek
+        // `trustProxies`: zmiana adresu jest dla napastnika tania także bez
+        // podszywania się pod proxy (botnet, sieć mobilna, chmura).
+        //
+        // Koszyk KONTA zamyka tę lukę i jest jedyny, który nie zależy od
+        // adresu wcale.
+        $koszyki = $this->koszyki($data['login'], (string) $request->ip());
 
-        if (RateLimiter::tooManyAttempts($throttleKey, maxAttempts: 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            $minutes = max(1, (int) ceil($seconds / 60));
+        foreach ($koszyki as $koszyk) {
+            if (RateLimiter::tooManyAttempts($koszyk['klucz'], $koszyk['proby'])) {
+                $minutes = max(1, (int) ceil(RateLimiter::availableIn($koszyk['klucz']) / 60));
 
-            throw ValidationException::withMessages([
-                'login' => "Za dużo prób logowania. Spróbuj ponownie za {$minutes} min.",
-            ]);
+                // JEDEN KOMUNIKAT DLA WSZYSTKICH TRZECH KOSZYKÓW, świadomie.
+                // Rozróżnienie („to Twoje konto jest zablokowane" kontra „to
+                // Twój adres") powiedziałoby napastnikowi, który licznik
+                // trafił — czyli czy konto o tym loginie w ogóle istnieje.
+                throw ValidationException::withMessages([
+                    'login' => "Za dużo prób logowania. Spróbuj ponownie za {$minutes} min.",
+                ]);
+            }
         }
 
         $user = $this->findUser($data['login']);
@@ -59,7 +77,9 @@ class LoginController extends Controller
         // kodu z aplikacji. `attempt()` logowałby od razu, na chwilę
         // otwierając serwis samym hasłem.
         if ($user === null || ! Auth::validate(['email' => $user->email, 'password' => $data['password']])) {
-            RateLimiter::hit($throttleKey, decaySeconds: 300);
+            foreach ($koszyki as $koszyk) {
+                RateLimiter::hit($koszyk['klucz'], decaySeconds: $koszyk['sekundy']);
+            }
 
             throw ValidationException::withMessages([
                 'login' => 'Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.',
@@ -86,7 +106,15 @@ class LoginController extends Controller
             ]);
         }
 
-        RateLimiter::clear($throttleKey);
+        // CZYŚCIMY PARĘ I KONTO, NIGDY ADRES.
+        //
+        // Gdyby poprawne logowanie czyściło koszyk ADRESU, napastnik
+        // zalogowałby się na WŁASNE, jednorazowe konto z tego samego
+        // adresu, żeby zresetować licznik adresowy — i wrócił do rozpylania
+        // po cudzych kontach z czystym licznikiem. To jednozdaniowa reguła,
+        // bardzo łatwa do pominięcia, więc pilnuje jej osobny test.
+        RateLimiter::clear($koszyki['para']['klucz']);
+        RateLimiter::clear($koszyki['konto']['klucz']);
 
         // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
         // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji
@@ -155,6 +183,29 @@ class LoginController extends Controller
      * zablokowanych (#10) i cofnięcie usunięcia konta (audyt A8). Obie te
      * osoby nie mogą wejść do serwisu, a muszą dać się rozpoznać.
      */
+    /**
+     * Trzy koszyki limitera z kluczami i liczbami z konfiguracji.
+     *
+     * @return array{para: array{klucz: string, proby: int, sekundy: int}, konto: array{klucz: string, proby: int, sekundy: int}, adres: array{klucz: string, proby: int, sekundy: int}}
+     */
+    private function koszyki(string $login, string $adres): array
+    {
+        $klucze = app(KluczeLimitow::class);
+        $limity = (array) config('kuking.login_limits');
+
+        $koszyk = fn (string $nazwa, string $klucz): array => [
+            'klucz' => $klucz,
+            'proby' => (int) ($limity[$nazwa]['proby'] ?? 5),
+            'sekundy' => (int) ($limity[$nazwa]['sekundy'] ?? 60),
+        ];
+
+        return [
+            'para' => $koszyk('para', $klucze->para($login, $adres)),
+            'konto' => $koszyk('konto', $klucze->konto($login)),
+            'adres' => $koszyk('adres', $klucze->adres($adres)),
+        ];
+    }
+
     private function findUser(string $login): ?User
     {
         return User::findByLogin($login);
