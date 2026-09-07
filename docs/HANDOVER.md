@@ -123,7 +123,7 @@ All merged into `claude/kuking-development-muukrs` and pushed.
 | **W7-09** (part) | `npm audit --omit=dev` was auditing an empty list: `npm ls --all` sees 106 packages, `--omit=dev` sees 41, and the only top-level survivor was `@laravel/multiplex`. Flag removed. `continue-on-error` deliberately left alone — that is a policy call for the owner. |
 | **UI** | One page width everywhere (owner request); topbar, grid and footer aligned; post editing and deletion (an MVP gap, not a missing button); light theme always default with an explicit theme switch (**D-019**). |
 | **Diagnostics** | A 429 now leaves a trace naming the route that produced it. It used to leave none at all, which is why the owner's "429 on my first photo upload" could not be diagnosed. |
-| **#114** (P0) | `php artisan kuking:wac` counts Weekly Active Cooks from Postgres, excluding banned / `pending_delete` accounts, the host account and a configurable list of test accounts. The eligibility rule lives in one class used by both the command and the D1/D7/D30 cohort query. `docs/seo/ANALYTICS.md` §2.2 and §3.2 updated so the document does not say something different from the code. Two errors in the issue itself, caught by checking: `host_username` lives under `community`, not `account`, and the referenced `docs/research/ANALITYKA.md` does not exist. |
+| **#114** (P0) | `php artisan kuking:wac` counts Weekly Active Cooks from Postgres, excluding banned / `pending_delete` accounts, the host account and a configurable list of test accounts. The eligibility rule lives in one class used by both the command and the D1/D7/D30 cohort query. `docs/seo/ANALYTICS.md` §2.2 and §3.2 updated so the document does not say something different from the code. One error in the issue itself, caught by checking: `host_username` lives under `community`, not `account`. I also claimed the referenced `docs/research/ANALITYKA.md` did not exist — **that claim was wrong** (see §4.4); it existed on unmerged `research/*` branches and is in fact the spec for this issue. The implementation matches it, which was luck rather than diligence. |
 | **#115** (P1) | `product_signals` table plus instrumentation for `photo_upload_failed` (per-reason) and `search_performed`. The search phrase is refused **by Postgres itself** — a CHECK constraint rejects any row whose `properties` contains `query_text`, verified with a real INSERT. Retention job at 04:00 drops rows older than 90 days. Also found: the issue says five error paths, the code has four `throw`s and one of them is unreachable; and a plain try/catch around the signal insert did **not** protect the parent operation on PostgreSQL, because a failed INSERT poisons the surrounding transaction — fixed with `DB::transaction()` (savepoint) and pinned by a test. |
 
 **The W7-02 warning, in full, because it is easy to misread as done:** removing
@@ -199,10 +199,18 @@ would be exactly what the document exists to prevent.
 
 ### 4.4 Still queued
 
-- ~~**`docs/research/ANALITYKA.md` does not exist.**~~ **Written 2026-09-07.**
-  It is deliberately NOT a reconstruction of the document #114/#115 cite — no
-  one knows what was in that one — but a record of the analytics that actually
-  exist in the code: what WAC counts and who is excluded from it, the
+- **`docs/research/ANALITYKA.md` DOES exist — I was wrong about this, twice.**
+  I wrote that no one had committed it. It had been: 494 lines on
+  `research/analityka-monetyzacja` and `claude/kuking-research-audit-16gpve`,
+  never merged, so absent from my working tree. "Not here" and "never written"
+  are different claims and I made the second one on evidence for the first.
+  An external audit (U13) caught it. The original is now restored under its
+  own name and it turns out to be the spec for #114 and #115: its §1.3 is the
+  WAC exclusion gap, §2.3 is the `product_signals` path, §3.5 sets the 90-day
+  retention **and explains why 90 days rather than the 6–14 months
+  `COMPLIANCE.md` states** — because the table carries `user_id` per row.
+  My own document was renamed to `ANALITYKA_STAN_WDROZENIA.md`, which is
+  what it actually is: a record of the analytics that exist in the code: what WAC counts and who is excluded from it, the
   `product_signals` schema and its two CHECK constraints, exactly which fields
   each of the two signals carries, the 90-day retention, and a section listing
   what from `docs/seo/ANALYTICS.md` is still only a plan (PostHog is not wired

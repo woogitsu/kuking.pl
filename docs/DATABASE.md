@@ -808,9 +808,14 @@ zdarzenia: `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje
 miejsce, które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
 
 `docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
-i retencję (§3.2/§3.3), **nie istnieje w repozytorium** — ta tabela ma kształt
-wypisany wprost w treści issue, nie z tamtego dokumentu. Punkt odniesienia,
-który naprawdę istnieje, to `product_events` z `docs/seo/ANALYTICS.md` §7 —
+i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
+inaczej i była nieprawdziwa (sprostowanie: dokument leżał na gałęziach
+`research/*`, nigdy nie scalony, więc nie było go w drzewie roboczym; „nie
+ma go tutaj" to nie to samo co „nikt go nie napisał"). Ta tabela powstała
+z kształtu wypisanego wprost w treści issue, nie z tamtego dokumentu — i
+**okazała się z nim zgodna**, w tym co do 90 dni retencji, których
+uzasadnienie stoi w §3.5 tamtego pliku. Drugi punkt odniesienia to
+`product_events` z `docs/seo/ANALYTICS.md` §7 —
 ta tabela jest jego świadomie okrojoną wersją (dwa zdarzenia zamiast
 dowolnych, bez `anonymous_id`/`session_id`/`platform`, bo dziś nic ich tu nie
 potrzebuje).

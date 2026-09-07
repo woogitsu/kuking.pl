@@ -13,9 +13,11 @@ use Illuminate\Support\Facades\Schema;
  *
  * SKĄD TEN KSZTAŁT TABELI
  * `docs/research/ANALITYKA.md` (przywoływany przez issue #115 po schemat
- * i retencję) NIE ISTNIEJE w repozytorium — nikt go nie zacommitował. Ta
- * migracja NIE ZGADUJE jego treści: kolumny są dokładnie tymi, które issue
- * #115 wypisuje wprost w swojej treści. Wzorcem, który naprawdę istnieje
+ * i retencję) ISTNIEJE — ten komentarz twierdził wcześniej, że „nikt go nie
+ * zacommitował", i było to nieprawdziwe: leżał na gałęziach `research/*`,
+ * niescalony, więc nie było go w drzewie roboczym. Ta migracja powstała
+ * z kolumn wypisanych wprost w treści issue #115 i okazała się zgodna
+ * z tamtym dokumentem, w tym co do 90 dni retencji (jego §3.5). Wzorcem, który naprawdę istnieje
  * i który ta tabela okrada z rozmachu (celowo), jest `product_events`
  * z `docs/seo/ANALYTICS.md` §7 — tam osobny serwis na wszystkie zdarzenia
  * produktu, tu jedna wąska tabela na cztery pola i dwa zdarzenia.
