@@ -327,10 +327,47 @@ ten kod pęka:
   obu połów naraz: że w odpowiedzi nie ma szczegółu ORAZ że w logu jest —
   „naprawa" polegająca na oślepieniu monitoringu oblałaby ten test.
 
-## 7b. Polityka prywatności — SZKIC JEST PUBLICZNIE SERWOWANY
+## 7b. Polityka prywatności — SZKIC BYŁ PUBLICZNIE SERWOWANY (ZAMKNIĘTE 2026-09-07, commit `d8e9334`)
 
-Znalezione 2026-09-07 przy ocenie planu integracji AI. Nie jest to problem
-AI — jest problemem dzisiejszym.
+**Ta sekcja opisuje stan sprzed poprawki. Zostaje w całości, bo powód, dla
+którego to przeszło niezauważone, jest ważniejszy niż sama poprawka:
+dokumenty prawne leżą w `resources/legal/*.md`, są renderowane pod publicznym
+adresem i NIC NIGDY nie sprawdzało, co w nich stoi.** Teraz sprawdza
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` — 14 testów na trzech
+dokumentach, w tym reguła, że każda liczba dni pozostawiona w polityce musi
+zgadzać się z konfiguracją, która ją egzekwuje.
+
+Co zostało usunięte z żywych stron `/prywatnosc`, `/regulamin` i `/zasady`:
+nagłówek „SZKIC", placeholdery `[NAZWA OPERATORA]`, `[ADRES]`,
+`[E-MAIL KONTAKTOWY]`, notatki redakcyjne `[Wariant A — jeśli wdrożony
+baner:]`, Sentry i PostHog jako podprocesorzy (żadne nie jest wdrożone),
+zdanie „każdy z tych dostawców ma podpisaną z nami umowę powierzenia"
+(właściciel zapytany wprost: żadne nie są podpisane), obietnica odpowiedzi
+na zgłoszenie „w ciągu 48 godzin" przy zerze kodu, który ten czas mierzy,
+okresy przechowywania „orientacyjnie 12–24 miesiące" i „do 90 dni" dla danych,
+których nic nie usuwa, oraz „hasło przechowywane w postaci zaszyfrowanej"
+(hasła są HASZOWANE — szyfrowanie dałoby się odwrócić).
+
+**Co ZOSTAJE otwarte i jest blokadą, której kodem nie zamknę:** tożsamość
+i adres administratora. Dokumenty mówią o tym teraz wprost, zamiast pokazywać
+nawias kwadratowy: „Imię, nazwisko i adres do korespondencji podamy w tym
+miejscu, zanim otworzymy rejestrację dla wszystkich. Dopóki tego tu nie ma,
+wiedz o tym, korzystając z serwisu: masz prawo znać tożsamość administratora
+i możesz o nią poprosić e-mailem, a my ją podamy."
+
+**Druga blokada, znaleziona przy tej samej okazji:** `MAIL_MAILER=log`, czyli
+serwis nie wysyła ŻADNEJ poczty. Reset hasła nie dochodzi do nikogo, a przy
+grupie 50+ znaczy to, że pierwsza osoba, która zapomni hasła, traci konto —
+i nie ma jak nawet napisać, bo dostawcy poczty nie wybrano. Adres nadawcy
+został ujednolicony do `kontakt@kuking.pl` w repozytorium (decyzja właściciela
+z 7 września); zmienna `MAIL_FROM_ADDRESS` na Railway należy do właściciela.
+
+Poniżej pierwotny zapis znaleziska.
+
+### Pierwotny zapis (2026-09-07, przed poprawką)
+
+Znalezione przy ocenie planu integracji AI. Nie jest to problem AI — jest
+problemem dzisiejszym.
 
 `resources/legal/polityka-prywatnosci.md` zaczyna się zdaniem
 „**SZKIC — wymaga weryfikacji prawnika przed publikacją**" i zawiera
@@ -382,6 +419,35 @@ powiadomienia u drugiej osoby.
 
 ---
 
+## 7c. Zamknięte 2026-09-07 — audyt zewnętrzny i pomiar DSA
+
+Wszystko z dowodem: commit i nazwa testu regresji. Każda z tych rzeczy była
+ZMIERZONA przed naprawą, nie wywnioskowana z czytania kodu.
+
+| # | co | stan | dowód |
+|---|---|---|---|
+| **N01** | Kopia zdjęcia w starym, wciąż publicznym kubełku `r2_legacy` nie była w ogóle celem kasowania. Po migracji kubełków zostawała pod tym samym kluczem — czyli usunięcie zdjęcia przez człowieka nie usuwało zdjęcia. | **ZAMKNIĘTE** | `ad89067`, `KasowanieZdjeciaOdpornoscNaAwarieTest` (test N01 + dwie kontrole: brak kopii → nieszkodliwe, dysk niekonfigurowany → pominięty) |
+| **N02** | `Cache-Control: no-store` stał na PRZEKIEROWANIU (302), a nie na odpowiedzi z bajtami zdjęcia — czyli na jedynej, którą pośrednik miałby co zapisać. | **ZAMKNIĘTE W APLIKACJI** | `f49ad2a`, `ZdjecieObiektuDostajeTenSamNoStoreCoPrzekierowanieTest`. Czy R2 honoruje `response-cache-control`, rozstrzyga wyłącznie pomiar na prawdziwym kubełku — zapisane w `docs/MEDIA_PIPELINE.md`, nie założone. |
+| **N05** | Sygnał „nie udało się wgrać zdjęcia" powstawał tylko wtedy, gdy plik dotarł do warstwy domenowej. Odrzucenie na walidacji formularza i na limicie żądań — najprawdopodobniej NAJCZĘSTSZE drogi — były niewidoczne z Postgresa. | **ZAMKNIĘTE** | `09d03d2`, `SygnalNieudanegoWgraniaZFormularzaTest`. `post_max_size` PHP zostaje niemierzalny w procesie testowym i jest tak opisany, a nie zamalowany. |
+| **#17** | Awaria storage w połowie pętli kasowania: ciche `false` kasowało wiersz `media` przy fizycznie istniejącym pliku, a wyjątek przerywał pętlę, więc kolejnych wariantów nawet nie próbowano. Konto już oznaczone jako wymazane nigdy nie wracało do kolejki. | **ZAMKNIĘTE** | `ad89067`, `KasowanieZdjeciaOdpornoscNaAwarieTest` (8 testów) |
+| **D-018 / D-022** | „Tekst zostaje zanonimizowany" nie było prawdą: zanonimizowane konto oddawało 403 na przepisach, wpisach i profilu, a jego komentarze znikały z cudzych wątków. Test, który to „udowadniał", sprawdzał obecność wiersza w bazie. | **ZAMKNIĘTE** | `ad89067`, `UsunieteKontoTresciZostajaWidoczneTest` (10) + `UsuwanieKontaZakresTest` (14) |
+| **DSA art. 20** | Termin odwołania 14 dni przy wymogu co najmniej sześciu miesięcy. Liczba pochodziła z playbooka, gdzie wzięła się z rozsądku operacyjnego, nie z przepisu. | **ZAMKNIĘTE** | `d8e9334`, `OdwolanieOdDecyzjiTest::test_po_szesciu_miesiacach_formularz_mowi_ze_termin_minal` (z kontrolą, że po miesiącu odwołanie NADAL działa) |
+| **DSA art. 16 ust. 2 lit. c** | Zgłoszenie treści nielegalnej wymagało imienia, choć przepis z podania danych zwalnia — i to w najcięższych sprawach. `notifier_email` był już opcjonalny, z komentarzem cytującym dokładnie ten przepis: reguła istniała w kodzie w połowie. | **ZAMKNIĘTE** | `36d6579`, `ZgloszeniePrawneBezDanychTest` (8, w tym dwa na to, że baza NADAL wymaga uzasadnienia i dobrej wiary) |
+| **DSA art. 17** | List do zgłaszającego obiecywał, że sprawę obejrzy „człowiek, który jej wcześniej nie prowadził". Serwis prowadzi jedna osoba i nic tego nie zapewnia. | **ZDANIE WYCOFANE** | `8548ada`, `OdpowiedzDlaZglaszajacegoMowiPrawdeTest::test_pouczenie_nie_obiecuje_innego_czlowieka`. Pozostałe braki art. 17 ust. 3 (podstawa decyzji, informacja o źródle, zdanie o braku automatyki) są otwarte — patrz `docs/decyzje/DSA_POMIAR.md`. |
+
+**Nowy dokument, który powinien być czytany przed każdą zmianą w regulaminie:**
+`docs/decyzje/DSA_POMIAR.md` — obowiązek → co jest w kodzie (plik:linia) → czy
+to wystarcza → jakie zdanie wolno napisać, a jakiego nie wolno. CHECK-i
+sprawdzone w żywej bazie, nie tylko w migracjach.
+
+**Drugi:** `docs/decyzje/ADR_RETENCJE.md` — pięć tabel bez żadnego mechanizmu
+usuwania (`audit_log`, `notifications`, `reports`, `appeals`,
+`moderation_actions`), z rozstrzygnięciem trudności, których nie wolno
+przemilczeć: skasowanie wiersza `account.data_erased` niszczy DOWÓD wykonania
+prawa do usunięcia danych. Czeka na wybór okresów przez właściciela.
+
+---
+
 ## 8. Decyzja o becie — czego brakuje
 
 Zanim ktokolwiek powie „można otwierać":
@@ -392,3 +458,12 @@ Zanim ktokolwiek powie „można otwierać":
 3. **Fale 1–6 w tej macierzy** (§6).
 4. **Ochrona `main` i bramka CI** (§5) — audyt wymienia to wprost w sekcji
    „Release safety".
+5. **Tożsamość i adres administratora** w dokumentach prawnych (§7b). Do czasu
+   podania: rejestracja otwarta dla wszystkich jest publikowaniem serwisu bez
+   informacji, kto odpowiada za dane.
+6. **Działająca skrzynka pocztowa** (§7b). Dziś `MAIL_MAILER=log`: reset hasła
+   nie dochodzi do nikogo. To nie jest brak wygody — to konto tracone
+   bezpowrotnie przy pierwszym zapomnianym haśle.
+7. **Wybór okresów retencji** (`docs/decyzje/ADR_RETENCJE.md`). Polityka
+   prywatności nie podaje dziś żadnego okresu poza dwoma, które kod egzekwuje,
+   i tak zostanie do czasu tej decyzji.
