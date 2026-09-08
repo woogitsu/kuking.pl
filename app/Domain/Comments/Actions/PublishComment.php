@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Dodanie komentarza pod wpisem, przepisem albo "Ugotowałem".
@@ -84,33 +85,37 @@ final class PublishComment
         // Spłaszczamy wątki: odpowiedź na odpowiedź trafia do korzenia wątku.
         $parentId = $parent?->parent_id ?? $parent?->getKey();
 
-        $comment = Comment::create([
-            'author_id' => $author->getKey(),
-            'post_id' => $subject instanceof Post ? $subject->getKey() : null,
-            'recipe_id' => $subject instanceof Recipe ? $subject->getKey() : null,
-            'cooked_event_id' => $subject instanceof CookedEvent ? $subject->getKey() : null,
-            'parent_id' => $parentId,
-            'body' => $body,
-            'status' => Comment::STATUS_PUBLISHED,
-        ]);
+        /*
+         * KOMENTARZ I POWIADOMIENIA O NIM POWSTAJĄ RAZEM ALBO WCALE.
+         *
+         * Ta sama klasa błędu co G04 w `RecordCookedEvent`, tyle że tutaj
+         * nie było ŻADNEJ transakcji: `Comment::create` szedł sam, a po nim
+         * jedno albo dwa powiadomienia. Wyjątek przy zapisie powiadomienia
+         * zostawiał opublikowany komentarz, o którym adresat nie wiedział —
+         * a pod odpowiedzią potrafił zostawić komentarz z JEDNYM z dwóch
+         * powiadomień. Oba przypadki zmierzone w
+         * `AwariaPowiadomieniaNieRozdzielaKomentarzaTest`.
+         *
+         * Lżejsze niż G04, bo komentarze nie mają `klucz_wyslania`, więc
+         * ponowienie dowozi powiadomienie (kosztem duplikatu) zamiast
+         * odbijać się w nieskończoność. Naprawiamy mimo to: cena to jedna
+         * transakcja, a rozmowa, o której nikt nie wie, jest dokładnie tym,
+         * czego ten serwis ma nie robić.
+         */
+        return DB::transaction(function () use ($author, $subject, $subjectOwner, $body, $parent, $parentId): Comment {
+            $comment = Comment::create([
+                'author_id' => $author->getKey(),
+                'post_id' => $subject instanceof Post ? $subject->getKey() : null,
+                'recipe_id' => $subject instanceof Recipe ? $subject->getKey() : null,
+                'cooked_event_id' => $subject instanceof CookedEvent ? $subject->getKey() : null,
+                'parent_id' => $parentId,
+                'body' => $body,
+                'status' => Comment::STATUS_PUBLISHED,
+            ]);
 
-        $this->notify->handle(
-            recipient: $subjectOwner,
-            type: $parentId === null ? Notification::TYPE_COMMENT : Notification::TYPE_REPLY,
-            actor: $author,
-            data: [
-                'comment_id' => $comment->getKey(),
-                'excerpt' => mb_substr($body, 0, 120),
-                'url' => $this->urlFor($subject),
-            ],
-        );
-
-        // Jeśli odpowiadamy komuś innemu niż autor treści, ta osoba też
-        // powinna się dowiedzieć — inaczej rozmowa się nie kleji.
-        if ($parent !== null && $parent->author_id !== $subjectOwner->getKey()) {
             $this->notify->handle(
-                recipient: $parent->author,
-                type: Notification::TYPE_REPLY,
+                recipient: $subjectOwner,
+                type: $parentId === null ? Notification::TYPE_COMMENT : Notification::TYPE_REPLY,
                 actor: $author,
                 data: [
                     'comment_id' => $comment->getKey(),
@@ -118,9 +123,24 @@ final class PublishComment
                     'url' => $this->urlFor($subject),
                 ],
             );
-        }
 
-        return $comment;
+            // Jeśli odpowiadamy komuś innemu niż autor treści, ta osoba też
+            // powinna się dowiedzieć — inaczej rozmowa się nie kleji.
+            if ($parent !== null && $parent->author_id !== $subjectOwner->getKey()) {
+                $this->notify->handle(
+                    recipient: $parent->author,
+                    type: Notification::TYPE_REPLY,
+                    actor: $author,
+                    data: [
+                        'comment_id' => $comment->getKey(),
+                        'excerpt' => mb_substr($body, 0, 120),
+                        'url' => $this->urlFor($subject),
+                    ],
+                );
+            }
+
+            return $comment;
+        });
     }
 
     /**

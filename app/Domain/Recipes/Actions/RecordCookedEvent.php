@@ -78,10 +78,10 @@ final class RecordCookedEvent
             ->all();
 
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $ip
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $klucz
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $klucz, $ip
             ): CookedEvent {
                 $event = CookedEvent::create([
                     'user_id' => $cook->getKey(),
@@ -106,6 +106,50 @@ final class RecordCookedEvent
                     $position++;
                 }
 
+                /*
+                 * POWIADOMIENIE STOI W TEJ SAMEJ TRANSAKCJI, I TO NIE JEST
+                 * KOSMETYKA (audyt zewnętrzny G04).
+                 *
+                 * Przedtem transakcja kończyła się na wierszu wykonania,
+                 * a powiadomienie szło po niej. Jednorazowa awaria zapisu
+                 * powiadomienia zostawiała więc wykonanie bez wiadomości —
+                 * i, co gorsze, ponowienie tego samego formularza odbijało
+                 * się o `cooked_events_one_per_klucz_wyslania`, znajdowało
+                 * istniejące wykonanie i wychodziło PRZED powiadomieniem.
+                 * Autor przepisu nie dowiadywał się nigdy, a kucharz nie
+                 * miał jak tego naprawić.
+                 *
+                 * Docblock tej klasy mówi „powiadomienie autora jest
+                 * OBOWIĄZKOWĄ częścią tej operacji, nie dodatkiem", a
+                 * AGENTS.md §1 mówi „ZAWSZE powiadamia autora przepisu".
+                 * Jedno wspólne `DB::transaction` jest jedynym sposobem,
+                 * żeby to była prawda, a nie deklaracja.
+                 *
+                 * Wpis audytowy jest tu z tego samego powodu: audyt
+                 * mówiący o wykonaniu, którego nie ma w bazie, jest gorszy
+                 * niż brak wpisu.
+                 */
+                $this->notify->handle(
+                    recipient: $recipe->author,
+                    type: Notification::TYPE_COOKED,
+                    actor: $cook,
+                    data: [
+                        'recipe_id' => $recipe->getKey(),
+                        'recipe_title' => $recipe->title,
+                        'recipe_slug' => $recipe->slug,
+                        'cooked_event_id' => $event->getKey(),
+                        'has_photo' => $event->media()->exists(),
+                    ],
+                );
+
+                AuditLogEntry::record(
+                    action: 'cooked_event.created',
+                    actor: $cook,
+                    subject: $event,
+                    metadata: ['recipe_id' => $recipe->getKey()],
+                    ip: $ip,
+                );
+
                 return $event;
             });
         };
@@ -121,8 +165,14 @@ final class RecordCookedEvent
             }
 
             // Indeks `cooked_events_one_per_klucz_wyslania` odbił wiersz: to
-            // wysłanie już raz zapisało wykonanie. Zwracamy TO wykonanie —
-            // i, co ważniejsze, wychodzimy PRZED powiadomieniem autora.
+            // wysłanie już raz zapisało wykonanie. Zwracamy TO wykonanie
+            // i nie powiadamiamy drugi raz.
+            //
+            // Wolno tak wyjść dopiero od naprawy G04. Skoro wiersz istnieje,
+            // to znaczy, że jego transakcja się ZAKOŃCZYŁA — a w tej samej
+            // transakcji stoi powiadomienie. Wcześniej „wiersz jest" nie
+            // dowodziło niczego o powiadomieniu i właśnie tędy gubiła się
+            // wiadomość do autora.
             $istniejace = $this->wykonanieZTegoWyslania($cook, $kluczWyslania);
 
             if ($istniejace !== null) {
@@ -134,27 +184,6 @@ final class RecordCookedEvent
             // duplikatu (ADR §4.3).
             $event = $zapisz(null);
         }
-
-        $this->notify->handle(
-            recipient: $recipe->author,
-            type: Notification::TYPE_COOKED,
-            actor: $cook,
-            data: [
-                'recipe_id' => $recipe->getKey(),
-                'recipe_title' => $recipe->title,
-                'recipe_slug' => $recipe->slug,
-                'cooked_event_id' => $event->getKey(),
-                'has_photo' => $event->media()->exists(),
-            ],
-        );
-
-        AuditLogEntry::record(
-            action: 'cooked_event.created',
-            actor: $cook,
-            subject: $event,
-            metadata: ['recipe_id' => $recipe->getKey()],
-            ip: $ip,
-        );
 
         return $event;
     }
