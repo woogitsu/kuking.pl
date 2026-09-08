@@ -14,6 +14,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * "Ugotowałem" — zapis realnego wykonania przepisu.
@@ -67,7 +68,35 @@ final class RecordCookedEvent
             throw new BladDlaCzlowieka('Tego przepisu nie ma jeszcze opublikowanego.');
         }
 
-        if ($cook->hasBlockRelationWith($recipe->author)) {
+        /*
+         * AUTORYZACJA STOI TU, A NIE TYLKO W KONTROLERZE (audyt G12).
+         *
+         * `AGENTS.md` §7 mówi „UUID w adresie to nie autoryzacja — każde
+         * wejście przez Policy". Litera mówi o adresie, sens jest szerszy:
+         * o tym, kto może ugotować dany przepis, rozstrzyga
+         * `RecipePolicy`, a nie to, kto akurat wywołuje akcję.
+         *
+         * Przedtem stała tu wyłącznie kontrola blokady. Wywołane wprost,
+         * `handle()` zapisywało wykonanie cudzego przepisu `private` mimo
+         * `RecipePolicy::cook` na „nie". Publicznego IDOR-a to nie dawało,
+         * bo kontroler autoryzuje żądanie osobno — usterka polegała na
+         * tym, że reguła stała w JEDNYM miejscu zamiast w warstwie, do
+         * której sięgnie następne polecenie konsolowe, zadanie w kolejce
+         * albo import.
+         *
+         * Gate zastępuje kontrolę blokady, a nie stoi obok niej:
+         * `RecipePolicy::view` sprawdza blokadę po drodze, więc osobny
+         * warunek byłby drugą kopią tej samej reguły — dokładnie tym
+         * rodzajem rozjazdu, który dał G12. Sprawdzenie `isPublished()`
+         * ZOSTAJE wyżej i osobno, bo Policy wpuszcza autora na jego własny
+         * szkic, a wykonania szkicu zapisywać nie chcemy.
+         *
+         * Komunikat celowo nie mówi, CZEGO zabrakło. „Ten przepis jest
+         * prywatny" potwierdzałoby istnienie przepisu komuś, kto nie ma
+         * prawa o tym wiedzieć — ta sama zasada, dla której komunikat
+         * blokady był tu wcześniej nieokreślony.
+         */
+        if (Gate::forUser($cook)->denies('cook', $recipe)) {
             throw new BladDlaCzlowieka('Nie można dodać wykonania do tego przepisu.');
         }
 
