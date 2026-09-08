@@ -112,7 +112,10 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
 
         $tekst = match (true) {
             $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => (string) $bledy->first('login'),
-            is_array($bledy) => (string) json_encode($bledy, JSON_UNESCAPED_UNICODE),
+            // JSON_UNESCAPED_SLASHES, bo szukamy ADRESU. Bez tego flagi
+            // json_encode zamienia `http://` na `http:\/\/` i porównanie
+            // z route() nigdy nie trafia — sprawdzone, tak właśnie padło.
+            is_array($bledy) => (string) json_encode($bledy, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             default => '',
         };
 
