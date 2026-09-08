@@ -78,6 +78,22 @@ class NawigacjaAktywnaPozycjaTest extends TestCase
     }
 
     /**
+     * ILE pozycji fragmentu ma `aria-current="page"`.
+     *
+     * `aktywnaPozycja()` oddaje PIERWSZĄ znalezioną i o dwóch podświetlonych
+     * naraz nie wie nic — a to jest osobna, realna awaria: czytnik ekranu
+     * mówi wtedy „bieżąca strona" przy dwóch różnych miejscach serwisu,
+     * a wzrokowo podświetlone są dwie pozycje menu. Zmierzone: po dopisaniu
+     * `aria-current="page"` do KAŻDEJ pozycji paska dolnego asercja na
+     * `aktywnaPozycja()` dla `/home` była dalej zielona, bo pierwszą pozycją
+     * jest właśnie „Start".
+     */
+    private function liczbaAktywnych(string $fragment): int
+    {
+        return substr_count($fragment, 'aria-current="page"');
+    }
+
+    /**
      * Każdy krok procesu dodawania utrzymuje „Dodaj" jako pozycję bieżącą —
      * w OBU nawigacjach naraz, bo obie renderują się z tego samego
      * `layout.blade.php` i obie mają obowiązywać ten sam niezmiennik.
@@ -137,6 +153,18 @@ class NawigacjaAktywnaPozycjaTest extends TestCase
 
             $this->assertSame($podpis, $this->aktywnaPozycja($pasekDolny), "Pasek dolny na „{$adres}”.");
             $this->assertSame($podpis, $this->aktywnaPozycja($nawigacjaBoczna), "Nawigacja boczna na „{$adres}”.");
+
+            // „I TYLKO JEDNĄ" z nazwy tego testu — dotąd nie było tego nigdzie.
+            $this->assertSame(
+                1,
+                $this->liczbaAktywnych($pasekDolny),
+                "Pasek dolny na „{$adres}” ma podświetloną więcej niż jedną pozycję.",
+            );
+            $this->assertSame(
+                1,
+                $this->liczbaAktywnych($nawigacjaBoczna),
+                "Nawigacja boczna na „{$adres}” ma podświetloną więcej niż jedną pozycję.",
+            );
         }
     }
 

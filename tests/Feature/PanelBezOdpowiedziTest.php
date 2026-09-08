@@ -181,10 +181,21 @@ class PanelBezOdpowiedziTest extends TestCase
             'published_at' => now(),
         ]);
 
+        // ASERCJA KONTROLNA: identyczny wpis PUBLICZNY, też bez komentarza,
+        // MUSI być na liście.
+        //
+        // Bez niej „nie widać wpisu prywatnego" przechodziło także wtedy, gdy
+        // lista nie pokazywała NICZEGO — a to jest awaria, nie poprawność.
+        // Zmierzone: po zawężeniu warunku widoczności w
+        // `BezOdpowiedziController::index()` do pustego zbioru (lista zawsze
+        // pusta) ten test był dalej zielony, choć trzy inne w tym pliku padły.
+        $this->wpis($this->user('marek'), 'Publiczny wpis bez odpowiedzi');
+
         // Nikt poza autorem tego nie widzi, więc brak komentarza nie jest
         // problemem — a lista ma pokazywać rzeczy do zrobienia, nie wszystko.
         $this->actingAs($this->gospodarz())->get(route('admin.unanswered'))
             ->assertOk()
+            ->assertSee('Publiczny wpis bez odpowiedzi')
             ->assertDontSee('Notatka tylko dla mnie');
     }
 

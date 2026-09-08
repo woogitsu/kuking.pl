@@ -58,7 +58,22 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
             'image/avif' => (bool) ($gd['AVIF Support'] ?? false),
         ];
 
-        foreach (LimityZdjec::dozwoloneTypy() as $mime) {
+        $dozwolone = LimityZdjec::dozwoloneTypy();
+
+        // ASERCJA KONTROLNA. Cała pętla niżej to zero iteracji, gdy lista
+        // dozwolonych typów jest pusta — a pusta bywa nie tylko „nigdy":
+        // `dozwoloneTypy()` czyta `config('kuking.media.accepted_mime_types')`,
+        // więc wystarczy przeniesiony albo przemianowany klucz konfiguracji.
+        // Zmierzone: po podmianie tego klucza na pustą tablicę ten test —
+        // opisany we własnym komentarzu jako najważniejszy w pliku — był
+        // dalej zielony, nie sprawdzając ani jednego formatu.
+        $this->assertNotEmpty(
+            $dozwolone,
+            'Lista dozwolonych formatów jest pusta — ten test nie sprawdza wtedy niczego, '.
+            'a formularze wysyłki zdjęć nie proponują żadnego formatu.',
+        );
+
+        foreach ($dozwolone as $mime) {
             $this->assertArrayHasKey(
                 $mime,
                 $obslugaGd,

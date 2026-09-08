@@ -283,16 +283,38 @@ class PolitykaBezpieczenstwaTest extends TestCase
     {
         Log::spy();
 
+        // OCHRONA CSRF W TESTACH JEST WYŁĄCZONA — I TO JEST SEDNO TEGO TESTU.
+        //
+        // `ValidateCsrfToken` przepuszcza każde żądanie, gdy aplikacja chodzi
+        // pod PHPUnitem (`runningUnitTests()`), więc zwykłe `$this->call()`
+        // dostaje 204 niezależnie od tego, czy trasa jest zwolniona z tokenu.
+        // Zmierzone: po usunięciu `_csp` z listy wyjątków w `bootstrap/app.php`
+        // cały ten plik był dalej zielony (15 passed) — a na produkcji KAŻDE
+        // zgłoszenie CSP kończyłoby się wtedy błędem 419 i nie zbieralibyśmy
+        // niczego, dokładnie tak po cichu, jak ostrzega opis tej klasy.
+        //
+        // Podmiana środowiska na `production` włącza CSRF na czas jednego
+        // żądania — ta sama sztuczka co w `SekretyNieWracajaNaEkranTest`
+        // i `StronyBleduPoPolskuTest`.
+        //
         // Zgłoszenie wysyła SAMA PRZEGLĄDARKA: bez sesji, bez tokenu CSRF.
-        // Gdyby trasa go wymagała, każde zgłoszenie kończyłoby się błędem 419
-        // i znowu nie zbieralibyśmy niczego — tym razem po cichu.
-        $this->call('POST', route('csp.report'), [], [], [], [], json_encode([
-            'csp-report' => [
-                'document-uri' => 'https://kuking.pl/przepis/rosol',
-                'effective-directive' => 'script-src',
-                'blocked-uri' => 'https://obcy.example/skrypt.js',
-            ],
-        ]))->assertNoContent();
+        $poprzednie = $this->app['env'];
+        $this->app['env'] = 'production';
+
+        try {
+            $odpowiedz = $this->withSession(['_token' => 'token-sesji'])
+                ->call('POST', route('csp.report'), [], [], [], [], json_encode([
+                    'csp-report' => [
+                        'document-uri' => 'https://kuking.pl/przepis/rosol',
+                        'effective-directive' => 'script-src',
+                        'blocked-uri' => 'https://obcy.example/skrypt.js',
+                    ],
+                ]));
+        } finally {
+            $this->app['env'] = $poprzednie;
+        }
+
+        $odpowiedz->assertNoContent();
     }
 
     public function test_zgloszenie_nie_zapisuje_fragmentu_kodu_ze_strony(): void
@@ -335,10 +357,21 @@ class PolitykaBezpieczenstwaTest extends TestCase
         // Zgłoszenie CSP to kilkaset bajtów. Wszystko powyżej ośmiu kilobajtów
         // to albo pomyłka, albo próba zapchania logu. Przyjmujemy grzecznie
         // i wyrzucamy do kosza, zamiast parsować.
+        //
+        // TEN TEST PYTA O LOG, NIE O KOD ODPOWIEDZI. Endpoint oddaje 204
+        // ZAWSZE I BEZWARUNKOWO (patrz `CspReportController::__invoke()`),
+        // więc `assertNoContent()` przechodzi także wtedy, gdy limit zniknął
+        // i dwadzieścia tysięcy znaków wylądowało w dzienniku. Zmierzone:
+        // po podniesieniu `LIMIT_BAJTOW` z 8192 na 8192000 cały ten plik
+        // był dalej zielony.
+        $log = Log::spy();
+
         $ogromne = json_encode(['csp-report' => ['document-uri' => str_repeat('a', 20000)]]);
 
         $this->call('POST', route('csp.report'), [], [], [], [], $ogromne)
             ->assertNoContent();
+
+        $log->shouldNotHaveReceived('info');
     }
 
     public function test_smiec_zamiast_zgloszenia_nie_wywala_serwera(): void

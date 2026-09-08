@@ -34,10 +34,20 @@ class DecyzjeModeracyjneTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?User $zglaszajaca = null;
+
+    /**
+     * Zgłaszająca jest jedna na cały test — `username` jest UNIQUE, więc
+     * drugie wywołanie `$this->user('zglaszajaca')` w tym samym teście
+     * odbiłoby się o bazę. Potrzebne od chwili, w której jeden test składa
+     * dwa zgłoszenia naraz.
+     */
     private function zgloszenie(string $typ, string $celId): Report
     {
+        $this->zglaszajaca ??= $this->user('zglaszajaca');
+
         return Report::create([
-            'reporter_id' => $this->user('zglaszajaca')->getKey(),
+            'reporter_id' => $this->zglaszajaca->getKey(),
             'target_type' => $typ,
             'target_id' => $celId,
             'reason' => 'harassment',
@@ -73,15 +83,41 @@ class DecyzjeModeracyjneTest extends TestCase
 
     public function test_formularz_nie_pokazuje_usun_tresc_przy_zgloszeniu_osoby(): void
     {
+        // DWA ZGŁOSZENIA W JEDNEJ ODPOWIEDZI, I TO JEST CAŁA POPRAWKA TEGO
+        // TESTU.
+        //
+        // Wcześniej stało tu jedno zgłoszenie osoby i samo
+        // `assertDontSee('Usuń treść')`. Zmierzone: po zamianie w
+        // `resources/views/pages/admin/reports.blade.php` pętli po
+        // `ModerationAction::dozwoloneDla(...)` na pętlę po pustej tablicy —
+        // czyli po usunięciu CAŁEJ listy decyzji z formularza — test zostawał
+        // zielony. „Nie widać przycisku" jest wtedy prawdą, bo nie widać
+        // żadnego.
+        //
+        // Teraz na tej samej stronie stoi też zgłoszenie WPISU, gdzie „Usuń
+        // treść" jest decyzją dozwoloną i MUSI być. Liczba wystąpień
+        // rozstrzyga obie strony reguły naraz: 0 znaczy „formularz przestał
+        // pokazywać decyzje", 2 znaczy „przycisk wyciekł na zgłoszenie osoby".
         $basia = $this->user('basia');
         $this->zgloszenie('user', $basia->getKey());
 
+        $wpis = Post::factory()->create(['author_id' => $basia->getKey(), 'visibility' => 'public']);
+        $this->zgloszenie('post', $wpis->getKey());
+
         // Zabezpieczenie po stronie serwera to za mało: przycisk, który kasuje
         // konto, nie powinien się w ogóle pokazać.
-        $this->actingAs($this->moderator())
+        $odpowiedz = $this->actingAs($this->moderator())
             ->get(route('admin.reports'))
-            ->assertOk()
-            ->assertDontSee('Usuń treść');
+            ->assertOk();
+
+        $this->assertSame(
+            1,
+            substr_count((string) $odpowiedz->getContent(), 'Usuń treść'),
+            'Na liście są dwa zgłoszenia — osoby i wpisu. „Usuń treść" ma się '
+            .'pojawić DOKŁADNIE RAZ, przy wpisie. Zero znaczy, że formularz '
+            .'w ogóle przestał pokazywać decyzje; dwa — że przycisk kasujący '
+            .'całe konto wrócił przy zgłoszeniu osoby.',
+        );
     }
 
     public function test_zawieszenie_na_zgloszonym_wpisie_zawiesza_autora(): void
