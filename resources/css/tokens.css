@@ -576,17 +576,36 @@
     display: block;
     margin-top: var(--spacing-4);
   }
+  /* Uzgodnione z systemem projektowym v3.1. Trzy różnice:
+
+     * wcięcie poziome `--spacing-4` zamiast `--spacing-3`. Pole ma obwódkę
+       2 px w mocnym kolorze, więc litera stojąca 12 px od niej dotyka jej
+       wzrokowo; 16 px daje polu oddech i licuje jego tekst z tekstem
+       przycisku obok, który ma `--spacing-5` przy cieńszej obwódce.
+     * `line-height` z tokenu. Bez niego pole wielowierszowe (`textarea`,
+       „Jak to zrobić") ma interlinię przeglądarki — ciaśniejszą niż każdy
+       inny akapit w serwisie, a to jest najdłuższy tekst, jaki ktokolwiek
+       tu pisze.
+     * `min-width: 0`. Pole w kontenerze `flex` (np. wiersz „szukaj +
+       przycisk") nie zejdzie samo poniżej swojej szerokości domyślnej
+       i wypycha przycisk poza ekran.
+
+     Przejście koloru obwódki jest z tokenu, więc `prefers-reduced-motion`
+     wyłącza je w warstwie base. */
   .field-input {
     display: block;
     width: 100%;
+    min-width: 0;
     min-height: var(--control-height-min);
-    padding: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
     font-family: var(--font-sans);
     font-size: var(--text-body);
+    line-height: var(--leading-body);
     color: var(--color-ink);
     background-color: var(--color-surface-sunken);
     border: 2px solid var(--color-border-strong);
     border-radius: var(--radius-md);
+    transition: border-color var(--czas-szybki) ease-out;
   }
   textarea.field-input {
     min-height: 8rem;
@@ -622,20 +641,46 @@
     padding: var(--spacing-5);
   }
 
-  /* --- Empty state --- */
+  /* --- Pusty stan (system projektowy v3.1) ---------------------------
+     PRZED: sam tekst na tle strony, cały w kolorze stonowanym.
+     PO:    karta — tło podniesione, obwódka, `--radius-xl`, tekst w pełnym
+            kolorze atramentu.
+
+     Powód jest ten sam, dla którego pusty stan w ogóle istnieje: ekran, na
+     którym nic nie ma, ma wyglądać na PRZYGOTOWANY, a nie na niedokończony.
+     Szary tekst pośrodku białej strony czyta się jak komunikat o awarii —
+     zwłaszcza gdy jedyne, co go otacza, to nagłówek. Karta mówi: „to jest
+     miejsce, tylko jeszcze puste".
+
+     Zdjęty `color: var(--color-ink-muted)` z kontenera to nie kosmetyka.
+     Padał on na CAŁY środek, więc zdanie wyjaśniające miało kontrast
+     stonowanego atramentu, a stonowany atrament jest przewidziany dla
+     metadanych — daty, liczby polubień — nie dla jedynego zdania na ekranie.
+     Kolor zostaje tam, gdzie ma być: na opisie (`.empty-state-opis`).
+
+     Tytuł idzie z `--text-body-lg` (20 px) na `--text-title-sm`, bo w karcie
+     ma wagę nagłówka sekcji, a nie wyróżnionego akapitu. */
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-3);
     text-align: center;
-    padding: var(--spacing-10) var(--spacing-4);
-    color: var(--color-ink-muted);
+    padding: var(--spacing-12) var(--spacing-5);
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
   }
   .empty-state-title {
-    font-size: var(--text-body-lg);
-    font-weight: 700;
+    font-size: var(--text-title-sm);
+    font-weight: 800;
     color: var(--color-ink);
+    margin: 0;
+  }
+  .empty-state-opis {
+    max-width: 34rem;
+    color: var(--color-ink-muted);
+    margin: 0;
   }
 
   /* --- Podsumowanie błędów formularza --- */

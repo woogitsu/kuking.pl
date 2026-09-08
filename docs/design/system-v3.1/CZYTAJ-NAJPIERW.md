@@ -132,6 +132,33 @@ Trzy rzeczy zrobione INACZEJ niż w paczce, świadomie:
    z tokenu o tej samej wartości. Dwie nazwy na jedną rzecz to pierwszy krok
    do dwóch różnych wartości.
 
+### Uzgodnione komponenty (8 września 2026)
+
+Klasa po klasie, każda z decyzją, która wersja wygrywa:
+
+| Klasa | Kto wygrał | Dlaczego |
+|---|---|---|
+| `.empty-state` | **system** | dostaje kartę (tło podniesione, obwódka, `--radius-xl`). Szary tekst pośrodku pustej strony czytał się jak komunikat o awarii |
+| `.empty-state-opis` | **system** | stonowany kolor schodzi z kontenera na sam opis — dotąd padał także na tytuł |
+| `.side-nav-item` | **system** | wcięcie pionowe i zabezpieczenie zawijania: przy skali 140% „Bez odpowiedzi" zawija się w kolumnie 15 rem |
+| `.field-input` | **system** | wcięcie poziome `--spacing-4`, interlinia z tokenu (najdłuższy tekst w serwisie to `textarea`), `min-width: 0` |
+| `.bottom-nav-item` | **podział** | zabezpieczenie zawijania z systemu TAK, zejście na 16 px NIE — podpis pod ikoną jest całą treścią elementu, więc obowiązuje minimum 18 px (issue #110) |
+| `.badge` | **system co do kształtu** | `--radius-sm` zamiast pigułki: pigułka to kształt rzeczy klikalnej i ma ją `.chip`. Tło zostaje w regule bazowej, bo wszystkie wywołania w serwisie są jednej wagi |
+| `.avatar` | **aplikacja** | system ma sztywne `3rem`, aplikacja bierze rozmiar z parametru. Przyjęcie systemu zepsułoby każde wywołanie z rozmiarem |
+| `.card` | **remis** | jedyna różnica to `forced-color-adjust: auto`, czyli wartość domyślna. Nic do zrobienia |
+
+### Pytanie do właściciela: jak głośna ma być odznaka „Konto przykładowe"
+
+System (`components.css`) przewiduje dla niej odznakę **cichą** —
+`.badge-cichy`, bez tła, mniejszą od metadanych. `docs/DECISIONS.md` D-025
+mówi odwrotnie i `.badge-przykladowe` jest dziś celowo **głośniejsza** od
+pozostałych: 18 px zamiast 16 px, z ramką, „żeby grupa 50+ zauważyła to bez
+czytania drobnego druku".
+
+Obie wersje mają argument i obie są Twoje. To decyzja produktowa — czy konto
+przykładowe ma być widoczne od razu, czy ma nie rozpraszać w strumieniu —
+więc nie rozstrzygam jej sam. Do czasu odpowiedzi zostaje wersja z D-025.
+
 ### Usterka złapana przy okazji: `clamp` na tytułach nigdy nie działał
 
 `.text-title-lg` stała w `@layer base` z komentarzem „użyj tej klasy z tekstem

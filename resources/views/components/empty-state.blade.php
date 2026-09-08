@@ -12,7 +12,11 @@
     @endif
     <p class="empty-state-title">{{ $title }}</p>
     @if(trim($slot) !== '')
-        <p class="max-w-[34rem]">{{ $slot }}</p>
+        {{-- `empty-state-opis` zamiast utility `max-w-[34rem]`: sufit miary
+             wiersza i stonowany kolor to jedna decyzja systemu projektowego,
+             więc mają jedno miejsce. Do 8 września kolor brał się z kontenera
+             i padał także na tytuł. --}}
+        <p class="empty-state-opis">{{ $slot }}</p>
     @endif
     @if($action && $href)
         <a class="btn btn-primary" href="{{ $href }}">{{ $action }}</a>

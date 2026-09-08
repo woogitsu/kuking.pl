@@ -446,6 +446,23 @@
     font-weight: 600;
     color: var(--color-ink-muted);
     text-decoration: none;
+    /* Zabezpieczenie zawijania z systemu projektowego v3.1. Pasek dolny to
+       pięć elementów `flex` w jednym wierszu na ekranie, który przy 320 px
+       daje im po 64 px. Przy skali tekstu 140% „Powiadomienia" nie mieści
+       się w jednym wierszu i bez tych trzech linii wypycha sąsiadów poza
+       ekran zamiast zawinąć się u siebie.
+
+       System schodzi tu dodatkowo na `--text-help` (16 px). TEGO NIE
+       BIERZEMY — patrz akapit wyżej: podpis pod ikoną jest CAŁĄ treścią
+       tego elementu, a nie dopiskiem przy większym tekście obok, więc
+       obowiązuje go minimum produktowe 18 px (issue #110). System pisał tę
+       regułę dla kitu, w którym dolny pasek nie był jedyną drogą do
+       głównej akcji. */
+    min-width: 0;
+    text-align: center;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
 
   .bottom-nav-item[aria-current="page"] {
@@ -479,17 +496,37 @@
       align-self: start;
     }
 
+    /* Uzgodnione z systemem projektowym v3.1 (`components.css`).
+       Trzy różnice, wszystkie z jednego powodu — nawigacja stoi w kolumnie
+       szerokiej na 15 rem, a napisy w niej rosną razem ze skalą tekstu:
+
+       * wcięcie PIONOWE `--spacing-2`. Bez niego pozycja, której napis
+         zawinie się na dwa wiersze („Bez odpowiedzi" przy skali 140%),
+         dotyka literami górnej i dolnej krawędzi tła.
+       * `min-width: 0` i zawijanie w dowolnym miejscu. Element `flex` nie
+         zejdzie sam poniżej swojej szerokości min-content, więc bez tego
+         najdłuższa pozycja rozpycha całą kolumnę nawigacji, a siatka strony
+         zabiera tę szerokość kolumnie czytania.
+       * przejście tła przy najechaniu — z tokenu, więc wyłącza je
+         `prefers-reduced-motion` w warstwie base.
+
+       `padding: 0` w poziomie ZOSTAJE `--spacing-3`: system ma tę samą
+       wartość, zmienia się tylko oś pionowa. */
     .side-nav-item {
       display: flex;
       align-items: center;
       gap: var(--spacing-3);
       min-height: var(--control-height-min);
-      padding: 0 var(--spacing-3);
+      padding: var(--spacing-2) var(--spacing-3);
       border-radius: var(--radius-md);
       font-size: var(--text-body);
       font-weight: 600;
       color: var(--color-ink);
       text-decoration: none;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      transition: background-color var(--czas-szybki) ease-out;
     }
 
     .side-nav-item:hover { background-color: var(--color-surface-sunken); }
@@ -888,14 +925,35 @@
     text-decoration: none;
   }
 
+  /* Odznaka. Kształt z systemu projektowego v3.1: `--radius-sm`, nie pigułka,
+     i wcięcie `--spacing-2`.
+
+     Pigułka to kształt ETYKIETY, którą się klika albo zdejmuje — w tym
+     serwisie ma go `.chip` w wyszukiwaniu, i słusznie. Odznaka jest
+     PODPISEM przy treści („Ugotowane 3 razy", „Konto przykładowe"): nic nie
+     robi po naciśnięciu. Dwa różne kształty na dwie różne rzeczy znaczą, że
+     nie trzeba próbować, żeby się dowiedzieć, która jest która.
+
+     TŁO ZOSTAJE W REGULE BAZOWEJ, choć system wyjmuje je do wariantu
+     `.badge-spokojny`. Powód praktyczny: wszystkie wywołania `.badge` w tym
+     serwisie są tej jednej wagi, więc podział dołożyłby klasę do każdego
+     z nich i zostawił pułapkę — samo `.badge` byłoby wtedy niewidoczne.
+     Wariant głośny (`.badge-cooked`) już istnieje i nadpisuje tło u siebie.
+
+     CZEGO TU NIE ROZSTRZYGAM: system chce, żeby „konto przykładowe" było
+     odznaką CICHĄ (`.badge-cichy` — bez tła, mniejsze), a `docs/DECISIONS.md`
+     D-025 mówi odwrotnie i `.badge-przykladowe` jest u nas celowo GŁOŚNIEJSZE
+     od reszty. To jest decyzja produktowa, nie stylistyczna — należy do
+     właściciela i jest zapisana w `CZYTAJ-NAJPIERW.md` jako pytanie otwarte. */
   .badge {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-1);
-    padding: var(--spacing-1) var(--spacing-3);
-    border-radius: var(--radius-pill);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--radius-sm);
     font-size: var(--text-help);
     font-weight: 700;
+    line-height: 1.3;
     background-color: var(--color-surface-sunken);
     color: var(--color-ink-muted);
   }
