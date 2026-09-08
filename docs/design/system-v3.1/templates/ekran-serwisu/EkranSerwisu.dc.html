@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Ekran serwisu" description="Ekran zalogowanego: belka, nawigacja boczna, strumień kart, szyna, stopka" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div class="app-shell">
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.TopBar" imie="Basia" hint-size="100%,72px"></x-import>
+<div class="app-body">
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.SideNav" biezaca="start" hint-size="240px,320px"></x-import>
+<main class="app-main" id="tresc">
+<h1>Dobry wieczór, Basia. Pokaż, co dziś wyszło.</h1>
+<div class="card" style="margin-bottom:var(--spacing-6)">
+<button type="button" class="btn btn-primary btn-duzy">Dodaj zdjęcie tego, co ugotowałeś</button>
+<p class="pomoc" style="margin:var(--spacing-3) 0 0">Nie musi być ładne — ma być prawdziwe.</p>
+</div>
+<nav class="chipsy" aria-label="Zakres strumienia">
+<a class="chip" href="#obserwowani" aria-current="true">Obserwowani</a>
+<a class="chip" href="#swiezo">Świeżo z Kuking</a>
+</nav>
+<div class="strumien" style="margin-top:var(--spacing-6)">
+<article class="karta-wpisu">
+<div class="karta-glowka">
+<span class="avatar">K</span>
+<div class="karta-glowka-tekst">
+<a class="karta-autor" href="#profil">Kasia Wrzosek</a>
+<div class="karta-meta"><span>7 września, 18:20</span><span class="karta-meta-kropka" aria-hidden="true">·</span><span class="badge badge-cichy">publicznie</span></div>
+</div>
+</div>
+<h2 class="karta-tytul"><a href="#danie">Pierogi ruskie na niedzielę</a></h2>
+<p class="karta-tresc">Ciasto na gorącej wodzie, farsz jak zawsze — ziemniaki, twaróg i dużo cebuli. Wyszło. I to się liczy.</p>
+<div class="karta-bez-zdjecia">Miejsce na zdjęcie potrawy, 4:3, na pełną szerokość karty. Zdjęcie jest tu treścią, nie ilustracją.</div>
+<div class="karta-stopka">
+<button type="button" class="btn btn-primary">Ugotowałem</button>
+<button type="button" class="btn btn-quiet">Zapisz</button>
+<a class="btn btn-quiet karta-stopka-odstep" href="#komentarze">8 komentarzy</a>
+</div>
+</article>
+<article class="karta-wpisu">
+<div class="karta-glowka">
+<span class="avatar">H</span>
+<div class="karta-glowka-tekst">
+<a class="karta-autor" href="#profil">Halina z Mazowsza</a>
+<div class="karta-meta"><span>wczoraj, 12:05</span><span class="karta-meta-kropka" aria-hidden="true">·</span><span class="badge badge-cichy">tylko obserwujący</span></div>
+</div>
+</div>
+<h2 class="karta-tytul"><a href="#danie">Rosół stał od dziewiątej rano</a></h2>
+<div class="karta-bez-zdjecia">Cebula opalona nad palnikiem, bo bez tego wywar jest blady. Solę na końcu, tak jak babcia.</div>
+</article>
+</div>
+<div class="srodek stos" style="margin-top:var(--spacing-8)">
+<p class="pomoc" aria-live="polite">Pokazujemy 2 z 48 wpisów.</p>
+<button type="button" class="btn btn-secondary btn-duzy">Pokaż więcej</button>
+</div>
+</main>
+<aside class="app-rail">
+<section class="szyna-modul" aria-labelledby="szyna-tytul">
+<h2 class="szyna-tytul" id="szyna-tytul">kuKINGi na dziś</h2>
+<p class="szyna-podtytul">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>
+<div class="szyna-osoba">
+<span class="avatar avatar-sm">K</span>
+<div class="szyna-osoba-tekst"><span class="szyna-osoba-imie">Kasia Wrzosek</span><span class="szyna-osoba-opis">Zupy i pierogi, Podkarpacie</span></div>
+<button type="button" class="btn btn-secondary" aria-pressed="false">Obserwuj</button>
+</div>
+<div class="szyna-osoba">
+<span class="avatar avatar-sm">P</span>
+<div class="szyna-osoba-tekst"><span class="szyna-osoba-imie">Piotr Zalewski</span><span class="szyna-osoba-opis">Pizza i chleb, Pomorze</span></div>
+<button type="button" class="btn btn-secondary" aria-pressed="false">Obserwuj</button>
+</div>
+<p class="szyna-stopka">Jutro będzie tu ktoś inny.</p>
+</section>
+</aside>
+</div>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.SiteFooter" hint-size="100%,120px"></x-import>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.BottomNav" biezaca="start" hint-size="100%,60px"></x-import>
+</div>
+
+</x-dc>
+</body>
+</html>

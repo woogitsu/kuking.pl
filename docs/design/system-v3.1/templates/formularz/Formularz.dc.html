@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Długi formularz" description="Formularz w sekcjach: etykieta nad polem, szerokość dobrana do treści, podsumowanie błędów, autozapis" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div class="app-shell">
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.TopBar" imie="Basia" hint-size="100%,72px"></x-import>
+<div class="app-body">
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.SideNav" biezaca="dodaj" hint-size="240px,320px"></x-import>
+<main class="app-main" id="tresc">
+<div class="wizard-steps">
+<p class="wizard-steps-current">Krok 1 z 3<span class="wizard-steps-nazwa"> — nazwa i zdjęcie</span></p>
+<div class="wizard-steps-track" role="presentation"><span class="wizard-steps-dot" data-done="true"></span><span class="wizard-steps-dot"></span><span class="wizard-steps-dot"></span></div>
+</div>
+<h1>Dodaj przepis</h1>
+<p class="autosave-badge" aria-live="polite"><svg class="alert-ikona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="m4.5 12.5 5 5 10-11"></path></svg>Szkic zapisany.</p>
+
+<div class="error-summary" role="alert" tabindex="-1">
+<h2 class="error-summary-title">Jednej rzeczy jeszcze brakuje</h2>
+<ul><li><a href="#nazwa">Nazwa przepisu jest pusta.</a></li></ul>
+</div>
+
+<form>
+<fieldset class="form-section field">
+<legend class="form-section-title">Co to za przepis</legend>
+<p class="form-section-opis">Wymagane są trzy pola — resztę wypełnij, jeśli chcesz.</p>
+<div class="field has-error">
+<label class="field-etykieta" for="nazwa">Nazwa przepisu <span class="field-wymagane">wymagane</span></label>
+<span class="field-podpowiedz" id="nazwa-pod">Tak, jak mówisz o nim w domu.</span>
+<input class="field-input field-input-srednie" type="text" id="nazwa" name="nazwa" aria-describedby="nazwa-pod nazwa-blad" aria-invalid="true">
+<span class="field-error" id="nazwa-blad">Nazwa przepisu jest pusta. Wpisz choćby dwa słowa — zawsze da się ją później zmienić.</span>
+</div>
+<div class="field">
+<label class="field-etykieta" for="zajawka">Kilka słów o tym daniu</label>
+<span class="field-podpowiedz" id="zajawka-pod">Co w nim jest najważniejsze i kiedy się je gotuje.</span>
+<textarea class="field-input" id="zajawka" name="zajawka" aria-describedby="zajawka-pod"></textarea>
+</div>
+<div class="rzad-pol">
+<div class="field">
+<label class="field-etykieta" for="minuty">Ile minut</label>
+<input class="field-input field-input-liczba" type="number" id="minuty" name="minuty" value="90">
+</div>
+<div class="field">
+<label class="field-etykieta" for="porcje">Ile porcji</label>
+<input class="field-input field-input-liczba" type="number" id="porcje" name="porcje" value="6">
+</div>
+</div>
+</fieldset>
+
+<fieldset class="form-section field">
+<legend class="form-section-title">Zdjęcie</legend>
+<p class="form-section-opis">Jedno zdjęcie gotowego dania. Nie musi być ładne — ma być prawdziwe.</p>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.PhotoPicker" id="zdjecie" hint-size="100%,180px"></x-import>
+</fieldset>
+
+<fieldset class="form-section field">
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.ChoiceGroup" hint-size="100%,200px"></x-import>
+</fieldset>
+
+<div class="form-actions">
+<button type="submit" class="btn btn-primary">Zapisz i przejdź dalej</button>
+<button type="submit" class="btn btn-secondary">Zapisz szkic</button>
+<a class="btn btn-quiet" href="#dodaj">Anuluj</a>
+</div>
+</form>
+</main>
+<aside class="app-rail">
+<section class="szyna-modul" aria-labelledby="pomoc-tytul">
+<h2 class="szyna-tytul" id="pomoc-tytul">Krok 1 — nazwa i zdjęcie</h2>
+<p class="szyna-podtytul" style="margin-bottom:0">Zdjęcie nie musi być ładne — ma być prawdziwe. Nazwę wpisz tak, jak mówisz o tym daniu w domu.</p>
+<p class="szyna-stopka">Szkic zapisuje się przy każdym kroku. Możesz zamknąć stronę i wrócić.</p>
+</section>
+</aside>
+</div>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.SiteFooter" hint-size="100%,120px"></x-import>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.BottomNav" biezaca="dodaj" hint-size="100%,60px"></x-import>
+</div>
+
+</x-dc>
+</body>
+</html>

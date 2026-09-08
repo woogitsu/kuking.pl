@@ -1,0 +1,85 @@
+# Kontrast tokenów v3.1
+
+Wygenerowano 7 września 2026 przez `node 01-fundamenty/kontrast.mjs` (Node 22.16.0).
+
+### Tryb jasny
+
+| Para | Kontrast | Próg | Wynik | Gdzie |
+|---|---|---|---|---|
+| ink / surface | 14.21:1 | 4.5:1 | przechodzi | tekst podstawowy na tle strony |
+| ink / surface-raised | 15.30:1 | 4.5:1 | przechodzi | tekst podstawowy na karcie |
+| ink / surface-sunken | 12.90:1 | 4.5:1 | przechodzi | tekst w polu formularza |
+| ink / surface-brand-wash | 12.90:1 | 4.5:1 | przechodzi | tekst na tle sekcji marki (hero, pasek zachęty) |
+| ink-muted / surface | 7.01:1 | 4.5:1 | przechodzi | metadane na tle strony |
+| ink-muted / surface-raised | 7.54:1 | 4.5:1 | przechodzi | metadane na karcie |
+| ink-muted / surface-sunken | 6.36:1 | 4.5:1 | przechodzi | plakietka cicha: tekst na wgłębionym tle |
+| ink-muted / surface-brand-wash | 6.36:1 | 4.5:1 | przechodzi | metadane na tle sekcji marki |
+| brand / surface | 5.31:1 | 4.5:1 | przechodzi | link i tekst marki na tle strony |
+| brand / surface-raised | 5.72:1 | 4.5:1 | przechodzi | link i tekst marki na karcie |
+| brand / surface-sunken | 4.83:1 | 4.5:1 | przechodzi | link marki w polu/wgłębieniu |
+| brand / surface-brand-wash | 4.83:1 | 4.5:1 | przechodzi | link marki na tle sekcji marki |
+| ink-inverse / brand-solid | 5.72:1 | 4.5:1 | przechodzi | biały napis na przycisku głównym |
+| ink-inverse / brand-solid-hover | 8.23:1 | 4.5:1 | przechodzi | biały napis na przycisku głównym, najechanie |
+| brand-solid / surface | 5.31:1 | 3.0:1 | przechodzi | obrys przycisku głównego wobec tła strony |
+| brand-tint-ink / brand-tint | 6.67:1 | 4.5:1 | przechodzi | bieżąca pozycja nawigacji |
+| accent / surface | 5.80:1 | 4.5:1 | przechodzi | tekst akcentu na tle strony |
+| accent / surface-raised | 6.24:1 | 4.5:1 | przechodzi | tekst akcentu na karcie |
+| accent-tint-ink / accent-tint | 6.53:1 | 4.5:1 | przechodzi | plakietka Ugotowałem |
+| danger / surface | 6.07:1 | 4.5:1 | przechodzi | tekst błędu na tle strony |
+| danger / surface-raised | 6.54:1 | 4.5:1 | przechodzi | tekst błędu na karcie |
+| ink-inverse / danger-solid | 6.54:1 | 4.5:1 | przechodzi | biały napis na przycisku Usuń |
+| ink-inverse / danger-solid-hover | 9.08:1 | 4.5:1 | przechodzi | biały napis na przycisku Usuń, najechanie |
+| danger-solid / surface | 6.07:1 | 3.0:1 | przechodzi | obrys przycisku Usuń wobec tła strony |
+| danger-tint-ink / danger-tint | 7.37:1 | 4.5:1 | przechodzi | podsumowanie błędów |
+| danger / surface-sunken | 5.51:1 | 3.0:1 | przechodzi | ramka pola z błędem wobec tła pola |
+| success / surface | 4.93:1 | 4.5:1 | przechodzi | tekst potwierdzenia na tle strony |
+| success-tint-ink / success-tint | 6.95:1 | 4.5:1 | przechodzi | plakietka Szkic zapisany |
+| border-strong / surface | 3.87:1 | 3.0:1 | przechodzi | obwódka pola i przycisku wtórnego na tle strony |
+| border-strong / surface-raised | 4.16:1 | 3.0:1 | przechodzi | obwódka pola i przycisku wtórnego na karcie |
+| border-strong / surface-sunken | 3.51:1 | 3.0:1 | przechodzi | obwódka pola wobec jego własnego tła |
+| focus / surface | 5.03:1 | 3.0:1 | przechodzi | pierścień fokusu na tle strony |
+| focus / surface-raised | 5.41:1 | 3.0:1 | przechodzi | pierścień fokusu na karcie |
+| focus / surface-sunken | 4.57:1 | 3.0:1 | przechodzi | pierścień fokusu na polu formularza |
+| ink-inverse / scrim-ink | 18.37:1 | 4.5:1 | przechodzi | biały napis na przyciemnieniu zdjęcia (podkład) |
+
+### Tryb ciemny
+
+| Para | Kontrast | Próg | Wynik | Gdzie |
+|---|---|---|---|---|
+| ink / surface | 15.13:1 | 4.5:1 | przechodzi | tekst podstawowy na tle strony |
+| ink / surface-raised | 13.41:1 | 4.5:1 | przechodzi | tekst podstawowy na karcie |
+| ink / surface-sunken | 16.46:1 | 4.5:1 | przechodzi | tekst w polu formularza |
+| ink / surface-brand-wash | 13.62:1 | 4.5:1 | przechodzi | tekst na tle sekcji marki (hero, pasek zachęty) |
+| ink-muted / surface | 9.45:1 | 4.5:1 | przechodzi | metadane na tle strony |
+| ink-muted / surface-raised | 8.38:1 | 4.5:1 | przechodzi | metadane na karcie |
+| ink-muted / surface-sunken | 10.28:1 | 4.5:1 | przechodzi | plakietka cicha: tekst na wgłębionym tle |
+| ink-muted / surface-brand-wash | 8.51:1 | 4.5:1 | przechodzi | metadane na tle sekcji marki |
+| brand / surface | 7.80:1 | 4.5:1 | przechodzi | link i tekst marki na tle strony |
+| brand / surface-raised | 6.92:1 | 4.5:1 | przechodzi | link i tekst marki na karcie |
+| brand / surface-sunken | 8.49:1 | 4.5:1 | przechodzi | link marki w polu/wgłębieniu |
+| brand / surface-brand-wash | 7.03:1 | 4.5:1 | przechodzi | link marki na tle sekcji marki |
+| ink-inverse / brand-solid | 4.72:1 | 4.5:1 | przechodzi | biały napis na przycisku głównym |
+| ink-inverse / brand-solid-hover | 6.26:1 | 4.5:1 | przechodzi | biały napis na przycisku głównym, najechanie |
+| brand-solid / surface | 3.66:1 | 3.0:1 | przechodzi | obrys przycisku głównego wobec tła strony |
+| brand-tint-ink / brand-tint | 6.55:1 | 4.5:1 | przechodzi | bieżąca pozycja nawigacji |
+| accent / surface | 8.88:1 | 4.5:1 | przechodzi | tekst akcentu na tle strony |
+| accent / surface-raised | 7.88:1 | 4.5:1 | przechodzi | tekst akcentu na karcie |
+| accent-tint-ink / accent-tint | 6.98:1 | 4.5:1 | przechodzi | plakietka Ugotowałem |
+| danger / surface | 7.57:1 | 4.5:1 | przechodzi | tekst błędu na tle strony |
+| danger / surface-raised | 6.72:1 | 4.5:1 | przechodzi | tekst błędu na karcie |
+| ink-inverse / danger-solid | 5.50:1 | 4.5:1 | przechodzi | biały napis na przycisku Usuń |
+| ink-inverse / danger-solid-hover | 7.29:1 | 4.5:1 | przechodzi | biały napis na przycisku Usuń, najechanie |
+| danger-solid / surface | 3.14:1 | 3.0:1 | przechodzi | obrys przycisku Usuń wobec tła strony |
+| danger-tint-ink / danger-tint | 11.11:1 | 4.5:1 | przechodzi | podsumowanie błędów |
+| danger / surface-sunken | 8.24:1 | 3.0:1 | przechodzi | ramka pola z błędem wobec tła pola |
+| success / surface | 9.90:1 | 4.5:1 | przechodzi | tekst potwierdzenia na tle strony |
+| success-tint-ink / success-tint | 9.31:1 | 4.5:1 | przechodzi | plakietka Szkic zapisany |
+| border-strong / surface | 4.32:1 | 3.0:1 | przechodzi | obwódka pola i przycisku wtórnego na tle strony |
+| border-strong / surface-raised | 3.83:1 | 3.0:1 | przechodzi | obwódka pola i przycisku wtórnego na karcie |
+| border-strong / surface-sunken | 4.70:1 | 3.0:1 | przechodzi | obwódka pola wobec jego własnego tła |
+| focus / surface | 7.17:1 | 3.0:1 | przechodzi | pierścień fokusu na tle strony |
+| focus / surface-raised | 6.36:1 | 3.0:1 | przechodzi | pierścień fokusu na karcie |
+| focus / surface-sunken | 7.80:1 | 3.0:1 | przechodzi | pierścień fokusu na polu formularza |
+| ink-inverse / scrim-ink | 21.00:1 | 4.5:1 | przechodzi | biały napis na przyciemnieniu zdjęcia (podkład) |
+
+Sprawdzonych par: 70. Nie przechodzi: 0.

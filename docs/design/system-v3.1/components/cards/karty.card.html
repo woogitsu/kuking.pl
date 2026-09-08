@@ -1,0 +1,63 @@
+<!-- @dsCard group="Komponenty" viewport="700x1260" name="Karty" subtitle="Karta wpisu, karta przepisu, karta zwarta, wpis bez zdjęcia, tekst na zdjęciu" -->
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Karty</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;padding:20px;background:var(--color-surface)}.demo{display:grid;gap:var(--spacing-5);grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+const { PostCard, RecipeCard, CookedCard, PhotoWithCaption, Button, Badge } = window.KukingPlSystemProjektowy_a664d7;
+function Demo() {
+  return (
+    <div className="demo">
+      <PostCard
+        autor="Kasia Wrzosek" autorHref="/@kasia" avatarSrc="../../assets/photos/avatar_kasia.png"
+        czas="wczoraj, 18:40" plakietka={<Badge waga="cichy">konto przykładowe</Badge>}
+        tytul="Pierogi ruskie na niedzielę" tytulHref="/dania/123"
+        tresc="Ciasto na gorącej wodzie, farsz jak zawsze — ziemniaki, twaróg i dużo cebuli."
+        zdjecie="../../assets/photos/pierogi.png"
+        alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem"
+        akcje={<><Button waga="primary">Ugotowałem</Button><Button waga="quiet">Zapisz</Button><Button waga="quiet" className="karta-stopka-odstep" href="#k">8 komentarzy</Button></>}
+      />
+      <>
+        <RecipeCard
+          tytul="Pizza z pieca w ogrodzie" tytulHref="/przepisy/456"
+          zdjecie="../../assets/photos/pizza.png"
+          alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce"
+          czasPrzygotowania="90 minut" porcje="6 porcji" poziom="Średnie"          akcje={<Button waga="primary" aria-pressed="false">Zapisz</Button>}
+        />
+        <PostCard
+          autor="Halina z Mazowsza" avatarSrc="" czas="3 dni temu"
+          tytul="Rosół stał od dziewiątej"
+          bezZdjecia="Cebula opalona nad palnikiem, bo bez tego wywar jest blady. Rosół nie znosi pośpiechu."
+        />
+        <PostCard
+          zwarta poziomTytulu="h3" autor="Piotr Zalewski" avatarSrc="../../assets/photos/avatar_piotr.png"
+          czas="w poniedziałek" tytul="Pomidorowa z własnych pomidorów"
+          zdjecie="../../assets/photos/soup.png" alt="Talerz pomidorowej z ryżem, łyżka obok"
+        />
+        <PhotoWithCaption
+          href="#" src="../../assets/photos/pizza.png"
+          alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce"
+          napis="Pizza z pieca w ogrodzie" podpis="Piotr · 90 minut · 6 porcji"
+        />
+        <CookedCard
+          autor="Basia" autorHref="/@basia" przepis="Pizza z pieca w ogrodzie" przepisHref="/przepisy/456"
+          czas="3 dni temu" tresc="Wyszło. I to się liczy. Dałam mniej sera, bo tyle miałam."
+        />
+      </>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>
