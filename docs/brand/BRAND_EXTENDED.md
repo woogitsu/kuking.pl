@@ -33,7 +33,7 @@ Test kontrolny dla każdego napisu: *czy Basia (61) przeczyta to raz i będzie w
 |---|---|---|
 | Publikacja dania | **Opublikuj** | „Wyślij", „Podziel się", „Share" |
 | Dodanie zdjęcia | **Dodaj zdjęcie** | „Upload", „Wybierz plik", „Załącz media" |
-| Zapisanie do Zeszytu | **Zapisz** | „Dodaj do ulubionych", „Bookmark", „Pin" |
+| Zapisanie do Zeszytu | **Zapisuję** | „Zapisz", „Dodaj do ulubionych", „Bookmark", „Pin" |
 | Obserwowanie osoby | **Obserwuj** / **Obserwujesz** | „Follow", „Subskrybuj", „Dodaj do znajomych" |
 | Zaprzestanie | **Przestań obserwować** | „Unfollow" |
 | Zgłoszenie „ugotowałem to" | **Ugotowałem** | „Zrobiłem to!", „Wypróbowałem", „Done" |
