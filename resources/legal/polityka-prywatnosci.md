@@ -12,9 +12,11 @@ Zbieramy tylko te dane, które są potrzebne, żeby Kuking działał: Twój e-ma
 
 ## 1. Kto administruje Twoimi danymi
 
-Kuking.pl prowadzi osoba fizyczna i ta osoba jest administratorem Twoich danych. Kontakt w sprawach ochrony danych: **kontakt@kuking.pl** — na ten adres odpowiada człowiek, nie automat.
+Administratorem Twoich danych jest **SAMSUFI Spółka z ograniczoną odpowiedzialnością** z siedzibą w Knyszynie, ul. Jagiellońska 4A, 19-120 Knyszyn, Polska. Spółka jest wpisana do rejestru przedsiębiorców Krajowego Rejestru Sądowego pod numerem **KRS 0000901262**, NIP **5423435334**, REGON **388971059**.
 
-Imię, nazwisko i adres do korespondencji administratora podamy w tym miejscu, zanim otworzymy rejestrację dla wszystkich. Dopóki tego tu nie ma, wiedz o tym, korzystając z serwisu: masz prawo znać tożsamość administratora i możesz o nią poprosić e-mailem, a my ją podamy.
+Adres do korespondencji w sprawach ochrony danych: **biuro@samsufi.pl** — na ten adres odpowiada człowiek, nie automat. W sprawach dotyczących samego serwisu możesz też pisać na **kontakt@kuking.pl**.
+
+Nie wyznaczyliśmy inspektora ochrony danych. Jeśli to się zmieni, podamy jego dane w tym miejscu.
 
 ## 2. Jakie dane zbieramy, po co i jak długo je przechowujemy
 
@@ -100,11 +102,11 @@ Możemy aktualizować tę Politykę Prywatności, np. gdy zmienia się prawo lub
 
 ## 10. Kontakt
 
-W sprawach dotyczących Twoich danych osobowych napisz do nas: **kontakt@kuking.pl**.
+W sprawach dotyczących Twoich danych osobowych napisz do nas: **biuro@samsufi.pl** albo **kontakt@kuking.pl**.
 
 ---
 
-*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu administratora, dostawcy poczty oraz liczby dni, przez które dane żyją w kopiach zapasowych (dopiszemy ją, gdy ustalimy ją z dostawcą hostingu — nie wcześniej). Dokument nie był weryfikowany przez prawnika.*
+*Czego w tym dokumencie jeszcze nie ma, a będzie: dostawcy poczty oraz liczby dni, przez które dane żyją w kopiach zapasowych (dopiszemy ją, gdy ustalimy ją z dostawcą hostingu — nie wcześniej). Dokument nie był weryfikowany przez prawnika.*
 
 ## Źródła
 
