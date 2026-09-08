@@ -342,6 +342,69 @@
       max-width: var(--container-strona-z-szyna);
     }
 
+    /*
+     * BELKA DOSTAJE TĘ SAMĄ SIATKĘ, CO TREŚĆ — nie tylko tę samą szerokość.
+     *
+     * Do dziś belka była wierszem `flex` z `space-between`: logotyp do lewej,
+     * akcje do prawej. Krawędzie zewnętrzne zgadzały się co do piksela (pilnuje
+     * ich automat dostępności), ale to, co stoi POŚRODKU — pole „Szukaj" —
+     * nie miało z siatką nic wspólnego. Miało własne `flex: 1 1 auto`, własny
+     * sufit 34 rem i własne marginesy, więc jego lewa krawędź wypadała
+     * kilkadziesiąt pikseli od lewej krawędzi kolumny czytania, a prawa
+     * gdziekolwiek. Pole wyszukiwania stało nad tekstem, którego nie
+     * dotykało — a jest to jedyny element belki, który ma swój odpowiednik
+     * pod spodem.
+     *
+     * System projektowy v3.1 nazywa to wprost („problem nr 6: pole szersze
+     * niż kolumna treści") i rozwiązuje siatką o tych samych trzech kolumnach,
+     * co treść. Kolumny są przepisane co do tokenu i co do odstępu z `.app-body`
+     * wyżej — 240 + 32 + 720 + 32 + 352 = 1376, czyli dokładnie wnętrze
+     * `--container-strona-z-szyna` po odjęciu wcięć. Gdyby któraś z tych liczb
+     * się rozjechała, automat dostępności zgłosi to natychmiast, bo mierzy
+     * krawędzie belki względem krawędzi treści.
+     *
+     * TYLKO OD 80rem, czyli tam, gdzie treść naprawdę ma trzy kolumny. Niżej
+     * belka zostaje wierszem `flex` z zawijaniem — na wąskim ekranie akcje mają
+     * prawo zejść do drugiego wiersza, bo alternatywą jest przewijanie strony
+     * w bok (issue #80, WCAG 2.2 AA 1.4.10). Siatka o sztywnych kolumnach
+     * odebrałaby im tę możliwość.
+     */
+    .topbar-inner {
+      display: grid;
+      grid-template-columns:
+        var(--container-sidenav)
+        minmax(0, var(--container-content))
+        var(--container-rail);
+      gap: var(--spacing-8);
+      align-items: center;
+    }
+
+    /* Akcje wypełniają trzecią kolumnę, ale stoją przy jej PRAWEJ krawędzi —
+       czyli nad prawą krawędzią szyny. Bez tego usiadłyby przy lewej i belka
+       kończyłaby się 250 px przed treścią. */
+    .topbar-inner .topbar-actions {
+      justify-content: flex-end;
+    }
+
+    /* Pole „Szukaj" wypełnia kolumnę czytania i nic poza nią. Zdejmujemy trzy
+       reguły, które wcześniej ustawiały jego szerokość na własną rękę —
+       w siatce robi to kolumna, a zostawienie ich dałoby dwa źródła jednej
+       liczby, czyli ten sam rodzaj usterki, co dwie szerokości belki. */
+    .topbar-szukaj {
+      flex: none;
+      max-width: none;
+      margin: 0;
+    }
+
+    /* Gość nie ma ani nawigacji bocznej, ani szyny, ani pola „Szukaj" w belce
+       — jego treść to jedna kolumna. Trzykolumnowa belka zostawiłaby mu
+       logotyp w słupku szerokim na 240 px, a „Załóż konto" w powietrzu nad
+       pustym miejscem. Wraca wiersz `flex` z `space-between`. */
+    .uklad-solo .topbar-inner,
+    .uklad-powitalny .topbar-inner {
+      display: flex;
+    }
+
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);

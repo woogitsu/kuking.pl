@@ -1036,6 +1036,18 @@ if (karuzelaBezJs) {
 
    Poniżej 64rem nie mierzymy: nie ma tam ani nawigacji bocznej, ani szyny,
    a belce wolno zawijać akcje do drugiego wiersza (issue #80).
+
+   DRUGA REGUŁA W TYM SAMYM POMIARZE: POLE „SZUKAJ" NAD KOLUMNĄ CZYTANIA
+   Krawędzie zewnętrzne mogą się zgadzać przy złamanym środku — i tak było do
+   8 września 2026. Belka była wierszem `flex` z `space-between`, więc logotyp
+   i akcje licowały co do piksela, a pole „Szukaj" pomiędzy nimi miało własne
+   `flex: 1 1 auto`, własny sufit 34 rem i własne marginesy. Stało nad tekstem,
+   którego nie dotykało. Od dziś belka ma od 80rem tę samą trzykolumnową
+   siatkę co treść, a to sprawdzenie tego pilnuje: krawędzie `.topbar-szukaj`
+   == krawędzie `.app-main`.
+
+   Liczone dopiero od 1280 px, bo tam włącza się i szyna, i ta siatka. Na
+   ekranach gościa pomijane — gość nie ma pola „Szukaj" w belce.
    ========================================================================== */
 log('');
 log('Wyrównanie belki do siatki treści:');
@@ -1099,6 +1111,17 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       const stylStopki = stopka ? getComputedStyle(stopka) : null;
       const ramkaStopki = stopka ? stopka.getBoundingClientRect() : null;
 
+      // Pole „Szukaj" i kolumna czytania. Mierzymy je osobno od krawędzi
+      // zewnętrznych, bo to jest inna reguła: nie „belka ma tę samą
+      // szerokość co treść", tylko „pole stoi DOKŁADNIE nad tekstem, który
+      // przeszukuje". Pierwsza może być spełniona przy złamanej drugiej —
+      // i przez pół roku była.
+      const szukaj = document.querySelector('.topbar-szukaj');
+      const kolumna = document.querySelector('.app-main');
+      const widoczne = szukaj !== null && getComputedStyle(szukaj).display !== 'none';
+      const ramkaSzukaj = widoczne ? szukaj.getBoundingClientRect() : null;
+      const ramkaKolumny = kolumna ? kolumna.getBoundingClientRect() : null;
+
       return {
         oczekiwanaLewa: Math.round(ramka.left + parseFloat(styl.paddingLeft)),
         oczekiwanaPrawa: Math.round(ramka.right - parseFloat(styl.paddingRight)),
@@ -1110,6 +1133,10 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         stopkaPrawa: ramkaStopki
           ? Math.round(ramkaStopki.right - parseFloat(stylStopki.paddingRight))
           : null,
+        szukajLewa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaSzukaj.left) : null,
+        szukajPrawa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaSzukaj.right) : null,
+        kolumnaLewa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaKolumny.left) : null,
+        kolumnaPrawa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaKolumny.right) : null,
       };
     });
 
@@ -1129,10 +1156,18 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     const bladStopkiP = pomiar.stopkaPrawa === null
       ? 0 : Math.abs(pomiar.stopkaPrawa - pomiar.oczekiwanaPrawa);
 
-    if (bladLewej > 1 || bladPrawej > 1 || bladStopkiL > 1 || bladStopkiP > 1) {
+    // Pole „Szukaj" liczy się dopiero od 1280 px: niżej belka jest wierszem
+    // `flex` z zawijaniem, bo akcje muszą mieć prawo zejść do drugiego
+    // wiersza (issue #80). Siatka trzykolumnowa włącza się razem z szyną.
+    const mierzymySzukaj = pomiar.szukajLewa !== null && szerokosc >= 1280;
+    const bladSzukajL = mierzymySzukaj ? Math.abs(pomiar.szukajLewa - pomiar.kolumnaLewa) : 0;
+    const bladSzukajP = mierzymySzukaj ? Math.abs(pomiar.szukajPrawa - pomiar.kolumnaPrawa) : 0;
+
+    if (bladLewej > 1 || bladPrawej > 1 || bladStopkiL > 1 || bladStopkiP > 1
+      || bladSzukajL > 1 || bladSzukajP > 1) {
       rozjazdyBelki.push({
         ekran: ekran.nazwa, szerokosc, ...pomiar,
-        bladLewej, bladPrawej, bladStopkiL, bladStopkiP,
+        bladLewej, bladPrawej, bladStopkiL, bladStopkiP, bladSzukajL, bladSzukajP,
       });
     }
 
@@ -1231,6 +1266,10 @@ if (rozjazdyBelki.length > 0) {
     log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
     log(`      stopka  ${r.stopkaLewa}…${r.stopkaPrawa} zamiast `
       + `${r.oczekiwanaLewa}…${r.oczekiwanaPrawa} (o ${r.bladStopkiL}/${r.bladStopkiP} px)`);
+    if (r.bladSzukajL > 1 || r.bladSzukajP > 1) {
+      log(`      szukaj  ${r.szukajLewa}…${r.szukajPrawa} zamiast kolumny czytania `
+        + `${r.kolumnaLewa}…${r.kolumnaPrawa} (o ${r.bladSzukajL}/${r.bladSzukajP} px)`);
+    }
   }
 }
 

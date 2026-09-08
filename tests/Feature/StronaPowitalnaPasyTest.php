@@ -63,12 +63,6 @@ class StronaPowitalnaPasyTest extends TestCase
         return $wynik;
     }
 
-    private function arkusz(): string
-    {
-        return (string) file_get_contents(resource_path('css/app.css'))
-            .(string) file_get_contents(resource_path('css/strony-publiczne.css'));
-    }
-
     public function test_kazdy_pas_ma_wnetrze_i_zadne_nie_jest_w_drugim(): void
     {
         $xpath = $this->dokument();
