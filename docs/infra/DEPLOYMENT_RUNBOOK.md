@@ -118,9 +118,29 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 
 ```php
 ->withMiddleware(function (Middleware $middleware) {
-    $middleware->trustProxies(at: '*');
+    // Pierwszy w stosie: z X-Forwarded-For zostaje JEDEN wpis — n-ty od
+    // końca, czyli ten dopisany przez naszą infrastrukturę (SEC-01).
+    $middleware->prepend(NormalizeForwardedFor::class);
+
+    $middleware->trustProxies(
+        at: '*',
+        headers: Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PROTO,
+    );
 })
 ```
+
+> **`at: '*'` to nie „ufaj całemu łańcuchowi".** Laravel tłumaczy to na
+> `setTrustedProxies([REMOTE_ADDR], …)`, czyli „ufaj tej jednej maszynie,
+> która się właśnie połączyła", a Symfony oddaje wtedy OSTATNI wpis
+> `X-Forwarded-For`. Ile wpisów na końcu tego nagłówka pochodzi od naszej
+> infrastruktury, mówi `KUKING_ZAUFANE_PRZESKOKI` (`config/proxy.php`) —
+> i to jest jedyna liczba, którą trzeba tu znać. **Zmierz ją, nie zgaduj:**
+> wejdź na serwis przez Cloudflare bez własnego `X-Forwarded-For` i policz
+> wpisy, które dotarły do aplikacji. Za mała wartość = wspólny adres dla
+> wielu osób i zbyt ostre limity; za duża = powrót podatności W7-01.
 
 **3. Dysk `r2`** (`config/filesystems.php`):
 
@@ -461,7 +481,7 @@ wtedy pokazywać wartość w panelu i w CLI.
 `APP_FAKER_LOCALE`, `APP_TIMEZONE`, `APP_ROLE`, `LOG_CHANNEL`, `LOG_STDERR_FORMATTER`,
 `LOG_LEVEL`, `DB_CONNECTION`, `DB_URL`, `SESSION_DRIVER`, `SESSION_LIFETIME`,
 `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_SAME_SITE`, `CACHE_STORE`,
-`QUEUE_CONNECTION`, `TRUSTED_PROXIES`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
+`QUEUE_CONNECTION`, `KUKING_ZAUFANE_PRZESKOKI`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
 `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `MAIL_MAILER`, `MAIL_SCHEME`,
 `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
@@ -539,7 +559,7 @@ SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 CACHE_STORE=database
 QUEUE_CONNECTION=database
-TRUSTED_PROXIES=*
+KUKING_ZAUFANE_PRZESKOKI=1
 
 FILESYSTEM_DISK=local
 MAIL_MAILER=log
@@ -1200,7 +1220,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | # | Co | Gdzie | Krok |
 |---|---|---|---|
 | 25 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
-| 26 | `trustProxies(at: '*')` | `bootstrap/app.php` | 1 |
+| 26 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
 | 27 | Dysk `r2` | `config/filesystems.php` | 1 |
 | 28 | `healthcheck.railway.app` w `TrustHosts` (jeśli włączone) | `bootstrap/app.php` | 1 |
 | 29 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |

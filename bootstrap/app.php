@@ -8,6 +8,7 @@ use App\Http\Middleware\ApplySecurityHeaders;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
+use App\Http\Middleware\NormalizeForwardedFor;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -27,6 +28,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // PIERWSZY W CAŁYM STOSIE GLOBALNYM, przed `TrustProxies` — i to jest
+        // cała treść ustalenia W7-01 / SEC-01. `NormalizeForwardedFor` zostawia
+        // w `X-Forwarded-For` DOKŁADNIE JEDEN wpis: ten, który dopisała nasza
+        // infrastruktura, wyliczony jako n-ty OD KOŃCA łańcucha. Wszystko, co
+        // klient dopisał sobie z lewej strony, znika, zanim Symfony zacznie
+        // liczyć `$request->ip()`.
+        //
+        // Dlaczego liczba przeskoków, a nie lista adresów IP, i co się stanie,
+        // gdy Railway zmieni topologię — pełne uzasadnienie stoi w komentarzu
+        // tej klasy oraz w `config/proxy.php`. W skrócie: adres brzegu Railway
+        // nie jest stały, a zakresy Cloudflare i tak nigdy nie są bezpośrednim
+        // peerem TCP tego kontenera, więc żadna lista adresów nie ma prawa
+        // zadziałać.
+        $middleware->prepend(NormalizeForwardedFor::class);
+
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez
         // Cloudflare, a potem przez brzeg Railway. Bez tej linii Laravel nie
         // ufa żadnemu proxy i ignoruje nagłówki `X-Forwarded-*`, co psuje
@@ -40,12 +56,36 @@ return Application::configure(basePath: dirname(__DIR__))
         //      wspólnie dla całego serwisu: jedna osoba wyczerpuje limit
         //      rejestracji i blokuje wszystkich pozostałych.
         //
-        // `at: '*'` znaczy „ufaj tej maszynie, która się właśnie połączyła".
+        // `at: '*'` znaczy „ufaj tej maszynie, która się właśnie połączyła"
+        // (Laravel tłumaczy `'*'` na `setTrustedProxies([REMOTE_ADDR], ...)`).
         // Jest tu bezpieczne, bo kontener nie ma publicznego adresu — dojść
         // do niego można wyłącznie przez brzeg platformy. Lista konkretnych
         // adresów IP nie wchodzi w grę: Railway ich nie gwarantuje, a zakresy
-        // Cloudflare zmieniają się bez zapowiedzi.
-        $middleware->trustProxies(at: '*');
+        // Cloudflare nigdy nie są tu peerem TCP, więc nie trafiłoby w nie
+        // żadne żądanie.
+        //
+        // ZESTAW NAGŁÓWKÓW WYPISANY JAWNIE, zamiast domyślnego z frameworka.
+        // Domyślny dokłada jeszcze `X-Forwarded-Prefix` (doklejany do KAŻDEGO
+        // adresu generowanego przez `url()`) i zbiorczy `X-Forwarded-AWS-ELB`
+        // — czyli obietnicę dla platformy, na której nie stoimy. Nic w naszym
+        // łańcuchu ich nie wysyła, a każdy zaufany nagłówek to jedna rzecz
+        // więcej, którą klient może podstawić. Zostają cztery, których
+        // NAPRAWDĘ używamy.
+        //
+        // `X-Forwarded-Host` ZOSTAJE, ale świadomie i z zastrzeżeniem: jest
+        // podrabialny tak samo jak reszta, a wpływa na host w adresach z
+        // `url()`. Właściwym zamknięciem tego jest middleware `TrustHosts`
+        // z listą hostów, a ta MUSI zawierać `healthcheck.railway.app`
+        // (inaczej deploy pada na 400 — patrz `.railway/railway.ts`). To jest
+        // osobna zmiana i osobne ryzyko wdrożeniowe, więc nie robi jej ta
+        // łatka.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
 
         $middleware->web(append: [
             ApplySecurityHeaders::class,

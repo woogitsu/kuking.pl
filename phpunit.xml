@@ -53,5 +53,19 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="FILESYSTEM_DISK" value="local"/>
         <env name="KUKING_MEDIA_DISK" value="public"/>
+        <!--
+            Ile wpisów w `X-Forwarded-For` dopisuje infrastruktura
+            (`config/proxy.php`, ustalenie SEC-01).
+
+            Wartość stoi TUTAJ, a nie tylko w `.env.example`, bo CI robi
+            `cp .env.example .env`, a tamten plik ustawia 0 — czyli „nie ufaj
+            temu nagłówkowi wcale", stan właściwy dla `php artisan serve` bez
+            proxy. Testy SEC-01 podstawiają nagłówek i sprawdzają, KTÓRY wpis
+            aplikacja z niego weźmie; przy zerze nie wzięłaby żadnego i cały
+            `PodrobionyNaglowekProxyTest` zrobiłby się zielony na 127.0.0.1,
+            nie sprawdzając niczego. `<env>` bez `force` nie nadpisuje zmiennej
+            z otoczenia, ale bije `.env` — Dotenv Laravela jest niemutowalny.
+        -->
+        <env name="KUKING_ZAUFANE_PRZESKOKI" value="1"/>
     </php>
 </phpunit>
