@@ -16,7 +16,7 @@
     <article class="card">
         <h2 class="mt-0 text-title-sm">Twoje zgłoszenie</h2>
         <p class="meta">
-            Numer sprawy {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr((string) $zgloszenie->getKey(), 0, 8)) }} ·
+            Numer sprawy {{ $zgloszenie->numer_sprawy }} ·
             {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y') }}
         </p>
         <p>{{ $decyzja->label() }}.</p>

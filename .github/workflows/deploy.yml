@@ -6,11 +6,18 @@
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
 #
-#  Żeby WŁĄCZYĆ CI, gdy będą minuty albo własny runner:
-#    1. odkomentuj blok `on:` poniżej,
-#    2. ustaw zmienną repozytorium CI_RUNNER:
-#         - `ubuntu-latest`  → runnery GitHuba (płatne dla repo prywatnych),
-#         - `self-hosted`    → własny runner (koszt tylko maszyny).
+#  Żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
+#  wybiera już żadna zmienna repozytorium — joby chodzą na własnej puli
+#  `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET:
+#
+#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#
+#  Etykiet, nie nazw: nazwa runnera w `runs-on` przypina job do jednej
+#  maszyny, więc jej awaria zatrzymuje CI. Etykiety `i5-10400f`
+#  i `nvidia-gtx1070` mają WYŁĄCZNIE nowe runnery — stare WSL-owe
+#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`,
+#  `X64`, `wsl2`, `woogitsu`, więc samo `self-hosted` wpuściłoby joby także
+#  na nie.
 #  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
 # ---------------------------------------------------------------------------
 
@@ -106,7 +113,7 @@ jobs:
   # ===========================================================================
   verify:
     name: Test dymny po deployu
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     # Tylko udane deploye na produkcję lub staging.
@@ -241,7 +248,7 @@ jobs:
   # ===========================================================================
   operate:
     name: "Operacja: ${{ github.event.inputs.action }} (${{ github.event.inputs.environment }})"
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
 

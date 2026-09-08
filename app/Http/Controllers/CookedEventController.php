@@ -39,18 +39,6 @@ class CookedEventController extends Controller
      */
     private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję, że ugotowałeś/aś mój przepis! Cieszę się, że wyszło.';
 
-    /**
-     * Wyłącznik mechanizmu klucza wysłania (ADR
-     * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §8.4, „Wyjście 1") —
-     * po ustawieniu na `false` formularz renderuje się bez ukrytego pola
-     * i serwis wraca do zachowania sprzed tej zmiany, bez wdrażania migracji.
-     *
-     * Docelowo `config('kuking.formularze.klucz_wyslania_wlaczony')`; stała
-     * stoi tu, bo `config/kuking.php` jest w tym zleceniu zablokowany przez
-     * inną pracę (wartość do przeniesienia jest w raporcie ze wdrożenia).
-     */
-    private const KLUCZ_WYSLANIA_WLACZONY = true;
-
     public function __construct(
         private readonly RecordCookedEvent $record,
         private readonly StoreUploadedImage $storeImage,
@@ -77,7 +65,9 @@ class CookedEventController extends Controller
      */
     private function kluczDlaFormularza(): ?string
     {
-        if (! self::KLUCZ_WYSLANIA_WLACZONY) {
+        // Wyłącznik awaryjny mechanizmu — `config/kuking.php`, sekcja
+        // `formularze` (tam stoi całe uzasadnienie i skutek wyłączenia).
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
             return null;
         }
 
@@ -93,6 +83,16 @@ class CookedEventController extends Controller
      */
     private function kluczZZadania(Request $request): ?string
     {
+        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu formularza.
+        // Bez niej wyłącznik działa tylko w połowie: karta otwarta PRZED
+        // przełączeniem nadal niesie klucz w DOM-ie i odsyła go, więc częściowy
+        // indeks dalej obowiązuje — dokładnie w tej awarii, dla której ten
+        // wyłącznik istnieje. `config/kuking.php` obiecuje, że po wyłączeniu
+        // „kolumna dostaje NULL"; ta linijka jest tym, co tę obietnicę dowozi.
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
         $klucz = $request->input('klucz_wyslania');
 
         return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;

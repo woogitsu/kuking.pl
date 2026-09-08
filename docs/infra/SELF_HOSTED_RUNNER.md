@@ -99,6 +99,11 @@ docker run --rm hello-world
 
 ---
 
+> **Konfigurujesz pulę od zera?** Kompletna lista tego, czego workflowy
+> Kuking wymagają od maszyny — etykiety, Docker, rozszerzenia PHP, sieć
+> wychodząca, miejsce na dysku i jedna pułapka z portem 5432 — jest
+> w [`WYMAGANIA_RUNNERA.md`](./WYMAGANIA_RUNNERA.md).
+
 ## Rejestracja runnera
 
 1. GitHub → repozytorium `woogitsu/kuking.pl` → **Settings** → **Actions**
@@ -111,8 +116,15 @@ mkdir -p ~/actions-runner && cd ~/actions-runner
 # (skopiuj komendy curl + tar + config.sh z panelu GitHuba — token jest jednorazowy)
 ```
 
-3. Przy `./config.sh` zostaniesz zapytany o etykiety. **Zostaw domyślne
-   `self-hosted,Linux,X64`** — workflowy Kuking szukają dokładnie `self-hosted`.
+3. Przy `./config.sh` zostaniesz zapytany o etykiety. **Podaj
+   `self-hosted,Linux,X64,woogitsu,i5-10400f,nvidia-gtx1070`** — workflowy
+   Kuking szukają dokładnie tego zestawu.
+
+   Same domyślne `self-hosted,Linux,X64` **nie wystarczą**: job z takim
+   runnerem nigdy nie wystartuje, bo `runs-on` wymaga wszystkich sześciu
+   etykiet. Ten wymóg istnieje po to, żeby joby nie trafiały na starą pulę
+   WSL-ową (`woogitsu-wsl-DOM-NEW-01`–`04`), która ma tylko `self-hosted`,
+   `Linux`, `X64`, `wsl2`, `woogitsu`.
 
 4. Uruchom jako usługę, żeby przeżył restart maszyny:
 
@@ -128,18 +140,23 @@ W panelu GitHuba runner powinien pokazać się jako **Idle**.
 
 ## Włączenie CI w repozytorium
 
-### Krok 1 — zmienna repozytorium
+### Krok 1 — nic do ustawiania
 
-**Settings** → **Secrets and variables** → **Actions** → **Variables** →
-**New repository variable**:
+Runnera **nie wybiera już żadna zmienna repozytorium.** Każdy job ma wpisany
+zestaw etykiet:
 
-```text
-Nazwa:    CI_RUNNER
-Wartość:  self-hosted
+```yaml
+runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
 ```
 
-Workflowy już to czytają: `runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}`.
-Bez tej zmiennej joby poleciałyby na płatne runnery GitHuba.
+Etykiety, nie nazwa runnera: nazwa przypięłaby job do jednej maszyny, więc
+jej awaria zatrzymywałaby całe CI. Zmienna `CI_RUNNER` nie jest już przez nic
+czytana — jeśli gdzieś jeszcze istnieje, można ją usunąć.
+
+**Skutek, który trzeba znać:** te joby nie mają już zapasu w runnerach
+GitHuba. Gdy cała pula `woogitsu-linux-01`–`woogitsu-linux-10` jest offline,
+przebiegi stoją w kolejce bez końca, a CI jest bramką deployu (Railway ma
+„Wait for CI") — stoi wtedy także wdrożenie.
 
 ### Krok 2 — odkomentowanie wyzwalaczy
 
@@ -185,7 +202,7 @@ który nie powstaje, i nic by się nie zdeployowało (`DECISIONS.md` D-010).
 
 | Objaw | Przyczyna |
 |---|---|
-| Job stoi w „Queued" bez końca | Runner offline albo etykieta nie pasuje. Sprawdź `sudo ./svc.sh status` i czy `CI_RUNNER` to dokładnie `self-hosted` |
+| Job stoi w „Queued" bez końca | Runner offline albo brakuje etykiety. Sprawdź `sudo ./svc.sh status` i czy runner ma WSZYSTKIE sześć: `self-hosted`, `Linux`, `X64`, `woogitsu`, `i5-10400f`, `nvidia-gtx1070`. Brak jednej wystarcza, żeby job nigdy nie wystartował |
 | „could not find driver" | Brak `php8.4-pgsql`. `sudo apt install php8.4-pgsql` i restart usługi runnera |
 | Testy padają na połączeniu z bazą | Docker nie działa albo usługa `postgres` nie wstała. `docker ps` w trakcie przebiegu |
 | „permission denied" przy Dockerze | Użytkownik runnera nie jest w grupie `docker`: `sudo usermod -aG docker $USER`, potem restart usługi |

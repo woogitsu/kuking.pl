@@ -160,7 +160,8 @@ forma żeńska (żadna nie brzmi po polsku dobrze).
 
 ## D-010 · CI na runnerach GitHuba, repozytorium w nowej organizacji
 
-**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **wykonane w części repozytorium**
+**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-028
+w części dotyczącej runnerów** (organizacja i prywatność repozytorium zostają)
 
 > **Zmiana wcześniejszej decyzji.** Pierwotnie: własny self-hosted runner.
 > Powód zmiany: plan Free daje **2 000 minut miesięcznie także dla repozytoriów
@@ -196,8 +197,8 @@ czekałby na check suite, który nie powstaje, i nic by się nie zdeployowało.
 - ⬜ **pierwszy zielony przebieg** — wymaga, żeby workflow znalazł się na
   gałęzi domyślnej; `main` to dziś pusty commit inicjalizacyjny, więc do
   czasu scalenia GitHub nie widzi żadnego workflow
-- ⬜ zmienna repozytorium `CI_RUNNER` usunięta albo `ubuntu-latest`
-  (ustawienia GitHuba, nie plik w repozytorium)
+- ⬜ zmienna repozytorium `CI_RUNNER` **usunięta** (ustawienia GitHuba, nie
+  plik w repozytorium) — po D-028 nie czyta jej już żaden workflow
 - ⬜ ochrona gałęzi `main` wymagająca zielonego CI
 - ⬜ `KUKING_WAIT_FOR_CI=true` — **na samym końcu**
 
@@ -1165,5 +1166,186 @@ formularz wpisu — a „zupy" rozwiązuje się przy okazji do kanonicznego
 `tests/Feature/PodpowiedziNaPelnymSlownikuTest.php` ·
 `tests/Feature/TagSeederZeSlownikaTest.php` ·
 `tests/Feature/ScalanieTagowTest.php`
+
+---
+
+## D-027 · Jedno wysłanie formularza to jeden zapis — klucz wysłania, nie okno czasowe
+
+**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Podwójne kliknięcie nie jest w grupie 50+ pomyłką, tylko sposobem obsługi
+komputera: strona myśli chwilę, więc klika się drugi raz. Zmierzone (audyt
+wyścigów, 7 września 2026): dwa kliknięcia „Opublikuj" dawały dwa wpisy,
+dwa kliknięcia „Ugotowałem" — dwa wykonania i **dwa powiadomienia** u autora
+przepisu, a `reports` przyjmowało drugie identyczne otwarte zgłoszenie bez
+oporu bazy.
+
+Rozstrzygnięte DWA mechanizmy, nie jeden, bo to są dwa różne problemy:
+
+1. **Wpis i „Ugotowałem": klucz wysłania.** Formularz dostaje przy
+   renderowaniu jednorazowy klucz w ukrytym polu; tabela dostaje kolumnę
+   `klucz_wyslania` i częściowy indeks UNIQUE. Zapis idzie
+   „wstaw i złap wyjątek", a przy kolizji człowiek trafia na swój
+   pierwszy wpis — drugie kliknięcie jest nieodróżnialne od pierwszego.
+   **To NIE jest `UNIQUE (user_id, recipe_id)` i D-005 zostaje
+   nienaruszone**: nowe gotowanie z nowego formularza przechodzi
+   (zmierzone).
+2. **Zgłoszenie: częściowy indeks UNIQUE w bazie** na otwartych
+   zgłoszeniach pary (osoba, treść). Dedup w PHP już działał w zwykłym
+   ruchu, ale nie chronił przed seederem, komendą ani wyścigiem — ten sam
+   argument, który stoi za `moderation_actions_one_per_report`.
+
+Odrzucone i dlaczego:
+
+- **Blokada przycisku w JavaScripcie** jako mechanizm — publikacja musi
+  działać bez JS (D-007), a brak skryptu to ten sam ruch, w którym strona
+  ładuje się wolno, czyli ten, w którym klika się drugi raz. Zostaje
+  wyłącznie jako niewiążący dodatek.
+- **`lockForUpdate()` dla zgłoszeń** — zmierzone, że nie działa:
+  `SELECT ... FOR UPDATE`, który nie zwrócił wiersza, nie blokuje niczego
+  i oba połączenia wstawiają bez czekania.
+- **Okno czasowe „ta sama treść w ciągu N sekund"** — przy pustym
+  wykonaniu „Ugotowałem" odcisk treści degeneruje się do
+  `(user_id, recipe_id)`, czyli do tego, czego D-005 zakazuje, na N sekund.
+
+Mechanizm **zawodzi otwarcie**: nieznany albo brakujący klucz oznacza
+„wyślij normalnie", nigdy „odmawiam". Zduplikowany wpis jest dla odbiorcy
+50+ mniej szkodliwy niż utracony wpis, a ekran mówiący „ta strona wygasła"
+jest gorszy od jednego i drugiego (issue #81, `errors/419.blade.php`).
+
+**Wyłącznik awaryjny wchodzi razem z mechanizmem, nie później:**
+`kuking.formularze.klucz_wyslania_wlaczony` (zmienna `KUKING_KLUCZ_WYSLANIA`).
+Po ustawieniu na `false` formularze renderują się bez ukrytego pola, kolumna
+dostaje `NULL`, częściowy indeks takiego wiersza nie obejmuje i serwis wraca
+do zachowania sprzed tej decyzji. To jedyna droga wycofania, która nie wymaga
+wdrożenia migracji — dlatego jest w konfiguracji, a nie w kodzie. Nie cofa
+natomiast `reports_one_open_per_pair`: tamten indeks nie zależy od niczego,
+co wysyła formularz, więc jego wycofanie to osobna migracja.
+
+**Zmiana wymaga:** zmierzonego przypadku, w którym klucz wysłania blokuje
+prawdziwe wysyłki, i to takiego, którego nie da się naprawić bez zmiany
+samego mechanizmu.
+
+📄 `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` · `docs/DATABASE.md` ·
+`config/kuking.php` ·
+`app/Domain/Posts/Actions/PublishPost.php` ·
+`app/Domain/Recipes/Actions/RecordCookedEvent.php` ·
+`app/Domain/Moderation/Actions/ReportContent.php`
+
+---
+
+## D-028 · CI wraca na własne runnery — wybierane etykietami, nie nazwą
+
+**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+> **Zmiana D-010.** D-010 przeniosło CI na runnery GitHuba, bo nowa
+> organizacja `woogitsu` dawała nieużywane 2 000 minut miesięcznie. Ta decyzja
+> to odwraca: wszystkie joby chodzą na własnej puli
+> `woogitsu-linux-01`–`woogitsu-linux-10`.
+
+Wszystkie **14 jobów** w czterech workflow-ach (`ci.yml` 7, `deploy.yml` 2,
+`preview.yml` 3, `railway-iac.yml` 2) ma dokładnie:
+
+```yaml
+runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+```
+
+**Etykiety, nie nazwa runnera.** Nazwa w `runs-on` przypina job do jednej
+maszyny, więc jej awaria zatrzymuje całe CI, a dziesięciu maszyn nie da się
+tak obsłużyć bez macierzy.
+
+**Dlaczego akurat te dwie dodatkowe.** Stara pula WSL-owa
+(`woogitsu-wsl-DOM-NEW-01`–`04`) ma etykiety `self-hosted`, `Linux`, `X64`,
+`wsl2`, `woogitsu` — czyli samo `self-hosted` wpuściłoby joby także na nie.
+`i5-10400f` i `nvidia-gtx1070` występują wyłącznie na nowej puli i to one
+są tu bramką.
+
+**Co zniknęło.** Poprzednio runnera wybierała zmienna repozytorium
+`CI_RUNNER` z fallbackiem `ubuntu-latest`. Zmiennej nie czyta już nic i można
+ją usunąć. Zmierzone przed zmianą (przebieg CI nr 141 dla `main`, commit
+`e24f30d`): wszystkie siedem jobów wykonało się na runnerach GitHuba
+(`runner_group_name: "GitHub Actions"`, etykiety `["ubuntu-latest"]`), czyli
+zmienna nie była ustawiona, a stare runnery WSL-owe nigdy w tym repozytorium
+nie pracowały — nie było też w nim ani jednego odwołania do ich nazw.
+
+**Koszt, żeby był zapisany.** Joby nie mają już zapasu w runnerach GitHuba.
+Gdy cała pula jest offline, przebiegi stoją w kolejce bez końca — a CI jest
+bramką deployu (Railway ma „Wait for CI"), więc stoi wtedy także wdrożenie.
+Właściciel wybrał tę opcję świadomie, znając ten skutek.
+
+**Zmiana wymaga:** decyzji właściciela — albo dłuższej niedostępności puli,
+która ten koszt zamieni z hipotetycznego na zmierzony.
+
+**Co pula musi mieć, żeby joby przeszły** — etykiety, Docker, rozszerzenia
+PHP, sieć wychodząca, miejsce na dysku i pułapka z portem 5432 przy dwóch
+runnerach na jednej maszynie — jest wypisane w
+`docs/infra/WYMAGANIA_RUNNERA.md`.
+
+📄 `.github/workflows/ci.yml` · `.github/workflows/deploy.yml` ·
+`.github/workflows/preview.yml` · `.github/workflows/railway-iac.yml` ·
+`docs/infra/WYMAGANIA_RUNNERA.md` · `docs/infra/SELF_HOSTED_RUNNER.md` ·
+`docs/infra/CI_BEZ_ACTIONS.md` · `docs/infra/PRZENIESIENIE_DO_ORGANIZACJI.md`
+
+---
+
+## D-029 · Numer sprawy ma własną kolumnę z UNIQUE, nie jest wycinkiem UUID-a
+
+**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Numer sprawy pokazywany zgłaszającemu liczył się w **pięciu miejscach kodu
+i dwóch widokach** jako osiem pierwszych znaków UUID-a v7 wiersza `reports`.
+**Nie był przez to unikalny.** Zmierzone: w UUID-zie v7 pierwsze 48 bitów to
+znacznik czasu w milisekundach, więc osiem znaków szesnastkowych to jego 32
+GÓRNE bity — zmieniają się raz na 2^16 ms, czyli raz na 65,5 sekundy.
+
+```text
+Str::uuid7('2026-09-07 19:00:30') → 01a07d3e-4cb0-7099-…  → 01A07D3E
+Str::uuid7('2026-09-07 19:01:10') → 01a07d3e-e8f0-739c-…  → 01A07D3E
+```
+
+Dwa różne wiersze, 40 sekund odstępu, jeden numer sprawy.
+
+**Dlaczego to nie jest niezręczność.** Dla zgłaszającego **bez konta** ten
+numer jest jedynym śladem sprawy: nie ma konta, nie ma listy zgłoszeń, a
+poczty serwis dziś nie wysyła. Numer powtórzony znaczy, że ani on, ani
+moderator nie umie powiedzieć, o którą z dwóch spraw chodzi — a każda ma
+własny termin odpowiedzi z DSA art. 16.
+
+**Co jest teraz:** kolumna `reports.numer_sprawy varchar(12) NOT NULL`
+z indeksem UNIQUE i CHECK-iem na format. Numer nadaje MODEL (hak `creating`),
+więc dostaje go każda droga powstania wiersza; `numer_sprawy` nie jest
+w `$fillable`, bo to tożsamość nadana przez serwer, nie dana od człowieka.
+
+Format `KU-XXXX-XXXX` z 30-znakowego alfabetu **bez `0`, `1`, `I`, `L`, `O`
+i `U`**. Pięć pierwszych znika, bo numer jest przepisywany ręcznie z ekranu
+i dyktowany przez telefon — w tej grupie odbiorców `0`/`O`, `1`/`I` i `1`/`L`
+to ten sam znak. `U` znika, żeby z ośmiu losowych znaków nie ułożyło się
+przypadkiem słowo; ten numer trafia do pisma.
+
+Pierwsza wersja tej stałej miała `U` w alfabecie, mimo że komentarz obok
+mówił, że go nie ma — wyszło to na wygenerowanym numerze `KU-F6XC-9U7Y`,
+bo test sprawdzał WYLOSOWANY wynik i przechodził w około trzech na cztery
+przebiegi. Sprawdza teraz sam alfabet. Zapisane tu, bo to trzeci raz w tym
+repozytorium, gdy reguła stała w komentarzu, a nie w kodzie.
+
+**Odrzucone: dłuższy wycinek UUID-a** (np. cztery znaki czasu plus osiem
+losowych). Byłoby taniej — bez migracji — ale unikalność zostałaby
+STATYSTYCZNA i niepilnowana przez nic. `AGENTS.md` §6 mówi o prawdziwych
+ograniczeniach w bazie i tutaj to nie jest formalizm: przy kolumnie z UNIQUE
+powtórzony numer jest niemożliwy, a nie tylko nieprawdopodobny.
+
+**Backfill istniejących wierszy jest bezpieczny dokładnie dziś:** poczty nie
+ma, więc żaden numer nie został jeszcze nikomu przekazany i nikt nie trzyma
+starego w ręku. Po pierwszym wysłanym liście ta sama zmiana byłaby zmianą
+numeru pod ręką zgłaszającego i wymagałaby innego planu.
+
+**Zmiana wymaga:** zmierzonej liczby spraw zbliżającej się do rzędu, w którym
+30^8 kombinacji przestaje wystarczać (~954 tys. spraw dla 50% szansy kolizji),
+albo powodu, dla którego format ma wyglądać inaczej.
+
+📄 `app/Support/NumerSprawy.php` ·
+`database/migrations/2026_09_07_910000_add_numer_sprawy_to_reports.php` ·
+`app/Models/Report.php` · `tests/Feature/NumerSprawyTest.php` ·
+`docs/DATABASE.md`
 
 ---

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\NumerSprawy;
 use Database\Factories\ReportFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -84,6 +85,30 @@ class Report extends Model
         'resolved_by',
         'resolved_at',
     ];
+
+    /**
+     * Numer sprawy nadaje MODEL, nie kontroler i nie akcja.
+     *
+     * Zgłoszenie powstaje kilkoma drogami: formularz społecznościowy,
+     * formularz prawny bez konta, seeder, fabryka w teście. Gdyby numer
+     * nadawało któreś z tych miejsc, wystarczyłoby dopisać piąte, żeby
+     * powstał wiersz bez numeru — a kolumna jest `NOT NULL`, więc taki zapis
+     * padłby dopiero w bazie i dopiero na produkcji.
+     *
+     * `numer_sprawy` NIE jest w `$fillable` i to jest celowe: to jest
+     * tożsamość sprawy nadana przez serwer, nie dana od człowieka
+     * (`AGENTS.md` §7, ta sama zasada co dla `status` i `role` użytkownika).
+     * Wartość podstawioną wprost (migracja, test sprawdzający unikalność)
+     * zostawiamy — hak nadpisuje tylko brak.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $zgloszenie): void {
+            if (! is_string($zgloszenie->numer_sprawy) || $zgloszenie->numer_sprawy === '') {
+                $zgloszenie->numer_sprawy = NumerSprawy::wygeneruj();
+            }
+        });
+    }
 
     protected function casts(): array
     {

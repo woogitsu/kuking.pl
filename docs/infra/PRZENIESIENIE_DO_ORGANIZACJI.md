@@ -57,7 +57,7 @@ To jest najważniejsza część tego dokumentu. Transfer nie przenosi wszystkieg
 
 | Rzecz | Co zrobić |
 |---|---|
-| **Zmienna `CI_RUNNER`** | Jeśli była ustawiona — teraz jest zbędna. Usuń ją albo ustaw na `ubuntu-latest`; workflowy mają `runs-on: ${{ vars.CI_RUNNER \|\| 'ubuntu-latest' }}`, więc bez zmiennej same wybiorą runnery GitHuba |
+| **Zmienna `CI_RUNNER`** | Zbędna — nic jej już nie czyta. Można usunąć. Każdy job ma wpisany zestaw etykiet własnej puli: `runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]` |
 | **Sekrety Actions** | Sprawdź, czy przeżyły transfer. Jeśli nie — dodaj ponownie: `RAILWAY_TOKEN_PRODUCTION`, `RAILWAY_TOKEN_STAGING`, `SENTRY_AUTH_TOKEN` `[do weryfikacji]` |
 | **Ochrona gałęzi `main`** | Reguły trzeba ustawić od nowa. W organizacji można to zrobić raz, jako ruleset |
 | **Uprawnienia Actions** | Settings → Actions → General: sprawdź, czy workflowy mogą się w ogóle uruchamiać (organizacja może mieć restrykcyjne domyślne) |
@@ -97,10 +97,11 @@ i nic by się nie zdeployowało.
 
 ## Plan awaryjny
 
-Gdyby limit organizacji też się wyczerpał albo przebiegi zrobiły się długie,
-**własny runner nadal jest gotowy do postawienia**:
-`SELF_HOSTED_RUNNER.md` pozostaje aktualny, a workflowy przełącza się na niego
-jedną zmienną repozytorium `CI_RUNNER` = `self-hosted`.
+Ten akapit jest już historią: workflowy **chodzą** na własnej puli
+`woogitsu-linux-01`–`woogitsu-linux-10` i nie sięgają po runnery GitHuba
+w ogóle. Runnera wskazuje zestaw etykiet w każdym jobie
+(`[self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]`), a nie
+zmienna repozytorium. Rejestracja i lista etykiet: `SELF_HOSTED_RUNNER.md`.
 
 ## Referencje
 

@@ -10,10 +10,21 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  PLAN AWARYJNY: gdyby limit organizacji się wyczerpał, przełączenie na własny
-#  runner to jedna zmienna repozytorium `CI_RUNNER` = `self-hosted` — dlatego
-#  `runs-on` niżej czyta ją z fallbackiem. Bez ustawionej zmiennej joby same
-#  wybierają runnery GitHuba. Instrukcja: docs/infra/SELF_HOSTED_RUNNER.md
+#  GDZIE TO CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`,
+#  wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie zmienną repozytorium:
+#
+#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#
+#  Dlaczego etykiety, a nie nazwa: nazwa przypina job do JEDNEJ maszyny, więc
+#  jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe: `i5-10400f`
+#  i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
+#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
+#
+#  KOSZT TEJ DECYZJI, ŻEBY BYŁ ZAPISANY: te joby NIE mają już zapasu
+#  w runnerach GitHuba. Gdy cała pula jest offline, przebiegi stoją w kolejce
+#  bez końca — a CI jest bramką deployu (Railway ma „Wait for CI"), więc stoi
+#  wtedy także wdrożenie. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -63,7 +74,7 @@ jobs:
   # ===========================================================================
   lint:
     name: Pint (styl kodu)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     steps:
@@ -97,7 +108,7 @@ jobs:
   # ===========================================================================
   static-analysis:
     name: Larastan (analiza statyczna)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 15
     # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
     # `phpstan analyse` kończyłby się „At least one path must be specified".
@@ -196,7 +207,7 @@ jobs:
   # ===========================================================================
   test:
     name: Testy (PostgreSQL 18)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 20
 
     services:
@@ -206,8 +217,20 @@ jobs:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
           POSTGRES_PASSWORD: secret
+        # PORT HOSTA JEST DYNAMICZNY, NIE 5432.
+        #
+        # Runnery Kuking wykonują joby PROSTO NA HOŚCIE (nie w kontenerze
+        # joba) i dzielą jeden demon Dockera. Sztywne `5432:5432` znaczyło
+        # więc, że drugi job z kontenerem Postgresa padał na
+        # `Bind for 0.0.0.0:5432 failed: port is already allocated` —
+        # a joby `test` i `dostepnosc` startują w tej samej sekundzie
+        # (zmierzone: przebieg 34158198715, oba wystartowały 20:07:39).
+        #
+        # Sam `- 5432` każe Dockerowi wybrać wolny port hosta. Numer, który
+        # wybrał, czyta się z `job.services.postgres.ports[5432]` i to robi
+        # pierwszy krok tego joba. Port WEWNĄTRZ kontenera zostaje 5432.
         ports:
-          - 5432:5432
+          - 5432
         # Bez healthchecku joby startują, zanim Postgres przyjmie połączenia,
         # co daje losowo padające testy ("connection refused").
         options: >-
@@ -223,8 +246,9 @@ jobs:
       # żeby szyfrowanie miało poprawnie sformatowany klucz w testach.
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: pgsql
-      DB_HOST: 127.0.0.1
-      DB_PORT: "5432"
+      # DB_HOST i DB_PORT NIE stoją tutaj celowo — ustawia je pierwszy krok
+      # tego joba, bo port hosta jest dynamiczny (patrz komentarz przy
+      # `ports:` wyżej). Wpisane tu na sztywno przesłaniałyby tamtą wartość.
       DB_DATABASE: kuking_test
       DB_USERNAME: kuking
       DB_PASSWORD: secret
@@ -241,6 +265,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # ---------------------------------------------------------------------
+      #  DYNAMICZNY PORT POSTGRESA → do wszystkich dalszych kroków
+      # ---------------------------------------------------------------------
+      #  Krok stoi PRZED pierwszym dotknięciem bazy i to jest jego jedyny
+      #  wymóg co do kolejności. `$GITHUB_ENV` ustawia zmienną dla KOLEJNYCH
+      #  kroków, więc gdyby stał niżej, migracje poszłyby na port, którego
+      #  nikt nie mapował.
+      #
+      #  ZMIERZONE, dlaczego to wystarcza dla Laravela i dla PHPUnita:
+      #  zmienna z otoczenia bije oba pliki konfiguracyjne, więc nie trzeba
+      #  (i nie należy) przepisywać ani `.env`, ani `phpunit.xml`:
+      #    DB_PORT=6543 php artisan tinker  → config('...pgsql.port') = 6543
+      #    DB_PORT=6543 php artisan test    → „connection ... port 6543 failed"
+      #  Pierwsze, bo `LoadEnvironmentVariables` używa niemutowalnego Dotenv-a
+      #  (`.env` nie nadpisuje istniejącej zmiennej). Drugie, bo `<env>`
+      #  w `phpunit.xml` bez `force="true"` też nie nadpisuje.
+      #
+      #  Zostawiony w obu plikach port 5432 jest więc DOMYŚLNYM dla pracy
+      #  lokalnej, a nie ścieżką, którą CI może przypadkiem pójść.
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
       - name: Konfiguracja PHP
         uses: shivammathur/setup-php@v2
@@ -290,7 +339,7 @@ jobs:
   # ===========================================================================
   assets:
     name: Build assetów (Vite)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     steps:
@@ -343,7 +392,7 @@ jobs:
   # ===========================================================================
   dostepnosc:
     name: Dostępność (axe-core)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 15
 
     services:
@@ -353,8 +402,20 @@ jobs:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
           POSTGRES_PASSWORD: secret
+        # PORT HOSTA JEST DYNAMICZNY, NIE 5432.
+        #
+        # Runnery Kuking wykonują joby PROSTO NA HOŚCIE (nie w kontenerze
+        # joba) i dzielą jeden demon Dockera. Sztywne `5432:5432` znaczyło
+        # więc, że drugi job z kontenerem Postgresa padał na
+        # `Bind for 0.0.0.0:5432 failed: port is already allocated` —
+        # a joby `test` i `dostepnosc` startują w tej samej sekundzie
+        # (zmierzone: przebieg 34158198715, oba wystartowały 20:07:39).
+        #
+        # Sam `- 5432` każe Dockerowi wybrać wolny port hosta. Numer, który
+        # wybrał, czyta się z `job.services.postgres.ports[5432]` i to robi
+        # pierwszy krok tego joba. Port WEWNĄTRZ kontenera zostaje 5432.
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd="pg_isready -U kuking -d kuking_test"
           --health-interval=5s
@@ -366,8 +427,8 @@ jobs:
       APP_DEBUG: "false"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: pgsql
-      DB_HOST: 127.0.0.1
-      DB_PORT: "5432"
+      # DB_HOST i DB_PORT NIE stoją tutaj celowo — patrz ten sam komentarz
+      # w jobie `test` wyżej.
       DB_DATABASE: kuking_test
       DB_USERNAME: kuking
       DB_PASSWORD: secret
@@ -387,6 +448,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Dynamiczny port Postgresa — pełne uzasadnienie i pomiary przy tym
+      # samym kroku w jobie `test` wyżej.
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
       # GitHub Actions nie umie filtrować ścieżek per JOB (tylko per workflow),
       # więc robimy to sami. Wszystkie kolejne kroki są za tym warunkiem —
@@ -479,7 +548,7 @@ jobs:
   # ===========================================================================
   audit:
     name: Audyt zależności
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 10
 
     steps:
@@ -556,7 +625,7 @@ jobs:
   # ===========================================================================
   docker-build:
     name: Build obrazu (weryfikacja)
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
     timeout-minutes: 20
 
     steps:

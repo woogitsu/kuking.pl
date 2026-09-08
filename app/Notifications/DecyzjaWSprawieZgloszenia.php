@@ -61,7 +61,7 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
 
     public function toMail(object $notifiable): MailMessage
     {
-        $numer = mb_strtoupper(mb_substr((string) $this->zgloszenie->getKey(), 0, 8));
+        $numer = $this->zgloszenie->numer_sprawy;
 
         $list = (new MailMessage)
             ->subject("Decyzja w sprawie Twojego zgłoszenia (nr {$numer})")

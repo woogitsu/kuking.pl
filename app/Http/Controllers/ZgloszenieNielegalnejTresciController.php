@@ -36,15 +36,6 @@ use Illuminate\View\View;
  */
 class ZgloszenieNielegalnejTresciController extends Controller
 {
-    /**
-     * Wyłącznik mechanizmu klucza wysłania (ADR
-     * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §8.4, „Wyjście 1").
-     * Docelowo `config('kuking.formularze.klucz_wyslania_wlaczony')` — stała
-     * stoi tu, bo `config/kuking.php` jest w tym zleceniu zablokowany przez
-     * inną pracę (wartość do przeniesienia jest w raporcie ze wdrożenia).
-     */
-    private const KLUCZ_WYSLANIA_WLACZONY = true;
-
     public function __construct(private readonly ZglosNielegalnaTresc $zglos) {}
 
     public function create(): View
@@ -64,7 +55,9 @@ class ZgloszenieNielegalnejTresciController extends Controller
      */
     private function kluczDlaFormularza(): ?string
     {
-        if (! self::KLUCZ_WYSLANIA_WLACZONY) {
+        // Wyłącznik awaryjny mechanizmu — `config/kuking.php`, sekcja
+        // `formularze` (tam stoi całe uzasadnienie i skutek wyłączenia).
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
             return null;
         }
 
@@ -80,6 +73,16 @@ class ZgloszenieNielegalnejTresciController extends Controller
      */
     private function kluczZZadania(Request $request): ?string
     {
+        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu formularza.
+        // Bez niej wyłącznik działa tylko w połowie: karta otwarta PRZED
+        // przełączeniem nadal niesie klucz w DOM-ie i odsyła go, więc częściowy
+        // indeks dalej obowiązuje — dokładnie w tej awarii, dla której ten
+        // wyłącznik istnieje. `config/kuking.php` obiecuje, że po wyłączeniu
+        // „kolumna dostaje NULL"; ta linijka jest tym, co tę obietnicę dowozi.
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
         $klucz = $request->input('klucz_wyslania');
 
         return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
@@ -127,7 +130,7 @@ class ZgloszenieNielegalnejTresciController extends Controller
             kluczWyslania: $this->kluczZZadania($request),
         );
 
-        $numer = mb_strtoupper(mb_substr((string) $zgloszenie->getKey(), 0, 8));
+        $numer = $zgloszenie->numer_sprawy;
 
         return redirect()->route('zglos.nielegalna.potwierdzenie')->with('numer', $numer);
     }

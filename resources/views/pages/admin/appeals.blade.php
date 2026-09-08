@@ -31,7 +31,7 @@
                          lit. c) — jedyna tożsamość, jaką mamy, leży na jego
                          zgłoszeniu, nie na koncie. --}}
                     {{ $appeal->report?->notifier_name ?? 'zgłaszający bez podanych danych' }}
-                    (zgłoszenie {{ $appeal->report ? \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr((string) $appeal->report->getKey(), 0, 8)) : '—' }}) ·
+                    (zgłoszenie {{ $appeal->report->numer_sprawy ?? '—' }}) ·
                 @else
                     {{ $appeal->user?->displayName() ?? 'usunięte konto' }} ·
                 @endif

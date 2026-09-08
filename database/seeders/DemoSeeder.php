@@ -103,8 +103,19 @@ class DemoSeeder extends Seeder
         // czego zmierzyć: karuzela i kolaż istnieją wyłącznie wtedy, gdy wpis
         // ma co najmniej dwa zdjęcia, a pusty ekran przechodzi każdy pomiar,
         // nie sprawdzając niczego.
+        /*
+         * KARUZELA NALEŻY DO `ania`, NIE DO `basia` — i to nie jest szczegół.
+         *
+         * `scripts/dostepnosc.mjs` loguje się jako `ania` (bo `basia` bywa
+         * personą treści zalążkowej z losowym hasłem, D-025) i mierzy ekran
+         * kolejności zdjęć `/wpisy/{wpis}/zdjecia`. Ten ekran widzi WYŁĄCZNIE
+         * autor wpisu (`PostPolicy::update`). Gdy karuzela była wpisem basi,
+         * serwis odpowiadał `ania` kodem 403, a automat wpisywał „✓" — mierzył
+         * stronę błędu, która przechodzi każdy audyt dostępności, nie
+         * sprawdzając niczego. Zmierzone 7 września.
+         */
         $this->wpisZKilkomaZdjeciami(
-            $basia,
+            $ania,
             'Rosół krok po kroku: warzywa, szumowiny, gotowy talerz.',
             Post::DISPLAY_CAROUSEL,
             ['Warzywa do rosołu na desce', 'Garnek z rosołem w trakcie gotowania', 'Talerz gotowego rosołu z makaronem'],
