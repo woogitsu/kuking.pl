@@ -569,10 +569,246 @@ return [
         // stąd limit wyraźnie wyższy niż przy formularzach, ale skończony.
         'csp_report' => '60,1',
         // Akcje w ustawieniach, które proszą o obecne hasło jako potwierdzenie
-        // tożsamości (zmiana hasła, „wyloguj mnie z innych urządzeń", issue #12).
+        // tożsamości (zmiana hasła, „wyloguj mnie z innych urządzeń", issue #12,
+        // a od BRAMKA_BETY §7a także wyłączenie 2FA i zgłoszenie usunięcia konta
+        // — obie robią `Hash::check()` na haśle z formularza, czyli są tą samą
+        // wyrocznią co zmiana hasła i nie mają prawa mieć luźniejszego limitu).
         // Ten sam rząd wielkości co 'password_reset' — to wciąż zgadywanie
         // cudzego hasła, tyle że przez kogoś, kto już ma cudzą sesję.
         'confirm_password' => '5,10',
+
+        // Ponowna wysyłka listu potwierdzającego adres e-mail. Liczba
+        // przeniesiona TUTAJ z `routes/web.php`, gdzie stała wpisana wprost
+        // (`throttle:6,1,verification_resend`) wbrew AGENTS.md §7 — wartość
+        // bez zmian, zmieniło się tylko miejsce, w którym się ją czyta.
+        // Sześć na minutę: człowiek klika „wyślij jeszcze raz", nie widzi
+        // listu (poczta potrafi iść minutę), klika znowu. Każde kliknięcie
+        // to jeden e-mail z naszej puli.
+        'verification_resend' => '6,1',
+
+        /*
+         |----------------------------------------------------------------
+         | GRUPY LIMITÓW DLA TRAS ZAPISUJĄCYCH (BRAMKA_BETY §7a)
+         |----------------------------------------------------------------
+         |
+         | Do tej pory limit miały głównie trasy „wejściowe" (logowanie,
+         | rejestracja, reset hasła) oraz publikacja i komentarz. Reszta tras
+         | zmieniających stan nie miała żadnego — wbrew AGENTS.md §7, gdzie
+         | „rate limit" jest jednym z pięciu pytań przy KAŻDYM endpoincie.
+         |
+         | Klucze niżej są pogrupowane WEDŁUG SZKODY, jaką robi nadużycie,
+         | a nie według kontrolera. Trasa, której nadużycie budzi telefon
+         | drugiego człowieka, dostaje inny próg niż trasa, której nadużycie
+         | najwyżej zaśmieci własny zeszyt sprawcy.
+         |
+         | KAŻDA LICZBA JEST GÓRNYM PUŁAPEM, NIE NORMĄ. Dobrane tak, żeby
+         | osoba 50+ pracująca najszybciej, jak jej się w praktyce zdarza,
+         | nie miała szans ich dotknąć — limit, który łapie zwykłego
+         | użytkownika, jest gorszy niż jego brak, bo uczy go, że serwis się
+         | psuje. Format „próby,minuty" jak reszta tego pliku.
+         |
+         | KILKA KLUCZY MA CELOWO TĘ SAMĄ LICZBĘ, ale osobną nazwę — i to
+         | nie jest powtórzenie do posprzątania. Nazwa klucza jest zarazem
+         | PREFIKSEM LICZNIKA w `throttle:<ile>,<minut>,<prefiks>`, więc dwa
+         | osobne klucze to dwa osobne wiadra. Gdyby zwinąć je w jeden,
+         | wróciłby błąd naprawiony w `ef4f6ca` („429 przy pierwszym
+         | zdjęciu"): przeglądanie zjadałoby budżet publikowania.
+         | Odwrotność — jeden prefiks na dwie różne liczby — jest błędem
+         | i pilnuje jej `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+         */
+
+        /*
+         * USUWANIE WŁASNEJ TREŚCI — wpis, przepis, „Ugotowałem", zeszyt.
+         *
+         * Szkoda z nadużycia: treść znika innym ludziom sprzed oczu, a przy
+         * przepisie z komentarzami i „Ugotowałem" kasowanie ciągnie za sobą
+         * kaskadę pracy bazy. Odwrócić tego użytkownik sam nie umie.
+         *
+         * SKĄD 30 NA 10 MINUT. Każda akcja destrukcyjna w tym serwisie
+         * wymaga potwierdzenia (AGENTS.md §5), więc jedno usunięcie to dwa
+         * kliknięcia i chwila zastanowienia. Nawet porządki w profilu przed
+         * betą — „skasuję te stare, nieudane zdjęcia" — to kilkanaście
+         * pozycji, nie trzydzieści. Jedno usunięcie co dwadzieścia sekund
+         * przez dziesięć minut bez przerwy to już nie palec, tylko pętla.
+         */
+        'usuwanie' => '30,10',
+
+        /*
+         * OBSERWOWANIE I ODOBSERWOWANIE — osoby oraz tagi.
+         *
+         * Szkoda z nadużycia: obserwowanie CZŁOWIEKA budzi powiadomienie
+         * u drugiej strony. To jedyna grupa z tej listy, która sięga poza
+         * konto sprawcy.
+         *
+         * JEDEN WSPÓLNY LICZNIK NA „OBSERWUJ" I „NIE OBSERWUJ" jest tu
+         * celowy: gdyby każdy kierunek miał własny, cykl
+         * obserwuj→przestań→obserwuj mieściłby się w podwójnym budżecie,
+         * czyli dokładnie wzorzec, przed którym limit ma chronić.
+         *
+         * TAGI DZIELĄ TEN SAM KOSZYK, mimo że tag nie jest człowiekiem
+         * i nikogo nie powiadamia. Powód: to ten sam ruch ręką i ten sam
+         * rząd wielkości, a próg ustawia zawsze groźniejsza połowa grupy.
+         *
+         * SKĄD 60 NA 10 MINUT. Pierwszego dnia człowiek przechodzi przez
+         * „Odkryj" i klika „Obserwuj" przy każdej osobie, która wygląda
+         * ciekawie — to potrafi być kilkadziesiąt kliknięć w kilka minut
+         * i MA prawo się udać, bo od tego zależy, czy jego strona główna
+         * nie będzie pusta (AGENTS.md §8). Sześćdziesiąt zmian w dziesięć
+         * minut mieści ten scenariusz z zapasem, a skrypt i tak potrzebuje
+         * tysięcy, żeby cokolwiek na tym ugrać.
+         *
+         * Osobno działa druga bariera, po stronie powiadomień:
+         * `notifications.okno_powtorzenia_godzin` (24 h) wycisza powtórkę
+         * „X Cię obserwuje", więc cykliczne obserwowanie nie zamienia się
+         * w serię powiadomień nawet w granicach tego limitu.
+         */
+        'obserwowanie' => '60,10',
+
+        /*
+         * MASOWE OBSERWOWANIE Z EKRANU POWITALNEGO (`/witaj/ludzie`).
+         *
+         * Osobny, znacznie niższy klucz niż `obserwowanie` wyżej, bo to
+         * JEDYNA trasa w serwisie, na której POJEDYNCZE żądanie tworzy
+         * WIELE powiadomień naraz — formularz wysyła listę kont. Wliczenie
+         * jej do wspólnego koszyka byłoby pozorną ochroną: jedno żądanie
+         * zabierałoby jeden punkt z sześćdziesięciu, robiąc pracę za kilka
+         * tysięcy.
+         *
+         * SKĄD 5 NA 10 MINUT. Przez powitanie przechodzi się raz. Pięć
+         * wysyłek tego jednego formularza mieści cofnięcie się w przeglądarce,
+         * poprawkę wyboru i podwójne kliknięcie „Dalej".
+         *
+         * Sam ROZMIAR listy ogranicza osobno walidacja w `OnboardingController`
+         * — limit żądań nie zastępuje limitu długości tablicy, tylko go
+         * uzupełnia.
+         */
+        'masowe_obserwowanie' => '5,10',
+
+        /*
+         * BLOKOWANIE I ODBLOKOWANIE OSOBY.
+         *
+         * WŁASNY KOSZYK, ODDZIELONY OD `obserwowanie`, I TO JEST CAŁY POWÓD
+         * ISTNIENIA TEGO KLUCZA. Blokada to narzędzie bezpieczeństwa: sięga
+         * po nie ktoś, komu ktoś inny właśnie uprzykrza życie. Gdyby dzieliła
+         * wiadro z obserwowaniem, człowiek, który rano naklikał się
+         * w „Odkryj", po południu nie mógłby się zasłonić. Limit nie ma
+         * prawa stanąć na drodze tej akcji.
+         *
+         * SKĄD 60 NA 10 MINUT. Sześćdziesiąt blokad w dziesięć minut
+         * przekracza każdy realny scenariusz nękania obsługiwany blokowaniem
+         * (przy takiej skali właściwą drogą jest „Zgłoś", nie klikanie),
+         * a jednocześnie zamyka pętlę blokuj→odblokuj, która przy każdym
+         * obrocie kasuje obserwowanie w obie strony i przepisuje wiersze.
+         */
+        'blokada' => '60,10',
+
+        /*
+         * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
+         *
+         * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
+         * inny tego nie widzi, nikogo to nie powiadamia, a odwrócenie to
+         * jedno kliknięcie. Limit jest tu wyłącznie po to, żeby pojedyncze
+         * konto nie potrafiło w pętli dopisywać wierszy bez końca.
+         *
+         * SKĄD 60 NA 10 MINUT. To najczęściej powtarzana uczciwa akcja
+         * w całym produkcie: człowiek przegląda „Odkryj" i zapisuje wszystko,
+         * co wygląda na niedzielny obiad. Dwadzieścia–trzydzieści zapisów
+         * w kilka minut to normalny wieczór, więc próg musi stać wyraźnie
+         * wyżej niż on.
+         *
+         * UWAGA — `collections.save-post` i `collections.unsave-post` były
+         * do tej pory pod prefiksem `post`, czyli pod budżetem PUBLIKACJI.
+         * Skutek był dokładnie taki jak w zgłoszeniu „429 przy pierwszym
+         * zdjęciu": wieczór spędzony na zapisywaniu cudzych wpisów odbierał
+         * prawo do opublikowania własnego. Przeniesione tutaj, do grupy,
+         * do której należą.
+         */
+        'zeszyt' => '60,10',
+
+        /*
+         * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
+         * prywatność, „Twoje tagi", wygląd jasny/ciemny, oznaczenie
+         * powiadomień jako przeczytane, ukrycie wspomnienia, krok
+         * „co lubisz gotować" z powitania.
+         *
+         * Szkoda z nadużycia: żadna widoczna dla innych. Jeden zapis to
+         * jeden UPDATE na własnym wierszu.
+         *
+         * SKĄD 30 NA 10 MINUT. Najbardziej „klikany" ekran tej grupy to
+         * czytelność: człowiek podnosi rozmiar tekstu, zapisuje, patrzy,
+         * podnosi jeszcze raz. Sześć–osiem zapisów pod rząd to realne
+         * maksimum takiej sesji; trzydzieści daje czterokrotny zapas.
+         *
+         * `/motyw` jest w tej grupie, mimo że jako jedyna z niej działa
+         * TAKŻE dla gościa (D-019) — dla niezalogowanego licznik idzie po
+         * adresie IP, więc próg musi pomieścić kilka osób za jednym łączem.
+         * Trzydzieści przełączeń wyglądu na dziesięć minut z jednego adresu
+         * mieści i to.
+         */
+        'ustawienia' => '30,10',
+
+        /*
+         * ZAPIS PROFILU (`PUT /ustawienia/profil`) — OSOBNO OD `ustawienia`.
+         *
+         * Bo to jedyny ekran ustawień, który przyjmuje PLIK. Zdjęcie
+         * profilowe przechodzi przez cały pipeline z AGENTS.md §7:
+         * sprawdzenie magic bytes, limit megapikseli, zapis do R2 i zadanie
+         * w tle, które dekoduje obraz od nowa. To jest praca serwera liczona
+         * w sekundach procesora i megabajtach, a nie UPDATE jednej kolumny —
+         * i dlatego nie może dzielić wiadra z przełącznikiem wyglądu.
+         *
+         * SKĄD 15 NA 10 MINUT. Zmiana zdjęcia to wybranie pliku z telefonu,
+         * czekanie na wysyłkę i obejrzenie wyniku. Trzy–cztery podejścia to
+         * uparta sesja, piętnaście to już zdecydowanie za dużo jak na jeden
+         * profil — a skrypt wgrywający obrazy potrzebowałby setek.
+         */
+        'ustawienia_profil' => '15,10',
+
+        /*
+         * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
+         *
+         * Najdroższe pojedyncze żądanie w serwisie: kolejkuje zadanie, które
+         * czyta całe konto i pakuje do archiwum wszystkie zdjęcia
+         * (`exports.photo_flush_every` istnieje właśnie dlatego, że przy
+         * koncie z tysiącem zdjęć nie mieści się to w pamięci).
+         *
+         * SKĄD 10 NA GODZINĘ, CZYLI POZORNIE DUŻO. Bo prawdziwą bramką jest
+         * tu kontroler: `DataSettingsController::requestExport()` odrzuca
+         * kolejne żądanie, dopóki poprzednia paczka się robi. Z tych
+         * dziesięciu żądań pracą stanie się CO NAJWYŻEJ JEDNO. Limit ma
+         * łapać tylko pętlę, a nie zniecierpliwione klikanie „Przygotuj
+         * paczkę" przez człowieka, który nie widzi postępu — a takie
+         * klikanie jest przy piętnastominutowym oczekiwaniu normą.
+         *
+         * Godzinne okno zamiast dziesięciominutowego, bo samo zadanie trwa
+         * kilkanaście minut: krótsze okno nie opisywałoby niczego sensownego.
+         */
+        'eksport' => '10,60',
+
+        /*
+         * PANEL MODERACJI — decyzje o zgłoszeniach, przywracanie treści,
+         * odwołania, odpowiedzi na wpisy bez odpowiedzi, tablica dnia,
+         * tagi promowane.
+         *
+         * Szkoda z nadużycia: nie „spam", tylko przejęta sesja moderatora
+         * użyta maszynowo — masowe usunięcie treści albo masowe przywrócenie
+         * tego, co słusznie zniknęło.
+         *
+         * SKĄD AŻ 120 NA 10 MINUT, CZYLI NAJWYŻSZY PRÓG NA TEJ LIŚCIE.
+         * Bo tu koszt fałszywego alarmu jest największy w całym pliku.
+         * Zespół moderacji to jedna–dwie osoby (D-012). Fala spamu oznacza
+         * kolejkę oczywistych zgłoszeń rozstrzyganych jedno po drugim,
+         * seriami. Limit, który zatrzyma JEDYNEGO moderatora w środku takiej
+         * fali, jest awarią serwisu, którą sami sobie zafundowaliśmy —
+         * gorszą niż brak limitu. Dwanaście decyzji na minutę utrzymywane
+         * przez dziesięć minut to około dwukrotność najszybszego realnego
+         * tempa człowieka, więc pułap zostaje, ale nikt go nie dotknie.
+         *
+         * Dostęp do tych tras chronią przede wszystkim trzy warstwy stojące
+         * przed limitem: `auth`, `moderator` i obowiązkowe 2FA moderatora
+         * (#12). Ten limit jest ostatnim, nie pierwszym zabezpieczeniem.
+         */
+        'moderacja' => '120,10',
     ],
 
     'exports' => [

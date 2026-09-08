@@ -50,8 +50,19 @@ class OnboardingController extends Controller
 
     public function saveInterests(Request $request): RedirectResponse
     {
+        // `max:` NA SAMEJ TABLICY, NIE TYLKO NA JEJ ELEMENTACH.
+        //
+        // Bez tego jedno żądanie mogło podać dowolnie długą listę, a reguła
+        // `exists:tags,id` wykonuje OSOBNE zapytanie dla KAŻDEGO elementu —
+        // dziesięć tysięcy pozycji w formularzu to dziesięć tysięcy zapytań,
+        // zanim kontroler cokolwiek zdecyduje. Limit żądań na trasie tego nie
+        // łapie, bo to jedno żądanie.
+        //
+        // Pięćdziesiąt, a nie dokładnie tyle, ile pokazuje ekran: lista
+        // promowanych tagów jest w rękach gospodarza i ma prawo urosnąć,
+        // a próg ma odcinać nadużycie, nie normalny wybór.
         $dane = $request->validate([
-            'tags' => ['nullable', 'array'],
+            'tags' => ['nullable', 'array', 'max:50'],
             'tags.*' => ['string', 'exists:tags,id'],
         ]);
 
@@ -85,8 +96,18 @@ class OnboardingController extends Controller
 
     public function saveFollows(Request $request): RedirectResponse
     {
+        // `max:` NA TABLICY — TU WAŻNIEJSZE NIŻ GDZIEKOLWIEK INDZIEJ.
+        //
+        // To jedyne miejsce w serwisie, w którym POJEDYNCZE żądanie tworzy
+        // powiadomienia u WIELU osób naraz: pętla niżej woła `FollowUser`
+        // dla każdej pozycji listy. Bez tej reguły limit zapytań na trasie
+        // (`masowe_obserwowanie` w config/kuking.php) był ochroną tylko
+        // z nazwy — pięć żądań po tysiąc nazw to pięć tysięcy powiadomień.
+        //
+        // Ekran proponuje osiem osób (`people()` niżej). Dwadzieścia daje
+        // zapas na zmianę tej liczby i nadal odcina nadużycie.
         $request->validate([
-            'follow' => ['nullable', 'array'],
+            'follow' => ['nullable', 'array', 'max:20'],
             'follow.*' => ['string'],
         ]);
 
