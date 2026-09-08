@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Jobs\GenerateUserExport;
 use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Post;
