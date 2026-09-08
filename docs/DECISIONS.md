@@ -1292,6 +1292,35 @@ co do zasady, ZAWIESZONA w praktyce od 8 września — patrz poprawka niżej**
 > właściciela i wymaga jednej informacji, której z repozytorium nie widać:
 > czy pula stoi z powodu, który minie sam.
 
+> **Druga poprawka, tego samego wieczoru — powrót przestaje wymagać PR-a.**
+> `runs-on` we wszystkich czterech workflow-ach czyta teraz zmienną
+> repozytorium `CI_RUNS_ON`; bez niej stoi `ubuntu-latest`. Ustawienie jej
+> na listę etykiet własnej puli przełącza CI **bez zmiany w kodzie i bez
+> cyklu przeglądu**, a skasowanie wraca na runnery GitHuba.
+>
+> **To nie jest cofnięcie tego, co D-028 zrobiła z `CI_RUNNER`.** Tamta
+> zmienna została usunięta, bo **nic jej nie czytało** — była atrapą
+> wyglądającą na przełącznik. Tę czyta `runs-on` w czterech plikach, a powód
+> jej istnienia jest zmierzony: przełącznik, który wymaga PR-a i przeglądu,
+> nie jest przełącznikiem awaryjnym. 8 września produkcja stała, a zmiana
+> puli musiała przejść przez pełną ścieżkę zmiany kodu.
+>
+> **Przy okazji ucięte marnotrawstwo:** nowy job `zakres` w `ci.yml` pomija
+> ciężkie zadania, gdy zmiana dotyka wyłącznie `docs/` albo `README.md`.
+> Tego samego wieczoru sześć PR-ów dotykało tylko dokumentacji i każdy
+> przepuścił testy na PostgreSQL, axe-core, build obrazu i build assetów.
+> **Skutek dla kryterium scalania:** „Testy (PostgreSQL 18)" mogą teraz stać
+> jako `skipped` i jest to poprawny stan dla zmiany w dokumentacji — regułą
+> jest odtąd „zielone ALBO pominięte".
+>
+> **Czego NIE dało się zmierzyć i dlaczego to ważne:** ile minut Actions
+> realnie zostało. Endpoint `get_workflow_run_usage` zwraca dla każdego
+> przebiegu — także sprzed godzin — zerowy czas rozliczeniowy, co przy
+> repozytorium PRYWATNYM znaczy najpewniej, że token nie ma dostępu do
+> danych rozliczeniowych, a **nie** że przebiegi są darmowe. Jedynym
+> wiarygodnym źródłem jest strona rozliczeń organizacji. Nie należy wyciągać
+> z tych zer wniosku, że limit nie jest zużywany.
+
 Wszystkie **14 jobów** w czterech workflow-ach (`ci.yml` 7, `deploy.yml` 2,
 `preview.yml` 3, `railway-iac.yml` 2) ma dokładnie:
 
