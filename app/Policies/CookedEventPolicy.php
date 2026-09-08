@@ -116,12 +116,20 @@ class CookedEventPolicy
         // publiczne, dalej czeka na decyzję produktową i dalej pilnuje go
         // `KomusWyszloWidocznoscTest`.
         //
-        // KUCHARZ I MODERATOR SĄ JUŻ ZAŁATWIENI PUNKTEM 3 WYŻEJ i to jest
-        // konieczne, nie uboczne: człowiek w karencji ma N dni na zmianę
-        // zdania i musi w tym czasie widzieć, co odzyskuje. Po cofnięciu
-        // usunięcia status wraca do `active`, a wykonanie wraca dla wszystkich
-        // samo — bez żadnej operacji naprawczej, bo nic nie zostało zmienione
-        // w danych.
+        // CO Z SAMYM KUCHARZEM — SPRAWDZONE URUCHOMIENIEM, BO ZAŁOŻYŁEM ŹLE.
+        //
+        // Pierwsza wersja tego komentarza twierdziła, że punkt 3 wyżej
+        // przepuszcza kucharza, „bo w karencji musi widzieć, co odzyskuje".
+        // To nieprawda i test to pokazał: człowiek w `pending_delete` NIE
+        // CHODZI po serwisie. `EnsureAccountIsActive` wylogowuje go przy
+        // pierwszym żądaniu i odsyła na stronę logowania z instrukcją, jak
+        // cofnąć usunięcie — czyli do tej Policy w ogóle nie dociera.
+        //
+        // Punkt 3 zostaje więc nietknięty nie dla kucharza, tylko dla
+        // MODERATORA, który ma zaglądać z urzędu. A po cofnięciu usunięcia
+        // status wraca do `active` i wykonanie wraca dla wszystkich samo,
+        // bo nic w danych nie zostało zmienione — i to akurat było prawdą
+        // od początku.
         if ($event->user->status === User::STATUS_PENDING_DELETE) {
             return false;
         }

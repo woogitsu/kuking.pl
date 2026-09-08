@@ -69,22 +69,48 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
     }
 
     /**
-     * KUCHARZ MUSI WIDZIEĆ SWOJE — I TO NIE JEST UPRZEJMOŚĆ.
+     * CO Z SAMYM KUCHARZEM — ZAŁOŻYŁEM ŹLE I TEST MNIE POPRAWIŁ.
      *
-     * Karencja istnieje po to, żeby dało się zmienić zdanie. Człowiek, który
-     * rozważa powrót, ma prawo zobaczyć, co odzyskuje. Gdyby poprawka
-     * odcięła także jego, „przez N dni możesz jeszcze zmienić zdanie"
-     * stałoby się wyborem w ciemno.
+     * Pisząc tę poprawkę, zakładałem, że człowiek w karencji dalej chodzi po
+     * serwisie i musi widzieć swoje treści, „bo ma N dni na zmianę zdania".
+     * Nieprawda: `EnsureAccountIsActive` WYLOGOWUJE go przy pierwszym
+     * żądaniu i odsyła na stronę logowania z instrukcją, jak cofnąć
+     * usunięcie. Do polityki dostępu ta osoba w ogóle nie dociera.
+     *
+     * Ten test zostaje w tym pliku właśnie dlatego, że pytanie „a co widzi
+     * sam kucharz" jest naturalne i ktoś zada je znowu. Odpowiedź brzmi:
+     * nic nie widzi, bo go tu nie ma — i to jest projekt, nie usterka.
+     * Droga powrotna prowadzi przez stronę cofnięcia usunięcia, nie przez
+     * przeglądanie własnych wpisów.
      */
-    public function test_w_karencji_kucharz_nadal_widzi_wlasne_wykonanie(): void
+    public function test_w_karencji_kucharz_jest_wylogowany_a_nie_wpuszczany(): void
     {
         [$kucharz, $wykonanie] = $this->wykonanieZeZdjeciem();
 
         $kucharz->markForDeletion();
 
-        $this->actingAs($kucharz->fresh())
-            ->get(route('cooked.show', $wykonanie))
-            ->assertOk();
+        $odpowiedz = $this->actingAs($kucharz->fresh())
+            ->get(route('cooked.show', $wykonanie));
+
+        $odpowiedz->assertRedirect(route('login'));
+
+        // `assertGuest()` bez argumentu — jego parametr to nazwa STRAŻNIKA,
+        // nie komunikat. Wpisanie tam zdania po polsku pytałoby o strażnika
+        // o tej nazwie i test padłby z zupełnie innego powodu.
+        $this->assertGuest();
+
+        // Sam fakt wylogowania nie wystarcza — człowiek musi wiedzieć,
+        // DLACZEGO i co zrobić dalej (UX_50_PLUS.md: komunikat błędu mówi,
+        // co zrobić, a nie co się stało).
+        $bledy = $odpowiedz->getSession()->get('errors');
+
+        $this->assertNotNull($bledy, 'Po wylogowaniu nie ma żadnego komunikatu.');
+
+        $this->assertStringContainsString(
+            route('account.delete.cancel'),
+            (string) $bledy->first('login'),
+            'Komunikat po wylogowaniu nie wskazuje strony cofnięcia usunięcia konta.',
+        );
     }
 
     public function test_po_cofnieciu_usuniecia_wykonanie_wraca_dla_wszystkich(): void
