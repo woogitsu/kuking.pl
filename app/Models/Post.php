@@ -112,10 +112,15 @@ class Post extends Model
 
     public function comments(): HasMany
     {
+        // `->orderBy('id')` rozstrzyga remisy `created_at` (sekundowa
+        // dokładność `timestampsTz()`). Bez tego paginacja komentarzy potrafi
+        // pokazać ten sam wpis na dwóch stronach i nie pokazać innego nigdzie.
+        // Pełne uzasadnienie: `Recipe::cookedEvents()`.
         return $this->hasMany(Comment::class)
             ->whereNull('parent_id')
             ->where('status', Comment::STATUS_PUBLISHED)
-            ->oldest();
+            ->oldest()
+            ->orderBy('id');
     }
 
     public function allComments(): HasMany

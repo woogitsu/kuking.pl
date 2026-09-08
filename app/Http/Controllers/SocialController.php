@@ -158,6 +158,7 @@ class SocialController extends Controller
                 $query->withExists(['followers as obserwowany' => fn ($f) => $f->where('users.id', $widzId)]);
             })
             ->orderByPivot('created_at', 'desc')
+            ->orderByDesc('users.id')
             ->paginate(20)
             ->withQueryString();
 
