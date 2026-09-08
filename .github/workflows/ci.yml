@@ -58,11 +58,19 @@
 #  Repozytorium jest PRYWATNE, więc minuty są płatne: pełny przebieg to
 #  siedem jobów, orientacyjnie 25-35 minut maszynowych.
 #
-#  JAK WRÓCIĆ NA WŁASNĄ PULĘ: podmień we wszystkich siedmiu jobach
+#  JAK WRÓCIĆ NA WŁASNĄ PULĘ — BEZ ZMIANY W KODZIE (od 8 września, wieczór).
+#  `runs-on` czyta zmienną repozytorium `CI_RUNS_ON`. Bez niej stoi
+#  `ubuntu-latest`. Powrót: Settings → Secrets and variables → Actions →
+#  Variables → `CI_RUNS_ON` =
+#      ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#  Skasowanie zmiennej wraca na runnery GitHuba — w obie strony bez PR-a.
 #
-#      runs-on: ubuntu-latest
-#  na
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  DLACZEGO ZNOWU ZMIENNA, SKORO D-028 JEDNĄ TAKĄ USUNĘŁA. Usunęła
+#  `CI_RUNNER`, bo NIC JEJ NIE CZYTAŁO — była atrapą. Tę czyta `runs-on`
+#  w czterech workflow-ach, a powód jej istnienia jest zmierzony: 8 września
+#  przełączenie puli wymagało PR-a i przeglądu, podczas gdy produkcja stała
+#  z powodu niedostępnych maszyn. Przełącznik, który wymaga cyklu przeglądu,
+#  nie jest przełącznikiem awaryjnym.
 #
 #  Etykiety, nie nazwa runnera: nazwa przypina job do jednej maszyny, więc
 #  jej awaria zatrzymuje CI. Etykiety `i5-10400f` i `nvidia-gtx1070` mają
@@ -101,11 +109,88 @@ env:
 
 jobs:
   # ===========================================================================
+  #  0. Czy ta zmiana w ogóle dotyka kodu
+  # ===========================================================================
+  #  PO CO TO JEST: żeby zmiana wyłącznie w dokumentacji nie uruchamiała
+  #  pełnego zestawu. 8 września wieczorem sześć PR-ów dotykało tylko `docs/`
+  #  i każdy z nich przepuścił testy na PostgreSQL, axe-core, build obrazu
+  #  i build assetów. Zmiana w pliku Markdown nie ma jak żadnego z nich
+  #  zepsuć — a minuty Actions są skończone.
+  #
+  #  DLACZEGO WŁASNY KROK, A NIE `paths-ignore` NA WYZWALACZU. `paths-ignore`
+  #  nie uruchomiłby workflow WCALE, czyli commit nie miałby ŻADNEGO zestawu
+  #  kontrolnego. Railway ma włączone „Wait for CI" i czeka na przebieg
+  #  wierzchołka — brak przebiegu to stan, którego nikt tu nie zmierzył.
+  #  Pominięty job kończy się jako `skipped`, czyli zestaw istnieje i jest
+  #  rozstrzygnięty. To jest wariant ostrożniejszy.
+  #
+  #  DLACZEGO BEZ ZEWNĘTRZNEJ AKCJI DO FILTROWANIA ŚCIEŻEK: jedno `git diff`
+  #  robi to samo, a nie dokłada zależności, której trzeba pilnować.
+  #
+  #  UWAGA PRZY SCALANIU: od tej zmiany „Testy (PostgreSQL 18)" mogą stać
+  #  jako `skipped`, i to jest poprawny stan dla zmiany w samej dokumentacji.
+  #  Kryterium scalenia brzmi więc „zielone ALBO pominięte", nie „zielone".
+  # ===========================================================================
+  zakres:
+    name: Zakres zmiany
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    outputs:
+      kod: ${{ steps.sprawdz.outputs.kod }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Pełna historia, bo porównujemy z bazą, a nie z ostatnim commitem.
+          fetch-depth: 0
+
+      - name: Czy zmiana dotyka czegoś poza dokumentacją
+        id: sprawdz
+        env:
+          BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+
+          # Stan bez punktu odniesienia (pierwszy push gałęzi, wymuszony
+          # przebieg) — wtedy NIE ZGADUJEMY i puszczamy pełny zestaw.
+          if [ -z "${BAZA}" ] || [ "${BAZA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "Brak punktu odniesienia — pełny zestaw."
+            echo "kod=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git cat-file -e "${BAZA}^{commit}" 2>/dev/null; then
+            echo "Baza ${BAZA} nieosiągalna — pełny zestaw."
+            echo "kod=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ZMIENIONE="$(git diff --name-only "${BAZA}" HEAD)"
+          echo "Zmienione pliki:"
+          echo "${ZMIENIONE}"
+
+          # Wyłącznie te dwa katalogi są uznane za „nie kod". Wszystko inne —
+          # łącznie z `.github/`, `pint.json` czy `composer.json` — uruchamia
+          # pełny zestaw. Lista jest krótka CELOWO: pomyłka w stronę
+          # nadmiarowego przebiegu kosztuje minuty, a w drugą stronę
+          # przepuszcza niesprawdzoną zmianę.
+          POZA="$(echo "${ZMIENIONE}" | grep -vE '^(docs/|README\.md$)' || true)"
+
+          if [ -z "${POZA}" ]; then
+            echo "Zmiana wyłącznie w dokumentacji — ciężkie zadania pominięte."
+            echo "kod=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "kod=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ===========================================================================
   #  1. Styl kodu — Laravel Pint
   # ===========================================================================
   lint:
     name: Pint (styl kodu)
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -139,7 +224,9 @@ jobs:
   # ===========================================================================
   static-analysis:
     name: Larastan (analiza statyczna)
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
     # `phpstan analyse` kończyłby się „At least one path must be specified".
@@ -238,7 +325,9 @@ jobs:
   # ===========================================================================
   test:
     name: Testy (PostgreSQL 18)
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
     services:
@@ -370,7 +459,9 @@ jobs:
   # ===========================================================================
   assets:
     name: Build assetów (Vite)
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -447,7 +538,9 @@ jobs:
   # ===========================================================================
   dostepnosc:
     name: Dostępność (axe-core)
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
 
     services:
@@ -603,7 +696,9 @@ jobs:
   # ===========================================================================
   audit:
     name: Audyt zależności
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -680,7 +775,9 @@ jobs:
   # ===========================================================================
   docker-build:
     name: Build obrazu (weryfikacja)
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
     steps:

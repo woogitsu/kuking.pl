@@ -72,10 +72,12 @@
 #  W skrócie: trzy z sześciu runnerów są wyłączone, a joby stały w kolejce
 #  godzinami. D-028 NIE JEST odwołana — zmieniła się sytuacja, nie strategia.
 #
-#  POWRÓT: podmień w tym pliku każde
-#      runs-on: ubuntu-latest
-#  na
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  POWRÓT NIE WYMAGA JUŻ ZMIANY W KODZIE. `runs-on` czyta zmienną
+#  repozytorium `CI_RUNS_ON`; bez niej stoi `ubuntu-latest`. Żeby wrócić
+#  na własną pulę, ustaw ją w Settings → Secrets and variables → Actions
+#  → Variables na:
+#      ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#  Skasowanie zmiennej wraca na runnery GitHuba. Pełne uzasadnienie: D-028.
 # ---------------------------------------------------------------------------
 
 name: Deploy
@@ -127,7 +129,7 @@ jobs:
   # ===========================================================================
   verify:
     name: Test dymny po deployu
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     # Tylko udane deploye na produkcję lub staging.
@@ -262,7 +264,7 @@ jobs:
   # ===========================================================================
   operate:
     name: "Operacja: ${{ github.event.inputs.action }} (${{ github.event.inputs.environment }})"
-    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
 
