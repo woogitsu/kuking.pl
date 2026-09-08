@@ -49,7 +49,11 @@
         <form method="POST" action="{{ route('settings.security.logout-others') }}">
             @csrf
 
-            <x-field name="password" label="Wpisz swoje hasło" type="password" required
+            {{-- `id` JAWNIE, bo wyżej na tej samej stronie stoi drugie pole
+                 `name="password"` („Nowe hasło" w formularzu zmiany hasła).
+                 Bez tego oba miały `id="f-password"`, a kliknięcie tej
+                 etykiety przenosiło fokus do tamtego formularza. --}}
+            <x-field name="password" id="f-wyloguj-inne-haslo" label="Wpisz swoje hasło" type="password" required
                      autocomplete="current-password"
                      help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
 
