@@ -43,7 +43,6 @@ jobs:
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
-      DB_PORT: ${{ job.services.postgres.ports[5432] }}
       DB_DATABASE: kuking_test
       DB_USERNAME: kuking
       DB_PASSWORD: secret
@@ -58,6 +57,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Dynamiczny port bazy
+        run: echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
