@@ -128,7 +128,7 @@ PID_B=$!
 wait "${PID_A}" "${PID_B}"
 
 sprawdz "przebieg A nie widzi błędu 'does not exist'" $(grep -qi "does not exist" /tmp/izolacja-naprawa-a.log && echo 1 || echo 0)
-sprawdz "przebieg A odczytał swoją tabelę bez przeszkód" $(grep -q "0 rows\|(0 rows)" /tmp/izolacja-naprawa-a.log && echo 0 || echo 0)
+sprawdz "przebieg A odczytał swoją tabelę bez przeszkód" $(grep -q "(0 rows)" /tmp/izolacja-naprawa-a.log && echo 0 || echo 1)
 sprawdz "przebieg B skasował SWOJĄ bazę bez wpływu na A" $(grep -qi "ERROR" /tmp/izolacja-naprawa-b.log && echo 1 || echo 0)
 
 usun_baze "${BAZA_A}"

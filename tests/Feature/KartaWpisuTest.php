@@ -73,13 +73,13 @@ class KartaWpisuTest extends TestCase
     {
         $karta = $this->paskAkcji($this->kartaZPrzepisem());
 
-        preg_match_all('~<a\b[^>]*class="([^"]*\bbtn\b[^"]*)"[^>]*>(.*?)</a>~s', $karta, $przyciski, PREG_SET_ORDER);
+        $przyciski = $this->przyciskiPaska($karta);
 
         $this->assertNotEmpty($przyciski, 'Pasek akcji karty nie ma ani jednego przycisku.');
 
         $wKolorzeMarki = [];
 
-        foreach ($przyciski as [, $klasy, $wnetrze]) {
+        foreach ($przyciski as [$klasy, $wnetrze]) {
             if (str_contains($klasy, 'btn-primary')) {
                 $wKolorzeMarki[] = trim(strip_tags($wnetrze));
             }
@@ -165,11 +165,11 @@ class KartaWpisuTest extends TestCase
     {
         $karta = $this->paskAkcji($this->kartaZPrzepisem());
 
-        preg_match_all('~<a\b[^>]*class="[^"]*\bbtn\b[^"]*"[^>]*>(.*?)</a>~s', $karta, $przyciski);
+        $przyciski = $this->przyciskiPaska($karta);
 
-        $this->assertNotEmpty($przyciski[1]);
+        $this->assertNotEmpty($przyciski);
 
-        foreach ($przyciski[1] as $wnetrze) {
+        foreach ($przyciski as [, $wnetrze]) {
             $this->assertNotSame(
                 '',
                 trim(html_entity_decode(strip_tags($wnetrze))),
@@ -177,6 +177,34 @@ class KartaWpisuTest extends TestCase
                 .'opisem akcji (AGENTS.md §5).',
             );
         }
+    }
+
+    /**
+     * Przyciski paska akcji jako pary [klasy, wnętrze] — ODNOŚNIKI I `<button>`.
+     *
+     * Pierwsza wersja obu testów wyżej dopasowywała wyłącznie `<a class="btn …">`,
+     * a „Zapisz" na tym pasku jest `<button>` w `<form method="POST">` (zapis
+     * do zeszytu musi iść POST-em, więc odnośnikiem być nie może). Skutek:
+     * zmierzone przez zepsucie `resources/views/components/post-card.blade.php` —
+     * nadanie „Zapisz" klasy `btn-primary` ORAZ zabranie mu napisu zostawiało
+     * OBA testy zielone, choć jeden pilnuje wyłączności koloru marki,
+     * a drugi zakazu samotnej ikony (AGENTS.md §5).
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private function przyciskiPaska(string $karta): array
+    {
+        preg_match_all(
+            '~<(?:a|button)\b[^>]*class="([^"]*\bbtn\b[^"]*)"[^>]*>(.*?)</(?:a|button)>~s',
+            $karta,
+            $trafienia,
+            PREG_SET_ORDER,
+        );
+
+        return array_map(
+            static fn (array $t): array => [$t[1], $t[2]],
+            $trafienia,
+        );
     }
 
     /**

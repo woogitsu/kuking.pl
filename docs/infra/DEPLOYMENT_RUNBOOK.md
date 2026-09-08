@@ -118,9 +118,29 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 
 ```php
 ->withMiddleware(function (Middleware $middleware) {
-    $middleware->trustProxies(at: '*');
+    // Pierwszy w stosie: z X-Forwarded-For zostaje JEDEN wpis — n-ty od
+    // końca, czyli ten dopisany przez naszą infrastrukturę (SEC-01).
+    $middleware->prepend(NormalizeForwardedFor::class);
+
+    $middleware->trustProxies(
+        at: '*',
+        headers: Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PROTO,
+    );
 })
 ```
+
+> **`at: '*'` to nie „ufaj całemu łańcuchowi".** Laravel tłumaczy to na
+> `setTrustedProxies([REMOTE_ADDR], …)`, czyli „ufaj tej jednej maszynie,
+> która się właśnie połączyła", a Symfony oddaje wtedy OSTATNI wpis
+> `X-Forwarded-For`. Ile wpisów na końcu tego nagłówka pochodzi od naszej
+> infrastruktury, mówi `KUKING_ZAUFANE_PRZESKOKI` (`config/proxy.php`) —
+> i to jest jedyna liczba, którą trzeba tu znać. **Zmierz ją, nie zgaduj:**
+> wejdź na serwis przez Cloudflare bez własnego `X-Forwarded-For` i policz
+> wpisy, które dotarły do aplikacji. Za mała wartość = wspólny adres dla
+> wielu osób i zbyt ostre limity; za duża = powrót podatności W7-01.
 
 **3. Dysk `r2`** (`config/filesystems.php`):
 
@@ -262,13 +282,13 @@ curl -I https://cdn.kuking.pl/test.txt
 
 **`[POTRZEBNE OD WŁAŚCICIELA — wybór dostawcy]`**
 
-| Dostawca | Darmowy limit | Płatny start | Uwaga |
-|---|---|---|---|
-| **Resend** | 3 000 maili/mies. | ~$20 / 50 tys. | Proste API, dobra dostarczalność |
-| **Brevo** | 300 maili/dzień (~9 tys./mies.) | ~$9 / 5 tys. | Firma z UE, hojniejszy darmowy plan |
-| Postmark | 100 maili/mies. | ~$15 / 10 tys. | Najlepsza dostarczalność, skąpy free |
-
-Rekomendacja na start: **Resend** (alfa) → **Brevo** (beta, lepszy stosunek ceny).
+> **Ten krok ma własny dokument: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).**
+> Jest tam komplet zmiennych i rekordów DNS dla trzech wariantów (Postmark,
+> Amazon SES, Resend), wyjaśnienie, co robi SPF, DKIM i DMARC, oraz sposób
+> sprawdzenia, że poczta naprawdę wychodzi. Porównanie dostawców, ceny
+> i rezydencja danych: [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
+>
+> Poniżej zostaje tylko to, co dotyczy samego wdrożenia.
 
 ### 3.1 Weryfikacja domeny
 
@@ -283,19 +303,38 @@ Dodaj też **DMARC** (nie każdy dostawca o to poprosi, ale bez tego trafisz do 
 
 | Typ | Nazwa | Wartość |
 |---|---|---|
-| TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:alerty@kuking.pl; pct=100` |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl` |
 
-### 3.2 Dane SMTP `[POTRZEBNE OD WŁAŚCICIELA — zapisz]`
+> **`p=none` na start, nie `p=quarantine`.** Ostrzejsza polityka ustawiona
+> przed przeczytaniem pierwszych raportów `rua` kasuje pocztę z systemów,
+> o których się zapomniało (formularz na stronie, hosting, stary newsletter) —
+> i robi to po cichu. Zaostrzenie do `p=quarantine`, a potem `p=reject`,
+> po 2–4 tygodniach czystych raportów: `POCZTA_URUCHOMIENIE.md` §3.
+
+### 3.2 Dane dostępowe `[POTRZEBNE OD WŁAŚCICIELA — zapisz]`
+
+Przy dostawcy po SMTP (Brevo, EmailLabs, Mailgun — sterownik `smtp` jest już
+skonfigurowany, zero zmian w kodzie):
 
 ```text
-MAIL_HOST      = smtp.resend.com        (lub smtp-relay.brevo.com)
-MAIL_PORT      = 587
+MAIL_HOST      = ................       (np. smtp-relay.brevo.com)
+MAIL_PORT      = 587                    (587 → MAIL_SCHEME=tls, 465 → smtps)
 MAIL_USERNAME  = ................
 MAIL_PASSWORD  = ................       ← sekret
 ```
 
+Przy dostawcy po API (Postmark, Resend, SES) zmienne są inne, a `railway.ts`
+wymaga zmiany `MAIL_MAILER` — komplet w `POCZTA_URUCHOMIENIE.md` §2.
+
 **Sprawdź, że działa:** w panelu dostawcy poczekaj na status „Verified"
-przy domenie. Test wyślemy po pierwszym deployu (krok 11).
+przy domenie, a po pierwszym deployu wyślij prawdziwą wiadomość:
+
+```bash
+railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
+```
+
+Komenda kończy się **porażką**, gdy sterownik to `log` albo `array` — bo wtedy
+Laravel przyjmuje wiadomość, zgłasza sukces i nie wysyła jej nikomu.
 
 ---
 
@@ -442,10 +481,10 @@ wtedy pokazywać wartość w panelu i w CLI.
 `APP_FAKER_LOCALE`, `APP_TIMEZONE`, `APP_ROLE`, `LOG_CHANNEL`, `LOG_STDERR_FORMATTER`,
 `LOG_LEVEL`, `DB_CONNECTION`, `DB_URL`, `SESSION_DRIVER`, `SESSION_LIFETIME`,
 `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_SAME_SITE`, `CACHE_STORE`,
-`QUEUE_CONNECTION`, `TRUSTED_PROXIES`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
+`QUEUE_CONNECTION`, `KUKING_ZAUFANE_PRZESKOKI`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
 `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `MAIL_MAILER`, `MAIL_SCHEME`,
-`MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `SENTRY_ENVIRONMENT`,
+`MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
 `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`, `SENTRY_RELEASE`,
 `POSTHOG_HOST`, `PHP_WORKER_MEMORY_LIMIT`
 
@@ -520,7 +559,7 @@ SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 CACHE_STORE=database
 QUEUE_CONNECTION=database
-TRUSTED_PROXIES=*
+KUKING_ZAUFANE_PRZESKOKI=1
 
 FILESYSTEM_DISK=local
 MAIL_MAILER=log
@@ -541,10 +580,15 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 > | zmienna | skutek | kiedy zmienić |
 > |---|---|---|
 > | `FILESYSTEM_DISK=local` | zdjęcia **znikają przy każdym redeployu** | gdy będzie bucket R2 → `r2` |
-> | `MAIL_MAILER=log` | nikt nie dostanie linku aktywacyjnego | gdy będzie SMTP → `smtp` |
+> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `smtp`, `postmark`, `resend` albo `ses` |
 >
 > Obie są w porządku na pierwszy zielony deploy i **nie do przyjęcia**, gdy
 > wpuszczasz prawdziwych ludzi.
+>
+> Przy `MAIL_MAILER=log` ekran „Nie pamiętam hasła" świadomie nie przyjmuje
+> adresu i odsyła do skrzynki kontaktowej — inaczej pierwsza osoba, która
+> zapomni hasła, straciłaby konto bezpowrotnie (`App\Support\Poczta`).
+> Instrukcja odblokowania: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).
 
 Po dodaniu R2 i poczty dołóż: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `AWS_DEFAULT_REGION=auto`,
@@ -869,7 +913,7 @@ curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
 
 | # | Co sprawdzić | Oczekiwane |
 |---|---|---|
-| 11 | Rejestracja nowego konta | konto powstaje, przychodzi e-mail |
+| 11 | Rejestracja nowego konta | konto powstaje, przychodzi e-mail (**najpierw** `php artisan kuking:sprawdz-poczte ty@wp.pl` — patrz `POCZTA_URUCHOMIENIE.md` §5) |
 | 12 | Logowanie i wylogowanie | sesja działa, ciasteczko `Secure` |
 | 13 | **Upload zdjęcia z telefonu** | pasek postępu, potem widoczna miniatura |
 | 14 | URL zdjęcia | zaczyna się od `https://cdn.kuking.pl/` |
@@ -1150,7 +1194,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
-| 13 | Adres nadawcy poczty | `kontakt@kuking.pl` — **jeden adres w obie strony** (decyzja właściciela, 7 IX 2026: kod pokazywał ludziom `kontakt@`, a wysyłał z `kuchnia@`; z kodu nie dało się ustalić, która skrzynka odbiera). W repozytorium poprawione (`config/mail.php`, `.env.example`); **zmienna `MAIL_FROM_ADDRESS` na Railway należy do właściciela i trzeba ją tam zmienić ręcznie** | `railway.ts` |
+| 13 | Adres nadawcy poczty | `kontakt@kuking.pl` — **jeden adres w obie strony** (decyzja właściciela, 7 IX 2026: kod pokazywał ludziom `kontakt@`, a wysyłał z `kuchnia@`; z kodu nie dało się ustalić, która skrzynka odbiera). W repozytorium poprawione wszędzie, łącznie z `.railway/railway.ts`, który wcześniej pominięto i który przy `railway config apply` wpisywał `kuchnia@` z powrotem. **Zostaje jedna czynność ręczna: jeśli w panelu Railway `MAIL_FROM_ADDRESS` było ustawiane osobno, usuń je stamtąd albo popraw — wartość z panelu wygra z plikiem.** Pilnuje tego test `NadawcaPocztyNieJestNoreplyTest` | `railway.ts` |
 
 ### Sekrety do wygenerowania i bezpiecznego zapisania
 
@@ -1176,7 +1220,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | # | Co | Gdzie | Krok |
 |---|---|---|---|
 | 25 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
-| 26 | `trustProxies(at: '*')` | `bootstrap/app.php` | 1 |
+| 26 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
 | 27 | Dysk `r2` | `config/filesystems.php` | 1 |
 | 28 | `healthcheck.railway.app` w `TrustHosts` (jeśli włączone) | `bootstrap/app.php` | 1 |
 | 29 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |

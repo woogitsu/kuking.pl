@@ -121,6 +121,32 @@ Nowe okoliczności idą adresem e-mail.
 - 24 godziny karencji, zanim ten sam moderator **podtrzyma** własną decyzję.
   Cofnąć własną decyzję może od razu.
 
+**Kto zamyka sprawę — administrator, nie moderator** (D-039). Kolejkę
+odwołań WIDZI każdy moderator; decyzję („podtrzymuję" / „cofam") przyjmuje
+wyłącznie konto z rolą `admin` (`UserPolicy::resolveAppeals()`). Powód:
+odwołania nie ma zamykać rola pierwszej linii, która wydaje decyzje.
+
+**To jest bramka na ROLĘ, nie na osobę** — i lepiej wiedzieć to teraz niż
+przy pierwszej trudnej sprawie. Administrator przechodzi też przez
+`moderate()`, więc jeden człowiek z tą rolą dalej może wydać decyzję
+i rozstrzygnąć odwołanie od niej samej; powstrzymuje go wtedy wyłącznie
+karencja i tylko przy podtrzymaniu. Wartość tego zawężenia pojawia się
+przy DRUGIEJ osobie w zespole: moderator bez roli administratora
+przestaje móc zamknąć sprawę, którą sam rozstrzygał. Wcześniej
+jedyną barierą było 24 godziny karencji na PODTRZYMANIE własnej decyzji —
+a ta nie przeszkadzała ani cofnąć własnej od razu, ani zamknąć sprawy
+dowolnemu innemu moderatorowi bez opóźnienia. Moderatorowi bez tej roli
+formularz odpowiedzi się nie pokazuje (zamiast tego stoi zdanie mówiące, kto
+sprawę zamyka) — nie po to, żeby coś ukryć, tylko żeby nie stracił napisanego
+uzasadnienia na błędzie 403.
+
+**Skąd się bierze administrator** — `php artisan kuking:nadaj-role <login> admin`,
+z powłoki produkcyjnej. Nie ma na to ekranu w produkcie: przejęcie jednego
+konta administratora wystarczyłoby wtedy, żeby zrobić administratorów
+z kolejnych. Komenda odmawia odebrania roli OSTATNIEMU czynnemu
+administratorowi i zapisuje każdą zmianę w `audit_log`
+(`user.role_changed`).
+
 **Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać

@@ -50,13 +50,24 @@ class OdwolanieOdDecyzjiTest extends TestCase
     }
 
     /**
-     * Ukrycie przepisu przez moderatora, przejściem przez prawdziwy formularz.
+     * Ukrycie przepisu przez osobę z rolą administratora, przejściem przez
+     * prawdziwy formularz zgłoszenia.
+     *
+     * `admin()`, NIE `moderator()` (A-4): pierwszy element krotki służy
+     * w wielu testach niżej TAKŻE do rozstrzygnięcia odwołania od tej samej
+     * decyzji (`admin.appeals.resolve`), a to wymaga roli `admin`
+     * (`UserPolicy::resolveAppeals()`). `isModerator()` jest prawdziwe też
+     * dla admina, więc sama decyzja o ukryciu (`admin.reports.decide`,
+     * bramka `moderate`) przechodzi identycznie jak dla zwykłego moderatora
+     * — testy, którym zależy właśnie na ROZRÓŻNIENIU ról (kto wydaje
+     * pierwotną decyzję vs. kto rozstrzyga odwołanie), budują to ręcznie,
+     * nie przez ten helper.
      *
      * @return array{0: User, 1: User, 2: Recipe, 3: ModerationAction}
      */
     private function ukrytyPrzepis(string $status = Recipe::STATUS_PUBLISHED): array
     {
-        $moderator = $this->moderator();
+        $moderator = $this->admin();
         $autor = $this->user('basia');
 
         $recipe = Recipe::factory()->create([
@@ -370,12 +381,14 @@ class OdwolanieOdDecyzjiTest extends TestCase
 
     public function test_cofniecie_blokady_konta_oddaje_dostep_i_mowi_o_tym_przy_logowaniu(): void
     {
-        $moderator = $this->moderator();
+        // Ta sama osoba wydaje decyzję i rozstrzyga odwołanie od niej —
+        // musi więc mieć rolę administratora (A-4), nie samego moderatora.
+        $admin = $this->admin();
         $autor = $this->user('basia', ['password' => 'tajne-haslo-babci']);
         $post = Post::factory()->create(['author_id' => $autor->getKey()]);
         $report = $this->zgloszenie('post', $post->getKey());
 
-        $this->actingAs($moderator)
+        $this->actingAs($admin)
             ->from(route('admin.reports'))
             ->post(route('admin.reports.decide', $report), [
                 'action' => ModerationAction::ACTION_BAN,
@@ -391,7 +404,7 @@ class OdwolanieOdDecyzjiTest extends TestCase
 
         $odwolanie = Appeal::firstOrFail();
 
-        $this->actingAs($moderator)
+        $this->actingAs($admin)
             ->from(route('admin.appeals'))
             ->post(route('admin.appeals.resolve', $odwolanie), [
                 'outcome' => Appeal::STATUS_OVERTURNED,
@@ -418,8 +431,11 @@ class OdwolanieOdDecyzjiTest extends TestCase
         // Zablokowany człowiek nie zobaczy powiadomienia — leży ono
         // w serwisie, do którego go nie wpuszczamy. Ekran logowania jest
         // jedynym kanałem, którym cokolwiek do niego dotrze.
+        // Decyzję o blokadzie wydaje zwykły moderator (front-line) — jej
+        // rozstrzygnięcie po odwołaniu wymaga administratora (A-4), więc
+        // druga osoba niżej jest adminem, nie kolejnym moderatorem.
         $moderator = $this->moderator();
-        $drugiModerator = $this->moderator();
+        $admin = $this->admin();
         $autor = $this->user('basia', ['password' => 'tajne-haslo-babci']);
         $post = Post::factory()->create(['author_id' => $autor->getKey()]);
         $report = $this->zgloszenie('post', $post->getKey());
@@ -440,7 +456,7 @@ class OdwolanieOdDecyzjiTest extends TestCase
 
         $odwolanie = Appeal::firstOrFail();
 
-        $this->actingAs($drugiModerator)
+        $this->actingAs($admin)
             ->from(route('admin.appeals'))
             ->post(route('admin.appeals.resolve', $odwolanie), [
                 'outcome' => Appeal::STATUS_UPHELD,
@@ -483,8 +499,9 @@ class OdwolanieOdDecyzjiTest extends TestCase
 
         $this->assertTrue($odwolanie->refresh()->isOpen());
 
-        // Druga osoba z zespołu może zamknąć sprawę od razu.
-        $this->actingAs($this->moderator())
+        // Druga osoba z zespołu (też administrator — A-4) może zamknąć
+        // sprawę od razu.
+        $this->actingAs($this->admin())
             ->from(route('admin.appeals'))
             ->post(route('admin.appeals.resolve', $odwolanie), [
                 'outcome' => Appeal::STATUS_UPHELD,
@@ -527,7 +544,7 @@ class OdwolanieOdDecyzjiTest extends TestCase
         ]);
 
         $odwolanie = Appeal::firstOrFail();
-        $inny = $this->moderator();
+        $inny = $this->admin();
 
         $this->actingAs($inny)
             ->from(route('admin.appeals'))
@@ -583,5 +600,54 @@ class OdwolanieOdDecyzjiTest extends TestCase
     {
         // 404, nie 403 — panel moderacji nie potwierdza, że istnieje.
         $this->actingAs($this->user('basia'))->get(route('admin.appeals'))->assertNotFound();
+    }
+
+    /**
+     * REGRESJA (A-4): rozstrzygnięcie odwołania wymaga roli administratora.
+     *
+     * PRZED TĄ ZMIANĄ: cały `/admin` (`routes/web.php`) miał tylko bramkę
+     * `['auth', 'moderator', 'moderator.2fa']`, a `AppealController::resolve()`
+     * autoryzował się przez `UserPolicy::moderate()` — czyli zwykłe
+     * `isModerator()`. Jedyną ochroną przed samosądem był
+     * `ResolveAppeal::sprawdzKarencje()`, a ten pilnuje WYŁĄCZNIE tego, żeby
+     * TEN SAM moderator nie podtrzymał NATYCHMIAST WŁASNEJ decyzji — nie
+     * przeszkadza w niczym, gdy sprawę zamyka moderator, który z pierwotną
+     * decyzją nie ma nic wspólnego. Taki moderator (`$innyModerator` niżej)
+     * dostawał dziś przekierowanie 302 i sprawa była realnie zamknięta.
+     *
+     * `$innyModerator` NIE JEST osobą, która wydała pierwotną decyzję
+     * (o to dba sam scenariusz: nowe, świeże konto moderatora), więc test
+     * mierzy dokładnie regułę A-4 — nie karencję z issue #10, która i tak by
+     * tu nie zadziałała.
+     *
+     * PO ZMIANIE: `resolve()` autoryzuje się przez
+     * `UserPolicy::resolveAppeals()` (`isAdmin()`), więc zwykły moderator
+     * dostaje 403 zanim cokolwiek w `ResolveAppeal` w ogóle się wykona —
+     * odwołanie zostaje otwarte.
+     */
+    public function test_moderator_bez_roli_administratora_nie_rozstrzyga_odwolania(): void
+    {
+        [, $autor, , $decyzja] = $this->ukrytyPrzepis();
+
+        $this->actingAs($autor)->post(route('appeals.store', $decyzja), [
+            'body' => 'To mój własny przepis, gotuję go od trzydziestu lat.',
+        ]);
+
+        $odwolanie = Appeal::firstOrFail();
+
+        // Świeży moderator, zero związku z pierwotną decyzją — celowo, żeby
+        // wykluczyć karencję z `ResolveAppeal::sprawdzKarencje()` jako
+        // wyjaśnienie wyniku testu.
+        $innyModerator = $this->moderator();
+
+        $this->actingAs($innyModerator)
+            ->from(route('admin.appeals'))
+            ->post(route('admin.appeals.resolve', $odwolanie), [
+                'outcome' => Appeal::STATUS_UPHELD,
+                'decision_note' => 'Sam to rozstrzygam, bez administratora.',
+            ])
+            ->assertForbidden();
+
+        $this->assertTrue($odwolanie->refresh()->isOpen());
     }
 }

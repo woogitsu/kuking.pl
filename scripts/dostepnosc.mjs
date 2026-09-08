@@ -1008,6 +1008,138 @@ if (karuzelaBezJs) {
 }
 
 /* =============================================================================
+   WYBÓR ZDJĘCIA BEZ JAVASCRIPTU (decyzja właściciela D-035)
+
+   DLACZEGO TO NIE MOŻE BYĆ ANI TEST PHPUnit, ANI PRZEBIEG AXE
+   Od D-035 natywne `<input type="file">` jest schowane dla oka, a klikalny
+   jest duży obszar „Dodaj zdjęcie" — prawdziwy `<label for>`. Test w PHP
+   sprawdza, że pole i etykieta są w HTML-u i że są ze sobą związane
+   (`PoleWyboruZdjeciaTest`), i to wystarcza do złapania literówki w `for`.
+   NIE sprawdzi dwóch rzeczy, które w tej decyzji są WARUNKIEM:
+
+     1. czy pole, którego nie widać, dalej DA SIĘ ZŁAPAĆ KLAWISZEM TAB.
+        `display: none` i `visibility: hidden` wyjmują je z kolejności
+        tabulacji, a w kodzie strony wygląda to identycznie — różnicę widać
+        dopiero na ułożonej stronie;
+     2. czy po zatrzymaniu się na nim WIDAĆ, GDZIE SIĘ JEST. Pierścień fokusu
+        rysuje się nie na polu, tylko na etykiecie obok
+        (`.pole-zdjecia-input:focus-visible + .pole-zdjecia`), więc trzeba
+        odczytać wyliczony styl innego elementu niż ten, który ma fokus.
+
+   Axe tego nie złapie: pole ma etykietę i nazwę dostępną w OBU przypadkach,
+   a `:focus-visible` nie jest regułą axe. To jest dokładnie ta sama klasa
+   usterki, dla której powstał pomiar układu wyżej — drzewo dokumentu wygląda
+   dobrze, a człowiek przed ekranem nie może zrobić tego, co miał zrobić.
+
+   `javaScriptEnabled: false`, bo wybór zdjęcia ma działać bez skryptu
+   (AGENTS.md §5). Fokus stawiamy KLAWISZEM, nie `element.focus()`:
+   `:focus-visible` jest heurystyką przeglądarki i przy fokusie z kodu
+   potrafi się nie włączyć — mierzylibyśmy wtedy coś innego niż to, co dostaje
+   osoba idąca Tabem.
+   ========================================================================== */
+log('');
+log('Wybór zdjęcia bez JavaScriptu:');
+
+/** Ile razy najwyżej naciskamy Tab, zanim uznamy, że pola nie ma w kolejności. */
+const MAKS_TABOW = 60;
+
+const wyborZdjeciaBezJs = await (async () => {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: 360, height: 740 },
+    javaScriptEnabled: false,
+    storageState: stanZalogowany,
+  });
+
+  const strona = await kontekst.newPage();
+  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
+  const kod = odpowiedz?.status() ?? 0;
+
+  // Ten sam powód co przy pomiarze układu: strona błędu nie ma pola wyboru
+  // zdjęcia, więc bez tego sprawdzenia przebieg zgłaszałby „nie znalazłem"
+  // zamiast „nie byłem na właściwej stronie".
+  if (kod !== 200) {
+    console.error(`BŁĄD: „/dodaj/zdjecie" odpowiedziało kodem ${kod} — wybór zdjęcia nie został sprawdzony.`);
+    process.exitCode = 1;
+    await kontekst.close();
+
+    return null;
+  }
+
+  let krokow = 0;
+  let aktywne = null;
+
+  while (krokow < MAKS_TABOW) {
+    await strona.keyboard.press('Tab');
+    krokow++;
+
+    aktywne = await strona.evaluate(() => {
+      const el = document.activeElement;
+
+      return el ? { id: el.id, typ: el.getAttribute('type') } : null;
+    });
+
+    if (aktywne?.id === 'f-photos') {
+      break;
+    }
+  }
+
+  const doszloTabem = aktywne?.id === 'f-photos' && aktywne?.typ === 'file';
+
+  const pomiar = doszloTabem
+    ? await strona.evaluate(() => {
+      const pole = document.getElementById('f-photos');
+      const etykieta = document.querySelector('label[for="f-photos"]');
+      const stylPola = getComputedStyle(pole);
+      const stylEtykiety = etykieta ? getComputedStyle(etykieta) : null;
+
+      return {
+        etykiet: document.querySelectorAll('label[for="f-photos"]').length,
+        // Te dwie wartości są sednem D-035: pole wolno schować dla oka,
+        // ale NIE WOLNO go schować przed klawiaturą i czytnikiem.
+        display: stylPola.display,
+        visibility: stylPola.visibility,
+        obrys: stylEtykiety ? stylEtykiety.outlineStyle : null,
+        gruboscObrysu: stylEtykiety ? Math.round(parseFloat(stylEtykiety.outlineWidth) || 0) : 0,
+      };
+    })
+    : null;
+
+  await kontekst.close();
+
+  return {
+    krokowTabem: krokow,
+    doszloTabem,
+    etykiet: pomiar?.etykiet ?? 0,
+    display: pomiar?.display ?? null,
+    visibility: pomiar?.visibility ?? null,
+    obrys: pomiar?.obrys ?? null,
+    gruboscObrysu: pomiar?.gruboscObrysu ?? 0,
+    zostajeWDrzewie: pomiar !== null && pomiar.display !== 'none' && pomiar.visibility !== 'hidden',
+    // Jedna etykieta, nie dwie: dwie na jedno pole to znany błąd
+    // (axe `form-field-multiple-labels`), a przy tym wzorcu łatwo go dołożyć.
+    jednaEtykieta: pomiar?.etykiet === 1,
+    widocznyFokusNaObszarze: pomiar !== null && pomiar.obrys !== 'none' && pomiar.gruboscObrysu > 0,
+  };
+})();
+
+if (wyborZdjeciaBezJs) {
+  const dobrze = wyborZdjeciaBezJs.doszloTabem
+    && wyborZdjeciaBezJs.zostajeWDrzewie
+    && wyborZdjeciaBezJs.jednaEtykieta
+    && wyborZdjeciaBezJs.widocznyFokusNaObszarze;
+
+  log(`  ${dobrze ? '✓' : '✗'} Tab dochodzi do pola po ${wyborZdjeciaBezJs.krokowTabem} krokach`
+    + ` (${wyborZdjeciaBezJs.doszloTabem ? 'tak' : 'NIE'})`
+    + `, etykiet: ${wyborZdjeciaBezJs.etykiet}`
+    + `, pole display: ${wyborZdjeciaBezJs.display} / visibility: ${wyborZdjeciaBezJs.visibility}`
+    + `, obrys na obszarze: ${wyborZdjeciaBezJs.obrys} ${wyborZdjeciaBezJs.gruboscObrysu} px`);
+
+  if (! dobrze) {
+    process.exitCode = 1;
+  }
+}
+
+/* =============================================================================
    WYRÓWNANIE BELKI DO SIATKI TREŚCI
 
    DLACZEGO TO NIE MOŻE BYĆ TEST PHPUnit
@@ -1241,6 +1373,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnienia,
   },
   karuzelaBezJs,
+  wyborZdjeciaBezJs,
   wyrownanieBelki: {
     szerokosci: SZEROKOSCI_WYROWNANIA,
     rozjazdow: rozjazdyBelki.length,

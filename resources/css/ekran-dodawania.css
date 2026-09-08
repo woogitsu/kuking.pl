@@ -18,22 +18,69 @@
      Wzorzec z docs/design/kit-v2/html/08_mobile_add.html (`.photo-picker`)
      i ze specyfikacji w docs/design/DESIGN_SYSTEM.md §5 („duży obszar
      »Dodaj zdjęcie«, min. 120px wysokości, wyraźny obrys przerywany + tekst
-     + ikona"). Dziś ten sam efekt dawał goły `<input type="file">` w zwykłym
-     bordowanym polu (`.field-input`) — czytelny, ale bez tej wizualnej wagi,
-     jaką ma główna czynność ekranu.
+     + ikona").
+
+     NATYWNE POLE PLIKU JEST SCHOWANE DLA OKA — DECYZJA WŁAŚCICIELA D-035.
+     Do tej zmiany stał tu `<input type="file">` w pełni widoczny, a komentarz
+     w tym miejscu mówił, że zostaje widoczny celowo. Przeglądarka rysuje
+     w takim polu przycisk „Choose File / No file chosen" PO ANGIELSKU
+     i nie zmienia tego ŻADEN atrybut ani żadna reguła CSS — w środku
+     polskiego formularza był to jedyny angielski napis na ekranie.
+     Właściciel rozstrzygnął: wolno je schować, klikalna zostaje etykieta.
+     To jest ten sam wzorzec, który system projektowy v3.1 opisuje jako D-107
+     i ma gotowy w `docs/design/system-v3.1/components/forms/PhotoPicker.jsx`
+     oraz w szablonie `03-szablony/dodaj-przepis-krok-1.html`.
+
+     ŚWIADOMA STRATA, KTÓRĄ WŁAŚCICIEL PRZYJĄŁ
+     Razem z natywnym przyciskiem znika jedyne potwierdzenie, jakie dawał
+     bez JavaScriptu: nazwa wybranego pliku. Między kliknięciem a wysłaniem
+     formularza na ekranie nie zmienia się wtedy nic. Potwierdzenie przychodzi
+     dopiero z serwera — miniatura i napis „Zmień zdjęcie", które już działają.
+     Ze skryptem jest lepiej: `resources/js/app.js` dorysowuje pod obszarem
+     „Wybrano 1 zdjęcie." i miniatury. To jest ulepszenie, nie warunek.
+
+     JAK TO JEST SCHOWANE — I DLACZEGO NIE `display: none`
+     `display: none` oraz `visibility: hidden` wyjmują pole Z DRZEWA
+     DOSTĘPNOŚCI I Z KOLEJNOŚCI TABULACJI naraz. Po nich nie da się wybrać
+     zdjęcia z klawiatury ani znaleźć pola czytnikiem ekranu — czyli ta sama
+     usterka, tylko dla innych ludzi. Widoki używają więc klasy
+     `.visually-hidden` z `resources/css/app.css` (`position: absolute`,
+     1×1 px, `clip`). Sprawdzone linijka po linijce: ta klasa nie ustawia ani
+     `display`, ani `visibility`, ani `opacity`, ani `pointer-events` — pole
+     zostaje fokusowalne i czytelne dla czytnika ekranu. Nie pisaliśmy własnej
+     klasy, bo nie było czego poprawiać.
 
      ŚWIADOMIE BEZ JAVASCRIPTU I BEZ ALPINE.
      `COMPONENTS_BLADE.md` §7 pokazuje wersję z podglądem miniatury przez
-     Alpine (`x-data`, `URL.createObjectURL`) — ale trzy miejsca, które tu
+     Alpine (`x-data`, `URL.createObjectURL`) — ale miejsca, które tu
      stylujemy, żyją także na drodze `/dodaj/zdjecie` i
      `/dodaj/przepis/jedna-strona`, czyli na drodze BEZ JavaScriptu
      (AGENTS.md §5, „Rejestracja... publikacja wpisu, przepis... muszą
-     działać bez JavaScriptu"). Prawdziwy `<input type="file">` zostaje więc
-     w pełni widoczny i klikalny wewnątrz tego obszaru — nic go nie chowa,
-     nic nie podmienia. Atrybuty `id`/`name`/`wire:model`/`accept`/
-     `aria-describedby` w widokach, które to pole otaczają, są dokładnie
-     te same, co przed tą zmianą.
+     działać bez JavaScriptu"). Kliknięcie `<label for>` otwiera wybór pliku,
+     bo tak działa HTML — bez linijki skryptu i bez atrybutu `style=`.
+     Atrybuty `id`/`name`/`wire:model`/`accept`/`aria-describedby` w widokach
+     są dokładnie te same, co przed tą zmianą.
   */
+
+  /* Nazwa pola nad obszarem — „Zdjęcie gotowego dania", „Zdjęcie profilowe".
+     To jest `<span>`, a NIE `<label>`, i to jest celowe: `<label for>`
+     wskazujący na to pole ma być DOKŁADNIE JEDEN, czyli sam obszar wyboru.
+     Dwie etykiety na jedno pole to znany błąd (axe `form-field-multiple-labels`,
+     WCAG 3.3.2) — czytnik ekranu czyta wtedy raz jedną, raz obie, zależnie od
+     silnika. Nazwa wraca do pola przez `aria-labelledby` w widoku, więc nic
+     się nie gubi: pole nadal nazywa się „Zdjęcie gotowego dania Dodaj zdjęcie".
+
+     Wygląd jest kopią reguły `label` z tokens.css (@layer base) — pole ma
+     wyglądać dokładnie tak, jak wyglądało, i nie odstawać od sąsiednich pól
+     formularza. */
+  .pole-zdjecia-nazwa {
+    display: block;
+    font-weight: 700;
+    font-size: var(--text-body);
+    color: var(--color-ink);
+    margin-bottom: var(--spacing-2);
+  }
+
   .pole-zdjecia {
     display: flex;
     flex-direction: column;
@@ -45,6 +92,21 @@
     background-color: var(--color-surface-sunken);
     border: 2px dashed var(--color-border-strong);
     border-radius: var(--radius-lg);
+
+    /* Obszar JEST teraz `<label>`, więc łapie regułę `label` z warstwy base
+       (`font-weight: 700`, `margin-bottom: --spacing-2`). Bez tych dwóch
+       linijek pomoc pod tytułem zrobiłaby się pogrubiona, a pod obszarem
+       pojawiłby się odstęp, którego wcześniej nie było. `display: flex`
+       wygrywa z `display: block` z tamtej reguły, bo warstwa components stoi
+       po warstwie base. */
+    font-weight: 400;
+    margin-bottom: 0;
+
+    /* Kursor mówi myszą to samo, co etykieta i tak robi po kliknięciu.
+       Nie jest JEDYNĄ podpowiedzią (UX_50_PLUS.md, „bez ukrytych gestów"):
+       w środku obszaru stoi napis „Dodaj zdjęcie" i zdanie o tym, co się
+       stanie po kliknięciu. */
+    cursor: pointer;
   }
 
   /* Ten sam sygnał błędu co `.field.has-error .field-input` w tokens.css —
@@ -52,6 +114,25 @@
      nie dopiero w komunikacie pod nim. */
   .field.has-error .pole-zdjecia {
     border-color: var(--color-danger);
+  }
+
+  /* WIDOCZNY FOKUS NA OBSZARZE, GDY FOKUS JEST NA SCHOWANYM POLU.
+     Bez tej reguły osoba idąca Tabem dostaje pole, którego nie widać:
+     pierścień fokusu rysowałby się wokół schowanego prostokąta 1×1 px,
+     czyli nigdzie. To jest warunek, bez którego całej tej zmiany nie wolno
+     wdrożyć (WCAG 2.4.7).
+
+     REGUŁA WYMUSZA KOLEJNOŚĆ W BLADE: `<input>` stoi BEZPOŚREDNIO PRZED
+     `<label class="pole-zdjecia">`. Tak samo robi to `PhotoPicker` z systemu
+     v3.1 i jest to tam zapisane wielkimi literami z tego samego powodu.
+
+     `:focus-visible`, nie `:focus` — dokładnie jak w całym serwisie
+     (tokens.css, @layer base): pierścień przy klawiaturze, nie przy
+     kliknięciu myszą, po którym i tak natychmiast otwiera się okno wyboru
+     pliku. */
+  .pole-zdjecia-input:focus-visible + .pole-zdjecia {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
   }
 
   .pole-zdjecia-ikona {
@@ -72,28 +153,31 @@
     margin-top: 0;
   }
 
-  .pole-zdjecia-input {
-    margin-top: var(--spacing-3);
-    max-width: 100%;
-    background-color: var(--color-surface-raised);
-  }
+  /* WINDOWS HIGH CONTRAST (`forced-colors`) — ten sam wzorzec zabezpieczenia
+     co przy `.notification-nieprzeczytane` w app.css. Dwie rzeczy:
 
-  /* Przycisk „Wybierz plik" natywnego pola pliku — żeby w środku
-     odświeżonego obszaru nie został surowy, systemowy wygląd przeglądarki.
-     `::file-selector-button` ma wsparcie w Chrome/Edge/Firefoksie i Safari
-     16.4+; starsze silniki dostają zwykły, wciąż w pełni działający
-     przycisk systemowy — to jest ulepszenie wizualne, nie warunek działania. */
-  .pole-zdjecia-input::file-selector-button,
-  .pole-zdjecia-input::-webkit-file-upload-button {
-    margin-right: var(--spacing-3);
-    padding: var(--spacing-2) var(--spacing-4);
-    font-family: var(--font-sans);
-    font-size: var(--text-body);
-    font-weight: 700;
-    color: var(--color-ink);
-    background-color: var(--color-surface-raised);
-    border: 2px solid var(--color-border-strong);
-    border-radius: var(--radius-md);
-    cursor: pointer;
+     1. PIERŚCIEŃ FOKUSU. W tym trybie kolory z tokenów nie obowiązują,
+        a warstwa base rysuje `:focus-visible` kolorem systemowym `Highlight`.
+        Tamta reguła nas nie ratuje, bo nasz pierścień stoi na INNYM elemencie
+        (etykieta) niż fokusowane pole. Powtarzamy ją więc tutaj — inaczej
+        przy wysokim kontraście fokus mógłby zniknąć dokładnie tym ludziom,
+        którzy ten tryb włączyli, bo słabo widzą.
+
+     2. SCHOWANE POLE MA ZOSTAĆ SCHOWANE. Warstwa base daje w tym trybie
+        każdemu `.field input` obwódkę `2px solid ButtonText`. Na polu
+        o rozmiarze 1×1 px jest to widoczny punkt w rogu obszaru — mały,
+        ale w trybie wysokiego kontrastu wyraźny i niewytłumaczalny.
+        `.visually-hidden` (warstwa components) i tak wygrywa z warstwą base,
+        więc dziś tego punktu nie ma; ta linijka trzyma to niezależnie od
+        kolejności warstw i od tego, czy ktoś kiedyś zdejmie z pola klasę
+        `.visually-hidden`. */
+  @media (forced-colors: active) {
+    .pole-zdjecia-input {
+      border: 0;
+    }
+
+    .pole-zdjecia-input:focus-visible + .pole-zdjecia {
+      outline: 3px solid Highlight;
+    }
   }
 }

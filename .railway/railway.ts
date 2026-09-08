@@ -208,12 +208,35 @@ export default defineRailway((ctx) => {
     QUEUE_CONNECTION: "database",
 
     // --- Zaufane proxy --------------------------------------------------------
-    // Łańcuch: Cloudflare → Railway edge → kontener. Bez tego Laravel widzi IP
-    // proxy zamiast użytkownika (psuje rate limiting i logi bezpieczeństwa)
-    // i generuje URL-e po http:// zamiast https:// (mixed content, pętle
-    // przekierowań).
-    // Implementacja: bootstrap/app.php → $middleware->trustProxies(at: '*')
-    TRUSTED_PROXIES: "*",
+    //  Łańcuch: Cloudflare → Railway edge → kontener. Bez zaufania do
+    //  nagłówków X-Forwarded-* Laravel widzi adres proxy zamiast użytkownika
+    //  (psuje limity i logi bezpieczeństwa) i generuje URL-e po http://
+    //  zamiast https:// (mixed content, pętle przekierowań).
+    //
+    //  TRUSTED_PROXIES ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (ustalenie SEC-01).
+    //
+    //  Ta zmienna NIGDY nie była przez aplikację czytana. `bootstrap/app.php`
+    //  ma `trustProxies(at: '*')` wpisane na sztywno, a jedyną inną nazwą,
+    //  której szuka framework, jest legacy `config('trustedproxy.proxies')` —
+    //  pliku `config/trustedproxy.php` w tym repozytorium nie ma. Zmienna
+    //  wyglądała więc jak przełącznik i nie przełączała niczego: ustawienie
+    //  jej na listę adresów nie zmieniłoby zachowania ani o krok.
+    //  (Ten sam kształt błędu co usunięty limit 'upload' i martwe
+    //  `kuking.media_disk` — patrz komentarze w `config/kuking.php`.)
+    //
+    //  PRAWDZIWY przełącznik jest teraz jeden i niżej.
+    //
+    //  KUKING_ZAUFANE_PRZESKOKI — ile wpisów w `X-Forwarded-For` dopisuje
+    //  nasza własna infrastruktura. Aplikacja czyta adres klienta jako n-ty
+    //  wpis OD KOŃCA łańcucha, bo proxy dopisuje na końcu, a klient może
+    //  dopisywać tylko na początku. Pełne uzasadnienie i sposób POMIARU tej
+    //  liczby: `config/proxy.php` oraz `App\Http\Middleware\NormalizeForwardedFor`.
+    //
+    //  Zostawiamy 1 do czasu pomiaru na żywej infrastrukturze (Blok B krok 6
+    //  z docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md). Za mała wartość jest
+    //  niegroźna (adres wspólny → limity zbyt ostre); za duża przywraca
+    //  podatność, bo odczyt wchodzi w obszar wypełniany przez klienta.
+    KUKING_ZAUFANE_PRZESKOKI: "1",
 
     // --- Storage zdjęć: Cloudflare R2, DWA BUCKETY ---------------------------
     //
@@ -271,14 +294,49 @@ export default defineRailway((ctx) => {
     //  do właściciela.
 
     // --- Poczta transakcyjna --------------------------------------------------
+    //
+    //  `smtp` zakłada dostawcę, który daje login i hasło SMTP (Brevo,
+    //  EmailLabs, Mailgun, Postmark, Resend — każdy z nich ma bramkę SMTP).
+    //  Przy dostawcy po API zamień na `postmark`, `resend` albo `ses`
+    //  i dołóż jego klucz — komplet zmiennych i rekordów DNS dla trzech
+    //  wariantów jest w `docs/infra/POCZTA_URUCHOMIENIE.md`.
+    //
+    //  Po zmianie tych wartości sprawdź, że poczta NAPRAWDĘ wychodzi:
+    //      railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
+    //  Sterownik `log` przyjmuje wiadomość i zgłasza sukces, nie wysyłając
+    //  jej nikomu — dlatego nie wolno go tu wpisać „na chwilę".
     MAIL_MAILER: "smtp",
     MAIL_HOST: ctx.shared.MAIL_HOST,
     MAIL_PORT: ctx.shared.MAIL_PORT,
     MAIL_USERNAME: ctx.shared.MAIL_USERNAME,
     MAIL_PASSWORD: ctx.shared.MAIL_PASSWORD,
+    // `tls` = STARTTLS na porcie 587. Przy porcie 465 musi tu być `smtps`,
+    // inaczej połączenie wisi do timeoutu zamiast dać czytelny błąd.
     MAIL_SCHEME: "tls",
-    MAIL_FROM_ADDRESS: isProduction ? "kuchnia@kuking.pl" : "staging@kuking.pl",
-    // MAIL_FROM_NAME CELOWO NIEUSTAWIONE.
+
+    //  JEDEN ADRES W OBIE STRONY (decyzja właściciela, 7 IX 2026).
+    //
+    //  Stało tu `kuchnia@kuking.pl`, podczas gdy kod pokazywał ludziom
+    //  `kontakt@kuking.pl` (`config/kuking.php`, pouczenia DSA, polityka
+    //  prywatności, ekran „Nie pamiętam hasła"). Z kodu nie dało się
+    //  ustalić, która skrzynka odbiera odpowiedzi — a odpowiedź na list
+    //  z linkiem do zmiany hasła to dla osoby 60+ najbardziej naturalna
+    //  reakcja. `config/mail.php` i `.env.example` poprawiono wtedy,
+    //  ten plik został pominięty i `railway config apply` wpisywał starą
+    //  wartość z powrotem.
+    //
+    //  Żadnego `noreply@` — `docs/brand/BRAND_EXTENDED.md` tego zabrania.
+    //  Pilnuje tego test `NadawcaPocztyNieJestNoreplyTest`, który czyta
+    //  także ten plik.
+    //
+    //  Staging wysyła z własnego adresu CELOWO: list ze środowiska
+    //  testowego ma być rozpoznawalny na pierwszy rzut oka i nie może
+    //  podszywać się pod produkcję. `KUKING_CONTACT_EMAIL` idzie za nim,
+    //  żeby adres pokazywany i adres nadawcy zgadzały się w KAŻDYM
+    //  środowisku — to jest ta sama zasada, tylko konsekwentnie.
+    MAIL_FROM_ADDRESS: isProduction ? "kontakt@kuking.pl" : "staging@kuking.pl",
+
+    // MAIL_FROM_NAME CELOWO NIEUSTAWIONE (z gałęzi D-037, scalonej w #129).
     //
     // Nazwa nadawcy składa się z imienia gospodarza
     // (`config('kuking.community.host_name')`, dziś „Ula") i „z Kuking" —
@@ -290,6 +348,10 @@ export default defineRailway((ctx) => {
     // Gospodarz zmienia się w JEDNYM miejscu — `KUKING_HOST_NAME`
     // (`config/kuking.php`). Tę zmienną wolno tu przywrócić wyłącznie po to,
     // żeby nadpisać nazwę nadawcy DORAŹNIE, wbrew konfiguracji.
+
+    KUKING_CONTACT_EMAIL: isProduction
+      ? "kontakt@kuking.pl"
+      : "staging@kuking.pl",
 
     // --- Obserwowalność -------------------------------------------------------
     SENTRY_LARAVEL_DSN: ctx.shared.SENTRY_LARAVEL_DSN,

@@ -262,6 +262,14 @@ class LimitLogowaniaNaKontoTest extends TestCase
 
         // Wielkość liter w loginie nie może tworzyć nowego koszyka.
         $this->assertSame($klucze->konto($email), $klucze->konto('Jan.Kowalski@Example.com'));
+
+        // Ani białe znaki wokół loginu (SEC-01, punkt 3). `User::findByLogin()`
+        // je obcina, więc „ jan.kowalski@example.com" to TO SAMO konto — a każdy
+        // wariant zapisu z własnym koszykiem znaczyłby brak koszyka. Globalny
+        // `TrimStrings` Laravela zamyka tę drogę od strony formularza, ale klucz
+        // limitera nie ma prawa zależeć od middleware'u zrobionego do czego innego.
+        $this->assertSame($klucze->konto($email), $klucze->konto('  '.$email.'  '));
+        $this->assertSame($klucze->para($email, $adres), $klucze->para(' '.$email, $adres));
     }
 
     /** Ile prób zebrał koszyk adresu — czytane tak, jak liczy je kod. */

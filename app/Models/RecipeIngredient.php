@@ -29,6 +29,11 @@ class RecipeIngredient extends Model
 
     protected $fillable = [
         'recipe_id',
+        // Śródtytuł części przepisu — „Ciasto", „Farsz", „Do podania" (D-033).
+        // `null` znaczy „ten składnik nie należy do żadnej części" i jest
+        // stanem NORMALNYM: większość przepisów nie ma grup. Kolejność grup
+        // wynika z `position` składników, nie z osobnej kolumny; układem do
+        // wyświetlenia zajmuje się `App\Domain\Recipes\GrupySkladnikow`.
         'group_name',
         'ingredient_id',
         'ingredient_text',

@@ -210,36 +210,55 @@ W7-02 is fixed in the application, not in the infrastructure. That is issue
 
 ## 4. What to do next
 
-### 4.1 W7-01 — measured today, decision pending
+### 4.1 W7-01 — application half now fixed (SEC-01), trust boundary still open
 
-**The application-layer half is no longer a hypothesis. It is measured.**
-Run through the real middleware stack in this repository:
+> Rewritten after the SEC-01 patch. The previous text described the state
+> before the fix **and got one detail wrong**, which is corrected below.
 
-```text
-no headers                 ip=127.0.0.1     (real REMOTE_ADDR)
-X-Forwarded-For single     ip=203.0.113.7   (the client's own value)
-X-Forwarded-For chain      ip=203.0.113.7   (first element wins, chain stripped)
-XFF + CF-Connecting-IP     ip=203.0.113.7   (CF-Connecting-IP ignored entirely)
-XFF + X-Forwarded-Proto    secure()=true    (this is why trustProxies is needed)
+**Correction to the old measurement.** It said "first element wins" for a
+chained `X-Forwarded-For`. The **last** element wins. In the framework source:
+Laravel turns `trustProxies(at: '*')` into
+`setTrustedProxies([REMOTE_ADDR], …)` — trust only the machine that just
+connected — and Symfony's `Request::normalizeAndFilterClientIps()` then
+appends `REMOTE_ADDR`, drops the trusted entries, **reverses** what is left
+and returns its first element. That is the rightmost surviving entry.
 
-login rate limit, no XFF          -> blocked on attempt 6 (limit is 5/min)
-login rate limit, XFF changed     -> NEVER blocked in 8 attempts
-```
+This matters: with "last wins", traffic that really goes through Cloudflare
+already got the right address, because Cloudflare appends the visitor address
+at the end and does not let a transform rule overwrite it. What was genuinely
+exposed was traffic with **nothing in front of it**, plus any future topology
+change that added a hop without a code change.
 
-So inside the application a client-controlled header fully determines
-`$request->ip()`, resets every IP-keyed limit, and chooses the value hashed
-into `audit_log.ip_hash`. What is **still** unknown is only whether Cloudflare
-or Railway strip a client-supplied `X-Forwarded-For` before it reaches the
-container. That is the audit's SEC-01 staging test and it belongs to the owner.
+**What the fix does.** `App\Http\Middleware\NormalizeForwardedFor` runs
+**first in the global stack**, before `TrustProxies`, and reduces
+`X-Forwarded-For` to exactly one entry: the one written by our own
+infrastructure, taken as the n-th entry **from the end**. The count lives in
+`config/proxy.php` (`KUKING_ZAUFANE_PRZESKOKI`, default `1`). The property it
+relies on is the only one that does not depend on IP addresses: a proxy
+appends at the end, a client can only prepend at the start.
 
-Do not "fix" this by removing `trustProxies(at: '*')`. The comment in
-`bootstrap/app.php` is right about `X-Forwarded-Proto`: without it
-`$request->secure()` is false, `url()` emits `http://` and Cloudflare loops.
-The safer design trusts a canonical single-valued header instead of an
-arbitrary chain — but it has an infrastructure unknown the owner must settle
-first: preview environments (`*.up.railway.app`) have **no Cloudflare in front
-of them** (`docs/infra/INFRA_DECISION.md`), so `CF-Connecting-IP` would be
-equally forgeable there. Ask before implementing.
+A hardcoded list of proxy IPs cannot work here — Symfony matches the trusted
+list against the direct TCP peer, which is always Railway's private edge,
+never a Cloudflare address.
+
+**Still open, and not closable from code:** a request that skips Cloudflare
+entirely (straight to `*.up.railway.app`) carries a chain made only of what
+the client wrote. Telling that apart needs the edge token
+(`X-Kuking-Edge-Token`, Block B in
+`docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`), which needs the Cloudflare panel.
+Preview environments have **no Cloudflare in front of them**
+(`docs/infra/INFRA_DECISION.md`) and the header stays forgeable there.
+
+Also still open: **how many entries Railway's edge appends** (undocumented —
+measure it, do not guess; the recipe is in `config/proxy.php`), and
+**`X-Forwarded-Host`**, which stays trusted until someone enables `TrustHosts`
+with `healthcheck.railway.app` on the list.
+
+Do **not** "fix" the rest by removing `trustProxies(at: '*')`. Without trust
+in `X-Forwarded-Proto`, `$request->secure()` is false, `url()` emits `http://`
+and Cloudflare loops.
+
+The full Polish write-up is `docs/legal/BRAMKA_BETY.md` §3.
 
 ### 4.2 The beta gate
 
@@ -494,10 +513,12 @@ already was "0").
 - Retention: **change the basis and shorten to 36/12/3**; full scope
   minimisation explicitly **rejected** (needs a migration and redesign).
 - Idempotency: **sending key in a database column**, not cache, not a window.
-- **W7-01 (`trustProxies(at: '*')`) is deferred by the owner** — "later, no
-  time". Do not bring it back without new information. The measurement stands:
-  a client-supplied `X-Forwarded-For` fully determines `$request->ip()` and
-  resets every IP-keyed limit.
+- **W7-01 (`trustProxies(at: '*')`) was deferred by the owner** — "later, no
+  time". **Superseded:** the application half was implemented later as SEC-01
+  (`NormalizeForwardedFor` + `config/proxy.php`); see 4.1. The part the owner
+  deferred — the Cloudflare edge token, which is the only thing that can tell
+  "came through our edge" from "skipped our edge" — is still deferred and
+  still needs the panel.
 
 ### 7.4 What is waiting, in the order I would take it
 

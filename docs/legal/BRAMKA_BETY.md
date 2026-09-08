@@ -53,7 +53,7 @@ CHCIAŁ zrobić; test mówi, co zostanie sprawdzone przy następnej zmianie.
 
 | ID | Waga | Stan | Commit | Dowód |
 |---|---|---|---|---|
-| **W7-01** | P0 warunkowy | **OTWARTE** | — | Zmierzone, nie naprawione. Patrz §3. |
+| **W7-01** | P0 warunkowy | **CZĘŚCIOWE** | łatka SEC-01 | `PodrobionyNaglowekProxyTest` (8 testów) — **NIEURUCHOMIONYCH**, patrz §3 i uwaga pod tabelą. Aplikacja domknięta, granica zaufania (token krawędziowy) nie |
 | **W7-02** | P0 | **CZĘŚCIOWE** | `58ed626`, scalone `a8b2861`, poprawka cache `ddfc79a` | `ZdjeciaChronioneNieWyciekajaTest` (23 testy). Patrz §4. |
 | **W7-03** | P1 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest` (6 testów) |
 | **W7-04** | P1 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest`, `StronyBleduPoPolskuTest` |
@@ -66,40 +66,113 @@ CHCIAŁ zrobić; test mówi, co zostanie sprawdzone przy następnej zmianie.
 | **W7-11** | P2 | **ZAMKNIĘTE** | `fba0a39` | `CaddySpojnyZNaglowkamiLaravelaTest` (2 testy) |
 | **W7-12** | P2 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest` — `App\Support\OdzyskiwalneDane` jest jedyną odpowiedzią na „które pola wolno pokazać z powrotem", i jest to BIAŁA LISTA nazw tras, nie czarna lista nazw pól |
 
+> **Uwaga do wiersza W7-01.** Łatka SEC-01 powstała w środowisku bez pełnego
+> `vendor/`, więc PHPUnita **nie uruchomiono ani razu**. Sprawdzone zostało:
+> składnia (`php -l`), zgodność z faktycznym źródłem `TrustProxies`
+> i `Symfony\Component\HttpFoundation\Request`, oraz sam wybór wpisu
+> z łańcucha — uruchomiony w PHP na dwunastu przypadkach, poza Laravelem.
+> **Ośmiu testów Feature z `PodrobionyNaglowekProxyTest` nikt jeszcze nie
+> widział na zielono, a obalenia (cofnąć poprawkę → test czerwony) nie
+> zrobiono.** Do czasu przebiegu na PostgreSQL ten wiersz nie ma prawa
+> awansować na ZAMKNIĘTE.
+
 ---
 
-## 3. W7-01 — jedyne P0, które zostaje otwarte
+## 3. W7-01 — połowa aplikacyjna zamknięta, granica zaufania nadal otwarta
 
-**Połowa aplikacyjna jest zmierzona, nie domniemana.** Przez prawdziwy stos
-middleware tego repozytorium:
+> Sekcja przepisana po SEC-01. Poprzednia wersja opisywała stan przed
+> poprawką i przy okazji **myliła się w jednym szczególe**, który zostaje tu
+> sprostowany, bo prowadził do złych wniosków.
 
-```text
-bez nagłówków              ip=127.0.0.1     (prawdziwy REMOTE_ADDR)
-X-Forwarded-For pojedynczy ip=203.0.113.7   (wartość od klienta)
-X-Forwarded-For łańcuch    ip=203.0.113.7   (pierwszy element wygrywa)
-XFF + CF-Connecting-IP     ip=203.0.113.7   (CF-Connecting-IP ignorowany)
-XFF + X-Forwarded-Proto    secure()=true    (i dlatego trustProxies jest potrzebne)
+### 3.1. Co było — i co poprzednia wersja tej sekcji podała źle
 
-limit logowania bez XFF        → blokada przy 6. próbie (limit to 5/min)
-limit logowania ze zmiennym XFF → NIE BLOKUJE ANI RAZU w ośmiu próbach
-```
+Pomiar sprzed poprawki był w zasadzie trafny: nagłówek od klienta decydował
+o `$request->ip()`, kasował limity liczone po adresie i wybierał wartość
+hashowaną do `audit_log.ip_hash`.
 
-Czyli w aplikacji nagłówek od klienta w całości decyduje o `$request->ip()`,
-kasuje każdy limit liczony po adresie i wybiera wartość hashowaną do
-`audit_log.ip_hash`.
+**Sprostowanie:** nieprawdą było zdanie „przy łańcuchu wygrywa PIERWSZY
+element". Wygrywa **OSTATNI**. Widać to w źródle frameworka, nie w domysłach:
 
-**Czego z kontenera nie da się rozstrzygnąć:** czy Cloudflare albo Railway
-czyszczą podstawiony `X-Forwarded-For`, zanim dojdzie do kontenera. To jest test
-SEC-01 z audytu i wymaga stagingu.
+- `trustProxies(at: '*')` Laravel tłumaczy na
+  `setTrustedProxies([REMOTE_ADDR], …)` — czyli „ufaj wyłącznie tej maszynie,
+  która się właśnie połączyła", a nie „ufaj całemu łańcuchowi";
+- dalej pracuje Symfony (`Request::normalizeAndFilterClientIps()`): dokleja
+  `REMOTE_ADDR` na koniec łańcucha, usuwa z niego adresy zaufane, **odwraca
+  resztę** i oddaje jej pierwszy element jako `getClientIp()`.
 
-**Czego NIE robić:** usuwać `trustProxies(at: '*')`. Komentarz w
-`bootstrap/app.php` ma rację co do `X-Forwarded-Proto` — bez niego
-`$request->secure()` jest fałszem, `url()` generuje `http://`, a Cloudflare
-wpada w pętlę przekierowań. Bezpieczniejszy projekt ufa kanonicznemu,
-jednowartościowemu nagłówkowi zamiast dowolnego łańcucha, ale ma niewiadomą
-infrastrukturalną: środowiska preview (`*.up.railway.app`) **nie mają przed sobą
-Cloudflare** (`docs/infra/INFRA_DECISION.md`), więc `CF-Connecting-IP` byłby tam
-równie fałszowalny. To jest decyzja właściciela.
+Różnica nie jest kosmetyczna. Przy regule „wygrywa ostatni" ruch idący
+**przez Cloudflare** dostawał poprawny adres także przed poprawką — bo to
+Cloudflare dopisuje na końcu adres odwiedzającego i nie pozwala go nadpisać
+regułą transformacji. Realnie podatny był więc ruch, **przed którym nic nie
+stało**, oraz każde przyszłe wdrożenie, w którym łańcuch urósłby o jeden
+przeskok bez zmiany w kodzie.
+
+### 3.2. Co jest po zmianie
+
+Nowy middleware `App\Http\Middleware\NormalizeForwardedFor` stoi **pierwszy
+w globalnym stosie**, przed `TrustProxies`, i zostawia w `X-Forwarded-For`
+dokładnie jeden wpis: ten, który dopisała nasza infrastruktura, wyliczony
+jako **n-ty od końca** łańcucha. Liczbę podaje `config/proxy.php`
+(`KUKING_ZAUFANE_PRZESKOKI`, domyślnie `1`).
+
+Podstawą jest jedyna własność tego nagłówka niezależna od adresów IP:
+**proxy dopisuje na końcu, klient może dopisywać tylko na początku.** Dlatego
+liczymy od prawej — dopisany prefiks przesuwa wyłącznie własne śmieci.
+
+Dlaczego nie lista adresów IP: Symfony porównuje listę zaufanych proxy
+z bezpośrednim peerem TCP, a tym peerem jest zawsze brzeg Railway z sieci
+prywatnej — nigdy adres Cloudflare. Lista zakresów Cloudflare byłaby listą,
+w którą nie trafi żadne żądanie, a adresów brzegu Railway nikt nie gwarantuje
+(`docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md` §3).
+
+Przy okazji zestaw zaufanych nagłówków jest wypisany **jawnie** i skrócony:
+zniknęły `X-Forwarded-Prefix` (doklejany do każdego adresu z `url()`) oraz
+zbiorczy `X-Forwarded-AWS-ELB`. Nic w naszym łańcuchu ich nie wysyła.
+
+### 3.3. Gdy Railway zmieni topologię
+
+Obie możliwe pomyłki są **jednostronne** — mylą się w stronę zbyt ostrą,
+nigdy w stronę zaufania klientowi:
+
+| Co się dzieje | Skutek |
+|---|---|
+| Dochodzi proxy dopisujące wpis (liczba za mała) | Aplikacja widzi adres tego proxy: jeden wspólny adres dla wielu osób. Limity robią się za ostre, podszyć się nie da. Odwracalne jedną zmienną |
+| Proxy ubywa (łańcuch krótszy niż konfiguracja) | Nagłówek jest odrzucany w całości, zostaje adres połączenia TCP, a w logu ląduje ostrzeżenie z samą DŁUGOŚCIĄ łańcucha (bez adresów — AGENTS.md §7) |
+| Ktoś podniesie liczbę „z zapasem" | **To jedyny sposób, żeby przywrócić dziurę.** Odczyt wchodzi w obszar wypełniany przez klienta |
+
+Wartość mierzy się, a nie zgaduje: wejść na produkcję przez Cloudflare bez
+własnego `X-Forwarded-For` i policzyć, ile wpisów ma nagłówek, który dotarł
+do aplikacji. Recepta stoi w `config/proxy.php`, obok liczby.
+
+### 3.4. Co zostaje otwarte (i dlaczego nie da się tego zamknąć kodem)
+
+**Żądanie z pominięciem Cloudflare.** Wejście wprost na `*.up.railway.app`
+niesie łańcuch złożony wyłącznie z tego, co wpisał klient — licząc od prawej
+trafiamy wtedy w jego własny ostatni wpis. Kod nie odróżni „przyszło przez
+nasz brzeg" od „przyszło z pominięciem brzegu"; służy do tego token
+krawędziowy `X-Kuking-Edge-Token` (Blok B w
+`docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`), którego bez panelu Cloudflare
+wdrożyć się nie da. Środowiska preview **nie mają przed sobą Cloudflare**
+w ogóle (`docs/infra/INFRA_DECISION.md`) — tam ten nagłówek pozostaje
+fałszowalny i tak ma być traktowany.
+
+**Ile wpisów dopisuje brzeg Railway.** Dokumentacja Railway nie wspomina
+o `X-Forwarded-For` ani słowem. Do czasu pomiaru na żywej infrastrukturze
+zostaje bezpieczna wartość `1`.
+
+**`X-Forwarded-Host` zostaje zaufany.** Jest podrabialny tak samo jak reszta
+i wpływa na host w adresach z `url()`. Właściwym zamknięciem jest middleware
+`TrustHosts`, którego lista **musi** zawierać `healthcheck.railway.app` —
+inaczej deploy pada na 400 (`.railway/railway.ts`). To osobna zmiana z własnym
+ryzykiem wdrożeniowym i świadomie nie ma jej w tej łatce. Praktyczny zasięg
+jest dziś mniejszy, niż się wydaje: link do ustawienia hasła buduje
+**zakolejkowane** powiadomienie (`UstawienieNowegoHasla implements ShouldQueue`),
+czyli worker bez żądania HTTP, który bierze host z `APP_URL`.
+
+**`trustProxies(at: '*')` zostaje.** Wcześniejsze ostrzeżenie „nie usuwać"
+jest nadal aktualne: bez zaufania do `X-Forwarded-Proto` `$request->secure()`
+jest fałszem, `url()` generuje `http://`, a Cloudflare wpada w pętlę
+przekierowań.
 
 ---
 
