@@ -25,14 +25,27 @@
             <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         @endif
 
-        <div class="field">
-            <label for="f-photos">Zdjęcie tego, co Ci wyszło</label>
-            <span class="field-help" id="f-photos-help">
-                To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
-            </span>
-            <input class="field-input" id="f-photos" type="file" name="photos[]"
+        {{-- Ten sam obszar wyboru zdjęcia co na „Dodaj zdjęcie" i w formularzu
+             przepisu (`.pole-zdjecia`, resources/css/ekran-dodawania.css).
+             Do tej zmiany stał tu goły `<input type="file">` z angielskim
+             „Choose File / No file chosen". Po D-035 pole jest schowane dla
+             oka, ale zostaje pod klawiaturą i w drzewie dostępności, a klikalna
+             jest etykieta. `<input>` MUSI stać bezpośrednio przed `<label>` —
+             obwódkę fokusu rysuje reguła sąsiedztwa. --}}
+        <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
+            <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie tego, co Ci wyszło</span>
+            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                   multiple aria-describedby="f-photos-help">
+                   multiple
+                   aria-labelledby="f-photos-etykieta f-photos-tytul"
+                   aria-describedby="f-photos-help">
+            <label class="pole-zdjecia" for="f-photos">
+                <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
+                <span class="field-help" id="f-photos-help">
+                    To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
+                </span>
+            </label>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>

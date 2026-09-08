@@ -236,7 +236,7 @@ narysowanego.
 
 | element z kitu | co jest w aplikacji |
 |---|---|
-| duży obszar `.photo-picker` (ikona + „Dodaj zdjęcie" + pomoc) | **jest**, na wszystkich trzech drogach dodawania; natywny `<input type="file">` zostaje w pełni widoczny i klikalny w jego wnętrzu |
+| duży obszar `.photo-picker` (ikona + „Dodaj zdjęcie" + pomoc) | **jest**, na wszystkich drogach dodawania i zmiany zdjęcia (wpis, „Ugotowałem", przepis bez JS, kreator Livewire, zdjęcie profilowe, ekran 419). Natywny `<input type="file">` jest od decyzji **D-035 schowany dla oka** (`.visually-hidden` — zostaje pod klawiaturą i w drzewie dostępności), a klikalna jest etykieta: cały obszar to `<label for>`. Powód: przeglądarka rysowała w tym polu angielskie „Choose File / No file chosen" i nie zmienia tego żaden atrybut. Znany koszt: bez JavaScriptu po wyborze pliku nie zmienia się nic aż do wysłania formularza — właściciel przyjął tę stratę świadomie |
 | napis zmienia się na „Zmień zdjęcie", gdy pole ma już plik | **jest** |
 | `.m-info` pod przyciskiem publikacji | **jest** na `/dodaj/zdjecie`: „Możesz zmienić lub usunąć wpis później. Zdjęcia publikujemy bez danych EXIF i GPS." |
 | `.select` „Kto może zobaczyć?" | **świadomie nie** — trzy duże, zawsze widoczne karty. Ten sam wzorzec co D-017: kit bywa uproszczony kosztem czytelności dla tej grupy |

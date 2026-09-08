@@ -90,17 +90,28 @@
                 @endif
             @endforeach
 
+            {{-- Ten sam obszar wyboru zdjęcia co w formularzach, z których ten
+                 ekran odbił człowieka (`.pole-zdjecia`,
+                 resources/css/ekran-dodawania.css). Natywne pole pliku jest
+                 schowane dla oka (D-035) — na ekranie, na którym trzeba coś
+                 zrobić od nowa, angielskie „Choose File / No file chosen" jest
+                 najgorszym możliwym napisem. Pole zostaje pod klawiaturą
+                 i w drzewie dostępności, a klikalna jest etykieta. --}}
             @foreach($formularz->pliki as $plik)
                 <div class="field">
-                    <label for="odzyskany-plik-{{ $loop->index }}">Wybierz zdjęcie jeszcze raz</label>
-                    <span class="field-help" id="odzyskany-plik-{{ $loop->index }}-help">
-                        Zdjęcia nie da się odzyskać — przeglądarka na to nie pozwala.
-                        Tekst jest bezpieczny, brakuje tylko pliku.
-                    </span>
-                    <input class="field-input" id="odzyskany-plik-{{ $loop->index }}" type="file"
+                    <input class="visually-hidden pole-zdjecia-input" id="odzyskany-plik-{{ $loop->index }}" type="file"
                            name="{{ $plik['nazwa'] }}" @if($plik['wiele']) multiple @endif
                            accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                           aria-labelledby="odzyskany-plik-{{ $loop->index }}-tytul"
                            aria-describedby="odzyskany-plik-{{ $loop->index }}-help">
+                    <label class="pole-zdjecia" for="odzyskany-plik-{{ $loop->index }}">
+                        <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                        <span class="pole-zdjecia-tytul" id="odzyskany-plik-{{ $loop->index }}-tytul">Wybierz zdjęcie jeszcze raz</span>
+                        <span class="field-help" id="odzyskany-plik-{{ $loop->index }}-help">
+                            Zdjęcia nie da się odzyskać — przeglądarka na to nie pozwala.
+                            Tekst jest bezpieczny, brakuje tylko pliku.
+                        </span>
+                    </label>
                 </div>
             @endforeach
 
