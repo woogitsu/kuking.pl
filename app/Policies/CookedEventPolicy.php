@@ -84,6 +84,48 @@ class CookedEventPolicy
             return true;
         }
 
+        // 3a. KONTO W KARENCJI USUNIĘCIA — TU DOKTRYNA Z PUNKTU 2 SIĘ KOŃCZY.
+        //
+        // Punkt 2 wyżej mówi, że ta metoda CELOWO nie patrzy na status
+        // kucharza, i dla konta ZBANOWANEGO to jest przemyślana decyzja
+        // (D-018/D-022: treść zostaje, znika tylko wyróżnienie). Ale ta sama
+        // cisza obejmowała po drodze `pending_delete` — a to jest zupełnie
+        // inny przypadek i serwis obiecuje w nim coś przeciwnego.
+        //
+        // CO OBIECUJEMY CZŁOWIEKOWI, SŁOWO W SŁOWO
+        // `resources/views/pages/settings/data.blade.php`: „Konto zniknie ze
+        // strony OD RAZU — razem z Twoimi wpisami, przepisami i komentarzami.
+        // Przez N dni możesz jeszcze zmienić zdanie". Ban jest karą wymierzoną
+        // przez nas; karencja jest decyzją tej osoby, podjętą na podstawie
+        // tego zdania.
+        //
+        // CO BYŁO NAPRAWDĘ (znalezisko G01 z audytu zewnętrznego, zmierzone
+        // uruchomieniem, potwierdzone tutaj czytaniem)
+        // `CookedEvent::scopeWidoczneDla()` wycina te konta, więc z galerii
+        // „Komu wyszło" i z list wykonanie znikało — zgodnie z obietnicą.
+        // Ale `cooked.show` pod bezpośrednim adresem oddawał je anonimowo:
+        // notatkę, zdjęcie, nazwę. Kto miał stary odnośnik, czytał dalej.
+        // Lista i polityka odpowiadały na to samo pytanie inaczej — dokładnie
+        // ten sam kształt usterki, który punkt 3 wyżej naprawia w drugą
+        // stronę.
+        //
+        // DLACZEGO TO NIE JEST ZMIANA D-018/D-022. Warunek pyta wprost
+        // o JEDEN status, nie o `dostepnyJakoAutor()`. Zbanowany kucharz
+        // przechodzi tędy tak samo jak przedtem, `suspended` też —
+        // rozstrzygnięcie, ile z historii zbanowanego konta zostaje
+        // publiczne, dalej czeka na decyzję produktową i dalej pilnuje go
+        // `KomusWyszloWidocznoscTest`.
+        //
+        // KUCHARZ I MODERATOR SĄ JUŻ ZAŁATWIENI PUNKTEM 3 WYŻEJ i to jest
+        // konieczne, nie uboczne: człowiek w karencji ma N dni na zmianę
+        // zdania i musi w tym czasie widzieć, co odzyskuje. Po cofnięciu
+        // usunięcia status wraca do `active`, a wykonanie wraca dla wszystkich
+        // samo — bez żadnej operacji naprawczej, bo nic nie zostało zmienione
+        // w danych.
+        if ($event->user->status === User::STATUS_PENDING_DELETE) {
+            return false;
+        }
+
         // 4. Bez przepisu nie ma na czym oprzeć pokazania wykonania OBCYM.
         //    `withTrashed()` rozwiązałoby `TypeError` i jednocześnie
         //    przywróciło widoczność treści, którą autor świadomie usunął —
