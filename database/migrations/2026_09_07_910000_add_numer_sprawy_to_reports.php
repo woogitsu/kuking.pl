@@ -37,8 +37,19 @@ use Illuminate\Support\Facades\Schema;
  * powtórzony numer jest niemożliwy, a nie tylko nieprawdopodobny.
  *
  * FORMAT: `KU-XXXX-XXXX`, 30-znakowy alfabet bez `0`, `1`, `I`, `L`, `O`
- * i `U` — uzasadnienie przy `App\Support\NumerSprawy`. CHECK składa się
- * z tej samej stałej, więc wzór w bazie i wzór w PHP nie mogą się rozjechać.
+ * i `U` — uzasadnienie przy `App\Support\NumerSprawy`.
+ *
+ * CHECK powstaje z tej samej stałej, ale powstaje DOKŁADNIE RAZ. PostgreSQL
+ * zapisuje gotowy tekst wyrażenia, więc od chwili uruchomienia migracji wzór
+ * w bazie jest ZAMROŻONY, a `NumerSprawy::ALFABET` może się potem zmienić —
+ * i wtedy `wygeneruj()` zaczyna produkować numery, których
+ * `reports_numer_sprawy_check` nie przyjmuje. Skutek nie jest kosmetyczny:
+ * KAŻDE nowe zgłoszenie — łącznie z drogą DSA art. 16 dla osób bez konta —
+ * kończy się `QueryException` i błędem 500. Rozjazd jest więc możliwy
+ * i pilnuje go TEST: `NumerSprawyTest::test_check_w_bazie_zna_ten_sam_alfabet_co_stala_w_php`
+ * czyta rzeczywistą definicję ograniczenia przez `pg_get_constraintdef()`
+ * i porównuje ją z bieżącą stałą. Zmiana alfabetu wymaga NOWEJ migracji,
+ * która przebuduje CHECK — sama edycja stałej w PHP nie wystarczy.
  *
  * BACKFILL: istniejące wiersze dostają nowe numery. Jest to bezpieczne
  * dokładnie dziś i tylko dziś: poczty nie ma, więc ŻADEN numer nie został
@@ -82,6 +93,9 @@ return new class extends Migration
         // urzędowego i do korespondencji ze zgłaszającym, więc wartość
         // w innym formacie nie ma prawa się tam znaleźć żadną drogą — ani
         // przez seeder, ani przez `php artisan tinker`, ani przez przyszłe API.
+        //
+        // Stała jest tu wklejana JEDNORAZOWO — patrz komentarz na górze pliku.
+        // Późniejsza zmiana `NumerSprawy::ALFABET` tego wyrażenia nie ruszy.
         DB::statement(
             'ALTER TABLE reports ADD CONSTRAINT '.self::CHECK.' CHECK ('
             ."numer_sprawy ~ '^KU-[".NumerSprawy::ALFABET.']{4}-['.NumerSprawy::ALFABET."]{4}$'"
