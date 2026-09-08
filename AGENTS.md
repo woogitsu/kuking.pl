@@ -303,6 +303,70 @@ będą fałszywie zielone:
 APP_BASE_PATH=$(pwd) php artisan test
 ```
 
+### Gdy `composer install` pada na „Could not authenticate against github.com"
+
+Dotyczy kontenerów agentów, w których ruch wychodzi przez proxy.
+`api.github.com` i `codeload.github.com` oddają wtedy **403**, więc Composer
+nie pobierze ani jednej paczki jako `dist` — a bez `vendor/autoload.php` nie
+ruszy ani `php artisan test`, ani `vendor/bin/pint`. Łatwo z tego wyciągnąć
+wniosek, że lokalnie nie da się nic sprawdzić, i zacząć wypychać każdą
+poprawkę na CI. **Da się**, i to jest ważne, bo pula minut Actions jest
+skończona.
+
+`git` przez to samo proxy **przechodzi**, więc paczki instalują się ze
+źródeł:
+
+```bash
+composer install --prefer-source
+```
+
+Blokuje to dokładnie jedna paczka: `phpstan/phpstan` nie ma w `composer.lock`
+wpisu `source` (to repozytorium dystrybucyjne, tylko `dist`), a klon lustrzany
+jej repozytorium przekracza limit czasu Composera. Obejście — wyjmij **na
+czas instalacji** `phpstan/phpstan` i `larastan/larastan` z `composer.json`
+i `composer.lock`, zainstaluj resztę, po czym **przywróć oba pliki z gita**:
+
+```bash
+git checkout composer.json composer.lock
+```
+
+`vendor/` zostaje sprawne, a repozytorium nietknięte. Skutek uboczny jest
+jeden i trzeba go pilnować: **Larastan nie chodzi lokalnie**, więc analiza
+statyczna zostaje po stronie CI — napisz to wprost w opisie Pull Requesta,
+zamiast odhaczać punkt, którego nie sprawdziłeś.
+
+Po instalacji ustaw jeszcze klucz aplikacji, inaczej każdy test padnie na
+„No application encryption key has been specified":
+
+```bash
+php artisan key:generate
+```
+
+### Przeglądarka w kontenerze agenta
+
+Chromium **nie przejdzie przez proxy sesji** do adresu zewnętrznego: tunel
+CONNECT staje, ale połączenie TLS zrywa się po kilku sekundach bez jednego
+bajta odpowiedzi. Dotyczy to każdego hosta, nie tylko kuking.pl, więc nie
+jest to usterka serwisu i nie ma sensu tego naprawiać w kodzie.
+
+Obejście: postaw instancję lokalnie i chodź po `127.0.0.1`, bo localhost
+jest poza proxy:
+
+```bash
+php artisan migrate && php artisan db:seed   # dane demo
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+W Playwrighcie **nie podawaj wtedy `proxy`**:
+
+```js
+chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true })
+```
+
+Instancja lokalna ma tę przewagę, że wolno się na niej zalogować i wysyłać
+formularze, więc widać także tę połowę produktu, która na produkcji jest za
+logowaniem. Hasła do kont demo wypisuje `DemoSeeder`.
+
 ### Pull Request zawiera
 
 - co i dlaczego (nie „poprawki”),
