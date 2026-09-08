@@ -339,6 +339,11 @@ class RecipeController extends Controller
             'parent_id' => ['nullable', 'uuid'],
         ], [
             'body.required' => 'Napisz coś, zanim wyślesz komentarz.',
+            // TEN SAM KOMUNIKAT CO POD WPISEM. Bez tej linii zostawał
+            // domyślny tekst frameworka („Pole «treść» jest za długie — może
+            // mieć najwyżej 4000 znaków"), czyli inny głos i inne słowo na
+            // to samo pole na sąsiednim ekranie.
+            'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
         try {
