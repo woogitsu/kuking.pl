@@ -2296,8 +2296,23 @@
 
 /* --- Bloki w prawej szynie (UI kit v2, ekran 01) ------------------------- */
 
+/* Blok szyny. Wołany jako `class="card szyna-blok"`, więc bierze z `.card`
+   tło, obwódkę i wcięcie — a tutaj dostaje dwie rzeczy z `.szyna-modul`
+   systemu projektowego v3.1.
+
+   `--radius-xl` NIE JEST TU KOSMETYKĄ. Karta wpisu dostała je w poprzednim
+   commicie, a szyna stoi bezpośrednio obok strumienia: dwa różne promienie
+   w jednym rzędzie czyta się jako niedokończone, a nie jako hierarchię.
+
+   ZDJĘTY CIEŃ jest hierarchią, i to celową. System pisze o szynie: „szyna
+   NIE powtarza kolumny głównej". Karta wpisu unosi się nad tłem, bo jest
+   treścią, po którą ktoś przyszedł; „Mój zeszyt" i „kuKINGi na dziś" są
+   podpowiedzią obok. Bez cienia dalej mają obwódkę i własne tło, więc nie
+   znikają — przestają tylko konkurować o pierwsze spojrzenie. */
 .szyna-blok {
   margin: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: none;
 }
 
 .szyna-naglowek {
