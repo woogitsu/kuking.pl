@@ -4,20 +4,31 @@ Ten dokument jest dla **właściciela**, nie dla administratora poczty. Zakłada
 nie wiesz, co to SPF, i tłumaczy to po drodze. Zakłada też, że masz dostęp do
 panelu Railway i do panelu Cloudflare z domeną `kuking.pl` — i nic więcej.
 
-**Wybór dostawcy jest osobną decyzją i jest opisany w
-[`docs/decyzje/POCZTA.md`](../decyzje/POCZTA.md).** Ten dokument mówi, co zrobić
-**po** wyborze, dla trzech wariantów: Postmark, Amazon SES i Resend.
+**Pełne, źródłowane porównanie sześciu dostawców, cen i rezydencji danych jest
+w [`docs/decyzje/POCZTA.md`](../decyzje/POCZTA.md).** Ten dokument mówi, co
+zrobić **po** wyborze, dla pięciu wariantów: EmailLabs, Brevo, Postmark,
+Amazon SES i Resend.
 
-> ### Uczciwe zastrzeżenie na wejściu
+> ### Rekomendacja w skrócie
 >
-> `docs/decyzje/POCZTA.md` **odrzuca Postmark i Resend** — nie z powodu ceny,
-> tylko dlatego, że oba trzymają metadane i logi doręczeń w USA. Rekomendacja
-> tamtego dokumentu to dostawca z UE (EmailLabs na alfę, ewentualnie Brevo),
-> a Amazon SES w `eu-central-1` jako plan awaryjny.
+> **Wybierz EmailLabs (§2A).** W trzech zdaniach: to jedyny z pięciu opisanych
+> wariantów, z którym podpiszesz umowę powierzenia (DPA) po polsku, na polskim
+> prawie, przy danych, które nie opuszczają UE — a przy grupie odbiorców 50+
+> zaufanie jest walutą. Darmowy pakiet STARTUP (300 wiadomości na dobę,
+> 9 000 na miesiąc, **bez karty płatniczej**) pokrywa pierwszą falę ~20 osób
+> z dużym zapasem. I nie wymaga jednej linijki nowego kodu — korzysta
+> z gotowego sterownika `smtp`, więc „włączenie jednym wpisem” to dosłownie
+> cztery zmienne w Railway.
 >
-> Trzy warianty poniżej opisuję, bo o nie poproszono — nie dlatego, że
-> unieważniają tamtą decyzję. Moja własna rekomendacja jest w §6 i mówi
-> wprost, co bym wybrał i czego to kosztuje.
+> **Zapasowo, gdyby EmailLabs odmówił rejestracji** nowej spółce (kontrola
+> antyfraudowa, spółka bez historii) — **Brevo (§2B)**: ten sam mechanizm
+> (`smtp`, też zero kodu), też serwery w UE, też bez karty. Zamiana jednego
+> na drugi to podmiana czterech wartości w Railway, nie nowy PR.
+>
+> Postmark, Amazon SES i Resend (§2C–§2E) zostają opisane niżej — to
+> sprawdzone, działające warianty, przydatne, gdyby priorytety się zmieniły
+> (Amazon SES jako plan na wypadek eksplozji wolumenu, patrz §6) — ale żaden
+> z nich nie jest dzisiejszą rekomendacją.
 
 ---
 
@@ -91,14 +102,130 @@ Zrób je raz. Zmiana dostawcy nie unieważnia żadnej z nich.
 
 ---
 
-## 2. Trzy warianty
+## 2. Warianty dostawców
 
-Wspólne dla wszystkich trzech: po zmianie zmiennych **zrestartuj serwisy**.
+Wspólne dla wszystkich pięciu: po zmianie zmiennych **zrestartuj serwisy**.
 Konfiguracja jest zapiekana przy starcie kontenera (`php artisan optimize`
 w `docker/entrypoint.sh`), więc zmienna zmieniona bez restartu nie działa,
-a wygląda, jakby działała.
+a wygląda, jakby działała. Przy EmailLabs i Brevo restart dotyczy tylko
+wartości Shared Variables (§2A, §2B) — plik `.railway/railway.ts` się nie
+zmienia.
 
-### 2A. Postmark
+### 2A. EmailLabs — rekomendowany
+
+**Czas: ~20 minut pracy + do godziny na rozejście się DNS. Zero zmian w kodzie
+i zero zmian w `.railway/railway.ts`** — sterownik `smtp` jest tam już
+ustawiony domyślnie (`MAIL_MAILER: "smtp"`), a `MAIL_SCHEME: "tls"` też jest
+wpisany na stałe. Zostają cztery wartości do wpisania w Railway.
+
+#### Krok 1 — konto i domena
+
+1. → [panel.emaillabs.net.pl/pl/register](https://panel.emaillabs.net.pl/pl/register)
+   → nowe konto. **Rejestracja jest darmowa i nie wymaga karty płatniczej** —
+   każde nowe konto startuje na darmowym pakiecie STARTUP (300 wiadomości/dobę,
+   9 000/miesiąc) `[sprawdzone 2026-09-08 — emaillabs.io/cennik-v2,
+   docs.emaillabs.io/faq/konto]`.
+2. W panelu: **Domeny** → dodaj `kuking.pl` (albo dedykowaną subdomenę
+   wysyłkową, np. `poczta.kuking.pl` — zalecane, patrz §1 pkt 3) →
+   **Autoryzacja domeny From**.
+3. W sekcji **SMTP** panelu utwórz login i hasło do wysyłki — to są wartości
+   do `MAIL_USERNAME` i `MAIL_PASSWORD` w kroku 3.
+
+#### Krok 2 — rekordy w Cloudflare (DNS → Records, wszystkie „DNS only”)
+
+| Typ | Nazwa | Wartość | Po co |
+|---|---|---|---|
+| TXT | `@` (albo nazwa subdomeny wysyłkowej) | `v=spf1 include:_spf.emaillabs.net.pl ~all` | SPF — zgoda na wysyłkę w Twoim imieniu |
+| CNAME | `emaillabs._domainkey` | `emaillabs._domainkey.emaillabs.net.pl` | DKIM — podpis wiadomości (selektor `emaillabs` jest stały u tego dostawcy, nie losowy per konto) |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl` | DMARC — polityka i raporty |
+
+`[sprawdzone 2026-09-08 — docs.emaillabs.io: wartości SPF i selektora DKIM są
+udokumentowane i stałe; panel może dodatkowo pokazać wpis weryfikacyjny przy
+konkretnej domenie — dodaj go, jeśli się pojawi]`
+
+> Jeśli `kuking.pl` ma już rekord SPF, **nie dodawaj drugiego** — dopisz
+> `include:_spf.emaillabs.net.pl` do istniejącego (wyjaśnienie w §3).
+
+#### Krok 3 — zmienne w Railway (Shared Variables, środowisko `production`)
+
+**`.railway/railway.ts` się nie zmienia** — plik już referencuje te cztery
+zmienne jako `ctx.shared.MAIL_HOST` i analogicznie. Trzeba tylko wpisać ich
+WARTOŚCI raz, w panelu Railway (Environment → Variables → Shared Variables):
+
+| Zmienna | Wartość | Sekret? |
+|---|---|---|
+| `MAIL_HOST` | `smtp.emaillabs.net.pl` | nie |
+| `MAIL_PORT` | `587` | nie |
+| `MAIL_USERNAME` | login SMTP z panelu (krok 1.3) | nie |
+| `MAIL_PASSWORD` | hasło SMTP z panelu (krok 1.3) | **TAK** |
+
+`MAIL_SCHEME` zostaje `tls` — to już jest wpisane na stałe w
+`.railway/railway.ts` dla portu 587 (STARTTLS), nie trzeba go dodawać.
+Po wpisaniu wartości: `railway config apply`, potem restart serwisów.
+
+#### Krok 4 — sprawdzenie i uwaga o rozliczeniach
+
+Status domeny w panelu musi być zweryfikowany. Potem §5 tego dokumentu.
+
+> **Do konta EmailLabs nie da się dziś podpiąć karty płatniczej.** Po
+> przekroczeniu darmowego pakietu dostawca wysyła fakturę mailem, płatną
+> przelewem `[sprawdzone 2026-09-08, docs.emaillabs.io/faq/konto]`. Przy
+> pierwszej fali ~20 osób (`docs/decyzje/POCZTA.md` §0) limit 300/dobę nie
+> zostanie nawet zbliżony — ale warto wiedzieć, że przekroczenie kończy się
+> fakturą do opłacenia przelewem, nie automatycznym obciążeniem karty.
+
+---
+
+### 2B. Brevo — zapasowy, gdyby EmailLabs odmówił rejestracji
+
+**Czas: ~20 minut. Też sterownik `smtp`, też zero zmian w kodzie** — zamiana
+z EmailLabs na Brevo to podmiana czterech wartości w Railway, nic więcej.
+
+#### Krok 1 — konto i domena
+
+1. → [app.brevo.com/account/register](https://app.brevo.com/account/register)
+   → nowe konto. **Darmowy plan (300 wiadomości/dobę, bezterminowo) nie
+   wymaga karty płatniczej** `[sprawdzone 2026-09-08, brevo.com/pricing]`.
+2. **Senders & IP** → **Domains** → dodaj `kuking.pl` (albo subdomenę
+   wysyłkową) → panel pokaże komplet rekordów do wklejenia.
+3. **SMTP & API** → **SMTP** → tam są login i klucz SMTP (login to zwykle
+   adres e-mail rejestracyjny, hasło to osobny „SMTP key”, **nie** hasło do
+   panelu).
+
+#### Krok 2 — rekordy w Cloudflare (wszystkie „DNS only”)
+
+| Typ | Nazwa | Wartość | Po co |
+|---|---|---|---|
+| TXT | `@` (albo subdomena wysyłkowa) | `v=spf1 include:spf.brevo.com ~all` | SPF |
+| CNAME | `brevo1._domainkey` | z panelu | DKIM (1 z 2) |
+| CNAME | `brevo2._domainkey` | z panelu | DKIM (2 z 2) |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl` | DMARC |
+
+`[do weryfikacji w panelu — Brevo generuje dwa CNAME DKIM plus TXT
+weryfikacyjny przy dodaniu domeny; dokładne wartości pokazuje panel po
+kroku 1.2, sprawdzone 2026-09-08 co do KSZTAŁTU rekordów, nie ich treści]`
+
+#### Krok 3 — zmienne w Railway
+
+| Zmienna | Wartość | Sekret? |
+|---|---|---|
+| `MAIL_HOST` | `smtp-relay.brevo.com` | nie |
+| `MAIL_PORT` | `587` | nie |
+| `MAIL_USERNAME` | login SMTP z panelu | nie |
+| `MAIL_PASSWORD` | SMTP key z panelu | **TAK** |
+
+Jak wyżej: `.railway/railway.ts` się nie zmienia, `MAIL_SCHEME=tls` jest już
+ustawiony. `railway config apply`, potem restart.
+
+#### Krok 4 — sprawdzenie
+
+§5 tego dokumentu. Brevo (spółka francuska, infrastruktura we Francji,
+Niemczech i GCP Belgia) ma DPA opublikowane w regulaminie — przy spółce z UE
+nie są potrzebne dodatkowe SCC.
+
+---
+
+### 2C. Postmark
 
 **Czas: ~15 minut pracy + do godziny na rozejście się DNS.**
 
@@ -162,11 +289,14 @@ W panelu Postmarka domena musi mieć status **Verified**. Potem §5 tego dokumen
 
 ---
 
-### 2B. Amazon SES (region `eu-central-1`, Frankfurt)
+### 2D. Amazon SES (region `eu-central-1`, Frankfurt)
 
 **Czas: ~1 godzina pracy + 1–3 dni na wyjście z sandboksa + około pół dnia na
 obsługę odbić.** To jest jedyny wariant, którego nie da się skończyć jednego
-popołudnia.
+popołudnia. To też jedyny z pięciu opisanych tu wariantów, który **wymaga
+karty płatniczej już przy zakładaniu konta** — AWS żąda ważnej karty przy
+tworzeniu konta root, niezależnie od tego, czy wysyłka zmieści się w darmowym
+limicie `[sprawdzone 2026-09-08, aws.amazon.com/free/registration-faqs]`.
 
 #### Krok 1 — konto, region, domena
 
@@ -243,7 +373,7 @@ i nie ten sam, którym chodzą zdjęcia.
 
 ---
 
-### 2C. Resend
+### 2E. Resend
 
 **Czas: ~15 minut pracy + do godziny na DNS.**
 
@@ -344,13 +474,14 @@ reputację u każdego dostawcy, przy komplecie zielonych rekordów.
 
 | Plik | Zmiana | Warianty |
 |---|---|---|
-| `.railway/railway.ts` | `MAIL_MAILER` na `postmark` / `ses` / `resend`; usunąć zmienne SMTP | wszystkie trzy |
+| — | **żadna** — `MAIL_MAILER: "smtp"` i `MAIL_SCHEME: "tls"` są już w `.railway/railway.ts`; wystarczą cztery Shared Variables w panelu Railway | **EmailLabs, Brevo** (rekomendowane) |
+| `.railway/railway.ts` | `MAIL_MAILER` na `postmark` / `ses` / `resend`; usunąć cztery zmienne SMTP | Postmark, SES, Resend |
 | `composer.json` | `symfony/postmark-mailer` | Postmark |
 | `composer.json` | `resend/resend-php` | Resend |
 | `composer.json` | — (`aws/aws-sdk-php` już jest) | SES |
 | `config/mail.php` | odkomentować `message_stream_id`, jeśli chcesz rozdzielić strumienie | Postmark, opcjonalnie |
-| `docs/DECISIONS.md` | wpis o wybranym dostawcy | wszystkie trzy |
-| `resources/legal/polityka-prywatnosci.md` | akapit o transferze danych poza EOG | **Postmark i Resend** |
+| `docs/DECISIONS.md` | wpis o wybranym dostawcy | wszystkie pięć |
+| `resources/legal/polityka-prywatnosci.md` | akapit o transferze danych poza EOG | **Postmark i Resend** (nie EmailLabs, Brevo ani SES `eu-central-1`) |
 
 Ostatni wiersz nie jest formalnością: przy dostawcy z USA to jest wymóg,
 a nie ozdoba. Przy dostawcy z UE tego akapitu po prostu nie ma.
@@ -421,11 +552,38 @@ Dopiero to jest dowód. Ekran „Nie pamiętam hasła” **sam się odblokuje**,
 
 ## 6. Rekomendacja
 
-Kontekst: kilkadziesiąt listów transakcyjnych miesięcznie, jedna osoba
-utrzymująca całość, grupa odbiorców 50+ w polskich skrzynkach.
+Kontekst: dziś zero użytkowników, docelowo pierwsza fala ~20 osób,
+kilkadziesiąt listów transakcyjnych miesięcznie, jedna osoba utrzymująca
+całość, grupa odbiorców 50+ w polskich skrzynkach.
 
-**Spośród trzech opisanych wariantów wybrałbym Postmark.** Uzasadnienie
-w kolejności ważności:
+**Wybierz EmailLabs.** W trzech zdaniach: to jedyny z pięciu opisanych
+wariantów, przy którym umowa powierzenia jest po polsku, na polskim prawie,
+a dane nie opuszczają UE — przy grupie 50+, gdzie zaufanie jest walutą, to
+waży więcej niż różnica w cenie. Darmowy pakiet STARTUP (300 wiadomości/dobę,
+9 000/miesiąc, **bez karty płatniczej**) pokrywa pierwszą falę ~20 osób
+z dużym zapasem, a przy wzroście Essential (99–129 zł/mies. do 100 tys.) nadal
+jest tańszy albo porównywalny z resztą listy. I korzysta z gotowego sterownika
+`smtp` — zero nowego kodu, zero nowej paczki Composera, tylko cztery Shared
+Variables w Railway (§2A, §4).
+
+**Zapasowo, gdyby EmailLabs odmówił rejestracji** nowej spółce (kontrola
+antyfraudowa, brak historii NIP-u) — **Brevo**: ten sam mechanizm (`smtp`,
+zero kodu), też serwery w UE (Francja, Niemcy, GCP Belgia), też bez karty.
+Zamiana jednego na drugi to podmiana czterech wartości w Railway (§2B), nie
+nowy Pull Request.
+
+Pełne, źródłowane porównanie sześciu dostawców — w tym dlaczego Postmark
+i Resend odpadają nie z powodu ceny, tylko rezydencji danych w USA — jest
+w [`docs/decyzje/POCZTA.md`](../decyzje/POCZTA.md).
+
+### Gdyby jednak priorytety były inne
+
+Poniższe trzy warianty (Postmark, Amazon SES, Resend) zostają opisane
+w §2C–§2E, bo o nie proszono i bo mogą się przydać w innym kontekście —
+nie dlatego, że unieważniają rekomendację wyżej.
+
+**Gdyby rezydencja danych w UE przestała być wymogiem** (np. po ocenie
+transferu — TIA — uznanej za akceptowalną), z tej trójki wybrałbym Postmark:
 
 1. **Kosztuje 15 minut, a nie trzy dni.** Przy jednej osobie czas jest droższy
    niż pieniądze. SES żąda wniosku o wyjście z sandboksa, własnego kodu do
@@ -435,51 +593,82 @@ w kolejności ważności:
 2. **Historycznie najlepsza reputacja transakcyjna** i osobny strumień
    transakcyjny — dokładnie to, czego potrzebuje serwis, w którym list z linkiem
    do hasła jest jedyną drogą powrotu na konto.
-3. **Wbudowany sterownik Laravela** i jedna paczka Composera. Zero własnego kodu.
+3. **Wbudowany sterownik Laravela** i jedna paczka Composera.
 4. Darmowe 100 wiadomości miesięcznie pokrywa alfę bez płacenia czegokolwiek;
    Basic to 15 USD, gdy przestanie starczać.
 
-**Resend odrzucam nie z powodu jakości, tylko limitu 100/dobę na darmowym
-planie** (który przy pierwszym digescie odpadnie) i dlatego, że przy tej samej
-robocie prawnej co Postmark daje słabszy zestaw narzędzi transakcyjnych.
+Resend odpada w tym scenariuszu nie z powodu jakości, tylko limitu 100/dobę
+na darmowym planie (który przy pierwszym digescie odpadnie) i dlatego, że przy
+tej samej robocie prawnej co Postmark daje słabszy zestaw narzędzi
+transakcyjnych.
 
-**Amazon SES trzymałbym jako plan awaryjny na wypadek eksplozji wolumenu.**
-Jest jedynym z tej trójki, który potrafi trzymać dane w UE (`eu-central-1`),
-nie wymaga żadnej nowej paczki w tym repozytorium i jest 20× tańszy. Ale kupuje
-się go kilkoma dniami pracy i obowiązkiem, którego nie ma nigdzie indziej:
-własną obsługą odbić i skarg, pod groźbą zawieszenia konta.
-
-### Zastrzeżenie, którego nie chcę zamiatać
-
-Postmark i Resend trzymają metadane i logi w USA. To znaczy: ocena transferu
-(TIA), wpis w rejestrze czynności i akapit „przekazujemy dane poza EOG”
-w polityce prywatności. Przy serwisie dla grupy 50+, gdzie zaufanie jest walutą,
-zdanie **„Twój adres e-mail przetwarzamy w Unii Europejskiej”** jest warte
-więcej niż 15 dolarów różnicy — i dokładnie dlatego
-`docs/decyzje/POCZTA.md` rekomenduje dostawcę z UE (EmailLabs, ewentualnie
-Brevo), a nie żadnego z tych trzech.
-
-**Jeśli rezydencja danych w UE ma dla Ciebie znaczenie — a decyzja podjęta
-wcześniej mówi, że ma — właściwym wyborem nie jest żaden z tych trzech, tylko
-dostawca z UE po zwykłym SMTP.** To jest przy tym wariant najtańszy w robocie:
-sterownik `smtp` jest już skonfigurowany w `config/mail.php` i w
-`.railway/railway.ts`, więc do zrobienia zostają cztery zmienne
-(`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`) i rekordy DNS
-z §3. Zero paczek, zero zmian w kodzie.
+**Amazon SES (`eu-central-1`) trzymaj jako plan awaryjny na wypadek eksplozji
+wolumenu** — nie jako zamiennik EmailLabs na dziś, tylko jako trzecią linię,
+gdyby wolumen (np. po uruchomieniu tygodniowego digestu) przekroczył to, co
+udźwignie Essential EmailLabs. SES jest jedynym z całej piątki, który potrafi
+trzymać dane w UE i jednocześnie skaluje się bez górnego limitu ceny — ale
+kupuje się go kilkoma dniami pracy, kartą płatniczą wymaganą już przy
+zakładaniu konta AWS i obowiązkiem, którego nie ma nigdzie indziej: własną
+obsługą odbić i skarg, pod groźbą zawieszenia konta.
 
 ---
 
-## 7. Czego ten dokument nie załatwi
+## 7. Na co uważać
+
+**Limit dzienny, nie tylko miesięczny.** EmailLabs STARTUP to 300
+wiadomości na dobę **i** 9 000 na miesiąc — oba limity obowiązują naraz.
+Przy dzisiejszej wysyłce (siedem typów listów z §0) i pierwszej fali ~20 osób
+limit dobowy nie zostanie nawet zbliżony. To się zmieni, gdy powstanie
+tygodniowy digest (`users.wants_weekly_digest` — funkcja jeszcze nie
+istnieje w kodzie, patrz `docs/decyzje/POCZTA.md` §0): digest to zawsze
+burst, cały tydzień wychodzi w jedno przedpołudnie, i wtedy liczy się limit
+DOBOWY, nie miesięczny.
+
+**Co się dzieje po przekroczeniu darmowego pułapu.** EmailLabs: do konta nie
+da się podpiąć karty, więc po przekroczeniu limitu dostawca wysyła fakturę
+mailem, płatną przelewem `[do weryfikacji — dokładny mechanizm w trakcie
+okresu rozliczeniowego: czy wysyłka jest wstrzymywana do zapłaty, czy tylko
+naliczana na kolejną fakturę]`. Brevo: plan darmowy jest twardo ograniczony do
+300 wiadomości na dobę — po przekroczeniu kolejne czekają do północy albo
+trzeba przejść na płatny plan (od ok. 9 USD/mies. za 5 000 wiadomości).
+Amazon SES nie ma darmowego pułapu do „przekroczenia” — płaci się od
+pierwszej wiadomości (~0,10 USD za 1000), za to nowe konto w sandboksie ma
+twardy limit 200/dobę i wysyła wyłącznie na zweryfikowane adresy, dopóki nie
+zatwierdzą wniosku o production access.
+
+**Ryzyko utraty reputacji domeny.** Reputacja adresu IP i domeny wysyłkowej
+buduje się tygodniami i można ją stracić w jeden dzień: nagły skok wolumenu
+(pierwszy digest wysłany od razu do wszystkich), wysoki wskaźnik odbić
+(nieaktualne albo błędnie wpisane adresy) albo duża liczba zgłoszeń „to spam”
+psują dostarczalność u WSZYSTKICH odbiorców na danej domenie, nie tylko
+u tych, którzy kliknęli. Dlatego: DMARC startuje od `p=none` (§3), raporty
+`rua` obserwuje się 2–4 tygodnie przed zaostrzeniem polityki, a digest —
+kiedy powstanie — powinien iść w kolejce rozłożonej na godziny, nie w jednej
+minucie do wszystkich naraz.
+
+**Brak niezależnego benchmarku polskiej dostarczalności.** Żadna liczba typu
+„99% dostarczalności” żadnego dostawcy — łącznie z twierdzeniami EmailLabs
+o „najwyższej dostarczalności w Polsce” — nie jest zweryfikowanym pomiarem
+niezależnej strony trzeciej, to twierdzenie sprzedażowe dostawcy. Jedyny
+wiarygodny test to własny, opisany w §5 krok 4 (wp.pl, o2.pl, interia.pl,
+onet.pl).
+
+---
+
+## 8. Czego ten dokument nie załatwi
 
 Rzeczy, które i tak trzeba zrobić ręcznie i których nie da się przygotować
 z wyprzedzeniem:
 
-- **wybór dostawcy** i założenie u niego konta (wymaga karty albo NIP-u);
+- **założenie konta u dostawcy** — przy EmailLabs i Brevo bez karty, tylko
+  adres e-mail; przy Amazon SES z kartą płatniczą (wymaga jej AWS);
 - **założenie skrzynki `kontakt@kuking.pl`**, jeśli jeszcze nie istnieje —
   i sprawdzenie, że ktoś ją czyta;
 - **wpisanie rekordów DNS w Cloudflare** — z panelu dostawcy, nie z tego pliku;
 - **wniosek o production access w AWS**, jeśli padnie na SES;
-- **podpisanie umowy powierzenia (DPA)** z dostawcą;
+- **podpisanie umowy powierzenia (DPA)** z dostawcą — przy EmailLabs i Brevo
+  to gotowy wzór w regulaminie, przy Postmark i Resend wymaga też oceny
+  transferu (TIA), bo dane trafiają do USA;
 - **dopisanie akapitu o transferze poza EOG** do polityki prywatności, jeśli
   padnie na Postmark albo Resend;
 - **własny test na czterech polskich skrzynkach** — jedyne dane o polskiej
@@ -496,3 +685,7 @@ z wyprzedzeniem:
 - [`docs/brand/BRAND_EXTENDED.md`](../brand/BRAND_EXTENDED.md) §5 — ton e-maili, zakaz `noreply@`
 - `App\Support\Poczta` — czym serwis mierzy „poczta działa”
 - `App\Console\Commands\SprawdzPoczte` — komenda z §5
+- [EmailLabs — rejestracja](https://panel.emaillabs.net.pl/pl/register) · [cennik](https://emaillabs.io/cennik-v2/) · [konto — brak karty, rozliczenie fakturą](https://docs.emaillabs.io/faq/konto) · [SPF/DKIM](https://emaillabs.io/en/secure-email-delivery/) — wszystkie sprawdzone 2026-09-08
+- [Brevo — rejestracja](https://app.brevo.com/account/register) · [cennik](https://www.brevo.com/pricing/) · [SPF/DKIM setup](https://easydmarc.com/blog/brevo-ex-sendinblue-spf-dkim-setup/) — sprawdzone 2026-09-08
+- [Postmark — Pricing & Billing FAQ](https://postmarkapp.com/support/article/1285-pricing-billing-faq) — brak karty na planie Developer, sprawdzone 2026-09-08
+- [AWS — Free Tier FAQ](https://aws.amazon.com/free/registration-faqs/) — karta wymagana przy zakładaniu konta, sprawdzone 2026-09-08
