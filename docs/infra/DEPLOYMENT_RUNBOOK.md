@@ -407,6 +407,11 @@ niej odwołuje).
 
 ### 6.4 Backupy — **zrób to teraz, nie później**
 
+> Pełna procedura odtworzenia (trzy scenariusze, ćwiczenie, tabela wyników)
+> żyje teraz w [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md) — ten
+> dokument w razie sprzeczności wygrywa. Tu zostaje tylko włączenie backupów
+> jako część wdrożenia od zera.
+
 → serwis `postgres` → zakładka **Backups**:
 
 1. Włącz **Daily** (6 dni retencji)
@@ -1017,6 +1022,11 @@ W środowisku `staging`: **Serverless ON** dla `web`.
 ---
 
 ## KROK 13. Restore drill
+
+> **Aktualna, pełna wersja tego ćwiczenia (z dowodem mierzalnym i tabelą
+> wyników) jest w [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md) §4-5.**
+> Wersja niżej zostaje jako część ciągłego runbooku wdrożenia od zera, ale
+> w razie sprzeczności wygrywa tamten dokument.
 
 **Wykonaj teraz** (na pustej bazie jest szybko) i potem **raz na kwartał**.
 Backup, którego nigdy nie przywróciłeś, jest niesprawdzony.
