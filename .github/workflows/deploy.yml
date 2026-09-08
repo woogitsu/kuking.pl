@@ -64,6 +64,20 @@
 #    SENTRY_ORG, SENTRY_PROJECT
 # =============================================================================
 
+# ---------------------------------------------------------------------------
+#  RUNNERY: TYMCZASOWO `ubuntu-latest`, NIE WŁASNA PULA — decyzja właściciela
+#  z 8 września 2026, wieczorem. To samo, co w `ci.yml`; pełne uzasadnienie
+#  i sposób powrotu stoją tam oraz w D-028 (`docs/DECISIONS.md`).
+#
+#  W skrócie: trzy z sześciu runnerów są wyłączone, a joby stały w kolejce
+#  godzinami. D-028 NIE JEST odwołana — zmieniła się sytuacja, nie strategia.
+#
+#  POWRÓT: podmień w tym pliku każde
+#      runs-on: ubuntu-latest
+#  na
+#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+# ---------------------------------------------------------------------------
+
 name: Deploy
 
 on:
@@ -113,7 +127,7 @@ jobs:
   # ===========================================================================
   verify:
     name: Test dymny po deployu
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 10
 
     # Tylko udane deploye na produkcję lub staging.
@@ -248,7 +262,7 @@ jobs:
   # ===========================================================================
   operate:
     name: "Operacja: ${{ github.event.inputs.action }} (${{ github.event.inputs.environment }})"
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
 
