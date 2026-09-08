@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Analytics\AktywniWTygodniu;
+use App\Domain\Analytics\CookRetentionCohorts;
 use App\Domain\Analytics\PowrotPoDniach;
 use App\Domain\Analytics\ZasiegUgotowalem;
+use App\Support\Czas;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 
 /**
  * Zamienia bramkę V1 z `docs/ROADMAP.md` — „Planner/groups/forks dopiero gdy
@@ -58,6 +62,7 @@ class RaportPowrotow extends Command
         AktywniWTygodniu $aktywni,
         PowrotPoDniach $powroty,
         ZasiegUgotowalem $ugotowalem,
+        CookRetentionCohorts $kohorty,
     ): int {
         $this->line('Raport powrotów — Kuking.pl');
         $this->line('Liczone teraz, na podstawie ostatniej znanej wizyty każdego konta.');
@@ -84,7 +89,99 @@ class RaportPowrotow extends Command
             .'tylu ludziom przyszedł najważniejszy komunikat w serwisie (AGENTS.md, część 1).',
         );
 
+        $this->newLine();
+        $this->kohorty($kohorty);
+
         return self::SUCCESS;
+    }
+
+    /**
+     * Kohorty retencji — MOCNIEJSZY pomiar niż D7/D30 wyżej, i dlatego stoi
+     * w tym samym raporcie, a nie w osobnej komendzie.
+     *
+     * D7/D30 wyżej czyta `ostatnio_widziany_at` — jedną, NADPISYWANĄ kolumnę.
+     * Odpowiada więc na pytanie „czy ten człowiek zajrzał jeszcze po N
+     * dniach", i sam `PowrotPoDniach` opisuje siebie jako oszacowanie
+     * jednostronnie ostrożne.
+     *
+     * Kohorta liczy co innego: bierze PRAWDZIWĄ aktywność (`CookActivity`)
+     * i pyta, w którym tygodniu po rejestracji dana osoba coś zrobiła.
+     * „Zajrzał" i „coś zrobił" to nie to samo zdanie o produkcie, a bramka
+     * V1 z `docs/ROADMAP.md` („Planner/groups/forks dopiero gdy WAC i D30
+     * pokazują powroty") pyta o to drugie.
+     *
+     * DLACZEGO TO TU W OGÓLE TRAFIA
+     * `CookRetentionCohorts` istniało, było przetestowane — i nie było
+     * wołane z ŻADNEJ komendy ani kontrolera. Liczba, której nikt nie umie
+     * wyświetlić, nie jest pomiarem, tylko kodem czekającym na usunięcie.
+     */
+    private function kohorty(CookRetentionCohorts $kohorty): void
+    {
+        $wiersze = $kohorty->weekly();
+
+        $this->line('Kohorty powrotów — z prawdziwej aktywności, nie z ostatniej wizyty.');
+
+        if ($wiersze->isEmpty()) {
+            $this->line('Brak danych — nikt jeszcze nic nie zrobił w tygodniu swojej rejestracji.');
+
+            return;
+        }
+
+        // Początek BIEŻĄCEGO tygodnia w strefie człowieka — ta sama strefa,
+        // w której `CookRetentionCohorts` tnie tygodnie. Bez tego progu nie
+        // dałoby się odróżnić „nikt nie wrócił" od „jeszcze nie minęło tyle
+        // czasu, żeby ktokolwiek mógł wrócić" — a to są dwa różne fakty
+        // i pomylenie ich myliłoby czytelnika (ta sama zasada, co przy
+        // pustej kohorcie D7/D30 wyżej).
+        $biezacyTydzien = CarbonImmutable::now(Czas::strefa())->startOfWeek()->startOfDay();
+
+        foreach ($wiersze->groupBy('signup_week') as $tydzien => $kohorta) {
+            $wOfsecie = $kohorta->keyBy(fn (object $w): int => (int) $w->week_offset);
+
+            $naStarcie = (int) ($wOfsecie[0]->active_users ?? 0);
+
+            if ($naStarcie === 0) {
+                // Nikt z tej kohorty nie zrobił nic w tygodniu rejestracji,
+                // więc nie ma przez co dzielić. Procent byłby wtedy
+                // wymyślony, a nie policzony.
+                $this->line("  tydzień {$tydzien}: nikt nie był aktywny w tygodniu rejestracji — nie ma od czego liczyć powrotu.");
+
+                continue;
+            }
+
+            $poTygodniu = $this->ofset($wOfsecie, 1, $naStarcie, $tydzien, $biezacyTydzien);
+            $poMiesiacu = $this->ofset($wOfsecie, 4, $naStarcie, $tydzien, $biezacyTydzien);
+
+            $this->line("  tydzień {$tydzien}: {$naStarcie} na starcie · po tygodniu {$poTygodniu} · po miesiącu {$poMiesiacu}");
+        }
+    }
+
+    /**
+     * Jedna komórka kohorty: liczba i procent, albo „za wcześnie".
+     *
+     * @param  Collection<int, object>  $wOfsecie
+     */
+    private function ofset(
+        Collection $wOfsecie,
+        int $ofset,
+        int $naStarcie,
+        string $tydzienRejestracji,
+        CarbonImmutable $biezacyTydzien,
+    ): string {
+        $tydzienDocelowy = CarbonImmutable::parse($tydzienRejestracji, Czas::strefa())
+            ->addWeeks($ofset)
+            ->startOfDay();
+
+        // Tydzień, który jeszcze się nie skończył, nie jest zerem — jest
+        // niewiadomą. Bieżący tydzień liczy się jako niedomknięty.
+        if ($tydzienDocelowy >= $biezacyTydzien) {
+            return 'za wcześnie';
+        }
+
+        $ilu = (int) ($wOfsecie[$ofset]->active_users ?? 0);
+        $procent = number_format($ilu / $naStarcie * 100, 1, ',', '');
+
+        return "{$ilu} ({$procent}%)";
     }
 
     /** @param  array{kwalifikujacy_sie: int, wrocilo: int, procent: float|null}  $wynik */
