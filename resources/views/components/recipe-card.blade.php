@@ -15,8 +15,13 @@
             <h3 class="m-0 mb-2">
                 <a href="{{ route('recipes.show', $recipe->slug) }}" class="link-tytul">{{ $recipe->title }}</a>
             </h3>
-            <p class="meta m-0 mb-2">{{ $recipe->attributionLine() }}</p>
-            <x-konto-przykladowe :user="$recipe->author" />
+            <p class="meta m-0 mb-2">
+                {{ $recipe->attributionLine() }}
+                {{-- Plakietka cicha „konto przykładowe" (D-032)
+                     w tym samym wierszu metadanych — kropkę rysuje sam
+                     komponent. --}}
+                <x-konto-przykladowe :user="$recipe->author" />
+            </p>
             @if(($recipe->cooked_events_count ?? 0) > 0)
                 <p class="m-0"><span class="badge badge-cooked">Ugotowane {{ $recipe->cooked_events_count }} ×</span></p>
             @endif

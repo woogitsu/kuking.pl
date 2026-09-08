@@ -1062,13 +1062,41 @@
     color: var(--color-accent-tint-ink);
   }
 
+  /* Odznaka CICHA — bez tła, bez ramki, wielkość dopisku obok większego
+     tekstu (D-032 w `docs/DECISIONS.md`, odwracająca D-025). Tak wygląda „konto
+     przykładowe" w strumieniu (karta wpisu, karta przepisu, komentarz,
+     strona przepisu): w wierszu metadanych, po kropce, obok daty — czytelna
+     dokładnie wtedy, gdy ktoś patrzy na autora, a nie kilkanaście razy pod
+     rząd w kolorze marki, gdzie przestawała cokolwiek znaczyć i zjadała
+     budżet uwagi należny zdjęciom potraw.
+
+     ROZMIAR: `--text-help` (16px), nie mniej. `docs/design/DESIGN_SYSTEM.md`
+     §2.1 dopuszcza w tym serwisie dokładnie jeden rozmiar poniżej
+     `--text-body` (18px, minimum produktowe) — `--text-help`, i tylko tam,
+     gdzie tekst główny obok ma min. 18px. Ten warunek tu zachodzi (treść
+     wpisu/przepisu obok stoi na `--text-body`/`--text-body-lg`), ale niżej
+     podłoga nie schodzi: to jest ten sam rozmiar, na którym już stoi
+     `.meta` kawałek wyżej, nie osobny, mniejszy token stworzony specjalnie
+     pod tę jedną plakietkę. */
+  .badge-cichy {
+    padding: 0;
+    background-color: transparent;
+    font-size: var(--text-help);
+    font-weight: 600;
+    color: var(--color-ink-muted);
+  }
+
   /*
-     „Konto przykładowe" (D-025) — CELOWO WIĘKSZE i z ramką, nie wariant
-     ciszej od `.badge-cooked`. Grupa 50+ ma to zauważyć bez czytania
-     drobnego druku, więc tekst stoi na `--text-body` (18px, minimum
-     produktowe), nie na `--text-help` (16px) jak reszta odznak — i ma
-     ramkę tego samego koloru co tło, tak jak `.notice`, żeby nie dało się
-     jej pomylić z odznaką „Ugotowane N razy" na tym samym tle.
+     „konto przykładowe" GŁOŚNA (D-032) — wygląd bez zmian względem D-025 (18px,
+     tło, ramka), ale UŻYCIE ZAWĘŻONE do jednego miejsca: profilu konta
+     przykładowego (`x-konto-przykladowe waga="glosna"`,
+     `pages/profile/show.blade.php`). Do dziś ta sama, głośna wersja stała
+     WSZĘDZIE, gdzie występował autor zalążkowy (D-025: „grupa 50+ ma to
+     zauważyć bez czytania drobnego druku"). Właściciel to odwrócił: głośną
+     plakietkę wolno pokazać raz na ekran (nie kilkanaście razy w strumieniu,
+     patrz `.badge-cichy` wyżej), a profil jest jedynym miejscem, gdzie stoi
+     dokładnie raz. Ramka tego samego koloru co tło, tak jak `.notice`, żeby
+     nie dało się jej pomylić z odznaką „Ugotowane N razy” na tym samym tle.
   */
   .badge-przykladowe {
     font-size: var(--text-body);

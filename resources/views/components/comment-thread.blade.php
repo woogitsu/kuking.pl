@@ -28,9 +28,10 @@
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $comment->author->profile->username) }}">{{ $comment->author->displayName() }}</a>
-                    <x-konto-przykladowe :user="$comment->author" />
                     <p class="meta m-0">
                         <time datetime="{{ $comment->created_at->toIso8601String() }}">{{ \App\Support\Czas::data($comment->created_at, 'j F Y, H:i') }}</time>
+                        {{-- Plakietka cicha „konto przykładowe" (D-032) po dacie — kropkę rysuje sam komponent. --}}
+                        <x-konto-przykladowe :user="$comment->author" />
                     </p>
                 </div>
             </div>
@@ -48,8 +49,13 @@
                     <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
-                        <x-konto-przykladowe :user="$reply->author" />
-                        <span class="meta">{{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}</span>
+                        <span class="meta">
+                            {{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}
+                            {{-- Plakietka cicha „konto przykładowe"
+                                 (D-032) po dacie — kropkę
+                                 rysuje sam komponent. --}}
+                            <x-konto-przykladowe :user="$reply->author" />
+                        </span>
                     </div>
 
                     @php($replyIsRemoved = $reply->body === 'Komentarz usunięty.')

@@ -69,7 +69,7 @@ class CollectionController extends Controller
             //
             // PAGINACJA, NIE `->get()` (audyt zewnętrzny T20).
             //
-            // Zeszyt rośnie z użyciem serwisu: każde „Zapisz" na cudzej
+            // Zeszyt rośnie z użyciem serwisu: każde „Zapisuję" na cudzej
             // karcie wpisu (`post-card.blade.php`) dokłada tu jedną pozycję,
             // bez górnej granicy — dokładnie ten sam kształt problemu co
             // wpisy, komentarze czy powiadomienia, nie jak lista jednostek
@@ -166,7 +166,7 @@ class CollectionController extends Controller
     }
 
     /**
-     * „Zapisz" na karcie wpisu (UI kit v2, ekran 01).
+     * „Zapisuję" na karcie wpisu (UI kit v2, ekran 01).
      *
      * Policy `view` PRZED zapisem, nie po. Bez tego dałoby się odłożyć
      * do zeszytu cudzy wpis prywatny, znając sam jego identyfikator —

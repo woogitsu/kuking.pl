@@ -27,7 +27,6 @@
         </a>
         <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
-            <x-konto-przykladowe :user="$author" />
             <p class="meta m-0">
                 <a href="{{ $post->url() }}" class="link-jak-tekst">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
@@ -43,6 +42,11 @@
                 @else
                     · <span>publicznie</span>
                 @endif
+                {{-- Plakietka cicha „konto przykładowe" (D-032)
+                     stoi w TYM SAMYM wierszu metadanych, po ostatniej
+                     kropce — nie osobną linią pod nazwą autora jak dawniej.
+                     Kropkę-separator rysuje sam komponent. --}}
+                <x-konto-przykladowe :user="$author" />
             </p>
         </div>
 
@@ -169,7 +173,13 @@
 
         @auth
             {{--
-                „ZAPISZ" (UI kit v2, ekran 01) — decyzja właściciela.
+                „ZAPISUJĘ" (decyzja właściciela, `docs/DECISIONS.md` D-036).
+
+                Do tej zmiany przycisk nosił „Zapisz", a przycisk zapisu
+                przepisu (`recipes/show.blade.php`) już wtedy mówił
+                „Zapisuję" — dwie nazwy dla jednej czynności na ekranie.
+                `BRAND_EXTENDED.md` §3 zabrania synonimów: nazwa funkcji
+                jest jedna. Ujednolicone na „Zapisuję" wszędzie.
 
                 Zeszyt przyjmuje od tej zmiany także wpisy. To jest inna
                 potrzeba niż zapisanie przepisu: zapisany przepis znaczy „chcę
@@ -177,7 +187,7 @@
                 „chcę kiedyś zrobić coś TAKIEGO". Przy wpisie żadnego przepisu
                 zwykle nie ma.
 
-                DLACZEGO ZAWSZE „ZAPISZ", A NIE „ZAPISANE"
+                DLACZEGO ZAWSZE „ZAPISUJĘ", A NIE „ZAPISANO"
                 Sprawdzenie stanu dla każdej karty to jedno zapytanie na wpis
                 — czyli dwadzieścia zapytań na przewinięcie feedu. Zapis jest
                 za to bezpieczny przy powtórzeniu: drugie kliknięcie daje
@@ -189,7 +199,7 @@
                 @csrf
                 <button class="btn btn-secondary" type="submit">
                     <x-ikona nazwa="book" :rozmiar="22" />
-                    Zapisz
+                    Zapisuję
                 </button>
             </form>
         @endauth
