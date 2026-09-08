@@ -51,6 +51,9 @@
         'chevron' => '<path d="m9 6 6 6-6 6"/>',
         'shield' => '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
         'pin' => '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+        // Drzwi ze strzałką na zewnątrz. Strzałka wychodzi w PRAWO, czyli
+        // w kierunku czytania — „wyjście stąd", a nie „wejście tutaj".
+        'logout' => '<path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15"/><path d="M10 8l4 4-4 4"/><path d="M14 12H4"/>',
     ];
 
     // Nieznana nazwa nie może po cichu wyrenderować pustego kwadratu —
