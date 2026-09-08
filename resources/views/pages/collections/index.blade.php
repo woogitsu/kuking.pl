@@ -1,6 +1,11 @@
 <x-layout title="Zeszyt" :noindex="true">
     <h1>Twój zeszyt</h1>
-    <p class="mb-5">Przepisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
+    {{-- „Przepisy i wpisy", nie same przepisy: od 6 września Zeszyt przyjmuje
+         też cudze wpisy (migracja `collection_items_accept_posts`, przycisk
+         „Zapisuję" na karcie wpisu). Ten akapit i pusty stan niżej mówiły
+         dalej o samych przepisach — obietnica węższa niż produkt, i akurat
+         w tę stronę, w którą człowiek nie sprawdzi, bo nie spróbuje. --}}
+    <p class="mb-5">Przepisy i wpisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
          komunikat „Masz już zeszyt o tej nazwie” nie miał gdzie się pokazać:
@@ -9,8 +14,8 @@
 
     @if($collections->isEmpty())
         <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('discover')">
-            Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję”.
-            Trafi tutaj i zawsze go znajdziesz.
+            Kiedy znajdziesz przepis albo czyjeś danie, które chcesz zachować,
+            kliknij przy nim „Zapisuję”. Trafi tutaj i zawsze do niego wrócisz.
         </x-empty-state>
     @else
         <div class="stack">

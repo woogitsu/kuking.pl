@@ -42,13 +42,19 @@
             <div class="min-w-0">
                 <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
                 @if($owner->isSeeded())
-                    <p class="mb-3"><x-konto-przykladowe :user="$owner" /></p>
+                    {{-- `waga="glosna"`: profil jest JEDYNYM miejscem, gdzie
+                         ta plakietka wolno stoi głośno — wszędzie indziej
+                         (karta wpisu, karta przepisu, komentarz, strona
+                         przepisu) jest cicha, patrz `x-konto-przykladowe`. --}}
+                    <p class="mb-3"><x-konto-przykladowe :user="$owner" waga="glosna" /></p>
                     {{--
-                        D-025: oznaczenie MUSI stać przy koncie, nie tylko
-                        w regulaminie. Profil jest jedynym z czterech miejsc
-                        (obok karty wpisu, karty przepisu i komentarza), gdzie
-                        jest miejsce na pełne zdanie, nie tylko na etykietę —
-                        więc tu, i tylko tu, jest ono wypisane wprost.
+                        D-025 (odwrócona co do wagi i treści plakietki, nie
+                        co do tego akapitu): oznaczenie MUSI stać przy
+                        koncie, nie tylko w regulaminie. Skrócenie plakietki
+                        do „konto przykładowe" (D-032) przenosi pełne zdanie
+                        TUTAJ — profil jest jedynym miejscem w całym serwisie,
+                        gdzie ono stoi wprost, więc skrócenie gdzie indziej
+                        nie kasuje informacji, tylko ją przenosi.
                     --}}
                     <p class="notice">
                         To konto jest przykładowe: nie ma za nim prawdziwej osoby.
