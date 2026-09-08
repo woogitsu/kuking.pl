@@ -204,7 +204,19 @@ class PasekGornyNaTelefonieTest extends TestCase
             'zalogowany' => $this->actingAs($this->user('basia'))->get(route('home'))->assertOk()->getContent(),
         ];
 
+        // KTÓRE paski MUSZĄ tu być. Bez tej listy `continue` niżej był cichym
+        // wyjściem z całego testu: zmierzone przez podmianę obu nazw klas
+        // w odebranym HTML-u — żaden pasek nie został znaleziony, pętla nie
+        // wykonała się ani razu i test był zielony, nie sprawdzając niczego.
+        // Gość naprawdę nie ma paska dolnego, więc lista jest per widz.
+        $oczekiwanePaski = [
+            'gość' => ['topbar-actions'],
+            'zalogowany' => ['topbar-actions', 'bottom-nav'],
+        ];
+
         foreach ($widoki as $kto => $html) {
+            $sprawdzone = [];
+
             foreach (['topbar-actions', 'bottom-nav'] as $pasek) {
                 $fragment = $pasek === 'topbar-actions'
                     ? $this->wytnijPasek($html)
@@ -212,8 +224,11 @@ class PasekGornyNaTelefonieTest extends TestCase
 
                 if ($fragment === '') {
                     // Gość nie ma paska dolnego — to jest poprawne, nie brak.
+                    // Asercja pod pętlą rozstrzyga, czy TO był ten przypadek.
                     continue;
                 }
+
+                $sprawdzone[] = $pasek;
 
                 preg_match_all('~<a\b[^>]*>(.*?)</a>~s', $fragment, $linki);
 
@@ -233,6 +248,16 @@ class PasekGornyNaTelefonieTest extends TestCase
                     );
                 }
             }
+
+            $this->assertSame(
+                $oczekiwanePaski[$kto],
+                $sprawdzone,
+                "Widz „{$kto}”: przejrzałem paski ".json_encode($sprawdzone).
+                ', a miałem przejrzeć '.json_encode($oczekiwanePaski[$kto]).
+                '. Pasek, którego nie ma pod oczekiwaną nazwą klasy, nie jest '.
+                'sprawdzony — a test bez tej asercji wygląda tak samo jak taki, '.
+                'który coś sprawdził.',
+            );
         }
     }
 
