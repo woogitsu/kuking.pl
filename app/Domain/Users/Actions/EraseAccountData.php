@@ -131,6 +131,57 @@ final class EraseAccountData
                 $this->usunTresci($fresh);
             }
 
+            /*
+             * RELACJE ZNIKAJĄ RAZEM Z KONTEM (audyt zewnętrzny G05).
+             *
+             * `resources/legal/polityka-prywatnosci.md`, tabela w §2, wiersz
+             * „Relacje w serwisie": „kogo obserwujesz, kogo zablokowałeś …
+             * Do usunięcia relacji LUB KONTA". Ta akcja nie tykała tych
+             * tabel wcale, więc obietnica była nieprawdziwa — a AGENTS.md
+             * część 11 mówi, że zdania z polityki mają zgadzać się z kodem.
+             *
+             * DETACH PRZEZ RELACJE MODELU, NIE `DB::table(...)->delete()`.
+             * Każdy `detach()` jest z definicji zawężony do TEGO konta, więc
+             * nie da się nim przypadkiem zabrać relacji dwóch obcych osób —
+             * to jest najgorsza możliwa awaria tej zmiany i pilnuje jej
+             * osobny test. Idzie też za definicją relacji, więc zmiana nazwy
+             * tabeli nie zostawi tu martwego zapytania.
+             *
+             * W OBIE STRONY, bo `follows` i `blocks` trzymają jedno i drugie
+             * w tym samym wierszu, tylko z różnych stron.
+             *
+             * CZEGO TU NIE MA I DLACZEGO. Zgłoszeń, odwołań i dziennika
+             * audytowego nie ruszamy: mają w polityce własny, dłuższy okres
+             * retencji (36 miesięcy od zamknięcia sprawy) i inną podstawę
+             * prawną niż umowa z użytkownikiem. Powiadomień też nie —
+             * powiadomienie o decyzji moderacyjnej ma własny termin
+             * (Regulamin §8, co najmniej 6 miesięcy), więc hurtowe kasowanie
+             * po `user_id` łamałoby inną obietnicę; reszta znika po
+             * 3 miesiącach nocnym sprzątaniem.
+             */
+            $fresh->following()->detach();
+            $fresh->followers()->detach();
+            $fresh->blocking()->detach();
+            $fresh->blockedBy()->detach();
+            $fresh->followedTags()->detach();
+
+            /*
+             * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
+             *
+             * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
+             * NIE jest dziura pozwalająca zalogować się usuniętym kontem —
+             * hasło i tak zostaje nadpisane losowym ciągiem niżej. Chodzi
+             * o coś innego: to jest materiał uwierzytelniający konta, które
+             * miało zostać wymazane, i nie ma powodu, żeby dalej leżał
+             * w bazie. Ewentualny incydent obejmuje wtedy mniej danych.
+             *
+             * Wołamy nazwaną metodę zamiast dopisywać cztery kolumny do
+             * `forceFill` niżej. Gdyby 2FA dostało piąte pole, ten kod
+             * pójdzie za nim sam — a rozjazd między dwiema listami tych
+             * samych kolumn to dokładnie ta klasa błędu, która dała G05.
+             */
+            $fresh->disableTwoFactor();
+
             if ($profile !== null) {
                 $profile->forceFill([
                     'username' => $this->anonimowaNazwa($fresh),
