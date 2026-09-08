@@ -89,7 +89,14 @@ Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('priva
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
 // (docs/DECISIONS.md, D-019). Wybór zalogowanego kontroler i tak zapisuje
 // na koncie — patrz ThemeController.
-Route::post('/motyw', [ThemeController::class, 'update'])->name('theme.update');
+//
+// Limit z grupy `ustawienia`, mimo że to nie jest ekran ustawień: dla gościa
+// ta trasa liczy się PO ADRESIE IP i jest jedynym zapisem do bazy osiągalnym
+// bez konta poza formularzami zgłoszeń. Próg dobrany tak, żeby zmieścić kilka
+// osób za jednym łączem — uzasadnienie przy kluczu w config/kuking.php.
+Route::post('/motyw', [ThemeController::class, 'update'])
+    ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+    ->name('theme.update');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 
@@ -185,6 +192,13 @@ Route::middleware('guest')->group(function () use ($limits): void {
         ->name('account.delete.cancel.store');
 });
 
+// WYLOGOWANIE ŚWIADOMIE BEZ LIMITU ZAPYTAŃ (BRAMKA_BETY §7a).
+//
+// To jedyna trasa zapisująca, której limitu NIE dodaliśmy, i jest to decyzja,
+// nie przeoczenie. Wylogowanie unieważnia sesję i nic nie tworzy — powtórzone
+// nie robi nic. Za to 429 na tej trasie zostawia OTWARTĄ sesję na cudzym albo
+// wspólnym komputerze, u kogoś, kto właśnie próbuje ją zamknąć. Zysk zerowy,
+// koszt realny.
 Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
@@ -238,15 +252,25 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/potwierdz-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
         ->middleware('signed')
         ->name('verification.verify');
+    // Liczba przeniesiona do config/kuking.php (klucz `verification_resend`),
+    // wartość bez zmian — AGENTS.md §7 mówi, że limity mieszkają w konfiguracji,
+    // a nie w tym pliku.
     Route::post('/potwierdz-email/wyslij-ponownie', [EmailVerificationController::class, 'resend'])
-        ->middleware('throttle:6,1,verification_resend')
+        ->middleware("throttle:{$limits['verification_resend']},verification_resend")
         ->name('verification.send');
 
     // Onboarding
     Route::get('/witaj/zainteresowania', [OnboardingController::class, 'interests'])->name('onboarding.interests');
-    Route::post('/witaj/zainteresowania', [OnboardingController::class, 'saveInterests']);
+    Route::post('/witaj/zainteresowania', [OnboardingController::class, 'saveInterests'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia");
     Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])->name('onboarding.people');
-    Route::post('/witaj/ludzie', [OnboardingController::class, 'saveFollows']);
+    // OSOBNY, DUŻO NIŻSZY LIMIT NIŻ RESZTA OBSERWOWANIA. To jedyny formularz
+    // w serwisie, w którym JEDNO żądanie tworzy powiadomienia u WIELU osób
+    // naraz — więc liczenie go do wspólnego koszyka `obserwowanie` byłoby
+    // ochroną tylko z nazwy. Długość samej listy pilnuje walidacja
+    // w `OnboardingController::saveFollows()`.
+    Route::post('/witaj/ludzie', [OnboardingController::class, 'saveFollows'])
+        ->middleware("throttle:{$limits['masowe_obserwowanie']},masowe_obserwowanie");
     Route::get('/witaj/gotowe', [OnboardingController::class, 'done'])->name('onboarding.done');
 
     // Dodawanie treści
@@ -266,7 +290,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/wpisy/{post}', [PostController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('posts.update');
-    Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+    Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('posts.destroy');
 
     // Zdjęcia w opublikowanym wpisie: kolejność i sposób wyświetlania (#92).
     // Zwykły GET i zwykły POST — bez JavaScriptu, bo to jedyna droga, na
@@ -278,9 +304,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('posts.media.update');
 
     // „Nie pokazuj mi tego więcej" — ukrycie jednego wspomnienia (issue #34).
-    // Bez limitu zapytań: to jest jedno kliknięcie na własnym wpisie,
-    // ustawiające flagę na `true`. Powtórzenie nie zmienia niczego.
+    // To jedno kliknięcie na własnym wpisie, ustawiające flagę na `true`,
+    // i powtórzenie nie zmienia niczego — dlatego limit jest tu najluźniejszy
+    // z możliwych (grupa `ustawienia`), a nie żaden. Wcześniej trasa nie miała
+    // go wcale; „powtórzenie nic nie zmienia" nie jest jednak powodem, żeby
+    // wpuścić na nią pętlę zapisów do bazy (AGENTS.md §7).
     Route::post('/wspomnienia/{post}/ukryj', [WspomnienieController::class, 'ukryj'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('wspomnienia.ukryj');
 
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
@@ -303,11 +333,18 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.store');
     Route::get('/przepisy/{recipe}/edycja', [RecipeController::class, 'edit'])->name('recipes.edit');
-    Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])->name('recipes.update');
+    // Ten sam limit co przy publikacji i ten sam powód co przy `posts.update`:
+    // każdy zapis przepisu tworzy nową wersję (`recipe_versions`), czyli jest
+    // wytwarzaniem treści, a nie drobną poprawką pola.
+    Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.update');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
-    Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])->name('recipes.destroy');
+    Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('recipes.destroy');
 
     // "Ugotowałem" — najważniejsza akcja w produkcie.
     Route::get('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'create'])->name('cooked.create');
@@ -317,7 +354,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ugotowane/{cookedEvent}/komentarz', [CookedEventController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.comment');
-    Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])->name('cooked.destroy');
+    Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('cooked.destroy');
 
     // „Komuś wyszło" (issue #17) — pełnoekranowa celebracja, wyłącznie dla
     // autora przepisu, osiągana z linku w powiadomieniu. Adres celowo inny
@@ -328,55 +367,118 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('cooked.thank');
 
     // Zeszyt (kolekcje)
+    //
+    // Zapis i wypisanie chodzą pod WŁASNYM kluczem `zeszyt`, a nie pod
+    // budżetem publikacji — to prywatna, odwracalna akcja, nikogo nie
+    // powiadamia i nikt jej nie widzi. Skasowanie CAŁEGO zeszytu jest już
+    // czym innym i idzie do grupy `usuwanie`.
     Route::get('/zeszyt', [CollectionController::class, 'index'])->name('collections.index');
-    Route::post('/zeszyt', [CollectionController::class, 'store'])->name('collections.store');
+    Route::post('/zeszyt', [CollectionController::class, 'store'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.store');
     Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
-    Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])->name('collections.destroy');
-    Route::post('/przepisy/{recipe}/zapisz', [CollectionController::class, 'saveRecipe'])->name('collections.save');
-    Route::delete('/przepisy/{recipe}/zapisz', [CollectionController::class, 'removeRecipe'])->name('collections.unsave');
+    Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.destroy');
+    Route::post('/przepisy/{recipe}/zapisz', [CollectionController::class, 'saveRecipe'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.save');
+    Route::delete('/przepisy/{recipe}/zapisz', [CollectionController::class, 'removeRecipe'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.unsave');
 
     // Zeszyt przyjmuje też WPISY (UI kit v2, ekran 01 — decyzja właściciela).
-    // Ten sam limit co przy publikacji: to jest zapis do bazy wywołany
-    // jednym kliknięciem na karcie, więc zasługuje na ten sam refleks.
+    //
+    // PRZENIESIONE Z PREFIKSU `post` DO `zeszyt`. Wcześniej zapisywanie
+    // cudzych wpisów zjadało budżet PUBLIKOWANIA własnych — czyli dokładnie
+    // ten sam kształt usterki co w zgłoszeniu „429 przy pierwszym zdjęciu",
+    // tylko na innej parze tras. Wieczór spędzony na przeglądaniu „Odkryj"
+    // nie ma prawa odbierać prawa głosu.
     Route::post('/wpisy/{post}/zapisz', [CollectionController::class, 'savePost'])
-        ->middleware("throttle:{$limits['post']},post")
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.save-post');
     Route::delete('/wpisy/{post}/zapisz', [CollectionController::class, 'removePost'])
-        ->middleware("throttle:{$limits['post']},post")
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.unsave-post');
 
     // Relacje społeczne
     // Obserwowanie tagu (D-021, zastępuje usunięty już Temat z issue #31):
     // zwykłe formularze, bez JavaScriptu, bez powiadomienia (tag nie jest
     // człowiekiem, więc nikogo nie powiadamiamy).
-    Route::post('/tag/{tag}/obserwuj', [TagFollowController::class, 'follow'])->name('tags.follow');
-    Route::delete('/tag/{tag}/obserwuj', [TagFollowController::class, 'unfollow'])->name('tags.unfollow');
+    // JEDEN WSPÓLNY LICZNIK `obserwowanie` NA OBA KIERUNKI I NA OBA RODZAJE
+    // (osoba, tag). Osobne liczniki dawałyby cyklowi obserwuj→przestań
+    // podwójny budżet, czyli dokładnie tyle, ile potrzebuje wzorzec, przed
+    // którym ten limit stoi. Tag nikogo nie powiadamia, ale dzieli koszyk
+    // z osobą, bo próg ustawia groźniejsza połowa grupy.
+    Route::post('/tag/{tag}/obserwuj', [TagFollowController::class, 'follow'])
+        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+        ->name('tags.follow');
+    Route::delete('/tag/{tag}/obserwuj', [TagFollowController::class, 'unfollow'])
+        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+        ->name('tags.unfollow');
 
-    Route::post('/@{username}/obserwuj', [SocialController::class, 'follow'])->name('social.follow');
-    Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])->name('social.unfollow');
-    Route::post('/@{username}/blokuj', [SocialController::class, 'block'])->name('social.block');
-    Route::delete('/@{username}/blokuj', [SocialController::class, 'unblock'])->name('social.unblock');
+    Route::post('/@{username}/obserwuj', [SocialController::class, 'follow'])
+        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+        ->name('social.follow');
+    Route::delete('/@{username}/obserwuj', [SocialController::class, 'unfollow'])
+        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+        ->name('social.unfollow');
+
+    // BLOKADA MA WŁASNY KOSZYK, ODDZIELONY OD OBSERWOWANIA — świadomie.
+    // To narzędzie bezpieczeństwa: sięga po nie ktoś, komu ktoś inny właśnie
+    // uprzykrza życie. Gdyby dzieliła budżet z obserwowaniem, wieczór spędzony
+    // w „Odkryj" mógłby odebrać prawo do zasłonięcia się przed nękaniem.
+    Route::post('/@{username}/blokuj', [SocialController::class, 'block'])
+        ->middleware("throttle:{$limits['blokada']},blokada")
+        ->name('social.block');
+    Route::delete('/@{username}/blokuj', [SocialController::class, 'unblock'])
+        ->middleware("throttle:{$limits['blokada']},blokada")
+        ->name('social.unblock');
 
     Route::get('/powiadomienia', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/powiadomienia/przeczytane', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+    Route::post('/powiadomienia/przeczytane', [NotificationController::class, 'markAllRead'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('notifications.read');
 
     // Ustawienia
+    //
+    // Zapis profilu ma WŁASNY, niższy limit niż reszta ustawień, bo jako
+    // jedyny z nich przyjmuje PLIK: zdjęcie profilowe przechodzi przez cały
+    // pipeline zdjęć z AGENTS.md §7 (magic bytes, megapiksele, R2, zadanie
+    // w tle). To jest praca serwera, a nie UPDATE jednej kolumny.
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
-    Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update']);
+    Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia_profil']},ustawienia_profil");
 
     // „Twoje tagi" (D-021, zastępuje usunięty już `/ustawienia/tematy`).
     Route::get('/ustawienia/tagi', [TagFollowController::class, 'edit'])->name('settings.tags');
-    Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])->name('settings.tags.update');
+    Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.tags.update');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
-    Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update']);
+    Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia");
 
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
-    Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update']);
+    Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia");
 
     Route::get('/ustawienia/twoje-dane', [DataSettingsController::class, 'show'])->name('settings.data');
-    Route::post('/ustawienia/twoje-dane/eksport', [DataSettingsController::class, 'requestExport'])->name('settings.data.export');
-    Route::post('/ustawienia/twoje-dane/usun-konto', [DataSettingsController::class, 'requestDeletion'])->name('settings.data.delete');
+    // Paczka RODO to najdroższe pojedyncze żądanie w serwisie — własny klucz
+    // `eksport` w oknie godzinnym. Kontroler i tak odrzuca kolejne zgłoszenie,
+    // gdy poprzednia paczka jeszcze się robi, więc z tych dziesięciu żądań
+    // pracą stanie się co najwyżej jedno; limit łapie pętlę, nie człowieka,
+    // który klika drugi raz, bo nie widzi postępu.
+    Route::post('/ustawienia/twoje-dane/eksport', [DataSettingsController::class, 'requestExport'])
+        ->middleware("throttle:{$limits['eksport']},eksport")
+        ->name('settings.data.export');
+    // Zgłoszenie usunięcia konta prosi o HASŁO (`Hash::check`), więc jest tą
+    // samą wyrocznią co zmiana hasła i idzie do koszyka `confirm_password`,
+    // a nie do zwykłych ustawień.
+    Route::post('/ustawienia/twoje-dane/usun-konto', [DataSettingsController::class, 'requestDeletion'])
+        ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+        ->name('settings.data.delete');
 
     // Pobranie paczki z danymi. `signed` = adres musi być podpisany przez nas
     // i nieprzedawniony; właściciela sprawdza dodatkowo kontroler, bo podpis
@@ -409,7 +511,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ustawienia/2fa/nowe-kody', [TwoFactorSettingsController::class, 'regenerateCodes'])
         ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.two_factor.regenerate');
-    Route::post('/ustawienia/2fa/wylacz', [TwoFactorSettingsController::class, 'disable'])->name('settings.two_factor.disable');
+    // Wyłączenie 2FA też prosi o hasło — ten sam koszyk co zmiana hasła.
+    // Wcześniej ta trasa nie miała limitu wcale, mimo że sąsiadująca z nią
+    // `settings.two_factor.regenerate` (również na hasło) już go miała.
+    Route::post('/ustawienia/2fa/wylacz', [TwoFactorSettingsController::class, 'disable'])
+        ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+        ->name('settings.two_factor.disable');
 
     // Odwołanie od decyzji moderacyjnej — droga dla osób, które MOGĄ wejść
     // do serwisu (aktywnych i zawieszonych). Wejście jest z powiadomienia
@@ -436,38 +543,61 @@ Route::middleware('auth')->group(function () use ($limits): void {
 // 'moderator.2fa' (issue #12) idzie ZAWSZE po 'moderator': zwykły
 // użytkownik ma dalej dostawać 404 z EnsureUserIsModerator, nie dotrzeć
 // do sprawdzenia 2FA, o którym nie musi wiedzieć, że istnieje.
-Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->group(function (): void {
+//
+// LIMIT ZAPYTAŃ NA WSZYSTKICH ZAPISUJĄCYCH TRASACH TEJ GRUPY (klucz
+// `moderacja`) jest CELOWO NAJWYŻSZY W CAŁYM SERWISIE. Nie chroni przed
+// spamem — przed nim chronią trzy warstwy stojące wcześniej (`auth`,
+// `moderator`, obowiązkowe 2FA) — tylko przed przejętą sesją moderatora
+// użytą maszynowo. Zespół to jedna–dwie osoby (D-012), więc limit, który
+// zatrzymałby jedynego moderatora w środku fali spamu, byłby awarią
+// gorszą niż jego brak. Uzasadnienie liczby: config/kuking.php.
+Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->group(function () use ($limits): void {
     Route::get('/zgloszenia', [ModerationController::class, 'reports'])->name('admin.reports');
-    Route::post('/zgloszenia/{report}', [ModerationController::class, 'decide'])->name('admin.reports.decide');
+    Route::post('/zgloszenia/{report}', [ModerationController::class, 'decide'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.reports.decide');
 
     // Cofnięcie ukrycia albo usunięcia treści (#65). Osobno od `decide`, bo
     // przywrócenie przychodzi PO rozstrzygnięciu zgłoszenia, a `decide`
     // słusznie nie przyjmuje drugiej decyzji do tego samego zgłoszenia.
     Route::post('/zgloszenia/{report}/przywroc', [ModerationController::class, 'restore'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
 
     // Kolejka odwołań (#10).
     Route::get('/odwolania', [AdminAppealController::class, 'index'])->name('admin.appeals');
-    Route::post('/odwolania/{appeal}', [AdminAppealController::class, 'resolve'])->name('admin.appeals.resolve');
+    Route::post('/odwolania/{appeal}', [AdminAppealController::class, 'resolve'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.appeals.resolve');
 
     // Wybór redakcyjny na tablicę „kuKINGi na dziś".
     // Wpisy bez odpowiedzi (issue #6). To nie jest panel statystyk, tylko
     // lista rzeczy do zrobienia dzisiaj — odpowiedź od człowieka w ciągu doby
     // na pierwszy wpis jest ważniejsza niż którakolwiek funkcja z MVP.
     Route::get('/bez-odpowiedzi', [BezOdpowiedziController::class, 'index'])->name('admin.unanswered');
-    Route::post('/bez-odpowiedzi/{post}', [BezOdpowiedziController::class, 'odpowiedz'])->name('admin.unanswered.reply');
+    Route::post('/bez-odpowiedzi/{post}', [BezOdpowiedziController::class, 'odpowiedz'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.unanswered.reply');
 
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
-    Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update']);
-    Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy']);
+    Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja");
+    Route::delete('/kuking-na-dzis', [DailyBoardController::class, 'destroy'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja");
 
     // Tagi promowane (D-021, „tag promowany — lista gospodarza") — panel
     // zastępujący redakcyjną rolę dawnego Tematu. Trasa z `{tag}` wiąże się
     // po slugu (Tag::getRouteKeyName()), tak jak publiczna strona tagu.
     Route::get('/tagi-promowane', [TagPromotionController::class, 'edit'])->name('admin.tag-promotions');
-    Route::post('/tagi-promowane', [TagPromotionController::class, 'store'])->name('admin.tag-promotions.store');
-    Route::put('/tagi-promowane/{tag}', [TagPromotionController::class, 'update'])->name('admin.tag-promotions.update');
-    Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])->name('admin.tag-promotions.destroy');
+    Route::post('/tagi-promowane', [TagPromotionController::class, 'store'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.tag-promotions.store');
+    Route::put('/tagi-promowane/{tag}', [TagPromotionController::class, 'update'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.tag-promotions.update');
+    Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.tag-promotions.destroy');
 });
 
 // --------------------------------------------------------------------------

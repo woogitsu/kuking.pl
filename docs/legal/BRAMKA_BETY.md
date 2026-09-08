@@ -396,25 +396,84 @@ Sam tekst prawny nie jest do napisania przez agenta: nazwa operatora, adres
 i adres kontaktowy są danymi właściciela, a tabela podstaw prawnych wymaga
 prawnika. Sam dokument zresztą tak mówi w dwóch miejscach.
 
-## 7a. Zmierzone, NIE naprawione — do decyzji właściciela
+## 7a. ZAMKNIĘTE — limity na trasach zapisujących
 
-**35 tras zapisujących nie ma limitu zapytań na poziomie trasy.** AGENTS.md §7
-mówi, że każdy endpoint przechodzi przez pięć pytań, w tym „rate limit", a
-limity mają mieszkać w `config/kuking.php`. Pełna lista wychodzi z
-`php artisan route:list --json` (filtruj po `ThrottleRequests` w middleware —
-uwaga, słowo „throttle" małą literą tam nie występuje i łatwo o tym pomyłkę).
+**Stan wcześniejszy, przepisany tu w całości, bo liczba w nim była błędna:**
 
-**Ocena wagi, uczciwie: to dryf polityki, nie otwarta dziura.** Sprawdziłem
-najgroźniej wyglądający przypadek — `POST /ustawienia/twoje-dane/eksport`
-kolejkuje ciężkie zadanie w tle, ale kontroler ma WŁASNĄ bramkę i odrzuca
-kolejne żądanie, gdy poprzednia paczka jeszcze się robi. Usunięcie konta
-wymaga hasła. Reszta to w większości tanie zapisy jednego wiersza za `auth`
-(obserwowanie, zapis do zeszytu, oznaczenie powiadomień).
+> **35 tras zapisujących nie ma limitu zapytań na poziomie trasy.** […]
+> Nie dobrałem tych 35 limitów sam, bo dobranie liczby to decyzja produktowa
+> (ile obserwowań na minutę to jeszcze człowiek, a ile już skrypt), a nie
+> techniczna.
 
-Nie dobrałem tych 35 limitów sam, bo dobranie liczby to decyzja produktowa
-(ile obserwowań na minutę to jeszcze człowiek, a ile już skrypt), a nie
-techniczna. Warto rozstrzygnąć przed betą, bo `follow`/`unfollow` generuje
-powiadomienia u drugiej osoby.
+**Liczba była przybliżona i policzona inaczej, niż mówiła.** Przeliczone
+ręcznie w `routes/web.php` na wierzchołku `main` (`820e1c5`): **67 definicji
+tras `POST`/`PUT`/`PATCH`/`DELETE`** (licząc `Route::match(['get','post'], …)`
+raz), z czego **31 miało już limit**, a **36 nie miało żadnego** — nie 35.
+Nieprawdziwe było też zdanie z §6 tego samego przeglądu, jakoby limity miały
+„tylko logowanie, rejestracja i reset hasła": kluczy w `config/kuking.php`
+było jedenaście, a limit miały m.in. publikacja, komentarz, zgłoszenie,
+odwołanie i tryb gotowania.
+
+**Rozstrzygnięte: 35 z tych 36 tras dostało limit; jedna świadomie nie.**
+Progi żyją w `config/kuking.php` (sekcja `limits`), pogrupowane WEDŁUG SZKODY,
+jaką robi nadużycie, a nie według kontrolera. Każdy klucz ma tam przy sobie
+uzasadnienie liczby.
+
+| grupa (klucz) | próg | co obejmuje |
+|---|---|---|
+| `post` (bez zmian) | 20 / 10 min | publikacja i edycja treści publicznej |
+| `comment` (bez zmian) | 10 / 1 min | komentarze i podziękowanie |
+| `usuwanie` | 30 / 10 min | usunięcie wpisu, przepisu, „Ugotowałem", zeszytu |
+| `obserwowanie` | 60 / 10 min | obserwowanie i odobserwowanie osoby oraz tagu |
+| `masowe_obserwowanie` | 5 / 10 min | `/witaj/ludzie` — jedno żądanie, wiele powiadomień |
+| `blokada` | 60 / 10 min | blokowanie i odblokowanie osoby |
+| `zeszyt` | 60 / 10 min | zapis i wypisanie przepisu albo wpisu |
+| `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia |
+| `ustawienia_profil` | 15 / 10 min | zapis profilu — jedyny ekran ustawień z plikiem |
+| `eksport` | 10 / 60 min | paczka RODO |
+| `confirm_password` (bez zmian) | 5 / 10 min | akcje proszące o hasło — teraz także wyłączenie 2FA i zgłoszenie usunięcia konta |
+| `moderacja` | 120 / 10 min | cały panel `/admin` |
+
+**ŚWIADOMIE BEZ LIMITU: `POST /logout`.** Wylogowanie unieważnia sesję i nic
+nie tworzy; powtórzone nie robi nic. Za to 429 na tej trasie zostawia otwartą
+sesję na wspólnym komputerze u kogoś, kto właśnie próbuje ją zamknąć. Zysk
+zerowy, koszt realny. Wyjątek jest wpisany z nazwy w
+`tests/Feature/LimityTrasZapisujacychTest.php`, więc druga taka trasa nie
+powstanie po cichu.
+
+**Dwie rzeczy naprawione przy okazji, obie zmierzone, nie wywnioskowane:**
+
+1. `collections.save-post` i `collections.unsave-post` chodziły pod prefiksem
+   `post`, czyli pod budżetem PUBLIKOWANIA. Wieczór spędzony na zapisywaniu
+   cudzych wpisów do zeszytu odbierał prawo do opublikowania własnego — ten
+   sam kształt usterki co zgłoszenie „429 przy pierwszym zdjęciu" (`ef4f6ca`),
+   tylko na innej parze tras. Przeniesione pod `zeszyt`, z testem regresyjnym.
+2. `POST /witaj/ludzie` przyjmował listę kont do obserwowania **bez limitu jej
+   długości** (`'follow' => ['nullable','array']`), a pętla w kontrolerze
+   tworzy powiadomienie dla każdej pozycji. Limit na trasie tego nie łapie, bo
+   to jedno żądanie. Dodane `max:20` (ekran proponuje osiem osób). To samo
+   przy `POST /witaj/zainteresowania`: tam każda pozycja tablicy uruchamiała
+   osobne zapytanie `exists:tags,id` — dodane `max:50`.
+
+**Komunikat po przekroczeniu limitu był już w porządku i nie wymagał zmiany.**
+`resources/views/errors/429.blade.php` jest po polsku, w layoucie serwisu,
+mówi ile czekać (zaokrąglone w górę z nagłówka `Retry-After`), mówi, że nic
+nie przepadło, i daje dwa wyjścia. Pilnuje go
+`StronyBleduPoPolskuTest::test_429_mowi_co_zrobic_po_polsku`, a
+`bootstrap/app.php` zapisuje przy każdym 429 wzorzec trasy do logu.
+Jedyna droga, którą zostaje angielskie „Too Many Requests", to odpowiedź JSON
+(`shouldRenderJsonWhen`) — dziś nieosiągalna, bo repozytorium nie ma tras
+`api/*`, a trasy Livewire'a nie mają naszych limitów. Zostawione bez zmiany
+i zapisane tutaj jako rzecz do sprawdzenia w dniu, w którym powstanie
+pierwszy endpoint JSON.
+
+**Otwarte, drobne:** klucz `tag_suggest` w `config/kuking.php` nie jest
+podpięty do żadnej trasy (podpowiedzi tagów liczy `TagSuggester` po stronie
+serwera, bez własnego endpointu). To dokładnie ten sam kształt co opisany
+w tym samym pliku, usunięty już klucz `upload`: martwy wpis jest gorszy niż
+jego brak, bo następna osoba podniesie liczbę i uzna sprawę za załatwioną.
+Zostawiony, bo jego usunięcie albo podpięcie to decyzja o zakresie SPEC §1.5,
+a nie o limitach.
 
 
 ---
