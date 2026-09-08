@@ -1007,12 +1007,32 @@ if (karuzelaBezJs) {
    Nie „czy logotyp jest przy nawigacji" (to wymagałoby innego punktu odniesienia
    na każdym ekranie i przy każdej szerokości), tylko regułę ogólniejszą:
 
-       wewnętrzne krawędzie belki == wewnętrzne krawędzie `.app-body`
+       wewnętrzne krawędzie belki == wewnętrzne krawędzie kolumny treści
 
    Kolumny siatki zaczynają się i kończą dokładnie na tych krawędziach, więc
    z tej jednej równości wynikają obie rzeczy naraz — logotyp nad nawigacją
    (albo nad treścią, gdy nawigacji nie ma) i akcje nad prawą szyną (albo nad
    prawą krawędzią treści, gdy szyna zeszła pod spód).
+
+   CZYM JEST „KOLUMNA TREŚCI" — DWA PRZYPADKI, JEDNA REGUŁA
+   Do 8 września istniał jeden: `.app-body`, czyli siatka ekranu. Od dziś
+   strona powitalna stoi na PASACH — sekcjach na całą szerokość okna, w których
+   szerokość treści pilnuje `.pas-wnetrze`. Na takiej stronie `.app-body` NIE
+   JEST kolumną treści: rozciąga się od krawędzi do krawędzi okna, bo to pas
+   ma własne tło i musi tam dojść.
+
+   Punktem odniesienia jest więc `.pas-wnetrze`, gdy strona je ma, a `.app-body`
+   w pozostałych przypadkach. To NIE JEST poluzowanie sprawdzenia — mierzona
+   jest dokładnie ta sama rzecz (krawędź, przy której zaczyna się pierwsze
+   słowo treści), tylko odczytana z elementu, który tę krawędź naprawdę
+   wyznacza. Sprawdzenie dalej pada, gdy belka i treść się rozjadą.
+
+   Zmierzone na przebiegu 168, PRZED tą poprawką: automat oczekiwał logotypu
+   na 0 px przy każdej szerokości, bo `.app-body` zaczyna się teraz w zerze.
+   Zgłosił rozjazd 24 px przy 1024, 144 px przy 1280 i 260 px przy 1512 —
+   a to są DOKŁADNIE lewe krawędzie pasa przy tych szerokościach
+   ((1512 − 1040) / 2 + 24 = 260). Belka licowała co do piksela; złe było
+   odniesienie, nie układ.
 
    Poniżej 64rem nie mierzymy: nie ma tam ani nawigacji bocznej, ani szyny,
    a belce wolno zawijać akcje do drugiego wiersza (issue #80).
@@ -1025,11 +1045,13 @@ const EKRANY_WYROWNANIA = [
   { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
   { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
   { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
-  // Strona powitalna ma OD 7 WRZEŚNIA własną, szerszą siatkę
-  // (`app-body-powitalny`) — a więc i własną okazję do rozjazdu belki.
-  // Reguła spójności szerokości jej nie dotyczy, bo ta liczy wyłącznie
-  // ekrany zalogowanego; ta pozycja pilnuje drugiej reguły: że logotyp
-  // i przyciski stoją dokładnie nad krawędziami treści.
+  // Strona powitalna ma OD 8 WRZEŚNIA układ pasów: `.app-body` idzie od
+  // krawędzi do krawędzi okna, a szerokość treści wyznacza `.pas-wnetrze`.
+  // To jest jedyny ekran o takim układzie i dlatego jedyny, który tę
+  // gałąź pomiaru w ogóle wykonuje. Reguła spójności szerokości go nie
+  // dotyczy (ta liczy wyłącznie ekrany zalogowanego); ta pozycja pilnuje
+  // drugiej reguły: że logotyp i przyciski stoją dokładnie nad krawędziami
+  // treści — czyli nad pierwszym i ostatnim znakiem w pasie.
   { nazwa: 'strona powitalna (gość)', adres: '/' },
 ];
 
@@ -1062,7 +1084,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
 
     const pomiar = await strona.evaluate(() => {
-      const body = document.querySelector('.app-body');
+      // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
+      // pasach — siatka ekranu. Patrz „CZYM JEST KOLUMNA TREŚCI" wyżej.
+      const body = document.querySelector('.pas-wnetrze') ?? document.querySelector('.app-body');
       const logotyp = document.querySelector('.wordmark');
       const akcje = document.querySelector('.topbar-actions');
 
@@ -1092,7 +1116,7 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     await strona.close();
 
     if (! pomiar) {
-      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje .app-body, .wordmark albo .topbar-actions.`);
+      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje kolumny treści (.pas-wnetrze albo .app-body), .wordmark albo .topbar-actions.`);
       process.exitCode = 1;
       continue;
     }

@@ -1348,16 +1348,42 @@
     color: var(--color-ink);
   }
 
+  /* Pole wyboru. Uzgodnione z systemem projektowym v3.1 CO DO WYGLĄDU, nie
+     co do budowy.
+
+     BUDOWA ZOSTAJE NASZA. System ma tu `display: block`, bo w kicie kwadrat
+     wyboru rysuje pseudoelement. U nas w środku stoi prawdziwy `<input
+     type="checkbox">` obok napisu — działa bez JavaScriptu, czytnik ekranu
+     dostaje natywny element, a `accent-color` maluje go kolorem marki.
+     Przejście na `block` postawiłoby kwadrat NAD napisem.
+
+     WYGLĄD Z SYSTEMU:
+     * obwódka w `--color-border-strong` (#8A7A63) zamiast `--color-border`
+       (#E4DACB). To samo, co zrobiliśmy wczoraj dla `.chip` i z tego samego
+       powodu: jasna obwódka na jasnej karcie daje krawędź na granicy
+       dostrzegalności, a to jest element, który się naciska;
+     * `--radius-lg` i wcięcie `--spacing-4` — pole wyboru ma być na oko
+       kartą, nie ramką wokół wiersza tekstu;
+     * przejście koloru obwódki i tła, z tokenów (wyłącza je
+       `prefers-reduced-motion` w warstwie base);
+     * zabezpieczenie zawijania: bez `min-width: 0` długa etykieta rozpycha
+       kolumnę siatki `.choice-grid`, zamiast zawinąć się u siebie. */
   .choice {
     display: flex;
     align-items: flex-start;
     gap: var(--spacing-3);
     min-height: var(--hit-area-min);
-    padding: var(--spacing-3);
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
     cursor: pointer;
     background-color: var(--color-surface-raised);
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    transition:
+      border-color var(--czas-szybki) ease-out,
+      background-color var(--czas-szybki) ease-out;
   }
 
   .choice:has(input:checked) {
@@ -1373,8 +1399,28 @@
     accent-color: var(--color-brand-solid);
   }
 
-  .choice-label { font-weight: 700; margin: 0; }
-  .choice-help { font-size: var(--text-help); color: var(--color-ink-muted); }
+  .choice-label {
+    font-weight: 700;
+    font-size: var(--text-body);
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* `display: block` i `font-weight: 400` z systemu v3.1. Podpowiedź stoi
+     WEWNĄTRZ etykiety, więc bez jawnej wagi dziedziczyła po niej 700 — a
+     wtedy zdanie wyjaśniające miało tę samą wagę co nazwa opcji i nie było
+     widać, co jest czym. Własny odstęp od góry, bo jako element liniowy
+     przyklejała się do nazwy. */
+  .choice-help {
+    display: block;
+    margin: var(--spacing-2) 0 0;
+    font-size: var(--text-help);
+    font-weight: 400;
+    color: var(--color-ink-muted);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
   .choice-grid {
     display: grid;
@@ -2311,6 +2357,12 @@
   font-weight: 600;
   text-decoration: none;
   color: var(--color-ink);
+    /* Zabezpieczenie zawijania z systemu v3.1: nazwa tagu bywa jednym
+       długim słowem („zupykremy"), a chipsy stoją w wierszu, który ma się
+       zawijać jako całość — nie rozpychać w bok. */
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .chip:hover {

@@ -572,9 +572,15 @@
   }
 
   /* --- Pole formularza --- */
+  /* Odstęp między polami z systemu projektowego v3.1: `--spacing-6`, nie
+     `--spacing-4`. Pole ma etykietę NAD sobą i podpowiedź POD sobą, więc
+     przy 16 px odstępu podpowiedź jednego pola stała bliżej etykiety
+     następnego niż własnego pola — i przy skali tekstu 140% czytało się to
+     jako jeden blok. 24 px rozdziela pola mocniej niż ich własne części
+     wewnątrz. */
   .field {
     display: block;
-    margin-top: var(--spacing-4);
+    margin-top: var(--spacing-6);
   }
   /* Uzgodnione z systemem projektowym v3.1. Trzy różnice:
 
@@ -621,12 +627,21 @@
     font-size: var(--text-help);
     color: var(--color-ink-muted);
   }
+  /* Z systemu v3.1: `flex` z wyrównaniem do góry i `overflow-wrap`.
+     Komunikat błędu bywa najdłuższym tekstem w formularzu („Hasło musi mieć
+     co najmniej 10 znaków — najprościej wpisać trzy słowa razem"), a stoi
+     w kolumnie pola. Bez zawijania w dowolnym miejscu rozpychał formularz
+     w bok przy skali 140%. Wyrównanie do góry jest po to, żeby ewentualny
+     znak ostrzegawczy stał przy PIERWSZYM wierszu, nie pośrodku trzech. */
   .field-error {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-2);
     margin-top: var(--spacing-2);
     font-size: var(--text-help);
     font-weight: 700;
     color: var(--color-danger);
+    overflow-wrap: anywhere;
   }
   .field.has-error .field-input {
     border-color: var(--color-danger);
@@ -684,18 +699,23 @@
   }
 
   /* --- Podsumowanie błędów formularza --- */
+  /* Obwódka 3 px i większe wcięcie — z systemu v3.1. To jedyny element
+     w serwisie, który ma zatrzymać człowieka w połowie ruchu: pojawia się
+     nad formularzem, którego nie dało się wysłać. Dwa piksele obwódki to
+     tyle samo, co ma zwykłe pole tekstowe, więc podsumowanie błędów nie
+     odróżniało się od rzeczy, które są na tym ekranie zawsze. */
   .error-summary {
     background-color: var(--color-danger-tint);
     color: var(--color-danger-tint-ink);
-    border: 2px solid var(--color-danger);
+    border: 3px solid var(--color-danger);
     border-radius: var(--radius-md);
-    padding: var(--spacing-4);
-    margin-bottom: var(--spacing-6);
+    padding: var(--spacing-5);
+    margin-bottom: var(--spacing-8);
   }
   .error-summary-title {
-    font-size: var(--text-body-lg);
+    font-size: var(--text-title-sm);
     font-weight: 800;
-    margin: 0 0 var(--spacing-2);
+    margin: 0 0 var(--spacing-3);
   }
   .error-summary ul {
     margin: 0;
