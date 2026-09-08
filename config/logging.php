@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\WebhookBleduLogger;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -90,6 +91,54 @@ return [
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
             'level' => env('LOG_LEVEL', 'critical'),
             'replace_placeholders' => true,
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Powiadomienie o błędzie na Slacku/Discordzie (bez pakietu monitoringu)
+        |----------------------------------------------------------------------
+        |
+        | Dziś, gdy stronie wywali się 500, nikt się o tym nie dowiaduje —
+        | `docs/ROADMAP.md` §0 nazywa monitoring błędów fundamentem, a Sentry
+        | (docelowy wybór — `docs/infra/MONITORING_BLEDOW.md`) w tym środowisku
+        | pracy nie da się dziś zainstalować: `composer install` odbija się od
+        | proxy na paczkach z GitHuba, więc `composer.lock` nie da się uczciwie
+        | zaktualizować. Ten kanał NIE DOKŁADA żadnej zależności Composera —
+        | Monolog i klient HTTP Laravela są już częścią frameworka.
+        |
+        | JEDNA ZMIENNA WŁĄCZA WSZYSTKO: `LOG_BLAD_WEBHOOK_URL`. Pusta/brakująca
+        | (domyślny stan lokalnie, w CI i w testach) = kanał jest CAŁKOWICIE
+        | martwy — `WebhookBleduHandler` nie wysyła nic i niczego nie rzuca,
+        | patrz jego komentarz klasy oraz `bootstrap/app.php`, gdzie kanał jest
+        | jawnie wołany z `$exceptions->report()`. Adres bierzemy z Discorda
+        | (końcówka „Slack-Compatible Webhook") albo z prawdziwego Slacka —
+        | oba przyjmują to samo `{"text": "..."}`.
+        |
+        | DLACZEGO WŁASNY STEROWNIK `custom`, A NIE WBUDOWANY `slack`
+        | `Monolog\Handler\SlackWebhookHandler` łączy się przez `curl_init()`
+        | z pominięciem klienta HTTP Laravela (nie da się tego przechwycić
+        | `Http::fake()` w testach) i domyślnie dokleja do wiadomości CAŁY
+        | kontekst rekordu logu — czyli m.in. obiekt wyjątku z argumentami
+        | wywołań ze stosu. AGENTS.md §7 zakazuje PII w logach, a to jest
+        | jedyny log w serwisie, który wychodzi do ZEWNĘTRZNEJ usługi — więc
+        | to jest najgorsze możliwe miejsce na „chyba nic tam nie ma".
+        | `WebhookBleduHandler` buduje treść SAM, z jawnie wybranych pól
+        | wyjątku (klasa, komunikat, plik:linia, wzorzec trasy, ślad BEZ
+        | argumentów) — nic „przy okazji" nie przejdzie. Pełne uzasadnienie:
+        | komentarz klasy `App\Logging\WebhookBleduHandler`.
+        |
+        | POZIOM NA SZTYWNO `error` (wymóg: „nikt nie chce powiadomienia
+        | o każdym info"). To NIE jest gałąź do podniesienia przez `LOG_LEVEL`
+        | — ten kanał ma jeden cel i nie powinien dziedziczyć ogólnego progu
+        | logowania aplikacji.
+        |
+        */
+
+        'blad_webhook' => [
+            'driver' => 'custom',
+            'via' => WebhookBleduLogger::class,
+            'url' => env('LOG_BLAD_WEBHOOK_URL'),
+            'level' => 'error',
         ],
 
         'papertrail' => [

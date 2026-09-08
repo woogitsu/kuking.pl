@@ -228,9 +228,58 @@ return Application::configure(basePath: dirname(__DIR__))
             return null;
         });
 
+        // ------------------------------------------------------------------
+        //  BŁĄD 500 DZWONI NA TELEFON WŁAŚCICIELA, ZANIM ZGŁOSI GO UŻYTKOWNIK
+        //
+        //  Dziś, gdy stronie wywali się 500, NIKT się o tym nie dowiaduje —
+        //  `docs/ROADMAP.md` §0 nazywa monitoring błędów fundamentem, nie
+        //  ulepszeniem. Docelowe rozwiązanie to Sentry (patrz
+        //  `docs/infra/MONITORING_BLEDOW.md`), ale w tym środowisku pracy
+        //  `composer install` odbija się od proxy na paczkach z GitHuba, więc
+        //  `composer.lock` nie da się dziś uczciwie zaktualizować. Kanał
+        //  `blad_webhook` (`config/logging.php`) nie dokłada ŻADNEJ zależności
+        //  Composera — Monolog i klient HTTP są już częścią Laravela.
+        //
+        //  DLACZEGO TU, A NIE TYLKO DOPISANE DO `LOG_STACK`
+        //  Na produkcji `LOG_CHANNEL` to `stderr`, nie `stack`
+        //  (`.railway/railway.ts`) — dopisanie kanału do stosu kanału
+        //  domyślnego nic by więc nie zmieniło na żywej produkcji.
+        //  `$exceptions->report()` woła kanał JAWNIE, niezależnie od tego,
+        //  który kanał jest akurat domyślny.
+        //
+        //  DLACZEGO WARUNEK TUTAJ, SKORO `WebhookBleduHandler` I TAK NIC NIE
+        //  WYŚLE BEZ ADRESU. Bez niego KAŻDY raportowany wyjątek budowałby
+        //  kanał (`Log::channel('blad_webhook')`) tylko po to, żeby handler
+        //  i tak nic nie zrobił. Tani koszt, ale zerowy jest tańszy —
+        //  a wymóg brzmi wprost: „gdy zmiennej nie ma, nic się nie dzieje".
+        //
+        //  POZIOM „error i wyżej" BEZ DODATKOWEGO WARUNKU TUTAJ: Laravel
+        //  i tak nie woła `report()` dla wyjątków z listy `dontReport`
+        //  (patrz komentarz przy `ThrottleRequestsException` wyżej —
+        //  `HttpException` obejmuje 4xx/404/419/429). To, co dociera do tego
+        //  miejsca, jest z definicji „coś, co nie powinno się było zdarzyć".
+        //  Sam kanał ma DODATKOWO `'level' => 'error'` w configu jako drugą
+        //  linię obrony, gdyby kiedyś ktoś zaczął pisać na niego z innego
+        //  miejsca.
+        //
+        //  ZERO PII W TREŚCI (AGENTS.md §7 — webhook idzie do ZEWNĘTRZNEJ
+        //  usługi, nad którą nie mamy kontroli). `WebhookBleduHandler` buduje
+        //  wiadomość WYŁĄCZNIE z klasy wyjątku, komunikatu, pliku:linii
+        //  i wzorca trasy — nigdy z `$request->all()`, sesji, ciasteczek,
+        //  adresu IP ani identyfikatora użytkownika. Pełne uzasadnienie:
+        //  komentarz klasy `App\Logging\WebhookBleduHandler`.
+        $exceptions->report(function (Throwable $e) {
+            if (blank(config('logging.channels.blad_webhook.url'))) {
+                return;
+            }
+
+            Log::channel('blad_webhook')->error($e->getMessage(), ['exception' => $e]);
+        });
+
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go
-        // zasypywałoby log (i Sentry) szumem, w którym utonęłyby prawdziwe
-        // błędy — a przy okazji jest to jedyny wyjątek, któremu towarzyszy
-        // treść wpisana przez człowieka. Do logów nie ma ona po co trafiać.
+        // zasypywałoby log (i webhook błędów) szumem, w którym utonęłyby
+        // prawdziwe błędy — a przy okazji jest to jedyny wyjątek, któremu
+        // towarzyszy treść wpisana przez człowieka. Do logów nie ma ona po co
+        // trafiać.
         $exceptions->dontReport(TokenMismatchException::class);
     })->create();
