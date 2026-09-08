@@ -339,4 +339,65 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         $this->assertSame($adres, (string) config('mail.from.address'), 'Adres pokazywany ludziom i adres nadawcy poczty to dwa różne adresy.');
         $this->assertStringContainsString($adres, $this->tresc('polityka-prywatnosci.md'));
     }
+
+    /**
+     * TOŻSAMOŚĆ ADMINISTRATORA STOI W DOKUMENTACH I ZGADZA SIĘ Z KONFIGURACJĄ.
+     *
+     * RODO art. 13 ust. 1 lit. a każe podać, kto jest administratorem,
+     * W MOMENCIE zbierania danych — czyli przy rejestracji, nie na żądanie.
+     * Do 8 września 2026 oba dokumenty mówiły „serwis prowadzi osoba
+     * fizyczna" i obiecywały dane później; to blokowało otwarcie rejestracji.
+     *
+     * Test pilnuje dwóch rzeczy naraz i obie są potrzebne:
+     *
+     *  1. że dane W OGÓLE tam są — inaczej pierwsza redakcja dokumentu
+     *     wycięłaby je z powrotem i nikt by tego nie zauważył;
+     *  2. że są TE SAME co w `config/kuking.php` — bo numer KRS albo adres
+     *     zmienia się w rejestrze, nie w markdownie, i wtedy poprawka
+     *     w jednym miejscu zostawia w drugim nieprawdę na żywej stronie.
+     *
+     * Sprawdzane są oba dokumenty, nie jeden: regulamin mówi, KTO PROWADZI
+     * serwis, a polityka — KTO ADMINISTRUJE DANYMI. To dwie różne role tego
+     * samego podmiotu i obie muszą być podpisane.
+     */
+    public function test_tozsamosc_administratora_zgadza_sie_z_konfiguracja(): void
+    {
+        $podmiot = [
+            'nazwa spółki' => (string) config('kuking.podmiot.nazwa_pelna'),
+            'ulica' => (string) config('kuking.podmiot.ulica'),
+            'kod pocztowy' => (string) config('kuking.podmiot.kod_pocztowy'),
+            'miejscowość' => (string) config('kuking.podmiot.miejscowosc'),
+            'KRS' => (string) config('kuking.podmiot.krs'),
+            'NIP' => (string) config('kuking.podmiot.nip'),
+            'REGON' => (string) config('kuking.podmiot.regon'),
+            'adres e-mail' => (string) config('kuking.podmiot.email'),
+        ];
+
+        foreach ($podmiot as $nazwa => $wartosc) {
+            // KONTROLA: pusty wpis w konfiguracji przeszedłby przez
+            // `assertStringContainsString` bez mrugnięcia, bo pusty ciąg
+            // zawiera się w każdym tekście.
+            $this->assertNotSame('', $wartosc, "Konfiguracja nie podaje pozycji „{$nazwa}”.");
+        }
+
+        foreach (['polityka-prywatnosci.md', 'regulamin.md'] as $plik) {
+            $tresc = $this->tresc($plik);
+
+            foreach ($podmiot as $nazwa => $wartosc) {
+                $this->assertStringContainsString(
+                    $wartosc,
+                    $tresc,
+                    "W dokumencie {$plik} nie ma pozycji „{$nazwa}” ({$wartosc}) z config/kuking.php. "
+                    .'Człowiek czytający ten dokument nie dowie się, komu powierza swoje dane.',
+                );
+            }
+
+            $this->assertStringNotContainsString(
+                'prowadzi osoba fizyczna',
+                $tresc,
+                "Dokument {$plik} nadal mówi, że serwis prowadzi osoba fizyczna. "
+                .'Prowadzi go spółka i to jest w tej chwili nieprawda na żywej stronie.',
+            );
+        }
+    }
 }
