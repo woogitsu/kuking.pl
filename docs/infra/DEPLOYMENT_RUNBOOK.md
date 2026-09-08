@@ -46,7 +46,7 @@ gh --version
 | 0.2 | Konto **Railway** (railway.com) + karta płatnicza | plan **Hobby $5/mies.** na start |
 | 0.3 | Konto **Cloudflare** z domeną `kuking.pl` w strefie DNS | już masz |
 | 0.4 | Adres e-mail do alertów | np. `alerty@kuking.pl` |
-| 0.5 | **Decyzja:** dostawca poczty transakcyjnej | Resend (3 tys./mies. darmowo) albo Brevo (300/dzień) |
+| 0.5 | **Decyzja:** dostawca poczty transakcyjnej | rekomendacja: **EmailLabs** (300/dobę, bez karty), zapasowo Brevo — patrz `POCZTA_URUCHOMIENIE.md` §6 |
 | 0.6 | **Włącz 2FA** na GitHubie, Railway i Cloudflare | **zrób to teraz**, nie później |
 
 > **Dlaczego 2FA teraz:** konto Cloudflare kontroluje DNS dla `kuking.pl`.
@@ -283,10 +283,11 @@ curl -I https://cdn.kuking.pl/test.txt
 **`[POTRZEBNE OD WŁAŚCICIELA — wybór dostawcy]`**
 
 > **Ten krok ma własny dokument: [`POCZTA_URUCHOMIENIE.md`](POCZTA_URUCHOMIENIE.md).**
-> Jest tam komplet zmiennych i rekordów DNS dla trzech wariantów (Postmark,
-> Amazon SES, Resend), wyjaśnienie, co robi SPF, DKIM i DMARC, oraz sposób
-> sprawdzenia, że poczta naprawdę wychodzi. Porównanie dostawców, ceny
-> i rezydencja danych: [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
+> Jest tam komplet zmiennych i rekordów DNS dla pięciu wariantów (EmailLabs
+> i Brevo — rekomendowane, §2A–§2B; Postmark, Amazon SES, Resend — §2C–§2E),
+> wyjaśnienie, co robi SPF, DKIM i DMARC, oraz sposób sprawdzenia, że poczta
+> naprawdę wychodzi. Porównanie dostawców, ceny i rezydencja danych:
+> [`../decyzje/POCZTA.md`](../decyzje/POCZTA.md).
 >
 > Poniżej zostaje tylko to, co dotyczy samego wdrożenia.
 
@@ -468,7 +469,7 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `R2_BUCKET` | `kuking-media` | nie | Nazwa bucketa |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
 | `R2_PUBLIC_URL` | `https://cdn.kuking.pl` | nie | Publiczny prefiks URL zdjęć |
-| `MAIL_HOST` | np. `smtp.resend.com` | nie | Serwer SMTP |
+| `MAIL_HOST` | np. `smtp.emaillabs.net.pl` (EmailLabs) | nie | Serwer SMTP |
 | `MAIL_PORT` | `587` | nie | Port SMTP (STARTTLS) |
 | `MAIL_USERNAME` | z kroku 3.2 | nie | Login SMTP |
 | `MAIL_PASSWORD` | z kroku 3.2 | **TAK** | Hasło / klucz API SMTP |
