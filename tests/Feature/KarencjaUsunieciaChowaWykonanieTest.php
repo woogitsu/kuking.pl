@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Media\DostepDoZdjecia;
+use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Recipe;
