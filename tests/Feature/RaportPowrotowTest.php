@@ -9,6 +9,7 @@ use App\Domain\Analytics\PowrotPoDniach;
 use App\Domain\Analytics\ZasiegUgotowalem;
 use App\Models\CookedEvent;
 use App\Models\Notification;
+use App\Models\Post;
 use App\Models\Recipe;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -212,5 +213,106 @@ class RaportPowrotowTest extends TestCase
             ->expectsOutputToContain('Aktywni w ostatnich 7 dniach: 2')
             ->expectsOutputToContain('Przepisy z choć jednym „Ugotowałem”: 1')
             ->expectsOutputToContain('Autorzy powiadomieni o „Ugotowałem”: 1');
+    }
+
+    // ---------------------------------------------------------------
+    // Kohorty retencji w raporcie
+    // ---------------------------------------------------------------
+
+    /**
+     * `CookRetentionCohorts` istniało, było przetestowane — i nie było
+     * wołane z żadnej komendy ani kontrolera. Liczba, której nikt nie umie
+     * wyświetlić, nie jest pomiarem. Ten test pilnuje, żeby wróciła do
+     * raportu i już z niego nie wypadła.
+     */
+    public function test_raport_pokazuje_kohorty_powrotow(): void
+    {
+        $this->travelTo($this->teraz());
+
+        // Rejestracja pięć tygodni temu, żeby ofsety 1 i 4 miały już
+        // zamknięte tygodnie i dało się je policzyć, a nie odrzucić jako
+        // „za wcześnie".
+        $rejestracja = $this->teraz()->subWeeks(5);
+
+        $wraca = $this->user('wraca', ['created_at' => $rejestracja]);
+        $niewraca = $this->user('niewraca', ['created_at' => $rejestracja]);
+
+        // Obie osoby aktywne w tygodniu rejestracji — to jest mianownik.
+        Post::factory()->create(['author_id' => $wraca->getKey(), 'published_at' => $rejestracja->addDay()]);
+        Post::factory()->create(['author_id' => $niewraca->getKey(), 'published_at' => $rejestracja->addDay()]);
+
+        // Tylko jedna z nich wraca po tygodniu i po miesiącu.
+        Post::factory()->create(['author_id' => $wraca->getKey(), 'published_at' => $rejestracja->addWeek()->addDay()]);
+        Post::factory()->create(['author_id' => $wraca->getKey(), 'published_at' => $rejestracja->addWeeks(4)->addDay()]);
+
+        $this->artisan('kuking:raport')
+            ->assertSuccessful()
+            ->expectsOutputToContain('Kohorty powrotów')
+            ->expectsOutputToContain('2 na starcie · po tygodniu 1 (50,0%) · po miesiącu 1 (50,0%)');
+    }
+
+    /**
+     * „Nikt nie wrócił" i „jeszcze nie minęło tyle czasu" to DWA RÓŻNE
+     * fakty i raport nie ma prawa pokazać ich tak samo.
+     *
+     * Kohorta z tego tygodnia ma zero powrotów wyłącznie dlatego, że
+     * tydzień się jeszcze nie skończył. Wypisanie tam „0 (0,0%)" byłoby
+     * zdaniem nieprawdziwym — sugerowałoby, że nikt nie wrócił, podczas
+     * gdy nikt jeszcze nie MÓGŁ.
+     */
+    public function test_kohorta_z_biezacego_tygodnia_mowi_za_wczesnie_a_nie_zero(): void
+    {
+        $this->travelTo($this->teraz());
+
+        $swiezy = $this->user('swiezy', ['created_at' => $this->teraz()]);
+        Post::factory()->create(['author_id' => $swiezy->getKey(), 'published_at' => $this->teraz()]);
+
+        $this->artisan('kuking:raport')
+            ->assertSuccessful()
+            ->expectsOutputToContain('1 na starcie · po tygodniu za wcześnie · po miesiącu za wcześnie');
+    }
+
+    /**
+     * GRANICA: tydzień docelowy, który jest DOKŁADNIE bieżącym tygodniem,
+     * też jest „za wcześnie".
+     *
+     * Rejestracja cztery tygodnie temu: ofset 1 wypada w tygodniu już
+     * zamkniętym i da się go policzyć, a ofset 4 wypada w tygodniu, który
+     * właśnie trwa. Ten drugi nie ma prawa pokazać się jako „0 (0,0%)",
+     * bo miesiąc jeszcze się nie domknął.
+     *
+     * Bez tego przypadku porównanie w kodzie mogłoby być `>` zamiast `>=`
+     * i nic by tego nie złapało — pozostałe testy stoją z dala od tej
+     * granicy.
+     */
+    public function test_tydzien_docelowy_rowny_biezacemu_to_tez_za_wczesnie(): void
+    {
+        $this->travelTo($this->teraz());
+
+        $rejestracja = $this->teraz()->subWeeks(4);
+
+        $osoba = $this->user('nagranicy', ['created_at' => $rejestracja]);
+
+        Post::factory()->create(['author_id' => $osoba->getKey(), 'published_at' => $rejestracja->addDay()]);
+        Post::factory()->create(['author_id' => $osoba->getKey(), 'published_at' => $rejestracja->addWeek()->addDay()]);
+
+        $this->artisan('kuking:raport')
+            ->assertSuccessful()
+            ->expectsOutputToContain('1 na starcie · po tygodniu 1 (100,0%) · po miesiącu za wcześnie');
+    }
+
+    /**
+     * Pusta baza nie wywala raportu — ta sama zasada, co przy trzech
+     * pozostałych klasach (patrz docblock komendy).
+     */
+    public function test_brak_jakiejkolwiek_aktywnosci_nie_wywala_raportu(): void
+    {
+        $this->travelTo($this->teraz());
+
+        $this->user('nikt');
+
+        $this->artisan('kuking:raport')
+            ->assertSuccessful()
+            ->expectsOutputToContain('nikt jeszcze nic nie zrobił w tygodniu swojej rejestracji');
     }
 }
