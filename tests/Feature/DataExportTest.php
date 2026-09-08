@@ -165,8 +165,12 @@ class DataExportTest extends TestCase
         $przepis = Recipe::factory()->for($zenek, 'author')->create(['title' => 'Żurek na zakwasie']);
 
         $zeszyt = $basia->defaultCollection();
-        (new SaveRecipeToCollection)->handle($basia, $przepis, $zeszyt);
-        (new SavePostToCollection)->handle($basia, $wpis, $zeszyt, 'Spróbować przed Wielkanocą');
+        // `app(...)`, nie `new`: `SaveRecipeToCollection` bierze w konstruktorze
+        // `NotifyUser` (powiadamia autora przepisu o zapisaniu). Kontener
+        // składa akcję tak samo jak w produkcji, więc test przechodzi tą samą
+        // drogą co kontroler — a nie własną, uproszczoną.
+        app(SaveRecipeToCollection::class)->handle($basia, $przepis, $zeszyt);
+        app(SavePostToCollection::class)->handle($basia, $wpis, $zeszyt, 'Spróbować przed Wielkanocą');
 
         $export = $this->runExportFor($basia);
         $data = $this->jsonFromArchive($export);
@@ -217,7 +221,7 @@ class DataExportTest extends TestCase
 
         // Basia obserwuje Zenka, odkłada wpis „na potem"...
         $basia->following()->attach($zenek->getKey(), ['created_at' => now()]);
-        (new SavePostToCollection)->handle($basia, $wpis, $basia->defaultCollection());
+        app(SavePostToCollection::class)->handle($basia, $wpis, $basia->defaultCollection());
 
         // ...a potem przestaje obserwować. Wpis zostaje w zeszycie, ale
         // przestaje być dla niej widoczny.
