@@ -1250,12 +1250,47 @@ samego mechanizmu.
 
 ## D-028 · CI wraca na własne runnery — wybierane etykietami, nie nazwą
 
-**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+**Data:** 7 września 2026 · **Decyzja właściciela** · Status: **obowiązuje
+co do zasady, ZAWIESZONA w praktyce od 8 września — patrz poprawka niżej**
 
 > **Zmiana D-010.** D-010 przeniosło CI na runnery GitHuba, bo nowa
 > organizacja `woogitsu` dawała nieużywane 2 000 minut miesięcznie. Ta decyzja
 > to odwraca: wszystkie joby chodzą na własnej puli
 > `woogitsu-linux-01`–`woogitsu-linux-10`.
+
+> **Poprawka z 8 września, wieczorem — decyzja właściciela.** Wszystkie
+> **14 jobów** chodzi tymczasowo na `ubuntu-latest`. Zasada zapisana wyżej
+> (własna pula, wybierana etykietami) NIE jest odwołana; zmieniła się
+> sytuacja, nie strategia. Ta decyzja przewidywała własny warunek zmiany —
+> „dłuższa niedostępność puli, która ten koszt zamieni z hipotetycznego
+> na zmierzony" — i dokładnie to zaszło.
+>
+> **Zmierzony koszt, dla którego to piszemy.** Trzy z sześciu runnerów były
+> wyłączone. W kolejce stało dziesięć przebiegów po siedem jobów; job
+> „Testy (PostgreSQL 18)" czekał na wolną maszynę **ponad godzinę**. Railway
+> ma włączone „Wait for CI", więc przez ten czas **nie wdrożył na produkcję
+> ani jednej scalonej zmiany** — pięć kolejnych scaleń stało bez efektu.
+> Ten skutek był w D-028 wypisany jako hipotetyczny; 8 września przestał być.
+>
+> **Zmierzony zysk.** Ten sam pełny zestaw na runnerach GitHuba: siedem jobów
+> **równolegle**, całość w **3 min 21 s** (Vite 16 s, audyt 23 s, Larastan
+> 28 s, Pint 38 s, build obrazu 58 s, testy 3:18, dostępność 3:21).
+>
+> **Czego to kosztuje.** Repozytorium jest prywatne, więc minuty są płatne.
+> Pełny przebieg to orientacyjnie 25–35 minut maszynowych z puli ~2000
+> miesięcznie, którą właściciel kazał wykorzystać.
+>
+> **Jak wrócić.** W każdym z czterech workflow-ów podmienić
+> `runs-on: ubuntu-latest` na
+> `runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]`.
+> Nagłówek każdego pliku mówi to samo w miejscu, w którym się na to patrzy.
+> Nic poza `runs-on` nie wymagało zmiany: usługa `postgres` i odczyt
+> zmapowanego portu przez `job.services.postgres.ports[5432]` działają
+> jednakowo na obu rodzajach runnerów — sprawdzone przebiegiem, nie założone.
+>
+> **Czego ta poprawka NIE rozstrzyga.** Kiedy wrócić. To jest decyzja
+> właściciela i wymaga jednej informacji, której z repozytorium nie widać:
+> czy pula stoi z powodu, który minie sam.
 
 Wszystkie **14 jobów** w czterech workflow-ach (`ci.yml` 7, `deploy.yml` 2,
 `preview.yml` 3, `railway-iac.yml` 2) ma dokładnie:

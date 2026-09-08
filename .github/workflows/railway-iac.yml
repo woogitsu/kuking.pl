@@ -45,6 +45,20 @@
 #    RAILWAY_TOKEN_PRODUCTION — token projektowy środowiska production
 # =============================================================================
 
+# ---------------------------------------------------------------------------
+#  RUNNERY: TYMCZASOWO `ubuntu-latest`, NIE WŁASNA PULA — decyzja właściciela
+#  z 8 września 2026, wieczorem. To samo, co w `ci.yml`; pełne uzasadnienie
+#  i sposób powrotu stoją tam oraz w D-028 (`docs/DECISIONS.md`).
+#
+#  W skrócie: trzy z sześciu runnerów są wyłączone, a joby stały w kolejce
+#  godzinami. D-028 NIE JEST odwołana — zmieniła się sytuacja, nie strategia.
+#
+#  POWRÓT: podmień w tym pliku każde
+#      runs-on: ubuntu-latest
+#  na
+#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+# ---------------------------------------------------------------------------
+
 name: Railway IaC
 
 on:
@@ -71,7 +85,7 @@ jobs:
   # ===========================================================================
   plan:
     name: Plan (production)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 15
 
     # Warunek `head.repo.full_name == github.repository` blokuje uruchomienie
@@ -110,7 +124,7 @@ jobs:
   # ===========================================================================
   apply:
     name: Apply (production)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 20
 
     # Bramka wdrożeniowa: bez projektu Railway i sekretu RAILWAY_TOKEN_PRODUCTION
