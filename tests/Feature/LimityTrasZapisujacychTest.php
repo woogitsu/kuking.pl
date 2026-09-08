@@ -10,6 +10,7 @@ use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -238,6 +239,20 @@ class LimityTrasZapisujacychTest extends TestCase
             // trasie zostawia OTWARTĄ sesję na wspólnym komputerze u kogoś,
             // kto właśnie próbuje ją zamknąć.
             'logout',
+
+            // NIE NASZA TRASA. `PUT /storage/{path}` rejestruje sam framework
+            // dla każdego dysku, który ma `serve => true` — u nas dysk `local`
+            // (`config/filesystems.php`). W `routes/web.php` jej nie ma i nie
+            // przechodzi przez żadną naszą grupę, więc nie ma gdzie doczepić
+            // prefiksu `throttle:` bez przykrywania trasy frameworka własną.
+            //
+            // To ten sam powód, dla którego pętla niżej pomija `livewire`.
+            // Różnica jest jednak taka, że tamto tylko renderuje komponenty,
+            // a to ZAPISUJE PLIK — więc samo „nie nasza" nie wystarcza za
+            // uzasadnienie. Tego, co chroni tę trasę zamiast limitu, pilnuje
+            // test `test_trasa_zapisu_na_dysk_lokalny_odrzuca_zadanie_bez_podpisu`
+            // zaraz pod tą regułą.
+            'storage.local.upload',
         ];
 
         $bezLimitu = [];
@@ -307,6 +322,46 @@ class LimityTrasZapisujacychTest extends TestCase
             ."`throttle:{\$limits['usuwanie']},usuwanie`. Jeśli brak limitu jest "
             .'decyzją, dopisz nazwę trasy do `$swiadomeWyjatki` w tym teście '
             .'RAZEM Z POWODEM.',
+        );
+    }
+
+    /**
+     * DOWÓD DO WYJĄTKU `storage.local.upload` Z LISTY WYŻEJ.
+     *
+     * Wpisanie trasy zapisującej na listę wyjątków jest tanie, a przez to
+     * niebezpieczne: raz dopisana pozycja zostaje tam na zawsze i nikt jej
+     * więcej nie sprawdza. Dlatego wyjątek dla trasy, która ZAPISUJE PLIK,
+     * ma tu obok dowód wykonywalny.
+     *
+     * Sprawdzana własność jest jedna i konkretna: żądanie BEZ ważnego podpisu
+     * ma zostać odrzucone. Jeżeli framework kiedykolwiek przestanie tej trasy
+     * pilnować, ten test spadnie na czerwono — i wtedy wyjątek z listy wyżej
+     * trzeba będzie zdjąć, a nie limit dopisać.
+     */
+    public function test_trasa_zapisu_na_dysk_lokalny_odrzuca_zadanie_bez_podpisu(): void
+    {
+        $this->assertNotNull(
+            Route::getRoutes()->getByName('storage.local.upload'),
+            'Trasa zniknęła — a skoro jej nie ma, to nie ma też po co trzymać jej '
+            .'na liście świadomych wyjątków w teście wyżej. Usuń stamtąd wpis '
+            .'razem z tym testem.',
+        );
+
+        $odpowiedz = $this->put('/storage/podrzucone.txt', [], [
+            'Content-Type' => 'text/plain',
+        ]);
+
+        $this->assertGreaterThanOrEqual(
+            400,
+            $odpowiedz->getStatusCode(),
+            'Zapis na dysk lokalny przeszedł bez podpisu. To trasa bez limitu '
+            .'zapytań (świadomy wyjątek w teście wyżej), więc cokolwiek ją do tej '
+            .'pory zamykało — przestało. Wyjątek nie jest już uzasadniony.',
+        );
+
+        $this->assertFalse(
+            Storage::disk('local')->exists('podrzucone.txt'),
+            'Plik jednak powstał, mimo odmownego kodu odpowiedzi.',
         );
     }
 }
