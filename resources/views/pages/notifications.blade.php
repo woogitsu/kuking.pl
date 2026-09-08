@@ -178,24 +178,29 @@
                     </p>
 
                     @php
-                        $link = match ($notification->type) {
-                            // Prowadzi do pełnoekranowego ekranu „Komuś wyszło" (issue #17),
-                            // nie od razu do zwykłego wpisu — to jest najcenniejszy moment
-                            // w produkcie i zasługuje na własną stronę, nie jeden wiersz
-                            // na liście. `celebrate()` sam się cofa do `cooked.show`,
-                            // kiedy ekran już był raz pokazany.
-                            \App\Models\Notification::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.celebrate', $data['cooked_event_id']) : null,
-                            \App\Models\Notification::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
-                            \App\Models\Notification::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
-                            \App\Models\Notification::TYPE_FIRST_POST => route('admin.unanswered'),
-                            \App\Models\Notification::TYPE_WELCOME => route('posts.create'),
-                            default => $data['url'] ?? null,
-                        };
+                        // Adres liczy model (`Notification::adresDocelowy()`),
+                        // a nie ten widok. Ten sam `match` potrzebny jest
+                        // w kontrolerze, który po oznaczeniu przeczytania
+                        // musi odesłać w to samo miejsce — dwie kopie
+                        // rozjechałyby się przy pierwszym nowym typie.
+                        $link = $notification->adresDocelowy();
                     @endphp
                     @if($link)
-                        <p class="mt-3 mx-0 mb-0">
-                            <a class="btn btn-secondary" href="{{ $link }}">Zobacz</a>
-                        </p>
+                        {{--
+                            FORMULARZ, NIE ODNOŚNIK — i to jest cała poprawka
+                            do zgłoszenia „klikam Zobacz, a powiadomienie
+                            dalej jest nieprzeczytane".
+
+                            Kliknięcie zapisuje `read_at` dla tego jednego
+                            powiadomienia i dopiero potem odsyła do treści.
+                            Odnośnik `<a>` nie mógł tego zrobić, bo GET nie
+                            ma prawa zmieniać stanu. Formularz działa też bez
+                            JavaScriptu, więc nic nie tracimy.
+                        --}}
+                        <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit">Zobacz</button>
+                        </form>
                     @endif
 
                     {{--

@@ -748,6 +748,25 @@ return [
         'ustawienia' => '30,10',
 
         /*
+         * POWIADOMIENIA — kliknięcie „Zobacz" przy pojedynczym powiadomieniu.
+         *
+         * Szkoda z nadużycia: żadna. Jeden UPDATE znacznika `read_at` na
+         * WŁASNYM wierszu, nikogo nie powiadamia, niczego nie tworzy.
+         *
+         * DLACZEGO OSOBNA GRUPA, A NIE `ustawienia`. Bo trzydzieści na
+         * dziesięć minut jest tu za mało i to jest przewidywalne: człowiek,
+         * który nie zaglądał tydzień, ma listę na dwie strony i przechodzi
+         * ją po kolei. Trzydziesty pierwszy klik zwracałby 429 przy czynności
+         * tak niewinnej jak czytanie własnych powiadomień — a to dokładnie
+         * ten kształt błędu, który opisuje uwaga przy `zeszyt` wyżej.
+         *
+         * SKĄD 120 NA 10 MINUT. Strona mieści 30 powiadomień; cztery pełne
+         * strony przeklikane w kwadrans to górna granica tego, co człowiek
+         * zdąży zrobić ręcznie, i wciąż zostaje zapas.
+         */
+        'powiadomienia' => '120,10',
+
+        /*
          * ZAPIS PROFILU (`PUT /ustawienia/profil`) — OSOBNO OD `ustawienia`.
          *
          * Bo to jedyny ekran ustawień, który przyjmuje PLIK. Zdjęcie
@@ -897,6 +916,46 @@ return [
     // aplikacja liczy i pisze do bazy. Ta tutaj dotyczy wyłącznie tego,
     // co widzi człowiek (issue #87, pomocnik `App\Support\Czas`).
     'strefa' => env('KUKING_STREFA', 'Europe/Warsaw'),
+
+    /*
+     * KTO PROWADZI SERWIS — dane podmiotu, nie osoby prywatnej.
+     *
+     * Stoją TUTAJ, a nie tylko w dokumentach, z jednego powodu:
+     * `DokumentyPrawneNieKlamiaTest` porównuje z nimi treść regulaminu
+     * i polityki prywatności. Poprawka w jednym miejscu bez drugiego zapala
+     * test na czerwono, zamiast po cichu zostawić na żywej stronie
+     * nieaktualny numer KRS.
+     *
+     * DLACZEGO TO NIE MOGŁO ZOSTAĆ „NA PÓŹNIEJ". RODO art. 13 ust. 1 lit. a
+     * wymaga podania tożsamości administratora W MOMENCIE zbierania danych,
+     * czyli przy rejestracji — nie na żądanie i nie po otwarciu serwisu.
+     * Do 8 września 2026 oba dokumenty mówiły „serwis prowadzi osoba
+     * fizyczna" i obiecywały dane później. To było zaniechanie, nie
+     * uproszczenie, i blokowało otwarcie rejestracji.
+     */
+    'podmiot' => [
+        'nazwa' => 'SAMSUFI sp. z o.o.',
+        'nazwa_pelna' => 'SAMSUFI Spółka z ograniczoną odpowiedzialnością',
+        'ulica' => 'Jagiellońska 4A',
+        'kod_pocztowy' => '19-120',
+        'miejscowosc' => 'Knyszyn',
+        'kraj' => 'Polska',
+        'krs' => '0000901262',
+        'nip' => '5423435334',
+        'regon' => '388971059',
+
+        /*
+         * Adres, pod którym odpowiada spółka — i to NIE jest to samo, co
+         * `community.contact_email` niżej.
+         *
+         * Tamten jest adresem serwisu i zależy od poczty na domenie
+         * kuking.pl, której 8 września jeszcze nie ma (`MAIL_MAILER=log`).
+         * Ten jest adresem spółki i działa niezależnie od niej. W dokumencie
+         * prawnym musi stać adres, o którym wiadomo, że ktoś go czyta —
+         * inaczej „napisz do nas" jest obietnicą bez pokrycia.
+         */
+        'email' => 'biuro@samsufi.pl',
+    ],
 
     'community' => [
         // Adres, na który idą zgłoszenia i sprawy moderacyjne.

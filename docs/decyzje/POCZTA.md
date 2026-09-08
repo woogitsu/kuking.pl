@@ -3,6 +3,13 @@
 Stan na **wrzesień 2026**. Wszystkie ceny netto, w walucie podanej przez dostawcę.
 Kurs orientacyjny: 1 USD ≈ 3,65 zł, 1 EUR ≈ 4,25 zł `[do weryfikacji — kurs bieżący]`.
 
+> **Ponowna weryfikacja: 2026-09-08.** Darmowe pułapy i ceny bazowe EmailLabs,
+> Brevo, Resend, Postmark, Mailgun i Amazon SES sprawdzone jeszcze raz pod kątem
+> tego dokumentu — bez zmian względem stanu opisanego niżej. Doszedł wiersz
+> „Wymaga karty płatniczej” (§1, brakowało go, a właściciel wprost o to pytał)
+> i konkretne rekordy DNS oraz host SMTP dla EmailLabs i Brevo, teraz opisane
+> krok po kroku w [`docs/infra/POCZTA_URUCHOMIENIE.md`](../infra/POCZTA_URUCHOMIENIE.md) §2A–§2B.
+
 ---
 
 ## 0. Najpierw policz, ile to naprawdę jest e-maili
@@ -37,6 +44,7 @@ Digest jest tu jedynym wolumenem, który się liczy.
 | **Wymagania DNS** | SPF, DKIM (CNAME), rekomendowany DMARC, własny return-path | SPF, DKIM, DMARC, dedykowana subdomena wysyłkowa | SPF, DKIM, DMARC, CNAME trackingowy, własny MAIL FROM | SPF, DKIM (klucz Postmarka), DMARC, custom Return-Path (CNAME) | SPF, DKIM (3× CNAME Easy DKIM), **custom MAIL FROM** (bo domyślnie amazonses.com łamie zgodność SPF z DMARC), DMARC | SPF, DKIM, DMARC + rekomendowany rDNS przy dedykowanym IP |
 | **Laravel 13** | **sterownik wbudowany** `resend`; `composer require resend/resend-php` + 1 zmienna | **brak wbudowanego** — `symfony/brevo-mailer` jako dodatkowy transport Symfony **albo** zwykły SMTP | **sterownik wbudowany** `mailgun`; region EU przez `MAILGUN_ENDPOINT=api.eu.mailgun.net` (udokumentowane w docs Laravela) | **sterownik wbudowany** `postmark`; `symfony/postmark-mailer` | **sterownik wbudowany** `ses`; `aws/aws-sdk-php`, region w configu | **zwykły SMTP** — zero pakietów, działa od razu; brak tagów/metadanych na poziomie API |
 | **Wysiłek konfiguracyjny** | ~15 min | ~30 min (SMTP) | ~30 min | ~15 min | **~1–3 dni** — wniosek o production access, obsługa bounce/complaint przez SNS jest **obowiązkowa** | ~20 min |
+| **Wymaga karty płatniczej?** | **NIE** — konto darmowe bez karty `[sprawdzone 2026-09-08, resend.com/pricing]` | **NIE** — plan Free bez karty `[sprawdzone 2026-09-08]` | **NIE** na planie Free `[sprawdzone 2026-09-08]` | **NIE** do planu Developer (100/mies.); karta dopiero przy upgrade `[sprawdzone 2026-09-08, postmarkapp.com/support]` | **TAK** — AWS wymaga ważnej karty już przy zakładaniu konta root, niezależnie od tego, czy zmieścisz się w darmowym limicie `[sprawdzone 2026-09-08]` | **NIE** — rejestracja bez karty; do konta w ogóle nie da się jej dziś podpiąć, po przekroczeniu limitu przychodzi faktura mailem, płatna przelewem `[sprawdzone 2026-09-08, docs.emaillabs.io/faq/konto]` |
 
 ### Uwaga do Amazon SES: sandbox
 
@@ -177,6 +185,11 @@ Przy jednoosobowym zespole to jest **tanio**.
 - [Amazon SES — endpoints i quoty (regiony UE, sandbox 200/24 h, 1/s)](https://docs.aws.amazon.com/general/latest/gr/ses.html)
 - [EmailLabs — cennik](https://emaillabs.io/cennik-v2/)
 - [EmailLabs — e-maile transakcyjne i dostarczalność](https://emaillabs.io/e-maile-transakcyjne-dlaczego-ich-dostarczalnosc-jest-tak-kluczowa-dla-branzy-e-commerce/)
+- [EmailLabs DOCS — Konto (rejestracja bez karty, rozliczenie fakturą)](https://docs.emaillabs.io/faq/konto)
+- [EmailLabs DOCS — konfiguracja SPF i DKIM](https://emaillabs.io/en/secure-email-delivery/)
+- [Brevo — SPF/DKIM setup](https://easydmarc.com/blog/brevo-ex-sendinblue-spf-dkim-setup/)
+- [Postmark — Pricing & Billing FAQ (brak karty na planie Developer)](https://postmarkapp.com/support/article/1285-pricing-billing-faq)
+- [AWS — Free Tier FAQ (karta wymagana przy zakładaniu konta)](https://aws.amazon.com/free/registration-faqs/)
 - [WP Pomoc — Zasady wysyłki wiadomości masowych](https://pomoc.wp.pl/zalecenia-dla-nadawcow-masowych)
 - [WP Pomoc — Polityka antyspamowa](https://pomoc.wp.pl/polityka-antyspamowa)
 - [CERT Polska — Mechanizmy weryfikacji nadawcy wiadomości (SPF/DKIM/DMARC)](https://cert.pl/posts/2021/10/mechanizmy-weryfikacji-nadawcy-wiadomosci/)

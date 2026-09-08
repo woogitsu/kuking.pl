@@ -66,6 +66,11 @@ CHCIAŁ zrobić; test mówi, co zostanie sprawdzone przy następnej zmianie.
 | **W7-11** | P2 | **ZAMKNIĘTE** | `fba0a39` | `CaddySpojnyZNaglowkamiLaravelaTest` (2 testy) |
 | **W7-12** | P2 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest` — `App\Support\OdzyskiwalneDane` jest jedyną odpowiedzią na „które pola wolno pokazać z powrotem", i jest to BIAŁA LISTA nazw tras, nie czarna lista nazw pól |
 
+> **Uwaga do wiersza W7-01 — NIEAKTUALNA OD 8 WRZEŚNIA (PR #139).** Testy
+> przebiegły na PostgreSQL 18 i są zielone; wiersz opisuje stan sprzed tego
+> przebiegu i zostaje tu wyłącznie jako ślad, dlaczego łatka tak długo leżała.
+> Oryginalna treść:
+>
 > **Uwaga do wiersza W7-01.** Łatka SEC-01 powstała w środowisku bez pełnego
 > `vendor/`, więc PHPUnita **nie uruchomiono ani razu**. Sprawdzone zostało:
 > składnia (`php -l`), zgodność z faktycznym źródłem `TrustProxies`
@@ -586,13 +591,23 @@ Zanim ktokolwiek powie „można otwierać":
 
 1. **#120** — dowód, że produkcyjny bucket wariantów nie jest publicznie
    osiągalny. Bez tego W7-02 jest naprawione tylko w kodzie.
-2. **SEC-01 na stagingu** — rozstrzygnięcie W7-01.
+2. ~~**SEC-01 na stagingu** — rozstrzygnięcie W7-01.~~ **ZAMKNIĘTE 8 września
+   (PR #139).** Dziewięć testów `PodrobionyNaglowekProxyTest` przebiegło na
+   PostgreSQL 18 na zielono; uruchomienie wykazało przy okazji usterkę, której
+   czytanie kodu nie pokazało (adres IPv4 zapisany jako IPv6 kasował cały
+   nagłówek). Połowa aplikacyjna W7-01 jest zamknięta i **udowodniona
+   przebiegiem, nie rozumowaniem**. Granica zaufania — token krawędziowy —
+   zostaje otwarta i wymaga panelu Cloudflare.
 3. **Fale 1–6 w tej macierzy** (§6).
 4. **Ochrona `main` i bramka CI** (§5) — audyt wymienia to wprost w sekcji
    „Release safety".
-5. **Tożsamość i adres administratora** w dokumentach prawnych (§7b). Do czasu
-   podania: rejestracja otwarta dla wszystkich jest publikowaniem serwisu bez
-   informacji, kto odpowiada za dane.
+5. ~~**Tożsamość i adres administratora** w dokumentach prawnych (§7b).~~
+   **ZAMKNIĘTE 8 września.** Serwis prowadzi SAMSUFI sp. z o.o. z siedzibą
+   w Knyszynie (KRS 0000901262). Dane stoją w regulaminie §1 i w polityce
+   prywatności §1, a `config/kuking.php` jest ich źródłem — rozjazd między
+   konfiguracją a dokumentem zapala `DokumentyPrawneNieKlamiaTest` na czerwono.
+   Wcześniej oba dokumenty mówiły „serwis prowadzi osoba fizyczna" i obiecywały
+   dane później, co przy RODO art. 13 ust. 1 lit. a było zaniechaniem.
 6. **Działająca skrzynka pocztowa** (§7b). Dziś `MAIL_MAILER=log`: reset hasła
    nie dochodzi do nikogo. To nie jest brak wygody — to konto tracone
    bezpowrotnie przy pierwszym zapomnianym haśle.
