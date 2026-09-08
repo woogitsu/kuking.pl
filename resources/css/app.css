@@ -1219,7 +1219,7 @@
      przy której „4 porcje" nie mieści się w jednym wierszu. */
   .przepis-liczby {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr));
     gap: var(--spacing-3);
     list-style: none;
     padding: 0;
@@ -1574,7 +1574,7 @@
   .choice-grid {
     display: grid;
     gap: var(--spacing-3);
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
   }
 
   /* ---------------------------------------------------------------------
@@ -1630,6 +1630,14 @@
     display: flex;
     gap: var(--spacing-2);
     margin-top: var(--spacing-3);
+
+    /* `flex-wrap` jak w `.kuking-board-person` tuż wyżej — tam było, tu nie.
+       Miniatury mają `width: 72px` i `flex: none`, więc rząd trzech z odstępami
+       nie mieści się w wąskiej kolumnie tablicy przy powiększonej czcionce
+       i wypycha całą stronę w bok o 37 px (zmierzone przy bazie 32 px na `/`,
+       `/odkryj` i `/szukaj`). Bez zawijania nie ma jak temu zaradzić:
+       obrazek o stałej szerokości i `flex: none` z definicji się nie skurczy. */
+    flex-wrap: wrap;
   }
 
   .kuking-board-preview img {
@@ -2159,6 +2167,14 @@
     gap: var(--spacing-1);
     padding: var(--spacing-3) 0;
     border-top: 1px solid var(--color-border);
+
+    /* Ta sama przyczyna co przy siatkach `auto-fit` wyżej, inny objaw.
+       Przy czcionce powiększonej do 200% samo słowo „Bezpieczeństwo" jest
+       szersze niż kolumna nawigacji (zmierzone: 310 px treści w boksie
+       214 px) i wypycha całą stronę w bok o 23 px. Pozwalamy je złamać —
+       ten sam zabieg, co w `.side-nav-item`. */
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .ustawienia-nawigacja-pozycja:first-child {
@@ -2613,17 +2629,30 @@
 /* Dwa pola obok siebie na szerokim ekranie, jedno pod drugim na telefonie.
    `auto-fit` + `minmax` zamiast media query: pola układają się według miejsca,
    które naprawdę mają, a nie według szerokości okna — komponent bywa w wąskiej
-   kolumnie na szerokim ekranie. */
+   kolumnie na szerokim ekranie.
+
+   `min(Xrem, 100%)` W MINIMUM, A NIE SAMO `Xrem`, I TO NIE JEST OZDOBNIK.
+   `rem` skaluje się z czcionką ustawioną przez CZŁOWIEKA, nie z szerokością
+   okna. Przy powiększeniu czcionki do 200% baza rośnie z 16 px do 32 px, więc
+   `minmax(15rem, …)` zaczyna ŻĄDAĆ kolumny 480 px — w oknie 360 px. Ścieżka
+   nie ma się jak zwęzić, kontener wystaje i cała strona przewija się w BOK.
+   Zmierzone na `/dodaj/zdjecie`: przy 150% `scrollWidth` 415 px, przy 200%
+   już 553 px przy oknie 360 px.
+
+   `min(Xrem, 100%)` mówi „nie schodź poniżej Xrem, CHYBA ŻE tyle miejsca
+   po prostu nie ma". Przy szerokim ekranie nic się nie zmienia — warunek
+   nie wchodzi w grę. Dotyczy to każdej siatki `auto-fit` w tym pliku, więc
+   poprawka jest wszędzie ta sama. */
 .siatka-pol {
   display: grid;
   gap: var(--spacing-4);
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
 }
 
 .siatka-pol-szeroka {
   display: grid;
   gap: var(--spacing-4);
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
 }
 
 /* Lista bez kropek i bez wcięcia — używana tam, gdzie `<ul>` jest znacznikiem
