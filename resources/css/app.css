@@ -386,15 +386,9 @@
       justify-content: flex-end;
     }
 
-    /* Pole „Szukaj" wypełnia kolumnę czytania i nic poza nią. Zdejmujemy trzy
-       reguły, które wcześniej ustawiały jego szerokość na własną rękę —
-       w siatce robi to kolumna, a zostawienie ich dałoby dwa źródła jednej
-       liczby, czyli ten sam rodzaj usterki, co dwie szerokości belki. */
-    .topbar-szukaj {
-      flex: none;
-      max-width: none;
-      margin: 0;
-    }
+    /* Pole „Szukaj" wypełnia kolumnę czytania i nic poza nią. Zdejmujące to
+       reguły stoją PRZY samym polu, kilkaset linijek niżej — patrz komentarz
+       „DLACZEGO TO STOI PRZY POLU". Tutaj byłyby martwe. */
 
     /* Gość nie ma ani nawigacji bocznej, ani szyny, ani pola „Szukaj" w belce
        — jego treść to jedna kolumna. Trzykolumnowa belka zostawiłaby mu
@@ -2220,6 +2214,36 @@
   margin-top: var(--spacing-6);
   padding-top: var(--spacing-4);
   border-top: 1px solid var(--color-border);
+}
+
+/*
+ * POLE „SZUKAJ" WYPEŁNIA KOLUMNĘ CZYTANIA I NIC POZA NIĄ.
+ *
+ * Od 80rem belka jest siatką o tych samych trzech kolumnach, co treść (patrz
+ * blok „BELKA DOSTAJE TĘ SAMĄ SIATKĘ" wyżej). W siatce szerokość pola ustala
+ * kolumna, więc trzy reguły, którymi pole ustawiało ją sobie samo, muszą
+ * zniknąć: `flex: 1 1 auto`, sufit `34rem` i marginesy `--spacing-5`.
+ *
+ * DLACZEGO TO STOI PRZY POLU, A NIE PRZY BELCE — ZMIERZONE, NIE ZGADNIĘTE.
+ * Pierwsza wersja tej poprawki stała przy belce, czyli 1700 linijek WYŻEJ niż
+ * blok `@media (min-width: 64rem)`, który te trzy reguły nadaje. Zapytanie
+ * o szerokość nie podnosi wagi selektora, więc przy równej wadze wygrywa
+ * kolejność w pliku — i wygrywał blok 64rem. Nadpisanie nie robiło nic.
+ *
+ * Automat dostępności zmierzył to przy pierwszym uruchomieniu (przebieg 171):
+ *
+ *   1280 px   szukaj 316…852   kolumna czytania 296…872   (o 20/20 px)
+ *   1512 px   szukaj 360…904   kolumna czytania 340…1060  (o 20/156 px)
+ *
+ * 20 px to dokładnie `--spacing-5`, a 544 px szerokości przy 1512 to dokładnie
+ * sufit 34rem. Obie martwe reguły widać w liczbach co do piksela.
+ */
+@media (min-width: 80rem) {
+  .topbar-szukaj {
+    flex: none;
+    max-width: none;
+    margin: 0;
+  }
 }
 
 @media (min-width: 64rem) {
