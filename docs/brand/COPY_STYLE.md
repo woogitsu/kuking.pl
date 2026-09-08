@@ -424,12 +424,21 @@ Odrzucone świadomie:
 kontekst: strona główna i nagłówek `/register`. W wąskim pasku nawigacji
 zostaje krótkie „Załóż konto".
 
+**Imię gospodarza w e-mailach: Ula** (decyzja właściciela — patrz
+`../DECISIONS.md` D-037). Bez prawdziwego imienia
+digest tracił większość swojej wartości. Imię mieszka w jednym miejscu,
+`config('kuking.community.host_name')`, i stamtąd składa nazwę nadawcy
+poczty (`config/mail.php`) — nie jest wpisane osobno w żadnym szablonie.
+
+**Akcja zapisania do Zeszytu: „Zapisuję", nie „Zapisz"** (decyzja
+właściciela — patrz `../DECISIONS.md` D-036).
+Rozstrzyga sprzeczność, która stała w produkcie: karta wpisu mówiła
+„Zapisz", karta przepisu i pusty Zeszyt już wtedy mówiły „Zapisuję".
+`BRAND_EXTENDED.md` §1.2 poprawione zgodnie z tym wyborem.
+
 ### Zostały
 
-1. **Imię gospodarza w e-mailach.** Bez prawdziwego imienia digest traci
-   większość swojej wartości. Czeka na rozstrzygnięcie, kto jest gospodarzem
-   (`../DECISIONS.md` D-012).
-2. **Weryfikacja u realnych użytkowników.** Dawka jest wybrana rozsądnie, ale
+1. **Weryfikacja u realnych użytkowników.** Dawka jest wybrana rozsądnie, ale
    dopiero testy z osobami 50+ (#15) powiedzą, czy „kuKING" bawi, czy męczy.
 
 ## Referencje

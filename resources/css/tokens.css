@@ -105,9 +105,12 @@
      tylko w plakietce cichej i tylko przy trzech warunkach naraz: tekst obok
      ma co najmniej 18px, informacja jest powtarzalna i drugorzędna, a jej
      utrata nie blokuje żadnej czynności. */
-  /* PRZYGOTOWANY, NIEUŻYWANY — `.badge-cichy` z paczki nie wszedł, a `.meta`
-     w tym serwisie stoi na `--text-help` (16px). Warunki wyżej opisują, kiedy
-     wolno by go użyć, nie miejsce, w którym już działa. */
+  /* PRZYGOTOWANY, NIEUŻYWANY. `.badge-cichy` już wszedł (8 września,
+     `app.css`) — ale świadomie na `--text-help` (16px), nie na tym tokenie:
+     stoi w wierszu metadanych obok `.meta`, która też jest na 16px, więc
+     zejście do 15px zrobiłoby w jednym wierszu dwa różne drobne rozmiary
+     bez żadnego powodu. Warunki wyżej opisują, kiedy wolno by tego tokenu
+     użyć, nie miejsce, w którym już działa. */
   --text-meta: calc(0.9375rem * var(--user-text-scale, 1));
 
   --leading-body: 1.55;

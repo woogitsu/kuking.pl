@@ -132,7 +132,7 @@ final class ListyZSystemuPoPolskuTest extends TestCase
         $this->assertBezAngielskiego($wiadomosc);
     }
 
-    public function test_nadawca_podpisuje_sie_kuking(): void
+    public function test_nadawca_podpisuje_sie_imieniem_gospodarza(): void
     {
         $user = $this->user();
 
@@ -140,7 +140,14 @@ final class ListyZSystemuPoPolskuTest extends TestCase
 
         $nadawca = $this->ostatniaWiadomosc()->getFrom()[0];
 
-        $this->assertSame('Kuking', $nadawca->getName());
+        // Nazwa nadawcy niesie imię gospodarza, nie samo „Kuking" ani
+        // „Zespół Kuking" (decyzja właściciela, docs/brand/COPY_STYLE.md §6;
+        // docs/product/RETENTION_LOOPS.md §4). Czytane z config, nie wpisane
+        // tu na sztywno — zmiana gospodarza nie ma psuć tego testu.
+        $this->assertSame(
+            config('kuking.community.host_name').' z Kuking',
+            $nadawca->getName(),
+        );
         $this->assertStringEndsWith('@kuking.pl', $nadawca->getAddress());
     }
 
@@ -166,7 +173,12 @@ final class ListyZSystemuPoPolskuTest extends TestCase
             /** @var array{from: array{address: string, name: string}} $poczta */
             $poczta = require base_path('config/mail.php');
 
-            $this->assertSame('Kuking', $poczta['from']['name']);
+            // Bez `MAIL_FROM_NAME` zostaje imię gospodarza z configu
+            // (`kuking.community.host_name`), nie domyślne „Laravel".
+            $this->assertSame(
+                config('kuking.community.host_name').' z Kuking',
+                $poczta['from']['name'],
+            );
             $this->assertStringEndsWith('@kuking.pl', $poczta['from']['address']);
         } finally {
             foreach ($kopia as $zmienna => $wartosc) {

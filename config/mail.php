@@ -122,10 +122,18 @@ return [
     |
     | Adres nadawcy jest skrzynką, na którą DA SIĘ odpisać. Żadnego
     | `noreply@` — patrz docs/decyzje/POCZTA.md i docs/brand/BRAND_EXTENDED.md.
+    |
+    | NAZWA NADAWCY NIESIE IMIĘ GOSPODARZA, NIE „Zespół Kuking" — decyzja
+    | właściciela, patrz `docs/brand/COPY_STYLE.md` §6 („nadawca") i
+    | `docs/product/RETENTION_LOOPS.md` §4. Samo imię mieszka w JEDNYM
+    | miejscu, `config('kuking.community.host_name')` — nigdy tu wpisane
+    | wprost, żeby zmiana gospodarza była jedną linijką w `config/kuking.php`,
+    | nie przeszukiwaniem configów maila i szablonów. `MAIL_FROM_NAME`
+    | w środowisku dalej wygrywa, gdyby trzeba było nadpisać to doraźnie.
     */
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'kontakt@kuking.pl'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Kuking')),
+        'name' => env('MAIL_FROM_NAME', config('kuking.community.host_name').' z Kuking'),
     ],
 
 ];
