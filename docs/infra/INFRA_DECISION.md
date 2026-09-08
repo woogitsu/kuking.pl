@@ -646,6 +646,12 @@ Włącz **2FA na GitHubie, Railway i Cloudflare** — to najsłabsze ogniwo cał
 
 ## 10. Backupy Postgresa i restore drill
 
+> **Runbook operacyjny — procedura krok po kroku, trzy scenariusze awarii,
+> ćwiczenie do wykonania i tabela wyników — jest teraz w
+> [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md)** i w razie sprzeczności
+> wygrywa. Ta sekcja zostaje jako uzasadnienie architektoniczne (dlaczego
+> trzy warstwy, nie jedna) i punkt odniesienia dla decyzji z dnia wdrożenia.
+
 Railway daje trzy niezależne warstwy. **Używamy wszystkich trzech**, bo każda
 chroni przed czymś innym.
 
