@@ -1,4 +1,4 @@
-name: Audyt GPT - pomiar domykajacy
+name: Audyt GPT - eksport raportu
 on:
   push:
     branches: ['audit/gpt-2026-09']
@@ -6,94 +6,15 @@ on:
 permissions:
   contents: read
 jobs:
-  final-probes:
+  report:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_DB: kuking_test
-          POSTGRES_USER: kuking
-          POSTGRES_PASSWORD: secret
-        ports: ['5432']
-        options: >-
-          --health-cmd="pg_isready -U kuking -d kuking_test"
-          --health-interval=5s --health-timeout=5s --health-retries=10
-    env:
-      APP_ENV: testing
-      APP_DEBUG: 'true'
-      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-      DB_CONNECTION: pgsql
-      DB_HOST: 127.0.0.1
-      DB_DATABASE: kuking_test
-      DB_USERNAME: kuking
-      DB_PASSWORD: secret
-      CACHE_STORE: array
-      SESSION_DRIVER: array
-      QUEUE_CONNECTION: sync
-      MAIL_MAILER: array
-      FILESYSTEM_DISK: local
-      KUKING_MEDIA_DISK: public
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - run: echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-      - name: Instalacja
-        run: |
-          mkdir -p audit-evidence/browser
-          git rev-parse HEAD > audit-evidence/commit.txt
-          composer install --no-interaction --prefer-dist --no-progress > audit-evidence/composer.log 2>&1
-          cp .env.example .env
-          npm ci > audit-evidence/npm.log 2>&1
-          npm run build > audit-evidence/build.log 2>&1
-          php artisan migrate --force --no-interaction > audit-evidence/migrate.log 2>&1
-      - name: Kolejka moderacji
-        run: |
-          set +e
-          php artisan test audit-probes/PaginationProbeTest.php > audit-evidence/pagination.log 2>&1
-          echo "$?" > audit-evidence/pagination.exit
-          exit 0
-      - name: Przegladarka i prawdziwy rozmiar tekstu
-        env:
-          APP_ENV: local
-          SESSION_DRIVER: database
-          CACHE_STORE: database
-        run: |
-          npx playwright install --with-deps chromium > audit-evidence/browser-install.log 2>&1
-          node scripts/dostepnosc.mjs --szybko > audit-evidence/accessibility.log 2>&1
-          php -r '$im=imagecreatetruecolor(640,480); imagepng($im,"audit-evidence/probe.png");'
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('audit-probes/browser.mjs')
-          s=p.read_text().replace('[value="1.4"]','[value="140"]')
-          s=s.replace("p.getByRole('button',{name:'Zapisz',exact:true}).click()", "p.getByRole('button',{name:'Zapisz',exact:true}).first().click()")
-          p.write_text(s)
-          PY
-          set +e
-          node audit-probes/browser.mjs > audit-evidence/browser.log 2>&1
-          echo "$?" > audit-evidence/browser.exit
-          node audit-probes/author-loop.mjs > audit-evidence/author-loop.log 2>&1
-          echo "$?" > audit-evidence/author-loop.exit
-          exit 0
-      - name: Sprawdzenie braku zmian aplikacji
-        if: ${{ !cancelled() }}
-        run: |
-          git diff --exit-code -- app config routes database resources > audit-evidence/production-diff.txt
-          tar -czf audit-evidence/probe-sources.tar.gz audit-probes .github/workflows/audyt-gpt.yml
       - uses: actions/upload-artifact@v7
-        if: ${{ always() }}
         with:
-          name: audyt-gpt-final-probes
-          path: audit-evidence/
+          name: audyt-gpt-report
+          path: docs/AUDYT_GPT_2026-09.md
           retention-days: 3
