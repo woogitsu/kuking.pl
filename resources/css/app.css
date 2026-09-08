@@ -2778,9 +2778,15 @@
 }
 
 /* Nazwa grupy składników („Na ciasto", „Na krem") — mniejsza od nagłówka
-   przepisu, ale nadal powyżej minimum 18 px, bo to jedyny opis tej listy. */
+   przepisu, ale nadal powyżej minimum 18 px, bo to jedyny opis tej listy.
+
+   Odstęp GÓRNY, nie tylko dolny: na stronie przepisu ten nagłówek stoi pod
+   listą poprzedniej grupy (albo pod listą składników bez grupy), a Tailwind
+   zeruje marginesy nagłówków. Bez tego „Farsz" przykleja się do ostatniego
+   składnika ciasta i wygląda na jego część, a nie na początek nowej. */
 .naglowek-grupy {
   font-size: var(--text-body-lg);
+  margin-top: var(--spacing-5);
   margin-bottom: var(--spacing-2);
 }
 

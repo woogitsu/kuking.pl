@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
@@ -723,17 +724,18 @@ new class extends Component
     /**
      * Składniki pogrupowane do podglądu („Ciasto”, „Nadzienie”).
      *
-     * @return array<string, list<array{text: string, group_name: ?string, note: ?string}>>
+     * Układ liczy `GrupySkladnikow` — ten sam kod, co na stronie przepisu
+     * i w eksporcie danych. Podgląd, który układa składniki po swojemu, jest
+     * gorszy niż brak podglądu: pokazuje przepis, którego po opublikowaniu
+     * nikt nie zobaczy. Wcześniej różnił się dwiema rzeczami — składniki bez
+     * grupy zostawały tam, gdzie stały (a nie na górze), a „Farsz" i „farsz"
+     * dawały dwa nagłówki.
+     *
+     * @return list<array{nazwa: ?string, skladniki: list<array{text: string, group_name: ?string, note: ?string}>}>
      */
     public function groupedIngredients(): array
     {
-        $groups = [];
-
-        foreach ($this->cleanIngredients() as $row) {
-            $groups[$row['group_name'] ?? ''][] = $row;
-        }
-
-        return $groups;
+        return GrupySkladnikow::ulozyc($this->cleanIngredients());
     }
 
     public function stepName(): string
@@ -1270,12 +1272,17 @@ new class extends Component
                     @if($previewGroups === [])
                         <p class="field-error">Nie ma jeszcze żadnego składnika. Wróć do kroku 2 i dopisz przynajmniej jeden.</p>
                     @else
-                        @foreach($previewGroups as $groupName => $groupRows)
-                            @if($groupName !== '')
-                                <h5 class="naglowek-grupy">{{ $groupName }}</h5>
+                        @foreach($previewGroups as $previewGroup)
+                            {{-- `<h5>`, bo nagłówkiem tej sekcji podglądu jest
+                                 `<h4>Składniki` wyżej. Na stronie przepisu ta
+                                 sama grupa jest `<h3>` — poziom bierze się ze
+                                 struktury strony, nie z wyglądu, a wygląd
+                                 daje jedna klasa `.naglowek-grupy`. --}}
+                            @if($previewGroup['nazwa'] !== null)
+                                <h5 class="naglowek-grupy">{{ $previewGroup['nazwa'] }}</h5>
                             @endif
                             <ul class="ingredient-list">
-                                @foreach($groupRows as $groupRow)
+                                @foreach($previewGroup['skladniki'] as $groupRow)
                                     <li>
                                         {{ $groupRow['text'] }}
                                         @if($groupRow['note'] !== null)<span class="meta"> — {{ $groupRow['note'] }}</span>@endif

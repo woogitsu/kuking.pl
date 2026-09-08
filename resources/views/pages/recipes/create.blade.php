@@ -211,6 +211,12 @@
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
+                {{-- Zdanie o grupach stoi RAZ, nad całą listą, a nie przy
+                     każdym wierszu. Przy dziesięciu składnikach ta sama
+                     podpowiedź powtórzona dziesięć razy jest już nie
+                     pomocą, tylko ścianą tekstu — a czytnik ekranu
+                     przeczytałby ją przy każdym polu. --}}
+                Grupę wypełnij tylko wtedy, gdy przepis ma osobne części, na przykład „Ciasto” i „Nadzienie”.
             </p>
 
             @for($i = 0; $i < $ingredientRows; $i++)
@@ -221,6 +227,37 @@
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
                            @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
                     @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+
+                    {{--
+                        GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
+                        (D-033). Ta sama nazwa pola co w kreatorze
+                        (`ingredients[i][group_name]`), więc przepis
+                        przechodzi między obiema drogami zapisu bez zmiany —
+                        a bez tego pola formularz BEZ JavaScriptu kasowałby
+                        przy edycji grupy wpisane w kreatorze (AGENTS.md §5:
+                        ważna funkcja działa bez skryptu).
+
+                        NIEOBOWIĄZKOWE I PUSTE Z DEFINICJI. Składnik bez grupy
+                        to normalny przypadek — tak wygląda większość
+                        przepisów — więc pole nie ma gwiazdki, nie ma
+                        `required`, nie podświetla się na czerwono i nie
+                        pojawia się w podsumowaniu błędów, gdy zostanie puste.
+
+                        Ręczna rozpiska zamiast `x-field` z tego samego
+                        powodu, co przy minutniku kroku niżej: `name` musi
+                        mieć nawiasy (`ingredients[0][group_name]`), a `id`
+                        i klucz błędu kropki — PHP zamienia kropki w nazwie
+                        pola na podkreślenia i tablica `ingredients` nigdy by
+                        się nie złożyła.
+                    --}}
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-group_name">
+                        Grupa składników <span class="meta">(nieobowiązkowe)</span>
+                    </label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
+                           name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
+                           value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
+                           @if($i === 0) placeholder="Ciasto" @endif>
+                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
 
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
