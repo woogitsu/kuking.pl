@@ -2197,8 +2197,15 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--control-height-min);
-  padding: 0 var(--spacing-4);
-  border: 1px solid var(--color-border);
+  /* Wcięcie pionowe mimo `min-height`: przy skali tekstu 140% napis chipa
+     zawija się, a bez tego wcięcia litery dotykały krawędzi. Do 8 września
+     2026 nie było tego widać, bo skala 140% w ogóle nie działała. */
+  padding: var(--spacing-2) var(--spacing-4);
+  /* 2px w `--color-border-strong` (#8A7A63), nie 1px w `--color-border`
+     (#E4DACB) — system projektowy v3.1. Chip jest elementem klikalnym
+     i musi być widać, gdzie się kończy; jasna obwódka na białej karcie
+     dawała krawędź na granicy dostrzegalności. */
+  border: 2px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   background-color: var(--color-surface-raised);
   font-size: var(--text-body);

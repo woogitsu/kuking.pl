@@ -66,6 +66,38 @@ wartości. Nie zgadza się **układ**".
 | `templates/` | pięć punktów wyjścia dla nowych ekranów |
 | `AUDYT.md` | co się nie zgadzało przy przenoszeniu paczki i co z tym zrobiono |
 
+## Etapu 2 z `WDROZENIE.md` NIE DA SIĘ wykonać dosłownie — zmierzone
+
+Instrukcja w `uploads/…/07-wdrozenie/WDROZENIE.md` §4 mówi, żeby w etapie 2
+wpiąć `komponenty.css` **w całości, po `app.css`**, bez dotykania widoków:
+59 wspólnych nazw dostaje wtedy nowy wygląd, a cofa się to usunięciem jednej
+linijki. Dokument sam uprzedza, że powstał **bez dostępu do repozytorium**.
+
+Sprawdzone 8 września 2026 na kodzie. Z 53 wspólnych nazw klas **43 się
+różnią**, a część różnic jest strukturalna, nie kosmetyczna:
+
+| Klasa | Aplikacja | System |
+|---|---|---|
+| `.app-body` | `display: grid` + kolumna nawigacji bocznej | `display: flex` + `--container-strona-solo` |
+| `.app-rail` | `display: flex` | `display: none` (odsłaniana wyżej medią) |
+| `.avatar` | `inline-flex`, `object-fit: cover`, rozmiar z parametru | `grid`, sztywne `3rem` |
+| `.badge` | `--radius-pill`, tło wgłębione | `--radius-sm` |
+| `.bottom-nav` | `z-index: 30`, `flex-wrap` | `z-index: 40` |
+
+Wpięcie arkusza po `app.css` nałożyłoby właściwości flexa na siatkę grid
+w szkielecie strony. To jest dokładnie ryzyko **R-2** z §6 tamtego dokumentu —
+„powstaje wygląd, którego nie zaprojektował nikt" — tyle że nie w pojedynczym
+komponencie, a w układzie każdej podstrony.
+
+**Zamiast tego: uzgadnianie klasa po klasie**, w małych commitach, z decyzją
+przy każdej, która wersja wygrywa i dlaczego. Wolniej, ale każdy krok da się
+obejrzeć i cofnąć osobno, a żaden nie zostawia stanu mieszanego.
+
+Aplikacja nie jest tu uboższym krewnym systemu: to druga, równie rozwinięta
+implementacja tego samego projektu, miejscami z własnymi, świadomymi
+odejściami od kitu (opisanymi w `STAN_WDROZENIA_KITU.md`). Import „na wierzch"
+skasowałby je bez śladu.
+
 ## Stan wdrożenia
 
 Prowadzony w `docs/HANDOVER.md`. Na 8 września 2026: warstwa tokenów
