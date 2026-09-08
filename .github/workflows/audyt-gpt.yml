@@ -1,0 +1,111 @@
+name: Audyt GPT - pomiary izolowane
+on:
+  push:
+    branches: ['audit/gpt-2026-09']
+    paths: ['.github/workflows/audyt-gpt.yml', 'tests/Audit/**', 'scripts/audyt-gpt/**']
+permissions:
+  contents: read
+concurrency:
+  group: audyt-gpt-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 2fe302b6534d4d233a45271769a5d0c62f83bbe7
+          persist-credentials: false
+      - run: git archive --format=tar.gz --output=kuking-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v7
+        with:
+          name: audyt-gpt-source
+          path: kuking-source.tar.gz
+          retention-days: 1
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports: ['5432']
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ job.services.postgres.ports[5432] }}
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      SENTRY_LARAVEL_DSN: ''
+      POSTHOG_KEY: ''
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Stan i instalacja
+        run: |
+          mkdir -p audit-evidence
+          git rev-parse HEAD > audit-evidence/commit.txt
+          php -v > audit-evidence/php-version.txt
+          php -m > audit-evidence/php-extensions.txt
+          composer install --no-interaction --prefer-dist --no-progress 2>&1 | tee audit-evidence/composer-install.log
+          cp .env.example .env
+          npm ci 2>&1 | tee audit-evidence/npm-ci.log
+          npm run build 2>&1 | tee audit-evidence/build.log
+      - name: Swieza baza i stan schematu
+        run: |
+          php artisan migrate --force --no-interaction 2>&1 | tee audit-evidence/migrate.log
+          docker exec ${{ job.services.postgres.id }} psql -U kuking -d kuking_test -c 'SELECT version();' > audit-evidence/postgres-version.txt
+          docker exec ${{ job.services.postgres.id }} psql -U kuking -d kuking_test -c '\d+ public.*' > audit-evidence/psql-schema.txt
+          docker exec ${{ job.services.postgres.id }} pg_dump -U kuking -d kuking_test --schema-only --no-owner --no-privileges > audit-evidence/schema.sql
+          php artisan route:list --json > audit-evidence/routes.json
+          php artisan migrate:refresh --force --no-interaction 2>&1 | tee audit-evidence/rollback.log
+      - name: Testy bazowe
+        run: |
+          set +e
+          php artisan test --log-junit=audit-evidence/baseline.junit.xml > audit-evidence/baseline.log 2>&1
+          code=$?
+          cat audit-evidence/baseline.log
+          echo "$code" > audit-evidence/baseline.exit
+          exit "$code"
+      - name: Analiza statyczna
+        if: ${{ !cancelled() }}
+        run: |
+          vendor/bin/pint --test 2>&1 | tee audit-evidence/pint.log
+          vendor/bin/phpstan analyse --no-progress --memory-limit=1G 2>&1 | tee audit-evidence/phpstan.log
+      - name: Pakiet do lokalnej inspekcji
+        if: ${{ !cancelled() }}
+        run: |
+          tar -czf audit-evidence/runtime.tar.gz vendor public/build
+          git status --short > audit-evidence/git-status.txt
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: audyt-gpt-baseline
+          path: audit-evidence/
+          retention-days: 3
