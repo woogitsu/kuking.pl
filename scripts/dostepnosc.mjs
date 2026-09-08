@@ -443,7 +443,8 @@ const wpisyPoTrybie = (() => {
 })();
 
 /*
- * Decyzja moderacyjna, od której `basia` może się odwołać (issue #10).
+ * Decyzja moderacyjna, od której może się odwołać konto, którym ten automat
+ * się loguje — `KONTO_ZALOGOWANE`, czyli dziś `ania` (issue #10).
  *
  * DemoSeeder NIE tworzy żadnej `ModerationAction` — sprawdzone przez
  * `grep -n ModerationAction database/seeders/DemoSeeder.php`, zero wyników.
@@ -458,11 +459,29 @@ const wpisyPoTrybie = (() => {
  * (bez świeżego `migrate:fresh`) — drugie uruchomienie znajdzie ten sam
  * wiersz zamiast dokładać kolejny.
  *
- * `warn` na `recipe`: jest w `ODWOLYWALNE` (da się odwołać) i w `DOZWOLONE`
- * dla przepisu, a przy przepisie basi (znaleziony wyżej jako `adresPrzepisu`,
- * o ile jest jej autorstwa — w przeciwnym razie bierzemy dowolny jej wpis)
- * nie zmienia widoczności treści, więc nie kolidujemy z żadnym innym
- * ekranem, który tę samą treść ogląda.
+ * `warn` jest w `ODWOLYWALNE` (da się od niego odwołać) i w `DOZWOLONE` dla
+ * każdego typu celu, który tu wchodzi w grę, a przy tym nie zmienia
+ * widoczności treści — więc nie kolidujemy z żadnym innym ekranem, który
+ * tę samą treść ogląda.
+ *
+ * TYP CELU LICZYMY Z TEGO, CO NAPRAWDĘ ZNALEŹLIŚMY. Stało tu na sztywno
+ * `'target_type' => 'recipe'`, a `DemoSeeder` nie daje temu kontu ANI
+ * JEDNEGO przepisu: `Recipe::create` jest tam wyłącznie dla `basia`
+ * (rosół) i `marek` (chleb) — sprawdzone
+ * `grep -n 'Recipe::create' database/seeders/DemoSeeder.php`, dwa
+ * wystąpienia, oba cudze. Automat zawsze wpadał więc w gałąź `Post`
+ * i zapisywał identyfikator WPISU opisany jako przepis. Ekran odwołania
+ * dziś tego nie pokazuje, ale pierwszy ekran, który zechce wyświetlić
+ * zgłoszoną treść, dostałby `null`.
+ *
+ * Dopuszczalne wartości `target_type` to klucze `ModerationAction::DOZWOLONE`
+ * (`user`, `post`, `recipe`, `comment`, `cooked_event`). W bazie ta kolumna
+ * jest zwykłym `varchar(30)` bez CHECK-a (CHECK ma tylko `reports`), więc
+ * pomyłki nie łapało nic.
+ *
+ * Ostatnia deska ratunku to samo konto (`user`, `target_id` równe jego `id`):
+ * `warn` jest dla `user` dozwolony, a taki cel ISTNIEJE — inaczej niż losowy
+ * UUID, który stał tu wcześniej i z definicji nie wskazywał niczego.
  */
 const idOdwolania = (() => {
   const id = execFileSync('php', ['artisan', 'tinker', '--execute',
@@ -474,14 +493,17 @@ const idOdwolania = (() => {
     + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
     + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
     + "if (!$a) { "
-    + "$cel = App\\Models\\Recipe::where('author_id',$b)->value('id') "
-    + "?? App\\Models\\Post::where('author_id',$b)->value('id') "
-    + "?? (string) Illuminate\\Support\\Str::uuid(); "
-    + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>'recipe',"
+    + "$przepis = App\\Models\\Recipe::where('author_id',$b)->value('id'); "
+    + "$wpis = $przepis ? null : App\\Models\\Post::where('author_id',$b)->value('id'); "
+    + "$cel = $przepis ?? $wpis ?? $b; "
+    + "$typ = $przepis ? 'recipe' : ($wpis ? 'post' : 'user'); "
+    + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>$typ,"
     + "'target_id'=>$cel,'subject_user_id'=>$b,'action'=>'warn','reason_code'=>'niezgodne_z_zasadami',"
     + "'note'=>'Utworzone przez automat dostępności (scripts/dostepnosc.mjs) do zmierzenia ekranu odwołania.',"
-    + "'user_message'=>'Ten przepis reklamował konkretny sklep, co jest niezgodne z naszymi zasadami. "
-    + "Poprawiliśmy opis i przepis zostaje widoczny — to ostrzeżenie zapisujemy do wiadomości.']); "
+    // Komunikat bez słowa „przepis": ta sama decyzja dotyczy dziś wpisu,
+    // a przy innej zawartości bazy — przepisu albo konta.
+    + "'user_message'=>'Ta treść reklamowała konkretny sklep, co jest niezgodne z naszymi zasadami. "
+    + "Poprawiliśmy opis i treść zostaje widoczna — to ostrzeżenie zapisujemy do wiadomości.']); "
     + "} echo $a->getKey();",
   ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString().trim();
