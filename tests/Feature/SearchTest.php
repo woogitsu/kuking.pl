@@ -8,6 +8,7 @@ use App\Domain\Search\SearchQuery;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -85,10 +86,57 @@ class SearchTest extends TestCase
         $this->assertCount(1, app(SearchQuery::class)->people('kiszonki'));
     }
 
+    /** Ile zapytań poszło do bazy w trakcie wywołania. */
+    private function ileZapytan(callable $akcja): int
+    {
+        $ile = 0;
+
+        DB::listen(function () use (&$ile): void {
+            $ile++;
+        });
+
+        $akcja();
+
+        return $ile;
+    }
+
     public function test_bardzo_krotkie_zapytanie_nie_obciaza_bazy(): void
     {
-        $this->assertCount(0, app(SearchQuery::class)->recipes('a'));
-        $this->assertCount(0, app(SearchQuery::class)->people(''));
+        // TEN TEST PYTA O BAZĘ, NIE O WYNIK.
+        //
+        // Wcześniej stały tu dwa `assertCount(0, ...)` — a pusty wynik przy
+        // frazie „a" jest w testach pusty także wtedy, gdy bramka długości
+        // zniknęła i zapytanie POSZŁO do bazy: tabela `recipes` jest w tym
+        // teście pusta, więc odpowiedź i tak jest zerowa. Zmierzone: po
+        // zamianie warunku `mb_strlen($phrase) < 2` na `< 0`
+        // w `SearchQuery::recipes()` i `::people()` cały ten plik był dalej
+        // zielony (12 passed).
+        $wyszukiwarka = app(SearchQuery::class);
+
+        $this->assertSame(
+            0,
+            $this->ileZapytan(fn () => $wyszukiwarka->recipes('a')),
+            'Jednoznakowa fraza poszła do bazy — a to jest zapytanie trigramowe na całej tabeli.',
+        );
+
+        $this->assertSame(
+            0,
+            $this->ileZapytan(fn () => $wyszukiwarka->people('')),
+            'Pusta fraza poszła do bazy.',
+        );
+
+        // KONTROLA DRUGIEJ STRONY: fraza dostatecznie długa NAPRAWDĘ odpytuje
+        // bazę. Bez tego „zero zapytań" przechodziłoby też wtedy, gdyby
+        // wyszukiwarka przestała szukać czegokolwiek.
+        $this->assertGreaterThan(
+            0,
+            $this->ileZapytan(fn () => $wyszukiwarka->recipes('zurek')),
+            'Kontrola: dwuznakowa i dłuższa fraza ma odpytywać bazę.',
+        );
+
+        // I wynik nadal jest pusty — to była dotychczasowa treść tego testu.
+        $this->assertCount(0, $wyszukiwarka->recipes('a'));
+        $this->assertCount(0, $wyszukiwarka->people(''));
     }
 
     /**
