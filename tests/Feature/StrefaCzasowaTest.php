@@ -119,6 +119,7 @@ class StrefaCzasowaTest extends TestCase
         // jednego z nich nic nie daje, jeśli następny widok znowu pokaże UTC —
         // a nikt tego nie zauważy, bo różnica to dwie godziny, nie błąd.
         $winne = [];
+        $przejrzanych = 0;
 
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator(resource_path('views')),
@@ -128,6 +129,8 @@ class StrefaCzasowaTest extends TestCase
             if (! str_ends_with((string) $plik, '.blade.php')) {
                 continue;
             }
+
+            $przejrzanych++;
 
             $tresc = preg_replace('/\{\{--.*?--\}\}/s', '', file_get_contents((string) $plik)) ?? '';
 
@@ -143,6 +146,21 @@ class StrefaCzasowaTest extends TestCase
                 }
             }
         }
+
+        // KONTROLNA — MUSI STAĆ PRZED ASERCJĄ NIŻEJ.
+        //
+        // Oczekiwaną wartością niżej jest PUSTA tablica, więc pętla, która nie
+        // wykonała się ani razu, daje ten sam wynik co pętla, która przejrzała
+        // wszystkie widoki i nic nie znalazła. Zły katalog, zmieniona nazwa
+        // `resources/views`, przeniesienie widoków do pakietu — i test dalej
+        // świeci zielono, nie sprawdzając niczego. Zmierzone: po podstawieniu
+        // pustego katalogu asercja niżej przechodziła.
+        $this->assertGreaterThan(
+            50,
+            $przejrzanych,
+            'Nie przejrzano widoków (albo prawie żadnego) — reszta tego testu '
+            .'nie sprawdzałaby wtedy niczego.',
+        );
 
         $this->assertSame(
             [],
