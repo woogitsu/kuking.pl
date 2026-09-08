@@ -270,3 +270,64 @@ wiersz (SQLSTATE 23514), a nie przez czytanie definicji ograniczenia:
 dla nazwy zdarzenia. Ten drugi powstał przy pisaniu tego dokumentu — do tego
 momentu nie było przypadku „wstaw nieznaną nazwę i sprawdź, że baza odmawia",
 czyli ograniczenie mogłoby zniknąć niezauważone.
+
+---
+
+## 6. Powroty — `php artisan kuking:raport` (issue #114/#115)
+
+`docs/ROADMAP.md` kończy bramkę V1 zdaniem „Planner/groups/forks dopiero gdy
+WAC i D30 pokazują powroty". Do tej komendy nic w bazie nie mówiło, kiedy
+ktokolwiek ostatnio był w serwisie — bramka była więc niemierzalna. Ta sekcja
+opisuje, co z tego istnieje NAPRAWDĘ, tym samym stylem co reszta pliku.
+
+### 6.1 Nowy znacznik: `users.ostatnio_widziany_at`
+
+**Kolumna na `users`, NIE trzeci sygnał w `product_signals`.** Pełne
+uzasadnienie stoi w komentarzu migracji
+`2026_09_08_200000_add_last_seen_to_users_table` i w `docs/DATABASE.md`
+(sekcja `users`); w skrócie: retencja `product_signals` (90 dni) nie jest
+tym, co przesądza — jest dłuższa niż 30 dni. Przesądza to, że
+`product_signals` ma zostać wąska (dwa rzadkie zdarzenia techniczne, CHECK
+w bazie tego pilnuje), a log odwiedzin na każde żądanie zmieniłby ten
+charakter i rósłby bez końca. Kolumna na `users` jest nadpisywana — jeden
+wiersz na konto, zero przyrostu, zero potrzeby retencji.
+
+**Zapis throttlowany.** `App\Http\Middleware\AktualizujOstatniaWizyte`
+(globalny, w grupie `web`, `bootstrap/app.php`) woła
+`App\Domain\Analytics\ZanotujOstatniaWizyte`, która zapisuje co najwyżej raz
+na `config('kuking.analytics.last_seen_throttle_minutes')` minut (domyślnie
+15) na osobę. Zapis nigdy nie rzuca wyjątku dalej — ten sam wzorzec
+(`DB::transaction()` + log klasy wyjątku, nigdy `getMessage()`) co
+`ZapiszSygnal` w §2.4 wyżej, z tego samego, zmierzonego powodu.
+
+### 6.2 Trzy klasy domenowe, jedna komenda
+
+| Klasa | Odpowiada za |
+|---|---|
+| `App\Domain\Analytics\AktywniWTygodniu` | Ile kont było widzianych w ostatnich 7 dniach — TO NIE JEST `WeeklyActiveCooks`: tamta liczy, kto coś OPUBLIKOWAŁ, ta liczy, kto PO PROSTU BYŁ. Migawka na teraz, nie historia tydzień po tygodniu — `ostatnio_widziany_at` jest nadpisywana, więc nie da się z niej odtworzyć przeszłości. |
+| `App\Domain\Analytics\PowrotPoDniach` | D7/D30 — jedną klasą, parametryzowaną liczbą dni. Definicja: konto starsze niż N dni, którego `ostatnio_widziany_at` sięga co najmniej N dni po `created_at`. To jest DOLNA granica prawdziwego powrotu, nigdy zawyżenie — pełne uzasadnienie (w tym dlaczego `extract(epoch from …)`, nie `+ interval`, żeby uniknąć tej samej pułapki strefy sesji co WAC w §1.3) w komentarzu klasy. |
+| `App\Domain\Analytics\ZasiegUgotowalem` | Ile przepisów dostało choć jedno „Ugotowałem" i ilu autorów dostało to powiadomienie. ŚWIADOMIE bez wykluczeń `CookEligibility` — to nie jest metryka porównawcza w czasie jak WAC, tylko fakt o tym, czy najważniejszy mechanizm produktu (AGENTS.md, część 1) działa. |
+| `App\Console\Commands\RaportPowrotow` | Formatuje wynik po polsku, jedna liczba na linię, z podpisem — `php artisan kuking:raport`. |
+
+`AktywniWTygodniu` i `PowrotPoDniach` używają TEJ SAMEJ `CookEligibility` co
+`WeeklyActiveCooks`/`CookRetentionCohorts` (§1.1) — gospodarz i konta
+testowe/zalążkowe nie mają zasilać liczby czytanej jako dowód żywej
+społeczności. `ZasiegUgotowalem` celowo tego wykluczenia NIE ma.
+
+### 6.3 Dana osobowa w eksporcie RODO
+
+`ostatnio_widziany_at` trafia do paczki RODO jako `konto.ostatnio_widziany`
+(`App\Domain\Users\Exports\CollectUserExportData`) — z tego samego powodu co
+`usuniecie_konta_zgloszone` obok niej. Wiersz o tym jest też w
+`resources/legal/polityka-prywatnosci.md` (sekcja 2).
+
+### 6.4 Testy
+
+- `tests/Feature/OstatniaWizytaTest.php` — throttl (zapis co najwyżej raz na
+  próg z configu), brak zapisu dla gościa, brak zapisu dla konta
+  wylogowanego wcześniej przez `EnsureAccountIsActive` (kolejność middleware
+  w `bootstrap/app.php` jest częścią specyfikacji).
+- `tests/Feature/RaportPowrotowTest.php` — definicje `AktywniWTygodniu`/
+  `PowrotPoDniach`/`ZasiegUgotowalem` (w tym wykluczenia i ich brak), pusta
+  baza nie wywala komendy, oraz kontrola: kohorta pusta daje `procent = null`,
+  nie `0.0`.

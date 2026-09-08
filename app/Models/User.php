@@ -233,6 +233,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'delete_requested_at' => 'datetime',
             'data_erased_at' => 'datetime',
             'status_expires_at' => 'datetime',
+            // Zapisywana WYŁĄCZNIE przez `App\Domain\Analytics\ZanotujOstatniaWizyte`
+            // (throttlowany middleware, nigdy formularz) — dlatego nie ma jej
+            // w `$fillable`, mimo że to nie jest `status` ani `role`.
+            // Masowe przypisanie z żądania nadpisywałoby cudzy znacznik
+            // aktywności dowolną wartością podaną w ciele żądania.
+            'ostatnio_widziany_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',

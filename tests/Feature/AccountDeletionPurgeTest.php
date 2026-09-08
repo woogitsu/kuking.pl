@@ -38,6 +38,7 @@ class AccountDeletionPurgeTest extends TestCase
     {
         $basia = $this->kontoPoTerminie();
         $emailPrzedUsunieciem = $basia->email;
+        $basia->forceFill(['ostatnio_widziany_at' => now()->subDay()])->save();
 
         $this->artisan('kuking:usun-wygasle-konta')->assertSuccessful();
 
@@ -48,6 +49,12 @@ class AccountDeletionPurgeTest extends TestCase
         $this->assertNotSame($emailPrzedUsunieciem, $basia->email);
         $this->assertFalse(Hash::check('haslo-testowe-123', $basia->password));
         $this->assertNull($basia->remember_token);
+
+        // `resources/legal/polityka-prywatnosci.md` obiecuje, że znacznik
+        // ostatniej wizyty znika wraz z anonimizacją konta (issue #114/#115)
+        // — bez tej linii `EraseAccountData` mógłby po cichu przestać
+        // czyścić to pole, a zdanie w polityce zostałoby nieprawdziwe.
+        $this->assertNull($basia->ostatnio_widziany_at);
 
         // STAN KOŃCOWY, NIE `pending_delete` (D-022).
         //

@@ -873,6 +873,28 @@ return [
         // powodu trzymać ich bezterminowo, a minimalizacja danych (AGENTS.md
         // §7) jest zasadą domyślną, nie wyjątkiem od niej.
         'signal_retention_days' => (int) env('KUKING_SIGNAL_RETENTION_DAYS', 90),
+
+        // Najkrótszy odstęp między dwoma zapisami `users.ostatnio_widziany_at`
+        // dla TEJ SAMEJ osoby (issue #114/#115, bramka V1 z `docs/ROADMAP.md`).
+        //
+        // DLACZEGO 15, A NIE PRZY KAŻDYM ŻĄDANIU
+        // Znacznik ma odpowiedzieć na pytanie liczone w DNIACH i TYGODNIACH
+        // (WAC, powrót po 7/30 dniach) — dokładność co do minuty nie zmienia
+        // odpowiedzi na to pytanie, a zapis przy każdym żądaniu zmieniałby
+        // JEDNĄ kolumnę `UPDATE`-em przy KAŻDYM żądaniu każdej zalogowanej
+        // osoby — a jedna wizyta na stronie przepisu to więcej niż jedno
+        // żądanie: dochodzi do tego każdy wariant zdjęcia (`docs/legal
+        // /BRAMKA_BETY.md` §7 mierzy to wprost — 25 żądań wariantów zdjęć
+        // z jednego otwarcia strony). Bez throttla jedna osoba przewijająca
+        // feed generowałaby dziesiątki zbędnych zapisów na minutę.
+        //
+        // DLACZEGO AKURAT „KILKANAŚCIE" MINUT, NIE NP. GODZINA
+        // 15 minut jest krótsze niż najkrótsza jednostka, w której raport
+        // cokolwiek pokazuje (dzień), więc nie wprowadza żadnego
+        // dostrzegalnego błędu w WAC/D7/D30 — a jednocześnie jest na tyle
+        // długie, że aktywna sesja przeglądania (feed, przepis, kilka
+        // zdjęć) generuje NAJWYŻEJ jeden zapis, nie jeden na każde kliknięcie.
+        'last_seen_throttle_minutes' => (int) env('KUKING_LAST_SEEN_THROTTLE_MINUTES', 15),
     ],
 
     'audit_log' => [

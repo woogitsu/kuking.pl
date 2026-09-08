@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
+use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
@@ -96,6 +97,16 @@ return Application::configure(basePath: dirname(__DIR__))
             // które miało być odcięte. Middleware sam sprawdza, czy ktoś jest
             // zalogowany, więc na trasach gościa nie robi nic.
             EnsureAccountIsActive::class,
+
+            // PO `EnsureAccountIsActive`, CELOWO (issue #114/#115, bramka V1
+            // z `docs/ROADMAP.md`). Konto właśnie wylogowane przez middleware
+            // wyżej (zbanowane/`pending_delete`/`erased`) nie ma tu już
+            // `$request->user()`, więc nie zostaje policzone jako „ktoś tu
+            // był" — ta sama granica, której już pilnuje
+            // `CookEligibility` przy WAC. Sam zapis jest throttlowany
+            // i nigdy nie rzuca wyjątku dalej — pełne uzasadnienie w
+            // `App\Domain\Analytics\ZanotujOstatniaWizyte`.
+            AktualizujOstatniaWizyte::class,
         ]);
 
         $middleware->alias([

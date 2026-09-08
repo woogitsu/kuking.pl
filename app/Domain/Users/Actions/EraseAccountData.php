@@ -148,6 +148,18 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
+                // tego samego rodzaju co reszta pól wyżej — mówi, kiedy
+                // KONKRETNA osoba ostatnio korzystała z serwisu. Konto
+                // anonimizowane nie ma już logowania ani sesji, więc nowej
+                // wartości i tak nikt tu nie zapisze — ale STARA wartość,
+                // zostawiona bez zmiany, byłaby jedynym miejscem w bazie,
+                // które wciąż wiąże ten fakt z (już anonimowym) kontem.
+                // `resources/legal/polityka-prywatnosci.md` obiecuje wprost,
+                // że ten znacznik znika wraz z usunięciem/anonimizacją konta —
+                // to zdanie musi się tu zgadzać z kodem (AGENTS.md, część 11
+                // i `tests/Feature/DokumentyPrawneNieKlamiaTest.php`).
+                'ostatnio_widziany_at' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.

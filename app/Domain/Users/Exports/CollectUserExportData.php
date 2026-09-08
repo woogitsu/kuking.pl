@@ -94,6 +94,13 @@ final class CollectUserExportData
             'rozmiar_tekstu_procent' => $user->text_scale,
             'chce_podsumowania_tygodnia' => (bool) $user->wants_weekly_digest,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
+            // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
+            // tak samo jak reszta tego bloku, więc wchodzi do paczki RODO
+            // z tego samego powodu co `usuniecie_konta_zgloszone` wyżej.
+            // Nadpisywany throttlowanym middlewarem
+            // (`App\Domain\Analytics\ZanotujOstatniaWizyte`), nie logiem —
+            // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
+            'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
         ];
     }
 
