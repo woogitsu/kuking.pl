@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\Odmiana;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -202,6 +203,69 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         $this->assertStringNotContainsString('12–24 miesiące', $tresc);
         $this->assertStringNotContainsString('6–14 miesięcy', $tresc);
         $this->assertStringNotContainsString('30–90 dni', $tresc);
+    }
+
+    /**
+     * Trzy okresy liczone w MIESIĄCACH też muszą się zgadzać z konfiguracją.
+     *
+     * DLACZEGO OSOBNA METODA, A NIE DOPISEK DO POPRZEDNIEJ
+     * Tamta pilnuje dni i powstała, gdy dokument o tych trzech okresach
+     * MILCZAŁ. Od 8 września nie milczy: właściciel rozstrzygnął, że polityka
+     * ma podawać prawdziwe liczby, bo twierdziła wytłuszczonym drukiem, że
+     * automatycznego usuwania nie ma — a trzy komendy kasują codziennie
+     * o 04:10, 04:20 i 04:30. Zdanie było nieprawdziwe dwie godziny po tym,
+     * jak kod je unieważnił.
+     *
+     * CZEGO TO PILNUJE NAPRAWDĘ
+     * Okresy siedzą w zmiennych środowiskowych. Zmiana `KUKING_AUDIT_LOG_
+     * RETENCJA...` na produkcji unieważniłaby opublikowany tekst prawny bez
+     * żadnego ostrzeżenia — a to jest dokument, na którym polega podmiot
+     * danych. Ten test jest jedyną rzeczą, która to zauważy.
+     *
+     * ODMIANA LICZEBNIKA JEST CZĘŚCIĄ SPRAWDZENIA, nie ozdobą. „3 miesiące"
+     * i „12 miesięcy" to różne formy tego samego słowa; sztywny string
+     * przepuściłby zmianę z 12 na 3 albo złamałby się przy niej z niewłaściwym
+     * komunikatem. `Odmiana::rzeczownik()` liczy formę tak samo jak reszta
+     * serwisu, więc test pada wtedy i tylko wtedy, gdy tekst naprawdę
+     * rozjechał się z konfiguracją.
+     */
+    public function test_okresy_retencji_w_miesiacach_maja_za_soba_konfiguracje(): void
+    {
+        $tresc = $this->tresc('polityka-prywatnosci.md');
+
+        $okresy = [
+            'sprawy moderacyjne' => [
+                (int) config('kuking.moderation.case_retention_months'),
+                ' od zamknięcia sprawy',
+            ],
+            'dziennik zdarzeń' => [(int) config('kuking.audit_log.retention_months'), ''],
+            'powiadomienia' => [(int) config('kuking.notifications.retention_months'), ''],
+        ];
+
+        foreach ($okresy as $nazwa => [$miesiecy, $dopisek]) {
+            // ASERCJA KONTROLNA: pusta albo zerowa konfiguracja dałaby
+            // oczekiwany fragment „**0 miesięcy**", którego w dokumencie nie
+            // ma — test padłby z mylącym komunikatem zamiast powiedzieć, że
+            // to konfiguracja jest zepsuta.
+            $this->assertGreaterThan(
+                0,
+                $miesiecy,
+                "Kontrola: konfiguracja retencji ({$nazwa}) musi być liczbą dodatnią.",
+            );
+
+            $oczekiwane = '**'.$miesiecy.' '
+                .Odmiana::rzeczownik($miesiecy, 'miesiąc', 'miesiące', 'miesięcy')
+                .$dopisek.'**';
+
+            $this->assertStringContainsString(
+                $oczekiwane,
+                $tresc,
+                "Polityka prywatności nie podaje okresu retencji ({$nazwa}) zgodnego "
+                ."z konfiguracją. Oczekiwane w tekście: {$oczekiwane} — jeśli okres "
+                .'zmieniono świadomie, popraw dokument razem z konfiguracją. To jest '
+                .'tekst, który czyta podmiot danych.',
+            );
+        }
     }
 
     /**
