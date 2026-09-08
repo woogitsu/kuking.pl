@@ -1158,9 +1158,11 @@ przed cofnięciem na produkcji zrób `COPY appeals TO ...`, inaczej tracisz dow�
 ### audit_log
 Wysokiego znaczenia zmiany.
 
-**Retencja:** `config('kuking.audit_log.retention_months')` (domyślnie
-24 miesiące, **rekomendacja agenta** — ADR §5.1, nie decyzja właściciela) od
-`created_at`, **Z WYJĄTKIEM** kategorii z `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`
+**Retencja:** `config('kuking.audit_log.retention_months')` — **12 miesięcy**
+od `created_at`. (Stało tu „24 miesiące"; pierwsza wersja tego automatu
+rzeczywiście brała 24, ale ocena zewnętrzna nazwała je nieuzasadnionymi
+i config ma 12 od 7 września. Dokument był ostatni, który o tym nie
+wiedział — patrz D-038.) **Z WYJĄTKIEM** kategorii z `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`
 (`account.data_erased`, `account.delete_requested`, `account.delete_cancelled`),
 które nie są kandydatem **nigdy**, niezależnie od wieku. Powód: wiersz `users`
 jest anonimizowany, a nie kasowany, więc te wpisy są jedynym dowodem, że
@@ -1169,6 +1171,12 @@ jest anonimizowany, a nie kasowany, więc te wpisy są jedynym dowodem, że
 usunięcie konta. Lista jest **zamkniętą stałą w kodzie**, nie w configu:
 w configu dałaby się wyczyścić jedną zmianą wdrożeniową bez recenzji kodu.
 Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
+
+**`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
+zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
+uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
+(`source`), razem z rolą poprzednią i nową. To jest jedyny ślad po tym, kto
+w serwisie może zamknąć czyjeś odwołanie (D-039).
 
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
