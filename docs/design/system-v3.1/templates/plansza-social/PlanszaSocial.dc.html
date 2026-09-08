@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Plansza społecznościowa" description="Kwadrat 1080×1080 i podgląd linku 1200×630 w prawdziwych wymiarach, gotowe do eksportu" -->
+<helmet><script src="./ds-base.js"></script>
+<style>body{background:var(--color-surface-sunken)}.pracownia{display:flex;flex-wrap:wrap;gap:32px;padding:32px;align-items:flex-start}.podpis{font-size:13px;font-weight:700;color:var(--color-ink-muted);margin:0 0 8px}</style>
+</helmet>
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+<symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></symbol>
+<symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3"></circle><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"></path><path d="M16 6.5a3 3 0 0 1 0 5.5"></path><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"></path></symbol>
+<symbol id="ikona-znak" viewBox="0 0 64 64">
+<mask id="wyciecie-szablonu" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+<rect x="0" y="0" width="64" height="64" fill="#FFFFFF"></rect>
+<path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="#000000" stroke-width="3.5" stroke-linecap="round"></path>
+<path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round"></path>
+</mask>
+<g mask="url(#wyciecie-szablonu)" fill="currentColor" stroke="currentColor">
+<path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" stroke-width="2" stroke-linejoin="round"></path>
+<circle cx="16" cy="14" r="3.5" stroke="none"></circle><circle cx="32" cy="9" r="3.5" stroke="none"></circle><circle cx="48" cy="14" r="3.5" stroke="none"></circle>
+<path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" stroke="none"></path>
+<path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke-width="5" stroke-linecap="round"></path>
+<path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke-width="5" stroke-linecap="round"></path>
+</g>
+</symbol>
+</svg>
+<div class="pracownia">
+<div>
+<p class="podpis">Kwadrat · 1080 × 1080 px · hasło</p>
+<div class="plansza r-kwadrat plansza-wash">
+<div class="plansza-tresc plansza-tresc-rozsun plansza-cytat">
+<div class="plansza-lockup"><svg class="plansza-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="plansza-lockup-koncowka">.pl</span></span></div>
+<p class="plansza-tytul">Przepis jest dobry, kiedy ktoś go ugotował.</p>
+<div class="plansza-stopka"><p class="plansza-meta">Polski serwis domowego gotowania</p><p class="plansza-adres">kuking.pl</p></div>
+</div>
+</div>
+</div>
+<div>
+<p class="podpis">Podgląd linku · 1200 × 630 px</p>
+<div class="plansza r-link">
+<div class="plansza-dwie">
+<div class="plansza-tresc plansza-tresc-srodek">
+<div class="plansza-lockup"><svg class="plansza-znak plansza-znak-maly" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="plansza-lockup-koncowka">.pl</span></span></div>
+<p class="plansza-tytul plansza-tytul-mniejszy">Pokaż, co dziś ugotowałeś.</p>
+<p class="plansza-lead">Twój zeszyt z przepisami i ludzie, którzy naprawdę gotują.</p>
+</div>
+<div class="plansza-panel-foto plansza-link-foto" style="display:grid;place-items:center;background:var(--color-surface-sunken);color:var(--color-ink-muted);font-size:20px;text-align:center;padding:32px">Miejsce na zdjęcie potrawy</div>
+</div>
+</div>
+</div>
+</div>
+
+</x-dc>
+</body>
+</html>

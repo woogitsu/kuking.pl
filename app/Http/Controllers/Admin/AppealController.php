@@ -29,6 +29,19 @@ use Illuminate\View\View;
  * Zamknięcie sprawy WYMAGA uzasadnienia. „Podtrzymuję" bez zdania wyjaśniającego
  * nie jest odpowiedzią w rozumieniu DSA art. 20 i nie da się go zapisać — pilnuje
  * tego i walidacja, i CHECK w bazie.
+ *
+ * KTO ROZSTRZYGA (D-039): `index()` pokazuje kolejkę każdemu moderatorowi —
+ * `resolve()` przyjmuje decyzję wyłącznie od administratora
+ * (`UserPolicy::resolveAppeals()`).
+ *
+ * CZEGO TO NIE ROBI, ŻEBY NIKT SIĘ NIE POMYLIL: to jest bramka NA ROLĘ,
+ * nie na osobę. Administrator przechodzi też przez `moderate()`, więc ta
+ * sama osoba może wydać decyzję i rozstrzygnąć odwołanie od niej —
+ * przeszkadza jej w tym wyłącznie karencja `ResolveAppeal::sprawdzKarencje()`
+ * i tylko przy PODTRZYMANIU. Zawężenie ma sens dopiero przy dwóch osobach:
+ * moderator pierwszej linii przestaje móc zamknąć sprawę, którą sam
+ * rozstrzygał. Przy jednym człowieku pełniącym obie role nie zmienia nic
+ * poza tym, że drugie konto (bez roli `admin`) tego nie zrobi.
  */
 class AppealController extends Controller
 {
@@ -61,7 +74,11 @@ class AppealController extends Controller
 
     public function resolve(Request $request, Appeal $appeal): RedirectResponse
     {
-        $this->authorize('moderate', User::class);
+        // A-4: samą DECYZJĘ o odwołaniu rozstrzyga administrator, nie
+        // moderator, który mógł wydać (albo wydał) sprawdzaną tu decyzję —
+        // `moderate` powyżej w `index()` nadal wystarcza, żeby kolejkę
+        // ZOBACZYĆ, ta bramka zawęża, kto może ją ZAMKNĄĆ.
+        $this->authorize('resolveAppeals', User::class);
 
         $data = $request->validate([
             'outcome' => ['required', 'in:'.Appeal::STATUS_UPHELD.','.Appeal::STATUS_OVERTURNED],

@@ -341,8 +341,12 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
-                {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił. --}}
-                <div aria-live="polite">
+                {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
+
+                     `komunikaty` jest tu po to, żeby układ pasów (strona
+                     powitalna) miał co wyśrodkować — jego `<main>` nie ma
+                     żadnego wcięcia, bo wcięcia robią same pasy. --}}
+                <div class="komunikaty" aria-live="polite">
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
                     @endif
@@ -410,14 +414,22 @@
                      pod adresem, którego nikt nie miał prawa znać. --}}
                 <a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a>
 
-                {{-- Wersja: etap produktu + skrót wdrożonego commita.
-                     Widoczna zawsze, żeby dało się jednym spojrzeniem
-                     sprawdzić, co dokładnie działa na tej stronie.
+                {{-- Wersja: etap produktu, DATA I GODZINA WYDANIA, skrót
+                     wdrożonego commita. Widoczna zawsze, żeby dało się jednym
+                     spojrzeniem sprawdzić, co dokładnie działa na tej stronie.
+
+                     Etap produktu w `<strong>`, bo to on odpowiada na pytanie
+                     „na czym w ogóle patrzę" i ma się rzucać w oczy bardziej
+                     niż reszta. Data przed skrótem, bo to ją czyta człowiek;
+                     skrót zostaje dla Sentry (`App\Support\Wersja`).
 
                      Bez `title` z pełnym skrótem: na telefonie nie ma najazdu
                      kursorem, a informacja dostępna tylko przez hover jest
                      dla części osób niedostępna w ogóle (UX_50_PLUS). --}}
-                <span class="site-version">{{ \App\Support\Wersja::pelna() }}</span>
+                <span class="site-version">
+                    <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
+                    <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
+                </span>
 
                 {{--
                     SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md, D-019).

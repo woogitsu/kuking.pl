@@ -8,7 +8,24 @@
         </form>
     @endif
 
-    @forelse($notifications as $notification)
+    {{--
+        LISTA, nie luźny ciąg `<article>`. System projektowy v3.1 §13 daje
+        powiadomieniom `<ul class="lista-wierszy">` z uzasadnieniem „jest ul,
+        więc czytnik poda liczbę pozycji" — i to jest tu jedyny sposób, żeby
+        człowiek na czytniku ekranu usłyszał „lista, 30 pozycji" zamiast
+        trzydziestu niepowiązanych bloków.
+
+        Bierzemy z tego SEMANTYKĘ, nie kształt: `.lista-naga` (klasa aplikacji)
+        zdejmuje kropki i wcięcie, a karty zostają kartami. Kształt wiersza
+        (`.lista-wierszy` + `.wiersz`) to osobna decyzja — patrz komentarz przy
+        `<article class="card">` niżej.
+    --}}
+    {{-- `count()` to liczba pozycji NA TEJ STRONIE — dokładnie ten sam warunek,
+         który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
+         wszystkie i na ostatniej stronie dałby pustą listę w ramce. --}}
+    @if($notifications->count() > 0)
+    <ul class="lista-naga">
+        @foreach($notifications as $notification)
         @php
             $actor = $notification->actor;
             $data = $notification->data ?? [];
@@ -35,13 +52,46 @@
                 ? []
                 : \App\Domain\Moderation\UzasadnienieDecyzji::zdania($decyzjaModeracyjna);
         @endphp
-        <article class="card mb-3 @if($notification->isUnread()) style-unread notification-nieprzeczytane @endif">
+        {{--
+            KSZTAŁT KARTY ZOSTAJE — wygrywa aplikacja, wbrew §13 systemu.
+
+            System chce tu `.wiersz` w `.lista-wierszy`, bo „to krótkie,
+            jednorodne pozycje, a karta w tym miejscu udaje treść, której nie
+            ma". U nas ta przesłanka jest nieprawdziwa: powiadomienie od
+            moderacji niesie uzasadnienie decyzji z DSA art. 17 (kilka
+            akapitów) i do dwóch przycisków — „Zobacz" oraz „Odwołanie od tej
+            decyzji". Ten sam system zabrania wiersza z dwiema akcjami i chce,
+            żeby cały wiersz był jednym linkiem; to jest zmiana ZACHOWANIA,
+            nie wyglądu, więc nie rozstrzygam jej sam (pytanie do właściciela
+            w raporcie).
+
+            Zdjęte: martwa klasa `style-unread`. Nie ma dla niej reguły
+            w żadnym arkuszu ani w żadnym teście od pierwszego commita.
+        --}}
+        <li><article class="card mb-3 @if($notification->isUnread()) notification-nieprzeczytane @endif">
             <div class="flex gap-3 items-start">
                 @if($actor)
                     <x-avatar :user="$actor" :size="44" />
                 @endif
                 <div class="min-w-0">
                     <p class="m-0 mb-1">
+                        {{--
+                            NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę
+                            z boku (WCAG 1.4.1; §13 systemu mówi to wprost).
+                            Do tej zmiany osoba na czytniku ekranu nie miała
+                            skąd wiedzieć, że coś jest nowe — kreska jest
+                            wyłącznie w CSS.
+
+                            Plakietka stoi PRZED zdaniem, nie po nim jak
+                            w systemie: tam wiersz ma jedną linijkę, u nas
+                            list od moderacji ma kilkanaście i znacznik
+                            wylądowałby daleko pod kreską, którą tłumaczy.
+                            Czytnik ekranu też czyta wtedy „Nowe" na wejściu,
+                            a nie na końcu akapitu.
+                        --}}
+                        @if($notification->isUnread())
+                            <span class="badge">Nowe</span>
+                        @endif
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
                                 <strong>{{ $actor?->displayName() }} ugotowała/ugotował z Twojego przepisu</strong>
@@ -166,12 +216,14 @@
                     @endif
                 </div>
             </div>
-        </article>
-    @empty
+        </article></li>
+        @endforeach
+    </ul>
+    @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
             Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.
         </x-empty-state>
-    @endforelse
+    @endif
 
     <x-show-more :paginator="$notifications" czego="powiadomień" />
 </x-layout>

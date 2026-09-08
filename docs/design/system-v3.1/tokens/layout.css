@@ -1,0 +1,32 @@
+/* Układ: minimalne rozmiary kontrolek, progi i kontenery.
+   Jedna zasada nadrzędna: belka górna, siatka treści i stopka mają tę samą
+   szerokość i te same kolumny — zawsze, na każdej podstronie. */
+:root {
+  --control-height-min: 3rem;       /* 48px — każdy przycisk, chip, pozycja nawigacji */
+  --control-height-touch: 3.75rem;  /* 60px — pozycja dolnego paska */
+  --hit-area-min: 2.75rem;          /* 44px — wiersz z polem zaznaczenia */
+
+  --breakpoint-sm: 40rem;   /* 640px */
+  --breakpoint-md: 48rem;   /* 768px */
+  --breakpoint-lg: 64rem;   /* 1024px — próg nawigacji bocznej */
+  --breakpoint-xl: 80rem;   /* 1280px — próg trzeciej kolumny */
+
+  --container-content: 45rem;   /* 720px — kolumna treści, ~65–75 znaków */
+  --container-czytanie: 38rem;  /* 608px — długi dokument prawny, ~65 znaków */
+  --container-sidenav: 15rem;   /* 240px */
+  --container-rail: 22rem;      /* 352px */
+
+  /* Jedna szerokość strony dla trzech warstw. Trzecia kolumna istnieje ZAWSZE
+     od 80rem, także na ekranach bez szyny (D-102) — kolumna czytania ma wtedy
+     na każdej podstronie ten sam x i tę samą szerokość. */
+  --container-strona: calc(
+    var(--container-sidenav) + var(--spacing-8) + var(--container-content)
+    + 2 * var(--spacing-6)
+  );                              /* 1040px */
+  --container-strona-szeroka: calc(
+    var(--container-strona) + var(--spacing-8) + var(--container-rail)
+  );                              /* 1424px */
+  --container-strona-solo: calc(
+    var(--container-content) + 2 * var(--spacing-6)
+  );                              /* 768px — gość */
+}

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="pl" data-preview="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O Kuking — prowadzimy to na własną rękę</title>
+<meta name="description" content="Kto prowadzi Kuking i po co. Czego tu nie ma: rankingów, punktów, odznak i algorytmu, który wybiera za Ciebie.">
+<link rel="stylesheet" href="../podglad/podglad.css">
+<link rel="stylesheet" href="strona-www.css">
+</head>
+<body>
+<!--
+  Zestaw ikon Kuking — wklejany na początku <body> każdej makiety.
+
+  Dlaczego wklejany, a nie z osobnego pliku przez <use href="ikony.svg#…">:
+  przeglądarka otwierająca stronę z dysku (file://) traktuje zewnętrzny sprite
+  jako inne źródło i nic nie rysuje. Makiety mają się otwierać podwójnym
+  kliknięciem, więc sprite jedzie w środku.
+
+  KAŻDA ikona ma aria-hidden="true" w miejscu użycia i ZAWSZE stoi obok tekstu.
+  Reguła „nigdy" nr 1: ikona nie jest opisem akcji, jest jej ozdobą.
+  Kreska 2px, zaokrąglone końce, currentColor — ikona bierze kolor po tekście,
+  więc w trybie ciemnym nie trzeba niczego przełączać.
+-->
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="i-baza" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+
+  <symbol id="ikona-dom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/>
+  </symbol>
+
+  <symbol id="ikona-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>
+  </symbol>
+
+  <symbol id="ikona-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+
+  <symbol id="ikona-zeszyt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"/><path d="M8.5 3.5v17"/><path d="M12 8h4M12 12h4"/>
+  </symbol>
+
+  <symbol id="ikona-osoba" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="8.5" r="3.75"/><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/>
+  </symbol>
+
+  <symbol id="ikona-dzwonek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/><path d="M10 20a2 2 0 0 0 4 0"/>
+  </symbol>
+
+  <symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+
+  <symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.5a3 3 0 0 1 0 5.5"/><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"/>
+  </symbol>
+
+  <symbol id="ikona-czapka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 16.5c-2.5-.4-4-2.2-4-4.4C3 9.3 5 7.5 7.4 7.6 8 5.5 9.8 4.2 12 4.2s4 1.3 4.6 3.4C19 7.5 21 9.3 21 12.1c0 2.2-1.5 4-4 4.4"/><path d="M7 16.5h10v3H7z"/>
+  </symbol>
+
+  <symbol id="ikona-zakladka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v16l-5-3.5L7 20V4Z"/>
+  </symbol>
+
+  <symbol id="ikona-komentarz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5V16.5H6a2 2 0 0 1-2-2Z"/>
+  </symbol>
+
+  <symbol id="ikona-garnek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 8.5h15V14c0 3.6-2.4 6-7.5 6s-7.5-2.4-7.5-6Z"/><path d="M4.5 10.5C2.8 10.5 2 11.4 2 12.7c0 1.4 1 2.3 2.5 2.3"/><path d="M19.5 10.5c1.7 0 2.5.9 2.5 2.2 0 1.4-1 2.3-2.5 2.3"/><path d="M8 5.5c0-1 .8-1.5 1.5-1.5M12 4.5c0-1 .8-1.5 1.5-1.5"/>
+  </symbol>
+
+  <symbol id="ikona-aparat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 8.5h3.2l1.4-2.4h7.8l1.4 2.4h3.2v10.5H3.5Z"/><circle cx="12" cy="13.5" r="3.4"/>
+  </symbol>
+
+  <symbol id="ikona-ostrzezenie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4 2.8 20h18.4Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="ikona-ptaszek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4.5 12.5 5 5 10-11"/>
+  </symbol>
+
+  <symbol id="ikona-strzalka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 12h15"/><path d="m13.5 6 6 6-6 6"/>
+  </symbol>
+
+  <symbol id="ikona-ustawienia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.2 6.2 4.5 4.5M19.5 19.5l-1.7-1.7M17.8 6.2l1.7-1.7M4.5 19.5l1.7-1.7"/>
+  </symbol>
+
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/><circle cx="32" cy="9" r="3.5" fill="currentColor"/><circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+
+<div class="strona">
+
+  <header class="pas-gorny">
+    <div class="pas-wnetrze pas-gorny-wnetrze">
+      <a class="wordmark" href="powitalna.html">
+        <svg class="wordmark-znak" aria-hidden="true" focusable="false"><use href="#ikona-znak"></use></svg>
+        <span>KuKing<span class="wordmark-koncowka">.pl</span></span>
+      </a>
+      <div class="pas-gorny-akcje">
+        <a class="btn btn-secondary" href="/logowanie">Zaloguj</a>
+        <a class="btn btn-primary" href="/rejestracja">Załóż konto</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="tresc" id="tresc">
+
+    <!-- ==================================================================
+         1. KTO TO PROWADZI
+         Nagłówek wzięty wprost z BRAND_EXTENDED.md §4 (wiersz „Strona o nas").
+         ================================================================== -->
+    <section class="pas">
+      <div class="pas-wnetrze">
+        <h1 class="text-title-xl">Prowadzimy to na własną rękę.</h1>
+        <div class="tekst-czytany">
+          <p class="lead">
+            Kuking robi jedna osoba, która gotuje w domu i miała dość przepisów, do których trzeba się
+            przekopać przez pół strony cudzych wspomnień i trzy reklamy.
+          </p>
+          <p>
+            Nie stoi za tym żadna większa firma. Nie ma tu działu, do którego można napisać —
+            wiadomość czyta ten sam człowiek, który to pisze i utrzymuje. To znaczy, że odpowiedź
+            czasem przychodzi następnego dnia, i to jest uczciwsze, niż udawać całodobową obsługę.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         2. PO CO
+         ================================================================== -->
+    <section class="pas pas--wglebiony" aria-labelledby="po-co">
+      <div class="pas-wnetrze">
+        <h2 class="text-title-lg" id="po-co">Przepisy giną razem z zeszytami.</h2>
+        <div class="dwie-kolumny">
+          <div>
+            <p>
+              Najlepsze przepisy w Polsce leżą w kuchennych szufladach: w zeszytach w kratkę, na
+              kartkach z kalendarza, na odwrocie rachunku. Kiedy nie ma ich kto przepisać, znikają.
+            </p>
+            <p>
+              Kuking jest miejscem, w którym taki przepis można zapisać raz, dołożyć do niego zdjęcie
+              kartki pisanej ręką babci i nazwisko osoby, po której się go ma.
+            </p>
+          </div>
+          <div>
+            <p>
+              Druga połowa to ludzie. Przepis, którego nikt nigdy nie ugotował, jest tylko listą
+              składników. Dopiero kiedy ktoś zrobi go u siebie i pokaże, co mu wyszło, wiadomo,
+              że działa.
+            </p>
+            <p>
+              Dlatego całe to miejsce jest zbudowane wokół jednego przycisku: „Ugotowałem”.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         3. CZEGO TU NIE MA
+         ================================================================== -->
+    <section class="pas" id="czego-tu-nie-ma" aria-labelledby="czego-nie-ma-tytul">
+      <div class="pas-wnetrze">
+        <h2 class="text-title-lg" id="czego-nie-ma-tytul">Czego tu nie ma.</h2>
+        <p class="lead miara">
+          Kilku rzeczy nie ma nie dlatego, że jeszcze ich nie zrobiliśmy. Nie ma ich, bo tak zdecydowaliśmy.
+        </p>
+
+        <ul class="lista-czego-nie-ma odstep-nad">
+          <li>
+            <strong>Rankingów</strong>
+            <p>
+              Lista najlepszych dzieli ludzi na dwie grupy i większość z nich przestaje cokolwiek
+              pokazywać. Tu nie ma kogo wyprzedzać.
+            </p>
+          </li>
+          <li>
+            <strong>Punktów, poziomów i odznak</strong>
+            <p>
+              Nagroda za codzienne wchodzenie jest formą nacisku. Gotujesz wtedy, kiedy gotujesz,
+              a nie wtedy, kiedy strona tego chce.
+            </p>
+          </li>
+          <li>
+            <strong>Algorytmu, który wybiera za Ciebie</strong>
+            <p>
+              Widzisz to, co dodały osoby, które sam obserwujesz, w kolejności, w jakiej to dodały.
+              Nic nie jest podbijane i nic nie znika, bo miało za mało reakcji.
+            </p>
+          </li>
+          <li>
+            <strong>Reklam między daniami</strong>
+            <p>
+              Nie zarabiamy na tym, ile czasu tu spędzisz, więc nic tu nie miga i nic nie przewija
+              się samo.
+            </p>
+          </li>
+        </ul>
+
+        <p class="odstep-nad">
+          <a class="link-dalej" href="#co-zamiast">
+            Co jest zamiast tego
+            <svg class="link-dalej-ikona" aria-hidden="true" focusable="false"><use href="#ikona-strzalka"></use></svg>
+          </a>
+        </p>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         4. CO JEST ZAMIAST TEGO
+         ================================================================== -->
+    <section class="pas pas--cieply" aria-labelledby="co-zamiast">
+      <div class="pas-wnetrze">
+        <h2 class="text-title-lg" id="co-zamiast">Co jest zamiast tego.</h2>
+        <ul class="rzeczy odstep-nad-maly">
+          <li class="rzecz">
+            <svg class="rzecz-ikona" aria-hidden="true" focusable="false"><use href="#ikona-zeszyt"></use></svg>
+            <h3 class="rzecz-tytul">Zeszyt</h3>
+            <p class="rzecz-opis">
+              Przepisy, które chcesz zachować, leżą w jednym miejscu i są Twoje. Możesz je stąd
+              pobrać na swój komputer, kiedy zechcesz.
+            </p>
+          </li>
+          <li class="rzecz">
+            <svg class="rzecz-ikona" aria-hidden="true" focusable="false"><use href="#ikona-garnek"></use></svg>
+            <h3 class="rzecz-tytul">Ugotowałem</h3>
+            <p class="rzecz-opis">
+              Jedno zdjęcie od kogoś, komu przepis wyszedł, mówi więcej niż tysiąc serduszek pod
+              cudzym zdjęciem z internetu.
+            </p>
+          </li>
+          <li class="rzecz">
+            <svg class="rzecz-ikona" aria-hidden="true" focusable="false"><use href="#ikona-czapka"></use></svg>
+            <h3 class="rzecz-tytul">Skąd ten przepis</h3>
+            <p class="rzecz-opis">
+              Przy przepisie jest miejsce na to, po kim się go ma i kiedy się go gotuje. To
+              najczęściej czytana część przepisu.
+            </p>
+          </li>
+          <li class="rzecz">
+            <svg class="rzecz-ikona" aria-hidden="true" focusable="false"><use href="#ikona-ustawienia"></use></svg>
+            <h3 class="rzecz-tytul">Wielkość tekstu</h3>
+            <p class="rzecz-opis">
+              Tekst możesz powiększyć w ustawieniach konta i strona nadal się nie rozjedzie.
+              Motyw jasny albo ciemny wybierasz sam i nic go potem nie zmienia.
+            </p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         5. SKĄD TA NAZWA — jedyne miejsce na tej stronie, w którym gramy
+         słowem kuKING. Korona jest żartem o garnku, nigdy komplementem.
+         ================================================================== -->
+    <section class="pas" aria-labelledby="skad-nazwa">
+      <div class="pas-wnetrze">
+        <h2 class="text-title-lg" id="skad-nazwa">Skąd ta nazwa.</h2>
+        <div class="tekst-czytany">
+          <p>
+            Kuking to polski zapis tego, co i tak wszyscy mówią o gotowaniu. W środku siedzi
+            <span class="kuking-word" aria-label="kuking">ku<strong>KING</strong></span> i stąd wzięła się
+            korona w znaku — ale korona siedzi na garnku, nie na niczyjej głowie. To żart o garnku,
+            nie komplement dla kogokolwiek.
+          </p>
+          <p>
+            Tak samo nazywamy osoby, które tu gotują — mniej więcej tak, jak mówi się „forumowicz”
+            albo „nasz sąsiad”. To nazwa przynależności, nie tytuł, na który trzeba zasłużyć.
+            Wystarczy tu być.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         6. NA JAKIM ETAPIE JESTEŚMY
+         ================================================================== -->
+    <section class="pas blok-ciemny" aria-labelledby="etap">
+      <div class="pas-wnetrze">
+        <div class="pas-ciemny-tekst">
+          <h2 class="text-title-lg" id="etap">Jesteśmy przed startem.</h2>
+          <p class="lead">
+            Kuking jest w zamkniętej becie. Zapraszamy po kilka osób naraz, zaczynając od dwudziestu,
+            żeby zdążyć poprawić to, co się posypie, zanim posypie się przy wszystkich.
+          </p>
+          <p>
+            Dlatego pod przepisami bywa jeszcze pusto, a strona nie chwali się liczbami. Nie ma czym:
+            jeżeli kiedyś napiszemy, ile osób coś ugotowało, będzie to liczba, którą da się policzyć.
+          </p>
+          <p class="odstep-nad-maly">
+            <a class="link-dalej" href="/kontakt">
+              Napisz do nas
+              <svg class="link-dalej-ikona" aria-hidden="true" focusable="false"><use href="#ikona-strzalka"></use></svg>
+            </a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         7. WEZWANIE DO DZIAŁANIA
+         ================================================================== -->
+    <section class="pas pas--kreska-gora" aria-labelledby="zaloz-konto">
+      <div class="pas-wnetrze zacheta">
+        <div class="zacheta-tekst">
+          <h2 class="text-title-lg" id="zaloz-konto">Załóż konto. Zajmie minutę.</h2>
+          <p class="lead">
+            Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia.
+          </p>
+        </div>
+        <div class="zacheta-akcje">
+          <a class="btn btn-primary btn-duzy" href="/rejestracja">Załóż konto</a>
+        </div>
+        <p class="pomoc odstep-nad-maly">Jeśli masz już konto — <a href="/logowanie">zaloguj się</a>.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="stopka stopka-www">
+    <div class="stopka-wnetrze">
+      <div class="stopka-kolumny">
+
+        <div class="stopka-blok">
+          <h2 class="stopka-blok-tytul">Kuking</h2>
+          <ul class="stopka-lista">
+            <li><a href="powitalna.html">Strona główna</a></li>
+            <li><a href="przepis-publiczny.html">Przykładowy przepis</a></li>
+            <li><a href="/kontakt">Kontakt</a></li>
+          </ul>
+        </div>
+
+        <div class="stopka-blok">
+          <h2 class="stopka-blok-tytul">Zasady</h2>
+          <ul class="stopka-lista">
+            <li><a href="/zasady">Zasady serwisu</a></li>
+            <li><a href="/prywatnosc">Prywatność</a></li>
+            <li><a href="/pomoc">Pomoc</a></li>
+          </ul>
+        </div>
+
+        <div class="stopka-wyglad">
+      <!-- Podglad bez JS: wybor dotyczy tylko otwartego ekranu.
+           W Blade uzyj formularza POST z 07-wdrozenie/MOTYW-V3.1.md. -->
+      <label class="btn btn-quiet motyw-przelacznik">
+        <input class="motyw-demo-input" type="checkbox" role="switch" aria-label="Ciemny wygląd">
+        <svg class="side-nav-ikona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg>
+        <span>Ciemny</span>
+        <span class="motyw-suwak" aria-hidden="true"></span>
+      </label>
+    </div>
+
+      </div>
+
+      <p class="stopka-dol meta">Kuking.pl — polski serwis domowego gotowania. Strona jest w budowie.</p>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

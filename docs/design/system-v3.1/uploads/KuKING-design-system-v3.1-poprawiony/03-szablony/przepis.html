@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="pl" data-preview="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuking — przepis (makieta systemu projektowego)</title>
+<link rel="stylesheet" href="../podglad/podglad.css">
+<!-- Reguły, które przy budowie tej makiety zgłoszono jako brakujące, są już
+     w 02-komponenty/komponenty.css, sekcja 16. Ta makieta nie ma własnego CSS. -->
+</head>
+<body>
+
+<!--
+  Zestaw ikon Kuking — wklejany na początku <body> każdej makiety.
+
+  Dlaczego wklejany, a nie z osobnego pliku przez <use href="ikony.svg#…">:
+  przeglądarka otwierająca stronę z dysku (file://) traktuje zewnętrzny sprite
+  jako inne źródło i nic nie rysuje. Makiety mają się otwierać podwójnym
+  kliknięciem, więc sprite jedzie w środku.
+
+  KAŻDA ikona ma aria-hidden="true" w miejscu użycia i ZAWSZE stoi obok tekstu.
+  Reguła „nigdy" nr 1: ikona nie jest opisem akcji, jest jej ozdobą.
+  Kreska 2px, zaokrąglone końce, currentColor — ikona bierze kolor po tekście,
+  więc w trybie ciemnym nie trzeba niczego przełączać.
+-->
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="i-baza" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+
+  <symbol id="ikona-dom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/>
+  </symbol>
+
+  <symbol id="ikona-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>
+  </symbol>
+
+  <symbol id="ikona-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+
+  <symbol id="ikona-zeszyt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"/><path d="M8.5 3.5v17"/><path d="M12 8h4M12 12h4"/>
+  </symbol>
+
+  <symbol id="ikona-osoba" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="8.5" r="3.75"/><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/>
+  </symbol>
+
+  <symbol id="ikona-dzwonek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/><path d="M10 20a2 2 0 0 0 4 0"/>
+  </symbol>
+
+  <symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+
+  <symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.5a3 3 0 0 1 0 5.5"/><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"/>
+  </symbol>
+
+  <symbol id="ikona-czapka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 16.5c-2.5-.4-4-2.2-4-4.4C3 9.3 5 7.5 7.4 7.6 8 5.5 9.8 4.2 12 4.2s4 1.3 4.6 3.4C19 7.5 21 9.3 21 12.1c0 2.2-1.5 4-4 4.4"/><path d="M7 16.5h10v3H7z"/>
+  </symbol>
+
+  <symbol id="ikona-zakladka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v16l-5-3.5L7 20V4Z"/>
+  </symbol>
+
+  <symbol id="ikona-komentarz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5V16.5H6a2 2 0 0 1-2-2Z"/>
+  </symbol>
+
+  <symbol id="ikona-garnek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 8.5h15V14c0 3.6-2.4 6-7.5 6s-7.5-2.4-7.5-6Z"/><path d="M4.5 10.5C2.8 10.5 2 11.4 2 12.7c0 1.4 1 2.3 2.5 2.3"/><path d="M19.5 10.5c1.7 0 2.5.9 2.5 2.2 0 1.4-1 2.3-2.5 2.3"/><path d="M8 5.5c0-1 .8-1.5 1.5-1.5M12 4.5c0-1 .8-1.5 1.5-1.5"/>
+  </symbol>
+
+  <symbol id="ikona-aparat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 8.5h3.2l1.4-2.4h7.8l1.4 2.4h3.2v10.5H3.5Z"/><circle cx="12" cy="13.5" r="3.4"/>
+  </symbol>
+
+  <symbol id="ikona-ostrzezenie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4 2.8 20h18.4Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="ikona-ptaszek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4.5 12.5 5 5 10-11"/>
+  </symbol>
+
+  <symbol id="ikona-strzalka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 12h15"/><path d="m13.5 6 6 6-6 6"/>
+  </symbol>
+
+  <symbol id="ikona-ustawienia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.2 6.2 4.5 4.5M19.5 19.5l-1.7-1.7M17.8 6.2l1.7-1.7M4.5 19.5l1.7-1.7"/>
+  </symbol>
+
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/><circle cx="32" cy="9" r="3.5" fill="currentColor"/><circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+
+<div class="app-shell">
+<header class="topbar">
+  <div class="topbar-wnetrze">
+    <a class="wordmark" href="tablica.html">
+      <svg class="wordmark-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+      <span>KuKing<span class="wordmark-koncowka">.pl</span></span>
+    </a>
+
+    <form class="topbar-szukaj-kolumna tylko-szerokie" action="#" method="get" role="search">
+      <label class="field-etykieta" for="pole-szukania">Szukaj</label>
+      <input class="field-input" id="pole-szukania" name="q" type="search" placeholder="przepis, osoba albo składnik">
+    </form>
+
+    <div class="topbar-akcje">
+      <a class="btn btn-quiet" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>Powiadomienia</a>
+    </div>
+  </div>
+</header>
+
+<div class="app-body">
+  <nav class="side-nav" aria-label="Główne działy">
+    <ul class="side-nav-lista">
+      <li><a class="side-nav-item" href="tablica.html" aria-current="page"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a></li>
+      <li><a class="side-nav-item" href="dodaj-przepis-krok-1.html"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg>Dodaj</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Moje</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-zeszyt"></use></svg>Zeszyt</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Profil</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>Powiadomienia</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-ustawienia"></use></svg>Ustawienia</a></li>
+    </ul>
+  </nav>
+
+  <main class="app-main" id="tresc">
+    <nav class="meta" aria-label="Okruszki">
+      <p><a href="tablica.html">Start</a> › <a href="#">Przepisy</a></p>
+    </nav>
+
+    <h1>Pierogi ruskie po babci Zofii</h1>
+
+    <div class="wiersz-autora">
+      <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt=""></span>
+      <span class="karta-glowka-tekst">
+        <a class="karta-autor" href="#">Kasia Wrzosek</a>
+        <span class="karta-meta">
+          <span>przepis z 1 września 2026</span>
+        </span>
+      </span>
+      <form action="#" method="post"><button class="btn btn-secondary" type="submit">Obserwuj</button></form>
+    </div>
+
+    <img class="przepis-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Pierogi ruskie na jasnym talerzu, polane podsmażoną cebulką i posypane szczypiorkiem">
+
+    <p class="lead">Ciasto na gorącej wodzie, farsz z ziemniaków i twarogu. Robię je tak od trzydziestu lat i za każdym razem tak samo.</p>
+
+    <div class="tylko-waskie">
+    <section class="szyna-modul">
+      <div class="chipsy">
+        <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-zegar"></use></svg>Około 90 minut</span>
+        <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-porcje"></use></svg>4 porcje</span>
+        <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-czapka"></use></svg>Średni</span>
+      </div>
+
+      <h2 class="szyna-tytul sekcja">Składniki</h2>
+      <p class="szyna-podtytul">Na 4 porcje, czyli około 40 pierogów.</p>
+      <ul class="lista-skladnikow">
+        <li>3 szklanki mąki pszennej</li>
+        <li>szklanka gorącej wody</li>
+        <li>2 łyżki masła</li>
+        <li>1 kg ziemniaków</li>
+        <li>40 dag twarogu półtłustego</li>
+        <li>2 duże cebule</li>
+        <li>sól i pieprz — do smaku</li>
+      </ul>
+
+      <div class="stos-gesty sekcja">
+        <form action="#" method="post">
+          <button class="btn btn-primary btn-pelny btn-duzy" type="submit"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Ugotowałem</button>
+        </form>
+        <form action="#" method="post">
+          <button class="btn btn-secondary btn-pelny" type="submit"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-zakladka"></use></svg>Zapisuję</button>
+        </form>
+        <a class="btn btn-secondary btn-pelny" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-strzalka"></use></svg>Gotuję — pokaż kroki na cały ekran</a>
+      </div>
+    </section>
+    </div>
+
+    <div class="pochodzenie">
+      <h2 class="pochodzenie-tytul">Skąd ten przepis</h2>
+      <p>Po babci Zofii, ze wsi pod Łańcutem. Nigdy go nie zapisała — stałam obok i liczyłam garście. Ciasto zawsze zagniatała gorącą wodą, bo mówiła, że wtedy się nie rwie.</p>
+      <p class="meta">W rodzinie od 1961 roku.</p>
+    </div>
+
+    <div class="sekcja">
+      <div class="sekcja-naglowek">
+        <h2 class="sekcja-tytul">Przygotowanie</h2>
+      </div>
+      <ol class="kroki">
+        <li>Ziemniaki obierz i ugotuj w osolonej wodzie. Odcedź i przeciśnij przez praskę, jeszcze ciepłe.</li>
+        <li>Jedną cebulę pokrój drobno i zeszklij na maśle. Wymieszaj z ziemniakami i twarogiem, dopraw solą i pieprzem.</li>
+        <li>Mąkę wsyp do miski, wlej gorącą wodę z masłem i wyrób gładkie ciasto. Odstaw pod ściereczką na 30 minut.</li>
+        <li>Rozwałkuj cienko, wykrawaj kółka szklanką, nakładaj farsz i zlepiaj brzegi. Dociskaj mocno, żeby się nie rozeszły.</li>
+        <li>Gotuj partiami w osolonej wodzie: od wypłynięcia licz 2 minuty. Podawaj z drugą cebulą podsmażoną na złoto.</li>
+      </ol>
+    </div>
+
+    <div class="sekcja">
+      <div class="sekcja-naglowek">
+        <h2 class="sekcja-tytul">Komu wyszło</h2>
+      </div>
+      <p class="sekcja-opis">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
+
+      <div class="siatka-kart">
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar avatar-sm">H</span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#">Halina z Mazowsza</a>
+              <div class="karta-meta">
+                <span>4 września</span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span class="badge badge-cichy">konto przykładowe</span>
+              </div>
+            </div>
+          </div>
+          <p class="karta-tresc">Zrobiłam połowę porcji i dodałam więcej cebuli do farszu. Ciasto z gorącej wody faktycznie się nie rwie.</p>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Pierogi ruskie na jasnym talerzu, ze skwarkami i szczypiorkiem — zdjęcie od Haliny">
+        </article>
+
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt=""></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#">Piotr Zalewski</a>
+              <div class="karta-meta">
+                <span>2 września</span>
+              </div>
+            </div>
+          </div>
+          <p class="karta-bez-zdjecia">Robiłem pierwszy raz w życiu i połowa mi się rozkleiła. Druga połowa była bardzo dobra, więc następnym razem docisnę brzegi mocniej. Zdjęcia nie ma — zjedliśmy od razu.</p>
+        </article>
+      </div>
+
+      <div class="card sekcja">
+        <h3>Ugotowałeś z tego przepisu?</h3>
+        <p>Kasia naprawdę chce o tym wiedzieć.</p>
+        <a class="btn btn-secondary" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Dodaj swoje Ugotowałem</a>
+      </div>
+    </div>
+
+    <div class="sekcja" id="komentarze">
+      <div class="sekcja-naglowek">
+        <h2 class="sekcja-tytul">Komentarze</h2>
+      </div>
+
+      <ul class="lista-wierszy">
+        <li class="wiersz">
+          <span class="avatar avatar-sm">H</span>
+          <div class="wiersz-tresc">
+            <a class="karta-autor" href="#">Halina z Mazowsza</a>
+            <p>A czy do farszu dodajesz jajko? Moja mama dodawała, ale u Ciebie tego nie widzę.</p>
+            <span class="wiersz-czas">4 września, 10:12</span>
+          </div>
+        </li>
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt=""></span>
+          <div class="wiersz-tresc">
+            <a class="karta-autor" href="#">Kasia Wrzosek</a>
+            <p>Nie dodaję. Babcia mówiła, że jajko robi farsz gumowaty. Ale jak ktoś lubi zwięźlejszy, to jedno nie zaszkodzi.</p>
+            <span class="wiersz-czas">4 września, 11:40</span>
+          </div>
+        </li>
+      </ul>
+
+      <form class="card sekcja" action="#" method="post">
+        <div class="field">
+          <label class="field-etykieta" for="komentarz">Napisz komentarz <span class="field-wymagane">wymagane</span></label>
+          <span class="field-podpowiedz" id="komentarz-pomoc">Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku.</span>
+          <textarea class="field-input" id="komentarz" name="komentarz" rows="4" aria-describedby="komentarz-pomoc"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="submit">Wyślij komentarz</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="sekcja">
+      <a class="btn btn-quiet" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>Zgłoś ten przepis</a>
+    </div>
+  </main>
+  <aside class="app-rail" aria-label="Obok treści">
+    <section class="szyna-modul">
+      <div class="chipsy">
+        <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-zegar"></use></svg>Około 90 minut</span>
+        <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-porcje"></use></svg>4 porcje</span>
+        <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-czapka"></use></svg>Średni</span>
+      </div>
+
+      <h2 class="szyna-tytul sekcja">Składniki</h2>
+      <p class="szyna-podtytul">Na 4 porcje, czyli około 40 pierogów.</p>
+      <ul class="lista-skladnikow">
+        <li>3 szklanki mąki pszennej</li>
+        <li>szklanka gorącej wody</li>
+        <li>2 łyżki masła</li>
+        <li>1 kg ziemniaków</li>
+        <li>40 dag twarogu półtłustego</li>
+        <li>2 duże cebule</li>
+        <li>sól i pieprz — do smaku</li>
+      </ul>
+
+      <div class="stos-gesty sekcja">
+        <form action="#" method="post">
+          <button class="btn btn-primary btn-pelny btn-duzy" type="submit"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Ugotowałem</button>
+        </form>
+        <form action="#" method="post">
+          <button class="btn btn-secondary btn-pelny" type="submit"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-zakladka"></use></svg>Zapisuję</button>
+        </form>
+        <a class="btn btn-secondary btn-pelny" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-strzalka"></use></svg>Gotuję — pokaż kroki na cały ekran</a>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<footer class="stopka">
+  <div class="stopka-wnetrze">
+    <span class="meta">Kuking — gotujemy po swojemu.</span>
+    <nav class="stopka-linki" aria-label="Stopka">
+      <a href="../04-strona-www/o-kuking.html">O Kuking</a>
+      <a href="#">Pomoc</a>
+      <a href="#">Zasady</a>
+      <a href="#">Regulamin</a>
+      <a href="#">Prywatność</a>
+      <a href="#">Zgłoś nielegalną treść</a>
+    </nav>
+    <div class="stopka-wyglad">
+      <!-- Podglad bez JS: wybor dotyczy tylko otwartego ekranu.
+           W Blade uzyj formularza POST z 07-wdrozenie/MOTYW-V3.1.md. -->
+      <label class="btn btn-quiet motyw-przelacznik">
+        <input class="motyw-demo-input" type="checkbox" role="switch" aria-label="Ciemny wygląd">
+        <svg class="side-nav-ikona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg>
+        <span>Ciemny</span>
+        <span class="motyw-suwak" aria-hidden="true"></span>
+      </label>
+    </div>
+  </div>
+</footer>
+</div>
+
+<nav class="bottom-nav" aria-label="Główne działy">
+  <a class="bottom-nav-item" href="tablica.html" aria-current="page"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a>
+  <a class="bottom-nav-item" href="#"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a>
+  <a class="bottom-nav-item bottom-nav-item-glowna" href="dodaj-przepis-krok-1.html"><span class="bottom-nav-kolko"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg></span>Dodaj</a>
+  <a class="bottom-nav-item" href="#"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Moje</a>
+  <a class="bottom-nav-item" href="#"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Profil</a>
+</nav>
+
+</body>
+</html>

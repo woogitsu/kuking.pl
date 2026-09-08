@@ -1,0 +1,521 @@
+/* Kuking.pl — plansze do mediow spolecznosciowych i arkusze do druku.
+ * Przepisane z 05-social-media/szablony.css paczki zrodlowej.
+ *
+ * Wymiary w pikselach i milimetrach sa tu WYJATKIEM i tylko one: 1080x1080 px
+ * wymusza serwis, 210x297 mm wymusza drukarka. Kazde takie miejsce ma
+ * w komentarzu slowo "geometria".
+ *
+ * Mnoznik planszy --skala NIE jest --user-text-scale: wlasnosc niestandardowa
+ * rozwiazuje sie w miejscu DEKLARACJI, wiec token typografii dziedziczy sie
+ * juz policzony. Dlatego mnozymy w miejscu uzycia:
+ *     font-size: calc(var(--text-title-xl) * var(--skala));
+ */
+
+/* =============================================================================
+   1. STRONA Z SZABLONAMI — sama instrukcja, nie wchodzi na wydruk ani na obrazek
+   ========================================================================== */
+
+.otoczka {
+  max-width: var(--container-content);
+  margin: 0 auto;
+  padding: var(--spacing-10) var(--spacing-5) var(--spacing-16);
+}
+
+.otoczka-szeroka {
+  /* Bez sufitu szerokości: plansza 1640 px musi zmieścić się w tej ramce
+     w CAŁOŚCI, inaczej zrzut elementu łapie tło strony zamiast prawej
+     krawędzi planszy. Strona i tak nie przewija się w poziomie, bo pilnuje
+     tego `.ramka-planszy`. */
+  max-width: none;
+  margin: 0 auto;
+  padding: 0 var(--spacing-5) var(--spacing-24);
+}
+
+.kod {
+  display: block;
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: var(--text-help);
+  line-height: var(--leading-body);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Nagłówki w instrukcji: reset Tailwinda zeruje marginesy, a nagłówek stojący
+   tuż pod listą wygląda na jej część. */
+.otoczka h2 { margin-top: var(--spacing-12); }
+.otoczka h3 { margin-top: var(--spacing-8); }
+
+/* Lista z punktorem — reset zdejmuje `list-style`, więc rysujemy kropkę sami,
+   tym samym sposobem co lista składników na planszy. */
+/* Kropka jest pozycjonowana, a nie wstawiona jako element siatki: `display:flex`
+   na `li` rozbija wiersz na osobne pola przy każdym `code` w środku zdania. */
+.lista-punktowana {
+  list-style: none;
+  margin: 0 0 var(--spacing-5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.lista-punktowana li { position: relative; padding-left: var(--spacing-6); }
+.lista-punktowana li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand);
+}
+
+.etykieta-planszy {
+  margin: var(--spacing-12) 0 var(--spacing-3);
+  font-size: var(--text-body-lg);
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.etykieta-planszy .meta { font-weight: 600; }
+
+/* Ramka planszy: plansza ma stały wymiar w pikselach albo milimetrach i bywa
+   szersza od okna. Przewija się wtedy w niej, a nie razem ze stroną. */
+.ramka-planszy {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: var(--spacing-3);
+  margin-bottom: var(--spacing-10);
+}
+
+/* =============================================================================
+   2. PLANSZA — wspólna podstawa wszystkich szablonów ekranowych
+   ========================================================================== */
+
+.plansza {
+  --skala: 1; /* @kind other */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  overflow: hidden;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: var(--leading-body);
+  box-shadow: var(--shadow-card);
+}
+
+/* --- Rozmiary i mnożnik. Geometria: piksele wymuszone przez serwisy. ------ */
+.r-kwadrat    { width: 1080px; height: 1080px; --skala: 2; /* @kind other */ }  /* geometria */
+.r-pion       { width: 1080px; height: 1350px; --skala: 2; /* @kind other */ }  /* geometria */
+.r-pion-pelny { width: 1080px; height: 1920px; --skala: 2.3; /* @kind other */ }  /* geometria */
+.r-link       { width: 1200px; height: 630px; --skala: 1.5; /* @kind other */ }  /* geometria */
+.r-baner      { width: 1640px; height: 624px; --skala: 1.6; /* @kind other */ }  /* geometria */
+
+/* --- Warstwy treści ------------------------------------------------------ */
+.plansza-tresc {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--spacing-20);
+}
+.plansza-tresc-luzna { padding: var(--spacing-12) var(--spacing-16); }
+.plansza-tresc-srodek { justify-content: center; gap: var(--spacing-6); }
+.plansza-tresc-rozsun { justify-content: space-between; }
+
+.plansza-wash { background-color: var(--color-surface-brand-wash); }
+
+/* --- Znak marki ---------------------------------------------------------- */
+.plansza-znak {
+  width: var(--spacing-20);
+  height: var(--spacing-20);
+  color: var(--color-brand);
+  flex: none;
+}
+.plansza-znak-maly { width: var(--spacing-12); height: var(--spacing-12); }
+
+.plansza-lockup {
+  display: flex;
+  align-items: center;
+  font-size: calc(var(--text-title-sm) * var(--skala));
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.plansza-lockup .plansza-znak { margin-right: var(--spacing-4); }
+.plansza-lockup-koncowka { color: var(--color-brand); }
+.plansza-lockup-duzy { font-size: calc(var(--text-title-lg) * var(--skala)); }
+
+/* --- Typografia planszy: token systemu razy mnożnik planszy. ------------- */
+.plansza-tytul {
+  font-size: calc(var(--text-title-xl) * var(--skala));
+  line-height: var(--leading-title);
+  font-weight: 800;
+  color: var(--color-ink);
+  margin: 0;
+}
+.plansza-tytul-mniejszy {
+  font-size: calc(var(--text-title-lg) * var(--skala));
+  line-height: var(--leading-title-wiele);
+}
+.plansza-lead {
+  font-size: calc(var(--text-lead) * var(--skala));
+  line-height: var(--leading-body);
+  color: var(--color-ink-muted);
+  margin: var(--spacing-6) 0 0;
+  max-width: 30ch;
+}
+.plansza-meta {
+  font-size: calc(var(--text-help) * var(--skala));
+  color: var(--color-ink-muted);
+  margin: 0;
+}
+.plansza-adres {
+  font-size: calc(var(--text-body-lg) * var(--skala));
+  font-weight: 700;
+  color: var(--color-brand);
+  margin: 0;
+}
+
+/* --- Stopka planszy: kreska, znak, adres --------------------------------- */
+.plansza-stopka {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-6);
+  padding-top: var(--spacing-6);
+  border-top: 2px solid var(--color-border);
+}
+
+/* --- Zdjęcie ------------------------------------------------------------- */
+.plansza-foto {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.plansza-fotoblok { position: relative; flex: none; overflow: hidden; }
+.plansza-fotoblok-rosnie { flex: 1; min-height: 0; }
+
+/* Wysokości pasów zdjęcia. Geometria: podział planszy. */
+.foto-kwadrat-gora { height: 380px; }  /* geometria: pas zdjęcia na planszy 1080 na 1080 */
+.foto-pion-gora    { height: 810px; }  /* geometria: pas zdjęcia na planszy 1080 na 1350 */
+.foto-pion-pelny   { height: 760px; }  /* geometria: pas zdjęcia na planszy 1080 na 1920 */
+
+/* Podkład pod tekstem na zdjęciu — reguła „nigdy" nr 7 z systemu. */
+.plansza-podklad {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: var(--spacing-24) var(--spacing-20) var(--spacing-20);
+  background-image: var(--scrim-gradient);
+}
+.plansza-napis {
+  color: var(--color-ink-inverse);
+  font-size: calc(var(--text-title-lg) * var(--skala));
+  line-height: var(--leading-title-wiele);
+  font-weight: 800;
+  margin: 0;
+}
+.plansza-podpis {
+  color: var(--color-ink-inverse);
+  font-size: calc(var(--text-lead) * var(--skala));
+  margin: var(--spacing-4) 0 0;
+}
+
+/* Plakietka na zdjęciu — Ugotowałem. Kolory z tokenów plakietki akcentowej. */
+.plansza-plakietka {
+  position: absolute;
+  top: var(--spacing-10);
+  left: var(--spacing-10);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-8);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-accent-tint);
+  color: var(--color-accent-tint-ink);
+  font-size: calc(var(--text-body-lg) * var(--skala));
+  font-weight: 800;
+}
+.plansza-plakietka-ikona { width: var(--spacing-10); height: var(--spacing-10); flex: none; }
+
+/* --- Lista składników ---------------------------------------------------- */
+.plansza-lista {
+  list-style: none;
+  margin: var(--spacing-5) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  font-size: calc(var(--text-body-lg) * var(--skala));
+  color: var(--color-ink);
+}
+.plansza-lista li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+}
+.plansza-lista li::before {
+  content: "";
+  flex: none;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand);
+  transform: translateY(-0.15em);
+}
+
+/* Sześć składników w dwóch kolumnach mieści się w trzech wierszach i karta
+   przepisu przestaje wyglądać na listę zakupów. */
+.plansza-lista-dwie {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-2) var(--spacing-8);
+}
+
+.plansza-dane {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3) var(--spacing-8);
+  margin: var(--spacing-4) 0 0;
+  font-size: calc(var(--text-body) * var(--skala));
+  font-weight: 700;
+  color: var(--color-ink-muted);
+}
+.plansza-dane span { display: inline-flex; align-items: center; gap: var(--spacing-3); }
+.plansza-dane svg { width: var(--spacing-8); height: var(--spacing-8); flex: none; }
+
+/* --- Pas z wordmarkiem u dołu planszy ze zdjęciem na całość -------------- */
+.plansza-pasek {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-6);
+  padding: var(--spacing-10) var(--spacing-20);
+  background-color: var(--color-surface-raised);
+}
+
+/* --- Układ dwukolumnowy (podgląd linku i baner) -------------------------- */
+.plansza-dwie {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+}
+.plansza-dwie > .plansza-tresc { flex: 1; min-width: 0; }
+
+.plansza-panel-foto {
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+}
+
+/* --- Wariant: cytat i hasło --------------------------------------------- */
+.plansza-cytat .plansza-tytul { max-width: 16ch; }
+
+/* --- Wariant: baner szeroki --------------------------------------------- */
+.plansza-baner-tekst {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  justify-content: center;
+  padding: var(--spacing-16) var(--spacing-20);
+  flex: 1;
+  min-width: 0;
+}
+/* Baner ma szeroką kolumnę tekstu, więc zdanie może być dłuższe niż domyślne
+   30 znaków — inaczej łamie się po trzech słowach i wygląda na przypadek. */
+.plansza-baner-tekst .plansza-lead { max-width: 40ch; margin: 0; }
+.plansza-baner-foto {
+  width: 560px;  /* geometria: prawa kolumna banera */
+  margin: var(--spacing-10) var(--spacing-16) var(--spacing-10) 0;
+}
+
+/* --- Wariant: podgląd linku --------------------------------------------- */
+.plansza-link-foto {
+  width: 470px;  /* geometria: prawa kolumna podglądu linku 1200 na 630 */
+  margin: var(--spacing-10) var(--spacing-10) var(--spacing-10) 0;
+}
+
+/* =============================================================================
+   3. MATERIAŁY DRUKOWANE
+   Wymiary w milimetrach — geometria arkusza papieru, nie styl.
+   ========================================================================== */
+
+.arkusz {
+  --skala: 1; /* @kind other */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  overflow: hidden;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: var(--leading-body);
+  box-shadow: var(--shadow-card);
+}
+
+.a4        { width: 210mm; height: 297mm; --skala: 1.35; /* @kind other */ }  /* geometria */
+.a5        { width: 148mm; height: 210mm; --skala: 1; /* @kind other */ }  /* geometria */
+.wizytowka { width: 90mm; height: 50mm; --skala: 0.85; /* @kind other */ }  /* geometria */
+.naklejka  { width: 60mm; height: 60mm; --skala: 0.7; /* @kind other */ }  /* geometria */
+
+/* Mnożnik poniżej 1 na wizytówce i naklejce jest świadomym odstępstwem od
+   produktowego minimum 18 px: 18 px na kartoniku 90 na 50 mm to nagłówek,
+   a nie tekst. Adres, czyli jedyna rzecz, którą ktoś ma stąd przepisać,
+   zostaje w rozmiarze nagłówkowym. */
+
+.arkusz-tresc {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 14mm;  /* geometria: margines wewnętrzny arkusza */
+}
+.arkusz-tresc-ciasna { padding: 6mm; }   /* geometria: wizytówka i naklejka */
+.arkusz-tresc-rozsun { justify-content: space-between; }
+.arkusz-tresc-pion-srodek { justify-content: center; }
+.arkusz-tresc-srodek { justify-content: center; align-items: center; text-align: center; }
+.arkusz-tresc-srodek .stos-arkusza,
+.arkusz-tresc-srodek .stos-arkusza-gesty { align-items: center; }
+
+/* Pasy zdjęcia na arkuszach. Geometria: podział kartki. */
+.arkusz-foto { flex: none; overflow: hidden; }
+.foto-ulotka { height: 50mm; }  /* geometria */
+.foto-plakat { height: 90mm; }  /* geometria */
+
+.arkusz-h1 {
+  font-size: calc(var(--text-title-lg) * var(--skala));
+  line-height: var(--leading-title);
+  font-weight: 800;
+  margin: 0;
+  color: var(--color-ink);
+}
+.arkusz-h2 {
+  font-size: calc(var(--text-title-sm) * var(--skala));
+  line-height: var(--leading-title);
+  font-weight: 800;
+  margin: 0;
+  color: var(--color-ink);
+}
+.arkusz-tekst {
+  font-size: calc(var(--text-body) * var(--skala));
+  line-height: var(--leading-body);
+  margin: 0;
+  color: var(--color-ink);
+}
+.arkusz-tekst-cichy { color: var(--color-ink-muted); }
+.arkusz-lead {
+  font-size: calc(var(--text-lead) * var(--skala));
+  line-height: var(--leading-body);
+  margin: 0;
+  color: var(--color-ink-muted);
+}
+.arkusz-adres {
+  font-size: calc(var(--text-title-sm) * var(--skala));
+  font-weight: 800;
+  color: var(--color-brand);
+  margin: 0;
+}
+.arkusz-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  font-size: calc(var(--text-body) * var(--skala));
+  color: var(--color-ink);
+}
+.arkusz-lista li { display: flex; align-items: baseline; gap: var(--spacing-3); }
+.arkusz-lista li::before {
+  content: "";
+  flex: none;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand);
+  transform: translateY(-0.2em);
+}
+
+.arkusz-pasek {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: 8mm 14mm;  /* geometria: pas stopki arkusza */
+  background-color: var(--color-surface-brand-wash);
+}
+
+.arkusz-znak { width: var(--spacing-12); height: var(--spacing-12); color: var(--color-brand); flex: none; }
+.arkusz-znak-duzy { width: var(--spacing-20); height: var(--spacing-20); }
+.arkusz-lockup {
+  display: flex;
+  align-items: center;
+  font-size: calc(var(--text-title-sm) * var(--skala));
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.arkusz-lockup .arkusz-znak { margin-right: var(--spacing-3); }
+.arkusz-lockup-koncowka { color: var(--color-brand); }
+
+.stos-arkusza { display: flex; flex-direction: column; gap: var(--spacing-5); }
+.stos-arkusza-gesty { display: flex; flex-direction: column; gap: var(--spacing-3); }
+
+/* --- Odrywane paski z adresem u dołu plakatu ----------------------------- */
+.odrywki {
+  flex: none;
+  display: flex;
+  height: 30mm;  /* geometria: pas odrywanych pasków u dołu plakatu */
+  border-top: 1px dashed var(--color-border-strong);
+}
+.odrywka {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px dashed var(--color-border-strong);
+  writing-mode: vertical-rl;
+  font-size: calc(var(--text-help) * var(--skala));
+  font-weight: 700;
+  color: var(--color-brand);
+}
+.odrywka:first-child { border-left: 0; }
+
+/* =============================================================================
+   4. DRUK
+   Strony nazwane — inaczej przeglądarka drukuje wszystko w jednym rozmiarze.
+   ========================================================================== */
+
+@page arkusz-a4        { size: 210mm 297mm; margin: 0; }  /* geometria */
+@page arkusz-a5        { size: 148mm 210mm; margin: 0; }  /* geometria */
+@page arkusz-wizytowka { size:  90mm  50mm; margin: 0; }  /* geometria */
+@page arkusz-naklejka  { size:  60mm  60mm; margin: 0; }  /* geometria */
+
+.a4        { page: arkusz-a4; }
+.a5        { page: arkusz-a5; }
+.wizytowka { page: arkusz-wizytowka; }
+.naklejka  { page: arkusz-naklejka; }
+
+@media print {
+  .otoczka,
+  .etykieta-planszy,
+  .bez-druku { display: none; }
+
+  .otoczka-szeroka { padding: 0; max-width: none; }
+  .ramka-planszy { overflow: visible; padding: 0; margin: 0; }
+
+  .arkusz,
+  .plansza {
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+}

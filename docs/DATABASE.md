@@ -687,6 +687,55 @@ skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
 utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
 tabeli.
 
+#### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
+
+**`group_name varchar(120) NULL`** (kolumna z pierwszej migracji przepisów
+`2026_09_05_000400_create_recipes_tables`; CHECK dołożony migracją
+`2026_09_08_100000_add_group_name_check_to_recipe_ingredients`) — śródtytuł
+części przepisu. `NULL` znaczy „ten składnik nie należy do żadnej części"
+i jest **stanem normalnym**: większość przepisów nie ma grup i nic w bazie
+ani w interfejsie nie traktuje pustej wartości jako braku do uzupełnienia.
+
+**Kolejność grup nie ma własnej kolumny.** Bierze się z `position`
+składników: grupa pojawia się tam, gdzie stoi jej pierwszy składnik. Autor
+pisze listę od góry do dołu i to jest cała informacja o kolejności, jaką ma;
+druga liczba obok byłaby drugim miejscem, w którym kolejność może się
+rozjechać z pierwszym.
+
+**Odrzucona osobna tabela grup** (`recipe_ingredient_groups` z `position`
+plus `group_id` przy składniku). Grupa nie ma własnego życia — nikt nie
+zakłada „Farszu", żeby potem wkładać do niego składniki — więc skasowanie
+ostatniego składnika zostawiałoby pusty nagłówek. Do tego obie drogi zapisu
+kasują składniki i piszą je od nowa (`PublishRecipe::syncIngredients`), więc
+każdy zapis przepisu stawałby się synchronizacją dwóch list zamiast jednej,
+a UNIQUE na nazwie działa i tak wyłącznie w obrębie jednego przepisu — czyli
+daje tyle, co ujednolicenie nazw przy zapisie, za cenę klucza obcego i JOIN-a
+na najczęściej czytanej stronie serwisu. Pełna lista odrzuconych wariantów
+(słownik nazw wspólny dla serwisu, `group_position`, nagłówek jako wiersz
+składnika z flagą `is_header`) stoi w komentarzu migracji.
+
+CHECK `recipe_ingredients_group_name_check`: `group_name IS NULL OR
+btrim(group_name) <> ''`. Pusty ciąg znaków to nagłówek bez treści — pusta
+linia na ekranie, a w czytniku ekranu „nagłówek poziomu trzeciego" i cisza.
+`PublishRecipe` zamienia puste i same spacje na `NULL` **przed** zapisem
+i przycina nazwę do 120 znaków, żeby CHECK i długość kolumny nie zamieniły
+się w błąd 500 na publikacji.
+
+**Czego baza NIE pilnuje: ciągłości grup.** Da się zapisać „poz. 0 Ciasto,
+poz. 1 Farsz, poz. 2 Ciasto" — CHECK nie widzi sąsiednich wierszy
+(`docs/research/repos/TandoorRecipes-recipes.md` §2.2, rekomendacja R8).
+Pilnują tego dwie warstwy nad bazą: `PublishRecipe` ujednolica pisownię nazw
+w obrębie przepisu (wygrywa pierwsza pisownia autora, więc „Farsz" i „farsz"
+to jedna grupa), a `App\Domain\Recipes\GrupySkladnikow` układa listę do
+wyświetlenia — składniki bez grupy na górze i bez nagłówka, grupy w kolejności
+autora, wiersze jednej grupy pod jednym nagłówkiem. Ten sam kod czyta strona
+przepisu, podgląd w kreatorze i przepis w eksporcie danych.
+
+**Rollback:** `down()` zdejmuje sam CHECK i nie rusza danych ani kolumny —
+nazwy grup zostają. Nieodwracalna jest jedna rzecz z `up()`: nazwy będące
+pustym ciągiem znaków stają się `NULL`. To nie jest utrata informacji, bo
+pusty ciąg nigdy nie był nazwą grupy.
+
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
 Dwie kolumny z migracji `2026_09_06_140000_add_memories_to_users_and_posts`,
@@ -1158,9 +1207,11 @@ przed cofnięciem na produkcji zrób `COPY appeals TO ...`, inaczej tracisz dow�
 ### audit_log
 Wysokiego znaczenia zmiany.
 
-**Retencja:** `config('kuking.audit_log.retention_months')` (domyślnie
-24 miesiące, **rekomendacja agenta** — ADR §5.1, nie decyzja właściciela) od
-`created_at`, **Z WYJĄTKIEM** kategorii z `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`
+**Retencja:** `config('kuking.audit_log.retention_months')` — **12 miesięcy**
+od `created_at`. (Stało tu „24 miesiące"; pierwsza wersja tego automatu
+rzeczywiście brała 24, ale ocena zewnętrzna nazwała je nieuzasadnionymi
+i config ma 12 od 7 września. Dokument był ostatni, który o tym nie
+wiedział — patrz D-038.) **Z WYJĄTKIEM** kategorii z `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`
 (`account.data_erased`, `account.delete_requested`, `account.delete_cancelled`),
 które nie są kandydatem **nigdy**, niezależnie od wieku. Powód: wiersz `users`
 jest anonimizowany, a nie kasowany, więc te wpisy są jedynym dowodem, że
@@ -1169,6 +1220,12 @@ jest anonimizowany, a nie kasowany, więc te wpisy są jedynym dowodem, że
 usunięcie konta. Lista jest **zamkniętą stałą w kodzie**, nie w configu:
 w configu dałaby się wyczyścić jedną zmianą wdrożeniową bez recenzji kodu.
 Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
+
+**`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
+zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
+uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
+(`source`), razem z rolą poprzednią i nową. To jest jedyny ślad po tym, kto
+w serwisie może zamknąć czyjeś odwołanie (D-039).
 
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle

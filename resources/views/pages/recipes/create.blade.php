@@ -89,16 +89,24 @@
                      :value="$isEdit ? $recipe->title : null"
                      placeholder="Rosół babci Zofii" />
 
+            {{-- Duży obszar wyboru zdjęcia. Natywne pole pliku jest schowane
+                 dla oka (D-035) — rysowało angielskie „Choose File / No file
+                 chosen" w polskim formularzu. Zostaje pod klawiaturą i w
+                 drzewie dostępności (`.visually-hidden`), klikalna jest
+                 etykieta, a `<input>` MUSI stać bezpośrednio przed nią, bo
+                 obwódkę fokusu rysuje reguła sąsiedztwa w
+                 resources/css/ekran-dodawania.css. --}}
             <div class="field @error('hero_photo') has-error @enderror">
-                <label for="f-hero_photo">Zdjęcie gotowego dania</label>
-                <div class="pole-zdjecia">
+                <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
+                <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                       aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
+                       aria-describedby="f-hero_photo-help">
+                <label class="pole-zdjecia" for="f-hero_photo">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                    <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                    <span class="pole-zdjecia-tytul" id="f-hero_photo-tytul">Dodaj zdjęcie</span>
                     <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
-                    <input class="field-input pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
-                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                           aria-describedby="f-hero_photo-help">
-                </div>
+                </label>
                 @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
             </div>
 
@@ -183,18 +191,22 @@
                      :value="$isEdit ? $recipe->family_since_year : null" :min="1850" :max="2100"
                      placeholder="1974" />
 
+            {{-- Ten sam wzorzec co przy „Zdjęcie gotowego dania" wyżej: pole
+                 pliku schowane dla oka (D-035), klikalna etykieta, `<input>`
+                 bezpośrednio przed nią. --}}
             <div class="field @error('source_scan') has-error @enderror">
-                <label for="f-source_scan">Zdjęcie starej kartki albo zeszytu</label>
-                <div class="pole-zdjecia">
+                <span class="pole-zdjecia-nazwa" id="f-source_scan-etykieta">Zdjęcie starej kartki albo zeszytu</span>
+                <input class="visually-hidden pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                       aria-labelledby="f-source_scan-etykieta f-source_scan-tytul"
+                       aria-describedby="f-source_scan-help">
+                <label class="pole-zdjecia" for="f-source_scan">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                    <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                    <span class="pole-zdjecia-tytul" id="f-source_scan-tytul">Dodaj zdjęcie</span>
                     <span class="field-help" id="f-source_scan-help">
                         Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.
                     </span>
-                    <input class="field-input pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
-                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                           aria-describedby="f-source_scan-help">
-                </div>
+                </label>
                 @error('source_scan')<span class="field-error">{{ $message }}</span>@enderror
             </div>
 
@@ -211,6 +223,12 @@
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
+                {{-- Zdanie o grupach stoi RAZ, nad całą listą, a nie przy
+                     każdym wierszu. Przy dziesięciu składnikach ta sama
+                     podpowiedź powtórzona dziesięć razy jest już nie
+                     pomocą, tylko ścianą tekstu — a czytnik ekranu
+                     przeczytałby ją przy każdym polu. --}}
+                Grupę wypełnij tylko wtedy, gdy przepis ma osobne części, na przykład „Ciasto” i „Nadzienie”.
             </p>
 
             @for($i = 0; $i < $ingredientRows; $i++)
@@ -221,6 +239,37 @@
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
                            @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
                     @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+
+                    {{--
+                        GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
+                        (D-033). Ta sama nazwa pola co w kreatorze
+                        (`ingredients[i][group_name]`), więc przepis
+                        przechodzi między obiema drogami zapisu bez zmiany —
+                        a bez tego pola formularz BEZ JavaScriptu kasowałby
+                        przy edycji grupy wpisane w kreatorze (AGENTS.md §5:
+                        ważna funkcja działa bez skryptu).
+
+                        NIEOBOWIĄZKOWE I PUSTE Z DEFINICJI. Składnik bez grupy
+                        to normalny przypadek — tak wygląda większość
+                        przepisów — więc pole nie ma gwiazdki, nie ma
+                        `required`, nie podświetla się na czerwono i nie
+                        pojawia się w podsumowaniu błędów, gdy zostanie puste.
+
+                        Ręczna rozpiska zamiast `x-field` z tego samego
+                        powodu, co przy minutniku kroku niżej: `name` musi
+                        mieć nawiasy (`ingredients[0][group_name]`), a `id`
+                        i klucz błędu kropki — PHP zamienia kropki w nazwie
+                        pola na podkreślenia i tablica `ingredients` nigdy by
+                        się nie złożyła.
+                    --}}
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-group_name">
+                        Grupa składników <span class="meta">(nieobowiązkowe)</span>
+                    </label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
+                           name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
+                           value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
+                           @if($i === 0) placeholder="Ciasto" @endif>
+                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
 
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
@@ -307,7 +356,7 @@
                     </div>
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">
-                        <label for="f-steps-{{ $i }}-photo">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></label>
+                        <span class="pole-zdjecia-nazwa" id="f-steps-{{ $i }}-photo-etykieta">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></span>
 
                         @if($zdjecieKroku)
                             {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim
@@ -333,10 +382,17 @@
                              `aria-describedby`) są NIEZMIENIONE: to ten sam
                              identyfikator kroku w `name`, po którym serwer
                              i tak szuka pliku (komentarz na górze pliku,
-                             „KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ"). --}}
-                        <div class="pole-zdjecia">
+                             „KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ").
+                             Doszło tylko `aria-labelledby` i kolejność
+                             wymuszona przez regułę fokusu (D-035). --}}
+                        <input class="visually-hidden pole-zdjecia-input" id="f-steps-{{ $i }}-photo" type="file"
+                               name="steps[{{ $i }}][photo]"
+                               accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                               aria-labelledby="f-steps-{{ $i }}-photo-etykieta f-steps-{{ $i }}-photo-tytul"
+                               aria-describedby="f-steps-{{ $i }}-photo-help">
+                        <label class="pole-zdjecia" for="f-steps-{{ $i }}-photo">
                             <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                            <p class="pole-zdjecia-tytul">{{ $zdjecieKroku ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                            <span class="pole-zdjecia-tytul" id="f-steps-{{ $i }}-photo-tytul">{{ $zdjecieKroku ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
                             <span class="field-help" id="f-steps-{{ $i }}-photo-help">
                                 Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
                                 jak gęsty ma być sos. Za jednym razem można dodać najwyżej
@@ -346,11 +402,7 @@
                                 {{ \App\Support\Odmiana::rzeczownik(\App\Support\LimityZdjec::maksZdjecKrokowNaZapis(), 'zdjęcie', 'zdjęcia', 'zdjęć') }}
                                 do kroków.
                             </span>
-                            <input class="field-input pole-zdjecia-input" id="f-steps-{{ $i }}-photo" type="file"
-                                   name="steps[{{ $i }}][photo]"
-                                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                                   aria-describedby="f-steps-{{ $i }}-photo-help">
-                        </div>
+                        </label>
                         @error("steps.$i.photo")<span class="field-error">{{ $message }}</span>@enderror
                     </div>
                 </fieldset>

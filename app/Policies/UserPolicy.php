@@ -48,4 +48,27 @@ class UserPolicy
     {
         return $viewer->isModerator();
     }
+
+    /**
+     * Rozstrzyganie odwołań od decyzji moderacyjnych (A-4).
+     *
+     * `moderate()` powyżej wystarcza, żeby WEJŚĆ do panelu moderacji i
+     * ZOBACZYĆ kolejkę odwołań — ale sama decyzja („podtrzymuję"/„cofam")
+     * ma zapadać wyżej niż moderator, który tę pierwotną decyzję wydał.
+     * Przy jednej roli ten sam człowiek był jednocześnie moderatorem
+     * i JEDYNYM organem odwoławczym od własnych decyzji: 24-godzinna
+     * karencja na PODTRZYMANIE własnej decyzji (`ResolveAppeal::sprawdzKarencje()`)
+     * łagodziła to tylko częściowo — nie przeszkadzała ANI temu samemu
+     * moderatorowi cofnąć własną decyzję od razu, ANI dowolnemu INNEMU
+     * moderatorowi (nie tylko autorowi decyzji) rozstrzygnąć sprawę bez
+     * żadnego opóźnienia.
+     *
+     * Admin JEST też moderatorem (`isModerator()`), więc nadal przechodzi
+     * przez `moderate()` — ta bramka tylko zawęża, kto z panelu może
+     * naciskać „Podtrzymuję"/„Cofam" pod konkretnym odwołaniem.
+     */
+    public function resolveAppeals(User $viewer): bool
+    {
+        return $viewer->isAdmin();
+    }
 }

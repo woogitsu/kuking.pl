@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
+use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
@@ -241,7 +242,16 @@ final class PublishRecipe
             $bezIlosci = (bool) ($row['no_amount'] ?? false);
 
             $clean[] = [
-                'group_name' => $this->nullIfBlank($row['group_name'] ?? null),
+                // Nazwa grupy („Ciasto", „Farsz") przycięta do 120 znaków
+                // kolumny — tak samo jak tekst składnika do 240. Bez tego
+                // dłuższa wartość podana z konsoli, z fabryki albo
+                // z przyszłego importu kończy się nie komunikatem, tylko
+                // wyjątkiem SQL-a „value too long", czyli błędem 500 przy
+                // publikacji. Formularze mają na to własne granice
+                // (`ingredients.*.group_name` w kontrolerze, `validateRows()`
+                // w kreatorze) i mówią o nich PRZY POLU; ta linijka jest
+                // ostatnią, nie pierwszą.
+                'group_name' => $this->clampOrNull($row['group_name'] ?? null, 120),
                 'ingredient_text' => mb_substr($text, 0, 240),
                 'quantity' => $bezIlosci ? null : $this->quantityOrNull($row['quantity'] ?? null),
                 'unit_id' => $bezIlosci ? null : $this->unitIdOrNull($row['unit_id'] ?? null),
@@ -250,7 +260,57 @@ final class PublishRecipe
             ];
         }
 
-        return $clean;
+        return $this->ujednolicNazwyGrup($clean);
+    }
+
+    /**
+     * Jedna grupa — jedna pisownia W OBRĘBIE JEDNEGO PRZEPISU.
+     *
+     * Autor piszący dziesięć składników wpisze „Farsz" i „farsz", i będzie
+     * miał rację: dla niego to jedno słowo. Bez tego przejścia byłyby to dwie
+     * grupy w bazie — a stamtąd trafiłyby do eksportu danych i do przyszłego
+     * przeliczania porcji jako dwie różne części przepisu.
+     *
+     * WYGRYWA PIERWSZA PISOWNIA, nie „ładniejsza". To słowo autora, więc
+     * poprawiamy powtórzenie, a nie człowieka — i nie ma tu żadnej reguły
+     * ortograficznej, którą trzeba by komuś tłumaczyć.
+     *
+     * NIE PRZESTAWIAMY WIERSZY. Kusi, żeby przy okazji poukładać składniki
+     * grupami — ale wtedy „sól" wpisana na końcu wraca w edycji na środek
+     * listy, a autor nigdy o to nie prosił. Wiersze zostają tam, gdzie je
+     * postawił; sklejaniem grup w jeden nagłówek zajmuje się widok
+     * (`App\Domain\Recipes\GrupySkladnikow`).
+     *
+     * @param  list<array<string, mixed>>  $ingredients
+     * @return list<array<string, mixed>>
+     */
+    private function ujednolicNazwyGrup(array $ingredients): array
+    {
+        /** @var array<string, string> $pierwszaPisownia */
+        $pierwszaPisownia = [];
+
+        foreach ($ingredients as $row) {
+            $nazwa = $row['group_name'] ?? null;
+
+            if (! is_string($nazwa)) {
+                continue;
+            }
+
+            $pierwszaPisownia[GrupySkladnikow::klucz($nazwa)] ??= $nazwa;
+        }
+
+        return array_map(
+            static function (array $row) use ($pierwszaPisownia): array {
+                $nazwa = $row['group_name'] ?? null;
+
+                if (is_string($nazwa)) {
+                    $row['group_name'] = $pierwszaPisownia[GrupySkladnikow::klucz($nazwa)];
+                }
+
+                return $row;
+            },
+            $ingredients,
+        );
     }
 
     /**
@@ -469,5 +529,13 @@ final class PublishRecipe
         $trimmed = trim((string) $value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /** To samo co `nullIfBlank()`, tylko dodatkowo w granicy kolumny. */
+    private function clampOrNull(mixed $value, int $length): ?string
+    {
+        $trimmed = $this->nullIfBlank($value);
+
+        return $trimmed === null ? null : mb_substr($trimmed, 0, $length);
     }
 }

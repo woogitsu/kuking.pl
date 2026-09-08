@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="pl" data-preview="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuking — dodaj przepis, krok 2 z 3 (makieta systemu projektowego)</title>
+<link rel="stylesheet" href="../podglad/podglad.css">
+<!-- Reguły, które przy budowie tej makiety zgłoszono jako brakujące, są już
+     w 02-komponenty/komponenty.css, sekcja 16. Ta makieta nie ma własnego CSS. -->
+</head>
+<body>
+
+<!--
+  Zestaw ikon Kuking — wklejany na początku <body> każdej makiety.
+
+  Dlaczego wklejany, a nie z osobnego pliku przez <use href="ikony.svg#…">:
+  przeglądarka otwierająca stronę z dysku (file://) traktuje zewnętrzny sprite
+  jako inne źródło i nic nie rysuje. Makiety mają się otwierać podwójnym
+  kliknięciem, więc sprite jedzie w środku.
+
+  KAŻDA ikona ma aria-hidden="true" w miejscu użycia i ZAWSZE stoi obok tekstu.
+  Reguła „nigdy" nr 1: ikona nie jest opisem akcji, jest jej ozdobą.
+  Kreska 2px, zaokrąglone końce, currentColor — ikona bierze kolor po tekście,
+  więc w trybie ciemnym nie trzeba niczego przełączać.
+-->
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="i-baza" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+
+  <symbol id="ikona-dom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/>
+  </symbol>
+
+  <symbol id="ikona-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>
+  </symbol>
+
+  <symbol id="ikona-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+
+  <symbol id="ikona-zeszyt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"/><path d="M8.5 3.5v17"/><path d="M12 8h4M12 12h4"/>
+  </symbol>
+
+  <symbol id="ikona-osoba" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="8.5" r="3.75"/><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/>
+  </symbol>
+
+  <symbol id="ikona-dzwonek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/><path d="M10 20a2 2 0 0 0 4 0"/>
+  </symbol>
+
+  <symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+
+  <symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.5a3 3 0 0 1 0 5.5"/><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"/>
+  </symbol>
+
+  <symbol id="ikona-czapka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 16.5c-2.5-.4-4-2.2-4-4.4C3 9.3 5 7.5 7.4 7.6 8 5.5 9.8 4.2 12 4.2s4 1.3 4.6 3.4C19 7.5 21 9.3 21 12.1c0 2.2-1.5 4-4 4.4"/><path d="M7 16.5h10v3H7z"/>
+  </symbol>
+
+  <symbol id="ikona-zakladka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v16l-5-3.5L7 20V4Z"/>
+  </symbol>
+
+  <symbol id="ikona-komentarz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5V16.5H6a2 2 0 0 1-2-2Z"/>
+  </symbol>
+
+  <symbol id="ikona-garnek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 8.5h15V14c0 3.6-2.4 6-7.5 6s-7.5-2.4-7.5-6Z"/><path d="M4.5 10.5C2.8 10.5 2 11.4 2 12.7c0 1.4 1 2.3 2.5 2.3"/><path d="M19.5 10.5c1.7 0 2.5.9 2.5 2.2 0 1.4-1 2.3-2.5 2.3"/><path d="M8 5.5c0-1 .8-1.5 1.5-1.5M12 4.5c0-1 .8-1.5 1.5-1.5"/>
+  </symbol>
+
+  <symbol id="ikona-aparat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 8.5h3.2l1.4-2.4h7.8l1.4 2.4h3.2v10.5H3.5Z"/><circle cx="12" cy="13.5" r="3.4"/>
+  </symbol>
+
+  <symbol id="ikona-ostrzezenie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4 2.8 20h18.4Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="ikona-ptaszek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4.5 12.5 5 5 10-11"/>
+  </symbol>
+
+  <symbol id="ikona-strzalka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 12h15"/><path d="m13.5 6 6 6-6 6"/>
+  </symbol>
+
+  <symbol id="ikona-ustawienia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.2 6.2 4.5 4.5M19.5 19.5l-1.7-1.7M17.8 6.2l1.7-1.7M4.5 19.5l1.7-1.7"/>
+  </symbol>
+
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/><circle cx="32" cy="9" r="3.5" fill="currentColor"/><circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+
+<div class="app-shell">
+<header class="topbar">
+  <div class="topbar-wnetrze">
+    <a class="wordmark" href="tablica.html">
+      <svg class="wordmark-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+      <span>KuKing<span class="wordmark-koncowka">.pl</span></span>
+    </a>
+
+    <form class="topbar-szukaj-kolumna tylko-szerokie" action="#" method="get" role="search">
+      <label class="field-etykieta" for="pole-szukania">Szukaj</label>
+      <input class="field-input" id="pole-szukania" name="q" type="search" placeholder="przepis, osoba albo składnik">
+    </form>
+
+    <div class="topbar-akcje">
+      <a class="btn btn-quiet" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>Powiadomienia</a>
+    </div>
+  </div>
+</header>
+
+<div class="app-body">
+  <nav class="side-nav" aria-label="Główne działy">
+    <ul class="side-nav-lista">
+      <li><a class="side-nav-item" href="tablica.html"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a></li>
+      <li><a class="side-nav-item" href="dodaj-przepis-krok-1.html" aria-current="page"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg>Dodaj</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Moje</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-zeszyt"></use></svg>Zeszyt</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Profil</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>Powiadomienia</a></li>
+      <li><a class="side-nav-item" href="#"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-ustawienia"></use></svg>Ustawienia</a></li>
+    </ul>
+  </nav>
+
+  <main class="app-main" id="tresc">
+    <h1>Dodaj przepis</h1>
+    <div class="wizard-steps">
+      <p class="wizard-steps-current">Krok 2 z 3 <span class="wizard-steps-nazwa">— składniki</span></p>
+      <div class="wizard-steps-track" aria-hidden="true"><span class="wizard-steps-dot" data-done="true"></span><span class="wizard-steps-dot" data-done="true"></span><span class="wizard-steps-dot"></span></div>
+    </div>
+
+    <p class="lead">Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”. Nie musisz nic przeliczać na gramy.</p>
+
+    <span class="autosave-badge" aria-live="polite"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-ptaszek"></use></svg>Szkic zapisany.</span>
+
+    <form id="przepis-krok-2" action="dodaj-przepis-krok-3.html" method="post">
+      <div class="form-section">
+        <h2 class="form-section-title">Składniki <span class="field-wymagane">wymagane</span></h2>
+        <p class="form-section-opis">Jeden składnik w jednym wierszu. Kolejność jest taka, w jakiej ich używasz.</p>
+
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-1">Składnik 1</label>
+            <input class="field-input field-input-srednie" id="skladnik-1" name="skladnik[]" type="text" value="3 szklanki mąki pszennej" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="1" aria-label="Usuń składnik 1">Usuń</button>
+        </div>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-2">Składnik 2</label>
+            <input class="field-input field-input-srednie" id="skladnik-2" name="skladnik[]" type="text" value="szklanka gorącej wody" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="2" aria-label="Usuń składnik 2">Usuń</button>
+        </div>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-3">Składnik 3</label>
+            <input class="field-input field-input-srednie" id="skladnik-3" name="skladnik[]" type="text" value="2 łyżki masła" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="3" aria-label="Usuń składnik 3">Usuń</button>
+        </div>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-4">Składnik 4</label>
+            <input class="field-input field-input-srednie" id="skladnik-4" name="skladnik[]" type="text" value="1 kg ziemniaków" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="4" aria-label="Usuń składnik 4">Usuń</button>
+        </div>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-5">Składnik 5</label>
+            <input class="field-input field-input-srednie" id="skladnik-5" name="skladnik[]" type="text" value="40 dag twarogu półtłustego" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="5" aria-label="Usuń składnik 5">Usuń</button>
+        </div>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-6">Składnik 6</label>
+            <input class="field-input field-input-srednie" id="skladnik-6" name="skladnik[]" type="text" value="2 duże cebule" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="6" aria-label="Usuń składnik 6">Usuń</button>
+        </div>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="skladnik-7">Składnik 7</label>
+            <input class="field-input field-input-srednie" id="skladnik-7" name="skladnik[]" type="text" value="" placeholder="2 szklanki mąki pszennej">
+          </div>
+          <button class="btn btn-quiet" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="usun" value="7" aria-label="Usuń składnik 7">Usuń</button>
+        </div>
+
+        <div class="rzad-przyciskow sekcja">
+          <button class="btn btn-secondary" type="submit" formnovalidate formaction="dodaj-przepis-krok-2.html" name="dodaj" value="skladnik"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg>Dodaj kolejny składnik</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn btn-secondary" href="dodaj-przepis-krok-1.html">Wstecz</a>
+        <button class="btn btn-primary btn-duzy" type="submit" formaction="dodaj-przepis-krok-3.html">Dalej — kroki</button>
+        <button class="btn btn-quiet" type="submit" formaction="dodaj-przepis-krok-2.html" formnovalidate name="akcja" value="szkic">Zapisz szkic</button>
+      </div>
+    </form>
+  </main>
+  <aside class="app-rail" aria-label="Obok treści">
+    <section class="szyna-modul">
+      <h2 class="szyna-tytul">Pomoc do tego kroku</h2>
+      <p class="szyna-podtytul">Krok 2: co trzeba mieć.</p>
+      <ul class="stos-gesty">
+        <li>Ilość i składnik idą w jednym polu — tak, jak się o nich mówi w kuchni.</li>
+        <li>Nie znasz dokładnej ilości? Napisz „ile weźmie”. To jest pełnoprawna odpowiedź.</li>
+        <li>Pusty wiersz na końcu zostanie pominięty.</li>
+      </ul>
+    </section>
+
+    <section class="szyna-modul">
+      <h2 class="szyna-tytul">Nie masz teraz czasu?</h2>
+      <p class="szyna-podtytul">Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz.</p>
+      <div>
+        <button class="btn btn-secondary btn-pelny" type="submit" form="przepis-krok-2" formaction="dodaj-przepis-krok-2.html" name="akcja" value="szkic" formnovalidate>Zapisz szkic</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<footer class="stopka">
+  <div class="stopka-wnetrze">
+    <span class="meta">Kuking — gotujemy po swojemu.</span>
+    <nav class="stopka-linki" aria-label="Stopka">
+      <a href="../04-strona-www/o-kuking.html">O Kuking</a>
+      <a href="#">Pomoc</a>
+      <a href="#">Zasady</a>
+      <a href="#">Regulamin</a>
+      <a href="#">Prywatność</a>
+      <a href="#">Zgłoś nielegalną treść</a>
+    </nav>
+    <div class="stopka-wyglad">
+      <!-- Podglad bez JS: wybor dotyczy tylko otwartego ekranu.
+           W Blade uzyj formularza POST z 07-wdrozenie/MOTYW-V3.1.md. -->
+      <label class="btn btn-quiet motyw-przelacznik">
+        <input class="motyw-demo-input" type="checkbox" role="switch" aria-label="Ciemny wygląd">
+        <svg class="side-nav-ikona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg>
+        <span>Ciemny</span>
+        <span class="motyw-suwak" aria-hidden="true"></span>
+      </label>
+    </div>
+  </div>
+</footer>
+</div>
+
+<nav class="bottom-nav" aria-label="Główne działy">
+  <a class="bottom-nav-item" href="tablica.html"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a>
+  <a class="bottom-nav-item" href="#"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a>
+  <a class="bottom-nav-item bottom-nav-item-glowna" href="dodaj-przepis-krok-1.html" aria-current="page"><span class="bottom-nav-kolko"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg></span>Dodaj</a>
+  <a class="bottom-nav-item" href="#"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Moje</a>
+  <a class="bottom-nav-item" href="#"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Profil</a>
+</nav>
+
+</body>
+</html>

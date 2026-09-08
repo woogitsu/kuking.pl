@@ -1,0 +1,1170 @@
+[
+  {
+    "file": "03-szablony/dodaj-przepis-krok-1.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.296875,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 723.90625,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 723.65625,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 724,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.125,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 685.671875,
+        "nav_top": 792.609375,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 845.90625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 868.171875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 867.90625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 854.484375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 867.90625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 854.484375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "03-szablony/dodaj-przepis-krok-2.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 723.609375,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 724.140625,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.03125,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 723.765625,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.25,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 686.5625,
+        "nav_top": 792.609375,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 846.03125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 868.0625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 868.03125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 855.375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 868.03125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 855.375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "03-szablony/dodaj-przepis-krok-3.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.171875,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 724.171875,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.203125,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 724.03125,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.453125,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 686.078125,
+        "nav_top": 792.609375,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 846.234375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 867.765625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 868.234375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 854.890625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 868.234375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 854.890625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "03-szablony/przepis.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.09375,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 723.75,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.234375,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 724.484375,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 724.390625,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 686.578125,
+        "nav_top": 792.609375,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 845.734375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 868.328125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 867.6875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 855.359375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 867.6875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 855.359375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "03-szablony/tablica.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 723.53125,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 723.59375,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 723.671875,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 724.140625,
+        "nav_top": 754.21875,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 723.578125,
+        "nav_top": 811.8125,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 752,
+        "header_right": 752,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 686.09375,
+        "nav_top": 792.609375,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 846.359375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 868.1875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 868.265625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1408,
+        "header_right": 1408,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 854.9375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 868.265625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1648,
+        "header_right": 1648,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 854.9375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "04-strona-www/o-kuking.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 760.96875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 612.3125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 761.703125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 662.125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 744,
+        "header_right": 744,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 715.78125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 744,
+        "header_right": 744,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 771.203125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.21875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 639.625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1216,
+        "header_right": 1216,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.328125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1216,
+        "header_right": 1216,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 639.4375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1456,
+        "header_right": 1456,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.328125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1456,
+        "header_right": 1456,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 639.9375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "04-strona-www/powitalna.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 761.65625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 612.59375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 761.78125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 662.296875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 744,
+        "header_right": 744,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 715.859375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 744,
+        "header_right": 744,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 712.03125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.46875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 639.90625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1216,
+        "header_right": 1216,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.46875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1216,
+        "header_right": 1216,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 640.03125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1456,
+        "header_right": 1456,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.46875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1456,
+        "header_right": 1456,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 640.03125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  },
+  {
+    "file": "04-strona-www/przepis-publiczny.html",
+    "light_bg": "rgb(250, 246, 240)",
+    "dark_bg": "rgb(30, 26, 22)",
+    "click_changes_theme": true,
+    "space_restores_theme": true,
+    "alignment": [
+      {
+        "width": 320,
+        "scale": "1",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 761.421875,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 320,
+        "scale": "2",
+        "right": 304,
+        "header_right": 304,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 612.265625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "1",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 761.59375,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 390,
+        "scale": "2",
+        "right": 374,
+        "header_right": 374,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 662.265625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "1",
+        "right": 744,
+        "header_right": 744,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.390625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 768,
+        "scale": "2",
+        "right": 744,
+        "header_right": 744,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 711.890625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "1",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.390625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1024,
+        "scale": "2",
+        "right": 1000,
+        "header_right": 1000,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 639.578125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "1",
+        "right": 1248,
+        "header_right": 1248,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.453125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1440,
+        "scale": "2",
+        "right": 1248,
+        "header_right": 1248,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 689.640625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "1",
+        "right": 1488,
+        "header_right": 1488,
+        "control_width": 177,
+        "control_height": 52,
+        "control_bottom": 716.453125,
+        "nav_top": null,
+        "above_mobile_nav": true
+      },
+      {
+        "width": 1920,
+        "scale": "2",
+        "right": 1488,
+        "header_right": 1488,
+        "control_width": 238,
+        "control_height": 73,
+        "control_bottom": 689.640625,
+        "nav_top": null,
+        "above_mobile_nav": true
+      }
+    ],
+    "forced_colors_focus": {
+      "style": "solid",
+      "width": "3px",
+      "color": "rgba(5, 0, 73, 0.8)"
+    }
+  }
+]

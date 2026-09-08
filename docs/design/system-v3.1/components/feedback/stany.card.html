@@ -1,0 +1,48 @@
+<!-- @dsCard group="Komponenty" viewport="700x850" name="Stany i komunikaty" subtitle="Plakietki w trzech wagach, komunikaty, podsumowanie błędów, pusty stan, kroki kreatora" -->
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Stany i komunikaty</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;padding:20px;background:var(--color-surface)}.demo{display:grid;gap:var(--spacing-5);grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}.rzad{display:flex;flex-wrap:wrap;gap:var(--spacing-3);align-items:center}</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+const { Badge, Alert, ErrorSummary, AutosaveBadge, EmptyState, WizardSteps, Button, ShowMore } = window.KukingPlSystemProjektowy_a664d7;
+function Demo() {
+  return (
+    <div className="demo">
+      <div style={{ display: "grid", gap: "var(--spacing-5)" }}>
+        <div className="rzad">
+          <Badge waga="cichy">konto przykładowe</Badge>
+          <Badge waga="spokojny">Szkic</Badge>
+          <Badge waga="cooked" ikona="garnek">Ugotowano 12 razy</Badge>
+          <Badge waga="sukces">Zapisano</Badge>
+          <Badge waga="blad">Do poprawy</Badge>
+        </div>
+        <Alert odmiana="sukces">Przepis opublikowany. Teraz ktoś może z niego ugotować.</Alert>
+        <Alert odmiana="blad">Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.</Alert>
+        <Alert odmiana="info">Wymagane są trzy pola — resztę wypełnij, jeśli chcesz.</Alert>
+        <AutosaveBadge />
+        <WizardSteps krok={2} ile={3} nazwa="składniki" />
+      </div>
+      <div style={{ display: "grid", gap: "var(--spacing-5)" }}>
+        <ErrorSummary bledy={[{ id: "haslo", tekst: "Hasło musi mieć co najmniej 10 znaków." }, { id: "nazwa", tekst: "Nazwa przepisu jest pusta." }]} />
+        <EmptyState tytul="Zeszyt jest jeszcze pusty" opis="Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję”. Trafi tutaj i zawsze go znajdziesz.">
+          <Button waga="primary" href="/odkryj">Zobacz przepisy</Button>
+        </EmptyState>
+        <ShowMore pokazano={10} wszystkich={48} rzeczownik="wpisów" />
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

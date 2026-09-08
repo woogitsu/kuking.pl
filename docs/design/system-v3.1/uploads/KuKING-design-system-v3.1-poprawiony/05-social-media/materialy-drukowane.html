@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuking — materiały drukowane</title>
+<link rel="stylesheet" href="../podglad/podglad.css">
+<link rel="stylesheet" href="szablony.css">
+</head>
+<body>
+
+<!-- Zestaw ikon wklejony w środek strony — z tego samego powodu, co
+     w szablony-graficzne.html: plik otwierany z dysku nie wczyta zewnętrznego SVG. -->
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/><circle cx="32" cy="9" r="3.5" fill="currentColor"/><circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<main>
+
+<div class="otoczka">
+
+  <h1>Materiały drukowane Kuking</h1>
+
+  <p class="lead">Cztery materiały w wymiarach rzeczywistych: ulotka A5, plakat A4,
+  wizytówka 90 na 50 mm i naklejka 60 na 60 mm. Papier jest tu potrzebny nie z sentymentu:
+  część osób, do których mówimy, dowiaduje się o nowych rzeczach z kartki na tablicy
+  w bibliotece, w domu kultury albo na uniwersytecie trzeciego wieku, a nie z ekranu.</p>
+
+  <h2>Jak to wydrukować</h2>
+
+  <p>Rozmiar strony jest ustawiony w arkuszu, osobno dla każdego materiału, więc
+  przeglądarka bierze go sama. Wystarczy otworzyć ten plik, dać drukowanie i:</p>
+
+  <ul class="lista-punktowana">
+    <li>wybrać „Zapisz jako PDF" — plik wychodzi wtedy w dokładnym rozmiarze arkusza;</li>
+    <li>ustawić marginesy na zerowe (przeglądarka nazywa to „Marginesy: brak");</li>
+    <li>zaznaczyć drukowanie grafiki i kolorów tła — bez tego znikną ciepłe pasy
+      i cały materiał wyjdzie biały;</li>
+    <li>w drukarni poprosić o papier matowy, 250 g dla ulotki i wizytówki,
+      170 g dla plakatu.</li>
+  </ul>
+
+  <p class="pomoc">Instrukcja i podpisy nad materiałami nie wchodzą na wydruk —
+  są ukryte regułą drukowania w <code>szablony.css</code>. Drukują się same arkusze,
+  każdy na osobnej stronie.</p>
+
+  <h2>O haśle na naklejce — przeczytać przed użyciem</h2>
+
+  <p><strong>„Każdy jest królem swojej kuchni"</strong> to hasło H4 z
+  <code>BRAND_EXTENDED.md</code> §7. Jest dopuszczone <strong>wyłącznie na gadżety</strong>:
+  fartuch, kubek, naklejka, plus jeden akapit na stronie „O nas" tłumaczący koronę w znaku.
+  W produkcie jest zakazane.</p>
+
+  <p>Powód nie jest kosmetyczny. To hasło jest komplementem dla człowieka, a marka ma
+  twardy zakaz komplementowania koroną: żart o „KING" w „Kuking" ma zostać zauważony
+  sam, a nie ogłoszony z góry. Powiedziany wprost w materiale, który ma kogoś przekonać do założenia
+  konta, podnosi poprzeczkę — a my ją obniżamy, bo większość osób w tej grupie nie
+  publikuje nic i komplement za publikowanie działa dokładnie odwrotnie, niż się wydaje.</p>
+
+  <p>Dlatego <strong>na ulotce, na plakacie i na wizytówce tego hasła nie ma</strong>
+  i nie wolno go tam dopisać. Jest na naklejce — bo naklejka jest gadżetem, trafia
+  do kogoś, kto już tu jest, i nie namawia nikogo na nic.</p>
+
+  <h2>Wykrzykniki i emoji w druku</h2>
+
+  <p>Marka dopuszcza w materiale drukowanym najwyżej jeden wykrzyknik i oszczędne emoji.
+  W tych czterech materiałach nie ma ani jednego z tych dwóch, i to jest decyzja,
+  nie przeoczenie: zdanie, które potrzebuje wykrzyknika, żeby zabrzmieć, jest źle napisanym
+  zdaniem, a materiał ma wyglądać na zrobiony przez kogoś, kto wie, co robi.</p>
+
+  <h2>Co wolno podmieniać</h2>
+
+  <ul class="lista-punktowana">
+    <li>Zdjęcie na ulotce i na plakacie — zgodnie z zasadami z <code>SOCIAL-MEDIA.md</code> §8.</li>
+    <li>Trzy zdania na ulotce, jeśli w innym miejscu ważniejsze jest co innego.</li>
+    <li>Liczbę odrywanych pasków u dołu plakatu: osiem mieści się wygodnie,
+      dziesięć już się zlewa.</li>
+    <li>Wersję jasną na ciemną, klasą <code>blok-ciemny</code> — ale w druku odradzamy:
+      ciemne tło na papierze zjada tonera więcej, niż jest warte, i przy tanim druku
+      tekst zaczyna się rozmazywać.</li>
+  </ul>
+
+</div>
+
+<div class="otoczka-szeroka">
+
+  <!-- ===================================================================== -->
+  <h2 class="etykieta-planszy">Ulotka A5 — 148 na 210 mm
+    <span class="meta">— do wyłożenia w bibliotece, w przychodni, na zebraniu koła gospodyń.</span></h2>
+  <div class="ramka-planszy">
+    <div class="arkusz a5" id="ulotka-a5">
+      <div class="arkusz-foto foto-ulotka">
+        <img class="plansza-foto" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów okraszonych smażoną cebulą i szczypiorkiem">
+      </div>
+      <div class="arkusz-tresc arkusz-tresc-rozsun">
+        <div class="stos-arkusza">
+          <h3 class="arkusz-h1">Pokaż, co dziś ugotowałeś.</h3>
+          <p class="arkusz-lead">Kuking to polski serwis domowego gotowania.</p>
+          <ul class="arkusz-lista">
+            <li>Zapisujesz przepis w Zeszycie i nie musisz go już nigdzie szukać.</li>
+            <li>Przy każdym przepisie jest napisane, po kim on jest.</li>
+            <li>Widzisz, komu wyszedł, i zdjęcie z jego kuchni.</li>
+          </ul>
+        </div>
+        <div class="stos-arkusza-gesty">
+          <p class="arkusz-adres">kuking.pl</p>
+          <p class="arkusz-tekst arkusz-tekst-cichy">Bez reklam w treści. Wszystko po polsku.
+          Czytać można bez zakładania konta.</p>
+        </div>
+      </div>
+      <div class="arkusz-pasek">
+        <span class="arkusz-lockup">
+          <svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+          KuKing<span class="arkusz-lockup-koncowka">.pl</span>
+        </span>
+        <span class="arkusz-tekst arkusz-tekst-cichy">Gotujemy po swojemu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <h2 class="etykieta-planszy">Plakat A4 — 210 na 297 mm
+    <span class="meta">— na tablicę w bibliotece, w domu kultury, na uniwersytecie trzeciego wieku. Z odrywanymi paskami.</span></h2>
+  <div class="ramka-planszy">
+    <div class="arkusz a4" id="plakat-a4">
+      <div class="arkusz-tresc arkusz-tresc-pion-srodek">
+        <div class="stos-arkusza">
+          <svg class="arkusz-znak arkusz-znak-duzy" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+          <h3 class="arkusz-h1">Masz przepis, którego nie ma nigdzie indziej.</h3>
+          <p class="arkusz-lead">Kartka po babci, pismo mamy, „mąki tyle, ile weźmie".
+          Takie przepisy giną razem z kartką. Kuking jest po to, żeby były w dwóch
+          miejscach zamiast w jednym.</p>
+        </div>
+      </div>
+      <div class="arkusz-foto foto-plakat">
+        <img class="plansza-foto" src="../podglad/zdjecia/pizza.png" alt="Pizza z pomidorami, mozzarellą i bazylią, prosto z pieca">
+      </div>
+      <div class="arkusz-pasek">
+        <span class="arkusz-lockup">
+          <svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+          KuKing<span class="arkusz-lockup-koncowka">.pl</span>
+        </span>
+        <span class="arkusz-adres">kuking.pl</span>
+      </div>
+      <div class="odrywki">
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+        <span class="odrywka">kuking.pl</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <h2 class="etykieta-planszy">Wizytówka — 90 na 50 mm
+    <span class="meta">— wersja jasna. Do zostawienia po rozmowie, nie do rozdawania na ulicy.</span></h2>
+  <div class="ramka-planszy">
+    <div class="arkusz wizytowka" id="wizytowka-jasna">
+      <div class="arkusz-tresc arkusz-tresc-ciasna arkusz-tresc-rozsun">
+        <span class="arkusz-lockup">
+          <svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+          KuKing<span class="arkusz-lockup-koncowka">.pl</span>
+        </span>
+        <div class="stos-arkusza-gesty">
+          <p class="arkusz-tekst">Polski serwis domowego gotowania.</p>
+          <p class="arkusz-adres">kuking.pl</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="etykieta-planszy">Wizytówka — 90 na 50 mm
+    <span class="meta">— wersja ciemna.</span></h2>
+  <div class="ramka-planszy">
+    <div class="arkusz wizytowka blok-ciemny" id="wizytowka-ciemna">
+      <div class="arkusz-tresc arkusz-tresc-ciasna arkusz-tresc-rozsun">
+        <span class="arkusz-lockup">
+          <svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+          KuKing<span class="arkusz-lockup-koncowka">.pl</span>
+        </span>
+        <div class="stos-arkusza-gesty">
+          <p class="arkusz-tekst">Polski serwis domowego gotowania.</p>
+          <p class="arkusz-adres">kuking.pl</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <h2 class="etykieta-planszy">Naklejka — 60 na 60 mm
+    <span class="meta">— jedyne miejsce, w którym wolno użyć hasła H4. Gadżet, nie materiał namawiający.</span></h2>
+  <div class="ramka-planszy">
+    <div class="arkusz naklejka" id="naklejka">
+      <div class="arkusz-tresc arkusz-tresc-ciasna arkusz-tresc-srodek">
+        <div class="stos-arkusza-gesty">
+          <svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+          <p class="arkusz-h2">Każdy jest królem swojej kuchni</p>
+          <p class="arkusz-tekst arkusz-tekst-cichy">kuking.pl</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</main>
+
+</body>
+</html>

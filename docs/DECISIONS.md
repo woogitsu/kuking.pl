@@ -460,7 +460,15 @@ zmiany wielkości zespołu moderacji (wtedy karencja przestaje być potrzebna).
 
 ## D-017 · Przepis zostaje wolnym tekstem; to kit dopasowuje się do danych
 
-**Data:** 6 września 2026 · Status: **obowiązuje** · issues #44, #92, UI kit v2 etap C
+**Data:** 6 września 2026 · Status: **częściowo nieaktualna — patrz D-033**
+· issues #44, #92, UI kit v2 etap C
+
+> **Poprawka z 8 września.** Zdanie „składniki z kolumną ilości: nie i nie
+> będzie" **przestało być prawdziwe dzień po napisaniu**:
+> `recipe_ingredients` ma `quantity`, `unit_id` i `no_amount` od 5 września.
+> Aktualny stan: ilość JEST, skalowania porcji nie ma, grup składników nie ma
+> — a właściciel przyjął oba do zbudowania (D-033). Reszta tego wpisu, czyli
+> zasada „kit dopasowuje się do danych, nie odwrotnie", obowiązuje dalej.
 
 Ekran przepisu w UI kicie v2 rysuje składniki jako wiersze **nazwa + ilość**
 w dwóch kolumnach, a kroki z **pogrubionymi tytułami**. Produkt tych danych
@@ -1021,7 +1029,13 @@ funkcję, której nie ma.
 
 ## D-025 · Treść zaląźkowa wchodzi na produkcję, ale jawnie oznaczona
 
-**Data:** 7 września 2026 · Status: **obowiązuje**
+**Data:** 7 września 2026 · Status: **obowiązuje; wygląd plakietki odwrócony
+przez D-032**
+
+> **Poprawka z 8 września.** Sama zasada — treść zalążkowa wchodzi, ale
+> oznaczona — obowiązuje bez zmian. Odwrócony został WYGLĄD oznaczenia:
+> plakietka jest krótka („konto przykładowe") i cicha, a głośna wersja
+> zostaje wyłącznie na profilu, raz na ekran. Powód i warunki: **D-032**.
 
 Serwis działa i nie jest promowany — nikt z niego nie korzysta. Powstała
 treść zaląźkowa: 12 kont, 40 przepisów, 80 wpisów, 60 komentarzy, bez zdjęć.
@@ -1349,3 +1363,368 @@ albo powodu, dla którego format ma wyglądać inaczej.
 `docs/DATABASE.md`
 
 ---
+
+---
+
+## D-030 · Wpis nie dostaje pola „tytuł" — tytuł należy do przepisu
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+System projektowy v3.1 wprowadza `.karta-tytul` i opisuje go wprost jako nowy
+element: „dziś karta ma tylko treść, przez co nazwa autora jest największym
+napisem w karcie". D-110 daje mu 24 px i wagę 800 — czyli szczyt hierarchii.
+Makieta tablicy używa go trzy razy.
+
+Produkt mówi co innego i mówi to od początku: wpis to **„zdjęcie i kilka
+słów"** (`docs/brand/BRAND_EXTENDED.md` §1.1), a formularz dodania zdjęcia ma
+pola „Napisz kilka słów" i „Kto to widzi". Pola na tytuł nie ma, `posts.title`
+nie istnieje w żadnej migracji.
+
+**Rozstrzygnięcie: tytuł zostaje tam, gdzie już jest — w przepisie.**
+`.karta-tytul` obsługuje kartę przepisu, nie kartę wpisu.
+
+**Dlaczego nie odwrotnie.** Główna akcja serwisu brzmi „Co dziś ugotowałeś?" —
+zdjęcie i kilka słów. Pole tytułu dokłada do niej **jedną decyzję przed
+opublikowaniem**, a każda taka decyzja to miejsce, w którym ktoś przestaje
+publikować. Grupa 50+ jest na to szczególnie czuła: pusty formularz z trzema
+polami jest trudniejszy niż z dwoma, a wpisów bez tytułu jest dziś
+osiemdziesiąt i nie ma sensownej odpowiedzi na pytanie, co z nimi zrobić.
+
+**Skutek dla kitu:** największym napisem w karcie wpisu zostaje nazwa autora.
+To jest świadome odstępstwo od v3.1, nie przeoczenie — kit dopasowuje się do
+danych, nie odwrotnie (ta sama zasada co D-017).
+
+**Zmiana wymaga:** zmierzonego problemu z przeglądaniem feedu, którego nie
+rozwiązuje pierwsze zdanie treści wpisu użyte jako podpis.
+
+📄 `docs/design/DESIGN_SYSTEM.md` §2.1 · `resources/views/components/post-card.blade.php` ·
+`docs/brand/BRAND_EXTENDED.md` §1.1
+
+---
+
+## D-031 · Zeszyt przyjmuje wpisy, nie tylko przepisy
+
+**Data:** 8 września 2026 · **Decyzja właściciela** (potwierdzenie stanu
+wdrożonego 6 września) · Status: **obowiązuje**
+
+Zeszyt powstał na przepisy. Od 6 września przyjmuje też cudze wpisy: migracja
+`2026_09_06_150000_collection_items_accept_posts`, trasa
+`collections.save-post`, `CollectionController::savePost()`, akcja
+`App\Domain\Collections\Actions\SavePostToCollection`, przycisk na karcie
+wpisu, test `ZeszytPrzyjmujeWpisyTest`.
+
+Pytanie postawione właścicielowi brzmiało: **zostaje czy cofamy?** — bo
+funkcja weszła szybciej, niż powstał wpis, który ją uzasadnia, a dokumenty
+projektowe dalej opisywały ją jako „nową funkcję produktową wymagającą
+decyzji". Odpowiedź: **zostaje**.
+
+**Dlaczego to nie jest to samo, co zapisanie przepisu.** Zapisany przepis
+znaczy „chcę to kiedyś ugotować". Zapisany wpis znaczy „chcę kiedyś zrobić coś
+TAKIEGO" — przy wpisie zwykle nie ma żadnego przepisu, jest zdjęcie i kilka
+słów. To są dwie różne potrzeby i dlatego zawartość zeszytu pokazuje się
+w dwóch grupach, nie wymieszana.
+
+**Co za tym poszło w tej samej zmianie:** teksty, które dalej obiecywały same
+przepisy — nagłówek Zeszytu i jego pusty stan
+(`resources/views/pages/collections/index.blade.php`) oraz tabela porównawcza
+w `docs/design/STAN_WDROZENIA_KITU.md`. Obietnica węższa niż produkt jest
+akurat tym rodzajem nieprawdy, którego nikt nie zgłosi — człowiek po prostu
+nie spróbuje.
+
+**Zmiana wymaga:** zmierzonego dowodu, że dwie grupy w jednym zeszycie mylą
+ludzi bardziej, niż pomaga im samo zapisywanie wpisów.
+
+📄 `app/Domain/Collections/Actions/SavePostToCollection.php` ·
+`tests/Feature/ZeszytPrzyjmujeWpisyTest.php` · `docs/design/STAN_WDROZENIA_KITU.md`
+
+---
+
+## D-032 · Plakietka „konto przykładowe" jest krótka i cicha; głośna wolno raz na ekran
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+· **odwraca D-025 w części o wyglądzie plakietki**
+
+D-025 kazało oznaczać treść zalążkową tak, żeby grupa 50+ zauważyła to bez
+czytania drobnego druku: `.badge-przykladowe` na 18 px, z ramką i tłem
+akcentu, w każdym miejscu, gdzie widać autora. Zmierzony skutek: w strumieniu
+ta sama plakietka powtarzała się kilkanaście razy na jednym ekranie i była
+**najgłośniejszym elementem strony** — głośniejszym niż zdjęcia potraw, po
+które ludzie tu przychodzą. Oznaczenie, które powtarza się piętnaście razy pod
+rząd, przestaje cokolwiek znaczyć.
+
+**Dwie zmiany naraz, bo to jedna sprawa.**
+
+**Waga.** Domyślna plakietka jest cicha (`.badge-cichy`: bez tła, bez ramki,
+16 px, waga 600) i stoi w wierszu metadanych, po kropce, obok daty — czytelna
+dokładnie wtedy, gdy ktoś patrzy na autora. Głośna (`.badge-przykladowe`,
+wygląd bez zmian) zostaje wyłącznie na **profilu** konta przykładowego, czyli
+w jedynym miejscu, gdzie stoi dokładnie raz na ekran.
+
+**Treść.** Jedno brzmienie w całym serwisie: **„konto przykładowe"**, bez
+członu „— nie prawdziwa osoba". W obiegu były cztery brzmienia w pięciu
+miejscach, a `BRAND_EXTENDED.md` §3 mówi: nazwa funkcji jest jedna i nie ma
+synonimów.
+
+**Skrócenie nie kasuje informacji, tylko ją przenosi** — i to jest warunek tej
+decyzji, nie dopisek. Pełne zdanie („To konto jest przykładowe: nie ma za nim
+prawdziwej osoby") stoi **raz**, jako osobny akapit na profilu konta
+przykładowego. Bez niego skrót odbierałby ostrzeżenie zamiast je przesunąć.
+Test `KontoPrzykladoweWidoczneTest` pilnuje obu połówek naraz: liczy
+wystąpienia obu klas na ekranie, a nie samą obecność napisu — usterka, o którą
+tu chodzi, polega na POWTÓRZENIU głośnej plakietki, nie na jej braku.
+
+**Zmiana wymaga:** dowodu z testów z osobami 50+ (#15), że cicha plakietka
+w wierszu metadanych bywa przeoczona. Nie „wrażenia, że jest za mała".
+
+📄 `resources/views/components/konto-przykladowe.blade.php` ·
+`resources/css/app.css` (`.badge-cichy`, `.badge-przykladowe`) ·
+`tests/Feature/KontoPrzykladoweWidoczneTest.php` · D-025 · D-103 (system v3.1)
+
+---
+
+## D-033 · Składniki dostają grupy, a przepis przeliczanie porcji
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
+niezbudowana** · **poprawia D-017**
+
+Pierwotne pytanie („czy składnik ma osobne pole na ilość") było nieaktualne
+w chwili zadawania: `recipe_ingredients` ma `quantity` (decimal 12,4),
+`unit_id` i `no_amount` od 5 września. **D-017 rozjechało się przez to ze
+schematem własnej bazy** — mówi „składniki z kolumną ilości: nie i nie
+będzie", a kolumna jest.
+
+Zostały dwie rzeczy, których naprawdę nie ma, i obie właściciel przyjął do
+zbudowania:
+
+1. **Grupy składników.** Strona przepisu w systemie v3.1 grupuje je pod
+   nagłówkami („Ciasto", „Farsz", „Do podania"). W bazie nie ma na to kolumny.
+2. **Przeliczanie porcji.** Makieta kroku 2 obiecuje pod polami „żeby dało się
+   je potem przeliczyć na inną liczbę porcji". Nic tego nie liczy.
+
+**Czego to nie wolno złamać.** `no_amount` istnieje dokładnie po to, żeby „sól
+do smaku" nie skalowała się razy trzy (issue #44), a CHECK
+`recipe_ingredients_no_amount_check` pilnuje, że składnik bez ilości nie ma
+ani `quantity`, ani `unit_id`. Przeliczanie porcji musi te wiersze zostawić
+w spokoju — to jest warunek wbudowany w bazę, nie uprzejmość.
+
+**Odrzucone: zostawić jak jest i skasować obietnicę.** Byłoby tanie (jedno
+zdanie z pomocy przy kroku 2), ale przepis bez grup jest listą dwudziestu
+pozycji bez podziału na ciasto i farsz — a to jest dokładnie ten przepis,
+który się drukuje i kładzie obok blatu.
+
+**Zanim to powstanie:** D-017 ma opisywać stan faktyczny — ilość JEST,
+skalowania nie ma — a nie zaprzeczać schematowi.
+
+**Zmiana wymaga:** nowej decyzji właściciela; ta jest świeża i nie ma jeszcze
+kodu, który mogłaby unieważnić.
+
+📄 `database/migrations/…_recipe_ingredients_*` · issue #44 · D-017 ·
+`docs/ROADMAP.md`
+
+---
+
+## D-034 · Kreator przepisu dostaje trzy adresy, po jednym na krok
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
+niezbudowana**
+
+Dziś są dwa adresy: `/dodaj/przepis` (kreator Livewire w trzech krokach,
+wymaga JavaScriptu) i `/dodaj/przepis/jedna-strona` (ten sam formularz zwykłym
+POST-em). Kroki istnieją — „Krok 1 z 3", „Krok 2 z 3", „Krok 3 z 3" —
+ale **wszystkie trzy mieszkają pod jednym adresem**.
+
+Właściciel przyjął wariant z trzema adresami (`/dodaj/przepis`,
+`/dodaj/przepis/skladniki`, `/dodaj/przepis/kroki`) plus jednostronicowy
+`/dodaj/przepis/wszystko`.
+
+**Dlaczego adres, a nie stan w komponencie.** Krok bez własnego adresu nie ma
+przycisku „wstecz" przeglądarki, nie da się go dodać do zakładek, nie wraca po
+odświeżeniu i nie działa bez JavaScriptu — a „ważne funkcje działają bez
+JavaScriptu" jest zasadą projektu, nie preferencją. Dla osoby, która spisuje
+przepis babci przez dwadzieścia minut, odświeżona strona bez adresu kroku
+znaczy: od początku.
+
+**Co musi wejść razem z tym:** zapis szkicu na serwerze po każdym kroku
+(inaczej trzy adresy tylko rozkładają utratę danych na trzy razy),
+przekierowanie ze starego adresu jednostronicowego i sprawdzenie
+podświetlenia „Dodaj" w nawigacji na wszystkich czterech adresach — to już raz
+było zepsute.
+
+**Zmiana wymaga:** nowej decyzji właściciela.
+
+📄 `resources/views/components/recipe-wizard.blade.php` · `routes/web.php` ·
+D-108 (system v3.1)
+
+---
+
+## D-035 · Natywne pole wyboru pliku znika za własnym obszarem
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
+niezbudowana**
+
+Dziś `<input type="file">` jest w pełni widoczny wewnątrz dużego obszaru
+„Dodaj zdjęcie", a komentarz w `pages/posts/create.blade.php` mówi wprost, że
+zostaje widoczny celowo. Skutek: w środku polskiego formularza siedzi
+angielskie „Choose File / No file chosen", którego nie da się przetłumaczyć —
+rysuje je przeglądarka.
+
+Właściciel rozstrzygnął, że wolno je schować i klikalna zostaje sama etykieta.
+
+**Strata jest świadoma i zapisana tutaj, żeby nikt jej potem nie odkrył jako
+usterki.** Nazwa pliku w natywnym polu była jedynym potwierdzeniem, że wybór
+się udał. Po schowaniu pola — **bez JavaScriptu między kliknięciem
+a wysłaniem człowiek nie dostaje nic**. Potwierdzenie przychodzi dopiero
+z serwera: po wysłaniu widać miniaturę i „Zmień zdjęcie" (to już działa).
+
+**Warunek wykonania:** samo pole musi zostać w drzewie dostępności i pod
+klawiaturą (nie `display: none`), a etykieta musi być prawdziwą `<label>`
+związaną z polem — inaczej zamiast jednego angielskiego napisu mamy
+formularz, którego nie da się wypełnić czytnikiem ekranu.
+
+**Zmiana wymaga:** dowodu z testów z osobami 50+ (#15), że brak potwierdzenia
+między kliknięciem a wysłaniem powoduje porzucanie formularza.
+
+📄 `resources/views/pages/posts/create.blade.php` · D-107 (system v3.1) ·
+`docs/UX_50_PLUS.md`
+
+---
+
+## D-036 · Zapisanie do Zeszytu nazywa się „Zapisuję"
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Ta sama czynność miała w produkcie dwie nazwy naraz: karta wpisu mówiła
+„Zapisz", a karta przepisu i pusty Zeszyt — „Zapisuję". `BRAND_EXTENDED.md` §3
+zabrania synonimów: nazwa funkcji jest jedna.
+
+Wybrane brzmienie: **„Zapisuję"**, w pierwszej osobie, tak jak „Ugotowałem".
+Serwis mówi głosem człowieka, który klika, nie głosem systemu wydającego
+polecenie — to jest ten sam wybór, co przy głównej akcji produktu.
+
+**Czego to nie dotyczy:** „Zapisz szkic", „Zapisz zmiany", „Zapisz poprawkę".
+To są inne czynności — zapisanie **swojej** pracy, nie odłożenie **cudzej**
+rzeczy do Zeszytu — i mają zostać w trybie rozkazującym.
+
+**Zmiana wymaga:** wyniku testów z osobami 50+ (#15) mówiącego, że pierwsza
+osoba w przycisku myli.
+
+📄 `docs/brand/BRAND_EXTENDED.md` §1.2 · `docs/brand/COPY_STYLE.md` ·
+`resources/views/components/post-card.blade.php`
+
+---
+
+## D-037 · Gospodarzem, który podpisuje wiadomości, jest Ula
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+`COPY_STYLE.md` §8 trzymał to jako otwarte od początku projektu: „Imię
+gospodarza w e-mailach. Bez prawdziwego imienia digest traci większość swojej
+wartości". Rozstrzygnięcie: **Ula**.
+
+**To nie jest to samo pole, co `host_username`.** `host_username`
+(dziś `woogitsu`) to nazwa KONTA, którą czyta mechanizm — auto-obserwowanie
+gospodarza przy rejestracji — i która musi dać się znaleźć w bazie.
+`host_name` to imię, którym serwis PODPISUJE się przed człowiekiem. Dwie różne
+rzeczy, dwa pola, jeden plik.
+
+Imię mieszka w jednym miejscu, `config('kuking.community.host_name')`, i stamtąd
+składa się nazwa nadawcy poczty („Ula z Kuking"). Nie jest wpisane osobno
+w żadnym szablonie — gospodarz może się zmienić i wtedy to ma być jedna
+linijka, nie przeszukiwanie widoków.
+
+**Uwaga wdrożeniowa:** `MAIL_FROM_NAME` ustawione w panelu Railway **wygrywa**
+z tą konfiguracją. Jeśli tam stoi stara wartość, e-maile dalej będą podpisane
+po staremu — trzeba ją usunąć albo zaktualizować ręcznie.
+
+**Zmiana wymaga:** zmiany osoby, która prowadzi społeczność.
+
+📄 `config/kuking.php` (`community.host_name`) · `config/mail.php` ·
+`docs/brand/COPY_STYLE.md` §6 · `docs/product/RETENTION_LOOPS.md` §4
+
+---
+
+## D-038 · Gdy dokument i kod mówią co innego, poprawiamy to, co jest nieprawdą
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Dwa rozjazdy postawione właścicielowi tego samego dnia, oba rozstrzygnięte
+w tę samą stronę — **dokument dogania kod, bo to dokument kłamał**:
+
+**Polityka prywatności.** Twierdziła wytłuszczonym drukiem, że automatycznego
+usuwania zgłoszeń, dziennika zdarzeń i powiadomień **nie ma**. Trzy komendy
+kasują je codziennie o 04:10, 04:20 i 04:30. Wpisane prawdziwe okresy:
+36 miesięcy od zamknięcia sprawy moderacyjnej, 12 miesięcy dziennika zdarzeń,
+3 miesiące powiadomień — każdy z wyjątkami, które kod naprawdę stosuje.
+Wariant odwrotny (wyłączyć automaty, żeby dokument znów był prawdziwy)
+odrzucony: usuwanie danych po terminie jest obowiązkiem, nie funkcją.
+
+**Termin odwołania.** `docs/MODERATION.md` mówiło 14 dni. Kod bierze WIĘKSZĄ
+z dwóch wartości: `appeal_days` (180) i sztywnych sześciu miesięcy
+(`ModerationAction::appealDeadline()`), a regulamin §8 i podręcznik moderatora
+mówią 6 miesięcy — bo tyle wymaga DSA art. 20 ust. 1. Skrócenie do 14 dni
+byłoby złamaniem przepisu; dokument techniczny był po prostu ostatni, który
+o tym nie wiedział.
+
+**Reguła na przyszłość, bo to trzeci taki przypadek w tym repozytorium:**
+rozjazd między dokumentem a kodem rozstrzyga się **od strony faktu**, nie od
+strony tego, co łatwiej poprawić. Jeśli faktem jest kod — poprawiamy dokument.
+Jeśli faktem jest przepis albo obietnica dana człowiekowi — poprawiamy kod.
+Nigdy nie zostawiamy obu wersji „do wyjaśnienia": z dwóch sprzecznych zdań
+o serwisie jedno na pewno wprowadza kogoś w błąd.
+
+**Zmiana wymaga:** nic — to jest zasada porządkowa, nie wybór produktowy.
+
+📄 `resources/legal/polityka-prywatnosci.md` · `docs/MODERATION.md` ·
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` · D-024
+
+---
+
+## D-039 · Odwołanie zamyka administrator, nie rola pierwszej linii
+
+**Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje,
+wdrożona 8 września**
+
+DSA art. 20 daje prawo do odwołania od decyzji moderacyjnej. Do 8 września
+odwołanie zamykał każdy moderator — jedyną barierą było 24 godziny karencji,
+zanim ten sam moderator PODTRZYMA własną decyzję, a ta nie przeszkadzała ani
+cofnąć własnej od razu, ani zamknąć sprawy dowolnemu INNEMU moderatorowi bez
+żadnego opóźnienia. Właściciel rozstrzygnął: **rozdzielić role** — decyzję
+o odwołaniu przyjmuje wyłącznie konto z rolą `admin`
+(`UserPolicy::resolveAppeals()`). Kolejkę odwołań widzi dalej każdy moderator;
+formularz odpowiedzi widzi tylko administrator.
+
+**Dlaczego karencja to za mało.** Doba nie robi z tej samej osoby drugiej
+instancji. Człowiek, którego treść usunięto, ma dostać spojrzenie kogoś
+innego, a nie tego samego spojrzenia po przespanej nocy.
+
+**CO TA ZMIANA NAPRAWDĘ ROBI — bo pierwsza wersja tego wpisu mówiła za
+dużo.** To jest bramka na ROLĘ, nie na osobę. Administrator przechodzi też
+przez `moderate()`, więc jeden człowiek z tą rolą dalej może wydać decyzję
+i zamknąć odwołanie od niej samej; powstrzymuje go wtedy wyłącznie karencja
+`ResolveAppeal::sprawdzKarencje()` i tylko przy PODTRZYMANIU. Wartość
+pojawia się przy DRUGIEJ osobie w zespole: moderator bez roli administratora
+przestaje móc zamknąć sprawę, którą sam rozstrzygał.
+
+**WARUNEK WDROŻENIA BYŁ REALNY I ZOSTAŁ SPEŁNIONY.** `User::promoteTo()`
+i `User::isAdmin()` nie miały w tym repozytorium **ani jednego wywołania**,
+a żaden seeder nie nadawał roli `admin`. Samo zawężenie Policy zamknęłoby
+odwołania na głucho: nie byłoby kto ich rozstrzygnąć, a termin z DSA biegłby
+dalej. Dlatego razem z zawężeniem weszła komenda
+`php artisan kuking:nadaj-role <login> admin` — z powłoki produkcyjnej, bez
+ekranu w produkcie, bo ekran znaczyłby, że przejęcie jednego konta
+administratora wystarcza, żeby zrobić administratorów z kolejnych. Komenda
+odmawia odebrania roli OSTATNIEMU czynnemu administratorowi i zapisuje każdą
+zmianę w `audit_log` jako `user.role_changed`.
+
+**PIERWSZA CZYNNOŚĆ PO WDROŻENIU:** nadać sobie tę rolę na produkcji. Do
+tego czasu nie ma tam nikogo, kto może zamknąć odwołanie — otwartych spraw
+nie było w chwili wdrożenia, więc okno jest bezpieczne, ale tylko dopóki
+nikt się nie odwoła.
+
+**Zmiana wymaga:** drugiego moderatora, przy którym rozdzielenie ról da się
+zrobić bez jednoosobowego wąskiego gardła.
+
+📄 `app/Policies/UserPolicy.php` (`resolveAppeals`) ·
+`app/Http/Controllers/Admin/AppealController.php` ·
+`app/Console/Commands/NadajRole.php` · `tests/Feature/NadanieRoliTest.php` ·
+`docs/MODERATION.md` · DSA art. 20

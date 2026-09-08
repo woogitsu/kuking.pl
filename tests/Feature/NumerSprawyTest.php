@@ -8,6 +8,7 @@ use App\Models\Report;
 use App\Support\NumerSprawy;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -32,6 +33,12 @@ use Tests\TestCase;
  * ASERCJĄ KONTROLNĄ całego pliku: pilnuje, że opisany wyżej defekt istniał
  * naprawdę. Gdyby UUID v7 kiedyś zmienił kształt i przestał kolidować, ten
  * test padnie i powie, że reszta pliku broni już czegoś innego, niż myśli.
+ *
+ * `test_check_w_bazie_zna_ten_sam_alfabet_co_stala_w_php` jest drugą taką
+ * asercją, tyle że w drugą stronę: pilnuje, że ograniczenie w BAZIE nadal
+ * mówi to samo, co stała w PHP. CHECK dostał treść alfabetu wklejoną raz,
+ * w dniu migracji, i od tamtej pory jest zamrożony — więc sama edycja
+ * `NumerSprawy::ALFABET` cicho psuje przyjmowanie zgłoszeń.
  */
 class NumerSprawyTest extends TestCase
 {
@@ -78,13 +85,46 @@ class NumerSprawyTest extends TestCase
 
     /**
      * ASERCJA KONTROLNA — patrz komentarz klasy.
+     *
+     * DLACZEGO ZNACZNIK UNIX, A NIE `now()->setDateTime(...)`
+     * Kolizja zależy od MOMENTU w czasie, nie od cyfr na ścianie zegara,
+     * bo UUID v7 koduje znacznik UTC w milisekundach. `now()` stoi w strefie
+     * aplikacji, więc te same cyfry dają inny moment przy innym `timezone`
+     * w `config/app.php` — a to przewracało cały sens tego testu:
+     *
+     *     UTC:           19:00:30 → 01a07d3e,  19:01:10 → 01a07d3e  (KOLIZJA)
+     *     Europe/Warsaw: 19:00:30 → 01a07cd0,  19:01:10 → 01a07cd1  (brak)
+     *
+     * Policzone wprost: 1 788 807 630 000 ms / 2^16 = 27 295 038 = 0x01A07D3E,
+     * a reszta w okienku to 19 632 ms — po dodaniu 40 000 ms wciąż mniej niż
+     * 65 536 ms, więc górne 32 bity się nie zmieniają. W Europe/Warsaw (UTC+2)
+     * ta sama godzina na ścianie to moment o 7 200 000 ms wcześniejszy, reszta
+     * w okienku wynosi 28 592 ms i 40 sekund JĄ PRZEKRACZA — numery wychodzą
+     * różne, test przechodziłby, nie sprawdzając niczego.
+     *
+     * Dlatego chwile budujemy przez `Carbon::createFromTimestampUTC()`.
+     * Nie „posprzątaj" tego z powrotem do `now()` — dziś ratuje to wyłącznie
+     * `'timezone' => 'UTC'` w `config/app.php`, a to jest ustawienie, nie
+     * gwarancja.
      */
     public function test_stary_sposob_wyliczania_numeru_naprawde_dawal_kolizje(): void
     {
-        $chwila = now()->setDateTime(2026, 9, 7, 19, 0, 30);
+        // 1 788 807 630 = 2026-09-07 19:00:30 UTC.
+        $chwila = Carbon::createFromTimestampUTC(1788807630);
 
         $pierwszy = (string) Str::uuid7($chwila);
         $drugi = (string) Str::uuid7($chwila->copy()->addSeconds(40));
+
+        // Kontrola samego stanowiska pomiarowego: gdyby `createFromTimestampUTC()`
+        // kiedyś przestało zwracać moment w UTC, reszta tego testu mierzyłaby
+        // znów strefę aplikacji, a nie kształt UUID-a v7.
+        //
+        // Sprawdzamy PRZESUNIĘCIE, nie nazwę strefy. `createFromTimestampUTC()`
+        // zwraca strefę nazwaną `+00:00`, nie `UTC` — pierwsza wersja tej
+        // asercji porównywała nazwę i przez to padała, choć chwila była
+        // dokładnie taka, jak trzeba. Znaczenie ma zero, nie napis.
+        $this->assertSame(0, $chwila->getOffset(), 'Chwila pomiaru nie stoi w UTC.');
+        $this->assertSame(1788807630, $chwila->getTimestamp());
 
         $this->assertNotSame($pierwszy, $drugi, 'Dwa UUID-y v7 z różnych chwil muszą być różne.');
 
@@ -156,6 +196,98 @@ class NumerSprawyTest extends TestCase
         // CHECK w bazie, nie sam wzór w PHP: wartość w innym formacie nie ma
         // prawa wejść żadną drogą, także przez `tinker` albo przyszłe API.
         $this->zgloszeniePrawneZNumerem('AB-0000-0000');
+    }
+
+    /**
+     * DRUGA ASERCJA KONTROLNA: wzór w bazie kontra stała w PHP.
+     *
+     * Migracja `2026_09_07_910000_add_numer_sprawy_to_reports` wkleiła
+     * `NumerSprawy::ALFABET` do treści CHECK-a JEDEN RAZ. PostgreSQL trzyma
+     * gotowe wyrażenie, więc od tamtej chwili wzór w bazie jest ZAMROŻONY,
+     * a stała w PHP liczy się od nowa przy każdym uruchomieniu. Te dwa wzory
+     * mogą się rozjechać i nic w kodzie samo tego nie zauważy.
+     *
+     * Cena rozjazdu: `wygeneruj()` losuje ze zmienionego alfabetu, baza
+     * odrzuca `INSERT`, a KAŻDE nowe zgłoszenie — łącznie z drogą DSA art. 16
+     * dla osoby bez konta, która nie ma innego sposobu założenia sprawy —
+     * kończy się `QueryException` i błędem 500.
+     *
+     * Dlatego czytamy RZECZYWISTĄ definicję ograniczenia z katalogu systemowego,
+     * a nie plik migracji. Ten test ma paść, gdy ktoś zmieni `ALFABET` bez
+     * migracji przebudowującej CHECK.
+     */
+    public function test_check_w_bazie_zna_ten_sam_alfabet_co_stala_w_php(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Dotyczy wyłącznie PostgreSQL.');
+        }
+
+        $wiersz = DB::selectOne(
+            'SELECT pg_get_constraintdef(oid) AS definicja FROM pg_constraint WHERE conname = ?',
+            ['reports_numer_sprawy_check'],
+        );
+
+        // KONTROLA: bez tego test przeszedłby PUSTO na bazie, w której CHECK-a
+        // w ogóle nie ma — czyli dokładnie tam, gdzie najbardziej by się
+        // przydał (rollback migracji, ręcznie zdjęte ograniczenie, świeża baza
+        // postawiona ze zrzutu bez ograniczeń).
+        $this->assertNotNull(
+            $wiersz,
+            'W bazie nie ma ograniczenia `reports_numer_sprawy_check`. '
+            .'Format numeru sprawy nie jest niczym pilnowany po stronie bazy.',
+        );
+
+        $definicja = (string) ($wiersz->definicja ?? '');
+
+        $this->assertNotSame(
+            '',
+            $definicja,
+            '`pg_get_constraintdef()` zwrócił pustą definicję dla `reports_numer_sprawy_check`.',
+        );
+
+        // Alfabet wyłuskujemy z definicji, zamiast tylko szukać w niej całego
+        // wzoru: dzięki temu komunikat porażki pokazuje OBA alfabety obok
+        // siebie, a nie każe porównywać trzydziestoznakowych ciągów wzrokiem.
+        $this->assertSame(
+            1,
+            preg_match('/\^KU-\[([^\]]+)\]\{4\}-\[([^\]]+)\]\{4\}\$/', $definicja, $dopasowanie),
+            'Definicja CHECK-a nie wygląda już jak wzór numeru sprawy: '.$definicja,
+        );
+
+        $this->assertSame(
+            NumerSprawy::ALFABET,
+            $dopasowanie[1],
+            'Alfabet zamrożony w bazie różni się od `NumerSprawy::ALFABET`. '
+            .'Zmiana stałej wymaga migracji przebudowującej `reports_numer_sprawy_check` — '
+            .'bez niej `wygeneruj()` produkuje numery, których baza nie przyjmie.',
+        );
+
+        $this->assertSame(
+            $dopasowanie[1],
+            $dopasowanie[2],
+            'Dwie połówki numeru mają w bazie różne alfabety.',
+        );
+
+        // I cały wzór dokładnie tak, jak składa go migracja — na wypadek,
+        // gdyby rozjechała się nie sama lista znaków, lecz reszta wyrażenia
+        // (długość członów, przedrostek, kotwice).
+        $this->assertStringContainsString(
+            '^KU-['.NumerSprawy::ALFABET.']{4}-['.NumerSprawy::ALFABET.']{4}$',
+            $definicja,
+            'CHECK w bazie ma inny wzór niż składa `NumerSprawy`. Definicja z bazy: '.$definicja,
+        );
+
+        // Domknięcie: świeżo wylosowany numer przechodzi przez TEN wzór
+        // z bazy, a nie tylko przez wzór z PHP. Gdyby generator i CHECK już
+        // się rozjechały, `INSERT` rzuci `QueryException` i test padnie tutaj —
+        // czyli tam, gdzie w produkcji padłoby zgłoszenie z DSA art. 16.
+        // Wzór składany z alfabetu ODCZYTANEGO Z BAZY, nie ze stałej w PHP.
+        $wzorZBazy = '/^KU-['.$dopasowanie[1].']{4}-['.$dopasowanie[2].']{4}$/';
+
+        $this->assertMatchesRegularExpression(
+            $wzorZBazy,
+            (string) $this->zgloszeniePrawne()->numer_sprawy,
+        );
     }
 
     public function test_numeru_nie_da_sie_podstawic_z_zadania(): void

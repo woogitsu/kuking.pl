@@ -24,6 +24,7 @@
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
+@import "./strony-publiczne.css";
 
 @layer components {
 
@@ -94,27 +95,12 @@
       margin: 0 auto;
     }
 
-    /* Strona powitalna: jedna kolumna, ale SZEROKA — dokładnie tyle, ile ma
-       układ zalogowanego. Dzięki temu logotyp i przyciski w belce stoją
-       w tym samym miejscu przed i po zalogowaniu, a nie przeskakują.
-       Wewnątrz treść dzieli się na pasma (`.landing-pasmo`), więc żadna
-       linia tekstu nie robi się od tego dłuższa. */
+    /* Strona powitalna nie ma ŻADNEGO sufitu szerokości — patrz blok
+       „UKŁAD PASÓW" niżej. Zostaje tu tylko zwinięcie siatki do jednej
+       kolumny: gość nie ma nawigacji bocznej ani szyny, więc rezerwowanie
+       na nie kolumn zepchnęłoby pasy w prawo. */
     .app-body-powitalny {
       grid-template-columns: minmax(0, 1fr);
-      max-width: var(--container-strona-z-szyna);
-    }
-
-    /* ZDJĘTY LIMIT SZEROKOŚCI, nie samo wyśrodkowanie.
-       `.app-main` ma `max-width: var(--container-content)` (720 px) i to jest
-       poprawne wszędzie tam, gdzie w środku jest jedna kolumna tekstu.
-       Na stronie powitalnej treść dzieli się na pasma, które SAME pilnują
-       długości linii — więc limit musi tu zniknąć, inaczej poszerza się
-       kontener, a nie zawartość. Pierwsza wersja tej poprawki miała tylko
-       `margin: 0 auto` i zmierzone wyszło z tego: siatka 1424 px, a pasmo
-       treści dalej 688 px wyśrodkowane, czyli puste boki bez zmian. */
-    .app-body-powitalny .app-main {
-      max-width: none;
-      margin: 0;
     }
   }
 
@@ -160,16 +146,70 @@
 
     .app-body-powitalny {
       grid-template-columns: minmax(0, 1fr);
-      max-width: var(--container-strona-z-szyna);
-    }
-
-    .app-body-powitalny .app-main {
-      max-width: none;
-      margin: 0;
     }
 
     .app-rail {
       padding: var(--spacing-5) 0 var(--spacing-12);
+    }
+  }
+
+  /* --- UKŁAD PASÓW (strona powitalna) ------------------------------------
+
+     Strona publiczna NIE jest wąskim wariantem ekranu zalogowanego. Rytm robią
+     na niej pełnoszerokie pasy o różnych tłach (`resources/css/strony-publiczne.css`),
+     a szerokość treści pilnuje `.pas-wnetrze` — każdy pas osobno.
+
+     Dlatego ramka wokół treści musi tu zniknąć CAŁKOWICIE: i sufit szerokości,
+     i wcięcia boczne, i odstęp od belki. Zostawienie choćby wcięcia bocznego
+     dałoby pasy z jasnym paskiem tła po obu stronach, czyli dokładnie ten
+     efekt „nie wiadomo, czy to celowe", którego pas ma nie mieć.
+
+     Poprzedni układ — jedna kolumna szeroka na `--container-strona-z-szyna`,
+     wszystko na jednym tle — jest w historii pod `.landing-pasmo`. Powód
+     zmiany: system projektowy v3.1 (`docs/design/system-v3.1/site.css`, §1)
+     buduje strony publiczne wyłącznie na pasach, a `STAN_WDROZENIA_KITU.md`
+     od początku wskazywał układ jako jedyną rzecz, która się nie zgadza.
+
+     DWIE RZECZY O MIEJSCU TYCH REGUŁ, OBIE ZMIERZONE.
+
+     Po pierwsze: stoją POZA zapytaniem o szerokość, bo dotyczą każdego
+     ekranu. Na telefonie `.app-main` ma własne wcięcie `--spacing-4`, które
+     w pasach dodałoby się do wcięcia `.pas-wnetrze` i zwęziło treść dwa razy.
+
+     Po drugie: stoją ZA oboma progami (`64rem` i `80rem`), a nie przed nimi,
+     i to nie jest kwestia porządku. Zapytanie o szerokość NIE PODNOSI wagi
+     selektora — `.app-body` w bloku `80rem` i `.app-body-powitalny` tutaj
+     ważą tyle samo, więc rozstrzyga kolejność w pliku. Pierwsza wersja tej
+     poprawki miała ten blok przed progiem `80rem` i skutek był taki, że
+     od 1280 px pasy wracały do sufitu 1424 px — czyli dokładnie na tych
+     ekranach, dla których cała zmiana powstała.
+     --------------------------------------------------------------------- */
+
+  .app-body-powitalny {
+    max-width: none;
+    padding: 0;
+  }
+
+  .app-body-powitalny .app-main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Komunikat zwrotny (np. „Zostałeś wylogowany") nie ma własnego pasa, więc
+     bez tego stanąłby przyklejony do lewej krawędzi okna. Ta sama szerokość
+     i to samo wcięcie, co `.pas-wnetrze` — inaczej pierwszy komunikat po
+     wylogowaniu wisiałby nad treścią przesunięty w bok. */
+  .app-body-powitalny .komunikaty {
+    width: 100%;
+    max-width: var(--container-strona);
+    margin-inline: auto;
+    padding-inline: var(--spacing-4);
+  }
+
+  @media (min-width: 48rem) {
+    .app-body-powitalny .komunikaty {
+      padding-inline: var(--spacing-6);
     }
   }
 
@@ -285,13 +325,14 @@
       max-width: var(--container-strona-solo);
     }
 
-    /* Belka i stopka MUSZĄ iść za szerokością treści, inaczej automat
-       dostępności zgłosi rozjazd — i słusznie, bo logotyp wisiałby wtedy
-       nad pustym miejscem obok siatki. */
-    .uklad-powitalny .topbar-inner,
-    .uklad-powitalny .site-footer-inner {
-      max-width: var(--container-strona-z-szyna);
-    }
+    /* Strona powitalna NIE dostaje tu nadpisania i to jest cała zmiana.
+
+       Kiedy była jedną szeroką kolumną, belka musiała iść za jej szerokością
+       (`--container-strona-z-szyna`, 1424 px), inaczej logotyp wisiał nad
+       pustym miejscem obok treści. Teraz treść dzieli się na pasy, a każdy
+       pas ma w środku `--container-strona` — czyli dokładnie tę wartość,
+       którą belka i stopka mają domyślnie od 64rem. Nadpisanie zostawiłoby
+       logotyp 192 px na lewo od pierwszego słowa hasła. */
   }
 
   @media (min-width: 80rem) {
@@ -301,17 +342,82 @@
       max-width: var(--container-strona-z-szyna);
     }
 
+    /*
+     * BELKA DOSTAJE TĘ SAMĄ SIATKĘ, CO TREŚĆ — nie tylko tę samą szerokość.
+     *
+     * Do dziś belka była wierszem `flex` z `space-between`: logotyp do lewej,
+     * akcje do prawej. Krawędzie zewnętrzne zgadzały się co do piksela (pilnuje
+     * ich automat dostępności), ale to, co stoi POŚRODKU — pole „Szukaj" —
+     * nie miało z siatką nic wspólnego. Miało własne `flex: 1 1 auto`, własny
+     * sufit 34 rem i własne marginesy, więc jego lewa krawędź wypadała
+     * kilkadziesiąt pikseli od lewej krawędzi kolumny czytania, a prawa
+     * gdziekolwiek. Pole wyszukiwania stało nad tekstem, którego nie
+     * dotykało — a jest to jedyny element belki, który ma swój odpowiednik
+     * pod spodem.
+     *
+     * System projektowy v3.1 nazywa to wprost („problem nr 6: pole szersze
+     * niż kolumna treści") i rozwiązuje siatką o tych samych trzech kolumnach,
+     * co treść. Kolumny są przepisane co do tokenu i co do odstępu z `.app-body`
+     * wyżej — 240 + 32 + 720 + 32 + 352 = 1376, czyli dokładnie wnętrze
+     * `--container-strona-z-szyna` po odjęciu wcięć. Gdyby któraś z tych liczb
+     * się rozjechała, automat dostępności zgłosi to natychmiast, bo mierzy
+     * krawędzie belki względem krawędzi treści.
+     *
+     * TYLKO OD 80rem, czyli tam, gdzie treść naprawdę ma trzy kolumny. Niżej
+     * belka zostaje wierszem `flex` z zawijaniem — na wąskim ekranie akcje mają
+     * prawo zejść do drugiego wiersza, bo alternatywą jest przewijanie strony
+     * w bok (issue #80, WCAG 2.2 AA 1.4.10). Siatka o sztywnych kolumnach
+     * odebrałaby im tę możliwość.
+     */
+    .topbar-inner {
+      display: grid;
+      grid-template-columns:
+        var(--container-sidenav)
+        minmax(0, var(--container-content))
+        var(--container-rail);
+      gap: var(--spacing-8);
+      align-items: center;
+    }
+
+    /* Akcje wypełniają trzecią kolumnę, ale stoją przy jej PRAWEJ krawędzi —
+       czyli nad prawą krawędzią szyny. Bez tego usiadłyby przy lewej i belka
+       kończyłaby się 250 px przed treścią. */
+    .topbar-inner .topbar-actions {
+      justify-content: flex-end;
+    }
+
+    /* Pole „Szukaj" wypełnia kolumnę czytania i nic poza nią. Zdejmujące to
+       reguły stoją PRZY samym polu, kilkaset linijek niżej — patrz komentarz
+       „DLACZEGO TO STOI PRZY POLU". Tutaj byłyby martwe. */
+
+    /* Gość nie ma ani nawigacji bocznej, ani szyny, ani pola „Szukaj" w belce
+       — jego treść to jedna kolumna. Trzykolumnowa belka zostawiłaby mu
+       logotyp w słupku szerokim na 240 px, a „Załóż konto" w powietrzu nad
+       pustym miejscem. Wraca wiersz `flex` z `space-between`. */
+    .uklad-solo .topbar-inner,
+    .uklad-powitalny .topbar-inner {
+      display: flex;
+      /* Wracamy TAKŻE do odstępu z reguły bazowej, nie tylko do `display`.
+         Siatka wyżej ustawia `gap: var(--spacing-8)` w obu osiach; przy
+         powrocie do `flex` zostałoby z tego 32 px odstępu MIĘDZY WIERSZAMI,
+         a belka jest przyklejona do góry ekranu i każdy piksel jej wysokości
+         znika z widoku treści na stałe. Dziś belka gościa ma dwa przyciski
+         i się nie zawija, więc byłoby to niewidoczne — i właśnie dlatego
+         warto to zamknąć teraz. */
+      gap: 0 var(--spacing-4);
+    }
+
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
     }
 
-    /* Belka i stopka MUSZĄ iść za szerokością treści, inaczej automat
-       dostępności zgłosi rozjazd — i słusznie, bo logotyp wisiałby wtedy
-       nad pustym miejscem obok siatki. */
+    /* Strona powitalna wraca tu do `--container-strona`, bo pas ma tę samą
+       szerokość na każdym ekranie — nie rośnie od 80rem tak, jak rośnie
+       siatka zalogowanego, której od tego progu dochodzi szyna. */
     .uklad-powitalny .topbar-inner,
     .uklad-powitalny .site-footer-inner {
-      max-width: var(--container-strona-z-szyna);
+      max-width: var(--container-strona);
     }
   }
 
@@ -405,6 +511,23 @@
     font-weight: 600;
     color: var(--color-ink-muted);
     text-decoration: none;
+    /* Zabezpieczenie zawijania z systemu projektowego v3.1. Pasek dolny to
+       pięć elementów `flex` w jednym wierszu na ekranie, który przy 320 px
+       daje im po 64 px. Przy skali tekstu 140% „Powiadomienia" nie mieści
+       się w jednym wierszu i bez tych trzech linii wypycha sąsiadów poza
+       ekran zamiast zawinąć się u siebie.
+
+       System schodzi tu dodatkowo na `--text-help` (16 px). TEGO NIE
+       BIERZEMY — patrz akapit wyżej: podpis pod ikoną jest CAŁĄ treścią
+       tego elementu, a nie dopiskiem przy większym tekście obok, więc
+       obowiązuje go minimum produktowe 18 px (issue #110). System pisał tę
+       regułę dla kitu, w którym dolny pasek nie był jedyną drogą do
+       głównej akcji. */
+    min-width: 0;
+    text-align: center;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
 
   .bottom-nav-item[aria-current="page"] {
@@ -438,17 +561,37 @@
       align-self: start;
     }
 
+    /* Uzgodnione z systemem projektowym v3.1 (`components.css`).
+       Trzy różnice, wszystkie z jednego powodu — nawigacja stoi w kolumnie
+       szerokiej na 15 rem, a napisy w niej rosną razem ze skalą tekstu:
+
+       * wcięcie PIONOWE `--spacing-2`. Bez niego pozycja, której napis
+         zawinie się na dwa wiersze („Bez odpowiedzi" przy skali 140%),
+         dotyka literami górnej i dolnej krawędzi tła.
+       * `min-width: 0` i zawijanie w dowolnym miejscu. Element `flex` nie
+         zejdzie sam poniżej swojej szerokości min-content, więc bez tego
+         najdłuższa pozycja rozpycha całą kolumnę nawigacji, a siatka strony
+         zabiera tę szerokość kolumnie czytania.
+       * przejście tła przy najechaniu — z tokenu, więc wyłącza je
+         `prefers-reduced-motion` w warstwie base.
+
+       `padding: 0` w poziomie ZOSTAJE `--spacing-3`: system ma tę samą
+       wartość, zmienia się tylko oś pionowa. */
     .side-nav-item {
       display: flex;
       align-items: center;
       gap: var(--spacing-3);
       min-height: var(--control-height-min);
-      padding: 0 var(--spacing-3);
+      padding: var(--spacing-2) var(--spacing-3);
       border-radius: var(--radius-md);
       font-size: var(--text-body);
       font-weight: 600;
       color: var(--color-ink);
       text-decoration: none;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      transition: background-color var(--czas-szybki) ease-out;
     }
 
     .side-nav-item:hover { background-color: var(--color-surface-sunken); }
@@ -525,7 +668,35 @@
 
   /* --- Karta wpisu (UI kit v2, etap B) --- */
 
-  .post-card { padding: 0; overflow: hidden; }
+  /* Karta wpisu. Uzgodniona z `.karta-wpisu` systemu projektowego v3.1 —
+     ale tylko co do kształtu.
+
+     `--radius-xl` zamiast `--radius-lg`: karta wpisu jest największym
+     elementem strumienia i jedynym, w którym zdjęcie dochodzi do samej
+     krawędzi. Mocniejsze zaokrąglenie robi z niej przedmiot, a nie prostokąt
+     z obwódką.
+
+     UNIESIENIA CIENIA PRZY NAJECHANIU NIE BIERZEMY — i to jest cofnięcie
+     mojej własnej zmiany z tego samego dnia. Uzasadniłem je zdaniem „karta
+     jest w całości klikalna, a nic tego nie zapowiada". Oba człony są
+     nieprawdziwe: `post-card.blade.php` to zwykły `<article>` bez
+     opakowującego odnośnika (kliknięcie w tło, w treść wpisu i w margines nie
+     robi nic), a na karcie stoją DWA pełnotekstowe przyciski — „Ugotowałem"
+     i „Komentarze" — które mówią wprost, dokąd się idzie.
+
+     Uniesienie obiecywałoby więc zachowanie, którego nie ma. Do tego jest
+     sygnałem dostępnym WYŁĄCZNIE po najechaniu kursorem: nie ma go na
+     dotyku, czyli u większości tej grupy, ani z klawiatury. `AGENTS.md` §5
+     i `docs/UX_50_PLUS.md` zabraniają tego wprost.
+
+     W kicie ta reguła jest poprawna, bo tam cała karta JEST jednym
+     odnośnikiem. U nas nie jest — i to jest świadome odejście, bo dwie akcje
+     na jednym celu dotknięcia są dla tej grupy gorsze niż jedna wielka. */
+  .post-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+  }
 
   .post-card-head {
     display: flex;
@@ -534,9 +705,15 @@
     padding: var(--spacing-4) var(--spacing-5);
   }
 
+  /* Treść wpisu — to, co człowiek naprawdę napisał — idzie po
+     `--text-body-lg` (20 px), nie po `--text-body` (18 px). Tak ma to system
+     projektowy v3.1 (`.karta-tresc`) i jest po co: kilka zdań pod zdjęciem
+     jest jedyną treścią tej karty, a do niedawna nazwa autora (18 px, waga
+     700) była w niej większa niż to, co ta osoba powiedziała. */
   .post-card-body {
     padding: 0 var(--spacing-5) var(--spacing-4);
-    font-size: var(--text-body);
+    font-size: var(--text-body-lg);
+    line-height: var(--leading-body);
     white-space: pre-line;
     overflow-wrap: anywhere;
   }
@@ -847,14 +1024,35 @@
     text-decoration: none;
   }
 
+  /* Odznaka. Kształt z systemu projektowego v3.1: `--radius-sm`, nie pigułka,
+     i wcięcie `--spacing-2`.
+
+     Pigułka to kształt ETYKIETY, którą się klika albo zdejmuje — w tym
+     serwisie ma go `.chip` w wyszukiwaniu, i słusznie. Odznaka jest
+     PODPISEM przy treści („Ugotowane 3 razy", „Konto przykładowe"): nic nie
+     robi po naciśnięciu. Dwa różne kształty na dwie różne rzeczy znaczą, że
+     nie trzeba próbować, żeby się dowiedzieć, która jest która.
+
+     TŁO ZOSTAJE W REGULE BAZOWEJ, choć system wyjmuje je do wariantu
+     `.badge-spokojny`. Powód praktyczny: wszystkie wywołania `.badge` w tym
+     serwisie są tej jednej wagi, więc podział dołożyłby klasę do każdego
+     z nich i zostawił pułapkę — samo `.badge` byłoby wtedy niewidoczne.
+     Wariant głośny (`.badge-cooked`) już istnieje i nadpisuje tło u siebie.
+
+     CZEGO TU NIE ROZSTRZYGAM: system chce, żeby „konto przykładowe" było
+     odznaką CICHĄ (`.badge-cichy` — bez tła, mniejsze), a `docs/DECISIONS.md`
+     D-025 mówi odwrotnie i `.badge-przykladowe` jest u nas celowo GŁOŚNIEJSZE
+     od reszty. To jest decyzja produktowa, nie stylistyczna — należy do
+     właściciela i jest zapisana w `CZYTAJ-NAJPIERW.md` jako pytanie otwarte. */
   .badge {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-1);
-    padding: var(--spacing-1) var(--spacing-3);
-    border-radius: var(--radius-pill);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--radius-sm);
     font-size: var(--text-help);
     font-weight: 700;
+    line-height: 1.3;
     background-color: var(--color-surface-sunken);
     color: var(--color-ink-muted);
   }
@@ -864,13 +1062,41 @@
     color: var(--color-accent-tint-ink);
   }
 
+  /* Odznaka CICHA — bez tła, bez ramki, wielkość dopisku obok większego
+     tekstu (D-032 w `docs/DECISIONS.md`, odwracająca D-025). Tak wygląda „konto
+     przykładowe" w strumieniu (karta wpisu, karta przepisu, komentarz,
+     strona przepisu): w wierszu metadanych, po kropce, obok daty — czytelna
+     dokładnie wtedy, gdy ktoś patrzy na autora, a nie kilkanaście razy pod
+     rząd w kolorze marki, gdzie przestawała cokolwiek znaczyć i zjadała
+     budżet uwagi należny zdjęciom potraw.
+
+     ROZMIAR: `--text-help` (16px), nie mniej. `docs/design/DESIGN_SYSTEM.md`
+     §2.1 dopuszcza w tym serwisie dokładnie jeden rozmiar poniżej
+     `--text-body` (18px, minimum produktowe) — `--text-help`, i tylko tam,
+     gdzie tekst główny obok ma min. 18px. Ten warunek tu zachodzi (treść
+     wpisu/przepisu obok stoi na `--text-body`/`--text-body-lg`), ale niżej
+     podłoga nie schodzi: to jest ten sam rozmiar, na którym już stoi
+     `.meta` kawałek wyżej, nie osobny, mniejszy token stworzony specjalnie
+     pod tę jedną plakietkę. */
+  .badge-cichy {
+    padding: 0;
+    background-color: transparent;
+    font-size: var(--text-help);
+    font-weight: 600;
+    color: var(--color-ink-muted);
+  }
+
   /*
-     „Konto przykładowe" (D-025) — CELOWO WIĘKSZE i z ramką, nie wariant
-     ciszej od `.badge-cooked`. Grupa 50+ ma to zauważyć bez czytania
-     drobnego druku, więc tekst stoi na `--text-body` (18px, minimum
-     produktowe), nie na `--text-help` (16px) jak reszta odznak — i ma
-     ramkę tego samego koloru co tło, tak jak `.notice`, żeby nie dało się
-     jej pomylić z odznaką „Ugotowane N razy" na tym samym tle.
+     „konto przykładowe" GŁOŚNA (D-032) — wygląd bez zmian względem D-025 (18px,
+     tło, ramka), ale UŻYCIE ZAWĘŻONE do jednego miejsca: profilu konta
+     przykładowego (`x-konto-przykladowe waga="glosna"`,
+     `pages/profile/show.blade.php`). Do dziś ta sama, głośna wersja stała
+     WSZĘDZIE, gdzie występował autor zalążkowy (D-025: „grupa 50+ ma to
+     zauważyć bez czytania drobnego druku"). Właściciel to odwrócił: głośną
+     plakietkę wolno pokazać raz na ekran (nie kilkanaście razy w strumieniu,
+     patrz `.badge-cichy` wyżej), a profil jest jedynym miejscem, gdzie stoi
+     dokładnie raz. Ramka tego samego koloru co tło, tak jak `.notice`, żeby
+     nie dało się jej pomylić z odznaką „Ugotowane N razy” na tym samym tle.
   */
   .badge-przykladowe {
     font-size: var(--text-body);
@@ -1249,16 +1475,42 @@
     color: var(--color-ink);
   }
 
+  /* Pole wyboru. Uzgodnione z systemem projektowym v3.1 CO DO WYGLĄDU, nie
+     co do budowy.
+
+     BUDOWA ZOSTAJE NASZA. System ma tu `display: block`, bo w kicie kwadrat
+     wyboru rysuje pseudoelement. U nas w środku stoi prawdziwy `<input
+     type="checkbox">` obok napisu — działa bez JavaScriptu, czytnik ekranu
+     dostaje natywny element, a `accent-color` maluje go kolorem marki.
+     Przejście na `block` postawiłoby kwadrat NAD napisem.
+
+     WYGLĄD Z SYSTEMU:
+     * obwódka w `--color-border-strong` (#8A7A63) zamiast `--color-border`
+       (#E4DACB). To samo, co zrobiliśmy wczoraj dla `.chip` i z tego samego
+       powodu: jasna obwódka na jasnej karcie daje krawędź na granicy
+       dostrzegalności, a to jest element, który się naciska;
+     * `--radius-lg` i wcięcie `--spacing-4` — pole wyboru ma być na oko
+       kartą, nie ramką wokół wiersza tekstu;
+     * przejście koloru obwódki i tła, z tokenów (wyłącza je
+       `prefers-reduced-motion` w warstwie base);
+     * zabezpieczenie zawijania: bez `min-width: 0` długa etykieta rozpycha
+       kolumnę siatki `.choice-grid`, zamiast zawinąć się u siebie. */
   .choice {
     display: flex;
     align-items: flex-start;
     gap: var(--spacing-3);
     min-height: var(--hit-area-min);
-    padding: var(--spacing-3);
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
     cursor: pointer;
     background-color: var(--color-surface-raised);
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    transition:
+      border-color var(--czas-szybki) ease-out,
+      background-color var(--czas-szybki) ease-out;
   }
 
   .choice:has(input:checked) {
@@ -1274,8 +1526,28 @@
     accent-color: var(--color-brand-solid);
   }
 
-  .choice-label { font-weight: 700; margin: 0; }
-  .choice-help { font-size: var(--text-help); color: var(--color-ink-muted); }
+  .choice-label {
+    font-weight: 700;
+    font-size: var(--text-body);
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* `display: block` i `font-weight: 400` z systemu v3.1. Podpowiedź stoi
+     WEWNĄTRZ etykiety, więc bez jawnej wagi dziedziczyła po niej 700 — a
+     wtedy zdanie wyjaśniające miało tę samą wagę co nazwa opcji i nie było
+     widać, co jest czym. Własny odstęp od góry, bo jako element liniowy
+     przyklejała się do nazwy. */
+  .choice-help {
+    display: block;
+    margin: var(--spacing-2) 0 0;
+    font-size: var(--text-help);
+    font-weight: 400;
+    color: var(--color-ink-muted);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
   .choice-grid {
     display: grid;
@@ -1494,6 +1766,20 @@
     margin-left: auto;
     color: var(--color-ink-muted);
     font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0 var(--spacing-2);
+  }
+
+  /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana.
+     To jest ta część, której właściciel szuka wzrokiem najpierw — a stopka
+     jest rzędem linków w jednym kolorze, więc bez tego wersja w nim ginie.
+     Odróżnienie idzie KOLOREM I WAGĄ, nie wielkością: rozmiar zostaje taki
+     jak reszta stopki (UX_50_PLUS — nie robimy tekstu, którego trzeba się
+     domyślać). */
+  .site-version-etap {
+    color: var(--color-ink);
+    font-weight: 700;
   }
 
   /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019).
@@ -1988,6 +2274,36 @@
   border-top: 1px solid var(--color-border);
 }
 
+/*
+ * POLE „SZUKAJ" WYPEŁNIA KOLUMNĘ CZYTANIA I NIC POZA NIĄ.
+ *
+ * Od 80rem belka jest siatką o tych samych trzech kolumnach, co treść (patrz
+ * blok „BELKA DOSTAJE TĘ SAMĄ SIATKĘ" wyżej). W siatce szerokość pola ustala
+ * kolumna, więc trzy reguły, którymi pole ustawiało ją sobie samo, muszą
+ * zniknąć: `flex: 1 1 auto`, sufit `34rem` i marginesy `--spacing-5`.
+ *
+ * DLACZEGO TO STOI PRZY POLU, A NIE PRZY BELCE — ZMIERZONE, NIE ZGADNIĘTE.
+ * Pierwsza wersja tej poprawki stała przy belce, czyli 1700 linijek WYŻEJ niż
+ * blok `@media (min-width: 64rem)`, który te trzy reguły nadaje. Zapytanie
+ * o szerokość nie podnosi wagi selektora, więc przy równej wadze wygrywa
+ * kolejność w pliku — i wygrywał blok 64rem. Nadpisanie nie robiło nic.
+ *
+ * Automat dostępności zmierzył to przy pierwszym uruchomieniu (przebieg 171):
+ *
+ *   1280 px   szukaj 316…852   kolumna czytania 296…872   (o 20/20 px)
+ *   1512 px   szukaj 360…904   kolumna czytania 340…1060  (o 20/156 px)
+ *
+ * 20 px to dokładnie `--spacing-5`, a 544 px szerokości przy 1512 to dokładnie
+ * sufit 34rem. Obie martwe reguły widać w liczbach co do piksela.
+ */
+@media (min-width: 80rem) {
+  .topbar-szukaj {
+    flex: none;
+    max-width: none;
+    margin: 0;
+  }
+}
+
 @media (min-width: 64rem) {
   .side-nav {
     /* Dolna grupa naprawdę na dole, gdy kolumna jest wyższa niż jej treść. */
@@ -2038,8 +2354,23 @@
 
 /* --- Bloki w prawej szynie (UI kit v2, ekran 01) ------------------------- */
 
+/* Blok szyny. Wołany jako `class="card szyna-blok"`, więc bierze z `.card`
+   tło, obwódkę i wcięcie — a tutaj dostaje dwie rzeczy z `.szyna-modul`
+   systemu projektowego v3.1.
+
+   `--radius-xl` NIE JEST TU KOSMETYKĄ. Karta wpisu dostała je w poprzednim
+   commicie, a szyna stoi bezpośrednio obok strumienia: dwa różne promienie
+   w jednym rzędzie czyta się jako niedokończone, a nie jako hierarchię.
+
+   ZDJĘTY CIEŃ jest hierarchią, i to celową. System pisze o szynie: „szyna
+   NIE powtarza kolumny głównej". Karta wpisu unosi się nad tłem, bo jest
+   treścią, po którą ktoś przyszedł; „Mój zeszyt" i „kuKINGi na dziś" są
+   podpowiedzią obok. Bez cienia dalej mają obwódkę i własne tło, więc nie
+   znikają — przestają tylko konkurować o pierwsze spojrzenie. */
 .szyna-blok {
   margin: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: none;
 }
 
 .szyna-naglowek {
@@ -2197,14 +2528,27 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--control-height-min);
-  padding: 0 var(--spacing-4);
-  border: 1px solid var(--color-border);
+  /* Wcięcie pionowe mimo `min-height`: przy skali tekstu 140% napis chipa
+     zawija się, a bez tego wcięcia litery dotykały krawędzi. Do 8 września
+     2026 nie było tego widać, bo skala 140% w ogóle nie działała. */
+  padding: var(--spacing-2) var(--spacing-4);
+  /* 2px w `--color-border-strong` (#8A7A63), nie 1px w `--color-border`
+     (#E4DACB) — system projektowy v3.1. Chip jest elementem klikalnym
+     i musi być widać, gdzie się kończy; jasna obwódka na białej karcie
+     dawała krawędź na granicy dostrzegalności. */
+  border: 2px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   background-color: var(--color-surface-raised);
   font-size: var(--text-body);
   font-weight: 600;
   text-decoration: none;
   color: var(--color-ink);
+    /* Zabezpieczenie zawijania z systemu v3.1: nazwa tagu bywa jednym
+       długim słowem („zupykremy"), a chipsy stoją w wierszu, który ma się
+       zawijać jako całość — nie rozpychać w bok. */
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .chip:hover {
@@ -2296,11 +2640,59 @@
   flex: none;
 }
 
-/* Powiadomienie nieprzeczytane. Pasek z boku, a nie samo tło: przy skali
-   tekstu 140% tło rozjeżdża się na kilka wierszy i przestaje czytać się jako
-   wyróżnienie, a pionowa kreska działa niezależnie od wysokości. */
+/* Powiadomienie nieprzeczytane — uzgodnione z §13 systemu v3.1
+   (`.wiersz-nieprzeczytany`), klasa po klasie:
+
+   1. SPOSÓB RYSOWANIA KRESKI — wygrywa SYSTEM (`box-shadow: inset`).
+      `border-left: 4px` nadpisywał `border: 1px` z `.card`, a przy
+      `box-sizing: border-box` zjadał 3 px z pola treści. W pionowej liście
+      trzydziestu powiadomień awatar i tekst wpisu nieprzeczytanego stały
+      przez to 3 px dalej w prawo niż w przeczytanym — lewa krawędź listy
+      była poszarpana. Cień wewnętrzny nie wchodzi do modelu pudełka, więc
+      wszystkie wiersze zaczynają się w tym samym miejscu, a kreska sama
+      układa się po zaokrągleniu `--radius-lg`. Grubość z tokenu
+      (`--spacing-1` = 4 px), dokładnie jak w systemie.
+      `var(--shadow-card)` MUSI stać w tej samej deklaracji: `box-shadow`
+      nie sumuje się między regułami i bez tego karta nieprzeczytana traciłaby
+      swój cień.
+
+   2. TŁO `--color-brand-tint` — wygrywa APLIKACJA (nie wchodzi).
+      System dokłada je do kreski, ale liczy na „krótkie, jednorodne wiersze".
+      U nas wiersz bywa listem od moderacji na kilkanaście linijek (DSA
+      art. 17) — plama koloru na całej takiej karcie przestaje czytać się jako
+      wyróżnienie i zaczyna jako ostrzeżenie. Przy skali tekstu 140% dotyczy
+      to także zwykłych powiadomień.
+
+   3. KOLOR KRESKI — wygrywa APLIKACJA (`--color-brand`, nie
+      `--color-brand-solid`). W trybie jasnym oba tokeny to ten sam `#B3401F`.
+      W ciemnym `--color-brand-solid` (#C1502A) jest przyciemniony pod TŁO
+      przycisku; na ciemnej karcie kreska z niego ledwo odchodzi od tła,
+      a `--color-brand` (#F2986A) widać.
+
+   4. Sam kolor to za mało (WCAG 1.4.1) — słowo „Nowe" niesie
+      `resources/views/pages/notifications.blade.php`. Arkusz nie jest w stanie
+      tego wymusić, więc uwaga stoi tu i tam.
+
+   UWAGA NA KASKADĘ: ta reguła stoi POZA `@layer components` (warstwa kończy
+   się ~linia 1763), a `.card` jest w środku — dlatego wygrywa mimo równej
+   wagi selektora. Sprawdzone na zbudowanym arkuszu, nie „na oko". */
 .notification-nieprzeczytane {
-  border-left: 4px solid var(--color-brand);
+  box-shadow:
+    inset var(--spacing-1) 0 0 0 var(--color-brand),
+    var(--shadow-card);
+}
+
+/* WINDOWS HIGH CONTRAST GASI CIENIE, TAKŻE WEWNĘTRZNE.
+   `docs/UX_50_PLUS.md` wymienia ten tryb jako obowiązkowy do sprawdzenia,
+   a część naszej grupy ma go włączony na stałe. Sama informacja nie ginie —
+   niesie ją plakietka „Nowe" w widoku — ale sygnał wizualny tak, więc tutaj
+   wraca obwódka. Trzy piksele pola treści, o które chodziło przy zamianie
+   `border-left` na cień, są w tym trybie mniej ważne niż to, żeby w ogóle
+   było widać, który wiersz jest nowy. */
+@media (forced-colors: active) {
+  .notification-nieprzeczytane {
+    border-left: 4px solid CanvasText;
+  }
 }
 
 /* Osoba na liście obserwujących: zdjęcie i nazwa jako jeden cel do kliknięcia.
@@ -2386,9 +2778,15 @@
 }
 
 /* Nazwa grupy składników („Na ciasto", „Na krem") — mniejsza od nagłówka
-   przepisu, ale nadal powyżej minimum 18 px, bo to jedyny opis tej listy. */
+   przepisu, ale nadal powyżej minimum 18 px, bo to jedyny opis tej listy.
+
+   Odstęp GÓRNY, nie tylko dolny: na stronie przepisu ten nagłówek stoi pod
+   listą poprzedniej grupy (albo pod listą składników bez grupy), a Tailwind
+   zeruje marginesy nagłówków. Bez tego „Farsz" przykleja się do ostatniego
+   składnika ciasta i wygląda na jego część, a nie na początek nowej. */
 .naglowek-grupy {
   font-size: var(--text-body-lg);
+  margin-top: var(--spacing-5);
   margin-bottom: var(--spacing-2);
 }
 
@@ -2420,46 +2818,19 @@
   font-weight: 600;
 }
 
-/* Ekran powitalny dla niezalogowanych. */
-.landing-hero {
-  text-align: center;
-  padding: var(--spacing-6) 0 var(--spacing-10);
-}
-
-.landing-lead {
-  font-size: var(--text-lead);
-  max-width: 34rem;
-  margin: 0 auto var(--spacing-6);
-}
-
-/* --- Pasma strony powitalnej -------------------------------------------
-   Strona jest szeroka, ale TEKST w niej nie. Każde pasmo dzieli szerokość
-   na kolumny zamiast rozciągać wiersz: przy 1424 px dwie kolumny dają
-   po ~690 px, czyli dalej mieszczą się w zakresie ~65–75 znaków, na który
-   wyliczony jest `--container-content`.
-
-   `minmax(0, 1fr)`, nigdy `1fr` — element siatki nie zejdzie poniżej swojej
-   szerokości min-content i przy 320 px z tekstem 150% zrobi przewijanie
-   w bok. Ta pomyłka wywróciła już raz ekran przepisu (`.przepis-siatka`). */
-.landing-pasmo {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-6);
-  align-items: start;
-  margin-bottom: var(--spacing-8);
-}
-
-@media (min-width: 64rem) {
-  .landing-pasmo-dwie {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 /* Siatka wpisów pod nagłówkiem „Świeżo z Kuking". Karta wpisu niesie
    zdjęcie i kilka zdań, więc dwie kolumny są dla niej wygodne — jedna
    kolumna na tak szerokim ekranie zostawiałaby pustkę, o którą zgłosił
-   się właściciel. Trzeciej kolumny NIE dodajemy: przy 1424 px karta
-   zeszłaby do ~450 px i zdjęcie zrobiłoby się znaczkiem.
+   się właściciel.
+
+   PRZELICZONE PO WEJŚCIU PASÓW (8 września 2026). Wcześniej ta siatka
+   stała w kolumnie szerokiej na 1424 px i karta miała ~690 px. Teraz stoi
+   w pasie, którego wnętrze ma 992 px, więc karta ma ~484 px — mniej więcej
+   tyle, ile miałaby wtedy trzecia kolumna, i dlatego trzeciej dalej NIE MA.
+   To jest świadome ustępstwo: strona powitalna pokazuje sześć wpisów naraz
+   zamiast dwóch, a kto chce je obejrzeć w pełnej szerokości, wchodzi
+   w „Świeżo z Kuking" (/odkryj), gdzie karty stoją w jednej kolumnie
+   szerokiej na --container-content.
 
    SIATKA OD RAZU, NIE `.stack` PLUS SIATKA OD 64REM. Pierwsza wersja tego
    kodu miała na tym elemencie obie klasy naraz, a `.stack` to
