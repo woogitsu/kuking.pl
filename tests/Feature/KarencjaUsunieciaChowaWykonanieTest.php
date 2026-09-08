@@ -11,6 +11,8 @@ use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 /**
@@ -102,13 +104,23 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
         // Sam fakt wylogowania nie wystarcza — człowiek musi wiedzieć,
         // DLACZEGO i co zrobić dalej (UX_50_PLUS.md: komunikat błędu mówi,
         // co zrobić, a nie co się stało).
+        // SESJA ODDAJE TO RAZ JAKO OBIEKT, RAZ JAKO TABLICĘ — i to nie jest
+        // teoria: pierwsza wersja tego testu padła na `first() on array`.
+        // Ten sam rozdział robi już `PodrobionyNaglowekProxyTest`; biorę
+        // stamtąd wzorzec, zamiast wymyślać drugi.
         $bledy = $odpowiedz->getSession()->get('errors');
 
-        $this->assertNotNull($bledy, 'Po wylogowaniu nie ma żadnego komunikatu.');
+        $tekst = match (true) {
+            $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => (string) $bledy->first('login'),
+            is_array($bledy) => (string) json_encode($bledy, JSON_UNESCAPED_UNICODE),
+            default => '',
+        };
+
+        $this->assertNotSame('', $tekst, 'Po wylogowaniu nie ma żadnego komunikatu.');
 
         $this->assertStringContainsString(
             route('account.delete.cancel'),
-            (string) $bledy->first('login'),
+            $tekst,
             'Komunikat po wylogowaniu nie wskazuje strony cofnięcia usunięcia konta.',
         );
     }
