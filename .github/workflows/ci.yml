@@ -378,7 +378,7 @@ jobs:
           retention-days: 5
 
   # ===========================================================================
-  #  4b. Dostępność — axe-core na 11 ekranach w 4 wariantach
+  #  4b. Dostępność — axe-core na 23 ekranach w 4 wariantach
   # ===========================================================================
   #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Repozytorium jest
   #  prywatne, więc każda minuta Actions kosztuje; ten job podnosi przeglądarkę
