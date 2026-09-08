@@ -278,7 +278,18 @@ export default defineRailway((ctx) => {
     MAIL_PASSWORD: ctx.shared.MAIL_PASSWORD,
     MAIL_SCHEME: "tls",
     MAIL_FROM_ADDRESS: isProduction ? "kuchnia@kuking.pl" : "staging@kuking.pl",
-    MAIL_FROM_NAME: "Kuking",
+    // MAIL_FROM_NAME CELOWO NIEUSTAWIONE.
+    //
+    // Nazwa nadawcy składa się z imienia gospodarza
+    // (`config('kuking.community.host_name')`, dziś „Ula") i „z Kuking" —
+    // `config/mail.php`. Wpisana tutaj wartość WYGRYWA z tamtą, bo
+    // `env()` jest w tej linijce pierwsze: dopóki stało tu „Kuking",
+    // zmiana gospodarza nie miała żadnego skutku ani na produkcji, ani na
+    // stagingu, a testy tego nie widziały, bo CI kopiuje `.env.example`.
+    //
+    // Gospodarz zmienia się w JEDNYM miejscu — `KUKING_HOST_NAME`
+    // (`config/kuking.php`). Tę zmienną wolno tu przywrócić wyłącznie po to,
+    // żeby nadpisać nazwę nadawcy DORAŹNIE, wbrew konfiguracji.
 
     // --- Obserwowalność -------------------------------------------------------
     SENTRY_LARAVEL_DSN: ctx.shared.SENTRY_LARAVEL_DSN,

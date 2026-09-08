@@ -62,10 +62,18 @@ mówi wprost: nazwy z repozytorium są źródłem prawdy.
 | element | kit | aplikacja |
 |---|---|---|
 | nagłówek | nazwisko + „2 godz. temu **· publicznie**" + menu „…" | nazwisko + data, bez widoczności i bez menu |
-| akcje | Ugotowałem · Komentarze (12) · **Zapisz** | Ugotowałem · Komentarze · Zgłoś |
+| akcje | Ugotowałem · Komentarze (12) · **Zapisz** (w produkcie: **Zapisuję**, D-036) | Ugotowałem · Komentarze · Zgłoś |
 
-„Zapisz" na wpisie to **nowa funkcja produktowa**, nie brakujący przycisk:
-zeszyt przyjmuje dziś wyłącznie przepisy. Wymaga decyzji właściciela.
+„Zapisuję" na wpisie **było** pytaniem do właściciela w dniu tego porównania —
+i przestało nim być tego samego dnia. Decyzja: **TAK**, wdrożone 6 września
+2026. Zeszyt przyjmuje dziś wpisy, nie tylko przepisy: migracja
+`2026_09_06_150000_collection_items_accept_posts`, trasa
+`collections.save-post`, `CollectionController::savePost()`, akcja
+`App\Domain\Collections\Actions\SavePostToCollection`, przycisk na karcie
+wpisu (`post-card.blade.php`), test `ZeszytPrzyjmujeWpisyTest`. Kolumna
+„aplikacja" w wierszu „akcje" wyżej jest z tego samego dnia i pokazuje stan
+sprzed wdrożenia — dziś ma tam też **Zapisuję** (a „Zgłoś" przeniosło się do
+menu „…", patrz karta wpisu w etapie D niżej).
 
 ## Czego kit NIE ma, a produkt ma — i musi zachować
 
@@ -93,10 +101,10 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
 | okruszki „Start › Przepisy” | **jest** |
 | hero: zdjęcie obok panelu | **jest**; bez zdjęcia panel bierze całą szerokość zamiast zostawiać pustą połowę |
 | kafle: czas / porcje / poziom | **jest**, ale tylko te, które autor podał — kafel „—” nie jest informacją |
-| akcje w panelu (Zapisz, Ugotowałem) | **jest**, w pionie i na pełną szerokość panelu; dochodzi trzecia, „Gotuję” |
+| akcje w panelu (Zapisuję, Ugotowałem) | **jest**, w pionie i na pełną szerokość panelu; dochodzi trzecia, „Gotuję” |
 | „Skąd ten przepis?” w panelu | **jest**, razem ze zdjęciem kartki |
 | składniki obok kroków | **jest** (dwie kolumny od 60rem, składniki pierwsze niżej) |
-| składniki z kolumną ilości | **nie i nie będzie** — D-017 |
+| składniki z kolumną ilości | **jest w bazie od 5 września** (`recipe_ingredients.quantity`, `unit_id`, `no_amount`) — D-017 mówiło „nie i nie będzie" i się zdezaktualizowało, patrz D-033 |
 | kroki z tytułami („Przygotuj ciasto”) | **nie i nie będzie** — D-017 |
 | „Jak wyszło innym?” | jest jako „Komu wyszło”; sam napis zmieni #38 |
 | znak „Uśmiech” w przycisku „Ugotowałem” | **świadomie nie**: znak rysuje garnek kolorem bieżącym, a uśmiech kolorem powierzchni — na tle marki wychodzi biała plama bez uśmiechu |

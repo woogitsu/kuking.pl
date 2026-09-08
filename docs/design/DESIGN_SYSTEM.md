@@ -166,7 +166,7 @@ Zaimplementowane w `tokens.css` w klasie `.btn:focus-visible` oraz ogólnie dla 
 | `--text-body-lg` | 20px | Treść wpisu, opis przepisu, ważne fragmenty |
 | `--text-lead` | 22px | Lead / zajawka, pierwsze zdanie przepisu |
 | `--text-title-sm` | 24px | Tytuły sekcji |
-| `--text-title` | 28px | Tytuł wpisu/przepisu (mobile) |
+| `--text-title` | 28px | Tytuł **przepisu** (mobile) — zwykły wpis nie ma pola tytułu i nie używa tego tokenu w tej roli: wpis w tym serwisie to „zdjęcie + kilka słów” (decyzja właściciela, `docs/DECISIONS.md` D-030) |
 | `--text-title-lg` | 36px | Tytuł strony głównej, hero (desktop) — skaluje się płynnie `clamp(28px, 4vw, 36px)` |
 
 `line-height`: 1.55 dla body, 1.4 dla tytułów ≥28px (dłuższe wiersze potrzebują mniej, krótkie tytuły są czytelne przy niższym line-height).
