@@ -519,6 +519,65 @@ opisany skutek, nie utrata danych — ale też dokładnie powód, dla którego
 rollback tej migracji na produkcji wymaga tej samej decyzji właściciela
 co akapit wyżej: bez etykiety te konta stają się nieodróżnialne od ludzi.
 
+#### `ostatnio_widziany_at` — znacznik ostatniej wizyty (bramka V1, issue #114/#115)
+
+Migracja `2026_09_08_200000_add_last_seen_to_users_table`. `timestampTz`,
+nullable, bez wartości domyślnej, z osobnym B-tree indeksem
+(`users_ostatnio_widziany_idx`).
+
+**Po co.** `docs/ROADMAP.md` kończy bramkę V1 zdaniem „Planner/groups/forks
+dopiero gdy WAC i D30 pokazują powroty" — a przed tą kolumną nic w bazie nie
+mówiło, kiedy ktokolwiek ostatnio był w serwisie, więc D7/D30 nie dały się
+policzyć wcale. `php artisan kuking:raport` czyta tę kolumnę przez
+`App\Domain\Analytics\AktywniWTygodniu` i `App\Domain\Analytics
+\PowrotPoDniach`.
+
+**Kolumna, nie trzeci sygnał w `product_signals` — rozstrzygnięcie, nie
+domysł.** Pełne uzasadnienie stoi w komentarzu samej migracji; w skrócie:
+retencja `product_signals` (90 dni) NIE jest tym, co przesądza — jest dłuższa
+niż 30 dni, więc D30 dałoby się policzyć nawet z sygnałów. Przesądza kształt
+tabeli: `product_signals_signal_name_check` zamyka `signal_name` na dwa
+rzadkie zdarzenia techniczne i tabela ma tak zostać (migracja
+`2026_09_06_220000_create_product_signals_table`, kontrastowana tam wprost
+z generalnym serwisem `product_events`, którego to repozytorium nie buduje —
+AGENTS.md §3). Log odwiedzin na KAŻDE żądanie każdego konta zmieniłby ten
+charakter i rósłby bez końca, wymagając własnej retencji; nadpisywana
+kolumna na `users` nie rośnie w ogóle — jeden wiersz na konto, zawsze.
+
+**Zapis throttlowany, nie przy każdym żądaniu.** `App\Http\Middleware
+\AktualizujOstatniaWizyte` (globalny, w grupie `web`, w `bootstrap/app.php`,
+zaraz PO `EnsureAccountIsActive`) woła `App\Domain\Analytics
+\ZanotujOstatniaWizyte`, która zapisuje co najwyżej raz na
+`config('kuking.analytics.last_seen_throttle_minutes')` minut (domyślnie 15)
+na osobę — próg i uzasadnienie liczby stoją w `config/kuking.php`. Zapis idzie
+przez `DB::table('users')->update()`, nie przez `$user->save()`: kolumna jest
+świadomie POZA `User::$fillable` (ten sam powód co `status`/`role` — nikt nie
+ma ustawić jej masowym przypisaniem z żądania) i zwykły zapis Eloquenta
+dotknąłby też `updated_at`, fałszując „kiedy dane konta naprawdę się
+zmieniły".
+
+**`NULL` znaczy „nigdy niewidziany od czasu wdrożenia kolumny"**, nie „przed
+chwilą" ani „bardzo dawno" — `AktywniWTygodniu`/`PowrotPoDniach` traktują
+`NULL` jako „nie liczy się do aktywnych/do powrotu", nigdy jako zero.
+
+**Dana osobowa — w eksporcie RODO.** `App\Domain\Users\Exports
+\CollectUserExportData` przepisuje ją do paczki jako `konto.ostatnio_widziany`
+z tego samego powodu co `usuniecie_konta_zgloszone` obok niej.
+
+**Zerowana przy anonimizacji konta.** `App\Domain\Users\Actions
+\EraseAccountData::handle()` ustawia tę kolumnę na `NULL` w tym samym
+`forceFill()`, który anonimizuje e-mail i hasło — `resources/legal
+/polityka-prywatnosci.md` (sekcja 2) obiecuje wprost, że ten znacznik znika
+wraz z usunięciem/anonimizacją konta, więc kod musi to robić, nie tylko
+dokument to twierdzić (`tests/Feature/AccountDeletionPurgeTest.php` pilnuje
+tego assercją).
+
+**Rollback:** bezpieczny bez zastrzeżeń. Kolumna jest WYŁĄCZNIE czytana przez
+raport — żadna reguła autoryzacji, limitu ani widoczności jej nie używa.
+`down()` kasuje indeks i kolumnę; jedyny skutek to utrata najnowszego
+znacznika dla każdego konta, a middleware odbuduje go od nowa przy
+najbliższej wizycie.
+
 ### follows
 `follower_id + followed_id` unique.
 
