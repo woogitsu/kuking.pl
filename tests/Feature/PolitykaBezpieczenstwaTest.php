@@ -335,10 +335,21 @@ class PolitykaBezpieczenstwaTest extends TestCase
         // Zgłoszenie CSP to kilkaset bajtów. Wszystko powyżej ośmiu kilobajtów
         // to albo pomyłka, albo próba zapchania logu. Przyjmujemy grzecznie
         // i wyrzucamy do kosza, zamiast parsować.
+        //
+        // TEN TEST PYTA O LOG, NIE O KOD ODPOWIEDZI. Endpoint oddaje 204
+        // ZAWSZE I BEZWARUNKOWO (patrz `CspReportController::__invoke()`),
+        // więc `assertNoContent()` przechodzi także wtedy, gdy limit zniknął
+        // i dwadzieścia tysięcy znaków wylądowało w dzienniku. Zmierzone:
+        // po podniesieniu `LIMIT_BAJTOW` z 8192 na 8192000 cały ten plik
+        // był dalej zielony.
+        $log = Log::spy();
+
         $ogromne = json_encode(['csp-report' => ['document-uri' => str_repeat('a', 20000)]]);
 
         $this->call('POST', route('csp.report'), [], [], [], [], $ogromne)
             ->assertNoContent();
+
+        $log->shouldNotHaveReceived('info');
     }
 
     public function test_smiec_zamiast_zgloszenia_nie_wywala_serwera(): void
