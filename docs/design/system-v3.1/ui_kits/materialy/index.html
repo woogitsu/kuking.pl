@@ -1,0 +1,176 @@
+<!-- @dsCard group="Materiały" viewport="1200x850" name="Plansze i druk" subtitle="Kwadrat 1080, pion 1080×1350, podgląd linku 1200×630, ulotka A4, wizytówka, naklejka" -->
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuking.pl — plansze i materiały drukowane</title>
+<link rel="icon" href="../../assets/logo/kuking-favicon.svg">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+body{margin:0;padding:24px;background:var(--color-surface-sunken);font-family:var(--font-sans);color:var(--color-ink)}
+.siatka{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.slot{display:grid;gap:8px}
+.slot > .et{font-size:13px;font-weight:700;color:var(--color-ink-muted)}
+.mini{overflow:hidden;border-radius:var(--radius-md)}
+.mini > *{transform-origin:top left}
+</style>
+</head>
+<body>
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.5a3 3 0 0 1 0 5.5"/><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"/></symbol>
+  <symbol id="ikona-garnek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 8.5h15V14c0 3.6-2.4 6-7.5 6s-7.5-2.4-7.5-6Z"/><path d="M4.5 10.5C2.8 10.5 2 11.4 2 12.7c0 1.4 1 2.3 2.5 2.3"/><path d="M19.5 10.5c1.7 0 2.5.9 2.5 2.2 0 1.4-1 2.3-2.5 2.3"/><path d="M8 5.5c0-1 .8-1.5 1.5-1.5M12 4.5c0-1 .8-1.5 1.5-1.5"/></symbol>
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <mask id="wyciecie-plansz" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect x="0" y="0" width="64" height="64" fill="#FFFFFF"></rect>
+      <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="#000000" stroke-width="3.5" stroke-linecap="round"></path>
+      <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round"></path>
+    </mask>
+    <g mask="url(#wyciecie-plansz)" fill="currentColor" stroke="currentColor">
+      <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" stroke-width="2" stroke-linejoin="round"></path>
+      <circle cx="16" cy="14" r="3.5" stroke="none"></circle><circle cx="32" cy="9" r="3.5" stroke="none"></circle><circle cx="48" cy="14" r="3.5" stroke="none"></circle>
+      <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" stroke="none"></path>
+      <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke-width="5" stroke-linecap="round"></path>
+      <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke-width="5" stroke-linecap="round"></path>
+    </g>
+  </symbol>
+</svg>
+
+<div class="siatka">
+
+  <div class="slot">
+    <span class="et">Kwadrat A · 1080 × 1080 · hasło</span>
+    <div class="mini" style="width:340px;height:340px">
+      <div class="plansza r-kwadrat plansza-wash" style="transform:scale(0.3148)">
+        <div class="plansza-tresc plansza-tresc-rozsun plansza-cytat">
+          <div class="plansza-lockup"><svg class="plansza-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="plansza-lockup-koncowka">.pl</span></span></div>
+          <p class="plansza-tytul">Przepis jest dobry, kiedy ktoś go ugotował.</p>
+          <div class="plansza-stopka"><p class="plansza-meta">Polski serwis domowego gotowania</p><p class="plansza-adres">kuking.pl</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot">
+    <span class="et">Kwadrat B · 1080 × 1080 · przepis w skrócie</span>
+    <div class="mini" style="width:340px;height:340px">
+      <div class="plansza r-kwadrat" style="transform:scale(0.3148)">
+        <div class="plansza-fotoblok foto-kwadrat-gora">
+          <img class="plansza-foto" src="../../assets/photos/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką">
+        </div>
+        <div class="plansza-tresc plansza-tresc-luzna plansza-tresc-rozsun">
+          <div>
+            <p class="plansza-tytul plansza-tytul-mniejszy">Pierogi ruskie po babci Halinie</p>
+            <p class="plansza-dane"><span><svg aria-hidden="true"><use href="#ikona-zegar"></use></svg>90 minut</span><span><svg aria-hidden="true"><use href="#ikona-porcje"></use></svg>6 porcji</span></p>
+            <ul class="plansza-lista plansza-lista-dwie">
+              <li>3 szklanki mąki</li><li>1 kg ziemniaków</li>
+              <li>szklanka gorącej wody</li><li>40 dag twarogu</li>
+              <li>2 duże cebule</li><li>sól i sporo pieprzu</li>
+            </ul>
+          </div>
+          <div class="plansza-stopka">
+            <div class="plansza-lockup"><svg class="plansza-znak plansza-znak-maly" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="plansza-lockup-koncowka">.pl</span></span></div>
+            <p class="plansza-adres">kuking.pl</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot">
+    <span class="et">Pion · 1080 × 1350 · Ugotowałem</span>
+    <div class="mini" style="width:288px;height:360px">
+      <div class="plansza r-pion" style="transform:scale(0.2667)">
+        <div class="plansza-fotoblok foto-pion-gora">
+          <img class="plansza-foto" src="../../assets/photos/pizza.png" alt="Pizza upieczona w domowym piekarniku">
+          <span class="plansza-plakietka"><svg class="plansza-plakietka-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>Ugotowałem</span>
+          <div class="plansza-podklad">
+            <p class="plansza-napis">Pizza z pieca w ogrodzie</p>
+            <p class="plansza-podpis">Ugotowała Basia, z przepisu Piotra</p>
+          </div>
+        </div>
+        <div class="plansza-pasek">
+          <div class="plansza-lockup"><svg class="plansza-znak plansza-znak-maly" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="plansza-lockup-koncowka">.pl</span></span></div>
+          <p class="plansza-adres">kuking.pl</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot">
+    <span class="et">Podgląd linku · 1200 × 630</span>
+    <div class="mini" style="width:420px;height:220.5px">
+      <div class="plansza r-link" style="transform:scale(0.35)">
+        <div class="plansza-dwie">
+          <div class="plansza-tresc plansza-tresc-srodek">
+            <div class="plansza-lockup"><svg class="plansza-znak plansza-znak-maly" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="plansza-lockup-koncowka">.pl</span></span></div>
+            <p class="plansza-tytul plansza-tytul-mniejszy">Pokaż, co dziś ugotowałeś.</p>
+            <p class="plansza-lead">Twój zeszyt z przepisami i ludzie, którzy naprawdę gotują.</p>
+          </div>
+          <div class="plansza-panel-foto plansza-link-foto">
+            <img class="plansza-foto" src="../../assets/photos/pierogi.png" alt="Talerz pierogów">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot">
+    <span class="et">Ulotka A4 · 210 × 297 mm · biblioteki, domy kultury, koła gospodyń</span>
+    <div class="mini" style="width:248px;height:351px">
+      <div class="arkusz a4" style="transform:scale(0.3125)">
+        <div class="arkusz-foto foto-ulotka"><img class="plansza-foto" src="../../assets/photos/pierogi.png" alt="Talerz pierogów"></div>
+        <div class="arkusz-tresc arkusz-tresc-rozsun">
+          <div class="stos-arkusza">
+            <h1 class="arkusz-h1">Przepisy giną razem z zeszytami.</h1>
+            <p class="arkusz-lead">Kuking to miejsce, w którym przepis po babci zostaje spisany i nie ginie przy przeprowadzce.</p>
+            <ul class="arkusz-lista">
+              <li>Zapisujesz przepis i zawsze go znajdziesz</li>
+              <li>Piszesz, po kim on jest — to najczęściej czytana część</li>
+              <li>Bez rankingów, bez punktów, bez reklam między daniami</li>
+              <li>Tekst da się powiększyć na stałe, w ustawieniach konta</li>
+            </ul>
+          </div>
+          <div class="stos-arkusza-gesty">
+            <p class="arkusz-h2">Wejdź i przeczytaj. Do czytania nie trzeba konta.</p>
+            <p class="arkusz-adres">kuking.pl</p>
+          </div>
+        </div>
+        <div class="arkusz-pasek">
+          <div class="arkusz-lockup"><svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="arkusz-lockup-koncowka">.pl</span></span></div>
+          <p class="arkusz-tekst arkusz-tekst-cichy">Prowadzimy to na własną rękę.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slot">
+    <span class="et">Wizytówka · 90 × 50 mm</span>
+    <div class="mini" style="width:255px;height:142px">
+      <div class="arkusz wizytowka" style="transform:scale(0.75)">
+        <div class="arkusz-tresc arkusz-tresc-ciasna arkusz-tresc-rozsun">
+          <div class="arkusz-lockup"><svg class="arkusz-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg><span>KuKing<span class="arkusz-lockup-koncowka">.pl</span></span></div>
+          <div class="stos-arkusza-gesty">
+            <p class="arkusz-tekst">Polski serwis domowego gotowania.</p>
+            <p class="arkusz-adres">kuking.pl</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="et">Naklejka · 60 × 60 mm</span>
+    <div class="mini" style="width:170px;height:170px">
+      <div class="arkusz naklejka" style="transform:scale(0.75)">
+        <div class="arkusz-tresc arkusz-tresc-ciasna arkusz-tresc-srodek">
+          <div class="stos-arkusza">
+            <svg class="arkusz-znak arkusz-znak-duzy" style="color:var(--color-brand)" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+            <p class="arkusz-adres">kuking.pl</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

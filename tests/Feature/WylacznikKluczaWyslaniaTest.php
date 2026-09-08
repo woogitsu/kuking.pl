@@ -9,7 +9,10 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\NumerSprawy;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -58,6 +61,35 @@ class WylacznikKluczaWyslaniaTest extends TestCase
             'visibility' => 'public',
             'published_at' => now()->subDay(),
         ]);
+    }
+
+    private function wpisDoZgloszenia(User $autor): Post
+    {
+        return Post::factory()->for($autor, 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => 'public',
+            'published_at' => now()->subDay(),
+        ]);
+    }
+
+    /**
+     * Identyfikatory, które przy surowym `INSERT` musi podać test.
+     *
+     * Surowy `INSERT` omija model, więc nie działa ani `HasUuids`, ani hak
+     * nadający numer sprawy — a `reports.numer_sprawy` jest `NOT NULL`
+     * i UNIQUE (D-029). Numer jest tu za każdym razem inny celowo: przy dwóch
+     * wierszach z tym samym numerem odbiłby się indeks numeru sprawy, a test
+     * niżej sprawdza zupełnie inne ograniczenie i przeszedłby z niewłaściwego
+     * powodu. Ten sam wzorzec, co w `IdempotencjaZgloszeniaTest`.
+     *
+     * @return array{id: string, numer_sprawy: string}
+     */
+    private function identyfikatory(): array
+    {
+        return [
+            'id' => (string) Str::uuid7(),
+            'numer_sprawy' => NumerSprawy::wygeneruj(),
+        ];
     }
 
     /**
@@ -327,34 +359,127 @@ class WylacznikKluczaWyslaniaTest extends TestCase
     }
 
     /**
-     * Wyłącznik NIE cofa `reports_one_open_per_pair` — i to jest zapisane
-     * w `docs/DATABASE.md` oraz w `config/kuking.php`. Gdyby ktoś kiedyś
-     * „uprościł" wyłącznik tak, żeby zdejmował także tamten indeks, ten test
-     * powie o tym od razu.
+     * Wyłącznik NIE cofa indeksu `reports_one_open_per_pair` — i to jest
+     * zapisane w `docs/DATABASE.md` oraz w `config/kuking.php`. Gdyby ktoś
+     * kiedyś „uprościł" wyłącznik tak, żeby zdejmował także tamten indeks,
+     * ten test powie o tym od razu.
+     *
+     * DLACZEGO NIE PRZEZ KONTROLER — ZMIERZONE
+     * Poprzednia wersja tego testu wysyłała dwa razy `reports.store`
+     * i asertowała jeden wiersz w `reports`. Ta droga nie dotyka indeksu ANI
+     * RAZU: `ReportContent::handle()` NAJPIERW robi `SELECT`
+     * (`otwarteZgloszenie()`) i przy drugim żądaniu oddaje istniejący wiersz,
+     * w ogóle nie próbując `INSERT`-a. Po `DROP INDEX reports_one_open_per_pair`
+     * tamten test dalej byłby zielony — czyli obiecywał ochronę, której nie
+     * mierzył. Dokładnie ten rodzaj obietnicy bez pokrycia, przed którym
+     * ostrzega nagłówek tego pliku.
+     *
+     * Dlatego drugi wiersz wstawiamy SUROWO, z pominięciem akcji — tak samo
+     * jak `IdempotencjaZgloszeniaTest`. To jest zresztą ta sama droga, dla
+     * której ten indeks w ogóle powstał: seeder, komenda konsolowa i przyszły
+     * endpoint nie przechodzą przez `SELECT` w PHP i o nim nie wiedzą
+     * (migracja `2026_09_07_900000_one_open_report_per_pair`).
+     *
+     * Sprawdzamy NAZWĘ indeksu w komunikacie, a nie sam typ wyjątku: tabela
+     * `reports` ma dziś kilka ograniczeń unikalności i „jakiś wyjątek" nie
+     * dowodzi niczego.
      */
-    public function test_wylacznik_nie_cofa_ochrony_zgloszen_z_konta(): void
+    public function test_wylacznik_nie_cofa_indeksu_jednego_otwartego_zgloszenia_na_pare(): void
     {
         config([self::KLUCZ_KONFIGURACJI => false]);
 
         $zglaszajaca = $this->user('zglaszajaca');
-        $wpis = Post::factory()->for($this->user('autorwpisu'), 'author')->create([
-            'status' => Post::STATUS_PUBLISHED,
-            'visibility' => 'public',
-            'published_at' => now()->subDay(),
-        ]);
+        $wpis = $this->wpisDoZgloszenia($this->user('autorwpisu'));
+
+        // Bez `klucz_wyslania` — i to jest celowe. Wiersz z `NULL` w tej
+        // kolumnie jest poza indeksem `reports_one_per_klucz_wyslania`
+        // (częściowy, `WHERE klucz_wyslania IS NOT NULL`), więc odbić się tu
+        // może wyłącznie indeks pary. Tak też wygląda wiersz po wyłączeniu
+        // mechanizmu.
+        $wiersz = [
+            'reporter_id' => $zglaszajaca->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'reason' => 'spam',
+            'status' => Report::STATUS_OPEN,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        DB::table('reports')->insert($this->identyfikatory() + $wiersz);
+
+        // ASERCJE KONTROLNE. Bez nich test przechodziłby także wtedy, gdyby
+        // pierwszy wiersz w ogóle nie wszedł albo wszedł POZA warunek indeksu
+        // częściowego (`reporter_id IS NOT NULL AND status IN
+        // ('open','triage','reviewing')`) — a wtedy wyjątek niżej miałby
+        // zupełnie inne źródło niż to, co ten test nazywa.
+        $this->assertSame(
+            1,
+            Report::query()->whereNotNull('reporter_id')->where('status', Report::STATUS_OPEN)->count(),
+            'Pierwszy wiersz nie wszedł albo wszedł poza warunek indeksu — test niżej nic by nie mierzył.',
+        );
+        $this->assertSame(
+            0,
+            Report::query()->whereNotNull('klucz_wyslania')->count(),
+            'Wiersz niesie klucz wysłania, więc odbić się może indeks klucza, a nie indeks pary.',
+        );
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessageMatches('/reports_one_open_per_pair/');
+
+        DB::table('reports')->insert($this->identyfikatory() + $wiersz);
+    }
+
+    /**
+     * Wyłącznik nie cofa też DEDUPLIKACJI W AKCJI — to osobna, słabsza
+     * ochrona niż indeks z testu wyżej i warto wiedzieć, że przeżywa
+     * przełączenie wyłącznika.
+     *
+     * UWAGA NA ZAKRES, ŻEBY NIKT NIE PRZECZYTAŁ TEGO SZERZEJ, NIŻ JEST:
+     * ten test idzie przez `reports.store`, więc mierzy `SELECT`
+     * w `ReportContent::handle()` (`otwarteZgloszenie()`), a NIE indeks
+     * `reports_one_open_per_pair`. Drugie żądanie dostaje istniejący wiersz,
+     * zanim w ogóle dojdzie do `INSERT`-a, więc po `DROP INDEX` ten test dalej
+     * byłby zielony. Indeksu pilnuje test wyżej i tylko on.
+     */
+    public function test_wylacznik_nie_cofa_deduplikacji_zgloszen_w_akcji(): void
+    {
+        config([self::KLUCZ_KONFIGURACJI => false]);
+
+        $zglaszajaca = $this->user('zglaszajaca');
+        $wpis = $this->wpisDoZgloszenia($this->user('autorwpisu'));
 
         $adres = route('reports.store', ['type' => 'post', 'id' => $wpis->getKey()]);
         $tresc = ['reason' => 'spam', 'details' => 'To jest reklama sklepu, nie przepis.'];
 
-        $this->actingAs($zglaszajaca)->post($adres, $tresc);
+        $pierwsze = $this->actingAs($zglaszajaca)->post($adres, $tresc);
         $drugie = $this->actingAs($zglaszajaca)->post($adres, $tresc);
 
+        // ASERCJA KONTROLNA (1): oba żądania naprawdę zostały przyjęte. Bez
+        // tego jeden wiersz znaczyłby także „drugie żądanie odbiła walidacja
+        // albo bramka widoczności" — czyli coś zupełnie innego niż dedup.
+        $pierwsze->assertSessionHasNoErrors();
         $drugie->assertSessionHasNoErrors();
+
+        // ASERCJA KONTROLNA (2): wyłącznik naprawdę jest wyłączony, więc
+        // jeden wiersz to zasługa `SELECT`-a w akcji, a nie klucza wysłania.
+        $this->assertSame(
+            0,
+            Report::query()->whereNotNull('klucz_wyslania')->count(),
+            'Kolumna dostała wartość mimo wyłącznika — jeden wiersz tłumaczyłby wtedy klucz, nie dedup w akcji.',
+        );
 
         $this->assertSame(
             1,
             Report::query()->count(),
-            'Wyłącznik klucza wysłania zdjął także ochronę, która od niego nie zależy.',
+            'Wyłącznik klucza wysłania zdjął także deduplikację w akcji, która od niego nie zależy.',
         );
+
+        // I że to jest sprawa TEJ pary, a nie przypadkowy wiersz.
+        $sprawa = Report::query()->firstOrFail();
+
+        $this->assertSame($zglaszajaca->getKey(), $sprawa->reporter_id);
+        $this->assertSame('post', $sprawa->target_type);
+        $this->assertSame($wpis->getKey(), $sprawa->target_id);
     }
 }

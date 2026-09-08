@@ -1,0 +1,68 @@
+[
+  {
+    "file": "03-szablony/dodaj-przepis-krok-1.html",
+    "main_form_id": "przepis-krok-1",
+    "file_inputs": 1,
+    "multipart": true,
+    "rail_form_association": "przepis-krok-1",
+    "rail_action": "dodaj-przepis-krok-1.html",
+    "draft_bypasses_required_validation": true,
+    "draft_action_value": "szkic",
+    "draft_input_names": [
+      "nazwa",
+      "zdjecie",
+      "opis",
+      "porcje",
+      "przygotowanie",
+      "gotowanie",
+      "poziom",
+      "poziom",
+      "poziom",
+      "widocznosc",
+      "widocznosc",
+      "widocznosc"
+    ]
+  },
+  {
+    "file": "03-szablony/dodaj-przepis-krok-2.html",
+    "main_form_id": "przepis-krok-2",
+    "file_inputs": 0,
+    "multipart": false,
+    "rail_form_association": "przepis-krok-2",
+    "rail_action": "dodaj-przepis-krok-2.html",
+    "draft_bypasses_required_validation": true,
+    "draft_action_value": "szkic",
+    "draft_input_names": [
+      "skladnik[]",
+      "skladnik[]",
+      "skladnik[]",
+      "skladnik[]",
+      "skladnik[]",
+      "skladnik[]",
+      "skladnik[]"
+    ]
+  },
+  {
+    "file": "03-szablony/dodaj-przepis-krok-3.html",
+    "main_form_id": "przepis-krok-3",
+    "file_inputs": 1,
+    "multipart": true,
+    "rail_form_association": "przepis-krok-3",
+    "rail_action": "dodaj-przepis-krok-3.html",
+    "draft_bypasses_required_validation": true,
+    "draft_action_value": "szkic",
+    "draft_input_names": [
+      "krok[]",
+      "krok[]",
+      "krok[]",
+      "krok[]",
+      "pochodzenie",
+      "pochodzenie",
+      "pochodzenie",
+      "po_kim",
+      "historia",
+      "od_roku",
+      "skan"
+    ]
+  }
+]

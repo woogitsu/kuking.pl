@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Dokument prawny" description="Długi dokument do czytania: kolumna 38rem, spis treści na kotwicach, tabela we własnym pudełku" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div class="strona">
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+<header class="pas pas-gorny" style="padding-block:0">
+<div class="pas-wnetrze pas-gorny-wnetrze">
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.Wordmark" href="#powitalna" hint-size="170px,40px"></x-import>
+<nav class="pas-gorny-akcje" aria-label="Dokumenty">
+<a class="btn btn-quiet" href="#prywatnosc" aria-current="page">Prywatność</a>
+<a class="btn btn-quiet" href="#regulamin">Regulamin</a>
+<a class="btn btn-quiet" href="#zasady">Zasady</a>
+</nav>
+</div>
+</header>
+<main class="tresc" id="tresc">
+<section class="pas">
+<div class="pas-wnetrze">
+<div class="tekst-czytany">
+<h1 class="text-title-lg">Prywatność</h1>
+<p class="lead">Krótko: zbieramy tyle, ile trzeba, żeby serwis działał. Nic poza tym i nikomu tego nie sprzedajemy.</p>
+<p class="meta">Obowiązuje od 1 października 2026</p>
+<nav class="card odstep-nad" aria-label="Spis treści">
+<p class="pomoc" style="margin-bottom:var(--spacing-3)">Co jest w tym dokumencie:</p>
+<ul style="list-style:disc;padding-inline-start:var(--spacing-6);display:grid;gap:var(--spacing-2)">
+<li><a href="#co-zbieramy">Co zbieramy</a></li>
+<li><a href="#czego-nie">Czego nie zbieramy</a></li>
+<li><a href="#kto-widzi">Kto widzi to, co dodajesz</a></li>
+<li><a href="#kontakt">Jak się z nami skontaktować</a></li>
+</ul>
+</nav>
+<section class="odstep-nad" id="co-zbieramy">
+<h2>Co zbieramy</h2>
+<p>Adres e-mail, nazwę, którą sam wybierasz, i to, co dodajesz do serwisu: zdjęcia, wpisy, przepisy, komentarze.</p>
+<p class="pomoc">Co dokładnie, po co i jak długo to trzymamy.</p>
+<div class="tabela-otoczka">
+<table class="tabela">
+<thead><tr><th scope="col">Dane</th><th scope="col">Po co</th><th scope="col">Jak długo</th></tr></thead>
+<tbody>
+<tr><td>Adres e-mail</td><td>Logowanie i odzyskanie hasła</td><td>Do usunięcia konta</td></tr>
+<tr><td>Nazwa w serwisie</td><td>Podpis pod tym, co dodajesz</td><td>Do usunięcia konta</td></tr>
+<tr><td>Adres IP</td><td>Zabezpieczenie przed nadużyciami</td><td>90 dni</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="odstep-nad" id="czego-nie">
+<h2>Czego nie zbieramy</h2>
+<p>Nie pytamy o numer telefonu, datę urodzenia, płeć ani adres zamieszkania. Nie mamy ich i nie chcemy mieć.</p>
+<p>Nie ma tu narzędzi śledzących z zewnątrz: żadnego piksela, żadnej reklamy, żadnej mapy ciepła.</p>
+</section>
+<section class="odstep-nad" id="kto-widzi">
+<h2>Kto widzi to, co dodajesz</h2>
+<p>Przy każdym wpisie i przepisie sam wybierasz, kto go widzi: wszyscy, tylko osoby, które Cię obserwują, albo tylko Ty.</p>
+<p>Zeszyt jest prywatny zawsze, dopóki sam nie postanowisz inaczej.</p>
+</section>
+<section class="odstep-nad" id="kontakt">
+<h2>Jak się z nami skontaktować</h2>
+<p>Napisz na kontakt@kuking.pl. Wiadomość czyta ten sam człowiek, który prowadzi serwis, więc odpowiedź czasem przychodzi następnego dnia.</p>
+</section>
+</div>
+</div>
+</section>
+</main>
+<x-import component-from-global-scope="KukingPlSystemProjektowy_a664d7.SiteFooter" class="stopka-www" hint-size="100%,140px"></x-import>
+</div>
+
+</x-dc>
+</body>
+</html>

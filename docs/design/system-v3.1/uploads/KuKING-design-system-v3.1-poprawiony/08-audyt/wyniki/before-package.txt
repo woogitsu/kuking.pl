@@ -1,0 +1,20 @@
+Sprawdzono plików: 60
+
+BŁĘDY (twarde reguły): 0
+
+Do przejrzenia (dokumentacja): 13
+  00-decyzje/CZEGO-NIE-ZMIENIAM.md:-  [słowo zakazane: „dla starszych" (1×)]  dla starszych
+  01-fundamenty/KOLOR.md:-  [słowo zakazane: „dla starszych" (1×)]  dla starszych
+  01-fundamenty/SIATKA.md:-  [słowo zakazane: „content" (1×)]  -content
+  02-komponenty/KOMPONENTY.md:-  [słowo zakazane: „content" (1×)]  -content
+  04-strona-www/STRONA-WWW.md:-  [słowo zakazane: „content" (1×)]  -content
+  07-wdrozenie/LISTA-KONTROLNA-A11Y.md:-  [słowo zakazane: „content" (2×)]  -content · „content
+  07-wdrozenie/LISTA-KONTROLNA-A11Y.md:-  [słowo zakazane: „senior" (1×)]  „senior
+  07-wdrozenie/LISTA-KONTROLNA-A11Y.md:-  [słowo zakazane: „dla starszych" (1×)]  „dla starszych
+  07-wdrozenie/LISTA-KONTROLNA-A11Y.md:-  [słowo zakazane: „intuicyjny" (1×)]  „intuicyjny
+  07-wdrozenie/WDROZENIE.md:-  [słowo zakazane: „content" (2×)]  -content · „content
+  07-wdrozenie/WDROZENIE.md:-  [słowo zakazane: „odznaka" (1×)]  `odznaka
+  07-wdrozenie/WDROZENIE.md:-  [słowo zakazane: „ranking użytkowników" (1×)]  `ranking użytkowników
+  07-wdrozenie/ZMIANY-TOKENOW.md:-  [słowo zakazane: „content" (3×)]  -content ·  content · (content
+
+Wszystkie twarde reguły przechodzą.

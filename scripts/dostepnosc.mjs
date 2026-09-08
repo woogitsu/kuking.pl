@@ -171,7 +171,7 @@ const EKRANY = [
   /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
-   * przy 320 px i przy tekście 150% ma największą szansę wypchnąć całą
+   * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
    * stronę w bok, gdy tabela nie ma własnego przewijania (issue #80).
    */
   { nazwa: 'polityka prywatności', adres: '/prywatnosc' },
@@ -191,7 +191,7 @@ const EKRANY_UKLADU = [
   { nazwa: 'powiadomienia', adres: '/powiadomienia', zalogowany: true },
   // Ekran autora: kolejność zdjęć i wybór wyglądu (issue #92). Miniatura,
   // dwa przyciski „w górę / w dół" i trzy kafelki wyboru w jednym wierszu —
-  // to jest układ, który przy 320 px i tekście 150% ma najwięcej okazji,
+  // to jest układ, który przy 320 px i tekście 140% ma najwięcej okazji,
   // żeby wypchnąć stronę w bok.
   { nazwa: 'kolejność i wygląd zdjęć', adres: null, znajdz: 'wpis:carousel:zdjecia', zalogowany: true },
 ];
@@ -201,11 +201,27 @@ const EKRANY_UKLADU = [
  *
  * 320 px to minimum z WCAG 2.2 AA, kryterium 1.4.10 (Reflow). 360 i 414 to
  * dwa najczęstsze telefony, 768 to tablet w pionie i próg tuż pod układem
- * dwukolumnowym. Skala tekstu 150% jest tu obowiązkowa, bo nasza grupa
+ * dwukolumnowym. Skala tekstu 140% jest tu obowiązkowa, bo nasza grupa
  * realnie ją włącza — a to przy niej belka pękała najbrzydziej.
  */
 const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768];
-const SKALE_UKLADU = SZYBKO ? [null] : [null, 150];
+/* 140, NIE 150 — i to jest poprawka błędu, który sam wprowadziłem.
+ *
+ * Do 8 września arkusz znał skale 112/125/150, a konfiguracja oferowała
+ * 100/112/125/140. Poprawka rozjazdu usunęła martwą regułę dla 150 i dołożyła
+ * brakującą dla 140 — ale TA linijka została przy 150. Skutek: atrybut
+ * `data-text-scale="150"` nie trafiał już na żadną regułę, `--user-text-scale`
+ * zostawał przy 1, i cały przebieg „320/360/414/768 px × tekst 140%" był bit
+ * w bit taki sam jak przebieg bez skalowania.
+ *
+ * Czyli najmocniejszy pomiar przepełnienia w tym projekcie — ten, który
+ * powstał po issue #80 — przez chwilę nie dokładał niczego, świecąc na
+ * zielono. Dokładnie ta klasa usterki, której ten plik ma pilnować.
+ *
+ * 140 to maksimum, jakie CHECK w migracji `users` w ogóle dopuszcza
+ * (`text_scale BETWEEN 90 AND 140`), więc jest to zarazem najgorszy przypadek,
+ * jaki człowiek może sobie ustawić. */
+const SKALE_UKLADU = SZYBKO ? [null] : [null, 140];
 
 /*
  * `skalaTekstu` ustawiamy atrybutem na <html>, tak samo jak robi to layout
@@ -443,7 +459,8 @@ const wpisyPoTrybie = (() => {
 })();
 
 /*
- * Decyzja moderacyjna, od której `basia` może się odwołać (issue #10).
+ * Decyzja moderacyjna, od której może się odwołać konto, którym ten automat
+ * się loguje — `KONTO_ZALOGOWANE`, czyli dziś `ania` (issue #10).
  *
  * DemoSeeder NIE tworzy żadnej `ModerationAction` — sprawdzone przez
  * `grep -n ModerationAction database/seeders/DemoSeeder.php`, zero wyników.
@@ -458,11 +475,29 @@ const wpisyPoTrybie = (() => {
  * (bez świeżego `migrate:fresh`) — drugie uruchomienie znajdzie ten sam
  * wiersz zamiast dokładać kolejny.
  *
- * `warn` na `recipe`: jest w `ODWOLYWALNE` (da się odwołać) i w `DOZWOLONE`
- * dla przepisu, a przy przepisie basi (znaleziony wyżej jako `adresPrzepisu`,
- * o ile jest jej autorstwa — w przeciwnym razie bierzemy dowolny jej wpis)
- * nie zmienia widoczności treści, więc nie kolidujemy z żadnym innym
- * ekranem, który tę samą treść ogląda.
+ * `warn` jest w `ODWOLYWALNE` (da się od niego odwołać) i w `DOZWOLONE` dla
+ * każdego typu celu, który tu wchodzi w grę, a przy tym nie zmienia
+ * widoczności treści — więc nie kolidujemy z żadnym innym ekranem, który
+ * tę samą treść ogląda.
+ *
+ * TYP CELU LICZYMY Z TEGO, CO NAPRAWDĘ ZNALEŹLIŚMY. Stało tu na sztywno
+ * `'target_type' => 'recipe'`, a `DemoSeeder` nie daje temu kontu ANI
+ * JEDNEGO przepisu: `Recipe::create` jest tam wyłącznie dla `basia`
+ * (rosół) i `marek` (chleb) — sprawdzone
+ * `grep -n 'Recipe::create' database/seeders/DemoSeeder.php`, dwa
+ * wystąpienia, oba cudze. Automat zawsze wpadał więc w gałąź `Post`
+ * i zapisywał identyfikator WPISU opisany jako przepis. Ekran odwołania
+ * dziś tego nie pokazuje, ale pierwszy ekran, który zechce wyświetlić
+ * zgłoszoną treść, dostałby `null`.
+ *
+ * Dopuszczalne wartości `target_type` to klucze `ModerationAction::DOZWOLONE`
+ * (`user`, `post`, `recipe`, `comment`, `cooked_event`). W bazie ta kolumna
+ * jest zwykłym `varchar(30)` bez CHECK-a (CHECK ma tylko `reports`), więc
+ * pomyłki nie łapało nic.
+ *
+ * Ostatnia deska ratunku to samo konto (`user`, `target_id` równe jego `id`):
+ * `warn` jest dla `user` dozwolony, a taki cel ISTNIEJE — inaczej niż losowy
+ * UUID, który stał tu wcześniej i z definicji nie wskazywał niczego.
  */
 const idOdwolania = (() => {
   const id = execFileSync('php', ['artisan', 'tinker', '--execute',
@@ -474,14 +509,17 @@ const idOdwolania = (() => {
     + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
     + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
     + "if (!$a) { "
-    + "$cel = App\\Models\\Recipe::where('author_id',$b)->value('id') "
-    + "?? App\\Models\\Post::where('author_id',$b)->value('id') "
-    + "?? (string) Illuminate\\Support\\Str::uuid(); "
-    + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>'recipe',"
+    + "$przepis = App\\Models\\Recipe::where('author_id',$b)->value('id'); "
+    + "$wpis = $przepis ? null : App\\Models\\Post::where('author_id',$b)->value('id'); "
+    + "$cel = $przepis ?? $wpis ?? $b; "
+    + "$typ = $przepis ? 'recipe' : ($wpis ? 'post' : 'user'); "
+    + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>$typ,"
     + "'target_id'=>$cel,'subject_user_id'=>$b,'action'=>'warn','reason_code'=>'niezgodne_z_zasadami',"
     + "'note'=>'Utworzone przez automat dostępności (scripts/dostepnosc.mjs) do zmierzenia ekranu odwołania.',"
-    + "'user_message'=>'Ten przepis reklamował konkretny sklep, co jest niezgodne z naszymi zasadami. "
-    + "Poprawiliśmy opis i przepis zostaje widoczny — to ostrzeżenie zapisujemy do wiadomości.']); "
+    // Komunikat bez słowa „przepis": ta sama decyzja dotyczy dziś wpisu,
+    // a przy innej zawartości bazy — przepisu albo konta.
+    + "'user_message'=>'Ta treść reklamowała konkretny sklep, co jest niezgodne z naszymi zasadami. "
+    + "Poprawiliśmy opis i treść zostaje widoczna — to ostrzeżenie zapisujemy do wiadomości.']); "
     + "} echo $a->getKey();",
   ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString().trim();
@@ -985,15 +1023,47 @@ if (karuzelaBezJs) {
    Nie „czy logotyp jest przy nawigacji" (to wymagałoby innego punktu odniesienia
    na każdym ekranie i przy każdej szerokości), tylko regułę ogólniejszą:
 
-       wewnętrzne krawędzie belki == wewnętrzne krawędzie `.app-body`
+       wewnętrzne krawędzie belki == wewnętrzne krawędzie kolumny treści
 
    Kolumny siatki zaczynają się i kończą dokładnie na tych krawędziach, więc
    z tej jednej równości wynikają obie rzeczy naraz — logotyp nad nawigacją
    (albo nad treścią, gdy nawigacji nie ma) i akcje nad prawą szyną (albo nad
    prawą krawędzią treści, gdy szyna zeszła pod spód).
 
+   CZYM JEST „KOLUMNA TREŚCI" — DWA PRZYPADKI, JEDNA REGUŁA
+   Do 8 września istniał jeden: `.app-body`, czyli siatka ekranu. Od dziś
+   strona powitalna stoi na PASACH — sekcjach na całą szerokość okna, w których
+   szerokość treści pilnuje `.pas-wnetrze`. Na takiej stronie `.app-body` NIE
+   JEST kolumną treści: rozciąga się od krawędzi do krawędzi okna, bo to pas
+   ma własne tło i musi tam dojść.
+
+   Punktem odniesienia jest więc `.pas-wnetrze`, gdy strona je ma, a `.app-body`
+   w pozostałych przypadkach. To NIE JEST poluzowanie sprawdzenia — mierzona
+   jest dokładnie ta sama rzecz (krawędź, przy której zaczyna się pierwsze
+   słowo treści), tylko odczytana z elementu, który tę krawędź naprawdę
+   wyznacza. Sprawdzenie dalej pada, gdy belka i treść się rozjadą.
+
+   Zmierzone na przebiegu 168, PRZED tą poprawką: automat oczekiwał logotypu
+   na 0 px przy każdej szerokości, bo `.app-body` zaczyna się teraz w zerze.
+   Zgłosił rozjazd 24 px przy 1024, 144 px przy 1280 i 260 px przy 1512 —
+   a to są DOKŁADNIE lewe krawędzie pasa przy tych szerokościach
+   ((1512 − 1040) / 2 + 24 = 260). Belka licowała co do piksela; złe było
+   odniesienie, nie układ.
+
    Poniżej 64rem nie mierzymy: nie ma tam ani nawigacji bocznej, ani szyny,
    a belce wolno zawijać akcje do drugiego wiersza (issue #80).
+
+   DRUGA REGUŁA W TYM SAMYM POMIARZE: POLE „SZUKAJ" NAD KOLUMNĄ CZYTANIA
+   Krawędzie zewnętrzne mogą się zgadzać przy złamanym środku — i tak było do
+   8 września 2026. Belka była wierszem `flex` z `space-between`, więc logotyp
+   i akcje licowały co do piksela, a pole „Szukaj" pomiędzy nimi miało własne
+   `flex: 1 1 auto`, własny sufit 34 rem i własne marginesy. Stało nad tekstem,
+   którego nie dotykało. Od dziś belka ma od 80rem tę samą trzykolumnową
+   siatkę co treść, a to sprawdzenie tego pilnuje: krawędzie `.topbar-szukaj`
+   == krawędzie `.app-main`.
+
+   Liczone dopiero od 1280 px, bo tam włącza się i szyna, i ta siatka. Na
+   ekranach gościa pomijane — gość nie ma pola „Szukaj" w belce.
    ========================================================================== */
 log('');
 log('Wyrównanie belki do siatki treści:');
@@ -1003,11 +1073,13 @@ const EKRANY_WYROWNANIA = [
   { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
   { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
   { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
-  // Strona powitalna ma OD 7 WRZEŚNIA własną, szerszą siatkę
-  // (`app-body-powitalny`) — a więc i własną okazję do rozjazdu belki.
-  // Reguła spójności szerokości jej nie dotyczy, bo ta liczy wyłącznie
-  // ekrany zalogowanego; ta pozycja pilnuje drugiej reguły: że logotyp
-  // i przyciski stoją dokładnie nad krawędziami treści.
+  // Strona powitalna ma OD 8 WRZEŚNIA układ pasów: `.app-body` idzie od
+  // krawędzi do krawędzi okna, a szerokość treści wyznacza `.pas-wnetrze`.
+  // To jest jedyny ekran o takim układzie i dlatego jedyny, który tę
+  // gałąź pomiaru w ogóle wykonuje. Reguła spójności szerokości go nie
+  // dotyczy (ta liczy wyłącznie ekrany zalogowanego); ta pozycja pilnuje
+  // drugiej reguły: że logotyp i przyciski stoją dokładnie nad krawędziami
+  // treści — czyli nad pierwszym i ostatnim znakiem w pasie.
   { nazwa: 'strona powitalna (gość)', adres: '/' },
 ];
 
@@ -1040,7 +1112,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
 
     const pomiar = await strona.evaluate(() => {
-      const body = document.querySelector('.app-body');
+      // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
+      // pasach — siatka ekranu. Patrz „CZYM JEST KOLUMNA TREŚCI" wyżej.
+      const body = document.querySelector('.pas-wnetrze') ?? document.querySelector('.app-body');
       const logotyp = document.querySelector('.wordmark');
       const akcje = document.querySelector('.topbar-actions');
 
@@ -1053,6 +1127,17 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       const stylStopki = stopka ? getComputedStyle(stopka) : null;
       const ramkaStopki = stopka ? stopka.getBoundingClientRect() : null;
 
+      // Pole „Szukaj" i kolumna czytania. Mierzymy je osobno od krawędzi
+      // zewnętrznych, bo to jest inna reguła: nie „belka ma tę samą
+      // szerokość co treść", tylko „pole stoi DOKŁADNIE nad tekstem, który
+      // przeszukuje". Pierwsza może być spełniona przy złamanej drugiej —
+      // i przez pół roku była.
+      const szukaj = document.querySelector('.topbar-szukaj');
+      const kolumna = document.querySelector('.app-main');
+      const widoczne = szukaj !== null && getComputedStyle(szukaj).display !== 'none';
+      const ramkaSzukaj = widoczne ? szukaj.getBoundingClientRect() : null;
+      const ramkaKolumny = kolumna ? kolumna.getBoundingClientRect() : null;
+
       return {
         oczekiwanaLewa: Math.round(ramka.left + parseFloat(styl.paddingLeft)),
         oczekiwanaPrawa: Math.round(ramka.right - parseFloat(styl.paddingRight)),
@@ -1064,13 +1149,17 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         stopkaPrawa: ramkaStopki
           ? Math.round(ramkaStopki.right - parseFloat(stylStopki.paddingRight))
           : null,
+        szukajLewa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaSzukaj.left) : null,
+        szukajPrawa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaSzukaj.right) : null,
+        kolumnaLewa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaKolumny.left) : null,
+        kolumnaPrawa: ramkaSzukaj && ramkaKolumny ? Math.round(ramkaKolumny.right) : null,
       };
     });
 
     await strona.close();
 
     if (! pomiar) {
-      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje .app-body, .wordmark albo .topbar-actions.`);
+      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje kolumny treści (.pas-wnetrze albo .app-body), .wordmark albo .topbar-actions.`);
       process.exitCode = 1;
       continue;
     }
@@ -1083,10 +1172,18 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     const bladStopkiP = pomiar.stopkaPrawa === null
       ? 0 : Math.abs(pomiar.stopkaPrawa - pomiar.oczekiwanaPrawa);
 
-    if (bladLewej > 1 || bladPrawej > 1 || bladStopkiL > 1 || bladStopkiP > 1) {
+    // Pole „Szukaj" liczy się dopiero od 1280 px: niżej belka jest wierszem
+    // `flex` z zawijaniem, bo akcje muszą mieć prawo zejść do drugiego
+    // wiersza (issue #80). Siatka trzykolumnowa włącza się razem z szyną.
+    const mierzymySzukaj = pomiar.szukajLewa !== null && szerokosc >= 1280;
+    const bladSzukajL = mierzymySzukaj ? Math.abs(pomiar.szukajLewa - pomiar.kolumnaLewa) : 0;
+    const bladSzukajP = mierzymySzukaj ? Math.abs(pomiar.szukajPrawa - pomiar.kolumnaPrawa) : 0;
+
+    if (bladLewej > 1 || bladPrawej > 1 || bladStopkiL > 1 || bladStopkiP > 1
+      || bladSzukajL > 1 || bladSzukajP > 1) {
       rozjazdyBelki.push({
         ekran: ekran.nazwa, szerokosc, ...pomiar,
-        bladLewej, bladPrawej, bladStopkiL, bladStopkiP,
+        bladLewej, bladPrawej, bladStopkiL, bladStopkiP, bladSzukajL, bladSzukajP,
       });
     }
 
@@ -1185,6 +1282,10 @@ if (rozjazdyBelki.length > 0) {
     log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
     log(`      stopka  ${r.stopkaLewa}…${r.stopkaPrawa} zamiast `
       + `${r.oczekiwanaLewa}…${r.oczekiwanaPrawa} (o ${r.bladStopkiL}/${r.bladStopkiP} px)`);
+    if (r.bladSzukajL > 1 || r.bladSzukajP > 1) {
+      log(`      szukaj  ${r.szukajLewa}…${r.szukajPrawa} zamiast kolumny czytania `
+        + `${r.kolumnaLewa}…${r.kolumnaPrawa} (o ${r.bladSzukajL}/${r.bladSzukajP} px)`);
+    }
   }
 }
 

@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="pl" data-preview="true">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pierogi ruskie po babci Halinie — przepis w Kuking</title>
+<meta name="description" content="Pierogi ruskie po babci Halinie: ciasto na gorącej wodzie, farsz z ziemniaków ugotowanych dzień wcześniej, cebulka na maśle. Przepis domowy, do przeczytania bez konta.">
+<link rel="stylesheet" href="../podglad/podglad.css">
+<link rel="stylesheet" href="strona-www.css">
+
+<!--
+  DANE STRUKTURALNE PRZEPISU (schema.org/Recipe).
+
+  To jedyny znacznik skryptu na całej publicznej stronie i jedyny dopuszczony
+  wyjątek od zakazu: `type="application/ld+json"` NIE JEST KODEM. Przeglądarka
+  nie wykonuje tej zawartości — traktuje ją jak blok danych i pomija przy
+  renderowaniu. Czytają ją wyszukiwarki, żeby pokazać przy wyniku zdjęcie, czas
+  przygotowania i liczbę porcji. Bez tego bloku przepis w wynikach Google
+  wygląda jak zwykły akapit tekstu, a to jest jedno z niewielu wejść z zewnątrz.
+
+  Zasada: w tym bloku nie ma ani jednej rzeczy, której nie ma na stronie
+  widocznej dla człowieka. Nie ma tu więc `aggregateRating` ani
+  `interactionStatistic` — nie mamy czego policzyć, a wpisanie tam liczby
+  byłoby kłamstwem wobec wyszukiwarki i wobec czytającego.
+
+  W wersji produkcyjnej `image` i `url` są adresami bezwzględnymi
+  (https://kuking.pl/...); tutaj są względne, bo makieta otwiera się z dysku.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Pierogi ruskie po babci Halinie",
+  "inLanguage": "pl-PL",
+  "description": "Pierogi ruskie na cieście z gorącej wody, z farszem z ziemniaków ugotowanych dzień wcześniej i twarogu, podawane z cebulką zrumienioną na maśle.",
+  "image": ["../podglad/zdjecia/pierogi.png"],
+  "author": { "@type": "Person", "name": "Marek" },
+  "datePublished": "2026-09-05",
+  "recipeCategory": "Danie główne",
+  "recipeCuisine": "polska",
+  "keywords": "pierogi ruskie, ciasto na pierogi, farsz z twarogu, kuchnia domowa",
+  "recipeYield": "6 porcji",
+  "prepTime": "PT1H10M",
+  "cookTime": "PT20M",
+  "totalTime": "PT1H30M",
+  "recipeIngredient": [
+    "3 szklanki mąki",
+    "szklanka gorącej wody, może trochę więcej",
+    "łyżka oleju",
+    "płaska łyżeczka soli",
+    "1 kg ziemniaków, ugotowanych dzień wcześniej",
+    "40 dag twarogu półtłustego",
+    "2 duże cebule do farszu",
+    "sól i sporo pieprzu",
+    "2 cebule na okrasę",
+    "masło do rumienienia cebuli"
+  ],
+  "recipeInstructions": [
+    { "@type": "HowToStep", "text": "Ziemniaki ugotuj dzień wcześniej i zostaw na noc w lodówce. Zimne dają się ugnieść na gładko, ciepłe robią się kleiste." },
+    { "@type": "HowToStep", "text": "Dwie cebule pokrój drobno i zrumień na maśle. Zestaw z ognia i daj im ostygnąć." },
+    { "@type": "HowToStep", "text": "Ziemniaki ugnieć z twarogiem, wmieszaj cebulę, posól i mocno popieprz. Farsz ma być wyraźny w smaku, bo ciasto go rozcieńczy." },
+    { "@type": "HowToStep", "text": "Mąkę wsyp do miski, wlej gorącą wodę z olejem i solą, wyrabiaj, aż ciasto przestanie kleić się do rąk." },
+    { "@type": "HowToStep", "text": "Przykryj ciasto miską i zostaw na kwadrans. Po odpoczynku rozwałkuje się o połowę łatwiej." },
+    { "@type": "HowToStep", "text": "Rozwałkuj cienko i wycinaj kółka szklanką." },
+    { "@type": "HowToStep", "text": "Na każde kółko nałóż łyżeczkę farszu i zlep brzegi mocno, palcami. Zlepiaj po kolei, nie wszystkie naraz, bo ciasto podsycha." },
+    { "@type": "HowToStep", "text": "Wrzucaj partiami na osoloną, wrzącą wodę. Kiedy wypłyną, licz jeszcze dwie minuty." },
+    { "@type": "HowToStep", "text": "Podawaj z cebulką zrumienioną na maśle." }
+  ]
+}
+</script>
+</head>
+<body>
+<!--
+  Zestaw ikon Kuking — wklejany na początku <body> każdej makiety.
+
+  Dlaczego wklejany, a nie z osobnego pliku przez <use href="ikony.svg#…">:
+  przeglądarka otwierająca stronę z dysku (file://) traktuje zewnętrzny sprite
+  jako inne źródło i nic nie rysuje. Makiety mają się otwierać podwójnym
+  kliknięciem, więc sprite jedzie w środku.
+
+  KAŻDA ikona ma aria-hidden="true" w miejscu użycia i ZAWSZE stoi obok tekstu.
+  Reguła „nigdy" nr 1: ikona nie jest opisem akcji, jest jej ozdobą.
+  Kreska 2px, zaokrąglone końce, currentColor — ikona bierze kolor po tekście,
+  więc w trybie ciemnym nie trzeba niczego przełączać.
+-->
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="i-baza" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+
+  <symbol id="ikona-dom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/>
+  </symbol>
+
+  <symbol id="ikona-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>
+  </symbol>
+
+  <symbol id="ikona-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+
+  <symbol id="ikona-zeszyt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"/><path d="M8.5 3.5v17"/><path d="M12 8h4M12 12h4"/>
+  </symbol>
+
+  <symbol id="ikona-osoba" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="8.5" r="3.75"/><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/>
+  </symbol>
+
+  <symbol id="ikona-dzwonek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/><path d="M10 20a2 2 0 0 0 4 0"/>
+  </symbol>
+
+  <symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+
+  <symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.5a3 3 0 0 1 0 5.5"/><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"/>
+  </symbol>
+
+  <symbol id="ikona-czapka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 16.5c-2.5-.4-4-2.2-4-4.4C3 9.3 5 7.5 7.4 7.6 8 5.5 9.8 4.2 12 4.2s4 1.3 4.6 3.4C19 7.5 21 9.3 21 12.1c0 2.2-1.5 4-4 4.4"/><path d="M7 16.5h10v3H7z"/>
+  </symbol>
+
+  <symbol id="ikona-zakladka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v16l-5-3.5L7 20V4Z"/>
+  </symbol>
+
+  <symbol id="ikona-komentarz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5V16.5H6a2 2 0 0 1-2-2Z"/>
+  </symbol>
+
+  <symbol id="ikona-garnek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 8.5h15V14c0 3.6-2.4 6-7.5 6s-7.5-2.4-7.5-6Z"/><path d="M4.5 10.5C2.8 10.5 2 11.4 2 12.7c0 1.4 1 2.3 2.5 2.3"/><path d="M19.5 10.5c1.7 0 2.5.9 2.5 2.2 0 1.4-1 2.3-2.5 2.3"/><path d="M8 5.5c0-1 .8-1.5 1.5-1.5M12 4.5c0-1 .8-1.5 1.5-1.5"/>
+  </symbol>
+
+  <symbol id="ikona-aparat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 8.5h3.2l1.4-2.4h7.8l1.4 2.4h3.2v10.5H3.5Z"/><circle cx="12" cy="13.5" r="3.4"/>
+  </symbol>
+
+  <symbol id="ikona-ostrzezenie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4 2.8 20h18.4Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="ikona-ptaszek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4.5 12.5 5 5 10-11"/>
+  </symbol>
+
+  <symbol id="ikona-strzalka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 12h15"/><path d="m13.5 6 6 6-6 6"/>
+  </symbol>
+
+  <symbol id="ikona-ustawienia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.2 6.2 4.5 4.5M19.5 19.5l-1.7-1.7M17.8 6.2l1.7-1.7M4.5 19.5l1.7-1.7"/>
+  </symbol>
+
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/><circle cx="32" cy="9" r="3.5" fill="currentColor"/><circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<a class="tylko-dla-czytnika" href="#tresc">Przejdź do treści</a>
+
+<div class="strona strona--przepis">
+
+  <header class="pas-gorny">
+    <div class="pas-wnetrze pas-gorny-wnetrze">
+      <a class="wordmark" href="powitalna.html">
+        <svg class="wordmark-znak" aria-hidden="true" focusable="false"><use href="#ikona-znak"></use></svg>
+        <span>KuKing<span class="wordmark-koncowka">.pl</span></span>
+      </a>
+      <div class="pas-gorny-akcje">
+        <a class="btn btn-secondary" href="/logowanie">Zaloguj</a>
+        <a class="btn btn-primary" href="/rejestracja">Załóż konto</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="tresc" id="tresc">
+    <section class="pas">
+      <div class="pas-wnetrze">
+
+        <!-- Pasek dla kogoś, kto trafił tu z wyszukiwarki. Stoi raz, nic nie
+             zasłania, niczego nie trzeba zamykać, żeby czytać dalej. -->
+        <div class="pasek-goscia">
+          <p class="pasek-goscia-tekst">
+            Czytasz przepis w Kuking. Do czytania nie trzeba konta.
+          </p>
+          <a class="btn btn-secondary" href="powitalna.html">Czym jest Kuking</a>
+        </div>
+
+        <div class="przepis-uklad">
+
+          <!-- ============================================================
+               KOLUMNA GŁÓWNA — przepis
+               ============================================================ -->
+          <article class="app-main">
+
+            <header class="przepis-glowka">
+              <h1 class="text-title-lg">Pierogi ruskie po babci Halinie</h1>
+
+              <div class="przepis-autor">
+                <span class="avatar"><img src="../podglad/zdjecia/avatar_piotr.png" alt="" width="58" height="58"></span>
+                <div class="karta-glowka-tekst">
+                  <span class="karta-autor">Marek</span>
+                  <div class="karta-meta">
+                    <span>5 września 2026</span>
+                    <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                    <span class="badge badge-cichy">przepis przykładowy</span>
+                  </div>
+                </div>
+              </div>
+
+              <p class="lead">
+                Ciasto na gorącej wodzie, farsz z ziemniaków ugotowanych dzień wcześniej i tyle
+                pieprzu, żeby było czuć. U babci stały na stole w każdą niedzielę.
+              </p>
+            </header>
+
+            <figure class="przepis-figura">
+              <img class="przepis-zdjecie" src="../podglad/zdjecia/pierogi.png" width="520" height="312"
+                   alt="Talerz pierogów ruskich okraszonych skwarkami i posypanych szczypiorkiem, na drewnianym stole.">
+            </figure>
+
+            <div class="dane-rzad">
+              <span class="dana-przepisu">
+                <svg class="dana-przepisu-ikona" aria-hidden="true" focusable="false"><use href="#ikona-zegar"></use></svg>
+                90 minut
+              </span>
+              <span class="dana-przepisu">
+                <svg class="dana-przepisu-ikona" aria-hidden="true" focusable="false"><use href="#ikona-porcje"></use></svg>
+                6 porcji
+              </span>
+              <span class="dana-przepisu">
+                <svg class="dana-przepisu-ikona" aria-hidden="true" focusable="false"><use href="#ikona-czapka"></use></svg>
+                Kuchnia domowa
+              </span>
+            </div>
+
+            <!-- SKŁADNIKI — na telefonie w kolumnie głównej, na szerokim
+                 ekranie ten sam spis siedzi w panelu obok kroków. -->
+            <section class="sekcja" aria-labelledby="skladniki">
+              <h2 class="sekcja-tytul" id="skladniki">Składniki</h2>
+              <p class="sekcja-opis">Na 6 porcji, czyli mniej więcej 50 pierogów.</p>
+
+              <h3>Ciasto</h3>
+              <ul class="lista-skladnikow">
+                <li>3 szklanki mąki</li>
+                <li>szklanka gorącej wody, może trochę więcej</li>
+                <li>łyżka oleju</li>
+                <li>płaska łyżeczka soli</li>
+              </ul>
+
+              <h3>Farsz</h3>
+              <ul class="lista-skladnikow">
+                <li>1 kg ziemniaków, ugotowanych dzień wcześniej</li>
+                <li>40 dag twarogu półtłustego</li>
+                <li>2 duże cebule</li>
+                <li>sól i sporo pieprzu</li>
+              </ul>
+
+              <h3>Do podania</h3>
+              <ul class="lista-skladnikow">
+                <li>2 cebule na okrasę</li>
+                <li>masło do rumienienia cebuli</li>
+              </ul>
+            </section>
+
+            <!-- KROKI -->
+            <section class="sekcja" aria-labelledby="jak-zrobic">
+              <h2 class="sekcja-tytul" id="jak-zrobic">Jak to zrobić</h2>
+              <p class="sekcja-opis">Jeden krok to jedna czynność — łatwiej to czytać przy garnku.</p>
+
+              <ol class="kroki">
+                <li>Ziemniaki ugotuj dzień wcześniej i zostaw na noc w lodówce. Zimne dają się ugnieść na gładko, ciepłe robią się kleiste.</li>
+                <li>Dwie cebule pokrój drobno i zrumień na maśle. Zestaw z ognia i daj im ostygnąć.</li>
+                <li>Ziemniaki ugnieć z twarogiem, wmieszaj cebulę, posól i mocno popieprz. Farsz ma być wyraźny w smaku, bo ciasto go rozcieńczy.</li>
+                <li>Mąkę wsyp do miski, wlej gorącą wodę z olejem i solą, wyrabiaj, aż ciasto przestanie kleić się do rąk.</li>
+                <li>Przykryj ciasto miską i zostaw na kwadrans. Po odpoczynku rozwałkuje się o połowę łatwiej.</li>
+                <li>Rozwałkuj cienko i wycinaj kółka szklanką.</li>
+                <li>Na każde kółko nałóż łyżeczkę farszu i zlep brzegi mocno, palcami. Zlepiaj po kolei, nie wszystkie naraz, bo ciasto podsycha.</li>
+                <li>Wrzucaj partiami na osoloną, wrzącą wodę. Kiedy wypłyną, licz jeszcze dwie minuty.</li>
+                <li>Podawaj z cebulką zrumienioną na maśle.</li>
+              </ol>
+            </section>
+
+            <!-- SKĄD TEN PRZEPIS — najczęściej czytana część przepisu. -->
+            <section class="sekcja" aria-labelledby="skad-ten-przepis">
+              <h2 class="sekcja-tytul" id="skad-ten-przepis">Skąd ten przepis</h2>
+              <p class="sekcja-opis">To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.</p>
+
+              <div class="pochodzenie">
+                <p class="pochodzenie-po-kim">Po babci Halinie, z Rzeszowszczyzny.</p>
+                <p>
+                  Babcia lepiła je w każdą niedzielę rano, zawsze na tej samej stolnicy, i zawsze
+                  mówiła, że wody trzeba dolewać na oko. Przez lata próbowałem to zmierzyć i wychodzi
+                  szklanka, czasem odrobinę więcej — zależnie od mąki.
+                </p>
+                <p>
+                  Kartkę z jej pismem mam do dziś. Farsz był u niej zawsze mocno pieprzony i po tym
+                  najbardziej poznaję, czy wyszły takie jak trzeba.
+                </p>
+              </div>
+            </section>
+
+            <!-- KOMU WYSZŁO -->
+            <section class="sekcja" id="komu-wyszlo" aria-labelledby="komu-wyszlo-tytul">
+              <h2 class="sekcja-tytul" id="komu-wyszlo-tytul">Komu wyszło</h2>
+              <p class="sekcja-opis">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
+
+              <div class="empty-state">
+                <svg class="empty-state-znak" aria-hidden="true" focusable="false"><use href="#ikona-garnek"></use></svg>
+                <p class="empty-state-title">Nikt jeszcze nie pokazał, jak mu wyszło</p>
+                <p class="empty-state-opis">
+                  Kiedy ugotujesz z tego przepisu, możesz kliknąć „Ugotowałem” i dodać zdjęcie.
+                  Marek dowie się, że ktoś naprawdę to zrobił. Zdjęcie nie musi być ładne.
+                </p>
+                <a class="btn btn-secondary" href="/rejestracja">Załóż konto, żeby dodać Ugotowałem</a>
+              </div>
+            </section>
+
+          </article>
+
+          <!-- ============================================================
+               PANEL OBOK — składniki pod ręką i jedna akcja.
+               Na telefonie ten panel jedzie POD przepisem, żeby nie odsuwać
+               treści, po którą ktoś tu przyszedł.
+               ============================================================ -->
+          <aside class="panel-przepisu" aria-labelledby="panel-tytul">
+            <h2 class="panel-tytul" id="panel-tytul">Zapisz na później</h2>
+            <p class="pomoc">
+              Zeszyt to Twoje miejsce na przepisy, które chcesz zachować. Zawsze je tam znajdziesz,
+              a pobrać możesz je stąd w każdej chwili.
+            </p>
+            <a class="btn btn-primary btn-pelny odstep-nad-maly" href="/rejestracja">Zapisz przepis w Zeszycie</a>
+            <p class="pomoc odstep-nad-maly">Konto jest darmowe. Nie pytamy o numer telefonu.</p>
+
+            <h3 class="panel-tytul odstep-nad">Czego potrzebujesz</h3>
+            <ul class="lista-skladnikow">
+              <li>3 szklanki mąki</li>
+              <li>szklanka gorącej wody</li>
+              <li>łyżka oleju</li>
+              <li>1 kg ziemniaków</li>
+              <li>40 dag twarogu</li>
+              <li>4 cebule razem z okrasą</li>
+              <li>masło, sól, pieprz</li>
+            </ul>
+          </aside>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="stopka stopka-www">
+    <div class="stopka-wnetrze">
+      <div class="stopka-kolumny">
+
+        <div class="stopka-blok">
+          <h2 class="stopka-blok-tytul">Kuking</h2>
+          <ul class="stopka-lista">
+            <li><a href="powitalna.html">Strona główna</a></li>
+            <li><a href="o-kuking.html">O Kuking</a></li>
+            <li><a href="/kontakt">Kontakt</a></li>
+          </ul>
+        </div>
+
+        <div class="stopka-blok">
+          <h2 class="stopka-blok-tytul">Zasady</h2>
+          <ul class="stopka-lista">
+            <li><a href="/zasady">Zasady serwisu</a></li>
+            <li><a href="/prywatnosc">Prywatność</a></li>
+            <li><a href="/pomoc">Pomoc</a></li>
+          </ul>
+        </div>
+
+        <div class="stopka-wyglad">
+      <!-- Podglad bez JS: wybor dotyczy tylko otwartego ekranu.
+           W Blade uzyj formularza POST z 07-wdrozenie/MOTYW-V3.1.md. -->
+      <label class="btn btn-quiet motyw-przelacznik">
+        <input class="motyw-demo-input" type="checkbox" role="switch" aria-label="Ciemny wygląd">
+        <svg class="side-nav-ikona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg>
+        <span>Ciemny</span>
+        <span class="motyw-suwak" aria-hidden="true"></span>
+      </label>
+    </div>
+
+      </div>
+
+      <p class="stopka-dol meta">Kuking.pl — polski serwis domowego gotowania. Strona jest w budowie.</p>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

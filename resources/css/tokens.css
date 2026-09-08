@@ -27,6 +27,19 @@
   --color-ink: #2B241D;
   --color-ink-muted: #5C5347;
   --color-ink-inverse: #FFFFFF;
+  /* Podkład marki: hero, blok „Skąd ten przepis". Nie jest to `--color-brand`
+     rozjaśnione — to osobna rola, przeliczona na kontrast. */
+  --color-surface-brand-wash: #F7E9E2;
+  /* Przyciemnienie pod tekstem leżącym NA zdjęciu. Gradient, nie płaska
+     warstwa: przy płaskiej tekst nad jasnym daniem gubi kontrast, a nad
+     ciemnym robi się brudny. */
+  --scrim-ink: #1A130E;
+  --scrim-gradient: linear-gradient(
+    to top,
+    rgb(26 19 14 / 0.88) 0%,
+    rgb(26 19 14 / 0.72) 38%,
+    rgb(26 19 14 / 0) 100%
+  );
 
   /* --- Kolory: marka ---
      --color-brand: kolor tekstu/linków marki (i tło przycisku primary w trybie jasnym).
@@ -86,12 +99,25 @@
   --text-title-sm: calc(1.5rem * var(--user-text-scale, 1));     /* 24px */
   --text-title: calc(1.75rem * var(--user-text-scale, 1));       /* 28px */
   --text-title-lg: calc(2.25rem * var(--user-text-scale, 1));    /* 36px */
+  /* 48px — WYŁĄCZNIE hero strony powitalnej (system projektowy v3.1). */
+  --text-title-xl: calc(3rem * var(--user-text-scale, 1));
+  /* 15px — JEDYNY rozmiar poniżej 16px w całym serwisie. Wolno go użyć
+     tylko w plakietce cichej i tylko przy trzech warunkach naraz: tekst obok
+     ma co najmniej 18px, informacja jest powtarzalna i drugorzędna, a jej
+     utrata nie blokuje żadnej czynności. */
+  /* PRZYGOTOWANY, NIEUŻYWANY — `.badge-cichy` z paczki nie wszedł, a `.meta`
+     w tym serwisie stoi na `--text-help` (16px). Warunki wyżej opisują, kiedy
+     wolno by go użyć, nie miejsce, w którym już działa. */
+  --text-meta: calc(0.9375rem * var(--user-text-scale, 1));
 
   --leading-body: 1.55;
   /* 1.25 — wartość z paczki właściciela (docs/design/kit-v2/css/tokens.css).
      Wcześniej stało tu 1.4; nagłówki były przez to wyraźnie luźniejsze niż
      w wizualizacjach. */
   --leading-title: 1.25;
+  /* Tytuł, który realnie łamie się na dwa wiersze (karta, hero) — 1.25 sklejał
+     wtedy wiersze. System projektowy v3.1. */
+  --leading-title-wiele: 1.3;
 
   /* --- Spacing (baza 4px) — NIE skalowane przez text-scale, celowo --- */
   --spacing-1: 0.25rem;   /* 4px */
@@ -105,6 +131,10 @@
   --spacing-12: 3rem;     /* 48px */
   --spacing-16: 4rem;     /* 64px */
   --spacing-20: 5rem;     /* 80px */
+  /* 96px. PRZYGOTOWANY, NIEUŻYWANY — pasy strony powitalnej wzięły
+     `--spacing-12` i `--spacing-20`. Zostaje, bo paczka v3.1 ma go w skali
+     i przy kolejnej przenoszonej regule nie chcemy wpisywać liczby z palca. */
+  --spacing-24: 6rem;
 
   /* --- Radius --- */
   --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
@@ -115,12 +145,19 @@
 
   /* --- Cień (barwiony w stronę ink, nie czysta czerń) --- */
   --shadow-card: 0 1px 2px rgba(43,36,29,.06), 0 6px 16px rgba(43,36,29,.08);
+  --shadow-card-hover: 0 2px 4px rgba(43,36,29,.08), 0 10px 24px rgba(43,36,29,.12);
   --shadow-popover: 0 8px 24px rgba(43,36,29,.16);
 
   /* --- Kontrolki: rozmiary minimalne --- */
   --control-height-min: 3rem;       /* 48px — przyciski, pola, elementy BottomNav */
   --control-height-touch: 3.75rem;  /* 60px — pozycje BottomNav (zapas ponad minimum) */
   --hit-area-min: 2.75rem;          /* 44px — checkbox/radio obszar klikalny */
+
+  /* --- Czas przejść (system projektowy v3.1) ---------------------------
+     Dotąd `150ms` było wklejane wprost w każdą regułę `transition`. Token
+     nazywa rolę, więc redukcja ruchu ma jedno miejsce, a nie czterdzieści. */
+  --czas-szybki: 150ms;   /* tło przycisku, obwódka pola */
+  --czas-zwykly: 200ms;   /* pojawienie komunikatu, cień karty */
 
   /* --- Breakpointy --- */
   --breakpoint-sm: 40rem;   /* 640px */
@@ -132,6 +169,11 @@
   --container-content: 45rem;  /* 720px — centralna kolumna, ~65–75 znaków przy 18-20px */
   --container-sidenav: 15rem;  /* 240px — SideNav desktop */
   --container-rail: 22rem;     /* 352px — prawa szyna (UI kit v2, ekran 01) */
+  /* 608px, ~65 znaków. PRZYGOTOWANY, NIEUŻYWANY: `.kolumna-czytania` bierze
+     `--container-content` (720px), bo ogranicza tekst wewnątrz siatki 53rem
+     i tam 45rem daje właściwe 65–75 znaków. Ta wartość jest z paczki i czeka
+     na długie dokumenty prawne, gdzie kolumna stoi sama. */
+  --container-czytanie: 38rem;
   --container-wide: 70rem;     /* 1120px — patrz uwaga niżej, dziś nieużywane */
   --container-ultra: 92rem;    /* 1472px — patrz uwaga niżej, dziś nieużywane */
 
@@ -163,7 +205,16 @@
   );                           /* 1040px — dwie kolumny (64rem–80rem) */
   --container-strona-z-szyna: calc(
     var(--container-strona) + var(--spacing-8) + var(--container-rail)
-  );                           /* 1424px — trzy kolumny (od 80rem) */
+  );
+
+  /* Ta sama liczba pod nazwą z systemu projektowego v3.1. Reguły przeniesione
+     z paczki mówią `--container-strona-szeroka`; nie przepisujemy ich, bo
+     rozjazd nazw w dwie strony jest gorszy niż jeden alias w jednym miejscu.
+
+     DZIŚ ALIAS NIE MA CZEGO OBSŁUGIWAĆ: żadna przeniesiona reguła jeszcze go
+     nie używa. Zostaje na wejście kolejnych — usunięcie go i dopisanie za
+     tydzień to ta sama praca dwa razy. */
+  --container-strona-szeroka: var(--container-strona-z-szyna);                           /* 1424px — trzy kolumny (od 80rem) */
   --container-strona-solo: calc(
     var(--container-content) + 2 * var(--spacing-6)
   );                           /* 768px — gość: bez nawigacji i bez szyny */
@@ -194,7 +245,8 @@
    TEGO ARKUSZA, żeby reguła `prefers-color-scheme` nie wróciła po cichu
    przy kolejnej zmianie.
    ========================================================================== */
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+.blok-ciemny {
   --color-surface: #1E1A16;
   --color-surface-raised: #2A241E;
   --color-surface-sunken: #14110E;
@@ -226,13 +278,43 @@
 
   --color-focus: #6EA8FF;
 
+  /* Tryb ciemny NIE jest odwróceniem jasnego — to osobna paleta o tej samej
+     strukturze ról. Podkład marki i przyciemnienie pod zdjęciem mają tu własne
+     wartości, nie przeliczone z jasnych. */
+  --color-surface-brand-wash: #2E211A;
+  --scrim-ink: #000000;
+  --scrim-gradient: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.9) 0%,
+    rgb(0 0 0 / 0.75) 38%,
+    rgb(0 0 0 / 0) 100%
+  );
+
   --shadow-card: 0 1px 2px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.35);
+  --shadow-card-hover: 0 2px 4px rgba(0,0,0,.40), 0 10px 24px rgba(0,0,0,.45);
   --shadow-popover: 0 8px 24px rgba(0,0,0,.45);
 
   /* Pola formularza i paski przewijania mają zgadzać się z WYBRANYM
      motywem, nie z systemowym — stąd jawna wartość tutaj, a nie
      `light dark` jak w bazowym :root niżej. */
   color-scheme: dark;
+}
+
+/* CIEMNY BLOK NA JASNEJ STRONIE.
+
+   `.blok-ciemny` przestawia całą paletę na dowolnym kontenerze — tak jak
+   `data-theme="dark"` przestawia ją na całej stronie. Sam atrybut siedzi na
+   <html>, więc pomalowanie tła robi za niego reguła `body` w warstwie base;
+   zwykły <section> takiej reguły nie ma i bez tych dwóch linii dostałby
+   jasne litery na jasnym tle. Stąd osobna reguła, nie dopisek wyżej.
+
+   Po co to jest: ciemny pas na stronie powitalnej (system projektowy v3.1,
+   „Przepis jest dobry, kiedy ktoś go ugotował"). W motywie ciemnym pas ma
+   dokładnie ten sam kolor co strona wokół — wyznacza go wtedy wyłącznie
+   kreska, którą dokłada `.pas.blok-ciemny` w arkuszu stron publicznych. */
+.blok-ciemny {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
 }
 
 /* =============================================================================
@@ -257,10 +339,21 @@
      niezależne od zoomu przeglądarki. Skaluje WYŁĄCZNIE typografię
      (tokeny --text-...), nigdy odstępów, promieni ani wysokości kontrolek,
      dzięki czemu przyciski (min-height, nie height) najwyżej robią się
-     wyższe przy zawijaniu tekstu — layout się nie psuje. */
+     wyższe przy zawijaniu tekstu — layout się nie psuje.
+
+     TA LISTA MUSI ZGADZAĆ SIĘ Z `config('kuking.text.scales')`. Pilnuje tego
+     `SkalaTekstuDzialaTest`, bo rozjazd jest tu niewidoczny w kodzie i milczy:
+     brakująca reguła nie jest błędem CSS, tylko cichym powrotem do 100%.
+
+     Zmierzone 8 września 2026, przed poprawką: konfiguracja oferowała
+     100/112/125/140, arkusz znał 112/125/150. Czyli „Bardzo duży" (140) —
+     opcja, którą wybiera osoba z najsłabszym wzrokiem — zapisywała się na
+     koncie i NIE ROBIŁA NIC. Odwrotnie, 150 było martwe: CHECK w migracji
+     `users` dopuszcza tylko 90–140, więc ta wartość nie miała jak powstać.
+     100 nie ma reguły i mieć nie musi — to wartość domyślna `--user-text-scale`. */
   :root[data-text-scale="112"] { --user-text-scale: 1.12; }
   :root[data-text-scale="125"] { --user-text-scale: 1.25; }
-  :root[data-text-scale="150"] { --user-text-scale: 1.5; }
+  :root[data-text-scale="140"] { --user-text-scale: 1.4; }
 
   html {
     -webkit-text-size-adjust: 100%;
@@ -305,11 +398,6 @@
 
   h1 { font-size: var(--text-title); }
   h2 { font-size: var(--text-title-sm); }
-
-  /* Tytuł hero (np. strona główna) — użyj klasy .text-title-lg z tekstem clamp */
-  .text-title-lg {
-    font-size: clamp(var(--text-title), 4vw + 1rem, var(--text-title-lg));
-  }
 
   p { margin: 0 0 var(--spacing-4); }
 
@@ -389,16 +477,30 @@
     justify-content: center;
     gap: var(--spacing-2);
     min-height: var(--control-height-min);
-    padding: var(--spacing-3) var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-5);
     border-radius: var(--radius-md);
     font-family: var(--font-sans);
     font-size: var(--text-body);
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.25;
+    /* Napis w dwóch wierszach ma stać na środku, nie do lewej. Przy 200%
+       skali tekstu łamie się prawie każdy dłuższy przycisk. */
+    text-align: center;
     text-decoration: none;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+    transition:
+      background-color var(--czas-szybki) ease-out,
+      border-color var(--czas-szybki) ease-out,
+      box-shadow var(--czas-szybki) ease-out,
+      transform var(--czas-szybki) ease-out;
+  }
+
+  /* Wciśnięty. Jeden piksel w dół — tyle wystarczy, żeby palec dostał
+     potwierdzenie, i za mało, żeby układ drgnął. Przy `prefers-reduced-motion`
+     przejście i tak jest wyłączone w warstwie base. */
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
@@ -412,6 +514,23 @@
     outline: none;
     box-shadow:
       0 0 0 2px var(--color-surface),
+      0 0 0 5px var(--color-focus);
+  }
+
+  /* TEN SAM PRZYCISK NA KARCIE MA ZA SOBĄ INNE TŁO.
+
+     Halo wyżej jest w kolorze tła STRONY (#FAF6F0). Karta ma tło podniesione
+     (#FFFFFF), więc na niej ten sam pierścień rysuje wokół przycisku wyraźną
+     beżową obwódkę — i, co gorsza, kontrast pierścienia fokusu jest wtedy
+     policzony względem tła, którego pod nim nie ma.
+
+     Reguła z systemu projektowego v3.1. Dotyczy każdego przycisku w karcie:
+     „Ugotowałem", „Zapisz w zeszycie", akcje pod wpisem — czyli praktycznie
+     wszystkich, po których ktoś chodzi klawiaturą. */
+  .card .btn:focus-visible,
+  .post-card .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-surface-raised),
       0 0 0 5px var(--color-focus);
   }
 
@@ -434,7 +553,16 @@
     border-color: transparent;
     font-weight: 600;
   }
-  .btn-quiet:hover:not(:disabled) { text-decoration: underline; }
+  /* System projektowy v3.1 daje tu samo tło `--color-surface-sunken`.
+     ZOSTAWIAM RÓWNIEŻ PODKREŚLENIE, świadomie: #F1EBE1 na #FAF6F0 to różnica
+     jasności rzędu dwóch procent — przy tym odbiorcy to jest sygnał na
+     granicy dostrzegalności, a przycisk cichy nie ma ani obwódki, ani tła,
+     więc podkreślenie jest jedyną mocną informacją, że coś się dzieje.
+     Dodaję tło z systemu, nie odejmuję podkreślenia. */
+  .btn-quiet:hover:not(:disabled) {
+    background-color: var(--color-surface-sunken);
+    text-decoration: underline;
+  }
 
   /*
    * TŁO przycisku to OSOBNY token, nie `--color-danger` (issue #26).
@@ -454,6 +582,19 @@
   }
   .btn-danger:hover:not(:disabled) { background-color: var(--color-danger-solid-hover); }
 
+  /* Przycisk większy niż zwykły — jedno wejście na ekranie, tam gdzie ma być
+     oczywiste, co zrobić dalej („Załóż konto" na stronie powitalnej).
+     Rozmiar z systemu projektowego v3.1.
+
+     `min-height`, nie `height`: 3.5 rem to podłoga, nie sufit. Przy skali
+     tekstu 140% napis łamie się na dwa wiersze i przycisk ma urosnąć, a nie
+     przyciąć literom dolne wydłużenia. */
+  .btn-duzy {
+    min-height: 3.5rem;
+    font-size: var(--text-body-lg);
+    padding-inline: var(--spacing-8);
+  }
+
   /* Odstęp obowiązkowy między akcją zwykłą a destrukcyjną */
   .danger-zone {
     margin-top: var(--spacing-8);
@@ -462,21 +603,46 @@
   }
 
   /* --- Pole formularza --- */
+  /* Odstęp między polami z systemu projektowego v3.1: `--spacing-6`, nie
+     `--spacing-4`. Pole ma etykietę NAD sobą i podpowiedź POD sobą, więc
+     przy 16 px odstępu podpowiedź jednego pola stała bliżej etykiety
+     następnego niż własnego pola — i przy skali tekstu 140% czytało się to
+     jako jeden blok. 24 px rozdziela pola mocniej niż ich własne części
+     wewnątrz. */
   .field {
     display: block;
-    margin-top: var(--spacing-4);
+    margin-top: var(--spacing-6);
   }
+  /* Uzgodnione z systemem projektowym v3.1. Trzy różnice:
+
+     * wcięcie poziome `--spacing-4` zamiast `--spacing-3`. Pole ma obwódkę
+       2 px w mocnym kolorze, więc litera stojąca 12 px od niej dotyka jej
+       wzrokowo; 16 px daje polu oddech i licuje jego tekst z tekstem
+       przycisku obok, który ma `--spacing-5` przy cieńszej obwódce.
+     * `line-height` z tokenu. Bez niego pole wielowierszowe (`textarea`,
+       „Jak to zrobić") ma interlinię przeglądarki — ciaśniejszą niż każdy
+       inny akapit w serwisie, a to jest najdłuższy tekst, jaki ktokolwiek
+       tu pisze.
+     * `min-width: 0`. Pole w kontenerze `flex` (np. wiersz „szukaj +
+       przycisk") nie zejdzie samo poniżej swojej szerokości domyślnej
+       i wypycha przycisk poza ekran.
+
+     Przejście koloru obwódki jest z tokenu, więc `prefers-reduced-motion`
+     wyłącza je w warstwie base. */
   .field-input {
     display: block;
     width: 100%;
+    min-width: 0;
     min-height: var(--control-height-min);
-    padding: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
     font-family: var(--font-sans);
     font-size: var(--text-body);
+    line-height: var(--leading-body);
     color: var(--color-ink);
     background-color: var(--color-surface-sunken);
     border: 2px solid var(--color-border-strong);
     border-radius: var(--radius-md);
+    transition: border-color var(--czas-szybki) ease-out;
   }
   textarea.field-input {
     min-height: 8rem;
@@ -492,12 +658,21 @@
     font-size: var(--text-help);
     color: var(--color-ink-muted);
   }
+  /* Z systemu v3.1: `flex` z wyrównaniem do góry i `overflow-wrap`.
+     Komunikat błędu bywa najdłuższym tekstem w formularzu („Hasło musi mieć
+     co najmniej 10 znaków — najprościej wpisać trzy słowa razem"), a stoi
+     w kolumnie pola. Bez zawijania w dowolnym miejscu rozpychał formularz
+     w bok przy skali 140%. Wyrównanie do góry jest po to, żeby ewentualny
+     znak ostrzegawczy stał przy PIERWSZYM wierszu, nie pośrodku trzech. */
   .field-error {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-2);
     margin-top: var(--spacing-2);
     font-size: var(--text-help);
     font-weight: 700;
     color: var(--color-danger);
+    overflow-wrap: anywhere;
   }
   .field.has-error .field-input {
     border-color: var(--color-danger);
@@ -512,35 +687,66 @@
     padding: var(--spacing-5);
   }
 
-  /* --- Empty state --- */
+  /* --- Pusty stan (system projektowy v3.1) ---------------------------
+     PRZED: sam tekst na tle strony, cały w kolorze stonowanym.
+     PO:    karta — tło podniesione, obwódka, `--radius-xl`, tekst w pełnym
+            kolorze atramentu.
+
+     Powód jest ten sam, dla którego pusty stan w ogóle istnieje: ekran, na
+     którym nic nie ma, ma wyglądać na PRZYGOTOWANY, a nie na niedokończony.
+     Szary tekst pośrodku białej strony czyta się jak komunikat o awarii —
+     zwłaszcza gdy jedyne, co go otacza, to nagłówek. Karta mówi: „to jest
+     miejsce, tylko jeszcze puste".
+
+     Zdjęty `color: var(--color-ink-muted)` z kontenera to nie kosmetyka.
+     Padał on na CAŁY środek, więc zdanie wyjaśniające miało kontrast
+     stonowanego atramentu, a stonowany atrament jest przewidziany dla
+     metadanych — daty, liczby polubień — nie dla jedynego zdania na ekranie.
+     Kolor zostaje tam, gdzie ma być: na opisie (`.empty-state-opis`).
+
+     Tytuł idzie z `--text-body-lg` (20 px) na `--text-title-sm`, bo w karcie
+     ma wagę nagłówka sekcji, a nie wyróżnionego akapitu. */
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-3);
     text-align: center;
-    padding: var(--spacing-10) var(--spacing-4);
-    color: var(--color-ink-muted);
+    padding: var(--spacing-12) var(--spacing-5);
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
   }
   .empty-state-title {
-    font-size: var(--text-body-lg);
-    font-weight: 700;
+    font-size: var(--text-title-sm);
+    font-weight: 800;
     color: var(--color-ink);
+    margin: 0;
+  }
+  .empty-state-opis {
+    max-width: 34rem;
+    color: var(--color-ink-muted);
+    margin: 0;
   }
 
   /* --- Podsumowanie błędów formularza --- */
+  /* Obwódka 3 px i większe wcięcie — z systemu v3.1. To jedyny element
+     w serwisie, który ma zatrzymać człowieka w połowie ruchu: pojawia się
+     nad formularzem, którego nie dało się wysłać. Dwa piksele obwódki to
+     tyle samo, co ma zwykłe pole tekstowe, więc podsumowanie błędów nie
+     odróżniało się od rzeczy, które są na tym ekranie zawsze. */
   .error-summary {
     background-color: var(--color-danger-tint);
     color: var(--color-danger-tint-ink);
-    border: 2px solid var(--color-danger);
+    border: 3px solid var(--color-danger);
     border-radius: var(--radius-md);
-    padding: var(--spacing-4);
-    margin-bottom: var(--spacing-6);
+    padding: var(--spacing-5);
+    margin-bottom: var(--spacing-8);
   }
   .error-summary-title {
-    font-size: var(--text-body-lg);
+    font-size: var(--text-title-sm);
     font-weight: 800;
-    margin: 0 0 var(--spacing-2);
+    margin: 0 0 var(--spacing-3);
   }
   .error-summary ul {
     margin: 0;
@@ -578,5 +784,57 @@
   }
   .wizard-steps-dot[data-done="true"] {
     background-color: var(--color-brand-solid);
+  }
+}
+
+/* =============================================================================
+   5. NAJWIĘKSZE TYTUŁY — clamp, nie sztywny stopień
+
+   ZMIERZONE 8 WRZEŚNIA 2026, I TO JEST POPRAWKA BŁĘDU, NIE OZDOBA.
+   `.text-title-lg` stała dotąd w `@layer base` z komentarzem „użyj tej klasy
+   z tekstem clamp". W zbudowanym arkuszu wygrywała jednak reguła
+   `.text-title-lg { font-size: var(--text-title-lg) }` — bo Tailwind 4 robi
+   utility z KAŻDEGO tokenu `--text-*` w `@theme`, a warstwa `utilities`
+   stoi w kaskadzie za `base`. Nasza reguła była w arkuszu i nie robiła nic:
+
+     warstwa base        clamp(...)
+     warstwa utilities   var(--text-title-lg)   ← ta wygrywała
+
+   ŚWIADOMIE BEZ PODAWANIA POZYCJI W BAJTACH. Pierwsza wersja tego komentarza
+   miała je („9 254" i „39 769") i były prawdziwe w moim buildzie — ale zależą
+   od zestawu skanowanych plików, więc nikt inny nie odtworzy tych liczb
+   i sprawdzenie zamienia się w wiarę. Weryfikowalne jest to, co niżej:
+   `clamp` ma stać w warstwie, która wygrywa.
+
+   Skutek przed poprawką: hasło strony głównej miało zawsze 36 px, także przy
+   oknie 320 px, gdzie mieści się od tego siedem znaków w wierszu. Przy
+   największej skali tekstu też 36 px — i to jest sedno, bo `clamp` miał
+   właśnie wtedy zejść niżej. Tekst się zawijał, więc nic nie „pękało" na tyle
+   głośno, żeby ktokolwiek to zgłosił.
+
+   Nazwy klas ZOSTAJĄ te same, bo używa ich kilkanaście widoków. Zmienia się
+   warstwa: reguła musi stać w `utilities` PO wygenerowanych utility, żeby
+   przy równej wadze wygrała kolejnością. Stąd ten blok na końcu pliku, a nie
+   przy typografii wyżej — przeniesienie go tam cofnęłoby całą poprawkę.
+   Pilnuje tego krok „Największe tytuły przetrwały build z clamp" w jobie
+   `Build assetów` (`.github/workflows/ci.yml`), na ZBUDOWANYM arkuszu.
+   NIE jest to test PHPUnit i nie może nim być: testy chodzą z `withoutVite()`
+   i nie mają zbudowanego arkusza, w którym ta usterka jako jedyna jest
+   widoczna.
+   ========================================================================== */
+@layer utilities {
+
+  /* Tytuł hero ekranu serwisu. Dolna granica to `--text-title` (28 px),
+     górna 36 px; obie mnożone przez `--user-text-scale`, więc powiększenie
+     tekstu w ustawieniach działa na całym przedziale, nie tylko u góry. */
+  .text-title-lg {
+    font-size: clamp(var(--text-title), 4vw + 1rem, var(--text-title-lg));
+  }
+
+  /* Największy stopień w całym serwisie, WYŁĄCZNIE na hasło strony
+     powitalnej (system projektowy v3.1: „48px — wyłącznie hero strony
+     powitalnej"). */
+  .text-title-xl {
+    font-size: clamp(var(--text-title), 6vw + 0.5rem, var(--text-title-xl));
   }
 }

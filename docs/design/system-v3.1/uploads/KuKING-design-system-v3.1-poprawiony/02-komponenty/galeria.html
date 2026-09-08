@@ -1,0 +1,2825 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuking — galeria komponentów</title>
+<link rel="stylesheet" href="../podglad/podglad.css">
+<style>
+/* ===========================================================================
+   BLOK WYŁĄCZNIE DLA GALERII
+   ---------------------------------------------------------------------------
+   Nic tutaj nie jest częścią systemu i nic z tego nie wolno przenieść do
+   `02-komponenty/komponenty.css`. Są tu trzy rodzaje reguł i nic więcej:
+   siatka strony, podpisy pod egzemplarzami i SYMULACJA STANÓW, których na
+   statycznej stronie nie da się wywołać (najechanie, fokus, wciśnięcie).
+
+   Kolory, rozmiary tekstu i odstępy pochodzą WYŁĄCZNIE z `var(--…)`.
+   Jedyne liczby zapisane wprost to szerokości obwódek w symulacji fokusu —
+   są przepisane co do piksela z `komponenty.css`, bo galeria ma pokazywać
+   fokus taki, jaki jest naprawdę, a nie przybliżony.
+   ======================================================================== */
+
+/* --- Siatka strony ------------------------------------------------------ */
+/* Cała galeria mieści się w szerokości strony zalogowanego bez szyny, żeby
+   para „jasny / ciemny” dawała dokładnie dwie kolumny, nigdy trzy. */
+.galeria { max-width: var(--container-strona); margin-inline: auto; padding: var(--spacing-6) var(--spacing-4) var(--spacing-24); }
+.sekcja-galerii { margin-top: var(--spacing-16); }
+/* `min(…, 100%)` zamiast progu w media query: przy 320 px kolumna zwija się
+   do jednej sama, więc strona nigdy nie przewija się w poziomie. */
+.para { display: grid; gap: var(--spacing-6); align-items: start; grid-template-columns: repeat(auto-fit, minmax(min(var(--container-rail), 100%), 1fr)); }
+/* Komponenty szerokie (belka, stopka, szkielet) — jasny nad ciemnym. */
+.para-stos { grid-template-columns: 1fr; }
+.plansza { min-width: 0; padding: var(--spacing-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background-color: var(--color-surface); }
+
+/* --- Podpisy ------------------------------------------------------------ */
+/* Każdy egzemplarz ma nad sobą słowo mówiące, co to za stan — bo stanu
+   `:focus-visible` nie da się pokazać inaczej niż podpisem. */
+.podpis { display: block; margin-bottom: var(--spacing-2); font-size: var(--text-meta); font-weight: 700; color: var(--color-ink-muted); }
+.egzemplarz { margin-bottom: var(--spacing-6); }
+.egzemplarz:last-child { margin-bottom: 0; }
+.spis { display: flex; flex-wrap: wrap; gap: var(--spacing-2) var(--spacing-4); list-style: none; margin: 0; padding: 0; }
+
+/* --- Paleta ------------------------------------------------------------- */
+.paleta { display: grid; gap: var(--spacing-3); grid-template-columns: repeat(auto-fit, minmax(min(var(--container-sidenav), 100%), 1fr)); }
+.kolor { display: flex; align-items: center; gap: var(--spacing-3); }
+.probka { flex: none; width: var(--spacing-12); height: var(--spacing-12); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
+.probka-opis { min-width: 0; font-size: var(--text-meta); line-height: 1.4; color: var(--color-ink-muted); }
+.probka-nazwa { display: block; font-weight: 700; color: var(--color-ink); }
+/* Jedna klasa na jeden token — inaczej próbka musiałaby mieć atrybut `style=`,
+   którego polityka bezpieczeństwa serwisu zabrania. Każda bierze kolor
+   z tokenu, więc ta sama próbka pokazuje w `.blok-ciemny` wartość ciemną. */
+.p-surface{background-color:var(--color-surface)} .p-surface-raised{background-color:var(--color-surface-raised)}
+.p-surface-sunken{background-color:var(--color-surface-sunken)} .p-surface-brand-wash{background-color:var(--color-surface-brand-wash)}
+.p-border{background-color:var(--color-border)} .p-border-strong{background-color:var(--color-border-strong)}
+.p-ink{background-color:var(--color-ink)} .p-ink-muted{background-color:var(--color-ink-muted)}
+.p-ink-inverse{background-color:var(--color-ink-inverse)} .p-brand{background-color:var(--color-brand)}
+.p-brand-dark{background-color:var(--color-brand-dark)} .p-brand-tint{background-color:var(--color-brand-tint)}
+.p-brand-tint-ink{background-color:var(--color-brand-tint-ink)} .p-brand-solid{background-color:var(--color-brand-solid)}
+.p-brand-solid-hover{background-color:var(--color-brand-solid-hover)} .p-accent{background-color:var(--color-accent)}
+.p-accent-tint{background-color:var(--color-accent-tint)} .p-accent-tint-ink{background-color:var(--color-accent-tint-ink)}
+.p-danger{background-color:var(--color-danger)} .p-danger-tint{background-color:var(--color-danger-tint)}
+.p-danger-tint-ink{background-color:var(--color-danger-tint-ink)} .p-danger-solid{background-color:var(--color-danger-solid)}
+.p-danger-solid-hover{background-color:var(--color-danger-solid-hover)} .p-success{background-color:var(--color-success)}
+.p-success-tint{background-color:var(--color-success-tint)} .p-success-tint-ink{background-color:var(--color-success-tint-ink)}
+.p-focus{background-color:var(--color-focus)} .p-scrim{background-color:var(--scrim-ink)}
+
+/* --- Skala typograficzna ------------------------------------------------ */
+/* Trzy rozmiary, których w systemie nie niesie żadna klasa, tylko element
+   (`h1`, `h2`, `h3`). W galerii muszą stać w akapicie, żeby nie zaśmiecać
+   konspektu nagłówków strony. */
+.pr-body-lg { font-size: var(--text-body-lg); }
+.pr-title-sm { font-size: var(--text-title-sm); font-weight: 800; line-height: var(--leading-title); }
+.pr-title { font-size: var(--text-title); font-weight: 800; line-height: var(--leading-title); }
+
+/* --- Kafle promieni i cieni --------------------------------------------- */
+.siatka-kafli { display: grid; gap: var(--spacing-5); grid-template-columns: repeat(auto-fit, minmax(min(var(--container-sidenav), 100%), 1fr)); }
+.kafel { display: grid; place-items: center; min-height: var(--spacing-20); padding: var(--spacing-3); text-align: center; font-size: var(--text-meta); color: var(--color-ink-muted); background-color: var(--color-surface-raised); border: 1px solid var(--color-border); }
+.r-sm{border-radius:var(--radius-sm)} .r-md{border-radius:var(--radius-md)} .r-lg{border-radius:var(--radius-lg)}
+.r-xl{border-radius:var(--radius-xl)} .r-pill{border-radius:var(--radius-pill)}
+.c-card{box-shadow:var(--shadow-card)} .c-card-hover{box-shadow:var(--shadow-card-hover)} .c-popover{box-shadow:var(--shadow-popover)}
+
+/* --- Symulacja stanów --------------------------------------------------- */
+/* NAJECHANIE. Każda reguła jest kopią odpowiedniej reguły `:hover`
+   z `komponenty.css` — nic tu nie jest wymyślone na potrzeby obrazka. */
+.stan-najechanie.btn-primary { background-color: var(--color-brand-solid-hover); }
+.stan-najechanie.btn-secondary,
+.stan-najechanie.btn-quiet,
+.stan-najechanie.side-nav-item,
+.stan-najechanie.chip,
+.stan-najechanie.choice { background-color: var(--color-surface-sunken); }
+.stan-najechanie.btn-danger { background-color: var(--color-danger-solid-hover); }
+.stan-najechanie.field-input { border-color: var(--color-ink-muted); }
+.stan-najechanie.karta-wpisu { box-shadow: var(--shadow-card-hover); }
+.stan-najechanie.wybor-zdjecia { border-color: var(--color-brand-solid); background-color: var(--color-brand-tint); }
+/* FOKUS. Zwykły element dostaje obwódkę z warstwy `base`; przycisk dostaje
+   „halo” — dwa piksele tła między przyciskiem a pierścieniem, bo niebieski
+   pierścień na terakocie daje 1.0–1.2:1. Szerokości 2/3/5 px są przepisane
+   z `komponenty.css`, żeby galeria nie kłamała o grubości pierścienia. */
+.stan-fokus { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.stan-fokus.btn { outline: none; box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 5px var(--color-focus); }
+.karta-wpisu .stan-fokus.btn, .card .stan-fokus.btn { box-shadow: 0 0 0 2px var(--color-surface-raised), 0 0 0 5px var(--color-focus); }
+.stan-fokus.wybor-zdjecia { outline-offset: 3px; }
+/* WCIŚNIĘTY — kopia `.btn:active`. */
+.stan-wcisniety { transform: translateY(1px); }
+
+/* --- Konteksty, których na jednej stronie nie da się odtworzyć ---------- */
+/* Dolny pasek w produkcie jest przyklejony do dołu okna i znika od 1024 px.
+   Tu ma stać w rzędzie jak każdy inny komponent, więc traci przyklejenie
+   i wraca na ekran — wyłącznie wewnątrz tej ramki, wyłącznie w galerii. */
+.ramka-telefonu .bottom-nav { position: static; display: flex; }
+/* Nawigacja boczna pokazuje się dopiero od 1024 px, a plansza galerii jest
+   węższa. Ta reguła robi jej wyjątek, żeby dało się ją w ogóle zobaczyć. */
+.ramka-nawigacji .side-nav { display: block; position: static; }
+
+/* --- Skala tekstu ------------------------------------------------------- */
+/* Rozmiary są policzone NA `:root` — mnożnik `--user-text-scale` wchodzi tam
+   i tylko tam. Ustawienie go na kontenerze w środku strony nic nie daje:
+   `--text-body` jest już policzone i dziedziczy się jako gotowa wartość.
+   Dlatego galeria kopiuje bazowe rozmiary do własnych nazw (`--g-…`) i mnoży
+   je dopiero na planszy. Ani jednej wartości rozmiaru nie ma tu wprost —
+   jest mnożnik i `var(--…)`. Reguła celuje w `.plansza`, nie w dowolny
+   element, żeby nie zadziałała drugi raz, gdy automat sprawdzający ustawi
+   skalę na `<html>`. W produkcie ustawienie siedzi na `<html>`. */
+:root {
+  --g-meta: var(--text-meta); --g-help: var(--text-help); --g-body: var(--text-body);
+  --g-body-lg: var(--text-body-lg); --g-lead: var(--text-lead);
+  --g-title-sm: var(--text-title-sm); --g-title: var(--text-title);
+}
+.plansza[data-text-scale="100"] {
+  --text-meta: var(--g-meta); --text-help: var(--g-help); --text-body: var(--g-body);
+  --text-body-lg: var(--g-body-lg); --text-lead: var(--g-lead);
+  --text-title-sm: var(--g-title-sm); --text-title: var(--g-title);
+}
+.plansza[data-text-scale="150"] {
+  --text-meta: calc(var(--g-meta) * 1.5); --text-help: calc(var(--g-help) * 1.5);
+  --text-body: calc(var(--g-body) * 1.5); --text-body-lg: calc(var(--g-body-lg) * 1.5);
+  --text-lead: calc(var(--g-lead) * 1.5); --text-title-sm: calc(var(--g-title-sm) * 1.5);
+  --text-title: calc(var(--g-title) * 1.5);
+}
+</style>
+</head>
+<body>
+
+<!-- Zestaw ikon, wklejony wprost w stronę (podglad/ikony-sprite.html).
+     Każda ikona ma w miejscu użycia aria-hidden="true" i ZAWSZE stoi obok
+     tekstu — reguła „nigdy” nr 1. -->
+<svg class="sprite-ukryty" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ikona-dom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/>
+  </symbol>
+  <symbol id="ikona-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>
+  </symbol>
+  <symbol id="ikona-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+  <symbol id="ikona-zeszyt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"/><path d="M8.5 3.5v17"/><path d="M12 8h4M12 12h4"/>
+  </symbol>
+  <symbol id="ikona-osoba" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="8.5" r="3.75"/><path d="M4.5 20c0-3.6 3.4-5.5 7.5-5.5s7.5 1.9 7.5 5.5"/>
+  </symbol>
+  <symbol id="ikona-dzwonek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/><path d="M10 20a2 2 0 0 0 4 0"/>
+  </symbol>
+  <symbol id="ikona-zegar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+  <symbol id="ikona-porcje" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="9" r="3"/><path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5"/><path d="M16 6.5a3 3 0 0 1 0 5.5"/><path d="M17.5 14.8c2 .6 3.5 1.9 3.5 4.2"/>
+  </symbol>
+  <symbol id="ikona-czapka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 16.5c-2.5-.4-4-2.2-4-4.4C3 9.3 5 7.5 7.4 7.6 8 5.5 9.8 4.2 12 4.2s4 1.3 4.6 3.4C19 7.5 21 9.3 21 12.1c0 2.2-1.5 4-4 4.4"/><path d="M7 16.5h10v3H7z"/>
+  </symbol>
+  <symbol id="ikona-zakladka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 4h10v16l-5-3.5L7 20V4Z"/>
+  </symbol>
+  <symbol id="ikona-komentarz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5V16.5H6a2 2 0 0 1-2-2Z"/>
+  </symbol>
+  <symbol id="ikona-garnek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 8.5h15V14c0 3.6-2.4 6-7.5 6s-7.5-2.4-7.5-6Z"/><path d="M4.5 10.5C2.8 10.5 2 11.4 2 12.7c0 1.4 1 2.3 2.5 2.3"/><path d="M19.5 10.5c1.7 0 2.5.9 2.5 2.2 0 1.4-1 2.3-2.5 2.3"/><path d="M8 5.5c0-1 .8-1.5 1.5-1.5M12 4.5c0-1 .8-1.5 1.5-1.5"/>
+  </symbol>
+  <symbol id="ikona-aparat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.5 8.5h3.2l1.4-2.4h7.8l1.4 2.4h3.2v10.5H3.5Z"/><circle cx="12" cy="13.5" r="3.4"/>
+  </symbol>
+  <symbol id="ikona-ostrzezenie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4 2.8 20h18.4Z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ikona-ptaszek" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4.5 12.5 5 5 10-11"/>
+  </symbol>
+  <symbol id="ikona-strzalka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 12h15"/><path d="m13.5 6 6 6-6 6"/>
+  </symbol>
+  <symbol id="ikona-ustawienia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.2 6.2 4.5 4.5M19.5 19.5l-1.7-1.7M17.8 6.2l1.7-1.7M4.5 19.5l1.7-1.7"/>
+  </symbol>
+  <symbol id="ikona-znak" viewBox="0 0 64 64">
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/><circle cx="32" cy="9" r="3.5" fill="currentColor"/><circle cx="48" cy="14" r="3.5" fill="currentColor"/>
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 43 C28 47 36 47 40 41" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M18 28 C27 30 37 30 46 28" fill="none" stroke="var(--color-surface-raised, #fff)" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<main class="galeria">
+
+<h1>Kuking — galeria komponentów</h1>
+<p class="lead">Każdy komponent, każdy stan, obydwa motywy — na jednej stronie,
+bez klikania i bez skryptu. Lewa plansza w każdej parze jest jasna, prawa ciemna;
+przy wąskim oknie ciemna staje pod jasną.</p>
+<p class="pomoc">Stany, których nie da się wywołać na statycznej stronie —
+najechanie, fokus klawiatury, wciśnięcie — stoją jako osobne egzemplarze
+podpisane słowem. Rysuje je krótki blok stylów na górze pliku, opisany
+komentarzem; do systemu nie należy. Specyfikacja słowna: <a href="KOMPONENTY.md">KOMPONENTY.md</a>.</p>
+
+<nav aria-labelledby="spis-tytul">
+  <h2 id="spis-tytul">Spis treści</h2>
+  <ul class="spis">
+    <li><a href="#fundamenty-paleta">Paleta</a></li>
+    <li><a href="#fundamenty-typografia">Skala typograficzna</a></li>
+    <li><a href="#fundamenty-odstepy">Odstępy</a></li>
+    <li><a href="#fundamenty-promienie">Promienie</a></li>
+    <li><a href="#fundamenty-cienie">Cienie</a></li>
+    <li><a href="#przycisk">Przycisk</a></li>
+    <li><a href="#pole-formularza">Pole formularza</a></li>
+    <li><a href="#grupa-wyboru">Grupa wyboru „Kto to widzi”</a></li>
+    <li><a href="#pole-zaznaczenia">Pole zaznaczenia</a></li>
+    <li><a href="#wybor-zdjecia">Wybór zdjęcia</a></li>
+    <li><a href="#karta-wpisu">Karta wpisu</a></li>
+    <li><a href="#karta-przepisu">Karta przepisu</a></li>
+    <li><a href="#czesci-przepisu">Części ekranu przepisu</a></li>
+    <li><a href="#karta-ugotowalem">Karta „Ugotowałem”</a></li>
+    <li><a href="#plakietka">Plakietka</a></li>
+    <li><a href="#chip">Chip zakresu</a></li>
+    <li><a href="#awatar">Awatar</a></li>
+    <li><a href="#komunikat">Komunikat</a></li>
+    <li><a href="#podsumowanie-bledow">Podsumowanie błędów</a></li>
+    <li><a href="#autozapis">Plakietka autozapisu</a></li>
+    <li><a href="#pusty-stan">Pusty stan</a></li>
+    <li><a href="#kroki-kreatora">Kroki kreatora</a></li>
+    <li><a href="#belka-gorna">Belka górna</a></li>
+    <li><a href="#nawigacja-boczna">Nawigacja boczna</a></li>
+    <li><a href="#dolny-pasek">Dolny pasek nawigacji</a></li>
+    <li><a href="#modul-szyny">Moduł szyny</a></li>
+    <li><a href="#wiersz-powiadomienia">Wiersz powiadomienia</a></li>
+    <li><a href="#tekst-na-zdjeciu">Tekst na zdjęciu</a></li>
+    <li><a href="#tabela">Tabela</a></li>
+    <li><a href="#stopka">Stopka</a></li>
+    <li><a href="#potwierdzenie">Potwierdzenie akcji destrukcyjnej</a></li>
+    <li><a href="#watek-komentarzy">Wątek komentarzy</a></li>
+    <li><a href="#pokaz-wiecej">Stronicowanie „Pokaż więcej”</a></li>
+    <li><a href="#skala-tekstu">Skala tekstu 100% i 150%</a></li>
+  </ul>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- FUNDAMENTY                                                            -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="fundamenty-paleta">
+  <h2>Paleta</h2>
+  <p class="pomoc">Ta sama próbka po obu stronach — po lewej rozwiązuje się do
+  wartości jasnej, po prawej do ciemnej. Kontrast podany przy kolorze pochodzi
+  z <a href="../01-fundamenty/kontrast-wynik.md">kontrast-wynik.md</a> (70 par,
+  wszystkie przechodzą).</p>
+  <div class="para">
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="paleta">
+        <div class="kolor"><span class="probka p-surface"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface</strong>#FAF6F0 · atrament 14.21:1</span></div>
+        <div class="kolor"><span class="probka p-surface-raised"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface-raised</strong>#FFFFFF · atrament 15.30:1</span></div>
+        <div class="kolor"><span class="probka p-surface-sunken"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface-sunken</strong>#F1EBE1 · atrament 12.90:1</span></div>
+        <div class="kolor"><span class="probka p-surface-brand-wash"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface-brand-wash</strong>#F7E9E2 · atrament 12.90:1</span></div>
+        <div class="kolor"><span class="probka p-border"></span><span class="probka-opis"><strong class="probka-nazwa">--color-border</strong>#E4DACB · linia rozdzielająca, nie nośnik treści</span></div>
+        <div class="kolor"><span class="probka p-border-strong"></span><span class="probka-opis"><strong class="probka-nazwa">--color-border-strong</strong>#8A7A63 · na tle strony 3.87:1</span></div>
+        <div class="kolor"><span class="probka p-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-ink</strong>#2B241D · na tle strony 14.21:1</span></div>
+        <div class="kolor"><span class="probka p-ink-muted"></span><span class="probka-opis"><strong class="probka-nazwa">--color-ink-muted</strong>#5C5347 · na tle strony 7.01:1</span></div>
+        <div class="kolor"><span class="probka p-ink-inverse"></span><span class="probka-opis"><strong class="probka-nazwa">--color-ink-inverse</strong>#FFFFFF · na przycisku głównym 5.72:1</span></div>
+        <div class="kolor"><span class="probka p-brand"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand</strong>#B3401F · na tle strony 5.31:1</span></div>
+        <div class="kolor"><span class="probka p-brand-dark"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-dark</strong>#8C3018 · biały napis 8.23:1</span></div>
+        <div class="kolor"><span class="probka p-brand-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-tint</strong>#F5E4DC · z brand-tint-ink 6.67:1</span></div>
+        <div class="kolor"><span class="probka p-brand-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-tint-ink</strong>#8C3018 · 6.67:1</span></div>
+        <div class="kolor"><span class="probka p-brand-solid"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-solid</strong>#B3401F · biały napis 5.72:1</span></div>
+        <div class="kolor"><span class="probka p-brand-solid-hover"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-solid-hover</strong>#8C3018 · biały napis 8.23:1</span></div>
+        <div class="kolor"><span class="probka p-accent"></span><span class="probka-opis"><strong class="probka-nazwa">--color-accent</strong>#7A5C10 · na tle strony 5.80:1</span></div>
+        <div class="kolor"><span class="probka p-accent-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-accent-tint</strong>#FCEACB · z accent-tint-ink 6.53:1</span></div>
+        <div class="kolor"><span class="probka p-accent-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-accent-tint-ink</strong>#6B4E0C · 6.53:1</span></div>
+        <div class="kolor"><span class="probka p-danger"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger</strong>#B3261E · na tle strony 6.07:1</span></div>
+        <div class="kolor"><span class="probka p-danger-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-tint</strong>#FBE2E0 · z danger-tint-ink 7.37:1</span></div>
+        <div class="kolor"><span class="probka p-danger-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-tint-ink</strong>#8C1E17 · 7.37:1</span></div>
+        <div class="kolor"><span class="probka p-danger-solid"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-solid</strong>#B3261E · biały napis 6.54:1</span></div>
+        <div class="kolor"><span class="probka p-danger-solid-hover"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-solid-hover</strong>#8C1E17 · biały napis 9.08:1</span></div>
+        <div class="kolor"><span class="probka p-success"></span><span class="probka-opis"><strong class="probka-nazwa">--color-success</strong>#1E7B3E · na tle strony 4.93:1</span></div>
+        <div class="kolor"><span class="probka p-success-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-success-tint</strong>#DFF3E4 · z success-tint-ink 6.95:1</span></div>
+        <div class="kolor"><span class="probka p-success-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-success-tint-ink</strong>#155C2E · 6.95:1</span></div>
+        <div class="kolor"><span class="probka p-focus"></span><span class="probka-opis"><strong class="probka-nazwa">--color-focus</strong>#155EEF · na tle strony 5.03:1</span></div>
+        <div class="kolor"><span class="probka p-scrim"></span><span class="probka-opis"><strong class="probka-nazwa">--scrim-ink</strong>#1A130E · biały napis 18.37:1</span></div>
+      </div>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="paleta">
+        <div class="kolor"><span class="probka p-surface"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface</strong>#1E1A16 · atrament 15.13:1</span></div>
+        <div class="kolor"><span class="probka p-surface-raised"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface-raised</strong>#2A241E · atrament 13.41:1</span></div>
+        <div class="kolor"><span class="probka p-surface-sunken"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface-sunken</strong>#14110E · atrament 16.46:1</span></div>
+        <div class="kolor"><span class="probka p-surface-brand-wash"></span><span class="probka-opis"><strong class="probka-nazwa">--color-surface-brand-wash</strong>#2E211A · atrament 13.62:1</span></div>
+        <div class="kolor"><span class="probka p-border"></span><span class="probka-opis"><strong class="probka-nazwa">--color-border</strong>#382F27 · linia rozdzielająca, nie nośnik treści</span></div>
+        <div class="kolor"><span class="probka p-border-strong"></span><span class="probka-opis"><strong class="probka-nazwa">--color-border-strong</strong>#8C7D68 · na tle strony 4.32:1</span></div>
+        <div class="kolor"><span class="probka p-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-ink</strong>#F5EFE6 · na tle strony 15.13:1</span></div>
+        <div class="kolor"><span class="probka p-ink-muted"></span><span class="probka-opis"><strong class="probka-nazwa">--color-ink-muted</strong>#C9BEB0 · na tle strony 9.45:1</span></div>
+        <div class="kolor"><span class="probka p-ink-inverse"></span><span class="probka-opis"><strong class="probka-nazwa">--color-ink-inverse</strong>#FFFFFF · na przycisku głównym 4.72:1</span></div>
+        <div class="kolor"><span class="probka p-brand"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand</strong>#F2986A · na tle strony 7.80:1</span></div>
+        <div class="kolor"><span class="probka p-brand-dark"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-dark</strong>#A63F1F · biały napis 6.26:1</span></div>
+        <div class="kolor"><span class="probka p-brand-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-tint</strong>#3A2418 · z brand-tint-ink 6.55:1</span></div>
+        <div class="kolor"><span class="probka p-brand-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-tint-ink</strong>#F2986A · 6.55:1</span></div>
+        <div class="kolor"><span class="probka p-brand-solid"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-solid</strong>#C1502A · biały napis 4.72:1</span></div>
+        <div class="kolor"><span class="probka p-brand-solid-hover"></span><span class="probka-opis"><strong class="probka-nazwa">--color-brand-solid-hover</strong>#A63F1F · biały napis 6.26:1</span></div>
+        <div class="kolor"><span class="probka p-accent"></span><span class="probka-opis"><strong class="probka-nazwa">--color-accent</strong>#E3B341 · na tle strony 8.88:1</span></div>
+        <div class="kolor"><span class="probka p-accent-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-accent-tint</strong>#E3B341 · z accent-tint-ink 6.98:1</span></div>
+        <div class="kolor"><span class="probka p-accent-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-accent-tint-ink</strong>#3A2C0C · 6.98:1</span></div>
+        <div class="kolor"><span class="probka p-danger"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger</strong>#FF8A80 · na tle strony 7.57:1</span></div>
+        <div class="kolor"><span class="probka p-danger-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-tint</strong>#5C1E17 · z danger-tint-ink 11.11:1</span></div>
+        <div class="kolor"><span class="probka p-danger-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-tint-ink</strong>#FDECEA · 11.11:1</span></div>
+        <div class="kolor"><span class="probka p-danger-solid"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-solid</strong>#C43127 · biały napis 5.50:1</span></div>
+        <div class="kolor"><span class="probka p-danger-solid-hover"></span><span class="probka-opis"><strong class="probka-nazwa">--color-danger-solid-hover</strong>#A3281F · biały napis 7.29:1</span></div>
+        <div class="kolor"><span class="probka p-success"></span><span class="probka-opis"><strong class="probka-nazwa">--color-success</strong>#7BD79A · na tle strony 9.90:1</span></div>
+        <div class="kolor"><span class="probka p-success-tint"></span><span class="probka-opis"><strong class="probka-nazwa">--color-success-tint</strong>#1E4A2C · z success-tint-ink 9.31:1</span></div>
+        <div class="kolor"><span class="probka p-success-tint-ink"></span><span class="probka-opis"><strong class="probka-nazwa">--color-success-tint-ink</strong>#EAF9EE · 9.31:1</span></div>
+        <div class="kolor"><span class="probka p-focus"></span><span class="probka-opis"><strong class="probka-nazwa">--color-focus</strong>#6EA8FF · na tle strony 7.17:1</span></div>
+        <div class="kolor"><span class="probka p-scrim"></span><span class="probka-opis"><strong class="probka-nazwa">--scrim-ink</strong>#000000 · biały napis 21.00:1</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sekcja-galerii" id="fundamenty-typografia">
+  <h2>Skala typograficzna</h2>
+  <p class="pomoc">Tekst podstawowy ma 18 px i to jest minimum produktowe, nie
+  punkt wyjścia do oszczędzania. Rozmiary skalują się mnożnikiem konta
+  (90–140%); odstępy, promienie i wysokości kontrolek nie.</p>
+  <div class="para">
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <p class="meta">--text-meta · 15 px · plakietka cicha, jedyny rozmiar poniżej 16 px</p>
+      <p class="pomoc">--text-help · 16 px · podpowiedź pod polem, metadane</p>
+      <p>--text-body · 18 px · tekst podstawowy, etykieta, przycisk</p>
+      <p class="pr-body-lg">--text-body-lg · 20 px · treść wpisu, tytuł karty zwartej</p>
+      <p class="lead">--text-lead · 22 px · wpis bez zdjęcia, wstęp</p>
+      <p class="pr-title-sm">--text-title-sm · 24 px · tytuł karty</p>
+      <p class="pr-title">--text-title · 28 px · tytuł strony</p>
+      <p class="text-title-lg">--text-title-lg · 36 px</p>
+      <p class="text-title-xl">--text-title-xl · 48 px</p>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <p class="meta">--text-meta · 15 px · plakietka cicha, jedyny rozmiar poniżej 16 px</p>
+      <p class="pomoc">--text-help · 16 px · podpowiedź pod polem, metadane</p>
+      <p>--text-body · 18 px · tekst podstawowy, etykieta, przycisk</p>
+      <p class="pr-body-lg">--text-body-lg · 20 px · treść wpisu, tytuł karty zwartej</p>
+      <p class="lead">--text-lead · 22 px · wpis bez zdjęcia, wstęp</p>
+      <p class="pr-title-sm">--text-title-sm · 24 px · tytuł karty</p>
+      <p class="pr-title">--text-title · 28 px · tytuł strony</p>
+      <p class="text-title-lg">--text-title-lg · 36 px</p>
+      <p class="text-title-xl">--text-title-xl · 48 px</p>
+    </div>
+  </div>
+</section>
+
+<section class="sekcja-galerii" id="fundamenty-odstepy">
+  <h2>Odstępy</h2>
+  <p class="pomoc">Baza 4 px. Odstępy celowo NIE skalują się razem z tekstem —
+  inaczej przy 140% strona rosłaby dwa razy szybciej niż litery i przestałaby
+  się mieścić.</p>
+  <div class="para para-stos">
+    <div class="plansza">
+      <span class="podpis">motyw jasny · te same wartości w obu motywach</span>
+      <div class="tabela-otoczka">
+        <table class="tabela">
+          <thead><tr><th>Token</th><th>rem</th><th>px</th><th>Gdzie</th></tr></thead>
+          <tbody>
+            <tr><td>--spacing-1</td><td>0.25</td><td>4</td><td>odstęp w plakietce, przerwa między kropkami kreatora</td></tr>
+            <tr><td>--spacing-2</td><td>0.5</td><td>8</td><td>etykieta do pola, ikona do napisu</td></tr>
+            <tr><td>--spacing-3</td><td>0.75</td><td>12</td><td>odstęp między przyciskami w rzędzie</td></tr>
+            <tr><td>--spacing-4</td><td>1</td><td>16</td><td>wnętrze komunikatu, margines treści strony</td></tr>
+            <tr><td>--spacing-5</td><td>1.25</td><td>20</td><td>wnętrze karty i modułu szyny</td></tr>
+            <tr><td>--spacing-6</td><td>1.5</td><td>24</td><td>odstęp między kartami w strumieniu</td></tr>
+            <tr><td>--spacing-8</td><td>2</td><td>32</td><td>minimalny odstęp akcji zwykłej od destrukcyjnej</td></tr>
+            <tr><td>--spacing-10</td><td>2.5</td><td>40</td><td>początek sekcji formularza</td></tr>
+            <tr><td>--spacing-12</td><td>3</td><td>48</td><td>wnętrze pustego stanu</td></tr>
+            <tr><td>--spacing-16</td><td>4</td><td>64</td><td>odstęp stopki od treści</td></tr>
+            <tr><td>--spacing-20</td><td>5</td><td>80</td><td>przyklejenie nawigacji bocznej pod belką</td></tr>
+            <tr><td>--spacing-24</td><td>6</td><td>96</td><td>zapas pod szyną przyklejoną do okna</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · ta sama tabela, żeby dało się sprawdzić czytelność linii</span>
+      <div class="tabela-otoczka">
+        <table class="tabela">
+          <thead><tr><th>Token</th><th>rem</th><th>px</th><th>Gdzie</th></tr></thead>
+          <tbody>
+            <tr><td>--spacing-1</td><td>0.25</td><td>4</td><td>odstęp w plakietce, przerwa między kropkami kreatora</td></tr>
+            <tr><td>--spacing-2</td><td>0.5</td><td>8</td><td>etykieta do pola, ikona do napisu</td></tr>
+            <tr><td>--spacing-3</td><td>0.75</td><td>12</td><td>odstęp między przyciskami w rzędzie</td></tr>
+            <tr><td>--spacing-4</td><td>1</td><td>16</td><td>wnętrze komunikatu, margines treści strony</td></tr>
+            <tr><td>--spacing-5</td><td>1.25</td><td>20</td><td>wnętrze karty i modułu szyny</td></tr>
+            <tr><td>--spacing-6</td><td>1.5</td><td>24</td><td>odstęp między kartami w strumieniu</td></tr>
+            <tr><td>--spacing-8</td><td>2</td><td>32</td><td>minimalny odstęp akcji zwykłej od destrukcyjnej</td></tr>
+            <tr><td>--spacing-10</td><td>2.5</td><td>40</td><td>początek sekcji formularza</td></tr>
+            <tr><td>--spacing-12</td><td>3</td><td>48</td><td>wnętrze pustego stanu</td></tr>
+            <tr><td>--spacing-16</td><td>4</td><td>64</td><td>odstęp stopki od treści</td></tr>
+            <tr><td>--spacing-20</td><td>5</td><td>80</td><td>przyklejenie nawigacji bocznej pod belką</td></tr>
+            <tr><td>--spacing-24</td><td>6</td><td>96</td><td>zapas pod szyną przyklejoną do okna</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sekcja-galerii" id="fundamenty-promienie">
+  <h2>Promienie</h2>
+  <div class="para">
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="siatka-kafli">
+        <div class="kafel r-sm">--radius-sm<br>8 px · plakietka, pasek danych</div>
+        <div class="kafel r-md">--radius-md<br>12 px · przycisk, pole, komunikat</div>
+        <div class="kafel r-lg">--radius-lg<br>16 px · karta prosta, grupa wyboru</div>
+        <div class="kafel r-xl">--radius-xl<br>24 px · karta wpisu, pusty stan</div>
+        <div class="kafel r-pill">--radius-pill<br>999 px · chip, awatar, kółko „Dodaj”</div>
+      </div>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="siatka-kafli">
+        <div class="kafel r-sm">--radius-sm<br>8 px · plakietka, pasek danych</div>
+        <div class="kafel r-md">--radius-md<br>12 px · przycisk, pole, komunikat</div>
+        <div class="kafel r-lg">--radius-lg<br>16 px · karta prosta, grupa wyboru</div>
+        <div class="kafel r-xl">--radius-xl<br>24 px · karta wpisu, pusty stan</div>
+        <div class="kafel r-pill">--radius-pill<br>999 px · chip, awatar, kółko „Dodaj”</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sekcja-galerii" id="fundamenty-cienie">
+  <h2>Cienie</h2>
+  <p class="pomoc">Cień jest barwiony w stronę atramentu, nie w czystą czerń.
+  W motywie ciemnym te same tokeny są mocniejsze i bardziej czarne, bo na
+  ciemnym tle delikatny cień nie istnieje.</p>
+  <div class="para">
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="siatka-kafli">
+        <div class="kafel r-lg c-card">--shadow-card<br>karta w spoczynku</div>
+        <div class="kafel r-lg c-card-hover">--shadow-card-hover<br>karta pod kursorem</div>
+        <div class="kafel r-lg c-popover">--shadow-popover<br>panel nad treścią</div>
+      </div>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="siatka-kafli">
+        <div class="kafel r-lg c-card">--shadow-card<br>karta w spoczynku</div>
+        <div class="kafel r-lg c-card-hover">--shadow-card-hover<br>karta pod kursorem</div>
+        <div class="kafel r-lg c-popover">--shadow-popover<br>panel nad treścią</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PRZYCISK                                                              -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="przycisk">
+  <h2>Przycisk</h2>
+  <p class="pomoc">Cztery wagi. Na jednym ekranie dokładnie jedna akcja jest
+  przyciskiem głównym (D-110). Przycisk zawsze ma tekst — ikona najwyżej mu
+  towarzyszy.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek · cztery wagi</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary">Opublikuj</button>
+          <button type="button" class="btn btn-secondary">Zapisz szkic</button>
+          <button type="button" class="btn btn-quiet">Anuluj</button>
+          <button type="button" class="btn btn-danger">Usuń</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">najechanie</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary stan-najechanie">Opublikuj</button>
+          <button type="button" class="btn btn-secondary stan-najechanie">Zapisz szkic</button>
+          <button type="button" class="btn btn-quiet stan-najechanie">Anuluj</button>
+          <button type="button" class="btn btn-danger stan-najechanie">Usuń</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury · pierścień z dwupikselowym halo w kolorze tła</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary stan-fokus">Opublikuj</button>
+          <button type="button" class="btn btn-secondary stan-fokus">Zapisz szkic</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wciśnięty · jeden piksel w dół</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary stan-wcisniety">Opublikuj</button>
+          <button type="button" class="btn btn-secondary stan-wcisniety">Zapisz szkic</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wyłączony · nigdy bez zdania, co zrobić</span>
+        <button type="button" class="btn btn-primary" disabled>Opublikuj</button>
+        <span class="btn-wyjasnienie">Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.</span>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">duży i pełnej szerokości · akcja główna na telefonie</span>
+        <button type="button" class="btn btn-primary btn-duzy btn-pelny">
+          <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          Dodaj zdjęcie tego, co ugotowałeś
+        </button>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">strefa akcji nieodwracalnej · nigdy obok „Zapisz”</span>
+        <div class="danger-zone">
+          <p class="danger-zone-tytul">Usunięcie wpisu</p>
+          <p class="pomoc">Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie.</p>
+          <button type="button" class="btn btn-danger">Usuń wpis</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek · cztery wagi</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary">Opublikuj</button>
+          <button type="button" class="btn btn-secondary">Zapisz szkic</button>
+          <button type="button" class="btn btn-quiet">Anuluj</button>
+          <button type="button" class="btn btn-danger">Usuń</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">najechanie</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary stan-najechanie">Opublikuj</button>
+          <button type="button" class="btn btn-secondary stan-najechanie">Zapisz szkic</button>
+          <button type="button" class="btn btn-quiet stan-najechanie">Anuluj</button>
+          <button type="button" class="btn btn-danger stan-najechanie">Usuń</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury · pierścień z dwupikselowym halo w kolorze tła</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary stan-fokus">Opublikuj</button>
+          <button type="button" class="btn btn-secondary stan-fokus">Zapisz szkic</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wciśnięty · jeden piksel w dół</span>
+        <div class="rzad-przyciskow">
+          <button type="button" class="btn btn-primary stan-wcisniety">Opublikuj</button>
+          <button type="button" class="btn btn-secondary stan-wcisniety">Zapisz szkic</button>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wyłączony · nigdy bez zdania, co zrobić</span>
+        <button type="button" class="btn btn-primary" disabled>Opublikuj</button>
+        <span class="btn-wyjasnienie">Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.</span>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">duży i pełnej szerokości · akcja główna na telefonie</span>
+        <button type="button" class="btn btn-primary btn-duzy btn-pelny">
+          <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          Dodaj zdjęcie tego, co ugotowałeś
+        </button>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">strefa akcji nieodwracalnej · nigdy obok „Zapisz”</span>
+        <div class="danger-zone">
+          <p class="danger-zone-tytul">Usunięcie wpisu</p>
+          <p class="pomoc">Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie.</p>
+          <button type="button" class="btn btn-danger">Usuń wpis</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- POLE FORMULARZA                                                       -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="pole-formularza">
+  <h2>Pole formularza</h2>
+  <p class="pomoc">Etykieta zawsze nad polem. Podpowiedź NAD polem, nie pod —
+  człowiek czyta ją, zanim zacznie pisać. Szerokość pola jest dobrana do
+  treści, którą się w nie wpisuje (D-109): pole na rok ma osiem znaków, a nie
+  czterdzieści.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek · tekst, szerokość średnia</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-nazwa">Nazwa przepisu <span class="field-wymagane">wymagane</span></label>
+          <span class="field-podpowiedz" id="j-nazwa-pod">Tak, jak mówisz o nim w domu.</span>
+          <input class="field-input field-input-srednie" type="text" id="j-nazwa" name="nazwa" aria-describedby="j-nazwa-pod" value="Pomidorowa z własnych pomidorów">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">najechanie · obwódka ciemnieje, tło się nie zmienia</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-nazwa-h">Nazwa przepisu</label>
+          <input class="field-input field-input-srednie stan-najechanie" type="text" id="j-nazwa-h" name="nazwa-h" value="Pomidorowa z własnych pomidorów">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-nazwa-f">Nazwa przepisu</label>
+          <input class="field-input field-input-srednie stan-fokus" type="text" id="j-nazwa-f" name="nazwa-f" value="Pomidorowa z własnych pomidorów">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">błąd · trzypikselowa obwódka, ikona i zdanie, co zrobić</span>
+        <div class="field has-error">
+          <label class="field-etykieta" for="j-tresc">Napisz kilka słów</label>
+          <textarea class="field-input" id="j-tresc" name="j-tresc" rows="2" aria-invalid="true" aria-describedby="j-tresc-blad"></textarea>
+          <span class="field-error" id="j-tresc-blad">
+            <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+            Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.
+          </span>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">błąd z bardzo długim słowem · „zielonapietruszkarano” łamie się zamiast rozpychać kolumnę</span>
+        <div class="field has-error">
+          <label class="field-etykieta" for="j-haslo">Hasło <span class="field-wymagane">wymagane</span></label>
+          <input class="field-input" type="password" id="j-haslo" name="j-haslo" aria-invalid="true" aria-describedby="j-haslo-blad" value="ala123">
+          <span class="field-error" id="j-haslo-blad">
+            <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+            Hasło musi mieć co najmniej 10 znaków. Najprościej wpisać trzy słowa, na przykład: zielonapietruszkarano.
+          </span>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wyłączony</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-nazwa-w">Nazwa użytkownika</label>
+          <span class="field-podpowiedz">Nazwy nie da się zmienić po założeniu konta.</span>
+          <input class="field-input field-input-krotkie" type="text" id="j-nazwa-w" name="nazwa-w" value="basia" disabled>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">cztery szerokości · rok, liczba, krótkie, średnie</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-rok">Rok</label>
+          <input class="field-input field-input-rok" type="text" inputmode="numeric" id="j-rok" name="rok" value="1978">
+        </div>
+        <div class="field">
+          <label class="field-etykieta" for="j-porcje">Ile porcji</label>
+          <input class="field-input field-input-liczba" type="number" id="j-porcje" name="porcje" value="6" min="1" max="99">
+        </div>
+        <div class="field">
+          <label class="field-etykieta" for="j-pokim">Po kim ten przepis</label>
+          <span class="field-podpowiedz">po mamie, Halinie</span>
+          <input class="field-input field-input-krotkie" type="text" id="j-pokim" name="pokim">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">dwa pola w jednym wierszu · zawijają się przy 320 px zamiast wystawać</span>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="j-minuty">Ile minut</label>
+            <input class="field-input field-input-liczba" type="number" id="j-minuty" name="j-minuty" value="90">
+          </div>
+          <div class="field">
+            <label class="field-etykieta" for="j-porcje2">Ile porcji</label>
+            <input class="field-input field-input-liczba" type="number" id="j-porcje2" name="j-porcje2" value="6">
+          </div>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">lista rozwijana · zawsze z widoczną etykietą</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-poziom">Jak trudne</label>
+          <select class="field-input field-input-krotkie" id="j-poziom" name="poziom">
+            <option>Proste</option>
+            <option>Średnie</option>
+            <option>Wymaga wprawy</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">obszar tekstowy · zwykły i długi</span>
+        <div class="field">
+          <label class="field-etykieta" for="j-slowa">Napisz kilka słów</label>
+          <span class="field-podpowiedz">Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”</span>
+          <textarea class="field-input" id="j-slowa" name="slowa" rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label class="field-etykieta" for="j-historia">Historia tego przepisu</label>
+          <span class="field-podpowiedz">Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. To zostaje w rodzinie.</span>
+          <textarea class="field-input field-input-dlugie" id="j-historia" name="historia" rows="6"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek · tekst, szerokość średnia</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-nazwa">Nazwa przepisu <span class="field-wymagane">wymagane</span></label>
+          <span class="field-podpowiedz" id="c-nazwa-pod">Tak, jak mówisz o nim w domu.</span>
+          <input class="field-input field-input-srednie" type="text" id="c-nazwa" name="c-nazwa" aria-describedby="c-nazwa-pod" value="Pomidorowa z własnych pomidorów">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">najechanie · obwódka ciemnieje, tło się nie zmienia</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-nazwa-h">Nazwa przepisu</label>
+          <input class="field-input field-input-srednie stan-najechanie" type="text" id="c-nazwa-h" name="c-nazwa-h" value="Pomidorowa z własnych pomidorów">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-nazwa-f">Nazwa przepisu</label>
+          <input class="field-input field-input-srednie stan-fokus" type="text" id="c-nazwa-f" name="c-nazwa-f" value="Pomidorowa z własnych pomidorów">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">błąd · trzypikselowa obwódka, ikona i zdanie, co zrobić</span>
+        <div class="field has-error">
+          <label class="field-etykieta" for="c-tresc">Napisz kilka słów</label>
+          <textarea class="field-input" id="c-tresc" name="c-tresc" rows="2" aria-invalid="true" aria-describedby="c-tresc-blad"></textarea>
+          <span class="field-error" id="c-tresc-blad">
+            <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+            Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.
+          </span>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">błąd z bardzo długim słowem · „zielonapietruszkarano” łamie się zamiast rozpychać kolumnę</span>
+        <div class="field has-error">
+          <label class="field-etykieta" for="c-haslo">Hasło <span class="field-wymagane">wymagane</span></label>
+          <input class="field-input" type="password" id="c-haslo" name="c-haslo" aria-invalid="true" aria-describedby="c-haslo-blad" value="ala123">
+          <span class="field-error" id="c-haslo-blad">
+            <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+            Hasło musi mieć co najmniej 10 znaków. Najprościej wpisać trzy słowa, na przykład: zielonapietruszkarano.
+          </span>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wyłączony</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-nazwa-w">Nazwa użytkownika</label>
+          <span class="field-podpowiedz">Nazwy nie da się zmienić po założeniu konta.</span>
+          <input class="field-input field-input-krotkie" type="text" id="c-nazwa-w" name="c-nazwa-w" value="basia" disabled>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">cztery szerokości · rok, liczba, krótkie, średnie</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-rok">Rok</label>
+          <input class="field-input field-input-rok" type="text" inputmode="numeric" id="c-rok" name="c-rok" value="1978">
+        </div>
+        <div class="field">
+          <label class="field-etykieta" for="c-porcje">Ile porcji</label>
+          <input class="field-input field-input-liczba" type="number" id="c-porcje" name="c-porcje" value="6" min="1" max="99">
+        </div>
+        <div class="field">
+          <label class="field-etykieta" for="c-pokim">Po kim ten przepis</label>
+          <span class="field-podpowiedz">po mamie, Halinie</span>
+          <input class="field-input field-input-krotkie" type="text" id="c-pokim" name="c-pokim">
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">dwa pola w jednym wierszu · zawijają się przy 320 px zamiast wystawać</span>
+        <div class="rzad-pol">
+          <div class="field">
+            <label class="field-etykieta" for="c-minuty">Ile minut</label>
+            <input class="field-input field-input-liczba" type="number" id="c-minuty" name="c-minuty" value="90">
+          </div>
+          <div class="field">
+            <label class="field-etykieta" for="c-porcje2">Ile porcji</label>
+            <input class="field-input field-input-liczba" type="number" id="c-porcje2" name="c-porcje2" value="6">
+          </div>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">lista rozwijana · zawsze z widoczną etykietą</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-poziom">Jak trudne</label>
+          <select class="field-input field-input-krotkie" id="c-poziom" name="c-poziom">
+            <option>Proste</option>
+            <option>Średnie</option>
+            <option>Wymaga wprawy</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">obszar tekstowy · zwykły i długi</span>
+        <div class="field">
+          <label class="field-etykieta" for="c-slowa">Napisz kilka słów</label>
+          <span class="field-podpowiedz">Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”</span>
+          <textarea class="field-input" id="c-slowa" name="c-slowa" rows="3"></textarea>
+        </div>
+        <div class="field">
+          <label class="field-etykieta" for="c-historia">Historia tego przepisu</label>
+          <span class="field-podpowiedz">Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. To zostaje w rodzinie.</span>
+          <textarea class="field-input field-input-dlugie" id="c-historia" name="c-historia" rows="6"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- GRUPA WYBORU „KTO TO WIDZI”                                           -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="grupa-wyboru">
+  <h2>Grupa wyboru „Kto to widzi”</h2>
+  <p class="pomoc">Trzy duże karty, wszystkie widoczne naraz — nigdy lista
+  rozwijana. Opis stoi w osobnym bloku pod etykietą; bez tego powstaje
+  „Tylko jaTwój prywatny zeszyt”. Liczba kolumn bierze się z miejsca, które
+  komponent naprawdę ma, a nie z szerokości okna (D-112) — dlatego w wąskiej
+  planszy karty stoją jedna pod drugą, a nie wciskają się w trzy kolumny.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · spoczynek, wybrany (środkowy), najechanie (trzeci)</span>
+      <fieldset class="field">
+        <legend class="field-etykieta">Kto to widzi</legend>
+        <div class="choice-grid">
+          <label class="choice" for="j-widz-1">
+            <span class="choice-naglowek">
+              <input type="radio" name="j-widocznosc" id="j-widz-1">
+              <span class="choice-label">Wszyscy</span>
+            </span>
+            <span class="choice-help">Także osoby bez konta.</span>
+          </label>
+          <label class="choice" for="j-widz-2">
+            <span class="choice-naglowek">
+              <input type="radio" name="j-widocznosc" id="j-widz-2" checked>
+              <span class="choice-label">Tylko obserwujący</span>
+            </span>
+            <span class="choice-help">Osoby, które Cię obserwują.</span>
+          </label>
+          <label class="choice stan-najechanie" for="j-widz-3">
+            <span class="choice-naglowek">
+              <input type="radio" name="j-widocznosc" id="j-widz-3">
+              <span class="choice-label">Tylko ja</span>
+            </span>
+            <span class="choice-help">Twój prywatny zeszyt.</span>
+          </label>
+        </div>
+      </fieldset>
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury · obwódka obejmuje całą kartę wyboru</span>
+        <label class="choice stan-fokus" for="j-widz-f">
+          <span class="choice-naglowek">
+            <input type="radio" name="j-widocznosc-f" id="j-widz-f">
+            <span class="choice-label">Wszyscy</span>
+          </span>
+          <span class="choice-help">Także osoby bez konta.</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · spoczynek, wybrany (środkowy), najechanie (trzeci)</span>
+      <fieldset class="field">
+        <legend class="field-etykieta">Kto to widzi</legend>
+        <div class="choice-grid">
+          <label class="choice" for="c-widz-1">
+            <span class="choice-naglowek">
+              <input type="radio" name="c-widocznosc" id="c-widz-1">
+              <span class="choice-label">Wszyscy</span>
+            </span>
+            <span class="choice-help">Także osoby bez konta.</span>
+          </label>
+          <label class="choice" for="c-widz-2">
+            <span class="choice-naglowek">
+              <input type="radio" name="c-widocznosc" id="c-widz-2" checked>
+              <span class="choice-label">Tylko obserwujący</span>
+            </span>
+            <span class="choice-help">Osoby, które Cię obserwują.</span>
+          </label>
+          <label class="choice stan-najechanie" for="c-widz-3">
+            <span class="choice-naglowek">
+              <input type="radio" name="c-widocznosc" id="c-widz-3">
+              <span class="choice-label">Tylko ja</span>
+            </span>
+            <span class="choice-help">Twój prywatny zeszyt.</span>
+          </label>
+        </div>
+      </fieldset>
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury · obwódka obejmuje całą kartę wyboru</span>
+        <label class="choice stan-fokus" for="c-widz-f">
+          <span class="choice-naglowek">
+            <input type="radio" name="c-widocznosc-f" id="c-widz-f">
+            <span class="choice-label">Wszyscy</span>
+          </span>
+          <span class="choice-help">Także osoby bez konta.</span>
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- POLE ZAZNACZENIA                                                      -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="pole-zaznaczenia">
+  <h2>Pole zaznaczenia</h2>
+  <p class="pomoc">Cały wiersz jest klikalny, nie sam kwadracik. Wiersz ma
+  minimum 44 px wysokości, a kwadracik 24 px — palec trafia w wiersz, nie
+  w kwadracik.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek, zaznaczony, wyłączony, fokus</span>
+        <label class="pole-zaznaczenia" for="j-zazn-1">
+          <input type="checkbox" id="j-zazn-1">
+          <span>Chcę dostawać wiadomość, kiedy ktoś ugotuje z mojego przepisu</span>
+        </label>
+        <label class="pole-zaznaczenia" for="j-zazn-2">
+          <input type="checkbox" id="j-zazn-2" checked>
+          <span>Rozumiem, że po 30 dniach moje wpisy, przepisy i zdjęcia zostaną usunięte na stałe</span>
+        </label>
+        <label class="pole-zaznaczenia" for="j-zazn-3">
+          <input type="checkbox" id="j-zazn-3" disabled>
+          <span>Pokazuj mój przepis w wyszukiwarce <span class="pomoc">(dostępne, gdy przepis jest widoczny dla wszystkich)</span></span>
+        </label>
+        <label class="pole-zaznaczenia" for="j-zazn-4">
+          <input type="checkbox" id="j-zazn-4" class="stan-fokus">
+          <span>Akceptuję regulamin</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek, zaznaczony, wyłączony, fokus</span>
+        <label class="pole-zaznaczenia" for="c-zazn-1">
+          <input type="checkbox" id="c-zazn-1">
+          <span>Chcę dostawać wiadomość, kiedy ktoś ugotuje z mojego przepisu</span>
+        </label>
+        <label class="pole-zaznaczenia" for="c-zazn-2">
+          <input type="checkbox" id="c-zazn-2" checked>
+          <span>Rozumiem, że po 30 dniach moje wpisy, przepisy i zdjęcia zostaną usunięte na stałe</span>
+        </label>
+        <label class="pole-zaznaczenia" for="c-zazn-3">
+          <input type="checkbox" id="c-zazn-3" disabled>
+          <span>Pokazuj mój przepis w wyszukiwarce <span class="pomoc">(dostępne, gdy przepis jest widoczny dla wszystkich)</span></span>
+        </label>
+        <label class="pole-zaznaczenia" for="c-zazn-4">
+          <input type="checkbox" id="c-zazn-4" class="stan-fokus">
+          <span>Akceptuję regulamin</span>
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- WYBÓR ZDJĘCIA                                                         -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="wybor-zdjecia">
+  <h2>Wybór zdjęcia</h2>
+  <p class="pomoc">Natywny przycisk pliku pisze „Choose File / No file chosen”
+  i żaden atrybut tego nie zmienia. Dlatego input jest schowany dla oka, ale
+  obecny dla klawiatury i czytnika, a klikalna jest etykieta (D-107).</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek</span>
+        <input class="wybor-zdjecia-input" type="file" id="j-plik" name="j-plik" accept="image/jpeg,image/png,image/webp">
+        <label class="wybor-zdjecia" for="j-plik">
+          <svg class="wybor-zdjecia-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          <span class="wybor-zdjecia-tytul">Dodaj zdjęcie</span>
+          <span class="wybor-zdjecia-opis">Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.</span>
+        </label>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">najechanie</span>
+        <label class="wybor-zdjecia stan-najechanie" for="j-plik">
+          <svg class="wybor-zdjecia-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          <span class="wybor-zdjecia-tytul">Dodaj zdjęcie</span>
+          <span class="wybor-zdjecia-opis">Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.</span>
+        </label>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury · obwódkę dostaje etykieta, bo input jest niewidoczny</span>
+        <label class="wybor-zdjecia stan-fokus" for="j-plik">
+          <svg class="wybor-zdjecia-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          <span class="wybor-zdjecia-tytul">Dodaj zdjęcie</span>
+          <span class="wybor-zdjecia-opis">Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.</span>
+        </label>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">błąd · plik odrzucony</span>
+        <div class="field has-error">
+          <span class="field-error">
+            <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+            To zdjęcie waży za dużo. Maksymalny rozmiar to 15 MB — wybierz mniejsze zdjęcie.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek</span>
+        <input class="wybor-zdjecia-input" type="file" id="c-plik" name="c-plik" accept="image/jpeg,image/png,image/webp">
+        <label class="wybor-zdjecia" for="c-plik">
+          <svg class="wybor-zdjecia-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          <span class="wybor-zdjecia-tytul">Dodaj zdjęcie</span>
+          <span class="wybor-zdjecia-opis">Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.</span>
+        </label>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">najechanie</span>
+        <label class="wybor-zdjecia stan-najechanie" for="c-plik">
+          <svg class="wybor-zdjecia-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          <span class="wybor-zdjecia-tytul">Dodaj zdjęcie</span>
+          <span class="wybor-zdjecia-opis">Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.</span>
+        </label>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury · obwódkę dostaje etykieta, bo input jest niewidoczny</span>
+        <label class="wybor-zdjecia stan-fokus" for="c-plik">
+          <svg class="wybor-zdjecia-ikona" aria-hidden="true"><use href="#ikona-aparat"></use></svg>
+          <span class="wybor-zdjecia-tytul">Dodaj zdjęcie</span>
+          <span class="wybor-zdjecia-opis">Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.</span>
+        </label>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">błąd · plik odrzucony</span>
+        <div class="field has-error">
+          <span class="field-error">
+            <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+            To zdjęcie waży za dużo. Maksymalny rozmiar to 15 MB — wybierz mniejsze zdjęcie.
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- KARTA WPISU                                                           -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="karta-wpisu">
+  <h2>Karta wpisu</h2>
+  <p class="pomoc">Na jednej karcie dokładnie jedna rzecz ma kolor marki.
+  Hierarchia jest w rozmiarze i wadze: tytuł 24 px / 800, treść 20 px, autor
+  18 px / 700, metadane 15 px w atramencie stonowanym. Plakietka „konto
+  przykładowe” jest cicha (D-103) — powtarza się w każdym wpisie, więc
+  z definicji nie może krzyczeć.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">pełna, spoczynek</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-wpisu">Halina</a>
+              <div class="karta-meta">
+                <span>wczoraj, 18:40</span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span class="badge badge-cichy">konto przykładowe</span>
+              </div>
+            </div>
+          </div>
+          <h3 class="karta-tytul"><a href="#karta-wpisu">Pierogi ruskie po babci</a></h3>
+          <p class="karta-tresc">Robione w niedzielę, z kapustą i grzybami. Ciasto wyszło cienkie dopiero za trzecim razem.</p>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+          <div class="karta-stopka">
+            <button type="button" class="btn btn-primary">Ugotowałem</button>
+            <button type="button" class="btn btn-quiet">Zapisz</button>
+            <a class="btn btn-quiet karta-stopka-odstep" href="#watek-komentarzy">8 komentarzy</a>
+          </div>
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">najechanie · unosi się tylko cień, nic nie skacze</span>
+        <article class="karta-wpisu stan-najechanie">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-wpisu">Halina</a>
+              <div class="karta-meta"><span>wczoraj, 18:40</span></div>
+            </div>
+          </div>
+          <h3 class="karta-tytul"><a href="#karta-wpisu">Pierogi ruskie po babci</a></h3>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury na akcji w stopce · halo w kolorze karty, nie strony</span>
+        <article class="karta-wpisu">
+          <div class="karta-stopka">
+            <button type="button" class="btn btn-primary stan-fokus">Ugotowałem</button>
+            <button type="button" class="btn btn-quiet">Zapisz</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wpis bez zdjęcia · własny kształt, nie dziura po zdjęciu</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-wpisu">Piotr</a>
+              <div class="karta-meta"><span>dzisiaj, 9:15</span></div>
+            </div>
+          </div>
+          <p class="karta-bez-zdjecia">Rosół nie znosi pośpiechu. Nastawiłem o siódmej, zjemy o drugiej.</p>
+          <div class="karta-stopka">
+            <button type="button" class="btn btn-quiet">Zapisz</button>
+            <a class="btn btn-quiet karta-stopka-odstep" href="#watek-komentarzy">2 komentarze</a>
+          </div>
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">zwarta · dwie kolumny, zdjęcie 16:9, bez treści i bez akcji</span>
+        <div class="siatka-kart">
+          <article class="karta-wpisu karta-wpisu--zwarta">
+            <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+            <h3 class="karta-tytul"><a href="#karta-wpisu">Pierogi ruskie po babci</a></h3>
+            <div class="karta-glowka">
+              <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+              <div class="karta-glowka-tekst"><div class="karta-meta"><span>Halina</span><span class="karta-meta-kropka" aria-hidden="true">·</span><span>wczoraj</span></div></div>
+            </div>
+          </article>
+          <article class="karta-wpisu karta-wpisu--zwarta">
+            <img class="karta-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+            <h3 class="karta-tytul"><a href="#karta-wpisu">Pizza z pieca w ogrodzie</a></h3>
+            <div class="karta-glowka">
+              <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+              <div class="karta-glowka-tekst"><div class="karta-meta"><span>Piotr</span><span class="karta-meta-kropka" aria-hidden="true">·</span><span>w sobotę</span></div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">pełna, spoczynek</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-wpisu">Halina</a>
+              <div class="karta-meta">
+                <span>wczoraj, 18:40</span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span class="badge badge-cichy">konto przykładowe</span>
+              </div>
+            </div>
+          </div>
+          <h3 class="karta-tytul"><a href="#karta-wpisu">Pierogi ruskie po babci</a></h3>
+          <p class="karta-tresc">Robione w niedzielę, z kapustą i grzybami. Ciasto wyszło cienkie dopiero za trzecim razem.</p>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+          <div class="karta-stopka">
+            <button type="button" class="btn btn-primary">Ugotowałem</button>
+            <button type="button" class="btn btn-quiet">Zapisz</button>
+            <a class="btn btn-quiet karta-stopka-odstep" href="#watek-komentarzy">8 komentarzy</a>
+          </div>
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">najechanie · unosi się tylko cień, nic nie skacze</span>
+        <article class="karta-wpisu stan-najechanie">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-wpisu">Halina</a>
+              <div class="karta-meta"><span>wczoraj, 18:40</span></div>
+            </div>
+          </div>
+          <h3 class="karta-tytul"><a href="#karta-wpisu">Pierogi ruskie po babci</a></h3>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury na akcji w stopce · halo w kolorze karty, nie strony</span>
+        <article class="karta-wpisu">
+          <div class="karta-stopka">
+            <button type="button" class="btn btn-primary stan-fokus">Ugotowałem</button>
+            <button type="button" class="btn btn-quiet">Zapisz</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">wpis bez zdjęcia · własny kształt, nie dziura po zdjęciu</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-wpisu">Piotr</a>
+              <div class="karta-meta"><span>dzisiaj, 9:15</span></div>
+            </div>
+          </div>
+          <p class="karta-bez-zdjecia">Rosół nie znosi pośpiechu. Nastawiłem o siódmej, zjemy o drugiej.</p>
+          <div class="karta-stopka">
+            <button type="button" class="btn btn-quiet">Zapisz</button>
+            <a class="btn btn-quiet karta-stopka-odstep" href="#watek-komentarzy">2 komentarze</a>
+          </div>
+        </article>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">zwarta · dwie kolumny, zdjęcie 16:9, bez treści i bez akcji</span>
+        <div class="siatka-kart">
+          <article class="karta-wpisu karta-wpisu--zwarta">
+            <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+            <h3 class="karta-tytul"><a href="#karta-wpisu">Pierogi ruskie po babci</a></h3>
+            <div class="karta-glowka">
+              <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+              <div class="karta-glowka-tekst"><div class="karta-meta"><span>Halina</span><span class="karta-meta-kropka" aria-hidden="true">·</span><span>wczoraj</span></div></div>
+            </div>
+          </article>
+          <article class="karta-wpisu karta-wpisu--zwarta">
+            <img class="karta-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+            <h3 class="karta-tytul"><a href="#karta-wpisu">Pizza z pieca w ogrodzie</a></h3>
+            <div class="karta-glowka">
+              <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+              <div class="karta-glowka-tekst"><div class="karta-meta"><span>Piotr</span><span class="karta-meta-kropka" aria-hidden="true">·</span><span>w sobotę</span></div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- KARTA PRZEPISU                                                        -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="karta-przepisu">
+  <h2>Karta przepisu</h2>
+  <p class="pomoc">To karta wpisu z jedną rzeczą więcej: paskiem danych, który
+  odpowiada na trzy pytania zadawane przed gotowaniem — ile to trwa, na ile
+  osób i czy dam radę. Każda dana ma ikonę i podpis, nigdy samą ikonę.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · spoczynek</span>
+      <article class="karta-wpisu">
+        <img class="karta-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        <h3 class="karta-tytul"><a href="#karta-przepisu">Pizza z pieca w ogrodzie</a></h3>
+        <div class="karta-przepisu-dane">
+          <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-zegar"></use></svg>90 minut</span>
+          <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-porcje"></use></svg>6 porcji</span>
+          <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-czapka"></use></svg>Średnie</span>
+        </div>
+        <div class="karta-glowka">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <div class="karta-glowka-tekst">
+            <a class="karta-autor" href="#karta-przepisu">Piotr</a>
+            <div class="karta-meta"><span>przepis po dziadku</span></div>
+          </div>
+        </div>
+        <div class="karta-stopka">
+          <button type="button" class="btn btn-primary">Zapisz</button>
+          <button type="button" class="btn btn-quiet" aria-pressed="false">
+            <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>
+            Ugotowałem
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · spoczynek</span>
+      <article class="karta-wpisu">
+        <img class="karta-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        <h3 class="karta-tytul"><a href="#karta-przepisu">Pizza z pieca w ogrodzie</a></h3>
+        <div class="karta-przepisu-dane">
+          <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-zegar"></use></svg>90 minut</span>
+          <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-porcje"></use></svg>6 porcji</span>
+          <span class="dana-przepisu"><svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-czapka"></use></svg>Średnie</span>
+        </div>
+        <div class="karta-glowka">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <div class="karta-glowka-tekst">
+            <a class="karta-autor" href="#karta-przepisu">Piotr</a>
+            <div class="karta-meta"><span>przepis po dziadku</span></div>
+          </div>
+        </div>
+        <div class="karta-stopka">
+          <button type="button" class="btn btn-primary">Zapisz</button>
+          <button type="button" class="btn btn-quiet" aria-pressed="false">
+            <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>
+            Ugotowałem
+          </button>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CZĘŚCI EKRANU PRZEPISU                                                -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="czesci-przepisu">
+  <h2>Części ekranu przepisu</h2>
+  <p class="pomoc">Pięć rzeczy, które istnieją wyłącznie na ekranie 07 i nie
+  składają się z klocków karty: zdjęcie 3:2 poza kartą, wiersz autora pod
+  tytułem, pole „Skąd ten przepis”, lista składników i kroki. Kroki numeruje
+  licznik CSS, więc numer nie jest wpisany w treść i nie rozjeżdża się przy
+  zmianie kolejności.</p>
+  <div class="para">
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">zdjęcie przepisu 3:2 i wiersz autora · jedyne zdjęcie w serwisie, które nie siedzi w karcie</span>
+        <img class="przepis-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        <h3 class="sekcja-tytul">Pizza z pieca w ogrodzie</h3>
+        <div class="wiersz-autora">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <a class="karta-autor" href="#czesci-przepisu">Piotr</a>
+          <span class="meta">przepis po dziadku</span>
+          <span class="badge badge-cooked">
+            <svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>
+            Ugotowano 12 razy
+          </span>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">skąd ten przepis · jedyne miejsce na tym ekranie z ciepłym tłem marki</span>
+        <div class="pochodzenie">
+          <h4 class="pochodzenie-tytul">Skąd ten przepis</h4>
+          <p>Po dziadku. Piekł ją w niedziele, w piecu, który sam zmurował za stodołą.</p>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">składniki · wiersz oddzielony kreską, bez pudełka w pudełku</span>
+        <ul class="lista-skladnikow">
+          <li>3 szklanki mąki</li>
+          <li>szklanka letniej wody</li>
+          <li>2 duże cebule</li>
+          <li>mleko — ile weźmie</li>
+        </ul>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">kroki · numer rysuje licznik CSS, w atramencie, nie w kolorze marki</span>
+        <ol class="kroki">
+          <li>Wymieszaj mąkę z wodą i odstaw pod ściereczką na pół godziny.</li>
+          <li>Rozgrzej piec. Poczekaj, aż kamień będzie gorący.</li>
+          <li>Rozciągnij ciasto rękami, nigdy wałkiem.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+
+      <div class="egzemplarz">
+        <span class="podpis">zdjęcie przepisu 3:2 i wiersz autora · jedyne zdjęcie w serwisie, które nie siedzi w karcie</span>
+        <img class="przepis-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        <h3 class="sekcja-tytul">Pizza z pieca w ogrodzie</h3>
+        <div class="wiersz-autora">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <a class="karta-autor" href="#czesci-przepisu">Piotr</a>
+          <span class="meta">przepis po dziadku</span>
+          <span class="badge badge-cooked">
+            <svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>
+            Ugotowano 12 razy
+          </span>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">skąd ten przepis · jedyne miejsce na tym ekranie z ciepłym tłem marki</span>
+        <div class="pochodzenie">
+          <h4 class="pochodzenie-tytul">Skąd ten przepis</h4>
+          <p>Po dziadku. Piekł ją w niedziele, w piecu, który sam zmurował za stodołą.</p>
+        </div>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">składniki · wiersz oddzielony kreską, bez pudełka w pudełku</span>
+        <ul class="lista-skladnikow">
+          <li>3 szklanki mąki</li>
+          <li>szklanka letniej wody</li>
+          <li>2 duże cebule</li>
+          <li>mleko — ile weźmie</li>
+        </ul>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">kroki · numer rysuje licznik CSS, w atramencie, nie w kolorze marki</span>
+        <ol class="kroki">
+          <li>Wymieszaj mąkę z wodą i odstaw pod ściereczką na pół godziny.</li>
+          <li>Rozgrzej piec. Poczekaj, aż kamień będzie gorący.</li>
+          <li>Rozciągnij ciasto rękami, nigdy wałkiem.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- KARTA „UGOTOWAŁEM”                                                    -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="karta-ugotowalem">
+  <h2>Karta „Ugotowałem”</h2>
+  <p class="pomoc">Dowód, że przepis działa u zwykłego człowieka. Zdjęcie
+  zostaje duże — zmniejszenie go do miniaturki zabiera mu funkcję. Karta stoi
+  w sekcji „Komu wyszło”, więc plakietki głośnej tu NIE MA: powtarzałaby się
+  w każdej karcie, a głośnej wolno użyć raz na ekran (D-103).</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <h3 class="sekcja-tytul">Komu wyszło</h3>
+      <p class="sekcja-opis">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek · ze zdjęciem i uwagą</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-ugotowalem">Basia</a>
+              <div class="karta-meta">
+                <span>ugotowała z przepisu <a href="#karta-przepisu">Pizza z pieca w ogrodzie</a></span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span>3 dni temu</span>
+              </div>
+            </div>
+          </div>
+          <p class="karta-tresc">Wyszło. I to się liczy. Dałam mniej sera, bo tyle miałam.</p>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        </article>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">bez zdjęcia · samo kliknięcie „Ugotowałem” też jest pełnoprawne</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-ugotowalem">Halina</a>
+              <div class="karta-meta">
+                <span>ugotowała z przepisu <a href="#karta-przepisu">Pizza z pieca w ogrodzie</a></span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span>w zeszłym tygodniu</span>
+              </div>
+            </div>
+          </div>
+          <p class="karta-bez-zdjecia">Robiłam bez pieca, w zwykłym piekarniku. Też dobre.</p>
+        </article>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <h3 class="sekcja-tytul">Komu wyszło</h3>
+      <p class="sekcja-opis">Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie.</p>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek · ze zdjęciem i uwagą</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-ugotowalem">Basia</a>
+              <div class="karta-meta">
+                <span>ugotowała z przepisu <a href="#karta-przepisu">Pizza z pieca w ogrodzie</a></span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span>3 dni temu</span>
+              </div>
+            </div>
+          </div>
+          <p class="karta-tresc">Wyszło. I to się liczy. Dałam mniej sera, bo tyle miałam.</p>
+          <img class="karta-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        </article>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">bez zdjęcia · samo kliknięcie „Ugotowałem” też jest pełnoprawne</span>
+        <article class="karta-wpisu">
+          <div class="karta-glowka">
+            <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+            <div class="karta-glowka-tekst">
+              <a class="karta-autor" href="#karta-ugotowalem">Halina</a>
+              <div class="karta-meta">
+                <span>ugotowała z przepisu <a href="#karta-przepisu">Pizza z pieca w ogrodzie</a></span>
+                <span class="karta-meta-kropka" aria-hidden="true">·</span>
+                <span>w zeszłym tygodniu</span>
+              </div>
+            </div>
+          </div>
+          <p class="karta-bez-zdjecia">Robiłam bez pieca, w zwykłym piekarniku. Też dobre.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PLAKIETKA                                                             -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="plakietka">
+  <h2>Plakietka</h2>
+  <p class="pomoc">Trzy wagi. Głośnej wolno użyć raz na ekran; jeśli coś
+  powtarza się w każdym elemencie listy, to z definicji jest ciche. Plakietka
+  nie ma stanów — nie da się jej nacisnąć ani sfokusować.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="egzemplarz">
+        <span class="podpis">cicha · metadane, powtarza się w każdym wpisie</span>
+        <span class="badge badge-cichy">konto przykładowe</span>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">spokojna · domyślna</span>
+        <span class="badge badge-spokojny">Szkic</span>
+        <span class="badge badge-spokojny">Tylko ja</span>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">głośna · raz na ekran</span>
+        <span class="badge badge-cooked">
+          <svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>
+          Ugotowano 12 razy
+        </span>
+        <span class="badge badge-sukces">Opublikowane</span>
+        <span class="badge badge-blad">Do poprawy</span>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="egzemplarz">
+        <span class="podpis">cicha · metadane, powtarza się w każdym wpisie</span>
+        <span class="badge badge-cichy">konto przykładowe</span>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">spokojna · domyślna</span>
+        <span class="badge badge-spokojny">Szkic</span>
+        <span class="badge badge-spokojny">Tylko ja</span>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">głośna · raz na ekran</span>
+        <span class="badge badge-cooked">
+          <svg class="dana-przepisu-ikona" aria-hidden="true"><use href="#ikona-garnek"></use></svg>
+          Ugotowano 12 razy
+        </span>
+        <span class="badge badge-sukces">Opublikowane</span>
+        <span class="badge badge-blad">Do poprawy</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CHIP ZAKRESU                                                          -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="chip">
+  <h2>Chip zakresu</h2>
+  <p class="pomoc">Chip jest przyciskiem, więc ma 48 px wysokości, nie 32.
+  Bieżący zakres ma <code>aria-current="true"</code> i zmienia nie tylko kolor,
+  ale też grubość napisu.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek i bieżący</span>
+        <div class="chipsy">
+          <a class="chip" href="#chip" aria-current="true">Wszystko</a>
+          <a class="chip" href="#chip">Przepisy</a>
+          <a class="chip" href="#chip">Dania</a>
+          <a class="chip" href="#chip">Osoby</a>
+        </div>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">najechanie i fokus klawiatury</span>
+        <div class="chipsy">
+          <a class="chip stan-najechanie" href="#chip">Przepisy</a>
+          <a class="chip stan-fokus" href="#chip">Dania</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="egzemplarz">
+        <span class="podpis">spoczynek i bieżący</span>
+        <div class="chipsy">
+          <a class="chip" href="#chip" aria-current="true">Wszystko</a>
+          <a class="chip" href="#chip">Przepisy</a>
+          <a class="chip" href="#chip">Dania</a>
+          <a class="chip" href="#chip">Osoby</a>
+        </div>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">najechanie i fokus klawiatury</span>
+        <div class="chipsy">
+          <a class="chip stan-najechanie" href="#chip">Przepisy</a>
+          <a class="chip stan-fokus" href="#chip">Dania</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- AWATAR                                                                -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="awatar">
+  <h2>Awatar</h2>
+  <p class="pomoc">Trzy rozmiary. Bez zdjęcia awatar pokazuje pierwszą literę
+  imienia — nigdy pustego kółka i nigdy sylwetki z ikony, bo ta wygląda jak
+  usterka wczytywania.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · ze zdjęciem i bez</span>
+      <div class="chipsy">
+        <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+        <span class="avatar"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+        <span class="avatar avatar-lg"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+        <span class="avatar avatar-sm" aria-hidden="true">H</span>
+        <span class="avatar" aria-hidden="true">P</span>
+        <span class="avatar avatar-lg" aria-hidden="true">B</span>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · ze zdjęciem i bez</span>
+      <div class="chipsy">
+        <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+        <span class="avatar"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+        <span class="avatar avatar-lg"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+        <span class="avatar avatar-sm" aria-hidden="true">H</span>
+        <span class="avatar" aria-hidden="true">P</span>
+        <span class="avatar avatar-lg" aria-hidden="true">B</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- KOMUNIKAT                                                             -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="komunikat">
+  <h2>Komunikat</h2>
+  <p class="pomoc">Trzy odmiany. Kolor nigdy nie jest jedynym nośnikiem
+  informacji — obok stoi ikona i zdanie. Komunikat błędu ma
+  <code>role="alert"</code> (przerywa czytnik), potwierdzenie i informacja
+  <code>role="status"</code> (nie przerywa).</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <div class="alert alert-sukces" role="status">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ptaszek"></use></svg>
+        <span>Przepis opublikowany. Teraz ktoś może z niego ugotować.</span>
+      </div>
+      <div class="alert alert-blad" role="alert">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+        <span>Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.</span>
+      </div>
+      <div class="alert alert-info" role="status">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>
+        <span>Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz.</span>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <div class="alert alert-sukces" role="status">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ptaszek"></use></svg>
+        <span>Przepis opublikowany. Teraz ktoś może z niego ugotować.</span>
+      </div>
+      <div class="alert alert-blad" role="alert">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ostrzezenie"></use></svg>
+        <span>Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.</span>
+      </div>
+      <div class="alert alert-info" role="status">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>
+        <span>Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PODSUMOWANIE BŁĘDÓW                                                   -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="podsumowanie-bledow">
+  <h2>Podsumowanie błędów</h2>
+  <p class="pomoc">Stoi na górze formularza, po jednym błędzie na wiersz, każdy
+  jest linkiem do swojego pola. Skok działa bez skryptu — to zwykły odnośnik
+  <code>#id</code>, a pole po skoku dostaje tę samą obwódkę co przy fokusie.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · dwa błędy</span>
+      <div class="error-summary" role="alert" tabindex="-1">
+        <h3 class="error-summary-title">Kilku rzeczy jeszcze brakuje</h3>
+        <ul>
+          <li><a href="#j-haslo">Hasło musi mieć co najmniej 10 znaków.</a></li>
+          <li><a href="#j-nazwa">Nazwa przepisu jest pusta.</a></li>
+        </ul>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">jeden błąd · inny nagłówek, bo liczba mnoga kłamałaby</span>
+        <div class="error-summary" role="alert" tabindex="-1">
+          <h3 class="error-summary-title">Jednej rzeczy jeszcze brakuje</h3>
+          <ul>
+            <li><a href="#j-haslo">Hasło musi mieć co najmniej 10 znaków.</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · dwa błędy</span>
+      <div class="error-summary" role="alert" tabindex="-1">
+        <h3 class="error-summary-title">Kilku rzeczy jeszcze brakuje</h3>
+        <ul>
+          <li><a href="#c-haslo">Hasło musi mieć co najmniej 10 znaków.</a></li>
+          <li><a href="#c-nazwa">Nazwa przepisu jest pusta.</a></li>
+        </ul>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">jeden błąd · inny nagłówek, bo liczba mnoga kłamałaby</span>
+        <div class="error-summary" role="alert" tabindex="-1">
+          <h3 class="error-summary-title">Jednej rzeczy jeszcze brakuje</h3>
+          <ul>
+            <li><a href="#c-haslo">Hasło musi mieć co najmniej 10 znaków.</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PLAKIETKA AUTOZAPISU                                                  -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="autozapis">
+  <h2>Plakietka autozapisu</h2>
+  <p class="pomoc">Pojawia się sama po zapisaniu szkicu.
+  <code>aria-live="polite"</code>, więc czytnik ogłosi ją, kiedy skończy
+  bieżące zdanie — nie w środku wyrazu, który ktoś właśnie pisze.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <p class="autosave-badge" aria-live="polite">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ptaszek"></use></svg>
+        Szkic zapisany.
+      </p>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <p class="autosave-badge" aria-live="polite">
+        <svg class="alert-ikona" aria-hidden="true"><use href="#ikona-ptaszek"></use></svg>
+        Szkic zapisany.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PUSTY STAN                                                            -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="pusty-stan">
+  <h2>Pusty stan</h2>
+  <p class="pomoc">Zawsze mówi, co się tu pojawi, i daje jedną akcję. Nigdy
+  samo „Brak danych”.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · pusty Zeszyt</span>
+      <div class="empty-state">
+        <svg class="empty-state-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+        <p class="empty-state-title">Zeszyt jest jeszcze pusty</p>
+        <p class="empty-state-opis">Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję”. Trafi tutaj i zawsze go znajdziesz.</p>
+        <a class="btn btn-primary" href="#karta-przepisu">Zobacz przepisy</a>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">brak wyników szukania</span>
+        <div class="empty-state">
+          <svg class="empty-state-znak" aria-hidden="true"><use href="#ikona-lupa"></use></svg>
+          <p class="empty-state-title">Nic nie znaleźliśmy</p>
+          <p class="empty-state-opis">Nie ma jeszcze przepisu, który by pasował do „bigos z gruszką”. Może to Ty go dodasz?</p>
+          <a class="btn btn-primary" href="#wybor-zdjecia">Dodaj przepis</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · pusty Zeszyt</span>
+      <div class="empty-state">
+        <svg class="empty-state-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+        <p class="empty-state-title">Zeszyt jest jeszcze pusty</p>
+        <p class="empty-state-opis">Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję”. Trafi tutaj i zawsze go znajdziesz.</p>
+        <a class="btn btn-primary" href="#karta-przepisu">Zobacz przepisy</a>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">brak wyników szukania</span>
+        <div class="empty-state">
+          <svg class="empty-state-znak" aria-hidden="true"><use href="#ikona-lupa"></use></svg>
+          <p class="empty-state-title">Nic nie znaleźliśmy</p>
+          <p class="empty-state-opis">Nie ma jeszcze przepisu, który by pasował do „bigos z gruszką”. Może to Ty go dodasz?</p>
+          <a class="btn btn-primary" href="#wybor-zdjecia">Dodaj przepis</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- KROKI KREATORA                                                        -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="kroki-kreatora">
+  <h2>Kroki kreatora</h2>
+  <p class="pomoc">Zawsze „Krok X z 3” słowami. Kropki są dodatkiem, nigdy
+  jedynym oznaczeniem postępu — trzy identyczne kreski niczego nie mówią komuś,
+  kto nie zna tej konwencji.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · krok 1, 2 i 3</span>
+      <div class="egzemplarz">
+        <div class="wizard-steps">
+          <p class="wizard-steps-current">Krok 1 z 3 <span class="wizard-steps-nazwa">— co to jest</span></p>
+          <div class="wizard-steps-track" role="presentation">
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot"></span>
+            <span class="wizard-steps-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="egzemplarz">
+        <div class="wizard-steps">
+          <p class="wizard-steps-current">Krok 2 z 3 <span class="wizard-steps-nazwa">— składniki</span></p>
+          <div class="wizard-steps-track" role="presentation">
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="egzemplarz">
+        <div class="wizard-steps">
+          <p class="wizard-steps-current">Krok 3 z 3 <span class="wizard-steps-nazwa">— kroki i publikacja</span></p>
+          <div class="wizard-steps-track" role="presentation">
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot" data-done="true"></span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary">Opublikuj</button>
+          <button type="button" class="btn btn-secondary">Zapisz szkic</button>
+          <a class="btn btn-quiet" href="#kroki-kreatora">Wstecz</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · krok 1, 2 i 3</span>
+      <div class="egzemplarz">
+        <div class="wizard-steps">
+          <p class="wizard-steps-current">Krok 1 z 3 <span class="wizard-steps-nazwa">— co to jest</span></p>
+          <div class="wizard-steps-track" role="presentation">
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot"></span>
+            <span class="wizard-steps-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="egzemplarz">
+        <div class="wizard-steps">
+          <p class="wizard-steps-current">Krok 2 z 3 <span class="wizard-steps-nazwa">— składniki</span></p>
+          <div class="wizard-steps-track" role="presentation">
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot"></span>
+          </div>
+        </div>
+      </div>
+      <div class="egzemplarz">
+        <div class="wizard-steps">
+          <p class="wizard-steps-current">Krok 3 z 3 <span class="wizard-steps-nazwa">— kroki i publikacja</span></p>
+          <div class="wizard-steps-track" role="presentation">
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot" data-done="true"></span>
+            <span class="wizard-steps-dot" data-done="true"></span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary">Opublikuj</button>
+          <button type="button" class="btn btn-secondary">Zapisz szkic</button>
+          <a class="btn btn-quiet" href="#kroki-kreatora">Wstecz</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- BELKA GÓRNA                                                           -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="belka-gorna">
+  <h2>Belka górna</h2>
+  <p class="pomoc">Pole wyszukiwania siedzi w tej samej siatce co treść pod
+  spodem — nigdy szersze niż kolumna, którą opisuje. Dzwonek powiadomień ma
+  podpis, tak samo jak wszystko inne. Wordmark, pole i dwie akcje z napisami
+  mają razem około 600 px, więc poniżej 1024 px <strong>pole znika</strong> —
+  szukanie jest tam pozycją dolnego paska. Zdejmowanie napisów z akcji odpada:
+  ikona bez podpisu jest zakazana. Zwęź okno, żeby to zobaczyć. Plansza galerii
+  jest węższa niż prawdziwa strona (1424 px), więc środkowa kolumna z polem
+  jest tu ściśnięta — na stronie pole ma szerokość kolumny treści, 720 px.
+  Pole siedzi w <code>.topbar-szukaj-kolumna</code>: kolumna daje mu miejsce,
+  którego rząd <code>.topbar-szukaj</code> sam by nie dał, i trzyma etykietę
+  nad polem, gdyby miała być widoczna. Tutaj etykieta jest schowana dla oka,
+  bo tuż obok stoi przycisk z napisem „Szukaj” — to jedyne miejsce w serwisie,
+  w którym etykieta pola nie jest widoczna, i jedyne, w którym słowo obok pola
+  mówi dokładnie to samo.</p>
+  <div class="para para-stos">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <header class="topbar">
+        <div class="topbar-wnetrze">
+          <a class="wordmark" href="#belka-gorna">
+            <svg class="wordmark-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+            <span>Ku<span class="wordmark-koncowka">King</span>.pl</span>
+          </a>
+          <form class="topbar-szukaj" role="search" action="#belka-gorna">
+            <span class="topbar-szukaj-kolumna">
+              <label class="tylko-dla-czytnika" for="j-szukaj">Szukaj przepisu albo osoby</label>
+              <input class="field-input" type="search" id="j-szukaj" name="q" placeholder="Szukaj przepisu albo osoby">
+            </span>
+            <button type="submit" class="btn btn-secondary">
+              <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>
+              Szukaj
+            </button>
+          </form>
+          <div class="topbar-akcje">
+            <a class="btn btn-quiet" href="#wiersz-powiadomienia">
+              <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>
+              Powiadomienia
+            </a>
+            <a class="btn btn-quiet" href="#awatar">
+              <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_user.png" alt=""></span>
+              Konto
+            </a>
+          </div>
+        </div>
+      </header>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <header class="topbar">
+        <div class="topbar-wnetrze">
+          <a class="wordmark" href="#belka-gorna">
+            <svg class="wordmark-znak" aria-hidden="true"><use href="#ikona-znak"></use></svg>
+            <span>Ku<span class="wordmark-koncowka">King</span>.pl</span>
+          </a>
+          <form class="topbar-szukaj" role="search" action="#belka-gorna">
+            <span class="topbar-szukaj-kolumna">
+              <label class="tylko-dla-czytnika" for="c-szukaj">Szukaj przepisu albo osoby</label>
+              <input class="field-input" type="search" id="c-szukaj" name="q" placeholder="Szukaj przepisu albo osoby">
+            </span>
+            <button type="submit" class="btn btn-secondary">
+              <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>
+              Szukaj
+            </button>
+          </form>
+          <div class="topbar-akcje">
+            <a class="btn btn-quiet" href="#wiersz-powiadomienia">
+              <svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>
+              Powiadomienia
+            </a>
+            <a class="btn btn-quiet" href="#awatar">
+              <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_user.png" alt=""></span>
+              Konto
+            </a>
+          </div>
+        </div>
+      </header>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- NAWIGACJA BOCZNA                                                      -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="nawigacja-boczna">
+  <h2>Nawigacja boczna</h2>
+  <p class="pomoc">Sześć pozycji, każda z ikoną i podpisem. Bieżąca ma
+  <code>aria-current="page"</code> i różni się nie tylko tłem, ale i grubością
+  napisu. W produkcie pokazuje się od 1024 px; w galerii wymusza ją klasa
+  pomocnicza, żeby dało się ją w ogóle zobaczyć.</p>
+  <div class="para">
+
+    <div class="plansza ramka-nawigacji">
+      <span class="podpis">motyw jasny · bieżąca (Start), najechanie (Zeszyt), fokus (Moje)</span>
+      <nav class="side-nav" aria-label="Nawigacja główna, motyw jasny">
+        <ul class="side-nav-lista">
+          <li><a class="side-nav-item" href="#nawigacja-boczna" aria-current="page"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a></li>
+          <li><a class="side-nav-item" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a></li>
+          <li><a class="side-nav-item" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg>Dodaj</a></li>
+          <li><a class="side-nav-item stan-najechanie" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-zeszyt"></use></svg>Zeszyt</a></li>
+          <li><a class="side-nav-item" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>Powiadomienia</a></li>
+          <li><a class="side-nav-item stan-fokus" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Moje</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="plansza blok-ciemny ramka-nawigacji">
+      <span class="podpis">motyw ciemny · bieżąca (Start), najechanie (Zeszyt), fokus (Moje)</span>
+      <nav class="side-nav" aria-label="Nawigacja główna, motyw ciemny">
+        <ul class="side-nav-lista">
+          <li><a class="side-nav-item" href="#nawigacja-boczna" aria-current="page"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a></li>
+          <li><a class="side-nav-item" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a></li>
+          <li><a class="side-nav-item" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg>Dodaj</a></li>
+          <li><a class="side-nav-item stan-najechanie" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-zeszyt"></use></svg>Zeszyt</a></li>
+          <li><a class="side-nav-item" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-dzwonek"></use></svg>Powiadomienia</a></li>
+          <li><a class="side-nav-item stan-fokus" href="#nawigacja-boczna"><svg class="side-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Moje</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- DOLNY PASEK NAWIGACJI                                                 -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="dolny-pasek">
+  <h2>Dolny pasek nawigacji</h2>
+  <p class="pomoc">Dokładnie pięć pozycji, zawsze te same, zawsze z podpisem.
+  „Dodaj” jest jedyną pozycją z kolorem marki, bo to główna akcja produktu.
+  W produkcie pasek jest przyklejony do dołu okna i znika od 1024 px — tutaj
+  stoi w rzędzie, żeby dało się go obejrzeć. Przy 320 px i skali tekstu 140%
+  pięć podpisów ma razem więcej niż okno, więc podpis łamie się z dywizem
+  zamiast rozpychać stronę. Zmniejszenie go nie wchodzi w grę: poniżej 16 px
+  schodzi w tym systemie wyłącznie plakietka cicha.</p>
+  <div class="para para-stos">
+
+    <div class="plansza ramka-telefonu">
+      <span class="podpis">motyw jasny · bieżąca pozycja: Start</span>
+      <nav class="bottom-nav" aria-label="Nawigacja dolna, motyw jasny">
+        <a class="bottom-nav-item" href="#dolny-pasek" aria-current="page"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a>
+        <a class="bottom-nav-item" href="#dolny-pasek"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a>
+        <a class="bottom-nav-item bottom-nav-item-glowna" href="#dolny-pasek">
+          <span class="bottom-nav-kolko"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg></span>
+          Dodaj
+        </a>
+        <a class="bottom-nav-item" href="#dolny-pasek"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-zeszyt"></use></svg>Zeszyt</a>
+        <a class="bottom-nav-item" href="#dolny-pasek"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Moje</a>
+      </nav>
+    </div>
+
+    <div class="plansza blok-ciemny ramka-telefonu">
+      <span class="podpis">motyw ciemny · bieżąca pozycja: Start</span>
+      <nav class="bottom-nav" aria-label="Nawigacja dolna, motyw ciemny">
+        <a class="bottom-nav-item" href="#dolny-pasek" aria-current="page"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-dom"></use></svg>Start</a>
+        <a class="bottom-nav-item" href="#dolny-pasek"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-lupa"></use></svg>Szukaj</a>
+        <a class="bottom-nav-item bottom-nav-item-glowna" href="#dolny-pasek">
+          <span class="bottom-nav-kolko"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-plus"></use></svg></span>
+          Dodaj
+        </a>
+        <a class="bottom-nav-item" href="#dolny-pasek"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-zeszyt"></use></svg>Zeszyt</a>
+        <a class="bottom-nav-item" href="#dolny-pasek"><svg class="bottom-nav-ikona" aria-hidden="true"><use href="#ikona-osoba"></use></svg>Moje</a>
+      </nav>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- MODUŁ SZYNY                                                           -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="modul-szyny">
+  <h2>Moduł szyny</h2>
+  <p class="pomoc">Szyna nigdy nie powtarza kolumny głównej — ten sam tekst dwa
+  razy na jednym ekranie był jednym z sześciu problemów dzisiejszej tablicy.
+  Moduł mówi rzeczy, których w strumieniu nie ma.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <section class="szyna-modul" aria-labelledby="j-szyna-tytul">
+        <h3 class="szyna-tytul" id="j-szyna-tytul">kuKINGi na dziś</h3>
+        <p class="szyna-podtytul">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>
+        <div class="szyna-osoba">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="szyna-osoba-tekst">
+            <span class="szyna-osoba-imie">Halina</span>
+            <span class="szyna-osoba-opis">Zupy i pierogi, Podkarpacie</span>
+          </div>
+          <button type="button" class="btn btn-secondary" aria-pressed="false">Obserwuj</button>
+        </div>
+        <div class="szyna-osoba">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <div class="szyna-osoba-tekst">
+            <span class="szyna-osoba-imie">Piotr</span>
+            <span class="szyna-osoba-opis">Piecze chleb w każdą sobotę</span>
+          </div>
+          <button type="button" class="btn btn-secondary" aria-pressed="true">Obserwujesz</button>
+        </div>
+        <p class="szyna-stopka">Jutro będzie tu ktoś inny.</p>
+      </section>
+      <section class="szyna-modul" aria-labelledby="j-szyna-pusto">
+        <h3 class="szyna-tytul" id="j-szyna-pusto">kuKINGi na dziś</h3>
+        <p class="szyna-podtytul">Dziś jeszcze nikogo nie wybraliśmy. Zajrzyj do „Świeżo z Kuking”.</p>
+      </section>
+      <div class="egzemplarz">
+        <span class="podpis">wiersz z daniem · zdjęcie w rozmiarze bliskim natywnemu, bo szyna wskazuje, gdzie zajrzeć, a nie pokazuje dania</span>
+        <section class="szyna-modul" aria-labelledby="j-szyna-dania">
+          <h3 class="szyna-tytul" id="j-szyna-dania">Świeżo z Kuking</h3>
+          <a class="szyna-danie" href="#modul-szyny">
+            <img class="szyna-danie-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+            <span class="szyna-osoba-tekst">
+              <span class="szyna-danie-tytul">Pierogi ruskie po babci</span>
+              <span class="meta">Halina · wczoraj</span>
+            </span>
+          </a>
+          <a class="szyna-danie" href="#modul-szyny">
+            <img class="szyna-danie-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+            <span class="szyna-osoba-tekst">
+              <span class="szyna-danie-tytul">Pizza z pieca w ogrodzie</span>
+              <span class="meta">Piotr · w sobotę</span>
+            </span>
+          </a>
+        </section>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">dwie kopie tej samej treści, widoczna dokładnie jedna · zwęź okno poniżej 1280 px, żeby zamieniły się miejscami</span>
+        <div class="tylko-szerokie">
+          <p class="pomoc">Ta kopia siedzi w szynie i jest widoczna od 1280 px.</p>
+        </div>
+        <div class="tylko-waskie">
+          <p class="pomoc">Ta kopia siedzi w kolumnie głównej i jest widoczna poniżej 1280 px.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <section class="szyna-modul" aria-labelledby="c-szyna-tytul">
+        <h3 class="szyna-tytul" id="c-szyna-tytul">kuKINGi na dziś</h3>
+        <p class="szyna-podtytul">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>
+        <div class="szyna-osoba">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="szyna-osoba-tekst">
+            <span class="szyna-osoba-imie">Halina</span>
+            <span class="szyna-osoba-opis">Zupy i pierogi, Podkarpacie</span>
+          </div>
+          <button type="button" class="btn btn-secondary" aria-pressed="false">Obserwuj</button>
+        </div>
+        <div class="szyna-osoba">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <div class="szyna-osoba-tekst">
+            <span class="szyna-osoba-imie">Piotr</span>
+            <span class="szyna-osoba-opis">Piecze chleb w każdą sobotę</span>
+          </div>
+          <button type="button" class="btn btn-secondary" aria-pressed="true">Obserwujesz</button>
+        </div>
+        <p class="szyna-stopka">Jutro będzie tu ktoś inny.</p>
+      </section>
+      <section class="szyna-modul" aria-labelledby="c-szyna-pusto">
+        <h3 class="szyna-tytul" id="c-szyna-pusto">kuKINGi na dziś</h3>
+        <p class="szyna-podtytul">Dziś jeszcze nikogo nie wybraliśmy. Zajrzyj do „Świeżo z Kuking”.</p>
+      </section>
+      <div class="egzemplarz">
+        <span class="podpis">wiersz z daniem · zdjęcie w rozmiarze bliskim natywnemu, bo szyna wskazuje, gdzie zajrzeć, a nie pokazuje dania</span>
+        <section class="szyna-modul" aria-labelledby="c-szyna-dania">
+          <h3 class="szyna-tytul" id="c-szyna-dania">Świeżo z Kuking</h3>
+          <a class="szyna-danie" href="#modul-szyny">
+            <img class="szyna-danie-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+            <span class="szyna-osoba-tekst">
+              <span class="szyna-danie-tytul">Pierogi ruskie po babci</span>
+              <span class="meta">Halina · wczoraj</span>
+            </span>
+          </a>
+          <a class="szyna-danie" href="#modul-szyny">
+            <img class="szyna-danie-zdjecie" src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+            <span class="szyna-osoba-tekst">
+              <span class="szyna-danie-tytul">Pizza z pieca w ogrodzie</span>
+              <span class="meta">Piotr · w sobotę</span>
+            </span>
+          </a>
+        </section>
+      </div>
+
+      <div class="egzemplarz">
+        <span class="podpis">dwie kopie tej samej treści, widoczna dokładnie jedna · zwęź okno poniżej 1280 px, żeby zamieniły się miejscami</span>
+        <div class="tylko-szerokie">
+          <p class="pomoc">Ta kopia siedzi w szynie i jest widoczna od 1280 px.</p>
+        </div>
+        <div class="tylko-waskie">
+          <p class="pomoc">Ta kopia siedzi w kolumnie głównej i jest widoczna poniżej 1280 px.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- WIERSZ POWIADOMIENIA                                                  -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="wiersz-powiadomienia">
+  <h2>Wiersz powiadomienia</h2>
+  <p class="pomoc">Powiadomienia mają inny kształt niż karty: krótkie,
+  jednorodne wiersze. Nieprzeczytany różni się tłem I napisem „nowe” — samo
+  tło byłoby kolorem jako jedynym nośnikiem informacji.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · pierwszy nieprzeczytany</span>
+      <ul class="lista-wierszy">
+        <li class="wiersz wiersz-nieprzeczytany">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="wiersz-tresc">
+            <p>Halina ugotowała Twój rosół. <span class="badge badge-spokojny">nowe</span></p>
+            <span class="wiersz-czas">2 godziny temu</span>
+          </div>
+        </li>
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <div class="wiersz-tresc">
+            <p>Piotr napisał komentarz pod „Pierogi ruskie po babci”.</p>
+            <span class="wiersz-czas">wczoraj</span>
+          </div>
+        </li>
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+          <div class="wiersz-tresc">
+            <p>Basia zaczęła Cię obserwować.</p>
+            <span class="wiersz-czas">w poniedziałek</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · pierwszy nieprzeczytany</span>
+      <ul class="lista-wierszy">
+        <li class="wiersz wiersz-nieprzeczytany">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="wiersz-tresc">
+            <p>Halina ugotowała Twój rosół. <span class="badge badge-spokojny">nowe</span></p>
+            <span class="wiersz-czas">2 godziny temu</span>
+          </div>
+        </li>
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_piotr.png" alt="Zdjęcie profilowe: Piotr"></span>
+          <div class="wiersz-tresc">
+            <p>Piotr napisał komentarz pod „Pierogi ruskie po babci”.</p>
+            <span class="wiersz-czas">wczoraj</span>
+          </div>
+        </li>
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+          <div class="wiersz-tresc">
+            <p>Basia zaczęła Cię obserwować.</p>
+            <span class="wiersz-czas">w poniedziałek</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TEKST NA ZDJĘCIU                                                      -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="tekst-na-zdjeciu">
+  <h2>Tekst na zdjęciu</h2>
+  <p class="pomoc">Podkład jest ZAWSZE, także wtedy, gdy zdjęcie akurat jest
+  ciemne — bo następne nie będzie. Biały napis na podkładzie ma 18.37:1
+  w motywie jasnym i 21.00:1 w ciemnym, niezależnie od tego, co jest na
+  talerzu.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <a class="zdjecie-z-napisem" href="#tekst-na-zdjeciu">
+        <img src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        <div class="zdjecie-podklad">
+          <p class="zdjecie-napis">Pizza z pieca w ogrodzie</p>
+          <p class="zdjecie-podpis">Piotr · 90 minut · 6 porcji</p>
+        </div>
+      </a>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · podkład jest czarniejszy, napis ten sam</span>
+      <a class="zdjecie-z-napisem" href="#tekst-na-zdjeciu">
+        <img src="../podglad/zdjecia/pizza.png" alt="Pizza z mozzarellą, pomidorkami i świeżą bazylią na drewnianej desce">
+        <div class="zdjecie-podklad">
+          <p class="zdjecie-napis">Pizza z pieca w ogrodzie</p>
+          <p class="zdjecie-podpis">Piotr · 90 minut · 6 porcji</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TABELA                                                                -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="tabela">
+  <h2>Tabela</h2>
+  <p class="pomoc">Jedyny kształt treści w serwisie, którego nie da się złożyć
+  z kart — ekran 15 (polityka prywatności). Tabela przewija się we WŁASNYM
+  pudełku, nigdy razem ze stroną; to drugi, po karuzeli zdjęć, świadomy wyjątek
+  od zakazu przewijania w poziomie. Przy 320 px przesuń tabelę palcem w bok.</p>
+  <div class="para">
+    <div class="plansza">
+      <span class="podpis">motyw jasny</span>
+      <p class="pomoc">Co przechowujemy i jak długo</p>
+      <div class="tabela-otoczka">
+        <table class="tabela">
+          <thead>
+            <tr><th scope="col">Dane</th><th scope="col">Po co</th><th scope="col">Jak długo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Adres e-mail</td><td>Logowanie i odzyskanie hasła</td><td>Do usunięcia konta</td></tr>
+            <tr><td>Zdjęcia i przepisy</td><td>To, co pokazujesz innym</td><td>Do usunięcia konta, potem 30 dni</td></tr>
+            <tr><td>Adres IP</td><td>Zabezpieczenie przed nadużyciami</td><td>90 dni</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny</span>
+      <p class="pomoc">Co przechowujemy i jak długo</p>
+      <div class="tabela-otoczka">
+        <table class="tabela">
+          <thead>
+            <tr><th scope="col">Dane</th><th scope="col">Po co</th><th scope="col">Jak długo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Adres e-mail</td><td>Logowanie i odzyskanie hasła</td><td>Do usunięcia konta</td></tr>
+            <tr><td>Zdjęcia i przepisy</td><td>To, co pokazujesz innym</td><td>Do usunięcia konta, potem 30 dni</td></tr>
+            <tr><td>Adres IP</td><td>Zabezpieczenie przed nadużyciami</td><td>90 dni</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- STOPKA                                                                -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="stopka">
+  <h2>Stopka</h2>
+  <p class="pomoc">Stopka jest jedynym miejscem, w którym przełącza się motyw —
+  i robi to zwykłym formularzem, bez skryptu. Motyw bierze się wyłącznie
+  z wyboru człowieka; reguła systemowa została z arkusza celowo usunięta.</p>
+  <div class="para para-stos">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · wybrany „Jasny”</span>
+      <footer class="stopka">
+        <div class="stopka-wnetrze">
+          <p class="stopka-linki">
+            <a href="#stopka">Zasady</a>
+            <a href="#stopka">Prywatność</a>
+            <a href="#stopka">Regulamin</a>
+            <a href="#stopka">Pomoc</a>
+            <a href="#stopka">Napisz do nas</a>
+          </p>
+          <form class="rzad-przyciskow" action="#stopka" method="post">
+            <span class="pomoc">Wygląd strony:</span>
+            <button type="submit" class="btn btn-secondary" name="motyw" value="jasny" aria-pressed="true">Jasny</button>
+            <button type="submit" class="btn btn-quiet" name="motyw" value="ciemny" aria-pressed="false">Ciemny</button>
+          </form>
+          <p class="meta">Prowadzimy to na własną rękę.</p>
+        </div>
+      </footer>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · wybrany „Ciemny”</span>
+      <footer class="stopka">
+        <div class="stopka-wnetrze">
+          <p class="stopka-linki">
+            <a href="#stopka">Zasady</a>
+            <a href="#stopka">Prywatność</a>
+            <a href="#stopka">Regulamin</a>
+            <a href="#stopka">Pomoc</a>
+            <a href="#stopka">Napisz do nas</a>
+          </p>
+          <form class="rzad-przyciskow" action="#stopka" method="post">
+            <span class="pomoc">Wygląd strony:</span>
+            <button type="submit" class="btn btn-quiet" name="motyw" value="jasny" aria-pressed="false">Jasny</button>
+            <button type="submit" class="btn btn-secondary" name="motyw" value="ciemny" aria-pressed="true">Ciemny</button>
+          </form>
+          <p class="meta">Prowadzimy to na własną rękę.</p>
+        </div>
+      </footer>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- POTWIERDZENIE AKCJI DESTRUKCYJNEJ                                     -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="potwierdzenie">
+  <h2>Potwierdzenie akcji destrukcyjnej</h2>
+  <p class="pomoc">Zamiast okna przeglądarki — element <code>&lt;details&gt;</code>.
+  Pierwsze kliknięcie rozwija pytanie, prawdziwy przycisk stoi dopiero
+  w środku. Działa bez skryptu i, co ważniejsze, jest WIDOCZNE: systemowe okno
+  potwierdzenia pojawia się w nieoczekiwanym miejscu ekranu i bywa przeoczone.
+  Pytanie ma czerwoną obwódkę, która odróżnia je od zwykłej karty.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · zamknięte</span>
+      <details class="confirm">
+        <summary class="confirm-summary btn btn-danger">Usuń wpis</summary>
+        <div class="confirm-body">
+          <p class="confirm-question">Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie.</p>
+          <div class="rzad-przyciskow">
+            <button type="button" class="btn btn-danger">Tak, usuń</button>
+            <button type="button" class="btn btn-secondary">Zostaw</button>
+          </div>
+        </div>
+      </details>
+      <div class="egzemplarz">
+        <span class="podpis">rozwinięte · pytanie i dopiero pod nim prawdziwy przycisk</span>
+        <details class="confirm" open>
+          <summary class="confirm-summary btn btn-danger">Usuń przepis</summary>
+          <div class="confirm-body">
+            <p class="confirm-question">Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne.</p>
+            <div class="rzad-przyciskow">
+              <button type="button" class="btn btn-danger">Tak, usuń</button>
+              <button type="button" class="btn btn-secondary">Zostaw</button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury na znaczniku rozwijającym</span>
+        <details class="confirm">
+          <summary class="confirm-summary btn btn-danger stan-fokus">Usuń wpis</summary>
+          <div class="confirm-body"><p class="confirm-question">Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie.</p></div>
+        </details>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · zamknięte</span>
+      <details class="confirm">
+        <summary class="confirm-summary btn btn-danger">Usuń wpis</summary>
+        <div class="confirm-body">
+          <p class="confirm-question">Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie.</p>
+          <div class="rzad-przyciskow">
+            <button type="button" class="btn btn-danger">Tak, usuń</button>
+            <button type="button" class="btn btn-secondary">Zostaw</button>
+          </div>
+        </div>
+      </details>
+      <div class="egzemplarz">
+        <span class="podpis">rozwinięte · pytanie i dopiero pod nim prawdziwy przycisk</span>
+        <details class="confirm" open>
+          <summary class="confirm-summary btn btn-danger">Usuń przepis</summary>
+          <div class="confirm-body">
+            <p class="confirm-question">Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne.</p>
+            <div class="rzad-przyciskow">
+              <button type="button" class="btn btn-danger">Tak, usuń</button>
+              <button type="button" class="btn btn-secondary">Zostaw</button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">fokus klawiatury na znaczniku rozwijającym</span>
+        <details class="confirm">
+          <summary class="confirm-summary btn btn-danger stan-fokus">Usuń wpis</summary>
+          <div class="confirm-body"><p class="confirm-question">Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie.</p></div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- WĄTEK KOMENTARZY                                                      -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="watek-komentarzy">
+  <h2>Wątek komentarzy</h2>
+  <p class="pomoc">Odpowiedź jest oznaczona SŁOWAMI („w odpowiedzi do Haliny”),
+  a wcięcie z pionową kreską (<code>.watek-odpowiedzi</code>) jest dodatkiem
+  dla oka — nie zamiennikiem. Samo wcięcie przy 320 px jest za małe, żeby je
+  zauważyć, a przy trzech poziomach zjada połowę szerokości. Stąd jeden poziom
+  zagnieżdżenia i ani jednego więcej.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · dwa komentarze i odpowiedź</span>
+      <ul class="lista-wierszy">
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="wiersz-tresc">
+            <a class="karta-autor" href="#watek-komentarzy">Halina</a>
+            <p>U mnie ciasto zawsze się rwie. Ile trzymasz je pod ściereczką?</p>
+            <div class="karta-meta">
+              <span>wczoraj, 20:10</span>
+              <span class="karta-meta-kropka" aria-hidden="true">·</span>
+              <a href="#watek-komentarzy">Odpowiedz</a>
+            </div>
+          </div>
+        </li>
+        <li class="wiersz watek-odpowiedzi">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+          <div class="wiersz-tresc">
+            <span class="meta">w odpowiedzi do Haliny</span>
+            <a class="karta-autor" href="#watek-komentarzy">Basia</a>
+            <p>Pół godziny. I nie wałkuję od razu całego, tylko po kawałku.</p>
+            <div class="karta-meta">
+              <span>wczoraj, 20:31</span>
+              <span class="karta-meta-kropka" aria-hidden="true">·</span>
+              <a href="#watek-komentarzy">Odpowiedz</a>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <div class="egzemplarz">
+        <span class="podpis">pole odpowiedzi</span>
+        <form class="field" action="#watek-komentarzy" method="post">
+          <label class="field-etykieta" for="j-komentarz">Napisz komentarz</label>
+          <textarea class="field-input" id="j-komentarz" name="komentarz" rows="3"></textarea>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Komentuj</button>
+          </div>
+        </form>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">pusto · zanim ktokolwiek napisze</span>
+        <p class="pomoc">Jeszcze nikt tu nic nie napisał. Możesz być pierwsza albo pierwszy.</p>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · dwa komentarze i odpowiedź</span>
+      <ul class="lista-wierszy">
+        <li class="wiersz">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="wiersz-tresc">
+            <a class="karta-autor" href="#watek-komentarzy">Halina</a>
+            <p>U mnie ciasto zawsze się rwie. Ile trzymasz je pod ściereczką?</p>
+            <div class="karta-meta">
+              <span>wczoraj, 20:10</span>
+              <span class="karta-meta-kropka" aria-hidden="true">·</span>
+              <a href="#watek-komentarzy">Odpowiedz</a>
+            </div>
+          </div>
+        </li>
+        <li class="wiersz watek-odpowiedzi">
+          <span class="avatar avatar-sm"><img src="../podglad/zdjecia/avatar_user.png" alt="Zdjęcie profilowe: Basia"></span>
+          <div class="wiersz-tresc">
+            <span class="meta">w odpowiedzi do Haliny</span>
+            <a class="karta-autor" href="#watek-komentarzy">Basia</a>
+            <p>Pół godziny. I nie wałkuję od razu całego, tylko po kawałku.</p>
+            <div class="karta-meta">
+              <span>wczoraj, 20:31</span>
+              <span class="karta-meta-kropka" aria-hidden="true">·</span>
+              <a href="#watek-komentarzy">Odpowiedz</a>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <div class="egzemplarz">
+        <span class="podpis">pole odpowiedzi</span>
+        <form class="field" action="#watek-komentarzy" method="post">
+          <label class="field-etykieta" for="c-komentarz">Napisz komentarz</label>
+          <textarea class="field-input" id="c-komentarz" name="komentarz" rows="3"></textarea>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Komentuj</button>
+          </div>
+        </form>
+      </div>
+      <div class="egzemplarz">
+        <span class="podpis">pusto · zanim ktokolwiek napisze</span>
+        <p class="pomoc">Jeszcze nikt tu nic nie napisał. Możesz być pierwsza albo pierwszy.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- STRONICOWANIE „POKAŻ WIĘCEJ”                                          -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="pokaz-wiecej">
+  <h2>Stronicowanie „Pokaż więcej”</h2>
+  <p class="pomoc">Nigdy przewijanie bez końca. Przycisk dokłada następną
+  porcję i zostawia człowieka w tym samym miejscu strony; liczba pod
+  przyciskiem mówi, ile jeszcze zostało, więc widać koniec.</p>
+  <div class="para">
+
+    <div class="plansza">
+      <span class="podpis">motyw jasny · spoczynek, fokus, koniec listy</span>
+      <div class="srodek stos">
+        <p class="pomoc" aria-live="polite">Pokazujemy 10 z 48 wpisów.</p>
+        <div class="rzad-przyciskow srodek">
+          <button type="button" class="btn btn-secondary btn-duzy">Pokaż więcej</button>
+          <button type="button" class="btn btn-secondary btn-duzy stan-fokus">Pokaż więcej</button>
+        </div>
+        <p class="pomoc">To już wszystko. Dalej nic nie ma.</p>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny">
+      <span class="podpis">motyw ciemny · spoczynek, fokus, koniec listy</span>
+      <div class="srodek stos">
+        <p class="pomoc" aria-live="polite">Pokazujemy 10 z 48 wpisów.</p>
+        <div class="rzad-przyciskow srodek">
+          <button type="button" class="btn btn-secondary btn-duzy">Pokaż więcej</button>
+          <button type="button" class="btn btn-secondary btn-duzy stan-fokus">Pokaż więcej</button>
+        </div>
+        <p class="pomoc">To już wszystko. Dalej nic nie ma.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- SKALA TEKSTU                                                          -->
+<!-- ==================================================================== -->
+
+<section class="sekcja-galerii" id="skala-tekstu">
+  <h2>Skala tekstu 100% i 150%</h2>
+  <p class="pomoc">Ta sama karta, ten sam kod, dwa ustawienia konta. Skaluje się
+  wyłącznie tekst — nie odstępy, nie promienie, nie wysokość przycisku. Dlatego
+  przy 150% karta rośnie, ale nic się nie ucina i nic nie wychodzi poza
+  kolumnę. Konto pozwala dziś na 90–140%; 150% jest sprawdzone, żeby
+  podniesienie limitu nie wymagało dotknięcia arkusza (D-111).</p>
+  <div class="para">
+
+    <div class="plansza" data-text-scale="100">
+      <span class="podpis">motyw jasny · 100%</span>
+      <article class="karta-wpisu">
+        <div class="karta-glowka">
+          <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="karta-glowka-tekst">
+            <a class="karta-autor" href="#skala-tekstu">Halina</a>
+            <div class="karta-meta">
+              <span>wczoraj, 18:40</span>
+              <span class="karta-meta-kropka" aria-hidden="true">·</span>
+              <span class="badge badge-cichy">konto przykładowe</span>
+            </div>
+          </div>
+        </div>
+        <h3 class="karta-tytul"><a href="#skala-tekstu">Pierogi ruskie po babci</a></h3>
+        <p class="karta-tresc">Robione w niedzielę, z kapustą i grzybami.</p>
+        <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+        <div class="karta-stopka">
+          <button type="button" class="btn btn-primary">Ugotowałem</button>
+          <button type="button" class="btn btn-quiet">Zapisz</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="plansza" data-text-scale="150">
+      <span class="podpis">motyw jasny · 150%</span>
+      <article class="karta-wpisu">
+        <div class="karta-glowka">
+          <span class="avatar"><img src="../podglad/zdjecia/avatar_kasia.png" alt="Zdjęcie profilowe: Halina"></span>
+          <div class="karta-glowka-tekst">
+            <a class="karta-autor" href="#skala-tekstu">Halina</a>
+            <div class="karta-meta">
+              <span>wczoraj, 18:40</span>
+              <span class="karta-meta-kropka" aria-hidden="true">·</span>
+              <span class="badge badge-cichy">konto przykładowe</span>
+            </div>
+          </div>
+        </div>
+        <h3 class="karta-tytul"><a href="#skala-tekstu">Pierogi ruskie po babci</a></h3>
+        <p class="karta-tresc">Robione w niedzielę, z kapustą i grzybami.</p>
+        <img class="karta-zdjecie" src="../podglad/zdjecia/pierogi.png" alt="Talerz pierogów polanych zesmażoną cebulką i posypanych szczypiorkiem">
+        <div class="karta-stopka">
+          <button type="button" class="btn btn-primary">Ugotowałem</button>
+          <button type="button" class="btn btn-quiet">Zapisz</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="plansza blok-ciemny" data-text-scale="100">
+      <span class="podpis">motyw ciemny · 100%</span>
+      <div class="field">
+        <label class="field-etykieta" for="j-skala-100">Ile porcji</label>
+        <span class="field-podpowiedz">Na ile osób zwykle to gotujesz.</span>
+        <input class="field-input field-input-liczba" type="number" id="j-skala-100" name="skala-100" value="6">
+      </div>
+      <div class="rzad-przyciskow">
+        <button type="button" class="btn btn-primary">Opublikuj</button>
+        <button type="button" class="btn btn-secondary">Zapisz szkic</button>
+      </div>
+    </div>
+
+    <div class="plansza blok-ciemny" data-text-scale="150">
+      <span class="podpis">motyw ciemny · 150% · przycisk rośnie w górę, napis się nie ucina</span>
+      <div class="field">
+        <label class="field-etykieta" for="j-skala-150">Ile porcji</label>
+        <span class="field-podpowiedz">Na ile osób zwykle to gotujesz.</span>
+        <input class="field-input field-input-liczba" type="number" id="j-skala-150" name="skala-150" value="6">
+      </div>
+      <div class="rzad-przyciskow">
+        <button type="button" class="btn btn-primary">Opublikuj</button>
+        <button type="button" class="btn btn-secondary">Zapisz szkic</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</body>
+</html>

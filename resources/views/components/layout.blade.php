@@ -341,8 +341,12 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
-                {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił. --}}
-                <div aria-live="polite">
+                {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
+
+                     `komunikaty` jest tu po to, żeby układ pasów (strona
+                     powitalna) miał co wyśrodkować — jego `<main>` nie ma
+                     żadnego wcięcia, bo wcięcia robią same pasy. --}}
+                <div class="komunikaty" aria-live="polite">
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
                     @endif
