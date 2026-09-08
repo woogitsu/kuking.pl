@@ -7,7 +7,7 @@
             <input id="f-digest" type="checkbox" name="wants_weekly_digest" value="1" @checked(auth()->user()->wants_weekly_digest)>
             <span>
                 <span class="choice-label">Chcę raz w tygodniu dostawać e-mail z Kuking</span>
-                <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów i co ciekawego się działo. Jeden e-mail tygodniowo, nigdy więcej.</span>
+                <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów i co ciekawego się działo. Jeden e-mail tygodniowo, nigdy więcej. <strong>Tych listów jeszcze nie wysyłamy</strong> — zaznaczenie zapisuje Twoją zgodę na później, a pierwszy list przyjdzie dopiero wtedy, gdy podsumowania ruszą.</span>
             </span>
         </label>
 
