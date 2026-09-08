@@ -163,6 +163,35 @@ Automat dostępności mierzy od dziś także drugą regułę: krawędzie
 Pierwsza reguła („belka ma tę samą szerokość co treść") mogła być spełniona
 przy złamanej drugiej i przez pół roku była.
 
+### Ekran powiadomień (§13 systemu)
+
+| Klasa / rzecz | Kto wygrał | Dlaczego |
+|---|---|---|
+| Słowo przy nieprzeczytanym | **system** | do 8 września osoba na czytniku ekranu **nie miała skąd wiedzieć**, że powiadomienie jest nowe — kreska istnieje wyłącznie w CSS. WCAG 1.4.1 |
+| Sposób rysowania kreski | **system** (`box-shadow: inset`) | `border-left: 4px` nadpisywał `border: 1px` z `.card` i przy `box-sizing: border-box` zjadał 3 px pola treści: w liście trzydziestu pozycji nieprzeczytane stały 3 px dalej w prawo niż przeczytane |
+| Semantyka listy | **system** (`<ul>`) | trzydzieści luźnych `<article>` to dla czytnika trzydzieści niepowiązanych bloków, a nie „lista, 30 pozycji". Wzięta sama semantyka: `.lista-naga`, kształt bez zmian |
+| Kolor kreski | **aplikacja** (`--color-brand`) | w motywie jasnym oba tokeny to ten sam `#B3401F`; w ciemnym `--color-brand-solid` jest przyciemniony pod TŁO przycisku i na ciemnej karcie ledwo odchodzi od tła |
+| Tło `--color-brand-tint` | **aplikacja** (nie wchodzi) | system liczy na „krótkie, jednorodne wiersze". U nas powiadomienie od moderacji niesie uzasadnienie z DSA art. 17 na kilka akapitów — plama koloru na całej takiej karcie czyta się jak ostrzeżenie, nie jak wyróżnienie |
+| Kształt: wiersz zamiast karty | **nierozstrzygnięte** | przesłanka systemu („to krótkie, jednorodne pozycje") jest u nas nieprawdziwa, a system zabrania wiersza z dwiema akcjami — karta moderacyjna ma „Zobacz" i „Odwołanie". To zmiana zachowania i treści prawnej, nie wyglądu; pytanie niżej |
+| `--text-meta` na czasie | **aplikacja** | 15 px jest poniżej podłogi z `UX_50_PLUS.md`, tak samo jak przy `.meta` |
+
+Zdjęta przy okazji martwa klasa `style-unread` — nie miała reguły w żadnym
+arkuszu ani testu od pierwszego commita.
+
+### Pytania do właściciela z ekranu powiadomień
+
+1. **Wiersz czy karta?** Żeby zejść na `.wiersz`, trzeba rozstrzygnąć, co zrobić
+   z powiadomieniem moderacyjnym: zostawić karty i uznać, że system się tu nie
+   stosuje; zrobić wiersze dla wszystkiego poza moderacją (dwa kształty na
+   jednej liście); albo wiersze wszędzie, a uzasadnienie DSA i odwołanie
+   przenieść na osobną stronę sprawy.
+2. **Czy cały wiersz ma być klikalny?** System tego chce. U nas znaczyłoby to
+   drugi link nad linkiem („Odwołanie") — kolizja z zasadą jednej akcji na cel
+   dotknięcia.
+3. **„Nowe" czy „Nieprzeczytane"?** Plakietka mówi „Nowe" (za systemem, krócej),
+   ale w belce ten sam stan nazywa się „nieprzeczytanych". `BRAND_EXTENDED.md`
+   §3 zabrania synonimów — jedna nazwa na jeden stan.
+
 ### Pytanie do właściciela: jak głośna ma być odznaka „Konto przykładowe"
 
 System (`components.css`) przewiduje dla niej odznakę **cichą** —

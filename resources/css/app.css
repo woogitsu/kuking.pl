@@ -2582,11 +2582,46 @@
   flex: none;
 }
 
-/* Powiadomienie nieprzeczytane. Pasek z boku, a nie samo tło: przy skali
-   tekstu 140% tło rozjeżdża się na kilka wierszy i przestaje czytać się jako
-   wyróżnienie, a pionowa kreska działa niezależnie od wysokości. */
+/* Powiadomienie nieprzeczytane — uzgodnione z §13 systemu v3.1
+   (`.wiersz-nieprzeczytany`), klasa po klasie:
+
+   1. SPOSÓB RYSOWANIA KRESKI — wygrywa SYSTEM (`box-shadow: inset`).
+      `border-left: 4px` nadpisywał `border: 1px` z `.card`, a przy
+      `box-sizing: border-box` zjadał 3 px z pola treści. W pionowej liście
+      trzydziestu powiadomień awatar i tekst wpisu nieprzeczytanego stały
+      przez to 3 px dalej w prawo niż w przeczytanym — lewa krawędź listy
+      była poszarpana. Cień wewnętrzny nie wchodzi do modelu pudełka, więc
+      wszystkie wiersze zaczynają się w tym samym miejscu, a kreska sama
+      układa się po zaokrągleniu `--radius-lg`. Grubość z tokenu
+      (`--spacing-1` = 4 px), dokładnie jak w systemie.
+      `var(--shadow-card)` MUSI stać w tej samej deklaracji: `box-shadow`
+      nie sumuje się między regułami i bez tego karta nieprzeczytana traciłaby
+      swój cień.
+
+   2. TŁO `--color-brand-tint` — wygrywa APLIKACJA (nie wchodzi).
+      System dokłada je do kreski, ale liczy na „krótkie, jednorodne wiersze".
+      U nas wiersz bywa listem od moderacji na kilkanaście linijek (DSA
+      art. 17) — plama koloru na całej takiej karcie przestaje czytać się jako
+      wyróżnienie i zaczyna jako ostrzeżenie. Przy skali tekstu 140% dotyczy
+      to także zwykłych powiadomień.
+
+   3. KOLOR KRESKI — wygrywa APLIKACJA (`--color-brand`, nie
+      `--color-brand-solid`). W trybie jasnym oba tokeny to ten sam `#B3401F`.
+      W ciemnym `--color-brand-solid` (#C1502A) jest przyciemniony pod TŁO
+      przycisku; na ciemnej karcie kreska z niego ledwo odchodzi od tła,
+      a `--color-brand` (#F2986A) widać.
+
+   4. Sam kolor to za mało (WCAG 1.4.1) — słowo „Nowe" niesie
+      `resources/views/pages/notifications.blade.php`. Arkusz nie jest w stanie
+      tego wymusić, więc uwaga stoi tu i tam.
+
+   UWAGA NA KASKADĘ: ta reguła stoi POZA `@layer components` (warstwa kończy
+   się ~linia 1763), a `.card` jest w środku — dlatego wygrywa mimo równej
+   wagi selektora. Sprawdzone na zbudowanym arkuszu, nie „na oko". */
 .notification-nieprzeczytane {
-  border-left: 4px solid var(--color-brand);
+  box-shadow:
+    inset var(--spacing-1) 0 0 0 var(--color-brand),
+    var(--shadow-card);
 }
 
 /* Osoba na liście obserwujących: zdjęcie i nazwa jako jeden cel do kliknięcia.
