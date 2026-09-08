@@ -274,7 +274,7 @@ na `MAIL_MAILER: "postmark"` i usuń cztery zmienne SMTP (`MAIL_HOST`, `MAIL_POR
 | `MAIL_MAILER` | `postmark` | nie |
 | `POSTMARK_API_KEY` | **Server API Token** z panelu (nie Account Token) | **TAK** |
 | `MAIL_FROM_ADDRESS` | `kontakt@kuking.pl` | nie |
-| `MAIL_FROM_NAME` | `Kuking` | nie |
+| `MAIL_FROM_NAME` | **nie ustawiaj** — patrz uwaga pod §5 | nie |
 
 #### Krok 5 — sprawdzenie
 
@@ -366,7 +366,7 @@ paczka nie jest potrzebna**. To realna przewaga SES w tym repozytorium.
 | `MAIL_SES_SECRET` | Secret Access Key tego użytkownika | **TAK** |
 | `MAIL_SES_REGION` | `eu-central-1` | nie |
 | `MAIL_FROM_ADDRESS` | `kontakt@kuking.pl` | nie |
-| `MAIL_FROM_NAME` | `Kuking` | nie |
+| `MAIL_FROM_NAME` | **nie ustawiaj** — patrz uwaga pod §5 | nie |
 
 Osobny użytkownik IAM **wyłącznie do wysyłki**, nie klucz konta głównego
 i nie ten sam, którym chodzą zdjęcia.
@@ -418,7 +418,7 @@ Wymaga wdrożenia (nowy obraz), nie samego restartu.
 | `MAIL_MAILER` | `resend` | nie |
 | `RESEND_API_KEY` | klucz z panelu, uprawnienie **Sending access** | **TAK** |
 | `MAIL_FROM_ADDRESS` | `kontakt@kuking.pl` | nie |
-| `MAIL_FROM_NAME` | `Kuking` | nie |
+| `MAIL_FROM_NAME` | **nie ustawiaj** — patrz uwaga pod §5 | nie |
 
 #### Krok 5 — uwaga o limicie
 
@@ -547,6 +547,31 @@ Na koniec przejdź ścieżkę użytkownika, nie komendy:
 
 Dopiero to jest dowód. Ekran „Nie pamiętam hasła” **sam się odblokuje**, gdy
 `MAIL_MAILER` przestanie być `log` — nie ma tam nic do przełączenia ręcznie.
+
+### `MAIL_FROM_NAME` zostaw NIEUSTAWIONE
+
+Tabele wariantów wyżej mówią „nie ustawiaj" i to nie jest przeoczenie.
+
+`config/mail.php` składa nazwę nadawcy z konfiguracji:
+
+```php
+'name' => env('MAIL_FROM_NAME', config('kuking.community.host_name').' z Kuking'),
+```
+
+Listy z Kuking podpisuje **gospodarz imieniem**, nie sama marka — to decyzja
+produktowa (`docs/brand/COPY_STYLE.md` §6, `docs/product/RETENTION_LOOPS.md`
+§4), pilnowana testem
+`ListyZSystemuPoPolskuTest::test_nadawca_podpisuje_sie_imieniem_gospodarza`.
+Ustawienie tej zmiennej na `Kuking` w Railway **cicho ją odwraca**: kod
+i testy zostają zielone, bo żaden test nie widzi zmiennych z Railway, a do
+ludzi zaczynają chodzić listy od „Kuking" zamiast od „Ula z Kuking".
+
+Zmiana gospodarza to zmiana `kuking.community.host_name` w konfiguracji,
+a nie zmiennej środowiskowej.
+
+**Jeśli `MAIL_FROM_NAME` już stoi w Railway — usuń ją**, zamiast poprawiać
+jej wartość. Wartość wpisana ręcznie znowu się rozjedzie przy następnej
+zmianie gospodarza; brak zmiennej nie rozjedzie się nigdy.
 
 ---
 
