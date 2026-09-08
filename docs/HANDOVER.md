@@ -965,7 +965,58 @@ What was verified locally: `npm run build` (the stylesheet compiles and every
 new class survives Tailwind's tree-shaking), `php -l` on the changed PHP, and
 the cascade order read out of the built CSS. The PHPUnit run is CI's.
 
-### 10.4 What comes next in the design work
+### 10.4 Six components reconciled, then the top bar and the post card
+
+Class by class, each with a stated reason for which version wins; the table is
+in `docs/design/system-v3.1/CZYTAJ-NAJPIERW.md`. The system won on
+`.empty-state` (it becomes a card — grey text in the middle of an empty page
+read like a fault report), on wrap-safety for `.side-nav-item`,
+`.bottom-nav-item`, `.chip` and `.choice` (at the 140% text scale
+"Bez odpowiedzi" was widening the 15 rem nav column at the reading column's
+expense), on `.field-input` padding and line height, and on `.badge` shape
+(`--radius-sm`, not a pill: a pill is the shape of something you click, and
+`.chip` has it). The app won on `.avatar` (the system hardcodes `3rem`; here
+the size is a parameter) and drew on `.card`.
+
+Then the top bar got the content grid at 80rem, so the search field finally
+stands over the reading column rather than beside it — the package calls this
+"problem nr 6". And the post card took `--radius-xl`, a hover shadow lift, and
+its body text at 20 px; the focus halo on a card now uses the card's own
+background instead of the page's.
+
+### 10.5 The same cascade trap, twice in one morning
+
+The `.app-body-powitalny` rules had to sit after both `.app-body` breakpoints
+(§10.1). Hours later the same mistake shipped: the three rules that free
+`.topbar-szukaj` from its own width were placed next to the top bar, inside
+`@layer components`, while the rules they override sit 1700 lines below and
+**outside** any layer. Unlayered beats layered regardless of order, so they
+did nothing.
+
+The accessibility script caught it on the new rule's first run, with numbers
+that named the cause exactly:
+
+```
+1280 px   szukaj 316…852   kolumna czytania 296…872   (o 20/20 px)
+1512 px   szukaj 360…904   kolumna czytania 340…1060  (o 20/156 px)
+```
+
+20 px is `--spacing-5` to the pixel — the margin the field has from 64rem.
+544 px at 1512 is the 34 rem ceiling to the pixel. Both dead overrides are
+legible in the measurement.
+
+Worth recording as a rule for this file: **`resources/css/app.css` has an
+early `@layer components` block that ends around line 1763, and everything
+after it is unlayered.** An override written in the first half can never beat
+a rule in the second half. Check which half a selector lives in before
+overriding it.
+
+The wider point is the one the whole session keeps making: the top bar's
+*outer* edges were correct throughout — the check that existed passed. Only
+the check that measures the middle found a 156 px misalignment, and only
+because it was written before the code it guards was believed to work.
+
+### 10.6 What comes next in the design work
 
 The remaining gap is the logged-in chrome: top bar, side navigation, rail,
 footer. The method stays the one that worked here — reconcile class by class,
