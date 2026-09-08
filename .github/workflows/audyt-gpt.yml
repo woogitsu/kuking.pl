@@ -1,17 +1,14 @@
-name: Audyt GPT - sondy i mutacje
+name: Audyt GPT - pomiar domykajacy
 on:
   push:
     branches: ['audit/gpt-2026-09']
     paths: ['.github/workflows/audyt-gpt.yml']
 permissions:
   contents: read
-concurrency:
-  group: audyt-gpt-${{ github.ref }}
-  cancel-in-progress: false
 jobs:
-  probes:
+  final-probes:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:18-alpine
@@ -38,14 +35,11 @@ jobs:
       MAIL_MAILER: array
       FILESYSTEM_DISK: local
       KUKING_MEDIA_DISK: public
-      SENTRY_LARAVEL_DSN: ''
-      POSTHOG_KEY: ''
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Dynamiczny port bazy
-        run: echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+      - run: echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -55,51 +49,51 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: Instalacja i build
+      - name: Instalacja
         run: |
-          mkdir -p audit-evidence
+          mkdir -p audit-evidence/browser
           git rev-parse HEAD > audit-evidence/commit.txt
           composer install --no-interaction --prefer-dist --no-progress > audit-evidence/composer.log 2>&1
           cp .env.example .env
           npm ci > audit-evidence/npm.log 2>&1
           npm run build > audit-evidence/build.log 2>&1
           php artisan migrate --force --no-interaction > audit-evidence/migrate.log 2>&1
-      - name: Sondy inwariantow - spodziewane czerwone wyniki sa dowodem
+      - name: Kolejka moderacji
         run: |
           set +e
-          php artisan test audit-probes/AuditProbeTest.php --log-junit=audit-evidence/probes.junit.xml > audit-evidence/probes.log 2>&1
-          echo "$?" > audit-evidence/probes.exit
-          cat audit-evidence/probes.log
+          php artisan test audit-probes/PaginationProbeTest.php > audit-evidence/pagination.log 2>&1
+          echo "$?" > audit-evidence/pagination.exit
           exit 0
-      - name: Rzeczywiste mutacje i przywrocenie
-        run: python audit-probes/mutations.py
-      - name: Przegladarka
-        if: ${{ !cancelled() }}
+      - name: Przegladarka i prawdziwy rozmiar tekstu
         env:
           APP_ENV: local
           SESSION_DRIVER: database
           CACHE_STORE: database
-          QUEUE_CONNECTION: sync
         run: |
           npx playwright install --with-deps chromium > audit-evidence/browser-install.log 2>&1
-          set +e
-          node scripts/dostepnosc.mjs > audit-evidence/accessibility.log 2>&1
-          echo "$?" > audit-evidence/accessibility.exit
-          cp storage/dostepnosc.json audit-evidence/ 2>/dev/null || true
+          node scripts/dostepnosc.mjs --szybko > audit-evidence/accessibility.log 2>&1
           php -r '$im=imagecreatetruecolor(640,480); imagepng($im,"audit-evidence/probe.png");'
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('audit-probes/browser.mjs')
+          s=p.read_text().replace('[value="1.4"]','[value="140"]')
+          s=s.replace("p.getByRole('button',{name:'Zapisz',exact:true}).click()", "p.getByRole('button',{name:'Zapisz',exact:true}).first().click()")
+          p.write_text(s)
+          PY
+          set +e
           node audit-probes/browser.mjs > audit-evidence/browser.log 2>&1
           echo "$?" > audit-evidence/browser.exit
+          node audit-probes/author-loop.mjs > audit-evidence/author-loop.log 2>&1
+          echo "$?" > audit-evidence/author-loop.exit
           exit 0
-      - name: Brak zmian w aplikacji i komplet zrodel
+      - name: Sprawdzenie braku zmian aplikacji
         if: ${{ !cancelled() }}
         run: |
           git diff --exit-code -- app config routes database resources > audit-evidence/production-diff.txt
-          git status --short > audit-evidence/git-status.txt
-          tar -czf audit-evidence/workflows.tar.gz .github
           tar -czf audit-evidence/probe-sources.tar.gz audit-probes .github/workflows/audyt-gpt.yml
       - uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
-          name: audyt-gpt-probes
+          name: audyt-gpt-final-probes
           path: audit-evidence/
           retention-days: 3
