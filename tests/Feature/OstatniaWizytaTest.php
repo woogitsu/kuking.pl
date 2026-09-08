@@ -46,7 +46,28 @@ class OstatniaWizytaTest extends TestCase
         $this->travelTo(Carbon::parse('2026-09-08 10:00:00', 'UTC'));
         $this->actingAs($basia)->get(route('home'))->assertOk();
 
-        // Osiem minut później — wewnątrz okna 15 minut.
+        // ASERCJA KONTROLNA, NIE OZDOBA. `actingAs()` wpina do bramki
+        // uwierzytelniania DOKŁADNIE ten obiekt PHP, którego mu podano — nie
+        // odpytuje bazy od nowa przy KOLEJNYM żądaniu w tym samym teście
+        // (w przeciwieństwie do prawdziwego żądania HTTP, gdzie sesja zawsze
+        // ładuje świeży wiersz). Bez `refresh()` niżej `$basia` w PHP nadal
+        // niosłaby `ostatnio_widziany_at = null` sprzed tej wizyty, a drugie
+        // `actingAs($basia)` wstrzyknęłoby tę SAMĄ nieodświeżoną wartość do
+        // żądania — throttl zobaczyłby `null`, uznał drugą wizytę za
+        // pierwszą i przeszedł niezależnie od tego, czy warunek throttla
+        // naprawdę działa. Assercja niżej rozstrzyga to jednoznacznie: jeśli
+        // ona padnie, problem jest w PIERWSZYM zapisie (kolejność
+        // middleware, cast kolumny, zapytanie `UPDATE`), nie w throttlu.
+        $basia->refresh();
+        $this->assertTrue(
+            $basia->ostatnio_widziany_at->equalTo(Carbon::parse('2026-09-08 10:00:00', 'UTC')),
+            'Kontrola: pierwsza wizyta nie zapisała dokładnego momentu — reszta tego testu '
+            .'nic by wtedy nie sprawdzała.',
+        );
+
+        // Osiem minut później — wewnątrz okna 15 minut. Podajemy ODŚWIEŻONEGO
+        // `$basia` (patrz komentarz wyżej) — dokładnie to, co dostałby
+        // prawdziwy request z sesji.
         $this->travelTo(Carbon::parse('2026-09-08 10:08:00', 'UTC'));
         $this->actingAs($basia)->get(route('home'))->assertOk();
 
@@ -66,6 +87,16 @@ class OstatniaWizytaTest extends TestCase
 
         $this->travelTo(Carbon::parse('2026-09-08 10:00:00', 'UTC'));
         $this->actingAs($basia)->get(route('home'))->assertOk();
+
+        // Odświeżony obiekt, z tego samego powodu co w teście throttla wyżej
+        // — `actingAs()` nie odpytuje bazy sam, więc bez tego druga wizyta
+        // dostałaby wciąż `null` i przeszłaby niezależnie od tego, czy okno
+        // throttla naprawdę minęło.
+        $basia->refresh();
+        $this->assertTrue(
+            $basia->ostatnio_widziany_at->equalTo(Carbon::parse('2026-09-08 10:00:00', 'UTC')),
+            'Kontrola: pierwsza wizyta nie zapisała dokładnego momentu.',
+        );
 
         // Szesnaście minut później — poza oknem 15 minut.
         $this->travelTo(Carbon::parse('2026-09-08 10:16:00', 'UTC'));

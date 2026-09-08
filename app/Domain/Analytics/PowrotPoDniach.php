@@ -55,10 +55,11 @@ final class PowrotPoDniach
     public function __construct(private readonly CookEligibility $eligibility = new CookEligibility) {}
 
     /**
+     * `procent` jest `null`, gdy kohorta jest pusta — dzielenie przez zero
+     * nie ma tu sensownego wyniku, a `0.0` sugerowałoby „nikt nie wrócił",
+     * nie „nie ma kogo liczyć".
+     *
      * @return array{kwalifikujacy_sie: int, wrocilo: int, procent: float|null}
-     *              `procent` jest `null`, gdy kohorta jest pusta — dzielenie
-     *              przez zero nie ma tu sensownego wyniku, a `0.0` sugerowałoby
-     *              „nikt nie wrócił", nie „nie ma kogo liczyć".
      */
     public function policz(int $dni, ?CarbonInterface $teraz = null): array
     {

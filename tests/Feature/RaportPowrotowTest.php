@@ -10,7 +10,6 @@ use App\Domain\Analytics\ZasiegUgotowalem;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
-use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
