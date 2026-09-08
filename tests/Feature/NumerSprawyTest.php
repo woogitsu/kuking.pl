@@ -118,7 +118,12 @@ class NumerSprawyTest extends TestCase
         // Kontrola samego stanowiska pomiarowego: gdyby `createFromTimestampUTC()`
         // kiedyś przestało zwracać moment w UTC, reszta tego testu mierzyłaby
         // znów strefę aplikacji, a nie kształt UUID-a v7.
-        $this->assertSame('UTC', $chwila->getTimezone()->getName());
+        //
+        // Sprawdzamy PRZESUNIĘCIE, nie nazwę strefy. `createFromTimestampUTC()`
+        // zwraca strefę nazwaną `+00:00`, nie `UTC` — pierwsza wersja tej
+        // asercji porównywała nazwę i przez to padała, choć chwila była
+        // dokładnie taka, jak trzeba. Znaczenie ma zero, nie napis.
+        $this->assertSame(0, $chwila->getOffset(), 'Chwila pomiaru nie stoi w UTC.');
         $this->assertSame(1788807630, $chwila->getTimestamp());
 
         $this->assertNotSame($pierwszy, $drugi, 'Dwa UUID-y v7 z różnych chwil muszą być różne.');
