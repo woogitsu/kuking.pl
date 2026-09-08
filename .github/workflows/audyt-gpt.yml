@@ -1,31 +1,17 @@
-name: Audyt GPT - pomiary izolowane
+name: Audyt GPT - sondy i mutacje
 on:
   push:
     branches: ['audit/gpt-2026-09']
-    paths: ['.github/workflows/audyt-gpt.yml', 'tests/Audit/**', 'scripts/audyt-gpt/**']
+    paths: ['.github/workflows/audyt-gpt.yml']
 permissions:
   contents: read
 concurrency:
   group: audyt-gpt-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  source:
+  probes:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: 2fe302b6534d4d233a45271769a5d0c62f83bbe7
-          persist-credentials: false
-      - run: git archive --format=tar.gz --output=kuking-source.tar.gz HEAD
-      - uses: actions/upload-artifact@v7
-        with:
-          name: audyt-gpt-source
-          path: kuking-source.tar.gz
-          retention-days: 1
-  baseline:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:18-alpine
@@ -51,6 +37,7 @@ jobs:
       QUEUE_CONNECTION: sync
       MAIL_MAILER: array
       FILESYSTEM_DISK: local
+      KUKING_MEDIA_DISK: public
       SENTRY_LARAVEL_DSN: ''
       POSTHOG_KEY: ''
     steps:
@@ -68,45 +55,51 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: Stan i instalacja
+      - name: Instalacja i build
         run: |
           mkdir -p audit-evidence
           git rev-parse HEAD > audit-evidence/commit.txt
-          php -v > audit-evidence/php-version.txt
-          php -m > audit-evidence/php-extensions.txt
-          composer install --no-interaction --prefer-dist --no-progress 2>&1 | tee audit-evidence/composer-install.log
+          composer install --no-interaction --prefer-dist --no-progress > audit-evidence/composer.log 2>&1
           cp .env.example .env
-          npm ci 2>&1 | tee audit-evidence/npm-ci.log
-          npm run build 2>&1 | tee audit-evidence/build.log
-      - name: Swieza baza i stan schematu
-        run: |
-          php artisan migrate --force --no-interaction 2>&1 | tee audit-evidence/migrate.log
-          docker exec ${{ job.services.postgres.id }} psql -U kuking -d kuking_test -c 'SELECT version();' > audit-evidence/postgres-version.txt
-          docker exec ${{ job.services.postgres.id }} psql -U kuking -d kuking_test -c '\d+ public.*' > audit-evidence/psql-schema.txt
-          docker exec ${{ job.services.postgres.id }} pg_dump -U kuking -d kuking_test --schema-only --no-owner --no-privileges > audit-evidence/schema.sql
-          php artisan route:list --json > audit-evidence/routes.json
-          php artisan migrate:refresh --force --no-interaction 2>&1 | tee audit-evidence/rollback.log
-      - name: Testy bazowe
+          npm ci > audit-evidence/npm.log 2>&1
+          npm run build > audit-evidence/build.log 2>&1
+          php artisan migrate --force --no-interaction > audit-evidence/migrate.log 2>&1
+      - name: Sondy inwariantow - spodziewane czerwone wyniki sa dowodem
         run: |
           set +e
-          php artisan test --log-junit=audit-evidence/baseline.junit.xml > audit-evidence/baseline.log 2>&1
-          code=$?
-          cat audit-evidence/baseline.log
-          echo "$code" > audit-evidence/baseline.exit
-          exit "$code"
-      - name: Analiza statyczna
+          php artisan test audit-probes/AuditProbeTest.php --log-junit=audit-evidence/probes.junit.xml > audit-evidence/probes.log 2>&1
+          echo "$?" > audit-evidence/probes.exit
+          cat audit-evidence/probes.log
+          exit 0
+      - name: Rzeczywiste mutacje i przywrocenie
+        run: python audit-probes/mutations.py
+      - name: Przegladarka
+        if: ${{ !cancelled() }}
+        env:
+          APP_ENV: local
+          SESSION_DRIVER: database
+          CACHE_STORE: database
+          QUEUE_CONNECTION: sync
+        run: |
+          npx playwright install --with-deps chromium > audit-evidence/browser-install.log 2>&1
+          set +e
+          node scripts/dostepnosc.mjs > audit-evidence/accessibility.log 2>&1
+          echo "$?" > audit-evidence/accessibility.exit
+          cp storage/dostepnosc.json audit-evidence/ 2>/dev/null || true
+          php -r '$im=imagecreatetruecolor(640,480); imagepng($im,"audit-evidence/probe.png");'
+          node audit-probes/browser.mjs > audit-evidence/browser.log 2>&1
+          echo "$?" > audit-evidence/browser.exit
+          exit 0
+      - name: Brak zmian w aplikacji i komplet zrodel
         if: ${{ !cancelled() }}
         run: |
-          vendor/bin/pint --test 2>&1 | tee audit-evidence/pint.log
-          vendor/bin/phpstan analyse --no-progress --memory-limit=1G 2>&1 | tee audit-evidence/phpstan.log
-      - name: Pakiet do lokalnej inspekcji
-        if: ${{ !cancelled() }}
-        run: |
-          tar -czf audit-evidence/runtime.tar.gz vendor public/build
+          git diff --exit-code -- app config routes database resources > audit-evidence/production-diff.txt
           git status --short > audit-evidence/git-status.txt
+          tar -czf audit-evidence/workflows.tar.gz .github
+          tar -czf audit-evidence/probe-sources.tar.gz audit-probes .github/workflows/audyt-gpt.yml
       - uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
-          name: audyt-gpt-baseline
+          name: audyt-gpt-probes
           path: audit-evidence/
           retention-days: 3
