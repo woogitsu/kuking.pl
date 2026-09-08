@@ -161,6 +161,24 @@ COPY --from=vendor  /app/vendor       ./vendor
 COPY . .
 COPY --from=assets  /app/public/build ./public/build
 
+# ZNACZNIK WYDANIA — data i godzina powstania TEGO obrazu, w UTC, ISO-8601.
+#
+# Stopka serwisu pokazuje ją obok skrótu commita (`App\Support\Wersja`).
+# Skrót mówi, CO jest wdrożone; data mówi, KIEDY — a to jest pytanie, które
+# pada częściej i na które siedem znaków szesnastkowych nie odpowiada nikomu
+# bez historii gita pod ręką.
+#
+# DLACZEGO PLIK, A NIE ZMIENNA ŚRODOWISKOWA: Railway nie wstrzykuje czasu
+# wdrożenia — wśród `RAILWAY_*` nie ma takiej zmiennej. Build jest jedynym
+# miejscem, które ten moment zna.
+#
+# DLACZEGO TA WARSTWA, A NIE WYŻEJ: leży za `COPY . .`, więc unieważnia się
+# przy każdej zmianie kodu. Znacznik odpowiada zatem wydaniu, a nie dacie
+# pierwszego builda sprzed tygodnia. Przy ponownym wdrożeniu TEGO SAMEGO
+# commita warstwa może wejść z cache'u i data zostanie stara — i tak ma być:
+# to nadal jest to samo wydanie.
+RUN date -u +%Y-%m-%dT%H:%M:%SZ > /app/bootstrap/wydanie.txt
+
 # Skrypty Composera dopiero teraz — mają już pełne drzewo aplikacji.
 # artisan package:discover zapisuje bootstrap/cache/packages.php (nie zależy od env).
 #
