@@ -38,3 +38,8 @@ Thumbs.db
 # Znacznik wydania — pisze go build obrazu (Dockerfile), nie człowiek.
 # W repozytorium nie ma czego trzymać: lokalnie stopka mówi „lokalnie".
 /bootstrap/wydanie.txt
+
+# Cache narzędzi do stylu kodu (Pint i php-cs-fixer). Zależy od maszyny,
+# wersji PHP i ścieżek — w repozytorium jest tylko śmieciem i konfliktem.
+.pint.cache
+.php-cs-fixer.cache
