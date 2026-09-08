@@ -102,9 +102,14 @@
                 </p>
             </div>
 
+            {{-- Brzmienie WZIĘTE Z KODU, nie wymyślone: tak renderuje je
+                 `pages/notifications.blade.php` dla `Notification::TYPE_COOKED`.
+                 Wcześniej stała tu parafraza („Halina ugotowała Twój rosół")
+                 podpisana „tak wygląda powiadomienie" — czyli obietnica
+                 o jedno słowo mocniejsza niż kod pod nią. --}}
             <blockquote class="cytat-ugotowalem">
-                Halina ugotowała Twój rosół.
-                <span class="cytat-zrodlo">Tak wygląda powiadomienie, na które się tutaj czeka.</span>
+                Halina ugotowała z Twojego przepisu „Rosół babci".
+                <span class="cytat-zrodlo">Na to powiadomienie się tutaj czeka.</span>
             </blockquote>
         </div>
     </section>
@@ -143,8 +148,10 @@
             <div class="dwie-kolumny odstep-nad">
                 <div>
                     <p>
-                        W każdej chwili możesz pobrać paczkę ze swoimi zdjęciami, wpisami i przepisami.
-                        Otworzysz ją na swoim komputerze — także wtedy, gdyby Kuking kiedyś przestał istnieć.
+                        W każdej chwili możesz zamówić paczkę ze swoimi zdjęciami, wpisami
+                        i przepisami — przygotujemy ją i damy znać, kiedy będzie do pobrania.
+                        Otworzysz ją na swoim komputerze, także wtedy, gdyby Kuking kiedyś
+                        przestał istnieć.
                     </p>
                     <p>
                         Przy każdym wpisie sam decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
@@ -166,8 +173,9 @@
         <div class="pas-wnetrze zacheta">
             <h2 class="text-title-lg">Załóż konto. Zajmie minutę</h2>
             <p class="text-lead zacheta-tekst">
-                Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia —
-                wystarczy potwierdzić, że masz ukończone {{ config('kuking.account.min_age') }} lat.
+                Cztery pola i dwa potwierdzenia: że masz ukończone
+                {{ config('kuking.account.min_age') }} lat i że znasz regulamin.
+                Nie pytamy o numer telefonu ani o datę urodzenia.
             </p>
             <div class="zacheta-akcje">
                 <a class="btn btn-primary btn-duzy" href="{{ route('register') }}">Załóż konto</a>

@@ -152,11 +152,21 @@ Klasa po klasie, każda z decyzją, która wersja wygrywa:
 | Klasa | Kto wygrał | Dlaczego |
 |---|---|---|
 | `.topbar-inner` | **system** | od 80rem ta sama siatka trzykolumnowa co treść. Krawędzie zewnętrzne zgadzały się i wcześniej, ale pole „Szukaj" pomiędzy nimi ustawiało sobie szerokość samo i stało nad tekstem, którego nie dotyka („problem nr 6" z paczki) |
-| `.post-card` | **system** (`.karta-wpisu`) | `--radius-xl` i uniesienie cienia przy najechaniu. Karta jest w całości klikalna i nie miała na sobie niczego, co by to zapowiadało |
+| `.post-card` | **podział** | `--radius-xl` TAK. Uniesienie cienia przy najechaniu NIE — patrz akapit pod tabelą |
 | `.post-card-body` | **system** (`.karta-tresc`) | treść wpisu po `--text-body-lg` (20 px). Do dziś nazwa autora była w karcie większa niż to, co ta osoba napisała |
 | `.card .btn:focus-visible` | **system** | halo pierścienia fokusu w kolorze KARTY, nie strony. Na białej karcie beżowe halo rysowało widoczną obwódkę, a kontrast pierścienia był policzony względem tła, którego pod nim nie ma |
 | `.meta` | **remis** | system ma `--text-meta` (15 px), ale sam nadpisuje to zaraz `--text-help` (16 px). Nasze 16 px zostaje — 15 px byłoby poniżej podłogi z `UX_50_PLUS.md` |
 | `.kolumna-czytania` | **aplikacja** | system ma tu 38 rem, ale opisuje nią „długi dokument prawny". U nas ta klasa ogranicza tekst wewnątrz siatki 53 rem i 45 rem daje tam właściwe ~65–75 znaków. Ta sama nazwa, dwie różne rzeczy |
+
+**Uniesienie karty wpisu weszło i zaraz wyszło, tego samego dnia.**
+Uzasadniłem je zdaniem „karta jest w całości klikalna, a nic tego nie
+zapowiada". Przegląd adwersaryjny pokazał, że oba człony są nieprawdziwe:
+`post-card.blade.php` to zwykły `<article>` bez opakowującego odnośnika, a na
+karcie stoją dwa pełnotekstowe przyciski, które mówią wprost, dokąd prowadzą.
+Uniesienie obiecywało więc zachowanie, którego nie ma — i robiło to sygnałem
+dostępnym wyłącznie po najechaniu kursorem, czyli niedostępnym na dotyku i z
+klawiatury. W kicie ta reguła jest poprawna, bo tam cała karta jest jednym
+odnośnikiem; u nas nie jest.
 
 Automat dostępności mierzy od dziś także drugą regułę: krawędzie
 `.topbar-szukaj` == krawędzie `.app-main` na ekranach zalogowanego od 1280 px.
@@ -209,12 +219,16 @@ więc nie rozstrzygam jej sam. Do czasu odpowiedzi zostaje wersja z D-025.
 `.text-title-lg` stała w `@layer base` z komentarzem „użyj tej klasy z tekstem
 clamp". W zbudowanym arkuszu wygrywała jednak reguła ze sztywnym stopniem,
 którą Tailwind 4 robi automatycznie z tokenu `--text-title-lg` — bo warstwa
-`utilities` stoi w kaskadzie za `base`. Zmierzone w `public/build/assets/app-*.css`:
-clamp na pozycji 9 254, sztywny stopień na 39 769.
+`utilities` stoi w kaskadzie za `base`.
 
-Skutek: hasło strony głównej miało zawsze 36 px, także przy oknie 320 px,
-a przy skali tekstu 140% — 50 px. Tekst się zawijał, więc nic nie „pękało"
-na tyle głośno, żeby ktokolwiek to zgłosił.
+Pierwsza wersja tego akapitu podawała pozycje w bajtach. Były prawdziwe
+w jednym buildzie i zależą od zestawu skanowanych plików, więc nikt ich nie
+odtworzy — usunięte. Odtwarzalna jest relacja warstw i to sprawdza CI.
+
+Skutek: hasło strony głównej miało zawsze 36 px, także przy oknie 320 px —
+i przy największej skali tekstu też 36 px, co jest sednem, bo `clamp` miał
+właśnie wtedy zejść niżej. Tekst się zawijał, więc nic nie „pękało" na tyle
+głośno, żeby ktokolwiek to zgłosił.
 
 Poprawka: obie reguły przeniesione na koniec `tokens.css`, do `@layer
 utilities`. Pilnuje tego krok „Największe tytuły przetrwały build z clamp"

@@ -73,9 +73,19 @@
 
   /* Ciemny pas na JASNEJ stronie odcina się sam. Kiedy człowiek włączy motyw
      ciemny, pas ma dokładnie ten sam kolor co strona wokół — i wtedy jedyne,
-     co go wyznacza, to ta kreska. Bierze się z palety samego pasa, więc
-     w motywie jasnym jest ciemna na ciemnym i nie widać jej wcale. */
-  .pas.blok-ciemny { border-block: 1px solid var(--color-border); }
+     co go wyznacza, to ta kreska.
+
+     DLATEGO `--color-border-strong`, NIE `--color-border` — i to jest
+     poprawka policzona, nie przeczucie. System daje tu zwykłą obwódkę,
+     ale kreska z `--color-border` bierze kolor z palety SAMEGO PASA, czyli
+     w motywie ciemnym `#382F27` na stronie `#1E1A16`: kontrast **1,32:1**,
+     poniżej progu 3:1 dla elementów nietekstowych. Zdanie wyżej obiecywało
+     więc granicę, której praktycznie nie było widać dokładnie w tym motywie,
+     w którym jest jedyną. `--color-border-strong` (`#8C7D68`) daje **4,32:1**.
+
+     W motywie jasnym kreska jest ciemna na ciemnym tle pasa i nie widać jej
+     wcale — i tak ma być, bo tam pas odcina się samym kolorem. */
+  .pas.blok-ciemny { border-block: 1px solid var(--color-border-strong); }
 
   /* --- Sekcja główna ---------------------------------------------------- */
 
@@ -257,9 +267,16 @@
   .odstep-nad { margin-top: var(--spacing-8); }
   .odstep-nad-maly { margin-top: var(--spacing-5); }
 
-  /* Zdanie pomocnicze przy przycisku („Masz już konto? Zaloguj się"). */
+  /* Zdanie pomocnicze przy przycisku („Masz już konto? Zaloguj się").
+
+     PEŁNE 18 px, nie `--text-help`. System daje tu 16 px i w kicie to jest
+     poprawne, bo `.pomoc` bywa tam dopiskiem przy większym tekście obok.
+     U nas na stronie powitalnej niesie JEDYNE wejście do logowania w treści
+     strony — całe zdanie z odnośnikiem, nie etykietę. `docs/UX_50_PLUS.md`
+     dopuszcza 16 px wyłącznie w tym pierwszym przypadku. Kolor zostaje
+     stonowany, bo to dalej jest droga poboczna wobec „Załóż konto". */
   .pomoc {
-    font-size: var(--text-help);
+    font-size: var(--text-body);
     color: var(--color-ink-muted);
   }
 }

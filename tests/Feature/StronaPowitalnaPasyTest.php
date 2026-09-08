@@ -244,6 +244,23 @@ class StronaPowitalnaPasyTest extends TestCase
             PREG_SET_ORDER,
         );
 
+        // ASERCJA KONTROLNA — dopisana po przeglądzie, bo jej brak czynił
+        // z tego testu atrapę. Pętla niżej jest jedynym miejscem, w którym
+        // cokolwiek się tu sprawdza; bez tej asercji WYSTARCZYŁO usunąć
+        // regułę, przemianować selektor albo rozbić go na dwie osobne, żeby
+        // pętla nie wykonała się ani razu i test przeszedł z ZEREM asercji.
+        //
+        // A to jest dokładnie ten sposób zepsucia, przed którym ten test ma
+        // bronić: belka wróciłaby wtedy do `--container-strona-z-szyna`
+        // (1424 px) nad pasem szerokim na 1040 px, czyli logotyp stanąłby
+        // 192 px na lewo od pierwszego słowa hasła.
+        $this->assertNotEmpty(
+            $nadpisania,
+            'W arkuszu nie ma reguły ustawiającej szerokość belki i stopki dla układu '
+            .'powitalnego. Jeśli to celowe, ten test trzeba przepisać razem z decyzją — '
+            .'w obecnej postaci przestałby cokolwiek sprawdzać.',
+        );
+
         foreach ($nadpisania as $nadpisanie) {
             $this->assertStringContainsString(
                 'var('.$token[1].')',

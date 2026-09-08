@@ -171,7 +171,7 @@ const EKRANY = [
   /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
-   * przy 320 px i przy tekście 150% ma największą szansę wypchnąć całą
+   * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
    * stronę w bok, gdy tabela nie ma własnego przewijania (issue #80).
    */
   { nazwa: 'polityka prywatności', adres: '/prywatnosc' },
@@ -191,7 +191,7 @@ const EKRANY_UKLADU = [
   { nazwa: 'powiadomienia', adres: '/powiadomienia', zalogowany: true },
   // Ekran autora: kolejność zdjęć i wybór wyglądu (issue #92). Miniatura,
   // dwa przyciski „w górę / w dół" i trzy kafelki wyboru w jednym wierszu —
-  // to jest układ, który przy 320 px i tekście 150% ma najwięcej okazji,
+  // to jest układ, który przy 320 px i tekście 140% ma najwięcej okazji,
   // żeby wypchnąć stronę w bok.
   { nazwa: 'kolejność i wygląd zdjęć', adres: null, znajdz: 'wpis:carousel:zdjecia', zalogowany: true },
 ];
@@ -201,11 +201,27 @@ const EKRANY_UKLADU = [
  *
  * 320 px to minimum z WCAG 2.2 AA, kryterium 1.4.10 (Reflow). 360 i 414 to
  * dwa najczęstsze telefony, 768 to tablet w pionie i próg tuż pod układem
- * dwukolumnowym. Skala tekstu 150% jest tu obowiązkowa, bo nasza grupa
+ * dwukolumnowym. Skala tekstu 140% jest tu obowiązkowa, bo nasza grupa
  * realnie ją włącza — a to przy niej belka pękała najbrzydziej.
  */
 const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768];
-const SKALE_UKLADU = SZYBKO ? [null] : [null, 150];
+/* 140, NIE 150 — i to jest poprawka błędu, który sam wprowadziłem.
+ *
+ * Do 8 września arkusz znał skale 112/125/150, a konfiguracja oferowała
+ * 100/112/125/140. Poprawka rozjazdu usunęła martwą regułę dla 150 i dołożyła
+ * brakującą dla 140 — ale TA linijka została przy 150. Skutek: atrybut
+ * `data-text-scale="150"` nie trafiał już na żadną regułę, `--user-text-scale`
+ * zostawał przy 1, i cały przebieg „320/360/414/768 px × tekst 140%" był bit
+ * w bit taki sam jak przebieg bez skalowania.
+ *
+ * Czyli najmocniejszy pomiar przepełnienia w tym projekcie — ten, który
+ * powstał po issue #80 — przez chwilę nie dokładał niczego, świecąc na
+ * zielono. Dokładnie ta klasa usterki, której ten plik ma pilnować.
+ *
+ * 140 to maksimum, jakie CHECK w migracji `users` w ogóle dopuszcza
+ * (`text_scale BETWEEN 90 AND 140`), więc jest to zarazem najgorszy przypadek,
+ * jaki człowiek może sobie ustawić. */
+const SKALE_UKLADU = SZYBKO ? [null] : [null, 140];
 
 /*
  * `skalaTekstu` ustawiamy atrybutem na <html>, tak samo jak robi to layout

@@ -858,11 +858,12 @@ switch and the incident continues. Fixed with the same gate in all three
 controllers, plus a test that sends the key by hand with the switch off and
 checks that the corrected content really exists.
 
-### 9.5 A pre-merge review produced seven findings; five are still open
+### 9.5 A pre-merge review produced seven findings; one is still open
 
-A full read of the #125 diff against `AGENTS.md` produced seven findings. Two
-are fixed above (the switch was #1). The rest are queued as a follow-up, each
-prepared on its own branch:
+A full read of the #125 diff against `AGENTS.md` produced seven findings.
+**Six are now closed in this branch** — the list below is kept because the
+reasoning is worth reading, but each entry says where it was closed. Only the
+dead `NumerSprawy::poprawny()` at the end is still open.
 
 1. `test_wylacznik_nie_cofa_ochrony_zgloszen_z_konta` passes without touching
    the index it claims to guard — `ReportContent::handle()` does a `SELECT`
@@ -883,8 +884,17 @@ prepared on its own branch:
    `NumerSprawy.php` contradicts the measured 76% elsewhere; the CI step is
    named "11 ekranów" while the script has 23.
 
-`NumerSprawy::poprawny()` is also dead — nothing in `app/`, `database/` or
-`tests/` calls it, though its docblock says it exists "for validation".
+Where each was closed, verified by an adversarial re-read on 8 September:
+(1) `WylacznikKluczaWyslaniaTest` now inserts the second row with a raw
+`INSERT`, so it really reaches `reports_one_open_per_pair`; (2)
+`BackfillNumerowSprawTest` exercises the backfill on a non-empty table across
+two `chunkById` passes; (3) `NumerSprawyTest` compares the CHECK in the
+database with `NumerSprawy::ALFABET`; (4) `dostepnosc.mjs` derives the real
+target type; (5) both number mismatches corrected.
+
+**Still open:** `NumerSprawy::poprawny()` is dead — nothing in `app/`,
+`database/` or `tests/` calls it, though its docblock says it exists "for
+validation". Either give it the caller its docblock implies, or delete it.
 
 ### 9.6 What is still blocked on the owner
 
@@ -942,13 +952,18 @@ container, plus the two lines that paint it (`<html>` gets painted through
 for clamped text". In the built stylesheet the winner was
 `.text-title-lg { font-size: var(--text-title-lg) }` — the utility Tailwind 4
 generates from every `--text-*` token — because `utilities` comes after
-`base`. Measured in `public/build/assets/app-*.css`: clamp at offset 9 254,
-the fixed size at 39 769.
+`base`.
 
-So the headline of every screen using it was 36 px at a 320 px window, and
-50 px at the 140% text scale. Nothing broke; the text wrapped. Both rules
-moved to `@layer utilities` at the end of `tokens.css`, where Tailwind now
-folds them into the generated utility instead of shadowing them.
+The first version of this section quoted byte offsets for the two rules. They
+were true in one build and depend on which files Tailwind scans, so nobody can
+reproduce them — they are gone. What is reproducible is the layer relationship,
+and that is what the CI step checks.
+
+So the headline of every screen using it was 36 px at a 320 px window — and
+36 px at the largest text scale too, which is the point: `clamp` was supposed
+to come *down* there. Nothing broke; the text wrapped. Both rules moved to
+`@layer utilities` at the end of `tokens.css`, where Tailwind now folds them
+into the generated utility instead of shadowing them.
 
 The guard is a step in the `Build assetów` job, not a PHPUnit test: PHPUnit
 runs with `withoutVite()` and deliberately has no built stylesheet, and this
@@ -980,9 +995,17 @@ the size is a parameter) and drew on `.card`.
 
 Then the top bar got the content grid at 80rem, so the search field finally
 stands over the reading column rather than beside it — the package calls this
-"problem nr 6". And the post card took `--radius-xl`, a hover shadow lift, and
-its body text at 20 px; the focus halo on a card now uses the card's own
-background instead of the page's.
+"problem nr 6". The post card took `--radius-xl` and its body text at 20 px,
+and the focus halo on a card now uses the card's own background instead of the
+page's.
+
+The post card also briefly took the kit's hover shadow lift, justified as
+"the card is wholly clickable and nothing announces it". **Both halves were
+false** and the review caught it: `post-card.blade.php` is a plain `<article>`
+with no wrapping link, and it carries two full-text buttons that say exactly
+where they go. The lift promised behaviour that does not exist, and did it
+through hover alone — invisible on touch and from the keyboard. Reverted the
+same day.
 
 ### 10.5 The same cascade trap, twice in one morning
 

@@ -397,6 +397,14 @@
     .uklad-solo .topbar-inner,
     .uklad-powitalny .topbar-inner {
       display: flex;
+      /* Wracamy TAKŻE do odstępu z reguły bazowej, nie tylko do `display`.
+         Siatka wyżej ustawia `gap: var(--spacing-8)` w obu osiach; przy
+         powrocie do `flex` zostałoby z tego 32 px odstępu MIĘDZY WIERSZAMI,
+         a belka jest przyklejona do góry ekranu i każdy piksel jej wysokości
+         znika z widoku treści na stałe. Dziś belka gościa ma dwa przyciski
+         i się nie zawija, więc byłoby to niewidoczne — i właśnie dlatego
+         warto to zamknąć teraz. */
+      gap: 0 var(--spacing-4);
     }
 
     .uklad-solo .topbar-inner,
@@ -660,27 +668,35 @@
 
   /* --- Karta wpisu (UI kit v2, etap B) --- */
 
-  /* Karta wpisu. Uzgodniona z `.karta-wpisu` systemu projektowego v3.1.
+  /* Karta wpisu. Uzgodniona z `.karta-wpisu` systemu projektowego v3.1 —
+     ale tylko co do kształtu.
 
-     Dwie różnice wobec zwykłej `.card`, obie z systemu:
-     * `--radius-xl` zamiast `--radius-lg`. Karta wpisu jest największym
-       elementem strumienia i jedynym, w którym zdjęcie dochodzi do samej
-       krawędzi — mocniejsze zaokrąglenie robi z niej przedmiot, a nie
-       prostokąt z obwódką;
-     * cień podnosi się przy najechaniu. Karta jest w całości klikalna
-       (zdjęcie, tytuł, autor prowadzą dalej), a nie ma na sobie ani jednego
-       elementu, który by to zapowiadał. Uniesienie mówi „to się otwiera"
-       bez dokładania napisu. Czas i cień z tokenów, więc
-       `prefers-reduced-motion` wyłącza samo przejście w warstwie base,
-       zostawiając stan końcowy. */
+     `--radius-xl` zamiast `--radius-lg`: karta wpisu jest największym
+     elementem strumienia i jedynym, w którym zdjęcie dochodzi do samej
+     krawędzi. Mocniejsze zaokrąglenie robi z niej przedmiot, a nie prostokąt
+     z obwódką.
+
+     UNIESIENIA CIENIA PRZY NAJECHANIU NIE BIERZEMY — i to jest cofnięcie
+     mojej własnej zmiany z tego samego dnia. Uzasadniłem je zdaniem „karta
+     jest w całości klikalna, a nic tego nie zapowiada". Oba człony są
+     nieprawdziwe: `post-card.blade.php` to zwykły `<article>` bez
+     opakowującego odnośnika (kliknięcie w tło, w treść wpisu i w margines nie
+     robi nic), a na karcie stoją DWA pełnotekstowe przyciski — „Ugotowałem"
+     i „Komentarze" — które mówią wprost, dokąd się idzie.
+
+     Uniesienie obiecywałoby więc zachowanie, którego nie ma. Do tego jest
+     sygnałem dostępnym WYŁĄCZNIE po najechaniu kursorem: nie ma go na
+     dotyku, czyli u większości tej grupy, ani z klawiatury. `AGENTS.md` §5
+     i `docs/UX_50_PLUS.md` zabraniają tego wprost.
+
+     W kicie ta reguła jest poprawna, bo tam cała karta JEST jednym
+     odnośnikiem. U nas nie jest — i to jest świadome odejście, bo dwie akcje
+     na jednym celu dotknięcia są dla tej grupy gorsze niż jedna wielka. */
   .post-card {
     padding: 0;
     overflow: hidden;
     border-radius: var(--radius-xl);
-    transition: box-shadow var(--czas-zwykly) ease-out;
   }
-
-  .post-card:hover { box-shadow: var(--shadow-card-hover); }
 
   .post-card-head {
     display: flex;
@@ -2622,6 +2638,19 @@
   box-shadow:
     inset var(--spacing-1) 0 0 0 var(--color-brand),
     var(--shadow-card);
+}
+
+/* WINDOWS HIGH CONTRAST GASI CIENIE, TAKŻE WEWNĘTRZNE.
+   `docs/UX_50_PLUS.md` wymienia ten tryb jako obowiązkowy do sprawdzenia,
+   a część naszej grupy ma go włączony na stałe. Sama informacja nie ginie —
+   niesie ją plakietka „Nowe" w widoku — ale sygnał wizualny tak, więc tutaj
+   wraca obwódka. Trzy piksele pola treści, o które chodziło przy zamianie
+   `border-left` na cień, są w tym trybie mniej ważne niż to, żeby w ogóle
+   było widać, który wiersz jest nowy. */
+@media (forced-colors: active) {
+  .notification-nieprzeczytane {
+    border-left: 4px solid CanvasText;
+  }
 }
 
 /* Osoba na liście obserwujących: zdjęcie i nazwa jako jeden cel do kliknięcia.

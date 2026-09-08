@@ -105,6 +105,9 @@
      tylko w plakietce cichej i tylko przy trzech warunkach naraz: tekst obok
      ma co najmniej 18px, informacja jest powtarzalna i drugorzędna, a jej
      utrata nie blokuje żadnej czynności. */
+  /* PRZYGOTOWANY, NIEUŻYWANY — `.badge-cichy` z paczki nie wszedł, a `.meta`
+     w tym serwisie stoi na `--text-help` (16px). Warunki wyżej opisują, kiedy
+     wolno by go użyć, nie miejsce, w którym już działa. */
   --text-meta: calc(0.9375rem * var(--user-text-scale, 1));
 
   --leading-body: 1.55;
@@ -128,7 +131,10 @@
   --spacing-12: 3rem;     /* 48px */
   --spacing-16: 4rem;     /* 64px */
   --spacing-20: 5rem;     /* 80px */
-  --spacing-24: 6rem;     /* 96px — odstęp między blokami strony powitalnej */
+  /* 96px. PRZYGOTOWANY, NIEUŻYWANY — pasy strony powitalnej wzięły
+     `--spacing-12` i `--spacing-20`. Zostaje, bo paczka v3.1 ma go w skali
+     i przy kolejnej przenoszonej regule nie chcemy wpisywać liczby z palca. */
+  --spacing-24: 6rem;
 
   /* --- Radius --- */
   --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
@@ -163,7 +169,11 @@
   --container-content: 45rem;  /* 720px — centralna kolumna, ~65–75 znaków przy 18-20px */
   --container-sidenav: 15rem;  /* 240px — SideNav desktop */
   --container-rail: 22rem;     /* 352px — prawa szyna (UI kit v2, ekran 01) */
-  --container-czytanie: 38rem; /* 608px — długi dokument prawny, ~65 znaków */
+  /* 608px, ~65 znaków. PRZYGOTOWANY, NIEUŻYWANY: `.kolumna-czytania` bierze
+     `--container-content` (720px), bo ogranicza tekst wewnątrz siatki 53rem
+     i tam 45rem daje właściwe 65–75 znaków. Ta wartość jest z paczki i czeka
+     na długie dokumenty prawne, gdzie kolumna stoi sama. */
+  --container-czytanie: 38rem;
   --container-wide: 70rem;     /* 1120px — patrz uwaga niżej, dziś nieużywane */
   --container-ultra: 92rem;    /* 1472px — patrz uwaga niżej, dziś nieużywane */
 
@@ -199,7 +209,11 @@
 
   /* Ta sama liczba pod nazwą z systemu projektowego v3.1. Reguły przeniesione
      z paczki mówią `--container-strona-szeroka`; nie przepisujemy ich, bo
-     rozjazd nazw w dwie strony jest gorszy niż jeden alias w jednym miejscu. */
+     rozjazd nazw w dwie strony jest gorszy niż jeden alias w jednym miejscu.
+
+     DZIŚ ALIAS NIE MA CZEGO OBSŁUGIWAĆ: żadna przeniesiona reguła jeszcze go
+     nie używa. Zostaje na wejście kolejnych — usunięcie go i dopisanie za
+     tydzień to ta sama praca dwa razy. */
   --container-strona-szeroka: var(--container-strona-z-szyna);                           /* 1424px — trzy kolumny (od 80rem) */
   --container-strona-solo: calc(
     var(--container-content) + 2 * var(--spacing-6)
@@ -514,8 +528,7 @@
      „Ugotowałem", „Zapisz w zeszycie", akcje pod wpisem — czyli praktycznie
      wszystkich, po których ktoś chodzi klawiaturą. */
   .card .btn:focus-visible,
-  .post-card .btn:focus-visible,
-  .rzecz .btn:focus-visible {
+  .post-card .btn:focus-visible {
     box-shadow:
       0 0 0 2px var(--color-surface-raised),
       0 0 0 5px var(--color-focus);
@@ -784,20 +797,30 @@
    utility z KAŻDEGO tokenu `--text-*` w `@theme`, a warstwa `utilities`
    stoi w kaskadzie za `base`. Nasza reguła była w arkuszu i nie robiła nic:
 
-     app.css, warstwa base       poz.  9 254   clamp(...)
-     app.css, warstwa utilities  poz. 39 769   var(--text-title-lg)   ← ta wygrywała
+     warstwa base        clamp(...)
+     warstwa utilities   var(--text-title-lg)   ← ta wygrywała
 
-   Skutek: hasło strony głównej miało zawsze 36 px, także przy oknie 320 px,
-   gdzie mieści się od tego siedem znaków w wierszu — a przy skali tekstu
-   140% (osoba, której 18 px nie wystarcza) 50 px, czyli pięć. Tekst się
-   zawijał, więc nic nie „pękało" na tyle głośno, żeby ktokolwiek to zgłosił.
+   ŚWIADOMIE BEZ PODAWANIA POZYCJI W BAJTACH. Pierwsza wersja tego komentarza
+   miała je („9 254" i „39 769") i były prawdziwe w moim buildzie — ale zależą
+   od zestawu skanowanych plików, więc nikt inny nie odtworzy tych liczb
+   i sprawdzenie zamienia się w wiarę. Weryfikowalne jest to, co niżej:
+   `clamp` ma stać w warstwie, która wygrywa.
+
+   Skutek przed poprawką: hasło strony głównej miało zawsze 36 px, także przy
+   oknie 320 px, gdzie mieści się od tego siedem znaków w wierszu. Przy
+   największej skali tekstu też 36 px — i to jest sedno, bo `clamp` miał
+   właśnie wtedy zejść niżej. Tekst się zawijał, więc nic nie „pękało" na tyle
+   głośno, żeby ktokolwiek to zgłosił.
 
    Nazwy klas ZOSTAJĄ te same, bo używa ich kilkanaście widoków. Zmienia się
    warstwa: reguła musi stać w `utilities` PO wygenerowanych utility, żeby
    przy równej wadze wygrała kolejnością. Stąd ten blok na końcu pliku, a nie
    przy typografii wyżej — przeniesienie go tam cofnęłoby całą poprawkę.
-   Pilnuje tego `tests/Feature/TytulyMajaClampTest.php`, na ZBUDOWANYM
-   arkuszu, bo w źródle ta usterka jest niewidoczna.
+   Pilnuje tego krok „Największe tytuły przetrwały build z clamp" w jobie
+   `Build assetów` (`.github/workflows/ci.yml`), na ZBUDOWANYM arkuszu.
+   NIE jest to test PHPUnit i nie może nim być: testy chodzą z `withoutVite()`
+   i nie mają zbudowanego arkusza, w którym ta usterka jako jedyna jest
+   widoczna.
    ========================================================================== */
 @layer utilities {
 
