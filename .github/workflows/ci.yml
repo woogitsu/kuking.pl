@@ -368,6 +368,30 @@ jobs:
             || { echo "BŁĄD: brak public/build/manifest.json"; exit 1; }
           echo "Manifest OK, wpisów: $(grep -o '"file"' public/build/manifest.json | wc -l)"
 
+      # DLACZEGO TO STOI TUTAJ, A NIE W `php artisan test`
+      # Ta usterka jest niewidoczna w źródle i widoczna WYŁĄCZNIE po zbudowaniu.
+      # Tailwind 4 robi utility z każdego tokenu `--text-*`, więc token
+      # `--text-title-lg` generuje klasę `.text-title-lg` o sztywnym stopniu.
+      # Nasza reguła z `clamp` nosi tę samą nazwę; jeśli wyląduje w warstwie
+      # `base` (tam stała do 8 września 2026), wygrywa wersja wygenerowana,
+      # a hasło strony ma 36 px także przy oknie 320 px. Nic nie pęka —
+      # tekst się zawija — więc ani PHPUnit, ani Larastan, ani axe tego nie
+      # zgłoszą. Widać to tylko w arkuszu wyjściowym, czyli tu.
+      #
+      # Testy PHPUnit chodzą z `withoutVite()` i celowo NIE mają zbudowanych
+      # assetów (patrz `tests/TestCase.php`), więc tam takiego sprawdzenia
+      # nie da się postawić uczciwie.
+      - name: Największe tytuły przetrwały build z clamp
+        run: |
+          ARKUSZ=$(ls public/build/assets/app-*.css | head -1)
+          for KLASA in text-title-lg text-title-xl; do
+            grep -qE "\.${KLASA}\{font-size:clamp" "$ARKUSZ" \
+              || { echo "BŁĄD: .${KLASA} nie ma w zbudowanym arkuszu wersji z clamp."; exit 1; }
+            grep -qE "\.${KLASA}\{font-size:var\(--${KLASA}\)\}" "$ARKUSZ" \
+              && { echo "BŁĄD: .${KLASA} ma w zbudowanym arkuszu także wersję ze sztywnym stopniem — ta z clamp nie zadziała."; exit 1; }
+            echo "OK: .${KLASA} skaluje się z szerokością okna."
+          done
+
       # Artefakt przydaje się do debugowania "u mnie działa" oraz do
       # ręcznego porównania rozmiarów bundle'a między PR-ami.
       - name: Zapis artefaktu

@@ -24,6 +24,7 @@
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
+@import "./strony-publiczne.css";
 
 @layer components {
 
@@ -94,27 +95,12 @@
       margin: 0 auto;
     }
 
-    /* Strona powitalna: jedna kolumna, ale SZEROKA — dokładnie tyle, ile ma
-       układ zalogowanego. Dzięki temu logotyp i przyciski w belce stoją
-       w tym samym miejscu przed i po zalogowaniu, a nie przeskakują.
-       Wewnątrz treść dzieli się na pasma (`.landing-pasmo`), więc żadna
-       linia tekstu nie robi się od tego dłuższa. */
+    /* Strona powitalna nie ma ŻADNEGO sufitu szerokości — patrz blok
+       „UKŁAD PASÓW" niżej. Zostaje tu tylko zwinięcie siatki do jednej
+       kolumny: gość nie ma nawigacji bocznej ani szyny, więc rezerwowanie
+       na nie kolumn zepchnęłoby pasy w prawo. */
     .app-body-powitalny {
       grid-template-columns: minmax(0, 1fr);
-      max-width: var(--container-strona-z-szyna);
-    }
-
-    /* ZDJĘTY LIMIT SZEROKOŚCI, nie samo wyśrodkowanie.
-       `.app-main` ma `max-width: var(--container-content)` (720 px) i to jest
-       poprawne wszędzie tam, gdzie w środku jest jedna kolumna tekstu.
-       Na stronie powitalnej treść dzieli się na pasma, które SAME pilnują
-       długości linii — więc limit musi tu zniknąć, inaczej poszerza się
-       kontener, a nie zawartość. Pierwsza wersja tej poprawki miała tylko
-       `margin: 0 auto` i zmierzone wyszło z tego: siatka 1424 px, a pasmo
-       treści dalej 688 px wyśrodkowane, czyli puste boki bez zmian. */
-    .app-body-powitalny .app-main {
-      max-width: none;
-      margin: 0;
     }
   }
 
@@ -160,16 +146,70 @@
 
     .app-body-powitalny {
       grid-template-columns: minmax(0, 1fr);
-      max-width: var(--container-strona-z-szyna);
-    }
-
-    .app-body-powitalny .app-main {
-      max-width: none;
-      margin: 0;
     }
 
     .app-rail {
       padding: var(--spacing-5) 0 var(--spacing-12);
+    }
+  }
+
+  /* --- UKŁAD PASÓW (strona powitalna) ------------------------------------
+
+     Strona publiczna NIE jest wąskim wariantem ekranu zalogowanego. Rytm robią
+     na niej pełnoszerokie pasy o różnych tłach (`resources/css/strony-publiczne.css`),
+     a szerokość treści pilnuje `.pas-wnetrze` — każdy pas osobno.
+
+     Dlatego ramka wokół treści musi tu zniknąć CAŁKOWICIE: i sufit szerokości,
+     i wcięcia boczne, i odstęp od belki. Zostawienie choćby wcięcia bocznego
+     dałoby pasy z jasnym paskiem tła po obu stronach, czyli dokładnie ten
+     efekt „nie wiadomo, czy to celowe", którego pas ma nie mieć.
+
+     Poprzedni układ — jedna kolumna szeroka na `--container-strona-z-szyna`,
+     wszystko na jednym tle — jest w historii pod `.landing-pasmo`. Powód
+     zmiany: system projektowy v3.1 (`docs/design/system-v3.1/site.css`, §1)
+     buduje strony publiczne wyłącznie na pasach, a `STAN_WDROZENIA_KITU.md`
+     od początku wskazywał układ jako jedyną rzecz, która się nie zgadza.
+
+     DWIE RZECZY O MIEJSCU TYCH REGUŁ, OBIE ZMIERZONE.
+
+     Po pierwsze: stoją POZA zapytaniem o szerokość, bo dotyczą każdego
+     ekranu. Na telefonie `.app-main` ma własne wcięcie `--spacing-4`, które
+     w pasach dodałoby się do wcięcia `.pas-wnetrze` i zwęziło treść dwa razy.
+
+     Po drugie: stoją ZA oboma progami (`64rem` i `80rem`), a nie przed nimi,
+     i to nie jest kwestia porządku. Zapytanie o szerokość NIE PODNOSI wagi
+     selektora — `.app-body` w bloku `80rem` i `.app-body-powitalny` tutaj
+     ważą tyle samo, więc rozstrzyga kolejność w pliku. Pierwsza wersja tej
+     poprawki miała ten blok przed progiem `80rem` i skutek był taki, że
+     od 1280 px pasy wracały do sufitu 1424 px — czyli dokładnie na tych
+     ekranach, dla których cała zmiana powstała.
+     --------------------------------------------------------------------- */
+
+  .app-body-powitalny {
+    max-width: none;
+    padding: 0;
+  }
+
+  .app-body-powitalny .app-main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Komunikat zwrotny (np. „Zostałeś wylogowany") nie ma własnego pasa, więc
+     bez tego stanąłby przyklejony do lewej krawędzi okna. Ta sama szerokość
+     i to samo wcięcie, co `.pas-wnetrze` — inaczej pierwszy komunikat po
+     wylogowaniu wisiałby nad treścią przesunięty w bok. */
+  .app-body-powitalny .komunikaty {
+    width: 100%;
+    max-width: var(--container-strona);
+    margin-inline: auto;
+    padding-inline: var(--spacing-4);
+  }
+
+  @media (min-width: 48rem) {
+    .app-body-powitalny .komunikaty {
+      padding-inline: var(--spacing-6);
     }
   }
 
@@ -285,13 +325,14 @@
       max-width: var(--container-strona-solo);
     }
 
-    /* Belka i stopka MUSZĄ iść za szerokością treści, inaczej automat
-       dostępności zgłosi rozjazd — i słusznie, bo logotyp wisiałby wtedy
-       nad pustym miejscem obok siatki. */
-    .uklad-powitalny .topbar-inner,
-    .uklad-powitalny .site-footer-inner {
-      max-width: var(--container-strona-z-szyna);
-    }
+    /* Strona powitalna NIE dostaje tu nadpisania i to jest cała zmiana.
+
+       Kiedy była jedną szeroką kolumną, belka musiała iść za jej szerokością
+       (`--container-strona-z-szyna`, 1424 px), inaczej logotyp wisiał nad
+       pustym miejscem obok treści. Teraz treść dzieli się na pasy, a każdy
+       pas ma w środku `--container-strona` — czyli dokładnie tę wartość,
+       którą belka i stopka mają domyślnie od 64rem. Nadpisanie zostawiłoby
+       logotyp 192 px na lewo od pierwszego słowa hasła. */
   }
 
   @media (min-width: 80rem) {
@@ -306,12 +347,12 @@
       max-width: var(--container-strona-solo);
     }
 
-    /* Belka i stopka MUSZĄ iść za szerokością treści, inaczej automat
-       dostępności zgłosi rozjazd — i słusznie, bo logotyp wisiałby wtedy
-       nad pustym miejscem obok siatki. */
+    /* Strona powitalna wraca tu do `--container-strona`, bo pas ma tę samą
+       szerokość na każdym ekranie — nie rośnie od 80rem tak, jak rośnie
+       siatka zalogowanego, której od tego progu dochodzi szyna. */
     .uklad-powitalny .topbar-inner,
     .uklad-powitalny .site-footer-inner {
-      max-width: var(--container-strona-z-szyna);
+      max-width: var(--container-strona);
     }
   }
 
@@ -2427,46 +2468,19 @@
   font-weight: 600;
 }
 
-/* Ekran powitalny dla niezalogowanych. */
-.landing-hero {
-  text-align: center;
-  padding: var(--spacing-6) 0 var(--spacing-10);
-}
-
-.landing-lead {
-  font-size: var(--text-lead);
-  max-width: 34rem;
-  margin: 0 auto var(--spacing-6);
-}
-
-/* --- Pasma strony powitalnej -------------------------------------------
-   Strona jest szeroka, ale TEKST w niej nie. Każde pasmo dzieli szerokość
-   na kolumny zamiast rozciągać wiersz: przy 1424 px dwie kolumny dają
-   po ~690 px, czyli dalej mieszczą się w zakresie ~65–75 znaków, na który
-   wyliczony jest `--container-content`.
-
-   `minmax(0, 1fr)`, nigdy `1fr` — element siatki nie zejdzie poniżej swojej
-   szerokości min-content i przy 320 px z tekstem 150% zrobi przewijanie
-   w bok. Ta pomyłka wywróciła już raz ekran przepisu (`.przepis-siatka`). */
-.landing-pasmo {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-6);
-  align-items: start;
-  margin-bottom: var(--spacing-8);
-}
-
-@media (min-width: 64rem) {
-  .landing-pasmo-dwie {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 /* Siatka wpisów pod nagłówkiem „Świeżo z Kuking". Karta wpisu niesie
    zdjęcie i kilka zdań, więc dwie kolumny są dla niej wygodne — jedna
    kolumna na tak szerokim ekranie zostawiałaby pustkę, o którą zgłosił
-   się właściciel. Trzeciej kolumny NIE dodajemy: przy 1424 px karta
-   zeszłaby do ~450 px i zdjęcie zrobiłoby się znaczkiem.
+   się właściciel.
+
+   PRZELICZONE PO WEJŚCIU PASÓW (8 września 2026). Wcześniej ta siatka
+   stała w kolumnie szerokiej na 1424 px i karta miała ~690 px. Teraz stoi
+   w pasie, którego wnętrze ma 992 px, więc karta ma ~484 px — mniej więcej
+   tyle, ile miałaby wtedy trzecia kolumna, i dlatego trzeciej dalej NIE MA.
+   To jest świadome ustępstwo: strona powitalna pokazuje sześć wpisów naraz
+   zamiast dwóch, a kto chce je obejrzeć w pełnej szerokości, wchodzi
+   w „Świeżo z Kuking" (/odkryj), gdzie karty stoją w jednej kolumnie
+   szerokiej na --container-content.
 
    SIATKA OD RAZU, NIE `.stack` PLUS SIATKA OD 64REM. Pierwsza wersja tego
    kodu miała na tym elemencie obie klasy naraz, a `.stack` to

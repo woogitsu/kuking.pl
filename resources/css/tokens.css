@@ -231,7 +231,8 @@
    TEGO ARKUSZA, żeby reguła `prefers-color-scheme` nie wróciła po cichu
    przy kolejnej zmianie.
    ========================================================================== */
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+.blok-ciemny {
   --color-surface: #1E1A16;
   --color-surface-raised: #2A241E;
   --color-surface-sunken: #14110E;
@@ -283,6 +284,23 @@
      motywem, nie z systemowym — stąd jawna wartość tutaj, a nie
      `light dark` jak w bazowym :root niżej. */
   color-scheme: dark;
+}
+
+/* CIEMNY BLOK NA JASNEJ STRONIE.
+
+   `.blok-ciemny` przestawia całą paletę na dowolnym kontenerze — tak jak
+   `data-theme="dark"` przestawia ją na całej stronie. Sam atrybut siedzi na
+   <html>, więc pomalowanie tła robi za niego reguła `body` w warstwie base;
+   zwykły <section> takiej reguły nie ma i bez tych dwóch linii dostałby
+   jasne litery na jasnym tle. Stąd osobna reguła, nie dopisek wyżej.
+
+   Po co to jest: ciemny pas na stronie powitalnej (system projektowy v3.1,
+   „Przepis jest dobry, kiedy ktoś go ugotował"). W motywie ciemnym pas ma
+   dokładnie ten sam kolor co strona wokół — wyznacza go wtedy wyłącznie
+   kreska, którą dokłada `.pas.blok-ciemny` w arkuszu stron publicznych. */
+.blok-ciemny {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
 }
 
 /* =============================================================================
@@ -366,11 +384,6 @@
 
   h1 { font-size: var(--text-title); }
   h2 { font-size: var(--text-title-sm); }
-
-  /* Tytuł hero (np. strona główna) — użyj klasy .text-title-lg z tekstem clamp */
-  .text-title-lg {
-    font-size: clamp(var(--text-title), 4vw + 1rem, var(--text-title-lg));
-  }
 
   p { margin: 0 0 var(--spacing-4); }
 
@@ -538,6 +551,19 @@
   }
   .btn-danger:hover:not(:disabled) { background-color: var(--color-danger-solid-hover); }
 
+  /* Przycisk większy niż zwykły — jedno wejście na ekranie, tam gdzie ma być
+     oczywiste, co zrobić dalej („Załóż konto" na stronie powitalnej).
+     Rozmiar z systemu projektowego v3.1.
+
+     `min-height`, nie `height`: 3.5 rem to podłoga, nie sufit. Przy skali
+     tekstu 140% napis łamie się na dwa wiersze i przycisk ma urosnąć, a nie
+     przyciąć literom dolne wydłużenia. */
+  .btn-duzy {
+    min-height: 3.5rem;
+    font-size: var(--text-body-lg);
+    padding-inline: var(--spacing-8);
+  }
+
   /* Odstęp obowiązkowy między akcją zwykłą a destrukcyjną */
   .danger-zone {
     margin-top: var(--spacing-8);
@@ -662,5 +688,47 @@
   }
   .wizard-steps-dot[data-done="true"] {
     background-color: var(--color-brand-solid);
+  }
+}
+
+/* =============================================================================
+   5. NAJWIĘKSZE TYTUŁY — clamp, nie sztywny stopień
+
+   ZMIERZONE 8 WRZEŚNIA 2026, I TO JEST POPRAWKA BŁĘDU, NIE OZDOBA.
+   `.text-title-lg` stała dotąd w `@layer base` z komentarzem „użyj tej klasy
+   z tekstem clamp". W zbudowanym arkuszu wygrywała jednak reguła
+   `.text-title-lg { font-size: var(--text-title-lg) }` — bo Tailwind 4 robi
+   utility z KAŻDEGO tokenu `--text-*` w `@theme`, a warstwa `utilities`
+   stoi w kaskadzie za `base`. Nasza reguła była w arkuszu i nie robiła nic:
+
+     app.css, warstwa base       poz.  9 254   clamp(...)
+     app.css, warstwa utilities  poz. 39 769   var(--text-title-lg)   ← ta wygrywała
+
+   Skutek: hasło strony głównej miało zawsze 36 px, także przy oknie 320 px,
+   gdzie mieści się od tego siedem znaków w wierszu — a przy skali tekstu
+   140% (osoba, której 18 px nie wystarcza) 50 px, czyli pięć. Tekst się
+   zawijał, więc nic nie „pękało" na tyle głośno, żeby ktokolwiek to zgłosił.
+
+   Nazwy klas ZOSTAJĄ te same, bo używa ich kilkanaście widoków. Zmienia się
+   warstwa: reguła musi stać w `utilities` PO wygenerowanych utility, żeby
+   przy równej wadze wygrała kolejnością. Stąd ten blok na końcu pliku, a nie
+   przy typografii wyżej — przeniesienie go tam cofnęłoby całą poprawkę.
+   Pilnuje tego `tests/Feature/TytulyMajaClampTest.php`, na ZBUDOWANYM
+   arkuszu, bo w źródle ta usterka jest niewidoczna.
+   ========================================================================== */
+@layer utilities {
+
+  /* Tytuł hero ekranu serwisu. Dolna granica to `--text-title` (28 px),
+     górna 36 px; obie mnożone przez `--user-text-scale`, więc powiększenie
+     tekstu w ustawieniach działa na całym przedziale, nie tylko u góry. */
+  .text-title-lg {
+    font-size: clamp(var(--text-title), 4vw + 1rem, var(--text-title-lg));
+  }
+
+  /* Największy stopień w całym serwisie, WYŁĄCZNIE na hasło strony
+     powitalnej (system projektowy v3.1: „48px — wyłącznie hero strony
+     powitalnej"). */
+  .text-title-xl {
+    font-size: clamp(var(--text-title), 6vw + 0.5rem, var(--text-title-xl));
   }
 }

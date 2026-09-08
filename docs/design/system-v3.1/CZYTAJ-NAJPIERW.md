@@ -100,6 +100,51 @@ skasowałby je bez śladu.
 
 ## Stan wdrożenia
 
-Prowadzony w `docs/HANDOVER.md`. Na 8 września 2026: warstwa tokenów
-podniesiona do v3.1, `.btn` zgodny z systemem. Układ — belka, nawigacja
-boczna, szyna, stopka, pasy stron publicznych — **przed nami**.
+Prowadzony w `docs/HANDOVER.md`. Na 8 września 2026:
+
+| Warstwa | Stan |
+|---|---|
+| Tokeny | podniesione do v3.1; doszło `.blok-ciemny` (paleta na dowolnym kontenerze) |
+| `.btn` | zgodny z systemem, plus `.btn-duzy` |
+| Typografia | `.text-title-lg` i `.text-title-xl` skalują się `clamp`-em — **i to jest poprawka błędu**, patrz niżej |
+| **Pasy stron publicznych** | **zrobione** — `resources/css/strony-publiczne.css`, strona powitalna przebudowana |
+| Belka, nawigacja boczna, szyna, stopka | przed nami |
+
+### Co przyszło z pasami (8 września 2026)
+
+Strona powitalna przestała być jedną kolumną w ramce ekranu zalogowanego
+i stoi na sześciu pełnoszerokich pasach — dokładnie tak, jak §1 `site.css`.
+Kolejność pasów jest argumentem: czym to jest → co robi → „Ugotowałem"
+na ciemnym → cudze wpisy → dane i prywatność → załóż konto.
+
+Trzy rzeczy zrobione INACZEJ niż w paczce, świadomie:
+
+1. **Korzeń `.strona` nie wchodzi.** Paczka buduje strony publiczne na
+   własnym szkielecie z własną belką (`.pas-gorny`) i własną stopką
+   (`.stopka-www`), bo powstała bez dostępu do repozytorium. Aplikacja ma
+   już belkę, stopkę, przełącznik motywu, skalę tekstu i nagłówki CSP —
+   drugi komplet byłby wyłącznie okazją do rozjazdu. Pasy wpięto w istniejący
+   `.app-body-powitalny`, któremu zdjęto sufit szerokości i wcięcia.
+2. **W sekcji głównej stoi tablica dnia, nie zdjęcie potrawy.** Paczka daje
+   tam fotografię 5:3; my mamy w tym miejscu prawdziwych ludzi i wpisy
+   z dzisiaj. Zdjęcie z pliku byłoby dekoracją, tablica jest treścią.
+3. **`.lead` nie wchodzi, zostaje `text-lead`.** Aplikacja ma już utility
+   z tokenu o tej samej wartości. Dwie nazwy na jedną rzecz to pierwszy krok
+   do dwóch różnych wartości.
+
+### Usterka złapana przy okazji: `clamp` na tytułach nigdy nie działał
+
+`.text-title-lg` stała w `@layer base` z komentarzem „użyj tej klasy z tekstem
+clamp". W zbudowanym arkuszu wygrywała jednak reguła ze sztywnym stopniem,
+którą Tailwind 4 robi automatycznie z tokenu `--text-title-lg` — bo warstwa
+`utilities` stoi w kaskadzie za `base`. Zmierzone w `public/build/assets/app-*.css`:
+clamp na pozycji 9 254, sztywny stopień na 39 769.
+
+Skutek: hasło strony głównej miało zawsze 36 px, także przy oknie 320 px,
+a przy skali tekstu 140% — 50 px. Tekst się zawijał, więc nic nie „pękało"
+na tyle głośno, żeby ktokolwiek to zgłosił.
+
+Poprawka: obie reguły przeniesione na koniec `tokens.css`, do `@layer
+utilities`. Pilnuje tego krok „Największe tytuły przetrwały build z clamp"
+w jobie `Build assetów` — nie test PHPUnit, bo testy chodzą z `withoutVite()`
+i nie mają zbudowanego arkusza, w którym ta usterka jako jedyna jest widoczna.

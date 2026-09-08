@@ -895,3 +895,87 @@ unused branches on GitHub — check each for files that exist nowhere else
 before deleting, six documents were rescued that way in PR #123.
 
 ---
+
+## 10. Session of 2026-09-08, morning — the design system v3.1 reaches the layout
+
+Section 9 ended with the token layer raised to v3.1 and the note that the
+*layout* — the one thing `STAN_WDROZENIA_KITU.md` has called wrong since the
+v2 kit — was still ahead. This section is that layout, for public pages.
+
+### 10.1 The welcome page now stands on full-width bands
+
+`resources/css/strony-publiczne.css` (new) carries the band vocabulary from
+`docs/design/system-v3.1/site.css` §1: `.pas`, `.pas-wnetrze`, four band
+backgrounds, `.hero*`, `.rzeczy`, `.dwie-kolumny`, `.zacheta*`. The welcome
+page was rebuilt on it: six bands whose order is the argument — what this is,
+what it does, "Ugotowałem" on the dark band, other people's posts, your data,
+sign up.
+
+Three deliberate departures from the package, all recorded in
+`docs/design/system-v3.1/CZYTAJ-NAJPIERW.md`:
+
+* the package's own `.strona` root does not come in. It ships its own top bar
+  and footer because it was written without repository access; the app already
+  has both, plus the theme switch, the text-scale attribute and the CSP
+  nonces. Bands were fitted into the existing `.app-body-powitalny`, which
+  had its width ceiling and side padding removed instead;
+* the hero's right-hand slot holds the daily board, not a stock photo of food;
+* `.lead` does not come in — the app already has `text-lead` from the token
+  of the same value.
+
+`.app-body-powitalny` and `.app-main` lose `max-width` and `padding` in that
+mode. **Where those rules sit in the file is load-bearing**: a media query
+does not raise selector weight, so they must come after both `.app-body`
+blocks (`64rem` and `80rem`). The first attempt placed them before the
+`80rem` block, and bands ran to the window edge between 1024 and 1280 px and
+were clipped again above 1280 — visible only as "someone designed it that
+way". `StronaPowitalnaPasyTest::test_uklad_powitalny_nie_przycina_pasow`
+compares the two file positions so that ordering cannot be lost again.
+
+`.blok-ciemny` joined the token layer: the dark palette on an arbitrary
+container, plus the two lines that paint it (`<html>` gets painted through
+`body` in the base layer; a plain `<section>` does not).
+
+### 10.2 A defect found on the way: `clamp` on the largest headings never ran
+
+`.text-title-lg` sat in `@layer base` under a comment saying "use this class
+for clamped text". In the built stylesheet the winner was
+`.text-title-lg { font-size: var(--text-title-lg) }` — the utility Tailwind 4
+generates from every `--text-*` token — because `utilities` comes after
+`base`. Measured in `public/build/assets/app-*.css`: clamp at offset 9 254,
+the fixed size at 39 769.
+
+So the headline of every screen using it was 36 px at a 320 px window, and
+50 px at the 140% text scale. Nothing broke; the text wrapped. Both rules
+moved to `@layer utilities` at the end of `tokens.css`, where Tailwind now
+folds them into the generated utility instead of shadowing them.
+
+The guard is a step in the `Build assetów` job, not a PHPUnit test: PHPUnit
+runs with `withoutVite()` and deliberately has no built stylesheet, and this
+defect exists **only** in the built stylesheet.
+
+### 10.3 Local `php artisan test` could not run in this session
+
+`composer install` cannot complete here. Third-party packages are fetched from
+`api.github.com`, and this session's GitHub access is scoped to
+`woogitsu/kuking.pl` — `pragmarx/google2fa` and others return 403 from both
+`api.github.com` and `codeload.github.com`. Verified by hand, not assumed.
+
+What was verified locally: `npm run build` (the stylesheet compiles and every
+new class survives Tailwind's tree-shaking), `php -l` on the changed PHP, and
+the cascade order read out of the built CSS. The PHPUnit run is CI's.
+
+### 10.4 What comes next in the design work
+
+The remaining gap is the logged-in chrome: top bar, side navigation, rail,
+footer. The method stays the one that worked here — reconcile class by class,
+one small revertible commit each, with a stated reason for which version wins.
+Wholesale import of `komponenty.css` is still off the table for the reason
+measured on 8 September: 43 of 53 shared class names differ, several
+structurally (`.app-body` is grid here and flex there).
+
+Eight product decisions from `WDROZENIE.md` §5 (P-1…P-8) still block stages
+3–6 of that document and need the owner: whether a post gets a `title`
+column, whether a Post can go into the Zeszyt, "Zapisz" versus "Zapisuję".
+
+---
