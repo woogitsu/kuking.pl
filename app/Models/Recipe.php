@@ -155,7 +155,28 @@ class Recipe extends Model
 
     public function cookedEvents(): HasMany
     {
-        return $this->hasMany(CookedEvent::class)->latest('cooked_at');
+        // DRUGI KLUCZ SORTOWANIA NIE JEST OZDOBĄ — TO WARUNEK POPRAWNEJ
+        // PAGINACJI.
+        //
+        // `cooked_at`, `created_at` i `published_at` są w tym schemacie typu
+        // `timestamptz(0)`, czyli z dokładnością do SEKUNDY (`timestampsTz()`
+        // w migracjach). Dwa wykonania dodane w tej samej sekundzie mają
+        // identyczny klucz, a przy `ORDER BY` po samym nim PostgreSQL może
+        // oddać je w dowolnej kolejności — i w KAŻDYM zapytaniu w innej.
+        //
+        // Paginacja to dwa osobne zapytania z `LIMIT`/`OFFSET`. Gdy kolejność
+        // remisów zmieni się między nimi, ten sam wiersz pokazuje się na
+        // dwóch stronach, a inny NIE POKAZUJE SIĘ NIGDZIE. To jest dokładnie
+        // to, czego zakazuje UX_50_PLUS.md: poprawne dane nie mają prawa
+        // zniknąć.
+        //
+        // `id` jest UUID-em v7 (`HasUuids` w Laravelu 12+), więc rośnie
+        // z czasem — jako drugi klucz nie tylko rozstrzyga remis, ale
+        // rozstrzyga go CHRONOLOGICZNIE. Ten sam wzorzec stoi już
+        // w `DiscoverFeed` i `TagController`; tutaj go brakowało.
+        return $this->hasMany(CookedEvent::class)
+            ->latest('cooked_at')
+            ->latest('id');
     }
 
     public function comments(): HasMany
@@ -163,7 +184,12 @@ class Recipe extends Model
         return $this->hasMany(Comment::class)
             ->whereNull('parent_id')
             ->where('status', Comment::STATUS_PUBLISHED)
-            ->oldest();
+            // `id` NIE jest ozdobą przy `oldest()` — patrz komentarz przy
+            // `cookedEvents()` wyżej. `created_at` ma dokładność do sekundy,
+            // więc bez tego dwa komentarze z tej samej sekundy potrafią
+            // przeskoczyć między stronami.
+            ->oldest()
+            ->orderBy('id');
     }
 
     // ---------------------------------------------------------------------

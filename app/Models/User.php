@@ -297,7 +297,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public function notifications(): HasMany
     {
-        return $this->hasMany(Notification::class)->latest('created_at');
+        // Drugi klucz sortowania — powiadomienia sypią się seriami w tej
+        // samej sekundzie, a lista jest paginowana. Uzasadnienie:
+        // `Recipe::cookedEvents()`.
+        return $this->hasMany(Notification::class)
+            ->latest('created_at')
+            ->latest('id');
     }
 
     /** Osoby, które TEN użytkownik obserwuje. */

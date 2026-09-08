@@ -74,6 +74,7 @@ class ProfileController extends Controller
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
                     ->with('heroMedia')
                     ->latest('published_at')
+                    ->latest('id')
                     ->paginate(12)
                     ->withQueryString()
                 : null,
@@ -117,6 +118,7 @@ class ProfileController extends Controller
             ->with(['media', 'author.profile.avatar'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->latest('published_at')
+            ->latest('id')
             ->paginate(12)
             ->withQueryString();
     }
