@@ -367,6 +367,17 @@ export default defineRailway((ctx) => {
     POSTHOG_KEY: ctx.shared.POSTHOG_KEY,
     POSTHOG_HOST: "https://eu.i.posthog.com", // instancja EU — dane w UE (RODO)
 
+    // Powiadomienie o błędzie 500 na Slacku/Discordzie, dopóki nie da się
+    // zainstalować Sentry wyżej (`docs/infra/MONITORING_BLEDOW.md`,
+    // `config/logging.php` kanał `blad_webhook`). Puste = wyłączone — Railway
+    // wstawi tu pusty string, dopóki właściciel nie założy tej zmiennej
+    // sharedowej w panelu (Environment → Variables → Shared Variables).
+    // Treść wysyłana na ten adres nie niesie danych osobowych, ale sam adres
+    // to sekret (kto go zna, może pisać na kanał właściciela) — dlatego
+    // idzie przez `ctx.shared`, tak jak SENTRY_LARAVEL_DSN wyżej, a nie jako
+    // wartość wpisana w tym pliku.
+    LOG_BLAD_WEBHOOK_URL: ctx.shared.LOG_BLAD_WEBHOOK_URL,
+
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
     // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,
