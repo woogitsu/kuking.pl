@@ -71,11 +71,14 @@ class MapaStronyTest extends TestCase
         // to jedyna asercja, która nie zależy od ustawienia PHP-a maszyny,
         // na której akurat chodzi.
         $winne = [];
+        $przejrzane = 0;
 
         foreach (File::allFiles(resource_path('views')) as $plik) {
             if (! str_ends_with($plik->getFilename(), '.blade.php')) {
                 continue;
             }
+
+            $przejrzane++;
 
             // Komentarze Blade'a lecą do kosza PRZED dopasowaniem. Pierwsza
             // wersja tego testu tego nie robiła i oblała na komentarzu, który
@@ -91,6 +94,17 @@ class MapaStronyTest extends TestCase
                 $winne[] = str_replace(resource_path('views').'/', '', $plik->getPathname());
             }
         }
+
+        // ASERCJA KONTROLNA. `$winne` zostaje puste także wtedy, gdy skan nie
+        // przejrzał ANI JEDNEGO widoku — a wtedy ten test nie pilnuje niczego,
+        // wyglądając dokładnie tak samo jak wcześniej. Zmierzone: po podmianie
+        // skanowanego katalogu na taki, w którym nie ma żadnego `.blade.php`,
+        // test był dalej zielony.
+        $this->assertGreaterThan(
+            50,
+            $przejrzane,
+            'Nie przejrzałem widoków (znalazłem '.$przejrzane.'). Ten test nie sprawdza wtedy niczego.',
+        );
 
         $this->assertSame(
             [],
