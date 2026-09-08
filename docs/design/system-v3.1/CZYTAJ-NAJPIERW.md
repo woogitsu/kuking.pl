@@ -147,6 +147,22 @@ Klasa po klasie, każda z decyzją, która wersja wygrywa:
 | `.avatar` | **aplikacja** | system ma sztywne `3rem`, aplikacja bierze rozmiar z parametru. Przyjęcie systemu zepsułoby każde wywołanie z rozmiarem |
 | `.card` | **remis** | jedyna różnica to `forced-color-adjust: auto`, czyli wartość domyślna. Nic do zrobienia |
 
+### Belka i karta wpisu (8 września 2026, dalszy ciąg)
+
+| Klasa | Kto wygrał | Dlaczego |
+|---|---|---|
+| `.topbar-inner` | **system** | od 80rem ta sama siatka trzykolumnowa co treść. Krawędzie zewnętrzne zgadzały się i wcześniej, ale pole „Szukaj" pomiędzy nimi ustawiało sobie szerokość samo i stało nad tekstem, którego nie dotyka („problem nr 6" z paczki) |
+| `.post-card` | **system** (`.karta-wpisu`) | `--radius-xl` i uniesienie cienia przy najechaniu. Karta jest w całości klikalna i nie miała na sobie niczego, co by to zapowiadało |
+| `.post-card-body` | **system** (`.karta-tresc`) | treść wpisu po `--text-body-lg` (20 px). Do dziś nazwa autora była w karcie większa niż to, co ta osoba napisała |
+| `.card .btn:focus-visible` | **system** | halo pierścienia fokusu w kolorze KARTY, nie strony. Na białej karcie beżowe halo rysowało widoczną obwódkę, a kontrast pierścienia był policzony względem tła, którego pod nim nie ma |
+| `.meta` | **remis** | system ma `--text-meta` (15 px), ale sam nadpisuje to zaraz `--text-help` (16 px). Nasze 16 px zostaje — 15 px byłoby poniżej podłogi z `UX_50_PLUS.md` |
+| `.kolumna-czytania` | **aplikacja** | system ma tu 38 rem, ale opisuje nią „długi dokument prawny". U nas ta klasa ogranicza tekst wewnątrz siatki 53 rem i 45 rem daje tam właściwe ~65–75 znaków. Ta sama nazwa, dwie różne rzeczy |
+
+Automat dostępności mierzy od dziś także drugą regułę: krawędzie
+`.topbar-szukaj` == krawędzie `.app-main` na ekranach zalogowanego od 1280 px.
+Pierwsza reguła („belka ma tę samą szerokość co treść") mogła być spełniona
+przy złamanej drugiej i przez pół roku była.
+
 ### Pytanie do właściciela: jak głośna ma być odznaka „Konto przykładowe"
 
 System (`components.css`) przewiduje dla niej odznakę **cichą** —

@@ -666,7 +666,27 @@
 
   /* --- Karta wpisu (UI kit v2, etap B) --- */
 
-  .post-card { padding: 0; overflow: hidden; }
+  /* Karta wpisu. Uzgodniona z `.karta-wpisu` systemu projektowego v3.1.
+
+     Dwie różnice wobec zwykłej `.card`, obie z systemu:
+     * `--radius-xl` zamiast `--radius-lg`. Karta wpisu jest największym
+       elementem strumienia i jedynym, w którym zdjęcie dochodzi do samej
+       krawędzi — mocniejsze zaokrąglenie robi z niej przedmiot, a nie
+       prostokąt z obwódką;
+     * cień podnosi się przy najechaniu. Karta jest w całości klikalna
+       (zdjęcie, tytuł, autor prowadzą dalej), a nie ma na sobie ani jednego
+       elementu, który by to zapowiadał. Uniesienie mówi „to się otwiera"
+       bez dokładania napisu. Czas i cień z tokenów, więc
+       `prefers-reduced-motion` wyłącza samo przejście w warstwie base,
+       zostawiając stan końcowy. */
+  .post-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    transition: box-shadow var(--czas-zwykly) ease-out;
+  }
+
+  .post-card:hover { box-shadow: var(--shadow-card-hover); }
 
   .post-card-head {
     display: flex;
@@ -675,9 +695,15 @@
     padding: var(--spacing-4) var(--spacing-5);
   }
 
+  /* Treść wpisu — to, co człowiek naprawdę napisał — idzie po
+     `--text-body-lg` (20 px), nie po `--text-body` (18 px). Tak ma to system
+     projektowy v3.1 (`.karta-tresc`) i jest po co: kilka zdań pod zdjęciem
+     jest jedyną treścią tej karty, a do niedawna nazwa autora (18 px, waga
+     700) była w niej większa niż to, co ta osoba powiedziała. */
   .post-card-body {
     padding: 0 var(--spacing-5) var(--spacing-4);
-    font-size: var(--text-body);
+    font-size: var(--text-body-lg);
+    line-height: var(--leading-body);
     white-space: pre-line;
     overflow-wrap: anywhere;
   }

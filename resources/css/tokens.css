@@ -503,6 +503,24 @@
       0 0 0 5px var(--color-focus);
   }
 
+  /* TEN SAM PRZYCISK NA KARCIE MA ZA SOBĄ INNE TŁO.
+
+     Halo wyżej jest w kolorze tła STRONY (#FAF6F0). Karta ma tło podniesione
+     (#FFFFFF), więc na niej ten sam pierścień rysuje wokół przycisku wyraźną
+     beżową obwódkę — i, co gorsza, kontrast pierścienia fokusu jest wtedy
+     policzony względem tła, którego pod nim nie ma.
+
+     Reguła z systemu projektowego v3.1. Dotyczy każdego przycisku w karcie:
+     „Ugotowałem", „Zapisz w zeszycie", akcje pod wpisem — czyli praktycznie
+     wszystkich, po których ktoś chodzi klawiaturą. */
+  .card .btn:focus-visible,
+  .post-card .btn:focus-visible,
+  .rzecz .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-surface-raised),
+      0 0 0 5px var(--color-focus);
+  }
+
   .btn-primary {
     background-color: var(--color-brand-solid);
     color: var(--color-ink-inverse);
