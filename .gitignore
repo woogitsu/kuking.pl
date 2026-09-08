@@ -34,3 +34,7 @@ Thumbs.db
 # Kuking — nie ignorujemy plików instrukcji dla agentów AI.
 # .cursor/rules/ jest częścią repozytorium (patrz AGENTS.md, sekcja 1).
 !/.cursor/rules/
+
+# Znacznik wydania — pisze go build obrazu (Dockerfile), nie człowiek.
+# W repozytorium nie ma czego trzymać: lokalnie stopka mówi „lokalnie".
+/bootstrap/wydanie.txt

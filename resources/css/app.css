@@ -1738,6 +1738,20 @@
     margin-left: auto;
     color: var(--color-ink-muted);
     font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0 var(--spacing-2);
+  }
+
+  /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana.
+     To jest ta część, której właściciel szuka wzrokiem najpierw — a stopka
+     jest rzędem linków w jednym kolorze, więc bez tego wersja w nim ginie.
+     Odróżnienie idzie KOLOREM I WAGĄ, nie wielkością: rozmiar zostaje taki
+     jak reszta stopki (UX_50_PLUS — nie robimy tekstu, którego trzeba się
+     domyślać). */
+  .site-version-etap {
+    color: var(--color-ink);
+    font-weight: 700;
   }
 
   /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019).
