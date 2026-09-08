@@ -947,22 +947,28 @@ new class extends Component
                      :value="$title" placeholder="Rosół babci Zofii" />
 
             <div class="field @error('heroPhoto') has-error @enderror">
-                <label for="f-heroPhoto">Zdjęcie gotowego dania <span class="meta">(nieobowiązkowe)</span></label>
                 {{-- Duży obszar wyboru zdjęcia (UI kit v2, `PhotoPicker` —
                      patrz komentarz w resources/css/ekran-dodawania.css).
-                     `wire:model` i pozostałe atrybuty pola są niezmienione. --}}
-                <div class="pole-zdjecia">
+                     Natywne pole pliku jest schowane dla oka (D-035), bo
+                     rysowało angielskie „Choose File / No file chosen";
+                     zostaje pod klawiaturą i w drzewie dostępności, a klikalna
+                     jest etykieta. `wire:model` i pozostałe atrybuty pola są
+                     niezmienione. `<input>` MUSI stać bezpośrednio przed
+                     `<label>` — obwódkę fokusu rysuje reguła sąsiedztwa. --}}
+                <span class="pole-zdjecia-nazwa" id="f-heroPhoto-etykieta">Zdjęcie gotowego dania <span class="meta">(nieobowiązkowe)</span></span>
+                {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
+                     megabajtów miała jedno źródło (`LimityZdjec`) i nie
+                     rozjechała się z `config/kuking.php` — issue #111. --}}
+                <input class="visually-hidden pole-zdjecia-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
+                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                       data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
+                       aria-labelledby="f-heroPhoto-etykieta f-heroPhoto-tytul"
+                       aria-describedby="f-heroPhoto-help">
+                <label class="pole-zdjecia" for="f-heroPhoto">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                    <p class="pole-zdjecia-tytul">{{ $heroMediaId !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                    <span class="pole-zdjecia-tytul" id="f-heroPhoto-tytul">{{ $heroMediaId !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
                     <span class="field-help" id="f-heroPhoto-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
-                    {{-- Treść komunikatu idzie z PHP, a nie z `app.js`, żeby liczba
-                         megabajtów miała jedno źródło (`LimityZdjec`) i nie
-                         rozjechała się z `config/kuking.php` — issue #111. --}}
-                    <input class="field-input pole-zdjecia-input" id="f-heroPhoto" type="file" wire:model="heroPhoto"
-                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                           data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
-                           aria-describedby="f-heroPhoto-help">
-                </div>
+                </label>
                 @error('heroPhoto')<span class="field-error">{{ $message }}</span>@enderror
                 @if($heroMediaId !== null)
                     <p class="meta mt-2">Zdjęcie jest już dodane. Wybierz plik jeszcze raz, jeśli chcesz je zmienić.</p>
@@ -1160,24 +1166,27 @@ new class extends Component
                              help="Wpisz liczbę minut — na przykład 45. Przy gotowaniu pokażemy wtedy: „Ustaw sobie kuchenny minutnik na 45 minut”. Zostaw puste, jeśli ten krok nie potrzebuje odliczania." />
 
                     <div class="field @error("steps.{$index}.photo") has-error @enderror">
-                        <label for="f-steps-{{ $index }}-photo">
-                            Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span>
-                        </label>
                         {{-- Duży obszar wyboru zdjęcia — ten sam wzorzec co
-                             przy „Zdjęcie gotowego dania" wyżej w tym pliku. --}}
-                        <div class="pole-zdjecia">
+                             przy „Zdjęcie gotowego dania" wyżej w tym pliku:
+                             pole pliku schowane dla oka (D-035), klikalna
+                             etykieta, `<input>` bezpośrednio przed nią. --}}
+                        <span class="pole-zdjecia-nazwa" id="f-steps-{{ $index }}-photo-etykieta">
+                            Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span>
+                        </span>
+                        <input class="visually-hidden pole-zdjecia-input" id="f-steps-{{ $index }}-photo" type="file"
+                               wire:model="steps.{{ $index }}.photo"
+                               accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                               data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
+                               aria-labelledby="f-steps-{{ $index }}-photo-etykieta f-steps-{{ $index }}-photo-tytul"
+                               aria-describedby="f-steps-{{ $index }}-photo-help">
+                        <label class="pole-zdjecia" for="f-steps-{{ $index }}-photo">
                             <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                            <p class="pole-zdjecia-tytul">{{ ($row['mediaId'] ?? null) !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</p>
+                            <span class="pole-zdjecia-tytul" id="f-steps-{{ $index }}-photo-tytul">{{ ($row['mediaId'] ?? null) !== null ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
                             <span class="field-help" id="f-steps-{{ $index }}-photo-help">
                                 Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
                                 jak gęsty ma być sos.
                             </span>
-                            <input class="field-input pole-zdjecia-input" id="f-steps-{{ $index }}-photo" type="file"
-                                   wire:model="steps.{{ $index }}.photo"
-                                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                                   data-blad-wysylki="{{ \App\Support\LimityZdjec::komunikatNieudanejWysylki() }}"
-                                   aria-describedby="f-steps-{{ $index }}-photo-help">
-                        </div>
+                        </label>
                         @error("steps.{$index}.photo")<span class="field-error">{{ $message }}</span>@enderror
 
                         @if(($row['mediaId'] ?? null) !== null)

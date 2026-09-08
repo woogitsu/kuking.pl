@@ -25,7 +25,12 @@
         @endif
 
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
-            <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
+            {{-- Nazwa pola jest `<span>`, a nie `<label>`: jedyną etykietą tego
+                 pola jest duży obszar wyboru niżej (D-035). Powód — jedno pole,
+                 jedna etykieta — stoi w resources/css/ekran-dodawania.css przy
+                 `.pole-zdjecia-nazwa`. Nazwa wraca do pola przez
+                 `aria-labelledby`, więc czytnik ekranu dalej ją czyta. --}}
+            <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></span>
 
             @php
                 // Zdjęcia, które przetrwały nieudaną walidację (audyt C1).
@@ -54,20 +59,34 @@
             @endif
 
             {{-- Duży obszar wyboru zdjęcia (UI kit v2, 08_mobile_add.html →
-                 `PhotoPicker`, docs/design/ekran-dodawania.css). Prawdziwy
-                 <input type="file"> zostaje w środku, w pełni widoczny
-                 i klikalny — to wciąż ta sama droga bez JavaScriptu. --}}
-            <div class="pole-zdjecia">
+                 `PhotoPicker`, resources/css/ekran-dodawania.css). Natywne pole
+                 pliku jest tu SCHOWANE DLA OKA (decyzja właściciela D-035):
+                 przeglądarka rysowała w nim angielskie „Choose File / No file
+                 chosen" w środku polskiego formularza i nie da się tego zmienić
+                 żadnym atrybutem. Klikalna zostaje etykieta — to natywne
+                 zachowanie HTML, działa bez JavaScriptu.
+
+                 Pole ZOSTAJE w drzewie dostępności i pod klawiaturą: chowa je
+                 `.visually-hidden`, nigdy `display: none` ani
+                 `visibility: hidden`. Fokus na nim rysuje obwódkę wokół
+                 obszaru.
+
+                 KOLEJNOŚĆ JEST WYMUSZONA: `<input>` stoi BEZPOŚREDNIO PRZED
+                 `<label>`, bo obwódkę fokusu rysuje reguła
+                 `.pole-zdjecia-input:focus-visible + .pole-zdjecia`. --}}
+            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
+                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                   multiple
+                   aria-labelledby="f-photos-etykieta f-photos-tytul"
+                   aria-describedby="f-photos-help">
+            <label class="pole-zdjecia" for="f-photos">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
-                <input class="field-input pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       multiple aria-describedby="f-photos-help">
-            </div>
+            </label>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>

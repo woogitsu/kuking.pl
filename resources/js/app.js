@@ -24,6 +24,29 @@ if ('serviceWorker' in navigator) {
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
 /*
+ * ZA CZYM DORYSOWUJEMY COKOLWIEK POD POLEM PLIKU.
+ *
+ * Po decyzji D-035 natywne pole pliku jest schowane dla oka i stoi
+ * BEZPOŚREDNIO PRZED swoją etykietą — dużym obszarem „Dodaj zdjęcie”.
+ * Tej kolejności wymaga reguła fokusu
+ * `.pole-zdjecia-input:focus-visible + .pole-zdjecia`
+ * (resources/css/ekran-dodawania.css).
+ *
+ * Wstawienie podglądu albo komunikatu tuż za `<input>` położyłoby je NAD
+ * obszarem wyboru i do środka `<label>` — a klik w miniaturę otwierałby wtedy
+ * okno wyboru pliku jeszcze raz, bo tak działa etykieta. Dlatego kotwicą jest
+ * etykieta, o ile stoi zaraz za polem; w każdym innym układzie zostaje samo
+ * pole i zachowanie jest takie jak przed tą zmianą.
+ */
+function kotwicaPodPolem(input) {
+    const nastepny = input.nextElementSibling;
+
+    return nastepny instanceof HTMLLabelElement && nastepny.htmlFor === input.id
+        ? nastepny
+        : input;
+}
+
+/*
  * Po wybraniu pliku pokazujemy miniaturę i nazwę. Bez tego użytkownik nie ma
  * żadnego potwierdzenia, że zdjęcie zostało wybrane — a to jest najczęstszy
  * moment porzucenia formularza „dodaj zdjęcie”.
@@ -46,7 +69,7 @@ document.addEventListener('change', (event) => {
         pojemnik.style.display = 'grid';
         pojemnik.style.gap = '8px';
         pojemnik.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
-        input.insertAdjacentElement('afterend', pojemnik);
+        kotwicaPodPolem(input).insertAdjacentElement('afterend', pojemnik);
     }
 
     pojemnik.replaceChildren();
@@ -119,7 +142,7 @@ window.addEventListener('livewire-upload-error', (zdarzenie) => {
         // `alert`, nie `polite`: to jest odpowiedź na czynność, którą człowiek
         // przed chwilą wykonał, i musi zostać przeczytana od razu.
         pole.setAttribute('role', 'alert');
-        input.insertAdjacentElement('afterend', pole);
+        kotwicaPodPolem(input).insertAdjacentElement('afterend', pole);
     }
 
     pole.textContent = komunikat;
