@@ -43,6 +43,37 @@
 #    * `audit` może być nieblokujący, a `test` nie.
 # =============================================================================
 
+# ---------------------------------------------------------------------------
+#  RUNNERY: TYMCZASOWO `ubuntu-latest`, NIE WŁASNA PULA — decyzja właściciela
+#  z 8 września 2026, wieczorem.
+#
+#  D-028 mówi: „CI wraca na własne runnery, wybierane etykietami, nie nazwą"
+#  — i ta decyzja NIE JEST odwołana. Powodem zmiany jest sytuacja, nie zwrot
+#  w strategii: trzy z sześciu runnerów są wyłączone, a w kolejce stało
+#  dziesięć przebiegów po siedem jobów. Job „Testy (PostgreSQL 18)" czekał
+#  na wolną maszynę PONAD GODZINĘ, przez co Railway — który ma włączone
+#  „Wait for CI" — nie wdrażał niczego na produkcję.
+#
+#  Właściciel ma ~2000 niewykorzystanych minut Actions i kazał ich użyć.
+#  Repozytorium jest PRYWATNE, więc minuty są płatne: pełny przebieg to
+#  siedem jobów, orientacyjnie 25-35 minut maszynowych.
+#
+#  JAK WRÓCIĆ NA WŁASNĄ PULĘ: podmień we wszystkich siedmiu jobach
+#
+#      runs-on: ubuntu-latest
+#  na
+#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#
+#  Etykiety, nie nazwa runnera: nazwa przypina job do jednej maszyny, więc
+#  jej awaria zatrzymuje CI. Etykiety `i5-10400f` i `nvidia-gtx1070` mają
+#  WYŁĄCZNIE nowe runnery — samo `self-hosted` wpuściłoby joby także na stare
+#  maszyny WSL-owe.
+#
+#  Nic poza `runs-on` nie wymagało zmiany: usługa `postgres` i odczyt
+#  zmapowanego portu przez `job.services.postgres.ports[5432]` działają tak
+#  samo na obu rodzajach runnerów.
+# ---------------------------------------------------------------------------
+
 name: CI
 
 on:
@@ -74,7 +105,7 @@ jobs:
   # ===========================================================================
   lint:
     name: Pint (styl kodu)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 10
 
     steps:
@@ -108,7 +139,7 @@ jobs:
   # ===========================================================================
   static-analysis:
     name: Larastan (analiza statyczna)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 15
     # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
     # `phpstan analyse` kończyłby się „At least one path must be specified".
@@ -207,7 +238,7 @@ jobs:
   # ===========================================================================
   test:
     name: Testy (PostgreSQL 18)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 20
 
     services:
@@ -339,7 +370,7 @@ jobs:
   # ===========================================================================
   assets:
     name: Build assetów (Vite)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 10
 
     steps:
@@ -416,7 +447,7 @@ jobs:
   # ===========================================================================
   dostepnosc:
     name: Dostępność (axe-core)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 15
 
     services:
@@ -572,7 +603,7 @@ jobs:
   # ===========================================================================
   audit:
     name: Audyt zależności
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 10
 
     steps:
@@ -649,7 +680,7 @@ jobs:
   # ===========================================================================
   docker-build:
     name: Build obrazu (weryfikacja)
-    runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+    runs-on: ubuntu-latest  # TYMCZASOWO — patrz nagłówek pliku (D-028)
     timeout-minutes: 20
 
     steps:
