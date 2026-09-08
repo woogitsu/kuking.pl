@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -255,12 +256,67 @@ final class CollectUserExportData
         })->all();
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Zeszyty — i OBIE rzeczy, które w nich stoją.
+     *
+     * Zeszyt przyjmuje dwa rodzaje pozycji, nie jeden: przepisy ORAZ wpisy
+     * (migracja `2026_09_06_150000_collection_items_accept_posts`, akcja
+     * `SavePostToCollection`, `docs/DATABASE.md` — „collection_items —
+     * przepisy ORAZ wpisy"). Do 8 września paczka niosła wyłącznie przepisy
+     * i robiła to po cichu: w `dane.json` nie było ani pozycji, ani liczby,
+     * ani zdania o tym, że połowy zeszytu brakuje. Człowiek, który odłożył
+     * czterdzieści cudzych zdjęć „na kiedyś", dostawał plik wyglądający na
+     * kompletny — a taki jest gorszy niż brak eksportu.
+     *
+     * ZAPISANE WPISY PRZECHODZĄ PRZEZ TĘ SAMĄ GRANICĘ CO EKRAN ZESZYTU
+     * `widoczneDla()` plus `dostepnyJakoAutor()` — dokładnie ten sam filtr,
+     * który stoi w `CollectionController::show()`, i z tego samego powodu co
+     * `visibleTo()` przy powiadomieniach niżej: **to jest ta sama granica,
+     * nie druga jej wersja.** Zeszyt to pojemnik na CUDZE treści. Wpis
+     * zapisany wtedy, gdy autor pokazywał go obserwującym, przestaje być
+     * widoczny po zaprzestaniu obserwowania — a paczka ZIP zostaje na dysku
+     * na zawsze i da się ją komuś wysłać. Wypisanie treści, której w serwisie
+     * już nie widać, byłoby trwałym wyjęciem cudzego tekstu z jego ustawień.
+     *
+     * Własne wpisy przechodzą przez ten filtr ZAWSZE, także prywatne i szkice
+     * (`Post::scopeWidoczneDla` zaczyna od `posts.author_id = widz`), więc
+     * nic swojego nikomu tu nie ubywa.
+     *
+     * ILE FILTR SCHOWAŁ — MÓWIMY WPROST, TAK JAK EKRAN
+     * `wpisow_juz_niewidocznych` jest ZAWSZE, także gdy wynosi zero — ta sama
+     * reguła co przy `zdjec_jeszcze_w_przygotowaniu` (issue #113): klucz
+     * pojawiający się tylko przy brakach zmusza czytającego do zgadywania,
+     * czy zera nie ma, bo braków nie było, czy dlatego, że paczkę zbudowała
+     * starsza wersja serwisu. Ekran zeszytu mówi „ile, nie czego" — paczka
+     * mówi to samo.
+     *
+     * CZEGO TU NIE MA: ZDJĘĆ Z ZAPISANYCH WPISÓW
+     * `ExportPhotoPlan` chodzi wyłącznie po `$user->media()`, więc zdjęcie
+     * z cudzego wpisu nie ma w paczce nazwy pliku i `pathFor()` zwróciłby dla
+     * niego `null`. To jest wybór, nie przeoczenie: paczka RODO oddaje dane
+     * TEJ osoby, a cudze zdjęcie nią nie jest — pobranie go do archiwum
+     * użytkownika wyjęłoby je z serwisu na stałe.
+     *
+     * @return list<array<string, mixed>>
+     */
     private function collections(User $user): array
     {
-        $collections = $user->collections()->with('recipes.author.profile')->orderBy('created_at')->get();
+        $collections = $user->collections()
+            ->with([
+                'recipes.author.profile',
+                'posts' => fn ($zapytanie) => $zapytanie
+                    ->widoczneDla($user)
+                    ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                    ->with('author.profile'),
+            ])
+            // Liczba WSZYSTKICH zapisanych wpisów, bez filtra widoczności.
+            // Różnica między nią a liczbą wypisanych pozycji to dokładnie to,
+            // co filtr schował — i to jest liczba, którą paczka podaje.
+            ->withCount('posts')
+            ->orderBy('created_at')
+            ->get();
 
-        return $collections->map(fn ($collection): array => [
+        return $collections->map(fn (Collection $collection): array => [
             'nazwa' => $collection->name,
             'opis' => $collection->description,
             'widocznosc' => $collection->visibility,
@@ -272,6 +328,22 @@ final class CollectUserExportData
                 'moja_notatka' => $recipe->pivot->note ?? null,
                 'zapisano' => $this->date($recipe->pivot->created_at ?? null),
             ])->all(),
+            'wpisy' => $collection->posts->map(fn (Post $post): array => [
+                // Wpis nie ma tytułu — jego treść JEST jego tożsamością,
+                // więc skrócenie jej zostawiłoby pozycję nie do rozpoznania.
+                // Zakres jest ten sam co przy cudzych komentarzach niżej:
+                // treść, data i nazwa wyświetlana. Nigdy e-mail, nigdy
+                // identyfikator konta.
+                'tresc' => $post->body,
+                'autor' => $post->author?->displayName() ?? 'Konto usunięte',
+                'opublikowano' => $this->date($post->published_at),
+                'moja_notatka' => $post->pivot->note ?? null,
+                'zapisano' => $this->date($post->pivot->created_at ?? null),
+            ])->all(),
+            'wpisow_juz_niewidocznych' => max(
+                0,
+                (int) ($collection->posts_count ?? 0) - $collection->posts->count(),
+            ),
         ])->all();
     }
 
