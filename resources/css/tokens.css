@@ -27,6 +27,19 @@
   --color-ink: #2B241D;
   --color-ink-muted: #5C5347;
   --color-ink-inverse: #FFFFFF;
+  /* Podkład marki: hero, blok „Skąd ten przepis". Nie jest to `--color-brand`
+     rozjaśnione — to osobna rola, przeliczona na kontrast. */
+  --color-surface-brand-wash: #F7E9E2;
+  /* Przyciemnienie pod tekstem leżącym NA zdjęciu. Gradient, nie płaska
+     warstwa: przy płaskiej tekst nad jasnym daniem gubi kontrast, a nad
+     ciemnym robi się brudny. */
+  --scrim-ink: #1A130E;
+  --scrim-gradient: linear-gradient(
+    to top,
+    rgb(26 19 14 / 0.88) 0%,
+    rgb(26 19 14 / 0.72) 38%,
+    rgb(26 19 14 / 0) 100%
+  );
 
   /* --- Kolory: marka ---
      --color-brand: kolor tekstu/linków marki (i tło przycisku primary w trybie jasnym).
@@ -86,12 +99,22 @@
   --text-title-sm: calc(1.5rem * var(--user-text-scale, 1));     /* 24px */
   --text-title: calc(1.75rem * var(--user-text-scale, 1));       /* 28px */
   --text-title-lg: calc(2.25rem * var(--user-text-scale, 1));    /* 36px */
+  /* 48px — WYŁĄCZNIE hero strony powitalnej (system projektowy v3.1). */
+  --text-title-xl: calc(3rem * var(--user-text-scale, 1));
+  /* 15px — JEDYNY rozmiar poniżej 16px w całym serwisie. Wolno go użyć
+     tylko w plakietce cichej i tylko przy trzech warunkach naraz: tekst obok
+     ma co najmniej 18px, informacja jest powtarzalna i drugorzędna, a jej
+     utrata nie blokuje żadnej czynności. */
+  --text-meta: calc(0.9375rem * var(--user-text-scale, 1));
 
   --leading-body: 1.55;
   /* 1.25 — wartość z paczki właściciela (docs/design/kit-v2/css/tokens.css).
      Wcześniej stało tu 1.4; nagłówki były przez to wyraźnie luźniejsze niż
      w wizualizacjach. */
   --leading-title: 1.25;
+  /* Tytuł, który realnie łamie się na dwa wiersze (karta, hero) — 1.25 sklejał
+     wtedy wiersze. System projektowy v3.1. */
+  --leading-title-wiele: 1.3;
 
   /* --- Spacing (baza 4px) — NIE skalowane przez text-scale, celowo --- */
   --spacing-1: 0.25rem;   /* 4px */
@@ -105,6 +128,7 @@
   --spacing-12: 3rem;     /* 48px */
   --spacing-16: 4rem;     /* 64px */
   --spacing-20: 5rem;     /* 80px */
+  --spacing-24: 6rem;     /* 96px — odstęp między blokami strony powitalnej */
 
   /* --- Radius --- */
   --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
@@ -115,12 +139,19 @@
 
   /* --- Cień (barwiony w stronę ink, nie czysta czerń) --- */
   --shadow-card: 0 1px 2px rgba(43,36,29,.06), 0 6px 16px rgba(43,36,29,.08);
+  --shadow-card-hover: 0 2px 4px rgba(43,36,29,.08), 0 10px 24px rgba(43,36,29,.12);
   --shadow-popover: 0 8px 24px rgba(43,36,29,.16);
 
   /* --- Kontrolki: rozmiary minimalne --- */
   --control-height-min: 3rem;       /* 48px — przyciski, pola, elementy BottomNav */
   --control-height-touch: 3.75rem;  /* 60px — pozycje BottomNav (zapas ponad minimum) */
   --hit-area-min: 2.75rem;          /* 44px — checkbox/radio obszar klikalny */
+
+  /* --- Czas przejść (system projektowy v3.1) ---------------------------
+     Dotąd `150ms` było wklejane wprost w każdą regułę `transition`. Token
+     nazywa rolę, więc redukcja ruchu ma jedno miejsce, a nie czterdzieści. */
+  --czas-szybki: 150ms;   /* tło przycisku, obwódka pola */
+  --czas-zwykly: 200ms;   /* pojawienie komunikatu, cień karty */
 
   /* --- Breakpointy --- */
   --breakpoint-sm: 40rem;   /* 640px */
@@ -132,6 +163,7 @@
   --container-content: 45rem;  /* 720px — centralna kolumna, ~65–75 znaków przy 18-20px */
   --container-sidenav: 15rem;  /* 240px — SideNav desktop */
   --container-rail: 22rem;     /* 352px — prawa szyna (UI kit v2, ekran 01) */
+  --container-czytanie: 38rem; /* 608px — długi dokument prawny, ~65 znaków */
   --container-wide: 70rem;     /* 1120px — patrz uwaga niżej, dziś nieużywane */
   --container-ultra: 92rem;    /* 1472px — patrz uwaga niżej, dziś nieużywane */
 
@@ -163,7 +195,12 @@
   );                           /* 1040px — dwie kolumny (64rem–80rem) */
   --container-strona-z-szyna: calc(
     var(--container-strona) + var(--spacing-8) + var(--container-rail)
-  );                           /* 1424px — trzy kolumny (od 80rem) */
+  );
+
+  /* Ta sama liczba pod nazwą z systemu projektowego v3.1. Reguły przeniesione
+     z paczki mówią `--container-strona-szeroka`; nie przepisujemy ich, bo
+     rozjazd nazw w dwie strony jest gorszy niż jeden alias w jednym miejscu. */
+  --container-strona-szeroka: var(--container-strona-z-szyna);                           /* 1424px — trzy kolumny (od 80rem) */
   --container-strona-solo: calc(
     var(--container-content) + 2 * var(--spacing-6)
   );                           /* 768px — gość: bez nawigacji i bez szyny */
@@ -226,7 +263,20 @@
 
   --color-focus: #6EA8FF;
 
+  /* Tryb ciemny NIE jest odwróceniem jasnego — to osobna paleta o tej samej
+     strukturze ról. Podkład marki i przyciemnienie pod zdjęciem mają tu własne
+     wartości, nie przeliczone z jasnych. */
+  --color-surface-brand-wash: #2E211A;
+  --scrim-ink: #000000;
+  --scrim-gradient: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.9) 0%,
+    rgb(0 0 0 / 0.75) 38%,
+    rgb(0 0 0 / 0) 100%
+  );
+
   --shadow-card: 0 1px 2px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.35);
+  --shadow-card-hover: 0 2px 4px rgba(0,0,0,.40), 0 10px 24px rgba(0,0,0,.45);
   --shadow-popover: 0 8px 24px rgba(0,0,0,.45);
 
   /* Pola formularza i paski przewijania mają zgadzać się z WYBRANYM
@@ -389,16 +439,30 @@
     justify-content: center;
     gap: var(--spacing-2);
     min-height: var(--control-height-min);
-    padding: var(--spacing-3) var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-5);
     border-radius: var(--radius-md);
     font-family: var(--font-sans);
     font-size: var(--text-body);
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.25;
+    /* Napis w dwóch wierszach ma stać na środku, nie do lewej. Przy 200%
+       skali tekstu łamie się prawie każdy dłuższy przycisk. */
+    text-align: center;
     text-decoration: none;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+    transition:
+      background-color var(--czas-szybki) ease-out,
+      border-color var(--czas-szybki) ease-out,
+      box-shadow var(--czas-szybki) ease-out,
+      transform var(--czas-szybki) ease-out;
+  }
+
+  /* Wciśnięty. Jeden piksel w dół — tyle wystarczy, żeby palec dostał
+     potwierdzenie, i za mało, żeby układ drgnął. Przy `prefers-reduced-motion`
+     przejście i tak jest wyłączone w warstwie base. */
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
@@ -434,7 +498,16 @@
     border-color: transparent;
     font-weight: 600;
   }
-  .btn-quiet:hover:not(:disabled) { text-decoration: underline; }
+  /* System projektowy v3.1 daje tu samo tło `--color-surface-sunken`.
+     ZOSTAWIAM RÓWNIEŻ PODKREŚLENIE, świadomie: #F1EBE1 na #FAF6F0 to różnica
+     jasności rzędu dwóch procent — przy tym odbiorcy to jest sygnał na
+     granicy dostrzegalności, a przycisk cichy nie ma ani obwódki, ani tła,
+     więc podkreślenie jest jedyną mocną informacją, że coś się dzieje.
+     Dodaję tło z systemu, nie odejmuję podkreślenia. */
+  .btn-quiet:hover:not(:disabled) {
+    background-color: var(--color-surface-sunken);
+    text-decoration: underline;
+  }
 
   /*
    * TŁO przycisku to OSOBNY token, nie `--color-danger` (issue #26).
