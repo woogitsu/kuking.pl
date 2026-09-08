@@ -31,9 +31,28 @@
     'step' => null,
     'wire' => null,
     'wireModifier' => 'live.debounce.3000ms',
+    'id' => null,
 ])
 @php
-    $id = 'f-'.str_replace(['[', ']', '.'], '-', $name);
+    /*
+     * IDENTYFIKATOR WYPROWADZONY Z NAZWY POLA — CHYBA ŻE PODANY WPROST.
+     *
+     * Wyprowadzanie z `name` jest wygodne i w większości formularzy
+     * poprawne, ale ZAŁAMUJE SIĘ, gdy jedna strona ma dwa formularze z
+     * polem o tej samej nazwie. Tak było na `/ustawienia/bezpieczenstwo`:
+     * „Nowe hasło" i „Wpisz swoje hasło" (wylogowanie innych urządzeń) to
+     * oba `name="password"`, więc oba dostawały `id="f-password"`.
+     *
+     * Skutek nie był kosmetyczny. Kliknięcie etykiety „Wpisz swoje hasło"
+     * przenosiło fokus 740 px wyżej, do pola „Nowe hasło" w INNYM
+     * formularzu — czyli człowiek wpisywał hasło nie tam, gdzie patrzył.
+     * Zduplikowany `id` psuł też `aria-describedby`: czytnik ekranu czytał
+     * przy drugim polu podpowiedź pierwszego.
+     *
+     * Dlatego `id` da się teraz podać jawnie. Domyślne zachowanie zostaje
+     * bez zmian, żeby nie ruszać kilkudziesięciu poprawnych formularzy.
+     */
+    $id = $id ?? 'f-'.str_replace(['[', ']', '.'], '-', $name);
     $error = $errors->first($name);
     $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
 
