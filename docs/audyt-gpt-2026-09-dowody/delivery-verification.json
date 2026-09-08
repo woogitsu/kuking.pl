@@ -1,0 +1,25 @@
+{
+  "repository": "woogitsu/kuking.pl",
+  "audited_application_commit": "2fe302b6534d4d233a45271769a5d0c62f83bbe7",
+  "delivery_branch": "audit/gpt-2026-09",
+  "final_commit": "8b2a59be97688a4556c1ad534a451ff3240e37b6",
+  "github_compare_result": {
+    "status": "ahead",
+    "ahead_by": 12,
+    "behind_by": 0,
+    "files": [
+      {
+        "filename": "docs/AUDYT_GPT_2026-09.md",
+        "status": "added",
+        "additions": 364,
+        "deletions": 0
+      }
+    ]
+  },
+  "report_sha256": "0b6aa8a6da93afda82318c46056c3a53194d0280c2ccb4cda4fefb7cefd75059",
+  "temporary_probe_files_removed": true,
+  "temporary_workflow_removed": true,
+  "production_application_diff_empty": true,
+  "main_written": false,
+  "issues_closed": false
+}
