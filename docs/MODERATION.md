@@ -117,7 +117,15 @@ Nowe okoliczności idą adresem e-mail.
 **Kto zamyka sprawę — administrator, nie moderator** (D-039). Kolejkę
 odwołań WIDZI każdy moderator; decyzję („podtrzymuję" / „cofam") przyjmuje
 wyłącznie konto z rolą `admin` (`UserPolicy::resolveAppeals()`). Powód:
-odwołania nie ma rozstrzygać ta sama rola, która wydała decyzję. Wcześniej
+odwołania nie ma zamykać rola pierwszej linii, która wydaje decyzje.
+
+**To jest bramka na ROLĘ, nie na osobę** — i lepiej wiedzieć to teraz niż
+przy pierwszej trudnej sprawie. Administrator przechodzi też przez
+`moderate()`, więc jeden człowiek z tą rolą dalej może wydać decyzję
+i rozstrzygnąć odwołanie od niej samej; powstrzymuje go wtedy wyłącznie
+karencja i tylko przy podtrzymaniu. Wartość tego zawężenia pojawia się
+przy DRUGIEJ osobie w zespole: moderator bez roli administratora
+przestaje móc zamknąć sprawę, którą sam rozstrzygał. Wcześniej
 jedyną barierą było 24 godziny karencji na PODTRZYMANIE własnej decyzji —
 a ta nie przeszkadzała ani cofnąć własnej od razu, ani zamknąć sprawy
 dowolnemu innemu moderatorowi bez opóźnienia. Moderatorowi bez tej roli

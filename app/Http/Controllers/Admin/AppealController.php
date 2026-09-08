@@ -30,11 +30,18 @@ use Illuminate\View\View;
  * nie jest odpowiedzią w rozumieniu DSA art. 20 i nie da się go zapisać — pilnuje
  * tego i walidacja, i CHECK w bazie.
  *
- * KTO ROZSTRZYGA (A-4): `index()` pokazuje kolejkę każdemu moderatorowi —
+ * KTO ROZSTRZYGA (D-039): `index()` pokazuje kolejkę każdemu moderatorowi —
  * `resolve()` przyjmuje decyzję wyłącznie od administratora
- * (`UserPolicy::resolveAppeals()`). Moderator, który wydał sprawdzaną tu
- * pierwotną decyzję, nie ma być jednocześnie jedynym organem odwoławczym
- * od niej samej.
+ * (`UserPolicy::resolveAppeals()`).
+ *
+ * CZEGO TO NIE ROBI, ŻEBY NIKT SIĘ NIE POMYLIL: to jest bramka NA ROLĘ,
+ * nie na osobę. Administrator przechodzi też przez `moderate()`, więc ta
+ * sama osoba może wydać decyzję i rozstrzygnąć odwołanie od niej —
+ * przeszkadza jej w tym wyłącznie karencja `ResolveAppeal::sprawdzKarencje()`
+ * i tylko przy PODTRZYMANIU. Zawężenie ma sens dopiero przy dwóch osobach:
+ * moderator pierwszej linii przestaje móc zamknąć sprawę, którą sam
+ * rozstrzygał. Przy jednym człowieku pełniącym obie role nie zmienia nic
+ * poza tym, że drugie konto (bez roli `admin`) tego nie zrobi.
  */
 class AppealController extends Controller
 {
