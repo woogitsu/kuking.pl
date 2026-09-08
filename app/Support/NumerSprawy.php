@@ -46,7 +46,9 @@ final class NumerSprawy
      * pominięte tutaj: pierwsza wersja tej stałej miała w sobie `U`, mimo że
      * komentarz obok mówił, że go nie ma. Wyszło to dopiero na wygenerowanym
      * numerze `KU-F6XC-9U7Y` — test sprawdzał LOSOWY wynik, więc przechodził
-     * w około czterech na pięć przebiegów.
+     * w około trzech na cztery przebiegi: szansa, że osiem losowanych znaków
+     * ani razu nie trafi w `U`, to (29/30)^8 ≈ 76% (ta sama liczba stoi
+     * w `tests/Feature/NumerSprawyTest.php` i w D-029).
      *
      * UWAGA: tej stałej NIE WOLNO zmienić samą edycją tego pliku. CHECK
      * `reports_numer_sprawy_check` dostał jej treść wklejoną na stałe w chwili
