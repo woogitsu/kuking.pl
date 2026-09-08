@@ -83,6 +83,16 @@ class PostController extends Controller
      */
     private function kluczZZadania(Request $request): ?string
     {
+        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu formularza.
+        // Bez niej wyłącznik działa tylko w połowie: karta otwarta PRZED
+        // przełączeniem nadal niesie klucz w DOM-ie i odsyła go, więc częściowy
+        // indeks dalej obowiązuje — dokładnie w tej awarii, dla której ten
+        // wyłącznik istnieje. `config/kuking.php` obiecuje, że po wyłączeniu
+        // „kolumna dostaje NULL"; ta linijka jest tym, co tę obietnicę dowozi.
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
         $klucz = $request->input('klucz_wyslania');
 
         return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;

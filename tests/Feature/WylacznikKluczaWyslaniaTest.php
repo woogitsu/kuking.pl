@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -199,6 +200,129 @@ class WylacznikKluczaWyslaniaTest extends TestCase
             0,
             Report::query()->whereNotNull('klucz_wyslania')->count(),
             'Kolumna dostała wartość, choć formularz nie wysyłał klucza.',
+        );
+    }
+
+    /**
+     * ASERCJA KONTROLNA DLA TESTU NIŻEJ.
+     *
+     * Zanim sprawdzimy, że wyłączony mechanizm IGNORUJE klucz przysłany ze
+     * starej karty, trzeba pokazać, że przy włączonym ten sam klucz naprawdę
+     * scala oba wysłania w jeden wpis. Bez tego test niżej przechodziłby
+     * także wtedy, gdyby idempotencja w ogóle nie działała — czyli mierzyłby
+     * pustkę.
+     */
+    public function test_przy_wlaczonym_mechanizmie_klucz_ze_starej_karty_scala_wyslania(): void
+    {
+        config([self::KLUCZ_KONFIGURACJI => true]);
+
+        $osoba = $this->user('publikujaca');
+        $klucz = (string) Str::uuid7();
+
+        $this->actingAs($osoba)->post(route('posts.store'), [
+            'body' => 'Rosół na niedzielę, z kaczki od sąsiada.',
+            'visibility' => 'public',
+            'klucz_wyslania' => $klucz,
+        ]);
+
+        $this->actingAs($osoba)->post(route('posts.store'), [
+            'body' => 'Rosół na niedzielę, z kaczki od sąsiada. Poprawiona literówka.',
+            'visibility' => 'public',
+            'klucz_wyslania' => $klucz,
+        ]);
+
+        $this->assertSame(
+            1,
+            Post::query()->count(),
+            'Ten sam klucz dał dwa wpisy — idempotencja nie działa i test niżej nic by nie mierzył.',
+        );
+    }
+
+    /**
+     * Wyłącznik obejmuje także klucz PRZYSŁANY, nie tylko renderowany.
+     *
+     * SKĄD TO SIĘ WZIĘŁO
+     * Pierwsza wersja wyłącznika bramkowała wyłącznie stronę renderowania:
+     * formularz przestawał nieść ukryte pole, ale `kluczZZadania()` nadal
+     * przyjmował klucz z żądania. W awarii, dla której ten wyłącznik istnieje,
+     * to jest połowa, która nie działa — bo karty są już otwarte. Basia ma
+     * „Dodaj zdjęcie" otwarte sprzed przełączenia (albo wraca na nie przyciskiem
+     * Wstecz), ukryte pole wciąż siedzi w DOM-ie, przeglądarka je odsyła,
+     * kolumna dostaje wartość, częściowy indeks znów obowiązuje — i POPRAWIONE
+     * wysłanie zostaje uznane za duplikat pierwszego. Czyli operator przełączył
+     * wyłącznik, a awaria trwa dalej.
+     *
+     * `config/kuking.php` obiecuje wprost: po wyłączeniu „kolumna dostaje
+     * `NULL`" i serwis wraca „dokładnie do zachowania sprzed D-027". Ten test
+     * jest tym, co pilnuje, żeby to zdanie miało pokrycie w kodzie.
+     */
+    public function test_wylaczony_mechanizm_ignoruje_klucz_przyslany_ze_starej_karty(): void
+    {
+        config([self::KLUCZ_KONFIGURACJI => false]);
+
+        $klucz = (string) Str::uuid7();
+
+        // WPIS — tu strata jest najbardziej dotkliwa: drugie wysłanie niesie
+        // POPRAWIONĄ treść, więc uznanie go za duplikat kasuje poprawkę.
+        $osoba = $this->user('publikujaca');
+        $pierwsza = 'Rosół na niedzielę, z kaczki od sąsiada.';
+        $druga = 'Rosół na niedzielę, z kaczki od sąsiada. Poprawiona literówka.';
+
+        $this->actingAs($osoba)->post(route('posts.store'), [
+            'body' => $pierwsza, 'visibility' => 'public', 'klucz_wyslania' => $klucz,
+        ]);
+        $this->actingAs($osoba)->post(route('posts.store'), [
+            'body' => $druga, 'visibility' => 'public', 'klucz_wyslania' => $klucz,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(2, Post::query()->count(), 'Klucz ze starej karty nadal scala wysłania.');
+        $this->assertSame(
+            0,
+            Post::query()->whereNotNull('klucz_wyslania')->count(),
+            'Kolumna dostała wartość mimo wyłącznika — częściowy indeks znów obowiązuje.',
+        );
+
+        // Poprawiona treść ma NAPRAWDĘ istnieć. Dwa wiersze to za mało:
+        // liczyłyby się także dwie kopie pierwszej wersji.
+        $this->assertSame(
+            1,
+            Post::query()->where('body', $druga)->count(),
+            'Poprawiona treść nie powstała — to jest ta strata, przed którą chroni wyłącznik.',
+        );
+
+        // UGOTOWAŁEM
+        $kucharz = $this->user('gotujaca');
+        $przepis = $this->przepis($this->user('autorka'));
+        $adresUgotowalem = route('cooked.store', $przepis->slug);
+
+        $this->actingAs($kucharz)->post($adresUgotowalem, ['klucz_wyslania' => $klucz]);
+        $this->actingAs($kucharz)->post($adresUgotowalem, ['klucz_wyslania' => $klucz])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(2, CookedEvent::query()->count(), 'Klucz ze starej karty nadal scala „Ugotowałem".');
+        $this->assertSame(
+            0,
+            CookedEvent::query()->whereNotNull('klucz_wyslania')->count(),
+            'Kolumna dostała wartość mimo wyłącznika.',
+        );
+
+        // ZGŁOSZENIE BEZ KONTA
+        $zgloszenie = [
+            'target_url' => 'https://kuking.pl/przepisy/rosol-babci',
+            'reason' => 'copyright',
+            'illegality_explanation' => 'To jest mój tekst, przepisany bez zgody z mojej książki.',
+            'good_faith' => '1',
+            'klucz_wyslania' => $klucz,
+        ];
+
+        $this->post(route('zglos.nielegalna.store'), $zgloszenie);
+        $this->post(route('zglos.nielegalna.store'), $zgloszenie)->assertSessionHasNoErrors();
+
+        $this->assertSame(2, Report::query()->count(), 'Klucz ze starej karty nadal scala zgłoszenia.');
+        $this->assertSame(
+            0,
+            Report::query()->whereNotNull('klucz_wyslania')->count(),
+            'Kolumna dostała wartość mimo wyłącznika.',
         );
     }
 
