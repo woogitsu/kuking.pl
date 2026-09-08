@@ -124,6 +124,36 @@ class Notification extends Model
     }
 
     /**
+     * Dokąd prowadzi przycisk „Zobacz" — albo `null`, gdy nie ma dokąd.
+     *
+     * DLACZEGO TO STOI W MODELU, A NIE W WIDOKU (bo tam stało do 8 września).
+     * Od kiedy „Zobacz" oznacza powiadomienie jako przeczytane, adres liczą
+     * DWA miejsca: widok, żeby zdecydować, czy w ogóle pokazać przycisk,
+     * i kontroler, żeby wiedzieć, dokąd odesłać. Dwie kopie tego samego
+     * `match` rozjechałyby się przy pierwszym nowym typie powiadomienia —
+     * a rozjazd wyglądałby tak, że przycisk oznacza przeczytane i odsyła
+     * gdzie indziej, niż zapowiadał. Jedno źródło, dwóch odbiorców.
+     */
+    public function adresDocelowy(): ?string
+    {
+        $data = $this->data ?? [];
+
+        return match ($this->type) {
+            // Prowadzi do pełnoekranowego ekranu „Komuś wyszło" (issue #17),
+            // nie od razu do zwykłego wpisu — to jest najcenniejszy moment
+            // w produkcie i zasługuje na własną stronę, nie jeden wiersz
+            // na liście. `celebrate()` sam się cofa do `cooked.show`,
+            // kiedy ekran już był raz pokazany.
+            self::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.celebrate', $data['cooked_event_id']) : null,
+            self::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
+            self::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
+            self::TYPE_FIRST_POST => route('admin.unanswered'),
+            self::TYPE_WELCOME => route('posts.create'),
+            default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
+        };
+    }
+
+    /**
      * Termin, do którego retencja (issue #19, ADR §5.2/§5.6) NIE MOŻE
      * skasować tego powiadomienia — wyłącznie dla typów z
      * `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`. `null` dla pozostałych

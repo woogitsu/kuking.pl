@@ -440,6 +440,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('notifications.read');
 
+    // „Zobacz" przy pojedynczym powiadomieniu: oznacza JE jako przeczytane
+    // i odsyła do treści. POST, nie GET, bo to zapis — pełne uzasadnienie
+    // w `NotificationController::open()`.
+    Route::post('/powiadomienia/{notification}/zobacz', [NotificationController::class, 'open'])
+        ->middleware("throttle:{$limits['powiadomienia']},powiadomienia")
+        ->name('notifications.open');
+
     // Ustawienia
     //
     // Zapis profilu ma WŁASNY, niższy limit niż reszta ustawień, bo jako
