@@ -93,7 +93,14 @@ return new class extends Migration
     {
         $prawne = DB::table('reports')->where('source', 'legal_notice')->count();
 
-        if ($prawne > 0 && env('KUKING_ROLLBACK_KASUJE_NUMERY_SPRAW') !== '1') {
+        // `getenv()`, NIE `env()` — ta sama konwencja, co w trzech pozostałych
+        // migracjach z furtką. Poza katalogiem `config/` `env()` nie widzi
+        // wartości z pliku `.env`, kiedy konfiguracja jest zbuforowana
+        // (`config:cache`), i dlatego Larastan tego pilnuje regułą
+        // `larastan.noEnvCallsOutsideOfConfig`. Tu akurat furtkę i tak podaje
+        // się w środowisku procesu, ale rozjazd konwencji między czterema
+        // migracjami robiącymi to samo jest kosztem bez żadnej korzyści.
+        if ($prawne > 0 && getenv('KUKING_ROLLBACK_KASUJE_NUMERY_SPRAW') !== '1') {
             throw new RuntimeException(
                 'W `reports` jest '.$prawne.' zgłoszeń prawnych (DSA art. 16), a ich numery spraw są '
                 .'jedynym sposobem, w jaki zgłaszający bez konta rozpoznaje własną sprawę. '
