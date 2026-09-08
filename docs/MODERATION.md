@@ -108,7 +108,14 @@ Nowe okoliczności idą adresem e-mail.
 **Terminy** (`config('kuking.moderation')`, zgodne z
 `docs/legal/MODERATION_PLAYBOOK.md`):
 
-- 14 dni od decyzji na złożenie odwołania — egzekwowane;
+- **sześć miesięcy od decyzji** na złożenie odwołania — to jest twarda
+  podłoga wymagana przez DSA (art. 20 ust. 1). `appeal_days` z konfiguracji
+  (`KUKING_APPEAL_DAYS`, domyślnie 180 dni) może ten termin tylko wydłużyć,
+  nigdy skrócić: `ModerationAction::appealDeadline()` bierze większą z dwóch
+  wartości, więc realny termin to zawsze co najmniej sześć miesięcy —
+  egzekwowane. Do 7 IX 2026 stało tu 14 dni — liczba wzięta z rozsądku
+  operacyjnego, nie z przepisu; podręcznik
+  (`docs/legal/MODERATION_PLAYBOOK.md` pkt 3) odnotowuje tę samą poprawkę;
 - 7 dni roboczych na odpowiedź — pokazywane moderatorowi w kolejce, z
   oznaczeniem spraw po terminie;
 - 24 godziny karencji, zanim ten sam moderator **podtrzyma** własną decyzję.

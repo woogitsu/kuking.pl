@@ -681,6 +681,28 @@ return [
         // Nazwa użytkownika, nie identyfikator: gospodarz może się zmienić,
         // a nazwa jest tym, co widać i co da się sprawdzić okiem.
         'host_username' => env('KUKING_HOST_USERNAME', 'woogitsu'),
+
+        // IMIĘ GOSPODARZA — podpis, który czyta CZŁOWIEK, nie konto.
+        //
+        // Pytanie było otwarte od początku projektu (`docs/brand/
+        // COPY_STYLE.md` §8 „Zostały" — „Imię gospodarza w e-mailach").
+        // Decyzja właściciela: gospodarzem jest **Ula** (patrz
+        // `docs/DECISIONS.md` — wpis o imieniu gospodarza).
+        //
+        // TO NIE JEST TO SAMO CO `host_username` WYŻEJ. `host_username` to
+        // nazwa konta, którą czyta MECHANIZM (auto-obserwowanie przy
+        // rejestracji, `RegisterController::zaobserwujGospodarza()`) i która
+        // musi dać się znaleźć w bazie (`Profile::where('username', ...)`).
+        // `host_name` to imię, którym serwis PODPISUJE się przed człowiekiem
+        // — nadawca maila (`docs/brand/COPY_STYLE.md` §6 „nadawca",
+        // `docs/product/RETENTION_LOOPS.md` §4 „imię gospodarza + „z
+        // Kuking""), a w przyszłości też tygodniowy digest i inne teksty
+        // od gospodarza.
+        //
+        // JEDNO MIEJSCE, NIE WKLEJONE W KAŻDYM SZABLONIE: gospodarz może się
+        // zmienić (odejście, zastępstwo) i wtedy to jest jedyna linijka do
+        // poprawienia — bez przeszukiwania maili i widoków pod ręką.
+        'host_name' => env('KUKING_HOST_NAME', 'Ula'),
     ],
 
     'moderation' => [
@@ -786,5 +808,28 @@ return [
         // Ta sama wartość idzie do SENTRY_RELEASE (.railway/railway.ts), więc
         // wersja w stopce i wersja przy błędzie w Sentry to ten sam commit.
         'commit' => env('RAILWAY_GIT_COMMIT_SHA'),
+
+        // KIEDY TO WYDANIE POWSTAŁO — data i godzina, nie skrót.
+        //
+        // Skrót commita odpowiada na pytanie „co dokładnie działa", ale nie
+        // odpowiada na to, które właściciel zadaje częściej: „czy to, na co
+        // patrzę, jest już po mojej ostatniej poprawce". Siedem znaków
+        // szesnastkowych tego nie mówi nikomu — trzeba je porównać z historią
+        // gita. Data i godzina mówią to od razu.
+        //
+        // RAILWAY NIE WSTRZYKUJE CZASU WDROŻENIA — sprawdzone, nie ma takiej
+        // zmiennej wśród `RAILWAY_*`. Znacznik zapisuje więc BUILD obrazu
+        // (Dockerfile, warstwa tuż po skopiowaniu kodu) do pliku niżej,
+        // w UTC, w formacie ISO-8601. Warstwa unieważnia się przy każdej
+        // zmianie kodu, więc znacznik odpowiada wydaniu, a nie dacie
+        // pierwszego builda.
+        //
+        // Zmienna środowiskowa wygrywa z plikiem — po to, żeby dało się to
+        // nadpisać bez przebudowy obrazu (i żeby test miał czym sterować).
+        'wydano' => env('KUKING_WYDANO'),
+
+        // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
+        // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
+        'plik_wydania' => base_path('bootstrap/wydanie.txt'),
     ],
 ];
