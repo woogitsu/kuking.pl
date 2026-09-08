@@ -47,6 +47,16 @@ final class NumerSprawy
      * komentarz obok mówił, że go nie ma. Wyszło to dopiero na wygenerowanym
      * numerze `KU-F6XC-9U7Y` — test sprawdzał LOSOWY wynik, więc przechodził
      * w około czterech na pięć przebiegów.
+     *
+     * UWAGA: tej stałej NIE WOLNO zmienić samą edycją tego pliku. CHECK
+     * `reports_numer_sprawy_check` dostał jej treść wklejoną na stałe w chwili
+     * uruchomienia migracji `2026_09_07_910000_add_numer_sprawy_to_reports`
+     * i od tamtej pory jest w bazie zamrożony. Nowy znak w alfabecie oznacza,
+     * że `wygeneruj()` prędzej czy później wyprodukuje numer, którego baza nie
+     * przyjmie — a wtedy KAŻDE nowe zgłoszenie (także droga DSA art. 16 dla
+     * osób bez konta) kończy się błędem 500. Zmiana alfabetu = nowa migracja
+     * przebudowująca CHECK. Pilnuje tego
+     * `NumerSprawyTest::test_check_w_bazie_zna_ten_sam_alfabet_co_stala_w_php`.
      */
     public const ALFABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';
 
@@ -63,9 +73,12 @@ final class NumerSprawy
     public const PRZEDROSTEK = 'KU';
 
     /**
-     * Wzór, któremu numer musi odpowiadać. Ta sama treść stoi jako CHECK
-     * w bazie (`reports_numer_sprawy_check`) — tam jest regułą, tutaj jest
-     * jej odpowiednikiem do walidacji i do testów.
+     * Wzór, któremu numer musi odpowiadać. Odpowiednikiem tej treści jest
+     * CHECK w bazie (`reports_numer_sprawy_check`) — tam jest regułą, tutaj
+     * jest kopią do walidacji i do testów. Kopią, która MOŻE się rozjechać:
+     * ta stała liczy się od nowa przy każdym uruchomieniu PHP, a CHECK stoi
+     * w bazie w postaci zapisanej w dniu migracji. Patrz komentarz przy
+     * `ALFABET`.
      */
     public const WZOR = '/^KU-['.self::ALFABET.']{4}-['.self::ALFABET.']{4}$/';
 
