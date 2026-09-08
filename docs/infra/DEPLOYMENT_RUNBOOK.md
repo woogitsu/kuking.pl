@@ -490,7 +490,7 @@ wtedy pokazywać wartość w panelu i w CLI.
 `QUEUE_CONNECTION`, `KUKING_ZAUFANE_PRZESKOKI`, `FILESYSTEM_DISK`, `AWS_DEFAULT_REGION`,
 `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `MAIL_MAILER`, `MAIL_SCHEME`,
-`MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
+`MAIL_FROM_ADDRESS`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
 `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`, `SENTRY_RELEASE`,
 `POSTHOG_HOST`, `PHP_WORKER_MEMORY_LIMIT`
 
@@ -599,8 +599,13 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 Po dodaniu R2 i poczty dołóż: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `AWS_DEFAULT_REGION=auto`,
 `AWS_USE_PATH_STYLE_ENDPOINT=false`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
-`MAIL_PASSWORD`, `MAIL_SCHEME=tls`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`
+`MAIL_PASSWORD`, `MAIL_SCHEME=tls`, `MAIL_FROM_ADDRESS`
 oraz opcjonalnie `SENTRY_LARAVEL_DSN` i `POSTHOG_KEY`.
+
+`MAIL_FROM_NAME` **celowo nie jest na tej liście.** Nieustawiona zmienna
+daje nazwę nadawcy „<gospodarz> z Kuking" złożoną w `config/mail.php`;
+ustawiona — cicho odwraca decyzję produktową o podpisywaniu listów imieniem
+(`docs/infra/POCZTA_URUCHOMIENIE.md` §5).
 
 ### Środowisko `staging`
 

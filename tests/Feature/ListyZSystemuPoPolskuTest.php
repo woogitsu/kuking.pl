@@ -152,6 +152,55 @@ final class ListyZSystemuPoPolskuTest extends TestCase
     }
 
     /**
+     * INSTRUKCJE WDROŻENIOWE NIE MOGĄ KAZAĆ USTAWIAĆ `MAIL_FROM_NAME`.
+     *
+     * Test wyżej pilnuje, że nadawca podpisuje się imieniem gospodarza —
+     * ale patrzy na konfigurację, a nie na zmienne z Railway, których żaden
+     * test nie widzi. Zmienna wpisana ręcznie w panelu odwraca tę decyzję
+     * CICHO: kod zielony, testy zielone, a do ludzi chodzą listy od
+     * „Kuking" zamiast od „Ula z Kuking".
+     *
+     * Jedyne miejsce, w którym da się to złapać automatem, to dokument,
+     * z którego człowiek przepisuje zmienne do panelu. Trzy tabele
+     * w `POCZTA_URUCHOMIENIE.md` i dwie listy w `DEPLOYMENT_RUNBOOK.md`
+     * mówiły dokładnie „MAIL_FROM_NAME = Kuking" — czyli instrukcja
+     * odwracała decyzję, której pilnuje test obok.
+     *
+     * Dopuszczamy WZMIANKĘ o tej zmiennej (dokument ma prawo tłumaczyć,
+     * czemu jej nie ustawiać), zakazujemy PRZYPISANIA jej wartości.
+     */
+    public function test_instrukcje_wdrozeniowe_nie_kaza_ustawiac_nazwy_nadawcy(): void
+    {
+        $dokumenty = [
+            'docs/infra/POCZTA_URUCHOMIENIE.md',
+            'docs/infra/DEPLOYMENT_RUNBOOK.md',
+        ];
+
+        foreach ($dokumenty as $dokument) {
+            $tresc = file_get_contents(base_path($dokument));
+
+            $this->assertIsString($tresc, "Nie da się wczytać {$dokument}.");
+
+            // `MAIL_FROM_NAME=Cokolwiek` albo `| MAIL_FROM_NAME | Cokolwiek |`
+            // — czyli każda postać, w której obok nazwy zmiennej stoi
+            // wartość do przepisania do panelu.
+            $przypisania = preg_match_all(
+                '/MAIL_FROM_NAME`?\s*(?:=|\|)\s*`?(?!\*\*nie ustawiaj)[A-Za-z"\']/u',
+                (string) $tresc,
+                $trafienia,
+            );
+
+            $this->assertSame(
+                0,
+                $przypisania,
+                "{$dokument} każe ustawić MAIL_FROM_NAME. Nieustawiona zmienna daje "
+                .'„<gospodarz> z Kuking" z config/mail.php; ustawiona — cicho odwraca '
+                .'decyzję o podpisywaniu listów imieniem gospodarza.',
+            );
+        }
+    }
+
+    /**
      * Na Railway zmienne środowiskowe ustawia człowiek i człowiek potrafi
      * ich nie ustawić. Wtedy zostaje wartość domyślna z pliku konfiguracji
      * — a domyślne wartości Laravela to „Laravel" i „hello@example.com".
