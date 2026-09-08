@@ -47,8 +47,11 @@ class PaginacjaToPokazWiecejTest extends TestCase
     public function test_zaden_widok_uzytkownika_nie_stronicuje_numerami(): void
     {
         $winne = [];
+        $przejrzane = 0;
 
         foreach ($this->widoki() as $sciezka) {
+            $przejrzane++;
+
             $wzgledna = str_replace(base_path('resources/views').'/', '', $sciezka);
 
             foreach (array_keys(self::WYLACZONE) as $wyjatek) {
@@ -68,6 +71,20 @@ class PaginacjaToPokazWiecejTest extends TestCase
                 $winne[] = $wzgledna;
             }
         }
+
+        // ASERCJA KONTROLNA, BEZ KTÓREJ CAŁY TEN TEST JEST PUSTĄ PĘTLĄ.
+        //
+        // `$winne` zostaje tablicą pustą także wtedy, gdy nie przejrzeliśmy
+        // ANI JEDNEGO widoku — a to nie jest przypadek teoretyczny: wystarczy,
+        // że katalog widoków się przeniesie albo zmieni się rozszerzenie
+        // szablonów. Zmierzone: po podmianie skanowanego katalogu na taki,
+        // w którym nie ma żadnego `.blade.php`, test był dalej zielony.
+        // Ten sam strażnik stoi już w `ObiecujemyTylkoFormatyKtoreUmiemyTest`.
+        $this->assertGreaterThan(
+            50,
+            $przejrzane,
+            'Nie przejrzałem widoków (znalazłem '.$przejrzane.'). Ten test nie sprawdza wtedy niczego.',
+        );
 
         $this->assertSame(
             [],
