@@ -597,6 +597,28 @@
     .side-nav-item:hover { background-color: var(--color-surface-sunken); }
 
     /*
+     * WYLOGOWANIE JAKO PRZYCISK W LIŚCIE ODNOŚNIKÓW.
+     *
+     * Zmiana stanu konta idzie POST-em, więc to musi być `<button>`
+     * w formularzu, a nie `<a>` — inaczej podgląd linku albo prefetch
+     * przeglądarki wylogowywałby człowieka bez kliknięcia. Wygląd ma
+     * zostać ten sam co reszty pozycji, więc zdejmujemy tu wyłącznie te
+     * domyślne style przycisku, które by go od nich odróżniły.
+     *
+     * `width: 100%` i `text-align: left` — bo przycisk domyślnie kurczy
+     * się do treści i centruje napis, a wtedy jedna pozycja menu
+     * wyglądałaby inaczej niż pozostałe.
+     */
+    .side-nav-wyloguj {
+      width: 100%;
+      background: none;
+      border: 0;
+      text-align: left;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    /*
      * Kolor tekstu na podświetleniu bieżącej pozycji (issue #26).
      *
      * `--color-brand-dark` na `--color-brand-tint` daje w trybie ciemnym

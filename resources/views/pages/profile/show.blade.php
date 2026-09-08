@@ -95,6 +95,12 @@
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
+                {{-- WYLOGOWANIE NA TELEFONIE MA TYLKO TĘ DROGĘ.
+                     `.side-nav` ma `display: none` poniżej 64rem, a pasek
+                     dolny nie ma pozycji „Ustawienia" — własny profil jest
+                     więc jedynym ekranem z obsługą konta w zasięgu kciuka.
+                     Ten sam składnik co w nawigacji bocznej. --}}
+                <x-wyloguj />
             {{--
                 KONTO WYMAZANE (`erased`, D-022) NIE PRZYJMUJE ŻADNEJ AKCJI.
 

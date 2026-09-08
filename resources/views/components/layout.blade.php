@@ -320,6 +320,11 @@
                             @endif
                         </a></li>
                         <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
+                        {{-- Wylogowanie stoi na samym dole sekcji „obsługa
+                             konta", bo to ostatnia rzecz, jaką się tu robi.
+                             Ten sam składnik co na własnym profilu — patrz
+                             `components/wyloguj.blade.php`. --}}
+                        <li><x-wyloguj class="side-nav-item side-nav-wyloguj"><x-ikona nazwa="logout" /> Wyloguj się</x-wyloguj></li>
                     </ul>
                 </nav>
             @endauth
