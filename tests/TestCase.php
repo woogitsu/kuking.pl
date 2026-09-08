@@ -80,4 +80,28 @@ abstract class TestCase extends BaseTestCase
 
         return $moderator->refresh();
     }
+
+    /**
+     * Administrator z POTWIERDZONYM 2FA (A-4: rozstrzyganie odwołań od decyzji
+     * moderacyjnych wymaga roli `admin`, nie samego `moderator` — patrz
+     * `UserPolicy::resolveAppeals()`). Ten sam powód co przy `moderator()`
+     * powyżej: bez potwierdzonego 2FA każdy test wołający tę metodę padałby
+     * na `EnsureModeratorHasTwoFactor`, zanim dotarłby do sprawdzanej logiki.
+     *
+     * `User::isModerator()` jest prawdziwe też dla `role === ROLE_ADMIN`,
+     * więc konto z tej metody przechodzi RÓWNIEŻ przez każdą bramkę, która
+     * do tej pory wymagała `moderator()` (np. `admin.reports.decide`,
+     * podgląd kolejki odwołań) — nadaje się jako zamiennik wszędzie tam,
+     * gdzie test i tak nie sprawdza różnicy między rolami.
+     */
+    protected function admin(): User
+    {
+        $admin = $this->user(null, ['role' => User::ROLE_ADMIN]);
+
+        $totp = app(TwoFactorAuthenticator::class);
+        $admin->beginTwoFactorSetup($totp->generateSecret());
+        $admin->confirmTwoFactor($totp->hashBackupCodes($totp->generateBackupCodes()));
+
+        return $admin->refresh();
+    }
 }

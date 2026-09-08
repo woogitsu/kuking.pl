@@ -62,7 +62,24 @@
                 <p class="meta whitespace-pre-line">Notatka wewnętrzna: {{ $decyzja->note }}</p>
             @endif
 
-            @if($appeal->isOpen())
+            @if($appeal->isOpen() && ! auth()->user()->can('resolveAppeals', \App\Models\User::class))
+                {{-- KOLEJKĘ WIDZI KAŻDY MODERATOR, ROZSTRZYGA ADMINISTRATOR
+                     (`docs/DECISIONS.md` D-039, `UserPolicy::resolveAppeals`).
+
+                     Formularz jest tu SCHOWANY, a nie tylko odrzucany przez
+                     Policy: moderator bez roli administratora napisałby całe
+                     uzasadnienie, kliknął „Wyślij odpowiedź" i dostał 403 —
+                     czyli stracił swoją pracę na ekranie, który wyglądał, jakby
+                     jej oczekiwał. `AGENTS.md` §5: poprawne dane nigdy nie
+                     znikają, a komunikat ma mówić, co zrobić. --}}
+                <h3 class="text-title-sm">Odpowiedź</h3>
+                <p class="notice">
+                    Tę sprawę zamyka administrator, nie moderator — po to, żeby
+                    odwołania nie rozstrzygała ta sama rola, która wydała
+                    decyzję. Jeśli masz coś do dodania, napisz to w notatce
+                    wewnętrznej przy decyzji albo na <strong>kontakt@kuking.pl</strong>.
+                </p>
+            @elseif($appeal->isOpen())
                 @php($skutekCofniecia = match(true) {
                     in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_HIDE, \App\Models\ModerationAction::ACTION_REMOVE], true) => 'Cofam decyzję — treść wraca',
                     in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true) => 'Cofam decyzję — konto wraca',
