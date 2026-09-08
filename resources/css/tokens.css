@@ -307,10 +307,21 @@
      niezależne od zoomu przeglądarki. Skaluje WYŁĄCZNIE typografię
      (tokeny --text-...), nigdy odstępów, promieni ani wysokości kontrolek,
      dzięki czemu przyciski (min-height, nie height) najwyżej robią się
-     wyższe przy zawijaniu tekstu — layout się nie psuje. */
+     wyższe przy zawijaniu tekstu — layout się nie psuje.
+
+     TA LISTA MUSI ZGADZAĆ SIĘ Z `config('kuking.text.scales')`. Pilnuje tego
+     `SkalaTekstuDzialaTest`, bo rozjazd jest tu niewidoczny w kodzie i milczy:
+     brakująca reguła nie jest błędem CSS, tylko cichym powrotem do 100%.
+
+     Zmierzone 8 września 2026, przed poprawką: konfiguracja oferowała
+     100/112/125/140, arkusz znał 112/125/150. Czyli „Bardzo duży" (140) —
+     opcja, którą wybiera osoba z najsłabszym wzrokiem — zapisywała się na
+     koncie i NIE ROBIŁA NIC. Odwrotnie, 150 było martwe: CHECK w migracji
+     `users` dopuszcza tylko 90–140, więc ta wartość nie miała jak powstać.
+     100 nie ma reguły i mieć nie musi — to wartość domyślna `--user-text-scale`. */
   :root[data-text-scale="112"] { --user-text-scale: 1.12; }
   :root[data-text-scale="125"] { --user-text-scale: 1.25; }
-  :root[data-text-scale="150"] { --user-text-scale: 1.5; }
+  :root[data-text-scale="140"] { --user-text-scale: 1.4; }
 
   html {
     -webkit-text-size-adjust: 100%;
