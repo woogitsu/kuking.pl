@@ -687,6 +687,55 @@ skalowanie porcji nie jest wdrożone — potem cofnięcie tej migracji znaczy
 utratę informacji, której nie da się odtworzyć, więc wtedy najpierw kopia
 tabeli.
 
+#### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
+
+**`group_name varchar(120) NULL`** (kolumna z pierwszej migracji przepisów
+`2026_09_05_000400_create_recipes_tables`; CHECK dołożony migracją
+`2026_09_08_100000_add_group_name_check_to_recipe_ingredients`) — śródtytuł
+części przepisu. `NULL` znaczy „ten składnik nie należy do żadnej części"
+i jest **stanem normalnym**: większość przepisów nie ma grup i nic w bazie
+ani w interfejsie nie traktuje pustej wartości jako braku do uzupełnienia.
+
+**Kolejność grup nie ma własnej kolumny.** Bierze się z `position`
+składników: grupa pojawia się tam, gdzie stoi jej pierwszy składnik. Autor
+pisze listę od góry do dołu i to jest cała informacja o kolejności, jaką ma;
+druga liczba obok byłaby drugim miejscem, w którym kolejność może się
+rozjechać z pierwszym.
+
+**Odrzucona osobna tabela grup** (`recipe_ingredient_groups` z `position`
+plus `group_id` przy składniku). Grupa nie ma własnego życia — nikt nie
+zakłada „Farszu", żeby potem wkładać do niego składniki — więc skasowanie
+ostatniego składnika zostawiałoby pusty nagłówek. Do tego obie drogi zapisu
+kasują składniki i piszą je od nowa (`PublishRecipe::syncIngredients`), więc
+każdy zapis przepisu stawałby się synchronizacją dwóch list zamiast jednej,
+a UNIQUE na nazwie działa i tak wyłącznie w obrębie jednego przepisu — czyli
+daje tyle, co ujednolicenie nazw przy zapisie, za cenę klucza obcego i JOIN-a
+na najczęściej czytanej stronie serwisu. Pełna lista odrzuconych wariantów
+(słownik nazw wspólny dla serwisu, `group_position`, nagłówek jako wiersz
+składnika z flagą `is_header`) stoi w komentarzu migracji.
+
+CHECK `recipe_ingredients_group_name_check`: `group_name IS NULL OR
+btrim(group_name) <> ''`. Pusty ciąg znaków to nagłówek bez treści — pusta
+linia na ekranie, a w czytniku ekranu „nagłówek poziomu trzeciego" i cisza.
+`PublishRecipe` zamienia puste i same spacje na `NULL` **przed** zapisem
+i przycina nazwę do 120 znaków, żeby CHECK i długość kolumny nie zamieniły
+się w błąd 500 na publikacji.
+
+**Czego baza NIE pilnuje: ciągłości grup.** Da się zapisać „poz. 0 Ciasto,
+poz. 1 Farsz, poz. 2 Ciasto" — CHECK nie widzi sąsiednich wierszy
+(`docs/research/repos/TandoorRecipes-recipes.md` §2.2, rekomendacja R8).
+Pilnują tego dwie warstwy nad bazą: `PublishRecipe` ujednolica pisownię nazw
+w obrębie przepisu (wygrywa pierwsza pisownia autora, więc „Farsz" i „farsz"
+to jedna grupa), a `App\Domain\Recipes\GrupySkladnikow` układa listę do
+wyświetlenia — składniki bez grupy na górze i bez nagłówka, grupy w kolejności
+autora, wiersze jednej grupy pod jednym nagłówkiem. Ten sam kod czyta strona
+przepisu, podgląd w kreatorze i przepis w eksporcie danych.
+
+**Rollback:** `down()` zdejmuje sam CHECK i nie rusza danych ani kolumny —
+nazwy grup zostają. Nieodwracalna jest jedna rzecz z `up()`: nazwy będące
+pustym ciągiem znaków stają się `NULL`. To nie jest utrata informacji, bo
+pusty ciąg nigdy nie był nazwą grupy.
+
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
 Dwie kolumny z migracji `2026_09_06_140000_add_memories_to_users_and_posts`,

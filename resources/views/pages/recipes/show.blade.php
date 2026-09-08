@@ -322,21 +322,54 @@
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
-                    <ul class="ingredient-list">
-                        @foreach($recipe->ingredients as $ingredient)
-                            <li>
-                                {{ $ingredient->ingredient_text }}
-                                {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                     tego sam w tekście składnika (issue #44).
-                                     „Sól do smaku — do smaku” wygląda jak usterka,
-                                     a nie jak informacja. --}}
-                                @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
-                                    <span class="meta"> — do smaku</span>
-                                @endif
-                                @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
-                            </li>
-                        @endforeach
-                    </ul>
+                    {{--
+                        GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
+                        (D-033, część pierwsza).
+
+                        Układ liczy `App\Domain\Recipes\GrupySkladnikow`, ten
+                        sam, co w podglądzie kreatora i w eksporcie danych:
+                        składniki bez grupy na górze i bez nagłówka, grupy
+                        w kolejności, w jakiej podał je autor, wiersze jednej
+                        grupy pod JEDNYM nagłówkiem także wtedy, gdy leżą
+                        w liście z przeplotem.
+
+                        PRZEPIS BEZ GRUP — czyli zdecydowana większość —
+                        dostaje z tego dokładnie jedną listę bez nagłówka,
+                        tak jak dotąd. Grupa nie jest brakiem do uzupełnienia
+                        i nic tu o niej nie wspomina, dopóki autor jej nie
+                        napisał.
+
+                        NAGŁÓWEK JEST NAGŁÓWKIEM (`<h3>` pod `<h2>Składniki`),
+                        a nie pogrubionym akapitem: czytnik ekranu wypisuje
+                        listę nagłówków strony i po niej się skacze. Pogrubiony
+                        `<p>` wygląda tak samo, a w tej liście nie istnieje.
+
+                        Każda grupa ma WŁASNY `<ul>`, a nie jedną listę
+                        z nagłówkami w środku — `<h3>` nie jest dozwolonym
+                        dzieckiem `<ul>`, a czytnik podaje liczbę pozycji na
+                        starcie listy („lista, 4 pozycje”), więc osobne listy
+                        mówią, ile rzeczy jest w tej części przepisu.
+                    --}}
+                    @foreach(\App\Domain\Recipes\GrupySkladnikow::ulozyc($recipe->ingredients) as $grupaSkladnikow)
+                        @if($grupaSkladnikow['nazwa'] !== null)
+                            <h3 class="naglowek-grupy">{{ $grupaSkladnikow['nazwa'] }}</h3>
+                        @endif
+                        <ul class="ingredient-list">
+                            @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                                <li>
+                                    {{ $ingredient->ingredient_text }}
+                                    {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
+                                         tego sam w tekście składnika (issue #44).
+                                         „Sól do smaku — do smaku” wygląda jak usterka,
+                                         a nie jak informacja. --}}
+                                    @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
+                                        <span class="meta"> — do smaku</span>
+                                    @endif
+                                    @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endforeach
                 @endif
             </section>
 
