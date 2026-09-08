@@ -233,16 +233,54 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
     {
         $tresc = $this->tresc('polityka-prywatnosci.md');
 
+        // KAŻDY OKRES SZUKANY W SWOIM WIERSZU TABELI, NIE W CAŁYM DOKUMENCIE.
+        //
+        // Pierwsza wersja tego testu wołała `assertStringContainsString` na
+        // całej treści i przez to nie odróżniała trzech okresów od siebie:
+        // ustawienie retencji powiadomień na 12 miesięcy trafiałoby w napis
+        // „**12 miesięcy**" z wiersza o dzienniku zdarzeń, test świeciłby na
+        // zielono, a polityka prywatności mówiłaby o powiadomieniach nieprawdę.
+        // Dokładnie ta usterka, przed którą ten plik ma bronić — tylko schowana
+        // w narzędziu, nie w dokumencie.
+        //
+        // Kotwicą jest nazwa kategorii z pierwszej kolumny, bo to ona mówi
+        // podmiotowi danych, o czym jest wiersz.
         $okresy = [
             'sprawy moderacyjne' => [
+                'Obsługa zgłoszeń i moderacji',
                 (int) config('kuking.moderation.case_retention_months'),
                 ' od zamknięcia sprawy',
             ],
-            'dziennik zdarzeń' => [(int) config('kuking.audit_log.retention_months'), ''],
-            'powiadomienia' => [(int) config('kuking.notifications.retention_months'), ''],
+            'dziennik zdarzeń' => [
+                'Bezpieczeństwo (dziennik ważnych zdarzeń',
+                (int) config('kuking.audit_log.retention_months'),
+                '',
+            ],
+            'powiadomienia' => [
+                'Powiadomienia w serwisie',
+                (int) config('kuking.notifications.retention_months'),
+                '',
+            ],
         ];
 
-        foreach ($okresy as $nazwa => [$miesiecy, $dopisek]) {
+        foreach ($okresy as $nazwa => [$kotwica, $miesiecy, $dopisek]) {
+            $wiersze = array_values(array_filter(
+                explode("\n", $tresc),
+                static fn (string $linia): bool => str_contains($linia, $kotwica),
+            ));
+
+            // DRUGA ASERCJA KONTROLNA: bez niej przemianowanie kategorii
+            // w tabeli dawałoby zero wierszy, pętla nie sprawdzałaby niczego
+            // i test byłby zielony przy dokumencie, którego nikt już nie pilnuje.
+            $this->assertCount(
+                1,
+                $wiersze,
+                'Kontrola: w polityce prywatności ma być dokładnie JEDEN wiersz '
+                .'z kategorią: '.$kotwica.' — znaleziono '.count($wiersze).'. '
+                .'Jeśli tabelę przebudowano, popraw kotwicę w tym teście.',
+            );
+
+            $wiersz = $wiersze[0];
             // ASERCJA KONTROLNA: pusta albo zerowa konfiguracja dałaby
             // oczekiwany fragment „**0 miesięcy**", którego w dokumencie nie
             // ma — test padłby z mylącym komunikatem zamiast powiedzieć, że
@@ -259,7 +297,7 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
 
             $this->assertStringContainsString(
                 $oczekiwane,
-                $tresc,
+                $wiersz,
                 "Polityka prywatności nie podaje okresu retencji ({$nazwa}) zgodnego "
                 ."z konfiguracją. Oczekiwane w tekście: {$oczekiwane} — jeśli okres "
                 .'zmieniono świadomie, popraw dokument razem z konfiguracją. To jest '
