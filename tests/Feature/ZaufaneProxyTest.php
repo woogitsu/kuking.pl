@@ -59,6 +59,20 @@ class ZaufaneProxyTest extends TestCase
         $this->assertStringStartsWith('https://', $dane['url']);
     }
 
+    /**
+     * CO TEN TEST ZNACZY PO SEC-01 — bo przegląd R5 §2.3 zarzucał mu wprost,
+     * że „utrwala bypass", i zarzut trzeba było rozstrzygnąć, a nie przemilczeć.
+     *
+     * Jeden wpis w nagłówku to na produkcji wpis dopisany przez Cloudflare —
+     * czyli adres odwiedzającego. Aplikacja MUSI go widzieć, inaczej wszyscy
+     * dostają wspólny adres brzegu i jeden wspólny limit. Ten test pilnuje
+     * właśnie tego i po naprawie zostaje bez zmian.
+     *
+     * Czego ten test NIE mówi: że wpisowi wolno wierzyć niezależnie od tego,
+     * ile ich przyszło. Za to odpowiada `PodrobionyNaglowekProxyTest` —
+     * sprawdza, że liczy się n-ty wpis OD KOŃCA (`config/proxy.php`), więc
+     * cokolwiek klient dopisze z lewej, przesuwa wyłącznie własne śmieci.
+     */
     public function test_widzimy_adres_uzytkownika_a_nie_brzegu_platformy(): void
     {
         $dane = $this->get(self::SCIEZKA, [

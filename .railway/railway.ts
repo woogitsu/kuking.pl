@@ -208,12 +208,35 @@ export default defineRailway((ctx) => {
     QUEUE_CONNECTION: "database",
 
     // --- Zaufane proxy --------------------------------------------------------
-    // Łańcuch: Cloudflare → Railway edge → kontener. Bez tego Laravel widzi IP
-    // proxy zamiast użytkownika (psuje rate limiting i logi bezpieczeństwa)
-    // i generuje URL-e po http:// zamiast https:// (mixed content, pętle
-    // przekierowań).
-    // Implementacja: bootstrap/app.php → $middleware->trustProxies(at: '*')
-    TRUSTED_PROXIES: "*",
+    //  Łańcuch: Cloudflare → Railway edge → kontener. Bez zaufania do
+    //  nagłówków X-Forwarded-* Laravel widzi adres proxy zamiast użytkownika
+    //  (psuje limity i logi bezpieczeństwa) i generuje URL-e po http://
+    //  zamiast https:// (mixed content, pętle przekierowań).
+    //
+    //  TRUSTED_PROXIES ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (ustalenie SEC-01).
+    //
+    //  Ta zmienna NIGDY nie była przez aplikację czytana. `bootstrap/app.php`
+    //  ma `trustProxies(at: '*')` wpisane na sztywno, a jedyną inną nazwą,
+    //  której szuka framework, jest legacy `config('trustedproxy.proxies')` —
+    //  pliku `config/trustedproxy.php` w tym repozytorium nie ma. Zmienna
+    //  wyglądała więc jak przełącznik i nie przełączała niczego: ustawienie
+    //  jej na listę adresów nie zmieniłoby zachowania ani o krok.
+    //  (Ten sam kształt błędu co usunięty limit 'upload' i martwe
+    //  `kuking.media_disk` — patrz komentarze w `config/kuking.php`.)
+    //
+    //  PRAWDZIWY przełącznik jest teraz jeden i niżej.
+    //
+    //  KUKING_ZAUFANE_PRZESKOKI — ile wpisów w `X-Forwarded-For` dopisuje
+    //  nasza własna infrastruktura. Aplikacja czyta adres klienta jako n-ty
+    //  wpis OD KOŃCA łańcucha, bo proxy dopisuje na końcu, a klient może
+    //  dopisywać tylko na początku. Pełne uzasadnienie i sposób POMIARU tej
+    //  liczby: `config/proxy.php` oraz `App\Http\Middleware\NormalizeForwardedFor`.
+    //
+    //  Zostawiamy 1 do czasu pomiaru na żywej infrastrukturze (Blok B krok 6
+    //  z docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md). Za mała wartość jest
+    //  niegroźna (adres wspólny → limity zbyt ostre); za duża przywraca
+    //  podatność, bo odczyt wchodzi w obszar wypełniany przez klienta.
+    KUKING_ZAUFANE_PRZESKOKI: "1",
 
     // --- Storage zdjęć: Cloudflare R2, DWA BUCKETY ---------------------------
     //
