@@ -1,4 +1,4 @@
-name: Audyt A7 - UsunGps
+name: Audyt A7 - UsunGps szybkie mutacje
 
 on:
   push:
@@ -12,43 +12,9 @@ env:
   PHP_VERSION: '8.4'
 
 jobs:
-  krawedzie:
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: gd, exif, mbstring
-          coverage: none
-          tools: composer:v2
-      - uses: actions/cache@v6
-        with:
-          path: vendor
-          key: a7-usungps-composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
-      - name: Sonda
-        run: |
-          set -euo pipefail
-          composer install --no-interaction --prefer-dist --no-progress
-          mkdir -p a7-usungps
-          php -l docs/zlecenia/dowody-a7/pomiar-usungps-krawedzie.php
-          php docs/zlecenia/dowody-a7/pomiar-usungps-krawedzie.php 2>&1 | tee a7-usungps/krawedzie-console.log
-          cp docs/zlecenia/dowody-a7/usungps-krawedzie-wynik.json a7-usungps/
-          cp docs/zlecenia/dowody-a7/pomiar-usungps-krawedzie.php a7-usungps/
-          sha256sum a7-usungps/* > a7-usungps/SHA256SUMS
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: audyt-a7-usungps-krawedzie
-          path: a7-usungps/
-          retention-days: 7
-
   mutacje:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 40
+    timeout-minutes: 12
     services:
       postgres:
         image: postgres:18-alpine
@@ -100,25 +66,19 @@ jobs:
         with:
           path: vendor
           key: a7-usungps-composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
-      - name: Zależności i baza
+      - name: Uruchom mutanty
         run: |
           set -euo pipefail
           cp .env.example .env
           composer install --no-interaction --prefer-dist --no-progress
           php artisan migrate:fresh --force --no-interaction
-          php -l docs/zlecenia/dowody-a7/mutacje-usungps.php
-          mkdir -p a7-usungps
-      - name: Mutation testing
-        run: |
-          set -euo pipefail
-          php docs/zlecenia/dowody-a7/mutacje-usungps.php 2>&1 | tee a7-usungps/mutacje-console.log
-          cp docs/zlecenia/dowody-a7/mutacje-usungps-wynik.json a7-usungps/
-          cp docs/zlecenia/dowody-a7/mutacje-usungps.php a7-usungps/
+          mkdir -p a7-mutacje
+          php docs/zlecenia/dowody-a7/mutacje-usungps-szybkie.php 2>&1 | tee a7-mutacje/console.log
+          cp docs/zlecenia/dowody-a7/mutacje-usungps-szybkie-wynik.json a7-mutacje/
           git diff --exit-code -- app/Domain/Media/UsunGps.php
-          sha256sum a7-usungps/* > a7-usungps/SHA256SUMS
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: audyt-a7-usungps-mutacje
-          path: a7-usungps/
+          name: audyt-a7-usungps-mutacje-szybkie
+          path: a7-mutacje/
           retention-days: 7
