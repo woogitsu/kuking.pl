@@ -732,16 +732,29 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
   }
+  /* Łamanie długiego słowa — ta sama rodzina co przy przyciskach i kaflach.
+     Złapane przez CI, nie lokalnie: na `/powiadomienia` pusty stan mówi „Nie
+     ma jeszcze żadnych powiadomień", a samo „powiadomień" przy czcionce
+     przeglądarki 32 px nie mieści się w 240 px, które zostają w oknie 320 px
+     po wcięciu karty. Zmierzone: strona 322 px przy 320 px okna.
+
+     Dwa piksele — i właśnie dlatego lokalny przebieg tego nie pokazał:
+     szerokość tekstu zależy od metryk czcionki, a te różnią się między
+     przeglądarką w kontenerze a tą, którą pobiera Playwright na runnerze.
+     Poprawką jest usunięcie kruchości, nie poluzowanie progu. */
   .empty-state-title {
     font-size: var(--text-title-sm);
     font-weight: 800;
     color: var(--color-ink);
     margin: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
   .empty-state-opis {
     max-width: 34rem;
     color: var(--color-ink-muted);
     margin: 0;
+    overflow-wrap: anywhere;
   }
 
   /* --- Podsumowanie błędów formularza --- */
