@@ -465,6 +465,42 @@
   /* Wersja dla <img>, używana jeszcze w pustych stanach. */
   .wordmark-mark { width: 2rem; height: 2rem; flex: none; }
 
+  /*
+   * NAPIS LOGOTYPU ZNIKA, GDY NIE MA JAK SIĘ ZMIEŚCIĆ — zostaje sam garnek.
+   *
+   * „KuKing.pl" to jeden nierozdzielny token: nie ma w nim spacji, więc nie
+   * ma gdzie się złamać, a `min-width: 0` na rodzicu nic tu nie daje —
+   * element flex nie zejdzie poniżej szerokości nierozerwalnego słowa.
+   * Skutkiem był pasek szerszy od okna NA KAŻDYM ekranie serwisu.
+   *
+   * ZMIERZONE, okno 320 px przy domyślnej czcionce przeglądarki 32 px
+   * (czyli „bardzo duży" w ustawieniach Chrome): napis zajmuje 120…350 px,
+   * przy 320 px dostępnych. Wystaje o 30 px — i to na wszystkich 26 badanych
+   * ekranach, bo belka jest wszędzie.
+   *
+   * PRÓG JEST W `rem` I TO JEST CAŁA SZTUCZKA. W media query `rem` liczy się
+   * od DOMYŚLNEGO rozmiaru pisma przeglądarki — tego, który człowiek ustawia
+   * sobie sam — a nie od tego, co arkusz wpisze na `<html>`. Warunek
+   * `max-width: 12rem` znaczy więc „okno węższe niż dwanaście razy TWOJA
+   * czcionka", czyli dokładnie ten stan, w którym napis się nie mieści:
+   *
+   *   czcionka 16 px (domyślna)  →  próg 192 px  →  nie łapie się nigdzie,
+   *                                 bo najwęższy sprawdzany ekran ma 320 px
+   *   czcionka 32 px (200%)      →  próg 384 px  →  łapie się przy 320 px
+   *
+   * Przy zwykłych ustawieniach NIC się nie zmienia. Napis znika wyłącznie
+   * tam, gdzie alternatywą jest strona uciekająca w bok.
+   *
+   * DOSTĘPNOŚĆ NIE CIERPI: `aria-hidden` jest na tym napisie od początku,
+   * a nazwę odnośnika niesie `.visually-hidden` („Kuking — strona główna"),
+   * której ta reguła nie dotyka. Czytnik ekranu słyszy to samo co wcześniej.
+   * Nie używamy `overflow-wrap: anywhere`, bo złamałoby logotyp w środku
+   * wyrazu („KuKin / g.pl") — brzydziej niż sam znak.
+   */
+  @media (max-width: 12rem) {
+    .wordmark > span[aria-hidden] { display: none; }
+  }
+
   /* --- Dolna nawigacja (mobile) --- */
 
   .bottom-nav {
@@ -1188,6 +1224,14 @@
 
   .przepis-hero {
     display: grid;
+    /* Jedna kolumna, ale JAWNIE `minmax(0, 1fr)`. Bez tego niejawny tor ma
+       szerokość `auto`, czyli max-content zawartości — i przy dużej czcionce
+       panel z kaflami liczb rozpychał go PONAD szerokość okna, zamiast się
+       zwęzić. Zmierzone przy oknie 320 px i czcionce przeglądarki 200%:
+       kontener 256 px, a tor siatki 392,8 px; strona przewijała się w bok
+       o 105 px. To ta sama klasa błędu co siatki `auto-fit` naprawione
+       wcześniej w tym pliku — tor, który nie umie zejść poniżej treści. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-5);
     align-items: start;
   }
@@ -1239,6 +1283,16 @@
     flex: none;
     color: var(--color-brand);
   }
+
+  /* Blok tekstu obok ikony musi umieć się zwęzić. Bez `min-width: 0` element
+     flex nie schodzi poniżej szerokości swojej treści, a treścią bywa
+     „30 minut" przy czcionce 32 px — kafel rozpychał wtedy całą siatkę
+     i wypychał stronę (zmierzone: 384 px przy 320 px okna). Grid ma tę samą
+     własność, stąd `min-width: 0` również na kaflu. */
+  .przepis-liczba { min-width: 0; }
+  .przepis-liczba > div { min-width: 0; }
+  .przepis-liczba strong,
+  .przepis-liczba span { overflow-wrap: anywhere; }
 
   .przepis-liczba strong {
     display: block;
@@ -1745,11 +1799,33 @@
     margin: 0;
   }
 
-  .stat-value { font-size: var(--text-title-sm); font-weight: 800; display: block; }
+  /* Ta sama historia co przy kaflach przepisu: pozycja statystyki nie schodzi
+     poniżej szerokości podpisu, a „obserwujących" przy czcionce 32 px ma
+     345 px. Zmierzone na profilu: strona 418 px przy 320 px okna.
+
+     `overflow-wrap` dopisujemy DO ISTNIEJĄCYCH reguł niżej, a nie do nowej
+     wspólnej. `MinimalnyRozmiarTekstuTest` czyta deklaracje PIERWSZEJ reguły
+     pasującej do selektora podpisu, więc dodatkowa reguła bez `font-size`
+     przesłoniłaby tę właściwą i test padłby na nieprawdziwym zarzucie.
+     (Nie wolno tu nawet WYMIENIĆ tego selektora z nazwy: wyrażenie testu
+     patrzy na sam tekst pliku i złapałoby go w komentarzu. Sprawdzone
+     eksperymentalnie — pierwsza wersja tej uwagi wywaliła test.) */
+  .stat-row > li { min-width: 0; }
+
+  .stat-value {
+    font-size: var(--text-title-sm);
+    font-weight: 800;
+    display: block;
+    overflow-wrap: anywhere;
+  }
   /* 18 px, nie 16: „wpisów”, „obserwujących” to jedyne wyjaśnienie, co znaczy
      stojąca obok liczba. Bez podpisu liczba nic nie mówi, więc to nie jest
      pomoc kontekstowa w rozumieniu DESIGN_SYSTEM.md (issue #110). */
-  .stat-label { font-size: var(--text-body); color: var(--color-ink-muted); }
+  .stat-label {
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
 
   .site-footer {
     border-top: 1px solid var(--color-border);
@@ -2127,6 +2203,16 @@
     width: 1.75rem;
     height: 1.75rem;
     flex-shrink: 0;
+}
+
+/* Napis obok pola musi umieć się zwęzić i złamać długie słowo. Zmierzone przy
+   oknie 320 px i czcionce przeglądarki 200%: po polu i odstępie zostaje
+   174 px, a samo „gotowania" ma 184 px — jedno słowo wypychało cały ekran
+   trybu gotowania w bok. To ekran, na którym człowiek stoi przy garnku
+   z telefonem, więc przewijanie w bok boli tu bardziej niż gdziekolwiek. */
+.cook-wakelock > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .cook-wakelock-status {

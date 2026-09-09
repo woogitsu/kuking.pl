@@ -491,6 +491,18 @@
     text-align: center;
     text-decoration: none;
     cursor: pointer;
+    /* Przycisk NIGDY nie wypycha strony w bok — zmierzone: przy czcionce
+       przeglądarki 200% i oknie 320 px „Wyślij zgłoszenie" miało 274 px
+       przy 247 px dostępnych, a `overflow-wrap` bez `max-width` nie pomaga,
+       bo element inline-flex i tak liczy szerokość od treści.
+       `anywhere` łamie też pojedyncze długie słowo: napis przeniesiony
+       w środku wyrazu jest brzydki, ale strona uciekająca w bok jest
+       nieużywalna, a to jest wybór między tymi dwoma. Cztery reguły
+       `.coś .btn { max-width: 100% }` rozsiane po `app.css` załatwiały to
+       samo osobno dla czterech miejsc — zostają, bo są nieszkodliwe, ale
+       nie są już jedyną obroną. */
+    max-width: 100%;
+    overflow-wrap: anywhere;
     border: 2px solid transparent;
     transition:
       background-color var(--czas-szybki) ease-out,
