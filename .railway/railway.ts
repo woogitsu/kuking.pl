@@ -295,17 +295,53 @@ export default defineRailway((ctx) => {
 
     // --- Poczta transakcyjna --------------------------------------------------
     //
-    //  `smtp` zakłada dostawcę, który daje login i hasło SMTP (Brevo,
-    //  EmailLabs, Mailgun, Postmark, Resend — każdy z nich ma bramkę SMTP).
-    //  Przy dostawcy po API zamień na `postmark`, `resend` albo `ses`
-    //  i dołóż jego klucz — komplet zmiennych i rekordów DNS dla trzech
-    //  wariantów jest w `docs/infra/POCZTA_URUCHOMIENIE.md`.
+    //  SMTP NIE DZIAŁA NA TYM PLANIE I NIE ZADZIAŁA (zmierzone 9 IX 2026).
+    //
+    //  Dokumentacja Railwaya mówi wprost: „SMTP is only available on the Pro
+    //  plan and above. Free, Trial, and Hobby plans must use transactional
+    //  email services with HTTPS APIs. SMTP is disabled on these plans to
+    //  prevent spam and abuse." Właściciel jest na Free i przechodzi na Hobby
+    //  — obie blokują SMTP.
+    //
+    //  Objaw jest gorszy niż błąd: pakiety idą w próżnię, więc zadanie
+    //  `App\Notifications\UstawienieNowegoHasla` wchodzi w `RUNNING` i NIGDY
+    //  się nie kończy — ani `DONE`, ani `FAIL`. W panelu wygląda to jak
+    //  zawieszony worker, nie jak awaria poczty.
+    //
+    //  Dlatego wysyłamy przez API HTTPS EmailLabs (`docs/DECISIONS.md` D-047).
+    //  Sterownik `emaillabs` jest własny (`App\Poczta\TransportEmailLabs`),
+    //  zarejestrowany w `App\Providers\PocztaServiceProvider`, bez ani jednej
+    //  nowej paczki Composera.
     //
     //  Po zmianie tych wartości sprawdź, że poczta NAPRAWDĘ wychodzi:
     //      railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
     //  Sterownik `log` przyjmuje wiadomość i zgłasza sukces, nie wysyłając
     //  jej nikomu — dlatego nie wolno go tu wpisać „na chwilę".
-    MAIL_MAILER: "smtp",
+    MAIL_MAILER: "emaillabs",
+
+    //  DWA KLUCZE, NIE JEDEN: żądanie niesie nagłówek `Application-Key`
+    //  (EMAILLABS_APP_KEY) i `Authorization` (EMAILLABS_SECRET_KEY, 128
+    //  znaków). Oba generuje się RAZEM w panelu EmailLabs:
+    //  Konto → Ustawienia → API → „Generuj klucz API". Po przeładowaniu
+    //  strony klucza autoryzacyjnego nie da się już podejrzeć.
+    //
+    //  TO NIE SĄ LOGIN I HASŁO SMTP. Dane z sekcji „Konta SMTP" panelu służą
+    //  wyłącznie do wysyłki portem 587; API odpowie na nie 401. Pomylenie
+    //  jednego z drugim jest tu najbardziej prawdopodobnym błędem
+    //  konfiguracji.
+    EMAILLABS_APP_KEY: ctx.shared.EMAILLABS_APP_KEY,
+    EMAILLABS_SECRET_KEY: ctx.shared.EMAILLABS_SECRET_KEY,
+    //  Konto wysyłkowe w kształcie `1.nazwa.smtp` — wymagane pole
+    //  `smtpAccount` w każdym żądaniu API. Mimo nazwy NIE jest to login SMTP.
+    EMAILLABS_SMTP_ACCOUNT: ctx.shared.EMAILLABS_SMTP_ACCOUNT,
+
+    //  --- SMTP: UŚPIONE, NIE USUNIĘTE ---------------------------------------
+    //
+    //  Te pięć zmiennych nie konfiguruje dziś niczego, bo `MAIL_MAILER` to
+    //  `emaillabs`. Zostają świadomie, jako gotowa droga na wypadek przejścia
+    //  na plan Pro (wtedy Railway odblokowuje SMTP) i jako drugie ramię
+    //  ewentualnego `failover` u innego dostawcy. Przestawienie `MAIL_MAILER`
+    //  z powrotem na `smtp` PRZED zmianą planu przywróci awarię z 9 września.
     MAIL_HOST: ctx.shared.MAIL_HOST,
     MAIL_PORT: ctx.shared.MAIL_PORT,
     MAIL_USERNAME: ctx.shared.MAIL_USERNAME,
@@ -316,7 +352,9 @@ export default defineRailway((ctx) => {
     // `UnsupportedSchemeException` w kolejce, przy poprawnym dostawcy
     // i poprawnym haśle. Na porcie 587 STARTTLS negocjuje się samo, więc
     // właściwą wartością jest `smtp`. `smtps` jest dla portu 465.
-    // Pilnuje tego `SchematPocztyJestObslugiwanyTest`.
+    // Pilnuje tego `SchematPocztyJestObslugiwanyTest` — i dlatego ta zmienna
+    // zostaje tu nawet uśpiona: gdyby zniknęła, zniknąłby razem z nią jedyny
+    // strażnik wartości, którą ktoś kiedyś wpisze z powrotem.
     MAIL_SCHEME: "smtp",
 
     //  JEDEN ADRES W OBIE STRONY (decyzja właściciela, 7 IX 2026).
