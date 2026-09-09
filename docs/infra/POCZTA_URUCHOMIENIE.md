@@ -115,7 +115,7 @@ zmienia.
 
 **Czas: ~20 minut pracy + do godziny na rozejście się DNS. Zero zmian w kodzie
 i zero zmian w `.railway/railway.ts`** — sterownik `smtp` jest tam już
-ustawiony domyślnie (`MAIL_MAILER: "smtp"`), a `MAIL_SCHEME: "tls"` też jest
+ustawiony domyślnie (`MAIL_MAILER: "smtp"`), a `MAIL_SCHEME: "smtp"` też jest
 wpisany na stałe. Zostają cztery wartości do wpisania w Railway.
 
 #### Krok 1 — konto i domena
@@ -159,7 +159,7 @@ WARTOŚCI raz, w panelu Railway (Environment → Variables → Shared Variables)
 | `MAIL_USERNAME` | login SMTP z panelu (krok 1.3) | nie |
 | `MAIL_PASSWORD` | hasło SMTP z panelu (krok 1.3) | **TAK** |
 
-`MAIL_SCHEME` zostaje `tls` — to już jest wpisane na stałe w
+`MAIL_SCHEME` zostaje `smtp` — to już jest wpisane na stałe w
 `.railway/railway.ts` dla portu 587 (STARTTLS), nie trzeba go dodawać.
 Po wpisaniu wartości: `railway config apply`, potem restart serwisów.
 
@@ -214,7 +214,7 @@ kroku 1.2, sprawdzone 2026-09-08 co do KSZTAŁTU rekordów, nie ich treści]`
 | `MAIL_USERNAME` | login SMTP z panelu | nie |
 | `MAIL_PASSWORD` | SMTP key z panelu | **TAK** |
 
-Jak wyżej: `.railway/railway.ts` się nie zmienia, `MAIL_SCHEME=tls` jest już
+Jak wyżej: `.railway/railway.ts` się nie zmienia, `MAIL_SCHEME=smtp` jest już
 ustawiony. `railway config apply`, potem restart.
 
 #### Krok 4 — sprawdzenie
@@ -474,7 +474,7 @@ reputację u każdego dostawcy, przy komplecie zielonych rekordów.
 
 | Plik | Zmiana | Warianty |
 |---|---|---|
-| — | **żadna** — `MAIL_MAILER: "smtp"` i `MAIL_SCHEME: "tls"` są już w `.railway/railway.ts`; wystarczą cztery Shared Variables w panelu Railway | **EmailLabs, Brevo** (rekomendowane) |
+| — | **żadna** — `MAIL_MAILER: "smtp"` i `MAIL_SCHEME: "smtp"` są już w `.railway/railway.ts`; wystarczą cztery Shared Variables w panelu Railway | **EmailLabs, Brevo** (rekomendowane) |
 | `.railway/railway.ts` | `MAIL_MAILER` na `postmark` / `ses` / `resend`; usunąć cztery zmienne SMTP | Postmark, SES, Resend |
 | `composer.json` | `symfony/postmark-mailer` | Postmark |
 | `composer.json` | `resend/resend-php` | Resend |

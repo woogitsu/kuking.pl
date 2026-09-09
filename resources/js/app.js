@@ -453,3 +453,109 @@ for (const tasma of document.querySelectorAll('[data-karuzela-tasma]')) {
     }
 }
 
+
+// --- „Podziel się": arkusz systemowy i kopiowanie adresu -------------------
+
+/*
+ * WSZYSTKO PONIŻEJ JEST DODATKIEM, NIE WARUNKIEM.
+ *
+ * Blok „Podziel się” przychodzi z serwera KOMPLETNY: rozwijany przycisk
+ * (`<details>`, czysty HTML), jawna lista dróg — WhatsApp, e-mail, Facebook —
+ * i widoczny, zaznaczalny adres. Przy wyłączonym skrypcie działa to wszystko
+ * bez zmian. Tutaj dokładamy dokładnie dwie rzeczy, których bez skryptu
+ * zrobić się nie da:
+ *
+ *  1. ARKUSZ SYSTEMOWY (`navigator.share`). Na telefonie to jest ta lista,
+ *     na której człowiek widzi SWOJEGO Messengera, WhatsAppa i SMS-y —
+ *     czyli aplikacje, których my z poziomu strony nie znamy i znać nie
+ *     możemy. Przejmujemy kliknięcie w ten sam przycisk, zamiast dokładać
+ *     drugi: dwa przyciski „Podziel się” obok siebie to pytanie, na które
+ *     nikt nie umie odpowiedzieć.
+ *
+ *     Gdy arkusz zawiedzie z innego powodu niż anulowanie przez człowieka,
+ *     ROZWIJAMY jawną listę. Kliknięcie nie może skończyć się niczym.
+ *
+ *  2. „Skopiuj adres”. Przycisk stoi w HTML-u z atrybutem `hidden` i odsłania
+ *     go dopiero ten kod — bez schowka nie miałby czego zrobić, a martwy
+ *     przycisk jest gorszy niż jego brak. Adres i tak jest widoczny w polu
+ *     obok, więc bez skryptu zaznacza się go myszą jak każdy inny tekst.
+ */
+
+for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
+    const przycisk = blok.querySelector('summary');
+    const pole = blok.querySelector('[data-podziel-pole]');
+    const kopiuj = blok.querySelector('[data-podziel-kopiuj]');
+    const echo = blok.querySelector('[data-podziel-echo]');
+
+    const dane = {
+        title: blok.dataset.podzielTytul,
+        text: blok.dataset.podzielTekst,
+        url: blok.dataset.podzielAdres,
+    };
+
+    // --- 1. Arkusz systemowy ---------------------------------------------
+
+    // `canShare` pytamy TYLKO wtedy, gdy przeglądarka je ma. Odpowiedź „nie”
+    // znaczy, że tego zestawu danych nie da się wysłać — wtedy zostawiamy
+    // przycisk w spokoju i człowiek dostaje jawną listę, tak jak bez skryptu.
+    const arkuszDziala = typeof navigator.share === 'function'
+        && (typeof navigator.canShare !== 'function' || navigator.canShare(dane));
+
+    if (przycisk && arkuszDziala) {
+        przycisk.addEventListener('click', async (zdarzenie) => {
+            // Bez tego `<details>` rozwinęłoby się JEDNOCZEŚNIE z arkuszem
+            // i po jego zamknięciu pod spodem czekałaby otwarta lista,
+            // o którą nikt nie prosił.
+            zdarzenie.preventDefault();
+
+            try {
+                await navigator.share(dane);
+            } catch (blad) {
+                // Anulowanie arkusza to świadoma decyzja człowieka, nie
+                // awaria — nie ma go za co karać rozwijaniem listy.
+                if (blad && blad.name === 'AbortError') {
+                    return;
+                }
+
+                blok.open = true;
+            }
+        });
+    }
+
+    // --- 2. Kopiowanie adresu --------------------------------------------
+
+    if (kopiuj && pole) {
+        kopiuj.hidden = false;
+
+        kopiuj.addEventListener('click', async () => {
+            let skopiowane = false;
+
+            try {
+                await navigator.clipboard.writeText(pole.value);
+                skopiowane = true;
+            } catch {
+                // Schowka nie ma albo strona nie chodzi po HTTPS. Zostaje
+                // droga starsza, ale działająca w tych właśnie warunkach.
+                pole.focus();
+                pole.select();
+
+                try {
+                    skopiowane = document.execCommand('copy');
+                } catch {
+                    skopiowane = false;
+                }
+            }
+
+            if (! skopiowane) {
+                pole.focus();
+                pole.select();
+            }
+
+            if (echo) {
+                echo.textContent = skopiowane
+                    ? 'Skopiowano adres.'
+                    : 'Adres jest zaznaczony. Skopiuj go teraz: Ctrl+C, a na Macu Cmd+C.';
+            }
+        });
+    }
+}
