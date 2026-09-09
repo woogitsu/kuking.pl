@@ -200,7 +200,27 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, tokenizer
+          # TA SAMA LISTA WE WSZYSTKICH PIĘCIU JOBACH — i to nie jest kopiuj-wklej
+          # do posprzątania. Trzy runnery stoją na JEDNEJ maszynie, więc dzielą
+          # jedną instalację PHP. Job z krótszą listą zostawia współdzielone PHP
+          # bez rozszerzenia, którego potrzebuje następny.
+          #
+          # ZMIERZONE 9 września, PR #171: `Larastan` (lista bez `pcntl`)
+          # skończył 09:34:30, `Dostępność (axe-core)` wystartowała 09:34:35
+          # i `php artisan serve` padł od razu:
+          #
+          #     Signals are not supported. Make sure that the "pcntl" extension
+          #     is installed …
+          #
+          # Job dostępności PROSIŁ o `pcntl` w swojej własnej liście. Nie
+          # wystarczyło. Dokładnego przeplotu zapisów setup-php nie ustaliłem;
+          # ujednolicenie list usuwa możliwość, żeby joby się o rozszerzenia
+          # biły, bez zgadywania mechanizmu.
+          #
+          # Koszt: lekkie joby (Pint, Audyt zależności) włączają kilka
+          # rozszerzeń więcej. Na współdzielonej maszynie są już zainstalowane,
+          # więc to sekundy.
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
 
@@ -258,7 +278,7 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           # Larastan bootuje aplikację Laravela, więc potrzebuje tych samych
           # rozszerzeń co runtime — inaczej wysypie się na brakującym pdo_pgsql.
-          extensions: mbstring, intl, pdo_pgsql, gd, zip, exif, bcmath
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
 
@@ -732,7 +752,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
 
