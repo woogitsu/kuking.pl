@@ -32,14 +32,37 @@ use Throwable;
  * ta sama zasada, co przy logowaniu 429 w `bootstrap/app.php`) i ślad stosu
  * OGRANICZONY do plik:linia + nazwa funkcji, bez ŻADNEGO argumentu.
  *
- * CZEGO TO NIE ZAŁATWIA (i nie próbuje)
- * Komunikat wyjątku (`$e->getMessage()`) to tekst napisany przez kogoś z nas
- * w kodzie — jeśli KIEDYŚ wpisze tam wprost dane z żądania (np.
- * `"Nie znaleziono użytkownika {$email}"`), ten handler tego nie wyłapie:
- * to jest dyscyplina pisania wyjątków, obowiązująca w całym serwisie
- * niezależnie od tego kanału, nie coś, co dałoby się odfiltrować niezawodnie
- * z samego tekstu. Ten handler gwarantuje wyłącznie to, co Laravel DOKŁADA
- * automatycznie — nie zawartość komunikatów pisanych ręcznie.
+ * KOMUNIKAT WYJĄTKU NIE WYCHODZI STĄD W OGÓLE — i to jest poprawka błędu.
+ * Do 9 września ta klasa wysyłała `$e->getMessage()`, opierając się na
+ * założeniu wypisanym tu wprost: „komunikat wyjątku to tekst napisany przez
+ * kogoś z nas w kodzie". DLA `QueryException` TO ZAŁOŻENIE JEST FAŁSZYWE.
+ * Komunikat buduje sterownik i wkłada w niego SQL razem z wartościami:
+ *
+ *     SQLSTATE[23505]: Unique violation: 7 ERROR: duplicate key value
+ *     violates unique constraint "users_email_unique"
+ *     DETAIL: Key (email)=(ktos@example.com) already exists.
+ *     (Connection: pgsql, SQL: insert into "users" ("email","password", …)
+ *      values (ktos@example.com, $2y$12$…, …))
+ *
+ * Czyli adres e-mail i hash hasła człowieka — w wiadomości wychodzącej do
+ * usługi, nad którą nie mamy kontroli. Znalazł to audyt zewnętrzny (A6-01),
+ * odtwarzając prawdziwy błąd unikalności przez trasę HTTP. Kanał nigdy nie
+ * był włączony na produkcji (`LOG_BLAD_WEBHOOK_URL` nie było ustawione), więc
+ * nic nie wyciekło — ale wystarczyłoby go włączyć.
+ *
+ * Odfiltrowywanie danych z takiego tekstu wyrażeniem regularnym byłoby
+ * zgadywaniem: sterownik może zmienić format, a każdy inny pakiet może
+ * zbudować komunikat po swojemu. Dlatego treść jest teraz budowana wyłącznie
+ * z LISTY DOZWOLONYCH PÓL — nazwa klasy, kod błędu o bezpiecznym kształcie,
+ * plik:linia, wzorzec trasy, odcisk i ślad bez argumentów.
+ *
+ * CO Z TEGO TRACIMY I CZYM TO NADRABIAMY
+ * Webhook przestaje być raportem, a staje się DZWONKIEM: mówi „coś się
+ * zepsuło, tutaj, tego rodzaju". Pełny komunikat zostaje w logu serwera,
+ * który nigdzie nie wychodzi. Żeby dało się jedno z drugim zestawić,
+ * wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
+ * błąd ma zawsze ten sam odcisk, więc przy okazji widać, czy to nowa awaria,
+ * czy dziesiąte powtórzenie tej samej.
  *
  * DLACZEGO WYSYŁKA NIGDY NIE RZUCA DALEJ
  * `write()` działa W ŚRODKU procedury raportowania wyjątku
@@ -103,16 +126,57 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             return $this->przytnij($naglowek.' '.$this->jednalinia($record->message));
         }
 
-        return $this->przytnij(implode("\n", [
+        $linie = array_filter([
             $naglowek.' '.$wyjatek::class,
-            $this->jednalinia($wyjatek->getMessage()),
+            $this->kod($wyjatek),
             sprintf('%s:%d', $this->wzgledna($wyjatek->getFile()), $wyjatek->getLine()),
             $this->trasa(),
+            'odcisk: '.$this->odcisk($wyjatek),
+        ], static fn (?string $linia): bool => $linia !== null && $linia !== '');
+
+        return $this->przytnij(implode("\n", [
+            ...$linie,
             '',
+            'Treść komunikatu zostaje w logu serwera — na webhook nie wychodzi.',
             '```',
             ...$this->slad($wyjatek),
             '```',
         ]));
+    }
+
+    /**
+     * Kod błędu, ale TYLKO jeśli ma bezpieczny kształt. Dla `QueryException`
+     * jest to SQLSTATE (`23505` = naruszenie unikalności) i to jest
+     * najcenniejsza pojedyncza informacja, jaka po usunięciu komunikatu
+     * zostaje. `getCode()` nie jest jednak niczym ograniczony — biblioteka
+     * może tam wstawić dowolny łańcuch — więc przepuszczamy wyłącznie krótki
+     * kod z liter, cyfr i podkreślenia. Cokolwiek innego pomijamy zamiast
+     * przycinać: przycięty tekst nadal mógłby nieść fragment danych.
+     */
+    private function kod(Throwable $wyjatek): ?string
+    {
+        $kod = $wyjatek->getCode();
+
+        if (is_int($kod)) {
+            return $kod === 0 ? null : 'kod: '.$kod;
+        }
+
+        return preg_match('/^[A-Za-z0-9_]{1,20}$/', (string) $kod) === 1
+            ? 'kod: '.$kod
+            : null;
+    }
+
+    /**
+     * Osiem znaków, które identyfikują RODZAJ awarii, nie jej wystąpienie.
+     * Liczone z klasy, pliku i linii — czyli z rzeczy, które i tak są
+     * w wiadomości otwartym tekstem. To nie jest skrót danych osobowych
+     * i nie da się z niego niczego odzyskać; ma jedno zadanie: pozwolić
+     * odróżnić „nowy błąd" od „ten sam, dziesiąty raz", i odnaleźć wpis
+     * w logu serwera.
+     */
+    private function odcisk(Throwable $wyjatek): string
+    {
+        return substr(sha1($wyjatek::class.'|'.$wyjatek->getFile().'|'.$wyjatek->getLine()), 0, 8);
     }
 
     /**

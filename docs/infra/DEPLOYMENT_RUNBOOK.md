@@ -221,13 +221,26 @@ Powtórz dla staginu (token `kuking-staging`, zakres `kuking-media-staging`).
 > a na niej nazwiska i adresy.
 >
 > Zmierzone 7 września 2026: `cdn.kuking.pl` nie odpowiada, czyli krok nie
-> został wykonany. Ma tak zostać. To samo dotyczy reguły 4 w §7.
+> został wykonany. Ma tak zostać. To samo dotyczy **reguły 4 w §10.5**.
 >
 > Rozdział zostaje w dokumencie, a nie jest kasowany, bo `R2_PUBLIC_URL`
 > i `r2_legacy` mają swoją historię, którą trzeba rozumieć przy migracji
 > starych zdjęć (`kuking:przenies-zdjecia`). Ale jako INSTRUKCJA jest
 > wycofany.
 
+**Zamiast tego kroku: nic.** Adresem zdjęcia jest dziś trasa
+`/zdjecia/{media}/{wariant}` (`MediaController`), która pyta Policy treści
+nadrzędnej i dopiero wtedy przekierowuje na krótko podpisany adres R2. Bucket
+wariantów nie potrzebuje własnej domeny i nie ma jej mieć. Przejdź od razu
+do §2.4.
+
+<details>
+<summary>Treść wycofanego kroku — do czytania, NIE do wykonywania</summary>
+
+> Wszystko poniżej tej linii było instrukcją do 6 września 2026. Zostaje jako
+> historia potrzebna przy `kuking:przenies-zdjecia`, bo stary bucket
+> (`r2_legacy`) nadal ma publiczny adres, dopóki migracja nie dojdzie do
+> końca. **Nie wykonuj tego na nowym buckecie.**
 
 → R2 → bucket `kuking-media` → **Settings** → **Custom Domains** → **Add**
 
@@ -242,6 +255,14 @@ Wartość do zmiennych: `R2_PUBLIC_URL = https://cdn.kuking.pl`
 > **NIE włączaj „Public Development URL" (`r2.dev`)** na produkcji. Ten adres
 > jest rate-limitowany, nie przechodzi przez cache ani WAF, i omija wszystkie
 > Twoje reguły bezpieczeństwa.
+
+**Sprawdzenie z tamtej instrukcji** (dziś ma NIE działać — patrz §11, punkt 8):
+
+```bash
+curl -I https://cdn.kuking.pl/test.txt
+```
+
+</details>
 
 ### 2.4 CORS — wymagane dla uploadu bezpośrednio z przeglądarki
 
@@ -268,13 +289,15 @@ Dla `kuking-media-staging` dodaj `https://staging.kuking.pl` oraz
 > **Bez CORS przeglądarka odrzuci presigned PUT** i upload zdjęć nie zadziała —
 > a błąd będzie widoczny tylko w konsoli przeglądarki, nie w logach serwera.
 
-**Sprawdź, że działa:**
+**Sprawdź, że działa:** dopiero po pierwszym deployu, wgrywając zdjęcie
+z przeglądarki (§11, test ręczny 13). CORS-u nie da się sprawdzić `curl`-em
+w sposób, który cokolwiek dowodzi — odrzucenie robi przeglądarka, na podstawie
+nagłówków odpowiedzi, i widać je wyłącznie w jej konsoli.
 
-```bash
-curl -I https://cdn.kuking.pl/test.txt
-# Oczekiwane: 404 (bucket pusty, ale domena odpowiada).
-# Jeśli dostajesz błąd DNS lub TLS — domena jeszcze się nie aktywowała, poczekaj.
-```
+> Stało tu `curl -I https://cdn.kuking.pl/test.txt` z komentarzem „oczekiwane
+> 404, a błąd DNS znaczy poczekaj". To sprawdzenie należało do **wycofanego**
+> §2.3, nie do CORS-u, i po D-020 mówiło rzecz odwrotną do prawdy: dziś błąd
+> DNS jest wynikiem POPRAWNYM (audyt zewnętrzny, G14).
 
 ---
 
@@ -468,7 +491,7 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `R2_SECRET_ACCESS_KEY` | z kroku 2.2 | **TAK** | Secret Access Key R2 |
 | `R2_BUCKET` | `kuking-media` | nie | Nazwa bucketa |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
-| `R2_PUBLIC_URL` | `https://cdn.kuking.pl` | nie | Publiczny prefiks URL zdjęć |
+| ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_HOST` | np. `smtp.emaillabs.net.pl` (EmailLabs) | nie | Serwer SMTP |
 | `MAIL_PORT` | `587` | nie | Port SMTP (STARTTLS) |
 | `MAIL_USERNAME` | z kroku 3.2 | nie | Login SMTP |
@@ -619,7 +642,7 @@ Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
 | `APP_KEY` | **drugi** klucz z kroku 7 |
 | `R2_BUCKET` | `kuking-media-staging` |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | klucze tokenu `kuking-staging` |
-| `R2_PUBLIC_URL` | `https://kuking-media-staging.<ACCOUNT_ID>.r2.cloudflarestorage.com` lub własna subdomena `cdn-staging.kuking.pl` |
+| ~~`R2_PUBLIC_URL`~~ | **NIE USTAWIAJ** — ta sama zmienna, ten sam powód co w tabeli produkcyjnej wyżej. `cdn-staging.kuking.pl` nie ma powstać. |
 
 > **Nigdy nie wskazuj staginu na produkcyjny bucket ani produkcyjną bazę.**
 > Test na staginu, który usuwa zdjęcia użytkowników, to nie test — to incydent.
@@ -780,12 +803,29 @@ Wtedy: Cache eligibility = Bypass cache
 
 **Reguła 4 — „Media z R2"**
 
+> ## ⛔ TEJ REGUŁY NIE TWÓRZ — wycofana razem z §2.3 (decyzja D-020)
+>
+> Zakłada host `cdn.kuking.pl`, którego po D-020 nie ma i mieć nie ma.
+> Gdyby ktoś utworzył domenę Z TĄ regułą, dostałby najgorszy z możliwych
+> wariantów: adres pliku omijający Policy **plus** 30 dni cache'u na brzegu
+> i w przeglądarce. Decyzja moderacyjna, blokada i przełączenie przepisu na
+> prywatny nie miałyby wtedy żadnego wpływu na to, co ktoś już otworzył.
+>
+> Zdjęcia idą dziś trasą `/zdjecia/{media}/{wariant}`, którą **reguła 3**
+> (Bypass dla `kuking_session`) i tak wyklucza z cache'u — i tak ma zostać.
+> Treść reguły zostaje poniżej wyłącznie jako historia.
+
+<details>
+<summary>Treść wycofanej reguły — NIE do wpisania</summary>
+
 ```text
 Gdy:   http.host eq "cdn.kuking.pl"
 Wtedy: Cache eligibility = Eligible
        Edge TTL          = 30 dni
        Browser TTL       = 30 dni
 ```
+
+</details>
 
 Dodatkowo → **Caching** → **Tiered Cache** → **Smart Tiered Cache: ON**.
 
@@ -905,9 +945,12 @@ curl -sI https://kuking.pl/build/manifest.json | grep -i cache-control
 curl -sI https://kuking.pl/livewire/update | grep -i "cache-control\|cf-cache-status"
 # Oczekiwane: no-store / BYPASS
 
-# 8. Domena R2 odpowiada
+# 8. Domena R2 NIE odpowiada  ← test krytyczny dla prywatności, odwrócony po D-020
 curl -s -o /dev/null -w "%{http_code}\n" https://cdn.kuking.pl/
-# Oczekiwane: 404 (bucket pusty) — ale NIE błąd DNS/TLS
+# Oczekiwane: BŁĄD DNS (curl kończy się kodem 6, „Could not resolve host").
+# Jakakolwiek odpowiedź HTTP — także 404 — znaczy, że bucket wariantów ma
+# własną domenę, czyli że adres pliku znowu omija Policy. Wtedy: usuń Custom
+# Domain w panelu R2, zanim pójdziesz dalej. Patrz §2.3 i D-020.
 
 # 9. Tryb debug WYŁĄCZONY  ← test krytyczny dla bezpieczeństwa
 curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoops\|APP_KEY"
@@ -927,7 +970,7 @@ curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
 | 11 | Rejestracja nowego konta | konto powstaje, przychodzi e-mail (**najpierw** `php artisan kuking:sprawdz-poczte ty@wp.pl` — patrz `POCZTA_URUCHOMIENIE.md` §5) |
 | 12 | Logowanie i wylogowanie | sesja działa, ciasteczko `Secure` |
 | 13 | **Upload zdjęcia z telefonu** | pasek postępu, potem widoczna miniatura |
-| 14 | URL zdjęcia | zaczyna się od `https://cdn.kuking.pl/` |
+| 14 | URL zdjęcia | zaczyna się od `https://kuking.pl/zdjecia/` — to trasa aplikacji, nie plik w buckecie (D-020, audyt W7-02). Adres `cdn.kuking.pl` znaczy, że coś poszło źle: patrz punkt 8 wyżej. |
 | 15 | **Zdjęcie NIE zawiera GPS** | `exiftool <plik>` — brak `GPSLatitude` |
 | 16 | Interakcja Livewire (polubienie) | działa bez odświeżenia strony |
 | 17 | Instalacja PWA | przeglądarka proponuje „Dodaj do ekranu głównego" |

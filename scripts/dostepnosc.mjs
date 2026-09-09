@@ -5,7 +5,8 @@
  *
  *  DWA RÓŻNE POMIARY W JEDNYM SKRYPCIE
  *  1. axe-core — analiza drzewa dokumentu: etykiety, nazwy dostępne, kontrast.
- *  2. pomiar układu — czy strona przewija się w bok przy 320/360/414/768 px.
+ *  2. pomiar układu — czy strona przewija się w bok przy 320/360/414/768/1280 px,
+ *     przy naszym ustawieniu tekstu 140% i przy podwojonej czcionce przeglądarki.
  *
  *  Drugi punkt istnieje, bo pierwszy nie mógł go złapać. Belka górna
  *  wychodziła poza ekran telefonu na KAŻDEJ stronie serwisu (`scrollWidth`
@@ -196,6 +197,31 @@ const EKRANY_UKLADU = [
   { nazwa: 'kolejność i wygląd zdjęć', adres: null, znajdz: 'wpis:carousel:zdjecia', zalogowany: true },
 ];
 
+/**
+ * Znacznik wariantu „czcionka przeglądarki podwojona". Celowo NIE jest
+ * liczbą: liczby w `SKALE_UKLADU` znaczą `data-text-scale`, czyli nasze
+ * ustawienie z profilu, a to jest inny mechanizm — patrz komentarz niżej.
+ */
+const PRZEGLADARKA_200 = 'przegladarka-200';
+
+/**
+ * Domyślny rozmiar pisma przeglądarki. Wariant `PRZEGLADARKA_200` ustawia
+ * dwa razy tyle — czyli dokładnie to, co robi „Rozmiar czcionki: bardzo duży"
+ * w ustawieniach Chrome.
+ */
+const BAZOWA_CZCIONKA_PX = 16;
+
+/** Opis wariantu skali do logu i do raportu. */
+function etykietaSkali(skala) {
+  if (skala === null) {
+    return '';
+  }
+
+  return skala === PRZEGLADARKA_200
+    ? ' / czcionka przeglądarki 200%'
+    : ` / tekst ${skala}%`;
+}
+
 /*
  * SZEROKOŚCI DO POMIARU PRZEPEŁNIENIA (issue #80)
  *
@@ -204,7 +230,7 @@ const EKRANY_UKLADU = [
  * dwukolumnowym. Skala tekstu 140% jest tu obowiązkowa, bo nasza grupa
  * realnie ją włącza — a to przy niej belka pękała najbrzydziej.
  */
-const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768];
+const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768, 1280];
 /* 140, NIE 150 — i to jest poprawka błędu, który sam wprowadziłem.
  *
  * Do 8 września arkusz znał skale 112/125/150, a konfiguracja oferowała
@@ -221,7 +247,56 @@ const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768];
  * 140 to maksimum, jakie CHECK w migracji `users` w ogóle dopuszcza
  * (`text_scale BETWEEN 90 AND 140`), więc jest to zarazem najgorszy przypadek,
  * jaki człowiek może sobie ustawić. */
-const SKALE_UKLADU = SZYBKO ? [null] : [null, 140];
+const SKALE_UKLADU = SZYBKO ? [null] : [null, 140, PRZEGLADARKA_200];
+
+/*
+ * DLACZEGO 140% NIE WYSTARCZY I POTRZEBNY BYŁ DRUGI MECHANIZM
+ *
+ * `data-text-scale` to NASZE ustawienie z profilu, ograniczone CHECK-iem bazy
+ * do 140 (`text_scale BETWEEN 90 AND 140`). Człowiek ma jednak drugą, całkiem
+ * niezależną drogę: powiększenie czcionki w przeglądarce albo w systemie.
+ * Tamtej nie ogranicza nic — 200% jest zwykłym ustawieniem, a Chrome oferuje
+ * nawet „Bardzo duży".
+ *
+ * Te dwa mechanizmy dają RÓŻNE wyniki, bo skalują różne rzeczy. Zmierzone
+ * przy oknie 320 px, wrzesień 2026: przy `data-text-scale="140"` cały serwis
+ * był czysty, a przy podwojonej czcionce przeglądarki `/dodaj/zdjecie` miało
+ * `scrollWidth` 553 px w oknie 320 px. Ten sam plik świecił na zielono
+ * i przepuścił usterkę, przez którą osoba z powiększonym tekstem nie mogła
+ * dodać zdjęcia. Znalazł ją dopiero audyt zewnętrzny.
+ *
+ * `rem` skaluje się z czcionką KORZENIA, więc `minmax(15rem, …)` przy bazie
+ * 32 px żąda kolumny 480 px w oknie 320 px. To jest ta klasa błędu i dlatego
+ * mierzymy ją osobno, zamiast podnosić limit ustawienia w profilu.
+ *
+ * JAK TO MIERZYMY I DLACZEGO NIE PROŚCIEJ
+ *
+ * Prosta droga — `document.documentElement.style.fontSize = '32px'` — DAJE
+ * FAŁSZYWY WYNIK i tak właśnie zmierzył to najpierw audyt, a potem ja.
+ * Powód: w media query `rem` liczy się od POCZĄTKOWEGO rozmiaru pisma
+ * przeglądarki, nie od tego, co arkusz albo skrypt ustawi na `<html>`.
+ * Podmiana przez CSSOM podwaja więc tekst, ale zostawia progi tam, gdzie
+ * były. Zmierzone przy oknie 1280 px:
+ *
+ *     metoda                          korzeń   (min-width: 64rem)
+ *     bez zmian                        16 px   true
+ *     style.fontSize = '32px'          32 px   true    ← nieprawda
+ *     CDP Page.setFontSizes 32         32 px   false   ← tak jest naprawdę
+ *
+ * Pierwszy wariant bada układ DESKTOPOWY z podwojonym tekstem — stan, w
+ * którym żaden człowiek nie jest, bo przy prawdziwej czcionce 32 px próg
+ * 64rem to 2048 px i desktop się nie załapuje. Zgłaszał za to szynę boczną
+ * i awatar jako winnych przepełnienia przy 1280 px.
+ *
+ * Dlatego idziemy przez CDP `Page.setFontSizes`, czyli przez to samo pokrętło,
+ * które ma człowiek w ustawieniach przeglądarki. Obie własności — podwojony
+ * korzeń I nieaktywny próg 64rem — są sprawdzane w pętli; wariant, który
+ * mierzy nie to, co trzeba, kończy się błędem, a nie cichą zielenią.
+ *
+ * CZEGO TEN POMIAR NIE ZASTĘPUJE: natywnego zoomu przeglądarki (Ctrl +).
+ * Zoom skaluje cały layout razem z pikselami CSS, powiększenie samej czcionki
+ * — nie. To dwa różne mechanizmy i ten skrypt sprawdza drugi.
+ */
 
 /*
  * `skalaTekstu` ustawiamy atrybutem na <html>, tak samo jak robi to layout
@@ -288,31 +363,102 @@ async function podnies_serwer() {
     return { adres: process.env.ADRES, zamknij: () => {} };
   }
 
-const port = 8000 + Math.floor(Math.random() * 900);
-  const adres = `http://127.0.0.1:${port}`;
-
   log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
     stdio: 'ignore',
     env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
   });
 
-  const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
-    stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
-  });
+  // Trzy podejścia, za każdym razem inny port. Jedno by wystarczyło, gdyby
+  // port dało się zarezerwować — a nie da się: między zwolnieniem gniazda
+  // a startem PHP jest okno, w które może wejść inny proces.
+  const bledy = [];
 
-  // Czekamy na serwer zamiast zgadywać czas startu — na wolnej maszynie
-  // sztywne „sleep 2" daje losowo czerwony wynik, który wygląda jak regresja.
-  for (let i = 0; i < 60; i++) {
-    try {
-      const odp = await fetch(`${adres}/health`);
-      if (odp.ok) break;
-    } catch { /* jeszcze nie wstał */ }
-    await new Promise((r) => setTimeout(r, 500));
+  for (let podejscie = 1; podejscie <= 3; podejscie++) {
+    const port = await wolnyPort();
+    const adres = `http://127.0.0.1:${port}`;
+    const dziennik = [];
+
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
+    });
+
+    // Zbieramy wyjście serwera, żeby przy nieudanym starcie MIEĆ CO POKAZAĆ.
+    // Wcześniej stało tu `stdio: 'ignore'` i komunikat „Failed to listen on
+    // 127.0.0.1:8496 (reason: Address already in use)" szedł do kosza.
+    proces.stdout.on('data', (b) => dziennik.push(String(b)));
+    proces.stderr.on('data', (b) => dziennik.push(String(b)));
+
+    let umarl = null;
+    proces.on('exit', (kod) => { umarl = kod; });
+
+    // Czekamy na serwer zamiast zgadywać czas startu — na wolnej maszynie
+    // sztywne „sleep 2" daje losowo czerwony wynik, który wygląda jak regresja.
+    let wstal = false;
+
+    for (let i = 0; i < 60 && umarl === null; i++) {
+      try {
+        const odp = await fetch(`${adres}/health`);
+        if (odp.ok) { wstal = true; break; }
+      } catch { /* jeszcze nie wstał */ }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    if (wstal) {
+      return { adres, zamknij: () => proces.kill('SIGTERM') };
+    }
+
+    proces.kill('SIGKILL');
+
+    bledy.push(
+      `  podejście ${podejscie}, port ${port}: `
+      + (umarl !== null ? `proces zakończył się kodem ${umarl}` : 'brak odpowiedzi z /health przez 30 s')
+      + (dziennik.length > 0 ? `\n${dziennik.join('').trimEnd().split('\n').map((w) => `      ${w}`).join('\n')}` : ''),
+    );
   }
 
-  return { adres, zamknij: () => proces.kill('SIGTERM') };
+  // GŁOŚNO, nie po cichu. Do 9 września pętla po prostu kończyła się po
+  // trzydziestu sekundach i skrypt szedł dalej — a Playwright zgłaszał wtedy
+  // `net::ERR_CONNECTION_REFUSED at .../login`, czyli komunikat wskazujący
+  // na stronę logowania, a nie na to, że serwera nigdy nie było.
+  throw new Error(
+    'Nie udało się podnieść `php artisan serve` w trzech podejściach.\n'
+    + bledy.join('\n')
+    + '\n\nJeśli powodem jest zajęty port: na jednej maszynie stoją trzy runnery '
+    + 'i dwa joby mogą podnosić serwer równocześnie.',
+  );
+}
+
+/*
+ * Port, o którym system POTWIERDZIŁ, że jest wolny.
+ *
+ * Stało tu `8000 + Math.floor(Math.random() * 900)` — losowanie z dziewięciuset
+ * numerów, bez pytania kogokolwiek, czy port jest zajęty. Przy jednej maszynie
+ * i jednym biegu to działało. Runnery `kuking-wsl-DOM-NEW-01`, `-02` i `-03`
+ * stoją jednak na JEDNYM systemie, więc dwa joby losują z tej samej puli:
+ * przy dwóch równoczesnych biegach szansa kolizji to około 1 na 900 na parę,
+ * ale przy kilkunastu biegach dziennie trafia regularnie. Drugi `php artisan
+ * serve` nie może wtedy zająć portu, a skrypt szedł dalej i przewracał się
+ * dopiero na `page.goto` (zmierzone 9 września, PR #162, port 8496).
+ *
+ * Port 0 znaczy „daj mi jakikolwiek wolny" — decyduje jądro, nie losowanie.
+ * Zwalniamy gniazdo przed oddaniem numeru, więc zostaje okno, w które teoretycznie
+ * może wejść inny proces; dlatego wywołujący ponawia próbę na innym porcie,
+ * zamiast zakładać, że raz wystarczy.
+ */
+async function wolnyPort() {
+  const { createServer } = await import('node:net');
+
+  return new Promise((resolve, reject) => {
+    const gniazdo = createServer();
+    gniazdo.unref();
+    gniazdo.on('error', reject);
+    gniazdo.listen(0, '127.0.0.1', () => {
+      const { port } = gniazdo.address();
+      gniazdo.close(() => resolve(port));
+    });
+  });
 }
 
 /*
@@ -821,7 +967,7 @@ log('Układ (przewijanie w bok):');
 
 for (const szerokosc of SZEROKOSCI_UKLADU) {
   for (const skala of SKALE_UKLADU) {
-    const opis = `${szerokosc} px${skala ? ` / tekst ${skala}%` : ''}`;
+    const opis = `${szerokosc} px${etykietaSkali(skala)}`;
 
     const kontekstGoscia = await przegladarka.newContext({
       viewport: { width: szerokosc, height: 740 },
@@ -845,6 +991,16 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
       const kontekst = ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia;
       const strona = await kontekst.newPage();
 
+      if (skala === PRZEGLADARKA_200) {
+        // PRZED nawigacją, bo to ma być stan przeglądarki zastany przez
+        // stronę, a nie zmiana doklejona po jej ułożeniu.
+        const cdp = await kontekst.newCDPSession(strona);
+
+        await cdp.send('Page.setFontSizes', {
+          fontSizes: { standard: 2 * BAZOWA_CZCIONKA_PX, fixed: 2 * BAZOWA_CZCIONKA_PX },
+        });
+      }
+
       const odpowiedzUkladu = await strona.goto(
         sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
         { waitUntil: 'domcontentloaded' },
@@ -864,7 +1020,39 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         continue;
       }
 
-      if (skala) {
+      if (skala === PRZEGLADARKA_200) {
+        // KONTROLA METODY POMIARU, nie ozdoba. Sprawdzamy OBIE własności,
+        // bo to one odróżniają prawdziwą zmianę czcionki od jej podróbki
+        // (uzasadnienie w komentarzu przy PRZEGLADARKA_200 na górze pliku).
+        const stan = await strona.evaluate(() => ({
+          korzen: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+          desktop: matchMedia('(min-width: 64rem)').matches,
+        }));
+
+        if (stan.korzen < 2 * BAZOWA_CZCIONKA_PX) {
+          console.error(
+            `BŁĄD: czcionka korzenia to ${stan.korzen} px zamiast `
+            + `${2 * BAZOWA_CZCIONKA_PX} px na ekranie „${ekran.nazwa}". `
+            + 'Bez tego wariant przechodziłby na zielono, nie mierząc niczego.',
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+
+        if (stan.desktop) {
+          console.error(
+            `BŁĄD: przy podwojonej czcionce próg 64rem nadal się załapał na `
+            + `ekranie „${ekran.nazwa}" (okno ${szerokosc} px). To znaczy, że `
+            + 'zmiana nie dotknęła bazy media queries — mierzylibyśmy układ '
+            + 'desktopowy z podwojonym tekstem, czyli stan, w którym żaden '
+            + 'człowiek nie jest.',
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+      } else if (skala) {
         await strona.evaluate(
           (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
           skala,

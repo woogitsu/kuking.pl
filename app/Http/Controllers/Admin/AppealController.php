@@ -61,7 +61,20 @@ class AppealController extends Controller
                 // Otwarte najstarsze na górze: termin odpowiedzi liczy się od
                 // złożenia, więc kolejność „najnowsze pierwsze" gwarantowałaby,
                 // że przeterminowane leżą najgłębiej i nikt ich nie widzi.
+                //
+                // Drugi warunek rozstrzyga REMIS na sekundzie (audyt G10). Bez
+                // niego PostgreSQL oddaje takie wiersze w porządku fizycznym
+                // w stercie, a ten przestawia każdy UPDATE — przy stronicowaniu
+                // po 25 znaczy to inny podział na strony między jednym
+                // kliknięciem a drugim, czyli odwołanie pokazane dwa razy albo
+                // pominięte. Tu boli podwójnie, bo odwołanie ma termin
+                // (DSA art. 20) i pominięte nie zgłosi się samo.
+                //
+                // `id` jest UUID-em v7, więc rozstrzyga w tę samą stronę co
+                // czas: starsze wyżej. Kolejność par o różnym `created_at`
+                // zostaje bez zmian.
                 ->orderBy('created_at')
+                ->orderBy('id')
                 ->paginate(25)
                 ->withQueryString(),
             'counts' => [

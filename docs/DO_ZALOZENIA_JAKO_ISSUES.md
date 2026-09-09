@@ -1,103 +1,95 @@
-# Znaleziska czekające na założenie jako issues
+# Znaleziska z przeglądu cudzych repozytoriów — WSZYSTKIE ZROBIONE
 
-Ten plik istnieje, bo limit API GitHuba wyczerpał się w trakcie pracy.
-Każda pozycja jest gotowa do przeklejenia jako issue.
-**Po założeniu issue — usuń pozycję stąd.**
+Ten plik powstał, bo limit API GitHuba wyczerpał się w trakcie pracy i sześć
+znalezisk trzeba było gdzieś odłożyć. Napis na górze brzmiał: „Każda pozycja
+jest gotowa do przeklejenia jako issue. Po założeniu issue — usuń pozycję
+stąd."
 
----
+**Żadnej z nich nie trzeba już zakładać.** Wszystkie sześć zostało w
+międzyczasie zaimplementowanych, a plik został z listą do zrobienia —
+czyli mówił następnej osobie, żeby zbudowała to, co już działa (audyt
+zewnętrzny, pozycja G15).
 
-## 1. Zbanowane konto działa do końca sesji · P0 · bezpieczeństwo
+Nie kasuję tego dokumentu, bo sam przegląd był trafiony: sześć na sześć
+znalezisk okazało się prawdziwymi brakami i wszystkie zostały zamknięte.
+To jest wynik warty zapamiętania przy następnym przeglądzie cudzych repo.
 
-`User::ban()` i `suspend()` zmieniają `status`, ale **nie unieważniają sesji**.
-`isActive()` jest sprawdzane przy logowaniu i w części Policies, ale nie przy
-każdym żądaniu.
-
-**Skutek:** osoba zbanowana za nękanie działa dalej, dopóki nie wyloguje się
-sama. Przy `SESSION_LIFETIME=10080` (7 dni) to jest tydzień.
-
-**Do zrobienia:**
-
-- [ ] Middleware sprawdzający `status` przy **każdym** żądaniu uwierzytelnionym
-- [ ] `banned` i `pending_delete` → natychmiastowe wylogowanie z komunikatem
-- [ ] `suspended` → dostęp tylko do odczytu i do ścieżki odwoławczej (#10)
-- [ ] `ban()` i `suspend()` kasują istniejące sesje użytkownika z tabeli `sessions`
-- [ ] Test: zbanowanie w trakcie aktywnej sesji odcina przy następnym żądaniu
-
-Źródło: `docs/research/repos/discourse-discourse.md`
+Zamiast listy „do zrobienia" stoi tu teraz **wynik weryfikacji**: gdzie
+mieszka każde zabezpieczenie i co go pilnuje. Zgodność tej tabeli z kodem
+sprawdza `tests/Feature/BacklogNieProponujeIstniejacychZabezpieczenTest`.
 
 ---
 
-## 2. Kara bez terminu wygaśnięcia jest karą dożywotnią · P0 · moderacja
+## Wynik weryfikacji — stan na 9 września 2026
 
-`docs/legal/MODERATION_PLAYBOOK.md` przewiduje blokady czasowe („7 dni"),
-ale w bazie nie ma gdzie zapisać, kiedy kara mija. Przy jednym moderatorze
-nikt tego nie odklika ręcznie — czyli każda blokada czasowa staje się trwała.
+### 1. Zbanowane konto działa do końca sesji · było P0 · ZROBIONE
 
-**Do zrobienia:**
+Sesje są unieważniane w momencie zmiany statusu, nie przy następnym
+logowaniu.
 
-- [ ] Kolumna `users.status_expires_at`
-- [ ] Zadanie w harmonogramie przywracające `active` po terminie
-- [ ] Panel moderacji: wybór długości kary zamiast samego „zawieś"
-- [ ] Użytkownik widzi datę końca kary, nie tylko fakt
-- [ ] Test: konto wraca do `active` po upływie terminu
+- `App\Models\User::invalidateSessions()` — czyści wiersze w tabeli
+  `sessions` bezpośrednio, bo unieważnia sesje CUDZE. Wołane przy
+  zmianie statusu konta.
+- `App\Http\Middleware\EnsureAccountIsActive` — sprawdza status przy
+  **każdym** uwierzytelnionym żądaniu, nie tylko przy logowaniu.
+  Konto zawieszone dostaje dostęp do odczytu i do ścieżki odwoławczej.
+- Pilnuje: `tests/Feature/AccountStatusTest`.
 
-Trzy niezależne projekty (Discourse, Pixelfed, Fresns) trzymają to jako datę.
-Źródło: `docs/research/repos/discourse-discourse.md`
+### 2. Kara bez terminu wygaśnięcia · było P0 · ZROBIONE
+
+- Kolumna `users.status_expires_at`, migracja
+  `2026_09_05_001400_add_status_expires_at_to_users`.
+- `App\Console\Commands\RestoreExpiredSuspensions` — przywraca `active`
+  po upływie terminu, z harmonogramu.
+- Opis kolumny i retencji: `docs/DATABASE.md`.
+
+### 3. Macierz widoczności: każdy stan × każdy typ obserwatora · było P1 · ZROBIONE
+
+To była najcenniejsza pozycja z całej szóstki i wyrosła w osobny katalog.
+
+- `tests/Feature/Visibility/WidocznoscTestCase` — klasa bazowa
+  z **kanoniczną tabelą prawdy** widoczności. Nie może istnieć druga.
+- Zastosowana w dziesięciu plikach: wpis, przepis, wykonanie, komentarz,
+  zeszyt, profil, galeria, tryb gotowania, „komuś wyszło", szukajka.
+- Stąd korzysta też `ZdjeciaChronioneNieWyciekajaTest` — zdjęcie nie ma
+  własnej widoczności, ma widoczność treści, do której jest przypięte.
+
+### 4. Lista zastrzeżonych nazw użytkownika · było P1 · ZROBIONE
+
+- Lista: `config/kuking.php`, klucz `account.reserved_usernames`.
+- Walidacja: `App\Rules\ReservedUsername`, przy rejestracji i przy zmianie
+  nazwy w ustawieniach.
+- Komunikat brzmi dokładnie tak, jak proponowała ta pozycja:
+  „Ta nazwa jest zarezerwowana. Wybierz inną."
+- Pilnuje: `tests/Feature/ZastrzezoneNazwyTest`.
+
+### 5. `recipe_ingredients.no_amount` · było P2 · ZROBIONE
+
+- Migracja `2026_09_06_130000_add_no_amount_to_recipe_ingredients`, plus
+  CHECK `recipe_ingredients_no_amount_check` — składnik „bez ilości" nie
+  może mieć jednocześnie liczby.
+- Obsługa: `App\Models\RecipeIngredient`, `App\Domain\Recipes\Actions\PublishRecipe`.
+- Pilnuje: `tests/Feature/SkladnikBezIlosciTest`.
+
+Skalowanie porcji jest dalej w V2 — ale kolumna, która miała „wejść przy
+najbliższej migracji na tej tabeli", weszła.
+
+### 6. Brakujące ograniczenia `UNIQUE` · było P1 · ZROBIONE
+
+Wszystkie trzy, choć dwa inaczej, niż zakładała ta pozycja:
+
+| Co miało być | Co jest |
+|---|---|
+| ten sam przepis dwa razy w zeszycie | `collection_items_recipe_unique` — indeks **częściowy**, `WHERE recipe_id IS NOT NULL`. Zeszyt przyjmuje też wpisy, więc `recipe_id` bywa NULL i zwykły `UNIQUE` by nie wystarczył. Osobno `collection_items_post_unique`. Szczegóły i **ostrzeżenie, żeby nie przywracać tam klucza głównego**: `docs/DATABASE.md`. |
+| dwa zeszyty „Na święta" u jednej osoby | `collections_owner_name_lower_unique` — indeks **funkcyjny** na `(owner_id, lower(name))`, bo dla człowieka „Obiady" i „obiady" to ta sama nazwa. |
+| `post_media` na samej parze | `post_media_pkey (post_id, media_id)` — było od migracji zakładającej tabelę; ta pozycja opisywała stan nieaktualny już w chwili pisania. |
+
+Pilnuje: `tests/Feature/UnikalnoscZeszytowTest`.
 
 ---
 
-## 3. Brakuje testów widoczności: każdy stan × każdy typ obserwatora · P1 · testy
+## Czego ten plik NIE zawiera
 
-Najcenniejsza brakująca klasa testów. Wyciek prywatnej treści **nie wywala
-testu** — cicho pokazuje za dużo, więc zwykłe testy tego nie łapią.
-
-**Do zrobienia:**
-
-- [ ] Klasa bazowa generująca macierz: `public` / `followers` / `private`
-      × autor / obserwujący / obcy / zablokowany / niezalogowany
-- [ ] Zastosowana do `Post`, `Recipe`, `CookedEvent`, `Collection`, `Comment`
-- [ ] Osobno dla widoku, listy i wyszukiwarki — treść może wyciec przez każdą z trzech dróg
-
-Źródło: `docs/research/repos/laravelio-laravel.io.md`
-
----
-
-## 4. Lista zastrzeżonych nazw użytkownika · P1 · bezpieczeństwo
-
-Dziś `basia_z_podkarpacia` i `moderacja` są tak samo dostępne. Konto o nazwie
-sugerującej obsługę serwisu to gotowe narzędzie phishingu — a nasza grupa
-jest na to szczególnie podatna.
-
-**Do zrobienia:**
-
-- [ ] Lista zastrzeżonych: `admin`, `administrator`, `moderacja`, `moderator`,
-      `kuking`, `pomoc`, `support`, `obsluga`, `kontakt`, `zespol`, `oficjalne`,
-      `redakcja`, `bezpieczenstwo`, `platnosci`
-- [ ] Walidacja przy rejestracji i przy zmianie nazwy w ustawieniach
-- [ ] Komunikat: „Ta nazwa jest zarezerwowana. Wybierz inną."
-- [ ] Test dla każdej nazwy z listy
-
-Źródło: `docs/research/repos/pixelfed-pixelfed.md`
-
----
-
-## 5. `recipe_ingredients.no_amount` · P2 · model danych
-
-Skalowania porcji (V2) nie wolno stosować do „soli do smaku" ani do
-„mleka — ile weźmie". Bez flagi przepis skalowany ×3 poprosi o trzy szczypty
-soli, co jest śmieszne, i o trzy razy „ile weźmie", co jest bez sensu.
-
-Tanie teraz, drogie później — kolumna wchodzi przy najbliższej migracji
-na tej tabeli.
-
-Źródło: `docs/research/repos/TandoorRecipes-recipes.md`
-
----
-
-## 6. Brakujące ograniczenia `UNIQUE` · P1 · model danych
-
-- [ ] `collection_items` — ten sam przepis dwa razy w jednym zeszycie
-- [ ] nazwy zeszytów w obrębie właściciela — dwa zeszyty „Na święta"
-- [ ] `post_media` ma już `UNIQUE (post_id, position)`, ale nie na samej parze
-
-Źródło: `docs/research/repos/mealie-recipes-mealie.md`
+Otwartych zadań. Jeśli szukasz, co robić dalej — `docs/ROADMAP.md` i lista
+issues na GitHubie. Jeśli szukasz nierozwiązanych znalezisk z audytu —
+`docs/AUDYT_GPT_2026-09.md` i `docs/AUDYT_2026-09.md`.

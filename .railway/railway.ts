@@ -518,7 +518,45 @@ export default defineRailway((ctx) => {
       //  Pre-deploy działa w OSOBNYM kontenerze bez zamontowanych volume'ów —
       //  dla nas bez znaczenia, bo volume'ów nie używamy (zdjęcia w R2).
       // -----------------------------------------------------------------------
-      preDeployCommand: ["php artisan migrate --force --no-interaction"],
+      //  DRUGA KOMENDA: `db:seed`, i to NIE jest pomyłka.
+      //
+      //  D-025 mówi wprost, że treść zalążkowa ma wejść na produkcję —
+      //  pierwsza zaproszona osoba trafiała na pusty feed, a właściciel,
+      //  zapytany, odpowiedział „tak, ale jawnie oznaczone". Kod był gotowy
+      //  8 września (`TrescZalazkowaSeeder`: 12 kont, 39 przepisów, 80 wpisów,
+      //  60 komentarzy, każde konto z `users.is_seeded` i widoczną odznaką
+      //  „konto przykładowe"). Wjechał na produkcję i NIC SIĘ NIE STAŁO:
+      //  ani ta lista, ani `docker/entrypoint.sh` nie wołały `db:seed`
+      //  w żadnym miejscu. Sprawdzone 9 września na żywej stronie —
+      //  `/odkryj` nie pokazywał ani jednej odznaki „konto przykładowe".
+      //
+      //  Klasyczna usterka ostatniego metra: decyzja podjęta, kod napisany,
+      //  testy zielone, a funkcji nie ma, bo nikt jej nie uruchomił.
+      //
+      //  DLACZEGO TO JEST BEZPIECZNE NA PRODUKCJI — trzy niezależne powody,
+      //  każdy sprawdzalny w kodzie, żaden nie jest deklaracją:
+      //    * `DatabaseSeeder` odcina `DemoSeeder` warunkiem
+      //      `if (! app()->environment('production'))` — dane demo nie mają
+      //      jak tędy wejść;
+      //    * `TrescZalazkowaSeeder` jest idempotentny po naturalnym kluczu:
+      //      drugie i kolejne uruchomienie nie tworzy niczego drugi raz
+      //      (`TrescZalazkowaSeederTest::test_drugi_przebieg_nic_nie_zmienia`);
+      //    * nazwa użytkownika zajęta przez PRAWDZIWEGO człowieka (konto bez
+      //      `is_seeded`) nie jest ruszana — import tego konta jest pomijany
+      //      i zgłaszany. `TagPromotionSeeder` działa tylko na pustej liście,
+      //      więc nie przywróci tagu, który gospodarz zdjął w panelu.
+      //
+      //  Kolejność ma znaczenie: `migrate` przed `db:seed`, bo seeder pisze do
+      //  kolumn, które dokłada migracja. Niezerowy exit zatrzymuje deploy, więc
+      //  nieudany seed nie wypuści kodu, który na tej treści polega.
+      //
+      //  Pilnuje tego `WdrozenieUruchamiaTrescZalazkowaTest` — razem
+      //  z kolejnością komend i z tym, że seed na produkcji nie wwozi danych
+      //  demo.
+      preDeployCommand: [
+        "php artisan migrate --force --no-interaction",
+        "php artisan db:seed --force --no-interaction",
+      ],
 
       // -----------------------------------------------------------------------
       //  HEALTHCHECK — warunek zero-downtime deploy.
