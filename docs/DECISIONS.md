@@ -2492,7 +2492,8 @@ nazwaną, zapisaną dziurą w regule, nie furtką.
   **8 px**, górny kraniec przedziału 5–8 px, który podał właściciel: to
   najczytelniejszy wybór z tego, o co poprosił.
 - `.site-footer-motyw` / `.site-footer-motyw-przycisk` (przełącznik
-  motywu w stopce) — **sama ikona `<x-ikona nazwa="settings" />`, bez
+  motywu w stopce) — **sama ikona (`ksiezyc` przy jasnym motywie, `slonce`
+  przy ciemnym — patrz „IKONA WŁASNA, NIE POŻYCZONA" niżej), bez
   widocznego napisu obok**.
 
 Nigdzie indziej. W szczególności: nawigacja mobilna, przyciski akcji,
@@ -2529,6 +2530,32 @@ Cztery rzeczy nie są częścią tego kompromisu i zostały utrzymane wprost:
    dotyk) niedostępna w ogóle (`docs/UX_50_PLUS.md`). `.site-version`
    nie ma `display: none`, `hidden` ani odpowiednika schowanego za
    interakcją; stoi w HTML-u i na ekranie tak samo, jak dziś.
+
+### IKONA WŁASNA, NIE POŻYCZONA
+
+Pierwsza wersja tego wpisu i tego PR-a używała do przełącznika istniejącej
+ikony `settings` (zębatka) jako „najbliższego sensownego zamiennika" — zestaw
+`<x-ikona>` nie miał wtedy księżyca ani słońca. To był błąd, złapany przy
+przeglądzie: `settings` to DOKŁADNIE ten sam kształt, którym w menu bocznym
+oznaczona jest pozycja „Ustawienia" (`route('settings.*')`,
+`resources/views/components/layout.blade.php`). Po zmianie w serwisie
+istniałyby więc dwa różne przyciski o tym samym kształcie.
+
+Przy zwykłym przycisku z podpisem dwie różne rzeczy pod tym samym kształtem
+dałoby się wybaczyć — podpis rozstrzyga. Ale przełącznik motywu z tego
+wpisu jest z definicji BEZ widocznego podpisu (punkt 2 wyżej), więc kształt
+jest jedyną wskazówką, co przycisk robi. Pożyczony kształt zamieniał więc
+oszczędność miejsca w gotową pomyłkę do kliknięcia — dokładnie tego typu
+usterkę, przed którą ostrzega `docs/UX_50_PLUS.md`.
+
+Naprawa: `resources/views/components/ikona.blade.php` dostał dwa nowe,
+własne kształty — `ksiezyc` i `slonce`, tym samym stylem co reszta zestawu
+(sam obrys, `stroke-width: 1.8`, bez wypełnień, ten sam `viewBox`). Ikona
+pokazuje WYNIK kliknięcia, spójnie z tekstem, który już tam jest: jasny
+motyw → napis „Włącz ciemny wygląd" → `ksiezyc`; ciemny motyw → napis
+„Włącz jasny wygląd" → `slonce`. `WyborMotywuTest` sprawdza, że kształt
+zmienia się razem z motywem, żeby ta sama pomyłka (jeden kształt na oba
+stany) nie wróciła po cichu.
 
 ### DLACZEGO NIE „NAJMNIEJSZY TOKEN" (`--text-meta`, 15 px)
 

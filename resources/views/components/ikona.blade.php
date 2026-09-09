@@ -42,6 +42,16 @@
         'chat' => '<path d="M21 11.5a8.5 8.5 0 0 1-9 8.5 10 10 0 0 1-4-.9L3 21l1.8-4A8 8 0 1 1 21 11.5Z"/>',
         'save' => '<path d="M6 3h12v18l-6-4-6 4z"/>',
         'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/>',
+        // Przełącznik motywu w stopce (docs/DECISIONS.md, D-051). Dokładany
+        // NIE z estetyki — `settings` (zębatka) już znaczy w serwisie coś
+        // innego: to ta sama ikona, co pozycja „Ustawienia" w menu bocznym.
+        // Przy zwykłym przycisku z podpisem dwie różne rzeczy pod tym samym
+        // kształtem dałoby się wybaczyć; przy przełączniku BEZ widocznego
+        // napisu (D-051) kształt jest jedyną wskazówką, co przycisk robi —
+        // a „Ustawienia" i „zmień wygląd" to różne akcje. Stąd własny,
+        // jednoznaczny kształt zamiast pożyczonego.
+        'ksiezyc' => '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+        'slonce' => '<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12h2.5M19 12h2.5M4.2 19.8l1.8-1.8M18 6l1.8-1.8"/>',
         'users' => '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6M15 15c3.5 0 5 1.7 5.5 5"/>',
         'chef' => '<path d="M7 10a4 4 0 1 1 1-7 4.5 4.5 0 0 1 8 0 4 4 0 1 1 1 7v7H7z"/><path d="M7 14h10M9 20h6"/>',
         'image' => '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m5 18 5-5 3 3 2-2 4 4"/>',

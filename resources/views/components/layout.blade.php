@@ -568,16 +568,28 @@
                              to, co zajmowało miejsce, było napisem obok
                              ikony, nie wymiarem samego przycisku.
 
-                        Ikona `settings` (zębatka): w zestawie `<x-ikona>`
-                        NIE MA księżyca/słońca — sprawdzone w
-                        resources/views/components/ikona.blade.php, cały
-                        zestaw kształtów wypisany na górze tego pliku.
-                        `settings` jest najbliższym sensownym zamiennikiem
-                        (przełącznik wyglądu to w istocie ustawienie
-                        wizualne strony), nie nowym kształtem — dopisywanie
-                        nowego SVG (sierp księżyca/słońce) wykraczałoby poza
-                        wąski zakres tego PR-a i zostaje do rozważenia
-                        osobno.
+                        IKONA POKAZUJE WYNIK KLIKNIĘCIA, SPÓJNIE Z TEKSTEM.
+                        Jasny motyw → napis „Włącz ciemny wygląd" → ikona
+                        `ksiezyc`. Ciemny motyw → napis „Włącz jasny wygląd"
+                        → ikona `slonce`. Nie odwrotnie: kształt ma pokazywać
+                        DOKĄD prowadzi kliknięcie, tak samo jak dziś robi to
+                        napis, nie stan bieżący.
+
+                        DWA NOWE KSZTAŁTY W `<x-ikona>`, NIE `settings`
+                        (zębatka). Pierwsza wersja tego PR-a użyła `settings`
+                        jako „najbliższego sensownego zamiennika", bo zestaw
+                        nie miał księżyca/słońca. To był błąd: `settings` to
+                        DOKŁADNIE ta sama zębatka, co pozycja „Ustawienia"
+                        w menu bocznym (patrz `<li>` z `route('settings.*')`
+                        wyżej w tym pliku) — czyli po zmianie w serwisie
+                        byłyby dwa różne przyciski o tym samym kształcie.
+                        Przy zwykłym przycisku z napisem dałoby się to
+                        wybaczyć; przy przełączniku BEZ widocznego napisu
+                        (patrz wyżej) kształt jest JEDYNĄ wskazówką, co
+                        przycisk robi — więc pożyczony kształt jest zwykłą
+                        pomyłką do kliknięcia, nie oszczędnością. Stąd
+                        `ksiezyc` i `slonce` jako osobne, jednoznaczne
+                        kształty w `ikona.blade.php`.
 
                         `redirect_to` NIE istnieje: `back()`
                         w ThemeController czyta nagłówek `Referer`, tak samo
@@ -590,6 +602,7 @@
                         <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
                         @php
                             $motywEtykieta = $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd';
+                            $motywIkona = $theme === 'dark' ? 'slonce' : 'ksiezyc';
                         @endphp
                         <button
                             class="btn btn-quiet site-footer-motyw-przycisk"
@@ -597,7 +610,7 @@
                             aria-label="{{ $motywEtykieta }}"
                             title="{{ $motywEtykieta }}"
                         >
-                            <x-ikona nazwa="settings" />
+                            <x-ikona :nazwa="$motywIkona" />
                         </button>
                     </form>
 
