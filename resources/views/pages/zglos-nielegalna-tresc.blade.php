@@ -41,6 +41,12 @@
             <strong>Zgłoś</strong> pod samą treścią. Ta droga jest szybsza,
             ale wymaga zalogowania.
         </p>
+        <p>
+            A jeśli chodzi o coś zupełnie innego — coś w Kuking nie działa,
+            masz pomysł albo chcesz nam po prostu coś powiedzieć —
+            <a href="{{ route('kontakt') }}">napisz do nas</a>. Tamta droga nie
+            kończy się decyzją moderatora; to zwykła rozmowa.
+        </p>
         <p class="mb-0">
             Nie wiesz, którą wybrać? Wypełnij ten formularz. Przeczytamy każde
             zgłoszenie tak samo uważnie.

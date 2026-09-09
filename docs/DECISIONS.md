@@ -2000,7 +2000,20 @@ to pytanie zostaje otwarte dla prawnika i jego odpowiedź może dołożyć wymog
 ## D-043 · Kopia poza Railwayem robi osobny serwis Railway, nie scheduler aplikacji
 
 **Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**,
-wykonanie zablokowane przez #120 (bramka R2)
+**wykonanie PILNE** (patrz sprostowanie niżej)
+
+> **SPROSTOWANIE Z TEGO SAMEGO DNIA — CZYTAJ RAZEM Z WPISEM.**
+> Pierwsza wersja tego wpisu nazywała zrzut offsite „trzecią warstwą" i pisała,
+> że do jego powstania chronią nas Volume Backups i PITR w Railwayu. **To była
+> nieprawda.** Właściciel sprawdził panel: **Volume Backups i PITR są dostępne
+> wyłącznie w planie Pro**, a Kuking jest na Free i przechodzi na Hobby.
+>
+> Nie ma więc trzech warstw ani dwóch. **Jest zero.** Zrzut z #193 nie jest
+> ostatnią linią obrony — jest jedyną, i przestaje być pracą „po R2".
+>
+> Sam kierunek decyzji zostaje bez zmian i jest teraz jeszcze mocniejszy:
+> osobny serwis, bo w kontenerze aplikacji `proc_open` jest zablokowany;
+> nie GitHub Actions, bo poświadczenie do bazy nie ma opuszczać Railwaya.
 
 > **Rozstrzyga sprzeczność w istniejącym planie, nie dokłada nowej warstwy.**
 > `docs/infra/INFRA_DECISION.md` §10 zakładał trzy warstwy kopii i trzeciej —
@@ -2043,9 +2056,18 @@ jest gorszy niż jego brak, bo daje fałszywe poczucie bezpieczeństwa), oraz
 `KOPIE_I_ODTWORZENIE.md` §5. Zrzut, którego nikt nigdy nie odtworzył, nie
 jest kopią — to plik, o którym się zakłada, że jest kopią.
 
-**CO CHRONI NAS DO TEGO CZASU.** Volume Backups (Daily + Weekly) i PITR
-w Railwayu — pod warunkiem, że są **włączone**, co jest pytaniem do panelu,
-nie do repozytorium (`KOPIE_I_ODTWORZENIE.md` §2.3, pytania 1 i 2).
+**CO CHRONI NAS DO TEGO CZASU — NIC.** Tak brzmi poprawna odpowiedź po
+sprawdzeniu panelu. Volume Backups i PITR to funkcje planu Pro; na Free
+i Hobby ich nie ma. Pytania 1 i 2 z `KOPIE_I_ODTWORZENIE.md` §2.3
+(„czy backupy są włączone", „od kiedy liczy się okno PITR") są **bezprzedmiotowe
+przy obecnym planie** i trzeba je tam przeformułować.
+
+**CO Z TEGO WYNIKA DLA KOLEJNOŚCI.** `docs/OTWARCIE.md` stawia etap 0 (kopia
+i ćwiczenie odtworzenia) przed wszystkim innym i to zostaje — ale etap 0 nie
+sprowadza się już do przeklikania dwóch przełączników. Wymaga wykonania #193,
+a #193 potrzebuje miejsca do lądowania zrzutu, czyli bucketu z #120.
+**R2 ma darmowy pułap 10 GB**, więc pieniądze nie są tu przeszkodą — przeszkodą
+jest tylko to, że bucket jeszcze nie istnieje.
 
 📄 `docs/infra/INFRA_DECISION.md` §10 · `docs/infra/KOPIE_I_ODTWORZENIE.md`
 §2.1, §2.3, §5 · `docs/OTWARCIE.md` etap 0 · `docker/php.ini` ·
@@ -2124,6 +2146,148 @@ Messenger).
 `resources/views/components/podziel-sie.blade.php` ·
 `resources/js/app.js` · `tests/Feature/PodzielSieTest.php` ·
 `docs/FEATURES.md`
+
+---
+
+## D-045 · „Napisz do nas" to strona pod własnym adresem, nie dymek w rogu
+
+**Data:** 9 września 2026 · Status: **obowiązuje**
+
+Kontakt z operatorem serwisu ma jedną drogę podstawową: **zwykłą stronę
+`/napisz-do-nas`**, renderowaną serwerowo, wysyłaną POST-em, z odnośnikiem
+w stopce każdej strony i w nawigacji bocznej zalogowanego. Wiadomość zapisuje
+się w tabeli `contact_messages`, a operator obsługuje ją na osobnym ekranie
+`/admin/wiadomosci`.
+
+**DLACZEGO NIE DYMEK PRZYKLEJONY DO ROGU EKRANU.** Dymek jest łatwiejszy do
+znalezienia dokładnie o tyle, o ile zasłania treść. Dwa powody, oba
+zmierzone gdzie indziej w tym repozytorium:
+
+1. **Bez skryptu się nie otwiera.** AGENTS.md §5: ważne funkcje działają bez
+   JavaScriptu. Człowiek, który pisze „coś nie działa", jest bardzo często
+   tym samym człowiekiem, do którego nie dociągnął się skrypt — dymek byłby
+   wtedy przyciskiem, który nic nie robi po kliknięciu. To ta sama decyzja,
+   co przy menu pod awatarem w `layout.blade.php`.
+2. **Element o stałej pozycji zasłania i rozpycha.** WCAG 1.4.10 (Reflow)
+   i 2.4.11 (Focus Not Obscured) — przy 320 px i przy czcionce przeglądarki
+   podkręconej do 200% element w rogu zabiera największą część ekranu
+   i potrafi zakryć właśnie sfokusowany przycisk. Issues #80 i #162 w tym
+   repozytorium dotyczyły dokładnie tej klasy usterki i oba zaczęły się od
+   elementu, który „tylko trochę" wystawał poza ekran.
+
+Dymek albo panel wolno kiedyś dołożyć, ale **wyłącznie jako skrót do tego
+adresu**, nigdy zamiast niego — i dopiero po przebiegu
+`scripts/dostepnosc.mjs`, który mierzy `/napisz-do-nas` przy 320 px i przy
+czcionce 200%.
+
+**PISAĆ MOŻE KAŻDY, TAKŻE BEZ KONTA.** Najczęstsze zdanie, jakie ludzie mają
+nam do powiedzenia na starcie, brzmi „nie mogę się zalogować" albo „nie udało
+mi się założyć konta". Formularz za logowaniem wykluczałby dokładnie te
+osoby, dla których w pierwszej kolejności istnieje. Ochroną jest limit
+zapytań (`kuking.limits.kontakt`, pięć na godzinę), nie konto — ta sama
+konstrukcja, co przy publicznej drodze z DSA art. 16, tylko z luźniejszym
+progiem, bo tu nadużycie kosztuje wiersz w tabeli, a nie sprawę z terminem
+odpowiedzi.
+
+**TO NIE JEST ZGŁASZANIE TREŚCI I NIE WOLNO TEGO ZLEWAĆ.** Trzy drogi, trzy
+kolejki, trzy różne obowiązki:
+
+| Droga | Czego dotyczy | Czym się kończy |
+|---|---|---|
+| „Zgłoś" pod treścią (`reports`, `community`) | cudzy wpis łamiący nasze zasady | decyzja moderatora, prawo do odwołania |
+| `/zglos-nielegalna-tresc` (`reports`, `legal_notice`) | treść niezgodna z prawem (DSA art. 16) | decyzja z pouczeniem o środkach odwoławczych |
+| `/napisz-do-nas` (`contact_messages`) | działanie serwisu | odpowiedź człowieka albo poprawka w kodzie |
+
+Rozdział jest zrobiony w schemacie (osobna tabela), w panelu (osobny ekran)
+i na obu formularzach (blok „Chodzi o czyjś wpis?" z linkami w obie strony).
+Rodzaje wiadomości (`blad`, `pomysl`, `inne`) są świadomie rozłączne
+z `Report::REASONS` — gdyby na formularzu technicznym stało „Mowa
+nienawiści", ludzie zgłaszaliby tędy sąsiada.
+
+**RETENCJA: 12 MIESIĘCY OD ZAŁATWIENIA**
+(`kuking.kontakt.retention_months`), nie od napisania, i **nigdy** dla
+wiadomości jeszcze niezałatwionej. Krócej niż 36 miesięcy spraw
+moderacyjnych, bo tamten okres broni się tym, że sprawa może wrócić jako
+spór prawny — tutaj nie ma decyzji, od której da się odwołać. Dłużej niż
+3 miesiące powiadomień, bo pomysł zgłoszony w marcu bywa wdrażany jesienią
+i trzeba wtedy wiedzieć, komu odpisać.
+
+**WEBHOOK OPERATORA NIESIE DZWONEK, NIE TREŚĆ.** Po zapisie idzie na kanał
+`blad_webhook` (D-041) jedno zdanie: rodzaj z zamkniętej listy,
+identyfikator wiersza i adres ekranu w panelu. Treść wiadomości, adres
+e-mail i adres strony **nie wychodzą stąd nigdy** — to jest ta sama lista
+dozwolonych pól, którą wprowadził audyt A6-01, i pilnuje jej
+`tests/Feature/WiadomoscNaWebhookuBezDanychOsobowychTest.php`.
+
+**CO ZOSTAJE DO ROZSTRZYGNIĘCIA WŁAŚCICIELOWI.** Czy na potwierdzenie
+odbioru ma iść e-mail (dziś jest wyłącznie potwierdzenie NA EKRANIE, bo
+serwis nie ma jeszcze dostawcy poczty — D-040) i czy 12 miesięcy retencji to
+właściwa liczba.
+
+**Zmiana wymaga:** decyzji właściciela — dymek/panel wolno dołożyć tylko jako
+skrót do tego adresu i tylko z pomiarem dostępności w ręku.
+
+📄 `routes/web.php` · `app/Http/Controllers/NapiszDoNasController.php` ·
+`app/Domain/Contact/` · `app/Models/ContactMessage.php` ·
+`app/Policies/ContactMessagePolicy.php` ·
+`database/migrations/2026_09_09_100000_create_contact_messages_table.php` ·
+`config/kuking.php` (`limits.kontakt`, `kontakt.retention_months`) ·
+`docs/DATABASE.md` (`contact_messages`) ·
+`resources/legal/polityka-prywatnosci.md` §2 · `scripts/dostepnosc.mjs`
+
+---
+
+## D-046 · Wyszukiwarka pyta operatorem `<%` (`word_similarity`) z progiem 0,5, nie `%` z 0,12
+
+**Data:** 9 września 2026 · **Decyzja właściciela** (issue #187) · Status: **obowiązuje**
+
+Operator `%` z pg_trgm mierzy podobieństwo frazy do **całego** tytułu, więc
+żeby literówka w długim tytule w ogóle trafiała („sernk" wobec „sernik babci
+haliny" to 0,18), próg musiał zjechać do 0,12. Przy takim progu długa fraza
+jest podobna do prawie wszystkiego. Zmierzone na bazie 40 000 przepisów,
+w której nie ma ani jednej sajgonki: fraza „sajgonki z krewetkami" zwracała
+**1 526 wyników**, „rosół" znajdował „Rogaliki", „barszcz" — „Bogracz",
+„pierogi" — „Piernik". To nie wygląda na wyszukiwarkę, która czegoś nie ma;
+wygląda na zepsutą.
+
+**Co wybrano.** Operator `<%` — „czy fraza jest podobna do najlepiej
+pasującego FRAGMENTU tekstu". Długość tytułu przestaje karać trafienie
+(„sernk" wobec „sernik babci haliny" to już 0,67), więc próg może być wysoki,
+a wysoki próg wycina śmieci. Ten sam indeks GIN, **zero migracji**.
+
+**Dlaczego próg 0,5, a nie domyślne 0,6 z issue.** Bo 0,6 gubi rzeczy, po
+które ludzie przychodzą: „rosul" (tak wygląda „rosuł" bez ogonków) przestaje
+znajdować rosół, „piergi" przestaje znajdować pierogi, a „kotlet schabowy
+z ziemniakami" znajduje 45 przepisów zamiast 232. Przy 0,5 wszystkie trzy
+wracają, a kanarki („sajgonki z krewetkami", „kartacze", „tortilla
+z kurczakiem") dalej zwracają zero.
+
+**Co ta decyzja KOSZTUJE — zmierzone, nie oszacowane.** Ciężka literówka
+fonetyczna przestaje działać: „gołombki" nie znajduje już „Gołąbków" (0,42
+przy progu 0,5) ani w wyszukiwarce, ani w podpowiedziach tagów. Długa fraza
+opisowa przestaje zaciągać dania pokrewne po jednym słowie: „pierogi ruskie
+babci haliny" nie pokazuje już „Pierogów z mięsem". Pełna lista zgubionych
+trafień, z nazwami, jest w `docs/research/WYDAJNOSC.md` §3.4b — właściciel
+podejmował tę decyzję, widząc cenę.
+
+**Zakres.** Zmiana objęła OBIE ścieżki podobieństwa: `SearchQuery::recipes()`
+i czwartą gałąź `TagSuggester`. Dwie ścieżki z dwoma różnymi progami
+znaczyłyby, że słowo „podobne" ma w jednym produkcie dwa znaczenia zależnie
+od pola, w które człowiek pisze. `SearchQuery::people()` nie używa operatora
+podobieństwa (dopasowuje `LIKE`) i została bez zmian.
+
+**Kolejność wyników** poszła za operatorem: `word_similarity` DESC, potem
+`similarity` DESC. Rozstrzygnięte pomiarem, nie teorią — przy samym
+`similarity` 722 przepisy „Pierogi …" stały za pierwszym „Piernikiem".
+
+**Zmiana wymaga:** powtórzenia pomiaru z §3.4b. Próg to jedna stała
+(`App\Support\ProgPodobienstwa::PROG`) i jedno miejsce — jeśli ktoś uzna, że
+„gołombki" są ważniejsze niż czystość wyników przy „pierogach", zejście do
+0,4 jest zmianą jednej liczby. Ale to jest decyzja produktowa, nie techniczna.
+
+📄 `app/Support/ProgPodobienstwa.php` · `app/Domain/Search/SearchQuery.php` ·
+`app/Domain/Tags/TagSuggester.php` · `tests/Feature/TrafnoscWyszukiwarkiTest.php` ·
+`docs/research/WYDAJNOSC.md` §3.4b · `docs/DATABASE.md`
 
 ---
 

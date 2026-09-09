@@ -49,9 +49,10 @@ final class SearchQuery
     // POWYŻEJ udokumentowanego progu. Cała odporność na literówki, którą
     // obiecuje komentarz klasy, była martwa.
     //
-    // Uzasadnienie wyboru `set_limit()` zamiast `similarity(...) >= ?`
-    // (indeks trigramowy obsługuje `%`, nie porównanie wyniku funkcji) —
-    // w komentarzu tamtej klasy.
+    // Od 9 września 2026 (issue #187) próg dotyczy operatora `<%`
+    // (`word_similarity`), nie `%`, i wynosi 0,5. Uzasadnienie liczby,
+    // pomiar i to, CO ta zmiana gubi — w komentarzu tamtej klasy
+    // i w `docs/research/WYDAJNOSC.md` §3.4b.
 
     /**
      * Identyfikatory przepisów pasujących do frazy — CZTERY OSOBNE ZAPYTANIA
@@ -101,9 +102,29 @@ final class SearchQuery
      * na całości wyniku. Dlatego świadomie nie ma tu limitu ani osobnej rundy
      * „najpierw tytuł, doszukaj resztę tylko gdy mało wyników" — tamto
      * zmieniałoby kolejność wyników przy nielicznych trafieniach w tytule.
+     *
+     * PIERWSZA GAŁĄŹ UŻYWA `<%`, NIE `%` (issue #187) — I TO JEST ZMIANA
+     * TRAFNOŚCI, NIE KOSZTU
+     * `fraza <% title_search` pyta, czy fraza jest podobna do najlepiej
+     * pasującego FRAGMENTU tytułu; `%` pytało o podobieństwo do CAŁEGO
+     * tytułu i przy progu 0,12 łączyło ze sobą rzeczy, które nie mają ze sobą
+     * nic wspólnego („rosół" → „Rogaliki", „pierogi" → „Piernik", „sajgonki
+     * z krewetkami" → 1 526 wierszy w bazie bez jednej sajgonki). Zmierzone
+     * PRZED/PO, ta sama baza, 40 000 przepisów, fraza „pierogi":
+     *
+     *     %  @0,12   18 178 kandydatów z indeksu → 2 798 trafień, 62,2 ms
+     *     <% @0,5     2 134 kandydatów           → 2 073 trafienia, 9,9 ms
+     *
+     * Kolumna i indeks zostają te same (`gin_trgm_ops` obsługuje oba
+     * operatory) — ta zmiana NIE dotyka schematu bazy.
+     *
+     * ⚠️ Fraza jest po LEWEJ stronie operatora. `title_search <% ?` znaczy coś
+     * innego (czy tytuł jest podobny do fragmentu frazy) i indeks przestałby
+     * pasować do zapytania. Zamiana stron to najłatwiejszy sposób, żeby cicho
+     * zepsuć tę wyszukiwarkę.
      */
     private const KANDYDACI_SQL = <<<'SQL'
-        SELECT id FROM recipes WHERE title_search % ?
+        SELECT id FROM recipes WHERE ? <% title_search
         UNION ALL
         SELECT id FROM recipes WHERE title_search LIKE ?
         UNION ALL
@@ -169,7 +190,31 @@ final class SearchQuery
                 ->whereNotNull('prep_minutes')
                 ->whereNotNull('cook_minutes')
                 ->whereRaw('(prep_minutes + cook_minutes) <= ?', [$maksMinut]))
-            ->orderByRaw('similarity(recipes.title_search, ?) DESC', [$needle])
+            // KOLEJNOŚĆ: NAJPIERW TO, CO ZDECYDOWAŁO O TRAFIENIU (issue #187)
+            //
+            // Wiersz jest w wyniku dlatego, że fraza pasuje do FRAGMENTU
+            // tytułu (`<%`), więc pierwszym kryterium jest ta sama miara,
+            // `word_similarity`. Samo `similarity` (kryterium sprzed issue
+            // #187) mierzy podobieństwo do CAŁEGO tytułu, czyli karze tytuł
+            // za długość — a to przy operatorze `<%` wypycha prawdziwe
+            // trafienia pod śmieci. Zmierzone na bazie 40 000 przepisów:
+            //
+            //   fraza „pierogi": przy samym `similarity` 722 przepisy
+            //   „Pierogi …" stały ZA pierwszym „Piernikiem"; po zmianie: 0.
+            //   fraza „sernk": przy samym `similarity` sześć „Pierników"
+            //   stało przed pierwszym „Sernikiem babci Haliny"; po zmianie: 0.
+            //
+            // `similarity` zostaje jako DRUGIE kryterium i to nie jest ozdoba:
+            // przy `word_similarity` wszystkie tytuły zawierające całe słowo
+            // mają równe 1,00, więc bez tego rozstrzygnięcia „Pierogi" i
+            // „Pierogi ruskie babci Haliny z pieca" byłyby nierozróżnialne
+            // i o kolejności decydowałaby data. Z nim krótszy, dokładniejszy
+            // tytuł wraca na górę — zmierzone: dokładny tytuł zostaje na
+            // pozycji 1 tak samo jak przed zmianą.
+            ->orderByRaw(
+                'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC',
+                [$needle, $needle],
+            )
             ->orderByDesc('published_at')
             ->limit($limit)
             ->get();
@@ -204,6 +249,12 @@ final class SearchQuery
 
         $needle = $this->normalize($phrase);
 
+        // Ta metoda nie używa ŻADNEGO operatora trigramowego — dopasowuje
+        // przez `LIKE`, a `similarity()` niżej tylko porządkuje wynik i progu
+        // nie czyta. Wywołanie zostaje mimo to, żeby każda ścieżka
+        // wyszukiwania ustawiała próg tej samej klasy: dzień, w którym ktoś
+        // dopisze tu `<%` i zapomni o tej linijce, jest tańszy niż jedno
+        // zaoszczędzone `set_config` na zapytanie (issue #187, punkt 3).
         ProgPodobienstwa::ustaw();
 
         return Profile::query()
@@ -216,6 +267,12 @@ final class SearchQuery
                     ->orWhereRaw('username_search LIKE ?', ['%'.$needle.'%'])
                     ->orWhereRaw('speciality_search LIKE ?', ['%'.$needle.'%']);
             })
+            // Tu `similarity` ZOSTAJE (issue #187 zmieniło tylko przepisy).
+            // Dopasowanie idzie przez `LIKE`, więc zbiór wyników nie zależy
+            // od żadnej miary podobieństwa, a nazwy profili są krótkie —
+            // „karanie za długość", które psuło kolejność przepisów, nie ma
+            // się tu na czym odbyć. Zmiana bez zmierzonego powodu byłaby
+            // zmianą kolejności wyników za darmo.
             ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
             ->limit($limit)
             ->get();
