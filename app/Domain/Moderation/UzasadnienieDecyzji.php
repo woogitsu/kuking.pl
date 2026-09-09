@@ -101,6 +101,27 @@ final class UzasadnienieDecyzji
      */
     private static function skadSprawa(ModerationAction $decyzja): string
     {
+        /*
+         * TRZECIA DROGA: TREŚĆ WSKAZAŁ AUTOMAT (D-052).
+         *
+         * `report_id` jest tu niepuste, więc bez tego warunku człowiek
+         * przeczytałby „sprawa zaczęła się od zgłoszenia, które dostaliśmy od
+         * innej osoby" — NIEPRAWDĘ, i to nieprawdę najgorszego rodzaju: każe
+         * komuś szukać wśród znajomych osoby, która go zgłosiła, choć nikt
+         * tego nie zrobił.
+         *
+         * Art. 17 ust. 3 lit. c wymaga poza tym informacji o użyciu środków
+         * automatycznych PRZY WYKRYCIU treści, nie tylko przy decyzji.
+         * Zdanie niżej mówi jedno i drugie: co wskazało treść i kto
+         * postanowił. Zdanie o braku automatu, które idzie zaraz po nim,
+         * zostaje prawdą — nasz automat niczego nie ukrywa, nie usuwa i nie
+         * blokuje (`docs/legal/SYGNALY_AUTOMATU.md`).
+         */
+        if ($decyzja->report?->wykrylAutomat() === true) {
+            return 'Nikt tego nie zgłosił. Treść wskazało nasze narzędzie do wychwytywania spamu, '
+                .'a decyzję podjął potem człowiek, który ją przeczytał.';
+        }
+
         if ($decyzja->report_id !== null) {
             return 'Sprawa zaczęła się od zgłoszenia, które dostaliśmy od innej osoby. '
                 .'Nie podajemy, kto je złożył.';
