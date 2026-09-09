@@ -20,7 +20,8 @@ ETAP 0  kopia bazy (#193) ─────┐
         automat, nie panel     │  blokuje wszystko, co pisze do produkcji
                                ▼
 ETAP 1  poczta ───────────► ETAP 4  treść zalążkowa
-        API HTTPS, nie SMTP            (wdrożenie z db:seed)
+        API HTTPS, nie SMTP            (wymaga `railway config apply`,
+                                        które nie było uruchomione)
 
 ETAP 3  reszta bramki (A6-06) — równolegle, nic nie blokuje
 ```
@@ -30,9 +31,21 @@ nie na lepsze: etap 0 okazał się zależny od etapu 2, bo Railway nie robi kopi
 na tym planie. Etap 1 też się zmienił — SMTP jest na Free i Hobby wyłączony,
 więc poczta idzie przez API HTTPS.
 
-**Etap 0 jest pierwszy nie z ostrożności, tylko dlatego, że od PR-a #174
-wdrożenie na produkcję woła `db:seed --force`.** Następne wdrożenie zapisze
-do produkcyjnej bazy. Kopia przed nim to nie rytuał.
+**Etap 0 jest pierwszy dlatego, że dziś nie ma żadnej kopii bazy** — nie
+dlatego, że wdrożenie zaraz coś do niej zapisze.
+
+> ⚠️ **SPROSTOWANIE, 9 września wieczorem.** Ten akapit twierdził, że „od
+> PR-a #174 wdrożenie na produkcję woła `db:seed --force`". **Nieprawda.**
+> PR #174 dopisał `db:seed` do `preDeployCommand` w **`.railway/railway.ts`**,
+> a ten plik nie obowiązuje, bo **`railway config apply` nigdy nie zostało
+> uruchomione**. Zmierzone connectorem Railway: produkcyjny
+> `preDeployCommand` to dokładnie `php artisan migrate --force
+> --no-interaction` i nic więcej.
+>
+> To były dwa różne zdarzenia pomylone z sobą: commit do repozytorium
+> (nastąpił) i zastosowanie konfiguracji w Railway (nie nastąpiło). Skutek
+> praktyczny jest odwrotny do opisanego: najbliższe wdrożenie **nie** wpisze
+> treści zalążkowej — patrz etap 4.
 
 **Etap 0 zamyka przy okazji bramkę A6-07.** Audyt nie zarzucił braku procedury
 — procedura jest napisana. Zarzucił, że **tabela wyniku w
@@ -94,16 +107,18 @@ Kolejność w obrębie etapu:
 3. **§5 — sprawdzenie.** Pięć kroków, wszystkie potrzebne.
 
 **Pułapka, o której najłatwiej zapomnieć:** wszystkie listy mają `ShouldQueue`,
-a kolejka chodzi na osobnym serwisie `worker`. **Poprawny dostawca +
-niedziałający worker = dokładnie ten sam skutek co `MAIL_MAILER=log`:** nikt
-nic nie dostaje i nic tego nie pokazuje. Dlatego §5 ma dwa przebiegi:
+a wysyła je pętla kolejki — **w tym samym kontenerze co strona**, bo serwis
+`kuking.pl` chodzi w trybie `all` (nie ma osobnego serwisu `worker`, cokolwiek
+mówi `.railway/railway.ts`). **Poprawny dostawca + niedziałająca kolejka =
+dokładnie ten sam skutek co `MAIL_MAILER=log`:** nikt nic nie dostaje i nic
+tego nie pokazuje. Dlatego §5 ma dwa przebiegi:
 
 ```bash
 railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
 railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl --kolejka
 ```
 
-Drugi sprawdza worker. Jeśli po minucie nic nie przyszło:
+Drugi sprawdza pętlę kolejki. Jeśli po minucie nic nie przyszło:
 `railway ssh -- php artisan queue:failed`.
 
 Potem w doręczonym liście muszą być trzy słowa: `spf=pass`, `dkim=pass`,
@@ -170,11 +185,28 @@ Idzie równolegle, nic nie blokuje. Do zebrania:
 **Warunek: etap 0 zrobiony.** Nie „kopia gdzieś jest", tylko „mam świeży zrzut
 i wiem, że się odtwarza".
 
-Wdrożenie samo uruchomi `php artisan migrate --force`, a po nim
-`php artisan db:seed --force` (`.railway/railway.ts`, `preDeployCommand`).
-Nie trzeba nic wołać ręcznie — to była właśnie usterka „ostatniego metra",
-którą zamknął PR #174: decyzja zapadła, kod powstał, testy były zielone,
-a nikt tego nie wołał.
+> ⚠️ **SPROSTOWANIE, 9 września wieczorem.** Ten etap twierdził, że
+> „wdrożenie samo uruchomi `db:seed --force`". **Dziś nie uruchomi.**
+> PR #174 dopisał tę komendę do `preDeployCommand` w `.railway/railway.ts`,
+> ale zmierzony connectorem produkcyjny `preDeployCommand` to nadal
+> **wyłącznie** `php artisan migrate --force --no-interaction`. Brakuje
+> ostatniego kroku: **`railway config apply`**.
+>
+> Usterka „ostatniego metra", którą PR #174 miał zamknąć, zamknęła się więc
+> o jeden metr za wcześnie: decyzja zapadła, kod powstał, testy są zielone —
+> i nikt nie zastosował konfiguracji.
+
+Kolejność w tym etapie jest zatem taka:
+
+1. **Etap 0 zrobiony** — masz świeży zrzut i wiesz, że się odtwarza.
+   `railway config apply` zmienia to, co wdrożenie robi z produkcyjną bazą,
+   więc nie uruchamiaj go bez kopii.
+2. **`railway config apply`** — dopiero to wpisuje `db:seed --force`
+   do `preDeployCommand`. Przejrzyj plan, który CLI pokaże przed
+   potwierdzeniem: ten sam plik chce też rozbić jeden serwis `kuking.pl`
+   na trzy (`web`, `worker`, `scheduler`), a to jest osobna, większa zmiana,
+   której przy okazji seedowania raczej nie chcesz.
+3. **Wdrożenie** — następne wdrożenie po `apply` uruchomi migracje i seeder.
 
 **Po wdrożeniu sprawdź na żywej stronie**, że przykładowe konta i przepisy
 naprawdę są. Zielony deploy nie jest dowodem, że seeder coś zapisał.

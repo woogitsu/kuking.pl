@@ -8,9 +8,20 @@
 #    worker     — php artisan queue:work (przetwarzanie zdjęć, maile, eksporty)
 #    scheduler  — php artisan schedule:work (Laravel scheduler, co minutę)
 #    all        — web + worker + scheduler w jednym kontenerze.
-#                 UŻYWAĆ TYLKO na staging/preview, żeby nie płacić za 3 serwisy.
-#                 NIGDY na produkcji: jeden crash zabija wszystko, a skalowanie
-#                 web pociągnęłoby za sobą duplikaty schedulera.
+#
+#                 UWAGA: to jest DZIŚ TRYB PRODUKCYJNY, wbrew temu, co ten
+#                 komentarz mówił do 9 września 2026. Zmierzone connectorem
+#                 Railway: serwis `kuking.pl` startuje komendą
+#                 `kuking-entrypoint all`. Rozbicie na trzy serwisy stoi
+#                 w `.railway/railway.ts`, ale `railway config apply` nigdy
+#                 nie zostało uruchomione, więc nie obowiązuje.
+#
+#                 Powody, dla których to nie jest tryb docelowy, są nadal
+#                 prawdziwe i trzeba je znać: jeden crash zabija wszystko,
+#                 a zwiększenie liczby replik zduplikowałoby harmonogram
+#                 (dlatego zadania w `routes/console.php` musiałyby wtedy
+#                 dostać `->onOneServer()`; przy jednej replice nie muszą).
+#                 Do rozbicia wracamy przy pierwszym `railway config apply`.
 #
 #  Użycie:  kuking-entrypoint web | worker | scheduler | all
 # =============================================================================
