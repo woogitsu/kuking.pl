@@ -419,94 +419,223 @@
 
         <footer class="site-footer">
             <div class="site-footer-inner">
-                <span>Kuking — gotujemy po swojemu.</span>
-                {{--
-                    „NAPISZ DO NAS" STOI PIERWSZY W STOPCE I NIE JEST DYMKIEM
-                    W ROGU EKRANU.
-
-                    Dymek na stałe przyklejony do rogu byłby łatwiejszy do
-                    znalezienia dokładnie o tyle, o ile zasłaniałby treść —
-                    a przy 320 px i przy czcionce przeglądarki podkręconej do
-                    200% zasłania jej najwięcej (WCAG 1.4.10 i 2.4.11: element
-                    o stałej pozycji potrafi zakryć właśnie sfokusowany
-                    przycisk). To repozytorium ma już dwa issues z tej rodziny
-                    — #80 i #162 — i oba dotyczyły elementu, który „tylko
-                    trochę" wystawał poza ekran.
-
-                    Stopka jest na KAŻDEJ stronie, nie wymaga skryptu,
-                    nie zasłania niczego i jest miejscem, w którym osoba 50+
-                    szuka kontaktu odruchowo. Pierwsza pozycja, bo w tej
-                    grupie ważniejsza niż regulamin.
-                --}}
-                <a href="{{ route('kontakt') }}">Napisz do nas</a>
-                <a href="{{ route('about') }}">O Kuking</a>
-                <a href="{{ route('help') }}">Pomoc</a>
-                <a href="{{ route('rules') }}">Zasady</a>
-                <a href="{{ route('terms') }}">Regulamin</a>
-                <a href="{{ route('privacy') }}">Prywatność</a>
-                {{-- DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO DOSTĘPNEGO.
-                     Formularz, do którego nie ma skąd kliknąć, tego nie
-                     spełnia — a przez chwilę dokładnie taki był: istniał
-                     pod adresem, którego nikt nie miał prawa znać. --}}
-                <a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a>
-                {{-- Wejście na własne sprawy (issue #10, DSA art. 16 ust. 4
-                     i 5). Potwierdzenie przyjęcia i decyzja przychodzą
-                     powiadomieniem, ale powiadomienie da się przeoczyć i po
-                     trzech miesiącach kasuje je retencja — sprawa żyje
-                     trzydzieści sześć. Bez stałego odnośnika człowiek, który
-                     zgubił powiadomienie, nie miałby jak wrócić do numeru
-                     sprawy. Tylko dla zalogowanych: gość nie ma tu żadnych
-                     spraw, a odnośnik prowadziłby na ekran logowania. --}}
-                @if($user)
-                    <a href="{{ route('reports.mine') }}">Twoje zgłoszenia</a>
-                @endif
-
-                {{-- Wersja: etap produktu, DATA I GODZINA WYDANIA, skrót
-                     wdrożonego commita. Widoczna zawsze, żeby dało się jednym
-                     spojrzeniem sprawdzić, co dokładnie działa na tej stronie.
-
-                     Etap produktu w `<strong>`, bo to on odpowiada na pytanie
-                     „na czym w ogóle patrzę" i ma się rzucać w oczy bardziej
-                     niż reszta. Data przed skrótem, bo to ją czyta człowiek;
-                     skrót zostaje dla Sentry (`App\Support\Wersja`).
-
-                     Bez `title` z pełnym skrótem: na telefonie nie ma najazdu
-                     kursorem, a informacja dostępna tylko przez hover jest
-                     dla części osób niedostępna w ogóle (UX_50_PLUS). --}}
-                <span class="site-version">
-                    <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
-                    <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
-                </span>
+                <p class="site-footer-haslo">Kuking — gotujemy po swojemu.</p>
 
                 {{--
-                    SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md, D-019).
+                    STOPKA W POZIOMACH (issue #205).
 
-                    W stopce, bo stopka jest na KAŻDEJ stronie i widoczna też
-                    na telefonie — w przeciwieństwie do pełnego ustawienia na
-                    `/ustawienia/czytelnosc`, do którego na telefonie nie ma
-                    dziś dojścia bez zalogowania. Działa też dla gościa: nie
-                    ma tu `@auth`.
+                    Dawniej jeden rząd: hasło, siedem odnośników, wersja
+                    i przełącznik motywu — wszystko w jednej linii, przez co
+                    wersja i przełącznik wyglądały jak doklejone na końcu.
+                    Teraz to trzy poziomy: hasło, kolumny odnośników
+                    pogrupowane tematycznie, i na samym dole cienki pasek
+                    techniczny (wersja + przełącznik motywu).
 
-                    ZWYKŁY FORMULARZ POST, NIE LINK GET (AGENTS.md §5, §7):
-                    zmiana stanu przez GET dałaby się wywołać samym linkiem
-                    (np. z prefetchu przeglądarki) i złamałaby CSRF.
+                    Grupowanie NIE dokłada ani nie usuwa żadnego odnośnika —
+                    to te same siedem (osiem dla zalogowanych) pozycje, co
+                    przed zmianą, tylko rozłożone na cztery tematyczne
+                    kolumny. Na wąskim ekranie `.site-footer-grupy` (grid
+                    `auto-fit`) układa je jedna pod drugą — bez poziomego
+                    przewijania, patrz app.css.
 
-                    Przycisk niesie WIDOCZNY TEKST opisujący wynik kliknięcia
-                    („Włącz ciemny wygląd" / „Włącz jasny wygląd"), nie samą
-                    ikonę — „ikona nigdy sama" (AGENTS.md §5).
-
-                    `redirect_to` NIE istnieje: `back()` w ThemeController
-                    czyta nagłówek `Referer`, tak samo jak każdy inny formularz
-                    „Zapisz" w serwisie (np. AccessibilitySettingsController).
+                    Każda kolumna to `<nav>` z `aria-label`, żeby czytnik
+                    ekranu zapowiedział temat grupy i pozwolił ją pominąć —
+                    ten sam powód, dla którego `$rail` wyżej jest `<aside>`,
+                    nie `<div>`. Widoczny nagłówek nad linkami jest
+                    `aria-hidden`: bez tego czytnik czytałby nazwę grupy
+                    dwa razy (raz z `aria-label` nawigacji, raz z tekstu
+                    nagłówka). Nie jest to `<h2>`/`<h3>` — stopka nie ma
+                    wchodzić w hierarchię nagłówków strony, którą zamyka
+                    ostatni nagłówek treści.
                 --}}
-                <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
-                    @csrf
-                    <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
-                    <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
-                    <button class="btn btn-quiet" type="submit">
-                        {{ $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd' }}
-                    </button>
-                </form>
+                <div class="site-footer-grupy">
+                    <nav class="site-footer-grupa" aria-label="O serwisie">
+                        <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>
+                        <ul>
+                            <li><a href="{{ route('about') }}">O Kuking</a></li>
+                            <li><a href="{{ route('rules') }}">Zasady</a></li>
+                        </ul>
+                    </nav>
+
+                    <nav class="site-footer-grupa" aria-label="Pomoc i kontakt">
+                        <p class="site-footer-naglowek" aria-hidden="true">Pomoc i kontakt</p>
+                        <ul>
+                            {{--
+                                „NAPISZ DO NAS" STOI PIERWSZY W SWOJEJ GRUPIE
+                                I NIE JEST DYMKIEM W ROGU EKRANU.
+
+                                Dymek na stałe przyklejony do rogu byłby
+                                łatwiejszy do znalezienia dokładnie o tyle,
+                                o ile zasłaniałby treść — a przy 320 px
+                                i przy czcionce przeglądarki podkręconej do
+                                200% zasłania jej najwięcej (WCAG 1.4.10
+                                i 2.4.11: element o stałej pozycji potrafi
+                                zakryć właśnie sfokusowany przycisk). To
+                                repozytorium ma już dwa issues z tej rodziny
+                                — #80 i #162 — i oba dotyczyły elementu,
+                                który „tylko trochę" wystawał poza ekran.
+
+                                Stopka jest na KAŻDEJ stronie, nie wymaga
+                                skryptu, nie zasłania niczego i jest
+                                miejscem, w którym osoba 50+ szuka kontaktu
+                                odruchowo. Pierwsza pozycja w grupie, bo
+                                ważniejsza niż „Pomoc".
+                            --}}
+                            <li><a href="{{ route('kontakt') }}">Napisz do nas</a></li>
+                            <li><a href="{{ route('help') }}">Pomoc</a></li>
+                        </ul>
+                    </nav>
+
+                    <nav class="site-footer-grupa" aria-label="Sprawy formalne">
+                        <p class="site-footer-naglowek" aria-hidden="true">Sprawy formalne</p>
+                        <ul>
+                            <li><a href="{{ route('terms') }}">Regulamin</a></li>
+                            <li><a href="{{ route('privacy') }}">Prywatność</a></li>
+                            {{-- DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO
+                                 DOSTĘPNEGO. Formularz, do którego nie ma
+                                 skąd kliknąć, tego nie spełnia — a przez
+                                 chwilę dokładnie taki był: istniał pod
+                                 adresem, którego nikt nie miał prawa
+                                 znać. --}}
+                            <li><a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a></li>
+                        </ul>
+                    </nav>
+
+                    {{-- Wejście na własne sprawy (issue #10, DSA art. 16
+                         ust. 4 i 5). Potwierdzenie przyjęcia i decyzja
+                         przychodzą powiadomieniem, ale powiadomienie da się
+                         przeoczyć i po trzech miesiącach kasuje je
+                         retencja — sprawa żyje trzydzieści sześć. Bez
+                         stałego odnośnika człowiek, który zgubił
+                         powiadomienie, nie miałby jak wrócić do numeru
+                         sprawy. Cała grupa tylko dla zalogowanych: gość nie
+                         ma tu żadnych spraw, a odnośnik prowadziłby na
+                         ekran logowania. --}}
+                    @if($user)
+                        <nav class="site-footer-grupa" aria-label="Konto">
+                            <p class="site-footer-naglowek" aria-hidden="true">Konto</p>
+                            <ul>
+                                <li><a href="{{ route('reports.mine') }}">Twoje zgłoszenia</a></li>
+                            </ul>
+                        </nav>
+                    @endif
+                </div>
+
+                {{--
+                    PASEK TECHNICZNY (wersja + przełącznik motywu).
+
+                    Świadome odstępstwo od AGENTS.md §5 w DWÓCH miejscach —
+                    decyzja właściciela, zapisana jako docs/DECISIONS.md,
+                    D-051. Reguła („tekst ≥ 18 px", „ikona nigdy sama")
+                    zostaje w mocy wszędzie indziej; tu jest jawnie
+                    udokumentowanym wyjątkiem, nie przeoczeniem.
+                --}}
+                <div class="site-footer-pasek">
+                    {{--
+                        SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md,
+                        D-019, D-051).
+
+                        W stopce, bo stopka jest na KAŻDEJ stronie i widoczna
+                        też na telefonie — w przeciwieństwie do pełnego
+                        ustawienia na `/ustawienia/czytelnosc`, do którego na
+                        telefonie nie ma dziś dojścia bez zalogowania. Działa
+                        też dla gościa: nie ma tu `@auth`.
+
+                        ZWYKŁY FORMULARZ POST, NIE LINK GET (AGENTS.md §5,
+                        §7): zmiana stanu przez GET dałaby się wywołać samym
+                        linkiem (np. z prefetchu przeglądarki) i złamałaby
+                        CSRF.
+
+                        SAMA IKONA, NIE WIDOCZNY NAPIS (D-051) — świadomy
+                        wyjątek od „ikona nigdy sama" (AGENTS.md §5), na
+                        wyraźne życzenie właściciela (issue #205), żeby
+                        przełącznik zajmował mało miejsca w pasku. Trzy
+                        rzeczy, których ten wyjątek NIE rusza:
+
+                          1. `aria-label` i `title` niosą DOKŁADNIE ten sam
+                             tekst, co dawny widoczny napis („Włącz ciemny
+                             wygląd" / „Włącz jasny wygląd") — nazwa
+                             dostępna zostaje, znika tylko jej wizualny
+                             odpowiednik.
+                          2. `<span class="visually-hidden">` zostaje —
+                             podwójne, ale tanie zabezpieczenie na wypadek,
+                             gdyby `aria-label` kiedyś zniknął przy
+                             refaktorze.
+                          3. Pole kliknięcia zostaje ≥48×48 px: `.btn`
+                             wymusza `min-height: 3rem`, a padding poziomy
+                             (`--spacing-5` z każdej strony) daje mu przy
+                             ikonie 24 px szerokość znacznie powyżej progu —
+                             to, co zajmowało miejsce, było napisem obok
+                             ikony, nie wymiarem samego przycisku.
+
+                        Ikona `settings` (zębatka): w zestawie `<x-ikona>`
+                        NIE MA księżyca/słońca — sprawdzone w
+                        resources/views/components/ikona.blade.php, cały
+                        zestaw kształtów wypisany na górze tego pliku.
+                        `settings` jest najbliższym sensownym zamiennikiem
+                        (przełącznik wyglądu to w istocie ustawienie
+                        wizualne strony), nie nowym kształtem — dopisywanie
+                        nowego SVG (sierp księżyca/słońce) wykraczałoby poza
+                        wąski zakres tego PR-a i zostaje do rozważenia
+                        osobno.
+
+                        `redirect_to` NIE istnieje: `back()`
+                        w ThemeController czyta nagłówek `Referer`, tak samo
+                        jak każdy inny formularz „Zapisz" w serwisie (np.
+                        AccessibilitySettingsController).
+                    --}}
+                    <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
+                        @csrf
+                        <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
+                        <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
+                        @php
+                            $motywEtykieta = $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd';
+                        @endphp
+                        <button
+                            class="btn btn-quiet site-footer-motyw-przycisk"
+                            type="submit"
+                            aria-label="{{ $motywEtykieta }}"
+                            title="{{ $motywEtykieta }}"
+                        >
+                            <x-ikona nazwa="settings" />
+                        </button>
+                    </form>
+
+                    {{-- Wersja: etap produktu, DATA I GODZINA WYDANIA, skrót
+                         wdrożonego commita. Widoczna zawsze, żeby dało się
+                         jednym spojrzeniem sprawdzić, co dokładnie działa na
+                         tej stronie.
+
+                         ROZMIAR 8 PX (D-051) — świadomy wyjątek od
+                         AGENTS.md §5 („tekst ≥ 18 px"), na wyraźne życzenie
+                         właściciela: metryczka ma być „małym druczkiem" na
+                         samym dole stopki. Kontrast NIE jest częścią tego
+                         wyjątku — `--color-ink-muted` na
+                         `--color-surface-raised` liczy 7,54:1
+                         (docs/design/DESIGN_SYSTEM.md), więc zmiana samego
+                         rozmiaru nie psuje czytelności koloru. Rozmiar
+                         nadal skaluje się z `--user-text-scale`
+                         (`/ustawienia/czytelnosc`) tak jak reszta serwisu —
+                         inaczej osoba, która celowo powiększyła sobie tekst,
+                         dostałaby tu jedyne miejsce w serwisie, którego to
+                         ustawienie nie dotyczy.
+
+                         Etap produktu w `<strong>`, bo to on odpowiada na
+                         pytanie „na czym w ogóle patrzę" i ma się rzucać
+                         w oczy bardziej niż reszta. Data przed skrótem, bo
+                         to ją czyta człowiek; skrót zostaje dla Sentry
+                         (`App\Support\Wersja`).
+
+                         Bez `title` z pełnym skrótem: na telefonie nie ma
+                         najazdu kursorem, a informacja dostępna tylko przez
+                         hover jest dla części osób niedostępna w ogóle
+                         (UX_50_PLUS). Widoczna zawsze — nie chowamy jej pod
+                         hover ani pod `title`. --}}
+                    <span class="site-version">
+                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
+                        <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
+                    </span>
+                </div>
             </div>
         </footer>
 
