@@ -1,0 +1,131 @@
+name: Audyt A6 - kontrola koncowa
+on:
+  push:
+    branches: ['audit/a6-20260909-1185719']
+    paths: ['.github/workflows/audit-a6-finalchecks.yml']
+permissions:
+  contents: read
+jobs:
+  sprawdzenie:
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: audit-only
+        ports: ['5432']
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: audit-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      SENTRY_LARAVEL_DSN: ''
+      POSTHOG_KEY: ''
+      LOG_BLAD_WEBHOOK_URL: ''
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: tools
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: 1185719ddeda88e6cee0202b141b4078f17ffdd2
+          path: subject
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Instalacja
+        working-directory: subject
+        run: |
+          set -euo pipefail
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "A6_OUT=$RUNNER_TEMP/a6-final" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/a6-final"
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+          cp .env.example .env
+          npm run build > "$RUNNER_TEMP/a6-final/build.log"
+      - name: Sonda i zestaw testow
+        working-directory: subject
+        run: |
+          set +e
+          set -uo pipefail
+          run() {
+            local label="$1"; shift
+            "$@" > "$A6_OUT/$label.log" 2>&1
+            local rc=$?
+            printf '%s\n' "$rc" > "$A6_OUT/$label.exit"
+            echo "$label: exit $rc"
+            tail -n 10 "$A6_OUT/$label.log"
+            return 0
+          }
+          git rev-parse HEAD > "$A6_OUT/commit.txt"
+          php -r 'echo json_encode(["php"=>PHP_VERSION,"gd"=>gd_info()],JSON_PRETTY_PRINT);' > "$A6_OUT/runtime.json"
+          cp ../tools/audit-a6/A6ProbeTest.php tests/Feature/A6ProbeTest.php
+          # Pierwsza sonda omylkowo probowala ustawic guarded created_at przez create().
+          # Poprawka dotyczy WYLACZNIE danych sondy, nie aplikacji.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/Feature/A6ProbeTest.php')
+          s=p.read_text()
+          needle='        $cutoff = now()->subMonths(3)->toIso8601String();'
+          assert s.count(needle)==1
+          s=s.replace(needle, "        $n->forceFill(['created_at' => CarbonImmutable::parse('2026-03-01 12:00:00', 'UTC')])->save();\n"+needle)
+          p.write_text(s)
+          PY
+          cp tests/Feature/A6ProbeTest.php "$A6_OUT/A6ProbeTest.corrected.php"
+          run probes php artisan test tests/Feature/A6ProbeTest.php --log-junit="$A6_OUT/probes-junit.xml"
+          rm tests/Feature/A6ProbeTest.php
+          run tests php artisan test --log-junit="$A6_OUT/tests-junit.xml"
+          git diff --exit-code > "$A6_OUT/production-diff.txt"
+          echo $? > "$A6_OUT/production-diff.exit"
+      - name: Przegladarka
+        working-directory: subject
+        continue-on-error: true
+        run: npx playwright install chromium > "$RUNNER_TEMP/a6-final/browser-install.log" 2>&1
+      - name: Dostepnosc na izolowanej bazie testowej
+        working-directory: subject
+        env:
+          APP_ENV: local
+          CACHE_STORE: file
+          SESSION_DRIVER: file
+          FILESYSTEM_DISK: public
+        run: |
+          set +e
+          php artisan storage:link > "$A6_OUT/storage-link.log" 2>&1
+          node scripts/dostepnosc.mjs > "$A6_OUT/a11y.log" 2>&1
+          echo $? > "$A6_OUT/a11y.exit"
+          cp storage/dostepnosc.json "$A6_OUT/dostepnosc.json" 2>/dev/null || true
+          tail -n 30 "$A6_OUT/a11y.log"
+          exit 0
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: a6-final-1185719
+          path: ${{ runner.temp }}/a6-final/
+          retention-days: 7
+          if-no-files-found: error
