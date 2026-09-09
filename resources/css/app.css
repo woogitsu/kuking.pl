@@ -1844,6 +1844,15 @@
     font-size: var(--text-help);
   }
 
+  /* Licznik społeczności („23 kuKINGów", issue #38). 18 px (`--text-body`),
+     NIE 16 px odziedziczone z `.site-footer-inner` — ta liczba jest
+     samodzielną etykietą, nie pomocą kontekstową obok innego tekstu z
+     treścią (ten sam przypadek co `.stat-label` wyżej, `MinimalnyRozmiarTekstuTest`,
+     AGENTS.md §5). */
+  .site-footer-liczba {
+    font-size: var(--text-body);
+  }
+
   @media (min-width: 64rem) {
     .site-footer { padding-bottom: var(--spacing-8); }
 

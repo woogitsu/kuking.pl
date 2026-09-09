@@ -417,9 +417,34 @@
             @endisset
         </div>
 
+        {{--
+            LICZNIK SPOŁECZNOŚCI (issue #38, docs/brand/COPY_STYLE.md §8).
+
+            Cała logika — kogo liczymy, cache, próg widoczności, odmiana —
+            żyje w `App\Domain\Analytics\LiczbaKukingow`, nie tutaj. Widok
+            tylko pyta i, jeśli jest sens, pokazuje wynik.
+        --}}
+        @php
+            $liczbaKukingow = app(\App\Domain\Analytics\LiczbaKukingow::class);
+        @endphp
+
         <footer class="site-footer">
             <div class="site-footer-inner">
                 <span>Kuking — gotujemy po swojemu.</span>
+                @if($liczbaKukingow->widoczna())
+                    {{--
+                        Osobny <span>, 18 px (`--text-body`), nie ambientowe
+                        16 px reszty stopki (`--text-help`) — ten span jest
+                        SAMODZIELNĄ etykietą z liczbą, dokładnie ten sam
+                        przypadek co `.stat-label` na profilu
+                        (`docs/design/DESIGN_SYSTEM.md`, `MinimalnyRozmiarTekstuTest`,
+                        AGENTS.md §5: tekst podstawowy minimum 18 px).
+                    --}}
+                    <span class="site-footer-liczba">
+                        {{ $liczbaKukingow->liczbaSformatowana() }}
+                        <x-kuking-word :forma="$liczbaKukingow->sufiks()" />
+                    </span>
+                @endif
                 {{--
                     „NAPISZ DO NAS" STOI PIERWSZY W STOPCE I NIE JEST DYMKIEM
                     W ROGU EKRANU.
