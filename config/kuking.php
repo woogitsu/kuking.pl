@@ -494,6 +494,93 @@ return [
         'klucz_wyslania_wlaczony' => (bool) env('KUKING_KLUCZ_WYSLANIA', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cloudflare Turnstile — filtr taniego ruchu automatycznego
+    |--------------------------------------------------------------------------
+    |
+    | D-050 (odwraca poz. 1.11 z `docs/INSPIRATION_DECISIONS.md`). Turnstile
+    | stoi na SZEŚCIU formularzach publicznych — wszędzie tam, gdzie do
+    | serwisu wchodzi ktoś niezalogowany.
+    |
+    | TURNSTILE NIE JEST WARUNKIEM DOSTĘPU I NIE WOLNO GO W TAKI ZAMIENIĆ.
+    | Widget jest skryptem, a `AGENTS.md` §5 mówi, że rejestracja i logowanie
+    | działają bez JavaScriptu. Brak tokenu przepuszczamy (zostają limity
+    | zapytań z `limits` niżej, `klucz_wyslania` i weryfikacja adresu e-mail);
+    | odrzucamy dopiero token, który PRZYSZEDŁ i którego Cloudflare nie uznał.
+    | Pełne uzasadnienie: `App\Rules\TurnstileNieJestPodrobiony`.
+    |
+    */
+
+    'turnstile' => [
+        // Klucz publiczny („Site Key") — wchodzi do HTML-a widgetu, więc nie
+        // jest sekretem. Sekret („Secret Key") wychodzi wyłącznie na
+        // `siteverify` i nigdy nie trafia do widoku ani do logu.
+        //
+        // PUSTE = TURNSTILE NIE ISTNIEJE: widget się nie renderuje, reguła
+        // walidacji nie odpytuje nikogo i nikogo nie odrzuca. To jest stan
+        // domyślny lokalnie, w CI i w testach — po to, żeby wgranie kluczy
+        // było jedyną rzeczą, którą właściciel musi zrobić, i żeby brak
+        // kluczy nie wywracał ani jednego formularza.
+        //
+        // ALE cisza na produkcji jest zakazana: gdy `APP_ENV=production`,
+        // którekolwiek miejsce niżej jest włączone, a kluczy nie ma, `/health`
+        // oddaje `status: degraded` z powodem `turnstile_bez_kluczy` i zapisuje
+        // błąd w dzienniku (`App\Http\Controllers\HealthController`). Bez tego
+        // mielibyśmy narzędzie, które melduje sukces, nie robiąc nic.
+        'klucz_publiczny' => (string) env('TURNSTILE_SITE_KEY', ''),
+        'sekret' => (string) env('TURNSTILE_SECRET_KEY', ''),
+
+        // Ile sekund czekamy na odpowiedź `siteverify`. Krótko celowo: to jest
+        // cudza usługa stojąca w środku wysyłania NASZEGO formularza. Gdy nie
+        // odpowiada, przepuszczamy wysłanie i zapisujemy ostrzeżenie —
+        // niedostępność Cloudflare nie może zamykać rejestracji.
+        'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
+
+        /*
+         * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie i weryfikacja
+         * tokenu, który przyszedł. `false` = tego formularza Turnstile nie
+         * dotyczy w ogóle (widget się nie renderuje, reguła nie odpytuje
+         * Cloudflare — także wtedy, gdy ktoś podstawi token ręcznie).
+         *
+         * Wszystkie sześć jest włączonych: każdy z tych formularzy jest
+         * publiczny i każdy kosztuje nas coś realnego przy nadużyciu — konto
+         * do moderowania, list wysłany na cudzy adres, wiadomość w kolejce
+         * jedynej osoby, która ją czyta, sprawę z terminem odpowiedzi z DSA,
+         * zgadywanie haseł do cudzych kont.
+         *
+         * WYŁĄCZENIE WSZĘDZIE NARAZ to wyczyszczenie kluczy wyżej — jedno
+         * miejsce, bez wdrożenia. Wyłączenie punktowe: `false` niżej.
+         */
+        'miejsca' => [
+            'rejestracja' => (bool) env('TURNSTILE_NA_REJESTRACJI', true),
+            'odzyskanie_hasla' => (bool) env('TURNSTILE_NA_ODZYSKANIU_HASLA', true),
+            'kontakt' => (bool) env('TURNSTILE_NA_KONTAKCIE', true),
+            'zgloszenie_nielegalnej_tresci' => (bool) env('TURNSTILE_NA_ZGLOSZENIU', true),
+
+            /*
+             * LOGOWANIE I COFNIĘCIE USUNIĘCIA KONTA — WŁĄCZONE, ZAWSZE.
+             *
+             * DECYZJA WŁAŚCICIELA z 9 września 2026 (issue #217): „captcha
+             * trzeba normalnie zrobić, ten od cloudflare jest nieinwazyjny".
+             * Turnstile w trybie Managed przechodzi w przeważającej większości
+             * przypadków BEZ ŻADNEJ INTERAKCJI — nie ma obrazków do klikania,
+             * więc nie ma bariery, przed którą bronił pierwotny szkic #217
+             * („dopiero po nieudanych próbach"). Ten wariant nie powstał
+             * i nie jest już potrzebny.
+             *
+             * Trzy koszyki `login_limits` ZOSTAJĄ bez zmian. Turnstile ich nie
+             * zastępuje: limity widzą atak rozproszony po adresach, captcha
+             * widzi automat. To dwie różne obrony i chcemy obu naraz.
+             *
+             * `SECURITY_BASELINE.md` §4 opisuje ten sam stan — nie rozjeżdżaj
+             * tych dwóch miejsc.
+             */
+            'logowanie' => (bool) env('TURNSTILE_NA_LOGOWANIU', true),
+            'cofniecie_usuniecia' => (bool) env('TURNSTILE_NA_COFNIECIU_USUNIECIA', true),
+        ],
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //

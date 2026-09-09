@@ -42,6 +42,8 @@
             @error('terms_accepted')<span class="field-error" id="f-terms_accepted-error">{{ $message }}</span>@enderror
         </div>
 
+        <x-turnstile miejsce="rejestracja" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Załóż konto</button>
         </div>

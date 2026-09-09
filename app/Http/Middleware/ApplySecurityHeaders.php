@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\Turnstile;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
@@ -112,6 +113,23 @@ class ApplySecurityHeaders
         // gałęzi nie ma — `public/hot` powstaje wyłącznie lokalnie.
         $vite = $this->zrodlaSerweraVite();
 
+        // Cloudflare Turnstile (D-050). Widget dociąga własne skrypty
+        // i rysuje się w RAMCE, więc potrzebuje dwóch dyrektyw naraz:
+        // `script-src` i `frame-src`. Sam podpis (`nonce`) nie wystarczy —
+        // nonce nie przechodzi na skrypty, które api.js wstawia sam.
+        //
+        // DOKŁADAMY TO TYLKO WTEDY, GDY TURNSTILE MA KLUCZE. Bez nich widget
+        // się nie renderuje, więc rozluźnianie polityki nie miałoby czego
+        // obsłużyć — a każdy obcy host w `script-src` to poszerzenie
+        // powierzchni ataku dla XSS-a (issue #12). Polityka opisuje to,
+        // co strona naprawdę ładuje.
+        //
+        // ŚWIADOMIE NIE dokładamy `style-src 'unsafe-inline'`, o którym
+        // wspominają niektóre poradniki: własne style widgetu żyją WEWNĄTRZ
+        // jego ramki, czyli pod polityką Cloudflare, nie naszą. Dodanie
+        // `unsafe-inline` skasowałoby cały efekt issue #107.
+        $turnstile = Turnstile::skonfigurowany() ? ['https://challenges.cloudflare.com'] : [];
+
         $wspolne = [
             "default-src 'self'",
             "base-uri 'self'",
@@ -126,8 +144,15 @@ class ApplySecurityHeaders
             "font-src 'self' data:",
             "worker-src 'self'",
             'connect-src '.implode(' ', ["'self'", ...$vite['connect']]),
-            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host']]),
+            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile]),
         ];
+
+        // `frame-src` pojawia się w polityce WYŁĄCZNIE z Turnstile. Bez niego
+        // ramki dziedziczą `default-src 'self'` — czyli domyślnie nie wolno
+        // wstawiać żadnej obcej, i tak ma zostać.
+        if ($turnstile !== []) {
+            $wspolne[] = 'frame-src '.implode(' ', ["'self'", ...$turnstile]);
+        }
 
         // `style-src` bez `unsafe-inline` — od issue #107 w widokach nie ma
         // ani jednego atrybutu `style=`. Podpis zostaje, bo obejmuje `<style>`

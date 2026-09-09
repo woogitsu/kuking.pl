@@ -18,6 +18,8 @@
 
         <x-field name="password" label="Hasło do konta" type="password" required autocomplete="current-password" />
 
+        <x-turnstile miejsce="cofniecie_usuniecia" />
+
         <button class="btn btn-primary mt-5" type="submit">Cofnij usunięcie konta</button>
     </form>
 

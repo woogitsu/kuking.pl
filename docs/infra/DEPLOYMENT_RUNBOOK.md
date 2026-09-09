@@ -507,6 +507,8 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `MAIL_PASSWORD` | z kroku 3.2 | **TAK** | Hasło / klucz API SMTP |
 | `SENTRY_LARAVEL_DSN` | z kroku 4 | nie | DSN projektu Sentry |
 | `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
+| `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
+| `TURNSTILE_SECRET_KEY` | z kroku 8A | **TAK** | Secret Key widgetu Turnstile |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -655,6 +657,101 @@ Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
 
 > **Nigdy nie wskazuj staginu na produkcyjny bucket ani produkcyjną bazę.**
 > Test na staginu, który usuwa zdjęcia użytkowników, to nie test — to incydent.
+
+---
+
+## KROK 8A. Cloudflare Turnstile — captcha na formularzach publicznych
+
+**Kiedy:** po kroku 8, przed pierwszym wpuszczeniem ludzi.
+**Ile zajmuje:** pięć minut w panelu Cloudflare, dwie zmienne w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — formularze
+działają jak dziś, chroni je limit zapytań. Ale `/health` będzie od tej pory
+oddawał `status: degraded` (patrz niżej), bo konfiguracja obiecuje ochronę,
+której nie ma. To jest zamierzone: cicha, nieistniejąca ochrona jest gorsza
+niż jej jawny brak.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-050](../DECISIONS.md), issue #217.
+
+### 8A.1 Co kliknąć w panelu Cloudflare
+
+1. Zaloguj się na [dash.cloudflare.com](https://dash.cloudflare.com) na to
+   samo konto, na którym jest DNS `kuking.pl`.
+2. W menu po lewej: **Turnstile** → **Add widget**.
+3. **Widget name:** `kuking.pl` (dowolna, to tylko etykieta w panelu).
+4. **Hostnames** — dodaj **wszystkie**, pod którymi serwis ma działać:
+   - `kuking.pl`
+   - `www.kuking.pl`
+   - `kuking-pl-production.up.railway.app` (adres z Railway — bez niego
+     widget nie zadziała na środowisku Railwaya)
+   - `localhost` **tylko** jeśli chcesz testować u siebie z prawdziwymi
+     kluczami; normalnie nie jest potrzebny, bo lokalnie Turnstile jest
+     wyłączony (puste klucze).
+5. **Widget Mode:** **Managed**. To jest ten tryb, który w przeważającej
+   większości przypadków nie prosi człowieka o nic — żadnych obrazków
+   z przejściami dla pieszych. Nie wybieraj „Interactive".
+6. **Create**. Cloudflare pokaże dwie wartości:
+   - **Site Key** — zaczyna się od `0x4AAA…`, jest **publiczny** (wchodzi do
+     kodu strony, każdy go widzi);
+   - **Secret Key** — **to jest sekret**, nie wklejaj go nigdzie poza Railway,
+     nie wysyłaj mailem, nie wklejaj do issue na GitHubie.
+
+Widget jest darmowy i bez limitu zapytań — Cloudflare nie każe za niego płacić.
+
+### 8A.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` odwołuje się do nich przez `ctx.shared`, więc muszą istnieć
+pod dokładnie tymi nazwami):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `TURNSTILE_SITE_KEY` | Site Key z 8A.1 | nie |
+| `TURNSTILE_SECRET_KEY` | Secret Key z 8A.1 | **TAK — zaznacz „Sealed"** |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz obie
+zmienne wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie.
+
+Dla środowiska `staging` zrób osobny widget albo dopisz domenę staginu do
+listy hostnames w tym samym widgetcie. Ten sam Secret Key wolno użyć w obu.
+
+### 8A.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.turnstile'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Widget jest na stronie rejestracji
+curl -s https://kuking.pl/register | grep -c 'cf-turnstile'
+# oczekiwane: liczba większa od zera
+```
+
+Potem otwórz `https://kuking.pl/register` w przeglądarce: nad przyciskiem
+„Załóż konto" ma być zdanie „Zanim wyślesz, sprawdzamy, że formularza nie
+wypełnia automat" i pod nim ramka Turnstile, która sama zamienia się
+w zielony ptaszek. **Jeśli ramka nie zamienia się w nic i widać błąd
+`Error: 400020`** — Site Key nie pasuje do domeny; wróć do 8A.1 punkt 4.
+
+### 8A.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **Turnstile nie zablokuje formularza osobie z wyłączonym JavaScriptem.**
+  Tak ma być: bez skryptu widget nie powstaje, a rejestracja i logowanie
+  muszą działać (AGENTS.md §5). Turnstile odsiewa tani ruch automatyczny,
+  nie jest bramką dostępu.
+- **Turnstile nie zastępuje limitów zapytań** — one zostają bez zmian.
+- **Awaria Cloudflare nie zamknie rejestracji.** Gdy `siteverify` nie
+  odpowiada, formularz przechodzi, a w dzienniku ląduje ostrzeżenie.
+
+### 8A.5 Jak to wyłączyć w minutę
+
+Wyczyść `TURNSTILE_SITE_KEY` i `TURNSTILE_SECRET_KEY` (albo, punktowo,
+ustaw np. `TURNSTILE_NA_LOGOWANIU=false`) i zrestartuj serwis. Nie ma
+migracji do cofania — Turnstile nie zapisuje niczego do bazy.
+
+Po wyłączeniu wszystkiego ustaw też wszystkie sześć `TURNSTILE_NA_*`
+na `false`, żeby `/health` nie zgłaszał `degraded`: brak kluczy jest błędem
+tylko wtedy, gdy konfiguracja nadal obiecuje ochronę.
 
 ---
 
