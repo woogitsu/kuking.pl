@@ -8,7 +8,9 @@ use App\Domain\Users\Actions\CancelEmailChange;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Rules\TurnstileNieJestPodrobiony;
 use App\Support\Poczta;
+use App\Support\Turnstile;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +37,16 @@ class PasswordResetController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email', 'max:255'],
+            /*
+             * Turnstile (D-050) — CELOWO BEZ `required`.
+             *
+             * Bez JavaScriptu token nie powstaje, a ten formularz musi
+             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
+             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
+             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
+             * `App\Rules\TurnstileNieJestPodrobiony`.
+             */
+            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('odzyskanie_hasla'),
         ], [
             'email.required' => 'Podaj adres e-mail, na który założone jest konto.',
             'email.email' => 'Ten adres wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',

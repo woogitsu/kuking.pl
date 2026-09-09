@@ -24,6 +24,8 @@
         <form class="card" method="POST" action="{{ route('password.email') }}">
             @csrf
             <x-field name="email" label="Twój adres e-mail" type="email" required autocomplete="email" />
+            <x-turnstile miejsce="odzyskanie_hasla" />
+
             <div class="form-actions">
                 <button class="btn btn-primary" type="submit">Wyślij link</button>
                 <a class="btn btn-quiet" href="{{ route('login') }}">Wróć do logowania</a>
