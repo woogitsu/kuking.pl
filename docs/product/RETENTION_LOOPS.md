@@ -22,10 +22,19 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 ### Pętla 1 — Ugotowałem → wzruszenie autora → odpowiedź → kolejne wykonanie ⭐ główna
 
+> **Stan (issue #17): JEST.** Ekran „Komuś wyszło” działa
+> (`app/Http/Controllers/CookedEventController.php`,
+> `resources/views/pages/cooked/celebrate.blade.php`). Jedyna różnica wobec
+> opisu niżej: przycisk nazywa się „**Podziękuj**” i wysyła zwykły komentarz
+> z gotowym tekstem podziękowania — to jest podziękowanie, nie osobny typ
+> „odpowiedzi". Plakietka „autorka przepisu” przy tym komentarzu (wiersz
+> „Nagroda” niżej) to osobna, jeszcze nie zbudowana mechanika z `SOUL.md`
+> §4.2 — nie część zakresu #17.
+
 | | |
 |---|---|
 | **Trigger** | Powiadomienie: „**Marek ugotował Twoje pierogi z kaszą**” + miniatura jego zdjęcia |
-| **Akcja** | Autor otwiera pełnoekranowy ekran „Komuś wyszło”, patrzy na zdjęcie, odpowiada Markowi |
+| **Akcja** | Autor otwiera pełnoekranowy ekran „Komuś wyszło”, patrzy na zdjęcie, dziękuje Markowi |
 | **Nagroda** | Autor: dowód, że jego przepis żyje w cudzym domu. Marek: odpowiedź od **autorki przepisu**, wyróżniona plakietką |
 | **Inwestycja** | Marek zaczyna obserwować autorkę → jej kolejny przepis wpada mu do feedu. Autorka dopisuje uwagę do przepisu („Marek dodawał chrzan — dobra myśl”) → przepis mądrzeje |
 | **Koszt / kiedy** | M / **MVP** |
@@ -184,6 +193,12 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 ---
 
 ## 4. Tygodniowy digest — szkic treści
+
+> Digest sam nie istnieje jeszcze (issue #11, stan „OTWARTE” w
+> `docs/AUDYT_2026-09.md`). Szkic niżej pisany był, zanim ekran „Komuś
+> wyszło” (issue #17) dostał ostateczne brzmienie przycisku — kto go
+> będzie budował, niech przyciskowi w mailu da tę samą nazwę co na
+> ekranie: „**Podziękuj**”, nie „Odpowiedz Markowi”.
 
 **Nadawca:** imię gospodarza + „z Kuking” (np. „Marta z Kuking”), adres odpowiadalny — odpowiedzi czyta człowiek.
 **Wysyłka:** piątek 17:00 (przed weekendem, gdy ludzie gotują i planują).
