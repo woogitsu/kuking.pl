@@ -10,10 +10,23 @@
         <h2>Dlaczego to powstało</h2>
         <p>
             Przepisy giną. Zeszyty się rozsypują, telefony się psują, grupy na Facebooku
-            zamykają się razem z administratorem, a serwisy, na których ludzie trzymali
-            zdjęcia swoich obiadów, po prostu znikają. Kuking ma być miejscem, z którego
-            da się wszystko zabrać ze sobą — dlatego pobranie własnych danych działa
-            od pierwszego dnia, a nie „kiedyś”.
+            zamykają się razem z administratorem. To samo bywa z serwisami internetowymi —
+            i mamy na to dwa świeże, polskie przykłady.
+        </p>
+        <p>
+            Garnek.pl, gdzie ludzie latami trzymali zdjęcia swojej codzienności, przestał
+            działać 25 listopada 2024 roku — oficjalnie dlatego, że przychody z reklam
+            nie pokrywały już kosztów utrzymania. Wolontariusze próbowali ratować archiwum,
+            ale zabrakło czasu, żeby pobrać także zdjęcia. Zdjęcia ludzi przepadły.
+        </p>
+        <p>
+            Durszlak.pl też się zamknął. Serwis miał „zeszyty” — osobiste zbiory zapisanych
+            przepisów, które ludzie budowali latami. Zniknęły razem z nim.
+        </p>
+        <p>
+            Kuking ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
+            ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia,
+            a nie „kiedyś”.
         </p>
 
         <h2>Co jest tu najważniejsze</h2>
