@@ -926,11 +926,22 @@ Komentarz dotyczy dokładnie jednego:
 ### collections + collection_items
 Osobisty zeszyt.
 
-**`collection_items` ma `PRIMARY KEY (collection_id, recipe_id)`** od migracji
-zakładającej tabelę (`2026_09_05_000800_create_collections_tables`). Ten sam
-przepis nie może stanąć w tym samym zeszycie dwa razy. Issue #43 zgłaszało tu
-brak ograniczenia — zgłoszenie było nieaktualne, klucz jest na miejscu.
-Pilnuje tego `tests/Feature/UnikalnoscZeszytowTest`.
+**`collection_items` NIE MA DZIŚ KLUCZA GŁÓWNEGO** i to jest stan zamierzony.
+Migracja zakładająca tabelę (`2026_09_05_000800_create_collections_tables`)
+dała `PRIMARY KEY (collection_id, recipe_id)`, ale migracja
+`2026_09_06_150000_collection_items_accept_posts` musiała go zdjąć: kolumna
+klucza głównego nie może być NULL, a od tamtej pory `recipe_id` bywa NULL —
+w zeszycie stoją także wpisy. Zastępują go **dwa indeksy częściowe**,
+`collection_items_recipe_unique` i `collection_items_post_unique`, i pilnują
+dokładnie tego samego: ta sama pozycja nie stanie w tym samym zeszycie dwa
+razy (issue #43). Pełny opis razem z CHECK-iem stoi wyżej, w sekcji
+[`collection_items — przepisy ORAZ wpisy`](#collection_items--przepisy-oraz-wpisy).
+
+> **Nie przywracaj tu klucza głównego.** Wpisanie z powrotem
+> `PRIMARY KEY (collection_id, recipe_id)` wymaga `recipe_id NOT NULL`, czyli
+> skasowania wszystkich zapisanych wpisów z zeszytów. Stan schematu pilnuje
+> `tests/Feature/ZeszytBezKluczaGlownegoTest`, a unikalność —
+> `tests/Feature/UnikalnoscZeszytowTest`.
 
 To samo dotyczy `post_media` — `PRIMARY KEY (post_id, media_id)` plus
 `UNIQUE (post_id, position)` stoją tam od migracji zakładającej tabelę.
@@ -974,13 +985,32 @@ kończyłoby się błędem 500.
 ### notifications
 In-app.
 
-**Retencja:** `config('kuking.notifications.retention_months')` (domyślnie
-24 miesiące, **rekomendacja agenta** — `docs/decyzje/ADR_RETENCJE.md` §5.2,
-nie decyzja właściciela) od `created_at`, **niezależnie od `read_at`** — jeden
-wiek dla wszystkich (wariant A, ADR §6). Egzekwuje
-`kuking:sprzataj-powiadomienia` (`App\Domain\Compliance\PrzedawnionePowiadomienia`),
-harmonogram codziennie o 04:20. Zwykły masowy `DELETE` — wiersz nie ma
-odpowiednika w storage.
+**Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
+od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
+§6: jeden wiek dla wszystkich; wariant B trzymałby bezterminowo powiadomienia,
+których nikt nigdy nie otworzy). Tę samą liczbę widzi człowiek w polityce
+prywatności — `resources/legal/polityka-prywatnosci.md`, wiersz „Powiadomienia
+w serwisie".
+
+*(Stał tu dłuższy okres, przepisany z ADR §5.2 jako rekomendacja agenta
+z pierwszej wersji tego dokumentu. Kod i polityka prywatności mówiły wtedy to,
+co mówią teraz, więc poprawiliśmy dokument, nie kod — D-038. Audyt zewnętrzny,
+pozycja G13. Liczba stoi w tej sekcji RAZ i pilnuje tego
+`tests/Feature/ZeszytBezKluczaGlownegoTest`.)*
+
+**WYJĄTEK, którego nie wolno przeoczyć przy zmianie tej liczby.** Trzy miesiące
+są KRÓTSZE niż sześć miesięcy, przez które ma działać prawo do odwołania od
+decyzji moderacyjnej (DSA art. 20 ust. 1, `ModerationAction::appealDeadline()`).
+Powiadomienie o decyzji niesie **jedyny w serwisie link „Odwołaj się"**, więc
+typy z `App\Models\Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`
+nie są kasowane według tej liczby — ich termin wylicza się z powiązanej decyzji.
+Ta lista jest **zamkniętą stałą w kodzie, nie w configu**, celowo: zmiana ma
+przechodzić przez code review, nie przez zmienną środowiskową (ten sam wzorzec
+co `AuditLogEntry::NIGDY_NIE_KASUJ`).
+
+Egzekwuje `kuking:sprzataj-powiadomienia`
+(`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
+o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
 
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
