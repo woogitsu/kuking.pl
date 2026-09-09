@@ -236,7 +236,51 @@ return Application::configure(basePath: dirname(__DIR__))
                 ]);
             }
 
-            return null;
+            // --------------------------------------------------------------
+            //  ...I ODDAJE CZŁOWIEKOWI TO, CO NAPISAŁ (audyt zewnętrzny, G06)
+            // --------------------------------------------------------------
+            //
+            //  Do tej pory ekran 429 mówił „nic nie przepadło", a serwer nie
+            //  zachowywał NICZEGO: `old()` puste, tekstu nigdzie w odpowiedzi,
+            //  zdjęcia nie było jak odzyskać. Powrót „wstecz" bywa ratunkiem,
+            //  ale to zachowanie przeglądarki, nie obietnica aplikacji —
+            //  a obietnica stała wypisana na ekranie.
+            //
+            //  Najgorszy moment na taki komunikat: ktoś napisał przepis,
+            //  kliknął „Opublikuj", trafił na limit i przeczytał, że wszystko
+            //  jest w porządku. AGENTS.md §5: poprawnie wpisane dane nigdy
+            //  nie znikają — bez wyjątku dla limitu zapytań.
+            //
+            //  TA SAMA DROGA CO PRZY 419: `OdzyskanyFormularz` wystawia
+            //  formularz jeszcze raz, z treścią wprost z odbitego żądania.
+            //  Nic nie ląduje w sesji ani w cache'u, więc limit nie zamienia
+            //  się w sposób na odkładanie danych w bazie — treść żyje
+            //  wyłącznie w tej jednej odpowiedzi HTTP.
+            //
+            //  ODZYSKUJEMY TYLKO NA TRASACH TREŚCI. Decyduje `OdzyskiwalneDane`
+            //  (zgoda po nazwie trasy, nie zakaz po nazwie pola), więc 429 na
+            //  logowaniu, rejestracji i drugim składniku nie oddaje niczego —
+            //  a limit logowania jest właśnie tym, który odbija najczęściej.
+            //
+            //  DLACZEGO NIE `back()->withInput()`: powody stoją w komentarzu
+            //  `App\Exceptions\OdzyskanyFormularz` i są tu te same. Doszedł
+            //  jeden własny: `back()` wraca na formularz, a wejście na
+            //  formularz bywa liczone przez ten sam limiter co jego wysłanie —
+            //  czyli odbicie od limitu odsyłałoby prosto w kolejne odbicie.
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return null;
+            }
+
+            $formularz = OdzyskanyFormularz::zZadania($request);
+
+            // NAGŁÓWKI Z WYJĄTKU LECĄ DALEJ: `Retry-After` (i `X-RateLimit-*`)
+            // to jedyne miejsce, z którego widok wie, na ile ta przerwa jest.
+            // Rysując odpowiedź ręcznie, trzeba je przepisać — inaczej ekran
+            // mówiłby „za kilka minut" zamiast „za 2 min".
+            return response()->view('errors.429', [
+                'formularz' => $formularz,
+                'sekundy' => $e->getHeaders()['Retry-After'] ?? null,
+            ], 429, $e->getHeaders());
         });
 
         // ------------------------------------------------------------------

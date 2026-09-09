@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Media\DostepDoZdjecia;
 use App\Models\Ingredient;
+use App\Models\Media;
+use App\Models\Recipe;
 use App\Models\User;
 use App\Policies\UserPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -45,6 +49,34 @@ use Tests\TestCase;
  * odrębny warunek PRZED zapytaniem o rodziców) — ale to WCIĄŻ jest awaria,
  * tylko po bezpiecznej stronie, i lepiej, żeby wyszła stąd niż ze
  * zgłoszenia „moje zdjęcie nagle zniknęło".
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  CZEGO TEN PLIK NIE MIERZYŁ, CHOĆ TAK SIĘ NAZYWA (audyt zewnętrzny, G11)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Dwa testy niżej wołają WYŁĄCZNIE `Gate::allows()`. Opisują zachowanie
+ * frameworka i opisują je poprawnie — ale ani razu nie dotykają
+ * `DostepDoZdjecia`, o którym mówi cały nagłówek.
+ *
+ * ZMIERZONE: po podmianie `DostepDoZdjecia::moze()` na `return true`
+ * (czyli po otwarciu KAŻDEGO zdjęcia KAŻDEMU) ten plik przechodził
+ * w całości — 2 testy, 5 asercji, zielono. Ta sama mutacja wywalała
+ * 21 z 28 testów w `ZdjeciaChronioneNieWyciekajaTest`.
+ *
+ * Test, który przeżywa mutację będącą dokładnie tą awarią, przed którą
+ * ostrzega jego własny nagłówek, jest gorszy niż brak testu: liczy się
+ * w pokryciu i uspokaja przy przeglądzie.
+ *
+ * Dlatego niżej doszły dwa przypadki wołające PRAWDZIWĄ usługę — jeden
+ * na zdjęciu bez rodzica (to jest właśnie stan „nowy rodzic bez Policy":
+ * żaden rodzic nie przepuszcza), drugi na prawdziwej odmowie i prawdziwej
+ * zgodzie `RecipePolicy`. Każdy z nich ma kontrolę w drugą stronę, bo
+ * „usługa zawsze odmawia" zabiłoby mutację `return true` i przepuściło
+ * `return false`, czyli zdjęcia zniknięte wszystkim.
+ *
+ * `ZdjeciaChronioneNieWyciekajaTest` zostaje nietknięty — audyt mówi
+ * wprost, żeby go nie osłabiać, i słusznie: tamten stoi na kanonicznej
+ * macierzy widoczności, ten pilnuje jednego konkretnego mechanizmu.
  */
 class DostepDoZdjeciaBezPolicyRodzicaTest extends TestCase
 {
@@ -116,6 +148,101 @@ class DostepDoZdjeciaBezPolicyRodzicaTest extends TestCase
             Gate::forUser($ktos)->allows('view', $cel),
             'Policy istnieje (UserPolicy), ale bez metody view() — Gate::allows() '.
             'musi i tak zwrócić false, nie wywalić się BadMethodCallException.',
+        );
+    }
+
+    // =================================================================
+    //  Prawdziwa usługa, nie sam Gate (audyt G11)
+    // =================================================================
+
+    /**
+     * Zdjęcie, którego ŻADEN rodzic nie przepuszcza, jest niewidoczne dla
+     * obcego i dla gościa — sprawdzone przez `DostepDoZdjecia::moze()`.
+     *
+     * Zdjęcie bez rodzica to dokładnie ten stan, do którego prowadzi awaria
+     * opisana w nagłówku: nowy typ rodzica bez Policy nie przepuszcza,
+     * więc pętla po rodzicach kończy się tak samo jak pusta. Różnica jest
+     * tylko w tym, ile razy Gate powiedział „nie".
+     *
+     * Ten sam przypadek jest zresztą normalnym stanem produkcyjnym: zdjęcie
+     * wgrane do kreatora i jeszcze nieprzypięte do przepisu.
+     */
+    public function test_usluga_odmawia_obcemu_zdjecia_bez_rodzica_a_wlascicielowi_nie(): void
+    {
+        $autorka = $this->user('autorka');
+        $obcy = $this->user('obcy');
+
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $autorka->getKey(),
+            'status' => Media::STATUS_READY,
+        ]);
+
+        $dostep = app(DostepDoZdjecia::class);
+
+        $this->assertFalse(
+            $dostep->moze($obcy, $zdjecie),
+            'Zdjęcie bez ani jednego przepuszczającego rodzica otworzyło się obcemu. '
+            .'To jest ta sama gałąź, w którą wpada nowy typ rodzica bez Policy.',
+        );
+
+        $this->assertFalse(
+            $dostep->moze(null, $zdjecie),
+            'To samo dla gościa — brak konta nie może być szerszym dostępem niż konto.',
+        );
+
+        // KONTROLA W DRUGĄ STRONĘ. Bez niej `moze()` przerobione na
+        // `return false` przeszłoby oba testy wyżej — a to znaczy zdjęcia
+        // zniknięte WSZYSTKIM, łącznie z autorem w kreatorze.
+        $this->assertTrue(
+            $dostep->moze($autorka, $zdjecie),
+            'Właścicielka nie zobaczyła własnego, jeszcze nieprzypiętego zdjęcia. '
+            .'Podgląd w kreatorze byłby pustą ramką.',
+        );
+    }
+
+    /**
+     * Prawdziwa odmowa i prawdziwa zgoda, przez prawdziwą Policy.
+     *
+     * Jedno zdjęcie, jeden rodzic, jedna zmiana: przepis prywatny → obcy nie
+     * widzi, ten sam przepis publiczny → widzi. To jest cała umowa tej klasy
+     * („nie powtarza ani jednego warunku widoczności, woła Policy") ściśnięta
+     * do dwóch asercji.
+     *
+     * Kanoniczna macierz wszystkich kombinacji stoi w
+     * `ZdjeciaChronioneNieWyciekajaTest` i ma tam zostać — tu chodzi o to,
+     * żeby TEN plik nie przeżył mutacji, o której mówi jego własny nagłówek.
+     */
+    public function test_usluga_idzie_za_policy_rodzica_w_obie_strony(): void
+    {
+        $autorka = $this->user('autorka');
+        $obcy = $this->user('obcy');
+
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $autorka->getKey(),
+            'status' => Media::STATUS_READY,
+        ]);
+
+        $przepis = Recipe::factory()->create([
+            'author_id' => $autorka->getKey(),
+            'visibility' => 'private',
+            'hero_media_id' => $zdjecie->getKey(),
+            'title' => 'Żurek na zakwasie',
+            'slug' => 'zurek-na-zakwasie-'.Str::lower(Str::random(6)),
+        ]);
+
+        $dostep = app(DostepDoZdjecia::class);
+
+        $this->assertFalse(
+            $dostep->moze($obcy, $zdjecie),
+            'Zdjęcie główne PRYWATNEGO przepisu otworzyło się obcemu.',
+        );
+
+        $przepis->forceFill(['visibility' => 'public'])->save();
+
+        $this->assertTrue(
+            $dostep->moze($obcy, $zdjecie->fresh()),
+            'Zdjęcie główne PUBLICZNEGO przepisu nie otworzyło się obcemu — '
+            .'czyli usługa nie idzie za Policy, tylko odmawia wszystkiego.',
         );
     }
 }

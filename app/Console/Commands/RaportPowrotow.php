@@ -117,12 +117,13 @@ class RaportPowrotow extends Command
      */
     private function kohorty(CookRetentionCohorts $kohorty): void
     {
-        $wiersze = $kohorty->weekly();
+        $rozmiary = $kohorty->rozmiaryKohort();
+        $wiersze = $kohorty->weekly()->groupBy('signup_week');
 
         $this->line('Kohorty powrotów — z prawdziwej aktywności, nie z ostatniej wizyty.');
 
-        if ($wiersze->isEmpty()) {
-            $this->line('Brak danych — nikt jeszcze nic nie zrobił w tygodniu swojej rejestracji.');
+        if ($rozmiary->isEmpty()) {
+            $this->line('Brak danych — nikt jeszcze się nie zarejestrował.');
 
             return;
         }
@@ -135,36 +136,42 @@ class RaportPowrotow extends Command
         // pustej kohorcie D7/D30 wyżej).
         $biezacyTydzien = CarbonImmutable::now(Czas::strefa())->startOfWeek()->startOfDay();
 
-        foreach ($wiersze->groupBy('signup_week') as $tydzien => $kohorta) {
+        // Iterujemy po ROZMIARACH, nie po wierszach aktywności — inaczej
+        // kohorta, w której nie odezwał się nikt, nie miałaby ani jednego
+        // wiersza i po prostu zniknęłaby z raportu. A to jest dokładnie ta
+        // kohorta, o której bramka V1 musi wiedzieć.
+        foreach ($rozmiary as $tydzien => $wKohorcie) {
+            /** @var Collection<int, object> $kohorta */
+            $kohorta = $wiersze[$tydzien] ?? collect();
             $wOfsecie = $kohorta->keyBy(fn (object $w): int => (int) $w->week_offset);
 
-            $naStarcie = (int) ($wOfsecie[0]->active_users ?? 0);
+            $pierwszy = $this->ofset($wOfsecie, 0, $wKohorcie, (string) $tydzien, $biezacyTydzien);
+            $poTygodniu = $this->ofset($wOfsecie, 1, $wKohorcie, (string) $tydzien, $biezacyTydzien);
+            $poMiesiacu = $this->ofset($wOfsecie, 4, $wKohorcie, (string) $tydzien, $biezacyTydzien);
 
-            if ($naStarcie === 0) {
-                // Nikt z tej kohorty nie zrobił nic w tygodniu rejestracji,
-                // więc nie ma przez co dzielić. Procent byłby wtedy
-                // wymyślony, a nie policzony.
-                $this->line("  tydzień {$tydzien}: nikt nie był aktywny w tygodniu rejestracji — nie ma od czego liczyć powrotu.");
-
-                continue;
-            }
-
-            $poTygodniu = $this->ofset($wOfsecie, 1, $naStarcie, $tydzien, $biezacyTydzien);
-            $poMiesiacu = $this->ofset($wOfsecie, 4, $naStarcie, $tydzien, $biezacyTydzien);
-
-            $this->line("  tydzień {$tydzien}: {$naStarcie} na starcie · po tygodniu {$poTygodniu} · po miesiącu {$poMiesiacu}");
+            $this->line(
+                "  tydzień {$tydzien}: {$wKohorcie} w kohorcie · w pierwszym tygodniu {$pierwszy}"
+                ." · po tygodniu {$poTygodniu} · po miesiącu {$poMiesiacu}",
+            );
         }
     }
 
     /**
      * Jedna komórka kohorty: liczba i procent, albo „za wcześnie".
      *
+     * MIANOWNIKIEM JEST ROZMIAR KOHORTY, nie liczba aktywnych w tygodniu
+     * zerowym (audyt G07). Poprzednia wersja dzieliła przez `week_offset = 0`
+     * i przy trzech osobach — jednej aktywnej na starcie, dwóch innych po
+     * miesiącu — wypisywała „po miesiącu 2 (200,0%)". Zbiór aktywnych
+     * w tygodniu 4 nie zawiera się w zbiorze aktywnych w tygodniu 0.
+     *
      * @param  Collection<int, object>  $wOfsecie
+     * @param  int  $wKohorcie  ilu ludzi zarejestrowało się w tym tygodniu
      */
     private function ofset(
         Collection $wOfsecie,
         int $ofset,
-        int $naStarcie,
+        int $wKohorcie,
         string $tydzienRejestracji,
         CarbonImmutable $biezacyTydzien,
     ): string {
@@ -179,7 +186,7 @@ class RaportPowrotow extends Command
         }
 
         $ilu = (int) ($wOfsecie[$ofset]->active_users ?? 0);
-        $procent = number_format($ilu / $naStarcie * 100, 1, ',', '');
+        $procent = number_format($ilu / $wKohorcie * 100, 1, ',', '');
 
         return "{$ilu} ({$procent}%)";
     }
