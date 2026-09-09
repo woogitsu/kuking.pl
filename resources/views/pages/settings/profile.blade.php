@@ -41,5 +41,9 @@
         </div>
     </form>
 
-    <x-ustawienia-nawigacja aktywne="profile" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="profile" />
+    </x-slot:rail>
 </x-layout>
