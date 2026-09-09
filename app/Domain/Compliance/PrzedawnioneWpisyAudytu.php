@@ -33,7 +33,11 @@ final class PrzedawnioneWpisyAudytu
      */
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): array
     {
-        $prog = now()->subMonths($miesiecyKarencji);
+        // `subMonthsNoOverflow`, NIE `subMonths` — ta sama pułapka co
+        // w `PrzedawnionePowiadomienia` (A6-04): przepełnienie daty przesuwa
+        // próg w stronę nowszych wierszy i kasuje je przed czasem.
+        // Pełne uzasadnienie i pomiar są tam, przy oryginalnym znalezisku.
+        $prog = now()->subMonthsNoOverflow($miesiecyKarencji);
 
         $niekasowalne = AuditLogEntry::query()
             ->where('created_at', '<', $prog)

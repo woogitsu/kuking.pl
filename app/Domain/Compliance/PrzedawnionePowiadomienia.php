@@ -39,7 +39,27 @@ final class PrzedawnionePowiadomienia
 {
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): RaportRetencjiPowiadomien
     {
-        $prog = now()->subMonths($miesiecyKarencji);
+        // `subMonthsNoOverflow`, NIE `subMonths` — A6-04.
+        //
+        // Zwykłe odejmowanie miesięcy PRZEPEŁNIA datę, gdy dzień nie istnieje
+        // w miesiącu docelowym, i przesuwa próg w stronę NOWSZYCH wierszy.
+        // Zmierzone: 31 maja minus 3 miesiące daje `2026-03-03`, więc wiersz
+        // z 1 marca wypadał po dwóch miesiącach i trzydziestu dniach —
+        // wcześniej, niż obiecuje polityka prywatności.
+        //
+        //     now()                 subMonths(3)   subMonthsNoOverflow(3)
+        //     2026-05-31 12:00      2026-03-03     2026-02-28
+        //
+        // Wariant bez przepełnienia cofa próg do ostatniego istniejącego dnia,
+        // czyli myli się WYŁĄCZNIE w stronę „zostaje dłużej". Przy retencji
+        // to jedyny dopuszczalny kierunek pomyłki: dane skasowane za wcześnie
+        // znikają na zawsze, dane trzymane dzień dłużej — nie.
+        //
+        // Uwaga na przyszłość: NIE stosować tego odruchowo wszędzie.
+        // `ModerationAction::appealDeadline()` DODAJE miesiące i tam
+        // przepełnienie wydłuża termin odwołania, czyli działa na korzyść
+        // człowieka. Podmiana byłaby tam skróceniem obiecanego terminu.
+        $prog = now()->subMonthsNoOverflow($miesiecyKarencji);
 
         // Zwykłe powiadomienia — Wzorzec B (masowy DELETE), tak jak
         // audit_log/product_signals: wiersz nie ma odpowiednika w storage.
