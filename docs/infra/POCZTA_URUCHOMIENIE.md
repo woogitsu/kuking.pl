@@ -234,9 +234,22 @@ WARTOŚCI raz, w panelu Railway (Environment → Variables → Shared Variables)
 | `EMAILLABS_SECRET_KEY` | Authorization z kroku 2 (128 znaków) | **TAK** |
 | `EMAILLABS_SMTP_ACCOUNT` | nazwa konta SMTP, kształt `1.nazwa.smtp` | nie |
 
-`MAIL_MAILER=emaillabs` jest już wpisane na stałe w `.railway/railway.ts` —
-nie dodawaj go ręcznie. Potem: `railway config apply`, **restart serwisów**
-(web ORAZ worker — listy wysyła worker).
+> ⚠️ **`MAIL_MAILER=emaillabs` USTAW RĘCZNIE.** Ten akapit mówił „jest już
+> wpisane na stałe w `.railway/railway.ts` — nie dodawaj go ręcznie".
+> Nieprawda w praktyce: **`railway config apply` nie zostało uruchomione ani
+> razu** (stan na 9 września 2026), więc nic z tego pliku nie obowiązuje.
+> Zmienną trzeba wpisać w panelu, obok trzech kluczy wyżej.
+>
+> `railway config apply` zastosowałoby przy okazji CAŁY plik, czyli także
+> rozbicie jednego serwisu na trzy — to osobna, dużo większa zmiana, której
+> przy uruchamianiu poczty nie chcesz. I nie ruszaj go bez kopii bazy, której
+> dziś nie ma (#193).
+
+Po wpisaniu zmiennych: **restart serwisu** `kuking.pl`. Jeden, bo jest jeden —
+w trybie `all` restart pociąga za sobą stronę, pętlę kolejki i harmonogram
+naraz. Restart jest konieczny, nie kosmetyczny: konfiguracja jest zapiekana
+przy starcie kontenera (`php artisan optimize`), więc zmienna bez restartu nie
+działa i wygląda, jakby działała.
 
 #### Krok 5 — sprawdzenie
 
