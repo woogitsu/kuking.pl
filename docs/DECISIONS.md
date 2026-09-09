@@ -1725,9 +1725,31 @@ odrzucony: usuwanie danych po terminie jest obowiązkiem, nie funkcją.
 **Termin odwołania.** `docs/MODERATION.md` mówiło 14 dni. Kod bierze WIĘKSZĄ
 z dwóch wartości: `appeal_days` (180) i sztywnych sześciu miesięcy
 (`ModerationAction::appealDeadline()`), a regulamin §8 i podręcznik moderatora
-mówią 6 miesięcy — bo tyle wymaga DSA art. 20 ust. 1. Skrócenie do 14 dni
-byłoby złamaniem przepisu; dokument techniczny był po prostu ostatni, który
-o tym nie wiedział.
+mówią 6 miesięcy. Dokument techniczny był po prostu ostatni, który o tym
+nie wiedział.
+
+> **Skąd naprawdę bierze się te sześć miesięcy — dopisane 9 września po
+> audycie zewnętrznym (G17).** Stało tu zdanie „bo tyle WYMAGA DSA art. 20
+> ust. 1. Skrócenie do 14 dni byłoby złamaniem przepisu". To było fałszywe
+> uzasadnienie prawdziwej liczby. Art. 20 leży w Sekcji 3 rozdziału III DSA,
+> a **art. 19 wyłącza całą tę sekcję** dla mikro- i małych przedsiębiorstw.
+> Serwis prowadzi SAMSUFI sp. z o.o. (D-040) — spółka handlowa jest
+> przedsiębiorstwem bez cienia interpretacji i przy dzisiejszej skali mieści
+> się w progu mikroprzedsiębiorstwa, więc **art. 20 nas nie wiąże**.
+>
+> **Termin zostaje i to się nie zmienia.** Zmienia się tylko to, CZYM jest:
+> nie obowiązkiem z rozporządzenia, tylko **obietnicą złożoną człowiekowi
+> w regulaminie §8**. To wiąże nas mocniej niż przepis, z którego jesteśmy
+> zwolnieni — bo ktoś tę obietnicę przeczytał i na niej polega. Skrócenie
+> wymaga zmiany regulaminu i powiadomienia użytkowników, nie samej zmiany
+> `config/kuking.php`.
+>
+> **Dlaczego to w ogóle zapisujemy, skoro liczba się nie zmienia:** fałszywe
+> uzasadnienie jest groźniejsze niż jego brak. Kto przeczyta „art. 20 nas
+> wiąże", wyprowadzi z tego resztę Sekcji 3 — pozasądowe rozstrzyganie
+> sporów (art. 21), zaufanych sygnalistów (art. 22), pełne sprawozdanie
+> przejrzystości (art. 24) — i zacznie budować miesiące pracy, której robić
+> nie trzeba. Zakres i granice zwolnienia: `docs/legal/COMPLIANCE.md` §1.2.
 
 **Reguła na przyszłość, bo to trzeci taki przypadek w tym repozytorium:**
 rozjazd między dokumentem a kodem rozstrzyga się **od strony faktu**, nie od

@@ -23,13 +23,22 @@ Kuking.pl to **hosting service** świadczący usługę **online platform** (umo�
 | Art. 17 | Uzasadnienie decyzji (statement of reasons) | **Obowiązkowy niezależnie od wielkości**, dla usług hostingu. Przy każdym usunięciu/ukryciu/ograniczeniu treści lub zawieszeniu konta z powodu nielegalności lub naruszenia regulaminu → użytkownik musi dostać jasne uzasadnienie (podstawa, fakty, czy decyzja była zautomatyzowana, informacja o możliwości odwołania). Musi też trafiać do unijnej bazy DSA Transparency Database, jeśli dotyczy platformy online (nie tylko czystego hostingu) — [do weryfikacji, czy przy zwolnieniu z Art. 19 ten obowiązek zgłaszania do bazy nadal obowiązuje w pełnym zakresie; praktyka wskazuje, że tak, bo Art. 17 jest w Sekcji 2, nie 3] |
 | Art. 18 | Zgłaszanie podejrzeń przestępstw zagrażających życiu/bezpieczeństwu do organów ścigania | **Obowiązkowy niezależnie od wielkości.** Dotyczy np. CSAM, gróźb, treści wskazujących na zagrożenie życia — patrz `MODERATION_PLAYBOOK.md` sekcja o zero-tolerancji |
 
-### 1.2 Obowiązki Sekcji 3 (Art. 19–28) — od których Kuking **jest zwolniony** jako mikro/małe przedsiębiorstwo
+### 1.2 Obowiązki Sekcji 3 (Art. 19–28) — od których Kuking **jest zwolniony** jako mikroprzedsiębiorstwo
 
 Art. 19 DSA wyłącza dostawców platform online będących mikro- lub małym przedsiębiorstwem (w rozumieniu załącznika do zalecenia 2003/361/WE: mikro = <10 zatrudnionych i obrót/suma bilansowa ≤2 mln EUR; małe = <50 zatrudnionych i obrót/suma bilansowa ≤10 mln EUR) z obowiązków Sekcji 3, **z wyjątkiem obowiązku publikowania średniej liczby aktywnych odbiorców usługi miesięcznie (Art. 24 ust. 3)** — ten wyjątek istnieje, żeby regulator mógł monitorować, czy platforma zbliża się do progu VLOP.
 
+**Na czym to zwolnienie stoi u nas — i kiedy przestanie działać.** Serwis prowadzi **SAMSUFI sp. z o.o.** (D-040), więc pytanie „czy operator w ogóle jest przedsiębiorstwem" u nas nie istnieje: spółka handlowa nim jest, bez wykładni. Przy dzisiejszej skali próg mikroprzedsiębiorstwa jest spełniony z dużym zapasem. Dwa zastrzeżenia, zanim ktoś potraktuje ten rozdział jak stan wieczysty:
+
+1. **Progi liczy się dla całego przedsiębiorstwa, nie dla serwisu.** Jeśli SAMSUFI ma przedsiębiorstwa partnerskie lub powiązane, ich zatrudnienie i obrót dolicza się do progu (Zalecenie 2003/361/WE art. 6). Tego nie da się sprawdzić z repozytorium — to wie właściciel.
+2. **Statusu nie traci się natychmiast.** Przekroczenie progu w jednym roku obrotowym niczego nie zmienia; status znika dopiero po dwóch kolejnych latach powyżej progu (art. 4 ust. 2 Zalecenia). Jest więc czas na wdrożenie Sekcji 3, ale skończony.
+
+**Czego zwolnienie nie obejmuje w żadnym wariancie:** Art. 16 (zgłaszanie treści) i Art. 17 (uzasadnienie decyzji) leżą w **Sekcji 2** i obowiązują niezależnie od wielkości. Zwolnienie z Sekcji 3 nigdy nie jest podstawą, żeby wyłączyć formularz zgłoszeń albo przestać uzasadniać decyzje moderacyjne.
+
+Historia tego ustalenia — dlaczego przez chwilę wyglądało na wątpliwe i co je rozstrzygnęło — jest w `docs/decyzje/OPERATOR.md` §3.
+
 Zwolnione (dopóki Kuking spełnia progi mikro/małego przedsiębiorstwa i nie zostanie wyznaczony jako VLOP):
 
-- **Art. 20** — wewnętrzny system rozpatrywania skarg (internal complaint-handling system) — formalnie niewymagany, ale rekomendacja: **wdrożyć uproszczoną wersję dobrowolnie**, bo `MODERATION.md` i tak zakłada odwołania w V1, a to buduje zaufanie 50+ użytkowników.
+- **Art. 20** — wewnętrzny system rozpatrywania skarg (internal complaint-handling system) — formalnie niewymagany, ale **już wdrożony i obiecany**: regulamin §8 daje sześć miesięcy na odwołanie, a `ModerationAction::appealDeadline()` to egzekwuje (D-038). Od chwili wpisania do regulaminu nie jest to dobra wola, tylko zobowiązanie wobec użytkownika — skrócenie wymaga zmiany regulaminu i powiadomienia ludzi, nie zmiany konfiguracji.
 - **Art. 21** — pozasądowe rozstrzyganie sporów (ODS) — niewymagane, nie trzeba przystępować do certyfikowanego podmiotu ODS.
 - **Art. 22** — status "zaufanych podmiotów sygnalizujących" (trusted flaggers) z priorytetowym traktowaniem zgłoszeń — niewymagany.
 - **Art. 23** — środki przeciw nadużyciom (zawieszanie kont notorycznie nadużywających zgłoszeń) — niewymagany, choć warto mieć z powodów praktycznych (spam w zgłoszeniach).
