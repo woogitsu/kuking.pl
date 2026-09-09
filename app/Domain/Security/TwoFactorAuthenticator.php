@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
@@ -114,20 +115,37 @@ class TwoFactorAuthenticator
      */
     public function verifyCode(User $user, string $secret, string $code): bool
     {
-        $dopasowanyCzas = $this->engine->verifyKeyNewer(
-            $secret,
-            $code,
-            $user->two_factor_last_used_at ?? 0,
-            (int) config('kuking.two_factor.window'),
-        );
+        return DB::transaction(function () use ($user, $secret, $code): bool {
+            $swiezy = self::podBlokada($user);
 
-        if ($dopasowanyCzas === false) {
-            return false;
-        }
+            if ($swiezy === null) {
+                return false;
+            }
 
-        $user->forceFill(['two_factor_last_used_at' => $dopasowanyCzas])->save();
+            // Sekret mógł zostać w międzyczasie wymieniony — ktoś włączył 2FA
+            // od nowa w drugiej karcie, `zaczniejDwuskladnikowe()` nadpisuje
+            // `two_factor_secret` i zeruje znacznik. Kod policzony ze starego
+            // sekretu nie ma wtedy prawa przejść, choćby pasował do liczb.
+            if ($swiezy->two_factor_secret !== $secret) {
+                return false;
+            }
 
-        return true;
+            $dopasowanyCzas = $this->engine->verifyKeyNewer(
+                $secret,
+                $code,
+                $swiezy->two_factor_last_used_at ?? 0,
+                (int) config('kuking.two_factor.window'),
+            );
+
+            if ($dopasowanyCzas === false) {
+                return false;
+            }
+
+            $swiezy->forceFill(['two_factor_last_used_at' => $dopasowanyCzas])->save();
+            self::przepiszNaWolajacego($user, ['two_factor_last_used_at' => $dopasowanyCzas]);
+
+            return true;
+        });
     }
 
     /**
@@ -169,18 +187,77 @@ class TwoFactorAuthenticator
      */
     public function consumeBackupCode(User $user, string $podanyKod): bool
     {
-        $hashe = $user->two_factor_backup_codes ?? [];
-        $znormalizowany = Str::upper(trim($podanyKod));
+        return DB::transaction(function () use ($user, $podanyKod): bool {
+            $swiezy = self::podBlokada($user);
 
-        foreach ($hashe as $indeks => $hash) {
-            if (Hash::check($znormalizowany, $hash)) {
+            if ($swiezy === null) {
+                return false;
+            }
+
+            $hashe = $swiezy->two_factor_backup_codes ?? [];
+            $znormalizowany = Str::upper(trim($podanyKod));
+
+            foreach ($hashe as $indeks => $hash) {
+                // `Hash::check` na bcroście jest CELOWO wolne (~50-100 ms na
+                // porównanie), więc przy pełnej liście kodów trzymamy blokadę
+                // wiersza nawet sekundę. To jest świadomy koszt: przed tym
+                // ekranem stoi limiter prób, konto jest jedno, a poprawność
+                // zużycia kodu jest ważniejsza niż te milisekundy.
+                if (! Hash::check($znormalizowany, $hash)) {
+                    continue;
+                }
+
                 unset($hashe[$indeks]);
-                $user->forceFill(['two_factor_backup_codes' => array_values($hashe)])->save();
+                $pozostale = array_values($hashe);
+
+                $swiezy->forceFill(['two_factor_backup_codes' => $pozostale])->save();
+                self::przepiszNaWolajacego($user, ['two_factor_backup_codes' => $pozostale]);
 
                 return true;
             }
+
+            return false;
+        });
+    }
+
+    /**
+     * Świeży wiersz konta, zablokowany do końca transakcji.
+     *
+     * TO JEST SEDNO POPRAWKI A6-03. Obie metody wyżej brały stan 2FA
+     * z PRZEKAZANEGO obiektu `User` i zapisywały wynik z powrotem, bez
+     * sprawdzenia, czy w międzyczasie ktoś tym stanem nie ruszył. Dwa
+     * nakładające się przebiegi czytały więc ten sam stan sprzed zużycia
+     * i oba go akceptowały:
+     *
+     *   TOTP            A i B odczytują pusty znacznik, A zapisuje czas kodu,
+     *                   B akceptuje TEN SAM kod na starym znaczniku;
+     *   kody zapasowe   A i B odczytują komplet [kod1, kod2], A zużywa kod1
+     *                   i zapisuje [kod2], B zużywa kod2 ze STAREGO kompletu
+     *                   i zapisuje [kod1] — zużyty kod1 WRACA na listę.
+     *
+     * `lockForUpdate()` w transakcji zamyka oba przypadki naraz: drugi
+     * przebieg czeka na pierwszy i czyta stan JUŻ po zużyciu. Nie potrzeba
+     * do tego Redisa, globalnej blokady ani osobnej usługi.
+     */
+    private static function podBlokada(User $user): ?User
+    {
+        return User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+    }
+
+    /**
+     * Wynik zapisu przenosimy też na obiekt, który dostaliśmy — inaczej
+     * wywołujący zostaje z modelem sprzed zużycia i przy następnym `save()`
+     * cofnąłby naszą zmianę. `syncOriginalAttributes` pilnuje, żeby nie
+     * uznać za „zmienione" niczego poza tym, co faktycznie zapisaliśmy.
+     *
+     * @param  array<string, mixed>  $atrybuty
+     */
+    private static function przepiszNaWolajacego(User $user, array $atrybuty): void
+    {
+        foreach ($atrybuty as $nazwa => $wartosc) {
+            $user->setAttribute($nazwa, $wartosc);
         }
 
-        return false;
+        $user->syncOriginalAttributes(array_keys($atrybuty));
     }
 }

@@ -200,7 +200,26 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, tokenizer
+          # TA SAMA LISTA WE WSZYSTKICH PIĘCIU JOBACH — higiena, nie łatka.
+          #
+          # Trzy runnery stoją na JEDNEJ maszynie i dzielą jedną instalację PHP.
+          # Pięć jobów prosiło o pięć różnych zestawów rozszerzeń; przy wspólnym
+          # PHP to jest proszenie się o kłopot, nawet jeśli dziś nikt na tym nie
+          # padł. Jedna lista znaczy: obojętne, który job konfigurował ostatni.
+          #
+          # UWAGA, ŻEBY NIE WPROWADZAĆ NIKOGO W BŁĄD: ta zmiana NIE naprawiła
+          # awarii `pcntl` z 9 września. Sprawdzone — po ujednoliceniu list job
+          # dostępności padł tak samo. `setup-php` raportuje wtedy
+          # `✓ pcntl Enabled`, a `php artisan serve` i tak kończy się kodem 1
+          # na „Signals are not supported (…) or that pcntl_* functions are not
+          # disabled by your php.ini's disable_functions directive". Czyli
+          # rozszerzenie jest włączone, a FUNKCJE zablokowane w `php.ini`
+          # maszyny — to jest do naprawienia na runnerze, nie tutaj.
+          #
+          # Koszt: lekkie joby (Pint, Audyt zależności) włączają kilka
+          # rozszerzeń więcej. Na współdzielonej maszynie są już zainstalowane,
+          # więc to sekundy.
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
 
@@ -258,7 +277,7 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           # Larastan bootuje aplikację Laravela, więc potrzebuje tych samych
           # rozszerzeń co runtime — inaczej wysypie się na brakującym pdo_pgsql.
-          extensions: mbstring, intl, pdo_pgsql, gd, zip, exif, bcmath
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
 
@@ -658,9 +677,33 @@ jobs:
 
       # Na runnerze GitHuba nie ma gotowego Chromium — pobieramy tylko jego,
       # bez Firefoksa i WebKita, których ten automat nie używa.
+      #  `flock`, BO TRZY RUNNERY DZIELĄ JEDNĄ MASZYNĘ.
+      #
+      #  `--with-deps` woła `apt-get` jako root. Runnery `kuking-wsl-DOM-NEW-01`,
+      #  `-02` i `-03` stoją na jednym systemie, więc dzielą `/var/lib/dpkg`.
+      #  Gdy dwa PR-y trafiły tu równocześnie, drugi dostał:
+      #
+      #      E: Could not get lock /var/lib/dpkg/lock-frontend.
+      #         It is held by process 93121 (apt-get)
+      #      Failed to install browsers → exit 100
+      #
+      #  Zmierzone 9 września: job na #161 przeszedł o 09:00:02, ten sam job
+      #  na #162 padł o 09:00:59. Nie było to znalezisko axe-core — job umarł,
+      #  zanim sprawdził pierwszy ekran.
+      #
+      #  DLACZEGO `flock`, A NIE `concurrency:` NA JOBIE. Klucz `concurrency`
+      #  trzyma w grupie jeden bieg działający i JEDEN oczekujący; trzeci
+      #  ANULUJE tego oczekującego. Przy trzech otwartych PR-ach zamieniłoby
+      #  to kolizje na anulowane joby, czyli jeden problem na drugi. `flock`
+      #  ustawia kolejkę na poziomie maszyny — dokładnie tam, gdzie jest
+      #  współdzielony zasób — i nikogo nie wyrzuca.
+      #
+      #  `-w 600`: po dziesięciu minutach czekania wolimy wyraźny błąd niż
+      #  job wiszący do limitu. Blokada leży w `/tmp`, więc znika z restartem
+      #  maszyny i nie potrafi zostać zatrzaśnięta na stałe.
       - name: Przeglądarka
         if: steps.zmiany.outputs.warto == '1'
-        run: npx playwright install --with-deps chromium
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install --with-deps chromium
 
       - name: Przygotowanie
         if: steps.zmiany.outputs.warto == '1'
@@ -708,7 +751,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
 

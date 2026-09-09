@@ -397,7 +397,7 @@ Kolejność ma znaczenie — pierwsze cztery są śmiertelne, reszta jest bolesn
 | Pętla 9 (digest tygodniowy) | M | **tak** |
 | Powiadomienia in-app + e-mail z limitami i ciszą nocną | M | **tak** |
 | Alert dla gospodarza o wpisie nowego użytkownika | S | **tak** |
-| Pętla 7 (wspomnienia „rok temu”) | M | V1 (archiwum po miesiącach już w MVP) |
+| Pętla 7 (wspomnienia „rok temu”) | M | **tak** — `app/Domain/Wspomnienia`, kafel na `/home`, wyłącznik w `/ustawienia/prywatnosc` (issue #34) |
 | Pętla 8 (osobny typ „Pytanie do autora”) | M | V1 (w MVP zwykły komentarz) |
 | Pętla 10 (ambasadorzy tematów) | S | V1 |
 | Web Push | M | V1, tylko 2 typy zdarzeń |
