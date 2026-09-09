@@ -1912,7 +1912,19 @@
      bez niej długi odnośnik potrafiłby rozepchnąć siatkę zamiast się zawinąć. */
   .site-footer-grupy {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    /* `min(11rem, 100%)`, NIE samo `11rem` — I TO NIE JEST OSTROŻNOŚĆ NA ZAPAS.
+       Pierwsza wersja miała `minmax(11rem, 1fr)` i przy 360 px okna z czcionką
+       przeglądarki ustawioną na 200% oblewała skan dostępności na 24 ekranach
+       naraz: `1rem` to wtedy 32 px, więc `11rem` = 352 px, a po doliczeniu
+       marginesów stopki (2 × 32 px) wychodziło 384 px w oknie 360 px —
+       poziome przewijanie całej strony. `minmax()` traktuje dolny próg jako
+       twardy: kolumna NIE zejdzie poniżej niego, tylko rozepchnie siatkę.
+       `min(11rem, 100%)` mówi „11rem, ale nigdy więcej niż dostępna
+       szerokość", więc przy dużym tekście kolumny po prostu schodzą jedna pod
+       drugą, zamiast wystawać. To ta sama rodzina usterki co górny pasek
+       zrzucający awatar (#212): sztywna miara w `rem` rośnie razem ze skalą
+       tekstu, a okno nie. */
+    grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
     gap: var(--spacing-6) var(--spacing-8);
   }
 
