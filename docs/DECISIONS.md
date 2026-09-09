@@ -2291,7 +2291,6 @@ podobieństwa (dopasowuje `LIKE`) i została bez zmian.
 
 ---
 
-<<<<<<< HEAD
 ## D-047 · Pocztę wysyłamy przez API HTTPS EmailLabs, własnym transportem Symfony
 
 **Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
@@ -2389,7 +2388,9 @@ przeczytania `docs/decyzje/POCZTA.md` §2.
 `config/mail.php` · `config/services.php` · `.railway/railway.ts` ·
 `tests/Feature/PocztaPrzezApiEmailLabsTest.php` ·
 `docs/infra/POCZTA_URUCHOMIENIE.md` §2A
-=======
+
+---
+
 ## D-048 · Nowy adres e-mail obowiązuje po kliknięciu w link, a zajętość adresu rozstrzyga się dopiero tam
 
 **Data:** 9 września 2026 · Issue #195 · Status: **obowiązuje**
@@ -2451,4 +2452,3 @@ Pilnują tego `ZmianaAdresuEmailTest` i `AdresEmailPozaMasowymPrzypisaniemTest`.
 `app/Http/Controllers/Settings/EmailSettingsController.php` ·
 `docs/DATABASE.md` (`pending_email_changes`) ·
 `docs/SECURITY_PRIVACY_LEGAL.md` (RODO art. 16)
->>>>>>> origin/main
