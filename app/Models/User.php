@@ -117,8 +117,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public const ROLE_ADMIN = 'admin';
 
+    /**
+     * `email` I `email_verified_at` SĄ TU CELOWO NIEOBECNE (issue #195).
+     *
+     * Ten sam powód co przy `status` i `role` (AGENTS.md §7): adres e-mail
+     * jest jedyną drogą odzyskania konta, więc jego zmiana jest zmianą
+     * STANU KONTA, nie edycją profilu. Gdyby stał na tej liście, dowolny
+     * dzisiejszy i przyszły `update($request->all())` — także taki, który
+     * o adresie w ogóle nie myśli — potrafiłby przestawić konto na cudzą
+     * skrzynkę, a stamtąd wystarczy „nie pamiętam hasła".
+     *
+     * Adres zapisują wyłącznie jawne, nazwane drogi:
+     *  - `assignEmail()` niżej (rejestracja i potwierdzona zmiana),
+     *  - `App\Domain\Users\Actions\EraseAccountData` (anonimizacja, D-022).
+     *
+     * `email_verified_at` z tego samego powodu: potwierdzenie adresu ma
+     * pochodzić z kliknięcia w link, nie z pola w formularzu.
+     * Pilnuje tego `AdresEmailPozaMasowymPrzypisaniemTest`.
+     */
     protected $fillable = [
-        'email',
         'password',
         'locale',
         'text_scale',
@@ -299,6 +316,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function dataExports(): HasMany
     {
         return $this->hasMany(DataExport::class);
+    }
+
+    /**
+     * Zamówiona, ale jeszcze niepotwierdzona zmiana adresu (issue #195).
+     *
+     * `HasOne`, bo `pending_email_changes.user_id` jest unikalne: jedno
+     * konto ma najwyżej jedno oczekujące żądanie, a nowe zastępuje stare.
+     */
+    public function pendingEmailChange(): HasOne
+    {
+        return $this->hasOne(PendingEmailChange::class);
     }
 
     public function notifications(): HasMany
@@ -725,6 +753,38 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // miejsce, które je ustawia, to `TrescZalazkowaSeeder`, i robi to wprost
     // przez `DB::table('users')->insert()`, nie przez formularz.
     // ---------------------------------------------------------------------
+
+    /**
+     * Ustawienie adresu e-mail — JEDYNA droga, którą adres trafia na wiersz
+     * `users` poza anonimizacją konta (issue #195).
+     *
+     * `email` jest poza `$fillable`, więc `create()`, `update()`
+     * i `firstOrCreate()` po prostu go nie widzą. Ta metoda robi to jawnie
+     * i pod nazwą, którą widać w code review — dokładnie tak, jak
+     * `suspend()`, `ban()` i `markForDeletion()` robią to ze statusem.
+     *
+     * NIE ZAPISUJE. Zapis należy do wołającego, bo dwa jedyne miejsca, które
+     * tego używają, potrzebują różnych rzeczy: rejestracja składa cały nowy
+     * wiersz naraz (adres MUSI być przy pierwszym `save()`, kolumna jest
+     * NOT NULL), a potwierdzenie zmiany zapisuje adres razem ze znacznikiem
+     * potwierdzenia, w jednej transakcji.
+     *
+     * `$potwierdzony` mówi, czy adres jest OD RAZU potwierdzony:
+     *  - `false` przy rejestracji — nikt jeszcze nie kliknął w nic;
+     *  - `true` po kliknięciu w link wysłany na TEN adres, bo kliknięcie
+     *    jest dowodem dostępu do skrzynki i drugie potwierdzanie tego
+     *    samego byłoby proszeniem człowieka o to samo dwa razy.
+     *
+     * Normalizacja (małe litery, bez spacji) dzieje się sama, w mutatorze
+     * `email()` wyżej — `forceFill` przechodzi przez mutatory.
+     */
+    public function assignEmail(string $email, bool $potwierdzony = false): static
+    {
+        return $this->forceFill([
+            'email' => $email,
+            'email_verified_at' => $potwierdzony ? now() : null,
+        ]);
+    }
 
     /**
      * Zgłoszenie usunięcia konta — RAZEM Z WYBRANYM ZAKRESEM (D-022).

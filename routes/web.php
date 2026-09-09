@@ -35,6 +35,7 @@ use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
+use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -534,6 +535,38 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
         ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.security.logout-others');
+    /*
+     * Adres e-mail (issue #195).
+     *
+     * Do 9 września 2026 zalogowany człowiek NIGDZIE nie widział własnego
+     * adresu i nie miał jak go poprawić — a od tego samego dnia poczta
+     * naprawdę wysyła listy, więc literówka przy rejestracji znaczyła
+     * konto bez drogi powrotu (RODO art. 16 też nie miał tu żadnej
+     * realizacji).
+     *
+     * `POST /ustawienia/e-mail` prosi o obecne hasło i robi `Hash::check()`,
+     * więc idzie do koszyka `confirm_password` — tego samego, co zmiana
+     * hasła i wyłączenie 2FA. Jest tą samą wyrocznią i nie ma prawa mieć
+     * luźniejszego limitu.
+     *
+     * Potwierdzenie ma `signed`, ten sam mechanizm co `verification.verify`
+     * wyżej: identyfikator żądania w adresie NIE JEST autoryzacją
+     * (AGENTS.md §7) — podpis czyni ten link nie do podrobienia, a właściciela
+     * sprawdza jeszcze raz kontroler. Jest w grupie `auth`, więc kliknięcie
+     * z niezalogowanej przeglądarki prowadzi najpierw na logowanie i wraca
+     * tu samo (`redirect()->intended()` w `LoginController`).
+     */
+    Route::get('/ustawienia/e-mail', [EmailSettingsController::class, 'edit'])->name('settings.email');
+    Route::post('/ustawienia/e-mail', [EmailSettingsController::class, 'request'])
+        ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+        ->name('settings.email.request');
+    Route::get('/ustawienia/e-mail/potwierdz/{zmiana}', [EmailSettingsController::class, 'confirm'])
+        ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+        ->name('settings.email.confirm');
+    Route::post('/ustawienia/e-mail/anuluj', [EmailSettingsController::class, 'cancel'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.email.cancel');
+
     // Weryfikacja dwuetapowa (2FA), issue #12. Obowiązkowa do wejścia
     // w panel moderacji (patrz middleware 'moderator.2fa' w grupie /admin
     // niżej), dla zwykłego konta zostaje opcjonalna.

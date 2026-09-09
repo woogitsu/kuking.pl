@@ -57,6 +57,7 @@ class IdentyfikatoryNaStronieSaUnikalneTest extends TestCase
     {
         return [
             'bezpieczeństwo' => ['settings.security'],
+            'adres e-mail' => ['settings.email'],
             'profil' => ['settings.profile'],
             'prywatność' => ['settings.privacy'],
             'dostępność' => ['settings.accessibility'],
