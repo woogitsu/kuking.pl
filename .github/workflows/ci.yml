@@ -696,21 +696,33 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
 
-      # Na runnerze GitHuba nie ma gotowego Chromium — pobieramy tylko jego,
-      # bez Firefoksa i WebKita, których ten automat nie używa.
-      #  `flock`, BO TRZY RUNNERY DZIELĄ JEDNĄ MASZYNĘ.
+      # Pobieramy SAMO Chromium — bez Firefoksa i WebKita, których ten automat
+      # nie używa, i bez `--with-deps`, czyli bez wołania `apt-get`.
       #
-      #  `--with-deps` woła `apt-get` jako root. Runnery `kuking-wsl-DOM-NEW-01`,
-      #  `-02` i `-03` stoją na jednym systemie, więc dzielą `/var/lib/dpkg`.
-      #  Gdy dwa PR-y trafiły tu równocześnie, drugi dostał:
+      #  DLACZEGO BEZ `--with-deps`. Ta flaga przełącza się na roota i robi
+      #  `apt-get update`, a runnery `kuking-wsl-DOM-NEW-01`, `-02` i `-03`
+      #  stoją na jednym systemie z listą źródeł, w której siedzi PPA
+      #  `ppa.setup-php.com/ondrej/php`. 9 września to źródło zaczęło zwracać
+      #  404 na plik Release dla Ubuntu „resolute":
       #
-      #      E: Could not get lock /var/lib/dpkg/lock-frontend.
-      #         It is held by process 93121 (apt-get)
+      #      Err:4 https://ppa.setup-php.com/ondrej/php/ubuntu resolute Release
+      #        404  Not Found
+      #      E: The repository ... does not have a Release file.
       #      Failed to install browsers → exit 100
       #
-      #  Zmierzone 9 września: job na #161 przeszedł o 09:00:02, ten sam job
-      #  na #162 padł o 09:00:59. Nie było to znalezisko axe-core — job umarł,
-      #  zanim sprawdził pierwszy ekran.
+      #  `apt-get update` kończy się wtedy niezerowo, Playwright przerywa
+      #  instalację i job pada, ZANIM zobaczy pierwszy ekran. Job dostępności
+      #  nie ma nic wspólnego z PHP z PPA — a jednak umierał na tym, że komuś
+      #  na świecie zniknął plik Release. Biblioteki systemowe Chromium są na
+      #  tej maszynie zainstalowane raz, na stałe; jeśli kiedyś zabraknie
+      #  którejś, Playwright powie to wprost i wymieni pakiety do doinstalowania
+      #  (jednorazowo, na maszynie, nie z CI).
+      #
+      #  `flock` ZOSTAJE, BO TRZY RUNNERY DZIELĄ JEDNĄ MASZYNĘ — a więc i jeden
+      #  katalog przeglądarek. Wcześniej blokada chroniła `/var/lib/dpkg`
+      #  (job na #161 przeszedł o 09:00:02, ten sam job na #162 padł o 09:00:59
+      #  na zajętym locku apta); teraz chroni rozpakowywanie Chromium do
+      #  współdzielonej ścieżki.
       #
       #  DLACZEGO `flock`, A NIE `concurrency:` NA JOBIE. Klucz `concurrency`
       #  trzyma w grupie jeden bieg działający i JEDEN oczekujący; trzeci
@@ -724,7 +736,7 @@ jobs:
       #  maszyny i nie potrafi zostać zatrzaśnięta na stałe.
       - name: Przeglądarka
         if: steps.zmiany.outputs.warto == '1'
-        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install --with-deps chromium
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
 
       - name: Przygotowanie
         if: steps.zmiany.outputs.warto == '1'
@@ -764,14 +776,16 @@ jobs:
       #  (70 / 85, z pomiaru, nie z głowy) stoi w nagłówku `scripts/wydajnosc.mjs`
       #  i w komentarzu przy tym joobie wyżej. Krótko tutaj:
       #
-      #  `!cancelled()`, NIE `always()` — krok ma pojechać, nawet gdy axe-core
-      #  wyżej ZAKOŃCZYŁ SIĘ BŁĘDEM (naruszenia dostępności nie psują ani bazy,
-      #  ani zbudowanych assetów, na których stoi Lighthouse), ale NIE wtedy,
-      #  gdy job został ANULOWANY (nowy push do tego samego PR-a — `concurrency`
-      #  na górze pliku). Gdy wcześniejszy krok („Przeglądarka", `npm run build`)
-      #  faktycznie nie doszedł do końca, ten krok i tak pojedzie i sam
-      #  ZAWIEDZIE na brakującym Chromium/assetach — czytelny czerwony wynik,
-      #  bez dodatkowego warunku do pilnowania w dwóch miejscach naraz.
+      #  ŻADNEJ FURTKI URUCHAMIAJĄCEJ PO PORAŻCE. Stało tu kiedyś, że krok ma
+      #  pojechać także wtedy, gdy skan axe wyżej zakończył się błędem — bo
+      #  naruszenia dostępności nie psują ani bazy, ani assetów. Rozumowanie
+      #  było poprawne dla JEDNEJ przyczyny porażki i fałszywe dla wszystkich
+      #  pozostałych: 9 września skan padł na nieprzygotowanej bazie, a `!cancelled()`
+      #  puściło Lighthouse'a na to samo środowisko, gdzie zameldował własny
+      #  błąd („brak odpowiedzi z /health") — i tym zasłonił przyczynę na trzy
+      #  godziny. Dziś krok ma tylko warunek zakresu zmiany; po porażce
+      #  poprzedniego kroku jest pomijany, czyli w logu zostaje jedna, prawdziwa
+      #  awaria. Issue #215.
       #
       #  `POMIN_MIGRACJE=1`, BEZ `ADRES` — baza jest już wysiana przez
       #  `dostepnosc.mjs` chwilę wyżej, w TYM SAMYM joobie; skrypt sam stawia
