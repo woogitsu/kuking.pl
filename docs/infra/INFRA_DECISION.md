@@ -9,9 +9,11 @@
 ## 1. Decyzja w jednym akapicie
 
 **Railway + Cloudflare, bez Workers.** Railway hostuje aplikację (Laravel na własnym
-obrazie Docker z FrankenPHP) oraz PostgreSQL 18. Cloudflare pełni cztery role:
-DNS dla `kuking.pl`, CDN/WAF przed Railway, R2 jako storage zdjęć oraz CDN przed
-R2 na osobnej subdomenie `cdn.kuking.pl`. **Cloudflare Workers odrzucamy** —
+obrazie Docker z FrankenPHP) oraz PostgreSQL 18. Cloudflare pełni trzy role:
+DNS dla `kuking.pl`, CDN/WAF przed Railway oraz R2 jako storage zdjęć.
+**Czwartej roli — CDN-u przed R2 na subdomenie `cdn.kuking.pl` — już nie ma:
+zdjęcia nie mają własnego adresu, patrz ostrzeżenie w §7.**
+**Cloudflare Workers odrzucamy** —
 wszystko, do czego byłyby tu potrzebne, robią deklaratywne Cache Rules, Redirect
 Rules i R2 custom domain, bez kodu do utrzymania. Deploy jest w pełni
 automatyczny przez integrację GitHub ↔ Railway (`main` → produkcja, `staging` →
@@ -30,7 +32,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
                                        │ HTTPS (TLS 1.3)
                      ┌─────────────────┴──────────────────┐
                      │                                    │
-        kuking.pl / www.kuking.pl               cdn.kuking.pl
+        kuking.pl / www.kuking.pl        cdn.kuking.pl (WYCOFANE, D-020)
                      │                                    │
 ╔════════════════════▼════════════════════════════════════▼══════════════════╗
 ║                        CLOUDFLARE  (plan Free)                             ║
@@ -39,10 +41,10 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 ║   WAF Managed Rules       •  Rate limiting /logowanie, /rejestracja        ║
 ║                                                                            ║
 ║   ┌────────────────────────────────┐   ┌────────────────────────────────┐  ║
-║   │  CACHE RULES (aplikacja)       │   │  CACHE RULES (media)           │  ║
+║   │  CACHE RULES (aplikacja)       │   │  CACHE RULES (media) WYCOFANE  │  ║
 ║   │  /build/*        → 1 rok       │   │  cdn.kuking.pl/*               │  ║
 ║   │  /favicon, /sw.js→ 1 godz.     │   │  → Cache Everything, 30 dni    │  ║
-║   │  /livewire/*     → BYPASS      │   │  → Smart Tiered Cache          │  ║
+║   │  /livewire/*     → BYPASS      │   │  ↑ NIE ODTWARZAĆ — D-020       │  ║
 ║   │  cookie sesji    → BYPASS      │   └───────────────┬────────────────┘  ║
 ║   └───────────────┬────────────────┘                   │                   ║
 ╚═══════════════════╪════════════════════════════════════╪═══════════════════╝
@@ -52,8 +54,9 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
                     │                          ╔═════════▼══════════════════╗
                     │                          ║  CLOUDFLARE R2             ║
                     │                          ║  bucket: kuking-media      ║
-                    │                          ║  (PUBLICZNY — własna       ║
-                    │                          ║   domena cdn.kuking.pl)    ║
+                    │                          ║  (BEZ własnej domeny —     ║
+                    │                          ║   D-020; adresem zdjęcia   ║
+                    │                          ║   jest /zdjecia/{media}/…) ║
                     │                          ║                            ║
                     │                          ║  media/…/thumb-320.webp    ║
                     │                          ║  media/…/feed-960.webp     ║
@@ -160,10 +163,39 @@ czterech dozwolonych. W oryginale siedzi pełny EXIF, czyli współrzędne GPS
 kuchni, w której zrobiono zdjęcie — dokładnie to, przed czym cały potok
 mediów miał chronić.
 
+> ### ⚠️ TA TABELA OPISYWAŁA STAN SPRZED D-020 — POPRAWIONA 9 WRZEŚNIA
+>
+> Wiersz `kuking-media` mówił „własna domena `cdn.kuking.pl`, publiczny
+> odczyt". **Decyzja D-020 zabrała temu bucketowi domenę**, bo adres pliku
+> w CDN-ie nikogo o nic nie pyta i nie przestaje działać: kto raz go
+> skopiował, otwierał zdjęcie także po zablokowaniu, po przełączeniu przepisu
+> na prywatny i po decyzji moderacyjnej. Cała macierz widoczności obowiązywała
+> stronę HTML i ani jednego piksela.
+>
+> Zostawienie tu starego opisu było groźne w konkretny sposób: runbook czyta
+> się przy pierwszym wdrożeniu albo przy awarii i **wykonuje po kolei**.
+> Zdanie „bucket wariantów ma własną domenę" to instrukcja odtworzenia tej
+> luki. Znalazł to audyt zewnętrzny (G14) — `DEPLOYMENT_RUNBOOK.md` poprawiono
+> w #168, ale ten plik został.
+
 | bucket | zawartość | własna domena | `r2.dev` | dostęp |
 |---|---|---|---|---|
-| `kuking-oryginaly` | `incoming/` — pliki od użytkownika, pełny EXIF | **NIE** | **wyłączone** | wyłącznie API S3 z serwera |
-| `kuking-media` | `media/` — warianty WebP bez EXIF | `cdn.kuking.pl` | — | publiczny odczyt |
+| `kuking-oryginaly` | `incoming/` — pliki od użytkownika, pełny EXIF bez GPS | **NIE** | **wyłączone** | wyłącznie API S3 z serwera |
+| `kuking-media` | `media/` — warianty WebP bez EXIF | **NIE** (D-020) | **wyłączone** | trasa `/zdjecia/{media}/{wariant}` → Policy → 302 na krótko podpisany adres |
+
+**Adresem zdjęcia jest trasa aplikacji, nie plik.** `Media::url()` zwraca
+`route('media.show')`; `MediaController` pyta `DostepDoZdjecia`, ta odwraca
+listę rodziców i woła ICH Policy przez `Gate`, a odmowa to 404 nieodróżnialne
+od zdjęcia nieistniejącego. Bajty nie idą przez PHP — po decyzji leci
+przekierowanie.
+
+**Cena, wprost:** każde żądanie zdjęcia to żądanie do Laravela i kilka zapytań
+o rodziców. D-020 świadomie tego nie optymalizuje; dopiero pomiar z produkcji
+ma rozstrzygnąć, czy potrzebny jest cache decyzji.
+
+**Czego kod nie załatwia:** zdjęcie klucza `url` z konfiguracji NIE zdejmuje
+domeny z bucketu po stronie Cloudflare. Dopóki `cdn.kuking.pl` tam wskazuje,
+stare adresy działają dalej — to jest **issue #120** i należy do właściciela.
 
 W aplikacji odpowiadają im dyski `r2` i `r2_publiczne`
 (`config/filesystems.php`), a w `railway.ts` zmienne `R2_BUCKET`
@@ -427,9 +459,19 @@ Zdjęcia na volume'ie oznaczałyby, że każdy deploy web to widoczna przerwa
 w działaniu strony. Do tego: limit 5 GB na planie Hobby, brak CDN, dane
 przywiązane do jednego serwisu i regionu.
 
-**Dlaczego R2 nad Railway Buckets:** R2 daje **własną domenę** (`cdn.kuking.pl`),
-a przez to Cloudflare Cache, WAF i Tiered Cache przed zdjęciami. Railway Buckets
-tego nie mają. Przy tej samej cenie storage to decyduje.
+**Dlaczego R2 nad Railway Buckets — z poprawką z 9 września.** Pierwotny powód
+brzmiał: „R2 daje własną domenę (`cdn.kuking.pl`), a przez to Cloudflare Cache,
+WAF i Tiered Cache przed zdjęciami". **Ten powód przestał obowiązywać razem
+z D-020** — bucket wariantów świadomie NIE ma już własnej domeny, bo adres
+pliku omijał całą macierz widoczności.
+
+Wybór R2 zostaje, ale na innych podstawach, które warto wypisać, żeby nikt nie
+„przywrócił" domeny w imię tego akapitu: zerowy koszt egressu (przy zdjęciach
+to główna pozycja rachunku), ta sama konsola i to samo konto co DNS i WAF,
+oraz zgodność z API S3, dzięki której zmiana dostawcy to zmiana zmiennych
+środowiskowych. Cache przed zdjęciami wraca dopiero wtedy, gdy pojawi się CDN
+umiejący zapytać Kuking o decyzję, zanim odda plik — patrz „Zmiana wymaga"
+w D-020.
 
 **Migracja jest już zabezpieczona:** kod domenowy używa wyłącznie Laravel
 Filesystem (`docs/MEDIA_PIPELINE.md`), więc zmiana dostawcy to zmiana zmiennych

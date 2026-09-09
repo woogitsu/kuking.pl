@@ -611,6 +611,26 @@ Zanim ktokolwiek powie „można otwierać":
 6. **Działająca skrzynka pocztowa** (§7b). Dziś `MAIL_MAILER=log`: reset hasła
    nie dochodzi do nikogo. To nie jest brak wygody — to konto tracone
    bezpowrotnie przy pierwszym zapomnianym haśle.
-7. **Wybór okresów retencji** (`docs/decyzje/ADR_RETENCJE.md`). Polityka
-   prywatności nie podaje dziś żadnego okresu poza dwoma, które kod egzekwuje,
-   i tak zostanie do czasu tej decyzji.
+7. ~~**Wybór okresów retencji**~~ — **ZAMKNIĘTE, poprawione 9 września.**
+   Stało tu: „polityka prywatności nie podaje dziś żadnego okresu poza dwoma,
+   które kod egzekwuje". To zdanie zostało z czasu sprzed `ADR_RETENCJE.md`
+   i było już nieprawdziwe. Okresy są wybrane, wpisane w `config/kuking.php`
+   i **egzekwowane przez siedem komend**, a nie przez dwie:
+
+   | co | okres | komenda |
+   |---|---|---|
+   | powiadomienia | 3 miesiące | `kuking:sprzataj-powiadomienia` |
+   | sygnały produktowe | 90 dni | `kuking:sprzataj-sygnaly` |
+   | dziennik audytu | 12 miesięcy | `kuking:sprzataj-audyt` |
+   | sprawy moderacyjne | 36 miesięcy | `kuking:sprzataj-sprawy-moderacyjne` |
+   | paczki z danymi | 7 dni | `kuking:sprzataj-eksporty` |
+   | zdjęcia nieprzypięte | — | `kuking:sprzataj-osierocone-zdjecia` |
+   | konta po karencji | 30 dni | `kuking:usun-wygasle-konta` |
+
+   Powiadomienia moderacyjne mają **własny, dłuższy** termin — sześć miesięcy
+   na odwołanie z regulaminu §8 — i sprzątanie ich pomija; dlatego tamta
+   komenda chodzi po wierszach jedno po drugim zamiast jednym `DELETE`.
+
+   Znalazł to audyt zewnętrzny (§6.2). Ta pozycja bramki nie blokuje już
+   niczego; zostaje przekreślona zamiast skasowana, bo bramka jest zapisem
+   tego, co było do rozstrzygnięcia.
