@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\ContactMessage;
+use App\Models\Report;
 use App\Models\User;
+use App\Notifications\UstawienieNowegoHasla;
+use App\Rules\TurnstileNieJestPodrobiony;
 use App\Support\Turnstile;
 use App\Turnstile\KlientTurnstile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +17,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -109,6 +114,161 @@ class TurnstileNieZamykaDrzwiTest extends TestCase
             .'Jeśli ten test jest czerwony, ktoś dołożył `required` — przeczytaj '
             .'App\Rules\TurnstileNieJestPodrobiony, zanim poprawisz test.',
         );
+
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    // ------------------------------------------------------------------
+    //  BEZ JAVASCRIPTU — POZOSTAŁE CZTERY Z SZEŚCIU FORMULARZY
+    //
+    //  `/register` (wyżej) i `/login` (niżej) mają własne testy. Te cztery
+    //  domykają komplet, bo obietnica „brak tokenu nie blokuje" jest złożona
+    //  na KAŻDYM formularzu, na którym stoi widget — a nie tylko tam, gdzie
+    //  akurat najłatwiej było ją sprawdzić. Bez tego ktoś dokręci `required`
+    //  na formularzu kontaktowym i nikt tego nie zauważy.
+    //
+    //  Każdy z nich sprawdza SKUTEK MERYTORYCZNY (list wyszedł, wiersz jest
+    //  w bazie, konto wróciło), nie sam kod odpowiedzi: przekierowanie bez
+    //  zapisu wyglądałoby dokładnie tak samo jak sukces.
+    // ------------------------------------------------------------------
+
+    public function test_odzyskanie_hasla_bez_tokenu_wysyla_list(): void
+    {
+        $this->wlaczTurnstile();
+        $this->pocztaDziala();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['missing-input-response']]);
+        Notification::fake();
+
+        $basia = $this->user('basia');
+
+        $this->post(route('password.email'), ['email' => $basia->email])
+            ->assertSessionHasNoErrors();
+
+        // Bez tokenu Turnstile link do nowego hasła MUSI wyjść. Inaczej
+        // pierwsza osoba, która zapomni hasła i nie ma JavaScriptu, traci
+        // konto bezpowrotnie: nie zaloguje się i nie dowie, że nie ma na co
+        // czekać (komunikat tego ekranu jest z założenia ten sam dla adresu
+        // istniejącego i nieistniejącego).
+        Notification::assertSentTo($basia, UstawienieNowegoHasla::class);
+
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    public function test_cofniecie_usuniecia_bez_tokenu_przywraca_konto(): void
+    {
+        $this->wlaczTurnstile();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['missing-input-response']]);
+
+        $basia = $this->user('basia', [
+            'status' => User::STATUS_PENDING_DELETE,
+            'delete_requested_at' => now()->subDays(5),
+        ]);
+
+        $this->post(route('account.delete.cancel.store'), [
+            'login' => 'basia',
+            'password' => 'haslo-testowe-123',
+        ])->assertRedirect(route('login'));
+
+        $basia = $basia->fresh();
+
+        $this->assertSame(User::STATUS_ACTIVE, $basia->status);
+        $this->assertNull(
+            $basia->delete_requested_at,
+            'To jest droga ratunkowa dla osoby, która NIE MOŻE się zalogować. '
+            .'Captcha nie ma prawa jej zamknąć przy wyłączonym JavaScripcie.',
+        );
+
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    public function test_napisz_do_nas_bez_tokenu_zapisuje_wiadomosc(): void
+    {
+        $this->wlaczTurnstile();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['missing-input-response']]);
+
+        $this->post(route('kontakt.store'), [
+            'kind' => ContactMessage::KIND_BLAD,
+            'message' => 'Nie mogę wgrać zdjęcia z telefonu, po kliknięciu Opublikuj nic się nie dzieje.',
+            'contact_email' => 'basia@example.com',
+        ])->assertRedirect(route('kontakt.potwierdzenie'));
+
+        $this->assertDatabaseHas('contact_messages', [
+            'kind' => ContactMessage::KIND_BLAD,
+            'contact_email' => 'basia@example.com',
+            'status' => ContactMessage::STATUS_NOWA,
+        ]);
+
+        // Najostrzejszy przypadek w całej paczce: człowiek pisze do nas
+        // WŁAŚNIE DLATEGO, że coś mu nie działa. Jeśli nie działa mu skrypt,
+        // captcha zamknęłaby jedyną drogę zgłoszenia tego faktu.
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    public function test_zgloszenie_dsa_bez_tokenu_zapisuje_sprawe(): void
+    {
+        $this->wlaczTurnstile();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['missing-input-response']]);
+        Notification::fake();
+
+        $this->post(route('zglos.nielegalna.store'), [
+            'notifier_name' => 'Anna Kowalska',
+            'notifier_email' => 'anna@kancelaria.example',
+            'target_url' => 'https://kuking.pl/przepis/rosol-babci-zofii',
+            'reason' => 'copyright',
+            'illegality_explanation' => 'To jest mój tekst, przepisany bez zgody z mojej książki.',
+            'good_faith' => '1',
+        ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+
+        // Ta droga jest publiczna Z WYMOGU PRAWNEGO (DSA art. 16 ust. 1:
+        // mechanizm „łatwo dostępny"). Captcha blokująca zgłoszenie przy
+        // wyłączonym skrypcie byłaby nie tylko złym UX, ale i niezgodnością.
+        $this->assertDatabaseHas('reports', [
+            'source' => Report::SOURCE_LEGAL_NOTICE,
+            'notifier_name' => 'Anna Kowalska',
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    /**
+     * Pusta wartość znaczy „nie ma czego sprawdzać" TAKŻE przy wywołaniu
+     * reguły poza formularzem.
+     *
+     * PO CO TEN TEST ISTNIEJE. Gałąź w `TurnstileNieJestPodrobiony`, która
+     * przepuszcza pustą wartość, jest przez ścieżkę formularza NIEOSIĄGALNA:
+     * reguła nie jest „implicit", więc Laravel nie woła jej dla wartości
+     * pustej ani nieobecnej. Do niedawna stał nad nią komentarz twierdzący,
+     * że to ona zapewnia działanie bez JavaScriptu — nieprawda, zapewnia to
+     * brak `required` w kontrolerach (pilnują tego testy wyżej i niżej).
+     *
+     * Ten test domyka tamtą gałąź od strony, z której jest osiągalna: własny
+     * `Validator`, `sometimes()`, przyszły kod sprawdzający token wprost.
+     * Dzięki temu kod, komentarz i test mówią to samo, a gałąź nie jest
+     * martwa.
+     */
+    public function test_regula_wywolana_wprost_z_pustym_tokenem_nie_odrzuca(): void
+    {
+        $this->wlaczTurnstile();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['invalid-input-response']]);
+
+        $regula = new TurnstileNieJestPodrobiony('rejestracja');
+
+        foreach ([null, '', []] as $puste) {
+            $odrzucone = [];
+
+            $regula->validate(
+                Turnstile::POLE,
+                $puste,
+                function (string $komunikat) use (&$odrzucone): void {
+                    $odrzucone[] = $komunikat;
+                },
+            );
+
+            $this->assertSame([], $odrzucone, 'Pusta wartość nie ma prawa niczego odrzucić.');
+        }
 
         $this->assertNiePytalismyCloudflare();
     }

@@ -85,8 +85,35 @@ final class TurnstileNieJestPodrobiony implements ValidationRule
         }
 
         if ($value === null || $value === '' || $value === []) {
-            // TO JEST TA GAŁĄŹ, KTÓRA MUSI ZOSTAĆ. Formularz bez JavaScriptu
-            // nie ma skąd wziąć tokenu — i ma przejść.
+            /*
+             * DRUGI ZAMEK, NIE PIERWSZY — i trzeba wiedzieć, który jest który.
+             *
+             * Przez ścieżkę formularza ta gałąź SIĘ NIE WYKONUJE i nie ona
+             * jest gwarancją działania bez JavaScriptu. Ta reguła nie jest
+             * „implicit", więc Laravel w ogóle jej nie woła dla wartości
+             * pustej albo nieobecnej — a tak wygląda każde wysłanie bez
+             * skryptu. Zmierzone: podmiana treści tej gałęzi na `$fail()`
+             * NIE psuje ani jednego testu w tej paczce.
+             *
+             * PRAWDZIWĄ gwarancją jest BRAK `required` (i brak innej reguły
+             * wymuszającej obecność) przy tym polu w sześciu kontrolerach —
+             * `RegisterController`, `LoginController`,
+             * `PasswordResetController`, `AccountDeletionController`,
+             * `NapiszDoNasController` i `ZgloszenieNielegalnejTresciController`.
+             * Pilnują tego testy `test_*_bez_tokenu_*` w
+             * `tests/Feature/TurnstileNieZamykaDrzwiTest.php`, po jednym na
+             * każdy z tych formularzy. Jeśli szukasz miejsca, w którym można
+             * przypadkiem zamknąć drzwi osobie bez JS-u — jest tam, nie tu.
+             *
+             * Gałąź zostaje mimo to, bo reguła jest klasą publiczną i da się
+             * ją wywołać poza formularzem: przez `Validator::make()` bez
+             * `nullable`, przez `sometimes()`, przez własny test albo przez
+             * przyszły kod, który zechce sprawdzić token wprost. W każdym
+             * z tych wywołań pusta wartość ma znaczyć „nie ma czego
+             * sprawdzać", a nie „odrzuć". Domyka to
+             * `test_regula_wywolana_wprost_z_pustym_tokenem_nie_odrzuca`,
+             * więc od teraz ta gałąź jest przetestowana, a nie martwa.
+             */
             return;
         }
 

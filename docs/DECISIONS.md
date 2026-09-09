@@ -2516,8 +2516,20 @@ drzwiami dla użytkownika.
 Wiemy, że to wygląda na przeoczenie i że ktoś kiedyś zechce to „dokręcić"
 jednym `required`. Dlatego napisane jest to w trzech miejscach naraz:
 w komentarzu klasy `App\Rules\TurnstileNieJestPodrobiony`, przy każdym
-wywołaniu w kontrolerach i w teście, którego nazwa mówi wprost, czego pilnuje
-(`test_formularz_przechodzi_bez_tokenu_czyli_bez_javascriptu`).
+wywołaniu w kontrolerach i w testach, których nazwy mówią wprost, czego
+pilnują (`test_formularz_przechodzi_bez_tokenu_czyli_bez_javascriptu`
+i pięć pozostałych `test_*_bez_tokenu_*`).
+
+**Gwarancją jest BRAK `required` w sześciu kontrolerach, a nie kod w regule.**
+To rozróżnienie ma znaczenie praktyczne: reguła nie jest „implicit", więc
+Laravel w ogóle jej nie woła dla pola pustego albo nieobecnego — czyli dla
+każdego wysłania bez skryptu. Gałąź w regule, która przepuszcza pustą
+wartość, jest przez ścieżkę formularza nieosiągalna i jest tam wyłącznie na
+wypadek wywołania reguły wprost (własny `Validator`, `sometimes()`).
+Kto szuka miejsca, w którym można przypadkiem zamknąć drzwi osobie bez
+JavaScriptu, znajdzie je w kontrolerach. Dlatego **każdy z sześciu formularzy
+ma własny test wysyłki bez tokenu, sprawdzający skutek merytoryczny** — list
+wyszedł, wiersz jest w bazie, konto wróciło — a nie sam kod odpowiedzi.
 
 **Niedostępność cudzej usługi też nie zamyka rejestracji.** Timeout, HTTP 5xx,
 odpowiedź w nieznanym kształcie, literówka w `TURNSTILE_SECRET_KEY` —
