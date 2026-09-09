@@ -1,0 +1,134 @@
+name: Audyt A7 - Infection UsunGps
+
+on:
+  push:
+    branches: [audit/a7-20260909]
+    paths: [.github/workflows/audyt-a7-infection.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audyt-a7-infection
+  cancel-in-progress: false
+
+jobs:
+  infection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_ENV: testing
+      APP_URL: http://127.0.0.1:8000
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: kuking_test_a7
+      DB_USERNAME: kuking
+      DB_PASSWORD: kuking
+      DB_URL: ''
+      DATABASE_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      KUKING_MEDIA_DISK: public
+      KUKING_ZAUFANE_PRZESKOKI: '1'
+      BCRYPT_ROUNDS: '4'
+      SENTRY_LARAVEL_DSN: ''
+      SENTRY_DSN: ''
+      LOG_CHANNEL: stderr
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: PostgreSQL 18 w izolowanym kontenerze
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name kuking-a7-pg \
+            -e POSTGRES_DB=kuking_test_a7 \
+            -e POSTGRES_USER=kuking \
+            -e POSTGRES_PASSWORD=kuking \
+            -p 5432:5432 postgres:18
+          for i in $(seq 1 30); do
+            if docker exec kuking-a7-pg pg_isready -U kuking -d kuking_test_a7; then exit 0; fi
+            sleep 1
+          done
+          docker logs kuking-a7-pg
+          exit 1
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, gd, exif, mbstring, intl, zip, bcmath, pcntl
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Zależności i wersje
+        run: |
+          set -euo pipefail
+          mkdir -p a7-output
+          composer install --no-interaction --prefer-dist --no-progress
+          php -v | tee a7-output/php-version.txt
+          docker exec kuking-a7-pg psql -U kuking -d kuking_test_a7 -Atc 'select version()' | tee a7-output/postgres-version.txt
+          curl --fail --location --silent --show-error \
+            https://github.com/infection/infection/releases/latest/download/infection.phar \
+            -o "$RUNNER_TEMP/infection.phar"
+          php "$RUNNER_TEMP/infection.phar" --version | tee a7-output/infection-version.txt
+          sha256sum "$RUNNER_TEMP/infection.phar" | tee a7-output/infection-sha256.txt
+          git rev-parse HEAD | tee a7-output/commit.txt
+          git hash-object app/Domain/Media/UsunGps.php | tee a7-output/usungps-blob.txt
+
+      - name: Testy bazowe na PostgreSQL 18
+        run: |
+          set -euo pipefail
+          php artisan test --compact 2>&1 | tee a7-output/testy-bazowe.log
+
+      - name: Infection tylko dla UsunGps
+        env:
+          XDEBUG_MODE: coverage
+        run: |
+          set -euo pipefail
+          cat > infection-a7.json <<'JSON'
+          {
+            "source": {"directories": ["app/Domain/Media"]},
+            "timeout": 20,
+            "threads": 2,
+            "phpUnit": {"configDir": ".", "customPath": "vendor/bin/phpunit"},
+            "mutators": {"@default": true},
+            "logs": {
+              "text": "a7-output/infection.log",
+              "json": "a7-output/infection.json",
+              "summary": "a7-output/infection-summary.log",
+              "summaryJson": "a7-output/infection-summary.json"
+            }
+          }
+          JSON
+          cp infection-a7.json a7-output/infection-config.json
+          set +e
+          php "$RUNNER_TEMP/infection.phar" \
+            --configuration=infection-a7.json \
+            --filter=app/Domain/Media/UsunGps.php \
+            --no-progress --no-interaction 2>&1 | tee a7-output/infection-console.log
+          status=${PIPESTATUS[0]}
+          echo "$status" > a7-output/infection-exit-code.txt
+          exit 0
+
+      - name: Dowody
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p a7-output
+          git diff -- app tests composer.json composer.lock > a7-output/git-diff-aplikacji.txt
+          git status --short > a7-output/git-status.txt
+          (cd a7-output && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audyt-a7-infection-usungps
+          path: a7-output/
+          retention-days: 7
+          if-no-files-found: error
