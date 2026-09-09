@@ -12,7 +12,9 @@ use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\User;
 use App\Rules\ReservedUsername;
+use App\Rules\TurnstileNieJestPodrobiony;
 use App\Rules\UsernameNotTaken;
+use App\Support\Turnstile;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,6 +85,16 @@ class RegisterController extends Controller
             'password' => ['required', 'string', Password::min(10)->uncompromised()],
             'age_confirmed' => ['accepted'],
             'terms_accepted' => ['accepted'],
+            /*
+             * Turnstile (D-050) — CELOWO BEZ `required`.
+             *
+             * Bez JavaScriptu token nie powstaje, a ten formularz musi
+             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
+             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
+             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
+             * `App\Rules\TurnstileNieJestPodrobiony`.
+             */
+            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('rejestracja'),
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             'username.required' => 'Wybierz swoją nazwę użytkownika.',

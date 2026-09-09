@@ -115,6 +115,8 @@
         </label>
         @error('good_faith')<span class="field-error">{{ $message }}</span>@enderror
 
+        <x-turnstile miejsce="zgloszenie_nielegalnej_tresci" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij zgłoszenie</button>
         </div>

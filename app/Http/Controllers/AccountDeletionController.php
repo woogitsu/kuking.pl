@@ -8,6 +8,8 @@ use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Rules\TurnstileNieJestPodrobiony;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -73,6 +75,16 @@ class AccountDeletionController extends Controller
         $data = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
+            /*
+             * Turnstile (D-050) — CELOWO BEZ `required`.
+             *
+             * Bez JavaScriptu token nie powstaje, a ten formularz musi
+             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
+             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
+             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
+             * `App\Rules\TurnstileNieJestPodrobiony`.
+             */
+            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('cofniecie_usuniecia'),
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło do swojego konta.',
