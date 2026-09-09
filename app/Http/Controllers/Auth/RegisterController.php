@@ -12,7 +12,7 @@ use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\User;
 use App\Rules\ReservedUsername;
-use App\Rules\TurnstileNieJestPodrobiony;
+use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
 use App\Support\Turnstile;
 use Illuminate\Auth\Events\Registered;
@@ -86,15 +86,20 @@ class RegisterController extends Controller
             'age_confirmed' => ['accepted'],
             'terms_accepted' => ['accepted'],
             /*
-             * Turnstile (D-050) — CELOWO BEZ `required`.
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
              *
-             * Bez JavaScriptu token nie powstaje, a ten formularz musi
-             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
-             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
-             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
-             * `App\Rules\TurnstileNieJestPodrobiony`.
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
              */
-            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('rejestracja'),
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('rejestracja'),
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             'username.required' => 'Wybierz swoją nazwę użytkownika.',

@@ -105,7 +105,7 @@ Propozycja konkretnych limitów (Laravel `RateLimiter::for()` w `AppServiceProvi
 
 | Endpoint | Limit | Uwaga |
 |---|---|---|
-| Logowanie | 5 prób / 15 min / IP + konto (trzy koszyki, `login_limits`) | Po przekroczeniu: czasowy lockout konta (nie trwały). **Cloudflare Turnstile stoi na tym formularzu ZAWSZE, nie „po przekroczeniu"** — D-050. Captcha i limity to dwie różne obrony i działają obok siebie: limity widzą atak rozproszony po adresach, captcha widzi automat w przeglądarce. |
+| Logowanie | 5 prób / 15 min / IP + konto (trzy koszyki, `login_limits`) | Po przekroczeniu: czasowy lockout konta (nie trwały). **Cloudflare Turnstile stoi na tym formularzu ZAWSZE, nie „po przekroczeniu", i od 9 września 2026 brak tokenu ODRZUCA logowanie** — D-050. Captcha i limity to dwie różne obrony i działają obok siebie: limity widzą atak rozproszony po adresach, captcha widzi automat w przeglądarce. |
 | Rejestracja | 5 kont / godzinę / IP; 20 / dzień / IP | Chroni przed masowym zakładaniem kont-botów |
 | Reset hasła (żądanie) | 3 / godzinę / IP + e-mail | Zapobiega spamowaniu skrzynki ofiary |
 | Upload zdjęcia | 30 / godzinę / konto (nowe konto <7 dni: 10/godzinę) | Ogranicza koszt storage/processing przy nadużyciu |
@@ -122,17 +122,27 @@ Stan **faktyczny**, nie plan. Turnstile w trybie Managed stoi na sześciu
 formularzach publicznych: `/register`, `/login`, `/nie-pamietam-hasla`,
 `/cofnij-usuniecie-konta`, `/napisz-do-nas`, `/zglos-nielegalna-tresc`.
 
-Dwie rzeczy, które trzeba czytać razem z tabelą wyżej, żeby nie wyciągnąć
+Trzy rzeczy, które trzeba czytać razem z tabelą wyżej, żeby nie wyciągnąć
 z niej fałszywego wniosku o poziomie ochrony:
 
 1. **Turnstile NIE ZASTĘPUJE limitów zapytań** i nie pozwala ich poluzować.
    Zestaw z tabeli obowiązuje bez zmian.
-2. **Brak tokenu (wyłączony JavaScript) NIE BLOKUJE wysłania formularza** —
-   `AGENTS.md` §5. Odrzucany jest wyłącznie token, który przyszedł i którego
-   Cloudflare nie uznał; niedostępność Cloudflare również przepuszcza.
-   Turnstile jest więc **filtrem taniego ruchu automatycznego, nie bramką
-   dostępu**, i tak trzeba go liczyć w każdej ocenie ryzyka. Pełne
-   uzasadnienie i droga wycofania: `docs/DECISIONS.md` D-050.
+2. **Brak tokenu ODRZUCA wysłanie formularza.** Na tych sześciu formularzach
+   JavaScript jest warunkiem, nie ulepszeniem — decyzja właściciela
+   z 9 września 2026, zaostrzająca pierwszą wersję D-050 (ta przepuszczała
+   puste pole). Turnstile jest więc **warunkiem wysłania**, a nie filtrem
+   taniego ruchu, i tak trzeba go liczyć w każdej ocenie ryzyka. Idzie z tym
+   `<noscript>` przy każdym formularzu, osobny komunikat dla przypadku
+   „skrypt się nie dociągnął" i adres e-mail jako droga wyjścia — bez nich
+   zaciśnięcie zamienia rzadką awarię w cichą utratę użytkownika.
+3. **Niedostępność Cloudflare dalej PRZEPUSZCZA** — timeout, 5xx, zły sekret
+   po naszej stronie kończą się wysłanym formularzem i ostrzeżeniem
+   w dzienniku. To jest świadome: awaria cudzej usługi albo nasza literówka
+   w sekrecie nie może zamykać rejestracji, odzyskiwania hasła i drogi z DSA
+   art. 16 naraz.
+
+Pełne uzasadnienie, droga wycofania i to, co idzie razem z zaciśnięciem:
+`docs/DECISIONS.md` D-050.
 
 ---
 
