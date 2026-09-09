@@ -12,6 +12,13 @@
 
     <x-post-card :post="$post" />
 
+    {{-- „Podziel się" stoi na STRONIE wpisu, a nie na karcie w feedzie.
+         Wysyła się konkretny adres, więc miejscem tej akcji jest strona,
+         którą ten adres otwiera. Na karcie w feedzie byłby to dwudziesty
+         przycisk na ekranie i pierwszy, który myli „wyślij komuś"
+         z „opublikuj u siebie". --}}
+    <x-podziel-sie :tresc="$post" />
+
     @if(auth()->id() === $post->author_id)
         {{--
             Zachęta do kolejnego zdjęcia (COLD_START.md).

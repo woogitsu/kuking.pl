@@ -22,7 +22,13 @@
 - chronologiczny feed;
 - komentarze;
 - odpowiedzi;
-- in-app notifications.
+- in-app notifications;
+- „Podziel się” — wysłanie publicznego przepisu albo wpisu poza serwis:
+  arkusz systemowy na telefonie (`navigator.share`), a pod spodem jawna
+  lista WhatsApp / e-mail / Facebook plus adres do skopiowania. Przycisk
+  stoi wyłącznie przy treści widocznej dla kogoś bez konta. Messengera jako
+  osobnego linku nie ma — wymaga własnej aplikacji na Facebooku
+  (`docs/DECISIONS.md`, D-042).
 
 ### Wpis
 - zdjęcie lub kilka zdjęć;
