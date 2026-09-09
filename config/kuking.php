@@ -514,6 +514,28 @@ return [
          */
         'legal_notice' => '3,60',
 
+        /*
+         * „Napisz do nas" (`/napisz-do-nas`) — formularz kontaktu z operatorem.
+         *
+         * DROGA JEST OTWARTA TAKŻE DLA GOŚCIA i to jest decyzja, nie
+         * przeoczenie: najczęstsza rzecz, którą ludzie mają nam do powiedzenia
+         * na starcie, brzmi „nie mogę się zalogować" albo „nie udało mi się
+         * założyć konta". Formularz za logowaniem wykluczałby dokładnie te
+         * osoby, dla których istnieje. Ochroną jest więc ten limit, nie konto.
+         *
+         * SKĄD PIĘĆ NA GODZINĘ. Człowiek pisze taką wiadomość raz, a jeśli
+         * o czymś zapomni — drugi raz. Pięć zostawia zapas na poprawianie
+         * literówek w adresie e-mail i na dwie osoby za jednym łączem
+         * (limit liczy się po adresie IP dla gościa), a nie starcza na
+         * zalanie kolejki jedynej osoby, która to czyta (D-012).
+         *
+         * Wyżej niż `legal_notice` (3/60), bo tam każde zgłoszenie zakłada
+         * sprawę z terminem odpowiedzi z DSA art. 16 i decyzją do wydania;
+         * tutaj kosztem nadużycia jest wiersz w tabeli i jedno powiadomienie.
+         * Niżej niż `report` (10/10), bo tamten stoi już ZA logowaniem.
+         */
+        'kontakt' => '5,60',
+
         // Odwołanie od decyzji moderacyjnej. Limit jest niski, bo formularz
         // dla osób zablokowanych stoi PRZED logowaniem — a wszystko, co stoi
         // przed logowaniem, jest celem. Prawdziwe odwołanie składa się raz,
@@ -977,6 +999,45 @@ return [
          * inaczej „napisz do nas" jest obietnicą bez pokrycia.
          */
         'email' => 'biuro@samsufi.pl',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | „Napisz do nas" — wiadomości do operatora
+    |--------------------------------------------------------------------------
+    |
+    | Formularz `/napisz-do-nas` i tabela `contact_messages`. Limit zapytań
+    | stoi wyżej, przy `limits.kontakt` — tutaj jest tylko retencja.
+    |
+    */
+
+    'kontakt' => [
+        /*
+         * RETENCJA WIADOMOŚCI — LICZONA OD ZAŁATWIENIA, NIE OD NAPISANIA.
+         *
+         * Wiadomość niesie dane osobowe: adres e-mail podany przez gościa
+         * i zdanie napisane własnymi słowami, w którym potrafi się znaleźć
+         * dosłownie wszystko („nie mogę się zalogować, moja żona ma to samo
+         * nazwisko"). RODO każe trzymać je tylko tak długo, jak są potrzebne.
+         *
+         * DWANAŚCIE MIESIĘCY, a nie 36 jak sprawy moderacyjne: tam długi
+         * okres broni się tym, że sprawa może wrócić jako spór prawny
+         * (art. 442¹ k.c., ADR_RETENCJE.md §5.6). Tutaj nie ma decyzji, od
+         * której da się odwołać, i nie ma sporu, do którego można by wrócić —
+         * została wyłącznie wartość praktyczna: „czy ten sam błąd zgłaszał
+         * już ktoś przed rokiem". Rok wystarcza, żeby to sprawdzić, i mieści
+         * pełen cykl sezonów kulinarnych, w którym te same rzeczy wracają.
+         *
+         * Nie 3 miesiące jak powiadomienia: pomysł zgłoszony w marcu bywa
+         * wdrażany jesienią, a wtedy trzeba wiedzieć, komu odpisać, że
+         * jednak zrobione.
+         *
+         * WIADOMOŚĆ NIEZAŁATWIONA NIE JEST KASOWANA NIGDY, niezależnie od
+         * wieku — tak samo jak otwarta sprawa moderacyjna. Kasowanie tego,
+         * czego nikt nie przeczytał, zamieniłoby retencję w sprzątanie
+         * dowodów zaniedbania.
+         */
+        'retention_months' => (int) env('KUKING_CONTACT_RETENTION_MONTHS', 12),
     ],
 
     'community' => [
