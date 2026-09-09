@@ -1532,6 +1532,63 @@ popularność liczona `withCount('posts')`, bez utrzymywanego ręcznie licznika)
 funkcja budowana od zera przy zerowym ruchu produkcyjnym (D-021: „0 tematów,
 0 wpisów z tematem" w chwili decyzji, a tagi jeszcze nie istniały).
 
+### contact_messages
+
+Wiadomości z formularza **„Napisz do nas"** (`/napisz-do-nas`), migracja
+`2026_09_09_100000_create_contact_messages_table`. Kontakt z **operatorem
+serwisu**: „coś nie działa", „mam pomysł", „chcę wam coś powiedzieć".
+
+**To NIE JEST `reports` i dlatego nie jest w `reports`.** Różnica nie jest
+kosmetyczna:
+
+| | `reports` | `contact_messages` |
+|---|---|---|
+| Czego dotyczy | cudzej treści (`target_type` + `target_id`) | działania serwisu |
+| Czym się kończy | decyzją moderatora w `moderation_actions` | odpowiedzią człowieka albo poprawką w kodzie |
+| Odwołanie | tak, DSA art. 20, `appeals` | nie ma od czego |
+| Retencja | **36 miesięcy** od zamknięcia sprawy | **12 miesięcy** od załatwienia |
+| Kolejka w panelu | `/admin/zgloszenia`, najnowsze na górze | `/admin/wiadomosci`, **najstarsze na górze** |
+
+Wrzucenie jednego w drugie kosztuje w obie strony: skarga na wpis w tej
+tabeli nigdy nie dostanie decyzji, a opis awarii w `reports` zapycha
+najwęższe gardło serwisu (D-012 — zespół to 1–2 osoby) i żyje w bazie trzy
+razy dłużej, niż potrzeba. Pilnuje tego
+`tests/Feature/WiadomosciDoOperatoraSaOddzielneOdZgloszenTest.php`.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID, `gen_random_uuid()` — wiersz jest adresowany z zewnątrz (`/admin/wiadomosci/{id}`), więc nie `bigserial`. |
+| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. |
+| `klucz_wyslania` | Tożsamość jednego wysłania formularza (D-027). Częściowy `UNIQUE` `contact_messages_one_per_klucz_wyslania` `WHERE klucz_wyslania IS NOT NULL` — wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` zdejmuje mechanizm, wpisując `NULL`. |
+| `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
+| `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
+| `contact_email` | Tylko dla GOŚCIA. Dla zalogowanego zostaje `NULL` — jego adres jest już na koncie, a kopiowanie go tutaj byłoby powielaniem danych osobowych bez powodu (RODO, minimalizacja). Odpowiedni adres podaje `ContactMessage::adresDoOdpowiedzi()`. |
+| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. Kontroler przycina (`NapiszDoNasController::oczyscSciezke()`): adres z cudzego serwisu i fraza wyszukiwania w `?q=` do bazy nie trafiają. |
+| `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
+| `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
+| `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
+| `handler_note` | Notatka operatora, widoczna wyłącznie w panelu. |
+
+Indeksy: `contact_messages_status_created_idx (status, created_at, id)` —
+kolejka; `contact_messages_handled_at_idx (handled_at) WHERE handled_at IS
+NOT NULL` — nocna retencja.
+
+**Retencja:** `config('kuking.kontakt.retention_months')` (domyślnie 12)
+miesięcy od `handled_at`, komenda `kuking:sprzataj-wiadomosci`, harmonogram
+04:40 (`routes/console.php`). Wiadomość **otwarta nie jest kasowana nigdy**,
+niezależnie od wieku — ta sama zasada, co przy otwartych sprawach
+moderacyjnych: kasowanie tego, czego nikt nie przeczytał, byłoby sprzątaniem
+dowodu zaniedbania, nie ochroną danych. Próg liczy
+`subMonthsNoOverflow()`, nie `subMonths()` (A6-04).
+
+**Rollback:** `DROP TABLE contact_messages` — migracja nie rusza żadnej
+innej tabeli, więc cofnięcie nie może uszkodzić niczego poza tym, co samo
+utworzyło (sprawdza to `CofniecieMigracjiWiadomosciTest`). Znika formularz
+i ekran w panelu, zostaje adres e-mail w stopce, czyli stan sprzed zmiany.
+**Strata jest jednak NIEODWRACALNA** — w tabeli leżą zdania napisane przez
+ludzi. Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
+`pg_dump --data-only --table=contact_messages > wiadomosci.sql`.
+
 ## V1 / V2
 
 Później:

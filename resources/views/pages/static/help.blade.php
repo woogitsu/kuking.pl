@@ -52,9 +52,17 @@
             na swoim komputerze.
         </p>
 
+        <h2>Coś nie działa albo mam pomysł</h2>
+        <p>
+            Wejdź na <a href="{{ route('kontakt') }}">Napisz do nas</a> i opisz to własnymi
+            słowami. Nie musisz mieć konta. To ta sama droga dla awarii i dla pomysłów —
+            i to jest inna droga niż zgłaszanie czyjegoś wpisu.
+        </p>
+
         <h2>Nadal nie wiem, co kliknąć</h2>
         <p>
-            Napisz do nas: <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>.
+            <a href="{{ route('kontakt') }}">Napisz do nas</a> albo wyślij zwykłego e-maila na
+            <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>.
             Odpisujemy po ludzku i naprawdę czytamy każdą wiadomość.
         </p>
     </article>

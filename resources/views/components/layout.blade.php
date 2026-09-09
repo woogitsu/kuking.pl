@@ -307,6 +307,12 @@
                             {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                  co tablica na dziś, stąd ta sama ikona. --}}
                             <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
+                            {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
+                                 co odwołania, bo to też jest pismo od człowieka,
+                                 a nie sprawa do rozstrzygnięcia. Osobna pozycja,
+                                 nie zakładka w Zgłoszeniach: to jest inna kolejka
+                                 i inna praca (patrz `WiadomosciController`). --}}
+                            <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
                         @endif
                     </ul>
 
@@ -320,6 +326,12 @@
                             @endif
                         </a></li>
                         <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
+                        {{-- „Napisz do nas" także tutaj, nie tylko w stopce.
+                             Osoba, która się gubi, gubi się na górze ekranu,
+                             a nie na jego dole — a stopka na desktopie bywa
+                             pod długim feedem. Ikona ma podpis, jak każda
+                             pozycja tej nawigacji (AGENTS.md §5). --}}
+                        <li><a class="side-nav-item" href="{{ route('kontakt') }}" @if(request()->routeIs('kontakt*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Napisz do nas</a></li>
                         {{-- Wylogowanie stoi na samym dole sekcji „obsługa
                              konta", bo to ostatnia rzecz, jaką się tu robi.
                              Ten sam składnik co na własnym profilu — patrz
@@ -408,6 +420,25 @@
         <footer class="site-footer">
             <div class="site-footer-inner">
                 <span>Kuking — gotujemy po swojemu.</span>
+                {{--
+                    „NAPISZ DO NAS" STOI PIERWSZY W STOPCE I NIE JEST DYMKIEM
+                    W ROGU EKRANU.
+
+                    Dymek na stałe przyklejony do rogu byłby łatwiejszy do
+                    znalezienia dokładnie o tyle, o ile zasłaniałby treść —
+                    a przy 320 px i przy czcionce przeglądarki podkręconej do
+                    200% zasłania jej najwięcej (WCAG 1.4.10 i 2.4.11: element
+                    o stałej pozycji potrafi zakryć właśnie sfokusowany
+                    przycisk). To repozytorium ma już dwa issues z tej rodziny
+                    — #80 i #162 — i oba dotyczyły elementu, który „tylko
+                    trochę" wystawał poza ekran.
+
+                    Stopka jest na KAŻDEJ stronie, nie wymaga skryptu,
+                    nie zasłania niczego i jest miejscem, w którym osoba 50+
+                    szuka kontaktu odruchowo. Pierwsza pozycja, bo w tej
+                    grupie ważniejsza niż regulamin.
+                --}}
+                <a href="{{ route('kontakt') }}">Napisz do nas</a>
                 <a href="{{ route('about') }}">O Kuking</a>
                 <a href="{{ route('help') }}">Pomoc</a>
                 <a href="{{ route('rules') }}">Zasady</a>

@@ -128,3 +128,15 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
     ->name('kuking:sprzataj-sprawy-moderacyjne')
     ->dailyAt('04:30')
     ->withoutOverlapping();
+
+// Retencja `contact_messages` — wiadomości z „Napisz do nas".
+// `config('kuking.kontakt.retention_months')` miesięcy od ZAŁATWIENIA
+// (`handled_at`); wiadomości otwarte nie są kasowane nigdy, niezależnie od
+// wieku. Osobna komenda i osobna liczba niż sprawy moderacyjne, bo to nie
+// jest sprawa: nie ma tu decyzji, od której da się odwołać, ani sporu, do
+// którego można by wrócić — uzasadnienie przy kluczu w `config/kuking.php`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
+    ->name('kuking:sprzataj-wiadomosci')
+    ->dailyAt('04:40')
+    ->withoutOverlapping();
