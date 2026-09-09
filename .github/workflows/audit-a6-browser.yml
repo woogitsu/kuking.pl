@@ -1,0 +1,141 @@
+name: Audyt A6 - przegladarka
+on:
+  push:
+    branches: ['audit/a6-20260909-1185719']
+    paths: ['.github/workflows/audit-a6-browser.yml']
+permissions:
+  contents: read
+jobs:
+  przegladarka:
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: audit-only
+        ports: ['5432']
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: local
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: audit-only
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ''
+      POSTHOG_KEY: ''
+      LOG_BLAD_WEBHOOK_URL: ''
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 1185719ddeda88e6cee0202b141b4078f17ffdd2
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Instalacja i dane tylko testowe
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/a6-browser"
+          echo "A6_OUT=$RUNNER_TEMP/a6-browser" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+          npm run build > "$RUNNER_TEMP/a6-browser/build.log"
+          cp .env.example .env
+          npx playwright install chromium > "$RUNNER_TEMP/a6-browser/install-chromium.log" 2>&1
+      - name: Niezalezny start serwera, pelny automat i zrzuty ekranu
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > "$A6_OUT/commit.txt"
+          php artisan storage:link > "$A6_OUT/storage-link.log" 2>&1
+          php artisan migrate:fresh --seed --seeder=DemoSeeder --force > "$A6_OUT/seed.log" 2>&1
+          PORT="$(node -e 'const n=require("net");const s=n.createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})')"
+          export ADRES="http://127.0.0.1:$PORT"
+          export APP_URL="$ADRES"
+          # Ten sam router Laravela, ale bez posredniego artisan serve.
+          (cd public && php -S "127.0.0.1:$PORT" ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php) > "$A6_OUT/server.log" 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          READY=0
+          for n in $(seq 1 60); do
+            if curl --silent --fail "$ADRES/health" > "$A6_OUT/health.txt"; then READY=1; break; fi
+            sleep 1
+          done
+          test "$READY" = 1
+          set +e
+          node scripts/dostepnosc.mjs > "$A6_OUT/a11y.log" 2>&1
+          echo $? > "$A6_OUT/a11y.exit"
+          cp storage/dostepnosc.json "$A6_OUT/dostepnosc.json" 2>/dev/null
+          # Oddzielna sonda: obrazy rzeczywistych stron + dwukrotny rozmiar
+          # bazowej czcionki. NIE nazywa tego natywnym zoomem przegladarki.
+          cat > audit-browser.mjs <<'JS'
+          import { chromium } from 'playwright';
+          import { writeFileSync } from 'node:fs';
+          const out=process.env.A6_OUT;
+          const b=await chromium.launch({headless:true,args:['--no-sandbox']});
+          const c=await b.newContext({viewport:{width:1280,height:900}});
+          const p=await c.newPage();
+          const records=[];
+          for(const path of ['/','/register','/login']){
+            const r=await p.goto(process.env.ADRES+path);await p.waitForTimeout(150);
+            await p.screenshot({path:out+'/'+(path==='/'?'landing':path.slice(1))+'-desktop.png',fullPage:true});
+            records.push({path,status:r.status(),title:await p.title()});
+          }
+          await p.fill('input[name="login"]','ania');
+          await p.fill('input[name="password"]','haslo-testowe-123');
+          await Promise.all([p.waitForURL(u=>!u.pathname.endsWith('/login')),p.click('button[type="submit"]')]);
+          for(const width of [1280,320]){
+            await p.setViewportSize({width,height:900});
+            for(const path of ['/home','/dodaj/zdjecie','/ustawienia/twoje-dane']){
+              const r=await p.goto(process.env.ADRES+path);await p.waitForTimeout(150);
+              await p.screenshot({path:out+'/'+path.slice(1).replaceAll('/','-')+'-'+width+'.png',fullPage:true});
+              const row=await p.evaluate(()=>{
+                const root=document.documentElement;
+                const original=parseFloat(getComputedStyle(root).fontSize);
+                root.style.fontSize=(original*2)+'px';
+                return {originalFont:original,requestedFont:original*2};
+              });
+              await p.waitForTimeout(150);
+              Object.assign(row,await p.evaluate(()=>({actualFont:getComputedStyle(document.documentElement).fontSize,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})),{width,path,status:r.status(),method:'double computed root font; not native browser zoom'});
+              records.push(row);
+              await p.screenshot({path:out+'/'+path.slice(1).replaceAll('/','-')+'-'+width+'-double-font.png',fullPage:true});
+            }
+          }
+          await c.close();await b.close();
+          writeFileSync(out+'/browser-probe.json',JSON.stringify(records,null,2));
+          JS
+          cp audit-browser.mjs "$A6_OUT/audit-browser.mjs"
+          node audit-browser.mjs > "$A6_OUT/extra-probe.log" 2>&1
+          echo $? > "$A6_OUT/extra-probe.exit"
+          rm audit-browser.mjs
+          git diff --exit-code > "$A6_OUT/production-diff.txt"
+          echo $? > "$A6_OUT/production-diff.exit"
+          tail -n 15 "$A6_OUT/a11y.log"
+          exit 0
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: a6-browser-1185719
+          path: ${{ runner.temp }}/a6-browser/
+          retention-days: 7
+          if-no-files-found: error
