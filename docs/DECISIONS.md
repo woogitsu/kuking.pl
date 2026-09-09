@@ -941,7 +941,28 @@ o zdjęciu.
 Zdanie w polityce staje się prawdziwe bez zmiany dokumentu — a to jest
 lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 
-📄 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
+> **Uzupełnienie z 9 września — decyzja bez zmian, wykonanie było dziurawe
+> (A6-02).** `UsunGps` deklarowała cztery kontenery, a szukała bloku TIFF
+> przez `strpos($bajty, "Exif\0\0")`. Ten prefiks jest częścią segmentu APP1
+> **w JPEG-u**; w PNG (chunk `eXIf`) i WebP (chunk `EXIF`) dane chunku to
+> zgodnie ze specyfikacją już sam blok TIFF, bez prefiksu. Poprawnie zapisane
+> PNG i WebP przechodziły więc przez sanitator NIETKNIĘTE, ze współrzędnymi
+> w środku. Znalazł to audyt zewnętrzny, odczytując zapisane pliki
+> niezależnym dekoderem. Blok TIFF jest teraz znajdowany po strukturze
+> kontenera, a `OryginalTraciGpsTakzeWPngIWebpTest` pilnuje PNG i WebP osobno.
+>
+> **Czego to nadal nie obejmuje, wprost:** EXIF-u zapisanego w PNG jako tekst
+> (`zTXt`/`iTXt` z profilem „Raw profile type exif"), metadanych XMP w żadnym
+> kontenerze — XMP potrafi nieść własne pola lokalizacji — ani AVIF-a inaczej
+> niż przez awaryjne szukanie nagłówka w bajtach. To są znane, nieprzykryte
+> luki, nie przeoczenie.
+>
+> **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
+> potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+
+📄 `app/Domain/Media/UsunGps.php` ·
+`app/Domain/Media/Actions/StoreUploadedImage.php` ·
+`tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
