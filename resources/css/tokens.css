@@ -402,6 +402,34 @@
   h1 { font-size: var(--text-title); }
   h2 { font-size: var(--text-title-sm); }
 
+  /*
+   * ODSTĘP POD NAGŁÓWKIEM STRONY (zgłoszenie właściciela, 9 września:
+   * „Twój profil" tuż nad kartą profilu, „Dobry wieczór…" tuż nad kartą na
+   * stronie głównej, „Szukaj" tuż nad polem wyszukiwania).
+   *
+   * Reset Tailwinda zeruje `margin` na wszystkich nagłówkach, a warstwa
+   * `base` wyżej nigdy tego nie odzyskuje — `h1` stał więc dosłownie
+   * `margin-bottom: 0`, styk z tym, co pod nim, ograniczony wyłącznie
+   * przez interlinię.
+   *
+   * `.app-main > h1`, NIE `h1` samo — nagłówek strony ZAWSZE jest
+   * bezpośrednim dzieckiem `<main class="app-main">` (patrz
+   * `components/layout.blade.php`: `$slot` renderuje się wprost w `<main>`,
+   * a każdy widok zaczyna się od `<h1>…</h1>`), więc jedna reguła w JEDNYM
+   * miejscu naprawia go na każdej z ok. 50 podstron naraz — bez dotykania
+   * ani jednego widoku. Węższy selektor niż samo `h1` celowo: nagłówek
+   * wewnątrz karty czy komponentu (nie ma dziś takiego h1, ale gdyby
+   * powstał) nie powinien dostawać tego samego odstępu bez pytania.
+   *
+   * `--spacing-6` (24 px) — ta sama wartość, którą system projektowy v3.1
+   * już oddziela pokrewne, ale odrębne bloki (`.field` niżej, odstęp między
+   * polami formularza). Nagłówek i treść pod nim to dokładnie taka relacja:
+   * blisko siebie, ale wyraźnie osobno.
+   */
+  .app-main > h1 {
+    margin-bottom: var(--spacing-6);
+  }
+
   p { margin: 0 0 var(--spacing-4); }
 
   /*
