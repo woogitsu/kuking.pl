@@ -25,6 +25,7 @@
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
 @import "./strony-publiczne.css";
+@import "./ekran-uzytkownikow.css";
 
 @layer components {
 
