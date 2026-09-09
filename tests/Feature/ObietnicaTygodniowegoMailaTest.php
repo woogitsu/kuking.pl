@@ -53,12 +53,36 @@ class ObietnicaTygodniowegoMailaTest extends TestCase
      */
     private const SLOWA_WYSYLKI = ['digest', 'podsumowanie'];
 
+    /**
+     * Podsumowania, które NIE IDĄ DO UŻYTKOWNIKÓW — i dlatego nie mają nic
+     * wspólnego z obietnicą z ekranu prywatności.
+     *
+     * `kuking:podsumowanie-automatu` (D-054) wysyła JEDEN list dziennie na
+     * adres moderatora z `config('kuking.moderation.model.alarm_email')`.
+     * Nie czyta `wants_weekly_digest`, nie zna kont użytkowników i nie ma
+     * jak do nich trafić. Zdanie „Tych listów jeszcze nie wysyłamy" zostaje
+     * przez to prawdziwe.
+     *
+     * WYJĄTEK JEST WYPISANY Z NAZWY, a nie zrobiony przez zawężenie wzorca:
+     * gdyby ktoś nazwał przyszłą wysyłkę do użytkowników „raport" albo
+     * „przeglad", ten test ma dalej ją złapać. Dopisanie tu czegokolwiek
+     * wymaga sprawdzenia, do KOGO ta wysyłka idzie — bo to jest jedyne
+     * pytanie, na które ten plik odpowiada.
+     *
+     * @var list<string>
+     */
+    private const NIE_DO_UZYTKOWNIKOW = ['kuking:podsumowanie-automatu'];
+
     /** @return list<string> */
     private function nadawcyPodsumowania(): array
     {
         $trafienia = [];
 
         foreach (array_keys(Artisan::all()) as $nazwa) {
+            if ($this->pomijamy($nazwa)) {
+                continue;
+            }
+
             foreach (self::SLOWA_WYSYLKI as $slowo) {
                 if (str_contains(mb_strtolower($nazwa), $slowo)) {
                     $trafienia[] = "polecenie {$nazwa}";
@@ -69,14 +93,29 @@ class ObietnicaTygodniowegoMailaTest extends TestCase
         foreach (app(Schedule::class)->events() as $zadanie) {
             $opis = mb_strtolower($zadanie->description ?? $zadanie->command ?? '');
 
+            if ($opis === '' || $this->pomijamy($opis)) {
+                continue;
+            }
+
             foreach (self::SLOWA_WYSYLKI as $slowo) {
-                if ($opis !== '' && str_contains($opis, $slowo)) {
+                if (str_contains($opis, $slowo)) {
                     $trafienia[] = "zadanie {$opis}";
                 }
             }
         }
 
         return array_values(array_unique($trafienia));
+    }
+
+    private function pomijamy(string $nazwa): bool
+    {
+        foreach (self::NIE_DO_UZYTKOWNIKOW as $wyjatek) {
+            if (str_contains(mb_strtolower($nazwa), $wyjatek)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function test_ekran_prywatnosci_mowi_ze_listow_jeszcze_nie_ma(): void

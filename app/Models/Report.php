@@ -124,6 +124,7 @@ class Report extends Model
      * @var array<string, string>
      */
     public const REASONS_AUTOMAT = [
+        'automat_model' => 'Automat: model wskazał treść do przejrzenia',
         'automat_wzorzec' => 'Automat: znany wzorzec spamu',
         'automat_odnosnik' => 'Automat: odnośnik zewnętrzny u świeżego konta',
         'automat_powtorzenie' => 'Automat: powtórzona treść',
@@ -146,6 +147,12 @@ class Report extends Model
      * @var array<string, int>
      */
     public const WAGA = [
+        // Ocena modelem stoi najwyżej, bo dotyczy INNEJ KLASY treści niż
+        // pozostałe trzy: nienawiści, przemocy, treści seksualnych
+        // i samookaleczenia (D-054). Najgorszy możliwy spam to zmarnowana
+        // minuta czytelnika; najgorsze trafienie modelu to sprawa, o której
+        // trzeba zawiadomić organy.
+        'automat_model' => 4,
         'automat_wzorzec' => 3,
         'automat_odnosnik' => 2,
         'automat_powtorzenie' => 1,

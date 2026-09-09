@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation;
 
 use App\Models\ModerationAction;
+use App\Moderacja\OcenaModelem;
 use App\Support\Czas;
 
 /**
@@ -118,7 +119,16 @@ final class UzasadnienieDecyzji
          * blokuje (`docs/legal/SYGNALY_AUTOMATU.md`).
          */
         if ($decyzja->report?->wykrylAutomat() === true) {
-            return 'Nikt tego nie zgłosił. Treść wskazało nasze narzędzie do wychwytywania spamu, '
+            // KTÓRE narzędzie — bo to nie jest szczegół. „Narzędzie do
+            // wychwytywania spamu" przy treści wskazanej przez model
+            // oceniający przemoc i nienawiść byłoby zdaniem nieprawdziwym,
+            // a art. 17 ust. 3 lit. c mówi o poinformowaniu o użyciu środków
+            // automatycznych, nie o wspomnieniu, że jakieś istnieją.
+            $narzedzie = $decyzja->report?->reason === OcenaModelem::KOD
+                ? 'narzędzie, które maszynowo ocenia publikowane treści i zdjęcia'
+                : 'nasze narzędzie do wychwytywania spamu';
+
+            return 'Nikt tego nie zgłosił. Treść wskazało '.$narzedzie.', '
                 .'a decyzję podjął potem człowiek, który ją przeczytał.';
         }
 
