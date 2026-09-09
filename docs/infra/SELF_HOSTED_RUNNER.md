@@ -207,6 +207,23 @@ który nie powstaje, i nic by się nie zdeployowało (`DECISIONS.md` D-010).
 | Testy padają na połączeniu z bazą | Docker nie działa albo usługa `postgres` nie wstała. `docker ps` w trakcie przebiegu |
 | „permission denied" przy Dockerze | Użytkownik runnera nie jest w grupie `docker`: `sudo usermod -aG docker $USER`, potem restart usługi |
 | Job trwa bardzo długo za pierwszym razem | Normalne — Composer i npm budują cache. Kolejne przebiegi są znacznie szybsze |
+| „Failed to install browsers → exit 100" w jobie dostępności | `apt-get update` na tej maszynie kończy się niezerowo, bo w liście źródeł siedzi PPA `ppa.setup-php.com/ondrej/php`, które od 9 września 2026 zwraca 404 na plik Release dla Ubuntu „resolute". CI już apta nie woła (patrz niżej), ale każde ręczne `sudo apt update` na tej maszynie też będzie krzyczeć. Usuń martwe źródło: `sudo rm /etc/apt/sources.list.d/*setup-php*` (albo `ondrej-*`) i sprawdź `sudo apt update` |
+
+---
+
+## CI nie instaluje pakietów systemowych
+
+Job dostępności pobiera samo Chromium (`npx playwright install chromium`),
+**bez** `--with-deps`. Flaga wołała `apt-get update` jako root i wiązała los
+każdego przebiegu z dostępnością cudzego repozytorium pakietów — 9 września
+2026 kosztowało to cztery zablokowane PR-y, bo PPA `ondrej/php` przestało
+zwracać plik Release (szczegóły w `tests/Feature/JobDostepnosciNieWolaAptaTest.php`).
+
+Konsekwencja dla tej maszyny: **biblioteki systemowe Chromium instaluje się tu
+raz, ręcznie.** Dziś są zainstalowane. Jeśli po aktualizacji systemu któraś
+zniknie, Playwright powie to wprost przy starcie przeglądarki i wymieni pakiety
+do doinstalowania — wtedy jedno `sudo npx playwright install-deps chromium`
+na maszynie, nie zmiana w CI.
 
 ---
 

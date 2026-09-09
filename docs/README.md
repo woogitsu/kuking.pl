@@ -22,7 +22,7 @@ Ten plik jest indeksem reszty.
 | [`product/SOUL.md`](./product/SOUL.md) | mechaniki, które dają temu produktowi duszę |
 | [`product/COLD_START.md`](./product/COLD_START.md) | plan 0 → 200 → 2000, playbook gospodarza |
 | [`product/RETENTION_LOOPS.md`](./product/RETENTION_LOOPS.md) | pętle retencji, powiadomienia, digest |
-| [`MONETIZATION.md`](./MONETIZATION.md) | hipotezy monetyzacji |
+| [`MONETIZATION.md`](./MONETIZATION.md) | stanowisko właściciela: zarabianie nie jest celem (nie hipotezy — decyzja) |
 
 ## Research
 

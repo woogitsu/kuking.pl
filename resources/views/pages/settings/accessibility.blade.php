@@ -87,5 +87,9 @@
         </p>
     </section>
 
-    <x-ustawienia-nawigacja aktywne="accessibility" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="accessibility" />
+    </x-slot:rail>
 </x-layout>

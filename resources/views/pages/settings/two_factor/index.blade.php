@@ -70,5 +70,9 @@
         </section>
     @endif
 
-    <x-ustawienia-nawigacja aktywne="two_factor" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="two_factor" />
+    </x-slot:rail>
 </x-layout>
