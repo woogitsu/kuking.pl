@@ -2278,7 +2278,14 @@
 --------------------------------------------------------------------------- */
 
 .ustawienia-nawigacja {
-    margin-top: var(--spacing-8);
+    /* `margin: 0`, nie `margin-top` jak dawniej: ten komponent stoi teraz
+       ZAWSZE w `<x-slot:rail>` (`.app-rail`), nigdy bezpośrednio pod
+       formularzem w głównej kolumnie — patrz komentarz w
+       `components/ustawienia-nawigacja.blade.php`. Odstęp od treści nad nim
+       daje sam `.app-rail` (i spora dolna padding `.app-main` na wąskim
+       ekranie, gdzie szyna ląduje pod treścią) — własny margines tej karty
+       przesuwałby ją niżej niż początek formularza obok, od progu 80rem. */
+    margin: 0;
 }
 
 .ustawienia-nawigacja-tytul {
