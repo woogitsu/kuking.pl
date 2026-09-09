@@ -42,6 +42,16 @@ Projektujemy od początku:
 
 Dlatego export i account deletion są częścią MVP.
 
+**Sprostowanie adresu e-mail (art. 16)** ma od issue #195 własną drogę:
+`/ustawienia/e-mail`. Do 9 września 2026 adres konta nie był widoczny nigdzie
+w interfejsie poza ekranem „Potwierdź e-mail" i paczką RODO — czyli prawo
+dostępu (art. 15) było spełnione tylko przez pobranie eksportu, a prawa do
+sprostowania nie dało się w ogóle wykonać. Zmiana idzie pełną drogą:
+obecne hasło → list z podpisanym odnośnikiem na NOWY adres → potwierdzenie,
+plus ostrzeżenie na stary adres i wpis w `audit_log`. Do potwierdzenia
+obowiązuje stary adres — szczegóły przy tabeli `pending_email_changes`
+w `DATABASE.md`.
+
 ## Data minimization
 
 Nie zbierać bez potrzeby:

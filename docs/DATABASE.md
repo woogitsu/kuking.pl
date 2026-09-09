@@ -456,6 +456,20 @@ które konto zostaje, podejmuje człowiek. Rollback to `DROP INDEX IF EXISTS`,
 bez utraty danych; `users_email_unique` zostaje nietknięty przez cały czas,
 więc nawet w trakcie rollbacku adres nie zduplikuje się co do znaku.
 
+#### `email` i `email_verified_at` poza `$fillable` (issue #195)
+
+Ta sama reguła co przy `status` i `role` (AGENTS.md §7): adres e-mail to jedyna
+droga odzyskania konta, więc jego zmiana jest zmianą **stanu konta**, nie
+edycją profilu. Gdyby stał w `$fillable`, dowolny `update($request->all())` —
+także taki, który o adresie w ogóle nie myśli — potrafiłby przestawić konto na
+cudzą skrzynkę, a stamtąd wystarczy „nie pamiętam hasła".
+
+Adres zapisują wyłącznie dwie nazwane drogi: `User::assignEmail()`
+(rejestracja i potwierdzona zmiana) oraz `EraseAccountData` (anonimizacja,
+D-022). Sama zmiana adresu na koncie idzie przez
+`pending_email_changes` — patrz niżej. Pilnuje tego
+`AdresEmailPozaMasowymPrzypisaniemTest`.
+
 #### `is_seeded` — treść zalążkowa na produkcji, ale jawnie oznaczona (D-025)
 
 Migracja `2026_09_07_700000_add_is_seeded_to_users`. Boolean, domyślnie
@@ -1324,6 +1338,80 @@ zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
 uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
 (`source`), razem z rolą poprzednią i nową. To jest jedyny ślad po tym, kto
 w serwisie może zamknąć czyjeś odwołanie (D-039).
+
+### pending_email_changes
+Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,
+migracja `2026_09_09_300000_create_pending_email_changes_table`).
+
+Do 9 września 2026 zalogowany człowiek nie widział własnego adresu **nigdzie**
+w serwisie poza ekranem „Potwierdź e-mail" i paczką RODO — a reset hasła idzie
+właśnie na ten adres. Literówka przy rejestracji znaczyła więc konto bez drogi
+powrotu, i to od dnia, w którym poczta zaczęła realnie wysyłać listy. Prawo do
+sprostowania danych (RODO art. 16) nie miało tu żadnej realizacji.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID. Trafia do podpisanego odnośnika w liście — **sam w sobie nie jest autoryzacją** (AGENTS.md §7), właściciela sprawdza kontroler osobno. |
+| `user_id` | **UNIKALNY** — jedno oczekujące żądanie na konto. Nowe zastępuje poprzednie, więc odnośnik z wcześniejszego listu natychmiast przestaje działać. `cascadeOnDelete`. |
+| `new_email` | Adres, na który konto ma się przenieść. **Bez indeksu unikalnego** — patrz niżej. |
+| `created_at` | Kiedy zamówiono. |
+| `expires_at` | Kiedy odnośnik przestaje działać: `config('kuking.account.email_change_ttl_hours')` (domyślnie 24 h) od zamówienia. |
+
+```sql
+ALTER TABLE pending_email_changes
+ADD CONSTRAINT pending_email_changes_new_email_lower_check
+CHECK (new_email = lower(new_email) AND new_email <> '');
+
+ALTER TABLE pending_email_changes
+ADD CONSTRAINT pending_email_changes_expires_after_created_check
+CHECK (expires_at > created_at);
+```
+
+#### Dlaczego osobna tabela, a nie kolumny na `users`
+
+Rozważana była druga droga (`users.pending_email` + `pending_email_expires_at`).
+Odpadła z czterech powodów:
+
+1. to nie jest cecha konta, tylko **żądanie z własnym życiorysem** — powstaje,
+   wygasa, zostaje skasowane albo skonsumowane. Wiersz znikający w całości jest
+   prostszy niż dwie kolumny, które trzeba wyzerować **razem**;
+2. spójność za darmo: przy kolumnach trzeba by CHECK-a wiążącego ich
+   nullowość (`num_nonnulls()`), tu warunek nie ma jak nie być spełniony;
+3. `users` czyta **każde** żądanie zalogowanej osoby — nie dokładamy do niej
+   kolumn, które w 99,9% wierszy są NULL-em;
+4. minimalizacja danych: adres znika jednym `DELETE`, a nie `UPDATE`-em
+   na najważniejszej tabeli w bazie.
+
+#### Dlaczego `new_email` nie jest unikalny
+
+Bo unikalny indeks tutaj zamieniłby formularz w wyrocznię „kto ma konto
+w Kuking": odpowiedź „ten adres jest zajęty" da się wyklikać seriami.
+Unikalność pilnuje `users_email_lower_unique` w chwili **potwierdzenia** —
+czyli dowiaduje się o niej wyłącznie ten, kto czyta pocztę pod tym adresem
+(`App\Domain\Users\Actions\ConfirmEmailChange`).
+
+#### Co kasuje wiersz
+
+Potwierdzenie, przycisk „Anuluj zmianę", **zmiana albo reset hasła** (bo list
+ostrzegawczy do starego adresu radzi właśnie to i ta rada musi być prawdziwa),
+kolejne żądanie tej samej osoby, anonimizacja konta (`EraseAccountData`) oraz
+wygaśnięcie — `kuking:sprzataj-zmiany-adresu`, harmonogram codziennie o 04:40
+(`App\Domain\Compliance\PrzedawnioneZmianyAdresu`).
+
+Termin stoi w kolumnie, a **nie** jest liczony przy odczycie — dzięki temu nie
+da się tu powtórzyć pułapki `subMonths()` kontra `subMonthsNoOverflow()`
+z `PrzedawnionePowiadomienia` (A6-04): próg jest policzony raz, przy
+zamówieniu, i od tego momentu jest faktem, a nie wynikiem arytmetyki na datach.
+Sprzątanie **nie jest** bramką bezpieczeństwa — odnośnik przestaje działać co
+do minuty dzięki `PendingEmailChange::jestWazne()`, a nie dzięki nocnej komendzie.
+
+**Rollback:** `php artisan migrate:rollback --step=1` — `down()` kasuje tabelę.
+Bezstratne dla kont: żaden wiersz `users` nie jest przez tę migrację dotykany,
+żaden adres nie zmienia się w ani jedną stronę. Ginie tylko to, co było
+w drodze — listy wysłane, ale jeszcze niepotwierdzone; kto kliknie taki
+odnośnik, przeczyta „zamów zmianę jeszcze raz". Kolejność wycofywania:
+**najpierw kod, potem migracja** — sam ekran `/ustawienia/e-mail` bez tabeli
+odda 500.
 
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle

@@ -182,6 +182,22 @@ final class EraseAccountData
              */
             $fresh->disableTwoFactor();
 
+            /*
+             * ZAMÓWIONA ZMIANA ADRESU E-MAIL ZNIKA RAZEM Z KONTEM (#195).
+             *
+             * Ten sam powód co przy 2FA wyżej, plus jeden własny.
+             * `pending_email_changes` trzyma adres e-mail — daną osobową
+             * osoby, która właśnie poprosiła o usunięcie konta. Wiersz
+             * zostawiony po anonimizacji byłby jedynym miejscem w bazie,
+             * w którym ten adres nadal stoi jawnie, i przeżyłby wymazanie
+             * `users.email` niżej.
+             *
+             * Jawnie, a nie kaskadą klucza obcego: kont z Kuking się nie
+             * KASUJE, tylko anonimizuje (D-022), więc `ON DELETE CASCADE`
+             * nigdy by tu nie zadziałało.
+             */
+            $fresh->pendingEmailChange()->delete();
+
             if ($profile !== null) {
                 $profile->forceFill([
                     'username' => $this->anonimowaNazwa($fresh),

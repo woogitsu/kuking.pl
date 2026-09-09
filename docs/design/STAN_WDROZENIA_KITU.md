@@ -89,7 +89,7 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
 - **Wszystko działa bez JavaScriptu.** Kit jest statycznym HTML-em, więc nie
   odpowiada na pytanie, jak zachowa się zakładka albo menu „…" przy wyłączonym
   skrypcie. W tym produkcie to warunek, nie ulepszenie (AGENTS.md §5).
-- **Automat dostępności** przy każdej zmianie: axe na 14 ekranach w czterech
+- **Automat dostępności** przy każdej zmianie: axe na 27 ekranach w czterech
   wariantach plus pomiar przewijania w poziomie przy 320–768 px.
 
 ---
@@ -288,7 +288,7 @@ portować.
 - **Gość nie ma pola wyszukiwania** — pole w górnej belce jest `@auth`-owane.
   Realna luka nawigacyjna dla niezalogowanych, dotyczy globalnej belki.
 - **`recipe-card` bez czasu i porcji** obok tytułu, jak w kicie.
-- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 25 ekranach ×
+- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 27 ekranach ×
   4 warianty nie był uruchamiany w trakcie etapu D, bo pięć zleceń pisało
   równocześnie w tym samym repozytorium i wynik nie byłby miarodajny dla
   żadnej pojedynczej zmiany. Do uruchomienia teraz, na scalonym stanie.

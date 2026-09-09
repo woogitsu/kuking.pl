@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Users\Actions\CancelEmailChange;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
@@ -73,7 +74,7 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request): RedirectResponse
+    public function reset(Request $request, CancelEmailChange $anuluj): RedirectResponse
     {
         $request->validate([
             'token' => ['required'],
@@ -93,7 +94,7 @@ class PasswordResetController extends Controller
                 ...$request->only('password', 'password_confirmation', 'token'),
                 'email' => User::normalizeEmail((string) $request->input('email', '')),
             ],
-            function ($user, string $password) use ($request): void {
+            function ($user, string $password) use ($request, $anuluj): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'remember_token' => Str::random(60),
@@ -109,6 +110,17 @@ class PasswordResetController extends Controller
                 // (formularz jest publiczny), więc kasujemy WSZYSTKIE sesje
                 // bez wyjątku.
                 $user->invalidateSessions();
+
+                // ...I UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU E-MAIL (issue #195).
+                //
+                // Ten sam powód co przy zmianie hasła w ustawieniach:
+                // reset hasła jest drogą powrotu na konto, do którego ktoś
+                // inny mógł mieć dostęp. Gdyby oczekująca zmiana adresu
+                // przetrwała reset, napastnik dokończyłby przejęcie konta
+                // swoim odnośnikiem — właśnie w chwili, w której właściciel
+                // odzyskuje kontrolę. Pełne uzasadnienie:
+                // `App\Domain\Users\Actions\CancelEmailChange`.
+                $anuluj->handle($user, CancelEmailChange::POWOD_RESET_HASLA, $request->ip());
 
                 AuditLogEntry::record('account.password_reset', $user, $user, ip: $request->ip());
 
