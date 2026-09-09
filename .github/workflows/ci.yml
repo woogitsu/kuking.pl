@@ -200,22 +200,21 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          # TA SAMA LISTA WE WSZYSTKICH PIĘCIU JOBACH — i to nie jest kopiuj-wklej
-          # do posprzątania. Trzy runnery stoją na JEDNEJ maszynie, więc dzielą
-          # jedną instalację PHP. Job z krótszą listą zostawia współdzielone PHP
-          # bez rozszerzenia, którego potrzebuje następny.
+          # TA SAMA LISTA WE WSZYSTKICH PIĘCIU JOBACH — higiena, nie łatka.
           #
-          # ZMIERZONE 9 września, PR #171: `Larastan` (lista bez `pcntl`)
-          # skończył 09:34:30, `Dostępność (axe-core)` wystartowała 09:34:35
-          # i `php artisan serve` padł od razu:
+          # Trzy runnery stoją na JEDNEJ maszynie i dzielą jedną instalację PHP.
+          # Pięć jobów prosiło o pięć różnych zestawów rozszerzeń; przy wspólnym
+          # PHP to jest proszenie się o kłopot, nawet jeśli dziś nikt na tym nie
+          # padł. Jedna lista znaczy: obojętne, który job konfigurował ostatni.
           #
-          #     Signals are not supported. Make sure that the "pcntl" extension
-          #     is installed …
-          #
-          # Job dostępności PROSIŁ o `pcntl` w swojej własnej liście. Nie
-          # wystarczyło. Dokładnego przeplotu zapisów setup-php nie ustaliłem;
-          # ujednolicenie list usuwa możliwość, żeby joby się o rozszerzenia
-          # biły, bez zgadywania mechanizmu.
+          # UWAGA, ŻEBY NIE WPROWADZAĆ NIKOGO W BŁĄD: ta zmiana NIE naprawiła
+          # awarii `pcntl` z 9 września. Sprawdzone — po ujednoliceniu list job
+          # dostępności padł tak samo. `setup-php` raportuje wtedy
+          # `✓ pcntl Enabled`, a `php artisan serve` i tak kończy się kodem 1
+          # na „Signals are not supported (…) or that pcntl_* functions are not
+          # disabled by your php.ini's disable_functions directive". Czyli
+          # rozszerzenie jest włączone, a FUNKCJE zablokowane w `php.ini`
+          # maszyny — to jest do naprawienia na runnerze, nie tutaj.
           #
           # Koszt: lekkie joby (Pint, Audyt zależności) włączają kilka
           # rozszerzeń więcej. Na współdzielonej maszynie są już zainstalowane,
