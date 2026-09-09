@@ -368,7 +368,7 @@ class PodzielSieTest extends TestCase
     /**
      * Wersja podstawowa ma dokładnie trzy drogi i żadna z nich nie wymaga
      * zarejestrowanej aplikacji na Facebooku ani nie umiera na komputerze.
-     * Uzasadnienie każdej nieobecności: docs/DECISIONS.md, D-042.
+     * Uzasadnienie każdej nieobecności: docs/DECISIONS.md, D-044.
      */
     public function test_lista_drog_nie_obiecuje_messengera_ani_smsow(): void
     {

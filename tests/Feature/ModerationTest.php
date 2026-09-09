@@ -24,7 +24,7 @@ class ModerationTest extends TestCase
                 'reason' => 'spam',
                 'details' => 'Reklama suplementów.',
             ])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         $this->assertDatabaseHas('reports', [
             'target_type' => 'post',

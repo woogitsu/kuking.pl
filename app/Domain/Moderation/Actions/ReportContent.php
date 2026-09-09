@@ -71,6 +71,8 @@ final class ReportContent
         User::class => 'viewProfile',
     ];
 
+    public function __construct(private readonly NotifyReporterReceipt $potwierdzenie) {}
+
     /**
      * Bramka widoczności celu (audyt W7-05).
      *
@@ -178,6 +180,26 @@ final class ReportContent
             metadata: ['target_type' => $targetType, 'reason' => $reason],
             ip: $ip,
         );
+
+        /*
+         * POTWIERDZENIE PRZYJĘCIA (DSA art. 16 ust. 4), issue #10.
+         *
+         * STOI DOKŁADNIE TUTAJ, a nie wyżej, i to jest cała reguła:
+         * potwierdzenie należy się JEDNEMU zgłoszeniu jeden raz. Obie drogi
+         * powyżej, które oddają wiersz JUŻ ISTNIEJĄCY (`$existing` z ciepłego
+         * `SELECT`-a i `$rownolegle` po odbiciu się o indeks
+         * `reports_one_open_per_pair`), wracają wcześniej — więc podwójne
+         * kliknięcie nie tworzy drugiego potwierdzenia, tak samo jak nie
+         * tworzy drugiej sprawy. Ten sam wybór, z tego samego powodu, zrobiła
+         * droga prawna (`ZglosNielegalnaTresc`: „ANI JEDNO potwierdzenie
+         * odbioru więcej").
+         *
+         * POZA TRANSAKCJĄ ZAPISU (jest już zamknięta linijkę wyżej): wiersz
+         * zgłoszenia nie może zniknąć dlatego, że nie udało się zapisać
+         * powiadomienia o nim. Przy obowiązku z art. 16 ciche zgubienie
+         * sprawy jest najgorszym z możliwych skutków.
+         */
+        $this->potwierdzenie->handle($report);
 
         return $report;
     }

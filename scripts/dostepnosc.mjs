@@ -170,6 +170,21 @@ const EKRANY = [
   { nazwa: 'odwołanie od decyzji', adres: null, znajdz: 'odwolanie', zalogowany: true },
 
   /*
+   * Strona ZGŁASZAJĄCEGO (issue #10, DSA art. 16 ust. 4 i 5) — lista własnych
+   * spraw i karta jednej sprawy. Tak jak przy odwołaniu wyżej, `DemoSeeder`
+   * nie tworzy żadnego zgłoszenia, więc dane dokłada ten automat
+   * (`idZgloszenia` niżej) — inaczej lista pokazywałaby pusty stan, a karta
+   * 403, i oba przeszłyby audyt, nic nie sprawdzając.
+   *
+   * Karta sprawy jest tu ważniejsza niż wygląda: to kilka kart pod sobą
+   * z długimi zdaniami pouczenia i numerem sprawy, który nie może się złamać
+   * w pół — czyli dokładnie ten kształt, który przy 320 px i tekście 140%
+   * najłatwiej wypycha stronę w bok (issue #80).
+   */
+  { nazwa: 'twoje zgłoszenia', adres: '/zgloszenia', zalogowany: true },
+  { nazwa: 'zgłoszenie — karta sprawy', adres: null, znajdz: 'zgloszenie', zalogowany: true },
+
+  /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
    * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
@@ -681,6 +696,59 @@ if (idOdwolania === null) {
 }
 
 /*
+ * Zgłoszenie ZŁOŻONE przez konto, którym ten automat się loguje, wraz
+ * z rozstrzygnięciem (issue #10). Ten sam mechanizm i te same powody co przy
+ * `idOdwolania` wyżej: `DemoSeeder` nie tworzy żadnego `Report`, a karta
+ * sprawy jest widoczna wyłącznie dla zgłaszającego (`ReportPolicy::view()`),
+ * więc bez tych danych automat mierzyłby stronę 403.
+ *
+ * ROZSTRZYGNIĘTE, NIE OTWARTE — bo sprawa zamknięta pokazuje WIĘCEJ:
+ * decyzję i pełne pouczenie o dostępnych środkach. Ekran sprawy otwartej to
+ * podzbiór tego samego układu.
+ *
+ * DECYZJA `no_action`, ŚWIADOMIE. Jako jedyna nie rusza ani treści, ani
+ * konta (`ModerationController::applyAction()`), więc dołożenie tych danych
+ * nie zmienia ANI JEDNEGO innego ekranu z listy wyżej. `hide` ukryłby
+ * demonstracyjny wpis oglądany przez trzy inne pozycje.
+ *
+ * CEL MUSI ISTNIEĆ I NIE MOŻE BYĆ WŁASNY: zgłoszenie społecznościowe wymaga
+ * niepustego `target_id` (CHECK `reports_community_target_check`), a
+ * zgłaszanie własnego wpisu byłoby danymi, których w produkcie prawie nie ma.
+ * Bierzemy więc dowolny CUDZY wpis z demo.
+ */
+const idZgloszenia = (() => {
+  const id = execFileSync('php', ['artisan', 'tinker', '--execute',
+    `$b = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
+    + "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "if (!$b || !$m) { echo ''; exit; } "
+    + "$z = App\\Models\\Report::where('reporter_id',$b)->first(); "
+    + "if (!$z) { "
+    + "$cel = App\\Models\\Post::where('author_id','!=',$b)->value('id'); "
+    + "if (!$cel) { echo ''; exit; } "
+    + "$z = App\\Models\\Report::create(['reporter_id'=>$b,'target_type'=>'post','target_id'=>$cel,"
+    + "'reason'=>'harassment','details'=>'Ten wpis wyśmiewa konkretną osobę z nazwiska.',"
+    + "'status'=>App\\Models\\Report::STATUS_REJECTED,'resolved_by'=>$m,'resolved_at'=>now(),"
+    + "'resolution_note'=>'Utworzone przez automat dostępności (scripts/dostepnosc.mjs).']); "
+    + "} "
+    + "if (! App\\Models\\ModerationAction::where('report_id',$z->getKey())->exists()) { "
+    + "App\\Models\\ModerationAction::create(['moderator_id'=>$m,'report_id'=>$z->getKey(),"
+    + "'target_type'=>$z->target_type,'target_id'=>$z->target_id,'action'=>'no_action',"
+    + "'reason_code'=>'bez_podstaw','note'=>'Utworzone przez automat dostępności.']); "
+    + "} echo $z->getKey();",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return id === '' ? null : id;
+})();
+
+if (idZgloszenia === null) {
+  console.error(`BŁĄD: nie udało się przygotować zgłoszenia dla „${KONTO_ZALOGOWANE}" — `
+    + 'karta sprawy nie zostałaby sprawdzona (brak konta moderatora, tego konta albo cudzego wpisu w bazie).');
+  zamknij();
+  process.exit(1);
+}
+
+/*
  * Adres ekranu z listy: `adres` wprost albo `znajdz` do rozwiązania z bazy.
  *
  * `znajdz: 'przepis'` → dowolny opublikowany przepis z demo,
@@ -688,7 +756,8 @@ if (idOdwolania === null) {
  * `znajdz: 'wpis:carousel'` → wpis w tym trybie,
  * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu,
  * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla konta,
- *                        którym automat się loguje (`KONTO_ZALOGOWANE`).
+ *                        którym automat się loguje (`KONTO_ZALOGOWANE`),
+ * `znajdz: 'zgloszenie'` → karta sprawy zgłoszenia złożonego przez to konto.
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
@@ -709,6 +778,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'odwolanie') {
     return `/odwolanie/${idOdwolania}`;
+  }
+
+  if (ekran.znajdz === 'zgloszenie') {
+    return `/zgloszenia/${idZgloszenia}`;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');

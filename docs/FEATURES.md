@@ -28,7 +28,12 @@
   lista WhatsApp / e-mail / Facebook plus adres do skopiowania. Przycisk
   stoi wyłącznie przy treści widocznej dla kogoś bez konta. Messengera jako
   osobnego linku nie ma — wymaga własnej aplikacji na Facebooku
-  (`docs/DECISIONS.md`, D-042).
+  (`docs/DECISIONS.md`, D-044).
+
+Wspomnienia: na stronie głównej jeden własny wpis z tego samego dnia sprzed
+roku lub więcej, z cichym podpisem („Rok temu, 6 września"). Blok pojawia się
+tylko wtedy, gdy jest co pokazać. Całość wyłącza jeden przełącznik
+w `/ustawienia/prywatnosc`, a pojedyncze wspomnienie chowa przycisk przy nim.
 
 ### Wpis
 - zdjęcie lub kilka zdjęć;

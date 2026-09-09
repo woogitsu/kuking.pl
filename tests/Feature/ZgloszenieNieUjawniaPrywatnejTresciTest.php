@@ -162,7 +162,7 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
 
         $this->actingAs($this->obserwujacy)
             ->post(route('reports.store', ['type' => 'post', 'id' => $wpis->getKey()]), ['reason' => 'spam'])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         $this->assertDatabaseHas('reports', [
             'target_type' => 'post',
@@ -214,7 +214,7 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
 
         $this->actingAs($this->obcy)
             ->post(route('reports.store', ['type' => 'recipe', 'id' => $przepis->slug]), ['reason' => 'spam'])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         $this->actingAs($this->obcy)
             ->get(route('reports.create', ['type' => 'post', 'id' => $wpis->getKey()]))
@@ -222,7 +222,7 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
 
         $this->actingAs($this->obcy)
             ->post(route('reports.store', ['type' => 'post', 'id' => $wpis->getKey()]), ['reason' => 'spam'])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         $this->assertDatabaseHas('reports', ['target_type' => 'recipe', 'target_id' => $przepis->getKey()]);
         $this->assertDatabaseHas('reports', ['target_type' => 'post', 'target_id' => $wpis->getKey()]);
@@ -248,7 +248,7 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
 
         $this->actingAs($this->autor)
             ->post(route('reports.store', ['type' => 'recipe', 'id' => $przepis->slug]), ['reason' => 'spam'])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         $this->assertDatabaseHas('reports', [
             'target_type' => 'recipe',
@@ -283,7 +283,7 @@ class ZgloszenieNieUjawniaPrywatnejTresciTest extends TestCase
 
         $this->actingAs($moderator)
             ->post(route('reports.store', ['type' => 'recipe', 'id' => $szkicPrzepisu->slug]), ['reason' => 'spam'])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         $this->assertDatabaseHas('reports', ['target_type' => 'recipe', 'target_id' => $szkicPrzepisu->getKey()]);
     }

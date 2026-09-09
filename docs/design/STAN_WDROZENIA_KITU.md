@@ -288,7 +288,7 @@ portować.
 - **Gość nie ma pola wyszukiwania** — pole w górnej belce jest `@auth`-owane.
   Realna luka nawigacyjna dla niezalogowanych, dotyczy globalnej belki.
 - **`recipe-card` bez czasu i porcji** obok tytułu, jak w kicie.
-- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 23 ekranach ×
+- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 25 ekranach ×
   4 warianty nie był uruchamiany w trakcie etapu D, bo pięć zleceń pisało
   równocześnie w tym samym repozytorium i wynik nie byłby miarodajny dla
   żadnej pojedynczej zmiany. Do uruchomienia teraz, na scalonym stanie.

@@ -1036,11 +1036,20 @@ Kolumny dołożone dla drogi prawnej:
 | `target_url` | Adres wpisany przez człowieka, zapisany dosłownie (art. 16 ust. 2 lit. b — „dokładna lokalizacja elektroniczna”). |
 | `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
 | `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
-| `receipt_sent_at` | Potwierdzenie odbioru wysłane (ust. 4). |
-| `decision_sent_at` | Powiadomienie o decyzji wysłane (ust. 5). |
+| `receipt_sent_at` | Potwierdzenie odbioru przekazane zgłaszającemu (ust. 4). |
+| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). |
 
 Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
-wysłaliśmy”, a przy audycie to jest pierwsze pytanie.
+powiadomiliśmy”, a przy audycie to jest pierwsze pytanie.
+
+**Obie kolumny znaczą „powiadomiliśmy”, nie „poszedł list”** (issue #10).
+Powstały przy drodze prawnej, gdzie jedynym kanałem jest poczta, ale od
+domknięcia art. 16 po stronie zgłoszeń społecznościowych znaczy je także
+powiadomienie w serwisie (`NotifyReporterReceipt`, `NotifyReporterDecision`).
+Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
+`notifier_email` niepuste — zgłoszenie prawne z adresem; nigdy oba naraz.
+Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
+zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
 
 #### `target_type = 'unknown'` i puste `target_id`
 
@@ -1597,9 +1606,50 @@ Nie robimy tego.
 `RegressionTest::test_wyszukiwarka_korzysta_z_indeksu_trigramowego`, który
 wyłącza skan sekwencyjny i sprawdza plan zapytania.
 
-Indeksy na tej funkcji: `profiles` (username, display_name, speciality),
-`recipes` (title, summary), `ingredients` (normalized_name),
-`recipe_ingredients` (ingredient_text).
+Indeksy na tej funkcji zostały już tylko dla `ingredients` (normalized_name).
+Reszta stoi na kolumnach generowanych — patrz niżej.
+
+## Kolumny `*_search` — znormalizowany tekst leży w tabeli
+
+Migracja `2026_09_09_100000_materialize_search_columns` (issue #116) dokłada
+sześć kolumn `GENERATED ALWAYS AS (public.kuking_normalize(...)) STORED`
+i przenosi na nie indeksy GIN (nazwy indeksów bez zmian):
+
+| tabela | kolumna generowana | liczona z | indeks |
+|---|---|---|---|
+| `recipes` | `title_search` | `title` | `recipes_title_trgm_idx` |
+| `recipes` | `summary_search` | `coalesce(summary, '')` | `recipes_summary_trgm_idx` |
+| `recipe_ingredients` | `ingredient_text_search` | `ingredient_text` | `recipe_ingredients_text_trgm_idx` |
+| `profiles` | `display_name_search` | `display_name` | `profiles_display_name_trgm_idx` |
+| `profiles` | `username_search` | `username` | `profiles_username_trgm_idx` |
+| `profiles` | `speciality_search` | `coalesce(speciality, '')` | `profiles_speciality_trgm_idx` |
+
+**Po co, skoro indeks na wyrażeniu działał.** Bo działał tylko do połowy.
+Indeks GIN dla operatora `%` jest **stratny**: oddaje kandydatów, których
+PostgreSQL sprawdza jeszcze raz na wierszu tabeli. Przy progu podobieństwa
+0,12 (`App\Support\ProgPodobienstwa`) kandydatów jest 35–60% tabeli, a każdy
+recheck liczył `unaccent()` po słowniku od nowa. Zmierzone na 10 000 kont /
+40 000 przepisów: `SearchQuery::recipes('pierogi')` 160 ms → 119 ms, a sama
+gałąź trigramowa 118,8 → 81,8 ms przy **identycznym** zbiorze wyników.
+Pełny pomiar, plany zapytań i to, czego ta zmiana NIE naprawia:
+`docs/research/WYDAJNOSC.md` §3.4a.
+
+**Dlaczego kolumna generowana, a nie zwykła + trigger.** Kolumny generowanej
+nie da się rozjechać ze źródłem: nie ma do niej drogi zapisu. Trigger da się
+wyłączyć, a `UPDATE` z pominięciem triggera zostawiłby wyszukiwarkę szukającą
+po starym tytule — usterkę widoczną dopiero wtedy, gdy ktoś nie znajdzie
+własnego przepisu. Pilnuje tego `KolumnySzukaniaTest`.
+
+⚠️ **Konsekwencja mocniejsza niż przy indeksie na wyrażeniu:** podmiana
+słownika `unaccent` wymaga tu nie `REINDEX`, tylko przeliczenia kolumn
+(`ALTER TABLE ... ALTER COLUMN ... DROP EXPRESSION` i dodanie od nowa).
+Nie robimy tego.
+
+**Rollback:** `down()` odtwarza indeksy na wyrażeniu i kasuje kolumny —
+dokładny stan sprzed migracji, bezstratnie (kolumny są wyliczone z danych,
+które zostają). Kosztuje przepisanie trzech tabel pod `ACCESS EXCLUSIVE`,
+tak samo jak `up()`; na 40 000 / 80 000 / 10 000 wierszy trwało to ~6 s.
+Sprawdza to `KolumnySzukaniaTest::test_cofniecie_migracji_odtwarza_indeksy_na_wyrazeniu`.
 
 ## `daily_picks`
 

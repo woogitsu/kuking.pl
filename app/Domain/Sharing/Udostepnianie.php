@@ -132,7 +132,7 @@ final class Udostepnianie
      * więc nie może być jedyną drogą (`AGENTS.md` §5).
      *
      * CZEGO TU NIE MA I DLACZEGO — pełne uzasadnienie w `docs/DECISIONS.md`,
-     * D-042:
+     * D-044:
      *
      *  - MESSENGER. Okno „wyślij osobie" (`facebook.com/dialog/send`)
      *    wymaga własnego `app_id` z zarejestrowanej aplikacji na Facebooku.

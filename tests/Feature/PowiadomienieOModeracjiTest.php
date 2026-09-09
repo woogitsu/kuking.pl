@@ -192,7 +192,19 @@ class PowiadomienieOModeracjiTest extends TestCase
             ->assertSee('Nic nie zostało ukryte ani usunięte.');
     }
 
-    public function test_odrzucone_zgloszenie_nie_powiadamia_nikogo(): void
+    /**
+     * Odrzucone zgłoszenie nie powiadamia ZGŁOSZONEGO.
+     *
+     * NAZWA TEGO TESTU BRZMIAŁA KIEDYŚ „nie powiadamia nikogo" i tak też
+     * mierzył: `assertDatabaseCount('notifications', 0)`. Od issue #10 to
+     * jest za mocne — zgłaszający dostaje teraz informację o rozstrzygnięciu
+     * (DSA art. 16 ust. 5), także wtedy, gdy rozstrzygnięciem jest „nic nie
+     * robimy". Reguła, której ten test pilnuje, dotyczy DRUGIEJ strony
+     * i zostaje bez zmian: osobie zgłoszonej nie mówimy nic, bo nic jej się
+     * nie stało, a powiadomienie powiedziałoby jej tylko tyle, że ktoś ją
+     * zgłosił.
+     */
+    public function test_odrzucone_zgloszenie_nie_powiadamia_zgloszonego(): void
     {
         $moderator = $this->moderator();
         $basia = $this->user('basia');
@@ -204,9 +216,14 @@ class PowiadomienieOModeracjiTest extends TestCase
             'user_message' => 'To nie łamie zasad.',
         ]);
 
-        // „Bez działania" znaczy, że tej osobie nic się nie stało.
-        // Powiadomienie powiedziałoby jej tylko tyle, że ktoś ją zgłosił.
-        $this->assertDatabaseCount('notifications', 0);
+        $this->assertDatabaseMissing('notifications', ['user_id' => $basia->getKey()]);
+
+        // KONTROLA: brak powiadomienia u Basi nie może brać się stąd, że
+        // powiadomień nie ma w ogóle — wtedy ten test przechodziłby także
+        // po przypadkowym wyłączeniu całego mechanizmu.
+        $this->assertDatabaseHas('notifications', [
+            'type' => Notification::TYPE_REPORT_DECIDED,
+        ]);
     }
 
     public function test_zablokowane_konto_ma_zapisana_wiadomosc_mimo_ze_jej_nie_przeczyta(): void
