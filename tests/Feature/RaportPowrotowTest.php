@@ -237,7 +237,9 @@ class RaportPowrotowTest extends TestCase
         $wraca = $this->user('wraca', ['created_at' => $rejestracja]);
         $niewraca = $this->user('niewraca', ['created_at' => $rejestracja]);
 
-        // Obie osoby aktywne w tygodniu rejestracji — to jest mianownik.
+        // Obie osoby aktywne w tygodniu rejestracji. To NIE jest mianownik
+        // (od poprawki G07 mianownikiem jest rozmiar kohorty), ale tutaj
+        // obie liczby są równe — cała kohorta ruszyła od razu.
         Post::factory()->create(['author_id' => $wraca->getKey(), 'published_at' => $rejestracja->addDay()]);
         Post::factory()->create(['author_id' => $niewraca->getKey(), 'published_at' => $rejestracja->addDay()]);
 
@@ -248,7 +250,7 @@ class RaportPowrotowTest extends TestCase
         $this->artisan('kuking:raport')
             ->assertSuccessful()
             ->expectsOutputToContain('Kohorty powrotów')
-            ->expectsOutputToContain('2 na starcie · po tygodniu 1 (50,0%) · po miesiącu 1 (50,0%)');
+            ->expectsOutputToContain('2 w kohorcie · w pierwszym tygodniu 2 (100,0%) · po tygodniu 1 (50,0%) · po miesiącu 1 (50,0%)');
     }
 
     /**
@@ -269,7 +271,7 @@ class RaportPowrotowTest extends TestCase
 
         $this->artisan('kuking:raport')
             ->assertSuccessful()
-            ->expectsOutputToContain('1 na starcie · po tygodniu za wcześnie · po miesiącu za wcześnie');
+            ->expectsOutputToContain('1 w kohorcie · w pierwszym tygodniu za wcześnie · po tygodniu za wcześnie · po miesiącu za wcześnie');
     }
 
     /**
@@ -298,21 +300,50 @@ class RaportPowrotowTest extends TestCase
 
         $this->artisan('kuking:raport')
             ->assertSuccessful()
-            ->expectsOutputToContain('1 na starcie · po tygodniu 1 (100,0%) · po miesiącu za wcześnie');
+            ->expectsOutputToContain('1 w kohorcie · w pierwszym tygodniu 1 (100,0%) · po tygodniu 1 (100,0%) · po miesiącu za wcześnie');
+    }
+
+    /**
+     * Kohorta, w której nie odezwał się NIKT, ma się pokazać jako zero —
+     * a nie zniknąć z raportu (audyt G07).
+     *
+     * Do poprawki `kohorty()` iterowało po wierszach aktywności, a takich
+     * wierszy dla cichej kohorty nie ma ani jednego. Raport pisał wtedy
+     * „Brak danych" i cały tydzień znikał — a to jest DOKŁADNIE ta kohorta,
+     * o której bramka V1 („Planner/groups/forks dopiero gdy WAC i D30
+     * pokazują powroty") musi wiedzieć. Zero, o którym nie wiesz, czyta się
+     * jak brak pomiaru.
+     *
+     * Rejestracja pięć tygodni temu, żeby wszystkie trzy ofsety miały
+     * zamknięte tygodnie i nie odpadły jako „za wcześnie".
+     */
+    public function test_kohorta_bez_zadnej_aktywnosci_pokazuje_zero_zamiast_znikac(): void
+    {
+        $this->travelTo($this->teraz());
+
+        $this->user('cichy', ['created_at' => $this->teraz()->subWeeks(5)]);
+
+        $this->artisan('kuking:raport')
+            ->assertSuccessful()
+            ->expectsOutputToContain(
+                '1 w kohorcie · w pierwszym tygodniu 0 (0,0%) · po tygodniu 0 (0,0%) · po miesiącu 0 (0,0%)',
+            );
     }
 
     /**
      * Pusta baza nie wywala raportu — ta sama zasada, co przy trzech
      * pozostałych klasach (patrz docblock komendy).
+     *
+     * „Pusta" znaczy teraz: ani jednego liczonego konta. Konto BEZ
+     * aktywności to już nie jest pusta baza, tylko kohorta zerowa —
+     * ma osobny przypadek wyżej.
      */
-    public function test_brak_jakiejkolwiek_aktywnosci_nie_wywala_raportu(): void
+    public function test_brak_jakiegokolwiek_konta_nie_wywala_raportu(): void
     {
         $this->travelTo($this->teraz());
 
-        $this->user('nikt');
-
         $this->artisan('kuking:raport')
             ->assertSuccessful()
-            ->expectsOutputToContain('nikt jeszcze nic nie zrobił w tygodniu swojej rejestracji');
+            ->expectsOutputToContain('nikt jeszcze się nie zarejestrował');
     }
 }
