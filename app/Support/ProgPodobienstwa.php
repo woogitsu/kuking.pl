@@ -34,12 +34,22 @@ use Illuminate\Support\Facades\DB;
  * raz z inną pisownią — po prostu odejdzie.
  *
  * DLACZEGO `set_limit()`, A NIE `similarity(...) >= 0.12` W WARUNKU
- * Bo indeks trigramowy (`tags_name_trgm_idx`, `recipes_*_trgm_idx`
- * z migracji `fix_search_indexes`) obsługuje operator `%`, a nie porównanie
- * wyniku funkcji. Zamiana `%` na `similarity(...) >= ?` dałaby poprawny wynik
- * i pełny skan tabeli — czyli naprawiłaby jedną rzecz, psując drugą, o której
- * komentarz `SearchQuery` mówi wprost („PostgreSQL nie składa jednego planu
- * z kilku indeksów pod wspólnym OR").
+ * Bo indeks trigramowy (`tags_name_trgm_idx` z migracji tagów,
+ * `recipes_*_trgm_idx` / `profiles_*_trgm_idx` — dziś na kolumnach `*_search`,
+ * migracja `2026_09_09_100000_materialize_search_columns`) obsługuje operator
+ * `%`, a nie porównanie wyniku funkcji. Zamiana `%` na `similarity(...) >= ?`
+ * dałaby poprawny wynik i pełny skan tabeli — czyli naprawiłaby jedną rzecz,
+ * psując drugą.
+ *
+ * ⚠️ CENA TEGO PROGU, ZMIERZONA (issue #116, `docs/research/WYDAJNOSC.md` §3.4a)
+ * Przy 0,12 operator `%` na indeksie GIN oddaje jako kandydatów 35–60%
+ * tabeli — dla frazy „pierogi" 17 644 wiersze z 40 000, z których po
+ * rechecku zostaje 1 783. Recheck tych kandydatów to dziś główny koszt
+ * wyszukiwania (~80 ms z ~119 ms). Zanim ktoś ruszy tę liczbę w którąkolwiek
+ * stronę: to jest decyzja o TRAFNOŚCI (przy 0,12 fraza „sajgonki
+ * z krewetkami" zwraca 21 wyników z bazy, w której nie ma ani jednej
+ * sajgonki), a nie tylko o czasie. Zmierzoną alternatywę — operator `<%`
+ * (`word_similarity`) — opisuje tamten dokument.
  *
  * `set_limit()` działa na SESJI (połączeniu), więc wywołanie przed
  * zapytaniem jest tanie i idempotentne. Nie ustawiamy tego globalnie

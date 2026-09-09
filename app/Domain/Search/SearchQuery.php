@@ -16,12 +16,21 @@ use Illuminate\Support\Str;
  * Wyszukiwarka MVP: PostgreSQL + pg_trgm + unaccent. Bez Typesense,
  * bez Meilisearch, bez osobnego indeksu (docs/ARCHITECTURE.md).
  *
- * WSZYSTKIE porównania idą przez `kuking_normalize()` — funkcję z migracji
- * 2026_09_05_001300, na której stoją indeksy GIN. Zapytanie MUSI używać
- * dokładnie tego samego wyrażenia co indeks, inaczej PostgreSQL go nie użyje
- * i każde wyszukiwanie skanuje całą tabelę. Tak było w pierwszej wersji:
- * indeksy stały na surowych kolumnach, a zapytania pytały o
- * `unaccent(lower(...))`. Jeśli zmieniasz tu wyrażenie — zmień też migrację.
+ * WSZYSTKIE porównania idą po KOLUMNACH `*_search` — generowanych
+ * (`GENERATED ALWAYS AS (public.kuking_normalize(...)) STORED`) w migracji
+ * `2026_09_09_100000_materialize_search_columns`. To na nich stoją indeksy
+ * GIN. Zapytanie MUSI pytać dokładnie o to, na czym stoi indeks, inaczej
+ * PostgreSQL go nie użyje i każde wyszukiwanie skanuje całą tabelę.
+ * Jeśli zmieniasz tu porównanie — zmień też migrację.
+ *
+ * DLACZEGO KOLUMNA, A NIE WYRAŻENIE `kuking_normalize(title)`
+ * Indeks na wyrażeniu też działa (tak było do 9 września 2026) — ale indeks
+ * GIN dla `%` jest STRATNY: oddaje kandydatów, których PostgreSQL sprawdza
+ * po raz drugi już na wierszu tabeli. Przy progu 0,12 kandydatów jest
+ * 35–60% tabeli, a każdy recheck liczył `unaccent()` od nowa. Zmierzone
+ * na 10 000 kont / 40 000 przepisów / 80 000 wpisów, fraza „pierogi":
+ * 169,7 ms → 59,1 ms, ten sam wynik co do wiersza. Uzasadnienie i plany
+ * zapytań: komentarz tamtej migracji i `docs/research/WYDAJNOSC.md` §3.4.
  *
  * Dlaczego trigramy, a nie pełnotekstowe FTS jako główna ścieżka: nasi
  * użytkownicy wpisują "zurek" szukając "żurku" i "pierogii" szukając
@@ -73,6 +82,15 @@ final class SearchQuery
      * więc koszt zależał od jej ROZMIARU, a nie od liczby trafień. To jest
      * naprawione i to pilnuje test.
      *
+     * DRUGI POMIAR, 9 WRZEŚNIA 2026, DZIESIĘĆ RAZY WIĘKSZA BAZA
+     * 10 000 kont / 40 000 przepisów / 80 000 wpisów. Wszystkie cztery gałęzie
+     * idą po `Bitmap Index Scan` — indeks NIE jest pomijany, teza z tytułu
+     * issue jest na tej skali obalona. `users` nie steruje niczym: jest
+     * budowaną raz stroną `Hash Join` (9 500 wierszy, ~3 ms), więc koszt nie
+     * rośnie z liczbą kont. Rośnie natomiast z liczbą PRZEPISÓW — i to
+     * z powodu, którego issue nie przewidziało: recheck stratnego indeksu GIN
+     * (patrz komentarz klasy). Stąd kolumny `*_search`.
+     *
      * `UNION ALL`, nie `UNION`: usuwanie duplikatów nie zmienia wyniku `IN`,
      * a kosztuje `HashAggregate` — na tyle, że planner wracał do skanowania
      * sekwencyjnego dwóch gałęzi (10,9 ms kontra 2,8 ms na samym zapytaniu
@@ -85,13 +103,13 @@ final class SearchQuery
      * zmieniałoby kolejność wyników przy nielicznych trafieniach w tytule.
      */
     private const KANDYDACI_SQL = <<<'SQL'
-        SELECT id FROM recipes WHERE kuking_normalize(title) % ?
+        SELECT id FROM recipes WHERE title_search % ?
         UNION ALL
-        SELECT id FROM recipes WHERE kuking_normalize(title) LIKE ?
+        SELECT id FROM recipes WHERE title_search LIKE ?
         UNION ALL
-        SELECT id FROM recipes WHERE kuking_normalize(coalesce(summary, '')) LIKE ?
+        SELECT id FROM recipes WHERE summary_search LIKE ?
         UNION ALL
-        SELECT recipe_id FROM recipe_ingredients WHERE kuking_normalize(ingredient_text) LIKE ?
+        SELECT recipe_id FROM recipe_ingredients WHERE ingredient_text_search LIKE ?
         SQL;
 
     /**
@@ -151,13 +169,28 @@ final class SearchQuery
                 ->whereNotNull('prep_minutes')
                 ->whereNotNull('cook_minutes')
                 ->whereRaw('(prep_minutes + cook_minutes) <= ?', [$maksMinut]))
-            ->orderByRaw('similarity(kuking_normalize(title), ?) DESC', [$needle])
+            ->orderByRaw('similarity(recipes.title_search, ?) DESC', [$needle])
             ->orderByDesc('published_at')
             ->limit($limit)
             ->get();
     }
 
     /**
+     * Szukanie ludzi — i JEDYNE miejsce, w którym `OR` świadomie ZOSTAJE.
+     *
+     * Issue #116 stawiało tezę ogólną: „`OR` w `WHERE` blokuje indeks
+     * trigramowy". Ta metoda jest jej próbą kontrolną i teza się na niej
+     * NIE potwierdza. Trzy warunki pod wspólnym `OR`, ale wszystkie na
+     * JEDNEJ tabeli — PostgreSQL składa z nich `BitmapOr` z trzech skanów
+     * indeksowych i nie czyta tabeli. Zmierzone przy 10 000 kont, fraza
+     * „pierogi": 7,6 ms, trzy `Bitmap Index Scan` na `profiles_*_trgm_idx`.
+     *
+     * `recipes()` musiało pozbyć się `OR` z innego powodu: tam czwarty
+     * warunek był skorelowanym `EXISTS` na INNEJ tabeli, a takiego składnika
+     * `BitmapOr` przyjąć nie może — więc cała alternatywa spadała do filtra
+     * na pełnym skanie. Rozstrzyga to, czy warunki są na jednej tabeli,
+     * a nie samo słowo `OR`.
+     *
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Profile>
      */
@@ -179,11 +212,11 @@ final class SearchQuery
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
             ->where(function ($query) use ($needle): void {
                 $query
-                    ->whereRaw('kuking_normalize(display_name) LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('kuking_normalize(username) LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('kuking_normalize(coalesce(speciality, \'\')) LIKE ?', ['%'.$needle.'%']);
+                    ->whereRaw('display_name_search LIKE ?', ['%'.$needle.'%'])
+                    ->orWhereRaw('username_search LIKE ?', ['%'.$needle.'%'])
+                    ->orWhereRaw('speciality_search LIKE ?', ['%'.$needle.'%']);
             })
-            ->orderByRaw('similarity(kuking_normalize(display_name), ?) DESC', [$needle])
+            ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
             ->limit($limit)
             ->get();
     }

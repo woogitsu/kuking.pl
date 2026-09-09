@@ -188,8 +188,13 @@ class RegressionTest extends TestCase
         // PostgreSQL i tak wybierze Seq Scan — i to właśnie łapie ten test.
         DB::statement('SET enable_seqscan = off');
 
+        // Od 9 września 2026 wyszukiwarka porównuje KOLUMNĘ `title_search`
+        // (generowaną z `kuking_normalize(title)`), a nie samo wyrażenie —
+        // i indeks stoi na tej kolumnie. Test pyta o to samo, o co pyta
+        // `SearchQuery::KANDYDACI_SQL`; gdyby pytał o wyrażenie, sprawdzałby
+        // indeks, którego już nie ma, zamiast tego, którego używa serwis.
         $plan = collect(DB::select(
-            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE kuking_normalize(title) % ?',
+            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE title_search % ?',
             ['zurek'],
         ))->pluck('QUERY PLAN')->implode("\n");
 
