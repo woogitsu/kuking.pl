@@ -8,7 +8,9 @@ use App\Domain\Moderation\UzasadnienieDecyzji;
 use App\Http\Controllers\Controller;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Rules\TurnstileNieJestPodrobiony;
 use App\Support\KluczeLimitow;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +40,16 @@ class LoginController extends Controller
         $data = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
+            /*
+             * Turnstile (D-050) — CELOWO BEZ `required`.
+             *
+             * Bez JavaScriptu token nie powstaje, a ten formularz musi
+             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
+             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
+             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
+             * `App\Rules\TurnstileNieJestPodrobiony`.
+             */
+            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('logowanie'),
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło.',

@@ -2452,3 +2452,190 @@ Pilnują tego `ZmianaAdresuEmailTest` i `AdresEmailPozaMasowymPrzypisaniemTest`.
 `app/Http/Controllers/Settings/EmailSettingsController.php` ·
 `docs/DATABASE.md` (`pending_email_changes`) ·
 `docs/SECURITY_PRIVACY_LEGAL.md` (RODO art. 16)
+
+---
+
+## D-050 · Cloudflare Turnstile na formularzach publicznych — filtr, nie bramka. Brak tokenu nie blokuje wysłania
+
+**Data:** 9 września 2026 · Issue #217 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Turnstile w trybie **Managed** stoi na **sześciu** formularzach publicznych —
+wszędzie tam, gdzie do serwisu wchodzi ktoś niezalogowany: `/register`,
+`/login`, `/nie-pamietam-hasla`, `/cofnij-usuniecie-konta`, `/napisz-do-nas`
+i `/zglos-nielegalna-tresc`. Weryfikacja tokenu idzie po stronie serwera,
+na `https://challenges.cloudflare.com/turnstile/v0/siteverify`, **własnym
+cienkim klientem** na `Illuminate\Support\Facades\Http` — żadnej nowej paczki
+Composera, tak samo jak transport poczty w D-047.
+
+### CO TA DECYZJA ODWRACA
+
+`docs/INSPIRATION_DECISIONS.md` poz. **1.11** brzmiała: „Captcha przy
+rejestracji — **REJECT**: bariera wejścia dla osób 50+ jest większa niż zysk;
+zamiast tego sygnały pasywne (poz. 3.6)". Ta pozycja jest od dziś **ADAPT**
+i wskazuje na ten wpis.
+
+Odwraca ją **właściciel**, słowami: *„captcha trzeba normalnie zrobić, ten od
+cloudflare jest nieinwazyjny"*. I ma rację co do faktu: rozstrzygnięcie z 1.11
+dotyczyło captchy, jaką się wtedy znało — obrazków z przejściami dla pieszych,
+na których osoba 65-letnia utyka i rezygnuje. **Turnstile w trybie Managed
+w przeważającej większości przypadków nie prosi o nic**: sprawdza sygnały
+przeglądarki i przepuszcza w tle. Bariera, o której mówiła poz. 1.11, po
+prostu nie ma tu miejsca.
+
+Drugi powód jest niezależny od Turnstile: dwa nasze dokumenty mówiły w tej
+sprawie co innego (`SECURITY_BASELINE.md` §4 przewidywał captchę przy
+logowaniu), a rozjazd między dokumentami jest gorszy niż brak dokumentów.
+
+Zostaje jednak istota tamtego sprzeciwu i to ona kształtuje całą resztę tej
+decyzji: **nie wolno postawić przed człowiekiem 50+ bramki, przez którą może
+nie przejść.**
+
+### DLACZEGO BRAK TOKENU NIE BLOKUJE — TO NIE JEST NIEDOKOŃCZONA ROBOTA
+
+`AGENTS.md` §5 mówi, że rejestracja, logowanie, publikacja wpisu, przepis,
+komentarz i „Ugotowałem" **działają bez JavaScriptu**. Turnstile jest
+widgetem JS i **wersji bez JS nie ma** — nie ma tu sprytnego wyjścia.
+Konsekwencja jest jedna:
+
+```text
+brak tokenu          → PRZEPUSZCZAMY  (zostają limity zapytań, klucz_wyslania,
+                                       weryfikacja adresu e-mail)
+token nieprawdziwy   → ODRZUCAMY      (polski komunikat mówiący, co zrobić)
+Cloudflare nie odpowiada → PRZEPUSZCZAMY + ostrzeżenie w dzienniku
+zły sekret po naszej stronie → PRZEPUSZCZAMY + `Log::error`
+```
+
+Turnstile jest więc **filtrem taniego ruchu automatycznego, nie warunkiem
+dostępu**. Skrypt zakładający konta masowo zwykle nie wykonuje JavaScriptu
+wcale — nic nie traci na tym, że pole zostaje puste, ale też nic nie zyskuje.
+Człowiek z wyłączonym skryptem, czytnikiem ekranu, starą przeglądarką albo
+słabym zasięgiem (skrypt się nie dociągnął) przy `required` **traci dostęp do
+serwisu**. To jest różnica między niewygodą dla napastnika a zamkniętymi
+drzwiami dla użytkownika.
+
+Wiemy, że to wygląda na przeoczenie i że ktoś kiedyś zechce to „dokręcić"
+jednym `required`. Dlatego napisane jest to w trzech miejscach naraz:
+w komentarzu klasy `App\Rules\TurnstileNieJestPodrobiony`, przy każdym
+wywołaniu w kontrolerach i w testach, których nazwy mówią wprost, czego
+pilnują (`test_formularz_przechodzi_bez_tokenu_czyli_bez_javascriptu`
+i pięć pozostałych `test_*_bez_tokenu_*`).
+
+**Gwarancją jest BRAK `required` w sześciu kontrolerach, a nie kod w regule.**
+To rozróżnienie ma znaczenie praktyczne: reguła nie jest „implicit", więc
+Laravel w ogóle jej nie woła dla pola pustego albo nieobecnego — czyli dla
+każdego wysłania bez skryptu. Gałąź w regule, która przepuszcza pustą
+wartość, jest przez ścieżkę formularza nieosiągalna i jest tam wyłącznie na
+wypadek wywołania reguły wprost (własny `Validator`, `sometimes()`).
+Kto szuka miejsca, w którym można przypadkiem zamknąć drzwi osobie bez
+JavaScriptu, znajdzie je w kontrolerach. Dlatego **każdy z sześciu formularzy
+ma własny test wysyłki bez tokenu, sprawdzający skutek merytoryczny** — list
+wyszedł, wiersz jest w bazie, konto wróciło — a nie sam kod odpowiedzi.
+
+**Niedostępność cudzej usługi też nie zamyka rejestracji.** Timeout, HTTP 5xx,
+odpowiedź w nieznanym kształcie, literówka w `TURNSTILE_SECRET_KEY` —
+w każdym z tych przypadków formularz przechodzi, a ostrzeżenie idzie do
+dziennika. Odwrotna decyzja („nie wiem" = odrzucamy) wyglądałaby na
+bezpieczniejszą i byłaby najgorszym możliwym błędem w tym miejscu: awaria
+u Cloudflare albo jeden zły znak w panelu Railway zamykałby naraz
+rejestrację, odzyskiwanie hasła i formularz z DSA art. 16 — a z zewnątrz
+wyglądałoby to jak działający serwis.
+
+### LOGOWANIE I COFNIĘCIE USUNIĘCIA KONTA — TAK, ZAWSZE (DECYZJA WŁAŚCICIELA)
+
+Pierwotny szkic #217 przewidywał na `/login` i `/cofnij-usuniecie-konta`
+wariant „dopiero po nieudanych próbach", z obawy przed podatkiem od wieku:
+codzienna droga naszych ludzi obłożona captchą za cudze skrypty.
+**Właściciel tę obawę oddalił** — i argument jest rzeczowy, nie autorytatywny:
+skoro widget zwykle nie wymaga żadnej interakcji, to nie ma bariery, przed
+którą trzeba by bronić. Wariant „po nieudanych próbach" **nie powstał** i nie
+jest już potrzebny; gdyby kiedyś miał powstać, musiałby czytać koszyki
+z `login_limits` i jest osobną pracą.
+
+**Trzy koszyki `login_limits` zostają bez zmian.** Turnstile ich nie zastępuje
+i nie wolno go traktować jak ich zamiennika: limity widzą atak rozproszony po
+adresach (W7-01), captcha widzi automat w przeglądarce. To dwie różne obrony
+i chcemy obu naraz.
+
+Zostaje za to reguła, której właściciel nie uchylał i o którą nie był pytany:
+**bez JavaScriptu logowanie działa dalej**. Wypowiedź dotyczyła inwazyjności
+captchy, nie `AGENTS.md` §5. Pilnuje tego
+`test_logowanie_bez_tokenu_dziala_dalej`.
+
+`docs/legal/SECURITY_BASELINE.md` §4 mówi o tym teraz to samo, co kod.
+
+### BRAK KLUCZY NIC NIE PSUJE — I WŁAŚNIE DLATEGO MUSI BYĆ WIDOCZNY
+
+Bez `TURNSTILE_SITE_KEY` i `TURNSTILE_SECRET_KEY` widget się nie renderuje,
+reguła nikogo nie odpytuje i nikogo nie zatrzymuje. To jest dobre zachowanie
+domyślne (lokalnie, w CI, w testach i do czasu wgrania kluczy na produkcję nic
+się nie psuje) — i jednocześnie **dokładnie ta klasa awarii, na którą ten
+projekt nadział się już kilka razy: narzędzie melduje sukces, nie robiąc nic**
+(`MAIL_MAILER=log`, martwy `kuking.media_disk`, limit `upload` niepodpięty do
+żadnej trasy, job dostępności z #215).
+
+Dlatego jest twardy sygnał, **spójny z tym, co już mamy, zamiast nowego
+mechanizmu**: `/health` dostał czwarte sprawdzenie, `turnstile`. Gdy
+`APP_ENV=production`, którekolwiek miejsce jest włączone, a kluczy nie ma —
+odpowiedź niesie `status: degraded` i `checks.turnstile.error =
+turnstile_bez_kluczy`, a `HealthController::check()` zapisuje `Log::error`,
+czyli sygnał idzie też na webhook błędów i do Sentry.
+
+Sprawdzenie jest **NIEKRYTYCZNE** (HTTP 200, nie 503) i to jest ta sama
+decyzja co przy dysku ze zdjęciami: healthcheck oddający 503 już raz położył
+ten serwis, a serwis bez captchy jest o wiele lepszy niż serwis w pętli
+restartów. Monitoring ma pilnować **treści** odpowiedzi.
+
+Poza produkcją i przy świadomie wyłączonych wszystkich miejscach sygnału nie
+ma — stały `degraded` byłby szumem, który uczy ignorować to pole.
+
+### UX 50+ I POLITYKA BEZPIECZEŃSTWA
+
+Widget **nie jest jedynym nośnikiem informacji**: nad obcą ramką stoi zdanie
+po polsku („Zanim wyślesz, sprawdzamy, że formularza nie wypełnia automat.
+Zwykle dzieje się to samo i nie musisz nic robić."), bo inaczej osoba 60+
+widzi w środku formularza ramkę nie wiadomo czego i nie wie, czy czekać.
+Blok stoi **nad** `.form-actions`, więc przycisk wysyłki zostaje tam, gdzie
+był, i zostaje przy swoich 48 px; tekst zostaje przy 18 px.
+
+Komunikat odrzucenia **nie każe odświeżać strony** — najczęstszym powodem
+odrzucenia jest wygaśnięcie sprawdzenia (token żyje 5 minut), czyli trafia to
+w osobę, która pisała długo, a odświeżenie skasowałoby jej tekst. Mówi więc:
+wyślij formularz jeszcze raz (wszystkie pola wracają przez `old()`, widget
+wystawia świeży token), a jeśli nie pomoże — napisz do nas.
+
+CSP dostaje `https://challenges.cloudflare.com` w `script-src` i `frame-src`,
+**wyłącznie wtedy, gdy Turnstile ma klucze** — polityka opisuje to, co strona
+naprawdę ładuje. Nie dokładamy `style-src 'unsafe-inline'`, o którym mówią
+niektóre poradniki: style widgetu żyją wewnątrz jego ramki, a `unsafe-inline`
+skasowałoby cały efekt issue #107.
+
+### DROGA WYCOFANIA (bez wdrożenia, bez migracji)
+
+1. **Wyłączenie w jednym miejscu:** wyczyść `TURNSTILE_SITE_KEY`
+   i `TURNSTILE_SECRET_KEY` w Railway i zrestartuj serwis. Widget znika,
+   walidacja przestaje kogokolwiek odpytywać, wszystkie sześć formularzy
+   działa jak przed tą zmianą. Żeby `/health` nie zgłaszał wtedy `degraded`,
+   ustaw też `TURNSTILE_NA_REJESTRACJI=false` i pozostałe pięć — brak kluczy
+   jest błędem tylko wtedy, gdy konfiguracja obiecuje ochronę.
+2. **Wyłączenie punktowe:** jeden formularz sprawia kłopot — ustaw jego
+   zmienną na `false` (np. `TURNSTILE_NA_ZGLOSZENIU=false`).
+3. **Wycofanie kodu:** rewert commita. Nie ma migracji, nie ma zmiany
+   schematu, nie ma danych do posprzątania — Turnstile nie zapisuje niczego
+   do bazy.
+
+**Zmiana wymaga:** pomiaru, nie wrażenia. Gdyby ktoś chciał zdjąć Turnstile
+z logowania „bo przeszkadza", potrzebny jest ślad tego, komu i jak
+przeszkodził (`/napisz-do-nas` jest tu pierwszym źródłem) — a nie odwrotna
+intuicja. Gdyby ktoś chciał odwrotnie, dokręcić brak tokenu do `required` —
+patrz sekcja o JavaScripcie wyżej; to jest zamknięcie drzwi, nie wzmocnienie.
+
+📄 `app/Support/Turnstile.php` · `app/Turnstile/KlientTurnstile.php` ·
+`app/Turnstile/WynikTurnstile.php` · `app/Rules/TurnstileNieJestPodrobiony.php` ·
+`resources/views/components/turnstile.blade.php` ·
+`app/Http/Controllers/HealthController.php` ·
+`app/Http/Middleware/ApplySecurityHeaders.php` · `config/kuking.php`
+(`turnstile`) · `.env.example` · `.railway/railway.ts` ·
+`tests/Feature/TurnstileNieZamykaDrzwiTest.php` ·
+`docs/infra/DEPLOYMENT_RUNBOOK.md` (krok 8A) ·
+`docs/INSPIRATION_DECISIONS.md` poz. 1.11 ·
+`docs/legal/SECURITY_BASELINE.md` §4
