@@ -240,9 +240,11 @@ class TrafnoscWyszukiwarkiTest extends TestCase
             $kod = (string) file_get_contents($plik);
 
             // Interesuje nas operator w SQL-u (`coś % ?`), a nie znak procenta
-            // w wiązaniach `LIKE` ani w komentarzach.
+            // w wiązaniach `LIKE` ani w komentarzach. Wzorzec sprawdzony na
+            // obu postaciach, w których ten operator w tym repozytorium stał:
+            // `title_search % ?` i `kuking_normalize(name) % ?`.
             $this->assertDoesNotMatchRegularExpression(
-                '/^(?!\s*(\*|\/\/)).*\w\s%\s\?/m',
+                '/^(?!\s*(\*|\/\/)).*\S\s%\s\?/m',
                 $kod,
                 basename($plik).' używa operatora `%`, który czyta próg z `set_limit()` — '
                 .'czyli drugi próg poza `App\Support\ProgPodobienstwa`.',
