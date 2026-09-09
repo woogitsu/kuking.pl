@@ -92,7 +92,17 @@
   .hero {
     display: grid;
     gap: var(--spacing-8);
-    align-items: center;
+
+    /* `start`, NIE `center` — i to jest pomiar, nie gust.
+       Przy dwóch kolumnach `center` wyrównuje 475-pikselową kolumnę tekstu
+       do ŚRODKA 1557-pikselowej tablicy „kuKINGi na dziś", czyli spycha ją
+       o ponad 500 px w dół. Zmierzone na laptopie 1366×768: nagłówek na
+       737 px, przyciski „Załóż konto" i „Zobacz, co się dzieje" na 1033 px.
+       Pierwszy ekran obcego człowieka to był pas tła i czterech
+       nieznajomych — bez jednego zdania o tym, czym to jest.
+       Na telefonie kolumna jest jedna, więc nic się tam nie zmienia.
+       `.przepis-hero` w `app.css` rozwiązuje ten sam układ tak samo. */
+    align-items: start;
     grid-template-columns: minmax(0, 1fr);
   }
 
