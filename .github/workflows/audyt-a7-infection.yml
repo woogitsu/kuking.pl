@@ -18,7 +18,7 @@ env:
 jobs:
   infection:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     services:
       postgres:
@@ -86,10 +86,11 @@ jobs:
           key: a7-composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
           restore-keys: a7-composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
 
-      - name: Zależności i wersje
+      - name: Zależności, .env i wersje
         run: |
           set -euo pipefail
           mkdir -p a7-output
+          cp .env.example .env
           composer install --no-interaction --prefer-dist --no-progress
           php -v | tee a7-output/php-version.txt
           php -r '$p=new PDO("pgsql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));echo $p->query("select version()")->fetchColumn(),PHP_EOL;' | tee a7-output/postgres-version.txt
@@ -100,6 +101,12 @@ jobs:
           sha256sum "$RUNNER_TEMP/infection.phar" | tee a7-output/infection-sha256.txt
           git rev-parse HEAD | tee a7-output/commit.txt
           git hash-object app/Domain/Media/UsunGps.php | tee a7-output/usungps-blob.txt
+
+      - name: Migracje jak w CI
+        run: |
+          set -euo pipefail
+          php artisan migrate --force --no-interaction 2>&1 | tee a7-output/migracje.log
+          php artisan migrate:refresh --force --no-interaction 2>&1 | tee a7-output/migrate-refresh.log
 
       - name: Testy bazowe na PostgreSQL 18
         run: |
