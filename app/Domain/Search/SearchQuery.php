@@ -112,8 +112,8 @@ final class SearchQuery
      * z krewetkami" → 1 526 wierszy w bazie bez jednej sajgonki). Zmierzone
      * PRZED/PO, ta sama baza, 40 000 przepisów, fraza „pierogi":
      *
-     *     %  @0,12   18 178 kandydatów z indeksu → 2 798 trafień, 65,7 ms
-     *     <% @0,5     1 324 kandydatów          → 1 313 trafień,  9,3 ms
+     *     %  @0,12   18 178 kandydatów z indeksu → 2 798 trafień, 62,2 ms
+     *     <% @0,5     2 134 kandydatów           → 2 073 trafienia, 9,9 ms
      *
      * Kolumna i indeks zostają te same (`gin_trgm_ops` obsługuje oba
      * operatory) — ta zmiana NIE dotyka schematu bazy.

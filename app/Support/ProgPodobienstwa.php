@@ -22,8 +22,10 @@ use Illuminate\Support\Facades\DB;
  *     śliwkami", „Smalec ze skwarkami"). „rosół" znajdował „Rogaliki",
  *     „barszcz" znajdował „Bogracz", „pierogi" znajdowało „Piernik".
  *   - KOSZT: indeks GIN dla `%` jest stratny, więc przy tak niskim progu
- *     oddawał 15–25 tysięcy kandydatów na frazę, a każdego z nich baza
- *     sprawdzała po raz drugi na wierszu tabeli.
+ *     oddawał na typową frazę kilkanaście do dwudziestu tysięcy kandydatów
+ *     z 40 000 wierszy (zmierzone: „żurek" 20 450, „pierogi" 18 178,
+ *     „sernik" 12 765), a każdego z nich baza sprawdzała po raz drugi
+ *     na wierszu tabeli i odrzucała 85–95%.
  *
  * DZIŚ: OPERATOR `<%` (`word_similarity`), PRÓG 0,5
  * `fraza <% tekst` pyta o podobieństwo frazy do NAJLEPIEJ PASUJĄCEGO
