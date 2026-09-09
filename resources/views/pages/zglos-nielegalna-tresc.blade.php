@@ -24,7 +24,14 @@
 
     Ekran potwierdzenia zostaje `noindex`: niesie numer sprawy.
 --}}
-<x-layout title="Zgłoś treść niezgodną z prawem">
+{{--
+    Meta description (znalezisko przy okazji issue #191, poza jego pierwotnym
+    zakresem — ta strona jest ŚWIADOMIE indeksowana, patrz uzasadnienie
+    wyżej, więc dokładnie tak samo jak tag i strony prawne cierpiała na
+    brak `description` w `<x-layout>`, tylko nikt tego jeszcze nie zmierzył).
+--}}
+<x-layout title="Zgłoś treść niezgodną z prawem"
+    description="Zgłoś zdjęcie, tekst albo przepis, który łamie prawo. Formularz jest dostępny dla każdego, także bez konta w Kuking.">
     <h1>Zgłoś treść niezgodną z prawem</h1>
 
     <p class="mb-5">
