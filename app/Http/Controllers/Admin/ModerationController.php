@@ -45,7 +45,30 @@ class ModerationController extends Controller
         $reports = Report::query()
             ->when($status !== 'wszystkie', fn ($query) => $query->where('status', $status))
             ->with(['reporter.profile', 'resolver.profile'])
-            ->latest()
+            // DRUGI WARUNEK PORZĄDKU TO NIE OZDOBA (audyt zewnętrzny, G10).
+            //
+            // Stało tu samo `latest()`, czyli `ORDER BY created_at DESC`.
+            // Przy remisie na `created_at` PostgreSQL nie obiecuje ŻADNEJ
+            // kolejności — oddaje wiersze w takim porządku, w jakim dotarły
+            // do sortowania, czyli w porządku FIZYCZNYM w stercie. A ten
+            // zmienia każdy UPDATE: zaktualizowany wiersz ląduje zwykle na
+            // końcu tabeli.
+            //
+            // Kolejka jest stronicowana po 25, więc niestabilny porządek nie
+            // znaczy „inna kolejność na ekranie", tylko INNY PODZIAŁ NA STRONY
+            // między jednym kliknięciem a drugim: to samo zgłoszenie widziane
+            // dwa razy na dwóch stronach, a inne — pominięte. Moderator nie ma
+            // jak tego zauważyć, bo nie zna liczby, której szuka.
+            //
+            // Remis na sekundzie nie jest tu rzadki: fala spamu to kilkanaście
+            // zgłoszeń w tej samej chwili, a rozpatrzenie zgłoszenia robi
+            // UPDATE — czyli dokładnie ten ruch, który przestawia stertę.
+            //
+            // `id` jest UUID-em v7, więc rozstrzyga remis w tę samą stronę co
+            // czas: nowsze na górze. Nie zmienia to kolejności ANI JEDNEJ pary
+            // wierszy o różnym `created_at`.
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(25)
             ->withQueryString();
 
