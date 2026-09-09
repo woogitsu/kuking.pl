@@ -14,7 +14,9 @@
     czytania. Całość jest na ekranie wiadomości, który przechodzi przez
     `ContactMessagePolicy::view()`.
 --}}
-<x-layout title="Wiadomości do nas" :noindex="true">
+<x-layout title="Wiadomości do nas — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Wiadomości do nas" />
+
     <h1>Wiadomości do nas</h1>
 
     <p class="meta">

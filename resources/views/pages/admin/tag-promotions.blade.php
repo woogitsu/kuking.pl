@@ -10,7 +10,9 @@
     Zwykłe formularze, bez JavaScriptu — ten sam standard co reszta serwisu,
     mimo że to ekran wyłącznie dla gospodarza.
 --}}
-<x-layout title="Tagi promowane" :noindex="true">
+<x-layout title="Tagi promowane — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Tagi promowane" />
+
     <h1>Tagi promowane</h1>
 
     <p class="lead">
