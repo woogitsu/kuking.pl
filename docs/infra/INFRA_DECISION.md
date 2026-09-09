@@ -709,8 +709,29 @@ Włącz **2FA na GitHubie, Railway i Cloudflare** — to najsłabsze ogniwo cał
 > wygrywa. Ta sekcja zostaje jako uzasadnienie architektoniczne (dlaczego
 > trzy warstwy, nie jedna) i punkt odniesienia dla decyzji z dnia wdrożenia.
 
-Railway daje trzy niezależne warstwy. **Używamy wszystkich trzech**, bo każda
-chroni przed czymś innym.
+> ## ⚠️ DWIE Z TRZECH WARSTW OPISANYCH NIŻEJ NIE ISTNIEJĄ NA NASZYM PLANIE
+>
+> **Sprostowanie z 9 września 2026 (D-043, sprawdzone przez właściciela
+> w panelu).** Volume Backups i PITR są funkcjami planu **Pro**; Kuking jest
+> na Free i przechodzi na Hobby. Panel na tych planach nawet nie pokazuje tej
+> zakładki, więc instrukcji „Ustaw teraz: Daily + Weekly + Enable PITR"
+> niżej **NIE DA SIĘ wykonać** — a dawała się odhaczyć, i to jest gorsze
+> niż jej brak.
+>
+> Zostaje **jedna** warstwa: zrzut logiczny poza Railwayem. Nie jest więc
+> „ostatnią linią obrony", tylko **jedyną**. Zbudowana w issue #193
+> (`docker/kopia/`), z procedurą i listą czynności właściciela w
+> [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md) §7.
+>
+> **Nie działa też „na schedulerze", jak mówi akapit „Offsite" niżej.**
+> `docker/php.ini` wyłącza `proc_open`, bez którego `pg_dump` z PHP nie
+> wystartuje, więc zrzut mieszka w OSOBNYM serwisie Railway w obrazie bez
+> PHP (D-043). Tabela niżej zostaje jako uzasadnienie architektoniczne
+> i jako opis stanu po ewentualnym przejściu na plan Pro.
+
+Railway daje trzy niezależne warstwy. **Docelowo używamy wszystkich trzech**,
+bo każda chroni przed czymś innym — dziś dostępna jest tylko trzecia
+(patrz ramka wyżej).
 
 | Warstwa | Co to | Chroni przed | Nie chroni przed |
 |---|---|---|---|

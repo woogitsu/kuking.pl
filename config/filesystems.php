@@ -236,6 +236,53 @@ return [
             'throw' => true,
         ],
 
+        /*
+         * =====================================================================
+         *  KOPIE BAZY — DYSK TYLKO DO CZYTANIA (issue #193, decyzja D-043)
+         * =====================================================================
+         *
+         * Kopie robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`).
+         * Aplikacja nie zapisuje tu NICZEGO i nie ma prawa: token R2 podany
+         * w `AWS_KOPIE_*` ma mieć uprawnienie wyłącznie do odczytu tego
+         * jednego bucketu.
+         *
+         * PO CO WIĘC APLIKACJI TEN DYSK: żeby dało się zauważyć, że kopie
+         * PRZESTAŁY POWSTAWAĆ. Serwis kopii alarmuje, gdy jego przebieg się
+         * nie udał — ale nie zaalarmuje, gdy przebiegu nie było (serwis
+         * skasowany, harmonogram wyłączony, limit wyczerpany). Czujka
+         * `kuking:sprawdz-kopie` listuje ten dysk raz na dobę i dzwoni, gdy
+         * najnowsza kopia jest za stara.
+         *
+         * OSOBNY BUCKET I OSOBNE POŚWIADCZENIE, nie prefiks w buckecie zdjęć:
+         * publiczność w R2 jest cechą BUCKETU (patrz komentarz przy `r2`
+         * wyżej), a zrzut całej bazy w buckecie, który kiedykolwiek może
+         * dostać własną domenę CDN, jest wypadkiem czekającym na swoją kolej.
+         *
+         * Świadomie BEZ `url` — z tego samego powodu, co `r2` i `r2_eksporty`.
+         * `throw => false`: niedostępny bucket kopii nie może przewrócić
+         * niczego w aplikacji; czujka sama zamienia porażkę odczytu w alarm.
+         */
+        'r2_kopie' => [
+            'driver' => 's3',
+            'key' => env('AWS_KOPIE_ACCESS_KEY_ID'),
+            'secret' => env('AWS_KOPIE_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            // PUSTY ŁAŃCUCH, NIE `null`, gdy zmiennej nie ma. Adapter S3
+            // wymaga nazwy bucketu typu `string` i przy `null` rzuca
+            // TypeError już przy TWORZENIU dysku — a `KonfiguracjaDyskowTest`
+            // tworzy wszystkie dyski z konfiguracji właśnie po to, żeby taki
+            // błąd nie czekał na pierwsze użycie. Pozostałe dyski R2 mają to
+            // z przypadku (`.env.example` deklaruje ich zmienne jako puste,
+            // a `env()` oddaje wtedy `''`); tutaj mówimy to wprost, żeby
+            // środowisko bez tej zmiennej nie wywracało się na starcie.
+            // Pusta nazwa i tak znaczy „czujka wyłączona" (`kuking.kopie`).
+            'bucket' => env('AWS_KOPIE_BUCKET', ''),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

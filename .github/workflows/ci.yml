@@ -964,3 +964,85 @@ jobs:
             printf '%s\n' "$wyjscie"
             exit 1
           fi
+
+      # =====================================================================
+      #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)
+      #
+      #  To jest DZIŚ JEDYNA planowana kopia bazy Kuking — Railway na planie
+      #  Free/Hobby nie robi żadnych (Volume Backups i PITR są tylko w Pro).
+      #  Obraz buduje się z osobnego Dockerfile'a i nie ma w nim PHP, bo
+      #  `pg_dump` z PHP wymaga `proc_open`, wyłączonego w docker/php.ini.
+      #
+      #  DLACZEGO TEN BUILD JEST W CI, A NIE TYLKO NA PRODUKCJI
+      #  Bo dwóch rzeczy z tego obrazu NIE DA SIĘ sprawdzić lokalnie ani
+      #  testem w powłoce: czy paczki z APT-a w ogóle się zainstalują i czy
+      #  `pg_dump` w obrazie ma NAPRAWDĘ wersję 18. Niezgodna wersja klienta
+      #  nie jest ostrzeżeniem — `pg_dump` wtedy ODMAWIA pracy, czyli kopii
+      #  po prostu nie ma. Lepiej dowiedzieć się o tym z czerwonego CI niż
+      #  z alarmu o trzeciej nad ranem.
+      # =====================================================================
+      - name: Build obrazu kopii bazy
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/kopia/Dockerfile
+          push: false
+          load: true
+          tags: kuking-kopia:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test dymny obrazu kopii bazy
+        run: |
+          set -euo pipefail
+          OBRAZ=kuking-kopia:ci-${{ github.sha }}
+
+          echo "--- pg_dump MUSI być w wersji 18 (zgodnej z serwerem) ---"
+          wersja=$(docker run --rm "$OBRAZ" pg_dump --version)
+          printf '%s\n' "$wersja"
+          major=$(sed -E 's/[^0-9]*([0-9]+).*/\1/' <<< "$wersja")
+          if [ "$major" = "18" ]; then
+            echo "OK   pg_dump $major"
+          else
+            echo "BŁĄD: pg_dump ma wersję $major, a serwer produkcyjny to 18."
+            echo "      Starszy klient ODMAWIA zrzutu — kopii by nie było."
+            exit 1
+          fi
+
+          echo "--- narzędzia, bez których skrypt nie zaszyfruje i nie wyśle ---"
+          for narzedzie in openssl curl psql pg_restore; do
+            if docker run --rm "$OBRAZ" sh -c "command -v $narzedzie" >/dev/null; then
+              echo "OK   $narzedzie"
+            else
+              echo "BRAK $narzedzie"; exit 1
+            fi
+          done
+
+          echo "--- kontener NIE MOŻE chodzić jako root ---"
+          kto=$(docker run --rm "$OBRAZ" id -un)
+          if [ "$kto" = "root" ]; then
+            echo "BŁĄD: obraz kopii startuje jako root."; exit 1
+          fi
+          echo "OK   $kto"
+
+          echo "--- w obrazie kopii nie ma PHP (o to chodzi w D-043) ---"
+          if docker run --rm "$OBRAZ" sh -c 'command -v php' >/dev/null 2>&1; then
+            echo "BŁĄD: w obrazie kopii jest PHP — to nie jest ten obraz."; exit 1
+          fi
+          echo "OK   brak PHP"
+
+          # Bez zmiennych skrypt MUSI odmówić pracy i powiedzieć, czego brakuje.
+          # Ten sam wzorzec i to samo uzasadnienie, co przy APP_KEY wyżej:
+          # przechwytujemy wyjście i kod OSOBNO, bez potoku, i wymagamy OBU
+          # rzeczy naraz — niezerowego kodu ORAZ komunikatu.
+          echo "--- brak konfiguracji musi zatrzymać przebieg, nie zrobić pustej kopii ---"
+          wyjscie=$(docker run --rm "$OBRAZ" \
+                      /usr/local/lib/kuking/kopia-bazy.sh --sprawdz 2>&1) && kod=0 || kod=$?
+
+          if [ "$kod" -ne 0 ] && grep -q "brak zmiennych" <<< "$wyjscie"; then
+            echo "OK   skrypt odmówił i wypisał brakujące zmienne (kod $kod)"
+          else
+            echo "BŁĄD: skrypt nie odmówił pracy bez konfiguracji (kod $kod)"
+            printf '%s\n' "$wyjscie"
+            exit 1
+          fi

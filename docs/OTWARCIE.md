@@ -67,15 +67,37 @@ udowodnił, że ta procedura działa. Jedno ćwiczenie załatwia obie sprawy.
 > pułap 10 GB, więc koszt nie jest tu przeszkodą. Do czasu wykonania #193
 > **każda utrata bazy jest bezpowrotna** — patrz D-043.
 
-**Gdzie:** `docs/infra/KOPIE_I_ODTWORZENIE.md` §4 (ćwiczenie), §5 (tabela wyniku).
+**Gdzie:** `docs/infra/KOPIE_I_ODTWORZENIE.md` — w tej kolejności:
+**§7.3** (cztery czynności w panelach: bucket R2, dwa tokeny, klucz
+szyfrujący, serwis cron), potem **§4A** (ćwiczenie na prawdziwej kopii),
+potem **§5** (tabela wyniku).
+
+**Kod tej warstwy jest już w repozytorium** (`docker/kopia/`, issue #193):
+zrzut `pg_dump` 18, szyfrowanie kluczem publicznym, wysyłka do R2, alarm przy
+porażce, retencja i czujka `kuking:sprawdz-kopie` po stronie aplikacji. Nie
+ma za to **ani jednej** z rzeczy, których nie da się zrobić kodem — bucketu,
+tokenów, klucza i serwisu w Railway. Do ich założenia liczba kopii bazy
+wynosi zero, mimo gotowego kodu. **To jest cały etap 0.**
+
+> ⚠️ **Nie zakładaj serwisu przez `railway config apply`.** Produkcja ma dziś
+> jeden serwis `kuking.pl`, a `.railway/railway.ts` opisuje trzy inne —
+> `apply` skasowałby ten działający (patrz sprostowanie w tamtym pliku
+> i §7.3 krok 4). Serwis kopii zakłada się dziś ręcznie w panelu.
 
 **Co masz z tego mieć:** świeży zrzut produkcyjnej bazy **i** dowód, że da się
-go odtworzyć. Nie sam zrzut — zrzut, którego nikt nigdy nie odtworzył, jest
-obietnicą, nie kopią.
+go odtworzyć — **odszyfrować kluczem prywatnym i wczytać przez `pg_restore`**.
+Nie sam zrzut: zrzut, którego nikt nigdy nie odtworzył, jest obietnicą, nie
+kopią. A zrzut, którego nie da się odszyfrować, jest tylko plikiem.
 
 **Gdzie zapisujesz dowód:** tabela w §5 tego samego dokumentu. Data, kto,
-rozmiar, czas zrzutu, czas odtworzenia (RTO), wiek zrzutu (RPO), co nie
-zadziałało. Ostatnia kolumna jest najważniejsza i zwykle nie jest pusta.
+które ćwiczenie, rozmiar, czas odszyfrowania, czas odtworzenia (RTO), wiek
+zrzutu (RPO), zgodność skrótu z `.meta`, zgodność liczników, co nie zadziałało.
+Ostatnia kolumna jest najważniejsza i zwykle nie jest pusta.
+
+**Gdzie mieszka klucz, którym to odszyfrujesz:** §7.1. W Railwayu leży tylko
+część **publiczna** — klucz prywatny ma dwie kopie, w menedżerze haseł i na
+nośniku offline, i **nigdzie więcej**. Jego utrata unieważnia wszystkie kopie
+naraz, dlatego stoi w tabeli ryzyk §1.1 obok `APP_KEY`.
 
 > Ćwiczenie **nie obejmuje** odtworzenia zdjęć — to niemożliwe przed etapem 2.
 > Kopia bazy nie zastępuje kopii oryginałów zdjęć, których nie da się odtworzyć
