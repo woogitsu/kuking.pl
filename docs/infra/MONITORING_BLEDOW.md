@@ -88,10 +88,11 @@ Jedna wiadomość na błąd, mniej więcej tak:
 
 ````
 [Kuking/production] RuntimeException
-Nie udało się zapisać wariantu zdjęcia.
 app/Domain/Media/Actions/ProcessUploadedImage.php:88
 POST /wpisy/{post}/zdjecie
+odcisk: 7f1a3c92
 
+Treść komunikatu zostaje w logu serwera — na webhook nie wychodzi.
 ```
 app/Domain/Media/Actions/ProcessUploadedImage.php:88 App\Domain\Media\Actions\ProcessUploadedImage::wariant()
 app/Jobs/ProcessUploadedImage.php:34 App\Jobs\ProcessUploadedImage::handle()
@@ -99,8 +100,30 @@ app/Jobs/ProcessUploadedImage.php:34 App\Jobs\ProcessUploadedImage::handle()
 ```
 ````
 
-To wystarcza do pierwszej diagnozy — klasa błędu, komunikat, dokładna linia
-i WZORZEC trasy (nie prawdziwy adres, patrz §3). **To NIE jest pełny log.**
+**KOMUNIKATU WYJĄTKU TU NIE MA i to jest celowe — poprawka z 9 września.**
+Do tego dnia wiadomość niosła `$e->getMessage()`. Przy `QueryException`
+komunikat buduje jednak STEROWNIK i wkłada w niego SQL razem z wartościami:
+
+```
+SQLSTATE[23505]: Unique violation: 7 ERROR: duplicate key value violates
+unique constraint "users_email_unique"
+DETAIL: Key (email)=(ktos@example.com) already exists.
+(Connection: pgsql, SQL: insert into "users" ("email","password", …)
+ values (ktos@example.com, $2y$12$…, …))
+```
+
+Czyli adres e-mail i hash hasła — do usługi, nad którą nie mamy kontroli.
+Znalazł to audyt zewnętrzny (A6-01). Kanał nigdy nie był włączony na
+produkcji, więc nic nie wyciekło. Odfiltrowywanie danych z takiego tekstu
+byłoby zgadywaniem, więc treść budujemy z LISTY DOZWOLONYCH PÓL.
+
+**`odcisk`** to osiem znaków policzonych z klasy, pliku i linii. Ten sam błąd
+ma zawsze ten sam odcisk, więc widać, czy to nowa awaria, czy dziesiąte
+powtórzenie tej samej — i po czym szukać wpisu w logu serwera.
+
+To wystarcza do pierwszej diagnozy — klasa błędu, kod (przy błędach bazy
+SQLSTATE, np. `kod: 23505`), dokładna linia i WZORZEC trasy (nie prawdziwy
+adres, patrz §3). **To NIE jest pełny log.**
 Pełny wpis, z pełnym śladem stosu, dalej leży tam, gdzie zawsze — w logach
 Railway (serwis → zakładka Logs), bo `LOG_CHANNEL=stderr`
 (`.railway/railway.ts`). Webhook mówi „coś się zepsuło, sprawdź logi" —
@@ -145,16 +168,21 @@ wybranych pól wyjątku. W treści **nigdy** nie ma:
   kontekst logu, łącznie z obiektem wyjątku i jego pełnym śladem.
 
 Test `tests/Feature/BladTrafiaNaWebhookBezDanychOsobowychTest.php` dowodzi
-tego na żywym przykładzie: wywołuje funkcję z parametrem wyglądającym jak
-e-mail, wywala się z niej wyjątek i test sprawdza, że ta wartość NIE
-znajduje się w bajtach faktycznie wysłanych na webhook.
+tego na żywych przykładach. Ma cztery przypadki, z których jeden wywołuje
+PRAWDZIWE naruszenie unikalności w PostgreSQL przez prawdziwą trasę HTTP
+i sprawdza, że ani adres e-mail, ani hash hasła, ani SQL zapytania nie
+znajdują się w bajtach faktycznie wysłanych na webhook.
 
-**Jedyna rzecz, której to nie kontroluje:** komunikat wyjątku
-(`$e->getMessage()`) to tekst napisany przez kogoś z zespołu w kodzie. Gdyby
-kiedyś ktoś napisał `throw new RuntimeException("Nie znaleziono: {$email}")`,
-ten e-mail poleciałby dalej — to jest dyscyplina pisania wyjątków, obowiązująca
-w całym serwisie, nie coś, co dałoby się niezawodnie odfiltrować z samego
-tekstu komunikatu.
+Ten przypadek jest wart osobnego zdania, bo pokazuje, jak wygląda test,
+który niczego nie sprawdza. Trzy starsze przypadki rzucały
+`RuntimeException` z komunikatem, który sami napisaliśmy — i dlatego przez
+trzy dni nie wykryły niczego. Zakładały to, co stało w komentarzu klasy:
+„komunikat wyjątku to tekst napisany przez kogoś z nas w kodzie". Przy
+błędzie bazy pisze go sterownik.
+
+**Czego to nadal nie kontroluje:** ślad stosu niesie nazwy klas i funkcji.
+Gdyby ktoś nazwał klasę imieniem i nazwiskiem człowieka, poszłoby to dalej.
+To jest teoretyczne, ale uczciwie: nie każde pole jest przez nas pisane.
 
 **Zanim włączysz to na produkcji na stałe:** potwierdź z osobą odpowiedzialną
 za dokumenty prawne, czy techniczna telemetria bez danych osobowych (jak

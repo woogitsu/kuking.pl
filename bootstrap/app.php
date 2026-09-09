@@ -319,16 +319,29 @@ return Application::configure(basePath: dirname(__DIR__))
         //
         //  ZERO PII W TREŚCI (AGENTS.md §7 — webhook idzie do ZEWNĘTRZNEJ
         //  usługi, nad którą nie mamy kontroli). `WebhookBleduHandler` buduje
-        //  wiadomość WYŁĄCZNIE z klasy wyjątku, komunikatu, pliku:linii
-        //  i wzorca trasy — nigdy z `$request->all()`, sesji, ciasteczek,
-        //  adresu IP ani identyfikatora użytkownika. Pełne uzasadnienie:
-        //  komentarz klasy `App\Logging\WebhookBleduHandler`.
+        //  wiadomość WYŁĄCZNIE z klasy wyjątku, kodu błędu, pliku:linii,
+        //  wzorca trasy i odcisku — nigdy z komunikatu wyjątku, nigdy
+        //  z `$request->all()`, sesji, ciasteczek, adresu IP ani
+        //  identyfikatora użytkownika.
+        //
+        //  KOMUNIKAT WYPADŁ Z TEJ LISTY 9 września i to była poprawka błędu,
+        //  nie zaostrzenie zasady: przy `QueryException` komunikat buduje
+        //  sterownik i wkłada w niego SQL razem z wartościami, czyli e-mail
+        //  i hash hasła. Pełne uzasadnienie: komentarz klasy
+        //  `App\Logging\WebhookBleduHandler`.
         $exceptions->report(function (Throwable $e) {
             if (blank(config('logging.channels.blad_webhook.url'))) {
                 return;
             }
 
-            Log::channel('blad_webhook')->error($e->getMessage(), ['exception' => $e]);
+            // NAZWA KLASY, nie `$e->getMessage()` — druga linia obrony po
+            // stronie wywołania. `WebhookBleduHandler` i tak nie czyta
+            // `$record->message`, gdy w kontekście jest obiekt wyjątku, ale
+            // ten argument PRZECHODZIŁ dotąd przez cały mechanizm logowania
+            // z komunikatem, który przy `QueryException` niesie e-mail i hash
+            // hasła (A6-01). Skoro nie jest do niczego potrzebny, nie ma po co
+            // go tu wkładać.
+            Log::channel('blad_webhook')->error($e::class, ['exception' => $e]);
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go
