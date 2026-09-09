@@ -37,6 +37,29 @@ class Notification extends Model
 
     public const TYPE_MODERATION = 'moderation.decision';
 
+    /**
+     * POTWIERDZENIE PRZYJĘCIA ZGŁOSZENIA (DSA art. 16 ust. 4), issue #10.
+     *
+     * Idzie do ZGŁASZAJĄCEGO, nie do zgłoszonego. Do tej zmiany jedyną
+     * informacją, jaką dostawał człowiek po kliknięciu „Zgłoś", był flash
+     * w sesji — znikał po odświeżeniu strony i nie zostawał nigdzie. Przepis
+     * mówi o potwierdzeniu odbioru bez zbędnej zwłoki, a potwierdzenie,
+     * którego nie da się odczytać drugi raz, nim nie jest.
+     */
+    public const TYPE_REPORT_RECEIVED = 'report.received';
+
+    /**
+     * INFORMACJA O ROZSTRZYGNIĘCIU ZGŁOSZENIA (DSA art. 16 ust. 5), issue #10.
+     *
+     * Osobny typ od `TYPE_MODERATION`, bo to jest inny obowiązek wobec innego
+     * człowieka: `TYPE_MODERATION` idzie do AUTORA treści („zrobiliśmy coś
+     * z Twoim wpisem", art. 17), ten idzie do osoby, która zgłosiła
+     * („zrobiliśmy to a to z Twoim zgłoszeniem", art. 16 ust. 5). Wspólny typ
+     * zlałby dwie różne treści, dwa różne pouczenia i dwa różne odbiorcy
+     * w jeden wiersz nie do odróżnienia w eksporcie danych.
+     */
+    public const TYPE_REPORT_DECIDED = 'report.decided';
+
     public const TYPE_WELCOME = 'account.welcome';
 
     /**
@@ -83,6 +106,29 @@ class Notification extends Model
      * `App\Notifications\DecyzjaWSprawieZgloszenia`) i w ogóle nie dotyka
      * tej tabeli — poczta nie jest tu zapisywana jako wiersz.
      *
+     * `TYPE_REPORT_DECIDED` — DRUGI typ na tej liście, dołożony w issue #10.
+     * Niesie odpowiedź dla ZGŁASZAJĄCEGO wraz z pouczeniem o dostępnych
+     * środkach (DSA art. 16 ust. 5) i jest jedynym miejscem w serwisie, gdzie
+     * ta osoba może to pouczenie przeczytać drugi raz. Skasowanie go po
+     * trzech miesiącach zabrałoby pouczenie, kiedy decyzja, której ono
+     * dotyczy, jest jeszcze przez trzy miesiące zaskarżalna — regulamin §8
+     * daje sześć miesięcy i nie rozróżnia, która strona sprawy się odwołuje.
+     * Termin dochodzimy tą samą drogą co przy `TYPE_MODERATION`, przez
+     * `data.action_id` → `ModerationAction::appealDeadline()`, więc NIE
+     * powstaje druga kopia liczby miesięcy.
+     *
+     * `TYPE_REPORT_RECEIVED` ŚWIADOMIE TU NIE JEST i nie jest to
+     * przeoczenie. Potwierdzenie przyjęcia nie niesie decyzji ani pouczenia,
+     * więc nie ma terminu odwołania, którym można by je mierzyć —
+     * `terminOchronyOdwolawczej()` zwracałoby dla niego `null` w każdym
+     * przebiegu, a `PrzedawnionePowiadomienia` traktuje `null` jako „nie
+     * wiadomo, zostaw i zapisz ostrzeżenie w logu". Wpis wisiałby więc
+     * wiecznie, produkując ostrzeżenie za każdym sprzątaniem — wyłączenie
+     * retencji z niewłaściwego powodu. Trwałym zapisem sprawy jest samo
+     * zgłoszenie (`reports`, `moderation.case_retention_months`, domyślnie
+     * 36 miesięcy), które zgłaszający czyta na `/zgloszenia` niezależnie od
+     * tego, czy powiadomienie jeszcze istnieje.
+     *
      * LISTA JEST ZAMKNIĘTA, z tego samego powodu co `AuditLogEntry::NIGDY_NIE_KASUJ`:
      * trzymanie jej w configu dałoby się wyczyścić jedną zmianą wdrożeniową
      * bez recenzji kodu — dokładnie tego ta lista ma nie dopuścić.
@@ -91,6 +137,7 @@ class Notification extends Model
      */
     public const WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA = [
         self::TYPE_MODERATION,
+        self::TYPE_REPORT_DECIDED,
     ];
 
     protected $fillable = [
@@ -149,6 +196,14 @@ class Notification extends Model
             self::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
             self::TYPE_WELCOME => route('posts.create'),
+            // Obie drogi zgłaszającego (issue #10) prowadzą na kartę TEJ
+            // sprawy, nie na listę: człowiek klika „Zobacz" przy konkretnym
+            // powiadomieniu i ma zobaczyć konkretną sprawę. Trzymamy sam
+            // identyfikator, nie gotowy adres — trasy się zmieniają,
+            // a historia powiadomień zostaje na lata.
+            self::TYPE_REPORT_RECEIVED, self::TYPE_REPORT_DECIDED => is_string($data['report_id'] ?? null) && $data['report_id'] !== ''
+                ? route('reports.mine.show', $data['report_id'])
+                : null,
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
     }

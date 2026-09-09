@@ -47,6 +47,30 @@ class Report extends Model
     ];
 
     /**
+     * Czego dotyczyło zgłoszenie — po polsku, dla ZGŁASZAJĄCEGO (issue #10).
+     *
+     * Karta sprawy na `/zgloszenia/{report}` musi przypomnieć człowiekowi,
+     * co właściwie zgłosił; sam `target_type` („cooked_event") tego nie robi.
+     * Kolejka moderatora pokazuje surową wartość dalej i to jest w porządku —
+     * tam czyta ją osoba, która zna schemat bazy.
+     *
+     * `unknown` to adres, którego nie umieliśmy rozpoznać przy zgłoszeniu
+     * prawnym (patrz `ZglosNielegalnaTresc`). Na tej liście prawie nigdy nie
+     * wystąpi, bo droga prawna nie ma `reporter_id` — zostaje, żeby ekran
+     * nigdy nie pokazał pustego miejsca zamiast zdania.
+     *
+     * @var array<string, string>
+     */
+    public const TARGET_LABELS = [
+        'post' => 'wpis',
+        'recipe' => 'przepis',
+        'comment' => 'komentarz',
+        'cooked_event' => 'wykonanie przepisu',
+        'user' => 'profil osoby',
+        'unknown' => 'strona spod podanego adresu',
+    ];
+
+    /**
      * Zgłoszenie społecznościowe: „to jest spam", „to jest chamskie".
      * Nasze zasady, nasza kolejka, może wymagać zalogowania.
      */
@@ -133,6 +157,23 @@ class Report extends Model
     public function reasonLabel(): string
     {
         return self::REASONS[$this->reason] ?? $this->reason;
+    }
+
+    public function targetLabel(): string
+    {
+        return self::TARGET_LABELS[$this->target_type] ?? self::TARGET_LABELS['unknown'];
+    }
+
+    /**
+     * Czy sprawa jest już zamknięta — z punktu widzenia ZGŁASZAJĄCEGO.
+     *
+     * Odwrotność `isOpen()`, napisana wprost zamiast `! isOpen()` w widoku:
+     * statusów jest pięć, a nie dwa, i przy dopisaniu szóstego chcemy jedno
+     * miejsce do poprawienia, nie negację rozsianą po Blade.
+     */
+    public function jestRozstrzygniete(): bool
+    {
+        return in_array($this->status, [self::STATUS_RESOLVED, self::STATUS_REJECTED], true);
     }
 
     public function isOpen(): bool
