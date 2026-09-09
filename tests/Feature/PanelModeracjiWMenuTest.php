@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -144,6 +145,57 @@ class PanelModeracjiWMenuTest extends TestCase
             $html,
             'Tytuł karty przeglądarki nie mówi, że to panel.',
         );
+    }
+
+    /**
+     * KAŻDY ekran panelu, nie jeden wybrany.
+     *
+     * Cały sens `<x-panel-moderacji>` polega na tym, że oznaczenie jest
+     * w JEDNYM miejscu, a nie przepisane sześć razy z ręki. Test na jednym
+     * ekranie tego nie pilnuje: siódmy ekran, dodany kiedyś bez paska,
+     * przeszedłby niezauważony i wróciłoby dokładnie to, na co skarżył się
+     * właściciel („nie wiadomo, co jest podstroną, a co panelem").
+     *
+     * Trasy bierzemy z routera, nie z listy przepisanej tutaj — lista w teście
+     * zdążyłaby się rozjechać z rzeczywistością. Pomijamy trasy z parametrem
+     * (np. `admin.contact.show`), bo wymagają istniejącego rekordu; ich układ
+     * i tak jest ten sam.
+     */
+    #[Test]
+    public function kazdy_ekran_panelu_ma_pasek_i_dopisek_w_tytule(): void
+    {
+        $moderator = $this->moderator();
+
+        $trasy = collect(Route::getRoutes()->getRoutes())
+            ->filter(fn ($trasa): bool => in_array('GET', $trasa->methods(), true))
+            ->filter(fn ($trasa): bool => str_starts_with((string) $trasa->uri(), 'admin/'))
+            ->filter(fn ($trasa): bool => ! str_contains((string) $trasa->uri(), '{'))
+            ->map(fn ($trasa): string => (string) $trasa->uri())
+            ->values();
+
+        $this->assertGreaterThanOrEqual(
+            6,
+            $trasy->count(),
+            'Router oddał mniej niż sześć bezparametrowych ekranów panelu — czytam złe trasy.',
+        );
+
+        foreach ($trasy as $uri) {
+            $html = $this->actingAs($moderator)->get('/'.$uri)->assertOk()->getContent();
+
+            $this->assertStringContainsString(
+                'class="panel-pasek"',
+                (string) $html,
+                'Ekran /'.$uri.' nie ma paska panelu. Dodaj `<x-panel-moderacji ekran="…" />` '
+                .'zaraz po otwarciu `<x-layout>` — po to ten komponent istnieje.',
+            );
+
+            $this->assertStringContainsString(
+                '— Panel moderacji — Kuking</title>',
+                (string) $html,
+                'Tytuł karty na /'.$uri.' nie mówi, że to panel. Przekaż '
+                .'`title="… — Panel moderacji"` do `<x-layout>`.',
+            );
+        }
     }
 
     /**
