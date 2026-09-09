@@ -94,7 +94,7 @@ Zasada bezpieczeństwa emocjonalnego: **przypominamy tylko to, co użytkownik sa
 |---|---|---|---|---|---|
 | **Archiwum po miesiącach jak stary fotoblog** | Na profilu zakładka `Archiwum`: „2027 — wrzesień (12), sierpień (9)…”, klik → siatka zdjęć z tego miesiąca | To najmocniejsza rzecz w Garnku, o której nikt nie mówił: własne życie w kuchni ułożone chronologicznie. Powód, by nie odejść: tu jest moja przeszłość | M | **MVP** (prosta wersja) | Przy 3 wpisach wygląda pusto → do 10 wpisów pokazywać zwykłą listę bez podziału na miesiące |
 | **„Twój wrzesień 2027”** | Raz w miesiącu, w profilu (nie mailem): kafel „Twój wrzesień — 12 dań, najczęściej: zupy” + `[ Zobacz ]` | Podsumowanie własnego dorobku bez porównania z kimkolwiek. Duma bez rywalizacji | M | V1 | Nie robić z tego „Spotify Wrapped” z animacjami — to nie pasuje do 50+ i do spokojnego tonu |
-| **„Rok temu gotowałaś…”** | Delikatny kafel na `/home`, maks. 1 raz w tygodniu: zdjęcie sprzed roku + „12 września 2026 zrobiłaś powidła. Znowu sezon.” | Sezonowość plus własna pamięć = najlepszy trigger powrotu, jaki ten produkt ma. Nostalgia + praktyczna podpowiedź | M | V1 | **Ryzyko żałoby**: wspomnienie może dotyczyć zmarłej osoby lub trudnego okresu. Obowiązkowo: `Ukryj to wspomnienie` i globalny wyłącznik w `/settings/privacy` |
+| **„Rok temu gotowałaś…”** | Delikatny kafel na `/home`, maks. 1 raz w tygodniu: zdjęcie sprzed roku + „12 września 2026 zrobiłaś powidła. Znowu sezon.” | Sezonowość plus własna pamięć = najlepszy trigger powrotu, jaki ten produkt ma. Nostalgia + praktyczna podpowiedź | M | **JEST** (`app/Domain/Wspomnienia`, wpięte w `FeedController`; wyłącznik w `/ustawienia/prywatnosc`) | **Ryzyko żałoby**: wspomnienie może dotyczyć zmarłej osoby lub trudnego okresu. Obowiązkowo: `Ukryj to wspomnienie` i globalny wyłącznik w `/settings/privacy` |
 | **Kalendarz roku gotowania** | Widok roczny: 365 kropek, kropka = dzień z wpisem. Bez oceniania, bez „serii” | Widok całego roku pokazuje, ile się w życiu ugotowało. Bez presji, bo puste dni nie są czerwone — są po prostu jaśniejsze | M | V2 | Łatwo zamienia się w streak-mechanikę → nigdy nie liczyć „najdłuższej serii”, nie kolorować pustek na czerwono |
 | **„Ten przepis robisz od 4 lat”** | Na przepisie własnym: „Gotujesz to od 2026 — 11 razy” | Konfrontacja z własną wiernością potrawie jest zaskakująco wzruszająca | S | V1 | Brak |
 | **Archiwum jako obietnica przy rejestracji** | W onboardingu jedno zdanie: „Twoje zdjęcia zostaną tu ułożone po datach. Za rok je znajdziesz.” + `Pobierz swoje dane` od pierwszego dnia | Ludzie 50+ boją się utraty zdjęć bardziej niż braku funkcji. To jest realny motyw rejestracji, mocniejszy niż „społeczność” | S | **MVP** | To obietnica — trzeba mieć backupy i restore drill (jest w roadmapie, punkt 11) |
@@ -158,7 +158,7 @@ Nie mamy jednego uniwersalnego „serduszka”. Mamy **cztery czynności, każda
 | **„Moja wersja” zamiast kopiowania** | Pod cudzym przepisem: `[ Robię po swojemu ]` → nowy przepis z trwałym odnośnikiem „na podstawie przepisu Basi” | Rozwiązuje realny konflikt: ludzie chcą zmieniać przepisy, ale kopiowanie kradnie. Fork z podpisem daje jedno i drugie | M | V1 | Rozmnożenie wariantów → na oryginale pokazać „5 wersji tego przepisu” jako wartość, nie śmieć |
 | **Kolekcje nie ukrywają autora** | W kolekcji każdy przepis ma podpis autora, także w widoku do druku | Kolekcje to typowe miejsce, gdzie autorstwo znika. U nas nie znika | S | **MVP** | Brak |
 | **Jasna reguła przeciw wklejaniu cudzych treści** | Przy publikacji: „Wklejasz przepis z książki lub z internetu? Napisz, skąd jest — to szanujemy.” | Norma kultury wypowiedziana wcześnie działa lepiej niż moderacja później | S | **MVP** | Nie da się tego wymusić technicznie → moderacja reaktywna + zgłoszenie „to nie jest jego przepis” |
-| **Źródło zewnętrzne jako pole** | Opcjonalne: „skąd: Kuchnia Polska, PWN 1985” | Podanie źródła jest formą uczciwości, którą można pokazać jako zaletę autora | S | V1 | Brak |
+| **Źródło zewnętrzne jako pole** | Opcjonalne: „skąd: Kuchnia Polska, PWN 1985” | Podanie źródła jest formą uczciwości, którą można pokazać jako zaletę autora | S | **JEST** (`recipes.source_url`, w kreatorze i w wydruku) | Brak |
 | **Widoczne „ugotowane z przepisu X” w SEO** | W strukturze strony przepisu i w schema.org — autor jest osobą, nie marką | Google i AI-search cytują autora. Autor widzi swoje nazwisko w wyszukiwarce = duma i powrót | S | **MVP** | Brak |
 
 ### 4.11 Puste stany i mikro-copy, które nie zawstydzają
@@ -199,7 +199,7 @@ Nie mamy jednego uniwersalnego „serduszka”. Mamy **cztery czynności, każda
 | **„Na ile osób” w ludzkich jednostkach** | „na 4 osoby, u nas na 2 dni” | Tak mówią ludzie w domu, a nie „yield: 4 servings” | S | **MVP** | Brak |
 | **Miary domowe** | „szklanka”, „łyżka”, „garść”, „na oko” jako dozwolone jednostki | Wymuszanie gramów wyklucza połowę autorów rodzinnych przepisów | S | **MVP** | Trudniejsze skalowanie porcji (V2) → świadomy kompromis na rzecz autentyczności |
 | **Wydruk przepisu na kartkę** | `[ Wydrukuj ]` — czysty, duży druk, bez menu | Osoby 50+ gotują z wydruku albo z tabletu opartego o cukiernicę. Wydruk to realny sposób użycia | S (arkusz CSS do druku) | **MVP** | Brak |
-| **Tryb gotowania (duże kroki, ekran nie gaśnie)** | Krok 1 z 6 na całym ekranie, wielka czcionka | Telefon gaśnie przy zabrudzonych rękach — najbardziej fizyczny problem w tym produkcie | M | V1 | Wake Lock API — wsparcie przeglądarek nierówne, zrobić degradację |
+| **Tryb gotowania (duże kroki, ekran nie gaśnie)** | Krok 1 z 6 na całym ekranie, wielka czcionka | Telefon gaśnie przy zabrudzonych rękach — najbardziej fizyczny problem w tym produkcie | M | **JEST** (`/przepisy/{przepis}/gotuj`, `CookingModeController`) | Wake Lock API — wsparcie przeglądarek nierówne, zrobić degradację |
 | **Zaproszenie kogoś z rodziny** | „Zaproś córkę do Kuking” — link, bez wymuszania kontaktów | Rodzina jest naturalnym pierwszym gronem. Zaproszenie jednej osoby daje natychmiastową publiczność | S | **MVP** | Nie skanować książki adresowej — to zabija zaufanie u 50+ |
 | **Odpowiedź gospodarza w pierwszej godzinie** | Nowy użytkownik po pierwszym wpisie dostaje komentarz od realnej osoby z redakcji | To nie jest funkcja, to obietnica operacyjna (patrz `COLD_START.md`), ale to ona buduje duszę mocniej niż cała reszta tej listy | S produktowo / **L operacyjnie** | **MVP** | Nieskalowalne powyżej ~500 osób → wtedy przejmują ambasadorzy kół |
 
@@ -268,4 +268,11 @@ Rzeczy z tej listy, które **muszą** być w MVP, bo bez nich Kuking jest CRUD-e
 | 11 | Wołacz/imię i spójny słownik języka w `lang/pl` | S | …produkt brzmi jak tłumaczenie z angielskiego |
 | 12 | Wydruk przepisu | S | …ignorujemy sposób, w jaki 50+ naprawdę gotuje |
 
-**Świadomie odsunięte:** planner, lista zakupów, koła, „Moja wersja”, tryb gotowania, OCR, spiżarnia, AI, native apps, PDF rodzinnej książki, kalendarz roku, uwagi wpięte do kroków.
+**Świadomie odsunięte:** planner, lista zakupów, koła, „Moja wersja”, OCR, spiżarnia, AI, native apps, PDF rodzinnej książki, kalendarz roku, uwagi wpięte do kroków.
+
+> **Tryb gotowania wypadł z tej listy, bo go zrobiono** (audyt zewnętrzny, G16).
+> Stoi pod `/przepisy/{przepis}/gotuj` razem z minutnikiem kroku. Lista
+> „świadomie odsunięte” ma znaczyć „postanowiliśmy tego nie robić”, a nie
+> „ktoś nie zaktualizował dokumentu” — inaczej następna osoba albo zbuduje to
+> drugi raz, albo uzna, że skoro jedna pozycja jest nieprawdziwa, to cała lista
+> jest nieaktualna.
