@@ -116,7 +116,14 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
         $this->wyslijProbny();
 
         Http::assertSent(function (Request $zadanie): bool {
-            $this->assertSame('1', $zadanie->data()['headers']['X-TRACKING-OFF'] ?? null);
+            $naglowki = $zadanie->data()['headers'] ?? [];
+
+            $this->assertSame('1', $naglowki['X-TRACKING-OFF'] ?? null);
+
+            // I NIC POZA TYM. Gdyby przeciekły tu `to`, `subject` albo
+            // `message-id`, dostawca dostałby adres odbiorcy drugi raz —
+            // w polu, którego nie ma po co czytać.
+            $this->assertSame(['X-TRACKING-OFF'], array_keys($naglowki));
 
             return true;
         });
@@ -347,6 +354,36 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
     {
         $this->assertTrue(Poczta::dziala());
         $this->assertNull(Poczta::przeszkoda());
+    }
+
+    /**
+     * `kuking:sprawdz-poczte` musi umieć opowiedzieć o tym sterowniku — i nie
+     * wolno jej przy tym wypisać wartości kluczy. Komenda chodzi na produkcji
+     * przez `railway ssh`, a jej wyjście ląduje w zgłoszeniach i zrzutach
+     * ekranu.
+     */
+    public function test_komenda_diagnostyczna_opisuje_api_i_nie_pokazuje_kluczy(): void
+    {
+        Http::fake([self::ADRES_API => $this->odpowiedzSukcesu()]);
+
+        $this->artisan('kuking:sprawdz-poczte', ['adres' => 'ty@wp.pl'])
+            ->expectsOutputToContain('Adres API')
+            ->expectsOutputToContain('1.kuking.smtp')
+            ->doesntExpectOutputToContain(self::KLUCZ_APLIKACJI)
+            ->doesntExpectOutputToContain(self::KLUCZ_AUTORYZACJI)
+            ->assertSuccessful();
+    }
+
+    /** Bez kluczy komenda ma nazwać BRAKUJĄCĄ ZMIENNĄ, a nie wypluć wyjątek. */
+    public function test_komenda_diagnostyczna_bez_kluczy_nazywa_brakujaca_zmienna(): void
+    {
+        config(['services.emaillabs.secret' => '']);
+        Mail::purge('emaillabs');
+
+        $this->artisan('kuking:sprawdz-poczte', ['adres' => 'ty@wp.pl'])
+            ->expectsOutputToContain('Poczta nie wychodzi')
+            ->expectsOutputToContain('EMAILLABS_SECRET_KEY')
+            ->assertFailed();
     }
 
     /** `Http::response()` oddaje obietnicę Guzzle, nie gotową odpowiedź — stąd ten typ. */
