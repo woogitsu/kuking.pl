@@ -288,31 +288,102 @@ async function podnies_serwer() {
     return { adres: process.env.ADRES, zamknij: () => {} };
   }
 
-const port = 8000 + Math.floor(Math.random() * 900);
-  const adres = `http://127.0.0.1:${port}`;
-
   log('Przygotowuję dane demonstracyjne...');
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
     stdio: 'ignore',
     env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
   });
 
-  const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
-    stdio: 'ignore',
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
-  });
+  // Trzy podejścia, za każdym razem inny port. Jedno by wystarczyło, gdyby
+  // port dało się zarezerwować — a nie da się: między zwolnieniem gniazda
+  // a startem PHP jest okno, w które może wejść inny proces.
+  const bledy = [];
 
-  // Czekamy na serwer zamiast zgadywać czas startu — na wolnej maszynie
-  // sztywne „sleep 2" daje losowo czerwony wynik, który wygląda jak regresja.
-  for (let i = 0; i < 60; i++) {
-    try {
-      const odp = await fetch(`${adres}/health`);
-      if (odp.ok) break;
-    } catch { /* jeszcze nie wstał */ }
-    await new Promise((r) => setTimeout(r, 500));
+  for (let podejscie = 1; podejscie <= 3; podejscie++) {
+    const port = await wolnyPort();
+    const adres = `http://127.0.0.1:${port}`;
+    const dziennik = [];
+
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
+    });
+
+    // Zbieramy wyjście serwera, żeby przy nieudanym starcie MIEĆ CO POKAZAĆ.
+    // Wcześniej stało tu `stdio: 'ignore'` i komunikat „Failed to listen on
+    // 127.0.0.1:8496 (reason: Address already in use)" szedł do kosza.
+    proces.stdout.on('data', (b) => dziennik.push(String(b)));
+    proces.stderr.on('data', (b) => dziennik.push(String(b)));
+
+    let umarl = null;
+    proces.on('exit', (kod) => { umarl = kod; });
+
+    // Czekamy na serwer zamiast zgadywać czas startu — na wolnej maszynie
+    // sztywne „sleep 2" daje losowo czerwony wynik, który wygląda jak regresja.
+    let wstal = false;
+
+    for (let i = 0; i < 60 && umarl === null; i++) {
+      try {
+        const odp = await fetch(`${adres}/health`);
+        if (odp.ok) { wstal = true; break; }
+      } catch { /* jeszcze nie wstał */ }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    if (wstal) {
+      return { adres, zamknij: () => proces.kill('SIGTERM') };
+    }
+
+    proces.kill('SIGKILL');
+
+    bledy.push(
+      `  podejście ${podejscie}, port ${port}: `
+      + (umarl !== null ? `proces zakończył się kodem ${umarl}` : 'brak odpowiedzi z /health przez 30 s')
+      + (dziennik.length > 0 ? `\n${dziennik.join('').trimEnd().split('\n').map((w) => `      ${w}`).join('\n')}` : ''),
+    );
   }
 
-  return { adres, zamknij: () => proces.kill('SIGTERM') };
+  // GŁOŚNO, nie po cichu. Do 9 września pętla po prostu kończyła się po
+  // trzydziestu sekundach i skrypt szedł dalej — a Playwright zgłaszał wtedy
+  // `net::ERR_CONNECTION_REFUSED at .../login`, czyli komunikat wskazujący
+  // na stronę logowania, a nie na to, że serwera nigdy nie było.
+  throw new Error(
+    'Nie udało się podnieść `php artisan serve` w trzech podejściach.\n'
+    + bledy.join('\n')
+    + '\n\nJeśli powodem jest zajęty port: na jednej maszynie stoją trzy runnery '
+    + 'i dwa joby mogą podnosić serwer równocześnie.',
+  );
+}
+
+/*
+ * Port, o którym system POTWIERDZIŁ, że jest wolny.
+ *
+ * Stało tu `8000 + Math.floor(Math.random() * 900)` — losowanie z dziewięciuset
+ * numerów, bez pytania kogokolwiek, czy port jest zajęty. Przy jednej maszynie
+ * i jednym biegu to działało. Runnery `kuking-wsl-DOM-NEW-01`, `-02` i `-03`
+ * stoją jednak na JEDNYM systemie, więc dwa joby losują z tej samej puli:
+ * przy dwóch równoczesnych biegach szansa kolizji to około 1 na 900 na parę,
+ * ale przy kilkunastu biegach dziennie trafia regularnie. Drugi `php artisan
+ * serve` nie może wtedy zająć portu, a skrypt szedł dalej i przewracał się
+ * dopiero na `page.goto` (zmierzone 9 września, PR #162, port 8496).
+ *
+ * Port 0 znaczy „daj mi jakikolwiek wolny" — decyduje jądro, nie losowanie.
+ * Zwalniamy gniazdo przed oddaniem numeru, więc zostaje okno, w które teoretycznie
+ * może wejść inny proces; dlatego wywołujący ponawia próbę na innym porcie,
+ * zamiast zakładać, że raz wystarczy.
+ */
+async function wolnyPort() {
+  const { createServer } = await import('node:net');
+
+  return new Promise((resolve, reject) => {
+    const gniazdo = createServer();
+    gniazdo.unref();
+    gniazdo.on('error', reject);
+    gniazdo.listen(0, '127.0.0.1', () => {
+      const { port } = gniazdo.address();
+      gniazdo.close(() => resolve(port));
+    });
+  });
 }
 
 /*
