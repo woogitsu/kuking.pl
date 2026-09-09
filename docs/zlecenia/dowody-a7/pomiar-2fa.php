@@ -15,6 +15,7 @@ use App\Models\User;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
 require dirname(__DIR__, 3).'/vendor/autoload.php';
@@ -106,19 +107,27 @@ function uruchomPare(string $scenariusz, callable $przygotuj, callable $akcjaA, 
 
 $auth = app(TwoFactorAuthenticator::class);
 $secret = $auth->generateSecret();
-$user = User::query()->create([
+$id = (string) Str::uuid();
+$teraz = now();
+DB::table('users')->insert([
+    'id' => $id,
     'email' => 'a7-2fa@example.invalid',
     'password' => Hash::make('nieuzywane'),
     'status' => User::STATUS_ACTIVE,
     'role' => User::ROLE_USER,
+    'locale' => 'pl',
+    'text_scale' => 100,
+    'wants_weekly_digest' => false,
+    'created_at' => $teraz,
+    'updated_at' => $teraz,
 ]);
+$user = User::query()->findOrFail($id);
 $user->forceFill([
     'two_factor_secret' => $secret,
     'two_factor_confirmed_at' => now(),
     'two_factor_last_used_at' => null,
 ])->save();
 $kod = (new Google2FA)->getCurrentOtp($secret);
-$id = (string) $user->getKey();
 
 $totp = uruchomPare(
     'ten_sam_TOTP',
@@ -178,7 +187,7 @@ $wynik = [
     'interpretation_guard' => [
         'totp_ok' => $totp['exactly_one_accepted'] && $totp['different_pg_backends'],
         'backup_second_succeeded' => $backup['B']['result'] === true,
-        'note' => 'To dwa procesy i dwa backendy PostgreSQL. Warstwa HTTP nie jest tu mierzona; mierzony jest krytyczny odcinek, który ma szeregowac lockForUpdate().',
+        'note' => 'To dwa procesy i dwa backendy PostgreSQL. Warstwa HTTP nie jest tu mierzona; mierzony jest krytyczny odcinek, który ma szeregować lockForUpdate().',
     ],
 ];
 
