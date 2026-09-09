@@ -651,6 +651,25 @@ Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
 
 ## KROK 9. Zastosowanie infrastruktury (`railway.ts`)
 
+> ⚠️ **SPROSTOWANIE, 9 września 2026 — przeczytaj przed uruchomieniem czegokolwiek
+> w tym kroku.** Zmierzone connectorem Railway tego dnia: na produkcji istnieje
+> dziś **jeden** serwis aplikacyjny, `kuking.pl`, uruchamiany komendą
+> `/usr/local/bin/kuking-entrypoint all` (serwer HTTP + kolejka + harmonogram
+> w jednym kontenerze, jedna replika, region europe-west4). Serwisów `web`,
+> `worker`, `scheduler` **nie ma i nigdy nie było** — `railway config apply`
+> **nie zostało jeszcze ani razu uruchomione** na tym projekcie. `railway.ts`
+> opisuje stan docelowy (patrz komentarz nad `PRODUCTION_SPLIT_SERVICES`
+> w tym pliku), nie stan obecny.
+>
+> To znaczy, że `railway config plan` niżej może dziś zaproponować **więcej
+> niż „utworzenie" trzech nowych serwisów obok istniejącego** — może chcieć
+> zmienić nazwę/rolę istniejącego serwisu `kuking.pl`, przenieść jego domenę
+> albo jego zmienne. **Przeczytaj cały wynik `plan` przed potwierdzeniem
+> `apply`** — nie zakładaj z góry, co zrobi. I nie uruchamiaj `apply` na
+> `production`, dopóki nie istnieje żadna kopia bazy (dziś: nie istnieje
+> żadna — patrz `docs/DECISIONS.md` D-043 i `docs/infra/KOPIE_I_ODTWORZENIE.md`)
+> — operacja na serwisach jest odwracalna, utrata jedynej kopii danych nie jest.
+
 ```bash
 cd ~/kuking.pl
 
@@ -661,8 +680,12 @@ railway link                    # wybierz workspace → projekt kuking → środ
 railway config plan
 ```
 
-Zobaczysz listę zmian: utworzenie serwisów `web`, `worker`, `scheduler`,
-przypisanie domen, zmiennych, healthchecku.
+Docelowo — jeśli plan wygląda tak, jak zakłada `railway.ts` — zobaczysz listę
+zmian: utworzenie serwisów `web`, `worker`, `scheduler`, przypisanie domen,
+zmiennych, healthchecku. Ale to jest opis ZAMIERZONEGO wyniku, nie gwarancja:
+skoro na produkcji istnieje dziś serwis o innej nazwie (`kuking.pl`, nie
+`web`), `plan` może pokazać coś innego niż samo „utworzenie" — czytaj wynik,
+nie tę listę.
 
 ```bash
 # Zastosowanie (poprosi o potwierdzenie)
@@ -684,7 +707,10 @@ railway link --environment production   # wróć na produkcję
 w panelu (krok 12). Reszta konfiguracji zadziała bez zmian.
 
 **Sprawdź, że działa:** na kanwie projektu widzisz serwisy `web`, `worker`,
-`scheduler`, `postgres` w dwóch grupach: „Aplikacja" i „Dane".
+`scheduler`, `postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
+`apply` zostało uruchomione i przebiegło zgodnie z planem**. Stan sprzed tego
+kroku (i stan na 9 września 2026, zanim ktokolwiek to uruchomił) to jeden
+serwis `kuking.pl` w trybie `all` + `Postgres`.
 
 ---
 

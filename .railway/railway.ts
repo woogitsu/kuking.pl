@@ -104,6 +104,18 @@ const MB = 1024 * 1024;
  *
  * Przełączenie to zmiana jednej linii + PR + `railway config apply`.
  * Uzasadnienie pełne: INFRA_DECISION.md, sekcja "Serwisy w Railway".
+ *
+ * ⚠️ SPROSTOWANIE / STAN FAKTYCZNY (zmierzone connectorem Railway,
+ * 9 września 2026): ten plik opisuje stan DOCELOWY, nie stan obowiązujący.
+ * Flaga niżej jest `true`, ale `railway config apply` NIE ZOSTAŁO JESZCZE
+ * ANI RAZU URUCHOMIONE na tym projekcie. Produkcja dziś to JEDEN serwis,
+ * nazwany `kuking.pl` (nie `web`), uruchamiany komendą
+ * `/usr/local/bin/kuking-entrypoint all` — dokładnie topologia opisana
+ * wyżej dla `false`, mimo że flaga stoi na `true`. Nazwy serwisów `web`,
+ * `worker`, `scheduler` z tego pliku nie odpowiadają żadnemu istniejącemu
+ * serwisowi w Railway. NIE zmieniaj tej flagi w ramach samego sprostowania
+ * dokumentacji — rozbicie na trzy serwisy zostaje celem, dopóki właściciel
+ * nie zdecyduje inaczej; zmienia się tylko to, co ten komentarz mówi o dziś.
  */
 const PRODUCTION_SPLIT_SERVICES = true;
 

@@ -63,18 +63,29 @@ Siedem wiadomości. **Tygodniowego digestu w kodzie nie ma** — mimo że
 realna wysyłka to kilkadziesiąt listów miesięcznie i **żaden limit dzienny nie
 ma znaczenia**.
 
-### Poczta bez workera nie wychodzi
+### Poczta bez działającej kolejki nie wychodzi
+
+> ⚠️ **SPROSTOWANIE, 9 września 2026.** Ten akapit twierdził, że na produkcji
+> kolejkę obsługuje „osobny serwis `worker`". **Nieprawda.** Zmierzone
+> connectorem Railway: produkcja to jeden serwis `kuking.pl`, uruchamiany
+> komendą `/usr/local/bin/kuking-entrypoint all` — serwer HTTP, pętla kolejki
+> i harmonogram działają w **jednym kontenerze**. Serwisu `worker` nie ma
+> i nigdy nie było; `PRODUCTION_SPLIT_SERVICES = true` w `.railway/railway.ts`
+> opisuje stan docelowy, do którego `railway config apply` jeszcze nigdy nie
+> zostało uruchomione (patrz `docs/DECISIONS.md` D-038 i sprostowania w
+> `docs/OTWARCIE.md`).
 
 Wszystkie powiadomienia mają `ShouldQueue`, a `QUEUE_CONNECTION=database`. List
-nie jest wysyłany w żądaniu — trafia do tabeli `jobs` i czeka na `queue:work`.
-Na produkcji robi to **osobny serwis `worker`** (`.railway/railway.ts`,
-`PRODUCTION_SPLIT_SERVICES = true`; na staging i preview jest to jeden kontener
-w trybie `APP_ROLE=all`).
+nie jest wysyłany w żądaniu — trafia do tabeli `jobs` i czeka na pętlę kolejki
+(`queue:work`). Dziś ta pętla działa w tym samym kontenerze co strona, w trybie
+`all` (na staging i preview jest to ten sam tryb `APP_ROLE=all`) — nie ma
+osobnego serwisu do sprawdzania, jest jeden kontener, w którym coś może paść
+po cichu.
 
-Wniosek, o którym łatwo zapomnieć: **poprawny dostawca + niedziałający worker =
-dokładnie ten sam skutek co `MAIL_MAILER=log`.** Nikt nic nie dostaje i nic tego
-nie pokazuje. Dlatego sprawdzenie z §5 ma dwa przebiegi: synchroniczny
-i przez kolejkę.
+Wniosek, o którym łatwo zapomnieć: **poprawny dostawca + niedziałająca pętla
+kolejki w tym kontenerze = dokładnie ten sam skutek co `MAIL_MAILER=log`.**
+Nikt nic nie dostaje i nic tego nie pokazuje. Dlatego sprawdzenie z §5 ma dwa
+przebiegi: synchroniczny i przez kolejkę.
 
 ---
 
@@ -98,7 +109,10 @@ Zrób je raz. Zmiana dostawcy nie unieważnia żadnej z nich.
 5. **Wszystkie rekordy poczty w Cloudflare muszą być „DNS only” (szara
    chmurka), nigdy „Proxied”.** Cloudflare nie proxuje poczty; proxowanie
    rozbija weryfikację domeny i nie daje przy tym żadnego błędu.
-6. **Sprawdź, że worker chodzi**, zanim uznasz pocztę za działającą (§5).
+6. **Sprawdź, że pętla kolejki w kontenerze `kuking.pl` faktycznie przetwarza
+   `jobs`**, zanim uznasz pocztę za działającą (§5). Nie ma osobnego serwisu
+   do sprawdzenia — jest jeden proces w trybie `all`, który może ubić kolejkę
+   po cichu.
 
 ---
 
@@ -510,8 +524,8 @@ mówi panel dostawcy i sama skrzynka.
 railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl --kolejka
 ```
 
-To sprawdza drugą połowę układu: czy serwis `worker` w Railway w ogóle chodzi.
-Jeśli po minucie nic nie przyszło:
+To sprawdza drugą połowę układu: czy pętla kolejki w kontenerze `kuking.pl`
+(tryb `all`) w ogóle przetwarza `jobs`. Jeśli po minucie nic nie przyszło:
 
 ```bash
 railway ssh -- php artisan queue:failed

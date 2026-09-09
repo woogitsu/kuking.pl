@@ -134,8 +134,8 @@ pytania nie mają odpowiedzi w kodzie, bo kod nie mówi, co ktoś kliknął w pa
 
 | # | Pytanie | Gdzie sprawdzić |
 |---|---|---|
-| 1 | Czy na serwisie `postgres` (środowisko `production`) są włączone **Daily** i **Weekly** Volume Backups? | Railway → projekt `kuking` → środowisko `production` → serwis `postgres` → zakładka **Backups** |
-| 2 | Czy **PITR** jest włączony, i jeśli tak — **od kiedy liczy się okno**? (Okno startuje od pierwszego backupu PO włączeniu, nie retroaktywnie) | tam samo, sekcja PITR pokaże datę początku okna albo komunikat, że nie jest włączony |
+| 1 | **Rozstrzygnięte (D-043, 9 września 2026) — nie pytanie, tylko fakt do zapamiętania:** Volume Backups **nie są i nie mogą być włączone**. Ta funkcja istnieje wyłącznie w planie Pro, a Kuking jest na Free/Hobby. Pytanie, które ma dziś sens: **na kiedy #193** (zrzut offsite, jedyna planowana kopia)? | `docs/DECISIONS.md` → `## D-043`; postęp: issue #193 |
+| 2 | **Rozstrzygnięte (D-043)** — **PITR nie istnieje** na tym planie, więc nie ma czego liczyć ani „od kiedy". Nie sprawdzaj tego w panelu — panel na Free/Hobby nawet nie pokaże tej zakładki | `docs/DECISIONS.md` → `## D-043` |
 | 3 | Jaki plan Railway jest dziś aktywny (Hobby czy Pro)? Ma to znaczenie m.in. dla restart policy `ALWAYS` na serwisie `scheduler`, która na Free jest niedostępna (`.railway/railway.ts:691`) | Railway → **Workspace Settings** → **Plan** |
 | 4 | Czy istnieje dziś JAKAKOLWIEK kopia bazy poza Railway (ręczny `pg_dump` wykonany kiedykolwiek przez kogokolwiek), czy warstwa offsite jest całkowicie pusta? | brak automatyzacji w repo (§2.1) — to pytanie o to, czy ktoś zrobił to ręcznie i gdzie ten plik leży |
 | 5 | Czy serwis `postgres` w środowisku `production` w ogóle już istnieje (czy wdrożenie z `DEPLOYMENT_RUNBOOK.md` zostało wykonane), czy dokument nadal opisuje plan? | Railway → kanwa projektu `kuking` → środowisko `production` |
@@ -251,8 +251,10 @@ pg_restore --dbname="$DB_URL_NOWEJ_BAZY" \
   --no-owner --exit-on-error \
   "ostatni-offsite-zrzut.dump"
 
-# 3. Podepnij nowy DB_URL do serwisów web/worker/scheduler
-railway variables --set "DB_URL=<nowy_DATABASE_URL>" --environment production
+# 3. Podepnij nowy DB_URL do serwisu kuking.pl
+#    (dziś jeden serwis aplikacyjny w trybie `all` — nie ma osobnych
+#    web/worker/scheduler, patrz sprostowanie w §2.3 i D-038/D-043)
+railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --environment production
 
 # 4. Redeploy i weryfikacja
 curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
@@ -294,7 +296,7 @@ jest dziś dispatch'owany wyłącznie raz, przy uploadzie —
 `app/Domain/Media/Actions/StoreUploadedImage.php:216`). Awaryjnie:
 
 ```bash
-railway ssh --service worker -- php artisan tinker
+railway ssh --service kuking.pl -- php artisan tinker
 ```
 ```php
 App\Models\Media::where('variants_disk', 'r2_publiczne')
