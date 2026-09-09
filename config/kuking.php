@@ -257,6 +257,29 @@ return [
         // trwale usunięte. Daje szansę na "pomyliłem się".
         'delete_grace_days' => 30,
 
+        /*
+         * ILE GODZIN ŻYJE ZAMÓWIONA ZMIANA ADRESU E-MAIL (issue #195).
+         *
+         * Po tym czasie link z listu przestaje działać, a wiersz
+         * `pending_email_changes` kasuje `kuking:sprzataj-zmiany-adresu`.
+         *
+         * SKĄD 24 GODZINY, A NIE GODZINA JAK PRZY `verification.verify`.
+         * Tamten link klika się w tej samej minucie, w której powstało konto
+         * — człowiek siedzi przy komputerze i CZEKA na wiadomość. Ten idzie
+         * na DRUGĄ skrzynkę, często na innym urządzeniu: na komórkę, którą
+         * trzeba wziąć z kuchni, albo na skrzynkę, do której ta osoba
+         * zagląda raz dziennie. Godzina znaczyłaby, że zmiana adresu udaje
+         * się tylko tym, którzy mają obie skrzynki otwarte naraz — czyli
+         * nie tym, dla których to zgłoszono (docs/UX_50_PLUS.md).
+         *
+         * DLACZEGO NIE WIĘCEJ. Przez cały ten czas ważny jest link, którym
+         * ktoś, kto raz dorwał się do cudzej sesji, może dokończyć przejęcie
+         * konta. Doba to jedna noc: właściciel zdąży zobaczyć list
+         * ostrzegawczy na STARYM adresie i zmienić hasło — a zmiana hasła
+         * kasuje oczekujące żądanie (`CancelEmailChange`).
+         */
+        'email_change_ttl_hours' => (int) env('KUKING_EMAIL_CHANGE_TTL_HOURS', 24),
+
         // Nazwy zastrzeżone dla obsługi serwisu.
         //
         // Konto o nazwie sugerującej Kuking („moderacja", „pomoc", „platnosci")

@@ -53,11 +53,26 @@ class EnsureAccountIsActive
      * (DSA art. 20). Blokowanie tu zapisu znaczyłoby, że kara odbiera prawo
      * do jej zakwestionowania — czyli odwołanie istnieje dla wszystkich poza
      * tymi, których dotyczy (#10).
+     *
+     * `settings.email.request` i `settings.email.cancel` zostają z tego
+     * samego powodu co `settings.data` (issue #195). Sprostowanie danych
+     * osobowych to RODO art. 16 — ten sam rozdział praw co art. 15 i 20 —
+     * a adres e-mail jest jedyną drogą odzyskania konta i jedyną drogą,
+     * którą dociera odpowiedź na odwołanie. Zawieszenie jest karą ZA
+     * PISANIE; gdyby przy okazji odbierało prawo do poprawienia własnego
+     * adresu, kara czasowa potrafiłaby zamienić się w trwałą utratę konta
+     * u kogoś, kto akurat w tym tygodniu stracił dostęp do starej skrzynki.
+     *
+     * Potwierdzenia (`settings.email.confirm`) nie ma na tej liście, bo go
+     * nie potrzebuje: to zwykły GET, a `tozZapis()` przepuszcza metody
+     * bezpieczne.
      */
     private const DOZWOLONE_MIMO_ZAWIESZENIA = [
         'logout',
         'settings.data',
         'settings.data.export',
+        'settings.email.request',
+        'settings.email.cancel',
         'appeals.store',
     ];
 

@@ -99,13 +99,18 @@ class RegisterController extends Controller
         ]);
 
         $user = DB::transaction(function () use ($data): User {
-            $user = User::create([
-                'email' => $data['email'],
+            // `email` NIE JEST w `$fillable` (issue #195, ten sam powód co
+            // `status` i `role`), więc adres wchodzi jawnie, przez
+            // `assignEmail()`. Bez potwierdzenia — potwierdzi je dopiero
+            // kliknięcie w list, który zaraz wyjdzie (`event(new Registered)`).
+            $user = (new User([
                 'password' => Hash::make($data['password']),
                 'locale' => 'pl',
                 'text_scale' => config('kuking.text.default_scale'),
                 'age_confirmed_at' => now(),
-            ]);
+            ]))->assignEmail($data['email']);
+
+            $user->save();
 
             Profile::create([
                 'user_id' => $user->getKey(),

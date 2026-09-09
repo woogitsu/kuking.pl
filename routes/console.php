@@ -128,3 +128,18 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
     ->name('kuking:sprzataj-sprawy-moderacyjne')
     ->dailyAt('04:30')
     ->withoutOverlapping();
+
+// Wygasłe żądania zmiany adresu e-mail (issue #195). Wiersz
+// `pending_email_changes` trzyma adres skrzynki, więc po wygaśnięciu jest już
+// tylko daną osobową bez zastosowania (AGENTS.md §7 — minimalizacja).
+// Termin ma każde żądanie własny, w kolumnie `expires_at`, więc komenda nie
+// potrzebuje żadnego progu.
+//
+// TO NIE JEST BRAMKA BEZPIECZEŃSTWA — odnośnik przestaje działać co do minuty
+// dzięki `PendingEmailChange::jestWazne()`, nie dzięki temu sprzątaniu.
+// Dlatego dobowa częstotliwość wystarcza.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
+    ->name('kuking:sprzataj-zmiany-adresu')
+    ->dailyAt('04:40')
+    ->withoutOverlapping();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domain\Users\Actions\CancelEmailChange;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +38,7 @@ class SecuritySettingsController extends Controller
         return view('pages.settings.security');
     }
 
-    public function updatePassword(Request $request): RedirectResponse
+    public function updatePassword(Request $request, CancelEmailChange $anuluj): RedirectResponse
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
@@ -64,10 +65,27 @@ class SecuritySettingsController extends Controller
         // ważna: to jego własna, dobra decyzja, nie powód do wylogowania.
         $user->invalidateSessions($request->session()->getId());
 
+        // ZMIANA HASŁA UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU E-MAIL (issue #195).
+        //
+        // List ostrzegawczy, który dostaje stary adres, mówi wprost: „jeśli
+        // to nie Ty — zmień hasło". Gdyby zmiana hasła nie kasowała
+        // oczekującego żądania, ta rada byłaby nieprawdziwa: napastnik
+        // dokończyłby przejęcie konta swoim odnośnikiem, mimo nowego hasła
+        // — czyli właśnie wtedy, gdy człowiek zrobił dokładnie to, o co go
+        // poprosiliśmy. Uzasadnienie w `CancelEmailChange`.
+        $anulowanaZmianaAdresu = $anuluj->handle(
+            $user,
+            CancelEmailChange::POWOD_ZMIANA_HASLA,
+            $request->ip(),
+        );
+
         AuditLogEntry::record('account.password_changed', $user, $user, ip: $request->ip());
 
         return back()->with('status',
-            'Hasło zmienione. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon zostaje zalogowany.',
+            'Hasło zmienione. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon zostaje zalogowany.'
+            .($anulowanaZmianaAdresu
+                ? ' Anulowaliśmy też zamówioną zmianę adresu e-mail — odnośnik z tamtego listu już nie działa.'
+                : ''),
         );
     }
 

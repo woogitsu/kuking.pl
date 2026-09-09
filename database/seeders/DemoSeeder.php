@@ -337,18 +337,29 @@ class DemoSeeder extends Seeder
 
     private function createUser(string $email, string $username, string $displayName, array $profile = [], string $role = User::ROLE_USER): User
     {
-        $user = User::firstOrCreate(
-            ['email' => $email],
-            [
+        // `firstOrCreate()` NIE NADAJE SIĘ TU OD ISSUE #195: adres e-mail
+        // wypadł z `User::$fillable` (ten sam powód co `status` i `role`),
+        // więc masowe przypisanie po prostu by go pominęło — a kolumna jest
+        // NOT NULL. Przy okazji widać, że `status`, `role`
+        // i `email_verified_at` NIGDY tędy nie przechodziły: były poza
+        // `$fillable` od początku, a seeder ustawiał je bezskutecznie
+        // (konto „moderatora demo" nie było moderatorem). Zapisujemy więc
+        // wprost, przez `assignEmail()` i `forceFill()`.
+        $user = User::query()->where('email', User::normalizeEmail($email))->first();
+
+        if ($user === null) {
+            $user = (new User([
                 'password' => Hash::make('haslo-testowe-123'),
-                'status' => User::STATUS_ACTIVE,
-                'role' => $role,
                 'locale' => 'pl',
                 'text_scale' => 100,
                 'age_confirmed_at' => now(),
-                'email_verified_at' => now(),
-            ],
-        );
+            ]))->assignEmail($email, potwierdzony: true);
+
+            $user->forceFill([
+                'status' => User::STATUS_ACTIVE,
+                'role' => $role,
+            ])->save();
+        }
 
         Profile::firstOrCreate(
             ['user_id' => $user->getKey()],

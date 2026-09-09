@@ -150,6 +150,15 @@ const EKRANY = [
    */
   { nazwa: 'twoje dane (usunięcie konta)', adres: '/ustawienia/twoje-dane', zalogowany: true },
 
+  /*
+   * ADRES E-MAIL (issue #195). Trzy sekcje, dwa formularze i pole hasła obok
+   * pola adresu — a przy 320 px i tekście 140% to jest dokładnie ten układ,
+   * który najłatwiej wypycha stronę w bok. Ekran jest też jedyną drogą do
+   * poprawienia adresu, na który idzie link do nowego hasła: pole bez
+   * etykiety albo przycisk bez nazwy dostępnej kosztuje tu konto.
+   */
+  { nazwa: 'adres e-mail', adres: '/ustawienia/e-mail', zalogowany: true },
+
   // Zgłoszenie treści niezgodnej z prawem (DSA art. 16). Publiczny, bez
   // logowania — pole imienia jest od dziś opcjonalne, z nowym wyjaśnieniem
   // przy polu. Mierzymy jako gościa, bo dla gościa ten formularz istnieje.
