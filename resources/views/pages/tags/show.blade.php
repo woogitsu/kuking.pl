@@ -9,7 +9,27 @@
     To ta sama decyzja co przy feedzie i z tego samego powodu: ranking
     zamienia dzielenie się jedzeniem w konkurs.
 --}}
-<x-layout :title="$tag->name">
+@php
+    /*
+     * Meta description (issue #191) — Lighthouse mierzył tę stronę na
+     * SEO 92/100 zamiast 100, bo `<x-layout>` nie dostawał `description`
+     * w ogóle (renderuje znacznik TYLKO, gdy coś jest przekazane).
+     *
+     * Treść liczymy tutaj, nie w kontrolerze: `$posts` (wynik paginacji,
+     * już przefiltrowany przez `widoczneDla($widz)`) jest jedynym miejscem,
+     * które zna liczbę wpisów WIDOCZNYCH DLA GOŚCIA — a to jest dokładnie
+     * to, co zobaczy robot Google (odwiedza jako anonim, `$widz === null`).
+     * Kontroler zostaje cienki (AGENTS.md §4): to jest czyste formatowanie
+     * tekstu, nie reguła domenowa.
+     */
+    $liczbaWpisow = $posts->total();
+    $formaWpis = \App\Support\Odmiana::rzeczownik($liczbaWpisow, 'wpis', 'wpisy', 'wpisów');
+
+    $opisTagu = $liczbaWpisow > 0
+        ? "{$liczbaWpisow} {$formaWpis} z tagiem „{$tag->name}” w Kuking — zobacz, co ugotowali inni."
+        : "Tag „{$tag->name}” w Kuking czeka na pierwszy wpis — dodaj go i bądź pierwszą osobą.";
+@endphp
+<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)">
     <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z Kuking</a> · tag
     </p>
