@@ -78,7 +78,11 @@ final class PrzedawnioneSprawyModeracyjne
 {
     public function posprzataj(int $miesiecyKarencji, bool $naSucho = false): RaportRetencjiSpraw
     {
-        $prog = now()->subMonths($miesiecyKarencji);
+        // `subMonthsNoOverflow`, NIE `subMonths` — ta sama pułapka co
+        // w `PrzedawnionePowiadomienia` (A6-04): przepełnienie daty przesuwa
+        // próg w stronę nowszych wierszy i kasuje je przed czasem.
+        // Pełne uzasadnienie i pomiar są tam, przy oryginalnym znalezisku.
+        $prog = now()->subMonthsNoOverflow($miesiecyKarencji);
 
         [$usunieteOdwolania, $bledyOdwolan] = $this->posprzatajOdwolania($prog, $naSucho);
 
