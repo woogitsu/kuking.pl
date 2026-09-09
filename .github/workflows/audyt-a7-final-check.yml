@@ -6,14 +6,14 @@ on:
     paths: [.github/workflows/audyt-a7-final-check.yml]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PHP_VERSION: '8.4'
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
     services:
       postgres:
@@ -51,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: PostgreSQL dynamiczny port
         run: |
           echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
@@ -62,10 +62,6 @@ jobs:
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: none
           tools: composer:v2
-      - uses: actions/cache@v6
-        with:
-          path: vendor
-          key: a7-final-composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
       - name: Zależności
         run: |
           cp .env.example .env
@@ -74,7 +70,19 @@ jobs:
         run: |
           set -euo pipefail
           for f in docs/zlecenia/dowody-a7/*.php; do php -l "$f"; done
-      - name: Pint dowodów
-        run: vendor/bin/pint --test docs/zlecenia/dowody-a7/*.php
+      - name: Sformatuj dowody Pintem
+        run: vendor/bin/pint docs/zlecenia/dowody-a7/*.php
+      - name: Zapisz formatowanie na gałęzi audytu
+        run: |
+          set -euo pipefail
+          git add docs/zlecenia/dowody-a7/*.php
+          if git diff --cached --quiet; then
+            echo "Pint nie zmienił plików."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "audyt A7: sformatuj skrypty dowodowe Pintem"
+            git push origin HEAD:audit/a7-20260909
+          fi
       - name: Pełne testy PostgreSQL 18
         run: php artisan test --compact
