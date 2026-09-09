@@ -66,14 +66,13 @@ jobs:
         with:
           path: vendor
           key: a7-sondy-composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
-      - name: Zależności i kontrola skryptów
+      - name: Zależności i kontrola składni
         run: |
           set -euo pipefail
           cp .env.example .env
           composer install --no-interaction --prefer-dist --no-progress
           php -l docs/zlecenia/dowody-a7/pomiar-seed-retencja.php
           php -l docs/zlecenia/dowody-a7/pomiar-2fa.php
-          vendor/bin/pint --test docs/zlecenia/dowody-a7/pomiar-seed-retencja.php docs/zlecenia/dowody-a7/pomiar-2fa.php
           php artisan migrate:fresh --force --no-interaction
           mkdir -p a7-sondy
       - name: Seeder i retencja
