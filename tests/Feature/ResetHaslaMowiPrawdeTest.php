@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Support\Poczta;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -95,9 +96,44 @@ class ResetHaslaMowiPrawdeTest extends TestCase
             $this->assertFalse(Poczta::dziala(), "Sterownik „{$niedostarczajacy}” nie dostarcza, a klasa twierdzi inaczej.");
         }
 
-        foreach (['smtp', 'ses', 'postmark', 'resend'] as $dostarczajacy) {
+        // `postmark` i `resend` WYPADŁY Z TEJ LISTY 9 września 2026 i to nie
+        // jest obejście testu, tylko poprawka pomiaru: `composer.json` nie ma
+        // ani `symfony/postmark-mailer`, ani `resend/resend-php`, więc pierwszy
+        // list przy tych sterownikach kończy się „Class not found”. Klasa
+        // odpowiadała na nie „poczta działa”, czyli dokładnie tym kłamstwem,
+        // przed którym broni ekran „Nie pamiętam hasła”. Sprawdza to teraz
+        // `test_sterownik_bez_transportu_nie_uchodzi_za_dzialajacy` niżej.
+        foreach (['smtp', 'ses'] as $dostarczajacy) {
             config(['mail.default' => $dostarczajacy]);
             $this->assertTrue(Poczta::dziala(), "Sterownik „{$dostarczajacy}” dostarcza, a klasa twierdzi inaczej.");
         }
+    }
+
+    /**
+     * DRUGIE PYTANIE, DOŁOŻONE PO AWARII Z 9 WRZEŚNIA: czy transport w ogóle
+     * powstaje.
+     *
+     * Sama nazwa sterownika okazała się za słabym pomiarem dwa razy tego
+     * samego dnia — przy `MAIL_SCHEME=tls` (Symfony nie zna takiego schematu)
+     * i przy sterownikach, których paczek nie ma w projekcie. W obu wypadkach
+     * `MAIL_MAILER` wyglądał poprawnie, a nie dało się wysłać ani jednego
+     * listu.
+     */
+    public function test_sterownik_bez_transportu_nie_uchodzi_za_dzialajacy(): void
+    {
+        // Brakująca paczka dostawcy.
+        config(['mail.default' => 'postmark']);
+        $this->assertFalse(
+            Poczta::dziala(),
+            'Sterownik `postmark` przeszedł kontrolę, choć w `composer.json` nie ma jego paczki. '
+            .'Jeśli paczka DOSZŁA do projektu, dopisz go z powrotem do listy dostarczających wyżej.',
+        );
+
+        // Schemat, którego Symfony nie zna — awaria z 9 września 2026.
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.scheme' => 'tls']);
+        Mail::purge('smtp');
+
+        $this->assertFalse(Poczta::dziala(), 'MAIL_SCHEME=tls nie pozwala zbudować transportu, a klasa twierdzi inaczej.');
+        $this->assertStringContainsString('tls', (string) Poczta::przeszkoda());
     }
 }

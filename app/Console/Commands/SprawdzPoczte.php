@@ -196,6 +196,14 @@ class SprawdzPoczte extends Command
             $wiersze[] = ['Hasło SMTP', $this->czyUstawione((string) config("mail.mailers.{$sterownik}.password"))];
         }
 
+        if ($transport === 'emaillabs') {
+            $wiersze[] = ['Adres API', (string) config('services.emaillabs.endpoint')];
+            $wiersze[] = ['Konto SMTP w API (EMAILLABS_SMTP_ACCOUNT)', $this->pusteJakoMyslnik((string) config('services.emaillabs.smtp_account'))];
+            $wiersze[] = ['Klucz aplikacji (EMAILLABS_APP_KEY)', $this->czyUstawione((string) config('services.emaillabs.key'))];
+            $wiersze[] = ['Klucz autoryzacyjny (EMAILLABS_SECRET_KEY)', $this->czyUstawione((string) config('services.emaillabs.secret'))];
+            $wiersze[] = ['Śledzenie odnośników', config('services.emaillabs.tracking') ? 'WŁĄCZONE' : 'wyłączone (zalecane)'];
+        }
+
         if ($transport === 'postmark') {
             $wiersze[] = ['Klucz Postmarka (POSTMARK_API_KEY)', $this->czyUstawione((string) config('services.postmark.key'))];
         }
@@ -238,11 +246,10 @@ class SprawdzPoczte extends Command
      */
     private function wyjasnijSterownikBezDostawy(string $sterownik): void
     {
-        $opis = match ($sterownik) {
-            'log' => 'Sterownik `log` zapisuje wiadomość do dziennika aplikacji i zgłasza sukces. Nikt jej nie dostanie.',
-            'array' => 'Sterownik `array` trzyma wiadomość w pamięci procesu (używa go suita testów). Nikt jej nie dostanie.',
-            default => 'Zmienna MAIL_MAILER jest pusta, więc Laravel nie ma czym wysyłać.',
-        };
+        // Powód bierzemy z tej samej klasy, która o tym decyduje — inaczej
+        // przy nowym sterowniku ta lista rozjechałaby się z rzeczywistością
+        // i komenda tłumaczyłaby coś innego, niż realnie stoi na drodze.
+        $opis = Poczta::przeszkoda() ?? 'Sterownik „'.$sterownik.'” nie dostarcza wiadomości.';
 
         $this->error('Poczta nie wychodzi i nie ma czego sprawdzać.');
         $this->newLine();
@@ -254,7 +261,9 @@ class SprawdzPoczte extends Command
         $this->newLine();
         $this->line('<options=bold>Co zrobić</>');
         $this->line('  1. Wybierz dostawcę i przejdź krok po kroku przez `docs/infra/POCZTA_URUCHOMIENIE.md`.');
-        $this->line('  2. Ustaw w Railway MAIL_MAILER (`smtp`, `postmark`, `resend` albo `ses`) i resztę zmiennych z tego dokumentu.');
+        $this->line('  2. Ustaw w Railway MAIL_MAILER (na dziś: `emaillabs`) i resztę zmiennych z tego dokumentu.');
+        $this->line('     Uwaga: `smtp` NIE zadziała na planach Railway Free i Hobby — tam ruch SMTP jest wyłączony,');
+        $this->line('     a połączenie nie tyle pada, co wisi bez odpowiedzi. Patrz `docs/DECISIONS.md` D-047.');
         $this->line('  3. Zrestartuj serwisy — konfiguracja jest zapiekana przy starcie kontenera (`php artisan optimize`).');
         $this->line('  4. Uruchom tę komendę jeszcze raz.');
         $this->newLine();
@@ -291,7 +300,30 @@ class SprawdzPoczte extends Command
             }
         }
 
+        if ($transport === 'emaillabs') {
+            $konto = (string) config('services.emaillabs.smtp_account');
+
+            // Kształt `1.nazwa.smtp` bierze się z panelu i ze specyfikacji API
+            // (`smtpAccount`, przykład „1.test.smtp"). Wpisanie tu loginu SMTP
+            // albo samej nazwy konta kończy się odmową dostawcy, której powód
+            // trudno zgadnąć z kodu błędu.
+            if ($konto !== '' && preg_match('/^\d+\..+\.smtp$/', $konto) !== 1) {
+                $ostrzezenia[] = 'EMAILLABS_SMTP_ACCOUNT to `'.$konto.'`, a panel EmailLabs podaje tę wartość w kształcie '
+                    .'`1.nazwa.smtp`. Jeśli wkleiłeś login SMTP zamiast nazwy konta, API odrzuci wysyłkę.';
+            }
+
+            if (config('services.emaillabs.tracking')) {
+                $ostrzezenia[] = 'Śledzenie odnośników jest WŁĄCZONE (EMAILLABS_TRACKING). EmailLabs podmieni wtedy każdy link '
+                    .'w liście na własny adres przekierowujący — także link do zmiany hasła, który przestanie wyglądać na adres kuking.pl. '
+                    .'Dla osoby 60+ to jest kształt phishingu, przed którym ostrzegają banki.';
+            }
+        }
+
         if ($transport === 'smtp') {
+            $ostrzezenia[] = 'Sterownik `smtp` NIE DZIAŁA na planach Railway Free, Trial i Hobby — SMTP jest tam wyłączony. '
+                .'Połączenie nie kończy się błędem, tylko wisi: zadanie w kolejce wchodzi w `RUNNING` i nigdy nie osiąga ani `DONE`, ani `FAIL`. '
+                .'Na tych planach właściwą wartością MAIL_MAILER jest `emaillabs` (docs/DECISIONS.md D-047).';
+
             $host = (string) config("mail.mailers.{$sterownik}.host");
 
             if (in_array($host, ['127.0.0.1', 'localhost', ''], true)) {
@@ -515,6 +547,8 @@ class SprawdzPoczte extends Command
                 'Sprawdź, czy na końcu wartości nie ma spacji — kopiowanie z panelu lubi ją dokleić.',
                 'Po zmianie zmiennej ZRESTARTUJ serwis: konfiguracja jest zapiekana przy starcie kontenera.',
                 'Klucz „do wysyłki” to zwykle inny klucz niż „do API” — sprawdź, że wziąłeś ten pierwszy.',
+                'Przy EmailLabs po API: dane SMTP (login i hasło z sekcji „Konta SMTP”) NIE działają na API. '
+                    .'Potrzebne są dwa klucze z Konto → Ustawienia → API: EMAILLABS_APP_KEY i EMAILLABS_SECRET_KEY.',
             ],
 
             $this->zawiera($komunikat, ['connection could not be established', 'connection refused', 'could not connect', 'timed out', 'timeout', 'network is unreachable', 'name or service not known', 'getaddrinfo', 'no such host']) => [
@@ -522,7 +556,8 @@ class SprawdzPoczte extends Command
                 'Sprawdź MAIL_HOST — literówka w nazwie serwera wygląda dokładnie tak samo jak awaria dostawcy.',
                 'Sprawdź MAIL_PORT: 587 (STARTTLS, MAIL_SCHEME=tls) albo 465 (MAIL_SCHEME=smtps). Port 25 bywa blokowany.',
                 'Jeśli host i port są dobre, dostawca może blokować ruch z tego adresu IP — zajrzyj do jego panelu.',
-                'Warto tu spróbować drugiej drogi: sterowniki `postmark` i `resend` idą przez HTTPS, nie przez porty SMTP.',
+                'Na planach Railway Free, Trial i Hobby port SMTP jest WYŁĄCZONY i nic tego nie obejdzie — '
+                    .'tam jedyną drogą jest sterownik `emaillabs`, który idzie przez HTTPS (docs/DECISIONS.md D-047).',
             ],
 
             $this->zawiera($komunikat, ['ssl', 'tls', 'certificate', 'stream_socket_enable_crypto']) => [
@@ -557,6 +592,7 @@ class SprawdzPoczte extends Command
                 'Postmark: `composer require symfony/postmark-mailer`.',
                 'Resend: `composer require resend/resend-php`.',
                 'Amazon SES: `composer require aws/aws-sdk-php`.',
+                'EmailLabs: NIE wymaga żadnej paczki — transport jest w tym repozytorium (`App\Poczta\TransportEmailLabs`).',
                 'Po dodaniu paczki trzeba przebudować obraz — sam restart serwisu nie wystarczy.',
             ],
 
