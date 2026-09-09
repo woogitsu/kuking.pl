@@ -3,7 +3,9 @@ name: Audyt A7 - UsunGps szybkie mutacje
 on:
   push:
     branches: [audit/a7-20260909]
-    paths: [.github/workflows/audyt-a7-usungps.yml]
+    paths:
+      - .github/workflows/audyt-a7-usungps.yml
+      - docs/zlecenia/dowody-a7/mutacje-usungps-szybkie.php
 
 permissions:
   contents: read
