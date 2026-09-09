@@ -267,6 +267,32 @@ konta ktoś dokończyć musi.
 ## Storage
 
 Kod biznesowy korzysta z Laravel Filesystem.
+### Sterownik dysków R2 to `r2`, nie `s3` (issue #120)
+
+Wbudowany sterownik `s3` wysyła `x-amz-acl` przy **każdym** zapisie, także
+wtedy, gdy nikt o widoczność nie prosił — `AwsS3V3Adapter::upload()` liczy ACL
+zawsze i przy braku widoczności wypada `private`. Na R2 ten nagłówek jest
+nieobsługiwany dla `PutObject`, a Cloudflare nie gwarantuje, jak na niego
+zareaguje. Zależała od tego prywatność oryginałów, czyli plików z pełnym
+EXIF-em.
+
+Dyski `r2`, `r2_publiczne`, `r2_legacy` i `r2_eksporty` chodzą więc na własnym
+sterowniku (`app/Support/Storage/R2Adapter.php`, rejestrowanym w
+`AppServiceProvider`), który:
+
+- zapisuje przez `PutObject` bez `ACL` i bez `Grant*` (powyżej 16 MB —
+  multipartem, też bez ACL: paczki RODO bywają większe niż zdjęcie),
+- kopiuje bez `GetObjectAcl`,
+- rzuca wyjątek przy `setVisibility()`, `getVisibility()` i przy zapisie
+  z jawnie podaną widocznością — bo ciche nic byłoby powtórzeniem błędu,
+  który to zgłoszenie naprawia.
+
+Poza tym jest to ten sam dysk co dotąd: ten sam `S3Client`, te same `url()`
+i `temporaryUrl()`. Kod biznesowy nic o tej zmianie nie wie i nie musi.
+
+Że prawdziwy bucket R2 przyjmie takie żądanie, **nie jest** sprawdzone z tego
+repozytorium — patrz `docs/infra/BRAMKA_R2.md`.
+
 
 Dzięki temu:
 ```text
