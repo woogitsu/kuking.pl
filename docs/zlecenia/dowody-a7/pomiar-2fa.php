@@ -136,10 +136,12 @@ $totp = uruchomPare(
     },
     static function () use ($id, $secret, $kod): bool {
         $u = User::query()->findOrFail($id);
+
         return app(TwoFactorAuthenticator::class)->verifyCode($u, $secret, $kod);
     },
     static function () use ($id, $secret, $kod): bool {
         $u = User::query()->findOrFail($id);
+
         return app(TwoFactorAuthenticator::class)->verifyCode($u, $secret, $kod);
     },
 );
@@ -167,10 +169,12 @@ $backup = uruchomPare(
     },
     static function () use ($id): bool {
         $u = User::query()->findOrFail($id);
+
         return app(TwoFactorAuthenticator::class)->consumeBackupCode($u, 'NIE-MA-GO');
     },
     static function () use ($id, $kodyJawne): bool {
         $u = User::query()->findOrFail($id);
+
         return app(TwoFactorAuthenticator::class)->consumeBackupCode($u, $kodyJawne[7]);
     },
     120,

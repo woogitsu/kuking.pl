@@ -28,8 +28,7 @@ function a7TiffGps(bool $little = true): string
 {
     $short = static fn (int $v): string => pack($little ? 'v' : 'n', $v);
     $long = static fn (int $v): string => pack($little ? 'V' : 'N', $v);
-    $entry = static fn (int $tag, int $type, int $count, int $value) =>
-        $short($tag).$short($type).$long($count).$long($value);
+    $entry = static fn (int $tag, int $type, int $count, int $value) => $short($tag).$short($type).$long($count).$long($value);
 
     $make = "A7Phone\x00";
     $date = "2026:09:09 17:00:00\x00";
@@ -354,7 +353,7 @@ try {
     $wyniki['png_truncated_exif_chunk'] = ['threw' => true, 'error' => get_class($e).': '.$e->getMessage()];
 }
 
-$oversized = "\x89PNG\r\n\x1A\n".pack('N', 0x7fffffff).'JUNK'.'abc';
+$oversized = "\x89PNG\r\n\x1A\n".pack('N', 0x7FFFFFFF).'JUNK'.'abc';
 try {
     $oversizedAfter = UsunGps::zBajtow($oversized);
     $wyniki['png_declared_length_beyond_file'] = [

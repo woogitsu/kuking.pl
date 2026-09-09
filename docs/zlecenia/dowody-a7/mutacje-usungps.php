@@ -160,7 +160,7 @@ $mutants = [
         'id' => 'M15_prefixed_png_webp_not_skipped',
         'description' => 'nie pomija prefiksu Exif\\0\\0 w chunku PNG/WebP',
         'from' => "return substr(\$bajty, \$od, strlen(self::NAGLOWEK)) === self::NAGLOWEK\n            ? \$od + strlen(self::NAGLOWEK)\n            : \$od;",
-        'to' => "return \$od;",
+        'to' => 'return $od;',
     ],
     [
         'id' => 'M16_png_crc_valid_boundary',
@@ -186,6 +186,7 @@ try {
                 'status' => 'INVALID',
                 'reason' => "wzorzec występuje {$count} razy zamiast dokładnie raz",
             ];
+
             continue;
         }
 
@@ -197,6 +198,7 @@ try {
                 'status' => 'INVALID',
                 'reason' => 'podmiana nie zmieniła dokładnie jednego miejsca',
             ];
+
             continue;
         }
 
@@ -214,6 +216,7 @@ try {
                 'targeted_wall_ms' => $targeted['wall_ms'],
                 'targeted_output_tail' => substr($targeted['output'], -4000),
             ];
+
             continue;
         }
 

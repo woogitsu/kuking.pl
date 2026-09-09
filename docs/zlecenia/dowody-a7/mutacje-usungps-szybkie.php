@@ -82,6 +82,7 @@ try {
         $count = substr_count($original, $from);
         if ($count !== 1) {
             $results[] = ['id' => $id, 'description' => $desc, 'status' => 'INVALID', 'occurrences' => $count];
+
             continue;
         }
         file_put_contents($path, str_replace($from, $to, $original, $replaced));
