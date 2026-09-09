@@ -139,5 +139,9 @@
         @endif
     </section>
 
-    <x-ustawienia-nawigacja aktywne="email" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="email" />
+    </x-slot:rail>
 </x-layout>
