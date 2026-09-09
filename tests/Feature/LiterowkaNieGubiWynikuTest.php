@@ -33,6 +33,16 @@ use Tests\TestCase;
  * Osoba, która wpisuje na telefonie jednym palcem, dostawała „nic nie
  * znaleźliśmy" i wyciągała wniosek, że przepisu nie ma. Nie spróbuje drugi
  * raz z inną pisownią — po prostu odejdzie.
+ *
+ * CO SIĘ ZMIENIŁO 9 WRZEŚNIA 2026 (issue #187)
+ * Operatorem wyszukiwarki nie jest już `%` z progiem 0,12, tylko `<%`
+ * (`word_similarity`) z progiem 0,5 — a więc odporność na literówki stoi na
+ * innym mechanizmie niż w dniu, w którym ten plik powstał. Te testy zostają
+ * bez zmian w treści (poza kontrolą niżej), bo pilnują SKUTKU, nie
+ * mechanizmu: literówka ma znajdować przepis i długi tag. To, że przechodzą
+ * po zmianie operatora, jest połową dowodu, że zmiana nie cofnęła tamtej
+ * naprawy. Druga połowa — czego ta zmiana świadomie NIE znajduje —
+ * jest w `TrafnoscWyszukiwarkiTest`.
  */
 class LiterowkaNieGubiWynikuTest extends TestCase
 {
@@ -51,17 +61,38 @@ class LiterowkaNieGubiWynikuTest extends TestCase
     /**
      * KONTROLA W BAZIE. To jest ten sam pomiar, który wykrył błąd — bez niego
      * nie wiadomo, czy test niżej mierzy próg, czy cokolwiek innego.
+     *
+     * ZAKTUALIZOWANE PRZY ISSUE #187. Do 9 września 2026 ten test sprawdzał,
+     * że `similarity('sernik babci haliny', 'sernk')` = 0,18 mieści się nad
+     * progiem 0,12 — bo taki próg trzeba było ustawić operatorowi `%`, który
+     * porównuje frazę z CAŁYM tytułem. Ta liczba nie zniknęła i nadal jest
+     * powodem, dla którego `%` odpadło: żeby literówka w długim tytule miała
+     * szansę, próg musiał zjechać tak nisko, że fraza „sajgonki z krewetkami"
+     * zaczynała znajdować knedle. Dziś ten sam przypadek mierzy operator `<%`
+     * i wychodzi mu 0,67, czyli mieści się nad progiem 0,5 z zapasem.
      */
-    public function test_kontrola_domyslny_prog_postgresa_odrzuca_te_literowke(): void
+    public function test_kontrola_ta_sama_literowka_przy_dwoch_operatorach(): void
     {
-        $podobienstwo = (float) DB::selectOne(
-            "SELECT similarity('sernik babci haliny', 'sernk') AS s",
-        )->s;
+        $miary = DB::selectOne(
+            "SELECT similarity('sernik babci haliny', 'sernk') AS calosc,
+                    word_similarity('sernk', 'sernik babci haliny') AS fragment",
+        );
 
-        // Podobieństwo JEST powyżej progu, który ten projekt uznał za granicę
-        // sensu — więc odrzucenie wyniku nie brało się z podobieństwa.
-        $this->assertGreaterThan(ProgPodobienstwa::PROG, $podobienstwo);
-        $this->assertLessThan(0.3, $podobienstwo, 'Kontrola: przy podobieństwie ponad 0.3 domyślny próg by nie przeszkadzał i test nic nie mierzy.');
+        // DLACZEGO `%` MUSIAŁO ODEJŚĆ: podobieństwo do całego tytułu jest
+        // niskie tylko dlatego, że tytuł jest długi.
+        $this->assertLessThan(
+            0.3,
+            (float) $miary->calosc,
+            'Kontrola: gdyby podobieństwo do całego tytułu było wysokie, ten test nic by nie mierzył.',
+        );
+
+        // DLACZEGO `<%` WYSTARCZA: ta sama literówka wobec najlepiej
+        // pasującego FRAGMENTU tytułu przechodzi próg projektu.
+        $this->assertGreaterThanOrEqual(
+            ProgPodobienstwa::PROG,
+            (float) $miary->fragment,
+            'Literówka przestała mieścić się w progu — wyszukiwarka znów gubi „Sernik babci Haliny”.',
+        );
     }
 
     /** WŁAŚCIWY POMIAR. Literówka w dłuższym tytule trafia. */

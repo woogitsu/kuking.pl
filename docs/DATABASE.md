@@ -1634,6 +1634,20 @@ gałąź trigramowa 118,8 → 81,8 ms przy **identycznym** zbiorze wyników.
 Pełny pomiar, plany zapytań i to, czego ta zmiana NIE naprawia:
 `docs/research/WYDAJNOSC.md` §3.4a.
 
+**AKTUALIZACJA 9 września 2026 (issue #187): tych kolumn i indeksów używa dziś
+INNY OPERATOR.** Wyszukiwarka i podpowiedzi tagów pytają operatorem `<%`
+(`word_similarity`, próg **0,5**, `App\Support\ProgPodobienstwa`), a nie `%`
+z progiem 0,12. Powód jest produktowy, nie kosztowy: `%` mierzy podobieństwo
+frazy do CAŁEGO tytułu, więc przy tak niskim progu „rosół" znajdował
+„Rogaliki", a „sajgonki z krewetkami" — 1 526 wierszy w bazie bez jednej
+sajgonki. **Schemat się przez to nie zmienił i nie było migracji:**
+`gin_trgm_ops` obsługuje oba operatory tym samym indeksem (dla `<%` przez
+komutator `%>`, widać to w `Index Cond`). Zmieniło się natomiast to, co
+indeks oddaje: przy `%` 12–20 tysięcy kandydatów na frazę i recheck
+odrzucający 90% z nich, przy `<%` tyle kandydatów, ile trafień. Pomiar,
+tabela zgubionych trafień i uzasadnienie progu: `docs/research/WYDAJNOSC.md`
+§3.4b. Pilnuje tego `TrafnoscWyszukiwarkiTest`.
+
 **Dlaczego kolumna generowana, a nie zwykła + trigger.** Kolumny generowanej
 nie da się rozjechać ze źródłem: nie ma do niej drogi zapisu. Trigger da się
 wyłączyć, a `UPDATE` z pominięciem triggera zostawiłby wyszukiwarkę szukającą
