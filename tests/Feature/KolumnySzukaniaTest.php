@@ -150,8 +150,12 @@ class KolumnySzukaniaTest extends TestCase
         // czy indeks jest w ogóle UŻYWALNY.
         DB::statement('SET enable_seqscan = off');
 
+        // Operator MUSI być ten sam, którego używa `SearchQuery::KANDYDACI_SQL`
+        // — od issue #187 jest to `<%` (fraza po lewej). Gdyby test dalej pytał
+        // o `%`, sprawdzałby, że indeks obsługuje operator, którego serwis już
+        // nie używa.
         $plan = collect(DB::select(
-            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE title_search % ?',
+            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE ? <% title_search',
             ['pierogi'],
         ))->pluck('QUERY PLAN')->implode("\n");
 
