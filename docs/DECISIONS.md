@@ -1994,3 +1994,59 @@ to pytanie zostaje otwarte dla prawnika i jego odpowiedź może dołożyć wymog
 `app/Models/Report.php` (`jestZgloszeniemPrawnym()`) ·
 `app/Domain/Moderation/OdpowiedzDlaZglaszajacego.php` ·
 `docs/legal/COMPLIANCE.md` §1.2 · `docs/research/DSA-LUKI.md` §5 · D-040
+
+---
+
+## D-043 · Kopia poza Railwayem robi osobny serwis Railway, nie scheduler aplikacji
+
+**Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**,
+wykonanie zablokowane przez #120 (bramka R2)
+
+> **Rozstrzyga sprzeczność w istniejącym planie, nie dokłada nowej warstwy.**
+> `docs/infra/INFRA_DECISION.md` §10 zakładał trzy warstwy kopii i trzeciej —
+> zrzutu `pg_dump` poza Railwayem — nie da się uruchomić tam, gdzie tamten
+> dokument ją umieścił.
+
+Trzecia warstwa mieszka w **osobnym, minimalnym serwisie Railway**
+uruchamianym harmonogramem: `pg_dump` → szyfrowanie → R2. Praca opisana
+w #193.
+
+**DLACZEGO NIE W KONTENERZE APLIKACJI — TO NIE JEST WYGODA, TYLKO ŚCIANA.**
+`docker/php.ini` ma `disable_functions=...,proc_open,...`, a `pg_dump` wołany
+z PHP potrzebuje dokładnie `proc_open` (`Symfony\Process`). To nie jest
+przeoczenie: `routes/console.php` używa wyłącznie `Schedule::call()`, a jedyne
+dwa wystąpienia `Schedule::command()` w tym pliku stoją w komentarzu
+zaczynającym się od „UWAGA — NIE UŻYWAMY GO TUTAJ", który podaje tę samą
+przyczynę i dopisuje, że na produkcji kończyło się to natychmiastowym błędem. Osłabienia tego hardeningu zabrania
+`AGENTS.md`, więc „zrzut na schedulerze" nie jest do naprawienia — jest do
+przeniesienia.
+
+**DLACZEGO NIE GITHUB ACTIONS**, mimo że to najtańsze i nie wymaga nowego
+serwisu: produkcyjne poświadczenie do bazy musiałoby trafić do sekretów
+GitHuba. Powstałaby **druga kopia najwrażliwszego klucza, w innym systemie
+niż baza**. Wybrany wariant trzyma poświadczenie wewnątrz Railwaya i łączy
+się po sieci wewnętrznej.
+
+**DLACZEGO NIE RĘCZNIE RAZ W TYGODNIU.** Bo zależy od tego, że człowiek
+pamięta. Przy jednoosobowej obsłudze to jest obietnica, która łamie się po
+trzech tygodniach — a łamie się cicho.
+
+**DLACZEGO W OGÓLE TRZECIA WARSTWA, SKORO RAILWAY ROBI KOPIE SAM.** Bo Volume
+Backups i PITR leżą **w tym samym miejscu, co baza**. Utrata konta, pomyłka
+w panelu albo awaria po stronie dostawcy zabiera jednocześnie bazę i obie jej
+kopie. Warstwa offsite istnieje dokładnie na ten jeden scenariusz.
+
+**CO JEST WAŻNIEJSZE OD SAMEGO ZRZUTU.** Dwie rzeczy, obie w kryteriach #193:
+**alarm, gdy zrzut nie powstanie** (backup, który po cichu przestał się robić,
+jest gorszy niż jego brak, bo daje fałszywe poczucie bezpieczeństwa), oraz
+**jedno prawdziwe odtworzenie z tej warstwy**, wpisane do tabeli w
+`KOPIE_I_ODTWORZENIE.md` §5. Zrzut, którego nikt nigdy nie odtworzył, nie
+jest kopią — to plik, o którym się zakłada, że jest kopią.
+
+**CO CHRONI NAS DO TEGO CZASU.** Volume Backups (Daily + Weekly) i PITR
+w Railwayu — pod warunkiem, że są **włączone**, co jest pytaniem do panelu,
+nie do repozytorium (`KOPIE_I_ODTWORZENIE.md` §2.3, pytania 1 i 2).
+
+📄 `docs/infra/INFRA_DECISION.md` §10 · `docs/infra/KOPIE_I_ODTWORZENIE.md`
+§2.1, §2.3, §5 · `docs/OTWARCIE.md` etap 0 · `docker/php.ini` ·
+`routes/console.php` · #193 · #120 · audyt A6, bramka A6-07
