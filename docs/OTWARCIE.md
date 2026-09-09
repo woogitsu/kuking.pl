@@ -13,17 +13,22 @@ Audyt A6 nazywa to bramkami A6-06 i A6-07 i nie da się ich zamknąć kodem.
 ## Kolejność i dlaczego właśnie taka
 
 ```
-ETAP 0  kopia bazy ────────────┐
-        (~30 min)              │  blokuje wszystko, co pisze do produkcji
+ETAP 2  R2 (bucket) ───────────┐  ← przesunięty do przodu: zrzut
+        (kilka godzin)         │    z etapu 0 nie ma gdzie lądować
+                               ▼
+ETAP 0  kopia bazy (#193) ─────┐
+        automat, nie panel     │  blokuje wszystko, co pisze do produkcji
                                ▼
 ETAP 1  poczta ───────────► ETAP 4  treść zalążkowa
-        (~20 min + DNS)                (wdrożenie z db:seed)
-                               ▲
-ETAP 2  R2 ────────────────────┘
-        (kilka godzin)         blokuje wystawienie cdn.kuking.pl
+        API HTTPS, nie SMTP            (wdrożenie z db:seed)
 
 ETAP 3  reszta bramki (A6-06) — równolegle, nic nie blokuje
 ```
+
+**Kolejność zmieniła się 9 września po południu** i to jest zmiana na gorsze,
+nie na lepsze: etap 0 okazał się zależny od etapu 2, bo Railway nie robi kopii
+na tym planie. Etap 1 też się zmienił — SMTP jest na Free i Hobby wyłączony,
+więc poczta idzie przez API HTTPS.
 
 **Etap 0 jest pierwszy nie z ostrożności, tylko dlatego, że od PR-a #174
 wdrożenie na produkcję woła `db:seed --force`.** Następne wdrożenie zapisze
@@ -37,6 +42,17 @@ udowodnił, że ta procedura działa. Jedno ćwiczenie załatwia obie sprawy.
 ---
 
 ## ETAP 0 — kopia i ćwiczenie odtworzenia
+
+> ⚠️ **SPROSTOWANIE, 9 września po południu.** Ten etap napisałem przy
+> założeniu, że Railway robi kopie sam i wystarczy przeklikać dwa przełączniki.
+> **Nieprawda: Volume Backups i PITR są tylko w planie Pro**, a Kuking jest na
+> Free i przechodzi na Hobby. Dziś nie ma **żadnej** kopii bazy.
+>
+> Etap 0 zaczyna się więc nie od panelu, tylko od **#193** — zautomatyzowanego
+> zrzutu poza Railwayem, który przestał być „trzecią warstwą" i jest jedyną.
+> Potrzebuje miejsca do lądowania, czyli bucketu z etapu 2; R2 ma darmowy
+> pułap 10 GB, więc koszt nie jest tu przeszkodą. Do czasu wykonania #193
+> **każda utrata bazy jest bezpowrotna** — patrz D-043.
 
 **Gdzie:** `docs/infra/KOPIE_I_ODTWORZENIE.md` §4 (ćwiczenie), §5 (tabela wyniku).
 
