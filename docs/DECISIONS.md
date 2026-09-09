@@ -1942,7 +1942,192 @@ wdrożeniu Sentry — nie ma powodu go kasować.
 
 ---
 
-## D-042 · „Napisz do nas" to strona pod własnym adresem, nie dymek w rogu
+## D-042 · Zgłaszający ze zwykłego formularza dostaje pouczenie, nie formularz skargi
+
+**Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+> **Rozstrzyga pytanie zadane w PR #186, żeby nie wracało.** Ten sam wybór
+> stawał już pod trzema nazwami: „Luka 1" w issue #10, „czy art. 20 obejmuje
+> zgłaszających" w `docs/research/DSA-LUKI.md` §5 i pytanie autora #186.
+> Odpowiedź jest jedna i stoi tutaj.
+
+Osoba, która zgłasza treść przyciskiem „Zgłoś", dostaje z DSA art. 16:
+potwierdzenie przyjęcia z numerem sprawy (ust. 4), informację o decyzji
+(ust. 5) i przy niej **pouczenie o dostępnych środkach**. Nie dostaje
+formalnego wewnętrznego systemu rozpatrywania skarg. Ten zostaje —
+tak jak dotąd — przy zgłoszeniach prawnych (`Report::jestZgloszeniemPrawnym()`).
+
+**DLACZEGO TO NIE JEST OSZCZĘDZANIE NA LUDZIACH.** Wewnętrzny system skarg
+to art. 20 DSA, a art. 20 leży w **Sekcji 3**, z której Kuking jest zwolniony
+jako małe przedsiębiorstwo (art. 19; kwalifikacja przez D-040 i
+`docs/legal/COMPLIANCE.md` §1.2). Art. 16 leży w Sekcji 2 i wiąże niezależnie
+od wielkości — i jest spełniony. Pouczenie mówi człowiekowi, co może zrobić
+dalej: podaje numer sprawy, adres kontaktowy, zdanie o organie pozasądowym
+i o sądzie. To nie jest odesłanie z kwitkiem.
+
+**DLACZEGO NIE OTWORZYLIŚMY TEGO „PRZY OKAZJI", SKORO KOD JUŻ JEST.**
+Bo koszt nie leży w kodzie. `FileReporterAppeal` istnieje i zdjęcie z niego
+jednego warunku to praca na jeden PR. Kosztem jest **druga kolejka spraw
+do rozpatrzenia przez jedną osobę** — a `docs/product/SOUL.md` i teza 2
+z audytu A6 mówią to samo: jednoosobowa obsługa musi mieć jawny limit,
+nie ukrytą obietnicę dyżuru. Obietnica rozpatrzenia skargi, na którą nie ma
+czasu, jest gorsza niż jej brak.
+
+**CO BY TO ZMIENIŁO.** Gdyby prawnik uznał, że zwolnienie z Sekcji 3 nie
+obejmuje tej sytuacji, zakres jest znany i policzony: zdjąć warunek
+`jestZgloszeniemPrawnym()` z `FileReporterAppeal` i dać zgłaszającemu
+z kontem wejście na istniejący formularz. Ta decyzja nie zamyka tamtej drogi,
+tylko mówi, że dziś nią nie idziemy.
+
+**CZEGO TA DECYZJA NIE ROZSTRZYGA.** Nie rozstrzyga, czy zgłoszenie ze
+zwykłego formularza jest w ogóle „zawiadomieniem o treści nielegalnej"
+w rozumieniu art. 16, czy tylko zgłoszeniem naruszenia regulaminu. Nasza
+lista powodów miesza jedno z drugim: „spam" to nasza zasada, ale „mowa
+nienawiści" i „dotyczy dziecka" to zarzuty nielegalności. Postąpiliśmy
+najostrożniej — odpowiedź i pouczenie idą do **wszystkich** zgłaszających,
+niezależnie od wybranego powodu, bo nadmiar odpowiedzi nikomu nie szkodzi,
+a jej brak jest naruszeniem. **Kwalifikacji prawnej nie rozstrzyga model** —
+to pytanie zostaje otwarte dla prawnika i jego odpowiedź może dołożyć wymogi
+(termin odpowiedzi, informacja o użyciu narzędzi automatycznych).
+
+📄 `app/Domain/Moderation/Actions/FileReporterAppeal.php` ·
+`app/Models/Report.php` (`jestZgloszeniemPrawnym()`) ·
+`app/Domain/Moderation/OdpowiedzDlaZglaszajacego.php` ·
+`docs/legal/COMPLIANCE.md` §1.2 · `docs/research/DSA-LUKI.md` §5 · D-040
+
+---
+
+## D-043 · Kopia poza Railwayem robi osobny serwis Railway, nie scheduler aplikacji
+
+**Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**,
+wykonanie zablokowane przez #120 (bramka R2)
+
+> **Rozstrzyga sprzeczność w istniejącym planie, nie dokłada nowej warstwy.**
+> `docs/infra/INFRA_DECISION.md` §10 zakładał trzy warstwy kopii i trzeciej —
+> zrzutu `pg_dump` poza Railwayem — nie da się uruchomić tam, gdzie tamten
+> dokument ją umieścił.
+
+Trzecia warstwa mieszka w **osobnym, minimalnym serwisie Railway**
+uruchamianym harmonogramem: `pg_dump` → szyfrowanie → R2. Praca opisana
+w #193.
+
+**DLACZEGO NIE W KONTENERZE APLIKACJI — TO NIE JEST WYGODA, TYLKO ŚCIANA.**
+`docker/php.ini` ma `disable_functions=...,proc_open,...`, a `pg_dump` wołany
+z PHP potrzebuje dokładnie `proc_open` (`Symfony\Process`). To nie jest
+przeoczenie: `routes/console.php` używa wyłącznie `Schedule::call()`, a jedyne
+dwa wystąpienia `Schedule::command()` w tym pliku stoją w komentarzu
+zaczynającym się od „UWAGA — NIE UŻYWAMY GO TUTAJ", który podaje tę samą
+przyczynę i dopisuje, że na produkcji kończyło się to natychmiastowym błędem. Osłabienia tego hardeningu zabrania
+`AGENTS.md`, więc „zrzut na schedulerze" nie jest do naprawienia — jest do
+przeniesienia.
+
+**DLACZEGO NIE GITHUB ACTIONS**, mimo że to najtańsze i nie wymaga nowego
+serwisu: produkcyjne poświadczenie do bazy musiałoby trafić do sekretów
+GitHuba. Powstałaby **druga kopia najwrażliwszego klucza, w innym systemie
+niż baza**. Wybrany wariant trzyma poświadczenie wewnątrz Railwaya i łączy
+się po sieci wewnętrznej.
+
+**DLACZEGO NIE RĘCZNIE RAZ W TYGODNIU.** Bo zależy od tego, że człowiek
+pamięta. Przy jednoosobowej obsłudze to jest obietnica, która łamie się po
+trzech tygodniach — a łamie się cicho.
+
+**DLACZEGO W OGÓLE TRZECIA WARSTWA, SKORO RAILWAY ROBI KOPIE SAM.** Bo Volume
+Backups i PITR leżą **w tym samym miejscu, co baza**. Utrata konta, pomyłka
+w panelu albo awaria po stronie dostawcy zabiera jednocześnie bazę i obie jej
+kopie. Warstwa offsite istnieje dokładnie na ten jeden scenariusz.
+
+**CO JEST WAŻNIEJSZE OD SAMEGO ZRZUTU.** Dwie rzeczy, obie w kryteriach #193:
+**alarm, gdy zrzut nie powstanie** (backup, który po cichu przestał się robić,
+jest gorszy niż jego brak, bo daje fałszywe poczucie bezpieczeństwa), oraz
+**jedno prawdziwe odtworzenie z tej warstwy**, wpisane do tabeli w
+`KOPIE_I_ODTWORZENIE.md` §5. Zrzut, którego nikt nigdy nie odtworzył, nie
+jest kopią — to plik, o którym się zakłada, że jest kopią.
+
+**CO CHRONI NAS DO TEGO CZASU.** Volume Backups (Daily + Weekly) i PITR
+w Railwayu — pod warunkiem, że są **włączone**, co jest pytaniem do panelu,
+nie do repozytorium (`KOPIE_I_ODTWORZENIE.md` §2.3, pytania 1 i 2).
+
+📄 `docs/infra/INFRA_DECISION.md` §10 · `docs/infra/KOPIE_I_ODTWORZENIE.md`
+§2.1, §2.3, §5 · `docs/OTWARCIE.md` etap 0 · `docker/php.ini` ·
+`routes/console.php` · #193 · #120 · audyt A6, bramka A6-07
+
+---
+
+## D-044 · „Podziel się": arkusz systemowy nad jawną listą, bez Messengera w wersji podstawowej
+
+**Data:** 9 września 2026 · **Decyzja właściciela (mechanizm) + pomiar (lista dróg)** ·
+Status: **obowiązuje**
+
+### Mechanizm — decyzja właściciela
+
+Na telefonie jeden duży przycisk „Podziel się" otwiera **arkusz systemu**
+(`navigator.share`) — tam człowiek widzi swojego Messengera, WhatsAppa
+i SMS-y. Na komputerze i wszędzie tam, gdzie tego arkusza nie ma, stoi
+**jawna lista** dróg plus adres do skopiowania. **Zawsze widać coś, co
+działa** — nigdy pusty przycisk, nigdy „twoja przeglądarka nie obsługuje".
+
+Kolejność warstw wynika z `AGENTS.md` §5 i jest odwrotna, niż podpowiada
+intuicja: `navigator.share` jest JavaScriptem z definicji, więc **wersją
+podstawową, renderowaną przez serwer, jest jawna lista**, a arkusz jest
+ulepszeniem nałożonym na ten sam przycisk.
+
+### Czego NIE ma na jawnej liście i dlaczego (zmierzone 9 września 2026)
+
+| Droga | Wynik pomiaru | Decyzja |
+|---|---|---|
+| `wa.me/?text=…` | 200, przekierowanie na `api.whatsapp.com/send/?text=…&type=custom_url` | **jest** — działa bez żadnej rejestracji |
+| `mailto:?subject=…&body=…` | zawsze | **jest** |
+| `facebook.com/sharer/sharer.php?u=…` | 200, przekierowanie na `facebook.com/share_channel/?type=reshare&link=…&app_id=966242223397117` — Facebook podstawia WŁASNY `app_id` | **jest**, opisane uczciwie jako „wstawisz na swoją tablicę" |
+| `facebook.com/dialog/send` (Messenger, wyślij osobie) | bez `app_id` kończy się na `facebook.com/login` — okno wysyłania w ogóle się nie otwiera | **nie ma** |
+| `fb-messenger://share?link=…` | protokół aplikacji: na komputerze bez Messengera przeglądarka pokazuje błąd nieznanego protokołu | **nie ma** |
+| `sms:?body=…` | na telefonie działa, na komputerze najczęściej nie robi nic | **nie ma** |
+
+**Messengera nie da się dziś dać jako linku bez zarejestrowania własnej
+aplikacji na Facebooku** (`app_id` + weryfikacja domeny + regulamin Meta).
+To jest pytanie do właściciela, nie do agenta — więc funkcja jest zbudowana
+tak, że Messenger i tak działa tam, gdzie ludzie z niego korzystają
+naprawdę: w arkuszu systemowym na telefonie.
+
+**Decyzja do podjęcia przez właściciela:** czy zakładamy aplikację na
+Facebooku, żeby dołożyć „Wyślij w Messengerze" także na komputerze.
+Koszt: konto dewelopera Meta, weryfikacja domeny i utrzymanie
+`app_id` w konfiguracji. Zysk: jedna droga więcej dla osób, które
+Messengera używają na laptopie.
+
+### Przy jakiej treści przycisk się pokazuje
+
+Wyłącznie przy treści, którą zobaczy **ktoś bez konta** — pyta o to
+`Gate::forUser(null)->allows('view', …)`, czyli te same `PostPolicy`
+i `RecipePolicy`, co całe wejście na stronę. Wpis „tylko dla obserwujących"
+i „tylko dla mnie" przycisku nie dostaje **nawet u własnego autora**:
+wysłany adres pokazałby odbiorcy 403, a autor byłby przekonany, że coś
+wysłał. Autor widzi w tym miejscu jedno zdanie mówiące, co zrobić.
+
+Blokada między dwiema osobami **nie** zmienia tego, co wolno wysłać —
+przepis dalej jest publiczny dla całej reszty świata, a zablokowany i tak
+nie zobaczy strony, więc do przycisku nie dojdzie.
+
+### Nazwa przycisku
+
+`BRAND_EXTENDED.md` §1.2 zakazuje „Podziel się" jako etykiety **publikacji
+dania** (tam jest „Opublikuj"). To jest inna czynność — wysłanie linku poza
+serwis — i właściciel wybrał dla niej właśnie „Podziel się", bo tak nazywa
+się ta rzecz w Facebooku, czyli tam, gdzie nasza grupa nauczyła się jej
+używać. Zakaz z tabeli zostaje w mocy dla publikacji.
+
+**Zmiana wymaga:** wyniku testów z osobami 50+ (#15) mówiącego, że „Podziel
+się" przy cudzym przepisie jest mylone z publikowaniem u siebie — albo
+decyzji właściciela o założeniu aplikacji na Facebooku (wtedy dochodzi
+Messenger).
+
+📄 `app/Domain/Sharing/Udostepnianie.php` ·
+`resources/views/components/podziel-sie.blade.php` ·
+`resources/js/app.js` · `tests/Feature/PodzielSieTest.php` ·
+`docs/FEATURES.md`
+
+---
+
+## D-045 · „Napisz do nas" to strona pod własnym adresem, nie dymek w rogu
 
 **Data:** 9 września 2026 · Status: **obowiązuje**
 

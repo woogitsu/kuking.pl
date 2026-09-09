@@ -269,6 +269,113 @@ zgrubna, nie zmierzona) daje rząd 150–300 ms na wyszukanie hasła — to już
 zauważalne opóźnienie dla akcji, która ma być natychmiastowa. Zobacz issue
 otwarte w §5.
 
+#### 3.4a AKTUALIZACJA 9 września 2026 — pomiar na dziesięć razy większej bazie i CO Z TEGO WYSZŁO INACZEJ
+
+> Ta sekcja nie poprawia liczb wyżej — one zostają takie, jakie zmierzono.
+> Poprawia **diagnozę**, bo pomiar na większej bazie jej nie potwierdził.
+
+**Warunki.** PostgreSQL 16.13 (ten sam kontener, `SELECT version()`),
+osobna baza `kuking_pomiar_szukania`: **10 000 kont, 40 000 przepisów,
+80 000 wpisów, 80 000 składników, 80 blokad**. Dane z fabryk, tytuły ze
+słownika 150 polskich dań z diakrytykami. Bufory ciepłe (pierwszy przebieg
+odrzucany), mediana z 5 przebiegów `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`,
+`Planning + Execution`. Maszyna dzielona z innymi sesjami — między
+przebiegami widać ±10% rozrzutu, więc liczby poniżej mają sens jako rzędy
+wielkości i jako różnica PRZED/PO mierzona **obok siebie w tej samej sesji**,
+a nie jako wartości bezwzględne z dokładnością do dziesiątej milisekundy.
+
+**Co się nie potwierdziło.**
+
+1. **„`OR` w `WHERE` blokuje indeks trigramowy" — nie jako reguła.**
+   Próba kontrolna to `SearchQuery::people()`, która `OR` ma do dziś: trzy
+   warunki `LIKE` na trzech kolumnach `profiles`. PostgreSQL składa z nich
+   `BitmapOr` z trzech `Bitmap Index Scan` i tabeli nie czyta (7,6 ms przy
+   10 000 profili). Rozstrzyga nie słowo `OR`, tylko to, czy wszystkie
+   człony siedzą na **jednej tabeli**. Stary `recipes()` miał czwarty człon
+   jako skorelowany `EXISTS` na `recipe_ingredients` — takiego składnika
+   `BitmapOr` przyjąć nie może, więc cała alternatywa spadała do `Filter`
+   na pełnym skanie. To jest prawdziwa treść tamtej obserwacji.
+
+2. **„Koszt rośnie z liczbą kont" — nie na tej skali.** Przy 10 000 kont
+   `users` nie steruje niczym: jest budowaną raz stroną `Hash Join`
+   (9 500 wierszy, ~2–3 ms). Plan z §3.4, w którym `users` jest sterownikiem
+   pętli, nie odtworzył się ani razu.
+
+**Co się potwierdziło — objaw, nie mechanizm.** Koszt naprawdę rośnie
+z rozmiarem tabeli `recipes`, tylko z zupełnie innego powodu, niż zgadywało
+issue. Indeksy trigramowe **są używane** (`Bitmap Index Scan` we wszystkich
+czterech gałęziach `UNION ALL`). Problem jest o krok dalej: indeks GIN dla
+operatora `%` jest **stratny**, więc każdy kandydat sprawdzany jest po raz
+drugi na wierszu tabeli — a przy progu podobieństwa 0,12
+(`App\Support\ProgPodobienstwa`) kandydatów jest bardzo dużo:
+
+| fraza | kandydaci z indeksu | zostaje po rechecku | czas gałęzi |
+|---|---:|---:|---:|
+| `pierogi` | 17 644 | 1 783 | 118,8 ms |
+| `żurek` | 24 080 | 776 | 151,2 ms |
+| `ser` | 15 160 | 360 | 105,5 ms |
+| `xyzqva` | 0 | 0 | 0,1 ms |
+
+Czyli: dla frazy, która **cokolwiek** trafia, PostgreSQL przepuszcza przez
+recheck 35–60% tabeli i dla każdego wiersza liczy `kuking_normalize()`
+(`unaccent()` po słowniku) od nowa. Dla frazy, która nie trafia nic
+(`xyzqva`), całe zapytanie kosztuje ~1 ms — więc „koszt niezależny od liczby
+trafień" też nie jest prawdą w tej ostrej formie.
+
+**Drugi, osobny przypadek: fraza 2-znakowa.** `LIKE '%ry%'` nie da się
+obsłużyć indeksem trigramowym (dwa znaki to zero trigramów). Plan spada
+wtedy do `Parallel Seq Scan on recipes`, a na `recipe_ingredients` do skanu
+indeksu oddającego **wszystkie 80 000 wierszy** i rechecku każdego z nich.
+To jedyny zmierzony przypadek, w którym indeks jest naprawdę pomijany —
+i wchodzi w grę, bo `SearchController` przepuszcza frazy od 2 znaków.
+
+**Co z tym zrobiono.** Znormalizowany tekst przeniesiono do kolumn
+generowanych `*_search` (migracja
+`2026_09_09_100000_materialize_search_columns`), a indeksy GIN stoją teraz
+na kolumnach, nie na wyrażeniu. Recheck czyta gotowy tekst, zamiast liczyć
+`unaccent()` raz na wiersz. Zmierzone obok siebie, ta sama baza, ta sama
+sesja, `SearchQuery::recipes()` / `::people()` w całości:
+
+| fraza | przed | po |
+|---|---:|---:|
+| `ser` | 225,5 ms | 149,3 ms |
+| `ry` (2 znaki) | 292,2 ms | 146,9 ms |
+| `pierogi` | 160,0 ms | 119,1 ms |
+| `pierogi z kapusta i grzybami` | 192,5 ms | 154,0 ms |
+| `żurek` | 178,7 ms | 118,6 ms |
+| `gołąbki` | 140,7 ms | 93,6 ms |
+| `sernk` (literówka) | 122,0 ms | 84,0 ms |
+| `xyzqva` (nic nie znajduje) | 1,19 ms | 1,00 ms |
+| `people('ry')` | 67,7 ms | 10,0 ms |
+| `people('pierogi')` | 8,8 ms | 5,3 ms |
+| `people('pierogi z kapusta i grzybami')` | 0,50 ms | **3,12 ms** |
+
+**Jedna pozycja jest gorsza i tak ma zostać zapisane.** Przy długiej frazie
+`people()` przestaje wybierać `BitmapOr` i idzie `Seq Scan on profiles`:
+filtr po kolumnie jest tani, więc kosztorys skanu sekwencyjnego spadł
+PONIŻEJ kosztorysu ścieżki indeksowej i planner zmienił zdanie. 2,5 ms
+różnicy przy 10 000 profili, ale rośnie liniowo z liczbą kont. Zostawione
+świadomie: to samo uproszczenie filtra daje przy frazie 2-znakowej
+67,7 → 10,0 ms, czyli bilans na `people()` jest dodatni.
+
+**Trafność sprawdzona osobno.** 26 fraz × 2 metody (dania, literówki, brak
+diakrytyków, wielkie litery, składniki, imię, nazwa konta, fraza bez trafień,
+frazy 2-znakowe): zbiór wyników i ich kolejność **identyczne co do wiersza**
+przed i po. To jest zmiana kosztu, nie wyszukiwarki.
+
+**Czego ta zmiana NIE naprawia — i dlaczego to osobna sprawa.** Rekordzistą
+w koszcie zostaje recheck 17–24 tysięcy kandydatów, tylko dwa razy tańszy.
+Mechanizm zostaje: liczba kandydatów wynika z progu 0,12 przy operatorze `%`,
+który mierzy podobieństwo do CAŁEGO tytułu. Zmierzony wariant: operator
+`<%` (`word_similarity`, próg domyślny 0,6) na tym samym indeksie GIN daje
+dla `pierogi` **777 wierszy w 7,3 ms zamiast 17 644 kandydatów w 118 ms**,
+zachowuje literówkę (`word_similarity('sernk', 'sernik babci haliny')`
+= 0,67 przy progu 0,6) i wycina śmieci (dzisiejsze `%` przy 0,12 zwraca
+21 „wyników" na frazę `sajgonki z krewetkami`, których w bazie nie ma
+wcale; `<%` zwraca zero w 0,95 ms). To jest jednak zmiana TRAFNOŚCI, czyli
+decyzja produktowa — a `AGENTS.md` §10 mówi wprost, żeby nowych pomysłów
+nie doklejać do niepowiązanego PR-a. Należy jej osobne issue z tymi liczbami.
+
 ### 3.5 Panel moderacji (replika `ModerationController::reports`)
 
 Wzorcowe zapytanie. `WHERE status = 'open'` trafia w indeks częściowy

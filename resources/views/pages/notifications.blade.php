@@ -125,6 +125,29 @@
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
                                 Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
                                 @break
+                            @case(\App\Models\Notification::TYPE_REPORT_RECEIVED)
+                                {{-- POTWIERDZENIE PRZYJĘCIA ZGŁOSZENIA
+                                     (DSA art. 16 ust. 4, issue #10). Numer
+                                     sprawy jest tu, a nie tylko na karcie
+                                     sprawy: to jest to, co człowiek poda,
+                                     pisząc do nas. --}}
+                                <strong>Mamy Twoje zgłoszenie.</strong>
+                                Numer sprawy {{ $data['numer_sprawy'] ?? '' }}.
+                                Sprawdzimy je i napiszemy, co postanowiliśmy.
+                                @break
+                            @case(\App\Models\Notification::TYPE_REPORT_DECIDED)
+                                {{-- ROZSTRZYGNIĘCIE ZGŁOSZENIA (DSA art. 16
+                                     ust. 5, issue #10). Skutek jest zamrożony
+                                     w `data` — dotyczy TAMTEJ decyzji i ma
+                                     brzmieć tak samo za rok. Pouczenie stoi
+                                     na karcie sprawy, bo niesie AKTUALNY
+                                     adres kontaktowy. --}}
+                                <strong>{{ $data['naglowek'] ?? 'Mamy decyzję w sprawie Twojego zgłoszenia.' }}</strong>
+                                {{ $data['reszta'] ?? '' }}
+                                <br>
+                                <span>Numer sprawy {{ $data['numer_sprawy'] ?? '' }}.
+                                    Co możesz zrobić dalej, jeśli się z nami nie zgadzasz — napisaliśmy na karcie sprawy.</span>
+                                @break
                             @case(\App\Models\Notification::TYPE_MODERATION)
                                 {{-- Nagłówek mówi, CO SIĘ STAŁO, a pod nim idzie treść
                                      napisana przez moderatora. Starsze powiadomienia

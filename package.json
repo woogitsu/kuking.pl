@@ -12,6 +12,7 @@
         "axe-core": "^4.13.0",
         "concurrently": "^10.0.3",
         "laravel-vite-plugin": "^3.1",
+        "lighthouse": "^13.4.1",
         "playwright": "^1.63.0",
         "railway": "^3.11.0",
         "tailwindcss": "^4.0.0",

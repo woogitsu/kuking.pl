@@ -50,7 +50,7 @@ Zwolnione (dopóki Kuking spełnia progi mikro/małego przedsiębiorstwa i nie z
 
 ### 1.3 Co to oznacza praktycznie — minimalny zestaw DSA dla Kuking na start
 
-1. Formularz zgłaszania treści spełniający Art. 16 (nie tylko ikonka flagi — patrz `MODERATION.md`, już to zakłada).
+1. Formularz zgłaszania treści spełniający Art. 16 (nie tylko ikonka flagi — patrz `MODERATION.md`, już to zakłada) **wraz z odpowiedzią dla zgłaszającego: potwierdzeniem przyjęcia (ust. 4) i informacją o decyzji z pouczeniem o dostępnych środkach (ust. 5)**. To są osobne obowiązki od samego formularza i obowiązują obie drogi zgłoszenia — z kontem i bez (issue #10, `docs/MODERATION.md`, „Co dostaje ZGŁASZAJĄCY”).
 2. Szablon uzasadnienia decyzji (Art. 17) — patrz `MODERATION_PLAYBOOK.md`, sekcja szablonów.
 3. Procedura eskalacji do organów ścigania przy podejrzeniu przestępstwa zagrażającego życiu (Art. 18) — patrz zero-tolerancja CSAM.
 4. Punkty kontaktowe w regulaminie (Art. 11, 12) i regulamin w prostym języku (Art. 14).

@@ -543,7 +543,7 @@ jobs:
           retention-days: 5
 
   # ===========================================================================
-  #  4b. Dostępność — axe-core na 23 ekranach w 4 wariantach
+  #  4b. Dostępność (axe-core) + wydajność i SEO (Lighthouse) — issue #26
   # ===========================================================================
   #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Repozytorium jest
   #  prywatne, więc każda minuta Actions kosztuje; ten job podnosi przeglądarkę
@@ -554,13 +554,34 @@ jobs:
   #  `./scripts/check.sh --dostepnosc` — a o rzeczach, o których trzeba
   #  pamiętać, się zapomina. Trzy usterki, które ten automat złapał przy
   #  pierwszym uruchomieniu, siedziały w kodzie miesiącami.
+  #
+  #  DLACZEGO LIGHTHOUSE JEST TU DOŁOŻONY, A NIE W OSOBNYM JOBIE
+  #  Ten job w chwili, gdy dochodzi do kroku „Lighthouse" niżej, ma JUŻ
+  #  postawioną bazę PostgreSQL, PHP, Node, `composer install` + `npm ci`
+  #  i ŚCIĄGNIĘTE Chromium (krok „Przeglądarka"). Osobny job „Lighthouse"
+  #  powtarzałby WSZYSTKO powyższe od zera, żeby na końcu zrobić to samo,
+  #  co ten już zrobił — koszt to samo `flock` na `apt` (patrz krok
+  #  „Przeglądarka" niżej) i te same 1,5–2 minuty konfiguracji NA KAŻDYM
+  #  PR-ze, tylko po to, żeby postawić drugi raz dokładnie ten sam serwer.
+  #  Lighthouse jedzie więc na TEJ SAMEJ przeglądarce Playwrighta i na TEJ
+  #  SAMEJ, już wysianej bazie — bez ponownego `migrate:fresh --seed`
+  #  (`POMIN_MIGRACJE=1` w kroku „Lighthouse" niżej; pełne uzasadnienie
+  #  w nagłówku `scripts/wydajnosc.mjs`).
+  #
+  #  DLACZEGO LIGHTHOUSE NIE MIERZY TU DOSTĘPNOŚCI
+  #  Kategoria „Accessibility" Lighthouse'a liczy się tym samym silnikiem
+  #  co krok axe-core wyżej (axe-core pod spodem) — drugi przebieg
+  #  dokładałby te same naruszenia WCAG, tylko wolniej. Ten krok liczy
+  #  WYŁĄCZNIE `performance` i `seo` — to, czego nie mierzy nic innego
+  #  w tym repozytorium. Progi (70 / 85) są z pomiaru lokalnego, nie
+  #  z głowy — uzasadnienie liczb w nagłówku `scripts/wydajnosc.mjs`.
   # ===========================================================================
   dostepnosc:
-    name: Dostępność (axe-core)
+    name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -715,18 +736,52 @@ jobs:
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
-      - name: axe-core (23 ekrany × 4 warianty)
+      - name: axe-core (25 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
-      - name: Zapis wyniku
+      - name: Zapis wyniku (dostępność)
         if: always() && steps.zmiany.outputs.warto == '1'
         uses: actions/upload-artifact@v7
         with:
           name: dostepnosc-${{ github.sha }}
           path: storage/dostepnosc.json
+          retention-days: 14
+
+      # ---------------------------------------------------------------------
+      #  LIGHTHOUSE — WYDAJNOŚĆ I SEO (issue #26, druga połowa)
+      # ---------------------------------------------------------------------
+      #  Pełne uzasadnienie umiejscowienia (ten sam job, nie osobny) i progów
+      #  (70 / 85, z pomiaru, nie z głowy) stoi w nagłówku `scripts/wydajnosc.mjs`
+      #  i w komentarzu przy tym joobie wyżej. Krótko tutaj:
+      #
+      #  `!cancelled()`, NIE `always()` — krok ma pojechać, nawet gdy axe-core
+      #  wyżej ZAKOŃCZYŁ SIĘ BŁĘDEM (naruszenia dostępności nie psują ani bazy,
+      #  ani zbudowanych assetów, na których stoi Lighthouse), ale NIE wtedy,
+      #  gdy job został ANULOWANY (nowy push do tego samego PR-a — `concurrency`
+      #  na górze pliku). Gdy wcześniejszy krok („Przeglądarka", `npm run build`)
+      #  faktycznie nie doszedł do końca, ten krok i tak pojedzie i sam
+      #  ZAWIEDZIE na brakującym Chromium/assetach — czytelny czerwony wynik,
+      #  bez dodatkowego warunku do pilnowania w dwóch miejscach naraz.
+      #
+      #  `POMIN_MIGRACJE=1`, BEZ `ADRES` — baza jest już wysiana przez
+      #  `dostepnosc.mjs` chwilę wyżej, w TYM SAMYM joobie; skrypt sam stawia
+      #  DRUGI `php artisan serve` (własny, dynamiczny port — pierwszy serwer
+      #  axe-core już zamknął swój) na tych samych, gotowych danych.
+      - name: Lighthouse (wydajność i SEO)
+        if: steps.zmiany.outputs.warto == '1' && !cancelled()
+        env:
+          POMIN_MIGRACJE: '1'
+        run: node scripts/wydajnosc.mjs
+
+      - name: Zapis wyniku (wydajność)
+        if: always() && steps.zmiany.outputs.warto == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: wydajnosc-${{ github.sha }}
+          path: storage/wydajnosc.json
           retention-days: 14
 
   # ===========================================================================

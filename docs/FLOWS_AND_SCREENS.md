@@ -104,6 +104,36 @@ Ustawienia
 → proces zgodny z retention
 ```
 
+## Zgłoszenie i odpowiedź (DSA art. 16)
+
+Zalogowany, zgłoszenie „naszych zasad”:
+
+```text
+Treść
+→ Zgłoś
+→ powód + kilka słów
+→ Wyślij
+→ karta sprawy z numerem (/zgloszenia/{id})
+→ powiadomienie „Mamy Twoje zgłoszenie”
+→ (moderator rozstrzyga)
+→ powiadomienie „decyzja” + pouczenie na karcie sprawy
+```
+
+Bez konta, zgłoszenie treści niezgodnej z prawem:
+
+```text
+Stopka
+→ Zgłoś nielegalną treść
+→ adres + uzasadnienie + dobra wiara
+→ Wyślij
+→ ekran z numerem sprawy + list potwierdzający
+→ (moderator rozstrzyga)
+→ list z decyzją, pouczeniem i podpisanym linkiem do odwołania
+```
+
+Zgłaszający nigdy nie dowiaduje się, kogo i jak ukarano — patrz
+`docs/MODERATION.md`, „Co dostaje ZGŁASZAJĄCY”.
+
 ## Mapa ekranów MVP
 
 Public:
@@ -131,6 +161,7 @@ App:
 - `/recipes/{id}/cook`
 - `/collections`
 - `/notifications`
+- `/zgloszenia`, `/zgloszenia/{id}` — własne zgłoszenia i karta sprawy
 - `/settings/profile`
 - `/settings/accessibility`
 - `/settings/privacy`

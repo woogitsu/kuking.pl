@@ -2987,3 +2987,130 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---------------------------------------------------------------------------
+   „PODZIEL SIĘ" — wysłanie przepisu albo wpisu znajomym
+
+   Wygląd tego bloku jest podporządkowany jednej rzeczy: to, co widać BEZ
+   JavaScriptu, ma być pełnowartościowe. Jawna lista dróg (WhatsApp, e-mail,
+   Facebook) i adres w polu tekstowym to warstwa podstawowa; arkusz systemowy
+   (`navigator.share`) tylko przejmuje kliknięcie w ten sam przycisk.
+
+   Przycisk rozwijający ma `--text-body-lg` i 3.5 rem wysokości z `.btn-duzy`,
+   czyli powyżej wymaganych 48 px także wtedy, gdy napis zmieści się w jednym
+   wierszu (docs/UX_50_PLUS.md).
+   --------------------------------------------------------------------------- */
+.podziel-sie {
+  margin-top: var(--spacing-6);
+}
+
+/* `summary` udaje przycisk: musi mieć jego rozmiar dotykowy i nie może
+   pokazywać domyślnego trójkąta rozwijania — ten sam zabieg co w `.confirm`. */
+.podziel-sie-przycisk {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Na wąskim ekranie pełna szerokość — to jest ten „jeden duży przycisk"
+     z decyzji właściciela. Od 40 rem wraca do swojej naturalnej szerokości,
+     bo przycisk rozciągnięty na 700 px wygląda jak pasek, nie jak przycisk. */
+  width: 100%;
+}
+
+@media (min-width: 40rem) {
+  .podziel-sie-przycisk {
+    width: auto;
+  }
+}
+
+.podziel-sie-przycisk::-webkit-details-marker {
+  display: none;
+}
+
+.podziel-sie-tresc {
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-raised);
+  max-width: 32rem;
+}
+
+.podziel-sie-wstep {
+  margin: 0 0 var(--spacing-4);
+}
+
+.podziel-sie-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--spacing-3);
+}
+
+/* Każda droga to jeden duży cel: nazwa serwisu w pierwszym wierszu, zdanie
+   o tym, co się stanie po kliknięciu — w drugim. Bez tego zdania „Facebook"
+   znaczy dla części odbiorców „wyślij wiadomość", a znaczy „wstaw na tablicę". */
+.podziel-sie-droga {
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: var(--spacing-1);
+}
+
+.podziel-sie-droga-nazwa {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+/* 16 px wolno tu, bo tekst NIE stoi sam: nad nim jest nazwa serwisu
+   o rozmiarze podstawowym, która niesie treść (docs/design/DESIGN_SYSTEM.md). */
+.podziel-sie-droga-opis {
+  font-size: var(--text-help);
+  font-weight: 400;
+  color: var(--color-ink-muted);
+}
+
+/* Adres jest dłuższy niż szerokość pola przy 390 px (zmierzone: urywał się
+   na „http://…/przepi…"), a ma być CZYTELNY, nie tylko zaznaczalny — stąd
+   pole wielowierszowe zamiast jednowierszowego. `min-height` z `.field-input`
+   dla `textarea` to 8 rem, czyli tyle, ile ma pole na przepis; tu wystarczą
+   dwa wiersze i mają rosnąć razem ze skalą tekstu. */
+.podziel-sie-adres {
+  min-height: 0;
+  resize: none;
+  overflow-wrap: anywhere;
+}
+
+.podziel-sie-kopiuj {
+  margin-top: var(--spacing-4);
+}
+
+/* `display: inline-flex` z `.btn` WYGRYWA ze zwykłym `[hidden]` przeglądarki.
+   Bez tej linijki przycisk „Skopiuj adres" — który odsłania dopiero skrypt —
+   byłby widoczny także przy wyłączonym JavaScripcie i nic by nie robił.
+   Ten sam problem i to samo rozwiązanie co w `.wybor-wygladu[hidden]`. */
+.podziel-sie-kopiuj[hidden] {
+  display: none;
+}
+
+.podziel-sie-echo {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* Pusty obszar `aria-live` zostaje w drzewie dokumentu (inaczej czytnik
+   ekranu nie ogłosi wpisanej później treści), ale nie ma prawa zajmować
+   miejsca, dopóki jest pusty. */
+.podziel-sie-echo:not(:empty) {
+  margin-top: var(--spacing-3);
+}
+
+/* Zdanie dla autora treści, której nie da się wysłać. Nie jest błędem,
+   więc nie ma koloru błędu — jest wyjaśnieniem. */
+.podziel-sie-niedostepne {
+  margin-top: var(--spacing-6);
+  color: var(--color-ink-muted);
+}

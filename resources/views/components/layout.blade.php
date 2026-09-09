@@ -449,6 +449,17 @@
                      spełnia — a przez chwilę dokładnie taki był: istniał
                      pod adresem, którego nikt nie miał prawa znać. --}}
                 <a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a>
+                {{-- Wejście na własne sprawy (issue #10, DSA art. 16 ust. 4
+                     i 5). Potwierdzenie przyjęcia i decyzja przychodzą
+                     powiadomieniem, ale powiadomienie da się przeoczyć i po
+                     trzech miesiącach kasuje je retencja — sprawa żyje
+                     trzydzieści sześć. Bez stałego odnośnika człowiek, który
+                     zgubił powiadomienie, nie miałby jak wrócić do numeru
+                     sprawy. Tylko dla zalogowanych: gość nie ma tu żadnych
+                     spraw, a odnośnik prowadziłby na ekran logowania. --}}
+                @if($user)
+                    <a href="{{ route('reports.mine') }}">Twoje zgłoszenia</a>
+                @endif
 
                 {{-- Wersja: etap produktu, DATA I GODZINA WYDANIA, skrót
                      wdrożonego commita. Widoczna zawsze, żeby dało się jednym

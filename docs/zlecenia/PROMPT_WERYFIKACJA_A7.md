@@ -9,19 +9,53 @@ niezależnie od agenta, który pisał kod.
 
 ## 0. Po co to zlecenie i dlaczego akurat teraz
 
-9 września w `main` weszło **osiem scaleń w jeden dzień**, w tym cztery poprawki
-bezpieczeństwa i prywatności, z których każda ruszała kod wrażliwy:
+9 września w `main` weszło **trzynaście scaleń w jeden dzień** (plus jedno
+otwarte, #184), w tym cztery poprawki bezpieczeństwa i prywatności, z których
+każda ruszała kod wrażliwy.
 
-| commit | co zmieniło |
-|---|---|
-| `dd37872` | webhook błędów przestał wysyłać treść wyjątku (A6-01) |
-| `7af3879` | `UsunGps` — **ręczna manipulacja bajtami** PNG/WebP/JPEG (A6-02) |
-| `e572743` | 2FA — `lockForUpdate()` w transakcji, zużycie TOTP i kodów (A6-03) |
-| `2e1b882` | retencja — `subMonthsNoOverflow` w trzech klasach (A6-04) |
-| `aee5c35` | CSS: sześć poprawek układu przy powiększonej czcionce |
-| `9ec662f` | **`db:seed --force` w pre-deploy**, czyli zapis do produkcyjnej bazy |
-| `6e8dea9` | dokumenty o zwolnieniu z Sekcji 3 DSA |
-| `a338522` | dokumenty o funkcjach oznaczonych jako przyszłe |
+**Sześć zmian dotyka kodu — na nich skup uwagę:**
+
+| commit | PR | co zmieniło |
+|---|---|---|
+| `dd37872` | #175 | webhook błędów przestał wysyłać treść wyjątku (A6-01) |
+| `7af3879` | #176 | `UsunGps` — **ręczna manipulacja bajtami** PNG/WebP/JPEG (A6-02) |
+| `e572743` | #177 | 2FA — `lockForUpdate()` w transakcji, zużycie TOTP i kodów (A6-03) |
+| `2e1b882` | #178 | retencja — `subMonthsNoOverflow` w trzech klasach (A6-04) |
+| `aee5c35` | #162 | CSS: sześć poprawek układu przy powiększonej czcionce |
+| `940f6db` | #163 | strona główna — przekaz nad zgięciem na laptopie (CSS + Blade) |
+
+**Jedna zmiana dotyka wdrożenia i jest najgroźniejsza z całej listy:**
+
+| commit | PR | co zmieniło |
+|---|---|---|
+| `9ec662f` | #174 | **`db:seed --force` w pre-deploy**, czyli zapis do produkcyjnej bazy |
+
+**Siedem zmian to dokumenty, konfiguracja CI i same testy.** Nie pomijaj ich
+w A7-2: dokument, który kłamie o kodzie, jest w tym repozytorium traktowany
+jak usterka, a test dopisany bez łatki jest dokładnie tym rodzajem dowodu,
+który A6 kazał sprawdzać dwa razy.
+
+| commit | PR | co zmieniło |
+|---|---|---|
+| `bb90ce0` | #171 | CI — trzy runnery dzieliły jedną maszynę, naprawa `pcntl` |
+| `a338522` | #172 | dokumenty o funkcjach oznaczonych jako przyszłe (G16) |
+| `6e8dea9` | #173 | dokumenty o zwolnieniu z Sekcji 3 DSA (G17) |
+| `e941e44` | #179 | dwa ostatnie rozjazdy dokumentów z kodem + **to zlecenie** |
+| `d290deb` | #182 | dokumenty produktowe kontra gotowy ekran „Komuś wyszło” (#17) |
+| `946444e` | #183 | **sam test**, bez łatki: endpoint uploadu Livewire (#111) |
+| `03fb152` | #184 | `FEATURES.md` nie wymieniało wspomnień (reszta G16) — **PR otwarty, sprawdź, czy scalony** |
+
+`946444e` zasługuje na szczególną nieufność: to PR, który **nie zmienia ani
+linii kodu produkcyjnego**. Jego autor twierdzi, że łatka na issue #111 już
+była w `main`, wniesiona wcześniejszym commitem `680ef24`, do którego nie
+podpięto żadnego issue. Sprawdź jedno i drugie: czy łatka tam jest, i czy
+dopisany test naprawdę byłby czerwony bez niej.
+
+To nie jest odosobniony przypadek i dlatego jest ważny. Tego dnia cztery
+kolejne issues sprawdzone przez agentów okazały się **już zrobione**, bez
+żadnego śladu w liście zadań. Jeżeli w trakcie A7-2 natkniesz się na kolejne
+takie, wypisz je — pomiar „ile z tego backlogu jest nieprawdziwe” jest wart
+tyle samo co znaleziona usterka.
 
 Wszystkie mają testy napisane **przez tego samego agenta, który pisał łatki**.
 To jest dokładnie ta konfiguracja, w której poprzedni audyt (A6) znalazł cztery
@@ -31,7 +65,8 @@ systemu. Najostrzejszy przykład z tamtego raportu — plik
 rzucając wyjątek z komunikatem, który sam napisał.
 
 **Zlecenie nie prosi o kolejny przegląd całego repozytorium.** Prosi o cztery
-pomiary, których nie ma, i o jedno adwersarialne czytanie ośmiu diffów.
+pomiary, których nie ma, i o jedno adwersarialne czytanie czternastu diffów
+(sześć to kod, jeden to wdrożenie, siedem to dokumenty, CI i same testy).
 
 ---
 
@@ -78,9 +113,9 @@ rzetelność, i priorytetyzuj w tej kolejności:
 z nich są prawdziwą dziurą w teście, a które równoważne semantycznie. Sam
 mutation score bez tej oceny jest bezużyteczny.
 
-### A7-2. Adwersarialne czytanie ośmiu dzisiejszych diffów
+### A7-2. Adwersarialne czytanie czternastu dzisiejszych diffów
 
-Dla każdego z ośmiu commitów z §0 odpowiedz na jedno pytanie: **co musiałoby
+Dla każdego commita z §0 odpowiedz na jedno pytanie: **co musiałoby
 być prawdą, żeby ta łatka była zła, i czy to jest prawdą?**
 
 Miejsca, w których sam bym się siebie bał, wypisane uczciwie:

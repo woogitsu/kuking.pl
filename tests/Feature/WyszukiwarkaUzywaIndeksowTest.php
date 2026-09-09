@@ -152,7 +152,7 @@ class WyszukiwarkaUzywaIndeksowTest extends TestCase
         DB::disableQueryLog();
 
         $glowne = collect($zapytania)->first(
-            fn (array $q): bool => str_contains($q['query'], 'kuking_normalize(title)'),
+            fn (array $q): bool => str_contains($q['query'], 'title_search'),
         );
 
         $this->assertNotNull($glowne, 'Nie znalazłem głównego zapytania wyszukiwarki.');
