@@ -56,8 +56,11 @@ $partial = [
 ];
 
 // -------------------------------------------------------------------------
-// 2. Idempotencja, gdy po pierwszym przebiegu konto przykładowe zniknie,
-// a przed drugim prawdziwy użytkownik zajmie tę samą nazwę "basia".
+// 2. Kolizja nazwy między przebiegami. Pierwsze konto przykładowe nie może
+// zostać po prostu skasowane, bo jego recipe_versions mają RESTRICT na editor_id.
+// Zmieniamy więc wyłącznie jego publiczną nazwę na techniczną, czym zwalniamy
+// naturalny klucz "basia", a potem prawdziwy użytkownik zajmuje ten klucz.
+// Drugi przebieg ma rozpoznać kolizję i nie ruszyć człowieka.
 // -------------------------------------------------------------------------
 fresh();
 app(TrescZalazkowaSeeder::class)->run();
@@ -72,7 +75,7 @@ $basiaSeed = DB::table('profiles')->whereRaw('lower(username) = ?', ['basia'])->
 if ($basiaSeed === null) {
     throw new RuntimeException('Pierwszy przebieg nie utworzył profilu basia.');
 }
-DB::table('users')->where('id', $basiaSeed->user_id)->delete();
+DB::table('profiles')->where('user_id', $basiaSeed->user_id)->update(['username' => 'basia_seed_a7']);
 
 $humanId = (string) Str::uuid();
 $teraz = now();
@@ -108,6 +111,7 @@ $po = [
     'exception' => $bladDrugiego,
     'profiles_username_basia' => (int) DB::table('profiles')->whereRaw('lower(username) = ?', ['basia'])->count(),
     'basia_is_human' => DB::table('users')->where('id', $humanId)->where('is_seeded', false)->exists(),
+    'old_seed_basia_still_exists' => DB::table('users')->where('id', $basiaSeed->user_id)->where('is_seeded', true)->exists(),
     'seeded_users' => (int) DB::table('users')->where('is_seeded', true)->count(),
     'recipes' => (int) DB::table('recipes')->count(),
     'posts' => (int) DB::table('posts')->count(),
