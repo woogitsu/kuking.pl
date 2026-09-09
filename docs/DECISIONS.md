@@ -2642,7 +2642,7 @@ patrz sekcja o JavaScripcie wyżej; to jest zamknięcie drzwi, nie wzmocnienie.
 
 ---
 
-## D-051 · Zdjęcie profilowe ma własny, krótki ekran `/ustawienia/zdjecie` — pole zostało z formularza profilu PRZENIESIONE, nie skopiowane
+## D-054 · Zdjęcie profilowe ma własny, krótki ekran `/ustawienia/zdjecie` — pole zostało z formularza profilu PRZENIESIONE, nie skopiowane
 
 **Data:** 9 września 2026 · **Prośba właściciela** · Status: **obowiązuje**
 

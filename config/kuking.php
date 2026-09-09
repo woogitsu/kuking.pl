@@ -902,7 +902,7 @@ return [
          * ZDJĘCIE PROFILOWE (`POST /ustawienia/zdjecie`) — OSOBNO OD `ustawienia`.
          *
          * KLUCZ NAZYWA SIĘ `ustawienia_profil` ZE WZGLĘDÓW HISTORYCZNYCH:
-         * do wydzielenia osobnego ekranu (D-051) pole pliku stało w formularzu
+         * do wydzielenia osobnego ekranu (D-054) pole pliku stało w formularzu
          * `/ustawienia/profil` i limit pilnował tamtej trasy. Pole się
          * przeniosło, więc limit przeniósł się razem z nim — a zapis profilu
          * bez zdjęcia to znowu zwykły UPDATE jednego wiersza i wrócił do
