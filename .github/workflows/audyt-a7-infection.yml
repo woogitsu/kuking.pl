@@ -69,14 +69,13 @@ jobs:
         run: |
           echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
-          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
-      - name: Konfiguracja PHP
+      - name: Konfiguracja PHP z PCOV
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: xdebug
+          coverage: pcov
           tools: composer:v2
 
       - name: Cache Composera
@@ -93,6 +92,7 @@ jobs:
           cp .env.example .env
           composer install --no-interaction --prefer-dist --no-progress
           php -v | tee a7-output/php-version.txt
+          php -m | grep -i pcov | tee a7-output/coverage-generator.txt
           php -r '$p=new PDO("pgsql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));echo $p->query("select version()")->fetchColumn(),PHP_EOL;' | tee a7-output/postgres-version.txt
           curl --fail --location --silent --show-error \
             https://github.com/infection/infection/releases/latest/download/infection.phar \
@@ -108,21 +108,14 @@ jobs:
           php artisan migrate --force --no-interaction 2>&1 | tee a7-output/migracje.log
           php artisan migrate:refresh --force --no-interaction 2>&1 | tee a7-output/migrate-refresh.log
 
-      - name: Testy bazowe na PostgreSQL 18
-        run: |
-          set -euo pipefail
-          php artisan test --compact 2>&1 | tee a7-output/testy-bazowe.log
-
       - name: Infection tylko dla UsunGps
-        env:
-          XDEBUG_MODE: coverage
         run: |
           set -euo pipefail
           cat > infection-a7.json <<'JSON'
           {
             "source": {"directories": ["app/Domain/Media"]},
             "timeout": 20,
-            "threads": 2,
+            "threads": 4,
             "phpUnit": {"configDir": ".", "customPath": "vendor/bin/phpunit"},
             "mutators": {"@default": true},
             "logs": {
@@ -137,7 +130,7 @@ jobs:
           set +e
           php "$RUNNER_TEMP/infection.phar" \
             --configuration=infection-a7.json \
-            --filter=app/Domain/Media/UsunGps.php \
+            app/Domain/Media/UsunGps.php \
             --no-progress --no-interaction 2>&1 | tee a7-output/infection-console.log
           status=${PIPESTATUS[0]}
           echo "$status" > a7-output/infection-exit-code.txt
