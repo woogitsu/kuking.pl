@@ -167,20 +167,53 @@ async function podnies_serwer() {
   // Czekamy na warunek (serwer odpowiada), nie na sztywny czas — ten sam
   // powód co w `dostepnosc.mjs`: na wolnej maszynie stały `sleep` daje
   // losowo czerwony wynik, który wygląda jak regresja.
+  // ROZRÓŻNIAMY DWIE ZUPEŁNIE RÓŻNE AWARIE, bo jedna z nich potrafi
+  // zasłonić drugą na cały wieczór.
+  //
+  // 9 września 2026 ten krok w CI zgłaszał „Brak odpowiedzi z /health przez
+  // 30 s", a w tym samym logu stało kilkadziesiąt wpisów pokazujących, że
+  // serwer wstał i odpowiadał po 0,06 ms. Odpowiadał BŁĘDEM: `/health`
+  // sprawdza wykonane migracje, a baza nie była zmigrowana. Komunikat
+  // opisywał więc ciszę, której nie było, i wskazywał na `artisan serve`,
+  // który działał bez zarzutu. Szukanie prawdziwej przyczyny zaczęło się od
+  // odrzucenia dwóch fałszywych hipotez.
+  //
+  // Dlatego zapamiętujemy OSTATNIĄ odpowiedź, jaka przyszła, i mówimy
+  // wprost, czy serwer milczał, czy odmówił.
+  let ostatniStatus = null;
+  let ostatniaTresc = '';
+
   for (let i = 0; i < 60 && umarl === null; i++) {
     try {
       const odp = await fetch(`${adres}/health`);
       if (odp.ok) {
         return { adres, zamknij: () => proces.kill('SIGTERM') };
       }
-    } catch { /* jeszcze nie wstał */ }
+
+      ostatniStatus = odp.status;
+      ostatniaTresc = (await odp.text().catch(() => '')).slice(0, 500);
+    } catch { /* jeszcze nie wstał — to jest ta druga, prawdziwa cisza */ }
     await new Promise((r) => setTimeout(r, 500));
   }
 
   proces.kill('SIGKILL');
+
+  let powod;
+
+  if (umarl !== null) {
+    powod = `Proces zakończył się kodem ${umarl}.\n`;
+  } else if (ostatniStatus !== null) {
+    powod = `Serwer WSTAŁ i odpowiadał, ale /health zwracał HTTP ${ostatniStatus} przez 30 s.\n`
+      + 'To NIE jest awaria `artisan serve` — to aplikacja mówi, że nie jest gotowa.\n'
+      + 'Najczęstsza przyczyna: niezmigrowana baza (healthcheck pyta o wykonane migracje).\n'
+      + `Treść odpowiedzi /health:\n${ostatniaTresc}\n`;
+  } else {
+    powod = 'Brak JAKIEJKOLWIEK odpowiedzi z /health przez 30 s — serwer nie zaczął słuchać.\n';
+  }
+
   throw new Error(
     `Nie udało się podnieść „php artisan serve" na porcie ${port}.\n`
-    + (umarl !== null ? `Proces zakończył się kodem ${umarl}.\n` : 'Brak odpowiedzi z /health przez 30 s.\n')
+    + powod
     + dziennik.join(''),
   );
 }
