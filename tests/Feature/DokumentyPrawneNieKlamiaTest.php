@@ -261,6 +261,13 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
                 (int) config('kuking.notifications.retention_months'),
                 '',
             ],
+            // „Napisz do nas" — kontakt z operatorem. Kotwicą jest nazwa
+            // kategorii z pierwszej kolumny, tak jak przy pozostałych.
+            'wiadomości do nas' => [
+                'Wiadomości do nas przez formularz',
+                (int) config('kuking.kontakt.retention_months'),
+                ' od załatwienia sprawy',
+            ],
         ];
 
         foreach ($okresy as $nazwa => [$kotwica, $miesiecy, $dopisek]) {

@@ -156,6 +156,28 @@ const EKRANY = [
   { nazwa: 'zgłoś treść niezgodną z prawem', adres: '/zglos-nielegalna-tresc' },
 
   /*
+   * „Napisz do nas" — formularz kontaktu z operatorem.
+   *
+   * MIERZONY JAKO GOŚĆ, bo dla gościa przede wszystkim istnieje: najczęstsza
+   * wiadomość na starcie brzmi „nie mogę się zalogować".
+   *
+   * Jest tu z konkretnego powodu, nie dla kompletu listy. To był pierwszy
+   * kandydat na DYMEK PRZYKLEJONY DO ROGU EKRANU — a element o stałej pozycji
+   * jest klasycznym źródłem przewijania w bok i zasłaniania treści przy
+   * 320 px i przy czcionce przeglądarki podkręconej do 200% (WCAG 1.4.10
+   * i 2.4.11; w tym repozytorium issues #80 i #162). Rozwiązaniem był zwykły
+   * odnośnik w stopce i w nawigacji zamiast dymka — a to jest miejsce,
+   * w którym ten wybór da się UTRZYMAĆ: gdyby ktoś kiedyś dołożył tu element
+   * `position: fixed`, pomiar układu niżej to zobaczy.
+   *
+   * Ekran potwierdzenia (`/napisz-do-nas/dziekujemy`) świadomie NIE jest na
+   * liście: bez wysłanego formularza nie ma czego pokazać poza zdaniem
+   * „nie mamy jak odpisać", a pusty ekran przechodzi każdy test dostępności,
+   * nie sprawdzając niczego (patrz nagłówek pliku).
+   */
+  { nazwa: 'napisz do nas (gość)', adres: '/napisz-do-nas' },
+
+  /*
    * Odwołanie od decyzji moderacyjnej (issue #10). DemoSeeder NIE tworzy
    * żadnej `ModerationAction`, więc bez tego bloku ten ekran nie miałby
    * czego pokazać — pusty/404 ekran przechodzi każdy test dostępności, nie
@@ -210,6 +232,10 @@ const EKRANY_UKLADU = [
   // to jest układ, który przy 320 px i tekście 140% ma najwięcej okazji,
   // żeby wypchnąć stronę w bok.
   { nazwa: 'kolejność i wygląd zdjęć', adres: null, znajdz: 'wpis:carousel:zdjecia', zalogowany: true },
+  // „Napisz do nas" widziane przez ZALOGOWANEGO — inny układ niż dla gościa
+  // (jest nawigacja boczna, pasek dolny i o jedno pole mniej), więc inne
+  // szanse na wypchnięcie strony w bok. Sam axe mierzy wariant gościa wyżej.
+  { nazwa: 'napisz do nas (zalogowany)', adres: '/napisz-do-nas', zalogowany: true },
 ];
 
 /**
