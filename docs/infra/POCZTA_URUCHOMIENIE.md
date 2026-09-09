@@ -260,6 +260,12 @@ i adresu odbiorcy tam celowo nie ma**, bo ten komunikat trafia do `failed_jobs`.
 > `DONE`, ani `FAIL`. Zmierzone 9 września 2026. Jeśli jesteś na Free albo
 > Hobby — wróć do §2A. Ten opis zostaje jako gotowa droga na potem, bo od
 > planu Pro jest poprawny i wtedy nie wymaga ani linijki kodu.
+>
+> Dwie rzeczy, które trzeba wiedzieć, gdyby plan kiedyś się zmienił:
+> **po przejściu na Pro trzeba jeszcze raz wdrożyć serwis**, żeby SMTP zaczął
+> wychodzić (mówi to wprost dokumentacja Railwaya) — a sam Railway i tak
+> **rekomenduje usługi po HTTPS na wszystkich planach**, nie tylko tam, gdzie
+> SMTP jest zablokowany.
 
 **Czas: ~20 minut pracy + do godziny na rozejście się DNS. Zero zmian w kodzie
 i zero zmian w `.railway/railway.ts`** — sterownik `smtp` i `MAIL_SCHEME:
@@ -896,7 +902,7 @@ z wyprzedzeniem:
 - `App\Support\Poczta` — czym serwis mierzy „poczta działa”
 - `App\Poczta\TransportEmailLabs` — transport z §2A, razem z odesłaniami do dokumentacji API
 - `App\Console\Commands\SprawdzPoczte` — komenda z §5
-- [Railway — Outbound Networking (SMTP tylko od planu Pro)](https://docs.railway.com/reference/outbound-networking) — sprawdzone 2026-09-09
+- [Railway — Outbound Networking → Email delivery (SMTP tylko od planu Pro, na Free/Trial/Hobby wyłączone)](https://docs.railway.com/networking/outbound-networking#email-delivery) — sprawdzone 2026-09-09
 - [EmailLabs — specyfikacja OpenAPI](https://apidocs.emaillabs.io/openapi.json) · [uwierzytelnienie](https://vercom.gitbook.io/emaillabs-api-docs/authentication) · [kształt odpowiedzi](https://vercom.gitbook.io/emaillabs-api-docs/introduction) · [generowanie kluczy API](https://docs.emaillabs.io/konto/ustawienia/api/generowanie-kluczy-api) — sprawdzone 2026-09-09
 - [EmailLabs — rejestracja](https://panel.emaillabs.net.pl/pl/register) · [cennik](https://emaillabs.io/cennik-v2/) · [konto — brak karty, rozliczenie fakturą](https://docs.emaillabs.io/faq/konto) · [SPF/DKIM](https://emaillabs.io/en/secure-email-delivery/) — wszystkie sprawdzone 2026-09-08
 - [Brevo — rejestracja](https://app.brevo.com/account/register) · [cennik](https://www.brevo.com/pricing/) · [SPF/DKIM setup](https://easydmarc.com/blog/brevo-ex-sendinblue-spf-dkim-setup/) — sprawdzone 2026-09-08

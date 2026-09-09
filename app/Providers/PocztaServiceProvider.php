@@ -8,6 +8,7 @@ use App\Poczta\BrakKonfiguracjiEmailLabs;
 use App\Poczta\TransportEmailLabs;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 
 /**
@@ -101,6 +102,8 @@ class PocztaServiceProvider extends ServiceProvider
             throw BrakKonfiguracjiEmailLabs::zlyAdresApi('EMAILLABS_ENDPOINT');
         }
 
+        $dziennik = $this->app->make('log');
+
         return new TransportEmailLabs(
             kluczAplikacji: $kluczAplikacji,
             kluczAutoryzacji: $kluczAutoryzacji,
@@ -112,8 +115,9 @@ class PocztaServiceProvider extends ServiceProvider
             // chce dyspozytora PSR-14, a Laravel ma własny (`Illuminate`),
             // i to Laravel — nie Symfony — rozgłasza `MessageSending`
             // i `MessageSent`. Tak samo robią wbudowane sterowniki Laravela.
-            // Dziennik podajemy, bo `LogManager` jest zgodny z PSR-3.
-            logger: $this->app->make('log'),
+            // Dziennik podajemy, bo `LogManager` jest zgodny z PSR-3 — ale
+            // sprawdzamy to, zamiast zakładać: kontener oddaje tu `mixed`.
+            logger: $dziennik instanceof LoggerInterface ? $dziennik : null,
         );
     }
 }

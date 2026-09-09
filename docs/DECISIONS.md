@@ -2306,8 +2306,10 @@ Laravela przez `Mail::extend()` w `App\Providers\PocztaServiceProvider`.
 Dokumentacja Railwaya mówi wprost: *„SMTP is only available on the Pro plan
 and above. Free, Trial, and Hobby plans must use transactional email services
 with HTTPS APIs. SMTP is disabled on these plans to prevent spam and abuse."*
-Właściciel jest na planie Free i przechodzi na Hobby — **obie blokady
-obowiązują**.
+([docs.railway.com/networking/outbound-networking#email-delivery](https://docs.railway.com/networking/outbound-networking#email-delivery),
+sprawdzone 9 września 2026.) Właściciel jest na planie Free i przechodzi na
+Hobby — **obie blokady obowiązują**. Ta sama strona dodaje, że usługi po HTTPS
+są rekomendowane **na wszystkich planach**, także tam, gdzie SMTP działa.
 
 Objaw zmierzony na produkcji tego samego dnia jest gorszy niż zwykły błąd:
 pakiety idą w próżnię, więc połączenie nie tyle pada, co **wisi**. Zadanie
