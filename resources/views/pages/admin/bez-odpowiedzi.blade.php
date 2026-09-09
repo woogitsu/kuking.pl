@@ -10,7 +10,9 @@
     dzisiaj: najstarsze na górze, pierwsze wpisy jeszcze wyżej, odpowiedź
     wprost z listy. Ma zająć kilkanaście minut, nie godzinę.
 --}}
-<x-layout title="Wpisy bez odpowiedzi" :noindex="true">
+<x-layout title="Wpisy bez odpowiedzi — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Wpisy bez odpowiedzi" />
+
     <h1>Wpisy bez odpowiedzi</h1>
 
     @if($wpisy->isEmpty())

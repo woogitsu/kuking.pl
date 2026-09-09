@@ -295,26 +295,69 @@
                         <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
                         <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
                         <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
-                        @if($user->isModerator())
-                            <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi</a></li>
-                            <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
-                            {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
-                                 to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
-                                 i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
-                                 ikon, która należy do prac nad UI kitem. --}}
-                            <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
-                            <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
-                            {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
-                                 co tablica na dziś, stąd ta sama ikona. --}}
-                            <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
-                            {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
-                                 co odwołania, bo to też jest pismo od człowieka,
-                                 a nie sprawa do rozstrzygnięcia. Osobna pozycja,
-                                 nie zakładka w Zgłoszeniach: to jest inna kolejka
-                                 i inna praca (patrz `WiadomosciController`). --}}
-                            <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
-                        @endif
                     </ul>
+
+                    @if($user->isModerator())
+                        {{--
+                            SEKCJA „PANEL MODERACJI" — WYDZIELONA Z ZWYKŁEGO MENU
+                            (zgłoszenie właściciela: „nie wiadomo, co jest normalną
+                            podstroną, a co adminową").
+
+                            Dotąd tych sześć pozycji stało w tym samym `<ul>`, tą
+                            samą czcionką, bez nagłówka i bez KRESKI PRZED nimi —
+                            kreska (`.side-nav-dol`) stała tylko PO nich, więc
+                            moderator dostawał sygnał dopiero, gdy panel się już
+                            skończył.
+
+                            NAZWA „Panel moderacji", nie „Moderacja" ani „Panel
+                            admina": to samo sformułowanie już żyje w kodzie
+                            (`pages/admin/wymagane_2fa.blade.php`: „Ten panel
+                            wymaga weryfikacji dwuetapowej", „Panel moderacji
+                            pokazuje zgłoszenia, ukryte treści i odwołania…") —
+                            dopisujemy się do istniejącego nazewnictwa zamiast
+                            wprowadzać czwarte słowo na to samo miejsce. Ten sam
+                            napis stoi też na pasku ekranów `/admin/**`, patrz
+                            `components/panel-moderacji.blade.php`.
+
+                            SEMANTYKA DLA CZYTNIKA EKRANU: prawdziwy `<h2>`
+                            w `<nav>`, powiązany `aria-labelledby` z grupą
+                            (`role="group"`) — to brzmi jako „Panel moderacji,
+                            grupa" PRZED pierwszą pozycją, a nie jako dalszy ciąg
+                            po „Profil".
+
+                            WYRÓŻNIENIE JEST CELOWO STONOWANE: `--color-accent`
+                            (oliwkowy/musztardowy — token już używany np. w
+                            `.notice`), NIGDY `--color-danger`. To miejsce PRACY
+                            moderatora, nie alarm.
+
+                            `aria-current="page"` zostaje bez zmian na każdej
+                            pozycji — `.side-nav-item[aria-current="page"]` ma
+                            wyższą specyficzność niż kolor tej sekcji i nadpisuje
+                            go tak samo jak dotąd.
+                        --}}
+                        <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
+                            <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
+                            <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
+                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
+                                {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
+                                     to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
+                                     i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
+                                     ikon, która należy do prac nad UI kitem. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                                {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
+                                     co tablica na dziś, stąd ta sama ikona. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
+                                {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
+                                     co odwołania, bo to też jest pismo od człowieka,
+                                     a nie sprawa do rozstrzygnięcia. Osobna pozycja,
+                                     nie zakładka w Zgłoszeniach: to jest inna kolejka
+                                     i inna praca (patrz `WiadomosciController`). --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
+                            </ul>
+                        </div>
+                    @endif
 
                     {{-- Dół kolumny: obsługa konta, nie treść. --}}
                     <ul class="stack-tight list-none p-0 m-0 side-nav-dol">

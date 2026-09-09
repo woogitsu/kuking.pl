@@ -676,6 +676,119 @@
     }
   }
 
+  /* =========================================================================
+     SEKCJA „PANEL MODERACJI" — WYDZIELONA GRUPA W NAWIGACJI BOCZNEJ
+     (dopisek dla scalania: blok dodany przy okazji issue z 9 września 2026,
+     osobno od prac nad stopką w tym samym pliku).
+
+     Zgłoszenie właściciela: „nie wiadomo, co jest normalną podstroną,
+     a co adminową" — sześć pozycji panelu stało dotąd w tym samym `<ul>`
+     co „Start"/„Szukaj"/…, tą samą czcionką, bez nagłówka i bez PRZERWY
+     PRZED nimi (kreska `.side-nav-dol` stała tylko PO panelu). Ten blok
+     robi trzy rzeczy:
+
+       1. odstęp i kreska NAD grupą (`.side-nav-moderacja`);
+       2. nagłówek grupy — mała, wersalikowa etykieta
+          (`.side-nav-moderacja-naglowek`, prawdziwy `<h2>` w znaczniku,
+          patrz `components/layout.blade.php`). 16 px (`--text-help`) jest tu
+          dozwolone: `docs/design/DESIGN_SYSTEM.md` pozwala zejść z 18 px
+          tylko tam, gdzie tekst główny OBOK ma ≥18 px — a tuż pod spodem
+          stoją pozycje panelu na `--text-body` (18 px);
+       3. delikatne tło i lewa krawędź w kolorze `--color-accent`
+          (oliwkowy/musztardowy, ten sam token co `.notice`) — NIGDY
+          `--color-danger`: to miejsce PRACY moderatora, nie alarm. Ten sam
+          kolor akcentuje pasek na ekranach `/admin/**`
+          (`components/panel-moderacji.blade.php`), więc oznaczenie jest
+          spójne wszędzie tam, gdzie się je widzi.
+
+     `color-mix()` NIE ma jawnego fallbacku: przeglądarka bez jego wsparcia
+     po prostu pomija tę jedną deklarację i zostaje przy przezroczystym tle —
+     grupa nadal jest rozpoznawalna po nagłówku i lewej krawędzi, tylko bez
+     tła. Tekst pozycji zostaje na `--color-ink` (bez zmian) — zmienia się
+     wyłącznie kolor IKONY, żeby nie liczyć od nowa kontrastu dla każdej pary
+     tło/tekst przy każdym stanie (spoczynek/hover/`aria-current`).
+     ========================================================================= */
+
+  .side-nav-moderacja {
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .side-nav-moderacja-naglowek {
+    margin: 0 0 var(--spacing-2);
+    padding: 0 var(--spacing-3);
+    font-size: var(--text-help);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-accent);
+  }
+
+  .side-nav-moderacja-lista {
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-1) 0;
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  /* Ikona w kolorze akcentu — ale NIE na bieżącej pozycji: tam kolor
+     nadaje `.side-nav-item[aria-current="page"]` na samym `<a>` (SVG go
+     dziedziczy), żeby podświetlenie bieżącej pozycji zostało jednym
+     kolorem, a nie mieszanką dwóch znaczeń na tym samym elemencie. */
+  .side-nav-moderacja-lista .side-nav-item:not([aria-current="page"]) .ikona {
+    color: var(--color-accent);
+  }
+
+  /* --- Pasek panelu na ekranach /admin/** ---------------------------------
+     `components/panel-moderacji.blade.php` — ten sam kolor akcentu i ten
+     sam wzorzec (lewa krawędź + delikatne tło z `color-mix()`, bez jawnego
+     fallbacku — patrz komentarz przy `.side-nav-moderacja-lista` wyżej) co
+     sekcja w menu bocznym, żeby oznaczenie panelu wyglądało tak samo
+     wszędzie tam, gdzie się je widzi. --------------------------------------- */
+
+  /* `color: var(--color-accent)` stoi na KONTENERZE, nie na ikonie: `x-ikona`
+     nie da się dobrać przez klasę przekazaną z wywołania (patrz komentarz
+     w `components/panel-moderacji.blade.php`), więc ikona bierze akcent
+     przez zwykłe dziedziczenie CSS (`stroke="currentColor"`). Tekst obok
+     dostaje własny, jawny kolor niżej — inaczej też odziedziczyłby akcent. */
+  .panel-pasek {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-5);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    color: var(--color-accent);
+  }
+
+  .panel-pasek .ikona {
+    flex: none;
+  }
+
+  .panel-pasek-tekst {
+    margin: 0;
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .panel-pasek-nazwa {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-accent);
+  }
+
+  .panel-pasek-oddzielacz {
+    margin: 0 var(--spacing-1);
+  }
+
+  .panel-pasek-ekran {
+    font-weight: 600;
+  }
+
   /* ---------------------------------------------------------------------
      Komunikaty
      --------------------------------------------------------------------- */

@@ -5,7 +5,9 @@
     do włączenia, zamiast 404 albo 403 bez wyjaśnienia. Panel widzi zgłoszenia,
     cudze ukryte treści i odwołania, dlatego samo hasło już nie wystarcza.
 --}}
-<x-layout title="Włącz weryfikację dwuetapową" :noindex="true">
+<x-layout title="Włącz weryfikację dwuetapową — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Weryfikacja dwuetapowa" />
+
     <h1>Ten panel wymaga weryfikacji dwuetapowej</h1>
 
     <p class="mb-5">

@@ -1,4 +1,6 @@
-<x-layout title="Zgłoszenia" :noindex="true">
+<x-layout title="Zgłoszenia — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Zgłoszenia" />
+
     <h1>Zgłoszenia</h1>
 
     <nav class="tabs" aria-label="Filtr zgłoszeń">
