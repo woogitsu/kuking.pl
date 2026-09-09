@@ -133,10 +133,13 @@ przełączenia ręcznie — działa, gdy `MAIL_MAILER` przestanie być `log`.
 
 ## ETAP 2 — R2 (issue #120)
 
-**Gdzie:** issue #120 ma pełną listę kontrolną. Tło: `docs/infra/INFRA_DECISION.md`.
+**Gdzie:** `docs/infra/BRAMKA_R2.md` — lista kontrolna z miejscem na wynik
+i datę. Tło: `docs/infra/INFRA_DECISION.md`.
 
-**Najdłuższy etap i jedyny, który wymaga zmiany w kodzie** (zapis bez
-`x-amz-acl` — issue opisuje dwie drogi). Resztę robisz w panelu Cloudflare.
+**Najdłuższy etap.** Część kodowa (zapis bez `x-amz-acl`) jest **zrobiona**:
+dyski R2 mają własny sterownik `r2`, który tego nagłówka nie wysyła, i test
+regresyjny na podpisanym żądaniu HTTP. **Cała reszta to panel Cloudflare** —
+z kodu nie da się jej ani wykonać, ani sprawdzić.
 
 **Twarda zasada, dopóki ta bramka nie przejdzie:** nie wystawiaj produkcyjnego
 bucketu mediów pod `cdn.kuking.pl`.
@@ -151,9 +154,10 @@ bo testy nie widzą panelu Cloudflare:
 Plus: `r2.dev` wyłączone na buckecie oryginałów i zero kluczy `incoming/`
 w publicznym buckecie.
 
-**Gdzie zapisujesz dowód:** `docs/infra/`, **z datą** — konfiguracja bucketu
-może się zmienić bez jednej linijki w tym repozytorium, więc dowód bez daty
-nic nie znaczy.
+**Gdzie zapisujesz dowód:** `docs/infra/BRAMKA_R2.md`, **z datą** —
+konfiguracja bucketu może się zmienić bez jednej linijki w tym repozytorium,
+więc dowód bez daty nic nie znaczy. Tabela w §2 tego pliku czeka wypełniona
+w połowie: kolumny „wynik" i „data" są puste, a puste znaczy nieprzejście.
 
 ---
 

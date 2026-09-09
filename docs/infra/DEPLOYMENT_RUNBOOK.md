@@ -146,17 +146,26 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 
 ```php
 'r2' => [
-    'driver' => 's3',
+    'driver' => 'r2',
     'key' => env('AWS_ACCESS_KEY_ID'),
     'secret' => env('AWS_SECRET_ACCESS_KEY'),
     'region' => env('AWS_DEFAULT_REGION', 'auto'),
     'bucket' => env('AWS_BUCKET'),
     'endpoint' => env('AWS_ENDPOINT'),
-    'url' => env('AWS_URL'),
+    // Świadomie BEZ `url`. Oryginały niosą pełny EXIF — ten bucket nie ma
+    // własnej domeny, a `Storage::url()` ma tu rzucić wyjątek (W7-02).
     'use_path_style_endpoint' => false,
     'throw' => true,
 ],
 ```
+
+> **`driver => 'r2'`, nie `'s3'` — i to nie jest kosmetyka (issue #120).**
+> Wbudowany sterownik `s3` wysyła `x-amz-acl` przy każdym zapisie, także gdy
+> nikt o widoczność nie prosił. R2 tego nagłówka nie obsługuje dla `PutObject`
+> i nie gwarantuje, jak na niego zareaguje. Sterownik `r2`
+> (`app/Support/Storage/R2Adapter.php`) nie wysyła ACL wcale. Dotyczy
+> **wszystkich czterech** dysków R2: `r2`, `r2_publiczne`, `r2_legacy`,
+> `r2_eksporty`.
 
 > **Jeśli włączysz `TrustHosts`:** dopisz `healthcheck.railway.app` do listy
 > dozwolonych hostów. Inaczej **każdy deploy będzie padał na błąd 400**.

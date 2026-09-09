@@ -6,9 +6,11 @@ namespace App\Providers;
 
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\OdmianaWalidacji;
+use App\Support\Storage\DyskR2;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +29,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Sterownik dysku `r2` — zapis do Cloudflare R2 BEZ nagłówka
+        // `x-amz-acl` (issue #120, audyt G-02).
+        //
+        // Rejestracja stoi na początku `boot()`, przed czymkolwiek, co mogłoby
+        // sięgnąć po dysk: `Storage::extend()` musi być znane wcześniej, niż
+        // pierwszy `Storage::disk('r2')` zbuduje adapter. Dyski są tworzone
+        // leniwie i zapamiętywane, więc rejestracja po pierwszym użyciu nie
+        // zmieniłaby już nic — a wyglądałaby, jakby zmieniała.
+        //
+        // DLACZEGO NIE `register()`: rozstrzyganie fasady `Storage` w metodzie
+        // `register()` wymusza zbudowanie menedżera dysków, zanim inni
+        // dostawcy zdążą się zarejestrować. `boot()` jest właściwym miejscem
+        // i to zaleca dokumentacja Laravela.
+        Storage::extend('r2', fn ($app, array $konfiguracja) => DyskR2::utworz($konfiguracja));
+
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,
         // wbudowany middleware `ValidatePostSize`, uruchamiany przed
