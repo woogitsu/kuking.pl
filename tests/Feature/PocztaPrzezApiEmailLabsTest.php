@@ -8,11 +8,11 @@ use App\Poczta\BrakKonfiguracjiEmailLabs;
 use App\Poczta\OdmowaEmailLabs;
 use App\Poczta\TransportEmailLabs;
 use App\Support\Poczta;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Message;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
-use GuzzleHttp\Promise\PromiseInterface;
 use Tests\TestCase;
 use Throwable;
 
