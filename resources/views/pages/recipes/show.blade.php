@@ -261,6 +261,21 @@
                     @endif
                 </div>
 
+                {{-- „Podziel się" POD paskiem akcji, a nie w nim.
+
+                     W pasku stoją rzeczy, które robi się NA Kukingu:
+                     „Ugotowałem", „Zapisuję", „Gotuję". Wysłanie przepisu
+                     córce na WhatsAppie wyprowadza człowieka poza serwis
+                     i jest czynnością innego rodzaju — mieszanie ich w jednym
+                     rzędzie kosztowałoby „Ugotowałem" pierwszeństwo, a to
+                     jest najważniejszy sygnał w całym produkcie (AGENTS.md §1).
+
+                     Widoczne także dla gościa. Osoba bez konta, która trafiła
+                     tu z Google i chce wysłać przepis siostrze, jest naszym
+                     najtańszym kanałem dotarcia (docs/research/AUDIENCE_50_PLUS.md),
+                     a nie kimś, komu trzeba najpierw kazać się zarejestrować. --}}
+                <x-podziel-sie :tresc="$recipe" />
+
                 {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
                      produktowa, nie kolejność przypadkowa. --}}
                 @if($recipe->source_note || $recipe->source_person)

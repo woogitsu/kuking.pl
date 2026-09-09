@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\TagPromotionController;
+use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostController;
@@ -79,6 +81,34 @@ Route::get('/szukaj', [SearchController::class, 'index'])
 Route::get('/health', HealthController::class)->name('health');
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');
+
+/*
+ * „NAPISZ DO NAS" — kontakt z operatorem serwisu.
+ *
+ * POZA GRUPĄ `auth`, ŚWIADOMIE. Najczęstsze zdanie, które ludzie mają nam do
+ * powiedzenia na starcie, brzmi „nie mogę się zalogować" albo „nie udało mi
+ * się założyć konta". Formularz za logowaniem wykluczałby dokładnie te osoby,
+ * dla których w pierwszej kolejności istnieje. Ochroną jest limit zapytań
+ * (`limits.kontakt` w `config/kuking.php`), nie konto.
+ *
+ * TO NIE JEST DROGA ZGŁASZANIA CUDZYCH TREŚCI. Skarga na czyjś wpis idzie
+ * przyciskiem „Zgłoś" pod treścią (`reports.create`, za logowaniem), a treść
+ * niezgodna z prawem — formularzem z DSA art. 16 (`zglos.nielegalna`, też
+ * publicznym). Trzy drogi, trzy różne kolejki i trzy różne obowiązki; oba
+ * formularze mówią o tym wprost i linkują do siebie nawzajem.
+ *
+ * `noindex` NIE JEST tu potrzebny odwrotnie niż przy DSA art. 16: tamten
+ * musi dać się znaleźć w wyszukiwarce, bo przepis wymaga mechanizmu ŁATWO
+ * DOSTĘPNEGO dla ludzi spoza serwisu. Ta strona też zostaje w indeksie —
+ * z tego samego, praktycznego powodu: ktoś, kto nie może się zalogować,
+ * wpisuje „kuking kontakt" w wyszukiwarkę, a nie szuka stopki.
+ */
+Route::get('/napisz-do-nas', [NapiszDoNasController::class, 'create'])->name('kontakt');
+Route::post('/napisz-do-nas', [NapiszDoNasController::class, 'store'])
+    ->middleware("throttle:{$limits['kontakt']},kontakt")
+    ->name('kontakt.store');
+Route::get('/napisz-do-nas/dziekujemy', [NapiszDoNasController::class, 'confirmation'])
+    ->name('kontakt.potwierdzenie');
 
 Route::get('/pomoc', [StaticPageController::class, 'help'])->name('help');
 Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
@@ -614,6 +644,25 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::post('/zgloszenia/{report}/przywroc', [ModerationController::class, 'restore'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
+
+    /*
+     * Wiadomości z „Napisz do nas" — OSOBNA kolejka, nie zakładka zgłoszeń.
+     *
+     * Stoi w tej samej grupie co moderacja (te same trzy warstwy: `auth`,
+     * `moderator`, obowiązkowe 2FA), bo czyta to ten sam człowiek — ale jest
+     * osobnym ekranem, bo to jest inna praca: tu nie zapada decyzja, od której
+     * ktoś się odwołuje, tylko odpisuje się człowiekowi albo poprawia kod.
+     *
+     * KAŻDA Z TYCH TRZECH TRAS I TAK PYTA POLITYKĘ
+     * (`App\Policies\ContactMessagePolicy`) — middleware pilnuje wejścia do
+     * panelu, nie prawa do konkretnego wiersza, a UUID w adresie nie jest
+     * autoryzacją (AGENTS.md §7).
+     */
+    Route::get('/wiadomosci', [WiadomosciController::class, 'index'])->name('admin.contact');
+    Route::get('/wiadomosci/{wiadomosc}', [WiadomosciController::class, 'show'])->name('admin.contact.show');
+    Route::post('/wiadomosci/{wiadomosc}', [WiadomosciController::class, 'update'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.contact.update');
 
     // Kolejka odwołań (#10).
     Route::get('/odwolania', [AdminAppealController::class, 'index'])->name('admin.appeals');

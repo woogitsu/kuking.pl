@@ -7,7 +7,7 @@
 #
 #   ./scripts/check.sh          # pełna kontrola
 #   ./scripts/check.sh --szybko # bez budowania assetów (szybsze przy pracy nad PHP)
-#   ./scripts/check.sh --dostepnosc # dodatkowo axe na 14 ekranach w 4 wariantach
+#   ./scripts/check.sh --dostepnosc # dodatkowo axe na 27 ekranach w 4 wariantach
 #                                   # oraz pomiar układu przy 320/360/414/768 px
 #   ./scripts/check.sh --wydajnosc  # dodatkowo Lighthouse (wydajność + SEO)
 #                                   # na 8 stronach publicznych (issue #26)

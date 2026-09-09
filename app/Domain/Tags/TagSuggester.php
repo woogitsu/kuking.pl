@@ -81,6 +81,30 @@ final class TagSuggester
         // działającą, bo testowaliśmy ją na krótkich słowach — a rozsypywała
         // się dokładnie tam, gdzie tag jest dłuższy („przepis po babci",
         // „zakwas na barszcz biały").
+        //
+        // I TA SAMA ZMIANA CO W `SearchQuery` (issue #187): czwarta gałąź
+        // używa dziś `<%` (`word_similarity`) z progiem 0,5, a nie `%` z 0,12.
+        // Podpowiedzi tagów PRZESZŁY na nowy operator razem z wyszukiwarką
+        // świadomie — issue #187 dopuszczało zrobienie tylko jednej ścieżki,
+        // ale dwie ścieżki z dwoma różnymi progami to dwa różne znaczenia
+        // słowa „podobne" w jednym produkcie. Zmierzone na pełnym słowniku
+        // (1 446 tagów, 2 542 aliasy), wpisane → podpowiedzi:
+        //
+        //   „pierogy"        `%`: pierogi, pierogi ruskie, PIERNIK, …
+        //                    `<%`: w całej ósemce same pierogi (ruskie,
+        //                    z grzybami, z kaszą…). „Piernik" ma wobec
+        //                    „pierogy" dokładnie 0,5, więc z wyniku nie
+        //                    znika — spada pod pierogi i wypada poza ósemkę.
+        //   „bezglutenowe"   `%`: bez glutenu, ciasto bezowe, bezy, bez ryb…
+        //                    `<%`: bez glutenu
+        //   „wegetarianskie" `%`: wegetariańskie, wegańskie, BORÓWKI
+        //                    AMERYKAŃSKIE, orzechy włoskie
+        //                    `<%`: wegetariańskie
+        //
+        // Cena jest ta sama co w wyszukiwarce i też jest zmierzona: ciężka
+        // literówka „golombki" nie podpowiada już „gołąbków" (0,417 przy
+        // progu 0,5). Indeks `tags_name_trgm_idx` — ten sam, stoi na
+        // wyrażeniu i obsługuje `<%` przez komutator `%>`.
         ProgPodobienstwa::ustaw();
 
         // WAGA W PIERWSZEJ GAŁĘZI NIE JEST STAŁA — patrz komentarz klasy
@@ -98,9 +122,9 @@ final class TagSuggester
             SELECT id, 2 AS priorytet, 1.0 / char_length(name) AS waga, name AS nazwa FROM tags
                 WHERE status = 'active' AND kuking_normalize(name) LIKE ?
             UNION ALL
-            SELECT id, 3 AS priorytet, similarity(kuking_normalize(name), ?) AS waga,
+            SELECT id, 3 AS priorytet, word_similarity(?, kuking_normalize(name)) AS waga,
                    name AS nazwa FROM tags
-                WHERE status = 'active' AND kuking_normalize(name) % ?
+                WHERE status = 'active' AND ? <% kuking_normalize(name)
             SQL, [$needle, $needle, $needle.'%', $needle, $needle]);
 
         $idsWKolejnosci = collect($wiersze)

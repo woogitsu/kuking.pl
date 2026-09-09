@@ -2000,7 +2000,20 @@ to pytanie zostaje otwarte dla prawnika i jego odpowiedź może dołożyć wymog
 ## D-043 · Kopia poza Railwayem robi osobny serwis Railway, nie scheduler aplikacji
 
 **Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**,
-wykonanie zablokowane przez #120 (bramka R2)
+**wykonanie PILNE** (patrz sprostowanie niżej)
+
+> **SPROSTOWANIE Z TEGO SAMEGO DNIA — CZYTAJ RAZEM Z WPISEM.**
+> Pierwsza wersja tego wpisu nazywała zrzut offsite „trzecią warstwą" i pisała,
+> że do jego powstania chronią nas Volume Backups i PITR w Railwayu. **To była
+> nieprawda.** Właściciel sprawdził panel: **Volume Backups i PITR są dostępne
+> wyłącznie w planie Pro**, a Kuking jest na Free i przechodzi na Hobby.
+>
+> Nie ma więc trzech warstw ani dwóch. **Jest zero.** Zrzut z #193 nie jest
+> ostatnią linią obrony — jest jedyną, i przestaje być pracą „po R2".
+>
+> Sam kierunek decyzji zostaje bez zmian i jest teraz jeszcze mocniejszy:
+> osobny serwis, bo w kontenerze aplikacji `proc_open` jest zablokowany;
+> nie GitHub Actions, bo poświadczenie do bazy nie ma opuszczać Railwaya.
 
 > **Rozstrzyga sprzeczność w istniejącym planie, nie dokłada nowej warstwy.**
 > `docs/infra/INFRA_DECISION.md` §10 zakładał trzy warstwy kopii i trzeciej —
@@ -2043,10 +2056,299 @@ jest gorszy niż jego brak, bo daje fałszywe poczucie bezpieczeństwa), oraz
 `KOPIE_I_ODTWORZENIE.md` §5. Zrzut, którego nikt nigdy nie odtworzył, nie
 jest kopią — to plik, o którym się zakłada, że jest kopią.
 
-**CO CHRONI NAS DO TEGO CZASU.** Volume Backups (Daily + Weekly) i PITR
-w Railwayu — pod warunkiem, że są **włączone**, co jest pytaniem do panelu,
-nie do repozytorium (`KOPIE_I_ODTWORZENIE.md` §2.3, pytania 1 i 2).
+**CO CHRONI NAS DO TEGO CZASU — NIC.** Tak brzmi poprawna odpowiedź po
+sprawdzeniu panelu. Volume Backups i PITR to funkcje planu Pro; na Free
+i Hobby ich nie ma. Pytania 1 i 2 z `KOPIE_I_ODTWORZENIE.md` §2.3
+(„czy backupy są włączone", „od kiedy liczy się okno PITR") są **bezprzedmiotowe
+przy obecnym planie** i trzeba je tam przeformułować.
+
+**CO Z TEGO WYNIKA DLA KOLEJNOŚCI.** `docs/OTWARCIE.md` stawia etap 0 (kopia
+i ćwiczenie odtworzenia) przed wszystkim innym i to zostaje — ale etap 0 nie
+sprowadza się już do przeklikania dwóch przełączników. Wymaga wykonania #193,
+a #193 potrzebuje miejsca do lądowania zrzutu, czyli bucketu z #120.
+**R2 ma darmowy pułap 10 GB**, więc pieniądze nie są tu przeszkodą — przeszkodą
+jest tylko to, że bucket jeszcze nie istnieje.
 
 📄 `docs/infra/INFRA_DECISION.md` §10 · `docs/infra/KOPIE_I_ODTWORZENIE.md`
 §2.1, §2.3, §5 · `docs/OTWARCIE.md` etap 0 · `docker/php.ini` ·
 `routes/console.php` · #193 · #120 · audyt A6, bramka A6-07
+
+---
+
+## D-044 · „Podziel się": arkusz systemowy nad jawną listą, bez Messengera w wersji podstawowej
+
+**Data:** 9 września 2026 · **Decyzja właściciela (mechanizm) + pomiar (lista dróg)** ·
+Status: **obowiązuje**
+
+### Mechanizm — decyzja właściciela
+
+Na telefonie jeden duży przycisk „Podziel się" otwiera **arkusz systemu**
+(`navigator.share`) — tam człowiek widzi swojego Messengera, WhatsAppa
+i SMS-y. Na komputerze i wszędzie tam, gdzie tego arkusza nie ma, stoi
+**jawna lista** dróg plus adres do skopiowania. **Zawsze widać coś, co
+działa** — nigdy pusty przycisk, nigdy „twoja przeglądarka nie obsługuje".
+
+Kolejność warstw wynika z `AGENTS.md` §5 i jest odwrotna, niż podpowiada
+intuicja: `navigator.share` jest JavaScriptem z definicji, więc **wersją
+podstawową, renderowaną przez serwer, jest jawna lista**, a arkusz jest
+ulepszeniem nałożonym na ten sam przycisk.
+
+### Czego NIE ma na jawnej liście i dlaczego (zmierzone 9 września 2026)
+
+| Droga | Wynik pomiaru | Decyzja |
+|---|---|---|
+| `wa.me/?text=…` | 200, przekierowanie na `api.whatsapp.com/send/?text=…&type=custom_url` | **jest** — działa bez żadnej rejestracji |
+| `mailto:?subject=…&body=…` | zawsze | **jest** |
+| `facebook.com/sharer/sharer.php?u=…` | 200, przekierowanie na `facebook.com/share_channel/?type=reshare&link=…&app_id=966242223397117` — Facebook podstawia WŁASNY `app_id` | **jest**, opisane uczciwie jako „wstawisz na swoją tablicę" |
+| `facebook.com/dialog/send` (Messenger, wyślij osobie) | bez `app_id` kończy się na `facebook.com/login` — okno wysyłania w ogóle się nie otwiera | **nie ma** |
+| `fb-messenger://share?link=…` | protokół aplikacji: na komputerze bez Messengera przeglądarka pokazuje błąd nieznanego protokołu | **nie ma** |
+| `sms:?body=…` | na telefonie działa, na komputerze najczęściej nie robi nic | **nie ma** |
+
+**Messengera nie da się dziś dać jako linku bez zarejestrowania własnej
+aplikacji na Facebooku** (`app_id` + weryfikacja domeny + regulamin Meta).
+To jest pytanie do właściciela, nie do agenta — więc funkcja jest zbudowana
+tak, że Messenger i tak działa tam, gdzie ludzie z niego korzystają
+naprawdę: w arkuszu systemowym na telefonie.
+
+**Decyzja do podjęcia przez właściciela:** czy zakładamy aplikację na
+Facebooku, żeby dołożyć „Wyślij w Messengerze" także na komputerze.
+Koszt: konto dewelopera Meta, weryfikacja domeny i utrzymanie
+`app_id` w konfiguracji. Zysk: jedna droga więcej dla osób, które
+Messengera używają na laptopie.
+
+### Przy jakiej treści przycisk się pokazuje
+
+Wyłącznie przy treści, którą zobaczy **ktoś bez konta** — pyta o to
+`Gate::forUser(null)->allows('view', …)`, czyli te same `PostPolicy`
+i `RecipePolicy`, co całe wejście na stronę. Wpis „tylko dla obserwujących"
+i „tylko dla mnie" przycisku nie dostaje **nawet u własnego autora**:
+wysłany adres pokazałby odbiorcy 403, a autor byłby przekonany, że coś
+wysłał. Autor widzi w tym miejscu jedno zdanie mówiące, co zrobić.
+
+Blokada między dwiema osobami **nie** zmienia tego, co wolno wysłać —
+przepis dalej jest publiczny dla całej reszty świata, a zablokowany i tak
+nie zobaczy strony, więc do przycisku nie dojdzie.
+
+### Nazwa przycisku
+
+`BRAND_EXTENDED.md` §1.2 zakazuje „Podziel się" jako etykiety **publikacji
+dania** (tam jest „Opublikuj"). To jest inna czynność — wysłanie linku poza
+serwis — i właściciel wybrał dla niej właśnie „Podziel się", bo tak nazywa
+się ta rzecz w Facebooku, czyli tam, gdzie nasza grupa nauczyła się jej
+używać. Zakaz z tabeli zostaje w mocy dla publikacji.
+
+**Zmiana wymaga:** wyniku testów z osobami 50+ (#15) mówiącego, że „Podziel
+się" przy cudzym przepisie jest mylone z publikowaniem u siebie — albo
+decyzji właściciela o założeniu aplikacji na Facebooku (wtedy dochodzi
+Messenger).
+
+📄 `app/Domain/Sharing/Udostepnianie.php` ·
+`resources/views/components/podziel-sie.blade.php` ·
+`resources/js/app.js` · `tests/Feature/PodzielSieTest.php` ·
+`docs/FEATURES.md`
+
+---
+
+## D-045 · „Napisz do nas" to strona pod własnym adresem, nie dymek w rogu
+
+**Data:** 9 września 2026 · Status: **obowiązuje**
+
+Kontakt z operatorem serwisu ma jedną drogę podstawową: **zwykłą stronę
+`/napisz-do-nas`**, renderowaną serwerowo, wysyłaną POST-em, z odnośnikiem
+w stopce każdej strony i w nawigacji bocznej zalogowanego. Wiadomość zapisuje
+się w tabeli `contact_messages`, a operator obsługuje ją na osobnym ekranie
+`/admin/wiadomosci`.
+
+**DLACZEGO NIE DYMEK PRZYKLEJONY DO ROGU EKRANU.** Dymek jest łatwiejszy do
+znalezienia dokładnie o tyle, o ile zasłania treść. Dwa powody, oba
+zmierzone gdzie indziej w tym repozytorium:
+
+1. **Bez skryptu się nie otwiera.** AGENTS.md §5: ważne funkcje działają bez
+   JavaScriptu. Człowiek, który pisze „coś nie działa", jest bardzo często
+   tym samym człowiekiem, do którego nie dociągnął się skrypt — dymek byłby
+   wtedy przyciskiem, który nic nie robi po kliknięciu. To ta sama decyzja,
+   co przy menu pod awatarem w `layout.blade.php`.
+2. **Element o stałej pozycji zasłania i rozpycha.** WCAG 1.4.10 (Reflow)
+   i 2.4.11 (Focus Not Obscured) — przy 320 px i przy czcionce przeglądarki
+   podkręconej do 200% element w rogu zabiera największą część ekranu
+   i potrafi zakryć właśnie sfokusowany przycisk. Issues #80 i #162 w tym
+   repozytorium dotyczyły dokładnie tej klasy usterki i oba zaczęły się od
+   elementu, który „tylko trochę" wystawał poza ekran.
+
+Dymek albo panel wolno kiedyś dołożyć, ale **wyłącznie jako skrót do tego
+adresu**, nigdy zamiast niego — i dopiero po przebiegu
+`scripts/dostepnosc.mjs`, który mierzy `/napisz-do-nas` przy 320 px i przy
+czcionce 200%.
+
+**PISAĆ MOŻE KAŻDY, TAKŻE BEZ KONTA.** Najczęstsze zdanie, jakie ludzie mają
+nam do powiedzenia na starcie, brzmi „nie mogę się zalogować" albo „nie udało
+mi się założyć konta". Formularz za logowaniem wykluczałby dokładnie te
+osoby, dla których w pierwszej kolejności istnieje. Ochroną jest limit
+zapytań (`kuking.limits.kontakt`, pięć na godzinę), nie konto — ta sama
+konstrukcja, co przy publicznej drodze z DSA art. 16, tylko z luźniejszym
+progiem, bo tu nadużycie kosztuje wiersz w tabeli, a nie sprawę z terminem
+odpowiedzi.
+
+**TO NIE JEST ZGŁASZANIE TREŚCI I NIE WOLNO TEGO ZLEWAĆ.** Trzy drogi, trzy
+kolejki, trzy różne obowiązki:
+
+| Droga | Czego dotyczy | Czym się kończy |
+|---|---|---|
+| „Zgłoś" pod treścią (`reports`, `community`) | cudzy wpis łamiący nasze zasady | decyzja moderatora, prawo do odwołania |
+| `/zglos-nielegalna-tresc` (`reports`, `legal_notice`) | treść niezgodna z prawem (DSA art. 16) | decyzja z pouczeniem o środkach odwoławczych |
+| `/napisz-do-nas` (`contact_messages`) | działanie serwisu | odpowiedź człowieka albo poprawka w kodzie |
+
+Rozdział jest zrobiony w schemacie (osobna tabela), w panelu (osobny ekran)
+i na obu formularzach (blok „Chodzi o czyjś wpis?" z linkami w obie strony).
+Rodzaje wiadomości (`blad`, `pomysl`, `inne`) są świadomie rozłączne
+z `Report::REASONS` — gdyby na formularzu technicznym stało „Mowa
+nienawiści", ludzie zgłaszaliby tędy sąsiada.
+
+**RETENCJA: 12 MIESIĘCY OD ZAŁATWIENIA**
+(`kuking.kontakt.retention_months`), nie od napisania, i **nigdy** dla
+wiadomości jeszcze niezałatwionej. Krócej niż 36 miesięcy spraw
+moderacyjnych, bo tamten okres broni się tym, że sprawa może wrócić jako
+spór prawny — tutaj nie ma decyzji, od której da się odwołać. Dłużej niż
+3 miesiące powiadomień, bo pomysł zgłoszony w marcu bywa wdrażany jesienią
+i trzeba wtedy wiedzieć, komu odpisać.
+
+**WEBHOOK OPERATORA NIESIE DZWONEK, NIE TREŚĆ.** Po zapisie idzie na kanał
+`blad_webhook` (D-041) jedno zdanie: rodzaj z zamkniętej listy,
+identyfikator wiersza i adres ekranu w panelu. Treść wiadomości, adres
+e-mail i adres strony **nie wychodzą stąd nigdy** — to jest ta sama lista
+dozwolonych pól, którą wprowadził audyt A6-01, i pilnuje jej
+`tests/Feature/WiadomoscNaWebhookuBezDanychOsobowychTest.php`.
+
+**CO ZOSTAJE DO ROZSTRZYGNIĘCIA WŁAŚCICIELOWI.** Czy na potwierdzenie
+odbioru ma iść e-mail (dziś jest wyłącznie potwierdzenie NA EKRANIE, bo
+serwis nie ma jeszcze dostawcy poczty — D-040) i czy 12 miesięcy retencji to
+właściwa liczba.
+
+**Zmiana wymaga:** decyzji właściciela — dymek/panel wolno dołożyć tylko jako
+skrót do tego adresu i tylko z pomiarem dostępności w ręku.
+
+📄 `routes/web.php` · `app/Http/Controllers/NapiszDoNasController.php` ·
+`app/Domain/Contact/` · `app/Models/ContactMessage.php` ·
+`app/Policies/ContactMessagePolicy.php` ·
+`database/migrations/2026_09_09_100000_create_contact_messages_table.php` ·
+`config/kuking.php` (`limits.kontakt`, `kontakt.retention_months`) ·
+`docs/DATABASE.md` (`contact_messages`) ·
+`resources/legal/polityka-prywatnosci.md` §2 · `scripts/dostepnosc.mjs`
+
+---
+
+## D-046 · Wyszukiwarka pyta operatorem `<%` (`word_similarity`) z progiem 0,5, nie `%` z 0,12
+
+**Data:** 9 września 2026 · **Decyzja właściciela** (issue #187) · Status: **obowiązuje**
+
+Operator `%` z pg_trgm mierzy podobieństwo frazy do **całego** tytułu, więc
+żeby literówka w długim tytule w ogóle trafiała („sernk" wobec „sernik babci
+haliny" to 0,18), próg musiał zjechać do 0,12. Przy takim progu długa fraza
+jest podobna do prawie wszystkiego. Zmierzone na bazie 40 000 przepisów,
+w której nie ma ani jednej sajgonki: fraza „sajgonki z krewetkami" zwracała
+**1 526 wyników**, „rosół" znajdował „Rogaliki", „barszcz" — „Bogracz",
+„pierogi" — „Piernik". To nie wygląda na wyszukiwarkę, która czegoś nie ma;
+wygląda na zepsutą.
+
+**Co wybrano.** Operator `<%` — „czy fraza jest podobna do najlepiej
+pasującego FRAGMENTU tekstu". Długość tytułu przestaje karać trafienie
+(„sernk" wobec „sernik babci haliny" to już 0,67), więc próg może być wysoki,
+a wysoki próg wycina śmieci. Ten sam indeks GIN, **zero migracji**.
+
+**Dlaczego próg 0,5, a nie domyślne 0,6 z issue.** Bo 0,6 gubi rzeczy, po
+które ludzie przychodzą: „rosul" (tak wygląda „rosuł" bez ogonków) przestaje
+znajdować rosół, „piergi" przestaje znajdować pierogi, a „kotlet schabowy
+z ziemniakami" znajduje 45 przepisów zamiast 232. Przy 0,5 wszystkie trzy
+wracają, a kanarki („sajgonki z krewetkami", „kartacze", „tortilla
+z kurczakiem") dalej zwracają zero.
+
+**Co ta decyzja KOSZTUJE — zmierzone, nie oszacowane.** Ciężka literówka
+fonetyczna przestaje działać: „gołombki" nie znajduje już „Gołąbków" (0,42
+przy progu 0,5) ani w wyszukiwarce, ani w podpowiedziach tagów. Długa fraza
+opisowa przestaje zaciągać dania pokrewne po jednym słowie: „pierogi ruskie
+babci haliny" nie pokazuje już „Pierogów z mięsem". Pełna lista zgubionych
+trafień, z nazwami, jest w `docs/research/WYDAJNOSC.md` §3.4b — właściciel
+podejmował tę decyzję, widząc cenę.
+
+**Zakres.** Zmiana objęła OBIE ścieżki podobieństwa: `SearchQuery::recipes()`
+i czwartą gałąź `TagSuggester`. Dwie ścieżki z dwoma różnymi progami
+znaczyłyby, że słowo „podobne" ma w jednym produkcie dwa znaczenia zależnie
+od pola, w które człowiek pisze. `SearchQuery::people()` nie używa operatora
+podobieństwa (dopasowuje `LIKE`) i została bez zmian.
+
+**Kolejność wyników** poszła za operatorem: `word_similarity` DESC, potem
+`similarity` DESC. Rozstrzygnięte pomiarem, nie teorią — przy samym
+`similarity` 722 przepisy „Pierogi …" stały za pierwszym „Piernikiem".
+
+**Zmiana wymaga:** powtórzenia pomiaru z §3.4b. Próg to jedna stała
+(`App\Support\ProgPodobienstwa::PROG`) i jedno miejsce — jeśli ktoś uzna, że
+„gołombki" są ważniejsze niż czystość wyników przy „pierogach", zejście do
+0,4 jest zmianą jednej liczby. Ale to jest decyzja produktowa, nie techniczna.
+
+📄 `app/Support/ProgPodobienstwa.php` · `app/Domain/Search/SearchQuery.php` ·
+`app/Domain/Tags/TagSuggester.php` · `tests/Feature/TrafnoscWyszukiwarkiTest.php` ·
+`docs/research/WYDAJNOSC.md` §3.4b · `docs/DATABASE.md`
+
+---
+
+## D-048 · Nowy adres e-mail obowiązuje po kliknięciu w link, a zajętość adresu rozstrzyga się dopiero tam
+
+**Data:** 9 września 2026 · Issue #195 · Status: **obowiązuje**
+
+Zmiana adresu e-mail w Kuking jest **zmianą stanu konta**, nie edycją profilu.
+Idzie osobnym ekranem (`/ustawienia/e-mail`) i pełną drogą: obecne hasło →
+list z podpisanym odnośnikiem na NOWY adres → kliknięcie → zmiana, plus
+natychmiastowe ostrzeżenie na STARY adres. Do kliknięcia obowiązuje adres
+dotychczasowy: logowanie i „nie pamiętam hasła" działają tak jak wczoraj.
+
+**DLACZEGO NIE POLE W `/ustawienia/profil`.** Bo adres e-mail jest jedyną
+drogą odzyskania konta — kto go przestawi, przejmuje konto resetem hasła.
+Pole obok „bio", zapisywane jednym `PUT`, byłoby przejęciem konta na jedno
+kliknięcie u każdego, kto usiadł przy niezablokowanej przeglądarce. Z tego
+samego powodu `email` i `email_verified_at` wypadły z `User::$fillable` —
+ta sama reguła co przy `status` i `role` (AGENTS.md §7).
+
+**OCZEKUJĄCA ZMIANA MIESZKA W OSOBNEJ TABELI** (`pending_email_changes`),
+nie w kolumnach na `users`. To nie jest cecha konta, tylko żądanie z własnym
+życiorysem: powstaje, wygasa, zostaje skasowane albo skonsumowane. Wiersz
+znikający w całości nie wymaga CHECK-a wiążącego nullowość dwóch kolumn,
+nie obciąża najczęściej czytanej tabeli w bazie wartościami, które w 99,9%
+wierszy są NULL-em, i znika jednym `DELETE`, a nie `UPDATE`-em na `users`.
+Pełny wywód: migracja i `docs/DATABASE.md`.
+
+**ADRES ZAJĘTY PRZEZ INNE KONTO NIE ODBIJA SIĘ W FORMULARZU** — i to jest
+druga połowa tej decyzji. `Rule::unique('users','email')` w walidacji byłby
+wyciekiem: zalogowany wpisuje dowolny adres i po odpowiedzi wie, czy ta osoba
+ma konto w Kuking. Serwis, w którym da się sprawdzić, czy sąsiadka albo była
+żona tu gotuje, nie jest bezpieczną izbą (`docs/product/SOUL.md`, filar
+czwarty). Dlatego odpowiedź formularza jest identyczna dla adresu wolnego
+i zajętego, żądanie powstaje w obu przypadkach, a o kolizji dowiaduje się
+dopiero ten, kto **kliknie odnośnik** — czyli osoba czytająca pocztę pod tym
+adresem, której i tak wolno wiedzieć, że ma u nas konto. Kosztem jest jeden
+list wysłany „w próżnię"; zyskiem — brak wyroczni obecności konta.
+
+**REJESTRACJA ZOSTAJE JAK BYŁA** i to nie jest niekonsekwencja do
+posprzątania. `RegisterController` mówi wprost „na ten adres jest już
+założone konto", bo tam ta odpowiedź jest jedyną drogą, żeby powiedzieć
+człowiekowi „masz już konto, zaloguj się". Tam nie mamy wyboru, tutaj mamy
+i wybieramy nieprzeciekającą stronę. Zmiana rejestracji to osobna decyzja
+o osobnym ekranie.
+
+**ZMIANA I RESET HASŁA UNIEWAŻNIAJĄ OCZEKUJĄCE ŻĄDANIE.** List ostrzegawczy
+do starego adresu radzi „jeśli to nie Ty — zmień hasło", więc ta rada musi
+być prawdziwa: bez tego napastnik dokończyłby przejęcie konta swoim
+odnośnikiem właśnie wtedy, gdy właściciel zrobił dokładnie to, o co go
+poprosiliśmy.
+
+**Zmiana wymaga:** przemyślenia obu połówek naraz. Dopisanie `Rule::unique`
+do formularza „dla wygody" przywraca wyciek; przeniesienie adresu na `users`
+w chwili wysłania listu przywraca przejęcie konta na jedno kliknięcie.
+Pilnują tego `ZmianaAdresuEmailTest` i `AdresEmailPozaMasowymPrzypisaniemTest`.
+
+📄 `app/Domain/Users/Actions/RequestEmailChange.php` ·
+`app/Domain/Users/Actions/ConfirmEmailChange.php` ·
+`app/Domain/Users/Actions/CancelEmailChange.php` ·
+`app/Models/PendingEmailChange.php` ·
+`app/Http/Controllers/Settings/EmailSettingsController.php` ·
+`docs/DATABASE.md` (`pending_email_changes`) ·
+`docs/SECURITY_PRIVACY_LEGAL.md` (RODO art. 16)

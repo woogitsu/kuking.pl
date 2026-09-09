@@ -193,8 +193,11 @@ class RegressionTest extends TestCase
         // i indeks stoi na tej kolumnie. Test pyta o to samo, o co pyta
         // `SearchQuery::KANDYDACI_SQL`; gdyby pytał o wyrażenie, sprawdzałby
         // indeks, którego już nie ma, zamiast tego, którego używa serwis.
+        // Od 9 września 2026 (issue #187) pierwsza gałąź pyta operatorem `<%`
+        // z frazą po LEWEJ stronie — test pyta o dokładnie to samo, bo inaczej
+        // sprawdzałby indeks pod operator, którego wyszukiwarka nie używa.
         $plan = collect(DB::select(
-            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE title_search % ?',
+            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE ? <% title_search',
             ['zurek'],
         ))->pluck('QUERY PLAN')->implode("\n");
 

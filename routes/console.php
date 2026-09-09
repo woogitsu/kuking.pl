@@ -129,6 +129,18 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
     ->dailyAt('04:30')
     ->withoutOverlapping();
 
+// Retencja `contact_messages` — wiadomości z „Napisz do nas".
+// `config('kuking.kontakt.retention_months')` miesięcy od ZAŁATWIENIA
+// (`handled_at`); wiadomości otwarte nie są kasowane nigdy, niezależnie od
+// wieku. Osobna komenda i osobna liczba niż sprawy moderacyjne, bo to nie
+// jest sprawa: nie ma tu decyzji, od której da się odwołać, ani sporu, do
+// którego można by wrócić — uzasadnienie przy kluczu w `config/kuking.php`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
+    ->name('kuking:sprzataj-wiadomosci')
+    ->dailyAt('04:40')
+    ->withoutOverlapping();
+
 // Wygasłe żądania zmiany adresu e-mail (issue #195). Wiersz
 // `pending_email_changes` trzyma adres skrzynki, więc po wygaśnięciu jest już
 // tylko daną osobową bez zastosowania (AGENTS.md §7 — minimalizacja).
@@ -138,8 +150,15 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
 // TO NIE JEST BRAMKA BEZPIECZEŃSTWA — odnośnik przestaje działać co do minuty
 // dzięki `PendingEmailChange::jestWazne()`, nie dzięki temu sprzątaniu.
 // Dlatego dobowa częstotliwość wystarcza.
+//
+// 04:50, NIE 04:40 — o 04:40 startuje sprzątanie wiadomości z „Napisz do nas"
+// (wyżej). W roli `all` harmonogram chodzi w JEDNYM procesie razem z serwerem
+// (`Schedule::call()`, patrz uzasadnienie przy pierwszym zadaniu), więc dwa
+// zadania o tej samej godzinie to dwa `DELETE` blokujące pętlę harmonogramu
+// jeden po drugim, w tej samej minucie. Rozsuwamy je o dziesięć minut, tak jak
+// rozsunięta jest cała reszta tej listy.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->name('kuking:sprzataj-zmiany-adresu')
-    ->dailyAt('04:40')
+    ->dailyAt('04:50')
     ->withoutOverlapping();

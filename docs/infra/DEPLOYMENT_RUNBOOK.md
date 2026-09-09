@@ -342,7 +342,7 @@ skonfigurowany, zero zmian w kodzie):
 
 ```text
 MAIL_HOST      = ................       (np. smtp-relay.brevo.com)
-MAIL_PORT      = 587                    (587 → MAIL_SCHEME=tls, 465 → smtps)
+MAIL_PORT      = 587                    (587 → MAIL_SCHEME=smtp, 465 → smtps)
 MAIL_USERNAME  = ................
 MAIL_PASSWORD  = ................       ← sekret
 ```
@@ -622,7 +622,7 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 Po dodaniu R2 i poczty dołóż: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_URL`, `AWS_DEFAULT_REGION=auto`,
 `AWS_USE_PATH_STYLE_ENDPOINT=false`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
-`MAIL_PASSWORD`, `MAIL_SCHEME=tls`, `MAIL_FROM_ADDRESS`
+`MAIL_PASSWORD`, `MAIL_SCHEME=smtp`, `MAIL_FROM_ADDRESS`
 oraz opcjonalnie `SENTRY_LARAVEL_DSN` i `POSTHOG_KEY`.
 
 `MAIL_FROM_NAME` **celowo nie jest na tej liście.** Nieustawiona zmienna
