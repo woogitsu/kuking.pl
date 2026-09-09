@@ -1,0 +1,140 @@
+name: Audyt A6 - migawka i pomiary
+
+# Tylko galaz audytowa. Bez PR, wdrozenia, sekretow produkcji i zmian main.
+on:
+  push:
+    branches: ['audit/a6-20260909-1185719']
+    paths: ['.github/workflows/audit-a6.yml']
+permissions:
+  contents: read
+concurrency:
+  group: audit-a6-20260909
+  cancel-in-progress: false
+
+env:
+  BADANY_SHA: 1185719ddeda88e6cee0202b141b4078f17ffdd2
+
+jobs:
+  migawka:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 1185719ddeda88e6cee0202b141b4078f17ffdd2
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Migawka kodu i historia bez konfiguracji uwierzytelnienia
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/a6-migawka"
+          git archive --format=tar.gz -o "$RUNNER_TEMP/a6-migawka/repo.tar.gz" HEAD
+          git bundle create "$RUNNER_TEMP/a6-migawka/historia.bundle" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/a6-migawka/commit.txt"
+          git ls-tree -r --long HEAD > "$RUNNER_TEMP/a6-migawka/pliki.txt"
+          git log --format='%H %cI %s' > "$RUNNER_TEMP/a6-migawka/historia.txt"
+          cd "$RUNNER_TEMP/a6-migawka"
+          sha256sum repo.tar.gz historia.bundle > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: a6-migawka-1185719
+          path: ${{ runner.temp }}/a6-migawka/
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
+
+  pomiar-bazowy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: audit-only
+        ports: ['5432']
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'true'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: audit-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      SENTRY_LARAVEL_DSN: ''
+      POSTHOG_KEY: ''
+      LOG_BLAD_WEBHOOK_URL: ''
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 1185719ddeda88e6cee0202b141b4078f17ffdd2
+          persist-credentials: false
+      - name: Przygotowanie dowodow i portu bazy
+        run: |
+          mkdir -p "$RUNNER_TEMP/a6-baseline"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$RUNNER_TEMP/a6-baseline/commit.txt"
+          docker exec '${{ job.services.postgres.id }}' psql -U kuking -d kuking_test -c 'SELECT version();' > "$RUNNER_TEMP/a6-baseline/postgres.txt"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Instalacja dokladnie z lockow
+        id: install
+        run: |
+          set -euo pipefail
+          php -v > "$RUNNER_TEMP/a6-baseline/php.txt"
+          php -m > "$RUNNER_TEMP/a6-baseline/rozszerzenia.txt"
+          node --version > "$RUNNER_TEMP/a6-baseline/node.txt"
+          composer install --no-interaction --prefer-dist --no-progress 2>&1 | tee "$RUNNER_TEMP/a6-baseline/composer-install.log"
+          npm ci --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/a6-baseline/npm-ci.log"
+          cp .env.example .env
+      - name: Testy, migracje, build i audyty - osobne kody wyjscia
+        if: steps.install.outcome == 'success'
+        run: |
+          set -uo pipefail
+          OUT="$RUNNER_TEMP/a6-baseline"
+          run() {
+            local label="$1"; shift
+            "$@" > "$OUT/$label.log" 2>&1
+            local rc=$?
+            printf '%s\n' "$rc" > "$OUT/$label.exit"
+            echo "$label: exit $rc"
+            tail -n 12 "$OUT/$label.log"
+            return 0
+          }
+          run build npm run build
+          run migrate php artisan migrate --force --no-interaction
+          docker exec '${{ job.services.postgres.id }}' pg_dump -U kuking -d kuking_test --schema-only --no-owner --no-privileges > "$OUT/schema.sql"
+          run rollback php artisan migrate:refresh --force --no-interaction
+          run tests php artisan test --log-junit="$OUT/junit.xml"
+          run pint vendor/bin/pint --test
+          run phpstan vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+          run composer-audit composer audit --locked --format=json --no-interaction
+          run npm-audit npm audit --json
+          git diff --exit-code > "$OUT/production-diff.txt"
+          sha256sum composer.lock package-lock.json > "$OUT/locks.sha256"
+          # Zielony job znaczy zebranie dowodow. Wynik kazdej komendy jest w .exit.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: a6-baseline-1185719
+          path: ${{ runner.temp }}/a6-baseline/
+          retention-days: 7
+          if-no-files-found: error
