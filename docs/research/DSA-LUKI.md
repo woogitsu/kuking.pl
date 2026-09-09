@@ -198,6 +198,19 @@ zbanowanego konta**. Ani jeden z tych sześciu punktów nie dotyczy zgłaszając
 
 ### Luka 1 — zgłaszający nie dowiaduje się, co się stało z jego zgłoszeniem
 
+> **ZAMKNIĘTA (issue #10).** Pomiar niżej opisuje stan sprzed zmiany i zostaje
+> jako dowód, że luka była prawdziwa — pełne zdania kodu, do których się
+> odwołuje, przestały być aktualne. Dziś zgłaszający z kontem dostaje
+> potwierdzenie przyjęcia (`Notification::TYPE_REPORT_RECEIVED`), informację
+> o rozstrzygnięciu z pouczeniem (`TYPE_REPORT_DECIDED`) i ekran
+> `/zgloszenia` z kartą każdej własnej sprawy, chroniony
+> `App\Policies\ReportPolicy`. Treść odpowiedzi jest wspólna dla listu
+> i ekranu (`App\Domain\Moderation\OdpowiedzDlaZglaszajacego`), a Luka 3 niżej
+> jest rozstrzygnięta tak, jak rekomendowała: bez nazwy zgłoszonej osoby, bez
+> rodzaju kary, bez notatki moderatora. Testy:
+> `tests/Feature/ZglaszajacyDostajeOdpowiedzTest.php`.
+> Opis w produkcie: `docs/MODERATION.md`, „Co dostaje ZGŁASZAJĄCY”.
+
 **Dowód nieistnienia.**
 
 - `grep -rn "reporter" app/` poza `reporter_id`/relacją `belongsTo` zwraca
@@ -256,6 +269,18 @@ i `notifications` już istnieją.
 ---
 
 ### Luka 2 — zgłaszający, którego zgłoszenie odrzucono, nie ma jak się odwołać
+
+> **ZAMKNIĘTA DLA ZGŁOSZEŃ PRAWNYCH (issue #23), ŚWIADOMIE NIE DLA
+> SPOŁECZNOŚCIOWYCH.** `appeals` ma dziś `report_id`, a
+> `App\Domain\Moderation\Actions\FileReporterAppeal` przyjmuje jedną skargę na
+> sprawę, w terminie, z podpisanego linku wysłanego razem z decyzją. Warunek
+> wstępny tej akcji to `Report::jestZgloszeniemPrawnym()` — zgłoszenie
+> społecznościowe tej drogi nie ma i to jest decyzja, nie brak: art. 20 leży
+> w Sekcji 3, z której Kuking jest zwolniony (`docs/legal/COMPLIANCE.md`
+> §1.2), a zgłaszającemu ze zwykłego formularza należy się z art. 16 ust. 5
+> **pouczenie**, nie formularz — i to dostaje (issue #10). Rozszerzenie
+> systemu skarg na wszystkie zgłoszenia jest wciąż otwarte i wymaga decyzji
+> właściciela; pytania w sekcji 5.
 
 **Dowód nieistnienia.**
 

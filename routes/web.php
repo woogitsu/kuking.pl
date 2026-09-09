@@ -541,6 +541,17 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zglos/{type}/{id}', [ReportController::class, 'store'])
         ->middleware("throttle:{$limits['report']},report")
         ->name('reports.store');
+
+    // „Twoje zgłoszenia" — strona ZGŁASZAJĄCEGO (issue #10, DSA art. 16
+    // ust. 4 i 5). Nie mylić z `/admin/zgloszenia`: tamto jest kolejką
+    // moderatora i pokazuje wszystkie sprawy razem z danymi zgłaszających.
+    //
+    // Tu każdy widzi wyłącznie własne pisma — o co dba `ReportPolicy::view()`
+    // wołane w kontrolerze, nie sam fakt, że w adresie stoi UUID
+    // (AGENTS.md §7). Obie trasy tylko czytają, więc bez limitu zapytań:
+    // limit ma sens tam, gdzie coś powstaje.
+    Route::get('/zgloszenia', [ReportController::class, 'index'])->name('reports.mine');
+    Route::get('/zgloszenia/{report}', [ReportController::class, 'show'])->name('reports.mine.show');
 });
 
 // --------------------------------------------------------------------------

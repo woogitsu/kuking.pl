@@ -8,6 +8,7 @@ use App\Domain\Moderation\Actions\ReportContent;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
@@ -63,7 +64,7 @@ class ReportController extends Controller
         ]);
 
         try {
-            $this->report->handle(
+            $zgloszenie = $this->report->handle(
                 reporter: $request->user(),
                 target: $this->resolveTarget($type, $id),
                 reason: $data['reason'],
@@ -80,9 +81,92 @@ class ReportController extends Controller
             return back()->withInput()->withErrors(['reason' => $e->getMessage()]);
         }
 
-        return redirect()->route('home')->with('status',
-            'Dziękujemy. Zgłoszenie trafiło do nas i sprawdzimy je najszybciej, jak się da. Jeśli chcesz, możesz też zablokować tę osobę — wtedy nie zobaczycie już wzajemnie swoich treści.',
+        /*
+         * ODESŁANIE NA KARTĘ SPRAWY, NIE NA STRONĘ GŁÓWNĄ (issue #10).
+         *
+         * Do tej zmiany zgłoszenie kończyło się na `/home` i jednym zdaniem
+         * flash-em: człowiek nie widział numeru sprawy ANI RAZU, a po
+         * odświeżeniu strony nie zostawało nic. Karta pokazuje numer, stan
+         * i to, co się stanie dalej — czyli potwierdzenie, do którego da się
+         * wrócić (DSA art. 16 ust. 4). Flash zostaje jako pierwsze zdanie,
+         * bo to on mówi „przyjęliśmy" w chwili, w której człowiek na to
+         * czeka.
+         */
+        return redirect()->route('reports.mine.show', $zgloszenie)->with('status',
+            'Dziękujemy. Zgłoszenie trafiło do nas i sprawdzimy je najszybciej, jak się da. '
+            .'Poniżej jest jego numer i stan — napiszemy tutaj, co postanowiliśmy. '
+            .'Jeśli chcesz, możesz też zablokować tę osobę: wtedy nie zobaczycie już wzajemnie swoich treści.',
         );
+    }
+
+    /**
+     * „Twoje zgłoszenia" — lista spraw TEJ osoby (DSA art. 16 ust. 4 i 5,
+     * issue #10).
+     *
+     * DLACZEGO EKRAN, SKORO JEST POWIADOMIENIE
+     * Bo powiadomienie żyje krócej niż sprawa. Retencja powiadomień to
+     * domyślnie trzy miesiące (`kuking.notifications.retention_months`),
+     * a zgłoszenia — trzydzieści sześć (`kuking.moderation.case_retention_months`).
+     * Bez tego ekranu potwierdzenie odbioru byłoby „trwałe" tylko do
+     * najbliższego sprzątania, a człowiek, który zgubił powiadomienie, nie
+     * miałby jak sprawdzić numeru sprawy przed napisaniem do nas.
+     */
+    public function index(Request $request): View
+    {
+        $zgloszenia = Report::query()
+            ->where('reporter_id', $request->user()->getKey())
+            // Ten sam drugi warunek porządku co w kolejce moderatora: przy
+            // remisie na `created_at` PostgreSQL nie obiecuje żadnej
+            // kolejności, a lista jest stronicowana — niestabilny porządek
+            // znaczy inny podział na strony przy każdym wejściu.
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(20);
+
+        return view('pages.zgloszenia.lista', [
+            'zgloszenia' => $zgloszenia,
+            'decyzje' => $this->decyzjeDla($zgloszenia->getCollection()->all()),
+        ]);
+    }
+
+    /**
+     * Karta jednej sprawy.
+     *
+     * `authorize()` PRZED czymkolwiek innym — UUID w adresie nie jest
+     * autoryzacją (`AGENTS.md` §7), rozstrzyga `ReportPolicy::view()`.
+     */
+    public function show(Report $report): View
+    {
+        $this->authorize('view', $report);
+
+        return view('pages.zgloszenia.szczegoly', [
+            'zgloszenie' => $report,
+            // Jedna decyzja na zgłoszenie (`moderation_actions_one_per_report`),
+            // więc to zapytanie trafia w co najwyżej jeden wiersz.
+            'decyzja' => ModerationAction::query()->where('report_id', $report->getKey())->first(),
+        ]);
+    }
+
+    /**
+     * Decyzje dla wypisanej strony zgłoszeń — jednym zapytaniem, żeby lista
+     * nie robiła N+1. `ModerationAction` nie ma relacji `hasOne` po stronie
+     * `Report`, a dokładanie jej tylko dla tego ekranu przeciągałoby model
+     * moderacji do warstwy, która ma go nie znać.
+     *
+     * @param  list<Report>  $zgloszenia
+     * @return array<string, ModerationAction> klucz: id zgłoszenia
+     */
+    private function decyzjeDla(array $zgloszenia): array
+    {
+        if ($zgloszenia === []) {
+            return [];
+        }
+
+        return ModerationAction::query()
+            ->whereIn('report_id', array_map(fn (Report $r): string => (string) $r->getKey(), $zgloszenia))
+            ->get()
+            ->keyBy(fn (ModerationAction $decyzja): string => (string) $decyzja->report_id)
+            ->all();
     }
 
     private function resolveTarget(string $type, string $id): Model

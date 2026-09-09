@@ -1036,11 +1036,20 @@ Kolumny dołożone dla drogi prawnej:
 | `target_url` | Adres wpisany przez człowieka, zapisany dosłownie (art. 16 ust. 2 lit. b — „dokładna lokalizacja elektroniczna”). |
 | `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
 | `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
-| `receipt_sent_at` | Potwierdzenie odbioru wysłane (ust. 4). |
-| `decision_sent_at` | Powiadomienie o decyzji wysłane (ust. 5). |
+| `receipt_sent_at` | Potwierdzenie odbioru przekazane zgłaszającemu (ust. 4). |
+| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). |
 
 Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
-wysłaliśmy”, a przy audycie to jest pierwsze pytanie.
+powiadomiliśmy”, a przy audycie to jest pierwsze pytanie.
+
+**Obie kolumny znaczą „powiadomiliśmy”, nie „poszedł list”** (issue #10).
+Powstały przy drodze prawnej, gdzie jedynym kanałem jest poczta, ale od
+domknięcia art. 16 po stronie zgłoszeń społecznościowych znaczy je także
+powiadomienie w serwisie (`NotifyReporterReceipt`, `NotifyReporterDecision`).
+Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
+`notifier_email` niepuste — zgłoszenie prawne z adresem; nigdy oba naraz.
+Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
+zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
 
 #### `target_type = 'unknown'` i puste `target_id`
 

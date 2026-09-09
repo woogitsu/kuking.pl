@@ -61,6 +61,56 @@ bazie — operacja zakazana bez zgody właściciela (AGENTS.md §6).
   patrz `docs/DATABASE.md`).
 - Autor dostaje powiadomienie tym samym mechanizmem co przy każdej innej decyzji.
 
+## Co dostaje ZGŁASZAJĄCY (issue #10, DSA art. 16 ust. 4 i 5)
+
+Art. 16 leży w **Sekcji 2** DSA i obowiązuje niezależnie od wielkości firmy —
+zwolnienie z art. 19, na którym stoi `docs/legal/COMPLIANCE.md` §1.2, dotyczy
+wyłącznie Sekcji 3. Zgłaszającemu należą się więc dwie rzeczy: potwierdzenie
+przyjęcia bez zbędnej zwłoki (ust. 4) i informacja o decyzji wraz z
+pouczeniem o dostępnych środkach (ust. 5).
+
+Drogi są dwie, bo są dwa rodzaje zgłoszeń — i to jest jedyna różnica między
+nimi, nie dwa różne obowiązki:
+
+| Droga | Kto zgłasza | Potwierdzenie (ust. 4) | Decyzja i pouczenie (ust. 5) |
+|---|---|---|---|
+| „Zgłoś" pod treścią (`/zglos/...`) | osoba **zalogowana** | powiadomienie `report.received` + karta sprawy | powiadomienie `report.decided` + karta sprawy |
+| „Zgłoś nielegalną treść" (`/zglos-nielegalna-tresc`) | **każdy, także bez konta** | list na podany adres | list na podany adres, z podpisanym linkiem do odwołania |
+
+Zgłoszenie bez podanych danych (art. 16 ust. 2 lit. c) nie ma komu odpowiedzieć
+i to jest zgodne z przepisem, a nie brak w naszych danych.
+
+**Ekran zgłaszającego** — `/zgloszenia` (lista własnych spraw) i
+`/zgloszenia/{report}` (karta jednej sprawy). Wejścia: przycisk „Zobacz" przy
+powiadomieniu, odnośnik w stopce, przekierowanie zaraz po wysłaniu zgłoszenia.
+Nie mylić z `/admin/zgloszenia` — tamto jest kolejką moderatora. Bramką jest
+`ReportPolicy::view()`, nie sam UUID w adresie (`AGENTS.md` §7); moderator
+świadomie tędy **nie** wchodzi, bo ma własny ekran pokazujący więcej.
+
+**Czego zgłaszający się NIE dowiaduje.** Kto opublikował zgłoszoną treść,
+jaką dokładnie karę zastosowaliśmy, ani co ustaliliśmy o tej osobie w trakcie
+sprawy. Wie tylko, czy zgłoszenie uznaliśmy za zasadne i czy treść zostaje
+w serwisie. Zdania liczy jedna klasa dla obu kanałów —
+`App\Domain\Moderation\OdpowiedzDlaZglaszajacego` — żeby list i ekran mówiły
+to samo, a nie coś podobnego.
+
+**Skarga na odrzucenie.** Formularz odwołania dla zgłaszającego
+(`FileReporterAppeal`, issue #23) obsługuje **wyłącznie zgłoszenia prawne**
+z podanym adresem e-mail; wewnętrzny system skarg z art. 20 leży w Sekcji 3,
+z której Kuking jest zwolniony. Zgłaszający ze zwykłego formularza dostaje to,
+czego wymaga art. 16 ust. 5: pouczenie z numerem sprawy, adresem kontaktowym
+i informacją, że decyzja nie zamyka drogi do organu pozasądowego ani do sądu.
+Rozszerzenie systemu skarg na wszystkie zgłoszenia to decyzja właściciela,
+nie konfiguracja.
+
+**Retencja.** `report.decided` żyje do upływu terminu odwołania od decyzji,
+której dotyczy (`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`) —
+niesie pouczenie i jest jedynym miejscem, gdzie zgłaszający przeczyta je drugi
+raz. `report.received` idzie ogólnym okresem retencji powiadomień: nie niesie
+decyzji ani pouczenia, a trwałym zapisem sprawy jest sam wiersz w `reports`
+(`moderation.case_retention_months`, domyślnie 36 miesięcy) czytany na
+`/zgloszenia`.
+
 ## Copyright
 
 Źródło przepisu:

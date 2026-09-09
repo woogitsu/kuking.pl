@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Moderation\Actions\NotifyModerationDecision;
+use App\Domain\Moderation\Actions\NotifyReporterDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
@@ -33,6 +34,7 @@ class ModerationController extends Controller
 {
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
+        private readonly NotifyReporterDecision $powiadomZglaszajacego,
         private readonly RestoreContent $przywroc,
     ) {}
 
@@ -229,15 +231,29 @@ class ModerationController extends Controller
             // nie dowiadywał się niczego, nawet tego, że sprawa jest zamknięta,
             // a ekran obiecywał „odpiszemy Ci, co zrobiliśmy".
             //
-            // Tylko dla zgłoszeń prawnych i tylko gdy jest adres: przy
-            // zgłoszeniu społecznościowym nie składaliśmy takiej obietnicy,
-            // a art. 16 ust. 2 lit. c dopuszcza zgłoszenie bez danych.
+            // DWA KANAŁY, BO SĄ DWIE DROGI ZGŁOSZENIA — i to jest cała
+            // różnica między nimi, nie dwa różne obowiązki (issue #10):
+            //
+            //  - zgłoszenie prawne (`legal_notice`) przychodzi od osoby, która
+            //    może nie mieć konta (art. 16 ust. 2 lit. c), więc jedynym
+            //    kanałem jest adres e-mail, jeśli go podała;
+            //  - zgłoszenie społecznościowe przychodzi zawsze od osoby
+            //    zalogowanej (`reports.create` stoi w grupie `auth`), więc
+            //    kanałem jest powiadomienie w serwisie — czytelne także
+            //    wtedy, gdy serwis nie ma jeszcze SMTP.
+            //
+            // Warunki wykluczają się nawzajem: `maAdresDoOdpowiedzi()` wymaga
+            // `source = legal_notice`, a `reporter_id` ustawia wyłącznie droga
+            // społecznościowa (`ReportContent`). Nikt nie dostanie odpowiedzi
+            // dwa razy.
             if ($zablokowane->maAdresDoOdpowiedzi()) {
                 Notification::route('mail', $zablokowane->notifier_email)
                     ->notify(new DecyzjaWSprawieZgloszenia($zablokowane, $akcja));
 
                 $zablokowane->forceFill(['decision_sent_at' => now()])->save();
             }
+
+            $this->powiadomZglaszajacego->handle($zablokowane, $akcja);
 
             $zablokowane->update([
                 'status' => $data['action'] === ModerationAction::ACTION_NONE
