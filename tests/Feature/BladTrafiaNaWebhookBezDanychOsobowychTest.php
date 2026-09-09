@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -42,6 +47,8 @@ use Tests\TestCase;
  */
 final class BladTrafiaNaWebhookBezDanychOsobowychTest extends TestCase
 {
+    use RefreshDatabase;
+
     private const ADRES_WEBHOOKA = 'https://discord.example.test/api/webhooks/000/tajny-token/slack';
 
     /**
@@ -97,12 +104,103 @@ final class BladTrafiaNaWebhookBezDanychOsobowychTest extends TestCase
 
             $tresc = (string) ($request['text'] ?? '');
 
+            // Kontrola metody pomiaru: patrzymy na TĘ awarię, nie na jakąś
+            // inną. Po usunięciu komunikatu (A6-01) rolę „to na pewno ten
+            // wyjątek" niosą nazwa klasy i wzorzec trasy.
             $this->assertStringContainsString('RuntimeException', $tresc);
-            $this->assertStringContainsString('Testowa awaria do testu webhooka błędów.', $tresc);
+            $this->assertStringContainsString('GET /_test/blad-webhook', $tresc);
+
+            // KOMUNIKAT WYJĄTKU NIE WYCHODZI — zmiana z 9 września. Przy
+            // `RuntimeException` był nieszkodliwy, ale przy `QueryException`
+            // niesie e-mail i hash hasła (osobny przypadek niżej). Zasada
+            // musi więc obowiązywać zawsze, a nie „gdy tekst wygląda groźnie".
+            $this->assertStringNotContainsString('Testowa awaria do testu webhooka błędów.', $tresc);
 
             // Właściwy dowód wymogu #3: argument wywołania, które
             // doprowadziło do wyjątku, NIE WYCHODZI z serwisu.
             $this->assertStringNotContainsString($tajnyEmail, $tresc);
+
+            return true;
+        });
+    }
+
+    /**
+     * PRAWDZIWY `QueryException` z PostgreSQL — to jest znalezisko A6-01
+     * i jedyny przypadek w tym pliku, który tamtą usterkę odtwarza.
+     *
+     * Pozostałe przypadki rzucają `RuntimeException` z komunikatem, który
+     * sami napisaliśmy — i właśnie dlatego przez trzy dni nic nie wykryły.
+     * Zakładały to, co wprost stało w komentarzu klasy: „komunikat wyjątku to
+     * tekst napisany przez kogoś z nas w kodzie". Przy błędzie bazy komunikat
+     * pisze STEROWNIK i wkłada w niego SQL razem z wartościami — adres e-mail
+     * i hash hasła.
+     *
+     * Nie udajemy tego wyjątku ręcznie: wywołujemy prawdziwe naruszenie
+     * unikalności przez prawdziwą trasę HTTP, na PostgreSQL. Ręcznie
+     * zbudowany `new QueryException(...)` miałby komunikat, który sami
+     * wpisaliśmy — czyli znowu badalibyśmy własne założenie zamiast
+     * zachowania sterownika.
+     */
+    public function test_blad_sql_nie_wynosi_maila_ani_hasha_hasla(): void
+    {
+        config(['logging.channels.blad_webhook.url' => self::ADRES_WEBHOOKA, 'app.debug' => false]);
+
+        Http::fake();
+
+        $email = 'ktos-z-kolizja@example.com';
+        $hash = Hash::make('haslo-ktorego-nikt-nie-ma-prawa-zobaczyc');
+
+        $pierwszy = User::factory()->create(['email' => $email]);
+        DB::table('users')->where('id', $pierwszy->getKey())->update(['password' => $hash]);
+
+        Route::get('/_test/blad-sql', function (): void {
+            // Kopia istniejącego wiersza z nowym identyfikatorem — czyli
+            // kolizja na `users_email_unique`. Kopiujemy CAŁY wiersz, żeby
+            // sterownik miał w SQL-u i e-mail, i hash, dokładnie tak jak przy
+            // prawdziwym podwójnym zapisie.
+            $wiersz = (array) DB::table('users')->first();
+            $wiersz['id'] = (string) Str::uuid();
+
+            DB::table('users')->insert($wiersz);
+        })->middleware('web');
+
+        $this->get('/_test/blad-sql')->assertStatus(500);
+
+        Http::assertSent(function ($request) use ($email, $hash): bool {
+            if ($request->url() !== self::ADRES_WEBHOOKA) {
+                return false;
+            }
+
+            $tresc = (string) ($request['text'] ?? '');
+
+            // Kontrola metody pomiaru — bez niej wszystko niżej przechodziłoby
+            // także wtedy, gdyby na webhook poszedł jakiś zupełnie inny błąd
+            // albo gdyby baza wcale nie odrzuciła zapisu.
+            // Laravel zwęża `QueryException` do podklasy
+            // `UniqueConstraintViolationException`, więc kontrolą jest sama
+            // przestrzeń nazw warstwy bazy — nie konkretna klasa liścia,
+            // która przy kolejnym wydaniu frameworka może się nazywać inaczej.
+            $this->assertStringContainsString('Illuminate\\Database\\', $tresc,
+                'Na webhook nie poszedł błąd warstwy bazy — ten przypadek nie bada wtedy niczego.');
+            // WŁAŚCIWY DOWÓD A6-01 — i stoi PRZED resztą świadomie. Na starym
+            // kodzie ten przypadek ma padać na wycieku, a nie na braku pola
+            // z nowego formatu; inaczej „test jest czerwony przed łatką"
+            // znaczyłoby tylko tyle, że format się zmienił.
+            $this->assertStringNotContainsString($email, $tresc,
+                'Adres e-mail człowieka wyszedł na zewnętrzny webhook w treści komunikatu błędu SQL.');
+            $this->assertStringNotContainsString($hash, $tresc,
+                'Hash hasła wyszedł na zewnętrzny webhook w treści komunikatu błędu SQL.');
+
+            // Bez tego dwa sprawdzenia wyżej przechodziłyby również wtedy,
+            // gdyby wiadomość niosła CAŁY SQL, tylko z innymi wartościami.
+            $this->assertStringNotContainsString('insert into', mb_strtolower($tresc),
+                'Na webhook poszedł SQL zapytania. Nawet bez tych konkretnych wartości niesie strukturę i treść żądania.');
+
+            // Dopiero teraz: czy z alarmu zostało coś użytecznego. SQLSTATE
+            // jest po usunięciu komunikatu najcenniejszą pojedynczą
+            // informacją — bez niego zostałaby sama nazwa klasy.
+            $this->assertStringContainsString('kod: 23505', $tresc,
+                'Brakuje SQLSTATE naruszenia unikalności. Alarm bez niego mówi tylko „błąd bazy", a to za mało, żeby cokolwiek z nim zrobić.');
 
             return true;
         });
