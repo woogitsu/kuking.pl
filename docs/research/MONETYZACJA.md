@@ -7,9 +7,11 @@
 
 ## 0. Zakres i uczciwe zastrzeżenie na start
 
-`docs/MONETIZATION.md` proponuje widełki cenowe (14,99–19,99 zł/mies.) i listę
-funkcji premium **bez żadnego źródła** — to są liczby wyssane z powietrza,
-nie z badania. Issue #36 już to zauważa i słusznie nazywa to zadaniem
+`docs/MONETIZATION.md` proponował widełki cenowe (14,99–19,99 zł/mies.) i listę
+funkcji premium **bez żadnego źródła** — to były liczby wyssane z powietrza,
+nie z badania. *(Czas przeszły od 9 września 2026: tamten plik został
+przepisany na stanowisko właściciela „zarabianie nie jest celem" i tych widełek
+już nie zawiera. Ten akapit zostaje, bo opisuje punkt wyjścia tego researchu.)* Issue #36 już to zauważa i słusznie nazywa to zadaniem
 decyzyjnym, nie implementacyjnym. Trzymam się instrukcji z briefu: **żadnej
 liczby, przychodu, konwersji ani ceny, których nie mam ze źródła.** Tam,
 gdzie cytuję cudze liczby (Cookpad, Strava, Duolingo, Nextdoor, Patreon,
