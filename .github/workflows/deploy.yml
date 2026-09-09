@@ -135,11 +135,33 @@ jobs:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
-    # Tylko udane deploye na produkcję lub staging.
+    # -----------------------------------------------------------------------
+    #  BRAMKA. Zawężona świadomie — patrz sprostowanie niżej.
+    #
+    #  BYŁO: warunek sprawdzał dodatkowo
+    #      contains(fromJSON('["production","staging"]'), github.event.deployment.environment)
+    #
+    #  Zmierzone 9 września 2026: workflow „Deploy" ma **249 przebiegów
+    #  i WSZYSTKIE mają conclusion `skipped`.** Ten test dymny nie uruchomił
+    #  się ANI RAZU — a to on miał wyłapywać „deploy się udał, ale strona nie
+    #  działa". Przebieg 249 wystartował o 16:44:20, czyli pięć sekund po tym,
+    #  jak wdrożenie zgłosiło sukces o 16:44:15 — i też został pominięty.
+    #
+    #  Czyli któryś człon tego warunku nie pasuje do tego, co naprawdę
+    #  przysyła Railway. NIE ZGADUJĘ KTÓRY: sprawdzenie nazwy środowiska
+    #  przeniesione jest do kroku niżej, który ją WYPISUJE. Po najbliższym
+    #  wdrożeniu będzie w dzienniku czarno na białym, zamiast kolejnej hipotezy.
+    #
+    #  Dlaczego nie zdjąłem też `state == 'success'`: `deployment_status`
+    #  strzela kilka razy na jedno wdrożenie (zmierzone: pięć razy). Bez tego
+    #  członu każde wdrożenie płaciłoby za pięć przebiegów zamiast jednego,
+    #  a minuty Actions są w tym projekcie skończone i płatne (D-010). Jeśli
+    #  po tej zmianie przebieg NADAL będzie `skipped`, to znaczy, że winny
+    #  jest właśnie ten człon — i wtedy wiadomo, co poprawić.
+    # -----------------------------------------------------------------------
     if: >-
       github.event_name == 'deployment_status' &&
-      github.event.deployment_status.state == 'success' &&
-      contains(fromJSON('["production", "staging"]'), github.event.deployment.environment)
+      github.event.deployment_status.state == 'success'
 
     steps:
       - uses: actions/checkout@v7
@@ -149,11 +171,32 @@ jobs:
         run: |
           set -euo pipefail
           env_name='${{ github.event.deployment.environment }}'
-          if [ "$env_name" = "production" ]; then
-            echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
-          else
-            echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
-          fi
+          stan='${{ github.event.deployment_status.state }}'
+
+          # DIAGNOSTYKA, nie ozdoba. To jest jedyne miejsce, w którym da się
+          # zobaczyć, jak Railway naprawdę nazywa środowisko — dokumentacja
+          # tego nie gwarantuje, a 249 pominiętych przebiegów to skutek
+          # zgadywania.
+          echo "=== Co przyszło w zdarzeniu deployment_status ==="
+          echo "  deployment.environment  = '${env_name}'"
+          echo "  deployment_status.state = '${stan}'"
+          echo "================================================"
+
+          case "$env_name" in
+            production)
+              echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
+              ;;
+            staging)
+              echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Środowisko '${env_name}' nie jest ani production, ani staging."
+              echo "Testu dymnego nie uruchamiam — nie wiem, pod jakim adresem go szukać."
+              echo "JEŚLI TO NAZWA, KTÓRA POWINNA BYĆ OBSŁUGIWANA, dopisz ją w tym case."
+              echo "pomin=1" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
           echo "env=$env_name" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------------------------------------
@@ -162,6 +205,7 @@ jobs:
       #  go później. My sprawdzamy realne ścieżki użytkownika przez Cloudflare.
       # -----------------------------------------------------------------------
       - name: Test dymny
+        if: steps.target.outputs.pomin != '1'
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
         run: |
@@ -185,7 +229,7 @@ jobs:
           echo "=== Test dymny: ${BASE_URL} ==="
           check /health          200 "healthcheck aplikacji i bazy"
           check /                200 "strona główna"
-          check /logowanie       200 "formularz logowania"
+          check /login           200 "formularz logowania"
           check /robots.txt      200 "robots"
           check /nie-ma-takiej-strony-$(date +%s) 404 "obsługa 404"
 
@@ -235,6 +279,7 @@ jobs:
       #  Krok nieblokujący: brak wpisu w Sentry to nie powód do alarmu.
       # -----------------------------------------------------------------------
       - name: Rejestracja wydania w Sentry
+        if: steps.target.outputs.pomin != '1'
         if: vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
         continue-on-error: true
         uses: getsentry/action-release@v3
