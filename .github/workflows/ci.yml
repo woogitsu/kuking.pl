@@ -733,6 +733,13 @@ jobs:
           php artisan storage:link
           npm run build
 
+          # MIGRACJA TUTAJ, NIE TYLKO W SKRYPCIE. `dostepnosc.mjs` robi
+          # `migrate:fresh --seed` sam, ale `wydajnosc.mjs` na tym polegał —
+          # dwa niezależne narzędzia dzieliły stan, którego jedno z nich nie
+          # tworzy. Gdy pierwsze nie doszło do końca, drugie startowało na
+          # pustej bazie i padało na healthchecku (issue #215).
+          php artisan migrate:fresh --seed --force --no-interaction
+
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
@@ -771,7 +778,14 @@ jobs:
       #  DRUGI `php artisan serve` (własny, dynamiczny port — pierwszy serwer
       #  axe-core już zamknął swój) na tych samych, gotowych danych.
       - name: Lighthouse (wydajność i SEO)
-        if: steps.zmiany.outputs.warto == '1' && !cancelled()
+        # `!cancelled()` STĄD ZDJĘTE — 9 września 2026 to ono zasłoniło
+        # prawdziwą awarię. Ten warunek znosi domyślne pomijanie kroku po
+        # porażce poprzedniego, więc gdy skan axe padał, Lighthouse startował
+        # mimo to — na środowisku, którego nikt nie przygotował — i zgłaszał
+        # własny, niezwiązany błąd („brak odpowiedzi z /health"). Krok, który
+        # uruchamia się po awarii i melduje coś innego niż jej przyczynę, jest
+        # gorszy niż krok pominięty. Issue #215.
+        if: steps.zmiany.outputs.warto == '1'
         env:
           POMIN_MIGRACJE: '1'
         run: node scripts/wydajnosc.mjs
