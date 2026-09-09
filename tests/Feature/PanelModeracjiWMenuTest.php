@@ -160,9 +160,17 @@ class PanelModeracjiWMenuTest extends TestCase
      * zdążyłaby się rozjechać z rzeczywistością. Pomijamy trasy z parametrem
      * (np. `admin.contact.show`), bo wymagają istniejącego rekordu; ich układ
      * i tak jest ten sam.
+     *
+     * NAZWA MUSI ZACZYNAĆ SIĘ OD `test_`, I TO NIE JEST DROBIAZG.
+     * Pierwsza wersja miała nazwę bez tego przedrostka i atrybut `#[Test]`
+     * bez importu — czyli atrybut wskazywał na nieistniejącą klasę
+     * `Tests\Feature\Test`. PHPUnit takiego atrybutu nie rozpoznaje i po
+     * cichu POMIJA metodę: przebieg świecił na zielono, a ten test nie
+     * uruchomił się ani razu. Wyłapał to dopiero Larastan. Reszta pliku
+     * używa przedrostka `test_`, więc trzymamy się jednej konwencji zamiast
+     * mieszać dwie.
      */
-    #[Test]
-    public function kazdy_ekran_panelu_ma_pasek_i_dopisek_w_tytule(): void
+    public function test_kazdy_ekran_panelu_ma_pasek_i_dopisek_w_tytule(): void
     {
         $moderator = $this->moderator();
 
