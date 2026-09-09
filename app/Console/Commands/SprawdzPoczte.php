@@ -339,11 +339,13 @@ class SprawdzPoczte extends Command
             $port = (string) config("mail.mailers.{$sterownik}.port");
 
             if ($port === '465' && $scheme !== 'smtps') {
-                $ostrzezenia[] = 'Port 465 to szyfrowanie od pierwszego bajtu — MAIL_SCHEME powinien być `smtps`. Przy `tls` połączenie się zawiesi.';
+                $ostrzezenia[] = 'Port 465 to szyfrowanie od pierwszego bajtu — MAIL_SCHEME powinien być `smtps`. '
+                    .'Przy `tls` nie dojdzie do żadnego połączenia: Symfony nie zna tego schematu i transport wywraca się przy budowie (PR #198).';
             }
 
             if ($port === '587' && $scheme === 'smtps') {
-                $ostrzezenia[] = 'Port 587 to STARTTLS — MAIL_SCHEME powinien być `tls`, nie `smtps`.';
+                $ostrzezenia[] = 'Port 587 to STARTTLS — MAIL_SCHEME powinien być `smtp`, nie `smtps`. '
+                    .'NIE `tls`: tej wartości Symfony nie zna i transportu nie da się wtedy nawet zbudować (PR #198).';
             }
         }
 
@@ -554,7 +556,7 @@ class SprawdzPoczte extends Command
             $this->zawiera($komunikat, ['connection could not be established', 'connection refused', 'could not connect', 'timed out', 'timeout', 'network is unreachable', 'name or service not known', 'getaddrinfo', 'no such host']) => [
                 'Nie udało się nawiązać połączenia z serwerem poczty.',
                 'Sprawdź MAIL_HOST — literówka w nazwie serwera wygląda dokładnie tak samo jak awaria dostawcy.',
-                'Sprawdź MAIL_PORT: 587 (STARTTLS, MAIL_SCHEME=tls) albo 465 (MAIL_SCHEME=smtps). Port 25 bywa blokowany.',
+                'Sprawdź MAIL_PORT: 587 (STARTTLS, MAIL_SCHEME=smtp) albo 465 (MAIL_SCHEME=smtps). Port 25 bywa blokowany.',
                 'Jeśli host i port są dobre, dostawca może blokować ruch z tego adresu IP — zajrzyj do jego panelu.',
                 'Na planach Railway Free, Trial i Hobby port SMTP jest WYŁĄCZONY i nic tego nie obejdzie — '
                     .'tam jedyną drogą jest sterownik `emaillabs`, który idzie przez HTTPS (docs/DECISIONS.md D-047).',
@@ -562,7 +564,7 @@ class SprawdzPoczte extends Command
 
             $this->zawiera($komunikat, ['ssl', 'tls', 'certificate', 'stream_socket_enable_crypto']) => [
                 'Połączenie się nawiązało, ale nie udało się go zaszyfrować.',
-                'To prawie zawsze niezgodność portu i MAIL_SCHEME: 587 → `tls`, 465 → `smtps`.',
+                'To prawie zawsze niezgodność portu i MAIL_SCHEME: 587 → `smtp`, 465 → `smtps`. Wartość `tls` NIE ISTNIEJE.',
                 'Nie wyłączaj weryfikacji certyfikatu, żeby to obejść — to zdejmuje ochronę z hasła SMTP w locie.',
             ],
 

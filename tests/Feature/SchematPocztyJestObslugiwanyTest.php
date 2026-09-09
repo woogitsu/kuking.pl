@@ -93,6 +93,57 @@ class SchematPocztyJestObslugiwanyTest extends TestCase
         $this->assertStringContainsString('tls', $wyjatek->getMessage());
     }
 
+    /**
+     * NARZĘDZIE DIAGNOSTYCZNE NIE MOŻE DORADZAĆ WARTOŚCI, KTÓRA WYWRACA POCZTĘ.
+     *
+     * PR #198 poprawił `MAIL_SCHEME` w `.railway/railway.ts` z „tls" na „smtp"
+     * i ten plik zaczął tego pilnować. Nikt natomiast nie tknął
+     * `kuking:sprawdz-poczte`, która po awarii wypisywała człowiekowi trzy
+     * rady, i wszystkie trzy mówiły: ustaw `MAIL_SCHEME=tls`.
+     *
+     * Czyli: strażnik pilnował pliku, a komenda uruchamiana DOKŁADNIE w chwili
+     * awarii namawiała do jej powtórzenia. Żaden test nie sprawdzał treści
+     * tych stringów, więc narzędzia były zielone przez cały dzień.
+     *
+     * Test czyta źródło komendy, bo te rady są w niej literałami — nie ma
+     * innego miejsca, w którym dałoby się je złapać.
+     */
+    public function test_komenda_diagnostyczna_nie_doradza_schematu_tls(): void
+    {
+        $sciezka = base_path('app/Console/Commands/SprawdzPoczte.php');
+
+        $this->assertFileExists($sciezka, 'Nie ma komendy `kuking:sprawdz-poczte`. Jeśli ją przeniesiono, popraw ścieżkę tutaj.');
+
+        $zrodlo = (string) file_get_contents($sciezka);
+
+        // Kontrola metody pomiaru: gdyby komenda przestała w ogóle wspominać
+        // o `MAIL_SCHEME`, asercja niżej przechodziłaby, nie sprawdzając nic.
+        $this->assertStringContainsString(
+            'MAIL_SCHEME',
+            $zrodlo,
+            'Komenda nie wspomina już o MAIL_SCHEME — czytam zły plik albo diagnostyka SMTP zniknęła.',
+        );
+
+        // Łapiemy postacie, w których rada NAKAZUJE `tls`: „MAIL_SCHEME=tls",
+        // „MAIL_SCHEME powinien być `tls`", „587 → `tls`". Zdania mówiące, że
+        // `tls` NIE działa, mają prawo tam stać i stoją.
+        $zlerady = [
+            '/MAIL_SCHEME\s*=\s*`?tls/i',
+            '/MAIL_SCHEME[^.]{0,40}powinien być\s*`?tls/iu',
+            '/587\s*(?:→|->)\s*`?tls/u',
+        ];
+
+        foreach ($zlerady as $wzorzec) {
+            $this->assertDoesNotMatchRegularExpression(
+                $wzorzec,
+                $zrodlo,
+                'Komenda `kuking:sprawdz-poczte` znowu doradza `MAIL_SCHEME=tls`. Symfony tej wartości nie zna '
+                .'(patrz asercje wyżej w tym pliku), więc rada prowadzi wprost do awarii z 9 września. '
+                .'Na porcie 587 poprawną wartością jest `smtp`, na 465 — `smtps`.',
+            );
+        }
+    }
+
     private function schematZRailwayTs(): string
     {
         $plik = (string) file_get_contents(base_path('.railway/railway.ts'));

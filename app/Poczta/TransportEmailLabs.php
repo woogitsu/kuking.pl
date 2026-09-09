@@ -96,6 +96,19 @@ final class TransportEmailLabs extends AbstractTransport
         'from', 'sender', 'to', 'cc', 'bcc', 'reply-to', 'subject', 'date',
         'message-id', 'mime-version', 'content-type', 'content-transfer-encoding',
         'return-path', 'received', 'dkim-signature', 'x-transport',
+        // `x-to`, `x-cc`, `x-bcc` NIE SĄ tu na wszelki wypadek. Laravel dokłada
+        // je sam: `Mailer::setGlobalToAndRemoveCcAndBcc()` (czynne, gdy
+        // `config('mail.to')` jest ustawione — czyli po wpisaniu
+        // `MAIL_TO_ADDRESS`, co jest standardową praktyką na stagingu) woła
+        // `Message::forgetTo()/forgetCc()/forgetBcc()`, a te przepisują
+        // ORYGINALNE adresy odbiorców do nagłówków `X-To`, `X-Cc`, `X-Bcc`.
+        //
+        // Bez tych trzech wpisów adresy użytkowników poszłyby do dostawcy
+        // w polu `headers` i ZOSTAŁY w dostarczonym liście — czyli dokładnie
+        // ten przemyt adresu, przed którym broni komentarz wyżej. Dziś nie
+        // strzela, bo `config/mail.php` nie ma klucza `to`; kosztuje trzy
+        // wiersze, a zamyka klasę awarii, nie jej dzisiejszy objaw.
+        'x-to', 'x-cc', 'x-bcc',
     ];
 
     /** Specyfikacja API: nazwa nadawcy i adresata od 2 do 64 znaków. */
@@ -426,14 +439,32 @@ final class TransportEmailLabs extends AbstractTransport
      * Powód odmowy — zbudowany WYŁĄCZNIE z pól, o których wiemy, że opisują
      * błąd, a nie dane człowieka.
      *
-     * Bierzemy: kod HTTP, `errors[].code`, `errors[].title`,
-     * `errors[].meta.parameter` (NAZWA parametru) i `meta.uniqId`.
-     * NIE bierzemy: `errors[].message` ani `errors[].meta.value` — dokumentacja
-     * mówi wprost, że `meta.value` to „the value of this parameter passed",
-     * czyli przy błędnym adresie odbiorcy byłby to jego adres e-mail. To jest
-     * dokładnie ta pułapka, którą audyt A6-01 znalazł w `WebhookBleduHandler`:
-     * komunikat błędu od cudzej biblioteki niesie dane, których autor kodu
-     * tam nie włożył.
+     * Bierzemy: kod HTTP, `errors[].code`, `errors[].title`, `errors[].message`
+     * (przepuszczone przez tę samą redakcję co tytuł) i `meta.uniqId`.
+     * NIE bierzemy: `errors[].meta.value`.
+     *
+     * SPROSTOWANIE, 9 września 2026 — poprzednia wersja tego komentarza była
+     * nieprawdziwa i kosztowała diagnostykę. Twierdziła, że odcinamy
+     * `errors[].message` dlatego, że obok stoi `meta.value` z wartością
+     * parametru. `components/schemas/ErrorObject` w pobranej specyfikacji
+     * OpenAPI dostawcy ma jednak DOKŁADNIE trzy pola, wszystkie wymagane:
+     *
+     *     "required": ["title", "message", "code"]
+     *
+     * Nie ma tam `meta`. Czyli `meta.value` nie istnieje (ostrożność była
+     * skierowana w puste miejsce), `meta.parameter` też nie — więc
+     * `parametrBledu()` zwracało `null` przy każdej odmowie i fragment
+     * „pole: …" nie pojawiał się nigdy. Odcięte zostało za to jedyne pole
+     * z detalami: `message`, opisane jako „Error details".
+     *
+     * Skutek był taki, że przy HTTP 400 do `failed_jobs` wpadał sam kod
+     * i tytuł, a operator nie wiedział, CO dostawca odrzucił.
+     *
+     * Lekcja z audytu A6-01 zostaje w mocy — po prostu stosujemy ją tam, gdzie
+     * jest jej miejsce: `message` przechodzi przez `trescBledu()`, czyli tę
+     * samą redakcję adresów i to samo obcięcie co `title`. `meta.parameter`
+     * czytamy dalej jako dodatek, gdyby dostawca kiedyś je dosłał, ale nic
+     * już na nim nie stoi.
      *
      * @param  array<string, mixed>  $tresc
      */
@@ -451,11 +482,19 @@ final class TransportEmailLabs extends AbstractTransport
 
             $opis = $this->kodBledu($blad['code'] ?? null);
             $tytul = $this->tytulBledu($blad['title'] ?? null);
+            $tresc = $this->trescBledu($blad['message'] ?? null);
             $parametr = $this->parametrBledu($blad);
+
+            // `message` pomijamy, gdy tylko powtarza tytuł — inaczej komunikat
+            // mówiłby to samo dwa razy.
+            if ($tresc !== null && $tresc === $tytul) {
+                $tresc = null;
+            }
 
             $opisy[] = trim(implode(' ', array_filter([
                 $opis,
                 $tytul === null ? null : '('.$tytul.')',
+                $tresc === null ? null : '— '.$tresc,
                 $parametr === null ? null : 'pole: '.$parametr,
             ], static fn (?string $czesc): bool => $czesc !== null && $czesc !== '')));
         }
@@ -507,9 +546,40 @@ final class TransportEmailLabs extends AbstractTransport
     }
 
     /**
+     * `errors[].message` — „Error details" ze specyfikacji, przykład z niej:
+     * „Field ... is invalid". To JEDYNE pole, które mówi, co dostawcy nie
+     * pasowało, więc bez niego odmowa jest nierozpoznawalna.
+     *
+     * Redakcja jest tu ostrzejsza niż przy tytule, i to celowo: specyfikacja
+     * nie obiecuje, że dostawca nie wstawi w „details" wartości parametru —
+     * a przy odrzuconym adresie odbiorcy tą wartością byłby jego adres. Więc:
+     * jedna linia, wszystko o kształcie adresu zamienione na `[adres]`,
+     * obcięcie do 120 znaków. Ta sama zasada, co w `WebhookBleduHandler`
+     * (audyt A6-01): komunikat od cudzej strony niesie dane, których autor
+     * kodu tam nie włożył.
+     */
+    private function trescBledu(mixed $tresc): ?string
+    {
+        if (! is_string($tresc) || trim($tresc) === '') {
+            return null;
+        }
+
+        $tresc = (string) preg_replace('/\s+/', ' ', trim($tresc));
+        $tresc = (string) preg_replace('/[^\s<>()@,;]+@[^\s<>()@,;]+/', '[adres]', $tresc);
+
+        return mb_substr($tresc, 0, self::MAKSYMALNA_DLUGOSC_TYTULU);
+    }
+
+    /**
      * Nazwa parametru, który dostawca odrzucił (`to`, `subject`, `smtpAccount`).
-     * NAZWA, nigdy wartość — to jest najcenniejsza informacja diagnostyczna,
-     * jaka po odcięciu treści zostaje.
+     * NAZWA, nigdy wartość.
+     *
+     * UWAGA: `ErrorObject` w specyfikacji NIE MA pola `meta`, więc dziś ta
+     * metoda zwraca `null` przy każdej odmowie. Zostaje jako dodatek na wypadek,
+     * gdyby dostawca zaczął je dosyłać — ale diagnostyka stoi na `code`,
+     * `title` i `message`, nie na tym. Nie pisz testu, który zakłada, że to
+     * pole przychodzi: taki test dowodziłby, że umiemy odczytać coś, czego API
+     * nie zwraca, i dokładnie tak było do 9 września.
      *
      * @param  array<mixed>  $blad
      */
@@ -557,13 +627,34 @@ final class TransportEmailLabs extends AbstractTransport
             return null;
         }
 
-        $adresaci = $dane[0]['to'] ?? null;
+        $adresat = $dane[0]['to'] ?? null;
 
-        if (! is_array($adresaci) || ! is_array($adresaci[0] ?? null)) {
+        if (! is_array($adresat)) {
             return null;
         }
 
-        $id = $adresaci[0]['messageId'] ?? null;
+        // `to` W ODPOWIEDZI JEST OBIEKTEM, NIE LISTĄ — i to nie jest domysł.
+        // `components/schemas/EmailStatusObject` w specyfikacji OpenAPI
+        // dostawcy (pobrana i sprawdzona 9 września 2026) ma:
+        //
+        //     "to": { "properties": { "email", "name", "messageId" },
+        //             "type": "object" }
+        //
+        // a `POST /v2.1/email` → 200 zwraca `data` jako tablicę WŁAŚNIE tych
+        // obiektów. Pierwsza wersja czytała `$adresat[0]['messageId']`, czyli
+        // traktowała `to` jak listę — i zwracała `null` przy KAŻDEJ udanej
+        // wysyłce. Awaria była całkowicie cicha: `setMessageId()` nie było
+        // wołane nigdy, `SentMessage` zostawał z lokalnym identyfikatorem,
+        // którego dostawca nigdy nie widział (`message-id` jest na liście
+        // `NAGLOWKI_POMIJANE`), więc wysyłki nie dało się połączyć z wpisem
+        // w panelu EmailLabs. Test tego nie łapał, bo atrapa odpowiedzi
+        // powtarzała ten sam błędny kształt.
+        //
+        // Listę przyjmujemy nadal, gdyby dostawca kiedyś zmienił kształt na
+        // wieloadresatowy: taniej tolerować oba niż wrócić tu po awarii.
+        $id = is_array($adresat[0] ?? null)
+            ? ($adresat[0]['messageId'] ?? null)
+            : ($adresat['messageId'] ?? null);
 
         return is_string($id) && $id !== '' ? $id : null;
     }

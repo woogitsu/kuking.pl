@@ -11,8 +11,10 @@ use App\Support\Poczta;
 use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Http\Client\Request;
 use Illuminate\Mail\Message;
+use Illuminate\Mail\SentMessage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Tests\TestCase;
 use Throwable;
 
@@ -41,6 +43,9 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
 
     /** Zdanie, którego ma NIE być w żadnym komunikacie błędu. */
     private const TRESC_LISTU = 'Poufny akapit z listu, numer 42';
+
+    /** Zaślepka, którą `TransportEmailLabs::bezSekretow()` wstawia w miejsce klucza. */
+    private const ZAMIAST_KLUCZA = '[klucz]';
 
     protected function setUp(): void
     {
@@ -239,7 +244,21 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
         $komunikat = $wyjatek->getMessage();
 
         $this->assertStringNotContainsString('basia@wp.pl', $komunikat, 'Adres odbiorcy wyszedł w komunikacie błędu.');
-        $this->assertStringNotContainsString('blacklisted', $komunikat, '`errors[].message` od dostawcy nie ma prawa tu trafić.');
+
+        // ZMIANA DECYZJI, 9 września wieczorem. Wcześniej stała tu asercja,
+        // że `errors[].message` NIE MA PRAWA tu trafić — odcinaliśmy je
+        // w całości, w przekonaniu, że obok stoi `meta.value` z wartością
+        // odrzuconego parametru. `ErrorObject` w specyfikacji dostawcy nie ma
+        // jednak pola `meta` wcale, a `message` jest jedynym polem z detalami
+        // („Error details"). Odcięcie go znaczyło, że odmowa 400 nie dawała
+        // się zdiagnozować: kod, tytuł i nic więcej.
+        //
+        // Teraz `message` PRZECHODZI, ale przez tę samą redakcję co tytuł.
+        // Asercje niżej pilnują jednego i drugiego naraz: detal jest, adresu
+        // i klucza w nim nie ma. To jest mocniejsze niż poprzednia wersja —
+        // tamta dowodziła tylko, że czegoś nie wypisujemy.
+        $this->assertStringContainsString('is blacklisted', $komunikat, 'Detal odmowy zniknął — bez niego nie wiadomo, dlaczego dostawca odrzucił list.');
+        $this->assertStringContainsString(self::ZAMIAST_KLUCZA, $komunikat, 'Klucz nie został zastąpiony zaślepką, więc redakcja nie zadziałała.');
         $this->assertStringNotContainsString(self::KLUCZ_AUTORYZACJI, $komunikat, 'Klucz API wyszedł w komunikacie błędu.');
         $this->assertStringNotContainsString(self::KLUCZ_APLIKACJI, $komunikat, 'Klucz aplikacji wyszedł w komunikacie błędu.');
         $this->assertStringNotContainsString('Ustaw nowe hasło', $komunikat, 'Temat listu wyszedł w komunikacie błędu.');
@@ -297,6 +316,172 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
 
         $this->assertNotNull($wyslana);
         $this->assertSame('kuking0001@kuking.pl', $wyslana->getSymfonySentMessage()?->getMessageId());
+    }
+
+    /**
+     * Gdyby dostawca kiedyś zmienił `to` na listę (API wieloadresatowe),
+     * identyfikator ma się nadal odczytać. Tolerancja jest tańsza niż powrót
+     * tutaj po cichej awarii.
+     */
+    public function test_identyfikator_odczytuje_sie_takze_gdy_to_jest_lista(): void
+    {
+        Http::fake([self::ADRES_API => Http::response([
+            'meta' => ['numberOfErrors' => 0, 'numberOfData' => 1, 'status' => 200, 'uniqId' => 'ok12345'],
+            'data' => [[
+                'to' => [['email' => 'basia@wp.pl', 'messageId' => 'kuking0002@kuking.pl']],
+                'status' => 'sent',
+            ]],
+        ], 200)]);
+
+        $wyslana = $this->wyslijIZwroc();
+
+        $this->assertSame('kuking0002@kuking.pl', $wyslana?->getSymfonySentMessage()?->getMessageId());
+    }
+
+    /**
+     * Awaria po stronie dostawcy MUSI wywrócić zadanie, żeby kolejka je
+     * ponowiła. Do 9 września żaden test nie sprawdzał kodu 5xx ani razu —
+     * wszystkie szły przez 400, 207 i 200.
+     */
+    public function test_blad_500_u_dostawcy_wywraca_zadanie(): void
+    {
+        Http::fake([self::ADRES_API => Http::response([
+            'meta' => ['numberOfErrors' => 1, 'numberOfData' => 0, 'status' => 500, 'uniqId' => 'blad500'],
+            'errors' => [['code' => 'E-0-500', 'title' => 'InternalError', 'message' => 'Try again later']],
+        ], 500)]);
+
+        $wyjatek = $this->zlapPrzyWysylce();
+
+        $this->assertInstanceOf(OdmowaEmailLabs::class, $wyjatek);
+        $this->assertStringContainsString('500', (string) $wyjatek->getMessage());
+    }
+
+    /**
+     * Zerwane połączenie to NIE „pewnie poszło". Sprawdzamy przy okazji, że
+     * `bezSekretow()` działa na komunikacie cURL-a, a nie tylko na odpowiedzi
+     * dostawcy — to jedyna droga, którą komunikat obcej biblioteki wchodzi
+     * do naszego wyjątku.
+     */
+    public function test_zerwane_polaczenie_wywraca_zadanie_i_nie_niesie_kluczy(): void
+    {
+        Http::fake([self::ADRES_API => Http::failedConnection()]);
+
+        $wyjatek = $this->zlapPrzyWysylce();
+
+        $this->assertNotNull($wyjatek, 'Brak połączenia z dostawcą przeszedł bez wyjątku — to jest cicha utrata listu.');
+        $this->assertNotInstanceOf(BrakKonfiguracjiEmailLabs::class, $wyjatek);
+
+        $komunikat = (string) $wyjatek->getMessage();
+        $this->assertStringNotContainsString(self::KLUCZ_APLIKACJI, $komunikat);
+        $this->assertStringNotContainsString(self::KLUCZ_AUTORYZACJI, $komunikat);
+    }
+
+    /**
+     * KONTRAKT PONOWIEŃ KOLEJKI wisi na tym interfejsie, nie na naszej klasie.
+     * Gdyby ktoś zmienił klasę bazową `OdmowaEmailLabs`, Laravel przestałby
+     * rozpoznawać porażkę wysyłki jako błąd transportu — i ta zmiana
+     * przeszłaby niezauważona, bo wszystkie pozostałe asercje dotyczą
+     * `OdmowaEmailLabs`, czyli naszej własnej nazwy.
+     */
+    public function test_odmowa_jest_bledem_transportu_w_rozumieniu_symfony(): void
+    {
+        Http::fake([self::ADRES_API => Http::response([
+            'meta' => ['numberOfErrors' => 1, 'numberOfData' => 0, 'status' => 400, 'uniqId' => 'blad400'],
+            'errors' => [['code' => 'E-01-01', 'title' => 'ValidationError', 'message' => 'Field to is invalid']],
+        ], 400)]);
+
+        $wyjatek = $this->zlapPrzyWysylce();
+
+        $this->assertInstanceOf(TransportExceptionInterface::class, $wyjatek);
+    }
+
+    /**
+     * `errors[].message` to JEDYNE pole, które mówi, co dostawcy nie pasowało
+     * — `ErrorObject` w specyfikacji nie ma `meta`, więc nazwy parametru nie
+     * dostaniemy nigdy. Do 9 września to pole było odcinane, przez co odmowa
+     * 400 nie dawała się zdiagnozować.
+     *
+     * Sprawdzamy jedno i drugie naraz: że detal JEST, i że przechodzi przez
+     * redakcję adresów — bo specyfikacja nie obiecuje, że dostawca nie wstawi
+     * w „details" wartości odrzuconego parametru.
+     */
+    public function test_komunikat_odmowy_niesie_detal_bledu_ale_bez_adresu(): void
+    {
+        Http::fake([self::ADRES_API => Http::response([
+            'meta' => ['numberOfErrors' => 1, 'numberOfData' => 0, 'status' => 400, 'uniqId' => 'blad400'],
+            'errors' => [[
+                'code' => 'E-01-01',
+                'title' => 'ValidationError',
+                'message' => 'Field to with value basia@wp.pl is invalid',
+            ]],
+        ], 400)]);
+
+        $komunikat = (string) $this->zlapPrzyWysylce()?->getMessage();
+
+        $this->assertStringContainsString('Field to with value', $komunikat, 'Detal odmowy zniknął — bez niego operator nie wie, CO dostawca odrzucił.');
+        $this->assertStringContainsString('[adres]', $komunikat);
+        $this->assertStringNotContainsString('basia@wp.pl', $komunikat, 'Adres odbiorcy wyszedł w komunikacie, który trafia do `failed_jobs`.');
+    }
+
+    /**
+     * `Mail::alwaysTo()` (czyli `MAIL_TO_ADDRESS` na stagingu) każe Laravelowi
+     * przepisać ORYGINALNYCH odbiorców do nagłówków `X-To`, `X-Cc`, `X-Bcc`.
+     * Te nagłówki nie mają prawa pójść do dostawcy: zostałyby w dostarczonym
+     * liście, czyli adresy użytkowników wyszłyby na zewnątrz w polu, którego
+     * nikt nie czyta i nikt nie sprawdza.
+     */
+    public function test_przekierowanie_calej_poczty_nie_wynosi_adresow_w_naglowkach(): void
+    {
+        Http::fake([self::ADRES_API => $this->odpowiedzSukcesu()]);
+
+        Mail::alwaysTo('staging@kuking.pl');
+
+        Mail::raw(self::TRESC_LISTU, function (Message $wiadomosc): void {
+            $wiadomosc->to('basia@wp.pl')->cc('anna@wp.pl')->bcc('celina@wp.pl')->subject('Ustaw nowe hasło');
+        });
+
+        Http::assertSent(function (Request $zadanie): bool {
+            $cale = json_encode($zadanie->data(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            $this->assertIsString($cale);
+
+            foreach (['basia@wp.pl', 'anna@wp.pl', 'celina@wp.pl'] as $adres) {
+                $this->assertStringNotContainsString(
+                    $adres,
+                    $cale,
+                    "Adres {$adres} pojechał do dostawcy, choć cała poczta jest przekierowana na jeden adres. "
+                    .'Sprawdź listę NAGLOWKI_POMIJANE — Laravel przemyca oryginalnych odbiorców w X-To/X-Cc/X-Bcc.',
+                );
+            }
+
+            return true;
+        });
+    }
+
+    /**
+     * Produkcja wysyła powiadomienia Markdown, czyli listy DWUCZĘŚCIOWE
+     * (html + text). Wszystkie pozostałe testy w tym pliku idą przez
+     * `Mail::raw()`, czyli sam `text` — testowana była więc wyłącznie ta
+     * połowa, której produkcja samodzielnie nie używa.
+     */
+    public function test_list_dwuczesciowy_wysyla_obie_czesci(): void
+    {
+        Http::fake([self::ADRES_API => $this->odpowiedzSukcesu()]);
+
+        Mail::html('<p>Ustaw nowe <strong>hasło</strong></p>', function (Message $wiadomosc): void {
+            $wiadomosc->to('basia@wp.pl')->subject('Ustaw nowe hasło')->text('Ustaw nowe hasło');
+        });
+
+        Http::assertSent(function (Request $zadanie): bool {
+            $tresc = $zadanie->data()['content'] ?? null;
+
+            $this->assertIsArray($tresc, 'Pole `content` jest wymagane przez API, a nie jest tablicą.');
+            $this->assertArrayHasKey('html', $tresc, 'Część HTML nie poszła do dostawcy — powiadomienia Markdown dotarłyby bez treści.');
+            $this->assertArrayHasKey('text', $tresc);
+            $this->assertStringContainsString('hasło', (string) $tresc['html']);
+
+            return true;
+        });
     }
 
     /**
@@ -386,7 +571,21 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
             ->assertFailed();
     }
 
-    /** `Http::response()` oddaje obietnicę Guzzle, nie gotową odpowiedź — stąd ten typ. */
+    /**
+     * `Http::response()` oddaje obietnicę Guzzle, nie gotową odpowiedź — stąd ten typ.
+     *
+     * KSZTAŁT PRZEPISANY ZE SPECYFIKACJI, NIE WYMYŚLONY. Pierwsza wersja tej
+     * atrapy dawała `'to' => [['email' => …, 'messageId' => …]]`, czyli LISTĘ.
+     * `components/schemas/EmailStatusObject` w pobranej specyfikacji OpenAPI
+     * dostawcy ma `to` jako OBIEKT (`"type": "object"` z polami `email`,
+     * `name`, `messageId`). Przez tę jedną parę nawiasów test był zielony,
+     * a `identyfikatorWiadomosci()` zwracało `null` przy każdej prawdziwej
+     * wysyłce — bo atrapa i kod powtarzały ten sam błąd.
+     *
+     * Morał na przyszłość: atrapę odpowiedzi obcego API przepisuje się z jego
+     * specyfikacji, a nie z tego, jak nasz kod ją czyta. Inaczej test mierzy
+     * zgodność kodu z samym sobą.
+     */
     private function odpowiedzSukcesu(): PromiseInterface
     {
         return Http::response([
@@ -394,10 +593,17 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
             'data' => [[
                 'subject' => 'Ustaw nowe hasło',
                 'smtpAccount' => '1.kuking.smtp',
-                'to' => [['email' => 'basia@wp.pl', 'messageId' => 'kuking0001@kuking.pl']],
+                'to' => ['email' => 'basia@wp.pl', 'name' => 'Basia', 'messageId' => 'kuking0001@kuking.pl'],
                 'status' => 'sent',
             ]],
         ], 200);
+    }
+
+    private function wyslijIZwroc(): ?SentMessage
+    {
+        return Mail::raw(self::TRESC_LISTU, function (Message $wiadomosc): void {
+            $wiadomosc->to('basia@wp.pl')->subject('Ustaw nowe hasło');
+        });
     }
 
     private function wyslijProbny(): void
