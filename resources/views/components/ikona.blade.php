@@ -71,8 +71,14 @@
     {{-- Jawny ślad w kodzie strony zamiast cichej pustki. --}}
     <!-- brak ikony o nazwie "{{ $nazwa }}" — patrz resources/views/components/ikona.blade.php -->
 @else
-    <svg class="ikona" width="{{ $rozmiar }}" height="{{ $rozmiar }}" viewBox="0 0 24 24"
+    {{-- `$attributes->class(['ikona'])`, NIE `class="ikona"` OBOK `{{ $attributes }}`.
+         Tak było wcześniej i cicho gubiło klasy: przy `<x-ikona class="foo" />`
+         w HTML-u wychodziły DWA atrybuty `class` w jednym znaczniku, a wtedy
+         przeglądarka honoruje pierwszy i po cichu pomija drugi. Klasa podana
+         przy wywołaniu nie stosowała się nigdy — a jej reguły w CSS-ie stały
+         i wyglądały, jakby coś robiły. --}}
+    <svg {{ $attributes->class(['ikona']) }} width="{{ $rozmiar }}" height="{{ $rozmiar }}" viewBox="0 0 24 24"
          fill="none" stroke="currentColor" stroke-width="1.8"
          stroke-linecap="round" stroke-linejoin="round"
-         aria-hidden="true" focusable="false" {{ $attributes }}>{!! $ksztalt !!}</svg>
+         aria-hidden="true" focusable="false">{!! $ksztalt !!}</svg>
 @endif

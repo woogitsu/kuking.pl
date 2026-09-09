@@ -105,7 +105,7 @@ Propozycja konkretnych limitów (Laravel `RateLimiter::for()` w `AppServiceProvi
 
 | Endpoint | Limit | Uwaga |
 |---|---|---|
-| Logowanie | 5 prób / 15 min / IP + konto | Po przekroczeniu: captcha lub czasowy lockout konta (nie trwały) |
+| Logowanie | 5 prób / 15 min / IP + konto (trzy koszyki, `login_limits`) | Po przekroczeniu: czasowy lockout konta (nie trwały). **Cloudflare Turnstile stoi na tym formularzu ZAWSZE, nie „po przekroczeniu"** — D-050. Captcha i limity to dwie różne obrony i działają obok siebie: limity widzą atak rozproszony po adresach, captcha widzi automat w przeglądarce. |
 | Rejestracja | 5 kont / godzinę / IP; 20 / dzień / IP | Chroni przed masowym zakładaniem kont-botów |
 | Reset hasła (żądanie) | 3 / godzinę / IP + e-mail | Zapobiega spamowaniu skrzynki ofiary |
 | Upload zdjęcia | 30 / godzinę / konto (nowe konto <7 dni: 10/godzinę) | Ogranicza koszt storage/processing przy nadużyciu |
@@ -115,6 +115,24 @@ Propozycja konkretnych limitów (Laravel `RateLimiter::for()` w `AppServiceProvi
 | Publikacja posta/przepisu | bez sztywnego limitu bazowego, ale throttle przy nietypowym wzroście częstotliwości (np. >10/godzinę dla konta <30 dni → oznacz do przeglądu) | Nie karać aktywnych, prawdziwych użytkowników |
 
 Wszystkie limity: zwracaj `429 Too Many Requests` z nagłówkiem `Retry-After`, nie generyczny błąd 500.
+
+### Cloudflare Turnstile (D-050, issue #217)
+
+Stan **faktyczny**, nie plan. Turnstile w trybie Managed stoi na sześciu
+formularzach publicznych: `/register`, `/login`, `/nie-pamietam-hasla`,
+`/cofnij-usuniecie-konta`, `/napisz-do-nas`, `/zglos-nielegalna-tresc`.
+
+Dwie rzeczy, które trzeba czytać razem z tabelą wyżej, żeby nie wyciągnąć
+z niej fałszywego wniosku o poziomie ochrony:
+
+1. **Turnstile NIE ZASTĘPUJE limitów zapytań** i nie pozwala ich poluzować.
+   Zestaw z tabeli obowiązuje bez zmian.
+2. **Brak tokenu (wyłączony JavaScript) NIE BLOKUJE wysłania formularza** —
+   `AGENTS.md` §5. Odrzucany jest wyłącznie token, który przyszedł i którego
+   Cloudflare nie uznał; niedostępność Cloudflare również przepuszcza.
+   Turnstile jest więc **filtrem taniego ruchu automatycznego, nie bramką
+   dostępu**, i tak trzeba go liczyć w każdej ocenie ryzyka. Pełne
+   uzasadnienie i droga wycofania: `docs/DECISIONS.md` D-050.
 
 ---
 

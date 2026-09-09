@@ -433,6 +433,20 @@ export default defineRailway((ctx) => {
     // wartość wpisana w tym pliku.
     LOG_BLAD_WEBHOOK_URL: ctx.shared.LOG_BLAD_WEBHOOK_URL,
 
+    // --- Cloudflare Turnstile (D-050, issue #217) -----------------------------
+    // Sprawdzenie „czy to człowiek" na formularzach publicznych. Oba klucze
+    // idą przez `ctx.shared`, bo powstają w panelu Cloudflare i różnią się
+    // między środowiskami (widget jest przypięty do domen).
+    //
+    // PUSTE = TURNSTILE WYŁĄCZONY i nic się nie psuje — ale na produkcji
+    // `/health` oddaje wtedy `status: degraded` z powodem
+    // `turnstile_bez_kluczy`, żeby brak ochrony nie był niewidoczny.
+    //
+    // TURNSTILE_SITE_KEY nie jest sekretem (wchodzi do HTML-a widgetu),
+    // TURNSTILE_SECRET_KEY jest — w panelu Railway zaznacz „Sealed".
+    TURNSTILE_SITE_KEY: ctx.shared.TURNSTILE_SITE_KEY,
+    TURNSTILE_SECRET_KEY: ctx.shared.TURNSTILE_SECRET_KEY,
+
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
     // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,

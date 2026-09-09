@@ -96,6 +96,8 @@
             </p>
         @endguest
 
+        <x-turnstile miejsce="kontakt" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij wiadomość</button>
         </div>
