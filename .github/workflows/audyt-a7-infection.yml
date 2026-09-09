@@ -12,20 +12,38 @@ concurrency:
   group: audyt-a7-infection
   cancel-in-progress: false
 
+env:
+  PHP_VERSION: '8.4'
+
 jobs:
   infection:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test_a7
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test_a7"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
     env:
       APP_ENV: testing
+      APP_DEBUG: 'true'
       APP_URL: http://127.0.0.1:8000
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       DB_CONNECTION: pgsql
-      DB_HOST: 127.0.0.1
-      DB_PORT: '5432'
       DB_DATABASE: kuking_test_a7
       DB_USERNAME: kuking
-      DB_PASSWORD: kuking
+      DB_PASSWORD: secret
       DB_URL: ''
       DATABASE_URL: ''
       CACHE_STORE: array
@@ -38,33 +56,35 @@ jobs:
       BCRYPT_ROUNDS: '4'
       SENTRY_LARAVEL_DSN: ''
       SENTRY_DSN: ''
+      POSTHOG_KEY: ''
       LOG_CHANNEL: stderr
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: PostgreSQL 18 w izolowanym kontenerze
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
-          set -euo pipefail
-          docker run -d --rm --name kuking-a7-pg \
-            -e POSTGRES_DB=kuking_test_a7 \
-            -e POSTGRES_USER=kuking \
-            -e POSTGRES_PASSWORD=kuking \
-            -p 5432:5432 postgres:18
-          for i in $(seq 1 30); do
-            if docker exec kuking-a7-pg pg_isready -U kuking -d kuking_test_a7; then exit 0; fi
-            sleep 1
-          done
-          docker logs kuking-a7-pg
-          exit 1
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
-      - uses: shivammathur/setup-php@v2
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
-          extensions: pdo_pgsql, gd, exif, mbstring, intl, zip, bcmath, pcntl
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
           coverage: xdebug
           tools: composer:v2
+
+      - name: Cache Composera
+        uses: actions/cache@v6
+        with:
+          path: vendor
+          key: a7-composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: a7-composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
 
       - name: Zależności i wersje
         run: |
@@ -72,7 +92,7 @@ jobs:
           mkdir -p a7-output
           composer install --no-interaction --prefer-dist --no-progress
           php -v | tee a7-output/php-version.txt
-          docker exec kuking-a7-pg psql -U kuking -d kuking_test_a7 -Atc 'select version()' | tee a7-output/postgres-version.txt
+          php -r '$p=new PDO("pgsql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"),getenv("DB_USERNAME"),getenv("DB_PASSWORD"));echo $p->query("select version()")->fetchColumn(),PHP_EOL;' | tee a7-output/postgres-version.txt
           curl --fail --location --silent --show-error \
             https://github.com/infection/infection/releases/latest/download/infection.phar \
             -o "$RUNNER_TEMP/infection.phar"
