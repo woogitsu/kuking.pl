@@ -24,6 +24,11 @@
 - odpowiedzi;
 - in-app notifications.
 
+Wspomnienia: na stronie głównej jeden własny wpis z tego samego dnia sprzed
+roku lub więcej, z cichym podpisem („Rok temu, 6 września"). Blok pojawia się
+tylko wtedy, gdy jest co pokazać. Całość wyłącza jeden przełącznik
+w `/ustawienia/prywatnosc`, a pojedyncze wspomnienie chowa przycisk przy nim.
+
 ### Wpis
 - zdjęcie lub kilka zdjęć;
 - tekst;

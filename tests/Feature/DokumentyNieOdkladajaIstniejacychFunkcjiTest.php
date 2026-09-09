@@ -169,6 +169,42 @@ class DokumentyNieOdkladajaIstniejacychFunkcjiTest extends TestCase
         }
     }
 
+    /**
+     * `FEATURES.md` w ogóle wymienia wspomnienia — i to w MVP.
+     *
+     * To jest inna własność niż dwa testy wyżej, dlatego stoi osobno. Tamte
+     * pilnują, żeby dokument nie nazywał gotowej funkcji odsuniętą. Ten pilnuje
+     * przemilczenia: `FEATURES.md` jest JEDYNĄ listą, która rozstrzyga „co
+     * należy do MVP", a wspomnienia — działające, z wyłącznikiem w ustawieniach
+     * i własnym wierszem w polityce prywatności — nie były w niej wymienione
+     * ani razu. Kto czytał tę listę, żeby ustalić zakres MVP, dostawał złą
+     * odpowiedź tak samo jak przy pozycji odłożonej na V1.
+     *
+     * Kierunek ten sam co w całym pliku: jeśli wspomnienia zostaną WYCOFANE,
+     * poprawką jest usunięcie tej asercji razem z kodem, a nie dopisanie
+     * czegokolwiek do dokumentu.
+     */
+    public function test_features_wymienia_wspomnienia_w_mvp(): void
+    {
+        $features = $this->dokument('docs/FEATURES.md');
+
+        $this->assertSame(
+            1,
+            preg_match('/^## MVP$(.*?)^## /msu', $features, $dopasowanie),
+            'Nie znaleziono sekcji „## MVP" w `docs/FEATURES.md`.',
+        );
+
+        $this->assertStringContainsString(
+            'wspomnienia',
+            mb_strtolower($dopasowanie[1]),
+            'Sekcja MVP w `docs/FEATURES.md` nie wymienia wspomnień, a one działają: '
+            .'`app/Domain/Wspomnienia`, kafel na `/home`, wyłącznik w '
+            .'`/ustawienia/prywatnosc`. Ta lista jest czytana jako odpowiedź na '
+            .'pytanie „co wchodzi do MVP" — przemilczenie gotowej funkcji myli '
+            .'tak samo jak odłożenie jej na V1.',
+        );
+    }
+
     private function kolumnaIstnieje(string $tabela, string $kolumna): bool
     {
         return DB::select(
