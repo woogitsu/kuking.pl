@@ -310,9 +310,14 @@ export default defineRailway((ctx) => {
     MAIL_PORT: ctx.shared.MAIL_PORT,
     MAIL_USERNAME: ctx.shared.MAIL_USERNAME,
     MAIL_PASSWORD: ctx.shared.MAIL_PASSWORD,
-    // `tls` = STARTTLS na porcie 587. Przy porcie 465 musi tu być `smtps`,
-    // inaczej połączenie wisi do timeoutu zamiast dać czytelny błąd.
-    MAIL_SCHEME: "tls",
+    // UWAGA: Symfony przyjmuje TYLKO `smtp` i `smtps`. Stało tu `tls` —
+    // wygląda sensownie, opisuje prawdziwą intencję (STARTTLS na 587)
+    // i NIE DZIAŁA: transport się nie buduje, a każdy list kończy się
+    // `UnsupportedSchemeException` w kolejce, przy poprawnym dostawcy
+    // i poprawnym haśle. Na porcie 587 STARTTLS negocjuje się samo, więc
+    // właściwą wartością jest `smtp`. `smtps` jest dla portu 465.
+    // Pilnuje tego `SchematPocztyJestObslugiwanyTest`.
+    MAIL_SCHEME: "smtp",
 
     //  JEDEN ADRES W OBIE STRONY (decyzja właściciela, 7 IX 2026).
     //
