@@ -1,0 +1,132 @@
+name: Audyt A6 - weryfikacja nowych poprawek
+on:
+  push:
+    branches: ['audit/a6-20260909-1185719']
+    paths: ['.github/workflows/audit-a6-recheck.yml']
+permissions:
+  contents: read
+jobs:
+  sprawdzenie:
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: audit-only
+        ports: ['5432']
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: audit-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+      SENTRY_LARAVEL_DSN: ''
+      POSTHOG_KEY: ''
+      LOG_BLAD_WEBHOOK_URL: ''
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: tools
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: a2809ccffcbb2fa0a785b0b2ab0b6cc47a41dc3c
+          path: subject
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Migawka
+        working-directory: subject
+        run: |
+          mkdir -p "$RUNNER_TEMP/a6-recheck"
+          echo "A6_OUT=$RUNNER_TEMP/a6-recheck" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          git archive --format=tar.gz -o "$RUNNER_TEMP/a6-recheck/repo.tar.gz" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/a6-recheck/commit.txt"
+          git diff 1185719ddeda88e6cee0202b141b4078f17ffdd2 HEAD > "$RUNNER_TEMP/a6-recheck/updates.diff"
+          git log 1185719ddeda88e6cee0202b141b4078f17ffdd2..HEAD --format='%H %cI %s' > "$RUNNER_TEMP/a6-recheck/updates.log"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Zaleznosci
+        working-directory: subject
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+          npm run build > "$A6_OUT/build.log"
+          cp .env.example .env
+          php -r 'echo json_encode(["php"=>PHP_VERSION,"gd"=>gd_info()],JSON_PRETTY_PRINT);' > "$A6_OUT/runtime.json"
+      - name: Sondy, testy i mutacja - jawne kody wyjscia
+        working-directory: subject
+        run: |
+          set +e
+          set -uo pipefail
+          run() {
+            local label="$1"; shift
+            "$@" > "$A6_OUT/$label.log" 2>&1
+            local rc=$?
+            printf '%s\n' "$rc" > "$A6_OUT/$label.exit"
+            echo "$label: exit $rc"
+            tail -n 10 "$A6_OUT/$label.log"
+            return 0
+          }
+          cp ../tools/audit-a6/A6ProbeTest.php tests/Feature/A6ProbeTest.php
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/Feature/A6ProbeTest.php')
+          s=p.read_text()
+          needle='        $cutoff = now()->subMonths(3)->toIso8601String();'
+          assert s.count(needle)==1
+          p.write_text(s.replace(needle, "        $n->forceFill(['created_at' => CarbonImmutable::parse('2026-03-01 12:00:00', 'UTC')])->save();\n"+needle))
+          PY
+          cp tests/Feature/A6ProbeTest.php "$A6_OUT/A6ProbeTest.php"
+          # Stare sondy celowo nadal asertuja stary blad. Ich porazka po
+          # poprawce wymaga odczytu JSON, NIE oznacza czerwonego produktu.
+          run probes php artisan test tests/Feature/A6ProbeTest.php --log-junit="$A6_OUT/probes-junit.xml"
+          rm tests/Feature/A6ProbeTest.php
+          run tests php artisan test --log-junit="$A6_OUT/tests-junit.xml"
+          run pint vendor/bin/pint --test
+          run phpstan vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+          run media-before php artisan test --filter='DostepDoZdjeciaBezPolicyRodzicaTest|ZdjeciaChronioneNieWyciekajaTest'
+          cp app/Domain/Media/DostepDoZdjecia.php "$A6_OUT/DostepDoZdjecia.original.php"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/Domain/Media/DostepDoZdjecia.php')
+          s=p.read_text(); needle='public function moze(?User $widz, Media $zdjecie): bool\n    {'
+          assert s.count(needle)==1
+          p.write_text(s.replace(needle,needle+'\n        return true; // MUTACJA A6'))
+          PY
+          run media-mutant-syntax php -l app/Domain/Media/DostepDoZdjecia.php
+          run media-mutant-narrow php artisan test tests/Feature/DostepDoZdjeciaBezPolicyRodzicaTest.php
+          cp "$A6_OUT/DostepDoZdjecia.original.php" app/Domain/Media/DostepDoZdjecia.php
+          run media-restored php artisan test --filter='DostepDoZdjeciaBezPolicyRodzicaTest|ZdjeciaChronioneNieWyciekajaTest'
+          git diff --exit-code > "$A6_OUT/production-diff.txt"
+          echo $? > "$A6_OUT/production-diff.exit"
+          sha256sum composer.lock package-lock.json > "$A6_OUT/locks.sha256"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: a6-recheck-a2809cc
+          path: ${{ runner.temp }}/a6-recheck/
+          retention-days: 7
+          if-no-files-found: error
