@@ -23,6 +23,26 @@
             Durszlak.pl też się zamknął. Serwis miał „zeszyty” — osobiste zbiory zapisanych
             przepisów, które ludzie budowali latami. Zniknęły razem z nim.
         </p>
+
+        {{-- ŹRÓDŁA STOJĄ TU, BO WYMIENIAMY DWIE ISTNIEJĄCE FIRMY Z NAZWY.
+             Wolno tak pisać, dopóki mówi się prawdę — a prawdę trzeba mieć czym
+             pokazać, i to czytelnikowi, nie tylko sobie w notatce badawczej
+             (`docs/research/COMPETITIVE_LANDSCAPE.md`). Dla osoby, do której ta
+             strona mówi, „skąd to wiemy" jest też zwykłą uprzejmością: dostaje
+             odnośnik zamiast prośby o zaufanie.
+
+             DATY DURSZLAKA CELOWO NIE PODAJEMY. Zamknięcie i przepadnięcie
+             zeszytów są potwierdzone w prasie kulinarnej, ale ROKU nie udało
+             się potwierdzić w źródle, które podaje go wprost. Fakt bez daty
+             jest prawdziwy; fakt z datą „mniej więcej" już nie. --}}
+        <p class="meta">
+            Skąd to wiemy:
+            <a href="https://wiki.archiveteam.org/index.php/Garnek.pl"
+               target="_blank" rel="noopener">zapis wyłączenia Garnek.pl w Archiveteamie</a>
+            ·
+            <a href="https://rondel.pl/przepis,koniec-popularnego-serwisu-kulinarnego-durszlakpl-zeszyty-z-przepisami-przepadly.html"
+               target="_blank" rel="noopener">informacja o zamknięciu Durszlak.pl</a>
+        </p>
         <p>
             Kuking ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
             ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia,
