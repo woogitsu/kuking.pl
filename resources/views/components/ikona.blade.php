@@ -54,6 +54,12 @@
         // Drzwi ze strzałką na zewnątrz. Strzałka wychodzi w PRAWO, czyli
         // w kierunku czytania — „wyjście stąd", a nie „wejście tutaj".
         'logout' => '<path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15"/><path d="M10 8l4 4-4 4"/><path d="M14 12H4"/>',
+        // „Podziel się": kartka ze strzałką wychodzącą do góry, czyli
+        // „wyjmij to stąd i wyślij". Świadomie NIE trzy kropki połączone
+        // kreskami (znak udostępniania z Androida) — ten sam kształt znaczy
+        // w innych miejscach „więcej opcji", a nasze menu „···" już go
+        // przypomina. Przy 24 px kropki zlewają się w plamę.
+        'share' => '<path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M5 12v7.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V12"/>',
     ];
 
     // Nieznana nazwa nie może po cichu wyrenderować pustego kwadratu —
