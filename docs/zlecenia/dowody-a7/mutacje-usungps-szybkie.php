@@ -108,5 +108,5 @@ $out = [
     'mutants' => $results,
 ];
 
-file_put_contents(__DIR__.'/mutacje-usungps-szybkie-wynik.json', json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n");
+file_put_contents(__DIR__.'/mutacje-usungps-szybkie-wynik.json', json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR)."\n");
 echo file_get_contents(__DIR__.'/mutacje-usungps-szybkie-wynik.json');
