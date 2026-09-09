@@ -185,6 +185,12 @@
     color: var(--color-ink-muted);
   }
 
+  /* Tytuł i opis kafla łamią długie słowo, zamiast rozpychać kafel.
+     Zmierzone przy czcionce przeglądarki 200% i oknie 320 px: kafel miał
+     404 px, z czego sam tytuł 274 px w jednym nierozerwalnym wyrazie. */
+  .rzecz-tytul,
+  .rzecz-opis { overflow-wrap: anywhere; }
+
   /* --- Pas ciemny: „Ugotowałem" ----------------------------------------
      `.blok-ciemny` przestawia paletę na kontenerze, więc wszystko w środku
      bierze poprawne kolory bez ani jednej wartości hex. */
