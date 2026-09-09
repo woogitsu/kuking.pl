@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Rules\TurnstileNieJestPodrobiony;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -108,6 +110,16 @@ class ZgloszenieNielegalnejTresciController extends Controller
             'reason' => ['required', 'string', 'in:'.implode(',', array_keys(Report::REASONS))],
             'illegality_explanation' => ['required', 'string', 'min:20', 'max:5000'],
             'good_faith' => ['accepted'],
+            /*
+             * Turnstile (D-050) — CELOWO BEZ `required`.
+             *
+             * Bez JavaScriptu token nie powstaje, a ten formularz musi
+             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
+             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
+             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
+             * `App\Rules\TurnstileNieJestPodrobiony`.
+             */
+            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('zgloszenie_nielegalnej_tresci'),
         ], [
             'notifier_email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
             'target_url.required' => 'Wklej adres strony, na której jest ta treść.',

@@ -12,6 +12,8 @@
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
 
+        <x-turnstile miejsce="logowanie" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zaloguj się</button>
             <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
