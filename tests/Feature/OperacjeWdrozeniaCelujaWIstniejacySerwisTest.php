@@ -50,7 +50,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
 
         $this->assertFileExists(
             $sciezka,
-            'Nie ma .github/workflows/deploy.yml. Jeśli plik przeniesiono, popraw ścieżkę tutaj.'
+            'Nie ma .github/workflows/deploy.yml. Jeśli plik przeniesiono, popraw ścieżkę tutaj.',
         );
 
         return (string) file_get_contents($sciezka);
@@ -65,7 +65,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
             'APP_SERVICE: kuking.pl',
             $workflow,
             'Job operate nie ma już zmiennej APP_SERVICE z nazwą prawdziwego serwisu Railway. '
-            .'Nazwa serwisu ma stać w JEDNYM miejscu — rozsypana po krokach rozjeżdża się z rzeczywistością.'
+            .'Nazwa serwisu ma stać w JEDNYM miejscu — rozsypana po krokach rozjeżdża się z rzeczywistością.',
         );
     }
 
@@ -89,9 +89,9 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
                 $this->assertDoesNotMatchRegularExpression(
                     '/--service\s+"?'.preg_quote($nazwa, '/').'"?(\s|$)/',
                     $bezKomentarza,
-                    "Wiersz ".($numer + 1)." woła Railway z serwisem `{$nazwa}`, którego w projekcie nie ma. "
+                    'Wiersz '.($numer + 1)." woła Railway z serwisem `{$nazwa}`, którego w projekcie nie ma. "
                     .'Użyj "$APP_SERVICE". Jeśli topologia naprawdę się zmieniła (uruchomiono '
-                    .'`railway config apply`), popraw ten test razem z workflow.'
+                    .'`railway config apply`), popraw ten test razem z workflow.',
                 );
             }
         }
@@ -105,7 +105,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
         $od = mb_strpos($workflow, '- name: Redeploy');
         $this->assertNotFalse(
             $od,
-            'W deploy.yml nie ma już kroku „Redeploy". Jeśli zmienił nazwę, popraw ten test razem z nim.'
+            'W deploy.yml nie ma już kroku „Redeploy". Jeśli zmienił nazwę, popraw ten test razem z nim.',
         );
 
         $do = mb_strpos($workflow, '- name:', $od + 10);
@@ -118,7 +118,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
         // wycięcia test wywracałby się o własne uzasadnienie.
         $komendy = implode("\n", array_map(
             static fn (string $wiersz): string => (string) preg_replace('/#.*$/', '', $wiersz),
-            preg_split('/\R/', $krok) ?: []
+            preg_split('/\R/', $krok) ?: [],
         ));
 
         // Kontrola metody pomiaru: jeśli nie widzimy tu wywołania redeploya,
@@ -126,7 +126,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
         $this->assertStringContainsString(
             'railway redeploy',
             $komendy,
-            'W kroku „Redeploy" nie ma wywołania `railway redeploy`. Czytam zły fragment pliku.'
+            'W kroku „Redeploy" nie ma wywołania `railway redeploy`. Czytam zły fragment pliku.',
         );
 
         $this->assertStringNotContainsString(
@@ -134,7 +134,7 @@ class OperacjeWdrozeniaCelujaWIstniejacySerwisTest extends TestCase
             $komendy,
             'Krok „Redeploy" znowu zbywa niepowodzenie echem. Redeploy, który nic nie zrobił '
             .'i zameldował sukces, jest gorszy od redeploya, który padł — bo po tym pierwszym '
-            .'nikt nie szuka przyczyny.'
+            .'nikt nie szuka przyczyny.',
         );
     }
 }
