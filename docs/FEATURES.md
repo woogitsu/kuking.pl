@@ -39,6 +39,12 @@ Kreator 3 kroków:
 
 Autosave szkicu.
 
+Pole źródła (`recipes.source_url`) — „skąd jest ten przepis". Opcjonalne.
+
+Tryb gotowania: `/przepisy/{przepis}/gotuj`, wielkie kroki na cały ekran,
+odhaczanie kroków, minutnik kroku. Ekran nie gaśnie (Wake Lock, z degradacją
+tam, gdzie przeglądarka go nie ma).
+
 ### Ugotowałem
 - zdjęcie;
 - uwaga;
@@ -76,8 +82,6 @@ Autosave szkicu.
 
 - grupy / fotofora;
 - Moja wersja — fork przepisu;
-- Cooking Mode;
-- timery;
 - planner;
 - lista zakupów;
 - rodzinna książka;
