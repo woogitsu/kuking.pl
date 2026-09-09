@@ -2,7 +2,9 @@
     <h1>Twój profil</h1>
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('settings.profile') }}" enctype="multipart/form-data">
+    {{-- Bez `enctype="multipart/form-data"`: ten formularz nie przyjmuje już
+         pliku. Zdjęcie profilowe ma własny ekran (`/ustawienia/zdjecie`). --}}
+    <form class="card" method="POST" action="{{ route('settings.profile') }}">
         @csrf @method('PUT')
 
         <x-field name="display_name" label="Jak mamy Cię nazywać?" required :value="$profile->display_name" />
@@ -14,32 +16,39 @@
                  help="Sam region wystarczy. Nie podawaj dokładnego adresu." />
         <x-field name="speciality" label="Na czym się znasz" :value="$profile->speciality" placeholder="zupy i kiszonki" />
 
-        {{-- Ten sam obszar wyboru zdjęcia co na „Dodaj zdjęcie" i w formularzu
-             przepisu (`.pole-zdjecia`, resources/css/ekran-dodawania.css).
-             Do tej zmiany stał tu goły `<input type="file">` z angielskim
-             „Choose File / No file chosen" — czyli druga, inna wersja tej samej
-             czynności. Po D-035 wybór pliku wygląda i działa wszędzie tak samo:
-             pole schowane dla oka, ale obecne pod klawiaturą i w drzewie
-             dostępności, a klikalna jest etykieta. --}}
-        <div class="field @error('avatar') has-error @enderror">
-            <span class="pole-zdjecia-nazwa" id="f-avatar-etykieta">Zdjęcie profilowe</span>
-            <input class="visually-hidden pole-zdjecia-input" id="f-avatar" type="file" name="avatar"
-                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                   aria-labelledby="f-avatar-etykieta f-avatar-tytul"
-                   aria-describedby="f-avatar-help">
-            <label class="pole-zdjecia" for="f-avatar">
-                <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                <span class="pole-zdjecia-tytul" id="f-avatar-tytul">Dodaj zdjęcie</span>
-                <span class="field-help" id="f-avatar-help">Nieobowiązkowe. Bez niego pokazujemy pierwszą literę Twojego imienia.</span>
-            </label>
-            @error('avatar')<span class="field-error">{{ $message }}</span>@enderror
-        </div>
-
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zapisz</button>
             <a class="btn btn-quiet" href="{{ route('profile.show', $profile->username) }}">Zobacz swój profil</a>
         </div>
     </form>
+
+    {{--
+        ZDJĘCIE PROFILOWE MA WŁASNY EKRAN — i to jest tu napisane wprost,
+        a nie zostawione domysłowi.
+
+        Pole pliku stało dotąd w środku tego formularza. Kto szukał go tutaj
+        po raz drugi, ma zobaczyć, dokąd poszło — znikające pole bez słowa
+        wyjaśnienia jest gorsze od pola stojącego nie tam, gdzie trzeba.
+
+        Podgląd obok odnośnika, bo „zdjęcie" bez pokazania, JAKIE, każe wejść
+        na osobny ekran tylko po to, żeby sprawdzić, czy w ogóle jakieś jest.
+    --}}
+    <section class="card zdjecie-profilowe-skrot">
+        <x-avatar :user="$profile->user" :size="64" />
+        <div>
+            <h2 class="mt-0 mb-2">Zdjęcie profilowe</h2>
+            <p class="mb-4">
+                @if($profile->avatar?->isReady())
+                    Twoje zdjęcie widać przy wpisach, przepisach i komentarzach.
+                @else
+                    Nie masz jeszcze zdjęcia — wszędzie stoi pierwsza litera Twojego imienia.
+                @endif
+            </p>
+            <a class="btn btn-secondary" href="{{ route('settings.avatar') }}">
+                {{ $profile->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+            </a>
+        </div>
+    </section>
 
     {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
          uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}

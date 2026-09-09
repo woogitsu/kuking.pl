@@ -45,6 +45,43 @@
     }
   }
 
+  /* -------------------------------------------------------------------
+     WŁASNY AWATAR JAKO DROGA DO ZDJĘCIA PROFILOWEGO.
+
+     Cała kolumna awatara jest jednym odnośnikiem: obrazek (88 px) i podpis
+     pod nim. Podpis jest częścią celu kliknięcia, nie osobnym linkiem obok —
+     dwa odnośniki do tego samego miejsca czytnik ekranu czyta dwa razy.
+
+     Wysokość celu wychodzi daleko ponad produktowe 48 px (UX_50_PLUS.md)
+     samym awatarem, więc nie ma tu `min-height` na siłę. Podpis dostaje
+     `--text-body` (18 px), bo to zwykły tekst strony, a nie etykieta pod
+     ikoną — i jest widoczny zawsze, także bez hoveru, którego na telefonie
+     nie ma.
+     ------------------------------------------------------------------- */
+  .profil-awatar-zmiana {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-2);
+    text-align: center;
+
+    /* Bez podkreślenia pod awatarem, ale POD SAMYM PODPISEM już tak —
+       inaczej odnośnik nie różniłby się niczym od zwykłego tekstu, a kolor
+       nie może być jedynym nośnikiem informacji (WCAG 1.4.1). */
+    text-decoration: none;
+  }
+
+  .profil-awatar-zmiana-podpis {
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    text-decoration: underline;
+
+    /* Zawijamy najwyżej do szerokości awatara plus zapas — przy 320 px
+       „Zmień zdjęcie profilowe" ma prawo zająć dwa wiersze, ale nie ma
+       prawa rozepchnąć kolumny awatara na pół ekranu. */
+    max-width: 12rem;
+  }
+
   /* Nagłówki miesięcy w archiwum („archive-title" w kicie) i odstęp lat
      nad nimi (`.lata-archiwum`) już mają właściwy rozmiar i odstęp z
      `tokens.css` przez klasę `h2` i utility `mt-8` w widoku — nie ma tu

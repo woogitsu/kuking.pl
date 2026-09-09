@@ -899,7 +899,14 @@ return [
         'powiadomienia' => '120,10',
 
         /*
-         * ZAPIS PROFILU (`PUT /ustawienia/profil`) — OSOBNO OD `ustawienia`.
+         * ZDJĘCIE PROFILOWE (`POST /ustawienia/zdjecie`) — OSOBNO OD `ustawienia`.
+         *
+         * KLUCZ NAZYWA SIĘ `ustawienia_profil` ZE WZGLĘDÓW HISTORYCZNYCH:
+         * do wydzielenia osobnego ekranu (D-051) pole pliku stało w formularzu
+         * `/ustawienia/profil` i limit pilnował tamtej trasy. Pole się
+         * przeniosło, więc limit przeniósł się razem z nim — a zapis profilu
+         * bez zdjęcia to znowu zwykły UPDATE jednego wiersza i wrócił do
+         * wspólnej grupy `ustawienia`. Usunięcie zdjęcia też tam zostaje.
          *
          * Bo to jedyny ekran ustawień, który przyjmuje PLIK. Zdjęcie
          * profilowe przechodzi przez cały pipeline z AGENTS.md §7:
