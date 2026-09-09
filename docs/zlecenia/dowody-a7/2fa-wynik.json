@@ -1,0 +1,19 @@
+{
+  "generated_at_utc": "2026-09-09T16:47:08+00:00",
+  "postgres_version": "PostgreSQL 18.6",
+  "totp_parallel": {
+    "A": {"backend_pid": 106, "result": true, "wall_ms": 8.845},
+    "B": {"backend_pid": 107, "result": false, "wall_ms": 10.867},
+    "final_last_used_at": 59632414,
+    "exactly_one_accepted": true,
+    "different_pg_backends": true
+  },
+  "backup_code_lock": {
+    "A_invalid": {"backend_pid": 109, "result": false, "wall_ms": 1189.879},
+    "B_valid_started_120ms_later": {"backend_pid": 110, "result": true, "wall_ms": 2259.949},
+    "different_pg_backends": true,
+    "limiter_config": "5,1",
+    "remaining_backup_codes": 7
+  },
+  "note": "Dwa procesy i dwa backendy PostgreSQL. Mierzony krytyczny odcinek TwoFactorAuthenticator; warstwa HTTP/RateLimiter nie była częścią tej sondy."
+}
