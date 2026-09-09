@@ -371,10 +371,36 @@
      */
     .topbar-inner {
       display: grid;
+      /*
+       * Trzecia kolumna: `minmax(var(--container-rail), max-content)`,
+       * NIE sztywne `var(--container-rail)` (zgłoszenie właściciela, ekran
+       * Full HD, 9 września — awatar zawijał się pod „Dodaj").
+       *
+       * Przy skali tekstu 100% treść kolumny („Powiadomienia" z odznaką +
+       * „Dodaj" + awatar) mieści się w 352 px i kolumna zostaje dokładnie
+       * tak szeroka, jak dotąd — `minmax()` z dolnym progiem pilnuje tego,
+       * więc automat dostępności dalej widzi tę samą krawędź.
+       *
+       * Przy skali tekstu z ustawień dostępności (112/125/140% — `--user-
+       * text-scale`, tokens.css) rośnie TYLKO czcionka przycisków, bo
+       * `--text-body` mnoży się przez tę zmienną, a `--container-rail` jest
+       * w `rem` i tej zmiennej nie widzi. „Powiadomienia" przy 140% jest
+       * szersze niż 352 px stałej kolumny — kolumna nie miała jak urosnąć,
+       * więc `flex-wrap: wrap` niżej (reguła bazowa, potrzebna na wąskim
+       * ekranie) robiła jedyną dostępną rzecz: zrzucała awatar do drugiego
+       * wiersza. Efekt mierzony w Chromium 1920×1080, konto z text_scale
+       * = 125: awatar 5 px niżej niż środek „Dodaj" przy sztywnej kolumnie,
+       * zero px różnicy po tej poprawce.
+       *
+       * `max-content` daje kolumnie urosnąć o te kilkadziesiąt pikseli
+       * kosztem kolumny środkowej (`minmax(0, ...)` wyżej ma się gdzie
+       * skurczyć) — pole „Szukaj" traci nieco szerokości, belka NIE traci
+       * jednego wiersza.
+       */
       grid-template-columns:
         var(--container-sidenav)
         minmax(0, var(--container-content))
-        var(--container-rail);
+        minmax(var(--container-rail), max-content);
       gap: var(--spacing-8);
       align-items: center;
     }
@@ -384,6 +410,16 @@
        kończyłaby się 250 px przed treścią. */
     .topbar-inner .topbar-actions {
       justify-content: flex-end;
+      /*
+       * `nowrap`, NIE reguła bazowa `wrap` (patrz wyżej). Od 80rem kolumna
+       * ma już `minmax(var(--container-rail), max-content)` — zawsze jest
+       * dość szeroka na jeden wiersz, więc zawijanie tu nie chroni przed
+       * niczym, a przy sztywnej kolumnie (przed tą poprawką) było jedyną
+       * przyczyną, dla której awatar w ogóle schodził niżej. Zawijanie
+       * WRACA poniżej 80rem — tam kolumn nie ma i to ono chroni przed
+       * przewijaniem strony w bok (issue #80).
+       */
+      flex-wrap: nowrap;
     }
 
     /* Pole „Szukaj" wypełnia kolumnę czytania i nic poza nią. Zdejmujące to
@@ -2333,7 +2369,14 @@
 --------------------------------------------------------------------------- */
 
 .ustawienia-nawigacja {
-    margin-top: var(--spacing-8);
+    /* `margin: 0`, nie `margin-top` jak dawniej: ten komponent stoi teraz
+       ZAWSZE w `<x-slot:rail>` (`.app-rail`), nigdy bezpośrednio pod
+       formularzem w głównej kolumnie — patrz komentarz w
+       `components/ustawienia-nawigacja.blade.php`. Odstęp od treści nad nim
+       daje sam `.app-rail` (i spora dolna padding `.app-main` na wąskim
+       ekranie, gdzie szyna ląduje pod treścią) — własny margines tej karty
+       przesuwałby ją niżej niż początek formularza obok, od progu 80rem. */
+    margin: 0;
 }
 
 .ustawienia-nawigacja-tytul {
