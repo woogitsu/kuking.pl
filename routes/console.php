@@ -65,6 +65,17 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
 // prostu nie wracają, żeby stan w bazie zgadzał się z rzeczywistością także
 // dla moderacji i statystyk.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu wyżej.
+//
+// `hourly()` to minuta 00 KAŻDEJ godziny, więc raz na dobę zadanie ląduje
+// w tej samej minucie co `kuking:sprzataj-sygnaly` (04:00). Zostawiamy tak
+// świadomie i nazywamy to tutaj, żeby kolejny audyt nie zgłaszał tego jako
+// usterki: harmonogram wykonuje zadania z jednej minuty SEKWENCYJNIE, w tym
+// samym procesie PHP, więc to nie jest wyścig. Oba zadania tykają w różnych
+// tabelach i oba mają `withoutOverlapping()`.
+//
+// Gdyby liczba replik serwisu kiedykolwiek przekroczyła 1 (dziś jest jedna),
+// KAŻDE zadanie w tym pliku musiałoby dostać `->onOneServer()` — nie z powodu
+// tej pary, tylko dlatego, że każda replika ma własny harmonogram.
 Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
     ->name('kuking:zdejmij-wygasle-kary')
     ->hourly()

@@ -24,6 +24,18 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 
 ## 2. Architektura
 
+> ⚠️ **SPROSTOWANIE, 9 września 2026.** Skrzynka „środowisko PRODUCTION"
+> niżej pokazywała trzy osobne serwisy (`web`/`worker`/`scheduler`) i bazę
+> z „Backups: Daily + Weekly" oraz „PITR: włączone (~4 tyg.)". **Nieprawda.**
+> Zmierzone connectorem Railway tego dnia: produkcja to **jeden** serwis
+> aplikacyjny, `kuking.pl`, uruchamiany komendą
+> `/usr/local/bin/kuking-entrypoint all` (serwer HTTP + kolejka + harmonogram
+> w jednym kontenerze). Trzy-serwisowy podział to `PRODUCTION_SPLIT_SERVICES`
+> w `.railway/railway.ts` — stan DOCELOWY, do którego `railway config apply`
+> nigdy nie zostało uruchomione. Backupy i PITR nie istnieją wcale: to
+> funkcje planu Pro, a Kuking jest na Free/Hobby (D-043, `docs/DECISIONS.md`).
+> Diagram niżej pokazuje stan faktyczny.
+
 ```text
                           ┌──────────────────────────┐
                           │      UŻYTKOWNIK          │
@@ -76,32 +88,35 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
                     │                          + S3 API (zapis wariantów)
 ╔═══════════════════▼════════════════════════════════════╪═══════════════════╗
 ║                RAILWAY   region europe-west4-drams3a (Amsterdam)           ║
-║                projekt: kuking                                             ║
+║                projekt: ideal-exploration (nazwa nadana przez Railway)     ║
 ║                                                                            ║
-║  ┌─ środowisko PRODUCTION ─────────────────────────────┼────────────────┐  ║
-║  │                                                     │                │  ║
-║  │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │  ║
-║  │  │   web        │  │   worker     │  │   scheduler               │  │  ║
-║  │  │ FrankenPHP   │  │ queue:work   │  │ schedule:work             │  │  ║
-║  │  │ + Caddy      │  │              │  │                           │  │  ║
-║  │  │ :8080        │  │ przetwarza   │  │ digesty, sitemapy,        │  │  ║
-║  │  │ /health      │  │ zdjęcia,     │  │ sprzątanie                │  │  ║
-║  │  │              │  │ maile,       │  │                           │  │  ║
-║  │  │ pre-deploy:  │  │ eksporty     │  │ DOKŁADNIE 1 replika       │  │  ║
-║  │  │ migrate      │  │              │  │                           │  │  ║
-║  │  │ --force      │  │ 1 GB RAM     │  │ 512 MB RAM                │  │  ║
-║  │  │ 1 GB RAM     │  │ drain 120 s  │  │ restart: ALWAYS           │  │  ║
-║  │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────────────┘  │  ║
-║  │         │                 │                    │                    │  ║
-║  │         └─────────────────┴────────────────────┘                    │  ║
-║  │                           │  prywatna sieć (Wireguard)              │  ║
-║  │                           │  *.railway.internal — 0 zł egress       │  ║
-║  │                  ┌────────▼──────────────────────┐                  │  ║
-║  │                  │      postgres  (PG 18)        │                  │  ║
-║  │                  │  dane • sesje • cache • queue │                  │  ║
-║  │                  │  Backups: Daily + Weekly      │                  │  ║
-║  │                  │  PITR: włączone (~4 tyg.)     │                  │  ║
-║  │                  └───────────────────────────────┘                  │  ║
+║  ┌─ środowisko PRODUCTION ─────────────────────────────────────────────┐  ║
+║  │   ┌─────────────────────────────────────────────────────────────┐   │  ║
+║  │   │            kuking.pl — JEDEN serwis, tryb `all`             │   │  ║
+║  │   │            FrankenPHP + Caddy · :8080 · /health             │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │                 pętla kolejki (queue:work)                  │   │  ║
+║  │   │                 harmonogram (schedule:work)                 │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │        pre-deploy: migrate --force --no-interaction         │   │  ║
+║  │   │               1 replika, region europe-west4                │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │         ⚠ tryb `all` jest kruchy: padnięcie procesu         │   │  ║
+║  │   │          ubija stronę i kolejkę razem — patrz §10           │   │  ║
+║  │   └─────────────────────────────────────────────────────────────┘   │  ║
+║  │                                  │                                  │  ║
+║  │                                  ▼                                  │  ║
+║  │   ┌─────────────────────────────────────────────────────────────┐   │  ║
+║  │   │                      Postgres (PG 18)                       │   │  ║
+║  │   │                dane • sesje • cache • queue                 │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │               Backups: BRAK (plan Free/Hobby)               │   │  ║
+║  │   │                PITR: BRAK (plan Free/Hobby)                 │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │            Jedyna planowana kopia: zrzut z #193             │   │  ║
+║  │   │             DZIŚ: nie istnieje żadna kopia bazy             │   │  ║
+║  │   │             (decyzja D-043, docs/DECISIONS.md)              │   │  ║
+║  │   └─────────────────────────────────────────────────────────────┘   │  ║
 ║  └─────────────────────────────────────────────────────────────────────┘  ║
 ║                                                                            ║
 ║  ┌─ STAGING (staging.kuking.pl) ──┐  ┌─ PREVIEW pr-123 (efemeryczne) ──┐  ║
@@ -262,7 +277,7 @@ Railway wprowadziłoby trzecie proxy w łańcuchu, co komplikuje nagłówki
 |---|---|---|---|
 | Domena | `kuking.pl`, `www` | `staging.kuking.pl` | `*.up.railway.app` |
 | Gałąź | `main` | `staging` | gałąź PR-a |
-| Serwisy | web + worker + scheduler + postgres | web (`APP_ROLE=all`) + postgres | web (`APP_ROLE=all`) + postgres |
+| Serwisy | `kuking.pl` (tryb `all`) + `Postgres` — **stan dziś, 9 IX 2026**; `web` + `worker` + `scheduler` + `postgres` to cel `.railway/railway.ts`, `railway config apply` jeszcze nie uruchomione (D-043) | web (`APP_ROLE=all`) + postgres | web (`APP_ROLE=all`) + postgres |
 | Baza | **własna** | **własna** | **własna**, tworzona z kopii staginu |
 | Sekrety | **własne** | **własne, nieprodukcyjne** | dziedziczone ze **staginu** |
 | R2 | `kuking-media` | `kuking-media-staging` | `kuking-media-staging` (wspólny) |

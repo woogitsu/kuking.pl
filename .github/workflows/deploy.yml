@@ -41,9 +41,12 @@
 #
 #  DLACZEGO NIE `railway up` Z TEGO WORKFLOW?
 #  Kuszące jest wypchnąć kod z Actions przez `railway up`. Odrzuciliśmy to:
-#    1. `railway up` wysyła kod do JEDNEGO serwisu. Mamy trzy serwisy
-#       aplikacyjne (web, worker, scheduler) z tego samego repo — trzeba by
-#       zrobić trzy uploady i trzy niezależne buildy tego samego obrazu.
+#    1. `railway up` wysyła kod do JEDNEGO serwisu. Docelowo chcemy trzy
+#       serwisy aplikacyjne (web, worker, scheduler) z tego samego repo —
+#       trzeba by zrobić trzy uploady i trzy niezależne buildy tego samego
+#       obrazu. (Dziś, 9 września 2026, jest JEDEN serwis `kuking.pl`
+#       w trybie `all`; rozbicie stoi w `.railway/railway.ts`, ale nikt nie
+#       uruchomił `railway config apply`, więc jest życzeniem, nie stanem.)
 #    2. Tracimy natywne środowiska PR, które wymagają źródła GitHub.
 #    3. Tracimy cache warstw buildu Railway (osobny per commit vs. per upload).
 #    4. Podwójny deploy: jeśli źródło GitHub zostanie podłączone, każdy push
@@ -281,6 +284,22 @@ jobs:
         && secrets.RAILWAY_TOKEN_PRODUCTION
         || secrets.RAILWAY_TOKEN_STAGING }}
       TARGET_ENV: ${{ github.event.inputs.environment }}
+      # Nazwa serwisu aplikacyjnego w Railway — JEDNO miejsce, nie trzy.
+      #
+      # Zmierzone connectorem 9 września 2026: projekt `ideal-exploration`
+      # ma DWA serwisy, `Postgres` i `kuking.pl`. Serwisów `web`, `worker`
+      # i `scheduler` NIE MA i nigdy nie było — `.railway/railway.ts`, który
+      # je deklaruje, nie został zastosowany (`railway config apply` nie
+      # uruchomiono ani razu). Kroki niżej odwoływały się do tych nazw, więc
+      # migracja padała na nieistniejącym serwisie, a redeploy pomijał
+      # wszystkie trzy po kolei i kończył się sukcesem, NIE ROBIĄC NICZEGO.
+      #
+      # Kontener chodzi w trybie `all`, czyli web, worker i harmonogram są
+      # w tym jednym serwisie — redeploy jednej nazwy restartuje wszystko.
+      #
+      # Gdy kiedyś dojdzie do rozbicia na trzy serwisy, tę zmienną trzeba
+      # zamienić na listę i wrócić do pętli.
+      APP_SERVICE: kuking.pl
 
     steps:
       - uses: actions/checkout@v7
@@ -329,15 +348,15 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Stan migracji PRZED ==="
-          railway ssh --service web --environment "$TARGET_ENV" \
+          railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             "php artisan migrate:status"
 
           echo "=== Uruchamiam migracje ==="
-          railway ssh --service web --environment "$TARGET_ENV" \
+          railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             "php artisan migrate --force --no-interaction"
 
           echo "=== Stan migracji PO ==="
-          railway ssh --service web --environment "$TARGET_ENV" \
+          railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             "php artisan migrate:status"
 
       # -----------------------------------------------------------------------
@@ -350,11 +369,17 @@ jobs:
         if: github.event.inputs.action == 'redeploy'
         run: |
           set -euo pipefail
-          for svc in web worker scheduler; do
-            echo "--- redeploy: $svc ---"
-            railway redeploy --service "$svc" --environment "$TARGET_ENV" --yes \
-              || echo "UWAGA: serwis $svc nie istnieje w środowisku $TARGET_ENV (pomijam)"
-          done
+          # Jeden serwis, bo produkcja ma jeden serwis aplikacyjny w trybie
+          # `all` — restart pociąga za sobą web, workera i harmonogram.
+          #
+          # Nie ma tu `|| echo "pomijam"`. Poprzednia wersja przebiegała
+          # pętlą po `web`, `worker` i `scheduler`, a każde niepowodzenie
+          # zbywała ostrzeżeniem — więc gdy żaden z tych serwisów nie
+          # istniał, krok kończył się ZIELONO, nie restartując niczego.
+          # Redeploy, który nic nie robi i mówi, że się udał, jest gorszy
+          # niż redeploy, który pada.
+          echo "--- redeploy: $APP_SERVICE ---"
+          railway redeploy --service "$APP_SERVICE" --environment "$TARGET_ENV" --yes
 
       # -----------------------------------------------------------------------
       #  ROLLBACK
@@ -385,17 +410,20 @@ jobs:
           echo "=========================================================="
           echo ""
           echo "Ostatnie deploye serwisu web:"
-          railway deployment list --service web --environment "$TARGET_ENV" \
+          railway deployment list --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             || echo "(nie udało się pobrać listy — użyj panelu)"
           echo ""
           echo "PAMIĘTAJ: rollback cofa KOD, nie MIGRACJE."
           echo "Jeśli ostatni deploy zawierał migrację destrukcyjną"
           echo "(DROP COLUMN / RENAME), rollback kodu NIE naprawi bazy."
-          echo "W takim przypadku przejdź do PITR — INFRA_DECISION.md."
+          echo ""
+          echo "I NIE MA DO CZEGO WRÓCIĆ: PITR i Volume Backups to funkcje"
+          echo "planu Pro. Na Free i Hobby Railway nie robi ZADNEJ kopii."
+          echo "Jedyna kopia to zrzut z issue #193 — jesli jeszcze nie"
+          echo "istnieje, utrata danych jest bezpowrotna (D-043)."
           echo ""
           echo "Wykonaj rollback w panelu Railway:"
-          echo "  Service web → Deployments → poprzedni udany → ... → Redeploy"
-          echo "Powtórz dla worker i scheduler."
+          echo "  Service $APP_SERVICE → Deployments → poprzedni udany → ... → Redeploy"
           echo ""
           echo "Krok celowo NIE wykonuje rollbacku automatycznie —"
           echo "wymaga świadomej decyzji człowieka o stanie bazy."
