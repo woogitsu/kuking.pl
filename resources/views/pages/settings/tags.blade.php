@@ -47,5 +47,9 @@
         </form>
     @endif
 
-    <x-ustawienia-nawigacja aktywne="tags" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="tags" />
+    </x-slot:rail>
 </x-layout>
