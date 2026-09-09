@@ -9,12 +9,15 @@
 #   ./scripts/check.sh --szybko # bez budowania assetów (szybsze przy pracy nad PHP)
 #   ./scripts/check.sh --dostepnosc # dodatkowo axe na 14 ekranach w 4 wariantach
 #                                   # oraz pomiar układu przy 320/360/414/768 px
+#   ./scripts/check.sh --wydajnosc  # dodatkowo Lighthouse (wydajność + SEO)
+#                                   # na 8 stronach publicznych (issue #26)
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 SZYBKO=0
 SPRAWDZ_DOSTEPNOSC=0
+SPRAWDZ_WYDAJNOSC=0
 
 # Pętla, a nie `[ "$1" = ... ]`: flagi mają działać w dowolnej kolejności
 # i dowolnej liczbie. Poprzednia wersja czytała wyłącznie PIERWSZY argument,
@@ -23,6 +26,7 @@ for _arg in "$@"; do
     case "$_arg" in
         --szybko) SZYBKO=1 ;;
         --dostepnosc) SPRAWDZ_DOSTEPNOSC=1 ;;
+        --wydajnosc) SPRAWDZ_WYDAJNOSC=1 ;;
         *) printf "Nieznana opcja: %s\n" "$_arg" >&2; exit 2 ;;
     esac
 done
@@ -110,6 +114,27 @@ elif DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; t
     ok "Zero naruszeń critical i serious, strona nie przewija się w bok"
 else
     zle "Naruszenia dostępności albo przewijanie w bok — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
+fi
+
+# --- 3d. Wydajność i SEO (opcjonalna) --------------------------------------
+# Lighthouse na 8 stronach publicznych (issue #26, druga połowa). Mierzy
+# WYŁĄCZNIE `performance` i `seo` — dostępność już liczy krok wyżej (axe-core),
+# a Lighthouse pod spodem użyłby dokładnie tego samego silnika, tylko wolniej.
+# Progi i pełne uzasadnienie: nagłówek `scripts/wydajnosc.mjs`.
+#
+# DOMYŚLNIE POMIJANY z tego samego powodu co axe: podnosi przeglądarkę i bazę,
+# a do tego CZEKA na throttling sieci przy każdym ekranie — kilkadziesiąt
+# sekund więcej niż sam axe. Uruchamiaj przy zmianach w widokach:
+#   ./scripts/check.sh --wydajnosc
+krok "Wydajność i SEO (Lighthouse)"
+if [ "$SPRAWDZ_WYDAJNOSC" -ne 1 ]; then
+    printf "  Pominięte: uruchom './scripts/check.sh --wydajnosc' przy zmianach w widokach\n"
+elif [ ! -d node_modules/lighthouse ]; then
+    printf "  Pominięte: brak paczki 'lighthouse' (npm install — do zrobienia przez właściciela)\n"
+elif DB_DATABASE=kuking_test_wydajnosc node scripts/wydajnosc.mjs >/dev/null 2>&1; then
+    ok "Wydajność i SEO powyżej progów na wszystkich mierzonych ekranach"
+else
+    zle "Wydajność albo SEO poniżej progu — szczegóły: node scripts/wydajnosc.mjs (i storage/wydajnosc.json)"
 fi
 
 # --- 4. Analiza statyczna --------------------------------------------------
