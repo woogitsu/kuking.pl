@@ -1,24 +1,45 @@
+{{--
+    429 — za dużo prób, a tekst został (issue #81, audyt zewnętrzny G06).
+
+    Przez długi czas ta strona mówiła „nic nie przepadło", nie zachowując
+    niczego: `old()` puste, treści nigdzie w odpowiedzi, zdjęcia nie było
+    jak odzyskać. Powrót „wstecz" bywa ratunkiem, ale to zachowanie
+    przeglądarki, nie obietnica aplikacji — a obietnica stała na ekranie.
+
+    Teraz na trasach treści (`App\Support\OdzyskiwalneDane`) ten ekran jest
+    tym samym formularzem, wystawionym jeszcze raz i wypełnionym treścią
+    z odbitego żądania — dokładnie jak ekran 419. Na logowaniu, rejestracji
+    i drugim składniku nie odzyskuje niczego i nic takiego nie obiecuje.
+
+    Cała strona działa BEZ JavaScriptu — to zwykły formularz.
+
+    Uzasadnienie wyboru (i tego, czego nie wybraliśmy):
+    App\Exceptions\OdzyskanyFormularz oraz komentarz przy
+    `ThrottleRequestsException` w bootstrap/app.php.
+--}}
 @php
     // Laravel podaje w nagłówku `Retry-After` liczbę SEKUND. Dla człowieka
     // „za 300 s" nie znaczy nic, więc zaokrąglamy w górę do pełnych minut —
     // w górę, bo obietnica „za 1 minutę" złamana o 20 sekund jest gorsza
     // niż uczciwe „za 2 minuty".
-    $sekundy = null;
+    //
+    // `$sekundy` przychodzi z bootstrap/app.php. Odczyt z `$exception` jest
+    // zapasowy: tą stroną Laravel renderuje też 429 spoza naszego wywołania
+    // zwrotnego (np. limiter globalny), a wtedy zmiennej nie ma.
+    $sekundy ??= null;
 
-    if (isset($exception) && method_exists($exception, 'getHeaders')) {
+    if ($sekundy === null && isset($exception) && method_exists($exception, 'getHeaders')) {
         $sekundy = $exception->getHeaders()['Retry-After'] ?? null;
     }
 
     $minuty = is_numeric($sekundy) ? max(1, (int) ceil(((int) $sekundy) / 60)) : null;
+
+    // Ten sam domyślnik co na ekranie 419: gdyby stronę wyrenderowało coś
+    // innego niż nasze wywołanie zwrotne, człowiek dostaje tę samą stronę,
+    // tyle że bez odzyskanej treści — zamiast „Undefined variable".
+    $formularz ??= \App\Exceptions\OdzyskanyFormularz::zZadania(request());
 @endphp
 
-{{--
-    429 — za dużo prób (issue #81).
-
-    Najczęściej trafia tu osoba, która trzy razy wpisała hasło z pamięci
-    i za czwartym razem zobaczyłaby po angielsku „Too Many Requests".
-    Tekst ma powiedzieć jedno: to minie samo i nic się nie stało.
---}}
 <x-layout title="Za dużo prób" :noindex="true">
     <h1>Za dużo prób</h1>
 
@@ -32,13 +53,102 @@
         @endif
     </p>
 
-    <p class="mb-5">
-        Nic się nie zepsuło i nic nie przepadło — ta przerwa mija sama.
-        Klikanie „odśwież" jej nie skróci.
-    </p>
+    @if($formularz->maCoOdzyskac())
+        <p class="mb-5">
+            <strong>Twój tekst jest na miejscu</strong> — nic nie przepadło.
+            Poczekaj
+            @if($minuty)
+                te {{ $minuty }} min,
+            @else
+                kilka minut,
+            @endif
+            a potem kliknij „Wyślij jeszcze raz”. Ta strona może zostać otwarta;
+            klikanie „odśwież” niczego nie przyspieszy.
+        </p>
 
-    <div class="form-actions">
-        <a class="btn btn-primary" href="{{ auth()->check() ? route('home') : route('landing') }}">Strona główna</a>
-        <a class="btn btn-quiet" href="{{ route('help') }}">Pomoc</a>
-    </div>
+        <form class="card" method="POST" action="{{ $formularz->akcja }}"
+              @if($formularz->maPliki()) enctype="multipart/form-data" @endif>
+            {{-- Ochrona CSRF zostaje w mocy — ponowne wysłanie idzie normalną
+                 drogą, przez ValidateCsrfToken, i normalnie przez limiter. --}}
+            @csrf
+
+            @if($formularz->metodaUdawana())
+                @method($formularz->metodaUdawana())
+            @endif
+
+            @php $numer = 0; @endphp
+
+            @foreach($formularz->pola as $pole)
+                @if($pole['dlugi'])
+                    @php $numer++; @endphp
+                    <div class="field">
+                        <label for="odzyskane-{{ $numer }}">
+                            Twój tekst @if($numer > 1)({{ $numer }})@endif
+                        </label>
+                        <span class="field-help" id="odzyskane-{{ $numer }}-help">
+                            Możesz go jeszcze poprawić przed wysłaniem.
+                        </span>
+                        <textarea class="field-input" id="odzyskane-{{ $numer }}"
+                                  name="{{ $pole['nazwa'] }}" rows="8"
+                                  aria-describedby="odzyskane-{{ $numer }}-help">{{ $pole['wartosc'] }}</textarea>
+                    </div>
+                @else
+                    <input type="hidden" name="{{ $pole['nazwa'] }}" value="{{ $pole['wartosc'] }}">
+                @endif
+            @endforeach
+
+            {{-- Ten sam obszar wyboru zdjęcia co na ekranie 419 i w formularzach,
+                 z których ten ekran odbił człowieka (`.pole-zdjecia`,
+                 resources/css/ekran-dodawania.css). Natywne pole pliku jest
+                 schowane dla oka (D-035). --}}
+            @foreach($formularz->pliki as $plik)
+                <div class="field">
+                    <input class="visually-hidden pole-zdjecia-input" id="odzyskany-plik-{{ $loop->index }}" type="file"
+                           name="{{ $plik['nazwa'] }}" @if($plik['wiele']) multiple @endif
+                           accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                           aria-labelledby="odzyskany-plik-{{ $loop->index }}-tytul"
+                           aria-describedby="odzyskany-plik-{{ $loop->index }}-help">
+                    <label class="pole-zdjecia" for="odzyskany-plik-{{ $loop->index }}">
+                        <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                        <span class="pole-zdjecia-tytul" id="odzyskany-plik-{{ $loop->index }}-tytul">Wybierz zdjęcie jeszcze raz</span>
+                        <span class="field-help" id="odzyskany-plik-{{ $loop->index }}-help">
+                            Zdjęcia nie da się odzyskać — przeglądarka na to nie pozwala.
+                            Tekst jest bezpieczny, brakuje tylko pliku.
+                        </span>
+                    </label>
+                </div>
+            @endforeach
+
+            @if($formularz->obciete)
+                <p class="field-help">
+                    Ten formularz był wyjątkowo duży i nie wszystko udało się przenieść.
+                    Sprawdź treść przed wysłaniem.
+                </p>
+            @endif
+
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Wyślij jeszcze raz</button>
+                <a class="btn btn-quiet" href="{{ auth()->check() ? route('home') : route('landing') }}">Strona główna</a>
+            </div>
+        </form>
+    @else
+        {{-- Tu NIE MA zdania „nic nie przepadło" i to jest cała treść naprawy
+             G06: bez odzyskanego formularza nie ma czym tej obietnicy pokryć.
+             Ta gałąź obsługuje przede wszystkim limit logowania, rejestracji
+             i drugiego składnika — tam nie ma czego zachowywać i mówimy tylko
+             to, co jest prawdą: przerwa mija sama. --}}
+        <p class="mb-5">
+            Nic się nie zepsuło — ta przerwa mija sama, a klikanie „odśwież”
+            jej nie skróci.
+            @if($formularz->maPliki())
+                Zdjęcie trzeba będzie wybrać jeszcze raz: przeglądarka nie pozwala
+                wpisać pliku za człowieka.
+            @endif
+        </p>
+
+        <div class="form-actions">
+            <a class="btn btn-primary" href="{{ auth()->check() ? route('home') : route('landing') }}">Strona główna</a>
+            <a class="btn btn-quiet" href="{{ route('help') }}">Pomoc</a>
+        </div>
+    @endif
 </x-layout>
