@@ -63,5 +63,9 @@
         </form>
     </section>
 
-    <x-ustawienia-nawigacja aktywne="security" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="security" />
+    </x-slot:rail>
 </x-layout>

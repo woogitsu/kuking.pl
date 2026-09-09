@@ -64,5 +64,9 @@
         </p>
     </section>
 
-    <x-ustawienia-nawigacja aktywne="privacy" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="privacy" />
+    </x-slot:rail>
 </x-layout>

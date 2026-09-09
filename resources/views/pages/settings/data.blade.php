@@ -181,5 +181,9 @@
         </details>
     </div>
 
-    <x-ustawienia-nawigacja aktywne="data" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="data" />
+    </x-slot:rail>
 </x-layout>
