@@ -322,8 +322,14 @@
         {{-- `app-body-solo` MUSI iść w parze z brakiem <nav class="side-nav">
              niżej: siatka na desktopie rezerwuje pierwszą kolumnę na
              nawigację, więc bez niej treść wpadłaby w kolumnę szeroką na
-             15rem. Pilnuje tego test UkladGosciaTest. --}}
-        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo' }} @endguest">
+             15rem. Pilnuje tego test UkladGosciaTest.
+
+             `data-tryb-panelu` — TEN SAM atrybut co na `<nav class="side-nav">`
+             niżej, jeden znacznik stanu czytany przez dwa selektory w CSS.
+             Panel moderacji nie ma slotu `rail` i nigdy go mieć nie będzie,
+             więc od 80rem nie rezerwujemy dla niego pustej trzeciej kolumny
+             (issue #294, punkt 2 — patrz uzasadnienie w app.css). --}}
+        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo' }} @endguest" @if($wTrybiePanelu) data-tryb-panelu @endif>
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).

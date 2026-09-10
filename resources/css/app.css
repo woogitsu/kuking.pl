@@ -156,6 +156,32 @@
     .app-rail {
       padding: var(--spacing-5) 0 var(--spacing-12);
     }
+
+    /*
+     * PANEL MODERACJI NIE DOSTAJE TRZECIEJ KOLUMNY (issue #294, punkt 2).
+     *
+     * Reguła wyżej rezerwuje kolumnę szyny NAWET BEZ NIEJ — świadomy koszt,
+     * uzasadniony tym, że nawigacja ma stać w tym samym miejscu na każdym
+     * ekranie serwisu. Panel moderacji nie jest takim ekranem: żadna z jego
+     * stron nie podaje slotu `rail` i żadna nigdy go nie poda — to narzędzie
+     * pracy moderatora, nie treść z „Moim zeszytem" czy „kuKINGami na dziś".
+     * Rezerwowanie tu kolumny płaci ten sam koszt bez żadnego zysku.
+     *
+     * ZMIERZONE 10 września, `/admin/uzytkownicy`, okno 1280 px: kolumna
+     * treści (`.app-main`) miała 576 px zamiast swoich zwykłych 720 —
+     * ścieśniona przez SZTYWNĄ (nie `1fr`) kolumnę szyny obok, płaska strona
+     * mieściła się na ~72% szerokości, a reszta (rezerwacja szyny plus
+     * marginesy) stała pusta. To jest dokładnie zgłoszenie właściciela:
+     * „treść wciśnięta w lewe ~55% ekranu, po prawej duży pusty obszar".
+     *
+     * `[data-tryb-panelu]` na `.app-body`, ten sam atrybut co na `.side-nav`
+     * wyżej — jeden znacznik stanu, czytany przez dwa selektory. Poza
+     * panelem `.app-body` ma nadal trzy kolumny od tego progu, bez zmian.
+     */
+    .app-body[data-tryb-panelu] {
+      grid-template-columns: var(--container-sidenav) minmax(0, 1fr);
+      max-width: var(--container-strona);
+    }
   }
 
   /* --- UKŁAD PASÓW (strona powitalna) ------------------------------------
@@ -1019,6 +1045,39 @@
       grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
       gap: var(--spacing-1);
       padding: var(--spacing-1);
+    }
+  }
+
+  /*
+   * „WRÓĆ DO KUKING" DWA RAZY NA SZEROKIM TELEFONIE (issue #294, punkt 4).
+   *
+   * Wyjście z panelu stoi w dwóch miejscach z jednego powodu: na wąskim
+   * telefonie menu boczne (ten odnośnik jest jego PIERWSZĄ pozycją, nad
+   * treścią) i pasek dolny (`position: fixed`) rzadko widać naraz — trzeba
+   * przewinąć stronę, żeby zobaczyć drugi. `TrybPaneluWMenuTest` pilnuje
+   * tego stanu wprost i zostaje bez zmian: to nie jest usterka, którą ten PR
+   * cofa, i test to potwierdza.
+   *
+   * Na szerokim telefonie oba stoją w jednym kadrze bez przewijania —
+   * ZMIERZONE na `/admin/uzytkownicy`, okno 900 px: dwa odnośniki
+   * o identycznym tekście, oba faktycznie widoczne (`display` inny niż
+   * `none`, szerokość > 0), żaden nie wymagał przewinięcia. Stąd zgłoszenie
+   * właściciela „Wróć do Kuking jest dwa razy".
+   *
+   * Znika górny, zostaje dolny — bo pasek dolny jest STAŁY (`position:
+   * fixed`), więc uzasadnienie górnego („widoczne bez przewijania") pasek
+   * dolny spełnia i tak, na każdej szerokości telefonu. `min-width: 48rem`
+   * (768 px), NIE cały zakres poniżej 64rem: to dokładnie ta sama dolna
+   * granica przedziału z opisu zgłoszenia („Fold rozłożony ląduje między
+   * 768 a 1280"), więc typowy wąski telefon (320–414 px) dostaje oba
+   * odnośniki tak jak dotąd, zgodnie z `TrybPaneluWMenuTest`, a dopiero od
+   * tej szerokości w górę — gdzie oba mieszczą się na ekranie naraz —
+   * górny znika. HTML zostaje NIETKNIĘTY (sam `display: none`), więc
+   * asercje na treść strony w tym i innych testach nie widzą różnicy.
+   */
+  @media (min-width: 48rem) and (max-width: 63.999rem) {
+    .side-nav[data-tryb-panelu] .side-nav-powrot {
+      display: none;
     }
   }
 
