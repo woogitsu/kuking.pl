@@ -25,6 +25,24 @@ use Illuminate\Support\Facades\DB;
  */
 final class PublishComment
 {
+    /**
+     * JEDEN komunikat na wszystkie odmowy komentowania — i celowo jeden.
+     *
+     * Osobny tekst („ta osoba Cię zablokowała") potwierdzałby, kto kogo
+     * zablokował, komuś, kto właśnie próbuje to obejść. Stała zamiast
+     * trzech literałów, żeby przy następnej zmianie brzmienia nie dało się
+     * poprawić dwóch z trzech i rozjechać tej właściwości.
+     *
+     * BRZMIENIE (issue #38, docs/UX_50_PLUS.md — błędy mówią, CO ZROBIĆ)
+     * Stało tu „Nie można tu komentować." — zdanie bez podmiotu, mówiące
+     * tylko, CO się stało. Komunikat wychodzi PRZY POLU komentarza, więc
+     * człowiek musi z niego wiedzieć, co ma dalej zrobić. „Odśwież stronę"
+     * jest uczciwe i niczego nie zdradza: po odświeżeniu widać dokładnie
+     * tyle, ile ta osoba ma prawo widzieć.
+     */
+    private const NIE_MOZNA_KOMENTOWAC = 'Tu nie da się teraz dodać komentarza. '
+        .'Odśwież stronę — zobaczysz, co jest w tym miejscu dostępne.';
+
     public function __construct(private readonly NotifyUser $notify) {}
 
     public function handle(
@@ -42,7 +60,7 @@ final class PublishComment
         $subjectOwner = $this->ownerOf($subject);
 
         if ($author->hasBlockRelationWith($subjectOwner)) {
-            throw new BladDlaCzlowieka('Nie można tu komentować.');
+            throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
         }
 
         /*
@@ -69,7 +87,7 @@ final class PublishComment
          */
         if ($parent !== null) {
             if (! $this->naleziDo($parent, $subject)) {
-                throw new BladDlaCzlowieka('Nie można tu komentować.');
+                throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
             }
 
             $autorRodzica = $parent->author;
@@ -79,7 +97,7 @@ final class PublishComment
                 // celowo. Osobny tekst („ta osoba Cię zablokowała")
                 // potwierdzałby, kto kogo zablokował, komuś, kto właśnie
                 // próbuje to obejść.
-                throw new BladDlaCzlowieka('Nie można tu komentować.');
+                throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
             }
         }
 

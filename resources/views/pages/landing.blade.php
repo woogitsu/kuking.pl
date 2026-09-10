@@ -178,8 +178,10 @@
                         Otworzysz ją na swoim komputerze, także wtedy, gdyby Kuking kiedyś
                         przestał istnieć.
                     </p>
+                    {{-- „sam decydujesz" przypisywało czytelnikowi rodzaj męski
+                         (issue #38, D-066) — „sam" nie wnosi tu informacji. --}}
                     <p>
-                        Przy każdym wpisie sam decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
+                        Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
                     </p>
                 </div>
                 <div>
