@@ -286,6 +286,20 @@ export default defineRailway((ctx) => {
     // kontenerze, a szukano go w drugim — w bazie `ready`, u człowieka 404
     // (audyt W3-01).
     KUKING_EXPORT_DISK: "r2_eksporty",
+    // --- Bucket kopii bazy: DLA APLIKACJI TYLKO DO CZYTANIA (#193) ----------
+    //
+    //  Zrzut robi osobny serwis `kopia-bazy` niżej, własnym tokenem z prawem
+    //  ZAPISU. Aplikacja dostaje token z prawem WYŁĄCZNIE do odczytu tego
+    //  jednego bucketu i używa go do jednej rzeczy: raz na dobę sprawdza,
+    //  czy w buckecie leży świeża kopia (`kuking:sprawdz-kopie`).
+    //
+    //  Po co dwa tokeny do jednego bucketu: gdyby aplikacja miała prawo
+    //  zapisu, udany atak na nią mógłby SKASOWAĆ kopie — czyli dokładnie to,
+    //  przed czym ta warstwa ma chronić. Kopia, którą da się zniszczyć
+    //  z zaatakowanego serwisu, nie jest kopią offsite.
+    AWS_KOPIE_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
+    AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID,
+    AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
     AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
     //  AWS_URL ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (audyt W7-02, P0).
     //
@@ -828,6 +842,157 @@ export default defineRailway((ctx) => {
     env: { ...appEnv, APP_ROLE: "scheduler" },
   });
 
+  // ===========================================================================
+  //  SERWIS: kopia-bazy  (tylko produkcja)
+  //
+  //  JEDYNA KOPIA BAZY, JAKĄ MA TEN PROJEKT — issue #193, decyzja D-043.
+  //
+  //  Railway na planie Free/Hobby NIE ROBI ŻADNYCH KOPII: Volume Backups
+  //  i PITR to funkcje planu Pro. Do powstania tego serwisu liczba kopii
+  //  bazy Kuking wynosi ZERO (sprostowanie w D-043), a nie „dwie warstwy
+  //  Railwaya plus ta trzecia", jak zakładał INFRA_DECISION.md §10.
+  //
+  //  DLACZEGO OSOBNY SERWIS, A NIE HARMONOGRAM APLIKACJI
+  //  `docker/php.ini` wyłącza `proc_open`, a `pg_dump` wołany z PHP wymaga
+  //  dokładnie tej funkcji (`Symfony\Process`). Osłabienia tego hardeningu
+  //  zabrania AGENTS.md, więc zrzut jest do PRZENIESIENIA, nie do naprawienia
+  //  na miejscu. Ten obraz (`docker/kopia/Dockerfile`) nie ma PHP w ogóle.
+  //
+  //  DLACZEGO NIE GITHUB ACTIONS: poświadczenie do produkcyjnej bazy
+  //  musiałoby trafić do sekretów GitHuba, czyli powstałaby druga kopia
+  //  najwrażliwszego klucza, w innym systemie niż baza (D-043).
+  //
+  //  DLACZEGO Railway Cron, mimo ostrzeżenia przy serwisie `scheduler`
+  //  wyżej: tam problemem była GRANULACJA (Laravel scheduler musi być
+  //  odpytywany co minutę, a Railway Cron ma minimum 5 minut). Tutaj
+  //  granulacja nie ma żadnego znaczenia — kopia raz na dobę może wystartować
+  //  minutę czy pięć później. Cron jest za to jedyną formą, w której kontener
+  //  wstaje, robi swoje i UMIERA, nie płacąc za nic pomiędzy.
+  //  https://docs.railway.com/cron-jobs
+  //
+  //  ⚠️ TEN SERWIS NIE ISTNIEJE JESZCZE W RAILWAY, tak samo jak `web`,
+  //  `worker` i `scheduler` wyżej (`railway config apply` nie zostało
+  //  uruchomione ani razu — patrz sprostowanie przy
+  //  PRODUCTION_SPLIT_SERVICES). Do czasu pierwszego `apply` trzeba go
+  //  założyć RĘCZNIE w panelu, a nie liczyć na ten plik. Dokładna lista
+  //  kliknięć: docs/infra/KOPIE_I_ODTWORZENIE.md §7.3.
+  // ===========================================================================
+  const kopiaBazy = service("kopia-bazy", {
+    source,
+
+    build: {
+      builder: "DOCKERFILE" as const,
+      // DRUGI Dockerfile w repozytorium, świadomie. Uzasadnienie w jego
+      // własnym nagłówku.
+      dockerfilePath: "docker/kopia/Dockerfile",
+      // Kopia bazy nie ma nic wspólnego z kodem aplikacji, więc zmiana
+      // kontrolera nie musi jej przebudowywać. Za to zmiana samego skryptu
+      // MUSI — inaczej poprawka w kopii nie doszłaby na produkcję.
+      watchPatterns: ["docker/kopia/**"],
+    },
+
+    deploy: {
+      // 02:17 UTC = 03:17/04:17 w Polsce, czyli po całym nocnym sprzątaniu
+      // z routes/console.php (03:20-04:50 to retencje) — zrzut ma zawierać
+      // stan PO nich, nie w ich środku.
+      //
+      // Nierówna minuta celowo: gdyby kiedyś doszedł drugi taki serwis,
+      // pełne godziny są miejscem, w którym wszystko zderza się ze wszystkim.
+      cronSchedule: "17 2 * * *",
+
+      region: REGION,
+      numReplicas: 1,
+
+      // NEVER, nie ON_FAILURE. To jest zadanie jednorazowe: nieudany przebieg
+      // ma zostać nieudany i zaalarmować (skrypt robi to sam), a nie wstawać
+      // w pętli i próbować zrzucać całą bazę co kilkadziesiąt sekund.
+      // Ponowienie jest decyzją człowieka albo następnego przebiegu za dobę.
+      restartPolicyType: "NEVER",
+
+      // Kontener kończy pracę sam; usypianie nie ma tu czego uśpić.
+      sleepApplication: false,
+
+      limitOverride: {
+        containers: {
+          // Szyfrowanie idzie strumieniowo (`openssl cms -stream`), a zrzut
+          // leży na dysku, nie w pamięci — 512 MB z zapasem wystarcza.
+          memoryBytes: 512 * MB,
+          cpu: 1,
+        },
+      },
+    },
+
+    // ŚWIADOMIE BEZ `...appEnv`. Ten kontener nie potrzebuje APP_KEY, kluczy
+    // do bucketów ze zdjęciami, poświadczeń poczty ani DSN-a Sentry — a każdy
+    // sekret, który tu wstawimy, dostaje prawo odczytu do procesu trzymającego
+    // w rękach zrzut całej bazy. Lista jest więc zamknięta i krótka.
+    env: {
+      // Referencja do serwisu Postgres — SIEĆ WEWNĘTRZNA Railwaya
+      // (host *.railway.internal). Skrypt sam odmawia pracy, gdy dostanie
+      // adres publiczny (*.proxy.rlwy.net), bo to wypuszczałoby komplet
+      // danych osobowych przez publiczny internet przy każdym przebiegu.
+      DB_URL: db.env.DATABASE_URL,
+
+      // --- Bucket kopii: OSOBNY OD BUCKETÓW ZE ZDJĘCIAMI (#193) -------------
+      //
+      //  Nie prefiks w tym samym buckecie — osobny bucket i OSOBNY TOKEN.
+      //  Bucket wariantów bywał wystawiony publicznie pod `cdn.kuking.pl`,
+      //  a publiczność w R2 jest cechą BUCKETU, nie obiektu
+      //  (patrz komentarz przy dyskach w config/filesystems.php). Zrzut całej
+      //  bazy w buckecie, który kiedykolwiek może dostać własną domenę,
+      //  jest wypadkiem czekającym na swoją kolej.
+      //
+      //  Token ma mieć prawo WYŁĄCZNIE do tego jednego bucketu. Gdyby wyciekł,
+      //  nie daje dostępu do zdjęć ani do paczek RODO — a zrzuty i tak są
+      //  zaszyfrowane kluczem publicznym.
+      KOPIA_S3_ENDPOINT: ctx.shared.R2_ENDPOINT,
+      KOPIA_S3_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
+      KOPIA_S3_KLUCZ: ctx.shared.R2_KOPIE_ACCESS_KEY_ID,
+      KOPIA_S3_SEKRET: ctx.shared.R2_KOPIE_SECRET_ACCESS_KEY,
+      KOPIA_S3_REGION: "auto", // R2 wymaga literalnie "auto"
+
+      // --- Szyfrowanie -------------------------------------------------------
+      //
+      //  CERTYFIKAT, CZYLI KLUCZ PUBLICZNY. Tą wartością da się zaszyfrować
+      //  i NIE DA SIĘ odszyfrować niczego. Klucz prywatny nie istnieje
+      //  w żadnym środowisku uruchomieniowym — jego jedyne kopie są
+      //  w menedżerze haseł właściciela i na nośniku offline w innym miejscu
+      //  fizycznym (KOPIE_I_ODTWORZENIE.md §7.1).
+      //
+      //  Skutek: przejęcie tego serwisu, bucketu albo całego konta Railway
+      //  daje szyfrogram i nic więcej.
+      KOPIA_KLUCZ_PUBLICZNY: ctx.shared.KOPIA_KLUCZ_PUBLICZNY,
+
+      // --- Alarm -------------------------------------------------------------
+      //
+      //  TEN SAM kanał, co błędy 500 (D-041) — właściciel ma jedno miejsce,
+      //  w które patrzy. Treść jest budowana z listy zamkniętej: etap, kod,
+      //  odcisk. Bez adresu bazy, bez nazwy bucketu, bez wyjścia pg_dump
+      //  (audyt A6-01 — ten kanał wychodzi do usługi, nad którą nie mamy
+      //  kontroli).
+      KOPIA_WEBHOOK_URL: ctx.shared.LOG_BLAD_WEBHOOK_URL,
+      KOPIA_SRODOWISKO: envName,
+
+      // --- Retencja i progi --------------------------------------------------
+      KOPIA_PREFIKS: "baza/",
+      // 30 dni to kompromis między „da się wrócić przed miesiąc" a rachunkiem
+      // za R2 (darmowy pułap 10 GB). Przy zrzucie rzędu 100 MB to ~3 GB.
+      KOPIA_RETENCJA_DNI: "30",
+      // NIGDY nie zostawiaj mniej niż tyle kopii, niezależnie od wieku.
+      // Bez tego progu jedna dłuższa przerwa w działaniu serwisu wystarczyłaby,
+      // żeby przebieg wznowiony po niej skasował wszystko, co jeszcze było.
+      KOPIA_MINIMUM_KOPII: "7",
+      // Kopia starsza niż 36 h przy harmonogramie dobowym znaczy, że co
+      // najmniej jeden przebieg wypadł — i to jest alarm, nie ciekawostka.
+      KOPIA_ALARM_PO_GODZINACH: "36",
+      // docs/DATABASE.md wymienia 25 tabel. Zrzut z mniej niż 20 tabelami
+      // znaczy, że DB_URL wskazał NIE TĘ bazę — a plik i tak by powstał
+      // i wyglądał poprawnie. To jest ten rodzaj kopii, który jest gorszy
+      // od jej braku.
+      KOPIA_MIN_TABEL: "20",
+    },
+  });
+
   // ---------------------------------------------------------------------------
   //  KOMPOZYCJA
   //  Grupy są wyłącznie porządkowe — czytelność kanwy Railway i tego pliku.
@@ -839,7 +1004,13 @@ export default defineRailway((ctx) => {
   //  czyli `railway config apply` je USUNIE, jeśli istniały.
   const appServices = splitServices ? [web, worker, scheduler] : [web];
 
-  const resources = [group("Aplikacja", appServices), group("Dane", [db])];
+  //  Kopia bazy TYLKO na produkcji. Zrzut stagingu nie ma czego chronić —
+  //  tamte dane są wygenerowane seederem i odtwarzalne w minutę — a kosztowałby
+  //  miejsce w tym samym buckecie i mieszałby się w retencji z kopiami, które
+  //  naprawdę są komuś potrzebne.
+  const dataServices = isProduction ? [db, kopiaBazy] : [db];
+
+  const resources = [group("Aplikacja", appServices), group("Dane", dataServices)];
 
   return project("kuking", { resources });
 });
@@ -851,10 +1022,22 @@ export default defineRailway((ctx) => {
 //   1. PR Environments — Project Settings → Environments → Enable.
 //      Środowiskiem BAZOWYM ustaw `staging`, nie `production`, inaczej każdy
 //      PR dostanie kopię produkcyjnych sekretów.
-//   2. Backupy Postgresa — serwis Postgres → Backups → Daily + Weekly,
-//      oraz Enable PITR. PITR liczy okno od PIERWSZEGO backupu po włączeniu,
-//      więc włącz to PRZED tym, jak będzie potrzebne.
-//      https://docs.railway.com/guides/postgres-backups-restores
+//   2. Kopie bazy — NIE DA SIĘ ICH WŁĄCZYĆ NA TYM PLANIE (D-043).
+//      Volume Backups i PITR to funkcje planu Pro; na Free i Hobby panel
+//      nawet nie pokazuje tej zakładki. Poprzednia wersja tego punktu kazała
+//      „kliknąć Daily + Weekly + Enable PITR" i była nieprawdą — a nieprawda
+//      w checkliście backupów jest gorsza niż jej brak, bo daje się odhaczyć.
+//      Kopie robi serwis `kopia-bazy` wyżej (issue #193): zrzut logiczny,
+//      zaszyfrowany kluczem publicznym, w buckecie R2 poza Railwayem.
+//      Do założenia RĘCZNIE (bucket + token + zmienne + serwis cron):
+//      docs/infra/KOPIE_I_ODTWORZENIE.md §7.3.
+//   2b. Zmienne sharedowe wymagane przez `kopia-bazy`, wszystkie nowe:
+//      R2_KOPIE_BUCKET, R2_KOPIE_ACCESS_KEY_ID, R2_KOPIE_SECRET_ACCESS_KEY
+//      (token z prawem ZAPISU, dla serwisu kopii),
+//      R2_KOPIE_ODCZYT_ACCESS_KEY_ID, R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY
+//      (token TYLKO DO CZYTANIA, dla czujki w aplikacji),
+//      KOPIA_KLUCZ_PUBLICZNY. Klucza PRYWATNEGO nie wolno tu wstawić —
+//      to jedyna rzecz, która NIE MA prawa mieszkać w Railwayu.
 //   3. Shared variables — wartości sekretów (ten plik je tylko referencuje).
 //   4. Alerty budżetowe — Workspace → Usage → Usage Limits.
 //

@@ -186,6 +186,33 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
     ->dailyAt('05:00')
     ->withoutOverlapping();
 
+// CZUJKA KOPII BAZY (issue #193, decyzja D-043).
+//
+// Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
+// ta aplikacja i nie ten harmonogram. `pg_dump` z PHP wymaga `proc_open`,
+// wyłączonego w `docker/php.ini`, i tego nie ruszamy.
+//
+// To zadanie robi drugą rzecz, której tamten serwis zrobić NIE MOŻE: pilnuje,
+// czy on w ogóle jeszcze chodzi. Serwis kopii alarmuje, gdy jego przebieg się
+// nie udał — ale nie zaalarmuje, gdy przebiegu NIE BYŁO (skasowany serwis,
+// wyłączony harmonogram, wyczerpany limit konta, wygasły token). Kod, który
+// wtedy nie chodzi, nie może o sobie donieść. #193 nazywa to najgorszym
+// możliwym stanem: „myślisz, że masz kopię".
+//
+// 06:15 UTC, czyli 07:15/08:15 w Polsce: kopia startuje 02:17 UTC
+// (`.railway/railway.ts`, serwis `kopia-bazy`), więc o tej godzinie wynik
+// nocy jest już znany, a właściciel widzi alarm przy pierwszej kawie,
+// nie w środku nocy.
+//
+// Dopóki bucket R2 nie istnieje, komenda mówi „czujka wyłączona" i nie dzwoni
+// nigdzie — umowa „brak zmiennej = zero efektu", ta sama co przy
+// `LOG_BLAD_WEBHOOK_URL`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
+    ->name('kuking:sprawdz-kopie')
+    ->dailyAt('06:15')
+    ->withoutOverlapping();
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.

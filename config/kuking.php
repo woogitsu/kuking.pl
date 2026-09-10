@@ -1364,6 +1364,50 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Kopia bazy poza Railwayem — CZUJKA, nie sama kopia
+    |--------------------------------------------------------------------------
+    |
+    | Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`,
+    | issue #193, decyzja D-043) — nie ta aplikacja. Aplikacja robi drugą
+    | rzecz, której tamten serwis zrobić NIE MOŻE: pilnuje, czy on w ogóle
+    | jeszcze chodzi.
+    |
+    | DLACZEGO TO JEST OSOBNE ZADANIE, A NIE DUBLOWANIE
+    | Serwis kopii alarmuje, gdy przebieg mu się nie udał. Nie zaalarmuje,
+    | gdy przebiegu NIE BYŁO: skasowany serwis, wyłączony harmonogram,
+    | wyczerpany limit, zmieniona nazwa bucketu. Kod, który wtedy nie chodzi,
+    | nie może o sobie donieść — i to jest dokładnie ten stan, który #193
+    | nazywa najgorszym z możliwych („myślisz, że masz kopię").
+    |
+    | Ta czujka patrzy z drugiej strony: raz na dobę listuje bucket i dzwoni,
+    | gdy najnowsza kopia jest starsza niż `maks_wiek_godzin`.
+    |
+    | UPRAWNIENIA: aplikacja dostaje token R2 TYLKO DO CZYTANIA tego bucketu
+    | (`r2_kopie` w config/filesystems.php). Nie może nic tam zapisać ani
+    | skasować, a to, co przeczyta, jest zaszyfrowane kluczem publicznym,
+    | którego pary nie ma w żadnym środowisku uruchomieniowym.
+    |
+    | BRAK KONFIGURACJI = ZERO EFEKTU. Dopóki bucket nie istnieje (stan na
+    | 9 września 2026), `AWS_KOPIE_BUCKET` jest puste i czujka milczy —
+    | tak samo jak kanał `blad_webhook` przy pustym `LOG_BLAD_WEBHOOK_URL`.
+    | Cisza z powodu braku konfiguracji nie może udawać ciszy z powodu
+    | „wszystko w porządku", dlatego komenda mówi wprost, że jest wyłączona.
+    */
+    'kopie' => [
+        'dysk' => env('KUKING_KOPIE_DISK', 'r2_kopie'),
+
+        // Ten sam prefiks, co `KOPIA_PREFIKS` w serwisie kopii. Rozjazd tych
+        // dwóch wartości daje czujkę, która zawsze widzi pusty katalog
+        // i zawsze krzyczy — czyli alarm, który uczy się ignorować.
+        'prefiks' => env('KUKING_KOPIE_PREFIKS', 'baza/'),
+
+        // 36 h przy harmonogramie dobowym: jeden przebieg ma prawo wypaść
+        // (restart, chwilowa niedostępność R2), dwa już nie.
+        'maks_wiek_godzin' => (int) env('KUKING_KOPIE_MAKS_WIEK_GODZIN', 36),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
