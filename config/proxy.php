@@ -59,4 +59,36 @@ return [
      */
     'zaufane_przeskoki' => (int) env('KUKING_ZAUFANE_PRZESKOKI', 1),
 
+    /*
+     * DODATKOWE HOSTY, POD KTÓRYMI WOLNO ODPYTYWAĆ SERWIS (ustalenie S2, D-071).
+     *
+     * Pełna lista dozwolonych hostów żyje w `App\Support\ZaufaneHosty`
+     * i tam stoi uzasadnienie każdego wpisu. Tutaj jest tylko ZAWÓR: rzeczy,
+     * których nie da się przewidzieć z repozytorium.
+     *
+     * DOMYŚLNIE PUSTE — I TO JEST WARUNEK, NIE PREFERENCJA. Serwis musi
+     * wstawać bez tej zmiennej: gdyby jej brak blokował ruch, każdy deploy
+     * na środowisko, w którym ktoś zapomniał ją ustawić, kończyłby się
+     * niedostępnym serwisem. Lista domyślna (kanoniczny host, host
+     * z `APP_URL`, host healthchecku Railwaya, pętla zwrotna) jest
+     * kompletna dla produkcji, staginu, preview i uruchomienia lokalnego.
+     *
+     * KIEDY TEGO UŻYĆ — jeden realny scenariusz: Railway zmienia host,
+     * z którego odpytuje `/health`, i deploy zaczyna padać na „healthcheck
+     * failed with status 400". Naprawa przez kod wymagałaby WDROŻENIA,
+     * a wdrożenie stoi właśnie na tym healthchecku. Wtedy w panelu Railwaya:
+     *
+     *     KUKING_ZAUFANE_HOSTY=nowy-host.railway.app
+     *
+     * Kilka hostów rozdziela się przecinkiem. Wartości są nazwami hostów,
+     * NIE wyrażeniami regularnymi i nie adresami z protokołem — `kuking.pl`,
+     * nie `https://kuking.pl` i nie `*.kuking.pl`. Zakotwiczenie wzorca
+     * robi `ZaufaneHosty::wzorce()`, więc gwiazdka wpisana tutaj nie zadziała
+     * jako wieloznacznik, tylko jako znak w nazwie hosta.
+     */
+    'dodatkowe_hosty' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('KUKING_ZAUFANE_HOSTY', '')),
+    ), static fn (string $host): bool => $host !== '')),
+
 ];

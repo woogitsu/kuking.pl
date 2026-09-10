@@ -37,7 +37,7 @@
     <section class="card mt-8">
         <h2 class="mt-0">Wyloguj mnie z innych urządzeń</h2>
         <p>
-            Użyj tego, jeśli zostałaś/eś zalogowana/y na cudzym telefonie albo komputerze —
+            Użyj tego, jeśli konto zostało zalogowane na cudzym telefonie albo komputerze —
             na przykład u wnuka, w bibliotece albo u znajomych — i nie masz jak się tam
             już wylogować.
         </p>

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\User;
+use App\Models\WpisZgody;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -66,7 +68,10 @@ use Illuminate\Support\Str;
  */
 final class EraseAccountData
 {
-    public function __construct(private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie) {}
+    public function __construct(
+        private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
+        private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
+    ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
     public function handle(User $user): bool
@@ -197,6 +202,34 @@ final class EraseAccountData
              * nigdy by tu nie zadziałało.
              */
             $fresh->pendingEmailChange()->delete();
+
+            /*
+             * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
+             *
+             * `forceFill` niżej i tak ustawia `wants_weekly_digest = false`,
+             * ale sama flaga nie mówi, DLACZEGO wysyłka ustała. Dziennik zgód
+             * kończyłby się wtedy wpisem „udzielona" bez żadnego zamknięcia —
+             * czyli w papierach wyglądałoby to na zgodę obowiązującą do dziś,
+             * choć konto zostało wymazane. Wiersz `wycofana` ze źródłem
+             * `usuniecie_konta` domyka historię i jest jedyną odpowiedzią na
+             * pytanie „skąd ta osoba zniknęła z listy odbiorców".
+             *
+             * WOŁANE PRZED `forceFill()`, bo `PrzestawZgodeNaDigest` dopisuje
+             * wiersz TYLKO przy realnej zmianie: po przestawieniu flagi nie
+             * byłoby już czego wycofywać i dziennik zostałby bez zamknięcia.
+             * Konto, które zgody nie miało, nie dostaje tu żadnego wiersza —
+             * nie było czego wycofać.
+             *
+             * ANONIMIZACJA NIE KASUJE DZIENNIKA ZGÓD i to jest świadome
+             * rozstrzygnięcie napięcia „dowód zgody vs prawo do usunięcia"
+             * (pełne uzasadnienie w D-072). Po tej metodzie wiersz `users` nie
+             * ma już adresu, hasła ani nazwy, więc `user_id` w dzienniku nie
+             * wskazuje na dane osobowe — a dowód, że wysyłka miała podstawę
+             * prawną, zostaje. Wycofanie zgody NIGDY nie wywraca kasowania
+             * konta: nieudany zapis dowodu jest tam tylko logowany
+             * (`PrzestawZgodeNaDigest`), a nie rzucany dalej.
+             */
+            $this->przestawZgode->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
 
             if ($profile !== null) {
                 $profile->forceFill([

@@ -205,6 +205,10 @@ return [
         // docs/DECISIONS.md). Liczby stąd czyta WYŁĄCZNIE App\Support\LimityTagow
         // — patrz komentarz w tamtym pliku, dlaczego żadna z nich nie ma
         // prawa być wpisana wprost w kontrolerze, widoku ani akcji domenowej.
+        // WYJĄTEK: `index_page_size` niżej — to zwykły rozmiar strony
+        // (ten sam wzorzec co `feed.page_size`, `comments.page_size`), nie
+        // limit produktowy pilnowany w wielu miejscach, więc czyta go wprost
+        // `TagController::index()`.
 
         // Minimum — TEN SAM próg, którego używa wyszukiwarka
         // (App\Domain\Search\SearchQuery::recipes()/people()).
@@ -221,6 +225,13 @@ return [
         // Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5) — zarówno
         // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
         'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
+
+        // Ile tematów na "stronę" pokazuje spis wszystkich tematów
+        // (#273, D-087). Bez infinite scroll — przycisk „Pokaż więcej",
+        // jak wszędzie indziej (`<x-show-more>`). Słownik z D-026 ma
+        // ~1250 nazw kanonicznych, więc jedna niestronicowana strona
+        // renderowałaby naraz ponad tysiąc odnośników.
+        'index_page_size' => (int) env('KUKING_TAGS_INDEX_PAGE_SIZE', 100),
     ],
 
     'text' => [
@@ -510,6 +521,118 @@ return [
          * mnie nie zatrzymał" odpowiadałby na pytanie, czy konto istnieje.
          */
         'limit_na_adres' => ['proby' => 3, 'minuty' => 60],
+
+        /*
+        |----------------------------------------------------------------------
+        | ZAPROSZENIE DO ZAŁOŻENIA KONTA — adres BEZ konta (issue #25, D-085)
+        |----------------------------------------------------------------------
+        |
+        | Druga połowa tej samej drogi. Do 10 września 2026 adres, na którym
+        | nie ma konta, dostawał zielone „wysłaliśmy wiadomość" i NIC WIĘCEJ —
+        | bo nie było dokąd wysłać, a odpowiedź musi wyglądać identycznie dla
+        | adresu z kontem i bez konta (D-056). Zdarzyło się to 63-letniej
+        | osobie, która chciała założyć konto: czekała na wiadomość, która nie
+        | miała przyjść.
+        |
+        | Od teraz taki adres dostaje wiadomość z linkiem prowadzącym na
+        | DOKOŃCZENIE ZAKŁADANIA KONTA — z adresem wpisanym i już
+        | potwierdzonym (kliknięcie linku z własnej skrzynki JEST dowodem jej
+        | posiadania, więc drugiej wiadomości weryfikacyjnej nie wysyłamy).
+        |
+        | PRYWATNOŚĆ Z D-056 JEST PO TEJ ZMIANIE MOCNIEJSZA, NIE SŁABSZA:
+        | w obu przypadkach naprawdę wychodzi wiadomość, więc nie ma już
+        | różnicy „wysłano / nie wysłano" do wykrycia.
+        |
+        */
+        'zaproszenia' => [
+            /*
+             * WYŁĄCZNIK TEJ POŁOWY DROGI — osobny od `login_link.wlaczone`.
+             *
+             * `false` przywraca zachowanie z D-056 (adres bez konta nie
+             * dostaje nic) BEZ wycofywania migracji i bez wyłączania
+             * logowania linkiem. Ekran odpowiada dalej identycznie, więc
+             * wyłączenie nie zdradza niczego o żadnym adresie — jedyną
+             * różnicą jest to, że osoba bez konta znowu nie dostanie
+             * wiadomości.
+             */
+            'wlaczone' => (bool) env('KUKING_ZAPROSZENIA_DO_REJESTRACJI', true),
+
+            /*
+             * ILE GODZIN ŻYJE ZAPROSZENIE — DWADZIEŚCIA CZTERY, nie 30 minut
+             * jak link do logowania. To jest świadome odstępstwo od D-056
+             * i ma dwa powody, oba w tę samą stronę.
+             *
+             * 1. TO POŚWIADCZENIE JEST SŁABSZE. Link do logowania wpuszcza na
+             *    istniejące konto — na cudze zdjęcia, cudze wpisy, cudzy
+             *    profil. Ten link nie wpuszcza nigdzie: prowadzi na PUSTY
+             *    formularz rejestracji z wpisanym adresem. Kto go przechwyci,
+             *    może najwyżej założyć konto na tej skrzynce — a to potrafi
+             *    zrobić także bez nas, wchodząc na /register i klikając
+             *    w zwykłą wiadomość weryfikacyjną z tej samej skrzynki.
+             *    Zaproszenie nie daje mu więc żadnej nowej władzy.
+             *
+             * 2. DROGA PO KLIKNIĘCIU JEST DŁUŻSZA. Po linku do logowania
+             *    zostaje jeden przycisk. Tu zostaje CAŁY formularz: nazwa
+             *    użytkownika (o którą właśnie odbiła się osoba, dla której to
+             *    piszemy), hasło ≥ 10 znaków sprawdzane w wyciekach, dwa
+             *    haczyki. Trzydzieści minut znaczyłoby, że zaproszenie wygasa
+             *    w środku wymyślania nazwy — czyli człowiek dostaje komunikat
+             *    o błędzie po tym, jak zrobił wszystko dobrze, i wraca na
+             *    początek. Dokładnie ten błąd naprawiamy.
+             *
+             * DLACZEGO NIE WIĘCEJ. Tyle samo, ile żyje zamówiona zmiana
+             * adresu (`account.email_change_ttl_hours`), a TAMTO poświadczenie
+             * jest mocniejsze od tego (kończy przejęcie istniejącego konta).
+             * Skoro tamtemu wystarcza doba, temu nie wolno dać więcej. Doba to
+             * jedna noc: kto zajrzy do skrzynki nazajutrz, zdąży.
+             */
+            'waznosc_godzin' => (int) env('KUKING_ZAPROSZENIA_WAZNOSC_GODZIN', 24),
+
+            /*
+             * ILE ZAPROSZEŃ WOLNO WYSŁAĆ W CIĄGU DOBY — CAŁEMU SERWISOWI.
+             *
+             * SUFIT WEWNĄTRZ SUFITU, nie obok niego. Zaproszenie zajmuje
+             * miejsce w TYM SAMYM dobowym budżecie co wiadomość z linkiem do
+             * logowania (`dzienny_budzet`, 120) — i dodatkowo w tym, niższym.
+             * Dzięki temu podział całego wiadra 300 listów (sekcja `poczta`)
+             * NIE ZMIENIA SIĘ ANI O JEDEN LIST: te 40 to część tamtych 120,
+             * a nie nowa pozycja w rachunku.
+             *
+             * PO CO WIĘC DRUGI LICZNIK. Bo ta zmiana otwiera wektor, którego
+             * wcześniej nie było: do 10 września adres bez konta NIE GENEROWAŁ
+             * ŻADNEJ WYSYŁKI, więc automat wpisujący wymyślone adresy nie
+             * potrafił wysłać ani jednej wiadomości. Teraz potrafi. Rachunek
+             * najgorszego dnia: limit po IP to 5/60 min, czyli 120 próśb na
+             * dobę z jednego łącza — dokładnie tyle, ile ma cały dobowy
+             * budżet. Bez tego sufitu JEDEN sprawca z jednego łącza (albo
+             * kilku z kilku) zjadałby całe 120 i pierwszą rzeczą, która by
+             * przestała działać, jest WEJŚCIE NA KONTO LINKIEM — dla części
+             * naszych ludzi droga podstawowa, nie awaryjna (D-056).
+             *
+             * SKĄD 40. Realne zapotrzebowanie jest o rząd wielkości mniejsze:
+             * przy 500 kontach i ~20 prośbach o link dziennie (rachunek
+             * z D-056) adresy bez konta to pomyłki i osoby, które jeszcze się
+             * nie zarejestrowały — kilka na dobę, w tygodniu fali z Garnek.pl
+             * może 10-20. Czterdzieści daje temu 2-4-krotny zapas, a w dniu
+             * nadużycia ogranicza szkodę do 40 wiadomości do osób, które
+             * o nic nie prosiły, i zostawia 80 listów na prawdziwe logowania.
+             *
+             * CO WIDZI CZŁOWIEK PO WYCZERPANIU TEGO SUFITU: dokładnie to samo
+             * co przed — ekran nie może się zmienić, bo zmiana byłaby
+             * wyrocznią „na tym adresie nie ma konta", i to wyrocznią, którą
+             * napastnik umie WYWOŁAĆ sam (wysłać 40 zaproszeń, a potem
+             * odczytywać różnicę). Cena jest wypisana wprost w D-085: w takim
+             * dniu osoba bez konta znowu nie dostanie wiadomości. Dlatego
+             * sufit stoi tak wysoko nad zapotrzebowaniem, a ekran
+             * `/logowanie/link` mówi na stałe, co zrobić, gdy wiadomość nie
+             * przychodzi.
+             *
+             * `0` znaczy „dziś nie wysyłamy żadnych zaproszeń" i jest
+             * poprawną, świadomą konfiguracją awaryjną — linki będące
+             * w drodze dalej działają.
+             */
+            'dzienny_sufit' => (int) env('KUKING_ZAPROSZENIA_BUDZET', 40),
+        ],
     ],
 
     'notifications' => [
@@ -846,6 +969,24 @@ return [
          */
         'google_wejscie' => '20,10',
         'google_domkniecie' => '5,10',
+
+        /*
+         * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
+         *
+         * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
+         * i choć to ta sama rodzina dróg: człowiek, który nieudanie klikał
+         * „Zaloguj mnie", nie ma tracić prób na „Załóż konto" i odwrotnie.
+         * Ta reguła („jeden prefiks to zawsze jeden limit i jedna trasa")
+         * jest pilnowana testem
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+         *
+         * Dziesięć na dziesięć minut, po adresie IP: człowiek klika ten
+         * przycisk raz, przy słabym łączu drugi i trzeci, a limit musi
+         * pomieścić kilka osób za jednym ruterem. Zgadywania tokenu ten limit
+         * nie blokuje i nie musi — 64 losowe znaki nie są do zgadnięcia; on
+         * chroni bazę przed zapętloną wtyczką i przed pukaniem seriami.
+         */
+        'zaproszenie' => '10,10',
         // Formularz cofnięcia usunięcia konta stoi PRZED logowaniem (audyt A8,
         // ten sam powód co limit 'appeal' dla formularza odwołań #10) — jest
         // celem do zgadywania haseł, więc 5 prób na godzinę, nie na minutę.
@@ -1474,6 +1615,32 @@ return [
             'KUKING_DIGEST_PYTANIE',
             'Czy gotujesz w tym tygodniu coś, czego nikt u nas jeszcze nie pokazał? Napisz, jestem ciekawa.',
         ),
+    ],
+
+    'zgody' => [
+        /*
+         * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
+         * (`dziennik_zgod.wersja_polityki`, D-072).
+         *
+         * PO CO: dowód „zgodził się 12 września" nie mówi, NA CO — a to jest
+         * pierwsze pytanie przy sporze o ZAKRES zgody. Ta wartość wiąże wiersz
+         * dziennika z konkretnym brzmieniem dokumentu, który człowiek wtedy
+         * mógł przeczytać.
+         *
+         * DATA STANU DOKUMENTU, NIE WYMYŚLONY NUMER WYDANIA. Polityka
+         * prywatności (`resources/legal/polityka-prywatnosci.md`) nie ma
+         * numeracji — ma w nagłówku zdanie „opisuje stan serwisu na <data>".
+         * Osobny numer („v2") dałby dwie prawdy o tym samym dokumencie,
+         * a jedna z nich rozjechałaby się przy pierwszej poprawce, której
+         * nikt by tu nie odnotował.
+         *
+         * PODBIJANE RĘCZNIE, RAZEM ZE ZDANIEM W NAGŁÓWKU DOKUMENTU — i tak
+         * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
+         * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
+         * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
+         * przestawić w panelu Railwaya.
+         */
+        'wersja_polityki' => '2026-09-08',
     ],
 
     'analytics' => [

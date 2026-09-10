@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -73,20 +74,58 @@ return Application::configure(basePath: dirname(__DIR__))
         // więcej, którą klient może podstawić. Zostają cztery, których
         // NAPRAWDĘ używamy.
         //
-        // `X-Forwarded-Host` ZOSTAJE, ale świadomie i z zastrzeżeniem: jest
-        // podrabialny tak samo jak reszta, a wpływa na host w adresach z
-        // `url()`. Właściwym zamknięciem tego jest middleware `TrustHosts`
-        // z listą hostów, a ta MUSI zawierać `healthcheck.railway.app`
-        // (inaczej deploy pada na 400 — patrz `.railway/railway.ts`). To jest
-        // osobna zmiana i osobne ryzyko wdrożeniowe, więc nie robi jej ta
-        // łatka.
+        // `X-Forwarded-Host` WYPADŁ Z TEJ LISTY 10 września 2026 (S2, D-071)
+        // i to jest MOCNIEJSZE zamknięcie niż jakakolwiek lista hostów:
+        // nagłówka, którego aplikacja nie czyta, nie da się podstawić.
+        //
+        // Powód, dla którego wolno go było wyjąć, jest jeden i konkretny:
+        // W NASZYM ŁAŃCUCHU NIKT GO NIE WYSTAWIA I NIKT NIE PRZEPISUJE
+        // `Host`. Cloudflare w trybie proxy przekazuje na origin `Host`
+        // nietknięty (routing po nim właśnie działa), a brzeg Railway kieruje
+        // ruch po `Host`/SNI i również go zachowuje — inaczej nie umiałby
+        // odróżnić `kuking.pl` od `staging.kuking.pl` na tym samym koncie.
+        // Aplikacja ma więc oryginalny host w `Host` i drugiego źródła
+        // nie potrzebuje. Zmierzone przed zmianą: `X-Forwarded-Host:
+        // attacker.invalid` wracało 200, a `url()` oddawało adres na
+        // `attacker.invalid` — łącznie z linkiem w liście potwierdzającym
+        // nowy adres e-mail, który powstaje w kontekście żądania HTTP.
+        //
+        // Gdyby kiedyś okazało się, że coś w łańcuchu JEDNAK przepisuje
+        // `Host` (objaw: adresy w serwisie wskazują wewnętrzną domenę
+        // platformy), to jest zmiana JEDNEJ linii — dopisanie
+        // `Request::HEADER_X_FORWARDED_HOST` z powrotem. Ale wtedy trzeba
+        // wrócić także do D-071 i zapisać pomiar, a nie dopisywać nagłówka
+        // „na wszelki wypadek".
         $middleware->trustProxies(
             at: '*',
             headers: Request::HEADER_X_FORWARDED_FOR
-                | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
+
+        // DRUGA POŁOWA TEJ SAMEJ GRANICY (S2, D-071): sam nagłówek `Host`.
+        //
+        // Bez `TrustHosts` Laravel odpowiada na DOWOLNY host i używa go do
+        // budowy adresów bezwzględnych w trakcie żądania. To jest formalnie
+        // otwarta granica zaufania, którą OWASP opisuje jako powierzchnię
+        // zatruwania linków resetu hasła i przekierowań.
+        //
+        // Lista i uzasadnienie KAŻDEGO wpisu (razem z tym, co się stanie po
+        // pominięciu któregoś) stoją w `App\Support\ZaufaneHosty` —
+        // najważniejszy jest `healthcheck.railway.app`, bez którego KAŻDY
+        // deploy pada na 400 i nigdy się nie kończy.
+        //
+        // `subdomains: false`, czyli lista jest DOKŁADNIE tym, co widać
+        // w tamtej klasie. Z `true` Laravel dokleiłby jeszcze wzorzec
+        // „wszystkie subdomeny hosta z `APP_URL`" i lista przestałaby być
+        // sprawdzalna z jednego miejsca.
+        //
+        // CALLABLE, NIE TABLICA, i to nie jest kosmetyka: `bootstrap/app.php`
+        // wykonuje się PRZED wczytaniem konfiguracji, a lista czyta
+        // `config('app.url')` i `config('proxy.dodatkowe_hosty')`. Tablica
+        // policzona tutaj byłaby policzona za wcześnie — Laravel woła to
+        // wywołanie zwrotne dopiero w middleware, czyli w trakcie żądania.
+        $middleware->trustHosts(at: ZaufaneHosty::wzorce(...), subdomains: false);
 
         $middleware->web(append: [
             ApplySecurityHeaders::class,

@@ -167,8 +167,11 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 > **wszystkich czterech** dysków R2: `r2`, `r2_publiczne`, `r2_legacy`,
 > `r2_eksporty`.
 
-> **Jeśli włączysz `TrustHosts`:** dopisz `healthcheck.railway.app` do listy
-> dozwolonych hostów. Inaczej **każdy deploy będzie padał na błąd 400**.
+> **`TrustHosts` JEST włączony** (D-071) i `healthcheck.railway.app` jest już
+> na liście w `App\Support\ZaufaneHosty`. Nie usuwaj go — inaczej **każdy
+> deploy będzie padał na błąd 400** i nie będzie jak wypchnąć poprawki.
+> Gdyby Railway kiedyś zmienił ten host, naprawa **bez deployu** to zmienna
+> `KUKING_ZAUFANE_HOSTY` w panelu Railwaya (patrz `config/proxy.php`).
 
 ---
 
@@ -1691,7 +1694,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 25 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
 | 26 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
 | 27 | Dysk `r2` | `config/filesystems.php` | 1 |
-| 28 | `healthcheck.railway.app` w `TrustHosts` (jeśli włączone) | `bootstrap/app.php` | 1 |
+| 28 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
 | 29 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
 
 ---
@@ -1701,7 +1704,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | Objaw | Najczęstsza przyczyna | Naprawa |
 |---|---|---|
 | **404 na `kuking.pl`**, CNAME działa | brak rekordu **TXT** | dodaj TXT z panelu Railway (krok 10.2) |
-| **Deploy pada: „healthcheck failed with status 400"** | `TrustHosts` blokuje `healthcheck.railway.app` | dopisz ten host |
+| **Deploy pada: „healthcheck failed with status 400"** | `TrustHosts` blokuje `healthcheck.railway.app` | ustaw `KUKING_ZAUFANE_HOSTY` w panelu Railwaya (naprawa bez deployu), potem popraw `App\Support\ZaufaneHosty` |
 | **Deploy pada: „service unavailable"** | aplikacja nie słucha na `$PORT` | sprawdź `SERVER_NAME=":${PORT}"` w entrypoincie |
 | **Pętla przekierowań (`ERR_TOO_MANY_REDIRECTS`)** | tryb SSL `Flexible` | przełącz na **Full (strict)** |
 | **500 na każdej stronie** | brak / zły `APP_KEY` | sprawdź logi — entrypoint wypisze czytelny komunikat |

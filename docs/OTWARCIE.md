@@ -1,247 +1,210 @@
-# Otwarcie serwisu — kolejność, nie instrukcja
+# Otwarcie serwisu — stan bramek i kolejność
 
-**Ten dokument NICZEGO nie tłumaczy.** Tłumaczą to cztery dokumenty niżej,
-każdy w swoim zakresie i szczegółowo. Tego brakowało: **kolejności** i tego,
-która rzecz blokuje którą.
+**STAN ZWERYFIKOWANY: 10.09.2026.**
 
-Wszystkie cztery etapy są **po stronie właściciela**. Repozytorium nie ma
-dostępu do paneli Railway, Cloudflare, EmailLabs ani R2 — i nie powinno mieć.
-Audyt A6 nazywa to bramkami A6-06 i A6-07 i nie da się ich zamknąć kodem.
+**Ten dokument NICZEGO nie tłumaczy.** Tłumaczą to dokumenty wskazane przy
+każdym etapie, każdy w swoim zakresie i szczegółowo. Tego brakowało:
+**kolejności**, tego która rzecz blokuje którą, i **czy jest zrobiona**.
+
+Wszystkie etapy są **po stronie właściciela**. Repozytorium nie ma dostępu do
+paneli Railway, Cloudflare, EmailLabs ani R2 — i nie powinno mieć. Kodem tych
+bramek zamknąć się nie da.
+
+---
+
+## Jak czytać ten dokument
+
+Każda pozycja ma jeden z czterech znaczników. Trzeci i czwarty **nie są
+sukcesem**:
+
+| Znacznik | Co znaczy |
+|---|---|
+| `WYKONANE I ZWERYFIKOWANE` | ktoś to zrobił **i** ktoś sprawdził, że działa; jest data, metoda i środowisko |
+| `ZAIMPLEMENTOWANE, NIEZWERYFIKOWANE NA PRODUKCJI` | kod jest, testy zielone, nikt tego nie potwierdził na żywym serwisie |
+| `NIEZROBIONE` | nie ma tego |
+| `DECYZJA WŁAŚCICIELA` | czeka na człowieka, nie na kod |
+
+Zasada, której ten dokument ma pilnować: **`NIE WIEMY` liczy się jako
+nieprzejście bramki, nie jako sukces.** Puste pole „wynik" w dowolnej tabeli
+dowodowej znaczy nieprzejście, nie „chyba dobrze".
+
+Każde `WYKONANE I ZWERYFIKOWANE` musi mieć trzy rzeczy: **datę + metodę
+dowodu + środowisko**. Bez nich to jest `NIEZWERYFIKOWANE` z ładniejszą nazwą.
+
+---
+
+## Tabela stanu — 10.09.2026
+
+| # | Bramka | Stan | Dowód / co brakuje |
+|---|---|---|---|
+| 1 | **Poczta wychodzi z produkcji** | `WYKONANE I ZWERYFIKOWANE` | 09–10.09: raport EmailLabs pokazuje realne doręczenia; potwierdzenie adresu przy rejestracji doszło do prawdziwej skrzynki. Metoda: panel dostawcy + relacja odbiorcy. |
+| 2 | **Brak nieujawnionego śledzenia otwarć** | `NIEZROBIONE — BLOKUJE` | Issue #204: w doręczonej wiadomości z 09.09 są dwa mechanizmy `click.kuking.pl/track/o/…` (piksel i zapasowy `background:url`), a polityka prywatności mówi, że ich nie ma. Wyłączyć w panelu EmailLabs i sprawdzić **surowy HTML** realnego listu. |
+| 3 | **`kontakt@kuking.pl` realnie odbiera** | `NIE WIEMY` | Dwie wiadomości z 09.09 miały w raporcie EmailLabs stan `deferred`. Sprawdzić, czy ostatecznie doszły. |
+| 4 | **SPF / DKIM / DMARC na polskich skrzynkach** | `NIEZWERYFIKOWANE` | Trzy słowa `spf=pass`, `dkim=pass`, `dmarc=pass` w nagłówkach listu doręczonego na wp.pl, o2.pl, interia.pl, onet.pl. Benchmarku dla nich nie ma; własny test kosztuje popołudnie i zero złotych. |
+| 5 | **R2: nowe zdjęcia idą z R2, nie z kontenera** | `WYKONANE, ZWERYFIKOWANE CZĘŚCIOWO` | 10.09, z zewnątrz, na produkcji: żądanie wariantu → 302 na podpisany adres `…r2.cloudflarestorage.com…` → 200 `image/webp`. Żądanie bez podpisu i żądanie oryginału odrzucone. `cdn.kuking.pl` nie istnieje w DNS. **To nie zamyka bramki #120** — patrz wiersz 6. |
+| 6 | **Bramka R2 (#120) wypełniona** | `NIEZROBIONE — BLOKUJE` | `railway ssh -- php artisan kuking:bramka-r2 --zapis` odhacza siedem punktów z dwunastu prawdziwymi żądaniami. Reszta to panel Cloudflare. Wynik z datą wpisać do `docs/infra/BRAMKA_R2.md` §3 — dziś kolumny „wynik" i „data" są puste. |
+| 7 | **Stare zdjęcia przeniesione z wolumenu** | `NIEZROBIONE` | 10.09 zmierzone z zewnątrz: zdjęcia sprzed R2 nadal serwuje PHP z wolumenu kontenera. `php artisan kuking:przenies-zdjecia --dry-run`, potem bez `--dry-run`. Dopóki tam leżą, utrata kontenera to utrata oryginałów. |
+| 8 | **Automatyczna kopia bazy poza Railway** | `NIEZROBIONE — BLOKUJE` | Issue #193. **Dziś nie ma żadnej kopii bazy.** Volume Backups i PITR są tylko w planie Pro, Kuking jest na Free/Hobby. Do wykonania #193 każda utrata bazy jest bezpowrotna (D-043). Potrzebuje bucketu z wiersza 6 jako miejsca lądowania. |
+| 9 | **Ćwiczenie odtworzenia (restore drill)** | `NIEZROBIONE — BLOKUJE` | Issue #9. Zrzut, którego nikt nigdy nie odtworzył, jest obietnicą, nie kopią. Tabela wyniku w `docs/infra/KOPIE_I_ODTWORZENIE.md` §5 jest pusta. Potrzebne: RPO, RTO, kontrola integralności po odtworzeniu, lista tego co nie zadziałało. |
+| 10 | **Retencja kopii ustalona** | `NIEZROBIONE` | Ile trzymamy zrzuty i co to znaczy dla usunięcia konta na żądanie. To jest też pozycja RODO, nie tylko infrastruktury. |
+| 11 | **Zewnętrzny monitor `/health`** | `NIEZWERYFIKOWANE` | Issue #33. `/health` istnieje w kodzie; nie ma dowodu, że ktokolwiek go z zewnątrz odpytuje i że alarm dociera. Potrzebny kontrolowany test awarii i **zmierzony** czas do alarmu. |
+| 12 | **Test dymny po wdrożeniu naprawdę się uruchamia** | `NIEZWERYFIKOWANE` | `.github/workflows/deploy.yml` sam podaje: 249 przebiegów, wszystkie `skipped`. Warunek został zmieniony, skuteczność poprawki **nie została potwierdzona realnym wdrożeniem**. Dowód: run `Deploy` z jobem `Test dymny po deployu` = SUCCESS, nie skipped. |
+| 13 | **`railway config apply` uruchomione** | `NIEZROBIONE` | Stan zmierzony connectorem 09.09: produkcyjny `preDeployCommand` to wyłącznie `php artisan migrate --force --no-interaction`. Nie sprawdzone ponownie 10.09. Bez tego `db:seed --force` z `.railway/railway.ts` nie obowiązuje. **Nie uruchamiaj bez kopii z wiersza 8.** |
+| 14 | **Treść zalążkowa na produkcji** | `NIEZROBIONE` | Zależy od wierszy 8 i 13. Po wdrożeniu sprawdzić **na żywej stronie**, że przykładowe konta i przepisy są. Zielony deploy nie jest dowodem, że seeder cokolwiek zapisał. |
+| 15 | **Bezpośredni origin Railway nie obsługuje ruchu** | `NIEZWERYFIKOWANE` | `NormalizeForwardedFor` sam dokumentuje, że wejście na `*.up.railway.app` może dać łańcuch `X-Forwarded-For` złożony wyłącznie z wartości podanej przez klienta. Dowód: test z zewnętrznego internetu, że origin nie obsługuje zwykłego żądania albo wymaga niepodrabialnego sygnału z brzegu. Sama konfiguracja middleware to nie dowód. |
+| 16 | **Administrator z 2FA zdolny rozpatrzyć odwołanie** | `NIEZWERYFIKOWANE` | `php artisan kuking:nadaj-role`, potem realne wejście do panelu. |
+| 17 | **Reset hasła przećwiczony na własnym koncie** | `NIEZWERYFIKOWANE` | Nie „kod istnieje", tylko „dostałem wiadomość i ustawiłem hasło". |
+| 18 | **Alarm z webhooka naprawdę dochodzi** | `NIEZWERYFIKOWANE` | I to bez danych osobowych w treści (po naprawie A6-01). |
+| 19 | **Regiony bazy i magazynu zgodne z polityką** | `NIEZWERYFIKOWANE` | Porównać panel z tym, co mówi `resources/legal/polityka-prywatnosci.md`. |
+| 20 | **Umowy powierzenia (DPA)** | `DECYZJA WŁAŚCICIELA` | Cloudflare, EmailLabs, OpenAI, Railway, a po wdrożeniu logowania kontem Google także Google. **Brak osobno podpisanego PDF-u nie dowodzi braku umowy** — RODO art. 28 dopuszcza formę elektroniczną i włączenie do warunków usługi. Sprawdzać warunki wiążące konto, nie to, czy dostawca ma stronę o DPA. |
+| 21 | **Przegląd dokumentów przez prawnika** | `DECYZJA WŁAŚCICIELA` | Issue #8. Regulamin, polityka prywatności, ROPA/rejestr czynności, procedura DSA, ścieżka dla najwyższego ryzyka moderacyjnego. |
+| 22 | **Aktualny stan polskiego wdrożenia DSA** | `DECYZJA WŁAŚCICIELA` | Sprawdzić **w dniu decyzji o starcie**, nie przepisywać z `docs/legal/COMPLIANCE.md`. Stan na 10.09.2026: komunikat UKE z 04.09 mówi, że Sejm uchwalił ustawę i przekazano ją Prezydentowi; brak potwierdzenia podpisania i ogłoszenia. |
+| 23 | **Procedura P0 bez prawnego placeholdera** | `DECYZJA WŁAŚCICIELA` | `docs/legal/MODERATION_PLAYBOOK.md` ma przy CSAM / zagrożeniu życia jawny zapis „do weryfikacji z prawnikiem … Art. 18 DSA". Brak jest poprawnie oznaczony, ale dotyczy scenariusza, którego nie wolno ustalać w trakcie incydentu. |
+| 24 | **Testy z osobami 50–75** | `W TOKU` | Issue #15 zakłada 13 sesji (50–59, 60–69, 70+). Wykonana **jedna**, z 63-latką, i wykryła rzeczy, których nie złapał żaden automat (rejestracja, ekran logowania linkiem, kolory stanów, zdjęcie zamiast napisu o przetwarzaniu). To argument za kontynuowaniem sesji, nie za uznaniem UX za zamknięty. |
+| 25 | **Realna społeczność przed kampanią** | `NIEZROBIONE — BLOKUJE KAMPANIĘ` | Issue #29. Minimum: 20–30 aktywnych realnych osób, 100–150 autentycznych wpisów, 7–10 dni historii, odpowiedź pod większością pierwszych wpisów, kilka żywych tematów. **Bez fałszywych kont.** Kampania nostalgiczna skierowana w pusty feed spala najsilniejszą grupę pierwszego kontaktu — wejdą raz. |
 
 ---
 
 ## Kolejność i dlaczego właśnie taka
 
 ```
-ETAP 2  R2 (bucket) ───────────┐  ← przesunięty do przodu: zrzut
-        (kilka godzin)         │    z etapu 0 nie ma gdzie lądować
+[6] R2 — bramka #120 ──────────┐  R2 jest pierwsze, bo zrzut z [8]
+    (kilka godzin)             │  nie ma gdzie lądować
                                ▼
-ETAP 0  kopia bazy (#193) ─────┐
-        automat, nie panel     │  blokuje wszystko, co pisze do produkcji
+[8] kopia bazy (#193) ─────────┐
+    automat, nie panel         │  blokuje wszystko, co pisze do produkcji
                                ▼
-ETAP 1  poczta ───────────► ETAP 4  treść zalążkowa
-        API HTTPS, nie SMTP            (wymaga `railway config apply`,
-                                        które nie było uruchomione)
+[9] ćwiczenie odtworzenia ─────┼─────► [13][14] config apply + treść zalążkowa
+                               │
+[2] wyłączyć śledzenie otwarć ─┘  niezależne, ale blokuje szerszy mailing
 
-ETAP 3  reszta bramki (A6-06) — równolegle, nic nie blokuje
+[11][12] monitoring i test dymny — równolegle, nic nie blokują
+[16]–[23] bramka bety i prawo — równolegle, nic nie blokują
+[24] testy 50–75 → [25] społeczność → dopiero potem kampania
 ```
 
-**Kolejność zmieniła się 9 września po południu** i to jest zmiana na gorsze,
-nie na lepsze: etap 0 okazał się zależny od etapu 2, bo Railway nie robi kopii
-na tym planie. Etap 1 też się zmienił — SMTP jest na Free i Hobby wyłączony,
-więc poczta idzie przez API HTTPS.
+**Etap R2 jest pierwszy nie dlatego, że jest najważniejszy**, a dlatego, że
+kopia bazy potrzebuje miejsca do lądowania i R2 ma darmowy pułap 10 GB.
 
-**Etap 0 jest pierwszy dlatego, że dziś nie ma żadnej kopii bazy** — nie
-dlatego, że wdrożenie zaraz coś do niej zapisze.
-
-> ⚠️ **SPROSTOWANIE, 9 września wieczorem.** Ten akapit twierdził, że „od
-> PR-a #174 wdrożenie na produkcję woła `db:seed --force`". **Nieprawda.**
-> PR #174 dopisał `db:seed` do `preDeployCommand` w **`.railway/railway.ts`**,
-> a ten plik nie obowiązuje, bo **`railway config apply` nigdy nie zostało
-> uruchomione**. Zmierzone connectorem Railway: produkcyjny
-> `preDeployCommand` to dokładnie `php artisan migrate --force
-> --no-interaction` i nic więcej.
->
-> To były dwa różne zdarzenia pomylone z sobą: commit do repozytorium
-> (nastąpił) i zastosowanie konfiguracji w Railway (nie nastąpiło). Skutek
-> praktyczny jest odwrotny do opisanego: najbliższe wdrożenie **nie** wpisze
-> treści zalążkowej — patrz etap 4.
-
-**Etap 0 zamyka przy okazji bramkę A6-07.** Audyt nie zarzucił braku procedury
-— procedura jest napisana. Zarzucił, że **tabela wyniku w
-`docs/infra/KOPIE_I_ODTWORZENIE.md` §5 jest pusta**, czyli nikt nie
-udowodnił, że ta procedura działa. Jedno ćwiczenie załatwia obie sprawy.
+**Najważniejszy jest wiersz 8 i 9.** Do czasu wykonania #193 każda utrata bazy
+jest bezpowrotna. Marketing ma prawo mówić „możesz pobrać swoje dane", bo to
+istniejąca funkcja. **Nie ma prawa mówić „u nas nic nie zniknie" ani „Twoje
+zdjęcia są bezpieczne na zawsze", dopóki wiersze 7, 8 i 9 nie są zamknięte** —
+to obietnica o bardzo wysokiej wadze emocjonalnej dla ludzi, którzy raz już
+stracili swój dorobek razem z zamkniętym serwisem.
 
 ---
 
-## ETAP 0 — kopia i ćwiczenie odtworzenia
+## Co robić w każdym etapie
 
-> ⚠️ **SPROSTOWANIE, 9 września po południu.** Ten etap napisałem przy
-> założeniu, że Railway robi kopie sam i wystarczy przeklikać dwa przełączniki.
-> **Nieprawda: Volume Backups i PITR są tylko w planie Pro**, a Kuking jest na
-> Free i przechodzi na Hobby. Dziś nie ma **żadnej** kopii bazy.
->
-> Etap 0 zaczyna się więc nie od panelu, tylko od **#193** — zautomatyzowanego
-> zrzutu poza Railwayem, który przestał być „trzecią warstwą" i jest jedyną.
-> Potrzebuje miejsca do lądowania, czyli bucketu z etapu 2; R2 ma darmowy
-> pułap 10 GB, więc koszt nie jest tu przeszkodą. Do czasu wykonania #193
-> **każda utrata bazy jest bezpowrotna** — patrz D-043.
+Sam dokument tego nie tłumaczy. Wskazuje miejsce:
 
-**Gdzie:** `docs/infra/KOPIE_I_ODTWORZENIE.md` §4 (ćwiczenie), §5 (tabela wyniku).
+| Bramka | Gdzie napisane |
+|---|---|
+| poczta [1]–[4] | `docs/infra/POCZTA_URUCHOMIENIE.md` §1 → §2A → §5; decyzja o dostawcy: `docs/decyzje/POCZTA.md` |
+| R2 [5]–[7] | `docs/infra/BRAMKA_R2.md` (lista z miejscem na wynik i datę); tło: `docs/infra/INFRA_DECISION.md` |
+| kopia i odtworzenie [8]–[10] | `docs/infra/KOPIE_I_ODTWORZENIE.md` §4 (ćwiczenie), §5 (tabela wyniku) |
+| bramka bety [16]–[19] | `docs/legal/BRAMKA_BETY.md` (macierz warunków) |
+| prawo [20]–[23] | `docs/legal/COMPLIANCE.md`, issue #8 |
+| testy z ludźmi [24] | `docs/product/TESTY_Z_UZYTKOWNIKAMI.md`, issue #15 |
+| kampania [25] | `docs/marketing/KAMPANIA_GARNEK.md`, issue #29 |
 
-**Co masz z tego mieć:** świeży zrzut produkcyjnej bazy **i** dowód, że da się
-go odtworzyć. Nie sam zrzut — zrzut, którego nikt nigdy nie odtworzył, jest
-obietnicą, nie kopią.
+### Trzy pułapki, na których najłatwiej stracić popołudnie
 
-**Gdzie zapisujesz dowód:** tabela w §5 tego samego dokumentu. Data, kto,
-rozmiar, czas zrzutu, czas odtworzenia (RTO), wiek zrzutu (RPO), co nie
-zadziałało. Ostatnia kolumna jest najważniejsza i zwykle nie jest pusta.
+1. **Zmienna w panelu bez restartu nie działa, a wygląda, jakby działała.**
+   Konfiguracja jest zapiekana przy starcie kontenera. Po wpisaniu zmiennych:
+   `railway config apply` **i restart serwisów**.
+2. **Poprawny dostawca poczty + niedziałająca kolejka = dokładnie ten sam
+   skutek co `MAIL_MAILER=log`:** nikt nic nie dostaje i nic tego nie pokazuje.
+   Wszystkie listy mają `ShouldQueue`, a wysyła je pętla kolejki w **tym samym
+   kontenerze co strona** (serwis chodzi w trybie `all`, cokolwiek mówi
+   `.railway/railway.ts`). Dlatego sprawdzenie poczty ma dwa przebiegi:
+   ```bash
+   railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
+   railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl --kolejka
+   ```
+   Jeśli po minucie nic nie przyszło: `railway ssh -- php artisan queue:failed`.
+3. **Rekordy poczty w Cloudflare muszą być „DNS only", nigdy „Proxied".**
+   Proxowanie rozbija weryfikację domeny i **nie daje przy tym żadnego błędu**.
 
-> Ćwiczenie **nie obejmuje** odtworzenia zdjęć — to niemożliwe przed etapem 2.
-> Kopia bazy nie zastępuje kopii oryginałów zdjęć, których nie da się odtworzyć
-> z niczego.
+### Czego nie wpisywać do dokumentów dowodowych
 
----
+Sekretów ani zrzutów całych paneli. Dowód to zdanie „sprawdzone, data, metoda,
+wynik", nie wklejony klucz.
 
-## ETAP 1 — poczta (EmailLabs)
+### Twarda zasada, dopóki bramka [6] nie przejdzie
 
-**Gdzie:** `docs/infra/POCZTA_URUCHOMIENIE.md` — §1, potem §2A, potem §5.
-Decyzja, dlaczego akurat EmailLabs: `docs/decyzje/POCZTA.md`.
-
-**Czas:** ~20 minut klikania plus do godziny na rozejście się DNS.
-**Zmian w kodzie: zero.** `.railway/railway.ts` już referencuje właściwe
-zmienne — trzeba wpisać ich wartości w panelu.
-
-Kolejność w obrębie etapu:
-
-1. **§1 — sześć rzeczy niezależnych od dostawcy.** Zrób je raz; zmiana
-   dostawcy ich nie unieważnia. Najważniejsze dwie: skrzynka
-   `kontakt@kuking.pl` musi **realnie odbierać** (inaczej pierwsza odpowiedź
-   człowieka odbije się z błędem), a wszystkie rekordy poczty w Cloudflare
-   muszą być **„DNS only", nigdy „Proxied"** — proxowanie rozbija weryfikację
-   domeny i nie daje przy tym żadnego błędu.
-2. **§2A kroki 1–3** — konto EmailLabs, trzy rekordy w Cloudflare, cztery
-   zmienne w Railway. Po wpisaniu zmiennych: `railway config apply`
-   **i restart serwisów**. Konfiguracja jest zapiekana przy starcie kontenera,
-   więc zmienna bez restartu nie działa, a wygląda, jakby działała.
-3. **§5 — sprawdzenie.** Pięć kroków, wszystkie potrzebne.
-
-**Pułapka, o której najłatwiej zapomnieć:** wszystkie listy mają `ShouldQueue`,
-a wysyła je pętla kolejki — **w tym samym kontenerze co strona**, bo serwis
-`kuking.pl` chodzi w trybie `all` (nie ma osobnego serwisu `worker`, cokolwiek
-mówi `.railway/railway.ts`). **Poprawny dostawca + niedziałająca kolejka =
-dokładnie ten sam skutek co `MAIL_MAILER=log`:** nikt nic nie dostaje i nic
-tego nie pokazuje. Dlatego §5 ma dwa przebiegi:
-
-```bash
-railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
-railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl --kolejka
-```
-
-Drugi sprawdza pętlę kolejki. Jeśli po minucie nic nie przyszło:
-`railway ssh -- php artisan queue:failed`.
-
-Potem w doręczonym liście muszą być trzy słowa: `spf=pass`, `dkim=pass`,
-`dmarc=pass`. I na koniec cztery polskie skrzynki — wp.pl, o2.pl, interia.pl,
-onet.pl — bo żaden benchmark dostarczalności do nich nie istnieje, a Twój
-własny test kosztuje popołudnie i zero złotych.
-
-**Co się odblokuje samo:** ekran „Nie pamiętam hasła". Nie ma tam nic do
-przełączenia ręcznie — działa, gdy `MAIL_MAILER` przestanie być `log`.
+Nie wystawiaj produkcyjnego bucketu mediów pod `cdn.kuking.pl`.
 
 ---
 
-## ETAP 2 — R2 (issue #120)
+## Kiedy można otworzyć publiczną betę
 
-**Gdzie:** `docs/infra/BRAMKA_R2.md` — lista kontrolna z miejscem na wynik
-i datę. Tło: `docs/infra/INFRA_DECISION.md`.
+Nie „wygląda gotowe". Dopiero gdy pierwsze dwadzieścia trzy wiersze tabeli
+stanu są zamknięte, a wiersze 24 i 25 mają wynik. Zewnętrzny audyt z 10.09.2026
+(`docs/research/audyt-2026-09-10/`) formułuje to tak samo i dodaje jedno
+zdanie, które warto tu powtórzić:
 
-**Najdłuższy etap.** Część kodowa (zapis bez `x-amz-acl`) jest **zrobiona**:
-dyski R2 mają własny sterownik `r2`, który tego nagłówka nie wysyła, i test
-regresyjny na podpisanym żądaniu HTTP.
-
-**Zacznij od jednej komendy — ona odhacza siedem punktów z dwunastu:**
-
-```
-railway ssh -- php artisan kuking:bramka-r2 --zapis
-```
-
-Pyta prawdziwe R2 prawdziwymi żądaniami, na prawdziwym zdjęciu z bazy:
-podpisany adres wariantu ma oddać 200, ten sam bez podpisu ma zostać
-odrzucony, oryginał nie ma dać się pobrać żadną publiczną drogą, w publicznym
-buckecie nie ma być ani jednego klucza `incoming/`, a `PutObject` ma przejść
-bez ACL. Brak odpowiedzi z sieci to `NIE WIEMY` i **oblewa** bramkę — „nie
-wiemy" nigdy nie znaczy „jest dobrze". Na dysku lokalnym komenda odmawia
-działania, żeby nie zameldować przejścia tam, gdzie nie sprawdziła niczego.
-Szczegóły: §2 w `docs/infra/BRAMKA_R2.md`.
-
-**Resztą jest panel Cloudflare** — przełącznik `r2.dev`, wgranie zdjęcia
-z aparatu, kasowanie wpisu, ścieżka błędu przy złym sekrecie. Tego z kodu
-nie da się ani wykonać, ani sprawdzić.
-
-**Twarda zasada, dopóki ta bramka nie przejdzie:** nie wystawiaj produkcyjnego
-bucketu mediów pod `cdn.kuking.pl`.
-
-Sedno listy z #120 to trzy dowody, których nie da się uzyskać z testów PHP,
-bo testy nie widzą panelu Cloudflare:
-
-- wariant zdjęcia pod publicznym adresem → **200**,
-- **oryginał** pod każdą publiczną ścieżką → **403 albo 404**,
-- ten sam oryginał przez API S3 z serwera → **sukces**.
-
-Plus: `r2.dev` wyłączone na buckecie oryginałów i zero kluczy `incoming/`
-w publicznym buckecie.
-
-**Gdzie zapisujesz dowód:** `docs/infra/BRAMKA_R2.md`, **z datą** —
-konfiguracja bucketu może się zmienić bez jednej linijki w tym repozytorium,
-więc dowód bez daty nic nie znaczy. Tabela w §3 tego pliku czeka wypełniona
-w połowie: kolumny „wynik" i „data" są puste, a puste znaczy nieprzejście.
-
----
-
-## ETAP 3 — reszta bramki A6-06
-
-**Gdzie:** `docs/legal/BRAMKA_BETY.md` — tam jest macierz warunków.
-
-Idzie równolegle, nic nie blokuje. Do zebrania:
-
-- **działający administrator z 2FA**, zdolny rozpatrzyć odwołanie
-  (`php artisan kuking:nadaj-role`),
-- **reset hasła przećwiczony na własnym koncie** — nie „kod istnieje", tylko
-  „dostałem list i ustawiłem hasło" (to wychodzi z etapu 1 §5 krok 5),
-- **alarm z webhooka naprawdę dochodzi** do operatora, i to po naprawie A6-01,
-  czyli bez danych osobowych w treści,
-- **regiony bazy i magazynu** zgodne z tym, co mówi polityka prywatności,
-- **umowy powierzenia (DPA)** — uwaga: **brak osobno podpisanego PDF-u nie
-  dowodzi braku umowy.** RODO art. 28 dopuszcza formę elektroniczną i włączenie
-  do warunków usługi. Sprawdź warunki wiążące konto spółki, nie to, czy
-  dostawca ma stronę o DPA.
-
-**Czego nie wpisywać:** sekretów ani zrzutów całych paneli. Dowód to zdanie
-„sprawdzone, data, wynik", nie wklejony klucz.
-
----
-
-## ETAP 4 — treść zalążkowa na produkcji
-
-**Warunek: etap 0 zrobiony.** Nie „kopia gdzieś jest", tylko „mam świeży zrzut
-i wiem, że się odtwarza".
-
-> ⚠️ **SPROSTOWANIE, 9 września wieczorem.** Ten etap twierdził, że
-> „wdrożenie samo uruchomi `db:seed --force`". **Dziś nie uruchomi.**
-> PR #174 dopisał tę komendę do `preDeployCommand` w `.railway/railway.ts`,
-> ale zmierzony connectorem produkcyjny `preDeployCommand` to nadal
-> **wyłącznie** `php artisan migrate --force --no-interaction`. Brakuje
-> ostatniego kroku: **`railway config apply`**.
->
-> Usterka „ostatniego metra", którą PR #174 miał zamknąć, zamknęła się więc
-> o jeden metr za wcześnie: decyzja zapadła, kod powstał, testy są zielone —
-> i nikt nie zastosował konfiguracji.
-
-Kolejność w tym etapie jest zatem taka:
-
-1. **Etap 0 zrobiony** — masz świeży zrzut i wiesz, że się odtwarza.
-   `railway config apply` zmienia to, co wdrożenie robi z produkcyjną bazą,
-   więc nie uruchamiaj go bez kopii.
-2. **`railway config apply`** — dopiero to wpisuje `db:seed --force`
-   do `preDeployCommand`. Przejrzyj plan, który CLI pokaże przed
-   potwierdzeniem: ten sam plik chce też rozbić jeden serwis `kuking.pl`
-   na trzy (`web`, `worker`, `scheduler`), a to jest osobna, większa zmiana,
-   której przy okazji seedowania raczej nie chcesz.
-3. **Wdrożenie** — następne wdrożenie po `apply` uruchomi migracje i seeder.
-
-**Po wdrożeniu sprawdź na żywej stronie**, że przykładowe konta i przepisy
-naprawdę są. Zielony deploy nie jest dowodem, że seeder coś zapisał.
+> `NO-GO` nie oznacza, że produkcja jest zepsuta. Oznacza, że nie ma jeszcze
+> **dowodu**, żeby bezpiecznie skierować na serwis szeroki ruch osób, których
+> zdjęcia, konta i relacje mają być trwałe.
 
 ---
 
 ## Czego ten dokument świadomie nie robi
 
-Nie powtarza treści czterech dokumentów, na które wskazuje. Gdyby powtarzał,
-za tydzień rozjechałby się z nimi i byłby gorszy niż jego brak — to ta sama
-zasada, którą `CLAUDE.md` stosuje do siebie.
+Nie powtarza treści dokumentów, na które wskazuje. Gdyby powtarzał, za tydzień
+rozjechałby się z nimi i byłby gorszy niż jego brak — to ta sama zasada, którą
+`CLAUDE.md` stosuje do siebie.
+
+Nie jest też archiwum. Historia pomyłek jest niżej, w jednej sekcji, a nie
+pomiędzy krokami do wykonania — bo operator czytający ten plik w trakcie
+awarii ma poznać **stan**, a nie rekonstruować go z ciągu sprostowań. To
+zalecenie z audytu 13 i było trafne: poprzednia wersja tego pliku miała pięć
+bloków `SPROSTOWANIE` wplecionych między etapy.
+
+---
+
+## Historia sprostowań
+
+Zostaje, bo pokazuje, jakie założenia okazały się fałszywe — i dlatego, że
+każde z nich mogło kosztować dane. **Żadne zdanie z tej sekcji nie opisuje
+stanu bieżącego.** Stan bieżący jest wyłącznie w tabeli wyżej.
+
+**9.09.2026 po południu — „Railway robi kopie sam".** Etap kopii napisano przy
+założeniu, że wystarczy przeklikać dwa przełączniki w panelu. Nieprawda:
+Volume Backups i PITR są tylko w planie Pro. Skutek: kopia przestała być
+„trzecią warstwą" i została jedyną, a #193 przestało być usprawnieniem
+i zostało bramką.
+
+**9.09.2026 wieczorem — „wdrożenie woła `db:seed --force`".** Nieprawda. PR
+#174 dopisał `db:seed` do `preDeployCommand` w `.railway/railway.ts`, ale ten
+plik nie obowiązuje, bo `railway config apply` nigdy nie zostało uruchomione.
+Dwa różne zdarzenia pomylono z sobą: **commit do repozytorium** (nastąpił)
+i **zastosowanie konfiguracji w Railway** (nie nastąpiło). Usterka „ostatniego
+metra", którą PR #174 miał zamknąć, zamknęła się o metr za wcześnie: decyzja
+zapadła, kod powstał, testy są zielone — i nikt nie zastosował konfiguracji.
+
+**9.09.2026 — SMTP.** Na planach Free i Hobby SMTP jest wyłączony, więc poczta
+idzie przez API HTTPS. To nie była pomyłka w dokumencie, ale zmieniło etap
+poczty na tyle, że warto pamiętać dlaczego.
+
+**10.09.2026 — pamięć workera.** Zewnętrzny audyt oparł alarm o limitach
+zdjęć na komentarzu `--memory=384` w `ProcessUploadedImage`. Obowiązuje
+**D-064**: limit kontenera to 1024 MB, `PHP_WORKER_MEMORY_LIMIT` = 512M,
+zmierzony szczyt RSS dla 50 Mpx ≈ 452 MB. Audytor skorygował to sam przed
+oddaniem raportu. Wniosek: limitu 50 Mpx **nie obniżamy arbitralnie**, najpierw
+benchmark współbieżności.
+
+**10.09.2026 — „zgłaszający nie dostaje odpowiedzi".** Ten sam audyt postawił
+jako P0 tezę, że regulamin §7 obiecuje odpowiedź każdemu zgłaszającemu, a
+produkt tego nie robi. Nieprawda od issue #10 — pętla jest zamknięta, także po
+zwykłym przycisku „Zgłoś". Audytor przeczytał `MODERATION_PLAYBOOK.md`, który
+opisywał stan sprzed #10. Szczegóły i dowody w kodzie:
+`docs/research/audyt-2026-09-10/SPRAWDZENIE.md`.
 
 📄 `docs/infra/KOPIE_I_ODTWORZENIE.md` · `docs/infra/POCZTA_URUCHOMIENIE.md` ·
 `docs/decyzje/POCZTA.md` · `docs/legal/BRAMKA_BETY.md` ·
-`docs/infra/INFRA_DECISION.md` · issue #120 · `docs/zlecenia/2026-09-09-audyt-a6.md`
-(A6-06, A6-07)
+`docs/infra/INFRA_DECISION.md` · `docs/infra/BRAMKA_R2.md` ·
+`docs/research/audyt-2026-09-10/` · issue #120 ·
+`docs/zlecenia/2026-09-09-audyt-a6.md` (A6-06, A6-07)

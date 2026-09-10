@@ -18,6 +18,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLinkController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
@@ -335,6 +336,49 @@ Route::middleware('guest')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['google_domkniecie']},google_domkniecie")
         ->name('google.link.store');
 
+    /*
+     * ZAPROSZENIE DO ZAŁOŻENIA KONTA — druga połowa tej samej drogi (D-085).
+     *
+     * Kto poprosi o „link do zalogowania" dla adresu, na którym NIE MA konta,
+     * dostaje wiadomość prowadzącą tutaj. Do 10 września 2026 nie dostawał
+     * niczego i widział przy tym zielone „wysłaliśmy wiadomość" — odbiła się
+     * o to prawdziwa osoba (uzasadnienie w `RegistrationInviteController`).
+     *
+     *   GET  /zaproszenie/{token}      — ekran z przyciskiem. NIC NIE ZUŻYWA.
+     *   POST /zaproszenie/zakladam     — zaproszenie do sesji i na /register
+     *   POST /zaproszenie/inny-adres   — „chcę konto na inny adres"
+     *
+     * Zaproszenia nie zużywa nawet POST — kasuje je dopiero utworzenie konta
+     * (`RegisterController::store()`), bo za tym POST-em stoi jeszcze cały
+     * formularz rejestracji, o który ta osoba już raz się odbiła.
+     *
+     * TRASY POST STOJĄ PRZED TRASĄ Z TOKENEM z tego samego powodu co przy
+     * logowaniu linkiem: kolizji nie ma (różne metody HTTP), więc kolejność
+     * jest kwestią czytelności, nie poprawności.
+     *
+     * WŁASNY PREFIKS LICZNIKA (`zaproszenie`), osobny od `login_link_wejscie`
+     * — nieudane klikanie „Zaloguj mnie" nie ma prawa zjadać prób „Załóż
+     * konto" i odwrotnie (`LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`).
+     *
+     * BEZ TURNSTILE, tak jak `POST /logowanie/link/wejdz`: captcha stoi na
+     * formularzu „wyślij mi link", przez który każde zaproszenie musi przejść,
+     * a tutaj nie ma czego wysyłać ani zapisywać. Formularz `/register`, na
+     * który te trasy przenoszą, Turnstile ma i mieć musi (D-050).
+     *
+     * W grupie `guest` z tego samego powodu co `/register` i `/logowanie/link`
+     * — kto jest już zalogowany, nie ma po co zakładać konta.
+     */
+    Route::post('/zaproszenie/zakladam', [RegistrationInviteController::class, 'przyjmij'])
+        ->middleware("throttle:{$limits['zaproszenie']},zaproszenie")
+        ->name('zaproszenie.przyjmij');
+
+    Route::post('/zaproszenie/inny-adres', [RegistrationInviteController::class, 'porzuc'])
+        ->middleware("throttle:{$limits['zaproszenie']},zaproszenie")
+        ->name('zaproszenie.porzuc');
+
+    Route::get('/zaproszenie/{token}', [RegistrationInviteController::class, 'pokaz'])
+        ->name('zaproszenie.pokaz');
+
     // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
     // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze
     // NIE JEST sesja zalogowana (LoginController zapisuje tu tylko
@@ -428,7 +472,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/witaj/zainteresowania', [OnboardingController::class, 'interests'])->name('onboarding.interests');
     Route::post('/witaj/zainteresowania', [OnboardingController::class, 'saveInterests'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
-    Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])->name('onboarding.people');
+    // Ten sam koszyk wielkości co `search` (config/kuking.php) — ten krok od
+    // teraz przyjmuje `?q=`, czyli odpytuje `SearchQuery::people()` tak samo
+    // jak /szukaj. Osobna nazwa koszyka (jak przy `admin_uzytkownicy` niżej
+    // w tym pliku), bo to inny ekran i inny licznik nadużyć.
+    Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])
+        ->middleware("throttle:{$limits['search']},onboarding_ludzie")
+        ->name('onboarding.people');
     // OSOBNY, DUŻO NIŻSZY LIMIT NIŻ RESZTA OBSERWOWANIA. To jedyny formularz
     // w serwisie, w którym JEDNO żądanie tworzy powiadomienia u WIELU osób
     // naraz — więc liczenie go do wspólnego koszyka `obserwowanie` byłoby
@@ -930,6 +980,15 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
 // Tagi (D-021, zastępuje usunięty już Temat z issue #31)
 // --------------------------------------------------------------------------
 //
+// Spis wszystkich tematów (#273, druga połowa — D-026 dała słownik, ta
+// trasa daje wejście do niego). PUBLICZNA, z tego samego powodu co strona
+// tagu niżej: to jest odpowiednik Garnkowej „fotofory" — jawna, zamknięta
+// lista, bez logowania (docs/product/PROSTOTA_JAK_GARNEK.md §5a).
+// NAD `/tag/{tag}`: gdyby kolejność była odwrotna, nic by się nie zepsuło
+// (inny literał ścieżki), ale trasy publiczne stoją tu razem, w kolejności
+// „lista, potem karta", żeby nie trzeba było ich szukać w dwóch miejscach.
+Route::get('/tagi', [TagController::class, 'index'])->name('tags.index');
+
 // Strona tagu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
 // miejsc, w które ma sens trafić z wyszukiwarki. Sama lista wpisów jest
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi

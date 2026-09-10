@@ -89,21 +89,15 @@
 
   /* --- Sekcja główna ---------------------------------------------------- */
 
+  /* Do 10 września 2026 `.hero` była siatką o dwóch kolumnach od 64rem:
+     tekst po lewej, tablica „kuKINGi na dziś" po prawej (`.hero-figura`,
+     usunięta razem z tą tablicą — patrz `landing.blade.php`, sekcja 3).
+     Audyt 60+ (`docs/research/AUDYT_60_PLUS.md`) każe tablicy stać PO
+     „Jak działa", nie obok hasła, więc hero zostaje z jednym dzieckiem
+     i nie ma już czego dzielić na dwie kolumny — została jedna, prosta
+     kolumna tekstu, taka sama jak w każdej innej sekcji pasa. */
   .hero {
     display: grid;
-    gap: var(--spacing-8);
-
-    /* `start`, NIE `center` — i to jest pomiar, nie gust.
-       Przy dwóch kolumnach `center` wyrównuje 475-pikselową kolumnę tekstu
-       do ŚRODKA 1557-pikselowej tablicy „kuKINGi na dziś", czyli spycha ją
-       o ponad 500 px w dół. Zmierzone na laptopie 1366×768: nagłówek na
-       737 px, przyciski „Załóż konto" i „Zobacz, co się dzieje" na 1033 px.
-       Pierwszy ekran obcego człowieka to był pas tła i czterech
-       nieznajomych — bez jednego zdania o tym, czym to jest.
-       Na telefonie kolumna jest jedna, więc nic się tam nie zmienia.
-       `.przepis-hero` w `app.css` rozwiązuje ten sam układ tak samo. */
-    align-items: start;
-    grid-template-columns: minmax(0, 1fr);
   }
 
   /* `minmax(0, …)`, nigdy `1fr`: element siatki nie zejdzie poniżej swojej
@@ -113,13 +107,6 @@
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
-  }
-
-  @media (min-width: 64rem) {
-    .hero {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
-      gap: var(--spacing-12);
-    }
   }
 
   /* 34rem ≈ 60 znaków przy 18 px, czyli w środku przedziału 55–75
@@ -149,17 +136,17 @@
     margin-bottom: var(--spacing-4);
   }
 
-  .hero-figura { margin: 0; }
-
   .hero-podpis {
     margin: var(--spacing-3) 0 0;
     font-size: var(--text-help);
     color: var(--color-ink-muted);
   }
 
-  /* --- „Cztery rzeczy" --------------------------------------------------
-     Dwie kolumny, nigdy cztery: przy czterech kolumnach zdanie wyjaśniające
-     ma przy skali 140% po dwa słowa w wierszu. */
+  /* --- „Jak działa" (dawniej „Cztery rzeczy") ---------------------------
+     Dwie kolumny, nigdy więcej: przy większej liczbie kolumn zdanie
+     wyjaśniające ma przy skali 140% po dwa słowa w wierszu. Trzy kroki nie
+     dzielą się równo na dwie kolumny — trzeci kafel zostaje sam w drugim
+     rzędzie, i tak ma być, to nie jest błąd składu. */
 
   .rzeczy {
     display: grid;

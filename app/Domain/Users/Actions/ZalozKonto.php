@@ -10,6 +10,7 @@ use App\Models\AuditLogEntry;
 use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\User;
+use Closure;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -65,6 +66,8 @@ final class ZalozKonto
      * @param  string|null  $haslo  hasło jawne, albo `null` przy drodze bez hasła
      * @param  string|null  $googleSub  identyfikator konta Google, gdy konto powstaje tą drogą
      * @param  array<string, mixed>  $dziennik  dodatkowe pola do wpisu w dzienniku audytu
+     * @param  (Closure(): string)|null  $dowodAdresu  dowód posiadania skrzynki zużywany W TEJ SAMEJ
+     *                                                 transakcji, w której powstaje konto — patrz niżej
      */
     public function handle(
         string $email,
@@ -75,10 +78,33 @@ final class ZalozKonto
         ?string $googleSub = null,
         ?string $ip = null,
         array $dziennik = [],
+        ?Closure $dowodAdresu = null,
     ): User {
         $user = DB::transaction(function () use (
-            $email, $displayName, $username, $haslo, $emailPotwierdzony, $googleSub
+            $email, $displayName, $username, $haslo, $emailPotwierdzony, $googleSub, $dowodAdresu
         ): User {
+            /*
+             * DOWÓD POSIADANIA SKRZYNKI ZUŻYWA SIĘ TUTAJ, W TEJ SAMEJ
+             * TRANSAKCJI, W KTÓREJ POWSTAJE KONTO (D-085).
+             *
+             * Dziś ten dowód ma jedną postać: zaproszenie do rejestracji
+             * wysłane na adres, na którym nie było konta. Zużywa je
+             * `ZaproszenieWSesji::zuzyj()` pod `lockForUpdate()` i oddaje
+             * adres Z WIERSZA W BAZIE — nie z pola w formularzu. Gdyby adres
+             * brał się z żądania, powstałoby konto z `email_verified_at`
+             * ustawionym na adres, którego nikt nigdy nie potwierdził.
+             *
+             * DLACZEGO DOMKNIĘCIE, A NIE DWA PARAMETRY: zużycie musi być
+             * wewnątrz TEJ transakcji, żeby nieważne zaproszenie wycofało
+             * całe założenie konta. Wołający nie ma jak tego zagwarantować
+             * z zewnątrz — a `zuzyj()` poza transakcją wygląda identycznie
+             * i nie blokuje niczego (dlatego samo pyta `wTransakcji()`).
+             */
+            if ($dowodAdresu !== null) {
+                $email = $dowodAdresu();
+                $emailPotwierdzony = true;
+            }
+
             // `email` NIE JEST w `$fillable` (issue #195, ten sam powód co
             // `status` i `role`), więc adres wchodzi jawnie, przez
             // `assignEmail()`.

@@ -649,9 +649,13 @@ export default defineRailway((ctx) => {
       //  ruch na nowy deploy. Trasa musi sprawdzać połączenie z bazą;
       //  healthcheck zwracający zawsze 200 nie chroni przed niczym.
       //
-      //  Requesty idą z hosta healthcheck.railway.app — jeśli włączysz
-      //  middleware TrustHosts, MUSISZ dopisać ten host, inaczej deploy będzie
-      //  padał na 400.
+      //  Requesty idą z hosta healthcheck.railway.app. Middleware TrustHosts
+      //  JEST od 10 września 2026 włączony (D-071), a ten host jest na liście
+      //  w `App\Support\ZaufaneHosty` — nie usuwaj go stamtąd, bo wtedy
+      //  healthcheck dostaje 400 i deploy nigdy się nie kończy. Pilnuje tego
+      //  test `ZaufaneHostyTest::test_healthcheck_railwaya_przechodzi`.
+      //  Ratunek bez deployu, gdyby Railway zmienił ten host: zmienna
+      //  KUKING_ZAUFANE_HOSTY w panelu (patrz `config/proxy.php`).
       //  https://docs.railway.com/deployments/healthchecks
       // -----------------------------------------------------------------------
       healthcheckPath: "/health",
