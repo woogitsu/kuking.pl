@@ -36,7 +36,7 @@ przepisy/
     Przepisów w paczce: {{ $recipeCount }}
 
 wpisy.html
-    Twoje wpisy „co dziś ugotowałam”, zapisane wykonania przepisów
+    Twoje wpisy z gotowania, zapisane wykonania przepisów
     i Twoje komentarze.
 
 zdjecia/
@@ -62,7 +62,7 @@ zdjecia/
 
 dane.json
     Ten sam zestaw danych w formacie dla programów. Przydaje się,
-    jeśli będziesz chciała przenieść swoje przepisy do innego serwisu.
+    jeśli zechcesz przenieść swoje przepisy do innego serwisu.
     Nie musisz go otwierać — dla człowieka jest index.html.
 
 CZYTAJ-TO-NAJPIERW.txt

@@ -103,3 +103,72 @@ a bramka #120 do wypełnienia komendą `kuking:bramka-r2 --zapis`.
 - UX3 (gęsty landing przed „Jak działa") — w toku.
 - PROD3 / P1 5.6 („Tematy" jako jawne odkrywanie) — do wystawienia jako issue.
 - CI2 (#262, zbieżność na współdzielonym runnerze) — issue otwarte.
+
+---
+
+# Warstwa druga i trzecia — i co audytor zrobił z moją korektą
+
+**Dopisane 10.09.2026, po otrzymaniu raportów 15–29.**
+
+## Audytor przyjął korektę i poprawił własne raporty
+
+Powyżej napisałem, że teza P0 „produkt nie informuje zwykłego zgłaszającego"
+jest nieprawdziwa, i pokazałem, gdzie w kodzie stoi zamknięta pętla.
+
+Audytor sprawdził to u siebie i **usunął ten P0 z czterech swoich raportów**
+(09, 10, 14 i 28), a w raporcie 29 zapisał wprost, czego dotyczyła pomyłka
+i że prawdziwym znaleziskiem jest dryf `MODERATION_PLAYBOOK.md`. Zostawił to
+jako **P1 dokumentacyjno-operacyjny** z adnotacją „nie tworzyć nowego
+reporter lifecycle".
+
+Warto to zanotować, bo mówi coś o wartości obu stron tego układu: audyt
+zewnętrzny wychwycił rzeczy, których nie widzieliśmy z wewnątrz, a
+sprawdzenie przy pliku wychwyciło jedną tezę, której nie było. **Żadna
+z tych dwóch rzeczy nie zadziałałaby sama.**
+
+## Potwierdzone przeze mnie w kodzie z warstwy drugiej i trzeciej
+
+| Znalezisko | Dowód |
+|---|---|
+| **AUTH-01 / RACE-01** — potwierdzenie zmiany adresu może wygrać z anulowaniem | `ConfirmEmailChange` dostawał MODEL z kontrolera i nigdy nie czytał wiersza ponownie pod blokadą; `CancelEmailChange` kasowało go **bez żadnej** blokady. Kontrola ujemna: po usunięciu rewalidacji adres konta faktycznie zmienia się mimo anulowania. Naprawione (D-079). |
+| **AUTH-02 / RACE-02** — równoległy link do logowania zdradza istnienie konta | **Zmierzone**, nie oszacowane: przy wymuszonym konflikcie adres z kontem dostawał **500**, adres bez konta **302**. Nic tego wyjątku nie przechwytywało. Formularz zaprojektowany jako nieodróżnialny odpowiadał więc na pytanie „czy tu jest konto". Naprawione (D-075). |
+| **MAIL-01 / RACE-03** — dobowy budżet listów nie jest sufitem | `jestMiejsce()` w linii 160 i `zajmij()` w linii 170 tego samego kontrolera. `Cache::increment()` jest atomowy jako jedna operacja, ale sprawdzenie i zajęcie nie są atomowe jako para. Naprawione (D-076). |
+| **QUEUE-01 / MAIL-02 / RACE-04** — digest może wysłać dwa razy | `Mail::queue()` w pętli, a `oznaczWyslane()` **jednym zapytaniem po całej pętli**. Awaria w środku kwalifikuje te same osoby ponownie. `withoutOverlapping()` chroni przed dwoma przebiegami JEDNOCZEŚNIE, nie przed kolejnym po awarii. Naprawione (D-077). |
+| **MAIL-03** — sygnał „digest wysłany" znaczy „zakolejkowany" | Sygnał zapisywany dziewięć linii po `Mail::queue()`. Naprawione (D-078). |
+| **RACE-05 / QUEUE-04** — brak bariery „jeden aktywny eksport" | `data_exports` miało CHECK na `status` i indeks `(user_id, created_at)`, a **ani jednego ograniczenia unikalności**. Naprawione (D-078). |
+| **SOCIAL-01** — blokada i obserwowanie mogą współistnieć | `FollowUser` ma wyłącznie sprawdzenie `hasBlockRelationWith()`, bez blokady i bez transakcji; `BlockUser` ma transakcję i `detach` w obie strony. Przeplot zostawia obserwowanie po blokadzie. |
+| **MIG-01** — rollback gubi wybór „usuń wszystko" | `down()` zdejmuje `delete_scope`, a ponowne `up()` backfilluje brakujące jako `minimum`. Komentarz migracji twierdzi „żadne dane nie giną" — i to prawda o wierszach, ale **nie o znaczeniu decyzji człowieka**. To ta sama choroba co DB2 z pierwszej warstwy. |
+
+## Wniosek, który wyszedł z trzech warstw naraz
+
+Pierwsza warstwa znalazła bramki operacyjne. Druga i trzecia znalazły
+**osiem P1 w samym kodzie i wszystkie są jednym rodzajem błędu**:
+
+> inwariant jest sprawdzany, a potem wykonywany — zamiast być wykonany
+> atomowo.
+
+`exists()`, `hasBlockRelationWith()`, `jestMiejsce()`, sprawdzenie ważności
+przed transakcją — każde z nich jest poprawne przy jednym żądaniu i każde
+przepuszcza drugie. Audyt nazwał to najlepiej w raporcie 21: **rozjazd
+między „działa w pojedynczym happy path" a „zachowuje inwariant przy dwóch
+requestach, crashu workera i częściowym wykonaniu".**
+
+Dwa wnioski praktyczne, które zostają w projekcie:
+
+1. **Gwarancję daje constraint albo blokada, nie `exists()` w PHP.** `exists()`
+   jest dobre na ładny komunikat i tam zostaje.
+2. **Blokada bez rewalidacji pod nią nie pilnuje niczego** — serializuje,
+   ale nie mówi żądaniu, że świat zmienił się, gdy ono czekało.
+
+Oba stoją w D-079 i obowiązują szerzej niż miejsce, w którym zostały
+zapisane.
+
+## Czego z trzeciej warstwy nie sprawdzałem
+
+**MEDIA-01** (sprzątacz osieroconych zdjęć ściga się z przypinaniem),
+**MEDIA-03** (autoryzacja jednego zdjęcia to co najmniej pięć zapytań do
+bazy, a feed generuje ponad sto żądań obrazków) i P2 z raportów 22–27. Są
+wystawione jako issues z cytatami z audytu. MEDIA-03 wymaga **pomiaru liczby
+zapytań**, nie oszacowania — repozytorium ma na to gotowy wzorzec
+(`DB::flushQueryLog()` + porównanie „mało vs dużo" w istniejących testach
+wydajności), i tak trzeba to zrobić, zanim ktokolwiek zaproponuje Redisa.

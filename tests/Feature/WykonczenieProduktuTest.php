@@ -100,7 +100,7 @@ class WykonczenieProduktuTest extends TestCase
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
             ->assertSee('Jeszcze nikt tego nie gotował')
-            ->assertSee('Będziesz pierwsza albo pierwszy?', escape: false);
+            ->assertSee('Twoje wykonanie będzie pierwsze.', escape: false);
     }
 
     // ---------------------------------------------------------------
