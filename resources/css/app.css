@@ -229,6 +229,46 @@
   }
 
   /*
+   * PRZY BARDZO DUŻYM TEKŚCIE PASEK PRZESTAJE BYĆ PRZYPIĘTY
+   * (WCAG 2.2 AA — 2.4.11 Focus Not Obscured; zmierzone przez
+   * `scripts/dostepnosc.mjs`).
+   *
+   * Pasek zawija się do kilku wierszy (`flex-wrap` niżej), więc przy
+   * czcionce przeglądarki ustawionej na 200% rośnie do zmierzonych 263 px.
+   * Na telefonie 320 × 740 px to 36% ekranu ZABRANE NA STAŁE, a razem
+   * z dolną belką (wtedy 376,2 px) obie belki zajmują 639 z 740 px, czyli
+   * 86% widoku. Zmierzony skutek: 91 kontrolek na czterech ekranach ląduje
+   * po Tab w CAŁOŚCI pod tym paskiem.
+   *
+   * DLACZEGO NIE `scroll-padding-top`. To normalny mechanizm na przypiętą
+   * belkę i tutaj NIE MA CZEGO NAPRAWIĆ TYM MECHANIZMEM. `scroll-padding`
+   * przesuwa tylko fokus z pod belki; belka i tak zostaje na ekranie.
+   * Żeby fokus wyjechał z pod OBU, suma obu wartości musiałaby pokryć
+   * zmierzone 263 + 376,2 = 639,2 px, zostawiając z okna 740 px pasmo
+   * 100,8 px — i to przy zerowym zapasie na obu wartościach. Każdy zapas
+   * (a bez zapasu ten pomiar świeci na czerwono po pierwszych trzech
+   * pikselach nowego tekstu) zjada pasmo, które musi zmieścić naszą
+   * najmniejszą kontrolkę, czyli 48 px. Taka para liczb nie jest poprawką,
+   * tylko zakładem. Odpięcie usuwa PRZYCZYNĘ: przy tej wielkości tekstu
+   * problemem nie jest margines przy przewijaniu, ale to, że przypięty
+   * pasek zabiera trzecią część ekranu na stałe.
+   *
+   * `position: relative`, a nie `static`: `z-index: 20` wyżej działa tylko
+   * na elemencie pozycjonowanym, a pasek ma zostać nad treścią, którą
+   * przewijamy pod nim, dopóki jest widoczny. Zmienia się TYLKO przypięcie.
+   *
+   * Próg `15rem` porównuje okno z korzeniem, nie z pikselami — to samo
+   * kryterium co przy `--rezerwa-pod-belka` wyżej i tam stoi jego pełne
+   * wyprowadzenie. Zwykły telefon (320 px, korzeń 16 px) to 20rem i próg
+   * go nie łapie; ten sam telefon przy czcionce przeglądarki 200% to 10rem.
+   */
+  @media (max-width: 15rem) {
+    .topbar {
+      position: relative;
+    }
+  }
+
+  /*
    * PASEK GÓRNY NIE MOŻE ROZPYCHAĆ STRONY (issue #80).
    *
    * Poprzednia wersja: flex BEZ zawijania, logotyp plus dwa pełnotekstowe
@@ -544,83 +584,113 @@
 
   /* --- Dolna nawigacja (mobile) ---
 
-     FOCUS NOT OBSCURED (WCAG 2.2 AA — 2.4.11), zmierzone przez
-     `scripts/dostepnosc.mjs`. Dwie osobne poprawki dla dwóch osobnych
-     przyczyn tej samej usterki — patrz komentarz w skrypcie przy sekcji
-     „FOCUS NIE ZASŁONIĘTY PRZEZ NAKŁADKĘ" po pełne wyjaśnienie i zmierzone
-     liczby.
+     FOCUS NOT OBSCURED (WCAG 2.2 AA — 2.4.11) — REZERWA MIEJSCA POD BELKĄ,
+     wszystkie liczby zmierzone Playwrightem przez `scripts/dostepnosc.mjs`
+     i pilnowane przez ten sam skrypt (sekcja „FOCUS NIE ZASŁONIĘTY PRZEZ
+     NAKŁADKĘ").
 
-     1. `position: sticky` zamiast `fixed`. `fixed` WYJMUJE belkę z przepływu
-        dokumentu — całkowita wysokość strony (`scrollHeight`) NIE rośnie
-        o jej wysokość, więc treść na samym końcu strony (stopka) może
-        dojechać dokładnie do dolnej krawędzi dokumentu, czyli dokładnie
-        pod spód belki, i zostać tam ZASŁONIĘTA NA STAŁE — bez względu na
-        skalę tekstu. Zmierzone na `/home`, tekst bez powiększenia: link
-        stopki „Twoje zgłoszenia" ląduje w całości pod `.bottom-nav`.
-        `sticky` zostaje w tym samym miejscu wizualnie (przypięta do dołu
-        podczas przewijania), ale JEST elementem przepływu — dokument rośnie
-        o jej rzeczywistą wysokość, więc rezerwa miejsca ZAWSZE odpowiada
-        temu, ile belka naprawdę zajmuje, także gdy zawinie się do kilku
-        wierszy. To jest dosłowne „związanie rezerwy z rzeczywistą wysokością
-        belki" — przez układ, nie przez przeliczanie px w JavaScripcie.
+     ZMIERZONA USTERKA. Belka jest `position: fixed`, czyli NIE MA jej
+     w przepływie dokumentu — wysokość strony nie rośnie o jej wysokość.
+     Rezerwa na końcu dokumentu była stałą wartością `--spacing-20` (5rem,
+     80 px), a belka ma `flex-wrap: wrap` (patrz komentarz przy tej klasie
+     niżej) i przy dużym tekście rozpada się na kilka wierszy. Zmierzone
+     maksima wysokości belki na sześciu ekranach przy 320/360/414 px:
 
-     2. `scroll-padding-bottom` niżej. Samo `sticky` NIE WYSTARCZA: naturalne
-        przewijanie fokusu w widok (to, co przeglądarka robi sama po Tab)
-        nie wie, że coś stoi na wierzchu w tym miejscu ekranu — dolicza się
-        do granic okna, nie do tego, co naprawdę widać. Zmierzone: nawet
-        po zmianie na `sticky`, klawiszem Tab dalej można trafić na kontrolkę
-        geometrycznie „w oknie", a wizualnie w całości pod belką.
-        `scroll-padding-bottom` to WŁAŚNIE mechanizm CSS na tę różnicę —
-        każe przeglądarce zostawić margines przy scrollowaniu do celu.
+         bez powiększania tekstu           66,6 px  (korzeń 16 px)
+         nasze ustawienie „tekst 140%"    105,5 px  (korzeń 16 px)
+         czcionka przeglądarki 200%       376,2 px  (korzeń 32 px)
 
-        WARTOŚĆ LICZY SIĘ W `rem`, WIĘC SAMA PODWAJA SIĘ PRZY PODWOJENIU
-        CZCIONKI PRZEGLĄDARKI — to nie może być ten sam numer co zmierzony
-        najgorszy przypadek W PIKSELACH, bo policzyłby zoom PODWÓJNIE.
-        Zmierzone ręcznie Playwrightem przy `getBoundingClientRect()` na
-        `.bottom-nav`, liczby w opisie PR-a: belka ma najwyżej 105,5 px
-        bez zoomu (nasza skala 140%, 320 px)
-        i 376,2 px przy czcionce przeglądarki 200% (też 320 px, belka
-        rozpada się tam na pięć wierszy). Rezerwa musi pokryć OBA na raz
-        z tej samej wartości w `rem`: 13rem to 208 px bez zoomu (zapas nad
-        105,5) i 416 px po podwojeniu (zapas nad 376,2). Nie ma tu żadnego
-        „ładniejszego" wzoru: liczba wierszy zależy od tego, ile podpisów
-        zmieści się w rzędzie, a to jest funkcja skokowa szerokości okna,
-        nie coś, co policzy gładki `calc()`. Duża stała wartość nie kosztuje
-        nic przy zwykłym przewijaniu (`scroll-padding` nie rysuje pustego
-        miejsca — działa tylko przy celowanym przewijaniu), a przyszłą
-        zmianę, która przebije ten margines, złapie ten sam automat, który
-        złapał usterkę pierwotną.
+     Przy 105,5 px rezerwa 80 px już nie wystarcza, a przy 376,2 px nie
+     wystarcza nawet po podwojeniu (5rem to wtedy 160 px). Zmierzony skutek
+     przywrócenia tych 80 px (kontrola ujemna tej poprawki, pełny przebieg
+     `scripts/dostepnosc.mjs`): 109 kontrolek zasłoniętych w 100%, wśród nich
+     odnośnik stopki „Prywatność" na wszystkich czterech badanych ekranach
+     przy 320 px i naszym ustawieniu „tekst 140%". Stopka jest ostatnia
+     w dokumencie, więc fokus nie ma jak z pod belki wyjechać — nie ma już
+     czego przewijać.
 
-        NIE DOKŁADAJ TU `scroll-padding-top` DLA `.topbar` BEZ PRZELICZENIA
-        OBU NARAZ. Ten sam kontrakt pomiaru mierzy też `.topbar` (jest
-        `position: sticky` od dawna) i przy czcionce przeglądarki 200%
-        naprawdę bywa częściowo zasłonięta (zmierzone tak samo: do 263 px
-        wysokości) — to ZNANE, ZGŁOSZONE osobno ograniczenie
-        (patrz PR), świadomie zostawione poza tą poprawką, bo dotyczy innej
-        belki niż ta, o którą prosił audyt. Naiwne dodanie
-        `scroll-padding-top: 20rem` OBOK powyższego psuje sprawę: przy
-        czcionce przeglądarki 200% obie wartości w `rem` PODWAJAJĄ SIĘ
-        RAZEM (13rem + 20rem → 416 px + 640 px = 1056 px), co na typowej
-        wysokości okna telefonu zostawia ujemną „bezpieczną" przestrzeń —
-        zmierzone: przeglądarka wtedy przestaje trafiać nawet w dolny pasek,
-        którego dotyczy TA poprawka. Naprawa `.topbar` wymaga osobnego
-        podejścia (mniejszy margines i/lub inny mechanizm) i osobnego
-        pomiaru obu wartości RAZEM, nie tylko z osobna. */
+     DWIE JEDNOSTKI, DWA POWODY, JEDNA LICZBA. Rezerwa musi pokryć oba
+     powiększenia z jednej wartości, a te dwa powiększenia działają inaczej:
+
+       * czcionka przeglądarki podwaja KORZEŃ (16 → 32 px), więc wartość
+         w `rem` podwaja się razem z belką;
+       * nasze `data-text-scale` korzenia NIE RUSZA (`--user-text-scale`
+         mnoży tylko tokeny `--text-*`), więc wartość w `rem` zostaje ta
+         sama, a belka rośnie.
+
+     Dlatego stopień pierwszy (`8rem` = 128 px) jest liczony pod nasze 140%
+     (zapas 22,5 px nad 105,5 px), a stopień drugi pod czcionkę przeglądarki
+     200% (`13rem` = 416 px, zapas 39,8 px nad 376,2 px).
+
+     DLACZEGO PROGIEM JEST `max-width: 15rem`, A NIE ŻADNA SZEROKOŚĆ W PX.
+     Zapytanie o szerokość w `rem` porównuje okno z KORZENIEM, więc mówi
+     dokładnie to, o co tu chodzi: „tekst jest tak duży w stosunku do ekranu,
+     że przypięty pasek zabiera jego znaczną część". Telefon 320 px przy
+     korzeniu 16 px to 20rem (próg nie łapie), ten sam telefon przy czcionce
+     przeglądarki 200% to 10rem (łapie), a 414 px przy 200% to 12,9rem
+     (łapie). Przy zwykłym korzeniu 16 px próg odpowiadałby oknu 240 px,
+     czyli węższemu niż jakikolwiek telefon — nie zadziała przez pomyłkę.
+
+     DLACZEGO NIE `position: sticky` NA BELCE. Wersja z 10 września próbowała
+     związać rezerwę z rzeczywistą wysokością belki, wstawiając ją do
+     przepływu (`sticky` zamiast `fixed`). Działało to na 2.4.11 i przy tym
+     ZŁAMAŁO 2.5.8 (Target Size) w axe: reguła `target-size` liczy sąsiadów
+     przez `findNearbyElms`, a ta funkcja porównuje kandydatów warunkiem
+     `selfIsFixed === isFixedPosition(vNeighbor)` (`node_modules/axe-core/axe.js`).
+     Nakładka `fixed` nie jest więc porównywana z treścią NIE-`fixed` —
+     i słusznie, bo przypięty pasek stoi nad inną treścią przy każdym
+     położeniu przewijania. `sticky` do tego wyjątku nie należy: staje się
+     zwykłym sąsiadem w przepływie i przycina „bezpieczne pole kliknięcia"
+     tego, co akurat widać za nim.
+
+     Zmierzone przy 320 px, przewinięcie 0, JEDNAKOWE prostokąty dla `fixed`
+     i `sticky` (belka 833,4…900 px w obu wypadkach) — czyli nakładanie
+     istniało też przed zmianą, zmieniło się tylko to, czy axe je widzi:
+
+         profil własny, licznik „obserwowanych"   48 px → 14,5 px wolnego
+         dodaj przepis, pole tytułu `#f-title`    55,9 px → 10,1 px
+         ustawienia, pozycja „Zdjęcie profilowe"  40 px → 4,5 px
+
+     Trzy naruszenia to nie trzy usterki tych trzech elementów: każdy z nich
+     ma prostokąt większy niż wymagane 24 × 24 px i przechodzi 2.5.8 z samego
+     rozmiaru. To jedna cena `sticky`, płacona przez ten element, który akurat
+     wpadnie w pasek przy przewinięciu 0 — a więc zależna od długości strony,
+     nie od tych elementów. Naprawa „u każdego z trzech" byłaby przesuwaniem
+     treści do czasu, aż w pasek wpadnie czwarty. Dlatego belka wraca do
+     `fixed`, a rezerwa jest liczona i pilnowana, zamiast wynikać z układu. */
   :root {
-    scroll-padding-bottom: 13rem;
+    --rezerwa-pod-belka: 8rem;
+  }
+
+  @media (max-width: 15rem) {
+    :root {
+      --rezerwa-pod-belka: 13rem;
+    }
   }
 
   @media (min-width: 64rem) {
     /* Belka znika od 64rem (patrz reguła niżej) — rezerwa nie ma tam czego
        chronić i tylko przesuwałaby przewijanie do zakotwiczeń o zbędny
-       margines. */
+       margines. Reguła stoi PO progu `15rem`, żeby przy zwykłym korzeniu
+       wygrywała ona, a nie tamten. */
     :root {
-      scroll-padding-bottom: 0;
+      --rezerwa-pod-belka: 0rem;
     }
   }
 
+  /* Rezerwa dla PRZEWIJANIA DO CELU. Samo miejsce na końcu dokumentu (niżej,
+     przy `.site-footer`) ratuje tylko ostatni ekran; przewijanie fokusu
+     w widok, które przeglądarka robi sama po Tab, liczy się do krawędzi
+     okna i nie wie, że w tym miejscu ekranu coś stoi na wierzchu.
+     `scroll-padding-bottom` to jest właśnie mechanizm CSS na tę różnicę.
+     Nic nie rysuje — działa wyłącznie przy celowanym przewijaniu — więc
+     kosztuje tyle, ile jest wart. */
+  :root {
+    scroll-padding-bottom: var(--rezerwa-pod-belka);
+  }
+
   .bottom-nav {
-    position: sticky;
+    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
@@ -2317,10 +2387,24 @@
    * treść jest krótka, więc to `margin-top` na samej stopce, niezależny od
    * tego, ile miejsca zajęła kolumna nad nią.
    */
+  /* Dolne wypełnienie stopki to REZERWA POD PRZYPIĘTĄ BELKĄ, nie ozdoba.
+     Stopka jest ostatnim elementem dokumentu, więc to jej wypełnienie
+     decyduje o tym, czy treść da się wyprowadzić spod paska na końcu
+     strony. Wyprowadzenie wartości i zmierzone wysokości belki stoją przy
+     `--rezerwa-pod-belka` wyżej. Do 10 września stało tu `--spacing-20`
+     (80 px): wystarczało przy zwykłym tekście i przestawało wystarczać już
+     przy naszym ustawieniu „tekst 140%" (belka 105,5 px).
+
+     Rezerwa jest JEDNA DLA WSZYSTKICH, także dla gościa, który dolnej belki
+     nie ma (`@auth` w `layout.blade.php`). Warunkowanie jej klasą układu
+     gościa rozdzieliłoby jeden token na dwie różne wartości dla dwóch jego
+     zastosowań (wypełnienie stopki dziedziczy po `body`, a
+     `scroll-padding-bottom` rozwiązuje się na `:root`), czyli zamieniłoby
+     48 px pustego miejsca na dole stopki na pułapkę do nadepnięcia. */
   .site-footer {
     margin-top: var(--spacing-12);
     border-top: 1px solid var(--color-border);
-    padding: var(--spacing-8) var(--spacing-4) var(--spacing-20);
+    padding: var(--spacing-8) var(--spacing-4) var(--rezerwa-pod-belka);
     background-color: var(--color-surface-raised);
   }
 

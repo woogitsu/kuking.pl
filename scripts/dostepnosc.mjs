@@ -1690,11 +1690,25 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
    najmocniejsza rekomendacja) wskazał lukę: `.bottom-nav` jest
    `position: fixed` i ma `flex-wrap: wrap` (patrz komentarz przy tej klasie
    wyżej w `app.css`) — przy dużym tekście belka może urosnąć do dwóch albo
-   trzech wierszy. Rezerwa pod treścią w `.app-main` jest jednak STAŁĄ
-   wartością (`--spacing-20`, 80 px), nie rzeczywistą wysokością belki.
-   Gdy belka urośnie powyżej tej rezerwy, treść przewija się POD nią —
-   a fokus klawiaturowy, który przeglądarka sama przewija w widok, może
-   wylądować w całości za paskiem.
+   trzech wierszy. Rezerwa na końcu dokumentu (dolne wypełnienie
+   `.site-footer`) była jednak STAŁĄ wartością `--spacing-20` (80 px), nie
+   wynikającą z rzeczywistej wysokości belki. Gdy belka urośnie powyżej tej
+   rezerwy, treść przewija się POD nią — a fokus klawiaturowy, który
+   przeglądarka sama przewija w widok, może wylądować w całości za paskiem.
+
+   CO TO SPRAWDZENIE ZASTAŁO, A CO PILNUJE PO POPRAWCE. Zmierzone tym
+   skryptem, ekrany niżej, warianty niżej:
+
+       przed poprawką   242 kontrolki zasłonięte w 100% (1 pod `.bottom-nav`,
+                        241 pod `.topbar` przy czcionce przeglądarki 200%)
+       po poprawce      0
+
+   Obie belki zostają w tym pomiarze BLOKUJĄCE — także `.topbar`, bo została
+   naprawiona razem z dolną, a nie odłożona. Naprawy są dwie i obie stoją
+   w `app.css`: rezerwa `--rezerwa-pod-belka` policzona pod zmierzone
+   wysokości dolnej belki oraz odpięcie `.topbar` przy `max-width: 15rem`,
+   czyli tam, gdzie przypięty pasek zabierałby ponad trzecią część ekranu.
+   Uzasadnienia obu (z liczbami) stoją przy tych regułach.
 
    DLACZEGO ELEMENTFROMPOINT, A NIE SAMO PRZECIĘCIE PROSTOKĄTÓW
    Sam przecinający się prostokąt nie znaczy "zasłonięty": `.skip-link` ma
@@ -1801,24 +1815,48 @@ async function przejdzTabemIZmierzFocus(strona) {
 
         if (ramka.width === 0 || ramka.height === 0) return 0;
 
+        /*
+         * SIATKĘ ROZKŁADAMY NA CZĘŚCI WIDOCZNEJ, NIE NA CAŁYM PROSTOKĄCIE.
+         *
+         * Pierwsza wersja rozkładała 4×4 punkty na całej ramce kontrolki
+         * i POMIJAŁA te, które wypadły poza okno. Przy kontrolce WYŻSZEJ
+         * NIŻ OKNO zostawał z tego jeden rząd próbek w zupełnie przypadkowym
+         * miejscu. Zmierzone na `/home` przy 320 px i czcionce przeglądarki
+         * 200%: odnośnik „Dodaj zdjęcie tego dnia" ma tam 2087,1 px wysokości
+         * (ramka od -882 do 1205,1 px), a z czterech rzędów siatki w oknie
+         * leżał JEDEN — ten na wysokości 422,4 px, czyli wewnątrz dolnej
+         * belki. Wynik: „zasłonięte w 100%" dla kontrolki, której 364 px
+         * widać nad belką jak na dłoni. To jest FAŁSZYWY ALARM, i to
+         * dokładnie tej klasy, przed którą ostrzega zlecenie audytu:
+         * kryterium 2.4.11 mówi „not entirely hidden", a kontrolka wyższa
+         * od okna nie może być schowana w całości pod belką, która zajmuje
+         * część okna.
+         *
+         * Przycięcie ramki do okna PRZED rozłożeniem siatki daje próbki
+         * reprezentatywne dla tego, co człowiek naprawdę widzi, niezależnie
+         * od wysokości kontrolki. Część poza oknem to inny problem
+         * (przewinięcie poza widok) i pozostaje poza zakresem tego
+         * sprawdzenia — tak jak dotąd.
+         */
+        const lewa = Math.max(ramka.left, 0);
+        const gora = Math.max(ramka.top, 0);
+        const prawa = Math.min(ramka.right, innerWidth);
+        const dol = Math.min(ramka.bottom, innerHeight);
+
+        // Kontrolka w całości poza oknem — nie ma czego mierzyć.
+        if (prawa <= lewa || dol <= gora) return null;
+
         // Siatka 4×4: dość gęsto, żeby złapać częściowe pokrycie, dość
         // rzadko, żeby nie mnożyć kosztu `elementFromPoint` na setkach
         // kroków Taba.
         const SIATKA = 4;
-        let probek = 0;
         let zaslonietych = 0;
 
         for (let iy = 0; iy < SIATKA; iy++) {
           for (let ix = 0; ix < SIATKA; ix++) {
-            const x = ramka.left + (ramka.width * (ix + 0.5)) / SIATKA;
-            const y = ramka.top + (ramka.height * (iy + 0.5)) / SIATKA;
+            const x = lewa + ((prawa - lewa) * (ix + 0.5)) / SIATKA;
+            const y = gora + ((dol - gora) * (iy + 0.5)) / SIATKA;
 
-            // Punkt poza oknem nie mówi nic o nakładce — to jest inny
-            // problem (przewinięcie poza widok), poza zakresem tego
-            // sprawdzenia.
-            if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
-
-            probek++;
             const trafiony = document.elementFromPoint(x, y);
 
             if (trafiony && nakladka.contains(trafiony) && !el.contains(trafiony)) {
@@ -1827,7 +1865,10 @@ async function przejdzTabemIZmierzFocus(strona) {
           }
         }
 
-        return probek === 0 ? null : zaslonietych / probek;
+        // Wszystkie próbki leżą teraz w oknie, więc mianownik jest stały —
+        // licznik odrzuconych punktów, który stał tu wcześniej, nie miałby
+        // już czego liczyć.
+        return zaslonietych / (SIATKA * SIATKA);
       }
 
       const opis = `${el.tagName.toLowerCase()}`
