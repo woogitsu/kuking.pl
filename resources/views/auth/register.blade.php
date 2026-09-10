@@ -19,7 +19,7 @@
              informacją, którą trzeba komuś podawać z góry. --}}
         <x-field name="username" label="Nazwa, która będzie w adresie Twojego profilu" required
                  autocomplete="username" placeholder="Basia z Podkarpacia"
-                 help="Może być imię, przezwisko albo imię i miejscowość. Polskie litery i spacje są w porządku — poprawimy zapis za Ciebie." />
+                 help="Podpowiadamy ją z Twojego imienia — możesz zostawić albo wpisać własną. Polskie litery i spacje są w porządku, zapis poprawimy za Ciebie." />
 
         <x-field name="email" label="Twój adres e-mail" type="email" required
                  autocomplete="email"
