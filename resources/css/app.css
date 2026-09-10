@@ -825,6 +825,110 @@
     font-weight: 600;
   }
 
+  /* =========================================================================
+     TRYB PANELU — MENU BEZ RZECZY UŻYTKOWNIKA
+     (dopisek dla scalania: blok dodany po sekcji „Panel moderacji" wyżej,
+     osobno od niej — nie zmienia ani jednej jej reguły.)
+
+     Prośba właściciela: „dać oddzielny przycisk, który pokaże tylko menu
+     admina, bez przycisków typowych dla użytkownika (moje, profil itp.)".
+     Tryb bierze się ze ŚCIEŻKI (`/admin/**`), a nie z przełącznika w JS ani
+     ze stanu w sesji — powody stoją w `components/layout.blade.php`.
+
+     Znacznik robi całą robotę: w trybie panelu pozycji użytkownika po prostu
+     NIE MA w HTML-u. Ten CSS dokłada trzy rzeczy, których znacznik nie umie:
+       1. wejście i wyjście wyglądają jak przyciski, a nie jak jeszcze jedna
+          pozycja listy (`.side-nav-wejscie`, `.side-nav-powrot`);
+       2. grupa panelu bez sąsiadów nie ciągnie za sobą kreski „oddzielam się
+          od tego, co wyżej";
+       3. na TELEFONIE menu panelu jest widoczne, choć zwykłe menu boczne jest
+          tam schowane — inaczej moderator na telefonie nie miałby jak przejść
+          między ekranami panelu.
+
+     TRYB ROZPOZNAJEMY PO ATRYBUCIE `[data-tryb-panelu]` NA `<nav class="side-nav">`,
+     nie po dodatkowej klasie: `class="side-nav"` musi zostać dosłownie takie,
+     jakie było, bo testy nawigacji wycinają menu ze strony po tym tekście
+     (uzasadnienie przy samym znaczniku w `components/layout.blade.php`).
+     Atrybut jako nośnik STANU to zresztą wzorzec, który w tym arkuszu już
+     jest — `data-theme`, `data-text-scale`, `[aria-current="page"]`.
+     ========================================================================= */
+
+  /* Wejście i wyjście: `<a>` bez `<li>` wokół, bo to nie jest pozycja spisu
+     ekranów, tylko pojedyncza akcja. Wygląd bierze z `.side-nav-item`
+     (48 px pola kliknięcia, 18 px tekstu, ikona z podpisem), a różni się
+     ramką i tłem — na tyle, żeby dało się to rozpoznać jako przycisk, i na
+     tyle mało, żeby nie krzyczało. */
+  .side-nav-wejscie,
+  .side-nav-powrot {
+    border: 2px solid var(--color-accent);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    font-weight: 700;
+  }
+
+  /* Wejście stoi POD spisem ekranów panelu, więc potrzebuje odstępu od niego.
+     Wyjście stoi NAD grupą panelu i odstęp dostaje z drugiej strony. */
+  .side-nav-wejscie {
+    margin-top: var(--spacing-2);
+  }
+
+  .side-nav-powrot {
+    margin-bottom: var(--spacing-4);
+  }
+
+  /* Grupa panelu jako jedyna rzecz w menu — bez kreski i odstępu nad sobą.
+     Reguła NIE dubluje `.side-nav-moderacja`, tylko zdejmuje z niej to jedno,
+     co ma sens wyłącznie wtedy, gdy nad grupą coś stoi. */
+  .side-nav[data-tryb-panelu] .side-nav-moderacja {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  /* --- TELEFON (poniżej 64rem) -------------------------------------------
+     `.side-nav { display: none }` wyżej schowa na telefonie zwykłe menu
+     boczne, bo tam nawigację niesie pasek dolny. Menu PANELU jest w innej
+     sytuacji: pasek dolny ma na telefonie pięć pozycji, ekranów panelu jest
+     ich sześć i będzie więcej, a AGENTS.md §5 pozwala na pasku dolnym
+     najwyżej pięć. Panel dostaje więc na telefonie zwykłą, pionową listę
+     nad treścią ekranu — bez skryptu, bez rozwijania, bez gestu.
+
+     Poniżej 64rem `.app-body` nie jest siatką, więc ta lista renderuje się
+     jako blok na całą szerokość; wcięcia poziome bierze takie same jak
+     `.app-main`, żeby napisy nie dotykały krawędzi ekranu.
+
+     Nadpisania `display` NIE trzeba pisać dla desktopu: od 64rem
+     `.side-nav` dostaje `display: flex` regułą spoza tej warstwy
+     (`@layer`), a warstwa zawsze przegrywa z regułą nieuwarstwioną —
+     czyli desktop zostaje dokładnie taki, jaki był. */
+  @media (max-width: 63.999rem) {
+    .side-nav[data-tryb-panelu] {
+      display: block;
+      padding: var(--spacing-5) var(--spacing-4) 0;
+    }
+
+    /* Spis ekranów panelu w dwóch kolumnach, jeśli szerokość na to pozwala:
+       sześć pozycji jedna pod drugą to na telefonie pół ekranu przewijania,
+       zanim widać treść. `auto-fit` z `minmax(11rem, …)` sam schodzi do jednej
+       kolumny na najwęższych ekranach (320 px), więc żaden napis nie zostaje
+       ucięty ani zwężony poniżej swojej treści. */
+    .side-nav[data-tryb-panelu] .side-nav-moderacja-lista {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      gap: var(--spacing-1);
+      padding: var(--spacing-1);
+    }
+  }
+
+  /* Pasek dolny w trybie panelu ma JEDNĄ pozycję (wyjście) na całą szerokość
+     — `.bottom-nav-item` ma `flex: 1 1 4rem`, więc sam się rozciąga. Zostaje
+     wyśrodkowanie napisu razem z ikoną, bo pojedyncza pozycja na 400 px
+     wyglądałaby inaczej niż wszystko inne w tym pasku. Reszta wyglądu
+     (pozycja, tło, kreska, bezpieczny obszar na dole) jest wspólna
+     z `.bottom-nav` i nie powtarzamy jej tutaj. */
+  .bottom-nav-panel {
+    justify-content: center;
+  }
+
   /* ---------------------------------------------------------------------
      Komunikaty
      --------------------------------------------------------------------- */

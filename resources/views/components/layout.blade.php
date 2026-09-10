@@ -58,6 +58,38 @@
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
     // ------------------------------------------------------------------
+    //  TRYB PANELU — MENU BEZ RZECZY UŻYTKOWNIKA (prośba właściciela:
+    //  „dać oddzielny przycisk, który pokaże tylko menu admina, bez
+    //  przycisków typowych dla użytkownika (moje, profil itp.)").
+    //
+    //  TRYB WYNIKA ZE ŚCIEŻKI, NIE Z PRZEŁĄCZNIKA. Jesteś na `/admin/**`
+    //  — widzisz menu panelu; wychodzisz z `/admin/**` — widzisz menu
+    //  serwisu. Nie ma tu ani skryptu, ani stanu w sesji, i to jest wybór,
+    //  nie lenistwo:
+    //
+    //    * bez JavaScriptu (AGENTS.md §5) — przełącznik trzymany w JS
+    //      przestaje istnieć dokładnie wtedy, gdy skrypt się nie dociągnie;
+    //    * stan zapamiętany w sesji potrafi się ZACIĄĆ: moderator, który raz
+    //      „wszedł w tryb panelu", wracał na `/home` i dalej widziałby menu
+    //      panelu, bo tak stoi w sesji. Wtedy potrzebny jest drugi mechanizm
+    //      na odzyskanie normalnego menu — a on też może się zaciąć;
+    //    * ten sam adres pokazuje tym samym oczom to samo, więc opis
+    //      „kliknij Zgłoszenia w menu" jest prawdziwy dla każdego. Adres
+    //      wklejony z powiadomienia trafia od razu w tryb panelu.
+    //
+    //  KOSZT, KTÓRY PRZYJMUJEMY ŚWIADOMIE: „Powiadomienia" i „Ustawienia"
+    //  nie są ekranami `/admin/**`, więc kliknięcie ich wychodzi z trybu
+    //  panelu. Powrót to jedno kliknięcie („Otwórz panel moderacji" stoi
+    //  w menu serwisu), a alternatywą byłby stan w sesji z jego zacięciami.
+    //
+    //  `isModerator()` w warunku jest istotne dla BEZPIECZEŃSTWA: bez niego
+    //  wystarczyłoby, żeby ktokolwiek trafił na trasę `admin.*`, by dostać
+    //  inne menu. Zwykły użytkownik i gość dostają z `/admin/**` 404
+    //  (`EnsureUserIsModerator`) i w ich HTML-u nie ma ani jednego śladu
+    //  panelu — pilnuje tego `TrybPaneluWMenuTest`.
+    $wTrybiePanelu = $user?->isModerator() === true && request()->routeIs('admin.*');
+
+    // ------------------------------------------------------------------
     //  KARTA DO WYSŁANIA RODZINIE (issue #14)
     //
     //  Link do przepisu wklejony w Messengera albo WhatsAppa pokazywał
@@ -288,14 +320,62 @@
                     zakładką feedu („Obserwowani / Odkrywaj") — czyli stoi
                     tam, gdzie się go używa, a nie w osobnym menu.
                 --}}
-                <nav class="side-nav" aria-label="Nawigacja główna">
-                    <ul class="stack-tight list-none p-0 m-0">
-                        <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
-                        <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
-                        <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
-                    </ul>
+                {{--
+                    TRYB SIEDZI W ATRYBUCIE `data-`, NIE W DODATKOWEJ KLASIE.
+
+                    `class="side-nav"` musi zostać DOSŁOWNIE takie, jakie było:
+                    testy nawigacji (`NawigacjaAktywnaPozycjaTest`,
+                    `PanelModeracjiWMenuTest`, ten plik) wycinają menu ze strony
+                    po tekście `<nav class="side-nav"` — druga klasa w tym
+                    atrybucie wywraca je wszystkie i to jest jedyne, co po sobie
+                    zostawia (zmierzone: trzy testy „Brak nawigacji bocznej").
+
+                    Stan opisany atrybutem to zresztą wzorzec, który w tym
+                    arkuszu już jest: `data-theme`, `data-text-scale`,
+                    `.side-nav-item[aria-current="page"]`. Klasa mówi, CZYM
+                    element jest; atrybut — w jakim jest stanie.
+                --}}
+                <nav class="side-nav" @if($wTrybiePanelu) data-tryb-panelu @endif aria-label="{{ $wTrybiePanelu ? 'Nawigacja panelu moderacji' : 'Nawigacja główna' }}">
+                    {{--
+                        W TRYBIE PANELU TEJ PIĄTKI NIE MA (prośba właściciela:
+                        „menu admina bez przycisków typowych dla użytkownika —
+                        moje, profil itp."). Nie jest to ukrycie na niby: te
+                        pozycje NIE trafiają do HTML-a, więc nie da się do nich
+                        dojść tabulatorem ani czytnikiem ekranu, a menu panelu
+                        ma tyle pozycji, ile naprawdę widać.
+
+                        Ekrany serwisu są stąd o jedno kliknięcie: „Wróć do
+                        Kuking" niżej prowadzi na Start, czyli tam, gdzie ta
+                        piątka znowu stoi w komplecie.
+                    --}}
+                    @if($wTrybiePanelu)
+                        {{--
+                            WYJŚCIE Z TRYBU — PIERWSZA POZYCJA MENU, nie ostatnia.
+
+                            Stoi nad narzędziami, bo to jedyna droga z powrotem
+                            do serwisu i musi być widoczna bez przewijania —
+                            także na telefonie, gdzie to menu renderuje się nad
+                            treścią ekranu. „Wróć do Kuking", nie „Wyjdź":
+                            mówimy, DOKĄD to prowadzi, a nie czego się pozbywamy.
+
+                            Ikona „home" jest tu prawdziwa, nie ozdobna — ten
+                            odnośnik prowadzi dokładnie tam, gdzie pozycja
+                            „Start". Podpis obok, jak wszędzie (AGENTS.md §5).
+
+                            Bez `aria-current`: to nie jest bieżący ekran.
+                        --}}
+                        <a class="side-nav-item side-nav-powrot" href="{{ route('home') }}">
+                            <x-ikona nazwa="home" /> Wróć do Kuking
+                        </a>
+                    @else
+                        <ul class="stack-tight list-none p-0 m-0">
+                            <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
+                            <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
+                            <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
+                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
+                            <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
+                        </ul>
+                    @endif
 
                     @if($user->isModerator())
                         {{--
@@ -335,6 +415,11 @@
                             wyższą specyficzność niż kolor tej sekcji i nadpisuje
                             go tak samo jak dotąd.
                         --}}
+                        {{-- Znacznik grupy zostaje BEZ ZMIAN. Wygląd w trybie
+                             panelu (grupa jest wtedy jedyną rzeczą w menu, więc
+                             kreska „oddzielam się od tego, co wyżej" nie ma czego
+                             oddzielać) bierze się z `[data-tryb-panelu]` na
+                             `<nav>` wyżej — patrz app.css. --}}
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
                             <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
                             <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
@@ -356,10 +441,62 @@
                                      i inna praca (patrz `WiadomosciController`). --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
                             </ul>
+
+                            {{--
+                                WEJŚCIE W TRYB PANELU — OSOBNA POZYCJA, NIE NAGŁÓWEK
+                                SEKCJI (prośba właściciela: „dać oddzielny przycisk,
+                                który pokaże tylko menu admina").
+
+                                DLACZEGO NIE ZROBILIŚMY ODNOŚNIKA Z NAGŁÓWKA „Panel
+                                moderacji": ten `<h2>` jest nazwą grupy dla czytnika
+                                ekranu (`aria-labelledby` wyżej). Nagłówek, który
+                                jednocześnie jest odnośnikiem, czyta się jako
+                                „Panel moderacji, link, grupa Panel moderacji" —
+                                jedno słowo w trzech rolach. Do tego etykieta grupy
+                                MUSI zostać etykietą (opisuje sześć pozycji pod
+                                spodem), a przycisk MUSI mówić, co zrobi po
+                                kliknięciu — a to są dwa różne teksty. Osobna,
+                                48-pikselowa pozycja z własnym podpisem robi obie
+                                rzeczy uczciwie i nikomu nic nie zabiera.
+
+                                DOKĄD PROWADZI: na „Zgłoszenia". Panel nie ma ekranu
+                                startowego (nie ma trasy `admin.index` i tego PR-a
+                                tras nie dotyka), a kolejka zgłoszeń jest tym, po co
+                                moderator wchodzi do panelu najczęściej. Jak tylko
+                                taki ekran powstanie, zmienia się tu jedna trasa.
+
+                                Bez `aria-current` — ten odnośnik nigdy nie wskazuje
+                                bieżącego ekranu, bo w trybie panelu w ogóle znika
+                                (a poza nim żaden ekran serwisu nim nie jest).
+                            --}}
+                            @unless($wTrybiePanelu)
+                                <a class="side-nav-item side-nav-wejscie" href="{{ route('admin.reports') }}">
+                                    <x-ikona nazwa="shield" /> Otwórz panel moderacji
+                                </a>
+                            @endunless
                         </div>
                     @endif
 
-                    {{-- Dół kolumny: obsługa konta, nie treść. --}}
+                    {{--
+                        Dół kolumny: obsługa konta, nie treść.
+
+                        CO ZOSTAJE W TRYBIE PANELU I DLACZEGO:
+                        * „Powiadomienia" — tam przychodzą zgłoszenia i odpowiedzi
+                          w sprawach moderacyjnych, więc dla moderatora to jest
+                          narzędzie pracy, nie dodatek do konta;
+                        * „Ustawienia" — `/admin/**` wymaga weryfikacji dwuetapowej
+                          (`EnsureModeratorHasTwoFactor`), a włącza się ją właśnie
+                          w ustawieniach. Menu, które odcina od 2FA, potrafiłoby
+                          zamknąć moderatora przed panelem, do którego właśnie
+                          próbuje wejść;
+                        * „Wyloguj się" — z każdego ekranu serwisu da się wyjść
+                          z konta i tryb panelu nie jest tu wyjątkiem.
+
+                        WYPADA „Napisz do nas": to formularz dla użytkownika, który
+                        potrzebuje pomocy. Moderator w panelu jest po drugiej
+                        stronie tego formularza — jego kolejka nazywa się
+                        „Wiadomości do nas" i stoi wyżej, w samym panelu.
+                    --}}
                     <ul class="stack-tight list-none p-0 m-0 side-nav-dol">
                         <li><a class="side-nav-item" href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.*')) aria-current="page" @endif>
                             <x-ikona nazwa="bell" /> Powiadomienia
@@ -374,7 +511,9 @@
                              a nie na jego dole — a stopka na desktopie bywa
                              pod długim feedem. Ikona ma podpis, jak każda
                              pozycja tej nawigacji (AGENTS.md §5). --}}
-                        <li><a class="side-nav-item" href="{{ route('kontakt') }}" @if(request()->routeIs('kontakt*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Napisz do nas</a></li>
+                        @unless($wTrybiePanelu)
+                            <li><a class="side-nav-item" href="{{ route('kontakt') }}" @if(request()->routeIs('kontakt*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Napisz do nas</a></li>
+                        @endunless
                         {{-- Wylogowanie stoi na samym dole sekcji „obsługa
                              konta", bo to ostatnia rzecz, jaką się tu robi.
                              Ten sam składnik co na własnym profilu — patrz
@@ -606,6 +745,33 @@
     </div>
 
     @auth
+        @if($wTrybiePanelu)
+            {{--
+                TELEFON W TRYBIE PANELU — PASEK DOLNY MA JEDNO ZADANIE: WYJŚCIE.
+
+                Zwykła piątka (Start, Szukaj, Dodaj, Moje, Profil) to dokładnie
+                te przyciski, których w tym trybie ma nie być — zostawienie ich
+                na telefonie znaczyłoby, że prośba właściciela jest spełniona
+                tylko na dużym ekranie.
+
+                Ale pasek dolny nie może po prostu zniknąć: to na telefonie
+                jedyne miejsce w zasięgu kciuka i jedyna nawigacja, jaką widać
+                bez przewijania na sam dół. Zostaje więc z jedną pozycją —
+                wyjściem — na całą szerokość. Moderator nie zostaje w trybie
+                panelu zamknięty.
+
+                Same ekrany panelu są na telefonie osiągalne z menu nad treścią:
+                `.side-nav-tryb-panelu` jest tam widoczne (patrz app.css) —
+                inaczej niż zwykłe menu boczne, którego na telefonie nie ma.
+                To jest przy okazji pierwsza sensowna nawigacja po panelu
+                na telefonie w ogóle: dotąd nie było żadnej.
+            --}}
+            <nav class="bottom-nav bottom-nav-panel" aria-label="Wyjście z panelu moderacji">
+                <a class="bottom-nav-item" href="{{ route('home') }}">
+                    <x-ikona nazwa="home" class="bottom-nav-icon" :rozmiar="26" /> Wróć do Kuking
+                </a>
+            </nav>
+        @else
         <nav class="bottom-nav" aria-label="Nawigacja główna">
             <a class="bottom-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>
                 <x-ikona nazwa="home" class="bottom-nav-icon" :rozmiar="26" /> Start
@@ -626,6 +792,7 @@
                 <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil
             </a>
         </nav>
+        @endif
     @endauth
 
     @if($livewire)
