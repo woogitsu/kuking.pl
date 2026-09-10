@@ -119,6 +119,13 @@ agenta miały **zero** przebiegów checków, a te same gałęzie po moim pushu
 dostawały pełny zestaw. Obejście: `git merge origin/main` i push (i tak
 potrzebne). PR bez checków nie znaczy „CI padło".
 
+Do czekania na wynik CI jest [`scripts/stan-ci.sh`](../../scripts/stan-ci.sh)
+(`scripts/stan-ci.sh <sha> [liczba prób]`). Wymaga `GITHUB_TOKEN` w środowisku
+i **świadomie** żąda, żeby wszystkie siedem nazwanych jobów było `completed`
+i `success`/`skipped`. Mój pierwszy, naiwny wariant tej pętli odpowiedział raz
+„ZIELONE" na odpowiedź API, w której wszystko dopiero stało w kolejce — dlatego
+skrypt sprawdza nazwy jobów z listy, a nie „czy cokolwiek jest zielone".
+
 ---
 
 ## 1. Z kim pracujesz
@@ -315,6 +322,143 @@ serwisem.
 - **Zmiany gramatyczne w dokumentach prawnych scalone za jego zgodą**, po tym
   jak sprawdziłem każdą linijkę.
 - Rekrutacja testerów: „sam ogarnę".
+
+---
+
+## 8b. Przebieg sesji — co właściciel prosił i co z tego wyszło
+
+Zapisane w kolejności, bo część rzeczy jest **częściowo** zrobiona i bez tej
+listy łatwo je zgubić. „✔" = zamknięte i scalone. „◐" = w toku, jest gałąź.
+„☐" = tylko issue albo decyzja.
+
+| Prośba właściciela (jego słowami, skrótowo) | Stan | Gdzie |
+|---|---|---|
+| Newsletter marketingowy — „odpuszczamy w tej formie, rób jak zrobiłeś" | ✔ | D-059; odpowiedzią jest tygodniowy digest |
+| Zapisz w repo playbook kampanii i projekt klauzuli UGC | ✔ | `docs/marketing/KAMPANIA_GARNEK.md`, `docs/legal/LICENCJA_UGC_PROJEKT.md` |
+| Mama nie mogła założyć konta — błąd nazwy użytkownika, „ma 63 lata, nie rozumiała" | ✔ | `NazwaUzytkownika` wybacza zapis, walidacja podaje wolną propozycję |
+| „Zmienić styl i język — nie «list», tylko e-mail/wiadomość" | ✔ | wraz z powyższym |
+| „Nie dostała maila" | ✔ | rozpoznane: nie miała konta, a ekran logowania linkiem kłamał; ekran poprawiony |
+| „Te «mam co najmniej 16 lat» i regulamin są na czerwono, na to zwracają uwagę — zmienić kolor" | ✔ | zaznaczone przestaje być czerwone |
+| „System musi być debilnoodporny" | ◐ | zasada, nie zadanie; realizowana przez wszystkie poprawki UX |
+| „Musi pokazywać od razu zdjęcie, nie napis, bo starsza osoba się gubi" | ◐ | gałąź `claude/zdjecie-widac-od-razu`, **stan niepewny** |
+| „Klikając «Dodaj zdjęcie» przenosi gdzie indziej niż «Dodaj» u góry — ujednolicić" | ◐ | gałąź `claude/jedna-droga-dodawania`, **stan niepewny** |
+| „Na garnek.pl było prościej" + zrzuty | ✔ | `docs/product/PROSTOTA_JAK_GARNEK.md`, landing uproszczony |
+| „Zrób prompt dla ChatGPT na research migracji" | ✔ | wykonane, wynik w `docs/research/MIGRACJA_Z_GARNKA.md` i PR #264 |
+| „Dodaj funkcję: brak konta + logowanie linkiem → mail → zakładanie konta" | ◐ | **SZKIC bez testów**, gałąź `claude/link-prowadzi-do-rejestracji` |
+| „Trzeba dać logowanie przez Gmail, ewentualnie Facebook" | ◐ | D-069, gałąź `claude/logowanie-kontem-google`; Facebook NIE zaczęty |
+| Decyzja: rejestracja zostaje z dwoma polami, z podpowiedzią | ✔ | PR #265 |
+| Decyzja: landing — „Jak działa" pierwsze I mniej kart dla gościa | ✔ | PR #268 |
+| Decyzja: logowanie Google teraz, przed kampanią | ◐ | gałąź istnieje |
+| „Prawa kolumna źle zrobiona, miniatury w pionie, kupy się nie trzyma" | ✔ | PR #293 |
+| „Trzeba zrobić bazę podstawowych tagów na start" | ☐ | issue #273 |
+| „Jestem mężczyzną, a mam «gotowałam» — sprawdzić wszędzie" | ✔ | PR #288, 33 wystąpienia |
+| „Wpisy bez odpowiedzi w panelu to coś do przejrzenia?" | ✔ | odpowiedziane: to wszystkie opublikowane wpisy bez komentarza, kolejka opieki nad społecznością, nie moderacji. **Siedzi pod nagłówkiem PANEL MODERACJI, co kłamie o funkcji** — nie wystawione jako issue, warte wystawienia |
+| „Po «Zapisuję» nie widać, że ktoś zapisał" + decyzja „to trzeba pokazać… nie chodzi o rywalizację a docenienie" | ◐ | PR #292, czeka na CI |
+| „Za mało miejsca między «Podziel się» a «Komentarze»" | ✔ | PR #279 |
+| „Zmarnowane miejsce nad «Napisz komentarz», brak miejsca przed przyciskiem, po co «(wymagane)»" | ✔ | PR #279 |
+| „Przeczytałem powiadomienia, a dalej mam 3 nieprzeczytane" | ☐ | issue #276; **prawdziwa dziura**: powiadomienie bez „Zobacz" nie da się oznaczyć pojedynczo |
+| „Dodaj przycisk «dodaj do ulubionych», to ułatwienie dla starszych" | ☐ | issue #278; **przycisk dodający do zakładek jest technicznie niemożliwy**, mocniejsza wersja to instalacja PWA |
+| „Panel na Foldzie rozjeżdża się" + trzy zrzuty | ◐ | issue #294, gałąź `claude/panel-na-szerokim-telefonie` |
+| Trzy warstwy audytu zewnętrznego (29 raportów) | ✔ | w repo, `docs/research/audyt-2026-09-10/` |
+| „Napisz polecenie dla ChatGPT, które Ci pomoże" | ✔ | audyt kolejności blokad — treść w §12 tego dokumentu |
+| „Przekaż całą pracę innemu modelowi" | ✔ | ten dokument |
+
+**Trzy pozycje `◐` o niepewnym stanie** (`zdjecie-widac-od-razu`,
+`jedna-droga-dodawania`, `logowanie-kontem-google`) powstały u agentów, których
+zabił limit. Sprawdź je pierwszym `git log origin/claude/<gałąź>` i
+`git diff origin/main...origin/claude/<gałąź>` — nie zakładaj, że są gotowe ani
+że są puste.
+
+---
+
+## 8c. Decyzje D-070 … D-081 w jednym zdaniu każda
+
+`docs/DECISIONS.md` ma ~5800 linii. To skrót, żebyś nie musiał go czytać
+całego. **Pierwszy wolny numer: D-082.**
+
+| Nr | Rzecz | Stan |
+|---|---|---|
+| D-070 | priorytet sprawy moderacyjnej jest kolumną w bazie i wymuszoną kolejnością, `reviewing` zaczyna działać | gałąź `claude/priorytet-w-kolejce-moderacji`, **niescalona** |
+| D-071 | granica zaufania do `Host`: `X-Forwarded-Host` wypada z zaufanych nagłówków, `Host` przez `TrustHosts` | ✔ scalone |
+| D-072 | dowód zgody na digest: append-only dziennik zgód, rollback bez `DEFAULT true` | PR #270, **bez kontroli ujemnych** |
+| D-073 | orientacja PWA i jedna nazwa dla „Moje"/„Zeszyt" | gałąź `claude/pwa-orientacja-i-sitemap`, **niescalona** |
+| D-074 | zawężenie deklarowanej wersji PHP do `^8.4` | gałąź `claude/dokumentacja-nie-klamie`, **niescalona** |
+| D-075 | wymiana tokenu logowania linkiem pod blokadą wiersza konta; konflikt = ta sama neutralna odpowiedź | ✔ scalone |
+| D-076 | dobowy budżet listów jako jedna atomowa rezerwacja pod `Cache::lock()`, bez nowej tabeli | ✔ scalone |
+| D-077 | trwały klucz idempotencji digestu `(osoba, tydzień)`, rezerwacja PRZED wysłaniem; przy awarii wolimy pominięcie niż duplikat | ✔ scalone |
+| D-078 | sygnał digestu mówi „zakolejkowano"; „jeden aktywny eksport" pilnuje baza, nie `exists()` | ✔ scalone |
+| D-079 | jedna kolejność blokad na koncie + rewalidacja pod blokadą; **obowiązuje w całym repo** | ✔ scalone |
+| D-080 | blokada i obserwowanie nie mogą współistnieć: kolejność blokad na PARZE osób + wyzwalacz w bazie | ✔ scalone |
+| D-081 | licznik zapisów widoczny: autor od 1, obcy od 3, gość nigdzie; liczba, nie imiona | PR #292 |
+
+---
+
+## 8d. Jak pracować z agentami — jeśli będziesz
+
+Właściciel autoryzował w tej sesji **do 2 agentów Opus i 3 Sonnet
+jednocześnie** (wcześniej więcej). Pod koniec poprosił, żeby przestać ich
+używać z powodu limitu. **Zapytaj go, zanim odpalisz pierwszego.**
+
+Jeśli tak — brief startowy dla agenta leży w
+[`docs/zlecenia/ZASADY_AGENTA.md`](ZASADY_AGENTA.md). Wklejaj go **każdemu**,
+zamiast tłumaczyć te same rzeczy w rozmowie. Zawiera: obowiązkowy worktree
+z `cp -al vendor`, zakaz `git add -A`, wymóg kontroli ujemnej, pięć pułapek
+z pomiarami i fakty o środowisku.
+
+Co się w tej sesji sprawdziło przy briefowaniu:
+
+- **Podaj agentowi ZMIERZONY stan sprzed zmiany**, z numerami linii. Agenci,
+  którym dałem „sprawdziłem i potwierdzam, plik:linia", zaczynali od naprawy.
+  Agenci, którym dałem samą tezę audytu, tracili czas na jej weryfikację —
+  albo, gorzej, przyjmowali ją na wiarę.
+- **Napisz wprost, czego NIE wolno** i dlaczego. Trzy razy uratowało to
+  cofnięcie cudzej naprawy (`flex-wrap` przy miniaturach, `UNIQUE(user_id)`
+  przy tokenach, `min(11rem, 100%)` w panelu).
+- **Każ nazwać wybór, którego nie da się mieć w dwie strony.** Przy digeście
+  to było „nikt nie dostanie dwa razy" vs „nikt nie zostanie pominięty" —
+  agent, któremu kazałem to nazwać, rozstrzygnął i uzasadnił; bez tego
+  przemilczałby.
+- **Każ sprawdzić, co jest na `main`**, nie wierzyć briefowi. Dwa razy
+  napisałem agentowi nieprawdę o stanie `main` i jeden z nich to wychwycił.
+- **Sprawdzaj ich pracę sam, kontrolą ujemną.** W tej sesji trzy razy okazało
+  się, że test przechodzi także po zepsuciu tego, czego pilnuje. Skrypt do
+  czekania na CI: [`scripts/stan-ci.sh`](../../scripts/stan-ci.sh) — wymaga
+  wszystkich siedmiu jobów `completed`, bo naiwna wersja raz odpowiedziała
+  „ZIELONE" na joby stojące w kolejce.
+
+**Nie odpalaj agentów na to samo pole bez sprawdzenia otwartych PR-ów.** Mój
+błąd: wysłałem agenta na poprawianie rodzaju w tekstach, nie zauważywszy, że
+#254 już to robi. Wyszły dwa PR-y konfliktujące w dwudziestu miejscach.
+
+---
+
+## 8e. Inwentarz gałęzi `claude/*` — 18 na `origin`
+
+Scalone gałęzie zostają na `origin`; nie kasowałem ich. Żywe, czyli takie,
+w których jest coś niescalonego:
+
+| Gałąź | Co | Stan |
+|---|---|---|
+| `claude/widac-ze-ktos-zapisal` | licznik zapisów (#292) | testy zielone, czeka na CI |
+| `claude/audyt-60-plus-wdrozenie` | focus not obscured, belka sticky (#269) | **CI czerwone** |
+| `claude/panel-na-szerokim-telefonie` | panel na Foldzie (#294) | w toku, stan niepewny |
+| `claude/link-prowadzi-do-rejestracji` | zaproszenie do rejestracji | **SZKIC bez testów** |
+| `claude/priorytet-w-kolejce-moderacji` | D-070, priorytet w kolejce | niescalona, nieweryfikowana |
+| `claude/pwa-orientacja-i-sitemap` | D-073 | niescalona |
+| `claude/dokumentacja-nie-klamie` | D-074 + poprawki nieprawdziwych opisów | niescalona |
+| `claude/logowanie-kontem-google` | D-069 | stan niepewny |
+| `claude/jedna-droga-dodawania` | jedna droga dodawania | stan niepewny |
+| `claude/zdjecie-widac-od-razu` | zdjęcie od razu, nie napis | stan niepewny |
+| `claude/teksty-sciezki-uzytkownika` | #254 | **do przeniesienia i zamknięcia** |
+| `claude/kopia-bazy-offsite` | #213 | właściciel odłożył |
+| `claude/przekazanie-pracy` | ten dokument | #296 |
+
+**W kontenerze zostały worktree z niezacommitowanymi zmianami, których
+świadomie NIE zapisałem:** `/tmp/wt-kolejne` i `/tmp/wt-heic` mają w zmianach
+**usunięcie dokumentów, które są na `main`** — ślad po wcześniejszym
+incydencie z `git reset`. Zapisanie tego skasowałoby cudzą pracę. Jeśli
+kontener jeszcze żyje, obejrzyj je zanim znikną; jeśli nie — nic wartościowego
+nie przepadło, bo commity z tych gałęzi są wypchnięte.
 
 ---
 
