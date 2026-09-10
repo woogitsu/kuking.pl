@@ -178,7 +178,7 @@ class OdpowiedzNaWiadomoscDoNasTest extends TestCase
         $this->actingAs($moderator)
             ->get(route('admin.contact.show', $wiadomosc))
             ->assertOk()
-            ->assertSee('Ten list NIE wyszedł', false)
+            ->assertSee('Ta wiadomość NIE wyszła', false)
             ->assertDontSee('Poczta przyjęła ten list', false);
     }
 

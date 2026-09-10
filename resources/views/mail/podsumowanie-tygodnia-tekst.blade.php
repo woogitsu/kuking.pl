@@ -57,7 +57,7 @@ Dobrego tygodnia,
 {{ $gospodarz }}
 
 --
-Piszę raz w tygodniu i tylko wtedy, gdy jest o czym. Na ten list można po
+Piszę raz w tygodniu i tylko wtedy, gdy jest o czym. Na tę wiadomość można po
 prostu odpowiedzieć - czytam wszystkie odpowiedzi.
 
 Nie chcesz tych wiadomości? Wyłącz je jednym kliknięciem. Bez pytań:

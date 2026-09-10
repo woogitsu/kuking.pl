@@ -149,7 +149,7 @@ class LoginLinkController extends Controller
         if (! $this->wolnoPytacOAdres($adres)) {
             throw ValidationException::withMessages([
                 'email' => 'Wysłaliśmy już na ten adres kilka linków w krótkim czasie. '
-                    .'Sprawdź skrzynkę (także folder „Spam”), a jeśli listu nie ma — '
+                    .'Sprawdź skrzynkę (także folder „Spam”), a jeśli wiadomości nie ma — '
                     .'spróbuj za godzinę albo zaloguj się hasłem.',
             ]);
         }
@@ -159,7 +159,7 @@ class LoginLinkController extends Controller
         // adresy nie ma jak wyczerpać budżetu prawdziwym ludziom.
         if (! $budzet->jestMiejsce()) {
             return back()->with('status',
-                'Dzisiaj wysłaliśmy już wszystkie listy z linkiem, jakie mieliśmy na dziś, więc ten nie wyjdzie '
+                'Dzisiaj wysłaliśmy już wszystkie e-maile z linkiem, jakie mieliśmy na dziś, więc ten nie wyjdzie '
                 .'— nie czekaj na niego. Zaloguj się hasłem albo napisz do nas na '
                 .(string) config('kuking.community.contact_email')
                 .', a pomożemy Ci wejść na konto. Odpisuje człowiek.',
@@ -174,8 +174,22 @@ class LoginLinkController extends Controller
         // człowiek WPISAŁ — nie z bazy — więc wygląda identycznie dla adresu
         // z kontem i bez konta.
         return back()->with('status',
-            'Wysłaliśmy list na adres '.AdresEmail::maska($adres).'. Otwórz go na tym samym telefonie '
-            .'albo komputerze i kliknij zielony przycisk. Jeśli listu nie ma, sprawdź folder „Spam”.',
+            // KOMUNIKAT NIE MOŻE OBIECYWAĆ CZEGOŚ, CO SIĘ NIE STAŁO.
+            //
+            // Poprzedni mówił „Wysłaliśmy list na adres…" ZAWSZE — także dla
+            // adresu, pod którym nie ma konta, czyli wtedy, gdy nic nie
+            // wyszło. 63-letnia osoba z grupy docelowej trafiła tu przez
+            // pomyłkę zamiast na rejestrację i czekała na wiadomość, która
+            // nie miała przyjść.
+            //
+            // Jeden komunikat, zawsze ten sam — to zostaje, bo to jest
+            // ochrona przed pytaniem „kto ma konto w Kuking" (D-056). Ale
+            // zdanie jest teraz WARUNKOWE i prawdziwe w obu przypadkach,
+            // a na końcu ma wyjście dla tego drugiego.
+            'Jeśli na adres '.AdresEmail::maska($adres).' jest konto w Kuking, wysłaliśmy tam '
+            .'wiadomość z zielonym przyciskiem — otwórz ją na tym samym telefonie albo komputerze. '
+            .'Nie ma jej po kilku minutach? Sprawdź folder „Spam”. A jeśli nie masz jeszcze konta, '
+            .'załóż je: '.route('register'),
         );
     }
 
