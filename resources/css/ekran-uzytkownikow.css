@@ -121,9 +121,43 @@
     background-color: var(--color-surface-raised);
   }
 
+  /*
+   * `border-collapse: separate`, NIE `collapse` (znalezisko CI — job
+   * „Dostępność (axe-core) i wydajność (Lighthouse)" na PR #306, Chromium
+   * 153, `panel — użytkownicy` / 320 px / czcionka przeglądarki 200%:
+   * `documentElement.scrollWidth` 321 px przy oknie 320 px, jednym pikselem).
+   *
+   * ZMIERZONE PRZED TĄ ZMIANĄ, na Chromium 141 (obraz deweloperski, inna
+   * wersja niż CI): `box-sizing: border-box` jest aktywne WSZĘDZIE (reset
+   * Tailwinda, selektor `*`, sprawdzone wprost `getComputedStyle` w
+   * przeglądarce) — to WYKLUCZA jedną z trzech podejrzewanych przyczyn.
+   * Kontener (`.tabela-kont-przewijanie`) i jego rodzic (`.app-main`) liczą
+   * się co do piksela (256 = 320 − 2×32, arytmetyka na liczbach całkowitych,
+   * bez ułamka) — na Chromium 141 daje to `scrollWidth` RÓWNE `clientWidth`,
+   * zero zapasu. Lokalnie NIE DA SIĘ odtworzyć jednopikselowego przepełnienia
+   * z CI (inna wersja Chromium — patrz przekazanie), więc to nie jest dowód,
+   * że problem zniknął, tylko że nie da się go tu zobaczyć.
+   *
+   * NAJBARDZIEJ PRAWDOPODOBNA PRZYCZYNA, KTÓRĄ TA ZMIANA ZAMYKA: tabela ma
+   * border WYŁĄCZNIE na `border-bottom` komórek (żadnej pionowej krawędzi),
+   * więc `collapse` nie daje tu NIC — nie ma sąsiadujących krawędzi do
+   * złożenia w jedną linię. Ma za to udokumentowaną w spec CSS2.1 (17.6.2)
+   * właściwość uboczną: przy złożonych krawędziach zewnętrzna krawędź
+   * tabeli może wystawać o POŁOWĘ szerokości obramowania POZA nominalny
+   * box tabeli — a to jest DOKŁADNIE ten rodzaj różnicy międzywersyjnej
+   * (subpikselowe zaokrąglenie przy 2× powiększeniu), o który podejrzewał
+   * ten błąd audyt. `separate` (z `border-spacing: 0`, żeby wiersze zostały
+   * dosunięte tak jak dotąd) rysuje każdą krawędź WEWNĄTRZ komórki, nigdy
+   * poza box tabeli — usuwa mechanizm, nie tylko objaw.
+   *
+   * WYGLĄD NIE ZMIENIA SIĘ ANI TROCHĘ: skoro nie ma krawędzi pionowych ani
+   * podwójnych poziomych do złożenia, `collapse` i `separate` rysują tu
+   * dokładnie te same pojedyncze linie pod wierszami.
+   */
   .tabela-kont {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: var(--text-body);
     line-height: var(--leading-body);
   }

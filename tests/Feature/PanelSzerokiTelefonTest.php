@@ -336,4 +336,79 @@ class PanelSzerokiTelefonTest extends TestCase
         );
         $this->assertStringContainsString('type="date"', $html);
     }
+
+    /**
+     * Trzecie znalezisko — TYM RAZEM z CI, nie z lokalnego przebiegu (job
+     * „Dostępność (axe-core) i wydajność (Lighthouse)" na Chromium 153;
+     * lokalny obraz deweloperski ma Chromium 141 i tego jednego piksela NIE
+     * odtwarza — `documentElement.scrollWidth` wychodzi lokalnie RÓWNE
+     * `clientWidth`, co NIE jest dowodem, że problem zniknął, tylko że nie
+     * da się go tu zobaczyć).
+     *
+     * `panel — użytkownicy` / 320 px / czcionka przeglądarki 200%:
+     * `scrollWidth` 321 px przy oknie 320 px — jeden piksel.
+     *
+     * ZMIERZONE PRZED POPRAWKĄ: `box-sizing: border-box` jest aktywne
+     * WSZĘDZIE (reset Tailwinda, selektor `*`) — to wyklucza jedną
+     * z trzech podejrzewanych przyczyn. Kontener i jego rodzic liczą się co
+     * do piksela (256 = 320 − 2×32, bez ułamka), więc winny nie jest prosty
+     * błąd arytmetyki w tym arkuszu.
+     *
+     * NAJBARDZIEJ PRAWDOPODOBNA PRZYCZYNA: `.tabela-kont` ma border
+     * WYŁĄCZNIE na `border-bottom` komórek (żadnej krawędzi pionowej), więc
+     * `border-collapse: collapse` nie dawał tu NIC poza udokumentowanym
+     * w CSS2.1 §17.6.2 skutkiem ubocznym — przy złożonych krawędziach
+     * zewnętrzna krawędź tabeli może wystawać o połowę szerokości
+     * obramowania POZA nominalny box tabeli, co jest dokładnie tego rodzaju
+     * subpikselową różnicą międzywersyjną, o jaką podejrzewał ten błąd
+     * koordynator. `separate` rysuje każdą krawędź WEWNĄTRZ komórki.
+     *
+     * Ten test NIE dowodzi, że jeden piksel z CI zniknął (do tego trzeba
+     * Chromium z CI) — pilnuje WYŁĄCZNIE tego, że mechanizm, który go
+     * najprawdopodobniej powodował, nie wróci po cichu.
+     */
+    public function test_tabela_kont_nie_ma_zlozonych_krawedzi_ktore_moga_wystawac_poza_box(): void
+    {
+        $css = $this->cssZArkusza('ekran-uzytkownikow.css');
+        $regulaTabeli = $this->regula($css, '.tabela-kont {');
+
+        $this->assertStringContainsString(
+            'border-collapse: separate',
+            $regulaTabeli,
+            '`.tabela-kont` znowu ma `border-collapse: collapse` — tabela nie '
+            .'ma ani jednej pionowej krawędzi (border wyłącznie na '
+            .'`border-bottom`), więc `collapse` nie daje tu nic poza '
+            .'udokumentowanym w CSS2.1 ryzykiem, że zewnętrzna krawędź '
+            .'wystaje poza box tabeli.',
+        );
+        $this->assertStringContainsString(
+            'border-spacing: 0',
+            $regulaTabeli,
+            'Brak `border-spacing: 0` przy `border-collapse: separate` '
+            .'rozsunąłby wiersze — to nie byłaby już ta sama tabela.',
+        );
+
+        // Kontrola dodatnia: wygląd wiersza (border-bottom pod komórką)
+        // zostaje — to jest jedyna krawędź, jaką ta tabela w ogóle ma,
+        // i zmiana `collapse` → `separate` nie miała jej dotknąć.
+        $this->assertStringContainsString(
+            'border-bottom: 1px solid',
+            $this->regula($css, '.tabela-kont th,'),
+            'Zniknęła krawędź pod wierszem — to nie ta poprawka miała ją ruszyć.',
+        );
+
+        // Na żywo: tabela z tego arkusza faktycznie renderuje się na liście kont.
+        $html = (string) $this->actingAs($this->moderator())
+            ->get(route('admin.users'))->assertOk()->getContent();
+        $this->assertStringContainsString('class="tabela-kont"', $html);
+    }
+
+    /** Ten sam plik co `$this->css()`, ale INNY arkusz (issue #294 dotyka dwóch). */
+    private function cssZArkusza(string $plik): string
+    {
+        $sciezka = resource_path('css/'.$plik);
+        $this->assertFileExists($sciezka);
+
+        return (string) preg_replace('~/\*.*?\*/~s', '', (string) file_get_contents($sciezka));
+    }
 }
