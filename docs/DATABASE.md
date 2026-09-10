@@ -1075,11 +1075,29 @@ audyt G-08 / W5-01 / W5-02).
 |---|---|---|
 | `community` | Nasze zasady: spam, chamstwo, niebezpieczna porada. Przycisk „Zgłoś” pod treścią. | Tylko zalogowani. |
 | `legal_notice` | Treść **niezgodna z prawem** w rozumieniu DSA art. 16. | **Każdy, także bez konta.** |
+| `automat` | **Oznaczenie do przeglądu postawione przez wykrywacz sygnałów** (D-052, migracja `2026_09_09_400000_sygnaly_automatu_w_zgloszeniach`). Nikt tego nie zgłosił. | Nikt — wiersz tworzy `OznaczDoPrzegladu` z zadania `PrzeanalizujTresc`. |
 
 Nie robimy dwóch tabel, bo obie drogi kończą się tą samą decyzją moderatora,
 tym samym wpisem w `moderation_actions` i tą samą ścieżką odwołania. Dwie
 tabele znaczyłyby dwie kolejki, dwa ekrany i dwie okazje, żeby jedna z nich
 została z tyłu.
+
+#### `source = 'automat'` (D-052)
+
+Trzecia droga i **jedyna, w której nie ma człowieka po stronie zgłaszającego**.
+Nie uruchamia obowiązków z DSA art. 16 ust. 4 i 5 (potwierdzenie odbioru,
+informacja o decyzji) — nie ma komu odpowiedzieć, bo nikt nic nie zgłosił.
+
+Dwie rzeczy różnią ją od pozostałych w schemacie:
+
+- `reporter_id` jest **zawsze puste**, a `autor_tresci_id` — wypełnione
+  (kolumna dołożona tą samą migracją; `nullOnDelete`, tak jak `reporter_id`);
+- oznaczenie powstaje **najwyżej raz na treść, na zawsze** — także po
+  odrzuceniu przez moderatora. To nie jest deduplikacja, tylko obietnica:
+  „to nic takiego" ma zamknąć sprawę i automat już z tym nie wraca.
+
+Pełny opis sygnałów, progów i fałszywych alarmów:
+`docs/legal/SYGNALY_AUTOMATU.md`.
 
 Kolumny dołożone dla drogi prawnej:
 
@@ -1139,7 +1157,25 @@ której mu nie wskazano.
 | `reports_source_status_idx (source, status, created_at)` | Kolejka moderatora filtruje po źródle — zgłoszenia prawne mają termin odpowiedzi, społecznościowe nie. |
 | `reports_pending_receipt_idx` | Indeks częściowy: zgłoszenia prawne z adresem, którym jeszcze nie potwierdzono odbioru. |
 | `reports_one_open_per_pair (reporter_id, target_type, target_id)` | Indeks częściowy `WHERE reporter_id IS NOT NULL AND status IN ('open','triage','reviewing')`: jedno OTWARTE zgłoszenie na parę osoba–treść (D-027, migracja `2026_09_07_900000_one_open_report_per_pair`). Dedup w PHP już to robił w zwykłym ruchu, ale nie chronił przed seederem, komendą ani wyścigiem. Nowe zgłoszenie po zamknięciu poprzedniego przechodzi — bo zamknięte statusy są poza indeksem. **Zgłoszeń bez konta ten indeks nie obejmuje** (`reporter_id IS NULL`); te pilnuje `klucz_wyslania`. |
+| `autor_tresci_id` | Autor OZNACZONEJ treści — wypełniany **wyłącznie** przy `source = 'automat'` (D-052). FK → `users`, `nullOnDelete`: skasowanie konta nie kasuje sprawy moderacyjnej. Istnieje po to, żeby kolejka automatu grupowała po autorze bez odczytywania go z czterech różnych tabel dla każdego wiersza — dziesięć wpisów tego samego spamera ma być jedną pozycją do przejrzenia, nie dziesięcioma. |
+| `reports_source_check` (zmieniony) | `source IN ('community','legal_notice','automat')`. |
+| `reports_automat_target_check` | Oznaczenie automatu **musi** mieć cel (`target_type` inny niż `unknown`, `target_id` niepuste). Automat ogląda konkretną treść, więc wiersz bez celu znaczyłby błąd w kodzie, a nie sytuację życiową — ta sama zasada co `reports_community_target_check`. |
+| `reports_jeden_automat_na_tresc (target_type, target_id)` | Indeks częściowy `WHERE source = 'automat'`: **jedno oznaczenie na treść, na zawsze**. Warunek celowo NIE zawęża się do spraw otwartych (inaczej niż `reports_one_open_per_pair`) — tam nowe zgłoszenie po zamknięciu poprzedniego składa człowiek, który widzi coś nowego; tu wracałby ten sam automat z tym samym powodem. |
+| `reports_automat_autor_idx (autor_tresci_id, created_at DESC)` | Indeks częściowy `WHERE source = 'automat' AND status IN ('open','triage','reviewing')`: kolejka automatu grupowana po autorze. Obejmuje **tylko pozycje otwarte**, więc kolejka, którą moderator opróżnia, naprawdę tanieje. |
 | `reports_one_per_klucz_wyslania (klucz_wyslania)` | Indeks częściowy `WHERE klucz_wyslania IS NOT NULL`: jedno wysłanie formularza to jeden wiersz (D-027, migracja `2026_09_07_900300_add_klucz_wyslania_to_reports`). Bez `reporter_id` w kluczu, inaczej niż w `posts` i `cooked_events` — droga prawna jest otwarta dla osób bez konta, więc `reporter_id` bywa `NULL` i nie może być częścią warunku unikalności. |
+
+**Rollback (D-052, `2026_09_09_400000_sygnaly_automatu_w_zgloszeniach`):**
+`down()` zdejmuje oba indeksy i `reports_automat_target_check`, po czym
+**przerywa**, jeśli w tabeli są oznaczenia automatu już ROZSTRZYGNIĘTE
+(`resolved`/`rejected`) — niosą powód, dla którego moderator coś ukrył albo
+kogoś zawiesił, i są dokumentem przy odwołaniu. Strażnik stoi PRZED pierwszym
+`DELETE`, nie po nim. Oznaczenia OTWARTE giną bez pytania: nikt niczego przy
+nich nie postanowił, a automat postawi je z powrotem, gdy migracja wróci.
+Świadome wymuszenie (najpierw kopia tabeli):
+`KUKING_ROLLBACK_KASUJE_SYGNALY_AUTOMATU=1`. Wiersze w `moderation_actions`
+przeżywają skasowanie sprawy — `report_id` ma `nullOnDelete`, więc decyzja
+zostaje i traci tylko odnośnik. Sprawdza to
+`tests/Feature/CofniecieMigracjiSygnalowAutomatuTest.php`.
 
 **Rollback:** `down()` **odmawia**, gdy w tabeli są zgłoszenia prawne —
 usunięcie kolumn skasowałoby imię, adres i uzasadnienie, zostawiając samo

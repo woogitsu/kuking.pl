@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
@@ -674,6 +675,21 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::post('/zgloszenia/{report}/przywroc', [ModerationController::class, 'restore'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
+
+    /*
+     * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez
+     * wykrywacz sygnałów, których NIKT nie zgłosił.
+     *
+     * Osobny adres, bo to osobna praca: tam czekają ludzie i terminy z DSA
+     * art. 16 ust. 5, tu leżą maszynowe podejrzenia, z których większość
+     * okaże się niczym. Decyzja o pojedynczej treści zapada dalej przez
+     * `admin.reports.decide` — automat nie dostaje własnej ścieżki decyzji,
+     * bo nie ma własnego rodzaju decyzji.
+     */
+    Route::get('/sygnaly', [SygnalyController::class, 'index'])->name('admin.sygnaly');
+    Route::post('/sygnaly/odrzuc', [SygnalyController::class, 'odrzucGrupe'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.sygnaly.dismiss');
 
     /*
      * Wiadomości z „Napisz do nas" — OSOBNA kolejka, nie zakładka zgłoszeń.
