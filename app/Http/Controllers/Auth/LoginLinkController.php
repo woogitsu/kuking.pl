@@ -149,33 +149,72 @@ class LoginLinkController extends Controller
         if (! $this->wolnoPytacOAdres($adres)) {
             throw ValidationException::withMessages([
                 'email' => 'Wysłaliśmy już na ten adres kilka linków w krótkim czasie. '
-                    .'Sprawdź skrzynkę (także folder „Spam”), a jeśli listu nie ma — '
+                    .'Sprawdź skrzynkę (także folder „Spam”), a jeśli wiadomości nie ma — '
                     .'spróbuj za godzinę albo zaloguj się hasłem.',
             ]);
         }
 
-        // BUDŻET DOBOWY POCZTY — patrz `DziennyBudzetListow`. Sprawdzany
-        // PRZED wysyłką, zajmowany PO niej: automat wpisujący nieistniejące
-        // adresy nie ma jak wyczerpać budżetu prawdziwym ludziom.
-        if (! $budzet->jestMiejsce()) {
+        // BUDŻET DOBOWY POCZTY — patrz `DziennyBudzetListow`. Miejsce
+        // REZERWUJEMY (jedna atomowa operacja) PRZED wysyłką, a nie
+        // sprawdzamy teraz i zajmujemy dziesięć linii niżej: para
+        // „sprawdź, a potem zajmij" przepuszczała dwa równoległe żądania
+        // przez ostatnie wolne miejsce i wysyłała 121 listów przy suficie
+        // 120 (audyt MAIL-01/RACE-03, D-076).
+        //
+        // Rezerwacja przed wysyłką nie zjada budżetu automatom wpisującym
+        // nieistniejące adresy — miejsce, z którego nic nie wyszło, wraca
+        // niżej przez `zwolnij()`.
+        if (! $budzet->sprobujZarezerwowac()) {
             return back()->with('status',
-                'Dzisiaj wysłaliśmy już wszystkie listy z linkiem, jakie mieliśmy na dziś, więc ten nie wyjdzie '
-                .'— nie czekaj na niego. Zaloguj się hasłem albo napisz do nas na '
-                .(string) config('kuking.community.contact_email')
-                .', a pomożemy Ci wejść na konto. Odpisuje człowiek.',
+                // DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA. Rezerwacja mówi
+                // tylko „nie", a te dwa „nie" znaczą dla człowieka coś
+                // zupełnie innego: przy wyczerpanym budżecie czekanie na
+                // list jest bezcelowe, a przy ścisku na blokadzie drugie
+                // kliknięcie zwykle wystarcza. Odczyt jest tu WYŁĄCZNIE
+                // doborem treści komunikatu — o wysyłce rozstrzygnęła już
+                // linia wyżej i nic tego nie odwraca.
+                $budzet->jestMiejsce()
+                    ? 'Nie udało nam się w tej chwili wypuścić tego listu — kilka próśb trafiło na siebie '
+                        .'w tej samej sekundzie. Kliknij „Wyślij mi link” jeszcze raz. Jeśli znowu nie wyjdzie, '
+                        .'zaloguj się hasłem albo napisz do nas na '
+                        .(string) config('kuking.community.contact_email')
+                        .', a pomożemy Ci wejść na konto. Odpisuje człowiek.'
+                    : 'Dzisiaj wysłaliśmy już wszystkie e-maile z linkiem, jakie mieliśmy na dziś, więc ten nie wyjdzie '
+                        .'— nie czekaj na niego. Zaloguj się hasłem albo napisz do nas na '
+                        .(string) config('kuking.community.contact_email')
+                        .', a pomożemy Ci wejść na konto. Odpisuje człowiek.',
             );
         }
 
-        if ($wyslij->handle($adres, $request->ip())) {
-            $budzet->zajmij();
+        if (! $wyslij->handle($adres, $request->ip())) {
+            // NA TYM ADRESIE NIE MA KONTA, więc nic nie wyszło i miejsce
+            // w budżecie wraca do puli. Bez tego byle automat wpisujący
+            // nieistniejące adresy wyczerpałby dobowy sufit w kilka minut
+            // i zamknął drogę prawdziwym ludziom — pilnuje tego
+            // `test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu`.
+            $budzet->zwolnij();
         }
 
         // JEDEN KOMUNIKAT, ZAWSZE TEN SAM. Skrót adresu bierze się z tego, co
         // człowiek WPISAŁ — nie z bazy — więc wygląda identycznie dla adresu
         // z kontem i bez konta.
         return back()->with('status',
-            'Wysłaliśmy list na adres '.AdresEmail::maska($adres).'. Otwórz go na tym samym telefonie '
-            .'albo komputerze i kliknij zielony przycisk. Jeśli listu nie ma, sprawdź folder „Spam”.',
+            // KOMUNIKAT NIE MOŻE OBIECYWAĆ CZEGOŚ, CO SIĘ NIE STAŁO.
+            //
+            // Poprzedni mówił „Wysłaliśmy list na adres…" ZAWSZE — także dla
+            // adresu, pod którym nie ma konta, czyli wtedy, gdy nic nie
+            // wyszło. 63-letnia osoba z grupy docelowej trafiła tu przez
+            // pomyłkę zamiast na rejestrację i czekała na wiadomość, która
+            // nie miała przyjść.
+            //
+            // Jeden komunikat, zawsze ten sam — to zostaje, bo to jest
+            // ochrona przed pytaniem „kto ma konto w Kuking" (D-056). Ale
+            // zdanie jest teraz WARUNKOWE i prawdziwe w obu przypadkach,
+            // a na końcu ma wyjście dla tego drugiego.
+            'Jeśli na adres '.AdresEmail::maska($adres).' jest konto w Kuking, wysłaliśmy tam '
+            .'wiadomość z zielonym przyciskiem — otwórz ją na tym samym telefonie albo komputerze. '
+            .'Nie ma jej po kilku minutach? Sprawdź folder „Spam”. A jeśli nie masz jeszcze konta, '
+            .'załóż je: '.route('register'),
         );
     }
 

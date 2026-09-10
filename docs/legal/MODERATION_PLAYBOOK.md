@@ -17,7 +17,7 @@ Krótka, ludzka wersja — pisana tak, żeby 65-latek zrozumiał ją bez czytani
 > Kuking to miejsce dla ludzi, którzy naprawdę gotują. Chcemy, żeby było tu miło i bezpiecznie. Dlatego prosimy:
 >
 > 1. **Bądź sobą.** Publikuj pod prawdziwym imieniem lub pseudonimem, ale nie podszywaj się pod inną osobę.
-> 2. **Publikuj to, co zrobiłeś lub napisałeś sam.** Jeśli korzystasz z cudzego przepisu, napisz to własnymi słowami i podaj, skąd go masz. Nie wklejaj przepisów żywcem z książek czy stron internetowych.
+> 2. **Publikuj własne przepisy i teksty.** Jeśli korzystasz z cudzego przepisu, napisz to własnymi słowami i podaj, skąd go masz. Nie wklejaj przepisów żywcem z książek czy stron internetowych.
 > 3. **Publikuj swoje zdjęcia.** Nie wrzucaj zdjęć znalezionych w internecie jako swoje.
 > 4. **Szanuj innych.** Bez obrażania, wyzwisk, nękania i mowy nienawiści — nawet w komentarzach "w żartach".
 > 5. **Bez treści dla dorosłych.** Kuking jest o jedzeniu, nie o nagości ani przemocy.

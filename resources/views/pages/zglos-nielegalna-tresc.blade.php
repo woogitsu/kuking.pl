@@ -80,7 +80,7 @@
         <x-field name="target_url" label="Adres strony z tą treścią" required
                  :value="old('target_url')"
                  placeholder="https://kuking.pl/przepis/..."
-                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to widziałeś." />
+                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to jest." />
 
         <fieldset class="border-0 p-0 mt-5">
             <legend class="font-bold mb-3">Czego dotyczy zgłoszenie?</legend>
@@ -132,7 +132,7 @@
     <div class="card mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <ol class="lista-krokow">
-            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podałeś adres.</li>
+            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podasz adres.</li>
             <li>Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.</li>
             <li>Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść zostaje.
                 W takim liście będzie powód i informacja, co możesz zrobić dalej.</li>

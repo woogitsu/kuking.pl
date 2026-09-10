@@ -45,7 +45,7 @@
 
     <div class="karta">
         <p style="margin-bottom:0;">
-            To jest kopia wszystkiego, co zapisałaś w Kuking: przepisy, wpisy,
+            To jest kopia wszystkiego, co masz w Kuking: przepisy, wpisy,
             zdjęcia i notatki. Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś
             przestał istnieć. Nic tutaj nie wymaga zakładania konta.
@@ -74,7 +74,7 @@
     <h2>Twoje wpisy i wykonania</h2>
     <ul class="spis">
         <li>
-            <a href="wpisy.html">Wpisy „co dziś ugotowałam” i notatki z gotowania</a>
+            <a href="wpisy.html">Twoje wpisy i notatki z gotowania</a>
             <br><span class="podpis">
                 {{ $postCount }} {{ $odmiana($postCount, 'wpis', 'wpisy', 'wpisów') }},
                 {{ $cookedCount }} {{ $odmiana($cookedCount, 'zapisane wykonanie', 'zapisane wykonania', 'zapisanych wykonań') }}

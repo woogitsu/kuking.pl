@@ -147,7 +147,7 @@
 
                         <p style="{{ $cichy }}">
                             Piszę raz w tygodniu i tylko wtedy, gdy jest o czym.
-                            Na ten list można po prostu odpowiedzieć &mdash; czytam wszystkie odpowiedzi.
+                            Na tę wiadomość można po prostu odpowiedzieć &mdash; czytam wszystkie odpowiedzi.
                         </p>
 
                         {{--

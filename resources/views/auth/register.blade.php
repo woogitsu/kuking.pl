@@ -1,6 +1,16 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
     <h1>Zostań <x-kuking-word forma="iem" /></h1>
-    <p class="mb-5">Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia.</p>
+    {{--
+        Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking
+        pkt 3 i 9; test regresyjny: RejestracjaOnboardingKopiaTest).
+        „Cztery pola i gotowe" musi zapowiadać, co będzie DALEJ — inaczej
+        „Krok 1 z 3" zaraz potem czyta się jak „jednak coś nie wyszło".
+    --}}
+    <p class="mb-5 rejestracja-zapowiedz">
+        Cztery pola i gotowe — konto zaczyna działać od razu. Potem zapytamy jeszcze
+        o parę rzeczy, żeby dobrać Ci pierwsze wpisy, ale to całkiem opcjonalne
+        i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
+    </p>
 
     <x-error-summary />
 
@@ -11,13 +21,49 @@
                  autocomplete="name" placeholder="Basia"
                  help="Imię, przezwisko albo cokolwiek chcesz. To będzie widoczne dla innych." />
 
-        <x-field name="username" label="Twoja nazwa użytkownika" required
-                 autocomplete="username" placeholder="basia_z_podkarpacia"
-                 help="Będzie w adresie Twojego profilu. Tylko litery bez polskich znaków, cyfry i podkreślnik." />
+        {{-- POMOC MÓWI, PO CO TO POLE JEST, A NIE JAKIE ZNAKI SĄ DOZWOLONE.
+             Stary tekst („tylko litery bez polskich znaków, cyfry
+             i podkreślnik") mówił językiem reguły i odbił od rejestracji
+             63-letnią osobę z grupy docelowej. Zapis poprawia teraz serwis
+             (`NazwaUzytkownika`), więc lista dozwolonych znaków przestała być
+             informacją, którą trzeba komuś podawać z góry. --}}
+        <x-field name="username" label="Nazwa, która będzie w adresie Twojego profilu" required
+                 autocomplete="username" placeholder="Basia z Podkarpacia"
+                 help="Podpowiadamy ją z Twojego imienia — możesz zostawić albo wpisać własną. Polskie litery i spacje są w porządku, zapis poprawimy za Ciebie." />
 
-        <x-field name="email" label="Twój adres e-mail" type="email" required
-                 autocomplete="email"
-                 help="Potrzebny tylko wtedy, gdy zapomnisz hasła. Nie pokażemy go nikomu." />
+        {{--
+            ADRES Z ZAPROSZENIA NIE JEST POLEM FORMULARZA (D-085).
+
+            Kto przyszedł z linku w wiadomości, ma adres już potwierdzony —
+            i to potwierdzenie stoi na tym, że kliknął link ZE SWOJEJ skrzynki.
+            Gdyby adres dało się tu podmienić, powstałoby konto z potwierdzonym
+            adresem, którego nikt nigdy nie potwierdził. Dlatego adres nie
+            przyjeżdża z przeglądarki w ogóle: `RegisterController` bierze go
+            z wiersza w bazie wskazanego przez sesję, a to, co tu widać, jest
+            wyłącznie informacją dla człowieka. `readonly` byłoby podpowiedzią
+            dla oka, nie zabezpieczeniem.
+
+            WYJŚCIE MUSI BYĆ WIDOCZNE, bo z jednej skrzynki korzysta czasem
+            całe małżeństwo — bez niego to jest ślepa ściana (docs/UX_50_PLUS.md).
+        --}}
+        @if($zaproszenie !== null)
+            <div class="field">
+                <span class="field-label">Twój adres e-mail</span>
+                <p class="field-static"><strong>{{ $zaproszenie->email }}</strong></p>
+                {{-- BEZ RODZAJU GRAMATYCZNEGO (docs/brand/COPY_STYLE.md §2):
+                     „kliknąłeś" przypisywało czytelnikowi płeć. Rzeczownik
+                     zamiast czasownika w czasie przeszłym — i zdanie jest
+                     przy okazji krótsze. --}}
+                <span class="field-help">
+                    Ten adres jest już potwierdzony — wystarczyło kliknięcie linku z tej skrzynki,
+                    więc żadna kolejna wiadomość od nas nie musi przyjść.
+                </span>
+            </div>
+        @else
+            <x-field name="email" label="Twój adres e-mail" type="email" required
+                     autocomplete="email"
+                     help="Potrzebny tylko wtedy, gdy zapomnisz hasła. Nie pokażemy go nikomu." />
+        @endif
 
         <x-field name="password" label="Hasło" type="password" required
                  autocomplete="new-password"
@@ -44,10 +90,43 @@
 
         <x-turnstile miejsce="rejestracja" />
 
+        {{--
+            ZDANIE O BŁĘDZIE TAM, GDZIE CZŁOWIEK PATRZY, GDY KLIKA.
+
+            Podsumowanie błędów stoi na górze formularza i tak ma zostać — ale
+            po wysłaniu przeglądarka zostawia człowieka w tym samym miejscu, na
+            dole. 63-latka, która odbiła się o walidację nazwy użytkownika, nie
+            zobaczyła ani podsumowania, ani czerwonego tekstu przy polu:
+            zobaczyła to, co miała przed oczami.
+
+            JavaScript przewija teraz do podsumowania (`resources/js/app.js`),
+            ale to jest DODATEK. To zdanie jest wersją bez JavaScriptu i nie
+            wolno go usuwać razem z nim.
+        --}}
+        @if($errors->any())
+            <p class="field-error mb-4">
+                Formularz nie został wysłany —
+                <a href="#tresc">na górze jest napisane, czego jeszcze brakuje</a>.
+            </p>
+        @endif
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Załóż konto</button>
         </div>
     </form>
+
+    {{--
+        „CHCĘ KONTO NA INNY ADRES" — osobny formularz, POZA tamtym.
+        Zagnieżdżenie formularzy jest w HTML niedozwolone, a ten przycisk
+        musi być POST-em, bo zmienia stan sesji (porzuca zaproszenie).
+        Bez JavaScriptu, tak jak cała ta droga.
+    --}}
+    @if($zaproszenie !== null)
+        <form method="POST" action="{{ route('zaproszenie.porzuc') }}" class="mt-5">
+            @csrf
+            <button class="btn btn-quiet" type="submit">Chcę konto na inny adres e-mail</button>
+        </form>
+    @endif
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

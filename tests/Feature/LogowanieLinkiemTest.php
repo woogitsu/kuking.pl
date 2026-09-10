@@ -605,16 +605,34 @@ class LogowanieLinkiemTest extends TestCase
     }
 
     /**
-     * BUDŻET ZAJMUJE SIĘ DOPIERO PRZY WYSŁANYM LIŚCIE.
+     * BUDŻET ZAJMUJE SIĘ DOPIERO PRZY WYSŁANEJ WIADOMOŚCI.
      *
      * Gdyby licznik ruszał przy każdym wysłaniu formularza, byle automat
      * wpisujący nieistniejące adresy wyczerpałby dobową pulę w kilka minut
      * i zamknął drogę wszystkim prawdziwym ludziom, nie wysławszy ani
-     * jednego listu.
+     * jednej wiadomości.
+     *
+     * ══════════════════════════════════════════════════════════════════
+     *  DLACZEGO TEN TEST WYŁĄCZA ZAPROSZENIA (D-085)
+     * ══════════════════════════════════════════════════════════════════
+     *
+     * Od D-085 adres BEZ konta nie jest już adresem, na który nic nie idzie:
+     * dostaje zaproszenie do założenia konta. Wiadomość NAPRAWDĘ wychodzi,
+     * więc zajęcie miejsca w budżecie jest wtedy poprawne — i jest przy
+     * okazji tym, co domyka znane ryzyko z D-056 („kto ustawi się na
+     * ostatniej jednostce budżetu, wyczyta jeden bit o cudzym koncie").
+     *
+     * Reguła, której pilnuje ten test, obowiązuje więc tam, gdzie z adresu
+     * bez konta dalej NIC NIE WYCHODZI — czyli przy wyłączonych zaproszeniach
+     * (i tak samo po wyczerpaniu ich osobnego sufitu). Tamtą, nową połowę
+     * sprawdza `ZaproszenieDoRejestracjiTest`.
      */
     public function test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu(): void
     {
-        config(['kuking.login_link.dzienny_budzet' => 1]);
+        config([
+            'kuking.login_link.dzienny_budzet' => 1,
+            'kuking.login_link.zaproszenia.wlaczone' => false,
+        ]);
 
         $basia = $this->user('basia', ['email' => 'basia@example.com']);
 
@@ -626,6 +644,36 @@ class LogowanieLinkiemTest extends TestCase
         $this->wyslijFormularz($basia->email);
 
         Notification::assertSentTo($basia, LinkDoLogowania::class);
+    }
+
+    /**
+     * A GDY ZAPROSZENIA DZIAŁAJĄ — ADRES BEZ KONTA ZAJMUJE MIEJSCE W BUDŻECIE,
+     * BO WIADOMOŚĆ NAPRAWDĘ WYCHODZI.
+     *
+     * To nie jest złagodzenie reguły wyżej, tylko jej druga połowa: budżet
+     * liczy WYSŁANE wiadomości, a nie „wysłane do osób, które mają konto".
+     * Że przy tym ekran nie zmienia się ani o znak, pilnuje
+     * `ZaproszenieDoRejestracjiTest`.
+     */
+    public function test_z_wlaczonymi_zaproszeniami_adres_bez_konta_zajmuje_budzet(): void
+    {
+        config([
+            'kuking.login_link.dzienny_budzet' => 1,
+            'kuking.login_link.zaproszenia.wlaczone' => true,
+            'kuking.account.registration_open' => true,
+        ]);
+
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+
+        Notification::fake();
+
+        $this->wyslijFormularz('nikogo-takiego@example.com');
+        $this->wyslijFormularz($basia->email);
+
+        // Jedyne miejsce w budżecie poszło na zaproszenie — więc na link
+        // do logowania już go nie ma.
+        Notification::assertNotSentTo($basia, LinkDoLogowania::class);
+        $this->assertDatabaseHas('registration_invites', ['email' => 'nikogo-takiego@example.com']);
     }
 
     // ------------------------------------------------------------------

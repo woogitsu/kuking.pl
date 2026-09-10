@@ -11,7 +11,9 @@ namespace App\Support;
  * `komunikat` idzie do człowieka (błąd formularza albo treść wyjątku),
  * `powod` jest kodem maszynowym do sygnału `photo_upload_failed`
  * (issue #115: `unreadable|too_large|not_an_image|unsupported_format|
- * too_many_megapixels` — te trzy ostatnie stąd). Rozdzielenie ich na dwa
+ * too_many_megapixels|heic_unsupported` — te cztery ostatnie stąd;
+ * `heic_unsupported` doszedł przy #119/D-064, żeby dało się policzyć HEIC
+ * osobno od zwykłego uszkodzonego pliku). Rozdzielenie ich na dwa
  * pola zamiast wyciągania powodu z treści komunikatu jest celowe: parsowanie
  * polskiego zdania, żeby odgadnąć, co się stało, pęka przy pierwszej zmianie
  * słownictwa, o której nikt nie pomyśli, że jest kontraktem.

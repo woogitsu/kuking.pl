@@ -491,7 +491,7 @@
                      po prostu znikała ze strony. SOUL 4.2 wymienia to jako
                      ryzyko wprost i podaje ten tekst. --}}
                 <x-empty-state title="Jeszcze nikt tego nie gotował">
-                    <p class="mb-0">Będziesz pierwsza albo pierwszy?</p>
+                    <p class="mb-0">Twoje wykonanie będzie pierwsze.</p>
                 </x-empty-state>
             @endif
         </section>

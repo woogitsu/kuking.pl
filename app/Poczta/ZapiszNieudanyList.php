@@ -75,8 +75,15 @@ use Throwable;
  *    przypadku — list o awarii odbije się tak samo jak ten, o którym miał
  *    donieść, i wygeneruje własną porażkę, o której trzeba by donieść.
  *    Ślad jest więc TAM, GDZIE NIE ZALEŻY OD POCZTY: wiersz w bazie,
- *    `degraded` w `/health`, wpis `Log::error` (a stąd webhook błędów
- *    z D-041 i Sentry, jeśli są włączone). Pełne uzasadnienie: D-062 §3.
+ *    `degraded` w `/health` i wpis `Log::error` w dzienniku serwera.
+ *    UWAGA, TO BYŁO TU NAPISANE NIEPRAWDZIWIE: pierwsza wersja tego akapitu
+ *    dodawała „a stąd webhook błędów z D-041 i Sentry". Sprawdzone w kodzie
+ *    — kanał `blad_webhook` nie jest częścią stosu domyślnego
+ *    (`LOG_STACK=single`) i woła się do niego jawnie, a Sentry'ego nie ma
+ *    w `composer.json` wcale. Automatem, który zamienia `checks.listy`
+ *    w dzwonek, jest więc `/health` (od PR #255 dzwoni na ten kanał sam)
+ *    albo zewnętrzny monitoring czytający TREŚĆ odpowiedzi — nie ten wpis.
+ *    Pełne uzasadnienie i sprostowanie: D-062 §3.
  *  - PONAWIANIA. Nie budujemy drugiego systemu kolejek. Ponowienie to
  *    `php artisan queue:retry`, a komenda `kuking:nieudane-listy` mówi,
  *    czy w tym przypadku ma ono sens.
@@ -141,9 +148,10 @@ final class ZapiszNieudanyList
         $slad->save();
 
         // `error`, nie `warning`: to jest utracona wiadomość do człowieka,
-        // a nie niedogodność. Poziom `error` decyduje o tym, czy wpis pójdzie
-        // na webhook błędów (D-041) i do Sentry — czyli czy właściciel ma
-        // szansę dowiedzieć się BEZ zaglądania.
+        // a nie niedogodność. Poziom nie jest jednak drogą na webhook —
+        // ten wpis idzie do dziennika serwera i tam zostaje (sprostowanie
+        // w D-062 §3). O awarii mówi na zewnątrz `/health`, przez wiersz,
+        // który powstaje linijkę wyżej.
         //
         // W kontekście są wyłącznie rzeczy bezpieczne: kategoria, kod HTTP,
         // nazwa klasy powiadomienia, uuid zadania. Żadnego adresu, tematu ani

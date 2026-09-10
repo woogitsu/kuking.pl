@@ -38,7 +38,12 @@
         spisie ustawień, #209), i dlatego nie ma tu żadnego CSS-owego `order`.
     --}}
     <x-slot:rail>
-        <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny" :tagi="$tagiSzyny" />
+        <x-szyna-profilu
+            :profile="$p"
+            :isOwner="$isOwner"
+            :zeszyty="$zeszytySzyny"
+            :tagi="$tagiSzyny"
+            :stats="$stats" />
     </x-slot:rail>
 
     <header class="card mb-6">
@@ -166,23 +171,22 @@
                     Kolejność w HTML zostaje ta sama co dawniej, bo to ona
                     decyduje o kolejności czytania i `Tab`.
 
+                    TEN EGZEMPLARZ JEST WERSJĄ WĄSKIEGO EKRANU (D-091).
+                    Od 80rem u zalogowanego znika, bo te same liczby stoją
+                    wtedy w prawej szynie (`x-szyna-profilu`) — dzięki temu
+                    karta jest o pięć wierszy krótsza i pierwszy wpis wjeżdża
+                    wyżej. Poniżej 80rem oraz u GOŚCIA (układ `app-body-solo`
+                    nie ma trzeciej kolumny na żadnej szerokości) widać
+                    dokładnie ten egzemplarz. Para reguł, która o tym
+                    decyduje, stoi przy `.profil-liczby-*` w
+                    `ekran-profilu.css`; dlaczego dwa egzemplarze zamiast
+                    jednego przestawianego — w `x-liczby-profilu`.
+
                     §12: to są liczby o WŁASNEJ treści tej osoby, bez
                     porównania z kimkolwiek. Nie ma tu miejsca w tabeli,
                     nie ma „więcej niż 80% kuKINGów" i nie będzie.
                 --}}
-                <ul class="profil-liczniki" aria-label="Liczby tego profilu">
-                    <x-licznik-profilu rodzaj="wpisy" :ile="$stats['posts']" />
-                    <x-licznik-profilu rodzaj="przepisy" :ile="$stats['recipes']" />
-                    <x-licznik-profilu rodzaj="ugotowania" :ile="$stats['cooked']" />
-                    <x-licznik-profilu
-                        rodzaj="obserwujacy"
-                        :ile="$stats['followers']"
-                        :href="route('social.followers', $p->username)" />
-                    <x-licznik-profilu
-                        rodzaj="obserwowani"
-                        :ile="$stats['following']"
-                        :href="route('social.following', $p->username)" />
-                </ul>
+                <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
             </div>
         </div>
 
@@ -263,7 +267,7 @@
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
                            :href="$isOwner ? route('posts.create') : null">
                 @if($isOwner)
-                    Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok będziesz mogła tu wrócić i zobaczyć, co wtedy gotowałaś.
+                    Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj.
                 @endif
             </x-empty-state>
         @else

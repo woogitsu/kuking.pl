@@ -6,8 +6,10 @@ namespace Tests\Feature;
 
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -334,5 +336,148 @@ class KartaWpisuTest extends TestCase
         $this->actingAs($autor)->get(route('home'))
             ->assertOk()
             ->assertSee('publicznie', escape: false);
+    }
+
+    // -----------------------------------------------------------------
+    // Tematy wpisu na karcie (docs/product/PROSTOTA_JAK_GARNEK.md)
+    //
+    // Garnek.pl pokazywał na stronie zdjęcia listę fotoforów, do których
+    // ono trafiło. Autor u nas wybiera tagi przy publikacji od pierwszego
+    // dnia (`x-tagi-formularz`), ale karta wpisu ich nie oddawała z
+    // powrotem — jedyną drogą na stronę tagu był adres, który trzeba było
+    // już znać. Te testy pilnują, żeby to zostało naprawione WSZĘDZIE,
+    // gdzie karta stoi, i żeby naprawa nie kosztowała zapytania per wpis.
+    // -----------------------------------------------------------------
+
+    public function test_karta_pokazuje_tematy_wpisu_na_stronie_glownej(): void
+    {
+        $autor = $this->user('autorka_tagow');
+        $tag = Tag::factory()->create(['name' => 'Zupy']);
+
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
+
+        // OBSERWOWANIE JEST TU WARUNKIEM SPRAWDZANIA CZEGOKOLWIEK.
+        //
+        // Bez niego `/home` nie pokazuje feedu obserwowanych, tylko awaryjne
+        // „Świeżo z Kuking" — czyli DRUGI kod, z osobnym doładowaniem tagów.
+        // Sprawdzone kontrolą ujemną: po usunięciu `tags:id,slug,name`
+        // z `FollowingFeed` ten test przechodził dalej, bo w ogóle tamtej
+        // ścieżki nie dotykał.
+        $czytelniczka = $this->user('czytelniczka_tagow');
+        DB::table('follows')->insert([
+            'follower_id' => $czytelniczka->getKey(),
+            'followed_id' => $autor->getKey(),
+            'created_at' => now(),
+        ]);
+
+        $html = (string) $this->actingAs($czytelniczka)
+            ->get(route('home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            route('tags.show', $tag),
+            $html,
+            'Wpis z tematem nie ma na karcie odnośnika do strony tego tematu — '
+            .'dokładnie tak, jak Garnek.pl pokazywał fotofora na stronie zdjęcia.',
+        );
+        $this->assertStringContainsString('Zupy', $html);
+    }
+
+    public function test_karta_pokazuje_tematy_wpisu_w_swiezo_z_kuking(): void
+    {
+        // Świeżo z Kuking korzysta z osobnego zapytania (DiscoverFeed) —
+        // eager loading tagów tam jest osobną linijką i osobnym ryzykiem
+        // regresji niż na stronie głównej.
+        $autor = $this->user('autorka_tagow_2');
+        $tag = Tag::factory()->create(['name' => 'Zakwas']);
+
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
+
+        $this->get(route('discover'))
+            ->assertOk()
+            ->assertSee(route('tags.show', $tag), escape: false)
+            ->assertSee('Zakwas');
+    }
+
+    public function test_karta_bez_tematow_nie_pokazuje_pustej_listy(): void
+    {
+        $autor = $this->user('autorka_bez_tagow');
+        Post::factory()->create([
+            'author_id' => $autor->getKey(),
+            'body' => 'Wpis bez tematu.',
+        ]);
+
+        $html = (string) $this->actingAs($this->user('czytelniczka_bez_tagow'))
+            ->get(route('home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            'Tematy tego wpisu',
+            $html,
+            'Wpis bez tematów nie powinien pokazywać pustej listy — to jest '
+            .'zaproszenie do niczego.',
+        );
+    }
+
+    /**
+     * TRZECIA ŚCIEŻKA — archiwum profilu (`ProfileController::postsFor()`).
+     *
+     * Zwykłe `assertSee(route('tags.show', $tag))` na całej stronie profilu
+     * DAJE FAŁSZYWY POZYTYW: `ProfileController::tagiDoSzyny()` zbiera do
+     * sześciu tagów użytych w widocznych wpisach WŁAŚCICIELA i wystawia je
+     * w prawej szynie (`x-szyna-profilu`) niezależnie od tego, czy karta
+     * wpisu w ogóle pokazuje tematy. Test na całym HTML-u przechodziłby
+     * więc identycznie, nawet gdyby ten PR nic nie zmienił w karcie —
+     * dokładnie to złapała kontrola ujemna zewnętrznego przeglądu.
+     *
+     * Dwa zabezpieczenia przed tym samym błędem drugi raz:
+     *   1. Widok WŁASNEGO profilu (`isOwner === true`) — wtedy
+     *      `tagiSzyny` w kontrolerze to jawnie `collect()`, więc szyna nie
+     *      pokazuje ŻADNEGO tematu i nie może dać fałszywego pozytywu.
+     *   2. Asercja działa na WYCIĘTEJ karcie pierwszego wpisu
+     *      (`<article class="card post-card">…</article>`), nie na całej
+     *      stronie — tak samo jak `paskAkcji()` wycina tylko pasek akcji.
+     */
+    public function test_karta_pokazuje_tematy_wpisu_w_archiwum_profilu(): void
+    {
+        $autor = $this->user('autorka_tagow_profil');
+        $tag = Tag::factory()->create(['name' => 'Naleśniki']);
+
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
+
+        $html = (string) $this->actingAs($autor)
+            ->get(route('profile.show', $autor->profile->username))
+            ->assertOk()
+            ->getContent();
+
+        $karta = $this->pierwszaKartaWpisu($html);
+
+        $this->assertStringContainsString(
+            route('tags.show', $tag),
+            $karta,
+            'Karta wpisu w archiwum profilu nie ma odnośnika do strony tematu '
+            .'(sprawdzone WEWNĄTRZ karty, nie na całej stronie — prawa szyna '
+            .'profilu pokazuje własne tagi i dałaby fałszywy pozytyw).',
+        );
+        $this->assertStringContainsString('Naleśniki', $karta);
+    }
+
+    /** Wycina HTML pierwszej karty wpisu ze strony — bez reszty strony wokół niej. */
+    private function pierwszaKartaWpisu(string $html): string
+    {
+        $start = strpos($html, '<article class="card post-card">');
+
+        $this->assertNotFalse($start, 'Na stronie nie ma ani jednej karty wpisu.');
+
+        $koniec = strpos($html, '</article>', $start);
+
+        $this->assertNotFalse($koniec);
+
+        return substr($html, $start, $koniec - $start);
     }
 }

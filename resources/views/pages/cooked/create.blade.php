@@ -51,9 +51,9 @@
         </div>
 
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
-                 help="Na przykład: „Wyszło pięknie, tylko dałam mniej soli.”" />
+                 help="Na przykład: „Wyszło pięknie, tylko soli mniej.”" />
 
-        <x-field name="changes_note" label="Zrobiłem coś po swojemu?" type="textarea" :rows="3"
+        <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
                  help="Zamiana składnika, inny czas, inna forma. To najczęściej czytana część." />
 
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"

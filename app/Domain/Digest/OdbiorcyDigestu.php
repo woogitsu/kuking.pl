@@ -6,7 +6,9 @@ namespace App\Domain\Digest;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Kto w ogóle może dostać tygodniowe podsumowanie i kto dostanie je DZIŚ
@@ -148,7 +150,88 @@ final class OdbiorcyDigestu
     }
 
     /**
+     * Zajmuje dla tej osoby TYDZIEŃ — i to jest jedyne miejsce, które daje
+     * gwarancję „jeden list na tydzień" (audyt QUEUE-01 / MAIL-02 / RACE-04,
+     * `docs/DECISIONS.md` D-077).
+     *
+     * Zwraca `true`, gdy klucz udało się zająć (wolno wysyłać), i `false`,
+     * gdy ta osoba ma ten tydzień już obsłużony (trzeba ją POMINĄĆ, bez
+     * błędu i bez listu).
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DLACZEGO REZERWACJA PRZED WYSŁANIEM, A NIE ZNACZNIK PO
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Bo `Mail::queue()` jest SKUTKIEM ZEWNĘTRZNYM: po nim wiadomość już
+     * leży w kolejce i nie da się jej cofnąć. Wszystko, co ma zapamiętać, że
+     * ta osoba jest obsłużona, musi być zapisane WCZEŚNIEJ — inaczej awaria
+     * między wysłaniem a zapisem kończy się drugim listem w następnym
+     * przebiegu. Wcześniej znacznik stawiało jedno zapytanie PO CAŁEJ PĘTLI,
+     * więc okno tej awarii obejmowało całą paczkę, do sześćdziesięciu osób.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DWA ZAPISY, JEDNA TRANSAKCJA — I OBA SĄ POTRZEBNE
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * 1. WIERSZ W `weekly_digest_sends` to bariera TWARDA. `UNIQUE` na parze
+     *    (osoba, tydzień) nie ma luki między odczytem a zapisem, więc trzyma
+     *    także wtedy, gdy dwa przebiegi idą równolegle i oba przeczytały
+     *    „jeszcze nie wysłano".
+     * 2. `users.weekly_digest_sent_at` to znacznik ODSTĘPU. Po nim wybiera
+     *    się odbiorców i buduje kolejność „kto czeka najdłużej", i tylko on
+     *    umie powiedzieć „nie częściej niż raz na siedem dni" — sam tydzień
+     *    kalendarzowy pozwoliłby na list w niedzielę i w poniedziałek.
+     *
+     * Razem, w jednej transakcji, żeby nie dało się mieć jednego bez
+     * drugiego. Rozjazd tych dwóch zapisów znaczyłby albo osobę pominiętą na
+     * zawsze (jest wiersz, nie ma znacznika — kolejka stawiałaby ją co dzień
+     * na początku i co dzień odrzucała), albo tydzień policzony dwa razy.
+     *
+     * `DB::transaction()` ma tu jeszcze drugie zadanie, to samo co
+     * w `ZapiszSygnal`: gdy komenda chodzi wewnątrz szerszej transakcji
+     * (w testach opakowuje ją cała `RefreshDatabase`), odrzucony `INSERT`
+     * zatruwa na PostgreSQL CAŁĄ otaczającą transakcję — każde następne
+     * zapytanie tym połączeniem odbija się o „current transaction is
+     * aborted". Laravel otwiera wtedy SAVEPOINT, a nieudany zapis cofa
+     * wyłącznie ten SAVEPOINT, więc reszta przebiegu (kolejne osoby!) żyje.
+     * Bez tego pierwsza pominięta osoba wywracałaby całą paczkę.
+     *
+     * KONFLIKT NIE JEST BŁĘDEM. `false` znaczy „ta osoba ma ten okres
+     * obsłużony" — normalny stan przy powtórnym uruchomieniu po awarii,
+     * a nie awaria sama w sobie. Łapiemy WYŁĄCZNIE naruszenie unikalności:
+     * każdy inny błąd bazy (brak tabeli po wycofanej migracji, padłe
+     * połączenie) musi wypłynąć i zatrzymać wysyłkę, bo wtedy nie wiemy, co
+     * jest zapisane, a przy poczcie „nie wiem" znaczy „nie wysyłaj".
+     */
+    public function zarezerwuj(User $osoba, string $tydzien): bool
+    {
+        try {
+            return DB::transaction(function () use ($osoba, $tydzien): bool {
+                DB::table('weekly_digest_sends')->insert([
+                    'user_id' => $osoba->getKey(),
+                    'week_start' => $tydzien,
+                    'reserved_at' => now(),
+                ]);
+
+                $this->oznaczWyslane([$osoba]);
+
+                return true;
+            });
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
+    }
+
+    /**
      * Zapisuje, że list do tej osoby POSZEDŁ DO WYSYŁKI.
+     *
+     * WOŁA TO `zarezerwuj()` — W JEDNEJ TRANSAKCJI Z WIERSZEM REZERWACJI,
+     * osobno dla każdej osoby, PRZED wysłaniem listu. Kiedyś to zapytanie
+     * szło raz, po całej pętli, i właśnie ta kolejność była usterką
+     * QUEUE-01 (D-077): awaria po zakolejkowaniu listów, ale przed zapisem,
+     * nie zostawiała po nich żadnego śladu. Metoda przyjmuje nadal listę,
+     * bo droga listu próbnego (`--tylko`) stawia znacznik BEZ rezerwacji —
+     * uzasadnienie przy tej fladze w `WyslijPodsumowaniaTygodnia`.
      *
      * ZNACZNIK STAWIAMY PRZY WŁOŻENIU DO KOLEJKI, NIE PO DORĘCZENIU — i to
      * jest świadomy wybór strony, po której wolno się pomylić.

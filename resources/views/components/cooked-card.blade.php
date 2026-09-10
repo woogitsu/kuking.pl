@@ -51,7 +51,7 @@
     @endif
 
     @if($event->changes_note)
-        <p><strong>Zrobiłam/zrobiłem po swojemu:</strong> {{ $event->changes_note }}</p>
+        <p><strong>Po swojemu:</strong> {{ $event->changes_note }}</p>
     @endif
 
     <ul class="recipe-facts">

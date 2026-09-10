@@ -236,7 +236,7 @@ class ModerationController extends Controller
             'user_message.required_if' => 'Przy podstawie „treść niezgodna z prawem" napisz autorowi, '
                 .'co dokładnie uznaliśmy za niezgodne z prawem. Bez tego uzasadnienie odsyła w próżnię.',
             'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',
-            'suspend_days_custom.required' => 'Wybrałeś „Własny termin" — wpisz liczbę dni od '
+            'suspend_days_custom.required' => 'Przy „Własnym terminie" wpisz liczbę dni od '
                 .DlugoscZawieszenia::MIN_DNI.' do '.DlugoscZawieszenia::MAX_DNI
                 .'. Albo zaznacz jeden z gotowych terminów wyżej.',
             'suspend_days_custom.integer' => 'Wpisz własny termin jako liczbę dni, na przykład 14.',
@@ -271,7 +271,7 @@ class ModerationController extends Controller
             if (! DlugoscZawieszenia::zawiesza(is_string($wybor) ? $wybor : null)) {
                 $sprawdzenie->errors()->add(
                     'suspend_days',
-                    'Wybrałeś decyzję „Zawieś konto" — zaznacz jeszcze, na jak długo. '
+                    'Przy decyzji „Zawieś konto" zaznacz jeszcze, na jak długo. '
                     .'„Bez zawieszenia" znaczy, że kary nie ma.',
                 );
             }

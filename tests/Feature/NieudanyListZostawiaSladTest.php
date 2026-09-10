@@ -239,6 +239,33 @@ class NieudanyListZostawiaSladTest extends TestCase
     }
 
     /**
+     * SONDA NIE MA PRAWA ZAMELDOWAĆ SUKCESU, GDY NIE ZDOŁAŁA NIC SPRAWDZIĆ
+     * (`docs/PULAPKI_TESTOW.md` §5: „brak wyniku to nie «w porządku», to
+     * «nie wiemy»").
+     *
+     * Realny przypadek: kod wdrożył się przed migracją, więc tabeli jeszcze
+     * nie ma. Zapytanie rzuca `QueryException`, a `check()` łapie KAŻDY
+     * `Throwable` — czyli dokładnie ta konstrukcja, w której narzędzie
+     * najłatwiej zaczyna kłamać. Ma wyjść `ok: false` z WŁASNYM kodem
+     * (`slad_listow_niesprawdzalny`), a nie `listy_przepadaja`: alarm
+     * o awarii, której nie ma, jest tak samo szkodliwy jak cisza o awarii,
+     * która jest.
+     */
+    public function test_health_nie_mowi_ok_gdy_nie_da_sie_sprawdzic_sladu(): void
+    {
+        Artisan::call('storage:link');
+
+        Schema::drop('mail_failures');
+
+        $odpowiedz = $this->get('/health');
+
+        $odpowiedz->assertOk(); // Poczta nie jest krytyczna — nadal nie 503.
+        $odpowiedz->assertJsonPath('status', 'degraded');
+        $odpowiedz->assertJsonPath('checks.listy.ok', false);
+        $odpowiedz->assertJsonPath('checks.listy.error', 'slad_listow_niesprawdzalny');
+    }
+
+    /**
      * NAJWAŻNIEJSZA WŁASNOŚĆ TEGO KODU: nasz słuchacz `JobFailed` leci PRZED
      * tym, który zapisuje wiersz w `failed_jobs` (rejestruje go `queue:work`).
      * Gdyby rzucił, zabrałby diagnostyce payload zadania — czyli jedyną rzecz,

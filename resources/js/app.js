@@ -559,3 +559,124 @@ for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
         });
     }
 }
+
+/* ==========================================================================
+   BŁĄD FORMULARZA MA BYĆ WIDOCZNY OD RAZU — bez szukania go wzrokiem.
+   ==========================================================================
+
+   ZDARZENIE, KTÓRE TO WYWOŁAŁO (10 września 2026)
+   63-letnia osoba wypełniała rejestrację na komputerze. Formularz odbił jej
+   nazwę użytkownika. Podsumowanie błędów stoi na górze formularza — ale ona
+   po wysłaniu została w tym samym miejscu, w którym kliknęła przycisk, czyli
+   na dole. Nie zobaczyła ani podsumowania, ani czerwonego tekstu przy polu
+   wyżej; zobaczyła dwa duże czerwone pudła obok siebie (zaznaczone zgody)
+   i uznała, że problem jest tam.
+
+   DWIE RZECZY, KTÓRE TU ROBIMY:
+   1. po wysłaniu z błędem przewijamy do podsumowania i ustawiamy na nim
+      fokus — czytnik ekranu przeczyta je od razu (`role="alert"`,
+      `tabindex="-1"` są już w komponencie);
+   2. zaznaczenie wyboru NATYCHMIAST zdejmuje z niego czerwień i chowa
+      komunikat — bez tego człowiek poprawia błąd i nadal widzi czerwone
+      pudło, dopóki nie wyśle formularza jeszcze raz.
+
+   JavaScript jest tu dodatkiem, nie warunkiem: bez niego podsumowanie stoi
+   na górze, a przy przycisku „Załóż konto" jest zdanie mówiące, że coś
+   zostało do poprawienia (AGENTS.md §5 pkt 3 — żadnego martwego przycisku).
+   Przewijanie szanuje `prefers-reduced-motion`.
+   ========================================================================== */
+(function bledyFormularzaWidoczne() {
+    const podsumowanie = document.querySelector('.error-summary');
+
+    if (podsumowanie) {
+        const bezRuchu = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        podsumowanie.scrollIntoView({ behavior: bezRuchu ? 'auto' : 'smooth', block: 'center' });
+
+        // Fokus PO przewinięciu: `focus()` sam przewija skokowo, a przy
+        // `block: 'center'` chcemy, żeby człowiek zobaczył też to, co jest
+        // nad podsumowaniem — czyli że jest na górze formularza.
+        window.setTimeout(() => podsumowanie.focus({ preventScroll: true }), bezRuchu ? 0 : 400);
+    }
+
+    document.querySelectorAll('.field.has-error .choice input[type="checkbox"]').forEach((pole) => {
+        pole.addEventListener('change', () => {
+            if (!pole.checked) {
+                return;
+            }
+
+            const grupa = pole.closest('.field');
+
+            if (grupa === null) {
+                return;
+            }
+
+            grupa.classList.remove('has-error');
+            grupa.querySelectorAll('.field-error').forEach((komunikat) => {
+                komunikat.hidden = true;
+            });
+        });
+    });
+})();
+
+/* ==========================================================================
+   NAZWA KONTA PODPOWIADANA Z IMIENIA — decyzja właściciela z 10 września.
+   ==========================================================================
+
+   DLACZEGO DWA POLA ZOSTAJĄ
+   Zewnętrzny audyt 60+ wskazał, że rejestracja każe wymyślić dwa podobne
+   pojęcia naraz: imię widoczne dla innych i nazwę, która trafia do adresu
+   profilu. Właściciel rozstrzygnął, żeby oba pola zostały — adres profilu ma
+   być świadomym wyborem, a nie czymś, co człowiek odkrywa po fakcie — ale
+   żeby nazwa była PODPOWIADANA z imienia i dała się nadpisać.
+
+   AUTORYTETEM JEST PHP, NIE TEN KOD
+   Prawdziwą normalizację robi `App\Support\NazwaUzytkownika::znormalizuj()`
+   przy wysłaniu formularza. Tutaj jest tylko podpowiedź w polu, więc
+   rozjazd między tą transliteracją a tamtą jest NIESZKODLIWY: serwer i tak
+   ułoży nazwę po swojemu. Dlatego świadomie nie przepisuję tu całej tablicy
+   znaków — to byłoby drugie źródło prawdy, które rozjedzie się przy pierwszej
+   zmianie reguły.
+
+   PRZESTAJEMY PODPOWIADAĆ, GDY CZŁOWIEK RUSZY POLE SAM. Nadpisywanie tego,
+   co ktoś wpisał ręcznie, jest gorsze niż brak podpowiedzi — a przy 65-latce
+   wyglądałoby jak usterka („kasuje mi to, co piszę").
+
+   Bez JavaScriptu nic się nie psuje: pole zostaje puste, a wpisany w nie
+   dowolny zapis („Basia z Podkarpacia") i tak przechodzi, bo serwer wybacza.
+   ========================================================================== */
+(function podpowiedzNazweKonta() {
+    const imie = document.getElementById('f-display_name');
+    const nazwa = document.getElementById('f-username');
+
+    if (imie === null || nazwa === null) {
+        return;
+    }
+
+    // Formularz przyszedł z błędem i pole jest już wypełnione? Nie ruszamy —
+    // to jest albo wybór człowieka, albo wartość znormalizowana przez serwer.
+    let wlasnyWybor = nazwa.value.trim() !== '';
+
+    nazwa.addEventListener('input', () => {
+        wlasnyWybor = true;
+    });
+
+    const zImienia = (tekst) => tekst
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')      // ą→a, ć→c, ę→e, ó→o, ś→s, ź→z, ż→z
+        .replace(/ł/g, 'l').replace(/Ł/g, 'L') // „ł" nie rozkłada się na znak bazowy
+        .toLowerCase()
+        .replace(/[\s.\-'’]+/g, '_')
+        .replace(/[^a-z0-9_]/g, '')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 40);
+
+    imie.addEventListener('input', () => {
+        if (wlasnyWybor) {
+            return;
+        }
+
+        nazwa.value = zImienia(imie.value);
+    });
+})();

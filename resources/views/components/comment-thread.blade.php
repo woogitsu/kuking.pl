@@ -73,7 +73,12 @@
                                 @if($replyRemainingMinutes > 0)
                                     <details class="mt-2">
                                         <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                        <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \Illuminate\Support\Str::plural('minutę', $replyRemainingMinutes) }}.</p>
+                                        {{-- `Odmiana::rzeczownik`, nie `Str::plural` (issue #38): drugi jest
+                                             inflektorem ANGIELSKIM i przy „minutę" dokładał „s" — „Możesz
+                                             poprawić jeszcze przez 3 minutęs". Polski ma trzy formy odmiany,
+                                             nie dwie, i wyjątek na nastki (12-14), którego `Str::plural`
+                                             nie zna wcale. --}}
+                                        <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
                                         <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
                                             @csrf
                                             @method('PUT')
@@ -135,7 +140,9 @@
                         @if($commentRemainingMinutes > 0)
                             <details class="mt-2">
                                 <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \Illuminate\Support\Str::plural('minutę', $commentRemainingMinutes) }}.</p>
+                                {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
+                                     angielski, więc pisał „3 minutęs". --}}
+                                <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
                                 <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
                                     @csrf
                                     @method('PUT')
@@ -175,14 +182,18 @@
             @endunless
         </article>
     @empty
-        <p class="meta">Jeszcze nikt tu nic nie napisał. Możesz być pierwsza albo pierwszy.</p>
+        <p class="meta">Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.</p>
     @endforelse
 
     @auth
         <form class="card" method="POST" action="{{ $action }}">
             @csrf
+            {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
+                 „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie
+                 przy tym parametrze w `components/field.blade.php`. --}}
             <x-field name="body" label="Napisz komentarz" type="textarea" :rows="4"
-                     help="Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku." required />
+                     help="Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku."
+                     required bez-oznaczenia />
             <button class="btn btn-primary" type="submit">Wyślij komentarz</button>
         </form>
     @else
