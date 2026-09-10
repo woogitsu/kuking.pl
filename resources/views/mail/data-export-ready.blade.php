@@ -31,7 +31,7 @@
 
                         {{-- Gotowy napis z docs/brand/COPY_STYLE.md §6. Nie zmieniamy go. --}}
                         <p style="margin:0 0 20px;">
-                            przygotowaliśmy paczkę ze wszystkim, co tu wrzuciłaś. Otworzysz ją
+                            przygotowaliśmy paczkę ze wszystkim, co tu masz. Otworzysz ją
                             na swoim komputerze, także wtedy, gdyby Kuking kiedyś przestał istnieć.
                         </p>
 
@@ -65,14 +65,17 @@
                             @endif
                         </p>
 
+                        {{-- „zostaniesz poproszona" przypisywało czytelnikowi rodzaj
+                             żeński (issue #38, D-066) — strona czynna w pierwszej
+                             osobie liczby mnogiej mówi to samo bez rodzaju. --}}
                         <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
-                            Zanim zaczniesz pobierać, zostaniesz poproszona o zalogowanie się.
+                            Zanim zaczniesz pobierać, poprosimy Cię o zalogowanie się.
                             Tak musi być: w tej paczce jest kopia całego Twojego konta i nie może
                             jej otworzyć ktoś, kto tylko zobaczył ten e-mail.
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#5C5347;">
-                            O tę paczkę poprosiłaś w ustawieniach Kuking. Jeśli to nie Ty —
+                            O tę paczkę poproszono w ustawieniach Kuking. Jeśli to nie Ty —
                             napisz do nas na {{ config('kuking.community.contact_email') }}.
                         </p>
 

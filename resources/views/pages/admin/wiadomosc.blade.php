@@ -113,12 +113,12 @@
                          i człowiek nigdy nie dostanie odpowiedzi (issue #234). --}}
                     @if($odpowiedz->status === \App\Models\ContactMessageReply::STATUS_WYSLANA)
                         <p class="meta mb-0">
-                            Poczta przyjęła ten list
+                            Poczta przyjęła tę wiadomość
                             {{ \App\Support\Czas::data($odpowiedz->sent_at, 'j F Y, H:i') }}.
                         </p>
                     @elseif($odpowiedz->status === \App\Models\ContactMessageReply::STATUS_NIEUDANA)
                         <p class="notice mb-0" role="status">
-                            <strong>Ten list NIE wyszedł.</strong>
+                            <strong>Ta wiadomość NIE wyszła.</strong>
                             Napisz odpowiedź jeszcze raz w polu niżej (możesz przekleić tekst
                             z góry) albo odpisz z własnej poczty.
                             @if($odpowiedz->error)
@@ -127,7 +127,7 @@
                         </p>
                     @else
                         <p class="notice mb-0" role="status">
-                            <strong>Nie wiadomo, czy ten list wyszedł.</strong>
+                            <strong>Nie wiadomo, czy ta wiadomość wyszła.</strong>
                             Wysyłka została przerwana w połowie. Sprawdź skrzynkę
                             {{ config('kuking.community.contact_email') }} albo panel dostawcy poczty,
                             zanim wyślesz to samo drugi raz.
@@ -156,7 +156,7 @@
             </form>
 
             <p class="meta">
-                List wyjdzie od serwisu (<strong>{{ config('mail.from.address') }}</strong>),
+                Wiadomość wyjdzie od serwisu (<strong>{{ config('mail.from.address') }}</strong>),
                 nie z Twojej prywatnej poczty. Odpowiedź tej osoby wróci na
                 <strong>{{ config('kuking.community.contact_email') }}</strong> —
                 nie na ten ekran, bo Kuking poczty nie odbiera.
@@ -181,7 +181,7 @@
                 <p class="mt-4">
                     Wtedy odpisz ze swojego programu poczty na
                     <a href="mailto:{{ $wiadomosc->adresDoOdpowiedzi() }}">{{ $wiadomosc->adresDoOdpowiedzi() }}</a>
-                    i zapisz w notatce niżej, co odpisałeś — bo tej drogi serwis nie widzi
+                    i zapisz w notatce niżej treść odpowiedzi — bo tej drogi serwis nie widzi
                     i nie pokaże jej w historii wyżej.
                 </p>
             </details>

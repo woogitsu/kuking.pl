@@ -12,9 +12,15 @@
 
     <p class="text-lead">
         {{-- Zdanie dokładnie z `docs/brand/COPY_STYLE.md` §6 („koniec
-             onboardingu"). Stało tu „ugotowałaś" — jedyna forma żeńska
-             w interfejsie poza e-mailem eksportu, i akurat w miejscu, w którym
-             dokument ma gotowy tekst z formą utrwaloną w claimie głównym. --}}
+             onboardingu"). Stało tu „ugotowałaś" i zostało zamienione na formę
+             z hasła głównego, utrwaloną przez COPY_STYLE.md.
+
+             SPROSTOWANIE (issue #274): pierwotny komentarz twierdził, że była
+             to JEDYNA forma żeńska w interfejsie. Nie była — inwentaryzacja
+             z #274 znalazła ich kilkanaście, od ustawień prywatności
+             („co gotowałam") przez profil („będziesz mogła") po ukośniki
+             rodzajowe („Zrobiłam/zrobiłem"). Dlatego reguła nie stoi już na
+             czyjejś pamięci, tylko na teście `TekstyNiePrzypisujaPlciTest`. --}}
         Konto jest założone. Możesz od razu pokazać, co dziś ugotowałeś —
         albo najpierw się rozejrzeć. Jedno i drugie jest w porządku.
     </p>

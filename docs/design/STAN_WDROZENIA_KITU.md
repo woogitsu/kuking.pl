@@ -91,6 +91,15 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
   skrypcie. W tym produkcie to warunek, nie ulepszenie (AGENTS.md §5).
 - **Automat dostępności** przy każdej zmianie: axe na 27 ekranach w czterech
   wariantach plus pomiar przewijania w poziomie przy 320–768 px.
+- **„3 osoby zapisały to u siebie w zeszycie" nad paskiem akcji karty** —
+  decyzja właściciela D-081 (issue #275). Kit tego nie ma i łatwo to wziąć za
+  licznik lajków do usunięcia. Nie jest nim: autor widzi liczbę od pierwszej
+  osoby, inny zalogowany od trzeciej, gość wcale, a liczba nigdzie nie sortuje
+  ani nie promuje. Przy przestylowaniu karty to zdanie zostaje nad paskiem
+  akcji, nie w nim, i zostaje przy 18 px (`.post-card-zapisy`,
+  `MinimalnyRozmiarTekstuTest`). Po zapisaniu przycisk „Zapisuję" ustępuje
+  miejsca stanowi „Masz to w zeszycie" — to jest jedyne potwierdzenie widoczne
+  w miejscu kliknięcia i nie wolno go zgubić.
 
 ---
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Tag;
@@ -23,6 +24,8 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
+    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+
     public function show(Request $request, string $username): View
     {
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
@@ -197,8 +200,16 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            ->with(['media', 'author.profile.avatar'])
+            // 'tags:id,slug,name' — patrz komentarz w
+            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
+            // gdy relacja jest już doładowana, więc bez tego archiwum
+            // profilu nie miałoby żadnych chipów tematów.
+            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
+            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->latest('published_at')
             ->latest('id')
             ->paginate(12)

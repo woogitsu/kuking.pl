@@ -102,7 +102,7 @@ class AccountDeletionController extends Controller
         // (ta sama zasada co w LoginController i w formularzu odwołań #10).
         if ($osoba === null || ! Hash::check($data['password'], (string) $osoba->password)) {
             throw ValidationException::withMessages([
-                'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy adres/nazwa i hasło są wpisane poprawnie. '
+                'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy e-mail albo nazwa i hasło są wpisane poprawnie. '
                     .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także dla konta '
                     .'oznaczonego do usunięcia.',
             ]);

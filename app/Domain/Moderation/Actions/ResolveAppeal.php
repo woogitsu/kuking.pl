@@ -86,7 +86,7 @@ final class ResolveAppeal
         $uzasadnienie = trim($uzasadnienie);
 
         if ($uzasadnienie === '') {
-            throw new BladDlaCzlowieka('Napisz, dlaczego tak zdecydowałeś. Bez tego nie da się wysłać odpowiedzi.');
+            throw new BladDlaCzlowieka('Napisz, dlaczego tak decydujesz. Bez tego nie da się wysłać odpowiedzi.');
         }
 
         $decyzja = $odwolanie->moderationAction;

@@ -3766,8 +3766,10 @@ podstawie, jak zgodę wycofać i że nie sprawdzamy otwarć ani kliknięć.
 ### 6. Zdarzenia analityczne: dwa z czterech
 
 Issue #11 wymieniało cztery: wysłany, otwarty, kliknięty, wypisany. Wdrożone
-są **`weekly_digest_sent` i `weekly_digest_unsubscribed`** (`product_signals`,
-zbiór nazw rozszerzony migracją, nie zdjęciem CHECK-a).
+są **`weekly_digest_queued` i `weekly_digest_unsubscribed`** (`product_signals`,
+zbiór nazw rozszerzony migracją, nie zdjęciem CHECK-a). Pierwszy nazywał się
+do 10 września `weekly_digest_sent` — przemianowany przy **D-078**, bo
+powstaje zaraz po `Mail::queue()` i nie wie nic o doręczeniu.
 
 „Otwarty" wymaga niewidzialnego obrazka śledzącego w treści listu,
 „kliknięty" — podmiany każdego odnośnika na przekierowanie przez nasz serwer.
@@ -4392,6 +4394,2771 @@ wychodzą z serwisu.
 
 ---
 
+## D-064 · HEIC zostaje odrzucany, z komunikatem mówiącym co zrobić — libheif do obrazu Dockera NIE wchodzi teraz
+
+**Data:** 10 września 2026 · Issue #119 (F-01 audytu z 6 września 2026) · Status: **obowiązuje**
+
+Pytanie z issue: dokładać `libheif` (przez Imagick) do obrazu Dockera i przyjmować
+HEIC naprawdę, czy zostać przy dzisiejszym odrzuceniu? Odpowiedź: **zostać przy
+odrzuceniu — ale odrzuceniu, które mówi CO ZROBIĆ**, plus jedna zmiana, która nie
+czekała na tę decyzję: HEIC dostaje teraz **własny kod powodu** w sygnale
+`photo_upload_failed`, żeby dało się w ogóle zmierzyć, ile to jest osób.
+
+### 1. Stan faktyczny, sprawdzony w tej sesji, nie przepisany z audytu
+
+Zmierzone bezpośrednio w kontenerze agenta (PHP 8.4.19), to samo, co audyt #119
+znalazł 6 września — powtórzone tutaj, żeby nie polegać na cudzym pomiarze bez
+sprawdzenia:
+
+```
+$ php -r 'var_dump(defined("IMAGETYPE_HEIC"), defined("IMAGETYPE_HEIF"));'
+bool(false)
+bool(false)
+
+$ php -m | grep -i imagick
+(pusto — rozszerzenie nie jest zainstalowane)
+
+$ php -r 'print_r(gd_info());'
+...
+[JPEG Support] => 1  [PNG Support] => 1  [WebP Support] => 1  [BMP Support] => 1
+[AVIF Support] => 1
+(brak jakiegokolwiek wpisu HEIC/HEIF)
+```
+
+**Zastrzeżenie, wprost:** ten kontener NIE JEST obrazem produkcyjnym — to
+środowisko agenta, nie `dunglas/frankenphp:1-php8.4-trixie` z `Dockerfile`.
+W tej sesji nie było demona Dockera (`docker info` kończy się błędem połączenia
+z `/var/run/docker.sock`), więc **obrazu produkcyjnego nie dało się tu zbudować
+ani uruchomić** — to zostaje otwarte dla właściciela (§5). Wniosek o braku HEIC
+nie zależy jednak od tego, który kontener się sprawdza: `Dockerfile` (etapy
+`vendor` i `runtime`, linie 90–99 i 132–141) instaluje przez
+`install-php-extensions` dokładnie: `pdo_pgsql pgsql intl gd zip exif pcntl
+bcmath opcache` — **bez `imagick`**, i nie doinstalowuje `libheif` żadnym
+`apt-get`. Skoro GD w tym samym PHP 8.4 (ten sam `dunglas/frankenphp` bazowy
+obraz co etap `vendor`) nie zna HEIC, a obraz produkcyjny nie dokłada niczego,
+co by to zmieniło, wniosek „produkcja też nie otwiera HEIC" nie wymaga
+zbudowania obrazu, żeby być prawdziwym — wymaga tylko przeczytania, czego
+`Dockerfile` NIE instaluje. Dokładny numeryczny pomiar (rozmiar warstwy, czas
+dekodowania) to już inna sprawa — patrz §5.
+
+**Co się dzieje dziś, krok po kroku, gdy ktoś wgra HEIC** (dwie niezależne
+drogi, obie kończą się tym samym komunikatem):
+
+1. Formularz (`PostController::store` i trzy pozostałe) waliduje polem
+   `photos.*` regułą `App\Rules\ObslugiwaneZdjecie` (`app/Http/Controllers/
+   PostController.php:125`). Reguła woła `RozpoznanieZdjecia::rozpoznaj()`
+   (`app/Rules/ObslugiwaneZdjecie.php:86`).
+2. `RozpoznanieZdjecia::rozpoznaj()` (`app/Support/RozpoznanieZdjecia.php:83`)
+   wywołuje `getimagesize()`. Dla HEIC/HEIF to zawodzi (`bool(false)`) —
+   PHP 8.4 nie ma stałej `IMAGETYPE_HEIC` ani `IMAGETYPE_HEIF`, więc nawet nie
+   próbuje.
+3. **Zmiana z tego zgłoszenia:** zamiast wpadać do ogólnej gałęzi „plik
+   nieczytelny", kod sprawdza `mime_content_type()` (magic bytes — nagłówek
+   ISO BMFF `ftyp` z marką `heic`/`heif`/`mif1`, NIE rozszerzenie pliku i NIE
+   `Content-Type` od przeglądarki) i przy HEIC/HEIF zwraca osobny kod
+   `heic_unsupported` z komunikatem mówiącym co zrobić (§3).
+4. Ten sam plik, wysłany OMIJAJĄC formularz, odbija się identycznie —
+   `StoreUploadedImage::handle()` (`app/Domain/Media/Actions/
+   StoreUploadedImage.php:90`) woła to samo `RozpoznanieZdjecia::rozpoznaj()`.
+   To jest prawdziwa granica (AGENTS.md §7: nie ufamy niczemu od klienta) i
+   trzyma niezależnie od formularza.
+5. Człowiek widzi błąd PRZY POLU `photos.0`, z resztą błędów, bez utraty
+   wpisanego tekstu (`old()`) — nigdy 500, nigdy pustą ramkę, nigdy zdjęcie
+   w `pending`/`rejected` bez wyjaśnienia. Zdjęcie **nigdy nie trafia do
+   `Media::create()`** — dociera do niego zero wierszy HEIC, więc worker
+   (`ProcessUploadedImage`) nigdy nie widzi tego pliku i nie ma szans utknąć
+   na jego dekodowaniu.
+
+**Co NIE jest dziś prawdą** (i audyt też to mylił): to nie jest awaria w
+środku potoku, workera ani „zdjęcie wisi w `processing`". Plik odpada na
+SAMYM WEJŚCIU, zanim cokolwiek trafi do kolejki `media`. Konsekwencja: cały
+rachunek kosztu pamięci/czasu workera z `docs/MEDIA_PIPELINE.md` (tabela
+12/24/50 Mpx → 161/254/452 MB) dziś **nie dotyczy HEIC w ogóle** — dotyczyłby
+dopiero, gdyby ta decyzja brzmiała „tak, dokładamy libheif" (§4).
+
+### 2. Sprostowanie założenia z treści zadania: worker ma 1024 MB, nie 384 MB
+
+Zadanie, z którego powstał ten wpis, zakładało limit workera `--memory=384`.
+To nieprawda i warto to powiedzieć wprost, zamiast pisać rachunek kosztu pod
+liczbę, która nie istnieje w tym repozytorium (AGENTS.md, sekcja o
+sprostowaniu z 9 września: liczy się to, co jest w kodzie).
+
+Sprawdzone:
+- `.railway/railway.ts:768` — kontener serwisu `worker` ma
+  `memoryBytes: 1024 * MB` (twardy limit Railway, OOM-kill powyżej).
+- `docker/entrypoint.sh:369` — `queue:work --memory="${QUEUE_MEMORY:-700}"`:
+  to jest MIĘKKI limit Laravela (kończy proces między jobami po przekroczeniu
+  700 MB RSS), niezależny od twardego limitu kontenera.
+- `docker/entrypoint.sh:363` — `memory_limit` PHP ustawiony na
+  `${PHP_WORKER_MEMORY_LIMIT:-512M}` (`.railway/railway.ts:454`), ale
+  `docs/MEDIA_PIPELINE.md` już ostrzega, że TA liczba nie widzi bufora GD:
+  zmierzony szczyt RSS dla 50 Mpx to 452 MB przy liczniku PHP pokazującym
+  28 MB. Realny sufit, o który trzeba się martwić przy większym pliku, to
+  1024 MB kontenera, nie 384 i nie 512.
+
+`--memory=384` nie pojawia się nigdzie w tym repozytorium (`grep -rn 384
+docker/ .railway/` nic nie znajduje). Skąd wzięła się ta liczba w treści
+zadania — nie wiadomo; mogła być pomyłką przy przepisywaniu z innego miejsca.
+Rachunek w §4 liczy więc wobec PRAWDZIWYCH 1024 MB.
+
+### 3. Co jest prawdą dla iPhone'a — sprawdzone, nie zgadywane
+
+Zadanie wprost każe to sprawdzić, a nie zgadywać. Dwa źródła: oficjalna pomoc
+Apple (`support.apple.com/en-us/116944`, „Using HEIF or HEVC media on Apple
+devices") i — tam, gdzie Apple milczy — zgodne relacje z wielu niezależnych
+wątków Apple Community.
+
+**Sprawdzone i prawdziwe:**
+- „Ustawienia → Aparat → Formaty → Najbardziej zgodny" to **dosłowna** ścieżka
+  menu z dokumentacji Apple: *„Open Settings, then tap Camera. Tap Formats,
+  then tap Most Compatible."* Efekt: *„All new photos and videos will now use
+  JPEG or H.264 format."* Dotyczy PRZYSZŁYCH zdjęć.
+- Apple wprost: *„If sharing this media using other methods, such as AirDrop,
+  Messages, or email, and the receiving device doesn't support the newer
+  media formats, the media might automatically be shared in a more
+  compatible format, such as JPEG or H.264."* Zgodnie z wieloma niezależnymi
+  wątkami Apple Community, w praktyce udostępnienie przez Mail konwertuje
+  HEIC do JPEG jako zachowanie domyślne (stąd wątki „jak to WYŁĄCZYĆ", nie
+  „jak to włączyć") — to jest droga dla zdjęcia, które JUŻ leży w telefonie.
+
+**Sprawdzone i USUNIĘTE z komunikatu** (wcześniejsza wersja to zgadywała):
+poprzedni tekst radził też „otwórz w Zdjęciach i użyj «Duplikuj», żeby dostać
+wersję JPG". Fałsz: wykrywanie duplikatów w Photos porównuje pliki po
+FORMACIE, nie po treści — co oznacza, że funkcja Duplikuj tworzy drugą kopię
+W TYM SAMYM formacie (HEIC), nie konwertuje niczego. `app/Support/
+RozpoznanieZdjecia.php` (`komunikatHeic()`) ma teraz tylko dwie rady, obie
+sprawdzone: zmianę ustawienia na przyszłość i wysyłkę e-mailem dla zdjęcia,
+które już jest zrobione.
+
+**Czego NIE sprawdzono i co zostaje otwarte** (kryterium akceptacji #119,
+niewykonalne z tego repozytorium): pomiar na prawdziwym urządzeniu — czy
+Safari na iOS naprawdę wysyła JPEG zamiast HEIC, gdy formularz (przez
+`LimityZdjec::atrybutAccept()`) nie deklaruje `image/heic` w `accept`. Są na
+to poszlaki z dokumentacji dla programistów (starsze Safari konwertowały
+zgodnie z `accept`; Safari 17+ ma zgłoszony wyjątek od tego zachowania w
+niektórych warunkach), ale żadna z nich nie zastępuje testu na fizycznym
+iPhonie — patrz §5.
+
+### 4. Rachunek kosztu dołożenia libheif (przez Imagick) — dlaczego NIE teraz
+
+**Rozmiar obrazu.** Zmierzone jako przybliżenie z metadanych pakietów Debian/
+Ubuntu (`apt-cache show`, `Installed-Size` — NIE zbudowany obraz produkcyjny,
+bo nie ma tu demona Dockera; realne bajty w warstwie `dunglas/frankenphp:
+1-php8.4-trixie` mogą się różnić i wymagają prawdziwego builda przed decyzją
+ostateczną):
+
+| Pakiet | Installed-Size |
+|---|---:|
+| `libheif1` | 803 KB |
+| `libde265-0` (dekoder HEVC — format większości zdjęć iPhone) | 375 KB |
+| `libheif-plugin-libde265` | 41 KB |
+| `libmagickcore-6.q16` (silnik ImageMagick) | 6 648 KB |
+| `libmagickwand-6.q16` | 1 352 KB |
+| rozszerzenie `imagick` (`.so`) | 18 KB |
+| **Razem (bez `libaom`/AVIF — patrz niżej)** | **≈ 9,2 MB nieskompresowane** |
+
+Świadomie POMINIĘTE: `libheif-plugin-aomdec` + `libaom3` (dekoder AV1, **5,3 MB
+samo `libaom3`**) — obsługuje HEIF-w-AV1, rzadki wariant. AVIF (to samo
+kodowanie AV1, inny kontener) GD **już** dekoduje natywnie (`gd_info()` →
+`AVIF Support => 1`), więc dokładanie drugiej drogi do tego samego kodeka nie
+ma uzasadnienia. Rzeczywisty dodatek do warstwy obrazu to więc rząd
+**kilku–dziesięciu MB nieskompresowanych**, prawdopodobnie mniej po kompresji
+warstwy Docker — ale to jest SZACUNEK, nie pomiar na tym `Dockerfile`.
+
+**Czas builda.** Dodatkowy `apt-get install` w DWÓCH etapach (`vendor` i
+`runtime` — `Dockerfile` instaluje rozszerzenia PHP w obu, linie 90 i 132, z
+komentarzem „te same rozszerzenia co w etapie vendor, trzymaj listy
+zsynchronizowane"): rząd dodatkowych 10–30 sekund na etap przy zimnym cache
+warstwy `apt`, niezmierzone dokładnie tutaj.
+
+**Pamięć/czas dekodowania HEIC — TO JEST GŁÓWNA NIEWIADOMA, nie rozmiar.**
+Kryterium akceptacji #119 wprost tego wymaga i NIE DA SIĘ tego zmierzyć bez
+`libheif`+`imagick` w środowisku (nie są tu zainstalowane). Software'owy
+dekoder HEVC (`libde265`) jest z natury cięższy niż dekodowanie JPEG baseline
+przez GD — o ile cięższy, dla zdjęcia 48 Mpx (główny sensor iPhone 14 Pro i
+nowszych), NIE JEST zmierzone ani w tym repozytorium, ani w tej sesji. Zanim
+ta decyzja mogłaby brzmieć „tak", ten pomiar musi istnieć — patrz próg
+rewizji niżej.
+
+**Drugi sterownik obrazu do utrzymania.** `intervention/image` w wersji
+`3.11.8` (`composer.lock`) ma DWA sterowniki: `ImageManager::gd()` (używany
+dziś, `app/Jobs/ProcessUploadedImage.php:119`) i `ImageManager::imagick()`.
+Orientacja EXIF w tym repo jest naprawiona SPECYFICZNIE pod zachowanie GD
+(`ProcessUploadedImage.php:91–118`: `autoOrientation: false` naprawia
+PODWÓJNY obrót, bo dekoder GD Interventionu czyta EXIF sam) — przejście na
+Imagick jako główny sterownik oznaczałoby ponowne sprawdzenie tej samej
+klasy błędu dla innego dekodera, nie przepisanie jednej linijki. Węższa,
+bezpieczniejsza architektura, GDYBY ta decyzja kiedyś brzmiała „tak": użyć
+Imagicka WYŁĄCZNIE jako wąski adapter „bajty HEIC wchodzą → bajty JPEG
+wychodzą", wołany tylko dla plików rozpoznanych jako HEIC, PRZED
+`ImageManager::gd()` — reszta potoku (warianty, orientacja, testy) zostaje
+nietknięta. To nie jest dzisiejsza implementacja, to zapisany kierunek na
+wypadek rewizji.
+
+**Nowa powierzchnia CVE.** `libheif` miał w swojej historii zgłoszenia CVE
+(dekodery formatów obrazu/wideo są klasycznym źródłem przepełnień bufora —
+ta sama rodzina ryzyka co libwebp, libjpeg). Dodanie go to zobowiązanie do
+pilnowania łatek w kontenerze, który dziś ma zamkniętą, przewidywalną listę
+rozszerzeń (`Dockerfile`, komentarz przy etapie `vendor`: „DETERMINISTYCZNY
+zestaw rozszerzeń PHP").
+
+### 5. Alternatywy rozważone i odrzucone (albo odłożone)
+
+| Opcja | Werdykt |
+|---|---|
+| **Biblioteka PHP bez zależności systemowych** | Nie istnieje sensowna. Dekodowanie HEVC to dekodowanie wideo — nie ma czystego PHP-owego dekodera, z tego samego powodu, dla którego nie ma czystego PHP-owego dekodera H.264. Każda opcja i tak schodzi do biblioteki C (libheif) przez rozszerzenie. |
+| **Odrzucenie z dobrym komunikatem** | **To jest dzisiejsza decyzja** — patrz §1 i §3. Jedyna opcja bez kosztu infrastruktury, bez nowego kodeka do utrzymania, i już zaimplementowana. |
+| **Konwersja po stronie przeglądarki (JS, dozwolone na newralgicznych ścieżkach — D-053)** | **Najbardziej obiecujący NASTĘPNY krok, świadomie NIE w tym zgłoszeniu.** `heic2any`/`libheif.js` (WASM) mogłyby dekodować HEIC na telefonie użytkownika i wysłać JPEG — zero kosztu pamięci/CPU workera, zero zmiany obrazu Dockera. Cena: waga paczki JS (WASM dekodera HEVC to rząd setek KB), czas CPU na telefonie (który już raz zdekodował to zdjęcie robiąc je — więc sprzętowo go stać), i **realna pułapka projektowa**: żeby okno wyboru pliku w ogóle POKAZAŁO pliki HEIC do wybrania, atrybut `accept` musiałby je wymieniać — a to jest DOKŁADNIE to ustawienie, które dziś (za sprawą jego BRAKU) może już włączać darmową konwersję Safari opisaną w §3. Ta praca wymaga więc jednocześnie: sprawdzenia na prawdziwym urządzeniu (§3, nadal otwarte) I świadomego zaprojektowania koegzystencji z zachowaniem Safari, żeby nie wyłączyć jednej sieci bezpieczeństwa, dokładając drugą. Nie robimy tego przy okazji tego zgłoszenia (AGENTS.md §3: nie dokładamy rzeczy bez zmierzonej potrzeby, a próg z §6 jeszcze nie jest zmierzony). |
+| **libheif + Imagick w obrazie Dockera** | Odłożone — patrz §4. Nie „nigdy", tylko „nie bez pomiaru z §6". |
+| **vips** (`libvips`) | Odrzucone bez dalszej analizy: `intervention/image` 3.x nie ma sterownika vips (tylko `gd` i `imagick`) — wymagałoby albo czekania na wsparcie biblioteki, albo pisania własnej integracji. Nieproporcjonalne do problemu. |
+
+### 6. Próg, przy którym ta decyzja wraca na stół
+
+Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
+
+1. **Dane z produkcji**, nie przeczucie: `SELECT count(*) FROM product_signals
+   WHERE signal_name = 'photo_upload_failed' AND properties->>'reason' =
+   'heic_unsupported' AND occurred_at > now() - interval '30 days'` (zapytanie
+   działa od tego wpisu — patrz `docs/research/ANALITYKA_STAN_WDROZENIA.md`
+   §2.3) pokazujące, że odrzucenie HEIC jest **regularną**, a nie brzegową,
+   przyczyną nieudanej publikacji głównej akcji produktu.
+2. **Pomiar na prawdziwym iPhonie** (kryterium akceptacji #119, nadal
+   niewykonane) — bo jeśli Safari i tak konwertuje większość ruchu do JPEG
+   przy wysyłce (§3), sygnał z punktu 1 może zostać mały sam z siebie, a
+   dokładanie libheif rozwiązywałoby problem, który już zniknął.
+3. Jeśli 1 i 2 pokażą realną skalę: **najpierw** spróbować konwersji po
+   stronie przeglądarki (§5) — dopiero jej niewystarczalność (np. przeglądarki
+   bez WASM wśród realnego ruchu, awaria dekodowania w praktyce) uzasadnia
+   dokładanie zależności systemowej do obrazu produkcyjnego.
+
+### Co zaimplementowane w tym zgłoszeniu (bez zmiany obrazu Dockera)
+
+- `App\Support\RozpoznanieZdjecia`: HEIC/HEIF dostaje własny kod powodu
+  `heic_unsupported` (było: dzielony z każdym innym nieczytelnym plikiem pod
+  `not_an_image`) — bez tego punkt 1 z §6 nie dałby się w ogóle policzyć.
+  Rozpoznanie dalej po magic bytes (`mime_content_type()`), NIE po
+  rozszerzeniu ani nagłówku od przeglądarki.
+- Komunikat dla człowieka poprawiony do dwóch sprawdzonych rad zamiast dwóch,
+  z których jedna była zgadywana i fałszywa (§3).
+- Testy: `tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php` — nowy
+  test przez PRAWDZIWY formularz (`posts.store`), z prawdziwymi magic bytes
+  HEIC (pudełko `ftyp`/`heic`, nie plik `.heic` z bajtami JPEG — dokładnie
+  pułapka, przed którą ostrzegało zadanie), sprawdzający błąd przy polu,
+  zachowanie wpisanego tekstu, zero wierszy `media`, i kod powodu w sygnale.
+- Dokumentacja: ten wpis, `docs/research/ANALITYKA_STAN_WDROZENIA.md` §2.3,
+  `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
+  `accepted_mime_types`).
+
+### Co CZEKA na właściciela (opisane, nie wykonane)
+
+- **Pomiar na prawdziwym iPhonie** (§3, §6 pkt 2) — nie do wykonania z tego
+  środowiska (brak fizycznego urządzenia i brak Safari zza proxy sesji —
+  AGENTS.md, sekcja o przeglądarce w kontenerze agenta).
+- **Build i pomiar realnego rozmiaru/czasu obrazu Dockera z `libheif`+
+  `imagick`**, GDYBY próg z §6 kiedyś został przekroczony — wymaga demona
+  Dockera (niedostępny w tej sesji: `docker info` nie łączy się z
+  `/var/run/docker.sock`) i **jawnej zgody właściciela na zmianę
+  `Dockerfile`** (dotyka wdrożenia produkcji — poza mandatem tego zgłoszenia).
+- **Odczyt `product_signals` po 30 dniach** od wdrożenia tej zmiany, żeby
+  ocenić próg z §6 pkt 1 na prawdziwych danych zamiast zera.
+
+**Zmiana wymaga:** trzech rzeczy z §6 naraz — danych z produkcji pokazujących
+realną skalę, pomiaru na prawdziwym iPhonie, i próby konwersji po stronie
+przeglądarki jako tańszego pierwszego kroku. Samo „iPhone jest popularny"
+(prawdziwe, ale znane już w dniu, gdy HEIC zdjęto z listy formatów) tego progu
+nie przekracza.
+
+**Pliki:** `app/Support/RozpoznanieZdjecia.php` ·
+`app/Support/WynikRozpoznania.php` · `app/Domain/Analytics/ZapiszSygnal.php` ·
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php` ·
+`docs/research/ANALITYKA_STAN_WDROZENIA.md` · `docs/MEDIA_PIPELINE.md` ·
+`config/kuking.php` · `Dockerfile` (przeczytane, NIE zmienione) ·
+`.railway/railway.ts` · `docker/entrypoint.sh`
+
+---
+
+## D-065 · Trzy pakiety zostają na później albo na nie: role w kolumnie, flagi w `.env`, audyt własny (issue #21)
+
+**Data:** 10 września 2026 · Issue #21 · Status: **obowiązuje**
+
+`docs/research/PUBLIC_REPOS.md` rekomendował trzy pakiety Laravela do
+„bardzo wczesnego" wdrożenia: `spatie/laravel-permission`, `laravel/pennant`,
+`spatie/laravel-activitylog`. Pełna analiza z cytatami `plik:linia` już
+istniała — `docs/research/PAKIETY.md` i `docs/INSPIRATION_DECISIONS.md` §10
+— ale bez wpisu w tym dzienniku, więc formalnie nierozstrzygnięta (issue #21
+zostało otwarte właśnie z tego powodu). Ten wpis **potwierdza** tamte
+werdykty po ponownym sprawdzeniu w dzisiejszym kodzie (nie tylko w notatce
+z 6 września) i domyka issue.
+
+**Kryterium jest jedno, z `AGENTS.md` §3: pakiet wchodzi tylko wtedy, gdy
+usuwa nazwany, dziś istniejący problem.** „Przyda się później" nie jest
+uzasadnieniem. Żaden z trzech pakietów **nie jest** dziś w
+`composer.json`/`composer.lock` (`grep -iE "spatie|pennant|permission|activitylog"`
+— zero trafień w obu plikach) i żaden nie został tu dodany — to jest wpis
+decyzyjny, nie wdrożenie.
+
+### 1. `spatie/laravel-permission` → **PÓŹNIEJ**
+
+Dziś: `users.role`, string, **trzy** wartości (nie dwie), z `CHECK` w bazie:
+
+```php
+// database/migrations/0001_01_01_000001_create_users_table.php:35,58
+$table->string('role', 20)->default('user');
+DB::statement("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user','moderator','admin'))");
+```
+
+Sprawdzanie roli, zmiana roli i egzekwowanie idą przez jedno źródło prawdy —
+`app/Models/User.php:137-141` (`ROLE_USER`/`ROLE_MODERATOR`/`ROLE_ADMIN`),
+`:617-620` (`isModerator()`), `:637-639` (`isAdmin()`), `:1128-1132`
+(`promoteTo()`, jedyna droga zmiany, rola poza `$fillable` — D-006). Realny
+problem, na który wskazywało issue #21 — rozdział ról moderator/administrator
+przy odwołaniach — **już jest rozwiązany bez pakietu**:
+`UserPolicy::resolveAppeals()` woła `isAdmin()`, nie `isModerator()`
+(`app/Policies/UserPolicy.php:70-73`, D-039), i ma test regresyjny
+(`tests/Feature/OdwolanieOdDecyzjiTest.php::test_moderator_bez_roli_administratora_nie_rozstrzyga_odwolania`)
+sprawdzający dokładnie tę granicę na żywym żądaniu HTTP.
+
+**Sprostowanie wobec wcześniejszej notatki (`PAKIETY.md`):** ta notatka
+twierdziła, że `Gate::` nie występuje w `app/` ani razu. Dziś **występuje w
+sześciu miejscach** (`app/Domain/Sharing/Udostepnianie.php:52`,
+`app/Domain/Moderation/Actions/ReportContent.php:108`,
+`app/Domain/Recipes/Actions/RecordCookedEvent.php:99`,
+`app/Domain/Media/DostepDoZdjecia.php:100`,
+`app/Http/Controllers/RecipeController.php:217`) — kod poszedł naprzód od
+6 września. Nie zmienia to wniosku: każde z tych wywołań to
+`Gate::forUser($x)->allows(...)`/`->denies(...)`, czyli wejście do **tych
+samych** klas Policy przez fasadę frameworka, nie druga ścieżka autoryzacji
+obok nich. `grep -rn "hasPermissionTo\|->can(" app/` — zero trafień; jest
+dokładnie jedna rodzina bramek, i to jest dokładnie to, co ma zostać, gdyby
+pakiet kiedyś wszedł.
+
+**Dlaczego nie teraz:** pakiet dodaje pięć tabel
+(`permissions`, `roles`, `model_has_permissions`, `model_has_roles`,
+`role_has_permissions`)[^1] dla kombinacji uprawnień, których w kodzie **zero**
+— nawet `isAdmin()` jest dziś wołany tylko z jednego miejsca
+(`UserPolicy::resolveAppeals()`). Cache pakietu (`store: default`, TTL 24h)[^2]
+działa poprawnie na `CACHE_STORE=database` — to nie jest powód przeciw.
+Realne ryzyko to nie koszt instalacji, tylko dyscyplina po niej: trzeba by
+pilnować, żeby `hasPermissionTo()`/`$user->can()` z pakietu były wołane
+wyłącznie **z wnętrza** Policy, tak jak dziś `isModerator()`, a nie **obok**
+nich — inaczej powstają dwa niezależne miejsca egzekwowania, dokładnie to,
+przed czym ostrzega `AGENTS.md` §7.
+
+**Rekomendacja: PÓŹNIEJ. Próg powrotu: trzeci moderator, albo pierwszy
+przypadek, w którym trzeba rozdzielić uprawnienia w ramach jednej roli**
+(„może ukrywać treść, ale nie może banować kont"). Dziś jest 1–2 moderatorów
+(D-012). Migracji przejściowej `users.role` → tabele pakietu **świadomie nie
+piszemy teraz** — byłby to kod do wyrzucenia, gdyby próg nie nadszedł, czyli
+dokładnie budowanie na zapas z `AGENTS.md` §3. Próg jest tani do sprawdzenia:
+jedno spojrzenie na listę kont z rolą `moderator`/`admin`.
+
+**Mała poprawka wykonana w tym PR-ze:** cała ta rekomendacja stoi na zdaniu
+„`role IN (...)` jest pilnowane w jednym miejscu prawdy — w bazie, nie tylko
+w PHP". To zdanie nie miało testu. `NadanieRoliTest::test_nieznana_rola_jest_odrzucana()`
+sprawdza wyłącznie walidację PHP w `promoteTo()`; omija ją każdy zapis, który
+nie przechodzi przez model (migracja danych, ręczny `UPDATE`, przyszły bug
+gdzie indziej). Dodany test
+`test_baza_odrzuca_role_spoza_trzech_dozwolonych_wartosci` pisze wprost przez
+`DB::table('users')->update(...)`, z pominięciem `User`, i sprawdza, że
+`users_role_check` naprawdę odrzuca wartość spoza trzech dozwolonych —
+patrz tabela kontroli ujemnej niżej.
+
+### 2. `laravel/pennant` → **PÓŹNIEJ**
+
+Dziś: brak jakiegokolwiek mechanizmu flag funkcji — potwierdzone ponownie
+(`grep -rniE "feature.?flag|pennant|toggle\(" app/ config/ database/ routes/`
+nie znajduje nic poza niepowiązanym komentarzem w opublikowanym pliku
+Livewire, `config/livewire.php:188`). „Zamknięta alfa" to jeden globalny
+bool, przełącznik CAŁEGO serwisu dla nowych kont, nie flaga POJEDYNCZEJ
+funkcji dla wybranych kont:
+
+```php
+// config/kuking.php:250
+'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
+```
+
+Trzy nazwy z treści zadania (`KUKING_SYGNALY_AUTOMATU`,
+`KUKING_DIGEST_WLACZONY`, `KUKING_MODEL_*`) potwierdzają ten sam wzorzec —
+`config/kuking.php:1304,1709,1795-1847` — jeden bool albo liczba na całą
+funkcję, czytane raz przy starcie procesu. Różnica wobec Pennanta: zmienna
+środowiskowa przełącza funkcję **dla wszystkich naraz i wymaga restartu
+procesu** (na Railwayu: redeploy), podczas gdy Pennant przełącza **per
+użytkownik** (np. tylko dla konta administratora) **bez restartu**, bo stan
+czyta z tabeli `features`[^3] przy każdym żądaniu.
+
+**Czy to zysk przy jednym właścicielu i jednym wdrożeniu:** dla dzisiejszych
+sześciu przełączników — nie. Żaden z nich nie potrzebuje „włączone dla mnie,
+wyłączone dla reszty" — to globalne ustawienia operacyjne (czy automat
+moderacyjny działa, czy digest wychodzi), nie wydania funkcji stopniowane po
+koncie. Restart na Railwayu przy zmianie zmiennej środowiskowej jest tu
+kosztem, nie problemem: to i tak redeploy, który już się dzieje przy każdej
+zmianie kodu. Konkretny przykład z issue #21 — 3-krokowy kreator przepisu —
+**jest już na produkcji bez żadnej flagi**, jako osobna trasa
+(`routes/web.php:195-196`, `recipes.create` obok `recipes.create.simple`),
+więc to nie jest dziś przypadek czekający na Pennanta.
+
+**Rekomendacja: PÓŹNIEJ. Próg powrotu: pierwsza funkcja z `ROADMAP.md` V1**
+(grupy, forki, planer, import AI) **trafia w fazę aktywnego pisania kodu na
+scalonym `main`**, albo pojawia się konkretna potrzeba pokazać niedokończoną
+funkcję tylko administratorowi przed pełnym wydaniem. Koszt wdrożenia jest
+niski i nie rośnie od czekania (jedna tabela `features`, sterownik
+`database` domyślny[^3], zero Redisa — `AGENTS.md` §3 nie jest tu naruszone),
+więc nie ma powodu wchodzić wcześniej, tylko dlatego że wejście jest tanie.
+
+### 3. `spatie/laravel-activitylog` → **NIE**, bez warunku powrotu
+
+Dziś: własny, celowo minimalistyczny `AuditLogEntry` + tabela `audit_log`
+(`app/Models/AuditLogEntry.php`) — append-only, aktor, akcja, podmiot, IP
+**wyłącznie jako hash**, metadane dobierane jawnie. `record()` przyjmuje
+`action` i `subject`, **nie ma parametru na treść modelu** — więc nie da się
+przez pomyłkę przekazać mu wpisu, e-maila ani hasła. Wołany z 16 miejsc w
+`app/Domain/*/Actions` — to jest przyjęty wzorzec, nie martwy kod. Retencja:
+`kuking:sprzataj-audyt` (`app/Console/Commands/SprzatajAudyt.php`) kasuje
+wpisy starsze niż `config('kuking.audit_log.retention_months')` miesięcy,
+**z wyjątkiem** zamkniętej listy `AuditLogEntry::NIGDY_NIE_KASUJ`
+(`account.data_erased`, `account.delete_requested`, `account.delete_cancelled`
+— `app/Models/AuditLogEntry.php:66-70`), bo to jedyny dowód w całej bazie, że
+prawo do usunięcia konta (RODO art. 17) zostało faktycznie wykonane, albo że
+ktoś zgłosił i cofnął takie żądanie.
+
+**Co dałby pakiet:** gotowe śledzenie zmian modeli (`LogsActivity`,
+`activity()`), jedną tabelę `activity_log`[^4] zamiast ręcznych wywołań
+`AuditLogEntry::record()` w 16 miejscach.
+
+**Co by zabrał — i to jest sedno odpowiedzi „nie":** domyślny setup pakietu
+loguje **wartości pól** (`logAll()` + `logOnlyDirty()`); da się to zawęzić
+przez `logOnly()`/`logExcept()`[^5], **ale to jest lista do ręcznego
+utrzymania per model**. Domyślny kierunek ryzyka się odwraca: dziś trzeba
+**świadomie dopisać coś** do `metadata`, żeby trafiło do logu; z pakietem
+trzeba **świadomie wykluczyć pole**, inaczej nowa kolumna na modelu (np.
+`Post::$body`, `User::$email`) domyślnie wejdzie do `properties` następnym
+razem, gdy ktoś zapomni dopisać ją do `logExcept()`. To jest dokładnie
+sytuacja, przed którą broni się `AGENTS.md` §7, wybierając jawne nazwane
+metody zamiast ogólnego `$fillable` — automatyczne logowanie zmian modelu to
+automatyczne logowanie **cudzych treści**, a w logu audytowym Kuking treści
+użytkowników nie ma nigdy, z zasady.
+
+**Czy migracja istniejących wpisów byłaby bezpieczna:** nie, z dwóch
+niezależnych powodów.
+
+1. Trzy kategorie z `NIGDY_NIE_KASUJ` są chronione dziś **jedną zamkniętą
+   listą w kodzie PHP**, czytaną przez `PrzedawnioneWpisyAudytu::posprzataj()`.
+   Przeniesienie tych wierszy do `activity_log` wyprowadza je spod tej
+   ochrony w tabelę z **własnym**, generycznym poleceniem retencji pakietu
+   (`activitylog:clean`[^6], kasującym po wieku, bez pojęcia „kategorii
+   dowodowej"). Odtworzenie tej samej ochrony nad pakietem oznaczałoby
+   napisanie tego samego zamkniętego wyjątku po raz drugi, na wierzchu
+   zależności — więcej kodu do utrzymania, nie mniej.
+2. Migracja jednorazowa musiałaby przepisać `actor_id`/`action`/
+   `subject_type`/`subject_id`/`metadata` na kształt `causer`/`subject`/
+   `description`/`properties`/`event` pakietu. To jest dokładnie miejsce,
+   w którym trzeba by ręcznie przejrzeć **każdy** historyczny wiersz, żeby
+   upewnić się, że żadne `metadata` z 16 miejsc wywołania nigdy nie
+   przemyciło czegoś, czego być tam nie powinno — czyli dokładnie tę pracę,
+   którą pakiet miał oszczędzić.
+
+Jedyny realny kandydat na „historię zmian pojedynczego modelu" — przepisy —
+ma już dedykowane, celowo zaprojektowane rozwiązanie: `recipe_versions` /
+`RecipeVersion` (`app/Models/RecipeVersion.php`).
+
+**Rekomendacja: NIE, dla ogólnego audytu i dla historii zmian modeli, bez
+warunku powrotu.** Żadne z dwóch zastosowań nie ma dziś nienazwanej potrzeby,
+a domyślny profil bezpieczeństwa pakietu jest gorszy niż to, co już działa.
+Gdyby to się kiedyś zmieniło, powodem musiałby być nowy, nazwany przypadek —
+nie „mniej kodu do utrzymania" w oderwaniu od tego, co ten kod dziś chroni.
+
+### Kontrola ujemna (dowód, że nowy test coś sprawdza)
+
+| Krok | Stan `users_role_check` | Wynik `test_baza_odrzuca_role_spoza_trzech_dozwolonych_wartosci` |
+|---|---|---|
+| 1. Bazowo | obecny (migracja bez zmian) | **zielony** — `DB::table('users')->update(['role' => 'superadmin'])` rzuca `QueryException` |
+| 2. Zepsute | `DB::statement(...)` z `CHECK` zakomentowany, `migrate:fresh` na bazie testowej | **czerwony** — „Failed asserting that exception of type Illuminate\\Database\\QueryException is thrown." |
+| 3. Przywrócone | ograniczenie z powrotem w migracji | **zielony**, cały plik `NadanieRoliTest` (10/10) przechodzi |
+
+### Co zostaje nierozstrzygnięte, jeśli próg kiedyś nadejdzie
+
+`docs/INSPIRATION_DECISIONS.md` §10 (poz. 10.1–10.4) ma te same cztery
+werdykty z odesłaniem do `docs/research/PAKIETY.md` — ten wpis jest ich
+formalnym potwierdzeniem w dzienniku decyzji, nie nową analizą. Kolejny
+agent, który natrafi na pytanie „czy wziąć jeden z tych trzech pakietów",
+ma zacząć **tutaj**, nie od nowa.
+
+**Zmiana wymaga:** dla (1) trzeciego moderatora albo potrzeby rozdzielenia
+uprawnień w jednej roli; dla (2) pierwszej funkcji V1 wchodzącej w aktywne
+pisanie kodu na `main`; dla (3) — nic przewidzianego, próg nie istnieje.
+
+📄 `app/Models/User.php` · `app/Policies/UserPolicy.php` ·
+`app/Console/Commands/NadajRole.php` ·
+`database/migrations/0001_01_01_000001_create_users_table.php` ·
+`config/kuking.php` (`account.registration_open`, `digest.wlaczony`, `moderation.sygnaly.wlaczone`, `moderation.model.*`) ·
+`app/Models/AuditLogEntry.php` · `app/Console/Commands/SprzatajAudyt.php` ·
+`app/Domain/Compliance/PrzedawnioneWpisyAudytu.php` ·
+`app/Models/RecipeVersion.php` ·
+`tests/Feature/OdwolanieOdDecyzjiTest.php` ·
+`tests/Feature/NadanieRoliTest.php` ·
+`docs/research/PAKIETY.md` · `docs/INSPIRATION_DECISIONS.md` §10 ·
+issue #21
+
+---
+
+## D-077 · Tygodniowe podsumowanie ma trwały klucz idempotencji w bazie: rezerwacja `(osoba, tydzień)` PRZED wysłaniem, a przy awarii wolimy pominięcie niż duplikat
+
+**Data:** 10 września 2026 · Audyt drugiej warstwy QUEUE-01 / MAIL-02 /
+RACE-04 (P1) · Status: **obowiązuje**
+
+### 1. Co dokładnie było zepsute — kolejność, nie brak sprawdzenia
+
+`WyslijPodsumowaniaTygodnia` robiło dla każdej osoby w pętli:
+
+```text
+1. Mail::to(...)->queue($list)    ← SKUTEK ZEWNĘTRZNY JUŻ SIĘ STAŁ
+2. $budzetDnia->zajmij()
+3. sygnał WEEKLY_DIGEST_SENT
+4. $wyslane[] = $osoba
+```
+
+a `OdbiorcyDigestu::oznaczWyslane($wyslane)` — jedyny zapis mówiący „ta osoba
+jest obsłużona" — wykonywało się **dopiero po całej pętli**, jednym
+zapytaniem. Awaria po zakolejkowaniu N wiadomości, ale przed tym zbiorczym
+zapisem, zostawiała N listów w kolejce i **zero** śladu w bazie. Następny
+przebieg kwalifikował te same osoby ponownie i pisał do nich drugi raz.
+
+Okno tej awarii miało rozmiar CAŁEJ PACZKI — do sześćdziesięciu osób
+(`kuking.digest.dzienny_limit`) — i nie było hipotetyczne: wysyłka trwa około
+czterdziestu minut (odstęp 20 s na list), chodzi w tym samym procesie co
+serwer WWW (`Schedule::call()`, bo `proc_open` jest wyłączone) i mieszka na
+kontenerze Railway, który wolno zrestartować w każdej chwili.
+
+**`withoutOverlapping()` tego nie chronił i nigdy nie chronił.** Zapobiega
+dwóm przebiegom JEDNOCZEŚNIE, a duplikat powodował przebieg KOLEJNY — po
+awarii. To jest różnica, którą łatwo przeczytać jako „już się tym zajęliśmy",
+i komentarz w `routes/console.php` faktycznie tak brzmiał. Został poprawiony.
+
+### 2. Dlaczego to boli bardziej niż zwykły duplikat
+
+Ekran `/ustawienia/prywatnosc` obiecuje **jeden e-mail tygodniowo, nigdy
+więcej**. Ta obietnica jest złożona ludziom 50+, którzy nie chcą, żeby serwis
+ich zasypywał, i którzy przy drugim identycznym liście w tym samym tygodniu
+mają prawo pomyśleć, że coś jest zepsute albo że to spam. Digest jest do tego
+funkcją **na zgodę** (art. 6 ust. 1 lit. a RODO): wysyłka ponad obiecany rytm
+podważa to, na co ktoś się zgodził, a nie tylko psuje wrażenie.
+
+Ma to też cenę techniczną, której nie widać z ekranu: każdy duplikat zjada
+list z wiadra 300 na dobę, dzielonego z potwierdzeniami rejestracji (D-057).
+Duplikat biuletynu potrafi więc zamknąć komuś rejestrację.
+
+### 3. Decyzja: bariera w bazie, nie sprawdzenie w PHP
+
+Nowa tabela `weekly_digest_sends` z **kluczem głównym (a więc unikalnym) na
+parze `(user_id, week_start)`** i wiersz zajmowany **przed** `Mail::queue()`:
+
+```text
+1. INSERT weekly_digest_sends (osoba, poniedziałek tygodnia)
+   + UPDATE users.weekly_digest_sent_at       ← JEDNA TRANSAKCJA
+2. dopiero teraz Mail::to(...)->queue($list)
+3. budżet, sygnał
+```
+
+Konflikt unikalności znaczy „ta osoba ma ten okres obsłużony" i wtedy po
+prostu ją pomijamy — bez błędu, bez listu, z jednym zdaniem na wyjściu
+komendy, bo to jedyny moment, w którym widać, że poprzedni przebieg nie
+doszedł do końca.
+
+**Dlaczego constraint, a nie `exists()`.** Sprawdzenie w PHP jest odczytem,
+po którym następuje zapis, a między nimi jest luka. Dwa przebiegi (dwa
+kontenery, albo ręczny przebieg właściciela obok harmonogramu po wygaśnięciu
+blokady) przechodzą oba przez ten sam `SELECT`, oba widzą „jeszcze nie
+wysłano" i oba wysyłają — to jest RACE-04. `UNIQUE` tej luki nie ma. `exists()`
+w PHP zostaje, ale jako sposób na ŁADNE zachowanie, nie jako gwarancja.
+
+**Dlaczego OBIE warstwy zostają.** `weekly_digest_sends` mówi „najwyżej jeden
+list na tydzień kalendarzowy", `users.weekly_digest_sent_at` — „nie częściej
+niż raz na siedem dni" plus kolejność „kto czeka najdłużej". Sam tydzień
+kalendarzowy pozwoliłby na list w niedzielę i w poniedziałek; sam odstęp jest
+porównaniem z luką. Kolumna nadal istnieje i nadal jest potrzebna — zmieniło
+się to, że jest zapisywana **osobno dla każdej osoby i przed wysłaniem**.
+
+### 4. Okres to DATA PONIEDZIAŁKU w strefie człowieka, nie numer tygodnia ISO
+
+Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28` należy do
+tygodnia 1 **roku 2027**, więc numer wymaga pary (rok ISO, tydzień) — a klucz
+idempotencji zapisany niepełny przestaje być unikalny. Data poniedziałku to
+jedna kolumna `date`: porównywalna, sortowalna, czytelna w zrzucie bazy
+i zgodna z tym, co w PostgreSQL znaczy `date_trunc('week', …)` (tygodnie
+Postgresa zaczynają się w poniedziałek).
+
+Liczy ją `App\Support\Czas::poczatekTygodniaData()`, a nie `now()`, i to nie
+jest formalność: `app.timezone` musi zostać UTC (patrz komentarz klasy
+`Czas`), a poniedziałek UTC zaczyna się w Polsce w niedzielę o 22:00.
+Przebieg uruchomiony w poniedziałek nad ranem trafiałby więc do tygodnia
+POPRZEDNIEGO — czyli do klucza, który dla części osób jest już zajęty.
+
+Tydzień jest liczony **raz na cały przebieg**, przed pętlą. Gdyby każda osoba
+pytała o „teraz" osobno, paczka schodząca przez północ z niedzieli na
+poniedziałek rozpadłaby się na dwa różne klucze.
+
+Do tego CHECK w bazie: `extract(isodow from week_start) = 1`. Bez niego data
+ze środka tygodnia dałaby tej samej osobie dwa różne, oba wolne klucze
+w jednym tygodniu — czyli dwa listy przy nietkniętym `UNIQUE`. Bariera bez
+tego CHECK-a broni się przed powtórzeniem, ale nie przed pomyłką w kluczu.
+
+**Kalendarzowy tydzień nikogo nie opóźnia.** Dzień `x` i dzień `x + 7` zawsze
+mają różne poniedziałki, więc bariera nie blokuje wysyłki, na którą odstęp
+siedmiu dni już pozwala. Dwie warstwy razem dają zdanie mocniejsze niż każda
+z osobna: **najwyżej jeden list na tydzień kalendarzowy i nie częściej niż raz
+na siedem dni.**
+
+### 5. Wybór, którego nie da się uniknąć: rezerwacja została, wysyłka padła
+
+To jest prawdziwy rozstrzygnięty wybór, nie szczegół implementacji, więc jest
+nazwany wprost:
+
+> **Rezerwacja ZOSTAJE. Ta osoba nie dostaje listu za ten tydzień.**
+
+Nie da się mieć naraz „nikt nie dostanie dwa razy" i „nikt nie zostanie
+pominięty", bo po wyjściu z `Mail::queue()` nie wiemy, czy wiadomość weszła do
+kolejki. Wycofanie rezerwacji przy złapanym wyjątku wyglądałoby na
+ostrożność, a byłoby przywróceniem usterki dokładnie w tym jednym przypadku,
+w którym stan jest niejednoznaczny — a niejednoznaczny jest zawsze, bo proces
+może padnąć MIĘDZY udanym `queue()` a naszym `catch`.
+
+Uzasadnienie kierunku, a nie przemilczenie:
+
+1. **Przy tygodniowym podsumowaniu pominięcie jest odwracalne, a duplikat
+   nie.** Kto nie dostał listu, dostanie go za tydzień i najprawdopodobniej
+   nie zauważy — treść to trzy pozycje z ostatnich siedmiu dni, nie termin
+   ani nie decyzja. List wysłany drugi raz jest u człowieka w skrzynce na
+   zawsze.
+2. **Digest jest funkcją powrotu, nie funkcją krytyczną.** Nic się nie psuje
+   w serwisie, gdy list nie przyjdzie. Psuje się, gdy przyjdzie dwa razy.
+3. **Ta strona pomyłki jest już wybrana w tym samym miejscu** — przy
+   `oznaczWyslane()` stoi od D-057: „lepiej, żeby ktoś dostał o jeden list za
+   mało, niż żeby dostał trzy". Odwrócenie jej tylko przy awarii dałoby dwie
+   sprzeczne reguły w jednej pętli.
+4. **Skala jest znana i mała.** Pominięcie dotyczy najwyżej tych osób, dla
+   których przebieg padł — nie całej paczki, bo rezerwacja jest per osoba.
+   Wcześniej duplikat dotyczył wszystkich obsłużonych do momentu awarii.
+
+Świadoma cena: nie ma sposobu, żeby dowiedzieć się z bazy, którym osobom list
+przepadł — wiersz rezerwacji wygląda identycznie dla „wysłano" i dla „padło
+po rezerwacji". Rozróżnienie wymagałoby stanu wiersza i potwierdzeń doręczenia
+od dostawcy, czyli dokładnie tego, czego produkt nie chce (#204). Widać za to
+liczbę: komenda wypisuje, ile osób pominięto jako już obsłużone.
+
+### 6. Dlaczego NIE transactional outbox
+
+Outbox rozwiązuje inny problem: **at-least-once** przy niepewnym transporcie
+(zapisz zamiar w tej samej transakcji co dane, osobny proces dowozi i ponawia).
+Tutaj potrzebne jest **at-most-once na parę (osoba, tydzień)** — i to daje
+jeden indeks unikalny, bez ani jednej nowej ruchomej części.
+
+Co by doszło z outboxem: tabela z zamiarem wysyłki, proces ją opróżniający
+(a więc druga kolejka przed kolejką Laravela), retencja tej tabeli, obsługa
+zamiarów zawieszonych i nowy tryb awarii „outbox rośnie, nikt nie zauważył".
+Za to nie doszłoby ani jedno powiadomienie więcej: pominięcie po awarii
+zostaje pominięciem, bo o ponawianiu listu rozstrzyga §5, a nie mechanizm.
+
+AGENTS.md §3 mówi wprost: bez zmierzonej, udokumentowanej potrzeby nie
+dokładamy mechanizmów. Pomiaru mówiącego, że tracimy listy w kolejce, nie ma
+— jest pomiar mówiący, że wysyłamy je dwa razy. Na to wystarcza `UNIQUE`.
+
+**Zmiana wymaga:** zmierzonej straty listów w kolejce (np. z `failed_jobs`
+poczty, PR #253), której nie da się przyjąć jako „ta osoba czeka tydzień".
+
+### 7. Rollback — i dlaczego `down()` nie przywraca stanu groźnego po cichu
+
+`down()` kasuje tabelę. Nie ginie ani jedno słowo od człowieka i nie ginie
+pamięć o wysyłce (`users.weekly_digest_sent_at` zostaje) — ale **ginie
+bariera**. Po wycofaniu jedyną ochroną przed drugim listem zostaje porównanie
+w PHP, czyli dokładnie ten mechanizm, którego luka jest powodem tej migracji.
+Stan po rollbacku jest więc stanem sprzed poprawki, tylko z mniejszym oknem
+awarii (znacznik jest już zapisywany per osoba, nie po pętli).
+
+Dlatego:
+
+- rollback robi się **wyłącznie razem z `KUKING_DIGEST_WLACZONY=false`**,
+  nigdy „przy okazji" innej zmiany;
+- kolejność: **najpierw kod, potem migracja.** Nowy kod bez tabeli pada na
+  pierwszej osobie i nie wysyła nikomu nic — kierunek awarii bezpieczny, ale
+  wysyłka staje, więc wycofanie samej migracji jest wyłączeniem digestu
+  okrężną drogą. Do wyłączania jest zmienna środowiskowa.
+
+### 8. Czego ta decyzja NIE dotyka
+
+- **`DziennyBudzetListow` zostaje bez zmian.** Atomowa rezerwacja dobowego
+  budżetu jest osobnym zadaniem (gałąź `claude/atomowy-budzet-listow`);
+  pętla woła budżet tak jak dotąd, po udanej rezerwacji tygodnia.
+- **Treść listu i harmonogram** (codziennie 08:30) — nietknięte.
+- **`KUKING_DIGEST_WLACZONY`** nadal domyślnie `false`; włącza właściciel.
+- **Żadnego śledzenia otwarć ani doręczeń** — otwarta sprawa #204, produkt
+  świadomie tego nie chce. Nowa tabela nie jest do tego furtką: nie ma w niej
+  stanu wiersza ani niczego o doręczeniu.
+- **Droga listu próbnego `--tylko` omija barierę świadomie.** Flaga istnieje,
+  żeby właściciel zobaczył list TERAZ, i już dziś pomija odstęp tygodniowy.
+  Gdyby zajmowała klucz tygodnia, drugi list próbny w tym samym tygodniu byłby
+  niemożliwy, a konto użyte do próby straciłoby prawdziwe podsumowanie.
+  Bariera pilnuje wysyłki masowej; jednego adresu wpisanego ręcznie w konsoli
+  pilnuje człowiek, który tę komendę wpisał.
+
+📄 `database/migrations/2026_09_10_400000_create_weekly_digest_sends_table.php` ·
+`app/Domain/Digest/OdbiorcyDigestu.php` ·
+`app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`app/Support/Czas.php` · `routes/console.php` ·
+`tests/Feature/DigestNieWysylaDwaRazyTest.php` ·
+`docs/DATABASE.md` (sekcja `weekly_digest_sends`) ·
+D-057 · audyt `docs/research/audyt-2026-09-10/` (QUEUE-01, MAIL-02, RACE-04)
+
+---
+
+## D-078 · Sygnał digestu mówi „zakolejkowano", a „jeden aktywny eksport na konto" pilnuje baza, nie `exists()`
+
+**Data:** 10 września 2026 · **Audyt drugiej warstwy z 10.09.2026, ustalenia
+MAIL-03 oraz QUEUE-04 / RACE-05 (oba P2)** · Status: **obowiązuje**
+
+Dwie niezależne sprawy o tym samym charakterze: **kod twierdził coś
+mocniejszego, niż faktycznie zaszło.** Raz w nazwie zdarzenia analitycznego,
+raz w obietnicy schematu, której schemat nie składał.
+
+### 1. `weekly_digest_sent` → `weekly_digest_queued` (MAIL-03)
+
+**Stan sprzed zmiany, sprawdzony w pliku:**
+`WyslijPodsumowaniaTygodnia::handle()` zapisywał sygnał
+`ZapiszSygnal::WEEKLY_DIGEST_SENT` **jedną linijkę po `Mail::queue()`** —
+przed jakimkolwiek kontaktem workera z dostawcą poczty.
+
+Nazwa sklejała w jedno trzy różne zdarzenia: **zakolejkowano**, **dostawca
+przyjął**, **doręczono**. Kuking ma prawdziwy sygnał tylko o pierwszym.
+Skutek był mierzalny i przewrotny: list, który przewróci się w workerze
+i wyląduje w `failed_jobs`, **nadal był policzony jako wysłany** — czyli
+metryka zawyżała skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka
+przestawała działać. To jest ta sama klasa usterki co dryf dokumentacji
+(patrz `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`): liczba nie jest
+fałszywa przez pomyłkę w kodzie, tylko przez nazwę obiecującą więcej, niż kod
+może wiedzieć.
+
+**Nazwa jest angielska, `snake_case`** — `AGENTS.md` §11 mówi to wprost
+o zdarzeniach analitycznych, a pozostałe nazwy w tym zbiorze
+(`photo_upload_failed`, `search_performed`, `weekly_digest_unsubscribed`)
+trzymają tę konwencję. Polskie `zakolejkowano` wyłamywałoby jedną nazwę
+z ustalonego podziału (nazwy po angielsku, `properties` po polsku).
+
+#### Migracja przepisująca stare wiersze, nie dwie nazwy przy odczycie
+
+To była jedyna realna decyzja w tej połowie i rozstrzygnęło ją **sprawdzenie,
+kto tę nazwę czyta. Nikt.** Na `main` `weekly_digest_sent` znały wyłącznie:
+`ZapiszSygnal` (zapis), komenda wysyłkowa (zapis) i testy. `kuking:raport`
+liczy powroty z `users.ostatnio_widziany_at`, nie z `product_signals`; żaden
+ekran panelu nie sięga do `signal_name`; próg z `RETENTION_LOOPS.md` §6
+wiersz 5 (wypisy > 1% na wysyłkę) nie jest dziś liczony przez żaden kod.
+**Nie ma więc panelu, który po tej zmianie przestaje cokolwiek pokazywać** —
+i to jest powód, dla którego dwie nazwy przy odczycie byłyby kosztem bez
+korzyści: rozgałęziałyby każde przyszłe zapytanie, a pierwszy człowiek, który
+napisze `where('signal_name', 'weekly_digest_queued')` bez tej gałęzi,
+dostałby po cichu za małą liczbę.
+
+Migracja `2026_09_10_400000_rename_weekly_digest_sent_signal` robi więc trzy
+kroki w tej kolejności: poszerza CHECK o obie nazwy, przepisuje wiersze
+(`UPDATE`, nie `DELETE`), zwęża CHECK do nowej. Odwrotna kolejność odbiłaby
+`UPDATE` o ograniczenie, którego wiersze jeszcze nie spełniają. `down()` jest
+symetryczne i też nie kasuje wierszy — cofnięcie kodu przywraca kod, który
+tę nazwę zapisywał, a kasowanie telemetrii przy rollbacku byłoby karą za
+cofnięcie wdrożenia. Na produkcji takich wierszy jest prawdopodobnie zero
+(digest jest domyślnie wyłączony, D-057 §8), ale migracja tego nie zakłada.
+
+#### Czego świadomie NIE zrobiliśmy: `delivered` i `opened`
+
+Nie emitujemy ani jednego, ani drugiego, i **nie wracamy do pikseli
+śledzących, żeby mieć ładniejszą metrykę.** „Doręczono" wymaga webhooka
+o odbiciach od dostawcy — osobna, niezrobiona robota (`docs/decyzje/POCZTA.md`
+§5 pkt 6). „Otwarto" wymaga niewidzialnego obrazka w treści listu, czyli
+zapisywania, kiedy konkretna osoba czyta pocztę i z jakiego adresu IP.
+Polityka prywatności obiecuje wprost tego nie robić, transport ma własny
+wyłącznik śledzenia u dostawcy (`X-TRACKING-OFF`) domyślnie WŁĄCZONY, a sprawa
+jest otwarta jako **#204** i produkt świadomie tego nie chce. Zatrzymujemy się
+na uczciwym „zakolejkowano".
+
+Pilnuje tego test, nie tylko zdanie w tym wpisie:
+`SygnalDigestuMowiZakolejkowanoTest::test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia`
+czyta CHECK wprost z `pg_constraint` i przechodzi po stałych `ZapiszSygnal`
+przez refleksję. Nazwa mówiąca „doręczono", „otwarto" albo „kliknięto" oblewa
+go. Gdy prawdziwy webhook o odbiciach kiedyś powstanie, `delivered` zdejmuje
+się z tamtej listy **jawnie**, jedną decyzją — śledzenia otwarć i kliknięć
+nie zdejmuje się wcale.
+
+### 2. Jeden aktywny eksport danych na konto — indeks częściowy (QUEUE-04 / RACE-05)
+
+**Stan sprzed zmiany, sprawdzony w pliku:**
+`DataSettingsController::requestExport()` robił `exists()` na stanach
+`queued`/`processing`, a potem **osobny `INSERT`**. Schemat nie wymuszał
+niczego: `data_exports` miało CHECK na `status` i indeks `(user_id,
+created_at)`, ale żadnego ograniczenia unikalności.
+
+Między `SELECT`-em a `INSERT`-em jest okno. Przy izolacji `read committed`
+dwa równoległe żądania widzą „nie ma aktywnego eksportu" **jednocześnie**
+i oba wstawiają swój wiersz, żadne nie czeka. Skutkiem są **dwa ciężkie
+eksporty tego samego konta**: `GenerateUserExport` pakuje wszystkie zdjęcia,
+ma 15 minut limitu czasu, chodzi na kolejce `low` przy jednym workerze — plus
+dwa listy do jednej osoby z tego samego dobowego wiadra 300 wiadomości.
+Wejściem jest podwójne kliknięcie „Zamów swoje dane", a **przy grupie 60+
+dwuklik jest scenariuszem typowym, nie skrajnym** (`docs/UX_50_PLUS.md`,
+`docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
+
+```sql
+CREATE UNIQUE INDEX data_exports_one_active_per_user
+    ON data_exports (user_id)
+ WHERE status IN ('queued', 'processing');
+```
+
+**`exists()` W PHP ZOSTAJE — ale robi coś innego niż indeks.** `exists()` daje
+ŁADNY KOMUNIKAT, indeks daje GWARANCJĘ. `AGENTS.md` §6: „prawdziwe klucze obce
+i prawdziwe CHECK-i w bazie — walidacja w PHP jest dodatkiem, nie
+zamiennikiem". Tutaj było odwrotnie. To jest dokładnie ten przypadek, w którym
+PostgreSQL potrafi wyrazić inwariant, a `exists()` w PHP nie potrafi.
+
+**`lockForUpdate()` NIE jest tu rozwiązaniem i nie został dodany** — `SELECT
+... FOR UPDATE`, który nie zwrócił żadnego wiersza, nie blokuje niczego. To
+wstawienie fantomu, nie konflikt na wierszu (zmierzone przy
+`reports_one_open_per_pair`, ADR §1.4.2).
+
+**Indeks jest CZĘŚCIOWY, bo inwariant brzmi „jeden AKTYWNY", nie „jeden
+w historii".** RODO art. 15 nie jest jednorazowe, a ekran ustawień pokazuje
+pięć ostatnich paczek. Zwykły `UNIQUE (user_id)` zamieniłby usterkę
+współbieżności na usterkę produktową: człowiek nie mógłby już nigdy zamówić
+swoich danych po raz drugi.
+
+**Konflikt kończy się TYM SAMYM zdaniem co zwykły dwuklik, nigdy 500.**
+Kontroler łapie `UniqueConstraintViolationException`, upewnia się, że aktywny
+eksport naprawdę istnieje (inaczej wyjątek leci dalej — to samo, co robi
+`ReportContent`), i oddaje `back()->with('status', …)` z jedną, wspólną
+treścią. Człowiek, który kliknął dwa razy, ma zobaczyć to samo co ten, który
+kliknął raz; ekran błędu byłby karą za dwuklik. `INSERT` jest owinięty
+w `DB::transaction()` — nie z ostrożności, a dlatego, że na PostgreSQL nieudany
+`INSERT` wewnątrz szerszej transakcji zatruwa całą transakcję i sprawdzenie po
+konflikcie odbiłoby się o „current transaction is aborted" (ta sama pułapka co
+w `ZapiszSygnal`).
+
+**Migracja odmawia, gdy w bazie już leżą dwa aktywne eksporty jednego konta**
+— bo `CREATE UNIQUE INDEX` i tak by się o nie odbił, tylko komunikatem
+PostgreSQL, z którego nie wynika, co zrobić. Komunikat migracji mówi: zostaw
+NAJSTARSZY aktywny wiersz na konto, nadmiarowe skasuj — gotowy `DELETE` stoi
+w komentarzu migracji. Kasowanie jest tu bezpieczne, **w odróżnieniu od
+`reports`**, i to jest osobna decyzja: wiersz w stanie aktywnym nie ma jeszcze
+`object_key` ani `disk` (nie ma osieroconego pliku),
+`GenerateUserExport::handle()` przy braku wiersza po prostu wraca, a paczka
+z pozostawionego wiersza jest bajt w bajt tą samą paczką. To nie jest sprawa
+z terminem odpowiedzi z DSA art. 16.
+
+### Ryzyka i rollback
+
+| Zmiana | Rollback | Co wraca |
+|---|---|---|
+| Nazwa sygnału | `migrate:rollback` na `2026_09_10_400000_*` — przepisuje wiersze z powrotem, nic nie kasuje | stara, nieprawdziwa nazwa; cofać razem z kodem, inaczej w tabeli mieszają się obie |
+| Indeks eksportu | `DROP INDEX IF EXISTS` — bezstratnie, żaden wiersz nie ginie | `exists()` łapie zwykły dwuklik, baza nie broni niczego, `catch` staje się gałęzią, w którą nic nie wchodzi |
+
+Największe ryzyko po tej stronie to **migracja odmawiająca na produkcji**
+przy istniejących duplikatach. Jest świadome: lepiej zatrzymać wdrożenie
+komunikatem mówiącym co zrobić, niż wdrożyć się w połowie.
+
+### Sprostowanie po drodze
+
+`docs/DATABASE.md` twierdził przy `product_signals.occurred_at`, że dla
+`weekly_digest_sent` kolumna jest **czytana jako licznik dobowego limitu
+poczty**. Nieprawda — sprawdzone w kodzie: sufit liczy
+`App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**
+i do `product_signals` nie sięga ani razu. Poprawione tam na miejscu.
+
+### Zmiana wymaga
+
+Dla (1) — prawdziwego sygnału od dostawcy poczty, jawnie zdjętego z listy
+zakazanych cząstek w teście, plus wpisu tutaj. Śledzenia otwarć i kliknięć
+nie dotyczy: to obietnica z polityki prywatności, nie brak funkcji.
+Dla (2) — zmiany słownika stanów `data_exports`; wtedy warunek `WHERE` indeksu
+i lista w `maAktywnyEksport()` muszą pójść razem, inaczej rozjadą się cicho
+(obie gałęzie kończą się tym samym ekranem).
+
+📄 `app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`app/Domain/Analytics/ZapiszSygnal.php` ·
+`app/Http/Controllers/Settings/DataSettingsController.php` ·
+`database/migrations/2026_09_10_400000_rename_weekly_digest_sent_signal.php` ·
+`database/migrations/2026_09_10_400100_one_active_data_export_per_user.php` ·
+`tests/Feature/SygnalDigestuMowiZakolejkowanoTest.php` ·
+`tests/Feature/JedenAktywnyEksportNaKontoTest.php` ·
+`tests/Feature/Wyscigi/EksportDanychRaceTest.php` ·
+`tests/Feature/TygodniowePodsumowanieTest.php` ·
+`docs/DATABASE.md` (`data_exports`, `product_signals`) ·
+audyt `docs/research/audyt-2026-09-10/` (MAIL-03, QUEUE-04 / RACE-05) ·
+issue #204 (otwarta: śledzenie otwarć — nie robimy)
+
+[^1]: [spatie/laravel-permission — migracja `create_permission_tables.php.stub`](https://raw.githubusercontent.com/spatie/laravel-permission/main/database/migrations/create_permission_tables.php.stub) — pięć `Schema::create()`: `permissions`, `roles`, `model_has_permissions`, `model_has_roles`, `role_has_permissions`.
+[^2]: [spatie/laravel-permission — `config/permission.php`](https://raw.githubusercontent.com/spatie/laravel-permission/main/config/permission.php) — `'store' => 'default'`, `'expiration_time' => DateInterval::createFromDateString('24 hours')`.
+[^3]: [Laravel 13.x Docs — Pennant](https://laravel.com/docs/13.x/pennant) — sterownik `database` jest domyślnym mechanizmem trwałego zapisu wartości flag; migracja pakietu tworzy tabelę `features`.
+[^4]: [spatie/laravel-activitylog — README](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — jedna tabela `activity_log`, kolumny `subject_id`/`subject_type`, `causer_id`/`causer_type`, `description`, `properties`, `event`.
+[^5]: `spatie/laravel-activitylog` dokumentacja, sekcja „Log Options" (`docs/advanced-usage/log-options.md` w repozytorium pakietu) — `logOnly()`/`logExcept()`/`dontLogEmptyChanges()`.
+[^6]: [spatie/laravel-activitylog — README, sekcja „Clean log"](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — komenda `activitylog:clean`, kasuje wpisy starsze niż skonfigurowana liczba dni, bez pojęcia kategorii wyłączonych z kasowania.
+
+---
+
+## D-071 · Granica zaufania do nagłówka `Host` jest zamknięta z dwóch stron: `X-Forwarded-Host` wypada z zaufanych nagłówków, a `Host` przechodzi przez `TrustHosts`
+
+**Data:** 10 września 2026 · **Znalezisko:** S2 (P1) z `docs/research/audyt-2026-09-10/02_BEZPIECZENSTWO_APLIKACJI.md`
+
+### Co było zmierzone PRZED zmianą — bo od tego zależy, jak to nazwać
+
+Pomiar, nie założenie (tymczasowy test na `origin/main` @ `e3cf6ab`):
+
+| Żądanie | Odpowiedź | `url('/przepisy')` |
+|---|---|---|
+| bez nagłówków | 200 | `http://localhost:8000/przepisy` |
+| `Host: attacker.invalid` | 200 | host z żądania |
+| `X-Forwarded-Host: attacker.invalid` | 200 | **`http://attacker.invalid/przepisy`** |
+
+Linki w listach przy `X-Forwarded-Host: attacker.invalid`, gdy adres powstaje
+w żądaniu HTTP — wszystkie cztery wychodziły na `http://attacker.invalid/…`:
+reset hasła, potwierdzenie adresu, logowanie linkiem, potwierdzenie zmiany
+adresu e-mail.
+
+**Ale to nie znaczy, że wszystkie cztery były na produkcji do wykorzystania,
+i nie wolno tego tak sprzedać.** Trzy pierwsze powiadomienia są `ShouldQueue`,
+a produkcyjna kolejka to `database` (`.railway/railway.ts`), więc adres
+powstaje w WORKERZE. Zmierzone w kontekście konsoli: `url()` zwraca
+`https://kuking.pl/…`, bo `SetRequestForConsole` buduje żądanie z `APP_URL`.
+Dla resetu hasła, potwierdzenia adresu i logowania linkiem to była więc
+granica **formalnie otwarta, praktycznie zasłonięta** przez asynchroniczną
+kolejkę — czyli **hardening, nie naprawa dziury**.
+
+Jedno miejsce nie miało tej osłony: `RequestEmailChange::linkPotwierdzajacy()`
+buduje podpisany adres **w żądaniu HTTP**, przed zakolejkowaniem listu. Tam
+`X-Forwarded-Host` wchodził do treści listu wprost i to jest **realnie otwarta
+droga**, nie hipoteza.
+
+### Decyzja
+
+**1. `Request::HEADER_X_FORWARDED_HOST` wypada z bitmaski `trustProxies()`.**
+To jest zamknięcie mocniejsze niż allowlista, bo nagłówka, którego aplikacja
+nie czyta, nie da się podstawić żadną wartością. Wolno go było wyjąć, bo
+w naszym łańcuchu **nikt go nie wystawia i nikt nie przepisuje `Host`**:
+Cloudflare w trybie proxy przekazuje `Host` na origin nietknięty (routing po
+nim właśnie działa), a brzeg Railway kieruje ruch po `Host`/SNI i też go
+zachowuje — inaczej nie odróżniłby `kuking.pl` od `staging.kuking.pl` na tym
+samym koncie. Aplikacja ma oryginalny host w `Host` i drugiego źródła nie
+potrzebuje.
+
+**2. `Host` przechodzi przez `TrustHosts` z jawną listą** — `App\Support\ZaufaneHosty`,
+`subdomains: false`. Na liście: `kuking.pl`, `www.kuking.pl`,
+`healthcheck.railway.app`, host z `APP_URL`, pętla zwrotna
+(`localhost`/`127.0.0.1`/`[::1]`) i pusty domyślnie zawór
+`config('proxy.dodatkowe_hosty')`. Uzasadnienie każdego wpisu — i tego, co się
+stanie po jego pominięciu — stoi w komentarzu tamtej klasy.
+
+**3. Adresy w listach budowane z konfiguracji, zawsze** — `App\Support\AdresKanoniczny`.
+Dla linku, który **daje sesję** (`LinkDoLogowania`, D-056 — nasza główna droga
+wejścia dla osób 60+), „host był na liście dozwolonych" jest gwarancją słabszą
+niż „host w ogóle nie zależał od żądania": lista ma kilka pozycji, kanoniczny
+adres jest jeden.
+
+### Czego świadomie NIE zrobiliśmy
+
+**Produkcyjnego `*.up.railway.app` nie ma na liście.** Wejście na origin
+z pominięciem Cloudflare to znalezisko **S1** — osobne, większe, wymaga zmian
+w panelu Cloudflare i decyzji właściciela. Ta zmiana go NIE rozstrzyga.
+Skutkiem ubocznym jest to, że ten host przestaje być drogą do zbudowania
+adresu na cudzej domenie, ale **to nie jest zamknięcie S1** i nie wolno tak
+raportować. Gdyby właściciel potrzebował wejść na origin wprost, służy do tego
+zawór z punktu 2.
+
+**Nie ruszaliśmy `NormalizeForwardedFor`** ani liczby `zaufane_przeskoki`
+(SEC-01, W7-01) — to jest `X-Forwarded-For`, inna granica.
+
+### Ryzyko wdrożeniowe — jedyne, które tu jest, i jak je zamknięto
+
+`TrustHosts` bez `healthcheck.railway.app` oddaje healthcheckowi Railwaya 400,
+a wtedy **deploy nigdy się nie kończy i nie ma jak wypchnąć poprawki**, bo
+poprawka też idzie deployem. Dlatego: host jest na liście, pilnuje go test
+`ZaufaneHostyTest::test_healthcheck_railwaya_przechodzi` (oblewa po usunięciu
+wpisu — sprawdzone), a na wypadek zmiany po stronie Railwaya istnieje zawór
+`KUKING_ZAUFANE_HOSTY`, którym da się naprawić produkcję **bez deployu**.
+Brak tej zmiennej jest stanem domyślnym, bezpiecznym i działającym — nie trzeba
+jej ustawiać, żeby serwis wstał.
+
+**Zmiana wymaga:** dowodu z produkcji, że coś w łańcuchu przepisuje `Host`
+(objaw: adresy w serwisie wskazują wewnętrzną domenę platformy). Wtedy wraca
+`HEADER_X_FORWARDED_HOST` — ale razem z zapisanym pomiarem, nie „na wszelki
+wypadek".
+
+📄 `bootstrap/app.php` · `app/Support/ZaufaneHosty.php` ·
+`app/Support/AdresKanoniczny.php` · `config/proxy.php` ·
+`app/Notifications/UstawienieNowegoHasla.php` ·
+`app/Notifications/PotwierdzenieAdresu.php` ·
+`app/Notifications/LinkDoLogowania.php` ·
+`app/Domain/Users/Actions/RequestEmailChange.php` ·
+`tests/Feature/ZaufaneHostyTest.php` ·
+`.railway/railway.ts` · `docs/legal/BRAMKA_BETY.md` ·
+`docs/infra/DEPLOYMENT_RUNBOOK.md`
+
+---
+
+## D-076 · Dobowy budżet listów jest twardym sufitem: jedna atomowa rezerwacja pod blokadą `Cache::lock()`, bez nowej tabeli
+
+**Data:** 10 września 2026 · Źródło: audyt drugiej warstwy, **MAIL-01 / RACE-03 (P1)** · Status: **obowiązuje**
+
+### Co było źle
+
+`App\Domain\Security\DziennyBudzetListow` rozdzielał odczyt licznika od jego
+zapisu — i tak też był wołany:
+
+```php
+if (! $budzet->jestMiejsce()) { odmów; }   // odczyt: 119 ze 120
+// …dziesięć linii dalej…
+$budzet->zajmij();                          // zapis: 120
+```
+
+Tak stało w `LoginLinkController::send()` (sprawdzenie i zajęcie w odległości
+dziesięciu linii) i w `kuking:wyslij-podsumowania` (rozmiar paczki liczony raz
+z `zostalo()`, przed pętlą). Przy suficie 120 i zużyciu 119 dwa równoległe
+żądania czytają oba 119, oba widzą wolne miejsce, oba wysyłają list i oba
+inkrementują licznik. Wychodzi 121 listów przy sufcie 120.
+
+`Cache::increment()` jest atomowy jako POJEDYNCZA operacja — i to właśnie
+usypiało czujność. Para „sprawdź, a potem zajmij" nie jest atomowa jako para
+i żadna liczba komentarzy w kodzie tego nie zmienia.
+
+Nie da się tego naprawić sprawdzeniem PO inkrementacji („czy przekroczyliśmy?").
+Wiadomość jest wtedy już zakolejkowana, przekroczenie już nastąpiło, a listu
+z drogi nie cofniemy.
+
+### Dlaczego to nie jest usterka kosmetyczna
+
+Wiadro u dostawcy to 300 listów na dobę na CAŁY serwis (D-047), a z tego samego
+wiadra idzie **potwierdzenie rejestracji**, które sufitu nie ma i mieć nie może
+— nie da się go przełożyć na jutro. Sufit przeciekający o kilka listów pod
+obciążeniem zabiera je dokładnie tam. Właściciel spodziewa się fali migracyjnej
+z Garnek.pl, czyli dnia, w którym logowanie linkiem i rejestracja mają szczyt
+w tej samej godzinie.
+
+### Decyzja
+
+1. **Jedna atomowa operacja rezerwacji:** `sprobujZarezerwowac(): bool`.
+   Zajmuje miejsce i zwraca `true`, albo nie zajmuje niczego i zwraca `false`.
+   W środku, pod blokadą, chodzi ta sama para co dawniej — ale nikt z zewnątrz
+   nie może już wejść między jej dwa kroki.
+2. **Wszystkie miejsca decydujące o wysyłce przeszły na tę metodę.** Sprawdzone
+   `grep`iem: w `app/` nie została ani jedna para sprawdź-potem-zajmij.
+3. **`jestMiejsce()` i `zostalo()` zostają jako ODCZYT** — do pokazania
+   człowiekowi, do diagnostyki i do oszacowania rozmiaru paczki
+   (`kuking:wyslij-podsumowania` nie pobiera z bazy stu odbiorców, gdy zostało
+   pięć miejsc). Docblocki mówią teraz wprost, czego nimi robić nie wolno.
+4. **Nie udało się zdobyć blokady w 2 sekundy → ODMOWA wysyłki.** Nie „wyślij
+   na wszelki wypadek": przekroczony budżet u dostawcy odbija się na całej
+   poczcie serwisu, a jedna niewysłana wiadomość odbija się na jednej osobie,
+   która dostaje uczciwy komunikat i klika drugi raz.
+5. **Miejsce, z którego nic nie wyszło, wraca do puli** (`zwolnij()`) — patrz
+   niżej, „Rezerwacja przed wysyłką kontra stara reguła".
+
+### Dlaczego blokada na istniejącym mechanizmie, a nie własna tabela z `UPDATE ... WHERE used < limit`
+
+Warunkowy `UPDATE` byłby poprawny i byłby atomowy bez żadnej blokady — to
+uczciwa alternatywa i została rozważona. Kosztuje jednak: nową tabelę,
+migrację, wpis w `docs/DATABASE.md`, opisany rollback i sprzątanie starych
+wierszy. Czyli **drugi mechanizm obok tego, który już mamy**, przy zasadzie
+projektu mówiącej odwrotnie: żadnych nowych mechanizmów bez zmierzonej
+potrzeby (AGENTS.md §3).
+
+Rozstrzyga to, czym jest tu `Cache::lock()`. Sterownik cache w tym projekcie to
+`database` (`config/cache.php` → `env('CACHE_STORE', 'database')`,
+`.env.example` → `CACHE_STORE=database`), więc blokada jest **prawdziwa,
+współdzielona między procesami i trwała**, oparta o tabelę `cache_locks`
+z migracji `0001_01_01_000002_create_cache_table`. To ta sama tabela w tej
+samej bazie, do której poszedłby własny warunkowy `UPDATE` — z tą różnicą, że
+nie musimy jej pisać, migrować ani sprzątać.
+
+Gdyby sterownikiem był `array`, blokada nie wychodziłaby poza jeden proces PHP
+i cały ten sufit byłby atrapą. Ten warunek nie jest już domysłem: pilnuje go
+`AtomowaRezerwacjaBudzetuTest::test_produkcyjny_sterownik_cache_daje_prawdziwa_wspoldzielona_blokade`.
+
+**Redisa nie dodajemy** — projekt świadomie go nie ma (AGENTS.md §3), a
+`database` tu wystarcza.
+
+### Rezerwacja przed wysyłką kontra stara reguła „licz dopiero wysłane listy"
+
+Sufit musi być zajmowany PRZED wysyłką, bo po niej jest już za późno na
+cokolwiek. Ale przy logowaniu linkiem list wychodzi tylko wtedy, gdy pod
+podanym adresem NAPRAWDĘ jest konto — i to nie jest szczegół: gdyby licznik
+ruszał przy każdym wysłaniu formularza, byle automat wpisujący nieistniejące
+adresy wyczerpałby dobowy budżet w kilka minut, nie wysławszy ani jednego
+listu prawdziwej osobie.
+
+Obie reguły trzymamy naraz: rezerwacja stoi przed wysyłką, a nieużyte miejsce
+wraca do puli przez `zwolnij()`. Nieudane zdobycie blokady przy oddawaniu
+zostawia licznik zawyżony o jeden i tak ma być — pomyłka idzie wtedy w stronę
+„wyślemy o jeden list mniej", nie w stronę przekroczenia limitu dostawcy.
+Regresję pilnuje istniejący `test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu`.
+
+### Dwa powody odmowy, dwa różne zdania dla człowieka
+
+Rezerwacja mówi tylko „nie", a te dwa „nie" znaczą dla człowieka coś zupełnie
+innego. Przy wyczerpanym budżecie czekanie na list jest bezcelowe („nie czekaj
+na niego"); przy ścisku na blokadzie budżet jest wolny i drugie kliknięcie
+zwykle wystarcza. Zdanie „wysłaliśmy już wszystkie e-maile na dziś" w drugim
+przypadku byłoby po prostu **nieprawdą**, a komunikaty w tym serwisie nie
+opowiadają rzeczy, które się nie stały (D-056, ekran linku). Treść komunikatu
+dobiera odczyt `jestMiejsce()` — już PO tym, jak rezerwacja rozstrzygnęła
+o wysyłce.
+
+### Czego świadomie nie zmieniono
+
+- **Wartości sufitów w `config/kuking.php`** — ani jednej liczby. Podział
+  wiadra pilnuje `PodzialLimituPocztyTest` i nie ma z tą usterką nic wspólnego.
+- **List próbny `kuking:wyslij-podsumowania --tylko` stoi ponad sufitem**, tak
+  jak przed tą zmianą: to jedna wiadomość wypuszczana ręcznie przez właściciela,
+  który chce ZOBACZYĆ list. Ale musi się policzyć, więc gdy rezerwacja odmówi,
+  miejsce zajmowane jest bezwarunkowo (`zajmij()`). To jedyne miejsce w kodzie,
+  w którym wolno wołać `zajmij()` wprost.
+- **Idempotencja tygodniowego digestu** — osobne zadanie, osobna gałąź.
+
+**Zmiana wymaga:** zmierzonego problemu z blokadą na sterowniku `database`
+(np. przy dziesiątkach żądań na sekundę na ten jeden klucz). Wtedy — i tylko
+wtedy — wraca do rozważenia warunkowy `UPDATE` we własnej tabeli z pełnym
+kompletem: migracja, test, `docs/DATABASE.md`, rollback.
+
+📄 `app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Http/Controllers/Auth/LoginLinkController.php` ·
+`app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`tests/Feature/AtomowaRezerwacjaBudzetuTest.php` ·
+`tests/Feature/LogowanieLinkiemTest.php` ·
+`tests/Feature/TygodniowePodsumowanieTest.php` ·
+`config/cache.php` · `database/migrations/0001_01_01_000002_create_cache_table.php` ·
+D-047 · D-056 · D-057
+
+---
+
+## D-079 · Operacje na jednej rzeczy tego samego konta idą przez JEDNĄ kolejność blokad, a pod blokadą sprawdzamy stan jeszcze raz
+
+**Data:** 10 września 2026 · Ustalenie AUTH-01 / RACE-01 z drugiej warstwy
+audytu (`docs/research/audyt-2026-09-10/`) · Status: **obowiązuje**
+
+### Co było złamane
+
+Serwis obiecuje w trzech miejscach jedną własność: **ustawienie nowego hasła
+unieważnia oczekującą zmianę adresu e-mail**. Wołają to
+`PasswordResetController::reset()` i `SecuritySettingsController::
+updatePassword()` przez `CancelEmailChange`, a `PendingEmailChange` wymienia
+to jako jedną z trzech dróg wygaszenia żądania.
+
+Ta własność **nie obowiązywała**. `EmailSettingsController::confirm()`
+pobierał wiersz `pending_email_changes`, sprawdzał go i oddawał MODEL do
+`ConfirmEmailChange::handle()`, które wchodziło do transakcji, blokowało
+`users` — i nigdy nie czytało tego wiersza ponownie. `CancelEmailChange`
+kasowało wiersz **bez żadnej blokady**. Między odczytem w kontrolerze
+a transakcją w akcji było okno:
+
+1. żądanie A czyta ważne `PendingEmailChange`;
+2. żądanie B ustawia nowe hasło i kasuje ten wiersz;
+3. żądanie A wchodzi do transakcji, przypisuje NOWY ADRES i woła
+   `$zmiana->delete()`, które kasuje zero wierszy — i nie zgłasza błędu.
+
+**Nie jest to teoretyczne.** Kontrola ujemna (usunięcie rewalidacji
+i uruchomienie testów regresyjnych) pokazuje, że adres konta faktycznie
+zmienia się na nowy mimo anulowania.
+
+### Dlaczego to była najpoważniejsza rzecz z całego audytu
+
+Scenariusz, w którym ta obietnica ma sens, to dokładnie ten, w którym ktoś
+obcy miał chwilowy dostęp do konta: zamówił zmianę adresu na swój,
+a właściciel odzyskuje konto ustawiając nowe hasło. Właściciel wykonuje
+**dokładnie tę czynność, którą serwis mu każe** — i mimo tego link
+napastnika może później przestawić adres konta, czyli przenieść na niego
+logowanie i reset hasła.
+
+Mechanizm zaprojektowany na wypadek przejęcia konta dawał się przejęciu
+obejść. Audyt sklasyfikował to jako P1; w praktyce jest to jedyne znalezisko
+z obu warstw, które prowadzi do utraty konta bez żadnego błędu właściciela.
+
+### Zasada, która z tego zostaje
+
+**1. Jedna kolejność blokad, w jednym miejscu.** `App\Domain\Users\ZamekKonta`
+ustala: najpierw wiersz `users`, potem rzecz zależna. Wszystkie trzy operacje
+na zmianie adresu (zamówienie, potwierdzenie, anulowanie) wchodzą przez to
+gardło. Kolejność jest ważniejsza niż sam fakt blokowania — dwie różne
+kolejności w jednym repozytorium to zakleszczenie, a nie zabezpieczenie.
+Dlatego kolejność stoi w jednej klasie, nie w trzech akcjach osobno.
+
+**2. Blokujemy wiersz KONTA, nie rzeczy zależnej.** Bo rzecz zależna może nie
+istnieć, a `SELECT ... FOR UPDATE` na nieistniejącym wierszu nie blokuje
+niczego i nie powstrzyma drugiego `INSERT`. Konto istnieje zawsze i jest
+wspólne dla wszystkich operacji.
+
+**3. Sama blokada nie wystarczy — pod blokadą czytamy stan JESZCZE RAZ.**
+Blokada serializuje, ale nie mówi żądaniu A, że świat zmienił się, gdy ono
+czekało. Akcja, która dostaje model z zewnątrz, **nie ma prawa mu ufać**:
+model mógł zostać odczytany przed sekundą albo przed godziną. Rewalidacja
+pyta o to samo co sprawdzenie przed blokadą: czy wiersz istnieje, czy jest
+nasz, czy nie wygasł i czy dotyczy tej samej rzeczy.
+
+**4. `exists()` w PHP jest dobre na ładny komunikat, nie na gwarancję.**
+Gwarancję daje constraint w PostgreSQL albo blokada. Tam, gdzie inwariant da
+się wyrazić w bazie, ma być w bazie.
+
+### Zasięg tej decyzji
+
+Wpis dotyczy zmiany adresu e-mail, ale zasada jest ogólna i audyt wskazuje
+te same wzorce w co najmniej pięciu innych miejscach (wystawianie linku do
+logowania, dobowy budżet listów, idempotencja digestu, jeden aktywny eksport
+danych, harmonogram przy wielu replikach). Każde z nich jest rozstrzygane
+osobnym wpisem — ale **kolejność blokad wprowadzona tutaj obowiązuje w całym
+repozytorium** i nowa operacja na koncie nie zakłada własnej.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie dowodzi poprawnej kolejności blokad przy dwóch równoległych połączeniach
+do PostgreSQL — do tego trzeba dwóch procesów i wymuszonego przeplotu na
+poziomie bazy, a audyt 20 słusznie stawia to jako osobne kryterium zamknięcia.
+Testy regresyjne dowodzą rzeczy węższej i akurat tej, która była złamana:
+że akcja nie ufa modelowi podanemu z zewnątrz.
+
+**Pliki:** `app/Domain/Users/ZamekKonta.php` ·
+`app/Domain/Users/Actions/ConfirmEmailChange.php` ·
+`app/Domain/Users/Actions/CancelEmailChange.php` ·
+`app/Domain/Users/Actions/RequestEmailChange.php` ·
+`tests/Feature/PotwierdzenieAdresuNieWyprzedzaAnulowaniaTest.php`
+
+---
+
+## D-075 · Wymiana tokenu logowania linkiem idzie pod blokadą wiersza konta — a konflikt unikalności kończy się tą samą neutralną odpowiedzią co adres bez konta
+
+**Data:** 10 września 2026 · Ustalenie **AUTH-02 / RACE-02 (P1)** z audytu
+drugiej warstwy · Status: **obowiązuje**
+
+### Co było złamane — zmierzone, nie wywnioskowane
+
+`WyslijLinkDoLogowania` kasowało poprzedni token i zakładało nowy w jednej
+transakcji, ale **bez blokady wiersza konta**:
+
+```php
+// app/Domain/Security/WyslijLinkDoLogowania.php, stan sprzed tej zmiany
+LoginLinkToken::query()->where('user_id', $user->getKey())->delete();
+// … a potem INSERT nowego wiersza
+```
+
+`login_link_tokens.user_id` jest unikalne (i **ma takie zostać** — to jest
+własność bezpieczeństwa z D-056: jeden ważny link na konto, nowa prośba
+unieważnia poprzednią). Bez serializacji dwie prośby naraz przechodziły
+`DELETE` — każda kasując zero wierszy, bo każda widziała już posprzątane — i
+obie szły do `INSERT`. Jedna odbijała się o constraint.
+
+**Brakowało serializacji, nie constraintu.** To jest cała diagnoza.
+
+### Dlaczego to była sprawa bezpieczeństwa, a nie tylko brzydki błąd
+
+Ten formularz jest **świadomie zaprojektowany jako nieodróżnialny** dla adresu
+z kontem i bez konta (D-056): ekran mówi „Jeśli na adres … jest konto
+w Kuking, wysłaliśmy tam wiadomość", właśnie po to, żeby nie dało się
+sprawdzać, kto tu gotuje. Tymczasem:
+
+- dla adresu **bez konta** obie równoległe prośby kończą się spokojną ścieżką
+  „nic nie wysyłamy" — bo `handle()` wychodzi, zanim dojdzie do zapisu;
+- dla adresu **z kontem** jedna z nich wywalała `UniqueConstraintViolationException`.
+
+**Zmierzone w tym repozytorium przed poprawką**
+(`tests/Feature/WyscigLinkuDoLogowaniaTest.php` na `main` @ `fd164ad`,
+z wymuszonym konfliktem):
+
+| adres | odpowiedź HTTP |
+|---|---|
+| jest konto | **500** |
+| nie ma konta | **302** |
+
+Nic tego wyjątku nie przechwytywało: leciał do HTTP jako 500. Para
+równoległych żądań była więc kanałem enumeracji, i to takim, którego żaden
+wspólny komunikat nie zasłania — bo różnicę robił sam kod odpowiedzi.
+Turnstile (D-050) i limit trzech próśb na adres na godzinę utrudniają masowe
+użycie, ale **nie usuwają złamania kontraktu**: pytanie „czy tu jest konto"
+dawało się zadać.
+
+Drugą stroną tej samej usterki jest rzecz zwyczajna: **dwuklik „Wyślij" dawał
+500**. Logowanie linkiem jest dla osób 60+ drogą podstawową, nie awaryjną
+(`docs/research/AUDIENCE_50_PLUS.md`, D-056), więc podwójne kliknięcie
+przycisku jest tam scenariuszem typowym, nie skrajnym.
+
+### Co jest teraz
+
+1. **Blokada wiersza konta przed `DELETE`** — `SELECT … FROM users … FOR
+   UPDATE` w tej samej transakcji, w której idzie `DELETE` + `INSERT`. Dwie
+   równoległe prośby o link na to samo konto ustawiają się w kolejce, zamiast
+   wyprzedzać się nawzajem.
+2. **Świeży odczyt konta pod blokadą.** Blokada serializuje, ale nie mówi
+   żądaniu, które czekało, że świat się w tym czasie zmienił. Konto mogło
+   między odczytem po adresie a wejściem pod blokadę zostać zablokowane albo
+   dostać rolę moderatora — a link wchodzący tam, gdzie nie wchodzi hasło,
+   byłby obejściem blokady moderacyjnej. Pod blokadą pytamy o to ponownie.
+3. **Defensywne przechwycenie `UniqueConstraintViolationException`** →
+   `null` → dokładnie ta sama neutralna odpowiedź, którą dostaje adres bez
+   konta: bez listu, bez wpisu w dzienniku audytu, bez zajmowania budżetu
+   poczty. Blokada powinna wystarczyć, ale **kontrakt antyenumeracyjny nie
+   może zależeć od tego, że blokada nigdy nie zawiedzie** — zawieść może
+   z powodów spoza tej metody (przyszły drugi punkt wystawiający token,
+   komenda konsolowa, seeder, wywołanie akcji wewnątrz cudzej transakcji).
+   Ta sama konstrukcja co w `ReportContent` i `ZglosNielegalnaTresc`.
+
+Czego świadomie **nie** ruszono: treści komunikatu na ekranie logowania
+linkiem (napisana po realnej pomyłce 63-letniej testerki, PR #257),
+konsumpcji tokenu w `LoginLinkController::store()` (audyt sprawdził ją
+osobno — transakcja + `lockForUpdate`, jednorazowość, GET nie konsumuje),
+`UNIQUE(user_id)` i wykluczenia moderatorów oraz administratorów z tej drogi.
+
+### Blokada własna, nie `App\Domain\Users\ZamekKonta` — i dlaczego
+
+Ta sama sesja dodała `App\Domain\Users\ZamekKonta` — jedną kolejność blokad
+dla operacji na zmianie adresu e-mail (ustalenie AUTH-01 / RACE-01, gałąź
+`claude/wyscig-zmiany-adresu`). Ta zmiana **nie używa tamtej klasy**, i to
+jest wybór, nie przeoczenie:
+
+- **`ZamekKonta` nie istnieje jeszcze na `main`** ani na żadnej wypchniętej
+  gałęzi. Oparcie się na niej robi z tej poprawki bezpieczeństwa zakładnika
+  cudzego, niescalonego PR-a — a to jest poprawka P1, która ma dać się
+  scalić samodzielnie i samodzielnie być zielona.
+- **Dokumentacja by kłamała.** Cały komentarz `ZamekKonta` opisuje wyścig
+  przy zmianie adresu e-mail. Skopiowany tutaj wcześniej niż tamta poprawka
+  wnosiłby do repozytorium klasę tłumaczącą usterkę, której na `main` nikt
+  jeszcze nie naprawił. To jest dokładnie ten dryf dokumentacji, który audyt
+  wskazuje jako największe ryzyko tego repozytorium.
+- **Druga klasa o tej samej roli byłaby gorsza od obu wyjść.** Własna
+  `ZamekTokenu`/`ZamekKonta2` obok tamtej to gwarantowana kolizja nazw
+  i fałszywy wybór dla następnej osoby. Dlatego nie ma tu **żadnej** nowej
+  klasy: blokada siedzi w prywatnej metodzie
+  `WyslijLinkDoLogowania::wymienToken()`, jedynym miejscu, które jej dziś
+  potrzebuje.
+
+**KOLEJNOŚĆ BLOKAD ZOSTAJE JEDNA W CAŁYM REPOZYTORIUM: KONTO NAJPIERW.**
+To jest ta część, która nie podlega negocjacji, bo dwie różne kolejności
+blokad to zakleszczenie, które PostgreSQL rozwiązuje zabiciem jednego
+z żądań. Tu blokujemy `users`, a potem dopiero piszemy po
+`login_link_tokens` — tak samo, jak `ZamekKonta` blokuje `users`, a potem
+`pending_email_changes`. Kolejność jest **pilnowana testem**
+(`test_wymiana_tokenu_idzie_pod_blokada_wiersza_konta`), nie tylko
+komentarzem: test oblewa się zarówno wtedy, gdy blokady nie ma, jak i wtedy,
+gdy jest brana po `DELETE`.
+
+Blokujemy wiersz **konta**, a nie wiersz tokenu, z tego samego powodu co
+w `ZamekKonta`: wiersza tokenu może nie być, a `SELECT … FOR UPDATE` na
+nieistniejącym wierszu nie blokuje niczego i nie powstrzyma drugiego
+`INSERT`-a. Konto istnieje zawsze i jest wspólne dla obu próśb.
+
+**Do zrobienia po scaleniu `claude/wyscig-zmiany-adresu`:** przenieść to
+jedno wywołanie na `ZamekKonta::zablokuj()` i skasować prywatną transakcję
+tutaj. To jest sprzątanie, nie poprawka — kolejność blokad jest już zgodna,
+więc zwłoka nie tworzy ryzyka zakleszczenia.
+
+**Zmiana wymaga:** drugiego miejsca wystawiającego token logowania linkiem
+(wtedy blokada MUSI wyjść z tej klasy do wspólnego zamka, bo dwie kopie tej
+samej kolejności rozjadą się przy pierwszej zmianie) albo rezygnacji
+z `UNIQUE(user_id)` na `login_link_tokens` — czyli z zasady „jeden ważny
+link na konto" (D-056), a to jest osobna decyzja i dziś nie ma dla niej
+powodu.
+
+📄 `app/Domain/Security/WyslijLinkDoLogowania.php` ·
+`app/Http/Controllers/Auth/LoginLinkController.php` ·
+`database/migrations/2026_09_10_100000_create_login_link_tokens_table.php` ·
+`tests/Feature/WyscigLinkuDoLogowaniaTest.php` ·
+`tests/Feature/LogowanieLinkiemTest.php` ·
+`app/Domain/Users/ZamekKonta.php` (po scaleniu `claude/wyscig-zmiany-adresu`) ·
+D-048 · D-050 · D-056
+
+---
+
+## D-080 · Blokada i obserwowanie nie mogą współistnieć: jedna kolejność blokad na PARZE osób, rewalidacja pod blokadą i twarda bariera w bazie
+
+**Data:** 10 września 2026 · **Znalezisko:** SOCIAL-01 (P1) z audytu trzeciej
+warstwy · Status: **obowiązuje**
+
+### Co było zmierzone PRZED zmianą
+
+`FollowUser::handle()` sprawdzał blokadę zwykłym `exists()`
+(`hasBlockRelationWith`) i zaraz potem robił `attach()` — **bez transakcji
+i bez blokady wiersza**. `BlockUser::handle()` robił swoje dwie rzeczy (zapis
+blokady i `detach` obserwowania w obie strony) w jednej transakcji, ale
+transakcja jednej strony nie pomaga, gdy druga strona nie blokuje niczego.
+
+Przeplot odtworzony deterministycznie (`BlokadaWygrywaZObserwowaniemTest`,
+wstrzyknięcie przez `DB::listen` w chwilę po odczycie tabeli `blocks`):
+
+| Krok | Żądanie A („Obserwuj") | Żądanie B („Zablokuj") |
+|---|---|---|
+| 1 | pyta o blokadę → nie ma | |
+| 2 | | zapisuje blokadę, zdejmuje obserwowanie w obie strony |
+| 3 | dopina `follows` | |
+
+Zmierzony wynik na `origin/main` @ `94081ff`: **po blokadzie w tabeli
+`follows` zostaje wiersz.** Test oblewał się z komunikatem „Po blokadzie
+zostało obserwowanie".
+
+**Jedna teza znaleziska NIE potwierdziła się w tym pomiarze.** Audyt mówi, że
+człowiek dostaje wtedy także powiadomienie „X zaczyna Cię obserwować" po
+zablokowaniu. Na jednym połączeniu tego nie widać: `NotifyUser` ma własny
+filtr blokad i odczytuje relację jeszcze raz, już po zapisie żądania B, więc
+powiadomienie było wyciszane. Ta teza zostaje **niepotwierdzona i możliwa
+zarazem** — przy dwóch prawdziwych połączeniach odczyt `NotifyUser` też
+mógłby nie zobaczyć jeszcze niezatwierdzonej blokady. Nie sprzedajemy jej
+jako zmierzonej.
+
+### Dlaczego to jest granica prywatności, nie kosmetyka
+
+Blokada w tym serwisie ma jedno zadanie: żeby ktoś przestał widzieć moje
+rzeczy i przestał się pojawiać w moim życiu. Zostawione obserwowanie znaczy,
+że zablokowana osoba dalej dostaje moje wpisy w swoim **feedzie
+obserwowanych** — czyli blokada nie zrobiła tej jednej rzeczy, po którą
+człowiek po nią sięgnął. Reszta filtrów widoczności (`visibleTo`,
+wyszukiwarka ludzi, listy obserwujących) stoi na założeniu, że relacja
+blokady jest **ostateczna**.
+
+I to nie jest wyścig o milisekundy: człowiek blokuje kogoś zwykle **w momencie
+konfliktu**, czyli dokładnie wtedy, gdy druga strona jest aktywna i klika.
+Dwie osoby robiące coś naraz w tej samej sprawie, nie zbieg okoliczności.
+
+### Decyzja
+
+**1. Obie operacje na parze osób wchodzą przez jedno gardło —
+`App\Domain\Social\ZamekPary`.** Transakcja plus `SELECT … FOR UPDATE` na
+wierszach OBU kont. Wiersze kont, nie wiersz relacji: wiersza relacji może
+nie być, a `FOR UPDATE` na nieistniejącym wierszu nie blokuje niczego i nie
+powstrzyma cudzego `INSERT`-a (ten sam powód co w `ZamekKonta`).
+
+**2. NAJWAŻNIEJSZA RZECZ W CAŁEJ TEJ ZMIANIE: przy dwóch wierszach kolejność
+blokowania musi być ustalona przez DANE, nie przez wywołanie.** Wiersze są
+blokowane **rosnąco po identyfikatorze**. `ZamekKonta` (D-079) tego pytania
+nie rozstrzyga i nie mógł — tam jest jeden wiersz, więc nie ma czego
+szeregować. Tutaj wierszy są dwa, i gdyby każda operacja brała je w kolejności
+swoich argumentów, dwie równoległe operacje na tej samej parze w przeciwnych
+kierunkach zakleszczyłyby się nawzajem:
+
+```text
+żądanie A (Basia → Marek):  blokuje wiersz Basi,  czeka na Marka
+żądanie B (Marek → Basia):  blokuje wiersz Marka, czeka na Basię
+```
+
+PostgreSQL wykryłby to po `deadlock_timeout` i **zabiłby jedną transakcję** —
+człowiek zobaczyłby błąd serwera zamiast założonej blokady. A „Basia blokuje
+Marka" i „Marek obserwuje Basię" w tej samej sekundzie to dokładnie ten
+scenariusz, o który w tym zadaniu chodzi. Kolejność stoi w JEDNYM miejscu, bo
+dwie kopie tej samej reguły rozjadą się przy pierwszej zmianie. Pilnuje jej
+`ZamekParyTest::test_kolejnosc_blokad_nie_zalezy_od_kolejnosci_argumentow` —
+sprawdzany **wprost, przez podejrzenie wykonanych zapytań**, bo złamanie
+kolejności nie objawia się złym wynikiem, tylko zakleszczeniem, którego żaden
+test sekwencyjny nie zobaczy.
+
+**3. Blokady wierszy brane są dwoma osobnymi zapytaniami, nie jednym
+z `ORDER BY`.** `WHERE id IN (a, b) ORDER BY id FOR UPDATE` blokuje wiersze
+w kolejności, w jakiej wypuszcza je plan (`LockRows` nad `Sort`) — w praktyce
+dobrze, ale to zależy od planu, a plan od statystyk i wersji bazy. Gwarancja
+trzymająca się na kształcie planu nie jest gwarancją.
+
+**4. Warunek jest sprawdzany PONOWNIE pod blokadą.** Blokada tylko ustawia
+w kolejce; nie mówi żądaniu A, że świat zmienił się, gdy ono czekało.
+Sprawdzenie przed blokadą **zostaje** — służy taniej odmowie bez transakcji
+w najczęstszym przypadku (ktoś klika „Obserwuj" u osoby, którą już
+zablokował). Oba komunikaty są **identyczne**: człowiek nie ma prawa
+dowiedzieć się z treści zdania, czy trafił w wyścig.
+
+**5. Powiadomienie o nowym obserwującym powstaje POD blokadą**, w tej samej
+transakcji co wiersz `follows` — albo są oba, albo nie ma żadnego.
+`NotifyUser` tylko zapisuje do bazy (nie wysyła poczty, nie kolejkuje
+zadania), więc wejście z nim do transakcji nic nie kosztuje i nie wysyła
+niczego przed `COMMIT`-em.
+
+**6. Do tego twarda bariera w bazie: wyzwalacz
+`follows_blokada_ma_pierwszenstwo_trg`** (`BEFORE INSERT ON follows`).
+Odrzuca zapis, jeśli dla tej pary istnieje **zatwierdzona** blokada
+w którąkolwiek stronę. Zasada z D-079 §4 bez zmian: `exists()` w PHP jest
+dobre na ładny komunikat, gwarancję daje constraint albo lock.
+
+Bariera i blokada **nie zastępują się wzajemnie i trzeba obu**:
+
+| | pilnuje | nie pilnuje |
+|---|---|---|
+| wyzwalacz | każdej DROGI ZAPISU — druga akcja dopisana za pół roku, komenda, seeder, ręczny `INSERT` w psql | równoległości: przy `READ COMMITTED` nie widzi blokady jeszcze niezatwierdzonej |
+| `ZamekPary` | RÓWNOLEGŁOŚCI dwóch żądań na tej samej parze | dróg zapisu, które go omijają |
+
+### Czego świadomie NIE zrobiliśmy
+
+**`CHECK` ani `EXCLUDE` zamiast wyzwalacza.** Inwariant dotyczy DWÓCH tabel,
+a `CHECK` w PostgreSQL ma prawo patrzeć tylko na sprawdzany wiersz
+(podzapytanie jest zabronione, a `CHECK` na funkcji czytającej drugą tabelę
+nie jest wymuszany przy zmianie tamtej tabeli i zawodzi przy
+`pg_restore`). `EXCLUDE` działa w obrębie jednej tabeli.
+
+**Symetrycznego wyzwalacza na `blocks` NIE MA — i to jest decyzja, nie
+przeoczenie.** Obie tabele nie są równorzędne: **blokada musi się udać
+zawsze.** To jedyna czynność, jaką człowiek ma, gdy ktoś staje się dla niego
+problemem, a bariera potrafiąca jej ODMÓWIĆ (bo istnieje jakiś wiersz
+`follows`) byłaby zamkniętymi drzwiami w najgorszym możliwym momencie.
+Konflikt na tej stronie rozstrzyga `BlockUser`, kasując obserwowanie w obie
+strony pod blokadą wierszy — jawnie, w kodzie, który da się przeczytać.
+Wyzwalacz, który zamiast odmawiać cicho KASOWAŁBY wiersze w drugiej tabeli,
+byłby jeszcze gorszy: ukryta mutacja za plecami wywołującego zamienia każdą
+przyszłą sesję debugowania w zgadywanie.
+
+**Migracja nie sprząta danych istniejących.** Gdyby na produkcji leżał już
+wiersz-sierota z tego wyścigu, wyzwalacz go nie ruszy — pilnuje nowych
+zapisów. Kasowanie relacji społecznych migracją, bez wglądu w to, co zostało
+skasowane, jest tą destrukcyjną operacją, której zabrania `AGENTS.md` §6.
+Zapytanie diagnostyczne jest w `docs/DATABASE.md`; sprzątanie to osobna,
+jawna decyzja.
+
+**Nie ruszaliśmy `visibleTo` ani wyszukiwarki ludzi** — one czytają relację
+blokady i są poprawne. Nie ruszaliśmy `ZamekKonta`; `ZamekPary` jest osobną
+klasą w osobnej domenie, bo szereguje coś innego (parę, nie konto) i ma
+regułę, której `ZamekKonta` nie ma (kolejność).
+
+### Skutek uboczny, który wyszedł za darmo
+
+Znalezisko P2 „równoległe podwójne follow powinno być idempotentne" jest
+zamknięte przy okazji. Wcześniej dwa równoległe kliknięcia „Obserwuj" oba
+widziały „nie obserwuję" i oba robiły `attach`, więc drugie dostawało
+naruszenie klucza głównego `follows` — błąd serwera za powtórzone kliknięcie.
+Teraz drugie żądanie czyta stan po pierwszym i zwraca `false`, a kontroler
+mówi „Już obserwujesz tę osobę." Pilnuje tego
+`test_powtorne_obserwowanie_nie_dubluje_wiersza`.
+
+### Plan rollbacku
+
+`down()` migracji zdejmuje wyzwalacz i funkcję. Jest bezstratny — nie zmienia
+danych — i wolno go wykonać na produkcji pod ruchem: żaden kod nie zależy od
+wyzwalacza, a gwarancję dla drogi przez `FollowUser` trzyma dalej
+`ZamekPary`. Cofnięcie samego `ZamekPary` wymaga rewertu commita.
+
+**Zmiana wymaga:** zmierzonego kosztu wyzwalacza przy zapisie do `follows`
+(dziś to jedno indeksowane `EXISTS` na kliknięcie „Obserwuj", a `FollowUser`
+i tak wykonuje to samo pytanie) albo przypadku, w którym blokada dwóch
+wierszy kont okazuje się zbyt szeroka. Kolejność blokad rosnąco po
+identyfikatorze **nie podlega zmianie bez zmiany jej we WSZYSTKICH miejscach
+naraz** — połowiczna zmiana daje zakleszczenia.
+
+📄 `app/Domain/Social/ZamekPary.php` · `app/Domain/Social/Actions/FollowUser.php` ·
+`database/migrations/2026_09_10_400000_obserwowanie_nie_wspolistnieje_z_blokada.php` ·
+`tests/Feature/BlokadaWygrywaZObserwowaniemTest.php` ·
+`tests/Feature/ZamekParyTest.php` · `docs/DATABASE.md`
+
+---
+
+## D-081 · Pod wpisem widać, ile OSÓB zapisało go do zeszytu — autor od pierwszej, obcy od trzeciej; liczba, nie imiona; nigdzie sortowania
+
+**Data:** 10 września 2026 · **Decyzja właściciela** (issue #275) · Status: **obowiązuje**
+
+### Co zdecydował właściciel i czego to nie znaczy
+
+Właściciel powiedział wprost, po wysłuchaniu argumentów przeciw:
+
+> „ale jednak to trzeba pokazać ile osób zapisało, żeby autor wiedział i inni
+> wiedzieli, i autor czuł się doceniony, **nie chodzi o rywalizację
+> a docenienie**"
+
+Ta decyzja **nie odwraca** żadnej z zasad, które licznika dotyczyły:
+`AGENTS.md` §12 (zakaz publicznych rankingów użytkowników) i `CLAUDE.md`
+(feed chronologiczny, bez punktów i grywalizacji) obowiązują dalej. Zmienia się
+jedna rzecz: pod wpisem stoi zdanie o tym, ilu LUDZIOM ten wpis się przydał.
+Liczba, która DOCENIA, i liczba, która USTAWIA W SZEREGU, mają ten sam
+kształt — różni je to, komu i od kiedy się ją pokazuje, i gdzie się jej
+NIE pokazuje. Cała reszta tego wpisu jest o tej różnicy.
+
+### Próg: autor od 1, ktokolwiek inny od 3
+
+Powód progu jest **arytmetyczny, nie ideologiczny**: serwis jest na starcie
+prawie pusty (`docs/product/COLD_START.md`). Licznik liczony od jednego
+pokazywałby pod większością dań „1 osoba zapisała", a pod czyimś pierwszym
+daniem — nic. „1 osoba zapisała" docenia autora **słabiej niż brak liczby**,
+a zero obok cudzej dziesiątki jest dokładnie tym, przed czym ostrzega
+`docs/brand/COPY_STYLE.md` przy zakazie komplementów za publikację
+(ponad połowa osób 50+ w mediach społecznościowych nigdy nic nie publikuje —
+`docs/research/AUDIENCE_50_PLUS.md`).
+
+**Autor widzi liczbę od pierwszego zapisu**, bo to jest cała treść decyzji
+właściciela: autor ma prawo wiedzieć, że jego danie komuś się przydało. Reszta
+świata nie ma czego porównywać, dopóki liczby są jednocyfrowe.
+
+**Dla obcych próg wynosi 3, nie 2** — i to jest wybór, nie zaokrąglenie.
+Właściciel w tym samym zgłoszeniu sam nazwał dwójkę liczbą, która wypada
+słabo: *„ludzie widzieli że to zapisało 10 osób a to tylko 2"*. Skoro „tylko 2"
+czyta się jak porażka, próg musi stać NAD dwójką — inaczej licznik pokazywałby
+obcym dokładnie tę liczbę, która autorowi szkodzi. Precedens na próg
+widoczności licznika jest w projekcie od #38: stopka nie pokazuje liczby
+kuKINGów poniżej 20 (`LiczbaKukingow`, D-012) z tego samego powodu.
+
+### Liczba, nie imiona — bo zeszyt jest PRYWATNY (sprawdzone w kodzie)
+
+Rozważane było „zapisali to: Halina, Marek i jeszcze 3 osoby" — informacja
+o LUDZIACH zamiast wyniku, lepiej pasująca do serwisu, który nigdzie nie ma
+punktów. **Odpada**, i to nie z ostrożności, a z ustalenia w kodzie:
+
+- `collections.visibility` ma `DEFAULT 'private'`
+  (migracja `2026_09_05_000800_create_collections_tables`), a komentarz tej
+  migracji mówi to wprost: *„Ktoś, kto zapisuje przepis »na potem«, nie ogłasza
+  tego światu. Publiczna kolekcja jest świadomą decyzją, nie ustawieniem
+  domyślnym"*;
+- ekran zeszytu (`CollectionController::show()`) i `CollectionPolicy` traktują
+  zeszyt jak cudzy pojemnik z własną granicą widoczności.
+
+Zapisanie cudzego wpisu do zeszytu **nie jest dziś czynnością publiczną**,
+więc nie wolno jej taką zrobić bez osobnej decyzji właściciela. Imiona
+wyciągnęłyby na wierzch zawartość prywatnych zeszytów. Sama liczba — i to od
+trzech dla obcych — niczyjego zeszytu nie zdradza.
+
+### Kto się liczy
+
+`users.status = active`, czyli granica „promocyjna", ta sama co
+`Post::scopeTylkoOdAktywnychAutorow()`, `DiscoverFeed` i `SearchQuery`
+(audyt A5). Nie `widocznyJakoOsoba()`, bo tamten zakres przepuszcza konta
+**zawieszone**, a zapis od konta pod sankcją nie ma podbijać liczby
+pokazywanej nieznajomym. Jednym warunkiem wypadają konta zbanowane,
+zawieszone, w trakcie usuwania i usunięte.
+
+**Blokada — w obie strony i bezwarunkowo** (`AGENTS.md` §4), tym samym
+wzorcem co `Comment::scopeWidoczneDla()` i `CookedEvent::scopeWidoczneDla()`.
+Liczba jest więc policzona OCZAMI WIDZA.
+
+**Własny zapis autora się nie liczy.** Licznik, który autor może sobie sam
+podbić, nie jest informacją o niczym.
+
+`count(distinct users.id)`, nie `count(*)`: liczymy LUDZI, a jedna osoba
+z dwoma zeszytami może wrzucić ten sam wpis dwa razy.
+
+### Po „Zapisuję" widać, że się zapisało (część 1 — usterka, nie decyzja)
+
+Potwierdzenie **istniało**: `CollectionController::savePost()` ustawiał
+komunikat „Zapisane w zeszycie …", a `components/layout.blade.php` pokazuje go
+w `.flash` z `aria-live`. Czego nie było: śladu **w miejscu, gdzie człowiek
+kliknął**. Komunikat stoi na górze strony, „Zapisuję" klika się w połowie
+feedu, a karta po powrocie wyglądała identycznie jak przed kliknięciem.
+Przy grupie 50–75 to jest ta cisza, po której człowiek klika drugi raz.
+
+Naprawa nie dokłada drugiego mechanizmu komunikatów: karta pokazuje **stan**,
+tak jak ekran przepisu robi to od dawna (`$isSaved`). Stanem jest zdanie
+„Masz to w zeszycie" z odnośnikiem do zeszytu, a **nie** przycisk kasujący
+— w feedzie przycisk usuwający pod tym samym palcem zabierałby z zeszytu to,
+co ktoś właśnie do niego włożył (podwójne kliknięcie w tej grupie to norma,
+issue #43). Wyjąć z zeszytu można nadal w samym zeszycie.
+
+Wszystko działa **bez JavaScriptu**: formularz `POST`, przekierowanie, `GET`.
+
+### Gdzie liczba stoi, a gdzie CELOWO nie
+
+**Jest — dla ZALOGOWANEGO:** feed obserwowanych, „Świeżo z Kuking"
+(`/odkryj`), feed tagów, strona tematu, profil, zeszyt, ekran pojedynczego
+wpisu — czyli tam, gdzie wpis stoi w chronologicznym strumieniu albo sam.
+
+**Nie ma i to jest część decyzji:**
+
+- **„kuKINGi na dziś"** (`DailyBoard`) — cztery dania wybrane redakcyjnie,
+  obok siebie; liczba pod nimi byłaby zestawieniem, nie docenieniem;
+- **wyniki wyszukiwania** — liczby jedna pod drugą to porównanie;
+- **wszędzie dla GOŚCIA** — liczba mówi „przydało się ludziom z tej
+  społeczności" i jest adresowana do jej członków, nie do otwartego
+  internetu. Praktyczny powód dokłada się do zasady: strona powitalna układa
+  wpisy w siatkę (`landing-wpisy`), a liczby jedna obok drugiej to
+  zestawienie. Wychodzi z tego jedna reguła zamiast wyjątku na ekran: **nie
+  ma widza, nie ma liczby** — więc gość nie zobaczy jej ani na stronie
+  powitalnej, ani na `/odkryj` bez logowania.
+
+Technicznie robi to jedna rzecz: karta pokazuje liczbę tylko wtedy, gdy
+zapytanie ekranu ją doliczyło (`ZapisyWpisu::dolicz()`), więc ekran, który jej
+nie dolicza, nie pokazuje nic i **nie odpala zapytania na kartę**. Ten sam
+wzorzec co `relationLoaded('tags')`.
+
+### Czego ta decyzja NIE rozstrzyga i co wymaga OSOBNEJ decyzji właściciela
+
+1. **Sortowanie, ważenie ani promowanie po liczbie zapisów.** Feed jest
+   chronologiczny (`CLAUDE.md`, `AGENTS.md`), a audyt z 10.09 stawia „nie
+   budować algorytmu feedu" jako punkt 3 listy „czego NIE robić". Właściciel
+   wspomniał o „algorytmie, żeby pokazywał ciekawe tematy" — to jest **punkt 3
+   issue #275**, sprawa osobna i wyłączona z tej zmiany; droga do „ludzie widzą
+   ciekawe rzeczy" prowadzi przez jawne tematy (#273), nie przez popularność.
+2. **Żadnych zestawień** typu „najczęściej zapisywane".
+3. **Imiona osób, które zapisały** — wymagają najpierw rozstrzygnięcia, czy
+   zapisywanie do zeszytu ma być czynnością publiczną. Dziś nie jest.
+4. **Powiadomienie autora o zapisaniu WPISU.** Przy przepisie takie
+   powiadomienie jest, przy wpisie nie ma i ta zmiana tego nie dokłada —
+   powód stoi w `SavePostToCollection` (ekran powiadomień renderuje każdy typ
+   osobno, więc nowy typ bez własnego tekstu dałby pusty wiersz).
+5. **Liczba pod wspomnieniem** („rok temu") — jeden ekran, którego ta zmiana
+   nie dotknęła; do dołożenia, gdyby właściciel chciał.
+
+**Zmiana wymaga:** decyzji właściciela. Próg jest pilnowany testem
+(`LicznikZapisowWidacOdProguTest::test_prog_dla_obcych_jest_decyzja_wlasciciela`),
+żeby nie dało się go przesunąć po cichu.
+
+**Pliki:** `app/Domain/Collections/ZapisyWpisu.php` ·
+`resources/views/components/post-card.blade.php` ·
+`app/Domain/Feed/{FollowingFeed,DiscoverFeed,TagFeed}.php` ·
+`app/Http/Controllers/{PostController,ProfileController,TagController,CollectionController}.php` ·
+`tests/Feature/LicznikZapisowWidacOdProguTest.php` ·
+`tests/Feature/LicznikZapisowBezWachlarzaZapytanTest.php` ·
+`tests/Feature/PoZapisaniuWidacPotwierdzenieTest.php`
+
+---
+
+## D-072 · Zgoda na tygodniowy digest ma dziennik append-only `dziennik_zgod`; rollback migracji zgody nie przywraca `DEFAULT true`
+
+**Data:** 10 września 2026 · Audyt 10.09.2026 (DB1, DB2, część 10 §4) ·
+Status: **obowiązuje**
+
+Dwa rozstrzygnięcia z jednego audytu, obydwa o tej samej rzeczy: o tym, żeby
+mailing wychodził **wyłącznie** do ludzi, którzy o niego poprosili, i żeby dało
+się to **wykazać**.
+
+### 1. Dowód zgody: append-only `dziennik_zgod`, nie dwie kolumny z datami
+
+**Stan przed zmianą, sprawdzony w kodzie:**
+`PrivacySettingsController::update()` zapisywał wyłącznie boolean
+`wants_weekly_digest`; `users` miało `weekly_digest_sent_at` (kiedy poszedł
+ostatni list), ale ani śladu, **kiedy i skąd** zgoda została udzielona i kiedy
+wycofana. `PodsumowanieTygodniaController` przestawiał ten sam boolean
+`forceFill()`-em, a `EraseAccountData` gasił go przy anonimizacji konta —
+trzy niezależne miejsca, zero zapisu historii.
+
+RODO art. 7 ust. 1 wymaga, żeby administrator **był w stanie wykazać** zgodę.
+„Dziś pole ma wartość `true`" jest ostatnią klatką filmu, którego nikt nie
+nagrywał: nie odpowiada, kiedy człowiek kliknął, czy wcześniej tego nie
+odklikał ani czy po wycofaniu wysyłka nie szła dalej. A wysyłka **już
+istnieje** (D-057, `kuking:wyslij-podsumowania` od 10 września), więc to
+przestało być rozważaniem teoretycznym.
+
+**Odrzucone: dwie kolumny (`..._consented_at` / `..._withdrawn_at`).** Audyt
+dopuszczał je jako minimum. To minimum jest za małe i widać to na jednym
+przykładzie: przy ciągu włącz → wyłącz → włącz trzecia zmiana nadpisuje
+pierwszą, więc zostaje obraz, w którym nie da się odróżnić osoby zapisanej raz
+od osoby, która zmieniała zdanie. Dwie kolumny odpowiadają na „kiedy
+ostatnio", a pytanie dowodowe brzmi „co się działo".
+
+**Odrzucone: JSONB z historią na `users`.** AGENTS.md §6 — JSONB tylko dla
+danych półstrukturalnych. Zdarzenie zgody ma cztery zawsze te same pola
+i zamknięte zbiory wartości; to są dane strukturalne, więc dostają kolumny
+i `CHECK`-i, których baza umie pilnować.
+
+**Przyjęte:** tabela `dziennik_zgod` (`user_id`, `cel`, `czynnosc`, `zrodlo`,
+`wersja_polityki`, `wystapilo_at`), pełny opis w `docs/DATABASE.md`. Wszystkie
+cztery miejsca, w których zgoda się zmienia, idą teraz przez jedną klasę
+domenową `App\Domain\Zgody\PrzestawZgodeNaDigest`: ekran
+`/ustawienia/prywatnosc` (`ustawienia`), podpisany odnośnik ze stopki listu
+i nagłówka `List-Unsubscribe` (`link_wypisania`), przycisk powrotny na ekranie
+po wypisaniu (`link_powrotny`) i anonimizacja konta (`usuniecie_konta`).
+Wiersz powstaje **tylko przy realnej zmianie** — formularz prywatności wysyła
+stan haczyków przy każdym zapisie, a na odnośnik wypisania wchodzi się dwa
+razy (odświeżenie, skaner odnośników w firmowej poczcie); dziennik pełen
+„wycofań", których nikt nie wykonał, byłby gorszym dowodem niż brak dziennika.
+
+**Bez IP i bez `User-Agent`.** Wiele bibliotek do zgód zapisuje jedno i drugie
+„na wszelki wypadek". Do wykazania zgody nie są potrzebne: dowodem jest fakt,
+moment, cel i droga, a nie numer, z którego ktoś wtedy korzystał. AGENTS.md §7
+zabrania PII tam, gdzie nie musi być, a `audit_log` trzyma IP wyłącznie jako
+HMAC i tylko tam, gdzie służy wykrywaniu nadużyć — zgoda nie jest nadużyciem.
+Pilnuje tego asercja na **pełną listę kolumn** tabeli, więc oblewa się także
+wtedy, gdy ktoś doda kolumnę nazwaną neutralnie (`kontekst`, `meta`) i włoży
+tam to samo.
+
+**Append-only naprawdę, nie z nazwy.** Wyzwalacze w bazie
+(`dziennik_zgod_bez_zmian` na `UPDATE`/`DELETE`, `dziennik_zgod_bez_czyszczenia`
+na `TRUNCATE`) rzucają wyjątek. Świadomie `RAISE EXCEPTION`, a nie reguła
+`DO INSTEAD NOTHING`: reguła połknęłaby zmianę bez słowa i kod „poprawiający"
+dziennik działałby dalej w przekonaniu, że coś zmienił. Model `WpisZgody`
+blokuje `update`/`delete` również w PHP — to pierwsza linia (czytelniejszy
+błąd), nie jedyna, bo `DB::table('dziennik_zgod')->update(...)` i ręczny `psql`
+jej nie widzą. `DROP TABLE` **nie** jest blokowany: `migrate:refresh` w CI
+i `RefreshDatabase` w testach muszą działać, a append-only dotyczy wierszy
+w działającym serwisie, nie istnienia schematu.
+
+### Napięcie, którego nie ma sensu ukrywać: dowód zgody vs prawo do usunięcia
+
+RODO art. 17 każe usunąć dane na żądanie; art. 7 ust. 1 i art. 5 ust. 2 każą
+móc wykazać zgodę — także po tym, jak ktoś konto usunął, bo właśnie wtedy
+najczęściej pojawia się spór („nigdy się na to nie zapisałem"). Skasowanie
+dziennika razem z kontem oznacza brak dowodu; zachowanie go w pierwotnej
+postaci oznacza dane po osobie, która poprosiła o usunięcie.
+
+**Wybór:** dziennik zgód **zostaje**, bez anonimizacji własnych wierszy,
+i jest to możliwe wyłącznie dzięki temu, co Kuking robi już od D-022:
+**konta się nie kasuje, tylko anonimizuje.** Po `EraseAccountData` wiersz
+`users` nie ma adresu e-mail, hasła, nazwy ani awatara, więc `user_id`
+w dzienniku wskazuje na rekord, który sam z siebie nikogo nie identyfikuje —
+zostaje dowód, że wysyłka miała podstawę prawną, bez trzymania danych
+osobowych dłużej niż konto. To ten sam wzorzec, którym `EraseAccountData`
+świadomie nie tyka zgłoszeń, odwołań ani `audit_log`, i ta sama logika, która
+trzyma `account.data_erased` w `AuditLogEntry::NIGDY_NIE_KASUJ`.
+
+Do tego anonimizacja **domyka historię**: dopisuje wiersz `wycofana` ze
+źródłem `usuniecie_konta`. Bez niego dziennik kończyłby się na „udzielona"
+i w papierach wyglądałby na zgodę obowiązującą do dziś, choć konto zostało
+wymazane.
+
+**Kasowanie konta nadal działa i to jest warunek, nie nadzieja** —
+`DowodZgodyNaDigestTest` uruchamia prawdziwe `EraseAccountData` na koncie ze
+zgodą i na koncie bez zgody. Klucz obcy ma `ON DELETE RESTRICT`: nie `CASCADE`
+(skasowałby dowód dokładnie wtedy, gdy jest potrzebny) i nie `SET NULL`
+(byłby `UPDATE` na tabeli append-only, a dowód niczyj to dowód żaden).
+**Nazwany skutek uboczny:** twardy `DELETE FROM users` dla konta, które
+kiedykolwiek ruszyło tę zgodę, odmówi wykonania. Nic w serwisie tego nie robi;
+gdyby kiedyś było naprawdę potrzebne, jest to świadoma decyzja człowieka po
+zdjęciu wyzwalacza, a nie skutek uboczny kaskady.
+
+**Punkt otwarty, świadomie niedokończony w tym PR-ze: retencja.** Dziennik
+zgód nie ma komendy sprzątającej (dlatego nie ma też indeksu po samym czasie —
+nie budujemy indeksu bez czytelnika). Wiersz to siedem krótkich pól na jedną
+zmianę zgody, więc tabela rośnie wolniej niż `product_signals`. Docelowy okres
+przechowywania dowodów zgód należy rozstrzygnąć razem z resztą retencji,
+w `docs/decyzje/ADR_RETENCJE.md`, przy przeglądzie prawnym (issue #8) — a nie
+tu, zgadując liczbę miesięcy.
+
+**Drugi punkt otwarty:** dziennik nie jest jeszcze widoczny dla samego
+człowieka — nie ma go ani w paczce danych (`CollectUserExportData`), ani na
+ekranie prywatności. To osobna zmiana produktowa (dwie decyzje UX: co pokazać
+i jak nazwać), a nie warunek dowodowy z art. 7 ust. 1, który ten PR zamyka.
+
+### 2. Rollback migracji zgody nie przywraca groźnego zachowania
+
+**Stan przed zmianą:**
+`database/migrations/2026_09_07_400000_default_weekly_digest_to_off.php`
+w `down()` wykonywał `ALTER TABLE users ALTER COLUMN wants_weekly_digest SET
+DEFAULT true`.
+
+Ta migracja powstała **właśnie dlatego**, że `DEFAULT true` zapisywał ludzi na
+mailing bez ich decyzji — formularz rejestracji o tę zgodę nie pyta ani jednym
+polem i nadal nie pyta. Gdy migrację pisano, `DEFAULT true` był niegroźny:
+digestu nie było w kodzie w ogóle. **Od 10 września wysyłka istnieje**, więc
+techniczny rollback tworzyłby NOWE konta z aktywnym mailingiem bez zgody.
+Komentarz w migracji słusznie pilnował, żeby nie ruszać istniejących wierszy,
+ale o nowych milczał.
+
+**Decyzja: `down()` jest pusty i `DEFAULT false` zostaje także po cofnięciu.**
+Asymetria jest pełna i jawna: `up()` przestawia `DEFAULT` oraz istniejące
+wiersze, `down()` nie przywraca ani jednego, ani drugiego. Tak, tej migracji
+nie da się cofnąć „wiernie historycznie" — i tak ma być. **Wierny rollback
+przywraca też wadę, którą migracja naprawiła**, a przy poczcie wychodzącej ta
+wada jest nieodwracalna: listu wysłanego bez zgody nie da się odwołać.
+Bezpieczny rollback bije wierny wszędzie tam, gdzie wierny wraca do stanu
+groźnego. Metoda `down()` **zostaje** (pusta, z uzasadnieniem): bez niej
+`migrate:rollback` przewracałby się na tej migracji, a `migrate:refresh` — CI
+je uruchamia — nie zszedłby poniżej niej.
+
+**Do tego twarda bramka.** `App\Domain\Digest\BramkaDomyslnejZgody` pyta
+`information_schema` przy każdym uruchomieniu `kuking:wyslij-podsumowania`
+i przy `DEFAULT true` kończy kodem 1, z komunikatem mówiącym, co zrobić.
+Komentarz w migracji przeczyta ten, kto ją otworzy; bramka łapie **także** trzy
+inne drogi powrotu tej samej wady, przy których nikt nie czyta migracji:
+ręczny `ALTER` przy grzebaniu w bazie, przywrócenie bazy z kopii sprzed
+migracji i `migrate:rollback` uruchomiony na starszym wydaniu kodu, w którym
+`down()` jeszcze przywracał `true`. Przebieg `--na-sucho` przechodzi mimo
+zamkniętej bramki (nic nie wysyła, nic nie zapisuje) i tylko ostrzega —
+przy takim schemacie chce się właśnie policzyć, ilu ludzi dotyczyłaby pomyłka.
+
+**Zmiana wymaga:** przy (1) — nowej informacji prawnej, z której wynika, że
+historia zdarzeń zgody jest zbędna albo że IP jest do jej wykazania konieczne;
+przy retencji — rozstrzygnięcia w `ADR_RETENCJE.md`. Przy (2) — dopisania pola
+zgody do formularza rejestracji; dopóki rejestracja o zgodę nie pyta, żaden
+`DEFAULT true` nie jest zgodą i decyzja stoi.
+
+### Czego pilnują testy, a czego nie — spisane po kontroli ujemnej
+
+Każdy test z obu plików był zepsuty osobnym sabotażem i każdy oblał; tabelka
+`test → sabotaż → wynik` jest w opisie PR #270. Przy tym przeglądzie wyszło,
+że trzy rozstrzygnięcia z tej decyzji były opisane, ale przez nikogo
+niesprawdzane — i dostały własne testy:
+
+1. **Asymetria udzielenia i wycofania przy awarii zapisu dowodu.**
+   `PrzestawZgodeNaDigest` nazywa ją najważniejszą rzeczą w pliku, a nie
+   pilnował jej ani jeden test. Awarię wymusza się bez ruszania kodu
+   produkcyjnego: `kuking.zgody.wersja_polityki` dłuższa niż `varchar(20)`
+   psuje wyłącznie `INSERT` do dziennika. Udzielenie ma się wtedy cofnąć
+   w całości, wycofanie ma dojść do skutku mimo wszystko.
+2. **Zamknięte zbiory wartości.** CHECK-i `cel`, `czynnosc` i `zrodlo` były
+   obietnicą w komentarzu; każdy ma teraz własne sprawdzenie (asercja idzie
+   na NAZWĘ naruszonego ograniczenia, żeby jeden CHECK nie zaliczył się trzy
+   razy) i kontrolę dodatnią na komplecie poprawnych wartości.
+3. **`restrictOnDelete()` zamiast kaskady.** Rozstrzygnięcie napięcia „dowód
+   zgody vs prawo do usunięcia" nie miało testu, więc podmiana na
+   `cascadeOnDelete()` przechodziła bez jednego czerwonego przebiegu.
+
+Czego te testy NADAL nie dowodzą, i trzeba to nazwać: nikt nie broni bazy
+przed człowiekiem z prawami właściciela tabeli, który zdejmie wyzwalacz
+(`ALTER TABLE … DISABLE TRIGGER`) albo klucz obcy. Append-only pilnuje przed
+POMYŁKĄ i przed kodem, nie przed świadomą decyzją administratora — i tak ma
+być, bo `down()` migracji też musi działać.
+
+📄 `database/migrations/2026_09_10_400000_create_dziennik_zgod_table.php` ·
+`database/migrations/2026_09_07_400000_default_weekly_digest_to_off.php` ·
+`app/Models/WpisZgody.php` · `app/Domain/Zgody/PrzestawZgodeNaDigest.php` ·
+`app/Domain/Digest/BramkaDomyslnejZgody.php` ·
+`app/Http/Controllers/Settings/PrivacySettingsController.php` ·
+`app/Http/Controllers/PodsumowanieTygodniaController.php` ·
+`app/Domain/Users/Actions/EraseAccountData.php` ·
+`app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`config/kuking.php` (`zgody.wersja_polityki`) ·
+`tests/Feature/DowodZgodyNaDigestTest.php` ·
+`tests/Feature/RollbackNieWlaczaDigestuTest.php` ·
+`docs/DATABASE.md` (`dziennik_zgod`) ·
+`docs/research/audyt-2026-09-10/03_BAZA_DANYCH_I_INTEGRALNOSC.md` (DB1, DB2) ·
+`docs/research/audyt-2026-09-10/10_RODO_DSA_PRAWO_I_PRYWATNOSC.md` §4 ·
+D-022 · D-057
+
+---
+
+## D-082 · Dolna belka zostaje `position: fixed`, a rezerwa miejsca pod nią jest LICZONA — 2.4.11 nie kupujemy kosztem 2.5.8
+
+**Data:** 10 września 2026 · **Decyzja techniczna** (audyt 60+, PR #269) · Status: **obowiązuje**
+
+### Problem: dwa kryteria WCAG, które ciągną w przeciwne strony
+
+Audyt 60+ (`docs/research/AUDYT_60_PLUS.md`, ranking napraw pkt 1) wskazał
+naruszenie **WCAG 2.2 AA 2.4.11 — Focus Not Obscured (Minimum)**: `.bottom-nav`
+jest `position: fixed`, więc nie ma jej w przepływie dokumentu i wysokość
+strony NIE rośnie o jej wysokość. Rezerwa na końcu dokumentu (dolne wypełnienie
+`.site-footer`) była stałą wartością `--spacing-20` (80 px), a belka ma
+`flex-wrap: wrap` i przy dużym tekście rozpada się na kilka wierszy. Gdy belka
+urośnie ponad rezerwę, treść przewija się POD nią — a fokus klawiaturowy ląduje
+w całości za paskiem.
+
+Zmierzone maksima wysokości belki (`scripts/dostepnosc.mjs`, sześć ekranów,
+320/360/414 px):
+
+| wariant | wysokość belki |
+|---|---|
+| bez powiększania tekstu | 66,6 px (korzeń 16 px) |
+| nasze ustawienie „tekst 140%" | 105,5 px (korzeń 16 px) |
+| czcionka przeglądarki 200% | 376,2 px (korzeń 32 px) |
+
+### Droga odrzucona: `position: sticky`
+
+Pierwsze podejście wiązało rezerwę z rzeczywistą wysokością belki, wstawiając ją
+w przepływ (`sticky` zamiast `fixed`). **Naprawiało 2.4.11 i łamało 2.5.8
+(Target Size Minimum).**
+
+Powód leży w axe, nie w naszym układzie: reguła `target-size` liczy sąsiadów
+przez `findNearbyElms`, a ta funkcja porównuje kandydatów warunkiem
+`selfIsFixed === isFixedPosition(vNeighbor)`. Nakładka `fixed` nie jest więc
+zestawiana z treścią nie-`fixed` — i słusznie, bo przypięty pasek stoi nad inną
+treścią przy KAŻDYM położeniu przewijania. `sticky` do tego wyjątku nie należy:
+staje się zwykłym sąsiadem w przepływie i przycina „bezpieczne pole kliknięcia"
+tego, co akurat widać za nim.
+
+Zmierzone przy 320 px, przewinięcie 0, **jednakowe prostokąty belki** dla obu
+wariantów (833,4…900 px):
+
+| element | wolne pole przy `fixed` | przy `sticky` |
+|---|---|---|
+| profil (własny) | 48 px | 14,5 px |
+| dodaj przepis | 55,9 px | 10,1 px |
+| twoje tagi | 40 px | 4,5 px |
+
+Nakładanie istniało więc także przed zmianą — zmieniło się tylko to, czy axe je
+widzi. Kluczowa obserwacja: **te trzy naruszenia nie są usterkami tych trzech
+elementów.** Każdy z nich ma prostokąt większy niż wymagane 24 × 24 px
+i przechodzi 2.5.8 z samego rozmiaru. To jedna cena `sticky`, płacona przez ten
+element, który akurat wpadnie w pasek przy przewinięciu 0 — a więc zależna od
+DŁUGOŚCI STRONY, nie od tych elementów. „Naprawa u każdego z trzech" byłaby
+przesuwaniem treści do czasu, aż w pasek wpadnie czwarty.
+
+### Droga odrzucona: sam `scroll-padding` przy obu przypiętych paskach
+
+`scroll-padding` przesuwa fokus spod belki, ale belka zostaje na ekranie. Przy
+320 × 740 px i czcionce przeglądarki 200% górny pasek ma 263 px, dolny 376,2 px —
+razem 639,2 z 740 px, czyli 86% widoku. Żeby fokus wyjechał spod OBU, suma
+wartości musiałaby pokryć te 639,2 px, zostawiając pasmo 100,8 px przy **zerowym**
+zapasie na obu — a to pasmo musi zmieścić naszą najmniejszą kontrolkę, czyli
+48 px. Taka para liczb nie jest poprawką, tylko zakładem.
+
+Dlatego **górny** pasek poniżej progu `15rem` odpina się (`position: relative`):
+przy tej wielkości tekstu problemem nie jest margines przy przewijaniu, tylko to,
+że przypięty pasek zabiera trzecią część ekranu na stałe. Górny pasek można
+odpiąć — jest nad treścią i przewija się z nią. Dolna belka to główna nawigacja
+produktu i odpięcie jej zabrałoby jedyną drogę do „Co dziś ugotowałeś?".
+
+### Decyzja
+
+Belka zostaje `fixed`, a rezerwa jest **liczona jawnie** tokenem
+`--rezerwa-pod-belka` i **wydawana w dwóch miejscach**, bo to dwie różne rzeczy:
+
+* **dolne wypełnienie `.site-footer`** — stopka jest ostatnia w dokumencie, więc
+  to ona decyduje, czy treść da się wyprowadzić spod belki na końcu strony;
+* **`scroll-padding-bottom` na `:root`** — przewijanie fokusu w widok, które
+  przeglądarka robi sama po Tab, liczy się do krawędzi okna i nie wie, że stoi
+  tam nakładka. Nic nie rysuje, działa wyłącznie przy celowanym przewijaniu.
+
+**Trzy stopnie, nie jedna wartość**, bo dwa powiększenia działają inaczej:
+czcionka przeglądarki podwaja KORZEŃ (16 → 32 px), więc `rem` rośnie razem
+z belką; nasze `data-text-scale` korzenia nie rusza (`--user-text-scale` mnoży
+tylko tokeny `--text-*`), więc `rem` stoi, a belka rośnie.
+
+| zakres | rezerwa | pod co liczona |
+|---|---|---|
+| domyślnie | `calc(8rem * var(--user-text-scale, 1))` | 128 px przy tekście 100%, 179,2 px przy 140% |
+| `max-width: 15rem` | `calc(15rem * var(--user-text-scale, 1))` | 480 px przy korzeniu 32 px (czcionka przeglądarki 200%) |
+| `min-width: 64rem` | `0rem` | belki nie ma — rezerwa nie ma czego chronić |
+
+### Poprawka po CI: liczy się LUZ, nie sama rezerwa
+
+Pierwsza wersja tej decyzji miała stopnie `8rem` i `13rem` — bez mnożnika.
+Rezerwa była wtedy WIĘKSZA od belki w każdym wariancie, więc sprawdzenie
+„czy rezerwa pokrywa belkę" świeciło na zielono przez cały czas trwania
+usterki. CI (job „Dostępność" na `c492ed1`) zgłosiło mimo to 2.4.11 FAIL
+w trzech miejscach i wyłącznie przy „tekst 140%": `szukaj / 320 px`
+(a „Wszystko"), `szukaj / 360 px` (a „Do 30 minut") i `wpis / 360 px`
+(a „Napisz komentarz").
+
+Zawodziła nie rezerwa, tylko **luz** — to, co z rezerwy zostaje POWYŻEJ
+belki, bo tylko w tym pasku przeglądarka ma gdzie postawić element, który
+dostał fokus. Zmierzone (Chromium 141, okno 740 px, rezerwa stała 128 px):
+
+| szerokość | belka przy 140% | luz | wynik na CI |
+|---|---|---|---|
+| 320 px | 105,5 px | 22,5 px | ✗ |
+| 360 px | 89,5 px | 38,5 px | ✗ |
+| 414 px | 75,2 px | 52,8 px | ✓ |
+
+Oblewały dokładnie te szerokości, na których luz zszedł **poniżej 48 px**,
+czyli poniżej jednej naszej kontrolki. Element wyższy od luzu nie ma jak
+stanąć nad belką w całości — i dlatego usterka wychodziła losowo (raz jeden
+element, raz trzy, w obrazie deweloperskim wcale): trafiała w ten, który
+akurat wpadł w ten pasek. To wyjaśnia też, czemu na `65daf90` CI zgłaszało
+jedno naruszenie, a na `c492ed1` trzy, przy tej samej regule CSS.
+
+Przyczyną są dwie jednostki, które miały iść razem, a szły osobno:
+`--user-text-scale` mnoży tokeny `--text-*`, ale **korzenia nie rusza**.
+Belka rośnie więc z tekstem, a rezerwa w `rem` stoi w miejscu — luz zapada
+się dokładnie wtedy, gdy tekst jest największy, czyli u osoby, dla której
+ten produkt jest robiony. Mnożnik w `calc()` wiąże rezerwę z tą samą
+wielkością, która rozpycha belkę. Luz po poprawce: **73,7 / 89,7 / 104 px**
+przy 320 / 360 / 414 px.
+
+Stopień dla bardzo dużego tekstu idzie z `13rem` na `15rem` z tego samego
+powodu, liczonego przy korzeniu 32 px: belka 376,2 px kontra 416 px rezerwy
+to 39,8 px luzu przy kontrolce 96 px (48 px × podwojony korzeń). `15rem`
+to 480 px, czyli 103,8 px luzu. Ten wariant przechodził na CI mimo cienkiego
+luzu — poprawiony razem z tamtym, bo to jedna usterka tej samej klasy.
+
+Próg w `rem`, nie w pikselach, bo porównuje okno z KORZENIEM i mówi dokładnie to,
+o co chodzi: „tekst jest tak duży w stosunku do ekranu, że przypięty pasek
+zabiera jego znaczną część". Telefon 320 px przy korzeniu 16 px to 20rem (próg
+nie łapie), ten sam telefon przy 200% to 10rem (łapie). Przy zwykłym korzeniu
+próg odpowiadałby oknu 240 px — węższemu niż jakikolwiek telefon, więc nie
+zadziała przez pomyłkę.
+
+Rezerwa jest JEDNA DLA WSZYSTKICH, także dla gościa, który dolnej belki nie ma
+(`@auth` w `layout.blade.php`). Warunkowanie jej klasą układu gościa
+rozdzieliłoby jeden token na dwie wartości dla dwóch jego zastosowań
+(wypełnienie stopki dziedziczy po `body`, a `scroll-padding-bottom` rozwiązuje
+się na `:root`) — czyli zamieniłoby 48 px pustego miejsca na pułapkę do
+nadepnięcia.
+
+### Czego ta decyzja NIE robi
+
+**Nie podnosi progu tolerancji w `scripts/dostepnosc.mjs`** i nie wyłącza żadnej
+reguły. Obie — 2.4.11 i 2.5.8 — chodzą i obie zatrzymują CI kodem 1. Podniesienie
+progu byłoby zamianą usterki na kłamstwo w pomiarze (`AGENTS.md`, zakaz
+„naprawiania" przez rozluźnianie automatu).
+
+### Czym to jest pilnowane
+
+Właściwym automatem jest `scripts/dostepnosc.mjs` — układu strony nie da się
+stwierdzić z CSS-a. Ale job `dostepnosc` w CI chodzi WARUNKOWO: czyta `git diff`
+i startuje tylko wtedy, gdy zmiana dotyka `resources/`, `public/`,
+`scripts/dostepnosc.mjs` albo plików npm. Zmiana w samym `app/` przechodzi obok
+niego. Dlatego niezmienniki widoczne w źródle pilnuje dodatkowo
+`tests/Feature/RezerwaPodDolnaBelkaTest.php`, który chodzi w jobie `test`, czyli
+zawsze: belka dalej `fixed` (nie `sticky`), token wydany w obu miejscach oraz
+— po poprawce opisanej wyżej — każdy niezerowy stopień rezerwy mnożony przez
+`--user-text-scale`, a największy nie niższy niż `15rem`.
+
+**Kontrola ujemna poprawki** (pełny przebieg `scripts/dostepnosc.mjs` po
+przywróceniu stałych 80 px): **109 kontrolek zasłoniętych w 100%**, wśród nich
+odnośnik stopki „Prywatność" na wszystkich czterech badanych ekranach przy 320 px
+i „tekst 140%". Po poprawce: 0.
+
+**Pliki:** `resources/css/app.css` · `scripts/dostepnosc.mjs` ·
+`tests/Feature/RezerwaPodDolnaBelkaTest.php`
+
+---
+
+## D-088 · Rollback migracji ODMAWIA, zamiast po cichu zamienić „usuń wszystko" na „usuń minimum" (MIG-01, #287)
+
+**Data:** 10 września 2026 · **Naprawa błędu z audytu** (issue #287, trzecia
+warstwa audytu 10.09.2026, znalezisko MIG-01) · Status: **obowiązuje**
+
+### Co było zepsute — potwierdzone na prawdziwej bazie, nie w teorii
+
+Migracja `2026_09_07_500000_add_erased_status_and_delete_scope_to_users`
+dodaje kolumnę `users.delete_scope` (`minimum` | `everything`, D-022) —
+zakres, jaki człowiek wybrał na ekranie usuwania konta. Jej `down()` kasowała
+tę kolumnę bez warunku, a `up()` przy ponownym uruchomieniu backfillowała
+brakującą wartość jako `minimum` dla każdego konta w usuwaniu, bo to jedyna
+wartość, jaką umiała wtedy nadać.
+
+Sprawdzone ręcznie na `kuking_test_wt_mig01`, cyklem, który CI wykonuje jako
+`migrate:refresh`: konto zgłoszone realną metodą `markForDeletion('everything')`
+→ `php artisan migrate:rollback` → `php artisan migrate` → w bazie
+`delete_scope = 'minimum'`. Kolumna nie zniknęła z widoku, CHECK-i wróciły
+poprawne, żaden wiersz nie zginął — i właśnie dlatego nikt by tego nie
+zauważył: to jest cicha podmiana ZNACZENIA decyzji, nie usterka techniczna.
+`EraseAccountData::chceUsunacTresci()` czyta tę kolumnę 30 dni później i
+zrealizowałaby węższy zakres, niż człowiek naprawdę wybrał.
+
+**Ta sama choroba, którą audyt znalazł już raz jako DB2**
+(`2026_09_07_400000_default_weekly_digest_to_off`, `down()` przywracający
+`DEFAULT true` dla zgody na cotygodniowy przegląd) — a ten drugi przypadek
+zostaje jawnie POZA tą naprawą: sprawdza go równolegle inna gałąź
+(`claude/dowod-zgody-na-digest`, PR #270).
+
+### Zasada, nie tylko łatka na jedną migrację
+
+> `down()` nie ma prawa przywracać stanu groźnego ani zmieniać znaczenia
+> decyzji człowieka. Przy wartościach semantycznych (zgoda, zakres usunięcia,
+> widoczność, prywatność zeszytu) rollback ma **odmówić**, gdy nie da się
+> wartości odtworzyć wiernie — zgadywanie cichą wartością domyślną jest
+> najgorszą z opcji, bo nie zostawia śladu błędu.
+
+Przegląd całego `database/migrations/` pod tym kątem (krok obowiązkowy przy
+tej naprawie) znalazł jeszcze trzy miejsca o podobnym kształcie
+(`down()` kasuje kolumnę, `up()` nadaje jej DEFAULT przy ponownym uruchomieniu),
+świadomie ZOSTAWIONE poza zakresem #287:
+
+- `2026_09_06_210000_add_theme_to_users` (`theme`, `DEFAULT 'light'`) —
+  preferencja WYGLĄDU, nie zgoda ani dane osobowe; rollback zresetowałby
+  wybór ciemnego motywu, nie decyzję o danych;
+- `2026_09_06_120000_add_display_mode_to_posts` (`display_mode`,
+  `DEFAULT 'normal'`) — decyzja AUTORA o prezentacji TREŚCI wpisu, nie
+  o własnych danych ani zgodzie;
+- `2026_09_06_120000_add_two_factor_to_users_table` — `down()` kasuje sekret
+  i kody zapasowe 2FA CAŁKOWICIE (nie ma backfillu, bo nie ma jak odtworzyć
+  sekretu), a nie podmienia go cichą wartością domyślną; udokumentowane
+  w samej migracji jako świadomy, awaryjny powrót do stanu sprzed funkcji.
+
+Żadne z tych trzech nie dotyczy zgody ani zakresu usunięcia danych — nie
+zostały naprawione w tym PR-ze, zgodnie z zawężeniem zlecenia do „decyzji
+użytkownika o jego danych albo o zgodzie". Jeśli produkt kiedyś uzna
+preferencję wyglądu albo prezentacji treści za wartą tej samej ochrony,
+to osobna decyzja, nie rozszerzenie tej.
+
+### Naprawa
+
+`down()` liczy `delete_scope = 'everything'` w całej tabeli PRZED jakąkolwiek
+operacją i rzuca `RuntimeException` z instrukcją (nie cichym `DELETE` ani
+`UPDATE`), gdy choć jedno konto ma tę wartość — ten sam wzorzec odmowy co
+`2026_09_10_400100_one_active_data_export_per_user` (D-078) i
+`2026_09_07_800000_appeals_open_to_reporters`. Na koncie z `minimum`, albo na
+świeżej bazie bez żadnego wyboru, rollback nadal przechodzi bez pytania —
+inaczej „naprawą" byłoby zablokowanie rollbacku na zawsze, błąd tej samej
+wagi w drugą stronę.
+
+### Kontrola
+
+Test `tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php`
+przechodzi PRAWDZIWY cykl `markForDeletion()` → `migrate:rollback --path`,
+nie sprawdza tylko kształtu schematu. Kontrola ujemna: przywrócenie
+oryginalnego `down()` (bez strażnika) obala test na asercji treści wyjątku;
+przywrócenie poprawki — zielono, `git diff` puste.
+
+**Pliki:** `database/migrations/2026_09_07_500000_add_erased_status_and_delete_scope_to_users.php` ·
+`tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php` ·
+`docs/DATABASE.md`
+
+---
+
+## D-090 · `BlockUser` wchodzi przez `ZamekPary` — dokończenie D-080, bo dwie strony tej samej pary brały wiersze `users` w przeciwnych kolejnościach
+
+**Data:** 10 września 2026 · Audyt kolejności blokad
+(`docs/research/2026-09-10-kolejnosc-blokad.md`) · Status: **obowiązuje**
+
+### Co było złamane
+
+D-080 §1 mówi: „**Obie** operacje na parze osób wchodzą przez jedno gardło —
+`App\Domain\Social\ZamekPary`". W kodzie weszła **jedna**. Commit realizujący
+D-080 (`ab5f4c6`, PR #290) ruszył `FollowUser.php` i `ZamekPary.php` — i tyle.
+`BlockUser::handle()` został przy własnej `DB::transaction()` bez ani jednej
+blokady wiersza, a `ZamekPary` był importowany wyłącznie w `FollowUser`.
+
+To nie jest rozbieżność stylu. To dwie różne kolejności blokad na tej samej
+parze wierszy, czyli dokładnie to, przed czym ostrzega D-079 („dwie różne
+kolejności w jednym repozytorium to zakleszczenie, a nie zabezpieczenie").
+
+### Co z tego NIE wynikało — podejrzenie zmierzone i OBALONE
+
+Naturalny wniosek brzmi: skoro `BlockUser` nic nie blokuje, to wyścig
+SOCIAL-01 jest nadal otwarty i po blokadzie zostaje obserwowanie. **Ten
+wniosek jest nieprawdziwy** i został obalony pomiarem na dwóch połączeniach
+do PostgreSQL (opis i skrypty: `docs/research/2026-09-10-kolejnosc-blokad.md`,
+pomiar E8).
+
+Powód: `INSERT INTO blocks` **i tak bierze blokady obu wierszy `users`** — bierze
+je za niego sprawdzenie kluczy obcych, zapytaniem
+`SELECT 1 FROM ONLY "public"."users" x WHERE "id" = $1 FOR KEY SHARE OF x`.
+`FOR KEY SHARE` jest w konflikcie z `FOR UPDATE`, więc żądanie „Obserwuj"
+ustawiało się w kolejce mimo wszystko. Zmierzony przeplot: przy
+niezatwierdzonej transakcji `BlockUser` żądanie „Obserwuj" **nie weszło** na
+żaden z dwóch wierszy, a stan końcowy to jedna blokada i zero obserwowań.
+
+Zapisujemy to tak wyraźnie jak znalezisko, bo fałszywy alarm kosztuje tyle
+samo co przeoczony błąd (D-064). Ale własność trzymała się na **kształcie
+kluczy obcych**, czyli na czymś, czego nie widać w żadnej linijce PHP i czego
+nie pilnuje żaden test — a to jest gwarancja przez przypadek, nie przez
+projekt.
+
+### Co z tego WYNIKAŁO — zakleszczenie, zmierzone
+
+Blokady z kluczy obcych idą w kolejności **ról**, nie identyfikatorów:
+`blocks_blocker_id_foreign` powstało przed `blocks_blocked_id_foreign`, więc
+`INSERT` bierze najpierw wiersz blokującego, potem blokowanego. `ZamekPary`
+bierze wiersze **rosnąco po identyfikatorze**. Gdy blokujący ma identyfikator
+wyższy, obie strony idą pod prąd:
+
+```text
+„Obserwuj" (ZamekPary):  bierze wiersz NIŻSZY, czeka na WYŻSZY
+„Zablokuj" (BlockUser):  bierze wiersz WYŻSZY, czeka na NIŻSZY
+```
+
+PostgreSQL wykrywa cykl i zabija jedną transakcję. W pomiarze (E3) ofiarą
+padło **„Zablokuj"**:
+
+```text
+ERROR: deadlock detected
+CONTEXT: while locking tuple (0,9) in relation "users"
+  SQL statement "SELECT 1 FROM ONLY "public"."users" x WHERE "id" = $1 FOR KEY SHARE OF x"
+```
+
+Czyli człowiek dostawał błąd serwera zamiast założonej blokady — dokładnie
+w sytuacji, dla której D-080 powstało, i wprost przeciw jego zdaniu „blokada
+musi się udać zawsze". Ofiarę wybiera baza, więc równie dobrze mogło paść
+„Obserwuj"; gorszy z tych dwóch wyników jest ten zmierzony.
+
+### Decyzja
+
+`BlockUser::handle()` wchodzi przez `ZamekPary::zablokuj()`, tak jak
+`FollowUser`. Obie strony biorą te same dwa wiersze w tej samej, wyliczonej
+z danych kolejności, więc jedna czeka na drugą zamiast zakleszczać się z nią
+(kontrola dodatnia naprawy: pomiar E7 — cykl znika).
+
+**Żadnego szóstego mechanizmu.** Nie powstaje nowa klasa, nie zmienia się
+`ZamekPary`, nie zmienia się reguła kolejności. Zmienia się jedno: druga
+akcja wchodzi przez istniejące gardło, zgodnie z tym, co D-080 już
+postanowiło.
+
+**Rewalidacja pod blokadą.** Zamek podaje świeże modele; `null` znaczy „konta
+już nie ma" i kończy się `BladDlaCzlowieka` („To konto jest niedostępne."),
+a nie naruszeniem klucza obcego i pięćsetką.
+
+**Dziennik audytu zostaje POZA transakcją**, tak jak był. Wpis ma powstać
+wtedy, gdy blokada naprawdę się zapisała; wciągnięty pod blokadę zniknąłby
+razem z wycofaną transakcją, a jest osobnym śladem, nie częścią relacji.
+Pilnuje tego osobny test.
+
+**Tania odmowa „nie można zablokować samego siebie" zostaje przed zamkiem** —
+nie ma po co otwierać transakcji, żeby odmówić. Gwarancję i tak trzyma
+`blocks_no_self_check` w bazie.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie usuwa pozostałych rozjazdów kolejności wykrytych w tym samym audycie
+(kasowanie konta rusza `follows`/`blocks` bez `ZamekPary`; `LoginLinkController::
+store()` bierze wiersz tokenu bez wiersza konta). Są opisane w raporcie
+z naprawami **opisanymi, nie wdrożonymi** — każda jest osobną decyzją.
+
+Nie da się jej też dowieść w istniejącym zestawie testów: `RefreshDatabase`
+trzyma cały test w jednej niezatwierdzonej transakcji na jednym połączeniu,
+więc drugiego uczestnika wyścigu po prostu nie ma. Testy pilnują
+**kontraktu** (że akcja wchodzi przez zamek, w ustalonej kolejności, tej
+samej co obserwowanie), a nie skutku. Skutek zmierzono poza zestawem, na
+dwóch połączeniach; propozycja wprowadzenia takich testów do repozytorium
+jest w raporcie.
+
+**Zmiana wymaga:** rezygnacji z `ZamekPary` jako wspólnego gardła dla pary
+osób — a wtedy razem z nią z D-080. Kolejność rosnąco po identyfikatorze nie
+podlega zmianie inaczej niż we wszystkich miejscach naraz.
+
+📄 `app/Domain/Social/Actions/BlockUser.php` ·
+`app/Domain/Social/ZamekPary.php` ·
+`tests/Feature/ZamekParyObejmujeBlokowanieTest.php` ·
+`docs/research/2026-09-10-kolejnosc-blokad.md` ·
+D-079 · D-080
+
+---
+
+## D-083 · Zdjęcie przypina się i kasuje pod JEDNĄ blokadą wiersza `media`, a pliki znikają dopiero PO commicie — wiersz ze znacznikiem `deleted` jest uchwytem do ponowienia
+
+**Issue:** #285 (MEDIA-01, P1). **Data:** 10.09.2026.
+**Stoi na:** D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
+
+### Stan sprzed zmiany — sprawdzony w plikach, nie przepisany z audytu
+
+Audyt jest materiałem zewnętrznym, a `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`
+wymienia MEDIA-01 wprost jako **niesprawdzone**. Sprawdzone teraz:
+
+- `PublishPost::handle()` wybierał należące do autora `media_id` zwykłym
+  `SELECT`-em **przed** transakcją i nigdy do tego wyboru nie wracał;
+  `attach()` szedł kilkanaście linijek dalej, już w transakcji.
+- `RecordCookedEvent::handle()` miał dokładnie ten sam kształt.
+- `KasujZdjecie::jesliNieuzywane()` pytał `exists()` po sześciu tabelach
+  (też bez blokady), a potem — **wewnątrz** transakcji otwartej przez
+  `OsieroconeZdjecia::posprzataj()` — kasował pliki z R2 i dopiero na końcu
+  wiersz `media`.
+
+Żadna z tych operacji nie brała czegokolwiek na wspólnym wierszu `media`.
+Między `exists()` sprzątacza a skasowaniem plików mieściła się cała
+publikacja wpisu.
+
+### Jedna poprawka do opisu issue
+
+Issue przewiduje, że sprzątacz „wchodzi w konflikt z FK". **Nie wchodzi.**
+`post_media.media_id` ma w migracji `2026_09_05_000500_create_posts_tables`
+`cascadeOnDelete()` (tak samo `cooked_event_media.media_id`), więc skasowanie
+wiersza `media` po cichu zabiera świeżo wstawiony wiersz `post_media`.
+
+Objaw jest więc **gorszy** niż w opisie: nie ma ani wyjątku, ani wpisu
+w logu. Wpis zostaje bez zdjęcia, plik znika z R2, a jedyny egzemplarz
+zdjęcia człowieka nie istnieje już nigdzie. Przy produkcie, którego cała
+obietnica brzmi „zabierzesz stąd wszystko, co dodasz", to jest najgorsza
+klasa błędu, jaką ten kod może mieć.
+
+### Decyzja
+
+**1. Przypinanie wybiera zdjęcia POD BLOKADĄ, w tej samej transakcji co
+`attach()`.** Robi to jedna klasa, `App\Domain\Media\ZdjeciaDoPrzypiecia`,
+używana przez `PublishPost` i `RecordCookedEvent` — nie dwie kopie tego
+samego protokołu, z tego samego powodu, dla którego lista `ODWOLANIA` żyje
+w jednym miejscu.
+
+- `SELECT … FOR UPDATE` — zderza się z blokadą `FOR KEY SHARE`, którą
+  PostgreSQL bierze sam przy sprawdzaniu klucza obcego przy `INSERT`-cie do
+  `post_media`. Przypięcie i przejęcie do skasowania ustawiają się przez to
+  w kolejkę zamiast się mijać.
+- `ORDER BY id` — deterministyczna kolejność blokowania. Bez niej dwa
+  równoległe wysłania formularza z częściowo wspólnym zestawem zdjęć
+  zakleszczyłyby się nawzajem.
+- Warunki `owner_id` i `status` stoją w **tym samym** zapytaniu co blokada,
+  więc są sprawdzane dopiero po jej uzyskaniu (D-079 §3: blokada serializuje,
+  ale nie mówi żądaniu, że świat zmienił się, gdy ono czekało).
+- Wywołanie poza transakcją rzuca `LogicException`. Blokada wiersza żyje
+  wyłącznie w transakcji, więc bez tego strażnika ta klasa dałaby się
+  przenieść „wyżej dla czytelności" i po cichu wrócić do zwykłego `SELECT`-a.
+
+**2. Sprzątacz przejmuje zdjęcie w krótkiej transakcji, a pliki kasuje PO
+commicie** — wzorzec z `EraseAccountData`, nie nowy pomysł:
+
+1. `KasujZdjecie::przejmij()` — świeży odczyt `FOR UPDATE`, **ponowne**
+   pytanie „czy używane" pod blokadą, znacznik `status = deleted`. Zero
+   wejść na dysk, więc nikt nie czeka na R2 z założoną blokadą.
+2. dopiero po zatwierdzeniu — pliki, a na samym końcu wiersz.
+
+`OsieroconeZdjecia` przestaje otwierać własną transakcję: obejmowała także
+kasowanie plików w R2, a jej wycofanie i tak nie przywróciłoby ani jednego
+skasowanego pliku.
+
+**3. Znacznik `status = 'deleted'` to „kasowanie trwa", nie „skasowane".**
+Pełni tu tę samą rolę co `data_erased_at` przy wymazywaniu konta:
+zatwierdzoną, widoczną dla innych transakcji deklarację „to zdjęcie
+odchodzi". `ZdjeciaDoPrzypiecia` takiego wiersza nie przepuści, więc okno
+nie wraca po zwolnieniu blokady, a przed skasowaniem plików.
+
+Wiersz ze znacznikiem jest **uchwytem do ponowienia**: nieudane kasowanie
+plików zostawia go na miejscu, a kolejny przebieg
+`kuking:sprzataj-osierocone-zdjecia` wybiera go po wieku tak samo jak każdy
+inny. To zachowanie z issue #17 zostaje nietknięte.
+
+### Czego świadomie NIE zrobiono
+
+- **Nowej kolumny ani migracji.** `media_status_check` dopuszcza wartość
+  `deleted` od pierwszej migracji tabeli (`2026_09_05_000100_create_media_table`),
+  tylko nikt jej nie używał. Osobna kolumna „zarezerwowane do kasowania"
+  byłaby szóstym mechanizmem blokowania w repozytorium, w którym pięć
+  wjechało tego samego dnia.
+- **Optymalizacji liczby zapytań przy autoryzacji zdjęć** — to jest MEDIA-03
+  (#286) i idzie osobno.
+- **Trzech pozostałych dróg przypięcia** (`profiles.avatar_media_id`,
+  `recipes.hero_media_id`/`source_scan_media_id`, `recipe_steps.media_id`).
+  Mają ten sam kształt i tę samą lukę; nie zamknięto ich tutaj, żeby zmiana
+  została przy utracie danych na dwóch najważniejszych ścieżkach produktu
+  („Opublikuj" i „Ugotowałem"). **To jest dług, nie stan docelowy** — patrz
+  „Co zostaje otwarte".
+
+### Czego test NIE pilnuje
+
+`tests/Feature/ZdjecieNieZnikaPrzyPrzypinaniuTest.php` **nie odtwarza**
+wymuszonego przeplotu na dwóch połączeniach do PostgreSQL, którego domaga
+się issue. `RefreshDatabase` trzyma dane testu w niezatwierdzonej transakcji,
+więc drugie połączenie nie zobaczyłoby ani konta, ani zdjęcia.
+
+Testowany jest kontrakt, na czterech osobnych elementach (blokada przy
+przypinaniu, rewalidacja pod blokadą u sprzątacza, nieprzypinalność wiersza
+ze znacznikiem, pliki po commicie + uchwyt do ponowienia). Brak przeplotu
+z nich **wynika**, ale nie jest zmierzony — i tak trzeba to czytać.
+
+Nie jest sprawdzone maszynowo, że PostgreSQL faktycznie serializuje
+`FOR UPDATE` z `FOR KEY SHARE` branym przy kluczu obcym; to własność silnika,
+przyjęta z dokumentacji. Nie jest też pilnowany strażnik
+`DB::transactionLevel() === 0`, bo pod `RefreshDatabase` poziom transakcji
+nigdy nie jest zerem.
+
+### Co zostaje otwarte
+
+Awatar, zdjęcie główne przepisu, skan zeszytu i zdjęcie kroku przypinają się
+nadal bez blokady. Sam znacznik `deleted` daje im węższe okno niż przedtem,
+ale go nie zamyka. Do osobnego zadania: przepuścić te cztery drogi przez
+`ZdjeciaDoPrzypiecia`.
+
+**Pliki:** `app/Domain/Media/ZdjeciaDoPrzypiecia.php` ·
+`app/Domain/Media/KasujZdjecie.php` · `app/Domain/Media/OsieroconeZdjecia.php` ·
+`app/Domain/Posts/Actions/PublishPost.php` ·
+`app/Domain/Recipes/Actions/RecordCookedEvent.php` · `app/Models/Media.php` ·
+`tests/Feature/ZdjecieNieZnikaPrzyPrzypinaniuTest.php`
+
+---
+
+## D-087 · Spis wszystkich tematów (`tags.index`) — dwie sekcje, zero rankingu
+
+**Data:** 10 września 2026 · Status: **obowiązuje**
+
+Druga połowa issue #273 (pierwsza — słownik tagów, D-026 — jest na `main`
+od 7 września). Baza tagów bez strony, na której da się je zobaczyć, nie
+rozwiązuje problemu; strona bez tagów też nie — cytat z issue.
+
+### Co strona pokazuje
+
+Nowa trasa publiczna `GET /tagi` (`tags.index`), bez logowania, w dwóch
+sekcjach:
+
+1. **„Polecane tematy"** — `Tag::promowane()` (D-021, „tag promowany —
+   lista gospodarza"), w kolejności redakcyjnej z panelu
+   `/admin/tagi-promowane` (`tag_promotions.position`). To jest dosłownie
+   „promowanymi tagami" z cytatu PROD3 w issue #273.
+2. **„Wszystkie tematy A-Z"** — `Tag::aktywne()` (czyli bez tagów
+   ukrytych i scalonych), **alfabetycznie po `name`**, stronicowane
+   istniejącym wzorcem „Pokaż więcej" (`<x-show-more>`), nie infinite
+   scroll.
+
+Każdy temat pokazuje swoją **prawdziwą** liczbę wpisów — także zero, bo
+issue zakazuje wprost udawania żywej treści („wolno wgrać puste tematy do
+przeglądania, nie wolno wgrać fałszywych wpisów, żeby wyglądały na żywe").
+Pusty temat na tej liście prowadzi do tej samej strony `/tag/{slug}`,
+która już dziś pokazuje `x-empty-state` „Tu jeszcze nikt nic nie ugotował"
+— żadnego nowego stanu pustego nie trzeba było wymyślać.
+
+### Dlaczego kolejność NIE jest rankingiem
+
+Obie sekcje sortują po czymś, co nie zależy od popularności ani od tego, co
+ktokolwiek zrobił z treścią:
+
+- sekcja 1 sortuje po **wyborze gospodarza** — to samo pole, którego panel
+  admina już używa do ustawienia kolejności listy promowanej; zmiana tej
+  kolejności wymaga wejścia do panelu, nie zbierania „Ugotowałem";
+- sekcja 2 sortuje **po alfabecie** — deterministyczne, przewidywalne,
+  niezależne od ruchu na tagu. Dwa uruchomienia tego samego dnia dają
+  identyczną kolejność, niezależnie od tego, ile osób odwiedziło który tag
+  w międzyczasie.
+
+Żadna z dwóch sekcji nie sortuje po `posts_count`, po liczbie
+obserwujących ani po dacie ostatniego wpisu — to jest właśnie „ważenie
+popularności", którego zakazuje `AGENTS.md` i przekazanie pracy z 10.09
+(§9 pkt 3-4). Liczba wpisów jest wyłącznie **etykietą przy nazwie**, tak
+jak Garnkowe „Jedzonko 34203 zdj." — samo w sobie nigdy nie decyduje
+o miejscu tematu na liście.
+
+### Skąd liczba wpisów, żeby była prawdziwa i tania
+
+Liczba przy każdym tagu to `posts` policzone przez
+`Post::publiclyVisible()->tylkoOdAktywnychAutorow()` — **ten sam** zakres,
+którego komentarz w `Post::scopeTylkoOdAktywnychAutorow()` wymienia wprost
+jako przeznaczony m.in. dla „feedu tematów". Świadomie NIE jest to
+`Post::widoczneDla($widz)` z widoku pojedynczego tagu:
+
+- `widoczneDla()` liczy się PER WIDZ (blokady, obserwowanie) — na liście
+  z jednego zapytania dla setek tagów naraz oznaczałoby to inny wynik dla
+  każdej zalogowanej osoby, czyli liczbę, której nie da się ani zmierzyć
+  raz, ani wytłumaczyć („dlaczego u mnie 4, a u sąsiada 5?");
+- `publiclyVisible()+tylkoOdAktywnychAutorow()` daje **jedną, tę samą**
+  liczbę każdej osobie — i jest dokładnie tym, co zobaczy GOŚĆ wchodząc na
+  `/tag/{slug}` (bo dla widza `null` `widoczneDla()` redukuje się do tego
+  samego warunku). Dla zalogowanej osoby liczba na liście może być **niższa**
+  niż to, co zobaczy po wejściu (jej własne wpisy, wpisy obserwowanych z
+  widocznością „obserwujący") — nigdy wyższa. Niedoszacowanie w dobrą
+  stronę jest bezpieczne z punktu widzenia zakazu sztucznego ruchu; zawyżenie
+  nie byłoby.
+
+Liczenie idzie jednym zapytaniem (`withCount(['posts' => ...])`), tą samą
+techniką, którą `docs/product/PROSTOTA_JAK_GARNEK.md` §3 pkt 1 proponuje
+wprost dla tej strony — bez zapytania na tag, czyli bez N+1. Pilnuje tego
+`SpisTematowTest::test_strona_nie_generuje_zapytania_na_kazdy_tag`.
+
+### Czego ta decyzja NIE robi tak, jak sugerował pierwotny szkic
+
+`docs/product/PROSTOTA_JAK_GARNEK.md` §3 pkt 1 (napisany 10 września, przed
+tym PR-em) proponował **jedną, niestronicowaną listę** wszystkich aktywnych
+tagów — bo w chwili pisania tamtego dokumentu D-021 mówiło o „zamkniętej
+liście ok. 30 tagów" (cytat z §5a tego samego pliku). Słownik z D-026,
+scalony 7 września, ma **~1250 nazw kanonicznych** — jedna strona bez
+podziału renderowałaby więc naraz ponad tysiąc odnośników, co jest dokładnie
+tym rodzajem gęstości, przeciw któremu stoi cały ten dokument (por. sekcja
+1a tamtego pliku o stronie głównej). Stąd stronicowanie w sekcji 2 —
+zachowuje alfabetyczny, nieranking'owy porządek, tylko w kawałkach po
+`config('kuking.tags.index_page_size')` (domyślnie 100).
+
+### Co świadomie pominięto
+
+1. **Filtrowanie / szukanie po literze albo kategorii.** `internal_category`
+   jest jawnie „nigdy niepokazywana użytkownikowi" (`docs/DATABASE.md`,
+   opis kolumny `tags.internal_category`) — użycie jej jako nagłówka sekcji
+   publicznej strony złamałoby tę już zapisaną decyzję. Skok alfabetyczny
+   (kotwice `#litera-a` itp.) też został pominięty: to jest wzbogacenie UX,
+   nie brakujący element zakresu z issue #273, i zwiększa powierzchnię do
+   testowania bez potrzeby MVP. Zgłoszone jako pomysł do osobnego issue,
+   nie zrobione po cichu.
+2. **Wykluczenie tagów promowanych z sekcji „Wszystkie tematy A-Z".**
+   Tag promowany pojawia się w obu sekcjach. Wykluczenie wymagałoby
+   dodatkowego warunku `whereNotIn` na liście promowanych ID przy każdym
+   stronicowaniu; podwójne wystąpienie tego samego tematu (raz w sekcji
+   redakcyjnej, raz w alfabetycznej) nie jest mylące — to ten sam wzorzec,
+   co "polecane" i "wszystko" w sklepach czy bibliotekach.
+3. **Odznaka „obserwujesz" przy tagu dla zalogowanej osoby.** Istnieje już
+   na `/ustawienia/tagi` i na `/tag/{slug}`; dokładanie jej tutaj to kolejne
+   zapytanie (`tag_follows` dla widza × strona wyników) bez wymogu z issue
+   #273 — możliwe do dołożenia później, jeśli ktoś tego zabraknie w testach
+   z użytkownikami.
+
+**Pliki:** `routes/web.php` · `app/Http/Controllers/TagController.php` ·
+`resources/views/pages/tags/index.blade.php` · `config/kuking.php` ·
+`tests/Feature/SpisTematowTest.php`.
+
+---
+
+## D-091 · Liczby o osobie idą do prawej szyny na szerokim ekranie, a na wąskim zostają w karcie — dwa egzemplarze w HTML, jeden na ekranie, bez JavaScriptu
+
+**Zgłoszenie właściciela, dosłownie:** „jestem na profilu użytkownika, patrz
+prawa kolumna jest marnowana, można tam dać info o użytkowniku (ile wpisów,
+przepisów, obs, obserwuj itp itd, a nie na środku przez co wpisy są dużo
+niżej".
+
+**Stan przed zmianą.** Karta profilu (`pages/profile/show.blade.php`) miała pod
+opisem osoby pięć osobnych wierszy po 48 px: wpisy, przepisy, „razy
+Ugotowałem", obserwujący, obserwowani. Pod nimi rząd przycisków, dopiero pod
+całą kartą zakładki, nagłówek miesiąca i pierwszy wpis. Prawa szyna profilu
+ISTNIAŁA od issue #205 (`x-szyna-profilu`: „Twoje skróty" na własnym profilu,
+„Co gotuje" i „Zeszyty" na cudzym), ale na cudzym profilu bez tagów i bez
+publicznych zeszytów nie dostawała ANI JEDNEGO bloku — i to jest ten pusty
+pas z prawej strony na zrzucie właściciela.
+
+### Dlaczego dwa egzemplarze w dokumencie, a nie jeden przestawiany
+
+Bo przestawić się nie da. `<aside class="app-rail">` jest RODZEŃSTWEM
+`<main>`, nie jego wnętrzem: żadne `order`, `float` ani `grid-area` nie wsunie
+elementu z szyny do środka karty profilu. Jedynym narzędziem byłby skrypt
+przenoszący węzeł przy zmianie szerokości okna — a `AGENTS.md` §5 wymaga, żeby
+ważne rzeczy działały bez JavaScriptu. Zostaje więc jedna treść wypisana dwa
+razy (składnik `x-liczby-profilu`, żeby nie były to dwie kopie do rozjechania)
+i PARA reguł w `ekran-profilu.css`, która pokazuje dokładnie jeden egzemplarz.
+
+Egzemplarz schowany przez `display: none` wypada z drzewa dostępności, więc
+czytnik ekranu czyta te liczby raz, a nie dwa razy.
+
+### Dlaczego próg 80rem, a nie 64rem
+
+80rem to próg, na którym w `app.css` w ogóle POWSTAJE trzecia kolumna.
+Poniżej niego `.app-rail` nie znika — **ląduje pod treścią**, czyli pod całym
+archiwum wpisów. Przeniesienie liczb do szyny „na stałe" zepchnęłoby je na
+telefonie kilkanaście ekranów przewijania w dół. Na wąskim widać więc
+egzemplarz w karcie i to jest stan sprawdzany przy 320, 360 i 414 px.
+
+### Gość to osobny przypadek, nie powtórka
+
+Gość dostaje `.app-body-solo` — JEDNĄ kolumnę na każdej szerokości. Jego szyna
+leci pod treścią nawet przy 1512 px. Dlatego reguła chowająca liczby w karcie
+jest zawężona przez `:not(.app-body-solo):not(.app-body-powitalny)`, a bloku
+w szynie w ogóle mu nie wysyłamy (`@auth`). Bez tego zawężenia gość przy
+1280 px straciłby liczby z karty, a jedyny drugi egzemplarz leżałby na dole
+strony — czyli poprawka układu byłaby dla niego regresją.
+
+### Co się NIE zmieniło i dlaczego to jest ważne
+
+Liczby dalej pochodzą z jednej tablicy `stats` w `ProfileController::show()`.
+Drugi egzemplarz NIE liczy sobie sam: pomiar zapytań na cudzym profilu
+oglądanym przez zalogowanego daje siedem agregatów (pięć z `stats`, jeden
+z paginacji archiwum, jeden z licznika powiadomień w belce) — tyle samo co
+przed zmianą. Kolejność liczb, ich odmiana (`x-licznik-profilu`,
+`App\Support\Odmiana`) i adresy odnośników obserwujących/obserwowanych są bez
+zmian; w szynie odnośnik dalej obejmuje całą komórkę i ma 48 px pola
+klikalnego.
+
+### §12 (bez rankingów) — granica przesunięta w opisie, nie w rzeczy
+
+Komentarz w `x-szyna-profilu` mówił dotąd „żadnej liczby obserwujących",
+jednym tchem z zakazem rankingów. To było zlanie dwóch różnych rzeczy.
+`AGENTS.md` §12 zakazuje PORÓWNYWANIA LUDZI ZE SOBĄ — miejsc w tabeli, odznak,
+„najaktywniejszych". Nie zakazuje pokazania, ile ta osoba ma własnych wpisów;
+te same pięć liczb stało przez cały ten czas w karcie dwa centymetry wyżej.
+Granica zostaje ostra: blok nie sortuje, nie wyróżnia, nie nagradza i nie ma
+progu „od ilu to już dużo". **Zera pokazujemy** — chowanie ich zamieniłoby
+informację w wyróżnienie, czyli w ranking wpisany w puste miejsce.
+
+### Osobno: nazwa przycisku „Ugotowałem" dostaje cudzysłów
+
+Właściciel zauważył, że „0 razy Ugotowałem" na CUDZYM profilu brzmi jak zdanie
+w pierwszej osobie. Sprawdzone: samo brzmienie jest umyślne i udokumentowane
+dwa razy — `BRAND_EXTENDED.md` §3 każe nazwy własne funkcji pisać z wielkiej
+litery i nie odmieniać („trzy razy Ugotowałem"), a wyjątek
+w `TekstyNiePrzypisujaPlciTest::WYJATKI` brzmi „nazwa przycisku
+**w cudzysłowie**". Cudzysłowu w interfejsie jednak nie było — i bez niego nic
+nie odróżniało nazwy przycisku od czasownika. Poprawiona została więc
+INTERPUNKCJA, a nie brzmienie: „4 razy „Ugotowałem”". Zamiana na neutralny
+rzeczownik („4 wykonania") byłaby szóstą nazwą tej samej funkcji i złamałaby
+regułę „nazwa funkcji jest jedna i nie ma synonimów" z tego samego dokumentu.
+
+### Czego ta zmiana NIE dowodzi
+
+Testy PHP dowodzą, że oba egzemplarze są w dokumencie po jednym razie i że
+para reguł w arkuszu istnieje w dokładnie jednej postaci. **Nie dowodzą, że na
+ekranie widać jeden.** To sprawdza dopiero `scripts/dostepnosc.mjs` w sekcji
+„Liczby o osobie (karta czy prawa szyna)": mierzy `getClientRects()` obu
+egzemplarzy przy 360, 1280 i 1512 px, dla gościa i dla zalogowanego, i oblewa,
+gdy widać oba naraz albo żadnego.
+
+📄 `resources/views/components/liczby-profilu.blade.php` ·
+`resources/views/components/szyna-profilu.blade.php` ·
+`resources/views/components/licznik-profilu.blade.php` ·
+`resources/views/pages/profile/show.blade.php` ·
+`resources/css/ekran-profilu.css` ·
+`scripts/dostepnosc.mjs` ·
+`tests/Feature/ProfilLiczbyWPrawejSzynieTest.php` ·
+`tests/Feature/NaglowekProfiluOdmieniaLicznikiTest.php` ·
+`docs/brand/BRAND_EXTENDED.md` §3 · issue #205 · D-054
+
+---
+
+## D-085 · Adres bez konta dostaje zaproszenie do rejestracji, a nie ciszę — z adresem potwierdzonym klikiem i jednorazowością liczoną na utworzeniu konta
+
+**Data:** 10 września 2026 · Zgłoszenie właściciela (ta sama sprawa co #258) ·
+Status: **obowiązuje**
+
+> **O numerze.** Szkic tej funkcji powstał w sesji zabitej przez limit i w całym
+> kodzie powoływał się na „D-067" — wpis o tym numerze **nigdy nie został
+> napisany**, a numer należy do innej pracy. Cały kod odwołuje się teraz do
+> D-085, czyli do tego wpisu.
+
+### Skąd to się wzięło — prawdziwe zdarzenie, nie hipoteza
+
+63-letnia osoba chciała założyć konto. Odbiła się o walidację nazwy
+użytkownika, przeszła na ekran „Wyślij mi link do zalogowania" (bo jego tekst
+brzmiał „podaj adres, na który zakładasz konto"), wpisała swój adres i zobaczyła
+zielone **„Wysłaliśmy wiadomość na e\*\*\*@gmail.com"**. Nie przyszło nic — pod
+tym adresem nie było konta, a ten ekran świadomie odpowiada identycznie dla
+adresu z kontem i bez konta (D-056). Czekała na wiadomość, która nie miała
+przyjść.
+
+Prośba właściciela brzmiała wprost: *„jak nie ma konta, a zrobi zaloguj się
+przez email, to żeby dostała tego maila i po kliknięciu w link w mailu przechodzi
+do strony już tworzenia konta"*.
+
+### Decyzja
+
+Adres, na którym **nie ma konta**, dostaje wiadomość z linkiem prowadzącym na
+dokończenie **zakładania konta**. Konto powstaje z adresem **już potwierdzonym**
+i bez drugiej wiadomości weryfikacyjnej.
+
+Ta funkcja **nie zamyka #258** (logowanie kontem Google). Ma to samo źródło —
+tę samą osobę i to samo zdarzenie — ale to inna droga i tamto zgłoszenie zostaje
+otwarte.
+
+### Prywatność z D-056 wychodzi z tego MOCNIEJSZA, nie słabsza
+
+To był warunek, pod którym ta zmiana w ogóle mogła powstać.
+
+D-056 zapisało znane, przyjęte ryzyko: dobowy budżet poczty zajmował się tylko
+przy realnie wysłanym liście, więc adres bez konta go nie ruszał — a kto ustawił
+się dokładnie na ostatniej jednostce budżetu, mógł z zachowania formularza
+wyczytać jeden bit („czy tamten adres ma konto"). **Po tej zmianie oba przypadki
+wysyłają wiadomość i oba zajmują ten sam budżet, więc tej różnicy nie ma już
+wcale.**
+
+Zostaje różnica słabsza i o piętro niżej: sufit zaproszeń jest osobny i niższy
+(40 wobec 120), więc na jego granicy adres bez konta przestaje generować wysyłkę
+wcześniej. Ekran milczy o tym identycznie w obu przypadkach — cena jest taka, że
+w dniu nadużycia osoba bez konta wiadomości nie dostanie, i dlatego sufit stoi
+2–4 razy wyżej niż realne zapotrzebowanie.
+
+### Co rozstrzygnięto po drodze
+
+**Sufit wewnątrz sufitu, nie obok.** Zaproszenie zajmuje miejsce w budżecie
+logowania linkiem (120) **i dodatkowo** we własnym (40), więc podział wiadra 300
+listów nie zmienia się ani o jeden list. Drugi licznik jest konieczny, bo ta
+zmiana otwiera wektor, którego wcześniej nie było: do 10 września adres bez konta
+nie generował żadnej wysyłki, więc automat wpisujący wymyślone adresy nie
+potrafił wysłać ani jednej wiadomości. Teraz potrafi, a limit po IP (5/60 min)
+przepuszcza z jednego łącza 120 próśb na dobę — dokładnie tyle, ile ma cały
+budżet logowania linkiem.
+
+**Adres bierze się z wiersza w bazie, nie z pola w formularzu.** To jest
+warunek, pod którym wolno postawić `email_verified_at` bez wysłania listu.
+Zaproszenie leży w sesji jako sam **identyfikator wiersza**; kto podmieni pole
+`email` w formularzu rejestracji, nie zmieni niczego, bo ta wartość nie jest
+wtedy w ogóle czytana. Gdyby dało się ją podmienić, powstałoby konto
+z potwierdzonym adresem, którego nikt nigdy nie potwierdził — czyli gotowa droga
+do konta na cudzej skrzynce, z „nie pamiętam hasła" jako dalszym ciągiem.
+
+**Jednorazowość liczy się na UTWORZENIU KONTA, nie na przejściu ekranu.**
+Ani GET z wiadomości, ani POST przyjmujący zaproszenie niczego nie zużywają —
+GET dlatego, że skanery odnośników w programach pocztowych otwierają każdy adres
+przed człowiekiem (ta sama lekcja co w D-056), a POST dlatego, że **za nim stoi
+jeszcze cały formularz rejestracji, o który ta osoba już raz się odbiła**. Gdyby
+zaproszenie ginęło wcześniej, pierwsza pomyłka w nazwie użytkownika odbierałaby
+jej link bezpowrotnie — czyli powtarzałaby ten sam błąd, który to wszystko
+naprawia. Wiersz kasuje `RegisterController::store()` w tej samej transakcji,
+w której powstaje konto, pod `lockForUpdate()`.
+
+**24 godziny, nie 30 minut.** Poświadczenie jest słabsze niż link do logowania
+(nie wpuszcza nigdzie, prowadzi na pusty formularz), a droga po jego kliknięciu
+dłuższa. Nie więcej niż 24 h, bo tyle żyje zamówiona zmiana adresu, a tamto
+poświadczenie jest mocniejsze od tego.
+
+**Musi być wyjście „chcę konto na inny adres".** Adres z zaproszenia jest
+w formularzu niezmienny, a sesja żyje długo — bez przycisku porzucenia człowiek,
+który kliknął link ze złej skrzynki (z jednej korzysta czasem całe małżeństwo),
+widziałby ten sam adres przy każdym wejściu na `/register` i nie miałby jak z tego
+wyjść.
+
+### Wyścig o unikalność adresu — usterka, którą ta praca znalazła i naprawiła
+
+Szkic kasował poprzednie zaproszenie i zakładał nowe **bez przechwycenia
+konfliktu**, mimo że `registration_invites.email` jest unikalne. Dwie prośby
+naraz o ten sam adres przechodziły oba `DELETE` i obie szły do `INSERT`; druga
+odbijała się o constraint i przewracała żądanie na **500**.
+
+Przewracała je **wyłącznie na ścieżce adresu BEZ konta** — adres z kontem nie
+dochodzi do tej klasy, a jego własny wyścig `WyslijLinkDoLogowania` sprowadza do
+302 (D-075). Para równoległych próśb odpowiadała więc **500 dla adresu bez konta
+i 302 dla adresu z kontem**: dokładnie ta wyrocznia „kto ma konto w Kuking",
+którą D-075 dopiero co zamknęło, tylko odbita w lustrze. Po ludzkiej stronie tego
+wyścigu stoi zwykły dwuklik „Wyślij".
+
+Blokady wiersza konta — tej z D-075 — nie ma tu na czym postawić: konta nie ma,
+a `SELECT ... FOR UPDATE` na nieistniejącym wierszu nie blokuje niczego. Zostaje
+druga połowa tamtej konstrukcji: konflikt sprowadzamy do tej samej neutralnej
+odpowiedzi co każda inna odmowa, oddając przy okazji miejsce w dobowym suficie.
+
+Przy okazji sufit zaproszeń przeszedł na **`sprobujZarezerwowac()`** — szkic
+używał pary „sprawdź, a potem zajmij", czyli tego, co D-076 usunęło z reszty
+serwisu.
+
+### Jak to wycofać
+
+`KUKING_ZAPROSZENIA_DO_REJESTRACJI=false` — jedna zmienna, bez wycofywania
+migracji i bez ruszania logowania linkiem. Adres bez konta wraca do zachowania
+z D-056, ekran odpowiada dalej identycznie, a linki będące w drodze dostają
+ekran po polsku zamiast błędu. Wycofanie samej migracji: patrz
+`docs/DATABASE.md`, sekcja `registration_invites`.
+
+**Pliki:** `app/Domain/Security/WyslijZaproszenieDoRejestracji.php` ·
+`app/Domain/Security/ZaproszenieWSesji.php` ·
+`app/Http/Controllers/Auth/RegistrationInviteController.php` ·
+`app/Http/Controllers/Auth/RegisterController.php` ·
+`app/Models/RegistrationInvite.php` ·
+`app/Domain/Compliance/PrzedawnioneZaproszenia.php` ·
+`database/migrations/2026_09_10_400000_create_registration_invites_table.php` ·
+`tests/Feature/ZaproszenieDoRejestracjiTest.php` ·
+`tests/Feature/EkranZaproszeniaTest.php` ·
+`tests/Feature/RejestracjaZZaproszeniaTest.php`
+
+---
+
 ## D-063 · PostHog: nie teraz — statystyki zostają własne, w naszej bazie
 
 **Data:** 10 września 2026 · Issue #33 (audyt monitoringu) · Status: **obowiązuje do spełnienia warunków powrotu niżej**
@@ -4505,3 +7272,4 @@ dokładnie ten sam mechanizm, który D-024/D-038 pilnują w drugą stronę.
 `app/Domain/Analytics/*` · `resources/legal/polityka-prywatnosci.md` §3 ·
 `tests/Feature/PolitykaPrywatnosciWymieniaKazdaUslugeTest.php` ·
 `tests/Feature/DokumentyPrawneNieKlamiaTest.php` · `AGENTS.md` §3
+

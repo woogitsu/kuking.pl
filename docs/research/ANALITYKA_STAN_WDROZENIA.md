@@ -176,6 +176,7 @@ Migracja: `database/migrations/2026_09_06_220000_create_product_signals_table.ph
 | `not_an_image` | Zawartość nie jest obrazem (`RozpoznanieZdjecia`). |
 | `unsupported_format` | Format spoza listy. |
 | `too_many_megapixels` | Za duża rozdzielczość. |
+| `heic_unsupported` | Plik HEIC/HEIF — rozpoznany po magic bytes, ale nieobsługiwany (issue #119, D-064). Osobny kod od `not_an_image` WŁAŚNIE PO TO, żeby to zapytanie dało odpowiedź: `SELECT count(*) FROM product_signals WHERE signal_name = 'photo_upload_failed' AND properties->>'reason' = 'heic_unsupported' AND occurred_at > now() - interval '30 days'`. |
 
 **Nigdy** nazwa pliku ani nic innego wpisanego przez człowieka.
 

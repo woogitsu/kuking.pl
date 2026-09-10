@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,6 +40,21 @@ class ProfileSettingsController extends Controller
         $user = $request->user();
         $profile = $user->profile;
 
+        /*
+         * TA SAMA NORMALIZACJA CO PRZY REJESTRACJI, I Z TEGO SAMEGO POWODU
+         * (patrz `NazwaUzytkownika`): człowiek, który wpisze „Małgorzata
+         * Kowalska", ma dostać `malgorzata_kowalska`, a nie pouczenie
+         * o dozwolonych znakach.
+         *
+         * Musi stać PRZED sprawdzeniem, czy nazwa się zmienia (niżej) —
+         * inaczej wpisanie własnej nazwy w innym zapisie („Basia" przy
+         * zapisanej `basia`) wyglądałoby jak zmiana i włączałoby kontrolę
+         * nazw zastrzeżonych tam, gdzie nic się nie zmienia.
+         */
+        $request->merge([
+            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
+        ]);
+
         // Druga — łatwiejsza do przeoczenia — droga do nazwy użytkownika.
         // Sprawdzanie tylko przy rejestracji byłoby zabezpieczeniem na pokaz:
         // wystarczyłoby założyć konto „basia" i zmienić je tutaj na „pomoc".
@@ -70,7 +86,9 @@ class ProfileSettingsController extends Controller
             'speciality' => ['nullable', 'string', 'max:120'],
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
-            'username.regex' => 'Nazwa użytkownika może zawierać tylko litery bez polskich znaków, cyfry i podkreślnik.',
+            // Do `regex` i `min` dochodzi się już tylko wtedy, gdy z wpisanego
+            // tekstu nie da się nic ułożyć — patrz komentarz przy normalizacji.
+            'username.regex' => 'Z tej nazwy nie da się ułożyć adresu. Wpisz imię albo imię i miejscowość.',
             'username.unique' => 'Ta nazwa jest już zajęta.',
             'bio.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
         ]);

@@ -70,7 +70,7 @@ final class PodstawaDecyzji
         ],
         'cudza-tresc' => [
             'punkt' => 2,
-            'zasada' => 'Publikuj to, co zrobiłeś lub napisałeś sam.',
+            'zasada' => 'Publikuj własne przepisy i teksty.',
             'etykieta' => 'Cudzy przepis albo cudzy tekst (punkt 2)',
         ],
         'cudze-zdjecie' => [
