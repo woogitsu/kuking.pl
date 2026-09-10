@@ -91,13 +91,13 @@ class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
                 101 => 'przepisów',
             ]],
             'ugotowania' => ['ugotowania', [
-                0 => 'razy Ugotowałem',
-                1 => 'raz Ugotowałem',
-                2 => 'razy Ugotowałem',
-                5 => 'razy Ugotowałem',
-                12 => 'razy Ugotowałem',
-                22 => 'razy Ugotowałem',
-                101 => 'razy Ugotowałem',
+                0 => 'razy „Ugotowałem”',
+                1 => 'raz „Ugotowałem”',
+                2 => 'razy „Ugotowałem”',
+                5 => 'razy „Ugotowałem”',
+                12 => 'razy „Ugotowałem”',
+                22 => 'razy „Ugotowałem”',
+                101 => 'razy „Ugotowałem”',
             ]],
             'obserwujacy' => ['obserwujacy', [
                 0 => 'obserwujących',
@@ -198,7 +198,7 @@ class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
 
         $odpowiedz->assertSee('<span class="stat-value">1</span> <span class="stat-label">wpis</span>', false);
         $odpowiedz->assertSee('<span class="stat-value">2</span> <span class="stat-label">przepisy</span>', false);
-        $odpowiedz->assertSee('<span class="stat-value">1</span> <span class="stat-label">raz Ugotowałem</span>', false);
+        $odpowiedz->assertSee('<span class="stat-value">1</span> <span class="stat-label">raz „Ugotowałem”</span>', false);
         $odpowiedz->assertSee('<span class="stat-value">0</span> <span class="stat-label">obserwujących</span>', false);
         $odpowiedz->assertSee('<span class="stat-value">0</span> <span class="stat-label">obserwowanych</span>', false);
 

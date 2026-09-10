@@ -2628,6 +2628,143 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
   await kontekst.close();
 }
 
+/* ==========================================================================
+   LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
+
+   Pięć liczb profilu („4 wpisy", „0 przepisów", „1 obserwujący"…) stoi
+   w dokumencie DWA razy: w karcie profilu i w prawej szynie. Który z nich
+   widać, decyduje para reguł w `ekran-profilu.css` — a to jest dokładnie ta
+   klasa zmiany, którą testy PHP przepuszczą: HTML jest poprawny w obu
+   przypadkach, psuje się wyłącznie obraz na ekranie.
+
+   Dwie usterki, których ten pomiar pilnuje, obie widziane wyłącznie
+   w przeglądarce:
+    - liczby DWA RAZY przy 1512 px (skasowana reguła chowająca kartę),
+    - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
+      poniżej 80rem ląduje pod całym archiwum wpisów).
+
+   Gość jest tu osobnym przypadkiem, nie powtórką: ma jedną kolumnę na każdej
+   szerokości (`app-body-solo`), więc przy 1512 px MUSI widzieć egzemplarz
+   w karcie — inaczej liczby lądują u niego na samym dole strony.
+   ========================================================================== */
+log('');
+log('Liczby o osobie (karta czy prawa szyna):');
+
+const EKRANY_LICZB = [
+  { nazwa: 'profil cudzy (gość)', adres: '/@basia', zalogowany: false },
+  { nazwa: 'profil cudzy (zalogowany)', adres: '/@basia', zalogowany: true },
+  { nazwa: 'profil własny', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
+];
+
+// 360 to telefon, 1280 sam próg szyny (80rem), 1512 laptop właściciela —
+// czyli szerokość ze zgłoszenia.
+const SZEROKOSCI_LICZB = SZYBKO ? [360, 1512] : [360, 1280, 1512];
+
+const rozjazdyLiczb = [];
+
+for (const szerokosc of SZEROKOSCI_LICZB) {
+  for (const ekran of EKRANY_LICZB) {
+    const kontekst = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 900 },
+      ...(ekran.zalogowany ? { storageState: stanZalogowany } : {}),
+    });
+
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze liczb o osobie.');
+      process.exitCode = 1;
+      await strona.close();
+      await kontekst.close();
+      continue;
+    }
+
+    const pomiar = await strona.evaluate(() => {
+      // `getClientRects().length` zamiast `offsetParent`: łapie także element
+      // schowany przez `display: none` NA PRZODKU, a to jest właśnie ten
+      // przypadek (chowamy opakowanie bloku, nie samą listę).
+      const widoczny = (el) => el !== null && el.getClientRects().length > 0;
+
+      const karta = document.querySelector('.profil-liczby-karta');
+      const szyna = document.querySelector('.profil-liczby-szyna');
+
+      return {
+        maKarte: karta !== null,
+        kartaWidoczna: widoczny(karta),
+        szynaWSzynie: szyna !== null ? szyna.closest('.app-rail') !== null : null,
+        szynaWidoczna: widoczny(szyna),
+        // Ile razy podpis „obserwujących"/„obserwujący" jest naprawdę
+        // widoczny — najprostsze sprawdzenie „czy liczba stoi dwa razy".
+        widocznychPodpisow: [...document.querySelectorAll('.profil-licznik-pole .stat-label')]
+          .filter((el) => el.getClientRects().length > 0 && el.textContent.includes('obserwuj'))
+          .length,
+        // Pierwszy wpis archiwum — po to była cała zmiana. Zapisujemy
+        // pozycję, żeby dało się zobaczyć, czy wjechał wyżej.
+        goraPierwszegoWpisu: (() => {
+          const wpis = document.querySelector('.app-main .post-card');
+          return wpis === null ? null : Math.round(wpis.getBoundingClientRect().top);
+        })(),
+      };
+    });
+
+    const bledy = [];
+
+    if (!pomiar.maKarte) {
+      bledy.push('nie ma w ogóle listy liczb w karcie profilu');
+    }
+
+    if (pomiar.kartaWidoczna === pomiar.szynaWidoczna) {
+      bledy.push(pomiar.kartaWidoczna
+        ? 'te same liczby widać JEDNOCZEŚNIE w karcie i w szynie'
+        : 'liczb nie widać ANI w karcie, ANI w szynie');
+    }
+
+    if (pomiar.widocznychPodpisow !== 1) {
+      bledy.push(`podpis „obserwujący" jest widoczny ${pomiar.widocznychPodpisow} razy, ma być raz`);
+    }
+
+    if (pomiar.szynaWSzynie === false) {
+      bledy.push('blok liczb nie leży w `.app-rail`');
+    }
+
+    // Szeroko i po zalogowaniu liczby MAJĄ być w szynie — inaczej cała ta
+    // zmiana nic nie dała i karta jest tak samo długa jak przed nią.
+    if (szerokosc >= 1280 && ekran.zalogowany && !pomiar.szynaWidoczna) {
+      bledy.push('przy szerokim oknie liczby dalej stoją w karcie');
+    }
+
+    // Na telefonie i u gościa MAJĄ być w karcie.
+    if ((szerokosc < 1280 || !ekran.zalogowany) && !pomiar.kartaWidoczna) {
+      bledy.push('liczby zniknęły z karty tam, gdzie nie ma prawej kolumny');
+    }
+
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: karta ${pomiar.kartaWidoczna ? 'widoczna' : 'schowana'}, `
+      + `szyna ${pomiar.szynaWidoczna ? 'widoczna' : 'schowana'}, `
+      + `pierwszy wpis od góry: ${pomiar.goraPierwszegoWpisu ?? '(brak wpisu)'} px`);
+
+    if (bledy.length > 0) {
+      rozjazdyLiczb.push({ ekran: ekran.nazwa, szerokosc, bledy });
+    }
+
+    await strona.close();
+    await kontekst.close();
+  }
+}
+
+if (rozjazdyLiczb.length > 0) {
+  log('');
+  log('Liczby o osobie stoją w złym miejscu (D-091):');
+  for (const r of rozjazdyLiczb) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -2682,7 +2819,8 @@ log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `niespójnych szerokości: ${niespojneSzerokosci.length}, `
   + `rozjazdów tablicy dnia: ${rozjazdyTablicy.length}, `
   + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
-  + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length})`);
+  + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length}, `
+  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length})`);
 // Liczby zbadanych ekranów W TYM SAMYM wierszu co wynik, a nie tylko w pliku:
 // „przepełnień: 0" znaczy coś innego przy 36 zmierzonych ekranach i przy 33.
 log(`Zbadane ekrany — axe: ${zbadanePrzezAxe.size}/${EKRANY.length}, `
@@ -2764,6 +2902,7 @@ if (
   || niespojneSzerokosci.length > 0
   || naruszeniaFocus.length > 0
   || rozjazdyTablicy.length > 0
+  || rozjazdyLiczb.length > 0
 ) {
   process.exit(1);
 }

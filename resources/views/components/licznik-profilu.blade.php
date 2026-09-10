@@ -28,6 +28,27 @@
     którego COPY_STYLE.md §2 zakazuje i którego nie da się przeczytać na
     głos. Odmieniamy w tym miejscu wyłącznie liczebnik („raz" / „razy"),
     samego brzmienia nie ruszamy.
+
+    NAZWA PRZYCISKU STOI W CUDZYSŁOWIE, I TO JEST POPRAWKA (D-091).
+    Zgłoszenie właściciela: „0 razy Ugotowałem" na CUDZYM profilu brzmi
+    jak zdanie w pierwszej osobie o czytającym — czyli dokładnie to, czego
+    COPY_STYLE.md §2 zabrania. Sprawdzone: samo brzmienie jest umyślne
+    i udokumentowane w dwóch miejscach naraz. `BRAND_EXTENDED.md` §3 każe
+    nazwy własne funkcji pisać z wielkiej litery i NIE odmieniać („trzy razy
+    Ugotowałem", nie „trzy ugotowałemy"), a wyjątek w
+    `TekstyNiePrzypisujaPlciTest::WYJATKI` brzmi wprost: „nazwa przycisku
+    W CUDZYSŁOWIE". Cudzysłowu w interfejsie jednak nie było — i bez niego
+    nic nie odróżniało nazwy przycisku od czasownika.
+
+    Dlatego poprawiamy INTERPUNKCJĘ, a nie brzmienie: „4 razy „Ugotowałem”"
+    zostawia nazwę własną nietkniętą (ta sama forma w całym serwisie, tak
+    jak żąda rejestr nazw), a cudzysłów mówi, że to nazwa przycisku, w który
+    ta osoba klikała. Zamiana na neutralny rzeczownik („4 wykonania") byłaby
+    SZÓSTĄ nazwą tej samej funkcji i złamałaby regułę „nazwa funkcji jest
+    jedna i nie ma synonimów" — dlatego jej tu nie ma.
+
+    Cudzysłów zamykający to „”" (U+201D), nie prosty znak: `{{ }}` przepuszcza
+    go bez zmian, a prosty cudzysłów Blade zamieniłby na `&quot;`.
 --}}
 
 @php
@@ -43,7 +64,7 @@
     $formy = [
         'wpisy' => ['wpis', 'wpisy', 'wpisów'],
         'przepisy' => ['przepis', 'przepisy', 'przepisów'],
-        'ugotowania' => ['raz Ugotowałem', 'razy Ugotowałem', 'razy Ugotowałem'],
+        'ugotowania' => ['raz „Ugotowałem”', 'razy „Ugotowałem”', 'razy „Ugotowałem”'],
         'obserwujacy' => ['obserwujący', 'obserwujących', 'obserwujących'],
         'obserwowani' => ['obserwowany', 'obserwowanych', 'obserwowanych'],
     ];

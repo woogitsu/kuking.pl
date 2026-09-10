@@ -140,7 +140,7 @@ class ProfilLicznikiTresciZgadzajaSieZListamiTest extends TestCase
             ->assertOk();
 
         $odpowiedzWszystko->assertSee(
-            '<span class="stat-value">1</span> <span class="stat-label">raz Ugotowałem</span>',
+            '<span class="stat-value">1</span> <span class="stat-label">raz „Ugotowałem”</span>',
             false,
         );
 
