@@ -1716,7 +1716,57 @@ dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
 
-Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
+Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
+w kolejności; `data_exports_one_active_per_user` — patrz niżej.
+
+#### `data_exports_one_active_per_user` — jeden AKTYWNY eksport na konto (D-078)
+
+Migracja `2026_09_10_400100_one_active_data_export_per_user`, audyt
+10.09.2026 ustalenia QUEUE-04 / RACE-05.
+
+```sql
+CREATE UNIQUE INDEX data_exports_one_active_per_user
+    ON data_exports (user_id)
+ WHERE status IN ('queued', 'processing');
+```
+
+**Co ten indeks naprawia.** `DataSettingsController::requestExport()` robił
+`exists()` na stanach aktywnych, a potem OSOBNY `INSERT`. Między tymi dwoma
+zapytaniami nie było nic: przy izolacji `read committed` dwa równoległe
+żądania widzą „nie ma aktywnego eksportu" jednocześnie i oba wstawiają swój
+wiersz. Skutkiem są DWA `GenerateUserExport` na jedno konto — czyli dwa razy
+spakowane te same zdjęcia (15 minut limitu czasu, kolejka `low`, jeden
+worker) i dwa listy z tego samego dobowego wiadra poczty. Wejściem jest
+podwójne kliknięcie „Zamów swoje dane", a w grupie 60+ dwuklik jest
+scenariuszem typowym.
+
+`exists()` w PHP **zostaje** — daje spokojny komunikat („już przygotowujemy
+Twoją paczkę"). Gwarancję daje indeks; konflikt jest w kontrolerze
+przechwytywany (`UniqueConstraintViolationException`) i sprowadzany do tego
+**samego** zdania, nigdy do 500. `lockForUpdate()` by tego nie naprawił:
+`SELECT ... FOR UPDATE`, który nie zwrócił wiersza, nie blokuje niczego —
+to wstawienie fantomu, nie konflikt na wierszu.
+
+**Dlaczego indeks CZĘŚCIOWY.** Inwariant brzmi „jeden AKTYWNY", nie „jeden
+w historii" — RODO art. 15 nie jest jednorazowe i ekran ustawień pokazuje
+pięć ostatnich paczek. Wiersz wypada z indeksu, gdy job go domknie (`ready`,
+`failed`) albo paczka wygaśnie (`expired`), i kolejne zamówienie znów
+przechodzi.
+
+**Migracja odmawia, gdy w tabeli już leżą dwa aktywne eksporty jednego
+konta** — z komunikatem mówiącym, co zrobić (zostaw najstarszy aktywny
+wiersz, nadmiarowe skasuj; gotowy `DELETE` stoi w komentarzu migracji).
+Kasowanie jest tu bezpieczne, w odróżnieniu od `reports`: wiersz w stanie
+aktywnym nie ma jeszcze `object_key` ani `disk` (brak osieroconego pliku),
+`GenerateUserExport::handle()` przy braku wiersza po prostu wraca, a paczka
+z pozostawionego wiersza jest bajt w bajt tą samą paczką.
+
+**Rollback:** `DROP INDEX IF EXISTS`, bezstratnie — indeks nie przechowuje
+niczego, czego nie ma w tabeli, i jego zdjęcie nie kasuje żadnego wiersza.
+Po cofnięciu wraca stan sprzed zmiany: `exists()` łapie zwykły dwuklik, baza
+nie broni niczego, a `catch` w kontrolerze jest gałęzią, w którą nic nie
+wchodzi. Pilnują tego `JedenAktywnyEksportNaKontoTest`
+i `Wyscigi\EksportDanychRaceTest`.
 
 ### product_signals
 
