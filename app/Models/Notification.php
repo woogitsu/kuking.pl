@@ -63,6 +63,37 @@ class Notification extends Model
     public const TYPE_WELCOME = 'account.welcome';
 
     /**
+     * NOWE ODWOŁANIE CZEKA W PANELU — powiadomienie dla ADMINISTRATORA, nie
+     * dla użytkownika (zgłoszenie właściciela z 10 września: „nie mam jako
+     * admin powiadomienia, że jakieś odwołanie jest").
+     *
+     * DLACZEGO TO JEST WAŻNIEJSZE NIŻ WYGODA: odwołanie ma termin
+     * odpowiedzi (`Appeal::responseDeadline()`, siedem dni roboczych
+     * z `docs/legal/MODERATION_PLAYBOOK.md` §3, wypisany człowiekowi na
+     * ekranie jako „odpowiedz do …"). Kolejka, o której nikt nie wie, że
+     * coś w niej leży, to termin, który upływa po cichu — a jest to
+     * zobowiązanie z DSA art. 20 i z regulaminu §8, nie uprzejmość.
+     *
+     * KOMU IDZIE: wyłącznie administratorom. Odwołanie rozstrzyga admin,
+     * nie moderator (`UserPolicy::resolveAppeals()`, D-039) — powiadomienie
+     * dla kogoś, kto po kliknięciu zobaczy „tę sprawę zamyka
+     * administrator", byłoby wezwaniem do czynności, której ta osoba nie
+     * może wykonać. Moderator widzi kolejkę i licznik przy niej w menu,
+     * i to jest właściwa dla niego dawka. Rozstrzyga to
+     * `App\Domain\Moderation\Actions\PowiadomOOdwolaniu`.
+     *
+     * ŚWIADOMIE NIE MA GO NA LIŚCIE `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`
+     * i nie jest to przeoczenie: tamta lista chroni powiadomienia, które
+     * NIOSĄ CZŁOWIEKOWI decyzję i pouczenie o odwołaniu, więc nie wolno ich
+     * skasować przed upływem terminu na to odwołanie. To powiadomienie jest
+     * po drugiej stronie biurka — jest zawiadomieniem o pracy do wykonania,
+     * a nie dowodem niczyjego prawa. Trwałym zapisem sprawy jest `appeals`
+     * i dziennik zdarzeń (`appeal.filed` w `AuditLogEntry`), które żyją
+     * własnymi terminami.
+     */
+    public const TYPE_APPEAL_FILED = 'appeal.filed';
+
+    /**
      * Pierwszy wpis nowej osoby — powiadomienie dla GOSPODARZA, nie dla
      * autora (issue #6).
      *
@@ -195,6 +226,11 @@ class Notification extends Model
             self::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
             self::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
+            // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
+            // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
+            // na niej najstarsze na górze, czyli to z najbliższym terminem
+            // jest pierwsze (`AppealController::index()`).
+            self::TYPE_APPEAL_FILED => route('admin.appeals'),
             self::TYPE_WELCOME => route('posts.create'),
             // Obie drogi zgłaszającego (issue #10) prowadzą na kartę TEJ
             // sprawy, nie na listę: człowiek klika „Zobacz" przy konkretnym

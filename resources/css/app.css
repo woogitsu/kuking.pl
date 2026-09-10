@@ -26,6 +26,7 @@
 @import "./karta-ugotowania.css";
 @import "./strony-publiczne.css";
 @import "./ekran-uzytkownikow.css";
+@import "./ekran-odwolan.css";
 
 @layer components {
 
@@ -664,6 +665,13 @@
       min-width: 0;
       max-width: 100%;
       overflow-wrap: anywhere;
+      /* Zawijanie DODANE przy licznikach kolejek (10 września). Napis
+         pozycji i tak zawija się w sobie (`overflow-wrap: anywhere`), więc
+         w praktyce ta reguła nie dotyczy tekstu — jest siatką
+         bezpieczeństwa dla plakietki `.licznik-kolejki`, żeby przy dużej
+         skali tekstu zeszła do drugiego wiersza, a nie rozpychała kolumny
+         nawigacji w bok. */
+      flex-wrap: wrap;
       transition: background-color var(--czas-szybki) ease-out;
     }
 
@@ -909,12 +917,22 @@
 
     /* Spis ekranów panelu w dwóch kolumnach, jeśli szerokość na to pozwala:
        sześć pozycji jedna pod drugą to na telefonie pół ekranu przewijania,
-       zanim widać treść. `auto-fit` z `minmax(11rem, …)` sam schodzi do jednej
-       kolumny na najwęższych ekranach (320 px), więc żaden napis nie zostaje
-       ucięty ani zwężony poniżej swojej treści. */
+       zanim widać treść. `auto-fit` z `minmax(…)` sam schodzi do jednej
+       kolumny na najwęższych ekranach, więc żaden napis nie zostaje ucięty
+       ani zwężony poniżej swojej treści.
+
+       `min(11rem, 100%)`, NIE samo `11rem` — DOKŁADNIE TA SAMA POPRAWKA,
+       KTÓRA BYŁA JUŻ POTRZEBNA W STOPCE (patrz `.stopka-*` niżej w tym
+       pliku, D-051). Zmierzone 10 września na `/admin/odwolania`: przy oknie
+       320 px i czcionce przeglądarki 200% `1rem` to 32 px, więc `11rem` daje
+       ścieżkę 352 px i `auto-fit` NIE schodzi do jednej kolumny — schodzi do
+       jednej ŚCIEŻKI SZERSZEJ NIŻ EKRAN. Cała strona panelu przewijała się
+       wtedy w bok (`scrollWidth` 387 px przy oknie 320 px), a to jest
+       WCAG 2.2 AA 1.4.10 Reflow. `min(11rem, 100%)` mówi „11rem, ale nigdy
+       więcej niż dostępna szerokość" i tę jedną rzecz naprawia. */
     .side-nav[data-tryb-panelu] .side-nav-moderacja-lista {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
       gap: var(--spacing-1);
       padding: var(--spacing-1);
     }
@@ -1370,6 +1388,35 @@
   }
 
   .badge-cooked {
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+  }
+
+  /* LICZNIK PRZY POZYCJI PANELU MODERACJI („Odwołania 2").
+
+     Wygląd JAK licznik nieprzeczytanych powiadomień w tym samym menu
+     (`.badge-cooked`, `--color-accent-tint`) i to jest cała intencja: dwie
+     plakietki stojące kilka pozycji od siebie i znaczące to samo („coś
+     nowego czeka") muszą wyglądać tak samo, inaczej moderator uczy się
+     dwóch sygnałów zamiast jednego. NIGDY `--color-danger` — kolejka
+     moderacji jest miejscem pracy, nie awarią (ta sama reguła, którą
+     stosuje wyróżnienie sekcji „Panel moderacji" wyżej).
+
+     18 px, nie 16 px jak zwykła `.badge`: tutaj liczba jest CAŁĄ treścią
+     plakietki, a nie dopiskiem obok większego tekstu — a to dopisków
+     dotyczy wyjątek na `--text-help` z systemu projektowego §2.1.
+     AGENTS.md §5 obowiązuje w panelu bez wyjątku.
+
+     `flex: none` i `margin-left: auto`: pozycja menu jest `flex`-em
+     (`.side-nav-item`) z `flex-wrap: wrap`, w kolumnie szerokiej na 15 rem,
+     w której napisy rosną razem ze skalą tekstu użytkownika. Bez `flex: none`
+     plakietka mogłaby się skurczyć poniżej własnej liczby (ucięta cyfra),
+     a `auto` zsuwa wszystkie liczniki do prawej krawędzi kolumny, więc
+     czyta się je jak listę, a nie jak pięć przypadkowych miejsc. */
+  .licznik-kolejki {
+    flex: none;
+    margin-left: auto;
+    font-size: var(--text-body);
     background-color: var(--color-accent-tint);
     color: var(--color-accent-tint-ink);
   }

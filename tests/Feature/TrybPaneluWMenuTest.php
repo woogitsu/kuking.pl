@@ -287,11 +287,15 @@ class TrybPaneluWMenuTest extends TestCase
 
         // Tryb panelu — bieżące są „Zgłoszenia", a wejście/wyjście nigdy
         // nie udają bieżącego ekranu.
+        //
+        // `.*?</a>` po nazwie: od 10 września pozycja kolejki może mieć
+        // w środku odnośnika licznik tego, co czeka (`<x-licznik-kolejki>`),
+        // więc nazwa nie jest już ostatnią rzeczą przed `</a>`.
         $boczna = $this->wytnijBoczna(
             (string) $this->actingAs($moderator)->get(route('admin.reports'))->assertOk()->getContent(),
         );
         $this->assertMatchesRegularExpression(
-            '~<a class="side-nav-item" href="[^"]*"\s+aria-current="page"\s*>.*?Zgłoszenia</a>~s',
+            '~<a class="side-nav-item" href="[^"]*"\s+aria-current="page"\s*>.*?Zgłoszenia.*?</a>~s',
             $boczna,
             'W trybie panelu pozycja „Zgłoszenia” nie jest oznaczona jako bieżąca.',
         );

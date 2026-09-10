@@ -184,6 +184,21 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
     ->hourly()
     ->withoutOverlapping();
 
+// Liczniki przy pozycjach panelu moderacji („Odwołania 2"). Ten sam powód co
+// wyżej — menu boczne stoi na KAŻDEJ stronie panelu, więc pięć `COUNT(*)` na
+// odsłonę jest wykluczone (`App\Domain\Moderation\KolejkiPanelu`).
+//
+// CO PIĘĆ MINUT, a nie co godzinę jak licznik społeczności: tamten pokazuje
+// rozmiar społeczności, który zmienia się wolno, ten mówi „to czeka na
+// Ciebie". Bieżącej świeżości pilnują zdarzenia modeli (`AppServiceProvider`);
+// to zadanie jest siatką bezpieczeństwa na świeże wdrożenie z pustym cache
+// i na kolejkę „Bez odpowiedzi", która haka przy zapisie świadomie nie ma.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
+    ->name('kuking:policz-kolejki')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
 // Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
 // przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
 // w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm

@@ -151,7 +151,12 @@
                         · moderator, którego konta już nie ma
                     @endif
                     @if($decyzja->reason_code)
-                        · powód: {{ $decyzja->reason_code }}
+                        {{-- Polska nazwa powodu, nie kod z bazy — ta sama
+                             usterka i to samo źródło nazwy co w kolejce
+                             odwołań (`PodstawaDecyzji::etykieta()`). Dwa
+                             ekrany panelu pokazywały tę samą kolumnę: jeden
+                             surowo, drugi surowo. --}}
+                        · powód: {{ \App\Domain\Moderation\PodstawaDecyzji::etykieta($decyzja->reason_code) }}
                     @endif
                 </p>
 
