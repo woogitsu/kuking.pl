@@ -1,10 +1,13 @@
 # Sygnały automatu — wykrywacz, który podnosi rękę
 
-> Decyzja architektoniczna: **D-052** (`docs/DECISIONS.md`).
-> Kod: `app/Domain/Moderation/Sygnaly/`, `app/Jobs/PrzeanalizujTresc.php`,
+> Decyzje architektoniczne: **D-052** (sygnały lokalne) i **D-055** (ocena
+> modelem OpenAI) — `docs/DECISIONS.md`.
+> Kod: `app/Domain/Moderation/Sygnaly/`, `app/Moderacja/`,
+> `app/Jobs/PrzeanalizujTresc.php`,
 > `app/Http/Controllers/Admin/SygnalyController.php`.
-> Progi: `config/kuking.php` → `moderation.sygnaly`.
-> Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
+> Progi: `config/kuking.php` → `moderation.sygnaly` i `moderation.model`.
+> Wyłączniki: `KUKING_SYGNALY_AUTOMATU=false` (całość),
+> pusty `OPENAI_MODERATION_KEY` (sama ocena modelem).
 
 ## 1. Po co to jest i czym NIE jest
 
@@ -21,7 +24,8 @@ Czego nie robi i nie będzie robić:
 | Nie ogranicza po cichu zasięgu | poz. 3.16 (**REJECT**) — sprzeczne z art. 17 DSA |
 | Nie powiadamia autora o oznaczeniu | Nie ma o czym: z treścią nic się nie stało |
 | Nie liczy „punktów zaufania" konta | poz. 3.13 (**LATER/REJECT**) |
-| Nie zagląda do treści prywatnych | Wpis `private` w ogóle nie wchodzi do analizy |
+| Nie zagląda do treści prywatnych | Wpis `private` w ogóle nie wchodzi do analizy — także nie wychodzi do OpenAI |
+| Nie wysyła nic identyfikującego autora poza serwis | Do modelu idzie sama treść: bez adresu e-mail, nazwy konta, identyfikatora i adresu IP |
 
 Pozycje odwołania (3.x) pochodzą z `docs/INSPIRATION_DECISIONS.md` §3.
 Zasada nadrzędna jest w `AGENTS.md` §9: „moderacja pomocnicza (flagowanie,
@@ -209,8 +213,10 @@ Progi, po których trzeba zareagować:
 
 ## 8. ETAP DRUGI: ocena modelem OpenAI (`omni-moderation-latest`)
 
-**Status: zaprojektowane, wdrażane osobnym PR-em.** Decyzja właściciela
-z 9 września 2026.
+**Status: WDROŻONE** (D-055, decyzja właściciela z 9 września 2026).
+Kod: `app/Moderacja/`, `app/Notifications/PilnyAlarmModeracyjny.php`,
+`app/Console/Commands/PodsumowanieAutomatu.php`.
+Wyłącznik: pusty `OPENAI_MODERATION_KEY`.
 
 ### 8.1. To łapie INNĄ klasę treści niż nasz dzisiejszy problem
 
@@ -248,10 +254,23 @@ w USA. Wymaga tego, zanim pójdzie pierwsze żądanie:
   lit. c — powiedzenia w uzasadnieniu decyzji, że przy wykryciu treści użyto
   środków automatycznych.
 
-Zabezpieczenie mechaniczne: test mapujący usługi zewnętrzne na słowa, które
-muszą paść w polityce prywatności — pojawienie się klasy
-`App\Moderacja\KlientOpenAI` w kodzie oblewa test, dopóki w polityce nie ma
-słowa „OpenAI".
+Wszystkie trzy są ZROBIONE:
+`resources/legal/polityka-prywatnosci.md` ma OpenAI w tabeli podmiotów
+przetwarzających, osobny akapit „Co wysyłamy do OpenAI i czego NIE wysyłamy"
+oraz drugi wyjątek w akapicie o przekazywaniu poza EOG;
+`resources/legal/zasady.md` punkt 12 wymienia oba narzędzia i mówi wprost,
+że żadne z nich niczego nie ukrywa ani nie blokuje.
+
+Zabezpieczenie mechaniczne: `PolitykaPrywatnosciWymieniaKazdaUslugeTest`
+mapuje usługi zewnętrzne na słowa, które muszą paść w polityce — obecność
+klasy `App\Moderacja\KlientOpenAI` oblewa test, dopóki w polityce nie ma
+słowa „OpenAI". Sprawdzone kontrolą ujemną: po usunięciu wszystkich wystąpień
+tego słowa test oblewa.
+
+Trzecim miejscem jest samo uzasadnienie decyzji:
+`UzasadnienieDecyzji::skadSprawa()` mówi autorowi, że treść wskazało
+narzędzie oceniające maszynowo, a nie czyjeś zgłoszenie (art. 17 ust. 3
+lit. b i c).
 
 ### 8.4. Granica obowiązuje tak samo, i tu jeszcze mocniej
 
@@ -273,8 +292,8 @@ alarm przestanie działać dokładnie wtedy, gdy będzie potrzebny.
 
 | Kanał | Kiedy | Uzasadnienie progu |
 |---|---|---|
-| **Podsumowanie zbiorcze** | raz dziennie, jeden list: „5 nowych pozycji w kolejce, w tym 1 poważna" | Kolejka nie jest awarią. Codzienny rytm wystarcza, żeby nic nie zaległo, i nie uczy nikogo ignorowania listów |
-| **List natychmiastowy** | wyłącznie kategorie, które nie mogą czekać: treści seksualne na zdjęciach oraz cokolwiek dotyczącego dzieci | Te dwie kategorie mają w `resources/legal/zasady.md` własną sekcję „Czego nie tolerujemy w ogóle" i są jedynymi, przy których zwłoka jednego dnia jest realną szkodą, a nie niedogodnością |
+| **Podsumowanie zbiorcze** | raz dziennie o 07:00, jeden list: „5 nowych pozycji w kolejce", z rozbiciem na sygnały. `kuking:podsumowanie-automatu` | Kolejka nie jest awarią. Codzienny rytm wystarcza, żeby nic nie zaległo, i nie uczy nikogo ignorowania listów. **List nie wychodzi, gdy nie ma o czym pisać** — „0 nowych pozycji" przez trzy tygodnie to najlepszy sposób, żeby czwarty list przeszedł niezauważony |
+| **List natychmiastowy** | wyłącznie `KategorieModeracji::PILNE`: treści seksualne i wszystko, co dotyczy dzieci | Te dwie kategorie mają w `resources/legal/zasady.md` własną sekcję „Czego nie tolerujemy w ogóle" i są jedynymi, przy których zwłoka jednego dnia jest realną szkodą, a nie niedogodnością. Mają też **niższy próg** (`prog_pilny`, 0,2 zamiast 0,5): tu wolimy fałszywy alarm od przeoczenia |
 
 **Limit poczty:** EmailLabs, plan darmowy, **300 listów dziennie**, dzielone
 z listami do użytkowników (potwierdzenia rejestracji, zmiany adresu,
@@ -285,8 +304,27 @@ kategorii.
 
 ### 8.6. Wymagania techniczne
 
-- klucz przez `env()`; **brak klucza = funkcja wyłączona**, bez wywracania CI
-  i pracy lokalnej;
-- wywołanie w kolejce, nigdy w kontrolerze;
-- krótki limit czasu; **awaria OpenAI nie może wstrzymać publikacji wpisu**;
-- do API nie idzie nic identyfikującego autora.
+- klucz przez `env()` (`OPENAI_MODERATION_KEY`); **brak klucza = funkcja
+  wyłączona** — `KlientOpenAI::oceniamy()` oddaje `false`, żadne żądanie nie
+  wychodzi, nic nie pada. Tak jest lokalnie, w CI i w testach;
+- wywołanie w kolejce, w TYM SAMYM zadaniu co sygnały lokalne
+  (`PrzeanalizujTresc`). Dwa zadania próbowałyby postawić dwa oznaczenia tej
+  samej treści, a `reports_jeden_automat_na_tresc` przepuściłby tylko to,
+  które wygrało wyścig — ocena modelu potrafiłaby wtedy przepaść dlatego, że
+  wpis zawierał numer telefonu;
+- limit czasu 8 s; **awaria OpenAI nie wstrzymuje publikacji wpisu** —
+  publikacja dzieje się w innym żądaniu, a każdy błąd kończy się brakiem
+  jednej pozycji w kolejce (sprawdza to
+  `ModeracjaModelemTest::test_awaria_openai_nie_ma_zadnego_skutku`);
+- do API nie idzie NIC identyfikującego autora: ani adres e-mail, ani nazwa
+  konta, ani identyfikator wpisu, ani adres IP. Pilnuje tego test
+  `test_do_openai_nie_wychodzi_nic_identyfikujacego_autora`;
+- treści PRYWATNE nie wychodzą w ogóle — wpis `private` nie wchodzi do
+  analizy;
+- zdjęcie idzie jako `data:` z **wariantu thumb przekodowanego do JPEG**:
+  wariant nie ma EXIF-u (czyli GPS-u kuchni), a `data:` zamiast adresu, bo
+  publiczny adres dla OpenAI byłby publiczny także dla wszystkich innych;
+- **nie używamy pola `flagged` z API.** Progi trzymamy u siebie
+  (`moderation.model.prog`), bo cudza decyzja przy polszczyźnie i kuchni
+  bywa hojna („zabiłam kurę na rosół", „krwisty stek"), a każde trafienie
+  kosztuje uwagę jedynego moderatora.
