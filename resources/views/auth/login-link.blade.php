@@ -29,7 +29,7 @@
         --}}
         <p class="mb-5">
             Ten ekran jest dla osób, które <strong>już mają konto w Kuking</strong>.
-            Podaj adres e-mail, którym je zakładałaś albo zakładałeś — wyślemy na niego
+            Podaj adres e-mail z tego konta — wyślemy na niego
             wiadomość z jednym przyciskiem, a po kliknięciu wejdziesz na konto bez
             wpisywania hasła.
         </p>
@@ -55,8 +55,8 @@
 
         <p class="notice mt-6">
             <strong>Co się stanie dalej?</strong> Przyjdzie wiadomość „Twój link do zalogowania w Kuking”.
-            Otwórz ją i kliknij zielony przycisk. Możesz to zrobić na telefonie, nawet jeśli prosiłaś
-            o link na komputerze. Link działa przez pół godziny i tylko raz.
+            Otwórz ją i kliknij zielony przycisk. Możesz to zrobić na telefonie, nawet jeśli o link
+            prosisz z komputera. Link działa przez pół godziny i tylko raz.
         </p>
 
         <p class="mt-5">

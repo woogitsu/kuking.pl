@@ -263,7 +263,7 @@
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
                            :href="$isOwner ? route('posts.create') : null">
                 @if($isOwner)
-                    Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok będziesz mogła tu wrócić i zobaczyć, co wtedy gotowałaś.
+                    Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj.
                 @endif
             </x-empty-state>
         @else

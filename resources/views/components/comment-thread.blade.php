@@ -175,7 +175,7 @@
             @endunless
         </article>
     @empty
-        <p class="meta">Jeszcze nikt tu nic nie napisał. Możesz być pierwsza albo pierwszy.</p>
+        <p class="meta">Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.</p>
     @endforelse
 
     @auth
