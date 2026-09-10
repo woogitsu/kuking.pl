@@ -60,8 +60,8 @@
         <h2>Kto widzi Twoje treści</h2>
         <p>
             {{-- „sama decydujesz" przypisywało czytelnikowi rodzaj żeński
-                 (issue #38, D-066) — „sama" nie wnosi tu informacji, więc
-                 zdanie działa i bez niego. --}}
+                 (issue #38, COPY_STYLE.md §2) — „sama" nie wnosi tu
+                 informacji, więc zdanie działa i bez niego. --}}
             Przy każdym wpisie i przepisie decydujesz Ty: wszyscy, tylko osoby które Cię obserwują,
             albo tylko Ty. Możesz to zmienić w każdej chwili.
         </p>
