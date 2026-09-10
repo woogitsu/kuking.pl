@@ -47,14 +47,16 @@ Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicz
 |---|---|---|
 | Railway | Hosting serwera i bazy danych | Unia Europejska |
 | Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska |
+| EmailLabs (Vercom S.A.) | Wysyłka poczty: potwierdzenie adresu, przypomnienie hasła, powiadomienia | Unia Europejska (Polska) |
+| Cloudflare Turnstile | Sprawdzenie, czy formularz wypełnia człowiek, a nie automat | Cloudflare Inc. (USA) — patrz akapit o przekazywaniu poza EOG |
 
 Statystyki liczymy sami, w naszej własnej bazie — **nie korzystamy z żadnego zewnętrznego narzędzia analitycznego** (ani Google Analytics, ani żadnego innego). Nie korzystamy też z zewnętrznej usługi zbierania błędów aplikacji.
 
-**Dostawcy poczty e-mail jeszcze nie wybraliśmy**, więc serwis dziś nie wysyła wiadomości. Gdy go wybierzemy, dopiszemy go do tabeli wyżej, zanim pierwsza wiadomość wyjdzie.
+**Co robi Turnstile i czego nie robi.** Przy rejestracji, logowaniu, odzyskiwaniu hasła, cofnięciu usunięcia konta oraz przy formularzach „Napisz do nas" i zgłoszenia nielegalnej treści prosimy Cloudflare o potwierdzenie, że po drugiej stronie jest człowiek. Cloudflare widzi przy tym Twój adres IP i techniczne cechy przeglądarki. **Nie przekazujemy mu treści, którą wpisujesz w formularz**, ani Twojego adresu e-mail. Cloudflare deklaruje, że danych z Turnstile nie używa do profilowania reklamowego. Bez tego mechanizmu serwis byłby zalewany kontami zakładanymi automatycznie.
 
 **Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych** i mówimy to wprost, zamiast pisać, że mamy. Korzystamy z ich standardowych warunków usługi. Podpisanie umów powierzenia jest na naszej liście rzeczy do zrobienia przed otwarciem rejestracji dla wszystkich.
 
-**Przekazywanie danych poza Europejski Obszar Gospodarczy:** staramy się, żeby wszystkie dane pozostawały w UE. Jeśli którykolwiek z naszych dostawców jest firmą spoza UE (np. z USA), sprawdzamy, czy korzysta z uznanego mechanizmu ochrony danych (np. certyfikacji EU-US Data Privacy Framework) lub standardowych klauzul umownych zatwierdzonych przez Komisję Europejską.
+**Przekazywanie danych poza Europejski Obszar Gospodarczy:** staramy się, żeby wszystkie dane pozostawały w UE, i dziś tak jest w przypadku hostingu, bazy, zdjęć i poczty. Wyjątkiem jest **Cloudflare Turnstile**: to usługa amerykańskiej spółki Cloudflare, Inc., która przy sprawdzaniu formularza widzi Twój adres IP i techniczne cechy przeglądarki. Cloudflare, Inc. figuruje na liście uczestników **EU-US Data Privacy Framework** i stosuje standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Jeśli w przyszłości dojdzie kolejny dostawca spoza EOG, dopiszemy go do tabeli wyżej i napiszemy tutaj, na jakiej podstawie dane do niego trafiają — zanim trafi tam pierwszy rekord.
 
 ## 4. Twoje prawa
 

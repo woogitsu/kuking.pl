@@ -31,6 +31,7 @@ class MinimalnyRozmiarTekstuTest extends TestCase
         '.bottom-nav-item',        // podpis pod ikoną w dolnym pasku
         '.stat-label',             // „wpisów", „obserwujących" na profilu
         '.kuking-board-subtitle',  // <h3> nad listą, stoi sam
+        '.site-footer-liczba',     // „23 kuKINGów" w stopce (issue #38)
     ];
 
     /** Rozmiary, które wolno przypisać samodzielnej etykiecie. */

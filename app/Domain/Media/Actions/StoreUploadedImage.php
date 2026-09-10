@@ -170,12 +170,13 @@ final class StoreUploadedImage
         // oryginału zapewnia dziś to, że ten bucket nie ma własnej domeny
         // ani `r2.dev` (audyt G-01, G-02).
         //
-        // Sam Flysystem i tak dokłada `ACL` do każdego żądania (`upload()`
-        // w `AwsS3V3Adapter` liczy je zawsze, także bez podanej widoczności),
-        // ale domyślne `private` R2 traktuje jak brak żądania — w odróżnieniu
-        // od `public-read`, które szło tu dla wariantów. Całkowite pozbycie się
-        // ACL z żądania wymaga własnego adaptera i testu na prawdziwym R2 —
-        // patrz osobne zgłoszenie.
+        // Nie dokłada go już też Flysystem. Wbudowany sterownik `s3` liczył
+        // `ACL` zawsze — także bez podanej widoczności, i wtedy wypadało
+        // `private`, które R2 tylko z życzliwości traktuje jak brak żądania.
+        // Dyski R2 mają dziś sterownik `r2` (`App\Support\Storage\R2Adapter`),
+        // który nie wysyła ani `x-amz-acl`, ani `x-amz-grant-*` (issue #120).
+        // Pilnuje tego `ZapisDoR2BezAclTest` — na prawdziwym, podpisanym
+        // żądaniu HTTP, bo w `Storage::fake()` nagłówki nie istnieją.
         // GPS wypada TU, a nie w zadaniu w tle: gdyby leciało asynchronicznie,
         // między wgraniem a przetworzeniem istniałoby okno, w którym w
         // buckecie leży plik ze współrzędnymi. Krótkie okno to nadal okno.

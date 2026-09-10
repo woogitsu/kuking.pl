@@ -173,3 +173,13 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->name('kuking:sprzataj-zmiany-adresu')
     ->dailyAt('04:50')
     ->withoutOverlapping();
+
+// Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
+// nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
+// każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
+// Uzasadnienie pełne w `App\Domain\Analytics\LiczbaKukingow`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
+    ->name('kuking:policz-kukingow')
+    ->hourly()
+    ->withoutOverlapping();
