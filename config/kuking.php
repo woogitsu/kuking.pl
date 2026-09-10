@@ -205,6 +205,10 @@ return [
         // docs/DECISIONS.md). Liczby stąd czyta WYŁĄCZNIE App\Support\LimityTagow
         // — patrz komentarz w tamtym pliku, dlaczego żadna z nich nie ma
         // prawa być wpisana wprost w kontrolerze, widoku ani akcji domenowej.
+        // WYJĄTEK: `index_page_size` niżej — to zwykły rozmiar strony
+        // (ten sam wzorzec co `feed.page_size`, `comments.page_size`), nie
+        // limit produktowy pilnowany w wielu miejscach, więc czyta go wprost
+        // `TagController::index()`.
 
         // Minimum — TEN SAM próg, którego używa wyszukiwarka
         // (App\Domain\Search\SearchQuery::recipes()/people()).
@@ -221,6 +225,13 @@ return [
         // Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5) — zarówno
         // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
         'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
+
+        // Ile tematów na "stronę" pokazuje spis wszystkich tematów
+        // (#273, D-087). Bez infinite scroll — przycisk „Pokaż więcej",
+        // jak wszędzie indziej (`<x-show-more>`). Słownik z D-026 ma
+        // ~1250 nazw kanonicznych, więc jedna niestronicowana strona
+        // renderowałaby naraz ponad tysiąc odnośników.
+        'index_page_size' => (int) env('KUKING_TAGS_INDEX_PAGE_SIZE', 100),
     ],
 
     'text' => [
