@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Users\ZamekKonta;
 use App\Models\AuditLogEntry;
 use App\Models\PendingEmailChange;
 use App\Models\User;
@@ -11,7 +12,6 @@ use App\Notifications\PotwierdzenieNowegoAdresu;
 use App\Notifications\ZgloszonaZmianaAdresu;
 use App\Support\AdresEmail;
 use App\Support\AdresKanoniczny;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 
@@ -64,7 +64,14 @@ final class RequestEmailChange
 
         $godzin = max(1, (int) config('kuking.account.email_change_ttl_hours'));
 
-        $zmiana = DB::transaction(function () use ($user, $nowyAdres, $godzin): PendingEmailChange {
+        // TA SAMA KOLEJNOŚĆ BLOKAD CO PRZY POTWIERDZANIU I ANULOWANIU
+        // (AUTH-03 / RACE-06). Stawka jest tu mniejsza niż przy tamtych dwóch,
+        // bo ten punkt wymaga zalogowania — ale wzorzec był ten sam:
+        // `DELETE` + `INSERT` przy `UNIQUE(user_id)` bez blokady konta. Dwa
+        // równoległe zamówienia mogły więc oba dojść do `INSERT` i jedno
+        // odbić się o unikalność, dając 500 zamiast przewidywalnego
+        // „ostatnie zamówienie wygrywa". Pod blokadą jest jednoznacznie.
+        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin): PendingEmailChange {
             // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
             // Nowe żądanie to nowy identyfikator, więc podpisany link
             // z poprzedniego listu przestaje wskazywać cokolwiek — a to jest

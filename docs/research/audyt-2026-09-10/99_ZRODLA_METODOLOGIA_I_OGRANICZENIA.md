@@ -109,3 +109,111 @@ Najważniejsza zasada tego audytu:
 > **„zaimplementowane” nie znaczy „działa na produkcji”, a „procedura istnieje” nie znaczy „odtworzenie zostało wykonane”.**
 
 Ta różnica jest główną osią rekomendacji końcowej.
+
+
+## Druga warstwa audytu — współbieżność i awarie częściowe
+
+Po audycie przekrojowym wykonano dodatkowy przegląd scenariuszowy na
+`e3cf6ab58e71ed444a4bfa30fde3b003eaab9104`.
+
+Metoda drugiej warstwy nie pytała tylko „czy happy path działa”, lecz:
+- co się stanie przy dwóch równoległych żądaniach;
+- co się stanie po crashu między DB a kolejką/API/storage;
+- czy inwariant jest w bazie, czy wyłącznie w sekwencji PHP `exists() → insert`;
+- czy operacja ma idempotency key;
+- czy `withoutOverlapping()` faktycznie chroni między replikami;
+- czy telemetria rozróżnia `queued`, `accepted` i `delivered`.
+
+Najważniejsze klasy sprawdzone w tej warstwie:
+- `ConfirmEmailChange`, `CancelEmailChange`, `RequestEmailChange`;
+- `WyslijLinkDoLogowania`, `LoginLinkController`;
+- `DziennyBudzetListow`, `WyslijPodsumowaniaTygodnia`, `OdbiorcyDigestu`;
+- `DataSettingsController`, `GenerateUserExport`, `CleanUpDataExports`;
+- `EraseAccountData`;
+- `SearchQuery`, `User`, Policy i zakresy widoczności;
+- `routes/console.php`, `HealthController`.
+
+### Dodatkowe źródła prawne
+
+- EDPB — Anonymisation / pseudonymisation:
+  https://www.edpb.europa.eu/topics/ai-and-technology/anonymisation-pseudonymisation_en
+- EDPB — Guidelines 02/2026 on Anonymisation; na dzień 10.09.2026 dokument był wersją do konsultacji publicznych:
+  https://www.edpb.europa.eu/public-consultations/guidelines-022026-on-anonymisation_en
+- EDPB — Guidelines 01/2022 on data subject rights — Right of access, wersja finalna:
+  https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-012022-data-subject-rights-right-access_en
+- EUR-Lex — Rozporządzenie (UE) 2016/679:
+  https://eur-lex.europa.eu/eli/reg/2016/679/oj
+
+### Ograniczenie testów współbieżności
+
+Konektor GitHub daje przegląd kodu, ale nie uruchamia równoległych transakcji
+na produkcyjnej bazie. Znaleziska race condition wynikają z konkretnego
+interleavingu dopuszczonego przez kod i schema. Kryterium zamknięcia wymaga
+testów na prawdziwym PostgreSQL z co najmniej dwoma niezależnymi połączeniami
+lub procesami — zwykły test jednowątkowy nie wystarczy.
+
+## Trzecia warstwa audytu — autoryzacja, media, integracje i rollbacki
+
+Trzeci przebieg wykonano na snapshotcie:
+`fd164ad3a91185d1969a109fd692a269ad9710e3`.
+
+Przegląd scenariuszowy objął m.in.:
+- `DostepDoZdjecia`, `MediaController`, `ProcessUploadedImage`, `KasujZdjecie`, `OsieroconeZdjecia`;
+- `PublishPost` i sposób przypinania uploadów do treści;
+- `RecipePolicy`, `PostPolicy` i uprzywilejowany dostęp moderatora;
+- `FollowUser`, `BlockUser`, `UnblockUser` i schemat `follows/blocks`;
+- konfigurację session/cache/rate limit;
+- `KlientTurnstile` i `PurgePublicMediaCache`;
+- migracje `default_weekly_digest_to_off`, `add_erased_status_and_delete_scope_to_users`, `drop_topics`;
+- konfigurację Railway pre-deploy.
+
+### Metoda dla nowych race conditions
+
+Znaleziska MEDIA-01 i SOCIAL-01 powstały przez zbudowanie konkretnego dozwolonego
+interleavingu dwóch transakcji/żądań. Nie wystarczy zamknąć ich nowym testem
+jednowątkowym. Kryterium zamknięcia to test na prawdziwym PostgreSQL z co najmniej
+dwoma niezależnymi połączeniami/procesami oraz kontrolowanym punktem synchronizacji.
+
+### Źródła zewnętrzne trzeciej warstwy
+
+- Cloudflare Turnstile — server-side validation:
+  https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
+- Cloudflare Turnstile — hostname management:
+  https://developers.cloudflare.com/turnstile/additional-configuration/hostname-management/
+- Cloudflare Cache — purge cache:
+  https://developers.cloudflare.com/cache/how-to/purge-cache/
+
+Dokumentacja Cloudflare sprawdzana w dniu audytu wskazywała na walidację
+`hostname`/`action` jako zalecaną praktykę oraz plan-zależne limity purge. Ponieważ
+audyt nie ma dostępu do panelu Cloudflare, brak takiej walidacji w aplikacji został
+zakwalifikowany jako P2 hardening, a nie jako udowodnione obejście Turnstile.
+
+### Dodatkowe ograniczenie operacyjne
+
+`.railway/railway.ts` opisuje docelowy stan konfiguracji (m.in. pre-deploy migracji
+i `SESSION_ENCRYPT=true`), ale plik IaC nie jest sam w sobie dowodem aktualnej
+wartości w panelu Railway. Ustalenia dotyczące produkcyjnego szyfrowania sesji i
+liczby replik są więc bramkami weryfikacyjnymi, nie stwierdzeniem o bieżącej
+konfiguracji panelu.
+
+## Finalny delta-check po trzeciej warstwie
+
+Przed pakowaniem `main` wskazywał `47dbb6cc9afb4a4000291d655cfc2b9061e6daf8`,
+czyli dwa commity nad snapshotem trzeciej warstwy `fd164ad3…`. Compare wykazał
+zmiany dokumentacji audytowej/`OTWARCIE.md`, JS/rejestracji i testów UX, ale nie
+zmienił plików odpowiedzialnych za MEDIA-01, MEDIA-03, SOCIAL-01 i MIG-01.
+
+Repozytoryjne `docs/research/audyt-2026-09-10/SPRAWDZENIE.md` zgłosiło, że
+pierwotna teza o braku reporter lifecycle była błędna. Nie przyjęto tego na
+wiare: bezpośrednio sprawdzono `ReportContent`, `NotifyReporterDecision` oraz
+aktualny `MODERATION_PLAYBOOK.md`. Kod domyka receipt/decision dla zwykłego
+reportera, a playbook nadal mówi, że tego nie robi. Raporty końcowe zostały
+skorygowane: usunięto fałszywy P0, pozostawiono P1 drift dokumentacji.
+
+Finalna weryfikacja operacyjna zapisana w `docs/OTWARCIE.md` podaje również:
+- realne wychodzące wiadomości produkcyjne — potwierdzone;
+- open tracking EmailLabs sprzeczny z polityką — nadal niezamknięty;
+- nowe zdjęcia signed-R2 — potwierdzone częściowo z zewnątrz;
+- stare zdjęcia na wolumenie oraz pełna bramka #120 — nadal niezamknięte;
+- offsite backup i restore drill — nadal niezamknięte.
+
