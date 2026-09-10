@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * POCZTA IDZIE TYLKO WTEDY, GDY TERMIN Z DSA ART. 20 ZARAZ MINIE (D-058).
+ * POCZTA IDZIE TYLKO WTEDY, GDY TERMIN Z DSA ART. 20 ZARAZ MINIE (D-060).
  *
  * DLACZEGO TO JEST OSOBNA RZECZ OD POWIADOMIENIA W PANELU
  * Nowe odwołanie daje powiadomienie w serwisie i licznik przy pozycji
@@ -164,7 +164,7 @@ class TerminOdwolaniaPilnowanyPocztaTest extends TestCase
 
     public function test_nowe_odwolanie_samo_nie_wysyla_ani_jednego_listu(): void
     {
-        // Kluczowa granica tej decyzji (D-058): poczty na KAŻDE odwołanie nie
+        // Kluczowa granica tej decyzji (D-060): poczty na KAŻDE odwołanie nie
         // ma. Gdyby ktoś ją kiedyś dołożył „dla bezpieczeństwa", wiadro 300
         // listów na dobę zaczęłoby konkurować z potwierdzeniami rejestracji.
         //

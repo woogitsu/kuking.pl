@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * PILNOWANIE TERMINU Z DSA ART. 20 (D-058).
+ * PILNOWANIE TERMINU Z DSA ART. 20 (D-060).
  *
  * Nowe odwołanie daje powiadomienie w panelu i licznik przy pozycji
  * „Odwołania" (`PowiadomOOdwolaniu`, `KolejkiPanelu`). Ta komenda pilnuje

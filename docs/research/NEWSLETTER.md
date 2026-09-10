@@ -1,5 +1,12 @@
 # Newsletter redakcyjny — prawo, EmailLabs, sens marketingowy
 
+> **ROZSTRZYGNIĘTE 10 września 2026 (D-059): newslettera redakcyjnego nie
+> budujemy.** Właściciel przeczytał ten research i odpuścił temat w tej
+> formie; odpowiedzią na pytanie „jak przypominać o serwisie pocztą" jest
+> tygodniowe podsumowanie od gospodarza (D-057), które już działa.
+> Dokument zostaje jako materiał na wypadek powrotu tematu — warunki
+> powrotu opisuje D-059.
+
 > Research na pytanie właściciela: czy polityka prywatności i EmailLabs
 > pozwalają wysyłać cotygodniowy newsletter z wyróżnionymi przepisami, i jak
 > to rozwiązać marketingowo. **To jest wejście do rozmowy z prawnikiem

@@ -11,7 +11,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * LIST O TERMINIE Z DSA ART. 20, KTÓRY ZARAZ MINIE (D-058).
+ * LIST O TERMINIE Z DSA ART. 20, KTÓRY ZARAZ MINIE (D-060).
  *
  * DLACZEGO POCZTA JEST TU, A NIE PRZY KAŻDYM ODWOŁANIU
  * Nowe odwołanie daje powiadomienie w panelu (`PowiadomOOdwolaniu`) i licznik

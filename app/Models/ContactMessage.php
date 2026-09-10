@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Wiadomość z formularza „Napisz do nas" — od człowieka DO OPERATORA.
@@ -104,6 +105,30 @@ class ContactMessage extends Model
         return $this->belongsTo(User::class, 'handled_by');
     }
 
+    /**
+     * Listy, które WYSZŁY Z SERWISU w tej sprawie — najstarszy na górze
+     * (D-058).
+     *
+     * Porządek jest częścią relacji, nie obowiązkiem widoku: historia
+     * odpowiedzi czytana od najstarszej opowiada, jak sprawa szła, a ekran,
+     * który by o tym zapomniał, pokazałby ją w kolejności fizycznej wierszy,
+     * czyli w żadnej. `id` rozstrzyga remis na sekundzie w tę samą stronę co
+     * czas (UUID v7), więc kolejność jest stabilna między odświeżeniami.
+     *
+     * TO NIE JEST WĄTEK KORESPONDENCJI. Odpowiedź człowieka na nasz list
+     * wraca na skrzynkę `kontakt@kuking.pl`, bo serwis poczty nie odbiera —
+     * granica jest opisana w D-058 i w nagłówku
+     * `App\Mail\OdpowiedzNaWiadomosc`.
+     *
+     * @return HasMany<ContactMessageReply, $this>
+     */
+    public function odpowiedzi(): HasMany
+    {
+        return $this->hasMany(ContactMessageReply::class, 'contact_message_id')
+            ->orderBy('created_at')
+            ->orderBy('id');
+    }
+
     public function rodzajLabel(): string
     {
         return self::RODZAJE[$this->kind] ?? $this->kind;
@@ -149,9 +174,31 @@ class ContactMessage extends Model
      * Dla zalogowanego bierzemy adres Z KONTA, bo formularz go nie pyta
      * (kopiowanie adresu do drugiej tabeli byłoby powielaniem danych
      * osobowych bez powodu). Dla gościa — to, co sam podał.
+     *
+     * KONTO WYMAZANE NIE MA ADRESU, mimo że kolumna `users.email` nie jest
+     * pusta (D-058). `EraseAccountData` wpisuje tam `usuniete+<uuid>@konto.
+     * kuking.pl` — adres z naszej własnej domeny technicznej, pod którym
+     * nie ma żadnej skrzynki. Do 10 września 2026 ta metoda oddawała go jak
+     * każdy inny, więc karta wiadomości pokazywała `mailto:` prowadzące
+     * w próżnię. Odkąd panel naprawdę wysyła listy, ta różnica przestała być
+     * kosmetyczna: wysyłka pod taki adres albo odbije się do dostawcy, albo
+     * — gorzej — zostanie przez niego przyjęta, a panel zamelduje „wysłano"
+     * nad listem, którego nikt nigdy nie przeczyta.
+     *
+     * Fallback na `contact_email` zostaje w mocy i to nie jest przypadek:
+     * wiadomość od GOŚCIA, który dopiero potem założył i usunął konto,
+     * niesie własny adres w swojej kolumnie — ale przy koncie wymazanym
+     * `contact_email` jest zwykle `NULL`, więc odpowiedzią jest `null`,
+     * a ekran mówi wprost, że nie da się odpisać.
      */
     public function adresDoOdpowiedzi(): ?string
     {
-        return $this->author?->email ?? $this->contact_email;
+        $autor = $this->author;
+
+        if ($autor !== null && ! $autor->isErased()) {
+            return $autor->email;
+        }
+
+        return $this->contact_email;
     }
 }

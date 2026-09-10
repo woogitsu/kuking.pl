@@ -151,7 +151,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    i wyróżnia te po terminie. Dni roboczych liczymy bez weekendów; świąt
    system nie zna, więc to cel operacyjny, nie zobowiązanie co do godziny.
 
-   **KOLEJKA SAMA SIĘ ZGŁASZA (D-058, od 10 września 2026).** Nowe odwołanie
+   **KOLEJKA SAMA SIĘ ZGŁASZA (D-060, od 10 września 2026).** Nowe odwołanie
    tworzy **powiadomienie w serwisie dla kont z rolą `admin`** — czyli dla
    tych, które mogą sprawę zamknąć (D-039). W powiadomieniu stoi termin
    odpowiedzi. Moderator bez tej roli powiadomienia nie dostaje (nie może
@@ -160,7 +160,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    automatu", „Wiadomościach do nas" i „Bez odpowiedzi".
 
    **POCZTA — TYLKO NA TERMIN, NIE NA KAŻDE ODWOŁANIE.** Listu w chwili
-   złożenia odwołania nie ma (uzasadnienie: D-058 — wiadro 300 listów na dobę
+   złożenia odwołania nie ma (uzasadnienie: D-060 — wiadro 300 listów na dobę
    dzielone z rejestracjami, D-047). Raz na dobę o 07:10 chodzi natomiast
    `kuking:pilnuj-terminow-odwolan`: **jeden** list, i tylko wtedy, gdy któreś
    otwarte odwołanie ma termin odpowiedzi w progu (2 dni robocze,

@@ -788,6 +788,29 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.contact.update');
 
+    /*
+     * ODPOWIEDŹ POCZTĄ DO OSOBY, KTÓRA NAPISAŁA (D-058).
+     *
+     * OSOBNA TRASA OD `admin.contact.update`, bo to są dwie rzeczy o różnej
+     * odwracalności: tam zapisuje się stan i notatkę (do poprawienia
+     * w każdej chwili), tutaj wychodzi list, którego nie da się odwołać.
+     * Jedna trasa znaczyłaby, że poprawienie literówki w notatce wysyła
+     * drugi list.
+     *
+     * WŁASNY KLUCZ LIMITU (`kontakt_odpowiedz`, 20/10), NIE WSPÓLNY
+     * `moderacja` (120/10). To jedyna trasa w panelu, która wysyła pocztę
+     * na zewnątrz, a dzienny budżet EmailLabs to 300 listów dzielonych
+     * z przypomnieniami hasła — pełne wyliczenie stoi przy kluczu
+     * w `config/kuking.php`.
+     *
+     * Polityka i tak jest pytana w kontrolerze (`ContactMessagePolicy::reply`),
+     * osobną zdolnością niż `handle` — wysłanie listu do człowieka z zewnątrz
+     * nie jest tym samym co przestawienie stanu w naszej kolejce.
+     */
+    Route::post('/wiadomosci/{wiadomosc}/odpowiedz', [WiadomosciController::class, 'odpowiedz'])
+        ->middleware("throttle:{$limits['kontakt_odpowiedz']},kontakt_odpowiedz")
+        ->name('admin.contact.reply');
+
     // Kolejka odwołań (#10).
     Route::get('/odwolania', [AdminAppealController::class, 'index'])->name('admin.appeals');
     Route::post('/odwolania/{appeal}', [AdminAppealController::class, 'resolve'])

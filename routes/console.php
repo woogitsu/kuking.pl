@@ -215,7 +215,7 @@ Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
     ->dailyAt('07:00')
     ->withoutOverlapping();
 
-// Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-058).
+// Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
 //
 // 07:10, dziesięć minut po podsumowaniu kolejki automatu: te dwa listy mówią
 // o dwóch różnych rzeczach i mają nie wyjść w tej samej minucie, bo
@@ -224,7 +224,7 @@ Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
 //
 // Ten list wychodzi WYŁĄCZNIE wtedy, gdy termin jest blisko albo minął.
 // O nowych odwołaniach mówi powiadomienie w panelu i licznik przy pozycji
-// „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-058.
+// „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-060.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
     ->name('kuking:pilnuj-terminow-odwolan')
