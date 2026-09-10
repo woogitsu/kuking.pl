@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -356,7 +357,21 @@ class KartaWpisuTest extends TestCase
         $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
         $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
 
-        $html = (string) $this->actingAs($this->user('czytelniczka_tagow'))
+        // OBSERWOWANIE JEST TU WARUNKIEM SPRAWDZANIA CZEGOKOLWIEK.
+        //
+        // Bez niego `/home` nie pokazuje feedu obserwowanych, tylko awaryjne
+        // „Świeżo z Kuking" — czyli DRUGI kod, z osobnym doładowaniem tagów.
+        // Sprawdzone kontrolą ujemną: po usunięciu `tags:id,slug,name`
+        // z `FollowingFeed` ten test przechodził dalej, bo w ogóle tamtej
+        // ścieżki nie dotykał.
+        $czytelniczka = $this->user('czytelniczka_tagow');
+        DB::table('follows')->insert([
+            'follower_id' => $czytelniczka->getKey(),
+            'followed_id' => $autor->getKey(),
+            'created_at' => now(),
+        ]);
+
+        $html = (string) $this->actingAs($czytelniczka)
             ->get(route('home'))
             ->assertOk()
             ->getContent();
