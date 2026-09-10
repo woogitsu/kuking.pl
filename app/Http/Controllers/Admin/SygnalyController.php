@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
+use App\Models\Media;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
@@ -260,7 +261,11 @@ class SygnalyController extends Controller
      * decyzją — pozwala odsiać oczywiste przypadki bez otwierania.
      *
      * @param  Collection<string, Collection<int, Report>>  $pozycje
-     * @return array<string, array{adres: string, tekst: ?string, miniatura: ?string}>
+     *                                                                `odnosnik` i `pusto` są w tej mapie, a nie w widoku, bo zależą od
+     *                                                                RODZAJU oznaczonej treści: „Otwórz treść i przeczytaj ją" jest zdaniem
+     *                                                                bez sensu przy zdjęciu profilowym, przy którym nie ma ani jednego słowa
+     *                                                                do przeczytania. Widok ma pokazywać, nie zgadywać.
+     * @return array<string, array{adres: string, tekst: ?string, miniatura: ?string, odnosnik: string, pusto: string}>
      */
     private function podglady(Collection $pozycje): array
     {
@@ -269,6 +274,7 @@ class SygnalyController extends Controller
 
         $wpisy = $wszystkie->where('target_type', 'post')->pluck('target_id')->filter()->unique()->all();
         $komentarze = $wszystkie->where('target_type', 'comment')->pluck('target_id')->filter()->unique()->all();
+        $zdjecia = $wszystkie->where('target_type', 'media')->pluck('target_id')->filter()->unique()->all();
 
         $podglady = [];
 
@@ -280,6 +286,8 @@ class SygnalyController extends Controller
                 'adres' => $wpis->url(),
                 'tekst' => $this->poczatek($wpis->body),
                 'miniatura' => $this->miniatura($wpis),
+                'odnosnik' => 'Otwórz treść i przeczytaj ją',
+                'pusto' => 'Treść bez tekstu — samo zdjęcie.',
             ];
         }
 
@@ -303,8 +311,33 @@ class SygnalyController extends Controller
                     // jest komentarz, a cudze zdjęcie obok niego sugerowałoby
                     // moderatorowi, że to ono jest przedmiotem sprawy.
                     'miniatura' => null,
+                    'odnosnik' => 'Otwórz treść i przeczytaj ją',
+                    'pusto' => 'Komentarz bez tekstu.',
                 ];
             }
+        }
+
+        // ZDJĘCIE PROFILOWE (issue #237) — tu miniatura jest CAŁĄ sprawą,
+        // nie dodatkiem: oznaczony jest obraz i nie ma przy nim ani jednego
+        // słowa do przeczytania. Odnośnik prowadzi na profil, bo tam to
+        // zdjęcie widzą ludzie i tam widać je w kontekście, w jakim działa.
+        //
+        // `with('owner.profile')`, bo adres profilu bierze się z loginu
+        // właściciela — bez tego przy dwudziestu oznaczeniach byłoby
+        // czterdzieści zapytań.
+        foreach (Media::query()->with('owner.profile')->whereIn('id', $zdjecia)->get() as $zdjecie) {
+            // Login mieszka w `profiles`, nie w `users` (dane publiczne są
+            // w profilu), więc adres bierzemy stamtąd. Konto bez profilu nie
+            // ma publicznej strony — wtedy zostaje sama miniatura.
+            $login = $zdjecie->owner?->profile?->username;
+
+            $podglady['media:'.$zdjecie->getKey()] = [
+                'adres' => $login !== null ? route('profile.show', $login) : '',
+                'tekst' => null,
+                'miniatura' => $zdjecie->wariantDoSerwowania('thumb') === null ? null : $zdjecie->url('thumb'),
+                'odnosnik' => 'Otwórz profil i zobacz to zdjęcie',
+                'pusto' => 'Zdjęcie profilowe — przy nim nie ma żadnego tekstu.',
+            ];
         }
 
         return $podglady;

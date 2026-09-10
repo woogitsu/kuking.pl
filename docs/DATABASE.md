@@ -1184,6 +1184,33 @@ Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
 Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
 zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
 
+#### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
+
+Migracja `2026_09_10_300000_zdjecie_jako_cel_oznaczenia` dopisuje do
+`reports_target_type_check` wartość **`media`**. Dziś trafia tu wyłącznie
+zdjęcie profilowe: model ocenia je po przetworzeniu (`PrzeanalizujAwatar`),
+a oznaczenie wskazuje `media.id`.
+
+**Dlaczego zdjęcie, a nie konto.** Indeks `reports_jeden_automat_na_tresc`
+przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
+Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
+a podmiana zdjęcia to sekunda pracy.
+
+**Dlaczego `media`, a nie `avatar`.** `ModeratedContent::TYPY` mapuje klasę
+modelu, a klasa (`App\Models\Media`) jest ta sama dla awatara i dla zdjęcia
+we wpisie. Nazwa `avatar` byłaby prawdziwa dziś i kłamliwa pierwszego dnia,
+w którym oznaczymy zdjęcie z wpisu osobno.
+
+`ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban` —
+**bez `hide`** (`Media` nie ma statusu w rozumieniu moderacji) i **bez
+`remove`** (kasowanie zdjęcia jest nieodwracalne, a odwołanie od `remove` ma
+treść przywrócić — DSA art. 17).
+
+**Rollback:** `php artisan migrate:rollback --step=1` przywraca CHECK bez
+`media`, ale **odmawia**, gdy w tabeli leży choć jedno takie oznaczenie —
+to są sprawy moderacyjne z decyzjami i odwołaniami, a rollback schematu nie
+jest decyzją o ich wyrzuceniu. Komunikat mówi, co zrobić.
+
 #### `target_type = 'unknown'` i puste `target_id`
 
 Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
@@ -1191,7 +1218,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza szósty typ, `unknown`;
+- `reports_target_type_check` dopuszcza typ `unknown` (dziś siódmy, po dodaniu `media`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak

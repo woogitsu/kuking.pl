@@ -64,23 +64,31 @@
                                  kilkudziesięciu kart. Odnośnik zostaje, bo przed
                                  prawdziwą decyzją moderator MUSI zobaczyć całość. --}}
                             <div class="sygnal-podglad">
-                                @if($podglad['miniatura'])
+                                @if($podglad['miniatura'] && $podglad['adres'])
                                     <a class="sygnal-podglad-zdjecie" href="{{ $podglad['adres'] }}"
-                                       aria-label="Otwórz oznaczoną treść ze zdjęciem">
+                                       aria-label="{{ $podglad['odnosnik'] }}">
                                         <img src="{{ $podglad['miniatura'] }}" alt="" width="96" height="96" loading="lazy">
                                     </a>
+                                @elseif($podglad['miniatura'])
+                                    {{-- Konto bez publicznej strony (wymazane albo bez profilu):
+                                         miniatura zostaje, odnośnika nie ma dokąd zrobić. --}}
+                                    <span class="sygnal-podglad-zdjecie">
+                                        <img src="{{ $podglad['miniatura'] }}" alt="" width="96" height="96" loading="lazy">
+                                    </span>
                                 @endif
 
                                 <div class="sygnal-podglad-tekst">
                                     @if($podglad['tekst'])
                                         <p class="sygnal-podglad-cytat">{{ $podglad['tekst'] }}</p>
                                     @else
-                                        <p class="meta">Treść bez tekstu — samo zdjęcie.</p>
+                                        <p class="meta">{{ $podglad['pusto'] }}</p>
                                     @endif
 
-                                    <p class="m-0">
-                                        <a href="{{ $podglad['adres'] }}">Otwórz treść i przeczytaj ją</a>
-                                    </p>
+                                    @if($podglad['adres'])
+                                        <p class="m-0">
+                                            <a href="{{ $podglad['adres'] }}">{{ $podglad['odnosnik'] }}</a>
+                                        </p>
+                                    @endif
                                 </div>
                             </div>
                         @else

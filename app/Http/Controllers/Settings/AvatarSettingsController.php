@@ -8,6 +8,7 @@ use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Media\KasujZdjecie;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
+use App\Jobs\PrzeanalizujAwatar;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
@@ -99,6 +100,17 @@ class AvatarSettingsController extends Controller
         // kilkumegabajtowy plik. `destroy()` taką obietnicę składa wprost
         // i tam ta cena jest do zapłacenia.
         $profile->update(['avatar_media_id' => $zdjecie->getKey()]);
+
+        // DRUGA PARA OCZU NA ZDJĘCIU PROFILOWYM (issue #237). Zlecenie idzie
+        // PO zapisaniu wiersza profilu, bo zadanie sprawdza, czy to zdjęcie
+        // jest w tej chwili czyimś awatarem — przy odwrotnej kolejności
+        // wyścig z kolejką kończyłby się cichym „to nie jest awatar, nie ma
+        // czego oglądać".
+        //
+        // Zadanie samo czeka na warianty (`release`), więc nie zależy od
+        // tego, który worker wyprzedzi który. Awatar zostaje widoczny od
+        // razu: automat podnosi rękę, nie zamyka drzwi (D-052).
+        PrzeanalizujAwatar::dlaZdjecia($zdjecie);
 
         return redirect()
             ->route('settings.avatar')

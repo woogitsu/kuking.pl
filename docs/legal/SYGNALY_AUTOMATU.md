@@ -235,6 +235,9 @@ Kuking stoi na fotografiach obiadów wrzucanych przez nieznajomych. Wersja
 której nikt nie przeczyta, dopóki ktoś jej nie zgłosi**. Zdjęcia mają
 pierwszeństwo przed tekstem przy wdrożeniu.
 
+Od issue #237 dotyczy to także **zdjęcia profilowego**, które jest oglądane
+częściej niż jakikolwiek wpis — patrz §9.
+
 ### 8.3. Dane wychodzą poza EOG
 
 Wysłanie wpisu albo zdjęcia do OpenAI to powierzenie przetwarzania podmiotowi
@@ -328,3 +331,92 @@ kategorii.
   (`moderation.model.prog`), bo cudza decyzja przy polszczyźnie i kuchni
   bywa hojna („zabiłam kurę na rosół", „krwisty stek"), a każde trafienie
   kosztuje uwagę jedynego moderatora.
+
+---
+
+## 9. ZDJĘCIE PROFILOWE — trzecia droga do modelu (issue #237)
+
+Do 10 września 2026 model oceniał zdjęcia **wpisów** i nic więcej. Zdjęcie
+profilowe szło zupełnie inną drogą (`AvatarSettingsController` →
+`StoreUploadedImage` → `ProcessUploadedImage`) i nikt na niej nie zlecał
+analizy — awatar nie pojawiał się w kolejce automatu nigdy, dopóki ktoś nie
+zgłosił go ręcznie.
+
+### 9.1. Dlaczego to była większa luka, niż wyglądała
+
+**Awatar jest widoczny CZĘŚCIEJ niż jakikolwiek wpis.** Wpis widzą
+obserwujący i ci, którzy trafią na niego w feedzie. Awatar chodzi za
+człowiekiem po całym serwisie: przy każdym komentarzu pod cudzym przepisem,
+na tablicy dnia, na listach obserwujących i obserwowanych, w wynikach
+szukania osób. Jedno zdjęcie trafia więc przed oczy większej liczby osób niż
+wpis, w którym stało.
+
+Do tego jest **najtańszym miejscem dla kogoś, kto chce zaszkodzić**: nie
+wymaga napisania ani jednego słowa, więc nie rusza `WykrywaczSygnalow`
+(pracuje na tekście), a przy fali migracyjnej nikt nie będzie oglądał
+kilkuset nowych awatarów po kolei.
+
+### 9.2. Jak to działa
+
+| Krok | Co się dzieje |
+|---|---|
+| wgranie zdjęcia | `AvatarSettingsController` zapisuje `profiles.avatar_media_id` i **dopiero potem** zleca `PrzeanalizujAwatar` |
+| warianty | zadanie sprawdza stan zdjęcia; przy `pending`/`processing` **wraca do kolejki** (`release`, 30 s, do 3 prób) |
+| ocena | `OcenaModelem::dlaZdjecia()` — ta sama droga co zdjęcia wpisów: wariant `thumb`, przekodowany do JPEG, wysłany jako `data:` |
+| oznaczenie | jeden wiersz w `reports`, `source = automat`, **`target_type = media`**, powód zaczyna się od „Zdjęcie profilowe: " |
+| alarm | kategorie pilne → jeden list (`AlarmujModeratora`, wspólny z analizą wpisów) |
+
+**Zadanie CZEKA na warianty, zamiast cicho nie zrobić nic.** Wariant `thumb`
+powstaje w `ProcessUploadedImage`, na kolejce `media`, czyli w innym zadaniu.
+Gdyby `PrzeanalizujAwatar` kończyło się powodzeniem przy zdjęciu w stanie
+`processing`, cała funkcja działałaby wyłącznie wtedy, gdy worker mediów
+wyprzedzi worker kolejki `low` — czyli losowo, i nikt by tego nie zauważył.
+
+### 9.3. Celem oznaczenia jest PLIK, nie konto
+
+Indeks `reports_jeden_automat_na_tresc` przepuszcza jedno oznaczenie automatu
+na (typ, identyfikator) — **na zawsze**, także po odrzuceniu. Gdyby celem
+było konto (`target_type = user`), oceniony zostałby pierwszy awatar tego
+konta i **żaden następny**, a podmiana zdjęcia to sekunda pracy. Cel to więc
+konkretne zdjęcie.
+
+Nazwa typu w bazie to `media`, a nie `avatar`, bo `ModeratedContent::TYPY`
+mapuje **klasę** modelu, a klasa jest ta sama dla awatara i dla zdjęcia we
+wpisie. Że w danym wierszu chodzi o zdjęcie profilowe, mówi treść powodu
+i podgląd w kolejce.
+
+### 9.4. Co moderator może z tym zrobić — i czego NIE MOŻE
+
+`ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban`.
+Świadomie **bez `hide` i bez `remove`**:
+
+- `hide` — `Media` nie ma statusu w rozumieniu moderacji. Przycisk robiłby
+  dokładnie to, co robił przy „Ugotowałem": nic, przy powiadomieniu
+  „ukryliśmy Twoją treść";
+- `remove` — `$target->delete()` na zdjęciu jest nieodwracalne (`Media` nie
+  ma miękkiego kasowania), a odwołanie od decyzji `remove` ma treść
+  **przywrócić** (DSA art. 17). Decyzja, od której nie da się skutecznie
+  odwołać, nie może stać na tym ekranie.
+
+Zostaje więc ostrzeżenie (od D-058 razem z odpowiedzią pocztą wprost
+z panelu), zawieszenie i ban. **Usuwanie zdjęcia profilowego przez
+moderatora wymaga najpierw miękkiego kasowania zdjęć** — osobna praca.
+
+### 9.5. Granica bez zmian
+
+Awatar **zostaje widoczny**, autor niczego się nie dowiaduje, decyzję
+podejmuje człowiek (poz. 3.6, 3.10, D-052). Przy zdjęciu profilowym pokusa
+jest większa niż zwykle — „przecież wystarczy podmienić na literę" — ale
+ciche podmienienie komuś awatara przez maszynę to jest dokładnie shadow
+filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
+
+### 9.6. Czego ta zmiana NIE objęła
+
+- **zdjęcia przepisów i „Ugotowałem"** — sprawdzone: idą przez
+  `PublishPost`/`PublishComment`, więc model je widzi tą samą drogą co
+  zdjęcia wpisów;
+- **zdjęcie w tle profilu** — nie istnieje i na razie nie wejdzie
+  (issue #245);
+- **koszt w kolejce.** Endpoint jest bezpłatny, więc pieniędzy to nie kosztuje,
+  ale pozycji w kolejce moderatora — tak. Progu nie ruszamy z góry: mierzymy
+  na pierwszej setce kont (§6).
