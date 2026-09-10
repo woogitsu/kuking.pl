@@ -299,8 +299,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).
             // Poza `$fillable` z tego samego powodu co `ostatnio_widziany_at`
             // wyżej: zapisuje to WYŁĄCZNIE komenda wysyłkowa
-            // (`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`), nigdy
-            // formularz. Masowe przypisanie z żądania pozwalałoby przestawić
+            // (`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()`, a przy
+            // liście próbnym `::oznaczWyslane()`), nigdy formularz. Masowe przypisanie z żądania pozwalałoby przestawić
             // cudzy znacznik i albo wyprosić kogoś z tygodniowej wysyłki,
             // albo — cofając datę — wysłać mu drugi list w tym samym
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
