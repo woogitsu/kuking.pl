@@ -219,8 +219,9 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
     /**
      * NAJWAŻNIEJSZY TEST W TYM PLIKU.
      *
-     * Komunikat wyjątku wychodzi dalej, niż się wydaje: do `failed_jobs`, do
-     * Sentry, do zgłoszenia błędu. Audyt A6-01 znalazł dokładnie taki wyciek
+     * Komunikat wyjątku wychodzi dalej, niż się wydaje: do `failed_jobs`,
+     * na kanał `blad_webhook` (czyli na Slacka albo Discorda), do zgłoszenia
+     * błędu. Audyt A6-01 znalazł dokładnie taki wyciek
      * w `WebhookBleduHandler` — komunikat `QueryException` niósł adres e-mail
      * i hash hasła, bo zbudował go sterownik bazy, nie my. Tutaj tekst błędu
      * buduje dostawca i jego `errors[].message` cytuje wprost wartość, którą

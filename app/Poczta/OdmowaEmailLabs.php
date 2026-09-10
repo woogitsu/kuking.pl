@@ -22,10 +22,14 @@ use Throwable;
  * CZEGO W KOMUNIKACIE NIE MA I NIGDY NIE BĘDZIE
  * Treści listu, adresu odbiorcy, nazwiska, tematu ani żadnego klucza. Powód
  * jest ten sam, co w `App\Logging\WebhookBleduHandler` (audyt A6-01): komunikat
- * wyjątku wychodzi dalej, niż się autorowi wydaje — do `failed_jobs`, do
- * Sentry, do kanału `blad_webhook`. Komunikat budujemy więc z LISTY
- * DOZWOLONYCH PÓL odpowiedzi (kod błędu, tytuł, nazwa parametru, `uniqId`),
- * a nie z tego, co dostawca akurat przysłał.
+ * wyjątku wychodzi dalej, niż się autorowi wydaje — do `failed_jobs` i do
+ * kanału `blad_webhook`, czyli na czyjś Slack albo Discord. Komunikat budujemy
+ * więc z LISTY DOZWOLONYCH PÓL odpowiedzi (kod błędu, tytuł, nazwa parametru,
+ * `uniqId`), a nie z tego, co dostawca akurat przysłał. Do 10 września 2026
+ * stało tu, że komunikat idzie także „do Sentry" — nieprawda, Sentry'ego nie ma
+ * w projekcie wcale (D-041). Lista odbiorców jest więc dziś krótsza, ale ani
+ * o jedno pole mniej wrażliwa: to samo ograniczenie ma obowiązywać w dniu,
+ * w którym Sentry dojdzie.
  *
  * CO SIĘ DZIEJE DALEJ — I DLACZEGO TO NIE KONIEC (issue #234, D-062)
  * `failed_jobs` był do 10 września 2026 KOŃCEM tej drogi: po trzeciej próbie

@@ -929,8 +929,11 @@
                          Etap produktu w `<strong>`, bo to on odpowiada na
                          pytanie „na czym w ogóle patrzę" i ma się rzucać
                          w oczy bardziej niż reszta. Data przed skrótem, bo
-                         to ją czyta człowiek; skrót zostaje dla Sentry
-                         (`App\Support\Wersja`).
+                         to ją czyta człowiek; skrót zostaje, żeby dało się
+                         powiedzieć, którego commita dotyczy zgłoszona usterka
+                         (`App\Support\Wersja`). Do 10 września 2026 stało tu
+                         „skrót zostaje dla Sentry" — Sentry'ego w projekcie
+                         nie ma i nigdy nie było (D-041).
 
                          Bez `title` z pełnym skrótem: na telefonie nie ma
                          najazdu kursorem, a informacja dostępna tylko przez

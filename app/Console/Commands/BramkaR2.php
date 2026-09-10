@@ -504,7 +504,7 @@ class BramkaR2 extends Command
         $this->line('  · wgranie zdjęcia ~14,9 MB przez formularz (limit `kuking.media.max_bytes`)');
         $this->line('  · po jednej PRAWDZIWEJ próbce JPEG, PNG, WebP i AVIF z aparatu, nie z generatora');
         $this->line('  · skasowanie wpisu zabiera oryginał i wszystkie warianty (na środowisku testowym!)');
-        $this->line('  · błędny sekret daje polski komunikat i alert w Sentry, a nie „opublikowano" i pustą ramkę');
+        $this->line('  · błędny sekret daje polski komunikat i wpis w dzienniku błędów, a nie „opublikowano" i pustą ramkę');
         $this->newLine();
         $this->line('Wynik wpisz do <options=bold>docs/infra/BRAMKA_R2.md</> razem z datą — bez daty dowód nie mówi nic:');
         $this->line('  część serwerowa: PRZESZŁA · '.now()->format('Y-m-d'));
