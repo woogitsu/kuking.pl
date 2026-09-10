@@ -33,6 +33,41 @@
         </p>
     @endif
 
+    {{--
+        PODSUMOWANIE BŁĘDÓW — JEDNO NA EKRAN, NAD LISTĄ.
+
+        UX_50_PLUS.md wymaga błędu przy polu ORAZ w podsumowaniu, nigdy
+        tylko jednego z dwóch. Do tej pory tej strony nie dotyczyło ani
+        jedno: błąd `action` („to zgłoszenie zostało już rozstrzygnięte")
+        nie miał gdzie się pokazać i moderator klikał „Zapisz decyzję"
+        w formularz, który milczał.
+
+        DLACZEGO NIE `<x-error-summary>` I NIE JEDNO W KAŻDYM FORMULARZU:
+        ten ekran to jedna strona z maksymalnie dwudziestoma pięcioma
+        formularzami. Wspólny komponent robi z każdego błędu odnośnik do
+        `#f-nazwa`, a taka kotwica jest tu wieloznaczna — prowadziłaby do
+        pierwszego pola o tej nazwie, czyli zwykle do INNEGO zgłoszenia.
+        Podsumowanie w każdym formularzu z kolei dałoby dwadzieścia pięć
+        `role="alert"` na jeden błąd, a czytnik ekranu przeczytałby je
+        wszystkie.
+    --}}
+    @if($errors->any())
+        <div class="error-summary" role="alert" tabindex="-1">
+            <p class="error-summary-title">
+                @if($errors->count() === 1)
+                    Jednej rzeczy jeszcze brakuje
+                @else
+                    Kilku rzeczy jeszcze brakuje
+                @endif
+            </p>
+            <ul>
+                @foreach($errors->all() as $blad)
+                    <li>{{ $blad }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @forelse($reports as $report)
         <article class="card mb-5">
             <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
@@ -97,6 +132,7 @@
             @if($report->isOpen())
                 <form method="POST" action="{{ route('admin.reports.decide', $report) }}">
                     @csrf
+
                     <fieldset class="border-0 p-0">
                         <legend class="font-bold mb-3">Decyzja</legend>
                         <div class="choice-grid">
@@ -107,7 +143,12 @@
                                  tego nie zdradzał. --}}
                             @foreach(\App\Models\ModerationAction::dozwoloneDla($report->target_type) as $value => $label)
                                 <label class="choice">
-                                    <input type="radio" name="action" value="{{ $value }}">
+                                    {{-- `old()` także tutaj: po nieudanej walidacji
+                                         wybrana decyzja wracała czysta, więc moderator
+                                         musiał ją klikać drugi raz i mógł kliknąć inną
+                                         niż za pierwszym razem. --}}
+                                    <input type="radio" name="action" value="{{ $value }}"
+                                           @checked(old('action') === $value)>
                                     <span class="choice-label">{{ $label }}</span>
                                 </label>
                             @endforeach
@@ -115,38 +156,90 @@
                     </fieldset>
 
                     {{--
-                        Długość zawieszenia (issue #40).
+                        Długość zawieszenia (issue #40, poprawione po zgłoszeniu
+                        właściciela).
 
                         Bez tego pola każde zawieszenie było bezterminowe, bo nie
                         było gdzie zapisać terminu — a przy jednym moderatorze
                         nikt nie odklikuje kary po tygodniu ręcznie. Playbook
                         obiecywał blokady czasowe, których system nie umiał zrobić.
 
-                        Pole nie jest ukrywane skryptem przy innych decyzjach:
-                        D-007 mówi, że ważne funkcje działają bez JavaScriptu,
-                        a kontroler i tak ignoruje tę wartość dla decyzji innych
-                        niż „Zawieś konto".
+                        DWIE RZECZY DOŁOŻONE PÓŹNIEJ, obie z tego samego powodu —
+                        grupa radio bez pozycji zerowej to pułapka bez wyjścia:
+
+                        1. „BEZ ZAWIESZENIA" JAKO PIERWSZA I DOMYŚLNA POZYCJA.
+                           Wcześniej zaznaczonego „Na 1 dzień" nie dało się
+                           odkliknąć — jedyną drogą powrotu było odświeżenie
+                           strony, a razem z nim ginęło uzasadnienie i notatka
+                           (AGENTS.md §5: poprawne dane nigdy nie znikają).
+                           Pod grupą stało przy tym „Bez wyboru zawieszenie jest
+                           bezterminowe", czyli zaniechanie dawało NAJSUROWSZĄ
+                           karę. Teraz jest odwrotnie: domyślnie nie ma kary,
+                           a bezterminowość wymaga jawnego kliknięcia.
+
+                        2. WŁASNY TERMIN W DNIACH. Trzy gotowe liczby nie były
+                           wszystkimi sensownymi wyborami, a dziura między
+                           30 dniami i bezterminowością zamykała się jedynym
+                           dostępnym narzędziem: karą bez terminu.
+
+                        BEZ JEDNEJ LINII JAVASCRIPTU. Pole liczby nie jest
+                        wyszarzane ani ukrywane przy innych wyborach — o tym, czy
+                        liczba jest potrzebna i czy jest sensowna, rozstrzyga
+                        serwer (`ModerationController::decide()`). D-053
+                        pozwoliłoby wymagać skryptu tam, gdzie chroni serwis,
+                        ale panel moderacji to nie Turnstile: tu prostota jest
+                        warta więcej niż wygoda, a martwe pole przy słabym
+                        zasięgu byłoby gorsze od jednego pola więcej.
                     --}}
+                    @php($bladTerminu = $errors->first('suspend_days'))
+                    @php($bladDni = $errors->first('suspend_days_custom'))
                     <fieldset class="border-0 p-0 mt-4">
                         <legend class="font-bold mb-3">
                             Na jak długo — jeśli zawieszasz konto
                         </legend>
                         <div class="choice-grid">
-                            @foreach([
-                                '1' => 'Na 1 dzień',
-                                '7' => 'Na 7 dni',
-                                '30' => 'Na 30 dni',
-                                'bezterminowo' => 'Bezterminowo, do mojej decyzji',
-                            ] as $value => $label)
+                            @foreach(\App\Domain\Moderation\DlugoscZawieszenia::dlaFormularza() as $value => $label)
                                 <label class="choice">
+                                    {{-- Domyślnie „Bez zawieszenia": drugi argument
+                                         `old()` jest tu całą różnicą między pomyłką
+                                         odwracalną i nieodwracalną. --}}
                                     <input type="radio" name="suspend_days" value="{{ $value }}"
-                                           @checked(old('suspend_days') === $value)>
+                                           @checked(old('suspend_days', \App\Domain\Moderation\DlugoscZawieszenia::BRAK) === $value)>
                                     <span class="choice-label">{{ $label }}</span>
                                 </label>
                             @endforeach
                         </div>
+                        @if($bladTerminu)
+                            <span class="field-error">{{ $bladTerminu }}</span>
+                        @endif
+
+                        <div class="field mt-3 @if($bladDni) has-error @endif">
+                            <label for="wlasny-termin-{{ $report->id }}">
+                                Własny termin — liczba dni
+                                <span class="meta">(wymagane, jeśli wybrałeś „Własny termin”)</span>
+                            </label>
+                            <span class="field-help" id="wlasny-termin-{{ $report->id }}-help">
+                                Od {{ \App\Domain\Moderation\DlugoscZawieszenia::MIN_DNI }}
+                                do {{ \App\Domain\Moderation\DlugoscZawieszenia::MAX_DNI }} dni.
+                                Przy innym wyborze niż „Własny termin” ta liczba nie ma znaczenia —
+                                zignorujemy ją, nie musisz jej czyścić.
+                            </span>
+                            <input class="field-input" id="wlasny-termin-{{ $report->id }}"
+                                   name="suspend_days_custom" type="number" inputmode="numeric"
+                                   min="{{ \App\Domain\Moderation\DlugoscZawieszenia::MIN_DNI }}"
+                                   max="{{ \App\Domain\Moderation\DlugoscZawieszenia::MAX_DNI }}" step="1"
+                                   value="{{ old('suspend_days_custom') }}"
+                                   aria-describedby="wlasny-termin-{{ $report->id }}-help"
+                                   @if($bladDni) aria-invalid="true" @endif>
+                            @if($bladDni)
+                                <span class="field-error">{{ $bladDni }}</span>
+                            @endif
+                        </div>
+
                         <p class="meta mt-2">
-                            Konto wraca samo po upływie terminu. Bez wyboru zawieszenie jest bezterminowe.
+                            Konto z terminem wraca samo, gdy termin minie. „Bez zawieszenia” znaczy,
+                            że nie zawieszasz konta — a zawieszenie bez terminu trwa do Twojej
+                            decyzji i musisz je wybrać wprost.
                         </p>
                     </fieldset>
 
