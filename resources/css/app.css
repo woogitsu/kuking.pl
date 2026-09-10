@@ -1203,6 +1203,26 @@
   }
 
   /*
+   * „3 osoby zapisały to u siebie w zeszycie" (issue #275, D-081).
+   *
+   * `--text-body` (18 px), NIE `--text-help` jak data obok nazwy autora. To
+   * zdanie stoi SAMO — nie objaśnia niczego, co leży tuż obok — więc łapie się
+   * na regułę „samodzielna etykieta ma minimum 18 px" (`docs/UX_50_PLUS.md`,
+   * `MinimalnyRozmiarTekstuTest`, gdzie ten selektor jest dopisany do listy
+   * pilnowanych).
+   *
+   * Kolor przygaszony i BEZ wagi 700: to jest informacja, nie nagłówek i nie
+   * nagroda. Liczba, która krzyczy, robi z docenienia wynik — a cała decyzja
+   * D-081 stoi na tej różnicy.
+   */
+  .post-card-zapisy {
+    margin: 0;
+    padding: 0 var(--spacing-5) var(--spacing-4);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
+
+  /*
    * Pasek akcji: kreska u góry, jak w mockupach 01 i 05.
    *
    * `flex-wrap` jest tu obowiązkowe, nie ozdobne — trzy przyciski z pełnym
