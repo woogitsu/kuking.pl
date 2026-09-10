@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\PotwierdzenieNowegoAdresu;
 use App\Notifications\ZgloszonaZmianaAdresu;
 use App\Support\AdresEmail;
+use App\Support\AdresKanoniczny;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 
@@ -148,6 +149,19 @@ final class RequestEmailChange
      */
     private function linkPotwierdzajacy(PendingEmailChange $zmiana): string
     {
-        return URL::signedRoute('settings.email.confirm', ['zmiana' => $zmiana->getKey()]);
+        // KANONICZNY KORZEŃ, NIE HOST Z ŻĄDANIA (S2, D-071).
+        //
+        // To jest jedyny link w liście, który powstaje W ŻĄDANIU HTTP —
+        // reszta ważnych listów (reset hasła, potwierdzenie adresu, link
+        // do logowania) idzie kolejką i host bierze z `APP_URL`, bo worker
+        // żadnego żądania nie ma. Tutaj żądanie jest, więc przed tą zmianą
+        // host linku brał się z nagłówków: zmierzone `X-Forwarded-Host:
+        // attacker.invalid` dawało podpisany link na cudzej domenie. Dla
+        // linku potwierdzającego zmianę adresu e-mail znaczy to oddanie
+        // ważnego podpisu osobie, która postawiła sobie stronę pod tym
+        // hostem.
+        return AdresKanoniczny::zbuduj(
+            fn (): string => URL::signedRoute('settings.email.confirm', ['zmiana' => $zmiana->getKey()]),
+        );
     }
 }

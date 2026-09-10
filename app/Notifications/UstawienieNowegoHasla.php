@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -66,7 +67,15 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
                 // dokładnie tak samo jak w Laravelu — łącznie z hakiem
                 // `ResetPassword::createUrlUsing()`, gdyby kiedyś był
                 // potrzebny (np. adres na innej domenie).
-                'linkUrl' => $this->resetUrl($notifiable),
+                //
+                // W `AdresKanoniczny`, bo host tego linku nie ma prawa
+                // zależeć od nagłówków żądania (S2, D-071). Na produkcji nic
+                // to nie zmienia — to powiadomienie i tak idzie kolejką, więc
+                // adres powstaje w workerze, gdzie żądania HTTP nie ma
+                // i Laravel bierze korzeń z `APP_URL`. Zmienia to natomiast
+                // gwarancję: przestaje ona zależeć od tego, że kolejka jest
+                // asynchroniczna.
+                'linkUrl' => AdresKanoniczny::zbuduj(fn (): string => $this->resetUrl($notifiable)),
                 'waznoscTekst' => self::waznosc($minut),
                 'displayName' => $notifiable->profile?->display_name,
             ]);
