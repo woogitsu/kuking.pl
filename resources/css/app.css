@@ -156,6 +156,32 @@
     .app-rail {
       padding: var(--spacing-5) 0 var(--spacing-12);
     }
+
+    /*
+     * PANEL MODERACJI NIE DOSTAJE TRZECIEJ KOLUMNY (issue #294, punkt 2).
+     *
+     * Reguła wyżej rezerwuje kolumnę szyny NAWET BEZ NIEJ — świadomy koszt,
+     * uzasadniony tym, że nawigacja ma stać w tym samym miejscu na każdym
+     * ekranie serwisu. Panel moderacji nie jest takim ekranem: żadna z jego
+     * stron nie podaje slotu `rail` i żadna nigdy go nie poda — to narzędzie
+     * pracy moderatora, nie treść z „Moim zeszytem" czy „kuKINGami na dziś".
+     * Rezerwowanie tu kolumny płaci ten sam koszt bez żadnego zysku.
+     *
+     * ZMIERZONE 10 września, `/admin/uzytkownicy`, okno 1280 px: kolumna
+     * treści (`.app-main`) miała 576 px zamiast swoich zwykłych 720 —
+     * ścieśniona przez SZTYWNĄ (nie `1fr`) kolumnę szyny obok, płaska strona
+     * mieściła się na ~72% szerokości, a reszta (rezerwacja szyny plus
+     * marginesy) stała pusta. To jest dokładnie zgłoszenie właściciela:
+     * „treść wciśnięta w lewe ~55% ekranu, po prawej duży pusty obszar".
+     *
+     * `[data-tryb-panelu]` na `.app-body`, ten sam atrybut co na `.side-nav`
+     * wyżej — jeden znacznik stanu, czytany przez dwa selektory. Poza
+     * panelem `.app-body` ma nadal trzy kolumny od tego progu, bez zmian.
+     */
+    .app-body[data-tryb-panelu] {
+      grid-template-columns: var(--container-sidenav) minmax(0, 1fr);
+      max-width: var(--container-strona);
+    }
   }
 
   /* --- UKŁAD PASÓW (strona powitalna) ------------------------------------
@@ -824,91 +850,115 @@
       top: 5rem;
       align-self: start;
     }
+  }
 
-    /* Uzgodnione z systemem projektowym v3.1 (`components.css`).
-       Trzy różnice, wszystkie z jednego powodu — nawigacja stoi w kolumnie
-       szerokiej na 15 rem, a napisy w niej rosną razem ze skalą tekstu:
+  /* --- WYGLĄD POZYCJI MENU — POZA PROGIEM 64rem (issue #294) -------------
+     Te reguły stały do 10 września w bloku `@media (min-width: 64rem)` wyżej,
+     razem z `display` samej kolumny. Wyglądało to spójnie („nawigacja boczna
+     jest desktopowa, więc jej pozycje też"), a nie było: tryb panelu
+     POKAZUJE te same pozycje poniżej 64rem (`.side-nav[data-tryb-panelu]`,
+     blok niżej), więc na telefonie i na szerokim telefonie moderator dostawał
+     pozycje BEZ ŻADNEGO Z TYCH STYLÓW — czyli surowe, podkreślone odnośniki
+     jednej wysokości z wierszem tekstu.
 
-       * wcięcie PIONOWE `--spacing-2`. Bez niego pozycja, której napis
-         zawinie się na dwa wiersze („Bez odpowiedzi" przy skali 140%),
-         dotyka literami górnej i dolnej krawędzi tła.
-       * `min-width: 0` i zawijanie w dowolnym miejscu. Element `flex` nie
-         zejdzie sam poniżej swojej szerokości min-content, więc bez tego
-         najdłuższa pozycja rozpycha całą kolumnę nawigacji, a siatka strony
-         zabiera tę szerokość kolumnie czytania.
-       * przejście tła przy najechaniu — z tokenu, więc wyłącza je
-         `prefers-reduced-motion` w warstwie base.
+     ZMIERZONE 10 września, okno 900 px, `/admin/uzytkownicy`: wysokość pola
+     kliknięcia pozycji „Zgłoszenia" wynosiła 25 px zamiast wymaganych 48
+     (AGENTS.md §5), a `Wróć do Kuking` — pozycja, która MA ramkę
+     (`.side-nav-powrot`) — układała się jako element `inline`, więc jej ramka
+     łamała się na trzy fragmenty i pierwszy z nich rysował się nad ikoną jako
+     samotna pionowa kreska „|". To jest ten artefakt ze zrzutów w #294:
+     nie pusty element w znaczniku i nie węzeł tekstowy, tylko lewa krawędź
+     ramki inline'owego odnośnika w pierwszym wierszu.
 
-       `padding: 0` w poziomie ZOSTAJE `--spacing-3`: system ma tę samą
-       wartość, zmienia się tylko oś pionowa. */
-    .side-nav-item {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-3);
-      min-height: var(--control-height-min);
-      padding: var(--spacing-2) var(--spacing-3);
-      border-radius: var(--radius-md);
-      font-size: var(--text-body);
-      font-weight: 600;
-      color: var(--color-ink);
-      text-decoration: none;
-      min-width: 0;
-      max-width: 100%;
-      overflow-wrap: anywhere;
-      /* Zawijanie DODANE przy licznikach kolejek (10 września). Napis
-         pozycji i tak zawija się w sobie (`overflow-wrap: anywhere`), więc
-         w praktyce ta reguła nie dotyczy tekstu — jest siatką
-         bezpieczeństwa dla plakietki `.licznik-kolejki`, żeby przy dużej
-         skali tekstu zeszła do drugiego wiersza, a nie rozpychała kolumny
-         nawigacji w bok. */
-      flex-wrap: wrap;
-      transition: background-color var(--czas-szybki) ease-out;
-    }
+     Poza progiem NIE ZMIENIAJĄ NICZEGO NA DESKTOPIE: kolumna ma tam dalej
+     `display: flex` i `position: sticky` z bloku wyżej, a pozycje te same
+     deklaracje co przedtem. Poniżej 64rem `.side-nav` bez trybu panelu jest
+     `display: none`, więc jedyne miejsce, gdzie te reguły zaczynają cokolwiek
+     robić, to właśnie tryb panelu.
+     --------------------------------------------------------------------- */
+  /* Uzgodnione z systemem projektowym v3.1 (`components.css`).
+     Trzy różnice, wszystkie z jednego powodu — nawigacja stoi w kolumnie
+     szerokiej na 15 rem, a napisy w niej rosną razem ze skalą tekstu:
 
-    .side-nav-item:hover { background-color: var(--color-surface-sunken); }
+     * wcięcie PIONOWE `--spacing-2`. Bez niego pozycja, której napis
+       zawinie się na dwa wiersze („Bez odpowiedzi" przy skali 140%),
+       dotyka literami górnej i dolnej krawędzi tła.
+     * `min-width: 0` i zawijanie w dowolnym miejscu. Element `flex` nie
+       zejdzie sam poniżej swojej szerokości min-content, więc bez tego
+       najdłuższa pozycja rozpycha całą kolumnę nawigacji, a siatka strony
+       zabiera tę szerokość kolumnie czytania.
+     * przejście tła przy najechaniu — z tokenu, więc wyłącza je
+       `prefers-reduced-motion` w warstwie base.
 
-    /*
-     * WYLOGOWANIE JAKO PRZYCISK W LIŚCIE ODNOŚNIKÓW.
-     *
-     * Zmiana stanu konta idzie POST-em, więc to musi być `<button>`
-     * w formularzu, a nie `<a>` — inaczej podgląd linku albo prefetch
-     * przeglądarki wylogowywałby człowieka bez kliknięcia. Wygląd ma
-     * zostać ten sam co reszty pozycji, więc zdejmujemy tu wyłącznie te
-     * domyślne style przycisku, które by go od nich odróżniły.
-     *
-     * `width: 100%` i `text-align: left` — bo przycisk domyślnie kurczy
-     * się do treści i centruje napis, a wtedy jedna pozycja menu
-     * wyglądałaby inaczej niż pozostałe.
-     */
-    .side-nav-wyloguj {
-      width: 100%;
-      background: none;
-      border: 0;
-      text-align: left;
-      font-family: inherit;
-      cursor: pointer;
-    }
+     `padding: 0` w poziomie ZOSTAJE `--spacing-3`: system ma tę samą
+     wartość, zmienia się tylko oś pionowa. */
+  .side-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    min-height: var(--control-height-min);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body);
+    font-weight: 600;
+    color: var(--color-ink);
+    text-decoration: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    /* Zawijanie DODANE przy licznikach kolejek (10 września). Napis
+       pozycji i tak zawija się w sobie (`overflow-wrap: anywhere`), więc
+       w praktyce ta reguła nie dotyczy tekstu — jest siatką
+       bezpieczeństwa dla plakietki `.licznik-kolejki`, żeby przy dużej
+       skali tekstu zeszła do drugiego wiersza, a nie rozpychała kolumny
+       nawigacji w bok. */
+    flex-wrap: wrap;
+    transition: background-color var(--czas-szybki) ease-out;
+  }
 
-    /*
-     * Kolor tekstu na podświetleniu bieżącej pozycji (issue #26).
-     *
-     * `--color-brand-dark` na `--color-brand-tint` daje w trybie ciemnym
-     * kontrast 2.32 — ciemny pomarańcz na ciemnym brązie. Bieżąca pozycja
-     * nawigacji, czyli ta, która MA się wyróżniać, była najsłabiej czytelnym
-     * elementem całego menu. W trybie jasnym ta sama para daje 6.67, więc
-     * usterki nie dało się zobaczyć bez przełączenia motywu — złapał ją
-     * dopiero automat.
-     *
-     * Naprawą NIE jest podstawienie `--color-brand`: w trybie jasnym dałoby
-     * to 4.64, czyli spadek z 6.67 tuż nad próg. Brakowało TOKENU dla roli
-     * „tekst na brand-tint" — jego odpowiedniki istnieją dla akcentu, błędu
-     * i sukcesu. `--color-brand-tint-ink` daje 6.67 (jasny) i 6.55 (ciemny).
-     */
-    .side-nav-item[aria-current="page"] {
-      background-color: var(--color-brand-tint);
-      color: var(--color-brand-tint-ink);
-      font-weight: 800;
-    }
+  .side-nav-item:hover { background-color: var(--color-surface-sunken); }
+
+  /*
+   * WYLOGOWANIE JAKO PRZYCISK W LIŚCIE ODNOŚNIKÓW.
+   *
+   * Zmiana stanu konta idzie POST-em, więc to musi być `<button>`
+   * w formularzu, a nie `<a>` — inaczej podgląd linku albo prefetch
+   * przeglądarki wylogowywałby człowieka bez kliknięcia. Wygląd ma
+   * zostać ten sam co reszty pozycji, więc zdejmujemy tu wyłącznie te
+   * domyślne style przycisku, które by go od nich odróżniły.
+   *
+   * `width: 100%` i `text-align: left` — bo przycisk domyślnie kurczy
+   * się do treści i centruje napis, a wtedy jedna pozycja menu
+   * wyglądałaby inaczej niż pozostałe.
+   */
+  .side-nav-wyloguj {
+    width: 100%;
+    background: none;
+    border: 0;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /*
+   * Kolor tekstu na podświetleniu bieżącej pozycji (issue #26).
+   *
+   * `--color-brand-dark` na `--color-brand-tint` daje w trybie ciemnym
+   * kontrast 2.32 — ciemny pomarańcz na ciemnym brązie. Bieżąca pozycja
+   * nawigacji, czyli ta, która MA się wyróżniać, była najsłabiej czytelnym
+   * elementem całego menu. W trybie jasnym ta sama para daje 6.67, więc
+   * usterki nie dało się zobaczyć bez przełączenia motywu — złapał ją
+   * dopiero automat.
+   *
+   * Naprawą NIE jest podstawienie `--color-brand`: w trybie jasnym dałoby
+   * to 4.64, czyli spadek z 6.67 tuż nad próg. Brakowało TOKENU dla roli
+   * „tekst na brand-tint" — jego odpowiedniki istnieją dla akcentu, błędu
+   * i sukcesu. `--color-brand-tint-ink` daje 6.67 (jasny) i 6.55 (ciemny).
+   */
+  .side-nav-item[aria-current="page"] {
+    background-color: var(--color-brand-tint);
+    color: var(--color-brand-tint-ink);
+    font-weight: 800;
   }
 
   /* =========================================================================
@@ -1182,6 +1232,39 @@
       grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
       gap: var(--spacing-1);
       padding: var(--spacing-1);
+    }
+  }
+
+  /*
+   * „WRÓĆ DO KUKING" DWA RAZY NA SZEROKIM TELEFONIE (issue #294, punkt 4).
+   *
+   * Wyjście z panelu stoi w dwóch miejscach z jednego powodu: na wąskim
+   * telefonie menu boczne (ten odnośnik jest jego PIERWSZĄ pozycją, nad
+   * treścią) i pasek dolny (`position: fixed`) rzadko widać naraz — trzeba
+   * przewinąć stronę, żeby zobaczyć drugi. `TrybPaneluWMenuTest` pilnuje
+   * tego stanu wprost i zostaje bez zmian: to nie jest usterka, którą ten PR
+   * cofa, i test to potwierdza.
+   *
+   * Na szerokim telefonie oba stoją w jednym kadrze bez przewijania —
+   * ZMIERZONE na `/admin/uzytkownicy`, okno 900 px: dwa odnośniki
+   * o identycznym tekście, oba faktycznie widoczne (`display` inny niż
+   * `none`, szerokość > 0), żaden nie wymagał przewinięcia. Stąd zgłoszenie
+   * właściciela „Wróć do Kuking jest dwa razy".
+   *
+   * Znika górny, zostaje dolny — bo pasek dolny jest STAŁY (`position:
+   * fixed`), więc uzasadnienie górnego („widoczne bez przewijania") pasek
+   * dolny spełnia i tak, na każdej szerokości telefonu. `min-width: 48rem`
+   * (768 px), NIE cały zakres poniżej 64rem: to dokładnie ta sama dolna
+   * granica przedziału z opisu zgłoszenia („Fold rozłożony ląduje między
+   * 768 a 1280"), więc typowy wąski telefon (320–414 px) dostaje oba
+   * odnośniki tak jak dotąd, zgodnie z `TrybPaneluWMenuTest`, a dopiero od
+   * tej szerokości w górę — gdzie oba mieszczą się na ekranie naraz —
+   * górny znika. HTML zostaje NIETKNIĘTY (sam `display: none`), więc
+   * asercje na treść strony w tym i innych testach nie widzą różnicy.
+   */
+  @media (min-width: 48rem) and (max-width: 63.999rem) {
+    .side-nav[data-tryb-panelu] .side-nav-powrot {
+      display: none;
     }
   }
 
@@ -2469,6 +2552,28 @@
 
   .tabs {
     display: flex;
+    /*
+     * ZAWIJANIE, NIE PRZESUWANIE PALCEM (issue #294).
+     *
+     * `overflow-x: auto` niżej ZOSTAJE, ale od teraz jako siatka
+     * bezpieczeństwa na jedną zakładkę szerszą niż ekran — nie jako sposób
+     * pokazywania czterech. Dotąd był jedynym mechanizmem i skutek był taki,
+     * że na `/admin/uzytkownicy` czwarta zakładka kończyła się w połowie
+     * napisu („W trakcie usuwania **(**"), a dojście do niej wymagało
+     * przesunięcia rzędu palcem. AGENTS.md §5 mówi wprost: nic nie może
+     * zależeć wyłącznie od hover ani od swipe — a tu zależała cała jedna
+     * zakładka. Na ekranie dotykowym nic przy tym nie mówiło, że dalej
+     * cokolwiek jest: pasek przewijania pokazuje się dopiero w trakcie ruchu.
+     *
+     * ZMIERZONE 10 września na `/admin/uzytkownicy`, okno 900 px: rząd
+     * zakładek miał `clientWidth` 688 px przy `scrollWidth` 1013 px, czyli
+     * 325 px poza widokiem. Po zawinięciu `scrollWidth` == `clientWidth`
+     * i wszystkie cztery zakładki są widoczne bez ruchu palca.
+     *
+     * Wysokość pozycji (48 px, `--control-height-min` w `.tab`) zostaje bez
+     * zmian, więc drugi wiersz jest tak samo dotykalny jak pierwszy.
+     */
+    flex-wrap: wrap;
     gap: var(--spacing-2);
     border-bottom: 2px solid var(--color-border);
     margin-bottom: var(--spacing-5);
@@ -2483,7 +2588,28 @@
     font-weight: 700;
     color: var(--color-ink-muted);
     text-decoration: none;
-    white-space: nowrap;
+    /*
+     * `overflow-wrap: anywhere`, NIE `white-space: nowrap` (issue #294,
+     * dopisek po dołożeniu panelu do `scripts/dostepnosc.mjs`).
+     *
+     * `flex-wrap` na `.tabs` wyżej zawija CAŁE zakładki do nowego wiersza,
+     * gdy rząd się nie mieści — ale nie pomaga, gdy JEDNA zakładka sama jest
+     * szersza niż okno. `nowrap` na etykiecie wymuszał dokładnie to: przy
+     * prawdziwym powiększeniu czcionki przeglądarki (nie naszej skali
+     * tekstu — `Page.setFontSizes` w skrypcie, odpowiednik „Rozmiar
+     * czcionki: bardzo duży" w Chrome) `rem` w tym pliku rośnie razem z nią,
+     * a „W trakcie usuwania (0)" jako jeden nieprzełamywalny napis nie miał
+     * jak zejść poniżej swojej pełnej szerokości.
+     *
+     * ZMIERZONE na `/admin/uzytkownicy`, okno 320 px, czcionka przeglądarki
+     * 200%: `documentElement.scrollWidth` 408 px, wystająca zakładka „W
+     * trakcie usuwania (0)” kończyła się na x=501 — CAŁA STRONA przewijała
+     * się w bok przez jedną etykietę (WCAG 2.2 AA 1.4.10 Reflow). Ten sam
+     * mechanizm co `.side-nav-item` (`overflow-wrap: anywhere` przy menu
+     * bocznym) — pozwalamy etykiecie zejść do dwóch wierszy zamiast
+     * rozpychać zakładkę.
+     */
+    overflow-wrap: anywhere;
   }
 
   /*
