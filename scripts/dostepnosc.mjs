@@ -568,6 +568,46 @@ async function stanZalogowanego(przegladarka, adres) {
 }
 
 /*
+ * CZEKAMY, AŻ PRZEGLĄDARKA SKOŃCZY PODMIENIAĆ FONT — INACZEJ MIERZYMY
+ * UKŁAD, KTÓREGO NIKT NIGDY NIE ZOBACZY.
+ *
+ * `resources/css/fonts.css` serwuje Inter Variable z `font-display: swap`,
+ * czyli świadomie: tekst jest widoczny NATYCHMIAST w foncie systemowym
+ * i podmienia się dopiero po pobraniu pliku (uzasadnienie tej decyzji stoi
+ * w tamtym pliku i zostaje). Skutek dla POMIARU jest jednak taki, że między
+ * `domcontentloaded` a końcem podmiany strona jest ułożona CZCIONKĄ
+ * ZASTĘPCZĄ Z SYSTEMU — a `--font-sans` ma za Interem `-apple-system`,
+ * `Segoe UI` i dalszą listę, więc ta czcionka jest INNA na każdej maszynie.
+ *
+ * Zmierzone: ten sam commit, ten sam skrypt, ta sama baza — u nas w obrazie
+ * deweloperskim 0 naruszeń Focus Not Obscured, a na runnerze jedno
+ * (odnośnik „Basia" na `/szukaj` przy 414 px i skali 140% w całości pod dolną
+ * belką). Powtórzenie u nas na trzech świeżo wysianych bazach i na obu
+ * wersjach Chromium (1194 z obrazu i 1243, którą bierze Playwright na CI):
+ * dalej 0. Różnicą nie były więc ani dane, ani przeglądarka — tylko to, jaką
+ * czcionką była ułożona strona w chwili pomiaru.
+ *
+ * To jest ta sama klasa błędu, którą ten skrypt łapał już dwa razy (kontrast
+ * czytany w połowie przejścia motywu, `.skip-link` złapana w połowie ruchu)
+ * i rozwiązanie jest to samo: mierzymy stan KOŃCOWY. `document.fonts.ready`
+ * mówi wprost, kiedy on nastaje.
+ *
+ * Wyścig z limitem czasu, nie samo `await`: gdyby plik fontu kiedyś nie
+ * doszedł, pomiar ma pojechać czcionką zastępczą i to zgłosić w liczbach,
+ * a nie zawisnąć na trzydziestu ekranach po kolei.
+ */
+async function poczekajNaFonty(strona) {
+  await strona.evaluate(async () => {
+    if (! document.fonts) return;
+
+    await Promise.race([
+      document.fonts.ready,
+      new Promise((gotowe) => setTimeout(gotowe, 5000)),
+    ]);
+  });
+}
+
+/*
  * POMIAR PRZEPEŁNIENIA W POZIOMIE (issue #80, WCAG 2.2 AA — 1.4.10 Reflow)
  *
  * DLACZEGO POMIAR, A NIE REGUŁA AXE
@@ -621,6 +661,21 @@ async function zmierzUklad(strona) {
 
 const { adres, zamknij } = await podnies_serwer();
 const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
+
+/*
+ * WERSJA PRZEGLĄDARKI W RAPORCIE — bo raz już kosztowała pół wieczoru.
+ *
+ * `znajdzChromium()` wyżej bierze przeglądarkę z obrazu deweloperskiego,
+ * jeśli tam jest, a na runnerze zostawia wybór Playwrightowi. To znaczy, że
+ * TE DWA ŚRODOWISKA MOGĄ MIERZYĆ INNĄ PRZEGLĄDARKĄ: obraz miał 1194,
+ * a `playwright` 1.63 przypina 1243. Przy „u mnie zielone, na CI czerwone"
+ * jest to pierwsza rzecz do sprawdzenia — i dopóki jej nie było w logu,
+ * sprawdzało się ją ostatnią. Numer wersji nic nie kosztuje.
+ */
+const wersjaPrzegladarki = przegladarka.version();
+log(`Chromium ${wersjaPrzegladarki}`
+  + (CHROMIUM ? ` (${CHROMIUM})` : ' (z paczki `playwright`)'));
+log('');
 
 /*
  * Adres przepisu bierzemy z BAZY, nie ze strony.
@@ -933,6 +988,8 @@ for (const wariant of WARIANTY) {
 
     const odpowiedz = await strona.goto(zamowiony, { waitUntil: 'domcontentloaded' });
 
+    await poczekajNaFonty(strona);
+
     /*
      * KOD HTTP MUSI BYĆ 200 — I TO JEST OSOBNE SPRAWDZENIE NIŻ ŚCIEŻKA NIŻEJ.
      *
@@ -1143,6 +1200,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
         { waitUntil: 'domcontentloaded' },
       );
+      await poczekajNaFonty(strona);
 
       // Ten sam powód co w pętli axe wyżej: strona błędu nie przewija się
       // w bok, więc bez tego sprawdzenia zgłaszałaby się jako poprawna.
@@ -1260,6 +1318,8 @@ const karuzelaBezJs = await (async () => {
 
   const strona = await kontekst.newPage();
   await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
+
+  await poczekajNaFonty(strona);
 
   const ile = await strona.locator('.karuzela-slajd').count();
 
@@ -1379,6 +1439,8 @@ const wyborZdjeciaBezJs = await (async () => {
   const strona = await kontekst.newPage();
   const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
   const kod = odpowiedz?.status() ?? 0;
+
+  await poczekajNaFonty(strona);
 
   // Ten sam powód co przy pomiarze układu: strona błędu nie ma pola wyboru
   // zdjęcia, więc bez tego sprawdzenia przebieg zgłaszałby „nie znalazłem"
@@ -1568,6 +1630,8 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     const strona = await kontekst.newPage();
 
     await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+
+    await poczekajNaFonty(strona);
 
     const pomiar = await strona.evaluate(() => {
       // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
@@ -1940,6 +2004,7 @@ for (const szerokosc of SZEROKOSCI_FOCUS) {
         sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
         { waitUntil: 'domcontentloaded' },
       );
+      await poczekajNaFonty(strona);
 
       const kodFocus = odpowiedzFocus?.status() ?? 0;
 
@@ -2029,6 +2094,7 @@ zamknij();
 mkdirSync('storage', { recursive: true });
 writeFileSync('storage/dostepnosc.json', JSON.stringify({
   data: new Date().toISOString(),
+  chromium: wersjaPrzegladarki,
   warianty: WARIANTY.map((w) => w.nazwa),
   naruszen: wyniki.length,
   blokujacych,
