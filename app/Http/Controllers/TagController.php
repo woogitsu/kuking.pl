@@ -29,6 +29,57 @@ class TagController extends Controller
 {
     public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
 
+    /**
+     * Spis wszystkich tematów (#273, druga połowa — D-026 dała słownik,
+     * ta strona daje do niego wejście; pełne uzasadnienie kolejności
+     * w `docs/DECISIONS.md`, D-087).
+     *
+     * DWIE SEKCJE, ŻADNA PO POPULARNOŚCI
+     *   - „Polecane" — `Tag::promowane()`, kolejność redakcyjna gospodarza
+     *     (D-021, ustawiana w panelu `/admin/tagi-promowane`).
+     *   - „Wszystkie A-Z" — `Tag::aktywne()`, alfabetycznie po nazwie,
+     *     stronicowane przyciskiem „Pokaż więcej" (bez infinite scroll).
+     * Tak jak na stronie pojedynczego tagu: zero sortowania po liczbie
+     * wpisów albo obserwujących — to byłby ranking, którego zakazuje
+     * `AGENTS.md`.
+     */
+    public function index(): View
+    {
+        // JEDNO domknięcie, użyte w obu sekcjach, żeby liczba wpisów nigdy
+        // nie rozjechała się między „Polecane" a „Wszystkie" — ten sam
+        // zakres, który komentarz `Post::scopeTylkoOdAktywnychAutorow()`
+        // wymienia wprost jako przeznaczony m.in. dla feedu tematów.
+        //
+        // ŚWIADOMIE NIE `Post::widoczneDla($widz)` (jak w `show()` niżej):
+        // ten zakres liczy się PER WIDZ (blokady, obserwowanie), więc na
+        // liście z jednym zapytaniem dla wielu tagów naraz dałby inną
+        // liczbę każdej zalogowanej osobie — nie do zmierzenia raz i nie
+        // do wytłumaczenia. `publiclyVisible()` daje TĘ SAMĄ liczbę
+        // każdemu i jest dokładnie tym, co zobaczy gość wchodząc na
+        // `/tag/{slug}` — dla zalogowanej osoby to bezpieczne
+        // niedoszacowanie, nigdy zawyżenie (D-087).
+        $liczPubliczneWpisy = fn ($query) => $query
+            ->publiclyVisible()
+            ->tylkoOdAktywnychAutorow();
+
+        $polecane = Tag::query()
+            ->promowane()
+            ->withCount(['posts' => $liczPubliczneWpisy])
+            ->get();
+
+        $tematy = Tag::query()
+            ->aktywne()
+            ->withCount(['posts' => $liczPubliczneWpisy])
+            ->orderBy('name')
+            ->paginate((int) config('kuking.tags.index_page_size'))
+            ->withQueryString();
+
+        return view('pages.tags.index', [
+            'polecane' => $polecane,
+            'tematy' => $tematy,
+        ]);
+    }
+
     public function show(Request $request, Tag $tag): View|RedirectResponse
     {
         // Tag ukryty (moderacja) nie ma publicznej strony — w odróżnieniu

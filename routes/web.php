@@ -883,6 +883,15 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
 // Tagi (D-021, zastępuje usunięty już Temat z issue #31)
 // --------------------------------------------------------------------------
 //
+// Spis wszystkich tematów (#273, druga połowa — D-026 dała słownik, ta
+// trasa daje wejście do niego). PUBLICZNA, z tego samego powodu co strona
+// tagu niżej: to jest odpowiednik Garnkowej „fotofory" — jawna, zamknięta
+// lista, bez logowania (docs/product/PROSTOTA_JAK_GARNEK.md §5a).
+// NAD `/tag/{tag}`: gdyby kolejność była odwrotna, nic by się nie zepsuło
+// (inny literał ścieżki), ale trasy publiczne stoją tu razem, w kolejności
+// „lista, potem karta", żeby nie trzeba było ich szukać w dwóch miejscach.
+Route::get('/tagi', [TagController::class, 'index'])->name('tags.index');
+
 // Strona tagu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
 // miejsc, w które ma sens trafić z wyszukiwarki. Sama lista wpisów jest
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi
