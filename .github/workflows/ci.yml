@@ -10,21 +10,11 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  GDZIE TO CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`,
-#  wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie zmienną repozytorium:
-#
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
-#
-#  Dlaczego etykiety, a nie nazwa: nazwa przypina job do JEDNEJ maszyny, więc
-#  jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe: `i5-10400f`
-#  i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
-#  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
-#
-#  KOSZT TEJ DECYZJI, ŻEBY BYŁ ZAPISANY: te joby NIE mają już zapasu
-#  w runnerach GitHuba. Gdy cała pula jest offline, przebiegi stoją w kolejce
-#  bez końca — a CI jest bramką deployu (Railway ma „Wait for CI"), więc stoi
-#  wtedy także wdrożenie. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
+#  GDZIE TO CHODZI: decyduje zmienna repozytorium `CI_RUNS_ON`, a bez niej
+#  `ubuntu-latest` — opis stanu bieżącego i sposób powrotu na własną pulę stoi
+#  w JEDNYM miejscu w tym pliku, w bloku „RUNNERY" niżej. Nie powtarzamy go
+#  tutaj, bo dwa opisy tej samej rzeczy w jednym pliku raz już się rozjechały.
+#  Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -247,22 +237,17 @@ jobs:
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
-    # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
-    # `phpstan analyse` kończyłby się „At least one path must be specified".
+    # ZASADA: PHPStan jest jobem OBOWIĄZKOWYM i BLOKUJĄCYM, gdy w repozytorium
+    # stoi konfiguracja. `phpstan.neon` stoi w korzeniu, więc dziś blokuje.
     #
-    # Krok PHPStana jest dlatego warunkowy: bez konfiguracji job kończy się
-    # ZIELONY z adnotacją w podsumowaniu, zamiast zapalać czerwoną lampkę,
-    # której nie da się naprawić kodem. Od stałej czerwonej lampki ludzie
-    # uczą się, że czerwone CI się ignoruje — i wtedy przestaje działać
-    # także to CI, które coś naprawdę sprawdza.
+    # Krok pozostaje warunkowy tylko na wypadek jej braku: bez konfiguracji
+    # `phpstan analyse` kończyłby się „At least one path must be specified",
+    # czyli czerwoną lampką, której nie da się naprawić kodem — a od stałej
+    # czerwonej lampki ludzie uczą się, że czerwone CI się ignoruje.
     #
     # Świadomie NIE używamy `continue-on-error`: ono i tak raportuje check
     # jako `failure`, tylko nie psuje przebiegu. Chcemy odwrotnie —
-    # uczciwie „pominięte", nie „padło, ale nieważne".
-    #
-    # To rozwiązanie samo się naprawia: w chwili, gdy #32 doda plik
-    # konfiguracyjny, analiza zaczyna działać i BLOKOWAĆ. Nie ma tu nic,
-    # o czym trzeba pamiętać, żeby usunąć. Ta sama logika jest
+    # uczciwie „pominięte", nie „padło, ale nieważne". Ta sama logika jest
     # w scripts/check.sh.
     #
     # Warunek MUSI używać `test -f ... || test -f ...`, nie `ls a b c` —
@@ -323,9 +308,10 @@ jobs:
             {
               echo "## Analiza statyczna pominięta"
               echo ""
-              echo "W repozytorium nie ma \`phpstan.neon\`, więc nie ma czego analizować."
-              echo "Konfigurację dokłada **issue #32** — po jej dodaniu ten job"
-              echo "zacznie działać i blokować sam z siebie, bez zmian w workflow."
+              echo "Z repozytorium ZNIKŁ \`phpstan.neon\`, więc nie ma czego analizować."
+              echo "To nie jest stan normalny: konfiguracja stoi w korzeniu i ten job"
+              echo "ma blokować. Przywróć plik — job zacznie blokować sam z siebie,"
+              echo "bez zmian w workflow."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 

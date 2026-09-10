@@ -448,9 +448,17 @@ export default defineRailway((ctx) => {
     TURNSTILE_SECRET_KEY: ctx.shared.TURNSTILE_SECRET_KEY,
 
     // --- Runtime kontenera ----------------------------------------------------
-    // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
-    // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,
+    // Worker dekoduje zdjęcia aż do limitu z `config/kuking.php`, czyli
+    // 50 Mpx; web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,
     // więc entrypoint podaje to flagą `php -d`.
+    //
+    // TA LICZBA NIE JEST SUFITEM, O KTÓRY TRZEBA SIĘ MARTWIĆ (D-064).
+    // 512M to limit LICZNIKA PHP, a bufor bitmapy GD leży w dużej części
+    // poza tym licznikiem: przy zmierzonym szczycie RSS 452 MB dla 50 Mpx
+    // licznik PHP pokazywał 28 MB. Realnym sufitem jest twardy limit
+    // kontenera workera — 1024 MB (`limitOverride` niżej), i to wobec niego
+    // liczy się zapas. Wcześniej stało tu „do 24 Mpx"; był to opis sprzed
+    // pomiaru z `docs/MEDIA_PIPELINE.md`.
     PHP_WORKER_MEMORY_LIMIT: "512M",
   };
 
@@ -714,7 +722,8 @@ export default defineRailway((ctx) => {
   //  KIEDY WYDZIELAĆ WORKERA OSOBNO?
   //  Od pierwszego dnia produkcji, bo:
   //    1. ProcessUploadedImage jest CPU-bound (dekodowanie i skalowanie zdjęć
-  //       24 Mpx). W jednym kontenerze z web kradłby CPU requestom
+  //       do 50 Mpx — tyle dopuszcza `config/kuking.php`, patrz D-064).
+  //       W jednym kontenerze z web kradłby CPU requestom
   //       użytkowników — przy audytorium 50+ każde 500 ms boli podwójnie.
   //    2. web i worker skalują się w PRZECIWNYCH momentach: ruch rośnie
   //       wieczorami, kolejka zdjęć po weekendowym gotowaniu.

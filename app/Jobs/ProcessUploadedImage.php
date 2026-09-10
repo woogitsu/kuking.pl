@@ -190,10 +190,23 @@ class ProcessUploadedImage implements ShouldQueue
      * Ostatnia linia obrony: po wyczerpaniu prób — albo po timeoucie, po którym
      * nie ma wyjątku w `handle()` — zdjęcie nie może zostać w `processing`.
      *
-     * Dekodowanie zdjęcia 45 Mpx i budowa trzech wariantów w GD to jest realnie
-     * ten kawałek serwisu, który potrafi nie zmieścić się w limicie czasu
-     * i pamięci workera (`--memory=384`). Bez tego hooka takie zdjęcie zostaje
-     * w stanie przejściowym bez końca.
+     * Dekodowanie zdjęcia bliskiego limitowi 50 Mpx z `config/kuking.php`
+     * i budowa trzech wariantów w GD to jest realnie ten kawałek serwisu,
+     * który potrafi nie zmieścić się w limicie czasu albo pamięci. Bez tego
+     * hooka takie zdjęcie zostaje w stanie przejściowym bez końca.
+     *
+     * JAKIE TO SĄ LICZBY — obowiązuje D-064, nie szacunek (`docs/DECISIONS.md`).
+     * Twardym sufitem jest limit kontenera workera: **1024 MB**
+     * (`.railway/railway.ts`, `memoryBytes`), a nie `PHP_WORKER_MEMORY_LIMIT`
+     * = 512M, bo bufor GD w dużej części nie przechodzi przez licznik PHP.
+     * Zmierzony szczyt RSS dla 50 Mpx to **~452 MB**, czyli ponad dwukrotny
+     * zapas. Trzecia liczba w tej układance to MIĘKKI limit Laravela,
+     * `queue:work --memory=${QUEUE_MEMORY:-700}` w `docker/entrypoint.sh` —
+     * kończy proces MIĘDZY jobami, więc nie ratuje pojedynczego zdjęcia
+     * i nie jest sufitem tego kodu.
+     *
+     * Stało tu kiedyś `--memory=384`; taka wartość nie występuje nigdzie
+     * w tym repozytorium i D-064 prostuje to wprost.
      */
     public function failed(?\Throwable $e): void
     {

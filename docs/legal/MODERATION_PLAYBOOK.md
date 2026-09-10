@@ -58,6 +58,7 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 - **Długość zawieszenia wybierasz z listy: bez zawieszenia (pozycja domyślna), 1, 7 albo 30 dni, własny termin albo bezterminowo.** Własny termin to liczba dni od 1 do 365, którą wpisujesz w polu pod listą — przy każdym innym wyborze ta liczba jest ignorowana i nie musisz jej czyścić. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
 - **Brak wyboru NIE znaczy „bezterminowo".** Do września 2026 znaczył — czyli pomyłka przez zaniechanie dawała najsurowszą karę, jaką panel potrafi wydać. Dziś domyślnie zaznaczone jest „Bez zawieszenia", a decyzja „Zawieś konto" bez wybranego terminu nie przechodzi: formularz pyta, na jak długo, i nie traci przy tym tego, co już wpisałeś.
 - **Powiadomienie o decyzji wychodzi zawsze i automatycznie** — przy ukryciu, usunięciu, ostrzeżeniu, zawieszeniu i blokadzie. Nie da się „ukarać po cichu". Puste pole „Wiadomość do użytkownika" znaczy tylko tyle, że pójdzie zdanie domyślne.
+- **Zgłaszający też dostaje odpowiedź sam z siebie, i to dwie: przy przyjęciu zgłoszenia i przy Twojej decyzji.** Dotyczy to ZWYKŁEGO przycisku „Zgłoś", nie tylko formularza DSA. Nie pisz do tej osoby ręcznie „żeby wiedziała" — dostała już powiadomienie w serwisie, z numerem sprawy i pouczeniem (szczegóły i granica tego mechanizmu: §3, „Kto kogo powiadamia").
 - **Panel nie pokazuje historii wcześniejszych kar autora.** Kolumna „Eskalacja" mówi „2. wystąpienie", „powtórka" — ale kolejka zgłoszeń tego nie liczy i nie wyświetla. Dziś to pamięć moderatora, nie funkcja produktu.
 - **Ukryty PRZEPIS jest dla autora zamrożony.** Autor go zobaczy pod jego adresem, ale nie otworzy edycji (`RecipeStatusTransitions::BY_AUTHOR`: wiersz `hidden` jest pusty). Więc „ukryj i daj szansę poprawy" działa dla wpisu, a dla przepisu — nie. Przy prawach autorskich albo poproś o nową wersję przepisu, albo zdejmij ukrycie na czas poprawy.
 
@@ -97,6 +98,32 @@ Jeśli podział ról ma być realny, musi go najpierw zacząć egzekwować kod. 
 
 Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie moderatorem i jedynym organem odwoławczym** dla własnych decyzji — jeśli to niemożliwe personalnie (mały zespół), przynajmniej **odczekaj i spójrz na sprawę drugi raz po czasie** zamiast automatycznie podtrzymywać pierwszą decyzję.
 
+### Kto kogo powiadamia — co robi serwis, a co Twoja ręka
+
+Ta tabela istnieje, bo do 10 września 2026 ten podręcznik w trzech miejscach
+**odmawiał zgłaszającemu ze zwykłego „Zgłoś" jakiejkolwiek odpowiedzi
+od serwisu** i kazał pisać do niego z ręki. Było to nieprawdą od issue #10
+i realnie groziło dwiema rzeczami: drugim listem w tej samej sprawie albo
+przekonaniem moderatora, że obietnicy z regulaminu §7 nie da się dotrzymać.
+Pełny opis tej pomyłki stoi w
+`tests/Feature/RegulaminOWynikuZgloszeniaMowiPrawdeTest.php` — i ten sam test
+oblewa CI, jeśli któreś z tych zdań wróci tutaj.
+
+| Kto ma być poinformowany | Czym | Robi to serwis sam? | Twoja rola |
+|---|---|---|---|
+| Autor ukaranej treści | powiadomienie w serwisie (art. 17) | **Tak**, przy każdej decyzji | wpisujesz „Wiadomość do użytkownika" albo zostawiasz puste (pójdzie zdanie domyślne) |
+| Zgłaszający z kontem — przyjęcie zgłoszenia (art. 16 ust. 4) | powiadomienie w serwisie + numer sprawy | **Tak**, w chwili kliknięcia „Zgłoś" | nic |
+| Zgłaszający z kontem — rozstrzygnięcie (art. 16 ust. 5) | powiadomienie w serwisie + pouczenie + `/zgloszenia` | **Tak**, w chwili zapisania decyzji | nic |
+| Zgłaszający z formularza DSA, który podał e-mail | list e-mail: najpierw potwierdzenie przyjęcia, potem decyzja z podpisanym linkiem do odwołania | **Tak**, oba | nic; szablon 4.6 jest treścią TEGO drugiego listu |
+| Zgłaszający z formularza DSA **bez** adresu e-mail | — | **Nie ma czym** (art. 16 ust. 2 lit. c dopuszcza zgłoszenie bez danych) | nic; nie ma odbiorcy |
+| Odwołanie przysłane e-mailem, nie formularzem | — | **Nie** | wprowadzasz je do sprawy ręcznie |
+| Ostrzeżenie „uwaga na botulizm", kontekst pod treścią | — | **Nie** | zwykły komentarz pod treścią albo prośba do autora (§6) |
+| Organy ścigania (CSAM, zagrożenie życia) | — | **Nie** | robisz to Ty, natychmiast (§7.1) |
+
+Reguła praktyczna: **jeśli w tabeli stoi „Tak", ręczny list jest DRUGĄ
+wiadomością o tej samej sprawie.** Znaczniki `receipt_sent_at`
+i `decision_sent_at` przy zgłoszeniu mówią, czy serwis już to zrobił.
+
 ### Ścieżka odwołania
 
 > **Ta sekcja opisuje mechanizm, który DZIAŁA W PRODUKCIE** (issue #10).
@@ -120,13 +147,38 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    **Druga strona sprawy — ZGŁASZAJĄCY (issue #23, art. 20 ust. 1 wymienia
    wprost decyzje „o niepodjęciu działania").** Ma własną, osobną drogę:
    podpisany, wygasający link `/zgloszenie/{zgłoszenie}/odwolanie`, przysłany
-   mailem razem z decyzją. **Działa to jednak WYŁĄCZNIE dla zgłoszeń
-   nielegalnej treści z formularza DSA (art. 16), i tylko gdy zgłaszający
-   podał adres e-mail.** Kto zgłosił treść zwykłym przyciskiem „Zgłoś" pod
-   wpisem, nie dostaje dziś ani powiadomienia o decyzji, ani linku do
-   odwołania — jedyne, co mu zostaje, to adres kontaktowy. To jest znana
-   dziura, nie zamysł; do czasu jej zamknięcia **nie obiecuj zgłaszającemu
-   ze zwykłej ścieżki, że dostanie odpowiedź automatycznie**.
+   mailem razem z decyzją. **Sam FORMULARZ ODWOŁANIA działa WYŁĄCZNIE dla
+   zgłoszeń nielegalnej treści z formularza DSA (art. 16), i tylko gdy
+   zgłaszający podał adres e-mail** — trasa `appeals.reporter` odbija
+   wszystko inne (`ReporterAppealController::handle()` →
+   `abort_unless($report->jestZgloszeniemPrawnym(), 404)`).
+
+   **Ale ODPOWIEDŹ dostaje dziś każdy zgłaszający z kontem — automatycznie,
+   bez Twojego udziału (issue #10).** Kto kliknął zwykłe „Zgłoś" pod wpisem,
+   dostaje POWIADOMIENIE W SERWISIE dwa razy: przy przyjęciu zgłoszenia
+   (`NotifyReporterReceipt`, wołane z `ReportContent`) i przy Twojej decyzji
+   (`NotifyReporterDecision`, wołane z `ModerationController::decide()`).
+   Treść obu liczy `App\Domain\Moderation\OdpowiedzDlaZglaszajacego`, razem
+   z pouczeniem z art. 16 ust. 5 i numerem sprawy (`App\Support\NumerSprawy`,
+   kolumna `numer_sprawy`). Stan sprawy człowiek widzi u siebie na
+   `/zgloszenia` (`reports.mine`, `reports.mine.show`, za `ReportPolicy`).
+   Znaczniki dowodowe: `receipt_sent_at` i `decision_sent_at`.
+
+   **Co z tego wynika dla Ciebie: NIE pisz do zgłaszającego ręcznie „w celu
+   poinformowania o decyzji".** On już to dostał, w chwili gdy zapisałeś
+   decyzję. Ręczny list byłby drugą wiadomością o tej samej sprawie.
+   Obietnica z `resources/legal/regulamin.md` §7 („Każde zgłoszenie
+   sprawdzamy. Poinformujemy Cię o wyniku.") jest dziś dotrzymywana kodem,
+   nie dobrą wolą moderatora — pilnuje tego test
+   `tests/Feature/RegulaminOWynikuZgloszeniaMowiPrawdeTest.php`.
+
+   **Czego zgłaszający ze zwykłego „Zgłoś" nadal NIE ma:** formularza
+   odwołania. Pouczenie kieruje go na adres kontaktowy z numerem sprawy i to
+   jest cała jego droga dalej. Nie jest to przeoczenie: wewnętrzny system
+   skarg z art. 20 leży w Sekcji 3 DSA, z której Kuking jest zwolniony jako
+   mikroprzedsiębiorstwo (`COMPLIANCE.md` §1.2), a otwarcie formularza dla
+   wszystkich zgłoszeń to decyzja właściciela. Pismo, które przyjdzie tą
+   drogą na skrzynkę, wprowadzasz do sprawy ręcznie.
 3. **Termin na złożenie: 6 miesięcy od decyzji.** Art. 20 ust. 1 DSA wymaga co najmniej tyle; do 7 IX 2026 stało tu 14 dni, wzięte z rozsądku operacyjnego, nie z przepisu (patrz `docs/decyzje/DSA_POMIAR.md`). Po nim formularz mówi wprost, że
    termin minął, i kieruje na adres e-mail dla nowych okoliczności.
 4. **Jedno odwołanie od jednej decyzji NA KAŻDĄ ZE STRON.** Pilnuje tego
@@ -181,7 +233,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
 
 Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla każdego wieku.
 
-**Gdzie te teksty wklejasz i czym one są.** Szablony 4.1–4.5 to treść pola „Wiadomość do użytkownika" w formularzu decyzji. Idą do autora jako **powiadomienie w serwisie**, nie mailem — kanału zwrotnego nie ma, więc żaden z nich nie może kończyć się słowem „odpisz". Osoba zablokowana powiadomienia nie przeczyta (do serwisu nie wejdzie): jej ten sam tekst wyświetla się przy próbie logowania. Szablon 4.6 dotyczy zgłaszającego i jako jedyny jedzie e-mailem — ale tylko przy zgłoszeniu nielegalnej treści z adresem (patrz §3). Szablon 4.7 to pole „uzasadnienie" przy zamykaniu odwołania.
+**Gdzie te teksty wklejasz i czym one są.** Szablony 4.1–4.5 to treść pola „Wiadomość do użytkownika" w formularzu decyzji. Idą do autora jako **powiadomienie w serwisie**, nie mailem — kanału zwrotnego nie ma, więc żaden z nich nie może kończyć się słowem „odpisz". Osoba zablokowana powiadomienia nie przeczyta (do serwisu nie wejdzie): jej ten sam tekst wyświetla się przy próbie logowania. Szablon 4.6 dotyczy zgłaszającego i jako jedyny jedzie e-mailem — ale tylko przy zgłoszeniu nielegalnej treści z adresem (patrz §3). Zgłaszający ze zwykłego „Zgłoś" dostaje odpowiedź BEZ Twojego udziału, tekstem, którego nie wklejasz i nie edytujesz (`OdpowiedzDlaZglaszajacego`) — tego szablonu do niego nie wysyłaj. Szablon 4.7 to pole „uzasadnienie" przy zamykaniu odwołania.
 
 ### 4.1 Treść usunięta
 
@@ -278,7 +330,9 @@ Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta oso
 > Dziękujemy, że dbasz o Kuking.
 > Zespół Kuking
 
-**Ten szablon ma dziś zastosowanie tylko do zgłoszeń nielegalnej treści (formularz DSA, art. 16) z podanym adresem e-mail — bo tylko one wychodzą mailem, razem z linkiem do odwołania.** Osoba, która zgłosiła treść zwykłym przyciskiem „Zgłoś" pod wpisem, nie dostaje od serwisu nic: ani tej wiadomości, ani informacji, że sprawa jest zamknięta. Jeśli chcesz jej odpowiedzieć, musisz napisać maila ręcznie i wtedy „odpisz na tego maila" jest prawdą; inaczej nie obiecuj odpowiedzi.
+**Ten szablon dotyczy TYLKO zgłoszeń nielegalnej treści z formularza DSA (art. 16) z podanym adresem e-mail** — bo tylko one wychodzą mailem i tylko w nich zdanie „odpisz na tego maila" oraz link do odwołania są prawdziwe.
+
+**Osoby, która zgłosiła treść zwykłym przyciskiem „Zgłoś", tym szablonem nie obsługujesz — i nie musisz.** Serwis informuje ją sam: powiadomienie o rozstrzygnięciu powstaje w chwili zapisania decyzji (`NotifyReporterDecision`), z pouczeniem z art. 16 ust. 5 i numerem sprawy, a pełny stan sprawy widzi na `/zgloszenia`. Wysłanie jej tego szablonu mailem byłoby DRUGĄ odpowiedzią na to samo zgłoszenie i obiecywałoby link do odwołania, którego dla tej drogi nie ma.
 
 ### 4.7 Odwołanie rozpatrzone
 
@@ -352,7 +406,7 @@ Pełna lista techniczna: `SECURITY_BASELINE.md`.
 |---|---|
 | **Nagość / treści seksualne** | Natychmiastowe usunięcie po zgłoszeniu lub wykryciu. Ostrzeżenie za pierwszym razem (o ile jednoznacznie nie CSAM — patrz niżej), blokada przy powtórce. |
 | **Przemoc na zdjęciach** | Ocena kontekstu — zdjęcie polowania/uboju w kontekście kulinarnym nie jest automatycznie zakazane, ale drastyczne, celowo szokujące treści usuwamy. Brak automatyzmu — to wymaga oceny człowieka. |
-| **Cudze zdjęcie podpisane jako własne** | Usunięcie + wiadomość do autora (szablon 4.1). Właściciela oryginału serwis powiadomi sam tylko wtedy, gdy zgłosił rzecz formularzem „Zgłoś treść niezgodną z prawem" i podał adres e-mail; po zwykłym „Zgłoś" pod zdjęciem nie dostanie nic i trzeba napisać do niego ręcznie. |
+| **Cudze zdjęcie podpisane jako własne** | Usunięcie treści + wiadomość do autora (szablon 4.1). Zgłaszającego serwis powiadamia o rozstrzygnięciu SAM, obiema drogami: mailem, gdy rzecz przyszła formularzem „Zgłoś treść niezgodną z prawem" z adresem e-mail, i powiadomieniem w serwisie, gdy przyszła zwykłym „Zgłoś" pod zdjęciem. Ręcznie nie pisz — to byłaby druga wiadomość o tej samej sprawie. |
 | **CSAM (treści przedstawiające seksualne wykorzystywanie dzieci)** | **Procedura zero-tolerancji — patrz niżej, osobno.** |
 
 ### 7.1 Procedura zero-tolerancji — CSAM i zagrożenie życia

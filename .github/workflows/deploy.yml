@@ -1,24 +1,21 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
-#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
-#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#  AKTUALNE — zweryfikowano 10.09.2026 (przy pliku, nie z pamięci).
 #
-#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
-#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#  Ten workflow JEST uruchamiany automatycznie: `deployment_status` wchodzi po
+#  udanym deployu Railway. `workflow_dispatch` jest drogą operacyjną obok, nie
+#  zamiast — patrz blok `on:` niżej.
 #
-#  Żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
-#  wybiera już żadna zmienna repozytorium — joby chodzą na własnej puli
-#  `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET:
+#  Repozytorium jest PRYWATNE, więc minuty Actions są płatne. Kontrolę
+#  przed pushem robimy lokalnie, za darmo:
+#      ./scripts/check.sh           # to samo, co robi CI
+#      ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  GDZIE CHODZĄ JOBY: decyduje zmienna repozytorium `CI_RUNS_ON` — patrz blok
+#  o runnerach niżej. Nie ma tu drugiego, konkurencyjnego opisu.
 #
-#  Etykiet, nie nazw: nazwa runnera w `runs-on` przypina job do jednej
-#  maszyny, więc jej awaria zatrzymuje CI. Etykiety `i5-10400f`
-#  i `nvidia-gtx1070` mają WYŁĄCZNIE nowe runnery — stare WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`,
-#  `X64`, `wsl2`, `woogitsu`, więc samo `self-hosted` wpuściłoby joby także
-#  na nie.
-#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+#  Porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+#  Historia opisu, który stał w tym miejscu do 10.09.2026 (własna pula bez
+#  żadnej zmiennej, workflow „tylko ręcznie"): `docs/DECISIONS.md`, D-028.
 # ---------------------------------------------------------------------------
 
 # =============================================================================

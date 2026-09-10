@@ -1321,6 +1321,38 @@ co do zasady, ZAWIESZONA w praktyce od 8 września — patrz poprawka niżej**
 > właściciela i wymaga jednej informacji, której z repozytorium nie widać:
 > czy pula stoi z powodu, który minie sam.
 
+> **Trzecia poprawka, 10 września 2026 — opisy wyniesione z plików
+> wykonywalnych tutaj.** `.github/workflows/deploy.yml` i `ci.yml` nosiły
+> w nagłówkach STARSZY opis, sprzeczny z blokiem o runnerach kilkadziesiąt
+> linii niżej w tym samym pliku. Kod wykonawczy mówi
+> `runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}`, czyli
+> prawdziwy jest opis drugi. Nagłówki zostały zawężone do stanu bieżącego,
+> a to, co z nich usunięto, stoi odtąd wyłącznie tutaj:
+>
+> - **`ci.yml`, HISTORYCZNE — nie opisuje bieżącej konfiguracji:** „GDZIE TO
+>   CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej
+>   ZESTAWEM ETYKIET, nie nazwą runnera **i nie zmienną repozytorium**", wraz
+>   z uzasadnieniem etykiet (nazwa przypina job do jednej maszyny; `i5-10400f`
+>   i `nvidia-gtx1070` mają wyłącznie nowe runnery, a stare WSL-owe
+>   `woogitsu-wsl-DOM-NEW-01`–`04` noszą tylko `self-hosted`, `Linux`, `X64`,
+>   `wsl2`, `woogitsu`) i z zapisanym kosztem: „te joby NIE mają już zapasu
+>   w runnerach GitHuba". Uzasadnienie etykiet zostaje ważne **na moment
+>   powrotu** — dlatego jest tu, a nie skasowane.
+> - **`deploy.yml`, HISTORYCZNE:** „ten workflow jest wyłączony
+>   z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie)"
+>   i „żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
+>   wybiera już żadna zmienna repozytorium". Oba zdania były nieprawdziwe
+>   w chwili usunięcia: blok `on:` nie jest zakomentowany i zawiera
+>   `deployment_status`, czyli wyzwalacz automatyczny.
+>
+> **Dlaczego to jest wpis w dzienniku, a nie porządki.** Komentarz stojący
+> obok workflow czyta się przy incydencie jak dokumentację o wysokim
+> zaufaniu. Zdanie „joby chodzą na naszej puli" kieruje wtedy operatora na
+> złą diagnozę („job czeka na wolną maszynę"), gdy job w rzeczywistości
+> poszedł na runnera GitHuba. Reguła na przyszłość: **w plikach
+> wykonywalnych stoi wyłącznie stan bieżący; historia stanu idzie do tego
+> dziennika.**
+
 > **Druga poprawka, tego samego wieczoru — powrót przestaje wymagać PR-a.**
 > `runs-on` we wszystkich czterech workflow-ach czyta teraz zmienną
 > repozytorium `CI_RUNS_ON`; bez niej stoi `ubuntu-latest`. Ustawienie jej
@@ -4903,3 +4935,63 @@ issue #21
 [^4]: [spatie/laravel-activitylog — README](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — jedna tabela `activity_log`, kolumny `subject_id`/`subject_type`, `causer_id`/`causer_type`, `description`, `properties`, `event`.
 [^5]: `spatie/laravel-activitylog` dokumentacja, sekcja „Log Options" (`docs/advanced-usage/log-options.md` w repozytorium pakietu) — `logOnly()`/`logExcept()`/`dontLogEmptyChanges()`.
 [^6]: [spatie/laravel-activitylog — README, sekcja „Clean log"](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — komenda `activitylog:clean`, kasuje wpisy starsze niż skonfigurowana liczba dni, bez pojęcia kategorii wyłączonych z kasowania.
+
+---
+
+## D-074 · Deklarujemy wsparcie PHP `^8.4`, nie `^8.3` — bo 8.3 nie jest testowane
+
+**Data:** 10 września 2026 · Audyt z 10.09.2026, część 12 §6 · Status: **obowiązuje**
+
+`composer.json` deklarował `"php": "^8.3"`. Nic w tym repozytorium nie
+uruchamiało kodu na 8.3 ani razu:
+
+- `.github/workflows/ci.yml` → `env.PHP_VERSION: "8.4"` (jedna wersja, bez
+  macierzy),
+- `Dockerfile` → `dunglas/frankenphp:1-php8.4-trixie` w obu etapach
+  (`vendor` i `runtime`).
+
+Deklaracja była więc **szersza niż prawda**. To nie jest literówka, bo
+`require.php` jest publiczną obietnicą kompatybilności: czyta ją Composer przy
+rozwiązywaniu zależności, czytają ją generatory SBOM-ów i skanery, i czyta ją
+następna osoba (albo agent) szukająca odpowiedzi na pytanie „na czym to ma
+działać". Utrzymywanie w niej wersji, której nikt nie sprawdza, oznacza
+zgodę na to, że pierwszy błąd swoisty dla 8.3 znajdzie użytkownik, nie CI.
+
+**Do wyboru były dwie drogi** (audyt wymienia obie): zawęzić deklarację do
+`^8.4` albo dołożyć do CI macierz z 8.3, żeby obietnica stała się prawdziwa.
+Wybrana jest pierwsza. Aplikacja jest wdrażana **wyłącznie na kontrolowanym
+obrazie** — nie jest biblioteką, której ktoś doda do własnego projektu na
+starszym PHP — więc druga wersja w macierzy podwoiłaby czas i koszt CI, żeby
+chronić scenariusz, który nie występuje.
+
+**Co zostało sprawdzone przy tej zmianie**, żeby nie okazało się, że zawężenie
+łamie instalację:
+
+```
+$ composer validate            → ./composer.json is valid
+$ composer install --dry-run   → Verifying lock file contents can be installed
+                                 on current platform. / Nothing to install
+```
+
+`composer.lock` wymagał odświeżenia (`composer update --lock`): niesie
+`content-hash` z `composer.json` oraz własną sekcję `platform`, więc bez tego
+`composer install` w CI padałby na „lock file is not up to date". Żadna wersja
+pakietu się przy tym nie zmieniła („Nothing to modify in lock file").
+
+**Przy okazji, w tym samym miejscu:** `name` i `description` przestały
+kłamać. Stało tam `laravel/laravel` i „The skeleton application for the
+Laravel framework." — metadane szkieletu, które trafiają do narzędzi
+zależności i raportów. Dziś: `woogitsu/kuking` i „Kuking.pl — społeczność
+ludzi, którzy gotują." (to samo zdanie, którym `AGENTS.md` opisuje produkt;
+Kuking nie jest „platformą do przepisów"). Pakiet nie jest publikowany, więc
+nic poza czytelnością od tego nie zależy.
+
+**Zmiana wymaga:** decyzji, że Kuking ma naprawdę wspierać 8.3 — a wtedy
+najpierw wchodzi do CI macierz `8.3` i `8.4`, i tylko wtedy deklaracja może
+się poszerzyć. Kolejność jest nieodwracalna: **najpierw test, potem
+obietnica.** Podniesienie do `^8.5` wymaga tej samej kolejności — najpierw
+obraz i CI, potem manifest.
+
+📄 `composer.json` · `composer.lock` · `Dockerfile` ·
+`.github/workflows/ci.yml` ·
+`tests/Feature/ManifestProjektuMowiPrawdeTest.php`

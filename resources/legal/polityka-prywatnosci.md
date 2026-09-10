@@ -117,7 +117,7 @@ W sprawach dotyczących Twoich danych osobowych napisz do nas: **biuro@samsufi.p
 
 ---
 
-*Czego w tym dokumencie jeszcze nie ma, a będzie: dostawcy poczty oraz liczby dni, przez które dane żyją w kopiach zapasowych (dopiszemy ją, gdy ustalimy ją z dostawcą hostingu — nie wcześniej). Dokument nie był weryfikowany przez prawnika.*
+*Czego w tym dokumencie jeszcze nie ma, a będzie: liczby dni, przez które dane żyją w kopiach zapasowych (dopiszemy ją, gdy ustalimy ją z dostawcą hostingu — nie wcześniej). Dokument nie był weryfikowany przez prawnika.*
 
 ## Źródła
 

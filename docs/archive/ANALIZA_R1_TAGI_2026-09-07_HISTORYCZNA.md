@@ -1,3 +1,25 @@
+> **STATUS: HISTORYCZNE — nie opisuje bieżącej konfiguracji.**
+>
+> To raport analityczny („R1"), napisany **7 września 2026** na commicie
+> `0068de5`, jako materiał wejściowy do decyzji o tagach. Decyzje, które
+> z niego wyszły, żyją w `docs/DECISIONS.md` (**D-021** — Tematy znikają,
+> zostają same tagi; **D-026** — słownik tagów) oraz w
+> `docs/decyzje/TAGI_PROMOWANE.md`. **Przy sporze o stan produktu
+> obowiązuje kod i dziennik decyzji, nie ten plik.**
+>
+> Leży w archiwum, a nie w `docs/`, bo część jego treści jest z założenia
+> nieaktualna: opisuje `Topic`, `topic_follows` i `posts.topic_id` jako
+> istniejące, a D-021 je usunęła. Zostaje dlatego, że niesie rzeczy, których
+> nie ma nigdzie indziej: rozpoznanie istniejących wzorców (`kuking_normalize()`,
+> `canonical_name`/`normalized_name`, `recipe_slug_redirects`), argumenty za
+> odłożeniem `tag_relations` i `tag_merge_suggestions`, ścieżkę bez
+> JavaScriptu i cztery otwarte pytania do właściciela z §10.
+>
+> Do 10 września 2026 plik leżał w korzeniu repozytorium pod nazwą
+> `R1-tagi-kopia.md` i nic się do niego nie odwoływało.
+
+---
+
 # R1 — Tagi: model danych, migracja z Tematów, nadużycia
 
 Zakres: SPEC.md §1.1–1.6 oraz §1.8–1.10. AI (§1.7, §1.11–1.15) świadomie pominięte —

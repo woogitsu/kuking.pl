@@ -348,6 +348,80 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
     }
 
     /**
+     * STOPKA POLITYKI NIE OBIECUJE DOPISANIA DOSTAWCY POCZTY, KTÓRY STOI
+     * JUŻ W TABELI W §3.
+     *
+     * CO BYŁO ZMIERZONE 10 WRZEŚNIA 2026
+     * Tabela podmiotów przetwarzających wymieniała **EmailLabs (Vercom S.A.)**,
+     * a stopka tego samego pliku, kilkadziesiąt wierszy niżej, nadal mówiła:
+     * „Czego w tym dokumencie jeszcze nie ma, a będzie: dostawcy poczty (…)".
+     * Dokument prawny zaprzeczał sam sobie w obrębie JEDNEGO pliku.
+     *
+     * DLACZEGO TO NIE JEST DROBIAZG
+     * Człowiek, który szuka odpowiedzi na pytanie „komu trafia mój adres
+     * e-mail", dostawał dwie sprzeczne odpowiedzi i żadna nie była oznaczona
+     * jako nowsza. W dokumencie, na którym opiera się podmiot danych, to
+     * podważa również te części, które są prawdziwe.
+     *
+     * TO JEST TEST WĄSKI I CELOWO NIE JEST DETEKTOREM SPRZECZNOŚCI.
+     * Pilnuje jednej pary zdań: jeśli tabela wymienia dostawcę poczty, stopka
+     * nie ma prawa obiecywać jego dopisania. Ogólnego wykrywania sprzeczności
+     * w tekście prawnym nie da się napisać uczciwie i próba dałaby test, który
+     * albo nic nie łapie, albo pada przy każdej redakcji.
+     *
+     * CZEGO TEN TEST NIE ROZSTRZYGA
+     * Reszty listy w stopce. Liczba dni retencji kopii zapasowych naprawdę
+     * jeszcze w dokumencie nie stoi (sprawdzone: `grep` po „kopiach
+     * zapasowych" trafia wyłącznie w tę stopkę), więc TA obietnica jest
+     * prawdziwa i zostaje. Otwarta sprawa #204 (śledzenie otwarć wiadomości
+     * po stronie panelu EmailLabs) też nie jest przedmiotem tego testu —
+     * zamyka się ją w panelu, nie zmianą tekstu polityki.
+     */
+    public function test_stopka_polityki_nie_obiecuje_dopisania_dostawcy_poczty(): void
+    {
+        $tresc = $this->tresc('polityka-prywatnosci.md');
+
+        // KONTROLA METODY POMIARU, USTAWIONA PRZED WŁAŚCIWĄ ASERCJĄ.
+        // Cała sprzeczność polega na tym, że dostawca poczty JUŻ jest
+        // w tabeli. Gdyby zniknął, obietnica ze stopki przestałaby być
+        // nieprawdą — i wtedy ten test ma powiedzieć, że mierzy nie to co
+        // trzeba, a nie świecić zielono.
+        $wierszeTabeli = array_values(array_filter(
+            explode('
+', $tresc),
+            static fn (string $linia): bool => str_starts_with(trim($linia), '|')
+                && str_contains($linia, 'EmailLabs'),
+        ));
+
+        $this->assertCount(
+            1,
+            $wierszeTabeli,
+            'Kontrola: w tabeli dostawców w §3 ma stać dokładnie JEDEN wiersz '
+            .'z dostawcą poczty (EmailLabs) — znaleziono '.count($wierszeTabeli).'. '
+            .'Jeśli dostawca się zmienił, popraw kotwicę w tym teście RAZEM '
+            .'z dokumentem.',
+        );
+
+        // WŁAŚCIWY POMIAR: stopka „czego tu jeszcze nie ma".
+        $this->assertSame(
+            1,
+            preg_match('/^\*Czego w tym dokumencie jeszcze nie ma.*$/mu', $tresc, $stopka),
+            'Nie znaleziono w polityce prywatności stopki „Czego w tym dokumencie '
+            .'jeszcze nie ma". Jeśli stopkę usunięto w całości, usuń też ten test '
+            .'— ale świadomie, nie przez przeoczenie.',
+        );
+
+        $this->assertStringNotContainsString(
+            'dostawcy poczty',
+            $stopka[0],
+            'Stopka polityki prywatności obiecuje dopisać dostawcę poczty, a §3 '
+            .'wymienia go w tabeli (EmailLabs / Vercom S.A.). Dokument prawny '
+            .'zaprzecza sam sobie w jednym pliku — a człowiek szukający, komu '
+            .'trafia jego adres e-mail, dostaje dwie odpowiedzi i żadnej daty.',
+        );
+    }
+
+    /**
      * TOŻSAMOŚĆ ADMINISTRATORA STOI W DOKUMENTACH I ZGADZA SIĘ Z KONFIGURACJĄ.
      *
      * RODO art. 13 ust. 1 lit. a każe podać, kto jest administratorem,
