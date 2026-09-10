@@ -38,7 +38,38 @@
             awatar nie ściskał opisu do wąskiego paska tekstu.
         --}}
         <div class="profil-glowka-tresc">
-            <x-avatar :user="$owner" :size="88" />
+            {{--
+                WŁASNY AWATAR JEST ODNOŚNIKIEM DO USTAWIENIA ZDJĘCIA.
+
+                To jest miejsce, w które człowiek klika instynktownie — a do
+                tej zmiany nie robiło ono nic. Zdjęcie profilowe stało jako
+                szóste pole w formularzu `/ustawienia/profil`, czyli za: menu
+                → Ustawienia (a te otwierają się na „Czytelności") → Profil
+                → przewinięciem pod pięcioma polami, których nikt nie
+                zamierzał ruszać.
+
+                PODPIS JEST WIDOCZNY, NIE TYLKO DLA CZYTNIKA EKRANU.
+                Sam obrazek, który coś robi po kliknięciu, to „ikona bez
+                opisu" (AGENTS.md §5) — a bez zdjęcia stoi tu w ogóle sama
+                litera i nic nie mówi, że da się to zmienić. Zachęta jest
+                więc treścią strony, a nie podpowiedzią po najechaniu myszą:
+                hover na telefonie nie istnieje.
+
+                „ZDJĘCIE PROFILOWE", A NIE „SWOJE ZDJĘCIE": wiersz niżej stoi
+                przycisk „Dodaj zdjęcie", który prowadzi do DODANIA WPISU ze
+                zdjęciem potrawy. Dwa podobnie brzmiące „dodaj zdjęcie" jeden
+                pod drugim byłyby gorsze niż dłuższa nazwa.
+            --}}
+            @if($isOwner)
+                <a class="profil-awatar-zmiana" href="{{ route('settings.avatar') }}">
+                    <x-avatar :user="$owner" :size="88" />
+                    <span class="profil-awatar-zmiana-podpis">
+                        {{ $p->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+                    </span>
+                </a>
+            @else
+                <x-avatar :user="$owner" :size="88" />
+            @endif
             <div class="min-w-0">
                 <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
                 @if($owner->isSeeded())

@@ -36,6 +36,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
+use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
@@ -481,14 +482,42 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('notifications.open');
 
     // Ustawienia
-    //
-    // Zapis profilu ma WŁASNY, niższy limit niż reszta ustawień, bo jako
-    // jedyny z nich przyjmuje PLIK: zdjęcie profilowe przechodzi przez cały
-    // pipeline zdjęć z AGENTS.md §7 (magic bytes, megapiksele, R2, zadanie
-    // w tle). To jest praca serwera, a nie UPDATE jednej kolumny.
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
-        ->middleware("throttle:{$limits['ustawienia_profil']},ustawienia_profil");
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    /*
+     * ZDJĘCIE PROFILOWE — OSOBNY, KRÓTKI EKRAN.
+     *
+     * Pole zdjęcia stało dotąd jako szóste pole formularza `/ustawienia/profil`.
+     * Funkcja była, ale droga do niej wiodła przez menu → Ustawienia → Profil
+     * → przewinięcie pod pięcioma polami, których człowiek nie zamierzał ruszać.
+     * Skróty prowadzące tutaj (awatar na własnym profilu i zachęta „Dodaj swoje
+     * zdjęcie") mają sens tylko wtedy, gdy prowadzą na ekran O JEDNEJ RZECZY —
+     * kotwica `#f-avatar` w tamtym formularzu wyrzucała na telefonie w środek
+     * ekranu pełnego innych pól.
+     *
+     * ADRES NIE MA IDENTYFIKATORA i to jest celowe: trasa działa zawsze na
+     * profilu osoby zalogowanej, więc nie ma czego podmienić. Autoryzacja i tak
+     * idzie przez `ProfilePolicy::update` w kontrolerze (AGENTS.md §7).
+     *
+     * LIMIT `ustawienia_profil` PRZENIÓSŁ SIĘ TUTAJ RAZEM Z POLEM PLIKU.
+     * To jest teraz jedyny ekran ustawień, który przyjmuje PLIK, czyli ten,
+     * którego jedno żądanie kosztuje serwer sekundy procesora i megabajty
+     * (magic bytes, limit megapikseli, zapis do R2, zadanie w tle). Zapis
+     * profilu bez zdjęcia to znowu zwykły UPDATE jednego wiersza, więc wraca
+     * do wspólnej grupy `ustawienia`.
+     *
+     * Usunięcie zdjęcia zostaje w grupie `ustawienia`: to UPDATE jednej
+     * kolumny i skasowanie plików, które i tak są własne.
+     */
+    Route::get('/ustawienia/zdjecie', [AvatarSettingsController::class, 'edit'])->name('settings.avatar');
+    Route::post('/ustawienia/zdjecie', [AvatarSettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia_profil']},ustawienia_profil")
+        ->name('settings.avatar.update');
+    Route::delete('/ustawienia/zdjecie', [AvatarSettingsController::class, 'destroy'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.avatar.destroy');
 
     // „Twoje tagi" (D-021, zastępuje usunięty już `/ustawienia/tematy`).
     Route::get('/ustawienia/tagi', [TagFollowController::class, 'edit'])->name('settings.tags');

@@ -31,9 +31,15 @@ use Tests\TestCase;
  *
  * CZWARTA DROGA Z AUDYTU („żądanie bez pliku") NIE MA TU TESTU-REGRESJI
  * PO STRONIE „musi zapisać sygnał", CELOWO. `photos` jest `nullable`
- * w KAŻDYM z czterech miejsc, które przyjmują zdjęcie (post, „Ugotowałem",
- * przepis, avatar) — wysyłka bez zdjęcia jest tu POPRAWNYM zachowaniem
- * (wpis tekstowy bez zdjęcia), nie odrzuceniem. Test niżej to potwierdza
+ * w trzech z czterech miejsc, które przyjmują zdjęcie (post, „Ugotowałem",
+ * przepis) — wysyłka bez zdjęcia jest tam POPRAWNYM zachowaniem
+ * (wpis tekstowy bez zdjęcia), nie odrzuceniem.
+ *
+ * Czwarte miejsce — `/ustawienia/zdjecie` — ma od wydzielenia tego ekranu
+ * pole `required`, i to też nie jest odrzucenie wgrania: na ekranie o jednej
+ * rzeczy „zapisz bez wybrania pliku" nie znaczy „zostaw jak było", tylko
+ * „człowiek nie zauważył, że nic nie wybrał". Sygnał `photo_upload_failed`
+ * opisuje ODRZUCONY PLIK, a tam pliku nie ma. Test niżej to potwierdza
  * jako kontrolę, a raport wyjaśnia, dlaczego to nie jest piąta droga do
  * naprawienia.
  */

@@ -59,6 +59,7 @@ class IdentyfikatoryNaStronieSaUnikalneTest extends TestCase
             'bezpieczeństwo' => ['settings.security'],
             'adres e-mail' => ['settings.email'],
             'profil' => ['settings.profile'],
+            'zdjęcie profilowe' => ['settings.avatar'],
             'prywatność' => ['settings.privacy'],
             'dostępność' => ['settings.accessibility'],
             'dane' => ['settings.data'],

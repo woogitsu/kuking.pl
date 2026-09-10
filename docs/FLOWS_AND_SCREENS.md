@@ -162,7 +162,8 @@ App:
 - `/collections`
 - `/notifications`
 - `/zgloszenia`, `/zgloszenia/{id}` — własne zgłoszenia i karta sprawy
-- `/settings/profile`
+- `/ustawienia/profil`
+- `/ustawienia/zdjecie` — zdjęcie profilowe (osobny, krótki ekran; skróty prowadzą tu z własnego profilu)
 - `/settings/accessibility`
 - `/settings/privacy`
 - `/settings/data`
