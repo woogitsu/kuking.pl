@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\MailFailure;
 use App\Support\Poczta;
 use Illuminate\Console\Command;
 use Illuminate\Mail\Message;
@@ -478,6 +479,39 @@ class SprawdzPoczte extends Command
         if ($czekajace > 50 && ! $przezKolejke) {
             $this->warn('  Kolejka rośnie. Jeśli worker nie chodzi, listy będą się w niej odkładać i nikt tego nie zauważy.');
         }
+
+        $this->stanPrzepadlychListow();
+    }
+
+    /**
+     * Listy, które PRZEPADŁY — czyli to, co `failed_jobs` wyżej liczy razem
+     * z przetwarzaniem zdjęć i eksportami (issue #234, D-062).
+     *
+     * Dwa wiersze, nie tabela: pełną listę z kategorią odmowy i instrukcją
+     * „co zrobić" wypisuje `kuking:nieudane-listy`. Tutaj chodzi tylko o to,
+     * żeby człowiek diagnozujący pocztę nie musiał się domyślać, że taka
+     * komenda istnieje.
+     */
+    private function stanPrzepadlychListow(): void
+    {
+        try {
+            $nieodhaczone = MailFailure::query()->nieodhaczone()->count();
+        } catch (Throwable) {
+            // Tabeli może jeszcze nie być (kod wdrożony przed migracją).
+            // To nie jest powód, żeby przewracać diagnostykę poczty.
+            return;
+        }
+
+        if ($nieodhaczone === 0) {
+            $this->line('  Listów, które przepadły: 0');
+
+            return;
+        }
+
+        $this->newLine();
+        $this->warn('  Listy, które PRZEPADŁY i nikt tego nie odhaczył: '.$nieodhaczone);
+        $this->line('  To wiadomości do ludzi, które nie wyszły i już nie wyjdą. Przeczytaj, co i dlaczego:');
+        $this->line('    php artisan kuking:nieudane-listy');
     }
 
     private function wyslij(string $adres, string $temat, string $tresc, bool $przezKolejke): void

@@ -141,6 +141,21 @@ niczego więcej nie zastępuje.
 - **Nie mówi, ilu ludzi to dotknęło** ani czy to jest ten sam człowiek, czy
   stu różnych.
 
+### Co przychodzi na ten kanał z poczty (issue #234, D-062)
+
+Dwie rzeczy, obie na poziomie `error`, obie bez adresu i bez treści listu:
+
+| Wiadomość | Kiedy | Co zrobić |
+|---|---|---|
+| „Poczta: list przepadł i nikt go już nie wyśle." | Worker wyczerpał trzy próby, list nie wyszedł | `php artisan kuking:nieudane-listy` — kategoria odmowy mówi, czy powtarzać |
+| „Poczta: dobowy sufit listów jest prawie wyczerpany." | Zużycie sufitu przekroczyło 80% (`KUKING_POCZTA_PROG_OSTRZEZENIA`), raz na dobę na funkcję | Sprawdź, czy plan u dostawcy nadal wystarcza — `docs/decyzje/POCZTA.md` §4 |
+
+**Ten kanał NIE JEST jedynym śladem takiej awarii** i nie może być: jest
+warunkowy (`LOG_BLAD_WEBHOOK_URL`), a przy wyczerpanej puli listów pocztowy
+alarm i tak by nie wyszedł. Trwałym śladem jest wiersz w tabeli
+`mail_failures` i pole `checks.listy` w `/health`, które trzyma `degraded`,
+dopóki ktoś nie odhaczy. Uzasadnienie: **D-062 §3**.
+
 ---
 
 ## 3. Bezpieczeństwo — czego w wiadomości NIE MA

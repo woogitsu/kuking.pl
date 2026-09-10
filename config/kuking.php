@@ -1288,6 +1288,51 @@ return [
 
         // Ile listów zostawiamy wolnych na pocztę bez sufitu (patrz wyżej).
         'rezerwa_transakcyjna' => (int) env('KUKING_POCZTA_REZERWA', 100),
+
+        /*
+         * ILE DNI TRZYMAMY ODHACZONE ŚLADY NIEUDANYCH LISTÓW
+         * (`mail_failures`, issue #234, D-062).
+         *
+         * Dotyczy WYŁĄCZNIE wierszy odhaczonych, czyli takich, o których
+         * właściciel już wie. Nieodhaczonych nie kasuje nic i nigdy — to
+         * jedyne miejsce, w którym istnieje wiedza o tym, że komuś nie doszedł
+         * list, a wiek jej nie unieważnia.
+         *
+         * W wierszu nie ma adresu ani treści listu (patrz migracja), więc to
+         * nie jest termin z RODO, tylko higiena: tabela ma nie rosnąć bez
+         * końca. Zero albo mniej wyłącza sprzątanie.
+         */
+        'retencja_dni' => (int) env('KUKING_POCZTA_RETENCJA_DNI', 90),
+
+        /*
+         * PRÓG OSTRZEŻENIA O KOŃCZĄCYM SIĘ DOBOWYM SUFICIE, W PROCENTACH
+         * zużycia (issue #234).
+         *
+         * Przy 80 ostrzeżenie idzie do dziennika po zużyciu 80% sufitu danej
+         * funkcji — czyli ZANIM listy zaczną odbijać się od limitu dostawcy.
+         * O to prosi issue #234 wprost: przejście na płatny plan ma dać się
+         * zrobić dzień wcześniej, nie w dniu awarii.
+         *
+         * Ostrzeżenie leci RAZ NA DOBĘ NA FUNKCJĘ (`DziennyBudzetListow`).
+         * Bez tego przy sufitcie 120 listów jeden dzień wysyłki dałby
+         * dwadzieścia cztery identyczne wpisy, a webhook błędów zamieniłby
+         * się w szum, który uczy się ignorować.
+         *
+         * 100 albo więcej wyłącza ostrzeganie (sufit i tak zatrzyma wysyłkę).
+         */
+        'prog_ostrzezenia_procent' => (int) env('KUKING_POCZTA_PROG_OSTRZEZENIA', 80),
+
+        /*
+         * ILE GODZIN EKRAN MÓWI CZŁOWIEKOWI, ŻE JEGO LIST NIE WYSZEDŁ
+         * (D-062 §4).
+         *
+         * Ekran „Potwierdź adres e-mail" pokazuje zdanie o nieudanej wysyłce
+         * tylko wtedy, gdy porażka jest świeża. Po dobie zdanie znika, bo
+         * przestaje być pomocne: człowiek ma na tym samym ekranie przycisk
+         * „Wyślij wiadomość jeszcze raz", a ostrzeżenie sprzed tygodnia
+         * mówiłoby tylko „coś kiedyś nie wyszło".
+         */
+        'okno_prawdy_godzin' => (int) env('KUKING_POCZTA_OKNO_PRAWDY_GODZIN', 24),
     ],
 
     'digest' => [
