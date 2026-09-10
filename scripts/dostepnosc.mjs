@@ -1682,6 +1682,306 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     + (zlych ? ` — ${zlych} niezgodności` : ''));
 }
 
+/* =============================================================================
+   FOCUS NIE ZASŁONIĘTY PRZEZ NAKŁADKĘ (WCAG 2.2 AA — 2.4.11
+   Focus Not Obscured (Minimum))
+
+   Zewnętrzny audyt (docs/research/AUDYT_60_PLUS.md, ranking napraw pkt 1 —
+   najmocniejsza rekomendacja) wskazał lukę: `.bottom-nav` jest
+   `position: fixed` i ma `flex-wrap: wrap` (patrz komentarz przy tej klasie
+   wyżej w `app.css`) — przy dużym tekście belka może urosnąć do dwóch albo
+   trzech wierszy. Rezerwa pod treścią w `.app-main` jest jednak STAŁĄ
+   wartością (`--spacing-20`, 80 px), nie rzeczywistą wysokością belki.
+   Gdy belka urośnie powyżej tej rezerwy, treść przewija się POD nią —
+   a fokus klawiaturowy, który przeglądarka sama przewija w widok, może
+   wylądować w całości za paskiem.
+
+   DLACZEGO ELEMENTFROMPOINT, A NIE SAMO PRZECIĘCIE PROSTOKĄTÓW
+   Sam przecinający się prostokąt nie znaczy "zasłonięty": `.skip-link` ma
+   `z-index: 50`, wyżej niż `.topbar` (20) i `.bottom-nav` (30), więc po
+   skupieniu na nim geometrycznie leży nad topbarem, ale WIDAĆ go, bo
+   przeglądarka maluje go na wierzchu. Prosta matematyka prostokątów
+   zgłosiłaby to jako FAIL, którego naprawdę nie ma — a to jest dokładnie
+   fałszywy alarm, przed którym ostrzega zlecenie audytu. Próbkujemy więc
+   siatkę punktów wewnątrz prostokąta fokusu przez `elementFromPoint` —
+   to jest pytanie "co PRZEGLĄDARKA NAPRAWDĘ renderuje w tym miejscu", a nie
+   "czy dwa prostokąty się nakładają na papierze". Stan uwzględnia więc
+   z-index, zaokrąglone rogi i wszystko inne, co realnie wpływa na to, co
+   widzi człowiek.
+
+   FAIL DOPIERO PRZY PEŁNYM (100%) POKRYCIU — to jest dosłowne minimum AA
+   z Understanding 2.4.11 ("not entirely hidden"). Częściowe pokrycie to
+   osobne, PRODUKTOWE ostrzeżenie: sygnał do poprawy, ale nie naruszenie
+   WCAG i nie powód, żeby ten skrypt oblewał przebieg.
+
+   Kontrolki, które są potomkami samej belki (linki nawigacji, pole
+   wyszukiwania w topbarze), są z tej reguły wyłączone: to one SĄ tą belką,
+   nie treścią, którą belka miałaby zasłaniać.
+
+   DOSŁOWNY KONTRAKT Z AUDYTU (§„Co dopisać do scripts/dostepnosc.mjs", pkt 1)
+   Ekrany: `/home`, `/szukaj`, przykładowy wpis, `/ustawienia/profil`.
+   Szerokości: 320/360/414 px. Skale: te same trzy co w pomiarze układu
+   wyżej (`SKALE_UKLADU` — bez skali, tekst 140%, czcionka przeglądarki
+   200%), tym samym mechanizmem (CDP `Page.setFontSizes` dla przeglądarki,
+   atrybut `data-text-scale` dla naszego ustawienia).
+
+   „Przykładowy wpis" mierzymy jako ZALOGOWANY, nie gość: `.bottom-nav`
+   istnieje wyłącznie w layoucie zalogowanego (`@auth` w `layout.blade.php`),
+   a to właśnie ta belka jest ryzykiem — mierzenie wpisu jako gość
+   nigdy nie mogłoby złapać naruszenia, którego to sprawdzenie szuka.
+
+   JAK PRZECHODZIMY WSZYSTKIE WIDOCZNE KONTROLKI
+   Naciskamy Tab, aż `document.activeElement` wróci do `<body>` (naturalny
+   koniec kolejności tabulacji w przeglądarce bez paska adresu) albo trafi
+   na element już odwiedzony w tym przebiegu (pętla fokusu, np. pułapka
+   modala). Odwiedzone elementy znaczymy tymczasowym atrybutem danych, żeby
+   rozpoznać powrót bez porównywania referencji przez granicę `evaluate`.
+   Limit kroków jest bezpiecznikiem, nie oczekiwaną wartością — jego
+   wyczerpanie bez naturalnego końca jest BŁĘDEM (niepełne sprawdzenie),
+   nie cichym zaliczeniem ekranu.
+   ========================================================================== */
+log('');
+log('Focus Not Obscured (WCAG 2.2 2.4.11):');
+
+const EKRANY_FOCUS = [
+  { nazwa: 'tablica', adres: '/home', zalogowany: true },
+  { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
+  { nazwa: 'wpis (przykładowy)', adres: null, znajdz: 'wpis:normal', zalogowany: true },
+  { nazwa: 'ustawienia profilu', adres: '/ustawienia/profil', zalogowany: true },
+];
+
+const SZEROKOSCI_FOCUS = SZYBKO ? [320] : [320, 360, 414];
+
+// Bezpiecznik, nie oczekiwana wartość — patrz komentarz wyżej.
+const MAKS_KROKOW_FOCUS = 400;
+
+// Próg PEŁNEGO pokrycia. Rzadko wychodzi dokładnie 1 przez zaokrąglenia
+// próbek na krawędzi elementu, dlatego liczy się już "prawie wszystkie".
+const PROG_CALKOWITEGO_PRZYKRYCIA = 0.99;
+
+const naruszeniaFocus = [];
+const ostrzezeniaFocus = [];
+
+/**
+ * Naciska Tab aż do naturalnego końca albo pętli i dla każdej odwiedzonej
+ * kontrolki mierzy realne pokrycie przez `.topbar` i `.bottom-nav`
+ * (0 = w ogóle niezasłonięta, 1 = w całości zasłonięta, `null` = na tym
+ * ekranie nie ma takiej nakładki albo jest ukryta).
+ */
+async function przejdzTabemIZmierzFocus(strona) {
+  const kroki = [];
+
+  for (let krok = 0; krok < MAKS_KROKOW_FOCUS; krok++) {
+    await strona.keyboard.press('Tab');
+
+    const stan = await strona.evaluate(() => {
+      const el = document.activeElement;
+
+      if (!el || el === document.body || el === document.documentElement) {
+        return { koniec: true };
+      }
+
+      if (el.dataset.a11yFokusWidziany === '1') {
+        return { petla: true };
+      }
+      el.dataset.a11yFokusWidziany = '1';
+
+      const ramka = el.getBoundingClientRect();
+
+      function pokrycieNakladki(selektor) {
+        const nakladka = document.querySelector(selektor);
+        if (!nakladka) return null;
+
+        const styl = getComputedStyle(nakladka);
+        if (styl.display === 'none' || styl.visibility === 'hidden') return null;
+
+        // Kontrolka jest częścią samej belki — to nie jest "zasłonięcie
+        // treści", to sama belka.
+        if (nakladka.contains(el)) return 0;
+
+        if (ramka.width === 0 || ramka.height === 0) return 0;
+
+        // Siatka 4×4: dość gęsto, żeby złapać częściowe pokrycie, dość
+        // rzadko, żeby nie mnożyć kosztu `elementFromPoint` na setkach
+        // kroków Taba.
+        const SIATKA = 4;
+        let probek = 0;
+        let zaslonietych = 0;
+
+        for (let iy = 0; iy < SIATKA; iy++) {
+          for (let ix = 0; ix < SIATKA; ix++) {
+            const x = ramka.left + (ramka.width * (ix + 0.5)) / SIATKA;
+            const y = ramka.top + (ramka.height * (iy + 0.5)) / SIATKA;
+
+            // Punkt poza oknem nie mówi nic o nakładce — to jest inny
+            // problem (przewinięcie poza widok), poza zakresem tego
+            // sprawdzenia.
+            if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+
+            probek++;
+            const trafiony = document.elementFromPoint(x, y);
+
+            if (trafiony && nakladka.contains(trafiony) && !el.contains(trafiony)) {
+              zaslonietych++;
+            }
+          }
+        }
+
+        return probek === 0 ? null : zaslonietych / probek;
+      }
+
+      const opis = `${el.tagName.toLowerCase()}`
+        + (el.id ? `#${el.id}` : '')
+        + (el.getAttribute('aria-label') ? ` [aria-label="${el.getAttribute('aria-label')}"]` : '')
+        + (el.textContent?.trim() ? ` „${el.textContent.trim().slice(0, 40)}"` : '');
+
+      return {
+        opis,
+        pokrycieTopbar: pokrycieNakladki('.topbar'),
+        pokrycieBottomNav: pokrycieNakladki('.bottom-nav'),
+      };
+    });
+
+    if (stan.koniec || stan.petla) {
+      return { kroki, pelnyPrzebieg: true };
+    }
+
+    kroki.push(stan);
+  }
+
+  return { kroki, pelnyPrzebieg: false };
+}
+
+for (const szerokosc of SZEROKOSCI_FOCUS) {
+  for (const skala of SKALE_UKLADU) {
+    const opis = `${szerokosc} px${etykietaSkali(skala)}`;
+
+    const ustawieniaFocus = {
+      viewport: { width: szerokosc, height: 740 },
+      // Ten sam powód co przy motywie ciemnym wyżej: `.skip-link` ma
+      // `transition: top 120ms`, a pomiar tuż po naciśnięciu Tab złapałby
+      // ją w połowie ruchu, dając niestabilny (raz taki, raz inny) wynik
+      // pokrycia zamiast stanu końcowego.
+      reducedMotion: 'reduce',
+    };
+
+    const kontekstGosciaFocus = await przegladarka.newContext(ustawieniaFocus);
+    const kontekstZalogowanegoFocus = await przegladarka.newContext({
+      ...ustawieniaFocus,
+      storageState: stanZalogowany,
+    });
+
+    let zlych = 0;
+
+    for (const ekran of EKRANY_FOCUS) {
+      const sciezka = sciezkaEkranu(ekran);
+
+      if (! sciezka) {
+        console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}" (focus not obscured).`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      const kontekst = ekran.zalogowany ? kontekstZalogowanegoFocus : kontekstGosciaFocus;
+      const strona = await kontekst.newPage();
+
+      if (skala === PRZEGLADARKA_200) {
+        // PRZED nawigacją — patrz uzasadnienie przy identycznym bloku
+        // w pomiarze układu wyżej.
+        const cdp = await kontekst.newCDPSession(strona);
+
+        await cdp.send('Page.setFontSizes', {
+          fontSizes: { standard: 2 * BAZOWA_CZCIONKA_PX, fixed: 2 * BAZOWA_CZCIONKA_PX },
+        });
+      }
+
+      const odpowiedzFocus = await strona.goto(
+        sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
+        { waitUntil: 'domcontentloaded' },
+      );
+
+      const kodFocus = odpowiedzFocus?.status() ?? 0;
+
+      if (kodFocus !== 200) {
+        console.error(
+          `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odpowiedział kodem ${kodFocus} `
+          + 'przy pomiarze focus not obscured.',
+        );
+        process.exitCode = 1;
+        await strona.close();
+        continue;
+      }
+
+      if (skala && skala !== PRZEGLADARKA_200) {
+        await strona.evaluate(
+          (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+          skala,
+        );
+      }
+
+      if (skala === PRZEGLADARKA_200) {
+        // Ta sama kontrola metody co w pomiarze układu wyżej — bez niej
+        // wariant potrafi przejść na zielono, nie zmierzywszy niczego.
+        const stanCzcionki = await strona.evaluate(
+          () => Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+        );
+
+        if (stanCzcionki < 2 * BAZOWA_CZCIONKA_PX) {
+          console.error(
+            `BŁĄD: czcionka korzenia to ${stanCzcionki} px zamiast `
+            + `${2 * BAZOWA_CZCIONKA_PX} px na ekranie „${ekran.nazwa}" (focus not obscured).`,
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+      }
+
+      const { kroki, pelnyPrzebieg } = await przejdzTabemIZmierzFocus(strona);
+      await strona.close();
+
+      if (! pelnyPrzebieg) {
+        console.error(
+          `BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) Tab nie doszedł do końca kolejności `
+          + `po ${MAKS_KROKOW_FOCUS} krokach — sprawdzenie jest niepełne.`,
+        );
+        process.exitCode = 1;
+      }
+
+      if (kroki.length === 0) {
+        console.error(`BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) Tab nie znalazł ani jednej kontrolki.`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      for (const krok of kroki) {
+        for (const [nakladka, pokrycie] of [
+          ['.topbar', krok.pokrycieTopbar],
+          ['.bottom-nav', krok.pokrycieBottomNav],
+        ]) {
+          if (pokrycie === null || pokrycie === 0) continue;
+
+          if (pokrycie >= PROG_CALKOWITEGO_PRZYKRYCIA) {
+            zlych++;
+            naruszeniaFocus.push({
+              ekran: ekran.nazwa, wariant: opis, nakladka, kontrolka: krok.opis,
+            });
+          } else {
+            ostrzezeniaFocus.push({
+              ekran: ekran.nazwa, wariant: opis, nakladka, kontrolka: krok.opis, pokrycie,
+            });
+          }
+        }
+      }
+    }
+
+    await kontekstGosciaFocus.close();
+    await kontekstZalogowanegoFocus.close();
+
+    log(`  ${zlych === 0 ? '✓' : '✗'} ${opis}${zlych ? ` — ${zlych} naruszeń` : ''}`);
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -1707,13 +2007,39 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     niespojnychSzerokosci: niespojneSzerokosci.length,
     niespojneSzerokosci,
   },
+  focusNotObscured: {
+    szerokosci: SZEROKOSCI_FOCUS,
+    skale: SKALE_UKLADU,
+    naruszen: naruszeniaFocus.length,
+    naruszenia: naruszeniaFocus,
+    ostrzezen: ostrzezeniaFocus.length,
+    ostrzezenia: ostrzezeniaFocus,
+  },
 }, null, 2));
 
 log('');
 log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
   + `rozjazdów belki: ${rozjazdyBelki.length}, `
-  + `niespójnych szerokości: ${niespojneSzerokosci.length})`);
+  + `niespójnych szerokości: ${niespojneSzerokosci.length}, `
+  + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
+  + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length})`);
+
+if (naruszeniaFocus.length > 0) {
+  log('');
+  log('Focus zasłonięty w 100% przez nakładkę (WCAG 2.2 AA — 2.4.11 Focus Not Obscured, FAIL):');
+  for (const n of naruszeniaFocus) {
+    log(`  ${n.ekran} / ${n.wariant}: ${n.kontrolka} pod ${n.nakladka}`);
+  }
+}
+
+if (ostrzezeniaFocus.length > 0) {
+  log('');
+  log('Focus częściowo zasłonięty (ostrzeżenie produktowe — nie jest to naruszenie WCAG):');
+  for (const o of ostrzezeniaFocus) {
+    log(`  ${o.ekran} / ${o.wariant}: ${o.kontrolka} pod ${o.nakladka} (${Math.round(o.pokrycie * 100)}%)`);
+  }
+}
 
 if (przepelnienia.length > 0) {
   log('');
@@ -1762,6 +2088,7 @@ if (
   || przepelnienia.length > 0
   || rozjazdyBelki.length > 0
   || niespojneSzerokosci.length > 0
+  || naruszeniaFocus.length > 0
 ) {
   process.exit(1);
 }

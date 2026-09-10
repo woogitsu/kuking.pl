@@ -10,6 +10,19 @@
 
     <h1>Co lubisz gotować?</h1>
 
+    {{--
+        Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking pkt 3
+        i 9; test regresyjny: RejestracjaOnboardingKopiaTest). Rejestracja mówi „gotowe",
+        więc pierwszy ekran onboardingu MUSI od razu powiedzieć, że konto już
+        istnieje i że te kroki są opcjonalne — inaczej „Krok 1 z 3" tuż po
+        „gotowe" czyta się jak „jednak coś nie wyszło".
+    --}}
+    <p class="mb-5 onboarding-status-konta">
+        Twoje konto już działa — możesz od razu publikować i przeglądać Kuking.
+        Te trzy kroki są opcjonalne: pomagają nam dobrać Ci pierwsze wpisy,
+        a każdy z nich możesz pominąć.
+    </p>
+
     @if($tags->isEmpty())
         {{--
             Gospodarz jeszcze niczego nie promował (D-021, „tag promowany").

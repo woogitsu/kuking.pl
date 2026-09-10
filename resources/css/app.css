@@ -542,10 +542,85 @@
     .wordmark > span[aria-hidden] { display: none; }
   }
 
-  /* --- Dolna nawigacja (mobile) --- */
+  /* --- Dolna nawigacja (mobile) ---
+
+     FOCUS NOT OBSCURED (WCAG 2.2 AA — 2.4.11), zmierzone przez
+     `scripts/dostepnosc.mjs`. Dwie osobne poprawki dla dwóch osobnych
+     przyczyn tej samej usterki — patrz komentarz w skrypcie przy sekcji
+     „FOCUS NIE ZASŁONIĘTY PRZEZ NAKŁADKĘ" po pełne wyjaśnienie i zmierzone
+     liczby.
+
+     1. `position: sticky` zamiast `fixed`. `fixed` WYJMUJE belkę z przepływu
+        dokumentu — całkowita wysokość strony (`scrollHeight`) NIE rośnie
+        o jej wysokość, więc treść na samym końcu strony (stopka) może
+        dojechać dokładnie do dolnej krawędzi dokumentu, czyli dokładnie
+        pod spód belki, i zostać tam ZASŁONIĘTA NA STAŁE — bez względu na
+        skalę tekstu. Zmierzone na `/home`, tekst bez powiększenia: link
+        stopki „Twoje zgłoszenia" ląduje w całości pod `.bottom-nav`.
+        `sticky` zostaje w tym samym miejscu wizualnie (przypięta do dołu
+        podczas przewijania), ale JEST elementem przepływu — dokument rośnie
+        o jej rzeczywistą wysokość, więc rezerwa miejsca ZAWSZE odpowiada
+        temu, ile belka naprawdę zajmuje, także gdy zawinie się do kilku
+        wierszy. To jest dosłowne „związanie rezerwy z rzeczywistą wysokością
+        belki" — przez układ, nie przez przeliczanie px w JavaScripcie.
+
+     2. `scroll-padding-bottom` niżej. Samo `sticky` NIE WYSTARCZA: naturalne
+        przewijanie fokusu w widok (to, co przeglądarka robi sama po Tab)
+        nie wie, że coś stoi na wierzchu w tym miejscu ekranu — dolicza się
+        do granic okna, nie do tego, co naprawdę widać. Zmierzone: nawet
+        po zmianie na `sticky`, klawiszem Tab dalej można trafić na kontrolkę
+        geometrycznie „w oknie", a wizualnie w całości pod belką.
+        `scroll-padding-bottom` to WŁAŚNIE mechanizm CSS na tę różnicę —
+        każe przeglądarce zostawić margines przy scrollowaniu do celu.
+
+        WARTOŚĆ LICZY SIĘ W `rem`, WIĘC SAMA PODWAJA SIĘ PRZY PODWOJENIU
+        CZCIONKI PRZEGLĄDARKI — to nie może być ten sam numer co zmierzony
+        najgorszy przypadek W PIKSELACH, bo policzyłby zoom PODWÓJNIE.
+        Zmierzone ręcznie Playwrightem przy `getBoundingClientRect()` na
+        `.bottom-nav`, liczby w opisie PR-a: belka ma najwyżej 105,5 px
+        bez zoomu (nasza skala 140%, 320 px)
+        i 376,2 px przy czcionce przeglądarki 200% (też 320 px, belka
+        rozpada się tam na pięć wierszy). Rezerwa musi pokryć OBA na raz
+        z tej samej wartości w `rem`: 13rem to 208 px bez zoomu (zapas nad
+        105,5) i 416 px po podwojeniu (zapas nad 376,2). Nie ma tu żadnego
+        „ładniejszego" wzoru: liczba wierszy zależy od tego, ile podpisów
+        zmieści się w rzędzie, a to jest funkcja skokowa szerokości okna,
+        nie coś, co policzy gładki `calc()`. Duża stała wartość nie kosztuje
+        nic przy zwykłym przewijaniu (`scroll-padding` nie rysuje pustego
+        miejsca — działa tylko przy celowanym przewijaniu), a przyszłą
+        zmianę, która przebije ten margines, złapie ten sam automat, który
+        złapał usterkę pierwotną.
+
+        NIE DOKŁADAJ TU `scroll-padding-top` DLA `.topbar` BEZ PRZELICZENIA
+        OBU NARAZ. Ten sam kontrakt pomiaru mierzy też `.topbar` (jest
+        `position: sticky` od dawna) i przy czcionce przeglądarki 200%
+        naprawdę bywa częściowo zasłonięta (zmierzone tak samo: do 263 px
+        wysokości) — to ZNANE, ZGŁOSZONE osobno ograniczenie
+        (patrz PR), świadomie zostawione poza tą poprawką, bo dotyczy innej
+        belki niż ta, o którą prosił audyt. Naiwne dodanie
+        `scroll-padding-top: 20rem` OBOK powyższego psuje sprawę: przy
+        czcionce przeglądarki 200% obie wartości w `rem` PODWAJAJĄ SIĘ
+        RAZEM (13rem + 20rem → 416 px + 640 px = 1056 px), co na typowej
+        wysokości okna telefonu zostawia ujemną „bezpieczną" przestrzeń —
+        zmierzone: przeglądarka wtedy przestaje trafiać nawet w dolny pasek,
+        którego dotyczy TA poprawka. Naprawa `.topbar` wymaga osobnego
+        podejścia (mniejszy margines i/lub inny mechanizm) i osobnego
+        pomiaru obu wartości RAZEM, nie tylko z osobna. */
+  :root {
+    scroll-padding-bottom: 13rem;
+  }
+
+  @media (min-width: 64rem) {
+    /* Belka znika od 64rem (patrz reguła niżej) — rezerwa nie ma tam czego
+       chronić i tylko przesuwałaby przewijanie do zakotwiczeń o zbędny
+       margines. */
+    :root {
+      scroll-padding-bottom: 0;
+    }
+  }
 
   .bottom-nav {
-    position: fixed;
+    position: sticky;
     bottom: 0;
     left: 0;
     right: 0;

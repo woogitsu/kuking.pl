@@ -9,8 +9,8 @@
 
     <ol class="lista-krokow mb-5">
         <li>Otwórz aplikację uwierzytelniającą w telefonie (Google Authenticator, Aegis, 1Password…).</li>
-        <li>Dodaj nowe konto — zeskanuj kod QR poniżej ALBO wpisz sekret ręcznie.</li>
-        <li>Przepisz sześciocyfrowy kod, który aplikacja pokaże, do pola niżej.</li>
+        <li>Dodaj nowe konto — zeskanuj kod QR poniżej ALBO wpisz kod do ręcznego wpisania.</li>
+        <li>Wpisz albo wklej do pola niżej sześciocyfrowy kod, który pokaże aplikacja.</li>
     </ol>
 
     <section class="card text-center">
@@ -19,9 +19,20 @@
         </div>
     </section>
 
-    <section class="card mt-5">
+    {{--
+        Żargon „sekret"/„klucz TOTP" jako GŁÓWNE określenie zadania jest tu
+        zły z jednego powodu: to moment PO nieudanej próbie ze skanerem QR,
+        czyli dokładnie wtedy, gdy dodatkowe pojęcie najbardziej kosztuje
+        (docs/research/AUDYT_60_PLUS.md, ranking pkt 2). Język zadania idzie
+        pierwszy, termin techniczny zostaje jako informacja drugorzędna dla
+        kontaktu ze wsparciem. Test regresyjny: DwuetapowaKodKopiaTest.
+    --}}
+    <section class="card mt-5" id="sekcja-recznego-wpisania">
         <h2 class="mt-0">Nie możesz zeskanować kodu?</h2>
-        <p>Wpisz ten sekret ręcznie, jako „klucz konfiguracji" albo „sekret":</p>
+        <p>
+            Wpisz w aplikacji ten kod do ręcznego wpisania (czasem nazywany „sekretem"
+            albo „kluczem konfiguracji"):
+        </p>
         <p class="sekret-do-przepisania">
             {{ $sekret }}
         </p>
