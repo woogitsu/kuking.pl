@@ -375,7 +375,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/witaj/zainteresowania', [OnboardingController::class, 'interests'])->name('onboarding.interests');
     Route::post('/witaj/zainteresowania', [OnboardingController::class, 'saveInterests'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
-    Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])->name('onboarding.people');
+    // Ten sam koszyk wielkości co `search` (config/kuking.php) — ten krok od
+    // teraz przyjmuje `?q=`, czyli odpytuje `SearchQuery::people()` tak samo
+    // jak /szukaj. Osobna nazwa koszyka (jak przy `admin_uzytkownicy` niżej
+    // w tym pliku), bo to inny ekran i inny licznik nadużyć.
+    Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])
+        ->middleware("throttle:{$limits['search']},onboarding_ludzie")
+        ->name('onboarding.people');
     // OSOBNY, DUŻO NIŻSZY LIMIT NIŻ RESZTA OBSERWOWANIA. To jedyny formularz
     // w serwisie, w którym JEDNO żądanie tworzy powiadomienia u WIELU osób
     // naraz — więc liczenie go do wspólnego koszyka `obserwowanie` byłoby

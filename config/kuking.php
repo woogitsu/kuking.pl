@@ -83,8 +83,11 @@ return [
         // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
         // wygląda na zdjęcie" komuś, kto trzyma w ręku zwykłą fotografię.
         //
-        // Dodanie prawdziwej obsługi (libheif + Imagick albo vips w obrazie
-        // Dockera) to osobna decyzja z realnym kosztem — patrz issue o HEIC.
+        // Dodanie prawdziwej obsługi (libheif + Imagick w obrazie Dockera) to
+        // osobna decyzja z realnym kosztem — ROZSTRZYGNIĘTA jako „nie teraz"
+        // w `docs/DECISIONS.md`, D-064 (issue #119). Zanim zmienisz tę listę,
+        // przeczytaj D-064 — jest tam rachunek kosztu i próg, przy którym
+        // decyzja ma zostać zrewidowana.
         'accepted_mime_types' => [
             'image/jpeg',
             'image/png',

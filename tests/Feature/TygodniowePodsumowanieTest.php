@@ -354,7 +354,7 @@ class TygodniowePodsumowanieTest extends TestCase
         $this->assertNull(User::query()->whereNotNull('weekly_digest_sent_at')->first());
     }
 
-    public function test_wyslanie_zostawia_sygnal_bez_danych_osobowych(): void
+    public function test_zakolejkowanie_zostawia_sygnal_bez_danych_osobowych(): void
     {
         Mail::fake();
 
@@ -363,7 +363,7 @@ class TygodniowePodsumowanieTest extends TestCase
         Artisan::call('kuking:wyslij-podsumowania');
 
         $sygnal = ProductSignal::query()
-            ->where('signal_name', ZapiszSygnal::WEEKLY_DIGEST_SENT)
+            ->where('signal_name', ZapiszSygnal::WEEKLY_DIGEST_QUEUED)
             ->firstOrFail();
 
         $this->assertEqualsCanonicalizing(

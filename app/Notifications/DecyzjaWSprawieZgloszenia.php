@@ -61,7 +61,7 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
         $list = (new MailMessage)
             ->subject("Decyzja w sprawie Twojego zgłoszenia (nr {$numer})")
             ->greeting('Dzień dobry.')
-            ->line("Sprawdziliśmy zgłoszenie nr **{$numer}**, które nam przysłałeś.");
+            ->line("Sprawdziliśmy zgłoszenie nr **{$numer}**, które od Ciebie dostaliśmy.");
 
         // TRZY KOMUNIKATY, NIE DWA — bo „zgłoszenie zasadne" i „treści już
         // nie ma" to dwie różne rzeczy, a wcześniej były jedną. Pełne

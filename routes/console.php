@@ -259,11 +259,14 @@ Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
 //  * Daleko od nocnego bloku sprzątania (03:20-04:50), który potrafi trzymać
 //    pętlę harmonogramu przez dłuższą chwilę.
 //
-// `withoutOverlapping()` jest tu obowiązkowe i nie jest ostrożnością na
-// zapas: wstawienie stu dwudziestu listów do kolejki razem ze zbudowaniem
-// ich treści trwa dłużej niż jedno przejście pętli harmonogramu, a dwa
-// przebiegi naraz wysłałyby część listów podwójnie — znacznik
-// `weekly_digest_sent_at` stawiany jest dopiero PO pętli.
+// `withoutOverlapping()` zostaje, ale NIE JEST OCHRONĄ PRZED DUPLIKATEM
+// i nie wolno go tak czytać (audyt QUEUE-01, D-077). Zapobiega dwóm
+// przebiegom JEDNOCZEŚNIE — a wysyłkę dwa razy tego samego listu powodował
+// przebieg KOLEJNY, uruchomiony po tym, jak poprzedni padł w połowie.
+// Przed tym broni bariera w bazie: `UNIQUE (user_id, week_start)`
+// w `weekly_digest_sends`, zajmowana PRZED każdym `Mail::queue()`
+// (`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()`). Blokada
+// harmonogramu oszczędza tu więc pracę i zapytania, nie listy.
 //
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))

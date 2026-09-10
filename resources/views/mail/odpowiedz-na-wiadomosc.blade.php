@@ -58,7 +58,7 @@
                         </table>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
-                            Jeśli to nie wyjaśnia sprawy, odpisz na ten list —
+                            Jeśli to nie wyjaśnia sprawy, odpisz na tę wiadomość —
                             odpowiedź trafi do nas na
                             <strong>{{ $adresKontaktowy }}</strong> i przeczyta ją człowiek.
                         </p>

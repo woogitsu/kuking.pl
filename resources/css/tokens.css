@@ -659,6 +659,46 @@
     display: block;
     margin-top: var(--spacing-6);
   }
+
+  /* ODSTĘP MIĘDZY POLAMI, NIE PRZED PIERWSZYM I NIE ZAMIAST OSTATNIEGO.
+     ─────────────────────────────────────────────────────────────────────
+     Zgłoszenie właściciela ze zrzutu formularza komentarza: „ile miejsca
+     zmarnowane nad «Napisz komentarz», a potem między polem do pisania
+     a przyciskiem «Wyślij komentarz» nie ma nic wolnego miejsca".
+
+     Obie rzeczy to JEDNA przyczyna. `.field` miał wyłącznie `margin-top`,
+     więc:
+
+     * pierwsze pole w karcie dokładało 24 px DO wcięcia karty (`--spacing-5`),
+       czyli nad etykietą stało ~44 px pustki — i to jest ta „zmarnowana"
+       przestrzeń;
+     * ostatnie pole nie zostawiało pod sobą NICZEGO, więc przycisk wysyłania
+       dotykał obwódki pola. Przy obwódce 2 px w mocnym kolorze i przycisku
+       w kolorze marki czyta się to jak jeden zlepiony element, a przy 65-latce
+       „gdzie kończy się pole, a zaczyna przycisk" to nie jest pytanie
+       retoryczne.
+
+     Sens reguły z systemu projektowego v3.1 zostaje nietknięty: MIĘDZY polami
+     jest 24 px. Zmienia się tylko to, że ten odstęp przestaje wyciekać na
+     krawędzie kontenera. */
+  .field:first-child {
+    margin-top: 0;
+  }
+
+  /* Przycisk zaraz po polu dostaje ten sam odstęp, jaki pola mają między
+     sobą.
+
+     ŚWIADOMIE WĄSKI SELEKTOR, a nie `.field + *`. Tamten łapałby wszystko,
+     co kiedykolwiek stanie po polu w pięćdziesięciu formularzach tego
+     serwisu — łącznie z elementami, które celowo mają stać ciasno — i
+     nadpisywałby ich własne marginesy tą samą specyficznością. Naprawa
+     jednego zgłoszenia nie ma prawa poruszyć układu ekranów, których nikt
+     nie zgłaszał. Jeśli okaże się, że po polu stoi coś jeszcze, co też
+     potrzebuje oddechu, dopisze się je tutaj z nazwy. */
+  .field + button,
+  .field + .btn {
+    margin-top: var(--spacing-6);
+  }
   /* Uzgodnione z systemem projektowym v3.1. Trzy różnice:
 
      * wcięcie poziome `--spacing-4` zamiast `--spacing-3`. Pole ma obwódkę

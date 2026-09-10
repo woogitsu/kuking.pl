@@ -60,19 +60,36 @@ final class ZapiszSygnal
     public const SEARCH_PERFORMED = 'search_performed';
 
     /**
-     * Tygodniowe podsumowanie wypuszczone do kolejki (issue #11, D-057).
+     * Tygodniowe podsumowanie WPUSZCZONE DO KOLEJKI (issue #11, D-057;
+     * przemianowany przy D-078, audyt 10.09.2026 ustalenie MAIL-03).
      *
-     * ZAPISYWANY PRZY WYSŁANIU, NIE PRZY DORĘCZENIU — i to jest różnica,
-     * o którą łatwo się potknąć przy czytaniu wykresu. Kuking nie dostaje od
-     * dostawcy potwierdzenia doręczenia (`docs/decyzje/POCZTA.md` §5 pkt 6:
-     * obsługa odbić to osobna, jeszcze niezrobiona robota), więc ten sygnał
-     * odpowiada na pytanie „ile listów wypuściliśmy", a nie „ile doszło".
+     * NAZWA MÓWI DOKŁADNIE TYLE, ILE KUKING WIE. Wiersz powstaje zaraz po
+     * `Mail::queue()` — worker jeszcze po list nie sięgnął, dostawca poczty
+     * o jego istnieniu nie wie. Nazywało się to `weekly_digest_sent` i była
+     * to obietnica bez pokrycia: jedna nazwa na trzy różne zdarzenia
+     * (ZAKOLEJKOWANO, DOSTAWCA PRZYJĄŁ, DORĘCZONO), z których Kuking widzi
+     * tylko pierwsze. List, który przewróci się w workerze i wyląduje
+     * w `failed_jobs`, był wtedy nadal policzony jako wysłany — czyli metryka
+     * zawyżała skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka
+     * przestawała działać.
+     *
+     * DLACZEGO NIE MA TU `..._delivered` ANI `..._opened` I NIE BĘDZIE
+     * (otwarta sprawa #204). „Doręczono" wymaga webhooka o odbiciach od
+     * dostawcy — to osobna, jeszcze niezrobiona robota
+     * (`docs/decyzje/POCZTA.md` §5 pkt 6). „Otwarto" wymaga niewidzialnego
+     * obrazka śledzącego w treści listu, czyli zapisywania, KIEDY konkretna
+     * osoba czyta pocztę i z jakiego adresu IP. Polityka prywatności obiecuje
+     * wprost tego nie robić (`resources/legal/polityka-prywatnosci.md`),
+     * a własny transport ma nawet wyłącznik śledzenia po stronie dostawcy
+     * (`X-TRACKING-OFF`, `App\Poczta\TransportEmailLabs`) — domyślnie
+     * WŁĄCZONY. Ładniejsza metryka nie jest powodem, żeby cofać tamtą decyzję
+     * tylnymi drzwiami; zatrzymujemy się na uczciwym „zakolejkowano".
      *
      * `properties` NIE NIESIE ADRESU ANI TREŚCI. Wystarczy `user_id`
      * (kolumna, nie właściwość) i liczba pozycji w każdej sekcji — po to,
      * żeby dało się zobaczyć, czy listy nie robią się puste.
      */
-    public const WEEKLY_DIGEST_SENT = 'weekly_digest_sent';
+    public const WEEKLY_DIGEST_QUEUED = 'weekly_digest_queued';
 
     /**
      * Ktoś kliknął „nie chcę tych listów" (issue #11, D-057).
@@ -99,10 +116,11 @@ final class ZapiszSygnal
      * rozjazd byłby cichy: dashboard liczy `properties->>'reason'` i zamiast
      * błędu pokazałby dwa osobne słupki dla jednego powodu.
      *
-     * Trzy powody treści zdjęcia (`not_an_image`, `unsupported_format`,
-     * `too_many_megapixels`) NIE są tu duplikowane — `RozpoznanieZdjecia`
-     * już je eksportuje publicznie i to jest ich jedyne źródło, używane
-     * zarówno przez `StoreUploadedImage`, jak i przez `ObslugiwaneZdjecie`.
+     * Cztery powody treści zdjęcia (`not_an_image`, `unsupported_format`,
+     * `too_many_megapixels`, `heic_unsupported` — ostatni doszedł przy #119,
+     * D-064) NIE są tu duplikowane — `RozpoznanieZdjecia` już je eksportuje
+     * publicznie i to jest ich jedyne źródło, używane zarówno przez
+     * `StoreUploadedImage`, jak i przez `ObslugiwaneZdjecie`.
      *
      * `REASON_RATE_LIMITED` jest zupełnie nowy: żądanie ze zdjęciem odrzucone
      * limitem żądań (429, `bootstrap/app.php`) nie ma pliku do zbadania —

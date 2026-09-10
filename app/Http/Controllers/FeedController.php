@@ -15,6 +15,27 @@ use Illuminate\View\View;
 
 class FeedController extends Controller
 {
+    /**
+     * Ile osób i ile dań z tablicy „kuKINGi na dziś" widzi GOŚĆ na stronie
+     * powitalnej. Decyzja właściciela (audyt 60+, `docs/research/AUDYT_60_PLUS.md`):
+     * ta tablica jest na landingu najgęstszą, najbardziej interaktywną
+     * częścią ekranu i ma pokazywać mniej niż gdzie indziej.
+     *
+     * DLACZEGO OBCINAMY TUTAJ, A NIE W `DailyBoard`
+     * `DailyBoard::PEOPLE`/`POSTS` (po 4) i sam limit tej klasy dotyczą
+     * WSZYSTKICH trzech ekranów, które z niej korzystają: `/home`, `/odkryj`
+     * i `/szukaj`. Zmiana limitu tam zmieniłaby też to, co widzi zalogowany
+     * — a decyzja właściciela dotyczy wyłącznie gościa. Do tego wybór
+     * redakcyjny (`Admin\DailyBoardController::update()`) nie ma górnej
+     * sumy: gospodarz może wskazać do 6 osób I do 6 dań na raz, czyli do
+     * 12 kart, gdyby nic tego nie ograniczało. Obcięcie DOPIERO TUTAJ,
+     * po `DailyBoard::forViewer()`, działa jednakowo dla obu ścieżek
+     * (automatycznej i redakcyjnej) i nie rusza wspólnej klasy.
+     */
+    public const GUEST_BOARD_PEOPLE = 3;
+
+    public const GUEST_BOARD_POSTS = 3;
+
     public function __construct(
         private readonly FollowingFeed $followingFeed,
         private readonly DiscoverFeed $discoverFeed,
@@ -34,9 +55,13 @@ class FeedController extends Controller
             return $this->home($request);
         }
 
+        $board = $this->dailyBoard->forViewer(null);
+        $board['people'] = $board['people']->take(self::GUEST_BOARD_PEOPLE)->values();
+        $board['posts'] = $board['posts']->take(self::GUEST_BOARD_POSTS)->values();
+
         return view('pages.landing', [
             'posts' => $this->discoverFeed->paginate(null, 9),
-            'board' => $this->dailyBoard->forViewer(null),
+            'board' => $board,
         ]);
     }
 

@@ -21,13 +21,13 @@
     <h1>Twoje zgłoszenie</h1>
 
     <article class="card">
-        <h2 class="mt-0 text-title-sm">Co zgłosiłeś</h2>
+        <h2 class="mt-0 text-title-sm">Treść zgłoszenia</h2>
         <p class="meta">
             Numer sprawy {{ $zgloszenie->numer_sprawy }} ·
             wysłane {{ \App\Support\Czas::data($zgloszenie->created_at, 'j F Y') }}
         </p>
         <p>Rodzaj treści: {{ $zgloszenie->targetLabel() }}.</p>
-        <p>Powód, który wybrałeś: {{ $zgloszenie->reasonLabel() }}.</p>
+        <p>Wybrany powód: {{ $zgloszenie->reasonLabel() }}.</p>
 
         @if($zgloszenie->details)
             <h3 class="text-title-sm">Twoje słowa</h3>

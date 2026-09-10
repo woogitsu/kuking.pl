@@ -6,20 +6,28 @@
     ani jednego słowa — i działa też wtedy, gdy ktoś przewija stronę szybko
     albo ogląda ją z odległości wyciągniętej ręki.
 
-    CO SIĘ ZMIENIŁO WOBEC POPRZEDNIEJ WERSJI
-    Była jedna kolumna na jednym tle: hasło, dwie karty, lista wpisów. Ta
-    strona jest pierwszym, co widzi człowiek, który o Kuking nie wie nic —
-    a nie mówiła, co Kuking robi, tylko od razu pokazywała cudze obiady.
-
     KOLEJNOŚĆ PASÓW JEST ARGUMENTEM, NIE OZDOBĄ
       1. hasło i dwa przyciski — co to jest i co można zrobić teraz,
-      2. cztery rzeczy — co ten serwis robi, wypisane wprost,
-      3. „Ugotowałem" na ciemnym — jedna rzecz, której nie ma nigdzie indziej
+      2. „Jak działa" — trzy krótkie kroki,
+      3. tablica „kuKINGi na dziś" — dowód, że tu naprawdę ktoś gotuje,
+      4. „Ugotowałem" na ciemnym — jedna rzecz, której nie ma nigdzie indziej
          (`docs/DECISIONS.md`, D-004: ugotowanie jest ważniejsze niż lajk),
-      4. „Świeżo z Kuking" — dopiero teraz cudze wpisy, bo dopiero teraz
+      5. „Świeżo z Kuking" — dopiero teraz cudze wpisy, bo dopiero teraz
          wiadomo, na co się patrzy,
-      5. dane i prywatność — co się dzieje z tym, co dodasz,
-      6. załóż konto.
+      6. dane i prywatność — co się dzieje z tym, co dodasz,
+      7. załóż konto.
+
+    ZMIANA WOBEC POPRZEDNIEJ WERSJI (audyt 60+, `docs/research/AUDYT_60_PLUS.md`)
+    Tablica stała w sekcji 1, obok hasła — czyli najgęstsza, interaktywna
+    część ekranu (osoby do zaobserwowania, miniatury, przyciski) pojawiała
+    się PRZED jakimkolwiek prostym wyjaśnieniem, co tu w ogóle można robić.
+    Nowa osoba musiała odfiltrować to wszystko, zanim zbudowała sobie model
+    „co tu robię i jaki jest mój następny krok". Właściciel wybrał obie drogi
+    naprawy naraz: „Jak działa" (dawne „Cztery rzeczy i nic więcej", skrócone
+    do trzech zdań) stoi teraz PRZED tablicą, a sama tablica pokazuje gościowi
+    mniej kart niż wcześniej (`FeedController::GUEST_BOARD_PEOPLE`/`_POSTS`).
+    Po zalogowaniu tablica jest nietknięta — ten limit dotyczy wyłącznie tego
+    kontrolera i tego widoku.
 
     Każde zdanie ma pokrycie w kodzie. „Pobierzesz paczkę" — eksport danych
     (`DataSettingsController`). „Sam decydujesz, kto widzi wpis" — trzy
@@ -48,50 +56,56 @@
                     <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
                 </div>
             </div>
-
-            {{-- Tablica dnia zamiast zdjęcia z systemu projektowego. System
-                 stawia tu fotografię potrawy; my mamy w tym miejscu coś
-                 lepszego niż zdjęcie poglądowe — prawdziwych ludzi, wpisy
-                 i notatki z dzisiaj. Zdjęcie z pliku byłoby dekoracją,
-                 tablica jest treścią. --}}
-            <div class="hero-figura">
-                {{-- `:graSlowem="false"` — na tym ekranie gra słowem „kuKING" jest już
-                     zużyta przez przycisk „Zostań kuKINGiem" wyżej, a
-                     `docs/brand/COPY_STYLE.md` §2 dopuszcza ją najwyżej raz na ekran.
-                     Tablica dostaje więc nagłówek zapasowy z §5. --}}
-                <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :graSlowem="false" />
-            </div>
         </div>
     </section>
 
-    {{-- 2. CZTERY RZECZY ------------------------------------------------ --}}
-    <section class="pas pas--wglebiony">
+    {{-- 2. JAK DZIAŁA ------------------------------------------------------
+         Dawne „Cztery rzeczy i nic więcej", skrócone do trzech zdań (audyt
+         60+ — patrz komentarz na górze pliku). Stoi PRZED tablicą specjalnie:
+         to ma być pierwsza rzecz, która buduje prosty model „co tu robię",
+         zanim człowiek zobaczy gęstą, interaktywną listę osób i dań. --}}
+    <section class="pas pas--wglebiony" id="jak-dziala">
         <div class="pas-wnetrze">
-            <h2 class="text-title-lg">Cztery rzeczy i nic więcej</h2>
-            <p class="text-lead miara">Kuking robi cztery rzeczy porządnie i nie próbuje robić trzynastej.</p>
+            <h2 class="text-title-lg">Jak działa</h2>
 
-            <ul class="rzeczy odstep-nad">
+            <ol class="rzeczy odstep-nad">
                 <li class="rzecz">
-                    <p class="rzecz-tytul">Pokazujesz, co ugotowałeś</p>
-                    <p class="rzecz-opis">Zdjęcie i kilka słów. Nie musi być ładne — ma być prawdziwe.</p>
+                    <p class="rzecz-tytul">Krok 1</p>
+                    <p class="rzecz-opis">Robisz zdjęcie tego, co ugotowałeś.</p>
                 </li>
                 <li class="rzecz">
-                    <p class="rzecz-tytul">Trzymasz przepisy w Zeszycie</p>
-                    <p class="rzecz-opis">Przepis po mamie albo po babci możesz podpisać, po kim jest, dopisać historię i dodać zdjęcie starej kartki. Zeszyt z przepisami można zgubić — tego nie zgubisz.</p>
+                    <p class="rzecz-tytul">Krok 2</p>
+                    <p class="rzecz-opis">Piszesz kilka słów.</p>
                 </li>
                 <li class="rzecz">
-                    <p class="rzecz-tytul">Mówisz, że ugotowałeś</p>
-                    <p class="rzecz-opis">Kiedy ugotujesz z czyjegoś przepisu, autor się o tym dowie. To jest tutaj najmilsza rzecz.</p>
+                    <p class="rzecz-tytul">Krok 3</p>
+                    <p class="rzecz-opis">Ktoś odpowiada — komentarzem albo „Ugotowałem”.</p>
                 </li>
-                <li class="rzecz">
-                    <p class="rzecz-tytul">Obserwujesz, kogo chcesz</p>
-                    <p class="rzecz-opis">Widzisz to, co gotują osoby, które obserwujesz. W kolejności, w jakiej to dodali — bez żadnego układania po swojemu.</p>
-                </li>
-            </ul>
+            </ol>
         </div>
     </section>
 
-    {{-- 3. „UGOTOWAŁEM" ------------------------------------------------- --}}
+    {{-- 3. TABLICA „KUKINGI NA DZIŚ" ---------------------------------------
+         Tablica dnia zamiast zdjęcia z systemu projektowego. System stawia
+         tu fotografię potrawy; my mamy w tym miejscu coś lepszego niż
+         zdjęcie poglądowe — prawdziwych ludzi, wpisy i notatki z dzisiaj.
+
+         Do tej sekcji `$board['people']`/`$board['posts']` przychodzą już
+         obcięte przez `FeedController::landing()` do liczby ustalonej TYLKO
+         dla gościa — `App\Http\Controllers\FeedController::GUEST_BOARD_PEOPLE`/
+         `GUEST_BOARD_POSTS`. Ten sam komponent na `/home`, `/odkryj`
+         i `/szukaj` dostaje pełną tablicę z `DailyBoard` bez tego obcięcia. --}}
+    <section class="pas pas--kreska-gora">
+        <div class="pas-wnetrze">
+            {{-- `:graSlowem="false"` — na tym ekranie gra słowem „kuKING" jest już
+                 zużyta przez przycisk „Zostań kuKINGiem" wyżej, a
+                 `docs/brand/COPY_STYLE.md` §2 dopuszcza ją najwyżej raz na ekran.
+                 Tablica dostaje więc nagłówek zapasowy z §5. --}}
+            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :graSlowem="false" />
+        </div>
+    </section>
+
+    {{-- 4. „UGOTOWAŁEM" ------------------------------------------------- --}}
     <section class="pas blok-ciemny">
         <div class="pas-wnetrze pas-ciemny-uklad">
             <div class="pas-ciemny-tekst">
@@ -125,7 +139,7 @@
         </div>
     </section>
 
-    {{-- 4. ŚWIEŻO Z KUKING ---------------------------------------------- --}}
+    {{-- 5. ŚWIEŻO Z KUKING ---------------------------------------------- --}}
     <section class="pas pas--kreska-gora">
         <div class="pas-wnetrze">
             <h2 class="text-title-lg">Świeżo z Kuking</h2>
@@ -151,7 +165,7 @@
         </div>
     </section>
 
-    {{-- 5. TWOJE DANE --------------------------------------------------- --}}
+    {{-- 6. TWOJE DANE --------------------------------------------------- --}}
     <section class="pas pas--cieply">
         <div class="pas-wnetrze">
             <h2 class="text-title-lg">Zabierzesz stąd wszystko, co dodasz</h2>
@@ -179,7 +193,7 @@
         </div>
     </section>
 
-    {{-- 6. ZAŁÓŻ KONTO -------------------------------------------------- --}}
+    {{-- 7. ZAŁÓŻ KONTO -------------------------------------------------- --}}
     <section class="pas pas--kreska-gora">
         <div class="pas-wnetrze zacheta">
             <h2 class="text-title-lg">Załóż konto. Zajmie minutę</h2>

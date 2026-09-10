@@ -236,7 +236,7 @@
                         <div class="field mt-3 @if($bladDni) has-error @endif">
                             <label for="wlasny-termin-{{ $report->id }}">
                                 Własny termin — liczba dni
-                                <span class="meta">(wymagane, jeśli wybrałeś „Własny termin”)</span>
+                                <span class="meta">(wymagane przy „Własnym terminie”)</span>
                             </label>
                             <span class="field-help" id="wlasny-termin-{{ $report->id }}-help">
                                 Od {{ \App\Domain\Moderation\DlugoscZawieszenia::MIN_DNI }}
