@@ -129,6 +129,17 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'appeals.guest' => route('appeals.guest'),
             'account.delete.cancel' => route('account.delete.cancel'),
             'password.request' => route('password.request'),
+            // Logowanie linkiem e-mail (issue #25, D-056). Oba ekrany są
+            // `noindex` jak reszta rodziny logowania, więc pętla niżej
+            // sprawdzi tylko, że oddają 200 — ale wpis MUSI tu być, żeby
+            // test nie przestał widzieć nowej strony publicznej.
+            //
+            // `login.link.confirm` z byle tokenem renderuje ekran „ten link
+            // już nie działa" i to jest poprawne 200: odpowiedź dla tokenu
+            // nieistniejącego ma wyglądać tak samo jak dla wygasłego
+            // i zużytego (D-056).
+            'login.link' => route('login.link'),
+            'login.link.confirm' => route('login.link.confirm', ['token' => 'token-testowy']),
             'password.reset' => route('password.reset', ['token' => 'token-testowy']),
             'search' => route('search'),
             'tags.show' => route('tags.show', $tag->slug),

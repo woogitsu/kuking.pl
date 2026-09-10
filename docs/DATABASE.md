@@ -1562,6 +1562,88 @@ odnośnik, przeczyta „zamów zmianę jeszcze raz". Kolejność wycofywania:
 **najpierw kod, potem migracja** — sam ekran `/ustawienia/e-mail` bez tabeli
 odda 500.
 
+### login_link_tokens
+Jednorazowy token logowania linkiem e-mail — „magic link" (issue #25, D-056,
+migracja `2026_09_10_100000_create_login_link_tokens_table`).
+
+Ten wiersz **jest hasłem jednorazowym**: kto ma token, wchodzi na konto. Stąd
+wszystko poniżej — jeden wiersz na konto, krótki termin, kasowanie przy użyciu
+i skrót zamiast wartości.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID. **Nie trafia nigdzie** — link niesie sam token, nie identyfikator wiersza. |
+| `user_id` | **UNIKALNY** — jeden ważny link na konto. Nowa prośba zastępuje poprzednią, więc link z wcześniejszego listu natychmiast przestaje działać. `cascadeOnDelete`. |
+| `token_hash` | **UNIKALNY. HMAC-SHA256 tokenu** (`App\Support\Skrot`), nigdy token. Po tej kolumnie szukamy wiersza przy kliknięciu w link. |
+| `created_at` | Kiedy poproszono. |
+| `expires_at` | Kiedy link przestaje działać: `config('kuking.login_link.waznosc_minut')` (domyślnie 30 min) od prośby. |
+
+```sql
+ALTER TABLE login_link_tokens
+ADD CONSTRAINT login_link_tokens_expires_after_created_check
+CHECK (expires_at > created_at);
+
+ALTER TABLE login_link_tokens
+ADD CONSTRAINT login_link_tokens_token_hash_format_check
+CHECK (token_hash ~ '^[0-9a-f]{64}$');
+```
+
+#### Dlaczego skrót szybki, a nie bcrypt jak w `password_reset_tokens`
+
+Bo bcrypt istnieje po to, żeby spowolnić zgadywanie wartości o **niskiej
+entropii** (hasło człowieka), a tu wartością jest 64 losowe znaki
+z `Str::random()` — zgadywania nie ma czego spowalniać. Za to bcrypt
+uniemożliwiłby wyszukanie wiersza po skrócie: trzeba by wstawić do adresu
+w liście jeszcze identyfikator wiersza, czyli wynieść do poczty i do historii
+przeglądarki jedną informację więcej bez żadnego zysku.
+
+Drugi CHECK nie jest ozdobą: token z `Str::random()` ma wielkie litery, więc
+**zapisany wprost łamie ten warunek i baza go odrzuci**. Dlatego token nie jest
+szesnastkowy i nie wolno go na taki zmienić — zabrałoby to CHECK-owi całą
+wartość.
+
+#### Dlaczego osobna tabela, a nie kolumny na `users`
+
+Ten sam wywód co przy `pending_email_changes`: to nie jest cecha konta, tylko
+żądanie z własnym życiorysem; wiersz znikający w całości nie wymaga CHECK-a
+wiążącego nullowość dwóch kolumn; `users` czyta każde żądanie zalogowanej
+osoby i nie dokładamy do niej kolumn NULL-owych w 99,9% wierszy.
+
+#### Czego w tej tabeli świadomie nie ma
+
+**`used_at`** — zużyty link **znika** (`DELETE`), a nie zostaje oznaczony.
+Wiersz po użyciu nie odpowiadałby na żadne pytanie, którego nie odpowiada wpis
+`account.login_link_used` w `audit_log`, a byłby kolejnym miejscem, w którym
+trzeba pamiętać o warunku „AND used_at IS NULL". Zapomnienie o takim warunku
+znaczy link wielokrotnego użytku — czyli dokładnie ta usterka, przed którą ta
+tabela ma bronić.
+
+**Adresu IP i `user_agent`** — nie ma pytania, na które musiałyby odpowiedzieć,
+a byłby to kolejny zbiór adresów IP w bazie (AGENTS.md §7). Fakt prośby notuje
+`audit_log`, z adresem e-mail w skrócie i z adresem IP w haszu.
+
+#### Co kasuje wiersz
+
+Użycie linku, kolejna prośba tej samej osoby, **zmiana i reset hasła**,
+**„wyloguj mnie z innych urządzeń"**, blokada, zawieszenie i zgłoszenie
+usunięcia konta (wszystkie przez `User::invalidateSessions()` →
+`invalidateLoginLinks()`) oraz wygaśnięcie — sprzątane przy okazji następnej
+prośby o link (`WyslijLinkDoLogowania::posprzatajPrzedawnione()`), bez osobnej
+komendy w harmonogramie: tabela mieści najwyżej jeden wiersz na konto i żyje
+minutami.
+
+Sprzątanie **nie jest** bramką bezpieczeństwa — link przestaje działać co do
+minuty dzięki `LoginLinkToken::jestWazny()`, a nie dzięki `DELETE`.
+
+**Rollback:** `php artisan migrate:rollback --step=1` — `down()` kasuje tabelę.
+Bezstratne dla kont: migracja nie dotyka ani jednego wiersza `users`, nie
+zmienia haseł i nie zamyka logowania hasłem. Ginie tylko to, co w drodze —
+linki wysłane, a jeszcze niekliknięte; kto kliknie taki link po wycofaniu,
+przeczyta „ten link już nie działa, poproś o nowy". Kolejność wycofywania:
+**najpierw kod, potem migracja** — trasy `/logowanie/link` bez tabeli oddadzą
+500. Samo wyłączenie funkcji migracji nie wymaga wcale:
+`KUKING_LOGOWANIE_LINKIEM=false`.
+
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
 przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).
