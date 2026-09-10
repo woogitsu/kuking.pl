@@ -10,6 +10,7 @@ use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\WpisZgody;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -153,7 +154,10 @@ final class EraseAccountData
              * tabeli nie zostawi tu martwego zapytania.
              *
              * W OBIE STRONY, bo `follows` i `blocks` trzymają jedno i drugie
-             * w tym samym wierszu, tylko z różnych stron.
+             * w tym samym wierszu, tylko z różnych stron — ale KOLEJNOŚĆ tych
+             * dwóch stron ustala `usunRelacjeWKolejnosciDanych()` niżej, a nie
+             * ta lista wywołań (D-093). Dwa `detach()` pod rząd, „najpierw
+             * moje, potem cudze", były zakleszczeniem Z-2.
              *
              * CZEGO TU NIE MA I DLACZEGO. Zgłoszeń, odwołań i dziennika
              * audytowego nie ruszamy: mają w polityce własny, dłuższy okres
@@ -164,10 +168,28 @@ final class EraseAccountData
              * po `user_id` łamałoby inną obietnicę; reszta znika po
              * 3 miesiącach nocnym sprzątaniem.
              */
-            $fresh->following()->detach();
-            $fresh->followers()->detach();
-            $fresh->blocking()->detach();
-            $fresh->blockedBy()->detach();
+            $this->usunRelacjeWKolejnosciDanych($fresh->following(), $fresh->followers());
+            $this->usunRelacjeWKolejnosciDanych($fresh->blocking(), $fresh->blockedBy());
+
+            /*
+             * `tag_follows` ZOSTAJE JEDNYM HURTOWYM `detach()` I TO NIE JEST
+             * NIEDOKOŃCZONA ROBOTA (D-093).
+             *
+             * Zakleszczenie Z-2 bierze się z tego, że dwie egzekucje kasują
+             * TE SAME wiersze w przeciwnych kolejnościach. W `follows`
+             * i `blocks` wspólne wiersze istnieją: para wzajemna ma
+             * `(X,Y)` i `(Y,X)`, a każda z dwóch egzekucji dotyczy obu.
+             * W `tag_follows` kluczem jest `(user_id, tag_id)`, więc dwie
+             * egzekucje różnych kont nie mają ANI JEDNEGO wspólnego wiersza —
+             * nie ma czego szeregować i nie ma jak zbudować cyklu.
+             *
+             * Wiersz `tags` po drugiej stronie klucza obcego też nie tworzy
+             * tu wspólnego punktu, i to jest ZMIERZONE, nie wydedukowane:
+             * `DELETE` z tabeli odsyłającej nie bierze na wierszu rodzica
+             * ŻADNEJ blokady (0 blokad krotek i 0 wpisów w `pg_locks` dla
+             * relacji rodzica). Blokady kluczy obcych, które dały Z-1, bierze
+             * `INSERT` — nie `DELETE`.
+             */
             $fresh->followedTags()->detach();
 
             /*
@@ -333,6 +355,129 @@ final class EraseAccountData
         }
 
         return $wymazano;
+    }
+
+    /**
+     * Kasuje WSZYSTKIE wiersze symetrycznej tabeli relacji (`follows`,
+     * `blocks`) dotyczące tego konta — po jednym wierszu, w kolejności
+     * wyznaczonej PRZEZ DANE, a nie przez rolę konta w wierszu (Z-2, D-093).
+     *
+     * ── CO BYŁO ZŁAMANE ──
+     *
+     * Przedtem stały tu dwa hurtowe `detach()` w stałej kolejności ról:
+     * najpierw wiersze, w których to konto jest stroną „moją" (`(X, *)`),
+     * potem te, w których jest stroną „cudzą" (`(*, X)`). Dla pary, która
+     * obserwuje się wzajemnie, egzekucja konta X brała więc `(X,Y)` a potem
+     * `(Y,X)`, a egzekucja konta Y — dokładnie odwrotnie. Każda trzymała to,
+     * na co czekała druga, i PostgreSQL zabijał jedną z nich:
+     *
+     *   ERROR: deadlock detected … while deleting tuple (0,5) in relation "follows"
+     *
+     * Skutek u człowieka: nocna komenda `kuking:usun-wygasle-konta` przerywa
+     * się w połowie, a konto, które PROSIŁO o usunięcie, nie zostaje tej nocy
+     * wymazane. `withoutOverlapping()` w `routes/console.php` chroni tylko
+     * harmonogram przed samym sobą — nie chroni go przed ręcznym przebiegiem
+     * właściciela obok harmonogramu (D-077 §3).
+     *
+     * ── DLACZEGO WIERSZ PO WIERSZU, A NIE JEDNO ZAPYTANIE Z `ORDER BY` ──
+     *
+     * Ten sam powód, dla którego `ZamekPary` bierze dwa wiersze `users`
+     * dwoma osobnymi zapytaniami: `SELECT … ORDER BY … FOR UPDATE` blokuje
+     * wiersze w kolejności, w jakiej wypuszcza je PLAN zapytania, a plan
+     * zależy od statystyk i wersji bazy. Gwarancja stojąca na kształcie planu
+     * nie jest gwarancją, a druga, słabsza reguła kolejności blokad w tej
+     * samej dziedzinie to dokładnie ten rozjazd, przed którym ostrzega D-079.
+     * `DELETE` w PostgreSQL nie przyjmuje przy tym `ORDER BY` wcale.
+     *
+     * Kolejność wyliczamy więc w PHP i wykonujemy jawnie — nudno, o tyle
+     * zapytań drożej, ile relacji, i nie do zepsucia cudzą decyzją
+     * o planowaniu. To są zapytania w JEDNEJ transakcji, nie tyle transakcji,
+     * ile relacji — i dzieje się to w nocnej komendzie, nie w żądaniu HTTP.
+     *
+     * ── DLACZEGO NIE `ZamekPary` ──
+     *
+     * Bo tej klasy NIE DA SIĘ tu użyć, i to jest zmierzone, nie przyjęte na
+     * wiarę. `handle()` trzyma już wiersz `users` tego konta pod
+     * `FOR UPDATE` (reguła „konto najpierw", D-075). `ZamekPary` bierze OBA
+     * wiersze pary rosnąco po identyfikatorze — czyli dla pary, w której to
+     * konto ma identyfikator wyższy, chciałby wziąć najpierw wiersz drugiej
+     * osoby. Dwie egzekucje na parze wzajemnej robią wtedy dokładnie cykl
+     * z Z-1: każda trzyma własny wiersz `users` i czeka na cudzy. Zmierzone:
+     * `ERROR: deadlock detected … while locking tuple … in relation "users"`.
+     * Zagnieżdżone `DB::transaction()` jest przy tym tylko punktem powrotu,
+     * więc blokady i tak żyłyby do commitu transakcji zewnętrznej.
+     *
+     * ── DLACZEGO ODCZYT BEZ BLOKADY WYSTARCZA ──
+     *
+     * Między odczytem listy wierszy a ich skasowaniem nikt nie dopisze nowej
+     * relacji do TEGO konta, bo `handle()` trzyma jego wiersz `users` pod
+     * `FOR UPDATE`, a każdy `INSERT` do `follows`/`blocks` bierze na wierszu
+     * `users` blokadę `FOR KEY SHARE` przez sprawdzenie klucza obcego — i te
+     * dwie są w konflikcie (pomiar E8 z audytu, opisany w D-090). Gwarancji
+     * nie daje tu więc konwencja („każdy zapis idzie przez `FollowUser`"),
+     * tylko kształt klucza obcego, którego nie da się obejść drugim
+     * endpointem.
+     *
+     * ── DETACH ZOSTAJE ──
+     *
+     * Kasujemy nadal przez relację, nie przez `DB::table(...)->delete()`:
+     * `detach([$id])` jest z definicji zawężony do tego konta ORAZ do jednego
+     * wskazanego wiersza, więc najgorsza możliwa awaria tej zmiany — zabranie
+     * relacji dwóch obcych osób — pozostaje niemożliwa z konstrukcji.
+     * Odczyt idzie po surowej tabeli, ale odczyt niczego nie kasuje; branie
+     * go przez relację dokładałoby złączenie z `users` i naraziło listę na
+     * dowolny przyszły zakres globalny na modelu konta.
+     *
+     * @param  BelongsToMany<User, User>  $moje  relacja od strony „to konto jest pierwszą kolumną"
+     * @param  BelongsToMany<User, User>  $cudze  ta sama tabela widziana z drugiej strony
+     */
+    private function usunRelacjeWKolejnosciDanych(BelongsToMany $moje, BelongsToMany $cudze): void
+    {
+        $tabela = $moje->getTable();
+        $mojaKolumna = $moje->getForeignPivotKeyName();
+        $cudzaKolumna = $moje->getRelatedPivotKeyName();
+        $ja = (string) $moje->getParent()->getKey();
+
+        /** @var list<array{0: string, 1: string}> $wiersze */
+        $wiersze = DB::table($tabela)
+            ->where($mojaKolumna, $ja)
+            ->orWhere($cudzaKolumna, $ja)
+            ->get([$mojaKolumna, $cudzaKolumna])
+            ->map(fn (object $wiersz): array => [
+                (string) $wiersz->{$mojaKolumna},   // 0 — wartość „mojej" kolumny w tym wierszu
+                (string) $wiersz->{$cudzaKolumna},  // 1 — wartość „cudzej"
+            ])
+            ->all();
+
+        // KLUCZ SORTOWANIA JEST FUNKCJĄ SAMEGO WIERSZA I NICZEGO WIĘCEJ.
+        //
+        // Sortujemy po parze `(pierwsza kolumna, druga kolumna)`, czyli po
+        // KLUCZU GŁÓWNYM wiersza. Który identyfikator siada w której pozycji,
+        // wynika z DEFINICJI RELACJI — `following()` to zawsze
+        // `follower_id → followed_id`, dla każdego konta jednakowo — a nie
+        // z tego, KTÓRE konto jest właśnie wymazywane. Dlatego dla wiersza
+        // `(X,Y)` obie egzekucje wyliczają ten sam klucz i ustawiają wiersze
+        // w tej samej kolejności. To jest cała naprawa Z-2.
+        //
+        // Klucz nie musi nic znaczyć ani zgadzać się z porządkiem typu `uuid`
+        // w PostgreSQL — musi być tylko TAKI SAM po obu stronach konfliktu.
+        // Ta sama zasada i to samo porównanie łańcuchów co w `ZamekPary`.
+        usort(
+            $wiersze,
+            static fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]],
+        );
+
+        foreach ($wiersze as [$mojaWartosc, $cudzaWartosc]) {
+            // Która strona relacji opisuje TEN wiersz. `CHECK`-i
+            // `follows_no_self_check` / `blocks_no_self_check` gwarantują, że
+            // obie kolumny nigdy nie wskazują na to samo konto, więc ta
+            // gałąź jest jednoznaczna.
+            if ($mojaWartosc === $ja) {
+                $moje->detach([$cudzaWartosc]);
+            } else {
+                $cudze->detach([$mojaWartosc]);
+            }
+        }
     }
 
     /**
