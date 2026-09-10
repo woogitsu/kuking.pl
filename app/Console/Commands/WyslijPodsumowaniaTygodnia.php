@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Digest\BramkaDomyslnejZgody;
 use App\Domain\Digest\OdbiorcyDigestu;
 use App\Domain\Digest\TrescDigestu;
 use App\Domain\Digest\ZbierzTresciDigestu;
@@ -107,6 +108,31 @@ class WyslijPodsumowaniaTygodnia extends Command
             $this->info('Tygodniowe podsumowanie jest wyłączone (KUKING_DIGEST_WLACZONY). Nic nie wysyłam.');
 
             return self::SUCCESS;
+        }
+
+        // TWARDA BRAMKA DOMYŚLNEJ ZGODY (audyt DB2, D-072) — przed wyborem
+        // odbiorców i przed listem próbnym, bo dotyczy nie jednego adresata,
+        // a podstawy prawnej CAŁEJ wysyłki.
+        //
+        // KOD WYJŚCIA 1, W ODRÓŻNIENIU OD WYŁĄCZNIKA WYŻEJ: digest wyłączony
+        // to stan, który ktoś wybrał, a `DEFAULT true` na kolumnie zgody jest
+        // AWARIĄ SCHEMATU — ma zahałasować w dzienniku i przewrócić zadanie,
+        // żeby nikt nie odkrył tego po tygodniu wysyłek bez podstawy prawnej.
+        //
+        // `--na-sucho` przechodzi mimo zamkniętej bramki i nie jest to
+        // furtka: przebieg na sucho niczego nie wysyła i niczego nie zapisuje,
+        // a właśnie przy takim schemacie chce się policzyć, ilu ludzi
+        // dotyczyłaby pomyłka. Ostrzeżenie i tak wychodzi.
+        if (! BramkaDomyslnejZgody::otwarta()) {
+            if (! $naSucho) {
+                $this->error(BramkaDomyslnejZgody::powod());
+
+                Log::error('Tygodniowe podsumowanie wstrzymane: domyślna zgoda na wysyłkę jest włączona.');
+
+                return self::FAILURE;
+            }
+
+            $this->warn(BramkaDomyslnejZgody::powod());
         }
 
         $jedna = $this->jednaOsoba();

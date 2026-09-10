@@ -59,7 +59,10 @@
     <section class="mt-8">
         <h2>Kto widzi Twoje treści</h2>
         <p>
-            Przy każdym wpisie i przepisie sama decydujesz: wszyscy, tylko osoby które Cię obserwują,
+            {{-- „sama decydujesz" przypisywało czytelnikowi rodzaj żeński
+                 (issue #38, D-066) — „sama" nie wnosi tu informacji, więc
+                 zdanie działa i bez niego. --}}
+            Przy każdym wpisie i przepisie decydujesz Ty: wszyscy, tylko osoby które Cię obserwują,
             albo tylko Ty. Możesz to zmienić w każdej chwili.
         </p>
     </section>
