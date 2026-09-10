@@ -113,6 +113,21 @@ const CHROMIUM = znajdzChromium();
  */
 const KONTO_ZALOGOWANE = 'ania';
 
+/*
+ * KONTO MODERATORA — OSOBNE OD `KONTO_ZALOGOWANE` I MUSI BYĆ OSOBNE.
+ *
+ * Panel moderacji stoi za dwoma zamkami: rolą (`EnsureUserIsModerator`, który
+ * zwykłemu użytkownikowi odpowiada 404, żeby nie potwierdzać, że panel
+ * istnieje) i weryfikacją dwuetapową (`EnsureModeratorHasTwoFactor`). Konto
+ * `ania` nie ma roli, więc jego ciasteczkiem sesji panelu zmierzyć się NIE DA
+ * — dostalibyśmy 404 i stronę błędu, która przechodzi każdy audyt, nie
+ * sprawdzając niczego.
+ *
+ * `moderacja` to konto z `DemoSeeder` (`role: User::ROLE_MODERATOR`), z tym
+ * samym hasłem demo co pozostałe.
+ */
+const KONTO_MODERATORA = 'moderacja';
+
 const EKRANY = [
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
@@ -252,6 +267,38 @@ const EKRANY = [
   { nazwa: 'zgłoszenie — karta sprawy', adres: null, znajdz: 'zgloszenie', zalogowany: true },
 
   /*
+   * EKRANY PANELU MODERACJI (issue #294) — DOTĄD NIE BYŁO ICH TU ANI JEDNEGO.
+   *
+   * Lista wyżej ma `/zgloszenia`, czyli ekran ZGŁASZAJĄCEGO — adres wygląda
+   * podobnie, a to inna strona, inny układ i inna rola. Przez to najbardziej
+   * OSOBNA warstwa układu w tym serwisie — tryb panelu
+   * (`.side-nav[data-tryb-panelu]`, własne reguły poniżej 64rem, własny pasek
+   * dolny `.bottom-nav-panel`) — nie była mierzona nigdy: ani na przepełnienie
+   * w poziomie, ani przy powiększonej czcionce.
+   *
+   * ZMIERZONE 10 września, PRZED poprawkami z tego issue: `/admin/uzytkownicy`
+   * miało `scrollWidth` 1450 px przy oknie 900 px, a przy `data-text-scale="140"`
+   * — 1801 px. Ta sama strona przewijała się w bok przy KAŻDEJ szerokości
+   * z tej listy, 320 px (1360 px) i 1280 px (1656 px) włącznie. Nie była to
+   * więc usterka „szerokiego telefonu": była to usterka ekranu, którego nikt
+   * nie mierzył.
+   *
+   * DLACZEGO TE TRZY: `/admin/uzytkownicy` ma najbogatszy układ w panelu
+   * (rząd zakładek, pasek filtrów, tabela) i to on pękał; `/admin/zgloszenia`
+   * i `/admin/sygnaly` to dwie kolejki o różnym kształcie karty — razem
+   * pokrywają wszystkie trzy rodzaje treści, jakie panel dziś ma.
+   *
+   * `moderator: true`, nie `zalogowany: true` — wejście wymaga konta z rolą
+   * moderatora ORAZ potwierdzonej weryfikacji dwuetapowej
+   * (`EnsureModeratorHasTwoFactor`). Automat przechodzi przez jedno i drugie
+   * naprawdę, patrz `stanModeratora()` niżej; 2FA nie jest tu w żaden sposób
+   * osłabiane ani omijane.
+   */
+  { nazwa: 'panel — użytkownicy', adres: '/admin/uzytkownicy', moderator: true },
+  { nazwa: 'panel — zgłoszenia', adres: '/admin/zgloszenia', moderator: true },
+  { nazwa: 'panel — sygnały automatu', adres: '/admin/sygnaly', moderator: true },
+
+  /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
    * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
@@ -327,8 +374,22 @@ function etykietaSkali(skala) {
  * dwa najczęstsze telefony, 768 to tablet w pionie i próg tuż pod układem
  * dwukolumnowym. Skala tekstu 140% jest tu obowiązkowa, bo nasza grupa
  * realnie ją włącza — a to przy niej belka pękała najbrzydziej.
+ *
+ * 900 DOŁOŻONE PRZY issue #294 — JEDEN PUNKT, NIE CAŁA MACIERZ.
+ * Między 768 a 1280 była dziura, w którą wpada cała klasa urządzeń, na których
+ * układ liczy się INACZEJ niż na obu jej brzegach: telefon składany rozłożony
+ * (zgłoszenie przyszło z Galaxy Fold), tablet postawiony poziomo na podstawce
+ * (audyt 60+ wskazuje to jako realny scenariusz w naszej grupie) i okno
+ * przeglądarki na pół ekranu laptopa. Wszystkie trzy są SZERSZE niż telefon,
+ * a mimo to poniżej progu 64rem — czyli dostają układ telefonu na szerokim
+ * ekranie, którego nikt nigdy nie zobaczył w pomiarze.
+ *
+ * Jeden dodatkowy punkt, a nie 800/900/1000/1100: ten job jest już najdłuższy
+ * w CI, a szerokości między progami różnią się tylko liczbą kolumn w siatkach
+ * `auto-fit` — 900 px daje ich najwięcej przed progiem 64rem, więc jest
+ * najgorszym przypadkiem tego przedziału, a nie losowym punktem w nim.
  */
-const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768, 1280];
+const SZEROKOSCI_UKLADU = SZYBKO ? [320, 360] : [320, 360, 414, 768, 900, 1280];
 /* 140, NIE 150 — i to jest poprawka błędu, który sam wprowadziłem.
  *
  * Do 8 września arkusz znał skale 112/125/150, a konfiguracja oferowała
@@ -561,6 +622,134 @@ async function stanZalogowanego(przegladarka, adres) {
     strona.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),
     strona.click('button[type="submit"]'),
   ]);
+  const stan = await kontekst.storageState();
+  await kontekst.close();
+
+  return stan;
+}
+
+/**
+ * Bieżący kod TOTP dla danego sekretu — liczony przez TĘ SAMĄ bibliotekę,
+ * którą serwis sprawdza kody (`pragmarx/google2fa`, patrz
+ * `App\Domain\Security\TwoFactorAuthenticator`).
+ *
+ * To jest odpowiednik aplikacji w telefonie, a nie obejście czegokolwiek:
+ * kod przechodzi normalną weryfikację po stronie serwera, razem z ochroną
+ * przed powtórzeniem (`verifyKeyNewer`). Gdybyśmy policzyli go sami w Node,
+ * mierzylibyśmy własną implementację TOTP zamiast serwisu.
+ */
+function kodTotp(sekret) {
+  const kod = execFileSync('php', ['artisan', 'tinker', '--execute',
+    `echo (new PragmaRX\\Google2FA\\Google2FA)->getCurrentOtp('${sekret}');`,
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  // Bez tego sprawdzenia komunikat błędu z `tinker` (albo puste wyjście)
+  // wjechałby do pola „kod" i skrypt przewracałby się dopiero na
+  // „Kod jest nieprawidłowy" — czyli w miejscu, które wskazuje na serwis,
+  // a nie na to, że kodu w ogóle nie policzyliśmy.
+  if (! /^\d{6}$/.test(kod)) {
+    throw new Error(`Nie udało się policzyć kodu TOTP — dostałem: ${JSON.stringify(kod)}`);
+  }
+
+  return kod;
+}
+
+/*
+ * SESJA MODERATORA Z PRAWDZIWĄ WERYFIKACJĄ DWUETAPOWĄ (issue #294).
+ *
+ * DLACZEGO OSOBNA FUNKCJA, A NIE PARAMETR `stanZalogowanego()`
+ * Wejście do panelu to nie „to samo logowanie innym kontem". Za formularzem
+ * stoją jeszcze dwa kroki, których żaden inny ekran w tym automacie nie ma:
+ * włączenie 2FA (albo przejście przez ekran kodu przy logowaniu) i twarde
+ * sprawdzenie, że panel naprawdę się otworzył.
+ *
+ * CZEGO TU NIE MA I DLACZEGO — TO JEST GRANICA, KTÓREJ NIE PRZEKRACZAMY
+ * Nie ma tu ani wyłączenia middleware `moderator.2fa`, ani ustawienia
+ * `two_factor_confirmed_at` w bazie „na skróty", ani konta z 2FA wsianego
+ * przez seeder. `EnsureModeratorHasTwoFactor` chroni panel, który widzi dane
+ * WSZYSTKICH ludzi w serwisie — automat dostępności nie jest powodem, żeby
+ * ten zamek osłabiać choćby w środowisku testowym, bo obejście napisane „na
+ * chwilę do testu" zostaje w repozytorium na zawsze i pokazuje następnej
+ * osobie, że tak wolno.
+ *
+ * Zamiast tego automat robi DOKŁADNIE to, co człowiek: loguje się hasłem,
+ * wchodzi na `/ustawienia/2fa/wlacz`, PRZEPISUJE sekret pokazany na ekranie
+ * (jest tam jako zwykły tekst, bo nie każdy zeskanuje QR — patrz
+ * `pages/settings/two_factor/enable.blade.php`), liczy z niego kod i wpisuje
+ * go w formularz. Serwis sprawdza ten kod normalną drogą.
+ *
+ * DRUGA GAŁĄŹ — 2FA JUŻ WŁĄCZONE. Domyślnie skrypt sieje bazę od zera
+ * (`migrate:fresh --seed`), więc konto moderatora zaczyna bez 2FA. Przy
+ * uruchomieniu na gotowym serwerze (`ADRES=…`) 2FA może już być potwierdzone
+ * i logowanie kończy się na ekranie kodu. Wtedy sekret bierzemy z bazy tego
+ * samego serwisu (jest zaszyfrowany, odczytuje go model) i przechodzimy przez
+ * ekran kodu tak samo jak człowiek z telefonem w ręce.
+ *
+ * NA KOŃCU: SPRAWDZENIE, ŻE PANEL SIĘ OTWORZYŁ. Bez tego wszystkie trzy
+ * ekrany panelu odesłałyby na `/login` albo na ekran „wymagane 2FA", a pętle
+ * niżej zgłosiłyby to jako trzy osobne błędy jednego ekranu — zamiast
+ * powiedzieć raz, że automat nie umie wejść do panelu.
+ */
+async function stanModeratora(przegladarka, adres) {
+  const kontekst = await przegladarka.newContext();
+  const strona = await kontekst.newPage();
+
+  await strona.goto(`${adres}/login`);
+  await strona.fill('input[name="login"]', KONTO_MODERATORA);
+  await strona.fill('input[name="password"]', 'haslo-testowe-123');
+  await Promise.all([
+    strona.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),
+    // NIE `button[type="submit"]`: dla ZALOGOWANEGO pierwszym takim
+    // przyciskiem w dokumencie jest „Wyloguj się" z nawigacji bocznej
+    // (formularz POST, `components/wyloguj.blade.php`). Na ekranie logowania
+    // to bez znaczenia — ale na ekranie włączania 2FA niżej ten sam skrót
+    // WYLOGOWAŁ automat i mierzył potem stronę logowania, meldując sukces.
+    // Zmierzone przy pisaniu tego pomiaru; dlatego wszędzie tutaj celujemy
+    // w przycisk po jego napisie.
+    strona.getByRole('button', { name: 'Zaloguj się' }).first().click(),
+  ]);
+
+  if (new URL(strona.url()).pathname === '/logowanie/kod') {
+    const sekret = execFileSync('php', ['artisan', 'tinker', '--execute',
+      `echo App\\Models\\User::whereRelation('profile', 'username', '${KONTO_MODERATORA}')`
+      + '->firstOrFail()->two_factor_secret;',
+    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+      .toString().trim();
+
+    await strona.fill('input[name="code"]', kodTotp(sekret));
+    await Promise.all([
+      strona.waitForURL((u) => u.pathname !== '/logowanie/kod', { timeout: 15000 }),
+      strona.getByRole('button', { name: 'Zaloguj się' }).first().click(),
+    ]);
+  } else {
+    await strona.goto(`${adres}/ustawienia/2fa/wlacz`);
+
+    const sekret = (await strona.locator('.sekret-do-przepisania').innerText()).trim();
+
+    await strona.fill('input[name="code"]', kodTotp(sekret));
+    await Promise.all([
+      strona.waitForURL((u) => ! u.pathname.endsWith('/wlacz'), { timeout: 15000 }),
+      strona.getByRole('button', { name: 'Potwierdź i włącz' }).click(),
+    ]);
+  }
+
+  // SPRAWDZENIE WEJŚCIA. `/admin/uzytkownicy`, bo to najbogatszy ekran panelu
+  // i ten, przez który powstało issue #294.
+  const odpowiedz = await strona.goto(`${adres}/admin/uzytkownicy`, { waitUntil: 'domcontentloaded' });
+  const kod = odpowiedz?.status() ?? 0;
+  const sciezka = new URL(strona.url()).pathname;
+
+  if (kod !== 200 || sciezka !== '/admin/uzytkownicy') {
+    throw new Error(
+      `Automat nie wszedł do panelu moderacji: /admin/uzytkownicy odpowiedziało ${kod} `
+      + `i wylądowało na ${sciezka}. Ekrany panelu nie zostałyby zmierzone. `
+      + 'Sprawdź, czy DemoSeeder nadal tworzy konto '
+      + `„${KONTO_MODERATORA}" z rolą moderatora i czy przeszło włączenie 2FA — `
+      + 'NIE wyłączaj middleware `moderator.2fa`, żeby to obejść.',
+    );
+  }
+
   const stan = await kontekst.storageState();
   await kontekst.close();
 
@@ -866,6 +1055,25 @@ let blokujacych = 0;
 const przepelnienia = [];
 
 const stanZalogowany = await stanZalogowanego(przegladarka, adres);
+const stanModeratorem = await stanModeratora(przegladarka, adres);
+
+/*
+ * KTÓRE EKRANY NAPRAWDĘ ZOSTAŁY ZBADANE — A NIE KTÓRE ZADEKLAROWALIŚMY
+ * (issue #294).
+ *
+ * Pułapka, którą ten plik opisuje w kilku miejscach, ma jeszcze jedną,
+ * najgorszą wersję: automat, który nie zbadał ŻADNEGO ekranu z całej nowej
+ * grupy, i wyszedł z kodem 0. Wystarczy, żeby wejście do panelu przestało
+ * działać (2FA, zmiana roli w seederze, przeniesiona trasa) — każdy ekran
+ * panelu wypada wtedy na `continue`, a raport pokazuje same ✓ z pozostałych
+ * ekranów i wygląda na kompletny.
+ *
+ * Dlatego zbieramy nazwy ekranów, na których pomiar SIĘ ODBYŁ, i na końcu
+ * porównujemy je z listą zadeklarowaną. Ekran zadeklarowany i niezmierzony
+ * jest błędem — dokładnie tak samo jak naruszenie.
+ */
+const zbadanePrzezAxe = new Set();
+const zmierzoneUkladem = new Set();
 
 for (const wariant of WARIANTY) {
   /*
@@ -914,11 +1122,24 @@ for (const wariant of WARIANTY) {
     storageState: stanZalogowany,
   });
 
+  /* TRZECI KONTEKST — MODERATOR Z PANELEM (issue #294). Osobny, bo ciasteczko
+     sesji `ani` do panelu nie wchodzi (nie ma roli), a moderator ma w menu coś,
+     czego nie ma nikt inny: tryb panelu. Jeden kontekst dla obu ról znaczyłby,
+     że wszystkie ekrany zalogowanego są mierzone z menu moderatora, czyli nie
+     tak, jak widzi je zwykły człowiek. */
+  const kontekstModeratoraAxe = await przegladarka.newContext({
+    ...ustawienia,
+    storageState: stanModeratorem,
+  });
+
   const stronaGoscia = await kontekstGosciaAxe.newPage();
   const stronaZalogowanego = await kontekstZalogowanegoAxe.newPage();
+  const stronaModeratora = await kontekstModeratoraAxe.newPage();
 
   for (const ekran of EKRANY) {
-    const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
+    const strona = ekran.moderator
+      ? stronaModeratora
+      : (ekran.zalogowany ? stronaZalogowanego : stronaGoscia);
     const sciezka = sciezkaEkranu(ekran);
 
     if (! sciezka) {
@@ -1081,11 +1302,27 @@ for (const wariant of WARIANTY) {
     }
 
     const ile = wynik.violations.length;
+    zbadanePrzezAxe.add(ekran.nazwa);
     log(`  ${ile === 0 ? '✓' : '✗'} ${ekran.nazwa} (${wariant.nazwa})${ile ? ` — ${ile}` : ''}`);
   }
 
   await kontekstGosciaAxe.close();
   await kontekstZalogowanegoAxe.close();
+  await kontekstModeratoraAxe.close();
+}
+
+/* Ekran zadeklarowany, a nigdy niezbadany — patrz komentarz przy
+   `zbadanePrzezAxe`. Nazwy wypisujemy wszystkie: „3 ekrany" nie mówi, których
+   szukać. */
+const pominietePrzezAxe = EKRANY.filter((e) => ! zbadanePrzezAxe.has(e.nazwa));
+
+if (pominietePrzezAxe.length > 0) {
+  console.error(
+    `BŁĄD: axe nie zbadał ${pominietePrzezAxe.length} z ${EKRANY.length} zadeklarowanych ekranów: `
+    + pominietePrzezAxe.map((e) => `„${e.nazwa}"`).join(', ')
+    + '. Raport BEZ tego sprawdzenia wyglądałby na kompletny.',
+  );
+  process.exitCode = 1;
 }
 
 /* =============================================================================
@@ -1114,6 +1351,12 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
       viewport: { width: szerokosc, height: 740 },
       storageState: stanZalogowany,
     });
+    // Trzeci kontekst — panel moderacji (issue #294). Powód osobnego stoi
+    // przy `kontekstModeratoraAxe` wyżej.
+    const kontekstModeratora = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 740 },
+      storageState: stanModeratorem,
+    });
 
     let zlych = 0;
 
@@ -1126,7 +1369,9 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         continue;
       }
 
-      const kontekst = ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia;
+      const kontekst = ekran.moderator
+        ? kontekstModeratora
+        : (ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia);
       const strona = await kontekst.newPage();
 
       if (skala === PRZEGLADARKA_200) {
@@ -1199,6 +1444,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
 
       const uklad = await zmierzUklad(strona);
       await strona.close();
+      zmierzoneUkladem.add(ekran.nazwa);
 
       if (uklad.scrollWidth > uklad.clientWidth) {
         zlych++;
@@ -1214,9 +1460,26 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
 
     await kontekstGoscia.close();
     await kontekstZalogowanego.close();
+    await kontekstModeratora.close();
 
     log(`  ${zlych === 0 ? '✓' : '✗'} ${opis}${zlych ? ` — ${zlych} z ${EKRANY_UKLADU.length} ekranów` : ''}`);
   }
+}
+
+/* Tak samo jak przy axe wyżej: ekran zadeklarowany i ani razu niezmierzony
+   jest BŁĘDEM. Bez tego wiersz „✓ 900 px" znaczyłby „żaden z zadeklarowanych
+   ekranów panelu nie dał się otworzyć, a pozostałe są w porządku" — i nikt by
+   tego nie odróżnił od „wszystko zmierzone i czyste". */
+const pominieteWUkladzie = EKRANY_UKLADU.filter((e) => ! zmierzoneUkladem.has(e.nazwa));
+
+if (pominieteWUkladzie.length > 0) {
+  console.error(
+    `BŁĄD: pomiar układu nie objął ${pominieteWUkladzie.length} z ${EKRANY_UKLADU.length} `
+    + 'zadeklarowanych ekranów: '
+    + pominieteWUkladzie.map((e) => `„${e.nazwa}"`).join(', ')
+    + '. Przewijanie w bok na tych ekranach nie zostało sprawdzone w ogóle.',
+  );
+  process.exitCode = 1;
 }
 
 /* =============================================================================
@@ -1691,10 +1954,16 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
   warianty: WARIANTY.map((w) => w.nazwa),
   naruszen: wyniki.length,
   blokujacych,
+  // Ile ekranów ZADEKLAROWANO i ile naprawdę zbadano. Dwie różne liczby
+  // w raporcie, bo tylko one odróżniają „zero naruszeń" od „zero zbadanych".
+  ekranow: EKRANY.length,
+  zbadanych: zbadanePrzezAxe.size,
   wyniki,
   uklad: {
     szerokosci: SZEROKOSCI_UKLADU,
     skale: SKALE_UKLADU,
+    ekranow: EKRANY_UKLADU.length,
+    zmierzonych: zmierzoneUkladem.size,
     przepelnien: przepelnienia.length,
     przepelnienia,
   },
@@ -1714,6 +1983,10 @@ log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
   + `rozjazdów belki: ${rozjazdyBelki.length}, `
   + `niespójnych szerokości: ${niespojneSzerokosci.length})`);
+// Liczby zbadanych ekranów W TYM SAMYM wierszu co wynik, a nie tylko w pliku:
+// „przepełnień: 0" znaczy coś innego przy 33 zmierzonych ekranach i przy 30.
+log(`Zbadane ekrany — axe: ${zbadanePrzezAxe.size}/${EKRANY.length}, `
+  + `układ: ${zmierzoneUkladem.size}/${EKRANY_UKLADU.length}.`);
 
 if (przepelnienia.length > 0) {
   log('');

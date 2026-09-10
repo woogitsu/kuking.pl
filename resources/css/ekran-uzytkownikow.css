@@ -60,6 +60,31 @@
   .tabela-kont-przewijanie {
     max-width: 100%;
     overflow-x: auto;
+    /*
+     * `position: relative` NIE JEST TU OZDOBĄ ANI PRZYGOTOWANIEM POD NIC —
+     * to poprawka issue #294 i cała różnica między „tabela jeździ w bok"
+     * a „jeździ w bok CAŁA STRONA".
+     *
+     * `overflow-x: auto` obcina to, co w środku, ale NIE obcina potomków
+     * pozycjonowanych absolutnie, jeśli kontener nie jest dla nich blokiem
+     * zawierającym. A tabela ma takich potomków: każdy wiersz niesie napis
+     * `.visually-hidden` („…kartę konta Ania"), a `.visually-hidden` to
+     * `position: absolute` (app.css). Te napisy ustawiają się względem
+     * NAJBLIŻSZEGO POZYCJONOWANEGO PRZODKA — czyli, bez tej linijki, względem
+     * początkowego bloku zawierającego, w miejscu wyznaczonym przez ich
+     * pozycję statyczną w SZEROKIEJ tabeli. Wychodzą więc daleko za prawą
+     * krawędź okna i rozpychają dokument.
+     *
+     * ZMIERZONE 10 września na `/admin/uzytkownicy`, okno 900 px: cztery takie
+     * napisy stały na x ≈ 1396 i `documentElement.scrollWidth` wynosił 1397 px
+     * przy oknie 900 px. Po ukryciu samych tych czterech napisów: 900 px.
+     * Po dodaniu tej jednej deklaracji: 900 px, przy niezmienionym przewijaniu
+     * tabeli w jej własnym kontenerze (`clientWidth` 686, `scrollWidth` 1306).
+     *
+     * `overflow: hidden` na kontenerze NIE naprawiało tego (nadal 1397) —
+     * bo problemem nie było obcinanie, tylko blok zawierający. Zmierzone.
+     */
+    position: relative;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background-color: var(--color-surface-raised);
