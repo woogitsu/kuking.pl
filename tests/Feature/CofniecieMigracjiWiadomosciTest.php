@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\ContactMessage;
+use App\Models\ContactMessageReply;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -35,11 +36,26 @@ class CofniecieMigracjiWiadomosciTest extends TestCase
         );
     }
 
-    private function tabelaIstnieje(): bool
+    /**
+     * Migracja odpowiedzi operatora (D-058). `contact_message_replies`
+     * WSKAZUJE na `contact_messages`, więc tamtej tabeli nie da się skasować,
+     * dopóki ta stoi — PostgreSQL odmawia `DROP TABLE` z zależnym kluczem
+     * obcym (`SQLSTATE 2BP01`), i to jest zachowanie pożądane: kaskada
+     * kasująca WIERSZE nie ma prawa zamienić się w kaskadę kasującą TABELE
+     * przy pomyłce w rollbacku.
+     */
+    private function migracjaOdpowiedzi(): object
+    {
+        return require database_path(
+            'migrations/2026_09_10_200000_create_contact_message_replies_table.php',
+        );
+    }
+
+    private function tabelaIstnieje(string $nazwa = 'contact_messages'): bool
     {
         return DB::select(
             'SELECT table_name FROM information_schema.tables WHERE table_name = ?',
-            ['contact_messages'],
+            [$nazwa],
         ) !== [];
     }
 
@@ -49,11 +65,20 @@ class CofniecieMigracjiWiadomosciTest extends TestCase
 
         $this->assertTrue($this->tabelaIstnieje());
 
+        // KOLEJNOŚĆ JAK W PRAWDZIWYM `migrate:rollback`: OD NAJNOWSZEJ.
+        // Odpowiedzi operatora (D-058) wskazują kluczem obcym na tę tabelę,
+        // więc próba cofnięcia samej starszej migracji kończy się odmową
+        // bazy. Ten test przechodził, dopóki tamtej tabeli nie było — i to
+        // on złapał zależność, gdy powstała.
+        $this->migracjaOdpowiedzi()->down();
         $this->migracja()->down();
         $this->assertFalse($this->tabelaIstnieje(), 'down() nie skasował tabeli.');
+        $this->assertFalse($this->tabelaIstnieje('contact_message_replies'));
 
         $this->migracja()->up();
+        $this->migracjaOdpowiedzi()->up();
         $this->assertTrue($this->tabelaIstnieje(), 'Ponowne up() nie odtworzyło tabeli.');
+        $this->assertTrue($this->tabelaIstnieje('contact_message_replies'));
 
         // Odtworzona tabela musi być TA SAMA, nie „podobna": jeśli któryś
         // CHECK albo indeks powstaje tylko przy pierwszym przebiegu,
@@ -64,6 +89,69 @@ class CofniecieMigracjiWiadomosciTest extends TestCase
         $this->assertTrue($this->ograniczenieIstnieje('contact_messages_kind_check'));
         $this->assertTrue($this->ograniczenieIstnieje('contact_messages_handled_complete'));
         $this->assertTrue($this->indeksIstnieje('contact_messages_one_per_klucz_wyslania'));
+        $this->assertTrue($this->ograniczenieIstnieje('contact_message_replies_status_check'));
+        $this->assertTrue($this->ograniczenieIstnieje('contact_message_replies_sent_complete'));
+        $this->assertTrue($this->ograniczenieIstnieje('contact_message_replies_body_not_blank'));
+        $this->assertTrue($this->indeksIstnieje('contact_message_replies_message_idx'));
+    }
+
+    /**
+     * Cofnięcie SAMEJ migracji odpowiedzi (D-058) zostawia wiadomości
+     * nietknięte.
+     *
+     * To jest realna droga wycofania tej zmiany: znika formularz odpowiedzi
+     * w panelu, wraca stan sprzed niej (`mailto:` na karcie wiadomości), a to,
+     * co ludzie napisali, zostaje.
+     */
+    public function test_cofniecie_samych_odpowiedzi_nie_rusza_wiadomosci(): void
+    {
+        $wiadomosc = ContactMessage::factory()->create();
+
+        $this->migracjaOdpowiedzi()->down();
+
+        $this->assertFalse($this->tabelaIstnieje('contact_message_replies'));
+        $this->assertDatabaseHas('contact_messages', ['id' => $wiadomosc->getKey()]);
+
+        $this->migracjaOdpowiedzi()->up();
+    }
+
+    /**
+     * Baza nie przyjmie odpowiedzi „wysłanej" bez godziny wysłania — ani
+     * odwrotnie.
+     *
+     * CHECK `contact_message_replies_sent_complete` jest tu ostatnią barierą:
+     * „wysłana" bez `sent_at` znaczyłoby „poszło, ale nie wiadomo kiedy",
+     * czyli dokładnie tę ciszę, przed którą ta funkcja ma bronić.
+     */
+    public function test_baza_nie_przyjmie_wyslanej_odpowiedzi_bez_godziny(): void
+    {
+        $wiadomosc = ContactMessage::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('contact_message_replies')->insert([
+            'id' => (string) Str::uuid7(),
+            'contact_message_id' => $wiadomosc->getKey(),
+            'body' => 'Odpowiedź bez godziny wysłania.',
+            'status' => ContactMessageReply::STATUS_WYSLANA,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_baza_nie_przyjmie_pustej_odpowiedzi(): void
+    {
+        $wiadomosc = ContactMessage::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('contact_message_replies')->insert([
+            'id' => (string) Str::uuid7(),
+            'contact_message_id' => $wiadomosc->getKey(),
+            'body' => '   ',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**
@@ -76,6 +164,7 @@ class CofniecieMigracjiWiadomosciTest extends TestCase
     {
         $basia = $this->user('basia');
 
+        $this->migracjaOdpowiedzi()->down();
         $this->migracja()->down();
 
         $this->assertDatabaseHas('users', ['id' => $basia->getKey()]);
@@ -86,6 +175,7 @@ class CofniecieMigracjiWiadomosciTest extends TestCase
         );
 
         $this->migracja()->up();
+        $this->migracjaOdpowiedzi()->up();
     }
 
     public function test_baza_nie_przyjmie_nieznanego_statusu(): void
