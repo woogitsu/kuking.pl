@@ -26,8 +26,10 @@
         </p>
 
         <h2>Kto widzi to, co publikuję?</h2>
+        {{-- „sam wybierasz" przypisywało czytelnikowi rodzaj męski
+             (issue #38, D-066) — „sam" nie wnosi tu informacji. --}}
         <p>
-            Przy każdym wpisie i przepisie sam wybierasz: <strong>wszyscy</strong>,
+            Przy każdym wpisie i przepisie wybierasz: <strong>wszyscy</strong>,
             <strong>tylko osoby, które Cię obserwują</strong>, albo <strong>tylko Ty</strong>.
             Możesz to zmienić w każdej chwili.
         </p>
