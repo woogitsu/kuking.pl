@@ -282,7 +282,7 @@ class WyslijPodsumowaniaTygodnia extends Command
 
                 Mail::to($osoba->email)->queue($list);
 
-                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_SENT, $tresc->miary());
+                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_QUEUED, $tresc->miary());
             }
 
             $wyslano++;

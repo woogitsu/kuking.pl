@@ -1728,7 +1728,57 @@ dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
 
-Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
+Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
+w kolejności; `data_exports_one_active_per_user` — patrz niżej.
+
+#### `data_exports_one_active_per_user` — jeden AKTYWNY eksport na konto (D-078)
+
+Migracja `2026_09_10_400100_one_active_data_export_per_user`, audyt
+10.09.2026 ustalenia QUEUE-04 / RACE-05.
+
+```sql
+CREATE UNIQUE INDEX data_exports_one_active_per_user
+    ON data_exports (user_id)
+ WHERE status IN ('queued', 'processing');
+```
+
+**Co ten indeks naprawia.** `DataSettingsController::requestExport()` robił
+`exists()` na stanach aktywnych, a potem OSOBNY `INSERT`. Między tymi dwoma
+zapytaniami nie było nic: przy izolacji `read committed` dwa równoległe
+żądania widzą „nie ma aktywnego eksportu" jednocześnie i oba wstawiają swój
+wiersz. Skutkiem są DWA `GenerateUserExport` na jedno konto — czyli dwa razy
+spakowane te same zdjęcia (15 minut limitu czasu, kolejka `low`, jeden
+worker) i dwa listy z tego samego dobowego wiadra poczty. Wejściem jest
+podwójne kliknięcie „Zamów swoje dane", a w grupie 60+ dwuklik jest
+scenariuszem typowym.
+
+`exists()` w PHP **zostaje** — daje spokojny komunikat („już przygotowujemy
+Twoją paczkę"). Gwarancję daje indeks; konflikt jest w kontrolerze
+przechwytywany (`UniqueConstraintViolationException`) i sprowadzany do tego
+**samego** zdania, nigdy do 500. `lockForUpdate()` by tego nie naprawił:
+`SELECT ... FOR UPDATE`, który nie zwrócił wiersza, nie blokuje niczego —
+to wstawienie fantomu, nie konflikt na wierszu.
+
+**Dlaczego indeks CZĘŚCIOWY.** Inwariant brzmi „jeden AKTYWNY", nie „jeden
+w historii" — RODO art. 15 nie jest jednorazowe i ekran ustawień pokazuje
+pięć ostatnich paczek. Wiersz wypada z indeksu, gdy job go domknie (`ready`,
+`failed`) albo paczka wygaśnie (`expired`), i kolejne zamówienie znów
+przechodzi.
+
+**Migracja odmawia, gdy w tabeli już leżą dwa aktywne eksporty jednego
+konta** — z komunikatem mówiącym, co zrobić (zostaw najstarszy aktywny
+wiersz, nadmiarowe skasuj; gotowy `DELETE` stoi w komentarzu migracji).
+Kasowanie jest tu bezpieczne, w odróżnieniu od `reports`: wiersz w stanie
+aktywnym nie ma jeszcze `object_key` ani `disk` (brak osieroconego pliku),
+`GenerateUserExport::handle()` przy braku wiersza po prostu wraca, a paczka
+z pozostawionego wiersza jest bajt w bajt tą samą paczką.
+
+**Rollback:** `DROP INDEX IF EXISTS`, bezstratnie — indeks nie przechowuje
+niczego, czego nie ma w tabeli, i jego zdjęcie nie kasuje żadnego wiersza.
+Po cofnięciu wraca stan sprzed zmiany: `exists()` łapie zwykły dwuklik, baza
+nie broni niczego, a `catch` w kontrolerze jest gałęzią, w którą nic nie
+wchodzi. Pilnują tego `JedenAktywnyEksportNaKontoTest`
+i `Wyscigi\EksportDanychRaceTest`.
 
 ### product_signals
 
@@ -1737,10 +1787,23 @@ Sygnały produktowe (issue #115), migracja
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
-od tygodniowego podsumowania: `weekly_digest_sent` i
+od tygodniowego podsumowania: `weekly_digest_queued` i
 `weekly_digest_unsubscribed` (issue #11, D-057; migracja
 `2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
+(audyt MAIL-03, **D-078**, migracja
+`2026_09_10_400000_rename_weekly_digest_sent_signal`). Wiersz powstaje zaraz
+po `Mail::queue()`, więc stara nazwa sklejała w jedno trzy różne zdarzenia —
+ZAKOLEJKOWANO, DOSTAWCA PRZYJĄŁ, DORĘCZONO — a Kuking widzi tylko pierwsze.
+Skutek był mierzalny: list, który przewracał się w workerze i lądował
+w `failed_jobs`, i tak liczył się jako wysłany, czyli metryka zawyżała
+skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka nie działała.
+Migracja **przepisuje** stare wiersze (`UPDATE`, nie `DELETE`) i nie zostawia
+w bazie dwóch nazw na jedno zdarzenie; nic w kodzie nie czytało starej nazwy,
+więc nie było panelu do zepsucia. `down()` przepisuje symetrycznie
+z powrotem.
 
 **Zbiór nazw rośnie o nazwy WYMIENIONE Z IMIENIA, jedna decyzja na jedną
 nazwę.** CHECK nie jest formalnością: zamknięta lista jest drugą linią
@@ -1759,7 +1822,17 @@ transport ma nawet wyłącznik śledzenia po stronie dostawcy
 (`X-TRACKING-OFF`, `App\Poczta\TransportEmailLabs`) — domyślnie włączony.
 Do jedynego progu, po którym coś robimy („wypisy > 1% na wysyłkę",
 `docs/product/RETENTION_LOOPS.md` §6 wiersz 5), wystarcza para
-wysłane/wypisane.
+zakolejkowane/wypisane.
+
+**Nie ma też `weekly_digest_delivered`** i to jest ta sama decyzja, nie
+przeoczenie: doręczenie wymagałoby webhooka o odbiciach od dostawcy, którego
+nie mamy (`docs/decyzje/POCZTA.md` §5 pkt 6). Zamknięty zbiór nazw pilnuje
+tego również jako TEST: `SygnalDigestuMowiZakolejkowanoTest::
+test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia` czyta CHECK
+wprost z `pg_constraint` i oblewa się, gdy w słowniku pojawi się nazwa
+mówiąca „doręczono", „otwarto" albo „kliknięto". Gdy prawdziwy webhook kiedyś
+powstanie, zdejmuje się `delivered` z tamtej listy JAWNIE, jedną decyzją —
+śledzenia otwarć i kliknięć nie zdejmuje się wcale.
 
 `docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
 i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
@@ -1778,9 +1851,9 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_sent` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
-| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_sent`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
-| `occurred_at` | `timestamptz`, `useCurrent()`. Dla `weekly_digest_sent` czytany też JAKO LICZNIK: komenda wysyłkowa liczy wiersze z bieżącej doby, żeby nie przekroczyć dobowego limitu poczty (D-057). |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 
 #### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
 
