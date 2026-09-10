@@ -99,10 +99,11 @@ final class ZapiszSygnal
      * rozjazd byłby cichy: dashboard liczy `properties->>'reason'` i zamiast
      * błędu pokazałby dwa osobne słupki dla jednego powodu.
      *
-     * Trzy powody treści zdjęcia (`not_an_image`, `unsupported_format`,
-     * `too_many_megapixels`) NIE są tu duplikowane — `RozpoznanieZdjecia`
-     * już je eksportuje publicznie i to jest ich jedyne źródło, używane
-     * zarówno przez `StoreUploadedImage`, jak i przez `ObslugiwaneZdjecie`.
+     * Cztery powody treści zdjęcia (`not_an_image`, `unsupported_format`,
+     * `too_many_megapixels`, `heic_unsupported` — ostatni doszedł przy #119,
+     * D-064) NIE są tu duplikowane — `RozpoznanieZdjecia` już je eksportuje
+     * publicznie i to jest ich jedyne źródło, używane zarówno przez
+     * `StoreUploadedImage`, jak i przez `ObslugiwaneZdjecie`.
      *
      * `REASON_RATE_LIMITED` jest zupełnie nowy: żądanie ze zdjęciem odrzucone
      * limitem żądań (429, `bootstrap/app.php`) nie ma pliku do zbadania —
