@@ -73,9 +73,12 @@ use Tests\TestCase;
  * w `ZdjeciaDoPrzypiecia`: pod `RefreshDatabase` poziom transakcji NIGDY
  * nie jest zerem, więc tego wyjątku nie da się w tym zestawie wywołać.
  *
- * Poza zakresem zostają też trzy pozostałe drogi przypięcia
- * (`profiles.avatar_media_id`, `recipes.hero_media_id`/`source_scan_media_id`,
- * `recipe_steps.media_id`) — patrz opis PR.
+ * Poza zakresem tego pliku zostają cztery pozostałe drogi przypięcia
+ * (`profiles.avatar_media_id`, `recipes.hero_media_id`,
+ * `recipes.source_scan_media_id`, `recipe_steps.media_id`). D-083 zostawiło
+ * je świadomie bez blokady; domknęło je dopiero D-103 i pilnuje ich
+ * `tests/Feature/CzteryDrogiZdjeciaPodBlokadaTest.php` — po jednym teście na
+ * drogę, żeby zepsucie jednej z nich oblewało dokładnie jeden test.
  */
 class ZdjecieNieZnikaPrzyPrzypinaniuTest extends TestCase
 {
