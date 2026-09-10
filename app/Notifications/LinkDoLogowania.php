@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Support\AdresKanoniczny;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -66,7 +67,13 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('Twój link do zalogowania w Kuking')
             ->view('mail.link-do-logowania', [
-                'linkUrl' => route('login.link.confirm', ['token' => $this->token]),
+                // KANONICZNY KORZEŃ, NIE HOST Z ŻĄDANIA (S2, D-071). Ten link
+                // DAJE SESJĘ, więc jest w całym serwisie tym jednym, dla
+                // którego „host był na liście dozwolonych" nie wystarcza —
+                // ma nie zależeć od nagłówków żądania w ogóle.
+                'linkUrl' => AdresKanoniczny::zbuduj(
+                    fn (): string => route('login.link.confirm', ['token' => $this->token]),
+                ),
                 'waznoscTekst' => self::waznosc(),
                 'displayName' => $notifiable->profile?->display_name,
             ]);
