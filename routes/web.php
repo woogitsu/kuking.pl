@@ -29,6 +29,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -119,6 +120,41 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+/*
+|--------------------------------------------------------------------------
+| Wypisanie z tygodniowego podsumowania (issue #11, D-057)
+|--------------------------------------------------------------------------
+|
+| POZA GRUPĄ `auth` I TO JEST SEDNO TYCH DWÓCH TRAS. Człowiek, który chce
+| przestać dostawać listy, nie może być zmuszony do zalogowania się — issue
+| #11 pkt 6 mówi „jednym kliknięciem, bez logowania i bez ankiety", a powód
+| jest twardszy niż wygoda: osoba, która nie pamięta hasła, zamiast wypisać
+| się klika w skrzynce „to jest spam", a to psuje dostarczalność CAŁEJ poczty
+| Kuking, łącznie z resetami haseł (`docs/decyzje/POCZTA.md` §3).
+|
+| Autoryzacją jest PODPIS, nie identyfikator w adresie — `AGENTS.md` §7
+| („UUID w adresie NIE JEST autoryzacją") zostaje w mocy: `middleware('signed')`
+| sprawdza, że ten adres wystawił Kuking kluczem aplikacji. Bez podpisu trasa
+| oddaje 403, więc nie da się wypisać kogoś, znając samo konto.
+|
+| `match(['get', 'post'])`, nie samo `get`: `POST` obsługuje nagłówek
+| `List-Unsubscribe-Post` (RFC 8058), którym Gmail i Outlook pokazują własny
+| przycisk wypisania przy nadawcy. Ta jedna trasa jest też wyjęta spod CSRF
+| (`bootstrap/app.php`) — klient pocztowy nie ma skąd wziąć tokenu.
+|
+| Limit z grupy `ustawienia`: dla gościa liczy się po adresie IP. Dolna
+| granica jest tu ważniejsza od górnej — trasa MUSI przepuścić kilka osób
+| z jednego łącza (dom opieki, mieszkanie rodzinne, biblioteka), bo inaczej
+| druga z nich zobaczy „za dużo prób" zamiast wypisania.
+*/
+Route::match(['get', 'post'], '/podsumowanie/wypisz/{user}', [PodsumowanieTygodniaController::class, 'wypisz'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('podsumowanie.wypisz');
+
+Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodniaController::class, 'wracam'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('podsumowanie.wracam');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
