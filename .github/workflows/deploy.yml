@@ -182,7 +182,31 @@ jobs:
           echo "  deployment_status.state = '${stan}'"
           echo "================================================"
 
-          case "$env_name" in
+          # ZMIERZONE 10 WRZEŚNIA 2026, w logu przebiegu 34484294591:
+          #
+          #     deployment.environment = 'ideal-exploration / production'
+          #
+          # Railway NIE przysyła gołej nazwy środowiska. Przysyła
+          # „<nazwa projektu> / <środowisko>". Poprzedni `case` dopasowywał
+          # dokładne `production` i `staging`, więc każdy przebieg wpadał
+          # w gałąź `*` i ustawiał `pomin=1`.
+          #
+          # To jest DRUGA połowa usterki „249 przebiegów, wszystkie skipped".
+          # Pierwsza poprawka zdjęła warunek z poziomu joba, więc job zaczął
+          # kończyć się jako `success` — ale sam KROK testu dymnego dalej był
+          # pomijany. Efekt był gorszy niż przedtem: zielony job, który nie
+          # sprawdza niczego. Pominięty job przynajmniej widać.
+          #
+          # Dlatego bierzemy człon po ostatnim ukośniku i obcinamy odstępy.
+          # Świadomie NIE dopisujemy pełnej nazwy z projektem do `case`:
+          # zmiana nazwy projektu w Railwayu nie ma prawa po cichu wyłączyć
+          # testu dymnego, a dopasowanie na sam człon środowiska to przetrwa.
+          srodowisko="${env_name##*/}"
+          srodowisko="$(echo "$srodowisko" | tr -d '[:space:]')"
+
+          echo "  środowisko po obcięciu    = '${srodowisko}'"
+
+          case "$srodowisko" in
             production)
               echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
               ;;
@@ -190,14 +214,14 @@ jobs:
               echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "Środowisko '${env_name}' nie jest ani production, ani staging."
+              echo "Środowisko '${env_name}' (człon: '${srodowisko}') nie jest ani production, ani staging."
               echo "Testu dymnego nie uruchamiam — nie wiem, pod jakim adresem go szukać."
               echo "JEŚLI TO NAZWA, KTÓRA POWINNA BYĆ OBSŁUGIWANA, dopisz ją w tym case."
               echo "pomin=1" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
-          echo "env=$env_name" >> "$GITHUB_OUTPUT"
+          echo "env=$srodowisko" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------------------------------------
       #  Test dymny. Cel: wyłapać "deploy się udał, ale strona nie działa".
@@ -205,6 +229,7 @@ jobs:
       #  go później. My sprawdzamy realne ścieżki użytkownika przez Cloudflare.
       # -----------------------------------------------------------------------
       - name: Test dymny
+        id: dymny
         if: steps.target.outputs.pomin != '1'
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
@@ -298,17 +323,44 @@ jobs:
           environment: ${{ steps.target.outputs.env }}
           version: ${{ github.sha }}
 
+      # -----------------------------------------------------------------------
+      #  POMINIĘTY TEST DYMNY MA BYĆ CZERWONY, NIE ZIELONY.
+      #
+      #  Zmierzone 10 września 2026: job kończył się jako `success`, mając
+      #  krok testu dymnego `skipped`. To jest gorsze niż stary stan „249
+      #  przebiegów skipped": pominięty JOB widać na liście, a zielony job
+      #  z pominiętym KROKIEM wygląda dokładnie jak przeprowadzony test.
+      #  Audyt infrastruktury wymaga dowodu „job = SUCCESS, nie skipped" —
+      #  a taki job spełniał kryterium formalnie, nie sprawdzając niczego.
+      #
+      #  Warunek jest zawężony do wdrożeń, które SIĘ UDAŁY. Zdarzenie
+      #  o nieudanym deployu nie ma czego dymnie testować i nie ma powodu
+      #  świecić na czerwono.
+      # -----------------------------------------------------------------------
+      - name: Pominięty test dymny to nieprzejście, nie sukces
+        if: >-
+          steps.target.outputs.pomin == '1' &&
+          github.event.deployment_status.state == 'success'
+        run: |
+          echo "::error title=Test dymny nie został uruchomiony::Wdrożenie zakończyło się sukcesem, ale nie ustaliliśmy adresu środowiska '${{ steps.target.outputs.env }}', więc żadna ścieżka użytkownika nie została sprawdzona. To NIE jest zielony deploy — patrz krok „Ustal adres środowiska" po nazwę, która przyszła w zdarzeniu."
+          exit 1
+
       - name: Podsumowanie
         if: always()
         run: |
+          # `steps.<id>.outcome` mówi, co się z krokiem STAŁO (`success`,
+          # `failure`, `skipped`), a `job.status` mówi tylko, czy job jako
+          # całość przeszedł. Stało tu `job.status`, więc podsumowanie
+          # pisało „success" nad pominiętym testem.
           {
             echo "## Deploy: ${{ steps.target.outputs.env }}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Adres | ${{ steps.target.outputs.url }} |"
+            echo "| Adres | ${{ steps.target.outputs.url || 'NIE USTALONO' }} |"
             echo "| Commit | \`${{ github.sha }}\` |"
-            echo "| Test dymny | ${{ job.status }} |"
+            echo "| Test dymny | ${{ steps.dymny.outcome }} |"
+            echo "| Job jako całość | ${{ job.status }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
