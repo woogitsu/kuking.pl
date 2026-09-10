@@ -1,4 +1,13 @@
 <x-layout title="Zeszyt" :noindex="true">
+    {{-- PRAWA SZYNA (issue #205): rzeczy odłożone ostatnio, żeby nie trzeba
+         było pamiętać, do którego zeszytu poszły. Uzasadnienie treści:
+         `szyna-ostatnio-zapisane`. Slot stoi na górze pliku, a w gotowym
+         dokumencie renderuje się PO `<main>` — Blade wstawia go tam, gdzie
+         slot stoi w LAYOUCIE, więc kolejność `Tab` się nie zmienia. --}}
+    <x-slot:rail>
+        <x-szyna-ostatnio-zapisane :pozycje="$ostatnioZapisane" />
+    </x-slot:rail>
+
     <h1>Twój zeszyt</h1>
     {{-- „Przepisy i wpisy", nie same przepisy: od 6 września Zeszyt przyjmuje
          też cudze wpisy (migracja `collection_items_accept_posts`, przycisk

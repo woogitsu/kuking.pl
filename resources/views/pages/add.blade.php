@@ -10,6 +10,33 @@
 @endphp
 
 <x-layout title="Dodaj" :noindex="true">
+    {{--
+        PRAWA SZYNA (issue #205).
+
+        CO CZŁOWIEK, KTÓRY TU STOI, MA W GŁOWIE: „czy to zdjęcie się nadaje".
+        Nie „jak zrobić zdjęcie kulinarne" — to jest cztery rzeczy, które
+        naprawdę zmieniają wynik, a piąta linijka zdejmuje presję, bo bez niej
+        cała reszta czyta się jak wymagania wstępne.
+
+        TO NIE JEST POUCZANIE I DLATEGO NIE STOI W GŁÓWNEJ KOLUMNIE.
+        W środku są dwie decyzje do podjęcia („zdjęcie" albo „cały przepis")
+        i nic nie może stanąć między nimi a kliknięciem. Podpowiedź obok
+        wolno przeczytać albo pominąć.
+
+        ZERO ZAPYTAŃ DO BAZY: to jest tekst, nie lista czegokolwiek.
+    --}}
+    <x-slot:rail>
+        <x-szyna-blok tytul="Zdjęcie, które dobrze wychodzi" id="szyna-zdjecie" ikona="image">
+            <ul class="stack-tight">
+                <li>Światło od okna wychodzi lepiej niż lampa pod sufitem.</li>
+                <li>Bliżej niż dalej — jedno danie, nie cały blat.</li>
+                <li>Z góry albo pod skosem, tak jak się na to patrzy przy stole.</li>
+                <li>Telefon w poziomie, jeśli talerz jest szeroki.</li>
+            </ul>
+            <p class="mb-0">Nie musi być ładnie. Ma być Twoje.</p>
+        </x-szyna-blok>
+    </x-slot:rail>
+
     <h1>Co chcesz dodać?</h1>
     <p class="mb-6">Nie musisz od razu pisać całego przepisu. Samo zdjęcie też jest w porządku.</p>
 
