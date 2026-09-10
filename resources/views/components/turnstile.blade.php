@@ -26,7 +26,7 @@
     właściciela). Bez `<noscript>` osoba z wyłączonym skryptem klikałaby
     „Załóż konto" i dostawała komunikat o czymś, czego nie widzi na ekranie —
     czyli martwy przycisk i cicha utrata użytkownika. Zdanie jest tu OSOBNE
-    DLA KAŻDEGO Z SZEŚCIU FORMULARZY (`Turnstile::zdanieBezJavaScriptu()`),
+    DLA KAŻDEGO Z SIEDMIU FORMULARZY (`Turnstile::zdanieBezJavaScriptu()`),
     bo człowiek ma się dowiedzieć, czego konkretnie nie da się teraz zrobić,
     a nie jakiej technologii wymagamy. Pod spodem stoi adres e-mail, bo dla
     kogoś, kto nie może włączyć JavaScriptu, jest to jedyna droga dalej —

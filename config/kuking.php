@@ -401,6 +401,114 @@ return [
         'adres' => ['proby' => 100, 'sekundy' => 300],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Logowanie linkiem e-mail — „wyślij mi link" (issue #25, D-056)
+    |--------------------------------------------------------------------------
+    |
+    | Droga wejścia dla osób, które gubią hasła — dla naszej grupy DROGA
+    | PODSTAWOWA, nie awaryjna (`docs/research/AUDIENCE_50_PLUS.md`: 12,3%
+    | osób w wieku 65-74 ma podstawowe umiejętności cyfrowe, a hasło i e-mail
+    | są murem). Hasło zostaje jako droga równoległa i nikomu go nie
+    | odbieramy — nie zabiera się ludziom tego, co już umieją.
+    |
+    | LINK JEST HASŁEM JEDNORAZOWYM WYSŁANYM POCZTĄ. Stąd wszystkie liczby
+    | niżej: krótki termin, jeden token na konto, twarde limity próśb i —
+    | osobno — budżet listów, bo poczty mamy skończoną ilość.
+    |
+    */
+
+    'login_link' => [
+        /*
+         * WYŁĄCZNIK CAŁEJ FUNKCJI — jedyna droga wycofania BEZ wdrażania
+         * migracji i bez danych do posprzątania (ta sama zasada co przy
+         * `formularze.klucz_wyslania_wlaczony` i przy kluczach Turnstile).
+         *
+         * `false` znaczy: wejście z ekranu logowania znika, a formularz
+         * i wszystkie linki będące w drodze odpowiadają ekranem „ta droga
+         * jest teraz zamknięta, zaloguj się hasłem". Tabela zostaje
+         * nietknięta, konta działają dalej, nikt nie traci dostępu — bo
+         * hasło nigdy nie przestało być drogą równoległą.
+         */
+        'wlaczone' => (bool) env('KUKING_LOGOWANIE_LINKIEM', true),
+
+        /*
+         * ILE MINUT ŻYJE LINK.
+         *
+         * TRZYDZIEŚCI, a nie piętnaście z pierwszego szkicu issue #25 — i to
+         * jest świadome odstępstwo, nie przeoczenie.
+         *
+         * Piętnaście minut to liczba z serwisów, w których człowiek siedzi
+         * przy komputerze i czeka na list. Nasza droga wygląda inaczej
+         * i została opisana w researchu: prośba idzie z komputera, a poczta
+         * jest w telefonie leżącym w drugim pokoju. „Idź po telefon,
+         * odblokuj, znajdź list wśród czterdziestu innych, przeczytaj,
+         * kliknij" to realnie kilkanaście minut, nie dwie. Link wygasający
+         * w połowie tej drogi jest gorszy niż jego brak: człowiek dostaje
+         * komunikat o błędzie po tym, jak zrobił wszystko dobrze, i prosi
+         * o drugi list — czyli wygaśnięcie SAMO GENERUJE ruch pocztowy,
+         * którego budżet niżej ma pilnować.
+         *
+         * DLACZEGO NIE WIĘCEJ. `docs/legal/SECURITY_BASELINE.md` §3 daje
+         * linkowi resetu hasła maksimum 60 minut. Ten link jest MOCNIEJSZY
+         * od tamtego (loguje od razu, nie prosi o ustawienie nowego hasła),
+         * więc jego okno nie ma prawa być dłuższe — połowa tamtego jest
+         * właściwą proporcją. Przez cały ten czas jest to ważne hasło
+         * jednorazowe leżące w cudzej skrzynce.
+         */
+        'waznosc_minut' => (int) env('KUKING_LOGOWANIE_LINKIEM_WAZNOSC', 30),
+
+        /*
+         * ILE LISTÓW Z LINKIEM WOLNO WYSŁAĆ W CIĄGU DOBY — CAŁEMU SERWISOWI.
+         *
+         * TO NIE JEST LIMIT ZAPYTAŃ. Limity chronią pojedyncze konto
+         * i pojedynczy adres IP; ten wpis chroni COŚ INNEGO i nie da się go
+         * tamtymi zastąpić: WSPÓLNĄ PULĘ POCZTY. EmailLabs na planie
+         * darmowym daje 300 listów na dobę na CAŁY serwis — potwierdzenia
+         * rejestracji, przypomnienia hasła, powiadomienia i te linki idą
+         * z jednego wiadra.
+         *
+         * Bez tego wpisu 500 kont po dwie prośby dziennie (fala migracyjna
+         * z Garnek.pl, o której mówi właściciel) zjada całą dobową pulę,
+         * a pierwszą rzeczą, która przestaje działać, jest POTWIERDZENIE
+         * REJESTRACJI — czyli nowi ludzie nie wchodzą w ogóle, a przyczyna
+         * siedzi kilka warstw dalej.
+         *
+         * SKĄD 120: dwie piąte puli. Zostawia 180 listów na wszystko inne,
+         * a przy rachunku z D-056 starcza dla około 100 osób dziennie
+         * wchodzących tą drogą. Po wykupieniu większego planu u dostawcy to
+         * jest jedna liczba do podniesienia, bez zmiany kodu.
+         *
+         * PO WYCZERPANIU BUDŻETU NIE MILCZYMY. Formularz mówi wprost, że
+         * dziś już listu nie wyślemy, i odsyła do hasła oraz do człowieka
+         * pod adresem kontaktowym. Cicha odmowa byłaby tu najgorszym
+         * możliwym zachowaniem — to ten sam kształt awarii co
+         * `MAIL_MAILER=log` (`App\Support\Poczta`).
+         */
+        'dzienny_budzet' => (int) env('KUKING_LOGOWANIE_LINKIEM_BUDZET', 120),
+
+        /*
+         * LIMIT PRÓŚB NA JEDEN ADRES E-MAIL.
+         *
+         * Osobno od `limits.login_link` niżej, bo tamten liczy się po
+         * adresie IP i nie widzi kogoś, kto zalewa CUDZĄ skrzynkę z wielu
+         * miejsc — a to jest tutaj najtańsze nadużycie: każda prośba to
+         * jeden list w skrzynce osoby, która o nic nie prosiła, i jeden
+         * list mniej w dobowej puli.
+         *
+         * Trzy na godzinę: człowiek prosi raz, po pięciu minutach jeszcze
+         * raz („może nie doszło"), a trzecia próba jest zapasem. Licznik
+         * chodzi po SKRÓCIE adresu (`App\Support\Skrot`), więc w tabeli
+         * `cache` nie leży cudzy adres e-mail — ta sama lekcja co
+         * w `App\Support\KluczeLimitow`.
+         *
+         * LICZNIK RUSZA PRZY KAŻDYM WYSŁANIU FORMULARZA, także dla adresu,
+         * na który nie ma konta. Inaczej sam fakt „ten formularz jeszcze
+         * mnie nie zatrzymał" odpowiadałby na pytanie, czy konto istnieje.
+         */
+        'limit_na_adres' => ['proby' => 3, 'minuty' => 60],
+    ],
+
     'notifications' => [
         /*
          * Okno, w którym powiadomienie o STANIE nie wraca (R3 §7).
@@ -496,11 +604,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Cloudflare Turnstile — warunek wysłania sześciu formularzy publicznych
+    | Cloudflare Turnstile — warunek wysłania siedmiu formularzy publicznych
     |--------------------------------------------------------------------------
     |
     | D-050 (odwraca poz. 1.11 z `docs/INSPIRATION_DECISIONS.md`). Turnstile
-    | stoi na SZEŚCIU formularzach publicznych — wszędzie tam, gdzie do
+    | stoi na SIEDMIU formularzach publicznych — wszędzie tam, gdzie do
     | serwisu wchodzi ktoś niezalogowany.
     |
     | Z KLUCZAMI TURNSTILE JEST WARUNKIEM WYSŁANIA, NIE FILTREM. Brak tokenu
@@ -509,7 +617,7 @@ return [
     | niżej, `klucz_wyslania` i weryfikacja adresu e-mail ZOSTAJĄ: captcha ich
     | nie zastępuje.
     |
-    | Razem z tym zaciśnięciem idzie `<noscript>` przy każdym z sześciu
+    | Razem z tym zaciśnięciem idzie `<noscript>` przy każdym z siedmiu
     | formularzy i osobny komunikat dla kogoś, komu widget się nie dociągnął.
     | Kto zdejmie jedno albo drugie, zostawi ludzi przed martwym przyciskiem.
     | Pełne uzasadnienie: `App\Rules\TurnstileJestPotwierdzony`.
@@ -556,7 +664,7 @@ return [
          * tokenu" nie ma świadomie: Turnstile przepuszczający puste pole nie
          * chroni przed niczym, bo automat po prostu tego pola nie wysyła.
          *
-         * Wszystkie sześć jest włączonych: każdy z tych formularzy jest
+         * Wszystkie siedem jest włączonych: każdy z tych formularzy jest
          * publiczny i każdy kosztuje nas coś realnego przy nadużyciu — konto
          * do moderowania, list wysłany na cudzy adres, wiadomość w kolejce
          * jedynej osoby, która ją czyta, sprawę z terminem odpowiedzi z DSA,
@@ -591,6 +699,19 @@ return [
              */
             'logowanie' => (bool) env('TURNSTILE_NA_LOGOWANIU', true),
             'cofniecie_usuniecia' => (bool) env('TURNSTILE_NA_COFNIECIU_USUNIECIA', true),
+
+            /*
+             * SIÓDME MIEJSCE, DOŁOŻONE 10 WRZEŚNIA 2026 (issue #25, D-056):
+             * „Wyślij mi link do zalogowania".
+             *
+             * Należy do tej samej rodziny co `odzyskanie_hasla` i z tego
+             * samego powodu: formularz jest publiczny, wysyła list na CUDZY
+             * adres i zużywa dobową pulę poczty dzieloną z potwierdzeniami
+             * rejestracji. Automat bez tej bramki zalewa skrzynkę wybranej
+             * osoby i wyczerpuje pulę listów całego serwisu — a to drugie
+             * boli wszystkich, nie tylko ofiarę.
+             */
+            'logowanie_linkiem' => (bool) env('TURNSTILE_NA_LOGOWANIU_LINKIEM', true),
         ],
     ],
 
@@ -604,6 +725,36 @@ return [
         'login' => '5,1',
         'register' => '5,10',
         'password_reset' => '5,10',
+
+        /*
+         * „Wyślij mi link do zalogowania" (issue #25) — licznik PO ADRESIE IP.
+         *
+         * Niżej niż `password_reset` (5/10 min) i to jest celowe: tamten
+         * formularz kończy się listem, po którym trzeba jeszcze wymyślić
+         * i wpisać hasło, a ten wysyła gotowe wejście na konto. Pięć na
+         * godzinę mieści rodzinę za jednym łączem i osobę, która pomyliła
+         * się w adresie, a nie starcza na zalewanie skrzynek.
+         *
+         * DRUGI, WAŻNIEJSZY LICZNIK JEST PO ADRESIE E-MAIL
+         * (`login_link.limit_na_adres`). Ten tutaj nie widzi kogoś, kto
+         * zalewa jedną cudzą skrzynkę z wielu miejsc.
+         */
+        'login_link' => '5,60',
+
+        /*
+         * Kliknięcie „Zaloguj mnie" na ekranie z linku (issue #25).
+         *
+         * OSOBNY KOSZYK OD `login_link` WYŻEJ, choć to ta sama funkcja:
+         * nieudane wejście nie ma prawa zjadać budżetu próśb o list. Token
+         * ma 64 losowe znaki, więc zgadywania i tak nie ma czego blokować —
+         * ten limit chroni bazę przed zapętloną wtyczką i przed kimś, kto
+         * postanowił pukać w tę trasę seriami.
+         *
+         * Dziesięć na dziesięć minut: człowiek klika ten przycisk raz, a przy
+         * słabym łączu drugi i trzeci. Liczy się po adresie IP, więc musi
+         * pomieścić kilka osób za jednym ruterem.
+         */
+        'login_link_wejscie' => '10,10',
         // Formularz cofnięcia usunięcia konta stoi PRZED logowaniem (audyt A8,
         // ten sam powód co limit 'appeal' dla formularza odwołań #10) — jest
         // celem do zgadywania haseł, więc 5 prób na godzinę, nie na minutę.
