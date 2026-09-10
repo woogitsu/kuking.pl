@@ -110,6 +110,17 @@ class NotificationController extends Controller
      * komuś obrazek wskazujący na ten adres, żeby wyczyścić mu
      * powiadomienia. Formularz działa też BEZ JAVASCRIPTU (AGENTS.md),
      * więc nic na tym nie tracimy.
+     *
+     * ISSUE #276 — POWIADOMIENIE BEZ CELU (`adresDocelowy() === null`)
+     * Ta metoda od początku radziła sobie z brakiem adresu: oznacza
+     * `read_at`, po czym `return back()` niżej po prostu zostaje na tej
+     * samej stronie. Dziurą nie był ten kod — była nim strona: widok
+     * pokazywał formularz „Zobacz" tylko wtedy, gdy `adresDocelowy()`
+     * zwracał coś niepuste, więc dla powiadomień typu „Sprawdziliśmy Twoje
+     * odwołanie. Cofamy decyzję." przycisk w ogóle nie istniał i ta gałąź
+     * `back()` była martwa. Widok teraz pokazuje dla nich ten sam formularz
+     * z napisem „Oznacz jako przeczytane" zamiast „Zobacz" — ta metoda się
+     * nie zmieniła, bo nie musiała.
      */
     public function open(Request $request, string $notification): RedirectResponse
     {
