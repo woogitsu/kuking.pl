@@ -1901,6 +1901,19 @@
     letter-spacing: 0.01em;
   }
 
+  /* MARKA NA MARCE NIE MA KONTRASTU.
+     Gdy „Zostań kuKINGiem" wjechało do przycisku podstawowego na stronie
+     powitalnej, skan dostępności oblał się w motywie ciemnym:
+     `color-contrast` na `span > strong` (serious). Powód: przycisk ma tło
+     w kolorze marki, a `strong` wymuszał na sobie ten sam kolor.
+
+     Wewnątrz przycisku „KING" bierze więc kolor otoczenia — przycisk zna
+     swoją parę tło/tekst i ma ją sprawdzoną. Wyróżnienie robią wersaliki,
+     które i tak są tu nośnikiem, a nie kolor. */
+  .btn .kuking-word strong {
+    color: inherit;
+  }
+
   .kuking-board-subtitle {
     /* To jest <h3>, nagłówek sekcji stojący samodzielnie nad listą — nagłówek
        mniejszy od tekstu, który zapowiada, czyta się jak drobny druk (#110). */
