@@ -29,6 +29,10 @@ Konto:
 - theme (patrz niżej);
 - `wants_weekly_digest` — zgoda na cotygodniowy przegląd (patrz niżej);
 - `weekly_digest_sent_at` — kiedy poszło ostatnie podsumowanie (patrz niżej);
+- `google_sub` — identyfikator konta Google, gdy człowiek wchodzi tą drogą
+  (patrz niżej);
+- `google_connected_at` — kiedy powstało powiązanie z kontem Google
+  (patrz niżej);
 - verified timestamps.
 
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
@@ -476,6 +480,92 @@ da się zauważyć. Indeks przechowuje trigramy, nie adres.
 
 **Rollback:** `down()` kasuje oba indeksy. Bezstratny — indeks nie trzyma
 danych, których nie ma w tabeli; ekran działa bez nich dalej, tylko wolniej.
+
+#### `google_sub` i `google_connected_at` — wejście kontem Google
+
+Migracja `2026_09_10_500000_add_google_account_to_users` (issue #258, D-069).
+
+`google_sub varchar(255) NULL` i `google_connected_at timestamptz NULL`.
+`NULL` w obu znaczy „to konto nie wchodzi kontem Google" i w dniu migracji
+jest w tym stanie **każde** konto.
+
+**Co trzymamy i dlaczego akurat tyle.** `google_sub` to `sub` z tokenu
+tożsamości — **jedyna wartość, którą Google obiecuje jako trwałą**. Adres
+e-mail da się u Google zmienić, a w Google Workspace da się nadać adres
+osoby, która odeszła z firmy, komuś innemu; `sub` zostaje ten sam przez całe
+życie konta. Dlatego kolejne wejścia rozpoznajemy po `sub`, a **adres służy
+dokładnie raz** — przy pierwszym połączeniu. `google_connected_at` odpowiada
+na pytanie „od kiedy", którego `audit_log` nie utrzyma (jest sprzątany
+z czasem), a które jest cechą konta.
+
+**Czego w tych kolumnach nie ma, świadomie:** tokenu dostępu, tokenu
+odświeżania (żądanie idzie z `access_type=online`, więc Google go NAM NIE
+WYSTAWIA), tokenu tożsamości, zdjęcia z Google (D-061 — zdjęcie z zewnątrz
+weszłoby poza naszą moderację) i nazwy konta Google. Pilnuje tego wprost
+`LogowanieKontemGoogleTest::test_w_bazie_nie_ma_gdzie_zapisac_tokenu_google`.
+
+**Co pilnuje BAZA, a nie PHP:**
+
+```sql
+CREATE UNIQUE INDEX users_google_sub_unique ON users (google_sub)
+  WHERE google_sub IS NOT NULL;
+
+ALTER TABLE users ADD CONSTRAINT users_google_pair_check
+  CHECK (num_nonnulls(google_sub, google_connected_at) IN (0, 2));
+
+ALTER TABLE users ADD CONSTRAINT users_google_sub_format_check
+  CHECK (google_sub IS NULL OR google_sub ~ '^\S{1,255}$');
+```
+
+1. **jedno konto Google = jedno konto Kuking.** Bez tego dwa nasze konta
+   mogłyby wskazywać ten sam `sub`, a „wejdź kontem Google" wybierałoby to,
+   które baza akurat poda pierwsze. Indeks jest CZĘŚCIOWY, bo kont bez
+   powiązania jest i będzie większość;
+2. **obie kolumny albo żadna** — wiersz z `sub` bez daty (albo odwrotnie)
+   jest stanem, którego kod nie umie wytłumaczyć, a tu „nie umiem
+   wytłumaczyć" dotyczy pytania „kto ma wejście na to konto";
+3. **kształt `sub`** — niepusty, bez znaków białych, do 255 znaków
+   (OpenID Connect Core §2). Nie zawężamy do samych cyfr, choć dziś Google
+   nadaje wartości 21-cyfrowe: zawężenie do dzisiejszego kształtu CUDZEGO
+   identyfikatora zamknęłoby logowanie w dniu, w którym Google go zmieni,
+   i nie chroniłoby przed niczym.
+
+**Obie kolumny są poza `$fillable`** (`AGENTS.md` §7, ta sama zasada co
+`status`, `role` i `email`). Kto ustawi komuś `google_sub` masowym
+przypisaniem, ten wchodzi na jego konto jednym kliknięciem — wartość wchodzi
+wyłącznie przez `User::connectGoogle()`. Przy anonimizacji konta
+(`EraseAccountData`, D-022) obie kolumny są **zerowane razem z hasłem**: bez
+tego losowe hasło nie chroniłoby niczego, bo kto miał to konto Google,
+wchodziłby dalej.
+
+**Dlaczego kolumny, a nie osobna tabela.** `login_link_tokens`
+i `pending_email_changes` (D-048) mają własne tabele, bo to są ŻĄDANIA
+Z ŻYCIORYSEM: powstają, wygasają, są zużywane. Powiązanie z Google jest
+TRWAŁĄ CECHĄ KONTA, jak adres e-mail — nie wygasa i jest czytane wtedy, gdy
+i tak czytamy wiersz `users`. Tabela `tozsamosci_zewnetrzne`
+(`provider`, `subject`) będzie właściwym kształtem przy DRUGIM dostawcy;
+migracja przejściowa to wtedy jeden `INSERT ... SELECT`.
+
+**ROLLBACK — ODMAWIA, gdy komuś zabrałby wejście na konto.** Konto założone
+drogą Google **nigdy nie miało hasła** (w `password` leży skrót wartości
+losowej, której nie zna nikt), więc skasowanie `google_sub` zabiera tej
+osobie jedyną drogę wejścia, jaką zna. `down()` sprawdza więc, czy jest choć
+jedno powiązane konto, i odmawia — mówiąc, ilu kont to dotyczy i co zrobić
+zamiast tego:
+
+```bash
+# WYCOFANIE FUNKCJI BEZ MIGRACJI (to jest właściwa droga):
+KUKING_WEJSCIE_GOOGLE=false   # + restart serwisu
+
+# JEŚLI NAPRAWDĘ trzeba skasować powiązania — powiedz to wprost:
+KUKING_ROLLBACK_KASUJ_POWIAZANIA_GOOGLE=true php artisan migrate:rollback --step=1
+```
+
+Kolejność przy wycofywaniu kodu i migracji razem: **NAJPIERW KOD, POTEM
+MIGRACJA** — inaczej trasy `/wejdz/google` odwołują się do nieistniejących
+kolumn. Sprawdza to `CofniecieMigracjiGoogleOdmawiaTest` (obie strony:
+odmowa przy powiązanych kontach ORAZ przejście na świeżym środowisku, bo
+migracja, która nie cofa się nigdy, jest równie zła).
 
 ### profiles
 - user_id;

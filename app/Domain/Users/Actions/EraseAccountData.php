@@ -214,6 +214,18 @@ final class EraseAccountData
                 'password' => Hash::make(Str::random(40)),
                 'remember_token' => null,
                 'email_verified_at' => null,
+                /*
+                 * POWIĄZANIE Z KONTEM GOOGLE ZNIKA RAZEM Z HASŁEM (D-069).
+                 *
+                 * Jest wejściem na konto dokładnie tak samo jak hasło i sesja,
+                 * więc obowiązuje je ta sama zasada: po wymazaniu danych konto
+                 * nie ma już właściciela i nikt nie ma prawa na nie wejść.
+                 * Bez tych dwóch linii losowe hasło wyżej nie chroniłoby
+                 * niczego — kto miał to konto Google, wchodziłby dalej
+                 * jednym kliknięciem.
+                 */
+                'google_sub' => null,
+                'google_connected_at' => null,
                 'wants_weekly_digest' => false,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy

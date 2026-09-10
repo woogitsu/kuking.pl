@@ -447,6 +447,22 @@ export default defineRailway((ctx) => {
     TURNSTILE_SITE_KEY: ctx.shared.TURNSTILE_SITE_KEY,
     TURNSTILE_SECRET_KEY: ctx.shared.TURNSTILE_SECRET_KEY,
 
+    // --- Wejście kontem Google (D-069, issue #258) ----------------------------
+    // Dodatkowa droga wejścia obok hasła i wiadomości z linkiem. Oba klucze
+    // idą przez `ctx.shared`, bo powstają w Google Cloud Console i są
+    // przypięte do adresów powrotu, czyli różnią się między środowiskami.
+    //
+    // PUSTE = TEJ DROGI NIE MA i nic się nie psuje: przycisku nie ma na
+    // ekranie, hasło i link działają jak dziś. Ale na produkcji `/health`
+    // oddaje wtedy `status: degraded` z powodem `google_bez_kluczy`, żeby
+    // brak zapowiedzianej drogi wejścia nie był niewidoczny.
+    //
+    // GOOGLE_CLIENT_ID nie jest sekretem (wchodzi do adresu przekierowania),
+    // GOOGLE_CLIENT_SECRET jest — w panelu Railway zaznacz „Sealed".
+    // Krok po kroku: docs/infra/DEPLOYMENT_RUNBOOK.md, krok 8D.
+    GOOGLE_CLIENT_ID: ctx.shared.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET,
+
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
     // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,

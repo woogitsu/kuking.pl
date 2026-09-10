@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Support\Google;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +82,7 @@ class HealthController extends Controller
         self::POWOD_BRAK_DROGI_PUBLICZNEJ,
         self::POWOD_DROGA_GDZIE_INDZIEJ,
         self::POWOD_TURNSTILE_BEZ_KLUCZY,
+        self::POWOD_GOOGLE_BEZ_KLUCZY,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -112,6 +114,15 @@ class HealthController extends Controller
      */
     private const POWOD_TURNSTILE_BEZ_KLUCZY = 'turnstile_bez_kluczy';
 
+    /**
+     * Wejście kontem Google jest włączone w konfiguracji, ale nie ma kluczy —
+     * na produkcji to znaczy, że obiecana droga wejścia nie istnieje, a nikt
+     * tego nie zauważy, bo przycisku po prostu nie ma na ekranie (D-069).
+     * Ta sama klasa awarii co Turnstile bez kluczy: konfiguracja obiecuje
+     * coś, czego nie ma.
+     */
+    private const POWOD_GOOGLE_BEZ_KLUCZY = 'google_bez_kluczy';
+
     public function __invoke(): JsonResponse
     {
         $checks = [
@@ -130,6 +141,7 @@ class HealthController extends Controller
             }),
             'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
+            'google' => $this->check('google', self::POWOD_GOOGLE_BEZ_KLUCZY, fn () => $this->sprawdzGoogle()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -193,6 +205,36 @@ class HealthController extends Controller
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_TURNSTILE_BEZ_KLUCZY,
             Turnstile::komunikatBrakuKluczy(),
+        );
+    }
+
+    /**
+     * Wejście kontem Google — to samo pytanie co przy Turnstile: nie „czy
+     * coś padło", a „czy konfiguracja nie kłamie" (D-069).
+     *
+     * Brak kluczy nic nie psuje: przycisku nie ma na ekranie i wszystko
+     * chodzi jak przed tą funkcją. Właśnie dlatego bez tego sygnału nikt by
+     * nie zauważył, że droga zapowiedziana w konfiguracji nie istnieje.
+     * Świadome wyłączenie (`KUKING_WEJSCIE_GOOGLE=false`) jest poprawnym
+     * stanem i nie ma o czym krzyczeć.
+     */
+    private function sprawdzGoogle(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if (! (bool) config('kuking.google.wlaczone', true)) {
+            return;
+        }
+
+        if (Google::skonfigurowany()) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_GOOGLE_BEZ_KLUCZY,
+            Google::komunikatBrakuKluczy(),
         );
     }
 

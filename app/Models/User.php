@@ -305,6 +305,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // albo — cofając datę — wysłać mu drugi list w tym samym
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
             'weekly_digest_sent_at' => 'datetime',
+            // Kiedy powstało powiązanie z kontem Google (issue #258, D-069).
+            // Poza `$fillable` razem z `google_sub` — patrz `connectGoogle()`.
+            'google_connected_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
             'is_seeded' => 'boolean',
@@ -850,6 +853,57 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'email' => $email,
             'email_verified_at' => $potwierdzony ? now() : null,
         ]);
+    }
+
+    /**
+     * Powiązanie konta z kontem Google — JEDYNA droga, którą `google_sub`
+     * trafia na wiersz `users` (issue #258, D-069).
+     *
+     * `google_sub` I `google_connected_at` SĄ POZA `$fillable` i to jest
+     * najważniejsze zdanie w tym miejscu. Ten sam powód co przy `email`
+     * (issue #195), `status` i `role` (AGENTS.md §7), tylko konsekwencje są
+     * jeszcze bardziej wprost: kto ustawi komuś `google_sub` na swój własny,
+     * ten wchodzi na jego konto jednym kliknięciem. Gdyby ta kolumna stała
+     * na liście masowego przypisania, dowolny dzisiejszy i przyszły
+     * `update($request->all())` — także taki, który o Google w ogóle nie
+     * myśli — byłby przejęciem konta.
+     *
+     * ZAPISUJE OD RAZU, w odróżnieniu od `assignEmail()`. Powiązanie nigdy
+     * nie powstaje „razem z czymś innym w jednej transakcji": albo dokładamy
+     * je do konta, które już istnieje (po potwierdzeniu przez człowieka), albo
+     * do konta zakładanego przez `ZalozKonto`, które woła to jawnie.
+     */
+    public function connectGoogle(string $sub): void
+    {
+        $this->forceFill([
+            'google_sub' => $sub,
+            'google_connected_at' => now(),
+        ])->save();
+    }
+
+    public function hasGoogleConnected(): bool
+    {
+        return $this->google_sub !== null;
+    }
+
+    /**
+     * Konto powiązane z tym kontem Google — albo `null`.
+     *
+     * Pytamy po `sub`, NIGDY po adresie e-mail. Adres u Google da się
+     * zmienić, a w Google Workspace da się nadać komuś innemu adres osoby,
+     * która odeszła z firmy; `sub` jest trwały. Adres służy dokładnie raz,
+     * przy pierwszym połączeniu, i to za zgodą człowieka (D-069).
+     *
+     * Baza gwarantuje najwyżej jeden pasujący wiersz — indeks częściowy
+     * `users_google_sub_unique`.
+     */
+    public static function findByGoogleSub(string $sub): ?self
+    {
+        if (trim($sub) === '') {
+            return null;
+        }
+
+        return self::where('google_sub', $sub)->first();
     }
 
     /**

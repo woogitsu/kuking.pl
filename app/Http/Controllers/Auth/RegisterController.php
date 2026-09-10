@@ -4,24 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Domain\Social\Actions\FollowUser;
-use App\Exceptions\BladDlaCzlowieka;
+use App\Domain\Users\Actions\ZalozKonto;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
-use App\Models\Notification;
-use App\Models\Profile;
 use App\Models\User;
 use App\Rules\ReservedUsername;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
 use App\Support\NazwaUzytkownika;
 use App\Support\Turnstile;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -47,7 +40,7 @@ class RegisterController extends Controller
         return view('auth.register');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ZalozKonto $zalozKonto): RedirectResponse
     {
         abort_unless(config('kuking.account.registration_open'), 503);
 
@@ -144,90 +137,30 @@ class RegisterController extends Controller
             'terms_accepted.accepted' => 'Zaznacz, że znasz zasady Kuking.',
         ]);
 
-        $user = DB::transaction(function () use ($data): User {
-            // `email` NIE JEST w `$fillable` (issue #195, ten sam powód co
-            // `status` i `role`), więc adres wchodzi jawnie, przez
-            // `assignEmail()`. Bez potwierdzenia — potwierdzi je dopiero
-            // kliknięcie w list, który zaraz wyjdzie (`event(new Registered)`).
-            $user = (new User([
-                'password' => Hash::make($data['password']),
-                'locale' => 'pl',
-                'text_scale' => config('kuking.text.default_scale'),
-                'age_confirmed_at' => now(),
-            ]))->assignEmail($data['email']);
-
-            $user->save();
-
-            Profile::create([
-                'user_id' => $user->getKey(),
-                'username' => $data['username'],
-                'display_name' => $data['display_name'],
-            ]);
-
-            Notification::create([
-                'user_id' => $user->getKey(),
-                'type' => Notification::TYPE_WELCOME,
-                'data' => ['display_name' => $data['display_name']],
-            ]);
-
-            return $user;
-        });
-
-        event(new Registered($user));
-
-        AuditLogEntry::record(
-            action: 'account.registered',
-            actor: $user,
-            subject: $user,
+        /*
+         * ZAKŁADANIE KONTA MIESZKA W `app/Domain`, NIE TUTAJ (D-069).
+         *
+         * Ta lista czynności — profil, powitanie, oświadczenie o wieku,
+         * wiadomość z potwierdzeniem adresu, wpis w dzienniku, obserwowanie
+         * gospodarza — jest od 10 września wołana z DWÓCH miejsc: tego
+         * formularza i drogi przez konto Google. Dwie kopie rozjechałyby się
+         * przy pierwszej zmianie (AGENTS.md §4), a rozjazd byłby cichy:
+         * konto bez powitania albo bez obserwowanego gospodarza wygląda jak
+         * konto, tylko pusto się z niego patrzy.
+         */
+        $user = $zalozKonto->handle(
+            email: $data['email'],
+            displayName: $data['display_name'],
+            username: $data['username'],
+            haslo: $data['password'],
             ip: $request->ip(),
+            dziennik: ['droga' => 'haslo'],
         );
-
-        $this->zaobserwujGospodarza($user);
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
         return redirect()->route('onboarding.interests')
             ->with('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
-    }
-
-    /**
-     * Nowe konto zaczyna obserwować gospodarza (docs/product/COLD_START.md).
-     *
-     * DLACZEGO POZA TRANSAKCJĄ
-     * Rejestracja MUSI się udać. Gdyby konto gospodarza było źle wpisane
-     * w konfiguracji, zawieszone albo skasowane, wyjątek wewnątrz transakcji
-     * wycofałby całe założenie konta — i człowiek nie miałby gdzie wrócić.
-     * Brak jednego obserwowania jest problemem mniejszym o kilka rzędów
-     * wielkości niż rejestracja, która się nie udała.
-     *
-     * DLACZEGO NIE CICHY `catch` NA WSZYSTKO
-     * Łapiemy tylko `BladDlaCzlowieka`, który `FollowUser` rzuca świadomie
-     * (konto niedostępne, blokada, próba obserwowania samego siebie).
-     * Błąd programisty ma dalej wybuchać głośno — a przez pewien czas nie
-     * wybuchał: stało tu `RuntimeException`, po którym dziedziczy
-     * `PDOException`, więc awaria bazy w tym miejscu była nieodróżnialna
-     * od „gospodarz źle wpisany w konfiguracji".
-     */
-    private function zaobserwujGospodarza(User $user): void
-    {
-        $nazwa = (string) config('kuking.community.host_username');
-
-        if ($nazwa === '') {
-            return;
-        }
-
-        $gospodarz = Profile::where('username', $nazwa)->first()?->user;
-
-        if ($gospodarz === null || $gospodarz->getKey() === $user->getKey()) {
-            return;
-        }
-
-        try {
-            app(FollowUser::class)->handle($user, $gospodarz);
-        } catch (BladDlaCzlowieka) {
-            // Gospodarz zawieszony albo źle wpisany w konfiguracji. Rejestracja
-            // idzie dalej; feed ratują tematy z onboardingu (#31).
-        }
     }
 }

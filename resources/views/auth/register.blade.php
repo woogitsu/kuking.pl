@@ -75,5 +75,8 @@
         </div>
     </form>
 
+    {{-- Droga dodatkowa: konto Google (issue #258, D-069). Znika bez kluczy. --}}
+    <x-wejdz-google naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google" />
+
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

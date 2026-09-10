@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Google\KlientGoogle;
 use App\Moderacja\KlientOpenAI;
 use App\Poczta\TransportEmailLabs;
 use App\Support\Turnstile;
@@ -72,6 +73,35 @@ class PolitykaPrywatnosciWymieniaKazdaUslugeTest extends TestCase
             'OpenAI (moderacja treści)' => [
                 class_exists(KlientOpenAI::class),
                 'OpenAI',
+            ],
+            /*
+             * Google — wejście kontem Google (D-069). Warunkiem jest ISTNIENIE
+             * KLASY, nie obecność kluczy w środowisku, i to jest celowe: bez
+             * kluczy funkcja nie działa u nas lokalnie i w CI, ale KOD, który
+             * wysyła dane do Google, jest już w repozytorium i pójdzie na
+             * produkcję. Gdyby warunkiem były klucze, ten test przechodziłby
+             * wszędzie poza produkcją — czyli wszędzie tam, gdzie ktokolwiek
+             * go uruchamia.
+             */
+            'Google (logowanie kontem Google, D-069)' => [
+                class_exists(KlientGoogle::class),
+                /*
+                 * SŁOWO „Google" BY TU NIE WYSTARCZYŁO i to jest ważniejsze
+                 * niż sam wpis. Polityka od dawna pisze „ani Google
+                 * Analytics, ani żadnego innego" w akapicie o statystykach —
+                 * więc asercja na słowo „Google" przechodziłaby także wtedy,
+                 * gdyby o logowaniu kontem Google dokument milczał
+                 * KOMPLETNIE. Test wyglądałby na zielony, nie sprawdzając
+                 * niczego. Szukamy więc podmiotu, którym Google świadczy tę
+                 * usługę w Europie — te słowa mogą paść tylko w akapicie
+                 * o tej usłudze.
+                 *
+                 * To jest ta sama pułapka, którą ten plik opisuje w swoim
+                 * komentarzu klasy: dokument i kod żyją osobno, a test, który
+                 * łapie słowo z innego miejsca dokumentu, jest jej wersją na
+                 * poziomie asercji.
+                 */
+                'Google Ireland Limited',
             ],
         ];
     }

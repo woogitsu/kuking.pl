@@ -718,6 +718,74 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Wejście kontem Google (issue #258, D-069)
+    |--------------------------------------------------------------------------
+    |
+    | DROGA DODATKOWA, NIGDY JEDYNA. Hasło i link e-mail zostają na ekranie
+    | logowania niezależnie od tego, co jest tutaj ustawione.
+    |
+    | PUSTE KLUCZE = TEJ FUNKCJI NIE MA. Przycisku nie ma na ekranie, trasy
+    | odsyłają na logowanie ze zdaniem po polsku, nic się nie psuje. To jest
+    | stan domyślny lokalnie, w CI i w testach — po to, żeby wgranie dwóch
+    | zmiennych w Railway było jedyną rzeczą, którą właściciel musi zrobić.
+    | Dokładnie ta sama zasada co przy kluczach Turnstile wyżej.
+    |
+    | ALE cisza na produkcji jest zakazana: gdy `APP_ENV=production`, funkcja
+    | jest włączona niżej, a kluczy nie ma, `/health` oddaje `degraded`
+    | z powodem `google_bez_kluczy`. Bez tego mielibyśmy drogę wejścia, która
+    | melduje sukces, nie istniejąc (`App\Support\Google`).
+    */
+    'google' => [
+        /*
+         * WYŁĄCZNIK CAŁEJ FUNKCJI — jedyna droga wycofania BEZ migracji.
+         *
+         * `false` znaczy: przycisk znika z ekranu logowania i rejestracji,
+         * a trasy odpowiadają „ta droga jest teraz zamknięta, zaloguj się
+         * hasłem". Powiązania w bazie zostają nietknięte, konta działają
+         * dalej i NIKT nie traci dostępu — bo konto założone tą drogą ma
+         * potwierdzony adres, czyli zostaje mu link e-mail i „Nie pamiętam
+         * hasła". Ta sama konstrukcja co `login_link.wlaczone`.
+         *
+         * Wycofanie MIGRACJI to co innego i ona odmawia, dopóki nie
+         * powiesz jej wprost, że wolno skasować powiązania — patrz
+         * `2026_09_10_500000_add_google_account_to_users`.
+         */
+        'wlaczone' => (bool) env('KUKING_WEJSCIE_GOOGLE', true),
+
+        // Identyfikator klienta jest PUBLICZNY (wchodzi do adresu, na który
+        // odsyłamy człowieka). Sekret wychodzi wyłącznie w żądaniu
+        // serwer-serwer o token i nigdy nie trafia do widoku ani do logu.
+        'identyfikator_klienta' => (string) env('GOOGLE_CLIENT_ID', ''),
+        'sekret_klienta' => (string) env('GOOGLE_CLIENT_SECRET', ''),
+
+        /*
+         * Ile sekund czekamy na odpowiedź Google przy wymianie kodu.
+         *
+         * Dłużej niż przy Turnstile (4 s), bo tu nie ma wariantu
+         * „przepuszczamy bez sprawdzenia": jeśli Google nie odpowie, ta
+         * osoba po prostu nie wejdzie tą drogą. Ale nie za długo — człowiek
+         * patrzy w tym czasie na pustą stronę wracającą z Google.
+         */
+        'limit_czasu' => (int) env('GOOGLE_LIMIT_CZASU', 6),
+
+        /*
+         * Ile minut wolno stać na ekranie domknięcia konta (imię, nazwa,
+         * dwa oświadczenia), zanim rozpoznana tożsamość z Google przestanie
+         * się liczyć i trzeba będzie kliknąć „Wejdź kontem Google" jeszcze
+         * raz.
+         *
+         * TRZYDZIEŚCI — ta sama liczba i ten sam wywód co przy linku
+         * do logowania (D-056): to jest ekran, na którym osoba 65-letnia
+         * wymyśla nazwę do adresu profilu i czyta regulamin, więc pięć minut
+         * byłoby wyrzuceniem jej z rejestracji za to, że czytała uważnie.
+         * Górna granica bierze się z tego, że przez cały ten czas w sesji
+         * leży potwierdzona tożsamość, na którą da się założyć konto.
+         */
+        'waznosc_domkniecia_minut' => (int) env('GOOGLE_WAZNOSC_DOMKNIECIA', 30),
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
@@ -758,6 +826,26 @@ return [
          * pomieścić kilka osób za jednym ruterem.
          */
         'login_link_wejscie' => '10,10',
+
+        /*
+         * WEJŚCIE KONTEM GOOGLE (issue #258, D-069) — dwa koszyki.
+         *
+         * `google_wejscie` liczy KLIKNIĘCIA „Wejdź kontem Google" i powroty
+         * z Google. Nie chroni przed zgadywaniem (nie ma czego zgadywać —
+         * `state` ma 64 losowe znaki), tylko przed kimś, kto postanowił pukać
+         * w tę trasę seriami, i przed zapętloną wtyczką. Dwadzieścia na
+         * dziesięć minut, bo licząc po adresie IP musi pomieścić kilka osób
+         * za jednym ruterem i człowieka, który raz się rozmyślił i wrócił.
+         *
+         * `google_domkniecie` liczy WYSŁANIA formularza domknięcia konta —
+         * to jest ta trasa, która naprawdę zakłada konto. Tyle samo co
+         * `register` (5 na 10 minut) i z tego samego powodu, choć ta droga
+         * ma przed sobą mocniejszą bramkę niż captcha: żeby tu dojść, trzeba
+         * mieć konto Google z potwierdzonym adresem (patrz D-069, sekcja
+         * o Turnstile).
+         */
+        'google_wejscie' => '20,10',
+        'google_domkniecie' => '5,10',
         // Formularz cofnięcia usunięcia konta stoi PRZED logowaniem (audyt A8,
         // ten sam powód co limit 'appeal' dla formularza odwołań #10) — jest
         // celem do zgadywania haseł, więc 5 prób na godzinę, nie na minutę.

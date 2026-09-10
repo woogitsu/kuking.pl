@@ -509,6 +509,8 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
 | `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
 | `TURNSTILE_SECRET_KEY` | z kroku 8A | **TAK** | Secret Key widgetu Turnstile |
+| `GOOGLE_CLIENT_ID` | z kroku 8D | nie | Client ID OAuth — wchodzi do adresu przekierowania, nie jest sekretem |
+| `GOOGLE_CLIENT_SECRET` | z kroku 8D | **TAK** | Client secret OAuth (wejście kontem Google, D-069) |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -853,6 +855,181 @@ je na końcu. Wynik z datą wpisz do `docs/infra/BRAMKA_R2.md`.
 
 Klucze API nie są wypisywane nigdzie w wyniku — ani endpoint z identyfikatorem
 konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
+
+---
+
+## KROK 8D. Wejście kontem Google — dwa klucze z Google Cloud Console
+
+**Kiedy:** po kroku 8, przed kampanią startową.
+**Ile zajmuje:** pięć minut w Google Cloud Console, dwie zmienne w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
+„Wejdź kontem Google" po prostu nie będzie na ekranie, a hasło i wiadomość
+z linkiem działają jak dziś. Ale `/health` będzie oddawał `status: degraded`
+z powodem `google_bez_kluczy` (patrz 8D.4), bo konfiguracja obiecuje drogę
+wejścia, której nie ma. To jest zamierzone: cicha, nieistniejąca droga jest
+gorsza niż jej jawny brak.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-069](../DECISIONS.md), issue #258.
+
+### 8D.1 Co kliknąć w Google Cloud Console
+
+1. Wejdź na [console.cloud.google.com](https://console.cloud.google.com)
+   i zaloguj się kontem Google, które ma zostać właścicielem tej integracji
+   (najlepiej tym samym, na którym trzymasz sprawy Kuking — **nie** kontem
+   prywatnym, którego ktoś kiedyś nie odzyska).
+2. Na górnym pasku wybierz projekt albo **New Project**:
+   - **Project name:** `kuking`. **Create**.
+3. Menu po lewej (☰) → **APIs & Services** → **OAuth consent screen**.
+   To trzeba wypełnić RAZ, zanim Google w ogóle pozwoli utworzyć klucze:
+   - **User Type:** **External** → **Create**;
+   - **App name:** `Kuking` — **to jest nazwa, którą człowiek zobaczy** na
+     ekranie zgody („Kuking chce uzyskać dostęp do Twojego konta Google"),
+     więc nie wpisuj tu `kuking-prod-2`;
+   - **User support email:** `kontakt@kuking.pl`;
+   - **App logo:** możesz pominąć teraz i dodać później;
+   - **Application home page:** `https://kuking.pl`;
+   - **Privacy policy link:** `https://kuking.pl/prywatnosc`
+     — **to pole jest obowiązkowe do zdjęcia trybu testowego**, a nasza
+     polityka wymienia już Google (D-069);
+   - **Terms of service link:** `https://kuking.pl/regulamin`;
+   - **Authorized domains:** `kuking.pl`;
+   - **Developer contact information:** `kontakt@kuking.pl`;
+   - **Save and continue**.
+4. **Scopes** (następny ekran): dodaj **dokładnie trzy** i ani jednego
+   więcej — `openid`, `.../auth/userinfo.email`,
+   `.../auth/userinfo.profile`. Wszystkie trzy są „non-sensitive", więc
+   **nie wymagają weryfikacji aplikacji przez Google** i nie ma tu żadnego
+   czekania na przegląd. Gdyby ktoś kiedyś dopisał tu cokolwiek innego,
+   Google zażąda weryfikacji, a ekran zgody zacznie ostrzegać ludzi. →
+   **Save and continue**.
+5. **Test users**: dopóki aplikacja jest w trybie **Testing**, wejść tą
+   drogą mogą TYLKO konta wypisane na tej liście (limit 100). Dopisz
+   **swoje konto Google i konto mamy**, żeby przetestować to na prawdziwych
+   ludziach. → **Save and continue** → **Back to dashboard**.
+6. **PRZED KAMPANIĄ: OAuth consent screen → „Publish app" → Confirm.**
+   Bez tego kroku przycisk zadziała Tobie i nie zadziała nikomu z Facebooka —
+   obcy człowiek dostanie po angielsku „Access blocked: this app is not
+   ready". Przy naszych trzech zakresach publikacja jest natychmiastowa,
+   bez przeglądu ze strony Google.
+7. **APIs & Services** → **Credentials** → **Create credentials** →
+   **OAuth client ID**:
+   - **Application type:** **Web application**;
+   - **Name:** `kuking.pl` (etykieta w panelu, człowiek jej nie widzi);
+   - **Authorized JavaScript origins:** **zostaw puste.** Nasza droga nie
+     używa skryptu Google — to jest zwykłe przekierowanie po stronie
+     serwera;
+   - **Authorized redirect URIs** — **dodaj wszystkie trzy, co do znaku**
+     (bez ukośnika na końcu, z `https`):
+
+     ```text
+     https://kuking.pl/wejdz/google/wroc
+     https://www.kuking.pl/wejdz/google/wroc
+     https://kuking-pl-production.up.railway.app/wejdz/google/wroc
+     ```
+
+     Jeśli masz staging, dodaj też jego adres. Chcesz testować u siebie
+     na `php artisan serve` — dodaj `http://127.0.0.1:8000/wejdz/google/wroc`
+     (Google dopuszcza `http` **tylko** dla `localhost`/`127.0.0.1`).
+
+     **To jest jedyne miejsce w całym kroku, w którym literówka objawia się
+     dopiero u człowieka:** Google odpowiada wtedy `redirect_uri_mismatch`,
+     a my odsyłamy tę osobę na logowanie hasłem i zapisujemy błąd
+     w dzienniku. Skopiuj te adresy stąd, nie przepisuj.
+   - **Create**. Google pokaże dwie wartości:
+     - **Client ID** — kończy się na `.apps.googleusercontent.com`, jest
+       **publiczny** (wchodzi do adresu, na który odsyłamy człowieka);
+     - **Client secret** — **to jest sekret**. Nie wklejaj go nigdzie poza
+       Railway, nie wysyłaj pocztą, nie wklejaj do issue na GitHubie.
+
+Logowanie kontem Google jest darmowe i bez limitu — Google nie każe za nie
+płacić.
+
+### 8D.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` odwołuje się do nich przez `ctx.shared`, więc muszą istnieć
+pod dokładnie tymi nazwami):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | Client ID z 8D.1 | nie |
+| `GOOGLE_CLIENT_SECRET` | Client secret z 8D.1 | **TAK — zaznacz „Sealed"** |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz obie
+zmienne wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie.
+
+Dla środowiska `staging` możesz użyć tego samego klienta, jeśli dopisałeś
+adres staginu do listy z 8D.1.
+
+### 8D.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.google'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Przycisk jest na ekranie logowania i rejestracji
+curl -s https://kuking.pl/login | grep -c 'wejdz/google'
+# oczekiwane: liczba większa od zera
+```
+
+Potem otwórz `https://kuking.pl/login` w przeglądarce. Pod formularzem hasła
+ma być karta „Masz konto Google? Wejdź jednym kliknięciem" z przyciskiem
+**„Wejdź kontem Google"**. Kliknij go **kontem, które NIE ma jeszcze konta
+w Kuking**: powinieneś zobaczyć ekran zgody Google z nazwą **Kuking**,
+a po powrocie nasz ekran „Jeszcze dwie rzeczy i konto gotowe" z imieniem
+i podpowiedzianą nazwą — i z **dwoma niezaznaczonymi haczykami**. Konto
+powstaje dopiero po ich zaznaczeniu.
+
+### 8D.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **Ta droga nie zastępuje hasła ani wiadomości z linkiem** i nigdy nie
+  będzie jedyna: część naszych ludzi ma adresy `@wp.pl`, `@o2.pl`
+  i `@interia.pl`, gdzie konta Google nie ma (D-069).
+- **Osoba, która ma już u nas konto na ten adres, NIE wejdzie jednym
+  kliknięciem od razu.** Zobaczy ekran „Połączyć to konto z kontem
+  Google?" i dopiero po potwierdzeniu wejdzie. Tak ma być — to nie usterka.
+- **Osoba, której konto ma NIEPOTWIERDZONY u nas adres, dostanie odmowę**
+  i zdanie „wejdź hasłem albo linkiem i potwierdź adres". To jest
+  najważniejsze zabezpieczenie tej funkcji, nie utrudnienie: bez niego
+  ktoś mógłby założyć konto na cudzy adres i przechwycić je w chwili, gdy
+  prawdziwy właściciel przyjdzie przez Google (D-069, reguła 2).
+- **Moderator i administrator tą drogą nie wejdą wcale** — tam obowiązuje
+  hasło i kod z aplikacji.
+- **Konta Google z niepotwierdzonym adresem nie wejdą nigdzie.** Google
+  mówi nam wprost, czy adres potwierdziło, i bez tego potwierdzenia nie
+  robimy nic.
+- **Awaria Google nie zamyka drzwi**: człowiek wraca na ekran logowania ze
+  zdaniem po polsku, a hasło i „Wyślij mi link do zalogowania" stoją tam,
+  gdzie stały. Angielskiego kodu od Google nie pokazujemy nikomu.
+- **Odmowy i awarie widać w dzienniku** (`Log::warning` / `Log::error`,
+  bez adresu e-mail i bez tokenu). Po tygodniu od wdrożenia przejrzyj je:
+  to jedyna odpowiedź na pytanie, czy zamknęliśmy komuś drzwi.
+- **Turnstile na tej drodze nie stoi** i to jest decyzja, nie
+  przeoczenie — uzasadnienie w D-069, rozstrzygnięcie 5.
+
+### 8D.5 Jak to wyłączyć w minutę
+
+```bash
+KUKING_WEJSCIE_GOOGLE=false   # + restart serwisu
+```
+
+Przycisk znika z ekranu logowania i rejestracji, trasy odsyłają na logowanie
+ze zdaniem po polsku, **powiązania w bazie zostają nietknięte i nikt nie
+traci dostępu** — konto założone tą drogą ma potwierdzony adres, więc zostaje
+mu wiadomość z linkiem i „Nie pamiętam hasła".
+
+Drugi sposób (mocniejszy): wyczyść `GOOGLE_CLIENT_ID` i `GOOGLE_CLIENT_SECRET`.
+Wtedy ustaw też `KUKING_WEJSCIE_GOOGLE=false`, żeby `/health` nie zgłaszał
+`degraded` — brak kluczy jest błędem tylko wtedy, gdy konfiguracja nadal
+obiecuje tę drogę.
+
+**Migracji do cofania NIE MA i nie cofaj jej dla wyłączenia funkcji.**
+`migrate:rollback` na `2026_09_10_500000_add_google_account_to_users`
+skasowałby powiązania — a dla części osób to jedyna droga wejścia, jaką znają
+(hasła nigdy nie ustawiały). Dlatego to cofnięcie **samo odmawia**, dopóki
+nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_POWIAZANIA_GOOGLE=true`.
 
 ---
 
