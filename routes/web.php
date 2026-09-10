@@ -755,6 +755,36 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->name('admin.reports.restore');
 
     /*
+     * PRZEGLĄD SPRAWY I PRIORYTET (D-070).
+     *
+     * Trzy osobne wejścia, wszystkie osobno od `decide`, bo żadne z nich
+     * NIE JEST decyzją moderacyjną: nie dotykają treści, nie tworzą wpisu
+     * w `moderation_actions` i nie powiadamiają autora. `decide` słusznie
+     * ma warunki, których te trzy czynności nie mogą mieć — nie da się przy
+     * nich wymagać podstawy z DSA art. 17, bo nikt jeszcze niczego nie
+     * postanowił.
+     *
+     * `podejmij` i `oddaj` sterują statusem `reviewing`, przez który
+     * oznaczenie „P0 nieprzejrzane" może na osiem godzin ucichnąć.
+     * `priorytet` przesuwa sprawę w kolejce, zawsze z uzasadnieniem.
+     *
+     * Ten sam limit `moderacja` co pozostałe akcje panelu: skutkiem jest
+     * wiersz w bazie, nie list, więc limit chroni przed przejętą sesją,
+     * a nie przed jedynym moderatorem w środku fali spamu.
+     */
+    Route::post('/zgloszenia/{report}/podejmij', [ModerationController::class, 'take'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.reports.take');
+
+    Route::post('/zgloszenia/{report}/oddaj', [ModerationController::class, 'release'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.reports.release');
+
+    Route::post('/zgloszenia/{report}/priorytet', [ModerationController::class, 'priority'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.reports.priority');
+
+    /*
      * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez
      * wykrywacz sygnałów, których NIKT nie zgłosił.
      *

@@ -71,12 +71,12 @@ class RaportSygnalow extends Command
 
         $czekaja = Report::query()
             ->where('source', Report::SOURCE_AUTOMAT)
-            ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+            ->whereIn('status', Report::STANY_OTWARTE)
             ->count();
 
         $stare = Report::query()
             ->where('source', Report::SOURCE_AUTOMAT)
-            ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+            ->whereIn('status', Report::STANY_OTWARTE)
             ->where('created_at', '<', now()->subWeek())
             ->count();
 

@@ -3,6 +3,30 @@
 
     <h1>Zgłoszenia</h1>
 
+    {{--
+        WIDOK „SPRAWY PILNE" (D-070) — wejście z oznaczenia „P0
+        nieprzejrzane" w pasku panelu.
+
+        Zakładki i filtr źródła NIE OBOWIĄZUJĄ w tym widoku i trzeba to
+        powiedzieć wprost, bo inaczej moderator zobaczy listę, która nie
+        zgadza się z podświetloną zakładką, i uzna to za usterkę. Powód, dla
+        którego widok ignoruje filtry, stoi w `ModerationController::reports()`:
+        liczba na alarmie musi być równa długości tej listy.
+    --}}
+    @if($pilne)
+        <div class="alarm-pilne" role="alert">
+            <p class="alarm-pilne-naglowek">
+                <x-ikona nazwa="shield" :rozmiar="22" />
+                <span>Sprawy krytyczne (P0), które czekają na przejrzenie</span>
+            </p>
+            <p class="alarm-pilne-tresc">
+                Ta lista pokazuje WSZYSTKIE nieprzejrzane sprawy P0 — także oznaczenia automatu,
+                jeśli ktoś podniósł im priorytet ręcznie. Zakładki i filtr źródła jej nie zawężają.
+            </p>
+            <a href="{{ route('admin.reports', ['status' => 'open']) }}">Wróć do całej kolejki zgłoszeń</a>
+        </div>
+    @endif
+
     {{-- Zakładki niosą aktualne `zrodlo`, inaczej przełączenie stanu
          wyrzucałoby moderatora z listy oznaczeń automatu z powrotem do spraw
          od ludzi — bez słowa wyjaśnienia, dlaczego lista nagle się zmieniła. --}}
@@ -71,6 +95,43 @@
     @forelse($reports as $report)
         <article class="card mb-5">
             <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
+
+            {{--
+                PRIORYTET NA KARCIE (D-070).
+
+                Plakietka NIE STOI SAMA: obok skrótu („P0") jest pełna
+                etykieta i cel czasowy z podręcznika, bo „P2" bez słowa
+                „standardowy" jest dla nowej osoby tym samym, czym ikona bez
+                podpisu (`AGENTS.md` §5). Kolejność na ekranie wynika z tej
+                samej liczby, więc moderator widzi, DLACZEGO ta sprawa leży
+                właśnie tutaj.
+            --}}
+            <p class="priorytet-wiersz">
+                <span class="badge badge-priorytet badge-priorytet-{{ $report->priorytet }}">{{ $report->nazwaPriorytetu() }}</span>
+                <span class="priorytet-opis">
+                    {{ $report->etykietaPriorytetu() }} — {{ \App\Domain\Moderation\PriorytetSprawy::cel((int) $report->priorytet) }}
+                </span>
+            </p>
+
+            @if($report->priorytetZmienionyRecznie())
+                {{-- Zmiana ręczna musi być widoczna razem z powodem i osobą.
+                     Bez tego kolejna osoba czytająca sprawę nie ma jak
+                     odróżnić „tak wynika z kategorii" od „ktoś przeczytał
+                     treść i przesunął" — a to jest cała wartość tej zmiany.
+                     Priorytet z mapowania podajemy obok, żeby było widać, CO
+                     zostało zmienione, nie tylko że coś. --}}
+                <p class="meta">
+                    Priorytet zmieniony ręcznie
+                    {{ \App\Support\Czas::data($report->priorytet_zmieniony_o, 'j F Y, H:i') }}
+                    @if($report->priorytetZmienilo)
+                        przez {{ $report->priorytetZmienilo->displayName() }}
+                    @endif
+                    · z kategorii wynikałoby
+                    {{ \App\Domain\Moderation\PriorytetSprawy::nazwa($report->priorytetZPowodu()) }}
+                </p>
+                <p class="whitespace-pre-line">Powód zmiany: {{ $report->priorytet_powod }}</p>
+            @endif
+
             <p class="meta">
                 {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
@@ -129,7 +190,189 @@
                 <p class="whitespace-pre-line">{{ $report->details }}</p>
             @endif
 
+            {{--
+                ====================================================
+                 WCZEŚNIEJSZE SANKCJE AUTORA (D-070, znalezisko MOD-02)
+                ====================================================
+
+                Podręcznik moderacji eskaluje regułami „2. wystąpienie",
+                „3. → blokada trwała" — a panel tych wystąpień nie
+                pokazywał, więc eskalacja zależała od pamięci człowieka
+                i przy zmianie moderatora wypadała z procesu całkowicie.
+
+                WĄSKA OŚ CZASU, NIE TECZKA. Data, decyzja, podstawa, wynik
+                odwołania — i nic więcej. Czego tu świadomie NIE MA (treści
+                tamtych spraw, notatek wewnętrznych, danych zgłaszających,
+                spraw odrzuconych) i dlaczego: `App\Domain\Moderation\HistoriaSankcji`.
+
+                Liczba zapytań NIE ROŚNIE z długością tej listy ani z liczbą
+                spraw na stronie — całość jest policzona raz, w kontrolerze,
+                dla wszystkich autorów naraz.
+            --}}
+            @php($historiaAutora = $historia[$report->id] ?? null)
+            @if($historiaAutora !== null)
+                <div class="historia-sankcji">
+                    <h3 class="historia-sankcji-naglowek">
+                        Wcześniejsze decyzje wobec tej osoby:
+                        @if($historiaAutora->wystapienia === 0)
+                            same cofnięte w odwołaniu
+                        @elseif($historiaAutora->wystapienia === 1)
+                            1 wystąpienie
+                        @else
+                            {{ $historiaAutora->wystapienia }} wystąpienia
+                        @endif
+                    </h3>
+                    <p class="meta">
+                        Podręcznik moderacji eskaluje po liczbie wystąpień. Decyzje cofnięte
+                        w odwołaniu są tu widoczne, ale do tej liczby się NIE liczą — to były
+                        nasze pomyłki, nie przewinienia tej osoby.
+                    </p>
+                    <ul class="historia-sankcji-lista">
+                        @foreach($historiaAutora->pozycje as $wczesniejsza)
+                            <li>
+                                <span class="historia-sankcji-data">
+                                    {{ \App\Support\Czas::data($wczesniejsza->created_at, 'j F Y') }}
+                                </span>
+                                <span class="historia-sankcji-decyzja">{{ $wczesniejsza->label() }}</span>
+                                <span class="meta">
+                                    · podstawa: {{ $wczesniejsza->reason_code }}
+                                    @php($wynik = \App\Domain\Moderation\HistoriaAutora::wynikOdwolania($wczesniejsza))
+                                    @if($wynik !== null)
+                                        · {{ $wynik }}
+                                    @endif
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if($historiaAutora->przyciete())
+                        <p class="meta">
+                            Pokazane {{ count($historiaAutora->pozycje) }} z {{ $historiaAutora->wszystkich }}
+                            decyzji — najnowsze pierwsze.
+                        </p>
+                    @endif
+                </div>
+            @endif
+
+            {{--
+                ====================================================
+                 PRZEGLĄD SPRAWY (D-070, znalezisko MOD-04)
+                ====================================================
+
+                Do 10 września status `reviewing` istniał w schemacie i nic
+                go nie nadawało, więc zakładka „W trakcie" była stale pusta.
+                Te dwa przyciski są całą jego obsługą — i są potrzebne nawet
+                przy jednym moderatorze, bo bez „podejmuję sprawę" nie da się
+                uciszyć alarmu P0 inaczej niż wydając decyzję, której się
+                jeszcze nie podjęło.
+
+                Osobny formularz od formularza decyzji i osobny adres: to nie
+                jest decyzja moderacyjna, więc nie ma tu podstawy z DSA
+                art. 17, nie powstaje wpis w `moderation_actions` i autor
+                niczego się nie dowiaduje.
+            --}}
+            @php($bladPrzegladu = $errors->first('przeglad'))
+            @if($report->status === \App\Models\Report::STATUS_REVIEWING)
+                <p class="meta">
+                    W przeglądzie
+                    @if($report->przegladajacy)
+                        u {{ $report->przegladajacy->displayName() }}
+                    @endif
+                    od {{ \App\Support\Czas::data($report->przeglad_zaczety_o, 'j F Y, H:i') }}.
+                    @if(\App\Domain\Moderation\Przeglad::wygasl($report))
+                        <strong>Minęło ponad {{ \App\Domain\Moderation\Przeglad::WYGASA_PO_GODZINACH }}
+                        godzin i sprawa wróciła do kolejki jako nieprzejrzana.</strong>
+                    @endif
+                </p>
+                <form method="POST" action="{{ route('admin.reports.release', $report) }}">
+                    @csrf
+                    <button class="btn btn-secondary" type="submit">Oddaj do kolejki</button>
+                </form>
+            @elseif($report->status === \App\Models\Report::STATUS_OPEN)
+                <form method="POST" action="{{ route('admin.reports.take', $report) }}">
+                    @csrf
+                    <button class="btn btn-secondary" type="submit">Wziąłem do przeglądu</button>
+                </form>
+            @endif
+            @if($bladPrzegladu)
+                <span class="field-error">{{ $bladPrzegladu }}</span>
+            @endif
+
             @if($report->isOpen())
+                {{--
+                    ====================================================
+                     RĘCZNA ZMIANA PRIORYTETU (D-070, znalezisko MOD-01)
+                    ====================================================
+
+                    Automat czyta wyłącznie KATEGORIĘ wybraną przez
+                    zgłaszającego, nie treść. Dlatego człowiek musi móc
+                    priorytet PODNIEŚĆ („dane osobowe" okazały się adresem
+                    domowym z wezwaniem, żeby tam pojechać) i OBNIŻYĆ
+                    („dotyczy dziecka" okazało się zdjęciem wnuka przy
+                    torcie) — zawsze z uzasadnieniem, bo bez niego zmiana
+                    jest w logu nieodróżnialna od pomyłki.
+
+                    OSOBNY FORMULARZ, NIE POLE W FORMULARZU DECYZJI. Trzy
+                    powody: priorytet ustala kolejność, nie wyrok, więc nie
+                    może wymagać podstawy z DSA art. 17; zmiana priorytetu
+                    ma działać NATYCHMIAST (sprawa ma się przesunąć w tej
+                    samej minucie, nie po wydaniu decyzji); a formularz
+                    decyzji przyjmuje jedno wysłanie na sprawę i drugiego już
+                    nie przyjmie.
+
+                    BŁĄD I WPISANA TREŚĆ WRACAJĄ POD KLUCZEM Z ID SPRAWY.
+                    Ta strona stawia do dwudziestu pięciu takich formularzy
+                    naraz — błąd pod wspólną nazwą pola pokazałby się pod
+                    KAŻDYM z nich. To ten sam kształt usterki, który dla
+                    formularza decyzji naprawia osobno issue #243; tu
+                    rozstrzyga go klucz z identyfikatorem, bez zależności od
+                    tamtej zmiany.
+
+                    BEZ JEDNEJ LINII JAVASCRIPTU — zwykły `<select>`
+                    i `<textarea>`, jak w formularzu decyzji obok.
+                --}}
+                @php($bladPriorytetu = $errors->first('priorytet_'.$report->id))
+                <form class="zmiana-priorytetu" method="POST" action="{{ route('admin.reports.priority', $report) }}">
+                    @csrf
+                    <h3 class="text-title-sm">Priorytet w kolejce</h3>
+                    <p class="meta">
+                        Priorytet wynika z kategorii wybranej przez zgłaszającego, a ta nie mówi nic
+                        o treści. Zmień go, jeśli po przeczytaniu sprawa jest pilniejsza albo mniej
+                        pilna, niż wynikałoby z kategorii. Zmiana przesuwa sprawę w kolejce —
+                        nie jest decyzją w sprawie.
+                    </p>
+
+                    <div class="field @if($bladPriorytetu) has-error @endif">
+                        <label for="priorytet-{{ $report->id }}">
+                            Nowy priorytet <span class="meta">(wymagane)</span>
+                        </label>
+                        <select class="field-input" id="priorytet-{{ $report->id }}" name="priorytet" required
+                                @if($bladPriorytetu) aria-invalid="true" @endif>
+                            @foreach(\App\Domain\Moderation\PriorytetSprawy::dlaFormularza() as $wartosc => $etykieta)
+                                <option value="{{ $wartosc }}" @selected((int) $report->priorytet === $wartosc)>{{ $etykieta }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="field @if($bladPriorytetu) has-error @endif">
+                        <label for="priorytet-powod-{{ $report->id }}">
+                            Dlaczego <span class="meta">(wymagane)</span>
+                        </label>
+                        <span class="field-help" id="priorytet-powod-{{ $report->id }}-help">
+                            Jedno zdanie o tym, czego nie było widać w kategorii. Zostaje przy sprawie
+                            razem z Twoim nazwiskiem — czyta to osoba, która weźmie tę sprawę po Tobie.
+                        </span>
+                        <textarea class="field-input" id="priorytet-powod-{{ $report->id }}"
+                                  name="powod" rows="2" required
+                                  aria-describedby="priorytet-powod-{{ $report->id }}-help"
+                                  @if($bladPriorytetu) aria-invalid="true" @endif>{{ session('priorytet_powod_'.$report->id, '') }}</textarea>
+                        @if($bladPriorytetu)
+                            <span class="field-error">{{ $bladPriorytetu }}</span>
+                        @endif
+                    </div>
+
+                    <button class="btn btn-secondary" type="submit">Zapisz priorytet</button>
+                </form>
+
                 <form method="POST" action="{{ route('admin.reports.decide', $report) }}">
                     @csrf
 

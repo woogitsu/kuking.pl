@@ -124,7 +124,7 @@ final class KolejkiPanelu
             // Sygnały automatu — ten sam warunek co `SygnalyController::otwarte()`.
             'sygnaly' => Report::query()
                 ->where('source', Report::SOURCE_AUTOMAT)
-                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                ->whereIn('status', Report::STANY_OTWARTE)
                 ->count(),
 
             // Odwołania do rozpatrzenia. Ta jedna liczba ma TERMIN (DSA

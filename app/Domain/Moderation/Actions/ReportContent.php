@@ -71,7 +71,10 @@ final class ReportContent
         User::class => 'viewProfile',
     ];
 
-    public function __construct(private readonly NotifyReporterReceipt $potwierdzenie) {}
+    public function __construct(
+        private readonly NotifyReporterReceipt $potwierdzenie,
+        private readonly AlarmujModeratora $alarm,
+    ) {}
 
     /**
      * Bramka widoczności celu (audyt W7-05).
@@ -201,6 +204,29 @@ final class ReportContent
          */
         $this->potwierdzenie->handle($report);
 
+        /*
+         * ALARM PRZY SPRAWIE KRYTYCZNEJ (P0) — D-070.
+         *
+         * STOI DOKŁADNIE TUTAJ, z tego samego powodu, dla którego stoi tu
+         * potwierdzenie odbioru: obie drogi powyżej, które oddają wiersz JUŻ
+         * ISTNIEJĄCY (ciepły `SELECT` i odbicie się o indeks
+         * `reports_one_open_per_pair`), wracają wcześniej. Więc podwójne
+         * kliknięcie nie wysyła drugiego listu, a dwie różne osoby zgłaszające
+         * tę samą treść — wysyłają, i tak ma być: to są dwie osobne sprawy
+         * z osobnymi terminami.
+         *
+         * POZA TRANSAKCJĄ i po potwierdzeniu: zgłoszenie nie może zniknąć
+         * dlatego, że poczta do moderatora nie wyszła. Sama wysyłka jest
+         * kolejkowana (`PilnyAlarmModeracyjny implements ShouldQueue`), więc
+         * awaria serwera poczty ląduje w `failed_jobs`, a nie na ekranie
+         * zgłaszającego.
+         *
+         * Panel ma na to niezależne oznaczenie („P0 nieprzejrzane",
+         * `App\Domain\Moderation\PilneSprawy`) i ono jest podstawą — ten
+         * list jest dla człowieka, który akurat nie patrzy w panel.
+         */
+        $this->alarm->dlaKrytycznegoZgloszenia($report);
+
         return $report;
     }
 
@@ -218,7 +244,7 @@ final class ReportContent
             ->where('target_type', $targetType)
             ->where('target_id', $targetId)
             ->when($reporter !== null, fn ($query) => $query->where('reporter_id', $reporter->getKey()))
-            ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+            ->whereIn('status', Report::STANY_OTWARTE)
             ->first();
     }
 }

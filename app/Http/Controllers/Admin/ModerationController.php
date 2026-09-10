@@ -8,8 +8,11 @@ use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Domain\Moderation\Actions\NotifyReporterDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\DlugoscZawieszenia;
+use App\Domain\Moderation\HistoriaSankcji;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\PriorytetSprawy;
+use App\Domain\Moderation\Przeglad;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -39,6 +42,7 @@ class ModerationController extends Controller
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
         private readonly RestoreContent $przywroc,
+        private readonly HistoriaSankcji $historia,
     ) {}
 
     public function reports(Request $request): View
@@ -68,14 +72,40 @@ class ModerationController extends Controller
          */
         $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
 
+        /*
+         * WIDOK „SPRAWY PILNE" (`?pilne=1`) — D-070.
+         *
+         * Jedyny widok tego ekranu, który ŚWIADOMIE IGNORUJE filtr źródła
+         * i wybraną zakładkę. Powód jest jeden i praktyczny: oznaczenie
+         * „P0 nieprzejrzane" w pasku panelu jest wejściem do tej listy, więc
+         * liczba na plakietce MUSI zgadzać się z długością listy, którą
+         * pokazuje kliknięcie. Gdyby lista dziedziczyła filtr źródła, alarm
+         * mówiący „1" prowadziłby do pustego ekranu za każdym razem, gdy
+         * moderator ręcznie podniósł do P0 oznaczenie automatu — a wtedy
+         * przestałby wierzyć alarmowi, co jest jedyną rzeczą, której przy
+         * P0 nie wolno.
+         *
+         * `nieprzejrzane()`, nie `status = 'open'`: sprawa wzięta do
+         * przeglądu i nie domknięta w ciągu ośmiu godzin wraca tutaj
+         * (`App\Domain\Moderation\Przeglad`).
+         */
+        $pilne = $request->boolean('pilne');
+
         $reports = Report::query()
             ->when(
-                $zrodlo === Report::SOURCE_AUTOMAT,
-                fn ($query) => $query->where('source', Report::SOURCE_AUTOMAT),
-                fn ($query) => $query->where('source', '!=', Report::SOURCE_AUTOMAT),
+                $pilne,
+                fn ($query) => $query
+                    ->where('priorytet', PriorytetSprawy::P0)
+                    ->nieprzejrzane(),
+                fn ($query) => $query
+                    ->when(
+                        $zrodlo === Report::SOURCE_AUTOMAT,
+                        fn ($q) => $q->where('source', Report::SOURCE_AUTOMAT),
+                        fn ($q) => $q->where('source', '!=', Report::SOURCE_AUTOMAT),
+                    )
+                    ->when($status !== 'wszystkie', fn ($q) => $q->where('status', $status)),
             )
-            ->when($status !== 'wszystkie', fn ($query) => $query->where('status', $status))
-            ->with(['reporter.profile', 'resolver.profile'])
+            ->with(['reporter.profile', 'resolver.profile', 'przegladajacy.profile', 'priorytetZmienilo.profile'])
             // DRUGI WARUNEK PORZĄDKU TO NIE OZDOBA (audyt zewnętrzny, G10).
             //
             // Stało tu samo `latest()`, czyli `ORDER BY created_at DESC`.
@@ -96,17 +126,57 @@ class ModerationController extends Controller
             // UPDATE — czyli dokładnie ten ruch, który przestawia stertę.
             //
             // `id` jest UUID-em v7, więc rozstrzyga remis w tę samą stronę co
-            // czas: nowsze na górze. Nie zmienia to kolejności ANI JEDNEJ pary
-            // wierszy o różnym `created_at`.
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            // czas. Nie zmienia to kolejności ANI JEDNEJ pary wierszy
+            // o różnym `created_at`.
+            //
+            // ================================================================
+            //  PRIORYTET PIERWSZY, W OBRĘBIE PRIORYTETU NAJSTARSZE (D-070)
+            // ================================================================
+            //
+            // Stało tu `ORDER BY created_at DESC, id DESC`, czyli „najnowsze
+            // pierwsze". Ta kolejność była wprost szkodliwa i podręcznik
+            // moderacji mówił o tym wprost: sprawa P0 sprzed dwóch dni leżała
+            // NIŻEJ niż spam sprzed godziny, a moderatorowi zostawała rada
+            // „przeglądaj całą zakładkę, nie tylko pierwszy ekran".
+            //
+            // Teraz `priorytet ASC` (0 = P0 najpilniejsze) i — w obrębie
+            // jednego priorytetu — `created_at ASC`. Drugi człon jest
+            // ODWRÓCENIEM poprzedniego stanu i to jest zamierzone: sprawa,
+            // która czeka najdłużej w swojej wadze, jest najpilniejsza,
+            // bo przy niej najbliżej jest do przekroczenia celu czasowego
+            // z tabeli SLA. „Najnowsze pierwsze" nagradzało sprawy świeże
+            // i systematycznie zapominało o starych — czyli o tych, przy
+            // których czekanie już komuś szkodzi.
+            //
+            // `id ASC` zamiast `DESC` z tego samego powodu: musi rozstrzygać
+            // remis w tę samą stronę co `created_at`, inaczej porządek na
+            // granicy sekundy byłby wewnętrznie sprzeczny.
+            //
+            // Indeks `reports_kolejka_priorytet_idx (priorytet, created_at)
+            // WHERE status IN ('open','reviewing')` oddaje wiersze już w tej
+            // kolejności — bez sortowania w pamięci i bez `ORDER BY CASE`,
+            // dla którego indeksu nie da się postawić.
+            ->orderBy('priorytet')
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->paginate(25)
             ->withQueryString();
 
         return view('pages.admin.reports', [
             'status' => $status,
             'zrodlo' => $zrodlo,
+            'pilne' => $pilne,
             'reports' => $reports,
+            /*
+             * HISTORIA WCZEŚNIEJSZYCH SANKCJI AUTORA (D-070, MOD-02).
+             *
+             * Liczona RAZ dla całej strony, nie raz na sprawę: siedem
+             * zapytań niezależnie od tego, czy na stronie jest jedno
+             * zgłoszenie czy dwadzieścia pięć. Pełne wyjaśnienie, dlaczego
+             * to nie jest N+1 i czego świadomie na tej osi czasu NIE MA,
+             * stoi w `App\Domain\Moderation\HistoriaSankcji`.
+             */
+            'historia' => $this->historia->dlaSpraw($reports->getCollection()),
             // Które zgłoszenia da się dziś cofnąć (issue #65).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
@@ -122,7 +192,7 @@ class ModerationController extends Controller
             // ma powiedzieć, ile tam jest, zanim człowiek tam kliknie.
             'sygnalow' => Report::query()
                 ->where('source', Report::SOURCE_AUTOMAT)
-                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                ->whereIn('status', Report::STANY_OTWARTE)
                 ->count(),
         ]);
     }
@@ -136,6 +206,172 @@ class ModerationController extends Controller
             ->count();
     }
 
+    /**
+     * „WZIĄŁEM DO PRZEGLĄDU" (D-070, znalezisko MOD-04).
+     *
+     * DLACZEGO OSOBNY ENDPOINT, A NIE POZYCJA W FORMULARZU DECYZJI
+     * Bo to nie jest decyzja i nie wolno jej z decyzją mieszać. Formularz
+     * decyzji wymaga podstawy z DSA art. 17, tworzy wpis w
+     * `moderation_actions`, wysyła powiadomienie autorowi i zamyka sprawę.
+     * „Podejmuję tę sprawę" nie robi nic z tych rzeczy — nie dotyka treści,
+     * nie powiadamia nikogo i nie ma konsekwencji dla autora. Ma jedną
+     * funkcję: powiedzieć, że sprawa jest u człowieka, więc oznaczenie
+     * „P0 nieprzejrzane" może na osiem godzin ucichnąć.
+     *
+     * BEZ POLA I BEZ POTWIERDZENIA. To jedno z niewielu miejsc w panelu,
+     * gdzie kliknięcie ma być darmowe: sprawa krytyczna nie może czekać na
+     * wypełnienie formularza, a pomyłka jest odwracalna jednym kliknięciem
+     * („Oddaj do kolejki") i sama wygasa po ośmiu godzinach.
+     */
+    public function take(Request $request, Report $report): RedirectResponse
+    {
+        $this->authorize('moderate', User::class);
+
+        if (! $report->wezDoPrzegladu($request->user())) {
+            // Nie wyjątek i nie 409: dla moderatora to jest normalna
+            // sytuacja („ktoś był szybszy", „sprawa już zamknięta"), a nie
+            // awaria. Zdanie mówi, CO SIĘ STAŁO i co zobaczy po odświeżeniu.
+            return back()->withErrors([
+                'przeglad' => 'Tej sprawy nie da się teraz wziąć do przeglądu — ktoś ją już '
+                    .'przegląda albo została rozstrzygnięta. Odśwież stronę, żeby zobaczyć aktualny stan.',
+            ]);
+        }
+
+        AuditLogEntry::record(
+            action: 'moderation.taken',
+            actor: $request->user(),
+            subject: $report,
+            metadata: ['priorytet' => (int) $report->priorytet],
+            ip: $request->ip(),
+        );
+
+        return back()->with('status', 'Sprawa jest u Ciebie. Jeśli jej nie domkniesz, wróci do kolejki '
+            .'po '.Przeglad::WYGASA_PO_GODZINACH.' godzinach — oznaczenie pilnych spraw nie da się wyciszyć na stałe.');
+    }
+
+    /**
+     * ODDANIE SPRAWY DO KOLEJKI, bez decyzji (D-070).
+     *
+     * Potrzebne, żeby „wziąłem do przeglądu" nie było pułapką: sprawa,
+     * której dziś nie da się domknąć (czekamy na prawnika, na kontakt
+     * z organami, na tłumaczenie), ma wrócić do kolejki OD RAZU, a nie
+     * dopiero po ośmiu godzinach. Ślad, kto ją brał, zostaje.
+     */
+    public function release(Request $request, Report $report): RedirectResponse
+    {
+        $this->authorize('moderate', User::class);
+
+        if (! $report->oddajDoKolejki()) {
+            return back()->withErrors([
+                'przeglad' => 'Ta sprawa nie jest w przeglądzie — nie ma czego oddawać. '
+                    .'Odśwież stronę, żeby zobaczyć aktualny stan.',
+            ]);
+        }
+
+        AuditLogEntry::record(
+            action: 'moderation.released',
+            actor: $request->user(),
+            subject: $report,
+            metadata: ['priorytet' => (int) $report->priorytet],
+            ip: $request->ip(),
+        );
+
+        return back()->with('status', 'Sprawa wróciła do kolejki.');
+    }
+
+    /**
+     * RĘCZNA ZMIANA PRIORYTETU — ZAWSZE Z UZASADNIENIEM (D-070, MOD-01).
+     *
+     * DLACZEGO CZŁOWIEK MUSI TO MÓC
+     * Bo automat czyta wyłącznie KATEGORIĘ wybraną przez zgłaszającego, nie
+     * treść. „Ujawnia czyjeś dane osobowe" to domyślnie P1 — ale gdy
+     * w treści stoi adres domowy z wezwaniem, żeby tam pojechać, to jest P0
+     * i musi trafić na szczyt w tej samej minucie. W drugą stronę równie
+     * często: „Dotyczy dziecka" jest domyślnie P0, bo koszt pomyłki jest
+     * niesymetryczny, a bywa zdjęciem wnuka przy torcie.
+     *
+     * BŁĘDY WRACAJĄ POD KLUCZEM Z IDENTYFIKATOREM SPRAWY
+     * (`priorytet_<id>`), a nie pod samym `priorytet`. Ta strona stawia do
+     * dwudziestu pięciu takich formularzy naraz, wszystkie z polami o tych
+     * samych nazwach — błąd pod wspólnym kluczem pokazałby się pod polem
+     * KAŻDEJ sprawy na ekranie (dokładnie ten kształt usterki, który
+     * osobno naprawia issue #243 dla formularza decyzji). Klucz z `id`
+     * rozstrzyga to bez zależności od tamtej zmiany, bo tutaj adres żądania
+     * i tak niesie identyfikator sprawy.
+     *
+     * CZEGO TA ZMIANA NIE ROBI: nie podejmuje decyzji, nie dotyka treści
+     * i nie powiadamia nikogo. Priorytet ustala KOLEJNOŚĆ, nie wyrok.
+     */
+    public function priority(Request $request, Report $report): RedirectResponse
+    {
+        $this->authorize('moderate', User::class);
+
+        $klucz = 'priorytet_'.$report->getKey();
+
+        if ($report->jestRozstrzygniete()) {
+            return back()->withErrors([
+                $klucz => 'Ta sprawa jest już rozstrzygnięta — zmiana priorytetu niczego by '
+                    .'w kolejce nie przesunęła.',
+            ]);
+        }
+
+        $walidator = Validator::make($request->all(), [
+            'priorytet' => ['required', 'integer', 'in:'.implode(',', PriorytetSprawy::wszystkie())],
+            /*
+             * POWÓD OBOWIĄZKOWY, MINIMUM DZIESIĘĆ ZNAKÓW.
+             *
+             * Nie dla porządku: bez tego zdania zmiana priorytetu jest
+             * w logu nieodróżnialna od pomyłki, a przy dwóch moderatorach —
+             * od CUDZEJ pomyłki, której nikt nie umie ani potwierdzić, ani
+             * cofnąć. Dziesięć znaków, bo „ok" i „tak" nie są powodem, a nie
+             * chcemy zmuszać nikogo do pisania eseju przy sprawie, która
+             * czeka.
+             *
+             * `CHECK reports_priorytet_zmiana_check` w bazie nie przyjmie
+             * zmiany bez powodu, więc reguła nie stoi na samej walidacji
+             * formularza.
+             */
+            'powod' => ['required', 'string', 'min:10', 'max:500'],
+        ], [
+            'priorytet.required' => 'Wybierz priorytet z listy.',
+            'priorytet.in' => 'Wybierz jeden z czterech priorytetów z listy.',
+            'powod.required' => 'Napisz jednym zdaniem, czego automat nie mógł wiedzieć — '
+                .'bez tego zmiana priorytetu wygląda w logu jak pomyłka.',
+            'powod.min' => 'Napisz to pełnym zdaniem (co najmniej 10 znaków). '
+                .'Kolejna osoba czytająca tę sprawę ma zrozumieć, dlaczego priorytet jest inny.',
+        ]);
+
+        if ($walidator->fails()) {
+            return back()
+                ->withErrors([$klucz => $walidator->errors()->first()])
+                // Wpisana treść wraca pod kluczem TEJ sprawy, nie do sesji
+                // pod nazwą pola (`AGENTS.md` §5: poprawne dane nigdy nie
+                // znikają — ale też nie pojawiają się przy cudzej sprawie).
+                ->with('priorytet_powod_'.$report->getKey(), (string) $request->input('powod', ''));
+        }
+
+        $dane = $walidator->validated();
+        $poprzedni = (int) $report->priorytet;
+
+        $report->zmienPriorytet((int) $dane['priorytet'], trim($dane['powod']), $request->user());
+
+        AuditLogEntry::record(
+            action: 'moderation.priority_changed',
+            actor: $request->user(),
+            subject: $report,
+            metadata: [
+                'z' => $poprzedni,
+                'na' => (int) $dane['priorytet'],
+                'z_mapowania' => $report->priorytetZPowodu(),
+            ],
+            ip: $request->ip(),
+        );
+
+        return back()->with('status', 'Priorytet zmieniony na '
+            .PriorytetSprawy::etykieta((int) $dane['priorytet'])
+            .'. Kolejka przestawi się od razu; decyzja w sprawie należy dalej do Ciebie.');
+    }
+
     public function decide(Request $request, Report $report): RedirectResponse
     {
         $this->authorize('moderate', User::class);
@@ -143,7 +379,14 @@ class ModerationController extends Controller
         // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
         // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
         // niżej, pod blokadą wiersza.
-        if ($report->status !== Report::STATUS_OPEN) {
+        // DECYZJA WOLNO WYDAĆ TAKŻE PRZY SPRAWIE W PRZEGLĄDZIE (D-070).
+        //
+        // Stało tu `!== STATUS_OPEN` i było poprawne, dopóki `reviewing`
+        // był statusem, którego nic nie nadawało. Odkąd „wziąłem do
+        // przeglądu" działa naprawdę, ten sam warunek odmawiałby decyzji
+        // dokładnie w sprawie, którą moderator właśnie przeczytał — czyli
+        // „podejmuję sprawę" prowadziłoby do ślepego zaułka.
+        if (! in_array($report->status, Report::STANY_OTWARTE, true)) {
             return back()->withErrors([
                 'action' => 'To zgłoszenie zostało już rozstrzygnięte. Odśwież stronę, żeby zobaczyć decyzję.',
             ]);
@@ -314,7 +557,7 @@ class ModerationController extends Controller
         $wynik = DB::transaction(function () use ($request, $report, $data, $moderator, $termin) {
             $zablokowane = Report::query()->whereKey($report->getKey())->lockForUpdate()->first();
 
-            if ($zablokowane === null || $zablokowane->status !== Report::STATUS_OPEN) {
+            if ($zablokowane === null || ! in_array($zablokowane->status, Report::STANY_OTWARTE, true)) {
                 return null;
             }
 

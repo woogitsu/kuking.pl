@@ -107,6 +107,82 @@ final class ModeratedContent
         Comment::class => Comment::STATUS_PUBLISHED,
     ];
 
+    /**
+     * KOLUMNA Z AUTOREM — per typ celu z `TYPY` (D-070).
+     *
+     * DLACZEGO OBOK `osoba()`, A NIE ZAMIAST
+     * `osoba()` pyta o autora JEDNEGO, już wczytanego obiektu i to jest
+     * właściwe narzędzie przy jednej decyzji. Historia sankcji na liście
+     * spraw potrzebuje czegoś innego: autorów DWUDZIESTU PIĘCIU celów
+     * leżących w pięciu różnych tabelach — a `osoba()` znaczyłoby tam
+     * dwadzieścia pięć `find()` plus dwadzieścia pięć odczytów relacji,
+     * czyli pięćdziesiąt zapytań na jedną odsłonę kolejki.
+     *
+     * Ta mapa pozwala zapytać RAZ NA TYP (`whereIn` po identyfikatorach),
+     * czyli najwyżej pięć zapytań niezależnie od liczby spraw na stronie.
+     *
+     * `user` ma tu `id`, bo zgłoszone konto jest swoim własnym autorem —
+     * dokładnie tak, jak `osoba()` oddaje `$model` dla `User`.
+     *
+     * @var array<string, string>
+     */
+    public const KOLUMNA_AUTORA = [
+        'user' => 'id',
+        'post' => 'author_id',
+        'recipe' => 'author_id',
+        'comment' => 'author_id',
+        'cooked_event' => 'user_id',
+        'media' => 'owner_id',
+    ];
+
+    /**
+     * Autorzy WIELU celów naraz — najwyżej jedno zapytanie na typ celu.
+     *
+     * `$cele` to `[typ => [id, id, …]]`; wynik to `["typ|id" => id autora]`.
+     * Klucz złożony, a nie samo `id` celu: identyfikatory są UUID-ami
+     * z różnych tabel i choć kolizja jest niepraktyczna, klucz mówiący
+     * WPROST, czego dotyczy, nie wymaga tego zakładu.
+     *
+     * Cele miękko usunięte SĄ brane pod uwagę (`withTrashed`): sprawa
+     * dotycząca usuniętego wpisu wciąż ma autora i wciąż trzeba przy niej
+     * zobaczyć jego wcześniejsze kary.
+     *
+     * @param  array<string, list<string>>  $cele
+     * @return array<string, string>
+     */
+    public static function autorzyCelow(array $cele): array
+    {
+        $wynik = [];
+
+        foreach ($cele as $typ => $identyfikatory) {
+            $kolumna = self::KOLUMNA_AUTORA[$typ] ?? null;
+            $klasa = array_search($typ, self::TYPY, true);
+            $identyfikatory = array_values(array_unique(array_filter($identyfikatory)));
+
+            if ($kolumna === null || $klasa === false || $identyfikatory === []) {
+                continue;
+            }
+
+            $zapytanie = $klasa::query();
+
+            if (method_exists($klasa, 'bootSoftDeletes')) {
+                $zapytanie->withTrashed();
+            }
+
+            $wiersze = $zapytanie
+                ->whereIn((new $klasa)->getKeyName(), $identyfikatory)
+                ->pluck($kolumna, (new $klasa)->getKeyName());
+
+            foreach ($wiersze as $idCelu => $idAutora) {
+                if ($idAutora !== null) {
+                    $wynik[$typ.'|'.$idCelu] = (string) $idAutora;
+                }
+            }
+        }
+
+        return $wynik;
+    }
+
     public static function typ(object $model): ?string
     {
         return self::TYPY[$model::class] ?? null;

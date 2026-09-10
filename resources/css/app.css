@@ -833,6 +833,168 @@
     margin: 0 var(--spacing-1);
   }
 
+  /* --- Oznaczenie „P0 nieprzejrzane" (D-070) -------------------------------
+     `components/panel-moderacji.blade.php` — stoi pod paskiem panelu, więc
+     na KAŻDYM ekranie `/admin/**`.
+
+     CZERWIEŃ TYLKO TUTAJ. Reszta panelu świadomie nie używa
+     `--color-danger` („kolejka moderacji jest miejscem pracy, nie awarią" —
+     patrz `.licznik-kolejki` niżej) i ta reguła zostaje w mocy. Wyjątek
+     działa dokładnie dlatego, że jest jeden: ten blok pojawia się prawie
+     nigdy, więc gdy się pojawi, nie konkuruje z niczym o uwagę.
+
+     `--color-danger-tint` / `-tint-ink`, nie `--color-danger-solid`: to jest
+     blok TEKSTU do przeczytania, a nie przycisk. Para tint/tint-ink ma
+     policzony kontrast w obu motywach (tokens.css), a `--color-danger` sam
+     jest w trybie ciemnym JASNY — na jasnym tle bloku dałby to samo
+     „jasne na jasnym", które axe wyłapał kiedyś w `.notice`.
+
+     Tekst na `--text-body` (18 px), nie na `--text-help`: `AGENTS.md` §5
+     obowiązuje w panelu bez wyjątku, a to jest treść główna tego bloku,
+     nie dopisek obok większego tekstu. Przycisk bierze `.btn`, czyli te
+     same 48 px wysokości co wszędzie.
+     ---------------------------------------------------------------------- */
+  .alarm-pilne {
+    margin-bottom: var(--spacing-5);
+    padding: var(--spacing-4);
+    border-radius: var(--radius-md);
+    border: 2px solid var(--color-danger);
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+  }
+
+  .alarm-pilne-naglowek {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-title-sm);
+    font-weight: 700;
+  }
+
+  /* `flex: none` i `min-width: 0` obok niej: nagłówek zawija się przy 320 px
+     i przy skali tekstu 200%, a ikona nie ma się wtedy kurczyć ani rozpychać
+     wiersza. Ta sama pułapka, która położyła stopkę i prawą szynę. */
+  .alarm-pilne-naglowek .ikona {
+    flex: none;
+  }
+
+  .alarm-pilne-naglowek > span {
+    min-width: 0;
+  }
+
+  .alarm-pilne-tresc {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body);
+  }
+
+  /* Odnośnik w tym bloku bierze kolor TEKSTU bloku, nie marki — ten sam
+     powód i ten sam zapis co w `.notice a`: kolor marki jest dobrany do tła
+     strony, nie do jasnego, czerwonawego tła tego bloku. */
+  .alarm-pilne a:not(.btn) {
+    color: var(--color-danger-tint-ink);
+  }
+
+  /* --- Priorytet sprawy na karcie zgłoszenia (D-070) -----------------------
+     `pages/admin/reports.blade.php`. Plakietka „P0" stoi ZAWSZE razem
+     z pełną etykietą i celem czasowym w tekście obok — skrót nigdy nie jest
+     jedynym opisem (`AGENTS.md` §5), tak samo jak ikona.
+
+     CZTERY WAGI, TRZY KOLORY. P0 dostaje czerwień (jedyny drugi taki
+     wyjątek w panelu, po `.alarm-pilne` — i z tego samego powodu: pojawia
+     się prawie nigdy), P1 akcent, P2 i P3 spokojne tło bazowej `.badge`.
+     P2 i P3 świadomie nie mają własnego koloru: to jest zwykła praca, a nie
+     sygnał, i pokolorowanie jej odebrałoby znaczenie dwóm pierwszym.
+
+     Wiersz zawija się (`flex-wrap`), bo etykieta i cel czasowy razem są
+     dłuższe niż 320 px przy skali tekstu 200%. --------------------------- */
+  .priorytet-wiersz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--spacing-2);
+    margin: 0 0 var(--spacing-2);
+  }
+
+  .priorytet-opis {
+    min-width: 0;
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
+
+  /* 18 px, nie `--text-help` jak zwykła `.badge`: liczba priorytetu jest tu
+     CAŁĄ treścią plakietki, a nie dopiskiem obok większego tekstu — ten sam
+     rachunek i ten sam wyjątek co przy `.licznik-kolejki`. */
+  .badge-priorytet {
+    font-size: var(--text-body);
+  }
+
+  .badge-priorytet-0 {
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+    border: 1px solid var(--color-danger);
+  }
+
+  .badge-priorytet-1 {
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+  }
+
+  /* --- Wcześniejsze sankcje autora (D-070) ---------------------------------
+     Wąska oś czasu przy sprawie, którą moderator właśnie rozstrzyga.
+     Wygląd celowo SPOKOJNY — bez koloru ostrzeżenia i bez wyróżnienia
+     liczby wystąpień: to jest materiał do decyzji, a nie oskarżenie, i nie
+     ma prawa popychać człowieka do surowszej kary samym wyglądem
+     (`docs/INSPIRATION_DECISIONS.md` poz. 3.14 — nie liczymy ludziom
+     punktów karnych). --------------------------------------------------- */
+  .historia-sankcji {
+    margin: var(--spacing-4) 0;
+    padding: var(--spacing-3);
+    border-left: 3px solid var(--color-border);
+    background-color: var(--color-surface-sunken);
+    border-radius: var(--radius-sm);
+  }
+
+  .historia-sankcji-naglowek {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-body);
+    font-weight: 700;
+  }
+
+  .historia-sankcji-lista {
+    margin: 0;
+    padding-left: var(--spacing-5);
+  }
+
+  .historia-sankcji-lista li {
+    font-size: var(--text-body);
+  }
+
+  .historia-sankcji-lista li + li {
+    margin-top: var(--spacing-2);
+  }
+
+  .historia-sankcji-data {
+    font-weight: 700;
+  }
+
+  .historia-sankcji-decyzja {
+    font-weight: 600;
+  }
+
+  /* --- Formularz zmiany priorytetu (D-070) ---------------------------------
+     Stoi NAD formularzem decyzji i jest od niego wyraźnie oddzielony, bo to
+     dwie różne czynności: ta przesuwa sprawę w kolejce, tamta ją zamyka.
+     Bez tej granicy „Zapisz priorytet" i „Zapisz decyzję" wyglądałyby jak
+     dwa przyciski jednego formularza — a jedno z nich jest odwracalne
+     i drugie nie. ------------------------------------------------------- */
+  .zmiana-priorytetu {
+    margin: var(--spacing-4) 0;
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
   /* ===================================================================
      PODGLĄD OZNACZONEJ TREŚCI W KOLEJCE SYGNAŁÓW
      ===================================================================

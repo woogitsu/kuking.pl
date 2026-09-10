@@ -58,6 +58,8 @@ use Illuminate\Support\Facades\Notification;
  */
 final class ZglosNielegalnaTresc
 {
+    public function __construct(private readonly AlarmujModeratora $alarm) {}
+
     /**
      * @param  string|null  $imie  NULL jest dopuszczalny — patrz niżej
      * @param  string|null  $email  NULL jest dopuszczalny — art. 16 ust. 2
@@ -143,6 +145,20 @@ final class ZglosNielegalnaTresc
 
             $zgloszenie->forceFill(['receipt_sent_at' => now()])->save();
         }
+
+        /*
+         * ALARM PRZY SPRAWIE KRYTYCZNEJ (P0) — D-070.
+         *
+         * Za `return $istniejace;` wyżej, więc drugie kliknięcie tego samego
+         * formularza nie wysyła drugiego listu — dokładnie tak, jak nie
+         * wysyła drugiego potwierdzenia odbioru.
+         *
+         * Ta droga jest tu ważniejsza niż społecznościowa: zgłoszenie prawne
+         * z kategorią „Dotyczy dziecka" to typowo zgłoszenie od rodzica albo
+         * od organizacji, bez konta, w nocy — czyli sprawa, której nikt nie
+         * zobaczy, dopóki moderator sam nie zajrzy w panel.
+         */
+        $this->alarm->dlaKrytycznegoZgloszenia($zgloszenie);
 
         return $zgloszenie;
     }
