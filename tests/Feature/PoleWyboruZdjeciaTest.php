@@ -100,7 +100,9 @@ class PoleWyboruZdjeciaTest extends TestCase
     public function test_zdjecie_profilowe_ma_pole_pliku_z_jedna_etykieta(): void
     {
         $html = $this->actingAs($this->user('basia'))
-            ->get(route('settings.profile'))
+            // Pole PRZENIOSŁO SIĘ z `/ustawienia/profil` na własny, krótki
+            // ekran — droga do niego była dłuższa niż sama czynność.
+            ->get(route('settings.avatar'))
             ->assertOk()
             ->getContent();
 

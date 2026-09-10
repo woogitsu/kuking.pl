@@ -506,8 +506,8 @@ uzasadnienie liczby.
 | `masowe_obserwowanie` | 5 / 10 min | `/witaj/ludzie` — jedno żądanie, wiele powiadomień |
 | `blokada` | 60 / 10 min | blokowanie i odblokowanie osoby |
 | `zeszyt` | 60 / 10 min | zapis i wypisanie przepisu albo wpisu |
-| `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia |
-| `ustawienia_profil` | 15 / 10 min | zapis profilu — jedyny ekran ustawień z plikiem |
+| `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia, zapis profilu, usunięcie zdjęcia profilowego |
+| `ustawienia_profil` | 15 / 10 min | `POST /ustawienia/zdjecie` — jedyny ekran ustawień z plikiem |
 | `eksport` | 10 / 60 min | paczka RODO |
 | `confirm_password` (bez zmian) | 5 / 10 min | akcje proszące o hasło — teraz także wyłączenie 2FA i zgłoszenie usunięcia konta |
 | `moderacja` | 120 / 10 min | cały panel `/admin` |

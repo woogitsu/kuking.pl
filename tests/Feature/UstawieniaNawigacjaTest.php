@@ -49,6 +49,7 @@ class UstawieniaNawigacjaTest extends TestCase
     {
         return [
             'settings.profile',
+            'settings.avatar',
             'settings.accessibility',
             'settings.tags',
             'settings.email',
