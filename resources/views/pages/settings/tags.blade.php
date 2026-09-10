@@ -19,10 +19,13 @@
     </p>
 
     @if($tags->isEmpty())
-        <x-empty-state title="Nie obserwujesz jeszcze żadnego tagu">
+        <x-empty-state
+            title="Nie obserwujesz jeszcze żadnego tagu"
+            action="Zobacz wszystkie tematy"
+            :href="route('tags.index')">
             <p class="mb-0">
-                Zacznij od strony dowolnego tagu i kliknij „Obserwuj ten tag" —
-                albo wróć tutaj, gdy gospodarz doda pierwsze propozycje.
+                Wybierz temat i kliknij „Obserwuj ten tag" — albo wróć tutaj,
+                gdy gospodarz doda pierwsze propozycje.
             </p>
         </x-empty-state>
     @else

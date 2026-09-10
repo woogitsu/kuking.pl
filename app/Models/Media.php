@@ -36,6 +36,17 @@ class Media extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    /**
+     * Zdjęcie PRZEJĘTE DO SKASOWANIA — już nie do przypięcia (D-083).
+     *
+     * To nie znaczy „skasowane", tylko „kasowanie trwa": wiersz zostaje,
+     * dopóki nie zniknie ostatni plik, i jest jedynym uchwytem do ponowienia
+     * — dokładnie ta sama rola, jaką wiersz `media` pełni przy wymazywaniu
+     * konta (`EraseAccountData`). Wartość dopuszcza `media_status_check` od
+     * pierwszej migracji tabeli, więc schemat nie wymagał zmiany.
+     */
+    public const STATUS_DELETED = 'deleted';
+
     protected $fillable = [
         'owner_id',
         'disk',

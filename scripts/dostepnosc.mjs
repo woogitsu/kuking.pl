@@ -568,6 +568,46 @@ async function stanZalogowanego(przegladarka, adres) {
 }
 
 /*
+ * CZEKAMY, AŻ PRZEGLĄDARKA SKOŃCZY PODMIENIAĆ FONT — INACZEJ MIERZYMY
+ * UKŁAD, KTÓREGO NIKT NIGDY NIE ZOBACZY.
+ *
+ * `resources/css/fonts.css` serwuje Inter Variable z `font-display: swap`,
+ * czyli świadomie: tekst jest widoczny NATYCHMIAST w foncie systemowym
+ * i podmienia się dopiero po pobraniu pliku (uzasadnienie tej decyzji stoi
+ * w tamtym pliku i zostaje). Skutek dla POMIARU jest jednak taki, że między
+ * `domcontentloaded` a końcem podmiany strona jest ułożona CZCIONKĄ
+ * ZASTĘPCZĄ Z SYSTEMU — a `--font-sans` ma za Interem `-apple-system`,
+ * `Segoe UI` i dalszą listę, więc ta czcionka jest INNA na każdej maszynie.
+ *
+ * Zmierzone: ten sam commit, ten sam skrypt, ta sama baza — u nas w obrazie
+ * deweloperskim 0 naruszeń Focus Not Obscured, a na runnerze jedno
+ * (odnośnik „Basia" na `/szukaj` przy 414 px i skali 140% w całości pod dolną
+ * belką). Powtórzenie u nas na trzech świeżo wysianych bazach i na obu
+ * wersjach Chromium (1194 z obrazu i 1243, którą bierze Playwright na CI):
+ * dalej 0. Różnicą nie były więc ani dane, ani przeglądarka — tylko to, jaką
+ * czcionką była ułożona strona w chwili pomiaru.
+ *
+ * To jest ta sama klasa błędu, którą ten skrypt łapał już dwa razy (kontrast
+ * czytany w połowie przejścia motywu, `.skip-link` złapana w połowie ruchu)
+ * i rozwiązanie jest to samo: mierzymy stan KOŃCOWY. `document.fonts.ready`
+ * mówi wprost, kiedy on nastaje.
+ *
+ * Wyścig z limitem czasu, nie samo `await`: gdyby plik fontu kiedyś nie
+ * doszedł, pomiar ma pojechać czcionką zastępczą i to zgłosić w liczbach,
+ * a nie zawisnąć na trzydziestu ekranach po kolei.
+ */
+async function poczekajNaFonty(strona) {
+  await strona.evaluate(async () => {
+    if (! document.fonts) return;
+
+    await Promise.race([
+      document.fonts.ready,
+      new Promise((gotowe) => setTimeout(gotowe, 5000)),
+    ]);
+  });
+}
+
+/*
  * POMIAR PRZEPEŁNIENIA W POZIOMIE (issue #80, WCAG 2.2 AA — 1.4.10 Reflow)
  *
  * DLACZEGO POMIAR, A NIE REGUŁA AXE
@@ -621,6 +661,21 @@ async function zmierzUklad(strona) {
 
 const { adres, zamknij } = await podnies_serwer();
 const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
+
+/*
+ * WERSJA PRZEGLĄDARKI W RAPORCIE — bo raz już kosztowała pół wieczoru.
+ *
+ * `znajdzChromium()` wyżej bierze przeglądarkę z obrazu deweloperskiego,
+ * jeśli tam jest, a na runnerze zostawia wybór Playwrightowi. To znaczy, że
+ * TE DWA ŚRODOWISKA MOGĄ MIERZYĆ INNĄ PRZEGLĄDARKĄ: obraz miał 1194,
+ * a `playwright` 1.63 przypina 1243. Przy „u mnie zielone, na CI czerwone"
+ * jest to pierwsza rzecz do sprawdzenia — i dopóki jej nie było w logu,
+ * sprawdzało się ją ostatnią. Numer wersji nic nie kosztuje.
+ */
+const wersjaPrzegladarki = przegladarka.version();
+log(`Chromium ${wersjaPrzegladarki}`
+  + (CHROMIUM ? ` (${CHROMIUM})` : ' (z paczki `playwright`)'));
+log('');
 
 /*
  * Adres przepisu bierzemy z BAZY, nie ze strony.
@@ -1024,6 +1079,8 @@ for (const wariant of WARIANTY) {
 
     const odpowiedz = await strona.goto(zamowiony, { waitUntil: 'domcontentloaded' });
 
+    await poczekajNaFonty(strona);
+
     /*
      * KOD HTTP MUSI BYĆ 200 — I TO JEST OSOBNE SPRAWDZENIE NIŻ ŚCIEŻKA NIŻEJ.
      *
@@ -1234,6 +1291,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
         { waitUntil: 'domcontentloaded' },
       );
+      await poczekajNaFonty(strona);
 
       // Ten sam powód co w pętli axe wyżej: strona błędu nie przewija się
       // w bok, więc bez tego sprawdzenia zgłaszałaby się jako poprawna.
@@ -1351,6 +1409,8 @@ const karuzelaBezJs = await (async () => {
 
   const strona = await kontekst.newPage();
   await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
+
+  await poczekajNaFonty(strona);
 
   const ile = await strona.locator('.karuzela-slajd').count();
 
@@ -1470,6 +1530,8 @@ const wyborZdjeciaBezJs = await (async () => {
   const strona = await kontekst.newPage();
   const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
   const kod = odpowiedz?.status() ?? 0;
+
+  await poczekajNaFonty(strona);
 
   // Ten sam powód co przy pomiarze układu: strona błędu nie ma pola wyboru
   // zdjęcia, więc bez tego sprawdzenia przebieg zgłaszałby „nie znalazłem"
@@ -1660,6 +1722,8 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
 
     await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
 
+    await poczekajNaFonty(strona);
+
     const pomiar = await strona.evaluate(() => {
       // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
       // pasach — siatka ekranu. Patrz „CZYM JEST KOLUMNA TREŚCI" wyżej.
@@ -1771,6 +1835,348 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
 
   log(`  ${zlych === 0 ? '✓' : '✗'} ${szerokosc} px`
     + (zlych ? ` — ${zlych} niezgodności` : ''));
+}
+
+/* =============================================================================
+   FOCUS NIE ZASŁONIĘTY PRZEZ NAKŁADKĘ (WCAG 2.2 AA — 2.4.11
+   Focus Not Obscured (Minimum))
+
+   Zewnętrzny audyt (docs/research/AUDYT_60_PLUS.md, ranking napraw pkt 1 —
+   najmocniejsza rekomendacja) wskazał lukę: `.bottom-nav` jest
+   `position: fixed` i ma `flex-wrap: wrap` (patrz komentarz przy tej klasie
+   wyżej w `app.css`) — przy dużym tekście belka może urosnąć do dwóch albo
+   trzech wierszy. Rezerwa na końcu dokumentu (dolne wypełnienie
+   `.site-footer`) była jednak STAŁĄ wartością `--spacing-20` (80 px), nie
+   wynikającą z rzeczywistej wysokości belki. Gdy belka urośnie powyżej tej
+   rezerwy, treść przewija się POD nią — a fokus klawiaturowy, który
+   przeglądarka sama przewija w widok, może wylądować w całości za paskiem.
+
+   CO TO SPRAWDZENIE ZASTAŁO, A CO PILNUJE PO POPRAWCE. Zmierzone tym
+   skryptem, ekrany niżej, warianty niżej:
+
+       przed poprawką   242 kontrolki zasłonięte w 100% (1 pod `.bottom-nav`,
+                        241 pod `.topbar` przy czcionce przeglądarki 200%)
+       po poprawce      0
+
+   Obie belki zostają w tym pomiarze BLOKUJĄCE — także `.topbar`, bo została
+   naprawiona razem z dolną, a nie odłożona. Naprawy są dwie i obie stoją
+   w `app.css`: rezerwa `--rezerwa-pod-belka` policzona pod zmierzone
+   wysokości dolnej belki oraz odpięcie `.topbar` przy `max-width: 15rem`,
+   czyli tam, gdzie przypięty pasek zabierałby ponad trzecią część ekranu.
+   Uzasadnienia obu (z liczbami) stoją przy tych regułach.
+
+   DLACZEGO ELEMENTFROMPOINT, A NIE SAMO PRZECIĘCIE PROSTOKĄTÓW
+   Sam przecinający się prostokąt nie znaczy "zasłonięty": `.skip-link` ma
+   `z-index: 50`, wyżej niż `.topbar` (20) i `.bottom-nav` (30), więc po
+   skupieniu na nim geometrycznie leży nad topbarem, ale WIDAĆ go, bo
+   przeglądarka maluje go na wierzchu. Prosta matematyka prostokątów
+   zgłosiłaby to jako FAIL, którego naprawdę nie ma — a to jest dokładnie
+   fałszywy alarm, przed którym ostrzega zlecenie audytu. Próbkujemy więc
+   siatkę punktów wewnątrz prostokąta fokusu przez `elementFromPoint` —
+   to jest pytanie "co PRZEGLĄDARKA NAPRAWDĘ renderuje w tym miejscu", a nie
+   "czy dwa prostokąty się nakładają na papierze". Stan uwzględnia więc
+   z-index, zaokrąglone rogi i wszystko inne, co realnie wpływa na to, co
+   widzi człowiek.
+
+   FAIL DOPIERO PRZY PEŁNYM (100%) POKRYCIU — to jest dosłowne minimum AA
+   z Understanding 2.4.11 ("not entirely hidden"). Częściowe pokrycie to
+   osobne, PRODUKTOWE ostrzeżenie: sygnał do poprawy, ale nie naruszenie
+   WCAG i nie powód, żeby ten skrypt oblewał przebieg.
+
+   Kontrolki, które są potomkami samej belki (linki nawigacji, pole
+   wyszukiwania w topbarze), są z tej reguły wyłączone: to one SĄ tą belką,
+   nie treścią, którą belka miałaby zasłaniać.
+
+   DOSŁOWNY KONTRAKT Z AUDYTU (§„Co dopisać do scripts/dostepnosc.mjs", pkt 1)
+   Ekrany: `/home`, `/szukaj`, przykładowy wpis, `/ustawienia/profil`.
+   Szerokości: 320/360/414 px. Skale: te same trzy co w pomiarze układu
+   wyżej (`SKALE_UKLADU` — bez skali, tekst 140%, czcionka przeglądarki
+   200%), tym samym mechanizmem (CDP `Page.setFontSizes` dla przeglądarki,
+   atrybut `data-text-scale` dla naszego ustawienia).
+
+   „Przykładowy wpis" mierzymy jako ZALOGOWANY, nie gość: `.bottom-nav`
+   istnieje wyłącznie w layoucie zalogowanego (`@auth` w `layout.blade.php`),
+   a to właśnie ta belka jest ryzykiem — mierzenie wpisu jako gość
+   nigdy nie mogłoby złapać naruszenia, którego to sprawdzenie szuka.
+
+   JAK PRZECHODZIMY WSZYSTKIE WIDOCZNE KONTROLKI
+   Naciskamy Tab, aż `document.activeElement` wróci do `<body>` (naturalny
+   koniec kolejności tabulacji w przeglądarce bez paska adresu) albo trafi
+   na element już odwiedzony w tym przebiegu (pętla fokusu, np. pułapka
+   modala). Odwiedzone elementy znaczymy tymczasowym atrybutem danych, żeby
+   rozpoznać powrót bez porównywania referencji przez granicę `evaluate`.
+   Limit kroków jest bezpiecznikiem, nie oczekiwaną wartością — jego
+   wyczerpanie bez naturalnego końca jest BŁĘDEM (niepełne sprawdzenie),
+   nie cichym zaliczeniem ekranu.
+   ========================================================================== */
+log('');
+log('Focus Not Obscured (WCAG 2.2 2.4.11):');
+
+const EKRANY_FOCUS = [
+  { nazwa: 'tablica', adres: '/home', zalogowany: true },
+  { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
+  { nazwa: 'wpis (przykładowy)', adres: null, znajdz: 'wpis:normal', zalogowany: true },
+  { nazwa: 'ustawienia profilu', adres: '/ustawienia/profil', zalogowany: true },
+];
+
+const SZEROKOSCI_FOCUS = SZYBKO ? [320] : [320, 360, 414];
+
+// Bezpiecznik, nie oczekiwana wartość — patrz komentarz wyżej.
+const MAKS_KROKOW_FOCUS = 400;
+
+// Próg PEŁNEGO pokrycia. Rzadko wychodzi dokładnie 1 przez zaokrąglenia
+// próbek na krawędzi elementu, dlatego liczy się już "prawie wszystkie".
+const PROG_CALKOWITEGO_PRZYKRYCIA = 0.99;
+
+const naruszeniaFocus = [];
+const ostrzezeniaFocus = [];
+
+/**
+ * Naciska Tab aż do naturalnego końca albo pętli i dla każdej odwiedzonej
+ * kontrolki mierzy realne pokrycie przez `.topbar` i `.bottom-nav`
+ * (0 = w ogóle niezasłonięta, 1 = w całości zasłonięta, `null` = na tym
+ * ekranie nie ma takiej nakładki albo jest ukryta).
+ */
+async function przejdzTabemIZmierzFocus(strona) {
+  const kroki = [];
+
+  for (let krok = 0; krok < MAKS_KROKOW_FOCUS; krok++) {
+    await strona.keyboard.press('Tab');
+
+    const stan = await strona.evaluate(() => {
+      const el = document.activeElement;
+
+      if (!el || el === document.body || el === document.documentElement) {
+        return { koniec: true };
+      }
+
+      if (el.dataset.a11yFokusWidziany === '1') {
+        return { petla: true };
+      }
+      el.dataset.a11yFokusWidziany = '1';
+
+      const ramka = el.getBoundingClientRect();
+
+      function pokrycieNakladki(selektor) {
+        const nakladka = document.querySelector(selektor);
+        if (!nakladka) return null;
+
+        const styl = getComputedStyle(nakladka);
+        if (styl.display === 'none' || styl.visibility === 'hidden') return null;
+
+        // Kontrolka jest częścią samej belki — to nie jest "zasłonięcie
+        // treści", to sama belka.
+        if (nakladka.contains(el)) return 0;
+
+        if (ramka.width === 0 || ramka.height === 0) return 0;
+
+        /*
+         * SIATKĘ ROZKŁADAMY NA CZĘŚCI WIDOCZNEJ, NIE NA CAŁYM PROSTOKĄCIE.
+         *
+         * Pierwsza wersja rozkładała 4×4 punkty na całej ramce kontrolki
+         * i POMIJAŁA te, które wypadły poza okno. Przy kontrolce WYŻSZEJ
+         * NIŻ OKNO zostawał z tego jeden rząd próbek w zupełnie przypadkowym
+         * miejscu. Zmierzone na `/home` przy 320 px i czcionce przeglądarki
+         * 200%: odnośnik „Dodaj zdjęcie tego dnia" ma tam 2087,1 px wysokości
+         * (ramka od -882 do 1205,1 px), a z czterech rzędów siatki w oknie
+         * leżał JEDEN — ten na wysokości 422,4 px, czyli wewnątrz dolnej
+         * belki. Wynik: „zasłonięte w 100%" dla kontrolki, której 364 px
+         * widać nad belką jak na dłoni. To jest FAŁSZYWY ALARM, i to
+         * dokładnie tej klasy, przed którą ostrzega zlecenie audytu:
+         * kryterium 2.4.11 mówi „not entirely hidden", a kontrolka wyższa
+         * od okna nie może być schowana w całości pod belką, która zajmuje
+         * część okna.
+         *
+         * Przycięcie ramki do okna PRZED rozłożeniem siatki daje próbki
+         * reprezentatywne dla tego, co człowiek naprawdę widzi, niezależnie
+         * od wysokości kontrolki. Część poza oknem to inny problem
+         * (przewinięcie poza widok) i pozostaje poza zakresem tego
+         * sprawdzenia — tak jak dotąd.
+         */
+        const lewa = Math.max(ramka.left, 0);
+        const gora = Math.max(ramka.top, 0);
+        const prawa = Math.min(ramka.right, innerWidth);
+        const dol = Math.min(ramka.bottom, innerHeight);
+
+        // Kontrolka w całości poza oknem — nie ma czego mierzyć.
+        if (prawa <= lewa || dol <= gora) return null;
+
+        // Siatka 4×4: dość gęsto, żeby złapać częściowe pokrycie, dość
+        // rzadko, żeby nie mnożyć kosztu `elementFromPoint` na setkach
+        // kroków Taba.
+        const SIATKA = 4;
+        let zaslonietych = 0;
+
+        for (let iy = 0; iy < SIATKA; iy++) {
+          for (let ix = 0; ix < SIATKA; ix++) {
+            const x = lewa + ((prawa - lewa) * (ix + 0.5)) / SIATKA;
+            const y = gora + ((dol - gora) * (iy + 0.5)) / SIATKA;
+
+            const trafiony = document.elementFromPoint(x, y);
+
+            if (trafiony && nakladka.contains(trafiony) && !el.contains(trafiony)) {
+              zaslonietych++;
+            }
+          }
+        }
+
+        // Wszystkie próbki leżą teraz w oknie, więc mianownik jest stały —
+        // licznik odrzuconych punktów, który stał tu wcześniej, nie miałby
+        // już czego liczyć.
+        return zaslonietych / (SIATKA * SIATKA);
+      }
+
+      const opis = `${el.tagName.toLowerCase()}`
+        + (el.id ? `#${el.id}` : '')
+        + (el.getAttribute('aria-label') ? ` [aria-label="${el.getAttribute('aria-label')}"]` : '')
+        + (el.textContent?.trim() ? ` „${el.textContent.trim().slice(0, 40)}"` : '');
+
+      return {
+        opis,
+        pokrycieTopbar: pokrycieNakladki('.topbar'),
+        pokrycieBottomNav: pokrycieNakladki('.bottom-nav'),
+      };
+    });
+
+    if (stan.koniec || stan.petla) {
+      return { kroki, pelnyPrzebieg: true };
+    }
+
+    kroki.push(stan);
+  }
+
+  return { kroki, pelnyPrzebieg: false };
+}
+
+for (const szerokosc of SZEROKOSCI_FOCUS) {
+  for (const skala of SKALE_UKLADU) {
+    const opis = `${szerokosc} px${etykietaSkali(skala)}`;
+
+    const ustawieniaFocus = {
+      viewport: { width: szerokosc, height: 740 },
+      // Ten sam powód co przy motywie ciemnym wyżej: `.skip-link` ma
+      // `transition: top 120ms`, a pomiar tuż po naciśnięciu Tab złapałby
+      // ją w połowie ruchu, dając niestabilny (raz taki, raz inny) wynik
+      // pokrycia zamiast stanu końcowego.
+      reducedMotion: 'reduce',
+    };
+
+    const kontekstGosciaFocus = await przegladarka.newContext(ustawieniaFocus);
+    const kontekstZalogowanegoFocus = await przegladarka.newContext({
+      ...ustawieniaFocus,
+      storageState: stanZalogowany,
+    });
+
+    let zlych = 0;
+
+    for (const ekran of EKRANY_FOCUS) {
+      const sciezka = sciezkaEkranu(ekran);
+
+      if (! sciezka) {
+        console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}" (focus not obscured).`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      const kontekst = ekran.zalogowany ? kontekstZalogowanegoFocus : kontekstGosciaFocus;
+      const strona = await kontekst.newPage();
+
+      if (skala === PRZEGLADARKA_200) {
+        // PRZED nawigacją — patrz uzasadnienie przy identycznym bloku
+        // w pomiarze układu wyżej.
+        const cdp = await kontekst.newCDPSession(strona);
+
+        await cdp.send('Page.setFontSizes', {
+          fontSizes: { standard: 2 * BAZOWA_CZCIONKA_PX, fixed: 2 * BAZOWA_CZCIONKA_PX },
+        });
+      }
+
+      const odpowiedzFocus = await strona.goto(
+        sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
+        { waitUntil: 'domcontentloaded' },
+      );
+      await poczekajNaFonty(strona);
+
+      const kodFocus = odpowiedzFocus?.status() ?? 0;
+
+      if (kodFocus !== 200) {
+        console.error(
+          `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odpowiedział kodem ${kodFocus} `
+          + 'przy pomiarze focus not obscured.',
+        );
+        process.exitCode = 1;
+        await strona.close();
+        continue;
+      }
+
+      if (skala && skala !== PRZEGLADARKA_200) {
+        await strona.evaluate(
+          (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+          skala,
+        );
+      }
+
+      if (skala === PRZEGLADARKA_200) {
+        // Ta sama kontrola metody co w pomiarze układu wyżej — bez niej
+        // wariant potrafi przejść na zielono, nie zmierzywszy niczego.
+        const stanCzcionki = await strona.evaluate(
+          () => Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+        );
+
+        if (stanCzcionki < 2 * BAZOWA_CZCIONKA_PX) {
+          console.error(
+            `BŁĄD: czcionka korzenia to ${stanCzcionki} px zamiast `
+            + `${2 * BAZOWA_CZCIONKA_PX} px na ekranie „${ekran.nazwa}" (focus not obscured).`,
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+      }
+
+      const { kroki, pelnyPrzebieg } = await przejdzTabemIZmierzFocus(strona);
+      await strona.close();
+
+      if (! pelnyPrzebieg) {
+        console.error(
+          `BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) Tab nie doszedł do końca kolejności `
+          + `po ${MAKS_KROKOW_FOCUS} krokach — sprawdzenie jest niepełne.`,
+        );
+        process.exitCode = 1;
+      }
+
+      if (kroki.length === 0) {
+        console.error(`BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) Tab nie znalazł ani jednej kontrolki.`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      for (const krok of kroki) {
+        for (const [nakladka, pokrycie] of [
+          ['.topbar', krok.pokrycieTopbar],
+          ['.bottom-nav', krok.pokrycieBottomNav],
+        ]) {
+          if (pokrycie === null || pokrycie === 0) continue;
+
+          if (pokrycie >= PROG_CALKOWITEGO_PRZYKRYCIA) {
+            zlych++;
+            naruszeniaFocus.push({
+              ekran: ekran.nazwa, wariant: opis, nakladka, kontrolka: krok.opis,
+            });
+          } else {
+            ostrzezeniaFocus.push({
+              ekran: ekran.nazwa, wariant: opis, nakladka, kontrolka: krok.opis, pokrycie,
+            });
+          }
+        }
+      }
+    }
+
+    await kontekstGosciaFocus.close();
+    await kontekstZalogowanegoFocus.close();
+
+    log(`  ${zlych === 0 ? '✓' : '✗'} ${opis}${zlych ? ` — ${zlych} naruszeń` : ''}`);
+  }
 }
 
 /* =============================================================================
@@ -1959,12 +2365,150 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
   await kontekst.close();
 }
 
+/* ==========================================================================
+   LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
+
+   Pięć liczb profilu („4 wpisy", „0 przepisów", „1 obserwujący"…) stoi
+   w dokumencie DWA razy: w karcie profilu i w prawej szynie. Który z nich
+   widać, decyduje para reguł w `ekran-profilu.css` — a to jest dokładnie ta
+   klasa zmiany, którą testy PHP przepuszczą: HTML jest poprawny w obu
+   przypadkach, psuje się wyłącznie obraz na ekranie.
+
+   Dwie usterki, których ten pomiar pilnuje, obie widziane wyłącznie
+   w przeglądarce:
+    - liczby DWA RAZY przy 1512 px (skasowana reguła chowająca kartę),
+    - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
+      poniżej 80rem ląduje pod całym archiwum wpisów).
+
+   Gość jest tu osobnym przypadkiem, nie powtórką: ma jedną kolumnę na każdej
+   szerokości (`app-body-solo`), więc przy 1512 px MUSI widzieć egzemplarz
+   w karcie — inaczej liczby lądują u niego na samym dole strony.
+   ========================================================================== */
+log('');
+log('Liczby o osobie (karta czy prawa szyna):');
+
+const EKRANY_LICZB = [
+  { nazwa: 'profil cudzy (gość)', adres: '/@basia', zalogowany: false },
+  { nazwa: 'profil cudzy (zalogowany)', adres: '/@basia', zalogowany: true },
+  { nazwa: 'profil własny', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
+];
+
+// 360 to telefon, 1280 sam próg szyny (80rem), 1512 laptop właściciela —
+// czyli szerokość ze zgłoszenia.
+const SZEROKOSCI_LICZB = SZYBKO ? [360, 1512] : [360, 1280, 1512];
+
+const rozjazdyLiczb = [];
+
+for (const szerokosc of SZEROKOSCI_LICZB) {
+  for (const ekran of EKRANY_LICZB) {
+    const kontekst = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 900 },
+      ...(ekran.zalogowany ? { storageState: stanZalogowany } : {}),
+    });
+
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze liczb o osobie.');
+      process.exitCode = 1;
+      await strona.close();
+      await kontekst.close();
+      continue;
+    }
+
+    const pomiar = await strona.evaluate(() => {
+      // `getClientRects().length` zamiast `offsetParent`: łapie także element
+      // schowany przez `display: none` NA PRZODKU, a to jest właśnie ten
+      // przypadek (chowamy opakowanie bloku, nie samą listę).
+      const widoczny = (el) => el !== null && el.getClientRects().length > 0;
+
+      const karta = document.querySelector('.profil-liczby-karta');
+      const szyna = document.querySelector('.profil-liczby-szyna');
+
+      return {
+        maKarte: karta !== null,
+        kartaWidoczna: widoczny(karta),
+        szynaWSzynie: szyna !== null ? szyna.closest('.app-rail') !== null : null,
+        szynaWidoczna: widoczny(szyna),
+        // Ile razy podpis „obserwujących"/„obserwujący" jest naprawdę
+        // widoczny — najprostsze sprawdzenie „czy liczba stoi dwa razy".
+        widocznychPodpisow: [...document.querySelectorAll('.profil-licznik-pole .stat-label')]
+          .filter((el) => el.getClientRects().length > 0 && el.textContent.includes('obserwuj'))
+          .length,
+        // Pierwszy wpis archiwum — po to była cała zmiana. Zapisujemy
+        // pozycję, żeby dało się zobaczyć, czy wjechał wyżej.
+        goraPierwszegoWpisu: (() => {
+          const wpis = document.querySelector('.app-main .post-card');
+          return wpis === null ? null : Math.round(wpis.getBoundingClientRect().top);
+        })(),
+      };
+    });
+
+    const bledy = [];
+
+    if (!pomiar.maKarte) {
+      bledy.push('nie ma w ogóle listy liczb w karcie profilu');
+    }
+
+    if (pomiar.kartaWidoczna === pomiar.szynaWidoczna) {
+      bledy.push(pomiar.kartaWidoczna
+        ? 'te same liczby widać JEDNOCZEŚNIE w karcie i w szynie'
+        : 'liczb nie widać ANI w karcie, ANI w szynie');
+    }
+
+    if (pomiar.widocznychPodpisow !== 1) {
+      bledy.push(`podpis „obserwujący" jest widoczny ${pomiar.widocznychPodpisow} razy, ma być raz`);
+    }
+
+    if (pomiar.szynaWSzynie === false) {
+      bledy.push('blok liczb nie leży w `.app-rail`');
+    }
+
+    // Szeroko i po zalogowaniu liczby MAJĄ być w szynie — inaczej cała ta
+    // zmiana nic nie dała i karta jest tak samo długa jak przed nią.
+    if (szerokosc >= 1280 && ekran.zalogowany && !pomiar.szynaWidoczna) {
+      bledy.push('przy szerokim oknie liczby dalej stoją w karcie');
+    }
+
+    // Na telefonie i u gościa MAJĄ być w karcie.
+    if ((szerokosc < 1280 || !ekran.zalogowany) && !pomiar.kartaWidoczna) {
+      bledy.push('liczby zniknęły z karty tam, gdzie nie ma prawej kolumny');
+    }
+
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: karta ${pomiar.kartaWidoczna ? 'widoczna' : 'schowana'}, `
+      + `szyna ${pomiar.szynaWidoczna ? 'widoczna' : 'schowana'}, `
+      + `pierwszy wpis od góry: ${pomiar.goraPierwszegoWpisu ?? '(brak wpisu)'} px`);
+
+    if (bledy.length > 0) {
+      rozjazdyLiczb.push({ ekran: ekran.nazwa, szerokosc, bledy });
+    }
+
+    await strona.close();
+    await kontekst.close();
+  }
+}
+
+if (rozjazdyLiczb.length > 0) {
+  log('');
+  log('Liczby o osobie stoją w złym miejscu (D-091):');
+  for (const r of rozjazdyLiczb) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
 mkdirSync('storage', { recursive: true });
 writeFileSync('storage/dostepnosc.json', JSON.stringify({
   data: new Date().toISOString(),
+  chromium: wersjaPrzegladarki,
   warianty: WARIANTY.map((w) => w.nazwa),
   naruszen: wyniki.length,
   blokujacych,
@@ -1984,6 +2528,14 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     niespojnychSzerokosci: niespojneSzerokosci.length,
     niespojneSzerokosci,
   },
+  focusNotObscured: {
+    szerokosci: SZEROKOSCI_FOCUS,
+    skale: SKALE_UKLADU,
+    naruszen: naruszeniaFocus.length,
+    naruszenia: naruszeniaFocus,
+    ostrzezen: ostrzezeniaFocus.length,
+    ostrzezenia: ostrzezeniaFocus,
+  },
   tablicaDnia: {
     szerokosci: SZEROKOSCI_TABLICY,
     rozjazdow: rozjazdyTablicy.length,
@@ -1996,7 +2548,26 @@ log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
   + `rozjazdów belki: ${rozjazdyBelki.length}, `
   + `niespójnych szerokości: ${niespojneSzerokosci.length}, `
-  + `rozjazdów tablicy dnia: ${rozjazdyTablicy.length})`);
+  + `rozjazdów tablicy dnia: ${rozjazdyTablicy.length}, `
+  + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
+  + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length}, `
+  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length})`);
+
+if (naruszeniaFocus.length > 0) {
+  log('');
+  log('Focus zasłonięty w 100% przez nakładkę (WCAG 2.2 AA — 2.4.11 Focus Not Obscured, FAIL):');
+  for (const n of naruszeniaFocus) {
+    log(`  ${n.ekran} / ${n.wariant}: ${n.kontrolka} pod ${n.nakladka}`);
+  }
+}
+
+if (ostrzezeniaFocus.length > 0) {
+  log('');
+  log('Focus częściowo zasłonięty (ostrzeżenie produktowe — nie jest to naruszenie WCAG):');
+  for (const o of ostrzezeniaFocus) {
+    log(`  ${o.ekran} / ${o.wariant}: ${o.kontrolka} pod ${o.nakladka} (${Math.round(o.pokrycie * 100)}%)`);
+  }
+}
 
 if (przepelnienia.length > 0) {
   log('');
@@ -2056,7 +2627,9 @@ if (
   || przepelnienia.length > 0
   || rozjazdyBelki.length > 0
   || niespojneSzerokosci.length > 0
+  || naruszeniaFocus.length > 0
   || rozjazdyTablicy.length > 0
+  || rozjazdyLiczb.length > 0
 ) {
   process.exit(1);
 }

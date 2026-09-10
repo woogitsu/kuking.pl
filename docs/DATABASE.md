@@ -855,6 +855,46 @@ oryginał", czyli do stanu sprzed rozdzielenia. **Cofać przed migracją danych,
 nie po:** po przeniesieniu wariantów ta kolumna niesie już prawdziwą wiedzę
 i jej utrata znaczy, że aplikacja szuka ich w starym buckecie.
 
+#### `status = 'deleted'` — kasowanie TRWA, a wiersz jest uchwytem do ponowienia
+
+Wprowadzone przez **D-083** (issue #285, MEDIA-01). **Bez migracji i bez
+zmiany schematu:** wartość `deleted` dopuszcza `media_status_check` od
+pierwszej migracji tabeli (`2026_09_05_000100_create_media_table`) — do tej
+pory po prostu nikt jej nie zapisywał.
+
+```sql
+-- stan NIEZMIENIONY, cytowany tu tylko po to, żeby nie trzeba było
+-- otwierać migracji, żeby sprawdzić, czy ta wartość jest legalna:
+ALTER TABLE media ADD CONSTRAINT media_status_check
+    CHECK (status IN ('pending','processing','ready','rejected','deleted'));
+```
+
+Znaczenie: **zdjęcie zostało przejęte do skasowania, ale jeszcze nie zniknęło
+z dysku.** To nie jest „skasowane" — to jest „kasowanie trwa".
+
+- Znacznik ustawia `KasujZdjecie::przejmij()` w krótkiej transakcji, pod
+  `SELECT … FOR UPDATE` na tym wierszu i po ponownym sprawdzeniu, że nic go
+  nie używa. Pliki kasują się dopiero **po** commicie tej transakcji.
+- Dopóki znacznik stoi, `App\Domain\Media\ZdjeciaDoPrzypiecia` nie pozwoli
+  przypiąć tego zdjęcia do wpisu ani do wykonania. Bez tego okno na utratę
+  pliku wracałoby zaraz po zwolnieniu blokady, a przed skasowaniem plików.
+- Nieudane kasowanie plików **zostawia wiersz ze znacznikiem** — i to jest
+  cały mechanizm ponowienia, ten sam co przy issue #17: kolejny przebieg
+  `kuking:sprzataj-osierocone-zdjecia` wybiera go po wieku tak samo jak każdy
+  inny wiersz. Wiersz bez plików da się zauważyć; pliki bez wiersza są dla
+  aplikacji niewidoczne na zawsze.
+
+To jest odpowiednik `users.data_erased_at` z `EraseAccountData`: zatwierdzona
+deklaracja „to odchodzi", widoczna dla innych transakcji.
+
+**Rollback:** nie ma czego cofać w schemacie — CHECK się nie zmienił, kolumny
+nie przybyło. Cofnięcie SAMEJ ZMIANY KODU (revert PR-a #285) jest bezpieczne
+dla danych, ale wymaga jednego ruchu operacyjnego: wiersze, które zostały
+z `status = 'deleted'` po nieudanym kasowaniu plików, przestaną cokolwiek
+znaczyć dla starego kodu i będą wyglądać jak zwykłe osierocone zdjęcia —
+stary sprzątacz podejmie je normalnie, po wieku, więc nie zablokują się
+w bazie. Nic nie trzeba backfillować.
+
 ### posts + post_media
 Najprostszy content społecznościowy.
 

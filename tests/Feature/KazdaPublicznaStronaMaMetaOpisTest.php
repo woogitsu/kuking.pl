@@ -147,6 +147,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'zaproszenie.pokaz' => route('zaproszenie.pokaz', ['token' => 'token-testowy']),
             'password.reset' => route('password.reset', ['token' => 'token-testowy']),
             'search' => route('search'),
+            'tags.index' => route('tags.index'),
             'tags.show' => route('tags.show', $tag->slug),
             'profile.show' => route('profile.show', $autor->profile->username),
             'social.following' => route('social.following', $autor->profile->username),
