@@ -9,7 +9,9 @@
     adresu z bazy przez konsolę byłoby gorsze pod każdym względem, także
     pod względem ochrony danych.
 --}}
-<x-layout title="Wiadomość do nas" :noindex="true">
+<x-layout title="Wiadomość do nas — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Wiadomości do nas" />
+
     <p class="meta">
         <a href="{{ route('admin.contact') }}">← Wróć do listy wiadomości</a>
     </p>

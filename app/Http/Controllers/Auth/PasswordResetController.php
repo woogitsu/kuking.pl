@@ -8,7 +8,7 @@ use App\Domain\Users\Actions\CancelEmailChange;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
-use App\Rules\TurnstileNieJestPodrobiony;
+use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Poczta;
 use App\Support\Turnstile;
 use Illuminate\Auth\Events\PasswordReset;
@@ -38,15 +38,20 @@ class PasswordResetController extends Controller
         $request->validate([
             'email' => ['required', 'email', 'max:255'],
             /*
-             * Turnstile (D-050) — CELOWO BEZ `required`.
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
              *
-             * Bez JavaScriptu token nie powstaje, a ten formularz musi
-             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
-             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
-             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
-             * `App\Rules\TurnstileNieJestPodrobiony`.
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
              */
-            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('odzyskanie_hasla'),
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('odzyskanie_hasla'),
         ], [
             'email.required' => 'Podaj adres e-mail, na który założone jest konto.',
             'email.email' => 'Ten adres wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',

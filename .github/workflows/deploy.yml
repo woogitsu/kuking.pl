@@ -279,8 +279,15 @@ jobs:
       #  Krok nieblokujący: brak wpisu w Sentry to nie powód do alarmu.
       # -----------------------------------------------------------------------
       - name: Rejestracja wydania w Sentry
-        if: steps.target.outputs.pomin != '1'
-        if: vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
+        # JEDEN `if`, DWA WARUNKI — I TO NIE JEST KOSMETYKA.
+        # Stały tu dwa osobne klucze `if:` w jednym kroku. YAML w takiej
+        # sytuacji nie protestuje (drugi cicho nadpisuje pierwszy), ale
+        # GitHub Actions ODRZUCA CAŁY PLIK: każdy push tworzył przebieg
+        # kończący się porażką bez ani jednego joba, a taka porażka
+        # zatruwała check suite commita. Railway ma włączone „Wait for CI",
+        # więc POMIJAŁ każdy deploy — produkcja stała cztery godziny na
+        # starej wersji, przy zielonym CI i zielonych PR-ach.
+        if: steps.target.outputs.pomin != '1' && vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
         continue-on-error: true
         uses: getsentry/action-release@v3
         env:

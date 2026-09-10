@@ -4,7 +4,9 @@
     Najstarsze otwarte na górze — termin odpowiedzi liczy się od złożenia,
     więc „najnowsze pierwsze" chowałoby przeterminowane najgłębiej.
 --}}
-<x-layout title="Odwołania" :noindex="true">
+<x-layout title="Odwołania — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Odwołania" />
+
     <h1>Odwołania</h1>
 
     <x-error-summary />

@@ -33,6 +33,18 @@ namespace App\Support;
  * „mail.ru" mówi więcej niż cała reszta adresu.
  *
  * ────────────────────────────────────────────────────────────────────────
+ *  DRUGIE MIEJSCE UŻYCIA: LISTA KONT W PANELU MODERACJI
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * `/admin/uzytkownicy` pokazuje adresy w tej samej masce — i z pokrewnego,
+ * choć nie identycznego powodu. Tam nie chodzi o phishing, tylko o to, że
+ * lista pokazuje DWADZIEŚCIA PIĘĆ adresów naraz, a moderator odpowiada przy
+ * niej wyłącznie na pytanie „które to konto"; pierwsza litera i pełna domena
+ * na to wystarczają. Pełny adres jest na KARCIE jednego konta — a wejście na
+ * kartę zostawia wpis w `audit_log`, więc pełnia jest tam opłacona śladem
+ * w dzienniku (docs/INSPIRATION_DECISIONS.md poz. 3.2).
+ *
+ * ────────────────────────────────────────────────────────────────────────
  *  GDZIE SKRÓTU NIE UŻYWAMY — I DLACZEGO TO NIE JEST NIEKONSEKWENCJA
  * ────────────────────────────────────────────────────────────────────────
  *

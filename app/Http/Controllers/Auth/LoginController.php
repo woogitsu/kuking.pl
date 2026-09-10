@@ -8,7 +8,7 @@ use App\Domain\Moderation\UzasadnienieDecyzji;
 use App\Http\Controllers\Controller;
 use App\Models\ModerationAction;
 use App\Models\User;
-use App\Rules\TurnstileNieJestPodrobiony;
+use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\KluczeLimitow;
 use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
@@ -41,15 +41,20 @@ class LoginController extends Controller
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
             /*
-             * Turnstile (D-050) — CELOWO BEZ `required`.
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
              *
-             * Bez JavaScriptu token nie powstaje, a ten formularz musi
-             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
-             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
-             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
-             * `App\Rules\TurnstileNieJestPodrobiony`.
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
              */
-            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('logowanie'),
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('logowanie'),
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło.',
