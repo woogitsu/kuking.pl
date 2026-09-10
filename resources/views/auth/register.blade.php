@@ -1,6 +1,16 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
     <h1>Zostań <x-kuking-word forma="iem" /></h1>
-    <p class="mb-5">Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia.</p>
+    {{--
+        Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking
+        pkt 3 i 9; test regresyjny: RejestracjaOnboardingKopiaTest).
+        „Cztery pola i gotowe" musi zapowiadać, co będzie DALEJ — inaczej
+        „Krok 1 z 3" zaraz potem czyta się jak „jednak coś nie wyszło".
+    --}}
+    <p class="mb-5 rejestracja-zapowiedz">
+        Cztery pola i gotowe — konto zaczyna działać od razu. Potem zapytamy jeszcze
+        o parę rzeczy, żeby dobrać Ci pierwsze wpisy, ale to całkiem opcjonalne
+        i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
+    </p>
 
     <x-error-summary />
 
