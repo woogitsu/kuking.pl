@@ -31,9 +31,39 @@
                  autocomplete="username" placeholder="Basia z Podkarpacia"
                  help="Podpowiadamy ją z Twojego imienia — możesz zostawić albo wpisać własną. Polskie litery i spacje są w porządku, zapis poprawimy za Ciebie." />
 
-        <x-field name="email" label="Twój adres e-mail" type="email" required
-                 autocomplete="email"
-                 help="Potrzebny tylko wtedy, gdy zapomnisz hasła. Nie pokażemy go nikomu." />
+        {{--
+            ADRES Z ZAPROSZENIA NIE JEST POLEM FORMULARZA (D-085).
+
+            Kto przyszedł z linku w wiadomości, ma adres już potwierdzony —
+            i to potwierdzenie stoi na tym, że kliknął link ZE SWOJEJ skrzynki.
+            Gdyby adres dało się tu podmienić, powstałoby konto z potwierdzonym
+            adresem, którego nikt nigdy nie potwierdził. Dlatego adres nie
+            przyjeżdża z przeglądarki w ogóle: `RegisterController` bierze go
+            z wiersza w bazie wskazanego przez sesję, a to, co tu widać, jest
+            wyłącznie informacją dla człowieka. `readonly` byłoby podpowiedzią
+            dla oka, nie zabezpieczeniem.
+
+            WYJŚCIE MUSI BYĆ WIDOCZNE, bo z jednej skrzynki korzysta czasem
+            całe małżeństwo — bez niego to jest ślepa ściana (docs/UX_50_PLUS.md).
+        --}}
+        @if($zaproszenie !== null)
+            <div class="field">
+                <span class="field-label">Twój adres e-mail</span>
+                <p class="field-static"><strong>{{ $zaproszenie->email }}</strong></p>
+                {{-- BEZ RODZAJU GRAMATYCZNEGO (docs/brand/COPY_STYLE.md §2):
+                     „kliknąłeś" przypisywało czytelnikowi płeć. Rzeczownik
+                     zamiast czasownika w czasie przeszłym — i zdanie jest
+                     przy okazji krótsze. --}}
+                <span class="field-help">
+                    Ten adres jest już potwierdzony — wystarczyło kliknięcie linku z tej skrzynki,
+                    więc żadna kolejna wiadomość od nas nie musi przyjść.
+                </span>
+            </div>
+        @else
+            <x-field name="email" label="Twój adres e-mail" type="email" required
+                     autocomplete="email"
+                     help="Potrzebny tylko wtedy, gdy zapomnisz hasła. Nie pokażemy go nikomu." />
+        @endif
 
         <x-field name="password" label="Hasło" type="password" required
                  autocomplete="new-password"
@@ -84,6 +114,19 @@
             <button class="btn btn-primary" type="submit">Załóż konto</button>
         </div>
     </form>
+
+    {{--
+        „CHCĘ KONTO NA INNY ADRES" — osobny formularz, POZA tamtym.
+        Zagnieżdżenie formularzy jest w HTML niedozwolone, a ten przycisk
+        musi być POST-em, bo zmienia stan sesji (porzuca zaproszenie).
+        Bez JavaScriptu, tak jak cała ta droga.
+    --}}
+    @if($zaproszenie !== null)
+        <form method="POST" action="{{ route('zaproszenie.porzuc') }}" class="mt-5">
+            @csrf
+            <button class="btn btn-quiet" type="submit">Chcę konto na inny adres e-mail</button>
+        </form>
+    @endif
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

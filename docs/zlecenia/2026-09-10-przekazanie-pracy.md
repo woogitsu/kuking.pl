@@ -739,3 +739,125 @@ owija każdy test we własną transakcję, więc warunku nie da się wywołać �
 zostaje, powód w komentarzu), oraz brak limitera na `GET /zaproszenie/{token}`
 (token to 64 losowe znaki, więc nie ma czego blokować — ale to decyzja, nie
 przeoczenie).
+
+---
+
+## 14. Stan na koniec wieczora 10.09 — od czego zacząć
+
+Sesja z jedenastoma agentami. **Dwanaście PR-ów scalonych.** Ta sekcja jest
+świeższa niż wszystko powyżej; przy sprzeczności wierz jej, a sekcję 13 czytaj
+jako sprostowania do sekcji 5 i 10.
+
+### 14.1. Zacznij od tego
+
+1. **Trzy PR-y czekają na CI** — sprawdź je pierwsze, bo mogą być gotowe do
+   scalenia albo czerwone:
+   - **#304** — zaproszenie do rejestracji (D-085). **Zamyka wyrocznię
+     o istnieniu konta**, patrz 13.8. Najważniejszy z trójki.
+   - **#306** — panel moderacji na szerokim telefonie (D-089) plus `/admin/`
+     w pomiarze dostępności. Ostatnia poprawka: `border-collapse: collapse`
+     → `separate` na `.tabela-kont`, bo złożone krawędzie mogą wystawać o pół
+     szerokości obramowania poza box (CSS 2.1 §17.6.2) i dawały **jeden piksel**
+     przepełnienia przy czcionce przeglądarki 200%.
+   - **#308** — analityka Plausible (D-092). **Właściciel musi dodać dwie
+     zmienne w Railway** — `PLAUSIBLE_DOMENA` i `PLAUSIBLE_HOST`; bez nich
+     serwis chodzi bez analityki i nic nie pada.
+2. **Zakleszczenie przy kasowaniu konta** (Z-2 w `docs/research/2026-09-10-kolejnosc-blokad.md`).
+   **Zmierzone `deadlock detected`**, nienaprawione, z opisaną naprawą i szkicem
+   testu. Skutek: nocna komenda przerywa się, a konto, które prosiło o usunięcie,
+   **nie zostaje tej nocy wymazane**. To jest obowiązek prawny, nie wygoda.
+3. **Mina w `LoginLinkController::store()`** (Z-3 tamże): odwrócona kolejność
+   blokad, dziś bez cyklu, bo nic w tej transakcji nie dotyka `users`.
+   **Pierwsza dopisana tam linijka cykl domknie.**
+4. **#213 — kopia bazy poza Railwayem.** Właściciel odłożył, ale to jest bramka
+   startowa: **do jej wykonania każda utrata bazy jest bezpowrotna.**
+
+### 14.2. Wolny numer decyzji: **D-093**
+
+Rozdane 10.09 wieczorem: D-082 (#269) · D-083 (#300) · D-085 (#304) ·
+D-087 (#303) · D-088 (#299) · D-089 (#306) · D-090 (#302) · D-091 (#307) ·
+D-092 (#308). D-084 i D-086 **nie zostały użyte** — agenci uznali, że ich
+zmiany nie były nowymi decyzjami, i napisali to wprost. Nie wypełniaj tych luk
+na siłę.
+
+### 14.3. CI — reguła, którą warto znać (i której nie rozumiem do końca)
+
+Sekcja 13.1 prostowała mit „PR-y agentów nie dostają CI" i **sama poszła za
+daleko**. Zmierzone tego wieczoru:
+
+- **Push z mojego konta odpalał CI za każdym razem, bez wyjątku.**
+- **Push agenta czasem nie odpala żadnego przebiegu.** Gałąź
+  `claude/panel-na-szerokim-telefonie`: push o 19:53, o 20:01 `list_workflow_runs`
+  pokazywał **wyłącznie stary przebieg** na poprzednim commicie. Nie opóźnienie —
+  brak.
+
+**Mechanizmu nie znam i go nie zgaduj.** Znam działanie, które skutkuje: jeśli PR
+stoi bez przebiegów, zrób `git merge origin/main` i wypchnij ze swojego konta.
+
+Uwaga druga: zdarzenie „check_suite completed" potrafi dotyczyć **wyłącznie
+zestawu podglądu** (trzy joby `skipped`), gdy główny workflow jeszcze nie
+wystartował. **Nie scalaj na podstawie samego zdarzenia** — sprawdź
+`get_check_runs` i wymień osiem wymaganych jobów z nazwy.
+
+### 14.4. Narzędzie do konfliktów w `DECISIONS.md`
+
+Każdy PR dopisuje decyzję na końcu tego samego pliku, więc po każdym scaleniu
+reszta wpada w konflikt. Napisałem na to skrypt — **żyje tylko w kontenerze**,
+więc jeśli go potrzebujesz, napisz od nowa według tego opisu:
+
+Bierze plik z konfliktem, wyciąga obie strony, **odrzuca całą operację, gdy
+któraś strona nie zaczyna się od nagłówka `## D-`** (czyli gdy to nie jest
+zwykłe dopisanie obok siebie), a w przeciwnym razie zapisuje wpis z `origin/main`,
+separator `---` wg konwencji pliku, i wpis własny. Ta odmowa jest w nim
+najważniejsza: jednego wieczoru zatrzymała się na konflikcie, gdzie strona
+`origin/main` była pusta i git tylko nie umiał ustalić miejsca — automat
+„poradziłby sobie" po cichu i wstawiłby D-089 przed wpisami od niej starszymi.
+
+**Po każdym scaleniu sprawdzaj liczbę wpisów i brak duplikatów numerów**
+(`grep -c "^## D-0"` oraz `grep -o "^## D-0[0-9]*" | sort | uniq -d`).
+
+### 14.5. `scripts/dostepnosc.mjs` — plik, w którym trzy gałęzie się zderzyły
+
+Trzy niezależne prace dopisywały do **tej samej linii podsumowania**. Każda
+strona osobno wygląda kompletnie i przechodzi `node --check` — a jedna z kontrol
+znika po cichu z raportu. Ten plik ma **trzy miejsca zbiorcze** i po każdym
+scaleniu trzeba sprawdzić wszystkie trzy osobno:
+
+1. linia `log()` z podsumowaniem,
+2. **warunek wyjścia kodem 1** (dziś siedem kontrol: `blokujacych`,
+   `przepelnienia`, `rozjazdyBelki`, `niespojneSzerokosci`, `naruszeniaFocus`,
+   `rozjazdyTablicy`, `rozjazdyLiczb`),
+3. obiekt zapisywany do `storage/dostepnosc.json`.
+
+Gdy git scali punkt 2 „sam", **przeczytaj go** — wzięcie jednej strony daje
+skrypt kończący się zerem mimo naruszenia.
+
+### 14.6. Dług nazwany i świadomie niespłacony
+
+- **Trzy drogi przypięcia zdjęcia zostają z luką MEDIA-01**: awatar, zdjęcie
+  główne i skan przepisu, zdjęcie kroku. Znacznik `deleted` zwęża okno, nie
+  zamyka. Opisane w D-083.
+- **Żaden test nie chodzi na dwóch połączeniach.** Raport blokad ma propozycję
+  takiej grupy z oceną kosztu i wskazaniem testu, który byłby dziś czerwony.
+  Grupa **nie została założona**.
+- **`/tagi` nie jest mierzone przez `scripts/dostepnosc.mjs`**, choć jest stroną
+  publiczną, a wszystkie pozostałe są. Nie dopisane, bo trzy gałęzie naraz
+  trzymały ten plik. **To jest teraz wolne** — zrób to.
+- **`dostepnosc.json` nie zapisuje pomiaru liczb profilu** (kod wyjścia go
+  respektuje, artefakt nie). Jedna linijka w punkcie 3 z 14.5.
+- **D-067 nie istnieje**, a kod powoływał się na nie w siedemnastu miejscach
+  (13.8). Proponowany test skanujący — `grep` po `D-0\d\d` w `app/` kontra
+  nagłówki w `DECISIONS.md` — **nie został napisany**.
+- **23 ostrzeżenia „focus częściowo zasłonięty"** (25–75%) nie są naruszeniem
+  2.4.11 i nie liczą się do kodu wyjścia. Nikt ich nie ruszał i nikt nie
+  podnosił na nie progu.
+
+### 14.7. Po stronie właściciela
+
+Do listy z sekcji 7 i 13.6 dochodzi: **dwie zmienne Plausible w Railway**
+(`PLAUSIBLE_DOMENA=kuking.pl`, `PLAUSIBLE_HOST=https://plausible.io`), po
+uprzednim założeniu strony w panelu Plausible. **Literówka w domenie nie wywoła
+błędu** — skrypt się załaduje, zdarzenia pójdą, panel zostanie pusty.
+
+Nadal otwarte i niezamykalne kodem: Composer na `actions-runner-kuking-03`
+(13.6), śledzenie otwarć w EmailLabs (#204), bramka R2 (#120), kopia bazy (#193).
