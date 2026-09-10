@@ -27,7 +27,8 @@ Konto:
 - locale;
 - text_scale;
 - theme (patrz niżej);
-- `wants_weekly_digest` — zgoda na cotygodniowy przegląd (patrz niżej);
+- `wants_weekly_digest` — zgoda na cotygodniowy przegląd, stan BIEŻĄCY (patrz
+  niżej); historia jej udzielania i wycofywania leży w `dziennik_zgod`;
 - `weekly_digest_sent_at` — kiedy poszło ostatnie podsumowanie (patrz niżej);
 - verified timestamps.
 
@@ -67,6 +68,26 @@ zabetonował pole na `false` i odebrał ludziom możliwość zapisania się.
 > zostaje tutaj nienaruszony, bo uzasadnia MIGRACJĘ, która wtedy ruszyła
 > istniejące wiersze — a wtedy naprawdę nie było czego stracić. Dziś taka
 > migracja byłaby odebraniem komuś zgody, którą świadomie wyraził.
+
+**Rollback tej migracji NIE przywraca `DEFAULT true`** (poprawka z 10 września,
+audyt DB2, D-072). `down()` jest świadomie pusty: `DEFAULT false` zostaje także
+po cofnięciu, bo wysyłka już istnieje i techniczny rollback zapisywałby NOWE
+konta na prawdziwy mailing, o który formularz rejestracji nadal nie pyta.
+Asymetria jest pełna i jawna — `up()` przestawia `DEFAULT` oraz istniejące
+wiersze, `down()` nie przywraca ani jednego, ani drugiego. Tej migracji nie da
+się więc cofnąć „wiernie historycznie" i tak ma być: wierny rollback wraca do
+stanu groźnego, a listu wysłanego bez zgody nie da się odwołać. Powrót do
+opt-outu wymaga jawnego `ALTER TABLE users ALTER COLUMN wants_weekly_digest SET
+DEFAULT true` z ręki i dopisania pola zgody do rejestracji.
+
+Niezależnie od drogi, którą `DEFAULT true` mógłby wrócić (ręczny `ALTER`,
+przywrócenie bazy z kopii sprzed migracji, rollback na starszym wydaniu kodu),
+**wysyłka odmawia startu**: `App\Domain\Digest\BramkaDomyslnejZgody` pyta
+`information_schema` przy każdym uruchomieniu `kuking:wyslij-podsumowania`
+i przy domyślnym `true` kończy kodem 1, z komunikatem mówiącym, co zrobić.
+Przebieg `--na-sucho` przechodzi (nic nie wysyła), ale ostrzega. Pilnuje tego
+`RollbackNieWlaczaDigestuTest` — asercją na `information_schema`, nie na
+komentarzu w migracji.
 
 #### `weekly_digest_sent_at` — kiedy poszedł ostatni list
 
@@ -132,16 +153,11 @@ z `KUKING_DIGEST_WLACZONY=false`, nie „przy okazji".
 Pilnują tego `TygodniowePodsumowanieTest` (odstęp, powtórne uruchomienie,
 dobowy limit) i `WypisanieZPodsumowaniaTest`.
 
-**Czego ta migracja NIE naprawia:** nie ma kolumny z datą wyrażenia i datą
-wycofania zgody, więc **wycofania nie da się dziś wykazać**. Jeśli przegląd
-kiedyś powstanie, trzeba je dodać razem z nim — inaczej zostaje obietnica
-bez dowodu.
-
-**Rollback:** `php artisan migrate:rollback --step=1`. `down()` przywraca
-`DEFAULT true` dla NOWYCH wierszy i świadomie **nie** dotyka istniejących:
-cofnięcie migracji jest operacją techniczną i nie może samo z siebie
-zapisać ludzi na wysyłkę. Powrót do stanu sprzed migracji w całości wymaga
-osobnego, jawnego `UPDATE` — i wtedy jest to decyzja człowieka.
+**Dowód udzielenia i wycofania zgody NIE JEST w `users`** — ma własną tabelę
+`dziennik_zgod` (opisaną niżej w tym dokumencie, D-072). Dwóch kolumn z datami
+(`..._consented_at` / `..._withdrawn_at`) świadomie tu nie ma: przy ciągu
+włącz → wyłącz → włącz trzecia zmiana nadpisuje pierwszą i historia,
+o którą chodzi, ginie.
 
 #### `theme` — jasny/ciemny wygląd (D-019)
 
@@ -363,14 +379,35 @@ na `erased` (ich zanonimizowany tekst wraca wtedy na serwis, zgodnie z D-018),
 a konta w usuwaniu dostają `delete_scope = 'minimum'` — jedyny zakres, jaki
 wtedy istniał.
 
-**Rollback:** `down()` cofa `erased` → `pending_delete`, zdejmuje oba nowe
-CHECK-i, przywraca poprzedni `users_data_erased_at_check` i `users_status_check`
-i kasuje kolumnę. Sprawdzone na bazie testowej w obie strony
-(`migrate` → `migrate:rollback --step=1` → `migrate`). Skutek jest ZNANY:
-wraca usterka opisana wyżej (teksty wymazanych kont znowu oddają 403). Żadne
-dane nie giną — tracimy wyłącznie zapisany zakres kont, które JESZCZE czekają
-w karencji, a te wracają wtedy do zachowania D-018, czyli do wariantu mniej
-nieodwracalnego.
+**Rollback — poprawiony po #287 (D-088).** `down()` cofa `erased` →
+`pending_delete`, zdejmuje oba nowe CHECK-i, przywraca poprzedni
+`users_data_erased_at_check` i `users_status_check` i kasuje kolumnę —
+**ale najpierw ODMAWIA**, jeśli w tabeli jest choć jedno konto z
+`delete_scope = 'everything'`.
+
+Powód: kolumna jest `nullable`, więc samo `dropColumn` nie zgłasza błędu —
+ale kolejny `migrate` (np. `migrate:refresh` w CI, albo awaryjny rollback
+WDROŻENIA, nie tylko bazy) **backfillowałby ją z powrotem jako `minimum`**,
+bo to jedyna wartość, jaką backfill `up()` umie nadać istniejącym kontom
+w usuwaniu. Człowiek, który poprosił o usunięcie WSZYSTKICH swoich treści,
+dostawałby po cichu odwrotność swojej decyzji — bez błędu, z poprawną
+kolumną i poprawną wartością ze słownika. **Ta sama choroba co DB2**
+(`2026_09_07_400000_default_weekly_digest_to_off`, `down()` przywracający
+`DEFAULT true` dla zgody na cotygodniowy przegląd) — potwierdzone na
+prawdziwej bazie testowej, nie w teorii (`migrate` → `migrate:rollback` →
+`migrate` dawało `delete_scope = 'minimum'` na koncie zgłoszonym jako
+`everything`).
+
+Naprawa: `down()` liczy `delete_scope = 'everything'` PRZED jakąkolwiek
+operacją i rzuca `RuntimeException` z instrukcją, co zrobić (patrz komentarz
+w migracji) — ten sam wzorzec odmowy co
+`2026_09_10_400100_one_active_data_export_per_user` i
+`2026_09_07_800000_appeals_open_to_reporters`. Na koncie z `minimum` (albo
+bez wyboru w ogóle) rollback nadal przechodzi bez pytania — test
+`tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php`
+sprawdza obie strony na prawdziwym cyklu `migrate` → `markForDeletion()` →
+`migrate:rollback`. Skutek udanego rollbacku jest wciąż ZNANY i niezmieniony:
+wraca usterka z akapitu wyżej (teksty wymazanych kont znowu oddają 403).
 
 #### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
 
@@ -1581,6 +1618,105 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+### dziennik_zgod
+Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
+**append-only** (migracja `2026_09_10_400000_create_dziennik_zgod_table`,
+audyt DB1, `docs/DECISIONS.md` **D-072**).
+
+Do 10 września całym dowodem był boolean `users.wants_weekly_digest`. RODO
+art. 7 ust. 1 każe zgodę **wykazać**, a „dziś pole ma wartość `true`" nie
+odpowiada na pytanie, kiedy człowiek to kliknął, czy wcześniej tego nie
+odklikał i czy po wycofaniu wysyłka nie szła dalej.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `id` | `bigserial`. Nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (tak samo jak `audit_log` i `product_signals`). Rosnący klucz trzyma KOLEJNOŚĆ dwóch zdarzeń z tej samej sekundy. |
+| `user_id` | `uuid`, **NOT NULL**, FK do `users` z `ON DELETE RESTRICT` (patrz niżej). |
+| `cel` | Cel zgody. Dziś jedna wartość: `tygodniowy_digest`. CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, druga zgoda wymaga migracji i recenzji. |
+| `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
+| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta`. CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
+| `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
+| `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
+
+```sql
+CREATE TABLE dziennik_zgod (
+    id              bigserial PRIMARY KEY,
+    user_id         uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    cel             varchar(40) NOT NULL,
+    czynnosc        varchar(20) NOT NULL,
+    zrodlo          varchar(30) NOT NULL,
+    wersja_polityki varchar(20) NOT NULL,
+    wystapilo_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX dziennik_zgod_konto_cel_idx ON dziennik_zgod (user_id, cel, wystapilo_at DESC);
+```
+
+Indeks jest jeden, bo pytanie jest jedno: „historia zgody TEJ osoby na TEN
+cel, od najnowszej" — tak wygląda odpowiedź na żądanie z art. 7 ust. 1.
+
+**Dlaczego tabela, a nie dwie kolumny z datami.** Audyt dopuszczał
+`weekly_digest_consented_at` + `weekly_digest_withdrawn_at` jako minimum i to
+minimum jest za małe: przy ciągu włącz → wyłącz → włącz trzecia zmiana
+nadpisuje pierwszą. To ODWROTNE rozstrzygnięcie niż przy
+`users.weekly_digest_sent_at` (tam pytanie naprawdę brzmi „kiedy ostatnio")
+i nie ma tu sprzeczności — tutaj poprzednia wartość jest całym dowodem.
+**JSONB odpada:** cztery zawsze te same pola z zamkniętymi zbiorami wartości
+to dane strukturalne, a AGENTS.md §6 dopuszcza JSONB tylko dla
+półstrukturalnych.
+
+**Czego tu celowo nie ma: adresu IP i `User-Agent`.** Do wykazania zgody nie
+są potrzebne — dowodem jest fakt, moment, cel i droga. Brak tych kolumn
+pilnuje `DowodZgodyNaDigestTest` **asercją na pełną listę kolumn**, więc
+oblewa się także wtedy, gdy ktoś doda kolumnę nazwaną neutralnie
+(`kontekst`, `meta`) i włoży tam to samo.
+
+**Append-only wymuszone przez bazę, nie przez intencje.** Wyzwalacze
+`dziennik_zgod_bez_zmian` (`BEFORE UPDATE OR DELETE … FOR EACH ROW`)
+i `dziennik_zgod_bez_czyszczenia` (`BEFORE TRUNCATE … FOR EACH STATEMENT`)
+wołają funkcję `dziennik_zgod_tylko_dopisywanie()`, która rzuca wyjątek —
+`RAISE EXCEPTION`, a nie reguła `DO INSTEAD NOTHING`, bo reguła połknęłaby
+zmianę bez słowa. Model `App\Models\WpisZgody` blokuje `update`/`delete`
+także po stronie PHP (czytelniejszy błąd dla programisty), ale to jest
+pierwsza linia, nie jedyna: `DB::table('dziennik_zgod')->update(...)`
+i ręczny `psql` jej nie widzą. `DROP TABLE` **nie** jest blokowany —
+`migrate:refresh` w CI i `RefreshDatabase` w testach muszą działać.
+
+**Usunięcie konta a dowód zgody — rozstrzygnięcie napięcia (D-072).** Konta
+w Kuking się nie kasuje, tylko anonimizuje (D-022), więc:
+
+- `EraseAccountData` **dopisuje** wiersz `wycofana` ze źródłem
+  `usuniecie_konta` (domknięcie historii — inaczej dziennik kończyłby się na
+  „udzielona" i wyglądałby na zgodę obowiązującą do dziś);
+- **nic nie kasuje.** Po anonimizacji wiersz `users` nie ma adresu, hasła ani
+  nazwy, więc `user_id` w dzienniku nie wskazuje na dane osobowe, a dowód
+  podstawy prawnej wysyłki zostaje;
+- FK ma `ON DELETE RESTRICT`, nie `CASCADE` (skasowałby dowód dokładnie wtedy,
+  gdy jest potrzebny) i nie `SET NULL` (byłby `UPDATE` na tabeli append-only,
+  a dowód niczyj to dowód żaden). Skutek uboczny, który trzeba nazwać: twardy
+  `DELETE FROM users` dla konta, które kiedykolwiek ruszyło tę zgodę, odmówi
+  wykonania. W serwisie nic takiego nie robi.
+
+**Retencja: brak i jest to decyzja, nie przeoczenie** (D-072, punkt otwarty).
+Dziennik zgód nie ma dziś komendy sprzątającej — dlatego nie ma też indeksu po
+samym czasie. Wiersz to siedem krótkich pól na jedną zmianę zgody, więc tabela
+rośnie wolniej niż `product_signals`. Docelowy okres należy dopisać do
+`docs/decyzje/ADR_RETENCJE.md` razem z resztą dowodów zgód, przy przeglądzie
+prawnym (issue #8).
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` kasuje tabelę
+razem z wyzwalaczami i funkcją. Bezpieczny dla DZIAŁANIA serwisu — wysyłka nie
+czyta tej tabeli ani razu, więc nic nie przestanie chodzić. **Nie jest
+bezpieczny dowodowo:** razem z tabelą znika jedyny zapis o tym, kto i kiedy
+wyraził zgodę, a boolean na `users` tego nie odtworzy. Rollback wykonuje się
+więc albo na wdrożeniu, gdzie tabela jest jeszcze pusta, albo po wyjęciu jej
+zawartości poza bazę
+(`\copy dziennik_zgod to 'dziennik_zgod.csv' csv header`).
+
+Pilnuje tego `DowodZgodyNaDigestTest` (udzielenie, wycofanie, ciąg
+włącz → wyłącz → włącz, trzy źródła, brak PII, append-only w modelu i w bazie,
+usunięcie konta).
 
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,

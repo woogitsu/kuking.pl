@@ -152,6 +152,49 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         'dwie_formy_odwrotnie' => '/\b(\p{L}{3,}?)(?:y|i|ł|łeś|łem|ym)\s+(?:albo|lub|czy)\s+\1(?:a|ą|ła|łaś|łam)(?![\p{L}])/u',
     ];
 
+    /**
+     * Druga warstwa wzorców — TYLKO dla widoków, nie dla tekstów prawnych,
+     * tłumaczeń ani napisów w PHP (issue #38, przy okazji przenoszenia PR
+     * #254 do #288).
+     *
+     * DLACZEGO OSOBNA STAŁA, A NIE DOPISKA DO `WZORCE` WYŻEJ
+     * Ten skan łapie gołe „sam"/„sama" jako podmiotowy zaimek wzmacniający
+     * („sam decydujesz", „włączasz sam") — a to słowo naprawdę wystąpiło
+     * jako żywy błąd w PIĘCIU ekranach (patrz test niżej), mimo że
+     * `test_widoki_nie_przypisuja_czytelnikowi_plci` obok był zielony.
+     * Ten sam zaimek stoi też legalnie w `resources/legal/regulamin.md`
+     * i `polityka-prywatnosci.md` („sam wybierasz", „sam decydujesz, co
+     * dzieje się z Twoimi tekstami") — a teksty prawne mają swój reżim
+     * i osobne zlecenie (D-066 §3, `docs/brand/COPY_STYLE.md` §6). Gdyby te
+     * wzorce trafiły do wspólnej `WZORCE`, `test_teksty_prawne_…` zacząłby
+     * obalać rzeczy, których ten PR świadomie nie rusza — dokładnie ten
+     * rodzaj przypadkowego rozszerzenia zakresu, przed którym ostrzega
+     * `docs/PULAPKI_TESTOW.md`.
+     *
+     * @var array<string, string>
+     */
+    private const WZORCE_TYLKO_WIDOKI = [
+        // „sam"/„sama" tuż obok czasownika w 2. osobie l.poj. czasu
+        // teraźniejszego („sam decydujesz", „sama wybierasz", „włączasz
+        // sam"). Wymóg samogłoski przed „sz" odcina rzeczowniki kończące
+        // się na spółgłoskę + „sz" („ten sam wiersz", „sam mechanizm" —
+        // „wiersz" nie ma samogłoski przed „sz", więc nie łapie).
+        'sam_bezposredni' => '/\bsam(?:a)?\b\s+\p{L}*[aeiy]sz\b|\p{L}*[aeiy]sz\b\s+\bsam(?:a)?\b/u',
+
+        // Ukośnik „sam/sama" wprost — ten sam mechanizm co „ukosnik_koncowka"
+        // wyżej, ale ten wzorzec go nie łapał: „sam" nie kończy się na „ł",
+        // „na", „ta", „a" ani „ą", więc „decydujesz sam/sama" przeszło przez
+        // #288 nietknięte (`resources/views/pages/settings/data.blade.php`).
+        'sam_ukosnik' => '/\bsam\s*\/\s*sama\b|\bsama\s*\/\s*sam\b/iu',
+
+        // „zostaniesz" + imiesłów rodzajowy: „zostaniesz poproszona/y",
+        // „zostaniesz zalogowana/y". Wzorzec „przyszlosc" wyżej łapie tylko
+        // „będziesz", nie „zostaniesz" — inna konstrukcja czasu przyszłego,
+        // ten sam błąd (`resources/views/mail/data-export-ready.blade.php`
+        // pisał „zostaniesz poproszona" do każdego czytelnika).
+        'zostaniesz_forma' => '/\bzostaniesz\s+\p{L}*n[ay]\b/iu',
+    ];
+
     // ---------------------------------------------------------------
     // Widoki
     // ---------------------------------------------------------------
@@ -178,6 +221,44 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
             $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
 
             foreach ($this->trafienia($tresc) as $trafienie) {
+                $winowajcy[] = $this->skrot($plik).':'.$trafienie;
+            }
+        }
+
+        $this->assertSame([], $winowajcy, $this->wyjasnienie($winowajcy));
+    }
+
+    /**
+     * Druga warstwa, TYLKO widoki — patrz `WZORCE_TYLKO_WIDOKI` wyżej po
+     * uzasadnienie, dlaczego to osobny test, a nie dopisek do wzorców
+     * używanych też przez tekst prawny.
+     *
+     * ZNALEZIONE TYM WZORCEM, ŻYWE W REPOZYTORIUM PRZED TĄ POPRAWKĄ (issue
+     * #38): `pages/landing.blade.php` („sam decydujesz"), `pages/static/
+     * help.blade.php` („sam wybierasz"), `pages/settings/accessibility.
+     * blade.php` („włączasz sam"), `pages/settings/privacy.blade.php`
+     * („sama decydujesz"), `pages/settings/data.blade.php` (dwa razy „sam/
+     * sama") i `mail/data-export-ready.blade.php` („zostaniesz poproszona").
+     * Sześć miejsc, zero czerwonych testów — bo `test_widoki_nie_przypisuja_
+     * czytelnikowi_plci` obok skanuje te same pliki, ale innym wzorcem.
+     */
+    public function test_widoki_nie_przypisuja_czytelnikowi_plci_slowem_sam_i_zostaniesz(): void
+    {
+        $pliki = $this->pliki(resource_path('views'), '.blade.php');
+
+        $this->assertGreaterThan(
+            100,
+            count($pliki),
+            'Skan widoków nie znalazł plików — sprawdź ścieżkę resources/views. '
+            .'Test, który nic nie czyta, niczego nie pilnuje.',
+        );
+
+        $winowajcy = [];
+
+        foreach ($pliki as $plik) {
+            $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
+
+            foreach ($this->trafieniaTylkoWidoki($tresc) as $trafienie) {
                 $winowajcy[] = $this->skrot($plik).':'.$trafienie;
             }
         }
@@ -414,6 +495,71 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         }
     }
 
+    /**
+     * DRUGA KONTROLA NEGATYWNA, tym razem na `WZORCE_TYLKO_WIDOKI`. Ten sam
+     * powód co dla `WZORCE` wyżej: wzorzec, który się kompiluje i nic nie
+     * łapie, jest gorszy niż brak testu.
+     *
+     * Zdania w `$zle` to DOSŁOWNE brzmienia z sześciu ekranów sprzed tej
+     * poprawki (issue #38) — patrz `WZORCE_TYLKO_WIDOKI` po pełną listę
+     * plików. `$dobre` to te same zdania po przebudowie.
+     */
+    public function test_wzorce_tylko_widoki_lapia_zywe_bledy_i_przepuszczaja_poprawki(): void
+    {
+        $zle = [
+            'Przy każdym wpisie sam decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.',
+            'Przy każdym wpisie i przepisie sam wybierasz: wszyscy, tylko osoby, które Cię obserwują, albo tylko Ty.',
+            'dla każdego konta — ciemny włączasz sam, jeśli wolisz.',
+            'Przy każdym wpisie i przepisie sama decydujesz: wszyscy, tylko osoby które Cię obserwują, albo tylko Ty.',
+            'tekstami, decydujesz sam/sama w formularzu niżej.',
+            'tylko wybrane przepisy albo wpisy, usuń je sam/sama, zanim skasujesz konto.',
+            'Zanim zaczniesz pobierać, zostaniesz poproszona o zalogowanie się.',
+            'Zanim zaczniesz pobierać, zostaniesz poproszony o zalogowanie się.',
+            // Kontrola, że wzorzec `zostaniesz_forma` nie jest zawężony
+            // wyłącznie do słowa „poproszona/y" z tego jednego ekranu.
+            'Zostaniesz przekierowany na stronę logowania.',
+        ];
+
+        foreach ($zle as $zdanie) {
+            $this->assertNotSame(
+                [],
+                $this->trafieniaTylkoWidoki($zdanie),
+                "Wzorce WZORCE_TYLKO_WIDOKI przepuściły żywy błąd sprzed poprawki: „{$zdanie}”. ".
+                'Któryś wzorzec przestał działać — napraw wzorzec, nie ten test.',
+            );
+        }
+
+        $dobre = [
+            // Brzmienia PO tej poprawce.
+            'Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.',
+            'Przy każdym wpisie i przepisie wybierasz: wszyscy, tylko osoby, które Cię obserwują, albo tylko Ty.',
+            'dla każdego konta — ciemny włączasz, jeśli wolisz.',
+            'Przy każdym wpisie i przepisie decydujesz Ty: wszyscy, tylko osoby które Cię obserwują, albo tylko Ty.',
+            'tekstami, decydujesz Ty w formularzu niżej.',
+            'tylko wybrane przepisy albo wpisy, usuń je samodzielnie, zanim skasujesz konto.',
+            'Zanim zaczniesz pobierać, poprosimy Cię o zalogowanie się.',
+            // „sam"/„sama" jako zwykły przymiotnik odmienny przez rodzaj
+            // RZECZOWNIKA (nie przez rodzaj czytelnika) — nie jest tym
+            // błędem i ma przechodzić.
+            'Kolor to sam dodatek, nośnikiem jest treść.',
+            'To ten sam mechanizm co przy zdjęciu.',
+            'Widok NIE filtruje niczego sam — dostaje z kontrolera.',
+            'Zgłoś pod samą treścią.',
+            // „Zostaniesz" w znaczeniu „zostać" (pozostać), nie w znaczeniu
+            // strony biernej — nic po nim nie kończy się na „n"+„a"/„y".
+            'Zostaniesz tu jeszcze chwilę, czy już zamykasz kartę?',
+        ];
+
+        foreach ($dobre as $zdanie) {
+            $this->assertSame(
+                [],
+                $this->trafieniaTylkoWidoki($zdanie),
+                "WZORCE_TYLKO_WIDOKI zapaliły się na poprawnym zdaniu: „{$zdanie}”. ".
+                'Zawężaj wzorzec — nie dodawaj wyjątku.',
+            );
+        }
+    }
+
     // ---------------------------------------------------------------
     // Narzędzia
     // ---------------------------------------------------------------
@@ -441,6 +587,36 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
                         continue;
                     }
 
+                    $trafienia[] = ($numer + 1).' → ['.$nazwa.'] '.$dopasowanie
+                        .'   w zdaniu: '.trim($linia);
+                }
+            }
+        }
+
+        return $trafienia;
+    }
+
+    /**
+     * To samo co `trafienia()`, ale wzorcem `WZORCE_TYLKO_WIDOKI` — patrz
+     * komentarz przy tej stałej po to, dlaczego jest osobna od `WZORCE`.
+     * Bez wyjątków i homografów: lista `WZORCE_TYLKO_WIDOKI` jest krótka
+     * i celowo wąska, więc żaden z dotychczasowych wyjątków (hasło główne,
+     * „Ugotowałem") się na niej nie zapala — dodanie ich tu na wyrost
+     * tylko utrudniłoby czytanie.
+     *
+     * @return list<string> „numer linii → cytat"
+     */
+    private function trafieniaTylkoWidoki(string $tresc): array
+    {
+        $trafienia = [];
+
+        foreach (explode("\n", $tresc) as $numer => $linia) {
+            foreach (self::WZORCE_TYLKO_WIDOKI as $nazwa => $wzorzec) {
+                if (preg_match_all($wzorzec, $linia, $dopasowania) === 0) {
+                    continue;
+                }
+
+                foreach ($dopasowania[0] as $dopasowanie) {
                     $trafienia[] = ($numer + 1).' → ['.$nazwa.'] '.$dopasowanie
                         .'   w zdaniu: '.trim($linia);
                 }
