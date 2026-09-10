@@ -179,6 +179,55 @@ class WyslijPodsumowaniaTygodnia extends Command
             }
 
             if (! $naSucho) {
+                // MIEJSCE W DOBOWYM SUFICIE REZERWUJEMY PRZED WSTAWIENIEM
+                // DO KOLEJKI — po wstawieniu jest już za późno, bo list
+                // odrzucony limitem dostawcy przepada w `failed_jobs`
+                // i nikt się o tym nie dowie (pełne uzasadnienie w opisie
+                // tej klasy oraz przy `DziennyBudzetListow::zajmij()`).
+                //
+                // Rezerwacja jest JEDNĄ atomową operacją, a nie parą
+                // „sprawdź i zajmij" (D-076). `$budzet` wyliczony wyżej
+                // jest tylko oszacowaniem rozmiaru paczki: drugi przebieg
+                // komendy uruchomiony równolegle — ręcznie po awarii, gdy
+                // harmonogram już chodzi — czytał ten sam licznik i oba
+                // przebiegi wysyłały pełną paczkę ponad sufitem.
+                //
+                // LIST PRÓBNY `--tylko` STOI PONAD SUFITEM i tak było
+                // przed tą zmianą: to jedna wiadomość wypuszczana ręcznie
+                // przez właściciela, który chce ZOBACZYĆ list, i wcześniejsze
+                // wyjścia z tej komendy świadomie go nie zatrzymują. Musi
+                // się jednak POLICZYĆ, żeby nie zniknął z rachunku wiadra.
+                if (! $budzetDnia->sprobujZarezerwowac()) {
+                    if ($jedna === null) {
+                        break;
+                    }
+
+                    $budzetDnia->zajmij();
+                }
+
+                // ────────────────────────────────────────────────────────
+                //  KOLEJNOŚĆ TYCH DWÓCH REZERWACJI JEST MERYTORYCZNA
+                // ────────────────────────────────────────────────────────
+                //
+                // Dobowy sufit poczty (D-076) idzie PIERWSZY, bariera
+                // tygodniowa (D-077) DRUGA. Odwrotna kolejność wygląda
+                // równie sensownie i jest cicho gorsza:
+                //
+                //  * gdyby najpierw szła bariera tygodniowa, a sufit dobowy
+                //    odmówił po niej — osoba zostałaby oznaczona jako
+                //    obsłużona w tym tygodniu i NIE DOSTAŁABY NIC. Nie za
+                //    tydzień, nie przy kolejnym przebiegu: w ogóle. I stałoby
+                //    się to wszystkim ponad sufitem, po cichu, bo `false`
+                //    z bariery jest normalnym stanem, nie awarią;
+                //  * w tej kolejności odmowa sufitu przerywa pętlę PRZED
+                //    oznaczeniem kogokolwiek, więc reszta paczki dostanie
+                //    swoje podsumowanie przy następnym przebiegu.
+                //
+                // D-077 świadomie wybrało „raczej pominięcie niż duplikat",
+                // ale wybrało to dla AWARII, nie dla zwykłego wyczerpania
+                // dziennego wiadra. Pominięcie z powodu sufitu jest do
+                // uniknięcia — więc go unikamy.
+
                 // ────────────────────────────────────────────────────────
                 //  BARIERA: NAJPIERW WIERSZ W BAZIE, POTEM LIST (D-077)
                 // ────────────────────────────────────────────────────────
@@ -205,6 +254,11 @@ class WyslijPodsumowaniaTygodnia extends Command
                 if ($jedna !== null) {
                     $odbiorcy->oznaczWyslane([$osoba]);
                 } elseif (! $odbiorcy->zarezerwuj($osoba, $tydzien)) {
+                    // Miejsce w dobowym suficie jest już zajęte, a list z niego
+                    // nie wyjdzie — oddajemy je. Bez tego przebieg wznowiony po
+                    // awarii zjadałby wiadro na osoby, które i tak mają ten
+                    // tydzień obsłużony, i zabierał je tym, które nie mają.
+                    $budzetDnia->zwolnij();
                     $juzObsluzeni++;
 
                     continue;
@@ -228,14 +282,7 @@ class WyslijPodsumowaniaTygodnia extends Command
 
                 Mail::to($osoba->email)->queue($list);
 
-                // Miejsce w dobowym suficie zajmujemy PRZY WSTAWIENIU DO
-                // KOLEJKI, nie po doręczeniu — uzasadnienie przy
-                // `DziennyBudzetListow::zajmij()`. W skrócie: po wstawieniu
-                // jest już za późno, bo list odrzucony limitem dostawcy
-                // przepada w `failed_jobs` i nikt się o tym nie dowie.
-                $budzetDnia->zajmij();
-
-                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_SENT, $tresc->miary());
+                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_QUEUED, $tresc->miary());
             }
 
             $wyslano++;

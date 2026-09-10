@@ -154,20 +154,45 @@ class LoginLinkController extends Controller
             ]);
         }
 
-        // BUDŻET DOBOWY POCZTY — patrz `DziennyBudzetListow`. Sprawdzany
-        // PRZED wysyłką, zajmowany PO niej: automat wpisujący nieistniejące
-        // adresy nie ma jak wyczerpać budżetu prawdziwym ludziom.
-        if (! $budzet->jestMiejsce()) {
+        // BUDŻET DOBOWY POCZTY — patrz `DziennyBudzetListow`. Miejsce
+        // REZERWUJEMY (jedna atomowa operacja) PRZED wysyłką, a nie
+        // sprawdzamy teraz i zajmujemy dziesięć linii niżej: para
+        // „sprawdź, a potem zajmij" przepuszczała dwa równoległe żądania
+        // przez ostatnie wolne miejsce i wysyłała 121 listów przy suficie
+        // 120 (audyt MAIL-01/RACE-03, D-076).
+        //
+        // Rezerwacja przed wysyłką nie zjada budżetu automatom wpisującym
+        // nieistniejące adresy — miejsce, z którego nic nie wyszło, wraca
+        // niżej przez `zwolnij()`.
+        if (! $budzet->sprobujZarezerwowac()) {
             return back()->with('status',
-                'Dzisiaj wysłaliśmy już wszystkie e-maile z linkiem, jakie mieliśmy na dziś, więc ten nie wyjdzie '
-                .'— nie czekaj na niego. Zaloguj się hasłem albo napisz do nas na '
-                .(string) config('kuking.community.contact_email')
-                .', a pomożemy Ci wejść na konto. Odpisuje człowiek.',
+                // DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA. Rezerwacja mówi
+                // tylko „nie", a te dwa „nie" znaczą dla człowieka coś
+                // zupełnie innego: przy wyczerpanym budżecie czekanie na
+                // list jest bezcelowe, a przy ścisku na blokadzie drugie
+                // kliknięcie zwykle wystarcza. Odczyt jest tu WYŁĄCZNIE
+                // doborem treści komunikatu — o wysyłce rozstrzygnęła już
+                // linia wyżej i nic tego nie odwraca.
+                $budzet->jestMiejsce()
+                    ? 'Nie udało nam się w tej chwili wypuścić tego listu — kilka próśb trafiło na siebie '
+                        .'w tej samej sekundzie. Kliknij „Wyślij mi link” jeszcze raz. Jeśli znowu nie wyjdzie, '
+                        .'zaloguj się hasłem albo napisz do nas na '
+                        .(string) config('kuking.community.contact_email')
+                        .', a pomożemy Ci wejść na konto. Odpisuje człowiek.'
+                    : 'Dzisiaj wysłaliśmy już wszystkie e-maile z linkiem, jakie mieliśmy na dziś, więc ten nie wyjdzie '
+                        .'— nie czekaj na niego. Zaloguj się hasłem albo napisz do nas na '
+                        .(string) config('kuking.community.contact_email')
+                        .', a pomożemy Ci wejść na konto. Odpisuje człowiek.',
             );
         }
 
-        if ($wyslij->handle($adres, $request->ip())) {
-            $budzet->zajmij();
+        if (! $wyslij->handle($adres, $request->ip())) {
+            // NA TYM ADRESIE NIE MA KONTA, więc nic nie wyszło i miejsce
+            // w budżecie wraca do puli. Bez tego byle automat wpisujący
+            // nieistniejące adresy wyczerpałby dobowy sufit w kilka minut
+            // i zamknął drogę prawdziwym ludziom — pilnuje tego
+            // `test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu`.
+            $budzet->zwolnij();
         }
 
         // JEDEN KOMUNIKAT, ZAWSZE TEN SAM. Skrót adresu bierze się z tego, co
