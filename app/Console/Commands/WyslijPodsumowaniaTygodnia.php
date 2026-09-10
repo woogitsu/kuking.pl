@@ -87,7 +87,7 @@ class WyslijPodsumowaniaTygodnia extends Command
 
         if ($this->option('tylko') !== null && $jedna === null) {
             $this->error(
-                'Nie znalazłem takiej osoby wśród kwalifikujących się do wysyłki. '
+                'Nie ma takiej osoby wśród kwalifikujących się do wysyłki. '
                 .'Sprawdź nazwę albo adres, a potem to, czy konto jest czynne, ma potwierdzony adres '
                 .'i zaznaczoną zgodę na `/ustawienia/prywatnosc`.',
             );

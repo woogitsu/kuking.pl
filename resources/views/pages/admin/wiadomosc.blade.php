@@ -181,7 +181,7 @@
                 <p class="mt-4">
                     Wtedy odpisz ze swojego programu poczty na
                     <a href="mailto:{{ $wiadomosc->adresDoOdpowiedzi() }}">{{ $wiadomosc->adresDoOdpowiedzi() }}</a>
-                    i zapisz w notatce niżej, co odpisałeś — bo tej drogi serwis nie widzi
+                    i zapisz w notatce niżej treść odpowiedzi — bo tej drogi serwis nie widzi
                     i nie pokaże jej w historii wyżej.
                 </p>
             </details>
