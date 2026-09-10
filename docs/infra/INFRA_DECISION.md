@@ -164,6 +164,25 @@ w tabeli zgodności oznaczony jako NIEOBSŁUGIWANY dla `PutObject`. Publicznoś�
 w R2 jest cechą BUCKETU: własnej domeny albo `r2.dev`. Prefiks nie jest
 granicą uprawnień — jest tylko fragmentem nazwy klucza.
 
+### Aplikacja nie wysyła już ACL wcale (issue #120, 9 września 2026)
+
+Samo niepodawanie widoczności nie wystarczało: wbudowany sterownik `s3`
+liczył ACL **zawsze** (`AwsS3V3Adapter::upload()`), a przy braku podanej
+widoczności wypadało `private`. Nagłówek szedł więc do R2 przy każdym
+zapisie, a prywatność oryginałów zależała od tego, jak Cloudflare zareaguje
+na nagłówek, którego nie obsługuje — czyli od zachowania niegwarantowanego.
+
+Dyski `r2`, `r2_publiczne`, `r2_legacy` i `r2_eksporty` mają dziś
+`driver => 'r2'` — własny sterownik (`app/Support/Storage/R2Adapter.php`),
+który nie wysyła ani `x-amz-acl`, ani `x-amz-grant-*`, i nigdy nie woła
+`GetObjectAcl`/`PutObjectAcl`. Pilnuje tego `ZapisDoR2BezAclTest`, na
+prawdziwym, podpisanym żądaniu HTTP — bo w `Storage::fake()` nagłówki nie
+istnieją.
+
+**To jest połowa bramki #120 — ta, którą da się zrobić kodem.** Druga połowa
+(dwanaście dowodów na prawdziwym R2) jest w `docs/infra/BRAMKA_R2.md`
+i należy do właściciela.
+
 Bucket wystawiony pod `cdn.kuking.pl` wystawiał więc CAŁĄ zawartość, razem
 z `incoming/`. A adres oryginału dawał się wyprowadzić z publicznego adresu
 wariantu, bo obie ścieżki dzielą UUID właściciela, datę i UUID pliku:
@@ -211,6 +230,7 @@ ma rozstrzygnąć, czy potrzebny jest cache decyzji.
 **Czego kod nie załatwia:** zdjęcie klucza `url` z konfiguracji NIE zdejmuje
 domeny z bucketu po stronie Cloudflare. Dopóki `cdn.kuking.pl` tam wskazuje,
 stare adresy działają dalej — to jest **issue #120** i należy do właściciela.
+Lista kontrolna z miejscem na datę: `docs/infra/BRAMKA_R2.md`.
 
 W aplikacji odpowiadają im dyski `r2` i `r2_publiczne`
 (`config/filesystems.php`), a w `railway.ts` zmienne `R2_BUCKET`

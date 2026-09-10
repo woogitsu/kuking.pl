@@ -496,19 +496,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Cloudflare Turnstile — filtr taniego ruchu automatycznego
+    | Cloudflare Turnstile — warunek wysłania sześciu formularzy publicznych
     |--------------------------------------------------------------------------
     |
     | D-050 (odwraca poz. 1.11 z `docs/INSPIRATION_DECISIONS.md`). Turnstile
     | stoi na SZEŚCIU formularzach publicznych — wszędzie tam, gdzie do
     | serwisu wchodzi ktoś niezalogowany.
     |
-    | TURNSTILE NIE JEST WARUNKIEM DOSTĘPU I NIE WOLNO GO W TAKI ZAMIENIĆ.
-    | Widget jest skryptem, a `AGENTS.md` §5 mówi, że rejestracja i logowanie
-    | działają bez JavaScriptu. Brak tokenu przepuszczamy (zostają limity
-    | zapytań z `limits` niżej, `klucz_wyslania` i weryfikacja adresu e-mail);
-    | odrzucamy dopiero token, który PRZYSZEDŁ i którego Cloudflare nie uznał.
-    | Pełne uzasadnienie: `App\Rules\TurnstileNieJestPodrobiony`.
+    | Z KLUCZAMI TURNSTILE JEST WARUNKIEM WYSŁANIA, NIE FILTREM. Brak tokenu
+    | odrzuca — decyzja właściciela z 9 września 2026, zaostrzająca pierwszą
+    | wersję D-050, która puste pole przepuszczała. Limity zapytań z `limits`
+    | niżej, `klucz_wyslania` i weryfikacja adresu e-mail ZOSTAJĄ: captcha ich
+    | nie zastępuje.
+    |
+    | Razem z tym zaciśnięciem idzie `<noscript>` przy każdym z sześciu
+    | formularzy i osobny komunikat dla kogoś, komu widget się nie dociągnął.
+    | Kto zdejmie jedno albo drugie, zostawi ludzi przed martwym przyciskiem.
+    | Pełne uzasadnienie: `App\Rules\TurnstileJestPotwierdzony`.
+    |
+    | BEZ KLUCZY NIC SIĘ NIE ZMIENIA I NIC NIE BLOKUJE — patrz niżej.
     |
     */
 
@@ -538,10 +544,17 @@ return [
         'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
 
         /*
-         * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie i weryfikacja
-         * tokenu, który przyszedł. `false` = tego formularza Turnstile nie
-         * dotyczy w ogóle (widget się nie renderuje, reguła nie odpytuje
-         * Cloudflare — także wtedy, gdy ktoś podstawi token ręcznie).
+         * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie, token WYMAGANY
+         * (brak tokenu odrzuca wysłanie — D-050, zaostrzenie z 9 września
+         * 2026) i weryfikacja tego, który przyszedł. `false` = tego formularza
+         * Turnstile nie dotyczy w ogóle (widget się nie renderuje, reguła nie
+         * odpytuje Cloudflare i nie wymaga tokenu — także wtedy, gdy ktoś
+         * podstawi token ręcznie).
+         *
+         * `false` jest więc JEDYNĄ drogą wycofania zaciśnięcia dla jednego
+         * formularza. Osobnego przełącznika „captcha, ale bez wymagania
+         * tokenu" nie ma świadomie: Turnstile przepuszczający puste pole nie
+         * chroni przed niczym, bo automat po prostu tego pola nie wysyła.
          *
          * Wszystkie sześć jest włączonych: każdy z tych formularzy jest
          * publiczny i każdy kosztuje nas coś realnego przy nadużyciu — konto

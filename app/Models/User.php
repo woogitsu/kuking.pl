@@ -111,11 +111,50 @@ class User extends Authenticatable implements MustVerifyEmailContract
         self::STATUS_ERASED,
     ];
 
+    /**
+     * Stany konta po polsku — jedno źródło dla panelu moderacji.
+     *
+     * KOLEJNOŚĆ NIE JEST ALFABETYCZNA, TYLKO OD NAJLŻEJSZEGO DO NAJCIĘŻSZEGO
+     * — tak samo wypadają zakładki filtra na `/admin/uzytkownicy`. Lista
+     * ułożona po nazwie stawiałaby „Usunięte" przed „Aktywne", a kolejność
+     * na ekranie ma nieść znaczenie, nie alfabet.
+     *
+     * „Zablokowane", nie „Zbanowane" (`docs/brand/COPY_STYLE.md` — piszemy
+     * po polsku), i „W trakcie usuwania" osobno od „Usunięte": różnica między
+     * `pending_delete` a `erased` jest tu widoczna, bo przy pierwszym można
+     * jeszcze zmienić zdanie, a przy drugim już nie (D-022).
+     *
+     * @var array<string, string>
+     */
+    public const ETYKIETY_STATUSU = [
+        self::STATUS_ACTIVE => 'Aktywne',
+        self::STATUS_SUSPENDED => 'Zawieszone',
+        self::STATUS_PENDING_DELETE => 'W trakcie usuwania',
+        self::STATUS_BANNED => 'Zablokowane',
+        self::STATUS_ERASED => 'Usunięte',
+    ];
+
     public const ROLE_USER = 'user';
 
     public const ROLE_MODERATOR = 'moderator';
 
     public const ROLE_ADMIN = 'admin';
+
+    /**
+     * Role po polsku — do POKAZANIA, nigdy do wyboru z formularza.
+     *
+     * Rolę nadaje wyłącznie `kuking:nadaj-role` z powłoki (D-039), a `role`
+     * nie jest w `$fillable` (AGENTS.md §7). Ta tablica nie jest listą opcji
+     * do `<select>` i nie wolno jej w taką listę zamienić — jest podpisem pod
+     * kolumną w panelu moderacji.
+     *
+     * @var array<string, string>
+     */
+    public const ETYKIETY_ROLI = [
+        self::ROLE_USER => 'Użytkownik',
+        self::ROLE_MODERATOR => 'Moderator',
+        self::ROLE_ADMIN => 'Administrator',
+    ];
 
     /**
      * `email` I `email_verified_at` SĄ TU CELOWO NIEOBECNE (issue #195).
@@ -521,6 +560,24 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Stan konta po polsku (panel moderacji).
+     *
+     * Zapasowo surowa wartość, a nie „nieznany": gdyby ktoś kiedyś dołożył
+     * szósty status i zapomniał o etykiecie, moderator ma zobaczyć, CO tam
+     * naprawdę stoi, zamiast napisu ukrywającego przed nim stan konta.
+     */
+    public function statusLabel(): string
+    {
+        return self::ETYKIETY_STATUSU[$this->status] ?? (string) $this->status;
+    }
+
+    /** Rola po polsku (panel moderacji). Ten sam zapas co przy statusie. */
+    public function roleLabel(): string
+    {
+        return self::ETYKIETY_ROLI[$this->role] ?? (string) $this->role;
     }
 
     public function isSuspended(): bool

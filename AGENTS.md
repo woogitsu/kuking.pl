@@ -149,12 +149,31 @@ Nawigacja mobilna ma **maksymalnie 5 pozycji**:
 
 Paginacja to **przycisk „Pokaż więcej”**, nie infinite scroll.
 
-### JavaScript jest ulepszeniem, nie warunkiem
+### JavaScript jest wymagany tam, gdzie chroni serwis — i nigdzie nie zostawia martwego przycisku
 
-Rejestracja, logowanie, publikacja wpisu, przepis, komentarz i „Ugotowałem”
-**muszą działać bez JavaScriptu**. Powód nie jest ideologiczny: przy słabym
-zasięgu skrypt się nie dociąga, a użytkownik zostaje z formularzem, który
-nic nie robi po kliknięciu.
+**Zmiana zasady, 9 września 2026 (D-053).** Wcześniej stało tu, że rejestracja,
+logowanie, publikacja wpisu, przepis, komentarz i „Ugotowałem” **muszą działać
+bez JavaScriptu**. Właściciel to zmienił i ma rację co do faktów: nasi
+użytkownicy nie wchodzą tu z telefonu bez skryptów, tylko z Samsunga, Xiaomi
+albo z komputera. Pełne uzasadnienie i skutki: **D-053** w `docs/DECISIONS.md`.
+
+Obowiązuje teraz to:
+
+1. **Newralgiczne formularze mogą wymagać JavaScriptu.** Rejestracja i logowanie
+   stoją za Turnstile (D-050), a Turnstile bez skryptu nie istnieje. Wymóg jest
+   świadomy: chroni serwis przed ruchem automatycznym.
+2. **Gdziekolwiek indziej JavaScript jest mile widziany** — podgląd zdjęcia
+   przed wysłaniem, licznik znaków, kadrowanie awatara. Nie trzeba tego
+   uzasadniać ani dublować wersją bez skryptu.
+3. **Czego nie wolno nigdy: martwego przycisku.** Jeśli coś bez skryptu nie
+   zadziała, człowiek ma zobaczyć zdanie po polsku mówiące, CO ZROBIĆ, a nie
+   formularz, który po kliknięciu milczy. `<noscript>` z konkretną instrukcją,
+   nie z ogólnikiem „wymagany JavaScript”. Powód jest ten sam co dawniej i nie
+   zniknął: przy słabym zasięgu skrypt bywa **nie dociągnięty** na telefonie,
+   który JavaScript ma i ma go włączonego.
+4. **Awaria po naszej stronie albo po stronie Cloudflare nie zamyka drzwi.**
+   Gdy weryfikacja tokenu nie odpowiada, formularz przechodzi (D-050). Wymóg
+   dotyczy skryptu u człowieka, nie sprawności cudzej usługi.
 
 ---
 

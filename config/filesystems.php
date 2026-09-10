@@ -51,6 +51,31 @@ return [
 
         /*
          * =====================================================================
+         *  STEROWNIK `r2`, NIE `s3` — ZAPIS BEZ `x-amz-acl` (issue #120).
+         * =====================================================================
+         *
+         * Wszystkie cztery dyski R2 niżej mają `driver => 'r2'`. To własny
+         * sterownik (`App\Support\Storage\R2Adapter`, rejestrowany
+         * w `AppServiceProvider`), który różni się od wbudowanego `s3`
+         * dokładnie jedną rzeczą: nie wysyła ACL.
+         *
+         * Wbudowany `s3` wysyłał je ZAWSZE. Zdjęcie trzeciego argumentu
+         * z `put()` usunęło `public-read`, ale nie usunęło nagłówka —
+         * `AwsS3V3Adapter::upload()` liczy ACL także wtedy, gdy nikt o nie
+         * nie prosił, i wtedy wypada `private`. R2 nie obsługuje ACL na
+         * obiektach w ogóle (`x-amz-acl` jest w tabeli zgodności Cloudflare
+         * oznaczony jako nieobsługiwany dla `PutObject`), więc cała
+         * prywatność oryginałów zależała od tego, jak cudza implementacja
+         * zareaguje na nagłówek, którego nie obsługuje. Cloudflare tego nie
+         * gwarantuje — i to była bramka przed wystawieniem produkcyjnego
+         * bucketu pod `cdn.kuking.pl`.
+         *
+         * Pilnuje tego `ZapisDoR2BezAclTest`: przechwytuje prawdziwe żądanie
+         * HTTP i oblewa, gdy wróci tam `x-amz-acl`.
+         */
+
+        /*
+         * =====================================================================
          *  DWA BUCKETY R2, NIE JEDEN. TO JEST GRANICA BEZPIECZEŃSTWA.
          * =====================================================================
          *
@@ -97,7 +122,7 @@ return [
          * nie przez ścieżkę.
          */
         'r2' => [
-            'driver' => 's3',
+            'driver' => 'r2',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
@@ -152,7 +177,7 @@ return [
          * `RozdzialMagazynowTest` oblewa, gdy produkcja tak zostanie.
          */
         'r2_publiczne' => [
-            'driver' => 's3',
+            'driver' => 'r2',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
@@ -192,7 +217,7 @@ return [
          * wprost.
          */
         'r2_legacy' => [
-            'driver' => 's3',
+            'driver' => 'r2',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),
@@ -223,7 +248,7 @@ return [
          * pod którym leży czyjeś całe konto.
          */
         'r2_eksporty' => [
-            'driver' => 's3',
+            'driver' => 'r2',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION', 'auto'),

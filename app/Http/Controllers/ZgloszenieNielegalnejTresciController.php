@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Models\Recipe;
 use App\Models\Report;
-use App\Rules\TurnstileNieJestPodrobiony;
+use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,15 +111,20 @@ class ZgloszenieNielegalnejTresciController extends Controller
             'illegality_explanation' => ['required', 'string', 'min:20', 'max:5000'],
             'good_faith' => ['accepted'],
             /*
-             * Turnstile (D-050) — CELOWO BEZ `required`.
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
              *
-             * Bez JavaScriptu token nie powstaje, a ten formularz musi
-             * działać (AGENTS.md §5). Odrzucamy wyłącznie token, który
-             * PRZYSZEDŁ i którego Cloudflare nie uznał. Nie „dokręcaj" tego
-             * jednym `required` — pełne uzasadnienie i skutki takiej zmiany:
-             * `App\Rules\TurnstileNieJestPodrobiony`.
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
              */
-            Turnstile::POLE => TurnstileNieJestPodrobiony::reguly('zgloszenie_nielegalnej_tresci'),
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('zgloszenie_nielegalnej_tresci'),
         ], [
             'notifier_email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
             'target_url.required' => 'Wklej adres strony, na której jest ta treść.',
