@@ -696,3 +696,46 @@ w którym wolno ponowić job.
 - **Trzy rozstrzygnięcia D-072 nie miały testów** — dało się je cofnąć bez
   czerwonego CI. Dopisane w #270. Warto sprawdzić, czy inne decyzje nie mają
   tej samej właściwości: opis w komentarzu to nie jest gwarancja.
+
+### 13.8. Zaproszenie do rejestracji — wyrocznia, zła numeracja, brakująca decyzja
+
+Szkic z `claude/link-prowadzi-do-rejestracji` (sekcja 5) dokończony w #304.
+Trzy rzeczy z tej pracy dotyczą całego repozytorium, nie tylko tej gałęzi.
+
+**1. Wyrocznia „kto ma konto w Kuking" — naprawiona.** `registration_invites.email`
+ma `->unique()`, a szkic kasował i zakładał wiersz **bez przechwycenia
+konfliktu**. Dwie prośby naraz o ten sam adres kończyły się `500` — ale
+**wyłącznie dla adresu BEZ konta**, bo adres z kontem trafia w ścieżkę linku
+do logowania i sprowadza swój wyścig do `302` (D-075). Zwykły dwuklik
+w „Wyślij" odpowiadał więc różnie zależnie od tego, czy konto istnieje.
+
+To jest **dokładnie ta wyrocznia, którą D-075 zamknęło — odbita w lustrze na
+sąsiedniej ścieżce**. Wniosek na przyszłość, ważniejszy od samej naprawy:
+zamknięcie wyroczni na jednej drodze wejścia do konta nie zamyka jej na
+pozostałych. **Przy każdej nowej ścieżce dotykającej adresu e-mail sprawdź
+osobno, czy odpowiedź dla adresu z kontem i bez konta jest nieodróżnialna —
+także w wyścigu, nie tylko w zwykłym przebiegu.**
+
+Naprawione drugą połową konstrukcji z D-075 (blokady wiersza konta nie ma tu
+na czym postawić — konta jeszcze nie ma). Przy okazji sufit przeszedł z pary
+„sprawdź, potem zajmij" na `sprobujZarezerwowac()` — to była regresja wobec
+D-076.
+
+**2. D-067 NIGDY NIE ZOSTAŁO NAPISANE.** Kod szkicu powoływał się na nie
+w **siedemnastu miejscach**, a wpisu w `docs/DECISIONS.md` nie ma. Odwołania
+przepięte na D-085. **Dziennik decyzji ma dziury, na które kod się powołuje** —
+warto sprawdzić, czy D-067 jest jedyną. Prosty test skanujący (`grep` po
+`D-0\d\d` w `app/` i porównanie z nagłówkami w `DECISIONS.md`) zamknąłby tę
+klasę błędu na stałe; nie został napisany.
+
+**3. Sekcja 5 wiązała ten szkic z #258 — BŁĘDNIE.** #258 dotyczy **logowania
+kontem Google**, nie zaproszenia do rejestracji. #258 zostaje otwarte, a #304
+go nie zamyka.
+
+**Świadomie niezrobione w #304**, żeby nie udawało zrobionego: brak testu na
+`LogicException` przy zużyciu zaproszenia poza transakcją (`RefreshDatabase`
+owija każdy test we własną transakcję, więc warunku nie da się wywołać — test
+„sprawdzający" przechodziłby też po usunięciu zabezpieczenia; zabezpieczenie
+zostaje, powód w komentarzu), oraz brak limitera na `GET /zaproszenie/{token}`
+(token to 64 losowe znaki, więc nie ma czego blokować — ale to decyzja, nie
+przeoczenie).
