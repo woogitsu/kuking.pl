@@ -140,40 +140,61 @@ class RezerwaPodDolnaBelkaTest extends TestCase
         );
     }
 
-    public function test_rezerwa_rosnie_przy_bardzo_duzym_tekscie(): void
+    public function test_rezerwa_rosnie_razem_z_belka_czyli_ze_skala_tekstu(): void
     {
         $css = $this->css();
 
-        preg_match_all('~--rezerwa-pod-belka:\s*([0-9.]+)rem~', $css, $wartosci);
+        preg_match_all('~--rezerwa-pod-belka:\s*([^;]+);~', $css, $definicje);
 
         /*
-         * Trzy stopnie, nie jeden: 8rem pod nasze „tekst 140%", 13rem przy
-         * korzeniu podkręconym w przeglądarce (próg `15rem` porównuje okno
-         * z korzeniem, nie z pikselami) i 0rem od 64rem w górę, gdzie belki
-         * już nie ma i rezerwa nie ma czego chronić.
+         * Trzy stopnie, nie jeden: domyślny, podbity przy bardzo dużym tekście
+         * (próg `15rem` porównuje okno z KORZENIEM, nie z pikselami) i zerowy
+         * od 64rem w górę, gdzie belki już nie ma.
          */
         $this->assertGreaterThanOrEqual(
             3,
-            count($wartosci[1]),
-            'Token `--rezerwa-pod-belka` przestał mieć stopnie. Jedna wartość '
-            .'nie pokryje obu powiększeń naraz: czcionka przeglądarki podwaja '
-            .'KORZEŃ (wartość w rem rośnie razem z belką), a nasze '
-            .'`data-text-scale` korzenia nie rusza (belka rośnie, rem stoi).',
+            count($definicje[1]),
+            'Token `--rezerwa-pod-belka` przestał mieć stopnie.',
         );
 
+        $niezerowe = array_values(array_filter(
+            array_map('trim', $definicje[1]),
+            static fn (string $wartosc): bool => ! str_starts_with($wartosc, '0'),
+        ));
+
+        $this->assertNotEmpty($niezerowe, 'Wszystkie stopnie rezerwy są zerowe.');
+
         /*
-         * KOLEJNOŚĆ ARGUMENTÓW MA TU ZNACZENIE I RAZ JĄ ZEPSUŁEM.
-         * `assertGreaterThanOrEqual($oczekiwane, $rzeczywiste)` sprawdza
-         * `$rzeczywiste >= $oczekiwane`. Odwrócona para przechodziła po
-         * ścięciu największego stopnia do 8rem — czyli dokładnie w stanie,
-         * przed którym ta asercja ma bronić.
+         * TO JEST CAŁA TREŚĆ TEGO TESTU.
+         *
+         * Belka rośnie razem z `--user-text-scale` (mnoży tokeny `--text-*`
+         * w `tokens.css`), a `rem` NIE — bo to ustawienie korzenia nie rusza.
+         * Rezerwa zapisana samym `rem` stoi więc w miejscu dokładnie wtedy,
+         * gdy belka jest najwyższa. Zmierzone przy 320 px i skali 140%: belka
+         * 105,5 px, rezerwa 128 px, czyli 22,5 px luzu — mniej niż jedna nasza
+         * kontrolka (48 px), więc element z fokusem nie miał gdzie stanąć nad
+         * belką. CI złapało to jako 2.4.11 FAIL na 320 i 360 px, a 414 px
+         * (luz 52,8 px) przeszło.
          */
+        foreach ($niezerowe as $wartosc) {
+            $this->assertStringContainsString(
+                'var(--user-text-scale',
+                $wartosc,
+                "Stopień rezerwy „{$wartosc}” nie mnoży się przez `--user-text-scale`. "
+                .'Belka rośnie z tym ustawieniem, a `rem` nie — luz nad belką zapadnie '
+                .'się wtedy, gdy tekst jest największy, czyli u osoby, dla której ten '
+                .'produkt jest robiony.',
+            );
+        }
+
+        preg_match_all('~--rezerwa-pod-belka:\s*calc\(([0-9.]+)rem~', $css, $stopnie);
+
         $this->assertGreaterThanOrEqual(
-            13.0,
-            (float) max(array_map('floatval', $wartosci[1])),
-            'Największy stopień rezerwy zszedł poniżej 13rem, a zmierzona belka '
-            .'przy czcionce przeglądarki 200% ma 376,2 px (13rem = 416 px przy '
-            .'korzeniu 32 px).',
+            15.0,
+            (float) max(array_map('floatval', $stopnie[1])),
+            'Największy stopień rezerwy zszedł poniżej 15rem. Przy czcionce '
+            .'przeglądarki 200% belka ma 376,2 px, a kontrolka 96 px — 13rem '
+            .'(416 px) zostawiało tylko 39,8 px luzu.',
         );
     }
 }

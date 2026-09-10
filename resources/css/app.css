@@ -658,13 +658,55 @@
      nie od tych elementów. Naprawa „u każdego z trzech" byłaby przesuwaniem
      treści do czasu, aż w pasek wpadnie czwarty. Dlatego belka wraca do
      `fixed`, a rezerwa jest liczona i pilnowana, zamiast wynikać z układu. */
+  /*
+   * REZERWA MNOŻY SIĘ PRZEZ `--user-text-scale`, BO BELKA TEŻ SIĘ PRZEZ NIEGO
+   * MNOŻY — A `rem` NIE.
+   *
+   * To jest usterka, którą złapało CI (job „Dostępność" na `c492ed1`,
+   * 2.4.11 FAIL) i której NIE dało się zobaczyć z arytmetyki „rezerwa kontra
+   * belka": rezerwa była WIĘKSZA od belki w każdym wariancie. Zawodził LUZ,
+   * czyli to, co z rezerwy zostaje POWYŻEJ belki — bo tylko w tym pasku
+   * przeglądarka ma gdzie postawić element, który właśnie dostał fokus.
+   *
+   * Zmierzone na `/home`, `/szukaj` i `/ustawienia/profil` (Chromium 141,
+   * okno 740 px), przy rezerwie stałej 8rem = 128 px:
+   *
+   *     szerokość   belka przy 140%   luz      wynik na CI
+   *     320 px      105,5 px           22,5 px  ✗ „Wszystko" pod belką
+   *     360 px       89,5 px           38,5 px  ✗ „Do 30 minut" pod belką
+   *     414 px       75,2 px           52,8 px  ✓
+   *
+   * Oblewały DOKŁADNIE te szerokości, na których luz zszedł poniżej 48 px,
+   * czyli poniżej jednej naszej kontrolki (`docs/UX_50_PLUS.md`). To nie jest
+   * zbieg okoliczności: jeżeli luz jest mniejszy niż element, to element nie
+   * ma jak stanąć nad belką w całości i „przewinięcie do celu" nie ma dokąd
+   * przewinąć. Dlatego usterka wychodziła losowo — raz jeden element, raz
+   * trzy, u nas w obrazie deweloperskim wcale — zależnie od tego, co akurat
+   * wpadło w ten pasek.
+   *
+   * `--user-text-scale` mnoży wyłącznie tokeny `--text-*` (`tokens.css`),
+   * KORZENIA NIE RUSZA. Belka rośnie więc razem z tekstem, a `rem` stoi
+   * w miejscu — i luz zapada się dokładnie wtedy, gdy tekst jest największy,
+   * czyli u osoby, dla której ten produkt jest robiony. Mnożnik w `calc()`
+   * wiąże rezerwę z tą samą wielkością, która rozpycha belkę.
+   *
+   * Zmierzone po poprawce (8rem × 1,4 = 179,2 px): luz 73,7 / 89,7 / 104 px
+   * przy 320 / 360 / 414 px — wszędzie ponad 48 px.
+   *
+   * Drugi stopień idzie z 13rem na 15rem z tego samego powodu, tyle że
+   * liczonego przy korzeniu 32 px: przy czcionce przeglądarki 200% belka ma
+   * 376,2 px, więc 13rem (416 px) zostawiało 39,8 px luzu, a kontrolka ma tam
+   * 96 px (48 px × podwojony korzeń). 15rem to 480 px, czyli 103,8 px luzu.
+   * Ten wariant przechodził na CI mimo cienkiego luzu — poprawiam go razem
+   * z tamtym, bo to jedna usterka tej samej klasy, a nie dwie osobne.
+   */
   :root {
-    --rezerwa-pod-belka: 8rem;
+    --rezerwa-pod-belka: calc(8rem * var(--user-text-scale, 1));
   }
 
   @media (max-width: 15rem) {
     :root {
-      --rezerwa-pod-belka: 13rem;
+      --rezerwa-pod-belka: calc(15rem * var(--user-text-scale, 1));
     }
   }
 
