@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\AnalitykaCloudflare;
 use App\Support\Odmiana;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Sentry\Laravel\ServiceProvider;
 use Tests\TestCase;
 
 /**
@@ -120,26 +122,91 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
      * w polityce prywatności jako podprocesorzy; ani jedno, ani drugie nie
      * jest w kodzie (`grep` po całym repozytorium poza dokumentacją
      * badawczą).
+     *
+     * LISTA NIE JEST JUŻ STAŁA (D-092, 10 września 2026) — I TO JEST TU
+     * RZECZ WAŻNIEJSZA NIŻ SAMA ZAWARTOŚĆ LISTY. Pyta o KAŻDE narzędzie, czy
+     * kod go naprawdę używa, i zakazuje wyłącznie tych, których nie używa.
+     * Dzięki temu wpięcie zewnętrznej analityki (dziś: Cloudflare Web
+     * Analytics) nie wymaga ręcznego wykreślania nazwy z tablicy, a jej
+     * usunięcie samo przywraca zakaz — bez zmiany w tym pliku. Póki wpięcie
+     * żyje, obecności dostawcy w dokumencie pilnuje z drugiej strony
+     * `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
+     *
+     * „Plausible" zostaje na liście jako narzędzie NIEUŻYWANE: stało tu przez
+     * pół dnia jako wybrany kandydat i zostało odrzucone na cenie (D-092),
+     * więc dokument prawny nie ma prawa go wymieniać inaczej niż w zdaniu
+     * o tym, że go nie używamy.
      */
     #[DataProvider('dokumenty')]
     public function test_nie_wymieniamy_narzedzi_ktorych_nie_uzywamy(string $adres, string $plik): void
     {
         $tresc = $this->tresc($plik);
 
-        foreach (['Sentry', 'PostHog', 'Google Analytics', 'Matomo', 'Plausible'] as $narzedzie) {
-            // Wzorzec dopuszcza zdanie „nie korzystamy z Google Analytics" —
-            // chodzi o to, żeby dokument nie PRZYPISYWAŁ nam narzędzia,
-            // a nie o to, żeby nie wolno było go nazwać.
-            if (! str_contains($tresc, $narzedzie)) {
-                continue;
-            }
+        // Narzędzie => czy kod go NAPRAWDĘ używa.
+        $narzedzia = [
+            'Sentry' => class_exists(ServiceProvider::class)
+                && (string) config('sentry.dsn') !== '',
+            'PostHog' => false,
+            'Google Analytics' => false,
+            'Matomo' => false,
+            'Plausible' => false,
+            // Pytanie brzmi „czy kod potrafi wysłać dane temu dostawcy", a nie
+            // „czy akurat na tej maszynie wysyła": w testach i w CI token jest
+            // pusty, więc `wlaczona()` oddaje `false` i cała pozycja
+            // wypadałaby dokładnie tam, gdzie ma pilnować.
+            'Cloudflare Web Analytics' => class_exists(AnalitykaCloudflare::class),
+        ];
 
-            $this->assertMatchesRegularExpression(
-                '/(nie korzystamy|nie używamy|ani)[^.]{0,120}'.preg_quote($narzedzie, '/').'/ui',
+        $sprawdzone = 0;
+
+        foreach (array_keys(array_filter($narzedzia, static fn (bool $uzywane): bool => ! $uzywane)) as $narzedzie) {
+            $sprawdzone++;
+
+            // Dokumentowi wolno NAZWAĆ narzędzie — byle w zdaniu o tym, że go
+            // nie używamy. Sprawdzamy więc KAŻDE wystąpienie nazwy osobno,
+            // w jego własnym zdaniu.
+            //
+            // POPRZEDNIA WERSJA TEGO SPRAWDZENIA BYŁA ZA SŁABA I WYSZŁO TO
+            // DOPIERO PRZY KONTROLI UJEMNEJ (D-092, 10 września 2026).
+            // Pytała `assertMatchesRegularExpression` o CAŁY dokument, czyli
+            // „czy gdziekolwiek stoi zdanie zaprzeczające". Jedno takie
+            // zdanie usprawiedliwiało wtedy wszystkie pozostałe wystąpienia
+            // nazwy — dopisanie do polityki zdania „Do statystyk używamy
+            // Google Analytics" NIE OBLAŁO testu, bo obok stało prawdziwe
+            // „Nie korzystamy z Google Analytics". Dokładnie ten rodzaj
+            // nieprawdy ten plik ma łapać.
+            preg_match_all(
+                '/'.preg_quote($narzedzie, '/').'/ui',
                 $tresc,
-                "Dokument pod {$adres} wymienia „{$narzedzie}” inaczej niż w zdaniu o tym, że go NIE używamy.",
+                $wystapienia,
+                PREG_OFFSET_CAPTURE,
             );
+
+            foreach ($wystapienia[0] as [$nazwa, $pozycja]) {
+                // Zdanie, w którym stoi nazwa: wszystko od ostatniej kropki
+                // przed nią. Kropka jest tu granicą celowo — „nie korzystamy
+                // z X." i osobne „Używamy X." to dwa różne zdania i drugie
+                // nie może się chować za pierwszym.
+                $zdanie = (string) preg_replace('/.*\./su', '', substr($tresc, 0, (int) $pozycja));
+
+                $this->assertMatchesRegularExpression(
+                    '/(nie korzystamy|nie używamy|ani)/ui',
+                    $zdanie,
+                    "Dokument pod {$adres} wymienia „{$narzedzie}” inaczej niż w zdaniu o tym, że go NIE używamy. "
+                    .'Sporne zdanie: „'.trim($zdanie.$nazwa).'”.',
+                );
+            }
         }
+
+        // KONTROLA METODY POMIARU. Gdyby kiedyś okazało się, że „używamy"
+        // wszystkich narzędzi z listy, pętla wyżej nie wykonałaby się ani
+        // raz i test byłby zielony, nie sprawdzając niczego
+        // (`docs/PULAPKI_TESTOW.md` §2).
+        $this->assertGreaterThanOrEqual(
+            3,
+            $sprawdzone,
+            'Lista narzędzi, których NIE używamy, skurczyła się do niczego — ten test przestał mierzyć.',
+        );
     }
 
     /**

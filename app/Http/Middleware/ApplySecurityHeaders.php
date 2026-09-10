@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\AnalitykaCloudflare;
 use App\Support\Turnstile;
 use Closure;
 use Illuminate\Http\Request;
@@ -130,6 +131,37 @@ class ApplySecurityHeaders
         // `unsafe-inline` skasowałoby cały efekt issue #107.
         $turnstile = Turnstile::skonfigurowany() ? ['https://challenges.cloudflare.com'] : [];
 
+        // Analityka Cloudflare Web Analytics (D-092). Ten sam warunek co
+        // przy Turnstile i z tego samego powodu: polityka opisuje to, co
+        // strona NAPRAWDĘ ładuje. Bez `CLOUDFLARE_ANALYTICS_TOKEN` żaden
+        // znacznik nie wychodzi z widoku, więc nie ma czego dopuszczać — a
+        // każdy obcy host w `script-src` to poszerzenie powierzchni ataku dla
+        // XSS-a (issue #12).
+        //
+        // DWIE DYREKTYWY I DWA RÓŻNE HOSTY — TU JEST CAŁA PUŁAPKA.
+        // Zmierzone w `beacon.min.js` (D-092): plik pobiera się z
+        // `static.cloudflareinsights.com`, a zdarzenia lecą przez
+        // `navigator.sendBeacon` na `cloudflareinsights.com/cdn-cgi/rum`,
+        // czyli na host BEZ `static.`. To są dwie różne wartości, nie jedna
+        // powtórzona — przy Plausible, które tu stało wcześniej, oba adresy
+        // były tym samym hostem i jedna linijka obsługiwała obie dyrektywy.
+        //
+        // `script-src` pozwala POBRAĆ plik i na tym koniec. Wysyłka podlega
+        // `connect-src` — która w tej polityce jest wypisana osobno, więc NIE
+        // dziedziczy nic z `default-src 'self'`. Gdyby zabrakło drugiej
+        // linijki albo gdyby wpisano do niej ten sam host co do pierwszej,
+        // skrypt pobrałby się poprawnie i każde zdarzenie ginęłoby na
+        // barierze CSP: strona bez usterki, panel Cloudflare pusty,
+        // w dzienniku serwera ani śladu. Pilnują tego DWA osobne testy —
+        // jeden na dyrektywę, żeby żaden nie zdał za drugiego.
+        //
+        // Podpis (`nonce`) tego nie załatwia: nonce dotyczy znacznika,
+        // a nie połączenia wychodzącego — i tak samo jak przy Turnstile
+        // hosty trzeba wymienić z nazwy.
+        $analitykaWlaczona = AnalitykaCloudflare::wlaczona();
+        $analitykaSkrypt = $analitykaWlaczona ? [AnalitykaCloudflare::hostSkryptu()] : [];
+        $analitykaZdarzenia = $analitykaWlaczona ? [AnalitykaCloudflare::hostZdarzen()] : [];
+
         $wspolne = [
             "default-src 'self'",
             "base-uri 'self'",
@@ -143,8 +175,8 @@ class ApplySecurityHeaders
             "img-src 'self' data: blob: https:",
             "font-src 'self' data:",
             "worker-src 'self'",
-            'connect-src '.implode(' ', ["'self'", ...$vite['connect']]),
-            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile]),
+            'connect-src '.implode(' ', ["'self'", ...$vite['connect'], ...$analitykaZdarzenia]),
+            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile, ...$analitykaSkrypt]),
         ];
 
         // `frame-src` pojawia się w polityce WYŁĄCZNIE z Turnstile. Bez niego

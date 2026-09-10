@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Moderacja\KlientOpenAI;
 use App\Poczta\TransportEmailLabs;
+use App\Support\AnalitykaCloudflare;
 use App\Support\Turnstile;
 use PHPUnit\Framework\Attributes\Test;
 use Sentry\Laravel\ServiceProvider;
@@ -72,6 +73,29 @@ class PolitykaPrywatnosciWymieniaKazdaUslugeTest extends TestCase
             'OpenAI (moderacja treści)' => [
                 class_exists(KlientOpenAI::class),
                 'OpenAI',
+            ],
+            /*
+             * Cloudflare Web Analytics (analityka odwiedzin, D-092).
+             *
+             * WARUNKIEM JEST ISTNIENIE KLASY, A NIE
+             * `AnalitykaCloudflare::wlaczona()` — i to jest tu rzecz
+             * najważniejsza. W testach i w CI `CLOUDFLARE_ANALYTICS_TOKEN`
+             * jest pusty, więc `wlaczona()` oddaje `false`; gdyby to ono
+             * rozstrzygało, cała ta pozycja byłaby POMIJANA dokładnie tam,
+             * gdzie ma pilnować, i test byłby ozdobą. Pytanie brzmi „czy kod
+             * potrafi wysłać dane temu dostawcy", a nie „czy akurat na tej
+             * maszynie wysyła" — tak samo jak przy EmailLabs i Turnstile
+             * wyżej.
+             *
+             * Szukamy nazwy „Cloudflare Web Analytics", a nie samego
+             * „Cloudflare": ta druga stoi w polityce od Turnstile'a i od R2,
+             * więc przechodziłaby także wtedy, gdyby o analityce nie było
+             * w dokumencie ani słowa (`docs/PULAPKI_TESTOW.md` §1 — to samo
+             * słowo skądinąd).
+             */
+            'Cloudflare Web Analytics (analityka odwiedzin, D-092)' => [
+                class_exists(AnalitykaCloudflare::class),
+                'Cloudflare Web Analytics',
             ],
         ];
     }

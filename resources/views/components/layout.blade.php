@@ -217,6 +217,51 @@
     @if($livewire)
         @livewireStyles
     @endif
+
+    {{--
+        Analityka odwiedzin: Cloudflare Web Analytics (D-092) — „skąd ludzie
+        przychodzą i które strony oglądają". Odpowiedź na prośbę właściciela
+        o Google Analytics, dana BEZ cofania obietnicy z polityki
+        prywatności: beacon nie stawia ciasteczek i nie zapisuje niczego na
+        urządzeniu (zmierzone przez odczytanie pliku — D-092), więc baner
+        zgody dalej nie jest do niczego potrzebny.
+
+        BEZ `CLOUDFLARE_ANALYTICS_TOKEN` NIE MA TU ANI ŚLADU ZNACZNIKA.
+        Lokalnie, w testach i w CI ta zmienna jest pusta — i wtedy
+        `AnalitykaCloudflare::wlaczona()` oddaje `false`, a w HTML-u nie
+        zostaje nawet komentarz. Ten sam wzorzec co przy Turnstile (D-050):
+        konfiguracja opisuje stan środowiska, a nie zamiar.
+
+        `defer`, nie `async`: to jest rzecz NAJMNIEJ ważna na tej stronie.
+        Analityka ma się doładować po treści, a nie konkurować z nią o łącze —
+        AGENTS.md mówi wprost, że JavaScript jest ulepszeniem, nie warunkiem,
+        i tutaj kosztem jego braku jest wyłącznie nasza własna niewiedza, nie
+        funkcja dla człowieka.
+
+        BEZ `nonce` — I TO NIE JEST NIEDOPATRZENIE. Podpis dotyczy skryptów
+        WPISANYCH w stronę; ten jest pobierany z obcego hosta, który
+        `ApplySecurityHeaders` dopuszcza z nazwy w `script-src`, tak samo jak
+        skrypt Turnstile obok. Dorzucony `nonce` niczego by tu nie zmienił.
+
+        Adres i token idą przez `App\Support\AnalitykaCloudflare`, czyli
+        przez `config/kuking.php`, a NIE przez `env()` w widoku: na produkcji
+        konfiguracja jest zbuforowana i `env()` oddałoby wtedy `null`, czyli
+        znacznik z pustym tokenem — skrypt, który się ładuje i nic nie liczy.
+        Z tego samego powodu adres NIE jest tu wpisany literałem: ten sam host
+        musi trafić do nagłówka CSP, a dwa literały w dwóch plikach to
+        gwarancja, że jeden zostanie w tyle.
+
+        Atrybut `data-cf-beacon` jest w apostrofach, bo jego wartość to JSON
+        z cudzysłowami. Blade go zaescapuje na `&quot;` — przeglądarka
+        rozwija encje w wartościach atrybutów, więc beacon widzi poprawny
+        JSON, a my nie renderujemy niczego surowego.
+    --}}
+    @if(\App\Support\AnalitykaCloudflare::wlaczona())
+        <script defer
+                src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
+                data-cf-beacon='{{ \App\Support\AnalitykaCloudflare::konfiguracjaBeacona() }}'></script>
+    @endif
+
     {{ $head ?? '' }}
 </head>
 {{-- `uklad-solo` steruje szerokością belki i stopki dla gościa — musi iść
