@@ -46,6 +46,37 @@
   /* Pole daty jest wąskie z natury — nie ma powodu, żeby rosło jak szukajka. */
   .filtry-kont .filtr-data { flex: 0 1 11rem; }
 
+  /*
+   * KONTENER PRZEWIJANY WOKÓŁ POLA DATY (issue #294, dopisek po dołożeniu
+   * panelu do `scripts/dostepnosc.mjs`).
+   *
+   * `<input type="date">` to JEDYNY natywny kontrolek tego typu w serwisie
+   * (`grep type="date"` — tylko ten plik). Przeglądarka rysuje go z trzema
+   * segmentami i ikoną kalendarza i ma WŁASNY, niezależny od CSS próg
+   * szerokości, poniżej którego nie zejdzie — `width: 100%` i `min-width: 0`
+   * na `.field-input` (tokens.css), które w KAŻDYM innym polu tego serwisu
+   * wystarczają, tutaj nic nie zmieniają.
+   *
+   * ZMIERZONE na `/admin/uzytkownicy`, okno 320 px, czcionka przeglądarki
+   * 200% (`Page.setFontSizes` w skrypcie — odpowiednik „Rozmiar czcionki:
+   * bardzo duży" w Chrome, NIE naszej skali tekstu): pole daty samo miało
+   * 376 px, `.filtr-data` kończył się na x=408 — 88 px poza oknem 320 px,
+   * a CAŁA STRONA przewijała się w bok przez ten jeden kontrolek (WCAG 2.2
+   * AA 1.4.10 Reflow).
+   *
+   * TEN SAM WZORZEC co przy tabeli kont niżej (`.tabela-kont-przewijanie`
+   * w tym pliku): treść, która strukturalnie nie zejdzie poniżej pewnej
+   * szerokości, dostaje WŁASNY, kontenerowy scroll zamiast wypychać
+   * dokument. `<input>` jest fokusowalny sam z siebie, więc — inaczej niż
+   * przy tabeli — nie trzeba dokładać `tabindex="0"`: reguła axe
+   * `scrollable-region-focusable` (WCAG 2.1.1) jest spełniona przez sam
+   * kontrolek w środku.
+   */
+  .filtry-kont .filtr-data {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
   .filtry-kont-akcje {
     display: flex;
     flex-wrap: wrap;

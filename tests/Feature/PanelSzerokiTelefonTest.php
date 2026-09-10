@@ -11,21 +11,30 @@ use Tests\TestCase;
  * Panel moderacji na szerokim telefonie (Galaxy Fold rozłożony) — issue #294.
  *
  * ZGŁOSZENIE WŁAŚCICIELA, ZE ZRZUTÓW
- * Sześć rzeczy naraz na `/admin/uzytkownicy`. Dwie z nich mają tu test
- * regresyjny — reszta (nawigacja jako surowa lista, samotny „|", ucięte
- * zakładki i tabela) była już naprawiona w tej gałęzi, zanim ten plik powstał,
- * i ma własne pilnowanie: `TrybPaneluWMenuTest` (menu), a przepełnienie
- * w poziomie łapie zmierzony pomiar układu w `scripts/dostepnosc.mjs`.
+ * Sześć rzeczy naraz na `/admin/uzytkownicy`. Dwie z nich mają test
+ * regresyjny niżej — reszta (nawigacja jako surowa lista, samotny „|", ucięte
+ * zakładki jako WIDOK) była już naprawiona w tej gałęzi, zanim ten plik
+ * powstał, i ma własne pilnowanie: `TrybPaneluWMenuTest` (menu).
+ *
+ * DWA DALSZE ZNALEZISKA, JUŻ PO DOŁOŻENIU PANELU DO `scripts/dostepnosc.mjs`
+ * Sam pomiar wykrył dwa naruszenia WCAG 2.2 AA 1.4.10 (Reflow), których
+ * ŻADEN zrzut ekranu nie pokazywał — widać je dopiero przy PRAWDZIWYM
+ * powiększeniu czcionki przeglądarki (`Page.setFontSizes`, wariant
+ * „czcionka przeglądarki 200%", odpowiednik „Rozmiar czcionki: bardzo duży"
+ * w Chrome — NIE naszej skali tekstu `data-text-scale`) na 320/360 px:
+ * pojedyncza zakładka „W trakcie usuwania (0)" i natywne pole
+ * `<input type="date">` same, osobno, były szersze niż okno. Obie mają tu
+ * test regresyjny.
  *
  * CZEMU CSS, NIE PLAYWRIGHT
  * W tym repozytorium nie ma przeglądarki w PHPUnicie — realny układ mierzy
  * wyłącznie `scripts/dostepnosc.mjs` (Node + Playwright), a PHPUnit dla
  * usterek czysto CSS-owych czyta regułę WPROST Z ARKUSZA, tak samo jak
- * `UkladGosciaTest::klasyJednokolumnowe()` i
- * `NaglowekProfiluOdmieniaLicznikiTest`. Sam fakt, że reguła istnieje
- * w pliku, niczego by nie dowodził — dlatego każdy test niżej sprawdza też,
- * że selektor TRAFIA w prawdziwy znacznik z odpowiedzi HTTP, nie w nazwę,
- * która akurat nigdzie nie występuje.
+ * `UkladGosciaTest::klasyJednokolumnowe()`, `NaglowekProfiluOdmieniaLicznikiTest`
+ * i `PasekGornyNaTelefonieTest`. Sam fakt, że reguła istnieje w pliku,
+ * niczego by nie dowodził — dlatego każdy test niżej sprawdza też, że
+ * selektor TRAFIA w prawdziwy znacznik z odpowiedzi HTTP, nie w nazwę, która
+ * akurat nigdzie nie występuje.
  */
 class PanelSzerokiTelefonTest extends TestCase
 {
@@ -190,5 +199,141 @@ class PanelSzerokiTelefonTest extends TestCase
             'Brak paska dolnego panelu w HTML-u — bez niego chowanie górnego odnośnika zostawiłoby '
             .'moderatora bez żadnego wyjścia na szerokim telefonie.',
         );
+    }
+
+    /**
+     * Komentarze precz, zanim cokolwiek sprawdzimy — ten sam powód co
+     * w `PasekGornyNaTelefonieTest`: komentarze w tym repozytorium cytują
+     * to, czego w kodzie być NIE MOŻE („NIE `white-space: nowrap`"), więc
+     * asercja na surowym pliku trafiałaby we własne uzasadnienie.
+     */
+    private function cssBezKomentarzy(): string
+    {
+        return (string) preg_replace('~/\*.*?\*/~s', '', $this->css());
+    }
+
+    /** Fragment arkusza od PIERWSZEGO wystąpienia selektora do końca jego bloku. */
+    private function regula(string $css, string $selektor, int $od = 0): string
+    {
+        $start = strpos($css, $selektor, $od);
+        $this->assertNotFalse($start, "W arkuszu nie ma (już) reguły „{$selektor}”.");
+
+        $koniec = strpos($css, '}', $start);
+        $this->assertNotFalse($koniec, "Reguła „{$selektor}” nie jest domknięta klamrą.");
+
+        return substr($css, $start, $koniec - $start + 1);
+    }
+
+    /**
+     * Naruszenie znalezione DOPIERO po dołożeniu panelu do
+     * `scripts/dostepnosc.mjs`: „Rząd zakładek jest ucięty" (issue #294) było
+     * naprawione dla RZĘDU (`.tabs { flex-wrap: wrap }`), ale JEDNA zakładka
+     * — „W trakcie usuwania (0)" — sama, bez sąsiadów, była szersza niż
+     * ekran przy prawdziwym powiększeniu czcionki przeglądarki.
+     *
+     * ZMIERZONE (`scripts/dostepnosc.mjs`, `czcionka przeglądarki 200%`, patrz
+     * `Page.setFontSizes` w skrypcie): `/admin/uzytkownicy`, 320 i 360 px —
+     * `documentElement.scrollWidth` 408 px, winny `a.tab` kończył się na
+     * x=501. Po zamianie `white-space: nowrap` na `overflow-wrap: anywhere`
+     * na `.tab` (ten sam mechanizm co `.side-nav-item`): 0 przepełnień na obu
+     * szerokościach, we wszystkich trzech skalach czcionki.
+     */
+    public function test_zakladka_panelu_zawija_etykiete_zamiast_wypychac_strone(): void
+    {
+        $css = $this->cssBezKomentarzy();
+        $regulaTab = $this->regula($css, '.tab {');
+
+        $this->assertStringNotContainsString(
+            'white-space: nowrap',
+            $regulaTab,
+            '`.tab` znowu ma `white-space: nowrap` — pojedyncza długa zakładka '
+            .'(„W trakcie usuwania (0)”) nie zejdzie poniżej swojej pełnej '
+            .'szerokości i przy dużej czcionce przeglądarki wypchnie stronę '
+            .'w bok (WCAG 2.2 AA 1.4.10 Reflow).',
+        );
+        $this->assertStringContainsString(
+            'overflow-wrap: anywhere',
+            $regulaTab,
+            '`.tab` nie pozwala etykiecie zejść do drugiego wiersza — bez tego '
+            .'usunięcie samego `nowrap` nie naprawia niczego (etykieta i tak '
+            .'nie ma jak się złamać).',
+        );
+
+        // Kontrola dodatnia: `.tabs` (rząd) dalej zawija CAŁE zakładki do
+        // nowego wiersza — to jest OSOBNA poprawka (już w tej gałęzi) i ten
+        // test nie może przypadkiem potwierdzać jej zamiast własnej.
+        $this->assertStringContainsString(
+            'flex-wrap: wrap',
+            $this->regula($css, '.tabs {'),
+            '`.tabs` straciło zawijanie rzędu — to inna usterka z tego samego '
+            .'zgłoszenia (zakładki ucięte w poziomie) i nie powinna wracać '
+            .'przy okazji tej poprawki.',
+        );
+
+        // Na żywo: selektor `.tab` trafia w prawdziwy znacznik na liście kont.
+        $moderator = $this->moderator();
+        $html = (string) $this->actingAs($moderator)->get(route('admin.users'))->assertOk()->getContent();
+        $this->assertStringContainsString(
+            'class="tab"',
+            $html,
+            '`/admin/uzytkownicy` nie ma ani jednej zakładki `.tab` — selektor '
+            .'z app.css nigdy by tu nie trafił.',
+        );
+        $this->assertStringContainsString(
+            'W trakcie usuwania',
+            $html,
+            'Zniknęła zakładka „W trakcie usuwania” — to jej etykieta była '
+            .'zmierzonym najgorszym przypadkiem tej usterki.',
+        );
+    }
+
+    /**
+     * Drugie naruszenie znalezione dopiero po dołożeniu panelu do skryptu:
+     * `<input type="date">` — jedyny taki kontrolek w całym serwisie
+     * (`grep type="date" resources/views` poza tym plikiem nic nie znajduje)
+     * — ma WŁASNY, niezależny od `width`/`min-width` próg szerokości, którego
+     * przeglądarka nie zejdzie poniżej.
+     *
+     * ZMIERZONE: `/admin/uzytkownicy`, 320 px, czcionka przeglądarki 200% —
+     * `.filtr-data` kończył się na x=408 (samo pole, bez żadnego sąsiada),
+     * a CAŁA STRONA przewijała się w bok. Naprawą jest WŁASNY, kontenerowy
+     * scroll na `.filtr-data` — ten sam wzorzec co `.tabela-kont-przewijanie`
+     * kawałek niżej w tym samym pliku — a nie próba zmusić natywny kontrolek
+     * do zejścia poniżej jego własnego minimum.
+     */
+    public function test_pole_daty_w_panelu_przewija_sie_we_wlasnym_kontenerze_nie_wypycha_strony(): void
+    {
+        $sciezka = resource_path('css/ekran-uzytkownikow.css');
+        $this->assertFileExists($sciezka);
+
+        $css = (string) preg_replace('~/\*.*?\*/~s', '', (string) file_get_contents($sciezka));
+
+        // Selektor `.filtry-kont .filtr-data` występuje w pliku DWA razy
+        // (flex-basis, potem ta poprawka) — bierzemy DRUGIE wystąpienie, nie
+        // pierwsze z brzegu.
+        $pierwszy = strpos($css, '.filtry-kont .filtr-data {');
+        $this->assertNotFalse($pierwszy, 'Brak reguły `.filtry-kont .filtr-data` w arkuszu.');
+
+        $regulaScrolla = $this->regula($css, '.filtry-kont .filtr-data {', $pierwszy + 1);
+
+        $this->assertStringContainsString(
+            'overflow-x: auto',
+            $regulaScrolla,
+            'Pole daty w panelu nie ma własnego przewijania — natywny '
+            .'`<input type="date">` nie zejdzie poniżej swojej minimalnej '
+            .'szerokości i przy dużej czcionce przeglądarki wypchnie CAŁĄ '
+            .'stronę w bok (WCAG 2.2 AA 1.4.10 Reflow).',
+        );
+
+        // Na żywo: selektor trafia w prawdziwy znacznik.
+        $moderator = $this->moderator();
+        $html = (string) $this->actingAs($moderator)->get(route('admin.users'))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression(
+            '/<div class="filtr-data">\s*<div class="field/',
+            $html,
+            '`.filtr-data` nie istnieje w HTML-u panelu (albo zmienił kształt) — '
+            .'selektor CSS nigdy by tu nie trafił.',
+        );
+        $this->assertStringContainsString('type="date"', $html);
     }
 }
