@@ -33,7 +33,11 @@ use Throwable;
  *  KOMU LINKU NIE WYSYŁAMY (i nie mówimy o tym pytającemu)
  * ────────────────────────────────────────────────────────────────────────
  *
- *  1. NA ADRES BEZ KONTA — nie ma dokąd.
+ *  1. NA ADRES BEZ KONTA — nie ma dokąd. TAKI ADRES DOSTAJE ZA TO
+ *     ZAPROSZENIE DO ZAŁOŻENIA KONTA (D-067, sekcja niżej): wiadomość
+ *     z linkiem prowadzącym na dokończenie zakładania konta. Do 10 września
+ *     2026 nie dostawał NICZEGO i to był błąd, o który odbiła się prawdziwa
+ *     osoba — patrz `WyslijZaproszenieDoRejestracji`.
  *  2. NA KONTO ZAMKNIĘTE (`STATUSY_ZAMKNIETEGO_KONTA`: zablokowane,
  *     zgłoszone do usunięcia, wymazane). Tam nie wpuszcza także hasło
  *     (`LoginController`), a link, który wchodzi tam, gdzie hasło nie wchodzi,
@@ -51,14 +55,41 @@ use Throwable;
  * „czy zostało zablokowane" i „czy ta osoba jest moderatorem". Żeby cisza
  * nie zamieniła się w pułapkę, ekran po wysłaniu MÓWI WPROST (dla wszystkich
  * jednakowo), że kont obsługi serwisu ta droga nie obejmuje — czyli moderator
- * czyta wyjaśnienie, nie czekając na list, który nie przyjdzie.
+ * czyta wyjaśnienie, nie czekając na wiadomość, która nie przyjdzie.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  ADRES BEZ KONTA: ZAPROSZENIE DO ZAŁOŻENIA KONTA (D-067)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Przypadek pierwszy z listy wyżej ma od 10 września 2026 własne dokończenie
+ * i to jest jedyna rzecz, którą ta klasa robi PONAD wystawienie linku:
+ * przekazuje prośbę do `WyslijZaproszenieDoRejestracji`.
+ *
+ * DLACZEGO TU, A NIE W KONTROLERZE. Bo wybór między „link do logowania"
+ * i „zaproszenie do rejestracji" zapada na podstawie jednej rzeczy — czy na
+ * tym adresie jest konto — a to jest jedyna informacja, której kontroler NIE
+ * MA PRAWA ZOBACZYĆ. Gdyby rozgałęzienie stało w kontrolerze, obecność konta
+ * musiałaby przejść przez jego kod, a każda taka wartość jest o jeden `if`
+ * od trafienia na ekran w postaci innego komunikatu. Kontroler dostaje więc
+ * dalej JEDNĄ odpowiedź `bool` o jednym znaczeniu: „czy zajęłam jeden list
+ * z dobowego budżetu".
+ *
+ * Ubocznym, ale ważnym skutkiem jest to, że budżet dobowy poczty
+ * (`login_link.dzienny_budzet`) zajmuje się TERAZ W OBU PRZYPADKACH
+ * jednakowo — czyli znika znane ryzyko z D-056 („kto ustawi się na ostatniej
+ * jednostce budżetu, wyczyta jeden bit o cudzym koncie").
  */
 final class WyslijLinkDoLogowania
 {
+    public function __construct(
+        private readonly WyslijZaproszenieDoRejestracji $zaproszenia = new WyslijZaproszenieDoRejestracji,
+    ) {}
+
     /**
      * @param  string  $adres  adres e-mail wpisany w formularz, jeszcze
      *                         nieznormalizowany
-     * @return bool czy list NAPRAWDĘ poszedł (do rozliczenia budżetu poczty
+     * @return bool czy wiadomość NAPRAWDĘ poszła — link do logowania albo
+     *              zaproszenie do rejestracji (do rozliczenia budżetu poczty
      *              i tylko do tego — patrz komentarz klasy)
      */
     public function handle(string $adres, ?string $ip = null): bool
@@ -73,6 +104,13 @@ final class WyslijLinkDoLogowania
         $user = User::query()
             ->where('email', User::normalizeEmail($adres))
             ->first();
+
+        // ADRES BEZ KONTA IDZIE DALEJ, NIE DO KOSZA (D-067). Zaproszenie
+        // wysyła osobna akcja; ta oddaje jej odpowiedź bez zmian, bo znaczy
+        // ona dokładnie to samo: „czy poszła jedna wiadomość".
+        if ($user === null) {
+            return $this->zaproszenia->handle($adres, $ip);
+        }
 
         if (! $this->wolnoWyslac($user)) {
             return false;
