@@ -1,6 +1,17 @@
 <x-layout title="Powiadomienia" :noindex="true">
     <h1>Powiadomienia</h1>
 
+    {{--
+        Ten sam przycisk stoi TU i jeszcze raz pod listą (issue #276).
+
+        Przy trzech powiadomieniach o różnej długości — jedno z nich
+        z kilkoma akapitami uzasadnienia decyzji moderacyjnej — przycisk
+        u góry wychodzi z ekranu, zanim człowiek skończy czytać. Właściciel
+        nie zarejestrował, że przycisk w ogóle tam jest. Powielenie go pod
+        listą jest tańsze i pewniejsze niż `position: sticky` na pasku:
+        żadna wysokość paska nie zostawia go bez akcji na końcu, a dla
+        grupy 50+ nic tu nie może zależeć od zachowania przy przewijaniu.
+    --}}
     @if($notifications->total() > 0)
         <form class="mb-5" method="POST" action="{{ route('notifications.read') }}">
             @csrf
@@ -92,34 +103,73 @@
                         @if($notification->isUnread())
                             <span class="badge">Nowe</span>
                         @endif
+                        {{--
+                            ZDANIA BEZ ZAŁOŻENIA RODZAJU (issue #38).
+
+                            Stało tu sześć zdań w postaci „ugotowała/ugotował",
+                            „napisała/napisał", „zaczęła/zaczął". Ukośnik
+                            oblewa pierwszy test z `docs/brand/COPY_STYLE.md`
+                            §1 — tego nie da się przeczytać na głos — a §2
+                            rozstrzyga to wprost: „Zamiast szukać żeńskiej
+                            formy, zmieniamy konstrukcję zdania".
+
+                            Polski czas przeszły zawsze niesie rodzaj, więc
+                            zmiana idzie w dwie strony: albo imiesłów bierny
+                            („ugotowane z Twojego przepisu"), albo czas
+                            teraźniejszy („zaczyna Cię obserwować", „ma Twój
+                            przepis w swoim zeszycie"). Obie formy są
+                            bezrodzajowe i obie są krótsze od tego, co było.
+
+                            Skutek uboczny jest wymierny: `resources/css/tokens.css`
+                            i lista kontrolna dostępności systemu projektowego
+                            wskazują „ugotowała/ugotował" jako NAJDŁUŻSZE słowo
+                            w serwisie — to ono przy 320 px i skali tekstu 150%
+                            wymuszało łamanie wyrazu w środku.
+
+                            Bez gry słowem „kuKING": to jest powiadomienie
+                            o cudzej aktywności, a §2 zabrania jej tutaj wprost.
+                        --}}
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
-                                <strong>{{ $actor?->displayName() }} ugotowała/ugotował z Twojego przepisu</strong>
+                                <strong>{{ $actor?->displayName() }} — ugotowane z Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
                                 @if($data['has_photo'] ?? false) Jest zdjęcie. @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
-                                <strong>{{ $actor?->displayName() }} napisała/napisał komentarz.</strong>
+                                <strong>{{ $actor?->displayName() }} — nowy komentarz.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)
-                                <strong>{{ $actor?->displayName() }} odpowiedziała/odpowiedział.</strong>
+                                <strong>{{ $actor?->displayName() }} — nowa odpowiedź.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
-                                <strong>{{ $actor?->displayName() }} zaczęła/zaczął Cię obserwować.</strong>
+                                <strong>{{ $actor?->displayName() }} zaczyna Cię obserwować.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_SAVED)
-                                <strong>{{ $actor?->displayName() }} zapisała/zapisał Twój przepis</strong>
-                                „{{ $data['recipe_title'] ?? '' }}” do swojego zeszytu.
+                                <strong>{{ $actor?->displayName() }} ma Twój przepis</strong>
+                                „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
                                      (issue #6). Pierwszy wpis to jedyna okazja,
                                      żeby ktoś poczuł, że jest tu ktoś po drugiej
                                      stronie — i mamy na to dobę. --}}
-                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} opublikowała pierwszy wpis.</strong>
+                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
                                 Odpowiedz jak najszybciej — pierwszy wpis bez reakcji zwykle bywa ostatnim.
+                                @break
+                            @case(\App\Models\Notification::TYPE_APPEAL_FILED)
+                                {{-- Zawiadomienie dla ADMINISTRATORA: ktoś złożył
+                                     odwołanie i ma termin na odpowiedź (DSA art. 20).
+                                     Termin stoi w treści, bo to jedyna rzecz, która
+                                     odróżnia tę pozycję od „zajrzę tam kiedyś".
+                                     Powiadomienie idzie tylko do tych, którzy mogą
+                                     sprawę zamknąć — D-039, `PowiadomOOdwolaniu`. --}}
+                                <strong>{{ ($data['od_zglaszajacego'] ?? false) ? 'Zgłaszający odwołał się od decyzji.' : 'Ktoś odwołał się od decyzji moderacji.' }}</strong>
+                                Odwołanie od {{ $data['skladajacy'] ?? 'nieznanej osoby' }}.
+                                @if($data['termin'] ?? null)
+                                    Odpowiedz do {{ $data['termin'] }}.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
@@ -224,6 +274,41 @@
                             @csrf
                             <button class="btn btn-secondary" type="submit">Zobacz</button>
                         </form>
+                    @elseif($notification->isUnread())
+                        {{--
+                            ISSUE #276 — DZIURA, NIE PRZEOCZENIE STYLISTYCZNE.
+
+                            Część powiadomień („Sprawdziliśmy Twoje odwołanie.
+                            Cofamy decyzję.", „Moderacja Kuking ukryła Twoją
+                            treść.") nie ma dokąd prowadzić — cała informacja
+                            stoi już w samej treści karty. Do tej poprawki takie
+                            powiadomienie w ogóle nie miało przycisku, bo ten sam
+                            `<form>` co wyżej stał wyłącznie pod `@if($link)`.
+                            Jedyną drogą, żeby zgasić przy nim plakietkę, było
+                            „oznacz wszystkie" — co dla kogoś, kto akurat czyta
+                            resztę listy, oznacza zgaszenie też tego, czego
+                            jeszcze nie widział.
+
+                            `NotificationController::open()` już od 8 września
+                            radzi sobie z brakiem celu: oznacza `read_at`
+                            i (bez adresu) po prostu wraca na tę samą stronę
+                            (`return back()`) — ten kod nigdy nie był zepsuty,
+                            po prostu nie dało się go wywołać. Naprawa jest
+                            więc TU, w widoku: ten sam formularz, ten sam POST,
+                            inny napis — „Zobacz" kłamałoby, skoro nie ma dokąd
+                            zaprowadzić.
+
+                            Widoczny tylko dla NIEPRZECZYTANYCH: po kliknięciu
+                            `read_at` już stoi, więc drugi przycisk obok tej
+                            samej treści nic by więcej nie zrobił — a widoczna
+                            akcja, która nie robi nic nowego, jest dokładnie tym
+                            rodzajem „martwego przycisku", którego AGENTS.md §5
+                            zabrania.
+                        --}}
+                        <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit">Oznacz jako przeczytane</button>
+                        </form>
                     @endif
 
                     {{--
@@ -247,6 +332,20 @@
         </article></li>
         @endforeach
     </ul>
+
+    {{--
+        DRUGI PRZYCISK „OZNACZ WSZYSTKIE" — POD LISTĄ, PO PRZECZYTANIU.
+
+        Ten sam formularz co na górze, z tym samym uzasadnieniem: przy
+        długiej liście (uzasadnienia moderacyjne mają po kilka akapitów)
+        przycisk sprzed listy jest dawno poza ekranem, gdy człowiek
+        skończy czytać ostatnią kartę. Bez tego jedyna droga do „oznacz
+        wszystkie" to przewinięcie z powrotem na górę.
+    --}}
+    <form class="mt-5" method="POST" action="{{ route('notifications.read') }}">
+        @csrf
+        <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
+    </form>
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
             Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.

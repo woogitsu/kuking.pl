@@ -375,8 +375,11 @@
      *
      * Przy 320 px i skali tekstu 150% powiadomienie „X ugotowała/ugotował
      * z Twojego przepisu" wypychało układ do 366 px: przeglądarka nie ma
-     * gdzie złamać ciągu „ugotowała/ugotował". Ten sam problem robi każdy
-     * długi adres wklejony przez człowieka w komentarzu.
+     * gdzie złamać ciągu z ukośnikiem w środku. Samo to powiadomienie już tak
+     * nie brzmi (issue #38 zdjął formy z ukośnikiem z całego interfejsu, bo
+     * `docs/brand/COPY_STYLE.md` §2 zabrania zakładania rodzaju), ale reguła
+     * zostaje: ten sam problem robi każdy długi adres wklejony przez człowieka
+     * w komentarzu i każda długa nazwa tagu.
      *
      * `break-word`, nie `anywhere`: łamiemy słowo dopiero wtedy, gdy inaczej
      * wystaje poza wiersz. Przy normalnej szerokości tekst wygląda tak samo
@@ -401,6 +404,34 @@
 
   h1 { font-size: var(--text-title); }
   h2 { font-size: var(--text-title-sm); }
+
+  /*
+   * ODSTĘP POD NAGŁÓWKIEM STRONY (zgłoszenie właściciela, 9 września:
+   * „Twój profil" tuż nad kartą profilu, „Dobry wieczór…" tuż nad kartą na
+   * stronie głównej, „Szukaj" tuż nad polem wyszukiwania).
+   *
+   * Reset Tailwinda zeruje `margin` na wszystkich nagłówkach, a warstwa
+   * `base` wyżej nigdy tego nie odzyskuje — `h1` stał więc dosłownie
+   * `margin-bottom: 0`, styk z tym, co pod nim, ograniczony wyłącznie
+   * przez interlinię.
+   *
+   * `.app-main > h1`, NIE `h1` samo — nagłówek strony ZAWSZE jest
+   * bezpośrednim dzieckiem `<main class="app-main">` (patrz
+   * `components/layout.blade.php`: `$slot` renderuje się wprost w `<main>`,
+   * a każdy widok zaczyna się od `<h1>…</h1>`), więc jedna reguła w JEDNYM
+   * miejscu naprawia go na każdej z ok. 50 podstron naraz — bez dotykania
+   * ani jednego widoku. Węższy selektor niż samo `h1` celowo: nagłówek
+   * wewnątrz karty czy komponentu (nie ma dziś takiego h1, ale gdyby
+   * powstał) nie powinien dostawać tego samego odstępu bez pytania.
+   *
+   * `--spacing-6` (24 px) — ta sama wartość, którą system projektowy v3.1
+   * już oddziela pokrewne, ale odrębne bloki (`.field` niżej, odstęp między
+   * polami formularza). Nagłówek i treść pod nim to dokładnie taka relacja:
+   * blisko siebie, ale wyraźnie osobno.
+   */
+  .app-main > h1 {
+    margin-bottom: var(--spacing-6);
+  }
 
   p { margin: 0 0 var(--spacing-4); }
 
@@ -626,6 +657,46 @@
      wewnątrz. */
   .field {
     display: block;
+    margin-top: var(--spacing-6);
+  }
+
+  /* ODSTĘP MIĘDZY POLAMI, NIE PRZED PIERWSZYM I NIE ZAMIAST OSTATNIEGO.
+     ─────────────────────────────────────────────────────────────────────
+     Zgłoszenie właściciela ze zrzutu formularza komentarza: „ile miejsca
+     zmarnowane nad «Napisz komentarz», a potem między polem do pisania
+     a przyciskiem «Wyślij komentarz» nie ma nic wolnego miejsca".
+
+     Obie rzeczy to JEDNA przyczyna. `.field` miał wyłącznie `margin-top`,
+     więc:
+
+     * pierwsze pole w karcie dokładało 24 px DO wcięcia karty (`--spacing-5`),
+       czyli nad etykietą stało ~44 px pustki — i to jest ta „zmarnowana"
+       przestrzeń;
+     * ostatnie pole nie zostawiało pod sobą NICZEGO, więc przycisk wysyłania
+       dotykał obwódki pola. Przy obwódce 2 px w mocnym kolorze i przycisku
+       w kolorze marki czyta się to jak jeden zlepiony element, a przy 65-latce
+       „gdzie kończy się pole, a zaczyna przycisk" to nie jest pytanie
+       retoryczne.
+
+     Sens reguły z systemu projektowego v3.1 zostaje nietknięty: MIĘDZY polami
+     jest 24 px. Zmienia się tylko to, że ten odstęp przestaje wyciekać na
+     krawędzie kontenera. */
+  .field:first-child {
+    margin-top: 0;
+  }
+
+  /* Przycisk zaraz po polu dostaje ten sam odstęp, jaki pola mają między
+     sobą.
+
+     ŚWIADOMIE WĄSKI SELEKTOR, a nie `.field + *`. Tamten łapałby wszystko,
+     co kiedykolwiek stanie po polu w pięćdziesięciu formularzach tego
+     serwisu — łącznie z elementami, które celowo mają stać ciasno — i
+     nadpisywałby ich własne marginesy tą samą specyficznością. Naprawa
+     jednego zgłoszenia nie ma prawa poruszyć układu ekranów, których nikt
+     nie zgłaszał. Jeśli okaże się, że po polu stoi coś jeszcze, co też
+     potrzebuje oddechu, dopisze się je tutaj z nazwy. */
+  .field + button,
+  .field + .btn {
     margin-top: var(--spacing-6);
   }
   /* Uzgodnione z systemem projektowym v3.1. Trzy różnice:

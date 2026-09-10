@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Users\ZamekKonta;
 use App\Models\AuditLogEntry;
 use App\Models\PendingEmailChange;
 use App\Models\User;
@@ -53,9 +54,22 @@ final class CancelEmailChange
      */
     public function handle(User $user, string $powod, ?string $ip = null): bool
     {
-        $bylo = PendingEmailChange::query()
+        // TA SAMA KOLEJNOŚĆ BLOKAD CO PRZY POTWIERDZANIU (AUTH-01 / RACE-01).
+        //
+        // Wcześniej to kasowanie szło BEZ ŻADNEJ blokady, więc mogło wejść
+        // dokładnie w środek trwającego potwierdzania i nie powstrzymać go.
+        // Teraz obie operacje przechodzą przez `ZamekKonta`, czyli ustawiają
+        // się w kolejce na wierszu konta: albo anulowanie jest pierwsze
+        // i potwierdzenie po wejściu pod blokadę nie znajdzie już wiersza,
+        // albo potwierdzenie jest pierwsze i anulowanie nie ma co kasować.
+        // Jedno i drugie jest jednoznaczne — a o to tu chodzi.
+        //
+        // Konta, którego nie ma, nie obsługujemy osobno: `where('user_id')`
+        // na nieistniejącym koncie skasuje zero wierszy i zwróci `false`,
+        // co jest prawdziwą odpowiedzią na pytanie „czy było co anulować".
+        $bylo = ZamekKonta::zablokuj($user, static fn (?User $swiezy): bool => PendingEmailChange::query()
             ->where('user_id', $user->getKey())
-            ->delete() > 0;
+            ->delete() > 0);
 
         if (! $bylo) {
             return false;

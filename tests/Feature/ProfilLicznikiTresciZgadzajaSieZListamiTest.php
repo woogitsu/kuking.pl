@@ -62,7 +62,7 @@ class ProfilLicznikiTresciZgadzajaSieZListamiTest extends TestCase
             ->assertOk();
 
         $odpowiedzWszystko->assertSee(
-            '<span class="stat-value">1</span><span class="stat-label">przepisów</span>',
+            '<span class="stat-value">1</span> <span class="stat-label">przepis</span>',
             false,
         );
         $odpowiedz->assertSee('Zupa dla wszystkich');
@@ -96,7 +96,7 @@ class ProfilLicznikiTresciZgadzajaSieZListamiTest extends TestCase
 
         // KONTROLA LICZBOWA: dokładnie 1 (sam publiczny), nie „mniej niż 2".
         $odpowiedz->assertSee(
-            '<span class="stat-value">1</span><span class="stat-label">wpisów</span>',
+            '<span class="stat-value">1</span> <span class="stat-label">wpis</span>',
             false,
         );
         $odpowiedz->assertSee('Publiczny wpis widoczny dla wszystkich');
@@ -140,7 +140,7 @@ class ProfilLicznikiTresciZgadzajaSieZListamiTest extends TestCase
             ->assertOk();
 
         $odpowiedzWszystko->assertSee(
-            '<span class="stat-value">1</span><span class="stat-label">razy ugotowała/ugotował</span>',
+            '<span class="stat-value">1</span> <span class="stat-label">raz „Ugotowałem”</span>',
             false,
         );
 

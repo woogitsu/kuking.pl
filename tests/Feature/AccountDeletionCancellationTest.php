@@ -86,6 +86,32 @@ class AccountDeletionCancellationTest extends TestCase
         $this->assertSame(User::STATUS_PENDING_DELETE, $basia->fresh()->status);
     }
 
+    /**
+     * Komunikat pisał „adres/nazwa" — jedyne miejsce w serwisie, które przy
+     * tej samej parze pól (e-mail albo nazwa użytkownika) używało ukośnika
+     * zamiast „albo": `LoginController` i `AppealController` już wtedy
+     * mówiły „nazwa" albo „adres e-mail albo nazwę użytkownika" (issue #38).
+     * Rozjazd bez powodu — ten sam formularz na dwóch ekranach powinien
+     * brzmieć tak samo.
+     */
+    public function test_komunikat_nie_uzywa_ukosnika_do_nazwania_pola_login(): void
+    {
+        $this->user('basia', [
+            'status' => User::STATUS_PENDING_DELETE,
+            'delete_requested_at' => now()->subDays(5),
+        ]);
+
+        $this->post(route('account.delete.cancel.store'), [
+            'login' => 'basia',
+            'password' => 'zle-haslo',
+        ])->assertSessionHasErrors('login');
+
+        $komunikat = (string) session('errors')->getBag('default')->first('login');
+
+        $this->assertStringNotContainsString('/', $komunikat);
+        $this->assertStringContainsString('e-mail albo nazwa', $komunikat);
+    }
+
     public function test_nieznany_login_dostaje_taki_sam_komunikat_jak_zle_haslo(): void
     {
         // Ten sam powód co w LoginController i formularzu odwołań #10: różne

@@ -54,7 +54,7 @@ każda ma opisane kryteria akceptacji w notatce źródłowej.
 | 1.8 | Sprawdzać identyfikatory z formularza (`unit_id`, `ingredient_id`, `media_id`) tak jak te z URL-a | **ADOPT** | „UUID w adresie nie jest autoryzacją” (`AGENTS.md` §7) dotyczy tak samo pól ukrytych w formularzu. | `mealie-recipes-mealie.md` §2.3, §4.7 |
 | 1.9 | Pełna lista wymagań SSRF dla importera z URL, zapisana **przed** napisaniem kodu | **LATER (V2)** | Sprawdzenie nazwy zamiast rozwiązanego IP, pominięty zakres CGNAT, adres IPv4 zapisany jako IPv6 i przekierowanie na `127.0.0.1` to cztery dziury, których sami byśmy nie przewidzieli. | `mealie-recipes-mealie.md` §4.1-4.6 |
 | 1.10 | Limit długości wejścia przed każdym wyrażeniem regularnym na tekście użytkownika | **ADOPT** | Tandoor ma w kodzie warunek `len < 1000` postawiony wprost przed regexem — ślad po realnym incydencie z ReDoS. | `TandoorRecipes-recipes.md` §4.1-4.2 |
-| 1.11 | Captcha przy rejestracji | **REJECT** | Bariera wejścia dla osób 50+ jest większa niż zysk; zamiast tego sygnały pasywne (poz. 3.6) oznaczające do przeglądu. | `discourse-discourse.md` §7 |
+| 1.11 | Captcha przy rejestracji | **ADAPT** | **Odwrócone w [D-050](DECISIONS.md#d-050--cloudflare-turnstile-na-sześciu-formularzach-publicznych--warunek-wysłania-nie-filtr-brak-tokenu-odrzuca) (9 września 2026, decyzja właściciela, issue #217).** Pierwotny REJECT dotyczył captchy z obrazkami, na której osoba 65-letnia utyka; Turnstile w trybie Managed zwykle nie prosi o nic. Wchodzi na **sześć** formularzy publicznych — wszędzie tam, gdzie wchodzi ktoś niezalogowany (`/register`, `/login`, `/nie-pamietam-hasla`, `/cofnij-usuniecie-konta`, `/napisz-do-nas`, `/zglos-nielegalna-tresc`). Istota tamtego sprzeciwu zostaje w mocy, ale kształtuje decyzję inaczej, niż wyglądało to pierwszego dnia: brak tokenu **odrzuca wysłanie** (zaostrzenie z 9 września 2026 — właściciel uznał JavaScript za obowiązkowy w tych newralgicznych miejscach), więc obroną przed „bramką, przez którą można nie przejść" jest teraz `<noscript>` przy każdym formularzu, osobny komunikat dla niedociągniętego widgetu i adres e-mail jako droga wyjścia. Sygnały pasywne (poz. 3.6) zostają, Turnstile ich nie zastępuje. | `discourse-discourse.md` §7 · D-050 |
 | 1.12 | Dane dokumentu tożsamości w bazie przy weryfikacji konta | **REJECT** | Fresns trzyma numer dokumentu obok e-maila i hasła; u nas moderator dokument ogląda, a w bazie zostaje wyłącznie `verified_at` i kto weryfikował. | `fresns-fresns.md` §4.6, §8 R10 |
 
 ## 2. Model danych
@@ -216,6 +216,52 @@ oraz **co psuje pierwszy kontakt z serwisem**.
    Tanie, niemożliwe do odtworzenia wstecz, dotyczą zaufania, a nie skali.
 5. **Poz. 2.1** — indeksy trigramowe. Chroni **D-004** przed odwróceniem
    z niewłaściwego powodu.
+
+---
+
+## 10. Trzy pakiety Laravela — odpowiedź na issue #21
+
+**Ta sekcja pochodzi z innego researchu niż reszta pliku.** Sekcje 1–9 są
+wynikiem lektury siedmiu publicznych repozytoriów (issue #19); ta jest
+wynikiem `docs/research/PAKIETY.md`, czyli konfrontacji trzech pakietów
+rekomendowanych przez `docs/research/PUBLIC_REPOS.md` (poz. 16, 17, 20)
+z tym, co w Kuking już działa. Trzymam ją tutaj, bo issue #21 wprost o to
+prosi („zapisać ten próg w `docs/INSPIRATION_DECISIONS.md`”) — a decyzje mają
+mieszkać w jednym pliku, nie w dwóch.
+
+Kryterium było jedno i wspólne, wzięte z `AGENTS.md` §3: **pakiet wchodzi
+tylko wtedy, gdy usuwa nazwany, dziś istniejący problem.** „Przyda się
+później” jest tym sformułowaniem, przed którym ta sekcja AGENTS.md ostrzega.
+
+| # | Decyzja | Znacznik | Uzasadnienie | Notatka |
+|---|---|---|---|---|
+| 10.1 | `spatie/laravel-permission` zamiast kolumny `users.role` z `CHECK` | **LATER** — próg: **trzeci moderator** albo pierwszy przypadek rozdzielenia uprawnień w ramach jednej roli („może ukrywać treść, ale nie może banować”) | Dziś jest 1–2 moderatorów (**D-012**) i zero takich przypadków w kodzie. Trzy role w kolumnie z `CHECK`-iem obsługują to bez zależności, a próg jest tani do sprawdzenia — jedno spojrzenie na listę moderatorów. | `PAKIETY.md` §a |
+| 10.2 | `laravel/pennant` — flagi funkcji | **LATER** — próg: pierwsza funkcja z `ROADMAP.md` V1 (grupy, forki, planer, import) wchodzi w fazę pisania kodu na scalonym `main`, albo pojawia się potrzeba pokazania niedokończonej funkcji tylko administratorowi | Koszt wdrożenia jest niski (jedna tabela `features`, sterownik `database`, zero Redisa) i **nie rośnie** od czekania — a dziś nie ma ANI JEDNEJ funkcji czekającej na flagę. Trzykrokowy kreator przepisu, podawany w issue #21 jako przypadek użycia, jest już na produkcji i działa bez flagi. | `PAKIETY.md` §b |
+| 10.3 | `spatie/laravel-activitylog` do ogólnego audytu | **REJECT** | Własny `AuditLogEntry` jest wdrożony w 16 miejscach i ma **bezpieczniejszy domyślny kierunek**: trzeba świadomie coś dopisać, nie świadomie coś wykluczyć. `record()` przyjmuje `action` i `subject`, więc nie ma jak przekazać mu treści wpisu ani adresu e-mail. Pakiet domyślnie loguje wartości pól. | `PAKIETY.md` §c |
+| 10.4 | `spatie/laravel-activitylog` do historii zmian modeli | **REJECT** | Jedyny realny przypadek („historia zmian jednego rekordu” — przepisy) ma już dedykowane, celowo zaprojektowane `recipe_versions`/`RecipeVersion`. Pakiet dublowałby istniejący mechanizm i dodawał ryzyko, którego dziś nie ma. | `PAKIETY.md` §c |
+
+### Trzy rzeczy, które issue #21 kazał sprawdzić — i co z tego wyszło
+
+**„Czy Activitylog da się skonfigurować tak, żeby NIGDY nie zapisywał
+wartości pól?”** — **da się** (`logOnly()` z jawną listą pól). I to jest
+właśnie argument przeciw, nie za: pakiet skonfigurowany tak, żeby był
+bezpieczny, przestaje robić cokolwiek, czego nie robi już `AuditLogEntry`.
+Zostaje sama zależność i drugi mechanizm do pilnowania. Werdykt **REJECT**
+zostaje w mocy i to sprawdzenie go wzmocniło.
+
+**„Przygotować migrację przejściową `users.role` → role pakietu, żeby to nie
+było później niespodzianką.”** — **odradzam pisanie jej teraz** i tego punktu
+świadomie nie realizuję. Migracja do pakietu, którego nie przyjmujemy, jest
+kodem do wyrzucenia, gdyby próg z 10.1 nie nadszedł — czyli dokładnie
+budowaniem na zapas, którego zabrania `AGENTS.md` §3. Próg jest zapisany
+i tani do sprawdzenia; to wystarcza, żeby nie było niespodzianki.
+
+**„Czy istnieje czwarty pakiet warty rozważenia?”** — szukano świadomie
+i **nie znaleziono**. Rate limiting robi już `config('kuking.rate_limits')`
+plus wbudowany throttle; panel administracyjny jest rozstrzygnięty w poz. 6.1
+jako `LATER` z powodu blokady technicznej (Filament 4.x wymaga
+`livewire/livewire: ^3.7`, projekt ma `^4.0`); wyszukiwanie, kolejki i media
+rozstrzygają **D-003** i **D-004**. `PAKIETY.md` sekcja końcowa.
 
 ---
 

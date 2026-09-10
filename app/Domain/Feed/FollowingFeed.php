@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -22,6 +23,14 @@ use Illuminate\Contracts\Pagination\CursorPaginator;
  */
 final class FollowingFeed
 {
+    /**
+     * `new ZapisyWpisu` jako domyślna wartość — tak samo jak
+     * `LiczbaKukingow` bierze `CookEligibility`. Kontener i tak wstrzyknie
+     * tę klasę (nie ma zależności), a domyślna wartość sprawia, że test
+     * wołający `new FollowingFeed` wprost nie musi o niej wiedzieć.
+     */
+    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+
     /** @return CursorPaginator<int, Post> */
     public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
     {
@@ -57,8 +66,20 @@ final class FollowingFeed
                 'author.profile.avatar',
                 'media',
                 'recipe:id,title,slug',
+                // Bez tego karta wpisu (post-card.blade.php) nie pokaże
+                // tematów tego wpisu — `relationLoaded()` tam celowo NIE
+                // dociąga ich sama, żeby nie odpalić zapytania per wpis.
+                'tags:id,slug,name',
             ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
+            // (kto się liczy, od ilu osób widać liczbę) siedzą w
+            // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
+            // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
+            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name`
+            // wyżej.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);

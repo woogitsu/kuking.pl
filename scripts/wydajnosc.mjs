@@ -167,20 +167,53 @@ async function podnies_serwer() {
   // Czekamy na warunek (serwer odpowiada), nie na sztywny czas — ten sam
   // powód co w `dostepnosc.mjs`: na wolnej maszynie stały `sleep` daje
   // losowo czerwony wynik, który wygląda jak regresja.
+  // ROZRÓŻNIAMY DWIE ZUPEŁNIE RÓŻNE AWARIE, bo jedna z nich potrafi
+  // zasłonić drugą na cały wieczór.
+  //
+  // 9 września 2026 ten krok w CI zgłaszał „Brak odpowiedzi z /health przez
+  // 30 s", a w tym samym logu stało kilkadziesiąt wpisów pokazujących, że
+  // serwer wstał i odpowiadał po 0,06 ms. Odpowiadał BŁĘDEM: `/health`
+  // sprawdza wykonane migracje, a baza nie była zmigrowana. Komunikat
+  // opisywał więc ciszę, której nie było, i wskazywał na `artisan serve`,
+  // który działał bez zarzutu. Szukanie prawdziwej przyczyny zaczęło się od
+  // odrzucenia dwóch fałszywych hipotez.
+  //
+  // Dlatego zapamiętujemy OSTATNIĄ odpowiedź, jaka przyszła, i mówimy
+  // wprost, czy serwer milczał, czy odmówił.
+  let ostatniStatus = null;
+  let ostatniaTresc = '';
+
   for (let i = 0; i < 60 && umarl === null; i++) {
     try {
       const odp = await fetch(`${adres}/health`);
       if (odp.ok) {
         return { adres, zamknij: () => proces.kill('SIGTERM') };
       }
-    } catch { /* jeszcze nie wstał */ }
+
+      ostatniStatus = odp.status;
+      ostatniaTresc = (await odp.text().catch(() => '')).slice(0, 500);
+    } catch { /* jeszcze nie wstał — to jest ta druga, prawdziwa cisza */ }
     await new Promise((r) => setTimeout(r, 500));
   }
 
   proces.kill('SIGKILL');
+
+  let powod;
+
+  if (umarl !== null) {
+    powod = `Proces zakończył się kodem ${umarl}.\n`;
+  } else if (ostatniStatus !== null) {
+    powod = `Serwer WSTAŁ i odpowiadał, ale /health zwracał HTTP ${ostatniStatus} przez 30 s.\n`
+      + 'To NIE jest awaria `artisan serve` — to aplikacja mówi, że nie jest gotowa.\n'
+      + 'Najczęstsza przyczyna: niezmigrowana baza (healthcheck pyta o wykonane migracje).\n'
+      + `Treść odpowiedzi /health:\n${ostatniaTresc}\n`;
+  } else {
+    powod = 'Brak JAKIEJKOLWIEK odpowiedzi z /health przez 30 s — serwer nie zaczął słuchać.\n';
+  }
+
   throw new Error(
     `Nie udało się podnieść „php artisan serve" na porcie ${port}.\n`
-    + (umarl !== null ? `Proces zakończył się kodem ${umarl}.\n` : 'Brak odpowiedzi z /health przez 30 s.\n')
+    + powod
     + dziennik.join(''),
   );
 }
@@ -223,18 +256,48 @@ const EKRANY = [
  *   rejestracja            97–100      100
  *   przepis                    96      100
  *   profil                 96–99       100
- *   strona tagu                97–98    92  (patrz „ZNALEZISKO" niżej)
- *   regulamin                  96       92  (patrz „ZNALEZISKO" niżej)
+ *   strona tagu                97–98   100  (NAPRAWIONE issue #191, patrz niżej — zmierzone ponownie)
+ *   regulamin                  96       92  (NAPRAWIONE issue #191, patrz niżej — nie odtworzone w tym środowisku)
  *
- * ZNALEZISKO Z TEGO POMIARU, NIEZWIĄZANE Z ZADANIEM TEGO SKRYPTU
+ * ZNALEZISKO Z TEGO POMIARU, NAPRAWIONE W ISSUE #191
  * `/tag/{slug}` i strony prawne (`/regulamin`, `/prywatnosc`, `/zasady`) nie
- * przekazują `description` do `<x-layout>`, więc nie mają meta-opisu —
+ * przekazywały `description` do `<x-layout>`, więc nie miały meta-opisu —
  * `resources/views/components/layout.blade.php` renderuje ten znacznik
- * TYLKO, gdy `$description` jest ustawione. To jest prawdziwy, zmierzony
- * brak SEO — ale naprawianie go wykracza poza zadanie „dołóż Lighthouse'a do
- * CI". Próg NIE jest podniesiony pod jego nieobecność: stoi PONIŻEJ tego,
- * co jest dziś, żeby nie zapalać czerwonej lampki za coś, czego to zadanie
- * nie naprawia. Zgłoszone do właściciela w opisie PR-a jako osobna sprawa.
+ * TYLKO, gdy `$description` jest ustawione. To był prawdziwy, zmierzony
+ * brak SEO 92/100 na obu ekranach, naprawiony w #191: `regulamin`,
+ * `prywatnosc`, `zasady` i `/tag/{slug}` dostały każdy własny, sensowny opis
+ * (`tags/show.blade.php`, `StaticPageController`) — dowód, że opis naprawdę
+ * tam jest, to `KazdaPublicznaStronaMaMetaOpisTest` (regresja po WSZYSTKICH
+ * trasach publicznych, nie tylko tych dwóch).
+ *
+ * PONOWNY POMIAR TEGO SKRYPTU PO NAPRAWIE (9 września 2026, ten sam dzień):
+ * `/tag/zupy` faktycznie skoczyło z 92 na SEO 100 — potwierdzone żywym
+ * przebiegiem Lighthouse'a w tym repozytorium. `/regulamin` NIE dało się tu
+ * ponownie zmierzyć: to repozytorium żyje w git worktree z DOWIĄZANYM
+ * (symlink) `vendor/`, a Composer wygenerował swój classmap dla GŁÓWNEGO
+ * katalogu — `php artisan serve`/`tinker` ładują stamtąd KLASY (kontrolery),
+ * podczas gdy WIDOKI (Blade) i tak czytają się z bieżącego katalogu roboczego.
+ * Naprawa `/tag` siedzi wyłącznie w widoku, więc `serve` przypadkiem pokazał
+ * ją poprawnie; naprawa stron prawnych zmienia też `StaticPageController`
+ * (nowy parametr `$description`), więc pod `serve` w TYM WORKTREE kontroler
+ * ze starym podpisem i widok z nowym się rozjeżdżają i strona 500-uje —
+ * mieszanina starej klasy i nowego widoku, nie usterka samej poprawki.
+ * `php artisan test` (jedyne narzędzie, które AGENTS.md każe tu używać do
+ * weryfikacji, z `APP_BASE_PATH=$(pwd)`) NIE ma tego problemu — dowiedzione
+ * osobnym testem odbicia klasy przy pracy nad tym zgłoszeniem — i properny
+ * przebieg testów regresyjnych POTWIERDZA naprawę obu stron. Ten skrypt
+ * (Lighthouse przez `php artisan serve`) nie jest bezpieczny do własnej
+ * weryfikacji w worktree z dowiązanym `vendor/`; w CI (checkout zwykły, bez
+ * dowiązań) tego problemu nie ma w ogóle.
+ *
+ * PRÓG PODNIESIONY Z 85 DO 98 razem z tą naprawą — dokładnie do wartości
+ * z kryterium akceptacji #191 („Lighthouse SEO na tych stronach ≥ 98").
+ * Margines dwóch punktów zostaje: audyty SEO w tym zestawie są prawie
+ * całkowicie deterministyczne (patrz akapit niżej), więc 98 łapie realną
+ * regresję (np. ktoś znowu wytnie `description` przy refaktorze widoku),
+ * nie szum pomiaru. Jeśli ten próg padnie na `/regulamin` mimo poprawki
+ * opisów, sprawdź NAJPIERW `curl` żywej odpowiedzi pod kątem
+ * `<meta name="description">`, zanim uznasz próg za zbyt wysoki.
  *
  * MARGINES WYDAJNOŚCI JEST SZEROKI, I TO CELOWO
  * `ci.yml` opisuje trzy runnery na JEDNEJ maszynie, dzielące CPU. Wydajność
@@ -250,7 +313,7 @@ const EKRANY = [
  * przebiegów CI do porównania — dziś tych danych nie ma.
  */
 const PROG_WYDAJNOSC = 70;
-const PROG_SEO = 85;
+const PROG_SEO = 98;
 
 /*
  * KONFIGURACJA LIGHTHOUSE'A — mobile, throttling symulowany.

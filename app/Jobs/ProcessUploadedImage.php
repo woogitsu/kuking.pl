@@ -145,6 +145,11 @@ class ProcessUploadedImage implements ShouldQueue
                 // nieobsługiwany dla `PutObject` — publiczność bierze się
                 // z własnej domeny bucketu, a nie z ACL na obiekcie. Ten
                 // argument nie dawał więc publiczności, a mógł żądanie wywrócić.
+                //
+                // Od issue #120 dyski R2 chodzą na własnym sterowniku `r2`
+                // (`App\Support\Storage\R2Adapter`), który nie wysyła ACL
+                // wcale — podanie tu widoczności byłoby dziś błędem, nie
+                // pustym gestem, i padnie od razu.
                 $publiczny->put($variantKey, (string) $encoded);
 
                 $variants[$name] = [

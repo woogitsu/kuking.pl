@@ -68,7 +68,7 @@
             <h2 class="mt-0">Zmiana adresu czeka na potwierdzenie</h2>
 
             <p>
-                Wysłaliśmy list na adres <strong>{{ $oczekujaca->new_email }}</strong>.
+                Wysłaliśmy e-mail na adres <strong>{{ $oczekujaca->new_email }}</strong>.
                 Kliknij w nim odnośnik, a wtedy przeniesiemy konto na ten adres.
             </p>
 
@@ -78,7 +78,7 @@
             </p>
 
             <p class="field-help">
-                Odnośnik z listu działa do {{ \App\Support\Czas::data($oczekujaca->expires_at, 'j F Y, H:i') }}.
+                Odnośnik z e-maila działa do {{ \App\Support\Czas::data($oczekujaca->expires_at, 'j F Y, H:i') }}.
                 Po tym terminie zamówisz zmianę jeszcze raz.
             </p>
 
@@ -90,7 +90,7 @@
             </form>
 
             <p class="field-help mt-3">
-                Po anulowaniu odnośnik z listu przestaje działać, a konto zostaje przy
+                Po anulowaniu odnośnik z e-maila przestaje działać, a konto zostaje przy
                 dotychczasowym adresie.
             </p>
         </section>
@@ -108,7 +108,7 @@
 
             <p>
                 Na dotychczasowy adres wyślemy od razu wiadomość o tej prośbie. Jeśli
-                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosiłaś/eś o zmianę —
+                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosisz o zmianę —
                 zmień hasło.
             </p>
 
@@ -139,5 +139,9 @@
         @endif
     </section>
 
-    <x-ustawienia-nawigacja aktywne="email" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="email" />
+    </x-slot:rail>
 </x-layout>

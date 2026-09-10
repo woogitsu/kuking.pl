@@ -25,6 +25,11 @@
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
 @import "./strony-publiczne.css";
+@import "./ekran-uzytkownikow.css";
+@import "./ekran-odwolan.css";
+/* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
+   Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
+@import "./wpis-nawigacja-sasiedzi.css";
 
 @layer components {
 
@@ -224,6 +229,46 @@
   }
 
   /*
+   * PRZY BARDZO DUŻYM TEKŚCIE PASEK PRZESTAJE BYĆ PRZYPIĘTY
+   * (WCAG 2.2 AA — 2.4.11 Focus Not Obscured; zmierzone przez
+   * `scripts/dostepnosc.mjs`).
+   *
+   * Pasek zawija się do kilku wierszy (`flex-wrap` niżej), więc przy
+   * czcionce przeglądarki ustawionej na 200% rośnie do zmierzonych 263 px.
+   * Na telefonie 320 × 740 px to 36% ekranu ZABRANE NA STAŁE, a razem
+   * z dolną belką (wtedy 376,2 px) obie belki zajmują 639 z 740 px, czyli
+   * 86% widoku. Zmierzony skutek: 91 kontrolek na czterech ekranach ląduje
+   * po Tab w CAŁOŚCI pod tym paskiem.
+   *
+   * DLACZEGO NIE `scroll-padding-top`. To normalny mechanizm na przypiętą
+   * belkę i tutaj NIE MA CZEGO NAPRAWIĆ TYM MECHANIZMEM. `scroll-padding`
+   * przesuwa tylko fokus z pod belki; belka i tak zostaje na ekranie.
+   * Żeby fokus wyjechał z pod OBU, suma obu wartości musiałaby pokryć
+   * zmierzone 263 + 376,2 = 639,2 px, zostawiając z okna 740 px pasmo
+   * 100,8 px — i to przy zerowym zapasie na obu wartościach. Każdy zapas
+   * (a bez zapasu ten pomiar świeci na czerwono po pierwszych trzech
+   * pikselach nowego tekstu) zjada pasmo, które musi zmieścić naszą
+   * najmniejszą kontrolkę, czyli 48 px. Taka para liczb nie jest poprawką,
+   * tylko zakładem. Odpięcie usuwa PRZYCZYNĘ: przy tej wielkości tekstu
+   * problemem nie jest margines przy przewijaniu, ale to, że przypięty
+   * pasek zabiera trzecią część ekranu na stałe.
+   *
+   * `position: relative`, a nie `static`: `z-index: 20` wyżej działa tylko
+   * na elemencie pozycjonowanym, a pasek ma zostać nad treścią, którą
+   * przewijamy pod nim, dopóki jest widoczny. Zmienia się TYLKO przypięcie.
+   *
+   * Próg `15rem` porównuje okno z korzeniem, nie z pikselami — to samo
+   * kryterium co przy `--rezerwa-pod-belka` wyżej i tam stoi jego pełne
+   * wyprowadzenie. Zwykły telefon (320 px, korzeń 16 px) to 20rem i próg
+   * go nie łapie; ten sam telefon przy czcionce przeglądarki 200% to 10rem.
+   */
+  @media (max-width: 15rem) {
+    .topbar {
+      position: relative;
+    }
+  }
+
+  /*
    * PASEK GÓRNY NIE MOŻE ROZPYCHAĆ STRONY (issue #80).
    *
    * Poprzednia wersja: flex BEZ zawijania, logotyp plus dwa pełnotekstowe
@@ -371,10 +416,36 @@
      */
     .topbar-inner {
       display: grid;
+      /*
+       * Trzecia kolumna: `minmax(var(--container-rail), max-content)`,
+       * NIE sztywne `var(--container-rail)` (zgłoszenie właściciela, ekran
+       * Full HD, 9 września — awatar zawijał się pod „Dodaj").
+       *
+       * Przy skali tekstu 100% treść kolumny („Powiadomienia" z odznaką +
+       * „Dodaj" + awatar) mieści się w 352 px i kolumna zostaje dokładnie
+       * tak szeroka, jak dotąd — `minmax()` z dolnym progiem pilnuje tego,
+       * więc automat dostępności dalej widzi tę samą krawędź.
+       *
+       * Przy skali tekstu z ustawień dostępności (112/125/140% — `--user-
+       * text-scale`, tokens.css) rośnie TYLKO czcionka przycisków, bo
+       * `--text-body` mnoży się przez tę zmienną, a `--container-rail` jest
+       * w `rem` i tej zmiennej nie widzi. „Powiadomienia" przy 140% jest
+       * szersze niż 352 px stałej kolumny — kolumna nie miała jak urosnąć,
+       * więc `flex-wrap: wrap` niżej (reguła bazowa, potrzebna na wąskim
+       * ekranie) robiła jedyną dostępną rzecz: zrzucała awatar do drugiego
+       * wiersza. Efekt mierzony w Chromium 1920×1080, konto z text_scale
+       * = 125: awatar 5 px niżej niż środek „Dodaj" przy sztywnej kolumnie,
+       * zero px różnicy po tej poprawce.
+       *
+       * `max-content` daje kolumnie urosnąć o te kilkadziesiąt pikseli
+       * kosztem kolumny środkowej (`minmax(0, ...)` wyżej ma się gdzie
+       * skurczyć) — pole „Szukaj" traci nieco szerokości, belka NIE traci
+       * jednego wiersza.
+       */
       grid-template-columns:
         var(--container-sidenav)
         minmax(0, var(--container-content))
-        var(--container-rail);
+        minmax(var(--container-rail), max-content);
       gap: var(--spacing-8);
       align-items: center;
     }
@@ -384,6 +455,16 @@
        kończyłaby się 250 px przed treścią. */
     .topbar-inner .topbar-actions {
       justify-content: flex-end;
+      /*
+       * `nowrap`, NIE reguła bazowa `wrap` (patrz wyżej). Od 80rem kolumna
+       * ma już `minmax(var(--container-rail), max-content)` — zawsze jest
+       * dość szeroka na jeden wiersz, więc zawijanie tu nie chroni przed
+       * niczym, a przy sztywnej kolumnie (przed tą poprawką) było jedyną
+       * przyczyną, dla której awatar w ogóle schodził niżej. Zawijanie
+       * WRACA poniżej 80rem — tam kolumn nie ma i to ono chroni przed
+       * przewijaniem strony w bok (issue #80).
+       */
+      flex-wrap: nowrap;
     }
 
     /* Pole „Szukaj" wypełnia kolumnę czytania i nic poza nią. Zdejmujące to
@@ -501,7 +582,154 @@
     .wordmark > span[aria-hidden] { display: none; }
   }
 
-  /* --- Dolna nawigacja (mobile) --- */
+  /* --- Dolna nawigacja (mobile) ---
+
+     FOCUS NOT OBSCURED (WCAG 2.2 AA — 2.4.11) — REZERWA MIEJSCA POD BELKĄ,
+     wszystkie liczby zmierzone Playwrightem przez `scripts/dostepnosc.mjs`
+     i pilnowane przez ten sam skrypt (sekcja „FOCUS NIE ZASŁONIĘTY PRZEZ
+     NAKŁADKĘ").
+
+     ZMIERZONA USTERKA. Belka jest `position: fixed`, czyli NIE MA jej
+     w przepływie dokumentu — wysokość strony nie rośnie o jej wysokość.
+     Rezerwa na końcu dokumentu była stałą wartością `--spacing-20` (5rem,
+     80 px), a belka ma `flex-wrap: wrap` (patrz komentarz przy tej klasie
+     niżej) i przy dużym tekście rozpada się na kilka wierszy. Zmierzone
+     maksima wysokości belki na sześciu ekranach przy 320/360/414 px:
+
+         bez powiększania tekstu           66,6 px  (korzeń 16 px)
+         nasze ustawienie „tekst 140%"    105,5 px  (korzeń 16 px)
+         czcionka przeglądarki 200%       376,2 px  (korzeń 32 px)
+
+     Przy 105,5 px rezerwa 80 px już nie wystarcza, a przy 376,2 px nie
+     wystarcza nawet po podwojeniu (5rem to wtedy 160 px). Zmierzony skutek
+     przywrócenia tych 80 px (kontrola ujemna tej poprawki, pełny przebieg
+     `scripts/dostepnosc.mjs`): 109 kontrolek zasłoniętych w 100%, wśród nich
+     odnośnik stopki „Prywatność" na wszystkich czterech badanych ekranach
+     przy 320 px i naszym ustawieniu „tekst 140%". Stopka jest ostatnia
+     w dokumencie, więc fokus nie ma jak z pod belki wyjechać — nie ma już
+     czego przewijać.
+
+     DWIE JEDNOSTKI, DWA POWODY, JEDNA LICZBA. Rezerwa musi pokryć oba
+     powiększenia z jednej wartości, a te dwa powiększenia działają inaczej:
+
+       * czcionka przeglądarki podwaja KORZEŃ (16 → 32 px), więc wartość
+         w `rem` podwaja się razem z belką;
+       * nasze `data-text-scale` korzenia NIE RUSZA (`--user-text-scale`
+         mnoży tylko tokeny `--text-*`), więc wartość w `rem` zostaje ta
+         sama, a belka rośnie.
+
+     Dlatego stopień pierwszy (`8rem` = 128 px) jest liczony pod nasze 140%
+     (zapas 22,5 px nad 105,5 px), a stopień drugi pod czcionkę przeglądarki
+     200% (`13rem` = 416 px, zapas 39,8 px nad 376,2 px).
+
+     DLACZEGO PROGIEM JEST `max-width: 15rem`, A NIE ŻADNA SZEROKOŚĆ W PX.
+     Zapytanie o szerokość w `rem` porównuje okno z KORZENIEM, więc mówi
+     dokładnie to, o co tu chodzi: „tekst jest tak duży w stosunku do ekranu,
+     że przypięty pasek zabiera jego znaczną część". Telefon 320 px przy
+     korzeniu 16 px to 20rem (próg nie łapie), ten sam telefon przy czcionce
+     przeglądarki 200% to 10rem (łapie), a 414 px przy 200% to 12,9rem
+     (łapie). Przy zwykłym korzeniu 16 px próg odpowiadałby oknu 240 px,
+     czyli węższemu niż jakikolwiek telefon — nie zadziała przez pomyłkę.
+
+     DLACZEGO NIE `position: sticky` NA BELCE. Wersja z 10 września próbowała
+     związać rezerwę z rzeczywistą wysokością belki, wstawiając ją do
+     przepływu (`sticky` zamiast `fixed`). Działało to na 2.4.11 i przy tym
+     ZŁAMAŁO 2.5.8 (Target Size) w axe: reguła `target-size` liczy sąsiadów
+     przez `findNearbyElms`, a ta funkcja porównuje kandydatów warunkiem
+     `selfIsFixed === isFixedPosition(vNeighbor)` (`node_modules/axe-core/axe.js`).
+     Nakładka `fixed` nie jest więc porównywana z treścią NIE-`fixed` —
+     i słusznie, bo przypięty pasek stoi nad inną treścią przy każdym
+     położeniu przewijania. `sticky` do tego wyjątku nie należy: staje się
+     zwykłym sąsiadem w przepływie i przycina „bezpieczne pole kliknięcia"
+     tego, co akurat widać za nim.
+
+     Zmierzone przy 320 px, przewinięcie 0, JEDNAKOWE prostokąty dla `fixed`
+     i `sticky` (belka 833,4…900 px w obu wypadkach) — czyli nakładanie
+     istniało też przed zmianą, zmieniło się tylko to, czy axe je widzi:
+
+         profil własny, licznik „obserwowanych"   48 px → 14,5 px wolnego
+         dodaj przepis, pole tytułu `#f-title`    55,9 px → 10,1 px
+         ustawienia, pozycja „Zdjęcie profilowe"  40 px → 4,5 px
+
+     Trzy naruszenia to nie trzy usterki tych trzech elementów: każdy z nich
+     ma prostokąt większy niż wymagane 24 × 24 px i przechodzi 2.5.8 z samego
+     rozmiaru. To jedna cena `sticky`, płacona przez ten element, który akurat
+     wpadnie w pasek przy przewinięciu 0 — a więc zależna od długości strony,
+     nie od tych elementów. Naprawa „u każdego z trzech" byłaby przesuwaniem
+     treści do czasu, aż w pasek wpadnie czwarty. Dlatego belka wraca do
+     `fixed`, a rezerwa jest liczona i pilnowana, zamiast wynikać z układu. */
+  /*
+   * REZERWA MNOŻY SIĘ PRZEZ `--user-text-scale`, BO BELKA TEŻ SIĘ PRZEZ NIEGO
+   * MNOŻY — A `rem` NIE.
+   *
+   * To jest usterka, którą złapało CI (job „Dostępność" na `c492ed1`,
+   * 2.4.11 FAIL) i której NIE dało się zobaczyć z arytmetyki „rezerwa kontra
+   * belka": rezerwa była WIĘKSZA od belki w każdym wariancie. Zawodził LUZ,
+   * czyli to, co z rezerwy zostaje POWYŻEJ belki — bo tylko w tym pasku
+   * przeglądarka ma gdzie postawić element, który właśnie dostał fokus.
+   *
+   * Zmierzone na `/home`, `/szukaj` i `/ustawienia/profil` (Chromium 141,
+   * okno 740 px), przy rezerwie stałej 8rem = 128 px:
+   *
+   *     szerokość   belka przy 140%   luz      wynik na CI
+   *     320 px      105,5 px           22,5 px  ✗ „Wszystko" pod belką
+   *     360 px       89,5 px           38,5 px  ✗ „Do 30 minut" pod belką
+   *     414 px       75,2 px           52,8 px  ✓
+   *
+   * Oblewały DOKŁADNIE te szerokości, na których luz zszedł poniżej 48 px,
+   * czyli poniżej jednej naszej kontrolki (`docs/UX_50_PLUS.md`). To nie jest
+   * zbieg okoliczności: jeżeli luz jest mniejszy niż element, to element nie
+   * ma jak stanąć nad belką w całości i „przewinięcie do celu" nie ma dokąd
+   * przewinąć. Dlatego usterka wychodziła losowo — raz jeden element, raz
+   * trzy, u nas w obrazie deweloperskim wcale — zależnie od tego, co akurat
+   * wpadło w ten pasek.
+   *
+   * `--user-text-scale` mnoży wyłącznie tokeny `--text-*` (`tokens.css`),
+   * KORZENIA NIE RUSZA. Belka rośnie więc razem z tekstem, a `rem` stoi
+   * w miejscu — i luz zapada się dokładnie wtedy, gdy tekst jest największy,
+   * czyli u osoby, dla której ten produkt jest robiony. Mnożnik w `calc()`
+   * wiąże rezerwę z tą samą wielkością, która rozpycha belkę.
+   *
+   * Zmierzone po poprawce (8rem × 1,4 = 179,2 px): luz 73,7 / 89,7 / 104 px
+   * przy 320 / 360 / 414 px — wszędzie ponad 48 px.
+   *
+   * Drugi stopień idzie z 13rem na 15rem z tego samego powodu, tyle że
+   * liczonego przy korzeniu 32 px: przy czcionce przeglądarki 200% belka ma
+   * 376,2 px, więc 13rem (416 px) zostawiało 39,8 px luzu, a kontrolka ma tam
+   * 96 px (48 px × podwojony korzeń). 15rem to 480 px, czyli 103,8 px luzu.
+   * Ten wariant przechodził na CI mimo cienkiego luzu — poprawiam go razem
+   * z tamtym, bo to jedna usterka tej samej klasy, a nie dwie osobne.
+   */
+  :root {
+    --rezerwa-pod-belka: calc(8rem * var(--user-text-scale, 1));
+  }
+
+  @media (max-width: 15rem) {
+    :root {
+      --rezerwa-pod-belka: calc(15rem * var(--user-text-scale, 1));
+    }
+  }
+
+  @media (min-width: 64rem) {
+    /* Belka znika od 64rem (patrz reguła niżej) — rezerwa nie ma tam czego
+       chronić i tylko przesuwałaby przewijanie do zakotwiczeń o zbędny
+       margines. Reguła stoi PO progu `15rem`, żeby przy zwykłym korzeniu
+       wygrywała ona, a nie tamten. */
+    :root {
+      --rezerwa-pod-belka: 0rem;
+    }
+  }
+
+  /* Rezerwa dla PRZEWIJANIA DO CELU. Samo miejsce na końcu dokumentu (niżej,
+     przy `.site-footer`) ratuje tylko ostatni ekran; przewijanie fokusu
+     w widok, które przeglądarka robi sama po Tab, liczy się do krawędzi
+     okna i nie wie, że w tym miejscu ekranu coś stoi na wierzchu.
+     `scroll-padding-bottom` to jest właśnie mechanizm CSS na tę różnicę.
+     Nic nie rysuje — działa wyłącznie przy celowanym przewijaniu — więc
+     kosztuje tyle, ile jest wart. */
+  :root {
+    scroll-padding-bottom: var(--rezerwa-pod-belka);
+  }
 
   .bottom-nav {
     position: fixed;
@@ -627,6 +855,13 @@
       min-width: 0;
       max-width: 100%;
       overflow-wrap: anywhere;
+      /* Zawijanie DODANE przy licznikach kolejek (10 września). Napis
+         pozycji i tak zawija się w sobie (`overflow-wrap: anywhere`), więc
+         w praktyce ta reguła nie dotyczy tekstu — jest siatką
+         bezpieczeństwa dla plakietki `.licznik-kolejki`, żeby przy dużej
+         skali tekstu zeszła do drugiego wiersza, a nie rozpychała kolumny
+         nawigacji w bok. */
+      flex-wrap: wrap;
       transition: background-color var(--czas-szybki) ease-out;
     }
 
@@ -674,6 +909,290 @@
       color: var(--color-brand-tint-ink);
       font-weight: 800;
     }
+  }
+
+  /* =========================================================================
+     SEKCJA „PANEL MODERACJI" — WYDZIELONA GRUPA W NAWIGACJI BOCZNEJ
+     (dopisek dla scalania: blok dodany przy okazji issue z 9 września 2026,
+     osobno od prac nad stopką w tym samym pliku).
+
+     Zgłoszenie właściciela: „nie wiadomo, co jest normalną podstroną,
+     a co adminową" — sześć pozycji panelu stało dotąd w tym samym `<ul>`
+     co „Start"/„Szukaj"/…, tą samą czcionką, bez nagłówka i bez PRZERWY
+     PRZED nimi (kreska `.side-nav-dol` stała tylko PO panelu). Ten blok
+     robi trzy rzeczy:
+
+       1. odstęp i kreska NAD grupą (`.side-nav-moderacja`);
+       2. nagłówek grupy — mała, wersalikowa etykieta
+          (`.side-nav-moderacja-naglowek`, prawdziwy `<h2>` w znaczniku,
+          patrz `components/layout.blade.php`). 16 px (`--text-help`) jest tu
+          dozwolone: `docs/design/DESIGN_SYSTEM.md` pozwala zejść z 18 px
+          tylko tam, gdzie tekst główny OBOK ma ≥18 px — a tuż pod spodem
+          stoją pozycje panelu na `--text-body` (18 px);
+       3. delikatne tło i lewa krawędź w kolorze `--color-accent`
+          (oliwkowy/musztardowy, ten sam token co `.notice`) — NIGDY
+          `--color-danger`: to miejsce PRACY moderatora, nie alarm. Ten sam
+          kolor akcentuje pasek na ekranach `/admin/**`
+          (`components/panel-moderacji.blade.php`), więc oznaczenie jest
+          spójne wszędzie tam, gdzie się je widzi.
+
+     `color-mix()` NIE ma jawnego fallbacku: przeglądarka bez jego wsparcia
+     po prostu pomija tę jedną deklarację i zostaje przy przezroczystym tle —
+     grupa nadal jest rozpoznawalna po nagłówku i lewej krawędzi, tylko bez
+     tła. Tekst pozycji zostaje na `--color-ink` (bez zmian) — zmienia się
+     wyłącznie kolor IKONY, żeby nie liczyć od nowa kontrastu dla każdej pary
+     tło/tekst przy każdym stanie (spoczynek/hover/`aria-current`).
+     ========================================================================= */
+
+  .side-nav-moderacja {
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .side-nav-moderacja-naglowek {
+    margin: 0 0 var(--spacing-2);
+    padding: 0 var(--spacing-3);
+    font-size: var(--text-help);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-accent);
+  }
+
+  .side-nav-moderacja-lista {
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-1) 0;
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  /* Ikona w kolorze akcentu — ale NIE na bieżącej pozycji: tam kolor
+     nadaje `.side-nav-item[aria-current="page"]` na samym `<a>` (SVG go
+     dziedziczy), żeby podświetlenie bieżącej pozycji zostało jednym
+     kolorem, a nie mieszanką dwóch znaczeń na tym samym elemencie. */
+  .side-nav-moderacja-lista .side-nav-item:not([aria-current="page"]) .ikona {
+    color: var(--color-accent);
+  }
+
+  /* --- Pasek panelu na ekranach /admin/** ---------------------------------
+     `components/panel-moderacji.blade.php` — ten sam kolor akcentu i ten
+     sam wzorzec (lewa krawędź + delikatne tło z `color-mix()`, bez jawnego
+     fallbacku — patrz komentarz przy `.side-nav-moderacja-lista` wyżej) co
+     sekcja w menu bocznym, żeby oznaczenie panelu wyglądało tak samo
+     wszędzie tam, gdzie się je widzi. --------------------------------------- */
+
+  /* `color: var(--color-accent)` stoi na KONTENERZE, nie na ikonie: `x-ikona`
+     nie da się dobrać przez klasę przekazaną z wywołania (patrz komentarz
+     w `components/panel-moderacji.blade.php`), więc ikona bierze akcent
+     przez zwykłe dziedziczenie CSS (`stroke="currentColor"`). Tekst obok
+     dostaje własny, jawny kolor niżej — inaczej też odziedziczyłby akcent. */
+  .panel-pasek {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-5);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    color: var(--color-accent);
+  }
+
+  .panel-pasek .ikona {
+    flex: none;
+  }
+
+  .panel-pasek-tekst {
+    margin: 0;
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+  }
+
+  .panel-pasek-nazwa {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-accent);
+  }
+
+  .panel-pasek-oddzielacz {
+    margin: 0 var(--spacing-1);
+  }
+
+  /* ===================================================================
+     PODGLĄD OZNACZONEJ TREŚCI W KOLEJCE SYGNAŁÓW
+     ===================================================================
+     Miniatura obok początku tekstu, żeby moderator rozpoznał sprawę bez
+     otwierania karty. Zgłoszenie właściciela po pierwszym prawdziwym
+     trafieniu modelu: „trzeba dać jakąś miniaturkę i mniejszym tekstem
+     treść, a nie klikać otwierać treść".
+
+     `flex-wrap: wrap` i `min-width: 0` — bo ten ekran, jak każdy inny,
+     nie może rozpychać dokumentu przy 320 px i czcionce przeglądarki
+     ustawionej na 200%. Ta sama pułapka położyła wczoraj stopkę
+     (twardy próg w `rem`) i prawą szynę (kontener flex bez zawijania). */
+  .sygnal-podglad {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+    align-items: flex-start;
+    margin: var(--spacing-3) 0 0;
+  }
+
+  .sygnal-podglad-tekst {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  /* Miniatura jest ODNOŚNIKIEM, nie ozdobą — kliknięcie w zdjęcie prowadzi
+     tam, gdzie odnośnik tekstowy obok. Zdjęcie ma `alt=""`, bo dostępną
+     nazwę niesie `aria-label` na odnośniku: opisanie treści cudzego zdjęcia
+     i tak nie jest możliwe, a „zdjęcie" jako alt to szum. */
+  .sygnal-podglad-zdjecie {
+    flex: none;
+    display: block;
+    line-height: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .sygnal-podglad-zdjecie img {
+    display: block;
+    width: 6rem;
+    height: 6rem;
+    object-fit: cover;
+  }
+
+  /* MNIEJSZY TEKST TO TU DECYZJA, NIE NIEDOPATRZENIE.
+     `--text-help` (16 px) zamiast 18 px z §5 — to jest CYTAT z cudzej treści
+     w narzędziu roboczym dla jednej osoby, nie tekst produktu czytany przez
+     użytkowników 50+. Pełna treść stoi o jedno kliknięcie dalej, w normalnym
+     rozmiarze. Ten sam wyjątek co metryczka wersji w stopce (D-051): panel
+     moderacji nie jest ekranem, na którym mierzymy próg czytelności. */
+  .sygnal-podglad-cytat {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .panel-pasek-ekran {
+    font-weight: 600;
+  }
+
+  /* =========================================================================
+     TRYB PANELU — MENU BEZ RZECZY UŻYTKOWNIKA
+     (dopisek dla scalania: blok dodany po sekcji „Panel moderacji" wyżej,
+     osobno od niej — nie zmienia ani jednej jej reguły.)
+
+     Prośba właściciela: „dać oddzielny przycisk, który pokaże tylko menu
+     admina, bez przycisków typowych dla użytkownika (moje, profil itp.)".
+     Tryb bierze się ze ŚCIEŻKI (`/admin/**`), a nie z przełącznika w JS ani
+     ze stanu w sesji — powody stoją w `components/layout.blade.php`.
+
+     Znacznik robi całą robotę: w trybie panelu pozycji użytkownika po prostu
+     NIE MA w HTML-u. Ten CSS dokłada trzy rzeczy, których znacznik nie umie:
+       1. wejście i wyjście wyglądają jak przyciski, a nie jak jeszcze jedna
+          pozycja listy (`.side-nav-wejscie`, `.side-nav-powrot`);
+       2. grupa panelu bez sąsiadów nie ciągnie za sobą kreski „oddzielam się
+          od tego, co wyżej";
+       3. na TELEFONIE menu panelu jest widoczne, choć zwykłe menu boczne jest
+          tam schowane — inaczej moderator na telefonie nie miałby jak przejść
+          między ekranami panelu.
+
+     TRYB ROZPOZNAJEMY PO ATRYBUCIE `[data-tryb-panelu]` NA `<nav class="side-nav">`,
+     nie po dodatkowej klasie: `class="side-nav"` musi zostać dosłownie takie,
+     jakie było, bo testy nawigacji wycinają menu ze strony po tym tekście
+     (uzasadnienie przy samym znaczniku w `components/layout.blade.php`).
+     Atrybut jako nośnik STANU to zresztą wzorzec, który w tym arkuszu już
+     jest — `data-theme`, `data-text-scale`, `[aria-current="page"]`.
+     ========================================================================= */
+
+  /* Wejście i wyjście: `<a>` bez `<li>` wokół, bo to nie jest pozycja spisu
+     ekranów, tylko pojedyncza akcja. Wygląd bierze z `.side-nav-item`
+     (48 px pola kliknięcia, 18 px tekstu, ikona z podpisem), a różni się
+     ramką i tłem — na tyle, żeby dało się to rozpoznać jako przycisk, i na
+     tyle mało, żeby nie krzyczało. */
+  .side-nav-wejscie,
+  .side-nav-powrot {
+    border: 2px solid var(--color-accent);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    font-weight: 700;
+  }
+
+  /* Wejście stoi POD spisem ekranów panelu, więc potrzebuje odstępu od niego.
+     Wyjście stoi NAD grupą panelu i odstęp dostaje z drugiej strony. */
+  .side-nav-wejscie {
+    margin-top: var(--spacing-2);
+  }
+
+  .side-nav-powrot {
+    margin-bottom: var(--spacing-4);
+  }
+
+  /* Grupa panelu jako jedyna rzecz w menu — bez kreski i odstępu nad sobą.
+     Reguła NIE dubluje `.side-nav-moderacja`, tylko zdejmuje z niej to jedno,
+     co ma sens wyłącznie wtedy, gdy nad grupą coś stoi. */
+  .side-nav[data-tryb-panelu] .side-nav-moderacja {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  /* --- TELEFON (poniżej 64rem) -------------------------------------------
+     `.side-nav { display: none }` wyżej schowa na telefonie zwykłe menu
+     boczne, bo tam nawigację niesie pasek dolny. Menu PANELU jest w innej
+     sytuacji: pasek dolny ma na telefonie pięć pozycji, ekranów panelu jest
+     ich sześć i będzie więcej, a AGENTS.md §5 pozwala na pasku dolnym
+     najwyżej pięć. Panel dostaje więc na telefonie zwykłą, pionową listę
+     nad treścią ekranu — bez skryptu, bez rozwijania, bez gestu.
+
+     Poniżej 64rem `.app-body` nie jest siatką, więc ta lista renderuje się
+     jako blok na całą szerokość; wcięcia poziome bierze takie same jak
+     `.app-main`, żeby napisy nie dotykały krawędzi ekranu.
+
+     Nadpisania `display` NIE trzeba pisać dla desktopu: od 64rem
+     `.side-nav` dostaje `display: flex` regułą spoza tej warstwy
+     (`@layer`), a warstwa zawsze przegrywa z regułą nieuwarstwioną —
+     czyli desktop zostaje dokładnie taki, jaki był. */
+  @media (max-width: 63.999rem) {
+    .side-nav[data-tryb-panelu] {
+      display: block;
+      padding: var(--spacing-5) var(--spacing-4) 0;
+    }
+
+    /* Spis ekranów panelu w dwóch kolumnach, jeśli szerokość na to pozwala:
+       sześć pozycji jedna pod drugą to na telefonie pół ekranu przewijania,
+       zanim widać treść. `auto-fit` z `minmax(…)` sam schodzi do jednej
+       kolumny na najwęższych ekranach, więc żaden napis nie zostaje ucięty
+       ani zwężony poniżej swojej treści.
+
+       `min(11rem, 100%)`, NIE samo `11rem` — DOKŁADNIE TA SAMA POPRAWKA,
+       KTÓRA BYŁA JUŻ POTRZEBNA W STOPCE (patrz `.stopka-*` niżej w tym
+       pliku, D-051). Zmierzone 10 września na `/admin/odwolania`: przy oknie
+       320 px i czcionce przeglądarki 200% `1rem` to 32 px, więc `11rem` daje
+       ścieżkę 352 px i `auto-fit` NIE schodzi do jednej kolumny — schodzi do
+       jednej ŚCIEŻKI SZERSZEJ NIŻ EKRAN. Cała strona panelu przewijała się
+       wtedy w bok (`scrollWidth` 387 px przy oknie 320 px), a to jest
+       WCAG 2.2 AA 1.4.10 Reflow. `min(11rem, 100%)` mówi „11rem, ale nigdy
+       więcej niż dostępna szerokość" i tę jedną rzecz naprawia. */
+    .side-nav[data-tryb-panelu] .side-nav-moderacja-lista {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+      gap: var(--spacing-1);
+      padding: var(--spacing-1);
+    }
+  }
+
+  /* Pasek dolny w trybie panelu ma JEDNĄ pozycję (wyjście) na całą szerokość
+     — `.bottom-nav-item` ma `flex: 1 1 4rem`, więc sam się rozciąga. Zostaje
+     wyśrodkowanie napisu razem z ikoną, bo pojedyncza pozycja na 400 px
+     wyglądałaby inaczej niż wszystko inne w tym pasku. Reszta wyglądu
+     (pozycja, tło, kreska, bezpieczny obszar na dole) jest wspólna
+     z `.bottom-nav` i nie powtarzamy jej tutaj. */
+  .bottom-nav-panel {
+    justify-content: center;
   }
 
   /* ---------------------------------------------------------------------
@@ -785,6 +1304,26 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-2);
+  }
+
+  /*
+   * „3 osoby zapisały to u siebie w zeszycie" (issue #275, D-081).
+   *
+   * `--text-body` (18 px), NIE `--text-help` jak data obok nazwy autora. To
+   * zdanie stoi SAMO — nie objaśnia niczego, co leży tuż obok — więc łapie się
+   * na regułę „samodzielna etykieta ma minimum 18 px" (`docs/UX_50_PLUS.md`,
+   * `MinimalnyRozmiarTekstuTest`, gdzie ten selektor jest dopisany do listy
+   * pilnowanych).
+   *
+   * Kolor przygaszony i BEZ wagi 700: to jest informacja, nie nagłówek i nie
+   * nagroda. Liczba, która krzyczy, robi z docenienia wynik — a cała decyzja
+   * D-081 stoi na tej różnicy.
+   */
+  .post-card-zapisy {
+    margin: 0;
+    padding: 0 var(--spacing-5) var(--spacing-4);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
   }
 
   /*
@@ -1116,6 +1655,35 @@
   }
 
   .badge-cooked {
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+  }
+
+  /* LICZNIK PRZY POZYCJI PANELU MODERACJI („Odwołania 2").
+
+     Wygląd JAK licznik nieprzeczytanych powiadomień w tym samym menu
+     (`.badge-cooked`, `--color-accent-tint`) i to jest cała intencja: dwie
+     plakietki stojące kilka pozycji od siebie i znaczące to samo („coś
+     nowego czeka") muszą wyglądać tak samo, inaczej moderator uczy się
+     dwóch sygnałów zamiast jednego. NIGDY `--color-danger` — kolejka
+     moderacji jest miejscem pracy, nie awarią (ta sama reguła, którą
+     stosuje wyróżnienie sekcji „Panel moderacji" wyżej).
+
+     18 px, nie 16 px jak zwykła `.badge`: tutaj liczba jest CAŁĄ treścią
+     plakietki, a nie dopiskiem obok większego tekstu — a to dopisków
+     dotyczy wyjątek na `--text-help` z systemu projektowego §2.1.
+     AGENTS.md §5 obowiązuje w panelu bez wyjątku.
+
+     `flex: none` i `margin-left: auto`: pozycja menu jest `flex`-em
+     (`.side-nav-item`) z `flex-wrap: wrap`, w kolumnie szerokiej na 15 rem,
+     w której napisy rosną razem ze skalą tekstu użytkownika. Bez `flex: none`
+     plakietka mogłaby się skurczyć poniżej własnej liczby (ucięta cyfra),
+     a `auto` zsuwa wszystkie liczniki do prawej krawędzi kolumny, więc
+     czyta się je jak listę, a nie jak pięć przypadkowych miejsc. */
+  .licznik-kolejki {
+    flex: none;
+    margin-left: auto;
+    font-size: var(--text-body);
     background-color: var(--color-accent-tint);
     color: var(--color-accent-tint-ink);
   }
@@ -1589,9 +2157,42 @@
       background-color var(--czas-szybki) ease-out;
   }
 
+  /*
+   * ZAZNACZONE = ZROBIONE, A NIE ZEPSUTE.
+   *
+   * Do 10 września zaznaczony wybór dostawał `--color-brand` (#B3401F)
+   * i `--color-brand-tint` — czyli czerwień marki, praktycznie nie do
+   * odróżnienia od `--color-danger` (#B3261E) i jego tinta. Skutek zobaczyliśmy
+   * na prawdziwej osobie: 63-latka wypełniała rejestrację, odbiła się o błąd
+   * przy nazwie użytkownika, a jej uwagę zabrały DWA WIELKIE CZERWONE PUDŁA na
+   * dole formularza — czyli poprawnie zaznaczone „Mam co najmniej 16 lat"
+   * i „Znam zasady". Prawdziwy błąd, wypisany czerwonym tekstem wyżej, zniknął
+   * jej w tym samym kolorze.
+   *
+   * Czerwień zostaje WYŁĄCZNIE dla błędów. Zaznaczenie jest zielone —
+   * `--color-success-tint` ma policzony kontrast dla `--color-success-tint-ink`
+   * w obu motywach (patrz `tokens.css`).
+   */
   .choice:has(input:checked) {
-    border-color: var(--color-brand);
-    background-color: var(--color-brand-tint);
+    border-color: var(--color-success);
+    background-color: var(--color-success-tint);
+  }
+
+  .choice:has(input:checked) .choice-label {
+    color: var(--color-success-tint-ink);
+  }
+
+  /*
+   * A JEŚLI WYBÓR NAPRAWDĘ MA BŁĄD (nie zaznaczony, a wymagany), to on jest
+   * czerwony — i to jest jedyne czerwone pudło, jakie człowiek zobaczy.
+   * Kolejność reguł ma znaczenie: ta stoi PO regule zaznaczenia, więc
+   * zaznaczony wybór z nieaktualnym błędem z poprzedniego wysłania nie wraca
+   * do czerwieni (a `resources/js/app.js` zdejmuje `has-error` w chwili
+   * zaznaczenia, żeby nie trzeba było czekać na przeładowanie).
+   */
+  .field.has-error .choice:not(:has(input:checked)) {
+    border-color: var(--color-danger);
+    background-color: var(--color-danger-tint);
   }
 
   .choice input {
@@ -1647,6 +2248,19 @@
     letter-spacing: 0.01em;
   }
 
+  /* MARKA NA MARCE NIE MA KONTRASTU.
+     Gdy „Zostań kuKINGiem" wjechało do przycisku podstawowego na stronie
+     powitalnej, skan dostępności oblał się w motywie ciemnym:
+     `color-contrast` na `span > strong` (serious). Powód: przycisk ma tło
+     w kolorze marki, a `strong` wymuszał na sobie ten sam kolor.
+
+     Wewnątrz przycisku „KING" bierze więc kolor otoczenia — przycisk zna
+     swoją parę tło/tekst i ma ją sprawdzoną. Wyróżnienie robią wersaliki,
+     które i tak są tu nośnikiem, a nie kolor. */
+  .btn .kuking-word strong {
+    color: inherit;
+  }
+
   .kuking-board-subtitle {
     /* To jest <h3>, nagłówek sekcji stojący samodzielnie nad listą — nagłówek
        mniejszy od tekstu, który zapowiada, czyta się jak drobny druk (#110). */
@@ -1680,17 +2294,70 @@
     border-bottom: 0;
   }
 
+  /* PASEK MINIATUR MA WŁASNY WIERSZ W KARCIE OSOBY (issue #272).
+     ---------------------------------------------------------------------
+     Zgłoszenie właściciela ze zrzutu `/home` na szerokim monitorze: trzy
+     miniatury stały JEDNA POD DRUGĄ, choć w szynie było miejsce na rząd.
+
+     Przyczyna nie leżała w tej regule, a w tym, GDZIE ten pasek stał.
+     Siedział wewnątrz bloku tekstu karty osoby (`.min-w-0.flex-1`), czyli
+     dostawał nie szerokość szyny, a resztkę po awatarze i przycisku
+     „Obserwuj". Zmierzone w Chromium przy oknie 1440 px, przed poprawką:
+     szyna 352 px → wnętrze karty 310 px → awatar 52 + odstęp 12 + blok
+     tekstu 105 + odstęp 12 + przycisk 129. Pasek miał 105 px, a rząd trzech
+     miniatur potrzebuje 3 × 72 + 2 × 8 = 232 px. Zawijał więc po jednej
+     na wiersz — nie z braku miejsca w szynie, tylko z braku miejsca w tym
+     jednym zduszonym bloku.
+
+     Naprawą jest więc przede wszystkim PRZENIESIENIE paska w HTML-u: stoi
+     teraz jako bezpośrednie dziecko rzędu, za przyciskiem (patrz komentarz
+     w `kuking-board.blade.php`). Zmierzone po poprawce: trzy miniatury o tej
+     samej górnej krawędzi, `x` 1077/1157/1237.
+
+     `flex-basis: 100%` ROBI DRUGĄ, OSOBNĄ RZECZ — i nie jest ozdobą, choć
+     sam rząd stanąłby też bez niej. Bez tej deklaracji rozmiar bazowy paska
+     liczy się z jego treści (232 px przy trzech miniaturach), więc o tym, czy
+     pasek trafi na własny wiersz, decyduje suma szerokości awatara, opisu
+     i przycisku „Obserwuj" — czyli przypadek, ten sam, który zepsuł tę kartę
+     za pierwszym razem. Zmierzone bez `flex-basis`, okno 1280 px, czcionka
+     przeglądarki 200 %: pasek lądował W TYM SAMYM wierszu, na prawo od
+     „Obserwuj" (`x` 959 zamiast 73, czyli zamiast krawędzi karty). Z nią
+     pasek ma zawsze cały wiersz i zawsze zaczyna się przy tej samej
+     krawędzi co reszta karty.
+
+     Pilnują tego dwa pomiary w `scripts/dostepnosc.mjs`, sekcja „Tablica
+     dnia": jednej krawędzi miniatur (rząd) i szerokości paska równej
+     szerokości karty (własny wiersz).
+
+     Odstęp nad paskiem robi teraz `gap` rzędu (`--spacing-3`, ta sama
+     wartość co dawne `margin-top`), więc własnego marginesu tu nie ma:
+     na własnym wierszu doliczyłby się do odstępu między wierszami.
+
+     UWAGA NA DWA RÓŻNE `flex` W TEJ JEDNEJ REGULE. `flex-basis` opisuje ten
+     pasek jako ELEMENT rzędu karty osoby. `flex-wrap` niżej opisuje go jako
+     KONTENER miniatur i jest osobną sprawą — patrz komentarz przy nim. */
   .kuking-board-preview {
     display: flex;
     gap: var(--spacing-2);
-    margin-top: var(--spacing-3);
+    flex-basis: 100%;
 
     /* `flex-wrap` jak w `.kuking-board-person` tuż wyżej — tam było, tu nie.
        Miniatury mają `width: 72px` i `flex: none`, więc rząd trzech z odstępami
        nie mieści się w wąskiej kolumnie tablicy przy powiększonej czcionce
        i wypycha całą stronę w bok o 37 px (zmierzone przy bazie 32 px na `/`,
        `/odkryj` i `/szukaj`). Bez zawijania nie ma jak temu zaradzić:
-       obrazek o stałej szerokości i `flex: none` z definicji się nie skurczy. */
+       obrazek o stałej szerokości i `flex: none` z definicji się nie skurczy.
+
+       ZOSTAJE MIMO WIERSZA NA CAŁĄ SZEROKOŚĆ i nie jest pozostałością po
+       starym układzie. Własny wiersz daje 310 px w szynie przy czcionce
+       16 px, ale nie daje ich przy czcionce podkręconej w przeglądarce:
+       wnętrze karty zmierzone przy bazie 32 px i oknie 320 px to 174 px,
+       a rząd trzech miniatur potrzebuje wtedy 3 × 72 + 2 × 16 = 248 px.
+       Sprawdzone przez zdjęcie tej jednej linijki: pasek kończył się na
+       `x = 321` w oknie szerokim na 320, `scrollWidth` dokumentu rósł do
+       321 px i cała strona przewijała się w bok. To jest naruszenie
+       WCAG 2.2 AA 1.4.10 (Reflow) i mierzy je `scripts/dostepnosc.mjs`
+       (wariant „320 px / czcionka przeglądarki 200%"). */
     flex-wrap: wrap;
   }
 
@@ -1703,6 +2370,13 @@
     flex: none;
   }
 
+  /* Zdjęcie dania nie kurczy się i nie rośnie — 96 px to 96 px. Zapisane
+     na samym elemencie, nie tylko na `<img>` w środku: to `<a>` jest tu
+     elementem rzędu, a `flex: none` na obrazku niżej nic o nim nie mówi. */
+  .kuking-board-post-photo {
+    flex: none;
+  }
+
   .kuking-board-post-photo img {
     width: 96px;
     height: 96px;
@@ -1710,6 +2384,40 @@
     border-radius: var(--radius-md);
     background-color: var(--color-surface-sunken);
     flex: none;
+  }
+
+  /* DWIE KOLUMNY W KARCIE DANIA, ZAMIERZONE — I PRÓG, PRZY KTÓRYM SIĘ KOŃCZĄ
+     (issue #272).
+     ---------------------------------------------------------------------
+     Drugie zgłoszenie ze zrzutu: zdjęcie dania wisiało samo, dociśnięte do
+     lewej, a podpis („Ewa Kapica", „Pyszne jagodzianki z mascarpone",
+     „Zobacz") leżał POD nim, nie obok. Nie był to wybór układu — było to
+     przypadkowe zawinięcie. Blok tekstu miał samo `min-w-0`, bez żadnego
+     `flex`, więc jego rozmiar bazowy liczył się z TREŚCI: skrócony wpis
+     (90 znaków) chciał kilkuset pikseli, 96 + 12 + to nie mieściło się
+     w 310 px szyny, i cały blok spadał do drugiego wiersza. Zmierzone przed
+     poprawką przy oknie 1440 px: zdjęcie w wierszu `y = 1253`, tekst
+     w wierszu `y = 1361`, oba przy `x = 1077`.
+
+     WYBÓR: DWIE KOLUMNY W SZYNIE, PION NA WĄSKIM EKRANIE — i to `flex-basis`
+     decyduje, kiedy jedno przechodzi w drugie. `11rem` nie jest liczbą
+     z powietrza: przy czcionce 16 px daje 96 + 12 + 176 = 284 px, czyli
+     mieści się we wnętrzu karty w szynie (310 px, zmierzone) i tekst dostaje
+     realne 202 px. Gdy wnętrze jest węższe — 246 px przy oknie 320 px —
+     próg nie jest spełniony, blok idzie do własnego wiersza i staje przy tej
+     samej krawędzi co zdjęcie i co reszta karty.
+
+     DLACZEGO PRÓG W `rem`, A NIE W PIKSELACH. Bo ma jechać razem z tekstem.
+     Przy czcionce przeglądarki podkręconej do 200 % `11rem` to 352 px, więc
+     dwie kolumny same się wyłączają — a nie ściskają podpisu do słupka
+     kilku znaków na wiersz. Tekst 50+ jest tu ważniejszy niż zachowanie
+     ładniejszego układu za wszelką cenę (docs/UX_50_PLUS.md).
+
+     `flex-grow: 1` zostaje, żeby blok po zmieszczeniu się dobrał całą resztę
+     wiersza — inaczej podpis kończyłby się w połowie szyny, a przycisk
+     „Zobacz" wisiał w powietrzu z prawej pustką. */
+  .kuking-board-post-body {
+    flex: 1 1 11rem;
   }
 
   .kuking-board-excerpt {
@@ -1790,18 +2498,16 @@
     box-shadow: inset 0 -3px 0 0 var(--color-brand);
   }
 
-  .stat-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-5);
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
+  /* Liczba i podpis JEDNEGO licznika na profilu. Układ całej piątki (siatka,
+     równe kolumny, odstępy, 48 px celu kliknięcia) stoi w `ekran-profilu.css`
+     przy `.profil-liczniki` — w jedynym miejscu, które tych klas używa.
+     Dawne `.stat-row` (kontener `flex-wrap`) zostało tam zastąpione siatką
+     i dlatego nie ma go już w tym pliku.
 
-  /* Ta sama historia co przy kaflach przepisu: pozycja statystyki nie schodzi
+     Ta sama historia co przy kaflach przepisu: pozycja statystyki nie schodzi
      poniżej szerokości podpisu, a „obserwujących" przy czcionce 32 px ma
-     345 px. Zmierzone na profilu: strona 418 px przy 320 px okna.
+     345 px. Zmierzone na profilu: strona 418 px przy 320 px okna. Stąd
+     `overflow-wrap` w obu regułach niżej, a `min-width: 0` na komórce siatki.
 
      `overflow-wrap` dopisujemy DO ISTNIEJĄCYCH reguł niżej, a nie do nowej
      wspólnej. `MinimalnyRozmiarTekstuTest` czyta deklaracje PIERWSZEJ reguły
@@ -1810,12 +2516,9 @@
      (Nie wolno tu nawet WYMIENIĆ tego selektora z nazwy: wyrażenie testu
      patrzy na sam tekst pliku i złapałoby go w komentarzu. Sprawdzone
      eksperymentalnie — pierwsza wersja tej uwagi wywaliła test.) */
-  .stat-row > li { min-width: 0; }
-
   .stat-value {
     font-size: var(--text-title-sm);
     font-weight: 800;
-    display: block;
     overflow-wrap: anywhere;
   }
   /* 18 px, nie 16: „wpisów”, „obserwujących” to jedyne wyjaśnienie, co znaczy
@@ -1827,21 +2530,115 @@
     overflow-wrap: anywhere;
   }
 
+  /*
+   * Odstęp górny (issue #205): na krótkich stronach (np. „/moje" z jednym
+   * zeszytem) treść kończy się wysoko, a `.app-main` ma `flex: 1` w kolumnie
+   * `.app-shell` — więc `.site-footer` ląduje bezpośrednio pod nawigacją
+   * boczną i „Wyloguj się" styka się z pierwszym odnośnikiem stopki. Dwa
+   * łącza o zupełnie różnym skutku obok siebie, bez odstępu, przy grupie
+   * 50+, jest dokładnie tym, przed czym ostrzega UX_50_PLUS.
+   *
+   * `margin-top: auto` NIE wystarczy (stopka i tak zostaje przyklejona do
+   * dołu przez `flex: 1` na `.app-main`) — chodzi o odstęp OD TREŚCI, gdy
+   * treść jest krótka, więc to `margin-top` na samej stopce, niezależny od
+   * tego, ile miejsca zajęła kolumna nad nią.
+   */
+  /* Dolne wypełnienie stopki to REZERWA POD PRZYPIĘTĄ BELKĄ, nie ozdoba.
+     Stopka jest ostatnim elementem dokumentu, więc to jej wypełnienie
+     decyduje o tym, czy treść da się wyprowadzić spod paska na końcu
+     strony. Wyprowadzenie wartości i zmierzone wysokości belki stoją przy
+     `--rezerwa-pod-belka` wyżej. Do 10 września stało tu `--spacing-20`
+     (80 px): wystarczało przy zwykłym tekście i przestawało wystarczać już
+     przy naszym ustawieniu „tekst 140%" (belka 105,5 px).
+
+     Rezerwa jest JEDNA DLA WSZYSTKICH, także dla gościa, który dolnej belki
+     nie ma (`@auth` w `layout.blade.php`). Warunkowanie jej klasą układu
+     gościa rozdzieliłoby jeden token na dwie różne wartości dla dwóch jego
+     zastosowań (wypełnienie stopki dziedziczy po `body`, a
+     `scroll-padding-bottom` rozwiązuje się na `:root`), czyli zamieniłoby
+     48 px pustego miejsca na dole stopki na pułapkę do nadepnięcia. */
   .site-footer {
+    margin-top: var(--spacing-12);
     border-top: 1px solid var(--color-border);
-    padding: var(--spacing-8) var(--spacing-4) var(--spacing-20);
+    padding: var(--spacing-8) var(--spacing-4) var(--rezerwa-pod-belka);
     background-color: var(--color-surface-raised);
   }
 
   /* Stopka trzyma tę samą szerokość co belka i siatka treści — patrz blok
      „BELKA STOI W TEJ SAMEJ SIATCE" wyżej. Poniżej 64rem żadnych kolumn nie
-     ma, więc zostaje sam margines z `.site-footer`. */
+     ma, więc zostaje sam margines z `.site-footer`.
+
+     Trzy poziomy PIONOWO (issue #205): hasło, kolumny odnośników, pasek
+     techniczny — stąd `flex-direction: column`. Każdy poziom sam ustawia
+     swój wewnętrzny układ (`.site-footer-grupy` to grid, `.site-footer-pasek`
+     to wiersz) — ten kontener tylko je składa jeden pod drugim i utrzymuje
+     między nimi jeden, wspólny odstęp. */
   .site-footer-inner {
     margin: 0 auto;
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-4) var(--spacing-6);
+    flex-direction: column;
+    gap: var(--spacing-6);
     font-size: var(--text-help);
+  }
+
+  .site-footer-haslo {
+    margin: 0;
+  }
+
+  /* Kolumny odnośników. `auto-fit` + `minmax` zamiast progów na sztywno:
+     przy wąskim oknie każda kolumna dostaje pełną szerokość i schodzą jedna
+     pod drugą same, bez osobnej reguły `@media` i bez ryzyka poziomego
+     przewijania (issue #205, kryterium akceptacji „360×740"). `min-width: 0`
+     na samej kolumnie jest tą samą poprawką co przy komórce licznika profilu
+     (`.profil-licznik` w ekran-profilu.css) —
+     bez niej długi odnośnik potrafiłby rozepchnąć siatkę zamiast się zawinąć. */
+  .site-footer-grupy {
+    display: grid;
+    /* `min(11rem, 100%)`, NIE samo `11rem` — I TO NIE JEST OSTROŻNOŚĆ NA ZAPAS.
+       Pierwsza wersja miała `minmax(11rem, 1fr)` i przy 360 px okna z czcionką
+       przeglądarki ustawioną na 200% oblewała skan dostępności na 24 ekranach
+       naraz: `1rem` to wtedy 32 px, więc `11rem` = 352 px, a po doliczeniu
+       marginesów stopki (2 × 32 px) wychodziło 384 px w oknie 360 px —
+       poziome przewijanie całej strony. `minmax()` traktuje dolny próg jako
+       twardy: kolumna NIE zejdzie poniżej niego, tylko rozepchnie siatkę.
+       `min(11rem, 100%)` mówi „11rem, ale nigdy więcej niż dostępna
+       szerokość", więc przy dużym tekście kolumny po prostu schodzą jedna pod
+       drugą, zamiast wystawać. To ta sama rodzina usterki co górny pasek
+       zrzucający awatar (#212): sztywna miara w `rem` rośnie razem ze skalą
+       tekstu, a okno nie. */
+    grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+    gap: var(--spacing-6) var(--spacing-8);
+  }
+
+  .site-footer-grupa { min-width: 0; }
+
+  .site-footer-grupa ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  /* Nagłówek kolumny jest WIZUALNY, nie semantyczny — `aria-hidden` w Blade,
+     bo nazwę grupy czytnik ekranu dostaje już z `aria-label` na `<nav>`
+     (patrz komentarz w layout.blade.php). Odróżnia się kolorem i wagą, nie
+     rozmiarem — ten sam wzorzec co `.site-version-etap` niżej. */
+  .site-footer-naglowek {
+    margin: 0 0 var(--spacing-2);
+    color: var(--color-ink);
+    font-weight: 700;
+  }
+
+  /* Licznik społeczności („23 kuKINGów", issue #38). 18 px (`--text-body`),
+     NIE 16 px odziedziczone z `.site-footer-inner` — ta liczba jest
+     samodzielną etykietą, nie pomocą kontekstową obok innego tekstu z
+     treścią (ten sam przypadek co `.stat-label` wyżej, `MinimalnyRozmiarTekstuTest`,
+     AGENTS.md §5). */
+  .site-footer-liczba {
+    margin: 0;
+    font-size: var(--text-body);
   }
 
   @media (min-width: 64rem) {
@@ -1859,17 +2656,51 @@
     }
   }
 
-  /* Wersja aplikacji.
-     `margin-left: auto` odsuwa ją na koniec wiersza, żeby nie mieszała się
-     z linkami — ale przy zawijaniu (telefon) po prostu schodzi do nowej
-     linii, zamiast wypychać cokolwiek poza ekran.
+  /*
+   * Pasek techniczny — wersja + przełącznik motywu (issue #205).
+   *
+   * Osobny, cienki poziom POD kolumnami odnośników, oddzielony linią, żeby
+   * były wizualnie tym, czym są: metadanymi strony, nie kolejną grupą
+   * nawigacji. `flex-wrap` na telefonie: przy zawinięciu wersja i tak ma
+   * własny `margin-left: auto`, więc schodzi do nowej linii, a nie wypycha
+   * przycisku motywu poza ekran.
+   */
+  .site-footer-pasek {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3) var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+  }
 
-     Rozmiar zostaje taki jak reszta stopki. Kuszące jest zmniejszenie go
-     „bo to techniczny drobiazg", ale w serwisie dla osób 50+ nie robimy
-     tekstu, którego trzeba się domyślać (UX_50_PLUS). Odróżnia się kolorem,
-     nie wielkością. */
+  /*
+   * Wersja aplikacji.
+   *
+   * `margin-left: auto` odsuwa ją na koniec paska, żeby nie mieszała się
+   * z przyciskiem motywu — ale przy zawijaniu (telefon) po prostu schodzi
+   * do nowej linii, zamiast wypychać cokolwiek poza ekran.
+   *
+   * ROZMIAR 8px — ŚWIADOMY WYJĄTEK OD AGENTS.md §5, docs/DECISIONS.md D-051.
+   * Do tej zmiany ten komentarz mówił „kuszące jest zmniejszenie go, ale nie
+   * robimy tekstu, którego trzeba się domyślać — odróżnia się kolorem, nie
+   * wielkością". To był świadomy opór wobec dokładnie tej presji, i został
+   * przegłosowany jawną decyzją właściciela, nie cichą poprawką: metryczka
+   * ma być „małym druczkiem" na samym dole stopki (issue #205). Co ZOSTAJE
+   * mimo to: kontrast koloru (`--color-ink-muted` na `--color-surface-raised`
+   * to 7,54:1, `docs/design/DESIGN_SYSTEM.md`, daleko od progu 4,5:1 — sam
+   * rozmiar czcionki na kontrast nie wpływa) i widoczność (nie ma jej za
+   * `hover` ani za `title`, patrz komentarz w layout.blade.php). `calc(...)`
+   * ze skalą użytkownika zostaje z tego samego powodu co w `--text-help`
+   * wyżej: kto powiększył sobie tekst w `/ustawienia/czytelnosc`, ma dostać
+   * powiększenie WSZĘDZIE, łącznie z tym jednym miejscem, które startuje
+   * mniejsze niż reszta serwisu. Zakres wyjątku D-051 to WYŁĄCZNIE ten
+   * element i przycisk motywu niżej — nigdzie indziej w serwisie `--text-*`
+   * nie schodzi poniżej `--text-meta` (15px).
+   */
   .site-version {
     margin-left: auto;
+    font-size: calc(0.5rem * var(--user-text-scale, 1));
     color: var(--color-ink-muted);
     font-variant-numeric: tabular-nums;
     display: inline-flex;
@@ -1877,24 +2708,33 @@
     gap: 0 var(--spacing-2);
   }
 
-  /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana.
-     To jest ta część, której właściciel szuka wzrokiem najpierw — a stopka
-     jest rzędem linków w jednym kolorze, więc bez tego wersja w nim ginie.
-     Odróżnienie idzie KOLOREM I WAGĄ, nie wielkością: rozmiar zostaje taki
-     jak reszta stopki (UX_50_PLUS — nie robimy tekstu, którego trzeba się
-     domyślać). */
+  /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana — to jest
+     ta część, której właściciel szuka wzrokiem najpierw. Odróżnienie idzie
+     KOLOREM I WAGĄ, rozmiar dziedziczy z `.site-version` (D-051, wyżej). */
   .site-version-etap {
     color: var(--color-ink);
     font-weight: 700;
   }
 
-  /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019).
+  /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019, D-051).
      `margin: 0` zdejmuje domyślny odstęp formularza, żeby przycisk stał
-     w jednym rzędzie z linkami zamiast tworzyć własny akapit. */
+     w pasku technicznym zamiast tworzyć własny akapit. */
   .site-footer-motyw {
     margin: 0;
     display: flex;
     align-items: center;
+  }
+
+  /* Sama ikona bez podpisu (D-051) — pole kliknięcia pilnuje `.btn`
+     (`min-height: var(--control-height-min)`, czyli 48px, plus padding
+     poziomy z `--spacing-5` po obu stronach ikony), więc nie trzeba tu nic
+     dokładać, żeby zostać nad progiem 48×48 px. Reguła stoi tu jawnie, a nie
+     tylko w komentarzu, żeby przyszła zmiana paddingu `.btn` miała czego
+     dotknąć: gdyby kiedyś spadł poniżej minimum, ta klasa jest miejscem na
+     jawny `min-width`/`min-height`. */
+  .site-footer-motyw-przycisk {
+    min-width: var(--control-height-min);
+    min-height: var(--control-height-min);
   }
 
   .skip-link {
@@ -2233,7 +3073,14 @@
 --------------------------------------------------------------------------- */
 
 .ustawienia-nawigacja {
-    margin-top: var(--spacing-8);
+    /* `margin: 0`, nie `margin-top` jak dawniej: ten komponent stoi teraz
+       ZAWSZE w `<x-slot:rail>` (`.app-rail`), nigdy bezpośrednio pod
+       formularzem w głównej kolumnie — patrz komentarz w
+       `components/ustawienia-nawigacja.blade.php`. Odstęp od treści nad nim
+       daje sam `.app-rail` (i spora dolna padding `.app-main` na wąskim
+       ekranie, gdzie szyna ląduje pod treścią) — własny margines tej karty
+       przesuwałby ją niżej niż początek formularza obok, od progu 80rem. */
+    margin: 0;
 }
 
 .ustawienia-nawigacja-tytul {
@@ -2284,6 +3131,40 @@
 .ustawienia-nawigacja-opis {
     font-size: var(--text-help);
     color: var(--color-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Zdjęcie profilowe: stan obecny (`/ustawienia/zdjecie`) i skrót do tego
+   ekranu na „Twoim profilu" (`/ustawienia/profil`).
+
+   Oba miejsca pokazują TO SAMO: aktualny awatar obok zdania o tym, co się
+   z nim dzieje. Jedna reguła na dwa układy, bo różnią je tylko rozmiar
+   awatara i to, czy obok stoi przycisk — a nie sposób ułożenia.
+
+   Poniżej `--breakpoint-sm` (640 px) obrazek i tekst idą JEDEN POD DRUGIM.
+   Zdanie „Nie masz jeszcze swojego zdjęcia…" ściśnięte obok 88-pikselowego
+   awatara na telefonie 320 px zostawia na tekst niecałe dwieście pikseli,
+   czyli pasek po dwa–trzy słowa w wierszu (UX_50_PLUS.md: 55–75 znaków).
+--------------------------------------------------------------------------- */
+
+.zdjecie-profilowe-stan,
+.zdjecie-profilowe-skrot {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-4);
+}
+
+@media (min-width: 40rem) {
+    .zdjecie-profilowe-stan,
+    .zdjecie-profilowe-skrot {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+
+.zdjecie-profilowe-opis {
+    margin: 0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2512,6 +3393,28 @@
   gap: var(--spacing-2);
   margin: 0;
   font-size: var(--text-body-lg);
+  /* TRZY DEKLARACJE PRZECIW PRZEWIJANIU CAŁEJ STRONY W BOK (issue #205).
+
+     Zmierzone przy 320 px i czcionce przeglądarki 200%: nagłówek „Może
+     odpowiedź już tu jest" w szynie „Napisz do nas" rozpychał DOKUMENT do
+     330 px. Powód nie jest oczywisty: ten nagłówek jest kontenerem flex
+     bez zawijania, więc jego szerokość minimalna to ikona PLUS najdłuższe
+     słowo — a przy podwojonej czcionce samo „odpowiedź" jest szersze niż
+     kolumna treści z wcięciami.
+
+     `flex-wrap` pozwala ikonie i tekstowi stanąć w dwóch wierszach,
+     `min-width: 0` zdejmuje domyślne `min-width: auto` elementu flex,
+     a `overflow-wrap: anywhere` jako jedyny z tej trójki WPŁYWA NA
+     SZEROKOŚĆ MINIMALNĄ — bez niego długie słowo dalej dyktowałoby
+     szerokość (`break-word` tego nie robi, i to jest cała różnica między
+     nimi). Łamanie w środku słowa włącza się dopiero wtedy, gdy wiersz
+     inaczej nie mieści się w kolumnie.
+
+     To samo, o czym mówi zgłoszenie #205 przy stopce: twardy próg w `rem`
+     rośnie razem ze skalą tekstu, a okno przeglądarki nie. */
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .szyna-wiecej {
@@ -2906,6 +3809,13 @@
 .avatar[data-rozmiar='52'] { width: 52px; height: 52px; font-size: 22px; }
 .avatar[data-rozmiar='56'] { width: 56px; height: 56px; font-size: 24px; }
 .avatar[data-rozmiar='88'] { width: 88px; height: 88px; font-size: 37px; }
+/* 128 px — awatar w nagłówku profilu. Na tej jednej stronie awatar nie jest
+   znaczkiem przy cudzej treści, tylko zdjęciem osoby, o której jest cała
+   strona; kolumna i tak musi pomieścić przycisk „Zmień zdjęcie profilowe"
+   pod nim. Przy 320 px zostaje 128 px, bo mieści się w karcie z zapasem —
+   drugi rozmiar „na telefon" znaczyłby dwie wartości do utrzymania i inny
+   wygląd tej samej karty na dwóch urządzeniach. */
+.avatar[data-rozmiar='128'] { width: 128px; height: 128px; font-size: 54px; }
 
 /* Nagłówek przepisu w podglądzie kreatora. `margin: 0`, bo stoi jako pierwszy
    element karty i własny odstęp odsuwałby go od jej krawędzi. */
@@ -3002,6 +3912,15 @@
    --------------------------------------------------------------------------- */
 .podziel-sie {
   margin-top: var(--spacing-6);
+
+  /* ODSTĘP TAKŻE POD BLOKIEM (zgłoszenie właściciela: „między «Podziel się»
+     a «Komentarze», na kompie, jest za mało miejsca").
+
+     Ten blok stoi na stronie wpisu bezpośrednio nad nagłówkiem `<h2>
+     Komentarze`, a `h2` nie ma tu marginesu górnego. Bez tej linii przycisk
+     dotyka nagłówka i dwie niezależne rzeczy — akcja „wyślij komuś adres"
+     i sekcja rozmowy pod wpisem — czytają się jak jedna grupa. */
+  margin-bottom: var(--spacing-8);
 }
 
 /* `summary` udaje przycisk: musi mieć jego rozmiar dotykowy i nie może

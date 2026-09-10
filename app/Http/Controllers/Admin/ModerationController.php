@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Domain\Moderation\Actions\NotifyReporterDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
+use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
 use App\Exceptions\BladDlaCzlowieka;
@@ -21,6 +22,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Validator as Walidator;
 use Illuminate\View\View;
 
 /**
@@ -44,7 +47,33 @@ class ModerationController extends Controller
 
         $status = $request->query('status', 'open');
 
+        /*
+         * DOMYŚLNIE: SPRAWY OD LUDZI (D-052).
+         *
+         * Oznaczenia automatu leżą w tej samej tabeli, bo kończą się tą samą
+         * decyzją, tym samym wpisem w `moderation_actions` i tą samą ścieżką
+         * odwołania — ale mają własny ekran (`/admin/sygnaly`) i własną
+         * kolejność pracy. Ta lista jest kolejką spraw OD LUDZI: ktoś czeka
+         * na odpowiedź, biegną terminy z DSA art. 16 ust. 5. Maszynowe
+         * podejrzenia, których większość okaże się niczym, zasypałyby ją przy
+         * pierwszej fali nowych kont — a wtedy narzędzie mające dać
+         * moderatorowi czas odebrałoby mu ten, który miał.
+         *
+         * `?zrodlo=automat` odwraca ten filtr i jest jedynym miejscem, w
+         * którym da się wydać PEŁNĄ decyzję o oznaczonej treści (ukryj, usuń,
+         * zawieś). Ekran sygnałów prowadzi tu odnośnikiem „Rozpatrz
+         * pojedynczo" — formularz decyzji jest jeden dla całego serwisu i tak
+         * ma zostać: druga jego kopia rozjechałaby się przy pierwszej zmianie
+         * w obowiązkach z DSA art. 17.
+         */
+        $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
+
         $reports = Report::query()
+            ->when(
+                $zrodlo === Report::SOURCE_AUTOMAT,
+                fn ($query) => $query->where('source', Report::SOURCE_AUTOMAT),
+                fn ($query) => $query->where('source', '!=', Report::SOURCE_AUTOMAT),
+            )
             ->when($status !== 'wszystkie', fn ($query) => $query->where('status', $status))
             ->with(['reporter.profile', 'resolver.profile'])
             // DRUGI WARUNEK PORZĄDKU TO NIE OZDOBA (audyt zewnętrzny, G10).
@@ -76,15 +105,35 @@ class ModerationController extends Controller
 
         return view('pages.admin.reports', [
             'status' => $status,
+            'zrodlo' => $zrodlo,
             'reports' => $reports,
             // Które zgłoszenia da się dziś cofnąć (issue #65).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
+            // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
+            // nimi. Bez tego samego warunku o źródle „Nowe (14)" oznaczałoby
+            // czternaście spraw, z których widać cztery — a moderator nie ma
+            // jak się dowiedzieć, że reszta jest na innym ekranie.
             'counts' => [
-                'open' => Report::where('status', Report::STATUS_OPEN)->count(),
-                'reviewing' => Report::where('status', Report::STATUS_REVIEWING)->count(),
-                'resolved' => Report::where('status', Report::STATUS_RESOLVED)->count(),
+                'open' => $this->odLudzi(Report::STATUS_OPEN),
+                'reviewing' => $this->odLudzi(Report::STATUS_REVIEWING),
+                'resolved' => $this->odLudzi(Report::STATUS_RESOLVED),
             ],
+            // Ile czeka po drugiej stronie — odnośnik na ekranie zgłoszeń
+            // ma powiedzieć, ile tam jest, zanim człowiek tam kliknie.
+            'sygnalow' => Report::query()
+                ->where('source', Report::SOURCE_AUTOMAT)
+                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                ->count(),
         ]);
+    }
+
+    /** Zgłoszenia OD LUDZI w danym stanie — bez oznaczeń automatu, tak jak lista wyżej. */
+    private function odLudzi(string $status): int
+    {
+        return Report::query()
+            ->where('source', '!=', Report::SOURCE_AUTOMAT)
+            ->where('status', $status)
+            ->count();
     }
 
     public function decide(Request $request, Report $report): RedirectResponse
@@ -106,6 +155,18 @@ class ModerationController extends Controller
         $dozwolone = array_keys(ModerationAction::dozwoloneDla($report->target_type));
 
         /*
+         * CZY LICZBA DNI Z POLA „WŁASNY TERMIN" ZOSTANIE W OGÓLE UŻYTA.
+         *
+         * Od tego zależy, czy pilnujemy jej zakresu — i to jest różnica
+         * zamierzona, nie oszczędność. Moderator, który zaznaczył „własny
+         * termin", wpisał 14, a potem zmienił zdanie i wybrał „Na 7 dni",
+         * ma dostać zapisaną decyzję, nie wykład o polu, którego nie użył.
+         * Liczba jest wtedy po cichu ignorowana (`terminKary`).
+         */
+        $wlasnyTermin = $request->input('action') === ModerationAction::ACTION_SUSPEND
+            && $request->input('suspend_days') === DlugoscZawieszenia::WLASNY;
+
+        /*
          * PODSTAWA DECYZJI IDZIE DO CZŁOWIEKA (DSA art. 17 ust. 3 lit. d i e).
          *
          * `reason_code` przestał być „kodem wewnętrznym": formularz oferuje
@@ -120,7 +181,7 @@ class ModerationController extends Controller
          * `PodstawaDecyzji::zdanie()` mówi wtedy prawdę ogólną, zamiast
          * wymyślać numer, którego nie zna.
          */
-        $data = $request->validate([
+        $walidator = Validator::make($request->all(), [
             'action' => ['required', 'in:'.implode(',', $dozwolone)],
             'reason_code' => ['required', 'string', 'max:80'],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -136,10 +197,38 @@ class ModerationController extends Controller
              * tamto zdanie w odesłanie w próżnię.
              */
             'user_message' => ['nullable', 'string', 'max:2000', 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM],
-            // Długość zawieszenia w dniach. `bezterminowo` zostaje możliwe,
-            // ale wymaga świadomego wyboru — nie jest już domyślne przez
-            // przypadek, jak wtedy, gdy nie było gdzie zapisać terminu (#40).
-            'suspend_days' => ['nullable', 'in:1,7,30,bezterminowo'],
+            /*
+             * DŁUGOŚĆ ZAWIESZENIA — LISTA Z `DlugoscZawieszenia`, NIE Z PALCA.
+             *
+             * Doszły dwie pozycje: `brak` („Bez zawieszenia", pierwsza
+             * i domyślnie zaznaczona) oraz `wlasny` (liczba dni z pola
+             * `suspend_days_custom`). Powód obu — i powód, dla którego
+             * BRAK WYBORU przestał znaczyć „bezterminowo" — stoi w tamtej
+             * klasie.
+             *
+             * Reguła zostaje `nullable`: żądanie bez tego pola jest wciąż
+             * poprawne przy decyzji innej niż zawieszenie. Przy „Zawieś
+             * konto" pilnuje tego `after()` niżej, bo `in:` nie odróżni
+             * „nie wybrałem" od „wybrałem nie zawieszać", a różnica między
+             * nimi jest tu żadna: obie znaczą, że kary nie ma.
+             */
+            'suspend_days' => ['nullable', 'in:'.implode(',', DlugoscZawieszenia::wartosci())],
+            /*
+             * WŁASNY TERMIN W DNIACH — REGUŁY TYLKO WTEDY, GDY LICZBA JEST
+             * UŻYWANA.
+             *
+             * Przy wyborze „własny termin" liczba jest obowiązkowa i musi
+             * mieścić się w zakresie 1-365 (uzasadnienie zakresu:
+             * `DlugoscZawieszenia`) — bo `status_expires_at` przyjmie
+             * dowolną datę, a w polu można wpisać cokolwiek.
+             *
+             * Przy każdym innym wyborze zostaje samo `nullable`: liczba
+             * leżąca w polu po zmianie zdania nie ma prawa zatrzymać
+             * decyzji. Nie krzyczymy na człowieka za pole, którego nie użył.
+             */
+            'suspend_days_custom' => $wlasnyTermin
+                ? ['required', 'integer', 'min:'.DlugoscZawieszenia::MIN_DNI, 'max:'.DlugoscZawieszenia::MAX_DNI]
+                : ['nullable'],
         ], [
             'action.required' => 'Wybierz decyzję.',
             'action.in' => 'Ta decyzja nie ma zastosowania do tego zgłoszenia. Wybierz jedną z pokazanych.',
@@ -147,7 +236,55 @@ class ModerationController extends Controller
             'user_message.required_if' => 'Przy podstawie „treść niezgodna z prawem" napisz autorowi, '
                 .'co dokładnie uznaliśmy za niezgodne z prawem. Bez tego uzasadnienie odsyła w próżnię.',
             'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',
+            'suspend_days_custom.required' => 'Przy „Własnym terminie" wpisz liczbę dni od '
+                .DlugoscZawieszenia::MIN_DNI.' do '.DlugoscZawieszenia::MAX_DNI
+                .'. Albo zaznacz jeden z gotowych terminów wyżej.',
+            'suspend_days_custom.integer' => 'Wpisz własny termin jako liczbę dni, na przykład 14.',
+            'suspend_days_custom.min' => 'Najkrótsze zawieszenie to '.DlugoscZawieszenia::MIN_DNI.' dzień. '
+                .'Jeśli chcesz tylko zwrócić uwagę, wybierz decyzję „Ostrzeżenie".',
+            'suspend_days_custom.max' => 'Najdłuższe zawieszenie z terminem to '.DlugoscZawieszenia::MAX_DNI.' dni. '
+                .'Jeśli kara ma trwać dłużej, zaznacz „Bezterminowo, do mojej decyzji".',
         ]);
+
+        /*
+         * „ZAWIEŚ KONTO" BEZ WYBRANEGO TERMINU TO POMYŁKA, NIE BEZTERMINOWOŚĆ.
+         *
+         * Reguła stoi tu, a nie w tablicy wyżej, bo dotyczy DWÓCH pól naraz
+         * i bo `in:` nie odróżni „nie wybrałem" od „wybrałem nie zawieszać".
+         * Ta różnica jest tu żadna — obie odpowiedzi znaczą, że kary nie ma.
+         *
+         * Wcześniej brak wyboru dawał karę BEZ TERMINU, czyli najsurowszą
+         * z możliwych, a podpis pod grupą mówił o tym wprost, jakby to było
+         * w porządku. Teraz brakujący termin zatrzymuje decyzję i mówi,
+         * czego brakuje. Cicho wykonać jej nie wolno w ŻADNĄ stronę:
+         * bezterminowo byłoby karą, której nikt nie wybrał, a pominięcie
+         * kary zostawiłoby w logu moderacji „zawieszono" przy koncie, które
+         * działa dalej.
+         */
+        $walidator->after(function (Walidator $sprawdzenie) use ($request): void {
+            if ($request->input('action') !== ModerationAction::ACTION_SUSPEND) {
+                return;
+            }
+
+            $wybor = $request->input('suspend_days');
+
+            if (! DlugoscZawieszenia::zawiesza(is_string($wybor) ? $wybor : null)) {
+                $sprawdzenie->errors()->add(
+                    'suspend_days',
+                    'Przy decyzji „Zawieś konto" zaznacz jeszcze, na jak długo. '
+                    .'„Bez zawieszenia" znaczy, że kary nie ma.',
+                );
+            }
+        });
+
+        /*
+         * `validate()` przy błędzie rzuca `ValidationException`, a ta wraca
+         * na kolejkę z BŁĘDAMI I Z WPISANYMI DANYMI. To jest sedno
+         * zgłoszenia, od którego zaczęła się ta zmiana: moderator nie ma
+         * przepisywać uzasadnienia drugi raz tylko dlatego, że pomylił się
+         * w jednym polu.
+         */
+        $data = $walidator->validate();
 
         $moderator = $request->user();
 
@@ -272,6 +409,12 @@ class ModerationController extends Controller
                     'decision' => $data['action'],
                     'reason_code' => $data['reason_code'],
                     'suspend_days' => $data['suspend_days'] ?? null,
+                    // Sam wybór z listy przestał wystarczać, odkąd jedną z
+                    // pozycji jest „własny termin": `wlasny` bez daty nie
+                    // mówi w logu nic. Zapisujemy więc TERMIN, który
+                    // naprawdę trafił na konto — to jest ta liczba, o którą
+                    // pyta się przy odwołaniu (DSA art. 20).
+                    'suspend_until' => $termin?->toIso8601String(),
                 ],
                 ip: $request->ip(),
             );
@@ -387,6 +530,13 @@ class ModerationController extends Controller
      *
      * `null` znaczy „bezterminowo, do decyzji człowieka" — i tak ma zostać
      * przy `bezterminowo` oraz przy każdej decyzji innej niż zawieszenie.
+     *
+     * TU JEST MIEJSCE, W KTÓRYM LICZBA DNI JEST IGNOROWANA po cichu: przy
+     * decyzji innej niż „Zawieś konto" wychodzimy od razu i nie zaglądamy ani
+     * do wyboru, ani do liczby. Moderator, który zaznaczył termin, a potem
+     * zmienił decyzję na ostrzeżenie, nie dostaje za to błędu.
+     *
+     * @param  array<string, mixed>  $data
      */
     private function terminKary(array $data): ?CarbonInterface
     {
@@ -395,12 +545,12 @@ class ModerationController extends Controller
         }
 
         $wybor = $data['suspend_days'] ?? null;
+        $dni = $data['suspend_days_custom'] ?? null;
 
-        if ($wybor === null || $wybor === 'bezterminowo') {
-            return null;
-        }
-
-        return now()->addDays((int) $wybor);
+        return DlugoscZawieszenia::termin(
+            is_string($wybor) ? $wybor : null,
+            is_numeric($dni) ? (int) $dni : null,
+        );
     }
 
     /**

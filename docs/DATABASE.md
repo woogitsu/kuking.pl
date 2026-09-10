@@ -27,7 +27,9 @@ Konto:
 - locale;
 - text_scale;
 - theme (patrz niżej);
-- `wants_weekly_digest` — zgoda na cotygodniowy przegląd (patrz niżej);
+- `wants_weekly_digest` — zgoda na cotygodniowy przegląd, stan BIEŻĄCY (patrz
+  niżej); historia jej udzielania i wycofywania leży w `dziennik_zgod`;
+- `weekly_digest_sent_at` — kiedy poszło ostatnie podsumowanie (patrz niżej);
 - verified timestamps.
 
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
@@ -59,16 +61,103 @@ Pilnuje tego test KONTROLNY w `ZgodaNaPrzegladNieJestDomyslnaTest` — bez
 niego reszta tego testu przechodziłaby także wtedy, gdyby ktoś przez pomyłkę
 zabetonował pole na `false` i odebrał ludziom możliwość zapisania się.
 
-**Czego ta migracja NIE naprawia:** nie ma kolumny z datą wyrażenia i datą
-wycofania zgody, więc **wycofania nie da się dziś wykazać**. Jeśli przegląd
-kiedyś powstanie, trzeba je dodać razem z nim — inaczej zostaje obietnica
-bez dowodu.
+> **Uzupełnienie, 10 września 2026 (issue #11, D-057).** Punkt 2 wyżej
+> („cotygodniowego przeglądu nie ma w kodzie w ogóle") opisywał stan
+> z 7 września i **przestał być prawdą**: wysyłka istnieje
+> (`kuking:wyslij-podsumowania`, harmonogram codziennie o 08:30). Zapis
+> zostaje tutaj nienaruszony, bo uzasadnia MIGRACJĘ, która wtedy ruszyła
+> istniejące wiersze — a wtedy naprawdę nie było czego stracić. Dziś taka
+> migracja byłaby odebraniem komuś zgody, którą świadomie wyraził.
 
-**Rollback:** `php artisan migrate:rollback --step=1`. `down()` przywraca
-`DEFAULT true` dla NOWYCH wierszy i świadomie **nie** dotyka istniejących:
-cofnięcie migracji jest operacją techniczną i nie może samo z siebie
-zapisać ludzi na wysyłkę. Powrót do stanu sprzed migracji w całości wymaga
-osobnego, jawnego `UPDATE` — i wtedy jest to decyzja człowieka.
+**Rollback tej migracji NIE przywraca `DEFAULT true`** (poprawka z 10 września,
+audyt DB2, D-072). `down()` jest świadomie pusty: `DEFAULT false` zostaje także
+po cofnięciu, bo wysyłka już istnieje i techniczny rollback zapisywałby NOWE
+konta na prawdziwy mailing, o który formularz rejestracji nadal nie pyta.
+Asymetria jest pełna i jawna — `up()` przestawia `DEFAULT` oraz istniejące
+wiersze, `down()` nie przywraca ani jednego, ani drugiego. Tej migracji nie da
+się więc cofnąć „wiernie historycznie" i tak ma być: wierny rollback wraca do
+stanu groźnego, a listu wysłanego bez zgody nie da się odwołać. Powrót do
+opt-outu wymaga jawnego `ALTER TABLE users ALTER COLUMN wants_weekly_digest SET
+DEFAULT true` z ręki i dopisania pola zgody do rejestracji.
+
+Niezależnie od drogi, którą `DEFAULT true` mógłby wrócić (ręczny `ALTER`,
+przywrócenie bazy z kopii sprzed migracji, rollback na starszym wydaniu kodu),
+**wysyłka odmawia startu**: `App\Domain\Digest\BramkaDomyslnejZgody` pyta
+`information_schema` przy każdym uruchomieniu `kuking:wyslij-podsumowania`
+i przy domyślnym `true` kończy kodem 1, z komunikatem mówiącym, co zrobić.
+Przebieg `--na-sucho` przechodzi (nic nie wysyła), ale ostrzega. Pilnuje tego
+`RollbackNieWlaczaDigestuTest` — asercją na `information_schema`, nie na
+komentarzu w migracji.
+
+#### `weekly_digest_sent_at` — kiedy poszedł ostatni list
+
+Migracja `2026_09_10_100000_add_weekly_digest_sent_at_to_users_table`.
+
+`timestamptz NULL`, bez wartości domyślnej. `NULL` znaczy „jeszcze nigdy nie
+dostał" i w dniu tej migracji jest w tym stanie **każde** konto, bo digest do
+tej pory nie wyszedł ani razu.
+
+Kolumna robi trzy rzeczy naraz i każda z nich jest konieczna:
+
+1. **pilnuje obietnicy „jeden e-mail tygodniowo, nigdy więcej"** złożonej
+   wprost na ekranie `/ustawienia/prywatnosc` — wybór odbiorców odrzuca
+   każdego, kto dostał list w ciągu ostatnich
+   `config('kuking.digest.odstep_dni')` dni;
+2. **czyni zadanie odpornym na powtórne uruchomienie tego samego dnia** —
+   `withoutOverlapping()` chroni tylko przed dwoma JEDNOCZESNYMI przebiegami,
+   nie przed dwoma po kolei;
+3. **wyznacza kolejność wysyłki**, bo ta nie mieści się w jednej dobie:
+   konto pocztowe ma limit 300 listów dziennie na cały serwis
+   (`docs/decyzje/POCZTA.md` §1), więc podsumowania idą partiami przez kilka
+   dni, w kolejności `weekly_digest_sent_at ASC NULLS FIRST` — „kto czeka
+   najdłużej, ten pierwszy".
+
+```sql
+ALTER TABLE users ADD COLUMN weekly_digest_sent_at timestamptz NULL;
+
+CREATE INDEX users_weekly_digest_kolejka_idx
+    ON users (weekly_digest_sent_at ASC NULLS FIRST)
+    WHERE wants_weekly_digest;
+```
+
+Indeks jest **częściowy**, bo jedyne zapytanie czytające tę kolumnę zawsze
+zaczyna od `wants_weekly_digest = true`, a takich kont jest mniejszość (zgoda
+jest opt-in od migracji wyżej). `NULLS FIRST` w indeksie zgadza się
+z `ORDER BY` w `App\Domain\Digest\OdbiorcyDigestu`, żeby Postgres nie musiał
+i tak sortować wyniku.
+
+Kolumna **nie jest w `$fillable`** — ten sam powód co `ostatnio_widziany_at`
+(AGENTS.md §7). Zapisuje ją wyłącznie
+`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()` (a przy liście próbnym
+`--tylko` — `::oznaczWyslane()`). Masowe przypisanie z żądania pozwoliłoby
+cofnąć czyjś znacznik i wysłać mu drugi list w tym samym tygodniu, wbrew
+obietnicy z ekranu ustawień.
+
+> **Uzupełnienie, 10 września 2026 (audyt QUEUE-01, D-077).** Punkt 2 wyżej
+> („czyni zadanie odpornym na powtórne uruchomienie") był prawdą tylko dla
+> przebiegu, który **doszedł do końca**. Znacznik stawiało jedno zapytanie po
+> całej pętli, więc awaria po zakolejkowaniu listów nie zostawiała po nich
+> żadnego śladu i następny przebieg wysyłał je drugi raz. Odporność daje
+> teraz bariera w bazie — `weekly_digest_sends`, sekcja niżej — a ta kolumna
+> jest od 10 września zapisywana **osobno dla każdej osoby, w jednej
+> transakcji z rezerwacją i PRZED wysłaniem listu**. Sama, bez tabeli
+> rezerwacji, nadal by nie wystarczyła: jest porównaniem, czyli odczytem
+> przed zapisem, a między nimi jest luka na dwa przebiegi równoległe.
+
+**Rollback.** `down()` kasuje kolumnę i indeks. Bezpieczny, ale nie bez
+skutku i trzeba to nazwać: razem z kolumną znika pamięć o tym, komu już
+wysłano, więc pierwszy przebieg po przywróceniu napisze także do tych,
+którzy dostali list wczoraj. Rollback robi się WYŁĄCZNIE razem
+z `KUKING_DIGEST_WLACZONY=false`, nie „przy okazji".
+
+Pilnują tego `TygodniowePodsumowanieTest` (odstęp, powtórne uruchomienie,
+dobowy limit) i `WypisanieZPodsumowaniaTest`.
+
+**Dowód udzielenia i wycofania zgody NIE JEST w `users`** — ma własną tabelę
+`dziennik_zgod` (opisaną niżej w tym dokumencie, D-072). Dwóch kolumn z datami
+(`..._consented_at` / `..._withdrawn_at`) świadomie tu nie ma: przy ciągu
+włącz → wyłącz → włącz trzecia zmiana nadpisuje pierwszą i historia,
+o którą chodzi, ginie.
 
 #### `theme` — jasny/ciemny wygląd (D-019)
 
@@ -290,14 +379,35 @@ na `erased` (ich zanonimizowany tekst wraca wtedy na serwis, zgodnie z D-018),
 a konta w usuwaniu dostają `delete_scope = 'minimum'` — jedyny zakres, jaki
 wtedy istniał.
 
-**Rollback:** `down()` cofa `erased` → `pending_delete`, zdejmuje oba nowe
-CHECK-i, przywraca poprzedni `users_data_erased_at_check` i `users_status_check`
-i kasuje kolumnę. Sprawdzone na bazie testowej w obie strony
-(`migrate` → `migrate:rollback --step=1` → `migrate`). Skutek jest ZNANY:
-wraca usterka opisana wyżej (teksty wymazanych kont znowu oddają 403). Żadne
-dane nie giną — tracimy wyłącznie zapisany zakres kont, które JESZCZE czekają
-w karencji, a te wracają wtedy do zachowania D-018, czyli do wariantu mniej
-nieodwracalnego.
+**Rollback — poprawiony po #287 (D-088).** `down()` cofa `erased` →
+`pending_delete`, zdejmuje oba nowe CHECK-i, przywraca poprzedni
+`users_data_erased_at_check` i `users_status_check` i kasuje kolumnę —
+**ale najpierw ODMAWIA**, jeśli w tabeli jest choć jedno konto z
+`delete_scope = 'everything'`.
+
+Powód: kolumna jest `nullable`, więc samo `dropColumn` nie zgłasza błędu —
+ale kolejny `migrate` (np. `migrate:refresh` w CI, albo awaryjny rollback
+WDROŻENIA, nie tylko bazy) **backfillowałby ją z powrotem jako `minimum`**,
+bo to jedyna wartość, jaką backfill `up()` umie nadać istniejącym kontom
+w usuwaniu. Człowiek, który poprosił o usunięcie WSZYSTKICH swoich treści,
+dostawałby po cichu odwrotność swojej decyzji — bez błędu, z poprawną
+kolumną i poprawną wartością ze słownika. **Ta sama choroba co DB2**
+(`2026_09_07_400000_default_weekly_digest_to_off`, `down()` przywracający
+`DEFAULT true` dla zgody na cotygodniowy przegląd) — potwierdzone na
+prawdziwej bazie testowej, nie w teorii (`migrate` → `migrate:rollback` →
+`migrate` dawało `delete_scope = 'minimum'` na koncie zgłoszonym jako
+`everything`).
+
+Naprawa: `down()` liczy `delete_scope = 'everything'` PRZED jakąkolwiek
+operacją i rzuca `RuntimeException` z instrukcją, co zrobić (patrz komentarz
+w migracji) — ten sam wzorzec odmowy co
+`2026_09_10_400100_one_active_data_export_per_user` i
+`2026_09_07_800000_appeals_open_to_reporters`. Na koncie z `minimum` (albo
+bez wyboru w ogóle) rollback nadal przechodzi bez pytania — test
+`tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php`
+sprawdza obie strony na prawdziwym cyklu `migrate` → `markForDeletion()` →
+`migrate:rollback`. Skutek udanego rollbacku jest wciąż ZNANY i niezmieniony:
+wraca usterka z akapitu wyżej (teksty wymazanych kont znowu oddają 403).
 
 #### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
 
@@ -375,6 +485,46 @@ wymagająca dostępu do serwera, uruchamiana PO zweryfikowaniu tożsamości tej
 osoby poza serwisem. Celowo bez ścieżki samoobsługowej: samoobsługowy reset
 2FA zwykłym linkiem unieważniałby sens 2FA (ktoś, kto ukradnie samo hasło,
 resetowałby drugi składnik tą samą drogą).
+
+#### Indeksy pod listę kont w panelu moderacji
+
+Migracja `2026_09_09_400000_add_moderation_list_indexes_to_users`
+(`/admin/uzytkownicy`).
+
+| Indeks | Do czego |
+|---|---|
+| `users_created_at_idx (created_at DESC)` | domyślna kolejność listy („kto przyszedł ostatnio") i filtr zakresu dat rejestracji |
+| `users_email_trgm_idx gin (kuking_normalize(email) gin_trgm_ops)` | szukanie konta po fragmencie adresu e-mail |
+
+**Dlaczego dopiero teraz.** `users` nie było tabelą, po której się CHODZI —
+czytało się z niej pojedyncze konto po `id` albo po `lower(email)` przy
+logowaniu, a na jedno i drugie indeks jest od pierwszego dnia. Przy dwudziestu
+kontach (D-012) sortowanie całej tabeli było bez znaczenia. Założenie
+o skali się zmieniło: właściciel zapowiada przejście grupy użytkowniczek
+z Garnek.pl, czyli setki, a potem tysiące kont.
+
+**Indeks na WYRAŻENIU, nie na kolumnie** — ten sam powód co przy
+`ingredients_name_trgm_idx`: warunek pyta o `kuking_normalize(email)`, więc
+indeks na surowym `email` nie zostałby użyty. Pilnuje tego test
+`PanelUzytkownicyTest::test_indeksy_listy_kont_sa_uzywalne_dla_swoich_zapytan`,
+który pyta o to PLANER (`EXPLAIN` przy `enable_seqscan = off`), a nie samą
+obecność indeksu w `pg_indexes`.
+
+**Świadomie BEZ `(status, created_at)`** — zakładki filtra zawężają po
+statusie, ale `active` to będzie zdecydowana większość wierszy, więc dla
+najczęstszego widoku taki indeks nie daje nic ponad `users_created_at_idx`,
+a kosztowałby każdy zapis do `users` (te lecą przy odświeżaniu
+`ostatnio_widziany_at`). Wraca, gdy zawieszonych kont będą tysiące.
+
+**Świadomie BEZ generowanej kolumny `email_search`.** Wzorzec `*_search`
+(niżej) jest domyślny i słuszny tam, gdzie recheck operatora `%` chodzi po
+dziesiątkach tysięcy kandydatów. Tutaj zapytanie robi jeden moderator kilka
+razy dziennie, a kolumna oznaczałaby DRUGĄ kopię adresu e-mail w tabeli —
+więcej danych osobowych w bazie za oszczędność, której na tym ekranie nie
+da się zauważyć. Indeks przechowuje trigramy, nie adres.
+
+**Rollback:** `down()` kasuje oba indeksy. Bezstratny — indeks nie trzyma
+danych, których nie ma w tabeli; ekran działa bez nich dalej, tylko wolniej.
 
 ### profiles
 - user_id;
@@ -593,10 +743,65 @@ znacznika dla każdego konta, a middleware odbuduje go od nowa przy
 najbliższej wizycie.
 
 ### follows
-`follower_id + followed_id` unique.
+`follower_id + followed_id` unique (to jest KLUCZ GŁÓWNY — relacja jest
+tożsamością, nie ma sztucznego `id`). `CHECK (follower_id <> followed_id)`.
+
+**Wyzwalacz `follows_blokada_ma_pierwszenstwo_trg` (`BEFORE INSERT`)** —
+migracja `2026_09_10_400000_obserwowanie_nie_wspolistnieje_z_blokada`,
+decyzja **D-080**. Odrzuca `INSERT`, jeśli dla tej pary istnieje
+zatwierdzona blokada w KTÓRĄKOLWIEK stronę. Jest to twarda bariera dla
+każdej drogi zapisu — także takiej, która omija `App\Domain\Social\Actions\
+FollowUser` (druga akcja dopisana kiedyś, komenda konsolowa, seeder, ręczny
+`INSERT` w psql podczas awarii).
+
+Czego wyzwalacz NIE daje: odporności na równoległość. Przy `READ COMMITTED`
+nie widzi blokady, która nie jest jeszcze zatwierdzona, więc dwa równoległe
+żądania mogłyby przejść oba. Za to odpowiada `App\Domain\Social\ZamekPary`
+(blokada wierszy OBU kont, **rosnąco po identyfikatorze**, plus ponowne
+sprawdzenie warunku pod blokadą). Bariera pilnuje DRÓG ZAPISU, blokada
+pilnuje RÓWNOLEGŁOŚCI — trzeba obu.
+
+Kolejność blokowania wierszy jest częścią kontraktu, nie detalem: gdyby dwie
+operacje na tej samej parze brały wiersze w przeciwnych kolejnościach,
+zakleszczyłyby się i PostgreSQL zabiłby jedną z transakcji.
+
+Koszt: jedno indeksowane `EXISTS` na `blocks` przy każdym `INSERT` do
+`follows` (nie ma `UPDATE` na tej tabeli). `blocks` ma klucz główny
+`(blocker_id, blocked_id)` i indeks `blocks_blocked_idx`, więc oba kierunki
+idą po indeksie.
+
+**Rollback:** `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie zmienia
+danych — i wolno go wykonać na produkcji pod ruchem, bo żaden kod nie zależy
+od wyzwalacza. Migracja **nie sprząta danych istniejących**: gdyby leżał już
+wiersz-sierota z wyścigu sprzed D-080, wyzwalacz go nie ruszy. Znalezienie
+takich wierszy (sprzątanie to osobna, jawna decyzja — kasowanie relacji
+społecznych migracją jest destrukcyjną operacją z zakazu `AGENTS.md` §6):
+
+```sql
+SELECT f.follower_id, f.followed_id
+FROM follows f
+JOIN blocks b
+  ON (b.blocker_id = f.follower_id AND b.blocked_id = f.followed_id)
+  OR (b.blocker_id = f.followed_id AND b.blocked_id = f.follower_id);
+```
+
+Uwaga przy odtwarzaniu bazy: `migrate:fresh` (`db:wipe`) kasuje TABELE, nie
+funkcje, więc `follows_blokada_ma_pierwszenstwo()` przeżywa czyszczenie.
+Migracja robi `CREATE OR REPLACE`, więc nie ma z tego kolizji — ale nie
+zdziw się, widząc tę funkcję w bazie, w której nie ma jeszcze tabeli
+`follows`.
 
 ### blocks
-Blokada ma pierwszeństwo przed follow.
+Blokada ma pierwszeństwo przed follow — i to jest wymuszone w bazie, nie
+tylko w PHP (patrz `follows` wyżej). `blocker_id + blocked_id` jako klucz
+główny, `CHECK (blocker_id <> blocked_id)`, indeks `blocks_blocked_idx`.
+
+**Na `blocks` NIE MA wyzwalacza i nie będzie** (D-080). Blokada musi się
+udać zawsze: jest jedyną czynnością, jaką człowiek ma, gdy ktoś staje się
+dla niego problemem, a bariera potrafiąca jej odmówić byłaby zamkniętymi
+drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
+`App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
+pod blokadą wierszy.
 
 ### media
 Tylko metadata, nie binary:
@@ -649,6 +854,46 @@ Rollback: `DROP COLUMN`, bezstratnie — wiedza wraca do „ten sam dysk co
 oryginał", czyli do stanu sprzed rozdzielenia. **Cofać przed migracją danych,
 nie po:** po przeniesieniu wariantów ta kolumna niesie już prawdziwą wiedzę
 i jej utrata znaczy, że aplikacja szuka ich w starym buckecie.
+
+#### `status = 'deleted'` — kasowanie TRWA, a wiersz jest uchwytem do ponowienia
+
+Wprowadzone przez **D-083** (issue #285, MEDIA-01). **Bez migracji i bez
+zmiany schematu:** wartość `deleted` dopuszcza `media_status_check` od
+pierwszej migracji tabeli (`2026_09_05_000100_create_media_table`) — do tej
+pory po prostu nikt jej nie zapisywał.
+
+```sql
+-- stan NIEZMIENIONY, cytowany tu tylko po to, żeby nie trzeba było
+-- otwierać migracji, żeby sprawdzić, czy ta wartość jest legalna:
+ALTER TABLE media ADD CONSTRAINT media_status_check
+    CHECK (status IN ('pending','processing','ready','rejected','deleted'));
+```
+
+Znaczenie: **zdjęcie zostało przejęte do skasowania, ale jeszcze nie zniknęło
+z dysku.** To nie jest „skasowane" — to jest „kasowanie trwa".
+
+- Znacznik ustawia `KasujZdjecie::przejmij()` w krótkiej transakcji, pod
+  `SELECT … FOR UPDATE` na tym wierszu i po ponownym sprawdzeniu, że nic go
+  nie używa. Pliki kasują się dopiero **po** commicie tej transakcji.
+- Dopóki znacznik stoi, `App\Domain\Media\ZdjeciaDoPrzypiecia` nie pozwoli
+  przypiąć tego zdjęcia do wpisu ani do wykonania. Bez tego okno na utratę
+  pliku wracałoby zaraz po zwolnieniu blokady, a przed skasowaniem plików.
+- Nieudane kasowanie plików **zostawia wiersz ze znacznikiem** — i to jest
+  cały mechanizm ponowienia, ten sam co przy issue #17: kolejny przebieg
+  `kuking:sprzataj-osierocone-zdjecia` wybiera go po wieku tak samo jak każdy
+  inny wiersz. Wiersz bez plików da się zauważyć; pliki bez wiersza są dla
+  aplikacji niewidoczne na zawsze.
+
+To jest odpowiednik `users.data_erased_at` z `EraseAccountData`: zatwierdzona
+deklaracja „to odchodzi", widoczna dla innych transakcji.
+
+**Rollback:** nie ma czego cofać w schemacie — CHECK się nie zmienił, kolumny
+nie przybyło. Cofnięcie SAMEJ ZMIANY KODU (revert PR-a #285) jest bezpieczne
+dla danych, ale wymaga jednego ruchu operacyjnego: wiersze, które zostały
+z `status = 'deleted'` po nieudanym kasowaniu plików, przestaną cokolwiek
+znaczyć dla starego kodu i będą wyglądać jak zwykłe osierocone zdjęcia —
+stary sprzątacz podejmie je normalnie, po wieku, więc nie zablokują się
+w bazie. Nic nie trzeba backfillować.
 
 ### posts + post_media
 Najprostszy content społecznościowy.
@@ -1035,11 +1280,29 @@ audyt G-08 / W5-01 / W5-02).
 |---|---|---|
 | `community` | Nasze zasady: spam, chamstwo, niebezpieczna porada. Przycisk „Zgłoś” pod treścią. | Tylko zalogowani. |
 | `legal_notice` | Treść **niezgodna z prawem** w rozumieniu DSA art. 16. | **Każdy, także bez konta.** |
+| `automat` | **Oznaczenie do przeglądu postawione przez wykrywacz sygnałów** (D-052, migracja `2026_09_09_400000_sygnaly_automatu_w_zgloszeniach`). Nikt tego nie zgłosił. | Nikt — wiersz tworzy `OznaczDoPrzegladu` z zadania `PrzeanalizujTresc`. |
 
 Nie robimy dwóch tabel, bo obie drogi kończą się tą samą decyzją moderatora,
 tym samym wpisem w `moderation_actions` i tą samą ścieżką odwołania. Dwie
 tabele znaczyłyby dwie kolejki, dwa ekrany i dwie okazje, żeby jedna z nich
 została z tyłu.
+
+#### `source = 'automat'` (D-052)
+
+Trzecia droga i **jedyna, w której nie ma człowieka po stronie zgłaszającego**.
+Nie uruchamia obowiązków z DSA art. 16 ust. 4 i 5 (potwierdzenie odbioru,
+informacja o decyzji) — nie ma komu odpowiedzieć, bo nikt nic nie zgłosił.
+
+Dwie rzeczy różnią ją od pozostałych w schemacie:
+
+- `reporter_id` jest **zawsze puste**, a `autor_tresci_id` — wypełnione
+  (kolumna dołożona tą samą migracją; `nullOnDelete`, tak jak `reporter_id`);
+- oznaczenie powstaje **najwyżej raz na treść, na zawsze** — także po
+  odrzuceniu przez moderatora. To nie jest deduplikacja, tylko obietnica:
+  „to nic takiego" ma zamknąć sprawę i automat już z tym nie wraca.
+
+Pełny opis sygnałów, progów i fałszywych alarmów:
+`docs/legal/SYGNALY_AUTOMATU.md`.
 
 Kolumny dołożone dla drogi prawnej:
 
@@ -1065,6 +1328,33 @@ Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
 Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
 zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
 
+#### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
+
+Migracja `2026_09_10_300000_zdjecie_jako_cel_oznaczenia` dopisuje do
+`reports_target_type_check` wartość **`media`**. Dziś trafia tu wyłącznie
+zdjęcie profilowe: model ocenia je po przetworzeniu (`PrzeanalizujAwatar`),
+a oznaczenie wskazuje `media.id`.
+
+**Dlaczego zdjęcie, a nie konto.** Indeks `reports_jeden_automat_na_tresc`
+przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
+Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
+a podmiana zdjęcia to sekunda pracy.
+
+**Dlaczego `media`, a nie `avatar`.** `ModeratedContent::TYPY` mapuje klasę
+modelu, a klasa (`App\Models\Media`) jest ta sama dla awatara i dla zdjęcia
+we wpisie. Nazwa `avatar` byłaby prawdziwa dziś i kłamliwa pierwszego dnia,
+w którym oznaczymy zdjęcie z wpisu osobno.
+
+`ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban` —
+**bez `hide`** (`Media` nie ma statusu w rozumieniu moderacji) i **bez
+`remove`** (kasowanie zdjęcia jest nieodwracalne, a odwołanie od `remove` ma
+treść przywrócić — DSA art. 17).
+
+**Rollback:** `php artisan migrate:rollback --step=1` przywraca CHECK bez
+`media`, ale **odmawia**, gdy w tabeli leży choć jedno takie oznaczenie —
+to są sprawy moderacyjne z decyzjami i odwołaniami, a rollback schematu nie
+jest decyzją o ich wyrzuceniu. Komunikat mówi, co zrobić.
+
 #### `target_type = 'unknown'` i puste `target_id`
 
 Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
@@ -1072,7 +1362,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza szósty typ, `unknown`;
+- `reports_target_type_check` dopuszcza typ `unknown` (dziś siódmy, po dodaniu `media`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
@@ -1099,7 +1389,25 @@ której mu nie wskazano.
 | `reports_source_status_idx (source, status, created_at)` | Kolejka moderatora filtruje po źródle — zgłoszenia prawne mają termin odpowiedzi, społecznościowe nie. |
 | `reports_pending_receipt_idx` | Indeks częściowy: zgłoszenia prawne z adresem, którym jeszcze nie potwierdzono odbioru. |
 | `reports_one_open_per_pair (reporter_id, target_type, target_id)` | Indeks częściowy `WHERE reporter_id IS NOT NULL AND status IN ('open','triage','reviewing')`: jedno OTWARTE zgłoszenie na parę osoba–treść (D-027, migracja `2026_09_07_900000_one_open_report_per_pair`). Dedup w PHP już to robił w zwykłym ruchu, ale nie chronił przed seederem, komendą ani wyścigiem. Nowe zgłoszenie po zamknięciu poprzedniego przechodzi — bo zamknięte statusy są poza indeksem. **Zgłoszeń bez konta ten indeks nie obejmuje** (`reporter_id IS NULL`); te pilnuje `klucz_wyslania`. |
+| `autor_tresci_id` | Autor OZNACZONEJ treści — wypełniany **wyłącznie** przy `source = 'automat'` (D-052). FK → `users`, `nullOnDelete`: skasowanie konta nie kasuje sprawy moderacyjnej. Istnieje po to, żeby kolejka automatu grupowała po autorze bez odczytywania go z czterech różnych tabel dla każdego wiersza — dziesięć wpisów tego samego spamera ma być jedną pozycją do przejrzenia, nie dziesięcioma. |
+| `reports_source_check` (zmieniony) | `source IN ('community','legal_notice','automat')`. |
+| `reports_automat_target_check` | Oznaczenie automatu **musi** mieć cel (`target_type` inny niż `unknown`, `target_id` niepuste). Automat ogląda konkretną treść, więc wiersz bez celu znaczyłby błąd w kodzie, a nie sytuację życiową — ta sama zasada co `reports_community_target_check`. |
+| `reports_jeden_automat_na_tresc (target_type, target_id)` | Indeks częściowy `WHERE source = 'automat'`: **jedno oznaczenie na treść, na zawsze**. Warunek celowo NIE zawęża się do spraw otwartych (inaczej niż `reports_one_open_per_pair`) — tam nowe zgłoszenie po zamknięciu poprzedniego składa człowiek, który widzi coś nowego; tu wracałby ten sam automat z tym samym powodem. |
+| `reports_automat_autor_idx (autor_tresci_id, created_at DESC)` | Indeks częściowy `WHERE source = 'automat' AND status IN ('open','triage','reviewing')`: kolejka automatu grupowana po autorze. Obejmuje **tylko pozycje otwarte**, więc kolejka, którą moderator opróżnia, naprawdę tanieje. |
 | `reports_one_per_klucz_wyslania (klucz_wyslania)` | Indeks częściowy `WHERE klucz_wyslania IS NOT NULL`: jedno wysłanie formularza to jeden wiersz (D-027, migracja `2026_09_07_900300_add_klucz_wyslania_to_reports`). Bez `reporter_id` w kluczu, inaczej niż w `posts` i `cooked_events` — droga prawna jest otwarta dla osób bez konta, więc `reporter_id` bywa `NULL` i nie może być częścią warunku unikalności. |
+
+**Rollback (D-052, `2026_09_09_400000_sygnaly_automatu_w_zgloszeniach`):**
+`down()` zdejmuje oba indeksy i `reports_automat_target_check`, po czym
+**przerywa**, jeśli w tabeli są oznaczenia automatu już ROZSTRZYGNIĘTE
+(`resolved`/`rejected`) — niosą powód, dla którego moderator coś ukrył albo
+kogoś zawiesił, i są dokumentem przy odwołaniu. Strażnik stoi PRZED pierwszym
+`DELETE`, nie po nim. Oznaczenia OTWARTE giną bez pytania: nikt niczego przy
+nich nie postanowił, a automat postawi je z powrotem, gdy migracja wróci.
+Świadome wymuszenie (najpierw kopia tabeli):
+`KUKING_ROLLBACK_KASUJE_SYGNALY_AUTOMATU=1`. Wiersze w `moderation_actions`
+przeżywają skasowanie sprawy — `report_id` ma `nullOnDelete`, więc decyzja
+zostaje i traci tylko odnośnik. Sprawdza to
+`tests/Feature/CofniecieMigracjiSygnalowAutomatuTest.php`.
 
 **Rollback:** `down()` **odmawia**, gdy w tabeli są zgłoszenia prawne —
 usunięcie kolumn skasowałoby imię, adres i uzasadnienie, zostawiając samo
@@ -1339,6 +1647,117 @@ uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
 (`source`), razem z rolą poprzednią i nową. To jest jedyny ślad po tym, kto
 w serwisie może zamknąć czyjeś odwołanie (D-039).
 
+**`admin.user_viewed`** — wgląd moderatora w kartę pojedynczego konta
+(`/admin/uzytkownicy/{user}`, `App\Http\Controllers\Admin\UzytkownicyController`).
+Realizacja decyzji 3.2 z `docs/INSPIRATION_DECISIONS.md` („wpisy przy
+OGLĄDANIU danych, nie tylko przy zmianie"): `actor_id` to moderator,
+`subject_id` — osoba, której dane obejrzano, bez żadnych metadanych.
+**Sama LISTA kont wpisu nie zostawia** i jest to decyzja, nie przeoczenie:
+pokazuje adresy w masce (`j***@wp.pl`), otwiera się kilkanaście razy dziennie
+po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
+dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
+ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
+dowodem wykonania żądania z RODO art. 17.
+
+### dziennik_zgod
+Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
+**append-only** (migracja `2026_09_10_400000_create_dziennik_zgod_table`,
+audyt DB1, `docs/DECISIONS.md` **D-072**).
+
+Do 10 września całym dowodem był boolean `users.wants_weekly_digest`. RODO
+art. 7 ust. 1 każe zgodę **wykazać**, a „dziś pole ma wartość `true`" nie
+odpowiada na pytanie, kiedy człowiek to kliknął, czy wcześniej tego nie
+odklikał i czy po wycofaniu wysyłka nie szła dalej.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `id` | `bigserial`. Nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (tak samo jak `audit_log` i `product_signals`). Rosnący klucz trzyma KOLEJNOŚĆ dwóch zdarzeń z tej samej sekundy. |
+| `user_id` | `uuid`, **NOT NULL**, FK do `users` z `ON DELETE RESTRICT` (patrz niżej). |
+| `cel` | Cel zgody. Dziś jedna wartość: `tygodniowy_digest`. CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, druga zgoda wymaga migracji i recenzji. |
+| `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
+| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta`. CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
+| `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
+| `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
+
+```sql
+CREATE TABLE dziennik_zgod (
+    id              bigserial PRIMARY KEY,
+    user_id         uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    cel             varchar(40) NOT NULL,
+    czynnosc        varchar(20) NOT NULL,
+    zrodlo          varchar(30) NOT NULL,
+    wersja_polityki varchar(20) NOT NULL,
+    wystapilo_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX dziennik_zgod_konto_cel_idx ON dziennik_zgod (user_id, cel, wystapilo_at DESC);
+```
+
+Indeks jest jeden, bo pytanie jest jedno: „historia zgody TEJ osoby na TEN
+cel, od najnowszej" — tak wygląda odpowiedź na żądanie z art. 7 ust. 1.
+
+**Dlaczego tabela, a nie dwie kolumny z datami.** Audyt dopuszczał
+`weekly_digest_consented_at` + `weekly_digest_withdrawn_at` jako minimum i to
+minimum jest za małe: przy ciągu włącz → wyłącz → włącz trzecia zmiana
+nadpisuje pierwszą. To ODWROTNE rozstrzygnięcie niż przy
+`users.weekly_digest_sent_at` (tam pytanie naprawdę brzmi „kiedy ostatnio")
+i nie ma tu sprzeczności — tutaj poprzednia wartość jest całym dowodem.
+**JSONB odpada:** cztery zawsze te same pola z zamkniętymi zbiorami wartości
+to dane strukturalne, a AGENTS.md §6 dopuszcza JSONB tylko dla
+półstrukturalnych.
+
+**Czego tu celowo nie ma: adresu IP i `User-Agent`.** Do wykazania zgody nie
+są potrzebne — dowodem jest fakt, moment, cel i droga. Brak tych kolumn
+pilnuje `DowodZgodyNaDigestTest` **asercją na pełną listę kolumn**, więc
+oblewa się także wtedy, gdy ktoś doda kolumnę nazwaną neutralnie
+(`kontekst`, `meta`) i włoży tam to samo.
+
+**Append-only wymuszone przez bazę, nie przez intencje.** Wyzwalacze
+`dziennik_zgod_bez_zmian` (`BEFORE UPDATE OR DELETE … FOR EACH ROW`)
+i `dziennik_zgod_bez_czyszczenia` (`BEFORE TRUNCATE … FOR EACH STATEMENT`)
+wołają funkcję `dziennik_zgod_tylko_dopisywanie()`, która rzuca wyjątek —
+`RAISE EXCEPTION`, a nie reguła `DO INSTEAD NOTHING`, bo reguła połknęłaby
+zmianę bez słowa. Model `App\Models\WpisZgody` blokuje `update`/`delete`
+także po stronie PHP (czytelniejszy błąd dla programisty), ale to jest
+pierwsza linia, nie jedyna: `DB::table('dziennik_zgod')->update(...)`
+i ręczny `psql` jej nie widzą. `DROP TABLE` **nie** jest blokowany —
+`migrate:refresh` w CI i `RefreshDatabase` w testach muszą działać.
+
+**Usunięcie konta a dowód zgody — rozstrzygnięcie napięcia (D-072).** Konta
+w Kuking się nie kasuje, tylko anonimizuje (D-022), więc:
+
+- `EraseAccountData` **dopisuje** wiersz `wycofana` ze źródłem
+  `usuniecie_konta` (domknięcie historii — inaczej dziennik kończyłby się na
+  „udzielona" i wyglądałby na zgodę obowiązującą do dziś);
+- **nic nie kasuje.** Po anonimizacji wiersz `users` nie ma adresu, hasła ani
+  nazwy, więc `user_id` w dzienniku nie wskazuje na dane osobowe, a dowód
+  podstawy prawnej wysyłki zostaje;
+- FK ma `ON DELETE RESTRICT`, nie `CASCADE` (skasowałby dowód dokładnie wtedy,
+  gdy jest potrzebny) i nie `SET NULL` (byłby `UPDATE` na tabeli append-only,
+  a dowód niczyj to dowód żaden). Skutek uboczny, który trzeba nazwać: twardy
+  `DELETE FROM users` dla konta, które kiedykolwiek ruszyło tę zgodę, odmówi
+  wykonania. W serwisie nic takiego nie robi.
+
+**Retencja: brak i jest to decyzja, nie przeoczenie** (D-072, punkt otwarty).
+Dziennik zgód nie ma dziś komendy sprzątającej — dlatego nie ma też indeksu po
+samym czasie. Wiersz to siedem krótkich pól na jedną zmianę zgody, więc tabela
+rośnie wolniej niż `product_signals`. Docelowy okres należy dopisać do
+`docs/decyzje/ADR_RETENCJE.md` razem z resztą dowodów zgód, przy przeglądzie
+prawnym (issue #8).
+
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` kasuje tabelę
+razem z wyzwalaczami i funkcją. Bezpieczny dla DZIAŁANIA serwisu — wysyłka nie
+czyta tej tabeli ani razu, więc nic nie przestanie chodzić. **Nie jest
+bezpieczny dowodowo:** razem z tabelą znika jedyny zapis o tym, kto i kiedy
+wyraził zgodę, a boolean na `users` tego nie odtworzy. Rollback wykonuje się
+więc albo na wdrożeniu, gdzie tabela jest jeszcze pusta, albo po wyjęciu jej
+zawartości poza bazę
+(`\copy dziennik_zgod to 'dziennik_zgod.csv' csv header`).
+
+Pilnuje tego `DowodZgodyNaDigestTest` (udzielenie, wycofanie, ciąg
+włącz → wyłącz → włącz, trzy źródła, brak PII, append-only w modelu i w bazie,
+usunięcie konta).
+
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,
 migracja `2026_09_09_300000_create_pending_email_changes_table`).
@@ -1413,6 +1832,190 @@ odnośnik, przeczyta „zamów zmianę jeszcze raz". Kolejność wycofywania:
 **najpierw kod, potem migracja** — sam ekran `/ustawienia/e-mail` bez tabeli
 odda 500.
 
+### login_link_tokens
+Jednorazowy token logowania linkiem e-mail — „magic link" (issue #25, D-056,
+migracja `2026_09_10_100000_create_login_link_tokens_table`).
+
+Ten wiersz **jest hasłem jednorazowym**: kto ma token, wchodzi na konto. Stąd
+wszystko poniżej — jeden wiersz na konto, krótki termin, kasowanie przy użyciu
+i skrót zamiast wartości.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID. **Nie trafia nigdzie** — link niesie sam token, nie identyfikator wiersza. |
+| `user_id` | **UNIKALNY** — jeden ważny link na konto. Nowa prośba zastępuje poprzednią, więc link z wcześniejszego listu natychmiast przestaje działać. `cascadeOnDelete`. |
+| `token_hash` | **UNIKALNY. HMAC-SHA256 tokenu** (`App\Support\Skrot`), nigdy token. Po tej kolumnie szukamy wiersza przy kliknięciu w link. |
+| `created_at` | Kiedy poproszono. |
+| `expires_at` | Kiedy link przestaje działać: `config('kuking.login_link.waznosc_minut')` (domyślnie 30 min) od prośby. |
+
+```sql
+ALTER TABLE login_link_tokens
+ADD CONSTRAINT login_link_tokens_expires_after_created_check
+CHECK (expires_at > created_at);
+
+ALTER TABLE login_link_tokens
+ADD CONSTRAINT login_link_tokens_token_hash_format_check
+CHECK (token_hash ~ '^[0-9a-f]{64}$');
+```
+
+#### `UNIQUE (user_id)` wymaga serializacji, nie tylko constraintu (D-075)
+
+Constraint pilnuje niezmiennika „jeden ważny link na konto", ale **sam nie
+ustawia próśb w kolejce**. Dwie równoległe prośby o link na to samo konto
+przechodziły obie `DELETE` (każda kasując zero wierszy) i obie szły do
+`INSERT` — druga odbijała się o unikalność i, przed poprawką, kończyła się
+**500**. A 500 zdarzało się wyłącznie tam, gdzie konto istnieje, czyli para
+równoległych żądań stawała się wyrocznią „kto ma konto w Kuking".
+
+Dlatego wymiana tokenu idzie pod **blokadą wiersza `users`**
+(`WyslijLinkDoLogowania::wymienToken()`), branej PRZED `DELETE`, plus
+defensywnym przechwyceniem konfliktu. Kolejność blokad w tym repozytorium
+jest jedna i obowiązuje wszędzie: **konto najpierw**, potem tabela żądania
+(tu `login_link_tokens`, przy zmianie adresu `pending_email_changes`). Kto
+dopisze drugie miejsce zapisujące tę tabelę, musi wejść tą samą drogą; dwie
+różne kolejności blokad to zakleszczenie, które PostgreSQL rozwiązuje
+zabiciem jednego z żądań.
+
+#### Dlaczego skrót szybki, a nie bcrypt jak w `password_reset_tokens`
+
+Bo bcrypt istnieje po to, żeby spowolnić zgadywanie wartości o **niskiej
+entropii** (hasło człowieka), a tu wartością jest 64 losowe znaki
+z `Str::random()` — zgadywania nie ma czego spowalniać. Za to bcrypt
+uniemożliwiłby wyszukanie wiersza po skrócie: trzeba by wstawić do adresu
+w liście jeszcze identyfikator wiersza, czyli wynieść do poczty i do historii
+przeglądarki jedną informację więcej bez żadnego zysku.
+
+Drugi CHECK nie jest ozdobą: token z `Str::random()` ma wielkie litery, więc
+**zapisany wprost łamie ten warunek i baza go odrzuci**. Dlatego token nie jest
+szesnastkowy i nie wolno go na taki zmienić — zabrałoby to CHECK-owi całą
+wartość.
+
+#### Dlaczego osobna tabela, a nie kolumny na `users`
+
+Ten sam wywód co przy `pending_email_changes`: to nie jest cecha konta, tylko
+żądanie z własnym życiorysem; wiersz znikający w całości nie wymaga CHECK-a
+wiążącego nullowość dwóch kolumn; `users` czyta każde żądanie zalogowanej
+osoby i nie dokładamy do niej kolumn NULL-owych w 99,9% wierszy.
+
+#### Czego w tej tabeli świadomie nie ma
+
+**`used_at`** — zużyty link **znika** (`DELETE`), a nie zostaje oznaczony.
+Wiersz po użyciu nie odpowiadałby na żadne pytanie, którego nie odpowiada wpis
+`account.login_link_used` w `audit_log`, a byłby kolejnym miejscem, w którym
+trzeba pamiętać o warunku „AND used_at IS NULL". Zapomnienie o takim warunku
+znaczy link wielokrotnego użytku — czyli dokładnie ta usterka, przed którą ta
+tabela ma bronić.
+
+**Adresu IP i `user_agent`** — nie ma pytania, na które musiałyby odpowiedzieć,
+a byłby to kolejny zbiór adresów IP w bazie (AGENTS.md §7). Fakt prośby notuje
+`audit_log`, z adresem e-mail w skrócie i z adresem IP w haszu.
+
+#### Co kasuje wiersz
+
+Użycie linku, kolejna prośba tej samej osoby, **zmiana i reset hasła**,
+**„wyloguj mnie z innych urządzeń"**, blokada, zawieszenie i zgłoszenie
+usunięcia konta (wszystkie przez `User::invalidateSessions()` →
+`invalidateLoginLinks()`) oraz wygaśnięcie — sprzątane przy okazji następnej
+prośby o link (`WyslijLinkDoLogowania::posprzatajPrzedawnione()`), bez osobnej
+komendy w harmonogramie: tabela mieści najwyżej jeden wiersz na konto i żyje
+minutami.
+
+Sprzątanie **nie jest** bramką bezpieczeństwa — link przestaje działać co do
+minuty dzięki `LoginLinkToken::jestWazny()`, a nie dzięki `DELETE`.
+
+**Rollback:** `php artisan migrate:rollback --step=1` — `down()` kasuje tabelę.
+Bezstratne dla kont: migracja nie dotyka ani jednego wiersza `users`, nie
+zmienia haseł i nie zamyka logowania hasłem. Ginie tylko to, co w drodze —
+linki wysłane, a jeszcze niekliknięte; kto kliknie taki link po wycofaniu,
+przeczyta „ten link już nie działa, poproś o nowy". Kolejność wycofywania:
+**najpierw kod, potem migracja** — trasy `/logowanie/link` bez tabeli oddadzą
+500. Samo wyłączenie funkcji migracji nie wymaga wcale:
+`KUKING_LOGOWANIE_LINKIEM=false`.
+
+### registration_invites
+Zaproszenie do założenia konta dla adresu, na którym konta **nie ma** (D-085,
+migracja `2026_09_10_400000_create_registration_invites_table`).
+
+Powstaje wtedy, gdy ktoś poprosi o „link do zalogowania" dla adresu bez konta.
+Ten wiersz **nie jest hasłem jednorazowym** — nie wpuszcza na żadne konto, bo
+konta nie ma. Jest **dowodem dostępu do skrzynki**: kto kliknął link z tej
+skrzynki, udowodnił, że jest jej właścicielem, więc adres wchodzi do rejestracji
+jako już potwierdzony i drugiej wiadomości weryfikacyjnej nie wysyłamy. Stąd
+termin dłuższy niż przy logowaniu linkiem (24 h kontra 30 min): poświadczenie
+jest słabsze, a droga po jego kliknięciu dłuższa (cały formularz rejestracji).
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID. **Nie trafia do listu** — link niesie sam token. Trafia za to do SESJI po przyjęciu zaproszenia (`rejestracja.zaproszenie_id`), i to on, a nie pole formularza, rozstrzyga, na jaki adres powstaje konto. |
+| `email` | **UNIKALNY.** Jedno ważne zaproszenie na adres — kolejna prośba zastępuje poprzednią. Zapisywany ZNORMALIZOWANY (małe litery), tak jak `users.email`, inaczej UNIQUE nic by nie pilnował. |
+| `token_hash` | **UNIKALNY. HMAC-SHA256 tokenu** (`App\Support\Skrot`), nigdy token. Po tej kolumnie szukamy wiersza przy kliknięciu w link. |
+| `created_at` | Kiedy wysłano zaproszenie. Bez `updated_at` — wiersza się nie edytuje. |
+| `expires_at` | Kiedy link przestaje działać: `config('kuking.login_link.zaproszenia.waznosc_godzin')` (domyślnie 24 h) od wysłania. Indeksowana — chodzi po niej sprzątanie. |
+
+```sql
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_email_lower_check
+CHECK (email = lower(email) AND email <> '');
+
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_expires_after_created_check
+CHECK (expires_at > created_at);
+
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_token_hash_format_check
+CHECK (token_hash ~ '^[0-9a-f]{64}$');
+```
+
+Ostatni CHECK nie jest ozdobą: token powstaje przez `Str::random(64)`, więc ma
+wielkie litery — **zapisany wprost łamie ten warunek i baza go odrzuci**.
+Dlatego token nie jest szesnastkowy i nie wolno go na taki zmienić.
+
+#### `UNIQUE (email)` też wymaga przechwycenia konfliktu (D-085)
+
+Ta sama lekcja co przy `login_link_tokens` i D-075, tylko bez konta, na którym
+dałoby się postawić blokadę wiersza. Dwie równoległe prośby o ten sam adres bez
+konta przechodziły oba `DELETE` (każda kasując zero wierszy) i obie szły do
+`INSERT`; druga odbijała się o unikalność i kończyła **500**. A 500 zdarzało się
+wyłącznie na ścieżce adresu BEZ konta — adres z kontem swój wyścig sprowadza do
+302 (D-075) — czyli para równoległych żądań znowu odpowiadała na pytanie „kto ma
+konto w Kuking", tylko odwrotnie niż przed D-075.
+
+`SELECT ... FOR UPDATE` nie ma tu na czym stanąć (konta nie ma, a blokada
+nieistniejącego wiersza nie blokuje niczego), więc zostaje druga połowa tamtej
+konstrukcji: `WyslijZaproszenieDoRejestracji` **przechwytuje
+`UniqueConstraintViolationException`** i oddaje tę samą neutralną odpowiedź co
+każda inna odmowa, oddając przy okazji miejsce w dobowym suficie.
+
+#### Co kasuje wiersz — pełna lista
+
+1. **założenie konta** — `RegisterController::store()` kasuje wiersz w tej samej
+   transakcji, w której powstaje konto, pod `lockForUpdate()`
+   (`ZaproszenieWSesji::zuzyj()`). To jest cała jednorazowość tej drogi;
+2. **kolejna prośba z tego samego adresu** — `email` jest unikalne;
+3. **wygaśnięcie** — `kuking:sprzataj-zaproszenia` raz na dobę
+   (`App\Domain\Compliance\PrzedawnioneZaproszenia`), plus sprzątanie przy
+   okazji każdej prośby.
+
+Sprzątanie **nie jest bramką bezpieczeństwa**: link przestaje działać co do
+minuty dzięki `RegistrationInvite::jestWazne()`, a nie dzięki `DELETE`. Jest
+higieną danych — i ważniejszą niż przy `login_link_tokens`, bo tutaj w wierszu
+leży adres e-mail osoby, która **nie ma u nas konta** i nigdy nie musi mieć.
+
+#### Wycofanie (rollback)
+
+`down()` **odmawia**, dopóki w tabeli leży choć jedno WAŻNE zaproszenie — każde
+z nich to człowiek, który ma w skrzynce wiadomość i jeszcze jej nie kliknął.
+Dwie drogi wyjścia:
+
+1. poczekać, aż zaproszenia wygasną (najwyżej 24 h), i wtedy
+   `php artisan migrate:rollback` — wygasłe wiersze odmowy nie wywołują;
+2. `php artisan kuking:sprzataj-zaproszenia --wszystkie` (pyta o potwierdzenie
+   i mówi, ilu osób to dotyczy), a potem wycofać świadomie.
+
+Wycofanie samej funkcji **nie wymaga wycofywania migracji**: wystarczy
+`KUKING_ZAPROSZENIA_DO_REJESTRACJI=false`. Adres bez konta wraca wtedy do
+zachowania z D-056, a linki będące w drodze dostają ekran po polsku.
+
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
 przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).
@@ -1458,16 +2061,111 @@ dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
 
-Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
+Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
+w kolejności; `data_exports_one_active_per_user` — patrz niżej.
+
+#### `data_exports_one_active_per_user` — jeden AKTYWNY eksport na konto (D-078)
+
+Migracja `2026_09_10_400100_one_active_data_export_per_user`, audyt
+10.09.2026 ustalenia QUEUE-04 / RACE-05.
+
+```sql
+CREATE UNIQUE INDEX data_exports_one_active_per_user
+    ON data_exports (user_id)
+ WHERE status IN ('queued', 'processing');
+```
+
+**Co ten indeks naprawia.** `DataSettingsController::requestExport()` robił
+`exists()` na stanach aktywnych, a potem OSOBNY `INSERT`. Między tymi dwoma
+zapytaniami nie było nic: przy izolacji `read committed` dwa równoległe
+żądania widzą „nie ma aktywnego eksportu" jednocześnie i oba wstawiają swój
+wiersz. Skutkiem są DWA `GenerateUserExport` na jedno konto — czyli dwa razy
+spakowane te same zdjęcia (15 minut limitu czasu, kolejka `low`, jeden
+worker) i dwa listy z tego samego dobowego wiadra poczty. Wejściem jest
+podwójne kliknięcie „Zamów swoje dane", a w grupie 60+ dwuklik jest
+scenariuszem typowym.
+
+`exists()` w PHP **zostaje** — daje spokojny komunikat („już przygotowujemy
+Twoją paczkę"). Gwarancję daje indeks; konflikt jest w kontrolerze
+przechwytywany (`UniqueConstraintViolationException`) i sprowadzany do tego
+**samego** zdania, nigdy do 500. `lockForUpdate()` by tego nie naprawił:
+`SELECT ... FOR UPDATE`, który nie zwrócił wiersza, nie blokuje niczego —
+to wstawienie fantomu, nie konflikt na wierszu.
+
+**Dlaczego indeks CZĘŚCIOWY.** Inwariant brzmi „jeden AKTYWNY", nie „jeden
+w historii" — RODO art. 15 nie jest jednorazowe i ekran ustawień pokazuje
+pięć ostatnich paczek. Wiersz wypada z indeksu, gdy job go domknie (`ready`,
+`failed`) albo paczka wygaśnie (`expired`), i kolejne zamówienie znów
+przechodzi.
+
+**Migracja odmawia, gdy w tabeli już leżą dwa aktywne eksporty jednego
+konta** — z komunikatem mówiącym, co zrobić (zostaw najstarszy aktywny
+wiersz, nadmiarowe skasuj; gotowy `DELETE` stoi w komentarzu migracji).
+Kasowanie jest tu bezpieczne, w odróżnieniu od `reports`: wiersz w stanie
+aktywnym nie ma jeszcze `object_key` ani `disk` (brak osieroconego pliku),
+`GenerateUserExport::handle()` przy braku wiersza po prostu wraca, a paczka
+z pozostawionego wiersza jest bajt w bajt tą samą paczką.
+
+**Rollback:** `DROP INDEX IF EXISTS`, bezstratnie — indeks nie przechowuje
+niczego, czego nie ma w tabeli, i jego zdjęcie nie kasuje żadnego wiersza.
+Po cofnięciu wraca stan sprzed zmiany: `exists()` łapie zwykły dwuklik, baza
+nie broni niczego, a `catch` w kontrolerze jest gałęzią, w którą nic nie
+wchodzi. Pilnują tego `JedenAktywnyEksportNaKontoTest`
+i `Wyscigi\EksportDanychRaceTest`.
 
 ### product_signals
 
 Sygnały produktowe (issue #115), migracja
-`2026_09_06_220000_create_product_signals_table`. Dziś dokładnie dwa
-zdarzenia: `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje
-— `App\Domain\Media\Actions\StoreUploadedImage`) i `search_performed`
-(wykonane wyszukiwanie — `App\Http\Controllers\SearchController`). Jedyne
-miejsce, które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+`2026_09_06_220000_create_product_signals_table`. Dziś **cztery** zdarzenia:
+`photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
+`App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
+(wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
+od tygodniowego podsumowania: `weekly_digest_queued` i
+`weekly_digest_unsubscribed` (issue #11, D-057; migracja
+`2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
+które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
+(audyt MAIL-03, **D-078**, migracja
+`2026_09_10_400000_rename_weekly_digest_sent_signal`). Wiersz powstaje zaraz
+po `Mail::queue()`, więc stara nazwa sklejała w jedno trzy różne zdarzenia —
+ZAKOLEJKOWANO, DOSTAWCA PRZYJĄŁ, DORĘCZONO — a Kuking widzi tylko pierwsze.
+Skutek był mierzalny: list, który przewracał się w workerze i lądował
+w `failed_jobs`, i tak liczył się jako wysłany, czyli metryka zawyżała
+skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka nie działała.
+Migracja **przepisuje** stare wiersze (`UPDATE`, nie `DELETE`) i nie zostawia
+w bazie dwóch nazw na jedno zdarzenie; nic w kodzie nie czytało starej nazwy,
+więc nie było panelu do zepsucia. `down()` przepisuje symetrycznie
+z powrotem.
+
+**Zbiór nazw rośnie o nazwy WYMIENIONE Z IMIENIA, jedna decyzja na jedną
+nazwę.** CHECK nie jest formalnością: zamknięta lista jest drugą linią
+obrony przed zamienieniem tej tabeli w ogólny dziennik odwiedzin, którego
+AGENTS.md §3 zabrania budować bez zmierzonej potrzeby. Rozszerzenie
+przechodzi więc przez migrację `DROP CONSTRAINT` + `ADD CONSTRAINT`
+z pełną listą, a nie przez zdjęcie ograniczenia.
+
+**Czego świadomie NIE ma: `weekly_digest_opened` i `weekly_digest_clicked`.**
+Issue #11 prosiło o cztery zdarzenia; wdrożone są pierwsze i ostatnie.
+„Otwarty" wymaga niewidzialnego obrazka śledzącego w treści listu,
+„kliknięty" — podmiany każdego odnośnika na przekierowanie przez nasz serwer.
+Obie techniki zapisują, kiedy konkretna osoba czytała pocztę i z jakiego
+adresu IP; polityka prywatności obiecuje czegoś takiego nie robić, a własny
+transport ma nawet wyłącznik śledzenia po stronie dostawcy
+(`X-TRACKING-OFF`, `App\Poczta\TransportEmailLabs`) — domyślnie włączony.
+Do jedynego progu, po którym coś robimy („wypisy > 1% na wysyłkę",
+`docs/product/RETENTION_LOOPS.md` §6 wiersz 5), wystarcza para
+zakolejkowane/wypisane.
+
+**Nie ma też `weekly_digest_delivered`** i to jest ta sama decyzja, nie
+przeoczenie: doręczenie wymagałoby webhooka o odbiciach od dostawcy, którego
+nie mamy (`docs/decyzje/POCZTA.md` §5 pkt 6). Zamknięty zbiór nazw pilnuje
+tego również jako TEST: `SygnalDigestuMowiZakolejkowanoTest::
+test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia` czyta CHECK
+wprost z `pg_constraint` i oblewa się, gdy w słowniku pojawi się nazwa
+mówiąca „doręczono", „otwarto" albo „kliknięto". Gdy prawdziwy webhook kiedyś
+powstanie, zdejmuje się `delivered` z tamtej listy JAWNIE, jedną decyzją —
+śledzenia otwarć i kliknięć nie zdejmuje się wcale.
 
 `docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
 i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
@@ -1486,9 +2184,9 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
-| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. |
-| `occurred_at` | `timestamptz`, `useCurrent()`. |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 
 #### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
 
@@ -1685,6 +2383,157 @@ i ekran w panelu, zostaje adres e-mail w stopce, czyli stan sprzed zmiany.
 **Strata jest jednak NIEODWRACALNA** — w tabeli leżą zdania napisane przez
 ludzi. Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
 `pg_dump --data-only --table=contact_messages > wiadomosci.sql`.
+
+### contact_message_replies
+
+Odpowiedzi operatora na wiadomości z „Napisz do nas", migracja
+`2026_09_10_200000_create_contact_message_replies_table` (**D-058**).
+Do 10 września 2026 panel miał tu wyłącznie odnośnik `mailto:` — odpisywało
+się z własnego programu poczty, a w serwisie nie zostawał żaden ślad, że
+odpowiedź poszła.
+
+**Osobna tabela, nie trzy kolumny w `contact_messages`**, z dwóch powodów.
+Pierwszy: odpowiedź nie jest jedna („sprawdzamy" dziś, „naprawione" w piątek),
+a kolumna na wierszu wiadomości kazałaby drugą odpowiedź albo nadpisać, albo
+uniemożliwić. Drugi, ważniejszy: **każdy list ma własny stan wysyłki** —
+pierwszy mógł nie wyjść, drugi wyjść, i jedna kolumna nie ma jak tego
+opowiedzieć.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID, `gen_random_uuid()`. |
+| `contact_message_id` | **`ON DELETE CASCADE`** i to jest wymóg RODO, nie wygoda: retencja (`kuking:sprzataj-wiadomosci`) robi masowy `DELETE` na `contact_messages`, omijając modele. Bez kaskady W BAZIE odpowiedzi zostałyby sierotami, których nic już nigdy nie usunie. |
+| `author_id` | Moderator, który wysłał. `nullOnDelete()` — konto może zniknąć, fakt wysłania zostaje (ekran pokazuje wtedy „obsługa Kuking"). |
+| `body` | Treść listu, dokładnie ta, którą dostał człowiek. `text`; górną granicę (5000 znaków, tyle samo co wiadomość) trzyma walidacja, w bazie stoi CHECK `contact_message_replies_body_not_blank`. |
+| `status` | `w_toku` \| `wyslana` \| `nieudana`, CHECK `contact_message_replies_status_check`. **Nie ma go w `$fillable`** — ustawia go wyłącznie `App\Domain\Contact\Actions\WyslijOdpowiedz`, po tym jak dostawca poczty coś powiedział. `w_toku` zapisujemy PRZED wysyłką, żeby przerwanie procesu zostawiło „nie wiadomo, czy wyszło", a nie ciszę. |
+| `sent_at` | Kiedy dostawca potwierdził przyjęcie. CHECK `contact_message_replies_sent_complete` wiąże to ze stanem: `wyslana` MUSI mieć `sent_at`, każdy inny stan NIE MOŻE go mieć. |
+| `error` | Powód odmowy, przepuszczony przez redakcję adresów (`WyslijOdpowiedz::bezpiecznyPowod()` — ta sama lekcja co audyt A6-01). Ma odpowiadać moderatorowi na pytanie „co teraz zrobić", nie przechowywać cudzych danych. |
+
+**Czego tu świadomie NIE MA: adresu, na który list poszedł.** Adres jest już
+w bazie raz — `contact_messages.contact_email` (gość) albo `users.email`
+(konto) — i wskazuje go `ContactMessage::adresDoOdpowiedzi()`. Trzecia kopia
+tej samej danej osobowej przeżywałaby anonimizację konta i zamieniłaby wiersz
+techniczny w mały zbiór adresów e-mail. Ta sama minimalizacja, dla której
+`contact_email` jest `NULL` u zalogowanego.
+
+Indeks: `contact_message_replies_message_idx (contact_message_id, created_at,
+id)` — historia jednej sprawy, najstarsza odpowiedź na górze.
+
+**Retencja:** własnej nie ma i nie potrzebuje. Odpowiedzi znikają razem
+z wiadomością (kaskada wyżej), czyli 12 miesięcy od jej załatwienia —
+pilnuje tego `OdpowiedzNaWiadomoscDoNasTest::test_odpowiedzi_znikaja_razem_z_wiadomoscia_przy_retencji`.
+
+**Rollback:** `DROP TABLE contact_message_replies` — nie rusza żadnej innej
+tabeli. **Kolejność ma znaczenie:** `contact_messages` nie da się cofnąć,
+dopóki ta tabela stoi (PostgreSQL odmawia `DROP TABLE` z zależnym kluczem
+obcym, `SQLSTATE 2BP01`), więc rollback idzie od najnowszej migracji —
+tak jak `php artisan migrate:rollback`. Po cofnięciu znika formularz
+odpowiedzi w panelu i wraca stan sprzed zmiany (`mailto:` na karcie
+wiadomości); same wiadomości zostają nietknięte. **Strata jest jednak
+NIEODWRACALNA** — w tabeli leżą listy, które naprawdę poszły do ludzi.
+Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
+`pg_dump --data-only --table=contact_message_replies > odpowiedzi.sql`.
+
+### weekly_digest_sends
+
+Trwały klucz idempotencji tygodniowego podsumowania: **jeden list na parę
+(osoba, tydzień)**, pilnowany przez bazę. Migracja
+`2026_09_10_400000_create_weekly_digest_sends_table`, audyt 10.09.2026
+QUEUE-01 / MAIL-02 / RACE-04, **D-077**.
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Kogo dotyczy. `cascadeOnDelete` — druga linia, nie pierwsza: kont z Kuking się nie kasuje, tylko anonimizuje (D-022). |
+| `week_start` | **DATA PONIEDZIAŁKU** tygodnia, za który poszedł list, liczona w strefie człowieka (`App\Support\Czas::poczatekTygodniaData()`). Nie numer tygodnia ISO. |
+| `reserved_at` | Kiedy zajęto klucz. **Nie** „kiedy list doszedł" — tego Kuking nie wie i nie ma się dowiadywać (otwarta sprawa #204: żadnego śledzenia doręczeń ani otwarć). |
+
+```sql
+CREATE TABLE weekly_digest_sends (
+    user_id     uuid  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start  date  NOT NULL,
+    reserved_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, week_start)
+);
+
+ALTER TABLE weekly_digest_sends
+ADD CONSTRAINT weekly_digest_sends_week_start_monday_check
+CHECK (extract(isodow from week_start) = 1);
+```
+
+#### Po co, skoro jest już `users.weekly_digest_sent_at`
+
+Bo tamten znacznik jest **porównaniem w PHP**, a nie barierą. Do 10 września
+komenda wysyłkowa robiła dla każdej osoby: `Mail::queue()` → budżet → sygnał,
+a znacznik stawiała **jednym zapytaniem po całej pętli**. Awaria pomiędzy
+zostawiała do sześćdziesięciu listów w kolejce i **zero** śladu w bazie, więc
+następny przebieg pisał do tych samych osób drugi raz.
+`withoutOverlapping()` z harmonogramu tego nie łapie: chroni przed dwoma
+przebiegami JEDNOCZEŚNIE, nie przed kolejnym przebiegiem PO awarii.
+
+Kolejność jest teraz odwrotna: **wiersz rezerwacji, potem list.** `INSERT`
+i znacznik `weekly_digest_sent_at` idą w JEDNEJ transakcji
+(`OdbiorcyDigestu::zarezerwuj()`), a `Mail::queue()` wykonuje się tylko wtedy,
+gdy `INSERT` się udał. Konflikt unikalności znaczy „ta osoba ma ten okres
+obsłużony" i wtedy po prostu ją pomijamy — bez błędu i bez listu.
+
+Obie warstwy są potrzebne i mówią różne rzeczy:
+
+- `weekly_digest_sends` → **najwyżej jeden list na tydzień kalendarzowy**,
+  bez luki między odczytem a zapisem (czyli także przy dwóch przebiegach
+  równolegle — RACE-04);
+- `users.weekly_digest_sent_at` → **nie częściej niż raz na siedem dni**
+  plus kolejność „kto czeka najdłużej"; sam tydzień kalendarzowy pozwoliłby
+  na list w niedzielę i w poniedziałek.
+
+Kalendarzowy tydzień nikogo nie opóźnia: dzień `x` i dzień `x + 7` zawsze
+mają różne poniedziałki, więc bariera nie blokuje wysyłki, na którą odstęp
+już pozwala.
+
+#### Dlaczego data poniedziałku, a nie numer tygodnia ISO
+
+Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28` należy do
+tygodnia 1 **roku 2027**, więc numer wymagałby pary (rok ISO, tydzień) —
+a klucz idempotencji zapisany niepełny przestaje być unikalny. Data
+poniedziałku to jedna kolumna `date`: porównywalna, sortowalna, czytelna
+w zrzucie bazy i zgodna z tym, co w PostgreSQL znaczy `date_trunc('week', …)`.
+
+Strefa nie jest ozdobą: poniedziałek UTC zaczyna się w Polsce w niedzielę
+o 22:00, więc przebieg uruchomiony w poniedziałek nad ranem trafiałby do
+tygodnia poprzedniego. Stąd `Czas`, nie `now()`.
+
+CHECK „to musi być poniedziałek" pilnuje, żeby klucz nadal ZNACZYŁ tydzień.
+Data ze środka tygodnia dałaby tej samej osobie dwa różne, oba wolne klucze
+w jednym tygodniu — czyli dwa listy przy nietkniętym `UNIQUE`.
+
+#### Co się dzieje, gdy rezerwacja się udała, a wysyłka padła
+
+**Rezerwacja zostaje i ta osoba nie dostaje listu za ten tydzień.** To jest
+wybrana strona pomyłki, nie przeoczenie: po wyjściu z `Mail::queue()` nie da
+się odróżnić „wiadomość nie weszła do kolejki" od „weszła, a proces padł
+sekundę później", więc nie można mieć naraz „nikt nie dostanie dwa razy"
+i „nikt nie zostanie pominięty". Uzasadnienie wyboru: **D-077**.
+
+#### Czego tu świadomie nie ma
+
+Treści listu, adresu, liczników, śladu doręczenia. Wiersz mówi wyłącznie
+„ta osoba ma ten tydzień obsłużony" — ta sama klasa faktu co
+`users.weekly_digest_sent_at`, więc bez nowej kategorii danych osobowych.
+Nie ma też retencji ani komendy sprzątającej: przy przepustowości 420 osób
+tygodniowo (D-057) to około 22 tysiące wierszy po dwóch kolumnach na rok.
+
+**Rollback.** `down()` kasuje tabelę. Nie ginie ani jedno słowo od człowieka
+i nie ginie pamięć o wysyłce (`users.weekly_digest_sent_at` zostaje) — ale
+**ginie bariera**, a to trzeba nazwać wprost: po wycofaniu jedyną ochroną
+przed drugim listem zostaje porównanie w PHP, czyli dokładnie ten mechanizm,
+którego luka jest powodem tej migracji. Dlatego rollback robi się
+**wyłącznie razem z `KUKING_DIGEST_WLACZONY=false`**, nigdy „przy okazji".
+Kolejność: **najpierw kod, potem migracja** — nowy kod bez tabeli pada na
+pierwszej osobie i nie wysyła nikomu nic (kierunek awarii bezpieczny, ale
+wysyłka staje).
+
+Pilnuje tego `tests/Feature/DigestNieWysylaDwaRazyTest.php` (awaria w połowie
+przebiegu, bariera bez znacznika odstępu, kontrola dodatnia, następny
+tydzień, brak zgody, oba ograniczenia bazy osobno).
 
 ## V1 / V2
 

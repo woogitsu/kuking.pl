@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
@@ -39,6 +41,8 @@ class PostController extends Controller
         private readonly StoreUploadedImage $storeImage,
         private readonly PublishComment $publishComment,
         private readonly TagSuggester $tagSuggester,
+        private readonly SasiedniWpisAutora $sasiedniWpis,
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
     ) {}
 
     public function create(): View
@@ -459,6 +463,17 @@ class PostController extends Controller
             // zapytaniem. `->load()` wciągał je wszystkie naraz.
         ]);
 
+        // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
+        //
+        // Tutaj JEDNYM ODDZIELNYM zapytaniem, a nie kolumną w SELECT-cie jak
+        // w feedzie: ten ekran dostaje wpis z wiązania trasy, więc nie ma
+        // zapytania, do którego dałoby się kolumnę dołożyć. Jeden wpis to
+        // jeden ekran, więc to zapytanie jest STAŁE — nie jest to N+1.
+        // Reguły są te same, bo `doliczDoWpisu()` woła to samo `dolicz()`,
+        // co feed; gdyby ekran wpisu liczył po swojemu, ta sama liczba
+        // znaczyłaby dwie różne rzeczy na dwóch ekranach.
+        $this->zapisy->doliczDoWpisu($post, $request->user());
+
         // Jak przy przepisie — te same dwa powody: blokady (issue #41)
         // i paginacja wątków.
         $komentarze = $post->comments()
@@ -479,6 +494,11 @@ class PostController extends Controller
             // innego to dodatkowe zapytanie bez żadnego zastosowania.
             'toPierwszyWpis' => $request->user()?->getKey() === $post->author_id
                 && $post->author->posts()->published()->count() === 1,
+            // „Kolejne zdjęcie" (issue: nawigacja jak w Garnku) — dwa proste
+            // zapytania, oba po indeksie `posts_author_published_idx`.
+            // Widoczność liczy `SasiedniWpisAutora`, nie ten kontroler.
+            'poprzedniWpis' => $this->sasiedniWpis->poprzedni($post, $request->user()),
+            'nastepnyWpis' => $this->sasiedniWpis->nastepny($post, $request->user()),
         ]);
     }
 

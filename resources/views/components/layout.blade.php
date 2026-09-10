@@ -58,6 +58,57 @@
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
     // ------------------------------------------------------------------
+    //  TRYB PANELU — MENU BEZ RZECZY UŻYTKOWNIKA (prośba właściciela:
+    //  „dać oddzielny przycisk, który pokaże tylko menu admina, bez
+    //  przycisków typowych dla użytkownika (moje, profil itp.)").
+    //
+    //  TRYB WYNIKA ZE ŚCIEŻKI, NIE Z PRZEŁĄCZNIKA. Jesteś na `/admin/**`
+    //  — widzisz menu panelu; wychodzisz z `/admin/**` — widzisz menu
+    //  serwisu. Nie ma tu ani skryptu, ani stanu w sesji, i to jest wybór,
+    //  nie lenistwo:
+    //
+    //    * bez JavaScriptu (AGENTS.md §5) — przełącznik trzymany w JS
+    //      przestaje istnieć dokładnie wtedy, gdy skrypt się nie dociągnie;
+    //    * stan zapamiętany w sesji potrafi się ZACIĄĆ: moderator, który raz
+    //      „wszedł w tryb panelu", wracał na `/home` i dalej widziałby menu
+    //      panelu, bo tak stoi w sesji. Wtedy potrzebny jest drugi mechanizm
+    //      na odzyskanie normalnego menu — a on też może się zaciąć;
+    //    * ten sam adres pokazuje tym samym oczom to samo, więc opis
+    //      „kliknij Zgłoszenia w menu" jest prawdziwy dla każdego. Adres
+    //      wklejony z powiadomienia trafia od razu w tryb panelu.
+    //
+    //  KOSZT, KTÓRY PRZYJMUJEMY ŚWIADOMIE: „Powiadomienia" i „Ustawienia"
+    //  nie są ekranami `/admin/**`, więc kliknięcie ich wychodzi z trybu
+    //  panelu. Powrót to jedno kliknięcie („Otwórz panel moderacji" stoi
+    //  w menu serwisu), a alternatywą byłby stan w sesji z jego zacięciami.
+    //
+    //  `isModerator()` w warunku jest istotne dla BEZPIECZEŃSTWA: bez niego
+    //  wystarczyłoby, żeby ktokolwiek trafił na trasę `admin.*`, by dostać
+    //  inne menu. Zwykły użytkownik i gość dostają z `/admin/**` 404
+    //  (`EnsureUserIsModerator`) i w ich HTML-u nie ma ani jednego śladu
+    //  panelu — pilnuje tego `TrybPaneluWMenuTest`.
+    $wTrybiePanelu = $user?->isModerator() === true && request()->routeIs('admin.*');
+
+    // ------------------------------------------------------------------
+    //  LICZNIKI PRZY POZYCJACH PANELU (zgłoszenie właściciela z 10 września:
+    //  „w »Odwołania« nie ma takiego kwadracika jak przy Powiadomieniach").
+    //
+    //  JEDEN ODCZYT Z CACHE NA CAŁE MENU, ZERO `COUNT(*)`. Menu panelu stoi
+    //  na KAŻDEJ stronie `/admin/**`, a kolejek jest pięć — pięć zapytań
+    //  liczących w tym bloku byłoby pięcioma zapytaniami na każdą odsłonę,
+    //  najdroższymi dokładnie wtedy, gdy kolejki są pełne. Przeliczanie
+    //  schodzi więc poza ścieżkę żądania, dokładnie jak przy liczniku
+    //  społeczności w stopce: pełne uzasadnienie i pomiar w
+    //  `App\Domain\Moderation\KolejkiPanelu`, a niezależność liczby zapytań
+    //  od zawartości kolejek pilnuje `LicznikiKolejekBezZapytanTest`.
+    //
+    //  Liczby czytamy tylko dla moderatora — zwykły użytkownik nie ma w menu
+    //  ani jednej pozycji panelu, więc nie ma po co sięgać nawet do cache.
+    $kolejki = $user?->isModerator() === true
+        ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby()
+        : [];
+
+    // ------------------------------------------------------------------
     //  KARTA DO WYSŁANIA RODZINIE (issue #14)
     //
     //  Link do przepisu wklejony w Messengera albo WhatsAppa pokazywał
@@ -285,38 +336,199 @@
                     całą listę, żeby znaleźć „Dodaj".
 
                     „Świeżo z Kuking" wypada z tej listy, bo w kicie jest
-                    zakładką feedu („Obserwowani / Odkrywaj") — czyli stoi
+                    zakładką feedu („Obserwowani / Świeżo z Kuking") — czyli stoi
                     tam, gdzie się go używa, a nie w osobnym menu.
                 --}}
-                <nav class="side-nav" aria-label="Nawigacja główna">
-                    <ul class="stack-tight list-none p-0 m-0">
-                        <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
-                        <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
-                        <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
-                        <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
-                        @if($user->isModerator())
-                            <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi</a></li>
-                            <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
-                            {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
-                                 to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
-                                 i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
-                                 ikon, która należy do prac nad UI kitem. --}}
-                            <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
-                            <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
-                            {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
-                                 co tablica na dziś, stąd ta sama ikona. --}}
-                            <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
-                            {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
-                                 co odwołania, bo to też jest pismo od człowieka,
-                                 a nie sprawa do rozstrzygnięcia. Osobna pozycja,
-                                 nie zakładka w Zgłoszeniach: to jest inna kolejka
-                                 i inna praca (patrz `WiadomosciController`). --}}
-                            <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
-                        @endif
-                    </ul>
+                {{--
+                    TRYB SIEDZI W ATRYBUCIE `data-`, NIE W DODATKOWEJ KLASIE.
 
-                    {{-- Dół kolumny: obsługa konta, nie treść. --}}
+                    `class="side-nav"` musi zostać DOSŁOWNIE takie, jakie było:
+                    testy nawigacji (`NawigacjaAktywnaPozycjaTest`,
+                    `PanelModeracjiWMenuTest`, ten plik) wycinają menu ze strony
+                    po tekście `<nav class="side-nav"` — druga klasa w tym
+                    atrybucie wywraca je wszystkie i to jest jedyne, co po sobie
+                    zostawia (zmierzone: trzy testy „Brak nawigacji bocznej").
+
+                    Stan opisany atrybutem to zresztą wzorzec, który w tym
+                    arkuszu już jest: `data-theme`, `data-text-scale`,
+                    `.side-nav-item[aria-current="page"]`. Klasa mówi, CZYM
+                    element jest; atrybut — w jakim jest stanie.
+                --}}
+                <nav class="side-nav" @if($wTrybiePanelu) data-tryb-panelu @endif aria-label="{{ $wTrybiePanelu ? 'Nawigacja panelu moderacji' : 'Nawigacja główna' }}">
+                    {{--
+                        W TRYBIE PANELU TEJ PIĄTKI NIE MA (prośba właściciela:
+                        „menu admina bez przycisków typowych dla użytkownika —
+                        moje, profil itp."). Nie jest to ukrycie na niby: te
+                        pozycje NIE trafiają do HTML-a, więc nie da się do nich
+                        dojść tabulatorem ani czytnikiem ekranu, a menu panelu
+                        ma tyle pozycji, ile naprawdę widać.
+
+                        Ekrany serwisu są stąd o jedno kliknięcie: „Wróć do
+                        Kuking" niżej prowadzi na Start, czyli tam, gdzie ta
+                        piątka znowu stoi w komplecie.
+                    --}}
+                    @if($wTrybiePanelu)
+                        {{--
+                            WYJŚCIE Z TRYBU — PIERWSZA POZYCJA MENU, nie ostatnia.
+
+                            Stoi nad narzędziami, bo to jedyna droga z powrotem
+                            do serwisu i musi być widoczna bez przewijania —
+                            także na telefonie, gdzie to menu renderuje się nad
+                            treścią ekranu. „Wróć do Kuking", nie „Wyjdź":
+                            mówimy, DOKĄD to prowadzi, a nie czego się pozbywamy.
+
+                            Ikona „home" jest tu prawdziwa, nie ozdobna — ten
+                            odnośnik prowadzi dokładnie tam, gdzie pozycja
+                            „Start". Podpis obok, jak wszędzie (AGENTS.md §5).
+
+                            Bez `aria-current`: to nie jest bieżący ekran.
+                        --}}
+                        <a class="side-nav-item side-nav-powrot" href="{{ route('home') }}">
+                            <x-ikona nazwa="home" /> Wróć do Kuking
+                        </a>
+                    @else
+                        <ul class="stack-tight list-none p-0 m-0">
+                            <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
+                            <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
+                            <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
+                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
+                            <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
+                        </ul>
+                    @endif
+
+                    @if($user->isModerator())
+                        {{--
+                            SEKCJA „PANEL MODERACJI" — WYDZIELONA Z ZWYKŁEGO MENU
+                            (zgłoszenie właściciela: „nie wiadomo, co jest normalną
+                            podstroną, a co adminową").
+
+                            Dotąd tych sześć pozycji stało w tym samym `<ul>`, tą
+                            samą czcionką, bez nagłówka i bez KRESKI PRZED nimi —
+                            kreska (`.side-nav-dol`) stała tylko PO nich, więc
+                            moderator dostawał sygnał dopiero, gdy panel się już
+                            skończył.
+
+                            NAZWA „Panel moderacji", nie „Moderacja" ani „Panel
+                            admina": to samo sformułowanie już żyje w kodzie
+                            (`pages/admin/wymagane_2fa.blade.php`: „Ten panel
+                            wymaga weryfikacji dwuetapowej", „Panel moderacji
+                            pokazuje zgłoszenia, ukryte treści i odwołania…") —
+                            dopisujemy się do istniejącego nazewnictwa zamiast
+                            wprowadzać czwarte słowo na to samo miejsce. Ten sam
+                            napis stoi też na pasku ekranów `/admin/**`, patrz
+                            `components/panel-moderacji.blade.php`.
+
+                            SEMANTYKA DLA CZYTNIKA EKRANU: prawdziwy `<h2>`
+                            w `<nav>`, powiązany `aria-labelledby` z grupą
+                            (`role="group"`) — to brzmi jako „Panel moderacji,
+                            grupa" PRZED pierwszą pozycją, a nie jako dalszy ciąg
+                            po „Profil".
+
+                            WYRÓŻNIENIE JEST CELOWO STONOWANE: `--color-accent`
+                            (oliwkowy/musztardowy — token już używany np. w
+                            `.notice`), NIGDY `--color-danger`. To miejsce PRACY
+                            moderatora, nie alarm.
+
+                            `aria-current="page"` zostaje bez zmian na każdej
+                            pozycji — `.side-nav-item[aria-current="page"]` ma
+                            wyższą specyficzność niż kolor tej sekcji i nadpisuje
+                            go tak samo jak dotąd.
+                        --}}
+                        {{-- Znacznik grupy zostaje BEZ ZMIAN. Wygląd w trybie
+                             panelu (grupa jest wtedy jedyną rzeczą w menu, więc
+                             kreska „oddzielam się od tego, co wyżej" nie ma czego
+                             oddzielać) bierze się z `[data-tryb-panelu]` na
+                             `<nav>` wyżej — patrz app.css. --}}
+                        <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
+                            <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
+                            <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
+                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi <x-licznik-kolejki :ile="$kolejki['bez_odpowiedzi'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia <x-licznik-kolejki :ile="$kolejki['zgloszenia'] ?? 0" /></a></li>
+                                {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
+                                     to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
+                                     i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
+                                     ikon, która należy do prac nad UI kitem. --}}
+                                {{-- Sygnały automatu (D-052) — OSOBNA pozycja, nie zakładka
+                                     w Zgłoszeniach. Tam są sprawy od ludzi, z terminem
+                                     odpowiedzi; tu maszynowe podejrzenia, których większość
+                                     okaże się niczym. Ikona „filter", bo to jest sito, a nie
+                                     tarcza: nic tu nikogo nie chroni, dopóki człowiek nie
+                                     przeczyta. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                                {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
+                                     co tablica na dziś, stąd ta sama ikona. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
+                                {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
+                                     co odwołania, bo to też jest pismo od człowieka,
+                                     a nie sprawa do rozstrzygnięcia. Osobna pozycja,
+                                     nie zakładka w Zgłoszeniach: to jest inna kolejka
+                                     i inna praca (patrz `WiadomosciController`). --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas <x-licznik-kolejki :ile="$kolejki['wiadomosci'] ?? 0" /></a></li>
+                                {{-- Konta użytkowników — ekran do WGLĄDU, nie do zarządzania
+                                     rolami (te nadaje `kuking:nadaj-role` z powłoki, D-039).
+                                     Ostatni w sekcji, bo to jest miejsce, do którego wchodzi
+                                     się z pytaniem („kim jest ta osoba"), a nie kolejka, którą
+                                     trzeba dziś opróżnić — kolejki zostają na górze. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> Użytkownicy</a></li>
+                            </ul>
+
+                            {{--
+                                WEJŚCIE W TRYB PANELU — OSOBNA POZYCJA, NIE NAGŁÓWEK
+                                SEKCJI (prośba właściciela: „dać oddzielny przycisk,
+                                który pokaże tylko menu admina").
+
+                                DLACZEGO NIE ZROBILIŚMY ODNOŚNIKA Z NAGŁÓWKA „Panel
+                                moderacji": ten `<h2>` jest nazwą grupy dla czytnika
+                                ekranu (`aria-labelledby` wyżej). Nagłówek, który
+                                jednocześnie jest odnośnikiem, czyta się jako
+                                „Panel moderacji, link, grupa Panel moderacji" —
+                                jedno słowo w trzech rolach. Do tego etykieta grupy
+                                MUSI zostać etykietą (opisuje sześć pozycji pod
+                                spodem), a przycisk MUSI mówić, co zrobi po
+                                kliknięciu — a to są dwa różne teksty. Osobna,
+                                48-pikselowa pozycja z własnym podpisem robi obie
+                                rzeczy uczciwie i nikomu nic nie zabiera.
+
+                                DOKĄD PROWADZI: na „Zgłoszenia". Panel nie ma ekranu
+                                startowego (nie ma trasy `admin.index` i tego PR-a
+                                tras nie dotyka), a kolejka zgłoszeń jest tym, po co
+                                moderator wchodzi do panelu najczęściej. Jak tylko
+                                taki ekran powstanie, zmienia się tu jedna trasa.
+
+                                Bez `aria-current` — ten odnośnik nigdy nie wskazuje
+                                bieżącego ekranu, bo w trybie panelu w ogóle znika
+                                (a poza nim żaden ekran serwisu nim nie jest).
+                            --}}
+                            @unless($wTrybiePanelu)
+                                <a class="side-nav-item side-nav-wejscie" href="{{ route('admin.reports') }}">
+                                    <x-ikona nazwa="shield" /> Otwórz panel moderacji
+                                </a>
+                            @endunless
+                        </div>
+                    @endif
+
+                    {{--
+                        Dół kolumny: obsługa konta, nie treść.
+
+                        CO ZOSTAJE W TRYBIE PANELU I DLACZEGO:
+                        * „Powiadomienia" — tam przychodzą zgłoszenia i odpowiedzi
+                          w sprawach moderacyjnych, więc dla moderatora to jest
+                          narzędzie pracy, nie dodatek do konta;
+                        * „Ustawienia" — `/admin/**` wymaga weryfikacji dwuetapowej
+                          (`EnsureModeratorHasTwoFactor`), a włącza się ją właśnie
+                          w ustawieniach. Menu, które odcina od 2FA, potrafiłoby
+                          zamknąć moderatora przed panelem, do którego właśnie
+                          próbuje wejść;
+                        * „Wyloguj się" — z każdego ekranu serwisu da się wyjść
+                          z konta i tryb panelu nie jest tu wyjątkiem.
+
+                        WYPADA „Napisz do nas": to formularz dla użytkownika, który
+                        potrzebuje pomocy. Moderator w panelu jest po drugiej
+                        stronie tego formularza — jego kolejka nazywa się
+                        „Wiadomości do nas" i stoi wyżej, w samym panelu.
+                    --}}
                     <ul class="stack-tight list-none p-0 m-0 side-nav-dol">
                         <li><a class="side-nav-item" href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.*')) aria-current="page" @endif>
                             <x-ikona nazwa="bell" /> Powiadomienia
@@ -331,7 +543,9 @@
                              a nie na jego dole — a stopka na desktopie bywa
                              pod długim feedem. Ikona ma podpis, jak każda
                              pozycja tej nawigacji (AGENTS.md §5). --}}
-                        <li><a class="side-nav-item" href="{{ route('kontakt') }}" @if(request()->routeIs('kontakt*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Napisz do nas</a></li>
+                        @unless($wTrybiePanelu)
+                            <li><a class="side-nav-item" href="{{ route('kontakt') }}" @if(request()->routeIs('kontakt*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Napisz do nas</a></li>
+                        @endunless
                         {{-- Wylogowanie stoi na samym dole sekcji „obsługa
                              konta", bo to ostatnia rzecz, jaką się tu robi.
                              Ten sam składnik co na własnym profilu — patrz
@@ -417,96 +631,266 @@
             @endisset
         </div>
 
+        {{--
+            LICZNIK SPOŁECZNOŚCI (issue #38, docs/brand/COPY_STYLE.md §8).
+
+            Cała logika — kogo liczymy, cache, próg widoczności, odmiana —
+            żyje w `App\Domain\Analytics\LiczbaKukingow`, nie tutaj. Widok
+            tylko pyta i, jeśli jest sens, pokazuje wynik.
+        --}}
+        @php
+            $liczbaKukingow = app(\App\Domain\Analytics\LiczbaKukingow::class);
+        @endphp
+
         <footer class="site-footer">
             <div class="site-footer-inner">
-                <span>Kuking — gotujemy po swojemu.</span>
-                {{--
-                    „NAPISZ DO NAS" STOI PIERWSZY W STOPCE I NIE JEST DYMKIEM
-                    W ROGU EKRANU.
+                <p class="site-footer-haslo">Kuking — gotujemy po swojemu.</p>
 
-                    Dymek na stałe przyklejony do rogu byłby łatwiejszy do
-                    znalezienia dokładnie o tyle, o ile zasłaniałby treść —
-                    a przy 320 px i przy czcionce przeglądarki podkręconej do
-                    200% zasłania jej najwięcej (WCAG 1.4.10 i 2.4.11: element
-                    o stałej pozycji potrafi zakryć właśnie sfokusowany
-                    przycisk). To repozytorium ma już dwa issues z tej rodziny
-                    — #80 i #162 — i oba dotyczyły elementu, który „tylko
-                    trochę" wystawał poza ekran.
+                {{-- Licznik kuKINGów (#38) przeniesiony z płaskiej stopki do
+                     poziomu z hasłem — tu jest jego miejsce: mówi, ilu nas
+                     jest, więc stoi obok tego, czym jesteśmy, a nie między
+                     odnośnikami prawnymi.
 
-                    Stopka jest na KAŻDEJ stronie, nie wymaga skryptu,
-                    nie zasłania niczego i jest miejscem, w którym osoba 50+
-                    szuka kontaktu odruchowo. Pierwsza pozycja, bo w tej
-                    grupie ważniejsza niż regulamin.
-                --}}
-                <a href="{{ route('kontakt') }}">Napisz do nas</a>
-                <a href="{{ route('about') }}">O Kuking</a>
-                <a href="{{ route('help') }}">Pomoc</a>
-                <a href="{{ route('rules') }}">Zasady</a>
-                <a href="{{ route('terms') }}">Regulamin</a>
-                <a href="{{ route('privacy') }}">Prywatność</a>
-                {{-- DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO DOSTĘPNEGO.
-                     Formularz, do którego nie ma skąd kliknąć, tego nie
-                     spełnia — a przez chwilę dokładnie taki był: istniał
-                     pod adresem, którego nikt nie miał prawa znać. --}}
-                <a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a>
-                {{-- Wejście na własne sprawy (issue #10, DSA art. 16 ust. 4
-                     i 5). Potwierdzenie przyjęcia i decyzja przychodzą
-                     powiadomieniem, ale powiadomienie da się przeoczyć i po
-                     trzech miesiącach kasuje je retencja — sprawa żyje
-                     trzydzieści sześć. Bez stałego odnośnika człowiek, który
-                     zgubił powiadomienie, nie miałby jak wrócić do numeru
-                     sprawy. Tylko dla zalogowanych: gość nie ma tu żadnych
-                     spraw, a odnośnik prowadziłby na ekran logowania. --}}
-                @if($user)
-                    <a href="{{ route('reports.mine') }}">Twoje zgłoszenia</a>
+                     Osobny <span> na 18 px (`--text-body`), nie ambientowe
+                     16 px reszty stopki: to SAMODZIELNA etykieta z liczbą,
+                     ten sam przypadek co `.stat-label` na profilu
+                     (AGENTS.md §5, `MinimalnyRozmiarTekstuTest`). --}}
+                @if($liczbaKukingow->widoczna())
+                    <p class="site-footer-liczba">
+                        {{ $liczbaKukingow->liczbaSformatowana() }}
+                        <x-kuking-word :forma="$liczbaKukingow->sufiks()" />
+                    </p>
                 @endif
 
-                {{-- Wersja: etap produktu, DATA I GODZINA WYDANIA, skrót
-                     wdrożonego commita. Widoczna zawsze, żeby dało się jednym
-                     spojrzeniem sprawdzić, co dokładnie działa na tej stronie.
-
-                     Etap produktu w `<strong>`, bo to on odpowiada na pytanie
-                     „na czym w ogóle patrzę" i ma się rzucać w oczy bardziej
-                     niż reszta. Data przed skrótem, bo to ją czyta człowiek;
-                     skrót zostaje dla Sentry (`App\Support\Wersja`).
-
-                     Bez `title` z pełnym skrótem: na telefonie nie ma najazdu
-                     kursorem, a informacja dostępna tylko przez hover jest
-                     dla części osób niedostępna w ogóle (UX_50_PLUS). --}}
-                <span class="site-version">
-                    <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
-                    <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
-                </span>
 
                 {{--
-                    SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md, D-019).
+                    STOPKA W POZIOMACH (issue #205).
 
-                    W stopce, bo stopka jest na KAŻDEJ stronie i widoczna też
-                    na telefonie — w przeciwieństwie do pełnego ustawienia na
-                    `/ustawienia/czytelnosc`, do którego na telefonie nie ma
-                    dziś dojścia bez zalogowania. Działa też dla gościa: nie
-                    ma tu `@auth`.
+                    Dawniej jeden rząd: hasło, siedem odnośników, wersja
+                    i przełącznik motywu — wszystko w jednej linii, przez co
+                    wersja i przełącznik wyglądały jak doklejone na końcu.
+                    Teraz to trzy poziomy: hasło, kolumny odnośników
+                    pogrupowane tematycznie, i na samym dole cienki pasek
+                    techniczny (wersja + przełącznik motywu).
 
-                    ZWYKŁY FORMULARZ POST, NIE LINK GET (AGENTS.md §5, §7):
-                    zmiana stanu przez GET dałaby się wywołać samym linkiem
-                    (np. z prefetchu przeglądarki) i złamałaby CSRF.
+                    Grupowanie NIE dokłada ani nie usuwa żadnego odnośnika —
+                    to te same siedem (osiem dla zalogowanych) pozycje, co
+                    przed zmianą, tylko rozłożone na cztery tematyczne
+                    kolumny. Na wąskim ekranie `.site-footer-grupy` (grid
+                    `auto-fit`) układa je jedna pod drugą — bez poziomego
+                    przewijania, patrz app.css.
 
-                    Przycisk niesie WIDOCZNY TEKST opisujący wynik kliknięcia
-                    („Włącz ciemny wygląd" / „Włącz jasny wygląd"), nie samą
-                    ikonę — „ikona nigdy sama" (AGENTS.md §5).
-
-                    `redirect_to` NIE istnieje: `back()` w ThemeController
-                    czyta nagłówek `Referer`, tak samo jak każdy inny formularz
-                    „Zapisz" w serwisie (np. AccessibilitySettingsController).
+                    Każda kolumna to `<nav>` z `aria-label`, żeby czytnik
+                    ekranu zapowiedział temat grupy i pozwolił ją pominąć —
+                    ten sam powód, dla którego `$rail` wyżej jest `<aside>`,
+                    nie `<div>`. Widoczny nagłówek nad linkami jest
+                    `aria-hidden`: bez tego czytnik czytałby nazwę grupy
+                    dwa razy (raz z `aria-label` nawigacji, raz z tekstu
+                    nagłówka). Nie jest to `<h2>`/`<h3>` — stopka nie ma
+                    wchodzić w hierarchię nagłówków strony, którą zamyka
+                    ostatni nagłówek treści.
                 --}}
-                <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
-                    @csrf
-                    <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
-                    <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
-                    <button class="btn btn-quiet" type="submit">
-                        {{ $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd' }}
-                    </button>
-                </form>
+                <div class="site-footer-grupy">
+                    <nav class="site-footer-grupa" aria-label="O serwisie">
+                        <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>
+                        <ul>
+                            <li><a href="{{ route('about') }}">O Kuking</a></li>
+                            <li><a href="{{ route('rules') }}">Zasady</a></li>
+                        </ul>
+                    </nav>
+
+                    <nav class="site-footer-grupa" aria-label="Pomoc i kontakt">
+                        <p class="site-footer-naglowek" aria-hidden="true">Pomoc i kontakt</p>
+                        <ul>
+                            {{--
+                                „NAPISZ DO NAS" STOI PIERWSZY W SWOJEJ GRUPIE
+                                I NIE JEST DYMKIEM W ROGU EKRANU.
+
+                                Dymek na stałe przyklejony do rogu byłby
+                                łatwiejszy do znalezienia dokładnie o tyle,
+                                o ile zasłaniałby treść — a przy 320 px
+                                i przy czcionce przeglądarki podkręconej do
+                                200% zasłania jej najwięcej (WCAG 1.4.10
+                                i 2.4.11: element o stałej pozycji potrafi
+                                zakryć właśnie sfokusowany przycisk). To
+                                repozytorium ma już dwa issues z tej rodziny
+                                — #80 i #162 — i oba dotyczyły elementu,
+                                który „tylko trochę" wystawał poza ekran.
+
+                                Stopka jest na KAŻDEJ stronie, nie wymaga
+                                skryptu, nie zasłania niczego i jest
+                                miejscem, w którym osoba 50+ szuka kontaktu
+                                odruchowo. Pierwsza pozycja w grupie, bo
+                                ważniejsza niż „Pomoc".
+                            --}}
+                            <li><a href="{{ route('kontakt') }}">Napisz do nas</a></li>
+                            <li><a href="{{ route('help') }}">Pomoc</a></li>
+                        </ul>
+                    </nav>
+
+                    <nav class="site-footer-grupa" aria-label="Sprawy formalne">
+                        <p class="site-footer-naglowek" aria-hidden="true">Sprawy formalne</p>
+                        <ul>
+                            <li><a href="{{ route('terms') }}">Regulamin</a></li>
+                            <li><a href="{{ route('privacy') }}">Prywatność</a></li>
+                            {{-- DSA art. 16 ust. 1 wymaga mechanizmu ŁATWO
+                                 DOSTĘPNEGO. Formularz, do którego nie ma
+                                 skąd kliknąć, tego nie spełnia — a przez
+                                 chwilę dokładnie taki był: istniał pod
+                                 adresem, którego nikt nie miał prawa
+                                 znać. --}}
+                            <li><a href="{{ route('zglos.nielegalna') }}">Zgłoś nielegalną treść</a></li>
+                        </ul>
+                    </nav>
+
+                    {{-- Wejście na własne sprawy (issue #10, DSA art. 16
+                         ust. 4 i 5). Potwierdzenie przyjęcia i decyzja
+                         przychodzą powiadomieniem, ale powiadomienie da się
+                         przeoczyć i po trzech miesiącach kasuje je
+                         retencja — sprawa żyje trzydzieści sześć. Bez
+                         stałego odnośnika człowiek, który zgubił
+                         powiadomienie, nie miałby jak wrócić do numeru
+                         sprawy. Cała grupa tylko dla zalogowanych: gość nie
+                         ma tu żadnych spraw, a odnośnik prowadziłby na
+                         ekran logowania. --}}
+                    @if($user)
+                        <nav class="site-footer-grupa" aria-label="Konto">
+                            <p class="site-footer-naglowek" aria-hidden="true">Konto</p>
+                            <ul>
+                                <li><a href="{{ route('reports.mine') }}">Twoje zgłoszenia</a></li>
+                            </ul>
+                        </nav>
+                    @endif
+                </div>
+
+                {{--
+                    PASEK TECHNICZNY (wersja + przełącznik motywu).
+
+                    Świadome odstępstwo od AGENTS.md §5 w DWÓCH miejscach —
+                    decyzja właściciela, zapisana jako docs/DECISIONS.md,
+                    D-051. Reguła („tekst ≥ 18 px", „ikona nigdy sama")
+                    zostaje w mocy wszędzie indziej; tu jest jawnie
+                    udokumentowanym wyjątkiem, nie przeoczeniem.
+                --}}
+                <div class="site-footer-pasek">
+                    {{--
+                        SZYBKI PRZEŁĄCZNIK MOTYWU (docs/DECISIONS.md,
+                        D-019, D-051).
+
+                        W stopce, bo stopka jest na KAŻDEJ stronie i widoczna
+                        też na telefonie — w przeciwieństwie do pełnego
+                        ustawienia na `/ustawienia/czytelnosc`, do którego na
+                        telefonie nie ma dziś dojścia bez zalogowania. Działa
+                        też dla gościa: nie ma tu `@auth`.
+
+                        ZWYKŁY FORMULARZ POST, NIE LINK GET (AGENTS.md §5,
+                        §7): zmiana stanu przez GET dałaby się wywołać samym
+                        linkiem (np. z prefetchu przeglądarki) i złamałaby
+                        CSRF.
+
+                        SAMA IKONA, NIE WIDOCZNY NAPIS (D-051) — świadomy
+                        wyjątek od „ikona nigdy sama" (AGENTS.md §5), na
+                        wyraźne życzenie właściciela (issue #205), żeby
+                        przełącznik zajmował mało miejsca w pasku. Trzy
+                        rzeczy, których ten wyjątek NIE rusza:
+
+                          1. `aria-label` i `title` niosą DOKŁADNIE ten sam
+                             tekst, co dawny widoczny napis („Włącz ciemny
+                             wygląd" / „Włącz jasny wygląd") — nazwa
+                             dostępna zostaje, znika tylko jej wizualny
+                             odpowiednik.
+                          2. `<span class="visually-hidden">` zostaje —
+                             podwójne, ale tanie zabezpieczenie na wypadek,
+                             gdyby `aria-label` kiedyś zniknął przy
+                             refaktorze.
+                          3. Pole kliknięcia zostaje ≥48×48 px: `.btn`
+                             wymusza `min-height: 3rem`, a padding poziomy
+                             (`--spacing-5` z każdej strony) daje mu przy
+                             ikonie 24 px szerokość znacznie powyżej progu —
+                             to, co zajmowało miejsce, było napisem obok
+                             ikony, nie wymiarem samego przycisku.
+
+                        IKONA POKAZUJE WYNIK KLIKNIĘCIA, SPÓJNIE Z TEKSTEM.
+                        Jasny motyw → napis „Włącz ciemny wygląd" → ikona
+                        `ksiezyc`. Ciemny motyw → napis „Włącz jasny wygląd"
+                        → ikona `slonce`. Nie odwrotnie: kształt ma pokazywać
+                        DOKĄD prowadzi kliknięcie, tak samo jak dziś robi to
+                        napis, nie stan bieżący.
+
+                        DWA NOWE KSZTAŁTY W `<x-ikona>`, NIE `settings`
+                        (zębatka). Pierwsza wersja tego PR-a użyła `settings`
+                        jako „najbliższego sensownego zamiennika", bo zestaw
+                        nie miał księżyca/słońca. To był błąd: `settings` to
+                        DOKŁADNIE ta sama zębatka, co pozycja „Ustawienia"
+                        w menu bocznym (patrz `<li>` z `route('settings.*')`
+                        wyżej w tym pliku) — czyli po zmianie w serwisie
+                        byłyby dwa różne przyciski o tym samym kształcie.
+                        Przy zwykłym przycisku z napisem dałoby się to
+                        wybaczyć; przy przełączniku BEZ widocznego napisu
+                        (patrz wyżej) kształt jest JEDYNĄ wskazówką, co
+                        przycisk robi — więc pożyczony kształt jest zwykłą
+                        pomyłką do kliknięcia, nie oszczędnością. Stąd
+                        `ksiezyc` i `slonce` jako osobne, jednoznaczne
+                        kształty w `ikona.blade.php`.
+
+                        `redirect_to` NIE istnieje: `back()`
+                        w ThemeController czyta nagłówek `Referer`, tak samo
+                        jak każdy inny formularz „Zapisz" w serwisie (np.
+                        AccessibilitySettingsController).
+                    --}}
+                    <form method="POST" action="{{ route('theme.update') }}" class="site-footer-motyw">
+                        @csrf
+                        <input type="hidden" name="theme" value="{{ $theme === 'dark' ? 'light' : 'dark' }}">
+                        <span class="visually-hidden">Wygląd strony: {{ $theme === 'dark' ? 'ciemny' : 'jasny' }}.</span>
+                        @php
+                            $motywEtykieta = $theme === 'dark' ? 'Włącz jasny wygląd' : 'Włącz ciemny wygląd';
+                            $motywIkona = $theme === 'dark' ? 'slonce' : 'ksiezyc';
+                        @endphp
+                        <button
+                            class="btn btn-quiet site-footer-motyw-przycisk"
+                            type="submit"
+                            aria-label="{{ $motywEtykieta }}"
+                            title="{{ $motywEtykieta }}"
+                        >
+                            <x-ikona :nazwa="$motywIkona" />
+                        </button>
+                    </form>
+
+                    {{-- Wersja: etap produktu, DATA I GODZINA WYDANIA, skrót
+                         wdrożonego commita. Widoczna zawsze, żeby dało się
+                         jednym spojrzeniem sprawdzić, co dokładnie działa na
+                         tej stronie.
+
+                         ROZMIAR 8 PX (D-051) — świadomy wyjątek od
+                         AGENTS.md §5 („tekst ≥ 18 px"), na wyraźne życzenie
+                         właściciela: metryczka ma być „małym druczkiem" na
+                         samym dole stopki. Kontrast NIE jest częścią tego
+                         wyjątku — `--color-ink-muted` na
+                         `--color-surface-raised` liczy 7,54:1
+                         (docs/design/DESIGN_SYSTEM.md), więc zmiana samego
+                         rozmiaru nie psuje czytelności koloru. Rozmiar
+                         nadal skaluje się z `--user-text-scale`
+                         (`/ustawienia/czytelnosc`) tak jak reszta serwisu —
+                         inaczej osoba, która celowo powiększyła sobie tekst,
+                         dostałaby tu jedyne miejsce w serwisie, którego to
+                         ustawienie nie dotyczy.
+
+                         Etap produktu w `<strong>`, bo to on odpowiada na
+                         pytanie „na czym w ogóle patrzę" i ma się rzucać
+                         w oczy bardziej niż reszta. Data przed skrótem, bo
+                         to ją czyta człowiek; skrót zostaje dla Sentry
+                         (`App\Support\Wersja`).
+
+                         Bez `title` z pełnym skrótem: na telefonie nie ma
+                         najazdu kursorem, a informacja dostępna tylko przez
+                         hover jest dla części osób niedostępna w ogóle
+                         (UX_50_PLUS). Widoczna zawsze — nie chowamy jej pod
+                         hover ani pod `title`. --}}
+                    <span class="site-version">
+                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
+                        <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
+                    </span>
+                </div>
             </div>
         </footer>
 
@@ -538,6 +922,33 @@
     </div>
 
     @auth
+        @if($wTrybiePanelu)
+            {{--
+                TELEFON W TRYBIE PANELU — PASEK DOLNY MA JEDNO ZADANIE: WYJŚCIE.
+
+                Zwykła piątka (Start, Szukaj, Dodaj, Moje, Profil) to dokładnie
+                te przyciski, których w tym trybie ma nie być — zostawienie ich
+                na telefonie znaczyłoby, że prośba właściciela jest spełniona
+                tylko na dużym ekranie.
+
+                Ale pasek dolny nie może po prostu zniknąć: to na telefonie
+                jedyne miejsce w zasięgu kciuka i jedyna nawigacja, jaką widać
+                bez przewijania na sam dół. Zostaje więc z jedną pozycją —
+                wyjściem — na całą szerokość. Moderator nie zostaje w trybie
+                panelu zamknięty.
+
+                Same ekrany panelu są na telefonie osiągalne z menu nad treścią:
+                `.side-nav-tryb-panelu` jest tam widoczne (patrz app.css) —
+                inaczej niż zwykłe menu boczne, którego na telefonie nie ma.
+                To jest przy okazji pierwsza sensowna nawigacja po panelu
+                na telefonie w ogóle: dotąd nie było żadnej.
+            --}}
+            <nav class="bottom-nav bottom-nav-panel" aria-label="Wyjście z panelu moderacji">
+                <a class="bottom-nav-item" href="{{ route('home') }}">
+                    <x-ikona nazwa="home" class="bottom-nav-icon" :rozmiar="26" /> Wróć do Kuking
+                </a>
+            </nav>
+        @else
         <nav class="bottom-nav" aria-label="Nawigacja główna">
             <a class="bottom-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>
                 <x-ikona nazwa="home" class="bottom-nav-icon" :rozmiar="26" /> Start
@@ -558,6 +969,7 @@
                 <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil
             </a>
         </nav>
+        @endif
     @endauth
 
     @if($livewire)

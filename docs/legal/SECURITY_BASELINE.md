@@ -92,6 +92,38 @@ X-Frame-Options: DENY
   ```
   To realny, tani do wdrożenia i skuteczny mechanizm — nie pomijaj go.
 - **Reset hasła:** token jednorazowy, ważny **max 60 minut**, unieważniany po użyciu; link resetu **nie może** zawierać samego adresu e-mail w URL bez tokenu.
+- **Logowanie linkiem e-mail („magic link") — issue #25, D-056:** droga
+  równorzędna z hasłem, dla grupy 50+ **podstawowa**, nie awaryjna. Wymagania,
+  które muszą obowiązywać razem — pojedynczo żadne z nich nie wystarcza:
+  - token **jednorazowy**, ważny **30 minut** (świadomie krócej niż 60 minut
+    resetu hasła wyżej: ten link wchodzi na konto od razu, więc jest
+    mocniejszym poświadczeniem niż tamten);
+  - w bazie **wyłącznie skrót** (`login_link_tokens.token_hash`, HMAC-SHA256
+    przez `App\Support\Skrot`), nigdy token; CHECK w bazie wymusza kształt
+    skrótu;
+  - **jeden ważny link na konto** — nowa prośba unieważnia poprzedni;
+  - **link nie loguje po samym GET.** Prowadzi na ekran z przyciskiem, a token
+    zużywa dopiero POST. Powód: skanery odnośników w poczcie (Outlook Safe
+    Links, bramki operatorów) otwierają linki z listów przed człowiekiem
+    i zużyłyby token jednorazowy;
+  - **unieważnienie razem z sesjami** — zmiana i reset hasła, „wyloguj mnie
+    z innych urządzeń", blokada, zawieszenie i zgłoszenie usunięcia konta
+    (wisi na `User::invalidateSessions()`, żeby nie dało się o tym zapomnieć
+    przy dopisywaniu kolejnego miejsca);
+  - **2FA nie jest omijane**: konto z potwierdzoną weryfikacją dwuetapową
+    trafia po kliknięciu na `/logowanie/kod` tą samą ścieżką co po haśle. Link
+    zastępuje hasło, nie drugi składnik;
+  - **konta moderatorów i administratorów wyłączone z tej drogi** — tam
+    obowiązuje hasło + 2FA, a `EnsureModeratorHasTwoFactor` pilnuje panelu;
+  - **odpowiedź identyczna** dla adresu z kontem, bez konta, na koncie
+    zablokowanym i na koncie obsługi serwisu — łącznie z kodem HTTP (awaria
+    wysyłki nie ma prawa wywrócić żądania, bo wywracałaby je tylko wtedy, gdy
+    konto istnieje);
+  - **Turnstile** jak na `/nie-pamietam-hasla` (miejsce `logowanie_linkiem`);
+  - limity: 5/60 min po IP, **3/60 min po skrócie adresu e-mail**, 10/10 min
+    na samo wejście — plus **dobowy budżet listów** (`login_link.dzienny_budzet`,
+    domyślnie 120), bo pula poczty jest wspólna z potwierdzeniami rejestracji
+    (§4a niżej).
 - **Enumeracja kont — świadoma decyzja:**
   - Formularz "zapomniałem hasła" **zawsze** wyświetla ten sam komunikat ("jeśli konto istnieje, wysłaliśmy e-mail") niezależnie od tego, czy e-mail istnieje w bazie.
   - Formularz rejestracji **może** ujawniać "ten e-mail jest już zajęty" — to typowy kompromis UX vs. bezpieczeństwo; dla Kuking (serwis społecznościowy, nie bankowość) akceptowalne jest zachowanie standardowego UX rejestracji, ale **dodaj rate-limit** na sprawdzanie dostępności e-maila, żeby uniemożliwić masowe skanowanie bazy.
@@ -105,9 +137,11 @@ Propozycja konkretnych limitów (Laravel `RateLimiter::for()` w `AppServiceProvi
 
 | Endpoint | Limit | Uwaga |
 |---|---|---|
-| Logowanie | 5 prób / 15 min / IP + konto | Po przekroczeniu: captcha lub czasowy lockout konta (nie trwały) |
+| Logowanie | 5 prób / 15 min / IP + konto (trzy koszyki, `login_limits`) | Po przekroczeniu: czasowy lockout konta (nie trwały). **Cloudflare Turnstile stoi na tym formularzu ZAWSZE, nie „po przekroczeniu", i od 9 września 2026 brak tokenu ODRZUCA logowanie** — D-050. Captcha i limity to dwie różne obrony i działają obok siebie: limity widzą atak rozproszony po adresach, captcha widzi automat w przeglądarce. |
 | Rejestracja | 5 kont / godzinę / IP; 20 / dzień / IP | Chroni przed masowym zakładaniem kont-botów |
 | Reset hasła (żądanie) | 3 / godzinę / IP + e-mail | Zapobiega spamowaniu skrzynki ofiary |
+| Logowanie linkiem — żądanie | 5 / godzinę / IP **oraz** 3 / godzinę / adres e-mail | Każde żądanie to list w cudzej skrzynce i jeden list mniej w dobowej puli (D-056) |
+| Logowanie linkiem — wejście | 10 / 10 min / IP | Osobny koszyk: nieudane kliknięcie „Zaloguj mnie" nie zjada budżetu próśb o list |
 | Upload zdjęcia | 30 / godzinę / konto (nowe konto <7 dni: 10/godzinę) | Ogranicza koszt storage/processing przy nadużyciu |
 | Komentarz | 1 / 10 sekund, max 20/godzinę dla konta <7 dni | Zgodnie z `MODERATION_PLAYBOOK.md` sekcja spam |
 | Zgłoszenie treści (report) | 20 / dzień / konto | Zapobiega zalewaniu kolejki moderacji |
@@ -115,6 +149,62 @@ Propozycja konkretnych limitów (Laravel `RateLimiter::for()` w `AppServiceProvi
 | Publikacja posta/przepisu | bez sztywnego limitu bazowego, ale throttle przy nietypowym wzroście częstotliwości (np. >10/godzinę dla konta <30 dni → oznacz do przeglądu) | Nie karać aktywnych, prawdziwych użytkowników |
 
 Wszystkie limity: zwracaj `429 Too Many Requests` z nagłówkiem `Retry-After`, nie generyczny błąd 500.
+
+### 4a. Pula poczty jest zasobem bezpieczeństwa, nie tylko kosztem
+
+EmailLabs na planie darmowym daje **300 listów na dobę na cały serwis**
+(D-047) — z jednego wiadra idą potwierdzenia rejestracji, przypomnienia hasła,
+powiadomienia i linki do logowania. Limity zapytań z tabeli wyżej chronią
+pojedyncze konto i pojedynczy adres; **nie chronią puli**, bo pięciuset ludzi
+zachowujących się zupełnie normalnie nie przekracza żadnego z nich i i tak
+wysyła więcej listów, niż mamy.
+
+Pierwszą rzeczą, która przestaje działać po wyczerpaniu puli, jest
+**potwierdzenie rejestracji** — czyli nowi ludzie nie wchodzą w ogóle,
+a przyczyna siedzi kilka warstw dalej i nie widać jej znikąd.
+
+Dlatego funkcje wysyłkowe uruchamiane przez gościa dostają **własny sufit
+dobowy** (dziś: `kuking.login_link.dzienny_budzet`, domyślnie 120 listów).
+Po jego wyczerpaniu formularz **mówi wprost**, że listu dziś nie wyśle,
+i odsyła do hasła oraz do adresu kontaktowego — cicha odmowa jest tu
+zabroniona (ten sam kształt awarii co `MAIL_MAILER=log`).
+
+**Co się dzieje, gdy dostawca i tak odmówi — stan na 10 września 2026.**
+`TransportEmailLabs` zgłasza odmowę jako `TransportException`, więc zadanie
+w kolejce ponawia się z `--tries=3 --backoff=10,60,300` — po **około sześciu
+minutach** list ląduje w `failed_jobs` i **przepada**. Nie jest to „spróbuje
+jutro". Człowiek widział „wysłaliśmy list" i będzie czekał; operator dowie się
+wyłącznie wtedy, gdy sam zajrzy (`php artisan queue:failed`,
+`kuking:sprawdz-poczte`). **Automatycznego powiadomienia o nieudanym liście
+nie ma** i jest to znana luka dotycząca całej poczty, nie jednej funkcji.
+
+### Cloudflare Turnstile (D-050, issue #217)
+
+Stan **faktyczny**, nie plan. Turnstile w trybie Managed stoi na sześciu
+formularzach publicznych: `/register`, `/login`, `/nie-pamietam-hasla`,
+`/cofnij-usuniecie-konta`, `/napisz-do-nas`, `/zglos-nielegalna-tresc`.
+
+Trzy rzeczy, które trzeba czytać razem z tabelą wyżej, żeby nie wyciągnąć
+z niej fałszywego wniosku o poziomie ochrony:
+
+1. **Turnstile NIE ZASTĘPUJE limitów zapytań** i nie pozwala ich poluzować.
+   Zestaw z tabeli obowiązuje bez zmian.
+2. **Brak tokenu ODRZUCA wysłanie formularza.** Na tych sześciu formularzach
+   JavaScript jest warunkiem, nie ulepszeniem — decyzja właściciela
+   z 9 września 2026, zaostrzająca pierwszą wersję D-050 (ta przepuszczała
+   puste pole). Turnstile jest więc **warunkiem wysłania**, a nie filtrem
+   taniego ruchu, i tak trzeba go liczyć w każdej ocenie ryzyka. Idzie z tym
+   `<noscript>` przy każdym formularzu, osobny komunikat dla przypadku
+   „skrypt się nie dociągnął" i adres e-mail jako droga wyjścia — bez nich
+   zaciśnięcie zamienia rzadką awarię w cichą utratę użytkownika.
+3. **Niedostępność Cloudflare dalej PRZEPUSZCZA** — timeout, 5xx, zły sekret
+   po naszej stronie kończą się wysłanym formularzem i ostrzeżeniem
+   w dzienniku. To jest świadome: awaria cudzej usługi albo nasza literówka
+   w sekrecie nie może zamykać rejestracji, odzyskiwania hasła i drogi z DSA
+   art. 16 naraz.
+
+Pełne uzasadnienie, droga wycofania i to, co idzie razem z zaciśnięciem:
+`docs/DECISIONS.md` D-050.
 
 ---
 

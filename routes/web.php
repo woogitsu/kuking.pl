@@ -7,13 +7,17 @@ use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
+use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LoginLinkController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
@@ -26,6 +30,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -34,6 +39,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
+use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
@@ -115,6 +121,41 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+/*
+|--------------------------------------------------------------------------
+| Wypisanie z tygodniowego podsumowania (issue #11, D-057)
+|--------------------------------------------------------------------------
+|
+| POZA GRUPĄ `auth` I TO JEST SEDNO TYCH DWÓCH TRAS. Człowiek, który chce
+| przestać dostawać listy, nie może być zmuszony do zalogowania się — issue
+| #11 pkt 6 mówi „jednym kliknięciem, bez logowania i bez ankiety", a powód
+| jest twardszy niż wygoda: osoba, która nie pamięta hasła, zamiast wypisać
+| się klika w skrzynce „to jest spam", a to psuje dostarczalność CAŁEJ poczty
+| Kuking, łącznie z resetami haseł (`docs/decyzje/POCZTA.md` §3).
+|
+| Autoryzacją jest PODPIS, nie identyfikator w adresie — `AGENTS.md` §7
+| („UUID w adresie NIE JEST autoryzacją") zostaje w mocy: `middleware('signed')`
+| sprawdza, że ten adres wystawił Kuking kluczem aplikacji. Bez podpisu trasa
+| oddaje 403, więc nie da się wypisać kogoś, znając samo konto.
+|
+| `match(['get', 'post'])`, nie samo `get`: `POST` obsługuje nagłówek
+| `List-Unsubscribe-Post` (RFC 8058), którym Gmail i Outlook pokazują własny
+| przycisk wypisania przy nadawcy. Ta jedna trasa jest też wyjęta spod CSRF
+| (`bootstrap/app.php`) — klient pocztowy nie ma skąd wziąć tokenu.
+|
+| Limit z grupy `ustawienia`: dla gościa liczy się po adresie IP. Dolna
+| granica jest tu ważniejsza od górnej — trasa MUSI przepuścić kilka osób
+| z jednego łącza (dom opieki, mieszkanie rodzinne, biblioteka), bo inaczej
+| druga z nich zobaczy „za dużo prób" zamiast wypisania.
+*/
+Route::match(['get', 'post'], '/podsumowanie/wypisz/{user}', [PodsumowanieTygodniaController::class, 'wypisz'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('podsumowanie.wypisz');
+
+Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodniaController::class, 'wracam'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('podsumowanie.wracam');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
@@ -200,6 +241,90 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
         ->middleware("throttle:{$limits['password_reset']},password_reset")
         ->name('password.update');
+
+    /*
+     * LOGOWANIE LINKIEM E-MAIL — „magic link" (issue #25, D-056).
+     *
+     * Trzy trasy, bo droga ma trzy kroki, i podział między nimi jest
+     * BEZPIECZEŃSTWEM, nie estetyką:
+     *
+     *   GET  /logowanie/link        — formularz „wyślij mi link"
+     *   POST /logowanie/link        — wysyłka listu (Turnstile + dwa limity)
+     *   GET  /logowanie/link/{token} — ekran z przyciskiem. NIC NIE ZUŻYWA.
+     *   POST /logowanie/link/wejdz  — dopiero tu token ginie i powstaje sesja
+     *
+     * Skanery odnośników w poczcie otwierają linki z listów ZANIM zrobi to
+     * człowiek. Gdyby GET logował, skaner zużywałby jednorazowy token
+     * i właściciel konta dostawałby „link już nie działa" za każdym razem.
+     * Pełne uzasadnienie: `LoginLinkController`.
+     *
+     * `/logowanie/link/wejdz` nie koliduje z `/logowanie/link/{token}`, bo
+     * to dwie różne metody HTTP (POST kontra GET). Kolejność deklaracji jest
+     * tu więc kwestią czytelności, nie poprawności.
+     *
+     * DWA OSOBNE PREFIKSY LICZNIKA, choć oba dotyczą tej samej funkcji:
+     * nieudane kliknięcie „Zaloguj mnie" nie ma prawa zjadać budżetu próśb
+     * o list (i odwrotnie). To ta sama reguła, której pilnuje
+     * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+     *
+     * W grupie `guest` z tego samego powodu co `/login` i `/logowanie/kod`:
+     * to jeszcze nie jest sesja zalogowana, a ktoś już zalogowany nie ma
+     * po co tu wracać.
+     */
+    Route::get('/logowanie/link', [LoginLinkController::class, 'requestForm'])->name('login.link');
+    Route::post('/logowanie/link', [LoginLinkController::class, 'send'])
+        ->middleware("throttle:{$limits['login_link']},login_link")
+        ->name('login.link.send');
+
+    Route::post('/logowanie/link/wejdz', [LoginLinkController::class, 'store'])
+        ->middleware("throttle:{$limits['login_link_wejscie']},login_link_wejscie")
+        ->name('login.link.store');
+
+    Route::get('/logowanie/link/{token}', [LoginLinkController::class, 'confirmForm'])
+        ->name('login.link.confirm');
+
+    /*
+     * ZAPROSZENIE DO ZAŁOŻENIA KONTA — druga połowa tej samej drogi (D-085).
+     *
+     * Kto poprosi o „link do zalogowania" dla adresu, na którym NIE MA konta,
+     * dostaje wiadomość prowadzącą tutaj. Do 10 września 2026 nie dostawał
+     * niczego i widział przy tym zielone „wysłaliśmy wiadomość" — odbiła się
+     * o to prawdziwa osoba (uzasadnienie w `RegistrationInviteController`).
+     *
+     *   GET  /zaproszenie/{token}      — ekran z przyciskiem. NIC NIE ZUŻYWA.
+     *   POST /zaproszenie/zakladam     — zaproszenie do sesji i na /register
+     *   POST /zaproszenie/inny-adres   — „chcę konto na inny adres"
+     *
+     * Zaproszenia nie zużywa nawet POST — kasuje je dopiero utworzenie konta
+     * (`RegisterController::store()`), bo za tym POST-em stoi jeszcze cały
+     * formularz rejestracji, o który ta osoba już raz się odbiła.
+     *
+     * TRASY POST STOJĄ PRZED TRASĄ Z TOKENEM z tego samego powodu co przy
+     * logowaniu linkiem: kolizji nie ma (różne metody HTTP), więc kolejność
+     * jest kwestią czytelności, nie poprawności.
+     *
+     * WŁASNY PREFIKS LICZNIKA (`zaproszenie`), osobny od `login_link_wejscie`
+     * — nieudane klikanie „Zaloguj mnie" nie ma prawa zjadać prób „Załóż
+     * konto" i odwrotnie (`LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`).
+     *
+     * BEZ TURNSTILE, tak jak `POST /logowanie/link/wejdz`: captcha stoi na
+     * formularzu „wyślij mi link", przez który każde zaproszenie musi przejść,
+     * a tutaj nie ma czego wysyłać ani zapisywać. Formularz `/register`, na
+     * który te trasy przenoszą, Turnstile ma i mieć musi (D-050).
+     *
+     * W grupie `guest` z tego samego powodu co `/register` i `/logowanie/link`
+     * — kto jest już zalogowany, nie ma po co zakładać konta.
+     */
+    Route::post('/zaproszenie/zakladam', [RegistrationInviteController::class, 'przyjmij'])
+        ->middleware("throttle:{$limits['zaproszenie']},zaproszenie")
+        ->name('zaproszenie.przyjmij');
+
+    Route::post('/zaproszenie/inny-adres', [RegistrationInviteController::class, 'porzuc'])
+        ->middleware("throttle:{$limits['zaproszenie']},zaproszenie")
+        ->name('zaproszenie.porzuc');
+
+    Route::get('/zaproszenie/{token}', [RegistrationInviteController::class, 'pokaz'])
+        ->name('zaproszenie.pokaz');
 
     // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
     // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze
@@ -294,7 +419,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/witaj/zainteresowania', [OnboardingController::class, 'interests'])->name('onboarding.interests');
     Route::post('/witaj/zainteresowania', [OnboardingController::class, 'saveInterests'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
-    Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])->name('onboarding.people');
+    // Ten sam koszyk wielkości co `search` (config/kuking.php) — ten krok od
+    // teraz przyjmuje `?q=`, czyli odpytuje `SearchQuery::people()` tak samo
+    // jak /szukaj. Osobna nazwa koszyka (jak przy `admin_uzytkownicy` niżej
+    // w tym pliku), bo to inny ekran i inny licznik nadużyć.
+    Route::get('/witaj/ludzie', [OnboardingController::class, 'people'])
+        ->middleware("throttle:{$limits['search']},onboarding_ludzie")
+        ->name('onboarding.people');
     // OSOBNY, DUŻO NIŻSZY LIMIT NIŻ RESZTA OBSERWOWANIA. To jedyny formularz
     // w serwisie, w którym JEDNO żądanie tworzy powiadomienia u WIELU osób
     // naraz — więc liczenie go do wspólnego koszyka `obserwowanie` byłoby
@@ -479,14 +610,42 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('notifications.open');
 
     // Ustawienia
-    //
-    // Zapis profilu ma WŁASNY, niższy limit niż reszta ustawień, bo jako
-    // jedyny z nich przyjmuje PLIK: zdjęcie profilowe przechodzi przez cały
-    // pipeline zdjęć z AGENTS.md §7 (magic bytes, megapiksele, R2, zadanie
-    // w tle). To jest praca serwera, a nie UPDATE jednej kolumny.
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
-        ->middleware("throttle:{$limits['ustawienia_profil']},ustawienia_profil");
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    /*
+     * ZDJĘCIE PROFILOWE — OSOBNY, KRÓTKI EKRAN.
+     *
+     * Pole zdjęcia stało dotąd jako szóste pole formularza `/ustawienia/profil`.
+     * Funkcja była, ale droga do niej wiodła przez menu → Ustawienia → Profil
+     * → przewinięcie pod pięcioma polami, których człowiek nie zamierzał ruszać.
+     * Skróty prowadzące tutaj (awatar na własnym profilu i zachęta „Dodaj swoje
+     * zdjęcie") mają sens tylko wtedy, gdy prowadzą na ekran O JEDNEJ RZECZY —
+     * kotwica `#f-avatar` w tamtym formularzu wyrzucała na telefonie w środek
+     * ekranu pełnego innych pól.
+     *
+     * ADRES NIE MA IDENTYFIKATORA i to jest celowe: trasa działa zawsze na
+     * profilu osoby zalogowanej, więc nie ma czego podmienić. Autoryzacja i tak
+     * idzie przez `ProfilePolicy::update` w kontrolerze (AGENTS.md §7).
+     *
+     * LIMIT `ustawienia_profil` PRZENIÓSŁ SIĘ TUTAJ RAZEM Z POLEM PLIKU.
+     * To jest teraz jedyny ekran ustawień, który przyjmuje PLIK, czyli ten,
+     * którego jedno żądanie kosztuje serwer sekundy procesora i megabajty
+     * (magic bytes, limit megapikseli, zapis do R2, zadanie w tle). Zapis
+     * profilu bez zdjęcia to znowu zwykły UPDATE jednego wiersza, więc wraca
+     * do wspólnej grupy `ustawienia`.
+     *
+     * Usunięcie zdjęcia zostaje w grupie `ustawienia`: to UPDATE jednej
+     * kolumny i skasowanie plików, które i tak są własne.
+     */
+    Route::get('/ustawienia/zdjecie', [AvatarSettingsController::class, 'edit'])->name('settings.avatar');
+    Route::post('/ustawienia/zdjecie', [AvatarSettingsController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia_profil']},ustawienia_profil")
+        ->name('settings.avatar.update');
+    Route::delete('/ustawienia/zdjecie', [AvatarSettingsController::class, 'destroy'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.avatar.destroy');
 
     // „Twoje tagi" (D-021, zastępuje usunięty już `/ustawienia/tematy`).
     Route::get('/ustawienia/tagi', [TagFollowController::class, 'edit'])->name('settings.tags');
@@ -646,6 +805,21 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->name('admin.reports.restore');
 
     /*
+     * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez
+     * wykrywacz sygnałów, których NIKT nie zgłosił.
+     *
+     * Osobny adres, bo to osobna praca: tam czekają ludzie i terminy z DSA
+     * art. 16 ust. 5, tu leżą maszynowe podejrzenia, z których większość
+     * okaże się niczym. Decyzja o pojedynczej treści zapada dalej przez
+     * `admin.reports.decide` — automat nie dostaje własnej ścieżki decyzji,
+     * bo nie ma własnego rodzaju decyzji.
+     */
+    Route::get('/sygnaly', [SygnalyController::class, 'index'])->name('admin.sygnaly');
+    Route::post('/sygnaly/odrzuc', [SygnalyController::class, 'odrzucGrupe'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.sygnaly.dismiss');
+
+    /*
      * Wiadomości z „Napisz do nas" — OSOBNA kolejka, nie zakładka zgłoszeń.
      *
      * Stoi w tej samej grupie co moderacja (te same trzy warstwy: `auth`,
@@ -663,6 +837,29 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::post('/wiadomosci/{wiadomosc}', [WiadomosciController::class, 'update'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.contact.update');
+
+    /*
+     * ODPOWIEDŹ POCZTĄ DO OSOBY, KTÓRA NAPISAŁA (D-058).
+     *
+     * OSOBNA TRASA OD `admin.contact.update`, bo to są dwie rzeczy o różnej
+     * odwracalności: tam zapisuje się stan i notatkę (do poprawienia
+     * w każdej chwili), tutaj wychodzi list, którego nie da się odwołać.
+     * Jedna trasa znaczyłaby, że poprawienie literówki w notatce wysyła
+     * drugi list.
+     *
+     * WŁASNY KLUCZ LIMITU (`kontakt_odpowiedz`, 20/10), NIE WSPÓLNY
+     * `moderacja` (120/10). To jedyna trasa w panelu, która wysyła pocztę
+     * na zewnątrz, a dzienny budżet EmailLabs to 300 listów dzielonych
+     * z przypomnieniami hasła — pełne wyliczenie stoi przy kluczu
+     * w `config/kuking.php`.
+     *
+     * Polityka i tak jest pytana w kontrolerze (`ContactMessagePolicy::reply`),
+     * osobną zdolnością niż `handle` — wysłanie listu do człowieka z zewnątrz
+     * nie jest tym samym co przestawienie stanu w naszej kolejce.
+     */
+    Route::post('/wiadomosci/{wiadomosc}/odpowiedz', [WiadomosciController::class, 'odpowiedz'])
+        ->middleware("throttle:{$limits['kontakt_odpowiedz']},kontakt_odpowiedz")
+        ->name('admin.contact.reply');
 
     // Kolejka odwołań (#10).
     Route::get('/odwolania', [AdminAppealController::class, 'index'])->name('admin.appeals');
@@ -698,12 +895,47 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.tag-promotions.destroy');
+
+    /*
+     * Konta użytkowników — lista do wglądu i karta pojedynczego konta.
+     *
+     * LIMIT NA LIŚCIE, MIMO ŻE TO `GET` I MIMO TRZECH WARSTW PRZED NIM.
+     * Jedyna droga, którą ten ekran robi cokolwiek drogiego, to wyszukiwanie:
+     * `LIKE '%…%'` po trzech kolumnach przy tysiącach kont. Bierzemy limit
+     * `search` z `config/kuking.php` — ten sam, którym chroniona jest
+     * wyszukiwarka publiczna, bo to jest ten sam rodzaj zapytania — ale
+     * z WŁASNYM koszykiem (`admin_uzytkownicy`), żeby moderator szukający
+     * konta nie zjadał sobie budżetu zwykłego szukania przepisów.
+     * `config/kuking.php` zostaje jedynym źródłem prawdy o liczbie
+     * (AGENTS.md §7).
+     *
+     * KARTA (`{user}`) BEZ LIMITU: to jest jedno zapytanie po kluczu głównym,
+     * a każde wejście zostawia wpis w `audit_log` — limiter odcinałby wtedy
+     * nie tyle nadużycie, ile ślad po nim.
+     *
+     * Obie trasy i tak przechodzą przez `UserPolicy::moderate` w kontrolerze:
+     * middleware pilnuje wejścia do panelu, nie prawa do konkretnego wiersza,
+     * a UUID w adresie nie jest autoryzacją (AGENTS.md §7).
+     */
+    Route::get('/uzytkownicy', [UzytkownicyController::class, 'index'])
+        ->middleware("throttle:{$limits['search']},admin_uzytkownicy")
+        ->name('admin.users');
+    Route::get('/uzytkownicy/{user}', [UzytkownicyController::class, 'show'])->name('admin.users.show');
 });
 
 // --------------------------------------------------------------------------
 // Tagi (D-021, zastępuje usunięty już Temat z issue #31)
 // --------------------------------------------------------------------------
 //
+// Spis wszystkich tematów (#273, druga połowa — D-026 dała słownik, ta
+// trasa daje wejście do niego). PUBLICZNA, z tego samego powodu co strona
+// tagu niżej: to jest odpowiednik Garnkowej „fotofory" — jawna, zamknięta
+// lista, bez logowania (docs/product/PROSTOTA_JAK_GARNEK.md §5a).
+// NAD `/tag/{tag}`: gdyby kolejność była odwrotna, nic by się nie zepsuło
+// (inny literał ścieżki), ale trasy publiczne stoją tu razem, w kolejności
+// „lista, potem karta", żeby nie trzeba było ich szukać w dwóch miejscach.
+Route::get('/tagi', [TagController::class, 'index'])->name('tags.index');
+
 // Strona tagu jest PUBLICZNA i celowo poza `auth`: to jedno z niewielu
 // miejsc, w które ma sens trafić z wyszukiwarki. Sama lista wpisów jest
 // filtrowana przez widoczność (Post::scopeWidoczneDla), więc gość widzi

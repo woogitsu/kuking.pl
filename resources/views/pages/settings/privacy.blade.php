@@ -7,7 +7,7 @@
             <input id="f-digest" type="checkbox" name="wants_weekly_digest" value="1" @checked(auth()->user()->wants_weekly_digest)>
             <span>
                 <span class="choice-label">Chcę raz w tygodniu dostawać e-mail z Kuking</span>
-                <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów i co ciekawego się działo. Jeden e-mail tygodniowo, nigdy więcej. <strong>Tych listów jeszcze nie wysyłamy</strong> — zaznaczenie zapisuje Twoją zgodę na później, a pierwszy list przyjdzie dopiero wtedy, gdy podsumowania ruszą.</span>
+                <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów, kto zaczął Cię obserwować i co pokazali ludzie, których obserwujesz. Jeden e-mail tygodniowo, nigdy więcej — i tylko wtedy, gdy naprawdę jest o czym pisać. Wypisać się możesz jednym kliknięciem na dole każdego e-maila, bez logowania.</span>
             </span>
         </label>
 
@@ -27,7 +27,7 @@
         <label class="choice mt-4" for="f-wspomnienia">
             <input id="f-wspomnienia" type="checkbox" name="memories_enabled" value="1" @checked(auth()->user()->memories_enabled)>
             <span>
-                <span class="choice-label">Przypominaj mi, co gotowałam w tym dniu w poprzednich latach</span>
+                <span class="choice-label">Przypominaj mi moje wpisy z tego dnia w poprzednich latach</span>
                 <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
             </span>
         </label>
@@ -38,7 +38,7 @@
     <section class="mt-8">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty())
-            <p class="meta">Nikogo nie zablokowałaś.</p>
+            <p class="meta">Nikogo nie blokujesz.</p>
         @else
             <p>Te osoby nie widzą Twoich treści, a Ty nie widzisz ich.</p>
             <div class="stack-tight">
@@ -59,10 +59,17 @@
     <section class="mt-8">
         <h2>Kto widzi Twoje treści</h2>
         <p>
-            Przy każdym wpisie i przepisie sama decydujesz: wszyscy, tylko osoby które Cię obserwują,
+            {{-- „sama decydujesz" przypisywało czytelnikowi rodzaj żeński
+                 (issue #38, D-066) — „sama" nie wnosi tu informacji, więc
+                 zdanie działa i bez niego. --}}
+            Przy każdym wpisie i przepisie decydujesz Ty: wszyscy, tylko osoby które Cię obserwują,
             albo tylko Ty. Możesz to zmienić w każdej chwili.
         </p>
     </section>
 
-    <x-ustawienia-nawigacja aktywne="privacy" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="privacy" />
+    </x-slot:rail>
 </x-layout>

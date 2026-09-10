@@ -12,11 +12,39 @@
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
 
+        <x-turnstile miejsce="logowanie" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zaloguj się</button>
             <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
         </div>
     </form>
+
+    {{--
+        DRUGA, RÓWNORZĘDNA DROGA WEJŚCIA — LOGOWANIE LINKIEM (issue #25, D-056).
+
+        Stoi TU, zaraz pod formularzem hasła, a nie pod „innymi opcjami"
+        i nie na dole strony. To jest wymóg z issue: dla dużej części naszych
+        ludzi (`docs/research/AUDIENCE_50_PLUS.md` — 12,3% osób 65-74 ma
+        podstawowe umiejętności cyfrowe) hasło jest murem, a link jest drogą
+        PODSTAWOWĄ. Schowana droga podstawowa przestaje być drogą.
+
+        Cały blok znika, gdy `KUKING_LOGOWANIE_LINKIEM=false` — to jest
+        wycofanie funkcji bez wdrażania migracji. Martwego przycisku nie
+        zostawiamy nigdzie (D-053): jak nie ma drogi, nie ma i wejścia do niej.
+    --}}
+    @if(config('kuking.login_link.wlaczone'))
+        <div class="card mt-6">
+            <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
+            <p>
+                Wyślemy Ci wiadomość z jednym przyciskiem. Klikasz — i jesteś w środku.
+                Hasło zostaje takie, jakie było; możesz go używać dalej, kiedy zechcesz.
+            </p>
+            <p class="form-actions">
+                <a class="btn btn-secondary" href="{{ route('login.link') }}">Wyślij mi link do zalogowania</a>
+            </p>
+        </div>
+    @endif
 
     <p class="mt-6">Nie masz konta? <a href="{{ route('register') }}">Załóż konto</a>.</p>
 

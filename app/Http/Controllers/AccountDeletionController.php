@@ -8,6 +8,8 @@ use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -73,6 +75,21 @@ class AccountDeletionController extends Controller
         $data = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
+            /*
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
+             *
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
+             */
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('cofniecie_usuniecia'),
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło do swojego konta.',
@@ -85,7 +102,7 @@ class AccountDeletionController extends Controller
         // (ta sama zasada co w LoginController i w formularzu odwołań #10).
         if ($osoba === null || ! Hash::check($data['password'], (string) $osoba->password)) {
             throw ValidationException::withMessages([
-                'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy adres/nazwa i hasło są wpisane poprawnie. '
+                'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy e-mail albo nazwa i hasło są wpisane poprawnie. '
                     .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także dla konta '
                     .'oznaczonego do usunięcia.',
             ]);

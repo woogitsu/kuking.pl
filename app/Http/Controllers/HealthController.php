@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,11 @@ use Throwable;
  * serwis w pętli restartów. Dlatego awaria dysku daje HTTP 200 z polem
  * `status: degraded` — monitoring ma pilnować TREŚCI odpowiedzi, nie tylko
  * kodu HTTP.
+ *
+ * `turnstile` jest tu z tego samego, NIEKRYTYCZNEGO powodu i odpowiada na
+ * inne pytanie niż pozostałe dwa: nie „czy coś padło", a „czy konfiguracja
+ * nie kłamie" (D-050). Brak kluczy Turnstile nic nie psuje — i właśnie
+ * dlatego bez tego sygnału nikt by go nie zauważył.
  *
  * PO CO W OGÓLE SPRAWDZAĆ ZDJĘCIA
  * Katalog ze zdjęciami stał kiedyś na dysku kontenera, który Railway kasuje
@@ -74,6 +80,7 @@ class HealthController extends Controller
         self::POWOD_ODCZYT_NIEZGODNY,
         self::POWOD_BRAK_DROGI_PUBLICZNEJ,
         self::POWOD_DROGA_GDZIE_INDZIEJ,
+        self::POWOD_TURNSTILE_BEZ_KLUCZY,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -97,6 +104,14 @@ class HealthController extends Controller
     /** `public/storage` istnieje, ale prowadzi do innego katalogu niż dysk ze zdjęciami. */
     private const POWOD_DROGA_GDZIE_INDZIEJ = 'droga_publiczna_gdzie_indziej';
 
+    /**
+     * Turnstile jest włączony w konfiguracji, ale nie ma kluczy — na produkcji
+     * to znaczy, że formularze publiczne stoją bez zapowiedzianej ochrony
+     * (D-050). Kod bez nazwy zmiennej i bez fragmentu klucza: ta odpowiedź
+     * jest publiczna.
+     */
+    private const POWOD_TURNSTILE_BEZ_KLUCZY = 'turnstile_bez_kluczy';
+
     public function __invoke(): JsonResponse
     {
         $checks = [
@@ -114,6 +129,7 @@ class HealthController extends Controller
                 }
             }),
             'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
+            'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -131,6 +147,53 @@ class HealthController extends Controller
             'time' => now()->toIso8601String(),
             'checks' => $checks,
         ], $krytyczneOk ? 200 : 503);
+    }
+
+    /**
+     * Turnstile: czy to, co obiecuje konfiguracja, ma czym działać (D-050).
+     *
+     * PO CO TO TU JEST, SKORO BRAK KLUCZY NICZEGO NIE PSUJE
+     * Właśnie dlatego. Bez kluczy widget się nie renderuje, walidacja nikogo
+     * nie zatrzymuje i wszystko wygląda dobrze — a `/register`,
+     * `/nie-pamietam-hasla`, `/napisz-do-nas` i `/zglos-nielegalna-tresc`
+     * stoją bez ochrony, którą konfiguracja właśnie zapowiedziała. To jest ta
+     * sama klasa awarii co `MAIL_MAILER=log`, martwy `kuking.media_disk`
+     * i limit `upload` niepodpięty do żadnej trasy: narzędzie melduje sukces,
+     * nie robiąc nic. Jedyna obrona to twardy, zewnętrznie widoczny sygnał.
+     *
+     * DLACZEGO `degraded`, A NIE 503
+     * Bo `turnstile` NIE JEST na liście `KRYTYCZNE`, i to jest decyzja, nie
+     * przeoczenie. Healthcheck oddający 503 już raz położył ten serwis
+     * (patrz komentarz na górze klasy). Serwis działający bez captchy jest
+     * o wiele lepszy niż serwis w pętli restartów — a monitoring i tak ma
+     * pilnować TREŚCI odpowiedzi. Przy okazji `check()` zapisuje to jako
+     * `Log::error`, więc idzie też na webhook błędów i do Sentry.
+     *
+     * DLACZEGO TYLKO NA PRODUKCJI I TYLKO GDY KTOŚ O TURNSTILE POPROSIŁ
+     * Lokalnie, w CI i w testach kluczy nie ma i mieć nie musi — stały
+     * `degraded` w tych środowiskach byłby szumem, który uczy ignorować to
+     * pole. A jeśli właściciel świadomie wyłączy WSZYSTKIE miejsca
+     * w `config/kuking.php`, to konfiguracja nie kłamie i nie ma o czym
+     * krzyczeć.
+     */
+    private function sprawdzTurnstile(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if (! Turnstile::ktoresMiejsceWlaczone()) {
+            return;
+        }
+
+        if (Turnstile::skonfigurowany()) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_TURNSTILE_BEZ_KLUCZY,
+            Turnstile::komunikatBrakuKluczy(),
+        );
     }
 
     /**

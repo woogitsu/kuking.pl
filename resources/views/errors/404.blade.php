@@ -15,7 +15,7 @@
     </p>
 
     <p class="mb-5">
-        Jeśli adres przepisywałeś z kartki — sprawdź, czy nie zgubiła się kropka
+        Jeśli przepisujesz adres z kartki — sprawdź, czy nie zgubiła się kropka
         albo ukośnik. Jeśli przyszedł mailem, otwórz go jeszcze raz z wiadomości,
         zamiast przepisywać.
     </p>

@@ -15,6 +15,46 @@
 --}}
 <x-layout title="Napisz do nas"
           description="Napisz do nas, jeśli coś nie działa, masz pomysł albo po prostu chcesz coś powiedzieć. Czyta to człowiek.">
+    {{--
+        PRAWA SZYNA (issue #205).
+
+        DWIE RZECZY, KTÓRE MOGĄ SPRAWIĆ, ŻE PISANIE NIE BĘDZIE POTRZEBNE.
+        Człowiek pisze do nas najczęściej dlatego, że czegoś nie znalazł —
+        a najczęstszym „czegoś" jest logowanie. Odnośnik do odzyskania hasła
+        stoi więc na wierzchu i TYLKO dla osoby niezalogowanej; zalogowanej
+        byłby podpowiedzią do problemu, którego nie ma.
+
+        To NIE jest zniechęcanie do napisania. Formularz zostaje tam, gdzie
+        był, w środku ekranu, i nic go nie przykrywa — tekst niżej mówi
+        wprost, że wiadomość jest w porządku także wtedy, gdy odpowiedź
+        gdzieś tam jest.
+
+        ZERO ZAPYTAŃ DO BAZY.
+    --}}
+    <x-slot:rail>
+        <x-szyna-blok tytul="Może odpowiedź już tu jest" id="szyna-pomoc" ikona="chat">
+            <x-szyna-linki :pozycje="array_values(array_filter([
+                auth()->check() ? null : [
+                    'href' => route('password.request'),
+                    'nazwa' => 'Nie możesz się zalogować',
+                    'podpis' => 'Ustawimy nowe hasło — potrzebny jest tylko adres e-mail.',
+                ],
+                [
+                    'href' => route('help'),
+                    'nazwa' => 'Pomoc',
+                    'podpis' => 'Pytania, które wracają najczęściej.',
+                ],
+                [
+                    'href' => route('rules'),
+                    'nazwa' => 'Zasady',
+                    'podpis' => 'Czego się tu po sobie spodziewamy.',
+                ],
+            ]))" />
+
+            <p class="mb-0">Jeśli tego tam nie ma — pisz. Lepiej dwa razy niż wcale.</p>
+        </x-szyna-blok>
+    </x-slot:rail>
+
     <h1>Napisz do nas</h1>
 
     <p class="mb-5">
@@ -95,6 +135,8 @@
                 do Twojego konta.
             </p>
         @endguest
+
+        <x-turnstile miejsce="kontakt" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij wiadomość</button>

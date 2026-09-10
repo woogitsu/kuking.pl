@@ -8,7 +8,9 @@ use App\Domain\Moderation\UzasadnienieDecyzji;
 use App\Http\Controllers\Controller;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\KluczeLimitow;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +40,21 @@ class LoginController extends Controller
         $data = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
+            /*
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
+             *
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
+             */
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('logowanie'),
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło.',

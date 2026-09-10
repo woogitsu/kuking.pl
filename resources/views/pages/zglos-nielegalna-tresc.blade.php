@@ -24,7 +24,14 @@
 
     Ekran potwierdzenia zostaje `noindex`: niesie numer sprawy.
 --}}
-<x-layout title="Zgłoś treść niezgodną z prawem">
+{{--
+    Meta description (znalezisko przy okazji issue #191, poza jego pierwotnym
+    zakresem — ta strona jest ŚWIADOMIE indeksowana, patrz uzasadnienie
+    wyżej, więc dokładnie tak samo jak tag i strony prawne cierpiała na
+    brak `description` w `<x-layout>`, tylko nikt tego jeszcze nie zmierzył).
+--}}
+<x-layout title="Zgłoś treść niezgodną z prawem"
+    description="Zgłoś zdjęcie, tekst albo przepis, który łamie prawo. Formularz jest dostępny dla każdego, także bez konta w Kuking.">
     <h1>Zgłoś treść niezgodną z prawem</h1>
 
     <p class="mb-5">
@@ -73,7 +80,7 @@
         <x-field name="target_url" label="Adres strony z tą treścią" required
                  :value="old('target_url')"
                  placeholder="https://kuking.pl/przepis/..."
-                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to widziałeś." />
+                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to jest." />
 
         <fieldset class="border-0 p-0 mt-5">
             <legend class="font-bold mb-3">Czego dotyczy zgłoszenie?</legend>
@@ -115,6 +122,8 @@
         </label>
         @error('good_faith')<span class="field-error">{{ $message }}</span>@enderror
 
+        <x-turnstile miejsce="zgloszenie_nielegalnej_tresci" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij zgłoszenie</button>
         </div>
@@ -123,7 +132,7 @@
     <div class="card mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <ol class="lista-krokow">
-            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podałeś adres.</li>
+            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podasz adres.</li>
             <li>Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.</li>
             <li>Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść zostaje.
                 W takim liście będzie powód i informacja, co możesz zrobić dalej.</li>

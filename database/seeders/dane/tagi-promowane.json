@@ -12,7 +12,7 @@
     { "nazwa": "szarlotka", "pozycja": 7, "notatka": "Jabłka są, więc i szarlotka." },
     { "nazwa": "chleb na zakwasie", "pozycja": 8, "notatka": null },
     { "nazwa": "rosół", "pozycja": 9, "notatka": null },
-    { "nazwa": "przepis po babci", "pozycja": 10, "notatka": "Przepis, który dostałaś albo dostałeś od kogoś. Napisz przy nim, od kogo." },
+    { "nazwa": "przepis po babci", "pozycja": 10, "notatka": "Przepis, który masz od kogoś. Napisz przy nim, od kogo." },
     { "nazwa": "dla wnuków", "pozycja": 11, "notatka": null },
     { "nazwa": "początek roku szkolnego", "pozycja": 12, "notatka": "Do plecaka, do termosu, na szybki obiad po lekcjach." }
   ]

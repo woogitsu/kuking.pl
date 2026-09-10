@@ -89,7 +89,7 @@ class ProfilListyRelacjiUkrywajaZbanowaneKontaTest extends TestCase
         // licznikach, więc luźne dopasowanie przechodziłoby również przy
         // liczniku zepsutym w zupełnie inny sposób).
         $odpowiedz->assertSee(
-            '<span class="stat-value">1</span><span class="stat-label">obserwujących</span>',
+            '<span class="stat-value">1</span> <span class="stat-label">obserwujący</span>',
             false,
         );
     }

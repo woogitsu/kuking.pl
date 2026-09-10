@@ -30,20 +30,41 @@ class StaticPageController extends Controller
 
     public function rules(): View
     {
-        return $this->markdown('zasady', 'Zasady Kuking');
+        return $this->markdown(
+            'zasady',
+            'Zasady Kuking',
+            'Zasady Kuking: publikuj własne zdjęcia i przepisy, szanuj innych i zgłaszaj treści, które Cię niepokoją.',
+        );
     }
 
     public function terms(): View
     {
-        return $this->markdown('regulamin', 'Regulamin');
+        return $this->markdown(
+            'regulamin',
+            'Regulamin',
+            'Regulamin Kuking: zasady publikowania zdjęć i przepisów, prawa autorskie, moderacja treści i usuwanie konta.',
+        );
     }
 
     public function privacy(): View
     {
-        return $this->markdown('polityka-prywatnosci', 'Polityka prywatności');
+        return $this->markdown(
+            'polityka-prywatnosci',
+            'Polityka prywatności',
+            'Polityka prywatności Kuking: jakie dane zbieramy, po co je przechowujemy i jak pobrać albo usunąć swoje dane.',
+        );
     }
 
-    private function markdown(string $slug, string $title): View
+    /**
+     * Meta description OSOBNO dla każdej strony prawnej (issue #191).
+     *
+     * Jeden wspólny opis dla trzech różnych dokumentów byłby dokładnie tym
+     * szablonem „Strona X w serwisie Y", którego to zgłoszenie prosi
+     * unikać — a w wynikach Google trzy identyczne opisy pod trzema różnymi
+     * tytułami wyglądają na pomyłkę. Każdy tekst mówi, co NAPRAWDĘ jest
+     * w danym dokumencie, nie tylko jak się nazywa.
+     */
+    private function markdown(string $slug, string $title, string $description): View
     {
         $path = resource_path("legal/{$slug}.md");
 
@@ -58,6 +79,7 @@ class StaticPageController extends Controller
 
         return view('pages.static.legal', [
             'pageTitle' => $title,
+            'pageDescription' => $description,
             // Str::markdown korzysta z league/commonmark w trybie bezpiecznym:
             // surowy HTML z pliku nie jest renderowany. Te pliki są nasze,
             // ale zasada „nie renderuj cudzego HTML-a” obowiązuje wszędzie.

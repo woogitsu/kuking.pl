@@ -144,17 +144,41 @@ Każdy nowy ekran MUSI spełniać:
 - przy 200% powiększenia i przy szerokości 320 px strona pozostaje używalna,
 - cel: **WCAG 2.2 AA**.
 
+Te dwie reguły mają jeden nazwany, udokumentowany wyjątek — metryczka wersji
+i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
+`docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
+indziej w serwisie te reguły obowiązują bez zmian.
+
 Nawigacja mobilna ma **maksymalnie 5 pozycji**:
 `Start | Szukaj | Dodaj | Zeszyt | Profil`.
 
 Paginacja to **przycisk „Pokaż więcej”**, nie infinite scroll.
 
-### JavaScript jest ulepszeniem, nie warunkiem
+### JavaScript jest wymagany tam, gdzie chroni serwis — i nigdzie nie zostawia martwego przycisku
 
-Rejestracja, logowanie, publikacja wpisu, przepis, komentarz i „Ugotowałem”
-**muszą działać bez JavaScriptu**. Powód nie jest ideologiczny: przy słabym
-zasięgu skrypt się nie dociąga, a użytkownik zostaje z formularzem, który
-nic nie robi po kliknięciu.
+**Zmiana zasady, 9 września 2026 (D-053).** Wcześniej stało tu, że rejestracja,
+logowanie, publikacja wpisu, przepis, komentarz i „Ugotowałem” **muszą działać
+bez JavaScriptu**. Właściciel to zmienił i ma rację co do faktów: nasi
+użytkownicy nie wchodzą tu z telefonu bez skryptów, tylko z Samsunga, Xiaomi
+albo z komputera. Pełne uzasadnienie i skutki: **D-053** w `docs/DECISIONS.md`.
+
+Obowiązuje teraz to:
+
+1. **Newralgiczne formularze mogą wymagać JavaScriptu.** Rejestracja i logowanie
+   stoją za Turnstile (D-050), a Turnstile bez skryptu nie istnieje. Wymóg jest
+   świadomy: chroni serwis przed ruchem automatycznym.
+2. **Gdziekolwiek indziej JavaScript jest mile widziany** — podgląd zdjęcia
+   przed wysłaniem, licznik znaków, kadrowanie awatara. Nie trzeba tego
+   uzasadniać ani dublować wersją bez skryptu.
+3. **Czego nie wolno nigdy: martwego przycisku.** Jeśli coś bez skryptu nie
+   zadziała, człowiek ma zobaczyć zdanie po polsku mówiące, CO ZROBIĆ, a nie
+   formularz, który po kliknięciu milczy. `<noscript>` z konkretną instrukcją,
+   nie z ogólnikiem „wymagany JavaScript”. Powód jest ten sam co dawniej i nie
+   zniknął: przy słabym zasięgu skrypt bywa **nie dociągnięty** na telefonie,
+   który JavaScript ma i ma go włączonego.
+4. **Awaria po naszej stronie albo po stronie Cloudflare nie zamyka drzwi.**
+   Gdy weryfikacja tokenu nie odpowiada, formularz przechodzi (D-050). Wymóg
+   dotyczy skryptu u człowieka, nie sprawności cudzej usługi.
 
 ---
 
@@ -320,20 +344,56 @@ skończona.
 composer install --prefer-source
 ```
 
+Jeszcze pewniej działa to z jawnym wyłączeniem API GitHuba, bo inaczej
+Composer i tak próbuje najpierw `dist`:
+
+```bash
+composer config -g use-github-api false
+composer install --prefer-source
+```
+
 Blokuje to dokładnie jedna paczka: `phpstan/phpstan` nie ma w `composer.lock`
 wpisu `source` (to repozytorium dystrybucyjne, tylko `dist`), a klon lustrzany
-jej repozytorium przekracza limit czasu Composera. Obejście — wyjmij **na
-czas instalacji** `phpstan/phpstan` i `larastan/larastan` z `composer.json`
-i `composer.lock`, zainstaluj resztę, po czym **przywróć oba pliki z gita**:
+jej repozytorium przekracza limit czasu Composera.
+
+**Obejście doraźne** — wyjmij **na czas instalacji** `phpstan/phpstan`
+i `larastan/larastan` z `composer.json` i `composer.lock`, zainstaluj resztę,
+po czym **przywróć oba pliki z gita**:
 
 ```bash
 git checkout composer.json composer.lock
 ```
 
-`vendor/` zostaje sprawne, a repozytorium nietknięte. Skutek uboczny jest
-jeden i trzeba go pilnować: **Larastan nie chodzi lokalnie**, więc analiza
-statyczna zostaje po stronie CI — napisz to wprost w opisie Pull Requesta,
-zamiast odhaczać punkt, którego nie sprawdziłeś.
+`vendor/` zostaje sprawne, a repozytorium nietknięte. Kosztem jest brak
+analizy statycznej.
+
+> ### ⚠️ SPROSTOWANIE, 9 września 2026: Larastan CHODZI lokalnie
+>
+> Ten akapit twierdził, że „**Larastan nie chodzi lokalnie**, więc analiza
+> statyczna zostaje po stronie CI". **Nieprawda** — i to nieprawda kosztowna,
+> bo każdy agent czytał ją jako zwolnienie z obowiązku i odhaczał analizę
+> statyczną jako niewykonalną.
+>
+> Zmierzone tego dnia w kontenerze agenta: **`PHPStan 2.2.13`, poziom 1
+> z `phpstan.neon`, `0 errors`** na dwóch gałęziach niezależnie. Da się.
+>
+> Trzeba tylko podłożyć tę jedną paczkę do cache Composera samodzielnie:
+> sklonuj `phpstan/phpstan` na płytko (`git fetch --depth 1`) na commicie
+> zablokowanym w `composer.lock`, spakuj w kształt zipballa GitHuba i wrzuć
+> do cache Composera **pod dwiema nazwami** — `<reference>.zip`
+> oraz `sha1(<adres dist>).zip`. Ta druga jest tą, której Composer faktycznie
+> szuka, i pominięcie jej jest powodem, dla którego „podłożenie do cache"
+> zwykle nie działa za pierwszym razem.
+>
+> To jest zabieg na kilka minut, więc **nie jest wymówką**, żeby go pominąć:
+> jeśli piszesz w opisie PR-a, że analizy nie uruchomiłeś, napisz też
+> dlaczego — brak czasu jest uczciwym powodem, „nie da się" już nie jest.
+>
+> CI zostaje **rozstrzygające**. Chodzi o to, żeby nie wypychać na nie
+> błędów, które łapie się lokalnie w trzydzieści sekund.
+
+Czego nadal nie wolno robić: odhaczać w opisie Pull Requesta punktu, którego
+nie uruchomiłeś. To dotyczy każdego narzędzia, nie tylko tego.
 
 Po instalacji ustaw jeszcze klucz aplikacji, inaczej każdy test padnie na
 „No application encryption key has been specified":
@@ -381,6 +441,12 @@ logowaniem. Hasła do kont demo wypisuje `DemoSeeder`.
 
 Poprawka bez testu, który by ten błąd złapał, nie jest poprawką — jest
 zaproszeniem do jego powtórzenia.
+
+**Test bez kontroli ujemnej nie jest dowodem.** Zepsuj to, czego test pilnuje,
+sprawdź, że OBLEWA, przywróć. Sześć pomyłek, które w tym repozytorium przeszły
+przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — jest zebranych
+w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
+napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
 
 ### Issues
 
@@ -431,3 +497,12 @@ Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
 algorytmiczny feed, masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
+
+**Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**
+pod wpisem — decyzja właściciela **D-081** (`docs/DECISIONS.md`, issue #275).
+To NIE jest licznik lajków ani ranking: autor widzi liczbę od pierwszej osoby,
+ktokolwiek inny od trzeciej, liczba nigdzie nie sortuje, nie promuje i nie
+tworzy zestawień, a na tablicy „kuKINGi na dziś", w wyszukiwarce i na stronie
+powitalnej jej celowo nie ma. Zanim tę liczbę gdziekolwiek dołożysz, przeniesiesz
+albo użyjesz do porządkowania treści — przeczytaj D-081, bo granice są tam
+wypisane wprost i ich przesunięcie wymaga osobnej decyzji właściciela.

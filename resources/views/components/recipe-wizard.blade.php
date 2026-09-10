@@ -330,7 +330,7 @@ new class extends Component
             $this->persist(publish: false);
         } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
-            $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — to, co wpisałeś, jest dalej w formularzu.';
+            $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
 
             return false;
         }
@@ -746,6 +746,30 @@ new class extends Component
     public function previewServings(): ?float
     {
         return $this->numberOrNull($this->servings);
+    }
+
+    /**
+     * Liczba porcji do podglądu — liczona TYM SAMYM kodem, co znaczek na
+     * stronie przepisu (`Recipe::servingsLabel()`), a nie drugą kopią
+     * odmiany liczebnika obok. Model nie jest zapisywany.
+     *
+     * PO CO TO POWSTAŁO (issue #38)
+     * Podgląd pisał `(int) previewServings().' porcji'`, czyli dokładnie to,
+     * co `servingsLabel()` naprawiało na stronie przepisu (audyt A28):
+     *
+     *     w polu 1     → „1 porcji"     (nie po polsku)
+     *     w polu 2     → „2 porcji"     (nie po polsku)
+     *     w polu 0,5   → „0 porcji"     (nieprawda o samym sobie — rzut na
+     *                                    int obcina połówkę do zera)
+     *
+     * Ekran, który nazywa się „tak zobaczą to inni", pokazywał więc coś
+     * innego niż to, co inni naprawdę zobaczą.
+     */
+    public function previewServingsLabel(): ?string
+    {
+        $porcje = $this->previewServings();
+
+        return $porcje === null ? null : (new Recipe(['servings' => $porcje]))->servingsLabel();
     }
 
     /**
@@ -1241,8 +1265,8 @@ new class extends Component
                 <h3 class="naglowek-podgladu">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>
 
                 <ul class="recipe-facts">
-                    @if($this->previewServings() !== null)
-                        <li><span class="badge">{{ (int) $this->previewServings() }} porcji</span></li>
+                    @if($this->previewServingsLabel() !== null)
+                        <li><span class="badge">{{ $this->previewServingsLabel() }}</span></li>
                     @endif
                     @if($this->totalMinutes() !== null)
                         <li><span class="badge">Razem około {{ $this->totalMinutes() }} min</span></li>

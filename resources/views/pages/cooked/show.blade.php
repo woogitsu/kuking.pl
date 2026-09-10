@@ -3,7 +3,7 @@
     // widoczny w karcie przeglądarki i w historii — nie wolno w nim przemycić
     // nazwy przepisu, którego już nie ma.
     $tytulStrony = $event->recipe
-        ? $event->user->displayName().' ugotował: '.$event->recipe->title
+        ? $event->user->displayName().' — ugotowane: '.$event->recipe->title
         : $event->user->displayName().' — wykonanie przepisu';
 @endphp
 <x-layout :title="$tytulStrony" :noindex="true">

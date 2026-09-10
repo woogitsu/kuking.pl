@@ -1,4 +1,9 @@
-<x-layout title="kuKINGi na dziś" :noindex="true">
+<x-layout title="Tablica na dziś — Panel moderacji" :noindex="true">
+    {{-- `ekran="Tablica na dziś"`, nie „kuKINGi na dziś": gra słowem `kuKING`
+         wolno użyć najwyżej raz na ekran (AGENTS.md §11), a `<h1>` niżej już
+         jej używa przez `<x-kuking-word>`. --}}
+    <x-panel-moderacji ekran="Tablica na dziś" />
+
     <h1><x-kuking-word forma="i" /> na dziś</h1>
     <p class="mb-5">
         Zaznacz kilka osób i kilka dań, które dziś warto pokazać.

@@ -32,6 +32,6 @@
     </p>
 
     <div class="form-actions">
-        <a class="btn btn-primary" href="{{ route('settings.two_factor.edit') }}">Zapisałem/am kody — gotowe</a>
+        <a class="btn btn-primary" href="{{ route('settings.two_factor.edit') }}">Kody zapisane — gotowe</a>
     </div>
 </x-layout>

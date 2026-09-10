@@ -53,7 +53,7 @@ use Tests\TestCase;
  * Nie osłabiam przez to asercji niżej: pilnowanie, że plik konfiguracyjny
  * mówi właściwą rzecz, jest potrzebne. Chodzi o to, żeby nikt nie przeczytał
  * tej zieleni jako dowodu, którym ona nie jest. Kolejność kroków po stronie
- * właściciela opisuje `docs/OTWARCIE.md`, etap 4.
+ * właściciela opisuje `docs/OTWARCIE.md`, wiersz 14 tabeli stanu.
  */
 class WdrozenieUruchamiaTrescZalazkowaTest extends TestCase
 {

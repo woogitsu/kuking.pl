@@ -6,7 +6,7 @@
 
 ## W skrócie
 
-Kuking to serwis, w którym pokazujesz, co ugotowałeś, zapisujesz swoje przepisy i poznajesz innych, którzy naprawdę gotują. Możesz publikować zdjęcia i przepisy, komentować, obserwować innych i zgłaszać treści, które Ci przeszkadzają. Musisz mieć ukończone 16 lat. Publikujesz tylko swoje treści (własne zdjęcia, przepisy własnymi słowami) i szanujesz innych użytkowników. Zachowujesz prawa do tego, co publikujesz — udzielasz nam tylko zgody potrzebnej do tego, żeby serwis mógł to pokazywać. W każdej chwili możesz pobrać swoje dane i usunąć konto.
+Kuking to serwis, w którym pokazujesz, co gotujesz, zapisujesz swoje przepisy i poznajesz innych, którzy naprawdę gotują. Możesz publikować zdjęcia i przepisy, komentować, obserwować innych i zgłaszać treści, które Ci przeszkadzają. Musisz mieć ukończone 16 lat. Publikujesz tylko swoje treści (własne zdjęcia, przepisy własnymi słowami) i szanujesz innych użytkowników. Zachowujesz prawa do tego, co publikujesz — udzielasz nam tylko zgody potrzebnej do tego, żeby serwis mógł to pokazywać. W każdej chwili możesz pobrać swoje dane i usunąć konto.
 
 ---
 
@@ -25,7 +25,7 @@ Adres **biuro@samsufi.pl** jest jednocześnie:
 Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - publikować zdjęcia dań i krótkie wpisy,
 - publikować przepisy (składniki, kroki, zdjęcia),
-- oznaczać, że ugotowałeś dany przepis ("Ugotowałem"),
+- oznaczać wykonanie danego przepisu ("Ugotowałem"),
 - obserwować innych użytkowników i przeglądać ich publiczne treści,
 - komentować i odpowiadać na komentarze,
 - zapisywać przepisy w swoich kolekcjach,
@@ -75,7 +75,7 @@ Nie sprzedajemy Twoich treści osobom trzecim ani nie udzielamy im licencji na T
 - Możesz opublikować przepis na danie, które ktoś inny już opisał — sam sposób przygotowania potrawy (lista składników i kroków) nie jest niczyją własnością.
 - **Nie możesz** skopiować cudzego opisu słowo w słowo z bloga, książki czy innego serwisu. Napisz przepis własnymi słowami.
 - Jeśli przepis pochodzi z zewnętrznego źródła (bloga, książki, innej osoby), oznacz to i — jeśli to możliwe — podaj link do źródła.
-- Przepisy rodzinne ("po mamie", "po babci") możesz publikować swobodnie, jeśli sam je spisałeś własnymi słowami.
+- Przepisy rodzinne ("po mamie", "po babci") możesz publikować swobodnie, jeśli spisujesz je własnymi słowami.
 
 ### 5.4 Zdjęcia i wizerunek innych osób
 

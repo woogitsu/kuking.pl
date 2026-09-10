@@ -92,6 +92,27 @@ const CHROMIUM = znajdzChromium();
  * przechodzi przez prawdziwy formularz logowania, a nie podstawia ciasteczka.
  * Formularz logowania jest jednym z badanych ekranów, więc i tak musi działać.
  */
+/*
+ * KONTO, KTÓRYM AUTOMAT SIĘ LOGUJE — jedna nazwa, czytana w trzech miejscach.
+ *
+ * `ania`, nie `basia`: „basia" jest jednocześnie personą treści zalążkowej,
+ * a persony mają hasło LOSOWE i nie są logowalne (D-025). `DemoSeeder`
+ * znajdował wtedy personę i nie ustawiał jej hasła demo, więc logowanie cicho
+ * padało — automat mierzył ekrany GOŚCIA, będąc pewnym, że mierzy ekrany
+ * zalogowanej osoby.
+ *
+ * Stała stoi w zasięgu modułu — I NAD LISTĄ `EKRANY`, nie pod nią, bo
+ * lista czyta ją już przy wczytaniu pliku (własny profil `/@ania`).
+ * Tę samą nazwę musi znać logowanie ORAZ trzy ekrany dostępne WYŁĄCZNIE
+ * dla właściciela treści: własny profil, odwołanie od decyzji (dla osoby,
+ * której decyzja dotyczy) i kolejność zdjęć we wpisie
+ * (`PostPolicy::update` — tylko autor). Gdy te trzy miejsca rozjeżdżały się
+ * na dwa różne konta, serwis odpowiadał 403, a automat wpisywał „✓": mierzył
+ * stronę błędu, która przechodzi każdy audyt dostępności, nie sprawdzając
+ * niczego. Zmierzone 7 września, po dodaniu sprawdzenia kodu HTTP niżej.
+ */
+const KONTO_ZALOGOWANE = 'ania';
+
 const EKRANY = [
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
@@ -118,6 +139,21 @@ const EKRANY = [
   { nazwa: 'wpis — karuzela', adres: null, znajdz: 'wpis:carousel' },
   { nazwa: 'wpis — kolaż', adres: null, znajdz: 'wpis:collage' },
   { nazwa: 'profil', adres: '/@basia' },
+  /*
+   * WŁASNY PROFIL, WIDZIANY PRZEZ WŁAŚCICIELA — inny układ tej samej karty.
+   *
+   * Pozycja wyżej mierzy profil jako GOŚĆ, czyli wariant BEZ dużego przycisku
+   * pod awatarem i bez trzech przycisków obsługi konta („Zmień swój profil",
+   * „Dodaj zdjęcie", „Wyloguj się"). To właśnie ten drugi wariant ma
+   * najwięcej okazji, żeby wypchnąć stronę w bok przy 320 px i czcionce
+   * przeglądarki 200% — i do tej pory nie był mierzony wcale.
+   *
+   * `/@ania`, bo tym kontem loguje się ten automat (patrz KONTO_ZALOGOWANE).
+   * Gdyby ta nazwa się rozjechała z logowaniem, `/@ania` byłoby profilem
+   * CUDZYM i mierzyłoby dokładnie to samo, co pozycja wyżej — dlatego adres
+   * składamy ze stałej, a nie wpisujemy go tu drugi raz z ręki.
+   */
+  { nazwa: 'profil (własny)', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
@@ -235,6 +271,18 @@ const EKRANY = [
 const EKRANY_UKLADU = [
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
+  /*
+   * „Co chcesz dodać?" — rozdroże przed dodaniem wpisu albo przepisu.
+   * Dopisane przy #205, kiedy ekran dostał treść w prawej szynie. Ekrany
+   * `/dodaj/zdjecie` i `/dodaj/przepis` (czyli to, co jest ZA tym rozdrożem)
+   * były mierzone od dawna, a samo rozdroże nie — więc nagłówek bloku szyny
+   * mógł na nim rozepchnąć stronę i nikt by tego nie zobaczył. Dokładnie to
+   * się stało przy pierwszej wersji tamtej zmiany, tyle że na „Napisz do nas":
+   * `.szyna-tytul` był kontenerem flex bez zawijania, więc przy 320 px
+   * i czcionce przeglądarki 200% najdłuższe słowo nagłówka dyktowało
+   * szerokość całego dokumentu (330 px zamiast 320).
+   */
+  { nazwa: 'dodaj (rozdroże)', adres: '/dodaj', zalogowany: true },
   { nazwa: 'powiadomienia', adres: '/powiadomienia', zalogowany: true },
   // Ekran autora: kolejność zdjęć i wybór wyglądu (issue #92). Miniatura,
   // dwa przyciski „w górę / w dół" i trzy kafelki wyboru w jednym wierszu —
@@ -385,24 +433,6 @@ const BLOKUJACE = new Set(['critical', 'serious']);
 // miejsca w tym pliku.
 const BAZA_DOMYSLNA = 'kuking_a11y';
 
-/*
- * KONTO, KTÓRYM AUTOMAT SIĘ LOGUJE — jedna nazwa, czytana w trzech miejscach.
- *
- * `ania`, nie `basia`: „basia" jest jednocześnie personą treści zalążkowej,
- * a persony mają hasło LOSOWE i nie są logowalne (D-025). `DemoSeeder`
- * znajdował wtedy personę i nie ustawiał jej hasła demo, więc logowanie cicho
- * padało — automat mierzył ekrany GOŚCIA, będąc pewnym, że mierzy ekrany
- * zalogowanej osoby.
- *
- * Stała stoi w zasięgu modułu, bo tę samą nazwę musi znać logowanie ORAZ dwa
- * ekrany, które są dostępne WYŁĄCZNIE dla właściciela treści: odwołanie od
- * decyzji (dla osoby, której decyzja dotyczy) i kolejność zdjęć we wpisie
- * (`PostPolicy::update` — tylko autor). Gdy te trzy miejsca rozjeżdżały się
- * na dwa różne konta, serwis odpowiadał 403, a automat wpisywał „✓": mierzył
- * stronę błędu, która przechodzi każdy audyt dostępności, nie sprawdzając
- * niczego. Zmierzone 7 września, po dodaniu sprawdzenia kodu HTTP niżej.
- */
-const KONTO_ZALOGOWANE = 'ania';
 
 function log(...args) {
   console.log(...args);
@@ -538,6 +568,46 @@ async function stanZalogowanego(przegladarka, adres) {
 }
 
 /*
+ * CZEKAMY, AŻ PRZEGLĄDARKA SKOŃCZY PODMIENIAĆ FONT — INACZEJ MIERZYMY
+ * UKŁAD, KTÓREGO NIKT NIGDY NIE ZOBACZY.
+ *
+ * `resources/css/fonts.css` serwuje Inter Variable z `font-display: swap`,
+ * czyli świadomie: tekst jest widoczny NATYCHMIAST w foncie systemowym
+ * i podmienia się dopiero po pobraniu pliku (uzasadnienie tej decyzji stoi
+ * w tamtym pliku i zostaje). Skutek dla POMIARU jest jednak taki, że między
+ * `domcontentloaded` a końcem podmiany strona jest ułożona CZCIONKĄ
+ * ZASTĘPCZĄ Z SYSTEMU — a `--font-sans` ma za Interem `-apple-system`,
+ * `Segoe UI` i dalszą listę, więc ta czcionka jest INNA na każdej maszynie.
+ *
+ * Zmierzone: ten sam commit, ten sam skrypt, ta sama baza — u nas w obrazie
+ * deweloperskim 0 naruszeń Focus Not Obscured, a na runnerze jedno
+ * (odnośnik „Basia" na `/szukaj` przy 414 px i skali 140% w całości pod dolną
+ * belką). Powtórzenie u nas na trzech świeżo wysianych bazach i na obu
+ * wersjach Chromium (1194 z obrazu i 1243, którą bierze Playwright na CI):
+ * dalej 0. Różnicą nie były więc ani dane, ani przeglądarka — tylko to, jaką
+ * czcionką była ułożona strona w chwili pomiaru.
+ *
+ * To jest ta sama klasa błędu, którą ten skrypt łapał już dwa razy (kontrast
+ * czytany w połowie przejścia motywu, `.skip-link` złapana w połowie ruchu)
+ * i rozwiązanie jest to samo: mierzymy stan KOŃCOWY. `document.fonts.ready`
+ * mówi wprost, kiedy on nastaje.
+ *
+ * Wyścig z limitem czasu, nie samo `await`: gdyby plik fontu kiedyś nie
+ * doszedł, pomiar ma pojechać czcionką zastępczą i to zgłosić w liczbach,
+ * a nie zawisnąć na trzydziestu ekranach po kolei.
+ */
+async function poczekajNaFonty(strona) {
+  await strona.evaluate(async () => {
+    if (! document.fonts) return;
+
+    await Promise.race([
+      document.fonts.ready,
+      new Promise((gotowe) => setTimeout(gotowe, 5000)),
+    ]);
+  });
+}
+
+/*
  * POMIAR PRZEPEŁNIENIA W POZIOMIE (issue #80, WCAG 2.2 AA — 1.4.10 Reflow)
  *
  * DLACZEGO POMIAR, A NIE REGUŁA AXE
@@ -591,6 +661,21 @@ async function zmierzUklad(strona) {
 
 const { adres, zamknij } = await podnies_serwer();
 const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
+
+/*
+ * WERSJA PRZEGLĄDARKI W RAPORCIE — bo raz już kosztowała pół wieczoru.
+ *
+ * `znajdzChromium()` wyżej bierze przeglądarkę z obrazu deweloperskiego,
+ * jeśli tam jest, a na runnerze zostawia wybór Playwrightowi. To znaczy, że
+ * TE DWA ŚRODOWISKA MOGĄ MIERZYĆ INNĄ PRZEGLĄDARKĄ: obraz miał 1194,
+ * a `playwright` 1.63 przypina 1243. Przy „u mnie zielone, na CI czerwone"
+ * jest to pierwsza rzecz do sprawdzenia — i dopóki jej nie było w logu,
+ * sprawdzało się ją ostatnią. Numer wersji nic nie kosztuje.
+ */
+const wersjaPrzegladarki = przegladarka.version();
+log(`Chromium ${wersjaPrzegladarki}`
+  + (CHROMIUM ? ` (${CHROMIUM})` : ' (z paczki `playwright`)'));
+log('');
 
 /*
  * Adres przepisu bierzemy z BAZY, nie ze strony.
@@ -784,6 +869,97 @@ if (idZgloszenia === null) {
 }
 
 /*
+ * TABLICA „kuKINGi na dziś" MUSI MIEĆ CO POKAZAĆ NA EKRANACH Z SZYNĄ
+ * (issue #272).
+ *
+ * TO JEST DZIURA W POMIARZE, NIE OZDOBA. Tablica stoi w PRAWEJ SZYNIE na
+ * `/home` i `/szukaj`, a w głównej kolumnie na `/` i `/odkryj`. Szyna ma
+ * 352 px, główna kolumna 720 — i cała usterka z #272 (rząd trzech miniatur
+ * `72 px` zawijający po jednej na wiersz) występuje WYŁĄCZNIE przy tej
+ * węższej. Oba ekrany z szyną były na liście `EKRANY_UKLADU` od dawna,
+ * więc przepełnienie było na nich mierzone — tylko nie na tablicy, bo dla
+ * konta, którym ten automat się loguje, sekcja OSOBY była PUSTA.
+ *
+ * Dlaczego pusta: `DailyBoard::peopleToFollow()` wyklucza osoby, które widz
+ * już obserwuje, a `DemoSeeder` daje `ania` obserwowanie `basia` i `marek`.
+ * Zostawało konto moderatora, które nie ma ani jednego publicznego wpisu —
+ * czyli zero osób. Automat wpisywał „✓" dla `/home`, nie mając w drzewie ani
+ * jednego `.kuking-board-preview`.
+ *
+ * ROZWIĄZANIE: WYBÓR REDAKCYJNY NA DZIŚ, nie odbieranie `ania` obserwowanych.
+ * `DailyBoard::fromCuratedPicks()` NIE wyklucza osób obserwowanych, więc
+ * jeden wiersz w `daily_picks` stawia tablicę pełną także dla konta, które
+ * obserwuje wszystkich. Odpięcie obserwowanych zrobiłoby coś gorszego:
+ * opróżniłoby feed na `/home`, czyli zamieniłoby mierzony ekran na jego
+ * pusty stan — dokładnie ta klasa fałszywej zieleni, o której mówi nagłówek
+ * tego pliku.
+ *
+ * Dane dokładamy TUTAJ, tym samym mechanizmem co `idOdwolania`
+ * i `idZgloszenia` wyżej, a nie w `DemoSeeder` (cudza, trwająca praca).
+ * Sprawdzenie „czy już jest" przed zapisem czyni to bezpiecznym przy
+ * `ADRES` wskazującym serwer postawiony wcześniej.
+ *
+ * WYBIERAMY TRZY POZYCJE, KAŻDA POD INNY KSZTAŁT KARTY:
+ *   1. osobę z CO NAJMNIEJ TRZEMA gotowymi zdjęciami — to jest jedyny
+ *      kształt, w którym pasek miniatur ma szansę się zawinąć;
+ *   2. danie ZE zdjęciem — układ dwukolumnowy (zdjęcie 96 px + podpis);
+ *   3. danie BEZ zdjęcia — od #272 nie renderuje pustego odnośnika, więc
+ *      podpis ma stać przy tej samej krawędzi co reszta kart.
+ * Bez pozycji 1 pomiar niżej nie ma czego mierzyć; bez 2 i 3 karta dania
+ * jest mierzona tylko w jednym ze swoich dwóch stanów.
+ */
+const tablicaDnia = (() => {
+  const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
+    `$konto = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
+    + "$mod = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "if (! $konto) { echo ''; exit; } "
+    // Osoba z paskiem miniatur. Liczymy tak samo, jak liczy widok:
+    // zdjęcia gotowe z TRZECH ostatnich publicznych wpisów (kuking-board.blade.php).
+    + "$osoba = null; "
+    + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->get() as $u) { "
+    + "$ile = 0; "
+    + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
+    + "->latest('published_at')->limit(3)->get() as $p) { "
+    + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
+    + "if ($ile >= 3) { $osoba = $u; break; } } "
+    // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.
+    + "$wpisy = App\\Models\\Post::publiclyVisible()->where('author_id','!=',$konto)"
+    + "->latest('published_at')->with('media')->get(); "
+    + "$zeZdjeciem = $wpisy->first(fn ($p) => $p->media->contains(fn ($m) => $m->isReady())); "
+    + "$bezZdjecia = $wpisy->first(fn ($p) => ! $p->media->contains(fn ($m) => $m->isReady())); "
+    + "if (! $osoba || ! $zeZdjeciem) { echo ''; exit; } "
+    + "$dzien = App\\Support\\Czas::dzisiajData(); "
+    + "$poz = 0; "
+    + "foreach ([[App\\Models\\DailyPick::TYPE_USER, $osoba->getKey()], "
+    + "[App\\Models\\DailyPick::TYPE_POST, $zeZdjeciem->getKey()], "
+    + "[App\\Models\\DailyPick::TYPE_POST, $bezZdjecia?->getKey()]] as [$typ, $id]) { "
+    + "if (! $id) { continue; } "
+    + "App\\Models\\DailyPick::firstOrCreate("
+    + "['shown_on' => $dzien, 'subject_type' => $typ, 'subject_id' => $id], "
+    + "['position' => $poz, 'curator_id' => $mod, "
+    // KRÓTKIE ZDANIE, NIE AKAPIT. W szynie blok tekstu karty osoby ma
+    // 105 px z 310 (awatar i przycisk „Obserwuj" biorą resztę), więc długa
+    // notka rozsypuje się tam na jedno słowo w wierszu i mierzony ekran
+    // przestaje przypominać ten, który widzi człowiek. Notki gospodarza
+    // w produkcie są krótkie („Halina pierwszy raz pokazała swój chleb") —
+    // i ta ma być taka sama.
+    + "'note' => 'Wybór automatu dostępności.']); $poz++; } "
+    + "echo $osoba->getKey();",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return wynik === '' ? null : wynik;
+})();
+
+if (tablicaDnia === null) {
+  console.error('BŁĄD: nie udało się przygotować wyboru redakcyjnego na dziś — tablica '
+    + '„kuKINGi na dziś" byłaby w prawej szynie pusta, a pasek miniatur (issue #272) '
+    + 'nie zostałby zmierzony na żadnym ekranie z szyną.');
+  zamknij();
+  process.exit(1);
+}
+
+/*
  * Adres ekranu z listy: `adres` wprost albo `znajdz` do rozwiązania z bazy.
  *
  * `znajdz: 'przepis'` → dowolny opublikowany przepis z demo,
@@ -902,6 +1078,8 @@ for (const wariant of WARIANTY) {
     const zamowiony = sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`;
 
     const odpowiedz = await strona.goto(zamowiony, { waitUntil: 'domcontentloaded' });
+
+    await poczekajNaFonty(strona);
 
     /*
      * KOD HTTP MUSI BYĆ 200 — I TO JEST OSOBNE SPRAWDZENIE NIŻ ŚCIEŻKA NIŻEJ.
@@ -1113,6 +1291,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
         { waitUntil: 'domcontentloaded' },
       );
+      await poczekajNaFonty(strona);
 
       // Ten sam powód co w pętli axe wyżej: strona błędu nie przewija się
       // w bok, więc bez tego sprawdzenia zgłaszałaby się jako poprawna.
@@ -1230,6 +1409,8 @@ const karuzelaBezJs = await (async () => {
 
   const strona = await kontekst.newPage();
   await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
+
+  await poczekajNaFonty(strona);
 
   const ile = await strona.locator('.karuzela-slajd').count();
 
@@ -1349,6 +1530,8 @@ const wyborZdjeciaBezJs = await (async () => {
   const strona = await kontekst.newPage();
   const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
   const kod = odpowiedz?.status() ?? 0;
+
+  await poczekajNaFonty(strona);
 
   // Ten sam powód co przy pomiarze układu: strona błędu nie ma pola wyboru
   // zdjęcia, więc bez tego sprawdzenia przebieg zgłaszałby „nie znalazłem"
@@ -1539,6 +1722,8 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
 
     await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
 
+    await poczekajNaFonty(strona);
+
     const pomiar = await strona.evaluate(() => {
       // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
       // pasach — siatka ekranu. Patrz „CZYM JEST KOLUMNA TREŚCI" wyżej.
@@ -1652,12 +1837,678 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     + (zlych ? ` — ${zlych} niezgodności` : ''));
 }
 
+/* =============================================================================
+   FOCUS NIE ZASŁONIĘTY PRZEZ NAKŁADKĘ (WCAG 2.2 AA — 2.4.11
+   Focus Not Obscured (Minimum))
+
+   Zewnętrzny audyt (docs/research/AUDYT_60_PLUS.md, ranking napraw pkt 1 —
+   najmocniejsza rekomendacja) wskazał lukę: `.bottom-nav` jest
+   `position: fixed` i ma `flex-wrap: wrap` (patrz komentarz przy tej klasie
+   wyżej w `app.css`) — przy dużym tekście belka może urosnąć do dwóch albo
+   trzech wierszy. Rezerwa na końcu dokumentu (dolne wypełnienie
+   `.site-footer`) była jednak STAŁĄ wartością `--spacing-20` (80 px), nie
+   wynikającą z rzeczywistej wysokości belki. Gdy belka urośnie powyżej tej
+   rezerwy, treść przewija się POD nią — a fokus klawiaturowy, który
+   przeglądarka sama przewija w widok, może wylądować w całości za paskiem.
+
+   CO TO SPRAWDZENIE ZASTAŁO, A CO PILNUJE PO POPRAWCE. Zmierzone tym
+   skryptem, ekrany niżej, warianty niżej:
+
+       przed poprawką   242 kontrolki zasłonięte w 100% (1 pod `.bottom-nav`,
+                        241 pod `.topbar` przy czcionce przeglądarki 200%)
+       po poprawce      0
+
+   Obie belki zostają w tym pomiarze BLOKUJĄCE — także `.topbar`, bo została
+   naprawiona razem z dolną, a nie odłożona. Naprawy są dwie i obie stoją
+   w `app.css`: rezerwa `--rezerwa-pod-belka` policzona pod zmierzone
+   wysokości dolnej belki oraz odpięcie `.topbar` przy `max-width: 15rem`,
+   czyli tam, gdzie przypięty pasek zabierałby ponad trzecią część ekranu.
+   Uzasadnienia obu (z liczbami) stoją przy tych regułach.
+
+   DLACZEGO ELEMENTFROMPOINT, A NIE SAMO PRZECIĘCIE PROSTOKĄTÓW
+   Sam przecinający się prostokąt nie znaczy "zasłonięty": `.skip-link` ma
+   `z-index: 50`, wyżej niż `.topbar` (20) i `.bottom-nav` (30), więc po
+   skupieniu na nim geometrycznie leży nad topbarem, ale WIDAĆ go, bo
+   przeglądarka maluje go na wierzchu. Prosta matematyka prostokątów
+   zgłosiłaby to jako FAIL, którego naprawdę nie ma — a to jest dokładnie
+   fałszywy alarm, przed którym ostrzega zlecenie audytu. Próbkujemy więc
+   siatkę punktów wewnątrz prostokąta fokusu przez `elementFromPoint` —
+   to jest pytanie "co PRZEGLĄDARKA NAPRAWDĘ renderuje w tym miejscu", a nie
+   "czy dwa prostokąty się nakładają na papierze". Stan uwzględnia więc
+   z-index, zaokrąglone rogi i wszystko inne, co realnie wpływa na to, co
+   widzi człowiek.
+
+   FAIL DOPIERO PRZY PEŁNYM (100%) POKRYCIU — to jest dosłowne minimum AA
+   z Understanding 2.4.11 ("not entirely hidden"). Częściowe pokrycie to
+   osobne, PRODUKTOWE ostrzeżenie: sygnał do poprawy, ale nie naruszenie
+   WCAG i nie powód, żeby ten skrypt oblewał przebieg.
+
+   Kontrolki, które są potomkami samej belki (linki nawigacji, pole
+   wyszukiwania w topbarze), są z tej reguły wyłączone: to one SĄ tą belką,
+   nie treścią, którą belka miałaby zasłaniać.
+
+   DOSŁOWNY KONTRAKT Z AUDYTU (§„Co dopisać do scripts/dostepnosc.mjs", pkt 1)
+   Ekrany: `/home`, `/szukaj`, przykładowy wpis, `/ustawienia/profil`.
+   Szerokości: 320/360/414 px. Skale: te same trzy co w pomiarze układu
+   wyżej (`SKALE_UKLADU` — bez skali, tekst 140%, czcionka przeglądarki
+   200%), tym samym mechanizmem (CDP `Page.setFontSizes` dla przeglądarki,
+   atrybut `data-text-scale` dla naszego ustawienia).
+
+   „Przykładowy wpis" mierzymy jako ZALOGOWANY, nie gość: `.bottom-nav`
+   istnieje wyłącznie w layoucie zalogowanego (`@auth` w `layout.blade.php`),
+   a to właśnie ta belka jest ryzykiem — mierzenie wpisu jako gość
+   nigdy nie mogłoby złapać naruszenia, którego to sprawdzenie szuka.
+
+   JAK PRZECHODZIMY WSZYSTKIE WIDOCZNE KONTROLKI
+   Naciskamy Tab, aż `document.activeElement` wróci do `<body>` (naturalny
+   koniec kolejności tabulacji w przeglądarce bez paska adresu) albo trafi
+   na element już odwiedzony w tym przebiegu (pętla fokusu, np. pułapka
+   modala). Odwiedzone elementy znaczymy tymczasowym atrybutem danych, żeby
+   rozpoznać powrót bez porównywania referencji przez granicę `evaluate`.
+   Limit kroków jest bezpiecznikiem, nie oczekiwaną wartością — jego
+   wyczerpanie bez naturalnego końca jest BŁĘDEM (niepełne sprawdzenie),
+   nie cichym zaliczeniem ekranu.
+   ========================================================================== */
+log('');
+log('Focus Not Obscured (WCAG 2.2 2.4.11):');
+
+const EKRANY_FOCUS = [
+  { nazwa: 'tablica', adres: '/home', zalogowany: true },
+  { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
+  { nazwa: 'wpis (przykładowy)', adres: null, znajdz: 'wpis:normal', zalogowany: true },
+  { nazwa: 'ustawienia profilu', adres: '/ustawienia/profil', zalogowany: true },
+];
+
+const SZEROKOSCI_FOCUS = SZYBKO ? [320] : [320, 360, 414];
+
+// Bezpiecznik, nie oczekiwana wartość — patrz komentarz wyżej.
+const MAKS_KROKOW_FOCUS = 400;
+
+// Próg PEŁNEGO pokrycia. Rzadko wychodzi dokładnie 1 przez zaokrąglenia
+// próbek na krawędzi elementu, dlatego liczy się już "prawie wszystkie".
+const PROG_CALKOWITEGO_PRZYKRYCIA = 0.99;
+
+const naruszeniaFocus = [];
+const ostrzezeniaFocus = [];
+
+/**
+ * Naciska Tab aż do naturalnego końca albo pętli i dla każdej odwiedzonej
+ * kontrolki mierzy realne pokrycie przez `.topbar` i `.bottom-nav`
+ * (0 = w ogóle niezasłonięta, 1 = w całości zasłonięta, `null` = na tym
+ * ekranie nie ma takiej nakładki albo jest ukryta).
+ */
+async function przejdzTabemIZmierzFocus(strona) {
+  const kroki = [];
+
+  for (let krok = 0; krok < MAKS_KROKOW_FOCUS; krok++) {
+    await strona.keyboard.press('Tab');
+
+    const stan = await strona.evaluate(() => {
+      const el = document.activeElement;
+
+      if (!el || el === document.body || el === document.documentElement) {
+        return { koniec: true };
+      }
+
+      if (el.dataset.a11yFokusWidziany === '1') {
+        return { petla: true };
+      }
+      el.dataset.a11yFokusWidziany = '1';
+
+      const ramka = el.getBoundingClientRect();
+
+      function pokrycieNakladki(selektor) {
+        const nakladka = document.querySelector(selektor);
+        if (!nakladka) return null;
+
+        const styl = getComputedStyle(nakladka);
+        if (styl.display === 'none' || styl.visibility === 'hidden') return null;
+
+        // Kontrolka jest częścią samej belki — to nie jest "zasłonięcie
+        // treści", to sama belka.
+        if (nakladka.contains(el)) return 0;
+
+        if (ramka.width === 0 || ramka.height === 0) return 0;
+
+        /*
+         * SIATKĘ ROZKŁADAMY NA CZĘŚCI WIDOCZNEJ, NIE NA CAŁYM PROSTOKĄCIE.
+         *
+         * Pierwsza wersja rozkładała 4×4 punkty na całej ramce kontrolki
+         * i POMIJAŁA te, które wypadły poza okno. Przy kontrolce WYŻSZEJ
+         * NIŻ OKNO zostawał z tego jeden rząd próbek w zupełnie przypadkowym
+         * miejscu. Zmierzone na `/home` przy 320 px i czcionce przeglądarki
+         * 200%: odnośnik „Dodaj zdjęcie tego dnia" ma tam 2087,1 px wysokości
+         * (ramka od -882 do 1205,1 px), a z czterech rzędów siatki w oknie
+         * leżał JEDEN — ten na wysokości 422,4 px, czyli wewnątrz dolnej
+         * belki. Wynik: „zasłonięte w 100%" dla kontrolki, której 364 px
+         * widać nad belką jak na dłoni. To jest FAŁSZYWY ALARM, i to
+         * dokładnie tej klasy, przed którą ostrzega zlecenie audytu:
+         * kryterium 2.4.11 mówi „not entirely hidden", a kontrolka wyższa
+         * od okna nie może być schowana w całości pod belką, która zajmuje
+         * część okna.
+         *
+         * Przycięcie ramki do okna PRZED rozłożeniem siatki daje próbki
+         * reprezentatywne dla tego, co człowiek naprawdę widzi, niezależnie
+         * od wysokości kontrolki. Część poza oknem to inny problem
+         * (przewinięcie poza widok) i pozostaje poza zakresem tego
+         * sprawdzenia — tak jak dotąd.
+         */
+        const lewa = Math.max(ramka.left, 0);
+        const gora = Math.max(ramka.top, 0);
+        const prawa = Math.min(ramka.right, innerWidth);
+        const dol = Math.min(ramka.bottom, innerHeight);
+
+        // Kontrolka w całości poza oknem — nie ma czego mierzyć.
+        if (prawa <= lewa || dol <= gora) return null;
+
+        // Siatka 4×4: dość gęsto, żeby złapać częściowe pokrycie, dość
+        // rzadko, żeby nie mnożyć kosztu `elementFromPoint` na setkach
+        // kroków Taba.
+        const SIATKA = 4;
+        let zaslonietych = 0;
+
+        for (let iy = 0; iy < SIATKA; iy++) {
+          for (let ix = 0; ix < SIATKA; ix++) {
+            const x = lewa + ((prawa - lewa) * (ix + 0.5)) / SIATKA;
+            const y = gora + ((dol - gora) * (iy + 0.5)) / SIATKA;
+
+            const trafiony = document.elementFromPoint(x, y);
+
+            if (trafiony && nakladka.contains(trafiony) && !el.contains(trafiony)) {
+              zaslonietych++;
+            }
+          }
+        }
+
+        // Wszystkie próbki leżą teraz w oknie, więc mianownik jest stały —
+        // licznik odrzuconych punktów, który stał tu wcześniej, nie miałby
+        // już czego liczyć.
+        return zaslonietych / (SIATKA * SIATKA);
+      }
+
+      const opis = `${el.tagName.toLowerCase()}`
+        + (el.id ? `#${el.id}` : '')
+        + (el.getAttribute('aria-label') ? ` [aria-label="${el.getAttribute('aria-label')}"]` : '')
+        + (el.textContent?.trim() ? ` „${el.textContent.trim().slice(0, 40)}"` : '');
+
+      return {
+        opis,
+        pokrycieTopbar: pokrycieNakladki('.topbar'),
+        pokrycieBottomNav: pokrycieNakladki('.bottom-nav'),
+      };
+    });
+
+    if (stan.koniec || stan.petla) {
+      return { kroki, pelnyPrzebieg: true };
+    }
+
+    kroki.push(stan);
+  }
+
+  return { kroki, pelnyPrzebieg: false };
+}
+
+for (const szerokosc of SZEROKOSCI_FOCUS) {
+  for (const skala of SKALE_UKLADU) {
+    const opis = `${szerokosc} px${etykietaSkali(skala)}`;
+
+    const ustawieniaFocus = {
+      viewport: { width: szerokosc, height: 740 },
+      // Ten sam powód co przy motywie ciemnym wyżej: `.skip-link` ma
+      // `transition: top 120ms`, a pomiar tuż po naciśnięciu Tab złapałby
+      // ją w połowie ruchu, dając niestabilny (raz taki, raz inny) wynik
+      // pokrycia zamiast stanu końcowego.
+      reducedMotion: 'reduce',
+    };
+
+    const kontekstGosciaFocus = await przegladarka.newContext(ustawieniaFocus);
+    const kontekstZalogowanegoFocus = await przegladarka.newContext({
+      ...ustawieniaFocus,
+      storageState: stanZalogowany,
+    });
+
+    let zlych = 0;
+
+    for (const ekran of EKRANY_FOCUS) {
+      const sciezka = sciezkaEkranu(ekran);
+
+      if (! sciezka) {
+        console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}" (focus not obscured).`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      const kontekst = ekran.zalogowany ? kontekstZalogowanegoFocus : kontekstGosciaFocus;
+      const strona = await kontekst.newPage();
+
+      if (skala === PRZEGLADARKA_200) {
+        // PRZED nawigacją — patrz uzasadnienie przy identycznym bloku
+        // w pomiarze układu wyżej.
+        const cdp = await kontekst.newCDPSession(strona);
+
+        await cdp.send('Page.setFontSizes', {
+          fontSizes: { standard: 2 * BAZOWA_CZCIONKA_PX, fixed: 2 * BAZOWA_CZCIONKA_PX },
+        });
+      }
+
+      const odpowiedzFocus = await strona.goto(
+        sciezka.startsWith('http') ? sciezka : `${adres}${sciezka}`,
+        { waitUntil: 'domcontentloaded' },
+      );
+      await poczekajNaFonty(strona);
+
+      const kodFocus = odpowiedzFocus?.status() ?? 0;
+
+      if (kodFocus !== 200) {
+        console.error(
+          `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odpowiedział kodem ${kodFocus} `
+          + 'przy pomiarze focus not obscured.',
+        );
+        process.exitCode = 1;
+        await strona.close();
+        continue;
+      }
+
+      if (skala && skala !== PRZEGLADARKA_200) {
+        await strona.evaluate(
+          (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+          skala,
+        );
+      }
+
+      if (skala === PRZEGLADARKA_200) {
+        // Ta sama kontrola metody co w pomiarze układu wyżej — bez niej
+        // wariant potrafi przejść na zielono, nie zmierzywszy niczego.
+        const stanCzcionki = await strona.evaluate(
+          () => Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+        );
+
+        if (stanCzcionki < 2 * BAZOWA_CZCIONKA_PX) {
+          console.error(
+            `BŁĄD: czcionka korzenia to ${stanCzcionki} px zamiast `
+            + `${2 * BAZOWA_CZCIONKA_PX} px na ekranie „${ekran.nazwa}" (focus not obscured).`,
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+      }
+
+      const { kroki, pelnyPrzebieg } = await przejdzTabemIZmierzFocus(strona);
+      await strona.close();
+
+      if (! pelnyPrzebieg) {
+        console.error(
+          `BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) Tab nie doszedł do końca kolejności `
+          + `po ${MAKS_KROKOW_FOCUS} krokach — sprawdzenie jest niepełne.`,
+        );
+        process.exitCode = 1;
+      }
+
+      if (kroki.length === 0) {
+        console.error(`BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) Tab nie znalazł ani jednej kontrolki.`);
+        process.exitCode = 1;
+        continue;
+      }
+
+      for (const krok of kroki) {
+        for (const [nakladka, pokrycie] of [
+          ['.topbar', krok.pokrycieTopbar],
+          ['.bottom-nav', krok.pokrycieBottomNav],
+        ]) {
+          if (pokrycie === null || pokrycie === 0) continue;
+
+          if (pokrycie >= PROG_CALKOWITEGO_PRZYKRYCIA) {
+            zlych++;
+            naruszeniaFocus.push({
+              ekran: ekran.nazwa, wariant: opis, nakladka, kontrolka: krok.opis,
+            });
+          } else {
+            ostrzezeniaFocus.push({
+              ekran: ekran.nazwa, wariant: opis, nakladka, kontrolka: krok.opis, pokrycie,
+            });
+          }
+        }
+      }
+    }
+
+    await kontekstGosciaFocus.close();
+    await kontekstZalogowanegoFocus.close();
+
+    log(`  ${zlych === 0 ? '✓' : '✗'} ${opis}${zlych ? ` — ${zlych} naruszeń` : ''}`);
+  }
+}
+
+/* =============================================================================
+   TABLICA DNIA W PRAWEJ SZYNIE: RZĄD MINIATUR I DWIE KOLUMNY DANIA
+   (issue #272)
+
+   DLACZEGO OSOBNY POMIAR, A NIE SAM POMIAR PRZEPEŁNIENIA WYŻEJ
+   Bo przepełnienie i ten pomiar łapią BŁĘDY W PRZECIWNE STRONY, i każdy
+   z nich osobno przechodzi w złym stanie.
+
+   Stan ze zrzutu właściciela — trzy miniatury jedna pod drugą w szynie —
+   NIE przewija strony w bok. Wręcz odwrotnie: zawijanie jest sposobem,
+   w jaki przeglądarka unika przewijania. Pomiar przepełnienia świecił więc
+   na zielono przez cały czas trwania tej usterki. Odwrotnie też: gdyby ktoś
+   „naprawił" ten rząd, zdejmując `flex-wrap: wrap`, to sprawdzenie
+   przeszłoby, a strona zaczęłaby się przewijać w bok przy powiększonej
+   czcionce — i to złapałby tamten pomiar. Sprawdzone przez zdjęcie tej
+   linijki: `scrollWidth` 321 px przy oknie 320 px na `/home` i `/szukaj`
+   (na ekranach, gdzie tablica stoi w głównej kolumnie, było to 37 px —
+   pomiar w komentarzu przy `.kuking-board-preview` w `app.css`).
+
+   Dopiero razem pilnują jednego i drugiego: TU rząd przy normalnej czcionce,
+   TAM brak przepełnienia przy podkręconej. Trzecia część tego sprawdzenia
+   (czy reguła CSS istnieje i czy HTML stawia pasek tam, gdzie ona działa)
+   nie potrzebuje przeglądarki i stoi w
+   `tests/Feature/SzynaTablicaDniaUkladTest.php`.
+
+   MIERZYMY WYŁĄCZNIE PRZY NORMALNEJ CZCIONCE i tylko na szerokościach,
+   przy których szyna naprawdę jest kolumną (od 80rem = 1280 px). Przy
+   podkręconej czcionce zawinięty pasek jest POPRAWNYM wynikiem, nie
+   usterką — wymaganie „jeden wiersz" byłoby tam wymaganiem przewijania
+   strony w bok.
+   ========================================================================== */
+log('');
+log('Tablica dnia (rząd miniatur w szynie):');
+
+const EKRANY_TABLICY = [
+  { nazwa: 'tablica /home (szyna)', adres: '/home' },
+  { nazwa: 'szukaj (szyna)', adres: '/szukaj?q=rosol' },
+];
+
+// 1280 to sam próg szyny (80rem), 1512 typowy laptop właściciela. Poniżej
+// 1280 tablica ląduje pod treścią na całą szerokość i nie ma tu czego mierzyć.
+const SZEROKOSCI_TABLICY = SZYBKO ? [1512] : [1280, 1512];
+
+const rozjazdyTablicy = [];
+
+for (const szerokosc of SZEROKOSCI_TABLICY) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+    storageState: stanZalogowany,
+  });
+
+  for (const ekran of EKRANY_TABLICY) {
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze tablicy dnia.');
+      process.exitCode = 1;
+      await strona.close();
+      continue;
+    }
+
+    const pomiar = await strona.evaluate(() => {
+      const gora = (el) => Math.round(el.getBoundingClientRect().top);
+      const lewa = (el) => Math.round(el.getBoundingClientRect().left);
+      const szer = (el) => Math.round(el.getBoundingClientRect().width);
+
+      const osoba = [...document.querySelectorAll('.kuking-board-person')]
+        .find((li) => li.querySelector('.kuking-board-preview img'));
+
+      const pasek = osoba?.querySelector('.kuking-board-preview') ?? null;
+      const miniatury = pasek ? [...pasek.querySelectorAll('img')] : [];
+
+      const danieZeZdjeciem = [...document.querySelectorAll('.kuking-board-post')]
+        .find((li) => li.querySelector('.kuking-board-post-photo img'));
+      const danieBezZdjecia = [...document.querySelectorAll('.kuking-board-post')]
+        .find((li) => ! li.querySelector('.kuking-board-post-photo'));
+
+      const zdjecieDania = danieZeZdjeciem?.querySelector('.kuking-board-post-photo') ?? null;
+      const podpisDania = danieZeZdjeciem?.querySelector('.kuking-board-post-body') ?? null;
+      const podpisBezZdjecia = danieBezZdjecia?.querySelector('.kuking-board-post-body') ?? null;
+
+      return {
+        // Pasek W OGÓLE JEST — bez tego wszystko niżej przeszłoby na pustym
+        // drzewie, czyli nie sprawdziłoby niczego.
+        maPasek: pasek !== null,
+        miniatur: miniatury.length,
+        // BEZPOŚREDNIE DZIECKO RZĘDU. `flex-basis: 100%` opisuje pasek jako
+        // element `.kuking-board-person`; przeniesiony z powrotem do bloku
+        // tekstu zostawiłby regułę w arkuszu, a rząd rozsypałby się na nowo.
+        paskiemJestDzieckoRzedu: pasek !== null
+          && pasek.parentElement?.classList.contains('kuking-board-person') === true,
+        goryMiniatur: [...new Set(miniatury.map(gora))],
+
+        // PASEK MA MIEĆ CAŁY WIERSZ, NIE TYLE, ILE MU ZOSTAŁO.
+        // To sprawdza `flex-basis: 100%`, a nie sam rząd miniatur: bez tej
+        // deklaracji rozmiar bazowy paska liczy się z jego treści (232 px
+        // przy trzech miniaturach), więc o tym, czy pasek trafi na własny
+        // wiersz, decyduje suma szerokości awatara, opisu i przycisku
+        // „Obserwuj" — czyli przypadek. Zmierzone bez `flex-basis` przy
+        // oknie 1280 px i czcionce przeglądarki 200 %: pasek lądował
+        // W TYM SAMYM wierszu, na prawo od „Obserwuj" (`x` 959 zamiast 73).
+        szerokoscPaska: pasek ? szer(pasek) : null,
+        szerokoscRzedu: osoba ? szer(osoba) : null,
+        lewaPaska: pasek ? lewa(pasek) : null,
+        lewaRzedu: osoba ? lewa(osoba) : null,
+
+        maDanieZeZdjeciem: zdjecieDania !== null && podpisDania !== null,
+        goraZdjecia: zdjecieDania ? gora(zdjecieDania) : null,
+        goraPodpisu: podpisDania ? gora(podpisDania) : null,
+        lewaZdjecia: zdjecieDania ? lewa(zdjecieDania) : null,
+        lewaPodpisu: podpisDania ? lewa(podpisDania) : null,
+
+        // Danie bez zdjęcia: podpis ma licować z krawędzią karty, a nie
+        // stać o `gap` w prawo od nieistniejącego zdjęcia.
+        maDanieBezZdjecia: podpisBezZdjecia !== null,
+        lewaKartyBezZdjecia: danieBezZdjecia ? lewa(danieBezZdjecia) : null,
+        lewaPodpisuBezZdjecia: podpisBezZdjecia ? lewa(podpisBezZdjecia) : null,
+      };
+    });
+
+    await strona.close();
+
+    const bledy = [];
+
+    if (! pomiar.maPasek) {
+      bledy.push('brak paska miniatur w tablicy — nie ma czego mierzyć '
+        + '(sprawdź wybór redakcyjny przygotowany przez `tablicaDnia`)');
+    } else {
+      if (pomiar.miniatur < 2) {
+        bledy.push(`pasek ma ${pomiar.miniatur} miniaturę — o jednej nie da się `
+          + 'powiedzieć, czy stoi w rzędzie');
+      }
+
+      if (! pomiar.paskiemJestDzieckoRzedu) {
+        bledy.push('pasek miniatur nie jest bezpośrednim dzieckiem '
+          + '`.kuking-board-person`, więc `flex-basis: 100%` na nim nic nie robi');
+      }
+
+      if (pomiar.goryMiniatur.length > 1) {
+        bledy.push(`miniatury stoją w ${pomiar.goryMiniatur.length} wierszach `
+          + `(górne krawędzie: ${pomiar.goryMiniatur.join(', ')} px) przy pasku `
+          + `szerokim na ${pomiar.szerokoscPaska} px — to jest stan ze zrzutu z #272`);
+      }
+
+      if (Math.abs(pomiar.szerokoscPaska - pomiar.szerokoscRzedu) > 1
+        || Math.abs(pomiar.lewaPaska - pomiar.lewaRzedu) > 1) {
+        bledy.push(`pasek miniatur nie zajmuje całego wiersza karty: `
+          + `${pomiar.lewaPaska}…${pomiar.lewaPaska + pomiar.szerokoscPaska} px `
+          + `przy karcie ${pomiar.lewaRzedu}…${pomiar.lewaRzedu + pomiar.szerokoscRzedu} px. `
+          + 'Bez `flex-basis: 100%` o miejscu paska decyduje suma szerokości awatara, '
+          + 'opisu i przycisku „Obserwuj", a nie decyzja układu');
+      }
+    }
+
+    if (! pomiar.maDanieZeZdjeciem) {
+      bledy.push('brak dania ze zdjęciem — układ dwukolumnowy karty dania nie został sprawdzony');
+    } else if (Math.abs(pomiar.goraZdjecia - pomiar.goraPodpisu) > 2) {
+      bledy.push(`podpis dania stoi w innym wierszu niż zdjęcie (zdjęcie ${pomiar.goraZdjecia} px, `
+        + `podpis ${pomiar.goraPodpisu} px) — zawinął się zamiast stanąć obok`);
+    } else if (pomiar.lewaPodpisu <= pomiar.lewaZdjecia) {
+      bledy.push('podpis dania nie stoi PO PRAWEJ od zdjęcia '
+        + `(zdjęcie ${pomiar.lewaZdjecia} px, podpis ${pomiar.lewaPodpisu} px)`);
+    }
+
+    if (pomiar.maDanieBezZdjecia
+      && Math.abs(pomiar.lewaPodpisuBezZdjecia - pomiar.lewaKartyBezZdjecia) > 1) {
+      bledy.push('danie bez zdjęcia ma podpis odsunięty od krawędzi karty '
+        + `(karta ${pomiar.lewaKartyBezZdjecia} px, podpis ${pomiar.lewaPodpisuBezZdjecia} px) — `
+        + 'wrócił pusty odnośnik zabierający swój `gap`');
+    }
+
+    if (bledy.length > 0) {
+      rozjazdyTablicy.push({ ekran: ekran.nazwa, szerokosc, bledy, ...pomiar });
+    }
+
+    log(`  ${bledy.length === 0 ? '✓' : '✗'} ${ekran.nazwa} przy ${szerokosc} px`
+      + (pomiar.maPasek ? ` — miniatur ${pomiar.miniatur} w ${pomiar.goryMiniatur.length} wierszu/ach` : '')
+      + (bledy.length ? ` — ${bledy.length} niezgodności` : ''));
+  }
+
+  await kontekst.close();
+}
+
+/* ==========================================================================
+   LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
+
+   Pięć liczb profilu („4 wpisy", „0 przepisów", „1 obserwujący"…) stoi
+   w dokumencie DWA razy: w karcie profilu i w prawej szynie. Który z nich
+   widać, decyduje para reguł w `ekran-profilu.css` — a to jest dokładnie ta
+   klasa zmiany, którą testy PHP przepuszczą: HTML jest poprawny w obu
+   przypadkach, psuje się wyłącznie obraz na ekranie.
+
+   Dwie usterki, których ten pomiar pilnuje, obie widziane wyłącznie
+   w przeglądarce:
+    - liczby DWA RAZY przy 1512 px (skasowana reguła chowająca kartę),
+    - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
+      poniżej 80rem ląduje pod całym archiwum wpisów).
+
+   Gość jest tu osobnym przypadkiem, nie powtórką: ma jedną kolumnę na każdej
+   szerokości (`app-body-solo`), więc przy 1512 px MUSI widzieć egzemplarz
+   w karcie — inaczej liczby lądują u niego na samym dole strony.
+   ========================================================================== */
+log('');
+log('Liczby o osobie (karta czy prawa szyna):');
+
+const EKRANY_LICZB = [
+  { nazwa: 'profil cudzy (gość)', adres: '/@basia', zalogowany: false },
+  { nazwa: 'profil cudzy (zalogowany)', adres: '/@basia', zalogowany: true },
+  { nazwa: 'profil własny', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
+];
+
+// 360 to telefon, 1280 sam próg szyny (80rem), 1512 laptop właściciela —
+// czyli szerokość ze zgłoszenia.
+const SZEROKOSCI_LICZB = SZYBKO ? [360, 1512] : [360, 1280, 1512];
+
+const rozjazdyLiczb = [];
+
+for (const szerokosc of SZEROKOSCI_LICZB) {
+  for (const ekran of EKRANY_LICZB) {
+    const kontekst = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 900 },
+      ...(ekran.zalogowany ? { storageState: stanZalogowany } : {}),
+    });
+
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze liczb o osobie.');
+      process.exitCode = 1;
+      await strona.close();
+      await kontekst.close();
+      continue;
+    }
+
+    const pomiar = await strona.evaluate(() => {
+      // `getClientRects().length` zamiast `offsetParent`: łapie także element
+      // schowany przez `display: none` NA PRZODKU, a to jest właśnie ten
+      // przypadek (chowamy opakowanie bloku, nie samą listę).
+      const widoczny = (el) => el !== null && el.getClientRects().length > 0;
+
+      const karta = document.querySelector('.profil-liczby-karta');
+      const szyna = document.querySelector('.profil-liczby-szyna');
+
+      return {
+        maKarte: karta !== null,
+        kartaWidoczna: widoczny(karta),
+        szynaWSzynie: szyna !== null ? szyna.closest('.app-rail') !== null : null,
+        szynaWidoczna: widoczny(szyna),
+        // Ile razy podpis „obserwujących"/„obserwujący" jest naprawdę
+        // widoczny — najprostsze sprawdzenie „czy liczba stoi dwa razy".
+        widocznychPodpisow: [...document.querySelectorAll('.profil-licznik-pole .stat-label')]
+          .filter((el) => el.getClientRects().length > 0 && el.textContent.includes('obserwuj'))
+          .length,
+        // Pierwszy wpis archiwum — po to była cała zmiana. Zapisujemy
+        // pozycję, żeby dało się zobaczyć, czy wjechał wyżej.
+        goraPierwszegoWpisu: (() => {
+          const wpis = document.querySelector('.app-main .post-card');
+          return wpis === null ? null : Math.round(wpis.getBoundingClientRect().top);
+        })(),
+      };
+    });
+
+    const bledy = [];
+
+    if (!pomiar.maKarte) {
+      bledy.push('nie ma w ogóle listy liczb w karcie profilu');
+    }
+
+    if (pomiar.kartaWidoczna === pomiar.szynaWidoczna) {
+      bledy.push(pomiar.kartaWidoczna
+        ? 'te same liczby widać JEDNOCZEŚNIE w karcie i w szynie'
+        : 'liczb nie widać ANI w karcie, ANI w szynie');
+    }
+
+    if (pomiar.widocznychPodpisow !== 1) {
+      bledy.push(`podpis „obserwujący" jest widoczny ${pomiar.widocznychPodpisow} razy, ma być raz`);
+    }
+
+    if (pomiar.szynaWSzynie === false) {
+      bledy.push('blok liczb nie leży w `.app-rail`');
+    }
+
+    // Szeroko i po zalogowaniu liczby MAJĄ być w szynie — inaczej cała ta
+    // zmiana nic nie dała i karta jest tak samo długa jak przed nią.
+    if (szerokosc >= 1280 && ekran.zalogowany && !pomiar.szynaWidoczna) {
+      bledy.push('przy szerokim oknie liczby dalej stoją w karcie');
+    }
+
+    // Na telefonie i u gościa MAJĄ być w karcie.
+    if ((szerokosc < 1280 || !ekran.zalogowany) && !pomiar.kartaWidoczna) {
+      bledy.push('liczby zniknęły z karty tam, gdzie nie ma prawej kolumny');
+    }
+
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: karta ${pomiar.kartaWidoczna ? 'widoczna' : 'schowana'}, `
+      + `szyna ${pomiar.szynaWidoczna ? 'widoczna' : 'schowana'}, `
+      + `pierwszy wpis od góry: ${pomiar.goraPierwszegoWpisu ?? '(brak wpisu)'} px`);
+
+    if (bledy.length > 0) {
+      rozjazdyLiczb.push({ ekran: ekran.nazwa, szerokosc, bledy });
+    }
+
+    await strona.close();
+    await kontekst.close();
+  }
+}
+
+if (rozjazdyLiczb.length > 0) {
+  log('');
+  log('Liczby o osobie stoją w złym miejscu (D-091):');
+  for (const r of rozjazdyLiczb) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
 mkdirSync('storage', { recursive: true });
 writeFileSync('storage/dostepnosc.json', JSON.stringify({
   data: new Date().toISOString(),
+  chromium: wersjaPrzegladarki,
   warianty: WARIANTY.map((w) => w.nazwa),
   naruszen: wyniki.length,
   blokujacych,
@@ -1677,13 +2528,46 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     niespojnychSzerokosci: niespojneSzerokosci.length,
     niespojneSzerokosci,
   },
+  focusNotObscured: {
+    szerokosci: SZEROKOSCI_FOCUS,
+    skale: SKALE_UKLADU,
+    naruszen: naruszeniaFocus.length,
+    naruszenia: naruszeniaFocus,
+    ostrzezen: ostrzezeniaFocus.length,
+    ostrzezenia: ostrzezeniaFocus,
+  },
+  tablicaDnia: {
+    szerokosci: SZEROKOSCI_TABLICY,
+    rozjazdow: rozjazdyTablicy.length,
+    rozjazdy: rozjazdyTablicy,
+  },
 }, null, 2));
 
 log('');
 log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
   + `rozjazdów belki: ${rozjazdyBelki.length}, `
-  + `niespójnych szerokości: ${niespojneSzerokosci.length})`);
+  + `niespójnych szerokości: ${niespojneSzerokosci.length}, `
+  + `rozjazdów tablicy dnia: ${rozjazdyTablicy.length}, `
+  + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
+  + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length}, `
+  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length})`);
+
+if (naruszeniaFocus.length > 0) {
+  log('');
+  log('Focus zasłonięty w 100% przez nakładkę (WCAG 2.2 AA — 2.4.11 Focus Not Obscured, FAIL):');
+  for (const n of naruszeniaFocus) {
+    log(`  ${n.ekran} / ${n.wariant}: ${n.kontrolka} pod ${n.nakladka}`);
+  }
+}
+
+if (ostrzezeniaFocus.length > 0) {
+  log('');
+  log('Focus częściowo zasłonięty (ostrzeżenie produktowe — nie jest to naruszenie WCAG):');
+  for (const o of ostrzezeniaFocus) {
+    log(`  ${o.ekran} / ${o.wariant}: ${o.kontrolka} pod ${o.nakladka} (${Math.round(o.pokrycie * 100)}%)`);
+  }
+}
 
 if (przepelnienia.length > 0) {
   log('');
@@ -1727,11 +2611,25 @@ if (niespojneSzerokosci.length > 0) {
   }
 }
 
+if (rozjazdyTablicy.length > 0) {
+  log('');
+  log('Tablica dnia rozjeżdża się w prawej szynie (issue #272):');
+  for (const r of rozjazdyTablicy) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
 if (
   blokujacych > 0
   || przepelnienia.length > 0
   || rozjazdyBelki.length > 0
   || niespojneSzerokosci.length > 0
+  || naruszeniaFocus.length > 0
+  || rozjazdyTablicy.length > 0
+  || rozjazdyLiczb.length > 0
 ) {
   process.exit(1);
 }

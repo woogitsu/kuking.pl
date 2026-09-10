@@ -83,8 +83,11 @@ return [
         // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
         // wygląda na zdjęcie" komuś, kto trzyma w ręku zwykłą fotografię.
         //
-        // Dodanie prawdziwej obsługi (libheif + Imagick albo vips w obrazie
-        // Dockera) to osobna decyzja z realnym kosztem — patrz issue o HEIC.
+        // Dodanie prawdziwej obsługi (libheif + Imagick w obrazie Dockera) to
+        // osobna decyzja z realnym kosztem — ROZSTRZYGNIĘTA jako „nie teraz"
+        // w `docs/DECISIONS.md`, D-064 (issue #119). Zanim zmienisz tę listę,
+        // przeczytaj D-064 — jest tam rachunek kosztu i próg, przy którym
+        // decyzja ma zostać zrewidowana.
         'accepted_mime_types' => [
             'image/jpeg',
             'image/png',
@@ -202,6 +205,10 @@ return [
         // docs/DECISIONS.md). Liczby stąd czyta WYŁĄCZNIE App\Support\LimityTagow
         // — patrz komentarz w tamtym pliku, dlaczego żadna z nich nie ma
         // prawa być wpisana wprost w kontrolerze, widoku ani akcji domenowej.
+        // WYJĄTEK: `index_page_size` niżej — to zwykły rozmiar strony
+        // (ten sam wzorzec co `feed.page_size`, `comments.page_size`), nie
+        // limit produktowy pilnowany w wielu miejscach, więc czyta go wprost
+        // `TagController::index()`.
 
         // Minimum — TEN SAM próg, którego używa wyszukiwarka
         // (App\Domain\Search\SearchQuery::recipes()/people()).
@@ -218,6 +225,13 @@ return [
         // Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5) — zarówno
         // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
         'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
+
+        // Ile tematów na "stronę" pokazuje spis wszystkich tematów
+        // (#273, D-087). Bez infinite scroll — przycisk „Pokaż więcej",
+        // jak wszędzie indziej (`<x-show-more>`). Słownik z D-026 ma
+        // ~1250 nazw kanonicznych, więc jedna niestronicowana strona
+        // renderowałaby naraz ponad tysiąc odnośników.
+        'index_page_size' => (int) env('KUKING_TAGS_INDEX_PAGE_SIZE', 100),
     ],
 
     'text' => [
@@ -401,6 +415,226 @@ return [
         'adres' => ['proby' => 100, 'sekundy' => 300],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Logowanie linkiem e-mail — „wyślij mi link" (issue #25, D-056)
+    |--------------------------------------------------------------------------
+    |
+    | Droga wejścia dla osób, które gubią hasła — dla naszej grupy DROGA
+    | PODSTAWOWA, nie awaryjna (`docs/research/AUDIENCE_50_PLUS.md`: 12,3%
+    | osób w wieku 65-74 ma podstawowe umiejętności cyfrowe, a hasło i e-mail
+    | są murem). Hasło zostaje jako droga równoległa i nikomu go nie
+    | odbieramy — nie zabiera się ludziom tego, co już umieją.
+    |
+    | LINK JEST HASŁEM JEDNORAZOWYM WYSŁANYM POCZTĄ. Stąd wszystkie liczby
+    | niżej: krótki termin, jeden token na konto, twarde limity próśb i —
+    | osobno — budżet listów, bo poczty mamy skończoną ilość.
+    |
+    */
+
+    'login_link' => [
+        /*
+         * WYŁĄCZNIK CAŁEJ FUNKCJI — jedyna droga wycofania BEZ wdrażania
+         * migracji i bez danych do posprzątania (ta sama zasada co przy
+         * `formularze.klucz_wyslania_wlaczony` i przy kluczach Turnstile).
+         *
+         * `false` znaczy: wejście z ekranu logowania znika, a formularz
+         * i wszystkie linki będące w drodze odpowiadają ekranem „ta droga
+         * jest teraz zamknięta, zaloguj się hasłem". Tabela zostaje
+         * nietknięta, konta działają dalej, nikt nie traci dostępu — bo
+         * hasło nigdy nie przestało być drogą równoległą.
+         */
+        'wlaczone' => (bool) env('KUKING_LOGOWANIE_LINKIEM', true),
+
+        /*
+         * ILE MINUT ŻYJE LINK.
+         *
+         * TRZYDZIEŚCI, a nie piętnaście z pierwszego szkicu issue #25 — i to
+         * jest świadome odstępstwo, nie przeoczenie.
+         *
+         * Piętnaście minut to liczba z serwisów, w których człowiek siedzi
+         * przy komputerze i czeka na list. Nasza droga wygląda inaczej
+         * i została opisana w researchu: prośba idzie z komputera, a poczta
+         * jest w telefonie leżącym w drugim pokoju. „Idź po telefon,
+         * odblokuj, znajdź list wśród czterdziestu innych, przeczytaj,
+         * kliknij" to realnie kilkanaście minut, nie dwie. Link wygasający
+         * w połowie tej drogi jest gorszy niż jego brak: człowiek dostaje
+         * komunikat o błędzie po tym, jak zrobił wszystko dobrze, i prosi
+         * o drugi list — czyli wygaśnięcie SAMO GENERUJE ruch pocztowy,
+         * którego budżet niżej ma pilnować.
+         *
+         * DLACZEGO NIE WIĘCEJ. `docs/legal/SECURITY_BASELINE.md` §3 daje
+         * linkowi resetu hasła maksimum 60 minut. Ten link jest MOCNIEJSZY
+         * od tamtego (loguje od razu, nie prosi o ustawienie nowego hasła),
+         * więc jego okno nie ma prawa być dłuższe — połowa tamtego jest
+         * właściwą proporcją. Przez cały ten czas jest to ważne hasło
+         * jednorazowe leżące w cudzej skrzynce.
+         */
+        'waznosc_minut' => (int) env('KUKING_LOGOWANIE_LINKIEM_WAZNOSC', 30),
+
+        /*
+         * ILE LISTÓW Z LINKIEM WOLNO WYSŁAĆ W CIĄGU DOBY — CAŁEMU SERWISOWI.
+         *
+         * TO NIE JEST LIMIT ZAPYTAŃ. Limity chronią pojedyncze konto
+         * i pojedynczy adres IP; ten wpis chroni COŚ INNEGO i nie da się go
+         * tamtymi zastąpić: WSPÓLNĄ PULĘ POCZTY. EmailLabs na planie
+         * darmowym daje 300 listów na dobę na CAŁY serwis — potwierdzenia
+         * rejestracji, przypomnienia hasła, powiadomienia i te linki idą
+         * z jednego wiadra.
+         *
+         * Bez tego wpisu 500 kont po dwie prośby dziennie (fala migracyjna
+         * z Garnek.pl, o której mówi właściciel) zjada całą dobową pulę,
+         * a pierwszą rzeczą, która przestaje działać, jest POTWIERDZENIE
+         * REJESTRACJI — czyli nowi ludzie nie wchodzą w ogóle, a przyczyna
+         * siedzi kilka warstw dalej.
+         *
+         * SKĄD 120: dwie piąte puli. Zostawia 180 listów na wszystko inne,
+         * a przy rachunku z D-056 starcza dla około 100 osób dziennie
+         * wchodzących tą drogą. Po wykupieniu większego planu u dostawcy to
+         * jest jedna liczba do podniesienia, bez zmiany kodu.
+         *
+         * PO WYCZERPANIU BUDŻETU NIE MILCZYMY. Formularz mówi wprost, że
+         * dziś już listu nie wyślemy, i odsyła do hasła oraz do człowieka
+         * pod adresem kontaktowym. Cicha odmowa byłaby tu najgorszym
+         * możliwym zachowaniem — to ten sam kształt awarii co
+         * `MAIL_MAILER=log` (`App\Support\Poczta`).
+         */
+        'dzienny_budzet' => (int) env('KUKING_LOGOWANIE_LINKIEM_BUDZET', 120),
+
+        /*
+         * LIMIT PRÓŚB NA JEDEN ADRES E-MAIL.
+         *
+         * Osobno od `limits.login_link` niżej, bo tamten liczy się po
+         * adresie IP i nie widzi kogoś, kto zalewa CUDZĄ skrzynkę z wielu
+         * miejsc — a to jest tutaj najtańsze nadużycie: każda prośba to
+         * jeden list w skrzynce osoby, która o nic nie prosiła, i jeden
+         * list mniej w dobowej puli.
+         *
+         * Trzy na godzinę: człowiek prosi raz, po pięciu minutach jeszcze
+         * raz („może nie doszło"), a trzecia próba jest zapasem. Licznik
+         * chodzi po SKRÓCIE adresu (`App\Support\Skrot`), więc w tabeli
+         * `cache` nie leży cudzy adres e-mail — ta sama lekcja co
+         * w `App\Support\KluczeLimitow`.
+         *
+         * LICZNIK RUSZA PRZY KAŻDYM WYSŁANIU FORMULARZA, także dla adresu,
+         * na który nie ma konta. Inaczej sam fakt „ten formularz jeszcze
+         * mnie nie zatrzymał" odpowiadałby na pytanie, czy konto istnieje.
+         */
+        'limit_na_adres' => ['proby' => 3, 'minuty' => 60],
+
+        /*
+        |----------------------------------------------------------------------
+        | ZAPROSZENIE DO ZAŁOŻENIA KONTA — adres BEZ konta (issue #25, D-085)
+        |----------------------------------------------------------------------
+        |
+        | Druga połowa tej samej drogi. Do 10 września 2026 adres, na którym
+        | nie ma konta, dostawał zielone „wysłaliśmy wiadomość" i NIC WIĘCEJ —
+        | bo nie było dokąd wysłać, a odpowiedź musi wyglądać identycznie dla
+        | adresu z kontem i bez konta (D-056). Zdarzyło się to 63-letniej
+        | osobie, która chciała założyć konto: czekała na wiadomość, która nie
+        | miała przyjść.
+        |
+        | Od teraz taki adres dostaje wiadomość z linkiem prowadzącym na
+        | DOKOŃCZENIE ZAKŁADANIA KONTA — z adresem wpisanym i już
+        | potwierdzonym (kliknięcie linku z własnej skrzynki JEST dowodem jej
+        | posiadania, więc drugiej wiadomości weryfikacyjnej nie wysyłamy).
+        |
+        | PRYWATNOŚĆ Z D-056 JEST PO TEJ ZMIANIE MOCNIEJSZA, NIE SŁABSZA:
+        | w obu przypadkach naprawdę wychodzi wiadomość, więc nie ma już
+        | różnicy „wysłano / nie wysłano" do wykrycia.
+        |
+        */
+        'zaproszenia' => [
+            /*
+             * WYŁĄCZNIK TEJ POŁOWY DROGI — osobny od `login_link.wlaczone`.
+             *
+             * `false` przywraca zachowanie z D-056 (adres bez konta nie
+             * dostaje nic) BEZ wycofywania migracji i bez wyłączania
+             * logowania linkiem. Ekran odpowiada dalej identycznie, więc
+             * wyłączenie nie zdradza niczego o żadnym adresie — jedyną
+             * różnicą jest to, że osoba bez konta znowu nie dostanie
+             * wiadomości.
+             */
+            'wlaczone' => (bool) env('KUKING_ZAPROSZENIA_DO_REJESTRACJI', true),
+
+            /*
+             * ILE GODZIN ŻYJE ZAPROSZENIE — DWADZIEŚCIA CZTERY, nie 30 minut
+             * jak link do logowania. To jest świadome odstępstwo od D-056
+             * i ma dwa powody, oba w tę samą stronę.
+             *
+             * 1. TO POŚWIADCZENIE JEST SŁABSZE. Link do logowania wpuszcza na
+             *    istniejące konto — na cudze zdjęcia, cudze wpisy, cudzy
+             *    profil. Ten link nie wpuszcza nigdzie: prowadzi na PUSTY
+             *    formularz rejestracji z wpisanym adresem. Kto go przechwyci,
+             *    może najwyżej założyć konto na tej skrzynce — a to potrafi
+             *    zrobić także bez nas, wchodząc na /register i klikając
+             *    w zwykłą wiadomość weryfikacyjną z tej samej skrzynki.
+             *    Zaproszenie nie daje mu więc żadnej nowej władzy.
+             *
+             * 2. DROGA PO KLIKNIĘCIU JEST DŁUŻSZA. Po linku do logowania
+             *    zostaje jeden przycisk. Tu zostaje CAŁY formularz: nazwa
+             *    użytkownika (o którą właśnie odbiła się osoba, dla której to
+             *    piszemy), hasło ≥ 10 znaków sprawdzane w wyciekach, dwa
+             *    haczyki. Trzydzieści minut znaczyłoby, że zaproszenie wygasa
+             *    w środku wymyślania nazwy — czyli człowiek dostaje komunikat
+             *    o błędzie po tym, jak zrobił wszystko dobrze, i wraca na
+             *    początek. Dokładnie ten błąd naprawiamy.
+             *
+             * DLACZEGO NIE WIĘCEJ. Tyle samo, ile żyje zamówiona zmiana
+             * adresu (`account.email_change_ttl_hours`), a TAMTO poświadczenie
+             * jest mocniejsze od tego (kończy przejęcie istniejącego konta).
+             * Skoro tamtemu wystarcza doba, temu nie wolno dać więcej. Doba to
+             * jedna noc: kto zajrzy do skrzynki nazajutrz, zdąży.
+             */
+            'waznosc_godzin' => (int) env('KUKING_ZAPROSZENIA_WAZNOSC_GODZIN', 24),
+
+            /*
+             * ILE ZAPROSZEŃ WOLNO WYSŁAĆ W CIĄGU DOBY — CAŁEMU SERWISOWI.
+             *
+             * SUFIT WEWNĄTRZ SUFITU, nie obok niego. Zaproszenie zajmuje
+             * miejsce w TYM SAMYM dobowym budżecie co wiadomość z linkiem do
+             * logowania (`dzienny_budzet`, 120) — i dodatkowo w tym, niższym.
+             * Dzięki temu podział całego wiadra 300 listów (sekcja `poczta`)
+             * NIE ZMIENIA SIĘ ANI O JEDEN LIST: te 40 to część tamtych 120,
+             * a nie nowa pozycja w rachunku.
+             *
+             * PO CO WIĘC DRUGI LICZNIK. Bo ta zmiana otwiera wektor, którego
+             * wcześniej nie było: do 10 września adres bez konta NIE GENEROWAŁ
+             * ŻADNEJ WYSYŁKI, więc automat wpisujący wymyślone adresy nie
+             * potrafił wysłać ani jednej wiadomości. Teraz potrafi. Rachunek
+             * najgorszego dnia: limit po IP to 5/60 min, czyli 120 próśb na
+             * dobę z jednego łącza — dokładnie tyle, ile ma cały dobowy
+             * budżet. Bez tego sufitu JEDEN sprawca z jednego łącza (albo
+             * kilku z kilku) zjadałby całe 120 i pierwszą rzeczą, która by
+             * przestała działać, jest WEJŚCIE NA KONTO LINKIEM — dla części
+             * naszych ludzi droga podstawowa, nie awaryjna (D-056).
+             *
+             * SKĄD 40. Realne zapotrzebowanie jest o rząd wielkości mniejsze:
+             * przy 500 kontach i ~20 prośbach o link dziennie (rachunek
+             * z D-056) adresy bez konta to pomyłki i osoby, które jeszcze się
+             * nie zarejestrowały — kilka na dobę, w tygodniu fali z Garnek.pl
+             * może 10-20. Czterdzieści daje temu 2-4-krotny zapas, a w dniu
+             * nadużycia ogranicza szkodę do 40 wiadomości do osób, które
+             * o nic nie prosiły, i zostawia 80 listów na prawdziwe logowania.
+             *
+             * CO WIDZI CZŁOWIEK PO WYCZERPANIU TEGO SUFITU: dokładnie to samo
+             * co przed — ekran nie może się zmienić, bo zmiana byłaby
+             * wyrocznią „na tym adresie nie ma konta", i to wyrocznią, którą
+             * napastnik umie WYWOŁAĆ sam (wysłać 40 zaproszeń, a potem
+             * odczytywać różnicę). Cena jest wypisana wprost w D-085: w takim
+             * dniu osoba bez konta znowu nie dostanie wiadomości. Dlatego
+             * sufit stoi tak wysoko nad zapotrzebowaniem, a ekran
+             * `/logowanie/link` mówi na stałe, co zrobić, gdy wiadomość nie
+             * przychodzi.
+             *
+             * `0` znaczy „dziś nie wysyłamy żadnych zaproszeń" i jest
+             * poprawną, świadomą konfiguracją awaryjną — linki będące
+             * w drodze dalej działają.
+             */
+            'dzienny_sufit' => (int) env('KUKING_ZAPROSZENIA_BUDZET', 40),
+        ],
+    ],
+
     'notifications' => [
         /*
          * Okno, w którym powiadomienie o STANIE nie wraca (R3 §7).
@@ -494,6 +728,119 @@ return [
         'klucz_wyslania_wlaczony' => (bool) env('KUKING_KLUCZ_WYSLANIA', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cloudflare Turnstile — warunek wysłania siedmiu formularzy publicznych
+    |--------------------------------------------------------------------------
+    |
+    | D-050 (odwraca poz. 1.11 z `docs/INSPIRATION_DECISIONS.md`). Turnstile
+    | stoi na SIEDMIU formularzach publicznych — wszędzie tam, gdzie do
+    | serwisu wchodzi ktoś niezalogowany.
+    |
+    | Z KLUCZAMI TURNSTILE JEST WARUNKIEM WYSŁANIA, NIE FILTREM. Brak tokenu
+    | odrzuca — decyzja właściciela z 9 września 2026, zaostrzająca pierwszą
+    | wersję D-050, która puste pole przepuszczała. Limity zapytań z `limits`
+    | niżej, `klucz_wyslania` i weryfikacja adresu e-mail ZOSTAJĄ: captcha ich
+    | nie zastępuje.
+    |
+    | Razem z tym zaciśnięciem idzie `<noscript>` przy każdym z siedmiu
+    | formularzy i osobny komunikat dla kogoś, komu widget się nie dociągnął.
+    | Kto zdejmie jedno albo drugie, zostawi ludzi przed martwym przyciskiem.
+    | Pełne uzasadnienie: `App\Rules\TurnstileJestPotwierdzony`.
+    |
+    | BEZ KLUCZY NIC SIĘ NIE ZMIENIA I NIC NIE BLOKUJE — patrz niżej.
+    |
+    */
+
+    'turnstile' => [
+        // Klucz publiczny („Site Key") — wchodzi do HTML-a widgetu, więc nie
+        // jest sekretem. Sekret („Secret Key") wychodzi wyłącznie na
+        // `siteverify` i nigdy nie trafia do widoku ani do logu.
+        //
+        // PUSTE = TURNSTILE NIE ISTNIEJE: widget się nie renderuje, reguła
+        // walidacji nie odpytuje nikogo i nikogo nie odrzuca. To jest stan
+        // domyślny lokalnie, w CI i w testach — po to, żeby wgranie kluczy
+        // było jedyną rzeczą, którą właściciel musi zrobić, i żeby brak
+        // kluczy nie wywracał ani jednego formularza.
+        //
+        // ALE cisza na produkcji jest zakazana: gdy `APP_ENV=production`,
+        // którekolwiek miejsce niżej jest włączone, a kluczy nie ma, `/health`
+        // oddaje `status: degraded` z powodem `turnstile_bez_kluczy` i zapisuje
+        // błąd w dzienniku (`App\Http\Controllers\HealthController`). Bez tego
+        // mielibyśmy narzędzie, które melduje sukces, nie robiąc nic.
+        'klucz_publiczny' => (string) env('TURNSTILE_SITE_KEY', ''),
+        'sekret' => (string) env('TURNSTILE_SECRET_KEY', ''),
+
+        // Ile sekund czekamy na odpowiedź `siteverify`. Krótko celowo: to jest
+        // cudza usługa stojąca w środku wysyłania NASZEGO formularza. Gdy nie
+        // odpowiada, przepuszczamy wysłanie i zapisujemy ostrzeżenie —
+        // niedostępność Cloudflare nie może zamykać rejestracji.
+        'limit_czasu' => (int) env('TURNSTILE_LIMIT_CZASU', 4),
+
+        /*
+         * GDZIE TURNSTILE DZIAŁA. `true` = widget na ekranie, token WYMAGANY
+         * (brak tokenu odrzuca wysłanie — D-050, zaostrzenie z 9 września
+         * 2026) i weryfikacja tego, który przyszedł. `false` = tego formularza
+         * Turnstile nie dotyczy w ogóle (widget się nie renderuje, reguła nie
+         * odpytuje Cloudflare i nie wymaga tokenu — także wtedy, gdy ktoś
+         * podstawi token ręcznie).
+         *
+         * `false` jest więc JEDYNĄ drogą wycofania zaciśnięcia dla jednego
+         * formularza. Osobnego przełącznika „captcha, ale bez wymagania
+         * tokenu" nie ma świadomie: Turnstile przepuszczający puste pole nie
+         * chroni przed niczym, bo automat po prostu tego pola nie wysyła.
+         *
+         * Wszystkie siedem jest włączonych: każdy z tych formularzy jest
+         * publiczny i każdy kosztuje nas coś realnego przy nadużyciu — konto
+         * do moderowania, list wysłany na cudzy adres, wiadomość w kolejce
+         * jedynej osoby, która ją czyta, sprawę z terminem odpowiedzi z DSA,
+         * zgadywanie haseł do cudzych kont.
+         *
+         * WYŁĄCZENIE WSZĘDZIE NARAZ to wyczyszczenie kluczy wyżej — jedno
+         * miejsce, bez wdrożenia. Wyłączenie punktowe: `false` niżej.
+         */
+        'miejsca' => [
+            'rejestracja' => (bool) env('TURNSTILE_NA_REJESTRACJI', true),
+            'odzyskanie_hasla' => (bool) env('TURNSTILE_NA_ODZYSKANIU_HASLA', true),
+            'kontakt' => (bool) env('TURNSTILE_NA_KONTAKCIE', true),
+            'zgloszenie_nielegalnej_tresci' => (bool) env('TURNSTILE_NA_ZGLOSZENIU', true),
+
+            /*
+             * LOGOWANIE I COFNIĘCIE USUNIĘCIA KONTA — WŁĄCZONE, ZAWSZE.
+             *
+             * DECYZJA WŁAŚCICIELA z 9 września 2026 (issue #217): „captcha
+             * trzeba normalnie zrobić, ten od cloudflare jest nieinwazyjny".
+             * Turnstile w trybie Managed przechodzi w przeważającej większości
+             * przypadków BEZ ŻADNEJ INTERAKCJI — nie ma obrazków do klikania,
+             * więc nie ma bariery, przed którą bronił pierwotny szkic #217
+             * („dopiero po nieudanych próbach"). Ten wariant nie powstał
+             * i nie jest już potrzebny.
+             *
+             * Trzy koszyki `login_limits` ZOSTAJĄ bez zmian. Turnstile ich nie
+             * zastępuje: limity widzą atak rozproszony po adresach, captcha
+             * widzi automat. To dwie różne obrony i chcemy obu naraz.
+             *
+             * `SECURITY_BASELINE.md` §4 opisuje ten sam stan — nie rozjeżdżaj
+             * tych dwóch miejsc.
+             */
+            'logowanie' => (bool) env('TURNSTILE_NA_LOGOWANIU', true),
+            'cofniecie_usuniecia' => (bool) env('TURNSTILE_NA_COFNIECIU_USUNIECIA', true),
+
+            /*
+             * SIÓDME MIEJSCE, DOŁOŻONE 10 WRZEŚNIA 2026 (issue #25, D-056):
+             * „Wyślij mi link do zalogowania".
+             *
+             * Należy do tej samej rodziny co `odzyskanie_hasla` i z tego
+             * samego powodu: formularz jest publiczny, wysyła list na CUDZY
+             * adres i zużywa dobową pulę poczty dzieloną z potwierdzeniami
+             * rejestracji. Automat bez tej bramki zalewa skrzynkę wybranej
+             * osoby i wyczerpuje pulę listów całego serwisu — a to drugie
+             * boli wszystkich, nie tylko ofiarę.
+             */
+            'logowanie_linkiem' => (bool) env('TURNSTILE_NA_LOGOWANIU_LINKIEM', true),
+        ],
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
@@ -504,6 +851,54 @@ return [
         'login' => '5,1',
         'register' => '5,10',
         'password_reset' => '5,10',
+
+        /*
+         * „Wyślij mi link do zalogowania" (issue #25) — licznik PO ADRESIE IP.
+         *
+         * Niżej niż `password_reset` (5/10 min) i to jest celowe: tamten
+         * formularz kończy się listem, po którym trzeba jeszcze wymyślić
+         * i wpisać hasło, a ten wysyła gotowe wejście na konto. Pięć na
+         * godzinę mieści rodzinę za jednym łączem i osobę, która pomyliła
+         * się w adresie, a nie starcza na zalewanie skrzynek.
+         *
+         * DRUGI, WAŻNIEJSZY LICZNIK JEST PO ADRESIE E-MAIL
+         * (`login_link.limit_na_adres`). Ten tutaj nie widzi kogoś, kto
+         * zalewa jedną cudzą skrzynkę z wielu miejsc.
+         */
+        'login_link' => '5,60',
+
+        /*
+         * Kliknięcie „Zaloguj mnie" na ekranie z linku (issue #25).
+         *
+         * OSOBNY KOSZYK OD `login_link` WYŻEJ, choć to ta sama funkcja:
+         * nieudane wejście nie ma prawa zjadać budżetu próśb o list. Token
+         * ma 64 losowe znaki, więc zgadywania i tak nie ma czego blokować —
+         * ten limit chroni bazę przed zapętloną wtyczką i przed kimś, kto
+         * postanowił pukać w tę trasę seriami.
+         *
+         * Dziesięć na dziesięć minut: człowiek klika ten przycisk raz, a przy
+         * słabym łączu drugi i trzeci. Liczy się po adresie IP, więc musi
+         * pomieścić kilka osób za jednym ruterem.
+         */
+        'login_link_wejscie' => '10,10',
+
+        /*
+         * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
+         *
+         * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
+         * i choć to ta sama rodzina dróg: człowiek, który nieudanie klikał
+         * „Zaloguj mnie", nie ma tracić prób na „Załóż konto" i odwrotnie.
+         * Ta reguła („jeden prefiks to zawsze jeden limit i jedna trasa")
+         * jest pilnowana testem
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+         *
+         * Dziesięć na dziesięć minut, po adresie IP: człowiek klika ten
+         * przycisk raz, przy słabym łączu drugi i trzeci, a limit musi
+         * pomieścić kilka osób za jednym ruterem. Zgadywania tokenu ten limit
+         * nie blokuje i nie musi — 64 losowe znaki nie są do zgadnięcia; on
+         * chroni bazę przed zapętloną wtyczką i przed pukaniem seriami.
+         */
+        'zaproszenie' => '10,10',
         // Formularz cofnięcia usunięcia konta stoi PRZED logowaniem (audyt A8,
         // ten sam powód co limit 'appeal' dla formularza odwołań #10) — jest
         // celem do zgadywania haseł, więc 5 prób na godzinę, nie na minutę.
@@ -558,6 +953,56 @@ return [
          * Niżej niż `report` (10/10), bo tamten stoi już ZA logowaniem.
          */
         'kontakt' => '5,60',
+
+        /*
+         * ODPOWIEDŹ MODERATORA NA WIADOMOŚĆ Z „Napisz do nas" (D-058) —
+         * trasa `admin.contact.reply`, jedyna w panelu, która WYSYŁA LIST
+         * NA ZEWNĄTRZ.
+         *
+         * OSOBNY KLUCZ, A NIE WSPÓLNY `moderacja` (120/10), i to jest cała
+         * treść tego wpisu. Tamten limit jest świadomie najwyższy w serwisie,
+         * bo chroni kolejkę moderacji przed przejętą sesją, a NIE MOŻE
+         * zatrzymać jedynego moderatora w środku fali spamu — jego skutkiem
+         * jest wiersz w bazie. Tutaj skutkiem jest list wysłany do człowieka
+         * z adresu `kontakt@kuking.pl` i zjedzony budżet poczty: EmailLabs
+         * na planie darmowym daje 300 listów DZIENNIE, dzielonych
+         * z potwierdzeniami rejestracji, przypomnieniami hasła i alarmami
+         * moderacyjnymi. Sesja moderatora użyta maszynowo pod limitem
+         * `moderacja` wypaliłaby połowę tego budżetu w dziesięć minut
+         * i zabrała ludziom możliwość odzyskania hasła.
+         *
+         * SKĄD DWADZIEŚCIA NA DZIESIĘĆ MINUT. Odpowiedź na wiadomość pisze
+         * człowiek własnymi słowami — realnie dwie, trzy na dziesięć minut,
+         * i to przy bardzo dobrym poranku. Dwadzieścia zostawia zapas na
+         * nadrabianie zaległości i na powtórzenie wysyłki, która się nie
+         * udała (issue #234), a jednocześnie ogranicza szkodę z przejętej
+         * sesji do dwudziestu listów na okno zamiast stu dwudziestu.
+         *
+         * SUFITU DZIENNEGO ŚWIADOMIE NIE MA — sprawdzone, nie założone.
+         *
+         * Stan faktyczny na 10 września 2026: WSPÓLNEGO licznika całej poczty
+         * w repozytorium nie ma i `App\Domain\Security\DziennyBudzetListow`
+         * mówi to o sobie wprost. Istnieje jeden sufit WŁASNY jednej funkcji —
+         * logowania linkiem (D-056, `login_link.dzienny_budzet` = 120) — a
+         * reszta puli jest pilnowana PROJEKTOWO: listy natychmiastowe tylko
+         * dla kategorii pilnych, resztę zbiera jedno podsumowanie na dobę
+         * (`PilnyAlarmModeracyjny`, `kuking:podsumowanie-automatu`).
+         *
+         * DLACZEGO ODPOWIEDZI NIE POTRZEBUJĄ TEGO, CO POTRZEBOWAŁO LOGOWANIE
+         * LINKIEM. Tamten sufit powstał, bo prośbę o list wywołuje KTOKOLWIEK
+         * Z ZEWNĄTRZ i pięciuset ludzi zachowujących się zupełnie normalnie
+         * zjada dobową pulę bez przekroczenia jakiegokolwiek limitu. Tutaj
+         * list wywołuje jedna osoba, po zalogowaniu, z 2FA, pisząc treść
+         * własnymi słowami — fan-outu nie ma z czego zrobić. Odpowiedzi to
+         * garść listów dziennie, czyli poniżej 2% puli.
+         *
+         * A sufit postawiony wbrew temu rachunkowi zrobiłby rzecz szkodliwą:
+         * odmówiłby wysłania odpowiedzi człowiekowi, który już czeka, w imieniu
+         * budżetu, którego nikt nie mierzy. Gdyby kiedyś powstał prawdziwy,
+         * WSPÓLNY licznik poczty (np. razem z tygodniowym digestem), TO ON ma
+         * być jednym miejscem tej decyzji — nie osobny sufit dopisany tutaj.
+         */
+        'kontakt_odpowiedz' => '20,10',
 
         // Odwołanie od decyzji moderacyjnej. Limit jest niski, bo formularz
         // dla osób zablokowanych stoi PRZED logowaniem — a wszystko, co stoi
@@ -812,7 +1257,14 @@ return [
         'powiadomienia' => '120,10',
 
         /*
-         * ZAPIS PROFILU (`PUT /ustawienia/profil`) — OSOBNO OD `ustawienia`.
+         * ZDJĘCIE PROFILOWE (`POST /ustawienia/zdjecie`) — OSOBNO OD `ustawienia`.
+         *
+         * KLUCZ NAZYWA SIĘ `ustawienia_profil` ZE WZGLĘDÓW HISTORYCZNYCH:
+         * do wydzielenia osobnego ekranu (D-054) pole pliku stało w formularzu
+         * `/ustawienia/profil` i limit pilnował tamtej trasy. Pole się
+         * przeniosło, więc limit przeniósł się razem z nim — a zapis profilu
+         * bez zdjęcia to znowu zwykły UPDATE jednego wiersza i wrócił do
+         * wspólnej grupy `ustawienia`. Usunięcie zdjęcia też tam zostaje.
          *
          * Bo to jedyny ekran ustawień, który przyjmuje PLIK. Zdjęcie
          * profilowe przechodzi przez cały pipeline z AGENTS.md §7:
@@ -952,6 +1404,199 @@ return [
         // 36 h przy harmonogramie dobowym: jeden przebieg ma prawo wypaść
         // (restart, chwilowa niedostępność R2), dwa już nie.
         'maks_wiek_godzin' => (int) env('KUKING_KOPIE_MAKS_WIEK_GODZIN', 36),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tygodniowe podsumowanie (digest) — issue #11, D-057
+    |--------------------------------------------------------------------------
+    |
+    | Jedyny list, który NIE jest transakcyjny: nikt go nie zamówił kliknięciem
+    | w serwisie tuż przed wysyłką. Dlatego wszystko tutaj daje się wyłączyć,
+    | a każda liczba jest jawna — poczta ma dziś TWARDY limit 300 listów na
+    | dobę na całe konto EmailLabs (plan STARTUP, `docs/decyzje/POCZTA.md` §1)
+    | i dzieli go z potwierdzeniami adresu, resetami hasła, ostrzeżeniami
+    | o zmianie adresu i powiadomieniami moderacyjnymi.
+    |
+    */
+    /*
+    |--------------------------------------------------------------------------
+    | Poczta: podział jednego wiadra 300 listów na dobę (D-047, D-057)
+    |--------------------------------------------------------------------------
+    |
+    | EmailLabs na planie STARTUP daje **300 listów na dobę na CAŁY serwis**
+    | (`docs/decyzje/POCZTA.md` §1). Nie ma tu osobnych pul dla poczty
+    | transakcyjnej i dla biuletynu — jest jedno wiadro i wszystko z niego
+    | czerpie. Kto pierwszy zużyje, ten pierwszy dostanie; resztę dostawca
+    | odrzuca, a odrzucony list PRZEPADA (worker ma `--tries=3
+    | --backoff=10,60,300`, więc trzy próby mieszczą się w sześciu minutach
+    | tej samej doby i czwartej nie ma).
+    |
+    | Dlatego funkcje, które wysyłają WIELE listów naraz, mają własne dobowe
+    | sufity (`DziennyBudzetListow`), a te sufity muszą się zmieścić pod 300
+    | RAZEM Z REZERWĄ na pocztę, bez której nie da się wejść do serwisu.
+    | Pilnuje tego `PodzialLimituPocztyTest` — bo suma trzech liczb z trzech
+    | różnych sekcji konfiguracji jest dokładnie tym rodzajem rzeczy, którą
+    | ktoś kiedyś podniesie w jednym miejscu i nie sprawdzi w pozostałych.
+    |
+    | PODZIAŁ (dziś, 10 września 2026):
+    |
+    |   120  logowanie linkiem e-mail  (`login_link.dzienny_budzet`, issue #25)
+    |    60  tygodniowe podsumowanie   (`digest.dzienny_limit`, issue #11)
+    |   100  rezerwa transakcyjna      (`poczta.rezerwa_transakcyjna`)
+    |    20  zapas
+    |   ---
+    |   300
+    |
+    | Rezerwa transakcyjna nie jest licznikiem — nic jej nie zajmuje i nic
+    | nie sprawdza, czy została. To LICZBA W RACHUNKU: tyle listów zostawiamy
+    | wolnych na potwierdzenia rejestracji, przypomnienia hasła, ostrzeżenia
+    | o zmianie adresu i powiadomienia moderacyjne. One nie mają sufitu
+    | i mieć go nie mogą — reset hasła, który nie doszedł, kończy komuś
+    | przygodę z serwisem, a podsumowanie, które nie doszło, jest niczym.
+    | Sufity mają wyłącznie funkcje, które wolno przyhamować.
+    |
+    | CO SIEDZI W TEJ REZERWIE Z KOLEJKI MODERACJI (D-060, dopisane
+    | 10 września): dobowe podsumowanie kolejki automatu
+    | (`kuking:podsumowanie-automatu`, D-055) i przypomnienie o terminie
+    | odwołania (`kuking:pilnuj-terminow-odwolan`,
+    | `moderation.appeal_reminder_working_days`). Każde z nich wysyła
+    | NAJWYŻEJ JEDEN list na dobę, na jeden adres, i tylko w dniach, w których
+    | naprawdę jest o czym pisać — razem najwyżej 2 z tych 100. Dlatego nie
+    | mają własnych sufitów: sufit jest narzędziem na funkcje, które wysyłają
+    | wiele listów naraz, a nie na te, które wysyłają jeden. Poczty na KAŻDE
+    | odwołanie świadomie nie ma (D-060).
+    |
+    */
+    'poczta' => [
+        // Limit dostawcy, na dobę, na całe konto. NIE zmieniaj tej liczby
+        // „żeby test przeszedł" — zmienia się ona wtedy, gdy właściciel
+        // zmieni plan u dostawcy, i wtedy razem z `docs/decyzje/POCZTA.md`.
+        'limit_dostawcy_dobowy' => (int) env('KUKING_POCZTA_LIMIT_DOBOWY', 300),
+
+        // Ile listów zostawiamy wolnych na pocztę bez sufitu (patrz wyżej).
+        'rezerwa_transakcyjna' => (int) env('KUKING_POCZTA_REZERWA', 100),
+    ],
+
+    'digest' => [
+        /*
+         * WYŁĄCZNIK CAŁOŚCI — jedna zmienna środowiskowa (D-057).
+         *
+         * DOMYŚLNIE WYŁĄCZONY i to nie jest ostrożność na zapas. Digest to
+         * jedyna poczta w tym serwisie, która wychodzi BEZ czynności
+         * człowieka bezpośrednio przed wysyłką, więc pomyłka w danych albo
+         * w treści rozchodzi się od razu do wszystkich zapisanych — i nie da
+         * się jej cofnąć. Właściciel włącza go świadomie, po sprawdzeniu
+         * listu na własnej skrzynce (`--na-sucho` i `--tylko=<nazwa>`).
+         */
+        'wlaczony' => (bool) env('KUKING_DIGEST_WLACZONY', false),
+
+        /*
+         * DOBOWY SUFIT PODSUMOWAŃ — sześćdziesiąt listów, nie sto dwadzieścia.
+         *
+         * Liczba bierze się z rachunku, nie z wyczucia. Całe wiadro to 300
+         * listów na dobę na CAŁY serwis (patrz sekcja `poczta` wyżej), a dwie
+         * inne rzeczy mają w nim pierwszeństwo:
+         *
+         *   120  logowanie linkiem e-mail (issue #25) — dla części osób jest
+         *        to JEDYNA droga wejścia, więc nie wolno jej przyhamować
+         *        biuletynem;
+         *   100  rezerwa na potwierdzenia rejestracji i przypomnienia haseł,
+         *        których nie da się przełożyć na jutro.
+         *
+         * Zostaje 80, z czego bierzemy 60 i pozostawiamy 20 zapasu. Kierunek
+         * pomyłki jest tu wybrany świadomie: podsumowanie, które nie doszło,
+         * jest niczym — potwierdzenie rejestracji, które nie doszło, kończy
+         * komuś przygodę z serwisem, zanim się zaczęła (`docs/decyzje/
+         * POCZTA.md` §5 pkt 4). W tygodniu fali z Garnek.pl to rejestracje
+         * mają wygrać, nie biuletyn.
+         *
+         * PRZEPUSTOWOŚĆ TYGODNIOWA = 60 × 7 = **420 osób**. Powyżej tego
+         * progu plan darmowy przestaje wystarczać: część ludzi dostawałaby
+         * list co drugi tydzień, a obietnica „raz w tygodniu" byłaby wtedy
+         * nieprawdą po drugiej stronie. Rachunek dla 100, 500 i 2 000 kont
+         * i moment przejścia na plan płatny: `docs/DECISIONS.md` D-057.
+         *
+         * SUFIT PILNUJE `App\Domain\Security\DziennyBudzetListow` — ta sama
+         * klasa co przy logowaniu linkiem, z własnym kluczem licznika. Dwa
+         * własne liczniki tej samej rzeczy rozjechałyby się przy pierwszej
+         * zmianie którejkolwiek z tych liczb.
+         */
+        'dzienny_limit' => (int) env('KUKING_DIGEST_DZIENNY_LIMIT', 60),
+
+        /*
+         * NAJKRÓTSZY ODSTĘP MIĘDZY DWOMA LISTAMI DO TEJ SAMEJ OSOBY.
+         *
+         * „Jeden e-mail tygodniowo. Nigdy więcej" (issue #11 pkt 4) jest
+         * OBIETNICĄ, nie preferencją, więc pilnuje jej liczba w konfiguracji,
+         * a nie pamięć piszącego. Siedem dni, nie sześć: sześć pozwoliłoby
+         * na dwa listy w jednym tygodniu kalendarzowym.
+         *
+         * Ta sama liczba jest zabezpieczeniem przed dwukrotnym uruchomieniem
+         * zadania w ciągu doby — patrz `OdbiorcyDigestu`.
+         */
+        'odstep_dni' => (int) env('KUKING_DIGEST_ODSTEP_DNI', 7),
+
+        /*
+         * OKNO, Z KTÓREGO BIERZEMY TREŚĆ. Tyle samo co odstęp: list ma
+         * opowiedzieć tydzień, którego adresat nie widział.
+         */
+        'okno_dni' => (int) env('KUKING_DIGEST_OKNO_DNI', 7),
+
+        /*
+         * ODSTĘP MIĘDZY KOLEJNYMI LISTAMI W KOLEJCE, W SEKUNDACH.
+         *
+         * `docs/decyzje/POCZTA.md` §5 pkt 5: „rozłóż na godziny — 10 000
+         * wiadomości w 60 sekund to sygnał spamowy". 20 s × 120 listów to
+         * około 40 minut wysyłki, czyli tempo nie do odróżnienia od zwykłego
+         * ruchu transakcyjnego, a jednocześnie wszystko dochodzi tego samego
+         * przedpołudnia.
+         */
+        'odstep_sekund' => (int) env('KUKING_DIGEST_ODSTEP_SEKUND', 20),
+
+        // Ile pozycji najwyżej pokazujemy w każdej sekcji listu. Trzy, bo
+        // więcej zamienia list w katalog (`docs/product/RETENTION_LOOPS.md`
+        // §4.3: „Maks. 3 cudze treści").
+        'max_pozycji' => (int) env('KUKING_DIGEST_MAX_POZYCJI', 3),
+
+        /*
+         * PYTANIE OD GOSPODARZA — jedno zdanie na końcu listu.
+         *
+         * W konfiguracji, nie w szablonie, bo to jest jedyna część listu,
+         * którą właściciel ma zmieniać co tydzień — bez wdrożenia i bez
+         * dotykania kodu. Pusta wartość usuwa cały akapit z listu (i z wersji
+         * tekstowej), zamiast zostawić pusty nagłówek.
+         */
+        'pytanie' => env(
+            'KUKING_DIGEST_PYTANIE',
+            'Czy gotujesz w tym tygodniu coś, czego nikt u nas jeszcze nie pokazał? Napisz, jestem ciekawa.',
+        ),
+    ],
+
+    'zgody' => [
+        /*
+         * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
+         * (`dziennik_zgod.wersja_polityki`, D-072).
+         *
+         * PO CO: dowód „zgodził się 12 września" nie mówi, NA CO — a to jest
+         * pierwsze pytanie przy sporze o ZAKRES zgody. Ta wartość wiąże wiersz
+         * dziennika z konkretnym brzmieniem dokumentu, który człowiek wtedy
+         * mógł przeczytać.
+         *
+         * DATA STANU DOKUMENTU, NIE WYMYŚLONY NUMER WYDANIA. Polityka
+         * prywatności (`resources/legal/polityka-prywatnosci.md`) nie ma
+         * numeracji — ma w nagłówku zdanie „opisuje stan serwisu na <data>".
+         * Osobny numer („v2") dałby dwie prawdy o tym samym dokumencie,
+         * a jedna z nich rozjechałaby się przy pierwszej poprawce, której
+         * nikt by tu nie odnotował.
+         *
+         * PODBIJANE RĘCZNIE, RAZEM ZE ZDANIEM W NAGŁÓWKU DOKUMENTU — i tak
+         * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
+         * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
+         * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
+         * przestawić w panelu Railwaya.
+         */
+        'wersja_polityki' => '2026-09-08',
     ],
 
     'analytics' => [
@@ -1197,6 +1842,26 @@ return [
         // tej osobie, nie procesowi.
         'appeal_self_uphold_hours' => (int) env('KUKING_APPEAL_SELF_UPHOLD_HOURS', 24),
 
+        // ILE DNI ROBOCZYCH PRZED TERMINEM ODPOWIEDZI WYSŁAĆ LIST (D-060).
+        //
+        // Nowe odwołanie daje powiadomienie w panelu i licznik przy pozycji
+        // „Odwołania" — poczty na każde odwołanie NIE ma i mieć nie będzie
+        // (uzasadnienie: D-060, `PowiadomOOdwolaniu`). Pocztą jedzie
+        // wyłącznie sytuacja, w której termin z DSA art. 20 jest BLISKO
+        // albo już MINĄŁ, a sprawy nikt nie zamknął — bo wtedy powiadomienie
+        // w serwisie, którego nikt nie przeczytał, właśnie zawiodło.
+        //
+        // Zero wyłącza sam próg „blisko" i zostawia listy tylko dla spraw PO
+        // terminie; to jest poprawna, świadoma konfiguracja, a nie wyłączenie
+        // pilnowania.
+        //
+        // KOSZT W WIADRZE POCZTY: najwyżej JEDEN list na dobę, i tylko
+        // w dniach, w których naprawdę coś wisi. Dlatego ta funkcja NIE ma
+        // własnego sufitu w podziale wiadra (sekcja `poczta` niżej) —
+        // mieści się w rezerwie transakcyjnej, tak jak przypomnienie hasła.
+        // Sufity są dla funkcji, które wysyłają WIELE listów naraz.
+        'appeal_reminder_working_days' => (int) env('KUKING_APPEAL_REMINDER_DAYS', 2),
+
         // RETENCJA SPRAWY MODERACYJNEJ — `reports` + `moderation_actions` +
         // `appeals` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.3-5.5).
         //
@@ -1237,6 +1902,164 @@ return [
         // całą "sprawę" spójnie, a nie trzy niezależne komendy uruchamiane
         // w dowolnej kolejności), `App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`.
         'case_retention_months' => (int) env('KUKING_CASE_RETENTION_MONTHS', 36),
+
+        /*
+         * SYGNAŁY AUTOMATU (D-052) — progi wykrywacza podejrzanych treści.
+         *
+         * Automat oznacza treść DO PRZEGLĄDU i nic więcej: nie ukrywa, nie
+         * ogranicza zasięgu, nie powiadamia autora (pozycje 3.6, 3.10, 3.14
+         * i 3.16 z `docs/INSPIRATION_DECISIONS.md`). Progi stoją TUTAJ,
+         * a nie w bazie z ekranem do klikania — reguła w bazie jest
+         * nietestowalna (`docs/research/repos/discourse-discourse.md` §7).
+         *
+         * Pełne uzasadnienie każdego progu wraz z fałszywymi alarmami,
+         * których się po nim spodziewamy: `docs/legal/SYGNALY_AUTOMATU.md`.
+         */
+        'sygnaly' => [
+            // JEDEN WYŁĄCZNIK NA CAŁOŚĆ. `KUKING_SYGNALY_AUTOMATU=false`
+            // zatrzymuje analizę u źródła: zadanie w kolejce kończy się od
+            // razu i nie powstaje ani jeden nowy wiersz. Nic już istniejącego
+            // nie znika — oznaczenia z kolejki zostają do rozpatrzenia.
+            'wlaczone' => (bool) env('KUKING_SYGNALY_AUTOMATU', true),
+
+            // POWTÓRZONA TREŚĆ — okno czasowe i próg podobieństwa.
+            //
+            // 60 minut, bo mowa o wysłaniu tego samego kilka razy pod rząd,
+            // a nie o wracaniu do tematu po tygodniu. Ten sam przepis
+            // opublikowany ponownie w listopadzie to normalne życie.
+            'powtorzenie_minut' => (int) env('KUKING_SYGNAL_POWTORZENIE_MINUT', 60),
+
+            // 40 znaków — poniżej tej długości powtórzenia to uprzejmości
+            // („Wygląda pysznie", „Dzięki za przepis"), a nie spam. To jest
+            // najważniejszy z tych progów: bez niego automat oznaczałby
+            // najżyczliwsze osoby w serwisie.
+            'powtorzenie_min_znakow' => (int) env('KUKING_SYGNAL_POWTORZENIE_ZNAKOW', 40),
+
+            // 92% podobieństwa — łapie „prawie identyczną" treść (podmieniony
+            // adres, dopisane imię), a nie dwa przepisy na to samo ciasto.
+            'powtorzenie_podobienstwo' => (float) env('KUKING_SYGNAL_POWTORZENIE_PODOBIENSTWO', 0.92),
+
+            // Ile najnowszych treści autora bierzemy do porównania. Twardy
+            // sufit, żeby jedno zadanie w kolejce nie rosło razem z tabelą:
+            // przy hurtowym przenoszeniu archiwum z innego serwisu jedna
+            // osoba wrzuca dziesiątki wpisów w godzinę.
+            'powtorzenie_limit_porownan' => (int) env('KUKING_SYGNAL_POWTORZENIE_LIMIT', 20),
+
+            // ODNOŚNIK U ŚWIEŻEGO KONTA — dwa warunki naraz, nie jeden.
+            //
+            // Konto młodsze niż 7 dni ORAZ treść w pierwszej trójce tego, co
+            // opublikowało. Samo „nowe konto" oznaczałoby całą falę osób
+            // przechodzących do nas grupą; sam „odnośnik" oznaczałby każdą
+            // osobę, która podaje źródło przepisu.
+            'swieze_konto_dni' => (int) env('KUKING_SYGNAL_SWIEZE_KONTO_DNI', 7),
+            'swieze_konto_tresci' => (int) env('KUKING_SYGNAL_SWIEZE_KONTO_TRESCI', 3),
+
+            /*
+             * DOMENY, KTÓRYCH NIE LICZYMY JAKO „ODNOŚNIK ZEWNĘTRZNY".
+             *
+             * Serwisy, Z KTÓRYCH ludzie do nas przychodzą. Osoba przenosząca
+             * się z Garnka wkleja w pierwszym wpisie odnośnik do swojego
+             * starego profilu — to jest dokładnie ta osoba, dla której ten
+             * serwis powstał, i najgorszy możliwy moment, żeby ją oznaczyć.
+             *
+             * Lista jest KRÓTKA i konkretna. To NIE jest „lista zaufanych
+             * stron" — nie ma tu Facebooka ani YouTube'a, bo tamte adresy
+             * pojawiają się w spamie równie często jak w dobrej wierze.
+             */
+            'domeny_bez_sygnalu' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('KUKING_SYGNAL_DOMENY_BEZ_SYGNALU', 'garnek.pl,kuking.pl')),
+            ))),
+        ],
+
+        /*
+         * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ (D-055).
+         *
+         * OpenAI `omni-moderation-latest` — bezpłatne API oceniające TEKST
+         * i OBRAZY pod kątem nienawiści, przemocy, treści seksualnych
+         * i samookaleczenia.
+         *
+         * TO ŁAPIE INNĄ KLASĘ TREŚCI NIŻ SYGNAŁY WYŻEJ. Tamte szukają spamu
+         * („zarobki z domu", odnośniki, numery telefonu); model spamu nie
+         * ocenia w ogóle. To jest UZUPEŁNIENIE, nie zamiennik — i trzeba to
+         * napisać wprost, bo inaczej ktoś uzna, że skoro jest AI, to spam
+         * mamy załatwiony.
+         *
+         * GRANICA TA SAMA CO WYŻEJ, TYLKO WAŻNIEJSZA: model podnosi rękę,
+         * nigdy nie zamyka drzwi. Wynik nie ukrywa treści, nie ogranicza
+         * zasięgu i nie dociera do autora — kończy się pozycją w kolejce
+         * z powodem po polsku. Model uczony głównie na angielszczyźnie będzie
+         * się mylił na polskim, a już zwłaszcza na języku, jakim mówi
+         * o jedzeniu siedemdziesięcioletnia kobieta z Podkarpacia.
+         *
+         * Pełny projekt, podstawa prawna i granice:
+         * `docs/legal/SYGNALY_AUTOMATU.md` §8.
+         */
+        'model' => [
+            /*
+             * BRAK KLUCZA = FUNKCJA WYŁĄCZONA I NIC NIE PADA.
+             *
+             * Tak jest lokalnie, w CI i w testach — żadne żądanie nie wychodzi,
+             * `OcenaModelem` oddaje pustą listę sygnałów, publikacja wpisu
+             * dzieje się dokładnie tak jak przedtem. To jest ten sam wzorzec,
+             * co puste klucze Turnstile (D-050).
+             */
+            'klucz' => env('OPENAI_MODERATION_KEY'),
+
+            'endpoint' => env('KUKING_MODEL_ENDPOINT', 'https://api.openai.com/v1/moderations'),
+            'nazwa' => env('KUKING_MODEL_NAZWA', 'omni-moderation-latest'),
+
+            // Krótko celowo: cudza usługa nie stoi w drodze publikacji (ta
+            // dzieje się w innym żądaniu), ale nie może też blokować workera
+            // kolejki na minuty przy awarii po tamtej stronie.
+            'limit_czasu' => (int) env('KUKING_MODEL_LIMIT_CZASU', 8),
+
+            /*
+             * PRÓG WYNIKU, OD KTÓREGO STAWIAMY POZYCJĘ W KOLEJCE.
+             *
+             * API oddaje osobno `flagged` (własna decyzja modelu) i wyniki
+             * liczbowe per kategoria. Nie bierzemy samego `flagged`, bo przy
+             * polszczyźnie i kuchni („zabiłam kurę", „krwisty stek") jest
+             * hojne — a każde trafienie kosztuje uwagę jedynego moderatora.
+             *
+             * 0,5 to punkt, poniżej którego model sam nie jest przekonany.
+             * Zmiana tej liczby to zmiana liczby pozycji dziennie — patrz
+             * `kuking:raport-sygnalow`.
+             */
+            'prog' => (float) env('KUKING_MODEL_PROG', 0.5),
+
+            /*
+             * NIŻSZY PRÓG DLA SPRAW, KTÓRE NIE MOGĄ CZEKAĆ.
+             *
+             * Kategorie z `KategorieModeracji::PILNE` mają w
+             * `resources/legal/zasady.md` własną sekcję „Czego nie tolerujemy
+             * w ogóle". Tu wolimy fałszywy alarm od przeoczenia, więc próg
+             * jest niższy niż zwykły.
+             */
+            'prog_pilny' => (float) env('KUKING_MODEL_PROG_PILNY', 0.2),
+
+            // Czy oceniać ZDJĘCIA. To jest największa wartość tej funkcji:
+            // fotografia obiadu od nieznajomego to jedyna treść, której nikt
+            // nie przeczyta, dopóki ktoś jej nie zgłosi.
+            'ocenia_zdjecia' => (bool) env('KUKING_MODEL_OCENIA_ZDJECIA', true),
+
+            // Ile zdjęć z jednego wpisu wysyłamy do oceny. Wpis ma najwyżej
+            // sześć; oceniamy pierwsze dwa, bo koszt to dwa żądania HTTP na
+            // wpis, a spam ze zdjęciem prawie nigdy nie chowa go na końcu.
+            'zdjec_na_wpis' => (int) env('KUKING_MODEL_ZDJEC_NA_WPIS', 2),
+
+            /*
+             * ADRES, NA KTÓRY IDZIE ALARM. Pusty = bez poczty (zostaje sama
+             * kolejka w panelu).
+             *
+             * LIMIT POCZTY JEST TU REGUŁĄ PROJEKTOWĄ, NIE DROBIAZGIEM:
+             * EmailLabs na planie darmowym daje 300 listów dziennie, dzielone
+             * z potwierdzeniami rejestracji. Dlatego listy natychmiastowe idą
+             * WYŁĄCZNIE dla kategorii pilnych, a reszta raz dziennie, jednym
+             * podsumowaniem (`kuking:podsumowanie-automatu`).
+             */
+            'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+        ],
     ],
 
     'wersja' => [

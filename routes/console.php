@@ -174,6 +174,18 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->dailyAt('04:50')
     ->withoutOverlapping();
 
+// 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
+// cała reszta tej listy (uzasadnienie odstępów wyżej).
+// Wygasłe zaproszenia do założenia konta (D-085): w wierszu leży adres e-mail
+// osoby, która NIE MA u nas konta. `WyslijZaproszenieDoRejestracji` sprząta przy
+// okazji każdej prośby, więc to jest siatka bezpieczeństwa na dni bez ruchu —
+// i to ona daje polityce prywatności prawo napisać „najwyżej dobę".
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
+    ->name('kuking:sprzataj-zaproszenia')
+    ->dailyAt('05:00')
+    ->withoutOverlapping();
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
@@ -199,4 +211,104 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
 Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
     ->name('kuking:sprawdz-kopie')
     ->dailyAt('06:15')
+    ->withoutOverlapping();
+
+// Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
+// nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
+// każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
+// Uzasadnienie pełne w `App\Domain\Analytics\LiczbaKukingow`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
+    ->name('kuking:policz-kukingow')
+    ->hourly()
+    ->withoutOverlapping();
+
+// Liczniki przy pozycjach panelu moderacji („Odwołania 2"). Ten sam powód co
+// wyżej — menu boczne stoi na KAŻDEJ stronie panelu, więc pięć `COUNT(*)` na
+// odsłonę jest wykluczone (`App\Domain\Moderation\KolejkiPanelu`).
+//
+// CO PIĘĆ MINUT, a nie co godzinę jak licznik społeczności: tamten pokazuje
+// rozmiar społeczności, który zmienia się wolno, ten mówi „to czeka na
+// Ciebie". Bieżącej świeżości pilnują zdarzenia modeli (`AppServiceProvider`);
+// to zadanie jest siatką bezpieczeństwa na świeże wdrożenie z pustym cache
+// i na kolejkę „Bez odpowiedzi", która haka przy zapisie świadomie nie ma.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
+    ->name('kuking:policz-kolejki')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
+// Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
+// przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
+// w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm
+// przestałby działać dokładnie wtedy, gdy jest potrzebny. Sprawy, które nie
+// mogą czekać (treści seksualne, cokolwiek dotyczącego dzieci), idą osobno
+// i natychmiast, prosto z zadania analizującego.
+//
+// 07:00, nie w nocy: to jest list do przeczytania przy porannej kawie, a nie
+// alarm. Poza tym trzyma się z dala od pasma 03:20–04:50, w którym chodzi
+// całe sprzątanie — w roli `all` harmonogram jest jednym procesem.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
+    ->name('kuking:podsumowanie-automatu')
+    ->dailyAt('07:00')
+    ->withoutOverlapping();
+
+// Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
+//
+// 07:10, dziesięć minut po podsumowaniu kolejki automatu: te dwa listy mówią
+// o dwóch różnych rzeczach i mają nie wyjść w tej samej minucie, bo
+// w harmonogramie chodzącym w jednym procesie (rola `all`) blokowałyby
+// pętlę jeden po drugim — tak samo rozsunięte jest całe pasmo sprzątania.
+//
+// Ten list wychodzi WYŁĄCZNIE wtedy, gdy termin jest blisko albo minął.
+// O nowych odwołaniach mówi powiadomienie w panelu i licznik przy pozycji
+// „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-060.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
+    ->name('kuking:pilnuj-terminow-odwolan')
+    ->dailyAt('07:10')
+    ->withoutOverlapping();
+
+// Tygodniowe podsumowanie od gospodarza (issue #11, docs/DECISIONS.md D-057).
+//
+// CODZIENNIE, CHOĆ LIST JEST TYGODNIOWY — i to nie jest sprzeczność.
+// Konto pocztowe ma twardy limit 300 wiadomości na dobę (EmailLabs STARTUP,
+// docs/decyzje/POCZTA.md §1), dzielony z całą pocztą transakcyjną i z
+// logowaniem linkiem. Na podsumowania zostaje z tego 60 listów dziennie
+// (rachunek: config/kuking.php, sekcja `poczta`), więc wysyłka „wszyscy
+// naraz w piątek" kończy się przy sześćdziesięciu kontach. Zadanie
+// chodzi codziennie i codziennie bierze najwyżej `dzienny_limit` osób —
+// „kto czeka najdłużej, ten pierwszy" — a odstęp siedmiu dni po stronie
+// KONTA pilnuje obietnicy „jeden e-mail tygodniowo, nigdy więcej"
+// (App\Domain\Digest\OdbiorcyDigestu).
+//
+// 08:30, I TO JEST GODZINA WYBRANA POD TĘ GRUPĘ, NIE POD SERWER.
+//  * Po 8:00, czyli po ciszy nocnej z docs/product/RETENTION_LOOPS.md §3.2.
+//    List, który przychodzi w nocy, jest rano jednym z wielu i nikt go nie
+//    otwiera — a przy telefonie leżącym na szafce nocnej bywa też budzikiem.
+//  * Rano, nie o 17:00 jak proponował szkic w RETENTION_LOOPS §4. Tamta
+//    godzina jest dobra dla kogoś, kto wychodzi z biura i planuje weekend.
+//    Nasza grupa czyta pocztę przy porannej kawie, a o 17:00 jest w kuchni
+//    — czyli robi dokładnie to, o czym ten list opowiada, i nie patrzy
+//    wtedy w telefon.
+//  * Nie równo o pełnej godzinie: o 08:00 tyka `kuking:zdejmij-wygasle-kary`
+//    (`hourly()` = minuta 00 KAŻDEJ godziny). Cała ta lista jest świadomie
+//    porozsuwana — patrz komentarz przy sprzątaniu zmian adresu.
+//  * Daleko od nocnego bloku sprzątania (03:20-04:50), który potrafi trzymać
+//    pętlę harmonogramu przez dłuższą chwilę.
+//
+// `withoutOverlapping()` zostaje, ale NIE JEST OCHRONĄ PRZED DUPLIKATEM
+// i nie wolno go tak czytać (audyt QUEUE-01, D-077). Zapobiega dwóm
+// przebiegom JEDNOCZEŚNIE — a wysyłkę dwa razy tego samego listu powodował
+// przebieg KOLEJNY, uruchomiony po tym, jak poprzedni padł w połowie.
+// Przed tym broni bariera w bazie: `UNIQUE (user_id, week_start)`
+// w `weekly_digest_sends`, zajmowana PRZED każdym `Mail::queue()`
+// (`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()`). Blokada
+// harmonogramu oszczędza tu więc pracę i zapytania, nie listy.
+//
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
+    ->name('kuking:wyslij-podsumowania')
+    ->dailyAt('08:30')
     ->withoutOverlapping();

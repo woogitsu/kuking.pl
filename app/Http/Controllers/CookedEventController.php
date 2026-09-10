@@ -37,7 +37,7 @@ class CookedEventController extends Controller
      * można kliknąć raz i wysłać, ale kto chce dopisać coś swojego, nie musi
      * kasować gotowego tekstu i zaczynać od zera.
      */
-    private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję, że ugotowałeś/aś mój przepis! Cieszę się, że wyszło.';
+    private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję za ugotowanie mojego przepisu. Cieszę się, że wyszło.';
 
     public function __construct(
         private readonly RecordCookedEvent $record,
@@ -180,7 +180,7 @@ class CookedEventController extends Controller
             return redirect()->route('cooked.show', $event)->with(
                 'status',
                 'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-                .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
             );
         }
 
@@ -288,7 +288,7 @@ class CookedEventController extends Controller
 
         return redirect()->route('cooked.show', $cookedEvent)->with(
             'status',
-            $cookedEvent->user->displayName().' dowie się, że podziękowałaś/eś za wykonanie.',
+            $cookedEvent->user->displayName().' dostanie Twoje podziękowanie.',
         );
     }
 

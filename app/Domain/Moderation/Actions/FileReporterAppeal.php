@@ -50,6 +50,8 @@ use Illuminate\Support\Facades\Notification;
  */
 final class FileReporterAppeal
 {
+    public function __construct(private readonly PowiadomOOdwolaniu $powiadom = new PowiadomOOdwolaniu) {}
+
     public function handle(Report $zgloszenie, string $tresc, ?string $ip = null): Appeal
     {
         if (! $zgloszenie->jestZgloszeniemPrawnym()) {
@@ -117,6 +119,15 @@ final class FileReporterAppeal
             Notification::route('mail', $zgloszenie->notifier_email)
                 ->notify(new PotwierdzenieOdwolaniaZglaszajacego($zgloszenie));
         }
+
+        // Zawiadomienie dla administratora — ta sama droga i ten sam powód co
+        // przy odwołaniu autora (`FileAppeal`): art. 20 daje na odpowiedź
+        // termin, a nie „kiedy ktoś zajrzy". Nazwa bierze się ze zgłoszenia,
+        // bo zgłaszający nie musi mieć konta w ogóle (art. 16 ust. 2 lit. c).
+        $this->powiadom->handle(
+            $odwolanie,
+            $zgloszenie->notifier_name ?? 'zgłaszający bez podanych danych',
+        );
 
         return $odwolanie;
     }

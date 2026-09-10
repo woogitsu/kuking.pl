@@ -10,13 +10,15 @@
     Zwykłe formularze, bez JavaScriptu — ten sam standard co reszta serwisu,
     mimo że to ekran wyłącznie dla gospodarza.
 --}}
-<x-layout title="Tagi promowane" :noindex="true">
+<x-layout title="Tagi promowane — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Tagi promowane" />
+
     <h1>Tagi promowane</h1>
 
     <p class="lead">
-        Ta lista zastępuje dawne Tematy. Nowe konto widzi ją w onboardingu,
-        a strona główna z niej buduje pierwszy feed osoby, która jeszcze
-        nikogo nie obserwuje. „Temat tygodnia" i sezonowe okazje (Wigilia,
+        Ta lista zastępuje dawne Tematy. Nowe konto widzi ją zaraz po
+        założeniu, a strona główna układa z niej pierwsze wpisy dla osoby,
+        która jeszcze nikogo nie obserwuje. „Temat tygodnia" i sezonowe okazje (Wigilia,
         tłusty czwartek) to zwykły tag na tej liście, z notatką.
     </p>
 

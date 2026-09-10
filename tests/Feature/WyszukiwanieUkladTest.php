@@ -109,7 +109,11 @@ class WyszukiwanieUkladTest extends TestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '~<form class="[^"]*" method="GET" action="[^"]*szukaj[^"]*"[^>]*>.*?<svg class="ikona"[^>]*>.*?</form>~s',
+            // `class="ikona[^"]*"`, nie `class="ikona"` — komponent `<x-ikona>`
+            // SCALA teraz klasę z wywołania z własną, więc w atrybucie stoi
+            // „ikona wyszukiwarka-ikona". Wcześniej wzorzec pasował tylko
+            // dlatego, że klasa z wywołania była po cichu gubiona.
+            '~<form class="[^"]*" method="GET" action="[^"]*szukaj[^"]*"[^>]*>.*?<svg class="ikona[^"]*"[^>]*>.*?</form>~s',
             $html,
             'W formularzu wyszukiwania nie ma ikony lupy (`<x-ikona nazwa="search">`).',
         );

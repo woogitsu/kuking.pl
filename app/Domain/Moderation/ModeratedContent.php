@@ -7,6 +7,7 @@ namespace App\Domain\Moderation;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
@@ -39,6 +40,16 @@ final class ModeratedContent
         Recipe::class => 'recipe',
         Comment::class => 'comment',
         CookedEvent::class => 'cooked_event',
+
+        // ZDJĘCIE JAKO OSOBNY CEL (issue #237). Dziś trafia tu wyłącznie
+        // zdjęcie profilowe: model ocenia je po przetworzeniu, a oznaczenie
+        // musi wskazywać KONKRETNY plik, nie konto — inaczej „jedno
+        // oznaczenie automatu na treść" znaczyłoby „pierwszy awatar tego
+        // konta i już nigdy więcej", a podmiana zdjęcia to sekunda pracy.
+        //
+        // Nazwa typu to `media`, a nie `avatar`, bo ta mapa jest po KLASIE,
+        // a klasa jest ta sama dla awatara i dla zdjęcia we wpisie.
+        Media::class => 'media',
     ];
 
     /**

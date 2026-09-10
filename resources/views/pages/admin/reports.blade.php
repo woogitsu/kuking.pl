@@ -1,12 +1,78 @@
-<x-layout title="Zgłoszenia" :noindex="true">
+<x-layout title="Zgłoszenia — Panel moderacji" :noindex="true">
+    <x-panel-moderacji ekran="Zgłoszenia" />
+
     <h1>Zgłoszenia</h1>
 
+    {{-- Zakładki niosą aktualne `zrodlo`, inaczej przełączenie stanu
+         wyrzucałoby moderatora z listy oznaczeń automatu z powrotem do spraw
+         od ludzi — bez słowa wyjaśnienia, dlaczego lista nagle się zmieniła. --}}
     <nav class="tabs" aria-label="Filtr zgłoszeń">
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'open']) }}" @if($status === 'open') aria-current="page" @endif>Nowe ({{ $counts['open'] }})</a>
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'reviewing']) }}" @if($status === 'reviewing') aria-current="page" @endif>W trakcie ({{ $counts['reviewing'] }})</a>
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'resolved']) }}" @if($status === 'resolved') aria-current="page" @endif>Rozpatrzone ({{ $counts['resolved'] }})</a>
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'wszystkie']) }}" @if($status === 'wszystkie') aria-current="page" @endif>Wszystkie</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'open', 'zrodlo' => $zrodlo]) }}" @if($status === 'open') aria-current="page" @endif>Nowe ({{ $counts['open'] }})</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'reviewing', 'zrodlo' => $zrodlo]) }}" @if($status === 'reviewing') aria-current="page" @endif>W trakcie ({{ $counts['reviewing'] }})</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'resolved', 'zrodlo' => $zrodlo]) }}" @if($status === 'resolved') aria-current="page" @endif>Rozpatrzone ({{ $counts['resolved'] }})</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'wszystkie', 'zrodlo' => $zrodlo]) }}" @if($status === 'wszystkie') aria-current="page" @endif>Wszystkie</a>
     </nav>
+
+    {{--
+        DWA ŹRÓDŁA, DWA EKRANY — a tu jedno zdanie, żeby nikt nie musiał się
+        domyślać, na który patrzy. Liczniki nad zakładkami dotyczą zawsze
+        spraw OD LUDZI, więc przy widoku automatu trzeba powiedzieć wprost,
+        że liczby mówią o czym innym niż lista.
+    --}}
+    @if($zrodlo === \App\Models\Report::SOURCE_AUTOMAT)
+        <p class="notice">
+            Patrzysz na <strong>oznaczenia automatu</strong>. Nikt ich nie zgłosił, a treści są
+            widoczne w serwisie normalnie. Liczby przy zakładkach dotyczą zgłoszeń od ludzi.
+            <a href="{{ route('admin.sygnaly') }}">Wróć do kolejki automatu</a> albo
+            <a href="{{ route('admin.reports', ['status' => $status]) }}">pokaż zgłoszenia od ludzi</a>.
+        </p>
+    @elseif($sygnalow > 0)
+        <p class="meta">
+            Automat czeka z {{ $sygnalow }} {{ $sygnalow === 1 ? 'oznaczeniem' : 'oznaczeniami' }} do przejrzenia:
+            <a href="{{ route('admin.sygnaly') }}">Sygnały automatu</a>.
+        </p>
+    @endif
+
+    {{--
+        PODSUMOWANIE BŁĘDÓW — JEDNO NA EKRAN, NAD LISTĄ.
+
+        UX_50_PLUS.md wymaga błędu przy polu ORAZ w podsumowaniu, nigdy
+        tylko jednego z dwóch. Do tej pory tej strony nie dotyczyło ani
+        jedno: błąd `action` („to zgłoszenie zostało już rozstrzygnięte")
+        nie miał gdzie się pokazać i moderator klikał „Zapisz decyzję"
+        w formularz, który milczał.
+
+        DLACZEGO NIE `<x-error-summary>` I NIE JEDNO W KAŻDYM FORMULARZU:
+        ten ekran to jedna strona z maksymalnie dwudziestoma pięcioma
+        formularzami. Podsumowanie w każdym formularzu z osobna dałoby
+        dwadzieścia pięć `role="alert"` na jeden błąd, a czytnik ekranu
+        przeczytałby je wszystkie.
+
+        `id` pól JEST dziś unikalny na wiersz (issue #243, `:wiersz` w
+        `x-field`, patrz `App\Support\WierszFormularza`) — `<x-error-summary>`
+        umiałby więc trafić w dobre pole dla `note` i `user_message`. Nie
+        umiałby trafić w `reason_code` ani `suspend_days_custom`: te dwa pola
+        stoją tu bez `x-field`, z ręcznie zbudowanym `id` w innej konwencji
+        (`podstawa-{id}`, `wlasny-termin-{id}`, nie `f-{nazwa}-{id}`), więc
+        wspólny komponent wysłałby moderatora pod nieistniejącą kotwicę.
+        Płaska lista zostaje, dopóki te dwa pola nie przejdą na `x-field`.
+    --}}
+    @if($errors->any())
+        <div class="error-summary" role="alert" tabindex="-1">
+            <p class="error-summary-title">
+                @if($errors->count() === 1)
+                    Jednej rzeczy jeszcze brakuje
+                @else
+                    Kilku rzeczy jeszcze brakuje
+                @endif
+            </p>
+            <ul>
+                @foreach($errors->all() as $blad)
+                    <li>{{ $blad }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     @forelse($reports as $report)
         <article class="card mb-5">
@@ -26,6 +92,12 @@
                     @else
                         bez podania danych zgłaszającego (zgłoszenie prawne, DSA art. 16)
                     @endif
+                @elseif($report->wykrylAutomat())
+                    {{-- Bez tej gałęzi oznaczenie automatu (`reporter_id` jest
+                         puste z założenia) czytałoby się jako „przez usunięte
+                         konto" — czyli moderator szukałby zgłaszającego, który
+                         nigdy nie istniał. --}}
+                    <strong>wskazane przez automat</strong> — nikt tego nie zgłosił
                 @elseif($report->reporter)
                     przez {{ $report->reporter->displayName() }}
                 @else
@@ -66,6 +138,14 @@
             @if($report->isOpen())
                 <form method="POST" action="{{ route('admin.reports.decide', $report) }}">
                     @csrf
+                    {{-- Identyfikator TEGO wiersza (issue #243): ta strona stawia do
+                         dwudziestu pięciu takich formularzy naraz, wszystkie z polami
+                         o tych samych nazwach (`action`, `note`, `user_message`...).
+                         Bez tego pola `old()` po nieudanej walidacji JEDNEGO zgłoszenia
+                         wypełniałby te same pola przy WSZYSTKICH pozostałych —
+                         patrz `App\Support\WierszFormularza`. --}}
+                    <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $report->id }}">
+
                     <fieldset class="border-0 p-0">
                         <legend class="font-bold mb-3">Decyzja</legend>
                         <div class="choice-grid">
@@ -76,7 +156,16 @@
                                  tego nie zdradzał. --}}
                             @foreach(\App\Models\ModerationAction::dozwoloneDla($report->target_type) as $value => $label)
                                 <label class="choice">
-                                    <input type="radio" name="action" value="{{ $value }}">
+                                    {{-- `old()` także tutaj: po nieudanej walidacji
+                                         wybrana decyzja wracała czysta, więc moderator
+                                         musiał ją klikać drugi raz i mógł kliknąć inną
+                                         niż za pierwszym razem. Ograniczone do TEGO
+                                         wiersza (issue #243) — bez tego zaznaczenie
+                                         przy zgłoszeniu, którego walidacja padła,
+                                         wracało też przy wszystkich INNYCH zgłoszeniach
+                                         na stronie. --}}
+                                    <input type="radio" name="action" value="{{ $value }}"
+                                           @checked(\App\Support\WierszFormularza::stareLubDomyslne('action', $report->id) === $value)>
                                     <span class="choice-label">{{ $label }}</span>
                                 </label>
                             @endforeach
@@ -84,38 +173,93 @@
                     </fieldset>
 
                     {{--
-                        Długość zawieszenia (issue #40).
+                        Długość zawieszenia (issue #40, poprawione po zgłoszeniu
+                        właściciela).
 
                         Bez tego pola każde zawieszenie było bezterminowe, bo nie
                         było gdzie zapisać terminu — a przy jednym moderatorze
                         nikt nie odklikuje kary po tygodniu ręcznie. Playbook
                         obiecywał blokady czasowe, których system nie umiał zrobić.
 
-                        Pole nie jest ukrywane skryptem przy innych decyzjach:
-                        D-007 mówi, że ważne funkcje działają bez JavaScriptu,
-                        a kontroler i tak ignoruje tę wartość dla decyzji innych
-                        niż „Zawieś konto".
+                        DWIE RZECZY DOŁOŻONE PÓŹNIEJ, obie z tego samego powodu —
+                        grupa radio bez pozycji zerowej to pułapka bez wyjścia:
+
+                        1. „BEZ ZAWIESZENIA" JAKO PIERWSZA I DOMYŚLNA POZYCJA.
+                           Wcześniej zaznaczonego „Na 1 dzień" nie dało się
+                           odkliknąć — jedyną drogą powrotu było odświeżenie
+                           strony, a razem z nim ginęło uzasadnienie i notatka
+                           (AGENTS.md §5: poprawne dane nigdy nie znikają).
+                           Pod grupą stało przy tym „Bez wyboru zawieszenie jest
+                           bezterminowe", czyli zaniechanie dawało NAJSUROWSZĄ
+                           karę. Teraz jest odwrotnie: domyślnie nie ma kary,
+                           a bezterminowość wymaga jawnego kliknięcia.
+
+                        2. WŁASNY TERMIN W DNIACH. Trzy gotowe liczby nie były
+                           wszystkimi sensownymi wyborami, a dziura między
+                           30 dniami i bezterminowością zamykała się jedynym
+                           dostępnym narzędziem: karą bez terminu.
+
+                        BEZ JEDNEJ LINII JAVASCRIPTU. Pole liczby nie jest
+                        wyszarzane ani ukrywane przy innych wyborach — o tym, czy
+                        liczba jest potrzebna i czy jest sensowna, rozstrzyga
+                        serwer (`ModerationController::decide()`). D-053
+                        pozwoliłoby wymagać skryptu tam, gdzie chroni serwis,
+                        ale panel moderacji to nie Turnstile: tu prostota jest
+                        warta więcej niż wygoda, a martwe pole przy słabym
+                        zasięgu byłoby gorsze od jednego pola więcej.
                     --}}
+                    {{-- Oba błędy ograniczone do TEGO wiersza (issue #243): bez tego
+                         błąd „wpisz liczbę dni" przy jednym zgłoszeniu pokazywałby
+                         się pod polem KAŻDEGO innego zgłoszenia na stronie. --}}
+                    @php($bladTerminu = \App\Support\WierszFormularza::jestAktywny($report->id) ? $errors->first('suspend_days') : null)
+                    @php($bladDni = \App\Support\WierszFormularza::jestAktywny($report->id) ? $errors->first('suspend_days_custom') : null)
                     <fieldset class="border-0 p-0 mt-4">
                         <legend class="font-bold mb-3">
                             Na jak długo — jeśli zawieszasz konto
                         </legend>
                         <div class="choice-grid">
-                            @foreach([
-                                '1' => 'Na 1 dzień',
-                                '7' => 'Na 7 dni',
-                                '30' => 'Na 30 dni',
-                                'bezterminowo' => 'Bezterminowo, do mojej decyzji',
-                            ] as $value => $label)
+                            @foreach(\App\Domain\Moderation\DlugoscZawieszenia::dlaFormularza() as $value => $label)
                                 <label class="choice">
+                                    {{-- Domyślnie „Bez zawieszenia": drugi argument
+                                         `old()` jest tu całą różnicą między pomyłką
+                                         odwracalną i nieodwracalną. --}}
                                     <input type="radio" name="suspend_days" value="{{ $value }}"
-                                           @checked(old('suspend_days') === $value)>
+                                           @checked(\App\Support\WierszFormularza::stareLubDomyslne('suspend_days', $report->id, \App\Domain\Moderation\DlugoscZawieszenia::BRAK) === $value)>
                                     <span class="choice-label">{{ $label }}</span>
                                 </label>
                             @endforeach
                         </div>
+                        @if($bladTerminu)
+                            <span class="field-error">{{ $bladTerminu }}</span>
+                        @endif
+
+                        <div class="field mt-3 @if($bladDni) has-error @endif">
+                            <label for="wlasny-termin-{{ $report->id }}">
+                                Własny termin — liczba dni
+                                <span class="meta">(wymagane przy „Własnym terminie”)</span>
+                            </label>
+                            <span class="field-help" id="wlasny-termin-{{ $report->id }}-help">
+                                Od {{ \App\Domain\Moderation\DlugoscZawieszenia::MIN_DNI }}
+                                do {{ \App\Domain\Moderation\DlugoscZawieszenia::MAX_DNI }} dni.
+                                Przy innym wyborze niż „Własny termin” ta liczba nie ma znaczenia —
+                                zignorujemy ją, nie musisz jej czyścić.
+                            </span>
+                            <input class="field-input" id="wlasny-termin-{{ $report->id }}"
+                                   name="suspend_days_custom" type="number" inputmode="numeric"
+                                   min="{{ \App\Domain\Moderation\DlugoscZawieszenia::MIN_DNI }}"
+                                   max="{{ \App\Domain\Moderation\DlugoscZawieszenia::MAX_DNI }}" step="1"
+                                   value="{{ \App\Support\WierszFormularza::stareLubDomyslne('suspend_days_custom', $report->id) }}"
+                                   aria-describedby="wlasny-termin-{{ $report->id }}-help"
+                                   @if($bladDni) aria-invalid="true" @endif>
+                            @if($bladDni)
+                                <span class="field-error">{{ $bladDni }}</span>
+                            @endif
+                        </div>
+
                         <p class="meta mt-2">
-                            Konto wraca samo po upływie terminu. Bez wyboru zawieszenie jest bezterminowe.
+                            Konto z terminem wraca samo, gdy termin minie. „Bez zawieszenia” znaczy,
+                            że nie zawieszasz konta — a zawieszenie bez terminu trwa do Twojej
+                            decyzji i musisz je wybrać wprost.
                         </p>
                     </fieldset>
 
@@ -134,7 +278,9 @@
                         zgadywania. Zwykły <select>, bez JavaScriptu (D-007),
                         z widoczną etykietą.
                     --}}
-                    @php($bladPodstawy = $errors->first('reason_code'))
+                    {{-- Ograniczone do TEGO wiersza (issue #243) — patrz komentarz
+                         przy `$bladTerminu` wyżej. --}}
+                    @php($bladPodstawy = \App\Support\WierszFormularza::jestAktywny($report->id) ? $errors->first('reason_code') : null)
                     <div class="field @if($bladPodstawy) has-error @endif">
                         <label for="podstawa-{{ $report->id }}">
                             Podstawa decyzji <span class="meta">(wymagane)</span>
@@ -149,15 +295,16 @@
                                 @if($bladPodstawy) aria-invalid="true" @endif>
                             <option value="">— wybierz podstawę —</option>
                             @foreach(\App\Domain\Moderation\PodstawaDecyzji::dlaFormularza() as $kod => $etykieta)
-                                <option value="{{ $kod }}" @selected(old('reason_code') === $kod)>{{ $etykieta }}</option>
+                                <option value="{{ $kod }}" @selected(\App\Support\WierszFormularza::stareLubDomyslne('reason_code', $report->id) === $kod)>{{ $etykieta }}</option>
                             @endforeach
                         </select>
                         @if($bladPodstawy)
                             <span class="field-error">{{ $bladPodstawy }}</span>
                         @endif
                     </div>
-                    <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" />
+                    <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$report->id" />
                     <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="3"
+                             :wiersz="$report->id"
                              help="Co konkretnie się stało — własnymi słowami. Podstawę, informację o zgłoszeniu,
                                    brak automatu, termin odwołania i drogę do organu pozasądowego oraz sądu
                                    powiadomienie dopisuje samo (DSA art. 17 ust. 3)." />
@@ -187,6 +334,13 @@
                 @if($przywracalne[$report->id] ?? false)
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
+                        {{-- Ten sam identyfikator wiersza co w formularzu decyzji
+                             wyżej (issue #243) — obie postacie formularza nigdy nie
+                             współistnieją dla JEDNEGO zgłoszenia, więc dzielenie
+                             wartości jest bezpieczne, a strona z wieloma rozpatrzonymi
+                             zgłoszeniami dalej ma unikalne `id` i własny `old()`
+                             na każdy wiersz. --}}
+                        <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $report->id }}">
                         <h3 class="text-title-sm">Przywróć treść</h3>
                         <p class="meta">
                             Treść wróci do stanu SPRZED ukrycia — szkic zostanie szkicem,
@@ -194,9 +348,10 @@
                         </p>
 
                         <x-field name="reason_code" label="Powód przywrócenia (kod wewnętrzny)" required
-                                 placeholder="autor_poprawil"
+                                 placeholder="autor_poprawil" :wiersz="$report->id"
                                  help="Krótki, powtarzalny kod. Cofnięcie kary też zostaje w logu." />
                         <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="2"
+                                 :wiersz="$report->id"
                                  help="Nieobowiązkowa. Bez niej wyślemy zdanie domyślne." />
 
                         <button class="btn btn-secondary" type="submit">Przywróć treść</button>

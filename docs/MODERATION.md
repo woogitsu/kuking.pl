@@ -111,6 +111,49 @@ decyzji ani pouczenia, a trwałym zapisem sprawy jest sam wiersz w `reports`
 (`moderation.case_retention_months`, domyślnie 36 miesięcy) czytany na
 `/zgloszenia`.
 
+## Sygnały automatu (D-052)
+
+Wykrywacz czyta świeżo opublikowane wpisy i komentarze i — gdy znajdzie znany
+wzorzec ogłoszenia, odnośnik zewnętrzny u świeżego konta albo powtórzoną treść
+tego samego konta — **stawia jedną pozycję w kolejce moderatora**. Na tym
+kończy się wszystko, co robi: treść zostaje widoczna, autor niczego nie
+zauważa, nikomu nic się nie dzieje.
+
+- Kolejka: `/admin/sygnaly` — **osobno** od `/admin/zgloszenia`, bo tam czekają
+  ludzie i biegną terminy z DSA art. 16 ust. 5. Grupowana po autorze,
+  uszeregowana od najcięższego sygnału, z jednym przyciskiem zamykającym całą
+  grupę.
+- Pełna decyzja (ukryj, usuń, zawieś) zapada tam gdzie zawsze:
+  `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
+- „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
+  oznaczenia dla tej samej treści.
+- Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
+- Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
+
+### Druga para oczu: model OpenAI (D-055)
+
+Ta sama kolejka dostaje pozycje z **`omni-moderation-latest`**, który ocenia
+tekst i **zdjęcia** pod kątem nienawiści, przemocy, treści seksualnych
+i samookaleczenia. Zdjęcia są tu największą wartością: to jedyna treść, której
+nikt nie przeczyta, dopóki ktoś jej nie zgłosi.
+
+- **Spamu ten model nie ocenia w ogóle** — jest uzupełnieniem sygnałów wyżej,
+  nie ich zamiennikiem.
+- Wynik **niczego nie ukrywa i nie blokuje**; kończy się pozycją w kolejce
+  z powodem po polsku („Model ocenił zdjęcie: treść seksualna (pewność 82%)").
+- Do OpenAI idzie sama treść — **bez adresu e-mail, nazwy konta,
+  identyfikatora i adresu IP**. Treści prywatne nie wychodzą w ogóle.
+  Opisuje to `resources/legal/polityka-prywatnosci.md`, a użytkownikowi mówi
+  o tym punkt 12 zasad.
+- Poczta: **jedno podsumowanie dziennie** o 07:00
+  (`kuking:podsumowanie-automatu`); list natychmiastowy wyłącznie przy
+  treściach seksualnych i wszystkim, co dotyczy dzieci.
+- Wyłącznik: pusty `OPENAI_MODERATION_KEY`.
+
+Sygnały, progi, spodziewane fałszywe alarmy, lista rzeczy świadomie
+NIEROBIONYCH i moment, w którym to podejście przestaje wystarczać:
+**`docs/legal/SYGNALY_AUTOMATU.md`**.
+
 ## Copyright
 
 Źródło przepisu:

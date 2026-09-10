@@ -90,6 +90,25 @@ class ModerationAction extends Model
         // Wykonanie zdejmuje się z widoku przez `remove` (soft delete) —
         // i ono działa naprawdę.
         'cooked_event' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
+
+        // ZDJĘCIE (dziś: zdjęcie profilowe, issue #237). ŚWIADOMIE BEZ `hide`
+        // I BEZ `remove`, i to nie jest przeoczenie:
+        //
+        //   `hide` — `Media` nie ma kolumny `status` w rozumieniu moderacji
+        //   (`ModeratedContent::UKRYTY` nie ma dla niej wpisu). Przycisk
+        //   robiłby dokładnie to, co robił przy „Ugotowałem": nic, przy
+        //   powiadomieniu „ukryliśmy Twoją treść".
+        //
+        //   `remove` — `$target->delete()` na zdjęciu jest NIEODWRACALNE
+        //   (`Media` nie ma SoftDeletes), a odwołanie od decyzji `remove`
+        //   ma przywrócić treść (DSA art. 17, `ResolveAppeal`). Decyzja,
+        //   od której nie da się skutecznie odwołać, nie może stać na tym
+        //   ekranie. Usuwanie zdjęcia profilowego przez moderatora potrzebuje
+        //   najpierw miękkiego kasowania zdjęć — osobna praca, osobne issue.
+        //
+        // Zostaje to, co działa naprawdę: ostrzeżenie (i odpowiedź pocztą
+        // z panelu, D-058), zawieszenie i ban.
+        'media' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_SUSPEND, self::ACTION_BAN],
     ];
 
     /**

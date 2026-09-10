@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation;
 
 use App\Models\ModerationAction;
+use App\Moderacja\OcenaModelem;
 use App\Support\Czas;
 
 /**
@@ -101,6 +102,36 @@ final class UzasadnienieDecyzji
      */
     private static function skadSprawa(ModerationAction $decyzja): string
     {
+        /*
+         * TRZECIA DROGA: TREŚĆ WSKAZAŁ AUTOMAT (D-052).
+         *
+         * `report_id` jest tu niepuste, więc bez tego warunku człowiek
+         * przeczytałby „sprawa zaczęła się od zgłoszenia, które dostaliśmy od
+         * innej osoby" — NIEPRAWDĘ, i to nieprawdę najgorszego rodzaju: każe
+         * komuś szukać wśród znajomych osoby, która go zgłosiła, choć nikt
+         * tego nie zrobił.
+         *
+         * Art. 17 ust. 3 lit. c wymaga poza tym informacji o użyciu środków
+         * automatycznych PRZY WYKRYCIU treści, nie tylko przy decyzji.
+         * Zdanie niżej mówi jedno i drugie: co wskazało treść i kto
+         * postanowił. Zdanie o braku automatu, które idzie zaraz po nim,
+         * zostaje prawdą — nasz automat niczego nie ukrywa, nie usuwa i nie
+         * blokuje (`docs/legal/SYGNALY_AUTOMATU.md`).
+         */
+        if ($decyzja->report?->wykrylAutomat() === true) {
+            // KTÓRE narzędzie — bo to nie jest szczegół. „Narzędzie do
+            // wychwytywania spamu" przy treści wskazanej przez model
+            // oceniający przemoc i nienawiść byłoby zdaniem nieprawdziwym,
+            // a art. 17 ust. 3 lit. c mówi o poinformowaniu o użyciu środków
+            // automatycznych, nie o wspomnieniu, że jakieś istnieją.
+            $narzedzie = $decyzja->report?->reason === OcenaModelem::KOD
+                ? 'narzędzie, które maszynowo ocenia publikowane treści i zdjęcia'
+                : 'nasze narzędzie do wychwytywania spamu';
+
+            return 'Nikt tego nie zgłosił. Treść wskazało '.$narzedzie.', '
+                .'a decyzję podjął potem człowiek, który ją przeczytał.';
+        }
+
         if ($decyzja->report_id !== null) {
             return 'Sprawa zaczęła się od zgłoszenia, które dostaliśmy od innej osoby. '
                 .'Nie podajemy, kto je złożył.';

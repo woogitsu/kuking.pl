@@ -165,14 +165,25 @@ fałszowalny i tak ma być traktowany.
 o `X-Forwarded-For` ani słowem. Do czasu pomiaru na żywej infrastrukturze
 zostaje bezpieczna wartość `1`.
 
-**`X-Forwarded-Host` zostaje zaufany.** Jest podrabialny tak samo jak reszta
-i wpływa na host w adresach z `url()`. Właściwym zamknięciem jest middleware
-`TrustHosts`, którego lista **musi** zawierać `healthcheck.railway.app` —
-inaczej deploy pada na 400 (`.railway/railway.ts`). To osobna zmiana z własnym
-ryzykiem wdrożeniowym i świadomie nie ma jej w tej łatce. Praktyczny zasięg
-jest dziś mniejszy, niż się wydaje: link do ustawienia hasła buduje
-**zakolejkowane** powiadomienie (`UstawienieNowegoHasla implements ShouldQueue`),
-czyli worker bez żądania HTTP, który bierze host z `APP_URL`.
+**`X-Forwarded-Host` NIE JEST JUŻ ZAUFANY — zamknięte 10 września 2026 (S2,
+D-071).** Ten akapit mówił wcześniej, że nagłówek zostaje zaufany, a właściwym
+zamknięciem byłby `TrustHosts` „w osobnej zmianie". Ta zmiana została zrobiona
+i wygląda inaczej, niż tu zapowiadano — na dwa sposoby naraz:
+
+1. `X-Forwarded-Host` **wypadł z bitmaski zaufanych nagłówków**
+   (`bootstrap/app.php`). Nagłówka, którego aplikacja nie czyta, nie da się
+   podstawić — to zamknięcie mocniejsze niż allowlista. Wolno było go wyjąć,
+   bo `Host` przechodzi przez Cloudflare i brzeg Railway nietknięty.
+2. `Host` przechodzi przez `TrustHosts` z jawną listą
+   (`App\Support\ZaufaneHosty`), która **zawiera** `healthcheck.railway.app`
+   — bez tego wpisu deploy pada na 400 i nigdy się nie kończy.
+
+Zapowiedź o mniejszym praktycznym zasięgu była trafna, ale niepełna: reset
+hasła, potwierdzenie adresu i logowanie linkiem faktycznie budują adres
+w workerze z `APP_URL` (`ShouldQueue`), natomiast potwierdzenie **zmiany**
+adresu e-mail powstawało w żądaniu HTTP i tam nagłówek wchodził do listu
+wprost. Wszystkie cztery linki są teraz budowane z konfiguracji
+(`App\Support\AdresKanoniczny`).
 
 **`trustProxies(at: '*')` zostaje.** Wcześniejsze ostrzeżenie „nie usuwać"
 jest nadal aktualne: bez zaufania do `X-Forwarded-Proto` `$request->secure()`
@@ -506,8 +517,8 @@ uzasadnienie liczby.
 | `masowe_obserwowanie` | 5 / 10 min | `/witaj/ludzie` — jedno żądanie, wiele powiadomień |
 | `blokada` | 60 / 10 min | blokowanie i odblokowanie osoby |
 | `zeszyt` | 60 / 10 min | zapis i wypisanie przepisu albo wpisu |
-| `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia |
-| `ustawienia_profil` | 15 / 10 min | zapis profilu — jedyny ekran ustawień z plikiem |
+| `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia, zapis profilu, usunięcie zdjęcia profilowego |
+| `ustawienia_profil` | 15 / 10 min | `POST /ustawienia/zdjecie` — jedyny ekran ustawień z plikiem |
 | `eksport` | 10 / 60 min | paczka RODO |
 | `confirm_password` (bez zmian) | 5 / 10 min | akcje proszące o hasło — teraz także wyłączenie 2FA i zgłoszenie usunięcia konta |
 | `moderacja` | 120 / 10 min | cały panel `/admin` |

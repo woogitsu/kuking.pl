@@ -146,20 +146,32 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 
 ```php
 'r2' => [
-    'driver' => 's3',
+    'driver' => 'r2',
     'key' => env('AWS_ACCESS_KEY_ID'),
     'secret' => env('AWS_SECRET_ACCESS_KEY'),
     'region' => env('AWS_DEFAULT_REGION', 'auto'),
     'bucket' => env('AWS_BUCKET'),
     'endpoint' => env('AWS_ENDPOINT'),
-    'url' => env('AWS_URL'),
+    // Świadomie BEZ `url`. Oryginały niosą pełny EXIF — ten bucket nie ma
+    // własnej domeny, a `Storage::url()` ma tu rzucić wyjątek (W7-02).
     'use_path_style_endpoint' => false,
     'throw' => true,
 ],
 ```
 
-> **Jeśli włączysz `TrustHosts`:** dopisz `healthcheck.railway.app` do listy
-> dozwolonych hostów. Inaczej **każdy deploy będzie padał na błąd 400**.
+> **`driver => 'r2'`, nie `'s3'` — i to nie jest kosmetyka (issue #120).**
+> Wbudowany sterownik `s3` wysyła `x-amz-acl` przy każdym zapisie, także gdy
+> nikt o widoczność nie prosił. R2 tego nagłówka nie obsługuje dla `PutObject`
+> i nie gwarantuje, jak na niego zareaguje. Sterownik `r2`
+> (`app/Support/Storage/R2Adapter.php`) nie wysyła ACL wcale. Dotyczy
+> **wszystkich czterech** dysków R2: `r2`, `r2_publiczne`, `r2_legacy`,
+> `r2_eksporty`.
+
+> **`TrustHosts` JEST włączony** (D-071) i `healthcheck.railway.app` jest już
+> na liście w `App\Support\ZaufaneHosty`. Nie usuwaj go — inaczej **każdy
+> deploy będzie padał na błąd 400** i nie będzie jak wypchnąć poprawki.
+> Gdyby Railway kiedyś zmienił ten host, naprawa **bez deployu** to zmienna
+> `KUKING_ZAUFANE_HOSTY` w panelu Railwaya (patrz `config/proxy.php`).
 
 ---
 
@@ -498,6 +510,8 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `MAIL_PASSWORD` | z kroku 3.2 | **TAK** | Hasło / klucz API SMTP |
 | `SENTRY_LARAVEL_DSN` | z kroku 4 | nie | DSN projektu Sentry |
 | `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
+| `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
+| `TURNSTILE_SECRET_KEY` | z kroku 8A | **TAK** | Secret Key widgetu Turnstile |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -646,6 +660,202 @@ Następnie **podmień** w `staging` te wartości na nieprodukcyjne:
 
 > **Nigdy nie wskazuj staginu na produkcyjny bucket ani produkcyjną bazę.**
 > Test na staginu, który usuwa zdjęcia użytkowników, to nie test — to incydent.
+
+---
+
+## KROK 8A. Cloudflare Turnstile — captcha na formularzach publicznych
+
+**Kiedy:** po kroku 8, przed pierwszym wpuszczeniem ludzi.
+**Ile zajmuje:** pięć minut w panelu Cloudflare, dwie zmienne w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — formularze
+działają jak dziś, chroni je limit zapytań. Ale `/health` będzie od tej pory
+oddawał `status: degraded` (patrz niżej), bo konfiguracja obiecuje ochronę,
+której nie ma. To jest zamierzone: cicha, nieistniejąca ochrona jest gorsza
+niż jej jawny brak.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-050](../DECISIONS.md), issue #217.
+
+### 8A.1 Co kliknąć w panelu Cloudflare
+
+1. Zaloguj się na [dash.cloudflare.com](https://dash.cloudflare.com) na to
+   samo konto, na którym jest DNS `kuking.pl`.
+2. W menu po lewej: **Turnstile** → **Add widget**.
+3. **Widget name:** `kuking.pl` (dowolna, to tylko etykieta w panelu).
+4. **Hostnames** — dodaj **wszystkie**, pod którymi serwis ma działać:
+   - `kuking.pl`
+   - `www.kuking.pl`
+   - `kuking-pl-production.up.railway.app` (adres z Railway — bez niego
+     widget nie zadziała na środowisku Railwaya)
+   - `localhost` **tylko** jeśli chcesz testować u siebie z prawdziwymi
+     kluczami; normalnie nie jest potrzebny, bo lokalnie Turnstile jest
+     wyłączony (puste klucze).
+5. **Widget Mode:** **Managed**. To jest ten tryb, który w przeważającej
+   większości przypadków nie prosi człowieka o nic — żadnych obrazków
+   z przejściami dla pieszych. Nie wybieraj „Interactive".
+6. **Create**. Cloudflare pokaże dwie wartości:
+   - **Site Key** — zaczyna się od `0x4AAA…`, jest **publiczny** (wchodzi do
+     kodu strony, każdy go widzi);
+   - **Secret Key** — **to jest sekret**, nie wklejaj go nigdzie poza Railway,
+     nie wysyłaj mailem, nie wklejaj do issue na GitHubie.
+
+Widget jest darmowy i bez limitu zapytań — Cloudflare nie każe za niego płacić.
+
+### 8A.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` odwołuje się do nich przez `ctx.shared`, więc muszą istnieć
+pod dokładnie tymi nazwami):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `TURNSTILE_SITE_KEY` | Site Key z 8A.1 | nie |
+| `TURNSTILE_SECRET_KEY` | Secret Key z 8A.1 | **TAK — zaznacz „Sealed"** |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz obie
+zmienne wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie.
+
+Dla środowiska `staging` zrób osobny widget albo dopisz domenę staginu do
+listy hostnames w tym samym widgetcie. Ten sam Secret Key wolno użyć w obu.
+
+### 8A.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.turnstile'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Widget jest na stronie rejestracji
+curl -s https://kuking.pl/register | grep -c 'cf-turnstile'
+# oczekiwane: liczba większa od zera
+```
+
+Potem otwórz `https://kuking.pl/register` w przeglądarce: nad przyciskiem
+„Załóż konto" ma być zdanie „Zanim wyślesz, sprawdzamy, że formularza nie
+wypełnia automat" i pod nim ramka Turnstile, która sama zamienia się
+w zielony ptaszek. **Jeśli ramka nie zamienia się w nic i widać błąd
+`Error: 400020`** — Site Key nie pasuje do domeny; wróć do 8A.1 punkt 4.
+
+### 8A.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **Turnstile ZABLOKUJE formularz osobie z wyłączonym JavaScriptem** — i tak
+  ma być od 9 września 2026 (decyzja właściciela, D-050; pierwsza wersja
+  przepuszczała puste pole). Taka osoba zobaczy w miejscu widgetu ramkę
+  `<noscript>` ze zdaniem, czego konkretnie nie da się zrobić, i adresem
+  e-mail, pod którym siedzi człowiek. Jeśli po wgraniu kluczy ta ramka NIE
+  pojawia się przy wyłączonym skrypcie — to jest usterka do naprawienia od
+  razu, a nie drobiazg: bez niej ludzie stoją przed martwym przyciskiem.
+- **Kto ma JavaScript, a mimo to dostał odmowę**, zobaczy inny komunikat:
+  o tym, że sprawdzenie się nie wczytało (blokada reklam, słabe łącze), co
+  z tym zrobić i gdzie napisać. Dwa różne teksty dla dwóch różnych sytuacji
+  to wymóg z D-050, nie stylistyka.
+- **Odrzucenia z braku tokenu widać w dzienniku** (`Log::warning`, wpis
+  „Turnstile: formularz odrzucony, bo nie przyszedł token" z nazwą miejsca,
+  bez adresu IP). Po tygodniu od wdrożenia przejrzyj je: to jest jedyna
+  odpowiedź na pytanie, czy zamknęliśmy komuś drzwi.
+- **Turnstile nie zastępuje limitów zapytań** — one zostają bez zmian.
+- **Awaria Cloudflare nie zamknie rejestracji.** Gdy `siteverify` nie
+  odpowiada, formularz przechodzi, a w dzienniku ląduje ostrzeżenie. To się
+  zaciśnięciem NIE zmieniło.
+
+### 8A.5 Jak to wyłączyć w minutę
+
+Wyczyść `TURNSTILE_SITE_KEY` i `TURNSTILE_SECRET_KEY` (albo, punktowo,
+ustaw np. `TURNSTILE_NA_LOGOWANIU=false`) i zrestartuj serwis. Nie ma
+migracji do cofania — Turnstile nie zapisuje niczego do bazy.
+
+Po wyłączeniu wszystkiego ustaw też wszystkie sześć `TURNSTILE_NA_*`
+na `false`, żeby `/health` nie zgłaszał `degraded`: brak kluczy jest błędem
+tylko wtedy, gdy konfiguracja nadal obiecuje ochronę.
+
+---
+
+## KROK 8B. Moderacja modelem — sprawdzenie, czy klucz naprawdę działa
+
+**Kiedy:** po wgraniu `OPENAI_MODERATION_KEY` do zmiennych Railway.
+**Ile zajmuje:** jedno polecenie.
+
+```
+php artisan kuking:sprawdz-model
+```
+
+W konsoli Railway (zakładka *Console* przy serwisie `kuking.pl`) — jesteś już
+wtedy w kontenerze, więc bez `railway ssh`.
+
+**Dlaczego to jest osobny krok, a nie sprawdzenie w `/health`.** Klient modelu
+(`App\Moderacja\KlientOpenAI`) celowo zwraca `null` przy KAŻDEJ porażce: brak
+klucza, awaria sieci, HTTP 401, odpowiedź w nieznanym kształcie. Dla aplikacji
+to jedyne poprawne zachowanie — „nie wiemy" nie może znaczyć „treść jest
+w porządku", a awaria cudzej usługi nie może zatrzymać czyjegoś wpisu. Skutek
+uboczny jest jednak taki, że **działająca i wyłączona moderacja wyglądają
+identycznie z zewnątrz**. Ta komenda robi jedno prawdziwe zapytanie i mówi, co
+z niego wyszło.
+
+W `/health` tego nie ma świadomie: Turnstile ma tam sprawdzenie, bo bez kluczy
+konfiguracja **obiecuje ochronę, której nie ma**. Model niczego nie obiecuje —
+brak klucza znaczy „funkcja wyłączona" i jest to stan dopuszczalny, więc
+`degraded` byłoby fałszywym alarmem na każdym środowisku bez klucza (CI,
+lokalnie, staging).
+
+**Co zobaczysz:**
+
+| Wynik | Co znaczy |
+|---|---|
+| `Działa — model ocenił tekst i odpowiedział` | klucz dobry, endpoint dobry, nazwa modelu dobra |
+| `WYŁĄCZONA — nie ma klucza` | zmienna nie doszła; sprawdź, czy wdrożenie po jej dodaniu się skończyło |
+| `HTTP 401` | klucz zły albo unieważniony — najczęściej skopiowana spacja na końcu |
+| `HTTP 403` | klucz ograniczony bez prawa do `/v1/moderations` (*Model capabilities* w panelu OpenAI) |
+| `HTTP 404` | nazwa modelu nie istnieje; ustaw `KUKING_MODEL_NAZWA`, bez wdrożenia |
+| `HTTP 429` | limit tempa; odczekaj minutę |
+| `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej |
+| `nie ma pola results` | rozmawiamy z czymś innym niż API moderacji — sprawdź `KUKING_MODEL_ENDPOINT` |
+
+Ocenę zdjęć sprawdza się osobno: `php artisan kuking:sprawdz-model --zdjecie`.
+To jest przy tym serwisie ważniejsze od tekstu — zdjęcia są tym, czego nikt nie
+przeczyta, dopóki ktoś nie zgłosi.
+
+Klucz nie jest wypisywany nigdzie w wyniku, nawet fragmentem. Pilnuje tego test.
+
+---
+
+## KROK 8C. R2 — sprawdzenie, czy oryginały naprawdę nie są publiczne
+
+**Po przestawieniu `FILESYSTEM_DISK=r2` i `KUKING_MEDIA_DISK=r2`, przed
+wystawieniem `cdn.kuking.pl`:**
+
+```
+railway ssh -- php artisan kuking:bramka-r2 --zapis
+```
+
+Ta komenda odhacza siedem z dwunastu punktów bramki z issue #120 — prawdziwymi
+żądaniami do prawdziwego R2, na prawdziwym zdjęciu z bazy. Wgraj więc najpierw
+jedno zdjęcie przez formularz: bez zdjęcia komenda mówi „nie ma na czym
+sprawdzać" i **oblewa**, bo brak dowodu nie jest dowodem.
+
+**Co zobaczysz:**
+
+| Wynik | Co znaczy |
+|---|---|
+| `Część serwerowa bramki PRZESZŁA` | podpisy działają, bucket nie oddaje nic bez podpisu, `PutObject` przechodzi bez ACL |
+| `Serwis NIE zapisuje zdjęć do R2` | `FILESYSTEM_DISK`/`KUKING_MEDIA_DISK` jeszcze nie są `r2`; komenda odmawia sprawdzania dysku lokalnego |
+| `ALARM: bucket wariantów oddaje pliki BEZ podpisu` | włączony `r2.dev` albo publiczna domena — wyłącz w panelu R2 |
+| `ALARM: oryginał z pełnym EXIF-em` | bucket oryginałów jest publiczny. To najgorszy możliwy wynik: w oryginale siedzi GPS kuchni |
+| `ALARM: leży tam N plik(ów)` | w publicznym buckecie są klucze `incoming/` — przenieś je i skasuj |
+| `ALARM: w wariancie siedzi blok EXIF` | przekodowanie nie zdjęło EXIF-u; wariant idzie do każdego, kto widzi wpis |
+| `NIE WIEMY` | brak odpowiedzi z sieci albo nieudane listowanie. **Liczy się jak oblany** |
+| `TEN SAM bucket` | oba dyski wskazują jeden bucket; ustaw `AWS_PUBLIC_BUCKET` |
+
+Bez `--zapis` bramka nie jest domknięta (nie ma dowodu na `PutObject` bez ACL).
+`--zapis` zapisuje **jeden** plik tekstowy w prefiksie `bramka/` i kasuje go po
+odczycie — mówi o tym przed zrobieniem i sprząta także po wyjątku.
+
+Reszta punktów wymaga człowieka i panelu Cloudflare: przełącznik `r2.dev`,
+zdjęcie ~14,9 MB, po jednej próbce JPEG/PNG/WebP/AVIF z aparatu, kasowanie
+wpisu razem z wariantami i ścieżka błędu przy złym sekrecie. Komenda wypisuje
+je na końcu. Wynik z datą wpisz do `docs/infra/BRAMKA_R2.md`.
+
+Klucze API nie są wypisywane nigdzie w wyniku — ani endpoint z identyfikatorem
+konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 
 ---
 
@@ -1307,7 +1517,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 25 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
 | 26 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
 | 27 | Dysk `r2` | `config/filesystems.php` | 1 |
-| 28 | `healthcheck.railway.app` w `TrustHosts` (jeśli włączone) | `bootstrap/app.php` | 1 |
+| 28 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
 | 29 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
 
 ---
@@ -1317,7 +1527,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | Objaw | Najczęstsza przyczyna | Naprawa |
 |---|---|---|
 | **404 na `kuking.pl`**, CNAME działa | brak rekordu **TXT** | dodaj TXT z panelu Railway (krok 10.2) |
-| **Deploy pada: „healthcheck failed with status 400"** | `TrustHosts` blokuje `healthcheck.railway.app` | dopisz ten host |
+| **Deploy pada: „healthcheck failed with status 400"** | `TrustHosts` blokuje `healthcheck.railway.app` | ustaw `KUKING_ZAUFANE_HOSTY` w panelu Railwaya (naprawa bez deployu), potem popraw `App\Support\ZaufaneHosty` |
 | **Deploy pada: „service unavailable"** | aplikacja nie słucha na `$PORT` | sprawdź `SERVER_NAME=":${PORT}"` w entrypoincie |
 | **Pętla przekierowań (`ERR_TOO_MANY_REDIRECTS`)** | tryb SSL `Flexible` | przełącz na **Full (strict)** |
 | **500 na każdej stronie** | brak / zły `APP_KEY` | sprawdź logi — entrypoint wypisze czytelny komunikat |

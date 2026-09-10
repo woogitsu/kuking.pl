@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -145,5 +147,30 @@ class NadanieRoliTest extends TestCase
             ->assertSuccessful();
 
         $this->assertSame(0, AuditLogEntry::query()->where('action', 'user.role_changed')->count());
+    }
+
+    /**
+     * KONTROLA GRANICY DLA D-065 (`docs/DECISIONS.md`), nie dla tej komendy.
+     *
+     * Cały argument za tym, żeby dziś NIE brać `spatie/laravel-permission`,
+     * stoi na jednym zdaniu: „`role IN ('user','moderator','admin')` jest
+     * pilnowane w jednym miejscu prawdy — w bazie, nie tylko w PHP".
+     * `test_nieznana_rola_jest_odrzucana()` wyżej sprawdza wyłącznie walidację
+     * PHP w `promoteTo()`/`kuking:nadaj-role` — omija ją każde zapisanie
+     * wiersza z pominięciem modelu (migracja danych, ręczny `UPDATE`, przyszły
+     * bug w innym miejscu). Ten test pomija PHP całkowicie i pisze wprost do
+     * bazy, żeby sprawdzić, czy backstop, na którym stoi cała decyzja
+     * (`users_role_check`, `database/migrations/0001_01_01_000001_create_users_table.php`),
+     * naprawdę istnieje — a nie tylko tak jest opisany w dokumentacji.
+     */
+    public function test_baza_odrzuca_role_spoza_trzech_dozwolonych_wartosci(): void
+    {
+        $user = $this->user('ula', ['email' => 'ula@kuking.pl']);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('users')
+            ->where('id', $user->getKey())
+            ->update(['role' => 'superadmin']);
     }
 }

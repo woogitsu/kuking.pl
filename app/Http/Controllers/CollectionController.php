@@ -6,13 +6,18 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -23,6 +28,7 @@ class CollectionController extends Controller
     public function __construct(
         private readonly SaveRecipeToCollection $save,
         private readonly SavePostToCollection $savePost,
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
     ) {}
 
     public function index(Request $request): View
@@ -37,7 +43,105 @@ class CollectionController extends Controller
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
+            // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
+            'ostatnioZapisane' => $this->ostatnioZapisane($user),
         ]);
+    }
+
+    /**
+     * Pięć rzeczy odłożonych ostatnio — prawa szyna ekranu „Moje" (issue #205).
+     *
+     * PO CO TO JEST
+     * Główna kolumna wypisuje ZESZYTY, a człowiek wchodzi tu najczęściej po
+     * jedną konkretną rzecz („gdzie jest to, co zapisałam wczoraj"). Bez tej
+     * listy trzeba pamiętać, do którego zeszytu to poszło, wejść i przewinąć.
+     * Prawa trzecia ekranu stała przy tym pusta.
+     *
+     * KOLEJNOŚĆ TO CZAS ODŁOŻENIA, NIE CZAS PUBLIKACJI. Zapisany wczoraj
+     * przepis sprzed trzech lat ma stać na górze, bo to WCZORAJ jest tym,
+     * co człowiek pamięta. Stąd `max(collection_items.created_at)` z pivotu,
+     * a nie `published_at` — i `max()`, bo ta sama rzecz może leżeć
+     * w kilku zeszytach naraz.
+     *
+     * PODZAPYTANIE, NIE `join` — I TO NIE JEST KWESTIA GUSTU.
+     * `Recipe::scopeWidoczneDla()` i `Post::scopeWidoczneDla()` pytają
+     * o `where('visibility', …)` bez nazwy tabeli. Tabela `collections` ma
+     * kolumnę `visibility`, więc dołączenie jej przez `join` robi z tego
+     * „column reference visibility is ambiguous" — czyli błąd bazy na
+     * ekranie, nie cichą pomyłkę. Skorelowane podzapytanie w `select`
+     * zostawia zewnętrzne zapytanie nietknięte.
+     *
+     * WIDOCZNOŚĆ: oba zapytania idą przez `widoczneDla($user)` ORAZ
+     * `dostepnyJakoAutor()`. To są dwie różne granice i obie są obowiązkowe
+     * (ustalenie audytowe W5-08) — dokładnie ta sama para, którą ma szyna
+     * „Mój zeszyt" na Starcie i lista w `show()` niżej. Do zeszytu odkłada
+     * się CUDZE treści, a ich autor może potem zmienić widoczność, cofnąć
+     * obserwowanie albo zostać zbanowany.
+     *
+     * KOSZT NIE ROŚNIE Z ZAWARTOŚCIĄ ZESZYTU: dwa zapytania po `limit(5)`
+     * plus dociągnięcie zdjęć i autorów, niezależnie od tego, czy w zeszytach
+     * leży pięć rzeczy, czy pięćset (`SzynaBezWachlarzaZapytanTest`).
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function ostatnioZapisane(User $user): \Illuminate\Support\Collection
+    {
+        $ile = 5;
+
+        $zapisano = fn (string $kolumna, string $tabela) => DB::table('collection_items')
+            ->join('collections', 'collections.id', '=', 'collection_items.collection_id')
+            ->whereColumn('collection_items.'.$kolumna, $tabela.'.id')
+            ->where('collections.owner_id', $user->getKey())
+            ->selectRaw('max(collection_items.created_at)');
+
+        $przepisy = Recipe::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
+            ->addSelect(['zapisano_at' => $zapisano('recipe_id', 'recipes')])
+            ->with(['heroMedia', 'author.profile'])
+            ->orderByDesc('zapisano_at')
+            ->orderByDesc('recipes.id')
+            ->limit($ile)
+            ->get()
+            ->map(fn (Recipe $przepis) => [
+                'href' => $przepis->url(),
+                'nazwa' => $przepis->title,
+                'podpis' => 'Przepis · '.$przepis->author->displayName(),
+                'media' => $przepis->heroMedia,
+                'zapisano_at' => $przepis->zapisano_at,
+            ]);
+
+        $wpisy = Post::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
+            ->addSelect(['zapisano_at' => $zapisano('post_id', 'posts')])
+            ->with(['media', 'author.profile'])
+            ->orderByDesc('zapisano_at')
+            ->orderByDesc('posts.id')
+            ->limit($ile)
+            ->get()
+            ->map(fn (Post $wpis) => [
+                'href' => $wpis->url(),
+                // Wpis nie ma tytułu. Pierwsze słowa są tym, po czym człowiek
+                // go rozpozna; wpis bez opisu dostaje uczciwe „Zdjęcie bez
+                // opisu", a nie pustą linijkę udającą nazwę.
+                'nazwa' => $wpis->body !== null && trim($wpis->body) !== ''
+                    ? Str::limit(trim($wpis->body), 60)
+                    : 'Zdjęcie bez opisu',
+                'podpis' => 'Wpis · '.$wpis->author->displayName(),
+                'media' => $wpis->media->first(),
+                'zapisano_at' => $wpis->zapisano_at,
+            ]);
+
+        // Sortowanie po ZNACZNIKU CZASU, nie po tekście z bazy. `timestamptz`
+        // wraca z przesunięciem strefy (`+01`/`+02`), a porównanie tekstowe
+        // przestawiłoby dwie rzeczy odłożone po obu stronach zmiany czasu.
+        return $przepisy->concat($wpisy)
+            ->sortByDesc(fn (array $pozycja) => Carbon::parse($pozycja['zapisano_at'])->getTimestamp())
+            ->take($ile)
+            ->values();
     }
 
     public function show(Request $request, Collection $collection): View
@@ -87,6 +191,10 @@ class CollectionController extends Controller
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->with(['author.profile.avatar', 'media'])
                 ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
+                // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+                // zapytaniem (issue #275, D-081). Reguły siedzą
+                // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
+                ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
                 ->paginate(
                     (int) config('kuking.collections.saved_posts_page_size'),
                     ['*'],
@@ -104,6 +212,28 @@ class CollectionController extends Controller
                 $collection->posts()->count()
                     - $collection->posts()->widoczneDla($request->user())->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())->count(),
             ),
+            // PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
+            //
+            // Zeszyt jest jednym z kilku pojemników i wejście do drugiego
+            // wymagało do tej pory cofnięcia się na „Moje". To jest jedyna
+            // czynność, którą naprawdę robi się Z TEGO ekranu — dlatego
+            // szyna dostaje ją, a nie kartę „po co jest zeszyt".
+            //
+            // Widzowi spoza konta pokazujemy WYŁĄCZNIE zeszyty publiczne:
+            // prywatny zeszyt nie ma prawa ujawnić nawet nazwy. Warunek jest
+            // ten sam, który sprawdza `CollectionPolicy::view()` przy wejściu
+            // na adres — powtórzony tutaj, bo Policy pilnuje wejścia,
+            // a nie zapytania budującego listę.
+            'inneZeszyty' => $collection->owner === null ? collect() : $collection->owner->collections()
+                ->whereKeyNot($collection->getKey())
+                ->when(
+                    $request->user()?->getKey() !== $collection->owner_id,
+                    fn ($query) => $query->where('visibility', 'public'),
+                )
+                ->orderByDesc('is_default')
+                ->orderBy('name')
+                ->limit(5)
+                ->get(),
         ]);
     }
 
