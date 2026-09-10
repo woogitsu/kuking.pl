@@ -68,6 +68,34 @@ final class Czas
     }
 
     /**
+     * PONIEDZIAŁEK tygodnia, w którym mieści się ten moment, jako `Y-m-d`
+     * w strefie człowieka.
+     *
+     * PO CO ODDZIELNA METODA, A NIE `now()->startOfWeek()` NA MIEJSCU
+     * Bo `now()` liczy w `app.timezone`, czyli w UTC (patrz komentarz klasy),
+     * a poniedziałek w UTC zaczyna się w Polsce w niedzielę o 22:00 albo
+     * 23:00. Tygodniowe podsumowanie wysyłane w poniedziałek o 00:30 czasu
+     * polskiego trafiłoby więc do tygodnia POPRZEDNIEGO — a ten tydzień jest
+     * kluczem, po którym baza rozpoznaje „ta osoba ma już ten okres
+     * obsłużony" (`weekly_digest_sends`, D-077). Pomyłka o dwie godziny
+     * znaczy tu dwa listy w jednym tygodniu albo brak listu, nie
+     * przesuniętą etykietę na ekranie.
+     *
+     * DLACZEGO DATA PONIEDZIAŁKU, A NIE NUMER TYGODNIA ISO
+     * Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28`
+     * należy do tygodnia 1 **roku 2027**, więc numer wymaga pary
+     * (rok ISO, tydzień) i pierwszego dnia, w którym ktoś dołoży ją nie po
+     * kolei, klucz przestaje być unikalny. Data poniedziałku jest jedną
+     * kolumną typu `date`, porównywalną, sortowalną i czytelną w zrzucie
+     * bazy — a `date_trunc('week', …)` w PostgreSQL znaczy dokładnie to samo
+     * (tygodnie Postgresa zaczynają się w poniedziałek).
+     */
+    public static function poczatekTygodniaData(?CarbonInterface $moment = null): string
+    {
+        return self::lokalnie($moment ?? now())->startOfWeek(CarbonInterface::MONDAY)->toDateString();
+    }
+
+    /**
      * Fragment SQL sprowadzający kolumnę `timestamptz` do czasu ŚCIENNEGO
      * człowieka: `<kolumna> at time zone 'Europe/Warsaw'`.
      *
