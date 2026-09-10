@@ -41,7 +41,66 @@
     margin-bottom: var(--spacing-5);
   }
 
-  .filtry-kont .field { margin: 0; flex: 1 1 14rem; }
+  /*
+   * BLOK POLA W PASKU FILTRÓW MUSI DAĆ SIĘ ZWĘZIĆ DO SWOJEJ KOLUMNY
+   * (issue #294, trzecie znalezisko — tym razem z CI, Chromium 153).
+   *
+   * `min-width: 0` i `overflow-wrap: anywhere` NIE SĄ TU OZDOBĄ. To ten sam
+   * wzorzec i to samo uzasadnienie, co przy `.szyna-tytul` w app.css
+   * (issue #205): element `flex` ma domyślnie `min-width: auto`, czyli nie
+   * zejdzie poniżej swojej SZEROKOŚCI MINIMALNEJ (min-content) — a tę
+   * wyznacza najdłuższe słowo w środku. Przy podwojonej czcionce
+   * przeglądarki jedno słowo bywa szersze niż cała kolumna treści.
+   *
+   * ZMIERZONE na `/admin/uzytkownicy`, okno 320 px, czcionka przeglądarki
+   * 200% (CDP `Page.setFontSizes` 32 px, tak jak w `scripts/dostepnosc.mjs`),
+   * Chromium 141:
+   *
+   *   * kolumna treści ma 256 px (320 − 2 × 32 px wcięcia `.app-main`);
+   *   * `.filtry-kont` ma 256 px `clientWidth`, ale 287 px `scrollWidth`;
+   *   * blok pola „Szukaj konta" ma 286,59 px i stoi na x = 32…318,59;
+   *   * min-content tego bloku to 286,59 px i wyznacza go DOKŁADNIE JEDNO
+   *     SŁOWO: dopisek `(nieobowiązkowe)` w `<span class="meta">`, przy
+   *     `--text-meta` podwojonym do 32 px. Po usunięciu tego jednego słowa
+   *     z klonu bloku min-content spada do 159,98 px, czyli mieści się
+   *     w kolumnie z zapasem.
+   *
+   * CO TO WYKLUCZA, ŻEBY NIKT NIE SZUKAŁ TAM DRUGI RAZ. `box-sizing` jest
+   * `border-box` wszędzie (zmierzone `getComputedStyle`). `min-width` samego
+   * `.field-input` to `0px` (tokens.css), a min-content pola wejściowego —
+   * 68 px, więc natywny kontrolek NIE JEST tu winny (inaczej niż przy polu
+   * daty wyżej). `padding` nie doklejał się obok `width: 100%`. I nie jest
+   * winna tabela: `table.tabela-kont` wychodzi na raporcie jako `[33…2756]`,
+   * ale stoi w `.tabela-kont-przewijanie` z własnym `overflow-x` i przy
+   * `scrollWidth` dokumentu RÓWNYM `clientWidth` też jest na tej liście —
+   * czyli trafia tam z powodu swojego kontenera, nie z powodu winy.
+   *
+   * DLACZEGO SAM `overflow-wrap: break-word` NIE WYSTARCZYŁ. `.meta` ma go
+   * z app.css i on DZIAŁA — słowo łamie się w układzie. Ale `break-word`
+   * NIE ZMIENIA SZEROKOŚCI MINIMALNEJ elementu; robi to wyłącznie
+   * `anywhere` (CSS Text 3, ta sama różnica jest opisana przy `.szyna-tytul`).
+   * Nierozłamane `(nieobowiązkowe)` dalej dyktowało więc 286,59 px temu,
+   * kto o szerokość pytał — czyli algorytmowi flexa.
+   *
+   * DLACZEGO TEGO NIE BYŁO WIDAĆ LOKALNIE. Prawa krawędź bloku wypadała na
+   * 318,59 px, czyli MIEŚCIŁA SIĘ w oknie 320 px — 30 px przepełnienia
+   * kolumny zjadało prawe wcięcie `.app-main` i `documentElement.scrollWidth`
+   * zostawał 320 px. Na Chromium 153 z CI to samo słowo mierzy ~290 px,
+   * prawa krawędź wypada na 322 px i strona przewija się w bok o dwa piksele
+   * (WCAG 2.2 AA 1.4.10 Reflow). Usterka była ta sama w obu wersjach; tylko
+   * w jednej z nich mieściła się w zapasie wcięcia.
+   *
+   * CZEGO ŚWIADOMIE NIE ZROBILIŚMY: `overflow-x: hidden` na `body`
+   * (zasłania usterkę, nie usuwa), `max-width` wybranego na oko, ani
+   * `bezOznaczenia` na tym polu (usunęłoby to jedno słowo i zostawiło
+   * mechanizm gotowy na następne długie słowo w dowolnej etykiecie filtra).
+   */
+  .filtry-kont .field {
+    margin: 0;
+    flex: 1 1 14rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
   /* Pole daty jest wąskie z natury — nie ma powodu, żeby rosło jak szukajka. */
   .filtry-kont .filtr-data { flex: 0 1 11rem; }
@@ -153,6 +212,19 @@
    * WYGLĄD NIE ZMIENIA SIĘ ANI TROCHĘ: skoro nie ma krawędzi pionowych ani
    * podwójnych poziomych do złożenia, `collapse` i `separate` rysują tu
    * dokładnie te same pojedyncze linie pod wierszami.
+   *
+   * SPROSTOWANIE, ten sam dzień, po zmierzeniu sprawy do końca: „najbardziej
+   * prawdopodobna przyczyna" wyżej PRZYCZYNĄ NIE BYŁA. Przepełnienie
+   * z tego samego joba (322 px przy oknie 320 px) siedziało w bloku pola
+   * filtra — patrz `.filtry-kont .field` wyżej w tym pliku, gdzie mechanizm
+   * jest zmierzony, a nie podejrzewany. `table.tabela-kont` wychodzi na
+   * liście winnych z raportu, bo stoi w `.tabela-kont-przewijanie` z własnym
+   * `overflow-x`, i wychodzi tam TAKŻE wtedy, gdy `scrollWidth` dokumentu
+   * jest RÓWNY `clientWidth` (zmierzone) — czyli trafia na tę listę z powodu
+   * swojego kontenera, nie z powodu winy. Deklaracja zostaje: nie szkodzi,
+   * wyglądu nie rusza i zdejmuje z tabeli udokumentowaną w CSS2.1 furtkę do
+   * wystawania poza własny box. Nie jest za to poprawką tej usterki i nie
+   * wolno jej tak czytać, gdy problem wróci.
    */
   .tabela-kont {
     width: 100%;

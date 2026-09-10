@@ -363,9 +363,16 @@ class PanelSzerokiTelefonTest extends TestCase
      * subpikselową różnicą międzywersyjną, o jaką podejrzewał ten błąd
      * koordynator. `separate` rysuje każdą krawędź WEWNĄTRZ komórki.
      *
-     * Ten test NIE dowodzi, że jeden piksel z CI zniknął (do tego trzeba
-     * Chromium z CI) — pilnuje WYŁĄCZNIE tego, że mechanizm, który go
-     * najprawdopodobniej powodował, nie wróci po cichu.
+     * SPROSTOWANIE, ten sam dzień: ta hipoteza była NIEPRAWDZIWA. Prawdziwą
+     * przyczyną przepełnienia na tym ekranie jest blok pola filtra — patrz
+     * `test_blok_pola_filtra_moze_zwezic_sie_do_swojej_kolumny` niżej, gdzie
+     * mechanizm jest zmierzony w przeglądarce, a nie podejrzewany.
+     * `table.tabela-kont` wychodzi na liście winnych z CI, bo stoi
+     * w `.tabela-kont-przewijanie` z własnym `overflow-x`, i wychodzi tam
+     * także przy `scrollWidth` dokumentu RÓWNYM `clientWidth`. Ten test
+     * zostaje, bo `separate` zdejmuje z tabeli udokumentowaną w CSS2.1
+     * furtkę do wystawania poza własny box i nie ma powodu jej otwierać —
+     * ale NIE jest testem regresyjnym tej usterki i nie wolno go tak czytać.
      */
     public function test_tabela_kont_nie_ma_zlozonych_krawedzi_ktore_moga_wystawac_poza_box(): void
     {
@@ -401,6 +408,133 @@ class PanelSzerokiTelefonTest extends TestCase
         $html = (string) $this->actingAs($this->moderator())
             ->get(route('admin.users'))->assertOk()->getContent();
         $this->assertStringContainsString('class="tabela-kont"', $html);
+    }
+
+    /**
+     * Czwarte znalezisko, i pierwsze, w którym udało się ZMIERZYĆ mechanizm,
+     * a nie tylko go podejrzewać (job „Dostępność (axe-core) i wydajność
+     * (Lighthouse)" na PR #306, Chromium 153 — `panel — użytkownicy` /
+     * 320 px / czcionka przeglądarki 200%: `scrollWidth` 322 px przy oknie
+     * 320 px, a na liście winnych grupa
+     * `div.field | label | span.meta | span.field-help | input.field-input`,
+     * wszystkie na `[32…322]`).
+     *
+     * PRZYCZYNA, ZMIERZONA W PRZEGLĄDARCE (Chromium 141, ten sam ekran, to
+     * samo okno i ta sama czcionka, przez CDP `Page.setFontSizes` 32 px):
+     *
+     *   * kolumna treści ma 256 px (320 − 2 × 32 px wcięcia `.app-main`),
+     *     a `.filtry-kont` — `clientWidth` 256 px przy `scrollWidth` 287 px;
+     *   * blok pola „Szukaj konta" (`div.field`) miał 286,59 px i stał
+     *     na x = 32…318,59, czyli 30 px poza swoją kolumną;
+     *   * szerokość minimalna (min-content) tego bloku to 286,59 px
+     *     i wyznaczało ją DOKŁADNIE JEDNO SŁOWO — dopisek
+     *     `(nieobowiązkowe)` w `<span class="meta">` przy `--text-meta`
+     *     podwojonym do 32 px. Klon bloku bez tego jednego słowa ma
+     *     min-content 159,98 px, czyli mieści się w kolumnie z zapasem;
+     *   * `div.field` jest elementem `flex` w `.filtry-kont`, a element
+     *     `flex` ma domyślnie `min-width: auto` — czyli NIE ZEJDZIE poniżej
+     *     swojego min-content, choćby kolumna była węższa.
+     *
+     * CO ZOSTAŁO WYKLUCZONE POMIAREM, żeby nikt nie szukał tam po raz
+     * trzeci: `box-sizing` jest `border-box` wszędzie; `min-width` samego
+     * `.field-input` to `0px` (tokens.css), a jego min-content — 68 px, więc
+     * natywny kontrolek NIE jest tu winny (inaczej niż pole daty wyżej);
+     * `padding` nie doklejał się obok `width: 100%`. `table.tabela-kont`
+     * z raportu CI to FAŁSZYWY TROP: stoi w `.tabela-kont-przewijanie`
+     * z własnym `overflow-x` i wychodzi na tej liście także wtedy, gdy
+     * `scrollWidth` dokumentu jest RÓWNY `clientWidth` (zmierzone).
+     *
+     * DLACZEGO POTRZEBNE SĄ OBIE DEKLARACJE. `min-width: 0` zdejmuje
+     * domyślne `min-width: auto` elementu flex, a `overflow-wrap: anywhere`
+     * jako JEDYNY z rodziny `overflow-wrap` wpływa na szerokość minimalną —
+     * `break-word`, który `.meta` ma z app.css, łamie słowo w układzie, ale
+     * min-content zostawia nietknięty, i to jest cała różnica między nimi
+     * (ten sam wzorzec i to samo uzasadnienie co przy `.szyna-tytul`
+     * w app.css, issue #205).
+     *
+     * CZEGO TEN TEST NIE DOWODZI (PULAPKI_TESTOW.md §5): nie mierzy układu —
+     * w PHPUnicie nie ma przeglądarki. Realny pomiar robi
+     * `scripts/dostepnosc.mjs` w CI. Ten test pilnuje WYŁĄCZNIE tego, że obie
+     * deklaracje nie znikną po cichu i że najgorszy zmierzony przypadek —
+     * dopisek `(nieobowiązkowe)` przy polu szukania — nadal jest na ekranie,
+     * bo bez niego reguła przestałaby być czymkolwiek sprawdzana.
+     */
+    public function test_blok_pola_filtra_moze_zwezic_sie_do_swojej_kolumny(): void
+    {
+        $css = $this->cssZArkusza('ekran-uzytkownikow.css');
+        $regula = $this->regula($css, '.filtry-kont .field {');
+
+        $this->assertStringContainsString(
+            'min-width: 0',
+            $regula,
+            '`.filtry-kont .field` znowu ma domyślne `min-width: auto` — blok '
+            .'pola nie zejdzie poniżej najdłuższego słowa w etykiecie '
+            .'i przy czcionce przeglądarki 200% wypchnie stronę w bok '
+            .'(WCAG 2.2 AA 1.4.10 Reflow).',
+        );
+        $this->assertStringContainsString(
+            'overflow-wrap: anywhere',
+            $regula,
+            'Brak `overflow-wrap: anywhere` w `.filtry-kont .field` — '
+            .'`break-word` z `.meta` łamie słowo w układzie, ale NIE zmienia '
+            .'szerokości minimalnej, więc dopisek `(nieobowiązkowe)` dalej '
+            .'dyktowałby flexowi 286,59 px w kolumnie o 256 px.',
+        );
+
+        // Kontrola dodatnia na samej regule: to nadal TA reguła, która układa
+        // pasek filtrów, a nie nowa, pusta obok niej.
+        $this->assertStringContainsString(
+            'flex: 1 1 14rem',
+            $regula,
+            'Z reguły zniknęło `flex: 1 1 14rem` — to nie ta poprawka miała '
+            .'ruszyć układ paska filtrów.',
+        );
+
+        // Na żywo, i WYŁĄCZNIE w wycinku paska filtrów (PULAPKI_TESTOW.md §1:
+        // słowo „nieobowiązkowe" stoi też przy innych formularzach serwisu,
+        // a `class="field"` — przy każdym polu na każdym ekranie).
+        $html = (string) $this->actingAs($this->moderator())
+            ->get(route('admin.users'))->assertOk()->getContent();
+
+        $od = strpos($html, '<form method="GET"');
+        $this->assertNotFalse($od, 'Na liście kont nie ma (już) formularza filtrów.');
+        $do = strpos($html, '</form>', $od);
+        $this->assertNotFalse($do, 'Formularz filtrów nie jest domknięty.');
+        $pasek = substr($html, $od, $do - $od);
+
+        $this->assertStringContainsString(
+            'class="filtry-kont"',
+            $pasek,
+            'Pasek filtrów nie ma klasy `filtry-kont` — selektor z arkusza '
+            .'nigdy by w niego nie trafił.',
+        );
+        $this->assertMatchesRegularExpression(
+            '/<div class="field[^"]*">\s*<label for="f-szukaj">\s*Szukaj konta/',
+            $pasek,
+            'Pole „Szukaj konta" nie jest już blokiem `.field` w pasku '
+            .'filtrów — zmierzony przypadek przestał istnieć w tym kształcie.',
+        );
+        // I WEWNĄTRZ SAMEJ ETYKIETY POLA SZUKANIA, nie w całym pasku
+        // (PULAPKI_TESTOW.md §1 — zmierzone przy pisaniu tego testu:
+        // `(nieobowiązkowe)` stoi w tym samym formularzu TRZY razy, bo mają
+        // go też oba pola daty. Asercja na całym pasku przechodziła po
+        // dołożeniu `bezOznaczenia` do pola szukania, czyli po usunięciu
+        // dokładnie tego słowa, którego pilnuje).
+        $odEtykiety = strpos($pasek, '<label for="f-szukaj">');
+        $this->assertNotFalse($odEtykiety, 'W pasku filtrów nie ma etykiety pola „Szukaj konta".');
+        $doEtykiety = strpos($pasek, '</label>', $odEtykiety);
+        $this->assertNotFalse($doEtykiety, 'Etykieta pola szukania nie jest domknięta.');
+        $etykieta = substr($pasek, $odEtykiety, $doEtykiety - $odEtykiety);
+
+        $this->assertStringContainsString(
+            '(nieobowiązkowe)',
+            $etykieta,
+            'Z etykiety pola szukania zniknął dopisek `(nieobowiązkowe)` — to '
+            .'JEGO szerokość (286,59 px przy czcionce przeglądarki 200%) była '
+            .'zmierzonym najgorszym przypadkiem tej usterki. Usunięcie '
+            .'dopisku zamiata mechanizm pod dywan: następne długie słowo '
+            .'w dowolnej etykiecie filtra wypchnie stronę tak samo.',
+        );
     }
 
     /** Ten sam plik co `$this->css()`, ale INNY arkusz (issue #294 dotyka dwóch). */
