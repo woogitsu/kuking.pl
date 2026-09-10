@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Tests\TestCase;
@@ -334,5 +335,76 @@ class KartaWpisuTest extends TestCase
         $this->actingAs($autor)->get(route('home'))
             ->assertOk()
             ->assertSee('publicznie', escape: false);
+    }
+
+    // -----------------------------------------------------------------
+    // Tematy wpisu na karcie (docs/product/PROSTOTA_JAK_GARNEK.md)
+    //
+    // Garnek.pl pokazywał na stronie zdjęcia listę fotoforów, do których
+    // ono trafiło. Autor u nas wybiera tagi przy publikacji od pierwszego
+    // dnia (`x-tagi-formularz`), ale karta wpisu ich nie oddawała z
+    // powrotem — jedyną drogą na stronę tagu był adres, który trzeba było
+    // już znać. Te testy pilnują, żeby to zostało naprawione WSZĘDZIE,
+    // gdzie karta stoi, i żeby naprawa nie kosztowała zapytania per wpis.
+    // -----------------------------------------------------------------
+
+    public function test_karta_pokazuje_tematy_wpisu_na_stronie_glownej(): void
+    {
+        $autor = $this->user('autorka_tagow');
+        $tag = Tag::factory()->create(['name' => 'Zupy']);
+
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
+
+        $html = (string) $this->actingAs($this->user('czytelniczka_tagow'))
+            ->get(route('home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            route('tags.show', $tag),
+            $html,
+            'Wpis z tematem nie ma na karcie odnośnika do strony tego tematu — '
+            .'dokładnie tak, jak Garnek.pl pokazywał fotofora na stronie zdjęcia.',
+        );
+        $this->assertStringContainsString('Zupy', $html);
+    }
+
+    public function test_karta_pokazuje_tematy_wpisu_w_swiezo_z_kuking(): void
+    {
+        // Świeżo z Kuking korzysta z osobnego zapytania (DiscoverFeed) —
+        // eager loading tagów tam jest osobną linijką i osobnym ryzykiem
+        // regresji niż na stronie głównej.
+        $autor = $this->user('autorka_tagow_2');
+        $tag = Tag::factory()->create(['name' => 'Zakwas']);
+
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
+
+        $this->get(route('discover'))
+            ->assertOk()
+            ->assertSee(route('tags.show', $tag), escape: false)
+            ->assertSee('Zakwas');
+    }
+
+    public function test_karta_bez_tematow_nie_pokazuje_pustej_listy(): void
+    {
+        $autor = $this->user('autorka_bez_tagow');
+        Post::factory()->create([
+            'author_id' => $autor->getKey(),
+            'body' => 'Wpis bez tematu.',
+        ]);
+
+        $html = (string) $this->actingAs($this->user('czytelniczka_bez_tagow'))
+            ->get(route('home'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            'Tematy tego wpisu',
+            $html,
+            'Wpis bez tematów nie powinien pokazywać pustej listy — to jest '
+            .'zaproszenie do niczego.',
+        );
     }
 }
