@@ -43,7 +43,7 @@ Może się jednak zdarzyć, że sam opiszesz coś takiego w treści, którą pub
 
 ## 3. Komu przekazujemy dane
 
-Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicznych (tzw. podmioty przetwarzające), którzy pomagają nam prowadzić serwis:
+Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicznych, którzy pomagają nam prowadzić serwis. Większość z nich przetwarza dane **wyłącznie na nasze polecenie** (tzw. podmioty przetwarzające). Przy logowaniu kontem Google jest inaczej i mówimy to wprost: Twoje konto Google prowadzi Google, na własnych zasadach i na własną odpowiedzialność — my dostajemy od niego tylko potwierdzenie, że konto należy do Ciebie, oraz Twój adres e-mail.
 
 | Dostawca | Do czego służy | Gdzie przechowywane są dane |
 |---|---|---|
