@@ -425,6 +425,9 @@ Two smaller ones, both surfaced today and both unanswered:
 
 - The bottom navigation says "Moje" while `AGENTS.md` §5 still specifies
   "Zeszyt". Code and contract disagree; one of them has to move.
+  **Rozstrzygnięte 10 września 2026 — D-073: ruszył kod.** Nazwa brzmi
+  „Zeszyt" w nawigacji, w manifeście PWA i w dokumentach UX; `AGENTS.md`
+  bez zmian, bo mówił prawdę od początku.
 - Stage D's mobile menu screen would change where the "Profil" tab leads. That
   is an information-architecture decision, not CSS.
 

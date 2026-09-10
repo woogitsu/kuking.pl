@@ -32,8 +32,14 @@ Słabe:
 Maks. 5 głównych pozycji:
 
 ```text
-Start | Szukaj | Dodaj | Moje | Profil
+Start | Szukaj | Dodaj | Zeszyt | Profil
 ```
+
+Czwarta pozycja nazywa się **„Zeszyt"**, nie „Moje" — rozstrzygnięcie
+`docs/DECISIONS.md` **D-073**. Stało tu „Moje" (z UI kitu v2) wbrew
+`AGENTS.md` §5, `docs/brand/BRAND_EXTENDED.md` §1.1 i skrótowi w manifeście
+PWA; rozjazd żył w serwisie od 7 września i był widoczny dla człowieka
+dopiero po instalacji aplikacji.
 
 ## Bez ukrytych gestów
 

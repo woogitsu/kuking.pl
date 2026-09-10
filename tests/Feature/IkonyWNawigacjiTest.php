@@ -87,10 +87,10 @@ class IkonyWNawigacjiTest extends TestCase
         // AGENTS.md i docs/UX_50_PLUS.md: IKONA NIGDY NIE JEST SAMA.
         // Ten test jest tu po to, żeby przy następnym „uporządkowaniu"
         // nawigacji ktoś nie usunął podpisów, bo „ikony są czytelne".
-        // Podpisy według UI kitu v2 (ekran 01): „Moje" zamiast „Zeszyt",
-        // „Profil" zamiast „Mój profil". Zmieniły się SŁOWA, nie zasada —
-        // każda ikona nadal ma napis pod sobą albo obok siebie.
-        foreach (['Start', 'Szukaj', 'Dodaj', 'Moje', 'Profil', 'Powiadomienia', 'Ustawienia'] as $podpis) {
+        // Podpisy: „Zeszyt" (nie „Moje" — D-073) i „Profil" (nie „Mój
+        // profil"). Zmieniły się SŁOWA, nie zasada — każda ikona nadal ma
+        // napis pod sobą albo obok siebie.
+        foreach (['Start', 'Szukaj', 'Dodaj', 'Zeszyt', 'Profil', 'Powiadomienia', 'Ustawienia'] as $podpis) {
             $this->assertStringContainsString($podpis, $html);
         }
     }

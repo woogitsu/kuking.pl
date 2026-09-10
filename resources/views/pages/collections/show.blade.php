@@ -4,7 +4,7 @@
 
         To jest jedyna czynność, którą naprawdę robi się Z TEGO ekranu —
         przejście do drugiego zeszytu wymagało do tej pory cofnięcia się
-        na „Moje". Kontroler oddaje tu wyłącznie zeszyty, które oglądający
+        na „Zeszyt". Kontroler oddaje tu wyłącznie zeszyty, które oglądający
         ma prawo otworzyć (`CollectionController::show()`); widok niczego
         nie filtruje sam.
 

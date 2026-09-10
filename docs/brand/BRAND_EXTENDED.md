@@ -27,6 +27,14 @@ Test kontrolny dla każdego napisu: *czy Basia (61) przeczyta to raz i będzie w
 | Wyszukiwanie | **Szukaj** | „Explore", „Odkrywaj", „Discover" | — |
 | Konto | **Konto** | „ustawienia profilu twórcy" | — |
 
+> **Uwaga do wiersza „Moje rzeczy" (dopisane 10 września 2026, D-073).**
+> „Moje" znaczy MOJE TREŚCI — to, co ja opublikowałem. **Nie jest** drugą
+> nazwą Zeszytu i nie wolno go używać jako podpisu pozycji nawigacji
+> prowadzącej do `/zeszyt`: tam leżą CUDZE przepisy i wpisy, które sobie
+> odłożyłem. Dokładnie ta pomyłka stała w pasku nawigacji od kitu v2 i dała
+> serwisowi dwie nazwy jednej funkcji — patrz `../DECISIONS.md` D-073
+> i słownik produktu w `COPY_STYLE.md` §1.1.
+
 ### 1.2 Akcje (etykiety przycisków)
 
 | Akcja | Etykieta | Nigdy |

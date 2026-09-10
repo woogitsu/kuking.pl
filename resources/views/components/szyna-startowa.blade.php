@@ -4,7 +4,7 @@
     Prawa szyna strony startowej (UI kit v2, ekran 01).
 
     TRZY BLOKI I KAŻDY ODPOWIADA NA INNE PYTANIE
-      „Mój zeszyt"          — co ja tu odłożyłem na potem;
+      „Twój zeszyt"         — co ja tu odłożyłem na potem;
       „kuKINGi na dziś"     — co dziś warto zobaczyć;
       „Poznaj ludzi"        — kogo zacząć obserwować.
 
@@ -15,15 +15,21 @@
     zajmować główną kolumnę, ale nie znika.
 
     NA TELEFONIE SZYNA JEST POD TREŚCIĄ, nie znika — patrz `.app-rail`.
-    Ukrycie „Mojego zeszytu" na telefonie znaczyłoby, że połowa ludzi nie ma
+    Ukrycie Zeszytu na telefonie znaczyłoby, że połowa ludzi nie ma
     do niego dojścia ze strony startowej.
+
+    NAGŁÓWEK BLOKU BRZMI „TWÓJ ZESZYT", NIE „MÓJ ZESZYT" (D-073). Dwie
+    rzeczy naraz: nazwa funkcji jest jedna w całym serwisie („Zeszyt" —
+    AGENTS.md §5, `docs/brand/BRAND_EXTENDED.md` §1.1), a zwracamy się
+    do człowieka przez „Ty", nie mówimy o sobie w jego imieniu
+    (`docs/brand/COPY_STYLE.md` §2). „Mój zeszyt" łamało oba naraz.
 --}}
 
 @if($zeszyt !== null && $zeszyt->isNotEmpty())
     <section class="card szyna-blok" aria-labelledby="szyna-zeszyt">
         <div class="szyna-naglowek">
             <h2 id="szyna-zeszyt" class="szyna-tytul">
-                <x-ikona nazwa="book" :rozmiar="22" /> Mój zeszyt
+                <x-ikona nazwa="book" :rozmiar="22" /> Twój zeszyt
             </h2>
             <a class="szyna-wiecej" href="{{ route('collections.index') }}">Zobacz wszystko</a>
         </div>

@@ -40,7 +40,7 @@ class TrybPaneluWMenuTest extends TestCase
     use RefreshDatabase;
 
     /** Pozycje menu przeznaczone dla użytkownika — w trybie panelu nie ma ich wcale. */
-    private const POZYCJE_UZYTKOWNIKA = ['Start', 'Szukaj', 'Dodaj', 'Moje', 'Profil'];
+    private const POZYCJE_UZYTKOWNIKA = ['Start', 'Szukaj', 'Dodaj', 'Zeszyt', 'Profil'];
 
     /** Ekrany panelu — ten sam spis co w `PanelModeracjiWMenuTest`. */
     private const POZYCJE_PANELU = [

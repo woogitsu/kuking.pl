@@ -109,7 +109,7 @@ class SzynaBezWachlarzaZapytanTest extends TestCase
     }
 
     /**
-     * „Moje" (`/zeszyt`): szyna wypisuje pięć rzeczy odłożonych ostatnio.
+     * „Zeszyt" (`/zeszyt`): szyna wypisuje pięć rzeczy odłożonych ostatnio.
      *
      * Rośnie liczba zeszytów I liczba rzeczy w nich — czyli dokładnie to,
      * co rośnie u człowieka korzystającego z serwisu przez rok.
@@ -139,7 +139,7 @@ class SzynaBezWachlarzaZapytanTest extends TestCase
         $this->assertSame(
             $maloZapytan,
             $duzoZapytan,
-            "Szyna „Moje”: {$maloZapytan} zapytań przy 2 odłożonych rzeczach, {$duzoZapytan} przy 30.",
+            "Szyna „Zeszyt”: {$maloZapytan} zapytań przy 2 odłożonych rzeczach, {$duzoZapytan} przy 30.",
         );
     }
 

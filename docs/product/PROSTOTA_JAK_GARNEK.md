@@ -265,7 +265,7 @@ karty wpisów w sekcji „Świeżo z Kuking” na `/` dla gościa.
 **7. Fotofora jako pełnoprawna, widoczna z góry ścieżka odkrywania —
 nie tylko strona docelowa.** Dziś tag jest „miejscem, do którego trafiasz”,
 nigdy „miejscem, od którego zaczynasz” — bo w piątce głównej nawigacji
-(`Start | Szukaj | Dodaj | Moje | Profil`, twardy limit z
+(`Start | Szukaj | Dodaj | Zeszyt | Profil`, twardy limit z
 `docs/UX_50_PLUS.md`) nie ma miejsca na szósty punkt „Tematy”. Żeby zrobić
 z tagów prawdziwy odpowiednik Garnkowej belki, trzeba by albo zastąpić jedną
 z pięciu pozycji, albo wbudować tematy w istniejącą (np. rozszerzyć „Szukaj”

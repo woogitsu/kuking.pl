@@ -20,7 +20,7 @@ use Tests\TestCase;
  * pokazywało, gdzie jest użytkownik — mimo że wciąż jest w tym samym miejscu
  * serwisu, do którego przyszedł kliknięciem „Dodaj".
  *
- * Pozycja „Moje" ma dokładnie ten sam kształt trasy (jeden punkt wejścia,
+ * Pozycja „Zeszyt" ma dokładnie ten sam kształt trasy (jeden punkt wejścia,
  * kilka podstron) i od dawna używa dopasowania przez wzorzec
  * (`request()->routeIs('collections.*')`) — „Dodaj" był tu jedynym
  * wyjątkiem, nie świadomą decyzją.
@@ -141,7 +141,7 @@ class NawigacjaAktywnaPozycjaTest extends TestCase
         $oczekiwane = [
             '/home' => 'Start',
             '/szukaj' => 'Szukaj',
-            '/zeszyt' => 'Moje',
+            '/zeszyt' => 'Zeszyt',
             '/@'.$uzytkownik->profile->username => 'Profil',
         ];
 

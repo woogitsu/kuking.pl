@@ -281,7 +281,7 @@ Kolejność elementów wpisu:
 
 Najbardziej użyteczne elementy:
 
-- Mój zeszyt;
+- „Twój zeszyt" (nagłówek bloku — nie „Mój zeszyt": D-073);
 - inspirujący ludzie;
 - ewentualnie sezonowe inspiracje.
 
@@ -293,7 +293,9 @@ Nie wkładać tam reklam/boxów w MVP, jeśli niszczą spokój layoutu.
 
 Stała dolna nawigacja ma dokładnie 5 pozycji:
 
-**Start · Szukaj · Dodaj · Moje · Profil**
+**Start · Szukaj · Dodaj · Zeszyt · Profil**
+
+(Czwarta pozycja: „Zeszyt", nie „Moje" — `../../DECISIONS.md` **D-073**.)
 
 `Dodaj` jest wizualnie najmocniejszą akcją.  
 Topbar jest prosty: logo / tytuł + powiadomienia lub akcja kontekstowa.

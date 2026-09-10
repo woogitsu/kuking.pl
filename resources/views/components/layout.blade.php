@@ -51,7 +51,7 @@
     // zostaje bieżącą pozycją przez CAŁY proces dodawania, nie tylko na
     // ekranie wyboru. `/dodaj` to pierwszy krok; wybór zdjęcia i kreator
     // przepisu (obie odmiany) to jego dalszy ciąg pod własnymi trasami —
-    // dokładnie ten sam kształt co „Moje" (`collections.*`), które od dawna
+    // dokładnie ten sam kształt co „Zeszyt" (`collections.*`), który od dawna
     // dopasowuje się przez wzorzec. Bez tego menu przestawało pokazywać,
     // gdzie jest użytkownik, w chwili gdy naprawdę coś dodawał.
     $naDodaj = request()->routeIs(['add', 'posts.create', 'recipes.create*']);
@@ -391,7 +391,14 @@
                             <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
                             <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
                             <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
-                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
+                            {{-- „Zeszyt", nie „Moje" (D-073). Jedna rzecz ma
+                                 mieć jedną nazwę: tak mówi AGENTS.md §5 i §11,
+                                 `docs/brand/BRAND_EXTENDED.md` §1.1, tak nazywa
+                                 to skrót w manifeście PWA i tak brzmi nagłówek
+                                 samego ekranu. „Moje" przyszło z kitu v2
+                                 i zostało tu jedynym miejscem, które mówiło
+                                 inaczej niż cała reszta serwisu. --}}
+                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Zeszyt</a></li>
                             <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
                         </ul>
                     @endif
@@ -926,7 +933,7 @@
             {{--
                 TELEFON W TRYBIE PANELU — PASEK DOLNY MA JEDNO ZADANIE: WYJŚCIE.
 
-                Zwykła piątka (Start, Szukaj, Dodaj, Moje, Profil) to dokładnie
+                Zwykła piątka (Start, Szukaj, Dodaj, Zeszyt, Profil) to dokładnie
                 te przyciski, których w tym trybie ma nie być — zostawienie ich
                 na telefonie znaczyłoby, że prośba właściciela jest spełniona
                 tylko na dużym ekranie.
@@ -963,7 +970,7 @@
                 <span class="bottom-nav-kolko"><x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /></span> Dodaj
             </a>
             <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>
-                <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Moje
+                <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Zeszyt
             </a>
             <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>
                 <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil

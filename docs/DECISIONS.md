@@ -4903,3 +4903,125 @@ issue #21
 [^4]: [spatie/laravel-activitylog — README](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — jedna tabela `activity_log`, kolumny `subject_id`/`subject_type`, `causer_id`/`causer_type`, `description`, `properties`, `event`.
 [^5]: `spatie/laravel-activitylog` dokumentacja, sekcja „Log Options" (`docs/advanced-usage/log-options.md` w repozytorium pakietu) — `logOnly()`/`logExcept()`/`dontLogEmptyChanges()`.
 [^6]: [spatie/laravel-activitylog — README, sekcja „Clean log"](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — komenda `activitylog:clean`, kasuje wpisy starsze niż skonfigurowana liczba dni, bez pojęcia kategorii wyłączonych z kasowania.
+
+---
+
+## D-073 · Ta rzecz nazywa się „Zeszyt" — wszędzie, także w manifeście PWA; a PWA nie wymusza orientacji
+
+**Data:** 10 września 2026 · **Decyzja agenta na podstawie dokumentów już
+obowiązujących** · Status: **obowiązuje, wdrożona 10 września**
+
+Dwie rzeczy z audytu SEO/PWA z 10 września
+(`docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md`, znaleziska
+SEO/PWA-01 i SEO/PWA-05). Trzecie znalezisko z tej samej trójki (SEO/PWA-02,
+mapa strony gubiąca autorów samych przepisów) nie jest decyzją i nie ma tu
+wpisu — to zwykły błąd, poprawiony razem z testem regresyjnym.
+
+### 1. Manifest nie wymusza orientacji: `"orientation": "any"`
+
+`public/manifest.webmanifest` miał `"orientation": "portrait-primary"`. Po
+zainstalowaniu aplikacji system operacyjny obracał ją w pion i tam trzymał.
+**Żadna funkcja Kuking nie wymaga pionu** — nie ma tu gry, pianina ani
+skanera kodów — więc wyjątek z WCAG 2.2 §1.3.4 Orientation (AA), dopuszczający
+wymuszenie orientacji tam, gdzie jest ona NIEZBĘDNA, nas nie dotyczy.
+
+Dlaczego to boli akurat u nas: najbardziej realny sprzęt w grupie 50–75 to
+tablet postawiony **poziomo** na podstawce przy blacie, bo tak się z niego
+czyta przepis podczas gotowania. Ta osoba dostawała aplikację obróconą wbrew
+sposobowi, w jaki jej używa.
+
+**Wybrano `"orientation": "any"`, a nie usunięcie pola** — choć skutek dla
+przeglądarki jest ten sam. Powód jest jeden i jest o ludziach, nie o normie:
+manifest to JSON, więc **nie da się w nim postawić komentarza**. Puste
+miejsce po usuniętym polu wygląda jak przeoczenie i ktoś kiedyś „uzupełni" je
+z powrotem pionem, bo tak wygląda większość manifestów w internecie. Jawne
+`any` mówi w samym pliku, że orientacja jest tu odblokowana **świadomie**.
+
+Sam napis by nie wystarczył, więc jest do tego test na TREŚCI manifestu —
+`tests/Feature/ManifestPwaTest.php`. Test czyta plik, a nie odpowiedź HTTP,
+bo ta wada w przeglądarce nie istnieje: widać ją dopiero po instalacji
+aplikacji. Żaden przebieg przez `$this->get()` ani ręczne klikanie po
+serwisie by jej nie złapało — dlatego przeżyła do audytu.
+
+### 2. Nazwa jest jedna: „Zeszyt"
+
+Manifest miał skrót `"name": "Mój zeszyt"` / `"short_name": "Zeszyt"`, a
+nawigacja główna mówiła **„Moje"**. Po instalacji człowiek widział więc dwie
+nazwy tej samej rzeczy: jedną od systemu operacyjnego, drugą w serwisie, do
+którego ta pierwsza prowadzi.
+
+**Nazwa nie była do wyboru — była już ustalona i to nawigacja była tym
+miejscem, które mówiło inaczej niż cała reszta.** To jest odwrotnie, niż
+sugerował audyt (i niż sugerowało zlecenie tej pracy, które zakładało, że
+niezgodny jest manifest):
+
+| Źródło | Co mówi |
+|---|---|
+| `AGENTS.md` §5 | `Start \| Szukaj \| Dodaj \| Zeszyt \| Profil` |
+| `AGENTS.md` §11 | „mówimy […] «Zeszyt»" |
+| `docs/brand/BRAND_EXTENDED.md` §1.1 | „Zbiór zapisanych przepisów → **Zeszyt**", z uzasadnieniem: „najmocniejsze słowo, jakie ma ten produkt: dokładnie tam ludzie 50+ trzymają przepisy dzisiaj" |
+| `docs/brand/COPY_STYLE.md` (wiążący dla każdego napisu) | pusty stan: „Zeszyt jest jeszcze pusty" |
+| `docs/INSPIRATION_DECISIONS.md` | „«Zeszyt» jest jedną z pięciu pozycji nawigacji" |
+| `public/manifest.webmanifest` | skrót do `/zeszyt` |
+| sam ekran `/zeszyt` | tytuł „Zeszyt", nagłówek „Twój zeszyt" |
+
+Za „Moje" stały dwa dokumenty i oba wywodzą się z jednego źródła — UI kitu v2:
+`docs/design/DESIGN_SYSTEM.md` §5 i `docs/UX_50_PLUS.md`. A o tym, co robić
+w takim sporze, kit rozstrzyga sam:
+`docs/design/STAN_WDROZENIA_KITU.md` mówi, że **kit przegrywa z COPY_STYLE za
+każdym razem, gdy się różnią, i nie jest to wyjątek, tylko reguła**.
+
+Zgodnie z **D-038** rozjazd rozstrzyga się od strony faktu: faktem jest tu
+obietnica z dokumentu wiążącego, więc poprawiamy kod i te dwa dokumenty
+UX/designu, nie odwrotnie.
+
+To zamyka **C-04** z `docs/AUDYT_2026-09.md` („Zeszyt czy Moje") — pytanie
+leżało otwarte od 8 września, a przez ten czas rozjazd rozmnożył się na
+manifest, szynę startową i cztery pliki testów.
+
+**Dlaczego „Moje" nie jest tu tylko krótsze, ale wprost nieprawdziwe:**
+`BRAND_EXTENDED.md` §1.1 ma osobny wiersz „Moje rzeczy → **Moje**", czyli
+MOJE TREŚCI — to, co ja opublikowałem. A `/zeszyt` trzyma coś przeciwnego:
+CUDZE przepisy i wpisy, które sobie odłożyłem. „Moje" nad ekranem pełnym
+przepisów Haliny nie jest synonimem „Zeszytu", tylko drugą nazwą wskazującą
+na inną rzecz.
+
+**Co się zmieniło w napisach:** pozycja nawigacji (pasek dolny i menu boczne)
+„Moje" → „Zeszyt"; skrót w manifeście „Mój zeszyt" → „Zeszyt" (opis skrótu
+„Zapisane przepisy" → „Przepisy i wpisy odłożone na potem", bo od **D-031**
+Zeszyt przyjmuje też wpisy); nagłówek bloku na Starcie „Mój zeszyt" → „Twój
+zeszyt", bo do człowieka zwracamy się przez „Ty" (`COPY_STYLE.md` §2), a nie
+mówimy o sobie w jego imieniu. **Adres `/zeszyt` bez zmiany** — URL nie jest
+tekstem dla użytkownika.
+
+**Mechanizm przeciw trzeciemu synonimowi:** `docs/brand/COPY_STYLE.md` dostaje
+krótką tabelkę słownika produktu (pojęcie wewnętrzne → jedyna nazwa dla
+użytkownika), a `ManifestPwaTest` porównuje nazwę skrótu w manifeście
+z podpisem odnośnika w obu paskach nawigacji. Rozjazd oblewa się teraz w CI,
+zamiast czekać na audyt. Ten sam wzorzec — jedno źródło i test przy nim —
+zadziałał u nas przy odmianie liczebników (`App\Support\Odmiana`).
+
+### Czego ta decyzja NIE rozstrzyga
+
+**Pojedyncza kolekcja też nazywa się „zeszyt".** Ekran „Zeszyt" wypisuje
+„zeszyty" („Załóż nowy zeszyt", „Twoje inne zeszyty"), więc pojemnik i rzeczy
+w środku noszą jedną nazwę w dwóch znaczeniach. Ta dwuznaczność istniała
+przed tą decyzją (nagłówek „Twój zeszyt" nad listą zeszytów) i tą zmianą ani
+się nie pogłębia, ani nie znika. `BRAND_EXTENDED.md` §1.1 ma na to gotowy
+kandydat — **„półka"** („Zeszyt → półka Zupy"), z adnotacją `[do
+weryfikacji]`. Przemianowanie pojedynczej kolekcji dotyka nazw w bazie,
+formularzy i pomocy, więc jest osobną pracą i osobnym issue, nie przypadkiem
+przy okazji poprawki manifestu.
+
+**Zmiana wymaga:** dla orientacji — funkcji, która realnie wymaga pionu
+(nie ma takiej w planach, patrz `docs/ROADMAP.md`); dla nazwy — decyzji
+właściciela zmieniającej `AGENTS.md` §5 i §11 razem z `BRAND_EXTENDED.md`
+§1.1, bo nazwa stoi dziś w trzech dokumentach wiążących naraz.
+
+📄 `public/manifest.webmanifest` · `resources/views/components/layout.blade.php` ·
+`resources/views/components/szyna-startowa.blade.php` ·
+`docs/brand/COPY_STYLE.md` (słownik produktu) ·
+`docs/UX_50_PLUS.md` · `docs/design/DESIGN_SYSTEM.md` ·
+`tests/Feature/ManifestPwaTest.php` ·
+`docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` (SEO/PWA-01, -05) ·
+D-031 · D-038 · C-04 w `docs/AUDYT_2026-09.md`

@@ -47,7 +47,7 @@ class CollectionController extends Controller
     }
 
     /**
-     * Pięć rzeczy odłożonych ostatnio — prawa szyna ekranu „Moje" (issue #205).
+     * Pięć rzeczy odłożonych ostatnio — prawa szyna ekranu „Zeszyt" (issue #205).
      *
      * PO CO TO JEST
      * Główna kolumna wypisuje ZESZYTY, a człowiek wchodzi tu najczęściej po
@@ -209,7 +209,7 @@ class CollectionController extends Controller
             // PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
             //
             // Zeszyt jest jednym z kilku pojemników i wejście do drugiego
-            // wymagało do tej pory cofnięcia się na „Moje". To jest jedyna
+            // wymagało do tej pory cofnięcia się na „Zeszyt". To jest jedyna
             // czynność, którą naprawdę robi się Z TEGO ekranu — dlatego
             // szyna dostaje ją, a nie kartę „po co jest zeszyt".
             //

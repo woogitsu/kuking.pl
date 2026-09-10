@@ -83,9 +83,29 @@ class SitemapController extends Controller
             // strony nie ogłasza (patrz nagłówek tego pliku: „Puste profile
             // to cienka treść"). Treści tej osoby zostają w mapie osobno,
             // wyżej — bo tam granicą jest autorstwo, nie osoba.
+            //
+            // „CO NAJMNIEJ JEDNA PUBLICZNA TREŚĆ" ZNACZY WPIS **ALBO**
+            // PRZEPIS (audyt SEO/PWA-02). Do 10 września ten warunek pytał
+            // wyłącznie o `user.posts`, choć nagłówek tego pliku obiecywał
+            // „co najmniej jedną publiczną treść", a `docs/seo/SEO_TECHNICAL.md`
+            // §3 — „profil z ≥1 publiczną treścią". Autorka, która przepisała
+            // do Kuking dziesięć przepisów po babci i ani razu nie dodała
+            // zwykłego wpisu, wypadała więc z mapy strony — mimo że jej
+            // profil jest dokładnie tym, po co ta mapa istnieje. Kod nie
+            // robił tego, co mówił jego własny komentarz.
+            //
+            // JEDNO ZAPYTANIE, DWA `EXISTS` — nie dwa przebiegi i nie pętla
+            // po profilach. `orWhereHas` w domknięciu daje `... AND (EXISTS
+            // (wpisy) OR EXISTS (przepisy))`; nawias jest tu konieczny, bo
+            // bez niego `OR` rozerwałby warunek `widocznyJakoOsoba()`
+            // i mapa zaczęłaby ogłaszać profile kont zbanowanych.
             Profile::query()
                 ->whereHas('user', fn ($autor) => $autor->widocznyJakoOsoba())
-                ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
+                ->where(function ($maPubliczneTresci): void {
+                    $maPubliczneTresci
+                        ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
+                        ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible());
+                })
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {
                     foreach ($profiles as $profile) {

@@ -43,7 +43,7 @@ mówi wprost: nazwy z repozytorium są źródłem prawdy.
 |---|---|---|
 | pole wyszukiwania w belce | **jest**, na środku, pełna szerokość | brak — wyszukiwarka tylko w lewej nawigacji |
 | awatar w belce | jest, z rozwijanym menu | brak |
-| lewa nawigacja | 5 pozycji: Start, Szukaj, Dodaj, **Moje**, Profil | 7 pozycji, inna kolejność, „Zeszyt" zamiast „Moje" |
+| lewa nawigacja | 5 pozycji: Start, Szukaj, Dodaj, **Moje**, Profil | 7 pozycji, inna kolejność, „Zeszyt" — i **to aplikacja ma rację** (D-073: kit przegrywa z `COPY_STYLE.md`) |
 | Powiadomienia i Ustawienia | **na dole** lewej kolumny, oddzielone | w jednym ciągu z resztą |
 | prawa szyna | **„Mój zeszyt"** (3 zapisane przepisy z miniaturami) + **„Poznaj inspirujących ludzi"** | **brak — układ jednokolumnowy** |
 | zakładki feedu | **„Obserwowani / Odkrywaj"** z podkreśleniem | brak; zamiast tego notka tekstowa |
@@ -55,7 +55,7 @@ mówi wprost: nazwy z repozytorium są źródłem prawdy.
 | element | kit | aplikacja |
 |---|---|---|
 | dolna nawigacja | 5 pozycji z **dużym okrągłym „+" na środku** | 5 równych pozycji, bez wyróżnionego środka |
-| podpisy | Start, Szukaj, **Dodaj (w kółku)**, Moje, Profil | Start, Szukaj, Dodaj, Zeszyt, Profil |
+| podpisy | Start, Szukaj, **Dodaj (w kółku)**, Moje, Profil | Start, Szukaj, Dodaj, Zeszyt, Profil — **nazwa z aplikacji zostaje** (D-073) |
 
 ### Karta wpisu
 

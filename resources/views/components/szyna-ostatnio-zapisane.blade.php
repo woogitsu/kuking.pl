@@ -1,7 +1,7 @@
 @props(['pozycje'])
 
 {{--
-    „Ostatnio odłożone" — prawa szyna ekranu „Moje" (`/zeszyt`, issue #205).
+    „Ostatnio odłożone" — prawa szyna ekranu „Zeszyt" (`/zeszyt`, issue #205).
 
     DLACZEGO AKURAT TO
     Główna kolumna wypisuje ZESZYTY, a człowiek przychodzi tu po jedną

@@ -22,6 +22,46 @@ Test, który przechodzi każdy nasz tekst:
 Jeśli tekst brzmi jak reklama, jak aplikacja do medytacji albo jak wnuczek
 tłumaczący coś babci — do przepisania.
 
+### 1.1 Słownik produktu — jedna rzecz, jedna nazwa
+
+Ta tabelka istnieje po to, żeby następny ekran nie wymyślił trzeciego
+synonimu. Powód jest konkretny i już nas kosztował: skrót w manifeście PWA
+mówił „Mój zeszyt", nawigacja „Moje", a po instalacji aplikacji człowiek
+widział obie nazwy tej samej rzeczy — jedną od systemu operacyjnego, drugą
+w serwisie (audyt SEO/PWA-05, rozstrzygnięte w `../DECISIONS.md` **D-073**).
+
+**Lewa kolumna to język kodu i bazy — on się nie zmienia i nie wchodzi do
+interfejsu. Prawa to jedyna nazwa, jaką widzi człowiek.**
+
+| Pojęcie wewnętrzne (kod, baza, dokumentacja techniczna) | Jedyna nazwa dla użytkownika | Nigdy |
+|---|---|---|
+| `Post` | **wpis** | „post", „publikacja", „content", „relacja" |
+| `Recipe` | **przepis** | „receptura", „karta przepisu" |
+| `CookedEvent` | **Ugotowałem** (z wielkiej litery, bez cudzysłowu) | „review", „ocena", „recenzja", „wypróbowałem" |
+| `Follow` | **Obserwuj** / **Obserwujesz** | „Follow", „Subskrybuj", „Dodaj do znajomych" |
+| `Collection`, trasa `/zeszyt` | **Zeszyt** | „Moje", „Mój zeszyt", „kolekcja", „biblioteka", „ulubione", „zapisane" |
+
+Zasada jest mocniejsza, niż wygląda: **nazwa funkcji jest jedna i nie ma
+synonimów** (`BRAND_EXTENDED.md` §3). Jeśli w jednym miejscu stoi „Zeszyt",
+to nigdzie nie stoi „Moje" — także w manifeście PWA, w temacie e-maila
+i w pomocy. Nazw klas, tabel i tras to nie dotyczy: `/zeszyt` zostaje
+`/zeszyt`, `collections` zostaje `collections`.
+
+Odmiana i zaimki są dozwolone, bo to nadal ta sama nazwa: „Twój zeszyt",
+„w zeszycie". Zmiana SŁOWA nie jest. I zwracamy się przez „Ty", nie przez
+„Mój" — nagłówek brzmi „Twój zeszyt", nigdy „Mój zeszyt" (patrz §2).
+
+> **Jedna rzecz w tej tabelce jest nierozstrzygnięta i nie rozstrzyga jej
+> D-073.** `BRAND_EXTENDED.md` §1.1 podaje dla `Post` nazwę **„danie"
+> w interfejsie**, a „wpis" tylko jako słowo dokumentacji. Produkt mówi
+> „wpis" od początku (ponad trzysta wystąpień w widokach, przeciw
+> kilkunastu „daniom" — i to w innym znaczeniu: „Zdjęcie gotowego dania"),
+> a gotowe teksty w §6 tego pliku też mówią „wpis". Do decyzji właściciela:
+> albo `BRAND_EXTENDED.md` §1.1 dogania produkt, albo produkt zmienia
+> trzysta napisów. Do tego czasu obowiązuje stan faktyczny: **wpis**.
+
+---
+
 ---
 
 ## 2. kuKING — najważniejsza decyzja w całym systemie

@@ -67,7 +67,7 @@ Rekomendowana kolejność:
 - [ ] `PostCard` zgodny z `01` i `05`;
 - [ ] composer „Co dziś gotujesz?”;
 - [ ] `Ugotowałem` jako główna akcja;
-- [ ] „Mój zeszyt”;
+- [ ] „Twój zeszyt” (nie „Mój zeszyt” — D-073);
 - [ ] responsive feed.
 
 ### Etap C — przepisy

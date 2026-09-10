@@ -9,7 +9,7 @@
 
     CAŁY WIERSZ JEST CELEM DOTKNIĘCIA, nie sam napis: `.szyna-pozycja-link`
     ma `min-height: var(--control-height-min)` (48 px) i wcięcie dookoła.
-    To jest ta sama klasa, którą od kitu v2 ma „Mój zeszyt" na Starcie —
+    To jest ta sama klasa, którą od kitu v2 ma „Twój zeszyt" na Starcie —
     dlatego ten komponent nie dokłada ani jednej reguły CSS.
 
     IKONY TU NIE MA CELOWO. W szynie stoi kilka takich list obok siebie

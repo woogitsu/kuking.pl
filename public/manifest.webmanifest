@@ -7,7 +7,7 @@
   "start_url": "/home",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "background_color": "#FAF6F0",
   "theme_color": "#B3401F",
   "categories": ["food", "social", "lifestyle"],
@@ -51,9 +51,9 @@
       "url": "/dodaj/zdjecie"
     },
     {
-      "name": "Mój zeszyt",
+      "name": "Zeszyt",
       "short_name": "Zeszyt",
-      "description": "Zapisane przepisy",
+      "description": "Przepisy i wpisy odłożone na potem",
       "url": "/zeszyt"
     }
   ]

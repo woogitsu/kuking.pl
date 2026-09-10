@@ -295,7 +295,7 @@ Układ nadrzędny. Mobile: `TopBar` (sticky) + treść + `BottomNav` (sticky dó
 Logo/wordmark „KUKING” (link do `/home`), na mobile menu ukryte (zastąpione `BottomNav`), na desktop pozioma nawigacja. Sticky, `border-bottom` `--color-border`. Wysokość min. 64px.
 
 ### `BottomNav`
-Dokładnie 5 pozycji, stałe, zawsze te same, zawsze z tekstem pod ikoną: **Start | Szukaj | Dodaj | Moje | Profil**. `Dodaj` wizualnie wyróżniony (kolor brand) jako główna akcja produktu. `aria-current="page"` na aktywnej pozycji. Fixed bottom, `role="navigation"` + `aria-label="Dolna nawigacja"`. Wysokość elementu klikalnego min. 60px (spełnia 48px+ z zapasem).
+Dokładnie 5 pozycji, stałe, zawsze te same, zawsze z tekstem pod ikoną: **Start | Szukaj | Dodaj | Zeszyt | Profil**. (Czwarta pozycja: „Zeszyt", nie „Moje" — `../DECISIONS.md` **D-073**; kit v2 przegrywa tu z `COPY_STYLE.md`, tak jak wszędzie, gdzie się różnią.) `Dodaj` wizualnie wyróżniony (kolor brand) jako główna akcja produktu. `aria-current="page"` na aktywnej pozycji. Fixed bottom, `role="navigation"` + `aria-label="Dolna nawigacja"`. Wysokość elementu klikalnego min. 60px (spełnia 48px+ z zapasem).
 
 ### `SideNav` (desktop)
 Pionowy odpowiednik `BottomNav` + dodatkowe pozycje (Powiadomienia, Kolekcje, Ustawienia). Te same etykiety tekstowe co mobile — spójność mentalnego modelu.
