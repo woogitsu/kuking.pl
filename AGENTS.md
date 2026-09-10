@@ -491,3 +491,12 @@ Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
 algorytmiczny feed, masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
+
+**Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**
+pod wpisem — decyzja właściciela **D-081** (`docs/DECISIONS.md`, issue #275).
+To NIE jest licznik lajków ani ranking: autor widzi liczbę od pierwszej osoby,
+ktokolwiek inny od trzeciej, liczba nigdzie nie sortuje, nie promuje i nie
+tworzy zestawień, a na tablicy „kuKINGi na dziś", w wyszukiwarce i na stronie
+powitalnej jej celowo nie ma. Zanim tę liczbę gdziekolwiek dołożysz, przeniesiesz
+albo użyjesz do porządkowania treści — przeczytaj D-081, bo granice są tam
+wypisane wprost i ich przesunięcie wymaga osobnej decyzji właściciela.
