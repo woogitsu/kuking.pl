@@ -1725,10 +1725,23 @@ Sygnały produktowe (issue #115), migracja
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
-od tygodniowego podsumowania: `weekly_digest_sent` i
+od tygodniowego podsumowania: `weekly_digest_queued` i
 `weekly_digest_unsubscribed` (issue #11, D-057; migracja
 `2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
+(audyt MAIL-03, **D-078**, migracja
+`2026_09_10_400000_rename_weekly_digest_sent_signal`). Wiersz powstaje zaraz
+po `Mail::queue()`, więc stara nazwa sklejała w jedno trzy różne zdarzenia —
+ZAKOLEJKOWANO, DOSTAWCA PRZYJĄŁ, DORĘCZONO — a Kuking widzi tylko pierwsze.
+Skutek był mierzalny: list, który przewracał się w workerze i lądował
+w `failed_jobs`, i tak liczył się jako wysłany, czyli metryka zawyżała
+skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka nie działała.
+Migracja **przepisuje** stare wiersze (`UPDATE`, nie `DELETE`) i nie zostawia
+w bazie dwóch nazw na jedno zdarzenie; nic w kodzie nie czytało starej nazwy,
+więc nie było panelu do zepsucia. `down()` przepisuje symetrycznie
+z powrotem.
 
 **Zbiór nazw rośnie o nazwy WYMIENIONE Z IMIENIA, jedna decyzja na jedną
 nazwę.** CHECK nie jest formalnością: zamknięta lista jest drugą linią
@@ -1747,7 +1760,17 @@ transport ma nawet wyłącznik śledzenia po stronie dostawcy
 (`X-TRACKING-OFF`, `App\Poczta\TransportEmailLabs`) — domyślnie włączony.
 Do jedynego progu, po którym coś robimy („wypisy > 1% na wysyłkę",
 `docs/product/RETENTION_LOOPS.md` §6 wiersz 5), wystarcza para
-wysłane/wypisane.
+zakolejkowane/wypisane.
+
+**Nie ma też `weekly_digest_delivered`** i to jest ta sama decyzja, nie
+przeoczenie: doręczenie wymagałoby webhooka o odbiciach od dostawcy, którego
+nie mamy (`docs/decyzje/POCZTA.md` §5 pkt 6). Zamknięty zbiór nazw pilnuje
+tego również jako TEST: `SygnalDigestuMowiZakolejkowanoTest::
+test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia` czyta CHECK
+wprost z `pg_constraint` i oblewa się, gdy w słowniku pojawi się nazwa
+mówiąca „doręczono", „otwarto" albo „kliknięto". Gdy prawdziwy webhook kiedyś
+powstanie, zdejmuje się `delivered` z tamtej listy JAWNIE, jedną decyzją —
+śledzenia otwarć i kliknięć nie zdejmuje się wcale.
 
 `docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
 i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
@@ -1766,9 +1789,9 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_sent` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
-| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_sent`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
-| `occurred_at` | `timestamptz`, `useCurrent()`. Dla `weekly_digest_sent` czytany też JAKO LICZNIK: komenda wysyłkowa liczy wiersze z bieżącej doby, żeby nie przekroczyć dobowego limitu poczty (D-057). |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 
 #### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
 

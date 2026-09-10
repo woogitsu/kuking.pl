@@ -3766,8 +3766,10 @@ podstawie, jak zgodę wycofać i że nie sprawdzamy otwarć ani kliknięć.
 ### 6. Zdarzenia analityczne: dwa z czterech
 
 Issue #11 wymieniało cztery: wysłany, otwarty, kliknięty, wypisany. Wdrożone
-są **`weekly_digest_sent` i `weekly_digest_unsubscribed`** (`product_signals`,
-zbiór nazw rozszerzony migracją, nie zdjęciem CHECK-a).
+są **`weekly_digest_queued` i `weekly_digest_unsubscribed`** (`product_signals`,
+zbiór nazw rozszerzony migracją, nie zdjęciem CHECK-a). Pierwszy nazywał się
+do 10 września `weekly_digest_sent` — przemianowany przy **D-078**, bo
+powstaje zaraz po `Mail::queue()` i nie wie nic o doręczeniu.
 
 „Otwarty" wymaga niewidzialnego obrazka śledzącego w treści listu,
 „kliknięty" — podmiany każdego odnośnika na przekierowanie przez nasz serwer.
@@ -4896,6 +4898,103 @@ pisanie kodu na `main`; dla (3) — nic przewidzianego, próg nie istnieje.
 `tests/Feature/NadanieRoliTest.php` ·
 `docs/research/PAKIETY.md` · `docs/INSPIRATION_DECISIONS.md` §10 ·
 issue #21
+
+---
+
+## D-078 · Sygnał digestu mówi „zakolejkowano", nie „wysłano"
+
+**Data:** 10 września 2026 · **Audyt drugiej warstwy z 10.09.2026, ustalenie
+MAIL-03 (P2)** · Status: **obowiązuje**
+
+**Stan sprzed zmiany, sprawdzony w pliku:**
+`WyslijPodsumowaniaTygodnia::handle()` zapisywał sygnał
+`ZapiszSygnal::WEEKLY_DIGEST_SENT` **jedną linijkę po `Mail::queue()`** —
+przed jakimkolwiek kontaktem workera z dostawcą poczty.
+
+Nazwa sklejała w jedno trzy różne zdarzenia: **zakolejkowano**, **dostawca
+przyjął**, **doręczono**. Kuking ma prawdziwy sygnał tylko o pierwszym.
+Skutek był mierzalny i przewrotny: list, który przewróci się w workerze
+i wyląduje w `failed_jobs`, **nadal był policzony jako wysłany** — czyli
+metryka zawyżała skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka
+przestawała działać. To jest ta sama klasa usterki co dryf dokumentacji
+(patrz `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`): liczba nie jest
+fałszywa przez pomyłkę w kodzie, tylko przez nazwę obiecującą więcej, niż kod
+może wiedzieć.
+
+**Nazwa jest angielska, `snake_case`** — `AGENTS.md` §11 mówi to wprost
+o zdarzeniach analitycznych, a pozostałe nazwy w tym zbiorze
+(`photo_upload_failed`, `search_performed`, `weekly_digest_unsubscribed`)
+trzymają tę konwencję. Polskie `zakolejkowano` wyłamywałoby jedną nazwę
+z ustalonego podziału (nazwy po angielsku, `properties` po polsku).
+
+### Migracja przepisująca stare wiersze, nie dwie nazwy przy odczycie
+
+To była jedyna realna decyzja w tej sprawie i rozstrzygnęło ją **sprawdzenie,
+kto tę nazwę czyta. Nikt.** Na `main` `weekly_digest_sent` znały wyłącznie:
+`ZapiszSygnal` (zapis), komenda wysyłkowa (zapis) i testy. `kuking:raport`
+liczy powroty z `users.ostatnio_widziany_at`, nie z `product_signals`; żaden
+ekran panelu nie sięga do `signal_name`; próg z `RETENTION_LOOPS.md` §6
+wiersz 5 (wypisy > 1% na wysyłkę) nie jest dziś liczony przez żaden kod.
+**Nie ma więc panelu, który po tej zmianie przestaje cokolwiek pokazywać** —
+i to jest powód, dla którego dwie nazwy przy odczycie byłyby kosztem bez
+korzyści: rozgałęziałyby każde przyszłe zapytanie, a pierwszy człowiek, który
+napisze `where('signal_name', 'weekly_digest_queued')` bez tej gałęzi,
+dostałby po cichu za małą liczbę.
+
+Migracja `2026_09_10_400000_rename_weekly_digest_sent_signal` robi więc trzy
+kroki w tej kolejności: poszerza CHECK o obie nazwy, przepisuje wiersze
+(`UPDATE`, nie `DELETE`), zwęża CHECK do nowej. Odwrotna kolejność odbiłaby
+`UPDATE` o ograniczenie, którego wiersze jeszcze nie spełniają. `down()` jest
+symetryczne i też nie kasuje wierszy — cofnięcie kodu przywraca kod, który
+tę nazwę zapisywał, a kasowanie telemetrii przy rollbacku byłoby karą za
+cofnięcie wdrożenia. Na produkcji takich wierszy jest prawdopodobnie zero
+(digest jest domyślnie wyłączony, D-057 §8), ale migracja tego nie zakłada.
+
+**Rollback:** `migrate:rollback` na tej jednej migracji. Wraca stara,
+nieprawdziwa nazwa — cofać razem z kodem, inaczej w tabeli mieszają się obie.
+
+### Czego świadomie NIE zrobiliśmy: `delivered` i `opened`
+
+Nie emitujemy ani jednego, ani drugiego, i **nie wracamy do pikseli
+śledzących, żeby mieć ładniejszą metrykę.** „Doręczono" wymaga webhooka
+o odbiciach od dostawcy — osobna, niezrobiona robota (`docs/decyzje/POCZTA.md`
+§5 pkt 6). „Otwarto" wymaga niewidzialnego obrazka w treści listu, czyli
+zapisywania, kiedy konkretna osoba czyta pocztę i z jakiego adresu IP.
+Polityka prywatności obiecuje wprost tego nie robić, transport ma własny
+wyłącznik śledzenia u dostawcy (`X-TRACKING-OFF`) domyślnie WŁĄCZONY, a sprawa
+jest otwarta jako **#204** i produkt świadomie tego nie chce. Zatrzymujemy się
+na uczciwym „zakolejkowano".
+
+Pilnuje tego test, nie tylko zdanie w tym wpisie:
+`SygnalDigestuMowiZakolejkowanoTest::test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia`
+czyta CHECK wprost z `pg_constraint` i przechodzi po stałych `ZapiszSygnal`
+przez refleksję. Nazwa mówiąca „doręczono", „otwarto" albo „kliknięto" oblewa
+go. Gdy prawdziwy webhook o odbiciach kiedyś powstanie, `delivered` zdejmuje
+się z tamtej listy **jawnie**, jedną decyzją — śledzenia otwarć i kliknięć
+nie zdejmuje się wcale.
+
+### Sprostowanie po drodze
+
+`docs/DATABASE.md` twierdził przy `product_signals.occurred_at`, że dla
+`weekly_digest_sent` kolumna jest **czytana jako licznik dobowego limitu
+poczty**. Nieprawda — sprawdzone w kodzie: sufit liczy
+`App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**
+i do `product_signals` nie sięga ani razu. Poprawione tam na miejscu.
+
+### Zmiana wymaga
+
+Prawdziwego sygnału od dostawcy poczty, jawnie zdjętego z listy zakazanych
+cząstek w teście, plus wpisu tutaj. Śledzenia otwarć i kliknięć nie dotyczy:
+to obietnica z polityki prywatności, nie brak funkcji.
+
+📄 `app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`app/Domain/Analytics/ZapiszSygnal.php` ·
+`database/migrations/2026_09_10_400000_rename_weekly_digest_sent_signal.php` ·
+`tests/Feature/SygnalDigestuMowiZakolejkowanoTest.php` ·
+`tests/Feature/TygodniowePodsumowanieTest.php` ·
+`docs/DATABASE.md` (`product_signals`) ·
+audyt `docs/research/audyt-2026-09-10/` (MAIL-03) ·
+issue #204 (otwarta: śledzenie otwarć — nie robimy)
 
 [^1]: [spatie/laravel-permission — migracja `create_permission_tables.php.stub`](https://raw.githubusercontent.com/spatie/laravel-permission/main/database/migrations/create_permission_tables.php.stub) — pięć `Schema::create()`: `permissions`, `roles`, `model_has_permissions`, `model_has_roles`, `role_has_permissions`.
 [^2]: [spatie/laravel-permission — `config/permission.php`](https://raw.githubusercontent.com/spatie/laravel-permission/main/config/permission.php) — `'store' => 'default'`, `'expiration_time' => DateInterval::createFromDateString('24 hours')`.

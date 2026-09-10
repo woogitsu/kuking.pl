@@ -169,7 +169,16 @@ class WyslijPodsumowaniaTygodnia extends Command
                 // przepada w `failed_jobs` i nikt się o tym nie dowie.
                 $budzetDnia->zajmij();
 
-                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_SENT, $tresc->miary());
+                // SYGNAŁ NAZYWA SIĘ `weekly_digest_queued`, NIE `..._sent`
+                // (D-078, audyt MAIL-03). Jesteśmy tu o jedną linijkę po
+                // `Mail::queue()`: worker po ten list jeszcze nie sięgnął,
+                // dostawca o nim nie wie, a doręczenia Kuking nie mierzy
+                // wcale. Nazwa mówiąca „wysłano" liczyłaby jako sukces także
+                // każdy list, który zaraz przewróci się w workerze i wyląduje
+                // w `failed_jobs` — czyli zawyżałaby metrykę najbardziej
+                // wtedy, gdy wysyłka nie działa. Do „doręczono" i „otwarto"
+                // nie wracamy (#204): patrz stała w `ZapiszSygnal`.
+                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_QUEUED, $tresc->miary());
             }
 
             $wyslane[] = $osoba;
