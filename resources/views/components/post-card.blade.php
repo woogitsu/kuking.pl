@@ -149,6 +149,36 @@
         </p>
     @endif
 
+    {{--
+        TEMATY WPISU (issue: docs/product/PROSTOTA_JAK_GARNEK.md).
+
+        Autor wybiera do pięciu tagów przy publikacji (`x-tagi-formularz`),
+        ale do tej zmiany żaden widok, który POKAZUJE wpis, nie oddawał ich
+        z powrotem — jedyną drogą na stronę tagu był adres, który trzeba
+        było już znać. Garnek.pl miał ten sam pomysł pod inną nazwą: strona
+        zdjęcia wprost wymieniała fotofora, do których zdjęcie trafiło.
+
+        `relationLoaded()`, NIE `$post->tags` wprost: karta stoi też na
+        ekranach, które tagów nie doładowują (np. `PostController::show`,
+        zakładka „Ugotowane" na profilu). Odwołanie się do relacji wprost
+        odpaliłoby tam osobne zapytanie PER WPIS — `TagController`
+        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name` na
+        zapas, więc ten warunek tylko bierze to, co jest, i nigdzie nic
+        nie dociąga po cichu.
+
+        `.chipsy`/`.chip` to gotowe, już przetestowane klasy (patrz
+        `pages/search.blade.php`, `components/szyna-profilu.blade.php`) —
+        żadnego nowego CSS, więc rozmiar dotyku i kontrast mają policzone
+        pokrycie od pierwszego dnia.
+    --}}
+    @if($post->relationLoaded('tags') && $post->tags->isNotEmpty())
+        <nav class="chipsy post-card-tagi" aria-label="Tematy tego wpisu">
+            @foreach($post->tags as $tag)
+                <a class="chip" href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
+            @endforeach
+        </nav>
+    @endif
+
     <div class="post-card-actions">
         @auth
             @if($post->recipe)

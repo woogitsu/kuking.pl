@@ -197,7 +197,11 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            ->with(['media', 'author.profile.avatar'])
+            // 'tags:id,slug,name' — patrz komentarz w
+            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
+            // gdy relacja jest już doładowana, więc bez tego archiwum
+            // profilu nie miałoby żadnych chipów tematów.
+            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->latest('published_at')
             ->latest('id')

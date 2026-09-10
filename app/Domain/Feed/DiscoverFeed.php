@@ -42,7 +42,16 @@ final class DiscoverFeed
                 'author_id',
                 $this->hiddenAuthorIdsFor($viewer),
             ))
-            ->with(['author.profile.avatar', 'media', 'recipe:id,title,slug'])
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'recipe:id,title,slug',
+                // Patrz komentarz w FollowingFeed::paginate() — karta wpisu
+                // pokazuje tematy TYLKO wtedy, gdy relacja jest już
+                // doładowana, więc bez tego wpisy na „Świeżo z Kuking"
+                // nie miałyby żadnych chipów tematów.
+                'tags:id,slug,name',
+            ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
             ->orderByDesc('id')
