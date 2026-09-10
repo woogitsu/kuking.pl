@@ -127,7 +127,7 @@ final class Turnstile
      */
     public static function komunikatOdrzucenia(): string
     {
-        return 'Nie udało się potwierdzić, że nie jesteś robotem — to sprawdzenie mogło wygasnąć, '
+        return 'Nie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, '
             .'jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz '
             .'jeszcze raz. Jeśli znowu się nie uda, napisz do nas na '
             .self::adresKontaktowy().' — odpisuje człowiek.';

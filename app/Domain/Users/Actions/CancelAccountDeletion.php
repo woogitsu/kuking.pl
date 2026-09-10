@@ -65,7 +65,7 @@ final class CancelAccountDeletion
             if ($fresh === null || $fresh->status !== User::STATUS_PENDING_DELETE) {
                 throw new BladDlaCzlowieka(
                     'To konto nie jest oznaczone do usunięcia — nie ma czego cofać. '
-                    .'Jeśli spodziewałeś/aś się czegoś innego, napisz do nas: '
+                    .'Jeśli to nie zgadza się z tym, czego się spodziewasz, napisz do nas: '
                     .config('kuking.community.contact_email').'.',
                 );
             }

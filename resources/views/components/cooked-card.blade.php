@@ -10,8 +10,13 @@
         <x-avatar :user="$event->user" :size="44" />
         <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $event->user->profile->username) }}">{{ $event->user->displayName() }}</a>
+            {{-- „ugotowane", nie „ugotowała/ugotował" (issue #38).
+                 Ukośnik zakłada, że trzeba wybrać rodzaj, i nie da się go
+                 przeczytać na głos — `docs/brand/COPY_STYLE.md` §2 każe w takim
+                 razie zmienić konstrukcję zdania. Imiesłów bierny mówi to samo
+                 i nie pyta, kto gotował. --}}
             <p class="meta m-0">
-                ugotowała/ugotował
+                ugotowane
                 <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}</time>
             </p>
         </div>

@@ -9,14 +9,28 @@
     mówi wprost, że to się zmienia i nie jest tabelą wyników.
 
     Teksty: docs/brand/COPY_STYLE.md §5
+
+    `graSlowem` — DAWKOWANIE, NIE OZDOBA (issue #38)
+    `docs/brand/COPY_STYLE.md` §2 dopuszcza grę słowem „kuKING" NAJWYŻEJ RAZ
+    NA EKRAN. Na stronie powitalnej pierwsze miejsce jest już zajęte przez
+    przycisk „Zostań kuKINGiem", który §8 przypisuje tam wprost — więc tablica
+    dostaje na tym jednym ekranie nagłówek zapasowy „Co się dziś gotuje".
+    To nie jest nowy tekst: §5 podaje go jako gotową alternatywę („nie odmienia
+    słowa wcale, problem znika u źródła", D-013). Wszędzie indziej — /home,
+    /odkryj, /szukaj — tablica jest jedynym takim miejscem na ekranie
+    i zostaje przy nazwie „kuKINGi na dziś".
 --}}
-@props(['people', 'posts', 'notes' => []])
+@props(['people', 'posts', 'notes' => [], 'graSlowem' => true])
 
 @php $pusta = $people->isEmpty() && $posts->isEmpty(); @endphp
 
 <section class="card kuking-board mb-6" aria-labelledby="kuking-na-dzis">
     <h2 class="mt-0" id="kuking-na-dzis">
-        <x-kuking-word forma="i" /> na dziś
+        @if($graSlowem)
+            <x-kuking-word forma="i" /> na dziś
+        @else
+            Co się dziś gotuje
+        @endif
     </h2>
 
     @if($pusta)

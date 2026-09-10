@@ -188,7 +188,7 @@ class DataSettingsController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('landing')->with('status',
-            "Konto zostało oznaczone do usunięcia i zostałeś/aś wylogowany/a. Masz {$days} dni, żeby zmienić zdanie — "
+            "Konto zostało oznaczone do usunięcia i wylogowaliśmy Cię. Masz {$days} dni, żeby zmienić zdanie — "
             .'zrobisz to na stronie „Cofnij usunięcie konta” ('.route('account.delete.cancel').'), podając e-mail '
             .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała. '
             .$coZTekstami,

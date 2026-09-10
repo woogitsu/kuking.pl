@@ -54,7 +54,7 @@
             <li><strong>Ludzie, nie treści.</strong> Kuking to nie kolejna baza przepisów. To ludzie, którzy gotują na co dzień.</li>
             <li><strong>„Ugotowałem” zamiast lajka.</strong> Że komuś naprawdę wyszło z Twojego przepisu, znaczy więcej niż sto serduszek.</li>
             <li><strong>Przepisy po mamie i babci.</strong> Możesz podpisać, po kim jest przepis, dopisać jego historię i dodać zdjęcie starej kartki.</li>
-            <li><strong>Spokój.</strong> Bez rankingów, bez wyścigu, bez liczników w twarz. Bez algorytmu, który układa Ci feed.</li>
+            <li><strong>Spokój.</strong> Bez rankingów, bez wyścigu, bez liczników w twarz. Bez algorytmu, który układa Ci stronę główną.</li>
         </ul>
 
         <h2>Czego tu nie ma i nie będzie</h2>

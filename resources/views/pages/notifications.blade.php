@@ -92,33 +92,59 @@
                         @if($notification->isUnread())
                             <span class="badge">Nowe</span>
                         @endif
+                        {{--
+                            ZDANIA BEZ ZAŁOŻENIA RODZAJU (issue #38).
+
+                            Stało tu sześć zdań w postaci „ugotowała/ugotował",
+                            „napisała/napisał", „zaczęła/zaczął". Ukośnik
+                            oblewa pierwszy test z `docs/brand/COPY_STYLE.md`
+                            §1 — tego nie da się przeczytać na głos — a §2
+                            rozstrzyga to wprost: „Zamiast szukać żeńskiej
+                            formy, zmieniamy konstrukcję zdania".
+
+                            Polski czas przeszły zawsze niesie rodzaj, więc
+                            zmiana idzie w dwie strony: albo imiesłów bierny
+                            („ugotowane z Twojego przepisu"), albo czas
+                            teraźniejszy („zaczyna Cię obserwować", „ma Twój
+                            przepis w swoim zeszycie"). Obie formy są
+                            bezrodzajowe i obie są krótsze od tego, co było.
+
+                            Skutek uboczny jest wymierny: `resources/css/tokens.css`
+                            i lista kontrolna dostępności systemu projektowego
+                            wskazują „ugotowała/ugotował" jako NAJDŁUŻSZE słowo
+                            w serwisie — to ono przy 320 px i skali tekstu 150%
+                            wymuszało łamanie wyrazu w środku.
+
+                            Bez gry słowem „kuKING": to jest powiadomienie
+                            o cudzej aktywności, a §2 zabrania jej tutaj wprost.
+                        --}}
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
-                                <strong>{{ $actor?->displayName() }} ugotowała/ugotował z Twojego przepisu</strong>
+                                <strong>{{ $actor?->displayName() }} — ugotowane z Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
                                 @if($data['has_photo'] ?? false) Jest zdjęcie. @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
-                                <strong>{{ $actor?->displayName() }} napisała/napisał komentarz.</strong>
+                                <strong>{{ $actor?->displayName() }} — nowy komentarz.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)
-                                <strong>{{ $actor?->displayName() }} odpowiedziała/odpowiedział.</strong>
+                                <strong>{{ $actor?->displayName() }} — nowa odpowiedź.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
-                                <strong>{{ $actor?->displayName() }} zaczęła/zaczął Cię obserwować.</strong>
+                                <strong>{{ $actor?->displayName() }} zaczyna Cię obserwować.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_SAVED)
-                                <strong>{{ $actor?->displayName() }} zapisała/zapisał Twój przepis</strong>
-                                „{{ $data['recipe_title'] ?? '' }}” do swojego zeszytu.
+                                <strong>{{ $actor?->displayName() }} ma Twój przepis</strong>
+                                „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
                                      (issue #6). Pierwszy wpis to jedyna okazja,
                                      żeby ktoś poczuł, że jest tu ktoś po drugiej
                                      stronie — i mamy na to dobę. --}}
-                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} opublikowała pierwszy wpis.</strong>
+                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
                                 Odpowiedz jak najszybciej — pierwszy wpis bez reakcji zwykle bywa ostatnim.
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
