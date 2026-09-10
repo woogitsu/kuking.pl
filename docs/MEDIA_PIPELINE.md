@@ -45,6 +45,13 @@ na zdjęcie" — komuś, kto właśnie zrobił zdjęcie telefonem.
 Pilnuje tego `ObiecujemyTylkoFormatyKtoreUmiemyTest`. Wartość atrybutu `accept`
 w formularzach bierze się z tej samej listy, przez `LimityZdjec::atrybutAccept()`.
 
+Plik HEIC/HEIF, który mimo to trafi na serwer, jest rozpoznawany po magic
+bytes (`mime_content_type()`, nie po rozszerzeniu) i dostaje własny, polski
+komunikat mówiący CO ZROBIĆ, oraz własny kod powodu w sygnale
+`photo_upload_failed` (`heic_unsupported`, `App\Support\RozpoznanieZdjecia`) —
+patrz **D-064** w `docs/DECISIONS.md` po pełną decyzję (czy dokładać libheif
+do obrazu Dockera) i rachunek kosztu za nią stojący.
+
 ### Ile to kosztuje pamięci
 
 Zmierzone: szczyt RSS procesu przy przetworzeniu jednego zdjęcia razem z trzema
