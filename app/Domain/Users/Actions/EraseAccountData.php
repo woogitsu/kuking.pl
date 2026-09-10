@@ -226,6 +226,24 @@ final class EraseAccountData
             $fresh->pendingEmailChange()->delete();
 
             /*
+             * POWIĄZANIA Z KONTAMI U DOSTAWCÓW ZEWNĘTRZNYCH ZNIKAJĄ RAZEM
+             * Z HASŁEM (D-069, D-098).
+             *
+             * Wiersz w `tozsamosci_zewnetrzne` JEST wejściem na konto
+             * dokładnie tak samo jak hasło i sesja, więc obowiązuje go ta
+             * sama zasada: po wymazaniu danych konto nie ma już właściciela
+             * i nikt nie ma prawa na nie wejść. Bez tej linii losowe hasło
+             * niżej nie chroniłoby niczego — kto miał to konto Google,
+             * wchodziłby dalej jednym kliknięciem.
+             *
+             * Jawnie, a nie kaskadą klucza obcego — ten sam powód co przy
+             * `pending_email_changes` wyżej: kont z Kuking się NIE KASUJE,
+             * tylko anonimizuje (D-022), więc `ON DELETE CASCADE` nigdy by
+             * tu nie zadziałało.
+             */
+            $fresh->tozsamosciZewnetrzne()->delete();
+
+            /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
              *
              * `forceFill` niżej i tak ustawia `wants_weekly_digest = false`,

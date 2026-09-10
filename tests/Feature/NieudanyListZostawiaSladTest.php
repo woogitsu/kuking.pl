@@ -408,7 +408,7 @@ class NieudanyListZostawiaSladTest extends TestCase
         $this->slad([]);
 
         try {
-            $this->artisan('migrate:rollback', ['--step' => 1, '--force' => true]);
+            $this->migracja()->down();
             $this->fail('Wycofanie migracji miało odmówić — w tabeli leży nieodhaczony ślad.');
         } catch (Throwable $e) {
             $this->assertStringContainsString('Odmawiam wycofania migracji', $e->getMessage());
@@ -418,8 +418,32 @@ class NieudanyListZostawiaSladTest extends TestCase
 
         MailFailure::query()->update(['zauwazony_at' => now()]);
 
-        $this->artisan('migrate:rollback', ['--step' => 1, '--force' => true])->assertExitCode(0);
+        $this->migracja()->down();
         $this->assertFalse(Schema::hasTable('mail_failures'));
+    }
+
+    /**
+     * WŁASNA MIGRACJA, NIE „OSTATNIA W KOLEJCE".
+     *
+     * Do 11 września stało tu `migrate:rollback --step 1`, które cofa
+     * migrację NAJPÓŹNIEJSZĄ — czyli tę, która akurat jest ostatnia na liście,
+     * a nie tę, o którą temu testowi chodzi. Trzymało się to na założeniu, że
+     * `create_mail_failures_table` zostanie ostatnią migracją w repozytorium.
+     * Założenie padło przy pierwszym scaleniu, które dołożyło migrację z tym
+     * samym znacznikiem czasu: `2026_09_10_500000_create_tozsamosci_zewnetrzne_table`
+     * sortuje się po `..._create_mail_failures_table`, więc `--step 1` zaczęło
+     * cofać CUDZĄ migrację, a strażnik z tej tutaj nie był w ogóle wołany.
+     *
+     * Test oblał dopiero przy scaleniu dwóch gałęzi — czyli w miejscu, gdzie
+     * nikt nie czyta, dlaczego. Wołanie `down()` wprost na własnej migracji
+     * nie zależy od tego, co jeszcze leży w katalogu, i mierzy dokładnie to
+     * zabezpieczenie, o które chodzi.
+     */
+    private function migracja(): object
+    {
+        return require database_path(
+            'migrations/2026_09_10_500000_create_mail_failures_table.php',
+        );
     }
 
     /** Komenda mówi, CO ZROBIĆ, i różnicuje to po kategorii. */

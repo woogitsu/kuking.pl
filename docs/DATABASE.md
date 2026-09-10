@@ -526,6 +526,128 @@ da się zauważyć. Indeks przechowuje trigramy, nie adres.
 **Rollback:** `down()` kasuje oba indeksy. Bezstratny — indeks nie trzyma
 danych, których nie ma w tabeli; ekran działa bez nich dalej, tylko wolniej.
 
+#### Wejście kontem Google — powiązanie leży w `tozsamosci_zewnetrzne`
+
+Kolumn `users.google_sub` ani `users.google_connected_at` **nie ma**
+i nigdy nie było na produkcji: pierwsza wersja tej migracji je dokładała,
+ale została przepisana przed scaleniem (D-098). Powiązania z dostawcami
+tożsamości mieszkają w osobnej tabeli — patrz `tozsamosci_zewnetrzne` niżej.
+
+### tozsamosci_zewnetrzne
+
+Migracja `2026_09_10_500000_create_tozsamosci_zewnetrzne_table`
+(issue #258, D-069, **D-098**).
+
+Jeden wiersz = „to konto Kuking wchodzi także kontem u TEGO dostawcy,
+o TYM identyfikatorze, od TEJ chwili".
+
+- `id` — `bigserial`, klucz główny. Encja nie jest publiczna (nie ma
+  własnego adresu i nikt jej nie widzi), więc UUID-a tu nie ma —
+  `AGENTS.md` §6 wymaga UUID dla encji **publicznych**;
+- `user_id` — `uuid NOT NULL`, klucz obcy na `users` z `ON DELETE CASCADE`;
+- `dostawca` — `varchar(20) NOT NULL`, dziś wyłącznie `google`;
+- `identyfikator` — `varchar(255) NOT NULL`, identyfikator konta u dostawcy
+  (`sub` z tokenu tożsamości Google);
+- `connected_at` — `timestamptz NOT NULL DEFAULT now()`, od kiedy.
+
+**Dlaczego tabela, a nie kolumny na `users`.** D-069 rozstrzygnęło inaczej
+(dwie kolumny) i wtedy miało rację: jeden dostawca, a tabela byłaby
+budowaniem „na przyszłość", czego zabrania `AGENTS.md` §3. Przyszłość
+została w tym czasie **nazwana i zamówiona** — właściciel poprosił wprost
+o logowanie kontem Google **oraz** kontem Facebooka. Przy dwóch dostawcach
+byłyby cztery kolumny, przy trzecim sześć, a przy każdym z nich osobny
+indeks częściowy i osobny CHECK „obie kolumny albo żadna". Tabela zamienia
+to na jeden kształt wiersza, a warunek „obie kolumny albo żadna" znika
+całkiem: wiersz istnieje albo nie istnieje. D-069 samo wskazało ten kształt
+jako właściwy „przy drugim dostawcy".
+
+**Co trzymamy i dlaczego akurat tyle.** `identyfikator` to `sub` z tokenu
+tożsamości — **jedyna wartość, którą Google obiecuje jako trwałą**. Adres
+e-mail da się u Google zmienić, a w Google Workspace da się nadać adres
+osoby, która odeszła z firmy, komuś innemu; `sub` zostaje ten sam przez całe
+życie konta. Dlatego kolejne wejścia rozpoznajemy po `sub`, a **adres służy
+dokładnie raz** — przy pierwszym połączeniu. `connected_at` odpowiada na
+pytanie „od kiedy", którego `audit_log` nie utrzyma (jest sprzątany
+z czasem), a które jest cechą konta.
+
+**Czego w tej tabeli nie ma, świadomie:** tokenu dostępu, tokenu
+odświeżania (żądanie idzie z `access_type=online`, więc Google go NAM NIE
+WYSTAWIA), tokenu tożsamości, zdjęcia z Google (D-061 — zdjęcie z zewnątrz
+weszłoby poza naszą moderację), adresu e-mail (mamy go na `users`; dwie
+kopie rozjechałyby się przy pierwszej zmianie adresu) i nazwy konta
+u dostawcy. Pilnuje tego wprost
+`LogowanieKontemGoogleTest::test_w_bazie_nie_ma_gdzie_zapisac_tokenu_google`.
+
+**Co pilnuje BAZA, a nie PHP:**
+
+```sql
+ALTER TABLE tozsamosci_zewnetrzne ADD CONSTRAINT tozsamosci_dostawca_check
+  CHECK (dostawca IN ('google'));
+
+ALTER TABLE tozsamosci_zewnetrzne ADD CONSTRAINT tozsamosci_identyfikator_check
+  CHECK (identyfikator ~ '^\S{1,255}$');
+
+ALTER TABLE tozsamosci_zewnetrzne ADD CONSTRAINT tozsamosci_dostawca_identyfikator_unique
+  UNIQUE (dostawca, identyfikator);
+
+ALTER TABLE tozsamosci_zewnetrzne ADD CONSTRAINT tozsamosci_dostawca_konto_unique
+  UNIQUE (dostawca, user_id);
+```
+
+1. **jedno konto u dostawcy = jedno konto Kuking.** Bez tego dwa nasze konta
+   mogłyby wskazywać ten sam `sub`, a „wejdź kontem Google" wybierałoby to,
+   które baza akurat poda pierwsze;
+2. **jedno konto Kuking nie ma DWÓCH Google'i.** Tego ograniczenia wersja na
+   kolumnach nie potrzebowała (kolumna jest jedna) i właśnie dlatego trzeba
+   je było napisać wprost: bez niego „połącz" wołane dwa razy dokładałoby
+   drugi wiersz;
+3. **zamknięta lista dostawców** — literówka („googel") nie ma prawa cicho
+   założyć nowego rodzaju powiązania. Listę rozszerza MIGRACJA, czyli
+   decyzja widoczna w przeglądzie kodu. **Facebooka na tej liście NIE MA
+   i to jest celowe** — wchodzi razem ze swoim kodem, bo warunki wejścia są
+   u niego inne (nie oddaje `email_verified`, patrz D-098);
+4. **kształt identyfikatora** — niepusty, bez znaków białych, do 255 znaków
+   (OpenID Connect Core §2). Nie zawężamy do samych cyfr, choć dziś Google
+   nadaje wartości 21-cyfrowe: zawężenie do dzisiejszego kształtu CUDZEGO
+   identyfikatora zamknęłoby logowanie w dniu, w którym Google go zmieni,
+   i nie chroniłoby przed niczym;
+5. **`ON DELETE CASCADE`** — powiązanie nie ma sensu bez konta. Kont
+   w Kuking się jednak **nie kasuje, tylko anonimizuje** (D-022), więc
+   kaskada nie jest drogą, którą powiązanie znika w praktyce: robi to jawnie
+   `EraseAccountData` (`$fresh->tozsamosciZewnetrzne()->delete()`, razem
+   z nadpisaniem hasła). Kaskada jest siatką na wypadek realnego `DELETE`
+   (`migrate:fresh`, sprzątanie danych zasianych, przyszłe twarde usunięcie):
+   wiersz-sierota trzymałby identyfikator konta Google wskazujący w pustkę
+   i **blokowałby** ponowne połączenie tego konta Google z czymkolwiek.
+
+**`TozsamoscZewnetrzna` ma PUSTE `$fillable`** (`AGENTS.md` §7, ta sama
+zasada co `status`, `role` i `email` na `users`). Wiersz w tej tabeli JEST
+drogą wejścia na konto: kto go założy, wchodzi jednym kliknięciem. Wiersze
+powstają wyłącznie przez `User::connectGoogle()`, a ta metoda jest wołana
+pod blokadą wiersza konta (`ZamekKonta`, D-079), żeby o dostępie nie
+rozstrzygał stan sprzed sprawdzenia warunków.
+
+**ROLLBACK — ODMAWIA, gdy komuś zabrałby wejście na konto.** Konto założone
+drogą Google **nigdy nie miało hasła** (w `password` leży skrót wartości
+losowej, której nie zna nikt), więc `DROP TABLE` zabiera tej osobie jedyną
+drogę wejścia, jaką zna — i robi to nieodwracalnie, bo razem z tabelą znikają
+identyfikatory. `down()` sprawdza więc, czy jest choć jeden wiersz, i odmawia,
+mówiąc, ilu kont to dotyczy i co zrobić zamiast tego:
+
+```bash
+# WYCOFANIE FUNKCJI BEZ MIGRACJI (to jest właściwa droga):
+KUKING_WEJSCIE_GOOGLE=false   # + restart serwisu
+
+# JEŚLI NAPRAWDĘ trzeba skasować powiązania — powiedz to wprost:
+KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true php artisan migrate:rollback --step=1
+```
+
+Kolejność przy wycofywaniu kodu i migracji razem: **NAJPIERW KOD, POTEM
+MIGRACJA** — inaczej trasy `/wejdz/google` odwołują się do nieistniejącej
+tabeli. Sprawdza to `CofniecieMigracjiGoogleOdmawiaTest` (obie strony:
+odmowa przy powiązanych kontach ORAZ przejście na świeżym środowisku, bo
+migracja, która nie cofa się nigdy, jest równie zła).
+
 ### profiles
 - user_id;
 - username;

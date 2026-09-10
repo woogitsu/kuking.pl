@@ -78,6 +78,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'robots' => 'plik tekstowy robots.txt, nie strona HTML',
         'storage.local' => 'serwuje surowy plik z dysku (dev), nie renderuje layoutu',
         'media.show' => 'serwuje binarny wariant zdjęcia, nie stronę HTML',
+        'google.start' => 'samo przekierowanie do Google — nie renderuje żadnego HTML-a (D-069)',
+        'google.callback' => 'powrót z Google, zawsze kończy się przekierowaniem — nie renderuje HTML-a (D-069)',
     ];
 
     /**
@@ -106,6 +108,15 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         // `resources/views/pages/appeals/reporter.blade.php` ma
         // `:noindex="true"` bezwarunkowo.
         'appeals.reporter' => 'wymaga podpisanego adresu i zgłoszenia; noindex bezwarunkowo w pages/appeals/reporter.blade.php',
+
+        // Oba ekrany drogi przez Google wymagają tożsamości W SESJI, która
+        // przeszła ekran zgody Google (D-069). Czystym GET-em przekierowują
+        // na `/login`, więc nie da się tu z nich zbudować strony. Oba widoki
+        // mają `:noindex="true"` na trasę wprost —
+        // `resources/views/auth/google-finish.blade.php`
+        // i `resources/views/auth/google-link.blade.php`.
+        'google.finish' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-finish.blade.php',
+        'google.link' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-link.blade.php',
     ];
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void

@@ -21,6 +21,21 @@
     </form>
 
     {{--
+        WEJŚCIE KONTEM GOOGLE (issue #258, D-069) — TRZECIA droga, dodatkowa.
+
+        Stoi POD hasłem i NAD linkiem e-mail, a nie na dole strony: dla osób,
+        które przyjdą z kampanii na Facebooku z telefonu z Androidem, to jest
+        najkrótsza droga, jaka istnieje (konto Google jest tam już
+        zalogowane). Nie stoi jednak PIERWSZA, bo część naszych ludzi ma
+        adresy `@wp.pl` i `@o2.pl`, gdzie konta Google nie ma — i dla nich
+        pierwszą rzeczą na ekranie ma zostać to, co znają.
+
+        Cały blok znika bez kluczy Google — patrz komponent. Martwego
+        przycisku nie zostawiamy nigdzie (D-053).
+    --}}
+    <x-wejdz-google />
+
+    {{--
         DRUGA, RÓWNORZĘDNA DROGA WEJŚCIA — LOGOWANIE LINKIEM (issue #25, D-056).
 
         Stoi TU, zaraz pod formularzem hasła, a nie pod „innymi opcjami"

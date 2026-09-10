@@ -70,6 +70,26 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
         'logowanie/link' => 'DŁUG: logowanie linkiem dotąd niemierzone',
         'logowanie/kod' => 'DŁUG: logowanie kodem dotąd niemierzone',
         'cofnij-usuniecie-konta' => 'DŁUG: cofnięcie usunięcia konta dotąd niemierzone',
+
+        /*
+         * WEJŚCIE KONTEM GOOGLE (D-069) — dwie różne przyczyny, nie jedna.
+         *
+         * `wejdz/google` i `wejdz/google/wroc` nie mają czego pokazać:
+         * `start()` i `callback()` zwracają `RedirectResponse`, nigdy widoku.
+         * Nie jest to dług — tam po prostu NIE MA strony do zmierzenia.
+         *
+         * `domknij` i `polacz` to prawdziwe ekrany i powinny być mierzone.
+         * Automat ich dziś nie otworzy, bo oba wymagają tożsamości z Google
+         * w sesji, a tej nie da się założyć bez przejścia przez Google.
+         * Zmierzenie ich wymaga podstawienia tożsamości w sesji przed
+         * wejściem — do zrobienia, ale nie w tym PR-ze. To jest dług
+         * dokładnie tej samej klasy co siedem pozycji wyżej i ma tu stać
+         * widocznie, a nie zniknąć w filtrze.
+         */
+        'wejdz/google' => 'przekierowanie do Google — `start()` zwraca RedirectResponse, nie ma strony',
+        'wejdz/google/wroc' => 'powrót z Google — `callback()` zwraca RedirectResponse, nie ma strony',
+        'wejdz/google/domknij' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Google w sesji — automat jej nie założy',
+        'wejdz/google/polacz' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Google w sesji — automat jej nie założy',
     ];
 
     /** Adresy wymienione w `EKRANY` w automacie dostępności. */

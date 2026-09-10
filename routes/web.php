@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLinkController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -282,6 +283,58 @@ Route::middleware('guest')->group(function () use ($limits): void {
 
     Route::get('/logowanie/link/{token}', [LoginLinkController::class, 'confirmForm'])
         ->name('login.link.confirm');
+
+    /*
+     * WEJŚCIE KONTEM GOOGLE (issue #258, D-069) — droga DODATKOWA, nigdy
+     * jedyna. Hasło i link e-mail zostają na ekranie logowania.
+     *
+     *   GET  /wejdz/google           — kliknięcie przycisku. Zakłada w sesji
+     *                                  `state`, `nonce` i weryfikator PKCE
+     *                                  i odsyła człowieka do Google.
+     *   GET  /wejdz/google/wroc      — powrót z Google. Sprawdza `state`,
+     *                                  wymienia kod, ROZSTRZYGA co dalej.
+     *   GET  /wejdz/google/domknij   — ekran domknięcia konta dla nowej
+     *                                  osoby (imię, nazwa, dwa oświadczenia)
+     *   POST /wejdz/google/domknij   — dopiero tu powstaje konto
+     *   GET  /wejdz/google/polacz    — „na tym adresie jest już konto,
+     *                                  połączyć?". NIC NIE ZMIENIA.
+     *   POST /wejdz/google/polacz    — dopiero tu powstaje powiązanie
+     *
+     * ROZDZIAŁ „POKAŻ" OD „ZRÓB" JEST TU BEZPIECZEŃSTWEM, nie estetyką —
+     * ten sam powód co przy logowaniu linkiem: GET nie zmienia stanu.
+     * Konta łączy i konta zakłada wyłącznie POST z tokenem CSRF.
+     *
+     * DWA OSOBNE KOSZYKI LIMITÓW: kliknięcia i powroty (`google_wejscie`)
+     * nie mają prawa zjadać budżetu wysłań formularza, który naprawdę
+     * zakłada konto (`google_domkniecie`) — i odwrotnie. To ta sama reguła,
+     * której pilnuje `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+     *
+     * BEZ KLUCZY GOOGLE te trasy odsyłają na `/login` ze zdaniem po polsku,
+     * a przycisku nie ma nigdzie na ekranie — środowisko bez kluczy (CI,
+     * lokalnie) zachowuje się dokładnie jak przed tą zmianą.
+     *
+     * W grupie `guest` z tego samego powodu co `/login`: to jeszcze nie jest
+     * sesja zalogowana, a ktoś już zalogowany nie ma po co tu wracać.
+     */
+    Route::get('/wejdz/google', [GoogleLoginController::class, 'start'])
+        ->middleware("throttle:{$limits['google_wejscie']},google_wejscie")
+        ->name('google.start');
+
+    Route::get('/wejdz/google/wroc', [GoogleLoginController::class, 'callback'])
+        ->middleware("throttle:{$limits['google_wejscie']},google_wejscie")
+        ->name('google.callback');
+
+    Route::get('/wejdz/google/domknij', [GoogleLoginController::class, 'finishForm'])
+        ->name('google.finish');
+    Route::post('/wejdz/google/domknij', [GoogleLoginController::class, 'finish'])
+        ->middleware("throttle:{$limits['google_domkniecie']},google_domkniecie")
+        ->name('google.finish.store');
+
+    Route::get('/wejdz/google/polacz', [GoogleLoginController::class, 'linkForm'])
+        ->name('google.link');
+    Route::post('/wejdz/google/polacz', [GoogleLoginController::class, 'link'])
+        ->middleware("throttle:{$limits['google_domkniecie']},google_domkniecie")
+        ->name('google.link.store');
 
     /*
      * ZAPROSZENIE DO ZAŁOŻENIA KONTA — druga połowa tej samej drogi (D-085).
