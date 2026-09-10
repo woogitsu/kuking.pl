@@ -90,18 +90,90 @@ class WyborMotywuTest extends TestCase
             ->assertSee('data-theme="dark"', false);
     }
 
-    public function test_przelacznik_w_stopce_jest_widoczny_dla_goscia_i_zalogowanego(): void
+    /**
+     * Przełącznik w stopce jest sama ikoną, bez widocznego napisu obok
+     * (docs/DECISIONS.md, D-051 — świadomy wyjątek od AGENTS.md §5 na
+     * decyzję właściciela, issue #205). `assertSee('Włącz ciemny wygląd')`
+     * przestało więc sprawdzać cokolwiek widocznego — ten test sprawdza
+     * zamiast tego, że przycisk NADAL MA nazwę dostępną (`aria-label`)
+     * z dokładnie tym samym tekstem, co dawny widoczny napis. Regresja,
+     * przed którą to broni: sama ikonka bez `aria-label` jest dla czytnika
+     * ekranu przyciskiem bez nazwy — nienazwaną „kropką", której działania
+     * nie da się zgadnąć.
+     */
+    public function test_przelacznik_w_stopce_ma_dostepna_nazwe_dla_goscia_i_zalogowanego(): void
     {
         $this->get(route('landing'))
             ->assertOk()
-            ->assertSee('Włącz ciemny wygląd');
+            ->assertSee('aria-label="Włącz ciemny wygląd"', false);
 
         $basia = $this->user('basia');
 
         $this->actingAs($basia)
             ->get(route('home'))
             ->assertOk()
-            ->assertSee('Włącz ciemny wygląd');
+            ->assertSee('aria-label="Włącz ciemny wygląd"', false);
+
+        // Motyw ciemny → przycisk proponuje przejście na jasny, a nazwa
+        // dostępna zmienia się razem z nim.
+        $this->actingAs($basia)
+            ->post(route('theme.update'), ['theme' => 'dark'])
+            ->assertRedirect();
+
+        $this->actingAs($basia)
+            ->get(route('home'))
+            ->assertOk()
+            ->assertSee('aria-label="Włącz jasny wygląd"', false);
+    }
+
+    /**
+     * Kształt ikony pokazuje WYNIK kliknięcia, spójnie z tekstem
+     * (docs/DECISIONS.md, D-051): jasny motyw → napis „Włącz ciemny
+     * wygląd" → księżyc; ciemny motyw → napis „Włącz jasny wygląd" →
+     * słońce. Sprawdzamy na kawałku ścieżki SVG unikalnym dla każdego
+     * kształtu (`resources/views/components/ikona.blade.php`), bo obie
+     * ikony renderują się jako zwykłe `<svg class="ikona">` bez innej
+     * różnicy w znacznikach.
+     *
+     * Regresja, przed którą to broni: ktoś zostawia JEDEN kształt na oba
+     * stany (np. przez pomyłkę przy kopiowaniu) — bez tego testu przeszłyby
+     * wtedy zarówno test nazwy dostępnej, jak i test na `title`, bo żaden
+     * z nich nie patrzy na samą ikonę.
+     */
+    public function test_ikona_przelacznika_zmienia_sie_razem_z_motywem(): void
+    {
+        $slonce = 'r="4.5"';
+        $ksiezyc = 'M21 12.79A9 9';
+
+        // Jasny (domyślny) — przycisk proponuje ciemny, więc pokazuje księżyc.
+        $tresc = $this->get(route('landing'))->assertOk()->getContent();
+        $this->assertStringContainsString($ksiezyc, $tresc);
+        $this->assertStringNotContainsString($slonce, $tresc);
+
+        // Ciemny — przycisk proponuje jasny, więc pokazuje słońce.
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)
+            ->post(route('theme.update'), ['theme' => 'dark'])
+            ->assertRedirect();
+
+        $tresc = $this->actingAs($basia)->get(route('home'))->assertOk()->getContent();
+        $this->assertStringContainsString($slonce, $tresc);
+        $this->assertStringNotContainsString($ksiezyc, $tresc);
+    }
+
+    /**
+     * `title` niesie DOKŁADNIE ten sam tekst co `aria-label` — to jest
+     * jedna z rzeczy, których nie wolno było poświęcić przy zamianie napisu
+     * na samą ikonę (D-051): na telefonie nie ma najazdu kursorem, więc
+     * `title` sam z siebie nikomu nie pomaga, ale musi się zgadzać z tym,
+     * co czyta czytnik ekranu, a nie stać w sprzeczności.
+     */
+    public function test_przelacznik_w_stopce_ma_title_zgodny_z_aria_label(): void
+    {
+        $this->get(route('landing'))
+            ->assertOk()
+            ->assertSee('title="Włącz ciemny wygląd"', false);
     }
 
     /**

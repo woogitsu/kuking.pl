@@ -2081,7 +2081,21 @@
     overflow-wrap: anywhere;
   }
 
+  /*
+   * Odstęp górny (issue #205): na krótkich stronach (np. „/moje" z jednym
+   * zeszytem) treść kończy się wysoko, a `.app-main` ma `flex: 1` w kolumnie
+   * `.app-shell` — więc `.site-footer` ląduje bezpośrednio pod nawigacją
+   * boczną i „Wyloguj się" styka się z pierwszym odnośnikiem stopki. Dwa
+   * łącza o zupełnie różnym skutku obok siebie, bez odstępu, przy grupie
+   * 50+, jest dokładnie tym, przed czym ostrzega UX_50_PLUS.
+   *
+   * `margin-top: auto` NIE wystarczy (stopka i tak zostaje przyklejona do
+   * dołu przez `flex: 1` na `.app-main`) — chodzi o odstęp OD TREŚCI, gdy
+   * treść jest krótka, więc to `margin-top` na samej stopce, niezależny od
+   * tego, ile miejsca zajęła kolumna nad nią.
+   */
   .site-footer {
+    margin-top: var(--spacing-12);
     border-top: 1px solid var(--color-border);
     padding: var(--spacing-8) var(--spacing-4) var(--spacing-20);
     background-color: var(--color-surface-raised);
@@ -2089,13 +2103,68 @@
 
   /* Stopka trzyma tę samą szerokość co belka i siatka treści — patrz blok
      „BELKA STOI W TEJ SAMEJ SIATCE" wyżej. Poniżej 64rem żadnych kolumn nie
-     ma, więc zostaje sam margines z `.site-footer`. */
+     ma, więc zostaje sam margines z `.site-footer`.
+
+     Trzy poziomy PIONOWO (issue #205): hasło, kolumny odnośników, pasek
+     techniczny — stąd `flex-direction: column`. Każdy poziom sam ustawia
+     swój wewnętrzny układ (`.site-footer-grupy` to grid, `.site-footer-pasek`
+     to wiersz) — ten kontener tylko je składa jeden pod drugim i utrzymuje
+     między nimi jeden, wspólny odstęp. */
   .site-footer-inner {
     margin: 0 auto;
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-4) var(--spacing-6);
+    flex-direction: column;
+    gap: var(--spacing-6);
     font-size: var(--text-help);
+  }
+
+  .site-footer-haslo {
+    margin: 0;
+  }
+
+  /* Kolumny odnośników. `auto-fit` + `minmax` zamiast progów na sztywno:
+     przy wąskim oknie każda kolumna dostaje pełną szerokość i schodzą jedna
+     pod drugą same, bez osobnej reguły `@media` i bez ryzyka poziomego
+     przewijania (issue #205, kryterium akceptacji „360×740"). `min-width: 0`
+     na samej kolumnie jest tą samą poprawką co przy `.stat-row > li` wyżej —
+     bez niej długi odnośnik potrafiłby rozepchnąć siatkę zamiast się zawinąć. */
+  .site-footer-grupy {
+    display: grid;
+    /* `min(11rem, 100%)`, NIE samo `11rem` — I TO NIE JEST OSTROŻNOŚĆ NA ZAPAS.
+       Pierwsza wersja miała `minmax(11rem, 1fr)` i przy 360 px okna z czcionką
+       przeglądarki ustawioną na 200% oblewała skan dostępności na 24 ekranach
+       naraz: `1rem` to wtedy 32 px, więc `11rem` = 352 px, a po doliczeniu
+       marginesów stopki (2 × 32 px) wychodziło 384 px w oknie 360 px —
+       poziome przewijanie całej strony. `minmax()` traktuje dolny próg jako
+       twardy: kolumna NIE zejdzie poniżej niego, tylko rozepchnie siatkę.
+       `min(11rem, 100%)` mówi „11rem, ale nigdy więcej niż dostępna
+       szerokość", więc przy dużym tekście kolumny po prostu schodzą jedna pod
+       drugą, zamiast wystawać. To ta sama rodzina usterki co górny pasek
+       zrzucający awatar (#212): sztywna miara w `rem` rośnie razem ze skalą
+       tekstu, a okno nie. */
+    grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+    gap: var(--spacing-6) var(--spacing-8);
+  }
+
+  .site-footer-grupa { min-width: 0; }
+
+  .site-footer-grupa ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  /* Nagłówek kolumny jest WIZUALNY, nie semantyczny — `aria-hidden` w Blade,
+     bo nazwę grupy czytnik ekranu dostaje już z `aria-label` na `<nav>`
+     (patrz komentarz w layout.blade.php). Odróżnia się kolorem i wagą, nie
+     rozmiarem — ten sam wzorzec co `.site-version-etap` niżej. */
+  .site-footer-naglowek {
+    margin: 0 0 var(--spacing-2);
+    color: var(--color-ink);
+    font-weight: 700;
   }
 
   /* Licznik społeczności („23 kuKINGów", issue #38). 18 px (`--text-body`),
@@ -2104,6 +2173,7 @@
      treścią (ten sam przypadek co `.stat-label` wyżej, `MinimalnyRozmiarTekstuTest`,
      AGENTS.md §5). */
   .site-footer-liczba {
+    margin: 0;
     font-size: var(--text-body);
   }
 
@@ -2122,17 +2192,51 @@
     }
   }
 
-  /* Wersja aplikacji.
-     `margin-left: auto` odsuwa ją na koniec wiersza, żeby nie mieszała się
-     z linkami — ale przy zawijaniu (telefon) po prostu schodzi do nowej
-     linii, zamiast wypychać cokolwiek poza ekran.
+  /*
+   * Pasek techniczny — wersja + przełącznik motywu (issue #205).
+   *
+   * Osobny, cienki poziom POD kolumnami odnośników, oddzielony linią, żeby
+   * były wizualnie tym, czym są: metadanymi strony, nie kolejną grupą
+   * nawigacji. `flex-wrap` na telefonie: przy zawinięciu wersja i tak ma
+   * własny `margin-left: auto`, więc schodzi do nowej linii, a nie wypycha
+   * przycisku motywu poza ekran.
+   */
+  .site-footer-pasek {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3) var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-border);
+  }
 
-     Rozmiar zostaje taki jak reszta stopki. Kuszące jest zmniejszenie go
-     „bo to techniczny drobiazg", ale w serwisie dla osób 50+ nie robimy
-     tekstu, którego trzeba się domyślać (UX_50_PLUS). Odróżnia się kolorem,
-     nie wielkością. */
+  /*
+   * Wersja aplikacji.
+   *
+   * `margin-left: auto` odsuwa ją na koniec paska, żeby nie mieszała się
+   * z przyciskiem motywu — ale przy zawijaniu (telefon) po prostu schodzi
+   * do nowej linii, zamiast wypychać cokolwiek poza ekran.
+   *
+   * ROZMIAR 8px — ŚWIADOMY WYJĄTEK OD AGENTS.md §5, docs/DECISIONS.md D-051.
+   * Do tej zmiany ten komentarz mówił „kuszące jest zmniejszenie go, ale nie
+   * robimy tekstu, którego trzeba się domyślać — odróżnia się kolorem, nie
+   * wielkością". To był świadomy opór wobec dokładnie tej presji, i został
+   * przegłosowany jawną decyzją właściciela, nie cichą poprawką: metryczka
+   * ma być „małym druczkiem" na samym dole stopki (issue #205). Co ZOSTAJE
+   * mimo to: kontrast koloru (`--color-ink-muted` na `--color-surface-raised`
+   * to 7,54:1, `docs/design/DESIGN_SYSTEM.md`, daleko od progu 4,5:1 — sam
+   * rozmiar czcionki na kontrast nie wpływa) i widoczność (nie ma jej za
+   * `hover` ani za `title`, patrz komentarz w layout.blade.php). `calc(...)`
+   * ze skalą użytkownika zostaje z tego samego powodu co w `--text-help`
+   * wyżej: kto powiększył sobie tekst w `/ustawienia/czytelnosc`, ma dostać
+   * powiększenie WSZĘDZIE, łącznie z tym jednym miejscem, które startuje
+   * mniejsze niż reszta serwisu. Zakres wyjątku D-051 to WYŁĄCZNIE ten
+   * element i przycisk motywu niżej — nigdzie indziej w serwisie `--text-*`
+   * nie schodzi poniżej `--text-meta` (15px).
+   */
   .site-version {
     margin-left: auto;
+    font-size: calc(0.5rem * var(--user-text-scale, 1));
     color: var(--color-ink-muted);
     font-variant-numeric: tabular-nums;
     display: inline-flex;
@@ -2140,24 +2244,33 @@
     gap: 0 var(--spacing-2);
   }
 
-  /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana.
-     To jest ta część, której właściciel szuka wzrokiem najpierw — a stopka
-     jest rzędem linków w jednym kolorze, więc bez tego wersja w nim ginie.
-     Odróżnienie idzie KOLOREM I WAGĄ, nie wielkością: rozmiar zostaje taki
-     jak reszta stopki (UX_50_PLUS — nie robimy tekstu, którego trzeba się
-     domyślać). */
+  /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana — to jest
+     ta część, której właściciel szuka wzrokiem najpierw. Odróżnienie idzie
+     KOLOREM I WAGĄ, rozmiar dziedziczy z `.site-version` (D-051, wyżej). */
   .site-version-etap {
     color: var(--color-ink);
     font-weight: 700;
   }
 
-  /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019).
+  /* Szybki przełącznik motywu w stopce (docs/DECISIONS.md, D-019, D-051).
      `margin: 0` zdejmuje domyślny odstęp formularza, żeby przycisk stał
-     w jednym rzędzie z linkami zamiast tworzyć własny akapit. */
+     w pasku technicznym zamiast tworzyć własny akapit. */
   .site-footer-motyw {
     margin: 0;
     display: flex;
     align-items: center;
+  }
+
+  /* Sama ikona bez podpisu (D-051) — pole kliknięcia pilnuje `.btn`
+     (`min-height: var(--control-height-min)`, czyli 48px, plus padding
+     poziomy z `--spacing-5` po obu stronach ikony), więc nie trzeba tu nic
+     dokładać, żeby zostać nad progiem 48×48 px. Reguła stoi tu jawnie, a nie
+     tylko w komentarzu, żeby przyszła zmiana paddingu `.btn` miała czego
+     dotknąć: gdyby kiedyś spadł poniżej minimum, ta klasa jest miejscem na
+     jawny `min-width`/`min-height`. */
+  .site-footer-motyw-przycisk {
+    min-width: var(--control-height-min);
+    min-height: var(--control-height-min);
   }
 
   .skip-link {

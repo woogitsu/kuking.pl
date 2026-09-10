@@ -144,6 +144,11 @@ Każdy nowy ekran MUSI spełniać:
 - przy 200% powiększenia i przy szerokości 320 px strona pozostaje używalna,
 - cel: **WCAG 2.2 AA**.
 
+Te dwie reguły mają jeden nazwany, udokumentowany wyjątek — metryczka wersji
+i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
+`docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
+indziej w serwisie te reguły obowiązują bez zmian.
+
 Nawigacja mobilna ma **maksymalnie 5 pozycji**:
 `Start | Szukaj | Dodaj | Zeszyt | Profil`.
 
