@@ -11,6 +11,7 @@ use App\Domain\Digest\ZbierzTresciDigestu;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Mail\PodsumowanieTygodnia;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -51,6 +52,31 @@ use Illuminate\Support\Facades\Mail;
  * rozjechałyby się przy pierwszej zmianie którejkolwiek liczby — a w tym
  * repozytorium rozjazd dwóch kopii jednej reguły jest usterką, nie
  * niedogodnością.
+ *
+ * JEDEN LIST NA OSOBĘ NA TYDZIEŃ PILNUJE BAZA, NIE TA PĘTLA (D-077)
+ * Przed każdym `Mail::queue()` idzie `OdbiorcyDigestu::zarezerwuj()`:
+ * wstawienie wiersza do `weekly_digest_sends` z `UNIQUE (user_id,
+ * week_start)`. List wychodzi TYLKO wtedy, gdy `INSERT` się udał — konflikt
+ * znaczy „ta osoba ma ten tydzień obsłużony" i wtedy ją pomijamy, bez błędu.
+ *
+ * Kolejność jest tu całą poprawką i łatwo ją odwrócić z powrotem przy
+ * pierwszym porządkowaniu tego pliku: wcześniej `Mail::queue()` szło
+ * PIERWSZE, a ślad w bazie stawiało jedno zapytanie PO CAŁEJ PĘTLI. Awaria
+ * między jednym a drugim (a to jest kolejka, kontener na Railway i sześć
+ * czterdzieści minut wysyłki) zostawiała do sześćdziesięciu listów
+ * w kolejce i zero śladu — następny przebieg pisał do tych samych osób
+ * drugi raz.
+ * `withoutOverlapping()` z harmonogramu tego nie łapie: chroni przed dwoma
+ * przebiegami JEDNOCZEŚNIE, nie przed kolejnym przebiegiem po awarii.
+ *
+ * CO SIĘ DZIEJE, GDY REZERWACJA SIĘ UDAŁA, A WYSYŁKA PADŁA
+ * Rezerwacja ZOSTAJE i ta osoba nie dostaje listu za ten tydzień. To jest
+ * świadomy wybór, nie przeoczenie: nie da się mieć naraz „nikt nie dostanie
+ * dwa razy" i „nikt nie zostanie pominięty", bo po wyjściu z `Mail::queue()`
+ * nie wiemy, czy wiadomość weszła do kolejki, czy nie. Przy TYGODNIOWYM
+ * podsumowaniu pominięcie jest łagodniejsze niż duplikat — pełne
+ * uzasadnienie w D-077. Ta sama strona pomyłki co przy
+ * `OdbiorcyDigestu::oznaczWyslane()`: „lepiej o jeden list za mało niż trzy".
  *
  * SUMA SUFITÓW MUSI ZMIEŚCIĆ SIĘ POD 300 i żadna z tych klas tego nie widzi:
  * każda pilnuje własnej funkcji. Podział całego wiadra stoi w
@@ -121,13 +147,22 @@ class WyslijPodsumowaniaTygodnia extends Command
 
         $tresci = $zbierz->dla($kandydaci);
 
-        $wyslane = [];
+        $wyslano = 0;
         $puste = 0;
+        $juzObsluzeni = 0;
         $numer = 0;
         $odstep = max(0, (int) config('kuking.digest.odstep_sekund'));
 
+        // TYDZIEŃ JEST JEDEN DLA CAŁEGO PRZEBIEGU, liczony raz i przed pętlą.
+        // Gdyby każda osoba pytała o „teraz" osobno, paczka schodząca przez
+        // północ z niedzieli na poniedziałek rozpadłaby się na dwa różne
+        // klucze — a wtedy część osób miałaby zajęty tydzień, którego wcale
+        // nie dostała. Strefa z `Czas`, nie z `now()`: poniedziałek UTC
+        // zaczyna się w Polsce w niedzielę o 22:00.
+        $tydzien = Czas::poczatekTygodniaData();
+
         foreach ($kandydaci as $osoba) {
-            if (count($wyslane) >= $budzet && $jedna === null) {
+            if ($wyslano >= $budzet && $jedna === null) {
                 break;
             }
 
@@ -144,6 +179,37 @@ class WyslijPodsumowaniaTygodnia extends Command
             }
 
             if (! $naSucho) {
+                // ────────────────────────────────────────────────────────
+                //  BARIERA: NAJPIERW WIERSZ W BAZIE, POTEM LIST (D-077)
+                // ────────────────────────────────────────────────────────
+                //
+                // `zarezerwuj()` wstawia w jednej transakcji wiersz
+                // `weekly_digest_sends` (klucz: osoba + poniedziałek
+                // tygodnia) i znacznik `weekly_digest_sent_at`. Dopiero gdy
+                // to się UDAŁO, wolno wywołać `Mail::queue()`.
+                //
+                // `false` znaczy „ta osoba ma ten tydzień obsłużony" i jest
+                // normalnym stanem, nie awarią: tak wygląda przebieg
+                // uruchomiony po tym, jak poprzedni padł w połowie. Dlatego
+                // pomijamy po cichu, bez `error()` i bez listu.
+                //
+                // DROGA LISTU PRÓBNEGO (`--tylko`) OMIJA BARIERĘ ŚWIADOMIE.
+                // Ta flaga istnieje po to, żeby właściciel zobaczył list
+                // TERAZ, na własnej skrzynce, i już dziś pomija odstęp
+                // tygodniowy (patrz `jednaOsoba()`). Gdyby zajmowała klucz
+                // tygodnia, drugi list próbny w tym samym tygodniu byłby
+                // niemożliwy, a osoba użyta do próby straciłaby prawdziwe
+                // podsumowanie. Bariera pilnuje WYSYŁKI MASOWEJ — jednego
+                // adresu wskazanego ręcznie z konsoli pilnuje człowiek,
+                // który tę komendę wpisał.
+                if ($jedna !== null) {
+                    $odbiorcy->oznaczWyslane([$osoba]);
+                } elseif (! $odbiorcy->zarezerwuj($osoba, $tydzien)) {
+                    $juzObsluzeni++;
+
+                    continue;
+                }
+
                 // ROZSUNIĘCIE W CZASIE, NIE STO DWADZIEŚCIA WYWOŁAŃ API
                 // W JEDNEJ MINUCIE — `docs/decyzje/POCZTA.md` §5 pkt 5 mówi
                 // wprost, że taki szczyt sam w sobie jest sygnałem spamowym.
@@ -172,18 +238,11 @@ class WyslijPodsumowaniaTygodnia extends Command
                 $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_SENT, $tresc->miary());
             }
 
-            $wyslane[] = $osoba;
+            $wyslano++;
             $numer++;
         }
 
-        if (! $naSucho) {
-            // Znacznik stawiamy JEDNYM zapytaniem, po pętli — patrz
-            // `OdbiorcyDigestu::oznaczWyslane()`, dlaczego przy wstawieniu
-            // do kolejki, a nie po doręczeniu.
-            $odbiorcy->oznaczWyslane($wyslane);
-        }
-
-        $this->podsumuj(count($wyslane), $puste, $budzet, $naSucho, $jedna !== null);
+        $this->podsumuj($wyslano, $puste, $juzObsluzeni, $budzet, $naSucho, $jedna !== null);
 
         return self::SUCCESS;
     }
@@ -242,11 +301,29 @@ class WyslijPodsumowaniaTygodnia extends Command
             ->first();
     }
 
-    private function podsumuj(int $ile, int $puste, int $budzet, bool $naSucho, bool $proba): void
+    private function podsumuj(int $ile, int $puste, int $juzObsluzeni, int $budzet, bool $naSucho, bool $proba): void
     {
         $czasownik = $naSucho ? 'Do wysłania' : 'Wysłano';
 
         $this->info("{$czasownik}: {$ile}. Pominięto bez treści: {$puste}.");
+
+        if ($juzObsluzeni > 0) {
+            // TO ZDANIE MUSI ZOSTAWIĆ ŚLAD, bo jest jedynym miejscem, w którym
+            // widać, że BARIERA W BAZIE zatrzymała listy, które sprawdzenie
+            // odstępu w PHP już przepuściło. Przy spokojnym przebiegu ta
+            // liczba jest zerem: rezerwacja i znacznik odstępu powstają razem,
+            // więc osoba obsłużona nie wchodzi nawet na listę kandydatów.
+            // Niezerowa znaczy, że te dwie rzeczy się rozjechały — dwa
+            // przebiegi równolegle albo ręcznie ruszony znacznik — i wtedy
+            // warto o tym wiedzieć.
+            //
+            // Nie `error()` ani `warn()`: bariera zadziałała dokładnie tak, jak
+            // ma działać, i nikt nie dostał drugiego listu.
+            $this->info(
+                "Pominięto jako już obsłużone w tym tygodniu: {$juzObsluzeni}. "
+                .'Tyle listów zatrzymała bariera w bazie.',
+            );
+        }
 
         if ($proba || $naSucho) {
             return;

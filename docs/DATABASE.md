@@ -107,9 +107,21 @@ i tak sortować wyniku.
 
 Kolumna **nie jest w `$fillable`** — ten sam powód co `ostatnio_widziany_at`
 (AGENTS.md §7). Zapisuje ją wyłącznie
-`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`. Masowe przypisanie
-z żądania pozwoliłoby cofnąć czyjś znacznik i wysłać mu drugi list w tym
-samym tygodniu, wbrew obietnicy z ekranu ustawień.
+`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()` (a przy liście próbnym
+`--tylko` — `::oznaczWyslane()`). Masowe przypisanie z żądania pozwoliłoby
+cofnąć czyjś znacznik i wysłać mu drugi list w tym samym tygodniu, wbrew
+obietnicy z ekranu ustawień.
+
+> **Uzupełnienie, 10 września 2026 (audyt QUEUE-01, D-077).** Punkt 2 wyżej
+> („czyni zadanie odpornym na powtórne uruchomienie") był prawdą tylko dla
+> przebiegu, który **doszedł do końca**. Znacznik stawiało jedno zapytanie po
+> całej pętli, więc awaria po zakolejkowaniu listów nie zostawiała po nich
+> żadnego śladu i następny przebieg wysyłał je drugi raz. Odporność daje
+> teraz bariera w bazie — `weekly_digest_sends`, sekcja niżej — a ta kolumna
+> jest od 10 września zapisywana **osobno dla każdej osoby, w jednej
+> transakcji z rezerwacją i PRZED wysłaniem listu**. Sama, bez tabeli
+> rezerwacji, nadal by nie wystarczyła: jest porównaniem, czyli odczytem
+> przed zapisem, a między nimi jest luka na dwa przebiegi równoległe.
 
 **Rollback.** `down()` kasuje kolumnę i indeks. Bezpieczny, ale nie bez
 skutku i trzeba to nazwać: razem z kolumną znika pamięć o tym, komu już
@@ -2033,6 +2045,107 @@ wiadomości); same wiadomości zostają nietknięte. **Strata jest jednak
 NIEODWRACALNA** — w tabeli leżą listy, które naprawdę poszły do ludzi.
 Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
 `pg_dump --data-only --table=contact_message_replies > odpowiedzi.sql`.
+
+### weekly_digest_sends
+
+Trwały klucz idempotencji tygodniowego podsumowania: **jeden list na parę
+(osoba, tydzień)**, pilnowany przez bazę. Migracja
+`2026_09_10_400000_create_weekly_digest_sends_table`, audyt 10.09.2026
+QUEUE-01 / MAIL-02 / RACE-04, **D-077**.
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Kogo dotyczy. `cascadeOnDelete` — druga linia, nie pierwsza: kont z Kuking się nie kasuje, tylko anonimizuje (D-022). |
+| `week_start` | **DATA PONIEDZIAŁKU** tygodnia, za który poszedł list, liczona w strefie człowieka (`App\Support\Czas::poczatekTygodniaData()`). Nie numer tygodnia ISO. |
+| `reserved_at` | Kiedy zajęto klucz. **Nie** „kiedy list doszedł" — tego Kuking nie wie i nie ma się dowiadywać (otwarta sprawa #204: żadnego śledzenia doręczeń ani otwarć). |
+
+```sql
+CREATE TABLE weekly_digest_sends (
+    user_id     uuid  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start  date  NOT NULL,
+    reserved_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, week_start)
+);
+
+ALTER TABLE weekly_digest_sends
+ADD CONSTRAINT weekly_digest_sends_week_start_monday_check
+CHECK (extract(isodow from week_start) = 1);
+```
+
+#### Po co, skoro jest już `users.weekly_digest_sent_at`
+
+Bo tamten znacznik jest **porównaniem w PHP**, a nie barierą. Do 10 września
+komenda wysyłkowa robiła dla każdej osoby: `Mail::queue()` → budżet → sygnał,
+a znacznik stawiała **jednym zapytaniem po całej pętli**. Awaria pomiędzy
+zostawiała do sześćdziesięciu listów w kolejce i **zero** śladu w bazie, więc
+następny przebieg pisał do tych samych osób drugi raz.
+`withoutOverlapping()` z harmonogramu tego nie łapie: chroni przed dwoma
+przebiegami JEDNOCZEŚNIE, nie przed kolejnym przebiegiem PO awarii.
+
+Kolejność jest teraz odwrotna: **wiersz rezerwacji, potem list.** `INSERT`
+i znacznik `weekly_digest_sent_at` idą w JEDNEJ transakcji
+(`OdbiorcyDigestu::zarezerwuj()`), a `Mail::queue()` wykonuje się tylko wtedy,
+gdy `INSERT` się udał. Konflikt unikalności znaczy „ta osoba ma ten okres
+obsłużony" i wtedy po prostu ją pomijamy — bez błędu i bez listu.
+
+Obie warstwy są potrzebne i mówią różne rzeczy:
+
+- `weekly_digest_sends` → **najwyżej jeden list na tydzień kalendarzowy**,
+  bez luki między odczytem a zapisem (czyli także przy dwóch przebiegach
+  równolegle — RACE-04);
+- `users.weekly_digest_sent_at` → **nie częściej niż raz na siedem dni**
+  plus kolejność „kto czeka najdłużej"; sam tydzień kalendarzowy pozwoliłby
+  na list w niedzielę i w poniedziałek.
+
+Kalendarzowy tydzień nikogo nie opóźnia: dzień `x` i dzień `x + 7` zawsze
+mają różne poniedziałki, więc bariera nie blokuje wysyłki, na którą odstęp
+już pozwala.
+
+#### Dlaczego data poniedziałku, a nie numer tygodnia ISO
+
+Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28` należy do
+tygodnia 1 **roku 2027**, więc numer wymagałby pary (rok ISO, tydzień) —
+a klucz idempotencji zapisany niepełny przestaje być unikalny. Data
+poniedziałku to jedna kolumna `date`: porównywalna, sortowalna, czytelna
+w zrzucie bazy i zgodna z tym, co w PostgreSQL znaczy `date_trunc('week', …)`.
+
+Strefa nie jest ozdobą: poniedziałek UTC zaczyna się w Polsce w niedzielę
+o 22:00, więc przebieg uruchomiony w poniedziałek nad ranem trafiałby do
+tygodnia poprzedniego. Stąd `Czas`, nie `now()`.
+
+CHECK „to musi być poniedziałek" pilnuje, żeby klucz nadal ZNACZYŁ tydzień.
+Data ze środka tygodnia dałaby tej samej osobie dwa różne, oba wolne klucze
+w jednym tygodniu — czyli dwa listy przy nietkniętym `UNIQUE`.
+
+#### Co się dzieje, gdy rezerwacja się udała, a wysyłka padła
+
+**Rezerwacja zostaje i ta osoba nie dostaje listu za ten tydzień.** To jest
+wybrana strona pomyłki, nie przeoczenie: po wyjściu z `Mail::queue()` nie da
+się odróżnić „wiadomość nie weszła do kolejki" od „weszła, a proces padł
+sekundę później", więc nie można mieć naraz „nikt nie dostanie dwa razy"
+i „nikt nie zostanie pominięty". Uzasadnienie wyboru: **D-077**.
+
+#### Czego tu świadomie nie ma
+
+Treści listu, adresu, liczników, śladu doręczenia. Wiersz mówi wyłącznie
+„ta osoba ma ten tydzień obsłużony" — ta sama klasa faktu co
+`users.weekly_digest_sent_at`, więc bez nowej kategorii danych osobowych.
+Nie ma też retencji ani komendy sprzątającej: przy przepustowości 420 osób
+tygodniowo (D-057) to około 22 tysiące wierszy po dwóch kolumnach na rok.
+
+**Rollback.** `down()` kasuje tabelę. Nie ginie ani jedno słowo od człowieka
+i nie ginie pamięć o wysyłce (`users.weekly_digest_sent_at` zostaje) — ale
+**ginie bariera**, a to trzeba nazwać wprost: po wycofaniu jedyną ochroną
+przed drugim listem zostaje porównanie w PHP, czyli dokładnie ten mechanizm,
+którego luka jest powodem tej migracji. Dlatego rollback robi się
+**wyłącznie razem z `KUKING_DIGEST_WLACZONY=false`**, nigdy „przy okazji".
+Kolejność: **najpierw kod, potem migracja** — nowy kod bez tabeli pada na
+pierwszej osobie i nie wysyła nikomu nic (kierunek awarii bezpieczny, ale
+wysyłka staje).
+
+Pilnuje tego `tests/Feature/DigestNieWysylaDwaRazyTest.php` (awaria w połowie
+przebiegu, bariera bez znacznika odstępu, kontrola dodatnia, następny
+tydzień, brak zgody, oba ograniczenia bazy osobno).
 
 ## V1 / V2
 
