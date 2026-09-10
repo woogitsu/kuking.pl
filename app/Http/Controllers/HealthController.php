@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Logging\WebhookBleduHandler;
+use App\Models\MailFailure;
+use App\Poczta\PowodOdmowy;
 use App\Support\Poczta;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
@@ -39,6 +42,26 @@ use Throwable;
  * inne pytanie niż pozostałe dwa: nie „czy coś padło", a „czy konfiguracja
  * nie kłamie" (D-050). Brak kluczy Turnstile nic nie psuje — i właśnie
  * dlatego bez tego sygnału nikt by go nie zauważył.
+ *
+ * `poczta`, `kolejka` i `listy` są tu z tego samego, NIEKRYTYCZNEGO powodu
+ * i pytają o trzy RÓŻNE rzeczy — kolejność jest od najwcześniejszej:
+ *
+ *  - `poczta` — „czy wysyłka ma w ogóle czym ruszyć" (`MAIL_MAILER` na
+ *    produkcji, `App\Support\Poczta`). Awaria SPRZED pierwszego listu;
+ *  - `kolejka` — „czy w `failed_jobs` cokolwiek leży" (D-042). Dotyczy
+ *    WSZYSTKICH zadań: zdjęć, eksportów, listów;
+ *  - `listy` — „czy komuś nie doszedł LIST, o którym jeszcze nie wiesz"
+ *    (issue #234, D-062, tabela `mail_failures`).
+ *
+ * DWIE OSTATNIE ZAPALAJĄ SIĘ RAZEM PRZY PRZEPADŁYM LIŚCIE I TAK MA BYĆ.
+ * Jeden przegrany list zostawia wiersz w `failed_jobs` (zapala `kolejka`)
+ * ORAZ wiersz w `mail_failures` (zapala `listy`). Nie jest to dublowanie,
+ * bo te dwie sondy gasną w innych momentach i to jest cała różnica:
+ * `queue:retry` albo `queue:flush` czyści `failed_jobs`, więc `kolejka`
+ * robi się zielona od razu — a `listy` świecą, dopóki człowiek nie odhaczy
+ * (`php artisan kuking:nieudane-listy --odhacz`). Świadomie BEZ okna
+ * czasowego: alarm, który gaśnie sam, zamienia awarię z nocy w niewidzialną
+ * awarię o świcie.
  *
  * PO CO W OGÓLE SPRAWDZAĆ ZDJĘCIA
  * Katalog ze zdjęciami stał kiedyś na dysku kontenera, który Railway kasuje
@@ -86,6 +109,9 @@ class HealthController extends Controller
         self::POWOD_TURNSTILE_BEZ_KLUCZY,
         self::POWOD_POCZTA_NIE_WYSYLA,
         self::POWOD_ZADANIA_NIEUDANE,
+        self::POWOD_LISTY_PRZEPADAJA,
+        self::POWOD_LIMIT_POCZTY_WYCZERPANY,
+        self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -131,6 +157,28 @@ class HealthController extends Controller
     private const POWOD_ZADANIA_NIEUDANE = 'zadania_nieudane';
 
     /**
+     * W `mail_failures` leży co najmniej jeden nieodhaczony list, czyli
+     * wiadomość do człowieka, która nie wyszła i nie wyjdzie (issue #234).
+     */
+    private const POWOD_LISTY_PRZEPADAJA = 'listy_przepadaja';
+
+    /**
+     * To samo, ale z powodu wyczerpanego dobowego limitu u dostawcy — osobny
+     * kod, bo osobna czynność człowieka: nie ma czego naprawiać w kodzie,
+     * trzeba poczekać do północy albo zmienić plan. Monitoring zewnętrzny
+     * odróżnia więc „coś się psuje" od „skończyła się pula".
+     */
+    private const POWOD_LIMIT_POCZTY_WYCZERPANY = 'limit_poczty_wyczerpany';
+
+    /**
+     * Nie dało się sprawdzić śladu — najczęściej tabeli `mail_failures`
+     * jeszcze nie ma, bo kod wdrożył się przed migracją. Osobny kod, żeby
+     * brak tabeli nie meldował się jako „listy przepadają": alarm o awarii,
+     * której nie ma, jest tak samo szkodliwy jak cisza o awarii, która jest.
+     */
+    private const POWOD_SLAD_LISTOW_NIESPRAWDZALNY = 'slad_listow_niesprawdzalny';
+
+    /**
      * Ile minut milczymy na webhooku o TEJ SAMEJ nazwanej kontroli, zanim
      * wyślemy kolejne powiadomienie. Bez tego zewnętrzny monitoring odpytujący
      * `/health` co kilka minut zamieniłby jedną trwającą awarię w dzwonek
@@ -158,6 +206,7 @@ class HealthController extends Controller
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
             'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
+            'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -175,6 +224,64 @@ class HealthController extends Controller
             'time' => now()->toIso8601String(),
             'checks' => $checks,
         ], $krytyczneOk ? 200 : 503);
+    }
+
+    /**
+     * Czy jakiś list przepadł, a właściciel jeszcze o tym nie wie
+     * (issue #234, D-062).
+     *
+     * PO CO TO TU JEST
+     * Bo do 10 września 2026 przepadnięcie listu wyglądało DOKŁADNIE jak
+     * sukces: worker wyczerpywał trzy próby w sześć minut, zadanie lądowało
+     * w `failed_jobs`, kolejka wracała do zera, a `/health` świecił na
+     * zielono. Dotyczyło to potwierdzeń rejestracji i przypomnień hasła,
+     * czyli listów, na które ktoś czeka przed ekranem. Ta sonda jest
+     * pierwszym miejscem, w którym taka awaria mówi o sobie sama.
+     *
+     * BEZ OKNA CZASOWEGO — I TO JEST SEDNO
+     * Nie pytamy „czy coś przepadło w ostatniej godzinie", tylko „czy
+     * cokolwiek czeka na przeczytanie". Alarm z oknem czasowym gaśnie sam po
+     * godzinie, czyli awaria z nocy jest o ósmej rano znowu niewidoczna —
+     * a to jest ta sama cicha porażka, tylko o godzinę późniejsza. Gaśnie
+     * dopiero wtedy, gdy człowiek odhaczy: `php artisan kuking:nieudane-listy
+     * --odhacz`.
+     *
+     * KONSEKWENCJA, PRZYJĘTA ŚWIADOMIE: `/health` może stać w `degraded`
+     * przez wiele godzin. Jest to cena za to, żeby jeden przepadły list nie
+     * przeszedł niezauważony — a odhaczenie jest jedną komendą, po
+     * przeczytaniu. `listy` nie są na liście `KRYTYCZNE`, więc trasa oddaje
+     * dalej HTTP 200 i Railway nie restartuje z tego powodu niczego.
+     *
+     * DLACZEGO `Log::error` NIE ROBI TU SZUMU: sondy `/health` logują tylko
+     * przy porażce, a monitoring odpytuje trasę co kilka minut — więc wpis
+     * powstaje przy każdym odpytaniu, dopóki alarm trwa. To znaczy: dziennik
+     * powie „od 02:14 do 08:30 listy przepadały", i taki zapis jest właśnie
+     * tym, czego przy poszukiwaniu przyczyny brakuje najczęściej.
+     */
+    private function sprawdzNieudaneListy(): void
+    {
+        $nieodhaczone = MailFailure::query()->nieodhaczone()->count();
+
+        if ($nieodhaczone === 0) {
+            return;
+        }
+
+        // Kategoria z NAJŚWIEŻSZEJ porażki: przy wyczerpanej puli wszystkie
+        // wpisy z danej doby mają ten sam powód, a właściciela interesuje
+        // to, co dzieje się TERAZ.
+        $najswiezszy = MailFailure::query()
+            ->nieodhaczone()
+            ->orderByDesc('failed_at')
+            ->first();
+
+        $limit = $najswiezszy?->powod === PowodOdmowy::LIMIT_DOBOWY;
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            $limit ? self::POWOD_LIMIT_POCZTY_WYCZERPANY : self::POWOD_LISTY_PRZEPADAJA,
+            'Nieodhaczonych nieudanych listów: '.$nieodhaczone.'. '
+            .'Najświeższy powód: '.($najswiezszy?->powod->value ?? 'nieznany').'. '
+            .'Przeczytaj: php artisan kuking:nieudane-listy',
+        );
     }
 
     /**
@@ -486,7 +593,33 @@ class HealthController extends Controller
             return;
         }
 
+        // Czysta kartka przed pomiarem: w jednym żądaniu `/health` dzwonimy
+        // nawet kilka razy (osobny odstęp na kontrolę), a bez tego drugi
+        // dzwonek odczytałby wynik pierwszego.
+        WebhookBleduHandler::zapomnijOstatniaWysylke();
+
         Log::channel('blad_webhook')->error("/health: kontrola „{$nazwa}” nie przeszła (powód: {$powod}).");
+
+        // ────────────────────────────────────────────────────────────────
+        //  CISZA NA POŁ GODZINY NALEŻY SIĘ ZA DZWONEK, KTÓRY ZADZWONIŁ
+        // ────────────────────────────────────────────────────────────────
+        //
+        // `WebhookBleduHandler::write()` świadomie NIE RZUCA, gdy wysyłka się
+        // nie uda (uzasadnienie w jego komentarzu klasy), a nieudane żądanie
+        // HTTP i tak nie rzuca samo — 401 z odwołanego webhooka Discorda
+        // wraca jako zwykła odpowiedź. Bez tego warunku wyglądałoby to więc
+        // tak: pierwsza próba wpada w trzysekundową niedostępność kanału,
+        // wiadomość przepada, a odstęp jest już zajęty — czyli JEDNA sekunda
+        // pecha kupuje pół godziny ciszy o trwającej awarii. To jest ta sama
+        // klasa usterki co cały ten endpoint miał naprawiać.
+        //
+        // Dlatego przy nieudanym dzwonku oddajemy odstęp: następne odpytanie
+        // `/health` (monitoring pyta co kilka minut) zadzwoni jeszcze raz.
+        // Sam fakt niedodzwonienia się zostaje w dzienniku serwera — zapisuje
+        // go handler.
+        if (WebhookBleduHandler::ostatniaWysylkaSieUdala() === false) {
+            Cache::forget($this->kluczOdstepuWebhooka($nazwa));
+        }
     }
 
     private function kluczOdstepuWebhooka(string $nazwa): string

@@ -6,9 +6,12 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\HealthController;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -39,6 +42,9 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
     use RefreshDatabase;
 
     private const ADRES_WEBHOOKA = 'https://discord.example.test/api/webhooks/000/tajny-token/slack';
+
+    /** @var list<MessageLogged> */
+    private array $wpisyDziennika = [];
 
     // ------------------------------------------------------------------
     //  Poczta
@@ -303,19 +309,161 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             DB::purge('zepsuta');
         }
 
-        Http::assertSent(function ($request): bool {
-            if ($request->url() !== self::ADRES_WEBHOOKA) {
-                return false;
-            }
+        // Padnięta baza wywraca WIĘCEJ NIŻ JEDNĄ sondę (`database`,
+        // `migrations`, a od #253 także `listy`, bo nie da się odczytać
+        // `mail_failures`), więc każda z nich dzwoni osobno. Sprawdzamy
+        // więc dwie rzeczy osobno: że wśród wiadomości jest ta o bazie,
+        // i że ŻADNA z nich nie niesie danych połączenia.
+        $wiadomosci = Http::recorded()
+            ->map(static fn (array $para): string => (string) ($para[0]['text'] ?? ''))
+            ->all();
 
-            $tresc = (string) ($request['text'] ?? '');
+        $this->assertNotEmpty($wiadomosci, 'Awaria krytyczna miała zadzwonić na webhook.');
 
-            $this->assertStringContainsString('baza_nie_odpowiada', $tresc);
+        $this->assertTrue(
+            collect($wiadomosci)->contains(fn (string $tresc): bool => str_contains($tresc, 'baza_nie_odpowiada')),
+            'Wśród wiadomości nie ma tej o niedostępnej bazie.',
+        );
+
+        foreach ($wiadomosci as $tresc) {
             $this->assertStringNotContainsString('sekretna-nazwa-bazy', $tresc);
             $this->assertStringNotContainsString('sekretny-uzytkownik', $tresc);
             $this->assertStringNotContainsString('sekretne-haslo', $tresc);
+        }
+    }
 
-            return true;
+    // ------------------------------------------------------------------
+    //  Webhook, który NIE ODPOWIADA — czyli czy to nie jest cichy try/catch
+    // ------------------------------------------------------------------
+
+    /**
+     * DZWONEK, KTÓRY NIE ZADZWONIŁ, NIE KUPUJE CISZY — i zostawia ślad.
+     *
+     * To jest najbardziej podstępna gałąź w całym tym mechanizmie.
+     * `WebhookBleduHandler::write()` nie ma prawa rzucić (inaczej człowiek na
+     * stronie zamiast błędu 500 dostawałby wyjątek z samego mechanizmu
+     * powiadamiania), a nieudane żądanie HTTP wyjątku NAWET NIE RZUCA:
+     * Discord z odwołanym webhookiem odpowiada 401/404, a klient Laravela bez
+     * `throw()` oddaje to jako zwykłą odpowiedź. Bez tego testu wyglądałoby
+     * to więc tak: pierwsze odpytanie `/health` „dzwoni", wiadomość przepada,
+     * odstęp 30 minut jest już zajęty — i o trwającej awarii nie dowiaduje
+     * się nikt, przez pół godziny, w sposób nieodróżnialny od sukcesu.
+     *
+     * Dwie asercje DODATNIE: fakt niedodzwonienia się jest w dzienniku
+     * serwera, a następne odpytanie dzwoni jeszcze raz.
+     */
+    public function test_webhook_ktory_odpowiedzial_bledem_nie_wycisza_i_zostawia_slad(): void
+    {
+        Artisan::call('storage:link');
+
+        config(['logging.channels.blad_webhook.url' => self::ADRES_WEBHOOKA]);
+        Http::fake([self::ADRES_WEBHOOKA => Http::response('nie ma takiego webhooka', 404)]);
+
+        $this->nasluchujDziennika();
+
+        $this->wstawNieudaneZadanie();
+
+        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+
+        $this->assertTrue(
+            $this->wDziennikuJest('Nie udało się zadzwonić na webhook błędów'),
+            'Fakt niedodzwonienia się musi gdzieś zostać — inaczej „nie rzucamy" znaczy „milczymy".',
+        );
+
+        // Ta sama, wciąż trwająca awaria: skoro poprzedni dzwonek nie doszedł,
+        // odstęp nie należy się i drugie odpytanie ma zadzwonić.
+        $this->get('/health')->assertOk();
+
+        Http::assertSentCount(2);
+    }
+
+    /**
+     * To samo, ale gdy webhook nie odpowiada WCALE (zerwane połączenie,
+     * padnięty DNS) — czyli gałąź `catch`, nie gałąź „HTTP 4xx".
+     *
+     * Osobny test i osobny sabotaż, bo to są dwie różne gałęzie warunku
+     * (`docs/PULAPKI_TESTOW.md` §3b), a przy pustym `catch` obie wyglądały
+     * identycznie jak sukces.
+     */
+    public function test_webhook_ktory_nie_odpowiada_wcale_tez_nie_wycisza(): void
+    {
+        Artisan::call('storage:link');
+
+        config(['logging.channels.blad_webhook.url' => self::ADRES_WEBHOOKA]);
+        Http::fake([
+            self::ADRES_WEBHOOKA => static function (): never {
+                throw new ConnectionException('Nie udało się połączyć.');
+            },
+        ]);
+
+        $this->nasluchujDziennika();
+
+        $this->wstawNieudaneZadanie();
+
+        // Brak wyjątku z `/health` JEST tu asercją: awaria mechanizmu
+        // powiadamiania nie ma prawa wywrócić samego healthchecku.
+        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+
+        $this->assertSame(
+            1,
+            $this->ileWDzienniku('Nie udało się zadzwonić na webhook błędów'),
+            'Zerwane połączenie z webhookiem też ma zostać w dzienniku serwera.',
+        );
+
+        // Drugie odpytanie tej samej, trwającej awarii. Liczymy WPISY, a nie
+        // żądania: `Http::fake()` nie rejestruje próby, która skończyła się
+        // wyjątkiem połączenia, więc `assertSentCount()` pokazywałaby tu zero
+        // niezależnie od tego, czy odstęp został oddany — czyli byłaby
+        // asercją o niczym.
+        $this->get('/health')->assertOk();
+
+        $this->assertSame(
+            2,
+            $this->ileWDzienniku('Nie udało się zadzwonić na webhook błędów'),
+            'Skoro pierwszy dzwonek nie doszedł, odstęp się nie należy i drugie odpytanie ma próbować znowu.',
+        );
+    }
+
+    /**
+     * KONTROLA DODATNIA DO DWÓCH TESTÓW WYŻEJ: gdy dzwonek DOSZEDŁ, odstęp
+     * obowiązuje. Bez tej pary „oddajemy odstęp przy porażce" mogłoby znaczyć
+     * „nie ma żadnego odstępu", czyli zamianę ciszy na zalanie kanału
+     * (`docs/PULAPKI_TESTOW.md` §4).
+     */
+    public function test_dzwonek_ktory_doszedl_wycisza_na_czas_odstepu(): void
+    {
+        Artisan::call('storage:link');
+
+        config(['logging.channels.blad_webhook.url' => self::ADRES_WEBHOOKA]);
+        Http::fake([self::ADRES_WEBHOOKA => Http::response('', 204)]);
+
+        $this->wstawNieudaneZadanie();
+
+        $this->get('/health')->assertOk()->assertJsonPath('checks.kolejka.ok', false);
+        $this->get('/health')->assertOk();
+
+        Http::assertSentCount(1);
+    }
+
+    private function nasluchujDziennika(): void
+    {
+        $this->wpisyDziennika = [];
+
+        Log::listen(function (MessageLogged $wpis): void {
+            $this->wpisyDziennika[] = $wpis;
         });
+    }
+
+    private function wDziennikuJest(string $fragment): bool
+    {
+        return $this->ileWDzienniku($fragment) > 0;
+    }
+
+    private function ileWDzienniku(string $fragment): int
+    {
+        return count(array_filter(
+            $this->wpisyDziennika,
+            static fn (MessageLogged $wpis): bool => str_contains($wpis->message, $fragment),
+        ));
     }
 }

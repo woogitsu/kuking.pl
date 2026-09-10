@@ -168,10 +168,67 @@ spamem z jednego, wciąż trwającego problemu.
 
 **Które sprawdzenia to dziś:** `poczta` (czy `MAIL_MAILER` ma na produkcji
 czym wysłać — ta sama klasa `App\Support\Poczta`, co `kuking:sprawdz-poczte`),
-`kolejka` (czy w `failed_jobs` coś leży) i `turnstile` (D-050). `database`
-i `migrations` też dzwonią — wcześniej ich 503 nie docierało na webhook
-w ogóle, bo `HealthController` łapie ten wyjątek sam, w środku, i nigdy nie
-oddawał go dalej do mechanizmu, który normalnie woła ten kanał.
+`kolejka` (czy w `failed_jobs` coś leży), `listy` (czy przepadł komuś list —
+issue #234, D-062) i `turnstile` (D-050). `database` i `migrations` też
+dzwonią — wcześniej ich 503 nie docierało na webhook w ogóle, bo
+`HealthController` łapie ten wyjątek sam, w środku, i nigdy nie oddawał go
+dalej do mechanizmu, który normalnie woła ten kanał.
+
+**GDY DZWONEK NIE ZADZWONI, WIDAĆ TO W DZIENNIKU SERWERA.** Wysyłka na
+webhook nie ma prawa rzucić (inaczej człowiek na stronie zamiast błędu 500
+dostawałby wyjątek z samego mechanizmu powiadamiania) — ale do 10 września
+2026 znaczyło to, że nie wiedział o tym NIKT, i to podwójnie: pusty `catch`
+połykał wyjątek połączenia, a nieudane żądanie HTTP wyjątku nawet nie rzuca
+(Discord z odwołanym webhookiem odpowiada 401/404 jako zwykłą odpowiedź).
+Kanał wyciszony i kanał sprawny wyglądały identycznie. Teraz
+`WebhookBleduHandler` zapisuje sam fakt niedodzwonienia się do dziennika
+serwera („Nie udało się zadzwonić na webhook błędów. Wiadomość przepadła.",
+kanał `single` — nigdy ten kanał, bo to byłaby pętla), a `/health` **oddaje
+wtedy swój 30-minutowy odstęp**, więc następne odpytanie dzwoni jeszcze raz.
+Jedna sekunda niedostępności Discorda nie kupuje pół godziny ciszy
+o trwającej awarii.
+
+### Co przychodzi na ten kanał z poczty (issue #234, D-062)
+
+**Najpierw sprostowanie, bo tu było napisane za dużo.** Pierwsza wersja tej
+sekcji obiecywała na tym kanale także wiadomość „Poczta: list przepadł i nikt
+go już nie wyśle". Nieprawda: to jest zwykłe `Log::error()`, a ten kanał **nie
+jest częścią stosu domyślnego** (`config/logging.php`: `stack` →
+`LOG_STACK`, a `.env.example` ustawia `LOG_STACK=single`). Woła się do niego
+JAWNIE — z `bootstrap/app.php` przy raportowaniu wyjątku, z
+`App\Domain\Contact\DzwonekOperatora`, z ostrzeżenia o suficie poczty
+i z `HealthController::powiadomWebhook()`. Sam poziom `error` nikogo nie
+budzi.
+
+Co więc naprawdę przychodzi tu z poczty:
+
+| Wiadomość | Kiedy | Co zrobić |
+|---|---|---|
+| „Poczta: sufit «…» zużyty w N%…" | Zużycie dobowego sufitu przekroczyło `KUKING_POCZTA_PROG_OSTRZEZENIA` (domyślnie 80%) — raz na dobę na funkcję | Sprawdź, czy plan u dostawcy nadal wystarcza — `docs/decyzje/POCZTA.md` §4 |
+| „/health: kontrola «listy» nie przeszła…" | Sonda `/health` zobaczyła nieodhaczony wiersz w `mail_failures` (`HealthController::powiadomWebhook()`, sekcja wyżej) | `php artisan kuking:nieudane-listy` — kategoria odmowy mówi, czy powtarzać |
+
+A gdzie jest sam „list przepadł": w **dzienniku serwera** (`Log::error`
+z `App\Poczta\ZapiszNieudanyList`) i — trwale — w **wierszu tabeli
+`mail_failures`** oraz w polu `checks.listy` w `/health`, które trzyma
+`degraded`, dopóki ktoś nie odhaczy.
+
+**Ten kanał NIE JEST i nie może być jedynym śladem takiej awarii**: jest
+warunkowy (`LOG_BLAD_WEBHOOK_URL`), a przy wyczerpanej puli listów pocztowy
+alarm i tak by nie wyszedł. Dlatego obowiązkowe są wiersz w bazie i `/health`.
+Uzasadnienie: **D-062 §3**.
+
+### Dlaczego to nie ma własnego numeru decyzji
+
+Bo nie jest nową decyzją, tylko wykonaniem czterech już podjętych: **D-041**
+wybrało ten kanał zamiast Sentry, **D-042** zapisało, że `failed_jobs` nie
+widzi nikt, **D-050** że brak kluczy Turnstile musi być widoczny z zewnątrz,
+a **D-062** że przepadły list zapala `/health`. Brakowało jednego połączenia:
+`/health` wiedział o tych awariach i nie mówił o nich nikomu, kto sam nie
+otworzył JSON-a. Nowy numer sugerowałby, że coś tu rozstrzygnięto na nowo —
+a rozstrzygnięte było wszystko poza tym, gdzie postawić jedno wywołanie.
+Jedyną prawdziwą decyzją z tej pracy jest **D-063** (PostHog: nie teraz),
+i ona swój numer ma.
+
 
 ---
 

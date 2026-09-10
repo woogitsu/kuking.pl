@@ -2535,6 +2535,70 @@ Pilnuje tego `tests/Feature/DigestNieWysylaDwaRazyTest.php` (awaria w połowie
 przebiegu, bariera bez znacznika odstępu, kontrola dodatnia, następny
 tydzień, brak zgody, oba ograniczenia bazy osobno).
 
+### mail_failures
+
+Listy, które **nie wyszły i już nie wyjdą**, migracja
+`2026_09_10_500000_create_mail_failures_table` (**D-062**, issue #234).
+Do 10 września 2026 odmowa dostawcy kończyła się tak: trzy próby workera
+(`--tries=3 --backoff=10,60,300`, czyli około sześciu minut), wiersz
+w `failed_jobs` — i cisza. Adresat nie dowiadywał się nigdy, właściciel
+tylko wtedy, gdy sam z siebie zajrzał w `php artisan queue:failed`. Kolejka
+pusta, `/health` zielony: **awaria wyglądała identycznie jak sukces**,
+a dotyczyło to potwierdzeń rejestracji, przypomnień hasła i logowania linkiem.
+
+**Osobna tabela, nie `failed_jobs`.** Tamta trzyma wszystkie nieudane
+zadania (zdjęcia, eksporty, analizy), nie ma miejsca na kategorię odmowy
+(„wyczerpany limit" ≠ „zły adres"), znika przy `queue:retry`/`queue:flush`
+i nie da się w niej niczego odhaczyć. Ta tabela **nie dubluje** tamtej —
+wskazuje na nią kolumną `failed_job_uuid`.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID, `gen_random_uuid()`. |
+| `failed_job_uuid` | Wskaźnik na `failed_jobs.uuid`, **UNIKALNY** (jedno przepadnięcie = jeden wiersz, także gdy zdarzenie `JobFailed` dojdzie dwa razy). **Bez klucza obcego świadomie:** `queue:retry` kasuje tamten wiersz, a ten ma zostać. `NULL` przy wysyłce bez kolejki (tryb `sync`, konsola, testy). |
+| `powod` | Kategoria z `App\Poczta\PowodOdmowy`: `limit_dobowy` \| `przejsciowa` \| `trwala` \| `nieznana`, CHECK `mail_failures_powod_check`. Ustala ją transport w chwili odmowy, bo tylko on widzi kod HTTP dostawcy. |
+| `status_http` | Kod odpowiedzi dostawcy, CHECK `mail_failures_status_http_check` (100–599). `NULL`, gdy nie odpowiedział w ogóle (zerwane połączenie). |
+| `rodzaj` | `displayName` z payloadu, czyli **klasa powiadomienia** (`App\Notifications\PotwierdzenieAdresu`). To ona mówi, CO przepadło. |
+| `kolejka` | `high` \| `default` \| `low`. |
+| `prob` | Ile prób wykonał worker (na produkcji 3, w trybie `sync` 1), CHECK `mail_failures_prob_check`. |
+| `user_id` | **KTO CZEKAŁ NA LIST**, `nullOnDelete()`. Najważniejsza kolumna dla właściciela: w grupie 50+ osoba bez potwierdzenia nie napisze reklamacji, tylko odejdzie. Ustalane „best effort" z payloadu — `NULL` jest poprawnym wynikiem. |
+| `komunikat` | Powód po redakcji (`App\Poczta\BezpiecznyKomunikat`): jedna linia, bez adresów e-mail, przycięta. |
+| `failed_at` | Kiedy list przepadł. Zapisane wprost, nie jako `created_at` — wiersz opisuje zdarzenie, nie encję (stąd brak `timestampsTz()`). |
+| `zauwazony_at` | „Właściciel to przeczytał" (`kuking:nieudane-listy --odhacz`). Dopóki `NULL`, `/health` zgłasza `degraded`. Jedyna kolumna, którą się tu aktualizuje. CHECK `mail_failures_zauwazony_po_awarii_check`: nie może być wcześniejsze niż `failed_at`. |
+
+**Czego tu świadomie NIE MA: adresu odbiorcy, tematu ani treści listu.**
+Wszystko to jest w payloadzie zadania, który pokazuje `php artisan
+queue:failed`; druga kopia adresu w bazie to druga rzecz do skasowania przy
+żądaniu RODO (AGENTS.md §7). Nie ma też kolumny „powiadomiono właściciela" —
+alarmu pocztą o awarii poczty świadomie nie wysyłamy (D-062 §3).
+
+Indeksy (oba **częściowe**, bo oba zapytania i tak filtrują):
+`mail_failures_nieodhaczone_idx (failed_at DESC) WHERE zauwazony_at IS NULL`
+— jedyne zapytanie chodzące w żądaniu HTTP (`/health`), oraz
+`mail_failures_adresat_idx (user_id, rodzaj, failed_at DESC) WHERE user_id IS
+NOT NULL` — pod ekran „Potwierdź adres e-mail".
+
+**Retencja:** `kuking.poczta.retencja_dni` (domyślnie 90) i **tylko dla
+wierszy ODHACZONYCH** — sprząta je `App\Poczta\ZapiszNieudanyList` przy
+okazji zapisu następnej awarii, bez osobnego zadania w harmonogramie (jedno
+`DELETE` na zdarzenie, które w zdrowym tygodniu nie zachodzi ani razu).
+**Nieodhaczonych nie kasuje nic i nigdy**: to jedyne miejsce, w którym
+istnieje wiedza o tym, że komuś nie doszedł list, a wiek jej nie unieważnia.
+Wiersz nie niesie danych osobowych, więc nie jest to termin z RODO, tylko
+higiena.
+
+**Rollback:** `php artisan migrate:rollback --step=1` — `down()`
+**ODMAWIA**, jeśli w tabeli leży choć jeden nieodhaczony wiersz, i mówi, co
+zrobić (przeczytać, odhaczyć, powtórzyć). Powód: skasowanie tabeli razem
+z taką informacją byłoby powtórzeniem dokładnie tej usterki, którą ta
+migracja naprawia. Wiersze odhaczone giną razem z tabelą i to jest
+w porządku — właściciel je przeczytał, a `failed_jobs` i panel dostawcy
+zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
+`/health`, `kuking:nieudane-listy` i słuchacz kolejki stoją przy
+nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
+a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
+`failed_jobs` ostatniego zapisu).
+
 ## V1 / V2
 
 Później:

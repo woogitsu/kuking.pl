@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Logging;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
@@ -71,9 +72,19 @@ use Throwable;
  * (Discord nie odpowiada, DNS padł, zerwane łącze) — użytkownik zamiast
  * strony 500 dostałby nieobsłużony wyjątek z SAMEGO mechanizmu powiadamiania,
  * czyli coś gorszego niż brak powiadomienia. Dlatego cała wysyłka jest
- * w `try/catch` i błąd wysyłki ginie po cichu — a krótki timeout (3 s)
- * chroni przed tym, żeby zawieszony webhook przetrzymywał odpowiedź HTTP
- * dla człowieka, który akurat trafił na awarię.
+ * w `try/catch` — a krótki timeout (3 s) chroni przed tym, żeby zawieszony
+ * webhook przetrzymywał odpowiedź HTTP dla człowieka, który akurat trafił
+ * na awarię.
+ *
+ * ALE BŁĄD WYSYŁKI JUŻ NIE GINIE PO CICHU (poprawka z 10 września 2026,
+ * przy issue #33). Do tego dnia ten `catch` był pusty, a nieudane żądanie
+ * i tak nie rzuca wyjątku — klient HTTP Laravela bez `throw()` oddaje HTTP
+ * 401 czy 404 jako zwykłą odpowiedź. Webhook z odwołanym adresem milczał
+ * więc dokładnie tak samo jak webhook sprawny, i nie było ANI JEDNEGO
+ * miejsca, z którego dałoby się to zobaczyć. Teraz: fakt niedodzwonienia się
+ * idzie do dziennika serwera (`zapiszNiedodzwonienie()`, kanał `single` —
+ * nigdy ten kanał, bo to byłaby pętla), a wołający może o wynik zapytać
+ * (`ostatniaWysylkaSieUdala()`). Rzucanie dalej nadal nie wchodzi w grę.
  */
 final class WebhookBleduHandler extends AbstractProcessingHandler
 {
@@ -92,6 +103,33 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
         parent::__construct($level);
     }
 
+    /**
+     * Czy OSTATNIA próba wysłania czegokolwiek na ten kanał doszła.
+     *
+     * `null` = w tym procesie nie próbowaliśmy jeszcze ani razu (albo kanał
+     * jest wyłączony brakiem adresu). `false` = próbowaliśmy i się nie udało.
+     *
+     * ISTNIEJE PO TO, ŻEBY „POŁKNIĘTY BŁĄD WYSYŁKI" NIE ZNACZYŁ „NIKT SIĘ
+     * NIGDY NIE DOWIE". `write()` nie ma prawa rzucić (uzasadnienie
+     * w komentarzu klasy) i to zostaje bez zmian — ale wołający, który
+     * WYCISZA SIĘ NA CZAS po udanym dzwonku, musi umieć odróżnić „zadzwoniło"
+     * od „nie zadzwoniło". Bez tego jedna trzysekundowa niedostępność
+     * Discorda kupowałaby ciszę na pół godziny
+     * (`HealthController::powiadomWebhook()`).
+     */
+    private static ?bool $ostatniaWysylkaSieUdala = null;
+
+    public static function ostatniaWysylkaSieUdala(): ?bool
+    {
+        return self::$ostatniaWysylkaSieUdala;
+    }
+
+    /** Do testów i do kodu, który chce zacząć pomiar od czystej kartki. */
+    public static function zapomnijOstatniaWysylke(): void
+    {
+        self::$ostatniaWysylkaSieUdala = null;
+    }
+
     protected function write(LogRecord $record): void
     {
         if ($this->url === null) {
@@ -103,12 +141,52 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
         }
 
         try {
-            Http::timeout(3)->connectTimeout(2)->post($this->url, [
+            $odpowiedz = Http::timeout(3)->connectTimeout(2)->post($this->url, [
                 'text' => $this->tresc($record),
             ]);
+
+            // NIEUDANE ŻĄDANIE NIE RZUCA WYJĄTKU, i to jest tu ważniejsze niż
+            // sam `catch`: klient HTTP Laravela bez `throw()` oddaje HTTP 404
+            // czy 500 jako zwykłą odpowiedź. Discord z odwołanym webhookiem
+            // odpowiada 401/404 — czyli kanał, który „działa", milczy, a nikt
+            // się nie dowiaduje, że milczy.
+            self::$ostatniaWysylkaSieUdala = $odpowiedz->successful();
+
+            if (! $odpowiedz->successful()) {
+                $this->zapiszNiedodzwonienie('webhook odpowiedział HTTP '.$odpowiedz->status());
+            }
+        } catch (Throwable $e) {
+            // Wysyłka NADAL nie rzuca dalej — patrz akapit „DLACZEGO WYSYŁKA
+            // NIGDY NIE RZUCA DALEJ" w komentarzu klasy. Zmieniło się tylko
+            // to, że fakt niedodzwonienia się GDZIEŚ ZOSTAJE.
+            self::$ostatniaWysylkaSieUdala = false;
+            $this->zapiszNiedodzwonienie($e::class);
+        }
+    }
+
+    /**
+     * Zapisuje sam FAKT, że dzwonek nie zadzwonił — do dziennika serwera,
+     * nigdy na ten kanał.
+     *
+     * DLACZEGO JAWNIE `single`, A NIE `Log::error()`
+     * Bo domyślny stos może kiedyś zawierać ten kanał (`LOG_STACK`), a wpis
+     * o nieudanej wysyłce na webhook, wysyłany na webhook, jest pętlą.
+     * `single` to plik na serwerze i nic więcej.
+     *
+     * W TREŚCI SĄ WYŁĄCZNIE: powód (kod HTTP albo nazwa klasy wyjątku) i sam
+     * fakt. Ani adresu webhooka (jest sekretem), ani treści wiadomości, która
+     * nie doszła (mogła nieść cokolwiek z `$record`).
+     */
+    private function zapiszNiedodzwonienie(string $powod): void
+    {
+        try {
+            Log::channel('single')->error(
+                'Nie udało się zadzwonić na webhook błędów. Wiadomość przepadła.',
+                ['powod' => $powod],
+            );
         } catch (Throwable) {
-            // Celowo połknięte — patrz akapit „DLACZEGO WYSYŁKA NIGDY NIE
-            // RZUCA DALEJ" w komentarzu klasy.
+            // Jeśli nie da się zapisać nawet do pliku, to nie jest już nasza
+            // sprawa — a rzucenie stąd wywróciłoby raportowanie wyjątku.
         }
     }
 
