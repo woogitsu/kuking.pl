@@ -319,6 +319,15 @@ class CzteryDrogiZdjeciaPodBlokadaTest extends TestCase
      * potrzebuje własnego testu i własnego sabotażu, inaczej dwa testy
      * trafiają w tę samą linijkę i drugi nie sprawdza niczego
      * (`docs/PULAPKI_TESTOW.md`, pułapka 3b).
+     *
+     * UWAGA, KTÓRA ZŁAPAŁA TEN TEST PRZY KONTROLI UJEMNEJ. `syncSteps()`
+     * KASUJE wiersze kroków i tworzy je od nowa, więc **po każdym zapisie
+     * krok ma NOWY identyfikator**. Pierwsza wersja tego testu wołała drugą
+     * edycję ze starym `id` — a `id`, którego przepis nie ma, po prostu nie
+     * ma czego odziedziczyć (i tak ma być, patrz docblock `PublishRecipe`).
+     * Asercja „zdjęcia nie ma" przechodziła więc z zupełnie innego powodu,
+     * niż się wydawało, i przeżywała sabotaż. Dlatego tożsamość kroku jest
+     * tu odczytywana PO każdym zapisie.
      */
     public function test_odziedziczone_zdjecie_kroku_odpada_gdy_sprzatacz_je_przejal(): void
     {
@@ -326,9 +335,8 @@ class CzteryDrogiZdjeciaPodBlokadaTest extends TestCase
         $zdjecie = $this->zdrowe($basia);
 
         $przepis = $this->zapisz($basia, [], $this->kroki((string) $zdjecie->getKey()));
-        $krokId = (string) $przepis->steps()->first()->getKey();
 
-        $edytuj = fn (): Recipe => app(PublishRecipe::class)->handle(
+        $edytuj = fn (string $krokId): Recipe => app(PublishRecipe::class)->handle(
             author: $basia,
             attributes: ['title' => 'Placki babci'],
             ingredients: $this->skladniki(),
@@ -342,9 +350,11 @@ class CzteryDrogiZdjeciaPodBlokadaTest extends TestCase
         // KONTROLA DODATNIA: dopóki zdjęcie jest zdrowe, edycja tekstu ma je
         // przy kroku ZOSTAWIĆ. Bez tego asercja niżej przechodziłaby też
         // wtedy, gdyby dziedziczenie zdjęcia kroku nie działało wcale.
+        $poPierwszej = $edytuj((string) $przepis->steps()->first()->getKey());
+
         $this->assertSame(
             (string) $zdjecie->getKey(),
-            (string) $edytuj()->steps()->first()->media_id,
+            (string) $poPierwszej->steps()->first()->media_id,
             'Edycja tekstu kroku nie ma prawa zgubić zdjęcia, które ten krok już ma.',
         );
 
@@ -352,7 +362,7 @@ class CzteryDrogiZdjeciaPodBlokadaTest extends TestCase
         $zdjecie->update(['status' => Media::STATUS_DELETED]);
 
         $this->assertNull(
-            $edytuj()->steps()->first()->media_id,
+            $edytuj((string) $poPierwszej->steps()->first()->getKey())->steps()->first()->media_id,
             'Zdjęcie przejęte do skasowania nie ma prawa zostać przy kroku tylko dlatego, '
             .'że było przy nim wcześniej.',
         );
