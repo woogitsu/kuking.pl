@@ -82,6 +82,7 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 | Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | Krótka — rekomendacja 90 dni dla logów ogólnych, dłużej tylko dla zdarzeń związanych z aktywnym incydentem bezpieczeństwa |
 | Powiadomienia in-app | treść powiadomienia, status przeczytania | Art. 6(1)(b) | Do usunięcia/przeczytania + rozsądny bufor |
 | Analityka produktowa (PostHog) | zdarzenia UI, w miarę możliwości bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes, **o ile** spełnione warunki testu równoważenia i **niezależnie** od wymogu zgody na poziomie ePrivacy dla cookies/localStorage (patrz sekcja 5) | Krótka, rekomendacja 6–14 miesięcy, zagregowane dane bez limitu |
+| Analityka odwiedzin (Plausible, **wdrożone** 10.09.2026 — D-092) | adres odsłoniętej strony, adres źródła wejścia, kraj, typ urządzenia i przeglądarki; **bez** ciasteczek, **bez** zapisu na urządzeniu, **bez** zapisanego IP (używane przejściowo do dziennego, nieodwracalnego skrótu) | Art. 6(1)(f) — uzasadniony interes (wiedza, czy serwis komukolwiek się przydaje); ePrivacy/PKE nie wchodzi w grę, bo nie ma zapisu ani odczytu na urządzeniu (sekcja 5.5) | Po stronie Plausible, agregaty bez limitu; my nie trzymamy kopii |
 | Błędy aplikacji (Sentry) | stack trace, czasem fragmenty requestu — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | Rekomendacja 30–90 dni; **skonfigurować scrubbing PII w Sentry (data scrubbing rules) przed startem** |
 | Newsletter/e-mail transakcyjny (reset hasła, powiadomienia) | e-mail, treść wiadomości | Art. 6(1)(b) dla e-maili transakcyjnych; Art. 6(1)(a) zgoda dla e-maili marketingowych, jeśli takie się pojawią | Jak konto / do wycofania zgody |
 
@@ -231,6 +232,7 @@ Do 9 listopada 2024 r. obowiązywał Art. 173 ustawy Prawo telekomunikacyjne. Od
 | Cookie preferencji technicznych bez śledzenia (np. zapamiętany rozmiar czcionki, jeśli w cookie a nie w koncie) | `text_scale` — ale to już jest w kolumnie `users.text_scale`, czyli **serwerowo, nie w cookie** — dobre rozwiązanie, unika problemu | **Nie**, jeśli trzymane po stronie konta, nie w cookie/localStorage |
 | Analityka produktowa (PostHog) | zdarzenia UI, identyfikator sesji/użytkownika | **Tak, w standardowym podejściu** — Polska (UODO) nie wydała własnych wytycznych zwalniających analitykę z obowiązku zgody (w przeciwieństwie do np. Francji/CNIL, Włoch/Garante, Hiszpanii/AEPD, które mają wąskie wyjątki dla zagregowanej, ściśle statystycznej analityki pierwszej strony) |
 | Analityka bez identyfikatorów i bez zapisu na urządzeniu (np. agregacja server-side, brak cookie/localStorage, brak fingerprinting) | Konfiguracja PostHog w trybie **bez person profiles**, bez cookie, z wyłączonym autocapture identyfikującym urządzenie | **Można argumentować, że nie** — bo obowiązek dotyczy "przechowywania/dostępu do informacji na urządzeniu końcowym", a nie samego faktu zbierania zdarzeń serwerowo. To jednak wymaga **rygorystycznej konfiguracji technicznej** i nadal może podlegać RODO (jeśli dane są w jakikolwiek sposób powiązane z osobą, np. przez adres IP niehashowany) |
+| **Analityka faktycznie wdrożona w Kuking: Plausible** (D-092) | skrypt `plausible.io/js/script.js` — sprawdzone przez odczytanie pliku: zero `document.cookie`, zero `sessionStorage`, `localStorage` **tylko odczytywany** (flaga `plausible_ignore`, którą ustawia sam użytkownik), zero zapisów | **Nie** — nic nie jest zapisywane na urządzeniu ani z niego odczytywane w rozumieniu ePrivacy/PKE. Patrz 5.5 |
 | Sentry (błędy) | zwykle nie zapisuje cookie na urządzeniu użytkownika, dane wysyłane są z serwera/przeglądarki do Sentry przy wystąpieniu błędu | Zasadniczo nie wymaga zgody cookies (nie jest to "storage" na urządzeniu w typowej konfiguracji), ale wymaga podstawy RODO (uzasadniony interes) i minimalizacji PII w payloadzie |
 
 ### 5.3 Jak zrobić PostHog bez banera zgody — realistyczna ocena
@@ -250,6 +252,18 @@ Jest to **możliwe technicznie, ale ryzykowne prawnie bez pewności**, bo Polska
 - Brak "ściany zgody" (cookie wall) blokującej dostęp do treści publicznych — RODO/ePrivacy w orzecznictwie UODO i EDPB kwestionuje wymuszanie zgody pod groźbą braku dostępu do podstawowej treści.
 - Osobna, łatwo dostępna możliwość **zmiany decyzji później** (link w stopce "Ustawienia cookies").
 - Duża czcionka, prosty język — spójnie z resztą UX dla grupy 50+.
+
+### 5.5 Co ostatecznie wdrożono — Plausible, bez banera (D-092, 10.09.2026)
+
+Sekcje 5.2–5.4 powstały, gdy kandydatem był **PostHog**, a pytanie brzmiało „czy da się go skonfigurować tak, żeby nie wymagał zgody". Odpowiedź w 5.3 była: da się, ale to ryzykowne. **Ta ocena zostaje w mocy dla PostHoga i nie została podważona** — wdrożono jednak co innego, więc wypada napisać wprost, dlaczego 5.3 tutaj nie zabrania.
+
+Różnica jest jedna i jest istotna. Rekomendacja z 5.3 broniła przed **cichym rozjechaniem się dokumentu z rzeczywistością**: „PostHog bez identyfikatorów" to KONFIGURACJA, a konfigurację da się cofnąć jednym przełącznikiem w cudzym panelu — i wtedy polityka prywatności przestaje być prawdziwa, a nikt się o tym nie dowiaduje. W Plausible nie ma czego przestawiać: brak ciasteczek i brak zapisu na urządzeniu są właściwością narzędzia, nie jego ustawieniem. Warunek 1 z listy w 5.3 (brak trwałych identyfikatorów po stronie klienta) jest spełniony z definicji, warunek 2 (brak zapisanego IP) — po stronie dostawcy, warunek 3 (tylko dane statystyczne, bez profilu osoby) — z braku technicznej możliwości zrobienia inaczej.
+
+Zachowanie skryptu zostało **sprawdzone przez pobranie i odczytanie pliku**, a nie przyjęte ze strony marketingowej dostawcy — bo to samo zdanie stoi w dokumencie publikowanym pod `/prywatnosc`. Wynik i porównanie z odrzuconym kandydatem (Umami): `docs/DECISIONS.md`, D-092.
+
+Pozycja z listy zadań (sekcja 9, P1) „baner cookies LUB potwierdzona konfiguracja bez-zgodowa" jest tym samym **zamknięta wariantem drugim**. Warunek jego utrzymania jest jeden i trzeba go pilnować: **gdyby doszło narzędzie, które cokolwiek na urządzeniu zapisuje albo odczytuje, wraca obowiązek zgody i wraca temat banera z 5.4** — polityka prywatności obiecuje wprost, że zapytamy, zanim to się stanie.
+
+Czego to **nie** przesądza: podstawy RODO. Zbieranie danych o odsłonach nadal opiera się na uzasadnionym interesie (Art. 6(1)(f)) i podlega prawu sprzeciwu z Art. 21 — to jest osobna warstwa od ePrivacy i sekcja 5 jej nie zastępuje.
 
 ---
 

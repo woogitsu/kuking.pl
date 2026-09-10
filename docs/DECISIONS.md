@@ -6379,3 +6379,143 @@ przywrócenie poprawki — zielono, `git diff` puste.
 **Pliki:** `database/migrations/2026_09_07_500000_add_erased_status_and_delete_scope_to_users.php` ·
 `tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php` ·
 `docs/DATABASE.md`
+
+---
+
+## D-092 · Analityka odwiedzin to Plausible hostowany w UE — bo obietnica „nie ma banera zgody" jest warta więcej niż Google Analytics
+
+**Data:** 10 września 2026 · **Decyzja właściciela po przedstawieniu kosztu**
+(prośba: „dodaj Google Analytics, ja dodam variables do Railway") · Status:
+**obowiązuje**
+
+### Skąd to pytanie i dlaczego odpowiedź nie brzmi „Google Analytics"
+
+Właściciel chciał wiedzieć dwie rzeczy, których nasza własna analityka nie
+umie powiedzieć: **skąd ludzie przychodzą** i **które strony oglądają**.
+`App\Domain\Analytics\*` liczy zdarzenia, które powstają W BAZIE — publikacje,
+„Ugotowałem", tygodniowe WAC. O kimś, kto wszedł na stronę powitalną i wyszedł,
+nie wie nic i wiedzieć nie może. Pytanie było więc dobre.
+
+Kosztem Google Analytics są ciasteczka. A opublikowana polityka prywatności
+mówi dziś użytkownikom dwie rzeczy, sprawdzone w kodzie przed tą decyzją
+i wtedy prawdziwe:
+
+> Statystyki liczymy sami, w naszej własnej bazie — **nie korzystamy z żadnego
+> zewnętrznego narzędzia analitycznego** (ani Google Analytics, ani żadnego
+> innego).
+
+> **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego
+> nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma
+> na co jej udzielać.
+
+Pierwsze zdanie i tak musiało się zmienić — każde zewnętrzne narzędzie je
+łamie. Drugie **nie musiało**, i to jest cała treść tej decyzji. GA kazałoby
+postawić baner zgody: dodatkową przeszkodę na wejściu, do klikania przez
+osoby 50+, przy produkcie, którego całym założeniem jest, żeby nie stawiać
+przeszkód. Zapłacilibyśmy banerem za odpowiedź, którą da się dostać za darmo.
+
+### Co odrzucono i dlaczego — mierzone, nie brane na słowo
+
+Kandydaci: **Plausible** i **Umami**. Twarde wymagania: zero ciasteczek, zero
+zapisu na urządzeniu człowieka, dane w UE, brak profilowania między serwisami.
+
+**Zachowanie skryptów sprawdziłem, pobierając je i czytając**, zamiast wierzyć
+stronom marketingowym — bo to jest zdanie, które trafia do dokumentu prawnego:
+
+| | Plausible (`plausible.io/js/script.js`) | Umami (`cloud.umami.is/script.js`) |
+|---|---|---|
+| `document.cookie` | 0 wystąpień | 0 wystąpień |
+| `sessionStorage`, `indexedDB` | 0 | 0 |
+| `localStorage` | tylko **odczyt** flagi `plausible_ignore`, którą człowiek ustawia sam | tylko **odczyt** flagi `umami.disabled` |
+| zapis na urządzeniu (`setItem`) | brak | brak |
+
+Czyli **na tym kryterium oba przechodzą** i nie ono rozstrzygnęło. Rozstrzygnęły
+dwie rzeczy:
+
+1. **Kto jest podmiotem.** Umami Cloud prowadzi Umami Software, Inc. — spółka
+   z Delaware z siedzibą w San Francisco. Nawet z regionem UE dla danych sam
+   dostawca zostaje spoza EOG, czyli w naszej polityce dopisujemy TRZECI
+   akapit o przekazywaniu danych poza EOG, obok Turnstile i OpenAI. Plausible
+   prowadzi Plausible Insights OÜ z Estonii, na serwerach Hetznera
+   w Falkenstein — cały łańcuch w UE i **żadnego akapitu o transferze**.
+   Przy dokumencie, który właściciel czyta linijka po linijce, to jest
+   różnica na korzyść zrozumiałości, nie tylko formalna.
+2. **Self-host odpada z powodu architektury, nie niechęci.** Umami
+   samodzielnie hostowany to druga usługa (Node) z własną bazą na Railwayu;
+   Plausible samodzielnie hostowany dokłada do tego jeszcze ClickHouse.
+   `AGENTS.md` mówi: modularny monolit, bez mikroserwisów. Dokładanie
+   drugiego procesu do utrzymywania po to, żeby wiedzieć, skąd przychodzą
+   odwiedzający, jest złą wymianą dla serwisu prowadzonego przez jedną osobę.
+
+**Nie rozważano ponownie Google Analytics** — stawia ciasteczka, więc wywraca
+całą przesłankę. **Nie wraca temat pikseli śledzących** (osobna otwarta
+sprawa, #204). **Nie znika nasza analityka serwerowa**: Plausible jest jej
+uzupełnieniem, nie zamiennikiem, i `App\Domain\Analytics\*` zostaje bez zmian.
+
+### Dlaczego dalej NIE MA banera — i dlaczego to nie jest naciąganie
+
+`docs/legal/COMPLIANCE.md` §5.2 stawia granicę tam, gdzie stawia ją ePrivacy
+i PKE: zgody wymaga **przechowywanie informacji na urządzeniu końcowym albo
+uzyskiwanie dostępu do tej, która już tam jest** — a nie sam fakt liczenia
+czegokolwiek. Plausible nie robi ani jednego, ani drugiego (patrz tabela
+wyżej).
+
+Ten sam dokument, w §5.3, **odradza** próbę „cookieless analytics" bez
+konsultacji prawnej. Ta rada dotyczyła jednak PostHoga i zachowuje ważność
+tam, gdzie dotyczyła: PostHog bez identyfikatorów to **konfiguracja**, którą
+da się cofnąć jednym przełącznikiem w panelu — i wtedy dokument prawny
+przestaje być prawdziwy, a nikt się o tym nie dowie. W Plausible nie ma czego
+przestawiać: brak ciasteczek jest właściwością narzędzia, nie ustawieniem.
+Ryzyko, przed którym ostrzegała §5.3 — cicha zmiana zachowania pod
+niezmienionym dokumentem — tu po prostu nie występuje. Zapisane w
+COMPLIANCE.md §5.5.
+
+### Wpięcie — trzy rzeczy, które łatwo zrobić źle
+
+1. **Bez zmiennej środowiskowej nie ma ANI ŚLADU znacznika w HTML-u.**
+   Nie „wyłączona flagą", tylko nieobecna. Lokalnie, w testach i w CI cisza.
+   Ten sam wzorzec co puste klucze Turnstile (D-050), i tak samo bez osobnej
+   flagi „włącz analitykę" — dałaby stan „włączone, ale bez domeny", czyli
+   skrypt wysyłający zdarzenia donikąd.
+2. **Konfiguracja przez `config/kuking.php`, nigdy `env()` w widoku.**
+   Na produkcji konfiguracja jest zbuforowana i `env()` poza plikiem configu
+   oddaje `null` — czyli znacznik z pustym `data-domain`: skrypt, który się
+   ładuje i nic nie liczy.
+3. **CSP w DWÓCH dyrektywach, nie w jednej.** To jest najczęstsza cicha
+   porażka takiego wpięcia i osobny test tylko na to. `script-src` pozwala
+   POBRAĆ plik; zdarzenia idą potem POST-em na `<host>/api/event`, czyli
+   podlegają `connect-src` — która w naszej polityce jest wypisana osobno,
+   więc nie dziedziczy nic z `default-src 'self'`. Brak drugiej linijki daje
+   stronę bez usterki, pusty dziennik i pusty panel Plausible.
+
+Host analityki wchodzi do CSP **tylko wtedy, gdy analityka jest włączona** —
+tak samo jak host Turnstile (issue #12): polityka opisuje to, co strona
+naprawdę ładuje, a każdy obcy host w `script-src` poszerza powierzchnię ataku.
+
+### Co właściciel musi zrobić ręcznie
+
+Założyć stronę w panelu Plausible i dodać w Railwayu dwie zmienne:
+`PLAUSIBLE_DOMENA=kuking.pl` (dokładnie jak w panelu) oraz
+`PLAUSIBLE_HOST=https://plausible.io`. Do tego czasu serwis chodzi bez
+analityki i nic nie pada. Opis obu zmiennych stoi w `.env.example`.
+
+### Uboczne znalezisko: `DokumentyPrawneNieKlamiaTest` był za słaby
+
+Kontrola ujemna do tej zmiany wykryła usterkę w istniejącym teście, starszą
+niż ta decyzja. `test_nie_wymieniamy_narzedzi_ktorych_nie_uzywamy` pytał
+o CAŁY dokument („czy gdziekolwiek stoi zdanie zaprzeczające"), więc jedno
+prawdziwe zdanie usprawiedliwiało każde inne wystąpienie nazwy: dopisanie do
+polityki zdania **„Do statystyk używamy Google Analytics"** testu NIE OBLAŁO.
+Sprawdzenie chodzi teraz po KAŻDYM wystąpieniu nazwy z osobna, w jego własnym
+zdaniu — i po poprawce ten sam sabotaż oblewa. Lista narzędzi zakazanych
+liczy się przy tym z kodu, więc Plausible wypadło z niej samo, a jego
+obecności w dokumencie pilnuje z drugiej strony
+`PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
+
+**Pliki:** `config/kuking.php` · `app/Support/Plausible.php` ·
+`app/Http/Middleware/ApplySecurityHeaders.php` ·
+`resources/views/components/layout.blade.php` · `.env.example` ·
+`resources/legal/polityka-prywatnosci.md` · `docs/legal/COMPLIANCE.md` ·
+`tests/Feature/AnalitykaBezCiasteczekTest.php` ·
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` ·
+`tests/Feature/PolitykaPrywatnosciWymieniaKazdaUslugeTest.php`

@@ -217,6 +217,44 @@
     @if($livewire)
         @livewireStyles
     @endif
+
+    {{--
+        Analityka Plausible (D-092) — „skąd ludzie przychodzą i które strony
+        oglądają". Odpowiedź na prośbę właściciela o Google Analytics, dana
+        BEZ cofania obietnicy z polityki prywatności: Plausible nie stawia
+        ciasteczek i nie zapisuje niczego na urządzeniu, więc baner zgody
+        dalej nie jest do niczego potrzebny.
+
+        BEZ `PLAUSIBLE_DOMENA` NIE MA TU ANI ŚLADU ZNACZNIKA. Lokalnie,
+        w testach i w CI ta zmienna jest pusta — i wtedy `Plausible::wlaczona()`
+        oddaje `false`, a w HTML-u nie zostaje nawet komentarz. Ten sam
+        wzorzec co przy Turnstile (D-050): konfiguracja opisuje stan
+        środowiska, a nie zamiar.
+
+        `defer`, nie `async`: plik waży poniżej trzech kilobajtów, ale to
+        jest rzecz NAJMNIEJ ważna na tej stronie. Analityka ma się doładować
+        po treści, a nie konkurować z nią o łącze — AGENTS.md mówi wprost,
+        że JavaScript jest ulepszeniem, nie warunkiem, i tutaj kosztem jego
+        braku jest wyłącznie nasza własna niewiedza, nie funkcja dla
+        człowieka.
+
+        BEZ `nonce` — I TO NIE JEST NIEDOPATRZENIE. Podpis dotyczy skryptów
+        WPISANYCH w stronę; ten jest pobierany z obcego hosta, który
+        `ApplySecurityHeaders` dopuszcza z nazwy w `script-src`, tak samo jak
+        skrypt Turnstile obok. Dorzucony `nonce` niczego by tu nie zmienił.
+
+        Adres i domena idą przez `App\Support\Plausible`, czyli przez
+        `config/kuking.php`, a NIE przez `env()` w widoku: na produkcji
+        konfiguracja jest zbuforowana i `env()` oddałoby wtedy `null`, czyli
+        znacznik z pustym `data-domain` — skrypt, który się ładuje i nic nie
+        liczy.
+    --}}
+    @if(\App\Support\Plausible::wlaczona())
+        <script defer
+                data-domain="{{ \App\Support\Plausible::domena() }}"
+                src="{{ \App\Support\Plausible::adresSkryptu() }}"></script>
+    @endif
+
     {{ $head ?? '' }}
 </head>
 {{-- `uklad-solo` steruje szerokością belki i stopki dla gościa — musi iść

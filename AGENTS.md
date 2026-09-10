@@ -74,7 +74,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | DNS / CDN / storage | Cloudflare + R2 |
 | Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` |
 | Monitoring | Sentry |
-| Analityka | PostHog (EU) |
+| Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Plausible (UE, bez ciasteczek — D-092) |
 | Mobile | PWA |
 
 ### Zakaz overengineeringu

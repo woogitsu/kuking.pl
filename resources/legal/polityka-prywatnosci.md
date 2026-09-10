@@ -1,6 +1,6 @@
 # Polityka Prywatności Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 8 września 2026 i jest aktualizowany razem z nim.** Nie zawiera okresów przechowywania, których serwis jeszcze nie egzekwuje — tam, gdzie czegoś nie robimy albo nie umiemy jeszcze robić, jest to napisane wprost. Dokument nie był weryfikowany przez prawnika.
+> **Ten dokument opisuje stan serwisu na 10 września 2026 i jest aktualizowany razem z nim.** Nie zawiera okresów przechowywania, których serwis jeszcze nie egzekwuje — tam, gdzie czegoś nie robimy albo nie umiemy jeszcze robić, jest to napisane wprost. Dokument nie był weryfikowany przez prawnika.
 
 ---
 
@@ -50,10 +50,13 @@ Nie sprzedajemy Twoich danych. Korzystamy z zaufanych dostawców usług technicz
 | Railway | Hosting serwera i bazy danych | Unia Europejska |
 | Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska |
 | EmailLabs (Vercom S.A.) | Wysyłka poczty: potwierdzenie adresu, przypomnienie hasła, powiadomienia | Unia Europejska (Polska) |
+| Plausible (Plausible Insights OÜ) | Statystyka odwiedzin: ile osób weszło na stronę, które strony oglądały i z jakiego miejsca w internecie do nas trafiły | Unia Europejska (Niemcy) |
 | Cloudflare Turnstile | Sprawdzenie, czy formularz wypełnia człowiek, a nie automat | Cloudflare Inc. (USA) — patrz akapit o przekazywaniu poza EOG |
 | OpenAI | Automatyczne sprawdzenie publikowanej treści, zdjęć oraz zdjęcia profilowego pod kątem przemocy, nienawiści, treści seksualnych i samookaleczenia — po to, żeby moderator zobaczył takie treści szybciej | OpenAI, L.L.C. (USA) — patrz akapit o przekazywaniu poza EOG |
 
-Statystyki liczymy sami, w naszej własnej bazie — **nie korzystamy z żadnego zewnętrznego narzędzia analitycznego** (ani Google Analytics, ani żadnego innego). Nie korzystamy też z zewnętrznej usługi zbierania błędów aplikacji.
+Część statystyk liczymy sami, w naszej własnej bazie — ile osób opublikowało w danym tygodniu wpis, przepis albo „Ugotowałem". Te liczby powstają z danych, które i tak u nas są, i nigdzie nie wychodzą. Na drugie pytanie — z jakiego miejsca w internecie ktoś do nas trafił i które strony ogląda — nasza baza nie odpowiada, bo nie wie nic o kimś, kto wszedł i wyszedł. Do tego używamy **Plausible**, zewnętrznego narzędzia, które trzyma dane w Unii Europejskiej. **Nie korzystamy z Google Analytics ani z żadnego narzędzia, które śledziłoby Cię między serwisami.** Nie korzystamy też z zewnętrznej usługi zbierania błędów aplikacji.
+
+**Co robi Plausible i czego nie robi.** Gdy otwierasz stronę Kuking, Plausible zapisuje samą odsłonę: adres strony, adres strony, z której do nas przyszedłeś, kraj oraz rodzaj urządzenia i przeglądarki. **Nie zapisuje niczego na Twoim urządzeniu** — ani pliku cookie, ani nic w pamięci przeglądarki. **Nie zapisuje też Twojego adresu IP:** używa go tylko przez chwilę, żeby wyliczyć nieodwracalny skrót, po którym da się odróżnić dwie odsłony tej samej osoby w ciągu jednego dnia; skrót jest codziennie inny, więc nazajutrz nie ma jak połączyć go z wczorajszym. Plausible **nie wie, że to Ty** — nie dostaje ani Twojego adresu e-mail, ani nazwy konta, ani niczego, co u nas napiszesz — i **nie rozpoznaje Cię na innych stronach**, bo nie ma po czym. Podstawą jest nasz uzasadniony interes w tym, żeby wiedzieć, czy serwis komukolwiek się przydaje; możesz się temu sprzeciwić (sekcja 4).
 
 **Co robi Turnstile i czego nie robi.** Przy rejestracji, logowaniu, odzyskiwaniu hasła, cofnięciu usunięcia konta oraz przy formularzach „Napisz do nas" i zgłoszenia nielegalnej treści prosimy Cloudflare o potwierdzenie, że po drugiej stronie jest człowiek. Cloudflare widzi przy tym Twój adres IP i techniczne cechy przeglądarki. **Nie przekazujemy mu treści, którą wpisujesz w formularz**, ani Twojego adresu e-mail. Cloudflare deklaruje, że danych z Turnstile nie używa do profilowania reklamowego. Bez tego mechanizmu serwis byłby zalewany kontami zakładanymi automatycznie.
 
@@ -82,7 +85,8 @@ Masz też prawo złożyć skargę do **Prezesa Urzędu Ochrony Danych Osobowych 
 ## 5. Pliki cookies i podobne technologie
 
 - Używamy technicznie niezbędnych plików cookies (np. do utrzymania sesji logowania) — te nie wymagają Twojej zgody, bo bez nich serwis nie mógłby działać.
-- **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma na co jej udzielać. Statystyki korzystania z serwisu liczymy po stronie serwera, w naszej własnej bazie, bez zapisywania czegokolwiek na Twoim urządzeniu.
+- **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma na co jej udzielać.
+- **Dlaczego banera nie ma, chociaż mamy zewnętrzną analitykę.** Bo zgody wymaga zapisanie czegoś na Twoim urządzeniu albo sięgnięcie po to, co już tam leży — a nie sam fakt, że coś liczymy. Narzędzie, którego używamy (Plausible, sekcja 3), nie robi ani jednego, ani drugiego: nie stawia pliku cookie, nie zapisuje nic w pamięci przeglądarki i nie zostawia na Twoim sprzęcie żadnego znaku rozpoznawczego. To, co zbiera, jest liczbą odsłon, a nie profilem osoby. Gdybyśmy kiedykolwiek sięgnęli po narzędzie, które cokolwiek na Twoim urządzeniu zapisuje, zapytamy Cię o zgodę — zanim to się stanie, a nie potem.
 - Nie używamy plików cookies do reklam ukierunkowanych ani nie sprzedajemy danych o Twoim zachowaniu reklamodawcom.
 
 ## 6. Bezpieczeństwo danych

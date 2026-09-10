@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Support\Odmiana;
+use App\Support\Plausible;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Sentry\Laravel\ServiceProvider;
 use Tests\TestCase;
 
 /**
@@ -120,26 +122,82 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
      * w polityce prywatności jako podprocesorzy; ani jedno, ani drugie nie
      * jest w kodzie (`grep` po całym repozytorium poza dokumentacją
      * badawczą).
+     *
+     * PLAUSIBLE WYPADŁO Z TEJ LISTY 10 WRZEŚNIA 2026 (D-092) — I MUSIAŁO.
+     * Od tego dnia serwis NAPRAWDĘ ładuje skrypt Plausible, więc dokument
+     * ma obowiązek go wymienić, a nie zakaz. Lista nie jest już jednak
+     * stała: pyta o KAŻDE narzędzie, czy kod go używa, i zakazuje wyłącznie
+     * tych, których nie używa. Gdyby ktoś kiedyś usunął wpięcie Plausible
+     * i zostawił je w polityce, ta pozycja wróci na listę zakazanych sama,
+     * bez zmiany w tym pliku — a póki wpięcie żyje, obecności Plausible
+     * w dokumencie pilnuje z drugiej strony
+     * `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
      */
     #[DataProvider('dokumenty')]
     public function test_nie_wymieniamy_narzedzi_ktorych_nie_uzywamy(string $adres, string $plik): void
     {
         $tresc = $this->tresc($plik);
 
-        foreach (['Sentry', 'PostHog', 'Google Analytics', 'Matomo', 'Plausible'] as $narzedzie) {
-            // Wzorzec dopuszcza zdanie „nie korzystamy z Google Analytics" —
-            // chodzi o to, żeby dokument nie PRZYPISYWAŁ nam narzędzia,
-            // a nie o to, żeby nie wolno było go nazwać.
-            if (! str_contains($tresc, $narzedzie)) {
-                continue;
-            }
+        // Narzędzie => czy kod go NAPRAWDĘ używa.
+        $narzedzia = [
+            'Sentry' => class_exists(ServiceProvider::class)
+                && (string) config('sentry.dsn') !== '',
+            'PostHog' => false,
+            'Google Analytics' => false,
+            'Matomo' => false,
+            'Plausible' => class_exists(Plausible::class),
+        ];
 
-            $this->assertMatchesRegularExpression(
-                '/(nie korzystamy|nie używamy|ani)[^.]{0,120}'.preg_quote($narzedzie, '/').'/ui',
+        $sprawdzone = 0;
+
+        foreach (array_keys(array_filter($narzedzia, static fn (bool $uzywane): bool => ! $uzywane)) as $narzedzie) {
+            $sprawdzone++;
+
+            // Dokumentowi wolno NAZWAĆ narzędzie — byle w zdaniu o tym, że go
+            // nie używamy. Sprawdzamy więc KAŻDE wystąpienie nazwy osobno,
+            // w jego własnym zdaniu.
+            //
+            // POPRZEDNIA WERSJA TEGO SPRAWDZENIA BYŁA ZA SŁABA I WYSZŁO TO
+            // DOPIERO PRZY KONTROLI UJEMNEJ (D-092, 10 września 2026).
+            // Pytała `assertMatchesRegularExpression` o CAŁY dokument, czyli
+            // „czy gdziekolwiek stoi zdanie zaprzeczające". Jedno takie
+            // zdanie usprawiedliwiało wtedy wszystkie pozostałe wystąpienia
+            // nazwy — dopisanie do polityki zdania „Do statystyk używamy
+            // Google Analytics" NIE OBLAŁO testu, bo obok stało prawdziwe
+            // „Nie korzystamy z Google Analytics". Dokładnie ten rodzaj
+            // nieprawdy ten plik ma łapać.
+            preg_match_all(
+                '/'.preg_quote($narzedzie, '/').'/ui',
                 $tresc,
-                "Dokument pod {$adres} wymienia „{$narzedzie}” inaczej niż w zdaniu o tym, że go NIE używamy.",
+                $wystapienia,
+                PREG_OFFSET_CAPTURE,
             );
+
+            foreach ($wystapienia[0] as [$nazwa, $pozycja]) {
+                // Zdanie, w którym stoi nazwa: wszystko od ostatniej kropki
+                // przed nią. Kropka jest tu granicą celowo — „nie korzystamy
+                // z X." i osobne „Używamy X." to dwa różne zdania i drugie
+                // nie może się chować za pierwszym.
+                $zdanie = (string) preg_replace('/.*\./su', '', substr($tresc, 0, (int) $pozycja));
+
+                $this->assertMatchesRegularExpression(
+                    '/(nie korzystamy|nie używamy|ani)/ui',
+                    $zdanie,
+                    "Dokument pod {$adres} wymienia „{$narzedzie}” inaczej niż w zdaniu o tym, że go NIE używamy. "
+                    .'Sporne zdanie: „'.trim($zdanie.$nazwa).'”.',
+                );
+            }
         }
+
+        // KONTROLA METODY POMIARU. Gdyby kiedyś okazało się, że „używamy"
+        // wszystkich narzędzi z listy, pętla wyżej nie wykonałaby się ani
+        // raz i test byłby zielony, nie sprawdzając niczego
+        // (`docs/PULAPKI_TESTOW.md` §2).
+        $this->assertGreaterThanOrEqual(
+            3,
+            $sprawdzone,
+            'Lista narzędzi, których NIE używamy, skurczyła się do niczego — ten test przestał mierzyć.',
+        );
     }
 
     /**

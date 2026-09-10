@@ -68,7 +68,7 @@ i zakładka Issues.
 | DNS / CDN / zdjęcia | Cloudflare + R2 |
 | Wyszukiwarka | PostgreSQL `pg_trgm` + `unaccent` |
 | Monitoring | Sentry |
-| Analityka | PostHog (EU) |
+| Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Plausible (UE, bez ciasteczek — D-092) |
 | Mobile | PWA |
 
 Decyzja architektoniczna: **modularny monolit**. Uzasadnienie i ścieżka skalowania

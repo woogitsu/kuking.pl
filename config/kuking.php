@@ -1411,7 +1411,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-08',
+        'wersja_polityki' => '2026-09-10',
     ],
 
     'analytics' => [
@@ -1444,6 +1444,50 @@ return [
         // długie, że aktywna sesja przeglądania (feed, przepis, kilka
         // zdjęć) generuje NAJWYŻEJ jeden zapis, nie jeden na każde kliknięcie.
         'last_seen_throttle_minutes' => (int) env('KUKING_LAST_SEEN_THROTTLE_MINUTES', 15),
+
+        /*
+         * PLAUSIBLE — jedyna zewnętrzna analityka w tym serwisie (D-092).
+         *
+         * PO CO W OGÓLE, SKORO MAMY `App\Domain\Analytics\*`
+         * Bo to są dwa różne pytania. Nasza analityka serwerowa odpowiada na
+         * „ile osób ugotowało w tym tygodniu" — liczy zdarzenia, które
+         * powstają W BAZIE, więc o kimś, kto wszedł na stronę powitalną
+         * i wyszedł, nie wie NIC. Plausible odpowiada na drugie pytanie,
+         * którego z Postgresa zadać się nie da: skąd ludzie przychodzą
+         * i które strony oglądają, ZANIM cokolwiek u nas zrobią. Jedno nie
+         * zastępuje drugiego i nic z `App\Domain\Analytics\*` nie znika.
+         *
+         * PUSTA DOMENA = SKRYPTU NIE MA W HTML-U W OGÓLE. To jest stan
+         * domyślny lokalnie, w testach i w CI — dokładnie ten sam wzorzec
+         * co puste klucze Turnstile (D-050). Nie ma osobnej flagi „włącz
+         * analitykę" obok domeny, bo dałaby stan „włączone, ale bez domeny",
+         * czyli skrypt wysyłający zdarzenia donikąd — narzędzie meldujące
+         * sukces, nie robiąc nic (patrz `App\Support\Turnstile`).
+         *
+         * DLACZEGO DOMENA, A NIE KLUCZ API. Plausible nie ma klucza po
+         * stronie przeglądarki: skrypt identyfikuje serwis nazwą domeny
+         * zarejestrowaną w panelu. To nie jest sekret — stoi w HTML-u każdej
+         * strony i tak ma być.
+         */
+        'plausible' => [
+            // Nazwa serwisu dokładnie taka, jak w panelu Plausible
+            // („kuking.pl"). Puste = analityki nie ma.
+            'domena' => trim((string) env('PLAUSIBLE_DOMENA', '')),
+
+            /*
+             * Skąd pobieramy skrypt i dokąd idą zdarzenia.
+             *
+             * Wyciągnięte do zmiennej, a nie zapisane na sztywno, z jednego
+             * powodu: gdyby kiedyś przyszło przenieść się na własną
+             * instancję Plausible (ten sam otwarty kod pod własnym adresem),
+             * zmienia się TYLKO ta wartość — widok i reguła CSP liczą się
+             * z niej same. Wpisanie hosta na sztywno w dwóch miejscach
+             * gwarantowałoby, że przy przenosinach jedno z nich zostanie
+             * w tyle i skrypt zostanie po cichu zablokowany przez politykę
+             * bezpieczeństwa — bez śladu na ekranie.
+             */
+            'host' => rtrim(trim((string) env('PLAUSIBLE_HOST', 'https://plausible.io')), '/'),
+        ],
     ],
 
     'audit_log' => [

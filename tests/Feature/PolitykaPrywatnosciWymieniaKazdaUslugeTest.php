@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Moderacja\KlientOpenAI;
 use App\Poczta\TransportEmailLabs;
+use App\Support\Plausible;
 use App\Support\Turnstile;
 use PHPUnit\Framework\Attributes\Test;
 use Sentry\Laravel\ServiceProvider;
@@ -72,6 +73,22 @@ class PolitykaPrywatnosciWymieniaKazdaUslugeTest extends TestCase
             'OpenAI (moderacja treści)' => [
                 class_exists(KlientOpenAI::class),
                 'OpenAI',
+            ],
+            /*
+             * Plausible (analityka odwiedzin, D-092).
+             *
+             * WARUNKIEM JEST ISTNIENIE KLASY, A NIE `Plausible::wlaczona()`
+             * — i to jest tu rzecz najważniejsza. W testach i w CI
+             * `PLAUSIBLE_DOMENA` jest pusta, więc `wlaczona()` oddaje
+             * `false`; gdyby to ono rozstrzygało, cała ta pozycja byłaby
+             * POMIJANA dokładnie tam, gdzie ma pilnować, i test byłby
+             * ozdobą. Pytanie brzmi „czy kod potrafi wysłać dane temu
+             * dostawcy", a nie „czy akurat na tej maszynie wysyła" — tak
+             * samo jak przy EmailLabs i Turnstile wyżej.
+             */
+            'Plausible (analityka odwiedzin, D-092)' => [
+                class_exists(Plausible::class),
+                'Plausible',
             ],
         ];
     }

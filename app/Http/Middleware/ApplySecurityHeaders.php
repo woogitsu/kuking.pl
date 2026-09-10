@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\Plausible;
 use App\Support\Turnstile;
 use Closure;
 use Illuminate\Http\Request;
@@ -130,6 +131,27 @@ class ApplySecurityHeaders
         // `unsafe-inline` skasowałoby cały efekt issue #107.
         $turnstile = Turnstile::skonfigurowany() ? ['https://challenges.cloudflare.com'] : [];
 
+        // Analityka Plausible (D-092). Ten sam warunek co przy Turnstile
+        // i z tego samego powodu: polityka opisuje to, co strona NAPRAWDĘ
+        // ładuje. Bez `PLAUSIBLE_DOMENA` żaden znacznik nie wychodzi
+        // z widoku, więc nie ma czego dopuszczać — a każdy obcy host
+        // w `script-src` to poszerzenie powierzchni ataku dla XSS-a
+        // (issue #12).
+        //
+        // DWIE DYREKTYWY, NIE JEDNA, I TO JEST TU CAŁA PUŁAPKA.
+        // `script-src` pozwala POBRAĆ plik. Zdarzenia skrypt wysyła potem
+        // POST-em na `<host>/api/event`, a to jest `connect-src` — która
+        // w tej polityce jest wypisana osobno, więc NIE dziedziczy nic
+        // z `default-src 'self'`. Gdyby zabrakło drugiej linijki, skrypt
+        // pobrałby się poprawnie i każde zdarzenie ginęłoby na barierze
+        // CSP: strona bez usterki, panel Plausible pusty, w dzienniku
+        // serwera ani śladu. Pilnuje tego osobny test.
+        //
+        // Podpis (`nonce`) tego nie załatwia: nonce dotyczy znacznika,
+        // a nie połączenia wychodzącego — i tak samo jak przy Turnstile
+        // host trzeba wymienić z nazwy.
+        $plausible = Plausible::wlaczona() ? [Plausible::host()] : [];
+
         $wspolne = [
             "default-src 'self'",
             "base-uri 'self'",
@@ -143,8 +165,8 @@ class ApplySecurityHeaders
             "img-src 'self' data: blob: https:",
             "font-src 'self' data:",
             "worker-src 'self'",
-            'connect-src '.implode(' ', ["'self'", ...$vite['connect']]),
-            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile]),
+            'connect-src '.implode(' ', ["'self'", ...$vite['connect'], ...$plausible]),
+            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile, ...$plausible]),
         ];
 
         // `frame-src` pojawia się w polityce WYŁĄCZNIE z Turnstile. Bez niego
