@@ -144,6 +144,32 @@ class WyslijPodsumowaniaTygodnia extends Command
             }
 
             if (! $naSucho) {
+                // MIEJSCE W DOBOWYM SUFICIE REZERWUJEMY PRZED WSTAWIENIEM
+                // DO KOLEJKI — po wstawieniu jest już za późno, bo list
+                // odrzucony limitem dostawcy przepada w `failed_jobs`
+                // i nikt się o tym nie dowie (pełne uzasadnienie w opisie
+                // tej klasy oraz przy `DziennyBudzetListow::zajmij()`).
+                //
+                // Rezerwacja jest JEDNĄ atomową operacją, a nie parą
+                // „sprawdź i zajmij" (D-076). `$budzet` wyliczony wyżej
+                // jest tylko oszacowaniem rozmiaru paczki: drugi przebieg
+                // komendy uruchomiony równolegle — ręcznie po awarii, gdy
+                // harmonogram już chodzi — czytał ten sam licznik i oba
+                // przebiegi wysyłały pełną paczkę ponad sufitem.
+                //
+                // LIST PRÓBNY `--tylko` STOI PONAD SUFITEM i tak było
+                // przed tą zmianą: to jedna wiadomość wypuszczana ręcznie
+                // przez właściciela, który chce ZOBACZYĆ list, i wcześniejsze
+                // wyjścia z tej komendy świadomie go nie zatrzymują. Musi
+                // się jednak POLICZYĆ, żeby nie zniknął z rachunku wiadra.
+                if (! $budzetDnia->sprobujZarezerwowac()) {
+                    if ($jedna === null) {
+                        break;
+                    }
+
+                    $budzetDnia->zajmij();
+                }
+
                 // ROZSUNIĘCIE W CZASIE, NIE STO DWADZIEŚCIA WYWOŁAŃ API
                 // W JEDNEJ MINUCIE — `docs/decyzje/POCZTA.md` §5 pkt 5 mówi
                 // wprost, że taki szczyt sam w sobie jest sygnałem spamowym.
@@ -161,13 +187,6 @@ class WyslijPodsumowaniaTygodnia extends Command
                 $list = (new PodsumowanieTygodnia($tresc))->delay(now()->addSeconds($numer * $odstep));
 
                 Mail::to($osoba->email)->queue($list);
-
-                // Miejsce w dobowym suficie zajmujemy PRZY WSTAWIENIU DO
-                // KOLEJKI, nie po doręczeniu — uzasadnienie przy
-                // `DziennyBudzetListow::zajmij()`. W skrócie: po wstawieniu
-                // jest już za późno, bo list odrzucony limitem dostawcy
-                // przepada w `failed_jobs` i nikt się o tym nie dowie.
-                $budzetDnia->zajmij();
 
                 $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_SENT, $tresc->miary());
             }
