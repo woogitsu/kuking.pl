@@ -67,6 +67,23 @@ const SZYBKO = process.argv.includes('--szybko');
  *
  * Teraz: bierzemy stałą ścieżkę TYLKO wtedy, gdy plik pod nią istnieje.
  * `undefined` znaczy dla Playwrighta „użyj swojej".
+ *
+ * POPRAWKA Z 11 WRZEŚNIA (D-099): PIERWSZEŃSTWO MA PRZEGLĄDARKA PLAYWRIGHTA,
+ * BO TO JEST TA, KTÓRĄ MIERZY CI.
+ *
+ * Kolejność była odwrotna i kosztowała cały wieczór szukania „usterki,
+ * której u nas nie ma". Obraz deweloperski ma pod stałą ścieżką rewizję 1194
+ * (Chromium 141), a `playwright` 1.63 przypina rewizję 1243 (Chrome 153) —
+ * i to ją pobiera runner. Dopóki stała ścieżka wygrywała zawsze, gdy tylko
+ * istniała, „u mnie zielone" i „na CI czerwone" mogło znaczyć wyłącznie tyle,
+ * że to były DWIE RÓŻNE PRZEGLĄDARKI, i nie dało się tego rozstrzygnąć bez
+ * ręcznego ustawiania zmiennej. Ten kontener ma dziś obie
+ * (`/opt/pw-browsers/chromium-1243`), więc nie ma czego wybierać: bierzemy
+ * tę, którą weźmie CI, a ścieżka z obrazu zostaje zapasem na wypadek obrazu
+ * bez pobranej przeglądarki Playwrighta.
+ *
+ * `CHROMIUM_PATH` dalej przebija wszystko — po to jest, żeby dało się
+ * zmierzyć TĘ SAMĄ rzecz drugą przeglądarką, gdy wynik jest podejrzany.
  */
 function znajdzChromium() {
   const wskazana = process.env.CHROMIUM_PATH;
@@ -78,6 +95,21 @@ function znajdzChromium() {
     }
 
     return wskazana;
+  }
+
+  /*
+   * `executablePath()` rzuca, gdy paczka nie umie wskazać pliku (inna
+   * platforma, brak instalacji). Brak przeglądarki Playwrighta nie jest
+   * błędem — jest powodem, żeby sięgnąć po tę z obrazu.
+   */
+  try {
+    const wlasna = chromium.executablePath();
+
+    if (wlasna && existsSync(wlasna)) {
+      return undefined;
+    }
+  } catch {
+    // Idziemy dalej, do ścieżki z obrazu deweloperskiego.
   }
 
   const deweloperska = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
@@ -187,6 +219,26 @@ const EKRANY = [
    * przestał go tworzyć, ta pozycja zgłosi 404 zamiast po cichu przejść.
    */
   { nazwa: 'strona tagu (gość)', adres: '/tag/zupy' },
+  /*
+   * SPIS WSZYSTKICH TEMATÓW (#273, D-087) — mierzony jako GOŚĆ, bo taki
+   * właśnie jest: to strona publiczna, jedno z niewielu miejsc, w które ma
+   * sens trafić z wyszukiwarki.
+   *
+   * Dopisany 11 września (D-099). Powstał w #303 i przez dwie doby był
+   * JEDYNĄ stroną publiczną serwisu, której ten automat nie oglądał — nie
+   * z decyzji, tylko dlatego, że ten plik trzymały wtedy trzy gałęzie naraz
+   * i nikt nie chciał go ruszać. Nikt tego nie zauważył, bo brak ekranu na
+   * liście niczego nie psuje: raport wygląda na kompletny i świeci na
+   * zielono. Kompletności tej listy pilnuje od teraz
+   * `tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php` —
+   * nowa strona publiczna musi trafić albo tutaj, albo na wypisaną tam
+   * listę świadomych wyjątków. „Ktoś będzie pamiętał" już raz nie zadziałało.
+   *
+   * Kształt treści jest tu ryzykiem sam w sobie: dwie sekcje gęstych rzędów
+   * odnośników z licznikami, czyli dokładnie ten układ, który przy 320 px
+   * i tekście 140% najłatwiej wypycha stronę w bok (issue #80).
+   */
+  { nazwa: 'spis tematów (gość)', adres: '/tagi' },
   { nazwa: 'twoje tagi', adres: '/ustawienia/tagi', zalogowany: true },
 
   /*
@@ -797,6 +849,93 @@ async function poczekajNaFonty(strona) {
 }
 
 /*
+ * WŁĄCZAMY NASZE USTAWIENIE „POWIĘKSZ TEKST" I CZEKAMY, AŻ STRONA NAPRAWDĘ
+ * SIĘ NA NIE PRZELICZY — TO JEST TA USTERKA, KTÓRA TRZYMAŁA `main` NA
+ * CZERWONO (D-099).
+ *
+ * CO SIĘ DZIAŁO. Produkt wydaje `data-text-scale` na `<html>` po stronie
+ * serwera (`layout.blade.php` w. 165), więc strona człowieka jest ułożona
+ * wielkim tekstem OD PIERWSZEGO ułożenia i nigdy się z tego powodu nie
+ * przelicza. Ten automat robił odwrotnie: wczytywał stronę w rozmiarze
+ * domyślnym, dopiero potem dokładał atrybut — i od razu zaczynał mierzyć.
+ * Przeliczenie układu po zmianie atrybutu na korzeniu NIE JEST
+ * natychmiastowe. Zmierzone w tym kontenerze (Chromium 153): pomiar zaraz
+ * po `setAttribute` potrafił jeszcze zobaczyć układ SPRZED skalowania —
+ * `--user-text-scale` czytało się już jako `1.4`, a `.bottom-nav` miała
+ * dalej 66,6 px wysokości i stopka 128 px wypełnienia zamiast 179,2 px.
+ *
+ * DLACZEGO TO DAWAŁO NARUSZENIE 2.4.11, KTÓREGO W PRODUKCIE NIE MA. Strona
+ * przy tekście 140% jest o mniej więcej jedną trzecią wyższa (zmierzone na
+ * `/szukaj` przy 320 px: 2796 → 3744 px). Jeżeli przeliczenie wypadło
+ * W TRAKCIE chodzenia Tabem, element, który przeglądarka przed chwilą
+ * przewinęła nad belkę, zjeżdżał razem z rosnącą stroną w dół — a drugi raz
+ * nikt go już nie przewija, bo fokus się nie zmienił. Element lądował pod
+ * belką i automat notował FAIL. Zmierzone: przy przeliczeniu spóźnionym
+ * o sześć kroków Taba wychodzą DOKŁADNIE te elementy, które zgłaszało CI
+ * (odnośnik „Ania" na tablicy przy 360 i 414 px); przy spóźnieniu o trzy
+ * i o dziesięć kroków — zero. Stąd brała się cała zmienność wyniku, łącznie
+ * z przebiegami zielonymi.
+ *
+ * DLACZEGO NIE „POCZEKAĆ CHWILĘ". Czekanie na zegar jest zakładem o szybkość
+ * maszyny, a runner GitHuba bywa wolniejszy od tego kontenera — czyli
+ * dokładnie tym samym błędem, tylko z innym progiem. Czekamy więc na STAN:
+ * aż UŁOŻONA strona pokaże wielkość pisma odpowiadającą żądanej skali.
+ * A jeśli nie pokaże jej nigdy, kończymy BŁĘDEM — bo cichy pomiar strony
+ * w nieznanej skali to dokładnie ta fałszywa zieleń, przed którą ten skrypt
+ * ma bronić (ten sam wzorzec, co sprawdzenie korzenia przy wariancie
+ * „czcionka przeglądarki 200%" niżej).
+ *
+ * Zwraca `true`, gdy skala jest już w układzie. `false` znaczy „nie udało
+ * się" i wywołujący MA POMINĄĆ ten ekran, zamiast zapisać go jako zbadany.
+ */
+async function wlaczSkaleTekstu(strona, skala, gdzie) {
+  await strona.evaluate(
+    (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+    skala,
+  );
+
+  /*
+   * `body` ma `font-size: var(--text-body)`, czyli `1.125rem` mnożone przez
+   * `--user-text-scale` (`tokens.css`). To jest wielkość pisma widoczna na
+   * UŁOŻONEJ stronie — a nie sama wartość zmiennej, która potrafi być już
+   * nowa wtedy, gdy układ jest jeszcze stary. Sprawdzanie samej zmiennej
+   * przepuszczałoby dokładnie ten stan, przez który powstała ta funkcja.
+   */
+  const oczekiwana = 1.125 * BAZOWA_CZCIONKA_PX * (skala / 100);
+
+  const zgadza = await strona.evaluate(async (cel) => {
+    const teraz = () => Number.parseFloat(getComputedStyle(document.body).fontSize);
+    const klatka = () => new Promise((dalej) => requestAnimationFrame(() => dalej()));
+
+    // Trzydzieści klatek to około pół sekundy przy 60 Hz i kilka sekund na
+    // maszynie zdławionej — a kończy się zgłoszeniem błędu, nie cichym
+    // przejściem dalej.
+    for (let proba = 0; proba < 30; proba++) {
+      if (Math.abs(teraz() - cel) < 0.5) {
+        return true;
+      }
+
+      await klatka();
+    }
+
+    return Math.abs(teraz() - cel) < 0.5;
+  }, oczekiwana);
+
+  if (! zgadza) {
+    console.error(
+      `BŁĄD: ${gdzie} — strona nie przeliczyła się na skalę tekstu ${skala}% `
+      + `(oczekiwane ${oczekiwana} px pisma podstawowego). Pomiar w nieznanej `
+      + 'skali jest gorszy niż jego brak, więc ten ekran zostaje pominięty.',
+    );
+    process.exitCode = 1;
+
+    return false;
+  }
+
+  return true;
+}
+
+/*
  * POMIAR PRZEPEŁNIENIA W POZIOMIE (issue #80, WCAG 2.2 AA — 1.4.10 Reflow)
  *
  * DLACZEGO POMIAR, A NIE REGUŁA AXE
@@ -1350,10 +1489,20 @@ for (const wariant of WARIANTY) {
     }
 
     if (wariant.skalaTekstu) {
-      await strona.evaluate(
-        (skala) => document.documentElement.setAttribute('data-text-scale', String(skala)),
+      // Czekamy na PRZELICZONY układ, nie na sam atrybut — uzasadnienie
+      // stoi przy `wlaczSkaleTekstu` wyżej.
+      const przeliczone = await wlaczSkaleTekstu(
+        strona,
         wariant.skalaTekstu,
+        `ekran „${ekran.nazwa}" (${wariant.nazwa})`,
       );
+
+      // Strona jest tu WSPÓLNA dla wszystkich ekranów wariantu (dwie na cały
+      // przebieg — gościa i zalogowanego), więc jej NIE zamykamy: zamknięcie
+      // zabrałoby resztę listy razem z tym jednym ekranem.
+      if (! przeliczone) {
+        continue;
+      }
     }
 
     // Motyw ciemny — WYŁĄCZNIE ten atrybut go włącza (docs/DECISIONS.md,
@@ -1585,10 +1734,16 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
           continue;
         }
       } else if (skala) {
-        await strona.evaluate(
-          (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+        const przeliczone = await wlaczSkaleTekstu(
+          strona,
           skala,
+          `ekran „${ekran.nazwa}" (${opis}, pomiar układu)`,
         );
+
+        if (! przeliczone) {
+          await strona.close();
+          continue;
+        }
       }
 
       const uklad = await zmierzUklad(strona);
@@ -2373,10 +2528,16 @@ for (const szerokosc of SZEROKOSCI_FOCUS) {
       }
 
       if (skala && skala !== PRZEGLADARKA_200) {
-        await strona.evaluate(
-          (s) => document.documentElement.setAttribute('data-text-scale', String(s)),
+        const przeliczone = await wlaczSkaleTekstu(
+          strona,
           skala,
+          `ekran „${ekran.nazwa}" (${opis}, focus not obscured)`,
         );
+
+        if (! przeliczone) {
+          await strona.close();
+          continue;
+        }
       }
 
       if (skala === PRZEGLADARKA_200) {
@@ -2809,6 +2970,20 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     szerokosci: SZEROKOSCI_TABLICY,
     rozjazdow: rozjazdyTablicy.length,
     rozjazdy: rozjazdyTablicy,
+  },
+  /*
+   * LICZBY O OSOBIE (D-091) — kontrola, którą kod wyjścia respektował od
+   * początku, a artefakt przemilczał. Brakowało jej dokładnie tutaj, czyli
+   * w trzecim z trzech miejsc zbiorczych tego pliku (sekcja 14.5
+   * przekazania). Skutek nie był groźny — CI oblewało poprawnie — ale
+   * `dostepnosc.json` jest jedynym miejscem, z którego da się odczytać
+   * PRZYCZYNĘ po skończonym przebiegu, więc jego niekompletność jest cichym
+   * kosztem płaconym przy każdej diagnozie.
+   */
+  liczbyProfilu: {
+    szerokosci: SZEROKOSCI_LICZB,
+    rozjazdow: rozjazdyLiczb.length,
+    rozjazdy: rozjazdyLiczb,
   },
 }, null, 2));
 

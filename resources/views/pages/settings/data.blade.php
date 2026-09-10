@@ -55,7 +55,7 @@
             i komentarzami. Przez <strong>{{ $graceDays }} dni</strong> możesz jeszcze
             zmienić zdanie i wtedy wszystko wraca tak, jak było. Po tym czasie
             usuniemy Twoje dane i zdjęcia na stałe, a o tym, co zrobimy z Twoimi
-            {{-- Ukośnik rodzajowy „sam/sama" (issue #38, D-066) — słowo nie
+            {{-- Ukośnik rodzajowy „sam/sama" (issue #38) — słowo nie
                  wnosi tu żadnej informacji, więc najtańszą naprawą jest je
                  skreślić, tak jak każe COPY_STYLE.md §2. --}}
             tekstami, decydujesz Ty w formularzu niżej.
