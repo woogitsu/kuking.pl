@@ -618,3 +618,65 @@ for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
         });
     });
 })();
+
+/* ==========================================================================
+   NAZWA KONTA PODPOWIADANA Z IMIENIA — decyzja właściciela z 10 września.
+   ==========================================================================
+
+   DLACZEGO DWA POLA ZOSTAJĄ
+   Zewnętrzny audyt 60+ wskazał, że rejestracja każe wymyślić dwa podobne
+   pojęcia naraz: imię widoczne dla innych i nazwę, która trafia do adresu
+   profilu. Właściciel rozstrzygnął, żeby oba pola zostały — adres profilu ma
+   być świadomym wyborem, a nie czymś, co człowiek odkrywa po fakcie — ale
+   żeby nazwa była PODPOWIADANA z imienia i dała się nadpisać.
+
+   AUTORYTETEM JEST PHP, NIE TEN KOD
+   Prawdziwą normalizację robi `App\Support\NazwaUzytkownika::znormalizuj()`
+   przy wysłaniu formularza. Tutaj jest tylko podpowiedź w polu, więc
+   rozjazd między tą transliteracją a tamtą jest NIESZKODLIWY: serwer i tak
+   ułoży nazwę po swojemu. Dlatego świadomie nie przepisuję tu całej tablicy
+   znaków — to byłoby drugie źródło prawdy, które rozjedzie się przy pierwszej
+   zmianie reguły.
+
+   PRZESTAJEMY PODPOWIADAĆ, GDY CZŁOWIEK RUSZY POLE SAM. Nadpisywanie tego,
+   co ktoś wpisał ręcznie, jest gorsze niż brak podpowiedzi — a przy 65-latce
+   wyglądałoby jak usterka („kasuje mi to, co piszę").
+
+   Bez JavaScriptu nic się nie psuje: pole zostaje puste, a wpisany w nie
+   dowolny zapis („Basia z Podkarpacia") i tak przechodzi, bo serwer wybacza.
+   ========================================================================== */
+(function podpowiedzNazweKonta() {
+    const imie = document.getElementById('f-display_name');
+    const nazwa = document.getElementById('f-username');
+
+    if (imie === null || nazwa === null) {
+        return;
+    }
+
+    // Formularz przyszedł z błędem i pole jest już wypełnione? Nie ruszamy —
+    // to jest albo wybór człowieka, albo wartość znormalizowana przez serwer.
+    let wlasnyWybor = nazwa.value.trim() !== '';
+
+    nazwa.addEventListener('input', () => {
+        wlasnyWybor = true;
+    });
+
+    const zImienia = (tekst) => tekst
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')      // ą→a, ć→c, ę→e, ó→o, ś→s, ź→z, ż→z
+        .replace(/ł/g, 'l').replace(/Ł/g, 'L') // „ł" nie rozkłada się na znak bazowy
+        .toLowerCase()
+        .replace(/[\s.\-'’]+/g, '_')
+        .replace(/[^a-z0-9_]/g, '')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 40);
+
+    imie.addEventListener('input', () => {
+        if (wlasnyWybor) {
+            return;
+        }
+
+        nazwa.value = zImienia(imie.value);
+    });
+})();

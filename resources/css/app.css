@@ -3597,6 +3597,15 @@
    --------------------------------------------------------------------------- */
 .podziel-sie {
   margin-top: var(--spacing-6);
+
+  /* ODSTĘP TAKŻE POD BLOKIEM (zgłoszenie właściciela: „między «Podziel się»
+     a «Komentarze», na kompie, jest za mało miejsca").
+
+     Ten blok stoi na stronie wpisu bezpośrednio nad nagłówkiem `<h2>
+     Komentarze`, a `h2` nie ma tu marginesu górnego. Bez tej linii przycisk
+     dotyka nagłówka i dwie niezależne rzeczy — akcja „wyślij komuś adres"
+     i sekcja rozmowy pod wpisem — czytają się jak jedna grupa. */
+  margin-bottom: var(--spacing-8);
 }
 
 /* `summary` udaje przycisk: musi mieć jego rozmiar dotykowy i nie może
