@@ -68,7 +68,7 @@ class KomuWyszloUkladTest extends TestCase
 
         $odpowiedz->assertSee('Komu wyszło', escape: false);
         $odpowiedz->assertSee('Jeszcze nikt tego nie gotował', escape: false);
-        $odpowiedz->assertSee('Będziesz pierwsza albo pierwszy?', escape: false);
+        $odpowiedz->assertSee('Twoje wykonanie będzie pierwsze.', escape: false);
         // Bez paska liczb, kiedy nie ma czego liczyć — „0 osób ugotowało"
         // byłoby tym samym rozminięciem się z prawdą, przed którym ostrzega
         // C3, tylko w innej formie.
