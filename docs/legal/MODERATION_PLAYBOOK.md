@@ -150,6 +150,22 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    w bazie). Kolejka `/admin/odwolania` pokazuje termin przy każdej sprawie
    i wyróżnia te po terminie. Dni roboczych liczymy bez weekendów; świąt
    system nie zna, więc to cel operacyjny, nie zobowiązanie co do godziny.
+
+   **KOLEJKA SAMA SIĘ ZGŁASZA (D-060, od 10 września 2026).** Nowe odwołanie
+   tworzy **powiadomienie w serwisie dla kont z rolą `admin`** — czyli dla
+   tych, które mogą sprawę zamknąć (D-039). W powiadomieniu stoi termin
+   odpowiedzi. Moderator bez tej roli powiadomienia nie dostaje (nie może
+   zamknąć sprawy), ale widzi przy pozycji „Odwołania" w menu panelu
+   **licznik tego, co czeka** — tak samo jak przy „Zgłoszeniach", „Sygnałach
+   automatu", „Wiadomościach do nas" i „Bez odpowiedzi".
+
+   **POCZTA — TYLKO NA TERMIN, NIE NA KAŻDE ODWOŁANIE.** Listu w chwili
+   złożenia odwołania nie ma (uzasadnienie: D-060 — wiadro 300 listów na dobę
+   dzielone z rejestracjami, D-047). Raz na dobę o 07:10 chodzi natomiast
+   `kuking:pilnuj-terminow-odwolan`: **jeden** list, i tylko wtedy, gdy któreś
+   otwarte odwołanie ma termin odpowiedzi w progu (2 dni robocze,
+   `moderation.appeal_reminder_working_days`) albo już PO terminie. List mówi,
+   ile spraw wisi i do kiedy — bez treści odwołania i bez nazw ludzi.
 7. Cofnięcie decyzji **realnie ją cofa**: treść wraca do stanu sprzed ukrycia
    (szkic zostaje szkicem), konto wraca do aktywnego. Odwołanie, po którym nic
    się nie zmienia, nie jest odwołaniem.

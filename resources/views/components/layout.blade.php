@@ -90,6 +90,25 @@
     $wTrybiePanelu = $user?->isModerator() === true && request()->routeIs('admin.*');
 
     // ------------------------------------------------------------------
+    //  LICZNIKI PRZY POZYCJACH PANELU (zgłoszenie właściciela z 10 września:
+    //  „w »Odwołania« nie ma takiego kwadracika jak przy Powiadomieniach").
+    //
+    //  JEDEN ODCZYT Z CACHE NA CAŁE MENU, ZERO `COUNT(*)`. Menu panelu stoi
+    //  na KAŻDEJ stronie `/admin/**`, a kolejek jest pięć — pięć zapytań
+    //  liczących w tym bloku byłoby pięcioma zapytaniami na każdą odsłonę,
+    //  najdroższymi dokładnie wtedy, gdy kolejki są pełne. Przeliczanie
+    //  schodzi więc poza ścieżkę żądania, dokładnie jak przy liczniku
+    //  społeczności w stopce: pełne uzasadnienie i pomiar w
+    //  `App\Domain\Moderation\KolejkiPanelu`, a niezależność liczby zapytań
+    //  od zawartości kolejek pilnuje `LicznikiKolejekBezZapytanTest`.
+    //
+    //  Liczby czytamy tylko dla moderatora — zwykły użytkownik nie ma w menu
+    //  ani jednej pozycji panelu, więc nie ma po co sięgać nawet do cache.
+    $kolejki = $user?->isModerator() === true
+        ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby()
+        : [];
+
+    // ------------------------------------------------------------------
     //  KARTA DO WYSŁANIA RODZINIE (issue #14)
     //
     //  Link do przepisu wklejony w Messengera albo WhatsAppa pokazywał
@@ -423,8 +442,8 @@
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
                             <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
                             <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
-                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi</a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi <x-licznik-kolejki :ile="$kolejki['bez_odpowiedzi'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia <x-licznik-kolejki :ile="$kolejki['zgloszenia'] ?? 0" /></a></li>
                                 {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
                                      to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
                                      i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
@@ -435,8 +454,8 @@
                                      okaże się niczym. Ikona „filter", bo to jest sito, a nie
                                      tarcza: nic tu nikogo nie chroni, dopóki człowiek nie
                                      przeczyta. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu</a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
@@ -446,7 +465,7 @@
                                      a nie sprawa do rozstrzygnięcia. Osobna pozycja,
                                      nie zakładka w Zgłoszeniach: to jest inna kolejka
                                      i inna praca (patrz `WiadomosciController`). --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas <x-licznik-kolejki :ile="$kolejki['wiadomosci'] ?? 0" /></a></li>
                                 {{-- Konta użytkowników — ekran do WGLĄDU, nie do zarządzania
                                      rolami (te nadaje `kuking:nadaj-role` z powłoki, D-039).
                                      Ostatni w sekcji, bo to jest miejsce, do którego wchodzi

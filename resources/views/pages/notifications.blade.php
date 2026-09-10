@@ -147,6 +147,19 @@
                                 <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
                                 Odpowiedz jak najszybciej — pierwszy wpis bez reakcji zwykle bywa ostatnim.
                                 @break
+                            @case(\App\Models\Notification::TYPE_APPEAL_FILED)
+                                {{-- Zawiadomienie dla ADMINISTRATORA: ktoś złożył
+                                     odwołanie i ma termin na odpowiedź (DSA art. 20).
+                                     Termin stoi w treści, bo to jedyna rzecz, która
+                                     odróżnia tę pozycję od „zajrzę tam kiedyś".
+                                     Powiadomienie idzie tylko do tych, którzy mogą
+                                     sprawę zamknąć — D-039, `PowiadomOOdwolaniu`. --}}
+                                <strong>{{ ($data['od_zglaszajacego'] ?? false) ? 'Zgłaszający odwołał się od decyzji.' : 'Ktoś odwołał się od decyzji moderacji.' }}</strong>
+                                Odwołanie od {{ $data['skladajacy'] ?? 'nieznanej osoby' }}.
+                                @if($data['termin'] ?? null)
+                                    Odpowiedz do {{ $data['termin'] }}.
+                                @endif
+                                @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
                                 Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.

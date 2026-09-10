@@ -217,8 +217,13 @@ class PanelModeracjiWMenuTest extends TestCase
         $html = $this->actingAs($moderator)->get(route('admin.reports'))->assertOk()->getContent();
         $boczna = $this->wytnijBoczna($html);
 
+        // `.*?</a>` po nazwie, nie `Zgłoszenia</a>` wprost: od 10 września
+        // pozycja kolejki może mieć w środku odnośnika licznik tego, co czeka
+        // (`<x-licznik-kolejki>`), więc nazwa nie jest już ostatnią rzeczą
+        // przed zamknięciem znacznika. Sprawdzana rzecz — `aria-current` na
+        // pozycji „Zgłoszenia" — zostaje bez zmian.
         $this->assertMatchesRegularExpression(
-            '~<a class="side-nav-item" href="[^"]*"\s+aria-current="page"\s*>.*?Zgłoszenia</a>~s',
+            '~<a class="side-nav-item" href="[^"]*"\s+aria-current="page"\s*>.*?Zgłoszenia.*?</a>~s',
             $boczna,
             'Pozycja „Zgłoszenia” nie ma `aria-current="page"`, mimo że to bieżący ekran.',
         );

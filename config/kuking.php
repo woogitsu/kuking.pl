@@ -1268,6 +1268,17 @@ return [
     | przygodę z serwisem, a podsumowanie, które nie doszło, jest niczym.
     | Sufity mają wyłącznie funkcje, które wolno przyhamować.
     |
+    | CO SIEDZI W TEJ REZERWIE Z KOLEJKI MODERACJI (D-060, dopisane
+    | 10 września): dobowe podsumowanie kolejki automatu
+    | (`kuking:podsumowanie-automatu`, D-055) i przypomnienie o terminie
+    | odwołania (`kuking:pilnuj-terminow-odwolan`,
+    | `moderation.appeal_reminder_working_days`). Każde z nich wysyła
+    | NAJWYŻEJ JEDEN list na dobę, na jeden adres, i tylko w dniach, w których
+    | naprawdę jest o czym pisać — razem najwyżej 2 z tych 100. Dlatego nie
+    | mają własnych sufitów: sufit jest narzędziem na funkcje, które wysyłają
+    | wiele listów naraz, a nie na te, które wysyłają jeden. Poczty na KAŻDE
+    | odwołanie świadomie nie ma (D-060).
+    |
     */
     'poczta' => [
         // Limit dostawcy, na dobę, na całe konto. NIE zmieniaj tej liczby
@@ -1616,6 +1627,26 @@ return [
         // komuś siedzieć dobę z ukrytą treścią „dla higieny procesu" szkodzi
         // tej osobie, nie procesowi.
         'appeal_self_uphold_hours' => (int) env('KUKING_APPEAL_SELF_UPHOLD_HOURS', 24),
+
+        // ILE DNI ROBOCZYCH PRZED TERMINEM ODPOWIEDZI WYSŁAĆ LIST (D-060).
+        //
+        // Nowe odwołanie daje powiadomienie w panelu i licznik przy pozycji
+        // „Odwołania" — poczty na każde odwołanie NIE ma i mieć nie będzie
+        // (uzasadnienie: D-060, `PowiadomOOdwolaniu`). Pocztą jedzie
+        // wyłącznie sytuacja, w której termin z DSA art. 20 jest BLISKO
+        // albo już MINĄŁ, a sprawy nikt nie zamknął — bo wtedy powiadomienie
+        // w serwisie, którego nikt nie przeczytał, właśnie zawiodło.
+        //
+        // Zero wyłącza sam próg „blisko" i zostawia listy tylko dla spraw PO
+        // terminie; to jest poprawna, świadoma konfiguracja, a nie wyłączenie
+        // pilnowania.
+        //
+        // KOSZT W WIADRZE POCZTY: najwyżej JEDEN list na dobę, i tylko
+        // w dniach, w których naprawdę coś wisi. Dlatego ta funkcja NIE ma
+        // własnego sufitu w podziale wiadra (sekcja `poczta` niżej) —
+        // mieści się w rezerwie transakcyjnej, tak jak przypomnienie hasła.
+        // Sufity są dla funkcji, które wysyłają WIELE listów naraz.
+        'appeal_reminder_working_days' => (int) env('KUKING_APPEAL_REMINDER_DAYS', 2),
 
         // RETENCJA SPRAWY MODERACYJNEJ — `reports` + `moderation_actions` +
         // `appeals` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.3-5.5).

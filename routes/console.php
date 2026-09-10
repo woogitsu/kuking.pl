@@ -184,6 +184,21 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
     ->hourly()
     ->withoutOverlapping();
 
+// Liczniki przy pozycjach panelu moderacji („Odwołania 2"). Ten sam powód co
+// wyżej — menu boczne stoi na KAŻDEJ stronie panelu, więc pięć `COUNT(*)` na
+// odsłonę jest wykluczone (`App\Domain\Moderation\KolejkiPanelu`).
+//
+// CO PIĘĆ MINUT, a nie co godzinę jak licznik społeczności: tamten pokazuje
+// rozmiar społeczności, który zmienia się wolno, ten mówi „to czeka na
+// Ciebie". Bieżącej świeżości pilnują zdarzenia modeli (`AppServiceProvider`);
+// to zadanie jest siatką bezpieczeństwa na świeże wdrożenie z pustym cache
+// i na kolejkę „Bez odpowiedzi", która haka przy zapisie świadomie nie ma.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
+    ->name('kuking:policz-kolejki')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
 // Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
 // przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
 // w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm
@@ -198,6 +213,22 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
 Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
     ->name('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
+    ->withoutOverlapping();
+
+// Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
+//
+// 07:10, dziesięć minut po podsumowaniu kolejki automatu: te dwa listy mówią
+// o dwóch różnych rzeczach i mają nie wyjść w tej samej minucie, bo
+// w harmonogramie chodzącym w jednym procesie (rola `all`) blokowałyby
+// pętlę jeden po drugim — tak samo rozsunięte jest całe pasmo sprzątania.
+//
+// Ten list wychodzi WYŁĄCZNIE wtedy, gdy termin jest blisko albo minął.
+// O nowych odwołaniach mówi powiadomienie w panelu i licznik przy pozycji
+// „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-060.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
+    ->name('kuking:pilnuj-terminow-odwolan')
+    ->dailyAt('07:10')
     ->withoutOverlapping();
 
 // Tygodniowe podsumowanie od gospodarza (issue #11, docs/DECISIONS.md D-057).
