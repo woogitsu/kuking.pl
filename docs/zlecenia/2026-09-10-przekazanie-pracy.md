@@ -203,8 +203,8 @@ pliku.**
 
 ## 4. Stan repozytorium — co scalone
 
-Scalone dziś do `main` (17 PR-ów): #265, #266, #267, #268, #271, #277, #279,
-#280, #281, #282, #283, #284, #288, #289, #290, #291, #293.
+Scalone dziś do `main` (18 PR-ów): #265, #266, #267, #268, #271, #277, #279,
+#280, #281, #282, #283, #284, #288, #289, #290, #291, #292, #293.
 
 Najważniejsze z nich, żebyś nie odtwarzał wniosków:
 
@@ -236,7 +236,6 @@ gwarantujesz sobie konflikty.
 
 | PR | Rzecz | Co zostało |
 |---|---|---|
-| **#292** | licznik zapisów (D-081) | 2535/2535 lokalnie. Czeka na CI. **Sprawdź sam kontrolę dodatnią progu** — reszta ma 11 kontroli ujemnych |
 | **#269** | audyt 60+: `.bottom-nav` `fixed` → `sticky` | **CI CZERWONE.** Zmiana naprawia WCAG 2.4.11 i **łamie 2.5.8**: trzy cele dotykowe straciły odstęp (`profil (własny)`, `dodaj przepis`, `twoje tagi` przy 320 px). Nie podnoś progu w skrypcie. Agent nad tym pracował, stan może być częściowy |
 | gałąź `claude/panel-na-szerokim-telefonie` | panel na Foldzie (#294) | Agent zapisywał pracę; może być niedokończona |
 | **#270** | dowód zgody na digest (D-072) | Agenta zabił limit **przed kontrolami ujemnymi.** Nie scalać bez nich |
@@ -277,7 +276,7 @@ Wszystkie mają opis, uzasadnienie i granice. Nie odtwarzaj diagnozy.
 | #272 | prawa szyna — **zamknięte przez #293** |
 | #273 | baza podstawowych tagów na start |
 | #274 | teksty przypisujące płeć — **zamknięte przez #288** |
-| #275 | licznik zapisów — **w #292**; punkt „algorytm ciekawych tematów" zostaje zamknięty jako niezgodny z założeniami do jawnej decyzji właściciela |
+| #275 | licznik zapisów — **scalone w #292**; punkt „algorytm ciekawych tematów" zostaje zamknięty jako niezgodny z założeniami do jawnej decyzji właściciela |
 | #276 | powiadomienie bez „Zobacz" nie da się oznaczyć jako przeczytane |
 | #278 | „Dodaj Kuking do ulubionych" — **przycisk dodający do zakładek jest technicznie niemożliwy**; mocniejsza wersja to instalacja PWA, ale najpierw trzeba naprawić wymuszony pion w manifeście |
 | #294 | panel moderacji na szerokim telefonie + **ani jedna strona `/admin/` nie jest mierzona przez skrypt dostępności** |
@@ -312,7 +311,7 @@ serwisem.
   ale nazwa jest podpowiadana z imienia. Powód: adres profilu ma być
   świadomym wyborem.
 - **Licznik zapisów ma być widoczny.** „Nie chodzi o rywalizację a
-  docenienie." Realizacja w #292: autor widzi od 1, inny zalogowany od 3,
+  docenienie." Realizacja w #292 (scalone): autor widzi od 1, inny zalogowany od 3,
   gość nigdzie; liczba, nie imiona (bo zeszyt jest domyślnie **prywatny** —
   sprawdzone w migracji i w `CollectionPolicy`).
 - **Logowanie kontem Google — teraz, przed kampanią** (D-069, gałąź istnieje).
@@ -353,7 +352,7 @@ listy łatwo je zgubić. „✔" = zamknięte i scalone. „◐" = w toku, jest 
 | „Trzeba zrobić bazę podstawowych tagów na start" | ☐ | issue #273 |
 | „Jestem mężczyzną, a mam «gotowałam» — sprawdzić wszędzie" | ✔ | PR #288, 33 wystąpienia |
 | „Wpisy bez odpowiedzi w panelu to coś do przejrzenia?" | ✔ | odpowiedziane: to wszystkie opublikowane wpisy bez komentarza, kolejka opieki nad społecznością, nie moderacji. **Siedzi pod nagłówkiem PANEL MODERACJI, co kłamie o funkcji** — nie wystawione jako issue, warte wystawienia |
-| „Po «Zapisuję» nie widać, że ktoś zapisał" + decyzja „to trzeba pokazać… nie chodzi o rywalizację a docenienie" | ◐ | PR #292, czeka na CI |
+| „Po «Zapisuję» nie widać, że ktoś zapisał" + decyzja „to trzeba pokazać… nie chodzi o rywalizację a docenienie" | ✔ | PR #292 scalony — siedem nazwanych jobów zielonych, 2562 testy |
 | „Za mało miejsca między «Podziel się» a «Komentarze»" | ✔ | PR #279 |
 | „Zmarnowane miejsce nad «Napisz komentarz», brak miejsca przed przyciskiem, po co «(wymagane)»" | ✔ | PR #279 |
 | „Przeczytałem powiadomienia, a dalej mam 3 nieprzeczytane" | ☐ | issue #276; **prawdziwa dziura**: powiadomienie bez „Zobacz" nie da się oznaczyć pojedynczo |
@@ -389,7 +388,7 @@ całego. **Pierwszy wolny numer: D-082.**
 | D-078 | sygnał digestu mówi „zakolejkowano"; „jeden aktywny eksport" pilnuje baza, nie `exists()` | ✔ scalone |
 | D-079 | jedna kolejność blokad na koncie + rewalidacja pod blokadą; **obowiązuje w całym repo** | ✔ scalone |
 | D-080 | blokada i obserwowanie nie mogą współistnieć: kolejność blokad na PARZE osób + wyzwalacz w bazie | ✔ scalone |
-| D-081 | licznik zapisów widoczny: autor od 1, obcy od 3, gość nigdzie; liczba, nie imiona | PR #292 |
+| D-081 | licznik zapisów widoczny: autor od 1, obcy od 3, gość nigdzie; liczba, nie imiona | scalone (#292) |
 
 ---
 
@@ -439,7 +438,7 @@ w których jest coś niescalonego:
 
 | Gałąź | Co | Stan |
 |---|---|---|
-| `claude/widac-ze-ktos-zapisal` | licznik zapisów (#292) | testy zielone, czeka na CI |
+| `claude/widac-ze-ktos-zapisal` | licznik zapisów (#292) | **scalone, gałąź do usunięcia** |
 | `claude/audyt-60-plus-wdrozenie` | focus not obscured, belka sticky (#269) | **CI czerwone** |
 | `claude/panel-na-szerokim-telefonie` | panel na Foldzie (#294) | w toku, stan niepewny |
 | `claude/link-prowadzi-do-rejestracji` | zaproszenie do rejestracji | **SZKIC bez testów** |
@@ -495,15 +494,13 @@ Z `AGENTS.md`, z trzech warstw audytu i z tej sesji:
 1. **Przeczytaj `docs/PULAPKI_TESTOW.md`.** Piętnaście minut, oszczędza dzień.
 2. **Zamknij #269** (CI czerwone). Zielone `main` jest warunkiem sensownej
    pracy nad czymkolwiek innym, a to jest jedyny czerwony PR.
-3. **Sprawdź i scal #292** (licznik zapisów) — właściciel na to czeka, bo to
-   jego decyzja.
-4. **Zamknij sprawę #254 vs #288** zgodnie z decyzją właściciela.
-5. **MEDIA-01 (#285)** — bo skutkiem jest nieodwracalna utrata zdjęcia,
+3. **Zamknij sprawę #254 vs #288** zgodnie z decyzją właściciela.
+4. **MEDIA-01 (#285)** — bo skutkiem jest nieodwracalna utrata zdjęcia,
    a wzorzec naprawy już w repo jest.
-6. **MEDIA-03 (#286)**, ale **tylko pomiar** w pierwszym kroku.
-7. **#276** (powiadomienia) i **#273** (baza tagów) — oba widoczne dla
+5. **MEDIA-03 (#286)**, ale **tylko pomiar** w pierwszym kroku.
+6. **#276** (powiadomienia) i **#273** (baza tagów) — oba widoczne dla
    właściciela i oba niewielkie.
-8. **Dokończ szkic zaproszenia do rejestracji** (`claude/link-prowadzi-do-rejestracji`)
+7. **Dokończ szkic zaproszenia do rejestracji** (`claude/link-prowadzi-do-rejestracji`)
    **z testami**, bo to funkcja, o którą właściciel prosił wprost, i dotyka
    wejścia do konta.
 
