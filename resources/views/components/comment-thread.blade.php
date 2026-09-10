@@ -181,8 +181,12 @@
     @auth
         <form class="card" method="POST" action="{{ $action }}">
             @csrf
+            {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
+                 „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie
+                 przy tym parametrze w `components/field.blade.php`. --}}
             <x-field name="body" label="Napisz komentarz" type="textarea" :rows="4"
-                     help="Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku." required />
+                     help="Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku."
+                     required bez-oznaczenia />
             <button class="btn btn-primary" type="submit">Wyślij komentarz</button>
         </form>
     @else

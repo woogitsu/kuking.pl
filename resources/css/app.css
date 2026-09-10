@@ -2025,9 +2025,42 @@
       background-color var(--czas-szybki) ease-out;
   }
 
+  /*
+   * ZAZNACZONE = ZROBIONE, A NIE ZEPSUTE.
+   *
+   * Do 10 września zaznaczony wybór dostawał `--color-brand` (#B3401F)
+   * i `--color-brand-tint` — czyli czerwień marki, praktycznie nie do
+   * odróżnienia od `--color-danger` (#B3261E) i jego tinta. Skutek zobaczyliśmy
+   * na prawdziwej osobie: 63-latka wypełniała rejestrację, odbiła się o błąd
+   * przy nazwie użytkownika, a jej uwagę zabrały DWA WIELKIE CZERWONE PUDŁA na
+   * dole formularza — czyli poprawnie zaznaczone „Mam co najmniej 16 lat"
+   * i „Znam zasady". Prawdziwy błąd, wypisany czerwonym tekstem wyżej, zniknął
+   * jej w tym samym kolorze.
+   *
+   * Czerwień zostaje WYŁĄCZNIE dla błędów. Zaznaczenie jest zielone —
+   * `--color-success-tint` ma policzony kontrast dla `--color-success-tint-ink`
+   * w obu motywach (patrz `tokens.css`).
+   */
   .choice:has(input:checked) {
-    border-color: var(--color-brand);
-    background-color: var(--color-brand-tint);
+    border-color: var(--color-success);
+    background-color: var(--color-success-tint);
+  }
+
+  .choice:has(input:checked) .choice-label {
+    color: var(--color-success-tint-ink);
+  }
+
+  /*
+   * A JEŚLI WYBÓR NAPRAWDĘ MA BŁĄD (nie zaznaczony, a wymagany), to on jest
+   * czerwony — i to jest jedyne czerwone pudło, jakie człowiek zobaczy.
+   * Kolejność reguł ma znaczenie: ta stoi PO regule zaznaczenia, więc
+   * zaznaczony wybór z nieaktualnym błędem z poprzedniego wysłania nie wraca
+   * do czerwieni (a `resources/js/app.js` zdejmuje `has-error` w chwili
+   * zaznaczenia, żeby nie trzeba było czekać na przeładowanie).
+   */
+  .field.has-error .choice:not(:has(input:checked)) {
+    border-color: var(--color-danger);
+    background-color: var(--color-danger-tint);
   }
 
   .choice input {
@@ -3639,6 +3672,15 @@
    --------------------------------------------------------------------------- */
 .podziel-sie {
   margin-top: var(--spacing-6);
+
+  /* ODSTĘP TAKŻE POD BLOKIEM (zgłoszenie właściciela: „między «Podziel się»
+     a «Komentarze», na kompie, jest za mało miejsca").
+
+     Ten blok stoi na stronie wpisu bezpośrednio nad nagłówkiem `<h2>
+     Komentarze`, a `h2` nie ma tu marginesu górnego. Bez tej linii przycisk
+     dotyka nagłówka i dwie niezależne rzeczy — akcja „wyślij komuś adres"
+     i sekcja rozmowy pod wpisem — czytają się jak jedna grupa. */
+  margin-bottom: var(--spacing-8);
 }
 
 /* `summary` udaje przycisk: musi mieć jego rozmiar dotykowy i nie może

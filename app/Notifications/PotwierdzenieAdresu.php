@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Support\AdresKanoniczny;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,8 +53,11 @@ final class PotwierdzenieAdresu extends VerifyEmail implements ShouldQueue
             ->subject('Potwierdź swój adres e-mail w Kuking')
             ->view('mail.potwierdz-adres', [
                 // `verificationUrl()` z klasy nadrzędnej: adres jest podpisany
-                // i wygasający. Własne sklejanie linku zgubiłoby podpis.
-                'linkUrl' => $this->verificationUrl($notifiable),
+                // i wygasający. Własne sklejanie linku zgubiłoby podpis —
+                // i dokładnie dlatego `AdresKanoniczny` wymusza kanoniczny
+                // korzeń PRZED wygenerowaniem, a nie podmienia go potem
+                // (S2, D-071; pełne uzasadnienie w komentarzu tamtej klasy).
+                'linkUrl' => AdresKanoniczny::zbuduj(fn (): string => $this->verificationUrl($notifiable)),
                 'waznoscTekst' => self::waznosc($minut),
                 'displayName' => $notifiable->profile?->display_name,
             ]);

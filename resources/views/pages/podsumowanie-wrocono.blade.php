@@ -17,7 +17,7 @@
 
         <p class="mb-0">
             Możesz to zmienić w każdej chwili: w ustawieniach prywatności albo
-            odnośnikiem na dole każdego listu.
+            odnośnikiem na dole każdego e-maila.
         </p>
     </div>
 

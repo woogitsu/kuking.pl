@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Rules\ReservedUsername;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
+use App\Support\NazwaUzytkownika;
 use App\Support\Turnstile;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -61,6 +62,25 @@ class RegisterController extends Controller
         // HTTP 500 — i nie miał pojęcia, że po prostu ma już konto.
         $request->merge([
             'email' => User::normalizeEmail((string) $request->input('email', '')),
+
+            /*
+             * NAZWĘ UŻYTKOWNIKA UKŁADAMY Z TEGO, CO CZŁOWIEK WPISAŁ — też
+             * PRZED walidacją, dokładnie z tego samego powodu co adres wyżej.
+             *
+             * Powód nie jest teoretyczny: 63-letnia osoba z grupy docelowej
+             * odbiła się przy rejestracji o komunikat „tylko litery bez
+             * polskich znaków, cyfry i podkreślnik" i nie zrozumiała, o co
+             * chodzi. Wpisała imię tak, jak się je pisze. Teraz „Małgorzata
+             * Kowalska" zamienia się w `malgorzata_kowalska` i rejestracja
+             * idzie dalej, zamiast kończyć się pouczeniem na pierwszym
+             * ekranie produktu.
+             *
+             * KOLEJNOŚĆ JEST WARUNKIEM BEZPIECZEŃSTWA: normalizacja stoi
+             * PRZED `ReservedUsername` i `UsernameNotTaken`, więc „ądmin"
+             * jest sprawdzane jako `admin`, a nie jako nazwa nieznana.
+             * Wartość już poprawna nie jest ruszana (patrz `NazwaUzytkownika`).
+             */
+            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
         ]);
 
         $data = $request->validate([
@@ -102,8 +122,17 @@ class RegisterController extends Controller
             Turnstile::POLE => TurnstileJestPotwierdzony::reguly('rejestracja'),
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
-            'username.required' => 'Wybierz swoją nazwę użytkownika.',
-            'username.regex' => 'Nazwa użytkownika może zawierać tylko litery bez polskich znaków, cyfry i podkreślnik. Na przykład: basia_z_podkarpacia.',
+            /*
+             * KOMUNIKATY PO NORMALIZACJI, WIĘC MÓWIĄ O CZYMŚ INNYM NIŻ WCZEŚNIEJ.
+             *
+             * Do `regex` i `min` dochodzi się już tylko wtedy, gdy z wpisanego
+             * tekstu NIE DA SIĘ nic ułożyć (same emoji, same znaki
+             * interpunkcyjne, jedna litera). Dlatego komunikat nie wylicza
+             * dozwolonych znaków — bo nie o to tu chodzi — tylko prosi o coś,
+             * co człowiek umie podać: imię i miejscowość.
+             */
+            'username.required' => 'Wpisz nazwę, która ma być w adresie Twojego profilu — na przykład imię i miejscowość: basia z podkarpacia.',
+            'username.regex' => 'Z tego, co wpisałeś, nie da się ułożyć nazwy do adresu. Wpisz imię albo imię i miejscowość, na przykład: basia z podkarpacia.',
             'username.unique' => 'Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu.',
             'email.required' => 'Podaj swój adres e-mail — będzie potrzebny, jeśli zapomnisz hasła.',
             'email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',

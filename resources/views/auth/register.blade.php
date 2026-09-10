@@ -21,9 +21,15 @@
                  autocomplete="name" placeholder="Basia"
                  help="Imię, przezwisko albo cokolwiek chcesz. To będzie widoczne dla innych." />
 
-        <x-field name="username" label="Twoja nazwa użytkownika" required
-                 autocomplete="username" placeholder="basia_z_podkarpacia"
-                 help="Będzie w adresie Twojego profilu. Tylko litery bez polskich znaków, cyfry i podkreślnik." />
+        {{-- POMOC MÓWI, PO CO TO POLE JEST, A NIE JAKIE ZNAKI SĄ DOZWOLONE.
+             Stary tekst („tylko litery bez polskich znaków, cyfry
+             i podkreślnik") mówił językiem reguły i odbił od rejestracji
+             63-letnią osobę z grupy docelowej. Zapis poprawia teraz serwis
+             (`NazwaUzytkownika`), więc lista dozwolonych znaków przestała być
+             informacją, którą trzeba komuś podawać z góry. --}}
+        <x-field name="username" label="Nazwa, która będzie w adresie Twojego profilu" required
+                 autocomplete="username" placeholder="Basia z Podkarpacia"
+                 help="Podpowiadamy ją z Twojego imienia — możesz zostawić albo wpisać własną. Polskie litery i spacje są w porządku, zapis poprawimy za Ciebie." />
 
         <x-field name="email" label="Twój adres e-mail" type="email" required
                  autocomplete="email"
@@ -53,6 +59,26 @@
         </div>
 
         <x-turnstile miejsce="rejestracja" />
+
+        {{--
+            ZDANIE O BŁĘDZIE TAM, GDZIE CZŁOWIEK PATRZY, GDY KLIKA.
+
+            Podsumowanie błędów stoi na górze formularza i tak ma zostać — ale
+            po wysłaniu przeglądarka zostawia człowieka w tym samym miejscu, na
+            dole. 63-latka, która odbiła się o walidację nazwy użytkownika, nie
+            zobaczyła ani podsumowania, ani czerwonego tekstu przy polu:
+            zobaczyła to, co miała przed oczami.
+
+            JavaScript przewija teraz do podsumowania (`resources/js/app.js`),
+            ale to jest DODATEK. To zdanie jest wersją bez JavaScriptu i nie
+            wolno go usuwać razem z nim.
+        --}}
+        @if($errors->any())
+            <p class="field-error mb-4">
+                Formularz nie został wysłany —
+                <a href="#tresc">na górze jest napisane, czego jeszcze brakuje</a>.
+            </p>
+        @endif
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Załóż konto</button>
