@@ -116,46 +116,81 @@ class OnboardingZnajdzZnajomychTest extends TestCase
 
     // -----------------------------------------------------------------
     // Widoczność — te same zakresy co wyszukiwarka ludzi, nic nowego.
+    //
+    // KAŻDY Z TYCH TESTÓW MA KONTROLĘ DODATNIĄ, I TO NIE JEST OZDOBA.
+    // Sam `assertStringNotContainsString` jest słabą assercją: przechodzi
+    // także wtedy, gdy wyszukiwarka NIE DZIAŁA WCALE — bo wtedy w HTML-u
+    // nie ma nikogo, więc nie ma też ukrytej osoby. Przechodzi również po
+    // literówce we frazie albo w samym szukanym łańcuchu. Test, który
+    // przechodzi po zepsuciu tego, czego pilnuje, nie jest testem.
+    //
+    // Dlatego przy każdej ukrytej osobie stoi druga, AKTYWNA, pasująca do
+    // tej samej frazy. Dopiero para „widoczna wyszła, ukryta nie wyszła"
+    // dowodzi, że wyszukiwarka pracowała i że to zakres widoczności ją
+    // odsiał, a nie przypadek.
     // -----------------------------------------------------------------
 
     public function test_zbanowana_osoba_nie_wychodzi_w_wynikach(): void
     {
-        $zbanowany = $this->user('zbanowany_kucharz', ['display_name' => 'Zbanowany']);
+        $zbanowany = $this->user('kucharz_zbanowany', ['display_name' => 'Zbanowany']);
         $zbanowany->forceFill(['status' => User::STATUS_BANNED])->save();
 
-        $html = $this->actingAs($this->user('basia'))
-            ->get(route('onboarding.people', ['q' => 'zbanowany_kucharz']))
-            ->assertOk()
-            ->getContent();
+        // Kontrola dodatnia: ta sama fraza `kucharz_` łapie też kogoś
+        // aktywnego. Bez niej test przeszedłby przy wyszukiwarce, która
+        // nie zwraca nikogo.
+        $this->user('kucharz_aktywny', ['display_name' => 'Aktywny']);
 
-        $this->assertStringContainsString('Nic nie znaleźliśmy', $html);
-        $this->assertStringNotContainsString('name="follow[]" value="zbanowany_kucharz"', $html);
+        $wyniki = $this->wycinek(
+            $this->actingAs($this->user('basia'))
+                ->get(route('onboarding.people', ['q' => 'kucharz_']))
+                ->assertOk()
+                ->getContent(),
+            'Wyniki wyszukiwania',
+            'Osoby, które polecamy',
+        );
+
+        $this->assertStringContainsString('name="follow[]" value="kucharz_aktywny"', $wyniki);
+        $this->assertStringNotContainsString('name="follow[]" value="kucharz_zbanowany"', $wyniki);
     }
 
     public function test_zawieszona_osoba_nie_wychodzi_w_wynikach(): void
     {
-        $zawieszony = $this->user('zawieszony_kucharz', ['display_name' => 'Zawieszony']);
+        $zawieszony = $this->user('piekarz_zawieszony', ['display_name' => 'Zawieszony']);
         $zawieszony->forceFill(['status' => User::STATUS_SUSPENDED])->save();
 
-        $html = $this->actingAs($this->user('basia'))
-            ->get(route('onboarding.people', ['q' => 'zawieszony_kucharz']))
-            ->assertOk()
-            ->getContent();
+        $this->user('piekarz_aktywny', ['display_name' => 'Aktywny']);
 
-        $this->assertStringNotContainsString('name="follow[]" value="zawieszony_kucharz"', $html);
+        $wyniki = $this->wycinek(
+            $this->actingAs($this->user('basia'))
+                ->get(route('onboarding.people', ['q' => 'piekarz_']))
+                ->assertOk()
+                ->getContent(),
+            'Wyniki wyszukiwania',
+            'Osoby, które polecamy',
+        );
+
+        $this->assertStringContainsString('name="follow[]" value="piekarz_aktywny"', $wyniki);
+        $this->assertStringNotContainsString('name="follow[]" value="piekarz_zawieszony"', $wyniki);
     }
 
     public function test_konto_w_trakcie_usuwania_nie_wychodzi_w_wynikach(): void
     {
-        $usuwany = $this->user('usuwany_kucharz', ['display_name' => 'Usuwany']);
+        $usuwany = $this->user('cukiernik_usuwany', ['display_name' => 'Usuwany']);
         $usuwany->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
 
-        $html = $this->actingAs($this->user('basia'))
-            ->get(route('onboarding.people', ['q' => 'usuwany_kucharz']))
-            ->assertOk()
-            ->getContent();
+        $this->user('cukiernik_aktywny', ['display_name' => 'Aktywny']);
 
-        $this->assertStringNotContainsString('name="follow[]" value="usuwany_kucharz"', $html);
+        $wyniki = $this->wycinek(
+            $this->actingAs($this->user('basia'))
+                ->get(route('onboarding.people', ['q' => 'cukiernik_']))
+                ->assertOk()
+                ->getContent(),
+            'Wyniki wyszukiwania',
+            'Osoby, które polecamy',
+        );
+
+        $this->assertStringContainsString('name="follow[]" value="cukiernik_aktywny"', $wyniki);
+        $this->assertStringNotContainsString('name="follow[]" value="cukiernik_usuwany"', $wyniki);
     }
 
     public function test_blokada_dziala_w_obie_strony(): void
