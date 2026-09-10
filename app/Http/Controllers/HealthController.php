@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Support\Poczta;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,10 +18,11 @@ use Throwable;
 /**
  * /health — punkt kontrolny dla Railway i monitoringu zewnętrznego.
  *
- * Sprawdza to, czego brak realnie kładzie serwis. Nie sprawdzamy rzeczy,
- * których awaria nie powinna wywalać deployu (np. poczty) — inaczej
- * healthcheck restartuje aplikację z powodu problemu, który nie dotyczy
- * jej działania.
+ * Sprawdza to, czego brak realnie kładzie serwis. Awaria poczty, kolejki
+ * czy Turnstile NIGDY nie oddaje 503 — inaczej healthcheck restartowałby
+ * kontener z powodu problemu, którego restart nie naprawia (dokładnie tak,
+ * jak niżej opisana historia z dyskiem zdjęć). Te sprawdzenia idą do pola
+ * `checks` i do `status: degraded`, nie do kodu HTTP.
  *
  * DWA POZIOMY, I TO NIE JEST OZDOBNIK
  * `database` i `migrations` są KRYTYCZNE: bez nich nie da się wyświetlić
@@ -81,6 +84,8 @@ class HealthController extends Controller
         self::POWOD_BRAK_DROGI_PUBLICZNEJ,
         self::POWOD_DROGA_GDZIE_INDZIEJ,
         self::POWOD_TURNSTILE_BEZ_KLUCZY,
+        self::POWOD_POCZTA_NIE_WYSYLA,
+        self::POWOD_ZADANIA_NIEUDANE,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -112,6 +117,27 @@ class HealthController extends Controller
      */
     private const POWOD_TURNSTILE_BEZ_KLUCZY = 'turnstile_bez_kluczy';
 
+    /**
+     * `MAIL_MAILER` na produkcji to `log`/`array`/pusty, albo Laravel nie
+     * potrafi w ogóle zbudować transportu — dokładnie to, o czym mówi
+     * `App\Support\Poczta` (issue #234 obok liczy `failed_jobs`; to
+     * sprawdzenie pyta o coś wcześniejszego: czy wysyłka ma w ogóle czym
+     * ruszyć). Ten kod nigdy nie niesie treści wyjątku dostawcy — patrz
+     * `sprawdzPoczte()`.
+     */
+    private const POWOD_POCZTA_NIE_WYSYLA = 'poczta_nie_wysyla';
+
+    /** W `failed_jobs` leżą nieudane zadania kolejki, a nikt sam z siebie się o tym nie dowiaduje (D-042). */
+    private const POWOD_ZADANIA_NIEUDANE = 'zadania_nieudane';
+
+    /**
+     * Ile minut milczymy na webhooku o TEJ SAMEJ nazwanej kontroli, zanim
+     * wyślemy kolejne powiadomienie. Bez tego zewnętrzny monitoring odpytujący
+     * `/health` co kilka minut zamieniłby jedną trwającą awarię w dzwonek
+     * bez końca, aż ktoś wyciszy cały kanał (patrz `powiadomWebhook()`).
+     */
+    private const WEBHOOK_ODSTEP_MINUT = 30;
+
     public function __invoke(): JsonResponse
     {
         $checks = [
@@ -130,6 +156,8 @@ class HealthController extends Controller
             }),
             'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
+            'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
+            'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -166,8 +194,12 @@ class HealthController extends Controller
      * przeoczenie. Healthcheck oddający 503 już raz położył ten serwis
      * (patrz komentarz na górze klasy). Serwis działający bez captchy jest
      * o wiele lepszy niż serwis w pętli restartów — a monitoring i tak ma
-     * pilnować TREŚCI odpowiedzi. Przy okazji `check()` zapisuje to jako
-     * `Log::error`, więc idzie też na webhook błędów i do Sentry.
+     * pilnować TREŚCI odpowiedzi. Przy okazji `check()` woła `Log::error`
+     * (log serwera, zawsze) i — jeśli `LOG_BLAD_WEBHOOK_URL` jest ustawiony —
+     * `powiadomWebhook()` (Discord/Slack, z odstępem `WEBHOOK_ODSTEP_MINUT`,
+     * żeby trwająca awaria nie zalała kanału). Sentry nie ma dziś w kodzie
+     * wcale (D-041) — to zdanie było nieprawdziwe do 10 września 2026, kiedy
+     * ten komentarz to zauważył i poprawił.
      *
      * DLACZEGO TYLKO NA PRODUKCJI I TYLKO GDY KTOŚ O TURNSTILE POPROSIŁ
      * Lokalnie, w CI i w testach kluczy nie ma i mieć nie musi — stały
@@ -193,6 +225,92 @@ class HealthController extends Controller
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_TURNSTILE_BEZ_KLUCZY,
             Turnstile::komunikatBrakuKluczy(),
+        );
+    }
+
+    /**
+     * Czy wysyłka poczty ma w ogóle czym ruszyć — `App\Support\Poczta` jest
+     * TU JEDYNYM źródłem prawdy (ta sama klasa decyduje na ekranie „Nie
+     * pamiętam hasła" i w `kuking:sprawdz-poczte`), żeby te trzy miejsca nie
+     * mogły się rozjechać.
+     *
+     * DLACZEGO TYLKO NA PRODUKCJI
+     * `MAIL_MAILER=array` jest domyślnym ustawieniem całej suity testów
+     * (`phpunit.xml`), a `log` jest domyślną wartością w `.env.example` do
+     * pierwszego zielonego deployu (`docs/infra/DEPLOYMENT_RUNBOOK.md`,
+     * KROK 8). Sprawdzanie tego poza produkcją dawałoby stały `degraded`
+     * wszędzie poza nią — szum, który uczy ignorować to pole, dokładnie ta
+     * sama lekcja co przy Turnstile wyżej.
+     *
+     * DLACZEGO `Poczta::przeszkoda()`, A NIE PUBLICZNY KOD Z JEJ TREŚCI
+     * `przeszkoda()` mówi wprost w swoim komentarzu: „NIE POKAZUJ TEGO
+     * UŻYTKOWNIKOWI i nie wysyłaj na webhook" — bo ostatni fragment zdania
+     * bywa komunikatem wyjątku CUDZEJ biblioteki transportu i nie jest niczym
+     * ograniczony (ta sama klasa ryzyka co `$e->getMessage()` w
+     * `WebhookBleduHandler`, audyt A6-01). Dlatego trafia wyłącznie do `$doLogu`
+     * `KontrolaZdrowiaNieprzeszla` — do serwerowego logu, którego `/health`
+     * nigdy nie pokazuje światu (patrz `check()`); na zewnątrz i na webhook
+     * idzie tylko zamknięty kod `POWOD_POCZTA_NIE_WYSYLA`.
+     */
+    private function sprawdzPoczte(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        $przeszkoda = Poczta::przeszkoda();
+
+        if ($przeszkoda === null) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(self::POWOD_POCZTA_NIE_WYSYLA, $przeszkoda);
+    }
+
+    /**
+     * Czy w `failed_jobs` leżą nieudane zadania kolejki, o których dziś nie
+     * dowiaduje się nikt sam z siebie.
+     *
+     * D-042 (`docs/DECISIONS.md`) ustaliło to WPROST przy okazji sufitu
+     * tygodniowego podsumowania: „Jedyne miejsce, które w ogóle liczy
+     * `failed_jobs`, to `kuking:sprawdz-poczte`, uruchamiane ręcznie."
+     * Zdanie było prawdziwe do tego sprawdzenia — teraz przynajmniej
+     * ZEWNĘTRZNY monitoring `/health` (i webhook błędów, przez `check()`)
+     * może to zauważyć bez logowania się na serwer.
+     *
+     * CZEGO TO NIE ROBI (ŚWIADOMIE)
+     * Nie mówi, KTÓRE zadanie padło ani dlaczego — treść `failed_jobs.exception`
+     * bywa pełnym śladem stosu z argumentami wywołań, czyli dokładnie tym,
+     * czego `WebhookBleduHandler` i `check()` unikają gdzie indziej. Diagnozę
+     * daje `php artisan queue:failed` z powłoki serwera, nie trasa publiczna.
+     * To sprawdzenie ma jedno zadanie: powiedzieć „coś tam leży, zajrzyj" —
+     * publiczna odpowiedź niesie tylko kod, nigdy liczbę ani treść.
+     *
+     * DLACZEGO CZYTAMY TABELĘ, A NIE RUSZAMY KOLEJKI
+     * Wyłącznie `SELECT COUNT(*)` — bez `queue:retry`, bez kasowania, bez
+     * dotykania `app/Jobs` ani `app/Mail`. Naprawa cichej utraty listów to
+     * osobna praca (issue #234); to sprawdzenie tylko CZYTA to, co tamta
+     * praca też czyta.
+     */
+    private function sprawdzKolejke(): void
+    {
+        try {
+            $nieudane = DB::table('failed_jobs')->count();
+        } catch (Throwable $e) {
+            // Nie zgadujemy: gdy samo ZAPYTANIE się nie udaje, prawdziwą
+            // przyczyną jest niemal na pewno ta sama awaria bazy, którą i tak
+            // zgłasza sprawdzenie `database` — powód `zadania_nieudane`
+            // (poniżej) mówiłby wtedy o czymś, czego wcale nie zmierzyliśmy.
+            throw new KontrolaZdrowiaNieprzeszla(self::POWOD_BAZA, $e->getMessage(), $e);
+        }
+
+        if ($nieudane === 0) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_ZADANIA_NIEUDANE,
+            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. Sprawdź `php artisan queue:failed`.",
         );
     }
 
@@ -296,6 +414,17 @@ class HealthController extends Controller
         try {
             $probe();
 
+            // Powrót do zdrowia kasuje odstęp webhooka — kolejna awaria TEJ
+            // SAMEJ kontroli (nawet chwilę później) ma prawo zadzwonić od
+            // razu, zamiast czekać do końca okna z poprzedniego incydentu.
+            // Warunek pomija zapis do cache'a na NAJCZĘSTSZEJ ścieżce (zdrowy
+            // serwis, kanał wyłączony) — każde wywołanie `/health` sprawdza
+            // sześć kontroli, a bez tego warunku każda zdrowa odpowiedź
+            // dokładałaby sześć zbędnych zapisów do tabeli `cache`.
+            if (filled(config('logging.channels.blad_webhook.url'))) {
+                Cache::forget($this->kluczOdstepuWebhooka($nazwa));
+            }
+
             return ['ok' => true];
         } catch (Throwable $e) {
             $powod = $e instanceof KontrolaZdrowiaNieprzeszla ? $e->kod : $powodDomyslny;
@@ -303,7 +432,8 @@ class HealthController extends Controller
             // Jedyne miejsce, w którym pełna treść wyjątku ma prawo się
             // pojawić. Nie ma tu danych osobowych: sondy nie dotykają
             // niczyich wpisów ani kont, chodzą po `select 1`, po liczniku
-            // migracji i po własnym pliku próbnym.
+            // migracji, po liczniku `failed_jobs`, po własnym pliku próbnym
+            // i po tym, czy Laravel umie zbudować transport poczty.
             Log::error('Kontrola /health nie przeszła.', [
                 'kontrola' => $nazwa,
                 'powod' => $powod,
@@ -311,7 +441,56 @@ class HealthController extends Controller
                 'komunikat' => $e->getMessage(),
             ]);
 
+            $this->powiadomWebhook($nazwa, $powod);
+
             return ['ok' => false, 'error' => $powod];
         }
+    }
+
+    /**
+     * Dzwoni na kanał `blad_webhook` (`config/logging.php`, D-041) o awarii
+     * WYKRYTEJ TYLKO PRZEZ `/health` — Turnstile bez kluczy, poczta bez
+     * transportu, zadania w `failed_jobs`, brak migracji — czyli o rzeczach,
+     * które (w odróżnieniu od 500-tki na żywej trasie) nie rzucają wyjątku,
+     * którego złapałby `$exceptions->report()` w `bootstrap/app.php`. Bez
+     * tego wywołania jedynym sposobem, żeby ktoś się o nich dowiedział, było
+     * ręczne otwarcie `/health` albo logów Railway.
+     *
+     * DLACZEGO Z ODSTĘPEM, A NIE PRZY KAŻDYM WYWOŁANIU
+     * `/health` odpytuje zewnętrzny monitoring co kilka minut z założenia
+     * (`docs/infra/INFRA_DECISION.md`) — bez ograniczenia trwająca dobę
+     * awaria wysłałaby setki identycznych wiadomości, aż ktoś wyciszyłby
+     * cały kanał (ta sama krzywda, przed którą Sentry broni grupowaniem,
+     * D-040). `Cache::add()` zwraca `true` tylko za pierwszym razem w oknie
+     * `WEBHOOK_ODSTEP_MINUT` — każde kolejne wywołanie w tym oknie jest
+     * ciche. Klucz jest per NAZWA kontroli, nie per treść: dwie różne awarie
+     * tej samej kontroli w krótkim odstępie nadal liczą się jako jedna.
+     *
+     * DLACZEGO BEZPIECZNIE MILCZY BEZ SKONFIGUROWANEGO ADRESU
+     * Ten sam warunek co w `bootstrap/app.php` — bez `LOG_BLAD_WEBHOOK_URL`
+     * `Cache::add()` w ogóle się nie woła, więc healthcheck (odpytywany dużo
+     * częściej niż realne błędy 500) nie dokłada zbędnego zapisu do cache'a
+     * w najczęstszej, zdrowej ścieżce.
+     *
+     * Treść, która wychodzi na zewnątrz, to WYŁĄCZNIE nazwa kontroli i kod
+     * z zamkniętego zbioru `POWODY` — ten sam kod, co w publicznej odpowiedzi
+     * JSON. Żadnego komunikatu wyjątku, żadnej treści z `failed_jobs`.
+     */
+    private function powiadomWebhook(string $nazwa, string $powod): void
+    {
+        if (blank(config('logging.channels.blad_webhook.url'))) {
+            return;
+        }
+
+        if (! Cache::add($this->kluczOdstepuWebhooka($nazwa), true, now()->addMinutes(self::WEBHOOK_ODSTEP_MINUT))) {
+            return;
+        }
+
+        Log::channel('blad_webhook')->error("/health: kontrola „{$nazwa}” nie przeszła (powód: {$powod}).");
+    }
+
+    private function kluczOdstepuWebhooka(string $nazwa): string
+    {
+        return 'health:webhook_odstep:'.$nazwa;
     }
 }
