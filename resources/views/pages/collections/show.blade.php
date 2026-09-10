@@ -1,4 +1,32 @@
 <x-layout :title="$collection->name" :noindex="! $collection->isPublic()">
+    {{--
+        PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
+
+        To jest jedyna czynność, którą naprawdę robi się Z TEGO ekranu —
+        przejście do drugiego zeszytu wymagało do tej pory cofnięcia się
+        na „Moje". Kontroler oddaje tu wyłącznie zeszyty, które oglądający
+        ma prawo otworzyć (`CollectionController::show()`); widok niczego
+        nie filtruje sam.
+
+        Osoba, która ma tylko jeden zeszyt, nie dostaje żadnego bloku —
+        pusta szyna jest lepsza niż karta, która nic nie wnosi.
+    --}}
+    @if($inneZeszyty->isNotEmpty())
+        <x-slot:rail>
+            <x-szyna-blok
+                :tytul="auth()->id() === $collection->owner_id ? 'Twoje inne zeszyty' : 'Inne zeszyty tej osoby'"
+                id="szyna-inne-zeszyty"
+                ikona="book"
+                :wiecej="auth()->id() === $collection->owner_id ? route('collections.index') : null">
+                <x-szyna-linki :pozycje="$inneZeszyty->map(fn ($zeszyt) => [
+                    'href' => route('collections.show', $zeszyt),
+                    'nazwa' => $zeszyt->name,
+                    'podpis' => $zeszyt->description,
+                ])->all()" />
+            </x-szyna-blok>
+        </x-slot:rail>
+    @endif
+
     <h1>{{ $collection->name }}</h1>
     @if($collection->description)
         <p>{{ $collection->description }}</p>

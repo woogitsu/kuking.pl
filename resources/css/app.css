@@ -2942,6 +2942,28 @@
   gap: var(--spacing-2);
   margin: 0;
   font-size: var(--text-body-lg);
+  /* TRZY DEKLARACJE PRZECIW PRZEWIJANIU CAŁEJ STRONY W BOK (issue #205).
+
+     Zmierzone przy 320 px i czcionce przeglądarki 200%: nagłówek „Może
+     odpowiedź już tu jest" w szynie „Napisz do nas" rozpychał DOKUMENT do
+     330 px. Powód nie jest oczywisty: ten nagłówek jest kontenerem flex
+     bez zawijania, więc jego szerokość minimalna to ikona PLUS najdłuższe
+     słowo — a przy podwojonej czcionce samo „odpowiedź" jest szersze niż
+     kolumna treści z wcięciami.
+
+     `flex-wrap` pozwala ikonie i tekstowi stanąć w dwóch wierszach,
+     `min-width: 0` zdejmuje domyślne `min-width: auto` elementu flex,
+     a `overflow-wrap: anywhere` jako jedyny z tej trójki WPŁYWA NA
+     SZEROKOŚĆ MINIMALNĄ — bez niego długie słowo dalej dyktowałoby
+     szerokość (`break-word` tego nie robi, i to jest cała różnica między
+     nimi). Łamanie w środku słowa włącza się dopiero wtedy, gdy wiersz
+     inaczej nie mieści się w kolumnie.
+
+     To samo, o czym mówi zgłoszenie #205 przy stopce: twardy próg w `rem`
+     rośnie razem ze skalą tekstu, a okno przeglądarki nie. */
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .szyna-wiecej {

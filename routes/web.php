@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LoginLinkController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
@@ -203,6 +204,47 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
         ->middleware("throttle:{$limits['password_reset']},password_reset")
         ->name('password.update');
+
+    /*
+     * LOGOWANIE LINKIEM E-MAIL — „magic link" (issue #25, D-056).
+     *
+     * Trzy trasy, bo droga ma trzy kroki, i podział między nimi jest
+     * BEZPIECZEŃSTWEM, nie estetyką:
+     *
+     *   GET  /logowanie/link        — formularz „wyślij mi link"
+     *   POST /logowanie/link        — wysyłka listu (Turnstile + dwa limity)
+     *   GET  /logowanie/link/{token} — ekran z przyciskiem. NIC NIE ZUŻYWA.
+     *   POST /logowanie/link/wejdz  — dopiero tu token ginie i powstaje sesja
+     *
+     * Skanery odnośników w poczcie otwierają linki z listów ZANIM zrobi to
+     * człowiek. Gdyby GET logował, skaner zużywałby jednorazowy token
+     * i właściciel konta dostawałby „link już nie działa" za każdym razem.
+     * Pełne uzasadnienie: `LoginLinkController`.
+     *
+     * `/logowanie/link/wejdz` nie koliduje z `/logowanie/link/{token}`, bo
+     * to dwie różne metody HTTP (POST kontra GET). Kolejność deklaracji jest
+     * tu więc kwestią czytelności, nie poprawności.
+     *
+     * DWA OSOBNE PREFIKSY LICZNIKA, choć oba dotyczą tej samej funkcji:
+     * nieudane kliknięcie „Zaloguj mnie" nie ma prawa zjadać budżetu próśb
+     * o list (i odwrotnie). To ta sama reguła, której pilnuje
+     * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+     *
+     * W grupie `guest` z tego samego powodu co `/login` i `/logowanie/kod`:
+     * to jeszcze nie jest sesja zalogowana, a ktoś już zalogowany nie ma
+     * po co tu wracać.
+     */
+    Route::get('/logowanie/link', [LoginLinkController::class, 'requestForm'])->name('login.link');
+    Route::post('/logowanie/link', [LoginLinkController::class, 'send'])
+        ->middleware("throttle:{$limits['login_link']},login_link")
+        ->name('login.link.send');
+
+    Route::post('/logowanie/link/wejdz', [LoginLinkController::class, 'store'])
+        ->middleware("throttle:{$limits['login_link_wejscie']},login_link_wejscie")
+        ->name('login.link.store');
+
+    Route::get('/logowanie/link/{token}', [LoginLinkController::class, 'confirmForm'])
+        ->name('login.link.confirm');
 
     // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
     // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze

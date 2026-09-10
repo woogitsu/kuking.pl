@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Log;
  * Pierwotna wersja (D-050, PR #218) opierała się na zasadzie „ważne funkcje
  * działają bez JavaScriptu": Turnstile jest widgetem JS, wersji bez JS nie ma,
  * więc brak tokenu musiał przechodzić. **Właściciel tę zasadę zmienił dla tych
- * sześciu formularzy**: „w tych newralgicznych miejscach niech JS będzie
+ * siedmiu formularzy**: „w tych newralgicznych miejscach niech JS będzie
  * obowiązkowo jak ta rejestracja itp, tam gdzie można się obejść to spoko, ale
  * lepiej żeby był z wygody". Uzasadnienie faktyczne: nasi ludzie wchodzą
  * z nowoczesnych telefonów albo z komputera i JavaScript mają. Turnstile
@@ -54,7 +54,7 @@ use Illuminate\Support\Facades\Log;
  * (`Validator::presentOrRuleIsImplicit()`) — czyli dokładnie dla każdego
  * wysłania bez tokenu, a więc dla jedynego przypadku, o który w tej zmianie
  * chodzi. To jedno pole `public bool $implicit` jest tu całym mechanizmem
- * zaciśnięcia; `required` w sześciu kontrolerach dałoby ten sam skutek, ale
+ * zaciśnięcia; `required` w siedmiu kontrolerach dałoby ten sam skutek, ale
  * z laravelowym komunikatem o „polu cf-turnstile-response", którego nikt
  * na ekranie nie zrozumie.
  *
@@ -69,7 +69,7 @@ use Illuminate\Support\Facades\Log;
  * CO MUSI IŚĆ RAZEM Z TĄ REGUŁĄ
  * Zaciśnięcie bez drogi wyjścia zamienia rzadką awarię w cichą utratę
  * użytkownika. Dlatego `resources/views/components/turnstile.blade.php` ma
- * `<noscript>` z osobnym zdaniem dla każdego z sześciu formularzy i adresem
+ * `<noscript>` z osobnym zdaniem dla każdego z siedmiu formularzy i adresem
  * e-mail, pod którym siedzi człowiek. Kto zdejmie `<noscript>`, zostawi ludzi
  * przed martwym przyciskiem — pilnuje tego
  * `tests/Feature/TurnstileWymagaPotwierdzeniaTest.php`.
@@ -122,7 +122,7 @@ final class TurnstileJestPotwierdzony implements ValidationRule
             // podstawił token ręcznie. Inaczej dałoby się wymusić na nas
             // ruch wychodzący na formularzu, którego Turnstile nie dotyczy,
             // a CI i praca lokalna (obie bez kluczy) stanęłyby na każdym
-            // z sześciu formularzy naraz.
+            // z siedmiu formularzy naraz.
             return;
         }
 

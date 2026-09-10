@@ -767,6 +767,54 @@ tylko wtedy, gdy konfiguracja nadal obiecuje ochronę.
 
 ---
 
+## KROK 8B. Moderacja modelem — sprawdzenie, czy klucz naprawdę działa
+
+**Kiedy:** po wgraniu `OPENAI_MODERATION_KEY` do zmiennych Railway.
+**Ile zajmuje:** jedno polecenie.
+
+```
+php artisan kuking:sprawdz-model
+```
+
+W konsoli Railway (zakładka *Console* przy serwisie `kuking.pl`) — jesteś już
+wtedy w kontenerze, więc bez `railway ssh`.
+
+**Dlaczego to jest osobny krok, a nie sprawdzenie w `/health`.** Klient modelu
+(`App\Moderacja\KlientOpenAI`) celowo zwraca `null` przy KAŻDEJ porażce: brak
+klucza, awaria sieci, HTTP 401, odpowiedź w nieznanym kształcie. Dla aplikacji
+to jedyne poprawne zachowanie — „nie wiemy" nie może znaczyć „treść jest
+w porządku", a awaria cudzej usługi nie może zatrzymać czyjegoś wpisu. Skutek
+uboczny jest jednak taki, że **działająca i wyłączona moderacja wyglądają
+identycznie z zewnątrz**. Ta komenda robi jedno prawdziwe zapytanie i mówi, co
+z niego wyszło.
+
+W `/health` tego nie ma świadomie: Turnstile ma tam sprawdzenie, bo bez kluczy
+konfiguracja **obiecuje ochronę, której nie ma**. Model niczego nie obiecuje —
+brak klucza znaczy „funkcja wyłączona" i jest to stan dopuszczalny, więc
+`degraded` byłoby fałszywym alarmem na każdym środowisku bez klucza (CI,
+lokalnie, staging).
+
+**Co zobaczysz:**
+
+| Wynik | Co znaczy |
+|---|---|
+| `Działa — model ocenił tekst i odpowiedział` | klucz dobry, endpoint dobry, nazwa modelu dobra |
+| `WYŁĄCZONA — nie ma klucza` | zmienna nie doszła; sprawdź, czy wdrożenie po jej dodaniu się skończyło |
+| `HTTP 401` | klucz zły albo unieważniony — najczęściej skopiowana spacja na końcu |
+| `HTTP 403` | klucz ograniczony bez prawa do `/v1/moderations` (*Model capabilities* w panelu OpenAI) |
+| `HTTP 404` | nazwa modelu nie istnieje; ustaw `KUKING_MODEL_NAZWA`, bez wdrożenia |
+| `HTTP 429` | limit tempa; odczekaj minutę |
+| `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej |
+| `nie ma pola results` | rozmawiamy z czymś innym niż API moderacji — sprawdź `KUKING_MODEL_ENDPOINT` |
+
+Ocenę zdjęć sprawdza się osobno: `php artisan kuking:sprawdz-model --zdjecie`.
+To jest przy tym serwisie ważniejsze od tekstu — zdjęcia są tym, czego nikt nie
+przeczyta, dopóki ktoś nie zgłosi.
+
+Klucz nie jest wypisywany nigdzie w wyniku, nawet fragmentem. Pilnuje tego test.
+
+---
+
 ## KROK 9. Zastosowanie infrastruktury (`railway.ts`)
 
 > ⚠️ **SPROSTOWANIE, 9 września 2026 — przeczytaj przed uruchomieniem czegokolwiek
