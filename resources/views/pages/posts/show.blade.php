@@ -12,6 +12,51 @@
 
     <x-post-card :post="$post" />
 
+    @if($poprzedniWpis || $nastepnyWpis)
+        {{--
+            Kolejne zdjęcie tej samej osoby (Garnek.pl: „kolejne >" z miniaturą
+            w prawej szynie) — jednym kliknięciem, bez powrotu na profil.
+
+            Chronologicznie po `published_at`: „następny" to nowszy wpis, jak
+            w archiwum. Widoczność liczy `App\Domain\Posts\SasiedniWpisAutora`
+            (ten sam komplet zakresów co reszta serwisu), więc żaden z tych
+            odnośników nie prowadzi do wpisu, którego oglądający nie ma prawa
+            zobaczyć — a gdy sąsiada nie ma (pierwszy albo ostatni wpis),
+            odpowiedni odnośnik po prostu nie istnieje.
+        --}}
+        <nav class="wpis-nawigacja-sasiedzi" aria-label="Inne wpisy tej osoby">
+            @if($poprzedniWpis)
+                <a class="wpis-nawigacja-sasiedzi-link wpis-nawigacja-sasiedzi-poprzedni"
+                   href="{{ route('posts.show', $poprzedniWpis) }}">
+                    @if($poprzedniWpis->media->first())
+                        <img class="wpis-nawigacja-sasiedzi-miniatura"
+                             src="{{ $poprzedniWpis->media->first()->url('thumb') }}"
+                             alt="" width="64" height="64" loading="lazy">
+                    @endif
+                    <span class="wpis-nawigacja-sasiedzi-tekst">
+                        <span aria-hidden="true">&larr;</span>
+                        Poprzedni wpis
+                    </span>
+                </a>
+            @endif
+
+            @if($nastepnyWpis)
+                <a class="wpis-nawigacja-sasiedzi-link wpis-nawigacja-sasiedzi-nastepny"
+                   href="{{ route('posts.show', $nastepnyWpis) }}">
+                    <span class="wpis-nawigacja-sasiedzi-tekst">
+                        Następny wpis
+                        <span aria-hidden="true">&rarr;</span>
+                    </span>
+                    @if($nastepnyWpis->media->first())
+                        <img class="wpis-nawigacja-sasiedzi-miniatura"
+                             src="{{ $nastepnyWpis->media->first()->url('thumb') }}"
+                             alt="" width="64" height="64" loading="lazy">
+                    @endif
+                </a>
+            @endif
+        </nav>
+    @endif
+
     {{-- „Podziel się" stoi na STRONIE wpisu, a nie na karcie w feedzie.
          Wysyła się konkretny adres, więc miejscem tej akcji jest strona,
          którą ten adres otwiera. Na karcie w feedzie byłby to dwudziesty

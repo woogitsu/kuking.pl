@@ -27,6 +27,9 @@
 @import "./strony-publiczne.css";
 @import "./ekran-uzytkownikow.css";
 @import "./ekran-odwolan.css";
+/* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
+   Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
+@import "./wpis-nawigacja-sasiedzi.css";
 
 @layer components {
 
