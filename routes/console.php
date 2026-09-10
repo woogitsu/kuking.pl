@@ -174,6 +174,18 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->dailyAt('04:50')
     ->withoutOverlapping();
 
+// 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
+// cała reszta tej listy (uzasadnienie odstępów wyżej).
+// Wygasłe zaproszenia do założenia konta (D-085): w wierszu leży adres e-mail
+// osoby, która NIE MA u nas konta. `WyslijZaproszenieDoRejestracji` sprząta przy
+// okazji każdej prośby, więc to jest siatka bezpieczeństwa na dni bez ruchu —
+// i to ona daje polityce prywatności prawo napisać „najwyżej dobę".
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
+    ->name('kuking:sprzataj-zaproszenia')
+    ->dailyAt('05:00')
+    ->withoutOverlapping();
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.

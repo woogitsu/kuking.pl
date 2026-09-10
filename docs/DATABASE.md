@@ -1932,6 +1932,90 @@ przeczyta „ten link już nie działa, poproś o nowy". Kolejność wycofywania
 500. Samo wyłączenie funkcji migracji nie wymaga wcale:
 `KUKING_LOGOWANIE_LINKIEM=false`.
 
+### registration_invites
+Zaproszenie do założenia konta dla adresu, na którym konta **nie ma** (D-085,
+migracja `2026_09_10_400000_create_registration_invites_table`).
+
+Powstaje wtedy, gdy ktoś poprosi o „link do zalogowania" dla adresu bez konta.
+Ten wiersz **nie jest hasłem jednorazowym** — nie wpuszcza na żadne konto, bo
+konta nie ma. Jest **dowodem dostępu do skrzynki**: kto kliknął link z tej
+skrzynki, udowodnił, że jest jej właścicielem, więc adres wchodzi do rejestracji
+jako już potwierdzony i drugiej wiadomości weryfikacyjnej nie wysyłamy. Stąd
+termin dłuższy niż przy logowaniu linkiem (24 h kontra 30 min): poświadczenie
+jest słabsze, a droga po jego kliknięciu dłuższa (cały formularz rejestracji).
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID. **Nie trafia do listu** — link niesie sam token. Trafia za to do SESJI po przyjęciu zaproszenia (`rejestracja.zaproszenie_id`), i to on, a nie pole formularza, rozstrzyga, na jaki adres powstaje konto. |
+| `email` | **UNIKALNY.** Jedno ważne zaproszenie na adres — kolejna prośba zastępuje poprzednią. Zapisywany ZNORMALIZOWANY (małe litery), tak jak `users.email`, inaczej UNIQUE nic by nie pilnował. |
+| `token_hash` | **UNIKALNY. HMAC-SHA256 tokenu** (`App\Support\Skrot`), nigdy token. Po tej kolumnie szukamy wiersza przy kliknięciu w link. |
+| `created_at` | Kiedy wysłano zaproszenie. Bez `updated_at` — wiersza się nie edytuje. |
+| `expires_at` | Kiedy link przestaje działać: `config('kuking.login_link.zaproszenia.waznosc_godzin')` (domyślnie 24 h) od wysłania. Indeksowana — chodzi po niej sprzątanie. |
+
+```sql
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_email_lower_check
+CHECK (email = lower(email) AND email <> '');
+
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_expires_after_created_check
+CHECK (expires_at > created_at);
+
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_token_hash_format_check
+CHECK (token_hash ~ '^[0-9a-f]{64}$');
+```
+
+Ostatni CHECK nie jest ozdobą: token powstaje przez `Str::random(64)`, więc ma
+wielkie litery — **zapisany wprost łamie ten warunek i baza go odrzuci**.
+Dlatego token nie jest szesnastkowy i nie wolno go na taki zmienić.
+
+#### `UNIQUE (email)` też wymaga przechwycenia konfliktu (D-085)
+
+Ta sama lekcja co przy `login_link_tokens` i D-075, tylko bez konta, na którym
+dałoby się postawić blokadę wiersza. Dwie równoległe prośby o ten sam adres bez
+konta przechodziły oba `DELETE` (każda kasując zero wierszy) i obie szły do
+`INSERT`; druga odbijała się o unikalność i kończyła **500**. A 500 zdarzało się
+wyłącznie na ścieżce adresu BEZ konta — adres z kontem swój wyścig sprowadza do
+302 (D-075) — czyli para równoległych żądań znowu odpowiadała na pytanie „kto ma
+konto w Kuking", tylko odwrotnie niż przed D-075.
+
+`SELECT ... FOR UPDATE` nie ma tu na czym stanąć (konta nie ma, a blokada
+nieistniejącego wiersza nie blokuje niczego), więc zostaje druga połowa tamtej
+konstrukcji: `WyslijZaproszenieDoRejestracji` **przechwytuje
+`UniqueConstraintViolationException`** i oddaje tę samą neutralną odpowiedź co
+każda inna odmowa, oddając przy okazji miejsce w dobowym suficie.
+
+#### Co kasuje wiersz — pełna lista
+
+1. **założenie konta** — `RegisterController::store()` kasuje wiersz w tej samej
+   transakcji, w której powstaje konto, pod `lockForUpdate()`
+   (`ZaproszenieWSesji::zuzyj()`). To jest cała jednorazowość tej drogi;
+2. **kolejna prośba z tego samego adresu** — `email` jest unikalne;
+3. **wygaśnięcie** — `kuking:sprzataj-zaproszenia` raz na dobę
+   (`App\Domain\Compliance\PrzedawnioneZaproszenia`), plus sprzątanie przy
+   okazji każdej prośby.
+
+Sprzątanie **nie jest bramką bezpieczeństwa**: link przestaje działać co do
+minuty dzięki `RegistrationInvite::jestWazne()`, a nie dzięki `DELETE`. Jest
+higieną danych — i ważniejszą niż przy `login_link_tokens`, bo tutaj w wierszu
+leży adres e-mail osoby, która **nie ma u nas konta** i nigdy nie musi mieć.
+
+#### Wycofanie (rollback)
+
+`down()` **odmawia**, dopóki w tabeli leży choć jedno WAŻNE zaproszenie — każde
+z nich to człowiek, który ma w skrzynce wiadomość i jeszcze jej nie kliknął.
+Dwie drogi wyjścia:
+
+1. poczekać, aż zaproszenia wygasną (najwyżej 24 h), i wtedy
+   `php artisan migrate:rollback` — wygasłe wiersze odmowy nie wywołują;
+2. `php artisan kuking:sprzataj-zaproszenia --wszystkie` (pyta o potwierdzenie
+   i mówi, ilu osób to dotyczy), a potem wycofać świadomie.
+
+Wycofanie samej funkcji **nie wymaga wycofywania migracji**: wystarczy
+`KUKING_ZAPROSZENIA_DO_REJESTRACJI=false`. Adres bez konta wraca wtedy do
+zachowania z D-056, a linki będące w drodze dostają ekran po polsku.
+
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
 przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).

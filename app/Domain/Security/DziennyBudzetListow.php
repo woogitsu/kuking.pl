@@ -148,6 +148,29 @@ final class DziennyBudzetListow
     }
 
     /**
+     * Zaproszenia do założenia konta — adres BEZ konta (D-085).
+     *
+     * TEN SUFIT LEŻY WEWNĄTRZ SUFITU LOGOWANIA LINKIEM, a nie obok niego,
+     * i jest jedynym takim licznikiem w serwisie. Zaproszenie zajmuje miejsce
+     * w OBU: najpierw w `login_link.dzienny_budzet` (120 — bo to ta sama
+     * droga i ta sama pula poczty), a potem tutaj (40). Suma z sekcji
+     * `poczta` w `config/kuking.php` nie zmienia się więc ani o jeden list,
+     * i `PodzialLimituPocztyTest` mówi o tym wprost osobną asercją.
+     *
+     * Po co drugi licznik, skoro pierwszy już jest: dopóki adres bez konta
+     * nie generował wysyłki, automat wpisujący wymyślone adresy nie potrafił
+     * wysłać ani jednej wiadomości. Teraz potrafi — a limit po IP (5/60 min)
+     * przepuszcza z jednego łącza 120 próśb na dobę, czyli dokładnie tyle, ile
+     * ma cały budżet logowania linkiem. Bez tego niższego sufitu jeden
+     * sprawca zamykałby na dobę WEJŚCIE NA KONTO wszystkim, dla których jest
+     * ono drogą podstawową (D-056).
+     */
+    public static function dlaZaproszenDoRejestracji(): self
+    {
+        return new self('zaproszenie-do-rejestracji', 'kuking.login_link.zaproszenia.dzienny_sufit');
+    }
+
+    /**
      * Ile miejsca zostało w dzisiejszym budżecie — ODCZYT, NIE POZWOLENIE.
      *
      * Budżet ustawiony na zero albo mniej znaczy „ta funkcja nie wysyła dziś

@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLinkController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CommentController;
@@ -281,6 +282,49 @@ Route::middleware('guest')->group(function () use ($limits): void {
 
     Route::get('/logowanie/link/{token}', [LoginLinkController::class, 'confirmForm'])
         ->name('login.link.confirm');
+
+    /*
+     * ZAPROSZENIE DO ZAŁOŻENIA KONTA — druga połowa tej samej drogi (D-085).
+     *
+     * Kto poprosi o „link do zalogowania" dla adresu, na którym NIE MA konta,
+     * dostaje wiadomość prowadzącą tutaj. Do 10 września 2026 nie dostawał
+     * niczego i widział przy tym zielone „wysłaliśmy wiadomość" — odbiła się
+     * o to prawdziwa osoba (uzasadnienie w `RegistrationInviteController`).
+     *
+     *   GET  /zaproszenie/{token}      — ekran z przyciskiem. NIC NIE ZUŻYWA.
+     *   POST /zaproszenie/zakladam     — zaproszenie do sesji i na /register
+     *   POST /zaproszenie/inny-adres   — „chcę konto na inny adres"
+     *
+     * Zaproszenia nie zużywa nawet POST — kasuje je dopiero utworzenie konta
+     * (`RegisterController::store()`), bo za tym POST-em stoi jeszcze cały
+     * formularz rejestracji, o który ta osoba już raz się odbiła.
+     *
+     * TRASY POST STOJĄ PRZED TRASĄ Z TOKENEM z tego samego powodu co przy
+     * logowaniu linkiem: kolizji nie ma (różne metody HTTP), więc kolejność
+     * jest kwestią czytelności, nie poprawności.
+     *
+     * WŁASNY PREFIKS LICZNIKA (`zaproszenie`), osobny od `login_link_wejscie`
+     * — nieudane klikanie „Zaloguj mnie" nie ma prawa zjadać prób „Załóż
+     * konto" i odwrotnie (`LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`).
+     *
+     * BEZ TURNSTILE, tak jak `POST /logowanie/link/wejdz`: captcha stoi na
+     * formularzu „wyślij mi link", przez który każde zaproszenie musi przejść,
+     * a tutaj nie ma czego wysyłać ani zapisywać. Formularz `/register`, na
+     * który te trasy przenoszą, Turnstile ma i mieć musi (D-050).
+     *
+     * W grupie `guest` z tego samego powodu co `/register` i `/logowanie/link`
+     * — kto jest już zalogowany, nie ma po co zakładać konta.
+     */
+    Route::post('/zaproszenie/zakladam', [RegistrationInviteController::class, 'przyjmij'])
+        ->middleware("throttle:{$limits['zaproszenie']},zaproszenie")
+        ->name('zaproszenie.przyjmij');
+
+    Route::post('/zaproszenie/inny-adres', [RegistrationInviteController::class, 'porzuc'])
+        ->middleware("throttle:{$limits['zaproszenie']},zaproszenie")
+        ->name('zaproszenie.porzuc');
+
+    Route::get('/zaproszenie/{token}', [RegistrationInviteController::class, 'pokaz'])
+        ->name('zaproszenie.pokaz');
 
     // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
     // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze
