@@ -62,17 +62,35 @@ use Illuminate\Support\Facades\Schema;
  * serwis, zgodnie z tym, co D-018 obiecało od początku. Zakres dostają
  * `minimum`, bo to jedyny, jaki wtedy istniał.
  *
- * ROLLBACK
- * `down()` cofa `erased` → `pending_delete`, zdejmuje CHECK-i i kolumnę.
- * Sprawdzone na `kuking_test_usuwanie`: `migrate --force`, `migrate:rollback
- * --step=1`, `migrate --force` przechodzą bez błędu w obie strony.
- * Skutek jest ZNANY i jest nim powrót do usterki opisanej wyżej: teksty
- * wymazanych kont znowu znikną z serwisu (403), bo znów będą na
- * `pending_delete`. Żadne dane nie giną — `delete_scope` traci wyłącznie
- * informację o wyborze zakresu dla kont, które JESZCZE czekają w karencji,
- * a te po rollbacku wracają do zachowania D-018 (teksty zostają), czyli do
- * wariantu mniej nieodwracalnego. Rollback jest więc bezpieczny w tę stronę,
- * w którą trzeba: nie kasuje niczego, czego nie da się odtworzyć.
+ * ROLLBACK — POPRAWIONY PO #287 (D-088), TA SAMA CHOROBA CO DB2
+ * Ten akapit twierdził wcześniej „żadne dane nie giną — `delete_scope` traci
+ * wyłącznie informację o wyborze zakresu dla kont, które JESZCZE czekają
+ * w karencji". To było prawdziwe o WIERSZACH i fałszywe o CZŁOWIEKU: kolumna
+ * jest `nullable`, więc `dropColumn` w `down()` faktycznie nic nie kasowało
+ * z widoku bazy — ale `up()` wyżej BACKFILLUJE `NULL` jako `minimum`. Cykl
+ * `migrate` → `migrate:rollback` → `migrate` (dokładnie to, co robi
+ * `migrate:refresh` w CI, i dokładnie to, co robi awaryjny rollback
+ * WDROŻENIA, nie tylko bazy) więc PO CICHU zamieniał wybór „usuń wszystko"
+ * (`everything`) na „usuń minimum" (`minimum`) — bo `minimum` jest jedyną
+ * wartością, jaką backfill `up()` umie nadać. Człowiek, który poprosił
+ * o usunięcie WSZYSTKICH swoich treści, dostawał po cichu odwrotność swojej
+ * decyzji, zrealizowaną później przez `EraseAccountData::chceUsunacTresci()`
+ * — bez błędu, bez ostrzeżenia, z poprawną kolumną i poprawną wartością ze
+ * słownika. Sprawdzone NA PRAWDZIWEJ BAZIE (nie w teorii): konto z
+ * `delete_scope = 'everything'` po `migrate:rollback` + `migrate` miało
+ * `delete_scope = 'minimum'`.
+ *
+ * Naprawa idzie za wariantem 2 z #287: `down()` teraz ODMAWIA, gdy w bazie
+ * jest choć jedno konto z `delete_scope = 'everything'` — zamiast zgadywać,
+ * czego chciał człowiek. Wzorzec jest ten sam co w
+ * `2026_09_10_400100_one_active_data_export_per_user` (odmowa z konkretną
+ * instrukcją, nie cichy `DELETE`/`UPDATE`) i w
+ * `2026_09_07_800000_appeals_open_to_reporters` (odmowa, gdy stary schemat
+ * nie ma jak pomieścić tego, co jest w nowym). Na świeżej bazie, w której
+ * nikt nie wybrał `everything`, `down()` przechodzi bez pytania — inaczej
+ * „naprawą" byłoby zablokowanie rollbacku na zawsze, co jest błędem
+ * dokładnie tej samej wagi (patrz `CofniecieMigracjiNieKasujeZeszytowTest`,
+ * ten sam wzorzec kontroli).
  */
 return new class extends Migration
 {
@@ -125,6 +143,39 @@ return new class extends Migration
 
     public function down(): void
     {
+        // STRAŻNIK PRZED CICHĄ PODMIANĄ WYBORU CZŁOWIEKA (#287, D-088).
+        // MUSI stać przed każdą operacją niżej — sprawdzenie po fakcie
+        // chroniłoby tylko komunikat, nie dane (ten sam błąd kolejności,
+        // którego pilnuje `CofniecieMigracjiNieKasujeZeszytowTest`).
+        //
+        // `DB::table()` (query builder), nie surowe SQL: to sprawdzenie ma
+        // działać na każdym sterowniku, nie tylko pod `isPostgres()` niżej —
+        // `dropColumn` na końcu tej metody i tak wykonuje się bezwarunkowo.
+        $zEverything = DB::table('users')->where('delete_scope', 'everything')->count();
+
+        if ($zEverything > 0) {
+            throw new RuntimeException(
+                "W tabeli `users` jest {$zEverything} kont z delete_scope = 'everything' — ".
+                'człowiek poprosił o usunięcie WSZYSTKICH swoich treści, nie tylko danych '.
+                'osobowych. Stary schemat (sprzed tej migracji) nie ma tej kolumny wcale: gdyby '.
+                'cofnięcie przeszło, kolejny `migrate` odtworzyłby ją jako `minimum` — bo to jedyna '.
+                'wartość, jaką backfill wyżej umie nadać. Człowiek dostałby po cichu ODWROTNOŚĆ '.
+                'swojej decyzji (#287, ta sama choroba co DB2 w '.
+                '`2026_09_07_400000_default_weekly_digest_to_off.php`). Migracja odmawia, zamiast '.
+                "zgadywać.\n\n".
+                "CO ZROBIĆ:\n".
+                '  - jeśli cofasz z powodu awaryjnego rollbacku WDROŻENIA (obraz aplikacji), nie '.
+                'cofaj TEJ migracji — kod sprzed niej nie zna kolumny `delete_scope` i działa z nią '.
+                'bez zmian (docs/research/audyt-2026-09-10/26_MIGRACJE_ROLLBACK_I_BEZPIECZNE_WDROZENIA.md: '.
+                "rollback obrazu i rollback bazy to dwie różne decyzje);\n".
+                "  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz wartości PRZED cofnięciem:\n".
+                "      SELECT id, status, delete_scope FROM users WHERE delete_scope = 'everything';\n".
+                '    a po powrocie na tę wersję schematu odtwórz je tym samym `UPDATE`, zanim '.
+                'jakiekolwiek konto z tej listy zostanie przetworzone przez `kuking:usun-wygasle-konta` '.
+                '(harmonogram w `routes/console.php`, chodzi codziennie).',
+            );
+        }
+
         if ($this->isPostgres()) {
             DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_delete_scope_check');
             DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_data_erased_at_check');
