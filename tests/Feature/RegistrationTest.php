@@ -55,7 +55,13 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'display_name' => 'Basia',
-            'username' => 'ma spacje',
+            // OD 10 WRZEŚNIA „ma spacje" JEST POPRAWNĄ NAZWĄ — rejestracja
+            // układa z niej `ma_spacje` przed walidacją, żeby nie odbijać
+            // człowieka od pierwszego ekranu (patrz `NazwaUzytkownika`).
+            // Żeby ten test dalej sprawdzał to, co ma sprawdzać — czyli
+            // brzmienie komunikatu — potrzebuje wartości, z której naprawdę
+            // nie da się nic ułożyć.
+            'username' => '🍲🍲🍲',
             'email' => 'to-nie-email',
             'password' => 'krotkie',
         ]);
@@ -66,7 +72,16 @@ class RegistrationTest extends TestCase
 
         // Nie „The username field format is invalid.” — użytkownik ma wiedzieć,
         // co konkretnie poprawić (docs/UX_50_PLUS.md).
-        $this->assertStringContainsString('podkreślnik', $messages['username'][0]);
+        //
+        // WCZEŚNIEJ TEN TEST WYMAGAŁ SŁOWA „podkreślnik" — i to była pomyłka,
+        // którą zobaczyliśmy na prawdziwej osobie. 63-latka dostała komunikat
+        // „tylko litery bez polskich znaków, cyfry i podkreślnik" i nie
+        // zrozumiała, o co chodzi: komunikat mówił językiem REGUŁY, a nie
+        // językiem człowieka. Teraz zapis poprawia serwis, a komunikat prosi
+        // o coś, co człowiek umie podać — i test pilnuje właśnie tego.
+        $this->assertStringNotContainsString('podkreślnik', $messages['username'][0]);
+        $this->assertStringNotContainsString('polskich znaków', $messages['username'][0]);
+        $this->assertStringContainsString('imię', $messages['username'][0]);
         $this->assertStringContainsString('10 znaków', $messages['password'][0]);
     }
 

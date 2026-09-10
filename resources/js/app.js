@@ -559,3 +559,62 @@ for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
         });
     }
 }
+
+/* ==========================================================================
+   BŁĄD FORMULARZA MA BYĆ WIDOCZNY OD RAZU — bez szukania go wzrokiem.
+   ==========================================================================
+
+   ZDARZENIE, KTÓRE TO WYWOŁAŁO (10 września 2026)
+   63-letnia osoba wypełniała rejestrację na komputerze. Formularz odbił jej
+   nazwę użytkownika. Podsumowanie błędów stoi na górze formularza — ale ona
+   po wysłaniu została w tym samym miejscu, w którym kliknęła przycisk, czyli
+   na dole. Nie zobaczyła ani podsumowania, ani czerwonego tekstu przy polu
+   wyżej; zobaczyła dwa duże czerwone pudła obok siebie (zaznaczone zgody)
+   i uznała, że problem jest tam.
+
+   DWIE RZECZY, KTÓRE TU ROBIMY:
+   1. po wysłaniu z błędem przewijamy do podsumowania i ustawiamy na nim
+      fokus — czytnik ekranu przeczyta je od razu (`role="alert"`,
+      `tabindex="-1"` są już w komponencie);
+   2. zaznaczenie wyboru NATYCHMIAST zdejmuje z niego czerwień i chowa
+      komunikat — bez tego człowiek poprawia błąd i nadal widzi czerwone
+      pudło, dopóki nie wyśle formularza jeszcze raz.
+
+   JavaScript jest tu dodatkiem, nie warunkiem: bez niego podsumowanie stoi
+   na górze, a przy przycisku „Załóż konto" jest zdanie mówiące, że coś
+   zostało do poprawienia (AGENTS.md §5 pkt 3 — żadnego martwego przycisku).
+   Przewijanie szanuje `prefers-reduced-motion`.
+   ========================================================================== */
+(function bledyFormularzaWidoczne() {
+    const podsumowanie = document.querySelector('.error-summary');
+
+    if (podsumowanie) {
+        const bezRuchu = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        podsumowanie.scrollIntoView({ behavior: bezRuchu ? 'auto' : 'smooth', block: 'center' });
+
+        // Fokus PO przewinięciu: `focus()` sam przewija skokowo, a przy
+        // `block: 'center'` chcemy, żeby człowiek zobaczył też to, co jest
+        // nad podsumowaniem — czyli że jest na górze formularza.
+        window.setTimeout(() => podsumowanie.focus({ preventScroll: true }), bezRuchu ? 0 : 400);
+    }
+
+    document.querySelectorAll('.field.has-error .choice input[type="checkbox"]').forEach((pole) => {
+        pole.addEventListener('change', () => {
+            if (!pole.checked) {
+                return;
+            }
+
+            const grupa = pole.closest('.field');
+
+            if (grupa === null) {
+                return;
+            }
+
+            grupa.classList.remove('has-error');
+            grupa.querySelectorAll('.field-error').forEach((komunikat) => {
+                komunikat.hidden = true;
+            });
+        });
+    });
+})();

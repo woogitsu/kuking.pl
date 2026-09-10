@@ -11,9 +11,32 @@
         poczty, więc ten ekran nie może rozjechać się z rzeczywistością.
     --}}
     @if(\App\Support\Poczta::dziala())
+        {{--
+            TEN EKRAN JEST DLA OSÓB, KTÓRE JUŻ MAJĄ KONTO — I MUSI TO POWIEDZIEĆ.
+
+            Poprzednie zdanie brzmiało „Podaj adres e-mail, NA KTÓRY ZAKŁADASZ
+            KONTO" i czytało się jak formularz rejestracji. 63-letnia osoba
+            z grupy docelowej weszła tędy, wpisała swój adres, dostała zielone
+            „wysłaliśmy…" i czekała na wiadomość, która nigdy nie miała przyjść:
+            konta pod tym adresem nie było, a logowanie linkiem świadomie
+            odpowiada tak samo dla adresu z kontem i bez konta (D-056), żeby
+            nie zdradzać, kto ma konto w Kuking.
+
+            Ta prywatność zostaje. Naprawiamy dwie inne rzeczy: ekran mówi
+            teraz, dla kogo jest, i ma widoczną drogę do rejestracji — żeby
+            człowiek, który trafił tu przez pomyłkę, nie został z pustą
+            skrzynką i bez wyjścia.
+        --}}
         <p class="mb-5">
-            Podaj adres e-mail, na który zakładasz konto. Wyślemy na niego wiadomość z jednym
-            przyciskiem — po kliknięciu wejdziesz na swoje konto bez wpisywania hasła.
+            Ten ekran jest dla osób, które <strong>już mają konto w Kuking</strong>.
+            Podaj adres e-mail, którym je zakładałaś albo zakładałeś — wyślemy na niego
+            wiadomość z jednym przyciskiem, a po kliknięciu wejdziesz na konto bez
+            wpisywania hasła.
+        </p>
+
+        <p class="notice mb-5">
+            Nie masz jeszcze konta? <a href="{{ route('register') }}">Załóż konto</a> —
+            to inny formularz i zajmuje minutę.
         </p>
 
         <x-error-summary />
