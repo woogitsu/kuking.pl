@@ -108,7 +108,7 @@
 
             <p>
                 Na dotychczasowy adres wyślemy od razu wiadomość o tej prośbie. Jeśli
-                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosiłaś/eś o zmianę —
+                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosisz o zmianę —
                 zmień hasło.
             </p>
 

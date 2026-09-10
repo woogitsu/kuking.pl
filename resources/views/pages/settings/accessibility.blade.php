@@ -51,7 +51,7 @@
     <h2 class="text-title-sm mb-3 mt-8">Kolory</h2>
     <p class="mb-5">
         Wybierz wygląd, w którym czyta Ci się wygodnie. Jasny jest domyślny
-        dla każdego konta — ciemny włączasz sam, jeśli wolisz. Wybór zapisze
+        dla każdego konta — ciemny włączasz, jeśli wolisz. Wybór zapisze
         się na Twoim koncie, tak samo jak rozmiar tekstu.
     </p>
 

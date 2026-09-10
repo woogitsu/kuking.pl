@@ -37,9 +37,13 @@
     <section class="card mt-8">
         <h2 class="mt-0">Wyloguj mnie z innych urządzeń</h2>
         <p>
-            Użyj tego, jeśli zostałaś/eś zalogowana/y na cudzym telefonie albo komputerze —
-            na przykład u wnuka, w bibliotece albo u znajomych — i nie masz jak się tam
-            już wylogować.
+            {{-- Bez ukośnika rodzajowego (issue #38, COPY_STYLE §2): stało tu
+                 „jeśli zostałaś/eś zalogowana/y", czyli dwa wybory rodzaju
+                 w jednym zdaniu. Strona bierna bez podmiotu mówi to samo
+                 i da się ją przeczytać na głos. --}}
+            Użyj tego, jeśli Twoje konto zostało zalogowane na cudzym telefonie albo
+            komputerze — na przykład u wnuka, w bibliotece albo u znajomych — i nie
+            masz jak się tam już wylogować.
         </p>
         <p>
             Wszystkie urządzenia zalogowane na to konto, <strong>oprócz tego, na którym

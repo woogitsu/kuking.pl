@@ -66,7 +66,7 @@
                         </p>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
-                            Zanim zaczniesz pobierać, zostaniesz poproszona o zalogowanie się.
+                            Zanim zaczniesz pobierać, poprosimy Cię o zalogowanie się.
                             Tak musi być: w tej paczce jest kopia całego Twojego konta i nie może
                             jej otworzyć ktoś, kto tylko zobaczył ten e-mail.
                         </p>

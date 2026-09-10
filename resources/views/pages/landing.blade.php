@@ -165,7 +165,7 @@
                         przestał istnieć.
                     </p>
                     <p>
-                        Przy każdym wpisie sam decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
+                        Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
                     </p>
                 </div>
                 <div>

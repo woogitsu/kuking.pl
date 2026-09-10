@@ -51,7 +51,13 @@
     @endif
 
     @if($event->changes_note)
-        <p><strong>Zrobiłam/zrobiłem po swojemu:</strong> {{ $event->changes_note }}</p>
+        {{-- „Po swojemu", nie „Zrobiłam/zrobiłem po swojemu" (issue #38).
+             Ta sama reguła, co osiem linijek wyżej przy „ugotowane":
+             `docs/brand/COPY_STYLE.md` §2 każe zmienić konstrukcję zdania,
+             a nie wybierać rodzaj ukośnikiem. Tu wystarczyło skreślić
+             czasownik — podpis stoi nad cudzą notatką, więc kto ją napisał,
+             wiadomo z karty wyżej. --}}
+        <p><strong>Po swojemu:</strong> {{ $event->changes_note }}</p>
     @endif
 
     <ul class="recipe-facts">

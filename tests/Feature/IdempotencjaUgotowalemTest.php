@@ -91,11 +91,19 @@ class IdempotencjaUgotowalemTest extends TestCase
 
         // Komunikat mówi o powiadomieniu, więc musi być prawdziwy — liczba
         // powiadomień jest sprawdzona wyżej, w tym samym teście (§7.2 i §7.3
-        // ADR-u).
+        // ADR-u). Asercja ZOSTAJE na pełnym zdaniu, bo pilnuje tej obietnicy,
+        // a nie brzmienia; poprawione jest w niej jedno słowo.
+        //
+        // „Gotujesz", nie „Gotowałeś" (issue #38, D-066). Czas przeszły
+        // w polszczyźnie zawsze niesie rodzaj, a `docs/brand/COPY_STYLE.md`
+        // §2 każe wtedy zmienić konstrukcję zdania. Utrwalony wyjątek
+        // („Co dziś ugotowałeś?") dotyczy hasła głównego, nie komunikatu
+        // o podwójnym kliknięciu — a ten jest w rejestrze „poważnym" (§3),
+        // gdzie dokument jest najostrzejszy.
         $drugie->assertSessionHas(
             'status',
             'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-            .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+            .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
         );
     }
 

@@ -4389,3 +4389,99 @@ wychodzą z serwisu.
 · migracja `2026_09_10_300000_zdjecie_jako_cel_oznaczenia` ·
 `docs/legal/SYGNALY_AUTOMATU.md` §9 · `docs/DATABASE.md` ·
 `resources/legal/polityka-prywatnosci.md`
+
+---
+
+## D-066 · Rodzaj gramatyczny obchodzimy konstrukcją zdania, a liczebnik odmienia jedna klasa — ukośnik i angielski inflektor są zakazane
+
+**Data:** 10 września 2026 · Issue #38 · Status: **obowiązuje**
+
+`docs/brand/COPY_STYLE.md` §2 mówi: *„zamiast szukać żeńskiej formy,
+zmieniamy konstrukcję zdania"*. PR #235 zrobił z tego pierwszy przebieg
+i usunął jedenaście form z ukośnikiem. Ta decyzja domyka sprawę na ścieżkach
+użytkownika i zapisuje dwie rzeczy, które przy następnej zmianie tekstu
+inaczej trzeba by rozstrzygać od nowa.
+
+### 1. Cztery dozwolone sposoby obejścia rodzaju — i nic poza nimi
+
+Polski czas przeszły i imiesłów przymiotnikowy zawsze niosą rodzaj, więc
+„napisz to bez rodzaju" jest instrukcją bez treści, dopóki nie powie się CZYM.
+Sposoby, którymi to robimy:
+
+| Sposób | Było | Jest |
+|---|---|---|
+| imiesłów bierny | „Zrobiłam/zrobiłem po swojemu" | „Po swojemu" |
+| czas teraźniejszy | „to nie Ty prosiłaś/eś o zmianę" | „to nie Ty prosisz o zmianę" |
+| strona bierna bez podmiotu | „jeśli zostałaś/eś zalogowana/y" | „jeśli Twoje konto zostało zalogowane" |
+| skreślenie słowa | „sam decydujesz, kto go widzi" | „decydujesz, kto go widzi" |
+
+Ostatni wiersz jest najczęstszy i najtańszy: „sam", „sama" i „sam/sama" nie
+wnoszą do tych zdań ani jednej informacji, a §7 dokumentu i tak każe skreślić
+trzy słowa. Zakazane są **wszystkie** trzy zapisy wyboru rodzaju: ukośnik
+(„prosiłaś/eś", „zalogowana/y"), dwie pełne formy („ugotowała/ugotował")
+i sufiks w nawiasie („podjął(-ęła)"). Żadnego z nich nie da się przeczytać
+na głos, a to jest pierwszy test z §1 dokumentu.
+
+**Wyjątek, jeden i nazwany:** zdania, które §6 dokumentu podaje jako **gotowy
+tekst do wklejenia**, zostają w brzmieniu z dokumentu — także wtedy, gdy mają
+formę żeńską. Dotyczy to listu o gotowej paczce danych („co tu wrzuciłaś")
+i pustego stanu własnego archiwum („co wtedy gotowałaś"). Zmiana tych dwóch
+należy do `COPY_STYLE.md`, nie do kodu: kod, który poprawia tekst wiążącego
+dokumentu, jest rozjazdem, a nie poprawką. Dlatego testy pilnują tylko form
+z ukośnikiem i nawiasem, a form żeńskich bez ukośnika nie zabraniają.
+
+### 2. Liczebnik odmienia `App\Support\Odmiana` i nic innego
+
+Trzeci raz w tym repozytorium okazało się, że ekran wymyślił odmianę po
+swojemu — po „Znaleziono 3 przepisów" w wyszukiwarce i po „1 wpisów"
+w nagłówku profilu przyszła kolej na wątek komentarzy, który odmieniał
+polskie „minutę" przez `Illuminate\Support\Str::plural()`:
+
+```text
+Str::plural('minutę', 3)  →  „minutęs"
+```
+
+Czyli „Możesz poprawić jeszcze przez 3 **minutęs**." — na stronie wpisu,
+przy każdym własnym komentarzu młodszym niż piętnaście minut. Obok tego
+podgląd kreatora przepisu (ekran, który nazywa się „tak zobaczą to inni")
+pisał `(int) $servings.' porcji'`, więc mówił „1 porcji" i „2 porcji", a przy
+połowie porcji „0 porcji" — dokładnie to, co `Recipe::servingsLabel()`
+naprawiło na stronie przepisu w audycie A28.
+
+Stąd zakaz **całkowity**, a nie „tylko dla polskich rzeczowników":
+`Str::plural()` i `Str::singular()` nie mają prawa wystąpić w `resources/views`
+ani w kodzie produktu. Interfejs Kuking jest w całości po polsku (AGENTS.md
+§11), więc każde ich użycie jest albo tym błędem, albo o krok od niego.
+Reguła („2, 3, 4 biorą formę mnogą, ale 12, 13, 14 już nie") jest napisana
+i przetestowana **raz**: `App\Support\Odmiana::rzeczownik()`,
+`tests/Unit/OdmianaTest.php`. Widok trzyma wyłącznie tablicę form.
+
+Konsekwencja dla podglądów: **podgląd liczy to samym kodem, co ekran, który
+podgląda.** Kreator woła teraz `Recipe::servingsLabel()` na niezapisanym
+modelu — tak samo jak wołał już `RecipeStep::timerLabel()` na minutnik. Druga
+kopia odmiany obok jest tym, przez co podgląd zaczyna kłamać o tym, co
+zobaczą inni.
+
+### 3. Czego ta decyzja NIE rozstrzyga
+
+Komunikatów moderacyjnych i tekstów prawnych. Mają swój reżim
+(`BRAND_EXTENDED.md` §6, `resources/legal/**`) i osobne zlecenia; PR #235
+świadomie ich nie ruszał i tak zostaje. Podpis „Zespół Kuking.pl" w listach
+o zgłoszeniach DSA nie jest naruszeniem reguły §6 o nadawcy — nadawcę składa
+`config('kuking.community.host_name')` (D-037), a to jest podpis pod decyzją,
+którą podejmuje zespół, nie gospodarz.
+
+**Zmiana wymaga:** zmiany `docs/brand/COPY_STYLE.md` §2 albo §6 — czyli
+decyzji właściciela o głosie serwisu, nie decyzji w PR-ze o tekstach.
+
+**Pliki:** `app/Support/Odmiana.php` (bez zmian, właściciel reguły) ·
+`resources/views/components/comment-thread.blade.php` ·
+`resources/views/components/recipe-wizard.blade.php` ·
+`resources/views/components/cooked-card.blade.php` ·
+`resources/views/pages/settings/{privacy,data,security,email,accessibility,two_factor/codes}.blade.php` ·
+`resources/views/auth/login-link.blade.php` ·
+`resources/views/mail/data-export-ready.blade.php` ·
+`app/Domain/Comments/Actions/PublishComment.php` ·
+`app/Http/Controllers/CookedEventController.php` ·
+`app/Http/Controllers/AccountDeletionController.php` ·
+`tests/Feature/TekstyNaSciezkachUzytkownikaTest.php`

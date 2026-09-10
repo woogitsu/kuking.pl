@@ -34,7 +34,7 @@
         --}}
         <div class="notice">
             @if($toPierwszyWpis ?? false)
-                <strong>To Twój pierwszy wpis. Gratulacje.</strong>
+                <strong>To Twój pierwszy wpis.</strong>
                 Masz pewnie w telefonie więcej zdjęć — teraz idzie najszybciej,
                 bo już wiesz, jak to działa.
             @else

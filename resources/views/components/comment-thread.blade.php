@@ -73,7 +73,7 @@
                                 @if($replyRemainingMinutes > 0)
                                     <details class="mt-2">
                                         <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                        <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \Illuminate\Support\Str::plural('minutę', $replyRemainingMinutes) }}.</p>
+                                        <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
                                         <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
                                             @csrf
                                             @method('PUT')
@@ -135,7 +135,7 @@
                         @if($commentRemainingMinutes > 0)
                             <details class="mt-2">
                                 <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \Illuminate\Support\Str::plural('minutę', $commentRemainingMinutes) }}.</p>
+                                <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
                                 <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
                                     @csrf
                                     @method('PUT')

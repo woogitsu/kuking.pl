@@ -1,7 +1,10 @@
 <x-layout title="Twoje dane" :noindex="true">
     <h1>Twoje dane</h1>
     <p class="mb-5">
-        Wszystko, co tu wrzuciłaś, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
+        {{-- Czas teraźniejszy, nie „co tu wrzuciłaś" (issue #38, COPY_STYLE §2).
+             Zdanie z §6 dokumentu („co tu wrzuciłaś") jest gotowym tekstem
+             LISTU o eksporcie i tam zostaje — ten ekran §6 nie opisuje. --}}
+        Wszystko, co tu wrzucasz, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
     </p>
 
     <section class="card">
@@ -55,7 +58,7 @@
             i komentarzami. Przez <strong>{{ $graceDays }} dni</strong> możesz jeszcze
             zmienić zdanie i wtedy wszystko wraca tak, jak było. Po tym czasie
             usuniemy Twoje dane i zdjęcia na stałe, a o tym, co zrobimy z Twoimi
-            tekstami, decydujesz sam/sama w formularzu niżej.
+            tekstami, decydujesz Ty, w formularzu niżej.
         </p>
 
         {{--
@@ -123,7 +126,7 @@
             <p>
                 Tego nie da się odwrócić. Dlatego haczyk jest domyślnie pusty —
                 skasowanego tekstu nikt już nie przywróci. Jeśli chcesz usunąć
-                tylko wybrane przepisy albo wpisy, usuń je sam/sama, zanim
+                tylko wybrane przepisy albo wpisy, usuń je samodzielnie, zanim
                 skasujesz konto: później nie będzie już jak, bo do usuniętego
                 konta nie da się zalogować.
             </p>

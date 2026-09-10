@@ -27,7 +27,7 @@
 
         <h2>Kto widzi to, co publikuję?</h2>
         <p>
-            Przy każdym wpisie i przepisie sam wybierasz: <strong>wszyscy</strong>,
+            Przy każdym wpisie i przepisie wybierasz: <strong>wszyscy</strong>,
             <strong>tylko osoby, które Cię obserwują</strong>, albo <strong>tylko Ty</strong>.
             Możesz to zmienić w każdej chwili.
         </p>

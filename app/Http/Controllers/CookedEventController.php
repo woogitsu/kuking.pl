@@ -180,7 +180,7 @@ class CookedEventController extends Controller
             return redirect()->route('cooked.show', $event)->with(
                 'status',
                 'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-                .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
             );
         }
 
@@ -288,7 +288,11 @@ class CookedEventController extends Controller
 
         return redirect()->route('cooked.show', $cookedEvent)->with(
             'status',
-            $cookedEvent->user->displayName().' dowie się, że podziękowałaś/eś za wykonanie.',
+            // Bez ukośnika rodzajowego (issue #38, COPY_STYLE §2): stało tu
+            // „podziękowałaś/eś". Czas teraźniejszy nie niesie rodzaju
+            // i mówi to samo — tak samo jak §6 dokumentu obchodzi rodzaj
+            // w bliźniaczym zdaniu „{autor} dowie się, że ktoś ugotował".
+            $cookedEvent->user->displayName().' dowie się, że dziękujesz za to wykonanie.',
         );
     }
 
