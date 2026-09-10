@@ -186,6 +186,59 @@
     text-decoration: underline;
   }
 
+  /* --- LICZBY O OSOBIE: KARTA NA WĄSKIM, PRAWA SZYNA NA SZEROKIM (D-091) ---
+
+     Zgłoszenie właściciela: „prawa kolumna jest marnowana, można tam dać
+     info o użytkowniku […] a nie na środku przez co wpisy są dużo niżej".
+     Pięć wierszy po 48 px w karcie spychało pierwszy wpis poniżej zgięcia,
+     a trzecia kolumna na cudzym profilu bez tagów i zeszytów stała pusta na
+     całej wysokości.
+
+     TA SAMA TREŚĆ JEST W DOKUMENCIE DWA RAZY, a te dwie reguły są PARĄ:
+     jedna pokazuje egzemplarz w szynie, druga chowa egzemplarz w karcie,
+     obie w tym samym zapytaniu o szerokość. Rozdzielenie ich (albo dopisanie
+     trzeciej reguły, która którykolwiek egzemplarz pokazuje z powrotem)
+     daje układ z liczbami w dwóch miejscach naraz — a tego przy 1512 px
+     nie widać na pierwszy rzut oka, bo obie kolumny są wtedy widoczne.
+     Dlaczego dwa egzemplarze, a nie jeden przestawiany: `x-liczby-profilu`
+     (krótko: szyna jest RODZEŃSTWEM `<main>`, więc żaden `order` ani
+     `grid-area` nie wsunie jej zawartości do środka karty, a skrypt
+     przenoszący węzeł łamałby „ważne rzeczy działają bez JavaScriptu").
+
+     PRÓG 80rem, A NIE 64rem — bo to jest próg, na którym w `app.css`
+     w ogóle POWSTAJE trzecia kolumna. Wcześniej `.app-rail` nie znika,
+     tylko ląduje POD treścią; pokazanie tam liczb, a schowanie ich w karcie,
+     zepchnęłoby je na telefonie pod całe archiwum wpisów.
+
+     `:not(.app-body-solo)` I `:not(.app-body-powitalny)` TO NIE OZDOBA.
+     Gość ma jedną kolumnę na KAŻDEJ szerokości (patrz `.app-body-solo`
+     w app.css), więc bez tych wykluczeń liczby znikałyby mu z karty przy
+     1280 px, a jedyny drugi egzemplarz leżałby na samym dole strony.
+     --------------------------------------------------------------------- */
+
+  .profil-liczby-szyna {
+    display: none;
+  }
+
+  /* W szynie kreska nad liczbami jest zbędna: blok ma już własny nagłówek
+     („Twoje liczby" / „Ta osoba w liczbach"), a druga linia pod nim czyta
+     się jak podział jednej listy na dwie. W karcie kreska zostaje, bo tam
+     oddziela opis osoby od liczb i nic innego tego nie robi. */
+  .profil-liczby-w-szynie {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  @media (min-width: 80rem) {
+    .app-body:not(.app-body-solo):not(.app-body-powitalny) .profil-liczby-szyna {
+      display: block;
+    }
+
+    .app-body:not(.app-body-solo):not(.app-body-powitalny) .profil-liczby-karta {
+      display: none;
+    }
+  }
+
   /* Nagłówki miesięcy w archiwum („archive-title" w kicie) i odstęp lat
      nad nimi (`.lata-archiwum`) już mają właściwy rozmiar i odstęp z
      `tokens.css` przez klasę `h2` i utility `mt-8` w widoku — nie ma tu

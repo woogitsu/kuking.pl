@@ -1,4 +1,4 @@
-@props(['profile', 'isOwner', 'zeszyty', 'tagi'])
+@props(['profile', 'isOwner', 'zeszyty', 'tagi', 'stats'])
 
 {{--
     Prawa szyna profilu `/@nazwa` (issue #205).
@@ -18,16 +18,37 @@
     wyżej, i drugi taki sam przycisk na jednym ekranie każe się zastanawiać,
     czy to na pewno to samo.
 
-    CZEGO TU NIE MA I NIE BĘDZIE
-    Żadnej liczby obserwujących, żadnego „najaktywniejsi", żadnego miejsca
-    w tabeli. AGENTS.md §12 zakazuje publicznych rankingów użytkowników
-    wprost, a szyna jest dokładnie tym miejscem, w którym ranking wchodzi
-    najłatwiej — bo wygląda niewinnie jako „ciekawostka obok".
+    LICZBY O OSOBIE STOJĄ TU OD D-091 — I JEST TO ZMIANA WOBEC PIERWOTNEJ
+    TREŚCI TEGO KOMENTARZA, WIĘC NAZYWAMY JĄ WPROST.
+    Do września 2026 stało tu zdanie „żadnej liczby obserwujących", jednym
+    tchem z zakazem rankingów. To było zlanie dwóch różnych rzeczy w jedną.
+    AGENTS.md §12 zakazuje PORÓWNYWANIA LUDZI ZE SOBĄ: miejsc w tabeli,
+    odznak, „najaktywniejszych", „więcej niż 80% kuKINGów". Nie zakazuje
+    pokazania, ile ta osoba ma własnych wpisów — te same pięć liczb stało
+    przez cały ten czas w karcie profilu dwa centymetry wyżej i nikt nie
+    uznał ich za ranking, bo nim nie są.
 
-    PUSTA SZYNA JEST DOPUSZCZALNYM WYNIKIEM. Cudzy profil bez tagów i bez
-    publicznych zeszytów nie dostaje żadnego bloku. Karta „Ta osoba nie ma
-    jeszcze nic" byłaby wypełniaczem, a przy grupie 50+ każdy element to coś,
-    co trzeba przeczytać i pominąć (issue #205).
+    Właściciel poprosił wprost: „prawa kolumna jest marnowana, można tam dać
+    info o użytkowniku (ile wpisów, przepisów, obs, obserwuj itp itd, a nie
+    na środku przez co wpisy są dużo niżej".
+
+    GRANICA ZOSTAJE TA SAMA I JEST OSTRA: liczby są WYŁĄCZNIE o treści tej
+    osoby, nigdy o jej pozycji wobec innych. Blok nie sortuje, nie wyróżnia,
+    nie nagradza i nie ma progu „od ilu to już dużo". Szyna dalej jest tym
+    miejscem, w którym ranking wchodzi najłatwiej — bo wygląda niewinnie
+    jako „ciekawostka obok" — i dalej go tu nie ma.
+
+    ZERO NA WIDOKU. „0 przepisów" pokazujemy tak samo jak „12 przepisów".
+    Chowanie zer zamieniłoby informację w wyróżnienie: widoczna liczba
+    znaczyłaby wtedy „ta osoba ma czym się pochwalić", a jej brak — coś
+    przeciwnego. To jest dokładnie ten sam mechanizm co ranking, tylko
+    wpisany w puste miejsce.
+
+    PUSTA SZYNA JEST DOPUSZCZALNYM WYNIKIEM — ale dotyczy to dwóch bloków
+    niżej, nie liczb. Cudzy profil bez tagów i bez publicznych zeszytów nie
+    dostaje ani jednego z nich. Karta „Ta osoba nie ma jeszcze nic" byłaby
+    wypełniaczem, a przy grupie 50+ każdy element to coś, co trzeba
+    przeczytać i pominąć (issue #205).
 
     PRYWATNOŚĆ. Widok NIE filtruje niczego sam — dostaje z kontrolera
     (`ProfileController::show()`) wyłącznie to, co oglądający i tak ma prawo
@@ -37,6 +58,38 @@
     drugą implementacją reguły, która już istnieje — a to jest rzecz, która
     w tym repozytorium pęka najczęściej.
 --}}
+
+{{--
+    LICZBY O OSOBIE — PIERWSZY BLOK SZYNY (D-091).
+
+    STOI PIERWSZY, BO ZASTĘPUJE TO, CO STAŁO NAJWYŻEJ W KARCIE. Człowiek,
+    który wczoraj widział te liczby pod opisem profilu, ma je dziś znaleźć
+    na tej samej wysokości ekranu, tylko w drugiej kolumnie. Blok pod nim
+    („Twoje skróty" / „Co gotuje") jest akcją albo tematem — czyli czymś
+    innym niż liczby i dlatego niżej.
+
+    TYLKO DLA ZALOGOWANEGO, I NIE JEST TO KWESTIA PRYWATNOŚCI.
+    Te liczby gość widzi w karcie, tak jak dotąd. Chodzi o UKŁAD: gość
+    dostaje `.app-body-solo`, czyli JEDNĄ kolumnę na każdej szerokości —
+    szyna leci u niego pod treścią nawet przy 1512 px. Wypisanie tego bloku
+    gościowi byłoby więc wypisaniem drugiego, martwego egzemplarza liczb na
+    samym dole strony. Arkusz i tak by go schował (`.app-body-solo` jest
+    wykluczone z reguły pokazującej), ale nie ma powodu tego wysyłać.
+
+    Egzemplarz w karcie chowa się od 80rem — para reguł przy
+    `.profil-liczby-*` w `ekran-profilu.css`. Poniżej 80rem jest odwrotnie
+    i to TEN blok znika, bo szyna ląduje wtedy pod całym archiwum wpisów.
+--}}
+@auth
+    <div class="profil-liczby-szyna">
+        <x-szyna-blok
+            :tytul="$isOwner ? 'Twoje liczby' : 'Ta osoba w liczbach'"
+            id="szyna-liczby-profilu"
+            ikona="user">
+            <x-liczby-profilu :stats="$stats" :username="$profile->username" wariant="szyna" />
+        </x-szyna-blok>
+    </div>
+@endauth
 
 @if($isOwner)
     <x-szyna-blok tytul="Twoje skróty" id="szyna-skroty" ikona="plus">
