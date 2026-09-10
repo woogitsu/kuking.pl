@@ -654,6 +654,12 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         Artisan::call('storage:link');
 
         $this->wlaczTurnstile();
+        // `/health` sprawdza teraz też pocztę TYLKO na produkcji
+        // (`HealthController::sprawdzPoczte()`) — bez tego domyślny
+        // `MAIL_MAILER=array` testów zgłosiłby WŁASNĄ, niezwiązaną z
+        // Turnstile awarię i ten test sprawdzałby coś innego, niż mówi jego
+        // nazwa.
+        $this->pocztaDziala();
         $this->app->detectEnvironment(static fn (): string => 'production');
 
         $this->get('/health')
@@ -693,6 +699,11 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
             array_keys(Turnstile::miejsca()),
             false,
         )]);
+        // Patrz komentarz w `test_produkcja_z_kluczami_jest_zdrowa` —
+        // `/health` sprawdza pocztę tylko na produkcji, więc bez tego
+        // domyślny `MAIL_MAILER=array` testów zepsułby ten test powodem
+        // niezwiązanym z Turnstile.
+        $this->pocztaDziala();
         $this->app->detectEnvironment(static fn (): string => 'production');
 
         $this->get('/health')

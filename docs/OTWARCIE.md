@@ -103,11 +103,40 @@ Sam dokument tego nie tłumaczy. Wskazuje miejsce:
 |---|---|
 | poczta [1]–[4] | `docs/infra/POCZTA_URUCHOMIENIE.md` §1 → §2A → §5; decyzja o dostawcy: `docs/decyzje/POCZTA.md` |
 | R2 [5]–[7] | `docs/infra/BRAMKA_R2.md` (lista z miejscem na wynik i datę); tło: `docs/infra/INFRA_DECISION.md` |
-| kopia i odtworzenie [8]–[10] | `docs/infra/KOPIE_I_ODTWORZENIE.md` §4 (ćwiczenie), §5 (tabela wyniku) |
+| kopia i odtworzenie [8]–[10] | `docs/infra/KOPIE_I_ODTWORZENIE.md` **§7.3** (czynności w panelach: bucket, dwa tokeny, klucz szyfrujący, serwis cron) → **§4A** (ćwiczenie na prawdziwej kopii) → **§5** (tabela wyniku) |
 | bramka bety [16]–[19] | `docs/legal/BRAMKA_BETY.md` (macierz warunków) |
 | prawo [20]–[23] | `docs/legal/COMPLIANCE.md`, issue #8 |
 | testy z ludźmi [24] | `docs/product/TESTY_Z_UZYTKOWNIKAMI.md`, issue #15 |
 | kampania [25] | `docs/marketing/KAMPANIA_GARNEK.md`, issue #29 |
+
+### Etap 0 (wiersze 8–10) — co jest w kodzie, a czego nie ma w panelach
+
+**Kod tej warstwy jest już w repozytorium** (`docker/kopia/`, issue #193):
+zrzut `pg_dump` 18, szyfrowanie kluczem publicznym, wysyłka do R2, alarm przy
+porażce, retencja i czujka `kuking:sprawdz-kopie` po stronie aplikacji. Nie
+ma za to **ani jednej** z rzeczy, których nie da się zrobić kodem — bucketu,
+tokenów, klucza i serwisu w Railway. Do ich założenia liczba kopii bazy
+wynosi zero, mimo gotowego kodu. **To jest cały etap 0.**
+
+> ⚠️ **Nie zakładaj serwisu przez `railway config apply`.** Produkcja ma dziś
+> jeden serwis `kuking.pl`, a `.railway/railway.ts` opisuje trzy inne —
+> `apply` skasowałby ten działający (patrz sprostowanie w tamtym pliku
+> i §7.3 krok 4). Serwis kopii zakłada się dziś ręcznie w panelu.
+
+**Co masz z tego mieć:** świeży zrzut produkcyjnej bazy **i** dowód, że da się
+go odtworzyć — **odszyfrować kluczem prywatnym i wczytać przez `pg_restore`**.
+Nie sam zrzut: zrzut, którego nikt nigdy nie odtworzył, jest obietnicą, nie
+kopią. A zrzut, którego nie da się odszyfrować, jest tylko plikiem.
+
+**Gdzie zapisujesz dowód:** tabela w §5 tego samego dokumentu. Data, kto,
+które ćwiczenie, rozmiar, czas odszyfrowania, czas odtworzenia (RTO), wiek
+zrzutu (RPO), zgodność skrótu z `.meta`, zgodność liczników, co nie zadziałało.
+Ostatnia kolumna jest najważniejsza i zwykle nie jest pusta.
+
+**Gdzie mieszka klucz, którym to odszyfrujesz:** §7.1. W Railwayu leży tylko
+część **publiczna** — klucz prywatny ma dwie kopie, w menedżerze haseł i na
+nośniku offline, i **nigdzie więcej**. Jego utrata unieważnia wszystkie kopie
+naraz, dlatego stoi w tabeli ryzyk §1.1 obok `APP_KEY`.
 
 ### Trzy pułapki, na których najłatwiej stracić popołudnie
 

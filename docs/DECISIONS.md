@@ -2463,6 +2463,110 @@ Pilnują tego `ZmianaAdresuEmailTest` i `AdresEmailPozaMasowymPrzypisaniemTest`.
 
 ---
 
+## D-049 · Zrzut szyfrujemy KLUCZEM PUBLICZNYM, a podpis do R2 liczymy sami w powłoce
+
+**Data:** 9 września 2026 · Status: **obowiązuje** · Wykonanie: issue #193
+
+> **To nie jest nowa decyzja o kierunku — kierunek rozstrzyga D-043.**
+> To są cztery rozstrzygnięcia W ŚRODKU tamtej decyzji, podjęte przy pisaniu
+> `docker/kopia/`. Trafiają do dziennika, bo każde z nich będzie kiedyś
+> wyglądało na dziwne i zaproszy do „uproszczenia", które cofnie własność,
+> o którą chodziło.
+
+**1. SZYFROWANIE KLUCZEM PUBLICZNYM (CMS/PKCS#7), NIE HASŁEM.**
+Zrzut to komplet danych osobowych wszystkich kont w jednym pliku. Gdyby
+szyfrował go `openssl enc` z hasłem, to hasło musiałoby leżeć w Railwayu —
+czyli w tym samym miejscu, co baza i co bucket. Przejęcie konta Railway
+dawałoby wtedy jednocześnie bazę, kopie i klucz do kopii. Klucz publiczny
+odwraca to: w Railwayu leży certyfikat, którym **da się tylko zaszyfrować**.
+Klucz prywatny nie istnieje w żadnym środowisku uruchomieniowym.
+
+Cena jest symetryczna i trzeba ją znać: **utrata klucza prywatnego czyni
+wszystkie kopie nieczytelnymi na zawsze.** Dlatego dwie kopie klucza,
+w dwóch różnych miejscach — dokładnie ta sama zasada, co przy `APP_KEY`
+(`KOPIE_I_ODTWORZENIE.md` §1.1 i §7.1).
+
+**Skrypt odmawia pracy, gdy w tej zmiennej znajdzie klucz prywatny** (kod
+wyjścia 64). Dopisane przy przeglądzie tego PR-a, bo sama deklaracja „w
+Railwayu leży tylko część publiczna" nie miała w kodzie żadnego oparcia:
+`openssl x509` przechodzi również na wartości będącej wynikiem
+`cat kuking-kopie-publiczny.pem kuking-kopie-PRYWATNY.pem`, a to jest jedna
+z dwóch najprawdopodobniejszych pomyłek przy wklejaniu do panelu (drugą,
+pomylenie plików o jedną literę w nazwie, §7.1 wymienia wprost). Kopie
+powstawałyby dalej — tylko klucz do ich odczytu leżałby od tego momentu w tym
+samym Railwayu, co baza i co bucket, czyli cała własność z tego punktu byłaby
+cofnięta i **nic by o tym nie powiedziało**. Cisza jest tu droższa niż brak
+kopii, bo brak kopii widać w panelu.
+
+**DLACZEGO CMS, A NIE `age` ANI `gpg`.** Bo `openssl` jest wszędzie.
+Odtworzenie kopii ma się udać w dniu, w którym wszystko inne się wali,
+z dowolnego komputera, bez instalowania czegokolwiek — jedną komendą
+(`KOPIE_I_ODTWORZENIE.md` §7.4). `age` to binarka do pobrania, `gpg` to
+keyring i cała ceremonia. Obie dokładają krok „najpierw zdobądź narzędzie"
+do procedury awaryjnej, a to jest najgorsze możliwe miejsce na taki krok.
+
+**2. PODPIS AWS SIGV4 LICZYMY SAMI, NAD `openssl` i `curl` — bez `aws` CLI
+i bez `rclone`.** Ten kontener trzyma w rękach zrzut całej bazy; każda
+dołożona paczka to kod z prawem przeczytania tego pliku i prawem gadania po
+sieci. `aws` CLI to Python i botocore z własnym łańcuchem zależności,
+`rclone` to binarka pobierana z internetu przy budowie obrazu. SigV4 to sto
+linii nad narzędziami, które w tym obrazie i tak muszą być (openssl szyfruje,
+curl dzwoni na webhook). Ta sama zasada, z której powstał własny transport
+poczty (D-047): nie dokładamy paczki, gdy da się bez niej.
+
+**Warunek, na którym to stoi:** algorytm jest sprawdzany **urzędowymi
+wektorami AWS** (klucz podpisu z dokumentacji Signature Version 4 i sygnatura
+`get-vanilla` z `aws-sig-v4-test-suite`) w `tests/skrypty/kopia-bazy.sh`,
+a nie porównaniem z drugą własną implementacją. Dwie implementacje jednej
+osoby potwierdzają wspólne nieporozumienie równie chętnie, jak poprawność.
+**Gdyby te wektory kiedykolwiek zniknęły z testów, ta decyzja przestaje
+obowiązywać** — wtedy lepsza jest paczka od nieweryfikowanego podpisu.
+
+**3. RAILWAY CRON, MIMO ŻE `railway.ts` ODRZUCA GO PRZY SCHEDULERZE.**
+Nie jest to niespójność. Przy schedulerze Laravela problemem była
+GRANULACJA: `everyMinute()` wymaga odpytywania co minutę, a Railway Cron ma
+minimum 5 minut. Tutaj granulacja nie ma żadnego znaczenia — kopia raz na
+dobę może wystartować pięć minut później. Cron jest za to jedyną formą, w
+której kontener wstaje, robi swoje i **umiera**, nie płacąc za czas
+pomiędzy. `restartPolicyType: "NEVER"`, bo nieudany zrzut ma zostać nieudany
+i zaalarmować, a nie wstawać w pętli i zrzucać całą bazę co kilkadziesiąt
+sekund.
+
+**4. CZUJKA W APLIKACJI JEST OSOBNYM ZABEZPIECZENIEM, NIE DUBLOWANIEM.**
+Serwis kopii alarmuje, gdy jego przebieg się nie udał. Nie zaalarmuje, gdy
+przebiegu NIE BYŁO: serwis skasowany, harmonogram wyłączony, limit konta
+wyczerpany, token wygasł. **Kod, który wtedy nie chodzi, nie może o sobie
+donieść** — a #193 nazywa ten stan najgorszym z możliwych, bo „myślisz, że
+masz kopię". Dlatego `kuking:sprawdz-kopie` patrzy z drugiej strony: raz na
+dobę listuje bucket i dzwoni, gdy najnowsza kopia jest za stara.
+
+Aplikacja dostaje do tego bucketu token **TYLKO DO CZYTANIA**, osobny od
+tokenu serwisu kopii. Gdyby miała prawo zapisu, udany atak na nią mógłby
+**skasować kopie** — czyli dokładnie to, przed czym ta warstwa ma chronić.
+Kopia, którą da się zniszczyć z zaatakowanego serwisu, nie jest kopią
+offsite.
+
+**PIĄTA RZECZ, KTÓREJ NIE MA I TRZEBA O NIEJ WIEDZIEĆ.** Nie ma trzeciego,
+niezależnego świadka. Jeśli padnie i serwis kopii, i aplikacja, milczenie
+będzie zupełne — do cotygodniowego przeglądu z `KOPIE_I_ODTWORZENIE.md` §6.
+Zewnętrzny „dead man's switch" (usługa, która dzwoni, gdy PRZESTANIE
+dostawać sygnał) byłby na to właściwą odpowiedzią i jest świadomie odłożony:
+to szósta usługa w projekcie obsługiwanym przez jedną osobę, a przegląd raz
+na tydzień zamyka lukę do tygodnia, nie do nieskończoności.
+
+**Zmiana wymaga:** przeczytania D-043 najpierw. Punkty 1 i 4 są granicami
+bezpieczeństwa, nie preferencjami — hasło zamiast klucza publicznego albo
+token z prawem zapisu w aplikacji cofają całą własność, o którą chodziło.
+
+📄 `docker/kopia/Dockerfile` · `docker/kopia/kopia-bazy.sh` ·
+`docker/kopia/s3.sh` · `.railway/railway.ts` (serwis `kopia-bazy`) ·
+`app/Domain/Kopie/StanKopiiBazy.php` · `app/Domain/Kopie/AlarmKopii.php` ·
+`app/Console/Commands/SprawdzKopieBazy.php` ·
+`tests/skrypty/kopia-bazy.sh` ·
+`docs/infra/KOPIE_I_ODTWORZENIE.md` §7 · D-043 · D-041 · D-047 · #193 · #120
+
+---
+
 ## D-050 · Cloudflare Turnstile na sześciu formularzach publicznych — warunek wysłania, nie filtr. Brak tokenu odrzuca
 
 **Data:** 9 września 2026 · Issue #217 · **Decyzja właściciela** · Status: **obowiązuje**
@@ -7051,6 +7155,99 @@ D-079 · D-080
 
 ---
 
+## D-089 · Panel moderacji na szerokim ekranie: bez zarezerwowanej pustej szyny, a z dwóch „Wróć do Kuking" zostaje jedno — to które jest `position: fixed`
+
+**Data:** 10 września 2026 · **Zgłoszenie właściciela, issue #294 (Galaxy Fold
+rozłożony)** · Status: **obowiązuje**
+
+Zgłoszenie wskazywało sześć rzeczy naraz na `/admin/uzytkownicy`. Cztery
+z nich (nawigacja jako surowa lista zamiast kolumny, samotny „|" nad „Wróć do
+Kuking", ucięty rząd zakładek, tabela wypychająca stronę) naprawiła wcześniej
+ta sama gałąź, przenosząc `.side-nav-item` poza próg `64rem` i dodając
+`flex-wrap` do `.tabs` oraz `position: relative` do kontenera tabeli. Dwie
+pozostałe (punkty 2 i 4 zgłoszenia) wymagały osobnej decyzji — issue wprost
+mówi „do decyzji, które" przy drugiej z nich. Ten wpis zapisuje obie, żeby
+nikt ich nie odkręcił, uznając za przeoczenie.
+
+### 1. Panel nie dostaje trzeciej kolumny (`.app-rail`) od `80rem`
+
+**Stan sprzed zmiany, sprawdzony w kodzie:** `.app-body` od `80rem`
+rezerwowała trzy kolumny (nawigacja, treść, szyna) na **każdym** ekranie
+serwisu — nawet gdy żaden slot `rail` nic do trzeciej nie wkładał. To jest
+świadomy koszt z 7 września, opisany w tym samym miejscu w `app.css`:
+nawigacja ma stać w tym samym `x` na każdym ekranie, a alternatywą byłaby
+siatka skacząca w bok zależnie od tego, czy dana podstrona akurat ma szynę.
+Dla zwykłych ekranów serwisu (Powiadomienia, Ustawienia) ten koszt jest
+niewielki — kolumna szyny na monitorze 1920 px to wąski pasek.
+
+Na panelu moderacji ten sam koszt wygląda inaczej, bo panel nigdy w życiu
+nie poda slotu `rail` — to narzędzie pracy moderatora, nie treść typu „Mój
+zeszyt" czy „kuKINGi na dziś", którym szyna służy. Zmierzone na
+`/admin/uzytkownicy`, okno 1280 px, **przed** poprawką: kolumna treści miała
+576 px zamiast swoich zwykłych 720, bo sztywna kolumna szyny (22rem) obok
+sztywnej kolumny nawigacji (15rem) ściskała środkową, elastyczną kolumnę —
+a to jest dokładnie zgłoszenie właściciela, „treść wciśnięta w lewe ~55%
+ekranu, po prawej duży pusty obszar".
+
+**Decyzja:** `.app-body` dostaje `data-tryb-panelu` (ten sam atrybut co
+`<nav class="side-nav">` obok), a reguła w bloku `80rem` czyta go i zwraca
+panel do dwóch kolumn — bez `var(--container-rail)`. Zwykłe ekrany serwisu
+**zachowują** trzecią, zarezerwowaną kolumnę bez zmian; to nie jest cofnięcie
+decyzji z 7 września, tylko wyjątek dla jedynego miejsca, które nigdy nie
+skorzysta z tego, za co ta kolumna płaci.
+
+**Czego to NIE rozstrzyga:** kolumna czytania (`--container-content`,
+45rem) zostaje wszędzie, panel włącznie — „szerokość strony ma być
+identyczna na każdej podstronie" to osobna, wcześniejsza decyzja właściciela
+i ta zmiana jej nie rusza. Szeroka tabela kont dalej przewija się we własnym
+kontenerze (`.tabela-kont-przewijanie`), nie rośnie do pełnej szerokości
+ekranu.
+
+### 2. Z dwóch „Wróć do Kuking" na szerokim telefonie zostaje dolne
+
+**Stan sprzed zmiany:** poniżej `64rem` panel pokazuje wyjście w dwóch
+miejscach naraz — na górze pionowej listy menu (`.side-nav-powrot`) i w
+stałym pasku dolnym (`.bottom-nav-panel`, `position: fixed`). To jest
+zamierzone i ma własny test (`TrybPaneluWMenuTest`): na wąskim telefonie
+(320–414 px) obie pozycje rzadko widać jednym spojrzeniem, bo trzeba
+przewinąć stronę, żeby dojść od jednej do drugiej. Na szerokim, rozłożonym
+telefonie obie mieszczą się w jednym kadrze bez przewijania — i to czyta się
+jak pomyłka, nie jak zamierzona redundancja.
+
+**Decyzja:** znika górny odnośnik, zostaje dolny — **wyłącznie** w paśmie
+`48rem`–`63.999rem` (768–1023 px), czyli dokładnie w przedziale z opisu
+zgłoszenia („Fold rozłożony ląduje między 768 a 1280"). Poniżej `48rem`
+zachowanie z `TrybPaneluWMenuTest` zostaje nietknięte — oba odnośniki dalej
+są. Od `64rem` górny odnośnik jest jedynym wyjściem (pasek dolny znika tam
+niezależnie, regułą sprzed tej zmiany), więc pasmo dolne tej reguły musi
+kończyć się dokładnie na progu, na którym zaczyna działać nawigacja
+desktopowa.
+
+**Dlaczego zostaje dolny, nie górny:** uzasadnienie górnego odnośnika
+(„musi być widoczny bez przewijania") spełnia pasek dolny **lepiej**, bo jest
+`position: fixed` — widoczny na każdej szerokości telefonu, niezależnie od
+tego, gdzie w danej chwili jest przewinięta strona. Usunięcie odwrotne
+(zostaje górny, znika dolny) zdjęłoby z panelu jedyne wyjście, które nie
+zależy od pozycji przewijania.
+
+**Realizacja jest czysto wizualna:** `display: none` w CSS, znacznik HTML
+zostaje bez zmian. Dzięki temu żaden test czytający treść strony (w tym
+`TrybPaneluWMenuTest::test_w_trybie_panelu_widac_powrot_do_serwisu`, który
+sprawdza obecność OBU odnośników w HTML-u) nie wymagał poprawki — sprawdza
+znacznik, nie to, co akurat pokazuje arkusz stylów przy danej szerokości.
+
+**Zmiana wymaga:** przy każdej przyszłej zmianie progu `64rem` (granicy
+między trybem telefonu a trybem desktopowym panelu) — dopasowania górnej
+granicy tego pasma (`63.999rem`) w tej samej regule, inaczej powstanie
+przerwa albo zakładka pasm.
+
+**Pliki:** `resources/css/app.css` (`.app-body[data-tryb-panelu]`,
+`.side-nav[data-tryb-panelu] .side-nav-powrot`) ·
+`resources/views/components/layout.blade.php` ·
+`tests/Feature/PanelSzerokiTelefonTest.php`
+
+---
+
 ## D-083 · Zdjęcie przypina się i kasuje pod JEDNĄ blokadą wiersza `media`, a pliki znikają dopiero PO commicie — wiersz ze znacznikiem `deleted` jest uchwytem do ponowienia
 
 **Issue:** #285 (MEDIA-01, P1). **Data:** 10.09.2026.
@@ -7531,6 +7728,1066 @@ ekran po polsku zamiast błędu. Wycofanie samej migracji: patrz
 `tests/Feature/ZaproszenieDoRejestracjiTest.php` ·
 `tests/Feature/EkranZaproszeniaTest.php` ·
 `tests/Feature/RejestracjaZZaproszeniaTest.php`
+---
+
+## D-092 · Analityka odwiedzin to Cloudflare Web Analytics — bo cena, a przy okazji żaden nowy dostawca i żaden nowy przepływ danych
+
+**Data:** 10 września 2026 · **Decyzja właściciela; rozstrzygnęła CENA** · Status:
+**obowiązuje** · Zastępuje pierwszą wersję tego wpisu (Plausible), niescaloną
+
+> **O numerze.** Ten wpis miał już raz treść — kończył się wnioskiem
+> „Plausible hostowany w UE". Właściciel tę wersję **odrzucił tego samego dnia**,
+> zanim gałąź została scalona. Numer **zostaje D-092**, bo decyzja jest ta sama
+> („jaka analityka odwiedzin"), tylko z inną odpowiedzią. Branie nowego numeru
+> na zmienioną odpowiedź rozsypuje dziennik na dwa wpisy, z których jeden trzeba
+> by czytać jako „nieaktualny" — a nic w kodzie nie powiedziałoby, który.
+
+### Skąd to pytanie i dlaczego odpowiedź nie brzmi „Google Analytics"
+
+Właściciel chciał wiedzieć dwie rzeczy, których nasza własna analityka nie
+umie powiedzieć: **skąd ludzie przychodzą** i **które strony oglądają**.
+`App\Domain\Analytics\*` (jedenaście klas) liczy zdarzenia, które powstają
+W BAZIE — publikacje, „Ugotowałem", tygodniowe WAC. O kimś, kto wszedł na
+stronę powitalną i wyszedł, nie wie nic i wiedzieć nie może. Pytanie było
+więc dobre.
+
+Kosztem Google Analytics są ciasteczka. A opublikowana polityka prywatności
+mówi dziś użytkownikom dwie rzeczy, sprawdzone w kodzie przed tą decyzją
+i wtedy prawdziwe:
+
+> Statystyki liczymy sami, w naszej własnej bazie — **nie korzystamy z żadnego
+> zewnętrznego narzędzia analitycznego** (ani Google Analytics, ani żadnego
+> innego).
+
+> **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego
+> nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma
+> na co jej udzielać.
+
+Pierwsze zdanie i tak musiało się zmienić — każde zewnętrzne narzędzie je
+łamie. Drugie **nie musiało**, i to jest cała treść tej decyzji. GA kazałoby
+postawić baner zgody: dodatkową przeszkodę na wejściu, do klikania przez
+osoby 50+, przy produkcie, którego całym założeniem jest, żeby nie stawiać
+przeszkód. Zapłacilibyśmy banerem za odpowiedź, którą da się dostać za darmo.
+**Google Analytics nie wraca do rozważenia** i nie wraca też PostHog (patrz
+niżej, „Martwa deklaracja w AGENTS.md").
+
+### Co rozstrzygnęło: cena, powiedziana wprost
+
+Pierwsza wersja tej decyzji wybrała **Plausible** — hostowany w UE, bez
+ciasteczek, 9 € miesięcznie. Właściciel odrzucił go po przedstawieniu kosztu,
+jego słowami:
+
+> „Szkoda mi 9 eur miesięcznie na takie coś… Wolę w coś innego zainwestować"
+
+To jest **prawdziwy powód tej zmiany i dlatego stoi tu wprost**, a nie
+przebrany w argument techniczny. Dziennik decyzji, który ukrywa, że o czymś
+zdecydowała cena, jest gorszy niż brak wpisu: następny agent szukałby
+technicznej wady Plausible, której nie ma.
+
+### Co rozstrzygnęło drugi raz: Cloudflare już tu jest
+
+Po przedstawieniu alternatyw właściciel wybrał **Cloudflare Web Analytics**
+(darmowy beacon JS). Rozstrzygnął argument, którego pierwsza wersja tego wpisu
+nie miała, bo nie było wtedy powodu go szukać:
+
+**Cloudflare przetwarza już KAŻDE żądanie do kuking.pl.** Jest naszym DNS-em,
+CDN-em i WAF-em przed Railwayem (`docs/infra/INFRA_DECISION.md`: „DNS dla
+`kuking.pl`, CDN/WAF przed Railway"), i właśnie dlatego `bootstrap/app.php`
+ma ustawione zaufane proxy — bez tego „Laravel widzi IP Cloudflare zamiast
+użytkownika". Włączenie analityki tej samej firmy **nie wysyła jej ani jednego
+nowego bajta**: pokazuje nam to, co ona i tak obsługuje.
+
+Z tego wynika rzecz, która jest połową wartości tej zmiany i której nie dawał
+żaden inny kandydat: **w polityce prywatności nie doszedł ani nowy dostawca,
+ani trzeci akapit o przekazywaniu danych poza EOG.** Cloudflare, Inc. (USA)
+stoi tam od Turnstile'a (D-050) — w tabeli dostawców i w akapicie o transferze,
+z podstawą **EU-US Data Privacy Framework** plus standardowe klauzule umowne.
+Polityka obiecuje sama sobie: „Jeśli w przyszłości dojdzie kolejny dostawca
+spoza EOG, dopiszemy go do tabeli wyżej i napiszemy tutaj, na jakiej podstawie
+dane do niego trafiają — zanim trafi tam pierwszy rekord". Tutaj obietnica
+była spełniona z góry; dopisany został **nowy CEL** przy tym samym dostawcy
+(analityka odwiedzin obok „sprawdzenia, czy formularz wypełnia człowiek"),
+tak żeby czytelnik widział, że ta sama spółka robi u nas teraz dwie rzeczy.
+
+### Co odrzucono i dlaczego — mierzone, nie brane na słowo
+
+Kandydaci: **Plausible**, **Umami** i **beacon Cloudflare**. Twarde
+wymagania: zero ciasteczek, zero zapisu na urządzeniu człowieka, brak
+profilowania między serwisami.
+
+**Zachowanie skryptów sprawdziłem, pobierając je i czytając**, zamiast wierzyć
+stronom marketingowym — bo to jest zdanie, które trafia do dokumentu prawnego:
+
+| | Plausible (`plausible.io/js/script.js`) | Umami (`cloud.umami.is/script.js`) | **Cloudflare** (`static.cloudflareinsights.com/beacon.min.js`) |
+|---|---|---|---|
+| `document.cookie` | 0 wystąpień | 0 wystąpień | **0 wystąpień** (słowo „cookie" nie pada w pliku w żadnej postaci) |
+| `sessionStorage`, `indexedDB` | 0 | 0 | **0** |
+| `localStorage` | tylko **odczyt** flagi `plausible_ignore`, którą człowiek ustawia sam | tylko **odczyt** flagi `umami.disabled` | **0 — nie zagląda tam wcale** |
+| zapis na urządzeniu (`setItem`) | brak | brak | **brak** (`setItem` i `getItem`: 0 wystąpień) |
+
+Czyli **na tym kryterium przechodzą wszystkie trzy** i nie ono rozstrzygnęło —
+tak samo jak w pierwszej wersji tego wpisu. Beacon Cloudflare wypada tu
+o włos lepiej niż dwaj pozostali (nie ma w nim NIC, co dotyka pamięci
+przeglądarki), ale gdyby chodziło tylko o to, Plausible wystarczyłby.
+
+Rozstrzygnęły trzy rzeczy, w tej kolejności:
+
+1. **Cena.** Plausible: 9 € miesięcznie. Cloudflare Web Analytics: 0 zł,
+   w planie, który już mamy. Przy serwisie prowadzonym przez jedną osobę to
+   jest argument, nie wymówka — patrz cytat wyżej.
+2. **Kto jest podmiotem i ilu ich jest.** Umami Cloud prowadzi Umami
+   Software, Inc. — spółka z Delaware z siedzibą w San Francisco. Nawet
+   z regionem UE dla danych sam dostawca zostaje spoza EOG, czyli w naszej
+   polityce dopisujemy **TRZECI akapit o przekazywaniu danych poza EOG**,
+   obok Turnstile i OpenAI. Plausible (Plausible Insights OÜ, Estonia,
+   serwery Hetznera) nie dokładał akapitu o transferze, ale dokładał
+   **czwartego dostawcę** do tabeli. Cloudflare nie dokłada ani jednego, ani
+   drugiego. Przy dokumencie, który właściciel czyta linijka po linijce, to
+   jest różnica na korzyść zrozumiałości, nie tylko formalna.
+3. **Self-host odpada z powodu architektury, nie niechęci.** Umami
+   samodzielnie hostowany to druga usługa (Node) z własną bazą na Railwayu;
+   Plausible samodzielnie hostowany dokłada do tego jeszcze ClickHouse.
+   `AGENTS.md` §3 mówi: modularny monolit, bez mikroserwisów i bez kolejnej
+   bazy. Dokładanie drugiego procesu do utrzymywania po to, żeby wiedzieć,
+   skąd przychodzą odwiedzający, jest złą wymianą. Cloudflare Web Analytics
+   **nie ma wariantu samodzielnie hostowanego wcale** — i dlatego przestaje
+   obowiązywać uzasadnienie z pierwszej wersji tego wpisu („host w zmiennej
+   środowiskowej, żeby dało się przenieść na własną instancję"): nie ma czego
+   przenosić, a zmienna sugerowałaby, że jest.
+
+**Nie wraca temat pikseli śledzących** (osobna otwarta sprawa, #204).
+**Nie znika nasza analityka serwerowa**: beacon jest jej uzupełnieniem, nie
+zamiennikiem. Jedno odpowiada na „ile osób ugotowało w tym tygodniu", drugie
+na „skąd przychodzą i które strony oglądają, zanim cokolwiek u nas zrobią" —
+i `App\Domain\Analytics\*` zostaje bez jednej zmiany.
+
+### Dlaczego dalej NIE MA banera — i dlaczego to nie jest naciąganie
+
+`docs/legal/COMPLIANCE.md` §5.2 stawia granicę tam, gdzie stawia ją ePrivacy
+i PKE: zgody wymaga **przechowywanie informacji na urządzeniu końcowym albo
+uzyskiwanie dostępu do tej, która już tam jest** — a nie sam fakt liczenia
+czegokolwiek. Beacon Cloudflare nie robi ani jednego, ani drugiego (patrz
+tabela wyżej).
+
+Ten sam dokument, w §5.3, **odradza** próbę „cookieless analytics" bez
+konsultacji prawnej. Ta rada dotyczyła jednak **PostHoga** i zachowuje ważność
+tam, gdzie dotyczyła: PostHog bez identyfikatorów to **konfiguracja**, którą
+da się cofnąć jednym przełącznikiem w cudzym panelu — i wtedy dokument prawny
+przestaje być prawdziwy, a nikt się o tym nie dowie.
+
+**Czy o beaconie Cloudflare da się uczciwie napisać to samo, co napisałem
+o Plausible — że brak ciasteczek jest właściwością narzędzia, a nie
+ustawieniem? Da się, i jest to zmierzone mocniej.** W pliku nie ma ani jednego
+odwołania do `document.cookie`, `localStorage`, `sessionStorage`, `indexedDB`,
+`setItem` ani `getItem`; słowo „cookie" nie pada w nim w żadnej postaci.
+Kodu, który nie ma czym zapisać na urządzeniu, nie da się do tego namówić
+przełącznikiem w panelu. Identyfikator odsłony powstaje z
+`crypto.randomUUID()` w pamięci karty i ginie razem z nią, bo nie ma go gdzie
+odłożyć. Skrypt dodatkowo **czyści adresy przed wysłaniem** (funkcja
+`cleanLocation`): usuwa query string, fragment oraz login i hasło z URL-a,
+więc identyfikator wklejony w link typu `?utm_id=…` do Cloudflare nie dojedzie.
+Ryzyko, przed którym ostrzegała §5.3 — cicha zmiana zachowania pod
+niezmienionym dokumentem — tu nie występuje. Zapisane w COMPLIANCE.md §5.5.
+
+**Czego ten pomiar NIE uprawnia napisać, i dlatego nie napisałem tego nigdzie:**
+że na urządzeniu nie ma żadnego ciasteczka Cloudflare. Proxy i WAF Cloudflare
+to warstwa stojąca przed serwisem niezależnie od tej decyzji (np. bot
+management), której nie mierzyłem. Beacon nie dokłada do niej nic, ale to jest
+osobna sprawa do przeglądu konfiguracji Cloudflare — wypisana wprost
+w COMPLIANCE.md §5.5 jako niezamknięta.
+
+### Wpięcie — trzy rzeczy, które łatwo zrobić źle
+
+1. **Bez zmiennej środowiskowej nie ma ANI ŚLADU znacznika w HTML-u.**
+   Nie „wyłączona flagą", tylko nieobecna. Lokalnie, w testach i w CI cisza.
+   Ten sam wzorzec co puste klucze Turnstile (D-050), i tak samo bez osobnej
+   flagi „włącz analitykę" — dałaby stan „włączone, ale bez tokenu", czyli
+   skrypt wysyłający zdarzenia donikąd.
+2. **Konfiguracja przez `config/kuking.php`, nigdy `env()` w widoku.**
+   Na produkcji konfiguracja jest zbuforowana i `env()` poza plikiem configu
+   oddaje `null` — czyli znacznik z pustym tokenem: skrypt, który się ładuje
+   i nic nie liczy. Z tego samego powodu **ani widok, ani reguła CSP nie
+   powtarzają adresów literałem**: liczą je z konfiguracji przez
+   `App\Support\AnalitykaCloudflare`. Powtórzenie w dwóch miejscach
+   gwarantuje, że przy zmianie jedno zostanie w tyle i skrypt zostanie po
+   cichu zablokowany.
+3. **CSP w DWÓCH dyrektywach, z DWOMA RÓŻNYMI HOSTAMI** — i to jest tu
+   pułapka grubsza niż przy Plausible, gdzie oba adresy były tym samym hostem
+   i jedna wartość obsługiwała obie dyrektywy. Zmierzone w `beacon.min.js`:
+
+   | co | adres | dyrektywa |
+   |---|---|---|
+   | pobranie pliku | `https://static.cloudflareinsights.com/beacon.min.js` | `script-src` |
+   | wysyłka zdarzeń (`navigator.sendBeacon`, zapasowo `XMLHttpRequest`) | `https://cloudflareinsights.com/cdn-cgi/rum` | `connect-src` |
+
+   Host zdarzeń jest **bez `static.`** i jest to podłańcuch hosta skryptu —
+   czyli `str_contains` na nagłówku CSP dawałby wynik dodatni dla hosta,
+   którego tam nie ma. `connect-src` jest w naszej polityce wypisana osobno,
+   więc **nie dziedziczy nic z `default-src 'self'`**. Brak drugiej linijki
+   daje stronę bez usterki, pusty dziennik i pusty panel Cloudflare. Pilnują
+   tego **dwa osobne testy**, po jednym na dyrektywę, plus trzeci na to, czego
+   żaden z nich nie widzi: że te dwa hosty są RÓŻNE (wpisanie jednego w oba
+   miejsca zdałoby oba pierwsze testy).
+
+   Znacznik ma kształt (`token` z panelu, świadomie BEZ pola `version`:
+   zmierzone w skrypcie, jego obecność przełącza adres zdarzeń na ścieżkę
+   względną na naszej domenie — tak działa automatyczne wstrzyknięcie przez
+   proxy — i wtedy host dopuszczony w `connect-src` opisywałby nieprawdę):
+
+   ```html
+   <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+           data-cf-beacon='{"token":"<token>"}'></script>
+   ```
+
+Host analityki wchodzi do CSP **tylko wtedy, gdy analityka jest włączona** —
+tak samo jak host Turnstile (issue #12): polityka opisuje to, co strona
+naprawdę ładuje, a każdy obcy host w `script-src` poszerza powierzchnię ataku.
+
+### Co właściciel musi zrobić ręcznie — DWIE rzeczy, nie jedna
+
+1. **Założyć serwis w panelu i wpisać token w Railwayu.** Cloudflare →
+   Web Analytics → Add a site → `kuking.pl`. Cloudflare pokaże gotowy
+   znacznik `<script>`; z niego potrzebna jest sama wartość pola `token`.
+   W Railwayu jedna zmienna: `CLOUDFLARE_ANALYTICS_TOKEN=<token>`. Do tego
+   czasu serwis chodzi bez analityki i nic nie pada. Opis stoi w `.env.example`.
+   Beacon identyfikuje serwis **tokenem**, a nie nazwą domeny — dlatego jedna
+   zmienna, a nie dwie jak przy Plausible.
+2. **Wyłączyć automatyczne wstrzykiwanie beacona** (Web Analytics →
+   ustawienia serwisu). Cloudflare umie wstrzyknąć ten sam skrypt w locie, na
+   ruchu przechodzącym przez proxy. **O tym najłatwiej zapomnieć i skutek jest
+   cichy:** my stawiamy znacznik w layoucie, więc przy włączonym wstrzykiwaniu
+   strona dostanie **dwa** beacony — każda odsłona policzy się dwa razy, a
+   nasze testy CSP będą opisywać nieprawdę (wstrzyknięta wersja podaje
+   `version`, czyli wysyła zdarzenia na INNY adres niż ten, który dopuszczamy
+   w `connect-src`). Znacznik stawiamy sami świadomie: wstrzyknięcie jest poza
+   repozytorium, poza recenzją i poza testami, więc nie da się go ani
+   przejrzeć, ani zepsuć w kontrolowany sposób — a to jest dokładnie ten
+   rodzaj „działa, dopóki ktoś czegoś nie przestawi w cudzym panelu", przed
+   którym broni cała reszta tej decyzji.
+
+### Uboczne znalezisko 1: `DokumentyPrawneNieKlamiaTest` był za słaby
+
+Kontrola ujemna do tej zmiany wykryła usterkę w istniejącym teście, starszą
+niż ta decyzja i **niezależną od tego, którego dostawcę wybraliśmy**.
+`test_nie_wymieniamy_narzedzi_ktorych_nie_uzywamy` pytał o CAŁY dokument
+(„czy gdziekolwiek stoi zdanie zaprzeczające"), więc jedno prawdziwe zdanie
+usprawiedliwiało każde inne wystąpienie nazwy: dopisanie do polityki zdania
+**„Do statystyk używamy Google Analytics"** testu NIE OBLAŁO, bo obok stało
+prawdziwe „Nie korzystamy z Google Analytics".
+
+Sprawdzenie chodzi teraz po KAŻDYM wystąpieniu nazwy z osobna, w jego własnym
+zdaniu — i po poprawce ten sam sabotaż oblewa (powtórzony jako kontrola ujemna
+przy tej zmianie dostawcy, żeby poprawka nie została po cichu cofnięta).
+Lista narzędzi zakazanych liczy się przy tym z kodu, więc wpięty dostawca
+wypada z niej sam, a jego obecności w dokumencie pilnuje z drugiej strony
+`PolitykaPrywatnosciWymieniaKazdaUslugeTest` — szukając nazwy
+**„Cloudflare Web Analytics"**, a nie samego „Cloudflare", które stoi
+w polityce od Turnstile'a i od R2.
+
+### Uboczne znalezisko 2: martwa deklaracja `PostHog (EU)` w AGENTS.md
+
+`AGENTS.md` §3 wymieniał w tabeli stacku `| Analityka | PostHog (EU) |`.
+Zmierzone tego dnia: **PostHoga nie ma w kodzie ani jednej linijki** — ani
+pakietu, ani `env('POSTHOG_KEY')` w `config/`, ani jednego wywołania. Były
+tylko puste `POSTHOG_KEY` w `.env.example` i w dwóch jobach `ci.yml`, których
+**nic nie czytało**. Ta linijka była nieprawdziwa od dawna.
+
+To ta sama klasa błędu co martwy odnośnik `D-066`: **deklaracja, która wygląda
+na rozstrzygnięcie i zatrzymuje szukanie.** Agent czytający tabelę stacku
+kończył temat analityki na „jest PostHog", zamiast zobaczyć, że nie ma nic.
+Poprawione w `AGENTS.md` i w `README.md`, martwe `POSTHOG_KEY` usunięte
+z `.env.example` i z `ci.yml`.
+
+**Zostało jedno miejsce, świadomie nietknięte:** `.railway/railway.ts` (linie
+422–423) dalej podaje `POSTHOG_KEY` i `POSTHOG_HOST` na środowiska Railwaya.
+Nic tych zmiennych nie czyta, więc są martwe, ale ten plik nie należał do tej
+pracy i pilnuje wdrożenia produkcyjnego — do usunięcia osobno, razem
+z przeglądem zmiennych na Railwayu.
+
+**Pliki:** `config/kuking.php` · `app/Support/AnalitykaCloudflare.php`
+(z przemianowania `app/Support/Plausible.php`) ·
+`app/Http/Middleware/ApplySecurityHeaders.php` ·
+`resources/views/components/layout.blade.php` · `.env.example` ·
+`.github/workflows/ci.yml` · `AGENTS.md` · `README.md` ·
+`resources/legal/polityka-prywatnosci.md` · `docs/legal/COMPLIANCE.md` §2.2, §5.2, §5.5 ·
+`tests/Feature/AnalitykaBezCiasteczekTest.php` ·
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` ·
+`tests/Feature/PolitykaPrywatnosciWymieniaKazdaUslugeTest.php`
+
+---
+
+## D-062 · List, który nie wyszedł, zostawia ślad w bazie i zapala `/health` — a alarmu pocztą o awarii poczty nie wysyłamy
+
+**Data:** 10 września 2026 · Issue #234 · Status: **obowiązuje**
+
+Do dziś odmowa dostawcy kończyła się tak: `OdmowaEmailLabs` wywracała zadanie,
+worker robił trzy próby (`--tries=3 --backoff=10,60,300`, czyli wszystkie
+w około sześciu minutach), zadanie lądowało w `failed_jobs` — i **cisza**.
+Adresat nie dowiadywał się nigdy. Właściciel tylko wtedy, gdy sam z siebie
+uruchomił `php artisan queue:failed` albo `kuking:sprawdz-poczte`.
+
+Najgorsze było to, że **wyglądało to identycznie jak sukces**: kolejka pusta,
+`/health` zielony, w panelu nic. A chodziło o potwierdzenia rejestracji,
+przypomnienia hasła i logowanie linkiem — czyli listy, na które człowiek
+czeka przed ekranem. W grupie 50+ osoba, która nie dostała potwierdzenia, nie
+napisze reklamacji: uzna, że serwis nie działa, i odejdzie.
+
+### 1. Co powstało
+
+Jedna tabela (`mail_failures`), jedna kategoria odmowy, jedno sprawdzenie
+w `/health`, jedna komenda i jedno zdanie na ekranie dla człowieka.
+
+| Warstwa | Co robi |
+|---|---|
+| `App\Poczta\PowodOdmowy` | Cztery kategorie: `limit_dobowy`, `przejsciowa`, `trwala`, `nieznana`. Każda z gotowym zdaniem „co zrobić" |
+| `App\Poczta\TransportEmailLabs` | Ustala kategorię **w chwili odmowy** — jako jedyny widzi kod HTTP i kody błędów dostawcy |
+| `App\Poczta\ZapiszNieudanyList` | Słuchacz `JobFailed`: zamienia ostatnią, przegraną próbę w wiersz `mail_failures` i wpis `Log::error` |
+| `/health` → `checks.listy` | `degraded` z kodem `listy_przepadaja` albo `limit_poczty_wyczerpany`, dopóki ktoś nie odhaczy |
+| `kuking:nieudane-listy` | Co przepadło, komu, dlaczego, co z tym zrobić. `--odhacz` gasi alarm |
+| ekran „Potwierdź adres e-mail" | Przestaje obiecywać list, który nie wyszedł, i przestaje odsyłać do „Spamu" po wiadomość, której tam nie ma |
+
+### 2. Dlaczego `JobFailed`, a nie zdarzenia poczty ani wnętrze transportu
+
+`MessageSending` leci przed wysyłką, `MessageSent` tylko po udanej — żadne
+z nich nie mówi o porażce nic. Wyjątek transportu leci przy **każdej** z trzech
+prób, więc zapisywanie śladu stamtąd dałoby trzy wiersze o jednym liście
+i wpis nawet wtedy, gdy druga próba się udała.
+
+`JobFailed` leci **dokładnie raz**: w chwili, w której worker uznaje zadanie za
+przegrane. To jest ta sama chwila, w której list naprawdę przepada. Warunkiem
+zapisu jest `TransportExceptionInterface` gdziekolwiek w łańcuchu przyczyn —
+czyli **typ, nie treść komunikatu** — więc ślad powstaje tak samo przy naszym
+`emaillabs`, jak przy uśpionym `smtp` (D-047), a zgadywanie z tekstu nie
+przestanie działać po cichu przy zmianie wersji biblioteki (lekcja z W7-07).
+
+**Słuchacz nie ma prawa rzucić i cała jego treść jest w `try`.** To jest
+najważniejsza własność tego kodu: wiersz w `failed_jobs` zapisuje INNY
+słuchacz tego samego zdarzenia (`WorkCommand::logFailedJob`, rejestrowany
+dopiero przy starcie `queue:work`), a nasz — zarejestrowany w dostawcy usług —
+leci pierwszy. Gdyby padł, zabrałby diagnostyce payload, czyli jedyną rzecz,
+z której da się list ponowić. Zamiana „nikt się nie dowie" na „nikt się nie
+dowie i nie ma czego ponowić" byłaby poprawką w złą stronę. Pilnuje tego
+`NieudanyListZostawiaSladTest::test_awaria_zapisu_sladu_nie_przewraca_obslugi_bledu`.
+
+### 3. Alarmu pocztą NIE WYSYŁAMY — i to jest decyzja, nie zapomnienie
+
+Kusi, żeby wysłać list na `KUKING_MODEL_ALARM_EMAIL`, tak jak robią to
+`kuking:podsumowanie-automatu` i `kuking:pilnuj-terminow-odwolan`. Nie robimy
+tego z trzech powodów, w tej kolejności:
+
+1. **Najczęstszy przypadek to wyczerpany limit dobowy.** Wtedy list o awarii
+   odbije się identycznie jak ten, o którym miał donieść — alarm nie dojdzie
+   dokładnie wtedy, gdy jest najbardziej potrzebny.
+2. **Pętla.** Nieudany alarm jest sam nieudanym listem, więc zostawia własny
+   ślad, o którym trzeba by donieść. Wersja warunkowa („alarmuj tylko przy
+   odmowie trwałej") wymaga bezpiecznika, którego nie da się sprawdzić inaczej
+   niż na produkcji — a issue #234 zabrania wprost powiadomień, które mogą się
+   zapętlić.
+3. **Ślad ma nie zależeć od kanału, który właśnie padł.** Stąd trzy miejsca,
+   z których żadne nie jest pocztą: **wiersz w bazie** (przeżywa restart,
+   wdrożenie i `queue:flush`), **`/health`** (odpytywany przez Railway
+   i monitoring zewnętrzny co kilka minut — to on jest tu automatem) oraz
+   **`Log::error`** w dzienniku serwera.
+
+> **SPROSTOWANIE DO §3, ZROBIONE PRZY SCALANIU Z `main` 10 września 2026.**
+> Ten punkt twierdził wcześniej, że `Log::error` „przy ustawionym
+> `LOG_BLAD_WEBHOOK_URL` (D-041) idzie na webhook, a przy `vars.SENTRY_ORG`
+> do Sentry". **Sprawdzone w kodzie: nieprawda**, i to nieprawda kosztowna,
+> bo cała ta decyzja opierała na niej zdanie „właściciel ma szansę dowiedzieć
+> się bez zaglądania". Kanał `blad_webhook` NIE jest częścią stosu domyślnego
+> (`config/logging.php`: `stack` → `LOG_STACK`, a `.env.example` ustawia
+> `LOG_STACK=single`); woła się do niego JAWNIE, z `bootstrap/app.php` przy
+> raportowaniu wyjątku i z `App\Domain\Contact\DzwonekOperatora`. Sentry'ego
+> nie ma w `composer.json` wcale (D-041,
+> `docs/infra/INFRA_DECISION.md` — sprostowanie z tego samego dnia).
+>
+> Zwykłe `Log::error()` zostaje więc w pliku na serwerze i **nikogo nie budzi**.
+> Wynika z tego dwie rzeczy, obie już zrobione:
+>
+> 1. **Ostrzeżenie o kończącej się puli (§6) dzwoni na `blad_webhook` JAWNIE**,
+>    obok wpisu w dzienniku serwera — bo `/health` o suficie nie mówi nic
+>    i bez tego był to sygnał, którego nie widzi nikt.
+> 2. **Automatem, który zamienia `checks.listy` w dzwonek, jest `/health`, nie
+>    dziennik** — a `/health` dzwoni na ten kanał dopiero z PR #255
+>    (`HealthController::powiadomWebhook()`). Do czasu scalenia #255 jedynym
+>    automatem nad `checks.listy` jest monitoring zewnętrzny czytający TREŚĆ
+>    odpowiedzi. Zależność jest więc jednokierunkowa i nazwana: #253 zostawia
+>    ślad, #255 sprawia, że ktoś go usłyszy.
+>
+> Nie zmienia się nic w kierunku decyzji: obowiązkowe zostają **wiersz
+> w bazie i `/health`**, bo tylko one nie zależą od tego, czy właściciel
+> ustawił adres webhooka.
+
+Odpowiedź na pytanie z issue („skąd właściciel się dowie") brzmi więc:
+**z monitoringu `/health`, który już istnieje i już jest odpytywany**, a przy
+zaglądaniu — z `kuking:nieudane-listy` i z `kuking:sprawdz-poczte`, które teraz
+liczy przepadłe listy osobno od resztki `failed_jobs`.
+
+### 4. Człowiek, który czekał, dowiaduje się na ekranie — jednym zdaniem o faktach
+
+Ekran „Potwierdź adres e-mail" mówił zawsze „Wysłaliśmy wiadomość" i kończył
+radą „Zajrzyj do folderu «Spam»". Gdy dostawca listu nie przyjął, oba zdania
+były nieprawdą, a rada wysyłała człowieka na poszukiwanie wiadomości, która
+nigdy nie powstała.
+
+Teraz, gdy w `mail_failures` leży ślad dla TEGO konta świeższy niż
+`kuking.poczta.okno_prawdy_godzin` (domyślnie 24 h), ekran mówi: *„Ostatnia
+wiadomość nie dotarła. Wysłaliśmy ją 10.09 o 14:22, ale nasz dostawca poczty
+jej nie przyjął — więc nie ma jej ani w Twojej skrzynce, ani w folderze
+«Spam»"* — i podaje adres kontaktowy. Rada o „Spamie" jest wtedy
+**podmieniona**, nie dołożona.
+
+Zdanie opisuje **zdarzenie z przeszłości, z datą**, a nie stan („listy do
+Ciebie nie wychodzą"). Dzięki temu zostaje prawdziwe także po udanym
+ponowieniu i nie potrzebuje w bazie żadnego znacznika „już naprawione", czyli
+drugiego stanu do pilnowania.
+
+**Świadomie zawężone do potwierdzenia adresu.** Reset hasła i logowanie
+linkiem odpowiadają identycznie dla adresu z kontem i bez konta (D-056), więc
+zdanie „Twój list nie wyszedł" na tamtych ekranach byłoby wyrocznią „kto ma
+konto w Kuking" — czyli wyciekiem. Tam prawdę mówi już `App\Support\Poczta`,
+gdy poczta nie wychodzi w ogóle.
+
+### 5. „Nie wyszedł teraz" ≠ „nie wyjdzie nigdy"
+
+Kategoria nie steruje ponawianiem i `--tries` **zostaje na trzech** (issue #234
+mówi wprost: nie podnosić). Kategoria mówi CZŁOWIEKOWI, co zrobić, i rozdziela
+kod w `/health`:
+
+| Kategoria | Skąd się bierze | Co robi właściciel |
+|---|---|---|
+| `limit_dobowy` | HTTP 429 **albo** słowo o limicie w błędzie dostawcy — także przy HTTP 2xx | Nie powtarza dziś. Po północy `queue:retry`, a jeśli się powtarza — płatny plan |
+| `przejsciowa` | HTTP 5xx, 408, zerwane połączenie | `queue:retry` — najprawdopodobniej wystarczy |
+| `trwala` | pozostałe 4xx i 207 (zły adres, zły klucz, odrzucony nadawca) | Powtarzanie nic nie da; trzeba coś zmienić |
+| `nieznana` | odpowiedź, której nie umiemy odczytać | Traktuje jak awarię, nie jak coś, co samo przejdzie |
+
+**Słowa o limicie sprawdzamy PRZED kodem HTTP** i to nie jest kolejność
+przypadkowa: dostawcy wysyłają „limit exceeded" także z kodem 2xx i 4xx,
+a klasyfikacja po samym kodzie kazałaby wtedy właścicielowi szukać usterki
+w konfiguracji przez cały dzień, w którym wystarczyło poczekać do północy.
+
+### 6. Ostrzeżenie ZANIM pula się skończy
+
+`DziennyBudzetListow::sprobujZarezerwowac()` zapisuje `Log::error` i dzwoni na
+kanał `blad_webhook`, gdy zużycie sufitu przekroczy
+`kuking.poczta.prog_ostrzezenia_procent` (domyślnie 80%) — **raz na dobę na
+funkcję**, bo alarm, który się powtarza, uczy się ignorować. To jedyny
+wyprzedzający sygnał, jaki ten serwis ma, i odpowiada na czwarty punkt
+issue #234: przejście na płatny plan ma dać się zrobić dzień wcześniej, nie
+w dniu awarii. Na webhook idzie **jedno zdanie z samymi liczbami i nazwą
+funkcji**, w dzienniku serwera zostaje pełny kontekst — bo webhook wychodzi do
+usługi, nad którą nie mamy kontroli (audyt A6-01).
+
+**OSTRZEŻENIE STOI PO ODDANIU BLOKADY SUFITU, NIE W `zajmij()`** — i to jest
+poprawka zrobiona przy scalaniu z D-076, nie szczegół stylu. Gałąź #253
+powstała, gdy `zajmij()` chodziło samo; D-076 zrobiło z niego drugi krok
+atomowej rezerwacji **pod `Cache::lock()`**. Wołanie ostrzeżenia stamtąd
+wkładałoby do sekcji krytycznej dobowego sufitu zapis do dziennika,
+`Cache::add()` i żądanie HTTP z limitem trzech sekund — a `CZEKANIE_SEKUND`
+w tej klasie to **dwie**. Jedno ostrzeżenie „zaraz zabraknie listów"
+odmawiałoby więc wysyłki wszystkim żądaniom, które w tym czasie czekają na
+blokadę: sygnał o kończącej się puli sam by ją zabierał. Pilnuje tego
+`SufitPocztyOstrzegaZawczasuTest::test_ostrzezenie_pada_dopiero_po_oddaniu_blokady_sufitu`,
+który zdobywa tę samą blokadę z wnętrza słuchacza dziennika.
+
+Skutek uboczny, przyjęty świadomie: droga listu próbnego
+`kuking:wyslij-podsumowania --tylko`, która woła `zajmij()` wprost, nie
+ostrzega o niczym. I nie powinna — ten list wychodzi ŚWIADOMIE ponad sufitem
+(D-076), przy właścicielu patrzącym w konsolę, a stan puli wypisuje mu
+`php artisan kuking:sprawdz-poczte`.
+
+### 7. Alarm gaśnie po ODHACZENIU, nie po czasie
+
+`/health` mówi `degraded`, dopóki w `mail_failures` leży choć jeden wiersz
+z `zauwazony_at IS NULL`. **Bez okna czasowego** — i to jest sedno: alarm
+z oknem „ostatniej godziny" gaśnie sam, czyli awaria z drugiej w nocy jest
+o świcie znowu niewidoczna. To ta sama cicha porażka, tylko o kilka godzin
+późniejsza.
+
+Cena, przyjęta świadomie: `/health` może stać w `degraded` przez wiele godzin.
+`listy` nie są na liście `KRYTYCZNE`, więc trasa oddaje dalej **HTTP 200**
+i Railway nie restartuje z tego powodu niczego (ta lekcja jest stara —
+healthcheck oddający 503 już raz położył ten serwis). Odhaczenie to jedna
+komenda, po przeczytaniu: `php artisan kuking:nieudane-listy --odhacz`.
+
+### 8. Czego świadomie NIE zrobiliśmy
+
+- **Pozycji w panelu moderacji.** Trzy inne gałęzie pracują równolegle
+  w `resources/views/pages/admin/**`, a alarm, który już działa bez panelu
+  (`/health` + dziennik + komenda), nie jest wart kolizji. Panel jest
+  naturalnym miejscem na to później — jako osobna praca, nie doklejona tutaj.
+- **Podnoszenia `--tries` i własnego ponawiania.** Issue #234 zabrania
+  pierwszego, a drugie byłoby drugim systemem kolejek obok tego, który już
+  jest.
+- **Drugiej tabeli na ostrzeżenia o limicie.** Ostrzeżenie z §6 nie jest
+  awarią i nie ma czego odhaczać — wiersz w bazie sugerowałby, że jest.
+- **Zapisu adresu odbiorcy.** Jest w payloadzie zadania i w koncie; trzecia
+  kopia byłaby trzecią rzeczą do skasowania przy żądaniu RODO.
+
+### 9. Zmiana wymaga
+
+Przemyślenia obu połówek naraz. Dodanie piątej kategorii do `PowodOdmowy` bez
+migracji kończy się cichym `QueryException` w słuchaczu, czyli **utratą śladu
+przy pierwszej awarii nowego typu** — dlatego CHECK w bazie powstaje z listy
+`PowodOdmowy::wartosci()`, a `NieudanyListZostawiaSladTest` porównuje jedno
+z drugim. Dołożenie okna czasowego do sondy `/health` cofa §7. Owinięcie
+`ZapiszNieudanyList` czymkolwiek, co rzuca, cofa §2.
+
+Pilnują tego: `NieudanyListZostawiaSladTest`,
+`SufitPocztyOstrzegaZawczasuTest`, `PocztaPrzezApiEmailLabsTest`,
+`HealthNieZdradzaSzczegolowTest`, `PodzialLimituPocztyTest`.
+
+### 10. Spotkanie z D-076, D-077 i D-078 (dopisane przy scalaniu z `main`)
+
+Ta gałąź powstała PRZED trzema decyzjami, które weszły na `main` tego samego
+dnia. `git` nie pokazał ani jednego konfliktu tekstowego w kodzie poza jedną
+metodą — a mimo to trzy rzeczy wymagały rozstrzygnięcia:
+
+1. **D-076 (atomowa rezerwacja dobowego budżetu).** Jedyny prawdziwy konflikt
+   merytoryczny i jedyny naprawiony kodem: ostrzeżenie z §6 przeniesione
+   z `zajmij()` do `sprobujZarezerwowac()`, poza blokadę. Wyprowadzenie
+   w §6.
+2. **D-077 (rezerwacja `(osoba, tydzień)` przed wysłaniem digestu).**
+   **Nie koliduje — a `mail_failures` domyka jedną świadomą lukę tamtej
+   decyzji.** D-077 §5 pisze wprost: „nie ma sposobu, żeby dowiedzieć się
+   z bazy, którym osobom list przepadł — wiersz rezerwacji wygląda identycznie
+   dla «wysłano» i dla «padło po rezerwacji»". Od tej gałęzi jest sposób:
+   wiersz `mail_failures` z `user_id` i `rodzaj`. Nie zmienia to kierunku
+   D-077 (rezerwacja ZOSTAJE, ta osoba nie dostaje listu za ten tydzień) —
+   zmienia tylko to, że właściciel WIE, komu przepadł, i może napisać innym
+   kanałem.
+   **Czego to nadal nie łapie, powiedziane wprost:** ślad powstaje na
+   `JobFailed`, czyli dla zadania, które WESZŁO do kolejki i tam przegrało.
+   Gdyby samo `Mail::queue()` rzuciło synchronicznie (np. padła baza kolejki),
+   rezerwacja tygodnia zostaje, listu nie ma i śladu też nie ma. To jest
+   dokładnie kierunek pomyłki wybrany w D-077 §5 i tej gałęzi nie wolno go
+   po cichu odwracać — dlatego niczego tu nie „naprawiono".
+3. **D-078 (sygnał digestu mówi `weekly_digest_queued`).** Nie koliduje i nie
+   dubluje się: D-078 poprawiło NAZWĘ metryki, która zawyżała skuteczność
+   wysyłki, bo liczyła zakolejkowanie jako wysłanie. Ta gałąź dokłada to,
+   czego tamta nazwa nie mogła mieć — **twardy ślad o liście, który przegrał
+   w workerze**. Jedno mówi „zakolejkowaliśmy tyle", drugie „tyle przepadło";
+   razem dają liczbę, której do dziś nie było. Żadnego `delivered` ani
+   `opened` ta gałąź nie wprowadza (#204 zostaje zamknięte na „nie").
+
+📄 `app/Poczta/PowodOdmowy.php` · `app/Poczta/BezpiecznyKomunikat.php` ·
+`app/Poczta/ZapiszNieudanyList.php` · `app/Poczta/OdmowaEmailLabs.php` ·
+`app/Poczta/TransportEmailLabs.php` · `app/Models/MailFailure.php` ·
+`app/Providers/PocztaServiceProvider.php` ·
+`app/Http/Controllers/HealthController.php` ·
+`app/Http/Controllers/Auth/EmailVerificationController.php` ·
+`app/Console/Commands/NieudaneListy.php` ·
+`app/Console/Commands/SprawdzPoczte.php` ·
+`app/Domain/Security/DziennyBudzetListow.php` ·
+`resources/views/auth/verify-email.blade.php` ·
+migracja `2026_09_10_500000_create_mail_failures_table` ·
+`config/kuking.php` (`poczta`) · `docs/DATABASE.md` ·
+`docs/infra/MONITORING_BLEDOW.md`
+
+---
+
+## D-063 · PostHog: nie teraz — statystyki zostają własne, w naszej bazie
+
+**Data:** 10 września 2026 · Issue #33 (audyt monitoringu) · Status: **obowiązuje do spełnienia warunków powrotu niżej**
+
+`AGENTS.md` §3 nazywa PostHog (EU) docelową analityką w tabeli stacku, a
+issue #33 prosił o „projekt na EU Cloud" i taksonomię zdarzeń. Audyt
+zewnętrzny z 9 września (`docs/research/ANALITYKA_STAN_WDROZENIA.md` §0)
+potwierdza stan faktyczny: **PostHog nie jest wpięty nigdzie w kodzie.**
+Cała taksonomia z `docs/seo/ANALYTICS.md` jest planem, nigdy nie
+uruchomionym. Ta decyzja nie zmienia tego stanu — mówi, dlaczego, i pod
+jakim warunkiem miałby się zmienić.
+
+### 1. Co PostHog realnie by dał
+
+- **Lejki i porzucenia bez pisania SQL-a** — `docs/seo/ANALYTICS.md` opisuje
+  dziesiątki zdarzeń (`onboarding_step_failed`, `recipe_create_abandoned`,
+  `photo_upload_failed` z powodem) i budowanie z nich lejków w interfejsie,
+  zamiast ręcznie liczonych zapytań w `app/Domain/Analytics`.
+- **Session replay i heatmapy** — dziś nie mamy NIC, co pokazuje, GDZIE
+  na ekranie ludzie się gubią, tylko ŻE się gubią (z liczby zdarzeń).
+- **Segmentację i kohorty** bez pisania nowej migracji za każdym razem, gdy
+  ktoś chce inaczej podzielić użytkowników.
+- **Feature flagi / A-B testy** — infrastruktura, której dziś nie ma wcale.
+
+### 2. Czego PostHog NIE daje przy tej skali
+
+- **Nie zastępuje statystyk, które produkt pokazuje UŻYTKOWNIKOM** — liczba
+  „Ugotowań", licznik obserwujących, statystyki panelu admina. Te muszą
+  zostać w PostgreSQL niezależnie od PostHoga, bo muszą być widoczne w
+  interfejsie, nie tylko w dashboardzie analitycznym (polityka prywatności,
+  sekcja 3: „Statystyki liczymy sami, w naszej własnej bazie" — zdanie,
+  nie tylko intencja tego dokumentu).
+- **Nie rozwiązuje niczego, czego nie da się dziś policzyć zapytaniem SQL.**
+  Przy kilkuset użytkownikach i JEDNYM właścicielu bez zespołu produktowego
+  ani analityka, pytania typu „ile osób porzuciło kreator przepisu na kroku
+  2" da się odpowiedzieć zapytaniem do `recipe_versions`/`product_signals`
+  w kilka minut — dokładnie tak, jak dziś liczy to
+  `app/Domain/Analytics/*` (audyt z 9 września to potwierdza).
+- **Nie jest za darmo w danych osobowych.** Nawet w konfiguracji „bez
+  identyfikatorów" (`docs/legal/COMPLIANCE.md` §5.3) PostHog widzi adres IP
+  i cechy przeglądarki każdego zdarzenia — to jest NOWY podprocesor,
+  którego dziś nie ma, i NOWE zdanie w tabeli sekcji 3 polityki prywatności
+  („Statystyki liczymy sami, w naszej własnej bazie — nie korzystamy z
+  żadnego zewnętrznego narzędzia analitycznego" przestałoby być prawdą —
+  `PolitykaPrywatnosciWymieniaKazdaUslugeTest` i `DokumentyPrawneNieKlamiaTest`
+  oblałyby się tego samego dnia, i słusznie).
+- **Nie jest za darmo bez banera zgody.** `docs/legal/COMPLIANCE.md` §5.3-5.4
+  ustala wprost: Polska (UODO) nie ma wyjątku dla analityki, jaki mają
+  Francja, Włochy czy Hiszpania (ten warunek issue #33 oznaczał `[do
+  weryfikacji]` — sprawdzone: UODO nie wydała takich wytycznych, więc
+  ostrożne założenie „potrzebny baner" zostaje). Realistyczny wariant
+  „bez identyfikatorów, bez cookies" wymaga rygorystycznej konfiguracji
+  i konsultacji prawnej, których dziś nikt nie zamówił — dokładnie tak,
+  jak COMPLIANCE.md to rekomenduje dla zespołu tej wielkości.
+- **Zakaz publicznych rankingów w AGENTS.md/FEATURES.md nie zmienia się
+  przez PostHoga** — PostHog to narzędzie WEWNĘTRZNE dla właściciela, nie
+  publiczny ranking; to nie jest argument za ani przeciw, tylko potwierdzenie,
+  że ta decyzja nie dotyka tamtej.
+
+### 3. Rachunek przy jednym właścicielu i kilkuset użytkownikach
+
+Koszt wdrożenia PostHoga to nie composer/npm (SDK JS jest darmowy do
+wpięcia), tylko:
+
+1. decyzja produktowa o banerze zgody ALBO konfiguracji bez-zgodowej
+   (`docs/legal/COMPLIANCE.md` §5.4) — pracy prawnej i UX, nie kodu;
+2. zmiana `resources/legal/polityka-prywatnosci.md` (nowy wiersz w tabeli
+   dostawców, akapit o EOG — PostHog EU Cloud siedzi we Frankfurcie, więc
+   przekazywanie poza EOG raczej nie dotyczy, ale to trzeba SPRAWDZIĆ przy
+   wdrożeniu, nie założyć);
+3. utrzymywanie DRUGIEGO źródła prawdy o zachowaniu użytkowników obok
+   `app/Domain/Analytics` — ryzyko dokładnie takiego rozjazdu, jakiego
+   ten projekt unika wszędzie indziej (`kuking.media_disk`, dwa liczniki
+   budżetu poczty, D-060).
+
+Przy jednym właścicielu, kilkuset użytkownikach i istniejącej, działającej
+analityce w PostgreSQL ten koszt dziś przewyższa korzyść. Lejki i porzucenia
+da się policzyć zapytaniem; session replay i feature flagi są przydatne przy
+zespole i skali, których jeszcze nie ma.
+
+### 4. Decyzja: nie teraz. Warunki powrotu
+
+PostHog **zostaje w tabeli stacku jako wybór docelowy** (`AGENTS.md` §3) —
+ta decyzja go stamtąd nie usuwa, tylko mówi, że jeszcze nie teraz. Wracamy
+do tematu, gdy zajdzie **którykolwiek** z tych warunków:
+
+1. serwis przekroczy rząd wielkości, przy którym zapytanie SQL przestaje
+   wystarczać na odpowiedź w rozsądnym czasie (w praktyce: tysiące aktywnych
+   użytkowników dziennie, nie setki);
+2. do zespołu dojdzie osoba odpowiedzialna za produkt/wzrost, dla której
+   lejki bez pisania SQL-a są codzienną pracą, nie ciekawostką raz na
+   miesiąc;
+3. pojawi się konkretne pytanie produktowe, którego `app/Domain/Analytics`
+   NIE umie dziś odpowiedzieć (nie „może się przyda", tylko realne pytanie
+   bez odpowiedzi);
+4. właściciel PODEJMIE decyzję o banerze zgody (albo o konfiguracji
+   bez-zgodowej po konsultacji prawnej) — to jest warunek WSTĘPNY, nie
+   następstwo wdrożenia.
+
+Gdy któryś z warunków zajdzie: wybrać PostHog Cloud **EU** (nigdy US —
+`docs/legal/COMPLIANCE.md` §4), wpiąć zgodnie z taksonomią
+`docs/seo/ANALYTICS.md`, i **W TYM SAMYM PR-ze** dopisać wiersz w tabeli
+dostawców `resources/legal/polityka-prywatnosci.md` oraz usunąć/przeformułować
+zdanie „nie korzystamy z żadnego zewnętrznego narzędzia analitycznego" —
+dokładnie ten sam mechanizm, który D-024/D-038 pilnują w drugą stronę.
+`.railway/railway.ts` i `.env.example` mają już przygotowane
+`POSTHOG_KEY`/`POSTHOG_HOST` (EU) — ten kawałek nie wymaga zmian.
+
+**Pliki:** `docs/seo/ANALYTICS.md` · `docs/legal/COMPLIANCE.md` §4-5 ·
+`docs/research/ANALITYKA_STAN_WDROZENIA.md` §0 ·
+`app/Domain/Analytics/*` · `resources/legal/polityka-prywatnosci.md` §3 ·
+`tests/Feature/PolitykaPrywatnosciWymieniaKazdaUslugeTest.php` ·
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` · `AGENTS.md` §3
+
+---
+
+## D-093 · Kasowanie konta bierze wiersze `follows` i `blocks` po jednym, w kolejności ustalonej PRZEZ DANE — `ZamekPary` się tu nie da i to jest zmierzone
+
+**Data:** 10 września 2026 · Audyt kolejności blokad, znalezisko Z-2
+(`docs/research/2026-09-10-kolejnosc-blokad.md`) · Status: **obowiązuje**
+
+### Co było złamane
+
+`EraseAccountData` bierze wiersz `users` pod `FOR UPDATE` — zgodnie z regułą
+„konto najpierw" z D-075 — ale relacje kasowało **bez żadnej ustalonej
+kolejności wierszy**, dwoma hurtowymi `detach()` w stałej kolejności RÓL:
+
+```php
+$fresh->following()->detach();   // wiersze (X, *)
+$fresh->followers()->detach();   // wiersze (*, X)
+```
+
+Dla pary, która obserwuje się wzajemnie, w `follows` leżą DWA wiersze:
+`(X,Y)` i `(Y,X)`. Egzekucja konta X brała najpierw `(X,Y)`, potem `(Y,X)`;
+egzekucja konta Y — dokładnie odwrotnie. Każda trzymała to, na co czekała
+druga, i PostgreSQL zabijał jedną z nich (pomiar E5 audytu, odtworzony przy
+tej poprawce na dwóch połączeniach):
+
+```text
+ERROR: deadlock detected
+CONTEXT: while deleting tuple (0,5) in relation "follows"
+```
+
+**Co widział człowiek.** Nocna komenda `kuking:usun-wygasle-konta` przerywa
+się w połowie, a konto, które **prosiło o usunięcie**, nie zostaje tej nocy
+wymazane. Przy kolejnym przebiegu zwykle przejdzie — ale „zwykle" nie jest
+obietnicą, a to jest obowiązek prawny (RODO art. 17), nie wygoda.
+
+**Jak realne.** `routes/console.php:96` ma `withoutOverlapping()`, więc
+harmonogram nie zderzy się sam ze sobą. Zderzy się z **ręcznym przebiegiem
+właściciela**, a D-077 §3 wymienia ten scenariusz wprost jako realny
+w tym projekcie.
+
+### Decyzja
+
+Wiersze `follows` i `blocks` kasujemy **po jednym, w kolejności wyliczonej
+z klucza głównego wiersza** — nowa metoda prywatna
+`EraseAccountData::usunRelacjeWKolejnosciDanych()`. Który identyfikator siada
+w której pozycji klucza, wynika z DEFINICJI RELACJI (`following()` to zawsze
+`follower_id → followed_id`, dla każdego konta jednakowo), a nie z tego, KTÓRE
+konto jest wymazywane. Obie egzekucje wyliczają więc dla wiersza `(X,Y)` ten
+sam klucz, ustawiają się w kolejce i nie mają z czego zbudować cyklu.
+
+Kontrola dodatnia naprawy, zmierzona na dwóch połączeniach do PostgreSQL:
+kolejność po rolach → `deadlock detected`; kolejność po danych → druga
+egzekucja **czeka w kolejce**, po obu zostaje zero wierszy.
+
+**`detach()` zostaje.** Kasujemy nadal przez relację, tylko z jawnym
+identyfikatorem: `detach([$id])` jest zawężony do tego konta ORAZ do jednego
+wskazanego wiersza, więc najgorsza możliwa awaria tej ścieżki — zabranie
+relacji dwóch obcych osób — pozostaje niemożliwa z konstrukcji (pilnuje tego
+`WymazanieKontaUsuwaRelacjeI2FATest::test_relacje_innych_osob_zostaja_nietkniete`).
+Sam odczyt listy wierszy idzie po surowej tabeli: odczyt niczego nie kasuje,
+a branie go przez relację dokładałoby złączenie z `users` i narażało listę na
+dowolny przyszły zakres globalny na modelu konta.
+
+**Schemat bazy się NIE zmienia.** Żadnej migracji, żadnego wpisu
+w `docs/DATABASE.md` — to poprawka kolejności operacji, nie modelu danych.
+
+### Dlaczego NIE `ZamekPary` — nie „drożej", a **nie da się**
+
+Raport dawał drugą drogę: przepuścić kasowanie relacji przez `ZamekPary` dla
+każdej pary z osobna, z ceną „tyle transakcji, ile relacji". Ta droga jest
+odrzucona nie z powodu ceny, tylko dlatego, że **jest niepoprawna w tym
+miejscu** — i to jest zmierzone, nie wydedukowane.
+
+`handle()` trzyma już wiersz `users` wymazywanego konta pod `FOR UPDATE`
+(D-075). `ZamekPary` bierze OBA wiersze pary rosnąco po identyfikatorze —
+czyli dla pary, w której wymazywane konto ma identyfikator wyższy, chciałby
+wziąć najpierw wiersz drugiej osoby. Dwie egzekucje na parze wzajemnej
+odtwarzają wtedy **dokładnie cykl z Z-1/D-090**: każda trzyma własny wiersz
+`users` i czeka na cudzy. Zmierzone:
+
+```text
+ERROR: deadlock detected
+CONTEXT: while locking tuple … in relation "users"
+```
+
+Czyli lekarstwo wprowadzałoby tę samą chorobę, którą D-090 właśnie
+wyleczyło — tylko na innej tabeli. Dodatkowo zagnieżdżone `DB::transaction()`
+jest w Laravelu tylko **punktem powrotu**, a nie osobną transakcją, więc
+obiecana cena („tyle transakcji, ile relacji") i tak nie jest osiągalna
+z wnętrza tej transakcji: blokady żyłyby do commitu transakcji zewnętrznej.
+
+`ZamekPary` zostaje więc **nietknięty** i nadal jest jedynym gardłem dla
+operacji na parze osób wykonywanych Z ZEWNĄTRZ (`FollowUser`, `BlockUser`).
+Kasowanie konta nie jest taką operacją: dotyczy JEDNEGO konta i wszystkich
+jego par naraz, a wchodzi od strony blokady konta, nie pary.
+
+### Dlaczego NIE jedno zapytanie z `ORDER BY … FOR UPDATE`
+
+To była pierwsza, tańsza droga z raportu — dwa zapytania na tabelę zamiast
+tylu, ile relacji. Odrzucona z tego samego powodu, dla którego `ZamekPary`
+bierze swoje dwa wiersze `users` dwoma osobnymi zapytaniami, i ten powód jest
+już zapisany w tym repozytorium:
+
+> `SELECT … ORDER BY id FOR UPDATE` blokuje wiersze w kolejności, w jakiej
+> wypuszcza je plan zapytania. (…) Gwarancja, która trzyma się na kształcie
+> planu, nie jest gwarancją.
+
+Druga, słabsza reguła kolejności blokad w tej samej dziedzinie to dokładnie
+ten rozjazd, przed którym ostrzega D-079 („dwie różne kolejności w jednym
+repozytorium to zakleszczenie, a nie zabezpieczenie"). `DELETE` w PostgreSQL
+nie przyjmuje przy tym `ORDER BY` wcale, więc wariant „jedno zapytanie"
+i tak wymagałby osobnego `SELECT … FOR UPDATE` przed nim.
+
+Rozważony i odrzucony był też wariant naprawdę tani: dwa hurtowe `DELETE`
+rozdzielone warunkiem na danych (`follower_id < followed_id` i odwrotnie).
+Dla DWÓCH równoległych egzekucji jest poprawny, ale dla trzech już nie —
+w obrębie jednego hurtowego `DELETE` kolejność wierszy nadal ustala plan,
+więc trzy egzekucje na trzech parach mogą domknąć cykl `X→Y→Z→X`. Poprawność
+zależna od liczby równoległych przebiegów nie jest poprawnością, a nic nie
+gwarantuje, że przebiegów będzie najwyżej dwa.
+
+**Cena, którą płacimy, nazwana wprost:** tyle zapytań `DELETE`, ile relacji
+ma kasowane konto — ale w JEDNEJ transakcji (nie tyle transakcji, ile
+relacji) i w nocnej komendzie, nie w żądaniu HTTP. Przy koncie z setką relacji
+to setka zapytań do lokalnej bazy, czyli rzędu kilkudziesięciu milisekund.
+
+### `blocks` ma ten sam kształt — i został naprawiony razem
+
+Sprawdzone przy migracji, nie założone.
+`2026_09_05_000300_create_follows_and_blocks_tables` daje `blocks` klucz
+główny `(blocker_id, blocked_id)` i CHECK `blocker_id <> blocked_id`, ale
+**nic nie zabrania pary wzajemnej** — „X zablokował Y" i „Y zablokował X" to
+dwa osobne wiersze, dokładnie jak w `follows`. Ta sama usterka, ta sama
+naprawa, osobny test (bo osobne wywołanie łatwo poprawić tylko w jednym
+z dwóch miejsc).
+
+`tag_follows` **zostaje jednym hurtowym `detach()`** i to nie jest
+niedokończona robota: kluczem jest `(user_id, tag_id)`, więc dwie egzekucje
+różnych kont nie mają ani jednego wspólnego wiersza — nie ma czego szeregować
+i nie ma jak zbudować cyklu. Wiersz `tags` po drugiej stronie klucza obcego
+też nie tworzy wspólnego punktu, i to jest zmierzone: `DELETE` z tabeli
+odsyłającej nie bierze na wierszu rodzica ŻADNEJ blokady (0 blokad krotek
+i 0 wpisów w `pg_locks` dla relacji rodzica). Blokady kluczy obcych, które
+dały Z-1, bierze `INSERT`, nie `DELETE`.
+
+### Czego ta decyzja NIE rozstrzyga
+
+**Nie zakłada grupy testów `dwa-polaczenia`.** Rozdział 7 raportu wycenia ją
+na pół dnia szkieletu i nazywa najwyższy koszt: testy na prawdziwej
+równoległości bywają niestabilne, a niestabilny test jest tu gorszy niż jego
+brak. To zostaje osobną decyzją. Skutkiem jest to, że **brak `40P01` przy
+prawdziwej równoległości nie jest dziś pilnowany żadnym testem** — zmierzono
+go poza zestawem, a `KasowanieKontaBierzeRelacjeWKolejnosciDanychTest`
+pilnuje dwóch rzeczy słabszych, ale sprawdzalnych na jednym połączeniu:
+że każde zapytanie kasujące wskazuje dokładnie jeden wiersz (więc kolejności
+nie ustala plan) i że dwie egzekucje na tej samej parze biorą wiersze w tej
+samej kolejności (więc kolejność jest funkcją danych, nie roli). Ograniczenie
+jest wypisane w docblocku tego pliku, zgodnie z `docs/PULAPKI_TESTOW.md` §6.
+
+**Nie rusza `usunTresci()`, a znaleziono tam podobny kształt.** Przy zakresie
+`everything` kasowanie przepisu zabiera kaskadą CUDZE komentarze i CUDZE
+wykonania pod nim (to jest świadome, D-022) — a to znaczy, że dwie egzekucje
+mogą dotknąć tego samego wiersza `comments` z dwóch stron: jedna przez
+`$user->comments()`, druga kaskadą od swojego przepisu. Kształt jest podobny
+do Z-2, ale **nie jest zmierzony** i nie ma zgłoszenia; zapisuję go tu jako
+znalezisko z czytania, nie jako ustalenie. Naprawianie go „przy okazji" tej
+poprawki byłoby dokładnie tym, przed czym raport ostrzegał przy Z-2.
+
+**Nie rusza Z-3** (`LoginLinkController::store()` bierze wiersz tokenu bez
+wiersza konta). Osobna decyzja.
+
+### Jak to wycofać
+
+Jedna metoda prywatna i dwa wywołania. Przywrócenie czterech hurtowych
+`detach()` w miejsce dwóch wywołań `usunRelacjeWKolejnosciDanych()` wraca do
+stanu sprzed poprawki — bez migracji, bez zmiany schematu i bez wpływu na
+dane już wymazane. Cena wycofania to powrót zakleszczenia Z-2.
+
+**Zmiana wymaga:** rezygnacji z zasady „kolejność blokad ustalają dane, nie
+role" — a wtedy razem z nią z D-079, D-080 i D-090. Sama kolejność (rosnąco
+po kluczu) nie podlega zmianie inaczej niż we wszystkich miejscach naraz.
+
+**Pliki:** `app/Domain/Users/Actions/EraseAccountData.php` ·
+`tests/Feature/KasowanieKontaBierzeRelacjeWKolejnosciDanychTest.php` ·
+`docs/research/2026-09-10-kolejnosc-blokad.md` ·
+D-022 · D-075 · D-077 · D-079 · D-080 · D-090
+
+---
+
+## D-099 · Automat dostępności mierzy stronę W TYM STANIE, W KTÓRYM WYDAJE JĄ PRODUKT — czerwone 2.4.11 na `main` było usterką POMIARU, nie belki
+
+**Data:** 11 września 2026 · **Naprawa automatu** (job „Dostępność" oblewający
+na `main`, blokujący #306 i #213) · Status: **obowiązuje**
+
+### Objaw: ten sam kod, pięć przebiegów, pięć różnych wyników
+
+Job „Dostępność (axe-core) i wydajność (Lighthouse)" oblewał na `main`
+i na każdym PR-ze z niego zbudowanym. Zawsze **WCAG 2.2 AA — 2.4.11 Focus Not
+Obscured**, zawsze wariant **`tekst 140%`**, zawsze pod `.bottom-nav` —
+a za każdym razem inny ekran, inny element i inna szerokość:
+
+| przebieg | wynik |
+|---|---|
+| #303 (`142e645`) | 2: `szukaj / 320 px` „Rosół babci Zofii”, `ustawienia profilu / 360 px` `input#f-region` |
+| #307 (`8372d10`) | 1: `tablica / 360 px`, odnośnik z datą |
+| #308 (`d62bee1`) | 1: `tablica / 414 px`, odnośnik „Ania” |
+| #306 (`84f67f3`) | 0 |
+| #306 (`4f045d9`) | 1, w powtórce 2 |
+
+Wynik zależny od przebiegu, łącznie z zerem, przy niezmienionym kodzie.
+
+### Co się okazało: strona była mierzona W TRAKCIE PRZELICZANIA UKŁADU
+
+Produkt wydaje `data-text-scale` na `<html>` **po stronie serwera**
+(`layout.blade.php` w. 165), więc strona osoby, która włączyła większy tekst,
+jest ułożona dużym pismem od pierwszego ułożenia i nigdy się z tego powodu
+nie przelicza. Automat robił odwrotnie: wczytywał stronę w rozmiarze
+domyślnym, dokładał atrybut po wczytaniu — i **od razu zaczynał chodzić
+Tabem**.
+
+Przeliczenie układu po zmianie atrybutu na korzeniu nie jest natychmiastowe.
+Zmierzone w kontenerze deweloperskim (Chromium 153, `/tagi` i `/szukaj` przy
+320 px), pomiar wykonany zaraz po `setAttribute` potrafił jeszcze zobaczyć
+układ SPRZED skalowania — i to w stanie mieszanym, który sam w sobie jest
+dowodem:
+
+```text
+--user-text-scale (styl policzony)   1.4      ← już nowe
+scroll-padding-bottom na :root       179,2px  ← już nowe
+.bottom-nav, wysokość ułożona         66,6px  ← jeszcze stare (skala 1)
+.site-footer, wypełnienie dolne      128px    ← jeszcze stare (skala 1)
+```
+
+Strona przy tekście 140% jest o mniej więcej jedną trzecią wyższa (zmierzone
+na `/szukaj` przy 320 px: `scrollHeight` 2796 → 3744 px). Jeżeli przeliczenie
+wypadło **w trakcie** chodzenia Tabem, to element, który przeglądarka przed
+chwilą przewinęła nad belkę, zjeżdżał razem z rosnącą stroną w dół — a drugi
+raz nikt go już nie przewija, bo fokus się nie zmienił. Element lądował pod
+belką i automat notował FAIL.
+
+**Kontrola dodatnia mechanizmu.** Przy przeliczeniu opóźnionym o sześć kroków
+Taba wychodzą dokładnie te elementy, które zgłaszało CI — odnośnik „Ania” na
+tablicy przy 360 i 414 px (por. #308); przy opóźnieniu o trzy i o dziesięć
+kroków — zero. To jest cała zmienność wyniku, łącznie z przebiegami zielonymi.
+
+### Hipoteza, którą to OBALA: „`scroll-padding` nie ma na czym zadziałać”
+
+Naturalne wyjaśnienie brzmiało: `scroll-padding-bottom` działa tylko wtedy,
+gdy przeglądarka coś przewija, a element leżący już w oknie — wizualnie pod
+belką, formalnie „widoczny” — przewijania nie wywoła. Gdyby to była prawda,
+D-082 byłoby naprawą pozorną, a jedynym wyjściem `position: sticky`.
+
+**Zmierzone i nieprawdziwe** (Chromium 153, okno 740 px, tekst 140%).
+Chromium liczy „czy element jest widoczny” względem *scroll snapport*, czyli
+okna POMNIEJSZONEGO o `scroll-padding` — więc element leżący w pasie pod
+belką jest dla niego niewidoczny i zostaje przewinięty. Bezpośredni pomiar:
+odnośnik „Ania” na `/home` przy 414 px, przy przewinięciu 0, ramka
+676…706 px (czyli w całości pod belką zaczynającą się na 664,8 px), po
+nadaniu fokusu — `scrollY` 0 → 411 i ramka 265…295 px.
+
+Pomiar wyczerpujący, bez loterii kolejności: **każdy** element ogniskowalny na
+`/home`, `/szukaj`, `/ustawienia/profil` i `/tagi`, przy 320/360/414 px
+i tekście 140%, ogniskowany osobno po wyzerowaniu przewinięcia (167 kontrolek
+na szerokość):
+
+| stan arkusza | kontrolek kończących w 100% pod belką |
+|---|---|
+| `main` (z `scroll-padding-bottom`) | **0** |
+| bez `scroll-padding-bottom` (kontrola ujemna) | **13** |
+
+Lista tych trzynastu zawiera „Ludzie” (`szukaj / 414 px`), „Ania”
+(`tablica / 414 px`), odnośnik z datą, `input#f-username`
+(`ustawienia profilu / 360 px`) i „Do 30 minut” — czyli **dokładnie te
+elementy, które zgłaszało CI**. To jest ostatni brakujący dowód: CI zgłaszało
+te elementy, które `scroll-padding-bottom` ratuje, w przebiegach, w których
+nie zdążyło ono zadziałać na właściwym układzie.
+
+### Decyzja
+
+**1. Wariant skali tekstu czeka na PRZELICZONY układ i sprawdza, że wszedł.**
+`wlaczSkaleTekstu()` w `scripts/dostepnosc.mjs` nadaje atrybut, po czym czeka
+na STAN, a nie na zegar: aż ułożona strona pokaże wielkość pisma
+podstawowego odpowiadającą żądanej skali (`body` ma `font-size:
+var(--text-body)`, czyli `1.125rem × --user-text-scale`). Czekanie na czas
+byłoby zakładem o szybkość maszyny — czyli tym samym błędem z innym progiem,
+bo runner GitHuba bywa wolniejszy od tego kontenera.
+
+Sprawdzana jest wielkość UŁOŻONA, nie sama wartość zmiennej: to właśnie
+zmienna była już nowa wtedy, gdy układ był jeszcze stary.
+
+**Niepowodzenie jest BŁĘDEM, nie pominięciem.** Ekran, którego nie udało się
+przeliczyć, nie zostaje zapisany jako zbadany — skrypt kończy kodem 1. Pomiar
+w nieznanej skali jest gorszy niż jego brak; to ten sam wzorzec, co
+istniejące sprawdzenie korzenia przy wariancie „czcionka przeglądarki 200%”.
+
+**2. Pierwszeństwo ma przeglądarka, którą mierzy CI.** `znajdzChromium()`
+brało ścieżkę z obrazu deweloperskiego zawsze, gdy tylko istniała — a to
+rewizja 1194 (Chromium 141), podczas gdy `playwright` 1.63 przypina 1243
+(Chrome 153) i to ją pobiera runner. Dopóki tak było, „u mnie zielone,
+na CI czerwone” mogło znaczyć wyłącznie tyle, że to były dwie różne
+przeglądarki — i nie dało się tego rozstrzygnąć bez ręcznego ustawiania
+zmiennej. Teraz bierzemy tę, którą weźmie CI; ścieżka z obrazu zostaje
+zapasem. `CHROMIUM_PATH` dalej przebija wszystko.
+
+### Czego ta decyzja NIE robi — i to jest w niej najważniejsze
+
+**Nie zmienia ani jednej linijki CSS-a i nie rusza D-082.** Belka zostaje
+`position: fixed`, rezerwa zostaje liczona. Sprzeczności 2.4.11 z 2.5.8 nie
+trzeba było rozstrzygać, bo nie było czego kupować: pomiar wyczerpujący mówi
+0 naruszeń 2.4.11 przy nietkniętym arkuszu. Zamiana `fixed` na `sticky`
+kosztowałaby trzy naruszenia 2.5.8 (D-082 ma je zmierzone) w zamian za
+naprawę usterki, której nie ma.
+
+**Dowód, że jedno naruszenie nie zostało wymienione na drugie**, jest w tym
+samym przebiegu, nie w osobnym: axe chodzi tu z `wcag22aa`, czyli
+z regułą `target-size` (2.5.8), na wariantach 1280 px i 320 px. Pełny
+przebieg po zmianie: `naruszeń: 0, blokujących: 0, przepełnień w poziomie: 0,
+focus zasłonięty w 100%: 0`.
+
+**Nie podnosi żadnego progu, nie wyłącza żadnej reguły i nie przenosi
+niczego do „ostrzeżeń produktowych".** 23 ostrzeżenia „focus częściowo
+zasłonięty" (25–75%) zostają tam, gdzie były — nie są naruszeniem 2.4.11
+i nadal nie liczą się do kodu wyjścia. Zestaw kontrol zatrzymujących CI jest
+niezmieniony i pilnowany testem.
+
+**Nie usuwa zależności od dat zalążkowych.** `DemoSeeder` liczy daty od
+`now()`, więc treść (a przez nią wysokość strony) różni się między
+przebiegami. Po tej poprawce ta zmienność przestaje mieć skutek: przy
+ułożonym układzie miejsce elementu nie decyduje o wyniku, bo przewijanie
+fokusu każdy element wyprowadza spod belki, a rezerwa na końcu dokumentu
+(179,2 px przy 140%) jest większa od belki (105,5 px) na każdej mierzonej
+szerokości. Zamrożenie zegara siewu wymagałoby zmiany w `DemoSeeder` i jest
+osobną pracą.
+
+### Przy okazji, w tym samym pliku — dwie zaległości z §14.6 przekazania
+
+* **`/tagi` wchodzi na listę `EKRANY`** (jako gość, bo taka to strona).
+  Powstało w #303 (D-087) i przez dwie doby było jedyną stroną publiczną
+  serwisu, której automat nie oglądał — nie z decyzji, tylko dlatego, że plik
+  trzymały wtedy trzy gałęzie naraz. Brak ekranu na liście niczego nie psuje
+  i dlatego jest groźny: raport wygląda na kompletny.
+* **`liczbyProfilu` wchodzą do `storage/dostepnosc.json`** — kontrola
+  `rozjazdyLiczb` (D-091) była w linii podsumowania i w warunku wyjścia,
+  a w artefakcie jej nie było. Artefakt jest jedynym miejscem, z którego
+  da się odczytać przyczynę po skończonym przebiegu.
+
+### Czym to jest pilnowane
+
+Dwa nowe testy chodzą w jobie `test`, czyli ZAWSZE — także wtedy, gdy job
+`dostepnosc` się nie odpali, bo ten startuje warunkowo (`git diff`).
+
+`PomiarDostepnosciKonczyKodemJedenTest` sprawdza wszystkie **trzy miejsca
+zbiorcze** tego pliku (§14.5 przekazania) osobno: linię podsumowania, warunek
+wyjścia kodem 1 i artefakt JSON. Lista siedmiu kontrol jest w teście wpisana
+z ręki, a nie czytana ze źródła — kontrola wyprowadzona z badanego pliku
+znika razem z nim. Ten sam test pilnuje, że skala tekstu wchodzi wyłącznie
+przez `wlaczSkaleTekstu` we wszystkich trzech pomiarach; powrót do gołego
+`setAttribute` przywraca wyścig, i to po cichu, bo objawia się on dopiero na
+obciążonej maszynie i raz na kilka przebiegów.
+
+`PomiarDostepnosciObejmujeStronyPubliczneTest` porównuje tablicę tras z listą
+`EKRANY` i wymaga, żeby każda strona publiczna była mierzona albo stała na
+wypisanej liście świadomych wyjątków z powodem. Skan ujawnił przy okazji
+**siedem stron publicznych, których automat nie ogląda** — `o-kuking`,
+`pomoc`, `odwolanie` (gość), `nie-pamietam-hasla`, `logowanie/link`,
+`logowanie/kod`, `cofnij-usuniecie-konta`. Stoją na tej liście jako
+**dług nazwany**, nie jako wyjątek merytoryczny: dopisanie ich to osobna
+praca, bo każdy nowy ekran może przynieść własne znaleziska, a tego nie robi
+się w PR-ze, który ma odblokować `main`.
+
+### Jak to wycofać
+
+Trzy niezależne kawałki, każdy osobno. Przywrócenie gołego `setAttribute`
+w trzech miejscach wraca do stanu sprzed poprawki (i do losowego czerwonego
+CI). Przywrócenie starej kolejności w `znajdzChromium()` wraca do mierzenia
+lokalnie inną przeglądarką niż na CI. Skreślenie `/tagi` i `liczbyProfilu`
+wraca do niepełnego pomiaru i niepełnego artefaktu. Żadne z nich nie dotyka
+danych, schematu ani wyglądu serwisu.
+
+**Zmiana wymaga:** rezygnacji z zasady „automat mierzy stronę w tym stanie,
+w którym wydaje ją produkt". Gdyby produkt kiedyś zaczął zmieniać skalę
+tekstu bez przeładowania strony, ta decyzja przestaje być tylko o pomiarze
+i trzeba ją napisać od nowa — razem z odpowiedzią na pytanie, co wtedy dzieje
+się z fokusem, który już stoi na elemencie.
+
+**Pliki:** `scripts/dostepnosc.mjs` ·
+`tests/Feature/PomiarDostepnosciKonczyKodemJedenTest.php` ·
+`tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php` ·
+D-082 · D-087 · D-091
 
 ---
 

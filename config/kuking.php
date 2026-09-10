@@ -1458,6 +1458,50 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Kopia bazy poza Railwayem — CZUJKA, nie sama kopia
+    |--------------------------------------------------------------------------
+    |
+    | Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`,
+    | issue #193, decyzja D-043) — nie ta aplikacja. Aplikacja robi drugą
+    | rzecz, której tamten serwis zrobić NIE MOŻE: pilnuje, czy on w ogóle
+    | jeszcze chodzi.
+    |
+    | DLACZEGO TO JEST OSOBNE ZADANIE, A NIE DUBLOWANIE
+    | Serwis kopii alarmuje, gdy przebieg mu się nie udał. Nie zaalarmuje,
+    | gdy przebiegu NIE BYŁO: skasowany serwis, wyłączony harmonogram,
+    | wyczerpany limit, zmieniona nazwa bucketu. Kod, który wtedy nie chodzi,
+    | nie może o sobie donieść — i to jest dokładnie ten stan, który #193
+    | nazywa najgorszym z możliwych („myślisz, że masz kopię").
+    |
+    | Ta czujka patrzy z drugiej strony: raz na dobę listuje bucket i dzwoni,
+    | gdy najnowsza kopia jest starsza niż `maks_wiek_godzin`.
+    |
+    | UPRAWNIENIA: aplikacja dostaje token R2 TYLKO DO CZYTANIA tego bucketu
+    | (`r2_kopie` w config/filesystems.php). Nie może nic tam zapisać ani
+    | skasować, a to, co przeczyta, jest zaszyfrowane kluczem publicznym,
+    | którego pary nie ma w żadnym środowisku uruchomieniowym.
+    |
+    | BRAK KONFIGURACJI = ZERO EFEKTU. Dopóki bucket nie istnieje (stan na
+    | 9 września 2026), `AWS_KOPIE_BUCKET` jest puste i czujka milczy —
+    | tak samo jak kanał `blad_webhook` przy pustym `LOG_BLAD_WEBHOOK_URL`.
+    | Cisza z powodu braku konfiguracji nie może udawać ciszy z powodu
+    | „wszystko w porządku", dlatego komenda mówi wprost, że jest wyłączona.
+    */
+    'kopie' => [
+        'dysk' => env('KUKING_KOPIE_DISK', 'r2_kopie'),
+
+        // Ten sam prefiks, co `KOPIA_PREFIKS` w serwisie kopii. Rozjazd tych
+        // dwóch wartości daje czujkę, która zawsze widzi pusty katalog
+        // i zawsze krzyczy — czyli alarm, który uczy się ignorować.
+        'prefiks' => env('KUKING_KOPIE_PREFIKS', 'baza/'),
+
+        // 36 h przy harmonogramie dobowym: jeden przebieg ma prawo wypaść
+        // (restart, chwilowa niedostępność R2), dwa już nie.
+        'maks_wiek_godzin' => (int) env('KUKING_KOPIE_MAKS_WIEK_GODZIN', 36),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
@@ -1526,6 +1570,51 @@ return [
 
         // Ile listów zostawiamy wolnych na pocztę bez sufitu (patrz wyżej).
         'rezerwa_transakcyjna' => (int) env('KUKING_POCZTA_REZERWA', 100),
+
+        /*
+         * ILE DNI TRZYMAMY ODHACZONE ŚLADY NIEUDANYCH LISTÓW
+         * (`mail_failures`, issue #234, D-062).
+         *
+         * Dotyczy WYŁĄCZNIE wierszy odhaczonych, czyli takich, o których
+         * właściciel już wie. Nieodhaczonych nie kasuje nic i nigdy — to
+         * jedyne miejsce, w którym istnieje wiedza o tym, że komuś nie doszedł
+         * list, a wiek jej nie unieważnia.
+         *
+         * W wierszu nie ma adresu ani treści listu (patrz migracja), więc to
+         * nie jest termin z RODO, tylko higiena: tabela ma nie rosnąć bez
+         * końca. Zero albo mniej wyłącza sprzątanie.
+         */
+        'retencja_dni' => (int) env('KUKING_POCZTA_RETENCJA_DNI', 90),
+
+        /*
+         * PRÓG OSTRZEŻENIA O KOŃCZĄCYM SIĘ DOBOWYM SUFICIE, W PROCENTACH
+         * zużycia (issue #234).
+         *
+         * Przy 80 ostrzeżenie idzie do dziennika po zużyciu 80% sufitu danej
+         * funkcji — czyli ZANIM listy zaczną odbijać się od limitu dostawcy.
+         * O to prosi issue #234 wprost: przejście na płatny plan ma dać się
+         * zrobić dzień wcześniej, nie w dniu awarii.
+         *
+         * Ostrzeżenie leci RAZ NA DOBĘ NA FUNKCJĘ (`DziennyBudzetListow`).
+         * Bez tego przy sufitcie 120 listów jeden dzień wysyłki dałby
+         * dwadzieścia cztery identyczne wpisy, a webhook błędów zamieniłby
+         * się w szum, który uczy się ignorować.
+         *
+         * 100 albo więcej wyłącza ostrzeganie (sufit i tak zatrzyma wysyłkę).
+         */
+        'prog_ostrzezenia_procent' => (int) env('KUKING_POCZTA_PROG_OSTRZEZENIA', 80),
+
+        /*
+         * ILE GODZIN EKRAN MÓWI CZŁOWIEKOWI, ŻE JEGO LIST NIE WYSZEDŁ
+         * (D-062 §4).
+         *
+         * Ekran „Potwierdź adres e-mail" pokazuje zdanie o nieudanej wysyłce
+         * tylko wtedy, gdy porażka jest świeża. Po dobie zdanie znika, bo
+         * przestaje być pomocne: człowiek ma na tym samym ekranie przycisk
+         * „Wyślij wiadomość jeszcze raz", a ostrzeżenie sprzed tygodnia
+         * mówiłoby tylko „coś kiedyś nie wyszło".
+         */
+        'okno_prawdy_godzin' => (int) env('KUKING_POCZTA_OKNO_PRAWDY_GODZIN', 24),
     ],
 
     'digest' => [
@@ -1646,7 +1735,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-08',
+        'wersja_polityki' => '2026-09-10',
     ],
 
     'analytics' => [
@@ -1679,6 +1768,76 @@ return [
         // długie, że aktywna sesja przeglądania (feed, przepis, kilka
         // zdjęć) generuje NAJWYŻEJ jeden zapis, nie jeden na każde kliknięcie.
         'last_seen_throttle_minutes' => (int) env('KUKING_LAST_SEEN_THROTTLE_MINUTES', 15),
+
+        /*
+         * CLOUDFLARE WEB ANALYTICS — jedyna zewnętrzna analityka w tym
+         * serwisie (D-092).
+         *
+         * PO CO W OGÓLE, SKORO MAMY `App\Domain\Analytics\*`
+         * Bo to są dwa różne pytania. Nasza analityka serwerowa odpowiada na
+         * „ile osób ugotowało w tym tygodniu" — liczy zdarzenia, które
+         * powstają W BAZIE, więc o kimś, kto wszedł na stronę powitalną
+         * i wyszedł, nie wie NIC. Beacon Cloudflare odpowiada na drugie
+         * pytanie, którego z Postgresa zadać się nie da: skąd ludzie
+         * przychodzą i które strony oglądają, ZANIM cokolwiek u nas zrobią.
+         * Jedno nie zastępuje drugiego i nic z `App\Domain\Analytics\*`
+         * nie znika.
+         *
+         * DLACZEGO CLOUDFLARE, A NIE PLAUSIBLE (który stał tu przez pół dnia)
+         * Decyzja właściciela i rozstrzygnęła cena: Plausible to 9 € miesięcznie
+         * za odpowiedź na dwa pytania, a Cloudflare już przetwarza KAŻDE
+         * żądanie do kuking.pl, bo jest naszym CDN-em i WAF-em przed Railwayem
+         * (`docs/infra/INFRA_DECISION.md`). Włączenie jego analityki nie wysyła
+         * mu ani jednego nowego bajta i nie dokłada dostawcy do polityki
+         * prywatności — Cloudflare, Inc. stoi tam od Turnstile'a (D-050).
+         *
+         * PUSTY TOKEN = SKRYPTU NIE MA W HTML-U W OGÓLE. To jest stan
+         * domyślny lokalnie, w testach i w CI — dokładnie ten sam wzorzec
+         * co puste klucze Turnstile (D-050). Nie ma osobnej flagi „włącz
+         * analitykę" obok tokenu, bo dałaby stan „włączone, ale bez tokenu",
+         * czyli skrypt wysyłający zdarzenia donikąd — narzędzie meldujące
+         * sukces, nie robiąc nic (patrz `App\Support\Turnstile`).
+         */
+        'cloudflare' => [
+            /*
+             * Token serwisu z panelu Cloudflare (Web Analytics → Add a site).
+             * Puste = analityki nie ma.
+             *
+             * Beacon identyfikuje serwis TOKENEM, a nie nazwą domeny — to
+             * jedyna różnica w konfiguracji względem Plausible, które
+             * potrzebowało domeny i hosta. Token nie jest sekretem: stoi
+             * w HTML-u każdej strony i tak ma być.
+             */
+            'token' => trim((string) env('CLOUDFLARE_ANALYTICS_TOKEN', '')),
+
+            /*
+             * DWA RÓŻNE HOSTY, I TO NIE JEST LITERÓWKA.
+             *
+             * Zmierzone przez pobranie i odczytanie `beacon.min.js`
+             * (D-092), a nie przepisane z dokumentacji dostawcy:
+             *
+             *   - plik pobiera się z `static.cloudflareinsights.com`
+             *     → dyrektywa `script-src`,
+             *   - zdarzenia lecą na `cloudflareinsights.com/cdn-cgi/rum`,
+             *     czyli na host BEZ `static.` → dyrektywa `connect-src`.
+             *
+             * Przy Plausible oba adresy były tym samym hostem, więc jedna
+             * wartość obsługiwała obie dyrektywy CSP. Tutaj nie obsługuje,
+             * i dopisanie tylko pierwszego daje stronę bez usterki, pusty
+             * panel i zero śladu w dzienniku.
+             *
+             * Adresy stoją TUTAJ, a nie w `env()`, bo Cloudflare Web
+             * Analytics nie ma wariantu samodzielnie hostowanego — nie ma
+             * czego przenosić, a zmienna środowiskowa sugerowałaby, że jest.
+             * Widok i reguła CSP liczą je z tego miejsca przez
+             * `App\Support\AnalitykaCloudflare` i NIE powtarzają literałów:
+             * powtórzenie w dwóch miejscach gwarantuje, że przy zmianie
+             * jedno zostanie w tyle i skrypt zostanie po cichu zablokowany
+             * przez politykę bezpieczeństwa — bez śladu na ekranie.
+             */
+            'host_skryptu' => 'https://static.cloudflareinsights.com',
+            'host_zdarzen' => 'https://cloudflareinsights.com',
+        ],
     ],
 
     'audit_log' => [

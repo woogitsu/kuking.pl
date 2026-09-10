@@ -78,17 +78,22 @@ fi
 # „proces się skończył" od „proces padł".
 krok "Skrypty powłoki"
 _bledy_bash=""
-for _skrypt in docker/entrypoint.sh scripts/*.sh tests/skrypty/*.sh; do
+for _skrypt in docker/entrypoint.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$_skrypt" ] || continue
     bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
 done
 
 if [ -n "$_bledy_bash" ]; then
     zle "Błąd składni w:$_bledy_bash"
-elif bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
-    ok "Składnia i testy entrypointu przechodzą"
-else
+elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
+    # Kopia bazy to też skrypt powłoki, w obrazie bez PHP (decyzja D-043),
+    # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
+    # kopia bazy — Railway na Free/Hobby nie robi żadnych.
+    zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
+else
+    ok "Składnia i testy skryptów powłoki przechodzą"
 fi
 
 # --- 3c. Dostępność (opcjonalna) -------------------------------------------

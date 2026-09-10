@@ -165,7 +165,7 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
      * Ten sam zaimek stoi też legalnie w `resources/legal/regulamin.md`
      * i `polityka-prywatnosci.md` („sam wybierasz", „sam decydujesz, co
      * dzieje się z Twoimi tekstami") — a teksty prawne mają swój reżim
-     * i osobne zlecenie (D-066 §3, `docs/brand/COPY_STYLE.md` §6). Gdyby te
+     * i osobne zlecenie (`docs/brand/COPY_STYLE.md` §6). Gdyby te
      * wzorce trafiły do wspólnej `WZORCE`, `test_teksty_prawne_…` zacząłby
      * obalać rzeczy, których ten PR świadomie nie rusza — dokładnie ten
      * rodzaj przypadkowego rozszerzenia zakresu, przed którym ostrzega
