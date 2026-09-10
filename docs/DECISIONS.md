@@ -2463,9 +2463,10 @@ Pilnują tego `ZmianaAdresuEmailTest` i `AdresEmailPozaMasowymPrzypisaniemTest`.
 
 ---
 
-## D-050 · Cloudflare Turnstile na formularzach publicznych — filtr, nie bramka. Brak tokenu nie blokuje wysłania
+## D-050 · Cloudflare Turnstile na sześciu formularzach publicznych — warunek wysłania, nie filtr. Brak tokenu odrzuca
 
 **Data:** 9 września 2026 · Issue #217 · **Decyzja właściciela** · Status: **obowiązuje**
+· **Zaostrzone tego samego dnia, po wdrożeniu PR #218 — patrz sekcja o braku tokenu**
 
 Turnstile w trybie **Managed** stoi na **sześciu** formularzach publicznych —
 wszędzie tam, gdzie do serwisu wchodzi ktoś niezalogowany: `/register`,
@@ -2496,57 +2497,111 @@ logowaniu), a rozjazd między dokumentami jest gorszy niż brak dokumentów.
 
 Zostaje jednak istota tamtego sprzeciwu i to ona kształtuje całą resztę tej
 decyzji: **nie wolno postawić przed człowiekiem 50+ bramki, przez którą może
-nie przejść.**
+nie przejść** — a jeśli już się ją stawia, to razem z drogą obok niej.
 
-### DLACZEGO BRAK TOKENU NIE BLOKUJE — TO NIE JEST NIEDOKOŃCZONA ROBOTA
+### BRAK TOKENU ODRZUCA WYSŁANIE — I PIERWOTNIE BYŁO ODWROTNIE
 
-`AGENTS.md` §5 mówi, że rejestracja, logowanie, publikacja wpisu, przepis,
-komentarz i „Ugotowałem" **działają bez JavaScriptu**. Turnstile jest
-widgetem JS i **wersji bez JS nie ma** — nie ma tu sprytnego wyjścia.
-Konsekwencja jest jedna:
+Stan faktyczny:
 
 ```text
-brak tokenu          → PRZEPUSZCZAMY  (zostają limity zapytań, klucz_wyslania,
-                                       weryfikacja adresu e-mail)
-token nieprawdziwy   → ODRZUCAMY      (polski komunikat mówiący, co zrobić)
+brak tokenu          → ODRZUCAMY     (osobny komunikat mówiący, co zrobić,
+                                      + wpis w dzienniku)
+token nieprawdziwy   → ODRZUCAMY     (inny komunikat: sprawdzenie wygasło)
 Cloudflare nie odpowiada → PRZEPUSZCZAMY + ostrzeżenie w dzienniku
 zły sekret po naszej stronie → PRZEPUSZCZAMY + `Log::error`
+brak kluczy w konfiguracji → PRZEPUSZCZAMY, nikogo nie pytamy
 ```
 
-Turnstile jest więc **filtrem taniego ruchu automatycznego, nie warunkiem
-dostępu**. Skrypt zakładający konta masowo zwykle nie wykonuje JavaScriptu
-wcale — nic nie traci na tym, że pole zostaje puste, ale też nic nie zyskuje.
-Człowiek z wyłączonym skryptem, czytnikiem ekranu, starą przeglądarką albo
-słabym zasięgiem (skrypt się nie dociągnął) przy `required` **traci dostęp do
-serwisu**. To jest różnica między niewygodą dla napastnika a zamkniętymi
-drzwiami dla użytkownika.
+**Pierwsza wersja tej decyzji (PR #218, ten sam dzień) mówiła co innego: brak
+tokenu PRZEPUSZCZAŁ.** Wynikało to wprost z zasady „ważne funkcje działają bez
+JavaScriptu" (`AGENTS.md` §5): Turnstile jest widgetem JS, wersji bez JS nie
+ma, więc jedynym sposobem pogodzenia obu rzeczy było przepuszczanie pustego
+pola. Reguła nazywała się wtedy `TurnstileNieJestPodrobiony`, a testy
+`test_*_bez_tokenu_*` pilnowały, żeby nikt tego „nie dokręcił".
 
-Wiemy, że to wygląda na przeoczenie i że ktoś kiedyś zechce to „dokręcić"
-jednym `required`. Dlatego napisane jest to w trzech miejscach naraz:
-w komentarzu klasy `App\Rules\TurnstileNieJestPodrobiony`, przy każdym
-wywołaniu w kontrolerach i w testach, których nazwy mówią wprost, czego
-pilnują (`test_formularz_przechodzi_bez_tokenu_czyli_bez_javascriptu`
-i pięć pozostałych `test_*_bez_tokenu_*`).
+**Właściciel zmienił tę zasadę dla tych sześciu miejsc**, dosłownie: *„w tych
+newralgicznych miejscach niech JS będzie obowiązkowo jak ta rejestracja itp,
+tam gdzie można się obejść to spoko, ale lepiej żeby był z wygody"*.
+Uzasadnienie jest faktyczne, nie ideologiczne: nasi ludzie wchodzą
+z nowoczesnych telefonów albo z komputera i JavaScript mają — przeglądarka
+z wyłączonym skryptem to dziś przypadek pojedynczy, a captcha przepuszczająca
+puste pole nie chroni przed niczym, bo skrypt masowo zakładający konta po
+prostu tego pola nie wysyła. Filtr, który każdy automat obchodzi jedną
+pominiętą wartością, jest ozdobą. Zmianę w samym `AGENTS.md` §5 wprowadza
+właściciel.
 
-**Gwarancją jest BRAK `required` w sześciu kontrolerach, a nie kod w regule.**
-To rozróżnienie ma znaczenie praktyczne: reguła nie jest „implicit", więc
-Laravel w ogóle jej nie woła dla pola pustego albo nieobecnego — czyli dla
-każdego wysłania bez skryptu. Gałąź w regule, która przepuszcza pustą
-wartość, jest przez ścieżkę formularza nieosiągalna i jest tam wyłącznie na
-wypadek wywołania reguły wprost (własny `Validator`, `sometimes()`).
-Kto szuka miejsca, w którym można przypadkiem zamknąć drzwi osobie bez
-JavaScriptu, znajdzie je w kontrolerach. Dlatego **każdy z sześciu formularzy
-ma własny test wysyłki bez tokenu, sprawdzający skutek merytoryczny** — list
-wyszedł, wiersz jest w bazie, konto wróciło — a nie sam kod odpowiedzi.
+Turnstile jest więc **warunkiem wysłania tych sześciu formularzy**, a nie
+filtrem taniego ruchu. Reguła nazywa się `App\Rules\TurnstileJestPotwierdzony`
+i jest **implicit** (`public bool $implicit = true`) — bez tego Laravel nie
+wołałby jej dla pola pustego albo nieobecnego, czyli dokładnie dla przypadku,
+o który tu chodzi, i zaciśnięcie byłoby pozorne. `required` w sześciu
+kontrolerach dałoby ten sam skutek, ale z laravelowym komunikatem o „polu
+cf-turnstile-response", którego nikt na ekranie nie zrozumie.
 
-**Niedostępność cudzej usługi też nie zamyka rejestracji.** Timeout, HTTP 5xx,
-odpowiedź w nieznanym kształcie, literówka w `TURNSTILE_SECRET_KEY` —
-w każdym z tych przypadków formularz przechodzi, a ostrzeżenie idzie do
-dziennika. Odwrotna decyzja („nie wiem" = odrzucamy) wyglądałaby na
-bezpieczniejszą i byłaby najgorszym możliwym błędem w tym miejscu: awaria
-u Cloudflare albo jeden zły znak w panelu Railway zamykałby naraz
-rejestrację, odzyskiwanie hasła i formularz z DSA art. 16 — a z zewnątrz
-wyglądałoby to jak działający serwis.
+### CO MUSI IŚĆ RAZEM Z ZACIŚNIĘCIEM — TO JEST WAŻNIEJSZE NIŻ SAMO ZACIŚNIĘCIE
+
+Samo odrzucanie to jedna linijka. Wartość tej zmiany leży w tym, żeby **nikt
+nie został przed martwym przyciskiem**. Bez poniższych czterech rzeczy
+zaciśnięcie zamienia rzadką awarię w cichą utratę użytkownika — człowiek
+klika „Załóż konto", dostaje komunikat o czymś, czego nie widzi na ekranie,
+i odchodzi.
+
+1. **`<noscript>` przy każdym z sześciu formularzy**, w miejscu, gdzie
+   normalnie stoi widget (`resources/views/components/turnstile.blade.php`).
+   Zdanie jest **osobne dla każdego formularza**, bo człowiek ma się
+   dowiedzieć nie tego, jakiej technologii wymagamy, tylko czego konkretnie
+   nie da się teraz zrobić: „Do założenia konta potrzebny jest włączony
+   JavaScript…", „Do wysłania linku do nowego hasła…", „Do wysłania
+   zgłoszenia…". „Wymagany JavaScript" nad formularzem odzyskiwania hasła nie
+   mówi nikomu, że właśnie nie odzyska hasła.
+2. **Osobny komunikat na wypadek, gdy JavaScript JEST włączony, a token i tak
+   nie przyszedł** — bo skrypt widgetu się nie dociągnął (słabe łącze,
+   blokada reklam, Cloudflare nieosiągalny z tej sieci). To NIE jest ten sam
+   przypadek co token podrobiony i nie wolno im dać wspólnego tekstu:
+   przy podrobionym sprawdzenie było widoczne i wygasło („wyślij formularz
+   jeszcze raz"), przy braku tokenu na ekranie nie ma NICZEGO, czego brakuje,
+   więc trzeba powiedzieć wprost, że sprawdzenie się nie wczytało, i co z tym
+   zrobić. Kolejność rad jest celowa: najpierw „wyślij jeszcze raz" (nieudana
+   walidacja przerysowuje stronę z `old()`, więc przy okazji drugi raz próbuje
+   pobrać skrypt i nie kosztuje ani jednego wpisanego znaku), dopiero potem
+   JavaScript i blokada reklam, na końcu adres e-mail.
+3. **Droga wyjścia dla człowieka, który utknął: adres e-mail, pod którym
+   siedzi człowiek** (`kuking.community.contact_email`) — w `<noscript>` jako
+   klikalny `mailto:` i w komunikacie odrzucenia jako tekst. Dotyczy to także
+   rejestracji i logowania, i nie jest ozdobą: **nie wolno odesłać takiej
+   osoby na `/napisz-do-nas`**, bo tamten formularz ma dokładnie to samo
+   sprawdzenie i jest dla niej równie zamknięty. Adres jest jedyną drogą,
+   która nie zależy od tego, co się właśnie zepsuło. Przy `/zglos-nielegalna-tresc`
+   ma to dodatkowy ciężar: DSA art. 16 ust. 1 każe trzymać mechanizm „łatwo
+   dostępny", a formularz, który potrafi odmówić, przestaje nim być bez
+   drugiej drogi.
+4. **Licznik, czyli ślad w dzienniku.** Każde odrzucenie z powodu braku tokenu
+   zapisuje `Log::warning` z nazwą miejsca — **bez adresu IP i bez czegokolwiek,
+   co człowiek wpisał w formularz** (`AGENTS.md` §7). Zaciśnięcie jest
+   zakładem („nasi ludzie mają JavaScript"), a zakład bez licznika jest wiarą,
+   nie decyzją: po tygodniu musi dać się odpowiedzieć na pytanie, ilu ludzi
+   odbiło się od którego formularza. Świadomie **nie** idzie to do
+   `product_signals` (`ZapiszSygnal`): `signal_name` jest tam zamknięty
+   CHECK-iem w bazie, więc nowa nazwa zdarzenia znaczy migrację — a droga
+   wycofania niżej obiecuje „bez migracji, bez danych do posprzątania" i ta
+   obietnica jest tu więcej warta niż wygodniejszy wykres. Gdyby liczby
+   okazały się niepokojące, przeniesienie tego do sygnałów jest osobną,
+   świadomą pracą z migracją i wpisem w `docs/DATABASE.md`.
+
+**Niedostępność cudzej usługi nadal nie zamyka rejestracji i to się NIE
+zmieniło.** Timeout, HTTP 5xx, odpowiedź w nieznanym kształcie, literówka
+w `TURNSTILE_SECRET_KEY` — w każdym z tych przypadków formularz przechodzi,
+a ostrzeżenie idzie do dziennika. Odwrotna decyzja („nie wiem" = odrzucamy)
+wyglądałaby na bezpieczniejszą i byłaby najgorszym możliwym błędem w tym
+miejscu: awaria u Cloudflare albo jeden zły znak w panelu Railway zamykałby
+naraz rejestrację, odzyskiwanie hasła i formularz z DSA art. 16 — a z zewnątrz
+wyglądałoby to jak działający serwis. Zaciśnięcie dotyczyło człowieka, który
+nie przysłał tokenu, a nie naszej ani cudzej awarii.
+
+**Brak kluczy w konfiguracji też nie blokuje niczego** — patrz sekcja niżej.
+Inaczej CI i praca lokalna (jedno i drugie bez kluczy) stanęłyby na sześciu
+formularzach naraz, a `<noscript>` straszyłby brakiem JavaScriptu na
+formularzu, który i tak przechodzi bez tokenu.
 
 ### LOGOWANIE I COFNIĘCIE USUNIĘCIA KONTA — TAK, ZAWSZE (DECYZJA WŁAŚCICIELA)
 
@@ -2564,10 +2619,17 @@ i nie wolno go traktować jak ich zamiennika: limity widzą atak rozproszony po
 adresach (W7-01), captcha widzi automat w przeglądarce. To dwie różne obrony
 i chcemy obu naraz.
 
-Zostaje za to reguła, której właściciel nie uchylał i o którą nie był pytany:
-**bez JavaScriptu logowanie działa dalej**. Wypowiedź dotyczyła inwazyjności
-captchy, nie `AGENTS.md` §5. Pilnuje tego
-`test_logowanie_bez_tokenu_dziala_dalej`.
+Pierwsza wersja tego wpisu miała tu jeszcze jedno zdanie: „bez JavaScriptu
+logowanie działa dalej". **Już nie działa** — wypowiedź właściciela o JS
+w newralgicznych miejscach objęła również logowanie, wprost („jak ta
+rejestracja itp"). Bez tokenu logowanie jest odrzucane tak samo jak
+rejestracja, z tym samym komunikatem i tą samą drogą wyjścia; pilnuje tego
+`test_logowanie_bez_tokenu_jest_odrzucane_ze_zrozumialym_komunikatem`.
+
+Cena jest realna i trzeba ją nazwać: człowiek, któremu widget się nie
+dociągnie, nie wejdzie na własne konto. Dlatego przy logowaniu — tak samo jak
+przy rejestracji — w komunikacie stoi adres e-mail, a nie odesłanie na
+`/napisz-do-nas`, które byłoby dla niego ślepą uliczką.
 
 `docs/legal/SECURITY_BASELINE.md` §4 mówi o tym teraz to samo, co kod.
 
@@ -2611,6 +2673,13 @@ w osobę, która pisała długo, a odświeżenie skasowałoby jej tekst. Mówi w
 wyślij formularz jeszcze raz (wszystkie pola wracają przez `old()`, widget
 wystawia świeży token), a jeśli nie pomoże — napisz do nas.
 
+Drugi komunikat, ten o braku tokenu, jest **osobnym tekstem** i tak ma zostać
+(uzasadnienie w sekcji o zaciśnięciu wyżej). `<noscript>` stoi wewnątrz tego
+samego bloku co widget, więc trafia dokładnie tam, gdzie człowiek szuka
+brakującego elementu, i nie rusza przycisku wysyłki. Ramka `.notice`, nie
+`.field-help`: to jest zdanie do przeczytania, a nie podpowiedź pod polem —
+tekst zostaje przy pełnym rozmiarze, a nie przy rozmiarze pomocniczym.
+
 CSP dostaje `https://challenges.cloudflare.com` w `script-src` i `frame-src`,
 **wyłącznie wtedy, gdy Turnstile ma klucze** — polityka opisuje to, co strona
 naprawdę ładuje. Nie dokładamy `style-src 'unsafe-inline'`, o którym mówią
@@ -2627,23 +2696,35 @@ skasowałoby cały efekt issue #107.
    jest błędem tylko wtedy, gdy konfiguracja obiecuje ochronę.
 2. **Wyłączenie punktowe:** jeden formularz sprawia kłopot — ustaw jego
    zmienną na `false` (np. `TURNSTILE_NA_ZGLOSZENIU=false`).
-3. **Wycofanie kodu:** rewert commita. Nie ma migracji, nie ma zmiany
+3. **Wycofanie samego zaciśnięcia, bez zdejmowania Turnstile:** takiej
+   zmiennej NIE MA i nie została dodana świadomie. Turnstile, który przepuszcza
+   puste pole, nie chroni przed niczym (automat po prostu tego pola nie wysyła),
+   więc przełącznik „captcha, ale bez wymagania tokenu" byłby przełącznikiem
+   między ochroną a jej pozorem — a takie wpisy w konfiguracji to dokładnie ta
+   klasa usterki, której pilnuje reszta tego repozytorium. Wycofanie idzie
+   punktem 1 albo 2 wyżej: `TURNSTILE_NA_LOGOWANIU=false` zdejmuje z jednego
+   formularza widget, walidację i wymóg tokenu naraz.
+4. **Wycofanie kodu:** rewert commita. Nie ma migracji, nie ma zmiany
    schematu, nie ma danych do posprzątania — Turnstile nie zapisuje niczego
    do bazy.
 
-**Zmiana wymaga:** pomiaru, nie wrażenia. Gdyby ktoś chciał zdjąć Turnstile
-z logowania „bo przeszkadza", potrzebny jest ślad tego, komu i jak
-przeszkodził (`/napisz-do-nas` jest tu pierwszym źródłem) — a nie odwrotna
-intuicja. Gdyby ktoś chciał odwrotnie, dokręcić brak tokenu do `required` —
-patrz sekcja o JavaScripcie wyżej; to jest zamknięcie drzwi, nie wzmocnienie.
+**Zmiana wymaga:** pomiaru, nie wrażenia — i teraz jest czym mierzyć.
+Odrzucenia z braku tokenu są w dzienniku, z nazwą miejsca, więc pytanie „czy
+zamknęliśmy komuś drzwi" ma odpowiedź liczbową, a nie tylko wrażeniową.
+Gdyby ktoś chciał poluzować zaciśnięcie „bo przeszkadza", potrzebny jest ten
+ślad plus to, co przyszło na adres kontaktowy — a nie odwrotna intuicja.
+Gdyby ktoś chciał zdjąć `<noscript>` albo połączyć oba komunikaty w jeden
+„bo się powtarzają" — to jest cofnięcie tej decyzji do połowy: zostaje
+zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 
 📄 `app/Support/Turnstile.php` · `app/Turnstile/KlientTurnstile.php` ·
-`app/Turnstile/WynikTurnstile.php` · `app/Rules/TurnstileNieJestPodrobiony.php` ·
+`app/Turnstile/WynikTurnstile.php` · `app/Rules/TurnstileJestPotwierdzony.php`
+(do 9 września 2026: `TurnstileNieJestPodrobiony`) ·
 `resources/views/components/turnstile.blade.php` ·
 `app/Http/Controllers/HealthController.php` ·
 `app/Http/Middleware/ApplySecurityHeaders.php` · `config/kuking.php`
 (`turnstile`) · `.env.example` · `.railway/railway.ts` ·
-`tests/Feature/TurnstileNieZamykaDrzwiTest.php` ·
+`tests/Feature/TurnstileWymagaPotwierdzeniaTest.php` ·
 `docs/infra/DEPLOYMENT_RUNBOOK.md` (krok 8A) ·
 `docs/INSPIRATION_DECISIONS.md` poz. 1.11 ·
 `docs/legal/SECURITY_BASELINE.md` §4

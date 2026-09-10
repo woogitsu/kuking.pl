@@ -735,13 +735,25 @@ w zielony ptaszek. **Jeśli ramka nie zamienia się w nic i widać błąd
 
 ### 8A.4 Czego się NIE spodziewać (i o co nie prosić)
 
-- **Turnstile nie zablokuje formularza osobie z wyłączonym JavaScriptem.**
-  Tak ma być: bez skryptu widget nie powstaje, a rejestracja i logowanie
-  muszą działać (AGENTS.md §5). Turnstile odsiewa tani ruch automatyczny,
-  nie jest bramką dostępu.
+- **Turnstile ZABLOKUJE formularz osobie z wyłączonym JavaScriptem** — i tak
+  ma być od 9 września 2026 (decyzja właściciela, D-050; pierwsza wersja
+  przepuszczała puste pole). Taka osoba zobaczy w miejscu widgetu ramkę
+  `<noscript>` ze zdaniem, czego konkretnie nie da się zrobić, i adresem
+  e-mail, pod którym siedzi człowiek. Jeśli po wgraniu kluczy ta ramka NIE
+  pojawia się przy wyłączonym skrypcie — to jest usterka do naprawienia od
+  razu, a nie drobiazg: bez niej ludzie stoją przed martwym przyciskiem.
+- **Kto ma JavaScript, a mimo to dostał odmowę**, zobaczy inny komunikat:
+  o tym, że sprawdzenie się nie wczytało (blokada reklam, słabe łącze), co
+  z tym zrobić i gdzie napisać. Dwa różne teksty dla dwóch różnych sytuacji
+  to wymóg z D-050, nie stylistyka.
+- **Odrzucenia z braku tokenu widać w dzienniku** (`Log::warning`, wpis
+  „Turnstile: formularz odrzucony, bo nie przyszedł token" z nazwą miejsca,
+  bez adresu IP). Po tygodniu od wdrożenia przejrzyj je: to jest jedyna
+  odpowiedź na pytanie, czy zamknęliśmy komuś drzwi.
 - **Turnstile nie zastępuje limitów zapytań** — one zostają bez zmian.
 - **Awaria Cloudflare nie zamknie rejestracji.** Gdy `siteverify` nie
-  odpowiada, formularz przechodzi, a w dzienniku ląduje ostrzeżenie.
+  odpowiada, formularz przechodzi, a w dzienniku ląduje ostrzeżenie. To się
+  zaciśnięciem NIE zmieniło.
 
 ### 8A.5 Jak to wyłączyć w minutę
 
