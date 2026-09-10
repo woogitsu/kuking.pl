@@ -138,8 +138,26 @@ i datę. Tło: `docs/infra/INFRA_DECISION.md`.
 
 **Najdłuższy etap.** Część kodowa (zapis bez `x-amz-acl`) jest **zrobiona**:
 dyski R2 mają własny sterownik `r2`, który tego nagłówka nie wysyła, i test
-regresyjny na podpisanym żądaniu HTTP. **Cała reszta to panel Cloudflare** —
-z kodu nie da się jej ani wykonać, ani sprawdzić.
+regresyjny na podpisanym żądaniu HTTP.
+
+**Zacznij od jednej komendy — ona odhacza siedem punktów z dwunastu:**
+
+```
+railway ssh -- php artisan kuking:bramka-r2 --zapis
+```
+
+Pyta prawdziwe R2 prawdziwymi żądaniami, na prawdziwym zdjęciu z bazy:
+podpisany adres wariantu ma oddać 200, ten sam bez podpisu ma zostać
+odrzucony, oryginał nie ma dać się pobrać żadną publiczną drogą, w publicznym
+buckecie nie ma być ani jednego klucza `incoming/`, a `PutObject` ma przejść
+bez ACL. Brak odpowiedzi z sieci to `NIE WIEMY` i **oblewa** bramkę — „nie
+wiemy" nigdy nie znaczy „jest dobrze". Na dysku lokalnym komenda odmawia
+działania, żeby nie zameldować przejścia tam, gdzie nie sprawdziła niczego.
+Szczegóły: §2 w `docs/infra/BRAMKA_R2.md`.
+
+**Resztą jest panel Cloudflare** — przełącznik `r2.dev`, wgranie zdjęcia
+z aparatu, kasowanie wpisu, ścieżka błędu przy złym sekrecie. Tego z kodu
+nie da się ani wykonać, ani sprawdzić.
 
 **Twarda zasada, dopóki ta bramka nie przejdzie:** nie wystawiaj produkcyjnego
 bucketu mediów pod `cdn.kuking.pl`.
@@ -156,7 +174,7 @@ w publicznym buckecie.
 
 **Gdzie zapisujesz dowód:** `docs/infra/BRAMKA_R2.md`, **z datą** —
 konfiguracja bucketu może się zmienić bez jednej linijki w tym repozytorium,
-więc dowód bez daty nic nie znaczy. Tabela w §2 tego pliku czeka wypełniona
+więc dowód bez daty nic nie znaczy. Tabela w §3 tego pliku czeka wypełniona
 w połowie: kolumny „wynik" i „data" są puste, a puste znaczy nieprzejście.
 
 ---

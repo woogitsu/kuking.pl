@@ -1,10 +1,10 @@
 # Bramka R2 przed wystawieniem `cdn.kuking.pl`
 
 **Zgłoszenie:** issue #120 (P0, `typ: bezpieczeństwo`), audyt fali 2 — G-02 i G-11.
-**Ostatnia aktualizacja tego pliku:** 2026-09-09.
-**Stan:** strona aplikacyjna ZAMKNIĘTA · bramka na prawdziwym R2 **NIEPRZEJŚCIONA**.
+**Ostatnia aktualizacja tego pliku:** 2026-09-10.
+**Stan:** strona aplikacyjna ZAMKNIĘTA · część serwerowa **do uruchomienia jedną komendą** (§2) · część panelowa **NIEPRZEJŚCIONA**.
 
-> **Twarda zasada, dopóki tabela w §2 nie jest wypełniona na zielono:**
+> **Twarda zasada, dopóki komenda z §2 nie przechodzi i tabela w §3 nie jest wypełniona na zielono:**
 > nie wystawiaj produkcyjnego bucketu mediów pod `cdn.kuking.pl`.
 
 Ten plik ma **datę w nagłówku i datę w każdym wierszu tabeli**, bo konfiguracja
@@ -73,11 +73,70 @@ asercji przechodziłaby zawsze i nie pilnowałaby niczego.
 Że prawdziwy bucket przyjmie takie żądanie, i że oryginał naprawdę nie jest
 publiczny. **Tego z PHP nie widać.** Testy nie mają dostępu do panelu
 Cloudflare, a to on stawia granicę: własna domena bucketu, `r2.dev`, klucze API.
-Stąd §2.
+Stąd §2 i §3.
 
 ---
 
-## 2. Bramka na prawdziwym R2 — do wykonania po stronie właściciela
+## 2. Część serwerowa: jedna komenda
+
+```
+railway ssh -- php artisan kuking:bramka-r2 --zapis
+```
+
+Dwanaście ręcznych punktów to bramka, której nikt nie przejdzie dwa razy:
+pierwszy raz z zapałem, drugi nigdy. A konfiguracja bucketu może się zmienić
+bez jednej linijki w tym repozytorium, więc bramka nie jest jednorazowa.
+
+`kuking:bramka-r2` robi z serwera wszystko, co da się zrobić bez panelu
+Cloudflare — prawdziwymi żądaniami do prawdziwego R2, na **prawdziwym
+zdjęciu z bazy** (najnowsze gotowe albo wskazane przez `--media=<uuid>`).
+Odpowiedź 404 na wymyślony klucz nie mówi nic o tym, czy bucket jest
+publiczny, więc komenda nigdy nie pyta o klucz, którego nie ma.
+
+| # | Co komenda sprawdza | Odpowiada punktowi z §3 |
+|---|---|---|
+| 1 | oryginał widoczny przez API S3 z serwera | 3 |
+| 2 | wariant widoczny przez API S3 | 1 (część serwerowa) |
+| 3 | worker wytworzył `thumb`, `feed` i `large` | 9 |
+| 4 | **podpisany** adres wariantu oddaje 200 | 1 |
+| 5 | **ten sam adres bez podpisu** jest odrzucany | 2 |
+| 6 | oryginał nie do pobrania bez podpisu — ścieżkowo i przez wirtualny host | 2 |
+| 7 | w publicznym buckecie nie ma ani jednego klucza `incoming/` | 5 |
+| 8 | wariant nie niesie bloku EXIF | 10 (część o wariancie) |
+| 9 | `PutObject` przechodzi bez `x-amz-acl` (tylko z `--zapis`) | 6 |
+
+Trzy rzeczy, o których warto wiedzieć, zanim się ją uruchomi:
+
+1. **Bez `--zapis` bramka NIE JEST domknięta.** Punkt 9 zostaje wtedy
+   niesprawdzony, a niesprawdzony liczy się jak oblany. `--zapis` dokłada
+   jeden plik tekstowy w prefiksie `bramka/` i kasuje go po odczycie —
+   komenda mówi o tym przed zrobieniem tego i sprząta także wtedy, gdy
+   sprawdzenie po drodze rzuci wyjątkiem.
+2. **„Nie wiemy" nigdy nie znaczy „jest dobrze".** Brak odpowiedzi z sieci
+   albo nieudane listowanie bucketu daje `NIE WIEMY` i **oblewa** bramkę.
+   Bez tego komenda meldowałaby zamknięty bucket w sytuacji, w której
+   nikt niczego nie odmówił, bo żądanie nie doszło.
+3. **Na dysku lokalnym komenda odmawia działania.** Lokalnie każde
+   sprawdzenie wychodzi ładnie — nie ma bucketu ani publicznego adresu,
+   więc „oryginał nie jest publiczny" jest prawdą, która o R2 nie mówi
+   nic. Zielona bramka na dysku lokalnym byłaby narzędziem, które melduje
+   sukces, nie robiąc nic; to jest ta sama klasa usterki co martwy
+   `kuking.media_disk` czy `MAIL_MAILER=log` na produkcji.
+
+Czego komenda **nie robi i nie będzie robić**: nie kasuje niczyich zdjęć
+(punkt 11 z §3 wymagałby usunięcia czyjegoś zdjęcia z produkcji), nie widzi
+przełącznika `r2.dev` w panelu (punkt 4), nie wgra zdjęcia z aparatu
+(punkty 7 i 8) i nie podmieni sekretu, żeby zobaczyć ścieżkę błędu
+(punkt 12). Punkty 4, 7, 8, 11 i 12 z §3 komenda wypisuje na końcu jako
+pozostałe do zrobienia — zamiast udawać, że ich nie ma.
+
+Pilnuje jej `tests/Feature/BramkaR2MowiPrawdeTest.php`: sukces sprawdzany
+raz, porażka siedem razy — bo komenda, która melduje przejście, nie
+sprawdziwszy niczego, jest gorsza od jej braku.
+
+---
+
+## 3. Część panelowa — do wykonania po stronie właściciela
 
 **Gdzie:** panel Cloudflare R2 (buckety `kuking-oryginaly` i `kuking-media`,
 `r2.dev`, domena `cdn.kuking.pl`) plus jeden przebieg zapisu i odczytu na
@@ -89,6 +148,10 @@ Z kontenera agenta AI ani jeden z tych punktów nie jest wykonalny — nie ma ta
 ani konta Cloudflare, ani bucketu.
 
 Wypełnij kolumny **wynik** i **data**. Puste = nieprzejście.
+
+**Punkty 1, 2, 3, 5, 6, 9 i 10 (część o wariancie) odhacza za Ciebie
+`kuking:bramka-r2` z §2** — wklej tu jej werdykt z datą. Poniżej zostaje
+to, czego z serwera nie widać.
 
 | # | Co udowodnić | Jak | Wynik | Data |
 |---|---|---|---|---|
@@ -118,7 +181,7 @@ wyjątkiem, nie cichym `false`. Człowiek ma zobaczyć polski komunikat, a nie
 
 ---
 
-## 3. Co pozostaje otwarte niezależnie od tej bramki
+## 4. Co pozostaje otwarte niezależnie od tej bramki
 
 - **Domena `cdn.kuking.pl` przy buckecie wariantów.** Po W7-02 warianty nie mają
   publicznego adresu (adresem zdjęcia jest trasa `media.show`), ale zdjęcie

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Moderation\KolejkiPanelu;
+use App\Models\Appeal;
+use App\Models\ContactMessage;
+use App\Models\Report;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\OdmianaWalidacji;
 use App\Support\Storage\DyskR2;
@@ -87,5 +91,43 @@ class AppServiceProvider extends ServiceProvider
             'max',
             fn (string $message, string $attribute, string $rule, array $parameters): string => OdmianaWalidacji::podstaw($message, (int) ($parameters[0] ?? 0)),
         );
+
+        $this->odswiezajLicznikiKolejek();
+    }
+
+    /**
+     * LICZNIKI PRZY POZYCJACH PANELU MODERACJI — przeliczanie przy ZAPISIE,
+     * nigdy przy odsłonie (`App\Domain\Moderation\KolejkiPanelu`).
+     *
+     * Menu boczne panelu stoi na każdej stronie `/admin/**`, więc pięć
+     * `COUNT(*)` na żądanie jest wykluczone. Zostają dwa źródła świeżości:
+     * harmonogram co pięć minut (`kuking:policz-kolejki`) i te trzy haki.
+     *
+     * DLACZEGO WŁAŚNIE TE TRZY MODELE
+     * `Appeal`, `Report` i `ContactMessage` to tabele, w których pojawienie
+     * się i zamknięcie sprawy MA być widoczne od razu: licznik, który
+     * pokazuje „1" po zamknięciu ostatniej sprawy, kłamie raz i traci
+     * zaufanie na zawsze. Zmieniają się kilka razy na dobę, więc pięć
+     * `COUNT(*)` przy takim zapisie jest niewidoczne.
+     *
+     * `Post` i `Comment` haka NIE MAJĄ świadomie — publikacja wpisu
+     * i komentarz to główna akcja produktu (AGENTS.md §1) i nie dokładamy
+     * do niej zapytań po to, żeby licznik miękkiej kolejki „Bez odpowiedzi"
+     * (progi 6 i 24 godziny) był świeży co do sekundy. Tę jedną liczbę
+     * odświeża harmonogram.
+     *
+     * `saved` ORAZ `deleted`: `saved` łapie i utworzenie, i zmianę statusu
+     * (zamknięcie sprawy to `UPDATE`, nie `INSERT`), `deleted` — sprzątanie
+     * retencyjne (`PrzedawnioneSprawyModeracyjne`), po którym kolejka
+     * naprawdę jest krótsza.
+     */
+    private function odswiezajLicznikiKolejek(): void
+    {
+        $odswiez = fn () => app(KolejkiPanelu::class)->odswiez();
+
+        foreach ([Appeal::class, Report::class, ContactMessage::class] as $model) {
+            $model::saved($odswiez);
+            $model::deleted($odswiez);
+        }
     }
 }

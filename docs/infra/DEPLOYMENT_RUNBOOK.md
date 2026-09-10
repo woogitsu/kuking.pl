@@ -815,6 +815,47 @@ Klucz nie jest wypisywany nigdzie w wyniku, nawet fragmentem. Pilnuje tego test.
 
 ---
 
+## KROK 8C. R2 — sprawdzenie, czy oryginały naprawdę nie są publiczne
+
+**Po przestawieniu `FILESYSTEM_DISK=r2` i `KUKING_MEDIA_DISK=r2`, przed
+wystawieniem `cdn.kuking.pl`:**
+
+```
+railway ssh -- php artisan kuking:bramka-r2 --zapis
+```
+
+Ta komenda odhacza siedem z dwunastu punktów bramki z issue #120 — prawdziwymi
+żądaniami do prawdziwego R2, na prawdziwym zdjęciu z bazy. Wgraj więc najpierw
+jedno zdjęcie przez formularz: bez zdjęcia komenda mówi „nie ma na czym
+sprawdzać" i **oblewa**, bo brak dowodu nie jest dowodem.
+
+**Co zobaczysz:**
+
+| Wynik | Co znaczy |
+|---|---|
+| `Część serwerowa bramki PRZESZŁA` | podpisy działają, bucket nie oddaje nic bez podpisu, `PutObject` przechodzi bez ACL |
+| `Serwis NIE zapisuje zdjęć do R2` | `FILESYSTEM_DISK`/`KUKING_MEDIA_DISK` jeszcze nie są `r2`; komenda odmawia sprawdzania dysku lokalnego |
+| `ALARM: bucket wariantów oddaje pliki BEZ podpisu` | włączony `r2.dev` albo publiczna domena — wyłącz w panelu R2 |
+| `ALARM: oryginał z pełnym EXIF-em` | bucket oryginałów jest publiczny. To najgorszy możliwy wynik: w oryginale siedzi GPS kuchni |
+| `ALARM: leży tam N plik(ów)` | w publicznym buckecie są klucze `incoming/` — przenieś je i skasuj |
+| `ALARM: w wariancie siedzi blok EXIF` | przekodowanie nie zdjęło EXIF-u; wariant idzie do każdego, kto widzi wpis |
+| `NIE WIEMY` | brak odpowiedzi z sieci albo nieudane listowanie. **Liczy się jak oblany** |
+| `TEN SAM bucket` | oba dyski wskazują jeden bucket; ustaw `AWS_PUBLIC_BUCKET` |
+
+Bez `--zapis` bramka nie jest domknięta (nie ma dowodu na `PutObject` bez ACL).
+`--zapis` zapisuje **jeden** plik tekstowy w prefiksie `bramka/` i kasuje go po
+odczycie — mówi o tym przed zrobieniem i sprząta także po wyjątku.
+
+Reszta punktów wymaga człowieka i panelu Cloudflare: przełącznik `r2.dev`,
+zdjęcie ~14,9 MB, po jednej próbce JPEG/PNG/WebP/AVIF z aparatu, kasowanie
+wpisu razem z wariantami i ścieżka błędu przy złym sekrecie. Komenda wypisuje
+je na końcu. Wynik z datą wpisz do `docs/infra/BRAMKA_R2.md`.
+
+Klucze API nie są wypisywane nigdzie w wyniku — ani endpoint z identyfikatorem
+konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
+
+---
+
 ## KROK 9. Zastosowanie infrastruktury (`railway.ts`)
 
 > ⚠️ **SPROSTOWANIE, 9 września 2026 — przeczytaj przed uruchomieniem czegokolwiek
