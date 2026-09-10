@@ -65,8 +65,11 @@
                             @endif
                         </p>
 
+                        {{-- „zostaniesz poproszona" przypisywało czytelnikowi rodzaj
+                             żeński (issue #38, D-066) — strona czynna w pierwszej
+                             osobie liczby mnogiej mówi to samo bez rodzaju. --}}
                         <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
-                            Zanim zaczniesz pobierać, zostaniesz poproszona o zalogowanie się.
+                            Zanim zaczniesz pobierać, poprosimy Cię o zalogowanie się.
                             Tak musi być: w tej paczce jest kopia całego Twojego konta i nie może
                             jej otworzyć ktoś, kto tylko zobaczył ten e-mail.
                         </p>
