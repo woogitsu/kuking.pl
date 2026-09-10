@@ -8,7 +8,7 @@
     Rozmiar idzie przez `data-rozmiar`, a nie przez `style` (issue #107):
     atrybut `style` jest jedyną rzeczą, która trzyma `unsafe-inline`
     w `style-src`, a nonce go nie obejmuje. Reguły dla wszystkich rozmiarów
-    w użyciu (40–88 px) stoją w `app.css`; rozmiar spoza tej listy zostaje przy
+    w użyciu (40–128 px) stoją w `app.css`; rozmiar spoza tej listy zostaje przy
     domyślnych 48 px z `.avatar` — awatar się zmniejszy, ale nie zniknie.
 --}}
 @if($media && $media->isReady())

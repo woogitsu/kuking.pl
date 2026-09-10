@@ -92,6 +92,27 @@ const CHROMIUM = znajdzChromium();
  * przechodzi przez prawdziwy formularz logowania, a nie podstawia ciasteczka.
  * Formularz logowania jest jednym z badanych ekranów, więc i tak musi działać.
  */
+/*
+ * KONTO, KTÓRYM AUTOMAT SIĘ LOGUJE — jedna nazwa, czytana w trzech miejscach.
+ *
+ * `ania`, nie `basia`: „basia" jest jednocześnie personą treści zalążkowej,
+ * a persony mają hasło LOSOWE i nie są logowalne (D-025). `DemoSeeder`
+ * znajdował wtedy personę i nie ustawiał jej hasła demo, więc logowanie cicho
+ * padało — automat mierzył ekrany GOŚCIA, będąc pewnym, że mierzy ekrany
+ * zalogowanej osoby.
+ *
+ * Stała stoi w zasięgu modułu — I NAD LISTĄ `EKRANY`, nie pod nią, bo
+ * lista czyta ją już przy wczytaniu pliku (własny profil `/@ania`).
+ * Tę samą nazwę musi znać logowanie ORAZ trzy ekrany dostępne WYŁĄCZNIE
+ * dla właściciela treści: własny profil, odwołanie od decyzji (dla osoby,
+ * której decyzja dotyczy) i kolejność zdjęć we wpisie
+ * (`PostPolicy::update` — tylko autor). Gdy te trzy miejsca rozjeżdżały się
+ * na dwa różne konta, serwis odpowiadał 403, a automat wpisywał „✓": mierzył
+ * stronę błędu, która przechodzi każdy audyt dostępności, nie sprawdzając
+ * niczego. Zmierzone 7 września, po dodaniu sprawdzenia kodu HTTP niżej.
+ */
+const KONTO_ZALOGOWANE = 'ania';
+
 const EKRANY = [
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
@@ -118,6 +139,21 @@ const EKRANY = [
   { nazwa: 'wpis — karuzela', adres: null, znajdz: 'wpis:carousel' },
   { nazwa: 'wpis — kolaż', adres: null, znajdz: 'wpis:collage' },
   { nazwa: 'profil', adres: '/@basia' },
+  /*
+   * WŁASNY PROFIL, WIDZIANY PRZEZ WŁAŚCICIELA — inny układ tej samej karty.
+   *
+   * Pozycja wyżej mierzy profil jako GOŚĆ, czyli wariant BEZ dużego przycisku
+   * pod awatarem i bez trzech przycisków obsługi konta („Zmień swój profil",
+   * „Dodaj zdjęcie", „Wyloguj się"). To właśnie ten drugi wariant ma
+   * najwięcej okazji, żeby wypchnąć stronę w bok przy 320 px i czcionce
+   * przeglądarki 200% — i do tej pory nie był mierzony wcale.
+   *
+   * `/@ania`, bo tym kontem loguje się ten automat (patrz KONTO_ZALOGOWANE).
+   * Gdyby ta nazwa się rozjechała z logowaniem, `/@ania` byłoby profilem
+   * CUDZYM i mierzyłoby dokładnie to samo, co pozycja wyżej — dlatego adres
+   * składamy ze stałej, a nie wpisujemy go tu drugi raz z ręki.
+   */
+  { nazwa: 'profil (własny)', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
@@ -397,24 +433,6 @@ const BLOKUJACE = new Set(['critical', 'serious']);
 // miejsca w tym pliku.
 const BAZA_DOMYSLNA = 'kuking_a11y';
 
-/*
- * KONTO, KTÓRYM AUTOMAT SIĘ LOGUJE — jedna nazwa, czytana w trzech miejscach.
- *
- * `ania`, nie `basia`: „basia" jest jednocześnie personą treści zalążkowej,
- * a persony mają hasło LOSOWE i nie są logowalne (D-025). `DemoSeeder`
- * znajdował wtedy personę i nie ustawiał jej hasła demo, więc logowanie cicho
- * padało — automat mierzył ekrany GOŚCIA, będąc pewnym, że mierzy ekrany
- * zalogowanej osoby.
- *
- * Stała stoi w zasięgu modułu, bo tę samą nazwę musi znać logowanie ORAZ dwa
- * ekrany, które są dostępne WYŁĄCZNIE dla właściciela treści: odwołanie od
- * decyzji (dla osoby, której decyzja dotyczy) i kolejność zdjęć we wpisie
- * (`PostPolicy::update` — tylko autor). Gdy te trzy miejsca rozjeżdżały się
- * na dwa różne konta, serwis odpowiadał 403, a automat wpisywał „✓": mierzył
- * stronę błędu, która przechodzi każdy audyt dostępności, nie sprawdzając
- * niczego. Zmierzone 7 września, po dodaniu sprawdzenia kodu HTTP niżej.
- */
-const KONTO_ZALOGOWANE = 'ania';
 
 function log(...args) {
   console.log(...args);

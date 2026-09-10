@@ -309,6 +309,16 @@ Jak `PostCard`, dodatkowo: czas przygotowania, porcje, poziom trudności, liczni
 ### `CookedCard`
 Wpis „Ugotowałem” w obrębie widoku przepisu: zdjęcie wykonania + komentarz + faktyczny czas + odznaka „zrobię ponownie: tak/nie”. Wizualnie odróżniony od oryginalnego przepisu (subtelna ramka `accent`), ale nie osobny, oderwany komponent — żyje pod przepisem w sekcji „Jak wyszło innym?”.
 
+### `ProfileHeader` (nagłówek `/@nazwa`)
+
+Awatar **128 px** (na profilu to zdjęcie osoby, o której jest cała strona, nie znaczek przy treści) → imię → `@nazwa` · region → „Zna się na" → opis → **liczniki** → wiersz akcji.
+
+Liczniki: pięć wierszy „liczba + odmieniony podpis" („2 wpisy", „1 przepis", „5 obserwujących") w JEDNEJ kolumnie, każdy wiersz min. 48 px — dwa z nich (obserwujący, obserwowani) są odnośnikami do listy osób i mają podkreślony podpis, bo kolor nie może być jedynym sygnałem (WCAG 1.4.1). Odmianę liczy `App\Support\Odmiana`; formy stoją w jednym miejscu, w składniku `x-licznik-profilu`. **Nie dwie kolumny:** kolumna treści tej karty ma zmierzone 229–373 px (przy 1280 px zabiera miejsce prawa szyna), więc druga kolumna łamie wyrazy w środku — a `@media (min-width: …)` mierzy okno, nie tę kartę.
+
+Własny profil dokłada dokładnie trzy rzeczy: przycisk „Zmień/Dodaj zdjęcie profilowe" pod awatarem (cała kolumna awatara jest JEDNYM odnośnikiem — D-054), „Zmień swój profil", „Dodaj zdjęcie" i „Wyloguj się". Cudzy profil dostaje w tym samym miejscu „Obserwuj" / „Zgłoś" / „Zablokuj" — to jeden widok dla obu przypadków, więc każda zmiana układu wymaga sprawdzenia z obu stron.
+
+Czego tu nie ma: żadnego porównania z innymi osobami, żadnego miejsca w tabeli (`AGENTS.md` §12).
+
 ### `CommentThread`
 Lista komentarzy, każdy: awatar, autor, czas, treść, „Odpowiedz” (tekst, nie ikona). Formularz dodania komentarza na końcu, zawsze widoczny (nie wymaga kliknięcia „pokaż formularz”). Bez zagnieżdżenia głębszego niż 1 poziom w MVP (czytelność > funkcja Reddita).
 
