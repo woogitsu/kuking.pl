@@ -60,6 +60,31 @@ final class ZapiszSygnal
     public const SEARCH_PERFORMED = 'search_performed';
 
     /**
+     * Tygodniowe podsumowanie wypuszczone do kolejki (issue #11, D-057).
+     *
+     * ZAPISYWANY PRZY WYSŁANIU, NIE PRZY DORĘCZENIU — i to jest różnica,
+     * o którą łatwo się potknąć przy czytaniu wykresu. Kuking nie dostaje od
+     * dostawcy potwierdzenia doręczenia (`docs/decyzje/POCZTA.md` §5 pkt 6:
+     * obsługa odbić to osobna, jeszcze niezrobiona robota), więc ten sygnał
+     * odpowiada na pytanie „ile listów wypuściliśmy", a nie „ile doszło".
+     *
+     * `properties` NIE NIESIE ADRESU ANI TREŚCI. Wystarczy `user_id`
+     * (kolumna, nie właściwość) i liczba pozycji w każdej sekcji — po to,
+     * żeby dało się zobaczyć, czy listy nie robią się puste.
+     */
+    public const WEEKLY_DIGEST_SENT = 'weekly_digest_sent';
+
+    /**
+     * Ktoś kliknął „nie chcę tych listów" (issue #11, D-057).
+     *
+     * Jedyny sygnał w tym zbiorze, który ma PRÓG DECYZYJNY:
+     * `docs/product/RETENTION_LOOPS.md` §6 wiersz 5 — wypisy powyżej 1% na
+     * wysyłkę znaczą, że list brzmi jak marketing albo przychodzi za często,
+     * i wtedy się go skraca, a nie tłumaczy.
+     */
+    public const WEEKLY_DIGEST_UNSUBSCRIBED = 'weekly_digest_unsubscribed';
+
+    /**
      * Zamknięty zbiór `properties.reason` dla `PHOTO_UPLOAD_FAILED`
      * (issue #115), rozszerzony o dwie drogi odrzucenia, które NIE
      * przechodzą przez `StoreUploadedImage::handle()` (audyt zewnętrzny,

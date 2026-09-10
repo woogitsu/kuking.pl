@@ -296,6 +296,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // aktywności dowolną wartością podaną w ciele żądania.
             'ostatnio_widziany_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
+            // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).
+            // Poza `$fillable` z tego samego powodu co `ostatnio_widziany_at`
+            // wyżej: zapisuje to WYŁĄCZNIE komenda wysyłkowa
+            // (`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`), nigdy
+            // formularz. Masowe przypisanie z żądania pozwalałoby przestawić
+            // cudzy znacznik i albo wyprosić kogoś z tygodniowej wysyłki,
+            // albo — cofając datę — wysłać mu drugi list w tym samym
+            // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
+            'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
             'is_seeded' => 'boolean',
