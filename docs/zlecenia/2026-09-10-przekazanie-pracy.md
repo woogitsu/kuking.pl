@@ -491,6 +491,13 @@ Z `AGENTS.md`, z trzech warstw audytu i z tej sesji:
 
 ## 10. Od czego zacząć — kolejność, którą sam bym wybrał
 
+> **NIEAKTUALNE W PUNKTACH 2–6 — patrz sekcja 13.** Wieczorem 10.09 zamknięto
+> #254 vs #288 (#301), MEDIA-01 (#300), MEDIA-03 (#298), #276 (#297), obie
+> połowy #273 (było zrobione + #303) oraz MIG-01 (#299) i audyt blokad (#302).
+> Z tej listy zostaje **#269** (punkt 2, ale problem jest inny niż opisany —
+> patrz 13.3) i **punkt 7** (zaproszenie do rejestracji, wciąż szkic bez
+> testów). Kolejność poniżej zostawiam bez zmian jako zapis stanu z popołudnia.
+
 1. **Przeczytaj `docs/PULAPKI_TESTOW.md`.** Piętnaście minut, oszczędza dzień.
 2. **Zamknij #269** (CI czerwone). Zielone `main` jest warunkiem sensownej
    pracy nad czymkolwiek innym, a to jest jedyny czerwony PR.
@@ -552,3 +559,183 @@ kolejność blokad jest **globalnie spójna**; czy `ZamekPary` porządkuje UUID
 deterministycznie w PHP i w SQL jednakowo; czy ścieżka kasowania konta bierze
 te same zasoby w tej samej kolejności; czy wyzwalacz na `follows` nie tworzy
 cyklu z trzymanymi blokadami wierszy `users`.
+
+---
+
+## 13. Wieczór 10.09 — co z tego dokumentu okazało się nieprawdą
+
+Ta sekcja powstała kilka godzin po reszcie dokumentu, w sesji z jedenastoma
+agentami. **Prostuje trzy twierdzenia z sekcji wcześniejszych.** Jeśli
+czytasz ten plik po raz pierwszy, przeczytaj tę sekcję ZANIM zaczniesz
+działać na podstawie sekcji 5 i 10 — inaczej naprawisz rzeczy, których nie ma.
+
+### 13.1. „PR-y agentów nie dostają CI" — NIEPRAWDA
+
+Sekcja 8b i doświadczenie z #292 sugerowały, że PR otwarty z konta agenta
+nie wywołuje CI. Zmierzone tego wieczoru: **PR #299 dostał przebiegi pięć
+sekund po założeniu, bez żadnego dodatkowego pushu.** Odczyty „zero
+przebiegów" na #297 i #298 były po prostu ZA WCZESNE.
+
+Joby chodzą na własnej puli runnerów `woogitsu-linux-01`–`10` i pojawiają
+się z opóźnieniem od kilku sekund do kilku minut, a przy wysyceniu puli stoją
+w kolejce dłużej. **„0 przebiegów" tuż po otwarciu PR-a znaczy „sprawdź za
+chwilę", nie „CI zepsute".**
+
+Co ZOSTAJE niewyjaśnione i czego nie udawaj, że rozumiesz: #269 i #270 stały
+**pięć godzin** bez ani jednego przebiegu i ruszyły dopiero po pushu z merge
+`main`. Nie wiem dlaczego. Jeśli zobaczysz to znowu — to jest realne
+zjawisko, tylko nie takie, jak je opisano.
+
+### 13.2. `.env` kontenera nadpisywał decyzję właściciela
+
+`ListyZSystemuPoPolskuTest::test_nadawca_podpisuje_sie_imieniem_gospodarza`
+oblewał **u każdego agenta niezależnie**, przez co wszyscy tracili czas na
+rozstrzyganie, czy to ich regresja.
+
+Przyczyna: `.env` w kontenerze miał **odkomentowane** `MAIL_FROM_NAME="Kuking"`,
+podczas gdy `.env.example` trzyma tę linię zakomentowaną **celowo** — żeby
+zadziałał liczony domyślnie podpis z `config/mail.php`
+(`config('kuking.community.host_name').' z Kuking'`, decyzja właściciela
+o nadawcy niosącym imię gospodarza). Hook `session-start.sh` tego nie robi
+(kopiuje `.env.example` tylko gdy `.env` nie istnieje), więc ktoś wpisał to
+ręcznie we wcześniejszej sesji.
+
+Naprawione: linia zakomentowana, test przechodzi 7/7. `.env` jest w
+`.gitignore`, więc **w nowym kontenerze problem może wrócić** — jeśli
+zobaczysz dokładnie ten jeden czerwony test, sprawdź `.env` zanim cokolwiek
+zmienisz w kodzie. Test działa poprawnie; złapał realny rozjazd środowiska.
+
+### 13.3. #269: konflikt 2.4.11 vs 2.5.8 to już nie konflikt
+
+Sekcja 5 mówi, że `.bottom-nav` `fixed` → `sticky` naprawia 2.4.11 i łamie
+2.5.8 (trzy cele dotykowe tracą odstęp przy 320 px). **Połowa 2.5.8 jest
+rozwiązana.** Pomiar z CI melduje: przepełnień w poziomie 0, rozjazdów belki
+0, niespójnych szerokości 0 — na wszystkich pięciu szerokościach, w każdym
+z trzech wariantów skalowania.
+
+Zostało 2.4.11, i to **wyłącznie przy skali tekstu 140%**:
+
+    szukaj / 320 px / tekst 140%:             a „Wszystko" pod .bottom-nav
+    szukaj / 360 px / tekst 140%:             a „Do 30 minut" pod .bottom-nav
+    wpis (przykładowy) / 360 px / tekst 140%: a „Napisz komentarz" pod .bottom-nav
+
+Wariant „czcionka przeglądarki 200%" przechodzi na tych samych szerokościach.
+To wskazuje, że rezerwa pod belką jest liczona w jednostce, która nie rośnie
+razem ze skalą tekstu — sprawdź to przy kodzie, nie przyjmuj na wiarę.
+
+Ustalone przy okazji: commit `1585120` **nie był rozluźnieniem progu**, tylko
+poprawką poprawności pomiaru (`document.fonts.ready` w wyścigu z limitem 5 s —
+`font-display: swap` sprawiał, że skrypt mierzył układ ułożony czcionką
+systemową runnera). Ta poprawka nigdy wcześniej nie przeszła przez CI.
+
+### 13.4. #273 — pierwsza połowa była zrobiona przed założeniem issue
+
+`TagSeeder` ze słownikiem (~1250 nazw kanonicznych, ~2366 aliasów, 13
+kategorii), `TagPromotionSeeder` i panel `/admin/tagi-promowane` są na `main`
+**od 7 września**, czyli trzy dni przed założeniem #273 (D-021, D-026).
+Sprawdzone przez `git show origin/main:`. Nie pisz drugiego seedera.
+
+Brakowało wyłącznie **drugiej połowy**, którą samo issue nazywa drugą częścią
+sprawy: publicznej strony `tags.index`. Zrobione w #303 (D-087). Do decyzji
+właściciela zostaje, czy #273 zamknąć.
+
+### 13.5. Kolejność blokad — ZMIERZONE, nie wydedukowane
+
+Sekcja 12 nazywa to największą dziurą w pewności. Audyt wykonany
+(`docs/research/2026-09-10-kolejnosc-blokad.md`, PR #302), **na dwóch
+połączeniach do prawdziwego PostgreSQL**, bo pod `RefreshDatabase` nic z tego
+nie jest widoczne.
+
+Ustalenie, które zmienia obraz: **najważniejsze blokady w tym repozytorium
+nie są napisane w PHP.** `INSERT` do `follows`/`blocks` bierze blokadę obu
+wierszy `users` przez klucze obce (`FOR KEY SHARE`) — w kolejności **ról**,
+podczas gdy `ZamekPary` szereguje po **identyfikatorach**. Dwa różne porządki
+na tych samych wierszach, czyli zakleszczenie; w zmierzonym przypadku ofiarą
+padło „Zablokuj", wprost przeciw zdaniu D-080, że blokada ma się udać zawsze.
+
+Naprawione jako D-090: `BlockUser` przechodzi przez `ZamekPary`.
+
+**Dwa zakleszczenia ZOSTAJĄ nienaprawione**, z opisanymi naprawami i szkicami
+testów w raporcie:
+- kasowanie konta — zmierzone `deadlock detected` na wierszach `follows`;
+- `LoginLinkController::store()` — odwrócona kolejność, dziś bez cyklu, bo nic
+  w tej transakcji nie dotyka `users`. **Pierwsza dopisana tam linijka cykl
+  domknie.** To mina, nie usterka.
+
+Cztery podejrzenia **obalone pomiarem** (zapisz to równie wyraźnie jak
+znaleziska): collation w `ZamekPary`, wyzwalacz na `follows`, `Cache::lock`
+trzymany w transakcji, oraz współistnienie blokady z obserwowaniem.
+
+**Pułapka metodologiczna, która kosztowała trzy fałszywie czyste pomiary:**
+`pg_connect` z tym samym ciągiem połączenia zwraca TO SAMO połączenie.
+Bez `PGSQL_CONNECT_FORCE_NEW` cały audyt powiedziałby „wszystko w porządku".
+Złapała to dopiero kontrola pozytywna.
+
+### 13.6. Po stronie właściciela — jedna rzecz doszła
+
+Do listy z sekcji 7: **phar Composera na `actions-runner-kuking-03` jest
+uszkodzony** (`Class "Composer\Semver\Intervals" not found`,
+`Class "Symfony\Component\String\UnicodeString" not found`). Job pada na
+`composer install`, ZANIM uruchomi się jakikolwiek test — objaw wygląda jak
+losowa czerwień CI na dowolnym PR-ze. Naprawa: przeinstalować Composera na
+tej jednej maszynie. Dopóki to nie jest zrobione, jest to jedyny przypadek,
+w którym wolno ponowić job.
+
+### 13.7. Dług nazwany dziś, świadomie niespłacony
+
+- **Trzy drogi przypięcia zdjęcia zostają z tą samą luką** co MEDIA-01:
+  awatar, zdjęcie główne i skan przepisu, zdjęcie kroku. Znacznik `deleted`
+  zwęża im okno, ale go nie zamyka. Opisane w D-083.
+- **Żaden test w repozytorium nadal nie chodzi na dwóch połączeniach.**
+  Raport blokad zawiera propozycję takiej grupy testów z oceną kosztu
+  i rekomendacją, od którego testu zacząć (jest jeden, który byłby dziś
+  czerwony). Grupa NIE została założona.
+- **`/tagi` nie jest mierzone przez `scripts/dostepnosc.mjs`**, choć jest
+  stroną publiczną, a wszystkie pozostałe są. Nie dopisane, bo tego wieczoru
+  trzy gałęzie naraz trzymały ten plik.
+- **Trzy rozstrzygnięcia D-072 nie miały testów** — dało się je cofnąć bez
+  czerwonego CI. Dopisane w #270. Warto sprawdzić, czy inne decyzje nie mają
+  tej samej właściwości: opis w komentarzu to nie jest gwarancja.
+
+### 13.8. Zaproszenie do rejestracji — wyrocznia, zła numeracja, brakująca decyzja
+
+Szkic z `claude/link-prowadzi-do-rejestracji` (sekcja 5) dokończony w #304.
+Trzy rzeczy z tej pracy dotyczą całego repozytorium, nie tylko tej gałęzi.
+
+**1. Wyrocznia „kto ma konto w Kuking" — naprawiona.** `registration_invites.email`
+ma `->unique()`, a szkic kasował i zakładał wiersz **bez przechwycenia
+konfliktu**. Dwie prośby naraz o ten sam adres kończyły się `500` — ale
+**wyłącznie dla adresu BEZ konta**, bo adres z kontem trafia w ścieżkę linku
+do logowania i sprowadza swój wyścig do `302` (D-075). Zwykły dwuklik
+w „Wyślij" odpowiadał więc różnie zależnie od tego, czy konto istnieje.
+
+To jest **dokładnie ta wyrocznia, którą D-075 zamknęło — odbita w lustrze na
+sąsiedniej ścieżce**. Wniosek na przyszłość, ważniejszy od samej naprawy:
+zamknięcie wyroczni na jednej drodze wejścia do konta nie zamyka jej na
+pozostałych. **Przy każdej nowej ścieżce dotykającej adresu e-mail sprawdź
+osobno, czy odpowiedź dla adresu z kontem i bez konta jest nieodróżnialna —
+także w wyścigu, nie tylko w zwykłym przebiegu.**
+
+Naprawione drugą połową konstrukcji z D-075 (blokady wiersza konta nie ma tu
+na czym postawić — konta jeszcze nie ma). Przy okazji sufit przeszedł z pary
+„sprawdź, potem zajmij" na `sprobujZarezerwowac()` — to była regresja wobec
+D-076.
+
+**2. D-067 NIGDY NIE ZOSTAŁO NAPISANE.** Kod szkicu powoływał się na nie
+w **siedemnastu miejscach**, a wpisu w `docs/DECISIONS.md` nie ma. Odwołania
+przepięte na D-085. **Dziennik decyzji ma dziury, na które kod się powołuje** —
+warto sprawdzić, czy D-067 jest jedyną. Prosty test skanujący (`grep` po
+`D-0\d\d` w `app/` i porównanie z nagłówkami w `DECISIONS.md`) zamknąłby tę
+klasę błędu na stałe; nie został napisany.
+
+**3. Sekcja 5 wiązała ten szkic z #258 — BŁĘDNIE.** #258 dotyczy **logowania
+kontem Google**, nie zaproszenia do rejestracji. #258 zostaje otwarte, a #304
+go nie zamyka.
+
+**Świadomie niezrobione w #304**, żeby nie udawało zrobionego: brak testu na
+`LogicException` przy zużyciu zaproszenia poza transakcją (`RefreshDatabase`
+owija każdy test we własną transakcję, więc warunku nie da się wywołać — test
+„sprawdzający" przechodziłby też po usunięciu zabezpieczenia; zabezpieczenie
+zostaje, powód w komentarzu), oraz brak limitera na `GET /zaproszenie/{token}`
+(token to 64 losowe znaki, więc nie ma czego blokować — ale to decyzja, nie
+przeoczenie).
