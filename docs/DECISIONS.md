@@ -6298,6 +6298,182 @@ D-022 · D-057
 
 ---
 
+## D-082 · Dolna belka zostaje `position: fixed`, a rezerwa miejsca pod nią jest LICZONA — 2.4.11 nie kupujemy kosztem 2.5.8
+
+**Data:** 10 września 2026 · **Decyzja techniczna** (audyt 60+, PR #269) · Status: **obowiązuje**
+
+### Problem: dwa kryteria WCAG, które ciągną w przeciwne strony
+
+Audyt 60+ (`docs/research/AUDYT_60_PLUS.md`, ranking napraw pkt 1) wskazał
+naruszenie **WCAG 2.2 AA 2.4.11 — Focus Not Obscured (Minimum)**: `.bottom-nav`
+jest `position: fixed`, więc nie ma jej w przepływie dokumentu i wysokość
+strony NIE rośnie o jej wysokość. Rezerwa na końcu dokumentu (dolne wypełnienie
+`.site-footer`) była stałą wartością `--spacing-20` (80 px), a belka ma
+`flex-wrap: wrap` i przy dużym tekście rozpada się na kilka wierszy. Gdy belka
+urośnie ponad rezerwę, treść przewija się POD nią — a fokus klawiaturowy ląduje
+w całości za paskiem.
+
+Zmierzone maksima wysokości belki (`scripts/dostepnosc.mjs`, sześć ekranów,
+320/360/414 px):
+
+| wariant | wysokość belki |
+|---|---|
+| bez powiększania tekstu | 66,6 px (korzeń 16 px) |
+| nasze ustawienie „tekst 140%" | 105,5 px (korzeń 16 px) |
+| czcionka przeglądarki 200% | 376,2 px (korzeń 32 px) |
+
+### Droga odrzucona: `position: sticky`
+
+Pierwsze podejście wiązało rezerwę z rzeczywistą wysokością belki, wstawiając ją
+w przepływ (`sticky` zamiast `fixed`). **Naprawiało 2.4.11 i łamało 2.5.8
+(Target Size Minimum).**
+
+Powód leży w axe, nie w naszym układzie: reguła `target-size` liczy sąsiadów
+przez `findNearbyElms`, a ta funkcja porównuje kandydatów warunkiem
+`selfIsFixed === isFixedPosition(vNeighbor)`. Nakładka `fixed` nie jest więc
+zestawiana z treścią nie-`fixed` — i słusznie, bo przypięty pasek stoi nad inną
+treścią przy KAŻDYM położeniu przewijania. `sticky` do tego wyjątku nie należy:
+staje się zwykłym sąsiadem w przepływie i przycina „bezpieczne pole kliknięcia"
+tego, co akurat widać za nim.
+
+Zmierzone przy 320 px, przewinięcie 0, **jednakowe prostokąty belki** dla obu
+wariantów (833,4…900 px):
+
+| element | wolne pole przy `fixed` | przy `sticky` |
+|---|---|---|
+| profil (własny) | 48 px | 14,5 px |
+| dodaj przepis | 55,9 px | 10,1 px |
+| twoje tagi | 40 px | 4,5 px |
+
+Nakładanie istniało więc także przed zmianą — zmieniło się tylko to, czy axe je
+widzi. Kluczowa obserwacja: **te trzy naruszenia nie są usterkami tych trzech
+elementów.** Każdy z nich ma prostokąt większy niż wymagane 24 × 24 px
+i przechodzi 2.5.8 z samego rozmiaru. To jedna cena `sticky`, płacona przez ten
+element, który akurat wpadnie w pasek przy przewinięciu 0 — a więc zależna od
+DŁUGOŚCI STRONY, nie od tych elementów. „Naprawa u każdego z trzech" byłaby
+przesuwaniem treści do czasu, aż w pasek wpadnie czwarty.
+
+### Droga odrzucona: sam `scroll-padding` przy obu przypiętych paskach
+
+`scroll-padding` przesuwa fokus spod belki, ale belka zostaje na ekranie. Przy
+320 × 740 px i czcionce przeglądarki 200% górny pasek ma 263 px, dolny 376,2 px —
+razem 639,2 z 740 px, czyli 86% widoku. Żeby fokus wyjechał spod OBU, suma
+wartości musiałaby pokryć te 639,2 px, zostawiając pasmo 100,8 px przy **zerowym**
+zapasie na obu — a to pasmo musi zmieścić naszą najmniejszą kontrolkę, czyli
+48 px. Taka para liczb nie jest poprawką, tylko zakładem.
+
+Dlatego **górny** pasek poniżej progu `15rem` odpina się (`position: relative`):
+przy tej wielkości tekstu problemem nie jest margines przy przewijaniu, tylko to,
+że przypięty pasek zabiera trzecią część ekranu na stałe. Górny pasek można
+odpiąć — jest nad treścią i przewija się z nią. Dolna belka to główna nawigacja
+produktu i odpięcie jej zabrałoby jedyną drogę do „Co dziś ugotowałeś?".
+
+### Decyzja
+
+Belka zostaje `fixed`, a rezerwa jest **liczona jawnie** tokenem
+`--rezerwa-pod-belka` i **wydawana w dwóch miejscach**, bo to dwie różne rzeczy:
+
+* **dolne wypełnienie `.site-footer`** — stopka jest ostatnia w dokumencie, więc
+  to ona decyduje, czy treść da się wyprowadzić spod belki na końcu strony;
+* **`scroll-padding-bottom` na `:root`** — przewijanie fokusu w widok, które
+  przeglądarka robi sama po Tab, liczy się do krawędzi okna i nie wie, że stoi
+  tam nakładka. Nic nie rysuje, działa wyłącznie przy celowanym przewijaniu.
+
+**Trzy stopnie, nie jedna wartość**, bo dwa powiększenia działają inaczej:
+czcionka przeglądarki podwaja KORZEŃ (16 → 32 px), więc `rem` rośnie razem
+z belką; nasze `data-text-scale` korzenia nie rusza (`--user-text-scale` mnoży
+tylko tokeny `--text-*`), więc `rem` stoi, a belka rośnie.
+
+| zakres | rezerwa | pod co liczona |
+|---|---|---|
+| domyślnie | `calc(8rem * var(--user-text-scale, 1))` | 128 px przy tekście 100%, 179,2 px przy 140% |
+| `max-width: 15rem` | `calc(15rem * var(--user-text-scale, 1))` | 480 px przy korzeniu 32 px (czcionka przeglądarki 200%) |
+| `min-width: 64rem` | `0rem` | belki nie ma — rezerwa nie ma czego chronić |
+
+### Poprawka po CI: liczy się LUZ, nie sama rezerwa
+
+Pierwsza wersja tej decyzji miała stopnie `8rem` i `13rem` — bez mnożnika.
+Rezerwa była wtedy WIĘKSZA od belki w każdym wariancie, więc sprawdzenie
+„czy rezerwa pokrywa belkę" świeciło na zielono przez cały czas trwania
+usterki. CI (job „Dostępność" na `c492ed1`) zgłosiło mimo to 2.4.11 FAIL
+w trzech miejscach i wyłącznie przy „tekst 140%": `szukaj / 320 px`
+(a „Wszystko"), `szukaj / 360 px` (a „Do 30 minut") i `wpis / 360 px`
+(a „Napisz komentarz").
+
+Zawodziła nie rezerwa, tylko **luz** — to, co z rezerwy zostaje POWYŻEJ
+belki, bo tylko w tym pasku przeglądarka ma gdzie postawić element, który
+dostał fokus. Zmierzone (Chromium 141, okno 740 px, rezerwa stała 128 px):
+
+| szerokość | belka przy 140% | luz | wynik na CI |
+|---|---|---|---|
+| 320 px | 105,5 px | 22,5 px | ✗ |
+| 360 px | 89,5 px | 38,5 px | ✗ |
+| 414 px | 75,2 px | 52,8 px | ✓ |
+
+Oblewały dokładnie te szerokości, na których luz zszedł **poniżej 48 px**,
+czyli poniżej jednej naszej kontrolki. Element wyższy od luzu nie ma jak
+stanąć nad belką w całości — i dlatego usterka wychodziła losowo (raz jeden
+element, raz trzy, w obrazie deweloperskim wcale): trafiała w ten, który
+akurat wpadł w ten pasek. To wyjaśnia też, czemu na `65daf90` CI zgłaszało
+jedno naruszenie, a na `c492ed1` trzy, przy tej samej regule CSS.
+
+Przyczyną są dwie jednostki, które miały iść razem, a szły osobno:
+`--user-text-scale` mnoży tokeny `--text-*`, ale **korzenia nie rusza**.
+Belka rośnie więc z tekstem, a rezerwa w `rem` stoi w miejscu — luz zapada
+się dokładnie wtedy, gdy tekst jest największy, czyli u osoby, dla której
+ten produkt jest robiony. Mnożnik w `calc()` wiąże rezerwę z tą samą
+wielkością, która rozpycha belkę. Luz po poprawce: **73,7 / 89,7 / 104 px**
+przy 320 / 360 / 414 px.
+
+Stopień dla bardzo dużego tekstu idzie z `13rem` na `15rem` z tego samego
+powodu, liczonego przy korzeniu 32 px: belka 376,2 px kontra 416 px rezerwy
+to 39,8 px luzu przy kontrolce 96 px (48 px × podwojony korzeń). `15rem`
+to 480 px, czyli 103,8 px luzu. Ten wariant przechodził na CI mimo cienkiego
+luzu — poprawiony razem z tamtym, bo to jedna usterka tej samej klasy.
+
+Próg w `rem`, nie w pikselach, bo porównuje okno z KORZENIEM i mówi dokładnie to,
+o co chodzi: „tekst jest tak duży w stosunku do ekranu, że przypięty pasek
+zabiera jego znaczną część". Telefon 320 px przy korzeniu 16 px to 20rem (próg
+nie łapie), ten sam telefon przy 200% to 10rem (łapie). Przy zwykłym korzeniu
+próg odpowiadałby oknu 240 px — węższemu niż jakikolwiek telefon, więc nie
+zadziała przez pomyłkę.
+
+Rezerwa jest JEDNA DLA WSZYSTKICH, także dla gościa, który dolnej belki nie ma
+(`@auth` w `layout.blade.php`). Warunkowanie jej klasą układu gościa
+rozdzieliłoby jeden token na dwie wartości dla dwóch jego zastosowań
+(wypełnienie stopki dziedziczy po `body`, a `scroll-padding-bottom` rozwiązuje
+się na `:root`) — czyli zamieniłoby 48 px pustego miejsca na pułapkę do
+nadepnięcia.
+
+### Czego ta decyzja NIE robi
+
+**Nie podnosi progu tolerancji w `scripts/dostepnosc.mjs`** i nie wyłącza żadnej
+reguły. Obie — 2.4.11 i 2.5.8 — chodzą i obie zatrzymują CI kodem 1. Podniesienie
+progu byłoby zamianą usterki na kłamstwo w pomiarze (`AGENTS.md`, zakaz
+„naprawiania" przez rozluźnianie automatu).
+
+### Czym to jest pilnowane
+
+Właściwym automatem jest `scripts/dostepnosc.mjs` — układu strony nie da się
+stwierdzić z CSS-a. Ale job `dostepnosc` w CI chodzi WARUNKOWO: czyta `git diff`
+i startuje tylko wtedy, gdy zmiana dotyka `resources/`, `public/`,
+`scripts/dostepnosc.mjs` albo plików npm. Zmiana w samym `app/` przechodzi obok
+niego. Dlatego niezmienniki widoczne w źródle pilnuje dodatkowo
+`tests/Feature/RezerwaPodDolnaBelkaTest.php`, który chodzi w jobie `test`, czyli
+zawsze: belka dalej `fixed` (nie `sticky`), token wydany w obu miejscach oraz
+— po poprawce opisanej wyżej — każdy niezerowy stopień rezerwy mnożony przez
+`--user-text-scale`, a największy nie niższy niż `15rem`.
+
+**Kontrola ujemna poprawki** (pełny przebieg `scripts/dostepnosc.mjs` po
+przywróceniu stałych 80 px): **109 kontrolek zasłoniętych w 100%**, wśród nich
+odnośnik stopki „Prywatność" na wszystkich czterech badanych ekranach przy 320 px
+i „tekst 140%". Po poprawce: 0.
+
+**Pliki:** `resources/css/app.css` · `scripts/dostepnosc.mjs` ·
+`tests/Feature/RezerwaPodDolnaBelkaTest.php`
+
+---
+
 ## D-088 · Rollback migracji ODMAWIA, zamiast po cichu zamienić „usuń wszystko" na „usuń minimum" (MIG-01, #287)
 
 **Data:** 10 września 2026 · **Naprawa błędu z audytu** (issue #287, trzecia
@@ -6590,3 +6766,249 @@ przerwa albo zakładka pasm.
 `.side-nav[data-tryb-panelu] .side-nav-powrot`) ·
 `resources/views/components/layout.blade.php` ·
 `tests/Feature/PanelSzerokiTelefonTest.php`
+
+---
+
+## D-083 · Zdjęcie przypina się i kasuje pod JEDNĄ blokadą wiersza `media`, a pliki znikają dopiero PO commicie — wiersz ze znacznikiem `deleted` jest uchwytem do ponowienia
+
+**Issue:** #285 (MEDIA-01, P1). **Data:** 10.09.2026.
+**Stoi na:** D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
+
+### Stan sprzed zmiany — sprawdzony w plikach, nie przepisany z audytu
+
+Audyt jest materiałem zewnętrznym, a `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`
+wymienia MEDIA-01 wprost jako **niesprawdzone**. Sprawdzone teraz:
+
+- `PublishPost::handle()` wybierał należące do autora `media_id` zwykłym
+  `SELECT`-em **przed** transakcją i nigdy do tego wyboru nie wracał;
+  `attach()` szedł kilkanaście linijek dalej, już w transakcji.
+- `RecordCookedEvent::handle()` miał dokładnie ten sam kształt.
+- `KasujZdjecie::jesliNieuzywane()` pytał `exists()` po sześciu tabelach
+  (też bez blokady), a potem — **wewnątrz** transakcji otwartej przez
+  `OsieroconeZdjecia::posprzataj()` — kasował pliki z R2 i dopiero na końcu
+  wiersz `media`.
+
+Żadna z tych operacji nie brała czegokolwiek na wspólnym wierszu `media`.
+Między `exists()` sprzątacza a skasowaniem plików mieściła się cała
+publikacja wpisu.
+
+### Jedna poprawka do opisu issue
+
+Issue przewiduje, że sprzątacz „wchodzi w konflikt z FK". **Nie wchodzi.**
+`post_media.media_id` ma w migracji `2026_09_05_000500_create_posts_tables`
+`cascadeOnDelete()` (tak samo `cooked_event_media.media_id`), więc skasowanie
+wiersza `media` po cichu zabiera świeżo wstawiony wiersz `post_media`.
+
+Objaw jest więc **gorszy** niż w opisie: nie ma ani wyjątku, ani wpisu
+w logu. Wpis zostaje bez zdjęcia, plik znika z R2, a jedyny egzemplarz
+zdjęcia człowieka nie istnieje już nigdzie. Przy produkcie, którego cała
+obietnica brzmi „zabierzesz stąd wszystko, co dodasz", to jest najgorsza
+klasa błędu, jaką ten kod może mieć.
+
+### Decyzja
+
+**1. Przypinanie wybiera zdjęcia POD BLOKADĄ, w tej samej transakcji co
+`attach()`.** Robi to jedna klasa, `App\Domain\Media\ZdjeciaDoPrzypiecia`,
+używana przez `PublishPost` i `RecordCookedEvent` — nie dwie kopie tego
+samego protokołu, z tego samego powodu, dla którego lista `ODWOLANIA` żyje
+w jednym miejscu.
+
+- `SELECT … FOR UPDATE` — zderza się z blokadą `FOR KEY SHARE`, którą
+  PostgreSQL bierze sam przy sprawdzaniu klucza obcego przy `INSERT`-cie do
+  `post_media`. Przypięcie i przejęcie do skasowania ustawiają się przez to
+  w kolejkę zamiast się mijać.
+- `ORDER BY id` — deterministyczna kolejność blokowania. Bez niej dwa
+  równoległe wysłania formularza z częściowo wspólnym zestawem zdjęć
+  zakleszczyłyby się nawzajem.
+- Warunki `owner_id` i `status` stoją w **tym samym** zapytaniu co blokada,
+  więc są sprawdzane dopiero po jej uzyskaniu (D-079 §3: blokada serializuje,
+  ale nie mówi żądaniu, że świat zmienił się, gdy ono czekało).
+- Wywołanie poza transakcją rzuca `LogicException`. Blokada wiersza żyje
+  wyłącznie w transakcji, więc bez tego strażnika ta klasa dałaby się
+  przenieść „wyżej dla czytelności" i po cichu wrócić do zwykłego `SELECT`-a.
+
+**2. Sprzątacz przejmuje zdjęcie w krótkiej transakcji, a pliki kasuje PO
+commicie** — wzorzec z `EraseAccountData`, nie nowy pomysł:
+
+1. `KasujZdjecie::przejmij()` — świeży odczyt `FOR UPDATE`, **ponowne**
+   pytanie „czy używane" pod blokadą, znacznik `status = deleted`. Zero
+   wejść na dysk, więc nikt nie czeka na R2 z założoną blokadą.
+2. dopiero po zatwierdzeniu — pliki, a na samym końcu wiersz.
+
+`OsieroconeZdjecia` przestaje otwierać własną transakcję: obejmowała także
+kasowanie plików w R2, a jej wycofanie i tak nie przywróciłoby ani jednego
+skasowanego pliku.
+
+**3. Znacznik `status = 'deleted'` to „kasowanie trwa", nie „skasowane".**
+Pełni tu tę samą rolę co `data_erased_at` przy wymazywaniu konta:
+zatwierdzoną, widoczną dla innych transakcji deklarację „to zdjęcie
+odchodzi". `ZdjeciaDoPrzypiecia` takiego wiersza nie przepuści, więc okno
+nie wraca po zwolnieniu blokady, a przed skasowaniem plików.
+
+Wiersz ze znacznikiem jest **uchwytem do ponowienia**: nieudane kasowanie
+plików zostawia go na miejscu, a kolejny przebieg
+`kuking:sprzataj-osierocone-zdjecia` wybiera go po wieku tak samo jak każdy
+inny. To zachowanie z issue #17 zostaje nietknięte.
+
+### Czego świadomie NIE zrobiono
+
+- **Nowej kolumny ani migracji.** `media_status_check` dopuszcza wartość
+  `deleted` od pierwszej migracji tabeli (`2026_09_05_000100_create_media_table`),
+  tylko nikt jej nie używał. Osobna kolumna „zarezerwowane do kasowania"
+  byłaby szóstym mechanizmem blokowania w repozytorium, w którym pięć
+  wjechało tego samego dnia.
+- **Optymalizacji liczby zapytań przy autoryzacji zdjęć** — to jest MEDIA-03
+  (#286) i idzie osobno.
+- **Trzech pozostałych dróg przypięcia** (`profiles.avatar_media_id`,
+  `recipes.hero_media_id`/`source_scan_media_id`, `recipe_steps.media_id`).
+  Mają ten sam kształt i tę samą lukę; nie zamknięto ich tutaj, żeby zmiana
+  została przy utracie danych na dwóch najważniejszych ścieżkach produktu
+  („Opublikuj" i „Ugotowałem"). **To jest dług, nie stan docelowy** — patrz
+  „Co zostaje otwarte".
+
+### Czego test NIE pilnuje
+
+`tests/Feature/ZdjecieNieZnikaPrzyPrzypinaniuTest.php` **nie odtwarza**
+wymuszonego przeplotu na dwóch połączeniach do PostgreSQL, którego domaga
+się issue. `RefreshDatabase` trzyma dane testu w niezatwierdzonej transakcji,
+więc drugie połączenie nie zobaczyłoby ani konta, ani zdjęcia.
+
+Testowany jest kontrakt, na czterech osobnych elementach (blokada przy
+przypinaniu, rewalidacja pod blokadą u sprzątacza, nieprzypinalność wiersza
+ze znacznikiem, pliki po commicie + uchwyt do ponowienia). Brak przeplotu
+z nich **wynika**, ale nie jest zmierzony — i tak trzeba to czytać.
+
+Nie jest sprawdzone maszynowo, że PostgreSQL faktycznie serializuje
+`FOR UPDATE` z `FOR KEY SHARE` branym przy kluczu obcym; to własność silnika,
+przyjęta z dokumentacji. Nie jest też pilnowany strażnik
+`DB::transactionLevel() === 0`, bo pod `RefreshDatabase` poziom transakcji
+nigdy nie jest zerem.
+
+### Co zostaje otwarte
+
+Awatar, zdjęcie główne przepisu, skan zeszytu i zdjęcie kroku przypinają się
+nadal bez blokady. Sam znacznik `deleted` daje im węższe okno niż przedtem,
+ale go nie zamyka. Do osobnego zadania: przepuścić te cztery drogi przez
+`ZdjeciaDoPrzypiecia`.
+
+**Pliki:** `app/Domain/Media/ZdjeciaDoPrzypiecia.php` ·
+`app/Domain/Media/KasujZdjecie.php` · `app/Domain/Media/OsieroconeZdjecia.php` ·
+`app/Domain/Posts/Actions/PublishPost.php` ·
+`app/Domain/Recipes/Actions/RecordCookedEvent.php` · `app/Models/Media.php` ·
+`tests/Feature/ZdjecieNieZnikaPrzyPrzypinaniuTest.php`
+
+---
+
+## D-087 · Spis wszystkich tematów (`tags.index`) — dwie sekcje, zero rankingu
+
+**Data:** 10 września 2026 · Status: **obowiązuje**
+
+Druga połowa issue #273 (pierwsza — słownik tagów, D-026 — jest na `main`
+od 7 września). Baza tagów bez strony, na której da się je zobaczyć, nie
+rozwiązuje problemu; strona bez tagów też nie — cytat z issue.
+
+### Co strona pokazuje
+
+Nowa trasa publiczna `GET /tagi` (`tags.index`), bez logowania, w dwóch
+sekcjach:
+
+1. **„Polecane tematy"** — `Tag::promowane()` (D-021, „tag promowany —
+   lista gospodarza"), w kolejności redakcyjnej z panelu
+   `/admin/tagi-promowane` (`tag_promotions.position`). To jest dosłownie
+   „promowanymi tagami" z cytatu PROD3 w issue #273.
+2. **„Wszystkie tematy A-Z"** — `Tag::aktywne()` (czyli bez tagów
+   ukrytych i scalonych), **alfabetycznie po `name`**, stronicowane
+   istniejącym wzorcem „Pokaż więcej" (`<x-show-more>`), nie infinite
+   scroll.
+
+Każdy temat pokazuje swoją **prawdziwą** liczbę wpisów — także zero, bo
+issue zakazuje wprost udawania żywej treści („wolno wgrać puste tematy do
+przeglądania, nie wolno wgrać fałszywych wpisów, żeby wyglądały na żywe").
+Pusty temat na tej liście prowadzi do tej samej strony `/tag/{slug}`,
+która już dziś pokazuje `x-empty-state` „Tu jeszcze nikt nic nie ugotował"
+— żadnego nowego stanu pustego nie trzeba było wymyślać.
+
+### Dlaczego kolejność NIE jest rankingiem
+
+Obie sekcje sortują po czymś, co nie zależy od popularności ani od tego, co
+ktokolwiek zrobił z treścią:
+
+- sekcja 1 sortuje po **wyborze gospodarza** — to samo pole, którego panel
+  admina już używa do ustawienia kolejności listy promowanej; zmiana tej
+  kolejności wymaga wejścia do panelu, nie zbierania „Ugotowałem";
+- sekcja 2 sortuje **po alfabecie** — deterministyczne, przewidywalne,
+  niezależne od ruchu na tagu. Dwa uruchomienia tego samego dnia dają
+  identyczną kolejność, niezależnie od tego, ile osób odwiedziło który tag
+  w międzyczasie.
+
+Żadna z dwóch sekcji nie sortuje po `posts_count`, po liczbie
+obserwujących ani po dacie ostatniego wpisu — to jest właśnie „ważenie
+popularności", którego zakazuje `AGENTS.md` i przekazanie pracy z 10.09
+(§9 pkt 3-4). Liczba wpisów jest wyłącznie **etykietą przy nazwie**, tak
+jak Garnkowe „Jedzonko 34203 zdj." — samo w sobie nigdy nie decyduje
+o miejscu tematu na liście.
+
+### Skąd liczba wpisów, żeby była prawdziwa i tania
+
+Liczba przy każdym tagu to `posts` policzone przez
+`Post::publiclyVisible()->tylkoOdAktywnychAutorow()` — **ten sam** zakres,
+którego komentarz w `Post::scopeTylkoOdAktywnychAutorow()` wymienia wprost
+jako przeznaczony m.in. dla „feedu tematów". Świadomie NIE jest to
+`Post::widoczneDla($widz)` z widoku pojedynczego tagu:
+
+- `widoczneDla()` liczy się PER WIDZ (blokady, obserwowanie) — na liście
+  z jednego zapytania dla setek tagów naraz oznaczałoby to inny wynik dla
+  każdej zalogowanej osoby, czyli liczbę, której nie da się ani zmierzyć
+  raz, ani wytłumaczyć („dlaczego u mnie 4, a u sąsiada 5?");
+- `publiclyVisible()+tylkoOdAktywnychAutorow()` daje **jedną, tę samą**
+  liczbę każdej osobie — i jest dokładnie tym, co zobaczy GOŚĆ wchodząc na
+  `/tag/{slug}` (bo dla widza `null` `widoczneDla()` redukuje się do tego
+  samego warunku). Dla zalogowanej osoby liczba na liście może być **niższa**
+  niż to, co zobaczy po wejściu (jej własne wpisy, wpisy obserwowanych z
+  widocznością „obserwujący") — nigdy wyższa. Niedoszacowanie w dobrą
+  stronę jest bezpieczne z punktu widzenia zakazu sztucznego ruchu; zawyżenie
+  nie byłoby.
+
+Liczenie idzie jednym zapytaniem (`withCount(['posts' => ...])`), tą samą
+techniką, którą `docs/product/PROSTOTA_JAK_GARNEK.md` §3 pkt 1 proponuje
+wprost dla tej strony — bez zapytania na tag, czyli bez N+1. Pilnuje tego
+`SpisTematowTest::test_strona_nie_generuje_zapytania_na_kazdy_tag`.
+
+### Czego ta decyzja NIE robi tak, jak sugerował pierwotny szkic
+
+`docs/product/PROSTOTA_JAK_GARNEK.md` §3 pkt 1 (napisany 10 września, przed
+tym PR-em) proponował **jedną, niestronicowaną listę** wszystkich aktywnych
+tagów — bo w chwili pisania tamtego dokumentu D-021 mówiło o „zamkniętej
+liście ok. 30 tagów" (cytat z §5a tego samego pliku). Słownik z D-026,
+scalony 7 września, ma **~1250 nazw kanonicznych** — jedna strona bez
+podziału renderowałaby więc naraz ponad tysiąc odnośników, co jest dokładnie
+tym rodzajem gęstości, przeciw któremu stoi cały ten dokument (por. sekcja
+1a tamtego pliku o stronie głównej). Stąd stronicowanie w sekcji 2 —
+zachowuje alfabetyczny, nieranking'owy porządek, tylko w kawałkach po
+`config('kuking.tags.index_page_size')` (domyślnie 100).
+
+### Co świadomie pominięto
+
+1. **Filtrowanie / szukanie po literze albo kategorii.** `internal_category`
+   jest jawnie „nigdy niepokazywana użytkownikowi" (`docs/DATABASE.md`,
+   opis kolumny `tags.internal_category`) — użycie jej jako nagłówka sekcji
+   publicznej strony złamałoby tę już zapisaną decyzję. Skok alfabetyczny
+   (kotwice `#litera-a` itp.) też został pominięty: to jest wzbogacenie UX,
+   nie brakujący element zakresu z issue #273, i zwiększa powierzchnię do
+   testowania bez potrzeby MVP. Zgłoszone jako pomysł do osobnego issue,
+   nie zrobione po cichu.
+2. **Wykluczenie tagów promowanych z sekcji „Wszystkie tematy A-Z".**
+   Tag promowany pojawia się w obu sekcjach. Wykluczenie wymagałoby
+   dodatkowego warunku `whereNotIn` na liście promowanych ID przy każdym
+   stronicowaniu; podwójne wystąpienie tego samego tematu (raz w sekcji
+   redakcyjnej, raz w alfabetycznej) nie jest mylące — to ten sam wzorzec,
+   co "polecane" i "wszystko" w sklepach czy bibliotekach.
+3. **Odznaka „obserwujesz" przy tagu dla zalogowanej osoby.** Istnieje już
+   na `/ustawienia/tagi` i na `/tag/{slug}`; dokładanie jej tutaj to kolejne
+   zapytanie (`tag_follows` dla widza × strona wyników) bez wymogu z issue
+   #273 — możliwe do dołożenia później, jeśli ktoś tego zabraknie w testach
+   z użytkownikami.
+
+**Pliki:** `routes/web.php` · `app/Http/Controllers/TagController.php` ·
+`resources/views/pages/tags/index.blade.php` · `config/kuking.php` ·
+`tests/Feature/SpisTematowTest.php`.

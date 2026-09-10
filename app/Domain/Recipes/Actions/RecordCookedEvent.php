@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
+use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
-use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
@@ -100,18 +100,27 @@ final class RecordCookedEvent
             throw new BladDlaCzlowieka('Nie można dodać wykonania do tego przepisu.');
         }
 
-        $ownedMedia = Media::query()
-            ->where('owner_id', $cook->getKey())
-            ->whereIn('id', $mediaIds)
-            ->pluck('id')
-            ->all();
-
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $ip
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $klucz, $ip
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip
             ): CookedEvent {
+                /*
+                 * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
+                 * (issue #285, D-083).
+                 *
+                 * Ta sama luka co w `PublishPost`: własność sprawdzana PRZED
+                 * transakcją, zwykłym `SELECT`-em, a przypięcie kilka linijek
+                 * dalej. Sprzątacz osieroconych zdjęć mieścił się w środku
+                 * razem z kasowaniem plików, a `cooked_event_media.media_id`
+                 * kasuje się kaskadowo — więc wykonanie zostawało bez zdjęcia
+                 * i bez pliku. „Ugotowałem" jest w tym produkcie ważniejsze
+                 * niż lajk, a zdjęcie z tego wykonania bywa jedynym, jakie
+                 * ta osoba ma.
+                 */
+                $ownedMedia = ZdjeciaDoPrzypiecia::zablokuj((string) $cook->getKey(), $mediaIds);
+
                 $event = CookedEvent::create([
                     'user_id' => $cook->getKey(),
                     'recipe_id' => $recipe->getKey(),
