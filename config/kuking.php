@@ -855,10 +855,16 @@ return [
     | zmiennych w Railway było jedyną rzeczą, którą właściciel musi zrobić.
     | Dokładnie ta sama zasada co przy kluczach Turnstile wyżej.
     |
-    | ALE cisza na produkcji jest zakazana: gdy `APP_ENV=production`, funkcja
-    | jest włączona niżej, a kluczy nie ma, `/health` oddaje `degraded`
-    | z powodem `google_bez_kluczy`. Bez tego mielibyśmy drogę wejścia, która
-    | melduje sukces, nie istniejąc (`App\Support\Google`).
+    | ALE cisza na produkcji ma być zakazana: gdy `APP_ENV=production`, funkcja
+    | jest włączona niżej, a kluczy nie ma, `/health` ma oddawać `degraded`
+    | z powodem `google_bez_kluczy` — inaczej mielibyśmy drogę wejścia, która
+    | melduje sukces, nie istniejąc.
+    |
+    | TEGO SYGNAŁU JESZCZE NIE MA — świadomie odłożony, nie przeoczony.
+    | `HealthController` przerabia równolegle inne zlecenie (#253/#255),
+    | a dwóch agentów w jednym pliku kosztuje więcej niż jeden dzień bez tego
+    | sygnału. Gotowe zdanie dla właściciela czeka
+    | w `App\Support\Google::komunikatBrakuKluczy()`.
     */
     'google' => [
         /*
@@ -873,7 +879,7 @@ return [
          *
          * Wycofanie MIGRACJI to co innego i ona odmawia, dopóki nie
          * powiesz jej wprost, że wolno skasować powiązania — patrz
-         * `2026_09_10_500000_add_google_account_to_users`.
+         * `2026_09_10_500000_create_tozsamosci_zewnetrzne_table`.
          */
         'wlaczone' => (bool) env('KUKING_WEJSCIE_GOOGLE', true),
 

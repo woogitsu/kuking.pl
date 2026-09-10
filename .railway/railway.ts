@@ -453,9 +453,10 @@ export default defineRailway((ctx) => {
     // przypięte do adresów powrotu, czyli różnią się między środowiskami.
     //
     // PUSTE = TEJ DROGI NIE MA i nic się nie psuje: przycisku nie ma na
-    // ekranie, hasło i link działają jak dziś. Ale na produkcji `/health`
-    // oddaje wtedy `status: degraded` z powodem `google_bez_kluczy`, żeby
-    // brak zapowiedzianej drogi wejścia nie był niewidoczny.
+    // ekranie, hasło i link działają jak dziś. `/health` na razie o tym NIE
+    // POWIE — sygnał `google_bez_kluczy` jest zaplanowany (D-069), ale
+    // odłożony do PR-a, który przerabia `HealthController` (#253/#255).
+    // Do tego czasu sprawdzenie jest ręczne: czy na /login jest przycisk.
     //
     // GOOGLE_CLIENT_ID nie jest sekretem (wchodzi do adresu przekierowania),
     // GOOGLE_CLIENT_SECRET jest — w panelu Railway zaznacz „Sealed".

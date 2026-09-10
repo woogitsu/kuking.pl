@@ -118,9 +118,11 @@ final class ZalozKonto
 
             $user->save();
 
-            // Po `save()`, bo `connectGoogle()` zapisuje wiersz, który musi
-            // już istnieć. `google_sub` jest poza `$fillable` i wchodzi
-            // wyłącznie tą jawną, nazwaną drogą (AGENTS.md §7).
+            // Po `save()`, bo `connectGoogle()` dokłada wiersz w tabeli
+            // `tozsamosci_zewnetrzne` z kluczem obcym na to konto — musi
+            // więc już istnieć. `TozsamoscZewnetrzna` ma puste `$fillable`
+            // i powiązanie wchodzi wyłącznie tą jawną, nazwaną drogą
+            // (AGENTS.md §7, D-098).
             if ($googleSub !== null) {
                 $user->connectGoogle($googleSub);
             }

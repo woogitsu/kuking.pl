@@ -305,9 +305,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // albo — cofając datę — wysłać mu drugi list w tym samym
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
             'weekly_digest_sent_at' => 'datetime',
-            // Kiedy powstało powiązanie z kontem Google (issue #258, D-069).
-            // Poza `$fillable` razem z `google_sub` — patrz `connectGoogle()`.
-            'google_connected_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
             'is_seeded' => 'boolean',
@@ -856,34 +853,65 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
-     * Powiązanie konta z kontem Google — JEDYNA droga, którą `google_sub`
-     * trafia na wiersz `users` (issue #258, D-069).
+     * Powiązania z kontami u dostawców zewnętrznych (D-098).
      *
-     * `google_sub` I `google_connected_at` SĄ POZA `$fillable` i to jest
-     * najważniejsze zdanie w tym miejscu. Ten sam powód co przy `email`
-     * (issue #195), `status` i `role` (AGENTS.md §7), tylko konsekwencje są
-     * jeszcze bardziej wprost: kto ustawi komuś `google_sub` na swój własny,
-     * ten wchodzi na jego konto jednym kliknięciem. Gdyby ta kolumna stała
-     * na liście masowego przypisania, dowolny dzisiejszy i przyszły
-     * `update($request->all())` — także taki, który o Google w ogóle nie
+     * Relacja, nie kolumny — pełne uzasadnienie w migracji
+     * `create_tozsamosci_zewnetrzne_table` i w D-098. W skrócie: właściciel
+     * zamówił DWÓCH dostawców (Google i Facebook), a przy dwóch byłyby
+     * cztery kolumny na `users` i dwa osobne CHECK-i „obie kolumny albo
+     * żadna".
+     */
+    public function tozsamosciZewnetrzne(): HasMany
+    {
+        return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
+    }
+
+    /**
+     * Powiązanie konta z kontem Google — JEDYNA droga, którą identyfikator
+     * z Google trafia do bazy (issue #258, D-069, D-098).
+     *
+     * `TozsamoscZewnetrzna` MA PUSTE `$fillable` i to jest najważniejsze
+     * zdanie w tym miejscu. Ten sam powód co przy `email` (issue #195),
+     * `status` i `role` (AGENTS.md §7), tylko konsekwencje są jeszcze
+     * bardziej wprost: kto założy komuś wiersz z własnym identyfikatorem
+     * Google, ten wchodzi na jego konto jednym kliknięciem. Gdyby te pola
+     * stały na liście masowego przypisania, dowolny dzisiejszy i przyszły
+     * `create($request->all())` — także taki, który o Google w ogóle nie
      * myśli — byłby przejęciem konta.
      *
      * ZAPISUJE OD RAZU, w odróżnieniu od `assignEmail()`. Powiązanie nigdy
      * nie powstaje „razem z czymś innym w jednej transakcji": albo dokładamy
      * je do konta, które już istnieje (po potwierdzeniu przez człowieka), albo
      * do konta zakładanego przez `ZalozKonto`, które woła to jawnie.
+     *
+     * DRUGIE WOŁANIE DLA TEGO SAMEGO KONTA ODBIJA SIĘ O BAZĘ
+     * (`UNIQUE (dostawca, user_id)`) i to jest zachowanie poprawne: jedno
+     * konto Kuking ma najwyżej jedno konto Google. Kontroler pyta wcześniej
+     * `hasGoogleConnected()`, więc do wyjątku dochodzi tylko przy wyścigu —
+     * a wyścig ma się skończyć odmową, nie drugim powiązaniem.
      */
     public function connectGoogle(string $sub): void
     {
-        $this->forceFill([
-            'google_sub' => $sub,
-            'google_connected_at' => now(),
+        $tozsamosc = new TozsamoscZewnetrzna;
+
+        $tozsamosc->forceFill([
+            'user_id' => $this->getKey(),
+            'dostawca' => TozsamoscZewnetrzna::DOSTAWCA_GOOGLE,
+            'identyfikator' => $sub,
+            'connected_at' => now(),
         ])->save();
+
+        // Relacja mogła zostać już wczytana (ekran ustawień, ten sam obiekt
+        // w jednym żądaniu) — bez tego `hasGoogleConnected()` odpowiadałoby
+        // ze stanu sprzed zapisu.
+        $this->unsetRelation('tozsamosciZewnetrzne');
     }
 
     public function hasGoogleConnected(): bool
     {
-        return $this->google_sub !== null;
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+            ->exists();
     }
 
     /**
@@ -894,8 +922,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * która odeszła z firmy; `sub` jest trwały. Adres służy dokładnie raz,
      * przy pierwszym połączeniu, i to za zgodą człowieka (D-069).
      *
-     * Baza gwarantuje najwyżej jeden pasujący wiersz — indeks częściowy
-     * `users_google_sub_unique`.
+     * Baza gwarantuje najwyżej jeden pasujący wiersz —
+     * `UNIQUE (dostawca, identyfikator)`.
      */
     public static function findByGoogleSub(string $sub): ?self
     {
@@ -903,7 +931,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
             return null;
         }
 
-        return self::where('google_sub', $sub)->first();
+        return self::query()
+            ->whereHas('tozsamosciZewnetrzne', static fn ($q) => $q
+                ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+                ->where('identyfikator', $sub))
+            ->first();
     }
 
     /**

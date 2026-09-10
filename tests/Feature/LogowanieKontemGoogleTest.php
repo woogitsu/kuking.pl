@@ -7,10 +7,12 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Google\KlientGoogle;
+use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Support\Google;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
@@ -165,6 +167,32 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertNotEmpty($trafienia, "Nie ma na stronie elementu o id=\"{$id}\" — sprawdzam zły ekran.");
 
         return $trafienia[0];
+    }
+
+    /**
+     * Identyfikator konta Google powiązany z tym kontem — albo `null`.
+     *
+     * Pytamy TABELĘ, nie model, i to jest celowe: `User::hasGoogleConnected()`
+     * mógłby odpowiadać ze wczytanej relacji, a tu chcemy wiedzieć, co
+     * naprawdę leży w bazie (D-098).
+     */
+    private function identyfikatorGoogle(User $user): ?string
+    {
+        $wartosc = TozsamoscZewnetrzna::query()
+            ->where('user_id', $user->getKey())
+            ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+            ->value('identyfikator');
+
+        return $wartosc === null ? null : (string) $wartosc;
+    }
+
+    /** Kiedy powstało powiązanie — albo `null`, gdy powiązania nie ma. */
+    private function kiedyPolaczono(User $user): mixed
+    {
+        return TozsamoscZewnetrzna::query()
+            ->where('user_id', $user->getKey())
+            ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+            ->value('connected_at');
     }
 
     // ─────────────────────── wyłącznik i martwy przycisk ───────────────────────
@@ -360,7 +388,7 @@ class LogowanieKontemGoogleTest extends TestCase
         // Bez potwierdzenia adresu przez Google to jest gotowe przejęcie konta.
         $this->assertGuest();
 
-        $this->assertNull($basia->refresh()->google_sub);
+        $this->assertNull($this->identyfikatorGoogle($basia->refresh()));
         // Nie wolno też ZAŁOŻYĆ konta na niepotwierdzony adres.
         $this->assertDatabaseCount('users', 1);
 
@@ -411,8 +439,8 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertGuest();
 
         $kontoNapastnika->refresh();
-        $this->assertNull($kontoNapastnika->google_sub, 'Powiązanie nie ma prawa powstać.');
-        $this->assertNull($kontoNapastnika->google_connected_at);
+        $this->assertNull($this->identyfikatorGoogle($kontoNapastnika), 'Powiązanie nie ma prawa powstać.');
+        $this->assertNull($this->kiedyPolaczono($kontoNapastnika));
         // Drugie konto na ten sam adres też nie powstaje.
         $this->assertDatabaseCount('users', 1);
 
@@ -442,7 +470,7 @@ class LogowanieKontemGoogleTest extends TestCase
         // NIE zalogowani i NIE połączeni — samo rozpoznanie adresu nie
         // wystarcza, choćby Google go potwierdziło.
         $this->assertGuest();
-        $this->assertNull($basia->refresh()->google_sub);
+        $this->assertNull($this->identyfikatorGoogle($basia->refresh()));
 
         // Ekran mówi, na jakie konto wchodzi, ZANIM cokolwiek się stanie.
         $this->get(route('google.link'))
@@ -455,8 +483,8 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->post(route('google.link.store'))->assertRedirect(route('home'));
 
         $basia->refresh();
-        $this->assertSame('109876543210987654321', $basia->google_sub);
-        $this->assertNotNull($basia->google_connected_at);
+        $this->assertSame('109876543210987654321', $this->identyfikatorGoogle($basia));
+        $this->assertNotNull($this->kiedyPolaczono($basia));
         $this->assertAuthenticatedAs($basia);
 
         // Hasło zostaje drogą równoległą — nie ruszamy go przy łączeniu.
@@ -481,7 +509,7 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->get(route('google.link'))->assertOk();
         $this->get(route('google.link'))->assertOk();
 
-        $this->assertNull($basia->refresh()->google_sub);
+        $this->assertNull($this->identyfikatorGoogle($basia->refresh()));
         $this->assertGuest();
     }
 
@@ -502,7 +530,7 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $this->post(route('google.link.store'))->assertRedirect(route('login'));
 
-        $this->assertNull($basia->refresh()->google_sub,
+        $this->assertNull($this->identyfikatorGoogle($basia->refresh()),
             'O dostępie do konta nie może rozstrzygać stan z przeszłości.');
         $this->assertGuest();
     }
@@ -595,8 +623,8 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $this->assertNotNull($basia);
         $this->assertAuthenticatedAs($basia);
-        $this->assertSame('109876543210987654321', $basia->google_sub);
-        $this->assertNotNull($basia->google_connected_at);
+        $this->assertSame('109876543210987654321', $this->identyfikatorGoogle($basia));
+        $this->assertNotNull($this->kiedyPolaczono($basia));
 
         // ADRES JEST OD RAZU POTWIERDZONY — Google to potwierdziło, więc nie
         // pytamy o to samo drugi raz (i nie zużywamy listu z dobowej puli).
@@ -843,13 +871,25 @@ class LogowanieKontemGoogleTest extends TestCase
         // Kontrola projektu, nie zachowania: gdyby ktoś kiedyś dołożył
         // kolumnę na token dostępu albo odświeżania, ten test ma o tym
         // powiedzieć — bo to jest zmiana zakresu danych, a nie refaktor.
-        foreach (['google_access_token', 'google_refresh_token', 'google_id_token', 'google_picture'] as $kolumna) {
-            $this->assertFalse(Schema::hasColumn('users', $kolumna),
-                "Kolumna `users.{$kolumna}` nie ma prawa istnieć — trzymamy wyłącznie `google_sub` (D-069).");
+        foreach (['access_token', 'refresh_token', 'id_token', 'zdjecie', 'email'] as $kolumna) {
+            $this->assertFalse(Schema::hasColumn('tozsamosci_zewnetrzne', $kolumna),
+                "Kolumna `tozsamosci_zewnetrzne.{$kolumna}` nie ma prawa istnieć — trzymamy wyłącznie "
+                .'dostawcę, identyfikator i datę połączenia (D-069, D-098).');
         }
 
-        $this->assertTrue(Schema::hasColumn('users', 'google_sub'));
-        $this->assertTrue(Schema::hasColumn('users', 'google_connected_at'));
+        // Kolumn na `users` też nie ma i nie ma ich mieć — powiązanie
+        // mieszka w osobnej tabeli (D-098).
+        foreach (['google_sub', 'google_connected_at', 'google_access_token'] as $kolumna) {
+            $this->assertFalse(Schema::hasColumn('users', $kolumna),
+                "Kolumna `users.{$kolumna}` nie ma prawa istnieć — powiązania z dostawcami "
+                .'tożsamości leżą w `tozsamosci_zewnetrzne` (D-098).');
+        }
+
+        $this->assertSame(
+            ['connected_at', 'dostawca', 'id', 'identyfikator', 'user_id'],
+            collect(Schema::getColumnListing('tozsamosci_zewnetrzne'))->sort()->values()->all(),
+            'Zmiana zakresu danych o człowieku wymaga decyzji, nie refaktoru (AGENTS.md §6).',
+        );
     }
 
     #[Test]
@@ -860,8 +900,8 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $pierwsze->connectGoogle('109876543210987654321');
 
-        // Pilnuje tego BAZA (indeks częściowy `users_google_sub_unique`),
-        // nie tylko PHP — bo walidator obchodzi się drugim endpointem.
+        // Pilnuje tego BAZA (`UNIQUE (dostawca, identyfikator)`), nie tylko
+        // PHP — bo walidator obchodzi się drugim endpointem.
         $this->expectException(QueryException::class);
         $drugie->connectGoogle('109876543210987654321');
     }
@@ -875,7 +915,153 @@ class LogowanieKontemGoogleTest extends TestCase
 
         app(EraseAccountData::class)->handle($basia->refresh());
 
-        $this->assertNull($basia->refresh()->google_sub,
+        $this->assertNull($this->identyfikatorGoogle($basia->refresh()),
             'Po wymazaniu danych konto nie ma właściciela — wejście kontem Google musi zniknąć razem z hasłem.');
+    }
+
+    // ─────────────────── model danych na DWÓCH dostawców (D-098) ───────────────────
+
+    #[Test]
+    public function test_jedno_konto_kuking_nie_ma_dwoch_polaczen_z_google(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectGoogle('109876543210987654321');
+
+        /*
+         * Pilnuje tego BAZA (`UNIQUE (dostawca, user_id)`), nie PHP.
+         *
+         * To jest ograniczenie, którego wersja na kolumnach nie potrzebowała
+         * (kolumna jest jedna) — więc przy przejściu na tabelę trzeba je było
+         * napisać wprost. Bez niego „połącz" wołane dwa razy dokładałoby
+         * drugi wiersz i konto miałoby DWA konta Google, z których jedno
+         * nikomu by o niczym nie mówiło.
+         */
+        $this->expectException(QueryException::class);
+        $basia->connectGoogle('209876543210987654321');
+    }
+
+    #[Test]
+    public function test_baza_nie_przyjmuje_dostawcy_poza_zamknieta_lista(): void
+    {
+        $basia = $this->user('basia');
+
+        /*
+         * Facebooka na liście CHECK-a NIE MA i to jest celowe (D-098):
+         * wchodzi razem ze swoim kodem, bo warunki wejścia są u niego INNE —
+         * nie oddaje `email_verified`, więc warunku z D-069 nie da się dla
+         * niego spełnić, a łączenie po adresie musi być u niego ZAKAZANE.
+         * Gdyby lista była otwarta, wystarczyłby jeden `INSERT` z cudzą
+         * nazwą dostawcy, żeby ten wywód obejść bez żadnej decyzji.
+         */
+        $this->expectException(QueryException::class);
+
+        DB::table('tozsamosci_zewnetrzne')->insert([
+            'user_id' => $basia->getKey(),
+            'dostawca' => 'facebook',
+            'identyfikator' => '1234567890',
+            'connected_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function test_baza_nie_przyjmuje_pustego_identyfikatora(): void
+    {
+        $basia = $this->user('basia');
+
+        // `CHECK (identyfikator ~ '^\S{1,255}$')`. Pusty identyfikator
+        // pasowałby do każdego kolejnego pustego — czyli jedno konto Google
+        // wpuszczałoby na dowolne konto, które też ma pusty wpis.
+        $this->expectException(QueryException::class);
+
+        DB::table('tozsamosci_zewnetrzne')->insert([
+            'user_id' => $basia->getKey(),
+            'dostawca' => 'google',
+            'identyfikator' => '   ',
+            'connected_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function test_powiazanie_ginie_kaskada_gdy_wiersz_konta_znika_naprawde(): void
+    {
+        $basia = $this->user('basia');
+        $basia->connectGoogle('109876543210987654321');
+
+        /*
+         * Kont w Kuking się NIE KASUJE, tylko anonimizuje (D-022), więc ta
+         * kaskada nie jest drogą, którą powiązanie znika w praktyce — robi to
+         * jawnie `EraseAccountData` (test wyżej). Kaskada jest siatką na
+         * wypadek realnego `DELETE`: `migrate:fresh`, sprzątanie danych
+         * zasianych, przyszłe twarde usunięcie. Wiersz-sierota trzymałby
+         * identyfikator konta Google wskazujący w pustkę i BLOKOWAŁBY
+         * ponowne połączenie tego konta Google z czymkolwiek.
+         */
+        DB::table('users')->where('id', $basia->getKey())->delete();
+
+        $this->assertDatabaseCount('tozsamosci_zewnetrzne', 0);
+    }
+
+    // ─────────────────── dowód, że to moje konto ───────────────────
+
+    #[Test]
+    public function test_polaczenie_bez_tozsamosci_w_sesji_odmawia(): void
+    {
+        $this->wlaczGoogle();
+
+        $basia = $this->user('basia', [
+            'email' => 'basia@example.test',
+            'email_verified_at' => now(),
+        ]);
+
+        /*
+         * Samo wejście POST-em na adres łączenia nie łączy niczego. Bez
+         * tożsamości w sesji nie ma DOWODU, że ten człowiek przeszedł przez
+         * ekran zgody Google dla tego adresu — a bez tego dowodu połączenie
+         * jest przejęciem konta na życzenie.
+         */
+        $this->post(route('google.link.store'))->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertNull($this->identyfikatorGoogle($basia->refresh()));
+    }
+
+    #[Test]
+    public function test_moderator_nie_polaczy_konta_ta_droga_nawet_gdy_adres_sie_zgadza(): void
+    {
+        $this->wlaczGoogle();
+
+        // Konto obsługi serwisu z POTWIERDZONYM adresem, jeszcze NIE powiązane
+        // — czyli dokładnie ten stan, w którym reguła 3 wpuściłaby zwykłą
+        // osobę na ekran „połączyć?".
+        $moderator = $this->user('moderator_niepolaczony', [
+            'email' => 'basia@example.test',
+            'email_verified_at' => now(),
+            'role' => User::ROLE_MODERATOR,
+        ]);
+
+        $this->wracamyZGoogle()->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertStringContainsString('Konta obsługi serwisu', (string) session('status'));
+
+        // Ekran łączenia też nie ma czego pokazać, a POST nic nie zapisuje —
+        // 2FA moderatora nie da się obejść, dokładając mu konto Google.
+        $this->get(route('google.link'))->assertRedirect(route('login'));
+        $this->post(route('google.link.store'))->assertRedirect(route('login'));
+        $this->assertNull($this->identyfikatorGoogle($moderator->refresh()));
+    }
+
+    #[Test]
+    public function test_token_bez_terminu_waznosci_nie_wchodzi(): void
+    {
+        $this->wlaczGoogle();
+
+        // `exp` jest polem OBOWIĄZKOWYM tokenu tożsamości (OIDC Core §2).
+        // Sprawdzenie „o ile pole jest" byłoby sprawdzeniem, które napastnik
+        // wyłącza, pomijając pole — a tym tokenem wchodzi się na konto.
+        $this->wracamyZGoogle(['exp' => null])->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('users', 0);
     }
 }

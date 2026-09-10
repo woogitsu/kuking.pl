@@ -9,7 +9,7 @@ namespace App\Google;
  *
  * Obiekt żyje przez JEDNO żądanie i częściowo (bez imienia) przez sesję
  * między powrotem z Google a domknięciem konta. Do bazy trafia z tego
- * `sub` — i tylko on (patrz migracja `add_google_account_to_users`).
+ * `sub` — i tylko on (patrz migracja `create_tozsamosci_zewnetrzne_table`).
  *
  * `emailPotwierdzony` NIE JEST tu ozdobą ani polem „na wszelki wypadek".
  * To jest warunek, bez którego cała ta droga zamienia się w przejmowanie

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -16,8 +17,8 @@ use Tests\TestCase;
  * `login_link_tokens` wolno skasować bez pytania: traci się linki W DRODZE,
  * a każdy taki człowiek ma hasło. Tutaj jest odwrotnie: konto założone drogą
  * Google **nigdy nie miało hasła** (w kolumnie leży skrót wartości losowej,
- * której nikt nie zna). Skasowanie `google_sub` zabiera tej osobie jedyną
- * drogę wejścia, jaką zna — zostaje jej odzyskiwanie hasła i wiadomość
+ * której nikt nie zna). `DROP TABLE tozsamosci_zewnetrzne` zabiera tej osobie
+ * jedyną drogę wejścia, jaką zna — zostaje jej odzyskiwanie hasła i wiadomość
  * z linkiem, czyli dwie rzeczy, których nie umie połowa naszej grupy
  * (`docs/research/AUDIENCE_50_PLUS.md`).
  *
@@ -32,7 +33,7 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ZGODA = 'KUKING_ROLLBACK_KASUJ_POWIAZANIA_GOOGLE';
+    private const ZGODA = 'KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE';
 
     protected function tearDown(): void
     {
@@ -45,16 +46,13 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
     private function migracja(): object
     {
         return require database_path(
-            'migrations/2026_09_10_500000_add_google_account_to_users.php',
+            'migrations/2026_09_10_500000_create_tozsamosci_zewnetrzne_table.php',
         );
     }
 
-    private function kolumnaIstnieje(string $kolumna): bool
+    private function tabelaIstnieje(): bool
     {
-        return DB::select(
-            'SELECT column_name FROM information_schema.columns WHERE table_name = ? AND column_name = ?',
-            ['users', $kolumna],
-        ) !== [];
+        return Schema::hasTable('tozsamosci_zewnetrzne');
     }
 
     public function test_cofniecie_odmawia_gdy_ktos_wchodzi_kontem_google(): void
@@ -77,8 +75,9 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
 
         // NAJWAŻNIEJSZE: powiązanie nadal jest. Odmowa, która i tak zdążyła
         // skasować dane, byłaby tylko ładniejszym komunikatem o stracie.
-        $this->assertSame('109876543210987654321', $basia->refresh()->google_sub);
-        $this->assertTrue($this->kolumnaIstnieje('google_sub'));
+        $this->assertSame('109876543210987654321', (string) DB::table('tozsamosci_zewnetrzne')
+            ->where('user_id', $basia->getKey())->value('identyfikator'));
+        $this->assertTrue($this->tabelaIstnieje());
     }
 
     public function test_na_swiezym_srodowisku_cofniecie_dziala_bez_pytania(): void
@@ -86,14 +85,13 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
         // Nie ma czego stracić, więc nie ma o co pytać.
         $this->migracja()->down();
 
-        $this->assertFalse($this->kolumnaIstnieje('google_sub'));
-        $this->assertFalse($this->kolumnaIstnieje('google_connected_at'));
+        $this->assertFalse($this->tabelaIstnieje());
 
         // Migrujemy z powrotem, żeby nie zostawić bazy w połowie drogi dla
         // kolejnych testów w tym samym procesie.
         $this->migracja()->up();
 
-        $this->assertTrue($this->kolumnaIstnieje('google_sub'));
+        $this->assertTrue($this->tabelaIstnieje());
     }
 
     public function test_cofniecie_przechodzi_gdy_wlasciciel_powie_to_wprost(): void
@@ -101,11 +99,11 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
         $basia = $this->user('basia');
         $basia->connectGoogle('109876543210987654321');
 
-        $_SERVER[self::ZGODA] = 'true';
+        putenv(self::ZGODA.'=true');
 
         $this->migracja()->down();
 
-        $this->assertFalse($this->kolumnaIstnieje('google_sub'),
+        $this->assertFalse($this->tabelaIstnieje(),
             'Świadoma zgoda ma przepuszczać cofnięcie — inaczej migracja jest nie do cofnięcia nigdy.');
 
         $this->migracja()->up();
@@ -117,15 +115,15 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
         // sprawdzeniem, wyjątek leciałby już po utracie danych. Czytamy kod,
         // bo w działaniu tej różnicy nie widać — w obu wersjach leci wyjątek.
         $kod = (string) file_get_contents(database_path(
-            'migrations/2026_09_10_500000_add_google_account_to_users.php',
+            'migrations/2026_09_10_500000_create_tozsamosci_zewnetrzne_table.php',
         ));
 
         $sprawdzenie = strpos($kod, '$this->ilePowiazanych()');
-        $kasowanie = strpos($kod, "dropColumn(['google_sub'");
+        $kasowanie = strpos($kod, 'dropIfExists(self::TABELA)');
 
         $this->assertNotFalse($sprawdzenie);
         $this->assertNotFalse($kasowanie);
         $this->assertLessThan($kasowanie, $sprawdzenie,
-            'Sprawdzenie „czy wolno" musi stać PRZED kasowaniem kolumn.');
+            'Sprawdzenie „czy wolno" musi stać PRZED skasowaniem tabeli.');
     }
 }

@@ -867,10 +867,16 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 **Ile zajmuje:** pięć minut w Google Cloud Console, dwie zmienne w Railway.
 **Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
 „Wejdź kontem Google" po prostu nie będzie na ekranie, a hasło i wiadomość
-z linkiem działają jak dziś. Ale `/health` będzie oddawał `status: degraded`
-z powodem `google_bez_kluczy` (patrz 8D.4), bo konfiguracja obiecuje drogę
-wejścia, której nie ma. To jest zamierzone: cicha, nieistniejąca droga jest
-gorsza niż jej jawny brak.
+z linkiem działają jak dziś.
+
+> ⚠️ **`/health` o tym NA RAZIE NIE POWIE.** Zamierzone jest, żeby produkcja
+> z funkcją włączoną i bez kluczy oddawała `status: degraded` z powodem
+> `google_bez_kluczy` — cicha, nieistniejąca droga wejścia jest gorsza niż
+> jej jawny brak. Sygnał został jednak **świadomie odłożony**:
+> `HealthController` przerabia równolegle inne zlecenie (#253/#255).
+> Do czasu jego dołożenia **sprawdź to okiem po wdrożeniu**: wejdź na
+> `/login` i zobacz, czy przycisk „Wejdź kontem Google" jest na ekranie.
+> Nie ma go = kluczy nie widać.
 
 Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-069](../DECISIONS.md), issue #258.
 
@@ -1029,10 +1035,10 @@ Wtedy ustaw też `KUKING_WEJSCIE_GOOGLE=false`, żeby `/health` nie zgłaszał
 obiecuje tę drogę.
 
 **Migracji do cofania NIE MA i nie cofaj jej dla wyłączenia funkcji.**
-`migrate:rollback` na `2026_09_10_500000_add_google_account_to_users`
+`migrate:rollback` na `2026_09_10_500000_create_tozsamosci_zewnetrzne_table`
 skasowałby powiązania — a dla części osób to jedyna droga wejścia, jaką znają
 (hasła nigdy nie ustawiały). Dlatego to cofnięcie **samo odmawia**, dopóki
-nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_POWIAZANIA_GOOGLE=true`.
+nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 
 ---
 

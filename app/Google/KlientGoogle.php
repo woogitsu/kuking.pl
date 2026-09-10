@@ -224,9 +224,24 @@ final class KlientGoogle
 
         // TERMIN. Zapas na rozjazd zegarów, bo `exp` liczy Google, a porównuje
         // nasz serwer.
+        /*
+         * TERMIN JEST WYMAGANY, nie „sprawdzany, jeśli jest".
+         *
+         * Stało tu `if ($wygasa > 0 && ...)`, czyli token BEZ pola `exp`
+         * przechodził bez żadnego terminu. Token tożsamości bez `exp` nie
+         * jest poprawnym tokenem OpenID Connect (Core §2 wymienia `exp`
+         * wśród pól obowiązkowych), więc nie ma czego tu ratować — a warunek
+         * „sprawdzam, o ile pole jest" jest tą samą pomyłką, przed którą
+         * ostrzega AGENTS.md §7 przy MIME i nazwie pliku od klienta:
+         * sprawdzenie, które napastnik wyłącza, pomijając pole.
+         */
         $wygasa = (int) ($dane['exp'] ?? 0);
 
-        if ($wygasa > 0 && $wygasa + self::ZAPAS_ZEGARA < time()) {
+        if ($wygasa <= 0) {
+            return $this->nieUdalo('Token tożsamości od Google jest bez terminu ważności.', []);
+        }
+
+        if ($wygasa + self::ZAPAS_ZEGARA < time()) {
             return $this->nieUdalo('Token tożsamości od Google już wygasł.', []);
         }
 

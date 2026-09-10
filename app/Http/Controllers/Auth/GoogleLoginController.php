@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Users\Actions\ZalozKonto;
+use App\Domain\Users\ZamekKonta;
 use App\Google\KlientGoogle;
 use App\Google\TozsamoscGoogle;
 use App\Http\Controllers\Controller;
@@ -412,7 +413,11 @@ class GoogleLoginController extends Controller
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             'username.required' => 'Wpisz nazwę, która ma być w adresie Twojego profilu — na przykład imię i miejscowość: basia z podkarpacia.',
-            'username.regex' => 'Z tego, co wpisałeś, nie da się ułożyć nazwy do adresu. Wpisz imię albo imię i miejscowość, na przykład: basia z podkarpacia.',
+            // Zdanie BEZ RODZAJU i w tym samym brzmieniu co przy rejestracji
+            // hasłem (`RegisterController`) — docs/brand/COPY_STYLE.md §2.
+            // Dwa różne teksty na te same dwa formularze rozjechałyby się
+            // przy pierwszej poprawce, a ten jeden już raz był poprawiany.
+            'username.regex' => 'Z tej nazwy nie da się ułożyć adresu. Wpisz imię albo imię i miejscowość, na przykład: basia z podkarpacia.',
             'age_confirmed.accepted' => "Kuking jest dla osób od {$minAge} lat. Potwierdź, że masz tyle lat.",
             'terms_accepted.accepted' => 'Zaznacz, że znasz zasady Kuking.',
         ]);
@@ -506,22 +511,48 @@ class GoogleLoginController extends Controller
          * potwierdzenie adresu. Sprawdzenie tylko przy pokazywaniu ekranu
          * znaczyłoby, że o dostępie do konta rozstrzyga stan z przeszłości.
          */
-        if ($tozsamosc === null || $user === null || ! $this->wolnoPolaczyc($user, $tozsamosc)) {
+        if ($tozsamosc === null || $user === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $user->connectGoogle($tozsamosc->sub);
+        /*
+         * REWALIDACJA POD BLOKADĄ WIERSZA KONTA (`ZamekKonta`, D-079).
+         *
+         * Sprawdzenie warunków i zapis powiązania muszą widzieć TEN SAM stan
+         * konta, a między jednym i drugim mieści się cała klasa wyścigów,
+         * które kończą się wejściem na konto: nadanie roli moderatora,
+         * blokada, zmiana adresu e-mail, zdjęcie potwierdzenia adresu, drugie
+         * takie samo żądanie z sąsiedniej karty. Bez blokady rozstrzygałby
+         * o dostępie stan z przeszłości — a to jest dokładnie ten kształt
+         * błędu, dla którego `ZamekKonta` w tym projekcie powstał.
+         *
+         * `$swiezy` to wiersz wczytany POD blokadą, więc pytania zadajemy
+         * jemu, nie obiektowi z sesji.
+         */
+        $polaczone = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($request, $tozsamosc): ?User {
+            if ($swiezy === null || ! $this->wolnoPolaczyc($swiezy, $tozsamosc)) {
+                return null;
+            }
 
-        AuditLogEntry::record(
-            action: 'account.google_connected',
-            actor: $user,
-            subject: $user,
-            ip: $request->ip(),
-        );
+            $swiezy->connectGoogle($tozsamosc->sub);
+
+            AuditLogEntry::record(
+                action: 'account.google_connected',
+                actor: $swiezy,
+                subject: $swiezy,
+                ip: $request->ip(),
+            );
+
+            return $swiezy;
+        });
+
+        if ($polaczone === null) {
+            return $this->trzebaZaczacOdNowa();
+        }
 
         $this->zapomnijTozsamosc($request);
 
-        return $this->wpusc($request, $user, 'account.login_google');
+        return $this->wpusc($request, $polaczone, 'account.login_google');
     }
 
     /**
