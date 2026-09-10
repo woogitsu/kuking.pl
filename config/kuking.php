@@ -1518,6 +1518,32 @@ return [
         ),
     ],
 
+    'zgody' => [
+        /*
+         * WERSJA POLITYKI PRYWATNOŚCI zapisywana przy każdym zdarzeniu zgody
+         * (`dziennik_zgod.wersja_polityki`, D-072).
+         *
+         * PO CO: dowód „zgodził się 12 września" nie mówi, NA CO — a to jest
+         * pierwsze pytanie przy sporze o ZAKRES zgody. Ta wartość wiąże wiersz
+         * dziennika z konkretnym brzmieniem dokumentu, który człowiek wtedy
+         * mógł przeczytać.
+         *
+         * DATA STANU DOKUMENTU, NIE WYMYŚLONY NUMER WYDANIA. Polityka
+         * prywatności (`resources/legal/polityka-prywatnosci.md`) nie ma
+         * numeracji — ma w nagłówku zdanie „opisuje stan serwisu na <data>".
+         * Osobny numer („v2") dałby dwie prawdy o tym samym dokumencie,
+         * a jedna z nich rozjechałaby się przy pierwszej poprawce, której
+         * nikt by tu nie odnotował.
+         *
+         * PODBIJANE RĘCZNIE, RAZEM ZE ZDANIEM W NAGŁÓWKU DOKUMENTU — i tak
+         * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
+         * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
+         * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
+         * przestawić w panelu Railwaya.
+         */
+        'wersja_polityki' => '2026-09-08',
+    ],
+
     'analytics' => [
         // Ile dni trzymamy wiersze `product_signals` (issue #115), zanim
         // komenda `kuking:sprzataj-sygnaly` je skasuje. To są zdarzenia
