@@ -87,10 +87,26 @@
         gdzie się go używa — obok własnego feedu. Zwykłe odnośniki, więc
         działają bez JavaScriptu; `aria-current` mówi czytnikowi ekranu,
         na której zakładce jesteśmy.
+
+        Zakładka nazywa się tak samo jak ekran, na który prowadzi — powód
+        przy samym odnośniku niżej.
     --}}
     <nav class="tabs feed-tabs" aria-label="Co pokazujemy">
         <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>
-        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Odkrywaj</a>
+        {{-- „Świeżo z Kuking", nie „Odkrywaj" (issue #38).
+
+             `docs/brand/BRAND_EXTENDED.md` §2.1 ma „Odkrywaj" na liście słów
+             ZAKAZANYCH („Explore" po polsku), a §1.1 mówi to jeszcze raz przy
+             haśle „Wyszukiwanie". `docs/brand/COPY_STYLE.md` §5 wymienia
+             „Odkrywaj" wprost wśród nazw odrzuconych. Ekran wyszukiwania
+             pilnował tego od początku (komentarz w `pages/search.blade.php`),
+             a ta zakładka — jedyne miejsce, w którym to słowo jeszcze stało —
+             nie.
+
+             Nowa etykieta nie jest wymyślona: to nazwa, którą ten feed nosi
+             wszędzie indziej — na własnym ekranie (`pages/discover.blade.php`),
+             w pustej tablicy dnia, w wyszukiwarce i w `AGENTS.md` §8. --}}
+        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Świeżo z Kuking</a>
     </nav>
 
     @if($showingDiscover)

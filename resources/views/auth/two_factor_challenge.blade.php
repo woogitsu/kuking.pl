@@ -31,7 +31,7 @@
         <summary class="btn btn-secondary inline-flex">Nie mam dostępu do telefonu</summary>
         <div class="mt-4">
             <p>
-                Możesz zamiast tego użyć jednego z kodów zapasowych, które dostałeś/aś przy włączaniu
+                Możesz zamiast tego użyć jednego z kodów zapasowych zapisanych przy włączaniu
                 weryfikacji dwuetapowej. Każdy kod zapasowy działa tylko raz.
             </p>
             <form method="POST" action="{{ route('login.two_factor.store') }}">

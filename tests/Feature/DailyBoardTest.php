@@ -170,14 +170,43 @@ class DailyBoardTest extends TestCase
         $this->get('/')->assertOk()->assertSee('Dziś jeszcze nikogo nie wybraliśmy');
     }
 
+    /**
+     * Tablica stoi na trzech ekranach. Test pyta o SAMĄ TABLICĘ
+     * (`id="kuking-na-dzis"`), a nie o jej nagłówek, bo od issue #38 nagłówek
+     * nie jest wszędzie ten sam — patrz test niżej.
+     */
     public function test_tablica_jest_na_stronie_glownej_odkryj_i_landingu(): void
     {
         $ktos = $this->user('ktos');
         Post::factory()->create(['author_id' => $ktos->getKey(), 'body' => 'Rosol na niedziele']);
 
-        $this->get('/')->assertOk()->assertSee('na dziś');
-        $this->get(route('discover'))->assertOk()->assertSee('na dziś');
-        $this->actingAs($this->user('widz'))->get(route('home'))->assertOk()->assertSee('na dziś');
+        $this->get('/')->assertOk()->assertSee('id="kuking-na-dzis"', false);
+        $this->get(route('discover'))->assertOk()->assertSee('id="kuking-na-dzis"', false);
+        $this->actingAs($this->user('widz'))->get(route('home'))
+            ->assertOk()->assertSee('id="kuking-na-dzis"', false);
+    }
+
+    /**
+     * DAWKOWANIE GRY SŁOWEM „kuKING" (issue #38, `docs/brand/COPY_STYLE.md` §2).
+     *
+     * Najwyżej raz na ekran. Na stronie powitalnej to jedno miejsce zajmuje
+     * przycisk „Zostań kuKINGiem", który §8 przypisuje tam wprost — więc
+     * tablica ma tam nagłówek zapasowy „Co się dziś gotuje" (§5, D-013).
+     * Na `/odkryj` i `/home` tablica jest jedynym takim miejscem i zostaje
+     * przy nazwie własnej.
+     */
+    public function test_tablica_ustepuje_z_nazwy_tam_gdzie_gra_slowem_jest_juz_zajeta(): void
+    {
+        $ktos = $this->user('ktos');
+        Post::factory()->create(['author_id' => $ktos->getKey(), 'body' => 'Rosol na niedziele']);
+
+        $this->get('/')->assertOk()
+            ->assertSee('Co się dziś gotuje')
+            ->assertSee('Zostań <span class="kuking-word">', false);
+
+        $this->get(route('discover'))->assertOk()
+            ->assertSee('na dziś')
+            ->assertDontSee('Co się dziś gotuje');
     }
 
     public function test_nigdzie_nie_pokazujemy_miary_popularnosci(): void

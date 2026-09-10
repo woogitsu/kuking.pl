@@ -296,6 +296,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // aktywności dowolną wartością podaną w ciele żądania.
             'ostatnio_widziany_at' => 'datetime',
             'wants_weekly_digest' => 'boolean',
+            // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).
+            // Poza `$fillable` z tego samego powodu co `ostatnio_widziany_at`
+            // wyżej: zapisuje to WYŁĄCZNIE komenda wysyłkowa
+            // (`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`), nigdy
+            // formularz. Masowe przypisanie z żądania pozwalałoby przestawić
+            // cudzy znacznik i albo wyprosić kogoś z tygodniowej wysyłki,
+            // albo — cofając datę — wysłać mu drugi list w tym samym
+            // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
+            'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
             'memories_enabled' => 'boolean',
             'is_seeded' => 'boolean',
@@ -989,6 +998,34 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function invalidateSessions(?string $exceptSessionId = null): void
     {
+        // OCZEKUJĄCY LINK DO LOGOWANIA GINIE RAZEM Z SESJAMI (issue #25, D-056).
+        //
+        // Ta linijka stoi PRZED wyjściem na `session.driver` niżej i to nie
+        // jest przypadek: token logowania leży w bazie niezależnie od tego,
+        // czym są trzymane sesje, a przy sterowniku innym niż `database`
+        // (tak chodzą testy) wcześniejsze `return` zostawiłoby go żywego.
+        //
+        // DLACZEGO TUTAJ, A NIE OSOBNYM WYWOŁANIEM W KAŻDYM MIEJSCU
+        // Bo link e-mail JEST wejściem na konto — hasłem jednorazowym leżącym
+        // w skrzynce. Każda sytuacja, która kasuje cudze sesje, kasuje je
+        // z tego samego powodu: „ktoś inny mógł mieć dostęp". Zostawienie
+        // wtedy ważnego linku znaczyłoby, że po zmianie hasła i po
+        // „wyloguj mnie z innych urządzeń" napastnik dalej ma otwarte drzwi,
+        // a właściciel ma złudne poczucie, że sprawa skończona — dokładnie ten
+        // błąd, który przy oczekującej zmianie adresu naprawiał #195.
+        //
+        // Trzy wywołania w trzech kontrolerach dawałyby ten sam skutek do
+        // czasu, gdy ktoś dopisze czwarte miejsce i o jednym z nich zapomni.
+        // Objęte tą drogą jest więc wszystko naraz: zmiana hasła, reset hasła,
+        // „wyloguj mnie z innych urządzeń", blokada, zawieszenie i zgłoszenie
+        // usunięcia konta.
+        //
+        // `$exceptSessionId` NIE MA TU ODPOWIEDNIKA i mieć nie powinien:
+        // wyjątek istnieje dla BIEŻĄCEJ przeglądarki osoby, która właśnie
+        // zrobiła dobrą rzecz. Niewykorzystany link w skrzynce nie jest
+        // niczyją bieżącą przeglądarką.
+        $this->invalidateLoginLinks();
+
         if (config('session.driver') !== 'database') {
             return;
         }
@@ -1000,6 +1037,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
                 fn ($query) => $query->where('id', '!=', $exceptSessionId),
             )
             ->delete();
+    }
+
+    /**
+     * Unieważnienie oczekującego linku do logowania (issue #25, D-056).
+     *
+     * Osobna, nazwana metoda — a nie zapytanie wpisane w środek
+     * `invalidateSessions()` — z dwóch powodów: żeby dało się to wywołać
+     * samo (np. przy „wyłączam sobie logowanie linkiem"), i żeby nazwa
+     * mówiła, co dokładnie znika. Tabela ma najwyżej JEDEN wiersz na konto
+     * (`login_link_tokens.user_id` jest unikalne), więc to zawsze najwyżej
+     * jedno skasowanie.
+     */
+    public function invalidateLoginLinks(): void
+    {
+        LoginLinkToken::query()->where('user_id', $this->getKey())->delete();
     }
 
     /**

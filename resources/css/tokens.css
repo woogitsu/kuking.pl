@@ -375,8 +375,11 @@
      *
      * Przy 320 px i skali tekstu 150% powiadomienie „X ugotowała/ugotował
      * z Twojego przepisu" wypychało układ do 366 px: przeglądarka nie ma
-     * gdzie złamać ciągu „ugotowała/ugotował". Ten sam problem robi każdy
-     * długi adres wklejony przez człowieka w komentarzu.
+     * gdzie złamać ciągu z ukośnikiem w środku. Samo to powiadomienie już tak
+     * nie brzmi (issue #38 zdjął formy z ukośnikiem z całego interfejsu, bo
+     * `docs/brand/COPY_STYLE.md` §2 zabrania zakładania rodzaju), ale reguła
+     * zostaje: ten sam problem robi każdy długi adres wklejony przez człowieka
+     * w komentarzu i każda długa nazwa tagu.
      *
      * `break-word`, nie `anywhere`: łamiemy słowo dopiero wtedy, gdy inaczej
      * wystaje poza wiersz. Przy normalnej szerokości tekst wygląda tak samo

@@ -187,7 +187,28 @@ final class StronyBleduPoPolskuTest extends TestCase
         $this->assertDatabaseMissing('posts', ['body' => 'Wpis bez tokenu w ogóle.']);
     }
 
-    public function test_zadna_trasa_poza_zgloszeniami_csp_nie_jest_wyjeta_spod_csrf(): void
+    /**
+     * Lista wyjątków od CSRF jest ZAMKNIĘTA I WYMIENIONA Z IMIENIA.
+     *
+     * Ten test nie zabrania dopisywania do niej niczego — zabrania robienia
+     * tego BEZ DECYZJI. Każdy wpis musi mieć powód tego samego rodzaju:
+     * żądanie przychodzi od kogoś, kto tokenu CSRF nie ma skąd wziąć, a nie
+     * od kogoś, komu tak wygodniej.
+     *
+     *  * `_csp` — zgłoszenia naruszeń polityki bezpieczeństwa treści wysyła
+     *    SAMA PRZEGLĄDARKA: bez sesji, bez tokenu, często z innego kontekstu
+     *    niż strona. Endpoint niczego nie zapisuje i zawsze oddaje 204.
+     *  * `podsumowanie/wypisz/*` — wypisanie z tygodniowego podsumowania
+     *    (issue #11, D-057). Ten adres wołają GMAIL I OUTLOOK, nie
+     *    przeglądarka: nagłówki `List-Unsubscribe` i `List-Unsubscribe-Post`
+     *    (RFC 8058) każą klientowi pocztowemu wysłać puste `POST` prosto
+     *    z widoku listu. Trasa nie zostaje przez to bez ochrony — ma
+     *    `middleware('signed')`, czyli podpis kluczem aplikacji — i robi
+     *    jedną rzecz, wyłącznie na korzyść właściciela skrzynki: wyłącza
+     *    wysyłkę. Droga POWROTNA (`podsumowanie/wracam/*`) świadomie tu nie
+     *    wchodzi, bo klika ją człowiek na naszej stronie.
+     */
+    public function test_zadna_trasa_poza_wymienionymi_nie_jest_wyjeta_spod_csrf(): void
     {
         $middleware = app(PreventRequestForgery::class);
 
@@ -200,7 +221,13 @@ final class StronyBleduPoPolskuTest extends TestCase
 
         $wyjatki = array_values(array_unique([...$wlasne, ...$globalne]));
 
-        $this->assertSame(['_csp'], $wyjatki);
+        $this->assertSame(
+            ['_csp', 'podsumowanie/wypisz/*'],
+            $wyjatki,
+            'Ktoś dopisał trasę do wyjątków od CSRF. Jeśli to świadoma decyzja, '
+            .'dopisz ją do listy w komentarzu nad tym testem — razem z powodem, '
+            .'dla którego żądający nie ma skąd wziąć tokenu.',
+        );
     }
 
     /**

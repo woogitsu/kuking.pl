@@ -108,12 +108,18 @@ final class Poczta
 
     /**
      * Zdanie dla człowieka, gdy poczta nie działa. Jedno miejsce, bo ten sam
-     * komunikat idzie na ekran „Nie pamiętam hasła" i w odpowiedź na próbę
-     * wysłania linku.
+     * komunikat idzie na ekran „Nie pamiętam hasła", na ekran „Wyślij mi link
+     * do zalogowania" i w odpowiedź na próbę wysłania z obu tych formularzy.
+     *
+     * `$coNieDojdzie` nazywa RZECZ, NA KTÓRĄ CZŁOWIEK CZEKA, a nie
+     * technologię. Domyślna wartość zostawia dotychczasowe brzmienie ekranu
+     * „Nie pamiętam hasła" nietknięte; logowanie linkiem (issue #25) podaje
+     * własną, bo „link do nowego hasła" nad formularzem, w którym o hasło
+     * nikt nie prosił, kazałby szukać usterki gdzie indziej.
      */
-    public static function komunikatBrakuPoczty(): string
+    public static function komunikatBrakuPoczty(string $coNieDojdzie = 'link do nowego hasła'): string
     {
-        return 'Nie wysyłamy jeszcze wiadomości e-mail, więc link do nowego hasła nie przyjdzie — '
+        return 'Nie wysyłamy jeszcze wiadomości e-mail, więc '.$coNieDojdzie.' nie przyjdzie — '
             .'nie czekaj na niego. Napisz do nas na '.(string) config('kuking.community.contact_email')
             .', a pomożemy Ci wrócić na konto. Odpisuje człowiek.';
     }

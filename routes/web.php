@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LoginLinkController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -119,6 +121,41 @@ Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
 
+/*
+|--------------------------------------------------------------------------
+| Wypisanie z tygodniowego podsumowania (issue #11, D-057)
+|--------------------------------------------------------------------------
+|
+| POZA GRUPĄ `auth` I TO JEST SEDNO TYCH DWÓCH TRAS. Człowiek, który chce
+| przestać dostawać listy, nie może być zmuszony do zalogowania się — issue
+| #11 pkt 6 mówi „jednym kliknięciem, bez logowania i bez ankiety", a powód
+| jest twardszy niż wygoda: osoba, która nie pamięta hasła, zamiast wypisać
+| się klika w skrzynce „to jest spam", a to psuje dostarczalność CAŁEJ poczty
+| Kuking, łącznie z resetami haseł (`docs/decyzje/POCZTA.md` §3).
+|
+| Autoryzacją jest PODPIS, nie identyfikator w adresie — `AGENTS.md` §7
+| („UUID w adresie NIE JEST autoryzacją") zostaje w mocy: `middleware('signed')`
+| sprawdza, że ten adres wystawił Kuking kluczem aplikacji. Bez podpisu trasa
+| oddaje 403, więc nie da się wypisać kogoś, znając samo konto.
+|
+| `match(['get', 'post'])`, nie samo `get`: `POST` obsługuje nagłówek
+| `List-Unsubscribe-Post` (RFC 8058), którym Gmail i Outlook pokazują własny
+| przycisk wypisania przy nadawcy. Ta jedna trasa jest też wyjęta spod CSRF
+| (`bootstrap/app.php`) — klient pocztowy nie ma skąd wziąć tokenu.
+|
+| Limit z grupy `ustawienia`: dla gościa liczy się po adresie IP. Dolna
+| granica jest tu ważniejsza od górnej — trasa MUSI przepuścić kilka osób
+| z jednego łącza (dom opieki, mieszkanie rodzinne, biblioteka), bo inaczej
+| druga z nich zobaczy „za dużo prób" zamiast wypisania.
+*/
+Route::match(['get', 'post'], '/podsumowanie/wypisz/{user}', [PodsumowanieTygodniaController::class, 'wypisz'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('podsumowanie.wypisz');
+
+Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodniaController::class, 'wracam'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('podsumowanie.wracam');
+
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
 // (docs/DECISIONS.md, D-019). Wybór zalogowanego kontroler i tak zapisuje
@@ -203,6 +240,47 @@ Route::middleware('guest')->group(function () use ($limits): void {
     Route::post('/nowe-haslo', [PasswordResetController::class, 'reset'])
         ->middleware("throttle:{$limits['password_reset']},password_reset")
         ->name('password.update');
+
+    /*
+     * LOGOWANIE LINKIEM E-MAIL — „magic link" (issue #25, D-056).
+     *
+     * Trzy trasy, bo droga ma trzy kroki, i podział między nimi jest
+     * BEZPIECZEŃSTWEM, nie estetyką:
+     *
+     *   GET  /logowanie/link        — formularz „wyślij mi link"
+     *   POST /logowanie/link        — wysyłka listu (Turnstile + dwa limity)
+     *   GET  /logowanie/link/{token} — ekran z przyciskiem. NIC NIE ZUŻYWA.
+     *   POST /logowanie/link/wejdz  — dopiero tu token ginie i powstaje sesja
+     *
+     * Skanery odnośników w poczcie otwierają linki z listów ZANIM zrobi to
+     * człowiek. Gdyby GET logował, skaner zużywałby jednorazowy token
+     * i właściciel konta dostawałby „link już nie działa" za każdym razem.
+     * Pełne uzasadnienie: `LoginLinkController`.
+     *
+     * `/logowanie/link/wejdz` nie koliduje z `/logowanie/link/{token}`, bo
+     * to dwie różne metody HTTP (POST kontra GET). Kolejność deklaracji jest
+     * tu więc kwestią czytelności, nie poprawności.
+     *
+     * DWA OSOBNE PREFIKSY LICZNIKA, choć oba dotyczą tej samej funkcji:
+     * nieudane kliknięcie „Zaloguj mnie" nie ma prawa zjadać budżetu próśb
+     * o list (i odwrotnie). To ta sama reguła, której pilnuje
+     * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+     *
+     * W grupie `guest` z tego samego powodu co `/login` i `/logowanie/kod`:
+     * to jeszcze nie jest sesja zalogowana, a ktoś już zalogowany nie ma
+     * po co tu wracać.
+     */
+    Route::get('/logowanie/link', [LoginLinkController::class, 'requestForm'])->name('login.link');
+    Route::post('/logowanie/link', [LoginLinkController::class, 'send'])
+        ->middleware("throttle:{$limits['login_link']},login_link")
+        ->name('login.link.send');
+
+    Route::post('/logowanie/link/wejdz', [LoginLinkController::class, 'store'])
+        ->middleware("throttle:{$limits['login_link_wejscie']},login_link_wejscie")
+        ->name('login.link.store');
+
+    Route::get('/logowanie/link/{token}', [LoginLinkController::class, 'confirmForm'])
+        ->name('login.link.confirm');
 
     // Drugi krok logowania dla konta z potwierdzonym 2FA (issue #12).
     // Zostaje w grupie `guest` z tego samego powodu co /login: to jeszcze

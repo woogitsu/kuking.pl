@@ -72,6 +72,14 @@ class UzasadnienieDecyzjiTest extends TestCase
             'action' => $akcja,
             'reason_code' => $podstawa,
             'user_message' => $wiadomosc,
+            // TERMIN JEST OBOWIĄZKOWY PRZY „ZAWIEŚ KONTO".
+            // Brak wyboru znaczył kiedyś „bezterminowo", czyli najsurowszą
+            // karę przez zaniechanie. Formularz ma dziś „Bez zawieszenia"
+            // jako pozycję domyślną, a bezterminowość wymaga jawnego
+            // kliknięcia (`App\Domain\Moderation\DlugoscZawieszenia`).
+            // Przy decyzjach innych niż zawieszenie ta wartość jest
+            // ignorowana.
+            'suspend_days' => '7',
         ], fn ($wartosc): bool => $wartosc !== null));
 
         return $this->actingAs($basia)->get(route('notifications.index'))->assertOk()->getContent();

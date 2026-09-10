@@ -68,7 +68,7 @@ class SygnalyController extends Controller
         return view('pages.admin.sygnaly', [
             'grupy' => $grupy,
             'pozycje' => $pozycje,
-            'adresy' => $this->adresy($pozycje),
+            'podglady' => $this->podglady($pozycje),
             'pozycjiWGrupie' => self::POZYCJI_W_GRUPIE,
             'otwartych' => $this->otwarte()->count(),
         ]);
@@ -247,10 +247,22 @@ class SygnalyController extends Controller
      * teoretycznie powtórzyć, a cicho pomylony adres wysłałby moderatora na
      * cudzą treść.
      *
+     * PO CO WIĘCEJ NIŻ ADRES
+     * Pierwsza wersja dawała tylko odnośnik „Otwórz treść i przeczytaj ją".
+     * Przy jednym oznaczeniu dziennie to wystarczało; przy kilkudziesięciu
+     * moderator musiałby otworzyć kilkadziesiąt kart, żeby dowiedzieć się
+     * rzeczy, którą widać w pół sekundy — czy to zdjęcie obiadu, czy coś,
+     * czego nie chce zobaczyć jego rodzina. Zgłoszenie właściciela po
+     * pierwszym prawdziwym trafieniu modelu: „trzeba dać jakąś miniaturkę
+     * i mniejszym tekstem treść, a nie klikać otwierać treść".
+     *
+     * Odnośnik ZOSTAJE. Podgląd nie zastępuje przeczytania całości przed
+     * decyzją — pozwala odsiać oczywiste przypadki bez otwierania.
+     *
      * @param  Collection<string, Collection<int, Report>>  $pozycje
-     * @return array<string, string>
+     * @return array<string, array{adres: string, tekst: ?string, miniatura: ?string}>
      */
-    private function adresy(Collection $pozycje): array
+    private function podglady(Collection $pozycje): array
     {
         /** @var Collection<int, Report> $wszystkie */
         $wszystkie = $pozycje->flatten();
@@ -258,10 +270,17 @@ class SygnalyController extends Controller
         $wpisy = $wszystkie->where('target_type', 'post')->pluck('target_id')->filter()->unique()->all();
         $komentarze = $wszystkie->where('target_type', 'comment')->pluck('target_id')->filter()->unique()->all();
 
-        $adresy = [];
+        $podglady = [];
 
-        foreach (Post::query()->whereIn('id', $wpisy)->get() as $wpis) {
-            $adresy['post:'.$wpis->getKey()] = $wpis->url();
+        // `with('media')`, NIE zapytanie na wpis: przy dwudziestu oznaczeniach
+        // z jednego konta to jest różnica między dwoma zapytaniami a dwudziestoma
+        // jednym. Pilnuje tego `KolejkaSygnalowBezWachlarzaZapytanTest`.
+        foreach (Post::query()->with('media')->whereIn('id', $wpisy)->get() as $wpis) {
+            $podglady['post:'.$wpis->getKey()] = [
+                'adres' => $wpis->url(),
+                'tekst' => $this->poczatek($wpis->body),
+                'miniatura' => $this->miniatura($wpis),
+            ];
         }
 
         // Komentarz nie ma własnego adresu — otwiera się razem z treścią,
@@ -276,11 +295,56 @@ class SygnalyController extends Controller
             $rodzic = $komentarz->post ?? $komentarz->recipe ?? $komentarz->cookedEvent;
 
             if ($rodzic !== null) {
-                $adresy['comment:'.$komentarz->getKey()] = $rodzic->url().'#komentarz-'.$komentarz->getKey();
+                $podglady['comment:'.$komentarz->getKey()] = [
+                    'adres' => $rodzic->url().'#komentarz-'.$komentarz->getKey(),
+                    'tekst' => $this->poczatek($komentarz->body),
+                    // Komentarz nie ma własnego zdjęcia. Miniatury treści,
+                    // POD KTÓRĄ stoi, świadomie tu nie pokazuję: oznaczony
+                    // jest komentarz, a cudze zdjęcie obok niego sugerowałoby
+                    // moderatorowi, że to ono jest przedmiotem sprawy.
+                    'miniatura' => null,
+                ];
             }
         }
 
-        return $adresy;
+        return $podglady;
+    }
+
+    /**
+     * Początek treści — tyle, żeby rozpoznać, o co chodzi, i nie więcej.
+     *
+     * 240 znaków, bo kolejka ma się dać przejrzeć wzrokiem. Kto potrzebuje
+     * całości, klika „Otwórz treść" — i przed decyzją MUSI to zrobić.
+     */
+    private function poczatek(?string $tresc): ?string
+    {
+        $tresc = trim((string) preg_replace('/\s+/u', ' ', (string) $tresc));
+
+        if ($tresc === '') {
+            return null;
+        }
+
+        return mb_strimwidth($tresc, 0, 240, '…');
+    }
+
+    /**
+     * Adres miniatury pierwszego zdjęcia wpisu albo `null`.
+     *
+     * Wariant `thumb`, ten sam co w awatarze i na tablicy dnia — najmniejszy,
+     * jaki generujemy. Zdjęcie bez gotowych wariantów (`status` inny niż
+     * gotowy) nie ma czego pokazać, więc wtedy też `null`: pusty prostokąt
+     * albo ikona zastępcza mówiłyby moderatorowi „nie ma zdjęcia", a to
+     * nieprawda — jest, tylko jeszcze się przetwarza.
+     */
+    private function miniatura(Post $wpis): ?string
+    {
+        $zdjecie = $wpis->media->first();
+
+        if ($zdjecie === null || $zdjecie->wariantDoSerwowania('thumb') === null) {
+            return null;
+        }
+
+        return $zdjecie->url('thumb');
     }
 
     /**

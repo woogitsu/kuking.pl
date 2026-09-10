@@ -214,3 +214,59 @@ Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
     ->name('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
     ->withoutOverlapping();
+
+// Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-058).
+//
+// 07:10, dziesięć minut po podsumowaniu kolejki automatu: te dwa listy mówią
+// o dwóch różnych rzeczach i mają nie wyjść w tej samej minucie, bo
+// w harmonogramie chodzącym w jednym procesie (rola `all`) blokowałyby
+// pętlę jeden po drugim — tak samo rozsunięte jest całe pasmo sprzątania.
+//
+// Ten list wychodzi WYŁĄCZNIE wtedy, gdy termin jest blisko albo minął.
+// O nowych odwołaniach mówi powiadomienie w panelu i licznik przy pozycji
+// „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-058.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
+    ->name('kuking:pilnuj-terminow-odwolan')
+    ->dailyAt('07:10')
+    ->withoutOverlapping();
+
+// Tygodniowe podsumowanie od gospodarza (issue #11, docs/DECISIONS.md D-057).
+//
+// CODZIENNIE, CHOĆ LIST JEST TYGODNIOWY — i to nie jest sprzeczność.
+// Konto pocztowe ma twardy limit 300 wiadomości na dobę (EmailLabs STARTUP,
+// docs/decyzje/POCZTA.md §1), dzielony z całą pocztą transakcyjną i z
+// logowaniem linkiem. Na podsumowania zostaje z tego 60 listów dziennie
+// (rachunek: config/kuking.php, sekcja `poczta`), więc wysyłka „wszyscy
+// naraz w piątek" kończy się przy sześćdziesięciu kontach. Zadanie
+// chodzi codziennie i codziennie bierze najwyżej `dzienny_limit` osób —
+// „kto czeka najdłużej, ten pierwszy" — a odstęp siedmiu dni po stronie
+// KONTA pilnuje obietnicy „jeden e-mail tygodniowo, nigdy więcej"
+// (App\Domain\Digest\OdbiorcyDigestu).
+//
+// 08:30, I TO JEST GODZINA WYBRANA POD TĘ GRUPĘ, NIE POD SERWER.
+//  * Po 8:00, czyli po ciszy nocnej z docs/product/RETENTION_LOOPS.md §3.2.
+//    List, który przychodzi w nocy, jest rano jednym z wielu i nikt go nie
+//    otwiera — a przy telefonie leżącym na szafce nocnej bywa też budzikiem.
+//  * Rano, nie o 17:00 jak proponował szkic w RETENTION_LOOPS §4. Tamta
+//    godzina jest dobra dla kogoś, kto wychodzi z biura i planuje weekend.
+//    Nasza grupa czyta pocztę przy porannej kawie, a o 17:00 jest w kuchni
+//    — czyli robi dokładnie to, o czym ten list opowiada, i nie patrzy
+//    wtedy w telefon.
+//  * Nie równo o pełnej godzinie: o 08:00 tyka `kuking:zdejmij-wygasle-kary`
+//    (`hourly()` = minuta 00 KAŻDEJ godziny). Cała ta lista jest świadomie
+//    porozsuwana — patrz komentarz przy sprzątaniu zmian adresu.
+//  * Daleko od nocnego bloku sprzątania (03:20-04:50), który potrafi trzymać
+//    pętlę harmonogramu przez dłuższą chwilę.
+//
+// `withoutOverlapping()` jest tu obowiązkowe i nie jest ostrożnością na
+// zapas: wstawienie stu dwudziestu listów do kolejki razem ze zbudowaniem
+// ich treści trwa dłużej niż jedno przejście pętli harmonogramu, a dwa
+// przebiegi naraz wysłałyby część listów podwójnie — znacznik
+// `weekly_digest_sent_at` stawiany jest dopiero PO pętli.
+//
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
+    ->name('kuking:wyslij-podsumowania')
+    ->dailyAt('08:30')
+    ->withoutOverlapping();

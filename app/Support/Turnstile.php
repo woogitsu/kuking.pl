@@ -127,7 +127,7 @@ final class Turnstile
      */
     public static function komunikatOdrzucenia(): string
     {
-        return 'Nie udało się potwierdzić, że nie jesteś robotem — to sprawdzenie mogło wygasnąć, '
+        return 'Nie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, '
             .'jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz '
             .'jeszcze raz. Jeśli znowu się nie uda, napisz do nas na '
             .self::adresKontaktowy().' — odpisuje człowiek.';
@@ -179,7 +179,7 @@ final class Turnstile
      * CZEGO KONKRETNIE NIE DA SIĘ TERAZ ZROBIĆ. „Wymagany JavaScript" nad
      * formularzem odzyskiwania hasła nie mówi mu, że właśnie nie odzyska
      * hasła. Nazwa czynności bierze się z `czynnosc()` — z tego samego
-     * miejsca co reszta tekstów, żeby sześć zdań nie zaczęło się rozjeżdżać
+     * miejsca co reszta tekstów, żeby siedem zdań nie zaczęło się rozjeżdżać
      * osobno.
      */
     public static function zdanieBezJavaScriptu(string $miejsce): string
@@ -216,6 +216,7 @@ final class Turnstile
             'rejestracja' => 'założenia konta',
             'logowanie' => 'zalogowania się',
             'odzyskanie_hasla' => 'wysłania linku do nowego hasła',
+            'logowanie_linkiem' => 'wysłania linku do zalogowania się',
             'cofniecie_usuniecia' => 'cofnięcia usunięcia konta',
             'kontakt' => 'wysłania do nas wiadomości',
             'zgloszenie_nielegalnej_tresci' => 'wysłania zgłoszenia',

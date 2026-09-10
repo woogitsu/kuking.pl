@@ -158,7 +158,7 @@
             <section class="cook-finish">
                 <h2 class="mt-0">To już ostatni krok.</h2>
                 @auth
-                    <p>Skończyłeś/aś gotować? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
+                    <p>Koniec gotowania? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
                     <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                 @else
                     <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>

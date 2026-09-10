@@ -16,7 +16,7 @@
     --}}
     @if(\App\Support\Poczta::dziala())
         <p class="mb-5">
-            Podaj adres e-mail, na który zakładałaś konto. Wyślemy na niego wiadomość z linkiem do ustawienia nowego hasła.
+            Podaj adres e-mail, na który jest założone konto. Wyślemy na niego wiadomość z linkiem do ustawienia nowego hasła.
         </p>
 
         <x-error-summary />

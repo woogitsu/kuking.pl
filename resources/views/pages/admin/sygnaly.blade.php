@@ -47,7 +47,7 @@
 
             <ul class="stack-tight">
                 @foreach($wGrupie->take($pozycjiWGrupie) as $oznaczenie)
-                    @php($adres = $adresy[$oznaczenie->target_type.':'.$oznaczenie->target_id] ?? null)
+                    @php($podglad = $podglady[$oznaczenie->target_type.':'.$oznaczenie->target_id] ?? null)
                     <li>
                         <strong>{{ $oznaczenie->reasonLabel() }}</strong>
                         <span class="meta">· {{ $oznaczenie->targetLabel() }} ·
@@ -57,8 +57,32 @@
                             <p class="whitespace-pre-line">{{ $oznaczenie->details }}</p>
                         @endif
 
-                        @if($adres)
-                            <p><a href="{{ $adres }}">Otwórz treść i przeczytaj ją</a></p>
+                        @if($podglad)
+                            {{-- PODGLĄD, NIE ZASTĘPNIK PRZECZYTANIA.
+                                 Miniatura i początek tekstu są po to, żeby dało się
+                                 odsiać oczywiste przypadki wzrokiem — bez otwierania
+                                 kilkudziesięciu kart. Odnośnik zostaje, bo przed
+                                 prawdziwą decyzją moderator MUSI zobaczyć całość. --}}
+                            <div class="sygnal-podglad">
+                                @if($podglad['miniatura'])
+                                    <a class="sygnal-podglad-zdjecie" href="{{ $podglad['adres'] }}"
+                                       aria-label="Otwórz oznaczoną treść ze zdjęciem">
+                                        <img src="{{ $podglad['miniatura'] }}" alt="" width="96" height="96" loading="lazy">
+                                    </a>
+                                @endif
+
+                                <div class="sygnal-podglad-tekst">
+                                    @if($podglad['tekst'])
+                                        <p class="sygnal-podglad-cytat">{{ $podglad['tekst'] }}</p>
+                                    @else
+                                        <p class="meta">Treść bez tekstu — samo zdjęcie.</p>
+                                    @endif
+
+                                    <p class="m-0">
+                                        <a href="{{ $podglad['adres'] }}">Otwórz treść i przeczytaj ją</a>
+                                    </p>
+                                </div>
+                            </div>
                         @else
                             <p class="meta">Tej treści już nie ma w serwisie — autor ją usunął.</p>
                         @endif
@@ -89,10 +113,10 @@
                 @csrf
                 <input type="hidden" name="autor" value="{{ $kluczGrupy }}">
 
-                <x-field name="note" label="Notatka wewnętrzna (nieobowiązkowa)" type="textarea" :rows="2"
+                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2"
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />
 
-                <button class="btn btn-primary" type="submit">
+                <button class="btn btn-primary mt-5" type="submit">
                     To nic takiego — zamknij {{ $ile === 1 ? 'to oznaczenie' : 'wszystkie '.$ile }}
                 </button>
             </form>

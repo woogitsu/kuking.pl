@@ -60,22 +60,36 @@ class FeedTest extends TestCase
         // która zastąpiła osobną sekcję „Osoby, które tu gotują".
         //
         // „Świeżo z Kuking" przestało być pozycją w nawigacji i jest teraz
-        // ZAKŁADKĄ feedu („Obserwowani / Odkrywaj", UI kit v2, ekran 01) —
-        // czyli stoi tam, gdzie się go używa. Test pyta więc o zakładkę,
-        // a nie o dawną nazwę pozycji w menu.
+        // ZAKŁADKĄ feedu („Obserwowani / Świeżo z Kuking", UI kit v2,
+        // ekran 01) — czyli stoi tam, gdzie się go używa. Test pyta więc
+        // o zakładkę, a nie o dawną nazwę pozycji w menu.
+        //
+        // Zakładka nazywała się „Odkrywaj" do issue #38. To słowo jest na
+        // liście zakazanych (`docs/brand/BRAND_EXTENDED.md` §2.1 — „Explore"
+        // po polsku; `COPY_STYLE.md` §5 wymienia je wśród nazw odrzuconych),
+        // więc test pilnuje teraz OBU rzeczy naraz: że zakładka istnieje pod
+        // nową nazwą i że stara nie wróciła. Sam `assertSee('Świeżo
+        // z Kuking')` by nie wystarczył — ta nazwa pada na tym ekranie także
+        // w pustej tablicy dnia, więc przechodziłby przy skasowanej zakładce.
         $odpowiedz = $this->actingAs($nowy)
             ->get(route('home'))
             ->assertOk()
-            ->assertSee('Odkrywaj')
+            ->assertDontSee('Odkrywaj')
             ->assertSee('na dziś')
             ->assertSee('Jutro będzie tu ktoś inny.');
+
+        $this->assertMatchesRegularExpression(
+            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*Świeżo z Kuking\s*</a>~u',
+            (string) $odpowiedz->getContent(),
+            'Zakładka prowadząca do „Świeżo z Kuking" zniknęła ze strony głównej.',
+        );
 
         // Propozycja osoby to KONKRETNY człowiek z odnośnikiem do profilu —
         // i musi stać W LIŚCIE OSÓB na tablicy, nie gdziekolwiek na stronie.
         //
         // Zawężenie jest tu wszystkim. `assertSee('Halina z Kaszub')` na
         // całym dokumencie przechodzi także bez propozycji osób, bo ta nazwa
-        // stoi na karcie jej wpisu w zakładce „Odkrywaj". Zawężenie do samej
+        // stoi na karcie jej wpisu w zakładce „Świeżo z Kuking". Zawężenie do samej
         // sekcji `kuking-board` też nie wystarcza — tablica pokazuje obok
         // osób także DANIA, z nazwą autora przy każdym. Zmierzone: obie
         // szersze wersje zostawały zielone przy `'people' => collect()`.

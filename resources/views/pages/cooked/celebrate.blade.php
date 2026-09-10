@@ -14,12 +14,15 @@
     $zdjecia = $event->media;
     $maZdjecie = $zdjecia->isNotEmpty();
 @endphp
-<x-layout title="{{ $kucharz->displayName() }} ugotowała/ugotował Twój przepis" :noindex="true">
+<x-layout title="{{ $kucharz->displayName() }} — ugotowane z Twojego przepisu" :noindex="true">
     <article class="card stack text-center">
         <div>
             <p class="meta m-0 mb-2">Komuś wyszło</p>
+            {{-- „ugotowane", nie „ugotowała/ugotował": ukośnika nie da się
+                 przeczytać na głos, a `docs/brand/COPY_STYLE.md` §2 każe wtedy
+                 zmienić konstrukcję zdania zamiast wybierać rodzaj. --}}
             <h1 class="text-title-lg m-0">
-                {{ $kucharz->displayName() }} ugotowała/ugotował
+                {{ $kucharz->displayName() }} — ugotowane
                 @if($tytulPrzepisu)
                     z Twojego przepisu „{{ $tytulPrzepisu }}”
                 @else

@@ -55,7 +55,8 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 
 - **Jedno zgłoszenie = JEDNA decyzja.** Pilnuje tego indeks `moderation_actions_one_per_report` w bazie, nie tylko formularz. „Usunięcie treści **i** ostrzeżenie" to w panelu jedna decyzja: wybierasz `Usuń treść`, a ostrzeżenie mieści się w polu „Wiadomość do użytkownika". Drugiej decyzji do tego samego zgłoszenia nie zapiszesz.
 - **Zawieszenie konta niczego nie chowa.** Konto zawieszone czyta serwis dalej, a jego profil, wpisy i przepisy są publicznie widoczne tak samo jak wcześniej — zawieszenie odbiera wyłącznie prawo do publikowania. Profil znika z serwisu dopiero przy blokadzie trwałej.
-- **Długość zawieszenia wybierasz z listy: 1, 7 albo 30 dni albo bezterminowo.** Innych wartości nie ma. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
+- **Długość zawieszenia wybierasz z listy: bez zawieszenia (pozycja domyślna), 1, 7 albo 30 dni, własny termin albo bezterminowo.** Własny termin to liczba dni od 1 do 365, którą wpisujesz w polu pod listą — przy każdym innym wyborze ta liczba jest ignorowana i nie musisz jej czyścić. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
+- **Brak wyboru NIE znaczy „bezterminowo".** Do września 2026 znaczył — czyli pomyłka przez zaniechanie dawała najsurowszą karę, jaką panel potrafi wydać. Dziś domyślnie zaznaczone jest „Bez zawieszenia", a decyzja „Zawieś konto" bez wybranego terminu nie przechodzi: formularz pyta, na jak długo, i nie traci przy tym tego, co już wpisałeś.
 - **Powiadomienie o decyzji wychodzi zawsze i automatycznie** — przy ukryciu, usunięciu, ostrzeżeniu, zawieszeniu i blokadzie. Nie da się „ukarać po cichu". Puste pole „Wiadomość do użytkownika" znaczy tylko tyle, że pójdzie zdanie domyślne.
 - **Panel nie pokazuje historii wcześniejszych kar autora.** Kolumna „Eskalacja" mówi „2. wystąpienie", „powtórka" — ale kolejka zgłoszeń tego nie liczy i nie wyświetla. Dziś to pamięć moderatora, nie funkcja produktu.
 - **Ukryty PRZEPIS jest dla autora zamrożony.** Autor go zobaczy pod jego adresem, ale nie otworzy edycji (`RecipeStatusTransitions::BY_AUTHOR`: wiersz `hidden` jest pusty). Więc „ukryj i daj szansę poprawy" działa dla wpisu, a dla przepisu — nie. Przy prawach autorskich albo poproś o nową wersję przepisu, albo zdejmij ukrycie na czas poprawy.
@@ -82,7 +83,7 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 | Rola | Może |
 |---|---|
 | **Użytkownik** | Zgłaszać treści/konta, blokować innych użytkowników, odwoływać się od decyzji dotyczącej jego konta/treści |
-| **Moderator** | Przeglądać kolejkę zgłoszeń, ukrywać/usuwać i przywracać treść, wysyłać ostrzeżenia, zawieszać konta (1, 7, 30 dni albo bezterminowo), **blokować konta trwale**, rozpatrywać odwołania, odrzucać zgłoszenia z uzasadnieniem |
+| **Moderator** | Przeglądać kolejkę zgłoszeń, ukrywać/usuwać i przywracać treść, wysyłać ostrzeżenia, zawieszać konta (1, 7, 30 dni, własny termin 1-365 dni albo bezterminowo), **blokować konta trwale**, rozpatrywać odwołania, odrzucać zgłoszenia z uzasadnieniem |
 | **Admin** | Dziś **dokładnie to samo co moderator** — z jednym wyjątkiem w drodze: rozstrzyganie odwołań przechodzi na samego administratora (D-039). Do czasu scalenia tamtej zmiany ta kolumna opisuje stan bez wyjątków |
 
 **UWAGA: to nie jest podział uprawnień, tylko podział obowiązków do uzgodnienia między ludźmi.** W kodzie role `moderator` i `admin` mają identyczne możliwości — cały panel stoi za jednym pytaniem `isModerator()`, a `User::isAdmin()` nie jest dziś użyte nigdzie. Konkretnie:
@@ -156,9 +157,15 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    odpowiedzi. Moderator bez tej roli powiadomienia nie dostaje (nie może
    zamknąć sprawy), ale widzi przy pozycji „Odwołania" w menu panelu
    **licznik tego, co czeka** — tak samo jak przy „Zgłoszeniach", „Sygnałach
-   automatu", „Wiadomościach do nas" i „Bez odpowiedzi". Poczty ta ścieżka
-   dziś NIE wysyła (uzasadnienie i warunek, po którym to się zmieni: D-058) —
-   nie obiecuj więc nikomu, że o odwołaniu przyjdzie e-mail.
+   automatu", „Wiadomościach do nas" i „Bez odpowiedzi".
+
+   **POCZTA — TYLKO NA TERMIN, NIE NA KAŻDE ODWOŁANIE.** Listu w chwili
+   złożenia odwołania nie ma (uzasadnienie: D-058 — wiadro 300 listów na dobę
+   dzielone z rejestracjami, D-047). Raz na dobę o 07:10 chodzi natomiast
+   `kuking:pilnuj-terminow-odwolan`: **jeden** list, i tylko wtedy, gdy któreś
+   otwarte odwołanie ma termin odpowiedzi w progu (2 dni robocze,
+   `moderation.appeal_reminder_working_days`) albo już PO terminie. List mówi,
+   ile spraw wisi i do kiedy — bez treści odwołania i bez nazw ludzi.
 7. Cofnięcie decyzji **realnie ją cofa**: treść wraca do stanu sprzed ukrycia
    (szkic zostaje szkicem), konto wraca do aktywnego. Odwołanie, po którym nic
    się nie zmienia, nie jest odwołaniem.
@@ -239,7 +246,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 
 ### 4.4 Zawieszenie konta (blokada czasowa)
 
-Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta osoba dostanie obok, ma tytuł „Twoje konto jest zawieszone do [data]", a „blokada" znaczy w tym serwisie coś innego i ostatecznego (szablon 4.5). Długość wybierasz z listy: 1, 7 albo 30 dni, albo bezterminowo. **Zawieszenie bezterminowe nie zdejmie się samo** — wtedy nie pisz „po tym czasie konto odblokuje się samo", bo nie ma żadnego „po tym czasie".
+Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta osoba dostanie obok, ma tytuł „Twoje konto jest zawieszone do [data]", a „blokada" znaczy w tym serwisie coś innego i ostatecznego (szablon 4.5). Długość wybierasz z listy: 1, 7 albo 30 dni, własny termin (1-365 dni) albo bezterminowo — a „Bez zawieszenia" jest pozycją domyślną i znaczy dokładnie to, co mówi. **Zawieszenie bezterminowe nie zdejmie się samo** — wtedy nie pisz „po tym czasie konto odblokuje się samo", bo nie ma żadnego „po tym czasie".
 
 > Cześć [imię/nick],
 >

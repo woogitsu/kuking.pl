@@ -21,7 +21,7 @@ use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
- * Cloudflare Turnstile (D-050, issue #217) — WARUNEK WYSŁANIA sześciu
+ * Cloudflare Turnstile (D-050, issue #217) — WARUNEK WYSŁANIA siedmiu
  * formularzy publicznych, nie filtr.
  *
  * TEN PLIK NAZYWAŁ SIĘ WCZEŚNIEJ `TurnstileNieZamykaDrzwiTest` i pilnował
@@ -37,7 +37,7 @@ use Tests\TestCase;
  * sprawdza DWIE rzeczy naraz: że formularz nie przeszedł ORAZ że człowiek
  * dostał zdanie mówiące, co zrobić. Do tego:
  *
- *  - `<noscript>` stoi na każdym z sześciu formularzy, z osobnym zdaniem;
+ *  - `<noscript>` stoi na każdym z siedmiu formularzy, z osobnym zdaniem;
  *  - brak tokenu i token podrobiony mają RÓŻNE komunikaty (to dla człowieka
  *    dwie różne sytuacje: raz nie widzi niczego, co się nie udało, raz
  *    sprawdzenie było widoczne i wygasło);
@@ -59,7 +59,8 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     private const SEKRET = '1x0000000000000000000000000000000AA';
 
     /**
-     * Komplet z D-050: sześć formularzy, na które wchodzi ktoś niezalogowany,
+     * Komplet z D-050 (plus siódmy z D-056): formularze, na które wchodzi
+     * ktoś niezalogowany,
      * razem ze zdaniem, które ma tam stać w `<noscript>`.
      *
      * Lista jest tu jawna, a nie wyliczana z `kuking.turnstile.miejsca`,
@@ -67,7 +68,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
      * nie podpiął do żadnego widoku (martwy przełącznik). Zdania są wpisane
      * wprost, a nie brane z `Turnstile::zdanieBezJavaScriptu()`, bo test
      * czytający tekst z tego samego miejsca co widok przeszedłby także
-     * wtedy, gdyby wszystkie sześć zdań brzmiało identycznie — a o to,
+     * wtedy, gdyby wszystkie siedem zdań brzmiało identycznie — a o to,
      * żeby brzmiały różnie, tu właśnie chodzi.
      *
      * @var array<string, string>
@@ -79,6 +80,11 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         '/cofnij-usuniecie-konta' => 'Do cofnięcia usunięcia konta potrzebny jest włączony JavaScript',
         '/napisz-do-nas' => 'Do wysłania do nas wiadomości potrzebny jest włączony JavaScript',
         '/zglos-nielegalna-tresc' => 'Do wysłania zgłoszenia potrzebny jest włączony JavaScript',
+        // Siódmy, dołożony 10 września 2026 (issue #25, D-056): „wyślij mi
+        // link do zalogowania". Ta sama rodzina co `/nie-pamietam-hasla` —
+        // formularz publiczny, który wysyła list na cudzy adres z puli
+        // 300 listów na dobę.
+        '/logowanie/link' => 'Do wysłania linku do zalogowania się potrzebny jest włączony JavaScript',
     ];
 
     // ------------------------------------------------------------------
@@ -107,7 +113,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     // ------------------------------------------------------------------
     //  BRAK TOKENU = ODRZUCENIE — WSZYSTKIE SZEŚĆ FORMULARZY
     //
-    //  Każdy z tych sześciu testów sprawdza DWIE rzeczy naraz:
+    //  Każdy z tych testów sprawdza DWIE rzeczy naraz:
     //
     //   1. SKUTEK MERYTORYCZNY SIĘ NIE WYDARZYŁ — konta nie ma, listu nie
     //      wysłano, wiersza w bazie nie ma, konto nie wróciło. Sam kod
@@ -173,6 +179,27 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
             ->post(route('password.email'), ['email' => $basia->email]);
 
         Notification::assertNothingSent();
+
+        // Ten ekran mówi to samo o adresie istniejącym i nieistniejącym, więc
+        // bez wyraźnego komunikatu człowiek czekałby na list, który nie idzie.
+        $this->assertKomunikatBrakuTokenu($odpowiedz);
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    public function test_logowanie_linkiem_bez_tokenu_nie_wysyla_listu(): void
+    {
+        $this->wlaczTurnstile();
+        $this->pocztaDziala();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['missing-input-response']]);
+        Notification::fake();
+
+        $basia = $this->user('basia');
+
+        $odpowiedz = $this->from(route('login.link'))
+            ->post(route('login.link.send'), ['email' => $basia->email]);
+
+        Notification::assertNothingSent();
+        $this->assertDatabaseCount('login_link_tokens', 0);
 
         // Ten ekran mówi to samo o adresie istniejącym i nieistniejącym, więc
         // bez wyraźnego komunikatu człowiek czekałby na list, który nie idzie.
@@ -477,7 +504,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
 
         // Nawet z tokenem podstawionym ręcznie: bez kluczy nie mamy czym
         // sprawdzać i nie wolno nam nikogo z tego powodu zatrzymać. Bez tego
-        // CI i praca lokalna (jedno i drugie bez kluczy) stanęłyby na sześciu
+        // CI i praca lokalna (jedno i drugie bez kluczy) stanęłyby na siedmiu
         // formularzach naraz.
         $this->zarejestruj(['cf-turnstile-response' => 'cokolwiek'])
             ->assertRedirect(route('onboarding.interests'));
@@ -500,7 +527,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     //  Gdzie widget jest, a gdzie świadomie go nie ma
     // ------------------------------------------------------------------
 
-    public function test_widget_stoi_na_wszystkich_szesciu_formularzach_publicznych(): void
+    public function test_widget_stoi_na_wszystkich_formularzach_publicznych(): void
     {
         $this->wlaczTurnstile();
         $this->pocztaDziala();
@@ -521,16 +548,16 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     }
 
     /**
-     * `<noscript>` NA KAŻDYM Z SZEŚCIU FORMULARZY — I ZA KAŻDYM RAZEM O TYM,
+     * `<noscript>` NA KAŻDYM Z SIEDMIU FORMULARZY — I ZA KAŻDYM RAZEM O TYM,
      * CZEGO KONKRETNIE NIE DA SIĘ TERAZ ZROBIĆ.
      *
      * To jest druga połowa zaciśnięcia i bez niej pierwsza jest szkodliwa:
      * osoba z wyłączonym skryptem nie zobaczy widgetu w ogóle, więc bez tego
      * bloku kliknęłaby „Załóż konto" i dostała komunikat o czymś, czego nie
      * ma na ekranie. „Wymagany JavaScript" nad formularzem odzyskiwania hasła
-     * nie mówi jej, że właśnie nie odzyska hasła — stąd sześć różnych zdań.
+     * nie mówi jej, że właśnie nie odzyska hasła — stąd siedem różnych zdań.
      */
-    public function test_noscript_stoi_na_wszystkich_szesciu_formularzach(): void
+    public function test_noscript_stoi_na_wszystkich_formularzach_publicznych(): void
     {
         $this->wlaczTurnstile();
         $this->pocztaDziala();

@@ -44,7 +44,7 @@
                     z tego, co jest. Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
                 </p>
                 <div class="hero-akcje">
-                    <a class="btn btn-primary btn-duzy" href="{{ route('register') }}">Zostań kuKINGiem — to darmowe</a>
+                    <a class="btn btn-primary btn-duzy" href="{{ route('register') }}">Zostań <x-kuking-word forma="iem" /> — to darmowe</a>
                     <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
                 </div>
             </div>
@@ -55,7 +55,11 @@
                  i notatki z dzisiaj. Zdjęcie z pliku byłoby dekoracją,
                  tablica jest treścią. --}}
             <div class="hero-figura">
-                <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" />
+                {{-- `:graSlowem="false"` — na tym ekranie gra słowem „kuKING" jest już
+                     zużyta przez przycisk „Zostań kuKINGiem" wyżej, a
+                     `docs/brand/COPY_STYLE.md` §2 dopuszcza ją najwyżej raz na ekran.
+                     Tablica dostaje więc nagłówek zapasowy z §5. --}}
+                <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :graSlowem="false" />
             </div>
         </div>
     </section>
@@ -106,9 +110,16 @@
                  `pages/notifications.blade.php` dla `Notification::TYPE_COOKED`.
                  Wcześniej stała tu parafraza („Halina ugotowała Twój rosół")
                  podpisana „tak wygląda powiadomienie" — czyli obietnica
-                 o jedno słowo mocniejsza niż kod pod nią. --}}
+                 o jedno słowo mocniejsza niż kod pod nią.
+
+                 Cytat zmienił się razem z powiadomieniem (issue #38): tamto
+                 zdanie miało w środku „ugotowała/ugotował", czego nie da się
+                 przeczytać na głos, więc `COPY_STYLE.md` §2 każe zmienić
+                 konstrukcję zamiast wybierać rodzaj. Kopia tu ma się nie
+                 rozjechać z oryginałem — pilnuje tego
+                 `TekstyWedlugCopyStyleTest::test_cytat_na_stronie_powitalnej_zgadza_sie_z_powiadomieniem`. --}}
             <blockquote class="cytat-ugotowalem">
-                Halina ugotowała z Twojego przepisu „Rosół babci".
+                Halina — ugotowane z Twojego przepisu „Rosół babci".
                 <span class="cytat-zrodlo">Na to powiadomienie się tutaj czeka.</span>
             </blockquote>
         </div>
