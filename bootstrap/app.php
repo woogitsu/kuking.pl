@@ -116,8 +116,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'moderator.2fa' => EnsureModeratorHasTwoFactor::class,
         ]);
 
-        // JEDYNY adres wyjęty spod ochrony CSRF i jedyny, który ma prawo nim
-        // zostać. (Wcześniej stał tu komentarz obiecujący, że po wygaśnięciu
+        // DWA adresy wyjęte spod ochrony CSRF — i oba dlatego, że żąda ich
+        // ktoś, kto tokenu nie ma skąd wziąć, a nie dlatego, że tak wygodniej. (Wcześniej stał tu komentarz obiecujący, że po wygaśnięciu
         // sesji człowiek wraca do formularza z wpisanymi danymi — kod nigdy
         // tego nie robił, a `except:` nie ma z tym nic wspólnego. Obsługa
         // wygasłej sesji jest teraz niżej, przy `TokenMismatchException`,
@@ -128,7 +128,22 @@ return Application::configure(basePath: dirname(__DIR__))
         // tu niemożliwy do podania, a nie „pominięty dla wygody".
         // Endpoint niczego nie zapisuje do bazy i zawsze zwraca 204 —
         // patrz CspReportController.
-        $middleware->validateCsrfTokens(except: ['_csp']);
+        //
+        // `podsumowanie/wypisz/*` — wypisanie z tygodniowego podsumowania
+        // metodą POST (issue #11, D-057). Ten adres wołają GMAIL I OUTLOOK,
+        // nie przeglądarka: nagłówki `List-Unsubscribe` i
+        // `List-Unsubscribe-Post` (RFC 8058) każą klientowi pocztowemu
+        // wysłać puste `POST` prosto z widoku listu, bez sesji i bez
+        // odwiedzania strony. Żądanie z tokenem CSRF jest tam fizycznie
+        // niemożliwe. Ochroną tej trasy jest PODPIS w adresie
+        // (`middleware('signed')`), więc nie zostaje ona bez zabezpieczenia
+        // — zmienia się tylko to, czym jest zabezpieczona. Trasa robi jedną
+        // rzecz i wyłącznie na korzyść właściciela skrzynki: wyłącza wysyłkę.
+        //
+        // Droga POWROTNA (`podsumowanie/wracam/*`) tu NIE JEST wymieniona
+        // i nie ma być: klika ją człowiek na naszej stronie, więc token ma,
+        // a bez ochrony CSRF byłaby drogą do ZAPISANIA kogoś z powrotem.
+        $middleware->validateCsrfTokens(except: ['_csp', 'podsumowanie/wypisz/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

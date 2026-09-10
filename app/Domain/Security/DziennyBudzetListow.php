@@ -48,10 +48,53 @@ use Illuminate\Support\Facades\Cache;
  * budżet zaczyna się liczyć od nowa — czyli awaria wychodzi w stronę
  * „wyślemy więcej listów", nie „zamkniemy komuś drzwi". Przy `CACHE_STORE`
  * ustawionym na `database` (tak chodzi produkcja) licznik przeżywa restart.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  KLASA JEST WSPÓLNA DLA KILKU FUNKCJI (issue #11, D-057)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Powstała dla logowania linkiem (issue #25), ale tygodniowe podsumowanie
+ * zderzyło się z DOKŁADNIE tym samym limitem i z tym samym wiadrem 300
+ * listów na dobę. Drugi licznik obok tego rozjechałby się przy pierwszej
+ * zmianie sufitu — a w tym projekcie rozjazd dwóch kopii tej samej reguły
+ * jest usterką, nie niedogodnością (ta sama lekcja co `kuking.media_disk`
+ * i martwy wpis `limits.upload` w `config/kuking.php`).
+ *
+ * Dlatego klasa dostała DWA parametry: nazwę funkcji (wchodzi do klucza
+ * w cache, więc każda funkcja ma własny licznik) i klucz konfiguracji
+ * z jej sufitem. Oba mają wartości domyślne z logowania linkiem, więc
+ * `app(DziennyBudzetListow::class)` zachowuje się tak jak wcześniej —
+ * z tym samym kluczem cache i tą samą konfiguracją. Do nowych funkcji
+ * są nazwane wytwórnie niżej, żeby literówka w nazwie funkcji nie tworzyła
+ * po cichu trzeciego, pustego licznika.
+ *
+ * SUFITY MUSZĄ SIĘ ZMIEŚCIĆ POD 300 I NIKT TEGO NIE POLICZY ZA NAS.
+ * Ta klasa pilnuje JEDNEJ funkcji i nie wie nic o pozostałych — gdyby każda
+ * dostała po 120, trzy funkcje przekroczyłyby limit dostawcy, a pierwszą
+ * rzeczą, która by wtedy przestała działać, jest potwierdzenie rejestracji.
+ * Podział całego wiadra stoi w `config/kuking.php` (`poczta`) i pilnuje go
+ * `PodzialLimituPocztyTest`.
  */
 final class DziennyBudzetListow
 {
-    private const PREFIKS = 'poczta:budzet:link-logowania:';
+    private const PREFIKS = 'poczta:budzet:';
+
+    public function __construct(
+        private readonly string $funkcja = 'link-logowania',
+        private readonly string $kluczKonfiguracji = 'kuking.login_link.dzienny_budzet',
+    ) {}
+
+    /** Logowanie linkiem e-mail (issue #25) — domyślne zachowanie tej klasy. */
+    public static function dlaLinkuLogowania(): self
+    {
+        return new self;
+    }
+
+    /** Tygodniowe podsumowanie od gospodarza (issue #11, D-057). */
+    public static function dlaPodsumowania(): self
+    {
+        return new self('podsumowanie-tygodnia', 'kuking.digest.dzienny_limit');
+    }
 
     /**
      * Czy zostało jeszcze miejsce w dzisiejszym budżecie.
@@ -81,6 +124,18 @@ final class DziennyBudzetListow
      * w kilka minut i zamknął drogę wszystkim prawdziwym ludziom, nie
      * wysławszy ani jednego listu. Przed samym zalewaniem formularza broni
      * `limits.login_link` i `login_link.limit_na_adres`.
+     *
+     * TYGODNIOWE PODSUMOWANIE ZAJMUJE MIEJSCE PRZY WSTAWIENIU DO KOLEJKI,
+     * a nie po doręczeniu — i to nie jest niekonsekwencja (D-057). Tam nie ma
+     * formularza ani automatu: listę odbiorców składa harmonogram z kont,
+     * które mają zgodę i potwierdzony adres, więc nie istnieje nikt, kto
+     * mógłby wyczerpać budżet fałszywymi żądaniami. Za to istnieje ryzyko
+     * odwrotne: sto dwadzieścia listów wstawionych do kolejki, z których
+     * połowa odbije się o limit dostawcy i przepadnie w `failed_jobs` —
+     * sprawdzone, worker ma `--tries=3 --backoff=10,60,300`, więc wszystkie
+     * trzy próby mieszczą się w sześciu minutach tej samej doby. Sufit musi
+     * więc powstrzymać wysyłkę PRZED wstawieniem, bo po wstawieniu jest już
+     * za późno na cokolwiek.
      */
     public function zajmij(): void
     {
@@ -100,11 +155,11 @@ final class DziennyBudzetListow
 
     public function budzet(): int
     {
-        return (int) config('kuking.login_link.dzienny_budzet', 0);
+        return (int) config($this->kluczKonfiguracji, 0);
     }
 
     private function klucz(): string
     {
-        return self::PREFIKS.now()->format('Y-m-d');
+        return self::PREFIKS.$this->funkcja.':'.now()->format('Y-m-d');
     }
 }

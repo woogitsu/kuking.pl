@@ -259,6 +259,7 @@ return [
         'reason_code' => 'powód decyzji',
         'user_message' => 'wiadomość do osoby zgłoszonej',
         'suspend_days' => 'długość zawieszenia',
+        'suspend_days_custom' => 'własny termin zawieszenia w dniach',
         'wpisy' => 'wybrane wpisy',
         'wpisy.*' => 'wybrany wpis',
         'osoby' => 'wybrane osoby',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Digest\OdnosnikWypisania;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
@@ -148,6 +149,20 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'recipes.show' => route('recipes.show', $recipe->slug),
             'cooking.show' => route('cooking.show', $recipe->slug),
             'posts.show' => route('posts.show', $post),
+
+            // Wypisanie z tygodniowego podsumowania i droga powrotna
+            // (issue #11, D-057). Adresy są PODPISANE, bo trasy stoją za
+            // `middleware('signed')` — stąd pomocnik zamiast `route()`.
+            //
+            // `GET` na tych trasach naprawdę przestawia zgodę na koncie
+            // z fikstury i to jest w porządku: fikstura żyje tylko w tym
+            // teście, a strony są tu sprawdzane pod kątem `noindex`
+            // i obecności opisu, nie skutku ubocznego. Dlaczego wypisanie
+            // działa na `GET`: `App\Http\Controllers\
+            // PodsumowanieTygodniaController` — wyjście musi być jednym
+            // kliknięciem.
+            'podsumowanie.wypisz' => OdnosnikWypisania::dla($autor),
+            'podsumowanie.wracam' => OdnosnikWypisania::powrotDla($autor),
         ];
 
         $zbadanych = 0;

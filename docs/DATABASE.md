@@ -28,6 +28,7 @@ Konto:
 - text_scale;
 - theme (patrz niżej);
 - `wants_weekly_digest` — zgoda na cotygodniowy przegląd (patrz niżej);
+- `weekly_digest_sent_at` — kiedy poszło ostatnie podsumowanie (patrz niżej);
 - verified timestamps.
 
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
@@ -58,6 +59,66 @@ Kto chce ten przegląd, włącza go haczykiem na `/ustawienia/prywatnosc`.
 Pilnuje tego test KONTROLNY w `ZgodaNaPrzegladNieJestDomyslnaTest` — bez
 niego reszta tego testu przechodziłaby także wtedy, gdyby ktoś przez pomyłkę
 zabetonował pole na `false` i odebrał ludziom możliwość zapisania się.
+
+> **Uzupełnienie, 10 września 2026 (issue #11, D-057).** Punkt 2 wyżej
+> („cotygodniowego przeglądu nie ma w kodzie w ogóle") opisywał stan
+> z 7 września i **przestał być prawdą**: wysyłka istnieje
+> (`kuking:wyslij-podsumowania`, harmonogram codziennie o 08:30). Zapis
+> zostaje tutaj nienaruszony, bo uzasadnia MIGRACJĘ, która wtedy ruszyła
+> istniejące wiersze — a wtedy naprawdę nie było czego stracić. Dziś taka
+> migracja byłaby odebraniem komuś zgody, którą świadomie wyraził.
+
+#### `weekly_digest_sent_at` — kiedy poszedł ostatni list
+
+Migracja `2026_09_10_100000_add_weekly_digest_sent_at_to_users_table`.
+
+`timestamptz NULL`, bez wartości domyślnej. `NULL` znaczy „jeszcze nigdy nie
+dostał" i w dniu tej migracji jest w tym stanie **każde** konto, bo digest do
+tej pory nie wyszedł ani razu.
+
+Kolumna robi trzy rzeczy naraz i każda z nich jest konieczna:
+
+1. **pilnuje obietnicy „jeden e-mail tygodniowo, nigdy więcej"** złożonej
+   wprost na ekranie `/ustawienia/prywatnosc` — wybór odbiorców odrzuca
+   każdego, kto dostał list w ciągu ostatnich
+   `config('kuking.digest.odstep_dni')` dni;
+2. **czyni zadanie odpornym na powtórne uruchomienie tego samego dnia** —
+   `withoutOverlapping()` chroni tylko przed dwoma JEDNOCZESNYMI przebiegami,
+   nie przed dwoma po kolei;
+3. **wyznacza kolejność wysyłki**, bo ta nie mieści się w jednej dobie:
+   konto pocztowe ma limit 300 listów dziennie na cały serwis
+   (`docs/decyzje/POCZTA.md` §1), więc podsumowania idą partiami przez kilka
+   dni, w kolejności `weekly_digest_sent_at ASC NULLS FIRST` — „kto czeka
+   najdłużej, ten pierwszy".
+
+```sql
+ALTER TABLE users ADD COLUMN weekly_digest_sent_at timestamptz NULL;
+
+CREATE INDEX users_weekly_digest_kolejka_idx
+    ON users (weekly_digest_sent_at ASC NULLS FIRST)
+    WHERE wants_weekly_digest;
+```
+
+Indeks jest **częściowy**, bo jedyne zapytanie czytające tę kolumnę zawsze
+zaczyna od `wants_weekly_digest = true`, a takich kont jest mniejszość (zgoda
+jest opt-in od migracji wyżej). `NULLS FIRST` w indeksie zgadza się
+z `ORDER BY` w `App\Domain\Digest\OdbiorcyDigestu`, żeby Postgres nie musiał
+i tak sortować wyniku.
+
+Kolumna **nie jest w `$fillable`** — ten sam powód co `ostatnio_widziany_at`
+(AGENTS.md §7). Zapisuje ją wyłącznie
+`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`. Masowe przypisanie
+z żądania pozwoliłoby cofnąć czyjś znacznik i wysłać mu drugi list w tym
+samym tygodniu, wbrew obietnicy z ekranu ustawień.
+
+**Rollback.** `down()` kasuje kolumnę i indeks. Bezpieczny, ale nie bez
+skutku i trzeba to nazwać: razem z kolumną znika pamięć o tym, komu już
+wysłano, więc pierwszy przebieg po przywróceniu napisze także do tych,
+którzy dostali list wczoraj. Rollback robi się WYŁĄCZNIE razem
+z `KUKING_DIGEST_WLACZONY=false`, nie „przy okazji".
+
+Pilnują tego `TygodniowePodsumowanieTest` (odstęp, powtórne uruchomienie,
+dobowy limit) i `WypisanieZPodsumowaniaTest`.
 
 **Czego ta migracja NIE naprawia:** nie ma kolumny z datą wyrażenia i datą
 wycofania zgody, więc **wycofania nie da się dziś wykazać**. Jeśli przegląd
@@ -1633,11 +1694,33 @@ Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejnoś
 ### product_signals
 
 Sygnały produktowe (issue #115), migracja
-`2026_09_06_220000_create_product_signals_table`. Dziś dokładnie dwa
-zdarzenia: `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje
-— `App\Domain\Media\Actions\StoreUploadedImage`) i `search_performed`
-(wykonane wyszukiwanie — `App\Http\Controllers\SearchController`). Jedyne
-miejsce, które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+`2026_09_06_220000_create_product_signals_table`. Dziś **cztery** zdarzenia:
+`photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
+`App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
+(wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
+od tygodniowego podsumowania: `weekly_digest_sent` i
+`weekly_digest_unsubscribed` (issue #11, D-057; migracja
+`2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
+które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**Zbiór nazw rośnie o nazwy WYMIENIONE Z IMIENIA, jedna decyzja na jedną
+nazwę.** CHECK nie jest formalnością: zamknięta lista jest drugą linią
+obrony przed zamienieniem tej tabeli w ogólny dziennik odwiedzin, którego
+AGENTS.md §3 zabrania budować bez zmierzonej potrzeby. Rozszerzenie
+przechodzi więc przez migrację `DROP CONSTRAINT` + `ADD CONSTRAINT`
+z pełną listą, a nie przez zdjęcie ograniczenia.
+
+**Czego świadomie NIE ma: `weekly_digest_opened` i `weekly_digest_clicked`.**
+Issue #11 prosiło o cztery zdarzenia; wdrożone są pierwsze i ostatnie.
+„Otwarty" wymaga niewidzialnego obrazka śledzącego w treści listu,
+„kliknięty" — podmiany każdego odnośnika na przekierowanie przez nasz serwer.
+Obie techniki zapisują, kiedy konkretna osoba czytała pocztę i z jakiego
+adresu IP; polityka prywatności obiecuje czegoś takiego nie robić, a własny
+transport ma nawet wyłącznik śledzenia po stronie dostawcy
+(`X-TRACKING-OFF`, `App\Poczta\TransportEmailLabs`) — domyślnie włączony.
+Do jedynego progu, po którym coś robimy („wypisy > 1% na wysyłkę",
+`docs/product/RETENTION_LOOPS.md` §6 wiersz 5), wystarcza para
+wysłane/wypisane.
 
 `docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
 i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
@@ -1656,9 +1739,9 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
-| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. |
-| `occurred_at` | `timestamptz`, `useCurrent()`. |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_sent` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_sent`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. Dla `weekly_digest_sent` czytany też JAKO LICZNIK: komenda wysyłkowa liczy wiersze z bieżącej doby, żeby nie przekroczyć dobowego limitu poczty (D-057). |
 
 #### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
 

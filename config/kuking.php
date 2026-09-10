@@ -1218,6 +1218,162 @@ return [
         'photo_flush_every' => 25,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tygodniowe podsumowanie (digest) — issue #11, D-057
+    |--------------------------------------------------------------------------
+    |
+    | Jedyny list, który NIE jest transakcyjny: nikt go nie zamówił kliknięciem
+    | w serwisie tuż przed wysyłką. Dlatego wszystko tutaj daje się wyłączyć,
+    | a każda liczba jest jawna — poczta ma dziś TWARDY limit 300 listów na
+    | dobę na całe konto EmailLabs (plan STARTUP, `docs/decyzje/POCZTA.md` §1)
+    | i dzieli go z potwierdzeniami adresu, resetami hasła, ostrzeżeniami
+    | o zmianie adresu i powiadomieniami moderacyjnymi.
+    |
+    */
+    /*
+    |--------------------------------------------------------------------------
+    | Poczta: podział jednego wiadra 300 listów na dobę (D-047, D-057)
+    |--------------------------------------------------------------------------
+    |
+    | EmailLabs na planie STARTUP daje **300 listów na dobę na CAŁY serwis**
+    | (`docs/decyzje/POCZTA.md` §1). Nie ma tu osobnych pul dla poczty
+    | transakcyjnej i dla biuletynu — jest jedno wiadro i wszystko z niego
+    | czerpie. Kto pierwszy zużyje, ten pierwszy dostanie; resztę dostawca
+    | odrzuca, a odrzucony list PRZEPADA (worker ma `--tries=3
+    | --backoff=10,60,300`, więc trzy próby mieszczą się w sześciu minutach
+    | tej samej doby i czwartej nie ma).
+    |
+    | Dlatego funkcje, które wysyłają WIELE listów naraz, mają własne dobowe
+    | sufity (`DziennyBudzetListow`), a te sufity muszą się zmieścić pod 300
+    | RAZEM Z REZERWĄ na pocztę, bez której nie da się wejść do serwisu.
+    | Pilnuje tego `PodzialLimituPocztyTest` — bo suma trzech liczb z trzech
+    | różnych sekcji konfiguracji jest dokładnie tym rodzajem rzeczy, którą
+    | ktoś kiedyś podniesie w jednym miejscu i nie sprawdzi w pozostałych.
+    |
+    | PODZIAŁ (dziś, 10 września 2026):
+    |
+    |   120  logowanie linkiem e-mail  (`login_link.dzienny_budzet`, issue #25)
+    |    60  tygodniowe podsumowanie   (`digest.dzienny_limit`, issue #11)
+    |   100  rezerwa transakcyjna      (`poczta.rezerwa_transakcyjna`)
+    |    20  zapas
+    |   ---
+    |   300
+    |
+    | Rezerwa transakcyjna nie jest licznikiem — nic jej nie zajmuje i nic
+    | nie sprawdza, czy została. To LICZBA W RACHUNKU: tyle listów zostawiamy
+    | wolnych na potwierdzenia rejestracji, przypomnienia hasła, ostrzeżenia
+    | o zmianie adresu i powiadomienia moderacyjne. One nie mają sufitu
+    | i mieć go nie mogą — reset hasła, który nie doszedł, kończy komuś
+    | przygodę z serwisem, a podsumowanie, które nie doszło, jest niczym.
+    | Sufity mają wyłącznie funkcje, które wolno przyhamować.
+    |
+    */
+    'poczta' => [
+        // Limit dostawcy, na dobę, na całe konto. NIE zmieniaj tej liczby
+        // „żeby test przeszedł" — zmienia się ona wtedy, gdy właściciel
+        // zmieni plan u dostawcy, i wtedy razem z `docs/decyzje/POCZTA.md`.
+        'limit_dostawcy_dobowy' => (int) env('KUKING_POCZTA_LIMIT_DOBOWY', 300),
+
+        // Ile listów zostawiamy wolnych na pocztę bez sufitu (patrz wyżej).
+        'rezerwa_transakcyjna' => (int) env('KUKING_POCZTA_REZERWA', 100),
+    ],
+
+    'digest' => [
+        /*
+         * WYŁĄCZNIK CAŁOŚCI — jedna zmienna środowiskowa (D-057).
+         *
+         * DOMYŚLNIE WYŁĄCZONY i to nie jest ostrożność na zapas. Digest to
+         * jedyna poczta w tym serwisie, która wychodzi BEZ czynności
+         * człowieka bezpośrednio przed wysyłką, więc pomyłka w danych albo
+         * w treści rozchodzi się od razu do wszystkich zapisanych — i nie da
+         * się jej cofnąć. Właściciel włącza go świadomie, po sprawdzeniu
+         * listu na własnej skrzynce (`--na-sucho` i `--tylko=<nazwa>`).
+         */
+        'wlaczony' => (bool) env('KUKING_DIGEST_WLACZONY', false),
+
+        /*
+         * DOBOWY SUFIT PODSUMOWAŃ — sześćdziesiąt listów, nie sto dwadzieścia.
+         *
+         * Liczba bierze się z rachunku, nie z wyczucia. Całe wiadro to 300
+         * listów na dobę na CAŁY serwis (patrz sekcja `poczta` wyżej), a dwie
+         * inne rzeczy mają w nim pierwszeństwo:
+         *
+         *   120  logowanie linkiem e-mail (issue #25) — dla części osób jest
+         *        to JEDYNA droga wejścia, więc nie wolno jej przyhamować
+         *        biuletynem;
+         *   100  rezerwa na potwierdzenia rejestracji i przypomnienia haseł,
+         *        których nie da się przełożyć na jutro.
+         *
+         * Zostaje 80, z czego bierzemy 60 i pozostawiamy 20 zapasu. Kierunek
+         * pomyłki jest tu wybrany świadomie: podsumowanie, które nie doszło,
+         * jest niczym — potwierdzenie rejestracji, które nie doszło, kończy
+         * komuś przygodę z serwisem, zanim się zaczęła (`docs/decyzje/
+         * POCZTA.md` §5 pkt 4). W tygodniu fali z Garnek.pl to rejestracje
+         * mają wygrać, nie biuletyn.
+         *
+         * PRZEPUSTOWOŚĆ TYGODNIOWA = 60 × 7 = **420 osób**. Powyżej tego
+         * progu plan darmowy przestaje wystarczać: część ludzi dostawałaby
+         * list co drugi tydzień, a obietnica „raz w tygodniu" byłaby wtedy
+         * nieprawdą po drugiej stronie. Rachunek dla 100, 500 i 2 000 kont
+         * i moment przejścia na plan płatny: `docs/DECISIONS.md` D-057.
+         *
+         * SUFIT PILNUJE `App\Domain\Security\DziennyBudzetListow` — ta sama
+         * klasa co przy logowaniu linkiem, z własnym kluczem licznika. Dwa
+         * własne liczniki tej samej rzeczy rozjechałyby się przy pierwszej
+         * zmianie którejkolwiek z tych liczb.
+         */
+        'dzienny_limit' => (int) env('KUKING_DIGEST_DZIENNY_LIMIT', 60),
+
+        /*
+         * NAJKRÓTSZY ODSTĘP MIĘDZY DWOMA LISTAMI DO TEJ SAMEJ OSOBY.
+         *
+         * „Jeden e-mail tygodniowo. Nigdy więcej" (issue #11 pkt 4) jest
+         * OBIETNICĄ, nie preferencją, więc pilnuje jej liczba w konfiguracji,
+         * a nie pamięć piszącego. Siedem dni, nie sześć: sześć pozwoliłoby
+         * na dwa listy w jednym tygodniu kalendarzowym.
+         *
+         * Ta sama liczba jest zabezpieczeniem przed dwukrotnym uruchomieniem
+         * zadania w ciągu doby — patrz `OdbiorcyDigestu`.
+         */
+        'odstep_dni' => (int) env('KUKING_DIGEST_ODSTEP_DNI', 7),
+
+        /*
+         * OKNO, Z KTÓREGO BIERZEMY TREŚĆ. Tyle samo co odstęp: list ma
+         * opowiedzieć tydzień, którego adresat nie widział.
+         */
+        'okno_dni' => (int) env('KUKING_DIGEST_OKNO_DNI', 7),
+
+        /*
+         * ODSTĘP MIĘDZY KOLEJNYMI LISTAMI W KOLEJCE, W SEKUNDACH.
+         *
+         * `docs/decyzje/POCZTA.md` §5 pkt 5: „rozłóż na godziny — 10 000
+         * wiadomości w 60 sekund to sygnał spamowy". 20 s × 120 listów to
+         * około 40 minut wysyłki, czyli tempo nie do odróżnienia od zwykłego
+         * ruchu transakcyjnego, a jednocześnie wszystko dochodzi tego samego
+         * przedpołudnia.
+         */
+        'odstep_sekund' => (int) env('KUKING_DIGEST_ODSTEP_SEKUND', 20),
+
+        // Ile pozycji najwyżej pokazujemy w każdej sekcji listu. Trzy, bo
+        // więcej zamienia list w katalog (`docs/product/RETENTION_LOOPS.md`
+        // §4.3: „Maks. 3 cudze treści").
+        'max_pozycji' => (int) env('KUKING_DIGEST_MAX_POZYCJI', 3),
+
+        /*
+         * PYTANIE OD GOSPODARZA — jedno zdanie na końcu listu.
+         *
+         * W konfiguracji, nie w szablonie, bo to jest jedyna część listu,
+         * którą właściciel ma zmieniać co tydzień — bez wdrożenia i bez
+         * dotykania kodu. Pusta wartość usuwa cały akapit z listu (i z wersji
+         * tekstowej), zamiast zostawić pusty nagłówek.
+         */
+        'pytanie' => env(
+            'KUKING_DIGEST_PYTANIE',
+            'Czy gotujesz w tym tygodniu coś, czego nikt u nas jeszcze nie pokazał? Napisz, jestem ciekawa.',
+        ),
+    ],
+
     'analytics' => [
         // Ile dni trzymamy wiersze `product_signals` (issue #115), zanim
         // komenda `kuking:sprzataj-sygnaly` je skasuje. To są zdarzenia
