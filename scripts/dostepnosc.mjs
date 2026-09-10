@@ -1959,10 +1959,6 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
   await kontekst.close();
 }
 
-await przegladarka.close();
-zamknij();
-
-mkdirSync('storage', { recursive: true });
 /* ==========================================================================
    LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
 
@@ -2100,6 +2096,10 @@ if (rozjazdyLiczb.length > 0) {
   }
 }
 
+await przegladarka.close();
+zamknij();
+
+mkdirSync('storage', { recursive: true });
 writeFileSync('storage/dostepnosc.json', JSON.stringify({
   data: new Date().toISOString(),
   warianty: WARIANTY.map((w) => w.nazwa),
