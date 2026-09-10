@@ -99,6 +99,11 @@ final class OdzyskiwalneDane
         'admin.reports.decide',
         'admin.appeals.resolve',
         'admin.unanswered.reply',
+        // Odpowiedź na wiadomość z „Napisz do nas" (D-058). Ten sam powód co
+        // wyżej, wzmocniony tym, że po drugiej stronie czeka konkretny
+        // człowiek: tekst pisany kwadrans nie ma przepadać przez wygasłą
+        // sesję ani przez awarię poczty.
+        'admin.contact.reply',
     ];
 
     /**

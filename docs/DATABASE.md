@@ -1939,6 +1939,56 @@ i ekran w panelu, zostaje adres e-mail w stopce, czyli stan sprzed zmiany.
 ludzi. Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
 `pg_dump --data-only --table=contact_messages > wiadomosci.sql`.
 
+### contact_message_replies
+
+Odpowiedzi operatora na wiadomości z „Napisz do nas", migracja
+`2026_09_10_200000_create_contact_message_replies_table` (**D-058**).
+Do 10 września 2026 panel miał tu wyłącznie odnośnik `mailto:` — odpisywało
+się z własnego programu poczty, a w serwisie nie zostawał żaden ślad, że
+odpowiedź poszła.
+
+**Osobna tabela, nie trzy kolumny w `contact_messages`**, z dwóch powodów.
+Pierwszy: odpowiedź nie jest jedna („sprawdzamy" dziś, „naprawione" w piątek),
+a kolumna na wierszu wiadomości kazałaby drugą odpowiedź albo nadpisać, albo
+uniemożliwić. Drugi, ważniejszy: **każdy list ma własny stan wysyłki** —
+pierwszy mógł nie wyjść, drugi wyjść, i jedna kolumna nie ma jak tego
+opowiedzieć.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID, `gen_random_uuid()`. |
+| `contact_message_id` | **`ON DELETE CASCADE`** i to jest wymóg RODO, nie wygoda: retencja (`kuking:sprzataj-wiadomosci`) robi masowy `DELETE` na `contact_messages`, omijając modele. Bez kaskady W BAZIE odpowiedzi zostałyby sierotami, których nic już nigdy nie usunie. |
+| `author_id` | Moderator, który wysłał. `nullOnDelete()` — konto może zniknąć, fakt wysłania zostaje (ekran pokazuje wtedy „obsługa Kuking"). |
+| `body` | Treść listu, dokładnie ta, którą dostał człowiek. `text`; górną granicę (5000 znaków, tyle samo co wiadomość) trzyma walidacja, w bazie stoi CHECK `contact_message_replies_body_not_blank`. |
+| `status` | `w_toku` \| `wyslana` \| `nieudana`, CHECK `contact_message_replies_status_check`. **Nie ma go w `$fillable`** — ustawia go wyłącznie `App\Domain\Contact\Actions\WyslijOdpowiedz`, po tym jak dostawca poczty coś powiedział. `w_toku` zapisujemy PRZED wysyłką, żeby przerwanie procesu zostawiło „nie wiadomo, czy wyszło", a nie ciszę. |
+| `sent_at` | Kiedy dostawca potwierdził przyjęcie. CHECK `contact_message_replies_sent_complete` wiąże to ze stanem: `wyslana` MUSI mieć `sent_at`, każdy inny stan NIE MOŻE go mieć. |
+| `error` | Powód odmowy, przepuszczony przez redakcję adresów (`WyslijOdpowiedz::bezpiecznyPowod()` — ta sama lekcja co audyt A6-01). Ma odpowiadać moderatorowi na pytanie „co teraz zrobić", nie przechowywać cudzych danych. |
+
+**Czego tu świadomie NIE MA: adresu, na który list poszedł.** Adres jest już
+w bazie raz — `contact_messages.contact_email` (gość) albo `users.email`
+(konto) — i wskazuje go `ContactMessage::adresDoOdpowiedzi()`. Trzecia kopia
+tej samej danej osobowej przeżywałaby anonimizację konta i zamieniłaby wiersz
+techniczny w mały zbiór adresów e-mail. Ta sama minimalizacja, dla której
+`contact_email` jest `NULL` u zalogowanego.
+
+Indeks: `contact_message_replies_message_idx (contact_message_id, created_at,
+id)` — historia jednej sprawy, najstarsza odpowiedź na górze.
+
+**Retencja:** własnej nie ma i nie potrzebuje. Odpowiedzi znikają razem
+z wiadomością (kaskada wyżej), czyli 12 miesięcy od jej załatwienia —
+pilnuje tego `OdpowiedzNaWiadomoscDoNasTest::test_odpowiedzi_znikaja_razem_z_wiadomoscia_przy_retencji`.
+
+**Rollback:** `DROP TABLE contact_message_replies` — nie rusza żadnej innej
+tabeli. **Kolejność ma znaczenie:** `contact_messages` nie da się cofnąć,
+dopóki ta tabela stoi (PostgreSQL odmawia `DROP TABLE` z zależnym kluczem
+obcym, `SQLSTATE 2BP01`), więc rollback idzie od najnowszej migracji —
+tak jak `php artisan migrate:rollback`. Po cofnięciu znika formularz
+odpowiedzi w panelu i wraca stan sprzed zmiany (`mailto:` na karcie
+wiadomości); same wiadomości zostają nietknięte. **Strata jest jednak
+NIEODWRACALNA** — w tabeli leżą listy, które naprawdę poszły do ludzi.
+Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
+`pg_dump --data-only --table=contact_message_replies > odpowiedzi.sql`.
+
 ## V1 / V2
 
 Później:

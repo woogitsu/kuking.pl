@@ -810,6 +810,56 @@ return [
          */
         'kontakt' => '5,60',
 
+        /*
+         * ODPOWIEDŹ MODERATORA NA WIADOMOŚĆ Z „Napisz do nas" (D-058) —
+         * trasa `admin.contact.reply`, jedyna w panelu, która WYSYŁA LIST
+         * NA ZEWNĄTRZ.
+         *
+         * OSOBNY KLUCZ, A NIE WSPÓLNY `moderacja` (120/10), i to jest cała
+         * treść tego wpisu. Tamten limit jest świadomie najwyższy w serwisie,
+         * bo chroni kolejkę moderacji przed przejętą sesją, a NIE MOŻE
+         * zatrzymać jedynego moderatora w środku fali spamu — jego skutkiem
+         * jest wiersz w bazie. Tutaj skutkiem jest list wysłany do człowieka
+         * z adresu `kontakt@kuking.pl` i zjedzony budżet poczty: EmailLabs
+         * na planie darmowym daje 300 listów DZIENNIE, dzielonych
+         * z potwierdzeniami rejestracji, przypomnieniami hasła i alarmami
+         * moderacyjnymi. Sesja moderatora użyta maszynowo pod limitem
+         * `moderacja` wypaliłaby połowę tego budżetu w dziesięć minut
+         * i zabrała ludziom możliwość odzyskania hasła.
+         *
+         * SKĄD DWADZIEŚCIA NA DZIESIĘĆ MINUT. Odpowiedź na wiadomość pisze
+         * człowiek własnymi słowami — realnie dwie, trzy na dziesięć minut,
+         * i to przy bardzo dobrym poranku. Dwadzieścia zostawia zapas na
+         * nadrabianie zaległości i na powtórzenie wysyłki, która się nie
+         * udała (issue #234), a jednocześnie ogranicza szkodę z przejętej
+         * sesji do dwudziestu listów na okno zamiast stu dwudziestu.
+         *
+         * SUFITU DZIENNEGO ŚWIADOMIE NIE MA — sprawdzone, nie założone.
+         *
+         * Stan faktyczny na 10 września 2026: WSPÓLNEGO licznika całej poczty
+         * w repozytorium nie ma i `App\Domain\Security\DziennyBudzetListow`
+         * mówi to o sobie wprost. Istnieje jeden sufit WŁASNY jednej funkcji —
+         * logowania linkiem (D-056, `login_link.dzienny_budzet` = 120) — a
+         * reszta puli jest pilnowana PROJEKTOWO: listy natychmiastowe tylko
+         * dla kategorii pilnych, resztę zbiera jedno podsumowanie na dobę
+         * (`PilnyAlarmModeracyjny`, `kuking:podsumowanie-automatu`).
+         *
+         * DLACZEGO ODPOWIEDZI NIE POTRZEBUJĄ TEGO, CO POTRZEBOWAŁO LOGOWANIE
+         * LINKIEM. Tamten sufit powstał, bo prośbę o list wywołuje KTOKOLWIEK
+         * Z ZEWNĄTRZ i pięciuset ludzi zachowujących się zupełnie normalnie
+         * zjada dobową pulę bez przekroczenia jakiegokolwiek limitu. Tutaj
+         * list wywołuje jedna osoba, po zalogowaniu, z 2FA, pisząc treść
+         * własnymi słowami — fan-outu nie ma z czego zrobić. Odpowiedzi to
+         * garść listów dziennie, czyli poniżej 2% puli.
+         *
+         * A sufit postawiony wbrew temu rachunkowi zrobiłby rzecz szkodliwą:
+         * odmówiłby wysłania odpowiedzi człowiekowi, który już czeka, w imieniu
+         * budżetu, którego nikt nie mierzy. Gdyby kiedyś powstał prawdziwy,
+         * WSPÓLNY licznik poczty (np. razem z tygodniowym digestem), TO ON ma
+         * być jednym miejscem tej decyzji — nie osobny sufit dopisany tutaj.
+         */
+        'kontakt_odpowiedz' => '20,10',
+
         // Odwołanie od decyzji moderacyjnej. Limit jest niski, bo formularz
         // dla osób zablokowanych stoi PRZED logowaniem — a wszystko, co stoi
         // przed logowaniem, jest celem. Prawdziwe odwołanie składa się raz,
