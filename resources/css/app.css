@@ -2670,6 +2670,40 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Zdjęcie profilowe: stan obecny (`/ustawienia/zdjecie`) i skrót do tego
+   ekranu na „Twoim profilu" (`/ustawienia/profil`).
+
+   Oba miejsca pokazują TO SAMO: aktualny awatar obok zdania o tym, co się
+   z nim dzieje. Jedna reguła na dwa układy, bo różnią je tylko rozmiar
+   awatara i to, czy obok stoi przycisk — a nie sposób ułożenia.
+
+   Poniżej `--breakpoint-sm` (640 px) obrazek i tekst idą JEDEN POD DRUGIM.
+   Zdanie „Nie masz jeszcze swojego zdjęcia…" ściśnięte obok 88-pikselowego
+   awatara na telefonie 320 px zostawia na tekst niecałe dwieście pikseli,
+   czyli pasek po dwa–trzy słowa w wierszu (UX_50_PLUS.md: 55–75 znaków).
+--------------------------------------------------------------------------- */
+
+.zdjecie-profilowe-stan,
+.zdjecie-profilowe-skrot {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-4);
+}
+
+@media (min-width: 40rem) {
+    .zdjecie-profilowe-stan,
+    .zdjecie-profilowe-skrot {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+
+.zdjecie-profilowe-opis {
+    margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
    Wspomnienie „Rok temu gotowałaś…" (issue #34)
 
    Blok ma być CICHY. Bez ramki w kolorze marki, bez ikony, bez wyróżnienia

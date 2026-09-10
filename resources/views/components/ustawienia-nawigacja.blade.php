@@ -51,7 +51,11 @@
     // Trasa `settings.topics` już nie istnieje — usunięta razem z Tematami
     // w etapie 4/5, więc ta lista jest jedynym, spójnym źródłem ekranów.
     $ekrany = [
-        'profile' => ['settings.profile', 'Profil', 'Nazwa, zdjęcie, kilka słów o Tobie'],
+        'profile' => ['settings.profile', 'Profil', 'Imię, nazwa użytkownika, kilka słów o Tobie'],
+        // Zdjęcie profilowe stoi na liście OSOBNO, zaraz po profilu, bo od tej
+        // zmiany ma własny, krótki ekran — było szóstym polem w formularzu
+        // profilu, czyli funkcją, do której trzeba się było przewinąć.
+        'avatar' => ['settings.avatar', 'Zdjęcie profilowe', 'Dodaj, zmień albo usuń swoje zdjęcie'],
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
         'tags' => ['settings.tags', 'Tagi', 'Co Cię interesuje w kuchni'],
         'email' => ['settings.email', 'Adres e-mail', 'Zobacz i zmień adres, na który przychodzi nowe hasło'],
