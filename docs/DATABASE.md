@@ -1627,6 +1627,24 @@ ADD CONSTRAINT login_link_tokens_token_hash_format_check
 CHECK (token_hash ~ '^[0-9a-f]{64}$');
 ```
 
+#### `UNIQUE (user_id)` wymaga serializacji, nie tylko constraintu (D-075)
+
+Constraint pilnuje niezmiennika „jeden ważny link na konto", ale **sam nie
+ustawia próśb w kolejce**. Dwie równoległe prośby o link na to samo konto
+przechodziły obie `DELETE` (każda kasując zero wierszy) i obie szły do
+`INSERT` — druga odbijała się o unikalność i, przed poprawką, kończyła się
+**500**. A 500 zdarzało się wyłącznie tam, gdzie konto istnieje, czyli para
+równoległych żądań stawała się wyrocznią „kto ma konto w Kuking".
+
+Dlatego wymiana tokenu idzie pod **blokadą wiersza `users`**
+(`WyslijLinkDoLogowania::wymienToken()`), branej PRZED `DELETE`, plus
+defensywnym przechwyceniem konfliktu. Kolejność blokad w tym repozytorium
+jest jedna i obowiązuje wszędzie: **konto najpierw**, potem tabela żądania
+(tu `login_link_tokens`, przy zmianie adresu `pending_email_changes`). Kto
+dopisze drugie miejsce zapisujące tę tabelę, musi wejść tą samą drogą; dwie
+różne kolejności blokad to zakleszczenie, które PostgreSQL rozwiązuje
+zabiciem jednego z żądań.
+
 #### Dlaczego skrót szybki, a nie bcrypt jak w `password_reset_tokens`
 
 Bo bcrypt istnieje po to, żeby spowolnić zgadywanie wartości o **niskiej
