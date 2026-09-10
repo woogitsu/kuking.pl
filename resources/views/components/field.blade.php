@@ -22,6 +22,28 @@
     'value' => null,
     'help' => null,
     'required' => false,
+    /*
+     * `bezOznaczenia` — nie pokazuj „(wymagane)" ani „(nieobowiązkowe)".
+     *
+     * Zgłoszenie właściciela: „po co informacja «wymagane» przy napisz
+     * komentarz?". Odpowiedź: po nic. Oznaczenie ma JEDEN sens —
+     * odróżnić pola, które trzeba wypełnić, od tych, które można pominąć.
+     * Przy formularzu z JEDNYM polem nie ma czego odróżniać, więc dopisek
+     * nie niesie informacji, a zabiera uwagę przy etykiecie, która jest
+     * jednocześnie wezwaniem do działania („Napisz komentarz").
+     *
+     * DLACZEGO NIE LICZYMY PÓL AUTOMATYCZNIE. Bo składnik nie wie, ile pól
+     * ma formularz, w którym stoi — a gdyby wiedział, decyzja o pokazaniu
+     * dopisku zależałaby od tego, czy ktoś obok dołożył pole. Wolimy jawny
+     * wybór w miejscu wywołania: widać go przy formularzu i nie zmienia się
+     * pod wpływem czegoś, czego autor tego formularza nie widzi.
+     *
+     * NIE UŻYWAĆ, ŻEBY „ODCHUDZIĆ" FORMULARZ Z KILKOMA POLAMI. Tam
+     * oznaczenie jest potrzebne, a przy grupie 50+ szczególnie
+     * „(nieobowiązkowe)" — bo bez niego człowiek wypełnia wszystko
+     * i porzuca formularz w połowie.
+     */
+    'bezOznaczenia' => false,
     'autocomplete' => null,
     'placeholder' => null,
     'rows' => null,
@@ -79,11 +101,13 @@
 <div class="field @if($error) has-error @endif">
     <label for="{{ $id }}">
         {{ $label }}
-        @if($required)
-            <span class="meta">(wymagane)</span>
-        @else
-            <span class="meta">(nieobowiązkowe)</span>
-        @endif
+        @unless($bezOznaczenia)
+            @if($required)
+                <span class="meta">(wymagane)</span>
+            @else
+                <span class="meta">(nieobowiązkowe)</span>
+            @endif
+        @endunless
     </label>
 
     @if($help)
