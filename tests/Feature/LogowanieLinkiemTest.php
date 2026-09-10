@@ -9,6 +9,8 @@ use App\Models\AuditLogEntry;
 use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
+use Closure;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -37,6 +39,15 @@ use Tests\TestCase;
 class LogowanieLinkiemTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Czy wymuszony przeplot z `wSrodkuZuzyciaTokenu()` naprawdę się wykonał.
+     *
+     * Test, który tego nie sprawdza, przechodzi także wtedy, gdy przeplot
+     * nigdy nie odpalił (zmieniony kształt zapytania, inna tabela) — czyli
+     * mierzy zero i o tym nie mówi.
+     */
+    private bool $przeplotWykonany = false;
 
     protected function setUp(): void
     {
@@ -161,6 +172,45 @@ class LogowanieLinkiemTest extends TestCase
         $this->wejdz($link);
 
         $this->assertGuest();
+    }
+
+    /**
+     * WYGASŁY WIERSZ ZNIKA Z BAZY, A NIE CZEKA NA NOCNE SPRZĄTANIE.
+     *
+     * Ten test powstał z KONTROLI UJEMNEJ, która nie oblała. Kasowanie
+     * wygasłego wiersza stało w kontrolerze od początku i było opisane
+     * komentarzem („kasujemy przy okazji"), ale usunięcie tej jednej
+     * linijki nie oblewało ŻADNEGO z 31 testów tego pliku. Sabotaż był
+     * dokładny, więc wniosek jest jednoznaczny i nie ma drugiej możliwości:
+     * tej własności nic nie pilnowało.
+     *
+     * Dlaczego to nie jest kosmetyka. Skrót wygasłego tokenu jest dalej
+     * skrótem hasła jednorazowego. `test_wygasly_token_nie_loguje` pilnuje,
+     * że taki token NIE WPUSZCZA — i przechodzi także wtedy, gdy wiersz
+     * zostaje w bazie na zawsze. To jest dokładnie pułapka 4
+     * z `docs/PULAPKI_TESTOW.md`: assercja ujemna („nie wpuściło")
+     * przechodzi również wtedy, gdy mechanizm obok nie działa wcale.
+     *
+     * Sprawdzam po SUROWEJ kolumnie, nie przez model, żeby żaden globalny
+     * zakres ani soft delete nie mógł udawać, że wiersza nie ma.
+     */
+    public function test_zuzycie_wygaslego_linku_kasuje_jego_wiersz(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $link = $this->popros($basia->email);
+        $skrot = LoginLinkToken::skrot($this->tokenZLinku($link));
+
+        $this->assertSame(1, DB::table('login_link_tokens')->where('token_hash', $skrot)->count(),
+            'Wiersz tokenu nie powstał — dalsza część testu nie mierzyłaby niczego.');
+
+        $this->travel((int) config('kuking.login_link.waznosc_minut') + 1)->minutes();
+
+        $this->wejdz($link);
+
+        $this->assertGuest();
+        $this->assertSame(0, DB::table('login_link_tokens')->where('token_hash', $skrot)->count(),
+            'Wygasły wiersz został w bazie. Skrót hasła jednorazowego nie ma powodu tam leżeć '
+            .'dłużej, niż trzeba, a nocne sprzątanie nie jest tu obietnicą.');
     }
 
     /**
@@ -605,16 +655,34 @@ class LogowanieLinkiemTest extends TestCase
     }
 
     /**
-     * BUDŻET ZAJMUJE SIĘ DOPIERO PRZY WYSŁANYM LIŚCIE.
+     * BUDŻET ZAJMUJE SIĘ DOPIERO PRZY WYSŁANEJ WIADOMOŚCI.
      *
      * Gdyby licznik ruszał przy każdym wysłaniu formularza, byle automat
      * wpisujący nieistniejące adresy wyczerpałby dobową pulę w kilka minut
      * i zamknął drogę wszystkim prawdziwym ludziom, nie wysławszy ani
-     * jednego listu.
+     * jednej wiadomości.
+     *
+     * ══════════════════════════════════════════════════════════════════
+     *  DLACZEGO TEN TEST WYŁĄCZA ZAPROSZENIA (D-085)
+     * ══════════════════════════════════════════════════════════════════
+     *
+     * Od D-085 adres BEZ konta nie jest już adresem, na który nic nie idzie:
+     * dostaje zaproszenie do założenia konta. Wiadomość NAPRAWDĘ wychodzi,
+     * więc zajęcie miejsca w budżecie jest wtedy poprawne — i jest przy
+     * okazji tym, co domyka znane ryzyko z D-056 („kto ustawi się na
+     * ostatniej jednostce budżetu, wyczyta jeden bit o cudzym koncie").
+     *
+     * Reguła, której pilnuje ten test, obowiązuje więc tam, gdzie z adresu
+     * bez konta dalej NIC NIE WYCHODZI — czyli przy wyłączonych zaproszeniach
+     * (i tak samo po wyczerpaniu ich osobnego sufitu). Tamtą, nową połowę
+     * sprawdza `ZaproszenieDoRejestracjiTest`.
      */
     public function test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu(): void
     {
-        config(['kuking.login_link.dzienny_budzet' => 1]);
+        config([
+            'kuking.login_link.dzienny_budzet' => 1,
+            'kuking.login_link.zaproszenia.wlaczone' => false,
+        ]);
 
         $basia = $this->user('basia', ['email' => 'basia@example.com']);
 
@@ -626,6 +694,36 @@ class LogowanieLinkiemTest extends TestCase
         $this->wyslijFormularz($basia->email);
 
         Notification::assertSentTo($basia, LinkDoLogowania::class);
+    }
+
+    /**
+     * A GDY ZAPROSZENIA DZIAŁAJĄ — ADRES BEZ KONTA ZAJMUJE MIEJSCE W BUDŻECIE,
+     * BO WIADOMOŚĆ NAPRAWDĘ WYCHODZI.
+     *
+     * To nie jest złagodzenie reguły wyżej, tylko jej druga połowa: budżet
+     * liczy WYSŁANE wiadomości, a nie „wysłane do osób, które mają konto".
+     * Że przy tym ekran nie zmienia się ani o znak, pilnuje
+     * `ZaproszenieDoRejestracjiTest`.
+     */
+    public function test_z_wlaczonymi_zaproszeniami_adres_bez_konta_zajmuje_budzet(): void
+    {
+        config([
+            'kuking.login_link.dzienny_budzet' => 1,
+            'kuking.login_link.zaproszenia.wlaczone' => true,
+            'kuking.account.registration_open' => true,
+        ]);
+
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+
+        Notification::fake();
+
+        $this->wyslijFormularz('nikogo-takiego@example.com');
+        $this->wyslijFormularz($basia->email);
+
+        // Jedyne miejsce w budżecie poszło na zaproszenie — więc na link
+        // do logowania już go nie ma.
+        Notification::assertNotSentTo($basia, LinkDoLogowania::class);
+        $this->assertDatabaseHas('registration_invites', ['email' => 'nikogo-takiego@example.com']);
     }
 
     // ------------------------------------------------------------------
@@ -719,8 +817,197 @@ class LogowanieLinkiemTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    //  KOLEJNOŚĆ BLOKAD: KONTO PRZED TOKENEM (D-075, D-079; Z-3 z audytu
+    //  `docs/research/2026-09-10-kolejnosc-blokad.md`)
+    // ------------------------------------------------------------------
+
+    /**
+     * ZUŻYCIE TOKENU BIERZE WIERSZ KONTA PRZED WIERSZEM TOKENU.
+     *
+     * Czego to pilnuje: `WyslijLinkDoLogowania::wymienToken()` bierze te same
+     * dwie tabele w kolejności `users` → `login_link_tokens`. Gdyby zużycie
+     * tokenu brało je odwrotnie, dwie operacje na jednym koncie w tej samej
+     * sekundzie (prośba o nowy link z komputera i kliknięcie starego linku
+     * z telefonu) zamknęłyby cykl i PostgreSQL zabiłby jedno z żądań —
+     * czyli 500 na drodze, która dla osób 60+ jest podstawową drogą
+     * logowania (D-056).
+     *
+     * Sprawdzamy to WPROST, przez podejrzenie wykonanych zapytań, a nie przez
+     * skutek — ten sam wzorzec i ten sam powód co w `ZamekParyTest`:
+     * zakleszczenia nie widać w żadnym teście sekwencyjnym.
+     *
+     * CZEGO TEN TEST NIE DOWODZI: że przy dwóch równoległych połączeniach do
+     * PostgreSQL zakleszczenia nie ma. Tego w PHPUnicie nie da się pokazać
+     * (`RefreshDatabase` trzyma dane w niezatwierdzonej transakcji, patrz
+     * `docs/PULAPKI_TESTOW.md` §6). Dowodzi rzeczy węższej i dokładnie tej,
+     * która była złamana: kolejności, w jakiej ten kod bierze blokady.
+     */
+    public function test_zuzycie_tokenu_bierze_wiersz_konta_przed_wierszem_tokenu(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $link = $this->popros($basia->email);
+
+        $slad = $this->kolejnoscBlokad(fn () => $this->wejdz($link));
+
+        // KONTROLA DODATNIA: mierzyliśmy przebieg, który NAPRAWDĘ zużył token
+        // i zalogował. Bez tego test przechodziłby również wtedy, gdyby
+        // wejście odpadało wcześniej i nie brało żadnej blokady.
+        $this->assertAuthenticatedAs($basia);
+
+        $this->assertSame(['users', 'login_link_tokens'], $slad,
+            'Token blokowany przed kontem — odwrotna kolejność niż w wymienToken(), czyli zakleszczenie.',
+        );
+    }
+
+    /**
+     * TOKEN ZUŻYTY PRZEZ INNE ŻĄDANIE W CHWILI, GDY CZEKALIŚMY NA BLOKADĘ
+     * KONTA — CZŁOWIEK DOSTAJE ZDANIE MÓWIĄCE, CO ZROBIĆ.
+     *
+     * To jest sedno tej poprawki, nie dodatek do niej. Konta nie znamy przed
+     * odczytem tokenu, więc token czytamy dwa razy: raz bez blokady (żeby
+     * wiedzieć, czyje konto zablokować) i raz pod blokadą. Gdyby drugi odczyt
+     * nie istniał, blokada nie pilnowałaby niczego — serializowałaby, ale nie
+     * powiedziałaby żądaniu, że świat zmienił się, kiedy ono czekało (D-079
+     * §3). Zużyty token wpuściłby wtedy DRUGI RAZ.
+     *
+     * Przeplot jest wymuszony deterministycznie: kasujemy wiersz tokenu
+     * dokładnie w chwili, w której żądanie wzięło już blokadę konta, a po
+     * token jeszcze nie sięgnęło.
+     *
+     * CZEGO TEN TEST NIE DOWODZI: zachowania dwóch prawdziwych, równoległych
+     * połączeń. Odtwarza ten JEDEN przeplot, który był usterką, na jednym
+     * połączeniu — tak jak `docs/PULAPKI_TESTOW.md` §6 każe to pisać i tak
+     * jak robią to testy z `tests/Feature/Wyscigi/`.
+     */
+    public function test_token_znikniety_miedzy_odczytami_nie_wpuszcza_i_mowi_co_zrobic(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $link = $this->popros($basia->email);
+        $token = $this->tokenZLinku($link);
+
+        $this->wSrodkuZuzyciaTokenu(function () use ($token): void {
+            DB::table('login_link_tokens')
+                ->where('token_hash', LoginLinkToken::skrot($token))
+                ->delete();
+        });
+
+        $odpowiedz = $this->wejdz($link);
+
+        $this->assertTrue($this->przeplotWykonany, 'Przeplot się nie wykonał — test nie zmierzył tego, co miał zmierzyć.');
+        $this->assertGuest();
+        $odpowiedz->assertRedirect(route('login.link'));
+
+        // Komunikat sprawdzamy w SESJI, nie w całym HTML-u strony docelowej
+        // (`docs/PULAPKI_TESTOW.md` §1) — i pilnujemy nie tylko tego, że coś
+        // nie wyszło, ale też że zdanie mówi, CO ZROBIĆ.
+        $komunikat = $this->komunikat($odpowiedz);
+        $this->assertStringContainsString('już nie działa', $komunikat);
+        $this->assertStringContainsString('Poproś o nowy', $komunikat);
+    }
+
+    /**
+     * WIERSZ TOKENU PRZEPISANY NA INNE KONTO W TRAKCIE NIE WPUSZCZA NIKOGO.
+     *
+     * Trzecie pytanie rewalidacji z D-079 §3 — „czy wiersz jest nadal nasz".
+     * Blokadę trzymamy na koncie odczytanym PRZED blokadą; gdyby wiersz
+     * tokenu w tym czasie zmienił właściciela, zużylibyśmy cudzy token bez
+     * blokady jego konta i wpuścili konto, do którego ten token nie należy.
+     * Wiersza wtedy świadomie NIE kasujemy — nie jest nasz i nie trzymamy na
+     * niego blokady.
+     *
+     * Halinka nie ma własnego linku, więc `user_id` (unikalne w tej tabeli)
+     * wolno przepisać na nią bez łamania schematu.
+     */
+    public function test_wiersz_przepisany_na_inne_konto_miedzy_odczytami_nie_wpuszcza(): void
+    {
+        $halinka = $this->user('halinka', ['email' => 'halinka@example.com']);
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+
+        $link = $this->popros($basia->email);
+        $token = $this->tokenZLinku($link);
+
+        $this->wSrodkuZuzyciaTokenu(function () use ($token, $halinka): void {
+            DB::table('login_link_tokens')
+                ->where('token_hash', LoginLinkToken::skrot($token))
+                ->update(['user_id' => $halinka->getKey()]);
+        });
+
+        $this->wejdz($link);
+
+        $this->assertTrue($this->przeplotWykonany, 'Przeplot się nie wykonał — test nie zmierzył tego, co miał zmierzyć.');
+        $this->assertGuest();
+
+        $this->assertDatabaseHas('login_link_tokens', [
+            'token_hash' => LoginLinkToken::skrot($token),
+            'user_id' => $halinka->getKey(),
+        ]);
+    }
+
+    // ------------------------------------------------------------------
     //  Pomocnicze
     // ------------------------------------------------------------------
+
+    /**
+     * Nazwy tabel, których wiersze `$co` zablokowało, w kolejności blokowania.
+     *
+     * Wzorzec pomiaru pochodzi z `ZamekParyTest::kolejnoscBlokad()` — tam
+     * zbierane są WIĄZANIA (bo pilnowana jest kolejność dwóch wierszy tej
+     * samej tabeli), a tutaj potrzebne są NAZWY TABEL, bo pilnowana jest
+     * kolejność dwóch różnych tabel.
+     *
+     * @return list<string>
+     */
+    private function kolejnoscBlokad(callable $co): array
+    {
+        $tabele = [];
+
+        DB::listen(function (QueryExecuted $zapytanie) use (&$tabele): void {
+            if (! str_contains($zapytanie->sql, 'for update')) {
+                return;
+            }
+
+            if (preg_match('/\bfrom\s+"([a-z_]+)"/', $zapytanie->sql, $trafienie) === 1) {
+                $tabele[] = $trafienie[1];
+            }
+        });
+
+        $co();
+
+        return $tabele;
+    }
+
+    /**
+     * Wykonaj `$co` DOKŁADNIE w oknie między dwoma odczytami tokenu.
+     *
+     * Moment jest wybrany celowo: zaraz po tym, jak żądanie wzięło blokadę
+     * wiersza konta, a przed tym, jak sięgnęło po wiersz tokenu. To jest
+     * chwila, w której na produkcji drugie żądanie zdąży zużyć token —
+     * pierwszy odczyt (bez blokady) już się odbył, więc żądanie zna konto,
+     * ale nic jeszcze nie rozstrzygnęło.
+     *
+     * Wszystko idzie na JEDNYM połączeniu, bo `RefreshDatabase` trzyma dane
+     * w niezatwierdzonej transakcji i drugie połączenie ich nie zobaczy
+     * (`docs/PULAPKI_TESTOW.md` §6). Wymuszamy więc ten jeden przeplot,
+     * zamiast udawać współbieżność.
+     */
+    private function wSrodkuZuzyciaTokenu(Closure $co): void
+    {
+        DB::listen(function (QueryExecuted $zapytanie) use ($co): void {
+            if ($this->przeplotWykonany) {
+                return;
+            }
+
+            if (! str_contains($zapytanie->sql, 'for update') || ! str_contains($zapytanie->sql, '"users"')) {
+                return;
+            }
+
+            // Znacznik stawiamy PRZED wywołaniem, bo `$co` samo wykonuje
+            // zapytania i bez tego weszłoby w nieskończoną rekurencję.
+            $this->przeplotWykonany = true;
+
+            $co();
+        });
+    }
 
     /**
      * Poproś o link i oddaj adres, KTÓRY NAPRAWDĘ POSZEDŁ W LIŚCIE.
