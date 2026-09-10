@@ -57,6 +57,10 @@ final class FollowingFeed
                 'author.profile.avatar',
                 'media',
                 'recipe:id,title,slug',
+                // Bez tego karta wpisu (post-card.blade.php) nie pokaże
+                // tematów tego wpisu — `relationLoaded()` tam celowo NIE
+                // dociąga ich sama, żeby nie odpalić zapytania per wpis.
+                'tags:id,slug,name',
             ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
