@@ -3,12 +3,35 @@
 
     <h1>Zgłoszenia</h1>
 
+    {{-- Zakładki niosą aktualne `zrodlo`, inaczej przełączenie stanu
+         wyrzucałoby moderatora z listy oznaczeń automatu z powrotem do spraw
+         od ludzi — bez słowa wyjaśnienia, dlaczego lista nagle się zmieniła. --}}
     <nav class="tabs" aria-label="Filtr zgłoszeń">
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'open']) }}" @if($status === 'open') aria-current="page" @endif>Nowe ({{ $counts['open'] }})</a>
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'reviewing']) }}" @if($status === 'reviewing') aria-current="page" @endif>W trakcie ({{ $counts['reviewing'] }})</a>
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'resolved']) }}" @if($status === 'resolved') aria-current="page" @endif>Rozpatrzone ({{ $counts['resolved'] }})</a>
-        <a class="tab" href="{{ route('admin.reports', ['status' => 'wszystkie']) }}" @if($status === 'wszystkie') aria-current="page" @endif>Wszystkie</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'open', 'zrodlo' => $zrodlo]) }}" @if($status === 'open') aria-current="page" @endif>Nowe ({{ $counts['open'] }})</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'reviewing', 'zrodlo' => $zrodlo]) }}" @if($status === 'reviewing') aria-current="page" @endif>W trakcie ({{ $counts['reviewing'] }})</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'resolved', 'zrodlo' => $zrodlo]) }}" @if($status === 'resolved') aria-current="page" @endif>Rozpatrzone ({{ $counts['resolved'] }})</a>
+        <a class="tab" href="{{ route('admin.reports', ['status' => 'wszystkie', 'zrodlo' => $zrodlo]) }}" @if($status === 'wszystkie') aria-current="page" @endif>Wszystkie</a>
     </nav>
+
+    {{--
+        DWA ŹRÓDŁA, DWA EKRANY — a tu jedno zdanie, żeby nikt nie musiał się
+        domyślać, na który patrzy. Liczniki nad zakładkami dotyczą zawsze
+        spraw OD LUDZI, więc przy widoku automatu trzeba powiedzieć wprost,
+        że liczby mówią o czym innym niż lista.
+    --}}
+    @if($zrodlo === \App\Models\Report::SOURCE_AUTOMAT)
+        <p class="notice">
+            Patrzysz na <strong>oznaczenia automatu</strong>. Nikt ich nie zgłosił, a treści są
+            widoczne w serwisie normalnie. Liczby przy zakładkach dotyczą zgłoszeń od ludzi.
+            <a href="{{ route('admin.sygnaly') }}">Wróć do kolejki automatu</a> albo
+            <a href="{{ route('admin.reports', ['status' => $status]) }}">pokaż zgłoszenia od ludzi</a>.
+        </p>
+    @elseif($sygnalow > 0)
+        <p class="meta">
+            Automat czeka z {{ $sygnalow }} {{ $sygnalow === 1 ? 'oznaczeniem' : 'oznaczeniami' }} do przejrzenia:
+            <a href="{{ route('admin.sygnaly') }}">Sygnały automatu</a>.
+        </p>
+    @endif
 
     @forelse($reports as $report)
         <article class="card mb-5">
@@ -28,6 +51,12 @@
                     @else
                         bez podania danych zgłaszającego (zgłoszenie prawne, DSA art. 16)
                     @endif
+                @elseif($report->wykrylAutomat())
+                    {{-- Bez tej gałęzi oznaczenie automatu (`reporter_id` jest
+                         puste z założenia) czytałoby się jako „przez usunięte
+                         konto" — czyli moderator szukałby zgłaszającego, który
+                         nigdy nie istniał. --}}
+                    <strong>wskazane przez automat</strong> — nikt tego nie zgłosił
                 @elseif($report->reporter)
                     przez {{ $report->reporter->displayName() }}
                 @else

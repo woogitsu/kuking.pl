@@ -1300,6 +1300,75 @@ return [
         // całą "sprawę" spójnie, a nie trzy niezależne komendy uruchamiane
         // w dowolnej kolejności), `App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`.
         'case_retention_months' => (int) env('KUKING_CASE_RETENTION_MONTHS', 36),
+
+        /*
+         * SYGNAŁY AUTOMATU (D-052) — progi wykrywacza podejrzanych treści.
+         *
+         * Automat oznacza treść DO PRZEGLĄDU i nic więcej: nie ukrywa, nie
+         * ogranicza zasięgu, nie powiadamia autora (pozycje 3.6, 3.10, 3.14
+         * i 3.16 z `docs/INSPIRATION_DECISIONS.md`). Progi stoją TUTAJ,
+         * a nie w bazie z ekranem do klikania — reguła w bazie jest
+         * nietestowalna (`docs/research/repos/discourse-discourse.md` §7).
+         *
+         * Pełne uzasadnienie każdego progu wraz z fałszywymi alarmami,
+         * których się po nim spodziewamy: `docs/legal/SYGNALY_AUTOMATU.md`.
+         */
+        'sygnaly' => [
+            // JEDEN WYŁĄCZNIK NA CAŁOŚĆ. `KUKING_SYGNALY_AUTOMATU=false`
+            // zatrzymuje analizę u źródła: zadanie w kolejce kończy się od
+            // razu i nie powstaje ani jeden nowy wiersz. Nic już istniejącego
+            // nie znika — oznaczenia z kolejki zostają do rozpatrzenia.
+            'wlaczone' => (bool) env('KUKING_SYGNALY_AUTOMATU', true),
+
+            // POWTÓRZONA TREŚĆ — okno czasowe i próg podobieństwa.
+            //
+            // 60 minut, bo mowa o wysłaniu tego samego kilka razy pod rząd,
+            // a nie o wracaniu do tematu po tygodniu. Ten sam przepis
+            // opublikowany ponownie w listopadzie to normalne życie.
+            'powtorzenie_minut' => (int) env('KUKING_SYGNAL_POWTORZENIE_MINUT', 60),
+
+            // 40 znaków — poniżej tej długości powtórzenia to uprzejmości
+            // („Wygląda pysznie", „Dzięki za przepis"), a nie spam. To jest
+            // najważniejszy z tych progów: bez niego automat oznaczałby
+            // najżyczliwsze osoby w serwisie.
+            'powtorzenie_min_znakow' => (int) env('KUKING_SYGNAL_POWTORZENIE_ZNAKOW', 40),
+
+            // 92% podobieństwa — łapie „prawie identyczną" treść (podmieniony
+            // adres, dopisane imię), a nie dwa przepisy na to samo ciasto.
+            'powtorzenie_podobienstwo' => (float) env('KUKING_SYGNAL_POWTORZENIE_PODOBIENSTWO', 0.92),
+
+            // Ile najnowszych treści autora bierzemy do porównania. Twardy
+            // sufit, żeby jedno zadanie w kolejce nie rosło razem z tabelą:
+            // przy hurtowym przenoszeniu archiwum z innego serwisu jedna
+            // osoba wrzuca dziesiątki wpisów w godzinę.
+            'powtorzenie_limit_porownan' => (int) env('KUKING_SYGNAL_POWTORZENIE_LIMIT', 20),
+
+            // ODNOŚNIK U ŚWIEŻEGO KONTA — dwa warunki naraz, nie jeden.
+            //
+            // Konto młodsze niż 7 dni ORAZ treść w pierwszej trójce tego, co
+            // opublikowało. Samo „nowe konto" oznaczałoby całą falę osób
+            // przechodzących do nas grupą; sam „odnośnik" oznaczałby każdą
+            // osobę, która podaje źródło przepisu.
+            'swieze_konto_dni' => (int) env('KUKING_SYGNAL_SWIEZE_KONTO_DNI', 7),
+            'swieze_konto_tresci' => (int) env('KUKING_SYGNAL_SWIEZE_KONTO_TRESCI', 3),
+
+            /*
+             * DOMENY, KTÓRYCH NIE LICZYMY JAKO „ODNOŚNIK ZEWNĘTRZNY".
+             *
+             * Serwisy, Z KTÓRYCH ludzie do nas przychodzą. Osoba przenosząca
+             * się z Garnka wkleja w pierwszym wpisie odnośnik do swojego
+             * starego profilu — to jest dokładnie ta osoba, dla której ten
+             * serwis powstał, i najgorszy możliwy moment, żeby ją oznaczyć.
+             *
+             * Lista jest KRÓTKA i konkretna. To NIE jest „lista zaufanych
+             * stron" — nie ma tu Facebooka ani YouTube'a, bo tamte adresy
+             * pojawiają się w spamie równie często jak w dobrej wierze.
+             */
+            'domeny_bez_sygnalu' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('KUKING_SYGNAL_DOMENY_BEZ_SYGNALU', 'garnek.pl,kuking.pl')),
+            ))),
+        ],
     ],
 
     'wersja' => [

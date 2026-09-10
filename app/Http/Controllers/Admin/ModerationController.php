@@ -44,7 +44,33 @@ class ModerationController extends Controller
 
         $status = $request->query('status', 'open');
 
+        /*
+         * DOMYŚLNIE: SPRAWY OD LUDZI (D-052).
+         *
+         * Oznaczenia automatu leżą w tej samej tabeli, bo kończą się tą samą
+         * decyzją, tym samym wpisem w `moderation_actions` i tą samą ścieżką
+         * odwołania — ale mają własny ekran (`/admin/sygnaly`) i własną
+         * kolejność pracy. Ta lista jest kolejką spraw OD LUDZI: ktoś czeka
+         * na odpowiedź, biegną terminy z DSA art. 16 ust. 5. Maszynowe
+         * podejrzenia, których większość okaże się niczym, zasypałyby ją przy
+         * pierwszej fali nowych kont — a wtedy narzędzie mające dać
+         * moderatorowi czas odebrałoby mu ten, który miał.
+         *
+         * `?zrodlo=automat` odwraca ten filtr i jest jedynym miejscem, w
+         * którym da się wydać PEŁNĄ decyzję o oznaczonej treści (ukryj, usuń,
+         * zawieś). Ekran sygnałów prowadzi tu odnośnikiem „Rozpatrz
+         * pojedynczo" — formularz decyzji jest jeden dla całego serwisu i tak
+         * ma zostać: druga jego kopia rozjechałaby się przy pierwszej zmianie
+         * w obowiązkach z DSA art. 17.
+         */
+        $zrodlo = $request->query('zrodlo') === Report::SOURCE_AUTOMAT ? Report::SOURCE_AUTOMAT : 'ludzie';
+
         $reports = Report::query()
+            ->when(
+                $zrodlo === Report::SOURCE_AUTOMAT,
+                fn ($query) => $query->where('source', Report::SOURCE_AUTOMAT),
+                fn ($query) => $query->where('source', '!=', Report::SOURCE_AUTOMAT),
+            )
             ->when($status !== 'wszystkie', fn ($query) => $query->where('status', $status))
             ->with(['reporter.profile', 'resolver.profile'])
             // DRUGI WARUNEK PORZĄDKU TO NIE OZDOBA (audyt zewnętrzny, G10).
@@ -76,15 +102,35 @@ class ModerationController extends Controller
 
         return view('pages.admin.reports', [
             'status' => $status,
+            'zrodlo' => $zrodlo,
             'reports' => $reports,
             // Które zgłoszenia da się dziś cofnąć (issue #65).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all()),
+            // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
+            // nimi. Bez tego samego warunku o źródle „Nowe (14)" oznaczałoby
+            // czternaście spraw, z których widać cztery — a moderator nie ma
+            // jak się dowiedzieć, że reszta jest na innym ekranie.
             'counts' => [
-                'open' => Report::where('status', Report::STATUS_OPEN)->count(),
-                'reviewing' => Report::where('status', Report::STATUS_REVIEWING)->count(),
-                'resolved' => Report::where('status', Report::STATUS_RESOLVED)->count(),
+                'open' => $this->odLudzi(Report::STATUS_OPEN),
+                'reviewing' => $this->odLudzi(Report::STATUS_REVIEWING),
+                'resolved' => $this->odLudzi(Report::STATUS_RESOLVED),
             ],
+            // Ile czeka po drugiej stronie — odnośnik na ekranie zgłoszeń
+            // ma powiedzieć, ile tam jest, zanim człowiek tam kliknie.
+            'sygnalow' => Report::query()
+                ->where('source', Report::SOURCE_AUTOMAT)
+                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                ->count(),
         ]);
+    }
+
+    /** Zgłoszenia OD LUDZI w danym stanie — bez oznaczeń automatu, tak jak lista wyżej. */
+    private function odLudzi(string $status): int
+    {
+        return Report::query()
+            ->where('source', '!=', Report::SOURCE_AUTOMAT)
+            ->where('status', $status)
+            ->count();
     }
 
     public function decide(Request $request, Report $report): RedirectResponse

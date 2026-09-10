@@ -429,6 +429,13 @@
                                      to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
                                      i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
                                      ikon, która należy do prac nad UI kitem. --}}
+                                {{-- Sygnały automatu (D-052) — OSOBNA pozycja, nie zakładka
+                                     w Zgłoszeniach. Tam są sprawy od ludzi, z terminem
+                                     odpowiedzi; tu maszynowe podejrzenia, których większość
+                                     okaże się niczym. Ikona „filter", bo to jest sito, a nie
+                                     tarcza: nic tu nikogo nie chroni, dopóki człowiek nie
+                                     przeczyta. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu</a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania</a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego

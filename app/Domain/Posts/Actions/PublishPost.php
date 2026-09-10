@@ -7,6 +7,7 @@ namespace App\Domain\Posts\Actions;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Notification;
@@ -173,6 +174,21 @@ final class PublishPost
         );
 
         $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
+
+        /*
+         * ANALIZA POD KĄTEM SYGNAŁÓW SPAMU (D-052) — W KOLEJCE, NIE TUTAJ.
+         *
+         * Wysłanie zadania to jeden `INSERT` do `jobs`; sama analiza (dwa
+         * zapytania i porównanie tekstów) dzieje się później, na kolejce
+         * `low`, za wszystkim, co robi człowiek. Publikacja wpisu nie czeka
+         * na nią ani milisekundy i NIE ZALEŻY od jej wyniku — treść jest już
+         * opublikowana i widoczna, a jedyne, co może się zdarzyć, to jedna
+         * pozycja w kolejce moderatora.
+         *
+         * Stoi PO wyjściach idempotencji wyżej (`return $istniejacy`), więc
+         * drugie kliknięcie „Opublikuj" nie zleca analizy drugi raz.
+         */
+        PrzeanalizujTresc::dlaWpisu($post);
 
         return $post;
     }

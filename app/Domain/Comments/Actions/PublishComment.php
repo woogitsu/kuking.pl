@@ -6,6 +6,7 @@ namespace App\Domain\Comments\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
@@ -102,7 +103,7 @@ final class PublishComment
          * transakcja, a rozmowa, o której nikt nie wie, jest dokładnie tym,
          * czego ten serwis ma nie robić.
          */
-        return DB::transaction(function () use ($author, $subject, $subjectOwner, $body, $parent, $parentId): Comment {
+        $comment = DB::transaction(function () use ($author, $subject, $subjectOwner, $body, $parent, $parentId): Comment {
             $comment = Comment::create([
                 'author_id' => $author->getKey(),
                 'post_id' => $subject instanceof Post ? $subject->getKey() : null,
@@ -141,6 +142,22 @@ final class PublishComment
 
             return $comment;
         });
+
+        /*
+         * ANALIZA POD KĄTEM SYGNAŁÓW SPAMU (D-052) — PO TRANSAKCJI I W KOLEJCE.
+         *
+         * PO transakcji, bo zadanie z kolejki `database` bywa podjęte przez
+         * workera, zanim wołający zdąży zatwierdzić — a wtedy analiza szukałaby
+         * komentarza, którego jeszcze nie widać, i cicho nie robiłaby nic.
+         *
+         * W kolejce, bo komentarz ma się pojawić od razu. Analiza porównuje
+         * tekst z tym, co ta sama osoba napisała w ostatniej godzinie; to jest
+         * praca dla workera, nie dla żądania, w którym ktoś czeka na swój
+         * komentarz pod cudzym zdjęciem.
+         */
+        PrzeanalizujTresc::dlaKomentarza($comment);
+
+        return $comment;
     }
 
     /**

@@ -111,6 +111,29 @@ decyzji ani pouczenia, a trwałym zapisem sprawy jest sam wiersz w `reports`
 (`moderation.case_retention_months`, domyślnie 36 miesięcy) czytany na
 `/zgloszenia`.
 
+## Sygnały automatu (D-052)
+
+Wykrywacz czyta świeżo opublikowane wpisy i komentarze i — gdy znajdzie znany
+wzorzec ogłoszenia, odnośnik zewnętrzny u świeżego konta albo powtórzoną treść
+tego samego konta — **stawia jedną pozycję w kolejce moderatora**. Na tym
+kończy się wszystko, co robi: treść zostaje widoczna, autor niczego nie
+zauważa, nikomu nic się nie dzieje.
+
+- Kolejka: `/admin/sygnaly` — **osobno** od `/admin/zgloszenia`, bo tam czekają
+  ludzie i biegną terminy z DSA art. 16 ust. 5. Grupowana po autorze,
+  uszeregowana od najcięższego sygnału, z jednym przyciskiem zamykającym całą
+  grupę.
+- Pełna decyzja (ukryj, usuń, zawieś) zapada tam gdzie zawsze:
+  `/admin/zgloszenia?zrodlo=automat`, tym samym formularzem z art. 17.
+- „To nic takiego" zamyka sprawę **na zawsze** — automat nie postawi drugiego
+  oznaczenia dla tej samej treści.
+- Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
+- Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
+
+Sygnały, progi, spodziewane fałszywe alarmy, lista rzeczy świadomie
+NIEROBIONYCH i moment, w którym to podejście przestaje wystarczać:
+**`docs/legal/SYGNALY_AUTOMATU.md`**.
+
 ## Copyright
 
 Źródło przepisu:
