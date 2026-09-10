@@ -9,7 +9,7 @@
 
     <ol class="lista-krokow mb-5">
         <li>Otwórz aplikację uwierzytelniającą w telefonie (Google Authenticator, Aegis, 1Password…).</li>
-        <li>Dodaj nowe konto — zeskanuj kod QR poniżej ALBO wpisz kod do ręcznego wpisania.</li>
+        <li>Dodaj nowe konto — zeskanuj kod QR poniżej ALBO, jeśli skaner nie działa, wpisz kod ręcznie (jest pod kodem QR).</li>
         <li>Wpisz albo wklej do pola niżej sześciocyfrowy kod, który pokaże aplikacja.</li>
     </ol>
 
