@@ -422,4 +422,62 @@ class KartaWpisuTest extends TestCase
             .'zaproszenie do niczego.',
         );
     }
+
+    /**
+     * TRZECIA ŚCIEŻKA — archiwum profilu (`ProfileController::postsFor()`).
+     *
+     * Zwykłe `assertSee(route('tags.show', $tag))` na całej stronie profilu
+     * DAJE FAŁSZYWY POZYTYW: `ProfileController::tagiDoSzyny()` zbiera do
+     * sześciu tagów użytych w widocznych wpisach WŁAŚCICIELA i wystawia je
+     * w prawej szynie (`x-szyna-profilu`) niezależnie od tego, czy karta
+     * wpisu w ogóle pokazuje tematy. Test na całym HTML-u przechodziłby
+     * więc identycznie, nawet gdyby ten PR nic nie zmienił w karcie —
+     * dokładnie to złapała kontrola ujemna zewnętrznego przeglądu.
+     *
+     * Dwa zabezpieczenia przed tym samym błędem drugi raz:
+     *   1. Widok WŁASNEGO profilu (`isOwner === true`) — wtedy
+     *      `tagiSzyny` w kontrolerze to jawnie `collect()`, więc szyna nie
+     *      pokazuje ŻADNEGO tematu i nie może dać fałszywego pozytywu.
+     *   2. Asercja działa na WYCIĘTEJ karcie pierwszego wpisu
+     *      (`<article class="card post-card">…</article>`), nie na całej
+     *      stronie — tak samo jak `paskAkcji()` wycina tylko pasek akcji.
+     */
+    public function test_karta_pokazuje_tematy_wpisu_w_archiwum_profilu(): void
+    {
+        $autor = $this->user('autorka_tagow_profil');
+        $tag = Tag::factory()->create(['name' => 'Naleśniki']);
+
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpis->tags()->attach($tag->getKey(), ['position' => 0]);
+
+        $html = (string) $this->actingAs($autor)
+            ->get(route('profile.show', $autor->profile->username))
+            ->assertOk()
+            ->getContent();
+
+        $karta = $this->pierwszaKartaWpisu($html);
+
+        $this->assertStringContainsString(
+            route('tags.show', $tag),
+            $karta,
+            'Karta wpisu w archiwum profilu nie ma odnośnika do strony tematu '
+            .'(sprawdzone WEWNĄTRZ karty, nie na całej stronie — prawa szyna '
+            .'profilu pokazuje własne tagi i dałaby fałszywy pozytyw).',
+        );
+        $this->assertStringContainsString('Naleśniki', $karta);
+    }
+
+    /** Wycina HTML pierwszej karty wpisu ze strony — bez reszty strony wokół niej. */
+    private function pierwszaKartaWpisu(string $html): string
+    {
+        $start = strpos($html, '<article class="card post-card">');
+
+        $this->assertNotFalse($start, 'Na stronie nie ma ani jednej karty wpisu.');
+
+        $koniec = strpos($html, '</article>', $start);
+
+        $this->assertNotFalse($koniec);
+
+        return substr($html, $start, $koniec - $start);
+    }
 }
