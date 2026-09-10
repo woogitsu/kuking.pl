@@ -822,6 +822,63 @@
     margin: 0 var(--spacing-1);
   }
 
+  /* ===================================================================
+     PODGLĄD OZNACZONEJ TREŚCI W KOLEJCE SYGNAŁÓW
+     ===================================================================
+     Miniatura obok początku tekstu, żeby moderator rozpoznał sprawę bez
+     otwierania karty. Zgłoszenie właściciela po pierwszym prawdziwym
+     trafieniu modelu: „trzeba dać jakąś miniaturkę i mniejszym tekstem
+     treść, a nie klikać otwierać treść".
+
+     `flex-wrap: wrap` i `min-width: 0` — bo ten ekran, jak każdy inny,
+     nie może rozpychać dokumentu przy 320 px i czcionce przeglądarki
+     ustawionej na 200%. Ta sama pułapka położyła wczoraj stopkę
+     (twardy próg w `rem`) i prawą szynę (kontener flex bez zawijania). */
+  .sygnal-podglad {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+    align-items: flex-start;
+    margin: var(--spacing-3) 0 0;
+  }
+
+  .sygnal-podglad-tekst {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  /* Miniatura jest ODNOŚNIKIEM, nie ozdobą — kliknięcie w zdjęcie prowadzi
+     tam, gdzie odnośnik tekstowy obok. Zdjęcie ma `alt=""`, bo dostępną
+     nazwę niesie `aria-label` na odnośniku: opisanie treści cudzego zdjęcia
+     i tak nie jest możliwe, a „zdjęcie" jako alt to szum. */
+  .sygnal-podglad-zdjecie {
+    flex: none;
+    display: block;
+    line-height: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .sygnal-podglad-zdjecie img {
+    display: block;
+    width: 6rem;
+    height: 6rem;
+    object-fit: cover;
+  }
+
+  /* MNIEJSZY TEKST TO TU DECYZJA, NIE NIEDOPATRZENIE.
+     `--text-help` (16 px) zamiast 18 px z §5 — to jest CYTAT z cudzej treści
+     w narzędziu roboczym dla jednej osoby, nie tekst produktu czytany przez
+     użytkowników 50+. Pełna treść stoi o jedno kliknięcie dalej, w normalnym
+     rozmiarze. Ten sam wyjątek co metryczka wersji w stopce (D-051): panel
+     moderacji nie jest ekranem, na którym mierzymy próg czytelności. */
+  .sygnal-podglad-cytat {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-help);
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
+
   .panel-pasek-ekran {
     font-weight: 600;
   }
