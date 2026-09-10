@@ -440,6 +440,12 @@
                                      nie zakładka w Zgłoszeniach: to jest inna kolejka
                                      i inna praca (patrz `WiadomosciController`). --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas</a></li>
+                                {{-- Konta użytkowników — ekran do WGLĄDU, nie do zarządzania
+                                     rolami (te nadaje `kuking:nadaj-role` z powłoki, D-039).
+                                     Ostatni w sekcji, bo to jest miejsce, do którego wchodzi
+                                     się z pytaniem („kim jest ta osoba"), a nie kolejka, którą
+                                     trzeba dziś opróżnić — kolejki zostają na górze. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> Użytkownicy</a></li>
                             </ul>
 
                             {{--

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\TagPromotionController;
+use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
@@ -698,6 +699,32 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::delete('/tagi-promowane/{tag}', [TagPromotionController::class, 'destroy'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.tag-promotions.destroy');
+
+    /*
+     * Konta użytkowników — lista do wglądu i karta pojedynczego konta.
+     *
+     * LIMIT NA LIŚCIE, MIMO ŻE TO `GET` I MIMO TRZECH WARSTW PRZED NIM.
+     * Jedyna droga, którą ten ekran robi cokolwiek drogiego, to wyszukiwanie:
+     * `LIKE '%…%'` po trzech kolumnach przy tysiącach kont. Bierzemy limit
+     * `search` z `config/kuking.php` — ten sam, którym chroniona jest
+     * wyszukiwarka publiczna, bo to jest ten sam rodzaj zapytania — ale
+     * z WŁASNYM koszykiem (`admin_uzytkownicy`), żeby moderator szukający
+     * konta nie zjadał sobie budżetu zwykłego szukania przepisów.
+     * `config/kuking.php` zostaje jedynym źródłem prawdy o liczbie
+     * (AGENTS.md §7).
+     *
+     * KARTA (`{user}`) BEZ LIMITU: to jest jedno zapytanie po kluczu głównym,
+     * a każde wejście zostawia wpis w `audit_log` — limiter odcinałby wtedy
+     * nie tyle nadużycie, ile ślad po nim.
+     *
+     * Obie trasy i tak przechodzą przez `UserPolicy::moderate` w kontrolerze:
+     * middleware pilnuje wejścia do panelu, nie prawa do konkretnego wiersza,
+     * a UUID w adresie nie jest autoryzacją (AGENTS.md §7).
+     */
+    Route::get('/uzytkownicy', [UzytkownicyController::class, 'index'])
+        ->middleware("throttle:{$limits['search']},admin_uzytkownicy")
+        ->name('admin.users');
+    Route::get('/uzytkownicy/{user}', [UzytkownicyController::class, 'show'])->name('admin.users.show');
 });
 
 // --------------------------------------------------------------------------

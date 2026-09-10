@@ -376,6 +376,46 @@ osoby poza serwisem. Celowo bez ścieżki samoobsługowej: samoobsługowy reset
 2FA zwykłym linkiem unieważniałby sens 2FA (ktoś, kto ukradnie samo hasło,
 resetowałby drugi składnik tą samą drogą).
 
+#### Indeksy pod listę kont w panelu moderacji
+
+Migracja `2026_09_09_400000_add_moderation_list_indexes_to_users`
+(`/admin/uzytkownicy`).
+
+| Indeks | Do czego |
+|---|---|
+| `users_created_at_idx (created_at DESC)` | domyślna kolejność listy („kto przyszedł ostatnio") i filtr zakresu dat rejestracji |
+| `users_email_trgm_idx gin (kuking_normalize(email) gin_trgm_ops)` | szukanie konta po fragmencie adresu e-mail |
+
+**Dlaczego dopiero teraz.** `users` nie było tabelą, po której się CHODZI —
+czytało się z niej pojedyncze konto po `id` albo po `lower(email)` przy
+logowaniu, a na jedno i drugie indeks jest od pierwszego dnia. Przy dwudziestu
+kontach (D-012) sortowanie całej tabeli było bez znaczenia. Założenie
+o skali się zmieniło: właściciel zapowiada przejście grupy użytkowniczek
+z Garnek.pl, czyli setki, a potem tysiące kont.
+
+**Indeks na WYRAŻENIU, nie na kolumnie** — ten sam powód co przy
+`ingredients_name_trgm_idx`: warunek pyta o `kuking_normalize(email)`, więc
+indeks na surowym `email` nie zostałby użyty. Pilnuje tego test
+`PanelUzytkownicyTest::test_indeksy_listy_kont_sa_uzywalne_dla_swoich_zapytan`,
+który pyta o to PLANER (`EXPLAIN` przy `enable_seqscan = off`), a nie samą
+obecność indeksu w `pg_indexes`.
+
+**Świadomie BEZ `(status, created_at)`** — zakładki filtra zawężają po
+statusie, ale `active` to będzie zdecydowana większość wierszy, więc dla
+najczęstszego widoku taki indeks nie daje nic ponad `users_created_at_idx`,
+a kosztowałby każdy zapis do `users` (te lecą przy odświeżaniu
+`ostatnio_widziany_at`). Wraca, gdy zawieszonych kont będą tysiące.
+
+**Świadomie BEZ generowanej kolumny `email_search`.** Wzorzec `*_search`
+(niżej) jest domyślny i słuszny tam, gdzie recheck operatora `%` chodzi po
+dziesiątkach tysięcy kandydatów. Tutaj zapytanie robi jeden moderator kilka
+razy dziennie, a kolumna oznaczałaby DRUGĄ kopię adresu e-mail w tabeli —
+więcej danych osobowych w bazie za oszczędność, której na tym ekranie nie
+da się zauważyć. Indeks przechowuje trigramy, nie adres.
+
+**Rollback:** `down()` kasuje oba indeksy. Bezstratny — indeks nie trzyma
+danych, których nie ma w tabeli; ekran działa bez nich dalej, tylko wolniej.
+
 ### profiles
 - user_id;
 - username;
@@ -1338,6 +1378,18 @@ zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
 uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
 (`source`), razem z rolą poprzednią i nową. To jest jedyny ślad po tym, kto
 w serwisie może zamknąć czyjeś odwołanie (D-039).
+
+**`admin.user_viewed`** — wgląd moderatora w kartę pojedynczego konta
+(`/admin/uzytkownicy/{user}`, `App\Http\Controllers\Admin\UzytkownicyController`).
+Realizacja decyzji 3.2 z `docs/INSPIRATION_DECISIONS.md` („wpisy przy
+OGLĄDANIU danych, nie tylko przy zmianie"): `actor_id` to moderator,
+`subject_id` — osoba, której dane obejrzano, bez żadnych metadanych.
+**Sama LISTA kont wpisu nie zostawia** i jest to decyzja, nie przeoczenie:
+pokazuje adresy w masce (`j***@wp.pl`), otwiera się kilkanaście razy dziennie
+po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
+dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
+ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
+dowodem wykonania żądania z RODO art. 17.
 
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,
