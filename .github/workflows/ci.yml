@@ -400,7 +400,6 @@ jobs:
       FILESYSTEM_DISK: local
       # Wyłącz telemetrię w testach.
       SENTRY_LARAVEL_DSN: ""
-      POSTHOG_KEY: ""
 
     steps:
       - uses: actions/checkout@v7
@@ -628,7 +627,6 @@ jobs:
       MAIL_MAILER: array
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
-      POSTHOG_KEY: ""
 
     steps:
       # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\AnalitykaCloudflare;
 use App\Support\Odmiana;
-use App\Support\Plausible;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Sentry\Laravel\ServiceProvider;
 use Tests\TestCase;
@@ -123,15 +123,19 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
      * jest w kodzie (`grep` po całym repozytorium poza dokumentacją
      * badawczą).
      *
-     * PLAUSIBLE WYPADŁO Z TEJ LISTY 10 WRZEŚNIA 2026 (D-092) — I MUSIAŁO.
-     * Od tego dnia serwis NAPRAWDĘ ładuje skrypt Plausible, więc dokument
-     * ma obowiązek go wymienić, a nie zakaz. Lista nie jest już jednak
-     * stała: pyta o KAŻDE narzędzie, czy kod go używa, i zakazuje wyłącznie
-     * tych, których nie używa. Gdyby ktoś kiedyś usunął wpięcie Plausible
-     * i zostawił je w polityce, ta pozycja wróci na listę zakazanych sama,
-     * bez zmiany w tym pliku — a póki wpięcie żyje, obecności Plausible
-     * w dokumencie pilnuje z drugiej strony
+     * LISTA NIE JEST JUŻ STAŁA (D-092, 10 września 2026) — I TO JEST TU
+     * RZECZ WAŻNIEJSZA NIŻ SAMA ZAWARTOŚĆ LISTY. Pyta o KAŻDE narzędzie, czy
+     * kod go naprawdę używa, i zakazuje wyłącznie tych, których nie używa.
+     * Dzięki temu wpięcie zewnętrznej analityki (dziś: Cloudflare Web
+     * Analytics) nie wymaga ręcznego wykreślania nazwy z tablicy, a jej
+     * usunięcie samo przywraca zakaz — bez zmiany w tym pliku. Póki wpięcie
+     * żyje, obecności dostawcy w dokumencie pilnuje z drugiej strony
      * `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
+     *
+     * „Plausible" zostaje na liście jako narzędzie NIEUŻYWANE: stało tu przez
+     * pół dnia jako wybrany kandydat i zostało odrzucone na cenie (D-092),
+     * więc dokument prawny nie ma prawa go wymieniać inaczej niż w zdaniu
+     * o tym, że go nie używamy.
      */
     #[DataProvider('dokumenty')]
     public function test_nie_wymieniamy_narzedzi_ktorych_nie_uzywamy(string $adres, string $plik): void
@@ -145,7 +149,12 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
             'PostHog' => false,
             'Google Analytics' => false,
             'Matomo' => false,
-            'Plausible' => class_exists(Plausible::class),
+            'Plausible' => false,
+            // Pytanie brzmi „czy kod potrafi wysłać dane temu dostawcy", a nie
+            // „czy akurat na tej maszynie wysyła": w testach i w CI token jest
+            // pusty, więc `wlaczona()` oddaje `false` i cała pozycja
+            // wypadałaby dokładnie tam, gdzie ma pilnować.
+            'Cloudflare Web Analytics' => class_exists(AnalitykaCloudflare::class),
         ];
 
         $sprawdzone = 0;

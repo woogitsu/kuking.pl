@@ -1587,47 +1587,73 @@ return [
         'last_seen_throttle_minutes' => (int) env('KUKING_LAST_SEEN_THROTTLE_MINUTES', 15),
 
         /*
-         * PLAUSIBLE — jedyna zewnętrzna analityka w tym serwisie (D-092).
+         * CLOUDFLARE WEB ANALYTICS — jedyna zewnętrzna analityka w tym
+         * serwisie (D-092).
          *
          * PO CO W OGÓLE, SKORO MAMY `App\Domain\Analytics\*`
          * Bo to są dwa różne pytania. Nasza analityka serwerowa odpowiada na
          * „ile osób ugotowało w tym tygodniu" — liczy zdarzenia, które
          * powstają W BAZIE, więc o kimś, kto wszedł na stronę powitalną
-         * i wyszedł, nie wie NIC. Plausible odpowiada na drugie pytanie,
-         * którego z Postgresa zadać się nie da: skąd ludzie przychodzą
-         * i które strony oglądają, ZANIM cokolwiek u nas zrobią. Jedno nie
-         * zastępuje drugiego i nic z `App\Domain\Analytics\*` nie znika.
+         * i wyszedł, nie wie NIC. Beacon Cloudflare odpowiada na drugie
+         * pytanie, którego z Postgresa zadać się nie da: skąd ludzie
+         * przychodzą i które strony oglądają, ZANIM cokolwiek u nas zrobią.
+         * Jedno nie zastępuje drugiego i nic z `App\Domain\Analytics\*`
+         * nie znika.
          *
-         * PUSTA DOMENA = SKRYPTU NIE MA W HTML-U W OGÓLE. To jest stan
+         * DLACZEGO CLOUDFLARE, A NIE PLAUSIBLE (który stał tu przez pół dnia)
+         * Decyzja właściciela i rozstrzygnęła cena: Plausible to 9 € miesięcznie
+         * za odpowiedź na dwa pytania, a Cloudflare już przetwarza KAŻDE
+         * żądanie do kuking.pl, bo jest naszym CDN-em i WAF-em przed Railwayem
+         * (`docs/infra/INFRA_DECISION.md`). Włączenie jego analityki nie wysyła
+         * mu ani jednego nowego bajta i nie dokłada dostawcy do polityki
+         * prywatności — Cloudflare, Inc. stoi tam od Turnstile'a (D-050).
+         *
+         * PUSTY TOKEN = SKRYPTU NIE MA W HTML-U W OGÓLE. To jest stan
          * domyślny lokalnie, w testach i w CI — dokładnie ten sam wzorzec
          * co puste klucze Turnstile (D-050). Nie ma osobnej flagi „włącz
-         * analitykę" obok domeny, bo dałaby stan „włączone, ale bez domeny",
+         * analitykę" obok tokenu, bo dałaby stan „włączone, ale bez tokenu",
          * czyli skrypt wysyłający zdarzenia donikąd — narzędzie meldujące
          * sukces, nie robiąc nic (patrz `App\Support\Turnstile`).
-         *
-         * DLACZEGO DOMENA, A NIE KLUCZ API. Plausible nie ma klucza po
-         * stronie przeglądarki: skrypt identyfikuje serwis nazwą domeny
-         * zarejestrowaną w panelu. To nie jest sekret — stoi w HTML-u każdej
-         * strony i tak ma być.
          */
-        'plausible' => [
-            // Nazwa serwisu dokładnie taka, jak w panelu Plausible
-            // („kuking.pl"). Puste = analityki nie ma.
-            'domena' => trim((string) env('PLAUSIBLE_DOMENA', '')),
+        'cloudflare' => [
+            /*
+             * Token serwisu z panelu Cloudflare (Web Analytics → Add a site).
+             * Puste = analityki nie ma.
+             *
+             * Beacon identyfikuje serwis TOKENEM, a nie nazwą domeny — to
+             * jedyna różnica w konfiguracji względem Plausible, które
+             * potrzebowało domeny i hosta. Token nie jest sekretem: stoi
+             * w HTML-u każdej strony i tak ma być.
+             */
+            'token' => trim((string) env('CLOUDFLARE_ANALYTICS_TOKEN', '')),
 
             /*
-             * Skąd pobieramy skrypt i dokąd idą zdarzenia.
+             * DWA RÓŻNE HOSTY, I TO NIE JEST LITERÓWKA.
              *
-             * Wyciągnięte do zmiennej, a nie zapisane na sztywno, z jednego
-             * powodu: gdyby kiedyś przyszło przenieść się na własną
-             * instancję Plausible (ten sam otwarty kod pod własnym adresem),
-             * zmienia się TYLKO ta wartość — widok i reguła CSP liczą się
-             * z niej same. Wpisanie hosta na sztywno w dwóch miejscach
-             * gwarantowałoby, że przy przenosinach jedno z nich zostanie
-             * w tyle i skrypt zostanie po cichu zablokowany przez politykę
-             * bezpieczeństwa — bez śladu na ekranie.
+             * Zmierzone przez pobranie i odczytanie `beacon.min.js`
+             * (D-092), a nie przepisane z dokumentacji dostawcy:
+             *
+             *   - plik pobiera się z `static.cloudflareinsights.com`
+             *     → dyrektywa `script-src`,
+             *   - zdarzenia lecą na `cloudflareinsights.com/cdn-cgi/rum`,
+             *     czyli na host BEZ `static.` → dyrektywa `connect-src`.
+             *
+             * Przy Plausible oba adresy były tym samym hostem, więc jedna
+             * wartość obsługiwała obie dyrektywy CSP. Tutaj nie obsługuje,
+             * i dopisanie tylko pierwszego daje stronę bez usterki, pusty
+             * panel i zero śladu w dzienniku.
+             *
+             * Adresy stoją TUTAJ, a nie w `env()`, bo Cloudflare Web
+             * Analytics nie ma wariantu samodzielnie hostowanego — nie ma
+             * czego przenosić, a zmienna środowiskowa sugerowałaby, że jest.
+             * Widok i reguła CSP liczą je z tego miejsca przez
+             * `App\Support\AnalitykaCloudflare` i NIE powtarzają literałów:
+             * powtórzenie w dwóch miejscach gwarantuje, że przy zmianie
+             * jedno zostanie w tyle i skrypt zostanie po cichu zablokowany
+             * przez politykę bezpieczeństwa — bez śladu na ekranie.
              */
-            'host' => rtrim(trim((string) env('PLAUSIBLE_HOST', 'https://plausible.io')), '/'),
+            'host_skryptu' => 'https://static.cloudflareinsights.com',
+            'host_zdarzen' => 'https://cloudflareinsights.com',
         ],
     ],
 

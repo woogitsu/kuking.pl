@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\AnalitykaCloudflare;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -11,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Analityka odwiedzin bez ciasteczek — Plausible (D-092).
+ * Analityka odwiedzin bez ciasteczek — Cloudflare Web Analytics (D-092).
  *
  * CZEGO PILNUJE TEN PLIK I DLACZEGO AKURAT TEGO
  * Właściciel poprosił o Google Analytics. Dostał narzędzie odpowiadające na
@@ -22,31 +23,43 @@ use Tests\TestCase;
  * banerem. Jeśli analityka kiedykolwiek zacznie cokolwiek zapisywać
  * na urządzeniu człowieka, ten dokument staje się nieprawdziwy.
  *
- * Stąd cztery rzeczy sprawdzane tutaj i nigdzie indziej:
+ * Stąd rzeczy sprawdzane tutaj i nigdzie indziej:
  *
  *  1. BEZ ZMIENNEJ ŚRODOWISKOWEJ NIE MA ANI ŚLADU ZNACZNIKA. Lokalnie,
  *     w testach i w CI analityka ma być niema — nie „wyłączona flagą",
  *     tylko nieobecna w HTML-u.
- *  2. ZE ZMIENNĄ ZNACZNIK JEST, Z WŁAŚCIWĄ DOMENĄ. Literówka w domenie nie
- *     wywołuje żadnego błędu: skrypt się ładuje, a panel zostaje pusty.
- *  3. CSP PRZEPUSZCZA HOST W OBU DYREKTYWACH. To jest najczęstsza cicha
- *     porażka takiego wpięcia: `script-src` pozwala pobrać plik, ale
- *     zdarzenia idą POST-em i podlegają `connect-src`. Brak drugiej
- *     dyrektywy = strona bez usterki i panel bez danych.
+ *  2. Z TOKENEM ZNACZNIK JEST, Z WŁAŚCIWYM TOKENEM I ADRESEM. Literówka
+ *     w tokenie nie wywołuje żadnego błędu: skrypt się ładuje, a panel
+ *     zostaje pusty.
+ *  3. CSP PRZEPUSZCZA DWA RÓŻNE HOSTY W DWÓCH RÓŻNYCH DYREKTYWACH. To jest
+ *     najczęstsza cicha porażka takiego wpięcia — i przy tym dostawcy
+ *     grubsza niż zwykle, bo plik pobiera się z
+ *     `static.cloudflareinsights.com`, a zdarzenia lecą na
+ *     `cloudflareinsights.com`, czyli na host BEZ `static.`. Zmierzone
+ *     w `beacon.min.js`, nie przepisane z dokumentacji.
  *  4. ŻADNEGO CIASTECZKA WIĘCEJ. To jest sedno obietnicy i dlatego ma
  *     własny test, a nie przypis w innym.
  *
+ * DWA HOSTY = DWA OSOBNE TESTY, KAŻDY ZE SWOIM SABOTAŻEM.
+ * Jeden test na obie dyrektywy przechodziłby za drugą (`docs/PULAPKI_TESTOW.md`
+ * §3b: każda gałąź potrzebuje własnego testu i własnej kontroli ujemnej).
+ * Dlatego `script-src` i `connect-src` mają tu po jednym teście z osobna,
+ * a trzeci pilnuje tego, czego żaden z nich nie widzi: że te dwa hosty są
+ * RÓŻNE. Wpisanie tego samego hosta w oba miejsca zdałoby oba pierwsze
+ * testy i dałoby dokładnie tę awarię, przed którą one mają chronić.
+ *
  * JAK TO JEST MIERZONE — I DLACZEGO NIE `assertSee()`
- * `assertDontSee('plausible')` na całym dokumencie jest w tym repozytorium
+ * `assertDontSee('cloudflare')` na całym dokumencie jest w tym repozytorium
  * pułapką, która złapała już sześć osób (`docs/PULAPKI_TESTOW.md` §1): to
- * samo słowo pada w stopce, w polityce prywatności i w komentarzu Blade'a.
- * Każda asercja niżej celuje więc w KONKRETNY ELEMENT wyciągnięty przez
- * DOMXPath — `<script>` z atrybutem `data-domain` — a nie w tekst strony.
+ * samo słowo pada w stopce, w polityce prywatności, w skrypcie Turnstile
+ * i w komentarzu Blade'a. Każda asercja niżej celuje więc w KONKRETNY
+ * ELEMENT wyciągnięty przez DOMXPath — `<script>` z atrybutem
+ * `data-cf-beacon` — a nie w tekst strony.
  *
  * Do tego każda asercja „czegoś nie ma" ma przy sobie KONTROLĘ DODATNIĄ
  * (`docs/PULAPKI_TESTOW.md` §4). Tutaj jest ona ZROBIONA PARĄ W JEDNYM
- * TEŚCIE: najpierw z ustawioną domeną pokazujemy, że wyszukiwanie znajduje
- * znacznik, i dopiero potem — po jej wyczyszczeniu — że go nie ma. Bez tej
+ * TEŚCIE: najpierw z ustawionym tokenem pokazujemy, że wyszukiwanie znajduje
+ * znacznik, i dopiero potem — po jego wyczyszczeniu — że go nie ma. Bez tej
  * pierwszej połowy „nie ma znacznika" byłoby prawdą także wtedy, gdyby
  * literówka w wyrażeniu XPath nie znajdowała NIGDY niczego.
  *
@@ -60,19 +73,21 @@ class AnalitykaBezCiasteczekTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const DOMENA = 'kuking.pl';
+    private const TOKEN = '0123456789abcdef0123456789abcdef';
+
+    private const HOST_SKRYPTU = 'https://static.cloudflareinsights.com';
+
+    private const HOST_ZDARZEN = 'https://cloudflareinsights.com';
 
     /** Analityka wyłączona — stan domyślny lokalnie, w testach i w CI. */
     private function bezAnalityki(): void
     {
-        config(['kuking.analytics.plausible.domena' => '']);
-        config(['kuking.analytics.plausible.host' => 'https://plausible.io']);
+        config(['kuking.analytics.cloudflare.token' => '']);
     }
 
-    private function zAnalityka(string $host = 'https://plausible.io'): void
+    private function zAnalityka(): void
     {
-        config(['kuking.analytics.plausible.domena' => self::DOMENA]);
-        config(['kuking.analytics.plausible.host' => $host]);
+        config(['kuking.analytics.cloudflare.token' => self::TOKEN]);
     }
 
     /**
@@ -123,7 +138,7 @@ class AnalitykaBezCiasteczekTest extends TestCase
     {
         return array_values(array_filter(
             $skrypty,
-            static fn (DOMElement $skrypt): bool => $skrypt->hasAttribute('data-domain'),
+            static fn (DOMElement $skrypt): bool => $skrypt->hasAttribute('data-cf-beacon'),
         ));
     }
 
@@ -136,8 +151,8 @@ class AnalitykaBezCiasteczekTest extends TestCase
         $this->assertCount(
             1,
             $this->znacznikiAnalityki($this->skryptyLandingu()),
-            'Przy ustawionej domenie nie widzę znacznika analityki — to psuje metodę pomiaru, '
-            .'więc asercja „bez domeny znacznika nie ma" nic by nie dowodziła.',
+            'Przy ustawionym tokenie nie widzę znacznika analityki — to psuje metodę pomiaru, '
+            .'więc asercja „bez tokenu znacznika nie ma" nic by nie dowodziła.',
         );
 
         $this->bezAnalityki();
@@ -147,23 +162,24 @@ class AnalitykaBezCiasteczekTest extends TestCase
         $this->assertSame(
             [],
             $this->znacznikiAnalityki($skrypty),
-            'Bez PLAUSIBLE_DOMENA na stronie stoi znacznik z atrybutem `data-domain`. '
+            'Bez CLOUDFLARE_ANALYTICS_TOKEN na stronie stoi znacznik z atrybutem `data-cf-beacon`. '
             .'Analityka ma być NIEOBECNA w HTML-u lokalnie, w testach i w CI, '
             .'a nie obecna i wyłączona.',
         );
 
         // Druga strona tego samego: żaden skrypt nie może wskazywać na host
-        // analityki — także taki, któremu ktoś zapomniałby dać `data-domain`.
+        // analityki — także taki, któremu ktoś zapomniałby dać
+        // `data-cf-beacon`.
         foreach ($skrypty as $skrypt) {
             $this->assertStringNotContainsStringIgnoringCase(
-                'plausible',
+                'cloudflareinsights',
                 $skrypt->getAttribute('src'),
-                'Strona pobiera skrypt z hosta analityki mimo pustej PLAUSIBLE_DOMENA.',
+                'Strona pobiera skrypt z hosta analityki mimo pustego CLOUDFLARE_ANALYTICS_TOKEN.',
             );
         }
     }
 
-    public function test_ze_zmienna_skrypt_jest_z_wlasciwa_domena(): void
+    public function test_z_tokenem_skrypt_jest_z_wlasciwym_tokenem_i_adresem(): void
     {
         $this->zAnalityka();
 
@@ -176,8 +192,29 @@ class AnalitykaBezCiasteczekTest extends TestCase
             .'a więcej niż jeden liczyłby każdą odsłonę podwójnie.',
         );
 
-        $this->assertSame(self::DOMENA, $znaczniki[0]->getAttribute('data-domain'));
-        $this->assertSame('https://plausible.io/js/script.js', $znaczniki[0]->getAttribute('src'));
+        $this->assertSame(
+            self::HOST_SKRYPTU.'/beacon.min.js',
+            $znaczniki[0]->getAttribute('src'),
+        );
+
+        // `data-cf-beacon` to JSON, nie goły token: beacon czyta z niego pole
+        // `token`. Porównujemy po ROZKODOWANIU, a nie łańcuchem znaków —
+        // inaczej test oblewałby przy nieistotnej zmianie odstępów, a nie
+        // przy zmianie znaczenia.
+        $konfiguracja = json_decode($znaczniki[0]->getAttribute('data-cf-beacon'), true);
+
+        $this->assertIsArray(
+            $konfiguracja,
+            'Atrybut `data-cf-beacon` nie jest poprawnym JSON-em — beacon nie odczyta z niego tokenu '
+            .'i po cichu nie policzy niczego.',
+        );
+        $this->assertSame(self::TOKEN, $konfiguracja['token'] ?? null);
+
+        // Świadomie BEZ pola `version`: zmierzone w `beacon.min.js`, jego
+        // obecność przełącza adres zdarzeń na ścieżkę względną na naszej
+        // domenie (tak działa automatyczne wstrzyknięcie przez proxy) —
+        // a wtedy host dopuszczony w `connect-src` opisywałby nieprawdę.
+        $this->assertArrayNotHasKey('version', $konfiguracja);
 
         // `defer` — analityka doładowuje się PO treści. To jest rzecz
         // najmniej ważna na tej stronie i nie ma konkurować o łącze
@@ -186,19 +223,26 @@ class AnalitykaBezCiasteczekTest extends TestCase
     }
 
     /**
-     * Własna instancja Plausible ma zmieniać JEDNO miejsce w konfiguracji —
-     * i adres skryptu ma się z niej policzyć sam.
+     * Widok liczy adres z konfiguracji, a nie powtarza literału.
+     *
+     * Gdyby adres stał w Blade'ie wpisany na sztywno, zmiana w
+     * `config/kuking.php` przestałaby cokolwiek znaczyć — a reguła CSP liczy
+     * się właśnie z konfiguracji. Rozjazd tych dwóch miejsc to skrypt po
+     * cichu zablokowany przez politykę bezpieczeństwa.
      */
-    public function test_wlasny_host_zmienia_adres_skryptu(): void
+    public function test_adres_skryptu_pochodzi_z_konfiguracji(): void
     {
-        $this->zAnalityka('https://statystyki.kuking.pl');
+        $this->zAnalityka();
+        config(['kuking.analytics.cloudflare.host_skryptu' => 'https://przyklad.test']);
 
         $znaczniki = $this->znacznikiAnalityki($this->skryptyLandingu());
 
         $this->assertCount(1, $znaczniki);
         $this->assertSame(
-            'https://statystyki.kuking.pl/js/script.js',
+            'https://przyklad.test/beacon.min.js',
             $znaczniki[0]->getAttribute('src'),
+            'Widok nie liczy adresu skryptu z konfiguracji — ma go wpisany literałem, '
+            .'więc CSP i HTML mogą się rozjechać.',
         );
     }
 
@@ -210,34 +254,84 @@ class AnalitykaBezCiasteczekTest extends TestCase
     }
 
     /**
-     * NAJCZĘSTSZA CICHA PORAŻKA TAKIEGO WPIĘCIA.
+     * PIERWSZA POŁOWA WPIĘCIA: przeglądarka musi móc POBRAĆ plik.
      *
-     * `script-src` pozwala POBRAĆ plik i na tym koniec. Zdarzenia skrypt
-     * wysyła POST-em na `<host>/api/event`, a to podlega `connect-src` —
-     * która w polityce tego serwisu jest wypisana osobno, więc nie
-     * dziedziczy niczego z `default-src 'self'`. Bez drugiej dyrektywy
-     * strona wygląda bez zarzutu, w dzienniku nie ma nic, a panel Plausible
-     * jest pusty i nie ma jak zgadnąć dlaczego.
+     * Osobny test od `connect-src` niżej — i to jest celowe. Jeden test na
+     * obie dyrektywy zdawałby za drugą i sabotaż jednej linijki nie oblewałby
+     * niczego (`docs/PULAPKI_TESTOW.md` §3b).
      */
-    public function test_csp_dopuszcza_host_analityki_w_obu_dyrektywach(): void
+    public function test_csp_dopuszcza_host_skryptu_w_script_src(): void
     {
+        $this->zAnalityka();
+
+        $this->assertContains(
+            self::HOST_SKRYPTU,
+            $this->dyrektywa($this->csp(), 'script-src'),
+            'Host, z którego pobiera się beacon, nie jest dopuszczony w `script-src` — '
+            .'przeglądarka nie pobierze pliku i analityki nie ma.',
+        );
+    }
+
+    /**
+     * DRUGA POŁOWA WPIĘCIA I NAJCZĘSTSZA CICHA PORAŻKA.
+     *
+     * `script-src` pozwala POBRAĆ plik i na tym koniec. Zdarzenia beacon
+     * wysyła przez `navigator.sendBeacon` na `cloudflareinsights.com/cdn-cgi/rum`
+     * (zmierzone w `beacon.min.js`), a to podlega `connect-src` — która
+     * w polityce tego serwisu jest wypisana osobno, więc nie dziedziczy
+     * niczego z `default-src 'self'`. Bez tej dyrektywy strona wygląda bez
+     * zarzutu, w dzienniku nie ma nic, a panel Cloudflare jest pusty i nie
+     * ma jak zgadnąć dlaczego.
+     */
+    public function test_csp_dopuszcza_host_zdarzen_w_connect_src(): void
+    {
+        $this->zAnalityka();
+
+        $this->assertContains(
+            self::HOST_ZDARZEN,
+            $this->dyrektywa($this->csp(), 'connect-src'),
+            'Host, na który beacon WYSYŁA zdarzenia, nie jest dopuszczony w `connect-src` — '
+            .'skrypt się pobierze, ale KAŻDE zdarzenie zginie na barierze CSP.',
+        );
+    }
+
+    /**
+     * TEGO NIE WIDZI ŻADEN Z DWÓCH TESTÓW WYŻEJ: że to są DWA RÓŻNE HOSTY.
+     *
+     * Przy Plausible, które stało tu przed tą decyzją, plik i zdarzenia
+     * szły na ten sam host, więc jedna wartość obsługiwała obie dyrektywy.
+     * U Cloudflare nie: plik z `static.cloudflareinsights.com`, zdarzenia
+     * na `cloudflareinsights.com`. Wpisanie jednego hosta w oba miejsca
+     * zdałoby oba testy wyżej i dałoby dokładnie tę awarię, przed którą
+     * one mają chronić — dlatego różnica ma własną asercję.
+     */
+    public function test_host_skryptu_i_host_zdarzen_to_dwa_rozne_hosty(): void
+    {
+        $this->assertNotSame(
+            AnalitykaCloudflare::hostSkryptu(),
+            AnalitykaCloudflare::hostZdarzen(),
+            'Host skryptu i host zdarzeń są tą samą wartością. U Cloudflare są różne '
+            .'(zmierzone w `beacon.min.js`), więc jedna z dwóch dyrektyw CSP jest teraz błędna.',
+        );
+
         $this->zAnalityka();
 
         $csp = $this->csp();
 
-        $skrypty = $this->dyrektywa($csp, 'script-src');
-        $polaczenia = $this->dyrektywa($csp, 'connect-src');
-
-        $this->assertContains('https://plausible.io', $skrypty, 'Host analityki nie jest dopuszczony w `script-src` — przeglądarka nie pobierze skryptu.');
-        $this->assertContains('https://plausible.io', $polaczenia, 'Host analityki nie jest dopuszczony w `connect-src` — skrypt się pobierze, ale KAŻDE zdarzenie zginie na barierze CSP.');
+        // I ta różnica ma dojechać aż do nagłówka, w obu kierunkach: host
+        // zdarzeń nie ma czego robić w `script-src`, a host skryptu
+        // w `connect-src`. Bez tego „dopuściliśmy oba wszędzie" przechodziłoby
+        // jako poprawne, poszerzając powierzchnię ataku bez powodu (issue #12).
+        $this->assertNotContains(self::HOST_ZDARZEN, $this->dyrektywa($csp, 'script-src'));
+        $this->assertNotContains(self::HOST_SKRYPTU, $this->dyrektywa($csp, 'connect-src'));
     }
 
     /**
-     * Bez analityki host nie ma czego obsłużyć — a każdy obcy host
+     * Bez analityki hosty nie mają czego obsłużyć — a każdy obcy host
      * w `script-src` to poszerzenie powierzchni ataku dla XSS-a (issue #12).
      * Polityka opisuje to, co strona NAPRAWDĘ ładuje.
      */
-    public function test_bez_analityki_csp_nie_dopuszcza_obcego_hosta(): void
+    public function test_bez_analityki_csp_nie_dopuszcza_zadnego_z_obu_hostow(): void
     {
         $this->bezAnalityki();
 
@@ -250,8 +344,8 @@ class AnalitykaBezCiasteczekTest extends TestCase
         $this->assertContains("'self'", $this->dyrektywa($csp, 'script-src'));
         $this->assertContains("'self'", $this->dyrektywa($csp, 'connect-src'));
 
-        $this->assertNotContains('https://plausible.io', $this->dyrektywa($csp, 'script-src'));
-        $this->assertNotContains('https://plausible.io', $this->dyrektywa($csp, 'connect-src'));
+        $this->assertNotContains(self::HOST_SKRYPTU, $this->dyrektywa($csp, 'script-src'));
+        $this->assertNotContains(self::HOST_ZDARZEN, $this->dyrektywa($csp, 'connect-src'));
     }
 
     /**
@@ -260,7 +354,10 @@ class AnalitykaBezCiasteczekTest extends TestCase
      * Rozbijamy nagłówek na dyrektywy, zamiast szukać podłańcucha w całym
      * nagłówku — inaczej „host jest w `connect-src`" byłoby prawdą również
      * wtedy, gdy stoi wyłącznie w `script-src`, bo obie nazwy siedzą w tym
-     * samym łańcuchu znaków.
+     * samym łańcuchu znaków. Przy tym dostawcy jest to podwójnie ważne:
+     * `https://cloudflareinsights.com` jest PODŁAŃCUCHEM
+     * `https://static.cloudflareinsights.com`, więc `str_contains` na
+     * nagłówku dawałby wynik dodatni dla hosta, którego tam nie ma.
      *
      * @return list<string>
      */
@@ -305,11 +402,12 @@ class AnalitykaBezCiasteczekTest extends TestCase
     /**
      * ANALITYKA NIE JEST FUNKCJĄ WAŻNĄ — ALE NIE MOŻE NICZEGO ZEPSUĆ.
      *
-     * `AGENTS.md` mówi, że ważne funkcje działają bez JavaScriptu. Analityka
-     * ważna nie jest i osoba z wyłączonym skryptem po prostu się nie policzy;
-     * to jest w porządku. Nie jest w porządku, gdyby jej włączenie cokolwiek
-     * zmieniło w tym, co ta osoba widzi i może zrobić. Dlatego porównujemy
-     * treść strony przy analityce włączonej i wyłączonej — ma być ta sama.
+     * `AGENTS.md` mówi, że nigdzie nie wolno zostawić martwego przycisku.
+     * Analityka ważna nie jest i osoba z wyłączonym skryptem po prostu się
+     * nie policzy; to jest w porządku. Nie jest w porządku, gdyby jej
+     * włączenie cokolwiek zmieniło w tym, co ta osoba widzi i może zrobić.
+     * Dlatego porównujemy treść strony przy analityce włączonej i wyłączonej —
+     * ma być ta sama.
      *
      * To jest jednocześnie dowód, że znacznik siedzi w `<head>`, a nie
      * w środku treści.
@@ -353,8 +451,16 @@ class AnalitykaBezCiasteczekTest extends TestCase
      * bo analityka niczego na urządzeniu nie zapisuje. Ten test porównuje
      * ZBIÓR NAZW ciasteczek przy analityce włączonej i wyłączonej: mają być
      * identyczne. Sprawdzanie „czy nie ma ciasteczka o nazwie zawierającej
-     * `plausible`" byłoby słabsze — przeszłoby dla ciasteczka nazwanego
+     * `cloudflare`" byłoby słabsze — przeszłoby dla ciasteczka nazwanego
      * inaczej.
+     *
+     * CZEGO TEN TEST NIE DOWODZI, i trzeba to napisać wprost: mierzy
+     * ciasteczka stawiane przez NASZĄ odpowiedź. O tym, czy sam beacon
+     * niczego nie zapisuje w przeglądarce, ten test nie mówi nic — tego nie
+     * da się sprawdzić w PHPUnicie i zostało zmierzone inaczej: przez
+     * pobranie `beacon.min.js` i odczytanie, że nie ma w nim ani jednego
+     * odwołania do `document.cookie`, `localStorage`, `sessionStorage` ani
+     * `indexedDB` (D-092, `docs/legal/COMPLIANCE.md` §5.5).
      */
     public function test_wlaczenie_analityki_nie_doklada_zadnego_ciasteczka(): void
     {
