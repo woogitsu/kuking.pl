@@ -49,7 +49,7 @@ class ProfilGlowkaUkladuKituNieUjawniaTest extends TestCase
         // Asercja kontrolna: strona naprawdę pokazuje ten profil, a nie
         // pustą stronę błędu, która przepuściłaby też poniższy test na ślepo.
         $odpowiedz->assertSee('Kucharka Testowa');
-        $odpowiedz->assertSee('<span class="stat-value">1</span><span class="stat-label">wpisów</span>', false);
+        $odpowiedz->assertSee('<span class="stat-value">1</span> <span class="stat-label">wpis</span>', false);
 
         // DOWÓD UKŁADU, NIE SAMEJ TREŚCI.
         //
@@ -87,7 +87,7 @@ class ProfilGlowkaUkladuKituNieUjawniaTest extends TestCase
         // Asercja kontrolna — inaczej test przeszedłby, nawet gdyby
         // /@kucharka2 w ogóle nie renderowało profilu.
         $odpowiedz->assertSee('Druga Kucharka');
-        $odpowiedz->assertSee('<span class="stat-value">0</span><span class="stat-label">wpisów</span>', false);
+        $odpowiedz->assertSee('<span class="stat-value">0</span> <span class="stat-label">wpisów</span>', false);
 
         $odpowiedz->assertDontSee('Sekretny przepis na bigos');
     }

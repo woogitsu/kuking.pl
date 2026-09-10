@@ -72,16 +72,46 @@
                 przycisk „Dodaj zdjęcie", który prowadzi do DODANIA WPISU ze
                 zdjęciem potrawy. Dwa podobnie brzmiące „dodaj zdjęcie" jeden
                 pod drugim byłyby gorsze niż dłuższa nazwa.
+
+                ROZMIAR 128 px, NIE 88: na profilu awatar jest zdjęciem
+                CZŁOWIEKA, o którym jest cała strona, a nie znaczkiem przy
+                cudzym wpisie — i miejsce na niego jest, bo kolumna awatara
+                i tak musi pomieścić przycisk pod nim. Prośba właściciela
+                brzmiała dosłownie: „zdjęcie profilowe może brać więcej
+                miejsca, bo jest na to miejsce".
             --}}
             @if($isOwner)
                 <a class="profil-awatar-zmiana" href="{{ route('settings.avatar') }}">
-                    <x-avatar :user="$owner" :size="88" />
-                    <span class="profil-awatar-zmiana-podpis">
+                    <x-avatar :user="$owner" :size="128" />
+                    {{--
+                        PODPIS WYGLĄDA JAK AKCJA, BO JEST AKCJĄ.
+
+                        Do tej zmiany był zwykłym podkreślonym tekstem tuż
+                        pod obrazkiem — czyli dokładnie tam, gdzie stoi
+                        PODPIS ZDJĘCIA, i tak też się czytał („to nazwa
+                        tego, co widzę"), mimo że na telefonie jest jedyną
+                        drogą do zmiany zdjęcia (prawa szyna z tym samym
+                        skrótem chowa się poniżej 64rem).
+
+                        `btn btn-secondary`, a nie nowa klasa z własnym
+                        obrysem: przycisk w tym serwisie ma już policzony
+                        kontrast, 48 px wysokości, `max-width: 100%`
+                        i `overflow-wrap: anywhere` — czyli obronę przed
+                        wypchnięciem strony w bok przy czcionce przeglądarki
+                        200%. Druga taka klasa byłaby drugim miejscem, w
+                        którym trzeba by o tym wszystkim pamiętać.
+
+                        NADAL JEDEN ODNOŚNIK, nie dwa: `<span>` w środku
+                        `<a>`, a nie osobne łącze obok awatara. Dwa
+                        odnośniki do tego samego miejsca czytnik ekranu
+                        czyta dwa razy (D-054).
+                    --}}
+                    <span class="btn btn-secondary profil-awatar-zmiana-akcja">
                         {{ $p->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
                     </span>
                 </a>
             @else
-                <x-avatar :user="$owner" :size="88" />
+                <x-avatar :user="$owner" :size="128" />
             @endif
             <div class="min-w-0">
                 <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
@@ -117,20 +147,41 @@
                     <p class="whitespace-pre-line mb-4">{{ $p->bio }}</p>
                 @endif
 
-                <ul class="stat-row">
-                    <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
-                    <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
-                    <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy Ugotowałem</span></li>
-                    <li>
-                        <a href="{{ route('social.followers', $p->username) }}" class="link-jak-tekst">
-                            <span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('social.following', $p->username) }}" class="link-jak-tekst">
-                            <span class="stat-value">{{ $stats['following'] }}</span><span class="stat-label">obserwowanych</span>
-                        </a>
-                    </li>
+                {{--
+                    LICZNIKI: PIĘĆ RÓWNYCH WIERSZY, NIE RZĄD ZAWIJANY DO
+                    KOŃCA WIERSZA.
+
+                    Do tej zmiany było tu pięć pozycji w kontenerze
+                    `flex-wrap`, więc szerokość każdej brała się z długości
+                    podpisu, a wiersze wychodziły „3 + 2" albo „2 + 3"
+                    zależnie od okna i skali tekstu. Właściciel nazwał to
+                    wprost: nieczytelne i niesymetryczne.
+
+                    Teraz każdy licznik to jeden wiersz „liczba + odmieniony
+                    podpis" („2 wpisy"), wszystkie zaczynają się w tej samej
+                    linii i mają tę samą wysokość. Dlaczego JEDNA kolumna,
+                    a nie dwie — z pomiarem szerokości tej karty: komentarz
+                    przy `.profil-liczniki` w `ekran-profilu.css`.
+
+                    Kolejność w HTML zostaje ta sama co dawniej, bo to ona
+                    decyduje o kolejności czytania i `Tab`.
+
+                    §12: to są liczby o WŁASNEJ treści tej osoby, bez
+                    porównania z kimkolwiek. Nie ma tu miejsca w tabeli,
+                    nie ma „więcej niż 80% kuKINGów" i nie będzie.
+                --}}
+                <ul class="profil-liczniki" aria-label="Liczby tego profilu">
+                    <x-licznik-profilu rodzaj="wpisy" :ile="$stats['posts']" />
+                    <x-licznik-profilu rodzaj="przepisy" :ile="$stats['recipes']" />
+                    <x-licznik-profilu rodzaj="ugotowania" :ile="$stats['cooked']" />
+                    <x-licznik-profilu
+                        rodzaj="obserwujacy"
+                        :ile="$stats['followers']"
+                        :href="route('social.followers', $p->username)" />
+                    <x-licznik-profilu
+                        rodzaj="obserwowani"
+                        :ile="$stats['following']"
+                        :href="route('social.following', $p->username)" />
                 </ul>
             </div>
         </div>
