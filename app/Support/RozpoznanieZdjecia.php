@@ -35,6 +35,16 @@ namespace App\Support;
  * zostaje tym, czym była — cienkim dostępem do samego komunikatu, używanym
  * przez `ObslugiwaneZdjecie` — żeby nie trzeba było przepisywać reguły
  * walidacji formularza.
+ *
+ * OD ISSUE #119: HEIC DOSTAJE WŁASNY KOD POWODU, NIE `not_an_image`
+ * Kryterium akceptacji #119 pyta „ile zdjęć odpada dziś na HEIC w praktyce".
+ * Dopóki HEIC dzielił kod powodu z każdym innym nieczytelnym plikiem (literą
+ * zamiast zdjęcia, uciętym uploadem, uszkodzonym JPEG-iem), na to pytanie nie
+ * dało się odpowiedzieć zapytaniem do `product_signals` — `not_an_image`
+ * mieszał telefon z iPhone'em i plik, który w ogóle nie jest obrazem. Osobny
+ * kod (`heic_unsupported`) rozdziela te dwa zupełnie różne zdarzenia: jedno
+ * jest błędem człowieka (albo atakiem), drugie jest luką produktu opisaną
+ * w `docs/DECISIONS.md`, D-064.
  */
 final class RozpoznanieZdjecia
 {
@@ -43,6 +53,13 @@ final class RozpoznanieZdjecia
     public const POWOD_NIEOBSLUGIWANY_FORMAT = 'unsupported_format';
 
     public const POWOD_ZA_DUZO_MEGAPIKSELI = 'too_many_megapixels';
+
+    /**
+     * HEIC/HEIF: rozpoznany po magic bytes (`mime_content_type()`), ale
+     * nieobsługiwany przez GD — patrz D-064. Osobny kod od `POWOD_NIECZYTELNY`
+     * (patrz komentarz klasy wyżej, „OD ISSUE #119").
+     */
+    public const POWOD_HEIC_NIEOBSLUGIWANY = 'heic_unsupported';
 
     /**
      * `null`, gdy plik jest w porządku. Komunikat po polsku, gdy nie jest.
@@ -66,7 +83,20 @@ final class RozpoznanieZdjecia
         $info = @getimagesize($sciezka);
 
         if ($info === false) {
-            return new WynikRozpoznania(self::POWOD_NIECZYTELNY, self::komunikatNieczytelnegoPliku($sciezka));
+            // `mime_content_type()` czyta MAGIC BYTES (nagłówek `ftyp`
+            // z marką `heic`/`heif`/`mif1`), NIE rozszerzenie pliku i NIE
+            // nagłówek `Content-Type` od przeglądarki — dokładnie to, czego
+            // wymaga AGENTS.md §7. Plik `zdjecie.jpg`, w którym leżą bajty
+            // HEIC, trafia więc TU, a nie do gałęzi formatów — to jest
+            // celowe: `getimagesize()` już zawiódł na treści, rozszerzenie
+            // nigdy nie wchodzi do gry.
+            $wykryty = @mime_content_type($sciezka);
+
+            if (in_array($wykryty, ['image/heic', 'image/heif'], true)) {
+                return new WynikRozpoznania(self::POWOD_HEIC_NIEOBSLUGIWANY, self::komunikatHeic());
+            }
+
+            return new WynikRozpoznania(self::POWOD_NIECZYTELNY, self::komunikatNieczytelnegoPliku());
         }
 
         $wykryty = $info['mime'] ?? null;
@@ -96,30 +126,48 @@ final class RozpoznanieZdjecia
     }
 
     /**
-     * Co powiedzieć, gdy PHP nie umie odczytać pliku jako obrazu.
+     * Co powiedzieć o pliku HEIC/HEIF — patrz D-064 w `docs/DECISIONS.md`.
      *
      * HEIC jest domyślnym formatem aparatu w iPhonie od 2017 roku, więc to nie
      * jest przypadek brzegowy — to najzwyklejszy sposób, w jaki nasza grupa
      * robi zdjęcia. Zwykle iOS konwertuje takie zdjęcie do JPEG przy wysyłce
-     * sam, ale nie zawsze: przy udostępnianiu z Plików albo z aplikacji innej
-     * niż aparat plik idzie w oryginale.
+     * sam (patrz D-064 §3), ale nie zawsze: przy udostępnianiu z Plików albo
+     * z aplikacji innej niż aparat plik idzie w oryginale.
      *
-     * `getimagesize()` HEIC-a nie zna (PHP 8.4 nie ma nawet stałej
-     * `IMAGETYPE_HEIC`), ale `mime_content_type()` owszem — to inna biblioteka.
-     * Da się więc powiedzieć, co jest naprawdę nie tak, zamiast twierdzić
-     * „ten plik nie wygląda na zdjęcie" komuś, kto trzyma w ręku fotografię.
+     * DWA ZDANIA, DWIE RÓŻNE RZECZY — SPRAWDZONE OSOBNO (D-064 §3), NIE ZGADYWANE
+     *   1. „Ustawienia → Aparat → Formaty → Najbardziej zgodny" to dosłowna
+     *      ścieżka menu z oficjalnej pomocy Apple (support.apple.com/116944) —
+     *      dotyczy PRZYSZŁYCH zdjęć, nie tego, które już leży w telefonie.
+     *   2. Dla TEGO KONKRETNEGO zdjęcia: wysyłka e-mailem. Ta sama strona
+     *      Apple: przy udostępnianiu przez AirDrop, Wiadomości albo e-mail do
+     *      odbiorcy bez obsługi HEIC/HEVC, iOS **może** wysłać automatycznie
+     *      w formacie zgodnym (JPEG/H.264) — i to jest jedyne poparte źródłem
+     *      zdanie o istniejącym już zdjęciu.
+     *
+     * WCZEŚNIEJSZA WERSJA TEGO KOMUNIKATU DORADZAŁA TEŻ „otwórz w Zdjęciach
+     * i użyj «Duplikuj»" — SPRAWDZONE I USUNIĘTE (issue #119, D-064 §3):
+     * wykrywanie duplikatów w Photos porównuje pliki po FORMACIE, nie po
+     * treści zdjęcia, co oznacza, że „Duplikuj" tworzy drugą kopię W TYM
+     * SAMYM formacie (HEIC), nie konwertuje niczego. Był to zgadywany krok,
+     * nie sprawdzony — dokładnie to, przed czym ostrzega zadanie #119
+     * („sprawdź, co jest prawdą dla iPhone'a, nie zgaduj"). Lepiej podać
+     * jedną drogę, która naprawdę działa, niż dwie, z których jedna nie robi
+     * tego, co obiecuje.
      */
-    private static function komunikatNieczytelnegoPliku(string $sciezka): string
+    private static function komunikatHeic(): string
     {
-        $wykryty = @mime_content_type($sciezka);
+        return 'To zdjęcie jest w formacie HEIC, którego jeszcze nie umiemy otworzyć. '
+            .'W iPhonie wejdź w Ustawienia → Aparat → Formaty i wybierz „Najbardziej zgodny” — '
+            .'kolejne zdjęcia zapiszą się jako JPG. To zdjęcie, które już masz zrobione, '
+            .'wyślij najpierw do siebie e-mailem — przyjdzie jako JPG i tę wersję wgraj tutaj.';
+    }
 
-        if (in_array($wykryty, ['image/heic', 'image/heif'], true)) {
-            return 'To zdjęcie jest w formacie HEIC, którego jeszcze nie umiemy otworzyć. '
-                .'W iPhonie wejdź w Ustawienia → Aparat → Formaty i wybierz „Najbardziej zgodny” — '
-                .'kolejne zdjęcia zapiszą się jako JPG. To zdjęcie możesz wysłać sobie e-mailem '
-                .'albo otworzyć w Zdjęciach i użyć „Duplikuj”, żeby dostać wersję JPG.';
-        }
-
+    /**
+     * Co powiedzieć, gdy PHP nie umie odczytać pliku jako obrazu i to NIE jest
+     * HEIC/HEIF (ten format ma własny komunikat — `komunikatHeic()` wyżej).
+     */
+    private static function komunikatNieczytelnegoPliku(): string
+    {
         return 'Ten plik nie wygląda na zdjęcie. Wybierz plik '
             .LimityZdjec::formatyDlaCzlowieka().'.';
     }

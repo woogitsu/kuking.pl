@@ -107,9 +107,21 @@ i tak sortować wyniku.
 
 Kolumna **nie jest w `$fillable`** — ten sam powód co `ostatnio_widziany_at`
 (AGENTS.md §7). Zapisuje ją wyłącznie
-`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`. Masowe przypisanie
-z żądania pozwoliłoby cofnąć czyjś znacznik i wysłać mu drugi list w tym
-samym tygodniu, wbrew obietnicy z ekranu ustawień.
+`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()` (a przy liście próbnym
+`--tylko` — `::oznaczWyslane()`). Masowe przypisanie z żądania pozwoliłoby
+cofnąć czyjś znacznik i wysłać mu drugi list w tym samym tygodniu, wbrew
+obietnicy z ekranu ustawień.
+
+> **Uzupełnienie, 10 września 2026 (audyt QUEUE-01, D-077).** Punkt 2 wyżej
+> („czyni zadanie odpornym na powtórne uruchomienie") był prawdą tylko dla
+> przebiegu, który **doszedł do końca**. Znacznik stawiało jedno zapytanie po
+> całej pętli, więc awaria po zakolejkowaniu listów nie zostawiała po nich
+> żadnego śladu i następny przebieg wysyłał je drugi raz. Odporność daje
+> teraz bariera w bazie — `weekly_digest_sends`, sekcja niżej — a ta kolumna
+> jest od 10 września zapisywana **osobno dla każdej osoby, w jednej
+> transakcji z rezerwacją i PRZED wysłaniem listu**. Sama, bez tabeli
+> rezerwacji, nadal by nie wystarczyła: jest porównaniem, czyli odczytem
+> przed zapisem, a między nimi jest luka na dwa przebiegi równoległe.
 
 **Rollback.** `down()` kasuje kolumnę i indeks. Bezpieczny, ale nie bez
 skutku i trzeba to nazwać: razem z kolumną znika pamięć o tym, komu już
@@ -694,10 +706,65 @@ znacznika dla każdego konta, a middleware odbuduje go od nowa przy
 najbliższej wizycie.
 
 ### follows
-`follower_id + followed_id` unique.
+`follower_id + followed_id` unique (to jest KLUCZ GŁÓWNY — relacja jest
+tożsamością, nie ma sztucznego `id`). `CHECK (follower_id <> followed_id)`.
+
+**Wyzwalacz `follows_blokada_ma_pierwszenstwo_trg` (`BEFORE INSERT`)** —
+migracja `2026_09_10_400000_obserwowanie_nie_wspolistnieje_z_blokada`,
+decyzja **D-080**. Odrzuca `INSERT`, jeśli dla tej pary istnieje
+zatwierdzona blokada w KTÓRĄKOLWIEK stronę. Jest to twarda bariera dla
+każdej drogi zapisu — także takiej, która omija `App\Domain\Social\Actions\
+FollowUser` (druga akcja dopisana kiedyś, komenda konsolowa, seeder, ręczny
+`INSERT` w psql podczas awarii).
+
+Czego wyzwalacz NIE daje: odporności na równoległość. Przy `READ COMMITTED`
+nie widzi blokady, która nie jest jeszcze zatwierdzona, więc dwa równoległe
+żądania mogłyby przejść oba. Za to odpowiada `App\Domain\Social\ZamekPary`
+(blokada wierszy OBU kont, **rosnąco po identyfikatorze**, plus ponowne
+sprawdzenie warunku pod blokadą). Bariera pilnuje DRÓG ZAPISU, blokada
+pilnuje RÓWNOLEGŁOŚCI — trzeba obu.
+
+Kolejność blokowania wierszy jest częścią kontraktu, nie detalem: gdyby dwie
+operacje na tej samej parze brały wiersze w przeciwnych kolejnościach,
+zakleszczyłyby się i PostgreSQL zabiłby jedną z transakcji.
+
+Koszt: jedno indeksowane `EXISTS` na `blocks` przy każdym `INSERT` do
+`follows` (nie ma `UPDATE` na tej tabeli). `blocks` ma klucz główny
+`(blocker_id, blocked_id)` i indeks `blocks_blocked_idx`, więc oba kierunki
+idą po indeksie.
+
+**Rollback:** `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie zmienia
+danych — i wolno go wykonać na produkcji pod ruchem, bo żaden kod nie zależy
+od wyzwalacza. Migracja **nie sprząta danych istniejących**: gdyby leżał już
+wiersz-sierota z wyścigu sprzed D-080, wyzwalacz go nie ruszy. Znalezienie
+takich wierszy (sprzątanie to osobna, jawna decyzja — kasowanie relacji
+społecznych migracją jest destrukcyjną operacją z zakazu `AGENTS.md` §6):
+
+```sql
+SELECT f.follower_id, f.followed_id
+FROM follows f
+JOIN blocks b
+  ON (b.blocker_id = f.follower_id AND b.blocked_id = f.followed_id)
+  OR (b.blocker_id = f.followed_id AND b.blocked_id = f.follower_id);
+```
+
+Uwaga przy odtwarzaniu bazy: `migrate:fresh` (`db:wipe`) kasuje TABELE, nie
+funkcje, więc `follows_blokada_ma_pierwszenstwo()` przeżywa czyszczenie.
+Migracja robi `CREATE OR REPLACE`, więc nie ma z tego kolizji — ale nie
+zdziw się, widząc tę funkcję w bazie, w której nie ma jeszcze tabeli
+`follows`.
 
 ### blocks
-Blokada ma pierwszeństwo przed follow.
+Blokada ma pierwszeństwo przed follow — i to jest wymuszone w bazie, nie
+tylko w PHP (patrz `follows` wyżej). `blocker_id + blocked_id` jako klucz
+główny, `CHECK (blocker_id <> blocked_id)`, indeks `blocks_blocked_idx`.
+
+**Na `blocks` NIE MA wyzwalacza i nie będzie** (D-080). Blokada musi się
+udać zawsze: jest jedyną czynnością, jaką człowiek ma, gdy ktoś staje się
+dla niego problemem, a bariera potrafiąca jej odmówić byłaby zamkniętymi
+drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
+`App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
+pod blokadą wierszy.
 
 ### media
 Tylko metadata, nie binary:
@@ -1615,6 +1682,24 @@ ADD CONSTRAINT login_link_tokens_token_hash_format_check
 CHECK (token_hash ~ '^[0-9a-f]{64}$');
 ```
 
+#### `UNIQUE (user_id)` wymaga serializacji, nie tylko constraintu (D-075)
+
+Constraint pilnuje niezmiennika „jeden ważny link na konto", ale **sam nie
+ustawia próśb w kolejce**. Dwie równoległe prośby o link na to samo konto
+przechodziły obie `DELETE` (każda kasując zero wierszy) i obie szły do
+`INSERT` — druga odbijała się o unikalność i, przed poprawką, kończyła się
+**500**. A 500 zdarzało się wyłącznie tam, gdzie konto istnieje, czyli para
+równoległych żądań stawała się wyrocznią „kto ma konto w Kuking".
+
+Dlatego wymiana tokenu idzie pod **blokadą wiersza `users`**
+(`WyslijLinkDoLogowania::wymienToken()`), branej PRZED `DELETE`, plus
+defensywnym przechwyceniem konfliktu. Kolejność blokad w tym repozytorium
+jest jedna i obowiązuje wszędzie: **konto najpierw**, potem tabela żądania
+(tu `login_link_tokens`, przy zmianie adresu `pending_email_changes`). Kto
+dopisze drugie miejsce zapisujące tę tabelę, musi wejść tą samą drogą; dwie
+różne kolejności blokad to zakleszczenie, które PostgreSQL rozwiązuje
+zabiciem jednego z żądań.
+
 #### Dlaczego skrót szybki, a nie bcrypt jak w `password_reset_tokens`
 
 Bo bcrypt istnieje po to, żeby spowolnić zgadywanie wartości o **niskiej
@@ -1671,6 +1756,90 @@ przeczyta „ten link już nie działa, poproś o nowy". Kolejność wycofywania
 500. Samo wyłączenie funkcji migracji nie wymaga wcale:
 `KUKING_LOGOWANIE_LINKIEM=false`.
 
+### registration_invites
+Zaproszenie do założenia konta dla adresu, na którym konta **nie ma** (D-085,
+migracja `2026_09_10_400000_create_registration_invites_table`).
+
+Powstaje wtedy, gdy ktoś poprosi o „link do zalogowania" dla adresu bez konta.
+Ten wiersz **nie jest hasłem jednorazowym** — nie wpuszcza na żadne konto, bo
+konta nie ma. Jest **dowodem dostępu do skrzynki**: kto kliknął link z tej
+skrzynki, udowodnił, że jest jej właścicielem, więc adres wchodzi do rejestracji
+jako już potwierdzony i drugiej wiadomości weryfikacyjnej nie wysyłamy. Stąd
+termin dłuższy niż przy logowaniu linkiem (24 h kontra 30 min): poświadczenie
+jest słabsze, a droga po jego kliknięciu dłuższa (cały formularz rejestracji).
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | UUID. **Nie trafia do listu** — link niesie sam token. Trafia za to do SESJI po przyjęciu zaproszenia (`rejestracja.zaproszenie_id`), i to on, a nie pole formularza, rozstrzyga, na jaki adres powstaje konto. |
+| `email` | **UNIKALNY.** Jedno ważne zaproszenie na adres — kolejna prośba zastępuje poprzednią. Zapisywany ZNORMALIZOWANY (małe litery), tak jak `users.email`, inaczej UNIQUE nic by nie pilnował. |
+| `token_hash` | **UNIKALNY. HMAC-SHA256 tokenu** (`App\Support\Skrot`), nigdy token. Po tej kolumnie szukamy wiersza przy kliknięciu w link. |
+| `created_at` | Kiedy wysłano zaproszenie. Bez `updated_at` — wiersza się nie edytuje. |
+| `expires_at` | Kiedy link przestaje działać: `config('kuking.login_link.zaproszenia.waznosc_godzin')` (domyślnie 24 h) od wysłania. Indeksowana — chodzi po niej sprzątanie. |
+
+```sql
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_email_lower_check
+CHECK (email = lower(email) AND email <> '');
+
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_expires_after_created_check
+CHECK (expires_at > created_at);
+
+ALTER TABLE registration_invites
+ADD CONSTRAINT registration_invites_token_hash_format_check
+CHECK (token_hash ~ '^[0-9a-f]{64}$');
+```
+
+Ostatni CHECK nie jest ozdobą: token powstaje przez `Str::random(64)`, więc ma
+wielkie litery — **zapisany wprost łamie ten warunek i baza go odrzuci**.
+Dlatego token nie jest szesnastkowy i nie wolno go na taki zmienić.
+
+#### `UNIQUE (email)` też wymaga przechwycenia konfliktu (D-085)
+
+Ta sama lekcja co przy `login_link_tokens` i D-075, tylko bez konta, na którym
+dałoby się postawić blokadę wiersza. Dwie równoległe prośby o ten sam adres bez
+konta przechodziły oba `DELETE` (każda kasując zero wierszy) i obie szły do
+`INSERT`; druga odbijała się o unikalność i kończyła **500**. A 500 zdarzało się
+wyłącznie na ścieżce adresu BEZ konta — adres z kontem swój wyścig sprowadza do
+302 (D-075) — czyli para równoległych żądań znowu odpowiadała na pytanie „kto ma
+konto w Kuking", tylko odwrotnie niż przed D-075.
+
+`SELECT ... FOR UPDATE` nie ma tu na czym stanąć (konta nie ma, a blokada
+nieistniejącego wiersza nie blokuje niczego), więc zostaje druga połowa tamtej
+konstrukcji: `WyslijZaproszenieDoRejestracji` **przechwytuje
+`UniqueConstraintViolationException`** i oddaje tę samą neutralną odpowiedź co
+każda inna odmowa, oddając przy okazji miejsce w dobowym suficie.
+
+#### Co kasuje wiersz — pełna lista
+
+1. **założenie konta** — `RegisterController::store()` kasuje wiersz w tej samej
+   transakcji, w której powstaje konto, pod `lockForUpdate()`
+   (`ZaproszenieWSesji::zuzyj()`). To jest cała jednorazowość tej drogi;
+2. **kolejna prośba z tego samego adresu** — `email` jest unikalne;
+3. **wygaśnięcie** — `kuking:sprzataj-zaproszenia` raz na dobę
+   (`App\Domain\Compliance\PrzedawnioneZaproszenia`), plus sprzątanie przy
+   okazji każdej prośby.
+
+Sprzątanie **nie jest bramką bezpieczeństwa**: link przestaje działać co do
+minuty dzięki `RegistrationInvite::jestWazne()`, a nie dzięki `DELETE`. Jest
+higieną danych — i ważniejszą niż przy `login_link_tokens`, bo tutaj w wierszu
+leży adres e-mail osoby, która **nie ma u nas konta** i nigdy nie musi mieć.
+
+#### Wycofanie (rollback)
+
+`down()` **odmawia**, dopóki w tabeli leży choć jedno WAŻNE zaproszenie — każde
+z nich to człowiek, który ma w skrzynce wiadomość i jeszcze jej nie kliknął.
+Dwie drogi wyjścia:
+
+1. poczekać, aż zaproszenia wygasną (najwyżej 24 h), i wtedy
+   `php artisan migrate:rollback` — wygasłe wiersze odmowy nie wywołują;
+2. `php artisan kuking:sprzataj-zaproszenia --wszystkie` (pyta o potwierdzenie
+   i mówi, ilu osób to dotyczy), a potem wycofać świadomie.
+
+Wycofanie samej funkcji **nie wymaga wycofywania migracji**: wystarczy
+`KUKING_ZAPROSZENIA_DO_REJESTRACJI=false`. Adres bez konta wraca wtedy do
+zachowania z D-056, a linki będące w drodze dostają ekran po polsku.
+
 ### data_exports
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
 przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).
@@ -1716,7 +1885,57 @@ dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
 
-Indeks: `(user_id, created_at)` — lista paczek danego użytkownika w kolejności.
+Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
+w kolejności; `data_exports_one_active_per_user` — patrz niżej.
+
+#### `data_exports_one_active_per_user` — jeden AKTYWNY eksport na konto (D-078)
+
+Migracja `2026_09_10_400100_one_active_data_export_per_user`, audyt
+10.09.2026 ustalenia QUEUE-04 / RACE-05.
+
+```sql
+CREATE UNIQUE INDEX data_exports_one_active_per_user
+    ON data_exports (user_id)
+ WHERE status IN ('queued', 'processing');
+```
+
+**Co ten indeks naprawia.** `DataSettingsController::requestExport()` robił
+`exists()` na stanach aktywnych, a potem OSOBNY `INSERT`. Między tymi dwoma
+zapytaniami nie było nic: przy izolacji `read committed` dwa równoległe
+żądania widzą „nie ma aktywnego eksportu" jednocześnie i oba wstawiają swój
+wiersz. Skutkiem są DWA `GenerateUserExport` na jedno konto — czyli dwa razy
+spakowane te same zdjęcia (15 minut limitu czasu, kolejka `low`, jeden
+worker) i dwa listy z tego samego dobowego wiadra poczty. Wejściem jest
+podwójne kliknięcie „Zamów swoje dane", a w grupie 60+ dwuklik jest
+scenariuszem typowym.
+
+`exists()` w PHP **zostaje** — daje spokojny komunikat („już przygotowujemy
+Twoją paczkę"). Gwarancję daje indeks; konflikt jest w kontrolerze
+przechwytywany (`UniqueConstraintViolationException`) i sprowadzany do tego
+**samego** zdania, nigdy do 500. `lockForUpdate()` by tego nie naprawił:
+`SELECT ... FOR UPDATE`, który nie zwrócił wiersza, nie blokuje niczego —
+to wstawienie fantomu, nie konflikt na wierszu.
+
+**Dlaczego indeks CZĘŚCIOWY.** Inwariant brzmi „jeden AKTYWNY", nie „jeden
+w historii" — RODO art. 15 nie jest jednorazowe i ekran ustawień pokazuje
+pięć ostatnich paczek. Wiersz wypada z indeksu, gdy job go domknie (`ready`,
+`failed`) albo paczka wygaśnie (`expired`), i kolejne zamówienie znów
+przechodzi.
+
+**Migracja odmawia, gdy w tabeli już leżą dwa aktywne eksporty jednego
+konta** — z komunikatem mówiącym, co zrobić (zostaw najstarszy aktywny
+wiersz, nadmiarowe skasuj; gotowy `DELETE` stoi w komentarzu migracji).
+Kasowanie jest tu bezpieczne, w odróżnieniu od `reports`: wiersz w stanie
+aktywnym nie ma jeszcze `object_key` ani `disk` (brak osieroconego pliku),
+`GenerateUserExport::handle()` przy braku wiersza po prostu wraca, a paczka
+z pozostawionego wiersza jest bajt w bajt tą samą paczką.
+
+**Rollback:** `DROP INDEX IF EXISTS`, bezstratnie — indeks nie przechowuje
+niczego, czego nie ma w tabeli, i jego zdjęcie nie kasuje żadnego wiersza.
+Po cofnięciu wraca stan sprzed zmiany: `exists()` łapie zwykły dwuklik, baza
+nie broni niczego, a `catch` w kontrolerze jest gałęzią, w którą nic nie
+wchodzi. Pilnują tego `JedenAktywnyEksportNaKontoTest`
+i `Wyscigi\EksportDanychRaceTest`.
 
 ### product_signals
 
@@ -1725,10 +1944,23 @@ Sygnały produktowe (issue #115), migracja
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
-od tygodniowego podsumowania: `weekly_digest_sent` i
+od tygodniowego podsumowania: `weekly_digest_queued` i
 `weekly_digest_unsubscribed` (issue #11, D-057; migracja
 `2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
+(audyt MAIL-03, **D-078**, migracja
+`2026_09_10_400000_rename_weekly_digest_sent_signal`). Wiersz powstaje zaraz
+po `Mail::queue()`, więc stara nazwa sklejała w jedno trzy różne zdarzenia —
+ZAKOLEJKOWANO, DOSTAWCA PRZYJĄŁ, DORĘCZONO — a Kuking widzi tylko pierwsze.
+Skutek był mierzalny: list, który przewracał się w workerze i lądował
+w `failed_jobs`, i tak liczył się jako wysłany, czyli metryka zawyżała
+skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka nie działała.
+Migracja **przepisuje** stare wiersze (`UPDATE`, nie `DELETE`) i nie zostawia
+w bazie dwóch nazw na jedno zdarzenie; nic w kodzie nie czytało starej nazwy,
+więc nie było panelu do zepsucia. `down()` przepisuje symetrycznie
+z powrotem.
 
 **Zbiór nazw rośnie o nazwy WYMIENIONE Z IMIENIA, jedna decyzja na jedną
 nazwę.** CHECK nie jest formalnością: zamknięta lista jest drugą linią
@@ -1747,7 +1979,17 @@ transport ma nawet wyłącznik śledzenia po stronie dostawcy
 (`X-TRACKING-OFF`, `App\Poczta\TransportEmailLabs`) — domyślnie włączony.
 Do jedynego progu, po którym coś robimy („wypisy > 1% na wysyłkę",
 `docs/product/RETENTION_LOOPS.md` §6 wiersz 5), wystarcza para
-wysłane/wypisane.
+zakolejkowane/wypisane.
+
+**Nie ma też `weekly_digest_delivered`** i to jest ta sama decyzja, nie
+przeoczenie: doręczenie wymagałoby webhooka o odbiciach od dostawcy, którego
+nie mamy (`docs/decyzje/POCZTA.md` §5 pkt 6). Zamknięty zbiór nazw pilnuje
+tego również jako TEST: `SygnalDigestuMowiZakolejkowanoTest::
+test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia` czyta CHECK
+wprost z `pg_constraint` i oblewa się, gdy w słowniku pojawi się nazwa
+mówiąca „doręczono", „otwarto" albo „kliknięto". Gdy prawdziwy webhook kiedyś
+powstanie, zdejmuje się `delivered` z tamtej listy JAWNIE, jedną decyzją —
+śledzenia otwarć i kliknięć nie zdejmuje się wcale.
 
 `docs/research/ANALITYKA.md`, do którego issue #115 odsyła po schemat
 i retencję, **ISTNIEJE** — wcześniejsza wersja tego akapitu twierdziła
@@ -1766,9 +2008,9 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_sent` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
-| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_sent`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
-| `occurred_at` | `timestamptz`, `useCurrent()`. Dla `weekly_digest_sent` czytany też JAKO LICZNIK: komenda wysyłkowa liczy wiersze z bieżącej doby, żeby nie przekroczyć dobowego limitu poczty (D-057). |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 
 #### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
 
@@ -2015,6 +2257,107 @@ wiadomości); same wiadomości zostają nietknięte. **Strata jest jednak
 NIEODWRACALNA** — w tabeli leżą listy, które naprawdę poszły do ludzi.
 Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
 `pg_dump --data-only --table=contact_message_replies > odpowiedzi.sql`.
+
+### weekly_digest_sends
+
+Trwały klucz idempotencji tygodniowego podsumowania: **jeden list na parę
+(osoba, tydzień)**, pilnowany przez bazę. Migracja
+`2026_09_10_400000_create_weekly_digest_sends_table`, audyt 10.09.2026
+QUEUE-01 / MAIL-02 / RACE-04, **D-077**.
+
+| Kolumna | Uwagi |
+|---|---|
+| `user_id` | Kogo dotyczy. `cascadeOnDelete` — druga linia, nie pierwsza: kont z Kuking się nie kasuje, tylko anonimizuje (D-022). |
+| `week_start` | **DATA PONIEDZIAŁKU** tygodnia, za który poszedł list, liczona w strefie człowieka (`App\Support\Czas::poczatekTygodniaData()`). Nie numer tygodnia ISO. |
+| `reserved_at` | Kiedy zajęto klucz. **Nie** „kiedy list doszedł" — tego Kuking nie wie i nie ma się dowiadywać (otwarta sprawa #204: żadnego śledzenia doręczeń ani otwarć). |
+
+```sql
+CREATE TABLE weekly_digest_sends (
+    user_id     uuid  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start  date  NOT NULL,
+    reserved_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, week_start)
+);
+
+ALTER TABLE weekly_digest_sends
+ADD CONSTRAINT weekly_digest_sends_week_start_monday_check
+CHECK (extract(isodow from week_start) = 1);
+```
+
+#### Po co, skoro jest już `users.weekly_digest_sent_at`
+
+Bo tamten znacznik jest **porównaniem w PHP**, a nie barierą. Do 10 września
+komenda wysyłkowa robiła dla każdej osoby: `Mail::queue()` → budżet → sygnał,
+a znacznik stawiała **jednym zapytaniem po całej pętli**. Awaria pomiędzy
+zostawiała do sześćdziesięciu listów w kolejce i **zero** śladu w bazie, więc
+następny przebieg pisał do tych samych osób drugi raz.
+`withoutOverlapping()` z harmonogramu tego nie łapie: chroni przed dwoma
+przebiegami JEDNOCZEŚNIE, nie przed kolejnym przebiegiem PO awarii.
+
+Kolejność jest teraz odwrotna: **wiersz rezerwacji, potem list.** `INSERT`
+i znacznik `weekly_digest_sent_at` idą w JEDNEJ transakcji
+(`OdbiorcyDigestu::zarezerwuj()`), a `Mail::queue()` wykonuje się tylko wtedy,
+gdy `INSERT` się udał. Konflikt unikalności znaczy „ta osoba ma ten okres
+obsłużony" i wtedy po prostu ją pomijamy — bez błędu i bez listu.
+
+Obie warstwy są potrzebne i mówią różne rzeczy:
+
+- `weekly_digest_sends` → **najwyżej jeden list na tydzień kalendarzowy**,
+  bez luki między odczytem a zapisem (czyli także przy dwóch przebiegach
+  równolegle — RACE-04);
+- `users.weekly_digest_sent_at` → **nie częściej niż raz na siedem dni**
+  plus kolejność „kto czeka najdłużej"; sam tydzień kalendarzowy pozwoliłby
+  na list w niedzielę i w poniedziałek.
+
+Kalendarzowy tydzień nikogo nie opóźnia: dzień `x` i dzień `x + 7` zawsze
+mają różne poniedziałki, więc bariera nie blokuje wysyłki, na którą odstęp
+już pozwala.
+
+#### Dlaczego data poniedziałku, a nie numer tygodnia ISO
+
+Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28` należy do
+tygodnia 1 **roku 2027**, więc numer wymagałby pary (rok ISO, tydzień) —
+a klucz idempotencji zapisany niepełny przestaje być unikalny. Data
+poniedziałku to jedna kolumna `date`: porównywalna, sortowalna, czytelna
+w zrzucie bazy i zgodna z tym, co w PostgreSQL znaczy `date_trunc('week', …)`.
+
+Strefa nie jest ozdobą: poniedziałek UTC zaczyna się w Polsce w niedzielę
+o 22:00, więc przebieg uruchomiony w poniedziałek nad ranem trafiałby do
+tygodnia poprzedniego. Stąd `Czas`, nie `now()`.
+
+CHECK „to musi być poniedziałek" pilnuje, żeby klucz nadal ZNACZYŁ tydzień.
+Data ze środka tygodnia dałaby tej samej osobie dwa różne, oba wolne klucze
+w jednym tygodniu — czyli dwa listy przy nietkniętym `UNIQUE`.
+
+#### Co się dzieje, gdy rezerwacja się udała, a wysyłka padła
+
+**Rezerwacja zostaje i ta osoba nie dostaje listu za ten tydzień.** To jest
+wybrana strona pomyłki, nie przeoczenie: po wyjściu z `Mail::queue()` nie da
+się odróżnić „wiadomość nie weszła do kolejki" od „weszła, a proces padł
+sekundę później", więc nie można mieć naraz „nikt nie dostanie dwa razy"
+i „nikt nie zostanie pominięty". Uzasadnienie wyboru: **D-077**.
+
+#### Czego tu świadomie nie ma
+
+Treści listu, adresu, liczników, śladu doręczenia. Wiersz mówi wyłącznie
+„ta osoba ma ten tydzień obsłużony" — ta sama klasa faktu co
+`users.weekly_digest_sent_at`, więc bez nowej kategorii danych osobowych.
+Nie ma też retencji ani komendy sprzątającej: przy przepustowości 420 osób
+tygodniowo (D-057) to około 22 tysiące wierszy po dwóch kolumnach na rok.
+
+**Rollback.** `down()` kasuje tabelę. Nie ginie ani jedno słowo od człowieka
+i nie ginie pamięć o wysyłce (`users.weekly_digest_sent_at` zostaje) — ale
+**ginie bariera**, a to trzeba nazwać wprost: po wycofaniu jedyną ochroną
+przed drugim listem zostaje porównanie w PHP, czyli dokładnie ten mechanizm,
+którego luka jest powodem tej migracji. Dlatego rollback robi się
+**wyłącznie razem z `KUKING_DIGEST_WLACZONY=false`**, nigdy „przy okazji".
+Kolejność: **najpierw kod, potem migracja** — nowy kod bez tabeli pada na
+pierwszej osobie i nie wysyła nikomu nic (kierunek awarii bezpieczny, ale
+wysyłka staje).
+
+Pilnuje tego `tests/Feature/DigestNieWysylaDwaRazyTest.php` (awaria w połowie
+przebiegu, bariera bez znacznika odstępu, kontrola dodatnia, następny
+tydzień, brak zgody, oba ograniczenia bazy osobno).
 
 ## V1 / V2
 

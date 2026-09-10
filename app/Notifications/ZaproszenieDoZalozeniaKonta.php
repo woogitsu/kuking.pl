@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
 /**
- * „Zakładanie konta w Kuking" — wiadomość dla adresu BEZ konta (D-067).
+ * „Zakładanie konta w Kuking" — wiadomość dla adresu BEZ konta (D-085).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  TA WIADOMOŚĆ JEST INNA OD WSZYSTKICH POZOSTAŁYCH W SERWISIE

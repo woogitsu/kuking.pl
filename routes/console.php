@@ -174,6 +174,18 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->dailyAt('04:50')
     ->withoutOverlapping();
 
+// 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
+// cała reszta tej listy (uzasadnienie odstępów wyżej).
+// Wygasłe zaproszenia do założenia konta (D-085): w wierszu leży adres e-mail
+// osoby, która NIE MA u nas konta. `WyslijZaproszenieDoRejestracji` sprząta przy
+// okazji każdej prośby, więc to jest siatka bezpieczeństwa na dni bez ruchu —
+// i to ona daje polityce prywatności prawo napisać „najwyżej dobę".
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
+    ->name('kuking:sprzataj-zaproszenia')
+    ->dailyAt('05:00')
+    ->withoutOverlapping();
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
@@ -259,11 +271,14 @@ Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
 //  * Daleko od nocnego bloku sprzątania (03:20-04:50), który potrafi trzymać
 //    pętlę harmonogramu przez dłuższą chwilę.
 //
-// `withoutOverlapping()` jest tu obowiązkowe i nie jest ostrożnością na
-// zapas: wstawienie stu dwudziestu listów do kolejki razem ze zbudowaniem
-// ich treści trwa dłużej niż jedno przejście pętli harmonogramu, a dwa
-// przebiegi naraz wysłałyby część listów podwójnie — znacznik
-// `weekly_digest_sent_at` stawiany jest dopiero PO pętli.
+// `withoutOverlapping()` zostaje, ale NIE JEST OCHRONĄ PRZED DUPLIKATEM
+// i nie wolno go tak czytać (audyt QUEUE-01, D-077). Zapobiega dwóm
+// przebiegom JEDNOCZEŚNIE — a wysyłkę dwa razy tego samego listu powodował
+// przebieg KOLEJNY, uruchomiony po tym, jak poprzedni padł w połowie.
+// Przed tym broni bariera w bazie: `UNIQUE (user_id, week_start)`
+// w `weekly_digest_sends`, zajmowana PRZED każdym `Mail::queue()`
+// (`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()`). Blokada
+// harmonogramu oszczędza tu więc pracę i zapytania, nie listy.
 //
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))

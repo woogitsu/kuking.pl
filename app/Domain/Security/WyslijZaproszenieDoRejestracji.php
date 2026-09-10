@@ -9,13 +9,14 @@ use App\Models\RegistrationInvite;
 use App\Models\User;
 use App\Notifications\ZaproszenieDoZalozeniaKonta;
 use App\Support\AdresEmail;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 /**
- * Zaproszenie do założenia konta dla adresu, na którym konta NIE MA (D-067).
+ * Zaproszenie do założenia konta dla adresu, na którym konta NIE MA (D-085).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  PO CO — PRAWDZIWE ZDARZENIE, NIE HIPOTEZA
@@ -57,7 +58,7 @@ use Throwable;
  * niżej: sufit zaproszeń jest osobny i niższy, więc na jego granicy adres bez
  * konta przestaje generować wysyłkę wcześniej niż adres z kontem. Ekran jednak
  * milczy o tym identycznie w obu przypadkach, a napastnik nie widzi cudzej
- * skrzynki — całe rozstrzygnięcie jest w D-067.
+ * skrzynki — całe rozstrzygnięcie jest w D-085.
  *
  * ────────────────────────────────────────────────────────────────────────
  *  KIEDY ZAPROSZENIA NIE WYSYŁAMY (i nie mówimy o tym pytającemu)
@@ -109,7 +110,23 @@ final class WyslijZaproszenieDoRejestracji
 
         $sufit = DziennyBudzetListow::dlaZaproszenDoRejestracji();
 
-        if (! $sufit->jestMiejsce()) {
+        /*
+         * SUFIT ZAJMUJEMY JEDNĄ ATOMOWĄ OPERACJĄ, PRZED WYSYŁKĄ (D-076).
+         *
+         * Szkic tej klasy pytał najpierw `jestMiejsce()`, a `zajmij()` wołał
+         * dopiero po wysłaniu wiadomości — czyli dokładnie tę parę „sprawdź,
+         * a potem zajmij", którą D-076 usunęło z reszty serwisu. Para nie jest
+         * atomowa: przy suficie 40 i zużyciu 39 dwa równoległe żądania czytają
+         * to samo, oba widzą wolne miejsce i oba wysyłają.
+         *
+         * Odwrócenie kolejności (najpierw rezerwacja, potem wysyłka) nie
+         * otwiera z powrotem furtki „automat wyczerpuje budżet, nie wysławszy
+         * ani jednej wiadomości", bo w tym miejscu wszystkie odmowy są już za
+         * nami: stąd wychodzi się wyłącznie wysyłką. Jedyny wyjątek —
+         * przegrany wyścig o unikalność adresu — oddaje miejsce przez
+         * `zwolnij()` niżej.
+         */
+        if (! $sufit->sprobujZarezerwowac()) {
             return false;
         }
 
@@ -123,24 +140,51 @@ final class WyslijZaproszenieDoRejestracji
         $token = RegistrationInvite::nowyToken();
         $godzin = max(1, (int) config('kuking.login_link.zaproszenia.waznosc_godzin'));
 
-        $zaproszenie = DB::transaction(function () use ($adres, $token, $godzin): RegistrationInvite {
-            // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
-            // Nowa prośba to nowe zaproszenie, więc link z poprzedniej
-            // wiadomości przestaje działać w tej samej chwili — i o to chodzi
-            // (`email` jest unikalne, więc bez tego zapis by się odbił).
-            RegistrationInvite::query()->where('email', $adres)->delete();
+        /*
+         * WYŚCIG O UNIKALNOŚĆ ADRESU KOŃCZY SIĘ TĄ SAMĄ NEUTRALNĄ ODPOWIEDZIĄ
+         * CO ADRES Z KONTEM — i to jest wymóg bezpieczeństwa, nie estetyka.
+         *
+         * `registration_invites.email` jest unikalne (i ma takie zostać: jedno
+         * ważne zaproszenie na adres, nowa prośba unieważnia poprzednią). Dwie
+         * prośby naraz o TEN SAM adres bez konta przechodziły oba `DELETE`
+         * (każda kasując zero wierszy, bo każda widziała już posprzątane)
+         * i obie szły do `INSERT` — druga odbijała się o constraint.
+         *
+         * Nieprzechwycony wyjątek przewracał żądanie na 500, ale WYŁĄCZNIE na
+         * ścieżce adresu BEZ konta: adres z kontem nie dochodzi tu w ogóle,
+         * a jego własny wyścig `WyslijLinkDoLogowania` sprowadza do `null`
+         * i do 302 (D-075). Para równoległych próśb odpowiadała więc **500 dla
+         * adresu bez konta i 302 dla adresu z kontem** — czyli ta sama
+         * wyrocznia „kto ma konto w Kuking", którą D-075 dopiero co zamknęło,
+         * tylko odbita w lustrze. Po ludzkiej stronie tego wyścigu stoi zwykły
+         * dwuklik „Wyślij".
+         *
+         * Blokady wiersza konta — tej, którą bierze D-075 — nie ma tu na czym
+         * postawić: konta nie ma, a `SELECT ... FOR UPDATE` na nieistniejącym
+         * wierszu nie blokuje niczego. Zostaje więc druga połowa tamtej
+         * konstrukcji: konflikt sprowadzamy do tej samej neutralnej odpowiedzi,
+         * którą oddaje każda inna odmowa w tej klasie.
+         */
+        try {
+            $zaproszenie = $this->zapiszZaproszenie($adres, $token, $godzin);
+        } catch (UniqueConstraintViolationException $e) {
+            // DRUGA PROŚBA WYGRAŁA WYŚCIG. Ważne zaproszenie na ten adres już
+            // istnieje i już poszło wiadomością — człowiek dostanie dokładnie
+            // to, o co prosił, tylko z tego drugiego żądania. Miejsce w suficie
+            // oddajemy, bo z TEJ prośby nie wyszła żadna wiadomość.
+            //
+            // W DZIENNIKU BEZ ADRESU I BEZ TOKENU (SECURITY_BASELINE §7).
+            $sufit->zwolnij();
 
-            $wiersz = new RegistrationInvite;
-            $wiersz->email = $adres;
-            // W BAZIE LĄDUJE SKRÓT. Token jawny żyje w zmiennej lokalnej
-            // i wychodzi wyłącznie do wiadomości.
-            $wiersz->token_hash = RegistrationInvite::skrot($token);
-            $wiersz->created_at = now();
-            $wiersz->expires_at = now()->addHours($godzin);
-            $wiersz->save();
+            Log::warning('Konflikt przy wystawianiu zaproszenia do rejestracji — dwie prośby o ten sam adres naraz.', [
+                'wyjatek' => $e::class,
+                'co_dalej' => 'Odpowiedź dla człowieka jest z założenia taka sama jak dla adresu z kontem '
+                    .'(D-085). Jeśli ten wpis się powtarza, poszukaj drugiego miejsca zapisującego '
+                    .'`registration_invites` — powinno być jedno.',
+            ]);
 
-            return $wiersz;
-        });
+            return false;
+        }
 
         /*
          * WPIS W DZIENNIKU PRZED WYSYŁKĄ — i to jest jedyne miejsce, w którym
@@ -193,17 +237,45 @@ final class WyslijZaproszenieDoRejestracji
             ]);
         }
 
-        // Sufit zajmujemy PO wysyłce, tak samo jak budżet dobowy w
-        // `LoginLinkController`: gdyby licznik ruszał przy każdym wysłaniu
-        // formularza, automat wpisujący adresy wyczerpałby go w kilka minut,
-        // nie wysławszy ani jednej wiadomości.
-        //
         // `true` także wtedy, gdy wysyłka padła — budżet liczy próby opłacone
         // po stronie dostawcy, a odrzucona wiadomość też zwykle zajmuje
         // miejsce w puli (ta sama zasada co w `WyslijLinkDoLogowania`).
-        $sufit->zajmij();
-
+        // Miejsce w suficie jest już zajęte, rezerwacją sprzed zapisu.
         return true;
+    }
+
+    /**
+     * Zapis wiersza zaproszenia: stare out, nowe in — w jednej transakcji.
+     *
+     * Transakcja nie jest tu ozdobą: w PostgreSQL odrzucony `INSERT`
+     * unieważnia CAŁĄ transakcję i każde następne zapytanie w niej dostaje
+     * 25P02. Bez własnej transakcji ta akcja wołana wewnątrz cudzej rozbijałaby
+     * ją zamiast po cichu odpuścić — ta sama konstrukcja co w
+     * `WyslijLinkDoLogowania::wymienToken()`.
+     *
+     * @throws UniqueConstraintViolationException gdy druga prośba o ten sam
+     *                                            adres wygrała wyścig
+     */
+    private function zapiszZaproszenie(string $adres, string $token, int $godzin): RegistrationInvite
+    {
+        return DB::transaction(function () use ($adres, $token, $godzin): RegistrationInvite {
+            // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
+            // Nowa prośba to nowe zaproszenie, więc link z poprzedniej
+            // wiadomości przestaje działać w tej samej chwili — i o to chodzi
+            // (`email` jest unikalne, więc bez tego zapis by się odbił).
+            RegistrationInvite::query()->where('email', $adres)->delete();
+
+            $wiersz = new RegistrationInvite;
+            $wiersz->email = $adres;
+            // W BAZIE LĄDUJE SKRÓT. Token jawny żyje w zmiennej lokalnej
+            // i wychodzi wyłącznie do wiadomości.
+            $wiersz->token_hash = RegistrationInvite::skrot($token);
+            $wiersz->created_at = now();
+            $wiersz->expires_at = now()->addHours($godzin);
+            $wiersz->save();
+
+            return $wiersz;
+        });
     }
 
     /**

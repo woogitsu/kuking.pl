@@ -442,6 +442,12 @@ logowaniem. Hasła do kont demo wypisuje `DemoSeeder`.
 Poprawka bez testu, który by ten błąd złapał, nie jest poprawką — jest
 zaproszeniem do jego powtórzenia.
 
+**Test bez kontroli ujemnej nie jest dowodem.** Zepsuj to, czego test pilnuje,
+sprawdź, że OBLEWA, przywróć. Sześć pomyłek, które w tym repozytorium przeszły
+przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — jest zebranych
+w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
+napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
+
 ### Issues
 
 Praca idzie **po kolei, z issues**. Etykiety priorytetu: `P0` → `P1` → `P2`,
@@ -491,3 +497,12 @@ Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
 algorytmiczny feed, masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
+
+**Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**
+pod wpisem — decyzja właściciela **D-081** (`docs/DECISIONS.md`, issue #275).
+To NIE jest licznik lajków ani ranking: autor widzi liczbę od pierwszej osoby,
+ktokolwiek inny od trzeciej, liczba nigdzie nie sortuje, nie promuje i nie
+tworzy zestawień, a na tablicy „kuKINGi na dziś", w wyszukiwarce i na stronie
+powitalnej jej celowo nie ma. Zanim tę liczbę gdziekolwiek dołożysz, przeniesiesz
+albo użyjesz do porządkowania treści — przeczytaj D-081, bo granice są tam
+wypisane wprost i ich przesunięcie wymaga osobnej decyzji właściciela.

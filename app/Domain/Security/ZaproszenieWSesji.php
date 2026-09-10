@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Session;
 use LogicException;
 
 /**
- * Przyjęte zaproszenie do założenia konta — trzymane w sesji (D-067).
+ * Przyjęte zaproszenie do założenia konta — trzymane w sesji (D-085).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  TO JEST JEDYNE MIEJSCE, KTÓRE ODPOWIADA NA PYTANIE

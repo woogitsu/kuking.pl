@@ -1,5 +1,5 @@
 {{--
-    E-mail „Zakładanie konta w Kuking" — dla adresu BEZ konta (D-067).
+    E-mail „Zakładanie konta w Kuking" — dla adresu BEZ konta (D-085).
 
     Budowa jak w `mail/link-do-logowania`: jedna kolumna, duży tekst, jeden
     przycisk, style inline (Gmail i Outlook wycinają <style> z <head>), zero

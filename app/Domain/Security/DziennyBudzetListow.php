@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Security;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -50,6 +51,18 @@ use Illuminate\Support\Facades\Cache;
  * ustawionym na `database` (tak chodzi produkcja) licznik przeżywa restart.
  *
  * ────────────────────────────────────────────────────────────────────────
+ *  SUFIT JEST TWARDY, A NIE SUGESTIĄ (D-076)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * O wysyłce rozstrzyga JEDNA metoda: `sprobujZarezerwowac()`. Zajmuje
+ * miejsce albo odmawia, w jednej atomowej operacji, pod blokadą
+ * `Cache::lock()`. `zostalo()` i `jestMiejsce()` zostają, ale są ODCZYTEM
+ * — do pokazania człowiekowi, do diagnostyki i do oszacowania rozmiaru
+ * paczki. Para „sprawdź, a potem zajmij" nie jest atomowa i pod obciążeniem
+ * przepuszcza listy ponad sufitem (audyt MAIL-01/RACE-03) — pełne
+ * wyprowadzenie przy `sprobujZarezerwowac()`.
+ *
+ * ────────────────────────────────────────────────────────────────────────
  *  KLASA JEST WSPÓLNA DLA KILKU FUNKCJI (issue #11, D-057)
  * ────────────────────────────────────────────────────────────────────────
  *
@@ -79,6 +92,44 @@ final class DziennyBudzetListow
 {
     private const PREFIKS = 'poczta:budzet:';
 
+    /**
+     * Klucz blokady, pod którą chodzi para „sprawdź i zajmij".
+     *
+     * Osobny od klucza licznika i BEZ daty w nazwie: blokada żyje sekundy,
+     * a nie dobę, i nie ma czego rozdzielać na dni. Gdyby nosiła datę,
+     * dwa żądania trafiające na przełom północy zajmowałyby dwa RÓŻNE
+     * liczniki pod dwiema RÓŻNYMI blokadami — czyli dokładnie ten wyścig,
+     * którego się tu pozbywamy, tylko raz na dobę i nie do odtworzenia.
+     */
+    private const PREFIKS_BLOKADY = 'poczta:budzet:blokada:';
+
+    /**
+     * Jak długo blokada wygasa sama, gdy proces ją trzymający padnie.
+     *
+     * W środku blokady dzieją się dwie operacje na cache i nic więcej —
+     * żadnej wysyłki, żadnego zapytania do dostawcy. Dziesięć sekund jest
+     * więc kilkaset razy dłuższe niż potrzeba, i to jest celowe: ta liczba
+     * ma znaczenie tylko w jednym przypadku — kontener padł z blokadą
+     * w ręku. Wtedy sufit odblokowuje się sam po dziesięciu sekundach,
+     * zamiast zatrzymać całą pocztę do końca doby.
+     */
+    private const BLOKADA_SEKUND = 10;
+
+    /**
+     * Jak długo czekamy na blokadę, zanim ODMÓWIMY wysyłki.
+     *
+     * Odmowa, nie „wyślij na wszelki wypadek": przekroczony budżet
+     * u dostawcy odbija się na wszystkich listach serwisu (także na
+     * potwierdzeniu rejestracji, które sufitu nie ma i mieć nie może),
+     * a jedna niewysłana wiadomość odbija się na jednej osobie, która
+     * dostaje uczciwy komunikat i klika drugi raz.
+     *
+     * Dwie sekundy, bo prawdziwy ścisk trwa tu milisekundy (w środku są
+     * dwie operacje na cache), a po drugiej stronie tego czekania stoi
+     * człowiek patrzący w formularz.
+     */
+    private const CZEKANIE_SEKUND = 2;
+
     public function __construct(
         private readonly string $funkcja = 'link-logowania',
         private readonly string $kluczKonfiguracji = 'kuking.login_link.dzienny_budzet',
@@ -97,7 +148,7 @@ final class DziennyBudzetListow
     }
 
     /**
-     * Zaproszenia do założenia konta — adres BEZ konta (D-067).
+     * Zaproszenia do założenia konta — adres BEZ konta (D-085).
      *
      * TEN SUFIT LEŻY WEWNĄTRZ SUFITU LOGOWANIA LINKIEM, a nie obok niego,
      * i jest jedynym takim licznikiem w serwisie. Zaproszenie zajmuje miejsce
@@ -120,33 +171,167 @@ final class DziennyBudzetListow
     }
 
     /**
-     * Czy zostało jeszcze miejsce w dzisiejszym budżecie.
+     * Ile miejsca zostało w dzisiejszym budżecie — ODCZYT, NIE POZWOLENIE.
      *
      * Budżet ustawiony na zero albo mniej znaczy „ta funkcja nie wysyła dziś
      * nic" i jest poprawną, świadomą konfiguracją (awaryjne odcięcie poczty
      * bez wyłączania całej drogi — ludzie z ważnym linkiem w skrzynce nadal
      * się nim zalogują).
+     *
+     * DO CZEGO TEGO WOLNO UŻYWAĆ, A DO CZEGO NIE (D-076)
+     * Wolno: pokazać liczbę człowiekowi, wypisać ją w diagnostyce, dobrać
+     * treść komunikatu, oszacować ROZMIAR PACZKI do wysłania (tak robi
+     * `kuking:wyslij-podsumowania`, żeby nie pobierać z bazy stu odbiorców,
+     * gdy zostało pięć miejsc).
+     *
+     * NIE WOLNO: rozstrzygać na tej podstawie, czy KONKRETNY list wychodzi.
+     * Ta metoda tylko CZYTA, a między odczytem i zapisem mieści się drugie
+     * żądanie, które przeczyta to samo. Przy budżecie 120 i zużyciu 119 dwa
+     * równoległe żądania widziały wolne miejsce, oba wysyłały i oba
+     * inkrementowały — 121 listów przy suficie 120 (audyt MAIL-01/RACE-03).
+     * Decyzję o wysyłce podejmuje wyłącznie `sprobujZarezerwowac()`.
      */
     public function zostalo(): int
     {
         return max(0, $this->budzet() - $this->zuzyte());
     }
 
+    /** Odczyt do pokazania i do diagnostyki — obostrzenia jak w `zostalo()`. */
     public function jestMiejsce(): bool
     {
         return $this->zostalo() > 0;
     }
 
     /**
-     * Zajmij jedno miejsce w budżecie — wołane DOPIERO wtedy, gdy list
-     * naprawdę poszedł.
+     * Zajmij jedno miejsce ALBO odmów — jedna operacja, nie dwie (D-076).
      *
-     * Kolejność ma znaczenie i jest tu odwrotna niż przy zwykłym limicie
-     * zapytań: gdyby licznik ruszał przy każdym WYSŁANIU FORMULARZA, byle
-     * automat wpisujący nieistniejące adresy wyczerpałby dobowy budżet
-     * w kilka minut i zamknął drogę wszystkim prawdziwym ludziom, nie
-     * wysławszy ani jednego listu. Przed samym zalewaniem formularza broni
-     * `limits.login_link` i `login_link.limit_na_adres`.
+     * ────────────────────────────────────────────────────────────────────
+     *  PO CO TO ISTNIEJE, SKORO `Cache::increment` JEST ATOMOWY
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Bo atomowy jest POJEDYNCZY krok, a sufit łamie się na PARZE kroków.
+     * Kod przed tą zmianą wyglądał tak (`LoginLinkController`, dziesięć
+     * linii między jednym i drugim):
+     *
+     *     if (! $budzet->jestMiejsce()) { odmów; }   // czyta 119 ze 120
+     *     ...
+     *     $budzet->zajmij();                         // zapisuje 120
+     *
+     * Dwa żądania w tej samej milisekundzie czytają oba 119, oba widzą
+     * wolne miejsce, oba wysyłają i oba inkrementują. Licznik pokazuje 121
+     * przy suficie 120 i nikt się o tym nie dowie, dopóki nie odbije się
+     * o limit dostawcy — a wtedy przestaje działać POTWIERDZENIE
+     * REJESTRACJI, bo ono czerpie z tego samego wiadra i sufitu nie ma.
+     *
+     * Nie da się tego naprawić sprawdzeniem PO inkrementacji: wiadomość
+     * jest wtedy już zakolejkowana, przekroczenie już nastąpiło, a cofnąć
+     * listu z drogi nie umiemy.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DLACZEGO BLOKADA Z CACHE, A NIE `UPDATE ... WHERE used < limit`
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Warunkowy `UPDATE` we własnej tabeli też byłby poprawny i byłby
+     * atomowy bez żadnej blokady. Kosztowałby jednak nową tabelę, migrację,
+     * wpis w `docs/DATABASE.md`, rollback i sprzątanie starych wierszy —
+     * czyli DRUGI mechanizm obok tego, który już mamy. Zasada projektu jest
+     * odwrotna: żadnych nowych mechanizmów bez zmierzonej potrzeby.
+     *
+     * Sterownik cache w tym projekcie to `database` (`config/cache.php`,
+     * `.env.example`), więc `Cache::lock()` jest tu blokadą PRAWDZIWĄ:
+     * współdzieloną między procesami i trwałą, opartą o tabelę
+     * `cache_locks` (migracja `0001_01_01_000002_create_cache_table`).
+     * To jest ta sama tabela w tej samej bazie, do której poszedłby własny
+     * warunkowy `UPDATE` — z tą różnicą, że nie musimy jej pisać.
+     *
+     * UWAGA NA STEROWNIK `array`: tam blokada działa tylko w obrębie
+     * JEDNEGO procesu. W testach to wystarcza i jest zamierzone, ale
+     * gdyby ktoś kiedyś ustawił `CACHE_STORE=array` na produkcji, ten
+     * sufit przestałby być sufitem — pilnuje tego
+     * `AtomowaRezerwacjaBudzetuTest`.
+     *
+     * @return bool `true` = miejsce zajęte, list może wyjść. `false` =
+     *              nic nie zajęto i list NIE MOŻE wyjść (budżet wyczerpany
+     *              albo nie udało się zdobyć blokady).
+     */
+    public function sprobujZarezerwowac(): bool
+    {
+        try {
+            return (bool) Cache::lock($this->kluczBlokady(), self::BLOKADA_SEKUND)
+                ->block(self::CZEKANIE_SEKUND, function (): bool {
+                    if (! $this->jestMiejsce()) {
+                        return false;
+                    }
+
+                    $this->zajmij();
+
+                    return true;
+                });
+        } catch (LockTimeoutException) {
+            // ODMOWA, NIE WYSYŁKA „NA WSZELKI WYPADEK" — uzasadnienie przy
+            // `CZEKANIE_SEKUND`. Wołający ma powiedzieć człowiekowi, co
+            // zrobić, a nie wypuścić list poza sufitem.
+            return false;
+        }
+    }
+
+    /**
+     * Oddaj miejsce zajęte rezerwacją, z której nic nie wyszło.
+     *
+     * ISTNIEJE PO TO, ŻEBY REZERWACJA NIE ZŁAMAŁA STARSZEJ REGUŁY.
+     * Sufit musi być zajmowany PRZED wysyłką (inaczej nie jest sufitem),
+     * ale przy logowaniu linkiem list wychodzi tylko wtedy, gdy na podanym
+     * adresie NAPRAWDĘ jest konto. Bez oddawania miejsca automat wpisujący
+     * nieistniejące adresy wyczerpywałby dobowy budżet w kilka minut, nie
+     * wysławszy ani jednego listu — czyli dokładnie ta usterka, przed którą
+     * broni `test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu`.
+     *
+     * Nie wołaj tego do „zwalniania" miejsca po liście, który POSZEDŁ.
+     * Ta metoda jest wycofaniem NIEUŻYTEJ rezerwacji i niczym więcej.
+     *
+     * Nieudane zdobycie blokady zostawia licznik zawyżony o jeden i tak
+     * ma być: pomyłka idzie wtedy w stronę „wyślemy o jeden list mniej",
+     * a nie w stronę przekroczenia limitu dostawcy.
+     */
+    public function zwolnij(): void
+    {
+        try {
+            Cache::lock($this->kluczBlokady(), self::BLOKADA_SEKUND)
+                ->block(self::CZEKANIE_SEKUND, function (): void {
+                    // Licznik nie może zejść pod zero. Zdarza się to
+                    // wtedy, gdy klucz wygasł albo zmienił się dzień
+                    // między rezerwacją i oddaniem miejsca — wtedy nie ma
+                    // czego oddawać, bo licznik i tak liczy od nowa.
+                    if ($this->zuzyte() < 1) {
+                        return;
+                    }
+
+                    Cache::decrement($this->klucz());
+                });
+        } catch (LockTimeoutException) {
+            // Świadomie pusto — patrz ostatni akapit opisu metody.
+        }
+    }
+
+    /**
+     * BEZWARUNKOWE zajęcie jednego miejsca — nie sprawdza sufitu.
+     *
+     * TO NIE JEST METODA DO PODEJMOWANIA DECYZJI O WYSYŁCE (D-076). Jest
+     * jednym z dwóch kroków rezerwacji i chodzi w środku blokady założonej
+     * przez `sprobujZarezerwowac()` — tam jest jej jedyne właściwe miejsce.
+     * Wołanie jej wprost jest poprawne tylko wtedy, gdy list wychodzi
+     * ŚWIADOMIE PONAD sufitem i ma się jedynie policzyć (list próbny
+     * `kuking:wyslij-podsumowania --tylko`, wypuszczany ręcznie przez
+     * właściciela). Wszędzie indziej wołaj `sprobujZarezerwowac()`.
+     *
+     * BUDŻET ZAJMUJE SIĘ ZA LIST, KTÓRY NAPRAWDĘ WYCHODZI. Gdyby licznik
+     * ruszał przy każdym WYSŁANIU FORMULARZA, byle automat wpisujący
+     * nieistniejące adresy wyczerpałby dobowy budżet w kilka minut
+     * i zamknął drogę wszystkim prawdziwym ludziom, nie wysławszy ani
+     * jednego listu. Przed samym zalewaniem formularza broni
+     * `limits.login_link` i `login_link.limit_na_adres`. Rezerwacja stoi
+     * PRZED wysyłką, więc tę regułę utrzymuje oddanie nieużytego miejsca
+     * przez `zwolnij()` — patrz tam.
      *
      * TYGODNIOWE PODSUMOWANIE ZAJMUJE MIEJSCE PRZY WSTAWIENIU DO KOLEJKI,
      * a nie po doręczeniu — i to nie jest niekonsekwencja (D-057). Tam nie ma
@@ -184,5 +369,10 @@ final class DziennyBudzetListow
     private function klucz(): string
     {
         return self::PREFIKS.$this->funkcja.':'.now()->format('Y-m-d');
+    }
+
+    private function kluczBlokady(): string
+    {
+        return self::PREFIKS_BLOKADY.$this->funkcja;
     }
 }

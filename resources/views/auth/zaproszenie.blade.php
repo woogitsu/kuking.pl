@@ -1,6 +1,6 @@
 <x-layout title="Załóż konto w Kuking" :noindex="true">
     {{--
-        EKRAN Z LINKU W WIADOMOŚCI (D-067). NIC SIĘ TU JESZCZE NIE WYDARZYŁO
+        EKRAN Z LINKU W WIADOMOŚCI (D-085). NIC SIĘ TU JESZCZE NIE WYDARZYŁO
         — samo wejście pod ten adres niczego nie zapisuje i niczego nie zużywa.
 
         DLACZEGO NIE PRZENOSIMY OD RAZU NA FORMULARZ

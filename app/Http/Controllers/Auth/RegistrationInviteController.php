@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Zaproszenie do założenia konta — ekran z linku w wiadomości (D-067).
+ * Zaproszenie do założenia konta — ekran z linku w wiadomości (D-085).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  PO CO TA DROGA ISTNIEJE

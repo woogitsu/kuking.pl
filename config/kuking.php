@@ -83,8 +83,11 @@ return [
         // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
         // wygląda na zdjęcie" komuś, kto trzyma w ręku zwykłą fotografię.
         //
-        // Dodanie prawdziwej obsługi (libheif + Imagick albo vips w obrazie
-        // Dockera) to osobna decyzja z realnym kosztem — patrz issue o HEIC.
+        // Dodanie prawdziwej obsługi (libheif + Imagick w obrazie Dockera) to
+        // osobna decyzja z realnym kosztem — ROZSTRZYGNIĘTA jako „nie teraz"
+        // w `docs/DECISIONS.md`, D-064 (issue #119). Zanim zmienisz tę listę,
+        // przeczytaj D-064 — jest tam rachunek kosztu i próg, przy którym
+        // decyzja ma zostać zrewidowana.
         'accepted_mime_types' => [
             'image/jpeg',
             'image/png',
@@ -510,7 +513,7 @@ return [
 
         /*
         |----------------------------------------------------------------------
-        | ZAPROSZENIE DO ZAŁOŻENIA KONTA — adres BEZ konta (issue #25, D-067)
+        | ZAPROSZENIE DO ZAŁOŻENIA KONTA — adres BEZ konta (issue #25, D-085)
         |----------------------------------------------------------------------
         |
         | Druga połowa tej samej drogi. Do 10 września 2026 adres, na którym
@@ -607,7 +610,7 @@ return [
              * co przed — ekran nie może się zmienić, bo zmiana byłaby
              * wyrocznią „na tym adresie nie ma konta", i to wyrocznią, którą
              * napastnik umie WYWOŁAĆ sam (wysłać 40 zaproszeń, a potem
-             * odczytywać różnicę). Cena jest wypisana wprost w D-067: w takim
+             * odczytywać różnicę). Cena jest wypisana wprost w D-085: w takim
              * dniu osoba bez konta znowu nie dostanie wiadomości. Dlatego
              * sufit stoi tak wysoko nad zapotrzebowaniem, a ekran
              * `/logowanie/link` mówi na stałe, co zrobić, gdy wiadomość nie
@@ -869,7 +872,7 @@ return [
         'login_link_wejscie' => '10,10',
 
         /*
-         * Ekran zaproszenia do założenia konta — POST-y z niego (D-067).
+         * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
          *
          * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
          * i choć to ta sama rodzina dróg: człowiek, który nieudanie klikał

@@ -180,7 +180,7 @@ class CookedEventController extends Controller
             return redirect()->route('cooked.show', $event)->with(
                 'status',
                 'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-                .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
             );
         }
 
@@ -288,7 +288,7 @@ class CookedEventController extends Controller
 
         return redirect()->route('cooked.show', $cookedEvent)->with(
             'status',
-            $cookedEvent->user->displayName().' dowie się, że podziękowałaś/eś za wykonanie.',
+            $cookedEvent->user->displayName().' dostanie Twoje podziękowanie.',
         );
     }
 

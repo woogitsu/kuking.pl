@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
- * Zaproszenie do założenia konta dla adresu, na którym konta NIE MA (D-067).
+ * Zaproszenie do założenia konta dla adresu, na którym konta NIE MA (D-085).
  *
  * Powstaje wtedy, gdy ktoś poprosi o „link do zalogowania" dla adresu bez
  * konta — i jest odpowiedzią na prawdziwe zdarzenie: człowiek dostawał zielone

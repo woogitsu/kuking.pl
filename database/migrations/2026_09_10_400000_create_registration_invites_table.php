@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Zaproszenie do założenia konta — dla adresu, na którym konta NIE MA (D-067).
+ * Zaproszenie do założenia konta — dla adresu, na którym konta NIE MA (D-085).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  PO CO TA TABELA ISTNIEJE — PRAWDZIWE ZDARZENIE, NIE HIPOTEZA
