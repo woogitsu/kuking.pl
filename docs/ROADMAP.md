@@ -9,7 +9,14 @@
 - auth;
 - layout;
 - design tokens;
-- error monitoring.
+- error monitoring — **dziś** dziennik serwera plus kanał `blad_webhook`
+  na Slack/Discord (`config/logging.php`, włącza go `LOG_BLAD_WEBHOOK_URL`).
+  **Sentry jest tu ZAMIAREM, nie stanem:** nie ma go w `composer.json`, nie ma
+  `config/sentry.php`, a `SENTRY_LARAVEL_DSN` jest przygotowane i nieczytane.
+  Warunek wejścia i uzasadnienie: **D-041** w `docs/DECISIONS.md` oraz
+  `docs/infra/MONITORING_BLEDOW.md`. Do tabeli stacku w `AGENTS.md` §3 Sentry
+  wraca dopiero razem z pakietem — tamta tabela opisuje stan, ta lista zamiar
+  (**D-104**).
 
 **DoD:** green CI + staging.
 

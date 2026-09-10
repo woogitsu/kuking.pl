@@ -2282,8 +2282,15 @@ return [
         'etykieta' => 'Alfa 0.1',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
-        // Ta sama wartość idzie do SENTRY_RELEASE (.railway/railway.ts), więc
-        // wersja w stopce i wersja przy błędzie w Sentry to ten sam commit.
+        //
+        // Do 10 września 2026 stało tu, że ta sama wartość idzie do
+        // SENTRY_RELEASE, „więc wersja w stopce i wersja przy błędzie w Sentry
+        // to ten sam commit". Nieprawda: Sentry'ego w projekcie nie ma (D-041),
+        // więc nie ma też żadnych wpisów, z którymi ten skrót miałby się
+        // wiązać. Powód, dla którego skrót tu stoi, jest prostszy i prawdziwy:
+        // ktoś zgłasza usterkę, przepisuje to, co widzi w stopce, i wiadomo,
+        // którego commita dotyczy zgłoszenie. Pełne wyjaśnienie w komentarzu
+        // klasy `App\Support\Wersja`.
         'commit' => env('RAILWAY_GIT_COMMIT_SHA'),
 
         // KIEDY TO WYDANIE POWSTAŁO — data i godzina, nie skrót.

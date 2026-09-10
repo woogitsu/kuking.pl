@@ -59,17 +59,26 @@ i zakładka Issues.
 | Warstwa | Wybór |
 |---|---|
 | Backend | Laravel 13 |
-| PHP | 8.4 |
+| PHP | 8.4 (minimum frameworka: 8.3) |
 | UI | Blade + Livewire 4 + Alpine.js |
-| CSS | Tailwind CSS 4 (CSS-first, `@theme`) |
-| Baza | PostgreSQL 18 |
+| CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) |
+| Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) |
 | Kolejka | Laravel database queue |
 | Hosting | Railway |
-| DNS / CDN / zdjęcia | Cloudflare + R2 |
-| Wyszukiwarka | PostgreSQL `pg_trgm` + `unaccent` |
-| Monitoring | Sentry |
+| DNS / CDN / storage | Cloudflare + R2 |
+| Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` |
+| Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) |
 | Mobile | PWA |
+
+Ta tabela jest **kopią pierwszych dwóch kolumn** tabeli z [`AGENTS.md` §3](./AGENTS.md#3-stack-i-czego-nie-wolno-dokładać)
+i musi się z nią zgadzać co do znaku — pilnuje tego
+`tests/Feature/TabelaStackuMowiPrawdeTest.php`. Tam stoi też trzecia kolumna,
+„Gdzie to sprawdzić”, mówiąca, gdzie każdej z tych rzeczy szukać w repozytorium.
+Powód, dla którego zgodność pilnuje test, a nie uważność: obie kopie mówiły przez
+miesiące to samo nieprawdziwe zdanie — „Monitoring | Sentry”, przy Sentrym,
+którego w projekcie nigdy nie było. Poprawienie jednej bez drugiej zostawiłoby
+tę nieprawdę na stronie tytułowej repozytorium.
 
 Decyzja architektoniczna: **modularny monolit**. Uzasadnienie i ścieżka skalowania
 w [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
