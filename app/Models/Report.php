@@ -67,6 +67,7 @@ class Report extends Model
         'comment' => 'komentarz',
         'cooked_event' => 'wykonanie przepisu',
         'user' => 'profil osoby',
+        'media' => 'zdjęcie',
         'unknown' => 'strona spod podanego adresu',
     ];
 

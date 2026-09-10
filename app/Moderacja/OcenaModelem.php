@@ -71,6 +71,50 @@ final class OcenaModelem
     }
 
     /**
+     * Ocena JEDNEGO zdjęcia, bez żadnej treści obok (issue #237).
+     *
+     * Używa tego zdjęcie profilowe, które nie należy do żadnego wpisu, a jest
+     * widoczne częściej niż jakikolwiek wpis: chodzi za człowiekiem po całym
+     * serwisie, przy każdym komentarzu i na każdej liście.
+     *
+     * TA SAMA DROGA CO ZDJĘCIA WPISÓW — wariant `thumb`, przekodowany do
+     * JPEG, wysłany jako `data:`. Druga droga do tego samego API rozjechałaby
+     * się przy pierwszej zmianie (inny format, inny rozmiar, inny sposób
+     * radzenia się z błędem), a to jest miejsce, w którym cicha awaria znaczy
+     * „nikt tego zdjęcia nie oglądał".
+     *
+     * `$przedmiot` wchodzi do powodu, bo moderator musi wiedzieć, NA CO
+     * patrzy, zanim otworzy podgląd: „Zdjęcie profilowe: …" czyta się inaczej
+     * niż „Zdjęcie: …".
+     *
+     * @return list<Sygnal>
+     */
+    public function dlaZdjecia(Media $media, string $przedmiot = 'Zdjęcie'): array
+    {
+        if (! KlientOpenAI::oceniamy() || ! config('kuking.moderation.model.ocenia_zdjecia')) {
+            return [];
+        }
+
+        if ($media->status !== Media::STATUS_READY) {
+            return [];
+        }
+
+        $dataUri = $this->jakoJpeg($media);
+
+        if ($dataUri === null) {
+            return [];
+        }
+
+        $wynik = $this->klient->ocenObraz($dataUri);
+
+        if ($wynik === null || ! $wynik->costamZnalazl()) {
+            return [];
+        }
+
+        return [new Sygnal(self::KOD, $przedmiot.': '.$wynik->powod(), $wynik->pilne)];
+    }
+
+    /**
      * @param  list<Sygnal>  $sygnaly
      * @return list<Sygnal>
      */

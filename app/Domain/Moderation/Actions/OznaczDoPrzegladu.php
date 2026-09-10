@@ -8,6 +8,7 @@ use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Report;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -38,12 +39,16 @@ use Illuminate\Support\Facades\DB;
 final class OznaczDoPrzegladu
 {
     /**
+     * `Media` w typie wejścia to zdjęcie profilowe (issue #237) — celem jest
+     * konkretny plik, nie konto, bo tylko wtedy „jedno oznaczenie na treść"
+     * nie znaczy „pierwszy awatar tego konta i już nigdy więcej".
+     *
      * @param  list<Sygnal>  $sygnaly  powody, dla których automat podniósł rękę
      * @return ?Report `null`, gdy nie ma czego oznaczać albo ta treść była już
      *                 oglądana przez automat (także wtedy, gdy moderator
      *                 wcześniej powiedział „to nic takiego")
      */
-    public function handle(Post|Comment $tresc, array $sygnaly): ?Report
+    public function handle(Post|Comment|Media $tresc, array $sygnaly): ?Report
     {
         if ($sygnaly === []) {
             return null;
