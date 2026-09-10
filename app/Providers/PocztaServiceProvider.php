@@ -6,7 +6,10 @@ namespace App\Providers;
 
 use App\Poczta\BrakKonfiguracjiEmailLabs;
 use App\Poczta\TransportEmailLabs;
+use App\Poczta\ZapiszNieudanyList;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Transport\TransportInterface;
@@ -46,6 +49,22 @@ class PocztaServiceProvider extends ServiceProvider
     {
         Mail::extend('emaillabs', function (array $konfiguracja): TransportInterface {
             return $this->transport($konfiguracja);
+        });
+
+        // ŚLAD PO LIŚCIE, KTÓRY PRZEPADŁ (issue #234, D-062).
+        //
+        // Rejestracja jest TUTAJ, a nie w `AppServiceProvider`, z tego samego
+        // powodu co cała ta klasa: poczta ma własne miejsce. `Queue::failing`
+        // to słuchacz `JobFailed`, czyli chwili, w której worker odkłada
+        // zadanie do `failed_jobs` — po trzeciej próbie, a nie po pierwszej.
+        //
+        // Słuchacz NIE MA PRAWA RZUCIĆ: leci przed tym, który zapisuje wiersz
+        // w `failed_jobs` (`WorkCommand::logFailedJob`, rejestrowany dopiero
+        // przy starcie `queue:work`), więc jego wyjątek zabrałby diagnostyce
+        // ostatnią rzecz, jaka po awarii zostaje. Całość `ZapiszNieudanyList`
+        // jest z tego powodu w `try`.
+        Queue::failing(static function (JobFailed $zdarzenie): void {
+            app(ZapiszNieudanyList::class)($zdarzenie);
         });
     }
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Models\MailFailure;
+use App\Poczta\PowodOdmowy;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,14 @@ use Throwable;
  * inne pytanie niż pozostałe dwa: nie „czy coś padło", a „czy konfiguracja
  * nie kłamie" (D-050). Brak kluczy Turnstile nic nie psuje — i właśnie
  * dlatego bez tego sygnału nikt by go nie zauważył.
+ *
+ * `listy` też NIE JEST krytyczne i odpowiada na trzecie pytanie: „czy komuś
+ * nie doszedł list, o którym jeszcze nie wiesz" (issue #234, D-062). Jest tu
+ * z tego samego powodu co Turnstile — przepadnięcie listu niczego nie psuje
+ * w serwisie i dlatego nie widzi go nikt. Ta sonda gaśnie dopiero po
+ * odhaczeniu (`php artisan kuking:nieudane-listy --odhacz`), nie po
+ * godzinie: alarm, który gaśnie sam, zamienia awarię z nocy w niewidzialną
+ * awarię o świcie.
  *
  * PO CO W OGÓLE SPRAWDZAĆ ZDJĘCIA
  * Katalog ze zdjęciami stał kiedyś na dysku kontenera, który Railway kasuje
@@ -81,6 +91,9 @@ class HealthController extends Controller
         self::POWOD_BRAK_DROGI_PUBLICZNEJ,
         self::POWOD_DROGA_GDZIE_INDZIEJ,
         self::POWOD_TURNSTILE_BEZ_KLUCZY,
+        self::POWOD_LISTY_PRZEPADAJA,
+        self::POWOD_LIMIT_POCZTY_WYCZERPANY,
+        self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -112,6 +125,28 @@ class HealthController extends Controller
      */
     private const POWOD_TURNSTILE_BEZ_KLUCZY = 'turnstile_bez_kluczy';
 
+    /**
+     * W `mail_failures` leży co najmniej jeden nieodhaczony list, czyli
+     * wiadomość do człowieka, która nie wyszła i nie wyjdzie (issue #234).
+     */
+    private const POWOD_LISTY_PRZEPADAJA = 'listy_przepadaja';
+
+    /**
+     * To samo, ale z powodu wyczerpanego dobowego limitu u dostawcy — osobny
+     * kod, bo osobna czynność człowieka: nie ma czego naprawiać w kodzie,
+     * trzeba poczekać do północy albo zmienić plan. Monitoring zewnętrzny
+     * odróżnia więc „coś się psuje" od „skończyła się pula".
+     */
+    private const POWOD_LIMIT_POCZTY_WYCZERPANY = 'limit_poczty_wyczerpany';
+
+    /**
+     * Nie dało się sprawdzić śladu — najczęściej tabeli `mail_failures`
+     * jeszcze nie ma, bo kod wdrożył się przed migracją. Osobny kod, żeby
+     * brak tabeli nie meldował się jako „listy przepadają": alarm o awarii,
+     * której nie ma, jest tak samo szkodliwy jak cisza o awarii, która jest.
+     */
+    private const POWOD_SLAD_LISTOW_NIESPRAWDZALNY = 'slad_listow_niesprawdzalny';
+
     public function __invoke(): JsonResponse
     {
         $checks = [
@@ -130,6 +165,7 @@ class HealthController extends Controller
             }),
             'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
+            'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -147,6 +183,64 @@ class HealthController extends Controller
             'time' => now()->toIso8601String(),
             'checks' => $checks,
         ], $krytyczneOk ? 200 : 503);
+    }
+
+    /**
+     * Czy jakiś list przepadł, a właściciel jeszcze o tym nie wie
+     * (issue #234, D-062).
+     *
+     * PO CO TO TU JEST
+     * Bo do 10 września 2026 przepadnięcie listu wyglądało DOKŁADNIE jak
+     * sukces: worker wyczerpywał trzy próby w sześć minut, zadanie lądowało
+     * w `failed_jobs`, kolejka wracała do zera, a `/health` świecił na
+     * zielono. Dotyczyło to potwierdzeń rejestracji i przypomnień hasła,
+     * czyli listów, na które ktoś czeka przed ekranem. Ta sonda jest
+     * pierwszym miejscem, w którym taka awaria mówi o sobie sama.
+     *
+     * BEZ OKNA CZASOWEGO — I TO JEST SEDNO
+     * Nie pytamy „czy coś przepadło w ostatniej godzinie", tylko „czy
+     * cokolwiek czeka na przeczytanie". Alarm z oknem czasowym gaśnie sam po
+     * godzinie, czyli awaria z nocy jest o ósmej rano znowu niewidoczna —
+     * a to jest ta sama cicha porażka, tylko o godzinę późniejsza. Gaśnie
+     * dopiero wtedy, gdy człowiek odhaczy: `php artisan kuking:nieudane-listy
+     * --odhacz`.
+     *
+     * KONSEKWENCJA, PRZYJĘTA ŚWIADOMIE: `/health` może stać w `degraded`
+     * przez wiele godzin. Jest to cena za to, żeby jeden przepadły list nie
+     * przeszedł niezauważony — a odhaczenie jest jedną komendą, po
+     * przeczytaniu. `listy` nie są na liście `KRYTYCZNE`, więc trasa oddaje
+     * dalej HTTP 200 i Railway nie restartuje z tego powodu niczego.
+     *
+     * DLACZEGO `Log::error` NIE ROBI TU SZUMU: sondy `/health` logują tylko
+     * przy porażce, a monitoring odpytuje trasę co kilka minut — więc wpis
+     * powstaje przy każdym odpytaniu, dopóki alarm trwa. To znaczy: dziennik
+     * powie „od 02:14 do 08:30 listy przepadały", i taki zapis jest właśnie
+     * tym, czego przy poszukiwaniu przyczyny brakuje najczęściej.
+     */
+    private function sprawdzNieudaneListy(): void
+    {
+        $nieodhaczone = MailFailure::query()->nieodhaczone()->count();
+
+        if ($nieodhaczone === 0) {
+            return;
+        }
+
+        // Kategoria z NAJŚWIEŻSZEJ porażki: przy wyczerpanej puli wszystkie
+        // wpisy z danej doby mają ten sam powód, a właściciela interesuje
+        // to, co dzieje się TERAZ.
+        $najswiezszy = MailFailure::query()
+            ->nieodhaczone()
+            ->orderByDesc('failed_at')
+            ->first();
+
+        $limit = $najswiezszy?->powod === PowodOdmowy::LIMIT_DOBOWY;
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            $limit ? self::POWOD_LIMIT_POCZTY_WYCZERPANY : self::POWOD_LISTY_PRZEPADAJA,
+            'Nieodhaczonych nieudanych listów: '.$nieodhaczone.'. '
+            .'Najświeższy powód: '.($najswiezszy?->powod->value ?? 'nieznany').'. '
+            .'Przeczytaj: php artisan kuking:nieudane-listy',
+        );
     }
 
     /**

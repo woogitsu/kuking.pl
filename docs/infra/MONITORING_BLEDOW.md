@@ -141,6 +141,35 @@ niczego więcej nie zastępuje.
 - **Nie mówi, ilu ludzi to dotknęło** ani czy to jest ten sam człowiek, czy
   stu różnych.
 
+### Co przychodzi na ten kanał z poczty (issue #234, D-062)
+
+**Najpierw sprostowanie, bo tu było napisane za dużo.** Pierwsza wersja tej
+sekcji obiecywała na tym kanale także wiadomość „Poczta: list przepadł i nikt
+go już nie wyśle". Nieprawda: to jest zwykłe `Log::error()`, a ten kanał **nie
+jest częścią stosu domyślnego** (`config/logging.php`: `stack` →
+`LOG_STACK`, a `.env.example` ustawia `LOG_STACK=single`). Woła się do niego
+JAWNIE — z `bootstrap/app.php` przy raportowaniu wyjątku, z
+`App\Domain\Contact\DzwonekOperatora`, z ostrzeżenia o suficie poczty
+i z `HealthController::powiadomWebhook()`. Sam poziom `error` nikogo nie
+budzi.
+
+Co więc naprawdę przychodzi tu z poczty:
+
+| Wiadomość | Kiedy | Co zrobić |
+|---|---|---|
+| „Poczta: sufit «…» zużyty w N%…" | Zużycie dobowego sufitu przekroczyło `KUKING_POCZTA_PROG_OSTRZEZENIA` (domyślnie 80%) — raz na dobę na funkcję | Sprawdź, czy plan u dostawcy nadal wystarcza — `docs/decyzje/POCZTA.md` §4 |
+| „/health: kontrola «listy» nie przeszła…" | Sonda `/health` zobaczyła nieodhaczony wiersz w `mail_failures`. **Dzwoni dopiero z PR #255** (`HealthController::powiadomWebhook()`) | `php artisan kuking:nieudane-listy` — kategoria odmowy mówi, czy powtarzać |
+
+A gdzie jest sam „list przepadł": w **dzienniku serwera** (`Log::error`
+z `App\Poczta\ZapiszNieudanyList`) i — trwale — w **wierszu tabeli
+`mail_failures`** oraz w polu `checks.listy` w `/health`, które trzyma
+`degraded`, dopóki ktoś nie odhaczy.
+
+**Ten kanał NIE JEST i nie może być jedynym śladem takiej awarii**: jest
+warunkowy (`LOG_BLAD_WEBHOOK_URL`), a przy wyczerpanej puli listów pocztowy
+alarm i tak by nie wyszedł. Dlatego obowiązkowe są wiersz w bazie i `/health`.
+Uzasadnienie: **D-062 §3**.
+
 ---
 
 ## 3. Bezpieczeństwo — czego w wiadomości NIE MA
