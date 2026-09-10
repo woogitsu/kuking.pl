@@ -2111,17 +2111,70 @@
     border-bottom: 0;
   }
 
+  /* PASEK MINIATUR MA WŁASNY WIERSZ W KARCIE OSOBY (issue #272).
+     ---------------------------------------------------------------------
+     Zgłoszenie właściciela ze zrzutu `/home` na szerokim monitorze: trzy
+     miniatury stały JEDNA POD DRUGĄ, choć w szynie było miejsce na rząd.
+
+     Przyczyna nie leżała w tej regule, a w tym, GDZIE ten pasek stał.
+     Siedział wewnątrz bloku tekstu karty osoby (`.min-w-0.flex-1`), czyli
+     dostawał nie szerokość szyny, a resztkę po awatarze i przycisku
+     „Obserwuj". Zmierzone w Chromium przy oknie 1440 px, przed poprawką:
+     szyna 352 px → wnętrze karty 310 px → awatar 52 + odstęp 12 + blok
+     tekstu 105 + odstęp 12 + przycisk 129. Pasek miał 105 px, a rząd trzech
+     miniatur potrzebuje 3 × 72 + 2 × 8 = 232 px. Zawijał więc po jednej
+     na wiersz — nie z braku miejsca w szynie, tylko z braku miejsca w tym
+     jednym zduszonym bloku.
+
+     Naprawą jest więc przede wszystkim PRZENIESIENIE paska w HTML-u: stoi
+     teraz jako bezpośrednie dziecko rzędu, za przyciskiem (patrz komentarz
+     w `kuking-board.blade.php`). Zmierzone po poprawce: trzy miniatury o tej
+     samej górnej krawędzi, `x` 1077/1157/1237.
+
+     `flex-basis: 100%` ROBI DRUGĄ, OSOBNĄ RZECZ — i nie jest ozdobą, choć
+     sam rząd stanąłby też bez niej. Bez tej deklaracji rozmiar bazowy paska
+     liczy się z jego treści (232 px przy trzech miniaturach), więc o tym, czy
+     pasek trafi na własny wiersz, decyduje suma szerokości awatara, opisu
+     i przycisku „Obserwuj" — czyli przypadek, ten sam, który zepsuł tę kartę
+     za pierwszym razem. Zmierzone bez `flex-basis`, okno 1280 px, czcionka
+     przeglądarki 200 %: pasek lądował W TYM SAMYM wierszu, na prawo od
+     „Obserwuj" (`x` 959 zamiast 73, czyli zamiast krawędzi karty). Z nią
+     pasek ma zawsze cały wiersz i zawsze zaczyna się przy tej samej
+     krawędzi co reszta karty.
+
+     Pilnują tego dwa pomiary w `scripts/dostepnosc.mjs`, sekcja „Tablica
+     dnia": jednej krawędzi miniatur (rząd) i szerokości paska równej
+     szerokości karty (własny wiersz).
+
+     Odstęp nad paskiem robi teraz `gap` rzędu (`--spacing-3`, ta sama
+     wartość co dawne `margin-top`), więc własnego marginesu tu nie ma:
+     na własnym wierszu doliczyłby się do odstępu między wierszami.
+
+     UWAGA NA DWA RÓŻNE `flex` W TEJ JEDNEJ REGULE. `flex-basis` opisuje ten
+     pasek jako ELEMENT rzędu karty osoby. `flex-wrap` niżej opisuje go jako
+     KONTENER miniatur i jest osobną sprawą — patrz komentarz przy nim. */
   .kuking-board-preview {
     display: flex;
     gap: var(--spacing-2);
-    margin-top: var(--spacing-3);
+    flex-basis: 100%;
 
     /* `flex-wrap` jak w `.kuking-board-person` tuż wyżej — tam było, tu nie.
        Miniatury mają `width: 72px` i `flex: none`, więc rząd trzech z odstępami
        nie mieści się w wąskiej kolumnie tablicy przy powiększonej czcionce
        i wypycha całą stronę w bok o 37 px (zmierzone przy bazie 32 px na `/`,
        `/odkryj` i `/szukaj`). Bez zawijania nie ma jak temu zaradzić:
-       obrazek o stałej szerokości i `flex: none` z definicji się nie skurczy. */
+       obrazek o stałej szerokości i `flex: none` z definicji się nie skurczy.
+
+       ZOSTAJE MIMO WIERSZA NA CAŁĄ SZEROKOŚĆ i nie jest pozostałością po
+       starym układzie. Własny wiersz daje 310 px w szynie przy czcionce
+       16 px, ale nie daje ich przy czcionce podkręconej w przeglądarce:
+       wnętrze karty zmierzone przy bazie 32 px i oknie 320 px to 174 px,
+       a rząd trzech miniatur potrzebuje wtedy 3 × 72 + 2 × 16 = 248 px.
+       Sprawdzone przez zdjęcie tej jednej linijki: pasek kończył się na
+       `x = 321` w oknie szerokim na 320, `scrollWidth` dokumentu rósł do
+       321 px i cała strona przewijała się w bok. To jest naruszenie
+       WCAG 2.2 AA 1.4.10 (Reflow) i mierzy je `scripts/dostepnosc.mjs`
+       (wariant „320 px / czcionka przeglądarki 200%"). */
     flex-wrap: wrap;
   }
 
@@ -2134,6 +2187,13 @@
     flex: none;
   }
 
+  /* Zdjęcie dania nie kurczy się i nie rośnie — 96 px to 96 px. Zapisane
+     na samym elemencie, nie tylko na `<img>` w środku: to `<a>` jest tu
+     elementem rzędu, a `flex: none` na obrazku niżej nic o nim nie mówi. */
+  .kuking-board-post-photo {
+    flex: none;
+  }
+
   .kuking-board-post-photo img {
     width: 96px;
     height: 96px;
@@ -2141,6 +2201,40 @@
     border-radius: var(--radius-md);
     background-color: var(--color-surface-sunken);
     flex: none;
+  }
+
+  /* DWIE KOLUMNY W KARCIE DANIA, ZAMIERZONE — I PRÓG, PRZY KTÓRYM SIĘ KOŃCZĄ
+     (issue #272).
+     ---------------------------------------------------------------------
+     Drugie zgłoszenie ze zrzutu: zdjęcie dania wisiało samo, dociśnięte do
+     lewej, a podpis („Ewa Kapica", „Pyszne jagodzianki z mascarpone",
+     „Zobacz") leżał POD nim, nie obok. Nie był to wybór układu — było to
+     przypadkowe zawinięcie. Blok tekstu miał samo `min-w-0`, bez żadnego
+     `flex`, więc jego rozmiar bazowy liczył się z TREŚCI: skrócony wpis
+     (90 znaków) chciał kilkuset pikseli, 96 + 12 + to nie mieściło się
+     w 310 px szyny, i cały blok spadał do drugiego wiersza. Zmierzone przed
+     poprawką przy oknie 1440 px: zdjęcie w wierszu `y = 1253`, tekst
+     w wierszu `y = 1361`, oba przy `x = 1077`.
+
+     WYBÓR: DWIE KOLUMNY W SZYNIE, PION NA WĄSKIM EKRANIE — i to `flex-basis`
+     decyduje, kiedy jedno przechodzi w drugie. `11rem` nie jest liczbą
+     z powietrza: przy czcionce 16 px daje 96 + 12 + 176 = 284 px, czyli
+     mieści się we wnętrzu karty w szynie (310 px, zmierzone) i tekst dostaje
+     realne 202 px. Gdy wnętrze jest węższe — 246 px przy oknie 320 px —
+     próg nie jest spełniony, blok idzie do własnego wiersza i staje przy tej
+     samej krawędzi co zdjęcie i co reszta karty.
+
+     DLACZEGO PRÓG W `rem`, A NIE W PIKSELACH. Bo ma jechać razem z tekstem.
+     Przy czcionce przeglądarki podkręconej do 200 % `11rem` to 352 px, więc
+     dwie kolumny same się wyłączają — a nie ściskają podpisu do słupka
+     kilku znaków na wiersz. Tekst 50+ jest tu ważniejszy niż zachowanie
+     ładniejszego układu za wszelką cenę (docs/UX_50_PLUS.md).
+
+     `flex-grow: 1` zostaje, żeby blok po zmieszczeniu się dobrał całą resztę
+     wiersza — inaczej podpis kończyłby się w połowie szyny, a przycisk
+     „Zobacz" wisiał w powietrzu z prawej pustką. */
+  .kuking-board-post-body {
+    flex: 1 1 11rem;
   }
 
   .kuking-board-excerpt {

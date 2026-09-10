@@ -1003,6 +1003,97 @@ if (idZgloszenia === null) {
 }
 
 /*
+ * TABLICA „kuKINGi na dziś" MUSI MIEĆ CO POKAZAĆ NA EKRANACH Z SZYNĄ
+ * (issue #272).
+ *
+ * TO JEST DZIURA W POMIARZE, NIE OZDOBA. Tablica stoi w PRAWEJ SZYNIE na
+ * `/home` i `/szukaj`, a w głównej kolumnie na `/` i `/odkryj`. Szyna ma
+ * 352 px, główna kolumna 720 — i cała usterka z #272 (rząd trzech miniatur
+ * `72 px` zawijający po jednej na wiersz) występuje WYŁĄCZNIE przy tej
+ * węższej. Oba ekrany z szyną były na liście `EKRANY_UKLADU` od dawna,
+ * więc przepełnienie było na nich mierzone — tylko nie na tablicy, bo dla
+ * konta, którym ten automat się loguje, sekcja OSOBY była PUSTA.
+ *
+ * Dlaczego pusta: `DailyBoard::peopleToFollow()` wyklucza osoby, które widz
+ * już obserwuje, a `DemoSeeder` daje `ania` obserwowanie `basia` i `marek`.
+ * Zostawało konto moderatora, które nie ma ani jednego publicznego wpisu —
+ * czyli zero osób. Automat wpisywał „✓" dla `/home`, nie mając w drzewie ani
+ * jednego `.kuking-board-preview`.
+ *
+ * ROZWIĄZANIE: WYBÓR REDAKCYJNY NA DZIŚ, nie odbieranie `ania` obserwowanych.
+ * `DailyBoard::fromCuratedPicks()` NIE wyklucza osób obserwowanych, więc
+ * jeden wiersz w `daily_picks` stawia tablicę pełną także dla konta, które
+ * obserwuje wszystkich. Odpięcie obserwowanych zrobiłoby coś gorszego:
+ * opróżniłoby feed na `/home`, czyli zamieniłoby mierzony ekran na jego
+ * pusty stan — dokładnie ta klasa fałszywej zieleni, o której mówi nagłówek
+ * tego pliku.
+ *
+ * Dane dokładamy TUTAJ, tym samym mechanizmem co `idOdwolania`
+ * i `idZgloszenia` wyżej, a nie w `DemoSeeder` (cudza, trwająca praca).
+ * Sprawdzenie „czy już jest" przed zapisem czyni to bezpiecznym przy
+ * `ADRES` wskazującym serwer postawiony wcześniej.
+ *
+ * WYBIERAMY TRZY POZYCJE, KAŻDA POD INNY KSZTAŁT KARTY:
+ *   1. osobę z CO NAJMNIEJ TRZEMA gotowymi zdjęciami — to jest jedyny
+ *      kształt, w którym pasek miniatur ma szansę się zawinąć;
+ *   2. danie ZE zdjęciem — układ dwukolumnowy (zdjęcie 96 px + podpis);
+ *   3. danie BEZ zdjęcia — od #272 nie renderuje pustego odnośnika, więc
+ *      podpis ma stać przy tej samej krawędzi co reszta kart.
+ * Bez pozycji 1 pomiar niżej nie ma czego mierzyć; bez 2 i 3 karta dania
+ * jest mierzona tylko w jednym ze swoich dwóch stanów.
+ */
+const tablicaDnia = (() => {
+  const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
+    `$konto = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
+    + "$mod = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "if (! $konto) { echo ''; exit; } "
+    // Osoba z paskiem miniatur. Liczymy tak samo, jak liczy widok:
+    // zdjęcia gotowe z TRZECH ostatnich publicznych wpisów (kuking-board.blade.php).
+    + "$osoba = null; "
+    + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->get() as $u) { "
+    + "$ile = 0; "
+    + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
+    + "->latest('published_at')->limit(3)->get() as $p) { "
+    + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
+    + "if ($ile >= 3) { $osoba = $u; break; } } "
+    // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.
+    + "$wpisy = App\\Models\\Post::publiclyVisible()->where('author_id','!=',$konto)"
+    + "->latest('published_at')->with('media')->get(); "
+    + "$zeZdjeciem = $wpisy->first(fn ($p) => $p->media->contains(fn ($m) => $m->isReady())); "
+    + "$bezZdjecia = $wpisy->first(fn ($p) => ! $p->media->contains(fn ($m) => $m->isReady())); "
+    + "if (! $osoba || ! $zeZdjeciem) { echo ''; exit; } "
+    + "$dzien = App\\Support\\Czas::dzisiajData(); "
+    + "$poz = 0; "
+    + "foreach ([[App\\Models\\DailyPick::TYPE_USER, $osoba->getKey()], "
+    + "[App\\Models\\DailyPick::TYPE_POST, $zeZdjeciem->getKey()], "
+    + "[App\\Models\\DailyPick::TYPE_POST, $bezZdjecia?->getKey()]] as [$typ, $id]) { "
+    + "if (! $id) { continue; } "
+    + "App\\Models\\DailyPick::firstOrCreate("
+    + "['shown_on' => $dzien, 'subject_type' => $typ, 'subject_id' => $id], "
+    + "['position' => $poz, 'curator_id' => $mod, "
+    // KRÓTKIE ZDANIE, NIE AKAPIT. W szynie blok tekstu karty osoby ma
+    // 105 px z 310 (awatar i przycisk „Obserwuj" biorą resztę), więc długa
+    // notka rozsypuje się tam na jedno słowo w wierszu i mierzony ekran
+    // przestaje przypominać ten, który widzi człowiek. Notki gospodarza
+    // w produkcie są krótkie („Halina pierwszy raz pokazała swój chleb") —
+    // i ta ma być taka sama.
+    + "'note' => 'Wybór automatu dostępności.']); $poz++; } "
+    + "echo $osoba->getKey();",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return wynik === '' ? null : wynik;
+})();
+
+if (tablicaDnia === null) {
+  console.error('BŁĄD: nie udało się przygotować wyboru redakcyjnego na dziś — tablica '
+    + '„kuKINGi na dziś" byłaby w prawej szynie pusta, a pasek miniatur (issue #272) '
+    + 'nie zostałby zmierzony na żadnym ekranie z szyną.');
+  zamknij();
+  process.exit(1);
+}
+
+/*
  * Adres ekranu z listy: `adres` wprost albo `znajdz` do rozwiązania z bazy.
  *
  * `znajdz: 'przepis'` → dowolny opublikowany przepis z demo,
@@ -1945,6 +2036,192 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     + (zlych ? ` — ${zlych} niezgodności` : ''));
 }
 
+/* =============================================================================
+   TABLICA DNIA W PRAWEJ SZYNIE: RZĄD MINIATUR I DWIE KOLUMNY DANIA
+   (issue #272)
+
+   DLACZEGO OSOBNY POMIAR, A NIE SAM POMIAR PRZEPEŁNIENIA WYŻEJ
+   Bo przepełnienie i ten pomiar łapią BŁĘDY W PRZECIWNE STRONY, i każdy
+   z nich osobno przechodzi w złym stanie.
+
+   Stan ze zrzutu właściciela — trzy miniatury jedna pod drugą w szynie —
+   NIE przewija strony w bok. Wręcz odwrotnie: zawijanie jest sposobem,
+   w jaki przeglądarka unika przewijania. Pomiar przepełnienia świecił więc
+   na zielono przez cały czas trwania tej usterki. Odwrotnie też: gdyby ktoś
+   „naprawił" ten rząd, zdejmując `flex-wrap: wrap`, to sprawdzenie
+   przeszłoby, a strona zaczęłaby się przewijać w bok przy powiększonej
+   czcionce — i to złapałby tamten pomiar. Sprawdzone przez zdjęcie tej
+   linijki: `scrollWidth` 321 px przy oknie 320 px na `/home` i `/szukaj`
+   (na ekranach, gdzie tablica stoi w głównej kolumnie, było to 37 px —
+   pomiar w komentarzu przy `.kuking-board-preview` w `app.css`).
+
+   Dopiero razem pilnują jednego i drugiego: TU rząd przy normalnej czcionce,
+   TAM brak przepełnienia przy podkręconej. Trzecia część tego sprawdzenia
+   (czy reguła CSS istnieje i czy HTML stawia pasek tam, gdzie ona działa)
+   nie potrzebuje przeglądarki i stoi w
+   `tests/Feature/SzynaTablicaDniaUkladTest.php`.
+
+   MIERZYMY WYŁĄCZNIE PRZY NORMALNEJ CZCIONCE i tylko na szerokościach,
+   przy których szyna naprawdę jest kolumną (od 80rem = 1280 px). Przy
+   podkręconej czcionce zawinięty pasek jest POPRAWNYM wynikiem, nie
+   usterką — wymaganie „jeden wiersz" byłoby tam wymaganiem przewijania
+   strony w bok.
+   ========================================================================== */
+log('');
+log('Tablica dnia (rząd miniatur w szynie):');
+
+const EKRANY_TABLICY = [
+  { nazwa: 'tablica /home (szyna)', adres: '/home' },
+  { nazwa: 'szukaj (szyna)', adres: '/szukaj?q=rosol' },
+];
+
+// 1280 to sam próg szyny (80rem), 1512 typowy laptop właściciela. Poniżej
+// 1280 tablica ląduje pod treścią na całą szerokość i nie ma tu czego mierzyć.
+const SZEROKOSCI_TABLICY = SZYBKO ? [1512] : [1280, 1512];
+
+const rozjazdyTablicy = [];
+
+for (const szerokosc of SZEROKOSCI_TABLICY) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+    storageState: stanZalogowany,
+  });
+
+  for (const ekran of EKRANY_TABLICY) {
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze tablicy dnia.');
+      process.exitCode = 1;
+      await strona.close();
+      continue;
+    }
+
+    const pomiar = await strona.evaluate(() => {
+      const gora = (el) => Math.round(el.getBoundingClientRect().top);
+      const lewa = (el) => Math.round(el.getBoundingClientRect().left);
+      const szer = (el) => Math.round(el.getBoundingClientRect().width);
+
+      const osoba = [...document.querySelectorAll('.kuking-board-person')]
+        .find((li) => li.querySelector('.kuking-board-preview img'));
+
+      const pasek = osoba?.querySelector('.kuking-board-preview') ?? null;
+      const miniatury = pasek ? [...pasek.querySelectorAll('img')] : [];
+
+      const danieZeZdjeciem = [...document.querySelectorAll('.kuking-board-post')]
+        .find((li) => li.querySelector('.kuking-board-post-photo img'));
+      const danieBezZdjecia = [...document.querySelectorAll('.kuking-board-post')]
+        .find((li) => ! li.querySelector('.kuking-board-post-photo'));
+
+      const zdjecieDania = danieZeZdjeciem?.querySelector('.kuking-board-post-photo') ?? null;
+      const podpisDania = danieZeZdjeciem?.querySelector('.kuking-board-post-body') ?? null;
+      const podpisBezZdjecia = danieBezZdjecia?.querySelector('.kuking-board-post-body') ?? null;
+
+      return {
+        // Pasek W OGÓLE JEST — bez tego wszystko niżej przeszłoby na pustym
+        // drzewie, czyli nie sprawdziłoby niczego.
+        maPasek: pasek !== null,
+        miniatur: miniatury.length,
+        // BEZPOŚREDNIE DZIECKO RZĘDU. `flex-basis: 100%` opisuje pasek jako
+        // element `.kuking-board-person`; przeniesiony z powrotem do bloku
+        // tekstu zostawiłby regułę w arkuszu, a rząd rozsypałby się na nowo.
+        paskiemJestDzieckoRzedu: pasek !== null
+          && pasek.parentElement?.classList.contains('kuking-board-person') === true,
+        goryMiniatur: [...new Set(miniatury.map(gora))],
+
+        // PASEK MA MIEĆ CAŁY WIERSZ, NIE TYLE, ILE MU ZOSTAŁO.
+        // To sprawdza `flex-basis: 100%`, a nie sam rząd miniatur: bez tej
+        // deklaracji rozmiar bazowy paska liczy się z jego treści (232 px
+        // przy trzech miniaturach), więc o tym, czy pasek trafi na własny
+        // wiersz, decyduje suma szerokości awatara, opisu i przycisku
+        // „Obserwuj" — czyli przypadek. Zmierzone bez `flex-basis` przy
+        // oknie 1280 px i czcionce przeglądarki 200 %: pasek lądował
+        // W TYM SAMYM wierszu, na prawo od „Obserwuj" (`x` 959 zamiast 73).
+        szerokoscPaska: pasek ? szer(pasek) : null,
+        szerokoscRzedu: osoba ? szer(osoba) : null,
+        lewaPaska: pasek ? lewa(pasek) : null,
+        lewaRzedu: osoba ? lewa(osoba) : null,
+
+        maDanieZeZdjeciem: zdjecieDania !== null && podpisDania !== null,
+        goraZdjecia: zdjecieDania ? gora(zdjecieDania) : null,
+        goraPodpisu: podpisDania ? gora(podpisDania) : null,
+        lewaZdjecia: zdjecieDania ? lewa(zdjecieDania) : null,
+        lewaPodpisu: podpisDania ? lewa(podpisDania) : null,
+
+        // Danie bez zdjęcia: podpis ma licować z krawędzią karty, a nie
+        // stać o `gap` w prawo od nieistniejącego zdjęcia.
+        maDanieBezZdjecia: podpisBezZdjecia !== null,
+        lewaKartyBezZdjecia: danieBezZdjecia ? lewa(danieBezZdjecia) : null,
+        lewaPodpisuBezZdjecia: podpisBezZdjecia ? lewa(podpisBezZdjecia) : null,
+      };
+    });
+
+    await strona.close();
+
+    const bledy = [];
+
+    if (! pomiar.maPasek) {
+      bledy.push('brak paska miniatur w tablicy — nie ma czego mierzyć '
+        + '(sprawdź wybór redakcyjny przygotowany przez `tablicaDnia`)');
+    } else {
+      if (pomiar.miniatur < 2) {
+        bledy.push(`pasek ma ${pomiar.miniatur} miniaturę — o jednej nie da się `
+          + 'powiedzieć, czy stoi w rzędzie');
+      }
+
+      if (! pomiar.paskiemJestDzieckoRzedu) {
+        bledy.push('pasek miniatur nie jest bezpośrednim dzieckiem '
+          + '`.kuking-board-person`, więc `flex-basis: 100%` na nim nic nie robi');
+      }
+
+      if (pomiar.goryMiniatur.length > 1) {
+        bledy.push(`miniatury stoją w ${pomiar.goryMiniatur.length} wierszach `
+          + `(górne krawędzie: ${pomiar.goryMiniatur.join(', ')} px) przy pasku `
+          + `szerokim na ${pomiar.szerokoscPaska} px — to jest stan ze zrzutu z #272`);
+      }
+
+      if (Math.abs(pomiar.szerokoscPaska - pomiar.szerokoscRzedu) > 1
+        || Math.abs(pomiar.lewaPaska - pomiar.lewaRzedu) > 1) {
+        bledy.push(`pasek miniatur nie zajmuje całego wiersza karty: `
+          + `${pomiar.lewaPaska}…${pomiar.lewaPaska + pomiar.szerokoscPaska} px `
+          + `przy karcie ${pomiar.lewaRzedu}…${pomiar.lewaRzedu + pomiar.szerokoscRzedu} px. `
+          + 'Bez `flex-basis: 100%` o miejscu paska decyduje suma szerokości awatara, '
+          + 'opisu i przycisku „Obserwuj", a nie decyzja układu');
+      }
+    }
+
+    if (! pomiar.maDanieZeZdjeciem) {
+      bledy.push('brak dania ze zdjęciem — układ dwukolumnowy karty dania nie został sprawdzony');
+    } else if (Math.abs(pomiar.goraZdjecia - pomiar.goraPodpisu) > 2) {
+      bledy.push(`podpis dania stoi w innym wierszu niż zdjęcie (zdjęcie ${pomiar.goraZdjecia} px, `
+        + `podpis ${pomiar.goraPodpisu} px) — zawinął się zamiast stanąć obok`);
+    } else if (pomiar.lewaPodpisu <= pomiar.lewaZdjecia) {
+      bledy.push('podpis dania nie stoi PO PRAWEJ od zdjęcia '
+        + `(zdjęcie ${pomiar.lewaZdjecia} px, podpis ${pomiar.lewaPodpisu} px)`);
+    }
+
+    if (pomiar.maDanieBezZdjecia
+      && Math.abs(pomiar.lewaPodpisuBezZdjecia - pomiar.lewaKartyBezZdjecia) > 1) {
+      bledy.push('danie bez zdjęcia ma podpis odsunięty od krawędzi karty '
+        + `(karta ${pomiar.lewaKartyBezZdjecia} px, podpis ${pomiar.lewaPodpisuBezZdjecia} px) — `
+        + 'wrócił pusty odnośnik zabierający swój `gap`');
+    }
+
+    if (bledy.length > 0) {
+      rozjazdyTablicy.push({ ekran: ekran.nazwa, szerokosc, bledy, ...pomiar });
+    }
+
+    log(`  ${bledy.length === 0 ? '✓' : '✗'} ${ekran.nazwa} przy ${szerokosc} px`
+      + (pomiar.maPasek ? ` — miniatur ${pomiar.miniatur} w ${pomiar.goryMiniatur.length} wierszu/ach` : '')
+      + (bledy.length ? ` — ${bledy.length} niezgodności` : ''));
+  }
+
+  await kontekst.close();
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -1976,15 +2253,21 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     niespojnychSzerokosci: niespojneSzerokosci.length,
     niespojneSzerokosci,
   },
+  tablicaDnia: {
+    szerokosci: SZEROKOSCI_TABLICY,
+    rozjazdow: rozjazdyTablicy.length,
+    rozjazdy: rozjazdyTablicy,
+  },
 }, null, 2));
 
 log('');
 log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `blokujących: ${blokujacych}, przepełnień w poziomie: ${przepelnienia.length}, `
   + `rozjazdów belki: ${rozjazdyBelki.length}, `
-  + `niespójnych szerokości: ${niespojneSzerokosci.length})`);
+  + `niespójnych szerokości: ${niespojneSzerokosci.length}, `
+  + `rozjazdów tablicy dnia: ${rozjazdyTablicy.length})`);
 // Liczby zbadanych ekranów W TYM SAMYM wierszu co wynik, a nie tylko w pliku:
-// „przepełnień: 0" znaczy coś innego przy 33 zmierzonych ekranach i przy 30.
+// „przepełnień: 0" znaczy coś innego przy 36 zmierzonych ekranach i przy 33.
 log(`Zbadane ekrany — axe: ${zbadanePrzezAxe.size}/${EKRANY.length}, `
   + `układ: ${zmierzoneUkladem.size}/${EKRANY_UKLADU.length}.`);
 
@@ -2030,11 +2313,23 @@ if (niespojneSzerokosci.length > 0) {
   }
 }
 
+if (rozjazdyTablicy.length > 0) {
+  log('');
+  log('Tablica dnia rozjeżdża się w prawej szynie (issue #272):');
+  for (const r of rozjazdyTablicy) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
 if (
   blokujacych > 0
   || przepelnienia.length > 0
   || rozjazdyBelki.length > 0
   || niespojneSzerokosci.length > 0
+  || rozjazdyTablicy.length > 0
 ) {
   process.exit(1);
 }
