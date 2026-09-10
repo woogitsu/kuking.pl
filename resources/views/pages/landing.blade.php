@@ -179,7 +179,8 @@
                         przestał istnieć.
                     </p>
                     {{-- „sam decydujesz" przypisywało czytelnikowi rodzaj męski
-                         (issue #38, D-066) — „sam" nie wnosi tu informacji. --}}
+                         (issue #38, COPY_STYLE.md §2) — „sam" nie wnosi tu
+                         informacji. --}}
                     <p>
                         Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
                     </p>
