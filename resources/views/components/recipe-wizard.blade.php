@@ -330,7 +330,7 @@ new class extends Component
             $this->persist(publish: false);
         } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
-            $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — to, co wpisałeś, jest dalej w formularzu.';
+            $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
 
             return false;
         }

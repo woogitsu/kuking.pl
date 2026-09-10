@@ -317,7 +317,7 @@
                     całą listę, żeby znaleźć „Dodaj".
 
                     „Świeżo z Kuking" wypada z tej listy, bo w kicie jest
-                    zakładką feedu („Obserwowani / Odkrywaj") — czyli stoi
+                    zakładką feedu („Obserwowani / Świeżo z Kuking") — czyli stoi
                     tam, gdzie się go używa, a nie w osobnym menu.
                 --}}
                 {{--

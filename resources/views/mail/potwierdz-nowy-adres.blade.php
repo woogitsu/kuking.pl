@@ -68,7 +68,7 @@
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#5C5347;">
-                            Jeśli nie prosiłeś/aś o nic takiego — nie klikaj i nie musisz nic robić.
+                            Jeśli to nie Ty prosisz o zmianę adresu — nie klikaj i nie musisz nic robić.
                             Bez kliknięcia ten adres nie zostanie z niczym powiązany. Możesz też
                             napisać do nas na {{ config('kuking.community.contact_email') }}.
                         </p>

@@ -37,7 +37,7 @@ class CookedEventController extends Controller
      * można kliknąć raz i wysłać, ale kto chce dopisać coś swojego, nie musi
      * kasować gotowego tekstu i zaczynać od zera.
      */
-    private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję, że ugotowałeś/aś mój przepis! Cieszę się, że wyszło.';
+    private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję za ugotowanie mojego przepisu. Cieszę się, że wyszło.';
 
     public function __construct(
         private readonly RecordCookedEvent $record,

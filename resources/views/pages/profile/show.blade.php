@@ -107,7 +107,7 @@
                 <ul class="stat-row">
                     <li><span class="stat-value">{{ $stats['posts'] }}</span><span class="stat-label">wpisów</span></li>
                     <li><span class="stat-value">{{ $stats['recipes'] }}</span><span class="stat-label">przepisów</span></li>
-                    <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy ugotowała/ugotował</span></li>
+                    <li><span class="stat-value">{{ $stats['cooked'] }}</span><span class="stat-label">razy Ugotowałem</span></li>
                     <li>
                         <a href="{{ route('social.followers', $p->username) }}" class="link-jak-tekst">
                             <span class="stat-value">{{ $stats['followers'] }}</span><span class="stat-label">obserwujących</span>

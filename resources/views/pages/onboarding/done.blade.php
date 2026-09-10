@@ -11,7 +11,11 @@
     <h1>Wszystko gotowe, {{ $name }}</h1>
 
     <p class="text-lead">
-        Konto jest założone. Możesz od razu pokazać, co dziś ugotowałaś —
+        {{-- Zdanie dokładnie z `docs/brand/COPY_STYLE.md` §6 („koniec
+             onboardingu"). Stało tu „ugotowałaś" — jedyna forma żeńska
+             w interfejsie poza e-mailem eksportu, i akurat w miejscu, w którym
+             dokument ma gotowy tekst z formą utrwaloną w claimie głównym. --}}
+        Konto jest założone. Możesz od razu pokazać, co dziś ugotowałeś —
         albo najpierw się rozejrzeć. Jedno i drugie jest w porządku.
     </p>
 
