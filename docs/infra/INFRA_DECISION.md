@@ -864,6 +864,36 @@ już wątpliwości.
 | **Smoke test po deployu** | czy deploy nie zepsuł ścieżek użytkownika | `deploy.yml`, job `verify` |
 | **Metryki Railway** | CPU, RAM, sieć per serwis | wbudowane, przeglądaj co tydzień |
 
+> ⚠️ **SPROSTOWANIE, 10 września 2026 (audyt monitoringu, issue #33).**
+> Tabela wyżej opisuje stan DOCELOWY. Sprawdzone w kodzie i w panelach tego
+> dnia — stan FAKTYCZNY:
+>
+> - **Sentry nie jest zainstalowany** (`composer.json` nie ma
+>   `sentry/sentry-laravel` — `composer install` w środowisku pracy odbija
+>   się od uwierzytelnienia GitHuba, D-041). Zamiast niego działa kanał
+>   `blad_webhook` (Discord/Slack, `docs/infra/MONITORING_BLEDOW.md`) —
+>   **jeśli** właściciel ustawił `LOG_BLAD_WEBHOOK_URL` w Railway. Bez tego
+>   kroku kanał jest martwy i nikt nie dostaje niczego.
+> - **Zewnętrzny uptime NIE JEST założony.** Trasa `/health` istnieje i jest
+>   gotowa do monitorowania (patrz instrukcja krok po kroku niżej w tej
+>   sekcji) — konto UptimeRobot/Better Stack to jedyny krok, którego repo nie
+>   ma prawa zrobić za właściciela.
+> - **PostHog nie jest wpięty.** Rekomendacja „nie teraz" i warunki powrotu:
+>   `docs/DECISIONS.md` D-063.
+> - **Alert na zaległości w kolejce ISTNIEJE od tego audytu** — bullet niżej
+>   w „Czego brakuje" był aktualny do dziś; `/health` sprawdza teraz
+>   `failed_jobs` (sprawdzenie `kolejka`) i, przy skonfigurowanym webhooku,
+>   dzwoni na niego automatycznie (`HealthController::powiadomWebhook()`),
+>   z ograniczeniem częstotliwości, żeby trwająca awaria nie zalała kanału.
+>   Bez zewnętrznej usługi typu Sentry — czyta wyłącznie `failed_jobs`,
+>   niczego nie zmienia w kolejce.
+> - **`/health` sprawdza też pocztę** (na produkcji: czy `MAIL_MAILER`
+>   ma czym wysłać — `App\Support\Poczta`, ta sama klasa co
+>   `kuking:sprawdz-poczte`) i Turnstile (D-050) — obie z tego samego powodu:
+>   żadna z tych awarii nie rzuca wyjątku, którego złapałby mechanizm
+>   raportujący błędy 500, więc bez `/health` nikt by się o nich nie
+>   dowiedział.
+
 ### Dlaczego zewnętrzny uptime monitor jest obowiązkowy
 
 **Railway odpytuje `/health` tylko przy deployu i NIE monitoruje go później.**
@@ -887,12 +917,15 @@ cały łańcuch: DNS → Cloudflare → Railway → aplikacja → baza.
 
 ### Czego brakuje, a warto dodać w fazie beta
 
-- **Alert na zaległości w kolejce.** Rosnąca liczba rekordów w `jobs` albo
-  jakikolwiek wpis w `failed_jobs` = zdjęcia użytkowników nie są przetwarzane,
-  a strona wygląda na sprawną. To najbardziej podstępna awaria w tym systemie.
-  Zaimplementuj jako zadanie schedulera raportujące do Sentry.
+- ~~Alert na zaległości w kolejce.~~ **Zrobione 10 września 2026 (issue #33)
+  bez Sentry:** `/health` sprawdza `failed_jobs` i, przy skonfigurowanym
+  `LOG_BLAD_WEBHOOK_URL`, dzwoni na kanał błędów. Nadal brakuje alertu na
+  rosnącą liczbę rekordów w `jobs` (kolejka, która nie zaczęła jeszcze
+  padać, tylko rośnie) — to zostaje realną luką, bo wymaga progu, który
+  trzeba by dopiero wybrać z danymi produkcyjnymi w ręku.
 - **PostHog** — analityka produktowa (retencja, ścieżka publikacji przepisu).
-  Instancja **EU** (`eu.i.posthog.com`) ze względu na RODO.
+  Instancja **EU** (`eu.i.posthog.com`) ze względu na RODO. Rekomendacja
+  „nie teraz" i warunki powrotu: `docs/DECISIONS.md` D-063.
 - Dashboard w Grafanie — **dopiero gdy będzie co obserwować.**
 
 ---
