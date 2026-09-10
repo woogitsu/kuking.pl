@@ -140,6 +140,11 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             // i zużytego (D-056).
             'login.link' => route('login.link'),
             'login.link.confirm' => route('login.link.confirm', ['token' => 'token-testowy']),
+            // Zaproszenie do założenia konta (D-085) — ta sama rodzina i ta
+            // sama zasada: `noindex`, a byle token renderuje ekran „to
+            // zaproszenie już nie działa" i to jest poprawne 200, bo token
+            // nieistniejący ma wyglądać tak samo jak wygasły i zużyty.
+            'zaproszenie.pokaz' => route('zaproszenie.pokaz', ['token' => 'token-testowy']),
             'password.reset' => route('password.reset', ['token' => 'token-testowy']),
             'search' => route('search'),
             'tags.show' => route('tags.show', $tag->slug),

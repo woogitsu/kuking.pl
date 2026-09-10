@@ -9,8 +9,10 @@ use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WyslijZaproszenieDoRejestracji;
 use App\Models\AuditLogEntry;
 use App\Models\RegistrationInvite;
+use App\Models\User;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\ZaproszenieDoZalozeniaKonta;
+use App\Support\AdresEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\DB;
@@ -107,8 +109,8 @@ class ZaproszenieDoRejestracjiTest extends TestCase
 
         Notification::fake();
 
-        $zKontem = $this->wyslijFormularz($basia->email);
-        $bezKonta = $this->wyslijFormularz('nikogo-takiego@example.com');
+        $zKontem = $this->odpowiedzNa($basia->email);
+        $bezKonta = $this->odpowiedzNa('nikogo-takiego@example.com');
 
         $this->assertTakaSamaOdpowiedz($zKontem, $bezKonta);
     }
@@ -124,11 +126,11 @@ class ZaproszenieDoRejestracjiTest extends TestCase
 
         Notification::fake();
 
-        $zKontem = $this->wyslijFormularz($basia->email);
+        $zKontem = $this->odpowiedzNa($basia->email);
 
         config(['kuking.login_link.zaproszenia.wlaczone' => false]);
 
-        $bezKonta = $this->wyslijFormularz('nikogo-takiego@example.com');
+        $bezKonta = $this->odpowiedzNa('nikogo-takiego@example.com');
 
         Notification::assertNotSentTo(new AnonymousNotifiable, ZaproszenieDoZalozeniaKonta::class);
         $this->assertDatabaseCount('registration_invites', 0);
@@ -169,8 +171,8 @@ class ZaproszenieDoRejestracjiTest extends TestCase
 
         $this->wyslijFormularz('pierwszy@example.com');
 
-        $zKontem = $this->wyslijFormularz($basia->email);
-        $poSuficie = $this->wyslijFormularz('drugi@example.com');
+        $zKontem = $this->odpowiedzNa($basia->email);
+        $poSuficie = $this->odpowiedzNa('drugi@example.com');
 
         // Drugie zaproszenie nie wyszło…
         $this->assertDatabaseCount('registration_invites', 1);
@@ -220,7 +222,7 @@ class ZaproszenieDoRejestracjiTest extends TestCase
 
         Notification::fake();
 
-        $wzorzec = $this->wyslijFormularz($basia->email);
+        $wzorzec = $this->odpowiedzNa($basia->email);
 
         $wstrzyknieto = false;
 
@@ -242,7 +244,7 @@ class ZaproszenieDoRejestracjiTest extends TestCase
             ]);
         });
 
-        $wyscig = $this->wyslijFormularz('nikogo-takiego@example.com');
+        $wyscig = $this->odpowiedzNa('nikogo-takiego@example.com');
 
         $this->assertTrue($wstrzyknieto, 'Konflikt nie został wstrzyknięty — test nie sprawdził wyścigu.');
 
@@ -435,23 +437,72 @@ class ZaproszenieDoRejestracjiTest extends TestCase
     }
 
     /**
+     * Odpowiedź formularza SPISANA W CHWILI ŻĄDANIA.
+     *
+     * ══════════════════════════════════════════════════════════════════
+     *  DLACZEGO NIE DA SIĘ PORÓWNAĆ DWÓCH `TestResponse`
+     * ══════════════════════════════════════════════════════════════════
+     *
+     * Bo `TestResponse::getSession()` oddaje sesję APLIKACJI, jedną i tę
+     * samą dla obu żądań — a komunikat jest w niej zapisany „na jeden
+     * odczyt" (flash). Porównanie po fakcie czytało więc DWA RAZY TĘ SAMĄ
+     * wartość, tę z żądania późniejszego, i przechodziło nawet wtedy, gdy
+     * komunikaty naprawdę się różniły. Złapała to kontrola ujemna: sabotaż
+     * wstawiający osobny komunikat dla adresu Z KONTEM nie obalił testu.
+     *
+     * Dlatego komunikat spisujemy natychmiast po żądaniu, zanim pójdzie
+     * następne.
+     *
+     * @return array{kod: int, gdzie: ?string, komunikat: string}
+     */
+    private function odpowiedzNa(string $adres): array
+    {
+        $odpowiedz = $this->wyslijFormularz($adres);
+
+        /*
+         * SKRÓT WPISANEGO ADRESU WYCINAMY — i to jest jedyna rzecz, którą
+         * wolno tu znormalizować.
+         *
+         * Komunikat niesie maskę adresu (`b***@example.com`), ale bierze ją
+         * z tego, co człowiek WPISAŁ W FORMULARZ, a nie z bazy — więc różni
+         * się zawsze, gdy porównujemy dwa różne adresy, i nie mówi niczego
+         * o tym, czy konto istnieje. Gdybyśmy jej nie wycięli, test nie dałby
+         * się napisać wcale; gdybyśmy zamiast tego porównywali sam fragment
+         * komunikatu, przepuścilibyśmy każdą inną różnicę. Wycinamy więc
+         * dokładnie tę jedną wartość i porównujemy CAŁĄ resztę.
+         */
+        return [
+            'kod' => $odpowiedz->getStatusCode(),
+            'gdzie' => $odpowiedz->headers->get('Location'),
+            'komunikat' => str_replace(
+                AdresEmail::maska(User::normalizeEmail($adres)),
+                '<ADRES>',
+                (string) session('status', ''),
+            ),
+        ];
+    }
+
+    /**
      * Porównuje CAŁE odpowiedzi, nie same komunikaty: kod HTTP, adres
      * przekierowania i treść komunikatu. Różnica w którymkolwiek z tych
      * trzech jest wyrocznią „kto ma konto".
+     *
+     * @param  array{kod: int, gdzie: ?string, komunikat: string}  $a
+     * @param  array{kod: int, gdzie: ?string, komunikat: string}  $b
      */
-    private function assertTakaSamaOdpowiedz(TestResponse $a, TestResponse $b): void
+    private function assertTakaSamaOdpowiedz(array $a, array $b): void
     {
-        $this->assertSame($a->getStatusCode(), $b->getStatusCode(),
+        $this->assertSame($a['kod'], $b['kod'],
             'Kod HTTP zdradza, czy na podanym adresie jest konto.');
 
-        $this->assertSame($a->headers->get('Location'), $b->headers->get('Location'),
+        $this->assertSame($a['gdzie'], $b['gdzie'],
             'Adres przekierowania zdradza, czy na podanym adresie jest konto.');
 
-        $this->assertSame(
-            (string) $a->getSession()->get('status', ''),
-            (string) $b->getSession()->get('status', ''),
-            'Komunikat zdradza, czy na podanym adresie jest konto.',
-        );
+        $this->assertNotSame('', $a['komunikat'],
+            'Formularz nie zostawił żadnego komunikatu — porównanie niczego by nie sprawdziło.');
+
+        $this->assertSame($a['komunikat'], $b['komunikat'],
+            'Komunikat zdradza, czy na podanym adresie jest konto.');
     }
 
     /** Token jawny wyjęty z wysłanej wiadomości — jedyne miejsce, gdzie żyje. */

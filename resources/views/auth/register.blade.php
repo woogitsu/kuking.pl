@@ -40,9 +40,13 @@
             <div class="field">
                 <span class="field-label">Twój adres e-mail</span>
                 <p class="field-static"><strong>{{ $zaproszenie->email }}</strong></p>
+                {{-- BEZ RODZAJU GRAMATYCZNEGO (docs/brand/COPY_STYLE.md §2):
+                     „kliknąłeś" przypisywało czytelnikowi płeć. Rzeczownik
+                     zamiast czasownika w czasie przeszłym — i zdanie jest
+                     przy okazji krótsze. --}}
                 <span class="field-help">
-                    Ten adres jest już potwierdzony — kliknąłeś link z tej skrzynki, więc żadna
-                    kolejna wiadomość od nas nie musi przyjść.
+                    Ten adres jest już potwierdzony — wystarczyło kliknięcie linku z tej skrzynki,
+                    więc żadna kolejna wiadomość od nas nie musi przyjść.
                 </span>
             </div>
         @else
