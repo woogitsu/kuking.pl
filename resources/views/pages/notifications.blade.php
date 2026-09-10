@@ -1,6 +1,17 @@
 <x-layout title="Powiadomienia" :noindex="true">
     <h1>Powiadomienia</h1>
 
+    {{--
+        Ten sam przycisk stoi TU i jeszcze raz pod listą (issue #276).
+
+        Przy trzech powiadomieniach o różnej długości — jedno z nich
+        z kilkoma akapitami uzasadnienia decyzji moderacyjnej — przycisk
+        u góry wychodzi z ekranu, zanim człowiek skończy czytać. Właściciel
+        nie zarejestrował, że przycisk w ogóle tam jest. Powielenie go pod
+        listą jest tańsze i pewniejsze niż `position: sticky` na pasku:
+        żadna wysokość paska nie zostawia go bez akcji na końcu, a dla
+        grupy 50+ nic tu nie może zależeć od zachowania przy przewijaniu.
+    --}}
     @if($notifications->total() > 0)
         <form class="mb-5" method="POST" action="{{ route('notifications.read') }}">
             @csrf
@@ -263,6 +274,41 @@
                             @csrf
                             <button class="btn btn-secondary" type="submit">Zobacz</button>
                         </form>
+                    @elseif($notification->isUnread())
+                        {{--
+                            ISSUE #276 — DZIURA, NIE PRZEOCZENIE STYLISTYCZNE.
+
+                            Część powiadomień („Sprawdziliśmy Twoje odwołanie.
+                            Cofamy decyzję.", „Moderacja Kuking ukryła Twoją
+                            treść.") nie ma dokąd prowadzić — cała informacja
+                            stoi już w samej treści karty. Do tej poprawki takie
+                            powiadomienie w ogóle nie miało przycisku, bo ten sam
+                            `<form>` co wyżej stał wyłącznie pod `@if($link)`.
+                            Jedyną drogą, żeby zgasić przy nim plakietkę, było
+                            „oznacz wszystkie" — co dla kogoś, kto akurat czyta
+                            resztę listy, oznacza zgaszenie też tego, czego
+                            jeszcze nie widział.
+
+                            `NotificationController::open()` już od 8 września
+                            radzi sobie z brakiem celu: oznacza `read_at`
+                            i (bez adresu) po prostu wraca na tę samą stronę
+                            (`return back()`) — ten kod nigdy nie był zepsuty,
+                            po prostu nie dało się go wywołać. Naprawa jest
+                            więc TU, w widoku: ten sam formularz, ten sam POST,
+                            inny napis — „Zobacz" kłamałoby, skoro nie ma dokąd
+                            zaprowadzić.
+
+                            Widoczny tylko dla NIEPRZECZYTANYCH: po kliknięciu
+                            `read_at` już stoi, więc drugi przycisk obok tej
+                            samej treści nic by więcej nie zrobił — a widoczna
+                            akcja, która nie robi nic nowego, jest dokładnie tym
+                            rodzajem „martwego przycisku", którego AGENTS.md §5
+                            zabrania.
+                        --}}
+                        <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit">Oznacz jako przeczytane</button>
+                        </form>
                     @endif
 
                     {{--
@@ -286,6 +332,20 @@
         </article></li>
         @endforeach
     </ul>
+
+    {{--
+        DRUGI PRZYCISK „OZNACZ WSZYSTKIE" — POD LISTĄ, PO PRZECZYTANIU.
+
+        Ten sam formularz co na górze, z tym samym uzasadnieniem: przy
+        długiej liście (uzasadnienia moderacyjne mają po kilka akapitów)
+        przycisk sprzed listy jest dawno poza ekranem, gdy człowiek
+        skończy czytać ostatnią kartę. Bez tego jedyna droga do „oznacz
+        wszystkie" to przewinięcie z powrotem na górę.
+    --}}
+    <form class="mt-5" method="POST" action="{{ route('notifications.read') }}">
+        @csrf
+        <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
+    </form>
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
             Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.

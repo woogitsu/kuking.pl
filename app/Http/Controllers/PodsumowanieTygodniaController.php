@@ -6,7 +6,9 @@ namespace App\Http\Controllers;
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\User;
+use App\Models\WpisZgody;
 use Illuminate\View\View;
 
 /**
@@ -47,19 +49,25 @@ use Illuminate\View\View;
  */
 class PodsumowanieTygodniaController extends Controller
 {
-    public function wypisz(User $user, ZapiszSygnal $sygnal): View
+    public function wypisz(User $user, ZapiszSygnal $sygnal, PrzestawZgodeNaDigest $zgoda): View
     {
-        $bylZapisany = (bool) $user->wants_weekly_digest;
-
-        // `forceFill()`, bo zgoda jest tu wycofywana BEZ formularza i bez
-        // sesji — nie ma czego walidować, jest jedno pole i jedna wartość.
+        // ZGODĘ GASI KLASA DOMENOWA (D-072), a nie `forceFill()` w tym
+        // miejscu: razem z flagą powstaje wiersz `wycofana` w `dziennik_zgod`,
+        // ze ŹRÓDŁEM `link_wypisania` — czyli z dowodem, że decyzja przyszła
+        // z odnośnika w liście, a nie z ekranu ustawień. Tej połowy dowodu
+        // (i całej reszty) nie było tu do 10 września w ogóle — audyt DB1.
         //
         // BEZ WARUNKU NA STATUS KONTA, świadomie: zgodę wolno wycofać zawsze
         // i natychmiast (RODO art. 7 ust. 3). Konto zawieszone albo zgłoszone
         // do usunięcia i tak by listu nie dostało (`OdbiorcyDigestu`), ale
         // odmowa wypisania z powodu stanu konta byłaby odmową wykonania
-        // prawa, a nie zabezpieczeniem.
-        $user->forceFill(['wants_weekly_digest' => false])->save();
+        // prawa, a nie zabezpieczeniem. Z dokładnie tego samego powodu
+        // nieudany zapis DOWODU nie wstrzymuje wypisania — patrz asymetria
+        // opisana w `PrzestawZgodeNaDigest`.
+        //
+        // Zwrócone `true` znaczy „stan naprawdę się zmienił" i zastępuje
+        // dawne odczytanie flagi przed zapisem.
+        $bylZapisany = $zgoda->handle($user, false, WpisZgody::ZRODLO_LINK_WYPISANIA);
 
         if ($bylZapisany) {
             // Sygnał TYLKO przy realnej zmianie. Drugie wejście na ten sam
@@ -75,9 +83,18 @@ class PodsumowanieTygodniaController extends Controller
         ]);
     }
 
-    public function wracam(User $user): View
+    public function wracam(User $user, PrzestawZgodeNaDigest $zgoda): View
     {
-        $user->forceFill(['wants_weekly_digest' => true])->save();
+        // Powrót jest UDZIELENIEM zgody, więc idzie tą samą drogą co haczyk
+        // w ustawieniach — z własnym źródłem `link_powrotny`, żeby w dzienniku
+        // było widać, że człowiek naprawiał wypisanie z ekranu potwierdzenia
+        // (najczęściej po skanerze odnośników w firmowej poczcie, patrz
+        // komentarz klasy), a nie zapisywał się od nowa w ustawieniach.
+        //
+        // Przy udzieleniu flaga i dowód powstają ATOMOWO: gdyby zapis dowodu
+        // padł, ta strona oddaje błąd, a wysyłka NIE zostaje włączona bez
+        // dowodu podstawy prawnej (D-072).
+        $zgoda->handle($user, true, WpisZgody::ZRODLO_LINK_POWROTNY);
 
         return view('pages.podsumowanie-wrocono', [
             'wypisz' => OdnosnikWypisania::dla($user),
