@@ -2729,6 +2729,146 @@ zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 `docs/INSPIRATION_DECISIONS.md` poz. 1.11 ·
 `docs/legal/SECURITY_BASELINE.md` §4
 
+## D-051 · Stopka: metryczka wersji 8 px i przełącznik motywu bez widocznego napisu — świadomy wyjątek od AGENTS.md §5
+
+**Data:** 9 września 2026 · Issue #205 · Decyzja właściciela · Status: **obowiązuje**
+
+Przy przebudowie stopki na kilka poziomów (issue #205) właściciel poprosił
+wprost o dwie rzeczy, które łamią `AGENTS.md` §5:
+
+1. metryczkę wersji („Alfa 0.1 · data wydania · commit") **drukiem 5–8 px**,
+   podczas gdy §5 mówi „tekst ≥ 18 px" (najmniejszy token w ogóle,
+   `--text-meta`, to 15 px — 8 px jest poniżej NAJMNIEJSZEGO tokenu
+   w systemie, nie tylko poniżej minimum produktowego);
+2. przełącznik motywu jako **samą ikonę**, bez widocznego napisu obok,
+   podczas gdy §5 mówi „ikona nigdy nie jest jedynym opisem ważnej akcji".
+
+Właściciel dostał przed decyzją trzy warianty, w tym wariant zgodny z §5
+(wersja na `--text-meta`, przełącznik jako ikona + krótki podpis „Ciemny" /
+„Jasny"). **Wybrał świadomie wariant, który regułę łamie w tych dwóch
+punktach** — bo w jego ocenie wynik wygląda lepiej i zajmuje mniej miejsca
+w stopce niż jakikolwiek z wariantów zgodnych. To jest jego produkt i jego
+decyzja o tym, jak ma wyglądać stopka — a nie pomyłka do poprawienia przy
+najbliższej okazji.
+
+### DLACZEGO TO JEST WYJĄTEK, NIE ZMIANA REGUŁY
+
+`AGENTS.md` §5 zostaje **dokładnie taki, jaki jest, wszędzie indziej**.
+Ten wpis nie obniża minimum 18 px ani nie znosi zakazu samej ikony dla
+reszty serwisu — od jutra nowy ekran, który spróbuje 12-pikselowego tekstu
+albo przycisku bez podpisu, dalej jest błędem, nie precedensem. D-051 jest
+nazwaną, zapisaną dziurą w regule, nie furtką.
+
+### ZAKRES WYJĄTKU — TYLKO TE DWA ELEMENTY
+
+- `.site-version` w `resources/views/components/layout.blade.php`
+  (metryczka wersji: etap produktu, data wydania, skrót commita) —
+  **8 px**, górny kraniec przedziału 5–8 px, który podał właściciel: to
+  najczytelniejszy wybór z tego, o co poprosił.
+- `.site-footer-motyw` / `.site-footer-motyw-przycisk` (przełącznik
+  motywu w stopce) — **sama ikona (`ksiezyc` przy jasnym motywie, `slonce`
+  przy ciemnym — patrz „IKONA WŁASNA, NIE POŻYCZONA" niżej), bez
+  widocznego napisu obok**.
+
+Nigdzie indziej. W szczególności: nawigacja mobilna, przyciski akcji,
+podpisy pod ikonami w innych miejscach serwisu i wszystkie pozostałe
+teksty stopki (odnośniki, nagłówki grup, hasło marki) trzymają się §5 bez
+zmian — odnośniki w stopce są zwykłymi linkami ≥16 px z widocznym tekstem,
+tak jak przed przebudową.
+
+### CO MIMO TO ZOSTAJE NIENARUSZONE
+
+Złamanie §5 dotyczy WYŁĄCZNIE rozmiaru tekstu i widoczności napisu.
+Cztery rzeczy nie są częścią tego kompromisu i zostały utrzymane wprost:
+
+1. **Przycisk motywu ma nazwę dostępną.** `aria-label` i `title` niosą
+   dokładnie ten sam tekst, co dawny widoczny napis („Włącz ciemny
+   wygląd" / „Włącz jasny wygląd"), plus `<span class="visually-hidden">`
+   jako drugie, tanie zabezpieczenie. Sama ikona bez nazwy dostępnej jest
+   dla czytnika ekranu przyciskiem-widmem — tego właściciel nie prosił
+   złamać, i to jest różnica między „mniej miejsca" a „zepsute".
+2. **Pole kliknięcia zostaje ≥48×48 px.** To, co zajmowało miejsce
+   w stopce, był NAPIS OBOK ikony, nie wysokość ani szerokość samego
+   przycisku — `.btn` już dawało `min-height: 3rem` (48 px) i padding,
+   który przy samej ikonie daje ~64 px szerokości. Zdjęcie napisu nie
+   zmniejszyło obszaru dotyku ani o piksel.
+3. **Kontrast metryczki wersji zostaje AA.** `--color-ink-muted` na
+   `--color-surface-raised` liczy 7,54:1 (`docs/design/DESIGN_SYSTEM.md`),
+   daleko od progu 4,5:1 — i to jest niezależne od rozmiaru czcionki.
+   Rozmiar tekstu jest decyzją właściciela; nieczytelny kolor byłby
+   dodatkową, nikim nie zamówioną usterką, i to jest granica, której ten
+   wpis broni.
+4. **Metryczka wersji jest widoczna zawsze, nie za `hover` ani za
+   `title`.** Właściciel prosił o mały druk, nie o ukrycie — informacja
+   dostępna tylko przez najazd kursorem jest dla części osób (telefon,
+   dotyk) niedostępna w ogóle (`docs/UX_50_PLUS.md`). `.site-version`
+   nie ma `display: none`, `hidden` ani odpowiednika schowanego za
+   interakcją; stoi w HTML-u i na ekranie tak samo, jak dziś.
+
+### IKONA WŁASNA, NIE POŻYCZONA
+
+Pierwsza wersja tego wpisu i tego PR-a używała do przełącznika istniejącej
+ikony `settings` (zębatka) jako „najbliższego sensownego zamiennika" — zestaw
+`<x-ikona>` nie miał wtedy księżyca ani słońca. To był błąd, złapany przy
+przeglądzie: `settings` to DOKŁADNIE ten sam kształt, którym w menu bocznym
+oznaczona jest pozycja „Ustawienia" (`route('settings.*')`,
+`resources/views/components/layout.blade.php`). Po zmianie w serwisie
+istniałyby więc dwa różne przyciski o tym samym kształcie.
+
+Przy zwykłym przycisku z podpisem dwie różne rzeczy pod tym samym kształtem
+dałoby się wybaczyć — podpis rozstrzyga. Ale przełącznik motywu z tego
+wpisu jest z definicji BEZ widocznego podpisu (punkt 2 wyżej), więc kształt
+jest jedyną wskazówką, co przycisk robi. Pożyczony kształt zamieniał więc
+oszczędność miejsca w gotową pomyłkę do kliknięcia — dokładnie tego typu
+usterkę, przed którą ostrzega `docs/UX_50_PLUS.md`.
+
+Naprawa: `resources/views/components/ikona.blade.php` dostał dwa nowe,
+własne kształty — `ksiezyc` i `slonce`, tym samym stylem co reszta zestawu
+(sam obrys, `stroke-width: 1.8`, bez wypełnień, ten sam `viewBox`). Ikona
+pokazuje WYNIK kliknięcia, spójnie z tekstem, który już tam jest: jasny
+motyw → napis „Włącz ciemny wygląd" → `ksiezyc`; ciemny motyw → napis
+„Włącz jasny wygląd" → `slonce`. `WyborMotywuTest` sprawdza, że kształt
+zmienia się razem z motywem, żeby ta sama pomyłka (jeden kształt na oba
+stany) nie wróciła po cichu.
+
+### DLACZEGO NIE „NAJMNIEJSZY TOKEN" (`--text-meta`, 15 px)
+
+Rozważona i odrzucona: użycie istniejącego, udokumentowanego tokenu
+zamiast nowej wartości `0.5rem`. 15 px jest wciąż wyraźnie większe niż to,
+o co poprosił właściciel („małym druczkiem, np. 5–8 px") — użycie tokenu
+zamiast liczby z jego przedziału byłoby po cichu cofnięciem decyzji, a nie
+jej wykonaniem. Zamiast tego metryczka dostaje własną wartość
+(`calc(0.5rem * var(--user-text-scale, 1))`), skalowaną tak samo jak reszta
+typografii serwisu — patrz punkt niżej.
+
+### SKALOWANIE Z USTAWIENIEM CZYTELNOŚCI
+
+8 px to rozmiar BAZOWY, nie sztywny. `.site-version` mnoży go przez
+`var(--user-text-scale, 1)`, dokładnie jak każdy inny token typografii
+w `tokens.css`. Bez tego osoba, która celowo powiększyła sobie tekst na
+`/ustawienia/czytelnosc`, dostałaby jedno miejsce w całym serwisie, którego
+jej własne ustawienie nie dotyczy — czyli nowy, nikim nie zamówiony błąd
+obok tego, na który właściciel świadomie się zgodził.
+
+### DROGA WYCOFANIA
+
+Właściciel zobaczy efekt na produkcji i może uznać, że jednak wolałby
+jeden z odrzuconych wariantów (np. ikona z krótkim podpisem „Ciemny" /
+„Jasny", albo wersja na `--text-meta`). To jest zwykła zmiana wizualna:
+podnieść `font-size` `.site-version` do tokenu (np. `--text-meta`) i/lub
+dopisać widoczny tekst obok `<x-ikona>` w `.site-footer-motyw`, usunąć ten
+wpis albo oznaczyć go jako uchylony. Żadna z tych zmian nie rusza schematu
+bazy, tras ani logiki `ThemeController` — cofnięcie jest kosmetyczne
+i jednoplikowe (`resources/views/components/layout.blade.php` +
+`resources/css/app.css`).
+
+📄 `resources/views/components/layout.blade.php` (`.site-footer`) ·
+`resources/css/app.css` (`.site-version`, `.site-footer-motyw*`) ·
+`resources/views/components/ikona.blade.php` ·
+`tests/Feature/WyborMotywuTest.php` ·
+`tests/Feature/StopkaPoziomyTest.php` ·
+`docs/design/DESIGN_SYSTEM.md` (kontrast `ink-muted`)
+
 ---
 
 ## D-052 · Automat oznacza podejrzane treści do przeglądu — trzecie źródło w `reports`, nigdy konsekwencja dla autora
@@ -3007,6 +3147,140 @@ pole, tylko wyraźniejszy odnośnik — który już tam stoi, z podglądem awata
 `tests/Feature/ZdjecieProfiloweNaSkrotyTest.php` ·
 `tests/Support/JpegZeWspolrzednymiGps.php`
 
+---
+
+## D-055 · Druga para oczu to model OpenAI, który podnosi rękę — nigdy nie zamyka drzwi
+
+**Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+
+Właściciel: *„model AI będzie, OpenAI daje darmowy model moderation coś tam"*,
+a doprecyzowując: *„omni-moderation-latest, jego wprowadzić trzeba do
+moderowania takiego, że przetwarza i daje »alarm« w panelu i ewentualnie na
+maila"*.
+
+Publikowane wpisy i komentarze — a przy wpisach także **zdjęcia** — idą do
+`omni-moderation-latest`. Wynik powyżej naszego progu staje się kolejnym
+`Sygnal`-em w tym samym zadaniu, które liczy sygnały lokalne z **D-052**,
+i kończy się dokładnie tak samo: jedną pozycją w kolejce moderatora z powodem
+napisanym po polsku. Treść zostaje widoczna, autor niczego nie zauważa.
+
+### TO ŁAPIE INNĄ KLASĘ TREŚCI NIŻ NASZ REALNY PROBLEM
+
+Moderation API ocenia **nienawiść, przemoc, treści seksualne
+i samookaleczenie**. **Spamu nie ocenia w ogóle** — a spam jest tym, co
+przyjdzie razem z falą z Garnek.pl: „zarobki z domu", odnośniki, numery
+telefonu. To jest **uzupełnienie** sygnałów z D-052, nie ich zamiennik.
+Zapisane wprost, bo inaczej ktoś uzna, że skoro jest AI, to spam mamy
+załatwiony, i wyłączy tamte trzy jako zbędne.
+
+### NAJWIĘKSZA WARTOŚĆ SĄ TU ZDJĘCIA
+
+Kuking stoi na fotografiach obiadów wrzucanych przez nieznajomych. To jest
+jedyna treść w tym serwisie, której **nikt nie przeczyta**, dopóki ktoś jej
+nie zgłosi — tekst przynajmniej mija się z ludzkim okiem w feedzie. Wersja
+`omni` ocenia obrazy i to jest powód, dla którego ta decyzja w ogóle ma
+wartość większą niż „mamy AI".
+
+Zdjęcie idzie jako `data:` z wariantu `thumb` przekodowanego do JPEG: wariant
+nie ma EXIF-u, czyli współrzędnych kuchni, a `data:` zamiast adresu, bo
+publiczny adres dla OpenAI byłby publiczny także dla wszystkich innych.
+
+### DANE WYCHODZĄ POZA EOG — I DLATEGO NAJPIERW DOKUMENTY
+
+Wysłanie treści do OpenAI to powierzenie przetwarzania podmiotowi w USA.
+Zrobione RAZEM z kodem, nie po nim:
+
+- `resources/legal/polityka-prywatnosci.md` — OpenAI w tabeli podmiotów
+  przetwarzających, osobny akapit „co wysyłamy i czego NIE wysyłamy" oraz
+  drugi wyjątek w akapicie o przekazywaniu poza EOG;
+- `resources/legal/zasady.md` punkt 12 — informacja dla użytkownika, że treść
+  jest oceniana maszynowo, i wprost, że **żadne z tych narzędzi niczego nie
+  ukrywa, nie usuwa, nie blokuje ani nie ogranicza zasięgu** (DSA art. 14
+  ust. 1);
+- `UzasadnienieDecyzji::skadSprawa()` — autor decyzji dowiaduje się, że treść
+  wskazało narzędzie oceniające maszynowo, a nie czyjeś zgłoszenie (art. 17
+  ust. 3 lit. b i c).
+
+Pilnuje tego `PolitykaPrywatnosciWymieniaKazdaUslugeTest` z PR #224: obecność
+klasy `App\Moderacja\KlientOpenAI` w kodzie oblewa test, dopóki w polityce nie
+padnie słowo „OpenAI".
+
+**Do API nie idzie NIC identyfikującego autora** — ani adres e-mail, ani nazwa
+konta, ani identyfikator wpisu, ani adres IP. To nie jest ostrożność na zapas,
+tylko warunek tego, co napisaliśmy w polityce, i jedyny powód, dla którego ta
+funkcja mieści się w minimalizacji danych (`AGENTS.md` §7). Treści prywatne
+nie wychodzą w ogóle.
+
+### GRANICA TA SAMA CO W D-052, TYLKO WAŻNIEJSZA
+
+Model podnosi rękę, nigdy nie zamyka drzwi. Żadnego automatycznego ukrywania,
+wyciszania ani blokowania na podstawie wyniku — poz. 3.10
+(`docs/INSPIRATION_DECISIONS.md`) powstała dokładnie na taką sytuację. Model
+uczony głównie na angielszczyźnie będzie się mylił na polskim, a już
+zwłaszcza na języku, jakim mówi o jedzeniu siedemdziesięcioletnia kobieta
+z Podkarpacia. Fałszywy alarm kosztuje jedną pozycję w kolejce i nic więcej.
+
+**Nie używamy pola `flagged` z API.** Progi trzymamy u siebie
+(`moderation.model.prog`, domyślnie 0,5): cudza decyzja przy polszczyźnie
+i kuchni bywa hojna — „zabiłam kurę na rosół", „krwisty stek", „ubić pianę" —
+a każde trafienie kosztuje uwagę jedynego moderatora. Kategorie pilne mają
+próg NIŻSZY (0,2): tam wolimy fałszywy alarm od przeoczenia.
+
+### POCZTA: ZBIORCZO, BO INACZEJ PRZESTANIE BYĆ CZYTANA
+
+Jeden list na każdą oznaczoną treść zamieniłby przy fali migracyjnej skrzynkę
+moderatora w śmietnik — a skończyłoby się tym, że przestałby te listy
+otwierać, czyli alarm przestałby działać dokładnie wtedy, gdy jest potrzebny.
+
+- **Podsumowanie zbiorcze** raz dziennie o 07:00
+  (`kuking:podsumowanie-automatu`). Nie wychodzi, gdy nie ma o czym pisać.
+- **List natychmiastowy** wyłącznie dla `KategorieModeracji::PILNE` — treści
+  seksualnych i wszystkiego, co dotyczy dzieci. To jest CAŁA lista i ma taka
+  zostać: gdyby „pilne" znaczyło pięć rzeczy, rozróżnienie przestałoby
+  cokolwiek znaczyć.
+
+Drugi, niezależny powód tego ograniczenia: EmailLabs na planie darmowym daje
+**300 listów dziennie**, dzielone z potwierdzeniami rejestracji. Alarmy
+moderacyjne nie mogą zjeść limitu potrzebnego na to, żeby ktoś w ogóle mógł
+założyć konto.
+
+### JEDNO ZADANIE, NIE DWA
+
+Ocena modelem dolicza się do sygnałów lokalnych w tym samym
+`PrzeanalizujTresc`. Dwa osobne zadania próbowałyby postawić dwa oznaczenia
+tej samej treści, a indeks `reports_jeden_automat_na_tresc` (D-052)
+przepuściłby tylko to, które wygrało wyścig — ocena modelu potrafiłaby wtedy
+przepaść dlatego, że wpis zawierał numer telefonu.
+
+### WYCOFANIE
+
+1. **Wyłączenie bez wdrożenia:** wyczyszczenie `OPENAI_MODERATION_KEY`.
+   `KlientOpenAI::oceniamy()` oddaje wtedy `false`, żadne żądanie nie
+   wychodzi, sygnały lokalne z D-052 działają dalej bez zmian.
+2. **Wyłączenie samych listów:** wyczyszczenie `KUKING_MODEL_ALARM_EMAIL` —
+   zostaje sama kolejka w panelu.
+3. **Wycofanie kodu:** rewert commita. **Nie ma migracji ani zmiany
+   schematu** — `automat_model` to kolejna wartość w `reports.reason`, kolumna
+   bez CHECK-u.
+4. Przy trwałym wycofaniu trzeba zdjąć OpenAI z polityki prywatności
+   i z punktu 12 zasad — dokument nie może wymieniać dostawcy, do którego nic
+   nie wychodzi.
+
+**Zmiana wymaga:** pomiaru z `kuking:raport-sygnalow`, nie wrażenia.
+Podniesienie albo obniżenie progu to zmiana liczby pozycji w kolejce —
+i wyłącznie tego.
+
+📄 `app/Moderacja/KlientOpenAI.php` · `app/Moderacja/OcenaModelem.php` ·
+`app/Moderacja/WynikOceny.php` · `app/Moderacja/KategorieModeracji.php` ·
+`app/Notifications/PilnyAlarmModeracyjny.php` ·
+`app/Notifications/PodsumowanieKolejkiAutomatu.php` ·
+`app/Console/Commands/PodsumowanieAutomatu.php` ·
+`app/Jobs/PrzeanalizujTresc.php` · `config/kuking.php` (`moderation.model`) ·
+`routes/console.php` · `resources/legal/polityka-prywatnosci.md` ·
+`resources/legal/zasady.md` (punkt 12) ·
+`app/Domain/Moderation/UzasadnienieDecyzji.php` ·
+`tests/Feature/ModeracjaModelemTest.php` ·
+`docs/legal/SYGNALY_AUTOMATU.md` §8 · `docs/MODERATION.md`
 
 ---
 

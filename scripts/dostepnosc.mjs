@@ -235,6 +235,18 @@ const EKRANY = [
 const EKRANY_UKLADU = [
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
+  /*
+   * „Co chcesz dodać?" — rozdroże przed dodaniem wpisu albo przepisu.
+   * Dopisane przy #205, kiedy ekran dostał treść w prawej szynie. Ekrany
+   * `/dodaj/zdjecie` i `/dodaj/przepis` (czyli to, co jest ZA tym rozdrożem)
+   * były mierzone od dawna, a samo rozdroże nie — więc nagłówek bloku szyny
+   * mógł na nim rozepchnąć stronę i nikt by tego nie zobaczył. Dokładnie to
+   * się stało przy pierwszej wersji tamtej zmiany, tyle że na „Napisz do nas":
+   * `.szyna-tytul` był kontenerem flex bez zawijania, więc przy 320 px
+   * i czcionce przeglądarki 200% najdłuższe słowo nagłówka dyktowało
+   * szerokość całego dokumentu (330 px zamiast 320).
+   */
+  { nazwa: 'dodaj (rozdroże)', adres: '/dodaj', zalogowany: true },
   { nazwa: 'powiadomienia', adres: '/powiadomienia', zalogowany: true },
   // Ekran autora: kolejność zdjęć i wybór wyglądu (issue #92). Miniatura,
   // dwa przyciski „w górę / w dół" i trzy kafelki wyboru w jednym wierszu —

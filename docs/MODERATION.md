@@ -130,6 +130,26 @@ zauważa, nikomu nic się nie dzieje.
 - Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
 - Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
 
+### Druga para oczu: model OpenAI (D-055)
+
+Ta sama kolejka dostaje pozycje z **`omni-moderation-latest`**, który ocenia
+tekst i **zdjęcia** pod kątem nienawiści, przemocy, treści seksualnych
+i samookaleczenia. Zdjęcia są tu największą wartością: to jedyna treść, której
+nikt nie przeczyta, dopóki ktoś jej nie zgłosi.
+
+- **Spamu ten model nie ocenia w ogóle** — jest uzupełnieniem sygnałów wyżej,
+  nie ich zamiennikiem.
+- Wynik **niczego nie ukrywa i nie blokuje**; kończy się pozycją w kolejce
+  z powodem po polsku („Model ocenił zdjęcie: treść seksualna (pewność 82%)").
+- Do OpenAI idzie sama treść — **bez adresu e-mail, nazwy konta,
+  identyfikatora i adresu IP**. Treści prywatne nie wychodzą w ogóle.
+  Opisuje to `resources/legal/polityka-prywatnosci.md`, a użytkownikowi mówi
+  o tym punkt 12 zasad.
+- Poczta: **jedno podsumowanie dziennie** o 07:00
+  (`kuking:podsumowanie-automatu`); list natychmiastowy wyłącznie przy
+  treściach seksualnych i wszystkim, co dotyczy dzieci.
+- Wyłącznik: pusty `OPENAI_MODERATION_KEY`.
+
 Sygnały, progi, spodziewane fałszywe alarmy, lista rzeczy świadomie
 NIEROBIONYCH i moment, w którym to podejście przestaje wystarczać:
 **`docs/legal/SYGNALY_AUTOMATU.md`**.

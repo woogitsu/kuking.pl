@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
+use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Domain\Moderation\Sygnaly\WykrywaczSygnalow;
 use App\Models\Comment;
 use App\Models\Post;
+use App\Models\Report;
+use App\Moderacja\OcenaModelem;
+use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 /**
@@ -83,7 +88,21 @@ class PrzeanalizujTresc implements ShouldQueue
         return self::dispatch(self::TYP_KOMENTARZ, (string) $comment->getKey());
     }
 
-    public function handle(WykrywaczSygnalow $wykrywacz, OznaczDoPrzegladu $oznacz): void
+    /**
+     * DWA ŹRÓDŁA SYGNAŁÓW, JEDNA POZYCJA W KOLEJCE.
+     *
+     * Lokalne wzorce (`WykrywaczSygnalow`, D-052) szukają SPAMU; model
+     * (`OcenaModelem`, D-055) ocenia nienawiść, przemoc, treści seksualne
+     * i samookaleczenie — i robi to także na ZDJĘCIACH. To są rozłączne
+     * klasy treści i żadne z nich nie zastępuje drugiego.
+     *
+     * SKLEJAMY JE W JEDNYM ZADANIU, a nie w dwóch. Dwa zadania próbowałyby
+     * postawić dwa oznaczenia tej samej treści, a indeks
+     * `reports_jeden_automat_na_tresc` przepuściłby tylko pierwsze — czyli
+     * to, które akurat wygrało wyścig. Ocena modelu potrafiłaby wtedy
+     * przepaść dlatego, że wpis zawierał numer telefonu.
+     */
+    public function handle(WykrywaczSygnalow $wykrywacz, OcenaModelem $model, OznaczDoPrzegladu $oznacz): void
     {
         if (! config('kuking.moderation.sygnaly.wlaczone')) {
             return;
@@ -96,7 +115,13 @@ class PrzeanalizujTresc implements ShouldQueue
                 return;
             }
 
-            $oznacz->handle($tresc, $wykrywacz->dla($tresc));
+            $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
+
+            $oznaczenie = $oznacz->handle($tresc, $sygnaly);
+
+            if ($oznaczenie !== null) {
+                $this->alarmujJesliPilne($oznaczenie, $sygnaly);
+            }
         } catch (Throwable $blad) {
             // Bez treści analizowanego wpisu w logu — to jest cudzy tekst,
             // a log błędów nie jest miejscem na treści użytkowników
@@ -107,6 +132,39 @@ class PrzeanalizujTresc implements ShouldQueue
                 'blad' => $blad->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * List do moderatora — WYŁĄCZNIE przy kategoriach, które nie mogą czekać.
+     *
+     * Zwykłe oznaczenia idą raz dziennie, jednym podsumowaniem
+     * (`kuking:podsumowanie-automatu`). Gdyby każde oznaczenie wysyłało list,
+     * przy fali nowych kont skrzynka moderatora zamieniłaby się w śmietnik —
+     * a skończyłoby się tym, że przestałby te listy otwierać, czyli alarm
+     * przestałby działać dokładnie wtedy, gdy jest potrzebny. Osobno liczy
+     * się limit poczty: 300 listów dziennie dzielone z potwierdzeniami
+     * rejestracji.
+     *
+     * Pusty `alarm_email` znaczy „bez poczty" i jest normalnym stanem
+     * lokalnie oraz w testach — zostaje sama kolejka w panelu.
+     *
+     * @param  list<Sygnal>  $sygnaly
+     */
+    private function alarmujJesliPilne(Report $oznaczenie, array $sygnaly): void
+    {
+        $adres = config('kuking.moderation.model.alarm_email');
+
+        if (! is_string($adres) || $adres === '') {
+            return;
+        }
+
+        $pilne = array_filter($sygnaly, static fn (Sygnal $s): bool => $s->pilny);
+
+        if ($pilne === []) {
+            return;
+        }
+
+        Notification::route('mail', $adres)->notify(new PilnyAlarmModeracyjny($oznaczenie));
     }
 
     /**

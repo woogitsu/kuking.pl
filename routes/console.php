@@ -183,3 +183,19 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
     ->name('kuking:policz-kukingow')
     ->hourly()
     ->withoutOverlapping();
+
+// Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
+// przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
+// w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm
+// przestałby działać dokładnie wtedy, gdy jest potrzebny. Sprawy, które nie
+// mogą czekać (treści seksualne, cokolwiek dotyczącego dzieci), idą osobno
+// i natychmiast, prosto z zadania analizującego.
+//
+// 07:00, nie w nocy: to jest list do przeczytania przy porannej kawie, a nie
+// alarm. Poza tym trzyma się z dala od pasma 03:20–04:50, w którym chodzi
+// całe sprzątanie — w roli `all` harmonogram jest jednym procesem.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
+    ->name('kuking:podsumowanie-automatu')
+    ->dailyAt('07:00')
+    ->withoutOverlapping();

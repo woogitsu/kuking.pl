@@ -28,6 +28,19 @@
         @endif
     </x-slot:head>
 
+    {{--
+        PRAWA SZYNA (issue #205). Treść i uzasadnienie: `szyna-profilu`.
+
+        Slot stoi TUTAJ, na górze pliku, a mimo to w gotowym dokumencie
+        `<aside class="app-rail">` renderuje się PO `<main>` — Blade wstawia
+        zawartość slotu tam, gdzie ten slot stoi w LAYOUCIE. Kolejność `Tab`
+        i czytnika ekranu się więc nie zmienia (ten sam mechanizm co przy
+        spisie ustawień, #209), i dlatego nie ma tu żadnego CSS-owego `order`.
+    --}}
+    <x-slot:rail>
+        <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny" :tagi="$tagiSzyny" />
+    </x-slot:rail>
+
     <header class="card mb-6">
         {{--
             UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem

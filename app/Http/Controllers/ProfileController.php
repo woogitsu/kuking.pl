@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Profile;
+use App\Models\Tag;
 use App\Support\Czas;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -68,6 +69,12 @@ class ProfileController extends Controller
             // ani jednego wpisu byłby linkiem do pustej strony.
             'lata' => $tab === 'wszystko' ? $this->lataZWpisami($owner, $viewer, $isOwner) : collect(),
             'rok' => $rok,
+            // PRAWA SZYNA PROFILU (issue #205) — dwie listy, obie policzone
+            // TUTAJ, nie w widoku. Filtr widoczności jest regułą domenową
+            // i musi stać w jednym miejscu z filtrem list wyżej; przeniesiony
+            // do Blade byłby drugą implementacją tej samej granicy.
+            'zeszytySzyny' => $this->zeszytyDoSzyny($owner, $viewer, $isOwner),
+            'tagiSzyny' => $isOwner ? collect() : $this->tagiDoSzyny($owner, $viewer, $isOwner),
             'recipes' => $tab === 'przepisy'
                 ? $owner->recipes()
                     ->published()
@@ -96,6 +103,81 @@ class ProfileController extends Controller
                 'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
             ],
         ]);
+    }
+
+    /**
+     * Zeszyty pokazywane w prawej szynie profilu (issue #205).
+     *
+     * WŁASNY PROFIL: wszystkie zeszyty, także prywatne — to są dane tej samej
+     * osoby, która patrzy.
+     *
+     * CUDZY PROFIL: wyłącznie zeszyty PUBLICZNE i wyłącznie wtedy, gdy zeszyt
+     * tej osoby w ogóle wolno otworzyć. Warunki są dokładnie te, które ma
+     * `CollectionPolicy::view()` — konto dostępne jako autor, brak blokady
+     * w którąkolwiek stronę, `visibility = public`. Powtarzamy je tutaj nie
+     * dlatego, że Policy nie działa, tylko dlatego, że Policy pilnuje WEJŚCIA
+     * NA ADRES zeszytu, a nie zapytania budującego listę — to są dwie różne
+     * drogi i naprawienie jednej nie naprawia drugiej (ta sama uwaga co przy
+     * `tylkoWidoczne()` wyżej). Bez tego szyna wypisywałaby nazwy zeszytów,
+     * które po kliknięciu dają 403.
+     *
+     * GOŚĆ NIE DOSTAJE NICZEGO, bo `/zeszyt/{id}` leży za `auth` — lista
+     * odnośników prowadzących na ekran logowania jest gorsza niż jej brak.
+     *
+     * `limit(5)` i `->get()`: koszt tej szyny nie rośnie z liczbą zeszytów.
+     *
+     * @return Collection<int, \App\Models\Collection>
+     */
+    private function zeszytyDoSzyny($owner, $viewer, bool $isOwner): Collection
+    {
+        if ($viewer === null) {
+            return collect();
+        }
+
+        if (! $isOwner && (! $owner->jestDostepnyJakoAutor() || $viewer->hasBlockRelationWith($owner))) {
+            return collect();
+        }
+
+        return $owner->collections()
+            ->when(! $isOwner, fn ($query) => $query->where('visibility', 'public'))
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+    }
+
+    /**
+     * Tagi z wpisów tej osoby — odpowiedź na „co ona właściwie gotuje"
+     * (issue #205, prawa szyna cudzego profilu).
+     *
+     * WIDOCZNOŚĆ LICZY SIĘ TAK SAMO JAK PRZY LIŚCIE WPISÓW. Tag jest
+     * etykietą wpisu, więc lista tagów policzona bez filtra zdradzałaby
+     * ZAWARTOŚĆ wpisów prywatnych — dokładnie ten sam kształt wycieku co
+     * tytuł przepisu w liście wykonań (patrz `tylkoZWidocznychPrzepisow()`).
+     * Dlatego podzapytanie przechodzi przez `published()` i przez ten sam
+     * `tylkoWidoczne()`, którym idzie archiwum obok.
+     *
+     * BEZ SORTOWANIA PO LICZBIE WPISÓW, alfabetycznie. „Najczęstszy tag tej
+     * osoby" jest miarą aktywności, a `AGENTS.md` §12 nie chce liczników
+     * aktywności wyeksponowanych w interfejsie — a przy okazji sortowanie
+     * po liczniku wymagałoby agregatu, którego ta szyna nie potrzebuje.
+     *
+     * Jedno zapytanie, `limit(6)` — koszt nie rośnie z liczbą wpisów.
+     *
+     * @return Collection<int, Tag>
+     */
+    private function tagiDoSzyny($owner, $viewer, bool $isOwner): Collection
+    {
+        return Tag::query()
+            ->aktywne()
+            ->whereHas('posts', function ($query) use ($owner, $viewer, $isOwner): void {
+                $query->where('posts.author_id', $owner->getKey())->published();
+
+                $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+            })
+            ->orderBy('name')
+            ->limit(6)
+            ->get();
     }
 
     /** @return Paginator<int, Post> */

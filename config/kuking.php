@@ -1520,6 +1520,95 @@ return [
                 explode(',', (string) env('KUKING_SYGNAL_DOMENY_BEZ_SYGNALU', 'garnek.pl,kuking.pl')),
             ))),
         ],
+
+        /*
+         * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ (D-055).
+         *
+         * OpenAI `omni-moderation-latest` — bezpłatne API oceniające TEKST
+         * i OBRAZY pod kątem nienawiści, przemocy, treści seksualnych
+         * i samookaleczenia.
+         *
+         * TO ŁAPIE INNĄ KLASĘ TREŚCI NIŻ SYGNAŁY WYŻEJ. Tamte szukają spamu
+         * („zarobki z domu", odnośniki, numery telefonu); model spamu nie
+         * ocenia w ogóle. To jest UZUPEŁNIENIE, nie zamiennik — i trzeba to
+         * napisać wprost, bo inaczej ktoś uzna, że skoro jest AI, to spam
+         * mamy załatwiony.
+         *
+         * GRANICA TA SAMA CO WYŻEJ, TYLKO WAŻNIEJSZA: model podnosi rękę,
+         * nigdy nie zamyka drzwi. Wynik nie ukrywa treści, nie ogranicza
+         * zasięgu i nie dociera do autora — kończy się pozycją w kolejce
+         * z powodem po polsku. Model uczony głównie na angielszczyźnie będzie
+         * się mylił na polskim, a już zwłaszcza na języku, jakim mówi
+         * o jedzeniu siedemdziesięcioletnia kobieta z Podkarpacia.
+         *
+         * Pełny projekt, podstawa prawna i granice:
+         * `docs/legal/SYGNALY_AUTOMATU.md` §8.
+         */
+        'model' => [
+            /*
+             * BRAK KLUCZA = FUNKCJA WYŁĄCZONA I NIC NIE PADA.
+             *
+             * Tak jest lokalnie, w CI i w testach — żadne żądanie nie wychodzi,
+             * `OcenaModelem` oddaje pustą listę sygnałów, publikacja wpisu
+             * dzieje się dokładnie tak jak przedtem. To jest ten sam wzorzec,
+             * co puste klucze Turnstile (D-050).
+             */
+            'klucz' => env('OPENAI_MODERATION_KEY'),
+
+            'endpoint' => env('KUKING_MODEL_ENDPOINT', 'https://api.openai.com/v1/moderations'),
+            'nazwa' => env('KUKING_MODEL_NAZWA', 'omni-moderation-latest'),
+
+            // Krótko celowo: cudza usługa nie stoi w drodze publikacji (ta
+            // dzieje się w innym żądaniu), ale nie może też blokować workera
+            // kolejki na minuty przy awarii po tamtej stronie.
+            'limit_czasu' => (int) env('KUKING_MODEL_LIMIT_CZASU', 8),
+
+            /*
+             * PRÓG WYNIKU, OD KTÓREGO STAWIAMY POZYCJĘ W KOLEJCE.
+             *
+             * API oddaje osobno `flagged` (własna decyzja modelu) i wyniki
+             * liczbowe per kategoria. Nie bierzemy samego `flagged`, bo przy
+             * polszczyźnie i kuchni („zabiłam kurę", „krwisty stek") jest
+             * hojne — a każde trafienie kosztuje uwagę jedynego moderatora.
+             *
+             * 0,5 to punkt, poniżej którego model sam nie jest przekonany.
+             * Zmiana tej liczby to zmiana liczby pozycji dziennie — patrz
+             * `kuking:raport-sygnalow`.
+             */
+            'prog' => (float) env('KUKING_MODEL_PROG', 0.5),
+
+            /*
+             * NIŻSZY PRÓG DLA SPRAW, KTÓRE NIE MOGĄ CZEKAĆ.
+             *
+             * Kategorie z `KategorieModeracji::PILNE` mają w
+             * `resources/legal/zasady.md` własną sekcję „Czego nie tolerujemy
+             * w ogóle". Tu wolimy fałszywy alarm od przeoczenia, więc próg
+             * jest niższy niż zwykły.
+             */
+            'prog_pilny' => (float) env('KUKING_MODEL_PROG_PILNY', 0.2),
+
+            // Czy oceniać ZDJĘCIA. To jest największa wartość tej funkcji:
+            // fotografia obiadu od nieznajomego to jedyna treść, której nikt
+            // nie przeczyta, dopóki ktoś jej nie zgłosi.
+            'ocenia_zdjecia' => (bool) env('KUKING_MODEL_OCENIA_ZDJECIA', true),
+
+            // Ile zdjęć z jednego wpisu wysyłamy do oceny. Wpis ma najwyżej
+            // sześć; oceniamy pierwsze dwa, bo koszt to dwa żądania HTTP na
+            // wpis, a spam ze zdjęciem prawie nigdy nie chowa go na końcu.
+            'zdjec_na_wpis' => (int) env('KUKING_MODEL_ZDJEC_NA_WPIS', 2),
+
+            /*
+             * ADRES, NA KTÓRY IDZIE ALARM. Pusty = bez poczty (zostaje sama
+             * kolejka w panelu).
+             *
+             * LIMIT POCZTY JEST TU REGUŁĄ PROJEKTOWĄ, NIE DROBIAZGIEM:
+             * EmailLabs na planie darmowym daje 300 listów dziennie, dzielone
+             * z potwierdzeniami rejestracji. Dlatego listy natychmiastowe idą
+             * WYŁĄCZNIE dla kategorii pilnych, a reszta raz dziennie, jednym
+             * podsumowaniem (`kuking:podsumowanie-automatu`).
+             */
+            'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
+        ],
     ],
 
     'wersja' => [
