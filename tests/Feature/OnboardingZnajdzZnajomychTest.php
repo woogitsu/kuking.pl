@@ -1,0 +1,265 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Models\Profile;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+/**
+ * „Znasz już kogoś tutaj?" — krok onboardingu `/witaj/ludzie`
+ * (`docs/research/MIGRACJA_Z_GARNKA.md` §3.1, issue z 10 września 2026).
+ *
+ * Wyszukiwanie na tym ekranie idzie DOKŁADNIE przez `SearchQuery::people()` —
+ * tę samą klasę, której używa `SearchController` na `/szukaj`
+ * (patrz `tests/Feature/SearchTest.php`). Te testy dlatego NIE powtarzają
+ * pokrycia samej klasy `SearchQuery` (literówki, próg podobieństwa,
+ * wydajność zapytania) — sprawdzają wyłącznie to, co jest NOWE na tym
+ * ekranie: pole wyszukiwania, checkbox obserwowania z wyniku, ograniczenie
+ * liczby wyników i brak nowego zapisu do bazy.
+ */
+class OnboardingZnajdzZnajomychTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /** Wycinek HTML-a odpowiadający jednej sekcji ekranu — patrz uwaga w PR-ze
+     *  o pułapce „assertSee na całym HTML-u łapie to samo słowo gdzie indziej". */
+    private function wycinek(string $html, string $od, string $do): string
+    {
+        $start = mb_strpos($html, $od);
+        $this->assertNotFalse($start, "Nie znalazłem znacznika początku „{$od}” w HTML-u.");
+
+        $koniec = mb_strpos($html, $do, $start);
+        $koniec = $koniec === false ? mb_strlen($html) : $koniec;
+
+        return mb_substr($html, $start, $koniec - $start);
+    }
+
+    public function test_ekran_ma_pole_do_szukania_znajomej_osoby(): void
+    {
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Znasz już kogoś w Kuking?', $html);
+        $this->assertStringContainsString('name="q"', $html);
+        // Formularz szukania jest GET, nie POST — działa jako zwykły link
+        // bez JavaScriptu (AGENTS.md §5).
+        $this->assertMatchesRegularExpression(
+            '~<form method="GET" action="[^"]*'.preg_quote(route('onboarding.people'), '~').'"~',
+            $html,
+        );
+    }
+
+    public function test_szukanie_po_nazwie_uzytkownika_znajduje_osobe_i_pozwala_ja_zaobserwowac(): void
+    {
+        $this->user('halina_z_lodzi', ['display_name' => 'Halina']);
+        $basia = $this->user('basia');
+
+        $html = $this->actingAs($basia)
+            ->get(route('onboarding.people', ['q' => 'halina_z_lodzi']))
+            ->assertOk()
+            ->getContent();
+
+        $wyniki = $this->wycinek($html, 'Wyniki wyszukiwania', 'Osoby, które polecamy');
+        $this->assertStringContainsString('Halina', $wyniki);
+        $this->assertStringContainsString('value="halina_z_lodzi"', $wyniki);
+
+        $this->actingAs($basia)
+            ->post(route('onboarding.people'), ['follow' => ['halina_z_lodzi']])
+            ->assertRedirect(route('onboarding.done'));
+
+        $halina = Profile::poNazwie('halina_z_lodzi')->user;
+        $this->assertTrue($basia->fresh()->isFollowing($halina));
+    }
+
+    public function test_szukanie_po_imieniu_dziala_tym_samym_mechanizmem_co_wyszukiwarka_ludzi(): void
+    {
+        $this->user('basia_z_podkarpacia', ['display_name' => 'Basia']);
+        $this->user('basia')->profile->update(['speciality' => 'zupy']);
+
+        $html = $this->actingAs($this->user('marek'))
+            ->get(route('onboarding.people', ['q' => 'Basia']))
+            ->assertOk()
+            ->getContent();
+
+        $wyniki = $this->wycinek($html, 'Wyniki wyszukiwania', 'Osoby, które polecamy');
+        $this->assertStringContainsString('Basia', $wyniki);
+    }
+
+    public function test_brak_wynikow_mowi_co_zrobic_a_nie_tylko_ze_nic_nie_ma(): void
+    {
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people', ['q' => 'nikttakiegoniema']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Nic nie znaleźliśmy', $html);
+        $this->assertStringContainsString('Sprawdź pisownię', $html);
+    }
+
+    public function test_zbyt_krotka_fraza_pokazuje_uczciwy_komunikat_a_nie_brak_wynikow(): void
+    {
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people', ['q' => 'a']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('za krótka, żeby zacząć szukać', $html);
+        $this->assertStringNotContainsString('Nic nie znaleźliśmy', $html);
+    }
+
+    // -----------------------------------------------------------------
+    // Widoczność — te same zakresy co wyszukiwarka ludzi, nic nowego.
+    // -----------------------------------------------------------------
+
+    public function test_zbanowana_osoba_nie_wychodzi_w_wynikach(): void
+    {
+        $zbanowany = $this->user('zbanowany_kucharz', ['display_name' => 'Zbanowany']);
+        $zbanowany->forceFill(['status' => User::STATUS_BANNED])->save();
+
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people', ['q' => 'zbanowany_kucharz']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Nic nie znaleźliśmy', $html);
+        $this->assertStringNotContainsString('name="follow[]" value="zbanowany_kucharz"', $html);
+    }
+
+    public function test_zawieszona_osoba_nie_wychodzi_w_wynikach(): void
+    {
+        $zawieszony = $this->user('zawieszony_kucharz', ['display_name' => 'Zawieszony']);
+        $zawieszony->forceFill(['status' => User::STATUS_SUSPENDED])->save();
+
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people', ['q' => 'zawieszony_kucharz']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('name="follow[]" value="zawieszony_kucharz"', $html);
+    }
+
+    public function test_konto_w_trakcie_usuwania_nie_wychodzi_w_wynikach(): void
+    {
+        $usuwany = $this->user('usuwany_kucharz', ['display_name' => 'Usuwany']);
+        $usuwany->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
+
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people', ['q' => 'usuwany_kucharz']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('name="follow[]" value="usuwany_kucharz"', $html);
+    }
+
+    public function test_blokada_dziala_w_obie_strony(): void
+    {
+        $basia = $this->user('basia');
+        $nieprzyjemny = $this->user('nieprzyjemny_typ', ['display_name' => 'Nieprzyjemny']);
+
+        DB::table('blocks')->insert([
+            'blocker_id' => $basia->getKey(),
+            'blocked_id' => $nieprzyjemny->getKey(),
+            'created_at' => now(),
+        ]);
+
+        // Basia zablokowała — nie widzi go w wynikach.
+        $this->actingAs($basia)
+            ->get(route('onboarding.people', ['q' => 'nieprzyjemny_typ']))
+            ->assertOk()
+            ->assertDontSee('name="follow[]" value="nieprzyjemny_typ"', false);
+
+        // I odwrotnie — zablokowany nie widzi Basi.
+        $this->actingAs($nieprzyjemny)
+            ->get(route('onboarding.people', ['q' => 'basia']))
+            ->assertOk()
+            ->assertDontSee('name="follow[]" value="basia"', false);
+    }
+
+    public function test_wlasne_konto_nie_pojawia_sie_we_wlasnych_wynikach(): void
+    {
+        $basia = $this->user('basia_szuka', ['display_name' => 'Basia']);
+
+        $html = $this->actingAs($basia)
+            ->get(route('onboarding.people', ['q' => 'basia_szuka']))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('name="follow[]" value="basia_szuka"', $html);
+        $this->assertStringContainsString('Nic nie znaleźliśmy', $html);
+    }
+
+    public function test_wynikow_jest_najwyzej_piec_a_nie_pelna_lista(): void
+    {
+        foreach (range(1, 7) as $i) {
+            $this->user("basia{$i}", ['display_name' => "Basia {$i}"]);
+        }
+
+        $html = $this->actingAs($this->user('szukajaca'))
+            ->get(route('onboarding.people', ['q' => 'basia']))
+            ->assertOk()
+            ->getContent();
+
+        $wyniki = $this->wycinek($html, 'Wyniki wyszukiwania', 'Osoby, które polecamy');
+
+        $this->assertSame(5, substr_count($wyniki, 'name="follow[]"'));
+        $this->assertStringContainsString('Wpisz dokładniejsze imię', $wyniki);
+    }
+
+    // -----------------------------------------------------------------
+    // RODO — nic nowego nie zapisujemy.
+    // -----------------------------------------------------------------
+
+    public function test_szukanie_na_tym_kroku_nie_zapisuje_zadnego_sygnalu(): void
+    {
+        $this->user('halina', ['display_name' => 'Halina']);
+
+        $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people', ['q' => 'halina']))
+            ->assertOk();
+
+        $this->assertSame(
+            0,
+            DB::table('product_signals')->count(),
+            'Onboarding zapisał sygnał — research i PR zakładają rozwiązanie, które nic nie zapisuje.',
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Regresja: krok da się nadal pominąć, sugerowana ósemka nadal działa.
+    // -----------------------------------------------------------------
+
+    public function test_krok_da_sie_pominac_mimo_dodanego_szukania(): void
+    {
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '~<a class="btn btn-quiet" href="'.preg_quote(route('onboarding.done'), '~').'">Pomiń ten krok</a>~',
+            $html,
+        );
+
+        $this->actingAs($this->user('marek'))
+            ->get(route('onboarding.done'))
+            ->assertOk();
+    }
+
+    public function test_bez_szukania_ekran_wyglada_jak_dawniej_bez_sekcji_wynikow(): void
+    {
+        $html = $this->actingAs($this->user('basia'))
+            ->get(route('onboarding.people'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('Wyniki wyszukiwania', $html);
+        $this->assertStringNotContainsString('Nic nie znaleźliśmy', $html);
+    }
+}
