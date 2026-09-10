@@ -11,7 +11,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * LIST, KTÓRY NIE MOŻE CZEKAĆ DO JUTRA (D-054).
+ * LIST, KTÓRY NIE MOŻE CZEKAĆ DO JUTRA (D-055).
  *
  * DLACZEGO NIE PO JEDNYM LIŚCIE NA KAŻDĄ OZNACZONĄ TREŚĆ
  * Bo przy fali migracyjnej skrzynka moderatora zamieniłaby się w śmietnik,

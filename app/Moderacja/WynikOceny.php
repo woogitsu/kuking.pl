@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Moderacja;
 
 /**
- * ODPOWIEDŹ MODELU, SPROWADZONA DO TEGO, CO NAM POTRZEBNE (D-054).
+ * ODPOWIEDŹ MODELU, SPROWADZONA DO TEGO, CO NAM POTRZEBNE (D-055).
  *
  * API oddaje kilkanaście kategorii z wynikami liczbowymi i własną flagę
  * `flagged`. My bierzemy z tego wyłącznie kategorie, które przekroczyły

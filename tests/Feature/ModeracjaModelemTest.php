@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
- * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ (D-054).
+ * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ (D-055).
  *
  * CZEGO TE TESTY PILNUJĄ NAPRAWDĘ
  * Nie tego, że „AI działa" — tego z PHP sprawdzić się nie da i nie o to tu

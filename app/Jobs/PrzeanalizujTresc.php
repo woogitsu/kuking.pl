@@ -92,7 +92,7 @@ class PrzeanalizujTresc implements ShouldQueue
      * DWA ŹRÓDŁA SYGNAŁÓW, JEDNA POZYCJA W KOLEJCE.
      *
      * Lokalne wzorce (`WykrywaczSygnalow`, D-052) szukają SPAMU; model
-     * (`OcenaModelem`, D-054) ocenia nienawiść, przemoc, treści seksualne
+     * (`OcenaModelem`, D-055) ocenia nienawiść, przemoc, treści seksualne
      * i samookaleczenie — i robi to także na ZDJĘCIACH. To są rozłączne
      * klasy treści i żadne z nich nie zastępuje drugiego.
      *

@@ -1371,7 +1371,7 @@ return [
         ],
 
         /*
-         * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ (D-054).
+         * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ (D-055).
          *
          * OpenAI `omni-moderation-latest` — bezpłatne API oceniające TEKST
          * i OBRAZY pod kątem nienawiści, przemocy, treści seksualnych

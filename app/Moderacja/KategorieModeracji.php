@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Moderacja;
 
 /**
- * KATEGORIE Z API MODERACJI → ZDANIA PO POLSKU (D-054).
+ * KATEGORIE Z API MODERACJI → ZDANIA PO POLSKU (D-055).
  *
  * DLACZEGO TO ISTNIEJE JAKO OSOBNA KLASA
  * Bo moderator, który w kolejce dostaje `sexual/minors: 0.62`, nie wie, czego

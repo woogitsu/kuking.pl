@@ -57,7 +57,7 @@ class ObietnicaTygodniowegoMailaTest extends TestCase
      * Podsumowania, które NIE IDĄ DO UŻYTKOWNIKÓW — i dlatego nie mają nic
      * wspólnego z obietnicą z ekranu prywatności.
      *
-     * `kuking:podsumowanie-automatu` (D-054) wysyła JEDEN list dziennie na
+     * `kuking:podsumowanie-automatu` (D-055) wysyła JEDEN list dziennie na
      * adres moderatora z `config('kuking.moderation.model.alarm_email')`.
      * Nie czyta `wants_weekly_digest`, nie zna kont użytkowników i nie ma
      * jak do nich trafić. Zdanie „Tych listów jeszcze nie wysyłamy" zostaje

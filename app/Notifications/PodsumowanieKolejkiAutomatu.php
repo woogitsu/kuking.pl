@@ -12,7 +12,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * JEDEN LIST DZIENNIE ZAMIAST STU (D-054).
+ * JEDEN LIST DZIENNIE ZAMIAST STU (D-055).
  *
  * Kolejka moderacji nie jest awarią i nie wymaga budzenia nikogo w nocy.
  * Codzienny rytm wystarcza, żeby nic nie zaległo, i — co ważniejsze — nie

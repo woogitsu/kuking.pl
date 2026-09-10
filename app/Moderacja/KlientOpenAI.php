@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Cienki klient API moderacji OpenAI (`omni-moderation-latest`) — D-054.
+ * Cienki klient API moderacji OpenAI (`omni-moderation-latest`) — D-055.
  *
  * DLACZEGO BEZ NOWEJ PACZKI COMPOSERA
  * Bo całe API to jeden `POST` z dwoma polami, a Laravel ma klient HTTP

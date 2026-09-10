@@ -61,7 +61,7 @@ final class OznaczDoPrzegladu
         // zobaczyć CAŁY obraz, a nie samo hasło.
         //
         // SORTUJEMY TUTAJ, mimo że `WykrywaczSygnalow` oddaje już posortowaną
-        // listę. Od D-054 sygnały przychodzą z DWÓCH źródeł (lokalne wzorce
+        // listę. Od D-055 sygnały przychodzą z DWÓCH źródeł (lokalne wzorce
         // i ocena modelem) i są sklejane w zadaniu — kolejność po sklejeniu
         // nie jest niczyją odpowiedzialnością, dopóki nie jest tutaj.
         usort($sygnaly, static fn (Sygnal $a, Sygnal $b): int => $b->waga() <=> $a->waga());

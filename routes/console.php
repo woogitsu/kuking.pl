@@ -184,7 +184,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
     ->hourly()
     ->withoutOverlapping();
 
-// Codzienne podsumowanie kolejki automatu (D-054). JEDEN list zamiast stu:
+// Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
 // przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
 // w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm
 // przestałby działać dokładnie wtedy, gdy jest potrzebny. Sprawy, które nie

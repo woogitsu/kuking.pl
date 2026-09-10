@@ -149,7 +149,7 @@ class Report extends Model
     public const WAGA = [
         // Ocena modelem stoi najwyżej, bo dotyczy INNEJ KLASY treści niż
         // pozostałe trzy: nienawiści, przemocy, treści seksualnych
-        // i samookaleczenia (D-054). Najgorszy możliwy spam to zmarnowana
+        // i samookaleczenia (D-055). Najgorszy możliwy spam to zmarnowana
         // minuta czytelnika; najgorsze trafienie modelu to sprawa, o której
         // trzeba zawiadomić organy.
         'automat_model' => 4,

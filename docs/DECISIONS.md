@@ -3009,7 +3009,7 @@ pole, tylko wyraźniejszy odnośnik — który już tam stoi, z podglądem awata
 
 ---
 
-## D-054 · Druga para oczu to model OpenAI, który podnosi rękę — nigdy nie zamyka drzwi
+## D-055 · Druga para oczu to model OpenAI, który podnosi rękę — nigdy nie zamyka drzwi
 
 **Data:** 9 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
 

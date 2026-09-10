@@ -130,7 +130,7 @@ zauważa, nikomu nic się nie dzieje.
 - Wyłącznik: `KUKING_SYGNALY_AUTOMATU=false`.
 - Pomiar: `php artisan kuking:raport-sygnalow --dni=30`.
 
-### Druga para oczu: model OpenAI (D-054)
+### Druga para oczu: model OpenAI (D-055)
 
 Ta sama kolejka dostaje pozycje z **`omni-moderation-latest`**, który ocenia
 tekst i **zdjęcia** pod kątem nienawiści, przemocy, treści seksualnych

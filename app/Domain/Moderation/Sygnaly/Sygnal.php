@@ -23,7 +23,7 @@ final readonly class Sygnal
     /**
      * @param  bool  $pilny  czy ta sprawa nie może czekać do jutrzejszego
      *                       podsumowania. Ustawia to WYŁĄCZNIE ocena modelem
-     *                       (D-054) i wyłącznie dla dwóch kategorii z
+     *                       (D-055) i wyłącznie dla dwóch kategorii z
      *                       `KategorieModeracji::PILNE` — sygnały spamowe
      *                       pilne nie są nigdy, bo ogłoszenie o garnkach nie
      *                       robi się groźniejsze przez noc. Gdyby „pilne"

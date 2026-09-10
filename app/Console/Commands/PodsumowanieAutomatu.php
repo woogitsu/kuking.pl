@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * CODZIENNY LIST O KOLEJCE AUTOMATU (D-054).
+ * CODZIENNY LIST O KOLEJCE AUTOMATU (D-055).
  *
  * DLACZEGO ZBIORCZO, A NIE PO JEDNYM LIŚCIE
  * Bo przy setkach kont pojedyncze listy zamieniłyby skrzynkę moderatora

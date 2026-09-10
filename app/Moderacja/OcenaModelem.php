@@ -14,7 +14,7 @@ use Intervention\Image\ImageManager;
 use Throwable;
 
 /**
- * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ I ZDJĘCIA (D-054).
+ * DRUGA PARA OCZU: MODEL OCENIAJĄCY TREŚĆ I ZDJĘCIA (D-055).
  *
  * Oddaje takie same `Sygnal`-e jak lokalny `WykrywaczSygnalow`, więc dalej
  * wszystko dzieje się identycznie: jedna pozycja w kolejce moderatora,

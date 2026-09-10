@@ -1,6 +1,6 @@
 # Sygnały automatu — wykrywacz, który podnosi rękę
 
-> Decyzje architektoniczne: **D-052** (sygnały lokalne) i **D-054** (ocena
+> Decyzje architektoniczne: **D-052** (sygnały lokalne) i **D-055** (ocena
 > modelem OpenAI) — `docs/DECISIONS.md`.
 > Kod: `app/Domain/Moderation/Sygnaly/`, `app/Moderacja/`,
 > `app/Jobs/PrzeanalizujTresc.php`,
@@ -213,7 +213,7 @@ Progi, po których trzeba zareagować:
 
 ## 8. ETAP DRUGI: ocena modelem OpenAI (`omni-moderation-latest`)
 
-**Status: WDROŻONE** (D-054, decyzja właściciela z 9 września 2026).
+**Status: WDROŻONE** (D-055, decyzja właściciela z 9 września 2026).
 Kod: `app/Moderacja/`, `app/Notifications/PilnyAlarmModeracyjny.php`,
 `app/Console/Commands/PodsumowanieAutomatu.php`.
 Wyłącznik: pusty `OPENAI_MODERATION_KEY`.
