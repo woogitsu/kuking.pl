@@ -120,8 +120,12 @@
             <form class="mt-4" method="POST" action="{{ route('admin.sygnaly.dismiss') }}">
                 @csrf
                 <input type="hidden" name="autor" value="{{ $kluczGrupy }}">
+                {{-- Identyfikator TEGO wiersza (issue #243): bez niego `id` pola
+                     notatki i `old()` po nieudanej walidacji dubluje się na całą
+                     stronę — patrz `App\Support\WierszFormularza`. --}}
+                <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $kluczGrupy }}">
 
-                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2"
+                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy"
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />
 
                 <button class="btn btn-primary mt-5" type="submit">
