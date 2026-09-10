@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\Actions\FileAppeal;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Notifications\TerminOdwolaniaBlisko;
@@ -166,9 +167,35 @@ class TerminOdwolaniaPilnowanyPocztaTest extends TestCase
         // Kluczowa granica tej decyzji (D-058): poczty na KAŻDE odwołanie nie
         // ma. Gdyby ktoś ją kiedyś dołożył „dla bezpieczeństwa", wiadro 300
         // listów na dobę zaczęłoby konkurować z potwierdzeniami rejestracji.
+        //
+        // Odwołanie MUSI tu przejść przez `FileAppeal`, a nie przez
+        // `Appeal::create()` jak w metodzie pomocniczej wyżej: cała droga
+        // powiadamiania wisi na tej akcji, więc test omijający ją nie
+        // pilnowałby niczego. Zmierzone kontrolą ujemną — pierwsza wersja
+        // tego testu przechodziła nawet po dołożeniu listu do
+        // `PowiadomOOdwolaniu`.
         Notification::fake();
 
-        $this->odwolanieZlozone(now()->toDateTimeString());
+        $moderator = $this->moderator();
+        $autor = $this->user('autor_odwolania');
+
+        $decyzja = ModerationAction::create([
+            'moderator_id' => $moderator->getKey(),
+            'target_type' => 'post',
+            'target_id' => (string) Str::uuid7(),
+            'subject_user_id' => $autor->getKey(),
+            'action' => ModerationAction::ACTION_HIDE,
+            'reason_code' => 'spam-reklama',
+            'user_message' => 'Wpis wygląda na reklamę.',
+        ]);
+
+        app(FileAppeal::class)->handle(
+            $autor,
+            $decyzja,
+            'To nie była reklama, tylko przepis mojej mamy.',
+        );
+
+        $this->assertSame(1, Appeal::query()->count(), 'asercja kontrolna: odwołanie naprawdę powstało');
 
         Notification::assertNothingSent();
     }
