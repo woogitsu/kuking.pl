@@ -50,8 +50,8 @@
     --}}
     <h2 class="text-title-sm mb-3 mt-8">Kolory</h2>
     {{-- „włączasz sam" przypisywało czytelnikowi rodzaj męski (issue #38,
-         D-066) — „sam" nie wnosi tu informacji, więc zdanie działa i bez
-         niego. --}}
+         COPY_STYLE.md §2) — „sam" nie wnosi tu informacji, więc zdanie działa
+         i bez niego. --}}
     <p class="mb-5">
         Wybierz wygląd, w którym czyta Ci się wygodnie. Jasny jest domyślny
         dla każdego konta — ciemny włączasz, jeśli wolisz. Wybór zapisze
