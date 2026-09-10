@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Media;
 
 use App\Models\Media;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Zdjęcia wgrane, ale do niczego nieprzypięte.
@@ -55,6 +54,14 @@ final class OsieroconeZdjecia
         // Porcjami i per wiersz: przerwanie w połowie ma zostawić bazę
         // i dysk w stanie zgodnym ze sobą, a nie w połowie jednej wielkiej
         // transakcji.
+        //
+        // TRANSAKCJI NIE OTWIERAMY TUTAJ (issue #285, D-083). Przedtem stała
+        // w tym miejscu i obejmowała także kasowanie plików w R2 — czyli
+        // trzymała otwartą transakcję przez całe wejście na cudzy serwer,
+        // a jej ewentualne wycofanie i tak nie przywróciłoby ani jednego
+        // skasowanego pliku. Granicę commitu ma teraz `KasujZdjecie`, które
+        // jako jedyne wie, co wolno zrobić przed nią (przejęcie wiersza pod
+        // blokadą), a co dopiero po (pliki).
         $zapytanie->chunkById(100, function ($zdjecia) use ($naSucho, &$skasowane): void {
             foreach ($zdjecia as $zdjecie) {
                 if ($naSucho) {
@@ -63,11 +70,9 @@ final class OsieroconeZdjecia
                     continue;
                 }
 
-                DB::transaction(function () use ($zdjecie, &$skasowane): void {
-                    if ($this->kasowanie->jesliNieuzywane($zdjecie)) {
-                        $skasowane++;
-                    }
-                });
+                if ($this->kasowanie->jesliNieuzywane($zdjecie)) {
+                    $skasowane++;
+                }
             }
         });
 
