@@ -706,10 +706,65 @@ znacznika dla każdego konta, a middleware odbuduje go od nowa przy
 najbliższej wizycie.
 
 ### follows
-`follower_id + followed_id` unique.
+`follower_id + followed_id` unique (to jest KLUCZ GŁÓWNY — relacja jest
+tożsamością, nie ma sztucznego `id`). `CHECK (follower_id <> followed_id)`.
+
+**Wyzwalacz `follows_blokada_ma_pierwszenstwo_trg` (`BEFORE INSERT`)** —
+migracja `2026_09_10_400000_obserwowanie_nie_wspolistnieje_z_blokada`,
+decyzja **D-080**. Odrzuca `INSERT`, jeśli dla tej pary istnieje
+zatwierdzona blokada w KTÓRĄKOLWIEK stronę. Jest to twarda bariera dla
+każdej drogi zapisu — także takiej, która omija `App\Domain\Social\Actions\
+FollowUser` (druga akcja dopisana kiedyś, komenda konsolowa, seeder, ręczny
+`INSERT` w psql podczas awarii).
+
+Czego wyzwalacz NIE daje: odporności na równoległość. Przy `READ COMMITTED`
+nie widzi blokady, która nie jest jeszcze zatwierdzona, więc dwa równoległe
+żądania mogłyby przejść oba. Za to odpowiada `App\Domain\Social\ZamekPary`
+(blokada wierszy OBU kont, **rosnąco po identyfikatorze**, plus ponowne
+sprawdzenie warunku pod blokadą). Bariera pilnuje DRÓG ZAPISU, blokada
+pilnuje RÓWNOLEGŁOŚCI — trzeba obu.
+
+Kolejność blokowania wierszy jest częścią kontraktu, nie detalem: gdyby dwie
+operacje na tej samej parze brały wiersze w przeciwnych kolejnościach,
+zakleszczyłyby się i PostgreSQL zabiłby jedną z transakcji.
+
+Koszt: jedno indeksowane `EXISTS` na `blocks` przy każdym `INSERT` do
+`follows` (nie ma `UPDATE` na tej tabeli). `blocks` ma klucz główny
+`(blocker_id, blocked_id)` i indeks `blocks_blocked_idx`, więc oba kierunki
+idą po indeksie.
+
+**Rollback:** `down()` zdejmuje wyzwalacz i funkcję. Bezstratny — nie zmienia
+danych — i wolno go wykonać na produkcji pod ruchem, bo żaden kod nie zależy
+od wyzwalacza. Migracja **nie sprząta danych istniejących**: gdyby leżał już
+wiersz-sierota z wyścigu sprzed D-080, wyzwalacz go nie ruszy. Znalezienie
+takich wierszy (sprzątanie to osobna, jawna decyzja — kasowanie relacji
+społecznych migracją jest destrukcyjną operacją z zakazu `AGENTS.md` §6):
+
+```sql
+SELECT f.follower_id, f.followed_id
+FROM follows f
+JOIN blocks b
+  ON (b.blocker_id = f.follower_id AND b.blocked_id = f.followed_id)
+  OR (b.blocker_id = f.followed_id AND b.blocked_id = f.follower_id);
+```
+
+Uwaga przy odtwarzaniu bazy: `migrate:fresh` (`db:wipe`) kasuje TABELE, nie
+funkcje, więc `follows_blokada_ma_pierwszenstwo()` przeżywa czyszczenie.
+Migracja robi `CREATE OR REPLACE`, więc nie ma z tego kolizji — ale nie
+zdziw się, widząc tę funkcję w bazie, w której nie ma jeszcze tabeli
+`follows`.
 
 ### blocks
-Blokada ma pierwszeństwo przed follow.
+Blokada ma pierwszeństwo przed follow — i to jest wymuszone w bazie, nie
+tylko w PHP (patrz `follows` wyżej). `blocker_id + blocked_id` jako klucz
+główny, `CHECK (blocker_id <> blocked_id)`, indeks `blocks_blocked_idx`.
+
+**Na `blocks` NIE MA wyzwalacza i nie będzie** (D-080). Blokada musi się
+udać zawsze: jest jedyną czynnością, jaką człowiek ma, gdy ktoś staje się
+dla niego problemem, a bariera potrafiąca jej odmówić byłaby zamkniętymi
+drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
+`App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
+pod blokadą wierszy.
 
 ### media
 Tylko metadata, nie binary:
