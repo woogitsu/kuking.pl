@@ -6254,6 +6254,33 @@ przy retencji — rozstrzygnięcia w `ADR_RETENCJE.md`. Przy (2) — dopisania p
 zgody do formularza rejestracji; dopóki rejestracja o zgodę nie pyta, żaden
 `DEFAULT true` nie jest zgodą i decyzja stoi.
 
+### Czego pilnują testy, a czego nie — spisane po kontroli ujemnej
+
+Każdy test z obu plików był zepsuty osobnym sabotażem i każdy oblał; tabelka
+`test → sabotaż → wynik` jest w opisie PR #270. Przy tym przeglądzie wyszło,
+że trzy rozstrzygnięcia z tej decyzji były opisane, ale przez nikogo
+niesprawdzane — i dostały własne testy:
+
+1. **Asymetria udzielenia i wycofania przy awarii zapisu dowodu.**
+   `PrzestawZgodeNaDigest` nazywa ją najważniejszą rzeczą w pliku, a nie
+   pilnował jej ani jeden test. Awarię wymusza się bez ruszania kodu
+   produkcyjnego: `kuking.zgody.wersja_polityki` dłuższa niż `varchar(20)`
+   psuje wyłącznie `INSERT` do dziennika. Udzielenie ma się wtedy cofnąć
+   w całości, wycofanie ma dojść do skutku mimo wszystko.
+2. **Zamknięte zbiory wartości.** CHECK-i `cel`, `czynnosc` i `zrodlo` były
+   obietnicą w komentarzu; każdy ma teraz własne sprawdzenie (asercja idzie
+   na NAZWĘ naruszonego ograniczenia, żeby jeden CHECK nie zaliczył się trzy
+   razy) i kontrolę dodatnią na komplecie poprawnych wartości.
+3. **`restrictOnDelete()` zamiast kaskady.** Rozstrzygnięcie napięcia „dowód
+   zgody vs prawo do usunięcia" nie miało testu, więc podmiana na
+   `cascadeOnDelete()` przechodziła bez jednego czerwonego przebiegu.
+
+Czego te testy NADAL nie dowodzą, i trzeba to nazwać: nikt nie broni bazy
+przed człowiekiem z prawami właściciela tabeli, który zdejmie wyzwalacz
+(`ALTER TABLE … DISABLE TRIGGER`) albo klucz obcy. Append-only pilnuje przed
+POMYŁKĄ i przed kodem, nie przed świadomą decyzją administratora — i tak ma
+być, bo `down()` migracji też musi działać.
+
 📄 `database/migrations/2026_09_10_400000_create_dziennik_zgod_table.php` ·
 `database/migrations/2026_09_07_400000_default_weekly_digest_to_off.php` ·
 `app/Models/WpisZgody.php` · `app/Domain/Zgody/PrzestawZgodeNaDigest.php` ·

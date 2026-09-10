@@ -6,11 +6,13 @@ namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use LogicException;
 use Tests\TestCase;
 
@@ -405,5 +407,176 @@ class DowodZgodyNaDigestTest extends TestCase
         $this->assertTrue(app(EraseAccountData::class)->handle($osoba->fresh()));
 
         $this->assertSame([], $this->czynnosci($osoba));
+    }
+
+    // -----------------------------------------------------------------
+    // 6. Zamknięte zbiory wartości i klucz obcy — gwarancje z bazy
+    // -----------------------------------------------------------------
+
+    /**
+     * CHECK-i, a nie walidator w PHP (D-079: „gwarancję daje constraint albo
+     * blokada, nie `exists()` w PHP"). Migracja i `docs/DATABASE.md` obiecują
+     * ZAMKNIĘTE zbiory dla `cel`, `czynnosc` i `zrodlo` — bez tego testu
+     * obietnica jest komentarzem, a nie gwarancją, i zniknęłaby po cichu
+     * razem z pierwszą migracją, która te CHECK-i zdejmie.
+     *
+     * Trzy próby, bo to TRZY OSOBNE ograniczenia — asercja idzie na NAZWĘ
+     * naruszonego ograniczenia, żeby test nie zaliczył jednego CHECK-a
+     * trzy razy.
+     */
+    public function test_baza_odrzuca_wartosci_spoza_zamknietych_zbiorow(): void
+    {
+        $osoba = $this->user('zamkniete_zbiory', ['wants_weekly_digest' => false]);
+
+        $poprawny = [
+            'user_id' => $osoba->getKey(),
+            'cel' => WpisZgody::CEL_TYGODNIOWY_DIGEST,
+            'czynnosc' => WpisZgody::UDZIELONA,
+            'zrodlo' => WpisZgody::ZRODLO_USTAWIENIA,
+            'wersja_polityki' => '2026-09-10',
+            'wystapilo_at' => now(),
+        ];
+
+        // KONTROLA DODATNIA: komplet poprawnych wartości przechodzi. Bez niej
+        // wszystkie trzy próby niżej oblewałyby się także wtedy, gdyby do tej
+        // tabeli nie dało się wstawić NICZEGO.
+        DB::table('dziennik_zgod')->insert($poprawny);
+        $this->assertSame(1, WpisZgody::query()->count());
+
+        $proby = [
+            'cel' => ['cel' => 'newsletter_marketingowy'],
+            'czynnosc' => ['czynnosc' => 'moze_kiedys'],
+            'zrodlo' => ['zrodlo' => 'import_z_pliku'],
+        ];
+
+        foreach ($proby as $kolumna => $zla) {
+            try {
+                // `DB::transaction()` (czyli SAVEPOINT) wokół każdej próby:
+                // na PostgreSQL nieudane zapytanie zatruwa całą otaczającą
+                // transakcję, a tu ma się cofnąć wyłącznie ta jedna próba.
+                DB::transaction(fn () => DB::table('dziennik_zgod')->insert([...$poprawny, ...$zla]));
+                $this->fail("Baza przyjęła wartość spoza zamkniętego zbioru w kolumnie {$kolumna}.");
+            } catch (QueryException $wyjatek) {
+                $this->assertStringContainsString(
+                    "dziennik_zgod_{$kolumna}_check",
+                    $wyjatek->getMessage(),
+                    "Wiersz odrzuciło coś innego niż CHECK na kolumnie {$kolumna}.",
+                );
+            }
+        }
+
+        $this->assertSame(1, WpisZgody::query()->count());
+    }
+
+    /**
+     * `restrictOnDelete()`, nie `cascadeOnDelete()` — rozstrzygnięcie napięcia
+     * „dowód zgody vs prawo do usunięcia" z D-072. Kaskada skasowałaby dowód
+     * dokładnie w chwili, w której zwykle jest potrzebny (spór PO usunięciu
+     * konta), więc `DELETE FROM users` ma tu ODMÓWIĆ wykonania.
+     *
+     * Czego ten test NIE dowodzi: że ktoś nie zdejmie wyzwalacza i klucza
+     * ręcznie w `psql`. Dowodzi, że nie zrobi tego przez przypadek.
+     */
+    public function test_skasowanie_wiersza_konta_nie_moze_zabrac_dowodu(): void
+    {
+        $osoba = $this->user('twardy_dowod', ['wants_weekly_digest' => false]);
+        $this->zapiszUstawienia($osoba, true);
+
+        try {
+            DB::transaction(fn () => DB::table('users')->where('id', $osoba->getKey())->delete());
+            $this->fail('Skasowanie konta zabrało ze sobą dowód zgody (kaskada zamiast RESTRICT).');
+        } catch (QueryException $wyjatek) {
+            $this->assertStringContainsString('dziennik_zgod_user_id_foreign', $wyjatek->getMessage());
+        }
+
+        $this->assertSame([WpisZgody::UDZIELONA], $this->czynnosci($osoba));
+    }
+
+    // -----------------------------------------------------------------
+    // 7. Awaria zapisu dowodu — asymetria udzielenia i wycofania
+    // -----------------------------------------------------------------
+
+    /**
+     * Wersja polityki dłuższa niż `varchar(20)` psuje WYŁĄCZNIE zapis dowodu,
+     * nie ruszając ani jednej linii kodu produkcyjnego — to jest tu jedyny
+     * sposób, żeby deterministycznie wywołać awarię dziennika.
+     */
+    private function zepsujZapisDowodu(): void
+    {
+        config()->set('kuking.zgody.wersja_polityki', str_repeat('x', 40));
+    }
+
+    /**
+     * UDZIELENIE JEST ATOMOWE: flaga i dowód albo razem, albo wcale.
+     *
+     * To jest połowa asymetrii, którą `PrzestawZgodeNaDigest` nazywa
+     * najważniejszą rzeczą w pliku, i do tej pory nie pilnował jej żaden
+     * test. Wysyłka z włączoną flagą, ale bez wiersza w dzienniku, to
+     * dokładnie stan, którego D-072 zabrania: mailing bez dowodu podstawy
+     * prawnej. Lepiej nie zapisać kogoś na listy, niż zapisać bez dowodu.
+     */
+    public function test_nieudany_zapis_dowodu_nie_wlacza_wysylki(): void
+    {
+        $osoba = $this->user('dowod_padl_przy_zapisie', ['wants_weekly_digest' => false]);
+
+        $this->zepsujZapisDowodu();
+
+        // BEZ własnego `DB::transaction()` wokół wywołania — i to jest tu
+        // istotne, nie kosmetyczne. Savepoint założony przez TEST cofnąłby
+        // ustawienie flagi także wtedy, gdyby akcja robiła to poza własną
+        // transakcją — czyli test przechodziłby również dla kodu
+        // NIEATOMOWEGO, którego pilnuje. Savepoint ma pochodzić z `handle()`
+        // i stąd też ma brać się posprzątanie otaczającej transakcji.
+        try {
+            app(PrzestawZgodeNaDigest::class)->handle($osoba, true, WpisZgody::ZRODLO_USTAWIENIA);
+            $this->fail('Zgoda została włączona mimo nieudanego zapisu dowodu.');
+        } catch (QueryException) {
+            // Oczekiwane: `varchar(20)` odrzuca wersję polityki.
+        }
+
+        $this->assertFalse(
+            (bool) $osoba->fresh()->wants_weekly_digest,
+            'Flaga wysyłki została włączona bez dowodu podstawy prawnej (D-072).',
+        );
+
+        $this->assertSame([], $this->czynnosci($osoba));
+    }
+
+    /**
+     * WYCOFANIE DZIEJE SIĘ ZAWSZE, nawet gdy dziennika nie da się zapisać —
+     * druga połowa tej samej asymetrii, i też bez testu do dziś.
+     *
+     * RODO art. 7 ust. 3: wycofanie ma być tak łatwe jak udzielenie. Awaria
+     * naszej bazy nie może być powodem, przez który człowiek dalej dostaje
+     * listy. Kierunek pomyłki jest wybrany świadomie: brak wiersza
+     * o wycofaniu działa przeciwko NAM w sporze, a wysyłka po „nie" działałaby
+     * przeciwko człowiekowi.
+     */
+    public function test_nieudany_zapis_dowodu_nie_wstrzymuje_wycofania(): void
+    {
+        $osoba = $this->user('dowod_padl_przy_wycofaniu', ['wants_weekly_digest' => true]);
+
+        // Szpieg przez ZMIENNĄ, nie przez fasadę — ten sam wzorzec i ten sam
+        // powód co w `PolitykaBezpieczenstwaTest`: `Log::shouldHaveReceived()`
+        // działa w czasie wykonania, ale analiza statyczna widzi samą fasadę,
+        // na której takiej metody nie ma.
+        $log = Log::spy();
+        $this->zepsujZapisDowodu();
+
+        $this->assertTrue(
+            app(PrzestawZgodeNaDigest::class)->handle($osoba, false, WpisZgody::ZRODLO_LINK_WYPISANIA),
+        );
+
+        $this->assertFalse(
+            (bool) $osoba->fresh()->wants_weekly_digest,
+            'Awaria dziennika zatrzymała wypisanie — a zgodę wolno wycofać zawsze (RODO art. 7 ust. 3).',
+        );
+
+        // Ślad ZOSTAJE, żeby dało się dopisać wiersz ręcznie — i bez PII
+        // (AGENTS.md §7): sam identyfikator konta, żadnego adresu e-mail.
+        $log->shouldHaveReceived('error')->once()->withArgs(
+            fn (string $wiadomosc, array $kontekst): bool => str_contains($wiadomosc, 'wycofania zgody')
+                && $kontekst['user_id'] === (string) $osoba->getKey(),
+        );
     }
 }
