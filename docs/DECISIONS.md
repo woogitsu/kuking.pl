@@ -3766,8 +3766,10 @@ podstawie, jak zgodę wycofać i że nie sprawdzamy otwarć ani kliknięć.
 ### 6. Zdarzenia analityczne: dwa z czterech
 
 Issue #11 wymieniało cztery: wysłany, otwarty, kliknięty, wypisany. Wdrożone
-są **`weekly_digest_sent` i `weekly_digest_unsubscribed`** (`product_signals`,
-zbiór nazw rozszerzony migracją, nie zdjęciem CHECK-a).
+są **`weekly_digest_queued` i `weekly_digest_unsubscribed`** (`product_signals`,
+zbiór nazw rozszerzony migracją, nie zdjęciem CHECK-a). Pierwszy nazywał się
+do 10 września `weekly_digest_sent` — przemianowany przy **D-078**, bo
+powstaje zaraz po `Mail::queue()` i nie wie nic o doręczeniu.
 
 „Otwarty" wymaga niewidzialnego obrazka śledzącego w treści listu,
 „kliknięty" — podmiany każdego odnośnika na przekierowanie przez nasz serwer.
@@ -4897,12 +4899,1199 @@ pisanie kodu na `main`; dla (3) — nic przewidzianego, próg nie istnieje.
 `docs/research/PAKIETY.md` · `docs/INSPIRATION_DECISIONS.md` §10 ·
 issue #21
 
+---
+
+## D-077 · Tygodniowe podsumowanie ma trwały klucz idempotencji w bazie: rezerwacja `(osoba, tydzień)` PRZED wysłaniem, a przy awarii wolimy pominięcie niż duplikat
+
+**Data:** 10 września 2026 · Audyt drugiej warstwy QUEUE-01 / MAIL-02 /
+RACE-04 (P1) · Status: **obowiązuje**
+
+### 1. Co dokładnie było zepsute — kolejność, nie brak sprawdzenia
+
+`WyslijPodsumowaniaTygodnia` robiło dla każdej osoby w pętli:
+
+```text
+1. Mail::to(...)->queue($list)    ← SKUTEK ZEWNĘTRZNY JUŻ SIĘ STAŁ
+2. $budzetDnia->zajmij()
+3. sygnał WEEKLY_DIGEST_SENT
+4. $wyslane[] = $osoba
+```
+
+a `OdbiorcyDigestu::oznaczWyslane($wyslane)` — jedyny zapis mówiący „ta osoba
+jest obsłużona" — wykonywało się **dopiero po całej pętli**, jednym
+zapytaniem. Awaria po zakolejkowaniu N wiadomości, ale przed tym zbiorczym
+zapisem, zostawiała N listów w kolejce i **zero** śladu w bazie. Następny
+przebieg kwalifikował te same osoby ponownie i pisał do nich drugi raz.
+
+Okno tej awarii miało rozmiar CAŁEJ PACZKI — do sześćdziesięciu osób
+(`kuking.digest.dzienny_limit`) — i nie było hipotetyczne: wysyłka trwa około
+czterdziestu minut (odstęp 20 s na list), chodzi w tym samym procesie co
+serwer WWW (`Schedule::call()`, bo `proc_open` jest wyłączone) i mieszka na
+kontenerze Railway, który wolno zrestartować w każdej chwili.
+
+**`withoutOverlapping()` tego nie chronił i nigdy nie chronił.** Zapobiega
+dwóm przebiegom JEDNOCZEŚNIE, a duplikat powodował przebieg KOLEJNY — po
+awarii. To jest różnica, którą łatwo przeczytać jako „już się tym zajęliśmy",
+i komentarz w `routes/console.php` faktycznie tak brzmiał. Został poprawiony.
+
+### 2. Dlaczego to boli bardziej niż zwykły duplikat
+
+Ekran `/ustawienia/prywatnosc` obiecuje **jeden e-mail tygodniowo, nigdy
+więcej**. Ta obietnica jest złożona ludziom 50+, którzy nie chcą, żeby serwis
+ich zasypywał, i którzy przy drugim identycznym liście w tym samym tygodniu
+mają prawo pomyśleć, że coś jest zepsute albo że to spam. Digest jest do tego
+funkcją **na zgodę** (art. 6 ust. 1 lit. a RODO): wysyłka ponad obiecany rytm
+podważa to, na co ktoś się zgodził, a nie tylko psuje wrażenie.
+
+Ma to też cenę techniczną, której nie widać z ekranu: każdy duplikat zjada
+list z wiadra 300 na dobę, dzielonego z potwierdzeniami rejestracji (D-057).
+Duplikat biuletynu potrafi więc zamknąć komuś rejestrację.
+
+### 3. Decyzja: bariera w bazie, nie sprawdzenie w PHP
+
+Nowa tabela `weekly_digest_sends` z **kluczem głównym (a więc unikalnym) na
+parze `(user_id, week_start)`** i wiersz zajmowany **przed** `Mail::queue()`:
+
+```text
+1. INSERT weekly_digest_sends (osoba, poniedziałek tygodnia)
+   + UPDATE users.weekly_digest_sent_at       ← JEDNA TRANSAKCJA
+2. dopiero teraz Mail::to(...)->queue($list)
+3. budżet, sygnał
+```
+
+Konflikt unikalności znaczy „ta osoba ma ten okres obsłużony" i wtedy po
+prostu ją pomijamy — bez błędu, bez listu, z jednym zdaniem na wyjściu
+komendy, bo to jedyny moment, w którym widać, że poprzedni przebieg nie
+doszedł do końca.
+
+**Dlaczego constraint, a nie `exists()`.** Sprawdzenie w PHP jest odczytem,
+po którym następuje zapis, a między nimi jest luka. Dwa przebiegi (dwa
+kontenery, albo ręczny przebieg właściciela obok harmonogramu po wygaśnięciu
+blokady) przechodzą oba przez ten sam `SELECT`, oba widzą „jeszcze nie
+wysłano" i oba wysyłają — to jest RACE-04. `UNIQUE` tej luki nie ma. `exists()`
+w PHP zostaje, ale jako sposób na ŁADNE zachowanie, nie jako gwarancja.
+
+**Dlaczego OBIE warstwy zostają.** `weekly_digest_sends` mówi „najwyżej jeden
+list na tydzień kalendarzowy", `users.weekly_digest_sent_at` — „nie częściej
+niż raz na siedem dni" plus kolejność „kto czeka najdłużej". Sam tydzień
+kalendarzowy pozwoliłby na list w niedzielę i w poniedziałek; sam odstęp jest
+porównaniem z luką. Kolumna nadal istnieje i nadal jest potrzebna — zmieniło
+się to, że jest zapisywana **osobno dla każdej osoby i przed wysłaniem**.
+
+### 4. Okres to DATA PONIEDZIAŁKU w strefie człowieka, nie numer tygodnia ISO
+
+Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28` należy do
+tygodnia 1 **roku 2027**, więc numer wymaga pary (rok ISO, tydzień) — a klucz
+idempotencji zapisany niepełny przestaje być unikalny. Data poniedziałku to
+jedna kolumna `date`: porównywalna, sortowalna, czytelna w zrzucie bazy
+i zgodna z tym, co w PostgreSQL znaczy `date_trunc('week', …)` (tygodnie
+Postgresa zaczynają się w poniedziałek).
+
+Liczy ją `App\Support\Czas::poczatekTygodniaData()`, a nie `now()`, i to nie
+jest formalność: `app.timezone` musi zostać UTC (patrz komentarz klasy
+`Czas`), a poniedziałek UTC zaczyna się w Polsce w niedzielę o 22:00.
+Przebieg uruchomiony w poniedziałek nad ranem trafiałby więc do tygodnia
+POPRZEDNIEGO — czyli do klucza, który dla części osób jest już zajęty.
+
+Tydzień jest liczony **raz na cały przebieg**, przed pętlą. Gdyby każda osoba
+pytała o „teraz" osobno, paczka schodząca przez północ z niedzieli na
+poniedziałek rozpadłaby się na dwa różne klucze.
+
+Do tego CHECK w bazie: `extract(isodow from week_start) = 1`. Bez niego data
+ze środka tygodnia dałaby tej samej osobie dwa różne, oba wolne klucze
+w jednym tygodniu — czyli dwa listy przy nietkniętym `UNIQUE`. Bariera bez
+tego CHECK-a broni się przed powtórzeniem, ale nie przed pomyłką w kluczu.
+
+**Kalendarzowy tydzień nikogo nie opóźnia.** Dzień `x` i dzień `x + 7` zawsze
+mają różne poniedziałki, więc bariera nie blokuje wysyłki, na którą odstęp
+siedmiu dni już pozwala. Dwie warstwy razem dają zdanie mocniejsze niż każda
+z osobna: **najwyżej jeden list na tydzień kalendarzowy i nie częściej niż raz
+na siedem dni.**
+
+### 5. Wybór, którego nie da się uniknąć: rezerwacja została, wysyłka padła
+
+To jest prawdziwy rozstrzygnięty wybór, nie szczegół implementacji, więc jest
+nazwany wprost:
+
+> **Rezerwacja ZOSTAJE. Ta osoba nie dostaje listu za ten tydzień.**
+
+Nie da się mieć naraz „nikt nie dostanie dwa razy" i „nikt nie zostanie
+pominięty", bo po wyjściu z `Mail::queue()` nie wiemy, czy wiadomość weszła do
+kolejki. Wycofanie rezerwacji przy złapanym wyjątku wyglądałoby na
+ostrożność, a byłoby przywróceniem usterki dokładnie w tym jednym przypadku,
+w którym stan jest niejednoznaczny — a niejednoznaczny jest zawsze, bo proces
+może padnąć MIĘDZY udanym `queue()` a naszym `catch`.
+
+Uzasadnienie kierunku, a nie przemilczenie:
+
+1. **Przy tygodniowym podsumowaniu pominięcie jest odwracalne, a duplikat
+   nie.** Kto nie dostał listu, dostanie go za tydzień i najprawdopodobniej
+   nie zauważy — treść to trzy pozycje z ostatnich siedmiu dni, nie termin
+   ani nie decyzja. List wysłany drugi raz jest u człowieka w skrzynce na
+   zawsze.
+2. **Digest jest funkcją powrotu, nie funkcją krytyczną.** Nic się nie psuje
+   w serwisie, gdy list nie przyjdzie. Psuje się, gdy przyjdzie dwa razy.
+3. **Ta strona pomyłki jest już wybrana w tym samym miejscu** — przy
+   `oznaczWyslane()` stoi od D-057: „lepiej, żeby ktoś dostał o jeden list za
+   mało, niż żeby dostał trzy". Odwrócenie jej tylko przy awarii dałoby dwie
+   sprzeczne reguły w jednej pętli.
+4. **Skala jest znana i mała.** Pominięcie dotyczy najwyżej tych osób, dla
+   których przebieg padł — nie całej paczki, bo rezerwacja jest per osoba.
+   Wcześniej duplikat dotyczył wszystkich obsłużonych do momentu awarii.
+
+Świadoma cena: nie ma sposobu, żeby dowiedzieć się z bazy, którym osobom list
+przepadł — wiersz rezerwacji wygląda identycznie dla „wysłano" i dla „padło
+po rezerwacji". Rozróżnienie wymagałoby stanu wiersza i potwierdzeń doręczenia
+od dostawcy, czyli dokładnie tego, czego produkt nie chce (#204). Widać za to
+liczbę: komenda wypisuje, ile osób pominięto jako już obsłużone.
+
+### 6. Dlaczego NIE transactional outbox
+
+Outbox rozwiązuje inny problem: **at-least-once** przy niepewnym transporcie
+(zapisz zamiar w tej samej transakcji co dane, osobny proces dowozi i ponawia).
+Tutaj potrzebne jest **at-most-once na parę (osoba, tydzień)** — i to daje
+jeden indeks unikalny, bez ani jednej nowej ruchomej części.
+
+Co by doszło z outboxem: tabela z zamiarem wysyłki, proces ją opróżniający
+(a więc druga kolejka przed kolejką Laravela), retencja tej tabeli, obsługa
+zamiarów zawieszonych i nowy tryb awarii „outbox rośnie, nikt nie zauważył".
+Za to nie doszłoby ani jedno powiadomienie więcej: pominięcie po awarii
+zostaje pominięciem, bo o ponawianiu listu rozstrzyga §5, a nie mechanizm.
+
+AGENTS.md §3 mówi wprost: bez zmierzonej, udokumentowanej potrzeby nie
+dokładamy mechanizmów. Pomiaru mówiącego, że tracimy listy w kolejce, nie ma
+— jest pomiar mówiący, że wysyłamy je dwa razy. Na to wystarcza `UNIQUE`.
+
+**Zmiana wymaga:** zmierzonej straty listów w kolejce (np. z `failed_jobs`
+poczty, PR #253), której nie da się przyjąć jako „ta osoba czeka tydzień".
+
+### 7. Rollback — i dlaczego `down()` nie przywraca stanu groźnego po cichu
+
+`down()` kasuje tabelę. Nie ginie ani jedno słowo od człowieka i nie ginie
+pamięć o wysyłce (`users.weekly_digest_sent_at` zostaje) — ale **ginie
+bariera**. Po wycofaniu jedyną ochroną przed drugim listem zostaje porównanie
+w PHP, czyli dokładnie ten mechanizm, którego luka jest powodem tej migracji.
+Stan po rollbacku jest więc stanem sprzed poprawki, tylko z mniejszym oknem
+awarii (znacznik jest już zapisywany per osoba, nie po pętli).
+
+Dlatego:
+
+- rollback robi się **wyłącznie razem z `KUKING_DIGEST_WLACZONY=false`**,
+  nigdy „przy okazji" innej zmiany;
+- kolejność: **najpierw kod, potem migracja.** Nowy kod bez tabeli pada na
+  pierwszej osobie i nie wysyła nikomu nic — kierunek awarii bezpieczny, ale
+  wysyłka staje, więc wycofanie samej migracji jest wyłączeniem digestu
+  okrężną drogą. Do wyłączania jest zmienna środowiskowa.
+
+### 8. Czego ta decyzja NIE dotyka
+
+- **`DziennyBudzetListow` zostaje bez zmian.** Atomowa rezerwacja dobowego
+  budżetu jest osobnym zadaniem (gałąź `claude/atomowy-budzet-listow`);
+  pętla woła budżet tak jak dotąd, po udanej rezerwacji tygodnia.
+- **Treść listu i harmonogram** (codziennie 08:30) — nietknięte.
+- **`KUKING_DIGEST_WLACZONY`** nadal domyślnie `false`; włącza właściciel.
+- **Żadnego śledzenia otwarć ani doręczeń** — otwarta sprawa #204, produkt
+  świadomie tego nie chce. Nowa tabela nie jest do tego furtką: nie ma w niej
+  stanu wiersza ani niczego o doręczeniu.
+- **Droga listu próbnego `--tylko` omija barierę świadomie.** Flaga istnieje,
+  żeby właściciel zobaczył list TERAZ, i już dziś pomija odstęp tygodniowy.
+  Gdyby zajmowała klucz tygodnia, drugi list próbny w tym samym tygodniu byłby
+  niemożliwy, a konto użyte do próby straciłoby prawdziwe podsumowanie.
+  Bariera pilnuje wysyłki masowej; jednego adresu wpisanego ręcznie w konsoli
+  pilnuje człowiek, który tę komendę wpisał.
+
+📄 `database/migrations/2026_09_10_400000_create_weekly_digest_sends_table.php` ·
+`app/Domain/Digest/OdbiorcyDigestu.php` ·
+`app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`app/Support/Czas.php` · `routes/console.php` ·
+`tests/Feature/DigestNieWysylaDwaRazyTest.php` ·
+`docs/DATABASE.md` (sekcja `weekly_digest_sends`) ·
+D-057 · audyt `docs/research/audyt-2026-09-10/` (QUEUE-01, MAIL-02, RACE-04)
+
+---
+
+## D-078 · Sygnał digestu mówi „zakolejkowano", a „jeden aktywny eksport na konto" pilnuje baza, nie `exists()`
+
+**Data:** 10 września 2026 · **Audyt drugiej warstwy z 10.09.2026, ustalenia
+MAIL-03 oraz QUEUE-04 / RACE-05 (oba P2)** · Status: **obowiązuje**
+
+Dwie niezależne sprawy o tym samym charakterze: **kod twierdził coś
+mocniejszego, niż faktycznie zaszło.** Raz w nazwie zdarzenia analitycznego,
+raz w obietnicy schematu, której schemat nie składał.
+
+### 1. `weekly_digest_sent` → `weekly_digest_queued` (MAIL-03)
+
+**Stan sprzed zmiany, sprawdzony w pliku:**
+`WyslijPodsumowaniaTygodnia::handle()` zapisywał sygnał
+`ZapiszSygnal::WEEKLY_DIGEST_SENT` **jedną linijkę po `Mail::queue()`** —
+przed jakimkolwiek kontaktem workera z dostawcą poczty.
+
+Nazwa sklejała w jedno trzy różne zdarzenia: **zakolejkowano**, **dostawca
+przyjął**, **doręczono**. Kuking ma prawdziwy sygnał tylko o pierwszym.
+Skutek był mierzalny i przewrotny: list, który przewróci się w workerze
+i wyląduje w `failed_jobs`, **nadal był policzony jako wysłany** — czyli
+metryka zawyżała skuteczność wysyłki najbardziej właśnie wtedy, gdy wysyłka
+przestawała działać. To jest ta sama klasa usterki co dryf dokumentacji
+(patrz `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`): liczba nie jest
+fałszywa przez pomyłkę w kodzie, tylko przez nazwę obiecującą więcej, niż kod
+może wiedzieć.
+
+**Nazwa jest angielska, `snake_case`** — `AGENTS.md` §11 mówi to wprost
+o zdarzeniach analitycznych, a pozostałe nazwy w tym zbiorze
+(`photo_upload_failed`, `search_performed`, `weekly_digest_unsubscribed`)
+trzymają tę konwencję. Polskie `zakolejkowano` wyłamywałoby jedną nazwę
+z ustalonego podziału (nazwy po angielsku, `properties` po polsku).
+
+#### Migracja przepisująca stare wiersze, nie dwie nazwy przy odczycie
+
+To była jedyna realna decyzja w tej połowie i rozstrzygnęło ją **sprawdzenie,
+kto tę nazwę czyta. Nikt.** Na `main` `weekly_digest_sent` znały wyłącznie:
+`ZapiszSygnal` (zapis), komenda wysyłkowa (zapis) i testy. `kuking:raport`
+liczy powroty z `users.ostatnio_widziany_at`, nie z `product_signals`; żaden
+ekran panelu nie sięga do `signal_name`; próg z `RETENTION_LOOPS.md` §6
+wiersz 5 (wypisy > 1% na wysyłkę) nie jest dziś liczony przez żaden kod.
+**Nie ma więc panelu, który po tej zmianie przestaje cokolwiek pokazywać** —
+i to jest powód, dla którego dwie nazwy przy odczycie byłyby kosztem bez
+korzyści: rozgałęziałyby każde przyszłe zapytanie, a pierwszy człowiek, który
+napisze `where('signal_name', 'weekly_digest_queued')` bez tej gałęzi,
+dostałby po cichu za małą liczbę.
+
+Migracja `2026_09_10_400000_rename_weekly_digest_sent_signal` robi więc trzy
+kroki w tej kolejności: poszerza CHECK o obie nazwy, przepisuje wiersze
+(`UPDATE`, nie `DELETE`), zwęża CHECK do nowej. Odwrotna kolejność odbiłaby
+`UPDATE` o ograniczenie, którego wiersze jeszcze nie spełniają. `down()` jest
+symetryczne i też nie kasuje wierszy — cofnięcie kodu przywraca kod, który
+tę nazwę zapisywał, a kasowanie telemetrii przy rollbacku byłoby karą za
+cofnięcie wdrożenia. Na produkcji takich wierszy jest prawdopodobnie zero
+(digest jest domyślnie wyłączony, D-057 §8), ale migracja tego nie zakłada.
+
+#### Czego świadomie NIE zrobiliśmy: `delivered` i `opened`
+
+Nie emitujemy ani jednego, ani drugiego, i **nie wracamy do pikseli
+śledzących, żeby mieć ładniejszą metrykę.** „Doręczono" wymaga webhooka
+o odbiciach od dostawcy — osobna, niezrobiona robota (`docs/decyzje/POCZTA.md`
+§5 pkt 6). „Otwarto" wymaga niewidzialnego obrazka w treści listu, czyli
+zapisywania, kiedy konkretna osoba czyta pocztę i z jakiego adresu IP.
+Polityka prywatności obiecuje wprost tego nie robić, transport ma własny
+wyłącznik śledzenia u dostawcy (`X-TRACKING-OFF`) domyślnie WŁĄCZONY, a sprawa
+jest otwarta jako **#204** i produkt świadomie tego nie chce. Zatrzymujemy się
+na uczciwym „zakolejkowano".
+
+Pilnuje tego test, nie tylko zdanie w tym wpisie:
+`SygnalDigestuMowiZakolejkowanoTest::test_zamkniety_zbior_nazw_nie_obiecuje_doreczenia_ani_otwarcia`
+czyta CHECK wprost z `pg_constraint` i przechodzi po stałych `ZapiszSygnal`
+przez refleksję. Nazwa mówiąca „doręczono", „otwarto" albo „kliknięto" oblewa
+go. Gdy prawdziwy webhook o odbiciach kiedyś powstanie, `delivered` zdejmuje
+się z tamtej listy **jawnie**, jedną decyzją — śledzenia otwarć i kliknięć
+nie zdejmuje się wcale.
+
+### 2. Jeden aktywny eksport danych na konto — indeks częściowy (QUEUE-04 / RACE-05)
+
+**Stan sprzed zmiany, sprawdzony w pliku:**
+`DataSettingsController::requestExport()` robił `exists()` na stanach
+`queued`/`processing`, a potem **osobny `INSERT`**. Schemat nie wymuszał
+niczego: `data_exports` miało CHECK na `status` i indeks `(user_id,
+created_at)`, ale żadnego ograniczenia unikalności.
+
+Między `SELECT`-em a `INSERT`-em jest okno. Przy izolacji `read committed`
+dwa równoległe żądania widzą „nie ma aktywnego eksportu" **jednocześnie**
+i oba wstawiają swój wiersz, żadne nie czeka. Skutkiem są **dwa ciężkie
+eksporty tego samego konta**: `GenerateUserExport` pakuje wszystkie zdjęcia,
+ma 15 minut limitu czasu, chodzi na kolejce `low` przy jednym workerze — plus
+dwa listy do jednej osoby z tego samego dobowego wiadra 300 wiadomości.
+Wejściem jest podwójne kliknięcie „Zamów swoje dane", a **przy grupie 60+
+dwuklik jest scenariuszem typowym, nie skrajnym** (`docs/UX_50_PLUS.md`,
+`docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
+
+```sql
+CREATE UNIQUE INDEX data_exports_one_active_per_user
+    ON data_exports (user_id)
+ WHERE status IN ('queued', 'processing');
+```
+
+**`exists()` W PHP ZOSTAJE — ale robi coś innego niż indeks.** `exists()` daje
+ŁADNY KOMUNIKAT, indeks daje GWARANCJĘ. `AGENTS.md` §6: „prawdziwe klucze obce
+i prawdziwe CHECK-i w bazie — walidacja w PHP jest dodatkiem, nie
+zamiennikiem". Tutaj było odwrotnie. To jest dokładnie ten przypadek, w którym
+PostgreSQL potrafi wyrazić inwariant, a `exists()` w PHP nie potrafi.
+
+**`lockForUpdate()` NIE jest tu rozwiązaniem i nie został dodany** — `SELECT
+... FOR UPDATE`, który nie zwrócił żadnego wiersza, nie blokuje niczego. To
+wstawienie fantomu, nie konflikt na wierszu (zmierzone przy
+`reports_one_open_per_pair`, ADR §1.4.2).
+
+**Indeks jest CZĘŚCIOWY, bo inwariant brzmi „jeden AKTYWNY", nie „jeden
+w historii".** RODO art. 15 nie jest jednorazowe, a ekran ustawień pokazuje
+pięć ostatnich paczek. Zwykły `UNIQUE (user_id)` zamieniłby usterkę
+współbieżności na usterkę produktową: człowiek nie mógłby już nigdy zamówić
+swoich danych po raz drugi.
+
+**Konflikt kończy się TYM SAMYM zdaniem co zwykły dwuklik, nigdy 500.**
+Kontroler łapie `UniqueConstraintViolationException`, upewnia się, że aktywny
+eksport naprawdę istnieje (inaczej wyjątek leci dalej — to samo, co robi
+`ReportContent`), i oddaje `back()->with('status', …)` z jedną, wspólną
+treścią. Człowiek, który kliknął dwa razy, ma zobaczyć to samo co ten, który
+kliknął raz; ekran błędu byłby karą za dwuklik. `INSERT` jest owinięty
+w `DB::transaction()` — nie z ostrożności, a dlatego, że na PostgreSQL nieudany
+`INSERT` wewnątrz szerszej transakcji zatruwa całą transakcję i sprawdzenie po
+konflikcie odbiłoby się o „current transaction is aborted" (ta sama pułapka co
+w `ZapiszSygnal`).
+
+**Migracja odmawia, gdy w bazie już leżą dwa aktywne eksporty jednego konta**
+— bo `CREATE UNIQUE INDEX` i tak by się o nie odbił, tylko komunikatem
+PostgreSQL, z którego nie wynika, co zrobić. Komunikat migracji mówi: zostaw
+NAJSTARSZY aktywny wiersz na konto, nadmiarowe skasuj — gotowy `DELETE` stoi
+w komentarzu migracji. Kasowanie jest tu bezpieczne, **w odróżnieniu od
+`reports`**, i to jest osobna decyzja: wiersz w stanie aktywnym nie ma jeszcze
+`object_key` ani `disk` (nie ma osieroconego pliku),
+`GenerateUserExport::handle()` przy braku wiersza po prostu wraca, a paczka
+z pozostawionego wiersza jest bajt w bajt tą samą paczką. To nie jest sprawa
+z terminem odpowiedzi z DSA art. 16.
+
+### Ryzyka i rollback
+
+| Zmiana | Rollback | Co wraca |
+|---|---|---|
+| Nazwa sygnału | `migrate:rollback` na `2026_09_10_400000_*` — przepisuje wiersze z powrotem, nic nie kasuje | stara, nieprawdziwa nazwa; cofać razem z kodem, inaczej w tabeli mieszają się obie |
+| Indeks eksportu | `DROP INDEX IF EXISTS` — bezstratnie, żaden wiersz nie ginie | `exists()` łapie zwykły dwuklik, baza nie broni niczego, `catch` staje się gałęzią, w którą nic nie wchodzi |
+
+Największe ryzyko po tej stronie to **migracja odmawiająca na produkcji**
+przy istniejących duplikatach. Jest świadome: lepiej zatrzymać wdrożenie
+komunikatem mówiącym co zrobić, niż wdrożyć się w połowie.
+
+### Sprostowanie po drodze
+
+`docs/DATABASE.md` twierdził przy `product_signals.occurred_at`, że dla
+`weekly_digest_sent` kolumna jest **czytana jako licznik dobowego limitu
+poczty**. Nieprawda — sprawdzone w kodzie: sufit liczy
+`App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**
+i do `product_signals` nie sięga ani razu. Poprawione tam na miejscu.
+
+### Zmiana wymaga
+
+Dla (1) — prawdziwego sygnału od dostawcy poczty, jawnie zdjętego z listy
+zakazanych cząstek w teście, plus wpisu tutaj. Śledzenia otwarć i kliknięć
+nie dotyczy: to obietnica z polityki prywatności, nie brak funkcji.
+Dla (2) — zmiany słownika stanów `data_exports`; wtedy warunek `WHERE` indeksu
+i lista w `maAktywnyEksport()` muszą pójść razem, inaczej rozjadą się cicho
+(obie gałęzie kończą się tym samym ekranem).
+
+📄 `app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`app/Domain/Analytics/ZapiszSygnal.php` ·
+`app/Http/Controllers/Settings/DataSettingsController.php` ·
+`database/migrations/2026_09_10_400000_rename_weekly_digest_sent_signal.php` ·
+`database/migrations/2026_09_10_400100_one_active_data_export_per_user.php` ·
+`tests/Feature/SygnalDigestuMowiZakolejkowanoTest.php` ·
+`tests/Feature/JedenAktywnyEksportNaKontoTest.php` ·
+`tests/Feature/Wyscigi/EksportDanychRaceTest.php` ·
+`tests/Feature/TygodniowePodsumowanieTest.php` ·
+`docs/DATABASE.md` (`data_exports`, `product_signals`) ·
+audyt `docs/research/audyt-2026-09-10/` (MAIL-03, QUEUE-04 / RACE-05) ·
+issue #204 (otwarta: śledzenie otwarć — nie robimy)
+
 [^1]: [spatie/laravel-permission — migracja `create_permission_tables.php.stub`](https://raw.githubusercontent.com/spatie/laravel-permission/main/database/migrations/create_permission_tables.php.stub) — pięć `Schema::create()`: `permissions`, `roles`, `model_has_permissions`, `model_has_roles`, `role_has_permissions`.
 [^2]: [spatie/laravel-permission — `config/permission.php`](https://raw.githubusercontent.com/spatie/laravel-permission/main/config/permission.php) — `'store' => 'default'`, `'expiration_time' => DateInterval::createFromDateString('24 hours')`.
 [^3]: [Laravel 13.x Docs — Pennant](https://laravel.com/docs/13.x/pennant) — sterownik `database` jest domyślnym mechanizmem trwałego zapisu wartości flag; migracja pakietu tworzy tabelę `features`.
 [^4]: [spatie/laravel-activitylog — README](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — jedna tabela `activity_log`, kolumny `subject_id`/`subject_type`, `causer_id`/`causer_type`, `description`, `properties`, `event`.
 [^5]: `spatie/laravel-activitylog` dokumentacja, sekcja „Log Options" (`docs/advanced-usage/log-options.md` w repozytorium pakietu) — `logOnly()`/`logExcept()`/`dontLogEmptyChanges()`.
 [^6]: [spatie/laravel-activitylog — README, sekcja „Clean log"](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — komenda `activitylog:clean`, kasuje wpisy starsze niż skonfigurowana liczba dni, bez pojęcia kategorii wyłączonych z kasowania.
+
+---
+
+## D-071 · Granica zaufania do nagłówka `Host` jest zamknięta z dwóch stron: `X-Forwarded-Host` wypada z zaufanych nagłówków, a `Host` przechodzi przez `TrustHosts`
+
+**Data:** 10 września 2026 · **Znalezisko:** S2 (P1) z `docs/research/audyt-2026-09-10/02_BEZPIECZENSTWO_APLIKACJI.md`
+
+### Co było zmierzone PRZED zmianą — bo od tego zależy, jak to nazwać
+
+Pomiar, nie założenie (tymczasowy test na `origin/main` @ `e3cf6ab`):
+
+| Żądanie | Odpowiedź | `url('/przepisy')` |
+|---|---|---|
+| bez nagłówków | 200 | `http://localhost:8000/przepisy` |
+| `Host: attacker.invalid` | 200 | host z żądania |
+| `X-Forwarded-Host: attacker.invalid` | 200 | **`http://attacker.invalid/przepisy`** |
+
+Linki w listach przy `X-Forwarded-Host: attacker.invalid`, gdy adres powstaje
+w żądaniu HTTP — wszystkie cztery wychodziły na `http://attacker.invalid/…`:
+reset hasła, potwierdzenie adresu, logowanie linkiem, potwierdzenie zmiany
+adresu e-mail.
+
+**Ale to nie znaczy, że wszystkie cztery były na produkcji do wykorzystania,
+i nie wolno tego tak sprzedać.** Trzy pierwsze powiadomienia są `ShouldQueue`,
+a produkcyjna kolejka to `database` (`.railway/railway.ts`), więc adres
+powstaje w WORKERZE. Zmierzone w kontekście konsoli: `url()` zwraca
+`https://kuking.pl/…`, bo `SetRequestForConsole` buduje żądanie z `APP_URL`.
+Dla resetu hasła, potwierdzenia adresu i logowania linkiem to była więc
+granica **formalnie otwarta, praktycznie zasłonięta** przez asynchroniczną
+kolejkę — czyli **hardening, nie naprawa dziury**.
+
+Jedno miejsce nie miało tej osłony: `RequestEmailChange::linkPotwierdzajacy()`
+buduje podpisany adres **w żądaniu HTTP**, przed zakolejkowaniem listu. Tam
+`X-Forwarded-Host` wchodził do treści listu wprost i to jest **realnie otwarta
+droga**, nie hipoteza.
+
+### Decyzja
+
+**1. `Request::HEADER_X_FORWARDED_HOST` wypada z bitmaski `trustProxies()`.**
+To jest zamknięcie mocniejsze niż allowlista, bo nagłówka, którego aplikacja
+nie czyta, nie da się podstawić żadną wartością. Wolno go było wyjąć, bo
+w naszym łańcuchu **nikt go nie wystawia i nikt nie przepisuje `Host`**:
+Cloudflare w trybie proxy przekazuje `Host` na origin nietknięty (routing po
+nim właśnie działa), a brzeg Railway kieruje ruch po `Host`/SNI i też go
+zachowuje — inaczej nie odróżniłby `kuking.pl` od `staging.kuking.pl` na tym
+samym koncie. Aplikacja ma oryginalny host w `Host` i drugiego źródła nie
+potrzebuje.
+
+**2. `Host` przechodzi przez `TrustHosts` z jawną listą** — `App\Support\ZaufaneHosty`,
+`subdomains: false`. Na liście: `kuking.pl`, `www.kuking.pl`,
+`healthcheck.railway.app`, host z `APP_URL`, pętla zwrotna
+(`localhost`/`127.0.0.1`/`[::1]`) i pusty domyślnie zawór
+`config('proxy.dodatkowe_hosty')`. Uzasadnienie każdego wpisu — i tego, co się
+stanie po jego pominięciu — stoi w komentarzu tamtej klasy.
+
+**3. Adresy w listach budowane z konfiguracji, zawsze** — `App\Support\AdresKanoniczny`.
+Dla linku, który **daje sesję** (`LinkDoLogowania`, D-056 — nasza główna droga
+wejścia dla osób 60+), „host był na liście dozwolonych" jest gwarancją słabszą
+niż „host w ogóle nie zależał od żądania": lista ma kilka pozycji, kanoniczny
+adres jest jeden.
+
+### Czego świadomie NIE zrobiliśmy
+
+**Produkcyjnego `*.up.railway.app` nie ma na liście.** Wejście na origin
+z pominięciem Cloudflare to znalezisko **S1** — osobne, większe, wymaga zmian
+w panelu Cloudflare i decyzji właściciela. Ta zmiana go NIE rozstrzyga.
+Skutkiem ubocznym jest to, że ten host przestaje być drogą do zbudowania
+adresu na cudzej domenie, ale **to nie jest zamknięcie S1** i nie wolno tak
+raportować. Gdyby właściciel potrzebował wejść na origin wprost, służy do tego
+zawór z punktu 2.
+
+**Nie ruszaliśmy `NormalizeForwardedFor`** ani liczby `zaufane_przeskoki`
+(SEC-01, W7-01) — to jest `X-Forwarded-For`, inna granica.
+
+### Ryzyko wdrożeniowe — jedyne, które tu jest, i jak je zamknięto
+
+`TrustHosts` bez `healthcheck.railway.app` oddaje healthcheckowi Railwaya 400,
+a wtedy **deploy nigdy się nie kończy i nie ma jak wypchnąć poprawki**, bo
+poprawka też idzie deployem. Dlatego: host jest na liście, pilnuje go test
+`ZaufaneHostyTest::test_healthcheck_railwaya_przechodzi` (oblewa po usunięciu
+wpisu — sprawdzone), a na wypadek zmiany po stronie Railwaya istnieje zawór
+`KUKING_ZAUFANE_HOSTY`, którym da się naprawić produkcję **bez deployu**.
+Brak tej zmiennej jest stanem domyślnym, bezpiecznym i działającym — nie trzeba
+jej ustawiać, żeby serwis wstał.
+
+**Zmiana wymaga:** dowodu z produkcji, że coś w łańcuchu przepisuje `Host`
+(objaw: adresy w serwisie wskazują wewnętrzną domenę platformy). Wtedy wraca
+`HEADER_X_FORWARDED_HOST` — ale razem z zapisanym pomiarem, nie „na wszelki
+wypadek".
+
+📄 `bootstrap/app.php` · `app/Support/ZaufaneHosty.php` ·
+`app/Support/AdresKanoniczny.php` · `config/proxy.php` ·
+`app/Notifications/UstawienieNowegoHasla.php` ·
+`app/Notifications/PotwierdzenieAdresu.php` ·
+`app/Notifications/LinkDoLogowania.php` ·
+`app/Domain/Users/Actions/RequestEmailChange.php` ·
+`tests/Feature/ZaufaneHostyTest.php` ·
+`.railway/railway.ts` · `docs/legal/BRAMKA_BETY.md` ·
+`docs/infra/DEPLOYMENT_RUNBOOK.md`
+
+---
+
+## D-076 · Dobowy budżet listów jest twardym sufitem: jedna atomowa rezerwacja pod blokadą `Cache::lock()`, bez nowej tabeli
+
+**Data:** 10 września 2026 · Źródło: audyt drugiej warstwy, **MAIL-01 / RACE-03 (P1)** · Status: **obowiązuje**
+
+### Co było źle
+
+`App\Domain\Security\DziennyBudzetListow` rozdzielał odczyt licznika od jego
+zapisu — i tak też był wołany:
+
+```php
+if (! $budzet->jestMiejsce()) { odmów; }   // odczyt: 119 ze 120
+// …dziesięć linii dalej…
+$budzet->zajmij();                          // zapis: 120
+```
+
+Tak stało w `LoginLinkController::send()` (sprawdzenie i zajęcie w odległości
+dziesięciu linii) i w `kuking:wyslij-podsumowania` (rozmiar paczki liczony raz
+z `zostalo()`, przed pętlą). Przy suficie 120 i zużyciu 119 dwa równoległe
+żądania czytają oba 119, oba widzą wolne miejsce, oba wysyłają list i oba
+inkrementują licznik. Wychodzi 121 listów przy sufcie 120.
+
+`Cache::increment()` jest atomowy jako POJEDYNCZA operacja — i to właśnie
+usypiało czujność. Para „sprawdź, a potem zajmij" nie jest atomowa jako para
+i żadna liczba komentarzy w kodzie tego nie zmienia.
+
+Nie da się tego naprawić sprawdzeniem PO inkrementacji („czy przekroczyliśmy?").
+Wiadomość jest wtedy już zakolejkowana, przekroczenie już nastąpiło, a listu
+z drogi nie cofniemy.
+
+### Dlaczego to nie jest usterka kosmetyczna
+
+Wiadro u dostawcy to 300 listów na dobę na CAŁY serwis (D-047), a z tego samego
+wiadra idzie **potwierdzenie rejestracji**, które sufitu nie ma i mieć nie może
+— nie da się go przełożyć na jutro. Sufit przeciekający o kilka listów pod
+obciążeniem zabiera je dokładnie tam. Właściciel spodziewa się fali migracyjnej
+z Garnek.pl, czyli dnia, w którym logowanie linkiem i rejestracja mają szczyt
+w tej samej godzinie.
+
+### Decyzja
+
+1. **Jedna atomowa operacja rezerwacji:** `sprobujZarezerwowac(): bool`.
+   Zajmuje miejsce i zwraca `true`, albo nie zajmuje niczego i zwraca `false`.
+   W środku, pod blokadą, chodzi ta sama para co dawniej — ale nikt z zewnątrz
+   nie może już wejść między jej dwa kroki.
+2. **Wszystkie miejsca decydujące o wysyłce przeszły na tę metodę.** Sprawdzone
+   `grep`iem: w `app/` nie została ani jedna para sprawdź-potem-zajmij.
+3. **`jestMiejsce()` i `zostalo()` zostają jako ODCZYT** — do pokazania
+   człowiekowi, do diagnostyki i do oszacowania rozmiaru paczki
+   (`kuking:wyslij-podsumowania` nie pobiera z bazy stu odbiorców, gdy zostało
+   pięć miejsc). Docblocki mówią teraz wprost, czego nimi robić nie wolno.
+4. **Nie udało się zdobyć blokady w 2 sekundy → ODMOWA wysyłki.** Nie „wyślij
+   na wszelki wypadek": przekroczony budżet u dostawcy odbija się na całej
+   poczcie serwisu, a jedna niewysłana wiadomość odbija się na jednej osobie,
+   która dostaje uczciwy komunikat i klika drugi raz.
+5. **Miejsce, z którego nic nie wyszło, wraca do puli** (`zwolnij()`) — patrz
+   niżej, „Rezerwacja przed wysyłką kontra stara reguła".
+
+### Dlaczego blokada na istniejącym mechanizmie, a nie własna tabela z `UPDATE ... WHERE used < limit`
+
+Warunkowy `UPDATE` byłby poprawny i byłby atomowy bez żadnej blokady — to
+uczciwa alternatywa i została rozważona. Kosztuje jednak: nową tabelę,
+migrację, wpis w `docs/DATABASE.md`, opisany rollback i sprzątanie starych
+wierszy. Czyli **drugi mechanizm obok tego, który już mamy**, przy zasadzie
+projektu mówiącej odwrotnie: żadnych nowych mechanizmów bez zmierzonej
+potrzeby (AGENTS.md §3).
+
+Rozstrzyga to, czym jest tu `Cache::lock()`. Sterownik cache w tym projekcie to
+`database` (`config/cache.php` → `env('CACHE_STORE', 'database')`,
+`.env.example` → `CACHE_STORE=database`), więc blokada jest **prawdziwa,
+współdzielona między procesami i trwała**, oparta o tabelę `cache_locks`
+z migracji `0001_01_01_000002_create_cache_table`. To ta sama tabela w tej
+samej bazie, do której poszedłby własny warunkowy `UPDATE` — z tą różnicą, że
+nie musimy jej pisać, migrować ani sprzątać.
+
+Gdyby sterownikiem był `array`, blokada nie wychodziłaby poza jeden proces PHP
+i cały ten sufit byłby atrapą. Ten warunek nie jest już domysłem: pilnuje go
+`AtomowaRezerwacjaBudzetuTest::test_produkcyjny_sterownik_cache_daje_prawdziwa_wspoldzielona_blokade`.
+
+**Redisa nie dodajemy** — projekt świadomie go nie ma (AGENTS.md §3), a
+`database` tu wystarcza.
+
+### Rezerwacja przed wysyłką kontra stara reguła „licz dopiero wysłane listy"
+
+Sufit musi być zajmowany PRZED wysyłką, bo po niej jest już za późno na
+cokolwiek. Ale przy logowaniu linkiem list wychodzi tylko wtedy, gdy pod
+podanym adresem NAPRAWDĘ jest konto — i to nie jest szczegół: gdyby licznik
+ruszał przy każdym wysłaniu formularza, byle automat wpisujący nieistniejące
+adresy wyczerpałby dobowy budżet w kilka minut, nie wysławszy ani jednego
+listu prawdziwej osobie.
+
+Obie reguły trzymamy naraz: rezerwacja stoi przed wysyłką, a nieużyte miejsce
+wraca do puli przez `zwolnij()`. Nieudane zdobycie blokady przy oddawaniu
+zostawia licznik zawyżony o jeden i tak ma być — pomyłka idzie wtedy w stronę
+„wyślemy o jeden list mniej", nie w stronę przekroczenia limitu dostawcy.
+Regresję pilnuje istniejący `test_adresy_bez_konta_nie_zjadaja_dobowego_budzetu`.
+
+### Dwa powody odmowy, dwa różne zdania dla człowieka
+
+Rezerwacja mówi tylko „nie", a te dwa „nie" znaczą dla człowieka coś zupełnie
+innego. Przy wyczerpanym budżecie czekanie na list jest bezcelowe („nie czekaj
+na niego"); przy ścisku na blokadzie budżet jest wolny i drugie kliknięcie
+zwykle wystarcza. Zdanie „wysłaliśmy już wszystkie e-maile na dziś" w drugim
+przypadku byłoby po prostu **nieprawdą**, a komunikaty w tym serwisie nie
+opowiadają rzeczy, które się nie stały (D-056, ekran linku). Treść komunikatu
+dobiera odczyt `jestMiejsce()` — już PO tym, jak rezerwacja rozstrzygnęła
+o wysyłce.
+
+### Czego świadomie nie zmieniono
+
+- **Wartości sufitów w `config/kuking.php`** — ani jednej liczby. Podział
+  wiadra pilnuje `PodzialLimituPocztyTest` i nie ma z tą usterką nic wspólnego.
+- **List próbny `kuking:wyslij-podsumowania --tylko` stoi ponad sufitem**, tak
+  jak przed tą zmianą: to jedna wiadomość wypuszczana ręcznie przez właściciela,
+  który chce ZOBACZYĆ list. Ale musi się policzyć, więc gdy rezerwacja odmówi,
+  miejsce zajmowane jest bezwarunkowo (`zajmij()`). To jedyne miejsce w kodzie,
+  w którym wolno wołać `zajmij()` wprost.
+- **Idempotencja tygodniowego digestu** — osobne zadanie, osobna gałąź.
+
+**Zmiana wymaga:** zmierzonego problemu z blokadą na sterowniku `database`
+(np. przy dziesiątkach żądań na sekundę na ten jeden klucz). Wtedy — i tylko
+wtedy — wraca do rozważenia warunkowy `UPDATE` we własnej tabeli z pełnym
+kompletem: migracja, test, `docs/DATABASE.md`, rollback.
+
+📄 `app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Http/Controllers/Auth/LoginLinkController.php` ·
+`app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
+`tests/Feature/AtomowaRezerwacjaBudzetuTest.php` ·
+`tests/Feature/LogowanieLinkiemTest.php` ·
+`tests/Feature/TygodniowePodsumowanieTest.php` ·
+`config/cache.php` · `database/migrations/0001_01_01_000002_create_cache_table.php` ·
+D-047 · D-056 · D-057
+
+---
+
+## D-079 · Operacje na jednej rzeczy tego samego konta idą przez JEDNĄ kolejność blokad, a pod blokadą sprawdzamy stan jeszcze raz
+
+**Data:** 10 września 2026 · Ustalenie AUTH-01 / RACE-01 z drugiej warstwy
+audytu (`docs/research/audyt-2026-09-10/`) · Status: **obowiązuje**
+
+### Co było złamane
+
+Serwis obiecuje w trzech miejscach jedną własność: **ustawienie nowego hasła
+unieważnia oczekującą zmianę adresu e-mail**. Wołają to
+`PasswordResetController::reset()` i `SecuritySettingsController::
+updatePassword()` przez `CancelEmailChange`, a `PendingEmailChange` wymienia
+to jako jedną z trzech dróg wygaszenia żądania.
+
+Ta własność **nie obowiązywała**. `EmailSettingsController::confirm()`
+pobierał wiersz `pending_email_changes`, sprawdzał go i oddawał MODEL do
+`ConfirmEmailChange::handle()`, które wchodziło do transakcji, blokowało
+`users` — i nigdy nie czytało tego wiersza ponownie. `CancelEmailChange`
+kasowało wiersz **bez żadnej blokady**. Między odczytem w kontrolerze
+a transakcją w akcji było okno:
+
+1. żądanie A czyta ważne `PendingEmailChange`;
+2. żądanie B ustawia nowe hasło i kasuje ten wiersz;
+3. żądanie A wchodzi do transakcji, przypisuje NOWY ADRES i woła
+   `$zmiana->delete()`, które kasuje zero wierszy — i nie zgłasza błędu.
+
+**Nie jest to teoretyczne.** Kontrola ujemna (usunięcie rewalidacji
+i uruchomienie testów regresyjnych) pokazuje, że adres konta faktycznie
+zmienia się na nowy mimo anulowania.
+
+### Dlaczego to była najpoważniejsza rzecz z całego audytu
+
+Scenariusz, w którym ta obietnica ma sens, to dokładnie ten, w którym ktoś
+obcy miał chwilowy dostęp do konta: zamówił zmianę adresu na swój,
+a właściciel odzyskuje konto ustawiając nowe hasło. Właściciel wykonuje
+**dokładnie tę czynność, którą serwis mu każe** — i mimo tego link
+napastnika może później przestawić adres konta, czyli przenieść na niego
+logowanie i reset hasła.
+
+Mechanizm zaprojektowany na wypadek przejęcia konta dawał się przejęciu
+obejść. Audyt sklasyfikował to jako P1; w praktyce jest to jedyne znalezisko
+z obu warstw, które prowadzi do utraty konta bez żadnego błędu właściciela.
+
+### Zasada, która z tego zostaje
+
+**1. Jedna kolejność blokad, w jednym miejscu.** `App\Domain\Users\ZamekKonta`
+ustala: najpierw wiersz `users`, potem rzecz zależna. Wszystkie trzy operacje
+na zmianie adresu (zamówienie, potwierdzenie, anulowanie) wchodzą przez to
+gardło. Kolejność jest ważniejsza niż sam fakt blokowania — dwie różne
+kolejności w jednym repozytorium to zakleszczenie, a nie zabezpieczenie.
+Dlatego kolejność stoi w jednej klasie, nie w trzech akcjach osobno.
+
+**2. Blokujemy wiersz KONTA, nie rzeczy zależnej.** Bo rzecz zależna może nie
+istnieć, a `SELECT ... FOR UPDATE` na nieistniejącym wierszu nie blokuje
+niczego i nie powstrzyma drugiego `INSERT`. Konto istnieje zawsze i jest
+wspólne dla wszystkich operacji.
+
+**3. Sama blokada nie wystarczy — pod blokadą czytamy stan JESZCZE RAZ.**
+Blokada serializuje, ale nie mówi żądaniu A, że świat zmienił się, gdy ono
+czekało. Akcja, która dostaje model z zewnątrz, **nie ma prawa mu ufać**:
+model mógł zostać odczytany przed sekundą albo przed godziną. Rewalidacja
+pyta o to samo co sprawdzenie przed blokadą: czy wiersz istnieje, czy jest
+nasz, czy nie wygasł i czy dotyczy tej samej rzeczy.
+
+**4. `exists()` w PHP jest dobre na ładny komunikat, nie na gwarancję.**
+Gwarancję daje constraint w PostgreSQL albo blokada. Tam, gdzie inwariant da
+się wyrazić w bazie, ma być w bazie.
+
+### Zasięg tej decyzji
+
+Wpis dotyczy zmiany adresu e-mail, ale zasada jest ogólna i audyt wskazuje
+te same wzorce w co najmniej pięciu innych miejscach (wystawianie linku do
+logowania, dobowy budżet listów, idempotencja digestu, jeden aktywny eksport
+danych, harmonogram przy wielu replikach). Każde z nich jest rozstrzygane
+osobnym wpisem — ale **kolejność blokad wprowadzona tutaj obowiązuje w całym
+repozytorium** i nowa operacja na koncie nie zakłada własnej.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie dowodzi poprawnej kolejności blokad przy dwóch równoległych połączeniach
+do PostgreSQL — do tego trzeba dwóch procesów i wymuszonego przeplotu na
+poziomie bazy, a audyt 20 słusznie stawia to jako osobne kryterium zamknięcia.
+Testy regresyjne dowodzą rzeczy węższej i akurat tej, która była złamana:
+że akcja nie ufa modelowi podanemu z zewnątrz.
+
+**Pliki:** `app/Domain/Users/ZamekKonta.php` ·
+`app/Domain/Users/Actions/ConfirmEmailChange.php` ·
+`app/Domain/Users/Actions/CancelEmailChange.php` ·
+`app/Domain/Users/Actions/RequestEmailChange.php` ·
+`tests/Feature/PotwierdzenieAdresuNieWyprzedzaAnulowaniaTest.php`
+
+---
+
+## D-075 · Wymiana tokenu logowania linkiem idzie pod blokadą wiersza konta — a konflikt unikalności kończy się tą samą neutralną odpowiedzią co adres bez konta
+
+**Data:** 10 września 2026 · Ustalenie **AUTH-02 / RACE-02 (P1)** z audytu
+drugiej warstwy · Status: **obowiązuje**
+
+### Co było złamane — zmierzone, nie wywnioskowane
+
+`WyslijLinkDoLogowania` kasowało poprzedni token i zakładało nowy w jednej
+transakcji, ale **bez blokady wiersza konta**:
+
+```php
+// app/Domain/Security/WyslijLinkDoLogowania.php, stan sprzed tej zmiany
+LoginLinkToken::query()->where('user_id', $user->getKey())->delete();
+// … a potem INSERT nowego wiersza
+```
+
+`login_link_tokens.user_id` jest unikalne (i **ma takie zostać** — to jest
+własność bezpieczeństwa z D-056: jeden ważny link na konto, nowa prośba
+unieważnia poprzednią). Bez serializacji dwie prośby naraz przechodziły
+`DELETE` — każda kasując zero wierszy, bo każda widziała już posprzątane — i
+obie szły do `INSERT`. Jedna odbijała się o constraint.
+
+**Brakowało serializacji, nie constraintu.** To jest cała diagnoza.
+
+### Dlaczego to była sprawa bezpieczeństwa, a nie tylko brzydki błąd
+
+Ten formularz jest **świadomie zaprojektowany jako nieodróżnialny** dla adresu
+z kontem i bez konta (D-056): ekran mówi „Jeśli na adres … jest konto
+w Kuking, wysłaliśmy tam wiadomość", właśnie po to, żeby nie dało się
+sprawdzać, kto tu gotuje. Tymczasem:
+
+- dla adresu **bez konta** obie równoległe prośby kończą się spokojną ścieżką
+  „nic nie wysyłamy" — bo `handle()` wychodzi, zanim dojdzie do zapisu;
+- dla adresu **z kontem** jedna z nich wywalała `UniqueConstraintViolationException`.
+
+**Zmierzone w tym repozytorium przed poprawką**
+(`tests/Feature/WyscigLinkuDoLogowaniaTest.php` na `main` @ `fd164ad`,
+z wymuszonym konfliktem):
+
+| adres | odpowiedź HTTP |
+|---|---|
+| jest konto | **500** |
+| nie ma konta | **302** |
+
+Nic tego wyjątku nie przechwytywało: leciał do HTTP jako 500. Para
+równoległych żądań była więc kanałem enumeracji, i to takim, którego żaden
+wspólny komunikat nie zasłania — bo różnicę robił sam kod odpowiedzi.
+Turnstile (D-050) i limit trzech próśb na adres na godzinę utrudniają masowe
+użycie, ale **nie usuwają złamania kontraktu**: pytanie „czy tu jest konto"
+dawało się zadać.
+
+Drugą stroną tej samej usterki jest rzecz zwyczajna: **dwuklik „Wyślij" dawał
+500**. Logowanie linkiem jest dla osób 60+ drogą podstawową, nie awaryjną
+(`docs/research/AUDIENCE_50_PLUS.md`, D-056), więc podwójne kliknięcie
+przycisku jest tam scenariuszem typowym, nie skrajnym.
+
+### Co jest teraz
+
+1. **Blokada wiersza konta przed `DELETE`** — `SELECT … FROM users … FOR
+   UPDATE` w tej samej transakcji, w której idzie `DELETE` + `INSERT`. Dwie
+   równoległe prośby o link na to samo konto ustawiają się w kolejce, zamiast
+   wyprzedzać się nawzajem.
+2. **Świeży odczyt konta pod blokadą.** Blokada serializuje, ale nie mówi
+   żądaniu, które czekało, że świat się w tym czasie zmienił. Konto mogło
+   między odczytem po adresie a wejściem pod blokadę zostać zablokowane albo
+   dostać rolę moderatora — a link wchodzący tam, gdzie nie wchodzi hasło,
+   byłby obejściem blokady moderacyjnej. Pod blokadą pytamy o to ponownie.
+3. **Defensywne przechwycenie `UniqueConstraintViolationException`** →
+   `null` → dokładnie ta sama neutralna odpowiedź, którą dostaje adres bez
+   konta: bez listu, bez wpisu w dzienniku audytu, bez zajmowania budżetu
+   poczty. Blokada powinna wystarczyć, ale **kontrakt antyenumeracyjny nie
+   może zależeć od tego, że blokada nigdy nie zawiedzie** — zawieść może
+   z powodów spoza tej metody (przyszły drugi punkt wystawiający token,
+   komenda konsolowa, seeder, wywołanie akcji wewnątrz cudzej transakcji).
+   Ta sama konstrukcja co w `ReportContent` i `ZglosNielegalnaTresc`.
+
+Czego świadomie **nie** ruszono: treści komunikatu na ekranie logowania
+linkiem (napisana po realnej pomyłce 63-letniej testerki, PR #257),
+konsumpcji tokenu w `LoginLinkController::store()` (audyt sprawdził ją
+osobno — transakcja + `lockForUpdate`, jednorazowość, GET nie konsumuje),
+`UNIQUE(user_id)` i wykluczenia moderatorów oraz administratorów z tej drogi.
+
+### Blokada własna, nie `App\Domain\Users\ZamekKonta` — i dlaczego
+
+Ta sama sesja dodała `App\Domain\Users\ZamekKonta` — jedną kolejność blokad
+dla operacji na zmianie adresu e-mail (ustalenie AUTH-01 / RACE-01, gałąź
+`claude/wyscig-zmiany-adresu`). Ta zmiana **nie używa tamtej klasy**, i to
+jest wybór, nie przeoczenie:
+
+- **`ZamekKonta` nie istnieje jeszcze na `main`** ani na żadnej wypchniętej
+  gałęzi. Oparcie się na niej robi z tej poprawki bezpieczeństwa zakładnika
+  cudzego, niescalonego PR-a — a to jest poprawka P1, która ma dać się
+  scalić samodzielnie i samodzielnie być zielona.
+- **Dokumentacja by kłamała.** Cały komentarz `ZamekKonta` opisuje wyścig
+  przy zmianie adresu e-mail. Skopiowany tutaj wcześniej niż tamta poprawka
+  wnosiłby do repozytorium klasę tłumaczącą usterkę, której na `main` nikt
+  jeszcze nie naprawił. To jest dokładnie ten dryf dokumentacji, który audyt
+  wskazuje jako największe ryzyko tego repozytorium.
+- **Druga klasa o tej samej roli byłaby gorsza od obu wyjść.** Własna
+  `ZamekTokenu`/`ZamekKonta2` obok tamtej to gwarantowana kolizja nazw
+  i fałszywy wybór dla następnej osoby. Dlatego nie ma tu **żadnej** nowej
+  klasy: blokada siedzi w prywatnej metodzie
+  `WyslijLinkDoLogowania::wymienToken()`, jedynym miejscu, które jej dziś
+  potrzebuje.
+
+**KOLEJNOŚĆ BLOKAD ZOSTAJE JEDNA W CAŁYM REPOZYTORIUM: KONTO NAJPIERW.**
+To jest ta część, która nie podlega negocjacji, bo dwie różne kolejności
+blokad to zakleszczenie, które PostgreSQL rozwiązuje zabiciem jednego
+z żądań. Tu blokujemy `users`, a potem dopiero piszemy po
+`login_link_tokens` — tak samo, jak `ZamekKonta` blokuje `users`, a potem
+`pending_email_changes`. Kolejność jest **pilnowana testem**
+(`test_wymiana_tokenu_idzie_pod_blokada_wiersza_konta`), nie tylko
+komentarzem: test oblewa się zarówno wtedy, gdy blokady nie ma, jak i wtedy,
+gdy jest brana po `DELETE`.
+
+Blokujemy wiersz **konta**, a nie wiersz tokenu, z tego samego powodu co
+w `ZamekKonta`: wiersza tokenu może nie być, a `SELECT … FOR UPDATE` na
+nieistniejącym wierszu nie blokuje niczego i nie powstrzyma drugiego
+`INSERT`-a. Konto istnieje zawsze i jest wspólne dla obu próśb.
+
+**Do zrobienia po scaleniu `claude/wyscig-zmiany-adresu`:** przenieść to
+jedno wywołanie na `ZamekKonta::zablokuj()` i skasować prywatną transakcję
+tutaj. To jest sprzątanie, nie poprawka — kolejność blokad jest już zgodna,
+więc zwłoka nie tworzy ryzyka zakleszczenia.
+
+**Zmiana wymaga:** drugiego miejsca wystawiającego token logowania linkiem
+(wtedy blokada MUSI wyjść z tej klasy do wspólnego zamka, bo dwie kopie tej
+samej kolejności rozjadą się przy pierwszej zmianie) albo rezygnacji
+z `UNIQUE(user_id)` na `login_link_tokens` — czyli z zasady „jeden ważny
+link na konto" (D-056), a to jest osobna decyzja i dziś nie ma dla niej
+powodu.
+
+📄 `app/Domain/Security/WyslijLinkDoLogowania.php` ·
+`app/Http/Controllers/Auth/LoginLinkController.php` ·
+`database/migrations/2026_09_10_100000_create_login_link_tokens_table.php` ·
+`tests/Feature/WyscigLinkuDoLogowaniaTest.php` ·
+`tests/Feature/LogowanieLinkiemTest.php` ·
+`app/Domain/Users/ZamekKonta.php` (po scaleniu `claude/wyscig-zmiany-adresu`) ·
+D-048 · D-050 · D-056
+
+---
+
+## D-080 · Blokada i obserwowanie nie mogą współistnieć: jedna kolejność blokad na PARZE osób, rewalidacja pod blokadą i twarda bariera w bazie
+
+**Data:** 10 września 2026 · **Znalezisko:** SOCIAL-01 (P1) z audytu trzeciej
+warstwy · Status: **obowiązuje**
+
+### Co było zmierzone PRZED zmianą
+
+`FollowUser::handle()` sprawdzał blokadę zwykłym `exists()`
+(`hasBlockRelationWith`) i zaraz potem robił `attach()` — **bez transakcji
+i bez blokady wiersza**. `BlockUser::handle()` robił swoje dwie rzeczy (zapis
+blokady i `detach` obserwowania w obie strony) w jednej transakcji, ale
+transakcja jednej strony nie pomaga, gdy druga strona nie blokuje niczego.
+
+Przeplot odtworzony deterministycznie (`BlokadaWygrywaZObserwowaniemTest`,
+wstrzyknięcie przez `DB::listen` w chwilę po odczycie tabeli `blocks`):
+
+| Krok | Żądanie A („Obserwuj") | Żądanie B („Zablokuj") |
+|---|---|---|
+| 1 | pyta o blokadę → nie ma | |
+| 2 | | zapisuje blokadę, zdejmuje obserwowanie w obie strony |
+| 3 | dopina `follows` | |
+
+Zmierzony wynik na `origin/main` @ `94081ff`: **po blokadzie w tabeli
+`follows` zostaje wiersz.** Test oblewał się z komunikatem „Po blokadzie
+zostało obserwowanie".
+
+**Jedna teza znaleziska NIE potwierdziła się w tym pomiarze.** Audyt mówi, że
+człowiek dostaje wtedy także powiadomienie „X zaczyna Cię obserwować" po
+zablokowaniu. Na jednym połączeniu tego nie widać: `NotifyUser` ma własny
+filtr blokad i odczytuje relację jeszcze raz, już po zapisie żądania B, więc
+powiadomienie było wyciszane. Ta teza zostaje **niepotwierdzona i możliwa
+zarazem** — przy dwóch prawdziwych połączeniach odczyt `NotifyUser` też
+mógłby nie zobaczyć jeszcze niezatwierdzonej blokady. Nie sprzedajemy jej
+jako zmierzonej.
+
+### Dlaczego to jest granica prywatności, nie kosmetyka
+
+Blokada w tym serwisie ma jedno zadanie: żeby ktoś przestał widzieć moje
+rzeczy i przestał się pojawiać w moim życiu. Zostawione obserwowanie znaczy,
+że zablokowana osoba dalej dostaje moje wpisy w swoim **feedzie
+obserwowanych** — czyli blokada nie zrobiła tej jednej rzeczy, po którą
+człowiek po nią sięgnął. Reszta filtrów widoczności (`visibleTo`,
+wyszukiwarka ludzi, listy obserwujących) stoi na założeniu, że relacja
+blokady jest **ostateczna**.
+
+I to nie jest wyścig o milisekundy: człowiek blokuje kogoś zwykle **w momencie
+konfliktu**, czyli dokładnie wtedy, gdy druga strona jest aktywna i klika.
+Dwie osoby robiące coś naraz w tej samej sprawie, nie zbieg okoliczności.
+
+### Decyzja
+
+**1. Obie operacje na parze osób wchodzą przez jedno gardło —
+`App\Domain\Social\ZamekPary`.** Transakcja plus `SELECT … FOR UPDATE` na
+wierszach OBU kont. Wiersze kont, nie wiersz relacji: wiersza relacji może
+nie być, a `FOR UPDATE` na nieistniejącym wierszu nie blokuje niczego i nie
+powstrzyma cudzego `INSERT`-a (ten sam powód co w `ZamekKonta`).
+
+**2. NAJWAŻNIEJSZA RZECZ W CAŁEJ TEJ ZMIANIE: przy dwóch wierszach kolejność
+blokowania musi być ustalona przez DANE, nie przez wywołanie.** Wiersze są
+blokowane **rosnąco po identyfikatorze**. `ZamekKonta` (D-079) tego pytania
+nie rozstrzyga i nie mógł — tam jest jeden wiersz, więc nie ma czego
+szeregować. Tutaj wierszy są dwa, i gdyby każda operacja brała je w kolejności
+swoich argumentów, dwie równoległe operacje na tej samej parze w przeciwnych
+kierunkach zakleszczyłyby się nawzajem:
+
+```text
+żądanie A (Basia → Marek):  blokuje wiersz Basi,  czeka na Marka
+żądanie B (Marek → Basia):  blokuje wiersz Marka, czeka na Basię
+```
+
+PostgreSQL wykryłby to po `deadlock_timeout` i **zabiłby jedną transakcję** —
+człowiek zobaczyłby błąd serwera zamiast założonej blokady. A „Basia blokuje
+Marka" i „Marek obserwuje Basię" w tej samej sekundzie to dokładnie ten
+scenariusz, o który w tym zadaniu chodzi. Kolejność stoi w JEDNYM miejscu, bo
+dwie kopie tej samej reguły rozjadą się przy pierwszej zmianie. Pilnuje jej
+`ZamekParyTest::test_kolejnosc_blokad_nie_zalezy_od_kolejnosci_argumentow` —
+sprawdzany **wprost, przez podejrzenie wykonanych zapytań**, bo złamanie
+kolejności nie objawia się złym wynikiem, tylko zakleszczeniem, którego żaden
+test sekwencyjny nie zobaczy.
+
+**3. Blokady wierszy brane są dwoma osobnymi zapytaniami, nie jednym
+z `ORDER BY`.** `WHERE id IN (a, b) ORDER BY id FOR UPDATE` blokuje wiersze
+w kolejności, w jakiej wypuszcza je plan (`LockRows` nad `Sort`) — w praktyce
+dobrze, ale to zależy od planu, a plan od statystyk i wersji bazy. Gwarancja
+trzymająca się na kształcie planu nie jest gwarancją.
+
+**4. Warunek jest sprawdzany PONOWNIE pod blokadą.** Blokada tylko ustawia
+w kolejce; nie mówi żądaniu A, że świat zmienił się, gdy ono czekało.
+Sprawdzenie przed blokadą **zostaje** — służy taniej odmowie bez transakcji
+w najczęstszym przypadku (ktoś klika „Obserwuj" u osoby, którą już
+zablokował). Oba komunikaty są **identyczne**: człowiek nie ma prawa
+dowiedzieć się z treści zdania, czy trafił w wyścig.
+
+**5. Powiadomienie o nowym obserwującym powstaje POD blokadą**, w tej samej
+transakcji co wiersz `follows` — albo są oba, albo nie ma żadnego.
+`NotifyUser` tylko zapisuje do bazy (nie wysyła poczty, nie kolejkuje
+zadania), więc wejście z nim do transakcji nic nie kosztuje i nie wysyła
+niczego przed `COMMIT`-em.
+
+**6. Do tego twarda bariera w bazie: wyzwalacz
+`follows_blokada_ma_pierwszenstwo_trg`** (`BEFORE INSERT ON follows`).
+Odrzuca zapis, jeśli dla tej pary istnieje **zatwierdzona** blokada
+w którąkolwiek stronę. Zasada z D-079 §4 bez zmian: `exists()` w PHP jest
+dobre na ładny komunikat, gwarancję daje constraint albo lock.
+
+Bariera i blokada **nie zastępują się wzajemnie i trzeba obu**:
+
+| | pilnuje | nie pilnuje |
+|---|---|---|
+| wyzwalacz | każdej DROGI ZAPISU — druga akcja dopisana za pół roku, komenda, seeder, ręczny `INSERT` w psql | równoległości: przy `READ COMMITTED` nie widzi blokady jeszcze niezatwierdzonej |
+| `ZamekPary` | RÓWNOLEGŁOŚCI dwóch żądań na tej samej parze | dróg zapisu, które go omijają |
+
+### Czego świadomie NIE zrobiliśmy
+
+**`CHECK` ani `EXCLUDE` zamiast wyzwalacza.** Inwariant dotyczy DWÓCH tabel,
+a `CHECK` w PostgreSQL ma prawo patrzeć tylko na sprawdzany wiersz
+(podzapytanie jest zabronione, a `CHECK` na funkcji czytającej drugą tabelę
+nie jest wymuszany przy zmianie tamtej tabeli i zawodzi przy
+`pg_restore`). `EXCLUDE` działa w obrębie jednej tabeli.
+
+**Symetrycznego wyzwalacza na `blocks` NIE MA — i to jest decyzja, nie
+przeoczenie.** Obie tabele nie są równorzędne: **blokada musi się udać
+zawsze.** To jedyna czynność, jaką człowiek ma, gdy ktoś staje się dla niego
+problemem, a bariera potrafiąca jej ODMÓWIĆ (bo istnieje jakiś wiersz
+`follows`) byłaby zamkniętymi drzwiami w najgorszym możliwym momencie.
+Konflikt na tej stronie rozstrzyga `BlockUser`, kasując obserwowanie w obie
+strony pod blokadą wierszy — jawnie, w kodzie, który da się przeczytać.
+Wyzwalacz, który zamiast odmawiać cicho KASOWAŁBY wiersze w drugiej tabeli,
+byłby jeszcze gorszy: ukryta mutacja za plecami wywołującego zamienia każdą
+przyszłą sesję debugowania w zgadywanie.
+
+**Migracja nie sprząta danych istniejących.** Gdyby na produkcji leżał już
+wiersz-sierota z tego wyścigu, wyzwalacz go nie ruszy — pilnuje nowych
+zapisów. Kasowanie relacji społecznych migracją, bez wglądu w to, co zostało
+skasowane, jest tą destrukcyjną operacją, której zabrania `AGENTS.md` §6.
+Zapytanie diagnostyczne jest w `docs/DATABASE.md`; sprzątanie to osobna,
+jawna decyzja.
+
+**Nie ruszaliśmy `visibleTo` ani wyszukiwarki ludzi** — one czytają relację
+blokady i są poprawne. Nie ruszaliśmy `ZamekKonta`; `ZamekPary` jest osobną
+klasą w osobnej domenie, bo szereguje coś innego (parę, nie konto) i ma
+regułę, której `ZamekKonta` nie ma (kolejność).
+
+### Skutek uboczny, który wyszedł za darmo
+
+Znalezisko P2 „równoległe podwójne follow powinno być idempotentne" jest
+zamknięte przy okazji. Wcześniej dwa równoległe kliknięcia „Obserwuj" oba
+widziały „nie obserwuję" i oba robiły `attach`, więc drugie dostawało
+naruszenie klucza głównego `follows` — błąd serwera za powtórzone kliknięcie.
+Teraz drugie żądanie czyta stan po pierwszym i zwraca `false`, a kontroler
+mówi „Już obserwujesz tę osobę." Pilnuje tego
+`test_powtorne_obserwowanie_nie_dubluje_wiersza`.
+
+### Plan rollbacku
+
+`down()` migracji zdejmuje wyzwalacz i funkcję. Jest bezstratny — nie zmienia
+danych — i wolno go wykonać na produkcji pod ruchem: żaden kod nie zależy od
+wyzwalacza, a gwarancję dla drogi przez `FollowUser` trzyma dalej
+`ZamekPary`. Cofnięcie samego `ZamekPary` wymaga rewertu commita.
+
+**Zmiana wymaga:** zmierzonego kosztu wyzwalacza przy zapisie do `follows`
+(dziś to jedno indeksowane `EXISTS` na kliknięcie „Obserwuj", a `FollowUser`
+i tak wykonuje to samo pytanie) albo przypadku, w którym blokada dwóch
+wierszy kont okazuje się zbyt szeroka. Kolejność blokad rosnąco po
+identyfikatorze **nie podlega zmianie bez zmiany jej we WSZYSTKICH miejscach
+naraz** — połowiczna zmiana daje zakleszczenia.
+
+📄 `app/Domain/Social/ZamekPary.php` · `app/Domain/Social/Actions/FollowUser.php` ·
+`database/migrations/2026_09_10_400000_obserwowanie_nie_wspolistnieje_z_blokada.php` ·
+`tests/Feature/BlokadaWygrywaZObserwowaniemTest.php` ·
+`tests/Feature/ZamekParyTest.php` · `docs/DATABASE.md`
+
+---
+
+## D-081 · Pod wpisem widać, ile OSÓB zapisało go do zeszytu — autor od pierwszej, obcy od trzeciej; liczba, nie imiona; nigdzie sortowania
+
+**Data:** 10 września 2026 · **Decyzja właściciela** (issue #275) · Status: **obowiązuje**
+
+### Co zdecydował właściciel i czego to nie znaczy
+
+Właściciel powiedział wprost, po wysłuchaniu argumentów przeciw:
+
+> „ale jednak to trzeba pokazać ile osób zapisało, żeby autor wiedział i inni
+> wiedzieli, i autor czuł się doceniony, **nie chodzi o rywalizację
+> a docenienie**"
+
+Ta decyzja **nie odwraca** żadnej z zasad, które licznika dotyczyły:
+`AGENTS.md` §12 (zakaz publicznych rankingów użytkowników) i `CLAUDE.md`
+(feed chronologiczny, bez punktów i grywalizacji) obowiązują dalej. Zmienia się
+jedna rzecz: pod wpisem stoi zdanie o tym, ilu LUDZIOM ten wpis się przydał.
+Liczba, która DOCENIA, i liczba, która USTAWIA W SZEREGU, mają ten sam
+kształt — różni je to, komu i od kiedy się ją pokazuje, i gdzie się jej
+NIE pokazuje. Cała reszta tego wpisu jest o tej różnicy.
+
+### Próg: autor od 1, ktokolwiek inny od 3
+
+Powód progu jest **arytmetyczny, nie ideologiczny**: serwis jest na starcie
+prawie pusty (`docs/product/COLD_START.md`). Licznik liczony od jednego
+pokazywałby pod większością dań „1 osoba zapisała", a pod czyimś pierwszym
+daniem — nic. „1 osoba zapisała" docenia autora **słabiej niż brak liczby**,
+a zero obok cudzej dziesiątki jest dokładnie tym, przed czym ostrzega
+`docs/brand/COPY_STYLE.md` przy zakazie komplementów za publikację
+(ponad połowa osób 50+ w mediach społecznościowych nigdy nic nie publikuje —
+`docs/research/AUDIENCE_50_PLUS.md`).
+
+**Autor widzi liczbę od pierwszego zapisu**, bo to jest cała treść decyzji
+właściciela: autor ma prawo wiedzieć, że jego danie komuś się przydało. Reszta
+świata nie ma czego porównywać, dopóki liczby są jednocyfrowe.
+
+**Dla obcych próg wynosi 3, nie 2** — i to jest wybór, nie zaokrąglenie.
+Właściciel w tym samym zgłoszeniu sam nazwał dwójkę liczbą, która wypada
+słabo: *„ludzie widzieli że to zapisało 10 osób a to tylko 2"*. Skoro „tylko 2"
+czyta się jak porażka, próg musi stać NAD dwójką — inaczej licznik pokazywałby
+obcym dokładnie tę liczbę, która autorowi szkodzi. Precedens na próg
+widoczności licznika jest w projekcie od #38: stopka nie pokazuje liczby
+kuKINGów poniżej 20 (`LiczbaKukingow`, D-012) z tego samego powodu.
+
+### Liczba, nie imiona — bo zeszyt jest PRYWATNY (sprawdzone w kodzie)
+
+Rozważane było „zapisali to: Halina, Marek i jeszcze 3 osoby" — informacja
+o LUDZIACH zamiast wyniku, lepiej pasująca do serwisu, który nigdzie nie ma
+punktów. **Odpada**, i to nie z ostrożności, a z ustalenia w kodzie:
+
+- `collections.visibility` ma `DEFAULT 'private'`
+  (migracja `2026_09_05_000800_create_collections_tables`), a komentarz tej
+  migracji mówi to wprost: *„Ktoś, kto zapisuje przepis »na potem«, nie ogłasza
+  tego światu. Publiczna kolekcja jest świadomą decyzją, nie ustawieniem
+  domyślnym"*;
+- ekran zeszytu (`CollectionController::show()`) i `CollectionPolicy` traktują
+  zeszyt jak cudzy pojemnik z własną granicą widoczności.
+
+Zapisanie cudzego wpisu do zeszytu **nie jest dziś czynnością publiczną**,
+więc nie wolno jej taką zrobić bez osobnej decyzji właściciela. Imiona
+wyciągnęłyby na wierzch zawartość prywatnych zeszytów. Sama liczba — i to od
+trzech dla obcych — niczyjego zeszytu nie zdradza.
+
+### Kto się liczy
+
+`users.status = active`, czyli granica „promocyjna", ta sama co
+`Post::scopeTylkoOdAktywnychAutorow()`, `DiscoverFeed` i `SearchQuery`
+(audyt A5). Nie `widocznyJakoOsoba()`, bo tamten zakres przepuszcza konta
+**zawieszone**, a zapis od konta pod sankcją nie ma podbijać liczby
+pokazywanej nieznajomym. Jednym warunkiem wypadają konta zbanowane,
+zawieszone, w trakcie usuwania i usunięte.
+
+**Blokada — w obie strony i bezwarunkowo** (`AGENTS.md` §4), tym samym
+wzorcem co `Comment::scopeWidoczneDla()` i `CookedEvent::scopeWidoczneDla()`.
+Liczba jest więc policzona OCZAMI WIDZA.
+
+**Własny zapis autora się nie liczy.** Licznik, który autor może sobie sam
+podbić, nie jest informacją o niczym.
+
+`count(distinct users.id)`, nie `count(*)`: liczymy LUDZI, a jedna osoba
+z dwoma zeszytami może wrzucić ten sam wpis dwa razy.
+
+### Po „Zapisuję" widać, że się zapisało (część 1 — usterka, nie decyzja)
+
+Potwierdzenie **istniało**: `CollectionController::savePost()` ustawiał
+komunikat „Zapisane w zeszycie …", a `components/layout.blade.php` pokazuje go
+w `.flash` z `aria-live`. Czego nie było: śladu **w miejscu, gdzie człowiek
+kliknął**. Komunikat stoi na górze strony, „Zapisuję" klika się w połowie
+feedu, a karta po powrocie wyglądała identycznie jak przed kliknięciem.
+Przy grupie 50–75 to jest ta cisza, po której człowiek klika drugi raz.
+
+Naprawa nie dokłada drugiego mechanizmu komunikatów: karta pokazuje **stan**,
+tak jak ekran przepisu robi to od dawna (`$isSaved`). Stanem jest zdanie
+„Masz to w zeszycie" z odnośnikiem do zeszytu, a **nie** przycisk kasujący
+— w feedzie przycisk usuwający pod tym samym palcem zabierałby z zeszytu to,
+co ktoś właśnie do niego włożył (podwójne kliknięcie w tej grupie to norma,
+issue #43). Wyjąć z zeszytu można nadal w samym zeszycie.
+
+Wszystko działa **bez JavaScriptu**: formularz `POST`, przekierowanie, `GET`.
+
+### Gdzie liczba stoi, a gdzie CELOWO nie
+
+**Jest — dla ZALOGOWANEGO:** feed obserwowanych, „Świeżo z Kuking"
+(`/odkryj`), feed tagów, strona tematu, profil, zeszyt, ekran pojedynczego
+wpisu — czyli tam, gdzie wpis stoi w chronologicznym strumieniu albo sam.
+
+**Nie ma i to jest część decyzji:**
+
+- **„kuKINGi na dziś"** (`DailyBoard`) — cztery dania wybrane redakcyjnie,
+  obok siebie; liczba pod nimi byłaby zestawieniem, nie docenieniem;
+- **wyniki wyszukiwania** — liczby jedna pod drugą to porównanie;
+- **wszędzie dla GOŚCIA** — liczba mówi „przydało się ludziom z tej
+  społeczności" i jest adresowana do jej członków, nie do otwartego
+  internetu. Praktyczny powód dokłada się do zasady: strona powitalna układa
+  wpisy w siatkę (`landing-wpisy`), a liczby jedna obok drugiej to
+  zestawienie. Wychodzi z tego jedna reguła zamiast wyjątku na ekran: **nie
+  ma widza, nie ma liczby** — więc gość nie zobaczy jej ani na stronie
+  powitalnej, ani na `/odkryj` bez logowania.
+
+Technicznie robi to jedna rzecz: karta pokazuje liczbę tylko wtedy, gdy
+zapytanie ekranu ją doliczyło (`ZapisyWpisu::dolicz()`), więc ekran, który jej
+nie dolicza, nie pokazuje nic i **nie odpala zapytania na kartę**. Ten sam
+wzorzec co `relationLoaded('tags')`.
+
+### Czego ta decyzja NIE rozstrzyga i co wymaga OSOBNEJ decyzji właściciela
+
+1. **Sortowanie, ważenie ani promowanie po liczbie zapisów.** Feed jest
+   chronologiczny (`CLAUDE.md`, `AGENTS.md`), a audyt z 10.09 stawia „nie
+   budować algorytmu feedu" jako punkt 3 listy „czego NIE robić". Właściciel
+   wspomniał o „algorytmie, żeby pokazywał ciekawe tematy" — to jest **punkt 3
+   issue #275**, sprawa osobna i wyłączona z tej zmiany; droga do „ludzie widzą
+   ciekawe rzeczy" prowadzi przez jawne tematy (#273), nie przez popularność.
+2. **Żadnych zestawień** typu „najczęściej zapisywane".
+3. **Imiona osób, które zapisały** — wymagają najpierw rozstrzygnięcia, czy
+   zapisywanie do zeszytu ma być czynnością publiczną. Dziś nie jest.
+4. **Powiadomienie autora o zapisaniu WPISU.** Przy przepisie takie
+   powiadomienie jest, przy wpisie nie ma i ta zmiana tego nie dokłada —
+   powód stoi w `SavePostToCollection` (ekran powiadomień renderuje każdy typ
+   osobno, więc nowy typ bez własnego tekstu dałby pusty wiersz).
+5. **Liczba pod wspomnieniem** („rok temu") — jeden ekran, którego ta zmiana
+   nie dotknęła; do dołożenia, gdyby właściciel chciał.
+
+**Zmiana wymaga:** decyzji właściciela. Próg jest pilnowany testem
+(`LicznikZapisowWidacOdProguTest::test_prog_dla_obcych_jest_decyzja_wlasciciela`),
+żeby nie dało się go przesunąć po cichu.
+
+**Pliki:** `app/Domain/Collections/ZapisyWpisu.php` ·
+`resources/views/components/post-card.blade.php` ·
+`app/Domain/Feed/{FollowingFeed,DiscoverFeed,TagFeed}.php` ·
+`app/Http/Controllers/{PostController,ProfileController,TagController,CollectionController}.php` ·
+`tests/Feature/LicznikZapisowWidacOdProguTest.php` ·
+`tests/Feature/LicznikZapisowBezWachlarzaZapytanTest.php` ·
+`tests/Feature/PoZapisaniuWidacPotwierdzenieTest.php`
+
 
 ---
 

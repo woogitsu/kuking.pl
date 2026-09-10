@@ -102,6 +102,48 @@ rodzaju: „Napisz kilka słów", „Zapisz", „Pokaż, co dziś ugotowałeś".
 > i zostaje. W tekstach roboczych wolimy konstrukcje bez rodzaju: **„Co dziś
 > gotujesz?"** działa dla wszystkich i jest krótsze.
 
+### Tej reguły pilnuje test, nie czyjaś pamięć (issue #274)
+
+Do września 2026 reguła stała tu sama i nie działała. Właściciel — mężczyzna,
+który nigdy nie podawał płci, bo serwis o nią nie pyta — zobaczył w ustawieniach
+prywatności „Przypominaj mi, co **gotowałam** w tym dniu". Przegląd znalazł
+kilkanaście takich miejsc: profil („za rok będziesz **mogła**"), paczka RODO
+(„co dziś **ugotowałam**"), bezpieczeństwo konta („**zostałaś/eś zalogowana/y**"),
+pusta sekcja komentarzy („możesz być **pierwsza albo pierwszy**"), walidacja
+nazwy konta („z tego, co **wpisałeś**"), a także regulamin i polityka
+prywatności, gdzie obie płcie stały w jednym dokumencie.
+
+Granica jest jedna i prosta:
+
+> **Rodzaju wolno użyć, gdy wiemy, o kim mówimy. Nie wolno, gdy mówimy DO
+> czytelnika albo w jego imieniu.**
+
+Dlatego „Halina ugotowała Twój rosół" zostaje bez zmian, a „co gotowałam"
+w ustawieniach jest usterką. Poprawka polega na **przebudowaniu zdania** —
+nigdy na zamianie formy żeńskiej na męską (to przenosi ten sam błąd na drugą
+połowę ludzi) i nigdy na wypisaniu obu form obok siebie:
+
+```text
+❌ Przypominaj mi, co gotowałam w tym dniu
+❌ Przypominaj mi, co gotowałem/gotowałam w tym dniu
+✅ Przypominaj mi moje wpisy z tego dnia
+
+❌ Możesz być pierwsza albo pierwszy
+✅ Napisz pierwszy komentarz
+
+❌ Za rok będziesz mogła tu wrócić i zobaczyć, co wtedy gotowałaś
+✅ Za rok zobaczysz tu, co gotujesz dzisiaj
+```
+
+Nowe brzmienie ma być **krótsze albo równie krótkie** jak stare. Przy grupie
+50-75 lat długość zdania to nie estetyka.
+
+Reguła jest sprawdzana maszynowo przez `tests/Feature/TekstyNiePrzypisujaPlciTest.php`:
+skan widoków, tekstów prawnych, tłumaczeń i napisów składanych w PHP, z jawną
+listą czterech wyjątków. Wyjątkiem jest **fraza**, nie słowo — hasło główne
+(„co dziś ugotowałeś") i nazwa przycisku („Ugotowałem") przechodzą, ale nowe
+zdanie z formą rodzajową oblewa, choćby użyło tego samego czasownika.
+
 ### Dawkowanie: jeden żart na ekran
 
 **Maksymalnie jedna gra słowem kuKING na ekran.** Dwa razy na jednej stronie

@@ -31,7 +31,7 @@
 
                         {{-- Gotowy napis z docs/brand/COPY_STYLE.md §6. Nie zmieniamy go. --}}
                         <p style="margin:0 0 20px;">
-                            przygotowaliśmy paczkę ze wszystkim, co tu wrzuciłaś. Otworzysz ją
+                            przygotowaliśmy paczkę ze wszystkim, co tu masz. Otworzysz ją
                             na swoim komputerze, także wtedy, gdyby Kuking kiedyś przestał istnieć.
                         </p>
 
@@ -72,7 +72,7 @@
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#5C5347;">
-                            O tę paczkę poprosiłaś w ustawieniach Kuking. Jeśli to nie Ty —
+                            O tę paczkę poproszono w ustawieniach Kuking. Jeśli to nie Ty —
                             napisz do nas na {{ config('kuking.community.contact_email') }}.
                         </p>
 

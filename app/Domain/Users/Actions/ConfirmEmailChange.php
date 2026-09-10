@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\PendingEmailChange;
 use App\Models\User;
 use App\Support\AdresEmail;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Potwierdzenie nowego adresu e-mail — DOPIERO TU adres wchodzi w życie
@@ -91,12 +91,47 @@ final class ConfirmEmailChange
             );
         }
 
-        DB::transaction(function () use ($user, $zmiana, $nowyAdres): void {
-            $swiezy = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
-
+        ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $zmiana, $nowyAdres): void {
             if ($swiezy === null) {
                 throw new BladDlaCzlowieka(
                     'Tego konta już nie ma, więc nie mamy czemu zmienić adresu.',
+                );
+            }
+
+            // REWALIDACJA POD BLOKADĄ — bez niej ta blokada niczego nie
+            // pilnuje (AUTH-01 / RACE-01, audyt drugiej warstwy).
+            //
+            // `$zmiana` przychodzi tu jako MODEL odczytany przez kontroler
+            // PRZED wejściem do tej sekcji. W okienku między tamtym odczytem
+            // a tą transakcją równoległe żądanie mogło ustawić nowe hasło,
+            // co przez `CancelEmailChange` kasuje ten wiersz. Kod czytał
+            // wtedy dalej ze starego obiektu, przypisywał nowy adres
+            // i wołał `delete()`, które kasowało ZERO wierszy — bez błędu.
+            // Czyli obietnica „nowe hasło unieważnia oczekującą zmianę
+            // adresu" nie obowiązywała, a jest to obietnica na wypadek
+            // przejęcia konta (pełne uzasadnienie w `ZamekKonta`).
+            //
+            // Czytamy więc wiersz jeszcze raz, pod blokadą, i pytamy o to
+            // samo co przed nią: czy istnieje, czy jest nasz, czy nie wygasł
+            // i czy dotyczy TEGO adresu. Adres sprawdzamy, bo w tym samym
+            // okienku mogło dojść nowsze zamówienie zmiany na inny adres —
+            // wtedy ten link jest nieaktualny, choć jakiś wiersz istnieje.
+            $aktualna = PendingEmailChange::query()
+                ->whereKey($zmiana->getKey())
+                ->where('user_id', $swiezy->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            $nadalTo = $aktualna !== null
+                && $aktualna->jestWazne()
+                && User::normalizeEmail($aktualna->new_email) === $nowyAdres;
+
+            if (! $nadalTo) {
+                throw new BladDlaCzlowieka(
+                    'Ten odnośnik już nie działa — w międzyczasie zmiana adresu została anulowana, '
+                    .'zastąpiona nowszą albo minął jej termin. To dzieje się też wtedy, gdy ktoś '
+                    .'ustawił na tym koncie nowe hasło. Adres konta zostaje bez zmian; jeśli nadal '
+                    .'chcesz go zmienić, zamów zmianę jeszcze raz.',
                 );
             }
 
@@ -120,8 +155,9 @@ final class ConfirmEmailChange
             // adresu, czyli bez prawa do pobrania własnych danych.
             $swiezy->assignEmail($nowyAdres, potwierdzony: true)->save();
 
-            // Żądanie skonsumowane: link działa dokładnie raz.
-            $zmiana->delete();
+            // Żądanie skonsumowane: link działa dokładnie raz. Kasujemy
+            // wiersz odczytany POD BLOKADĄ, nie model podany z zewnątrz.
+            $aktualna->delete();
 
             // Model przekazany z zewnątrz musi zobaczyć nową wartość —
             // inaczej kontroler wypisze na ekranie stary adres.

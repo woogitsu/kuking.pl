@@ -88,7 +88,7 @@ class ProfileSettingsController extends Controller
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             // Do `regex` i `min` dochodzi się już tylko wtedy, gdy z wpisanego
             // tekstu nie da się nic ułożyć — patrz komentarz przy normalizacji.
-            'username.regex' => 'Z tego, co wpisałeś, nie da się ułożyć nazwy do adresu. Wpisz imię albo imię i miejscowość.',
+            'username.regex' => 'Z tej nazwy nie da się ułożyć adresu. Wpisz imię albo imię i miejscowość.',
             'username.unique' => 'Ta nazwa jest już zajęta.',
             'bio.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
         ]);

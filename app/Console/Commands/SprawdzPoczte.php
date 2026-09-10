@@ -309,7 +309,7 @@ class SprawdzPoczte extends Command
             // trudno zgadnąć z kodu błędu.
             if ($konto !== '' && preg_match('/^\d+\..+\.smtp$/', $konto) !== 1) {
                 $ostrzezenia[] = 'EMAILLABS_SMTP_ACCOUNT to `'.$konto.'`, a panel EmailLabs podaje tę wartość w kształcie '
-                    .'`1.nazwa.smtp`. Jeśli wkleiłeś login SMTP zamiast nazwy konta, API odrzuci wysyłkę.';
+                    .'`1.nazwa.smtp`. Jeśli w tym polu jest login SMTP zamiast nazwy konta, API odrzuci wysyłkę.';
             }
 
             if (config('services.emaillabs.tracking')) {
@@ -548,7 +548,7 @@ class SprawdzPoczte extends Command
                 'Wygeneruj klucz (hasło SMTP) od nowa w panelu dostawcy i wklej go w Railway.',
                 'Sprawdź, czy na końcu wartości nie ma spacji — kopiowanie z panelu lubi ją dokleić.',
                 'Po zmianie zmiennej ZRESTARTUJ serwis: konfiguracja jest zapiekana przy starcie kontenera.',
-                'Klucz „do wysyłki” to zwykle inny klucz niż „do API” — sprawdź, że wziąłeś ten pierwszy.',
+                'Klucz „do wysyłki” to zwykle inny klucz niż „do API” — sprawdź, czy w konfiguracji jest ten pierwszy.',
                 'Przy EmailLabs po API: dane SMTP (login i hasło z sekcji „Konta SMTP”) NIE działają na API. '
                     .'Potrzebne są dwa klucze z Konto → Ustawienia → API: EMAILLABS_APP_KEY i EMAILLABS_SECRET_KEY.',
             ],
@@ -572,8 +572,8 @@ class SprawdzPoczte extends Command
                 'Serwer przyjął połączenie, ale odrzucił NADAWCĘ.',
                 'W panelu dostawcy domena `'.$this->domenaNadawcy().'` musi mieć status „zweryfikowana”.',
                 'Rekordy SPF i DKIM w Cloudflare muszą być „DNS only” (szara chmurka), nie „Proxied” — proxowanie psuje weryfikację.',
-                'Rekordy DNS rozchodzą się nawet kilkadziesiąt minut. Jeśli dodałeś je przed chwilą, poczekaj i powtórz.',
-                'Sprawdź, czy MAIL_FROM_ADDRESS jest z tej samej domeny, którą zweryfikowałeś.',
+                'Rekordy DNS rozchodzą się nawet kilkadziesiąt minut. Jeśli doszły przed chwilą, poczekaj i powtórz.',
+                'Sprawdź, czy MAIL_FROM_ADDRESS jest z tej samej domeny co zweryfikowana.',
             ],
 
             $this->zawiera($komunikat, ['rate limit', 'too many', '429', 'quota', 'sending limit', 'daily limit']) => [

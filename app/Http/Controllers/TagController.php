@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,8 @@ use Illuminate\View\View;
  */
 class TagController extends Controller
 {
+    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+
     public function show(Request $request, Tag $tag): View|RedirectResponse
     {
         // Tag ukryty (moderacja) nie ma publicznej strony — w odróżnieniu
@@ -58,6 +61,10 @@ class TagController extends Controller
             ->tylkoOdAktywnychAutorow()
             ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
             ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
+            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
+            ->tap(fn ($query) => $this->zapisy->dolicz($query, $widz))
             ->latest('published_at')
             ->latest('id')
             ->paginate((int) config('kuking.feed.page_size'))

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -27,6 +28,7 @@ class CollectionController extends Controller
     public function __construct(
         private readonly SaveRecipeToCollection $save,
         private readonly SavePostToCollection $savePost,
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
     ) {}
 
     public function index(Request $request): View
@@ -189,6 +191,10 @@ class CollectionController extends Controller
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->with(['author.profile.avatar', 'media'])
                 ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
+                // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+                // zapytaniem (issue #275, D-081). Reguły siedzą
+                // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
+                ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
                 ->paginate(
                     (int) config('kuking.collections.saved_posts_page_size'),
                     ['*'],

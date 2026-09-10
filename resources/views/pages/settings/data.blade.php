@@ -1,7 +1,7 @@
 <x-layout title="Twoje dane" :noindex="true">
     <h1>Twoje dane</h1>
     <p class="mb-5">
-        Wszystko, co tu wrzuciłaś, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
+        Wszystko, co tu masz, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
     </p>
 
     <section class="card">

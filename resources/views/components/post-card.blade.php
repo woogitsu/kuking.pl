@@ -179,6 +179,32 @@
         </nav>
     @endif
 
+    {{--
+        „3 osoby zapisały to u siebie w zeszycie" (issue #275, D-081).
+
+        Cała reguła — kto się liczy, od ilu osób widzi liczbę autor, a od ilu
+        ktokolwiek inny, i jak brzmi zdanie po polsku — żyje w
+        `App\Domain\Collections\ZapisyWpisu`, nie tutaj. Widok tylko pyta i,
+        jeśli jest sens, pokazuje. Ten sam podział co przy liczniku
+        społeczności w stopce (`LiczbaKukingow`).
+
+        NAD PASKIEM AKCJI, NIE W NIM. W pasku stoją rzeczy, które się ROBI;
+        to jest zdanie, które się CZYTA. Wmieszane między przyciski
+        wyglądałoby jak czwarty przycisk i zabierałoby „Ugotowałem"
+        pierwszeństwo (AGENTS.md §1).
+
+        `zapisow_count` bierze się z zapytania ekranu (`ZapisyWpisu::dolicz()`).
+        Ekran, który go nie dolicza — „kuKINGi na dziś", strona powitalna —
+        nie pokazuje tu nic i NIE odpala zapytania na kartę; ten sam wzorzec co
+        `relationLoaded('tags')` wyżej. To jest świadome: liczba pod daniem
+        wybranym redakcyjnie do zestawu czterech byłaby zestawieniem, a nie
+        docenieniem (D-081).
+    --}}
+    @php $zapisy = app(\App\Domain\Collections\ZapisyWpisu::class); @endphp
+    @if($zapisy->widocznaDla($post, auth()->user()))
+        <p class="post-card-zapisy" data-rola="liczba-zapisow">{{ $zapisy->zdanie($post) }}</p>
+    @endif
+
     <div class="post-card-actions">
         @auth
             @if($post->recipe)
@@ -217,21 +243,53 @@
                 „chcę kiedyś zrobić coś TAKIEGO". Przy wpisie żadnego przepisu
                 zwykle nie ma.
 
-                DLACZEGO ZAWSZE „ZAPISUJĘ", A NIE „ZAPISANO"
-                Sprawdzenie stanu dla każdej karty to jedno zapytanie na wpis
-                — czyli dwadzieścia zapytań na przewinięcie feedu. Zapis jest
-                za to bezpieczny przy powtórzeniu: drugie kliknięcie daje
-                dokładnie ten sam skutek co pierwsze i nie przesuwa pozycji
-                w zeszycie (SavePostToCollection). Wyjąć z zeszytu można
-                w samym zeszycie.
+                PO ZAPISANIU KARTA MÓWI, ŻE JEST ZAPISANE (issue #275, D-081)
+                Stał tu komentarz „DLACZEGO ZAWSZE »ZAPISUJĘ«, A NIE
+                »ZAPISANO«": sprawdzenie stanu to jedno zapytanie na kartę,
+                czyli dwadzieścia na przewinięcie feedu. Pomiar był prawdziwy,
+                wniosek nie — stan da się doliczyć TYM SAMYM zapytaniem, którym
+                ekran i tak pobiera wpisy (`ZapisyWpisu::dolicz()` dokłada
+                `czy_zapisany` do SELECT-a; zero dodatkowych zapytań, pilnuje
+                tego `LicznikZapisowBezWachlarzaZapytanTest`).
+
+                Cisza po kliknięciu była realną usterką ze zgłoszenia #275.
+                Potwierdzenie ISTNIAŁO — kontroler ustawia komunikat „Zapisane
+                w zeszycie …", a `components/layout.blade.php` pokazuje go
+                w `.flash` z `aria-live` — ale na GÓRZE strony, a klika się
+                w połowie feedu. Człowiek nie widział odpowiedzi TAM, GDZIE
+                patrzył, więc klikał drugi raz albo uznawał, że nie działa (ten
+                sam mechanizm co przy zdjęciu na sesji z 63-letnią testerką).
+                Nie dokładamy drugiego mechanizmu komunikatów: pokazujemy STAN
+                w miejscu akcji, tak jak ekran przepisu robi to od dawna
+                (`recipes/show.blade.php`, `$isSaved`).
+
+                STAN JEST ZDANIEM, NIE DRUGIM PRZYCISKIEM — I TO JEST CELOWE.
+                Ekran przepisu zamienia w tym miejscu przycisk na „Usuń
+                z zeszytu". Tutaj nie, bo karta stoi w feedzie: podwójne
+                kliknięcie w grupie 50+ to norma, nie pomyłka (issue #43),
+                a przycisk kasujący pod tym samym palcem zabierałby z zeszytu
+                to, co ktoś właśnie do niego włożył. Zostaje odnośnik do
+                zeszytu — bo „wyjąć z zeszytu można w samym zeszycie" i to się
+                nie zmieniło.
+
+                Ekran, który `czy_zapisany` nie dolicza, dostaje „Zapisuję" jak
+                dawniej. Zapis jest idempotentny, więc drugie kliknięcie daje
+                dokładnie ten sam skutek co pierwsze (`SavePostToCollection`).
             --}}
-            <form method="POST" action="{{ route('collections.save-post', $post) }}">
-                @csrf
-                <button class="btn btn-secondary" type="submit">
+            @if($zapisy->czyZapisany($post))
+                <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
                     <x-ikona nazwa="book" :rozmiar="22" />
-                    Zapisuję
-                </button>
-            </form>
+                    Masz to w zeszycie
+                </a>
+            @else
+                <form method="POST" action="{{ route('collections.save-post', $post) }}">
+                    @csrf
+                    <button class="btn btn-secondary" type="submit">
+                        <x-ikona nazwa="book" :rozmiar="22" />
+                        Zapisuję
+                    </button>
+                </form>
+            @endif
         @endauth
 
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).

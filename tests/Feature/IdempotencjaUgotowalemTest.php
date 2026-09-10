@@ -95,7 +95,7 @@ class IdempotencjaUgotowalemTest extends TestCase
         $drugie->assertSessionHas(
             'status',
             'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-            .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+            .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
         );
     }
 
