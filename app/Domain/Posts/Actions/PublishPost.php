@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
-use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Profile;
@@ -76,22 +76,6 @@ final class PublishPost
             throw new BladDlaCzlowieka('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
         }
 
-        // Bierzemy tylko zdjęcia należące do tej osoby. Bez tego ktoś mógłby
-        // podstawić cudze media_id w formularzu (IDOR).
-        $ownedMedia = Media::query()
-            ->where('owner_id', $author->getKey())
-            ->whereIn('id', $mediaIds)
-            ->pluck('id')
-            ->all();
-
-        // Zachowujemy kolejność wybraną przez użytkownika.
-        $orderedMedia = array_values(array_filter(
-            $mediaIds,
-            static fn (string $id): bool => in_array($id, $ownedMedia, true),
-        ));
-
-        $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
-
         // Tagi (D-021, zastępują usunięty już Temat/`topic_id` z issue #31)
         // — rozwiązywane PRZED transakcją tworzącą wpis, żeby
         // `BladDlaCzlowieka` za zbyt wiele tagów przerwało publikację, zanim
@@ -99,18 +83,59 @@ final class PublishPost
         // pustego wpisu wyżej).
         $tags = $this->resolveTags->handle($tagNames);
 
-        // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu wybór nie
-        // znaczy nic — karuzela z jednym slajdem i kolaż z jednym polem to ten
-        // sam widok co „zwykle" — więc zapisujemy `normal` zamiast trzymać
-        // w bazie deklarację, której nie da się zobaczyć. Wartość spoza listy
-        // też schodzi do `normal`: baza odrzuciłaby ją CHECK-iem, a wpis, który
-        // nie zostaje opublikowany z powodu wyboru układu, to zła zamiana.
-        $displayMode = count($orderedMedia) < 2 || ! in_array($displayMode, Post::dozwoloneTrybyWyswietlania(), true)
-            ? Post::DISPLAY_NORMAL
-            : $displayMode;
+        $trybZadany = $displayMode;
 
-        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags): Post {
-            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags, $klucz): Post {
+        /** @var list<string> $orderedMedia zdjęcia, które NAPRAWDĘ trafiły do wpisu */
+        $orderedMedia = [];
+        $displayMode = Post::DISPLAY_NORMAL;
+
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tags, &$orderedMedia, &$displayMode): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tags, $klucz, &$orderedMedia, &$displayMode): Post {
+                /*
+                 * WYBÓR ZDJĘĆ STOI W TEJ SAMEJ TRANSAKCJI CO PRZYPIĘCIE
+                 * (issue #285, D-083).
+                 *
+                 * Przedtem to zapytanie było PRZED transakcją i bez blokady,
+                 * więc między „te zdjęcia należą do tej osoby" a `attach()`
+                 * mieściło się całe sprzątanie osieroconych zdjęć razem
+                 * z kasowaniem plików w R2. Wpis powstawał, powiązanie
+                 * znikało po cichu przez `ON DELETE CASCADE`, a jedyny
+                 * egzemplarz zdjęcia był już nie do odzyskania.
+                 *
+                 * `ZdjeciaDoPrzypiecia::zablokuj()` bierze wiersze `media`
+                 * `FOR UPDATE` w deterministycznej kolejności i sprawdza
+                 * własność DOPIERO POD BLOKADĄ. Zdjęcie przejęte w tym czasie
+                 * do skasowania po prostu nie wróci z tego zapytania: wpis
+                 * powstaje bez niego, zamiast powstać z powiązaniem, które
+                 * zaraz zniknie.
+                 *
+                 * Bramka własności zostaje tu bez zmian i jest ważniejsza niż
+                 * wyścig: bez niej ktoś podstawiłby w formularzu cudze
+                 * `media_id` (IDOR).
+                 */
+                $ownedMedia = ZdjeciaDoPrzypiecia::zablokuj((string) $author->getKey(), $mediaIds);
+
+                // Zachowujemy kolejność wybraną przez użytkownika —
+                // `zablokuj()` oddaje kolejność blokowania, nie formularza.
+                $orderedMedia = array_values(array_filter(
+                    $mediaIds,
+                    static fn (string $id): bool => in_array($id, $ownedMedia, true),
+                ));
+
+                $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
+
+                // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu
+                // wybór nie znaczy nic — karuzela z jednym slajdem i kolaż
+                // z jednym polem to ten sam widok co „zwykle" — więc
+                // zapisujemy `normal` zamiast trzymać w bazie deklarację,
+                // której nie da się zobaczyć. Wartość spoza listy też schodzi
+                // do `normal`: baza odrzuciłaby ją CHECK-iem, a wpis, który
+                // nie zostaje opublikowany z powodu wyboru układu, to zła
+                // zamiana.
+                $displayMode = count($orderedMedia) < 2 || ! in_array($trybZadany, Post::dozwoloneTrybyWyswietlania(), true)
+                    ? Post::DISPLAY_NORMAL
+                    : $trybZadany;
+
                 $post = Post::create([
                     'author_id' => $author->getKey(),
                     'body' => $body,

@@ -6382,6 +6382,254 @@ przywrócenie poprawki — zielono, `git diff` puste.
 
 ---
 
+## D-090 · `BlockUser` wchodzi przez `ZamekPary` — dokończenie D-080, bo dwie strony tej samej pary brały wiersze `users` w przeciwnych kolejnościach
+
+**Data:** 10 września 2026 · Audyt kolejności blokad
+(`docs/research/2026-09-10-kolejnosc-blokad.md`) · Status: **obowiązuje**
+
+### Co było złamane
+
+D-080 §1 mówi: „**Obie** operacje na parze osób wchodzą przez jedno gardło —
+`App\Domain\Social\ZamekPary`". W kodzie weszła **jedna**. Commit realizujący
+D-080 (`ab5f4c6`, PR #290) ruszył `FollowUser.php` i `ZamekPary.php` — i tyle.
+`BlockUser::handle()` został przy własnej `DB::transaction()` bez ani jednej
+blokady wiersza, a `ZamekPary` był importowany wyłącznie w `FollowUser`.
+
+To nie jest rozbieżność stylu. To dwie różne kolejności blokad na tej samej
+parze wierszy, czyli dokładnie to, przed czym ostrzega D-079 („dwie różne
+kolejności w jednym repozytorium to zakleszczenie, a nie zabezpieczenie").
+
+### Co z tego NIE wynikało — podejrzenie zmierzone i OBALONE
+
+Naturalny wniosek brzmi: skoro `BlockUser` nic nie blokuje, to wyścig
+SOCIAL-01 jest nadal otwarty i po blokadzie zostaje obserwowanie. **Ten
+wniosek jest nieprawdziwy** i został obalony pomiarem na dwóch połączeniach
+do PostgreSQL (opis i skrypty: `docs/research/2026-09-10-kolejnosc-blokad.md`,
+pomiar E8).
+
+Powód: `INSERT INTO blocks` **i tak bierze blokady obu wierszy `users`** — bierze
+je za niego sprawdzenie kluczy obcych, zapytaniem
+`SELECT 1 FROM ONLY "public"."users" x WHERE "id" = $1 FOR KEY SHARE OF x`.
+`FOR KEY SHARE` jest w konflikcie z `FOR UPDATE`, więc żądanie „Obserwuj"
+ustawiało się w kolejce mimo wszystko. Zmierzony przeplot: przy
+niezatwierdzonej transakcji `BlockUser` żądanie „Obserwuj" **nie weszło** na
+żaden z dwóch wierszy, a stan końcowy to jedna blokada i zero obserwowań.
+
+Zapisujemy to tak wyraźnie jak znalezisko, bo fałszywy alarm kosztuje tyle
+samo co przeoczony błąd (D-064). Ale własność trzymała się na **kształcie
+kluczy obcych**, czyli na czymś, czego nie widać w żadnej linijce PHP i czego
+nie pilnuje żaden test — a to jest gwarancja przez przypadek, nie przez
+projekt.
+
+### Co z tego WYNIKAŁO — zakleszczenie, zmierzone
+
+Blokady z kluczy obcych idą w kolejności **ról**, nie identyfikatorów:
+`blocks_blocker_id_foreign` powstało przed `blocks_blocked_id_foreign`, więc
+`INSERT` bierze najpierw wiersz blokującego, potem blokowanego. `ZamekPary`
+bierze wiersze **rosnąco po identyfikatorze**. Gdy blokujący ma identyfikator
+wyższy, obie strony idą pod prąd:
+
+```text
+„Obserwuj" (ZamekPary):  bierze wiersz NIŻSZY, czeka na WYŻSZY
+„Zablokuj" (BlockUser):  bierze wiersz WYŻSZY, czeka na NIŻSZY
+```
+
+PostgreSQL wykrywa cykl i zabija jedną transakcję. W pomiarze (E3) ofiarą
+padło **„Zablokuj"**:
+
+```text
+ERROR: deadlock detected
+CONTEXT: while locking tuple (0,9) in relation "users"
+  SQL statement "SELECT 1 FROM ONLY "public"."users" x WHERE "id" = $1 FOR KEY SHARE OF x"
+```
+
+Czyli człowiek dostawał błąd serwera zamiast założonej blokady — dokładnie
+w sytuacji, dla której D-080 powstało, i wprost przeciw jego zdaniu „blokada
+musi się udać zawsze". Ofiarę wybiera baza, więc równie dobrze mogło paść
+„Obserwuj"; gorszy z tych dwóch wyników jest ten zmierzony.
+
+### Decyzja
+
+`BlockUser::handle()` wchodzi przez `ZamekPary::zablokuj()`, tak jak
+`FollowUser`. Obie strony biorą te same dwa wiersze w tej samej, wyliczonej
+z danych kolejności, więc jedna czeka na drugą zamiast zakleszczać się z nią
+(kontrola dodatnia naprawy: pomiar E7 — cykl znika).
+
+**Żadnego szóstego mechanizmu.** Nie powstaje nowa klasa, nie zmienia się
+`ZamekPary`, nie zmienia się reguła kolejności. Zmienia się jedno: druga
+akcja wchodzi przez istniejące gardło, zgodnie z tym, co D-080 już
+postanowiło.
+
+**Rewalidacja pod blokadą.** Zamek podaje świeże modele; `null` znaczy „konta
+już nie ma" i kończy się `BladDlaCzlowieka` („To konto jest niedostępne."),
+a nie naruszeniem klucza obcego i pięćsetką.
+
+**Dziennik audytu zostaje POZA transakcją**, tak jak był. Wpis ma powstać
+wtedy, gdy blokada naprawdę się zapisała; wciągnięty pod blokadę zniknąłby
+razem z wycofaną transakcją, a jest osobnym śladem, nie częścią relacji.
+Pilnuje tego osobny test.
+
+**Tania odmowa „nie można zablokować samego siebie" zostaje przed zamkiem** —
+nie ma po co otwierać transakcji, żeby odmówić. Gwarancję i tak trzyma
+`blocks_no_self_check` w bazie.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie usuwa pozostałych rozjazdów kolejności wykrytych w tym samym audycie
+(kasowanie konta rusza `follows`/`blocks` bez `ZamekPary`; `LoginLinkController::
+store()` bierze wiersz tokenu bez wiersza konta). Są opisane w raporcie
+z naprawami **opisanymi, nie wdrożonymi** — każda jest osobną decyzją.
+
+Nie da się jej też dowieść w istniejącym zestawie testów: `RefreshDatabase`
+trzyma cały test w jednej niezatwierdzonej transakcji na jednym połączeniu,
+więc drugiego uczestnika wyścigu po prostu nie ma. Testy pilnują
+**kontraktu** (że akcja wchodzi przez zamek, w ustalonej kolejności, tej
+samej co obserwowanie), a nie skutku. Skutek zmierzono poza zestawem, na
+dwóch połączeniach; propozycja wprowadzenia takich testów do repozytorium
+jest w raporcie.
+
+**Zmiana wymaga:** rezygnacji z `ZamekPary` jako wspólnego gardła dla pary
+osób — a wtedy razem z nią z D-080. Kolejność rosnąco po identyfikatorze nie
+podlega zmianie inaczej niż we wszystkich miejscach naraz.
+
+📄 `app/Domain/Social/Actions/BlockUser.php` ·
+`app/Domain/Social/ZamekPary.php` ·
+`tests/Feature/ZamekParyObejmujeBlokowanieTest.php` ·
+`docs/research/2026-09-10-kolejnosc-blokad.md` ·
+D-079 · D-080
+
+---
+
+## D-083 · Zdjęcie przypina się i kasuje pod JEDNĄ blokadą wiersza `media`, a pliki znikają dopiero PO commicie — wiersz ze znacznikiem `deleted` jest uchwytem do ponowienia
+
+**Issue:** #285 (MEDIA-01, P1). **Data:** 10.09.2026.
+**Stoi na:** D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
+
+### Stan sprzed zmiany — sprawdzony w plikach, nie przepisany z audytu
+
+Audyt jest materiałem zewnętrznym, a `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`
+wymienia MEDIA-01 wprost jako **niesprawdzone**. Sprawdzone teraz:
+
+- `PublishPost::handle()` wybierał należące do autora `media_id` zwykłym
+  `SELECT`-em **przed** transakcją i nigdy do tego wyboru nie wracał;
+  `attach()` szedł kilkanaście linijek dalej, już w transakcji.
+- `RecordCookedEvent::handle()` miał dokładnie ten sam kształt.
+- `KasujZdjecie::jesliNieuzywane()` pytał `exists()` po sześciu tabelach
+  (też bez blokady), a potem — **wewnątrz** transakcji otwartej przez
+  `OsieroconeZdjecia::posprzataj()` — kasował pliki z R2 i dopiero na końcu
+  wiersz `media`.
+
+Żadna z tych operacji nie brała czegokolwiek na wspólnym wierszu `media`.
+Między `exists()` sprzątacza a skasowaniem plików mieściła się cała
+publikacja wpisu.
+
+### Jedna poprawka do opisu issue
+
+Issue przewiduje, że sprzątacz „wchodzi w konflikt z FK". **Nie wchodzi.**
+`post_media.media_id` ma w migracji `2026_09_05_000500_create_posts_tables`
+`cascadeOnDelete()` (tak samo `cooked_event_media.media_id`), więc skasowanie
+wiersza `media` po cichu zabiera świeżo wstawiony wiersz `post_media`.
+
+Objaw jest więc **gorszy** niż w opisie: nie ma ani wyjątku, ani wpisu
+w logu. Wpis zostaje bez zdjęcia, plik znika z R2, a jedyny egzemplarz
+zdjęcia człowieka nie istnieje już nigdzie. Przy produkcie, którego cała
+obietnica brzmi „zabierzesz stąd wszystko, co dodasz", to jest najgorsza
+klasa błędu, jaką ten kod może mieć.
+
+### Decyzja
+
+**1. Przypinanie wybiera zdjęcia POD BLOKADĄ, w tej samej transakcji co
+`attach()`.** Robi to jedna klasa, `App\Domain\Media\ZdjeciaDoPrzypiecia`,
+używana przez `PublishPost` i `RecordCookedEvent` — nie dwie kopie tego
+samego protokołu, z tego samego powodu, dla którego lista `ODWOLANIA` żyje
+w jednym miejscu.
+
+- `SELECT … FOR UPDATE` — zderza się z blokadą `FOR KEY SHARE`, którą
+  PostgreSQL bierze sam przy sprawdzaniu klucza obcego przy `INSERT`-cie do
+  `post_media`. Przypięcie i przejęcie do skasowania ustawiają się przez to
+  w kolejkę zamiast się mijać.
+- `ORDER BY id` — deterministyczna kolejność blokowania. Bez niej dwa
+  równoległe wysłania formularza z częściowo wspólnym zestawem zdjęć
+  zakleszczyłyby się nawzajem.
+- Warunki `owner_id` i `status` stoją w **tym samym** zapytaniu co blokada,
+  więc są sprawdzane dopiero po jej uzyskaniu (D-079 §3: blokada serializuje,
+  ale nie mówi żądaniu, że świat zmienił się, gdy ono czekało).
+- Wywołanie poza transakcją rzuca `LogicException`. Blokada wiersza żyje
+  wyłącznie w transakcji, więc bez tego strażnika ta klasa dałaby się
+  przenieść „wyżej dla czytelności" i po cichu wrócić do zwykłego `SELECT`-a.
+
+**2. Sprzątacz przejmuje zdjęcie w krótkiej transakcji, a pliki kasuje PO
+commicie** — wzorzec z `EraseAccountData`, nie nowy pomysł:
+
+1. `KasujZdjecie::przejmij()` — świeży odczyt `FOR UPDATE`, **ponowne**
+   pytanie „czy używane" pod blokadą, znacznik `status = deleted`. Zero
+   wejść na dysk, więc nikt nie czeka na R2 z założoną blokadą.
+2. dopiero po zatwierdzeniu — pliki, a na samym końcu wiersz.
+
+`OsieroconeZdjecia` przestaje otwierać własną transakcję: obejmowała także
+kasowanie plików w R2, a jej wycofanie i tak nie przywróciłoby ani jednego
+skasowanego pliku.
+
+**3. Znacznik `status = 'deleted'` to „kasowanie trwa", nie „skasowane".**
+Pełni tu tę samą rolę co `data_erased_at` przy wymazywaniu konta:
+zatwierdzoną, widoczną dla innych transakcji deklarację „to zdjęcie
+odchodzi". `ZdjeciaDoPrzypiecia` takiego wiersza nie przepuści, więc okno
+nie wraca po zwolnieniu blokady, a przed skasowaniem plików.
+
+Wiersz ze znacznikiem jest **uchwytem do ponowienia**: nieudane kasowanie
+plików zostawia go na miejscu, a kolejny przebieg
+`kuking:sprzataj-osierocone-zdjecia` wybiera go po wieku tak samo jak każdy
+inny. To zachowanie z issue #17 zostaje nietknięte.
+
+### Czego świadomie NIE zrobiono
+
+- **Nowej kolumny ani migracji.** `media_status_check` dopuszcza wartość
+  `deleted` od pierwszej migracji tabeli (`2026_09_05_000100_create_media_table`),
+  tylko nikt jej nie używał. Osobna kolumna „zarezerwowane do kasowania"
+  byłaby szóstym mechanizmem blokowania w repozytorium, w którym pięć
+  wjechało tego samego dnia.
+- **Optymalizacji liczby zapytań przy autoryzacji zdjęć** — to jest MEDIA-03
+  (#286) i idzie osobno.
+- **Trzech pozostałych dróg przypięcia** (`profiles.avatar_media_id`,
+  `recipes.hero_media_id`/`source_scan_media_id`, `recipe_steps.media_id`).
+  Mają ten sam kształt i tę samą lukę; nie zamknięto ich tutaj, żeby zmiana
+  została przy utracie danych na dwóch najważniejszych ścieżkach produktu
+  („Opublikuj" i „Ugotowałem"). **To jest dług, nie stan docelowy** — patrz
+  „Co zostaje otwarte".
+
+### Czego test NIE pilnuje
+
+`tests/Feature/ZdjecieNieZnikaPrzyPrzypinaniuTest.php` **nie odtwarza**
+wymuszonego przeplotu na dwóch połączeniach do PostgreSQL, którego domaga
+się issue. `RefreshDatabase` trzyma dane testu w niezatwierdzonej transakcji,
+więc drugie połączenie nie zobaczyłoby ani konta, ani zdjęcia.
+
+Testowany jest kontrakt, na czterech osobnych elementach (blokada przy
+przypinaniu, rewalidacja pod blokadą u sprzątacza, nieprzypinalność wiersza
+ze znacznikiem, pliki po commicie + uchwyt do ponowienia). Brak przeplotu
+z nich **wynika**, ale nie jest zmierzony — i tak trzeba to czytać.
+
+Nie jest sprawdzone maszynowo, że PostgreSQL faktycznie serializuje
+`FOR UPDATE` z `FOR KEY SHARE` branym przy kluczu obcym; to własność silnika,
+przyjęta z dokumentacji. Nie jest też pilnowany strażnik
+`DB::transactionLevel() === 0`, bo pod `RefreshDatabase` poziom transakcji
+nigdy nie jest zerem.
+
+### Co zostaje otwarte
+
+Awatar, zdjęcie główne przepisu, skan zeszytu i zdjęcie kroku przypinają się
+nadal bez blokady. Sam znacznik `deleted` daje im węższe okno niż przedtem,
+ale go nie zamyka. Do osobnego zadania: przepuścić te cztery drogi przez
+`ZdjeciaDoPrzypiecia`.
+
+**Pliki:** `app/Domain/Media/ZdjeciaDoPrzypiecia.php` ·
+`app/Domain/Media/KasujZdjecie.php` · `app/Domain/Media/OsieroconeZdjecia.php` ·
+`app/Domain/Posts/Actions/PublishPost.php` ·
+`app/Domain/Recipes/Actions/RecordCookedEvent.php` · `app/Models/Media.php` ·
+`tests/Feature/ZdjecieNieZnikaPrzyPrzypinaniuTest.php`
+
+---
+
 ## D-091 · Liczby o osobie idą do prawej szyny na szerokim ekranie, a na wąskim zostają w karcie — dwa egzemplarze w HTML, jeden na ekranie, bez JavaScriptu
 
 **Zgłoszenie właściciela, dosłownie:** „jestem na profilu użytkownika, patrz
