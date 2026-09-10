@@ -363,14 +363,35 @@ na `erased` (ich zanonimizowany tekst wraca wtedy na serwis, zgodnie z D-018),
 a konta w usuwaniu dostają `delete_scope = 'minimum'` — jedyny zakres, jaki
 wtedy istniał.
 
-**Rollback:** `down()` cofa `erased` → `pending_delete`, zdejmuje oba nowe
-CHECK-i, przywraca poprzedni `users_data_erased_at_check` i `users_status_check`
-i kasuje kolumnę. Sprawdzone na bazie testowej w obie strony
-(`migrate` → `migrate:rollback --step=1` → `migrate`). Skutek jest ZNANY:
-wraca usterka opisana wyżej (teksty wymazanych kont znowu oddają 403). Żadne
-dane nie giną — tracimy wyłącznie zapisany zakres kont, które JESZCZE czekają
-w karencji, a te wracają wtedy do zachowania D-018, czyli do wariantu mniej
-nieodwracalnego.
+**Rollback — poprawiony po #287 (D-088).** `down()` cofa `erased` →
+`pending_delete`, zdejmuje oba nowe CHECK-i, przywraca poprzedni
+`users_data_erased_at_check` i `users_status_check` i kasuje kolumnę —
+**ale najpierw ODMAWIA**, jeśli w tabeli jest choć jedno konto z
+`delete_scope = 'everything'`.
+
+Powód: kolumna jest `nullable`, więc samo `dropColumn` nie zgłasza błędu —
+ale kolejny `migrate` (np. `migrate:refresh` w CI, albo awaryjny rollback
+WDROŻENIA, nie tylko bazy) **backfillowałby ją z powrotem jako `minimum`**,
+bo to jedyna wartość, jaką backfill `up()` umie nadać istniejącym kontom
+w usuwaniu. Człowiek, który poprosił o usunięcie WSZYSTKICH swoich treści,
+dostawałby po cichu odwrotność swojej decyzji — bez błędu, z poprawną
+kolumną i poprawną wartością ze słownika. **Ta sama choroba co DB2**
+(`2026_09_07_400000_default_weekly_digest_to_off`, `down()` przywracający
+`DEFAULT true` dla zgody na cotygodniowy przegląd) — potwierdzone na
+prawdziwej bazie testowej, nie w teorii (`migrate` → `migrate:rollback` →
+`migrate` dawało `delete_scope = 'minimum'` na koncie zgłoszonym jako
+`everything`).
+
+Naprawa: `down()` liczy `delete_scope = 'everything'` PRZED jakąkolwiek
+operacją i rzuca `RuntimeException` z instrukcją, co zrobić (patrz komentarz
+w migracji) — ten sam wzorzec odmowy co
+`2026_09_10_400100_one_active_data_export_per_user` i
+`2026_09_07_800000_appeals_open_to_reporters`. Na koncie z `minimum` (albo
+bez wyboru w ogóle) rollback nadal przechodzi bez pytania — test
+`tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php`
+sprawdza obie strony na prawdziwym cyklu `migrate` → `markForDeletion()` →
+`migrate:rollback`. Skutek udanego rollbacku jest wciąż ZNANY i niezmieniony:
+wraca usterka z akapitu wyżej (teksty wymazanych kont znowu oddają 403).
 
 #### Weryfikacja dwuetapowa (2FA / TOTP) — moderator i admin
 
