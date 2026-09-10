@@ -58,7 +58,7 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 - **Długość zawieszenia wybierasz z listy: bez zawieszenia (pozycja domyślna), 1, 7 albo 30 dni, własny termin albo bezterminowo.** Własny termin to liczba dni od 1 do 365, którą wpisujesz w polu pod listą — przy każdym innym wyborze ta liczba jest ignorowana i nie musisz jej czyścić. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
 - **Brak wyboru NIE znaczy „bezterminowo".** Do września 2026 znaczył — czyli pomyłka przez zaniechanie dawała najsurowszą karę, jaką panel potrafi wydać. Dziś domyślnie zaznaczone jest „Bez zawieszenia", a decyzja „Zawieś konto" bez wybranego terminu nie przechodzi: formularz pyta, na jak długo, i nie traci przy tym tego, co już wpisałeś.
 - **Powiadomienie o decyzji wychodzi zawsze i automatycznie** — przy ukryciu, usunięciu, ostrzeżeniu, zawieszeniu i blokadzie. Nie da się „ukarać po cichu". Puste pole „Wiadomość do użytkownika" znaczy tylko tyle, że pójdzie zdanie domyślne.
-- **Panel nie pokazuje historii wcześniejszych kar autora.** Kolumna „Eskalacja" mówi „2. wystąpienie", „powtórka" — ale kolejka zgłoszeń tego nie liczy i nie wyświetla. Dziś to pamięć moderatora, nie funkcja produktu.
+- **Panel POKAZUJE historię wcześniejszych kar autora (D-070, od 10 września 2026).** Do tego dnia stało tu, że „dziś to pamięć moderatora, nie funkcja produktu" — nieprawda od tej zmiany. Na karcie każdej sprawy jest wąska oś czasu: data, decyzja, podstawa, wynik odwołania, oraz **liczba wystąpień liczących się do eskalacji**. Trzy rzeczy, o których musisz wiedzieć, czytając tę listę: (1) **zgłoszeń odrzuconych (`Bez działania`) tam NIE MA** — liczenie ich byłoby karą za bycie zgłaszanym; (2) **decyzje cofnięte w odwołaniu są widoczne, ale do liczby wystąpień się nie liczą** — to były nasze pomyłki, nie przewinienia tej osoby; (3) lista jest przycięta do kilku najnowszych pozycji, a pełną liczbę widzisz pod nią. To jest materiał do decyzji o eskalacji, nie teczka — nie ma tam treści tamtych spraw ani notatek z nich.
 - **Ukryty PRZEPIS jest dla autora zamrożony.** Autor go zobaczy pod jego adresem, ale nie otworzy edycji (`RecipeStatusTransitions::BY_AUTHOR`: wiersz `hidden` jest pusty). Więc „ukryj i daj szansę poprawy" działa dla wpisu, a dla przepisu — nie. Przy prawach autorskich albo poproś o nową wersję przepisu, albo zdejmij ukrycie na czas poprawy.
 
 ---
@@ -67,14 +67,34 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 
 ### SLA (realistyczne dla 1–2 osób, nie 24/7)
 
-| Priorytet | Co się kwalifikuje | Cel czasowy reakcji |
+| Priorytet | Kategorie zgłoszenia, które go dają | Cel czasowy reakcji |
 |---|---|---|
-| P0 — krytyczny | CSAM, groźby zagrażające życiu, aktywny doxxing | Natychmiast po zauważeniu, maks. kilka godzin, poza kolejnością wszystkiego innego |
-| P1 — pilny | Nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość | W ciągu 24 godzin w dni robocze |
-| P2 — standardowy | Spam, prawa autorskie, niebezpieczne porady, podszywanie | W ciągu 72 godzin |
-| P3 — niski | Drobne naruszenia stylu/tonu, wątpliwe kategorie | W ciągu 7 dni, mogą czekać na tygodniowy przegląd |
+| P0 — krytyczny | „Dotyczy dziecka" | Natychmiast po zauważeniu, maks. kilka godzin, poza kolejnością wszystkiego innego |
+| P1 — pilny | „Obraża lub nęka kogoś", „Mowa nienawiści", „Treść nieprzyzwoita", „Ujawnia czyjeś dane osobowe", „Oszustwo lub podejrzany link" | W ciągu 24 godzin w dni robocze |
+| P2 — standardowy | „Spam albo reklama", „Ktoś podaje się za inną osobę", „To nie jest treść tej osoby", „Niebezpieczna porada kulinarna" | W ciągu 72 godzin |
+| P3 — niski | „Coś innego" | W ciągu 7 dni, mogą czekać na tygodniowy przegląd |
 
-**Priorytetu nie ma w narzędziu.** `reports` nie ma kolumny priorytetu, a kolejka `/admin/zgloszenia` jest posortowana od NAJNOWSZYCH. Podział P0–P3 wyżej to porządek w głowie moderatora i nic go nie wymusza: sprawa P0 sprzed dwóch dni leży niżej niż spam sprzed godziny. Praktyczny wniosek — przeglądaj całą zakładkę „Otwarte", a nie tylko jej pierwszy ekran.
+**PRIORYTET JEST W NARZĘDZIU (D-070, od 10 września 2026).** Do tego dnia stało tu, że „podział P0–P3 to porządek w głowie moderatora i nic go nie wymusza" — i była to prawda: `reports` nie miało kolumny priorytetu, a kolejka była posortowana od najnowszych, więc sprawa P0 sprzed dwóch dni leżała niżej niż spam sprzed godziny. **To już nie jest prawdą i nie wolno tego zdania przywracać bez zmiany w kodzie.**
+
+Dziś:
+
+- **`reports.priorytet` to kolumna w bazie** (0 = P0 … 3 = P3, `CHECK` w bazie). Wartość **wynika z kategorii wybranej przez zgłaszającego** — tabela wyżej jest odwzorowaniem `App\Domain\Moderation\PriorytetSprawy::MAPOWANIE` i **tamta klasa jest źródłem prawdy**. Zmieniasz przypisanie kategorii do priorytetu: zmień je tam, a potem tutaj.
+- **Kolejka `/admin/zgloszenia` sortuje priorytetem, a w obrębie priorytetu NAJSTARSZE pierwsze.** To jest odwrotność dawnego „najnowsze pierwsze" i tak ma być: sprawa czekająca najdłużej w swojej wadze jest najbliżej przekroczenia celu czasowego z tej tabeli.
+- **Oznaczenia „P0 nieprzejrzane" nie da się odkliknąć.** Stoi w pasku panelu na każdym ekranie `/admin/**`, niezależnie od zakładki i filtra, i gaśnie tylko wtedy, gdy sprawę rozstrzygniesz, weźmiesz do przeglądu (wraca po 8 godzinach) albo obniżysz jej priorytet z uzasadnieniem. Przycisk „Pokaż sprawy pilne" prowadzi na listę, która **ignoruje zakładki i filtr źródła** — jej długość zawsze zgadza się z liczbą na alarmie.
+- **Nowe zgłoszenie P0 wysyła list na `MODERATION_ALARM_EMAIL`** natychmiast, tym samym kanałem, którym alarmuje automat (D-055). Samo P0 — o P1 poczta nie przychodzi.
+
+**Priorytet ustala KOLEJNOŚĆ, nie decyzję.** Sprawa podniesiona do P0 dalej czeka na człowieka; nic się z treścią ani z kontem nie dzieje automatycznie.
+
+### Kiedy zmienić priorytet ręcznie — i dlaczego to Twoje zadanie, nie automatu
+
+Automat czyta **wyłącznie kategorię wybraną przez zgłaszającego**, nigdy treść. Dwa przypadki zdarzają się regularnie i przy obu masz w panelu pole „Priorytet w kolejce":
+
+- **PODNIEŚ do P0**, gdy „Ujawnia czyjeś dane osobowe" okazuje się aktywnym doxxingiem — adresem domowym razem z wezwaniem, żeby tam pojechać. Domyślnie taka kategoria dostaje P1, bo z samej nazwy nie da się odróżnić bezmyślnie wklejonego numeru telefonu od groźby.
+- **OBNIŻ**, gdy „Dotyczy dziecka" okazuje się zdjęciem wnuka przy urodzinowym torcie. Ta kategoria dostaje P0 **domyślnie i celowo**: fałszywy P0 kosztuje Cię kilka minut, przegapione CSAM jest najgorszą rzeczą, jaka może się w tym serwisie stać.
+
+**Uzasadnienie jest obowiązkowe** (co najmniej jedno zdanie) i baza nie przyjmie zmiany bez niego. Powód: bez tego zdania zmiana priorytetu jest w logu nieodróżnialna od pomyłki — a przy dwóch osobach od CUDZEJ pomyłki, której nikt nie umie ani potwierdzić, ani cofnąć.
+
+**Zasada realistyczna zostaje w mocy:** narzędzie pilnuje teraz KOLEJNOŚCI, ale nie tworzy dyżuru 24/7. Cele czasowe z tej tabeli są celami zespołu, nie obietnicą złożoną użytkownikowi.
 
 **Zasada realistyczna:** przy 1–2 osobach nie da się gwarantować SLA 24/7. Ustaw oczekiwania w komunikacji z użytkownikami ("odpowiadamy zwykle w ciągu 2–3 dni roboczych") i **nie obiecuj więcej, niż jesteś w stanie dotrzymać** — niedotrzymane obietnice szkodzą zaufaniu bardziej niż szczery, dłuższy czas reakcji.
 
@@ -312,7 +332,7 @@ Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta oso
 
 - Konto założone <24h **i** publikujące link zewnętrzny w pierwszym poście → automatyczne oznaczenie do przeglądu (nie automatyczne usunięcie — unikać false positives dla nowych, prawdziwych użytkowników).
 - >3 identyczne lub niemal identyczne komentarze w ciągu 10 minut → automatyczne ograniczenie (throttle) konta + oznaczenie do przeglądu.
-- Nowe konto z linkiem w bio do domeny niezwiązanej z gotowaniem (sklep, kurs, "zarabianie") → wyższy priorytet. Uwaga: **kolejki triage dziś nie ma.** Statusy `triage` i `reviewing` istnieją w bazie, ale żaden kod ich nie nadaje — zgłoszenie idzie z `open` prosto do `resolved` albo `rejected`, a zakładka „W trakcie" w panelu jest z tego powodu zawsze pusta.
+- Nowe konto z linkiem w bio do domeny niezwiązanej z gotowaniem (sklep, kurs, "zarabianie") → wyższy priorytet. Uwaga: **„W trakcie" DZIAŁA od 10 września 2026 (D-070).** Do tego dnia stało tu, że statusy `triage` i `reviewing` istnieją w bazie, ale żaden kod ich nie nadaje, a zakładka jest zawsze pusta — to już nieprawda. Przy każdej otwartej sprawie jest przycisk **„Wziąłem do przeglądu"**: sprawa dostaje Twoje nazwisko i znacznik czasu, przechodzi do zakładki „W trakcie" i przestaje się liczyć jako nieprzejrzana. **Jeśli jej nie domkniesz w 8 godzin, wróci do kolejki** i oznaczenie pilnych spraw znowu się zapali — nie da się go wyciszyć na stałe jednym kliknięciem. Sprawę, której dziś nie da się domknąć, oddaj do kolejki przyciskiem „Oddaj do kolejki"; ślad, że ją brałeś, zostaje. Statusu `triage` **już nie ma** — nie istniał etap wstępnej kwalifikacji, więc został usunięty ze schematu zamiast udawać funkcję.
 - Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. Kolumna `media.perceptual_hash` jest w schemacie od pierwszej migracji, ale **nic jej dziś nie wypełnia** — pipeline zdjęć jej nie liczy. To jest więc pełne zadanie do zrobienia, nie „włączenie" czegoś gotowego.
 
 ### Rate limity — co jest ustawione, a co dopiero postulujemy

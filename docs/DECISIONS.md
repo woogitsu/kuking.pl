@@ -4903,3 +4903,224 @@ issue #21
 [^4]: [spatie/laravel-activitylog — README](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — jedna tabela `activity_log`, kolumny `subject_id`/`subject_type`, `causer_id`/`causer_type`, `description`, `properties`, `event`.
 [^5]: `spatie/laravel-activitylog` dokumentacja, sekcja „Log Options" (`docs/advanced-usage/log-options.md` w repozytorium pakietu) — `logOnly()`/`logExcept()`/`dontLogEmptyChanges()`.
 [^6]: [spatie/laravel-activitylog — README, sekcja „Clean log"](https://raw.githubusercontent.com/spatie/laravel-activitylog/main/README.md) — komenda `activitylog:clean`, kasuje wpisy starsze niż skonfigurowana liczba dni, bez pojęcia kategorii wyłączonych z kasowania.
+
+---
+
+## D-070 · Priorytet sprawy moderacyjnej jest kolumną w bazie i wymuszoną kolejnością w kolejce, a `reviewing` zaczyna działać, bo bez niego nie da się uciszyć alarmu P0
+
+**Data:** 10 września 2026 · Audyt moderacji: MOD-01, MOD-02, MOD-04 · Status: **obowiązuje**
+
+### Stan sprzed zmiany — sprawdzony w kodzie, nie przyjęty z audytu
+
+- `reports` **nie miało** kolumny priorytetu (migracja `2026_09_05_001000_create_trust_and_safety_tables`).
+- `/admin/zgloszenia` sortowało `ORDER BY created_at DESC, id DESC` (`ModerationController::reports()`).
+- `docs/legal/MODERATION_PLAYBOOK.md` §3 miał tabelę SLA z P0–P3 i **sam przyznawał**:
+  „Podział P0–P3 wyżej to porządek w głowie moderatora i nic go nie wymusza".
+- Panel **nie pokazywał** wcześniejszych kar autora, mimo że podręcznik eskaluje
+  regułami „2. wystąpienie", „3. → blokada trwała" (playbook mówił o tym wprost:
+  „Dziś to pamięć moderatora, nie funkcja produktu").
+- `Report::STATUS_TRIAGE` i `STATUS_REVIEWING` istniały, `KolejkiPanelu` je liczył,
+  panel miał zakładkę „W trakcie" — i **nic ich nie nadawało**. Zakładka była stale pusta.
+
+Znaczenie dosłowne: zgłoszenie CSAM sprzed dwóch dni leżało w kolejce **niżej**
+niż spam sprzed godziny. Przy jednym–dwóch moderatorach to nie jest niedogodność —
+człowiek bez redundancji ma gorsze dni, urlopy i grypę, a wtedy kolejność musi
+pilnować system, bo nie ma nikogo, kto by go poprawił.
+
+### 1. Priorytet w danych, mapowanie w JEDNYM miejscu (MOD-01)
+
+`App\Domain\Moderation\PriorytetSprawy` jest jedynym miejscem, w którym żyje
+podział P0–P3 i przypisanie kategorii zgłoszenia do priorytetu. Pytają o nie:
+hak `Report::booted()` (tworzenie wiersza), migracja
+`2026_09_10_400000_priorytet_w_kolejce_zgloszen` (wypełnienie starych wierszy —
+buduje `CASE` z `MAPOWANIE` przez `sqlZPowodu()`, zamiast wpisywać liczby po
+swojemu) oraz widoki. **Podręcznik i kod nie mają się jak rozjechać**, bo rozjazd
+priorytetów nie wywala testu — tylko przesuwa sprawę o kilka pozycji w kolejce.
+
+**Nazwa kolumny: `priorytet`, nie `priority`.** `AGENTS.md` §11 każe pisać kod po
+angielsku, ale ta kolumna nie przechowuje pojęcia z frameworka ani z przepisu
+(`status`, `source`, `reason`, `good_faith_at` ZOSTAJĄ angielskie) — trzyma
+kategorię **z naszej własnej procedury operacyjnej**, opisanej po polsku
+w podręczniku moderacji. Ta sama tabela ma już dwie takie kolumny z tego samego
+powodu: `numer_sprawy` i `klucz_wyslania`. Drugi powód jest praktyczny:
+`priority` czyta się jak wagę technicznej kolejki zadań i pierwszą rzeczą, jaką
+ktoś z nią zrobi, będzie wpisanie tam dowolnej liczby.
+
+**Liczba 0–3, nie tekst `'P0'`–`'P3'`.** Kolejka ma sortować samym indeksem:
+`ORDER BY priorytet ASC, created_at ASC` z `reports_kolejka_priorytet_idx` czyta
+wiersze już w kolejności. Tekst wymagałby `ORDER BY CASE`, czyli wyrażenia, dla
+którego indeksu nie da się postawić. Mniejsza liczba znaczy pilniejsze, żeby nie
+potrzebować ani jednego `DESC`. Człowiek widzi „P0" — zamienia jedno na drugie
+`PriorytetSprawy::nazwa()` i nikt inny.
+
+**Kolejność: priorytet pierwszy, w obrębie priorytetu NAJSTARSZE pierwsze.**
+Drugi człon jest odwróceniem poprzedniego stanu i to jest zamierzone: sprawa
+czekająca najdłużej w swojej wadze jest najbliżej przekroczenia celu czasowego
+z tabeli SLA. „Najnowsze pierwsze" nagradzało sprawy świeże i systematycznie
+zapominało o starych, czyli o tych, przy których czekanie już komuś szkodzi.
+
+**Dwie decyzje w mapowaniu, które nie wynikają z podręcznika wprost:**
+
+- `minor` („Dotyczy dziecka") to **P0**, choć etykieta jest szersza niż „CSAM".
+  Koszt pomyłki jest skrajnie niesymetryczny: fałszywy P0 zabiera kilka minut
+  i jedno obniżenie priorytetu, przegapione CSAM jest najgorszą rzeczą, jaka
+  może się w tym serwisie stać.
+- `personal_data` to **P1**, a nie P0, choć podręcznik wpisuje „aktywny doxxing"
+  do P0. Różnica między numerem telefonu wklejonym bezmyślnie i adresem
+  opublikowanym po to, żeby ktoś tam pojechał, siedzi w treści i w intencji —
+  czyli tam, gdzie automat nie sięga. **To jest główny powód, dla którego ręczna
+  zmiana priorytetu w ogóle istnieje.**
+- `scam` to **P1**, nie P2 razem ze spamem: podstawiony link to wyłudzenie
+  pieniędzy u grupy 50+, która jest głównym celem takich kampanii. Ten sam
+  rachunek stoi już w `Report::WAGA`.
+
+**Ręczna zmiana priorytetu: osobny endpoint, uzasadnienie obowiązkowe.**
+`Report::zmienPriorytet()` jest jedynym wejściem (`priorytet` poza `$fillable` —
+ta sama zasada co `numer_sprawy`, `status` i `role`), a `CHECK`
+`reports_priorytet_zmiana_check` nie przyjmie zmiany bez powodu, więc reguła nie
+stoi na samej walidacji formularza. Osobno od formularza decyzji, bo priorytet
+ustala **kolejność, nie wyrok**: nie może wymagać podstawy z DSA art. 17, ma
+działać w tej samej minucie, a formularz decyzji przyjmuje jedno wysłanie na sprawę.
+
+**Oznaczenie „P0 nieprzejrzane" (`PilneSprawy`)** stoi w `x-panel-moderacji`,
+czyli na KAŻDYM ekranie `/admin/**`, niezależnie od zakładki i filtra — bo sprawa
+krytyczna może leżeć w czterech różnych widokach kolejki. **Nie da się go
+odkliknąć:** nie ma przycisku „ukryj", zapisu w sesji ani w `localStorage`.
+Gaśnie trzema drogami, każda wymaga podjęcia sprawy: rozstrzygnięcie, wzięcie do
+przeglądu (wygasa po 8 godzinach, alarm wraca), obniżenie priorytetu
+z uzasadnieniem i nazwiskiem.
+
+Liczone **zapytaniem, nie z cache** — świadomie odwrotnie niż pięć liczników menu
+(`KolejkiPanelu`). Tam „licznik ukryty jest lepszy niż licznik kłamiący" znaczyło
+najwyżej pięć minut opóźnienia przy „Odwołania". Tutaj nieodświeżony cache
+mówiłby „nic pilnego" przy zgłoszeniu sprzed dwóch minut. Nie ma progu
+wydajności, przy którym warto kupić taki stan: to jedno zapytanie z indeksem
+częściowym, a ekranów panelu otwiera się kilkadziesiąt razy na dobę, nie
+kilkadziesiąt tysięcy. Cache nie rozwiązałby tego także dlatego, że sprawa wraca
+do „nieprzejrzanych" **bez żadnego zapisu w bazie**, samym upływem czasu.
+
+**Alarm poza panelem: podpięty do istniejącego kanału, nie zbudowany obok.**
+Zmierzone w kodzie przed zmianą: `PilnyAlarmModeracyjny` wysyłał list **tylko
+z automatu**, **tylko** dla kategorii z `KategorieModeracji::PILNE`
+(`sexual`, `sexual/minors`), z `PrzeanalizujTresc` i `PrzeanalizujAwatar`, na
+adres `kuking.moderation.model.alarm_email`, bez treści wpisu i zdjęcia, kolejkowany.
+Dokładamy trzecie wejście `AlarmujModeratora::dlaKrytycznegoZgloszenia()`, wołane
+z obu dróg zgłoszenia (`ReportContent`, `ZglosNielegalnaTresc`) po potwierdzeniu
+odbioru i poza transakcją. Adres, warunek „pusty adres znaczy bez poczty",
+kolejkowanie i rachunek za budżet poczty (300 listów dziennie dzielonych z resztą
+serwisu) są te same — druga kopia rozjechałaby się przy pierwszej zmianie, a
+rozjazd wygląda tak, że jedna droga alarmuje, a druga milczy.
+
+**Samo P0, nie P1.** Codzienny list o nękaniu i mowie nienawiści nauczyłby
+moderatora nie otwierać tych listów, czyli zabrałby działanie alarmowi P0.
+
+### 2. Historia wcześniejszych sankcji przy decyzji (MOD-02)
+
+`HistoriaSankcji` liczy wąską oś czasu autora **raz dla całej strony kolejki**:
+najwyżej pięć zapytań na rozwiązanie autorów (`ModeratedContent::autorzyCelow()`,
+jedno na typ celu — cele leżą w pięciu różnych tabelach) plus jedno na historię
+wszystkich autorów naraz i jedno na odwołania. **Siedem, niezależnie od tego, czy
+na stronie jest jedna sprawa czy dwadzieścia pięć.** Naiwne
+`ModeratedContent::znajdz()` + `osoba()` per sprawa dawałoby pięćdziesiąt.
+
+Na LIŚCIE, nie na osobnej karcie sprawy — bo formularz decyzji stoi na liście
+i tam zapada decyzja. Osobny ekran znaczyłby, że historię widzi ten, kto po nią
+kliknie, a wtedy nic się nie zmienia: eskalacja dalej zależałaby od tego, czy
+człowiek pamiętał, że ma sprawdzić.
+
+**To nie jest dossier.** Data, decyzja, podstawa, wynik odwołania — i nic więcej.
+Świadomie nie ma treści tamtych spraw, notatek wewnętrznych, wiadomości wysłanych
+wtedy autorowi ani czegokolwiek o zgłaszających. Nie ma też spraw **odrzuconych**
+(`no_action`): wpisanie ich byłoby liczeniem komuś zgłoszeń, których nie
+potwierdziliśmy, czyli karą za bycie zgłaszanym — i całym mechanizmem nadużycia
+przy jednej osobie zawziętej na drugą.
+
+**Decyzje cofnięte w odwołaniu zostają widoczne, ale nie liczą się do wystąpień.**
+Bez tego oś czasu liczyłaby własne pomyłki moderacji jako przewinienia autora
+i eskalowała na ich podstawie.
+
+### 3. `triage` i `reviewing`: jedno wdrożone, drugie usunięte
+
+**`reviewing` wdrożony realnie** — `Report::wezDoPrzegladu()` z właścicielem
+sprawy i znacznikiem czasu, `oddajDoKolejki()` bez decyzji, powrót do kolejki po
+`Przeglad::WYGASA_PO_GODZINACH` = 8 godzinach niedomknięcia.
+
+**Co przeważyło, wbrew pierwszej odpowiedzi.** Przy jednym–dwóch moderatorach
+sygnał „ktoś już to czyta" faktycznie nic nie wnosi i gdyby to był jedyny powód
+istnienia tego statusu, należałoby go skasować. Przeważyła funkcja z tej samej
+zmiany: oznaczenie P0 ma być **nieusuwalne bez podjęcia sprawy** — czyli musi
+istnieć czynność „podejmuję", inna od wydania decyzji. Bez niej moderator, który
+o 23:00 przeczytał zgłoszenie P0 i musi zadzwonić po prawnika przed decyzją, ma
+dwa wyjścia: kliknąć decyzję, której nie podjął, albo patrzeć na alarm o sprawie
+już przeczytanej. Pierwsze psuje decyzję, drugie psuje alarm — a alarm krzyczący
+o czymś zrobionym przestaje być czytany w ciągu tygodnia. `reviewing` jest więc
+potrzebny **nawet przy jednym moderatorze**, tylko znaczy „ta sprawa jest
+u człowieka, alarm może ucichnąć", a nie „nie wchodź, zajęte". Że przy dwóch
+osobach powie też tamto pierwsze, jest dodatkiem, nie uzasadnieniem.
+
+**Powrót robi warunek w zapytaniu (`Report::scopeNieprzejrzane()`), nie zadanie
+w tle.** Harmonogram, który nie chodzi — a przy Railwayu z jednym procesem bywa —
+zostawiłby alarm wyciszony bez śladu, czyli awaria harmonogramu zamieniłaby się
+w cichą awarię bezpieczeństwa. Status przestawiany po czasie zgubiłby dodatkowo
+informację, KTO sprawę brał.
+
+**Osiem godzin**, bo tyle trwa dzień pracy: sprawa wzięta rano i nie domknięta do
+wieczora jest zapomniana, nie „w toku". Krócej — alarm wraca w środku prawdziwej
+pracy nad jedną trudną sprawą. Dłużej — przepuszcza całą noc przy kategorii,
+której cel czasowy podręcznik liczy w godzinach.
+
+**`triage` usunięty.** Tam nie było czego wdrażać: nie ma etapu wstępnej
+kwalifikacji, nie ma osoby, która by ją robiła, a przy jednym moderatorze
+„kwalifikacja" i „przegląd" to ta sama czynność. `CHECK` przestaje tę wartość
+dopuszczać (ze strażnikiem stojącym PRZED zmianą), stała wychodzi z modelu,
+a osiem miejsc pytających `[open, triage, reviewing]` dostaje jedno źródło
+`Report::STANY_OTWARTE`. Warunki dwóch indeksów częściowych
+(`reports_one_open_per_pair`, `reports_automat_autor_idx`) dalej wymieniają
+`'triage'` i **zostają takie** — to nadzbiór wartości dopuszczalnych, więc
+PostgreSQL dalej dowodzi implikacji i dalej używa indeksów. Przebudowa
+kosztowałaby zdjęcie i postawienie od nowa indeksu chroniącego przed podwójnym
+zgłoszeniem, za zero zysku.
+
+### Rollback przywraca stan GORSZY i `down()` mówi to wprost
+
+Zdjęcie kolumny `priorytet` **nie jest neutralne**: kolejka wraca do „najnowsze
+pierwsze", w którym sprawa P0 sprzed dwóch dni znowu leży pod świeżym spamem,
+a oznaczenie „P0 nieprzejrzane" nie gaśnie z komunikatem — przestaje istnieć.
+Moderator nie ma jak zauważyć braku ostrzeżenia, którego nie widział. To ten sam
+kształt błędu, który audyt znalazł w innej migracji (`down()` przywracający
+domyślny opt-in na mailing).
+
+Dlatego `down()` **odmawia**, dopóki w kolejce stoi choć jedna nierozpatrzona
+sprawa P0/P1 **albo** istnieje choć jedno ręczne uzasadnienie priorytetu — ono
+jest jedynym zapisem tego, co moderator zobaczył w treści, i nie da się go
+odtworzyć z `reason`. Świadome wymuszenie, po kopii tabeli `reports`:
+`KUKING_ROLLBACK_KASUJE_PRIORYTETY=1`.
+
+Sprawy w `reviewing` `down()` **wraca do `open`** — inaczej zostałyby w stanie,
+którego po wycofaniu nikt nie nadaje i nikt nie zdejmuje, i leżałyby w zakładce
+„W trakcie" na zawsze.
+
+### Czego ta zmiana świadomie NIE robi
+
+- **Nie automatyzuje decyzji.** Priorytet ustala kolejność, nie wyrok. Sprawa
+  podniesiona do P0 dalej czeka na człowieka — tylko czeka pierwsza.
+- **Nie kasuje żadnej treści** i nie zmienia jej widoczności.
+- **Nie dodaje Redisa ani osobnej kolejki technicznej.** Sortuje PostgreSQL,
+  indeksem częściowym `reports_kolejka_priorytet_idx`.
+- **Nie rusza kolejności `/admin/sygnaly`** — tam porządkuje `Report::WAGA`,
+  bo tamta kolejka grupuje po autorze i jest inną pracą. Kierunek obu porządków
+  jest zgodny (ocena modelem najwyżej, powtórzenie najniżej).
+
+📄 `app/Domain/Moderation/PriorytetSprawy.php` ·
+`app/Domain/Moderation/PilneSprawy.php` ·
+`app/Domain/Moderation/Przeglad.php` ·
+`app/Domain/Moderation/HistoriaSankcji.php` · `app/Domain/Moderation/HistoriaAutora.php` ·
+`app/Domain/Moderation/ModeratedContent.php` ·
+`app/Domain/Moderation/Actions/AlarmujModeratora.php` ·
+`app/Notifications/PilnyAlarmModeracyjny.php` ·
+`app/Models/Report.php` · `app/Http/Controllers/Admin/ModerationController.php` ·
+`database/migrations/2026_09_10_400000_priorytet_w_kolejce_zgloszen.php` ·
+`resources/views/components/panel-moderacji.blade.php` ·
+`resources/views/pages/admin/reports.blade.php` ·
+`docs/legal/MODERATION_PLAYBOOK.md` · `docs/DATABASE.md` ·
+audyt moderacji MOD-01, MOD-02, MOD-04

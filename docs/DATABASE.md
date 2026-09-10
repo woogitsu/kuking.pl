@@ -1234,6 +1234,52 @@ Konsekwencja w kodzie: `ModeratedContent::znajdz()` zwraca `null` dla typu
 moderator może taką sprawę zamknąć i odpowiedzieć, ale nie ukryje treści,
 której mu nie wskazano.
 
+#### `priorytet` — kolejność w kolejce moderacji (D-070)
+
+Migracja `2026_09_10_400000_priorytet_w_kolejce_zgloszen` (audyt moderacji
+MOD-01, MOD-04).
+
+| Kolumna | Po co |
+|---|---|
+| `priorytet` | `smallint` 0–3, **NOT NULL**, `DEFAULT 2`. 0 = P0 (krytyczny), 3 = P3 (niski). Mniejsza liczba znaczy PILNIEJSZE, żeby `ORDER BY priorytet ASC` czytało wprost z indeksu bez ani jednego `DESC`. Wartość **wynika z `reason`** i nadaje ją hak `Report::booted()` przez `App\Domain\Moderation\PriorytetSprawy::dlaPowodu()` — ta klasa jest JEDYNYM miejscem z mapowaniem kategoria → priorytet (podręcznik moderacji je odwzorowuje, nie definiuje). **Poza `$fillable`**: wartość nadana przez serwer, tak samo jak `numer_sprawy`. |
+| `priorytet_powod` | `varchar(500)`, `NULL`. Uzasadnienie RĘCZNEJ zmiany priorytetu. Obowiązkowe przy zmianie — automat czyta tylko kategorię wybraną przez zgłaszającego, nie treść, więc człowiek musi móc podnieść i obniżyć, a zmiana bez powodu jest w logu nieodróżnialna od pomyłki. |
+| `priorytet_zmieniony_przez` | FK → `users`, `nullOnDelete`. Kto zmienił. |
+| `priorytet_zmieniony_o` | `timestamptz`, `NULL`. Kiedy. **To ta kolumna odpowiada na pytanie „czy priorytet zmieniono ręcznie"** — nie ta wyżej, bo tamta może zniknąć razem z kontem moderatora. |
+| `przeglad_zaczety_przez` | FK → `users`, `nullOnDelete`. Kto wziął sprawę do przeglądu (status `reviewing`). |
+| `przeglad_zaczety_o` | `timestamptz`, `NULL`. Kiedy. Bez tego znacznika sprawa nie umiałaby WRÓCIĆ do kolejki, a „wziąłem do przeglądu" byłoby sposobem na trwałe wyciszenie oznaczenia „P0 nieprzejrzane". |
+
+**Kolumny na priorytet AUTOMATYCZNY świadomie nie ma** — da się go policzyć
+z `reason` w każdej chwili, a druga kolumna z tą samą wiedzą to druga okazja,
+żeby się rozjechały.
+
+| Ograniczenie / indeks | Co pilnuje |
+|---|---|
+| `reports_priorytet_check` | `priorytet BETWEEN 0 AND 3`. Cztery znane priorytety i nic więcej. |
+| `reports_priorytet_zmiana_check` | `num_nonnulls(priorytet_powod, priorytet_zmieniony_o) IN (0, 2)` — zmiana ręczna albo cała, albo żadna. **Kolumny z moderatorem w tym warunku NIE MA i to jest istotne:** ma `nullOnDelete`, więc gdyby wchodziła, skasowanie konta moderatora zamieniłoby poprawny wiersz w niepoprawny — a baza odmówiłaby wtedy usunięcia konta, czyli `CHECK` postawiony dla porządku w danych zablokowałby żądanie z RODO art. 17. |
+| `reports_przeglad_check` | `status <> 'reviewing' OR przeglad_zaczety_o IS NOT NULL`. Sprawa w przeglądzie musi mieć czas rozpoczęcia. Po decyzji znacznik **zostaje** — to ślad, kto sprawę prowadził. |
+| `reports_kolejka_priorytet_idx (priorytet, created_at)` | Indeks częściowy `WHERE status IN ('open','reviewing')`. Kolejka `ORDER BY priorytet, created_at` idzie po nim bez sortowania. Częściowy, bo pyta się wyłącznie o sprawy otwarte, a tabela rośnie z historią i nie maleje nigdy. `source` **nie jest** w warunku — ten sam indeks obsługuje licznik „P0 nieprzejrzane", który patrzy na wszystkie źródła. |
+| `reports_status_check` (**zmieniony**) | `status IN ('open','reviewing','resolved','rejected')` — **`triage` wypada**. Nadawała go zero linii kodu i nie pokazywał go żaden ekran; `reviewing` od tej zmiany działa naprawdę, `triage` nie miał czego zacząć. Migracja **przerywa się**, gdy w tabeli leży choć jeden wiersz `triage`, i mówi, na co go przenieść. |
+
+**Warunki `reports_one_open_per_pair` i `reports_automat_autor_idx` nadal
+wymieniają `'triage'` i tak zostają.** To nadzbiór wartości dopuszczalnych, więc
+nic nie psuje: PostgreSQL dalej dowodzi, że `status IN ('open','reviewing')`
+z zapytania implikuje warunek indeksu, i dalej go używa. Przebudowa kosztowałaby
+zdjęcie i postawienie od nowa indeksu chroniącego przed podwójnym zgłoszeniem,
+za zero zysku.
+
+**Rollback (`2026_09_10_400000_priorytet_w_kolejce_zgloszen`) — PRZYWRACA STAN
+GORSZY i `down()` mówi to wprost.** Zdjęcie kolumny nie jest neutralne: kolejka
+wraca do `ORDER BY created_at DESC`, czyli do porządku, w którym sprawa P0 sprzed
+dwóch dni leży pod świeżym spamem, a oznaczenie „P0 nieprzejrzane" nie gaśnie
+z komunikatem — przestaje istnieć, a moderator nie ma jak zauważyć braku
+ostrzeżenia, którego nie widział. Dlatego `down()` **odmawia**, dopóki w kolejce
+stoi choć jedna nierozpatrzona sprawa P0/P1 **albo** istnieje choć jedno ręczne
+uzasadnienie priorytetu (ginie bezpowrotnie razem z kolumną i nie da się go
+odtworzyć z `reason`). Świadome wymuszenie, po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_PRIORYTETY=1`. Sprawy w `reviewing` `down()` **wraca do
+`open`** — inaczej zostałyby w stanie, którego po wycofaniu nikt nie nadaje
+i nikt nie zdejmuje, i leżałyby w zakładce „W trakcie" na zawsze.
+
 #### Pozostałe ograniczenia i indeksy
 
 | Nazwa | Co pilnuje |
