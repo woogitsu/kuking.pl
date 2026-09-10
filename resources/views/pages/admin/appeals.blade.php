@@ -147,17 +147,25 @@
                     })
                     <form method="POST" action="{{ route('admin.appeals.resolve', $appeal) }}">
                         @csrf
+                        {{-- Identyfikator TEGO wiersza (issue #243): kolejka pokazuje
+                             formularz odpowiedzi dla KAŻDEGO otwartego odwołania na
+                             stronie naraz, wszystkie z polami o tych samych nazwach
+                             (`outcome`, `decision_note`). Bez tego pola `old()` po
+                             nieudanej walidacji jednej odpowiedzi wypełniałby te same
+                             pola przy WSZYSTKICH pozostałych odwołaniach — patrz
+                             `App\Support\WierszFormularza`. --}}
+                        <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $appeal->id }}">
                         <fieldset class="border-0 p-0">
                             <legend class="odwolanie-etykieta">Odpowiedź</legend>
                             <div class="choice-grid">
                                 <label class="choice">
                                     <input type="radio" name="outcome" value="upheld"
-                                           @checked(old('outcome') === 'upheld')>
+                                           @checked(\App\Support\WierszFormularza::stareLubDomyslne('outcome', $appeal->id) === 'upheld')>
                                     <span class="choice-label">Podtrzymuję decyzję</span>
                                 </label>
                                 <label class="choice">
                                     <input type="radio" name="outcome" value="overturned"
-                                           @checked(old('outcome') === 'overturned')>
+                                           @checked(\App\Support\WierszFormularza::stareLubDomyslne('outcome', $appeal->id) === 'overturned')>
                                     <span class="choice-label">{{ $skutekCofniecia }}</span>
                                 </label>
                             </div>
@@ -171,6 +179,7 @@
                         @endif
 
                         <x-field name="decision_note" label="Uzasadnienie dla tej osoby" type="textarea" :rows="4" required
+                                 :wiersz="$appeal->id"
                                  help="To jest odpowiedź, którą ona przeczyta. Wymóg DSA art. 20: wynik bez wyjaśnienia nie jest odpowiedzią." />
 
                         <p class="meta">

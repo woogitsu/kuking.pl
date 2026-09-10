@@ -14,6 +14,21 @@
       bez debounce psuje INP (docs/seo/SEO_TECHNICAL.md). W tym trybie old()
       jest świadomie pomijane, żeby dane z innego, wcześniejszego formularza
       nie nadpisały tego, co człowiek widzi w kreatorze.
+
+    STRONA Z WIELOMA FORMULARZAMI TEGO SAMEGO KSZTAŁTU (issue #243)
+    Gdy jedna strona stawia to samo pole wiele razy w pętli — po jednym
+    formularzu na sprawę, jak w `/admin/sygnaly` — podaj `:wiersz`
+    z identyfikatorem TEJ sprawy (id, UUID, cokolwiek unikalnego na stronie).
+    Bez tego dwie usterki naraz: `id` się dubluje (przeglądarka wiąże
+    `<label for="f-note">` z PIERWSZYM takim polem w dokumencie), a `old()`
+    po nieudanej walidacji jednego formularza wypełnia TĄ SAMĄ treścią
+    wszystkie pozostałe pola o tej nazwie na stronie — moderator widzi
+    cudzą notatkę przy swojej sprawie. `:wiersz` naprawia oba naraz: dokłada
+    identyfikator do `id` (patrz `App\Support\WierszFormularza`) i pokazuje
+    `old()`/błąd walidacji WYŁĄCZNIE w polu tego wiersza, który naprawdę
+    wrócił z błędem — wymaga ukrytego pola
+    `<input type="hidden" name="_wiersz" value="...">` w każdym formularzu
+    pętli, z tą samą wartością.
 --}}
 @props([
     'name',
@@ -54,6 +69,7 @@
     'wire' => null,
     'wireModifier' => 'live.debounce.3000ms',
     'id' => null,
+    'wiersz' => null,
 ])
 @php
     /*
@@ -74,8 +90,14 @@
      * Dlatego `id` da się teraz podać jawnie. Domyślne zachowanie zostaje
      * bez zmian, żeby nie ruszać kilkudziesięciu poprawnych formularzy.
      */
-    $id = $id ?? 'f-'.str_replace(['[', ']', '.'], '-', $name);
-    $error = $errors->first($name);
+    $idSufiks = $wiersz !== null ? '-'.str_replace(['[', ']', '.'], '-', (string) $wiersz) : '';
+    $id = $id ?? 'f-'.str_replace(['[', ']', '.'], '-', $name).$idSufiks;
+
+    // Czy WOLNO temu polu pokazać old()/błąd z sesji: zawsze, jeśli pole nie
+    // jest w pętli (`wiersz` nie podane), i tylko dla wiersza, którego
+    // formularz naprawdę wrócił z błędem, jeśli jest.
+    $tenWiersz = $wiersz === null || \App\Support\WierszFormularza::jestAktywny($wiersz);
+    $error = $tenWiersz ? $errors->first($name) : null;
     $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
 
     /*
@@ -92,7 +114,7 @@
      * hasło wpisuje się z pamięci albo z menedżera, a nie pisze się go
      * przez kwadrans jak przepis.
      */
-    $current = $type === 'password' ? null : ($wire === null ? old($name, $value) : $value);
+    $current = $type === 'password' ? null : ($wire === null ? ($tenWiersz ? old($name, $value) : $value) : $value);
     $describedBy = collect([
         $help ? $id.'-help' : null,
         $error ? $id.'-error' : null,
