@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
+use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
@@ -144,6 +145,57 @@ final class PublishRecipe
         $recipe = DB::transaction(function () use (
             $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing
         ): Recipe {
+            /*
+             * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
+             * transakcji, i używane w dwóch miejscach: do listy kandydatów
+             * do zablokowania (zaraz niżej) i do rozwiązania tożsamości
+             * kroku w `syncSteps()`. Przedtem `syncSteps()` czytało to samo
+             * u siebie, ale dopiero PO zapisaniu wiersza przepisu — a lista
+             * do zablokowania musi być gotowa WCZEŚNIEJ (powód niżej).
+             * Dwa odczyty tej samej rzeczy w jednej transakcji to dwie
+             * okazje, żeby się rozjechały, więc odczyt jest jeden.
+             */
+            $istniejaceKroki = $existing === null
+                ? new Collection
+                : $existing->steps()->get()->keyBy(
+                    static fn (RecipeStep $step): string => (string) $step->getKey(),
+                );
+
+            /*
+             * WSZYSTKIE ZDJĘCIA TEGO ZAPISU BLOKOWANE JEDNYM ZAPYTANIEM
+             * (D-103, dokończenie D-083).
+             *
+             * Trzy z czterech dróg domykanych w D-103 kończą się tutaj:
+             * `recipes.hero_media_id`, `recipes.source_scan_media_id`
+             * i `recipe_steps.media_id`. Wszystkie trzy mają w migracji
+             * `2026_09_05_000400_create_recipes_tables` `nullOnDelete()`,
+             * więc skasowanie wiersza `media` przez sprzątacz osieroconych
+             * zdjęć nie zgłaszało konfliktu klucza obcego — po cichu zerowało
+             * kolumnę. Przepis zostawał bez zdjęcia, plik znikał z R2 i nie
+             * było ani wyjątku, ani wpisu w logu.
+             *
+             * JEDNO WYWOŁANIE, NIE TRZY. `zablokuj()` sortuje po `id`, więc
+             * jedno zapytanie na wszystkie zdjęcia tego zapisu daje jedną,
+             * globalnie deterministyczną kolejność blokowania. Trzy osobne
+             * wywołania blokowałyby w trzech grupach — a dwa równoległe
+             * zapisy, w których to samo zdjęcie raz jest główne, a raz stoi
+             * przy kroku, zakleszczyłyby się nawzajem.
+             *
+             * STOI PRZED `Recipe::create()`/`update()` CELOWO. Zmierzone
+             * dwiema sesjami psql na PostgreSQL 18 (pomiar opisany w D-103):
+             * `INSERT INTO recipes` czeka i na wiersz `users` (klucz obcy
+             * `author_id`), i na wiersz `media` (klucz obcy `hero_media_id`).
+             * Blokada zdjęć postawiona wcześniej daje więc kolejność
+             * `media` → `users` — tę samą, którą po D-083 biorą `PublishPost`
+             * i `RecordCookedEvent`. Odwrócenie jej tutaj byłoby drugą
+             * kolejnością blokad w jednym repozytorium, czyli zakleszczeniem
+             * (D-079 §1, D-093).
+             */
+            $doPrzypiecia = ZdjeciaDoPrzypiecia::zablokuj(
+                (string) $author->getKey(),
+                $this->kandydaciDoPrzypiecia($attributes, $cleanSteps, $istniejaceKroki),
+            );
+
             $payload = [
                 'author_id' => $author->getKey(),
                 'title' => $title,
@@ -153,13 +205,13 @@ final class PublishRecipe
                 'cook_minutes' => $attributes['cook_minutes'] ?? null,
                 'difficulty' => $this->nullIfBlank($attributes['difficulty'] ?? null),
                 'visibility' => $attributes['visibility'] ?? 'public',
-                'hero_media_id' => $attributes['hero_media_id'] ?? null,
+                'hero_media_id' => $this->zdjecieDoPrzypiecia($attributes['hero_media_id'] ?? null, $doPrzypiecia),
                 'source_type' => $attributes['source_type'] ?? Recipe::SOURCE_OWN,
                 'source_url' => $this->nullIfBlank($attributes['source_url'] ?? null),
                 'source_person' => $this->nullIfBlank($attributes['source_person'] ?? null),
                 'source_note' => $this->nullIfBlank($attributes['source_note'] ?? null),
                 'family_since_year' => $attributes['family_since_year'] ?? null,
-                'source_scan_media_id' => $attributes['source_scan_media_id'] ?? null,
+                'source_scan_media_id' => $this->zdjecieDoPrzypiecia($attributes['source_scan_media_id'] ?? null, $doPrzypiecia),
             ];
 
             if ($existing === null) {
@@ -197,7 +249,7 @@ final class PublishRecipe
             }
 
             $this->syncIngredients($recipe, $cleanIngredients);
-            $this->syncSteps($recipe, $author, $cleanSteps);
+            $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
 
             return $recipe->refresh();
         });
@@ -449,17 +501,22 @@ final class PublishRecipe
         }
     }
 
-    /** @param  list<array<string, mixed>>  $steps */
-    private function syncSteps(Recipe $recipe, User $author, array $steps): void
+    /**
+     * @param  list<array<string, mixed>>  $steps
+     * @param  Collection<string, RecipeStep>  $istniejace  mapa TOŻSAMOŚCI kroków, które
+     *                                                      przepis ma DZIŚ — zbudowana
+     *                                                      w `handle()`, PRZED skasowaniem
+     *                                                      wierszy i wyłącznie z kroków TEGO
+     *                                                      przepisu. To jest cała autoryzacja
+     *                                                      `id` z POST-a: identyfikator kroku
+     *                                                      z cudzego przepisu nie ma tu czego
+     *                                                      dopasować, więc nie da się nim
+     *                                                      podpiąć cudzego zdjęcia
+     *                                                      (AGENTS.md §7)
+     * @param  list<string>  $doPrzypiecia  zdjęcia zablokowane na tę transakcję
+     */
+    private function syncSteps(Recipe $recipe, User $author, array $steps, Collection $istniejace, array $doPrzypiecia): void
     {
-        // Mapa TOŻSAMOŚCI, zbudowana PRZED skasowaniem wierszy i wyłącznie
-        // z kroków TEGO przepisu. To jest cała autoryzacja `id` z POST-a:
-        // identyfikator kroku z cudzego przepisu nie ma tu czego dopasować,
-        // więc nie da się nim podpiąć cudzego zdjęcia (AGENTS.md §7).
-        $istniejace = $recipe->steps()->get()->keyBy(
-            static fn (RecipeStep $step): string => (string) $step->getKey(),
-        );
-
         $recipe->steps()->delete();
 
         foreach ($steps as $position => $row) {
@@ -468,7 +525,7 @@ final class PublishRecipe
                 'position' => $position,
                 'instruction' => $row['instruction'],
                 'timer_seconds' => $row['timer_seconds'],
-                'media_id' => $this->stepMediaId($author, $istniejace, $row),
+                'media_id' => $this->stepMediaId($author, $istniejace, $row, $doPrzypiecia),
             ]);
         }
     }
@@ -478,10 +535,11 @@ final class PublishRecipe
      *
      * @param  Collection<string, RecipeStep>  $istniejace
      * @param  array<string, mixed>  $row
+     * @param  list<string>  $doPrzypiecia
      *
      * @throws BladDlaCzlowieka
      */
-    private function stepMediaId(User $author, Collection $istniejace, array $row): ?string
+    private function stepMediaId(User $author, Collection $istniejace, array $row, array $doPrzypiecia): ?string
     {
         $nowe = $row['media_id'] ?? null;
 
@@ -492,6 +550,16 @@ final class PublishRecipe
             // pojedynczy element tablicy). Bez tego sprawdzenia dałoby się
             // przypiąć do własnego przepisu cudze zdjęcie, znając jego
             // identyfikator — a przepis publiczny pokazałby je światu.
+            //
+            // TO `exists()` ZOSTAJE, MIMO ŻE BLOKADA W `handle()` PYTA O TO
+            // SAMO (D-079 §4). Ono służy KOMUNIKATOWI, nie gwarancji: cudze
+            // zdjęcie ma dać zdanie po polsku mówiące, co zrobić, a nie ciche
+            // zapisanie kroku bez zdjęcia. Gwarancję daje
+            // `zdjecieDoPrzypiecia()` niżej — i te dwie odpowiedzi trzeba
+            // rozróżnić, bo znaczą co innego: „to nie jest Twoje zdjęcie" to
+            // pomyłka do poprawienia, a „to zdjęcie właśnie odchodzi" nie
+            // jest niczyją pomyłką i nie ma prawa zabrać człowiekowi
+            // wpisanego przepisu.
             $wlasne = Media::query()
                 ->where('owner_id', $author->getKey())
                 ->whereKey($nowe)
@@ -504,7 +572,7 @@ final class PublishRecipe
                 );
             }
 
-            return (string) $nowe;
+            return $this->zdjecieDoPrzypiecia((string) $nowe, $doPrzypiecia);
         }
 
         if (($row['remove_media'] ?? false) === true) {
@@ -517,7 +585,74 @@ final class PublishRecipe
             return null;
         }
 
-        return $istniejace->get((string) $id)?->media_id;
+        return $this->zdjecieDoPrzypiecia($istniejace->get((string) $id)?->media_id, $doPrzypiecia);
+    }
+
+    /**
+     * Wszystkie zdjęcia, które ten zapis MOŻE przypiąć — do zablokowania
+     * jednym zapytaniem.
+     *
+     * Lista obejmuje też zdjęcia PRZENOSZONE: zdjęcie główne i skan, które
+     * `RecipeController::update()` przepisuje z poprzedniego stanu przepisu,
+     * oraz zdjęcia kroków dziedziczone po tożsamości. Kusi, żeby ich nie
+     * blokować — przecież są już przypięte, więc sprzątacz i tak ich nie
+     * tknie. Ale `syncSteps()` KASUJE wiersze kroków i tworzy je od nowa,
+     * więc odwołanie do zdjęcia kroku przestaje i zaczyna istnieć w tej samej
+     * transakcji. Blokada kosztuje tu tyle co nic (te wiersze są już
+     * w zapytaniu) i zdejmuje konieczność udowadniania, że akurat ta jedna
+     * droga okna nie ma.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  list<array<string, mixed>>  $steps
+     * @param  Collection<string, RecipeStep>  $istniejace
+     * @return list<string>
+     */
+    private function kandydaciDoPrzypiecia(array $attributes, array $steps, Collection $istniejace): array
+    {
+        $kandydaci = [
+            $this->nullIfBlank($attributes['hero_media_id'] ?? null),
+            $this->nullIfBlank($attributes['source_scan_media_id'] ?? null),
+        ];
+
+        foreach ($steps as $row) {
+            $kandydaci[] = $this->nullIfBlank($row['media_id'] ?? null);
+
+            $id = $this->nullIfBlank($row['id'] ?? null);
+
+            if ($id !== null) {
+                $kandydaci[] = $this->nullIfBlank($istniejace->get($id)?->media_id);
+            }
+        }
+
+        return array_values(array_unique(array_filter($kandydaci)));
+    }
+
+    /**
+     * Identyfikator zdjęcia, jeśli TA transakcja naprawdę trzyma je pod
+     * blokadą — inaczej `null`.
+     *
+     * `null` ZAMIAST WYJĄTKU jest tu wyborem, nie niedbałością. Zdjęcie
+     * wypada z tej listy tylko wtedy, gdy sprzątacz przejął je już do
+     * skasowania — czyli nie z winy człowieka, który właśnie zapisuje
+     * przepis. Odmowa zapisu zabrałaby mu wszystko, co wpisał, żeby ukarać
+     * go za cudze sprzątanie; przepis zapisuje się więc bez tego jednego
+     * zdjęcia, dokładnie tak samo jak wpis w `PublishPost` (D-083).
+     *
+     * Tym różni się ta droga od awatara (`PrzypnijAwatar`), gdzie ekran ma
+     * jedno pole i jedną czynność, więc cichy zapis bez zdjęcia byłby
+     * kłamstwem, a nie ratunkiem — uzasadnienie stoi w D-103.
+     *
+     * @param  list<string>  $doPrzypiecia
+     */
+    private function zdjecieDoPrzypiecia(?string $mediaId, array $doPrzypiecia): ?string
+    {
+        $mediaId = $this->nullIfBlank($mediaId);
+
+        if ($mediaId === null) {
+            return null;
+        }
+
+        return in_array($mediaId, $doPrzypiecia, true) ? $mediaId : null;
     }
 
     private function nullIfBlank(mixed $value): ?string
