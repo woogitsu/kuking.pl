@@ -2486,6 +2486,18 @@ wszystkie kopie nieczytelnymi na zawsze.** Dlatego dwie kopie klucza,
 w dwóch różnych miejscach — dokładnie ta sama zasada, co przy `APP_KEY`
 (`KOPIE_I_ODTWORZENIE.md` §1.1 i §7.1).
 
+**Skrypt odmawia pracy, gdy w tej zmiennej znajdzie klucz prywatny** (kod
+wyjścia 64). Dopisane przy przeglądzie tego PR-a, bo sama deklaracja „w
+Railwayu leży tylko część publiczna" nie miała w kodzie żadnego oparcia:
+`openssl x509` przechodzi również na wartości będącej wynikiem
+`cat kuking-kopie-publiczny.pem kuking-kopie-PRYWATNY.pem`, a to jest jedna
+z dwóch najprawdopodobniejszych pomyłek przy wklejaniu do panelu (drugą,
+pomylenie plików o jedną literę w nazwie, §7.1 wymienia wprost). Kopie
+powstawałyby dalej — tylko klucz do ich odczytu leżałby od tego momentu w tym
+samym Railwayu, co baza i co bucket, czyli cała własność z tego punktu byłaby
+cofnięta i **nic by o tym nie powiedziało**. Cisza jest tu droższa niż brak
+kopii, bo brak kopii widać w panelu.
+
 **DLACZEGO CMS, A NIE `age` ANI `gpg`.** Bo `openssl` jest wszędzie.
 Odtworzenie kopii ma się udać w dniu, w którym wszystko inne się wali,
 z dowolnego komputera, bez instalowania czegokolwiek — jedną komendą

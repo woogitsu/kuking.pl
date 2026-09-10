@@ -6,9 +6,15 @@ namespace Tests\Feature;
 
 use App\Domain\Kopie\AlarmKopii;
 use App\Domain\Kopie\StanKopiiBazy;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -250,6 +256,160 @@ class CichyBrakKopiiBazyDajeAlarmTest extends TestCase
         $this->assertFalse(
             app(AlarmKopii::class)->zadzwonJesliTrzeba(app(StanKopiiBazy::class)->sprawdz()),
         );
+    }
+
+    // =========================================================================
+    //  KONTROLA DODATNIA — CZY ALARM W OGÓLE DZWONI (pułapka 4)
+    //
+    //  Wszystkie asercje wyżej dotyczące `zadzwonJesliTrzeba()` są UJEMNE:
+    //  „świeża kopia nie dzwoni", „wyłączony kanał nie dzwoni", „brak bucketu
+    //  nie dzwoni". Taki zestaw przechodzi również wtedy, gdy metoda NIGDY nie
+    //  dzwoni — zmierzone w tym repozytorium 10.09.2026: po wstawieniu
+    //  `return false;` w pierwszej linii `zadzwonJesliTrzeba()` wszystkie
+    //  czternaście testów tego pliku było zielonych. Czyli cały plik dowodził
+    //  ciszy, a nie alarmu, w issue, którego jedynym tematem jest alarm.
+    //
+    //  Dokładnie ta pułapka jest opisana w `docs/PULAPKI_TESTOW.md` §4:
+    //  asercja tylko negatywna przechodzi, gdy mechanizm nie działa wcale.
+    //  Dlatego niżej są trzy pary „widoczne wyszło, ukryte nie wyszło":
+    //  dla każdego alarmującego stanu sprawdzamy, że żądanie NAPRAWDĘ wyszło
+    //  na kanał — i że nie wyniosło przy tym nazwy bucketu ani klucza obiektu.
+    // =========================================================================
+
+    private const ADRES_WEBHOOKA = 'https://discord.przyklad.invalid/api/webhooks/testowy/slack';
+
+    /**
+     * Kanał `blad_webhook` idzie przez `WebhookBleduHandler`, a ten wysyła
+     * `Http::post()` — więc `Http::fake()` jest tu jedynym miejscem, w którym
+     * widać RÓŻNICĘ między „metoda zwróciła true" a „coś naprawdę wyszło".
+     * Ta sama droga i ten sam wzorzec, co w
+     * `WiadomoscNaWebhookuBezDanychOsobowychTest`.
+     */
+    private function wlaczKanalAlarmu(): void
+    {
+        config()->set('logging.channels.blad_webhook.url', self::ADRES_WEBHOOKA);
+
+        // Kanał jest w Laravelu zapamiętywany po pierwszym użyciu, a inne testy
+        // w tej klasie tworzą go z pustym adresem. Bez tego wiersza pamiętany
+        // egzemplarz zostałby z `null` i test przechodziłby, nic nie wysyłając.
+        Log::forgetChannel('blad_webhook');
+
+        Http::fake([self::ADRES_WEBHOOKA => Http::response('ok', 200)]);
+    }
+
+    #[Test]
+    public function przestarzala_kopia_naprawde_wysyla_alarm_na_kanal(): void
+    {
+        $this->wlaczKanalAlarmu();
+        Carbon::setTestNow('2026-09-09 08:00:00');
+        $this->polozKopie('20260901-021700');
+
+        $wynik = app(StanKopiiBazy::class)->sprawdz();
+        $this->assertSame(StanKopiiBazy::PRZESTARZALA, $wynik['stan']);
+
+        $this->assertTrue(
+            app(AlarmKopii::class)->zadzwonJesliTrzeba($wynik),
+            'Przestarzała kopia MUSI zadzwonić. Cały #193 jest o tym jednym alarmie.',
+        );
+
+        Http::assertSentCount(1);
+
+        Http::assertSent(function (Request $zadanie): bool {
+            $wyslane = (string) ($zadanie->data()['text'] ?? '');
+
+            // Kontrola DODATNIA: to naprawdę jest nasz alarm, a nie
+            // jakiekolwiek żądanie, które przypadkiem poszło w tym teście.
+            $this->assertStringContainsString('kopia bazy', $wyslane);
+            $this->assertStringContainsString('KOPIE_I_ODTWORZENIE.md', $wyslane);
+
+            // Kontrola UJEMNA w tym samym miejscu — dopiero para dowodzi,
+            // że mechanizm pracował, gdy sprawdzamy, czego w treści nie ma
+            // (audyt A6-01).
+            $this->assertStringNotContainsString('kuking-kopie-test', $wyslane);
+            $this->assertStringNotContainsString('.dump.cms', $wyslane);
+
+            return true;
+        });
+    }
+
+    #[Test]
+    public function pusty_bucket_naprawde_wysyla_alarm_na_kanal(): void
+    {
+        $this->wlaczKanalAlarmu();
+
+        $wynik = app(StanKopiiBazy::class)->sprawdz();
+        $this->assertSame(StanKopiiBazy::BRAK_KOPII, $wynik['stan']);
+
+        $this->assertTrue(app(AlarmKopii::class)->zadzwonJesliTrzeba($wynik));
+
+        Http::assertSentCount(1);
+        Http::assertSent(function (Request $zadanie): bool {
+            $this->assertStringContainsString(
+                'ANI JEDNEGO',
+                (string) ($zadanie->data()['text'] ?? ''),
+            );
+
+            return true;
+        });
+    }
+
+    /**
+     * Bucket, który nie odpowiada, to trzeci alarmujący stan — i jedyny,
+     * którego nie da się wywołać, kładąc (albo nie kładąc) plik w atrapie
+     * dysku. Podstawiamy więc dysk, który rzuca wyjątkiem, bo gałąź
+     * `catch (Throwable)` w `StanKopiiBazy::sprawdz()` inaczej nie jest
+     * wykonana ANI RAZ w całym zestawie.
+     */
+    #[Test]
+    public function niedostepny_bucket_daje_stan_niedostepny_i_dzwoni(): void
+    {
+        $this->wlaczKanalAlarmu();
+
+        $dysk = Mockery::mock(Filesystem::class);
+        $dysk->shouldReceive('files')
+            ->andThrow(new RuntimeException(
+                'AccessDenied: kuking-kopie-test.konto.r2.cloudflarestorage.com',
+            ));
+
+        Storage::set('r2_kopie', $dysk);
+
+        $wynik = app(StanKopiiBazy::class)->sprawdz();
+
+        $this->assertSame(StanKopiiBazy::NIEDOSTEPNY, $wynik['stan']);
+        $this->assertTrue(app(AlarmKopii::class)->zadzwonJesliTrzeba($wynik));
+
+        Http::assertSentCount(1);
+        Http::assertSent(function (Request $zadanie): bool {
+            $wyslane = (string) ($zadanie->data()['text'] ?? '');
+
+            $this->assertStringContainsString('Nie udało się odpytać bucketu', $wyslane);
+
+            // Komunikat wyjątku niósł nazwę bucketu i endpoint. Nie ma prawa
+            // wyjść na kanał, nad którym nie mamy kontroli (audyt A6-01).
+            $this->assertStringNotContainsString('AccessDenied', $wyslane);
+            $this->assertStringNotContainsString('r2.cloudflarestorage.com', $wyslane);
+
+            return true;
+        });
+    }
+
+    /**
+     * Ta sama para na poziomie KOMENDY, bo `--bez-alarmu` jest przełącznikiem,
+     * a przełącznik sprawdzony tylko w pozycji „wyłączone" nie dowodzi, że
+     * pozycja „włączone" cokolwiek robi.
+     */
+    #[Test]
+    public function komenda_bez_przelacznika_dzwoni_a_z_przelacznikiem_milczy(): void
+    {
+        $this->wlaczKanalAlarmu();
+        Carbon::setTestNow('2026-09-09 08:00:00');
+        $this->polozKopie('20260901-021700');
+
+        $this->artisan('kuking:sprawdz-kopie')->assertFailed();
+        Http::assertSentCount(1);
+
+        $this->artisan('kuking:sprawdz-kopie --bez-alarmu')->assertFailed();
+        Http::assertSentCount(1); // nadal jedno — drugi przebieg nie zadzwonił
     }
 
     protected function tearDown(): void

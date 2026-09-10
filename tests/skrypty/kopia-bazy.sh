@@ -447,6 +447,154 @@ else
 fi
 
 # =============================================================================
+echo "── Zrzut i jego WERYFIKACJA: pg_dump z kodem 0 to jeszcze nie kopia ──"
+# =============================================================================
+#
+#  TO JEST PUŁAPKA 5 z `docs/PULAPKI_TESTOW.md`, wprost i dosłownie:
+#  „narzędzie może zameldować sukces, nie robiąc nic". W tym repozytorium
+#  kosztowała już 249 przebiegów testu dymnego, które kończyły się jako
+#  `success`, mając sam krok testu `skipped`.
+#
+#  Przy kopii bazy ta klasa usterki wygląda tak: `pg_dump` kończy się kodem 0,
+#  bo nic nie wybuchło — a plik jest zrzutem PUSTEJ bazy (DB_URL wskazał
+#  świeży serwis Postgresa) albo archiwum OBCIĘTYM (padło łącze na 80%,
+#  co też potrafi dać kod 0). Do bucketu leci wtedy poprawnie zaszyfrowany
+#  plik, którego nikt nie odtworzy, alarm nie wychodzi, a czujka w aplikacji
+#  widzi świeżą kopię i milczy. Wszystko jest zielone i nie ma kopii.
+#
+#  Obrona jest w `weryfikuj_zrzut()`: minimalny rozmiar ORAZ odczytanie zrzutu
+#  z powrotem przez `pg_restore --list` z minimalną liczbą tabel. Do tej pory
+#  ta funkcja nie miała ANI JEDNEGO testu — czyli jedyny mechanizm, który
+#  odróżnia „mam kopię" od „mam plik", był niesprawdzony.
+
+# Podstawiamy `pg_dump` i `pg_restore` funkcjami, bo prawdziwego serwera 18
+# tu nie ma (nagłówek tego pliku mówi o tym wprost). Sprawdzamy REAKCJĘ
+# skryptu na każdy z czterech możliwych wyników, nie samego Postgresa.
+zrzut_wynik() {
+  local zachowanie_dump="$1" zachowanie_restore="$2"
+  (
+    wczytaj
+    katalog="$(mktemp -d)"
+    trap 'rm -rf "${katalog}"' EXIT
+    KATALOG_ROBOCZY="${katalog}"
+    PLIK_ZRZUTU="${katalog}/zrzut.dump"
+    PLIK_BLEDU="${katalog}/blad.txt"
+    MIN_BAJTOW=20000
+    MIN_TABEL=20
+    export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
+    alarm() { printf 'ALARM %s %s\n' "$1" "$2" >&2; }
+
+    case "${zachowanie_dump}" in
+      # Padnięcie pg_dumpa: niezerowy kod i komunikat na stderr.
+      padnij) pg_dump() { printf 'pg_dump: error: connection to server failed\n' >&2; return 1; } ;;
+      # NAJGROŹNIEJSZY PRZYPADEK: kod 0 i plik, który wygląda poprawnie,
+      # a jest zrzutem pustej bazy — kilka kilobajtów nagłówków.
+      pusty) pg_dump() { head -c 3000 /dev/zero >"${PLIK_ZRZUTU}"; return 0; } ;;
+      *) pg_dump() { head -c 200000 /dev/zero >"${PLIK_ZRZUTU}"; return 0; } ;;
+    esac
+
+    case "${zachowanie_restore}" in
+      # Archiwum obcięte: pg_restore nie rozpoznaje własnego formatu.
+      padnij) pg_restore() { printf 'pg_restore: error: did not find magic string\n' >&2; return 1; } ;;
+      # Plik czyta się, ale to nie ta baza — trzy tabele zamiast dwudziestu pięciu.
+      malo) pg_restore() { local i; for i in 1 2 3; do printf '%d; 0 0 TABLE DATA public t%d kuking\n' "${i}" "${i}"; done; return 0; } ;;
+      *) pg_restore() { local i; for i in $(seq 1 25); do printf '%d; 0 0 TABLE DATA public t%d kuking\n' "${i}" "${i}"; done; return 0; } ;;
+    esac
+
+    # Osobna podpowłoka, bo `padnij` kończy się `exit` — bez niej `printf`
+    # niżej nigdy by się nie wykonał i test porównywałby pustkę z pustką.
+    ( zrzut >/dev/null 2>&1 && weryfikuj_zrzut >/dev/null 2>&1 )
+    printf 'kod=%s' "$?"
+  )
+}
+
+sprawdz "zrzut i weryfikacja przechodzą przy zdrowej bazie" "kod=0" "$(zrzut_wynik ok ok)"
+sprawdz "padnięcie pg_dumpa przerywa przebieg" "kod=40" "$(zrzut_wynik padnij ok)"
+sprawdz "zrzut PUSTEJ bazy z kodem 0 zostaje odrzucony" "kod=50" "$(zrzut_wynik pusty ok)"
+sprawdz "archiwum, którego pg_restore nie czyta, zostaje odrzucone" "kod=51" "$(zrzut_wynik ok padnij)"
+sprawdz "zrzut z za małą liczbą tabel zostaje odrzucony" "kod=52" "$(zrzut_wynik ok malo)"
+
+# Odrzucenie to połowa roboty — druga połowa to POWIEDZENIE O TYM. Cichy
+# nieudany cron potrafi wisieć w panelu Railway tygodniami.
+alarm_etapu() {
+  local zachowanie_dump="$1" zachowanie_restore="$2"
+  (
+    wczytaj
+    katalog="$(mktemp -d)"
+    trap 'rm -rf "${katalog}"' EXIT
+    KATALOG_ROBOCZY="${katalog}"
+    PLIK_ZRZUTU="${katalog}/zrzut.dump"
+    PLIK_BLEDU="${katalog}/blad.txt"
+    MIN_BAJTOW=20000
+    MIN_TABEL=20
+    export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
+    alarm() { printf 'ALARM-%s\n' "$1"; }
+
+    case "${zachowanie_dump}" in
+      padnij) pg_dump() { return 1; } ;;
+      pusty) pg_dump() { head -c 3000 /dev/zero >"${PLIK_ZRZUTU}"; return 0; } ;;
+      *) pg_dump() { head -c 200000 /dev/zero >"${PLIK_ZRZUTU}"; return 0; } ;;
+    esac
+    case "${zachowanie_restore}" in
+      malo) pg_restore() { printf '1; 0 0 TABLE DATA public t1 kuking\n'; return 0; } ;;
+      *) pg_restore() { local i; for i in $(seq 1 25); do printf '%d; 0 0 TABLE DATA public t%d kuking\n' "${i}" "${i}"; done; return 0; } ;;
+    esac
+
+    ( zrzut 2>/dev/null; weryfikuj_zrzut 2>/dev/null ) | grep '^ALARM-' | head -1
+  )
+}
+
+sprawdz "padnięcie pg_dumpa alarmuje etapem „zrzut\"" "ALARM-zrzut" "$(alarm_etapu padnij ok)"
+sprawdz "odrzucony zrzut alarmuje etapem „weryfikacja\"" "ALARM-weryfikacja" "$(alarm_etapu pusty ok)"
+sprawdz "za mało tabel alarmuje etapem „weryfikacja\"" "ALARM-weryfikacja" "$(alarm_etapu ok malo)"
+
+# -----------------------------------------------------------------------------
+#  `pipefail` — regresja na ryzyko, którego w tym skrypcie ŚWIADOMIE NIE MA.
+#
+#  Gdyby zrzut jechał potokiem (`pg_dump | openssl | curl`), porażka
+#  `pg_dump` ginęłaby za sukcesem ostatniego członu i do bucketu leciałby
+#  poprawnie zaszyfrowany plik PUSTY albo OBCIĘTY. Ten skrypt tego nie robi
+#  — zrzut idzie do `--file=`, szyfrowanie z pliku do pliku, wysyłka z pliku
+#  — ale `pipefail` jest i tak włączony, bo potoków pomocniczych jest tu
+#  kilkanaście (`psql | tr`, `openssl | sed`, `grep | sort | tail`).
+#
+#  Sprawdzamy ZACHOWANIE, nie obecność napisu: po wczytaniu skryptu opcja
+#  musi być NAPRAWDĘ włączona w powłoce.
+#
+#  UWAGA, TA PUŁAPKA ZŁAPAŁA TEN TEST W PIERWSZEJ WERSJI. Ten plik sam ma
+#  w nagłówku `set -uo pipefail`, a podpowłoka dziedziczy opcje powłoki —
+#  więc `pipefail` był tu włączony ZAWSZE, niezależnie od tego, co robi
+#  skrypt produkcyjny. Kontrola ujemna (usunięcie `pipefail` z `set -Eeuo
+#  pipefail`) nie oblała testu ani razu, bo test mierzył WŁASNY nagłówek.
+#  Dlatego gasimy opcję jawnie i sprawdzamy OBA stany: że przed wczytaniem
+#  jest zgaszona, i że po wczytaniu jest zapalona. Para „przed i po" jest
+#  tu jedynym dowodem, że zapalił ją mierzony skrypt.
+# -----------------------------------------------------------------------------
+wynik="$(
+  # Bez `wczytaj`, bo ono celowo gasi `pipefail` na potrzeby testów.
+  set +o pipefail
+  if set -o | grep -qE '^pipefail[[:space:]]+on$'; then echo 'przed:on'; else echo 'przed:off'; fi
+  # shellcheck disable=SC1090
+  . "${SKRYPT}" >/dev/null 2>&1
+  if set -o | grep -qE '^pipefail[[:space:]]+on$'; then echo 'po:on'; else echo 'po:off'; fi
+)"
+sprawdz "wczytanie skryptu włącza pipefail" "przed:off
+po:on" "${wynik}"
+
+# I strona strukturalna tej samej rzeczy: w ciele `zrzut()` nie ma potoku,
+# a zrzut ląduje w pliku. Test na pusty zbiór przechodziłby tu na zawsze,
+# więc wymagamy TRAFIENIA (pułapka 2), nie jego braku.
+cialo_zrzutu="$(bez_komentarzy "${SKRYPT}" | awk '/^zrzut\(\) \{/,/^\}/')"
+if [[ -z "${cialo_zrzutu}" ]]; then
+  sprawdz "umiem znaleźć ciało funkcji zrzut()" "znalazłem" "nie znalazłem"
+elif grep -q -- '--file="${PLIK_ZRZUTU}"' <<<"${cialo_zrzutu}" \
+  && ! grep -q '|' <<<"${cialo_zrzutu}"; then
+  sprawdz "zrzut idzie do pliku, nie potokiem" "tak" "tak"
+else
+  sprawdz "zrzut idzie do pliku, nie potokiem" "tak" "nie"
+fi
+
+# =============================================================================
 echo "── Szyfrowanie: pełna droga tam i z powrotem ──"
 # =============================================================================
 #
@@ -561,6 +709,150 @@ wynik="$(
   printf 'kod=%s' "$?"
 )"
 sprawdz "wartość, która nie jest certyfikatem, przerywa przebieg" "kod=60" "${wynik}"
+
+# -----------------------------------------------------------------------------
+#  PLIK `.meta` I UDOKUMENTOWANA DROGA ODTWORZENIA (§7.4)
+#
+#  `zbuduj_meta()` nie miała do tej pory żadnego testu, a jest jedynym
+#  miejscem, z którego człowiek w dniu awarii dowie się, KTÓRYM kluczem
+#  odszyfrować dany zrzut i jaki skrót ma z tego wyjść. Dokument §7.4 obiecuje
+#  przy tym dwie konkretne rzeczy: że certyfikat da się wyciąć z `.meta` jedną
+#  komendą `sed`, i że `openssl cms -decrypt … -recip cert.pem` tym wyciętym
+#  plikiem zadziała. Obietnica w dokumencie awaryjnym bez testu jest życzeniem.
+#
+#  Sprawdzamy też, czego w `.meta` BYĆ NIE MOŻE: klucza prywatnego (plik leży
+#  w buckecie jawnie, obok szyfrogramu) i hasła do bazy.
+# -----------------------------------------------------------------------------
+wynik="$(
+  wczytaj
+  katalog="$(mktemp -d)"
+  trap 'rm -rf "${katalog}"' EXIT
+
+  openssl req -x509 -newkey rsa:2048 -sha256 -days 2 -nodes \
+    -keyout "${katalog}/prywatny.pem" -out "${katalog}/publiczny.pem" \
+    -subj '/CN=Kuking test kopii' >/dev/null 2>&1
+
+  head -c 50000 /dev/urandom >"${katalog}/zrzut.dump"
+  KATALOG_ROBOCZY="${katalog}"
+  PLIK_ZRZUTU="${katalog}/zrzut.dump"
+  PLIK_SZYFROGRAMU="${katalog}/zrzut.dump.cms"
+  PLIK_META="${katalog}/zrzut.meta"
+  PLIK_BLEDU="${katalog}/blad.txt"
+  ROZMIAR_JAWNY="$(stat -c %s "${PLIK_ZRZUTU}")"
+  KOPIA_KLUCZ_PUBLICZNY="$(cat "${katalog}/publiczny.pem")"
+  ZNACZNIK='20260909-021700Z'
+  SRODOWISKO='production'
+  WERSJA_SERWERA=18
+  WERSJA_KLIENTA=18
+  LICZBA_TABEL=25
+
+  szyfruj >/dev/null 2>&1 || { printf 'szyfrowanie-padlo'; exit 0; }
+  zbuduj_meta || { printf 'meta-padlo'; exit 0; }
+
+  # Dokładnie ta komenda, co w §7.4 dokumentu kopii.
+  sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' \
+    "${PLIK_META}" >"${katalog}/cert.pem"
+
+  openssl x509 -in "${katalog}/cert.pem" -noout >/dev/null 2>&1 \
+    || { printf 'wyciety-cert-nie-jest-certyfikatem'; exit 0; }
+
+  openssl cms -decrypt -binary -inform DER -in "${PLIK_SZYFROGRAMU}" \
+    -inkey "${katalog}/prywatny.pem" -recip "${katalog}/cert.pem" \
+    -out "${katalog}/odtworzony.dump" 2>/dev/null \
+    || { printf 'odszyfrowanie-z-recip-padlo'; exit 0; }
+
+  # Skrót z `.meta` musi zgadzać się z tym, co wyszło z odszyfrowania —
+  # to jest krok 3 procedury §7.4 i cały jej sens.
+  z_meta="$(sed -n 's/^sha256_jawnego: //p' "${PLIK_META}")"
+  if [[ "$(s3_sha256_pliku "${katalog}/odtworzony.dump")" == "${z_meta}" && -n "${z_meta}" ]]; then
+    printf 'zgadza-sie'
+  else
+    printf 'skrot-sie-rozjechal'
+  fi
+)"
+sprawdz "droga z §7.4 działa: cert wycięty z .meta odszyfrowuje zrzut, skrót się zgadza" \
+  "zgadza-sie" "${wynik}"
+
+wynik="$(
+  wczytaj
+  katalog="$(mktemp -d)"
+  trap 'rm -rf "${katalog}"' EXIT
+  openssl req -x509 -newkey rsa:2048 -sha256 -days 2 -nodes \
+    -keyout "${katalog}/prywatny.pem" -out "${katalog}/publiczny.pem" \
+    -subj '/CN=Kuking test kopii' >/dev/null 2>&1
+  head -c 5000 /dev/urandom >"${katalog}/zrzut.dump"
+  KATALOG_ROBOCZY="${katalog}"
+  PLIK_ZRZUTU="${katalog}/zrzut.dump"
+  PLIK_SZYFROGRAMU="${katalog}/zrzut.dump.cms"
+  PLIK_META="${katalog}/zrzut.meta"
+  PLIK_BLEDU="${katalog}/blad.txt"
+  ROZMIAR_JAWNY=5000
+  KOPIA_KLUCZ_PUBLICZNY="$(cat "${katalog}/publiczny.pem")"
+  ZNACZNIK='20260909-021700Z'; SRODOWISKO='production'
+  WERSJA_SERWERA=18; WERSJA_KLIENTA=18; LICZBA_TABEL=25
+  export DB_URL='postgresql://kuking:tajne-haslo-bazy@postgres.railway.internal:5432/railway'
+  szyfruj >/dev/null 2>&1
+  zbuduj_meta
+  if grep -q 'PRIVATE KEY' "${PLIK_META}" || grep -q 'tajne-haslo-bazy' "${PLIK_META}"; then
+    printf 'wyniosl'
+  else
+    printf 'czysty'
+  fi
+)"
+sprawdz "w .meta nie ma klucza prywatnego ani hasła do bazy" "czysty" "${wynik}"
+
+# -----------------------------------------------------------------------------
+#  KLUCZ PRYWATNY W ZMIENNEJ „KLUCZ PUBLICZNY" — pomyłka, która NIC nie psuje
+#  widocznie i cofa całą własność, o którą chodziło w D-049 punkt 1.
+#
+#  `cat kuking-kopie-*.pem` skleja obie połowy pary, wynik ma poprawny nagłówek
+#  `BEGIN CERTIFICATE`, przechodzi `openssl x509` i szyfruje bez najmniejszego
+#  problemu. Kopie powstają dalej — tylko klucz do ich odczytu leży od tej pory
+#  w tym samym Railwayu, co baza i co bucket. Przejęcie konta daje wtedy
+#  jednocześnie bazę, kopie i klucz do kopii, czyli kopia chroni przed awarią
+#  dysku i przed niczym więcej.
+#
+#  Dlatego skrypt ODMAWIA pracy (kod 64), a nie ostrzega: brak kopii jest
+#  widoczny w panelu, a kopia z kluczem leżącym obok jest niewidoczna.
+# -----------------------------------------------------------------------------
+klucz_prywatny_wynik() {
+  local jak="$1"
+  (
+    wczytaj
+    katalog="$(mktemp -d)"
+    trap 'rm -rf "${katalog}"' EXIT
+    openssl req -x509 -newkey rsa:2048 -sha256 -days 2 -nodes \
+      -keyout "${katalog}/prywatny.pem" -out "${katalog}/publiczny.pem" \
+      -subj '/CN=Kuking test kopii' >/dev/null 2>&1
+    head -c 100 /dev/urandom >"${katalog}/zrzut.dump"
+    KATALOG_ROBOCZY="${katalog}"
+    PLIK_ZRZUTU="${katalog}/zrzut.dump"
+    PLIK_SZYFROGRAMU="${katalog}/zrzut.dump.cms"
+    PLIK_BLEDU="${katalog}/blad.txt"
+    ROZMIAR_JAWNY=100
+    alarm() { :; }
+
+    case "${jak}" in
+      # Tak wygląda `cat publiczny.pem prywatny.pem` wklejone do panelu.
+      sklejone) KOPIA_KLUCZ_PUBLICZNY="$(cat "${katalog}/publiczny.pem" "${katalog}/prywatny.pem")" ;;
+      # To samo, ale przepuszczone przez base64 — panele lubią tę drogę,
+      # a ona ukrywa nagłówki przed czytającym człowiekiem.
+      sklejone_base64) KOPIA_KLUCZ_PUBLICZNY="$(cat "${katalog}/publiczny.pem" "${katalog}/prywatny.pem" | base64 -w0)" ;;
+      # Sama część prywatna, czyli pomyłka o jedną literę w nazwie pliku (§7.1).
+      sam_prywatny) KOPIA_KLUCZ_PUBLICZNY="$(cat "${katalog}/prywatny.pem")" ;;
+    esac
+
+    ( szyfruj >/dev/null 2>&1 )
+    printf 'kod=%s' "$?"
+  )
+}
+
+sprawdz "certyfikat sklejony z kluczem prywatnym przerywa przebieg" "kod=64" \
+  "$(klucz_prywatny_wynik sklejone)"
+sprawdz "to samo w base64 też przerywa przebieg" "kod=64" \
+  "$(klucz_prywatny_wynik sklejone_base64)"
+sprawdz "sam klucz prywatny nie udaje certyfikatu" "kod=64" \
+  "$(klucz_prywatny_wynik sam_prywatny)"
 
 # =============================================================================
 echo "── Obraz kopii (docker/kopia/Dockerfile) ──"

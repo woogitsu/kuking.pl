@@ -402,8 +402,27 @@ weryfikuj_zrzut() {
 #  Certyfikat przyjmujemy w PEM wprost albo w base64 — zmienne wieloliniowe
 #  w panelach bywają kłopotliwe, a base64 zawsze przejdzie.
 # =============================================================================
+# Jedna odmowa dla obu dróg (wartość surowa i odkodowana z base64) — treść
+# komunikatu ma się nie rozjechać między nimi, bo to jest ten komunikat,
+# który człowiek przeczyta w najgorszym momencie.
+odmow_klucza_prywatnego() {
+  log 'BŁĄD: KOPIA_KLUCZ_PUBLICZNY zawiera KLUCZ PRYWATNY.'
+  log '  Wstaw TYLKO plik kuking-kopie-publiczny.pem (zaczyna się od BEGIN CERTIFICATE).'
+  log '  Klucz prywatny mieszka w menedżerze haseł i na nośniku offline — patrz'
+  log '  docs/infra/KOPIE_I_ODTWORZENIE.md §7.1. Nie robię kopii, dopóki tu leży.'
+  padnij szyfrowanie 64
+}
+
 szyfruj() {
   local plik_certu="${KATALOG_ROBOCZY}/klucz-publiczny.pem"
+
+  # Straż na wartości SUROWEJ, przed próbą dekodowania. Sam klucz prywatny
+  # nie jest ani PEM-em z certyfikatem, ani base64, więc bez tego warunku
+  # kończyłby się kodem 60 i komunikatem „to nie jest PEM" — prawdziwym,
+  # ale mówiącym człowiekowi coś zupełnie innego niż to, co się stało.
+  if [[ "${KOPIA_KLUCZ_PUBLICZNY}" == *'PRIVATE KEY'* ]]; then
+    odmow_klucza_prywatnego
+  fi
 
   if [[ "${KOPIA_KLUCZ_PUBLICZNY}" == *'BEGIN CERTIFICATE'* ]]; then
     printf '%s\n' "${KOPIA_KLUCZ_PUBLICZNY}" >"${plik_certu}"
@@ -418,6 +437,29 @@ szyfruj() {
     log 'BŁĄD: KOPIA_KLUCZ_PUBLICZNY nie jest certyfikatem X.509.'
     log '  Wygeneruj parę wg KOPIE_I_ODTWORZENIE.md §7 i wstaw TYLKO część publiczną.'
     padnij szyfrowanie 61
+  fi
+
+  # -------------------------------------------------------------------------
+  #  KLUCZ PRYWATNY W TEJ ZMIENNEJ UNIEWAŻNIA CAŁĄ TĘ WARSTWĘ.
+  #
+  #  Powyższe `openssl x509` przechodzi także wtedy, gdy wartość zawiera
+  #  certyfikat ORAZ klucz prywatny — a to nie jest przypadek teoretyczny,
+  #  tylko jedna z dwóch najprawdopodobniejszych pomyłek przy wklejaniu do
+  #  panelu: `cat kuking-kopie-*.pem` skleja oba pliki, a wynik wygląda
+  #  poprawnie i szyfruje bez najmniejszego problemu. Druga to pomylenie
+  #  plików o jedną literę w nazwie (§7.1 ostrzega o niej wprost).
+  #
+  #  Skutek byłby dokładnie odwrotny do sensu D-049 punkt 1: klucz prywatny
+  #  leżałby w tym samym miejscu, co baza i bucket, więc przejęcie konta
+  #  Railway dawałoby jednocześnie bazę, kopie i klucz do kopii. Kopia
+  #  chroniłaby wtedy przed awarią dysku i przed niczym więcej — i NIC by
+  #  o tym nie powiedziało, bo kopie nadal by powstawały.
+  #
+  #  Dlatego odmawiamy pracy, a nie ostrzegamy. Zrzut, którego nie ma, jest
+  #  widoczny; zrzut zaszyfrowany kluczem leżącym obok jest niewidoczny.
+  # -------------------------------------------------------------------------
+  if grep -q 'PRIVATE KEY' "${plik_certu}"; then
+    odmow_klucza_prywatnego
   fi
 
   ODCISK_KLUCZA="$(openssl x509 -in "${plik_certu}" -noout -fingerprint -sha256 \

@@ -238,6 +238,28 @@ jobs:
       - name: Pint
         run: vendor/bin/pint --test
 
+      # =====================================================================
+      #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
+      #
+      #  DLACZEGO TO STOI W CI, A NIE TYLKO W `scripts/check.sh`
+      #  Bo do tej pory NIE STAŁO NIGDZIE poza kontrolą lokalną — zmierzone
+      #  10.09.2026: `.github/workflows/ci.yml` nie uruchamiał ani jednego
+      #  pliku z `tests/skrypty/`. Kopia bazy jest w całości skryptem powłoki
+      #  (w obrazie bez PHP — o tym jest D-043), więc żaden test PHPUnit jej
+      #  nie dotyka. Zielone CI nie mówiło zatem NIC o jedynej kopii bazy
+      #  tego projektu, a wystarczyło zapomnieć uruchomić `check.sh`.
+      #
+      #  To jest dokładnie pułapka 5 z `docs/PULAPKI_TESTOW.md`: narzędzie
+      #  melduje sukces, nie sprawdzając tego, o czym mowa.
+      #
+      #  Krok jest tani (kilka sekund, bez bazy i bez sieci) i sam pilnuje
+      #  swojej wiarygodności: skrypt testowy wychodzi kodem 1, gdy nie
+      #  znajdzie plików do testowania, więc przeniesienie `docker/kopia/`
+      #  zapali CI, a nie wyłączy testu po cichu.
+      # =====================================================================
+      - name: Testy skryptu kopii bazy
+        run: bash tests/skrypty/kopia-bazy.sh
+
   # ===========================================================================
   #  2. Analiza statyczna — Larastan / PHPStan
   # ===========================================================================

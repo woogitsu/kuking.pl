@@ -707,6 +707,15 @@ Do Railwaya (Environment → Variables → Shared Variables) wkleja się
 `KOPIA_KLUCZ_PUBLICZNY`. Jeśli panel psuje wartości wieloliniowe, wolno wkleić
 `base64 -w0 kuking-kopie-publiczny.pem` — skrypt przyjmuje jedno i drugie.
 
+**Skrypt pilnuje tego sam i ODMAWIA pracy.** Jeśli w `KOPIA_KLUCZ_PUBLICZNY`
+znajdzie `PRIVATE KEY` — bo wklejono samą część prywatną albo wynik
+`cat kuking-kopie-*.pem`, który skleja obie połowy — kończy przebieg alarmem
+i kodem **64**, zamiast zrobić kopię. Nie jest to nadmiar ostrożności: sklejona
+para przechodzi `openssl x509` i szyfruje bez najmniejszego problemu, więc
+kopie powstawałyby dalej, tylko klucz do ich odczytu leżałby od tej pory w tym
+samym Railwayu, co baza i co bucket. Kopia chroniłaby wtedy przed awarią dysku
+i przed niczym więcej, a **nic by o tym nie powiedziało**.
+
 **Sprawdzenie, że nie pomylono plików** (część publiczna zaczyna się od
 `-----BEGIN CERTIFICATE-----`, prywatna od `-----BEGIN PRIVATE KEY-----`):
 
@@ -886,7 +895,25 @@ pg_restore --dbname=kuking_odtworzona --no-owner --exit-on-error kuking.dump
 ```
 
 Gdyby krok 2 zapytał o certyfikat odbiorcy, wyjmij go z `.meta` (leży tam
-w całości, to część publiczna) i dodaj `-recip cert.pem`.
+w całości, to część publiczna) i dodaj `-recip cert.pem`. Plik `.meta` jest
+tekstowy i ma certyfikat na końcu, więc wycięcie to jedna komenda — nie szukaj
+go w panelu Cloudflare:
+
+```bash
+sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' \
+  kuking-20260910-021700Z.meta > cert.pem
+
+openssl cms -decrypt -binary -inform DER \
+  -in kuking-20260910-021700Z.dump.cms \
+  -inkey kuking-kopie-PRYWATNY.pem -recip cert.pem \
+  -out kuking.dump
+```
+
+Że ta droga naprawdę działa — z `-recip` i bez niego — sprawdza
+`tests/skrypty/kopia-bazy.sh` na parze kluczy generowanej w trakcie testu:
+funkcja produkcyjna szyfruje, a test odszyfrowuje TĄ komendą i porównuje
+bajty. Gdyby ktoś kiedyś zamienił CMS na cokolwiek innego, test powie, że ta
+sekcja przestała być prawdą, zanim powie to awaria.
 
 Wersja `pg_restore` musi być **równa albo nowsza** niż `pg_dump`, który zrobił
 zrzut — numer stoi w `.meta` w polu `pg_dump`.

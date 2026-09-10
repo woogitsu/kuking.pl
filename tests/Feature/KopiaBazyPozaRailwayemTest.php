@@ -171,13 +171,29 @@ class KopiaBazyPozaRailwayemTest extends TestCase
         // Dwa RÓŻNE tokeny do jednego bucketu. Gdyby aplikacja miała prawo
         // zapisu, udany atak na nią mógłby SKASOWAĆ kopie — czyli dokładnie
         // to, przed czym ta warstwa ma chronić.
+        // Aplikacja dostaje token OZNACZONY jako odczytowy — to jest jedyna
+        // nazwa, którą wolno tu przypiąć na sztywno, bo od niej zależy, o który
+        // z dwóch tokenów z §7.3 chodzi.
         $this->assertStringContainsString('AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID', $railway);
-        $this->assertStringContainsString('KOPIA_S3_KLUCZ: ctx.shared.R2_KOPIE_ACCESS_KEY_ID', $railway);
+
+        // Serwisu kopii NIE przypinamy do nazwy, tylko do RÓŻNICY — i to jest
+        // tu sedno. Poprzednia wersja tej asercji porównywała dwa LITERAŁY
+        // („R2_KOPIE_ACCESS_KEY_ID" wobec „R2_KOPIE_ODCZYT_ACCESS_KEY_ID"),
+        // czyli była prawdziwa niezależnie od zawartości `railway.ts`:
+        // przeszłaby również po wpisaniu w oba miejsca JEDNEGO tokenu, czyli
+        // dokładnie w stanie, przed którym miała chronić. Czytamy więc plik.
+        preg_match('/AWS_KOPIE_ACCESS_KEY_ID:\s*ctx\.shared\.(\w+)/', $railway, $aplikacja);
+        preg_match('/KOPIA_S3_KLUCZ:\s*ctx\.shared\.(\w+)/', $railway, $serwisKopii);
+
+        $this->assertNotEmpty($aplikacja, 'Nie umiem odczytać tokenu aplikacji z railway.ts.');
+        $this->assertNotEmpty($serwisKopii, 'Nie umiem odczytać tokenu serwisu kopii z railway.ts.');
 
         $this->assertNotSame(
-            'R2_KOPIE_ACCESS_KEY_ID',
-            'R2_KOPIE_ODCZYT_ACCESS_KEY_ID',
-            'Nazwy tokenów muszą się różnić — to nie jest kosmetyka, to dwa różne uprawnienia.',
+            $serwisKopii[1],
+            $aplikacja[1],
+            'Aplikacja i serwis kopii dostają TĘ SAMĄ zmienną sharedową, czyli ten sam token. '
+            .'Gdyby aplikacja miała prawo zapisu, udany atak na nią mógłby SKASOWAĆ kopie — '
+            .'czyli dokładnie to, przed czym ta warstwa ma chronić.',
         );
     }
 
