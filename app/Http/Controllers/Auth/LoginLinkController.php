@@ -321,20 +321,16 @@ class LoginLinkController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            // TOKEN ZNIKNĄŁ ALBO PRZEDAWNIŁ SIĘ, KIEDY CZEKALIŚMY NA BLOKADĘ
-            // KONTA. Zniknąć mógł na każdy z pięciu sposobów wypisanych
-            // w `LoginLinkToken` — najczęściej przez drugie kliknięcie tego
-            // samego linku albo przez nową prośbę o link z drugiego
-            // urządzenia. Człowiek dostaje wtedy dokładnie ten sam komunikat
-            // co przy tokenie zużytym i wygasłym: tamten ekran łączy te
-            // trzy przypadki świadomie (patrz `ekranNieaktualnegoLinku()`)
-            // i nie ma powodu, żeby rozjeżdżać się z nim tutaj.
-            if ($wiersz === null || ! $wiersz->jestWazny()) {
-                // Wygasły wiersz kasujemy przy okazji — nie jest już do
-                // niczego, a zostawianie go zależnym od nocnego sprzątania
-                // byłoby trzymaniem martwego klucza dłużej, niż trzeba.
-                $wiersz?->delete();
-
+            // TOKEN ZNIKNĄŁ, KIEDY CZEKALIŚMY NA BLOKADĘ KONTA. Zniknąć
+            // mógł na każdy z pięciu sposobów wypisanych w `LoginLinkToken`
+            // — najczęściej przez drugie kliknięcie tego samego linku albo
+            // przez nową prośbę o link z drugiego urządzenia. Człowiek
+            // dostaje wtedy dokładnie ten sam komunikat co przy tokenie
+            // zużytym i wygasłym: tamten ekran łączy te trzy przypadki
+            // świadomie (patrz `ekranNieaktualnegoLinku()`) i nie ma
+            // powodu, żeby rozjeżdżać się z nim tutaj. Przypadek wygaśnięcia
+            // stoi niżej, za pytaniem o właściciela — powód tam.
+            if ($wiersz === null) {
                 return null;
             }
 
@@ -345,7 +341,31 @@ class LoginLinkController extends Controller
             // konto, do którego ten token nie należy. Wtedy nie robimy nic
             // — także nie kasujemy, bo to nie nasz wiersz i nie nasza
             // blokada.
+            //
+            // DLACZEGO TO PYTANIE STOI PRZED PYTANIEM O WAŻNOŚĆ, a nie po
+            // nim. Kasowanie wygasłego wiersza jest zapisem, więc podlega
+            // tej samej regule co zapis niżej: wolno nam pisać tylko do
+            // wiersza, którego konto trzymamy pod blokadą. Odwrotna
+            // kolejność kasowałaby cudzy wygasły wiersz bez blokady jego
+            // konta — czyli łamałaby regułę, którą ta metoda w ogóle
+            // wprowadza, i to w komentarzu tuż obok. Żadne dziś osiągalne
+            // żądanie tu nie trafia (wiersz odnajdujemy po skrócie tokenu,
+            // a drugie konto musiałoby mieć ten sam token), więc zamiana
+            // kolejności nie zmienia niczego, co widać z zewnątrz. Stoi tak
+            // dlatego, że reguła bez wyjątku jest sprawdzalna, a reguła
+            // z jednym nieosiągalnym wyjątkiem — już nie.
             if ((string) $wiersz->user_id !== (string) $swiezy->getKey()) {
+                return null;
+            }
+
+            // TOKEN PRZEDAWNIŁ SIĘ, KIEDY CZEKALIŚMY NA BLOKADĘ KONTA.
+            // Wygasły wiersz kasujemy przy okazji — nie jest już do
+            // niczego, a zostawianie go zależnym od nocnego sprzątania
+            // byłoby trzymaniem martwego klucza dłużej, niż trzeba. Tu
+            // wolno: konto tego wiersza jest już zablokowane.
+            if (! $wiersz->jestWazny()) {
+                $wiersz->delete();
+
                 return null;
             }
 

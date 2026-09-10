@@ -175,6 +175,45 @@ class LogowanieLinkiemTest extends TestCase
     }
 
     /**
+     * WYGASŁY WIERSZ ZNIKA Z BAZY, A NIE CZEKA NA NOCNE SPRZĄTANIE.
+     *
+     * Ten test powstał z KONTROLI UJEMNEJ, która nie oblała. Kasowanie
+     * wygasłego wiersza stało w kontrolerze od początku i było opisane
+     * komentarzem („kasujemy przy okazji"), ale usunięcie tej jednej
+     * linijki nie oblewało ŻADNEGO z 31 testów tego pliku. Sabotaż był
+     * dokładny, więc wniosek jest jednoznaczny i nie ma drugiej możliwości:
+     * tej własności nic nie pilnowało.
+     *
+     * Dlaczego to nie jest kosmetyka. Skrót wygasłego tokenu jest dalej
+     * skrótem hasła jednorazowego. `test_wygasly_token_nie_loguje` pilnuje,
+     * że taki token NIE WPUSZCZA — i przechodzi także wtedy, gdy wiersz
+     * zostaje w bazie na zawsze. To jest dokładnie pułapka 4
+     * z `docs/PULAPKI_TESTOW.md`: assercja ujemna („nie wpuściło")
+     * przechodzi również wtedy, gdy mechanizm obok nie działa wcale.
+     *
+     * Sprawdzam po SUROWEJ kolumnie, nie przez model, żeby żaden globalny
+     * zakres ani soft delete nie mógł udawać, że wiersza nie ma.
+     */
+    public function test_zuzycie_wygaslego_linku_kasuje_jego_wiersz(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $link = $this->popros($basia->email);
+        $skrot = LoginLinkToken::skrot($this->tokenZLinku($link));
+
+        $this->assertSame(1, DB::table('login_link_tokens')->where('token_hash', $skrot)->count(),
+            'Wiersz tokenu nie powstał — dalsza część testu nie mierzyłaby niczego.');
+
+        $this->travel((int) config('kuking.login_link.waznosc_minut') + 1)->minutes();
+
+        $this->wejdz($link);
+
+        $this->assertGuest();
+        $this->assertSame(0, DB::table('login_link_tokens')->where('token_hash', $skrot)->count(),
+            'Wygasły wiersz został w bazie. Skrót hasła jednorazowego nie ma powodu tam leżeć '
+            .'dłużej, niż trzeba, a nocne sprzątanie nie jest tu obietnicą.');
+    }
+
+    /**
      * TOKEN Z CUDZEGO KONTA NIE WPUSZCZA NA MOJE — I ODWROTNIE.
      *
      * Pilnowana własność: wiersz musi być odnajdywany PO SKRÓCIE TOKENU,
