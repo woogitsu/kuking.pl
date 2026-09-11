@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
+use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -51,10 +52,28 @@ use Tests\TestCase;
  *     dzielenie przez zero, a `migrate:fresh` i środowisko preview są
  *     przypadkami normalnymi, nie awarią.
  *
- * ZAŁOŻENIE, KTÓRE TEN PLIK CELOWO UTRWALA: konto z pustym
- * `email_verified_at` DOSTAJE DZIŚ LINK DO ZALOGOWANIA. Na tym stoi cała
- * usterka z issue #317 i dlatego stoi to tutaj jako asercja, a nie jako
- * zdanie w dokumencie — zdanie w dokumencie zdąży się zestarzeć.
+ * CO TEN PLIK UTRWALA PO NAPRAWIE #317: konto z pustym
+ * `email_verified_at` LINKU DO ZALOGOWANIA JUŻ NIE DOSTAJE — dostaje list
+ * z ustawieniem nowego hasła (`App\Domain\Security\WyslijOdzyskanieKonta`).
+ * Do dnia naprawy stało tu zdanie dokładnie odwrotne i też było asercją,
+ * a nie zdaniem w dokumencie. Właśnie dlatego zmiana zachowania OBLAŁA ten
+ * plik, zamiast przejść niezauważona — i o to w tym kształcie chodziło.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  DLACZEGO LICZBY POMIARU SIĘ PRZY TYM NIE ZMIENIŁY
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Bo `$dotknieci` liczy dokładnie ten sam zbiór kont co przed naprawą:
+ * niepotwierdzone, o statusie przepuszczającym pocztę, nie z pliku
+ * zalążkowego i nie z obsługi serwisu. Zmieniło się to, CO tym kontom
+ * wychodzi na skrzynkę — a nie to, które to konta. Zmieniła się więc
+ * NAZWA tej liczby, nie jej zawartość, i tylko nazwę tu poprawiono.
+ *
+ * Nikomu przy tym wejścia nie zabrano: list z ustawieniem hasła po
+ * kliknięciu potwierdza adres (`PasswordResetController::reset()`), więc
+ * następnym razem to samo konto dostanie już zwykły link do logowania.
+ * Czy po naprawie ten pomiar ma jeszcze komu służyć i w jakim brzmieniu —
+ * to pytanie do właściciela, nie do testu. Test utrwala stan faktyczny.
  */
 class PomiarKontBezPotwierdzeniaTest extends TestCase
 {
@@ -168,7 +187,7 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
         $this->artisan('kuking:konta-bez-potwierdzenia')
             ->expectsOutputToContain('Wszystkich kont w bazie: 16')
             ->expectsOutputToContain('Bez potwierdzonego adresu (samo `email_verified_at IS NULL`): 13 — 81,3% wszystkich kont')
-            ->expectsOutputToContain('KONTA, KTÓRYM ZAMKNIĘCIE TEJ DROGI NAPRAWDĘ ZABIERA WEJŚCIE: 7 — 43,8% wszystkich kont')
+            ->expectsOutputToContain('KONTA, KTÓRE WCHODZĄ DZIŚ PRZEZ LIST Z USTAWIENIEM HASŁA, A NIE PRZEZ LINK: 7 — 43,8% wszystkich kont')
             ->expectsOutputToContain('z tego ŻYWE (mają wpis, przepis, komentarz albo „Ugotowałem”): 4')
             ->expectsOutputToContain('z tego PUSTE REJESTRACJE (nie zrobiły nic): 3')
             ->assertExitCode(0);
@@ -201,19 +220,25 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
      * wysłaniem formularza i policzeniem listów.
      *
      * NAJWAŻNIEJSZA ASERCJA W TYM PLIKU jest tu pierwsza i jest asercją
-     * DODATNIĄ: konto z pustym `email_verified_at` list DOSTAJE. Bez niej
-     * cztery asercje „nie dostał" przechodziłyby także wtedy, gdyby poczta
-     * nie działała wcale (`docs/PULAPKI_TESTOW.md` §4).
+     * DODATNIĄ: konto z pustym `email_verified_at` list DOSTAJE — tylko po
+     * naprawie #317 jest to list z ustawieniem hasła, a nie link wchodzący
+     * na konto. Bez tej asercji wszystkie asercje „nie dostał"
+     * przechodziłyby także wtedy, gdyby poczta nie działała wcale
+     * (`docs/PULAPKI_TESTOW.md` §4).
      */
     public function test_pomiar_zgadza_sie_z_tym_komu_dzis_wolno_wyslac_link(): void
     {
         Notification::fake();
 
-        // DOTKNIĘTY — i to jest usterka z issue #317 na żywo: adres
-        // niepotwierdzony, a list z wejściem na konto idzie.
+        // DOTKNIĘTY — czyli po naprawie #317 ten, komu link zamienił się
+        // na list z ustawieniem hasła. Sprawdzamy OBIE strony tej zamiany
+        // osobno: samo „link nie poszedł" byłoby prawdą także wtedy, gdyby
+        // poczta nie działała w ogóle, a samo „poszedł list z hasłem" nie
+        // wykluczałoby, że link poszedł razem z nim.
         $niepotwierdzony = User::factory()->unverified()->create(['email' => 'ofiara@example.com']);
         $this->wyslijFormularz('ofiara@example.com');
-        Notification::assertSentTo($niepotwierdzony, LinkDoLogowania::class);
+        Notification::assertNotSentTo($niepotwierdzony, LinkDoLogowania::class);
+        Notification::assertSentTo($niepotwierdzony, UstawienieNowegoHasla::class);
 
         // ODJĘTE KATEGORIE — każda osobno, bo każda wychodzi z INNEJ gałęzi
         // `wolnoWyslac()` i wspólna asercja nie odróżniłaby ich od siebie.
@@ -231,12 +256,24 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
             $this->wyslijFormularz($adres);
 
             Notification::assertNotSentTo($konto, LinkDoLogowania::class);
+
+            // I ŻADNĄ INNĄ DROGĄ TEŻ NIE. Naprawa #317 dołożyła drugie
+            // wyjście z `WyslijLinkDoLogowania::handle()`; gdyby stanęło
+            // przed sprawdzeniem statusu i roli zamiast za nim, konto
+            // zablokowane dostałoby list otwierający mu drogę z powrotem.
+            // Samo `assertNotSentTo(LinkDoLogowania::class)` by tego nie
+            // zauważyło, bo link faktycznie by nie poszedł.
+            Notification::assertNotSentTo($konto, UstawienieNowegoHasla::class);
         }
 
-        // Konto zalążkowe odejmujemy z innego powodu niż pozostałe: link by
-        // do niego POSZEDŁ (`wolnoWyslac()` o `is_seeded` nie pyta), tylko
-        // nie ma tam człowieka, który by go przeczytał. Ta asercja pilnuje,
+        // Konto zalążkowe odejmujemy z innego powodu niż pozostałe: poczta
+        // do niego WYCHODZI (`wolnoWyslac()` o `is_seeded` nie pyta), tylko
+        // nie ma tam człowieka, który by ją przeczytał. Ta asercja pilnuje,
         // żeby nikt nie „poprawił" tego komentarza na nieprawdziwy.
+        //
+        // Po naprawie #317 jest to list z ustawieniem hasła, a nie link —
+        // bo dwanaście person z pliku zalążkowego (D-025) też ma pusty
+        // `email_verified_at` i idzie tą samą drogą co ofiara wyżej.
         $zalazkowe = User::factory()->unverified()->create([
             'email' => 'zalazek@example.com',
             'is_seeded' => true,
@@ -244,7 +281,8 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
 
         $this->wyslijFormularz('zalazek@example.com');
 
-        Notification::assertSentTo($zalazkowe, LinkDoLogowania::class);
+        Notification::assertNotSentTo($zalazkowe, LinkDoLogowania::class);
+        Notification::assertSentTo($zalazkowe, UstawienieNowegoHasla::class);
 
         // A teraz to samo policzone pomiarem: jeden dotknięty (ofiara),
         // pięć odjętych ze statusu i roli, jedno zalążkowe.

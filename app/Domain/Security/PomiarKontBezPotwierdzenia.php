@@ -29,11 +29,18 @@ namespace App\Domain\Security;
  *  3. Konta zalążkowe (`is_seeded`, D-025) to dwanaście person z pliku,
  *     nie ludzie. Nikt się nimi nie loguje.
  *
- * Liczbą, która naprawdę odpowiada na pytanie „komu zamkniemy drzwi", jest
+ * Liczbą, która naprawdę odpowiada na pytanie „kogo to dotyczy", jest
  * więc `$dotknieci`: konto bez potwierdzonego adresu, którego status
- * przepuszcza link, które nie należy do obsługi serwisu i nie pochodzi
+ * przepuszcza pocztę, które nie należy do obsługi serwisu i nie pochodzi
  * z pliku zalążkowego. Pozostałe pola stoją obok po to, żeby było widać,
  * ile odjęto i dlaczego — a nie żeby wierzyć jednej liczbie na słowo.
+ *
+ * PO NAPRAWIE #317 TEN SAM ZBIÓR ZNACZY CO INNEGO. Pytanie brzmiało
+ * „komu zamkniemy drzwi", bo rozważaną naprawą była odmowa wysyłki.
+ * Wybrano inną: konto bez potwierdzenia dostaje z formularza logowania
+ * list z ustawieniem hasła (`WyslijOdzyskanieKonta`), a ten po kliknięciu
+ * adres potwierdza. Drzwi nie zamknięto nikomu — `$dotknieci` liczy dziś
+ * tych, którzy wchodzą dłuższą drogą, dopóki raz jej nie przejdą.
  *
  * ────────────────────────────────────────────────────────────────────────
  *  „ŻYWE" KONTRA „PUSTA REJESTRACJA"
@@ -64,7 +71,7 @@ final readonly class PomiarKontBezPotwierdzenia
         public int $bezPotwierdzeniaZalazkowe,
         /** Z tego: moderatorzy i administratorzy — linku nie dostają dziś (D-056). */
         public int $bezPotwierdzeniaObsluga,
-        /** REALNY KOSZT: konta, którym naprawa zamknie drogę wejścia, jakiej dziś używają. */
+        /** KOGO DOTYCZY NAPRAWA #317: konta, którym link zamienił się na list z ustawieniem hasła. */
         public int $dotknieci,
         /** Z `$dotknieci`: mają choć jeden wpis, przepis, komentarz albo „Ugotowałem". */
         public int $dotknieciZywi,

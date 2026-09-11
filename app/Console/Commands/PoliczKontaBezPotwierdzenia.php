@@ -10,7 +10,12 @@ use Illuminate\Console\Command;
 /**
  * Pomiar do decyzji z issue #317 (pre-account-hijacking na logowaniu
  * linkiem): ile kont nie ma potwierdzonego adresu e-mail i ilu ludzi
- * naprawdę dotknęłoby zamknięcie im tej drogi wejścia.
+ * naprawdę dotyczy zamiana linku na list z ustawieniem hasła.
+ *
+ * DECYZJA JUŻ ZAPADŁA, A KOMENDA ZOSTAJE. Powstała przed naprawą, żeby
+ * policzyć jej koszt; po naprawie ta sama liczba mówi, ilu ludzi chodzi
+ * dziś do serwisu drogą odzyskiwania konta zamiast linkiem — czyli ilu
+ * z nich jeszcze nie kliknęło listu, który potwierdziłby im adres.
  *
  * ────────────────────────────────────────────────────────────────────────
  *  TA KOMENDA TYLKO CZYTA
@@ -42,7 +47,7 @@ class PoliczKontaBezPotwierdzenia extends Command
 {
     protected $signature = 'kuking:konta-bez-potwierdzenia';
 
-    protected $description = 'Liczy konta bez potwierdzonego adresu e-mail i to, ile z nich straciłoby wejście linkiem (issue #317). Tylko czyta.';
+    protected $description = 'Liczy konta bez potwierdzonego adresu e-mail i to, ile z nich wchodzi dziś przez list z ustawieniem hasła zamiast przez link (issue #317). Tylko czyta.';
 
     public function handle(KontaBezPotwierdzonegoAdresu $pomiar): int
     {
@@ -58,14 +63,21 @@ class PoliczKontaBezPotwierdzenia extends Command
         );
         $this->newLine();
 
-        $this->line('Z tej liczby ODPADA (bo linku do logowania te konta NIE DOSTAJĄ JUŻ DZIŚ):');
+        $this->line('Z tej liczby ODPADA (bo te konta NIE DOSTAJĄ POCZTY Z FORMULARZA LOGOWANIA ANI DZIŚ, ANI PRZED NAPRAWĄ):');
         $this->line("  konta zamknięte — zablokowane, w trakcie usuwania, usunięte: {$wynik->bezPotwierdzeniaZamkniete}");
         $this->line("  konta zalążkowe z pliku (is_seeded): {$wynik->bezPotwierdzeniaZalazkowe}");
         $this->line("  konta obsługi serwisu — moderator, administrator: {$wynik->bezPotwierdzeniaObsluga}");
         $this->newLine();
 
+        // NIE „ZABIERA WEJŚCIE" — bo naprawa #317 wejścia nie zabrała.
+        // Te konta dostają z formularza logowania list z ustawieniem
+        // hasła; po jego kliknięciu adres jest potwierdzony i następnym
+        // razem wychodzi już zwykły link. Zdanie o zabranym wejściu było
+        // prawdziwe, dopóki rozważaną naprawą była odmowa — zostawione
+        // w tym miejscu mówiłoby właścicielowi nieprawdę o jego własnym
+        // serwisie, i to akurat w wierszu, który ma być podstawą decyzji.
         $this->line(
-            "KONTA, KTÓRYM ZAMKNIĘCIE TEJ DROGI NAPRAWDĘ ZABIERA WEJŚCIE: {$wynik->dotknieci}"
+            "KONTA, KTÓRE WCHODZĄ DZIŚ PRZEZ LIST Z USTAWIENIEM HASŁA, A NIE PRZEZ LINK: {$wynik->dotknieci}"
             ." — {$this->procent($wynik->procentDotknietych())} wszystkich kont",
         );
         $this->line("  z tego ŻYWE (mają wpis, przepis, komentarz albo „Ugotowałem”): {$wynik->dotknieciZywi}");
