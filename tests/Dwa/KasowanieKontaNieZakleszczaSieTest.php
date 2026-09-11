@@ -49,9 +49,10 @@ use PHPUnit\Framework\Attributes\Group;
  * w kolejności ról daje tu:
  *
  *     SQLSTATE[40P01]: Deadlock detected: 7 ERROR:  deadlock detected
- *     DETAIL:  Process 4106 waits for ShareLock on transaction 1057;
- *              blocked by process 4102.
- *     CONTEXT:  while deleting tuple (0,2) in relation "follows"
+ *     DETAIL:  Process 20924 waits for ShareLock on transaction 1038031;
+ *              blocked by process 20875.
+ *     CONTEXT:  while deleting tuple (0,8) in relation "follows"
+ *     (SQL: delete from "follows" where "follows"."followed_id" = 01a08dd2-…)
  *
  * ── CZEGO TEN TEST NIE DOWODZI ──
  *
