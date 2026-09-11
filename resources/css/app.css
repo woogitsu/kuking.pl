@@ -1784,6 +1784,65 @@
     color: var(--color-ink-muted);
   }
 
+  /* =====================================================================
+     ODSTĘP POD ZDJĘCIEM WPISU (zgłoszenie właściciela, 11 września:
+     „«z przepisu» i «bigos z cukinii» jest zbyt blisko zdjęcia")
+     =====================================================================
+
+     CO BYŁO ZMIERZONE (Chromium 1194, `/home` po zalogowaniu, karta wpisu
+     wskazującego przepis; przerwa liczona między TREŚCIĄ bloków, czyli od
+     ostatniego piksela, na którym coś stoi, do pierwszego, na którym znów coś
+     stoi — bo odstępy tej karty siedzą w `padding`, a padding leży wewnątrz
+     pudełka i różnica samych krawędzi wychodziłaby zero także tam, gdzie
+     przerwa jest; `scripts/odstepy-karty-wpisu.mjs`):
+
+         nagłówek → zdjęcie ...............................  16 px (1512 i 390)
+         zdjęcie → pasek „Z przepisu · …" .................   0 px (1512 i 390)
+         karuzela → „N osób zapisało to u siebie" .........   0 px (1512 i 390)
+         pasek „Z przepisu" → tematy wpisu ................  40 px
+         tematy wpisu → pasek akcji .......................  37 px
+
+     Cała karta trzyma odstęp 16 px i robi to DOLNYM WCIĘCIEM bloku wyżej
+     (`.post-card-head`, `.post-card-body`, `.post-card-recipe` i
+     `.post-card-zapisy` mają `padding-bottom: var(--spacing-4)`). Zdjęcie
+     tego wcięcia nie ma i mieć nie może: idzie od krawędzi do krawędzi karty,
+     dlatego blok zdjęć nie ma żadnego `padding`. Para „zdjęcie → blok tekstu"
+     była więc jedyną, w której nikt odstępu nie deklarował — i wyszła zero.
+
+     ODSTĘP NALEŻY DO JEDNEJ STRONY PARY I JEST `margin-top` (PR #400).
+     Ten sam wzorzec i to samo uzasadnienie co przy rytmie strony przepisu:
+     gdyby zdjęcie dostało `margin-bottom`, ten sam odstęp deklarowałyby dwie
+     strony pary — raz zlewając się do większego, raz sumując — a wartość
+     zależałaby od układu, w którym karta akurat stoi. Dolna strona pary
+     deklaruje go raz i ma jedną liczbę w obu szerokościach.
+
+     DLACZEGO SĄSIEDZTWO ZE ZDJĘCIEM, A NIE `margin-top` NA SAMEJ KLASIE.
+     Bo pasek „Z przepisu" NIE ZAWSZE stoi pod zdjęciem, a odstęp ma być
+     jeden. Wpis wskazujący przepis bez zdjęcia głównego pokazuje go zaraz pod
+     nagłówkiem, a wpis „ugotowane z przepisu" — pod swoją treścią; w obu tych
+     stanach przerwa JEST i wynosi zmierzone 16 px, bo daje ją dolne wcięcie
+     bloku wyżej. Bezwarunkowy `margin-top` zrobiłby tam 32 px, czyli
+     poprawiłby jeden stan ekranu i zepsuł dwa inne (D-099, D-106: ten sam
+     adres w dwóch stanach to dwa ekrany). Tak samo `.post-card-zapisy`:
+     pod paskiem przepisu ma już 16 px, pod tematami 37 px, a pod zdjęciem
+     miało zero.
+
+     `--spacing-4`, BO TYLE MA CAŁA RESZTA KARTY. Token, nie piksele: ten
+     odstęp oddziela BLOKI TEKSTU i ma rosnąć razem z pismem przy czcionce
+     przeglądarki 200 % (druga strona D-082/D-107).
+
+     PASKA AKCJI TU ŚWIADOMIE NIE MA. `.post-card-actions` też stoi czasem
+     zaraz pod zdjęciem, ale jego górna kreska pod zdjęciem to układ z paczki
+     właściciela (mockupy 01 i 05), a jego własne `padding-top` daje
+     zmierzone 17 px do pierwszego przycisku. Dopisanie go tutaj odsunęłoby
+     kreskę od zdjęcia na każdej karcie w serwisie — to jest zmiana wyglądu,
+     nie brakujący odstęp.
+     ===================================================================== */
+  .post-card > :is(.photo-grid, .karuzela, .kolaz)
+    + :is(.post-card-recipe, .post-card-zapisy) {
+    margin-top: var(--spacing-4);
+  }
+
   /*
    * Pasek akcji: kreska u góry, jak w mockupach 01 i 05.
    *
