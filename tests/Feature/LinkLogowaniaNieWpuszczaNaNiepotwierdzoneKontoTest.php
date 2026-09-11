@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
+use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
 use App\Support\AdresEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestResponse;
@@ -161,12 +163,12 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
         $this->assertDatabaseMissing('login_link_tokens', ['user_id' => $konto->getKey()]);
 
         // ── KROK 4 ── Poszedł list „Ustaw nowe hasło", a NIE „Zaloguj mnie".
-        Notification::assertSentTo($konto, UstawienieNowegoHasla::class);
+        Notification::assertSentTo($konto, UstawienieHaslaZamiastLinku::class);
         Notification::assertNotSentTo($konto, LinkDoLogowania::class);
 
         // ── KROK 5 ── Ofiara ustawia nowe hasło TYM listem, prawdziwą
         // trasą `password.update`.
-        $token = $this->tokenZListuZHaslem($konto);
+        $token = $this->tokenZWiadomosciZHaslem($konto);
 
         $this->post(route('password.update'), [
             'token' => $token,
@@ -225,6 +227,11 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
         $this->wyslijFormularz(self::ADRES_POTWIERDZONY)->assertSessionHasNoErrors();
 
         Notification::assertSentTo($konto, LinkDoLogowania::class);
+        Notification::assertNotSentTo($konto, UstawienieHaslaZamiastLinku::class);
+
+        // I stara wiadomość z odzyskiwania hasła też nie — konto potwierdzone
+        // nie ma prawa dostać ŻADNEJ z dwóch wiadomości o haśle za to, że
+        // poprosiło o link.
         Notification::assertNotSentTo($konto, UstawienieNowegoHasla::class);
 
         $this->assertDatabaseCount('login_link_tokens', 1);
@@ -232,7 +239,169 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    //  3. Nieodróżnialność odpowiedzi — bajt w bajt, dla trzech przypadków
+    //  3. Własna treść wiadomości — człowiek dowiaduje się, co się stało
+    // ------------------------------------------------------------------
+
+    /**
+     * KONTO NIEPOTWIERDZONE DOSTAJE WIADOMOŚĆ WŁASNĄ, NIE TĘ Z „NIE PAMIĘTAM
+     * HASŁA".
+     *
+     * Do 11 września 2026 szło tędy `UstawienieNowegoHasla` — ta sama
+     * wiadomość co przy odzyskiwaniu hasła, otwierana zdaniem „ktoś poprosił
+     * o nowe hasło do konta". Nikt o nowe hasło nie prosił, więc człowiek
+     * dostawał co innego, niż prosił, BEZ SŁOWA WYJAŚNIENIA.
+     *
+     * Asercja `assertNotSentTo(UstawienieNowegoHasla::class)` jest tu
+     * ważniejsza niż wygląda: bez niej test byłby zielony także dla wersji,
+     * która wysyła OBIE wiadomości naraz — a wtedy człowiek dostaje dwa
+     * e-maile mówiące co innego o tej samej sprawie.
+     */
+    public function test_konto_niepotwierdzone_dostaje_wlasna_wiadomosc_a_nie_zwykly_reset_hasla(): void
+    {
+        $konto = $this->niepotwierdzone('bogumila', self::ADRES_NIEPOTWIERDZONY);
+
+        Notification::fake();
+
+        $this->wyslijFormularz(self::ADRES_NIEPOTWIERDZONY)->assertSessionHasNoErrors();
+
+        Notification::assertSentTo($konto, UstawienieHaslaZamiastLinku::class);
+        Notification::assertNotSentTo($konto, UstawienieNowegoHasla::class);
+        Notification::assertNotSentTo($konto, LinkDoLogowania::class);
+    }
+
+    /**
+     * TREŚĆ MÓWI PIĘĆ RZECZY — I NIE MÓWI CZTERECH.
+     *
+     * To jest jedyny test w tym pliku, który patrzy na SŁOWA, i ma po temu
+     * powód: cała ta zmiana jest zmianą treści. Mechanizm został ten sam
+     * (test niżej), więc gdyby nie ten test, „naprawę" dałoby się cofnąć do
+     * `UstawienieNowegoHasla` bez ani jednej czerwonej asercji poza
+     * `assertNotSentTo` wyżej.
+     *
+     * Sprawdzamy FRAGMENTY ZDAŃ, nie całe akapity: pełne zdania zamieniłyby
+     * ten test w kopię szablonu, która oblewa przy każdej poprawce przecinka
+     * i niczego przy tym nie pilnuje.
+     */
+    public function test_wiadomosc_tlumaczy_czlowiekowi_co_sie_stalo(): void
+    {
+        $konto = $this->niepotwierdzone('bogumila', self::ADRES_NIEPOTWIERDZONY);
+
+        Notification::fake();
+
+        $this->wyslijFormularz(self::ADRES_NIEPOTWIERDZONY)->assertSessionHasNoErrors();
+
+        $tresc = $this->trescWiadomosci($konto);
+
+        // 1. Wysyłamy co innego, niż prosiła — i to nie pomyłka.
+        $this->assertStringContainsString('Wysyłamy co innego', $tresc,
+            'Wiadomość nie mówi, że idzie co innego, niż człowiek zamówił.');
+        $this->assertStringContainsString('To nie pomyłka', $tresc,
+            'Wiadomość nie odbiera pierwszej myśli odbiorcy: „strona się pomyliła".');
+
+        // 2. Dlaczego: adresu nikt nie potwierdził.
+        $this->assertStringContainsString('nikt nigdy nie potwierdził', $tresc,
+            'Wiadomość nie mówi, DLACZEGO idzie co innego.');
+        $this->assertStringContainsString('cudze konto', $tresc,
+            'Wiadomość nie mówi, czym byłoby wpuszczenie jednym kliknięciem.');
+
+        // 3. Co zrobić i co się po tym stanie.
+        $this->assertStringContainsString('Ustaw hasło i wejdź na konto', $tresc,
+            'W wiadomości nie ma przycisku mówiącego, co się za nim dzieje.');
+        $this->assertStringContainsString('przestaje', $tresc,
+            'Wiadomość nie mówi, że poprzednie hasło przestaje działać.');
+
+        // 4. Następnym razem będzie zwyczajnie.
+        $this->assertStringContainsString('Następnym razem będzie już zwyczajnie', $tresc,
+            'Wiadomość zostawia człowieka z wrażeniem, że ta droga jest zepsuta na stałe.');
+
+        // 5. Adres, pod którym odpowiada człowiek.
+        $this->assertStringContainsString((string) config('kuking.community.contact_email'), $tresc,
+            'W wiadomości nie ma adresu, pod którym da się zapytać człowieka.');
+
+        // ── I CZTERY RZECZY, KTÓRYCH TAM BYĆ NIE MOŻE ──────────────────────
+
+        // NIE STRASZY. Nie wiemy, czy ktokolwiek cokolwiek przejmował —
+        // konto bez potwierdzonego adresu bierze się równie dobrze
+        // z rejestracji porzuconej w połowie.
+        foreach (['przejąć', 'przejęci', 'napastnik', 'włamani', 'zagrożen', 'uwaga!'] as $strach) {
+            $this->assertStringNotContainsStringIgnoringCase($strach, $tresc,
+                "Wiadomość straszy słowem „{$strach}” — a my nie wiemy, czy stało się cokolwiek złego.");
+        }
+
+        // NIE TŁUMACZY MECHANIKI. To jest nasz słownik, nie jej.
+        foreach (['token', 'sesj', 'hijack', 'weryfikacj'] as $zargon) {
+            $this->assertStringNotContainsStringIgnoringCase($zargon, $tresc,
+                "Wiadomość tłumaczy mechanikę słowem „{$zargon}” zamiast powiedzieć rzecz po ludzku.");
+        }
+
+        // NIE MÓWI „LIST” — to jest poczta w kopercie (zgłoszenie
+        // właściciela, `DrzwiWejsciowePrawdaTest`).
+        foreach (['/\blistu\b/u', '/\blistem\b/u', '/\bten list\b/u', '/\bList\b/u'] as $forma) {
+            $this->assertDoesNotMatchRegularExpression($forma, $tresc,
+                'Wiadomość mówi o liście, a chodzi o e-mail.');
+        }
+
+        // NIE PRZYPISUJE RODZAJU (COPY_STYLE §2). Pełny skan widoków robi
+        // `TekstyNiePrzypisujaPlciTest`; tutaj stoi ten jeden wzorzec, bo to
+        // jest najświeższy tekst w serwisie i najłatwiej go tak napisać.
+        $this->assertDoesNotMatchRegularExpression(
+            '/\p{L}+ł(?:am|aś|em|eś|abym|abyś|bym|byś)(?![\p{L}])/u',
+            str_replace('co dziś ugotowałeś', ' ', $tresc),
+            'Wiadomość przypisuje czytelnikowi rodzaj — przebuduj zdanie (COPY_STYLE §2).',
+        );
+    }
+
+    /**
+     * WŁASNA TREŚĆ NIE ZMIENIŁA MECHANIZMU: TEN SAM TOKEN, TA SAMA TRASA,
+     * TA SAMA WAŻNOŚĆ.
+     *
+     * To jest druga połowa zmiany i bez niej pierwsza jest niebezpieczna.
+     * Gdyby nowa wiadomość niosła własny token albo prowadziła gdzie indziej,
+     * kliknięcie przestałoby potwierdzać adres — a wtedy każda kolejna prośba
+     * o link kończyłaby się tą samą wiadomością i tak w kółko.
+     *
+     * Token porównujemy z wierszem w `password_reset_tokens` przez
+     * `Password::tokenExists()`, czyli tak, jak sprawdza go prawdziwy reset.
+     * Samo „w bazie jest jakiś wiersz" byłoby zielone także dla tokenu
+     * wystawionego obok, do niczego niepasującego.
+     */
+    public function test_wiadomosc_niesie_ten_sam_token_resetu_i_prowadzi_na_te_sama_trase(): void
+    {
+        $konto = $this->niepotwierdzone('bogumila', self::ADRES_NIEPOTWIERDZONY);
+
+        Notification::fake();
+
+        $this->wyslijFormularz(self::ADRES_NIEPOTWIERDZONY)->assertSessionHasNoErrors();
+
+        $token = $this->tokenZWiadomosciZHaslem($konto);
+
+        $this->assertTrue(
+            Password::broker()->tokenExists($konto, $token),
+            'Token z wiadomości nie pasuje do wiersza w `password_reset_tokens` — '
+            .'to nie jest token resetu hasła, tylko coś wystawionego obok.',
+        );
+
+        // Adres z wiadomości prowadzi na `password.reset`, czyli tam, gdzie
+        // `PasswordResetController::reset()` ustawia hasło I POTWIERDZA ADRES.
+        $tresc = $this->trescWiadomosci($konto);
+
+        $this->assertStringContainsString(
+            route('password.reset', ['token' => $token]),
+            $tresc,
+            'Odnośnik z wiadomości nie prowadzi na trasę ustawiania hasła.',
+        );
+
+        // Ważność jest ta sama, co przy odzyskiwaniu hasła — nie własna
+        // liczba dopisana obok. `expire` z `auth.php` to 60 minut, a widok
+        // drukuje wtedy „przez godzinę".
+        $this->assertSame(60, (int) config('auth.passwords.users.expire'),
+            'Zmieniła się ważność tokenu resetu — sprawdź, czy wiadomość dalej mówi prawdę.');
+        $this->assertStringContainsString('Przycisk działa przez godzinę', $tresc,
+            'Wiadomość nie mówi, jak długo działa przycisk, albo mówi to inną liczbą niż `auth.passwords.users.expire`.');
+    }
+
+    // ------------------------------------------------------------------
+    //  4. Nieodróżnialność odpowiedzi — bajt w bajt, dla trzech przypadków
     // ------------------------------------------------------------------
 
     /**
@@ -297,7 +466,7 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    //  4. Dobowy budżet poczty — kanał boczny, nie kosmetyka
+    //  5. Dobowy budżet poczty — kanał boczny, nie kosmetyka
     // ------------------------------------------------------------------
 
     /**
@@ -366,7 +535,7 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    //  5. Wąskość — naprawa nie rusza niczego poza swoim zakresem
+    //  6. Wąskość — naprawa nie rusza niczego poza swoim zakresem
     // ------------------------------------------------------------------
 
     /**
@@ -395,13 +564,19 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
         $zwykla = $this->wyslijFormularz(self::ADRES_NIEPOTWIERDZONY);
 
         Notification::assertNotSentTo($zamkniete, LinkDoLogowania::class);
+        Notification::assertNotSentTo($zamkniete, UstawienieHaslaZamiastLinku::class);
+
+        // I ŻADNĄ INNĄ WIADOMOŚCIĄ O HAŚLE. `UstawienieNowegoHasla` stało tu
+        // do 11 września 2026 i jest nadal wysyłane przez „nie pamiętam
+        // hasła" — gdyby ktoś cofnął podmianę połowicznie, ta asercja to
+        // złapie, a sama asercja wyżej nie.
         Notification::assertNotSentTo($zamkniete, UstawienieNowegoHasla::class);
         $this->assertDatabaseMissing('login_link_tokens', ['user_id' => $zamkniete->getKey()]);
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'bozena@example.com']);
 
         // Kontrola dodatnia: mechanizm żyje i dla zwykłego konta
         // niepotwierdzonego robi dokładnie to, co ma robić.
-        Notification::assertSentTo($kontrola, UstawienieNowegoHasla::class);
+        Notification::assertSentTo($kontrola, UstawienieHaslaZamiastLinku::class);
 
         // I nikt się z ekranu nie dowiaduje, które z tych kont jest które.
         $this->assertSame($this->komunikat($zwykla), $this->komunikat($odmowa),
@@ -434,11 +609,17 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
         $zwykla = $this->wyslijFormularz(self::ADRES_NIEPOTWIERDZONY);
 
         Notification::assertNotSentTo($moderator, LinkDoLogowania::class);
+        Notification::assertNotSentTo($moderator, UstawienieHaslaZamiastLinku::class);
+
+        // I ŻADNĄ INNĄ WIADOMOŚCIĄ O HAŚLE. `UstawienieNowegoHasla` stało tu
+        // do 11 września 2026 i jest nadal wysyłane przez „nie pamiętam
+        // hasła" — gdyby ktoś cofnął podmianę połowicznie, ta asercja to
+        // złapie, a sama asercja wyżej nie.
         Notification::assertNotSentTo($moderator, UstawienieNowegoHasla::class);
         $this->assertDatabaseMissing('login_link_tokens', ['user_id' => $moderator->getKey()]);
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'beata@example.com']);
 
-        Notification::assertSentTo($kontrola, UstawienieNowegoHasla::class);
+        Notification::assertSentTo($kontrola, UstawienieHaslaZamiastLinku::class);
 
         $this->assertSame($this->komunikat($zwykla), $this->komunikat($odmowa),
             'Ekran zdradza, że konto pod tym adresem należy do obsługi serwisu.');
@@ -596,29 +777,56 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
     }
 
     /**
-     * Token jawny wyjęty Z LISTU, a nie z bazy — w bazie leży jego skrót.
+     * Token jawny wyjęty Z WIADOMOŚCI, a nie z bazy — w bazie leży jego skrót.
      *
      * `Password::createToken()` (tak robi `PasswordResetSessionRotationTest`)
      * dałby token działający, ale WYSTAWIONY PRZEZ TEST. Tutaj chodzi o to,
-     * żeby ofiara przeszła dokładnie tą drogą co człowiek: tokenem z listu,
-     * który wysłał jej serwis.
+     * żeby ofiara przeszła dokładnie tą drogą co człowiek: tokenem z wiadomości,
+     * którą wysłał jej serwis.
      */
-    private function tokenZListuZHaslem(User $konto): string
+    private function tokenZWiadomosciZHaslem(User $konto): string
     {
         $token = null;
 
         Notification::assertSentTo(
             $konto,
-            UstawienieNowegoHasla::class,
-            function (UstawienieNowegoHasla $powiadomienie) use (&$token): bool {
+            UstawienieHaslaZamiastLinku::class,
+            function (UstawienieHaslaZamiastLinku $powiadomienie) use (&$token): bool {
                 $token = $powiadomienie->token;
 
                 return true;
             },
         );
 
-        $this->assertIsString($token, 'Z listu „Ustaw nowe hasło" nie dało się wyjąć tokenu.');
+        $this->assertIsString($token, 'Z wiadomości „Najpierw ustaw hasło" nie dało się wyjąć tokenu.');
 
         return $token;
+    }
+
+    /**
+     * Wyrenderowana treść HTML wiadomości, którą dostało to konto.
+     *
+     * Renderujemy PRAWDZIWE powiadomienie przechwycone przez
+     * `Notification::fake()`, a nie sam widok z ręcznie podstawionymi
+     * zmiennymi. Widok renderowany osobno byłby zielony także wtedy, gdyby
+     * `toMail()` przestał go w ogóle używać.
+     */
+    private function trescWiadomosci(User $konto): string
+    {
+        $html = null;
+
+        Notification::assertSentTo(
+            $konto,
+            UstawienieHaslaZamiastLinku::class,
+            function (UstawienieHaslaZamiastLinku $powiadomienie) use ($konto, &$html): bool {
+                $html = (string) $powiadomienie->toMail($konto)->render();
+
+                return true;
+            },
+        );
+
+        $this->assertIsString($html, 'Wiadomości „Najpierw ustaw hasło" nie dało się wyrenderować.');
+
+        return $html;
     }
 }
