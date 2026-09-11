@@ -4123,6 +4123,33 @@
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
 }
 
+/* POLA W JEDNYM RZĘDZIE STOJĄ RÓWNO, CHOĆ PODPISY MAJĄ RÓŻNĄ WYSOKOŚĆ.
+
+   Zgłoszenie właściciela ze zrzutu z `/dodaj/przepis/jedna-strona`: „Na ile
+   porcji" wisiało wyżej niż „Przygotowanie (minuty)" i „Gotowanie /
+   pieczenie (minuty)". Powód jest prozaiczny — krótszy podpis mieści się
+   w mniejszej liczbie wierszy, a pole zaczyna się zaraz pod nim.
+
+   Komórki siatki i tak mają jednakową wysokość (domyślne `stretch`), więc
+   wystarczy, żeby pole opadło na sam dół swojej komórki: kolumna `flex`
+   i `margin-top: auto` na kontrolce. Bez zaglądania w treść podpisów i bez
+   narzucania im wysokości, która przy 200% czcionki i tak by się rozjechała.
+
+   ZMIERZONE w Chromium (ramka 700 px, trzy pola z tego ekranu): górne
+   krawędzie pól stały na 60 / 81 / 81 px, czyli 21 px rozrzutu. Po zmianie
+   81 / 81 / 81 px — rozrzut 0.
+
+   Dotyczy WSZYSTKICH rzędów `.siatka-pol`, nie tylko tego jednego: różne
+   długości podpisów są tu regułą, nie wyjątkiem. */
+.siatka-pol > .field {
+  display: flex;
+  flex-direction: column;
+}
+
+.siatka-pol > .field .field-input {
+  margin-top: auto;
+}
+
 .siatka-pol-szeroka {
   display: grid;
   gap: var(--spacing-4);
