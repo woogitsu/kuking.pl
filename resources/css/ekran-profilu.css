@@ -210,10 +210,19 @@
      tylko ląduje POD treścią; pokazanie tam liczb, a schowanie ich w karcie,
      zepchnęłoby je na telefonie pod całe archiwum wpisów.
 
-     `:not(.app-body-solo)` I `:not(.app-body-powitalny)` TO NIE OZDOBA.
-     Gość ma jedną kolumnę na KAŻDEJ szerokości (patrz `.app-body-solo`
-     w app.css), więc bez tych wykluczeń liczby znikałyby mu z karty przy
-     1280 px, a jedyny drugi egzemplarz leżałby na samym dole strony.
+     `:not(.app-body-solo)` I `:not(.app-body-powitalny)` TO NIE OZDOBA —
+     ALE OD D-122 Z INNEGO POWODU NIŻ NAPISANO TU WCZEŚNIEJ.
+     Stało tu: „Gość ma jedną kolumnę na KAŻDEJ szerokości". Od 11 września
+     2026 to już nieprawda — gość na ekranie z prawą szyną dostaje od 80rem
+     DWIE kolumny (`.app-body-solo-z-szyna` w app.css), a profil jest właśnie
+     takim ekranem. Wykluczenia zostają i są tak samo konieczne, bo powodem
+     jest co innego: BLOKU Z LICZBAMI GOŚCIOWI W OGÓLE NIE WYSYŁAMY
+     (`@auth` w `x-szyna-profilu` — te liczby nie mają dla niego drugiego
+     egzemplarza). Bez tych wykluczeń reguła schowałaby mu egzemplarz
+     w karcie, a pokazać nie miałaby czego: liczby zniknęłyby ze strony
+     całkiem. Klasa `.app-body-solo` zostaje więc na `<div class="app-body">`
+     gościa TAKŻE wtedy, gdy ma on szynę — znaczy „układ gościa", a nie
+     „jedna kolumna", i ta para selektorów jest jednym z jej czytelników.
      --------------------------------------------------------------------- */
 
   .profil-liczby-szyna {
