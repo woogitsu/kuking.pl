@@ -1379,10 +1379,16 @@
     font-weight: 700;
   }
 
-  /* Wejście stoi POD spisem ekranów panelu, więc potrzebuje odstępu od niego.
+  /* Wejście stoi SAMO — poza panelem menu nie pokazuje już spisu ekranów
+     moderacji, tylko to jedno wejście (zgłoszenie właściciela: nagłówek grupy
+     i przycisk mówiły to samo dwa razy). Odstęp jest więc taki, jaki miała
+     wcześniej cała grupa `.side-nav-moderacja` — bo to ten sam odstęp od
+     „Profil" wyżej, tylko liczony teraz od przycisku, a nie od kreski nad
+     sekcją. Kreski nie ma i nie jest potrzebna: obwódka i tło przycisku
+     odcinają go od spisu ekranów serwisu wyraźniej niż linia.
      Wyjście stoi NAD grupą panelu i odstęp dostaje z drugiej strony. */
   .side-nav-wejscie {
-    margin-top: var(--spacing-2);
+    margin-top: var(--spacing-4);
   }
 
   .side-nav-powrot {
