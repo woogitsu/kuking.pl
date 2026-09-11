@@ -11,6 +11,7 @@ use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
+use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Rules\ReservedUsername;
@@ -639,6 +640,18 @@ class FacebookLoginController extends Controller
                 .'Zaloguj się poniżej.',
             );
         }
+
+        /*
+         * POWRÓT PO ODEBRANIU DOSTĘPU — znacznik gaśnie TUTAJ.
+         *
+         * Człowiek, który odebrał nam dostęp w ustawieniach Facebooka,
+         * a teraz znów przeszedł przez ekran zgody, właśnie tę zgodę oddał na
+         * nowo. Zostawienie znacznika kazałoby ekranowi „Ustawienia →
+         * Bezpieczeństwo" pokazywać mu „dostęp odebrany" w chwili, w której
+         * właśnie wszedł tą drogą — czyli karałoby go za skorzystanie
+         * z własnych ustawień (issue #259).
+         */
+        $user->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
 
         AuditLogEntry::record('account.login_facebook', $user, $user, ip: $request->ip());
 

@@ -552,7 +552,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertStringContainsString('jest już konto', (string) session('status'));
     }
 
-    /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */    /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */
+    /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */ /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */
     #[Test]
     public function test_konta_z_niepotwierdzonym_adresem_tez_nie_laczymy(): void
     {
@@ -998,6 +998,34 @@ class LogowanieKontemFacebookiemTest extends TestCase
             'Po wymazaniu danych konto nie ma właściciela — wejście kontem Facebooka musi zniknąć razem z hasłem.');
     }
 
+    /**
+     * POWRÓT PO ODEBRANIU DOSTĘPU — znacznik gaśnie, a człowiek wchodzi.
+     *
+     * Kto odebrał nam dostęp w ustawieniach Facebooka, a potem znów przeszedł
+     * przez ekran zgody, właśnie tę zgodę oddał na nowo. Odmowa wejścia albo
+     * zostawienie znacznika byłoby karą za skorzystanie z własnych ustawień
+     * (issue #259).
+     */
+    #[Test]
+    public function test_ponowne_wejscie_gasi_znacznik_odebrania_dostepu(): void
+    {
+        $this->wlaczFacebooka();
+
+        $basia = $this->user('basia', ['email' => 'basia@example.test']);
+        $basia->connectFacebook(self::FB_ID);
+        $basia->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+        $this->assertTrue($basia->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Kontrola wstępna: bez zapalonego znacznika ten test nie mierzyłby niczego.');
+
+        $this->wracamyZFacebooka();
+
+        $this->assertAuthenticatedAs($basia->fresh());
+        $this->assertFalse($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Po ponownej zgodzie u Facebooka znacznik ma zgasnąć — inaczej ekran bezpieczeństwa '
+            .'pokazuje „dostęp odebrany" komuś, kto właśnie tą drogą wszedł.');
+    }
+
     #[Test]
     public function test_w_bazie_nie_ma_gdzie_zapisac_tokenu_facebooka(): void
     {
@@ -1009,10 +1037,26 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // Zakres danych o człowieku jest zamknięty: ani tokenu dostępu, ani
         // zdjęcia, ani adresu e-mail z dostawcy. Zmiana tego zakresu wymaga
         // decyzji, nie refaktoru (AGENTS.md §6).
+        //
+        // `dostep_odebrany_at` DOSZŁO 11 września (issue #259) i przeszło
+        // przez tę bramkę świadomie: nie jest to dana O CZŁOWIEKU wzięta od
+        // dostawcy, tylko NASZ znacznik o stanie powiązania — „Facebook
+        // powiadomił nas, że ta osoba cofnęła zgodę". Nie da się nim wejść
+        // na konto i nie ma go skąd wykraść, bo nie pochodzi z Facebooka;
+        // pochodzi z faktu, że Facebook do nas zadzwonił.
         $this->assertSame(
-            ['connected_at', 'dostawca', 'id', 'identyfikator', 'user_id'],
+            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id'],
             collect(array_keys($wiersz))->sort()->values()->all(),
         );
+
+        // A NAJWAŻNIEJSZE ZOSTAJE: pola na token nadal nie ma i nie wolno go
+        // dołożyć bez decyzji. Ta pętla mówi to wprost, zamiast liczyć na to,
+        // że ktoś przeczyta listę wyżej ze zrozumieniem.
+        foreach (['token', 'access_token', 'refresh_token', 'email', 'picture', 'zdjecie'] as $zakazane) {
+            $this->assertArrayNotHasKey($zakazane, $wiersz,
+                "W tabeli powiązań pojawiła się kolumna `{$zakazane}`. To jest zmiana zakresu "
+                .'danych o człowieku i wymaga decyzji, nie refaktoru.');
+        }
     }
 
     // ─────────────────── gdy Facebook nie odpowiada ───────────────────

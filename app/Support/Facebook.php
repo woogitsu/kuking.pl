@@ -55,6 +55,17 @@ final class Facebook
     public const ZAKRES = 'public_profile,email';
 
     /**
+     * Jedyny algorytm, jakim Facebook podpisuje `signed_request`.
+     *
+     * Sprawdzamy go MIMO udanego sprawdzenia podpisu, bo tak każe
+     * dokumentacja i bo ma to sens: gdyby kiedyś doszedł drugi algorytm,
+     * przyjmowanie dowolnego byłoby zgodą na ten słabszy z nich. Stała,
+     * a nie literał w kontrolerze, żeby dało się ją znaleźć wyszukiwaniem
+     * razem z resztą ustaleń o Facebooku.
+     */
+    public const ALGORYTM_PODPISU = 'HMAC-SHA256';
+
+    /**
      * Pola, o które pytamy węzeł `me` — i nic poza nimi.
      *
      * `email` MOŻE NIE PRZYJŚĆ i to nie jest awaria: dokumentacja Graph API

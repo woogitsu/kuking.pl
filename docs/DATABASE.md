@@ -545,10 +545,53 @@ o TYM identyfikatorze, od TEJ chwili".
   własnego adresu i nikt jej nie widzi), więc UUID-a tu nie ma —
   `AGENTS.md` §6 wymaga UUID dla encji **publicznych**;
 - `user_id` — `uuid NOT NULL`, klucz obcy na `users` z `ON DELETE CASCADE`;
-- `dostawca` — `varchar(20) NOT NULL`, dziś wyłącznie `google`;
+- `dostawca` — `varchar(20) NOT NULL`, `google` albo `facebook`; listę
+  rozszerza MIGRACJA, nie stała w PHP (patrz niżej);
 - `identyfikator` — `varchar(255) NOT NULL`, identyfikator konta u dostawcy
-  (`sub` z tokenu tożsamości Google);
-- `connected_at` — `timestamptz NOT NULL DEFAULT now()`, od kiedy.
+  (`sub` z tokenu tożsamości Google, `user_id` z Graph API Facebooka);
+- `connected_at` — `timestamptz NOT NULL DEFAULT now()`, od kiedy;
+- `dostep_odebrany_at` — `timestamptz NULL` (migracja
+  `2026_09_11_700000_dodaj_znacznik_odebrania_dostepu`, issue #259), kiedy
+  człowiek odebrał nam dostęp u dostawcy. `NULL` znaczy „powiązanie żywe".
+
+#### `dostep_odebrany_at` — dlaczego znacznik, a nie skasowanie wiersza
+
+Facebook woła `POST /wejdz/facebook/odebranie-dostepu` (pole `Deauthorize
+callback URL` w panelu Meta), gdy ktoś usunie naszą aplikację w swoich
+ustawieniach Facebooka. Bez tej kolumny nie mieliśmy gdzie tego zapisać:
+wiersz zostawał jakby nic się nie stało, a człowiek dowiadywał się dopiero
+z nieudanego logowania, którego nikt mu nie tłumaczył.
+
+**Skasowanie wiersza byłoby najgorszą z możliwych reakcji.** Kto wszedł do
+Kuking wyłącznie kontem Facebooka i nigdy nie ustawił hasła (w `password`
+leży skrót wartości losowej, której nie zna nikt, także my), straciłby
+JEDYNĄ drogę wejścia, jaką zna — przez kliknięcie w ustawieniach Facebooka,
+którego skutków nikt mu nie zapowiedział. Poprawne dane u nas nie znikają
+(`AGENTS.md`).
+
+Znacznik **gaśnie sam**, gdy człowiek znów przejdzie przez ekran zgody
+Facebooka (`FacebookLoginController::wpusc()`). Odmowa wejścia komuś, kto
+właśnie tę zgodę oddał na nowo, byłaby karą za skorzystanie z własnych
+ustawień.
+
+Ekran `Ustawienia → Bezpieczeństwo` ma dzięki temu **trzy** stany, nie dwa:
+niepołączone, połączone i **uśpione** („Facebook przestał nas wpuszczać…"),
+z działającym przyciskiem prowadzącym na ekran zgody (D-053 — żadnego
+martwego przycisku).
+
+**Kolumna jest ogólna, nie „facebookowa"** — odebranie dostępu ma też Google
+w panelu swojego konta. Dziś powiadamia nas o tym tylko Facebook, bo tylko
+on wysyła `signed_request` na nasz adres.
+
+**Ograniczenie panelu Meta:** pole `Deauthorize callback URL` jest jedno na
+aplikację, a jedna aplikacja obsługuje produkcję i staging — **staging tych
+powiadomień nie dostanie.** To nie jest usterka do naprawienia w kodzie.
+
+**Rollback ODMAWIA** (D-088), gdy w kolumnie jest choć jedna data: usunięcie
+kolumny kasuje informację „ta osoba odebrała nam dostęp", po ponownym
+`migrate` kolumna wraca pusta i serwis znów twierdzi, że powiązanie jest
+żywe — bez błędu do zauważenia. Wymuszenie:
+`KUKING_ROLLBACK_KASUJ_ZNACZNIKI_ODEBRANIA=true`.
 
 **Dlaczego tabela, a nie kolumny na `users`.** D-069 rozstrzygnęło inaczej
 (dwie kolumny) i wtedy miało rację: jeden dostawca, a tabela byłaby

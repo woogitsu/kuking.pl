@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\FacebookDeauthorizeController;
 use App\Http\Controllers\Auth\FacebookLoginController;
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Auth\LoginController;
@@ -471,6 +472,27 @@ Route::get('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finishFo
 Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'])
     ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
     ->name('facebook.finish.store');
+
+/*
+ * ODEBRANIE DOSTĘPU U FACEBOOKA (issue #259).
+ *
+ * Woła to POST-em serwer Facebooka, nie przeglądarka człowieka — więc trasa
+ * jest WYŁĄCZONA Z OCHRONY CSRF w `bootstrap/app.php`, a autentyczność
+ * potwierdza podpis `signed_request`, nie sesja. Pełne uzasadnienie stoi
+ * w `FacebookDeauthorizeController`.
+ *
+ * OGRANICZENIE PANELU META: pole `Deauthorize callback URL` jest jedno na
+ * aplikację, a jedna aplikacja obsługuje u nas produkcję i staging — więc
+ * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
+ * w kodzie.
+ *
+ * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
+ * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
+ * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
+ * w nieskończoność.
+ */
+Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->name('facebook.deauthorize');
 
 Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
     ->name('facebook.link');

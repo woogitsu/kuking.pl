@@ -77,6 +77,7 @@ class TozsamoscZewnetrzna extends Model
     {
         return [
             'connected_at' => 'datetime',
+            'dostep_odebrany_at' => 'datetime',
         ];
     }
 

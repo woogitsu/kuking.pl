@@ -947,6 +947,51 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->exists();
     }
 
+    /**
+     * Odnotowanie, że człowiek odebrał nam dostęp u dostawcy (issue #259).
+     *
+     * NIE KASUJE WIERSZA i to jest tu najważniejsze. Kto wszedł do Kuking
+     * wyłącznie kontem Facebooka i nigdy nie ustawił hasła, straciłby przez
+     * skasowanie jedyną drogę wejścia, jaką zna — przez kliknięcie
+     * w ustawieniach Facebooka, którego skutków nikt mu nie zapowiedział.
+     * Znacznik mówi „uśpione", nie „nie było".
+     *
+     * Zwraca liczbę zmienionych wierszy, żeby wołający wiedział, czy było co
+     * oznaczać — powiadomienie o odebraniu dostępu może przyjść dla
+     * identyfikatora, którego u nas nie ma, i to nie jest awaria.
+     */
+    public function oznaczOdebranieDostepu(string $dostawca): int
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', $dostawca)
+            ->whereNull('dostep_odebrany_at')
+            ->update(['dostep_odebrany_at' => now()]);
+    }
+
+    /**
+     * Powrót po odebraniu dostępu: człowiek znów dał zgodę u dostawcy, więc
+     * znacznik gaśnie.
+     *
+     * Odmowa wejścia komuś, kto WŁAŚNIE na nowo przeszedł przez ekran zgody
+     * dostawcy, byłaby karą za skorzystanie z własnych ustawień.
+     */
+    public function cofnijOdebranieDostepu(string $dostawca): void
+    {
+        $this->tozsamosciZewnetrzne()
+            ->where('dostawca', $dostawca)
+            ->whereNotNull('dostep_odebrany_at')
+            ->update(['dostep_odebrany_at' => null]);
+    }
+
+    /** Czy powiązanie z tym dostawcą jest uśpione (dostęp odebrany u dostawcy). */
+    public function dostepOdebranyU(string $dostawca): bool
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', $dostawca)
+            ->whereNotNull('dostep_odebrany_at')
+            ->exists();
+    }
+
     public function hasFacebookConnected(): bool
     {
         return $this->tozsamosciZewnetrzne()

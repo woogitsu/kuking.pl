@@ -104,7 +104,44 @@
         <section class="card mt-8">
             <h2 class="mt-0">Wejście kontem Facebooka</h2>
 
-            @if(auth()->user()->hasFacebookConnected())
+            {{--
+                TRZECI STAN: POWIĄZANIE JEST, ALE UŚPIONE (issue #259).
+
+                Facebook przysłał nam powiadomienie, że ten człowiek odebrał
+                naszej aplikacji dostęp w swoich ustawieniach Facebooka
+                (`FacebookDeauthorizeController`). Wiersza powiązania NIE
+                KASUJEMY — kto nie ma hasła, straciłby jedyną drogę wejścia —
+                więc bez tego stanu ekran pokazywałby mu „połączone" i kłamał.
+
+                Zdanie mówi, CO ZROBIĆ, nie samo „stan: odebrany". Przycisk
+                prowadzi na `facebook.start`, czyli na prawdziwy ekran zgody
+                Facebooka, po którym znacznik gaśnie przy wejściu (D-053:
+                żadnego martwego przycisku).
+
+                Kolejność gałęzi ma znaczenie: stan uśpiony musi być sprawdzony
+                PRZED „połączone", bo `hasFacebookConnected()` jest prawdziwe
+                także wtedy — powiązanie wciąż istnieje.
+            --}}
+            @if(auth()->user()->dostepOdebranyU(\App\Models\TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK))
+                <p>
+                    <strong>Facebook przestał nas wpuszczać na Twoje konto.</strong>
+                    Stało się to, bo w ustawieniach Facebooka usunięto zgodę dla Kuking —
+                    zwykle robi to sam właściciel konta, porządkując listę aplikacji.
+                    Nic Ci przez to nie przepadło: Twoje konto w Kuking, wpisy i zdjęcia
+                    są nietknięte.
+                </p>
+                <p>
+                    Żeby znów wchodzić kontem Facebooka, kliknij poniżej i potwierdź zgodę
+                    jeszcze raz. Jeśli wolisz zostać przy haśle — nie rób nic; hasło działa
+                    tak samo jak wcześniej.
+                </p>
+                <div class="form-actions">
+                    <a class="btn btn-secondary" href="{{ route('facebook.start') }}">
+                        <x-logo-dostawcy nazwa="facebook" />
+                        Połącz konto Facebooka jeszcze raz
+                    </a>
+                </div>
+            @elseif(auth()->user()->hasFacebookConnected())
                 <p>
                     To konto jest <strong>połączone z Twoim kontem Facebooka</strong> —
                     możesz wchodzić jednym kliknięciem, przyciskiem „Wejdź kontem Facebooka"
