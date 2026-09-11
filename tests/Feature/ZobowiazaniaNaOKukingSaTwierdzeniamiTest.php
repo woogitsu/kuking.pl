@@ -41,23 +41,31 @@ use Tests\TestCase;
 class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
 {
     /**
-     * Lista kontrolna zmiany: zobowiązanie => dwa fragmenty, które je niosą.
+     * Lista kontrolna zmiany: zobowiązanie => fragmenty, które je niosą.
      *
-     * DWA FRAGMENTY, NIE JEDEN, na każde zobowiązanie. Sam nagłówek pozycji
+     * PO DWA FRAGMENTY NA ZOBOWIĄZANIE, nie po jednym. Sam nagłówek pozycji
      * („Cały ekran należy do gotowania") jest hasłem; zobowiązanie niesie
      * dopiero zdanie pod nim. Gdyby test pilnował tylko hasła, można by
-     * skasować zdanie i zostawić samo hasło — i przeszedłby.
+     * skasować zdanie i zostawić samo hasło — i przeszedłby. Sprawdzone
+     * kontrolą ujemną (K7), nie założone.
      *
-     * Pierwsze cztery pozycje to te same zobowiązania, które stały tu
-     * w formie zaprzeczonej. Dwa ostatnie dołożył właściciel tą samą decyzją:
-     * nigdy reklamy, nigdy płatny dostęp.
+     * PIERWSZA POZYCJA MA JEDEN FRAGMENT I JEST CYTATEM. „bez opłat i bez
+     * reklam" to brzmienie przyjęte decyzją właściciela B1
+     * (`docs/brand/GLOS_MARKI.md` §6), gdzie odrzucone zostały wprost „to
+     * darmowe" (sprzedażowo) i „za darmo, na zawsze" (obietnica bez
+     * gwarancji). Pilnujemy tu CO DO SŁOWA, bo to jedyne zobowiązanie na tej
+     * stronie, które ma zatwierdzone brzmienie — reszta ma zatwierdzoną
+     * treść, a brzmienie wolne.
      *
-     * @var array<string, array{0: string, 1: string}>
+     * @var array<string, list<string>>
      */
     private const ZOBOWIAZANIA = [
-        'bez opłat — dostęp jest i zostanie darmowy' => [
-            'Zawsze za darmo',
-            'darmowe i mają darmowe zostać',
+        'bez opłat i bez reklam — brzmienie z decyzji B1, co do słowa' => [
+            'bez opłat i bez reklam',
+        ],
+        'bez opłat — za korzystanie nikt nie płaci' => [
+            'Korzystasz bez opłat',
+            'poprosimy o wsparcie wprost',
         ],
         'bez reklam — miejsce po reklamie zajmuje czyjeś danie' => [
             'Cały ekran należy do gotowania',
@@ -93,6 +101,21 @@ class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
         'nie generujemy przepisów sztuczną inteligencją',
         'Nie importujemy masowo',
         'Nie robimy rankingów',
+    ];
+
+    /**
+     * Brzmienia odrzucone przez `GLOS_MARKI.md` §6 — nie zaprzeczenia, ale
+     * ta sama klasa usterki: zdanie o pieniądzach, którego właściciel
+     * NIE wybrał. Pierwsza wersja tej sekcji miała „Zawsze za darmo",
+     * czyli wariant „za darmo, na zawsze" w innym szyku.
+     *
+     * @var list<string>
+     */
+    private const ODRZUCONE_BRZMIENIA = [
+        'Zawsze za darmo',
+        'za darmo, na zawsze',
+        'to darmowe',
+        'darmowe konto',
     ];
 
     /** Nagłówek sekcji po zmianie — kotwica dla całego pliku. */
@@ -132,8 +155,13 @@ class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
         // KONTROLA DODATNIA (pułapka 4): asercja „tego nie ma" przechodzi
         // także wtedy, gdy strona nie zwróciła nic albo gdy ktoś skasował
         // pół widoku. Najpierw więc dowód, że to naprawdę ta strona.
+        // Kotwicą jest nagłówek Z TREŚCI strony, a NIE napis „O Kuking".
+        // Po decyzji B2 (PR #398) `<h1>` brzmi „O <x-kuking-word />", więc
+        // napisu „O Kuking" nie ma w treści — został tylko w `<title>`
+        // i w `meta`, gdzie nazwa jest zwyczajna. Asercja na nim przechodziłaby
+        // z powodu nagłówka dokumentu, nie z powodu strony (pułapka 1).
         $this->assertStringContainsString(
-            'O Kuking',
+            'Dlaczego to powstało',
             $html,
             'To nie jest strona `/o-kuking` — asercje „tego nie ma" niżej nic by '
             .'nie znaczyły, bo w pustej albo obcej odpowiedzi nie ma nic.',
@@ -154,6 +182,19 @@ class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
                 "Na `/o-kuking` wróciło zaprzeczenie sprzed zmiany: „{$zaprzeczenie}”. "
                 .'Sekcja zobowiązań mówi twierdzeniami — decyzja właściciela. '
                 .'Zobowiązanie zostaje, zmienia się tylko forma zdania.',
+            );
+        }
+
+        foreach (self::ODRZUCONE_BRZMIENIA as $brzmienie) {
+            $this->assertStringNotContainsString(
+                $brzmienie,
+                $html,
+                "Na `/o-kuking` stanęło brzmienie odrzucone przez właściciela: „{$brzmienie}”. "
+                .'docs/brand/GLOS_MARKI.md §6 przyjął „bez opłat i bez reklam", a odrzucił '
+                .'„to darmowe" (sprzedażowo, C3) i „za darmo, na zawsze" (obietnica '
+                .'na przyszłość bez gwarancji). Na przycisku i w zobowiązaniu wolno '
+                .'napisać zobowiązanie, którego łamanie byłoby widoczne — nie zaletę, '
+                .'której nikt nie umie sprawdzić.',
             );
         }
     }
@@ -232,31 +273,32 @@ class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
 
     /**
      * Nazwa serwisu w tej sekcji stoi jako `<x-kuking-word />`, czyli
-     * dwukolorowo. Zapis dwukolorowy NIESIE KOLOR, więc ma sens wyłącznie
-     * w treści widocznej — w `<title>` i w `meta` byłby znacznikiem
-     * wklejonym w tekst, który nikomu nic nie pokaże.
+     * dwukolorowo — decyzja B2 (`docs/brand/GLOS_MARKI.md` §2): zapis
+     * dwukolorowy obowiązuje wszędzie, także jako nazwa serwisu w tekście
+     * bieżącym.
+     *
+     * CZEGO TEN TEST NIE DUBLUJE. Tego, że nazwa NIE wchodzi do `alt`,
+     * `title`, `aria-label`, `<title>`, `meta` ani JSON-LD, pilnuje
+     * `TekstyWedlugCopyStyleTest::test_nazwa_nie_wchodzi_tam_gdzie_koloru_nie_ma`
+     * — skanem po wszystkich widokach, więc szerzej, niż zrobiłby to test
+     * jednej strony. Drugi strażnik tej samej rzeczy tylko rozmywałby
+     * odpowiedzialność: przy zmianie reguły trzeba by znaleźć oba.
+     *
+     * Zostaje tu wyłącznie to, czego tamten test nie sprawdza — że nazwa
+     * w TEJ sekcji w ogóle jest i jest dwukolorowa. Liczby wystąpień też nie
+     * liczymy: „raz na akapit" pilnuje
+     * `test_nazwa_nie_powtarza_sie_w_jednym_bloku_tekstu`, a sufitu na ekran
+     * nie ma (B2 go zniósł).
      */
-    public function test_nazwa_w_sekcji_jest_dwukolorowa_a_w_naglowku_dokumentu_zwyczajna(): void
+    public function test_nazwa_w_sekcji_jest_dwukolorowa(): void
     {
-        $html = $this->stronaOKuking();
-
         $this->assertStringContainsString(
             'class="kuking-word"',
             $this->sekcjaZobowiazan(),
-            'Sekcja zobowiązań straciła dwukolorowy zapis nazwy — decyzja '
-            .'właściciela: w tekście bieżącym nazwa serwisu idzie przez '
-            .'`<x-kuking-word />`.',
+            'Sekcja zobowiązań straciła dwukolorowy zapis nazwy. Decyzja B2 '
+            .'(`docs/brand/GLOS_MARKI.md` §2): w tekście bieżącym nazwa serwisu '
+            .'idzie przez `<x-kuking-word />`, nie jako napis „Kuking".',
         );
-
-        foreach (['<title>', '<meta name="description"'] as $kotwica) {
-            $this->assertStringNotContainsString(
-                'kuking-word',
-                $this->wycinekOd($html, $kotwica, '>'),
-                "Dwukolorowy zapis nazwy trafił do `{$kotwica}`. Tam nie ma koloru, "
-                .'więc zostaje sam znacznik w tekście — w `title`, `meta`, `alt`, '
-                .'`aria-label` i JSON-LD piszemy zwyczajnie „Kuking".',
-            );
-        }
     }
 
     // ---------------------------------------------------------------
@@ -339,6 +381,13 @@ class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
      * Świadomie patrzymy tylko na POCZĄTEK. „Ludzie, nie treści" i „Bez
      * rankingu popularności" na końcu dłuższego zdania są poprawne i zostają;
      * zaprzeczeniem w roli głównej myśli jest to, które stoi pierwsze.
+     *
+     * I Świadomie patrzymy TYLKO NA PUNKTY LISTY, nie na akapity. Akapit
+     * wprowadzający sekcję niesie zatwierdzone brzmienie „bez opłat i bez
+     * reklam" (decyzja B1, `GLOS_MARKI.md` §6) i ma prawo się tak zaczynać:
+     * jest zobowiązaniem, którego łamanie byłoby widoczne. Gdyby detektor
+     * szedł po akapitach, wywróciłby zdanie, które właściciel wybrał sam —
+     * i to jest różnica między pilnowaniem reguły a pilnowaniem składni.
      */
     private function jestZaprzeczeniem(string $tekst): bool
     {

@@ -110,11 +110,27 @@
              byłoby widoczne z ekranu w sekundę — reklama albo ściana płatności
              nie dadzą się ukryć. Takie zdanie wolno napisać.
 
-             `<x-kuking-word />` STOI TU RAZ. Zapis dwukolorowy niesie kolor,
-             więc ma sens tylko w treści widocznej — nigdy w `alt`, `title`,
-             `aria-label`, `<title>`, `meta` ani w JSON-LD. Raz, bo marka nie ma
-             konkurować z zadaniem czytelnika, a `TekstyWedlugCopyStyleTest`
-             liczy wystąpienia na ekranie.
+             BRZMIENIE ZOBOWIĄZANIA O OPŁATACH JEST CYTATEM Z DECYZJI, NIE
+             WYMYŚLONE TUTAJ. `GLOS_MARKI.md` §6 (decyzja B1) przyjął „bez opłat
+             i bez reklam", a odrzucił wprost dwa warianty, w które ta sekcja
+             wchodziła sama: „to darmowe" (sprzedażowo, C3) i „za darmo, na
+             zawsze" (obietnica na przyszłość bez gwarancji). Dlatego akapit
+             wprowadzający niesie zatwierdzone brzmienie co do słowa, a punkt
+             listy mówi „Korzystasz bez opłat" — nie „Zawsze za darmo".
+
+             To jedyne „bez" w roli głównej myśli w tej sekcji i stąd się bierze:
+             jest zobowiązaniem, którego łamanie byłoby widoczne, a nie zaletą,
+             której nikt nie sprawdzi (§6, reguła końcowa). Punkty listy są
+             twierdzeniami bez wyjątku.
+
+             `<x-kuking-word />` STOI TU RAZ, W AKAPICIE WPROWADZAJĄCYM. Nie
+             dlatego, że istnieje sufit na ekran — ten zniesiono decyzją B2
+             (`GLOS_MARKI.md` §2, PR #398 usunął razem z nim test, który go
+             pilnował). Obowiązuje „raz na akapit, nagłówek albo punkt listy"
+             (§4) i kryterium „marka nie konkuruje z zadaniem". Nazwa stoi
+             w akapicie, bo tam jest PODMIOTEM zobowiązania — to ona się
+             zobowiązuje. W punktach listy byłaby ozdobą: każdy z nich mówi
+             „tu" albo „u nas" i to wystarcza.
 
              Czego tu ŚWIADOMIE NIE MA: zdania tłumaczącego, dlaczego ta sekcja
              jest napisana twierdzeniami. Rodzina D-140 — tekst dla człowieka nie
@@ -122,10 +138,11 @@
              i tu zostaje. --}}
         <h2>Na co możesz liczyć</h2>
         <p>
-            Pod każdym z tych zdań <x-kuking-word /> się podpisuje.
+            <x-kuking-word /> jest bez opłat i bez reklam. Podpisujemy się pod każdym
+            z tych zdań.
         </p>
         <ul>
-            <li><strong>Zawsze za darmo.</strong> Konto, przepisy, zdjęcia i pobranie własnych danych są darmowe i mają darmowe zostać. Gdyby kiedyś zabrakło pieniędzy na serwery, poprosimy o wsparcie wprost — a dorzucenie się będzie Twoim wyborem.</li>
+            <li><strong>Korzystasz bez opłat.</strong> Konto, przepisy, zdjęcia, pobranie własnych danych. Gdyby zabrakło pieniędzy na serwery, poprosimy o wsparcie wprost — dorzucenie się będzie Twoim wyborem.</li>
             <li><strong>Cały ekran należy do gotowania.</strong> Miejsce, w którym inne serwisy stawiają reklamy, u nas zajmuje czyjeś danie.</li>
             <li><strong>Wszystko tutaj napisali ludzie, którzy to gotują.</strong> Każdy przepis i każdy wpis wyszedł z czyjejś kuchni.</li>
             <li><strong>Każdy przepis wpisał tu jego właściciel.</strong> Ze swojego zeszytu, ze swojej głowy albo po mamie — jeden po drugim, ręcznie.</li>
