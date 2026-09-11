@@ -82,14 +82,17 @@
                 a człowiek widzi „Więcej".
 
                 `<x-ikona nazwa="more">` zamiast trzech kropek wpisanych
-                z klawiatury: znak `···` jest tekstem, więc rósł i kurczył
-                się razem z czcionką inaczej niż napis obok i przy 200 %
-                rozjeżdżał się z nim w pionie.
+                z klawiatury. Ten kształt jest w `components/ikona.blade.php`
+                od dawna, pod nazwą `more`, i nie był tu używany. Ikona
+                z komponentu ma rozmiar podany w pikselach, `aria-hidden`
+                i `focusable="false"` z jednego miejsca — znak `···` zależał
+                od tego, jak rysuje go czcionka, i był w treści przycisku
+                jedyną rzeczą do przeczytania.
             --}}
             <details class="post-card-menu">
                 <summary aria-label="Więcej przy tym wpisie">
                     <x-ikona nazwa="more" :rozmiar="24" class="post-card-menu-ikona" />
-                    <span class="post-card-menu-napis">Więcej</span>
+                    <span>Więcej</span>
                 </summary>
                 <div class="post-card-menu-tresc">
                     <a href="{{ $post->url() }}">Otwórz wpis</a>
