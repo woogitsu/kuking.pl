@@ -83,8 +83,11 @@
                 Masz pewnie w telefonie więcej zdjęć — teraz idzie najszybciej,
                 bo już wiesz, jak to działa.
             @else
+                {{-- BEZ „zajmuje mniej niż minutę": obietnica z miarą, której
+                     nie mierzymy. Zostaje to, co jest prawdą niezależnie od
+                     zasięgu — że kolejny wpis robi się tak samo jak ten. --}}
                 <strong>Gotujesz dziś coś jeszcze?</strong>
-                Dodanie kolejnego zdjęcia zajmuje mniej niż minutę.
+                Kolejne dodasz tak samo — zdjęcie i kilka słów.
             @endif
             <p class="mb-0">
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj kolejne zdjęcie</a>

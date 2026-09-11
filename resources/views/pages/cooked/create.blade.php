@@ -53,8 +53,22 @@
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
                  help="Na przykład: „Wyszło pięknie, tylko soli mniej.”" />
 
+        {{-- POMOC MÓWI, CO TU WPISAĆ I GDZIE TO TRAFI, A NIE JAK CZĘSTO
+             KTOŚ TO CZYTA.
+
+             Stało tu „To najczęściej czytana część." — trzecie i ostatnie
+             miejsce tego samego niezmierzonego twierdzenia (dwa pozostałe:
+             `components/recipe-wizard.blade.php` i
+             `pages/recipes/create.blade.php`). Nikt nigdy nie mierzył, co
+             w cudzym wykonaniu czyta się najczęściej, a tutaj zdanie było
+             dodatkowo mylące: „część" znaczyło raz część przepisu, raz część
+             tego formularza.
+
+             Nowe zdanie mówi rzecz sprawdzalną przy kodzie: notatka trafia na
+             kartę wykonania (`components/cooked-card.blade.php`), podpisana
+             dokładnie tak. --}}
         <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
-                 help="Zamiana składnika, inny czas, inna forma. To najczęściej czytana część." />
+                 help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”." />
 
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />

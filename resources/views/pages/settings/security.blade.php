@@ -18,7 +18,7 @@
 
             <x-field name="password" label="Nowe hasło" type="password" required
                      autocomplete="new-password"
-                     help="Co najmniej 10 znaków. Najprościej wpisać trzy słowa, na przykład: zielonapietruszkarano." />
+                     help="Co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu." />
 
             <x-field name="password_confirmation" label="Powtórz nowe hasło" type="password" required
                      autocomplete="new-password" />

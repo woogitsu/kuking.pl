@@ -743,6 +743,29 @@ new class extends Component
         return self::STEP_NAMES[$this->step] ?? '';
     }
 
+    /**
+     * Nagłówek podglądu — ZALEŻNY OD WYBRANEJ WIDOCZNOŚCI.
+     *
+     * Do 11 września 2026 stało tu bezwarunkowe „Podgląd: tak zobaczą to
+     * inni". Przy przepisie oznaczonym „Tylko ja" to była nieprawda:
+     * nikt inny tego nie zobaczy i nie ma go zobaczyć.
+     *
+     * Zdanie zależne, a nie jedno neutralne dla wszystkich trzech przypadków,
+     * bo ekran widoczność ZNA. Wybór stoi w kroku 1 (`visibility`), a na
+     * podgląd wchodzi się przyciskiem „Dalej", czyli przez `next()` — więc
+     * zanim ten nagłówek się wyrenderuje, wartość jest już w stanie
+     * komponentu i po stronie serwera. To nie jest założenie: `next()`
+     * wywołuje `saveDraft()`, a ten zapisuje `visibility` do przepisu.
+     */
+    public function previewHeading(): string
+    {
+        return match ($this->visibility) {
+            'private' => 'Podgląd: tak będziesz widzieć ten przepis',
+            'followers' => 'Podgląd: tak zobaczą to osoby, które Cię obserwują',
+            default => 'Podgląd: tak zobaczą to inni',
+        };
+    }
+
     public function previewServings(): ?float
     {
         return $this->numberOrNull($this->servings);
@@ -762,8 +785,8 @@ new class extends Component
      *     w polu 0,5   → „0 porcji"     (nieprawda o samym sobie — rzut na
      *                                    int obcina połówkę do zera)
      *
-     * Ekran, który nazywa się „tak zobaczą to inni", pokazywał więc coś
-     * innego niż to, co inni naprawdę zobaczą.
+     * Ekran, który obiecuje, że tak wygląda gotowy przepis, pokazywał więc
+     * coś innego niż to, co widać po opublikowaniu.
      */
     public function previewServingsLabel(): ?string
     {
@@ -927,7 +950,16 @@ new class extends Component
         <p class="autosave-badge" data-state="{{ $saveState }}"
            wire:loading.remove wire:target="saveDraft, next, back, publish, addIngredient, addStep, removeIngredient, removeStep">
             @if($saveMessage === '')
-                Szkic zapisuje się sam — po każdym kroku i po chwili przerwy w pisaniu.
+                {{-- STAN POCZĄTKOWY MÓWI O WARUNKU, A NIE O SAMEJ AUTOMATYCE.
+
+                     Stało tu bezwarunkowe „Szkic zapisuje się sam" i było to
+                     nieprawdą dokładnie w tym jednym momencie, w którym ta
+                     plakietka jest widoczna: `saveDraft()` bez nazwy przepisu
+                     NIE ZAPISUJE NICZEGO (warunek `mb_strlen(trim($title)) < 3`
+                     wyżej), a pusty `$saveMessage` znaczy właśnie „jeszcze nic
+                     się nie zapisało". Po pierwszym udanym zapisie stoi tu już
+                     „Szkic zapisany.". --}}
+                Szkic zapisze się, kiedy podasz nazwę przepisu.
             @else
                 {{ $saveMessage }}
             @endif
@@ -962,9 +994,25 @@ new class extends Component
         =============================================================== --}}
         <section class="form-section card">
             <h2 class="form-section-title">Krok 1 z {{ $this::STEPS }}: o przepisie</h2>
+            {{-- JEDEN MODEL DZIAŁANIA NA JEDNYM EKRANIE.
+
+                 Stało tu „Jeśli nie masz teraz czasu — zapisz szkic"
+                 (docs/brand/COPY_STYLE.md §6, zdanie napisane dla formularza
+                 na jednej stronie) — a tuż nad tym zdaniem plakietka mówiła,
+                 że szkic zapisuje się sam. Człowiek dostawał dwa różne opisy
+                 tego, jak ten ekran działa, i żaden z nich nie był pełny.
+
+                 ZMIERZONE, ZANIM WYBRALIŚMY WERSJĘ: autozapis tutaj JEST,
+                 ale nie jest bezwarunkowy. `saveDraft()` chodzi po każdym
+                 kroku i po ~3 s przerwy w pisaniu (`wire:model.live.debounce`
+                 w `x-field` → hook `updated()`), ale bez nazwy przepisu nie
+                 zapisuje nic, a przy błędzie zapisu mówi o tym wprost.
+                 Dlatego PRZYCISK „Zapisz szkic" ZOSTAJE, a znika obietnica
+                 automatu bez warunku — nie odwrotnie. --}}
             <p class="meta mb-4">
-                Wystarczy nazwa, żeby ruszyć dalej.
-                Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz.
+                Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie:
+                szkic zapisuje się sam po każdym kroku i po chwili przerwy w pisaniu,
+                a przycisk „Zapisz szkic” robi to od razu.
             </p>
 
             <x-field name="title" label="Nazwa przepisu" required wire="title"
@@ -1046,8 +1094,13 @@ new class extends Component
 
             <div class="form-section">
                 <h3 class="form-section-title">Skąd ten przepis</h3>
+                {{-- ZDANIE MÓWI, CO TU WPISAĆ, A NIE JAK CZĘSTO TO KTOŚ CZYTA.
+
+                     Stało tu „To najczęściej czytana część przepisu" —
+                     twierdzenie o zachowaniu czytelników, którego nikt nigdy
+                     nie zmierzył i którego nie ma czym pokryć. --}}
                 <p class="meta mb-4">
-                    To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.
+                    Tu napiszesz, po kim jest ten przepis i skąd go znasz.
                 </p>
 
                 <fieldset class="border-0 p-0">
@@ -1067,9 +1120,21 @@ new class extends Component
                          placeholder="po mamie, Halinie"
                          help="Zostanie podpisany nad tytułem: „przepis Haliny, spisany przez Ciebie”." />
 
+                {{-- POMOC JEST PRAWDZIWA PRZY KAŻDEJ Z TRZECH WIDOCZNOŚCI.
+
+                     Stało tu „To zostaje w rodzinie." — nieprawda przy
+                     przepisie publicznym, a taki jest tu domyślny
+                     (`public $visibility = 'public'`). Zdanie zależne od
+                     `visibility` byłoby tutaj gorsze niż neutralne: pole
+                     stoi na tym samym kroku co wybór widoczności, a radia
+                     mają zwykły `wire:model` (bez `.live`), więc wartość
+                     w kolejnej odpowiedzi bywa o jedno kliknięcie z tyłu.
+                     Zdanie zależne od stanu, który chwilami jest nieaktualny,
+                     zamieniłoby jedną nieprawdę na drugą, trudniejszą do
+                     złapania. To jest prawdziwe zawsze. --}}
                 <x-field name="source_note" label="Historia tego przepisu" type="textarea" :rows="4" wire="source_note"
                          :value="$source_note"
-                         help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. To zostaje w rodzinie." />
+                         help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis." />
 
                 <x-field name="family_since_year" label="W rodzinie od roku" type="number" inputmode="numeric" wire="family_since_year"
                          :value="$family_since_year" :min="1850" :max="2100" placeholder="1974" />
@@ -1251,10 +1316,11 @@ new class extends Component
         </section>
     @else
         {{-- ==============================================================
-             Podgląd — dokładnie to, co zobaczą inni
+             Podgląd — dokładnie to, co zobaczy ten, kto ma prawo to zobaczyć.
+             Nagłówek zależy od wybranej widoczności: patrz previewHeading().
         =============================================================== --}}
         <section class="form-section card">
-            <h2 class="form-section-title">Podgląd: tak zobaczą to inni</h2>
+            <h2 class="form-section-title">{{ $this->previewHeading() }}</h2>
             <p class="meta mb-4">
                 Sprawdź spokojnie. Jeśli coś jest nie tak, wróć przyciskiem „Wstecz” — nic nie zginie.
             </p>
@@ -1339,9 +1405,9 @@ new class extends Component
                                     <div>
                                         <span class="visually-hidden">Krok {{ $previewIndex + 1 }}.</span>
                                         <p class="m-0 whitespace-pre-line">{{ $previewRow['instruction'] }}</p>
-                                        {{-- Minutnik i zdjęcie w podglądzie, bo podgląd obiecuje
-                                             „tak zobaczą to inni" — a przy gotowaniu widać jedno
-                                             i drugie. Etykietę liczy `RecipeStep::timerLabel()`,
+                                        {{-- Minutnik i zdjęcie w podglądzie, bo podgląd obiecuje,
+                                             że tak wygląda gotowy przepis — a przy gotowaniu widać
+                                             jedno i drugie. Etykietę liczy `RecipeStep::timerLabel()`,
                                              ten sam kod co w trybie gotowania. --}}
                                         @php($previewTimer = $this->previewTimerLabel($previewRow['timer_minutes']))
                                         @if($previewTimer !== null)

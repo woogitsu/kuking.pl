@@ -35,8 +35,12 @@
         </p>
 
         <p class="notice mb-5">
+            {{-- BEZ „zajmuje minutę": to obietnica z miarą, której nikt nie
+                 mierzy. Skreślona, a nie zastąpiona inną liczbą — informacja,
+                 dla której to zdanie tu stoi, brzmi „to nie jest ten formularz,
+                 w którym jesteś", i ta zostaje w całości. --}}
             Nie masz jeszcze konta? <a href="{{ route('register') }}">Załóż konto</a> —
-            to inny formularz i zajmuje minutę.
+            to inny formularz.
         </p>
 
         <x-error-summary />
