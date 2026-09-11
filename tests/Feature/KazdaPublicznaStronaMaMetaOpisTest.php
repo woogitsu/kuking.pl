@@ -80,6 +80,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'media.show' => 'serwuje binarny wariant zdjęcia, nie stronę HTML',
         'google.start' => 'samo przekierowanie do Google — nie renderuje żadnego HTML-a (D-069)',
         'google.callback' => 'powrót z Google, zawsze kończy się przekierowaniem — nie renderuje HTML-a (D-069)',
+        'facebook.start' => 'samo przekierowanie do Facebooka — nie renderuje żadnego HTML-a (#259, D-098)',
+        'facebook.callback' => 'powrót z Facebooka: przekierowanie albo ekran „Facebook nie podał nam adresu" (auth/facebook-bez-adresu.blade.php, noindex) — własnego adresu do zaindeksowania nie ma (#259)',
     ];
 
     /**
@@ -117,6 +119,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         // i `resources/views/auth/google-link.blade.php`.
         'google.finish' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-finish.blade.php',
         'google.link' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-link.blade.php',
+        'facebook.finish' => 'wymaga tożsamości z Facebooka w sesji; noindex w auth/facebook-finish.blade.php',
+        'facebook.link' => 'wymaga tożsamości z Facebooka w sesji i zalogowania; noindex w auth/facebook-link.blade.php',
     ];
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void

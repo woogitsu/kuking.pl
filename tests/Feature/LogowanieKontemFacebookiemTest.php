@@ -7,11 +7,12 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\TozsamoscZewnetrzna;
-use App\Notifications\PotwierdzenieAdresu;
 use App\Models\User;
+use App\Notifications\PotwierdzenieAdresu;
 use App\Support\Facebook;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
@@ -1007,7 +1008,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         $this->wracamyZFacebooka();
 
-        Http::assertSent(function (\Illuminate\Http\Client\Request $zadanie): bool {
+        Http::assertSent(function (Request $zadanie): bool {
             if (! str_contains($zadanie->url(), '/me')) {
                 return false;
             }

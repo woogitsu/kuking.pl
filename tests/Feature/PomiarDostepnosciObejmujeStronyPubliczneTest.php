@@ -111,6 +111,32 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
         'wejdz/google/wroc' => 'powrót z Google — `callback()` zwraca RedirectResponse, nie ma strony',
         'wejdz/google/domknij' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Google w sesji — automat jej nie założy',
         'wejdz/google/polacz' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Google w sesji — automat jej nie założy',
+
+        /*
+         * WEJŚCIE KONTEM FACEBOOKA (#259, D-098) — ten sam podział i te same
+         * dwa powody, co przy Google wyżej. Nie powtarzam wywodu; powtarzam
+         * jedno zdanie, które się przez to ZMIENIŁO:
+         *
+         * dług przestał być długiem jednego dostawcy. Ekranów, których
+         * automat nie ogląda z powodu „tożsamość siedzi w sesji", są teraz
+         * CZTERY, nie dwa — i będzie ich sześć przy trzecim dostawcie.
+         * Atrapa dostawcy tożsamości była przy Google osobną pracą wartą
+         * odłożenia; przy dwóch dostawcach zaczyna być tańsza niż to, co
+         * przez jej brak pozostaje niezmierzone. To jest jedyna rzecz,
+         * którą ta pozycja dokłada do rozstrzygnięcia z 11 września —
+         * i celowo NIE rozstrzygam jej tutaj, w tablicy wyjątków.
+         *
+         * Czego ta pozycja NIE znaczy: że te ekrany nie były oglądane wcale.
+         * `facebook-finish` i `facebook-link` mają testy funkcjonalne
+         * (`LogowanieKontemFacebookiemTest`), a reguły 50+ — rozmiar tekstu,
+         * rozmiar przycisku, ikona nigdy sama — pilnuje osobny zestaw
+         * testów tekstów. Niezmierzone jest tu axe-core na żywym HTML-u,
+         * i tylko to.
+         */
+        'wejdz/facebook' => 'przekierowanie do Facebooka — `start()` zwraca RedirectResponse, nie ma strony',
+        'wejdz/facebook/wroc' => 'powrót z Facebooka — `callback()` zwraca RedirectResponse albo ekran bez własnego adresu, nie ma czego otworzyć',
+        'wejdz/facebook/domknij' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Facebooka w sesji — automat jej nie założy',
+        'wejdz/facebook/polacz' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Facebooka w sesji i zalogowania — automat ani jednego, ani drugiego nie założy',
     ];
 
     /** Adresy wymienione w `EKRANY` w automacie dostępności. */

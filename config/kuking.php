@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Support\Facebook;
 
 /*
 |--------------------------------------------------------------------------
@@ -983,7 +984,7 @@ return [
          * bez numeru wersji idzie u Meta na wersję NAJSTARSZĄ Z ŻYWYCH —
          * czyli tę, która wygaśnie najszybciej.
          */
-        'wersja_grafu' => (string) env('FACEBOOK_GRAPH_WERSJA', \App\Support\Facebook::WERSJA_GRAFU_DOMYSLNA),
+        'wersja_grafu' => (string) env('FACEBOOK_GRAPH_WERSJA', Facebook::WERSJA_GRAFU_DOMYSLNA),
 
         /*
          * Ile sekund czekamy na odpowiedź Facebooka. Ten sam wywód i ta sama
