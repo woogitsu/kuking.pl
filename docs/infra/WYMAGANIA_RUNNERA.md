@@ -52,6 +52,15 @@ trafiałyby także na nią.
 > etykietach jest więc rozdzieleniem REJESTRACJI, nie maszyn. Dla Postgresa
 > przestało to mieć znaczenie (sekcja 2), ale dla obciążenia maszyny — ma.
 
+> **ZMIERZONE 10 i 11 września: te sześć etykiet NIE JEST DZIŚ WYMAGANE.**
+> W API joby `ci.yml` mają `labels: ["self-hosted"]` (przebiegi 34473498102
+> i 34568992225), czyli zmienna repozytorium `CI_RUNS_ON` jest ustawiona na
+> samo `self-hosted`. Przebiegi trafiają wobec tego na **starą pulę WSL-ową**
+> `kuking-wsl-DOM-NEW-01`–`-03` — trzy rejestracje na jednej maszynie — czyli
+> dokładnie tam, przed czym ostrzega nagłówek `ci.yml`. Jeśli pula
+> `woogitsu-linux-*` ma znowu przyjmować joby, trzeba poprawić tę zmienną;
+> samo `ci.yml` jest na to gotowe.
+
 ---
 
 ## 2. Port Postgresa jest DYNAMICZNY — wiele runnerów na jednej maszynie jest OK
@@ -162,6 +171,19 @@ a joby mają `timeout-minutes` od 10 do 30.
 Do tego **Composer 2** (`tools: composer:v2`) — akcja dociąga go sama,
 o ile ma sieć.
 
+**I do 11 września 2026 dociągała go w miejsce WSPÓLNE dla całej maszyny**
+(`/usr/local/bin`), nadpisując plik, który sąsiedni job mógł w tej samej
+sekundzie wykonywać. Tak wyglądało issue #262: kod wyjścia 126 na
+`composer install` i `bad interpreter: Text file busy`, bez ani jednego
+uruchomionego testu. Dziś każdy job dostaje własny katalog narzędzi (krok
+„Własny katalog narzędzi PHP" w `ci.yml`) — objaw, rozpoznanie i to, co
+zostaje po stronie maszyny, opisuje `SELF_HOSTED_RUNNER.md`, sekcja
+„composer: bad interpreter: Text file busy".
+
+Rekomendacja wstępnej instalacji PHP wyżej ma więc drugie uzasadnienie, nie
+tylko czas: **gotowa wersja z gotowymi rozszerzeniami to krok, który niczego
+na maszynie nie podmienia.**
+
 ---
 
 ## 5. Node — 22
@@ -171,7 +193,12 @@ NODE_VERSION: 22     (ci.yml:69)
 ```
 
 Stawiany przez `actions/setup-node@v7` z `cache: npm`. Wymaga sieci do
-`registry.npmjs.org`. Joby: `assets`, `dostepnosc`, `audit`, a w `deploy.yml`
+`registry.npmjs.org`. **Nie przestawiaj `RUNNER_TOOL_CACHE`
+ani `AGENT_TOOLSDIRECTORY` na katalog wspólny dla kilku rejestracji runnera.**
+Zmierzone 10.09.2026 w logu joba dostępności: Node siedzi w `_work/_tool`
+KAŻDEGO runnera osobno (`Found in cache @ …/actions-runner-kuking-03/_work/_tool/node/22.23.2/x64`),
+a jeden runner wykonuje jeden job naraz — dlatego wyścig z #262 dotyczył
+Composera, a nie Node'a. Wspólny toolcache przeniósłby go na binarkę Node'a. Joby: `assets`, `dostepnosc`, `audit`, a w `deploy.yml`
 job `operate` dokłada `npm install -g @railway/cli` — czyli **globalna
 instalacja npm musi się udać bez `sudo`** (prefiks npm w katalogu domowym
 użytkownika runnera albo nvm).

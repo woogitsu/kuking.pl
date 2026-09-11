@@ -6,6 +6,78 @@
 jedyna zmiana to nowy plik testu, który ten pomiar wykonuje
 (`tests/Feature/PomiarZapytanAutoryzacjiZdjeciaTest.php`).
 
+> ## ⚠️ STAN PO POPRAWCE, 11.09.2026 — liczby niżej opisują kod SPRZED NIEJ
+>
+> Wszystko poniżej zostaje bez zmian, bo jest punktem odniesienia. Kroki 1
+> i 2 z sekcji „Co proponuję zrobić dalej" są już **wykonane** i zmieniły
+> zmierzone liczby:
+>
+> | Scenariusz | Przed | Po | Zmiana |
+> |---|---|---|---|
+> | jedno zdjęcie, widz zalogowany nie-właściciel | 15 | **6** | −60% |
+> | strona feedu z 3 zdjęciami | 45 | **18** | −60% |
+> | strona feedu z 30 zdjęciami | 450 | **180** | −60% |
+> | ekstrapolacja: 150 zdjęć (budżet z `ZdjeciaLimitZapytanTest`) | 2 250 | **900** | −60% |
+>
+> Zmierzone tym samym testem, który wypisuje `[MEDIA-03 pomiar]`. Jego progi
+> zjechały przy okazji z 18 i 20 na 8, żeby pilnowały nowego stanu, a nie
+> starego — przeciwko kodowi sprzed poprawki oblewają się na
+> `Failed asserting that 15 is less than 8`.
+>
+> Co dokładnie się zmieniło:
+>
+> 1. **`MediaController` nie liczy grafu uprawnień dwa razy.** Nowa metoda
+>    `DostepDoZdjecia::rozstrzygnij()` odpowiada w jednym przejściu po
+>    rodzicach na oba pytania kontrolera — „czy może ten widz" (404) i „czy
+>    zobaczyłby anonim" (`Cache-Control`) — i zwraca `DecyzjaOZdjeciu`.
+>    Wspólne są WIERSZE RODZICÓW, nie decyzja: `Gate` pytany jest dalej osobno
+>    dla widza i osobno dla anonima, bo te odpowiedzi rozjeżdżają się w OBIE
+>    strony (zablokowany nie widzi zdjęcia, które anonim widzi; autor widzi
+>    zdjęcie swojego prywatnego przepisu, którego anonim nie widzi).
+>    Oszczędność: −6 zapytań na żądanie.
+> 2. **Nie pytamy tabel, które tego zdjęcia nawet nie wspominają.** Jedno
+>    zapytanie `UNION` mówi, w których z pięciu tabel stoi ten identyfikator;
+>    wiersze rodziców czytamy tylko z nich. Zamiast pięciu stałych
+>    `SELECT`-ów jest `1 + liczba tabel, które to zdjęcie naprawdę mają` —
+>    dla zdjęcia wpisu i dla awatara dwa, dla zdjęcia osieroconego jeden.
+>    Oszczędność: −3 zapytania na zdjęciu wpisu, −4 na awatarze.
+>
+> Zapytanie `UNION` **nie jest autoryzacją** i nie zna widoczności: nie
+> patrzy na `deleted_at`, `visibility`, blokady ani status autora. Odpowiada
+> wyłącznie „warto zajrzeć do tej tabeli"; wiersz rodzica wczytuje potem
+> Eloquent — z globalnym scope'em `SoftDeletes` — a wpuszcza dopiero `Gate`,
+> czyli te same Policy, które pilnują stron HTML.
+>
+> Pilnuje tego
+> `tests/Feature/AutoryzacjaZdjeciaJednymPrzejsciemTest.php::test_zdjecie_wpisu_skasowanego_przez_autora_nie_wraca_przez_pivot`
+> — test, który powstał z kontroli ujemnej, jaka NIE oblała. Sabotaż
+> `Post::query()` → `Post::withTrashed()` w resolverze przeszedł cały
+> `ZdjeciaChronioneNieWyciekajaTest` na zielono, bo tamten plik pokrywa
+> decyzje MODERACYJNE (`hidden`, `removed`), a nie miękkie skasowanie wpisu
+> przez autora. To była luka w pokryciu, nie zły sabotaż (PULAPKI_TESTOW.md
+> §3) — więc brakująca asercja stanęła w nowym pliku.
+>
+> Druga kontrola ujemna, która nie oblała i też czegoś nauczyła: sabotaż
+> „zignoruj wynik zapytania rozpoznającego i przejdź wszystkie pięć tabel"
+> przeszedł test zdjęcia WPISU, bo dla wpisu rodzic z pierwszej tabeli
+> odpowiada od razu na oba pytania i pętla przerywa się na nim — generator
+> nigdy nie dochodzi do reszty. Dlatego zapytania rozpoznającego pilnuje
+> osobny test na AWATARZE (`profiles` jest trzecią tabelą na liście), a nie
+> na wpisie.
+>
+> **Krok 3 (cache decyzji) nadal NIE jest zrobiony i nadal nie jest
+> proponowany** — z tego samego powodu co niżej: unieważnianie musiałoby
+> objąć cztery zdarzenia, a każde pominięte znaczy pokazanie zdjęcia, którego
+> ktoś nie ma prawa zobaczyć. Po redukcji do 6 zapytań na zdjęcie nie ma
+> zmierzonej potrzeby, a `AGENTS.md` §3 wymaga jej przed nowym mechanizmem.
+> Dolny próg w teście pomiarowym (`assertGreaterThanOrEqual(4, …)`) jest teraz
+> także strażnikiem tej granicy: decyzja schowana do pamięci podręcznej zbiłaby
+> liczbę zapytań pod cztery i zapali czerwone.
+>
+> **Czego ta poprawka NIE dotknęła:** liczby ŻĄDAŃ HTTP o obrazki. Druga
+> połowa tytułu issue #286 („feed generuje 100+ żądań obrazków") zostaje
+> otwarta — patrz sekcja „Co zostaje otwarte" na końcu tego dokumentu.
+
 ## Dlaczego ten dokument w ogóle powstał
 
 Audyt zewnętrzny (trzecia warstwa) postawił hipotezę: „autoryzacja jednego
@@ -210,3 +282,38 @@ ten dokument trzyma oba testy razem, nie tylko pierwszy.
 - Kosztu zapytań poza autoryzacją (limiter, sesja, CDN) — mierzone jest
   wyłącznie `DostepDoZdjecia`/`PostPolicy` plus nieuniknione minimum
   (routing, `ostatnio_widziany_at`).
+
+---
+
+## Co zostaje otwarte po poprawce z 11.09.2026
+
+Tytuł issue #286 ma dwie połowy i poprawka dotyczy pierwszej:
+„autoryzacja jednego zdjęcia to co najmniej 5 zapytań" — **zamknięte**
+(15 → 6 zapytań na zdjęcie). Druga połowa, „a feed generuje 100+ żądań
+obrazków", **zostaje otwarta**: zmniejszyliśmy koszt JEDNEGO żądania, nie
+liczbę żądań.
+
+**Zmierzone 11.09.2026, żeby nie zostawiać tej połowy bez liczby.** Jedna
+strona `/home` dla widza obserwującego pięć osób, 15 wpisów na stronie
+(`config('kuking.feed.page_size')`), po jednym zdjęciu na wpis plus awatary
+autorów: **94 wystąpienia adresu `media.show` w HTML-u, z czego 49 adresów
+UNIKALNYCH**. Tyle właśnie żądań HTTP wyśle przeglądarka na zimnym cache
+(identyczne adresy dedupikuje sama; 94 to `srcset` z dwoma wariantami tego
+samego zdjęcia). Wpis z czterema zdjęciami mnoży tę liczbę — stąd „100+"
+w issue i stąd limit `600,1` w `config('kuking.limits.zdjecie')`.
+
+Co ta poprawka dała na tej samej stronie: **49 × 6 = 294 zapytania** zamiast
+**49 × 15 = 735**.
+
+Czego świadomie NIE zrobiono w tej poprawce i dlaczego:
+
+- **Zmniejszenie liczby żądań obrazków** (np. jeden podpisany adres na całą
+  stronę, sklejanie wariantów, zmiana `srcset`) to zmiana w widokach
+  i w kształcie trasy `media.show`, nie w autoryzacji — inny zakres, inne
+  ryzyko (adres zdjęcia jest dziś jedynym miejscem, w którym pytamy Policy
+  o bajty) i osobna decyzja. To jest kandydat na osobne issue.
+- **Cache decyzji o widoczności** — krok 3, nadal niepotrzebny i nadal
+  wymagający unieważniania przy czterech zdarzeniach (patrz wyżej).
+- **Redis** — `AGENTS.md` §3 wymaga zmierzonej potrzeby, a po tej poprawce
+  potrzeby nie ma; sam audyt stawia to wprost: „nie jest to argument «dodaj
+  Redis»; jest to argument «nie generuj pięciu lookupów na obrazek»".
