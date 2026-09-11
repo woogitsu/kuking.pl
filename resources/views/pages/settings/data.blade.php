@@ -116,13 +116,21 @@
                     w ogóle.</li>
             </ul>
 
-            <p>
-                Zostaje, bo to jest już także cudza historia: ktoś odpowiedział
-                Ci w komentarzu, ktoś ugotował z Twojego przepisu i ma go
-                w swoim zeszycie. Skasowanie tego zabrałoby coś ludziom, którzy
-                o nic nie prosili.
-            </p>
+            {{-- STAŁO TU KAZANIE, NIE INFORMACJA (audyt tekstów 11.09.2026).
 
+                 „Zostaje, bo to jest już także cudza historia: ktoś
+                 odpowiedział Ci w komentarzu, ktoś ugotował z Twojego przepisu
+                 i ma go w swoim zeszycie. Skasowanie tego zabrałoby coś
+                 ludziom, którzy o nic nie prosili."
+
+                 Ostatnie zdanie mówiło człowiekowi, co byłoby nie w porządku,
+                 gdyby wybrał drugą opcję — na ekranie, na którym ma wybrać.
+                 Uzasadnienie domyślnego zakresu usunięcia jest decyzją D-022
+                 i mieszka w `docs/DECISIONS.md`, nie przy haczyku.
+
+                 Zdania o FAKTACH nie zniknęły: co dokładnie zostaje, a co
+                 znika, mówią trzy listy w tej sekcji; że przepis może być
+                 w cudzym zeszycie, mówi lista niżej. --}}
             <p><strong>Znikną razem z resztą — jeśli zaznaczysz haczyk niżej:</strong></p>
             <ul>
                 <li>Wszystkie Twoje przepisy, wpisy, komentarze, wykonania
@@ -132,12 +140,15 @@
                     albo wpisem, znikną razem z nim.</li>
             </ul>
 
+            {{-- „Dlatego haczyk jest domyślnie pusty" mówiło, CZEMU tak
+                 zrobiliśmy. Że haczyk jest pusty, człowiek widzi niżej sam;
+                 powód stoi w D-022. Fakty zostają: tego nie da się odwrócić,
+                 i co zrobić, jeśli chce usunąć tylko część. --}}
             <p>
-                Tego nie da się odwrócić. Dlatego haczyk jest domyślnie pusty —
-                skasowanego tekstu nikt już nie przywróci. Jeśli chcesz usunąć
-                tylko wybrane przepisy albo wpisy, usuń je samodzielnie, zanim
-                skasujesz konto: później nie będzie już jak, bo do usuniętego
-                konta nie da się zalogować.
+                Tego nie da się odwrócić — skasowanego tekstu nikt już nie
+                przywróci. Jeśli chcesz usunąć tylko wybrane przepisy albo
+                wpisy, usuń je samodzielnie, zanim skasujesz konto: później nie
+                będzie już jak, bo do usuniętego konta nie da się zalogować.
             </p>
         </div>
         <p><strong>Zanim to zrobisz, warto najpierw pobrać swoje dane.</strong></p>
