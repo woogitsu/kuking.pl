@@ -1,4 +1,17 @@
 <x-layout title="Dodaj zdjęcie" :noindex="true">
+    {{-- Zakładki „Zdjęcie i kilka słów” / „Cały przepis” (issue #366).
+
+         STOJĄ PRZED NAGŁÓWKIEM I TO JEST CAŁA ICH ROBOTA. Osiem z jedenastu
+         drzwi do dodawania prowadzi prosto tutaj — kafel na `/home`, pusty
+         stan feedu, „Dodaj zdjęcie” na profilu, pusty stan profilu, `/tag/…`,
+         pusty stan `/odkryj`, koniec onboardingu i „Dodaj kolejne zdjęcie”
+         pod wpisem. Wchodzący którymikolwiek z nich ma zobaczyć, że jest też
+         druga możliwość, ZANIM zacznie wypełniać ten formularz.
+
+         To odnośnik, nie przełącznik przebudowujący pola: uzasadnienie stoi
+         w komentarzu samego komponentu. --}}
+    <x-zakladki-dodawania aktywna="zdjecie" />
+
     <h1>Dodaj zdjęcie</h1>
     <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
