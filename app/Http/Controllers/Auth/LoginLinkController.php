@@ -211,8 +211,14 @@ class LoginLinkController extends Controller
             // ochrona przed pytaniem „kto ma konto w Kuking" (D-056). Ale
             // zdanie jest teraz WARUNKOWE i prawdziwe w obu przypadkach,
             // a na końcu ma wyjście dla tego drugiego.
+            // KOLOR NIE JEST DROGĄ DO PRZYCISKU (WCAG 2.2 AA, 1.4.1), ale
+            // ETYKIETY TEŻ TU NIE WOLNO PODAĆ: konto pod tym adresem dostaje
+            // list „Zaloguj mnie w Kuking", a adres bez konta — „Załóż konto
+            // w Kuking". Nazwanie przycisku zdradziłoby dokładnie to, czego
+            // D-056 zabrania zdradzać. Zostaje opis, który jest prawdziwy
+            // w obu listach i nie zależy od koloru: JEDEN przycisk.
             'Jeśli na adres '.AdresEmail::maska($adres).' jest konto w Kuking, wysłaliśmy tam '
-            .'wiadomość z zielonym przyciskiem — otwórz ją na tym samym telefonie albo komputerze. '
+            .'wiadomość z jednym przyciskiem — otwórz ją na tym samym telefonie albo komputerze. '
             .'Nie ma jej po kilku minutach? Sprawdź folder „Spam”. A jeśli nie masz jeszcze konta, '
             .'załóż je: '.route('register'),
         );
