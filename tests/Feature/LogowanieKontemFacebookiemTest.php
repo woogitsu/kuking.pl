@@ -9,6 +9,7 @@ use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -474,7 +475,84 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertStringContainsString('Połącz konto Facebooka', $status);
     }
 
-    /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */
+    /**
+     * Właściciel konta DOWIADUJE SIĘ o próbie — bo odmowę widzi tylko ten,
+     * kto ją wywołał.
+     */
+    #[Test]
+    public function test_odmowa_powiadamia_wlasciciela_konta(): void
+    {
+        $this->wlaczFacebooka();
+
+        $basia = $this->user('basia', [
+            'email' => 'basia@example.test',
+            'email_verified_at' => now(),
+        ]);
+
+        $this->wracamyZFacebooka();
+
+        Notification::assertSentTo($basia, ProbaWejsciaKontemFacebooka::class);
+    }
+
+    /**
+     * TEN TEST PILNUJE NAJWAŻNIEJSZEJ RZECZY W TYM LIŚCIE: że list jest
+     * POWIADOMIENIEM, A NIE KLUCZEM.
+     *
+     * Odnośnik „to ja, połącz konta" byłby wygodny i byłby dziurą, przez
+     * którą przechodzi dokładnie ten atak, przed którym stoi odmowa: obcy
+     * wpisuje cudzy adres w swoim koncie na Facebooku, a MY wysyłamy
+     * właścicielowi wiarygodny list, którym ten jednym kliknięciem oddaje
+     * obcemu wejście na swoje konto. Napastnik nie musiałby nawet mieć
+     * dostępu do skrzynki.
+     *
+     * Sprawdzamy TREŚĆ listu, nie deklarację w komentarzu.
+     */
+    #[Test]
+    public function test_list_nie_niesie_odnosnika_ktory_cokolwiek_laczy(): void
+    {
+        $this->wlaczFacebooka();
+
+        $basia = $this->user('basia', ['email' => 'basia@example.test']);
+
+        $tresc = (string) (new ProbaWejsciaKontemFacebooka)->toMail($basia)->render();
+
+        $this->assertStringContainsString(route('login'), $tresc,
+            'List ma prowadzić na zwykłe logowanie — bez tego człowiek nie wie, co zrobić.');
+
+        foreach (['facebook.link', 'facebook.link.store', 'facebook.start', 'facebook.callback'] as $trasa) {
+            $this->assertStringNotContainsString(route($trasa), $tresc,
+                "List niesie odnośnik do trasy `{$trasa}` — a żaden list nie ma u nas prawa "
+                .'nieść uprawnienia do zmiany stanu konta.');
+        }
+    }
+
+    /**
+     * Jeden list na godzinę na konto — inaczej ta funkcja jest zdalnym
+     * zalewaniem cudzej skrzynki.
+     *
+     * Ogranicznik trasy liczy żądania NAPASTNIKA i jego nie boli; zalewana
+     * jest skrzynka OFIARY, więc licznik musi stać przy koncie odbiorcy.
+     */
+    #[Test]
+    public function test_drugie_podejscie_w_ciagu_godziny_nie_wysyla_drugiego_listu(): void
+    {
+        $this->wlaczFacebooka();
+
+        $basia = $this->user('basia', ['email' => 'basia@example.test']);
+
+        $this->wracamyZFacebooka();
+        $druga = $this->wracamyZFacebooka();
+
+        Notification::assertSentToTimes($basia, ProbaWejsciaKontemFacebooka::class, 1);
+
+        // A ODPOWIEDŹ JEST TAKA SAMA. Gdyby pominięcie listu było widoczne
+        // z zewnątrz, dałoby się nim sprawdzać, czy konto istnieje — czyli
+        // pominięcie rozwiązałoby jeden problem i otworzyło drugi (D-056).
+        $druga->assertRedirect(route('login'));
+        $this->assertStringContainsString('jest już konto', (string) session('status'));
+    }
+
+    /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */    /** To samo dla konta z adresem NIEPOTWIERDZONYM (atak z wyprzedzeniem, #317). */
     #[Test]
     public function test_konta_z_niepotwierdzonym_adresem_tez_nie_laczymy(): void
     {

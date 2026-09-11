@@ -12,6 +12,7 @@ use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
 use App\Support\Facebook;
@@ -20,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -354,6 +356,8 @@ class FacebookLoginController extends Controller
              * i tak idzie na cudzą skrzynkę, nie do niego).
              */
             Log::warning('Odmowa: adres z Facebooka należy do istniejącego konta Kuking.');
+
+            $this->powiadomOProbie($istniejace);
 
             return redirect()->route('login')->with('status',
                 'Na adres e-mail z Twojego Facebooka jest już konto w Kuking, ale Facebook nie potwierdza nam, '
@@ -713,6 +717,57 @@ class FacebookLoginController extends Controller
      * `https://kuking.pl/wejdz/facebook/wroc`). Zmiana tej trasy wymaga
      * zmiany także tam — i powiadomienia właściciela.
      */
+    /**
+     * List do właściciela konta: „ktoś próbował wejść Twoim adresem".
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DLACZEGO TEN LIST W OGÓLE IDZIE
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Odmowę wyżej widzi WYŁĄCZNIE ten, kto ją wywołał. Właściciel konta nie
+     * dowiadywał się o próbie w ogóle — ani wtedy, gdy sam kliknął nie ten
+     * przycisk (i odbił się bez wiedzy, co dalej), ani wtedy, gdy zrobił to
+     * ktoś obcy. Ten list jest jedynym sygnałem, jaki do niego dociera.
+     *
+     * JEST POWIADOMIENIEM, NIE KLUCZEM — nie niesie żadnego odnośnika, który
+     * cokolwiek łączy albo loguje. Pełne uzasadnienie stoi w klasie
+     * `ProbaWejsciaKontemFacebooka` i sprowadza się do tego, że odnośnik
+     * „to ja, połącz konta" zamieniłby ten list w narzędzie przejęcia konta:
+     * obcy wpisuje cudzy adres w swoim koncie na Facebooku, a MY wysyłamy
+     * właścicielowi wiarygodną wiadomość, którą ten jednym kliknięciem oddaje
+     * mu wejście.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  JEDEN LIST NA GODZINĘ NA KONTO
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Bez tego ograniczenia ta funkcja jest zdalnym zalewaniem cudzej
+     * skrzynki: wystarczy w kółko wracać na adres powrotu. Ogranicznik trasy
+     * (`throttle:facebook_wejscie`) liczy żądania NAPASTNIKA i jego nie boli;
+     * zalewana jest skrzynka OFIARY, więc licznik musi stać przy koncie
+     * odbiorcy, nie przy adresie IP nadawcy.
+     *
+     * `Cache::add()` zapisuje tylko wtedy, gdy klucza jeszcze nie ma, i oddaje
+     * `false`, gdy już był — czyli jest tu jednocześnie sprawdzeniem
+     * i zajęciem miejsca, bez wyścigu między dwoma równoległymi żądaniami.
+     * Ten sam wzorzec co w `DziennyBudzetListow`.
+     *
+     * D-056 TO PRZEŻYWA: odpowiedź jest taka sama niezależnie od tego, czy
+     * list poszedł, czy został pominięty — nic tu nie wraca do przeglądarki.
+     */
+    private function powiadomOProbie(User $wlasciciel): void
+    {
+        $klucz = 'fb-proba-wejscia:'.$wlasciciel->getKey();
+
+        if (Cache::add($klucz, 1, now()->addHour()) !== true) {
+            Log::info('Powiadomienie o próbie wejścia kontem Facebooka pominięte — wysłane w ciągu ostatniej godziny.');
+
+            return;
+        }
+
+        $wlasciciel->notify(new ProbaWejsciaKontemFacebooka);
+    }
+
     private function adresPowrotu(): string
     {
         return route('facebook.callback');
