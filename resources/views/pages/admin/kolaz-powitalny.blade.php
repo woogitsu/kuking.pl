@@ -69,15 +69,29 @@
                  wnosi żadnego nowego WZORCA wyglądu, tylko układa w rząd rzeczy,
                  które panel już ma. Nowa klasa w `app.css` byłaby tu jedną
                  regułą więcej do utrzymania przy zerowym zysku.
+
                  `flex-none` na miniaturze celowo: domyślne `flex-shrink` zgniata
-                 element o zadanym rozmiarze, gdy tekst obok jest długi. --}}
+                 element o zadanym rozmiarze, gdy tekst obok jest długi.
+
+                 MINIATURA W PIKSELACH (`w-[96px]`), NIE W `rem` (`w-24`) —
+                 POPRAWKA PO POMIARZE, nie estetyka. `w-24` to 6rem, czyli przy
+                 czcionce przeglądarki 200% dwa razy więcej: 192 px.
+                 Zmierzone automatem dostępności na pierwszej wersji tego ekranu:
+                 `scrollWidth` 429 px przy oknie 320, 360 i 414 px — strona
+                 przewijała się w bok, czyli naruszenie WCAG 2.2 AA 1.4.10
+                 (Reflow) na wszystkich trzech szerokościach telefonu.
+                 Zdjęcie nie jest tekstem i nie ma powodu rosnąć razem z nim —
+                 tak samo rozwiązuje to `.miniatura-64` w panelu tablicy dnia.
+                 `flex-wrap` dokłada drugie zabezpieczenie: gdy na opis zostaje
+                 za mało miejsca, schodzi on pod miniaturę zamiast rozpychać
+                 wiersz. --}}
             <ul class="flex flex-wrap gap-5 list-none p-0 m-0">
                 @foreach($podglad as $kafel)
-                    <li class="flex gap-3 items-center">
+                    <li class="flex flex-wrap gap-3 items-center">
                         <img src="{{ $kafel['media']->url('thumb') }}"
                              alt="Zdjęcie {{ $loop->iteration }} z kolażu — autor: {{ $kafel['autor']->displayName() }}"
                              width="96" height="96"
-                             class="w-24 h-24 object-cover rounded-lg flex-none"
+                             class="w-[96px] h-[96px] object-cover rounded-lg flex-none"
                              loading="lazy">
                         <span class="min-w-0">
                             <span class="choice-label">{{ $kafel['autor']->displayName() }}</span>
@@ -115,11 +129,11 @@
                             <input id="zdjecie-{{ $zdjecie->getKey() }}" type="checkbox" name="zdjecia[]"
                                    value="{{ $zdjecie->getKey() }}"
                                    @checked(in_array((string) $zdjecie->getKey(), $wybrane, true))>
-                            <span class="flex gap-3 items-start flex-1">
+                            <span class="flex flex-wrap gap-3 items-start flex-1">
                                 <img src="{{ $zdjecie->url('thumb') }}"
                                      alt=""
                                      width="96" height="96"
-                                     class="w-24 h-24 object-cover rounded-lg flex-none"
+                                     class="w-[96px] h-[96px] object-cover rounded-lg flex-none"
                                      loading="lazy">
                                 <span class="min-w-0">
                                     <span class="choice-label">{{ $wpis->author->displayName() }}</span>

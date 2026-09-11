@@ -78,12 +78,9 @@
     $wKarcie ??= ! request()->routeIs('landing');
 @endphp
 
-<section @class([
-    'card' => $wKarcie,
-    'kuking-board',
-    'kuking-board-w-pasie' => ! $wKarcie,
-    'mb-6' => $wKarcie,
-]) aria-labelledby="kuking-na-dzis">
+{{-- `card` i `mb-6` TYLKO tam, gdzie tablica stoi obok innych kart. W pasie
+     na stronie powitalnej tło i wcięcie daje sam pas — patrz `wKarcie` wyżej. --}}
+<section @class(['card' => $wKarcie, 'kuking-board', 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
     <h2 @class(['mt-0', 'text-title-lg' => ! $wKarcie]) id="kuking-na-dzis">
         @if($graSlowem)
             <x-kuking-word forma="i" /> na dziś

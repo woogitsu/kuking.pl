@@ -2579,17 +2579,6 @@
     --tablica-odstep: var(--spacing-4);
   }
 
-  /* TABLICA W PASIE NIE JEST KARTĄ (zgłoszenie właściciela).
-     Na stronie powitalnej hierarchię buduje tło pasa (`.pas`), a tablica była
-     tam JEDYNĄ sekcją z własną kartą w środku pasa — czyli kartą w karcie.
-     Klasę `card` zdejmuje widok (`kuking-board.blade.php`, prop `wKarcie`);
-     tutaj zostaje tylko to, co karta dawała poza tłem: odstęp pod sekcją.
-     W szynie i na `/odkryj` tablica sąsiaduje z innymi kartami i karty nie
-     traci. */
-  .kuking-board-w-pasie {
-    margin-bottom: 0;
-  }
-
   .kuking-board-subtitle {
     /* To jest <h3>, nagłówek sekcji stojący samodzielnie nad listą — nagłówek
        mniejszy od tekstu, który zapowiada, czyta się jak drobny druk (#110). */
