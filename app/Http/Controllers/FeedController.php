@@ -23,9 +23,11 @@ class FeedController extends Controller
      * częścią ekranu i ma pokazywać mniej niż gdzie indziej.
      *
      * DLACZEGO OBCINAMY TUTAJ, A NIE W `DailyBoard`
-     * `DailyBoard::PEOPLE`/`POSTS` (po 4) i sam limit tej klasy dotyczą
-     * WSZYSTKICH trzech ekranów, które z niej korzystają: `/home`, `/odkryj`
-     * i `/szukaj`. Zmiana limitu tam zmieniłaby też to, co widzi zalogowany
+     * Sufit `DailyBoard::PEOPLE`/`POSTS` dotyczy WSZYSTKICH trzech ekranów,
+     * które z tej klasy korzystają: `/home`, `/odkryj` i `/szukaj`. Samej
+     * liczby świadomie tu nie przepisuję — stała już raz w tym komentarzu
+     * i zestarzała się w dniu, w którym sufit poszedł z czterech na sześć.
+     * Zmiana limitu tam zmieniłaby też to, co widzi zalogowany
      * — a decyzja właściciela dotyczy wyłącznie gościa. Do tego wybór
      * redakcyjny (`Admin\DailyBoardController::update()`) nie ma górnej
      * sumy: gospodarz może wskazać do 6 osób I do 6 dań na raz, czyli do
