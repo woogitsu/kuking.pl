@@ -92,17 +92,28 @@ class CofniecieSkaliTekstuOdmawiaTest extends TestCase
         $basia = User::factory()->create();
         DB::table('users')->where('id', $basia->getKey())->update(['text_scale' => 80]);
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i podniosło komuś rozmiar tekstu.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
-            // TEGO i jak powiedzieć wprost „wiem, co robię".
-            $this->assertStringContainsString('1 kontach', $e->getMessage());
-            $this->assertStringContainsString('config/kuking.php', $e->getMessage());
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i podniosło komuś rozmiar tekstu.');
+
+        // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
+        // TEGO i jak powiedzieć wprost „wiem, co robię".
+        $this->assertStringContainsString('1 kontach', $odmowa->getMessage());
+        $this->assertStringContainsString('config/kuking.php', $odmowa->getMessage());
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: ustawienie nadal jest takie, jakie człowiek wybrał.
         // Odmowa, która i tak zdążyła je zmienić, byłaby tylko ładniejszym

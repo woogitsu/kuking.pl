@@ -72,17 +72,28 @@ class CofniecieMigracjiNumerSprawyTest extends TestCase
 
         $this->assertNotNull($numer, 'Zgłoszenie nie dostało numeru — test sprawdzałby pustkę.');
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało numery spraw.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
-            // nie zatrzymuje nikogo o drugiej w nocy.
-            $this->assertStringContainsString('1 zgłoszeń prawnych', $e->getMessage());
-            $this->assertStringContainsString('kopię tabeli', $e->getMessage());
-            $this->assertStringContainsString(self::FURTKA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało numery spraw.');
+
+        // Komunikat ma mówić ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
+        // nie zatrzymuje nikogo o drugiej w nocy.
+        $this->assertStringContainsString('1 zgłoszeń prawnych', $odmowa->getMessage());
+        $this->assertStringContainsString('kopię tabeli', $odmowa->getMessage());
+        $this->assertStringContainsString(self::FURTKA, $odmowa->getMessage());
 
         // ASERCJA KONTROLNA: odmowa, która i tak zdążyła skasować kolumnę,
         // byłaby tylko ładniejszym komunikatem o stracie. Numer ma być

@@ -60,18 +60,30 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
         $basia = $this->user('basia');
         $basia->connectGoogle('109876543210987654321');
 
+        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
+        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
+        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
+        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
+        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
+        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
+        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
+        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało powiązanie z kontem Google.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
-            // TEGO i jak powiedzieć wprost „wiem, co robię". „Ktoś coś
-            // straci" nie zatrzymuje nikogo o drugiej w nocy.
-            $this->assertStringContainsString('1 kont', $e->getMessage());
-            $this->assertStringContainsString('KUKING_WEJSCIE_GOOGLE=false', $e->getMessage());
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało powiązanie z kontem Google.');
+
+        // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
+        // TEGO i jak powiedzieć wprost „wiem, co robię". „Ktoś coś
+        // straci" nie zatrzymuje nikogo o drugiej w nocy.
+        $this->assertStringContainsString('1 kont', $odmowa->getMessage());
+        $this->assertStringContainsString('KUKING_WEJSCIE_GOOGLE=false', $odmowa->getMessage());
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: powiązanie nadal jest. Odmowa, która i tak zdążyła
         // skasować dane, byłaby tylko ładniejszym komunikatem o stracie.

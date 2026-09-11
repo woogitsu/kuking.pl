@@ -85,6 +85,16 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
             'status' => Report::STATUS_OPEN,
         ]);
 
+        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
+        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
+        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
+        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
+        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
+        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
+        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
+        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        $odmowa = null;
+
         try {
             // Po ŚCIEŻCE, nie `--step=1`: gdyby ktoś dopisał później nowszą
             // migrację, „ostatnia" przestałaby być tą sprawdzaną i test
@@ -93,10 +103,12 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
                 '--path' => 'database/migrations/2026_09_10_300000_zdjecie_jako_cel_oznaczenia.php',
                 '--realpath' => false,
             ]);
-            $this->fail('Cofnięcie migracji przeszło, mimo że w tabeli leży oznaczenie zdjęcia.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('oznaczeń zdjęć', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie migracji przeszło, mimo że w tabeli leży oznaczenie zdjęcia.');
+        $this->assertStringContainsString('oznaczeń zdjęć', $odmowa->getMessage());
 
         // Sprawa musi zostać nietknięta — także wtedy, gdy rollback odmówił.
         $this->assertSame(1, Report::query()->where('target_type', 'media')->count());

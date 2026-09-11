@@ -66,17 +66,29 @@ class CofniecieMigracjiNieKasujeZeszytowTest extends TestCase
     {
         $this->zapiszWpisDoZeszytu();
 
+        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
+        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
+        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
+        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
+        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
+        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
+        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
+        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało zapisane wpisy.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić, ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
-            // nie skłania nikogo do zatrzymania się o drugiej w nocy.
-            $this->assertStringContainsString('1 zapisanych wpisów', $e->getMessage());
-            $this->assertStringContainsString('collection_items_kopia', $e->getMessage());
-            $this->assertStringContainsString('KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało zapisane wpisy.');
+
+        // Komunikat ma mówić, ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
+        // nie skłania nikogo do zatrzymania się o drugiej w nocy.
+        $this->assertStringContainsString('1 zapisanych wpisów', $odmowa->getMessage());
+        $this->assertStringContainsString('collection_items_kopia', $odmowa->getMessage());
+        $this->assertStringContainsString('KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY', $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: wiersz nadal jest. Odmowa, która i tak zdążyła
         // skasować dane, byłaby tylko ładniejszym komunikatem o stracie.

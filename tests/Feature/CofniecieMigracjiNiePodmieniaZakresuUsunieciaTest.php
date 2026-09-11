@@ -56,16 +56,28 @@ class CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest extends TestCase
         $basia = $this->user('basia');
         $basia->markForDeletion(User::DELETE_SCOPE_EVERYTHING);
 
+        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
+        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
+        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
+        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
+        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
+        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
+        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
+        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        $odmowa = null;
+
         try {
             Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-
-            $this->fail('Cofnięcie migracji przeszło, mimo że konto ma delete_scope = everything.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić ILE kont i CO ZROBIĆ — „coś się nie zgadza"
-            // nie skłania nikogo do zatrzymania się w środku wdrożenia.
-            $this->assertStringContainsString("1 kont z delete_scope = 'everything'", $e->getMessage());
-            $this->assertStringContainsString('everything', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie migracji przeszło, mimo że konto ma delete_scope = everything.');
+
+        // Komunikat ma mówić ILE kont i CO ZROBIĆ — „coś się nie zgadza"
+        // nie skłania nikogo do zatrzymania się w środku wdrożenia.
+        $this->assertStringContainsString("1 kont z delete_scope = 'everything'", $odmowa->getMessage());
+        $this->assertStringContainsString('everything', $odmowa->getMessage());
 
         // NAJWAŻNIEJSZA ASERCJA W TYM PLIKU: wybór człowieka jest NADAL
         // `everything`, nie coś, co "wygląda podobnie". Odmowa, która i tak

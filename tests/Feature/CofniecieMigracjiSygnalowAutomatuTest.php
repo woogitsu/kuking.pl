@@ -63,16 +63,27 @@ class CofniecieMigracjiSygnalowAutomatuTest extends TestCase
         $otwarte = $this->oznaczenie(Report::STATUS_OPEN, (string) Str::uuid());
         $zamkniete = $this->oznaczenie(Report::STATUS_REJECTED, (string) Str::uuid());
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało rozstrzygnięte oznaczenia automatu.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić ILE się straci i CO ZROBIĆ.
-            $this->assertStringContainsString('1 rozstrzygniętych oznaczeń automatu', $e->getMessage());
-            $this->assertStringContainsString('kopię tabeli', $e->getMessage());
-            $this->assertStringContainsString(self::FURTKA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało rozstrzygnięte oznaczenia automatu.');
+
+        // Komunikat ma mówić ILE się straci i CO ZROBIĆ.
+        $this->assertStringContainsString('1 rozstrzygniętych oznaczeń automatu', $odmowa->getMessage());
+        $this->assertStringContainsString('kopię tabeli', $odmowa->getMessage());
+        $this->assertStringContainsString(self::FURTKA, $odmowa->getMessage());
 
         // ASERCJA KONTROLNA — strażnik stoi PRZED kasowaniem, więc nie zginęło
         // nic, także oznaczenie otwarte.
