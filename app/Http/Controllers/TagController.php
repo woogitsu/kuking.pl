@@ -30,7 +30,7 @@ class TagController extends Controller
     public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
 
     /**
-     * Spis wszystkich tematów (#273, druga połowa — D-026 dała słownik,
+     * Spis wszystkich tagów (#273, druga połowa — D-026 dała słownik,
      * ta strona daje do niego wejście; pełne uzasadnienie kolejności
      * w `docs/DECISIONS.md`, D-087).
      *
@@ -48,7 +48,7 @@ class TagController extends Controller
         // JEDNO domknięcie, użyte w obu sekcjach, żeby liczba wpisów nigdy
         // nie rozjechała się między „Polecane" a „Wszystkie" — ten sam
         // zakres, który komentarz `Post::scopeTylkoOdAktywnychAutorow()`
-        // wymienia wprost jako przeznaczony m.in. dla feedu tematów.
+        // wymienia wprost jako przeznaczony m.in. dla feedu tagów.
         //
         // ŚWIADOMIE NIE `Post::widoczneDla($widz)` (jak w `show()` niżej):
         // ten zakres liczy się PER WIDZ (blokady, obserwowanie), więc na
@@ -67,7 +67,7 @@ class TagController extends Controller
             ->withCount(['posts' => $liczPubliczneWpisy])
             ->get();
 
-        $tematy = Tag::query()
+        $tagi = Tag::query()
             ->aktywne()
             ->withCount(['posts' => $liczPubliczneWpisy])
             ->orderBy('name')
@@ -76,7 +76,7 @@ class TagController extends Controller
 
         return view('pages.tags.index', [
             'polecane' => $polecane,
-            'tematy' => $tematy,
+            'tagi' => $tagi,
         ]);
     }
 

@@ -32,7 +32,7 @@
 <x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)">
     <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> ·
-        <a href="{{ route('tags.index') }}">wszystkie tematy</a>
+        <a href="{{ route('tags.index') }}">wszystkie tagi</a>
     </p>
 
     <h1 class="mt-0">{{ $tag->name }}</h1>
