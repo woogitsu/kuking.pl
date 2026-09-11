@@ -70,6 +70,21 @@ new class extends Component
     #[Locked]
     public ?string $sourceScanMediaId = null;
 
+    /**
+     * Czy kreator otwarto NA JUŻ OPUBLIKOWANYM przepisie (issue #364).
+     *
+     * Od #364 kreator przestał być ekranem tworzenia i jest ekranem
+     * DOPISYWANIA SZCZEGÓŁÓW — wchodzi się do niego z opublikowanego przepisu
+     * (`/przepisy/{slug}/szczegoly`). Przycisk „Opublikuj przepis" mówiłby
+     * tam nieprawdę: przepis jest opublikowany od chwili, gdy człowiek
+     * kliknął „Opublikuj" na ekranie dodawania.
+     *
+     * `#[Locked]`, bo decyduje o tym, co człowiek przeczyta na przycisku,
+     * i nie ma powodu, żeby klient mógł to podmienić.
+     */
+    #[Locked]
+    public bool $juzOpublikowany = false;
+
     public string $title = '';
 
     public string $summary = '';
@@ -153,6 +168,7 @@ new class extends Component
     private function fillFrom(Recipe $recipe): void
     {
         $this->recipeId = $recipe->getKey();
+        $this->juzOpublikowany = $recipe->isPublished();
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
 
@@ -372,14 +388,15 @@ new class extends Component
             return;
         }
 
-        if ($this->cleanIngredients() === []) {
-            $this->step = 2;
-            $this->addError('ingredients', 'Dodaj przynajmniej jeden składnik, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
-            $this->saveDraft();
-
-            return;
-        }
-
+        /*
+         * SKŁADNIKÓW TU NIE SPRAWDZAMY — ZGODA WŁAŚCICIELA z 11.09.2026
+         * (issue #364): „przepis wolno opublikować bez ani jednego składnika".
+         *
+         * Bramka stała tu w parze z tą samą bramką w `PublishRecipe` i obie
+         * zniknęły razem, bo jedna reguła nie może obowiązywać na jednej
+         * z dwóch dróg zapisu. Krok przygotowania zostaje warunkiem —
+         * uzasadnienie przy bramce w `PublishRecipe`.
+         */
         if ($this->cleanSteps() === []) {
             $this->step = 3;
             $this->addError('steps', 'Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
@@ -397,7 +414,9 @@ new class extends Component
             return;
         }
 
-        session()->flash('status', 'Przepis opublikowany. Teraz ktoś może z niego ugotować.');
+        session()->flash('status', $this->juzOpublikowany
+            ? 'Szczegóły zapisane.'
+            : 'Przepis opublikowany. Teraz ktoś może z niego ugotować.');
 
         $this->redirect(route('recipes.show', $recipe->slug));
     }
@@ -1454,7 +1473,7 @@ new class extends Component
         <button class="btn btn-secondary" type="button" wire:click="back" @disabled($step === 1)>Wstecz</button>
 
         @if($step === $this::STEP_PREVIEW)
-            <button class="btn btn-primary" type="button" wire:click="publish">Opublikuj przepis</button>
+            <button class="btn btn-primary" type="button" wire:click="publish">{{ $juzOpublikowany ? 'Zapisz szczegóły' : 'Opublikuj przepis' }}</button>
         @else
             <button class="btn btn-primary" type="button" wire:click="next">Dalej</button>
         @endif

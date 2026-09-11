@@ -87,10 +87,15 @@ class RecipeWizardTest extends TestCase
             ->assertSee('Podaj nazwę przepisu', false);
     }
 
-    public function test_publikacja_bez_skladnikow_nie_kasuje_wpisanych_danych(): void
+    public function test_kreator_publikuje_przepis_bez_ani_jednego_skladnika(): void
     {
         $basia = $this->user('basia');
 
+        // ZGODA WŁAŚCICIELA z 11.09.2026 (issue #364): „przepis wolno
+        // opublikować bez ani jednego składnika". Do tego dnia kreator
+        // odsyłał tu na krok drugi z błędem `ingredients` — i to była
+        // ostatnia bramka, która kazała rozstrzygnąć strukturę przepisu,
+        // zanim wolno było cokolwiek opublikować.
         $component = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
             ->set('title', 'Przepis bez składników')
@@ -99,20 +104,12 @@ class RecipeWizardTest extends TestCase
             ->set('step', 4)
             ->call('publish');
 
-        $component->assertHasErrors('ingredients')
-            ->assertSet('step', 2)
-            ->assertSet('title', 'Przepis bez składników')
-            ->assertSet('summary', 'Historia, której nie wolno zgubić.')
-            ->assertSet('steps.0.instruction', 'Wymieszać wszystko.');
+        $component->assertHasNoErrors();
 
-        $this->assertStringContainsString(
-            'Dodaj przynajmniej jeden składnik',
-            (string) $component->errors()->first('ingredients'),
-        );
-
-        // Dane siedzą też w bazie, nie tylko w formularzu.
         $recipe = Recipe::where('title', 'Przepis bez składników')->firstOrFail();
-        $this->assertSame(Recipe::STATUS_DRAFT, $recipe->status);
+
+        $this->assertSame(Recipe::STATUS_PUBLISHED, $recipe->status);
+        $this->assertCount(0, $recipe->ingredients);
         $this->assertSame('Historia, której nie wolno zgubić.', $recipe->summary);
         $this->assertSame('Wymieszać wszystko.', $recipe->steps->first()->instruction);
     }
@@ -344,11 +341,20 @@ class RecipeWizardTest extends TestCase
     {
         $basia = $this->user('basia');
 
+        // Od #364 kreator NIE JEST ekranem dodawania — jest ekranem
+        // „Dopisz szczegóły" i wchodzi się do niego z istniejącego przepisu.
+        // Reguła, której ten test pilnuje, się nie zmieniła: droga bez
+        // JavaScriptu ma być widoczna ZAWSZE, nie tylko w `<noscript>`.
+        $przepis = Recipe::factory()->for($basia, 'author')->create([
+            'status' => Recipe::STATUS_PUBLISHED,
+            'published_at' => now()->subDay(),
+        ]);
+
         $this->actingAs($basia)
-            ->get(route('recipes.create'))
+            ->get(route('recipes.details', $przepis->slug))
             ->assertOk()
             ->assertSee('Krok 1 z 3', false)
-            ->assertSee(route('recipes.create.simple'), false)
+            ->assertSee(route('recipes.edit', $przepis->slug), false)
             ->assertSee('<noscript>', false);
     }
 
