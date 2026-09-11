@@ -30,10 +30,15 @@
         adresy `@wp.pl` i `@o2.pl`, gdzie konta Google nie ma — i dla nich
         pierwszą rzeczą na ekranie ma zostać to, co znają.
 
-        Cały blok znika bez kluczy Google — patrz komponent. Martwego
+        Cały blok znika, gdy nie działa ŻADEN dostawca, a przycisk pojedynczego
+        dostawcy znika razem z jego kluczami — patrz komponent. Martwego
         przycisku nie zostawiamy nigdzie (D-053).
+
+        RZĄD DOSTAWCÓW, NIE JEDEN PRZYCISK (issue #259): od 11.09 stoją tu
+        Google i Facebook obok siebie — prośba właściciela, bo „większość ma
+        fb i google". Kolejność i uzasadnienie: `x-wejscia-zewnetrzne`.
     --}}
-    <x-wejdz-google />
+    <x-wejscia-zewnetrzne />
 
     {{--
         DRUGA, RÓWNORZĘDNA DROGA WEJŚCIA — LOGOWANIE LINKIEM (issue #25, D-056).

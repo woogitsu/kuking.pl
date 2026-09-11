@@ -128,8 +128,10 @@
         </form>
     @endif
 
-    {{-- Droga dodatkowa: konto Google (issue #258, D-069). Znika bez kluczy. --}}
-    <x-wejdz-google naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google" />
+    {{-- Drogi dodatkowe: konto Google (issue #258, D-069) i konto Facebooka
+         (issue #259, D-098). Przycisk dostawcy znika razem z jego kluczami,
+         a cały blok — gdy nie działa żaden. --}}
+    <x-wejscia-zewnetrzne naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google albo Facebooka" />
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

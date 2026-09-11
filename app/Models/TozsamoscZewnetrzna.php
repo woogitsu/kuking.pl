@@ -25,9 +25,9 @@ use Illuminate\Support\Carbon;
  * tożsamości w ogóle nie myśli — byłby przejęciem konta. Ta sama zasada co
  * `status`, `role` i `email` na `users` (AGENTS.md §7).
  *
- * Powiązania powstają WYŁĄCZNIE przez `User::connectGoogle()`, czyli przez
- * jawną, nazwaną metodę, którą da się znaleźć i której wejścia da się
- * policzyć.
+ * Powiązania powstają WYŁĄCZNIE przez `User::connectGoogle()`
+ * i `User::connectFacebook()`, czyli przez jawne, nazwane metody, które da
+ * się znaleźć i których wejścia da się policzyć.
  *
  * ────────────────────────────────────────────────────────────────────────
  *  CZEGO TU NIE MA
@@ -55,6 +55,16 @@ class TozsamoscZewnetrzna extends Model
      * powiązania po cichu.
      */
     public const DOSTAWCA_GOOGLE = 'google';
+
+    /**
+     * Facebook (issue #259). Doszedł do CHECK-a w bazie osobną migracją
+     * (`2026_09_11_500000_dopusc_facebooka_...`), a nie „na zapas" razem
+     * z tabelą — i to była cała pointa tamtego ograniczenia: napisanie
+     * migracji zmusza do przeczytania, dlaczego warunki wejścia są tu INNE
+     * niż przy Google (Facebook nie oddaje `email_verified`, więc adres
+     * z Facebooka nie łączy z istniejącym kontem NIGDY — D-098).
+     */
+    public const DOSTAWCA_FACEBOOK = 'facebook';
 
     protected $table = 'tozsamosci_zewnetrzne';
 

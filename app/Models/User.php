@@ -892,18 +892,51 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function connectGoogle(string $sub): void
     {
+        $this->polaczZDostawca(TozsamoscZewnetrzna::DOSTAWCA_GOOGLE, $sub);
+    }
+
+    /**
+     * Powiązanie konta z kontem Facebooka (issue #259, D-098).
+     *
+     * Ta metoda jest bliźniaczo podobna do `connectGoogle()` i to jest cała
+     * jej treść — RÓŻNICA NIE LEŻY W ZAPISIE, LEŻY W TYM, KTO WOLNO JĄ
+     * ZAWOŁAĆ. Przy Google wolno po potwierdzeniu adresu przez Google
+     * i jednym kliknięciu człowieka na naszym ekranie (D-069, reguła 3).
+     * Przy Facebooku ta droga NIE ISTNIEJE, bo Facebook nie mówi, czy adres
+     * jest potwierdzony: powiązanie powstaje albo przy zakładaniu NOWEGO
+     * konta, albo gdy o nie poprosi człowiek JUŻ ZALOGOWANY na swoje konto
+     * Kuking. Adres e-mail z Facebooka nie łączy nigdy i z niczym — pełny
+     * wywód w `FacebookLoginController` i w D-098.
+     *
+     * DRUGIE WOŁANIE DLA TEGO SAMEGO KONTA ODBIJA SIĘ O BAZĘ
+     * (`UNIQUE (dostawca, user_id)`) i to jest zachowanie poprawne.
+     */
+    public function connectFacebook(string $identyfikator): void
+    {
+        $this->polaczZDostawca(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK, $identyfikator);
+    }
+
+    /**
+     * Zapis wiersza powiązania — jedno miejsce dla wszystkich dostawców.
+     *
+     * `private`, żeby nazwa dostawcy nie mogła przyjść z zewnątrz: publiczne
+     * `polaczZDostawca($request->input('dostawca'), ...)` byłoby obejściem
+     * całej zamkniętej listy dostawców, której pilnuje CHECK w bazie.
+     */
+    private function polaczZDostawca(string $dostawca, string $identyfikator): void
+    {
         $tozsamosc = new TozsamoscZewnetrzna;
 
         $tozsamosc->forceFill([
             'user_id' => $this->getKey(),
-            'dostawca' => TozsamoscZewnetrzna::DOSTAWCA_GOOGLE,
-            'identyfikator' => $sub,
+            'dostawca' => $dostawca,
+            'identyfikator' => $identyfikator,
             'connected_at' => now(),
         ])->save();
 
         // Relacja mogła zostać już wczytana (ekran ustawień, ten sam obiekt
-        // w jednym żądaniu) — bez tego `hasGoogleConnected()` odpowiadałoby
-        // ze stanu sprzed zapisu.
+        // w jednym żądaniu) — bez tego `hasGoogleConnected()`
+        // i `hasFacebookConnected()` odpowiadałyby ze stanu sprzed zapisu.
         $this->unsetRelation('tozsamosciZewnetrzne');
     }
 
@@ -911,6 +944,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $this->tozsamosciZewnetrzne()
             ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+            ->exists();
+    }
+
+    public function hasFacebookConnected(): bool
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)
             ->exists();
     }
 
@@ -935,6 +975,32 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->whereHas('tozsamosciZewnetrzne', static fn ($q) => $q
                 ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
                 ->where('identyfikator', $sub))
+            ->first();
+    }
+
+    /**
+     * Konto powiązane z tym kontem Facebooka — albo `null`.
+     *
+     * Pytamy po identyfikatorze konta u Facebooka, NIGDY po adresie e-mail,
+     * i przy Facebooku to nie jest ostrożność, a jedyna dopuszczalna droga:
+     * adres z Facebooka nie ma dowodu potwierdzenia, więc rozpoznanie po nim
+     * byłoby przejęciem konta na życzenie (D-098). Identyfikator jest przy
+     * tym „App-Scoped": Meta obiecuje, że jest inny dla każdej aplikacji,
+     * więc poza Kuking do niczego nie służy.
+     *
+     * Baza gwarantuje najwyżej jeden pasujący wiersz —
+     * `UNIQUE (dostawca, identyfikator)`.
+     */
+    public static function findByFacebookId(string $identyfikator): ?self
+    {
+        if (trim($identyfikator) === '') {
+            return null;
+        }
+
+        return self::query()
+            ->whereHas('tozsamosciZewnetrzne', static fn ($q) => $q
+                ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)
+                ->where('identyfikator', $identyfikator))
             ->first();
     }
 
