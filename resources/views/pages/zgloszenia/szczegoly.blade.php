@@ -36,12 +36,24 @@
     </article>
 
     @if(! $zgloszenie->jestRozstrzygniete())
-        {{-- TA SAMA WARSTWA CO „Nasza decyzja" NIŻEJ — obie gałęzie stoją
-             w tym samym miejscu ekranu i odpowiadają na to samo pytanie
-             („co z moją sprawą"), tylko w dwóch stanach. Różnica warstw
-             kazałaby ekranowi zmieniać wygląd zależnie od tego, czy sprawa
-             jest już rozstrzygnięta — a to nie jest różnica rangi. --}}
-        <article class="sekcja-strony mt-5">
+        {{--
+            KARTA TREŚCI, NIE SEKCJA — rozstrzygnięcie właściciela z 11.09
+            (D-128, issue #367): odpowiedź na sprawę jest tym, PO CO człowiek
+            na ten ekran wszedł, i ma się odróżniać od reszty.
+
+            TA SAMA WARSTWA CO „Nasza decyzja" NIŻEJ i to zostaje bez zmian.
+            Obie gałęzie stoją w tym samym miejscu ekranu i odpowiadają na to
+            samo pytanie („co z moją sprawą"), tylko w dwóch stanach. Różnica
+            warstw kazałaby ekranowi zmieniać wygląd zależnie od tego, czy
+            sprawa jest już rozstrzygnięta — a to nie jest różnica rangi.
+            Podnosimy więc OBIE gałęzie, nie jedną: rozstrzygnięcie dotyczy
+            tego bloku, nie jednego z jego stanów.
+
+            Treść zgłoszenia wyżej i pouczenie niżej zostają sekcjami — one
+            opisują sprawę, a nie są odpowiedzią na nią (D-128: rolę nadaje
+            miejsce, nie obiekt).
+        --}}
+        <article class="card mt-5">
             <h2 class="mt-0 text-title-sm">Na czym stoi sprawa</h2>
             <p><strong>Sprawdzamy.</strong> Zgłoszenie trafiło do kolejki i przeczyta je człowiek.</p>
             <p>
@@ -50,7 +62,9 @@
             </p>
         </article>
     @else
-        <article class="sekcja-strony mt-5">
+        {{-- Karta treści, ta sama warstwa co gałąź „Na czym stoi sprawa"
+             wyżej — patrz komentarz tam. --}}
+        <article class="card mt-5">
             <h2 class="mt-0 text-title-sm">Nasza decyzja</h2>
 
             @if($decyzja !== null)
