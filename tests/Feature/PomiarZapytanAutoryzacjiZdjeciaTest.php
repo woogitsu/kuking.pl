@@ -14,7 +14,20 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * MEDIA-03 (#286), KROK 1 — WYŁĄCZNIE POMIAR, żadnej optymalizacji.
+ * MEDIA-03 (#286), KROK 1 — POMIAR, który jest teraz także PROGIEM.
+ *
+ * UWAGA, ZMIANA STANU: liczby w tym pliku były najpierw pomiarem ZASTANEGO
+ * kodu (15 zapytań na zdjęcie, 450 na stronę z trzydziestoma), a po kroku 2
+ * i 3 z issue #286 są pomiarem kodu POPRAWIONEGO: **6 zapytań na zdjęcie,
+ * 180 na stronę z trzydziestoma**. Nagłówek został, bo nadal opisuje, CO
+ * i dlaczego mierzymy; progi niżej zostały zacieśnione z 18 i 20 do 8, żeby
+ * pilnowały nowego stanu, a nie starego.
+ *
+ * Czego zmiana progów NIE znaczy: nie przepisano tu „licznika, żeby się
+ * zgadzał". Progi jadą w dół razem ze zmierzoną liczbą i po zacieśnieniu
+ * OBLEWAJĄ się przeciwko kodowi sprzed poprawki (15 > 8) — dokładnie tak
+ * jak ma się zachowywać test regresyjny. Mechanizm, a nie tylko sumę, pilnuje
+ * osobno `AutoryzacjaZdjeciaJednymPrzejsciemTest`.
  *
  * Audyt zewnętrzny (trzecia warstwa) postawił hipotezę: „autoryzacja jednego
  * zdjęcia to co najmniej pięć zapytań, a jedna strona feedu generuje ponad
@@ -90,10 +103,23 @@ class PomiarZapytanAutoryzacjiZdjeciaTest extends TestCase
 
         fwrite(STDERR, "\n[MEDIA-03 pomiar] jedno zdjęcie, widz nie-właściciel: {$ile} zapytań\n");
 
-        // ZMIERZONA LICZBA W TYM REPOZYTORIUM, NIE OSZACOWANIE. W dniu
-        // pomiaru (10.09.2026), dla widza zalogowanego, nie-właściciela,
-        // oglądającego zdjęcie PUBLICZNEGO wpisu, `DB::getQueryLog()` daje
-        // dokładnie 15 zapytań, w tej kolejności:
+        // ZMIERZONA LICZBA W TYM REPOZYTORIUM, NIE OSZACOWANIE.
+        //
+        // STAN PO POPRAWCE #286 (dla widza zalogowanego, nie-właściciela,
+        // oglądającego zdjęcie PUBLICZNEGO wpisu) — DOKŁADNIE 6 zapytań:
+        //   [0] wiązanie trasy — `Media::find($id)` (spoza autoryzacji)
+        //   [1] middleware — `users.ostatnio_widziany_at` (spoza autoryzacji)
+        //   [2] `DostepDoZdjecia` — JEDNO zapytanie `UNION` rozpoznające,
+        //       które tabele w ogóle wspominają to zdjęcie
+        //   [3] wczytanie wpisu — jedynej tabeli, która je ma
+        //   [4] `PostPolicy::view()` — dociągnięcie `$post->author`
+        //   [5] `PostPolicy::view()` — `hasBlockRelationWith()` (blokada)
+        //
+        // Zapytania [4] i [5] to sama autoryzacja rodzica i mają tu zostać:
+        // status autora i blokada są REGUŁĄ, nie kosztem do ścięcia.
+        //
+        // STAN PRZED POPRAWKĄ (pomiar 10.09.2026) — 15 zapytań, w tej
+        // kolejności:
         //   [0]     wiązanie trasy — `Media::find($id)` (route model binding)
         //   [1]     `EnsureAccountIsActive` / middleware sesji — aktualizacja
         //           `users.ostatnio_widziany_at` widza
@@ -111,41 +137,52 @@ class PomiarZapytanAutoryzacjiZdjeciaTest extends TestCase
         //   [14]    `PostPolicy::view()` jako anonim — dociągnięcie autora
         //           (blokada pomijana, bo widz jest `null`)
         //
-        // Audyt postawił „co najmniej pięć" — to jest PRAWDA, ale niepełny
-        // obraz: pięć to koszt SAMEGO `rodzice()` wywołanego RAZ, a widz
-        // nie-właściciel płaci go DWA RAZY (raz jako on sam, raz jako anonim
-        // przy liczeniu `Cache-Control`), plus zapytania samej `PostPolicy`
-        // i dwa zapytania spoza autoryzacji (routing, sesja). Rzeczywisty
-        // koszt jednego zdjęcia jest WIĘKSZY niż liczba z audytu, nie
-        // mniejszy — hipoteza jest potwierdzona jako DOLNA granica, nie jako
-        // pełny obraz.
+        // Audyt postawił „co najmniej pięć" — i to było PRAWDĄ jako dolna
+        // granica, ale nie pełnym obrazem: pięć było kosztem SAMEGO
+        // `rodzice()` wywołanego RAZ, a widz nie-właściciel płacił go DWA
+        // RAZY (raz jako on sam, raz jako anonim przy liczeniu
+        // `Cache-Control`), plus zapytania samej `PostPolicy`, plus dwa
+        // zapytania spoza autoryzacji. Rzeczywisty koszt był WIĘKSZY niż
+        // liczba z audytu, nie mniejszy.
+        //
+        // DOLNA GRANICA ZOSTAJE JAKO KONTROLA DODATNIA, tylko niżej.
+        // Cztery zapytania to absolutne minimum żądania, które NAPRAWDĘ
+        // autoryzowało: wiązanie trasy, rozpoznanie tabel, wczytanie rodzica
+        // i jedno zapytanie Policy. Spadek poniżej znaczy, że resolver
+        // przestał pytać bazę o cokolwiek — czyli albo ktoś podstawił
+        // `return true`, albo decyzja poszła do pamięci podręcznej (issue
+        // #286 punkt 4 stawia to jako ostatni krok i wymaga unieważniania
+        // przy czterech zdarzeniach). Jedno i drugie musi zapalić czerwone,
+        // a nie przejść jako „jeszcze szybciej".
         $this->assertGreaterThanOrEqual(
-            5,
+            4,
             $ile,
             "Autoryzacja jednego zdjęcia wykonała tylko {$ile} zapytań — mniej niż ".
-            'pięć z `DostepDoZdjecia::rodzice()`. Jeśli to się zmieniło ŚWIADOMIE '.
-            '(np. rodzic znaleziony wcześniej przerywa resztę), zaktualizuj tę liczbę '.
-            'i opisz to w docs/research/2026-09-10-pomiar-zapytan-zdjecia.md — to jest '.
-            'dobra wiadomość, nie usterka testu.',
+            'minimum żądania, które naprawdę zapytało bazę o rodzica i o Policy. '.
+            'Sprawdź, czy decyzja nie trafiła do pamięci podręcznej (issue #286 '.
+            'punkt 4: cache widoczności wymaga unieważniania przy czterech '.
+            'zdarzeniach — bez nich pokazuje zdjęcie, którego ktoś nie ma prawa '.
+            'zobaczyć). Jeśli to jednak świadoma, bezpieczna poprawa — zaktualizuj '.
+            'tę liczbę i opisz ją w docs/research/2026-09-10-pomiar-zapytan-zdjecia.md.',
         );
 
-        // PRÓG REGRESJI. Dziś (10.09.2026) zmierzona liczba to DOKŁADNIE 15
-        // (rozbicie w komentarzu wyżej). Próg 18 zostawia mały zapas na
-        // wahania (kolejność zapytań, przyszłe kolumny), ale ZŁAPIE
-        // REGRESJĘ typu „ktoś dodał kolejne zapytanie w pętli po rodzicach"
-        // albo „Gate zaczął ładować politykę za każdym razem od nowa" —
-        // zmierzone kontrolą ujemną: sabotaż opisany w PR (Post→pętla
-        // `find()` zamiast jednego `whereHas()->get()`) podnosi TĘ liczbę
-        // do 19, czyli tuż nad próg. Próg 20 był o WŁOS za luźny, żeby to
-        // złapać — 18 łapie z zapasem. Test 2 niżej i tak łapie ten sam
-        // sabotaż dużo wyraźniej (147 zamiast 15 na zdjęcie), bo rośnie
-        // z liczbą treści w bazie, a nie tylko raz na żądanie.
+        // PRÓG REGRESJI, ZACIEŚNIONY PO POPRAWCE #286 z 18 na 8.
+        // Zmierzona liczba to DOKŁADNIE 6 (rozbicie w komentarzu wyżej).
+        // Próg 8 zostawia zapas dwóch zapytań na wahania (przyszła kolumna,
+        // inna kolejność), a jednocześnie OBLEWA się przeciwko każdemu
+        // z dwóch mechanizmów, które ta zmiana usunęła: powrót drugiego
+        // przejścia po grafie rodziców to +6, powrót pięciu stałych
+        // `SELECT`-ów to +3. Zmierzone przeciwko kodowi sprzed poprawki:
+        // 15 zapytań, czyli CZERWONE.
         $this->assertLessThan(
-            18,
+            8,
             $ile,
-            "Autoryzacja jednego zdjęcia wykonała {$ile} zapytań — więcej niż próg 18. ".
-            'To wygląda na regresję (nowe zapytanie w `DostepDoZdjecia` albo w Policy '.
-            'rodzica), nie na zmianę tego testu.',
+            "Autoryzacja jednego zdjęcia wykonała {$ile} zapytań — więcej niż próg 8. ".
+            'To wygląda na regresję (drugie przejście po rodzicach dla nagłówka '.
+            '`Cache-Control`, powrót pięciu stałych `SELECT`-ów albo nowe zapytanie '.
+            'w Policy rodzica), nie na zmianę tego testu. Ta trasa jest najczęściej '.
+            'wołaną w serwisie — jedna strona feedu to grubo ponad sto osobnych '.
+            'żądań — więc każde dodatkowe zapytanie mnoży się przez sto.',
         );
     }
 
@@ -183,17 +220,19 @@ class PomiarZapytanAutoryzacjiZdjeciaTest extends TestCase
 
         $naZdjecie = $duzo / 30;
 
-        // PRÓG REGRESJI PO ZDJĘCIU. Test 1 zmierzył dokładnie 15 zapytań na
-        // jedno zdjęcie — tu liczymy ŚREDNIĄ z trzydziestu, żeby złapać regresję,
-        // która ujawnia się dopiero przy większej liczbie treści w bazie
-        // (np. `DostepDoZdjecia::rodzice()` zaczyna skanować PO WIERSZU
-        // zamiast jednym zapytaniem — patrz kontrola ujemna w podsumowaniu).
+        // PRÓG REGRESJI PO ZDJĘCIU, ZACIEŚNIONY PO POPRAWCE #286 z 20 na 8.
+        // Test 1 zmierzył dokładnie 6 zapytań na jedno zdjęcie (przed
+        // poprawką: 15) — tu liczymy ŚREDNIĄ z trzydziestu, żeby złapać
+        // regresję, która ujawnia się dopiero przy większej liczbie treści
+        // w bazie (np. `DostepDoZdjecia` zaczyna skanować PO WIERSZU zamiast
+        // jednym zapytaniem — patrz kontrola ujemna w opisie PR-a).
         $this->assertLessThan(
-            20,
+            8,
             $naZdjecie,
             "Strona z 30 zdjęciami wykonała średnio {$naZdjecie} zapytań NA ZDJĘCIE — ".
-            'więcej niż próg 20. Koszt jednego zdjęcia rośnie z liczbą zdjęć na stronie, '.
-            'czyli jest gdzieś ukryty N+1 zależny od skali, nie tylko stały koszt razy N.',
+            'więcej niż próg 8. Albo wrócił koszt sprzed #286 (drugie przejście po '.
+            'rodzicach, pięć stałych `SELECT`-ów), albo jest gdzieś ukryty N+1 '.
+            'zależny od skali, a nie tylko stały koszt razy N.',
         );
 
         // TO JEST SEDNO POMIARU: stosunek 30 zdjęć do 3 zdjęć powinien być
