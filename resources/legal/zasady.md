@@ -25,4 +25,4 @@ Treści przedstawiające krzywdzenie dzieci usuwamy natychmiast i zgłaszamy odp
 
 ## Jak to działa w praktyce
 
-Zgłoszenia czyta człowiek, nie automat. Część treści trafia przed oczy moderatora bez niczyjego zgłoszenia — wskazują je narzędzia z punktu 12 — ale decyzję zawsze podejmuje człowiek, który tę treść przeczytał. Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze — nie podajemy tu liczby godzin, bo nie mamy dziś w serwisie nic, co ten termin mierzy i pilnuje. Kiedy ograniczamy albo usuwamy treść, piszemy autorowi dlaczego i jak może się odwołać.
+Zgłoszenia czyta człowiek, nie automat. Część treści trafia przed oczy moderatora bez niczyjego zgłoszenia — wskazują je narzędzia z punktu 12 — ale decyzję zawsze podejmuje człowiek, który tę treść przeczytał. Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze. Nie obiecujemy konkretnej liczby godzin. Kiedy ograniczamy albo usuwamy treść, piszemy autorowi dlaczego i jak może się odwołać.
