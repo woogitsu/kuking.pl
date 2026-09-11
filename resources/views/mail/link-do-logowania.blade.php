@@ -48,7 +48,7 @@
 
                         <p style="margin:0 0 20px;">
                             ktoś poprosił o link do zalogowania się na konto w Kuking założone na ten adres.
-                            Jeśli to Ty — kliknij zielony przycisk poniżej. Hasła nie trzeba wpisywać.
+                            Jeśli to Ty — kliknij poniższy przycisk „Zaloguj mnie w Kuking”. Hasła nie trzeba wpisywać.
                         </p>
 
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">

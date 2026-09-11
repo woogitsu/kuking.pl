@@ -53,7 +53,7 @@
                         <p style="margin:0 0 20px;">
                             ktoś podał ten adres w Kuking, prosząc o wiadomość z linkiem do wejścia na konto.
                             Na tym adresie konta jeszcze nie ma — więc zamiast linku do wejścia wysyłamy link
-                            do jego założenia. Jeśli to Ty — kliknij zielony przycisk poniżej.
+                            do jego założenia. Jeśli to Ty — kliknij poniższy przycisk „Załóż konto w Kuking”.
                         </p>
 
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">

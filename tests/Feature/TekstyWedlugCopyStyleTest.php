@@ -17,8 +17,8 @@ use Tests\TestCase;
  * Przejście po ekranach z listą w ręku jest jednorazowe. Reguły, które to
  * przejście wyprostowało, są łatwe do złamania przy KAŻDEJ następnej zmianie
  * tekstu — i to złamanie nie objawia się niczym: strona działa, testy są
- * zielone, tylko głos serwisu przestaje być jeden. Cztery reguły poniżej
- * dają się sprawdzić maszynowo i dlatego są tu sprawdzane:
+ * zielone, tylko głos serwisu przestaje być jeden. Pięć reguł poniżej
+ * daje się sprawdzić maszynowo i dlatego są tu sprawdzane:
  *
  *   1. `kuKING` NIE MA w komunikacie błędu, w moderacji ani w tekście prawnym
  *      (§2, „Dawkowanie"). To jest twardy zakaz, nie preferencja: człowiek
@@ -31,6 +31,10 @@ use Tests\TestCase;
  *      nie wróciły bocznymi drzwiami, na przykład w komunikacie flash.
  *   4. Konstrukcja NIE ZAKŁADA RODZAJU ukośnikiem (§2, §7). „ugotowała/ugotował"
  *      oblewa pierwszy test dokumentu — tego nie da się przeczytać na głos.
+ *   5. INSTRUKCJA WSKAZUJE ELEMENT NAZWĄ, NIE KOLOREM. „Kliknij zielony
+ *      przycisk" nie jest kwestią stylu, tylko WCAG 2.2 AA (1.4.1), do
+ *      którego `AGENTS.md` §5 zobowiązuje się wprost — a w liście dochodzi
+ *      klient pocztowy, który tło przycisku przemaluje po swojemu.
  *
  * CZEGO TEN PLIK ŚWIADOMIE NIE SPRAWDZA
  * Licznika społeczności w stopce („{n} kuKINGów", `App\Domain\Analytics\LiczbaKukingow`).
@@ -322,7 +326,116 @@ class TekstyWedlugCopyStyleTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // 5. Cytat na stronie powitalnej mówi to, co mówi kod
+    // 5. Instrukcja wskazuje element nazwą, nie kolorem
+    // ---------------------------------------------------------------
+
+    /**
+     * „Kliknij zielony przycisk" i „popraw to, co jest zaznaczone na czerwono"
+     * to ta sama usterka: jedyną drogą do elementu jest jego kolor.
+     *
+     * To nie jest kwestia gustu, tylko WCAG 2.2 AA — kryterium 1.4.1 („Użycie
+     * koloru"), do którego `AGENTS.md` §5 zobowiązuje się wprost. Dla tej grupy
+     * wiekowej jest to na dodatek dotkliwsze niż średnio: zaćma żółci obraz,
+     * a wada rozróżniania barw dotyczy około ośmiu procent mężczyzn.
+     *
+     * W wiadomościach e-mail dochodzi druga przyczyna, całkiem techniczna:
+     * kolor tła przycisku niesie `bgcolor` i styl w linii, a klient pocztowy
+     * wolno mu nie posłuchać — Outlook w trybie ciemnym przemalowuje tła sam
+     * z siebie. Zdanie „kliknij zielony przycisk" opisuje wtedy coś, czego
+     * na ekranie nie ma.
+     *
+     * NAPRAWA JEST ZAWSZE TA SAMA I ZAWSZE ISTNIEJE: element ma nazwę.
+     * Przycisk ma etykietę („Zaloguj mnie w Kuking"), a błędy formularza mają
+     * podsumowanie na górze, którego §5 wymaga niezależnie od tego testu
+     * (`x-error-summary`). Kolor wolno DODAĆ, nie wolno na nim POPRZESTAĆ.
+     */
+    public function test_instrukcja_nie_wskazuje_elementu_kolorem(): void
+    {
+        $kolory = 'zielon|czerwon|niebiesk|żółt|pomarańczow|fioletow|różow|brązow|szar|biał|czarn';
+        $elementy = 'przycisk|guzik|pole|ramk|napis|link|odnośnik|pasek|kropk|znacznik|obwódk|strzałk|ikon';
+
+        $wzory = [
+            // „zielony przycisk", „czerwoną cienką ramkę"
+            '/(?:'.$kolory.')\w*\s+(?:\p{L}+\s+){0,2}(?:'.$elementy.')/iu',
+            // „przycisk zielony", „pole podświetlone na żółto" łapie wzór niżej
+            '/(?:'.$elementy.')\w*\s+(?:\p{L}+\s+){0,2}(?:'.$kolory.')\w*\b/iu',
+            // „zaznaczone na czerwono", „podświetlone na żółto"
+            '/\bna\s+(?:zielono|czerwono|żółto|niebiesko|pomarańczowo|szaro|biało|czarno)\b/iu',
+        ];
+
+        $winowajcy = [];
+
+        foreach ($this->plikiBlade(resource_path('views')) as $plik) {
+            $tresc = $this->bezStylow($this->bezKomentarzyBlade((string) file_get_contents($plik)));
+
+            foreach (explode("\n", $tresc) as $numer => $linia) {
+                foreach ($wzory as $wzor) {
+                    if (preg_match($wzor, $linia) === 1) {
+                        $winowajcy[] = $this->skrot($plik).':'.($numer + 1).' → '.trim($linia);
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach ($this->plikiPhp(app_path()) as $plik) {
+            foreach ($this->napisyZPliku($plik) as $numerLinii => $napis) {
+                foreach ($wzory as $wzor) {
+                    if (preg_match($wzor, $napis) === 1) {
+                        $winowajcy[] = $this->skrot($plik).':'.$numerLinii.' → '.trim($napis);
+                        break;
+                    }
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $winowajcy,
+            "Instrukcja wskazuje element kolorem:\n".implode("\n", $winowajcy)."\n"
+            .'WCAG 2.2 AA, kryterium 1.4.1 — kolor nie może być jedyną drogą do '
+            .'elementu. Nazwij przycisk jego etykietą, a przy błędach formularza '
+            .'odeślij do podsumowania na górze (`x-error-summary`).',
+        );
+    }
+
+    /**
+     * KONTROLA DODATNIA dla testu wyżej: gdyby `bezStylow()` wycinało za dużo
+     * (na przykład cały dokument), test wyżej byłby zawsze zielony i nikt by
+     * tego nie zauważył. Ten test sprawdza, że wzory naprawdę łapią zdania,
+     * o które chodzi — i że NIE łapią przykładu hasła ani arkusza stylów.
+     */
+    public function test_wzory_na_kolor_lapia_to_co_maja_lapac(): void
+    {
+        $kolory = 'zielon|czerwon|niebiesk|żółt|pomarańczow|fioletow|różow|brązow|szar|biał|czarn';
+        $elementy = 'przycisk|guzik|pole|ramk|napis|link|odnośnik|pasek|kropk|znacznik|obwódk|strzałk|ikon';
+
+        $wzory = [
+            '/(?:'.$kolory.')\w*\s+(?:\p{L}+\s+){0,2}(?:'.$elementy.')/iu',
+            '/(?:'.$elementy.')\w*\s+(?:\p{L}+\s+){0,2}(?:'.$kolory.')\w*\b/iu',
+            '/\bna\s+(?:zielono|czerwono|żółto|niebiesko|pomarańczowo|szaro|biało|czarno)\b/iu',
+        ];
+
+        $lapie = fn (string $zdanie): bool => array_reduce(
+            $wzory,
+            fn (bool $do, string $wzor): bool => $do || preg_match($wzor, $zdanie) === 1,
+            false,
+        );
+
+        // Cztery zdania, które naprawdę stały w repozytorium do tej zmiany.
+        $this->assertTrue($lapie('Otwórz ją i kliknij zielony przycisk.'), 'Wzór nie łapie „zielony przycisk".');
+        $this->assertTrue($lapie('Jeśli to Ty — kliknij zielony przycisk poniżej.'), 'Wzór nie łapie wariantu z „poniżej".');
+        $this->assertTrue($lapie('popraw tylko to, co jest zaznaczone na czerwono.'), 'Wzór nie łapie „zaznaczone na czerwono".');
+        $this->assertTrue($lapie('Szukaj pola podświetlonego na żółto'), 'Wzór nie łapie „na żółto".');
+
+        // A te muszą przechodzić — inaczej test wyżej zacznie kłamać w drugą stronę.
+        $this->assertFalse($lapie('trzy słowa razem, na przykład: zielonapietruszkarano.'), 'Przykład hasła to nie instrukcja po kolorze.');
+        $this->assertFalse($lapie('Czytelne na wydruku czarno-białym.'), 'Opis wydruku to nie instrukcja po kolorze.');
+        $this->assertFalse($lapie('Kliknij przycisk „Zaloguj mnie w Kuking”.'), 'Nazwa przycisku to poprawna droga.');
+    }
+
+    // ---------------------------------------------------------------
+    // 6. Cytat na stronie powitalnej mówi to, co mówi kod
     // ---------------------------------------------------------------
 
     /**
@@ -403,9 +516,43 @@ class TekstyWedlugCopyStyleTest extends TestCase
         return $koniec === false ? substr($html, $start) : substr($html, $start, $koniec - $start);
     }
 
+    /**
+     * Komentarz Blade znika, ale JEGO ZŁAMANIA LINII ZOSTAJĄ.
+     *
+     * Bez tego numer linii w komunikacie o błędzie wskazywał inne miejsce niż
+     * usterka — a komentarze w tym repozytorium bywają dłuższe niż kod, więc
+     * rozjazd sięgał kilkudziesięciu linii. Człowiek dostawał adres, pod
+     * którym nic nie ma, i musiał szukać sam.
+     */
     private function bezKomentarzyBlade(string $tresc): string
     {
-        return (string) preg_replace('/\{\{--.*?--\}\}/s', '', $tresc);
+        return $this->wytnijZachowujacLinie('/\{\{--.*?--\}\}/s', $tresc);
+    }
+
+    /** Wycina dopasowania, zostawiając w ich miejsce tyle złamań linii, ile zjadło. */
+    private function wytnijZachowujacLinie(string $wzor, string $tresc): string
+    {
+        return (string) preg_replace_callback(
+            $wzor,
+            fn (array $trafienie): string => str_repeat("\n", substr_count($trafienie[0], "\n")),
+            $tresc,
+        );
+    }
+
+    /**
+     * Arkusze stylów i style w linii wycinamy, bo nazwa koloru w CSS nie jest
+     * zdaniem do przeczytania. Zwykłych znaczników NIE wycinamy: `x-field`
+     * niesie tekst widoczny dla człowieka w atrybutach `label` i `help`,
+     * więc wycięcie znaczników zrobiłoby w tym teście dziurę dokładnie tam,
+     * gdzie stoi podpowiedź pod polem.
+     */
+    private function bezStylow(string $tresc): string
+    {
+        $tresc = $this->wytnijZachowujacLinie('/<style\b[^>]*>.*?<\/style>/is', $tresc);
+        $tresc = $this->wytnijZachowujacLinie('/\sstyle\s*=\s*"[^"]*"/is', $tresc);
+        $tresc = $this->wytnijZachowujacLinie("/\sstyle\s*=\s*'[^']*'/is", $tresc);
+
+        return $this->wytnijZachowujacLinie('/<!--.*?-->/s', $tresc);
     }
 
     /**

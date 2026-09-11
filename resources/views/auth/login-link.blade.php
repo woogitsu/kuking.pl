@@ -55,7 +55,7 @@
 
         <p class="notice mt-6">
             <strong>Co się stanie dalej?</strong> Przyjdzie wiadomość „Twój link do zalogowania w Kuking”.
-            Otwórz ją i kliknij zielony przycisk. Możesz to zrobić na telefonie, nawet jeśli o link
+            Otwórz ją i kliknij przycisk „Zaloguj mnie w Kuking”. Możesz to zrobić na telefonie, nawet jeśli o link
             prosisz z komputera. Link działa przez pół godziny i tylko raz.
         </p>
 
