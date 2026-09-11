@@ -46,7 +46,7 @@
             @if($zachowane->isNotEmpty())
                 <div class="notice">
                     <strong>Twoje zdjęcia są zachowane.</strong>
-                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co jest zaznaczone na czerwono.
+                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co wypisaliśmy na górze formularza.
                     <ul class="stack-tight lista-naga mt-3">
                         @foreach($zachowane as $zdjecie)
                             <li>
