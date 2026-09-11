@@ -43,14 +43,14 @@ i przycisk kłamiący o tym, co robi, są usterkami niezależnie od gustu.
 | # | Co | Dlaczego to fakt, nie gust | Decyzja |
 |---|---|---|---|
 | A1 | **419: „nic nie przepadło" stoi bezwarunkowo**, a ostrzeżenie o obcięciu jest pod `@if($formularz->obciete)` | Przy obciętym formularzu strona mówi jednocześnie obie rzeczy — w chwili, gdy człowiek ma wysłać coś, co właśnie napisał | robię |
-| A2 | **„Jutro będzie tu ktoś inny"** | Nic tego nie gwarantuje: żadna komenda nie zasila `DailyPick`, a wariant automatyczny sortuje po dacie publikacji. Przy pustym starcie zdanie kłamie najbardziej | robię |
+| A2 | **„Jutro będzie tu ktoś inny"** | Nic tego nie gwarantuje: wybór tablicy jest **ręczny** (panel `/kuking-na-dzis`), automatu nie ma, a wariant zapasowy sortuje po dacie publikacji. Przy wolnym dniu jutro będzie ta sama osoba | robię |
 | A3 | **„Obserwuj" dla gościa prowadzi do rejestracji** (`kuking-board.blade.php:71`) | Etykieta obiecuje akcję, której nie wykona. `AGENTS.md` §5: przycisk mówi, co robi | robię |
 | A4 | **„Podgląd: tak zobaczą to inni"** przy przepisie, który może być prywatny | `Recipe` ma kolumnę `visibility`; dla prywatnego przepisu zdanie jest nieprawdziwe | robię |
 | A5 | **„To zostaje w rodzinie"** przy przepisie, który może być publiczny | jw., odwrotny kierunek | robię |
 | A6 | **„Potrzebny tylko wtedy, gdy zapomnisz hasła"** o adresie e-mail | Nieprawda: jest logowanie linkiem (D-056), zmiana adresu i powiadomienia | robię |
 | A7 | **„To najczęściej czytana część przepisu"** | Twierdzenie analityczne, którego nikt nie zmierzył | robię |
 | A8 | **„Zajmie minutę"** | Mierzalna obietnica, której nie mierzymy | robię |
-| A9 | **Przykład hasła `zielonapietruszkarano`** | Uczy przewidywalnego wzorca bez separatorów. **Jest w DWÓCH miejscach**, audyt wymienia jedno | robię |
+| A9 | **Przykład hasła `zielonapietruszkarano`** | Uczy przewidywalnego wzorca bez separatorów. **Jest w TRZECH miejscach**, audyt wymienia jedno — trzecie to komunikat walidacji `password.min`, czyli ten, który człowiek widzi dokładnie wtedy, gdy hasło odrzucono | robię |
 | A10 | **„zapisz szkic" obok autozapisu** | Dwa modele działania na jednym ekranie — człowiek nie wie, który obowiązuje | robię |
 
 **Uwaga do A2:** stopki nie usuwam, tylko zastępuję. Komentarz w pliku mówi,

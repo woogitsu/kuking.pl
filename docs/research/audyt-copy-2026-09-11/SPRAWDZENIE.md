@@ -24,8 +24,8 @@ nieaktualnych z tego powodu, nie z powodu błędu autora.
 | Sprzeczność na 419 | **potwierdzony, i gorszy** | patrz niżej |
 | „To najczęściej czytana część przepisu" | **potwierdzony** | twierdzenie analityczne bez pomiaru |
 | „Zajmie minutę" | **potwierdzony** | `landing.blade.php` |
-| „Jutro będzie tu ktoś inny" | **potwierdzony, i gorszy** | patrz niżej |
-| Przykład hasła `zielonapietruszkarano` | **potwierdzony** | w DWÓCH miejscach: `register.blade.php` i `settings/security.blade.php` — audyt wymienia jedno |
+| „Jutro będzie tu ktoś inny" | **potwierdzony, ale z inną przyczyną** | patrz niżej |
+| Przykład hasła `zielonapietruszkarano` | **potwierdzony** | w TRZECH miejscach: `register.blade.php:70`, `settings/security.blade.php:21` i `RegisterController.php:167` (`password.min`) — audyt wymienia jedno |
 | „Obserwuj" dla gościa w `pages/search.blade.php` | **ZŁY PLIK** | patrz niżej |
 
 ## Trzy ustalenia poza tym, co napisał audyt
@@ -42,11 +42,21 @@ gdy człowiek ma za moment wysłać coś, co właśnie napisał.
 
 ### 2. „Jutro będzie tu ktoś inny" to obietnica bez mechanizmu
 
-Sprawdzone: **żadna komenda w `routes/console.php` ani w `app/Console/Commands/`
-nie zasila `DailyPick`**, a wariant automatyczny (`DailyBoard::automaticPosts()`)
-sortuje po `published_at DESC`.
+Mechanizm **istnieje, ale jest ręczny**: gospodarz wybiera tablicę na dziś
+w panelu `/kuking-na-dzis` (`routes/web.php:932-935`), a wiersze powstają
+w `DailyBoardController::update()` (`DailyPick::create()`, linia 182).
+Nie ma natomiast **żadnego automatu**: ani komendy w `routes/console.php`,
+ani w `app/Console/Commands/`. Kiedy gospodarz nic nie wybierze, wchodzi
+wariant zapasowy `DailyBoard::automaticPosts()`, który sortuje
+po `published_at DESC`.
 
-Czyli jutro będzie tam ktoś inny **tylko wtedy, gdy ktoś w nocy opublikuje**.
+Czyli jutro będzie tam ktoś inny **tylko wtedy, gdy gospodarz usiądzie do
+panelu albo ktoś w nocy opublikuje**. Zdanie obiecuje pewność, a mamy
+nawyk jednej osoby i sortowanie po dacie.
+
+(Prostuję własną wcześniejszą wersję tego akapitu: pisała „żadna komenda nie
+zasila `DailyPick`", co było prawdą o komendach i nieprawdą o tabeli — czytało
+się jako „nic tego nie zasila". Panel gospodarza zasila.)
 Przy starcie opisanym w `docs/product/COLD_START.md` to jest dokładnie ten
 moment, w którym nie opublikuje nikt — a wtedy zdanie kłamie najbardziej.
 
