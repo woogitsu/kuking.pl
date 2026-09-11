@@ -48,10 +48,35 @@ class CofniecieMigracjiFacebookaOdmawiaTest extends TestCase
         return require database_path(self::PLIK);
     }
 
-    /** Czy baza przyjmuje dziś `dostawca = 'facebook'`. */
+    /**
+     * Czy baza przyjmuje dziś `dostawca = 'facebook'`.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DLACZEGO TEN INSERT SIEDZI W ZAGNIEŻDŻONEJ TRANSAKCJI
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Sprawdzamy to jedynym uczciwym sposobem: próbą zapisu, która MA się
+     * odbić o CHECK. I tu wchodzi zachowanie PostgreSQL, którego SQLite nie
+     * ma — **nieudane zapytanie przerywa całą transakcję**. `RefreshDatabase`
+     * trzyma cały test w jednej transakcji, więc po odbitym INSERT-cie każde
+     * następne zapytanie, także zwykły `SELECT` w asercji, kończy się
+     * `SQLSTATE[25P02] current transaction is aborted`. Złapanie wyjątku
+     * w PHP tego nie cofa: `catch` uspokaja PHP, nie bazę.
+     *
+     * `DB::beginTransaction()` wewnątrz istniejącej transakcji zakłada
+     * SAVEPOINT, a `DB::rollBack()` wraca do niego — i dopiero to przywraca
+     * transakcji zdatność do dalszej pracy. Powrót do SAVEPOINT-a przy okazji
+     * usuwa wstawiony wiersz, więc osobne `delete()` przestaje być potrzebne.
+     *
+     * To jest zarazem powód, dla którego `AGENTS.md` każe uruchamiać testy na
+     * PostgreSQL, a nie na SQLite: na SQLite ten pomocnik działał i ukryłby
+     * różnicę aż do CI.
+     */
     private function facebookDopuszczony(): bool
     {
         $basia = $this->user();
+
+        DB::beginTransaction();
 
         try {
             DB::table('tozsamosci_zewnetrzne')->insert([
@@ -61,10 +86,12 @@ class CofniecieMigracjiFacebookaOdmawiaTest extends TestCase
                 'connected_at' => now(),
             ]);
         } catch (\Throwable) {
+            DB::rollBack();
+
             return false;
         }
 
-        DB::table('tozsamosci_zewnetrzne')->where('dostawca', 'facebook')->delete();
+        DB::rollBack();
 
         return true;
     }

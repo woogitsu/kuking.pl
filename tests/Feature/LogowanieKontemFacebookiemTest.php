@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\TozsamoscZewnetrzna;
+use App\Notifications\PotwierdzenieAdresu;
 use App\Models\User;
 use App\Support\Facebook;
 use Illuminate\Database\QueryException;
@@ -443,6 +444,18 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         $odpowiedz->assertRedirect(route('login'));
 
+        /*
+         * KOMUNIKAT CZYTAMY TU, ZANIM ZROBIMY KOLEJNE ŻĄDANIE.
+         *
+         * `session('status')` trzyma JEDNĄ wartość, a każde następne żądanie
+         * w tym teście może ją nadpisać własną. Wersja czytająca status na
+         * końcu metody oblewała, bo dostawała komunikat z próby wejścia na
+         * `facebook.link` („trwało zbyt długo"), a nie z odmowy, o którą
+         * chodzi. Test nadpisywał własny dowód — i wyglądało to na usterkę
+         * kodu, którym nie było.
+         */
+        $status = (string) session('status');
+
         // Nikt nie wszedł, nic nie powstało, drugie konto na ten adres też nie.
         $this->assertGuest();
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()));
@@ -454,8 +467,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->get(route('facebook.link'))->assertRedirect(route('login'));
 
         // Zdanie na ekranie mówi, CO ZROBIĆ — inaczej prawdziwa Basia
-        // odbija się od odmowy i odchodzi.
-        $status = (string) session('status');
+        // odbija się od odmowy i odchodzi. (Odczytane wyżej, patrz komentarz.)
         $this->assertStringContainsString('jest już konto', $status);
         $this->assertStringContainsString('hasłem', $status);
         $this->assertStringContainsString('Połącz konto Facebooka', $status);
@@ -562,9 +574,18 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertNull($basia->email_verified_at,
             'Adres z Facebooka nie ma dowodu potwierdzenia — nie wolno go zapisać jako potwierdzony.');
 
-        // Wiadomość z potwierdzeniem adresu WYCHODZI (przy Google nie wychodzi
-        // wcale, bo tam adres jest potwierdzony).
-        Notification::assertSentTo($basia, \Illuminate\Auth\Notifications\VerifyEmail::class);
+        /*
+         * Wiadomość z potwierdzeniem adresu WYCHODZI (przy Google nie wychodzi
+         * wcale, bo tam adres jest potwierdzony).
+         *
+         * KLASA JEST NASZA, NIE LARAVELOWA — i to nie jest szczegół stylu.
+         * `User::sendEmailVerificationNotification()` jest nadpisane
+         * (`app/Models/User.php`) i wysyła `PotwierdzenieAdresu`, bo cała
+         * nasza poczta jest po polsku i idzie przez EmailLabs. Asercja na
+         * `Illuminate\Auth\Notifications\VerifyEmail` oblewała TU, choć list
+         * wychodził — sprawdzała kopertę, której u nas nikt nie nadaje.
+         */
+        Notification::assertSentTo($basia, PotwierdzenieAdresu::class);
 
         // Reszta jest taka sama jak przy każdej innej drodze rejestracji.
         $this->assertSame('basia_z_podkarpacia', $basia->profile->username);
@@ -792,7 +813,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
     {
         $this->wlaczFacebooka();
 
-        $ktosInny = $this->user('ktos-inny', ['email' => 'ktos@example.test']);
+        $ktosInny = $this->user('ktos_inny', ['email' => 'ktos@example.test']);
         $ktosInny->connectFacebook(self::FB_ID);
 
         $basia = $this->user('basia', ['email' => 'basia@example.test']);
@@ -807,7 +828,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         // I nie zdradzamy, KTÓRE to konto.
         $this->assertStringNotContainsString('ktos@example.test', (string) session('status'));
-        $this->assertStringNotContainsString('ktos-inny', (string) session('status'));
+        $this->assertStringNotContainsString('ktos_inny', (string) session('status'));
     }
 
     #[Test]
