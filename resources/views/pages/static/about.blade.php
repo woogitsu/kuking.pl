@@ -45,7 +45,7 @@
         </p>
         {{-- „a nie »kiedyś«" odpierało zarzut, którego nikt nie postawił
              (audyt tekstów 11.09.2026). Sam fakt zostaje i jest sprawdzalny:
-             eksport stoi w `/ustawienia/dane` od pierwszego dnia. --}}
+             eksport stoi w `/ustawienia/twoje-dane` od pierwszego dnia. --}}
         <p>
             Kuking ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
             ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia.
