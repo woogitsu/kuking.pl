@@ -437,20 +437,34 @@ class NieudanyListZostawiaSladTest extends TestCase
     /**
      * ŚWIEŻE WDROŻENIE: tabela PUSTA OD ZERA, `down()` przechodzi bez pytania.
      *
-     * To jest osobny test od
-     * `test_rollback_odmawia_gdy_zniszczylby_nieodhaczony_slad`, a nie jego
-     * trzeci akapit, bo tamten NIGDY nie woła `down()` na tabeli pustej.
-     * Tamten przechodzi obie gałęzie warunku strażnika, ale w gałęzi
-     * „przepuść" tabela ma już wiersze — tyle że odhaczone. Gdyby ktoś
-     * zmienił warunek z „są NIEODHACZONE wiersze" na „są JAKIEKOLWIEK
-     * wiersze", tamten test nadal byłby zielony: wiersze tam są, więc obie
-     * jego gałęzie zachowałyby się tak samo jak dziś.
+     * `test_rollback_odmawia_gdy_zniszczylby_nieodhaczony_slad` przechodzi
+     * obie gałęzie warunku strażnika, ale ani razu nie woła `down()` na
+     * tabeli pustej: w gałęzi „przepuść" wiersze w tabeli są, tylko
+     * odhaczone. Ten test dokłada jedyny stan, którego tam nie ma — zero
+     * wierszy — czyli dokładnie to, co zastaje wycofanie migracji na
+     * wdrożeniu, na którym żaden list jeszcze nie przepadł.
      *
-     * Ten test tę zmianę OBLEWA — bo tu wierszy nie ma ani jednego, więc
-     * „jakiekolwiek wiersze" i „nieodhaczone wiersze" po raz pierwszy się
-     * rozjeżdżają. Mierzy przy okazji przypadek najczęstszy na produkcji:
-     * wycofanie migracji na świeżym wdrożeniu, na którym żaden list jeszcze
-     * nie przepadł, ma się udać i naprawdę skasować tabelę.
+     * ────────────────────────────────────────────────────────────────────
+     *  CZEGO TEN TEST NIE ROBI — ZMIERZONE, NIE ZGADNIĘTE
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Nie łapie ŻADNEJ podmiany warunku, której nie łapałby już tamten.
+     * Cztery sabotaże strażnika, każdy sprawdzony osobno:
+     *
+     *  • `whereNull('zauwazony_at')->count()` → `count()`  (jakiekolwiek
+     *    wiersze zamiast nieodhaczonych) — tamten CZERWONY, ten zielony;
+     *  • `whereNull` → `whereNotNull` (warunek odwrócony) — tamten
+     *    CZERWONY, ten zielony;
+     *  • `if ($nieodhaczone > 0)` → `if (false)` (strażnik przepuszcza
+     *    zawsze) — tamten CZERWONY, ten zielony;
+     *  • `if ($nieodhaczone > 0)` → `if (true)` (odmawia zawsze) — obydwa
+     *    czerwone.
+     *
+     * Powód jest jeden i widać go dopiero po zmierzeniu: druga połowa
+     * tamtego testu woła `down()` na tabeli, w której WIERSZE SĄ, więc
+     * podmiana „nieodhaczone → jakiekolwiek" wywraca ją natychmiast. Test
+     * stoi tu jako pokrycie przypadku ze świeżego wdrożenia, nie jako
+     * czujnik na cudzą pomyłkę — i nie ma prawa udawać drugiego.
      */
     public function test_rollback_na_swiezym_wdrozeniu_kasuje_pusta_tabele(): void
     {
