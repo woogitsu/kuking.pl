@@ -56,6 +56,81 @@
                     <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
                 </div>
             </div>
+
+            {{-- KOLAŻ ZDJĘĆ ------------------------------------------------
+                 Zgłoszenie właściciela: „na stronie głównej na samej górze po
+                 prawej stronie można zrobić kolaż w którym będą najładniejsze
+                 (albo wybrane przez admina) zdjęcia użytkowników, żeby
+                 zachęcać od razu". Do 11 września hero miało JEDNO dziecko
+                 i ani jednego zdjęcia — przy paśmie 1040 px treść zajmowała
+                 544 px, więc pół szerokości stało puste. Serwis o gotowaniu
+                 witał bez jedzenia.
+
+                 STAN ZAPASOWY JEST W `App\Domain\Feed\HeroKolaz`, NIE TUTAJ.
+                 Widok zna dokładnie dwa przypadki: są cztery kafle albo nie
+                 ma ich wcale. Kolekcja nigdy nie przychodzi niepełna — układ
+                 siatki jest zazębiony i brakujący kafel zostawiłby w hero
+                 dziurę w swoim kształcie, a nie mniejszy kolaż. Pełne
+                 uzasadnienie kolejności „wybór gospodarza → dobór
+                 automatyczny → brak kolażu" stoi w docblocku tamtej klasy.
+
+                 DLACZEGO TO JEST OZDOBNIK (`alt=""` + `aria-hidden`)
+                 Rozstrzygnięcie, nie odruch. Te zdjęcia nie są odnośnikiem,
+                 nie mają podpisu przy sobie, nie da się z nich nigdzie przejść
+                 i nie niosą ani jednej informacji, której nie ma w zdaniu
+                 obok („miejsce dla ludzi, którzy gotują naprawdę — w swojej
+                 kuchni"). Cztery niepowiązane opisy dań przeczytane na głos
+                 PRZED przyciskiem „Zostań kuKINGiem" nie informują, tylko
+                 odsuwają człowieka od jedynej akcji tego ekranu — a część
+                 zdjęć w serwisie i tak nie ma wpisanego `alt_text`, więc
+                 „opisy" znaczyłoby w praktyce „cztery razy to samo zdanie
+                 zastępcze". Ozdobnik zamiast treści jest tu decyzją na
+                 korzyść czytającego ekranem, nie oszczędnością.
+
+                 PODPIS POD KOLAŻEM NIE JEST OZDOBNIKIEM i celowo stoi POZA
+                 `aria-hidden`. To są nazwiska ludzi, których zdjęcia właśnie
+                 pokazujemy na stronie zachęcającej do rejestracji; prawo do
+                 oznaczenia autorstwa jest prawem osobistym i nie przenosi go
+                 żadna licencja (projekt klauzuli UGC, §10). Jedno zdanie
+                 kosztuje tu mniej niż rozmowa o tym, dlaczego go nie ma.
+
+                 WYDAJNOŚĆ: to jest pierwsza rzecz, jaką ładuje gość.
+                 Wariant `thumb` (320 px), nie `feed` ani oryginał — największy
+                 kafel ma na paśmie 1040 px około 230 px szerokości, więc 320 px
+                 starcza także przy gęstszym ekranie. `loading="lazy"` na
+                 wszystkich czterech, bo poniżej 64rem kolaż jest ukryty:
+                 przeglądarka nie pobiera wtedy ani jednego z tych plików,
+                 czyli telefon nie płaci za obrazki, których nie zobaczy.
+                 `decoding="async"` zdejmuje dekodowanie z wątku układu. --}}
+            @if($kolaz->isNotEmpty())
+                @php
+                    $autorzyKolazu = $kolaz->pluck('autor')
+                        ->map(fn ($autor) => $autor->displayName())
+                        ->unique()
+                        ->values();
+
+                    $podpisKolazu = $autorzyKolazu->count() > 1
+                        ? $autorzyKolazu->slice(0, -1)->implode(', ').' i '.$autorzyKolazu->last()
+                        : (string) $autorzyKolazu->first();
+                @endphp
+
+                <figure class="hero-kolaz-blok">
+                    <div class="hero-kolaz" aria-hidden="true">
+                        @foreach($kolaz as $kafel)
+                            <img class="hero-kolaz-kafel"
+                                 src="{{ $kafel['media']->url('thumb') }}"
+                                 alt=""
+                                 width="{{ $kafel['media']->width('thumb') ?? 320 }}"
+                                 height="{{ $kafel['media']->height('thumb') ?? 320 }}"
+                                 loading="lazy"
+                                 decoding="async">
+                        @endforeach
+                    </div>
+                    <figcaption class="hero-kolaz-podpis">
+                        Zdjęcia od: {{ $podpisKolazu }}.
+                    </figcaption>
+                </figure>
+            @endif
         </div>
     </section>
 
@@ -63,23 +138,62 @@
          Dawne „Cztery rzeczy i nic więcej", skrócone do trzech zdań (audyt
          60+ — patrz komentarz na górze pliku). Stoi PRZED tablicą specjalnie:
          to ma być pierwsza rzecz, która buduje prosty model „co tu robię",
-         zanim człowiek zobaczy gęstą, interaktywną listę osób i dań. --}}
+         zanim człowiek zobaczy gęstą, interaktywną listę osób i dań.
+
+         PRZEBUDOWANE 11 WRZEŚNIA — zgłoszenie właściciela, dosłownie: „zbyt
+         brzydkie, proste i niewizualne". Zmierzone przed zmianą: trzy kafle
+         w dwóch kolumnach od 48rem, czyli układ 2+1 z PUSTYM POLEM wielkości
+         całej karty pod trzecim kaflem. Kafel był białym prostokątem
+         z pogrubionym napisem „Krok 1" i jednym zdaniem — zero rytmu i zero
+         obrazu w sekcji, która ma wytłumaczyć, po co tu w ogóle jesteśmy.
+
+         CO SIĘ ZMIENIŁO I DLACZEGO TYLE
+           * TRZY KOLUMNY OD 64REM, nie dwie od 48rem. Trzy kroki to trzy
+             rzeczy równorzędne i układ ma to pokazywać; 2+1 mówił oku, że
+             dwa pierwsze są parą, a trzeci dokładką — i zostawiał tę dziurę.
+           * PONIŻEJ 64REM KAFEL JEST POZIOMY: znak po lewej, tekst po prawej.
+             Jedna kolumna wysokich kafli byłaby na telefonie trzema ekranami
+             przewijania przed tablicą.
+           * ZNAK (koło z ikoną) zamiast samego napisu „Krok 1". To jest cała
+             „wizualność", o którą prosił właściciel, i jest tania: kształty
+             są z istniejącego zestawu (`components/ikona.blade.php`), więc
+             nie dokładamy ani jednego pliku graficznego do pobrania.
+           * NUMER KROKU ZOSTAJE TEKSTEM, nie przechodzi do ikony. Ikona jest
+             `aria-hidden` z założenia (patrz docblock komponentu) i nie może
+             być jedynym nośnikiem kolejności — „Krok 2" musi dać się
+             przeczytać na głos.
+
+         Kolejność treści w kaflu: numer → co robisz → jak to wygląda.
+         Nagłówek mówi teraz CZYNNOŚĆ („Robisz zdjęcie"), a nie pozycję na
+         liście — samo „Krok 1" nie było tytułem, tylko etykietą. --}}
     <section class="pas pas--wglebiony" id="jak-dziala">
         <div class="pas-wnetrze">
             <h2 class="text-title-lg">Jak działa</h2>
 
             <ol class="rzeczy odstep-nad">
                 <li class="rzecz">
-                    <p class="rzecz-tytul">Krok 1</p>
-                    <p class="rzecz-opis">Robisz zdjęcie tego, co ugotowałeś.</p>
+                    <span class="rzecz-znak"><x-ikona nazwa="image" :rozmiar="30" /></span>
+                    <div class="rzecz-tresc">
+                        <p class="rzecz-krok">Krok 1</p>
+                        <p class="rzecz-tytul">Robisz zdjęcie</p>
+                        <p class="rzecz-opis">Telefonem, prosto z garnka. Nie musi być z okładki.</p>
+                    </div>
                 </li>
                 <li class="rzecz">
-                    <p class="rzecz-tytul">Krok 2</p>
-                    <p class="rzecz-opis">Piszesz kilka słów.</p>
+                    <span class="rzecz-znak"><x-ikona nazwa="book" :rozmiar="30" /></span>
+                    <div class="rzecz-tresc">
+                        <p class="rzecz-krok">Krok 2</p>
+                        <p class="rzecz-tytul">Piszesz kilka słów</p>
+                        <p class="rzecz-opis">Co to jest i z czego. Tyle wystarczy.</p>
+                    </div>
                 </li>
                 <li class="rzecz">
-                    <p class="rzecz-tytul">Krok 3</p>
-                    <p class="rzecz-opis">Ktoś odpowiada — komentarzem albo „Ugotowałem”.</p>
+                    <span class="rzecz-znak"><x-ikona nazwa="chat" :rozmiar="30" /></span>
+                    <div class="rzecz-tresc">
+                        <p class="rzecz-krok">Krok 3</p>
+                        <p class="rzecz-tytul">Ktoś odpowiada</p>
+                        <p class="rzecz-opis">Komentarzem albo „Ugotowałem” — czyli zdjęciem tego samego dania ze swojej kuchni.</p>
+                    </div>
                 </li>
             </ol>
         </div>
@@ -153,10 +267,15 @@
                     </x-empty-state>
                 </div>
             @else
-                {{-- Tylko `landing-wpisy`, BEZ `stack`. `.stack` to margines na
-                     dzieciach, a nie flex — w siatce dodawałby się do `gap`
-                     i pierwsza karta w rzędzie miałaby inny odstęp niż druga. --}}
-                <div class="landing-wpisy odstep-nad">
+                {{-- `landing-wpisy-kolumna`, nie dawna `landing-wpisy` (siatka
+                     dwukolumnowa): zgłoszenie właściciela o wpisach „jedno pod
+                     drugim" i o zmarnowanej przestrzeni między nimi. Pomiar obu
+                     układów i uzasadnienie wyboru stoją przy tej klasie
+                     w `resources/css/strony-publiczne.css`.
+
+                     Bez `stack`. `.stack` to margines na dzieciach, a nie flex —
+                     w siatce dodawałby się do `gap`. --}}
+                <div class="landing-wpisy-kolumna odstep-nad">
                     @foreach($posts as $post)
                         <x-post-card :post="$post" />
                     @endforeach
