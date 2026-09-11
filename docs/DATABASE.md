@@ -159,6 +159,54 @@ dobowy limit) i `WypisanieZPodsumowaniaTest`.
 włącz → wyłącz → włącz trzecia zmiana nadpisuje pierwszą i historia,
 o którą chodzi, ginie.
 
+#### `text_scale` — rozmiar tekstu, od 11 września także W DÓŁ
+
+Kolumna powstała z migracją tworzącą `users`, z `CHECK (text_scale BETWEEN
+90 AND 140)`. Migracja `2026_09_11_600000_rozszerz_skale_tekstu_w_dol`
+przesuwa dolną granicę na **70**.
+
+```sql
+ALTER TABLE users DROP CONSTRAINT users_text_scale_check;
+ALTER TABLE users ADD CONSTRAINT users_text_scale_check
+    CHECK (text_scale BETWEEN 70 AND 140);
+```
+
+**Co to znaczy w pikselach.** Token `--text-body` to `1.125rem × skala`:
+
+| skala | `--text-body` | podpis w ustawieniach |
+|---|---|---|
+| 70 | 12,6 px | Bardzo mały |
+| 80 | 14,4 px | Mały |
+| 90 | 16,2 px | Trochę mniejszy |
+| **100** | **18,0 px** | **Zwykły — domyślny, bez zmian** |
+| 112 | 20,2 px | Trochę większy |
+| 125 | 22,5 px | Duży |
+| 140 | 25,2 px | Bardzo duży |
+
+**Dlaczego to nie łamie zasady „tekst ≥ 18 px" z `AGENTS.md`.** Ta zasada
+opisuje, co człowiek widzi, ZANIM czegokolwiek dotknie — czyli domyślny
+wygląd serwisu. Domyślna skala zostaje 100%. Niżej schodzi wyłącznie ten, kto
+sam tak ustawi, i tylko na swoim koncie. Ustawienie czytelności działające
+w jedną stronę jest ustawieniem połowicznym; zgłosił to właściciel serwisu,
+dla którego 18 px jest za duże.
+
+**Trzy miejsca muszą się zgadzać** — `kuking.text.scales`,
+`resources/css/tokens.css` i ten CHECK. Rozjechały się już raz: 8 września
+konfiguracja oferowała 140, arkusz znał 150, a CHECK nie pozwalał 150
+powstać — skutkiem czego „Bardzo duży" zapisywał się na koncie i NIE ROBIŁ
+NIC. Pilnuje tego `SkalaTekstuDzialaTest`, od 11 września razem z podpisami
+(`kuking.text.scale_labels`).
+
+**Rollback ODMAWIA** (D-088), gdy choć jedno konto ma zapisane mniej niż 90 —
+bo zwężenie CHECK-a wymagałoby podniesienia tym kontom skali, czyli zmiany
+cudzego świadomego ustawienia bez słowa. Komunikat mówi, ilu kont to dotyczy,
+i podaje drogę bez migracji: usunięcie trzech mniejszych rozmiarów z
+konfiguracji i z arkusza (nowe konta ich nie zobaczą, stare zachowają swój
+wybór). Wymuszenie: `KUKING_ROLLBACK_PODNIES_SKALE_TEKSTU=true`. Sprawdza to
+`CofniecieSkaliTekstuOdmawiaTest`, razem z kontrolą dodatnią (na świeżej
+bazie cofnięcie ma przejść bez pytania) i z kontrolą wąskości (konto
+z rozmiarem 140 nie może zostać przestawione przy okazji).
+
 #### `theme` — jasny/ciemny wygląd (D-019)
 
 **Zgłoszenie właściciela:** telefon sam przełączał stronę w tryb nocny, choć
