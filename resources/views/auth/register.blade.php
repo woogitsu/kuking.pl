@@ -12,6 +12,20 @@
         i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
     </p>
 
+    {{-- Drogi dodatkowe: konto Google (issue #258, D-069) i konto Facebooka
+         (issue #259, D-098). Przycisk dostawcy znika razem z jego kluczami,
+         a cały blok — gdy nie działa żaden.
+
+         NAD FORMULARZEM, NIE POD NIM — zgłoszenie właściciela.
+
+         Pod formularzem ten blok widziała wyłącznie osoba, która przewinęła
+         przez cztery pola, Turnstile i przycisk — czyli ta, która już
+         postanowiła wymyślić hasło. Człowiek, dla którego to wejście
+         powstało, odbijał się wcześniej. Większość naszej grupy ma konto
+         Google albo Facebooka i to jest dla niej droga krótsza, nie
+         dodatek. --}}
+    <x-wejscia-zewnetrzne naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google albo Facebooka" />
+
     <x-error-summary />
 
     <form class="card" method="POST" action="{{ route('register') }}">
@@ -150,11 +164,6 @@
             <button class="btn btn-quiet" type="submit">Chcę konto na inny adres e-mail</button>
         </form>
     @endif
-
-    {{-- Drogi dodatkowe: konto Google (issue #258, D-069) i konto Facebooka
-         (issue #259, D-098). Przycisk dostawcy znika razem z jego kluczami,
-         a cały blok — gdy nie działa żaden. --}}
-    <x-wejscia-zewnetrzne naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google albo Facebooka" />
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

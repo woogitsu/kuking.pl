@@ -555,8 +555,20 @@
     text-decoration: none;
   }
 
-  /* „.pl" w kolorze marki — logotyp z UI kitu v2 (decyzja właściciela).
-     Wcześniej akcentowane było „KING" w „KUKING". */
+  /* AKCENT NA „King" I NA „.pl" — obie części w kolorze marki.
+
+     Historia tej reguły w trzech krokach, bo inaczej wygląda jak wahanie:
+     najpierw akcentowane było „KING" w wersaliku „KUKING"; D-015 zmieniło
+     logotyp na „KuKing.pl" i przeniosło akcent na „.pl"; 11 września
+     właściciel poprosił, żeby kolor wrócił także na „King", zostawiając
+     resztę logotypu bez zmian. Wersalik w środku pozostaje częścią znaku,
+     nie zasadą ortograficzną — do wersalikowego „KUKING" NIE wracamy.
+
+     Kontrast policzony, nie przyjęty na oko: #B3401F na białym pasku daje
+     5,72:1, a w trybie ciemnym #F2986A na #2A241E daje 6,92:1. Oba
+     przechodzą WCAG 2.2 AA dla tekstu (próg 4,5:1), więc kolor niesie
+     wyróżnienie, a nie samą dekorację. */
+  .wordmark-king,
   .wordmark-tld { color: var(--color-brand); }
 
   /* Znak dziedziczy kolor po logotypie i przez to sam się przestawia
