@@ -6,6 +6,7 @@ namespace App\Domain\Security;
 
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Support\AdresEmail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -74,6 +75,32 @@ use Throwable;
  * Napastnik nie zyskuje na tym nic: list idzie na skrzynkę, której nie ma.
  * Jeśli sam poprosi o link na założony przez siebie adres, dostanie list,
  * którego nie przeczyta.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  DLACZEGO WŁASNA TREŚĆ, A NIE ZWYKŁE „USTAW NOWE HASŁO"
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Do 11 września 2026 szło stąd `UstawienieNowegoHasla` — ta sama wiadomość
+ * co przy „nie pamiętam hasła". Mechanizm był dobry, treść kłamała: jej
+ * pierwsze zdanie brzmi „ktoś poprosił o nowe hasło do konta", a nikt o nowe
+ * hasło nie prosił. Człowiek prosił o WEJŚCIE NA KONTO i czekał na przycisk,
+ * który go tam wpuści.
+ *
+ * Skutek był taki, że osoba dostawała co innego, niż prosiła, i NIE MIAŁA
+ * SKĄD SIĘ DOWIEDZIEĆ DLACZEGO. Jedyny wniosek, jaki dało się z tego
+ * wyciągnąć, to „coś jest nie tak z tą stroną" — a przy grupie 50+ kończy się
+ * to porzuceniem serwisu, nie dopytaniem (`docs/research/AUDIENCE_50_PLUS.md`).
+ *
+ * Decyzja właściciela z 11 września 2026: wiadomość dostaje własną treść,
+ * tłumaczącą sytuację po ludzku — `App\Notifications\UstawienieHaslaZamiastLinku`
+ * i `resources/views/mail/haslo-zamiast-linku.blade.php`. Tam też stoi lista
+ * rzeczy, których ta wiadomość robić NIE MOŻE (nie straszy, nie tłumaczy
+ * mechaniki ataku, nie obwinia odbiorcy, nie przypisuje rodzaju).
+ *
+ * NA EKRANIE NIE ZMIENIA SIĘ NIC — i to jest warunek, pod którym ta zmiana
+ * w ogóle mogła powstać. Zmienia się wyłącznie to, co przeczyta osoba mająca
+ * dostęp do tej skrzynki, czyli ta, której i tak wolno wiedzieć, że jest tu
+ * konto na jej adres (D-048, akapit o kolizji adresów).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  DLACZEGO TO NIE JEST WYROCZNIA „KTO MA KONTO W KUKING"
@@ -164,7 +191,25 @@ final class WyslijOdzyskanieKonta
             // wychodzi — a my i tak oddajemy `true`. To jest świadome:
             // budżet dobowy liczy PRÓBY, a zaniżenie licznika w tym jednym
             // przypadku zrobiłoby z niego wyrocznię (patrz komentarz klasy).
-            Password::sendResetLink(['email' => $user->email]);
+            //
+            // WŁASNE POWIADOMIENIE, ALE TEN SAM TOKEN — uzasadnienie treści
+            // w sekcji „DLACZEGO WŁASNA TREŚĆ" w komentarzu klasy. Drugi
+            // argument `sendResetLink()` to udokumentowany hak brokera: token
+            // wystawia dalej `$this->tokens->create($user)`, więc trasa,
+            // ważność (`auth.passwords.users.expire`) i wbudowany odstęp
+            // zostają dokładnie te, co przy odzyskiwaniu hasła. Zmienia się
+            // WYŁĄCZNIE to, co człowiek przeczyta.
+            //
+            // Callback pomija zdarzenie `PasswordResetLinkSent` — to jest
+            // zdarzenie frameworka, na które w tym repozytorium nie ma ani
+            // jednego nasłuchu. Gdyby kiedyś powstał, ta gałąź musi je
+            // wysłać sama, bo broker jej w tym nie wyręczy.
+            Password::sendResetLink(
+                ['email' => $user->email],
+                static function (User $odbiorca, string $token): void {
+                    $odbiorca->notify(new UstawienieHaslaZamiastLinku($token));
+                },
+            );
         } catch (Throwable $e) {
             Log::error('Nie udało się wysłać listu z ustawieniem hasła dla konta bez potwierdzonego adresu.', [
                 'wyjatek' => $e::class,
