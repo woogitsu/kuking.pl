@@ -191,14 +191,31 @@ sprawdz "kopia zostawiła plik .meta" "tak" \
 # czytania logu: inaczej w panelu widać tylko „czerwone” i nie wiadomo, czy
 # nie było jak się połączyć, czy zrzut wyszedł podejrzanie mały. Tu pierwszy
 # z nich: baza, której nie ma.
+#
+# KATALOG MUSI BYĆ PUSTY I WŁASNY — inaczej ta kontrola nie mierzy niczego.
+#
+# Wersja licząca pliki w `${KATALOG_KOPII}` oblewała, i słusznie: kilkanaście
+# wierszy wyżej stoi tam zrzut z UDANEJ kopii. Liczyła więc cudzy plik
+# i nazywała go kadłubkiem po nieudanym `pg_dump`. Skrypt kasuje swój kadłubek
+# prawidłowo (`rm -f "${PLIK}"` przed `padnij 30`) — to sprawdzenie patrzyło
+# w złe miejsce.
+#
+# Pułapka jest ta sama, co przy kontroli ujemnej, która nie oblewa: wynik
+# wygląda na pomiar, a jest artefaktem stanu zostawionego przez poprzedni krok.
+KATALOG_KADLUBKA="$(mktemp -d "${TMPDIR:-/tmp}/kopia-kadlubek.XXXXXX")"
+
 wyjscie="$(bash "${SKRYPT_KOPII}" \
   --zrodlo "postgresql://kuking:kuking@127.0.0.1:5432/nie_ma_takiej_bazy_kuking" \
-  --katalog "${KATALOG_KOPII}" 2>&1)"
+  --katalog "${KATALOG_KADLUBKA}" 2>&1)"
 kod=$?
 sprawdz "„pg_dump się nie udał” ma własny kod wyjścia (30)" "30" "${kod}"
 sprawdz_zawiera "…i mówi, że kopii NIE MA" "KOPII NIE MA" "${wyjscie}"
 sprawdz "…i nie zostawia po sobie pliku-kadłubka" "0" \
-  "$(find "${KATALOG_KOPII}" -maxdepth 1 -name '*.dump' | wc -l)"
+  "$(find "${KATALOG_KADLUBKA}" -maxdepth 1 -name '*.dump' | wc -l)"
+sprawdz "…ani żadnego innego pliku" "0" \
+  "$(find "${KATALOG_KADLUBKA}" -maxdepth 1 -type f | wc -l)"
+
+rm -rf "${KATALOG_KADLUBKA}"
 
 # --- KONTROLA UJEMNA: katalog w repozytorium --------------------------------
 # Zrzut w katalogu roboczym gita kończy się kiedyś w commicie.
