@@ -1,9 +1,9 @@
 <x-layout title="O Kuking" description="Czym jest Kuking i dlaczego powstał.">
     <article class="prose">
-        <h1>O Kuking</h1>
+        <h1>O <x-kuking-word /></h1>
 
         <p class="text-lead">
-            Kuking to miejsce, w którym pokazujesz, co dziś gotujesz, zapisujesz swoje przepisy
+            <x-kuking-word /> to miejsce, w którym pokazujesz, co dziś gotujesz, zapisujesz swoje przepisy
             i poznajesz ludzi, którzy naprawdę gotują.
         </p>
 
@@ -44,17 +44,17 @@
                target="_blank" rel="noopener">informacja o zamknięciu Durszlak.pl</a>
         </p>
         <p>
-            Kuking ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
+            <x-kuking-word /> ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
             ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia,
             a nie „kiedyś”.
         </p>
 
         <h2>Co jest tu najważniejsze</h2>
         <ul>
-            <li><strong>Ludzie, nie treści.</strong> Kuking to nie kolejna baza przepisów. To ludzie, którzy gotują na co dzień.</li>
+            <li><strong>Ludzie przed przepisami.</strong> <x-kuking-word /> to nie kolejna baza przepisów — to ludzie, którzy gotują na co dzień.</li>
             <li><strong>„Ugotowałem” zamiast lajka.</strong> Że komuś naprawdę wyszło z Twojego przepisu, znaczy więcej niż sto serduszek.</li>
             <li><strong>Przepisy po mamie i babci.</strong> Możesz podpisać, po kim jest przepis, dopisać jego historię i dodać zdjęcie starej kartki.</li>
-            <li><strong>Spokój.</strong> Bez rankingów, bez wyścigu, bez liczników w twarz. Bez algorytmu, który układa Ci stronę główną.</li>
+            <li><strong>Spokój.</strong> Bez rankingów i bez algorytmu, który układałby Ci stronę główną.</li>
         </ul>
 
         <h2>Czego tu nie ma i nie będzie</h2>

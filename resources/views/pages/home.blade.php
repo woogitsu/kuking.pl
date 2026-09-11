@@ -106,7 +106,7 @@
              Nowa etykieta nie jest wymyślona: to nazwa, którą ten feed nosi
              wszędzie indziej — na własnym ekranie (`pages/discover.blade.php`),
              w pustej tablicy dnia, w wyszukiwarce i w `AGENTS.md` §8. --}}
-        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Świeżo z Kuking</a>
+        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Świeżo z <x-kuking-word /></a>
     </nav>
 
     @if($showingDiscover)
@@ -124,7 +124,7 @@
 
     @if($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
-            Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
+            Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>
     @else
         <div class="stack">

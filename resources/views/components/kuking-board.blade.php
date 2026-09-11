@@ -98,7 +98,7 @@
     @if($pusta)
         <p class="meta mb-0">
             Dziś jeszcze nikogo nie wybraliśmy.
-            Zajrzyj do <a href="{{ route('discover') }}">Świeżo z Kuking</a>.
+            Zajrzyj do <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a>.
         </p>
     @else
         <p class="meta">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>

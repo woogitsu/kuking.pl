@@ -2756,6 +2756,19 @@
     letter-spacing: 0.01em;
   }
 
+  /* NAZWA NIE ŁAMIE SIĘ W ŚRODKU.
+     Od chwili, w której dwukolorowy zapis wszedł do tekstu bieżącego
+     (`docs/brand/GLOS_MARKI.md` §2), słowo stoi w akapitach o zwykłej
+     szerokości, a nie tylko w nagłówkach. Złamanie „ku" / „KINGiem" na dwa
+     wiersze rozbiłoby jedyny nośnik tej gry — wersaliki w ŚRODKU wyrazu —
+     i przy 320 px oraz czcionce 200% zdarzałoby się regularnie.
+     Ryzyko rozjechania układu jest przy tym żadne: najdłuższa dozwolona forma
+     („kuKINGiem") ma dziewięć znaków, czyli mniej niż „Ugotowałem" — napis,
+     który w tym interfejsie i tak musi się mieścić w jednym wierszu. */
+  .kuking-word {
+    white-space: nowrap;
+  }
+
   /* MARKA NA MARCE NIE MA KONTRASTU.
      Gdy „Zostań kuKINGiem" wjechało do przycisku podstawowego na stronie
      powitalnej, skan dostępności oblał się w motywie ciemnym:
@@ -2765,7 +2778,8 @@
      Wewnątrz przycisku „KING" bierze więc kolor otoczenia — przycisk zna
      swoją parę tło/tekst i ma ją sprawdzoną. Wyróżnienie robią wersaliki,
      które i tak są tu nośnikiem, a nie kolor. */
-  .btn .kuking-word strong {
+  .btn .kuking-word strong,
+  .kuking-word--bez-koloru strong {
     color: inherit;
   }
 

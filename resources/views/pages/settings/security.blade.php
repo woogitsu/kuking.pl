@@ -38,7 +38,7 @@
         <h2 class="mt-0">Wyloguj mnie z innych urządzeń</h2>
         <p>
             Użyj tego, jeśli konto zostało zalogowane na cudzym telefonie albo komputerze —
-            na przykład u wnuka, w bibliotece albo u znajomych — i nie masz jak się tam
+            na przykład u rodziny czy znajomych — i nie masz jak się tam
             już wylogować.
         </p>
         <p>

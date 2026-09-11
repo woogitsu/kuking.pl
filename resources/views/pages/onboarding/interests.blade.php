@@ -18,7 +18,7 @@
         „gotowe" czyta się jak „jednak coś nie wyszło".
     --}}
     <p class="mb-5 onboarding-status-konta">
-        Twoje konto już działa — możesz od razu publikować i przeglądać Kuking.
+        Twoje konto już działa — możesz od razu publikować i przeglądać <x-kuking-word />.
         Te trzy kroki są opcjonalne: pomagają nam dobrać Ci pierwsze wpisy,
         a każdy z nich możesz pominąć.
     </p>

@@ -6,6 +6,13 @@ przyciski, nagłówki, puste stany, błędy, e-maile, powiadomienia.
 Jeśli piszesz cokolwiek, co przeczyta człowiek — piszesz według tego pliku.
 Słownik funkcji i lista słów zakazanych: `BRAND_EXTENDED.md`.
 
+> **Ten plik mówi, JAK napisać zdanie. Czym ten głos JEST i GDZIE mówi —
+> [`GLOS_MARKI.md`](GLOS_MARKI.md).** Tamten dokument rozstrzyga zasięg marki
+> (dwukolorowy zapis `kuKING` wszędzie poza pięcioma miejscami, hierarchia
+> tonu, kryterium „nie konkuruje z zadaniem" zamiast limitu na ekran) i zbiera
+> decyzje właściciela z 11 września 2026. Gdzie oba pliki mówią co innego:
+> brzmienie zdania rozstrzyga ten plik, zasięg marki — tamten.
+
 ---
 
 ## 1. Jeden akapit, który wystarczy zapamiętać
@@ -498,6 +505,7 @@ Rozstrzyga sprzeczność, która stała w produkcie: karta wpisu mówiła
 
 ## Referencje
 
+[`GLOS_MARKI.md`](GLOS_MARKI.md) (czym ten głos JEST i gdzie mówi) ·
 `BRAND_EXTENDED.md` (słownik i słowa zakazane) · `MASCOT_CONCEPT.md` (zakaz
 komplementowania koroną) · `../UX_50_PLUS.md` (wzorce błędów) ·
 `../product/SOUL.md` (mikro-copy pustych stanów) · `../research/AUDIENCE_50_PLUS.md`

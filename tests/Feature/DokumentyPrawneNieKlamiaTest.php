@@ -625,7 +625,13 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
     public static function stronyInformacyjne(): array
     {
         return [
-            'o Kuking' => ['/o-kuking', 'O Kuking'],
+            // Nagłówek to „O kuKING" — dwukolorowy zapis nazwy
+            // (`docs/brand/GLOS_MARKI.md` §2) rozbija słowo na kilka
+            // elementów, więc po `strip_tags` stoi tam „O  kuKING kuking".
+            // Kontrolą metody pomiaru jest tu samo słowo; napisu „O Kuking"
+            // w treści tej strony już nie ma i wpisanie go tutaj sprawdzałoby
+            // nieistniejący stan.
+            'o Kuking' => ['/o-kuking', 'kuKING'],
             'pomoc' => ['/pomoc', 'Pomoc'],
         ];
     }

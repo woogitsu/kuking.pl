@@ -190,9 +190,22 @@
             @csrf
             {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
                  „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie
-                 przy tym parametrze w `components/field.blade.php`. --}}
+                 przy tym parametrze w `components/field.blade.php`.
+
+                 PIERWSZE ZDANIE PODPOWIEDZI WYMIENIONE, DRUGIE NIETKNIĘTE
+                 (decyzja właściciela).
+                 Było: „Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku."
+                 Dwa powody na pierwsze zdanie: etykieta pola brzmi już „Napisz
+                 komentarz", więc podpowiedź zaczynała się tym samym słowem drugi
+                 raz pod rząd — i mówiła, JAK pisać, czyli była metajęzykiem
+                 o tonie, a nie informacją.
+                 „Choćby jedno zdanie" zdejmuje presję DŁUGOŚCI. Drugie zdanie
+                 zostaje celowo: zdejmuje presję TREŚCI komuś, kto nie ma nic
+                 mądrego do powiedzenia o daniu, a chciałby zapytać o zamiennik
+                 mąki. Razem mówią „tyle wystarczy", a nie „pisz tak".
+                 Uzasadnienie: `docs/brand/GLOS_MARKI.md` §5. --}}
             <x-field name="body" label="Napisz komentarz" type="textarea" :rows="4"
-                     help="Napisz normalnie, po ludzku. Pytanie do autora też jest w porządku."
+                     help="Choćby jedno zdanie. Pytanie do autora też jest w porządku."
                      required bez-oznaczenia />
             <button class="btn btn-primary" type="submit">Wyślij komentarz</button>
         </form>

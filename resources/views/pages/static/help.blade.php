@@ -7,7 +7,7 @@
             <li>Kliknij <strong>Dodaj</strong> — na telefonie znajdziesz ten przycisk na dole ekranu, pośrodku.</li>
             <li>Wybierz <strong>Zdjęcie i kilka słów</strong>.</li>
             <li>Kliknij pole ze zdjęciem. Telefon zapyta, czy chcesz zrobić zdjęcie teraz, czy wybrać je z galerii.</li>
-            <li>Napisz jedno zdanie — albo nic nie pisz, to też jest w porządku.</li>
+            <li>Napisz jedno zdanie — albo nie pisz nic. Samo zdjęcie wystarczy.</li>
             <li>Kliknij <strong>Opublikuj</strong>.</li>
         </ol>
 
@@ -20,7 +20,7 @@
 
         <h2>Co to znaczy „Ugotowałem”?</h2>
         <p>
-            To najważniejszy przycisk w Kuking. Klikasz go, kiedy naprawdę ugotujesz coś
+            To najważniejszy przycisk w <x-kuking-word />. Klikasz go, kiedy naprawdę ugotujesz coś
             z czyjegoś przepisu. Autor dostanie o tym wiadomość — i to jest tu najmilsza rzecz.
             Możesz dodać zdjęcie, ale nie musisz.
         </p>
