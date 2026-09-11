@@ -1,4 +1,4 @@
-# Pułapki testów — siedem rzeczy, które w tym repozytorium naprawdę przeszły
+# Pułapki testów — osiem rzeczy, które w tym repozytorium naprawdę przeszły
 
 Ten plik nie jest wykładem o testowaniu. To lista pomyłek, które **w tym
 projekcie** przeszły przez zielone CI i zostały wykryte dopiero przez
@@ -219,6 +219,113 @@ połączenia są naprawdę dwa.
 
 ---
 
+## 8. `git checkout -- <plik>` cofa nie tylko sabotaż, ale i niezacommitowaną naprawę
+
+**Złapała: koordynatora tej sesji, na trzech kontrolach ujemnych z rzędu —
+i wszystkie trzy wyglądały na udane.**
+
+Przebieg był taki. Naprawa leżała w katalogu roboczym, **bez commita**. Agent
+zepsuł plik celowo, uruchomił test, zobaczył czerwień — i przywrócił plik
+przez `git checkout -- <plik>`. To polecenie nie zna pojęcia „sabotaż":
+przywraca treść z `HEAD`, czyli stan SPRZED naprawy. Od tej chwili plik
+zawierał starą, zepsutą treść, o której agent myślał, że jest naprawiona.
+
+Dalej działo się najgorsze możliwe: drugi i trzeci sabotaż raportowały
+czerwień z **pierwszej** usterki, tej cofniętej razem z naprawą. Trzy
+kontrole ujemne oblały się trzy razy z tego samego, niewłaściwego powodu —
+a w podsumowaniu wyglądało to jak trzy niezależne dowody, że testy mierzą.
+
+Wykryte tylko dlatego, że w komunikacie oblanego testu stała nazwa **nie tego
+pliku**, który był sabotowany. Gdyby komunikat był ogólniejszy („asercja nie
+przeszła"), pomyłka weszłaby do raportu jako trzy zielone kontrole ujemne.
+
+**Co robić:**
+
+1. **Przed serią kontroli ujemnych zacommituj naprawę** — wtedy `HEAD` jest
+   stanem naprawionym i `git checkout -- <plik>` robi to, czego się od niego
+   oczekuje.
+2. **Albo nie przywracaj z `HEAD` w ogóle**: odłóż kopię (`cp <plik>
+   <plik>.kopia`), sabotuj, przywróć przez `cp <plik>.kopia <plik>`. Kopia nie
+   wie nic o commitach, więc nie cofnie niczego poza sabotażem.
+3. **Czytaj, CZEGO dotyczy komunikat oblanego testu, nie tylko że jest
+   czerwony.** Kontrola ujemna, która oblewa się z innego powodu niż Twój
+   sabotaż, nie dowodzi niczego — dokładnie tak samo jak sabotaż, który
+   w ogóle się nie nałożył i dał bezwartościowe „0 failed" (pułapki 2 i 3).
+   To jest siostra tamtych dwóch: **raz nie mierzysz nic, raz mierzysz nie to,
+   a wynik w obu przypadkach wygląda na dowód.**
+4. Po każdej kontroli ujemnej `git diff` **i** `git status` — pusty diff przy
+   niezacommitowanej naprawie znaczy, że naprawy już nie ma, a nie że
+   wszystko wróciło na miejsce.
+
+## 8b. …a czerwień, którą czytasz, może pochodzić z maszyny, nie z kodu
+
+**Złapała: 11.09.2026, agenta pracującego równolegle — i kosztowała cudzy czas
+na szukanie usterki, której nie było.**
+
+`RegressionTest::test_przetworzenie_odnotowuje_czy_zastosowano_obrot` oblał się
+z komunikatem:
+
+```text
+Brak pliku źródłowego w storage.
+```
+
+Człowiek, który to czyta, idzie szukać błędu w przetwarzaniu zdjęć. A pliku nie
+było, bo **skończyło się miejsce na dysku** (w chwili startu zostało 5,7 GB
+i malało — kilku agentów pracowało naraz). Zapis padł, plik nie powstał,
+a `ProcessUploadedImage` sprawdza tylko, **czy plik jest**:
+
+```php
+if ($original === null) {
+    throw new \RuntimeException('Brak pliku źródłowego w storage.');
+}
+```
+
+Brak miejsca, brak uprawnień, skasowanie pliku i nigdy nieudany zapis dają
+w tym miejscu jeden, ten sam, mylący komunikat — nazywający OBJAW widziany
+przez kod, nie PRZYCZYNĘ. Ten sam test na `main`, uruchomiony osobno,
+przechodził.
+
+**Co robić:**
+
+1. **Zanim uwierzysz czerwieni, uruchom ten jeden test osobno** — `--filter`
+   na jego nazwie. Usterka w kodzie oblewa się tak samo w pełnym przebiegu
+   i w pojedynczym; wyczerpany zasób maszyny zwykle nie.
+2. **Sprawdź `df -h /`.** To jedno polecenie odróżnia „test pilnuje czegoś
+   zepsutego" od „maszynie skończyło się miejsce".
+3. Przy pisaniu własnych komunikatów: jeśli warunek brzmi „czy plik jest",
+   to komunikat nie ma prawa twierdzić, że wie, dlaczego go nie ma. Lepiej
+   wymienić w nim możliwe przyczyny niż nazwać jedną, nieprawdziwą.
+
+To jest siostra pułapki 8 z drugiej strony: tam czerwień była prawdziwa, ale
+z niewłaściwego pliku; tu jest prawdziwa, ale z niewłaściwej warstwy. W obu
+razach **czerwień bez przeczytanej przyczyny nie jest informacją.**
+
+## 8c. …a `git stash` jest WSPÓLNY dla wszystkich worktree'ów
+
+**Złapała: 11.09.2026, dwóch agentów naraz — jeden odłożył swoją pracę,
+a `git stash pop` zwrócił mu SZEŚĆ PLIKÓW drugiego, z całkiem innego zadania.**
+
+Agent pracujący nad migracjami zrobił `git stash`, a po chwili `git stash pop`
+— i dostał pliki bramki R2, nad którą pracował ktoś inny, w innym worktree.
+Uratowało to tylko tyle, że zauważył obce nazwy plików; obie prace dało się
+odzyskać.
+
+Przyczyna jest konstrukcyjna i warto ją znać dokładnie. `git worktree`
+izoluje **katalog roboczy, indeks i `HEAD`** — i na tym kończy izolacja.
+Schowek (`refs/stash`), wszystkie refy i cały katalog `.git` są **wspólne**.
+Agent, który myśli „mam swój worktree, więc mam swój schowek", zabiera cudzą
+pracę bez jednego ostrzeżenia.
+
+**Co robić:** w tym repozytorium **nie używaj `git stash` w ogóle.** Jak
+w pułapce 8: zacommituj albo odłóż kopie plików (`cp`). Jedno i drugie jest
+Twoje i tylko Twoje.
+
+To jest trzecia rzecz z tej samej rodziny co pułapki 8 i 8b: **polecenie
+gita, które w pojedynczej pracy jest bezpieczne, przy kilku agentach naraz
+kasuje robotę** — a wygląda przy tym dokładnie tak, jakby zadziałało.
+
+---
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
@@ -232,6 +339,17 @@ Siódma dołączyła 11.09.2026, przy zakładaniu grupy `dwa-polaczenia` (D-105,
 issue #314): wyszła z pomiaru zrobionego po to, żeby sprawdzić, czy nowy
 szkielet w ogóle cokolwiek mierzy. Okazało się, że przy jednym połączeniu nie
 mierzy — i że wygląda przy tym dokładnie tak samo jak wtedy, gdy mierzy.
+
+Ósma dołączyła 11.09.2026 razem z dopiskami 8b i 8c — z tego samego dnia
+i tej samej sesji kilkunastu agentów pracujących równolegle. Cała trójka jest
+jedyną częścią tej listy, która nie dotyczy kodu testu, tylko **obsługi
+pomiaru: czytania własnej kontroli ujemnej, czytania cudzej czerwieni
+i narzędzi, które przy kilku agentach naraz zachowują się inaczej, niż
+podpowiada intuicja o izolacji**. Ósma wyszła z serii trzech kontroli
+ujemnych, które oblały się trzy razy z tego samego, cofniętego wraz z naprawą
+powodu. Ta trójka zostaje na liście, bo lista pilnuje nie tylko tego, żeby
+test mierzył, ale i tego, żeby jego pomiar był uczciwy — a pomiar czytany
+źle albo skasowany przez własne narzędzie nie jest uczciwy.
 
 Dwie zasady o kodzie, które z tego zostają (D-079, obowiązują szerzej niż
 miejsce zapisu):
