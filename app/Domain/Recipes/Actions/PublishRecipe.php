@@ -132,11 +132,29 @@ final class PublishRecipe
         // bo snapshot powstaje tylko przy publikacji (audyt A07).
         $bedziePubliczny = $publish || ($existing !== null && $existing->isPublished());
 
+        /*
+         * SKŁADNIKI NIE SĄ WARUNKIEM PUBLIKACJI — ZGODA WŁAŚCICIELA
+         * z 11.09.2026 (issue #364).
+         *
+         * Stało tu:
+         *
+         *     if ($cleanIngredients === []) {
+         *         throw new BladDlaCzlowieka('Dodaj przynajmniej jeden składnik…');
+         *     }
+         *
+         * i to była ostatnia bramka, która kazała człowiekowi rozstrzygnąć
+         * strukturę przepisu, zanim wolno mu było cokolwiek opublikować.
+         * Zgoda padła świadomie i wprost, w treści zgłoszenia: „przepis wolno
+         * opublikować bez ani jednego składnika". Za pół roku nikt nie będzie
+         * pamiętał, że była świadoma — dlatego pilnuje jej test regresyjny
+         * `DodawaniePrzepisuSzescKontrolekTest`, a nie ten komentarz.
+         *
+         * KROK ZOSTAJE WARUNKIEM i to nie jest niekonsekwencja: przepis bez
+         * składników dalej mówi, CO ZROBIĆ („zalej wodą, gotuj trzy godziny"),
+         * a przepis bez ani jednego kroku nie mówi nic i nie da się z niego
+         * ugotować — czyli nie jest przepisem, tylko listą zakupów.
+         */
         if ($bedziePubliczny) {
-            if ($cleanIngredients === []) {
-                throw new BladDlaCzlowieka('Dodaj przynajmniej jeden składnik — bez tego przepis nie może być opublikowany.');
-            }
-
             if ($cleanSteps === []) {
                 throw new BladDlaCzlowieka('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
             }

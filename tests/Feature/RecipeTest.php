@@ -29,11 +29,27 @@ class RecipeTest extends TestCase
         $this->assertSame('rosol-babci-zofii', $recipe->slug);
     }
 
-    public function test_publikacja_wymaga_skladnikow_i_krokow(): void
+    public function test_publikacja_wymaga_kroku_ale_nie_wymaga_skladnika(): void
     {
         $basia = $this->user('basia');
 
-        $this->expectExceptionMessage('Dodaj przynajmniej jeden składnik');
+        // SKŁADNIK NIE JEST WARUNKIEM — zgoda właściciela z 11.09.2026
+        // (issue #364). Pełny dowód regresyjny wraz z drogą przez formularz
+        // stoi w `DodawaniePrzepisuSzescKontrolekTest`; tu pilnujemy samej
+        // akcji domenowej, bo to ona jest jedyną bramką dla obu dróg zapisu.
+        $bezSkladnikow = app(PublishRecipe::class)->handle(
+            author: $basia,
+            attributes: ['title' => 'Przepis bez składników'],
+            steps: [['instruction' => 'Wymieszać wszystko.']],
+            publish: true,
+        );
+
+        $this->assertSame(Recipe::STATUS_PUBLISHED, $bezSkladnikow->status);
+        $this->assertCount(0, $bezSkladnikow->ingredients);
+
+        // KROK JEST WARUNKIEM i zostaje: przepis, który nie mówi, co zrobić,
+        // nie jest przepisem.
+        $this->expectExceptionMessage('Opisz przynajmniej jeden krok');
 
         app(PublishRecipe::class)->handle(
             author: $basia,
