@@ -1,9 +1,9 @@
 <x-layout title="O Kuking" description="Czym jest Kuking i dlaczego powstał.">
     <article class="prose">
-        <h1>O Kuking</h1>
+        <h1>O <x-kuking-word /></h1>
 
         <p class="text-lead">
-            Kuking to miejsce, w którym pokazujesz, co dziś gotujesz, zapisujesz swoje przepisy
+            <x-kuking-word /> to miejsce, w którym pokazujesz, co dziś gotujesz, zapisujesz swoje przepisy
             i poznajesz ludzi, którzy naprawdę gotują.
         </p>
 
@@ -47,7 +47,7 @@
              (audyt tekstów 11.09.2026). Sam fakt zostaje i jest sprawdzalny:
              eksport stoi w `/ustawienia/twoje-dane` od pierwszego dnia. --}}
         <p>
-            Kuking ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
+            <x-kuking-word /> ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
             ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia.
         </p>
 

@@ -827,7 +827,7 @@
 
         <footer class="site-footer">
             <div class="site-footer-inner">
-                <p class="site-footer-haslo">Kuking — gotujemy po swojemu.</p>
+                <p class="site-footer-haslo"><x-kuking-word /> — gotujemy po swojemu.</p>
 
                 {{-- Licznik kuKINGów (#38) przeniesiony z płaskiej stopki do
                      poziomu z hasłem — tu jest jego miejsce: mówi, ilu nas
@@ -877,7 +877,7 @@
                     <nav class="site-footer-grupa" aria-label="O serwisie">
                         <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>
                         <ul>
-                            <li><a href="{{ route('about') }}">O Kuking</a></li>
+                            <li><a href="{{ route('about') }}">O <x-kuking-word /></a></li>
                             <li><a href="{{ route('rules') }}">Zasady</a></li>
                         </ul>
                     </nav>

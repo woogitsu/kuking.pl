@@ -13,10 +13,10 @@
         natychmiastowym: WIDZI, NA JAKI ADRES zakłada konto, zanim zacznie
         cokolwiek wpisywać. Z jednej skrzynki korzysta czasem całe małżeństwo.
     --}}
-    <h1>Załóż konto w Kuking</h1>
+    <h1>Załóż konto w <x-kuking-word /></h1>
 
     <p class="mb-5">
-        Na adres <strong>{{ $adres }}</strong> nie ma jeszcze konta w Kuking.
+        Na adres <strong>{{ $adres }}</strong> nie ma jeszcze konta w <x-kuking-word />.
         Kliknij przycisk poniżej, a przejdziesz do krótkiego formularza — ten adres będzie
         już w nim wpisany i potwierdzony, więc zostanie imię, nazwa użytkownika i hasło.
     </p>

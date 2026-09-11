@@ -47,17 +47,31 @@
             <div class="hero-tekst">
                 <p class="nadtytul">Gotujemy po swojemu.</p>
                 <h1 class="hero-tytul text-title-xl">Pokaż, co dziś ugotowałeś</h1>
+                {{-- „gotują naprawdę" i „Nic więcej nie musisz" wypadły
+                     świadomie (grupa C1, decyzja właściciela): pierwsze
+                     zapewniało o czymś, czego nie da się sprawdzić, drugie
+                     uspokajało zamiast zapraszać. W ich miejsce stoi to, co
+                     da się zrobić i co z tego wynika. --}}
                 <p class="text-lead hero-lead miara">
-                    Kuking to miejsce dla ludzi, którzy gotują naprawdę — w swojej kuchni,
-                    z tego, co jest. Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
+                    <x-kuking-word /> to miejsce dla ludzi, którzy gotują codziennie — w swojej
+                    kuchni, z tego, co jest. Wrzuć zdjęcie i kilka słów, a pokażesz je komuś,
+                    kto dziś też gotował.
                 </p>
                 <div class="hero-akcje">
                     {{-- `btn-napis` NIE JEST OZDOBNIKIEM — patrz issue #353 i komentarz
                          przy `.btn-napis` w `resources/css/tokens.css`. `.btn` jest
                          `inline-flex`, więc bez tego `<span>` napis to trzy elementy
-                         flex („Zostań ", nazwa, „ — to darmowe"), każdy zawijany osobno
-                         i łamany w środku wyrazu. --}}
-                    <a class="btn btn-primary btn-duzy" href="{{ route('register') }}"><span class="btn-napis">Zostań <x-kuking-word forma="iem" /> — to darmowe</span></a>
+                         flex („Zostań ", nazwa, „ — bez opłat i bez reklam"), każdy
+                         zawijany osobno i łamany w środku wyrazu.
+
+                         NAPIS JEST DECYZJĄ WŁAŚCICIELA, nie propozycją: „to darmowe"
+                         brzmiało sprzedażowo, a „za darmo, na zawsze" obiecywałoby
+                         przyszłość bez gwarancji. „Bez opłat i bez reklam" mówi
+                         o stanie dzisiejszym i o zobowiązaniu, które ma pokrycie
+                         w decyzji o monetyzacji (dobrowolna zbiórka na hosting,
+                         nigdy reklamy i nigdy płatny dostęp do cudzych przepisów).
+                         Uzasadnienie: `docs/brand/GLOS_MARKI.md` §6. --}}
+                    <a class="btn btn-primary btn-duzy" href="{{ route('register') }}"><span class="btn-napis">Zostań <x-kuking-word forma="iem" /> — bez opłat i bez reklam</span></a>
                     <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
                 </div>
             </div>
@@ -83,7 +97,7 @@
                  Rozstrzygnięcie, nie odruch. Te zdjęcia nie są odnośnikiem,
                  nie mają podpisu przy sobie, nie da się z nich nigdzie przejść
                  i nie niosą ani jednej informacji, której nie ma w zdaniu
-                 obok („miejsce dla ludzi, którzy gotują naprawdę — w swojej
+                 obok („miejsce dla ludzi, którzy gotują codziennie — w swojej
                  kuchni"). Cztery niepowiązane opisy dań przeczytane na głos
                  PRZED przyciskiem „Zostań kuKINGiem" nie informują, tylko
                  odsuwają człowieka od jedynej akcji tego ekranu — a część
@@ -253,7 +267,7 @@
                  `TekstyWedlugCopyStyleTest::test_cytat_na_stronie_powitalnej_zgadza_sie_z_powiadomieniem`. --}}
             <blockquote class="cytat-ugotowalem">
                 Halina — ugotowane z Twojego przepisu „Rosół babci".
-                <span class="cytat-zrodlo">Na to powiadomienie się tutaj czeka.</span>
+                <span class="cytat-zrodlo">Powiadomienie, które dostaje autor przepisu.</span>
             </blockquote>
         </div>
     </section>
@@ -261,7 +275,7 @@
     {{-- 5. ŚWIEŻO Z KUKING ---------------------------------------------- --}}
     <section class="pas pas--kreska-gora">
         <div class="pas-wnetrze">
-            <h2 class="text-title-lg">Świeżo z Kuking</h2>
+            <h2 class="text-title-lg">Świeżo z <x-kuking-word /></h2>
             <p class="text-lead miara">To, co ludzie ugotowali w ostatnich dniach.</p>
 
             @if($posts->count() === 0)
@@ -312,8 +326,8 @@
                     <p>
                         W każdej chwili możesz zamówić paczkę ze swoimi zdjęciami, wpisami
                         i przepisami — przygotujemy ją i damy znać, kiedy będzie do pobrania.
-                        Otworzysz ją na swoim komputerze, także wtedy, gdyby Kuking kiedyś
-                        przestał istnieć.
+                        Otworzysz ją na swoim komputerze, także wtedy, gdyby <x-kuking-word />
+                        kiedyś przestał istnieć.
                     </p>
                     {{-- „sam decydujesz" przypisywało czytelnikowi rodzaj męski
                          (issue #38, COPY_STYLE.md §2) — „sam" nie wnosi tu
@@ -325,8 +339,8 @@
                 <div>
                     <p><strong>Prowadzimy to na własną rękę.</strong></p>
                     <p>
-                        Nie ma tu reklam między daniami ani firmy, która czeka na Twoje dane —
-                        jest strona, konto i przepisy.
+                        Bez reklam i bez opłat za korzystanie — jest strona, konto
+                        i przepisy.
                     </p>
                 </div>
             </div>
