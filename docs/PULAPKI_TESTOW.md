@@ -1,4 +1,4 @@
-# Pułapki testów — sześć rzeczy, które w tym repozytorium naprawdę przeszły
+# Pułapki testów — siedem rzeczy, które w tym repozytorium naprawdę przeszły
 
 Ten plik nie jest wykładem o testowaniu. To lista pomyłek, które **w tym
 projekcie** przeszły przez zielone CI i zostały wykryte dopiero przez
@@ -155,6 +155,70 @@ dwa wywołania pod rząd.
 
 ---
 
+## 6b. …a od 11.09.2026 jest na to grupa `dwa-polaczenia`
+
+Pułapka 6 opisuje stan, w którym prawdziwego przeplotu nie da się odtworzyć
+**w zwykłym przebiegu**. To się nie zmieniło i nie zmieni. Zmieniło się to, że
+obok zwykłego przebiegu stoi teraz osobna grupa, która przeplot odtwarza
+naprawdę: `tests/Dwa/`, uruchamiana `./scripts/testy-dwa-polaczenia.sh`,
+na własnej bazie `kuking_race_*`, bez `RefreshDatabase`, z uczestnikami
+w osobnych procesach (D-105).
+
+Nie jest to zwolnienie z pułapki 6: **test w `tests/Feature/` nadal niczego
+nie dowodzi o dwóch połączeniach** i nadal ma to napisane w docblocku.
+Jeśli Twoja poprawka dotyczy kolejności blokad i chcesz ją ZMIERZYĆ, a nie
+uzasadnić — dołóż test do grupy `dwa-polaczenia` i przeczytaj najpierw
+pułapkę 7, bo bez niej ta grupa daje fałszywe zielone.
+
+---
+
+## 7. Dwa „połączenia", które są jednym, dają zielone przy zepsutym kodzie
+
+**Złapała: pierwsze trzy pomiary audytu blokad z 10.09.2026, w których jawny
+`SELECT … FOR UPDATE` „nikogo nie blokował".**
+
+Przyczyna była jedna: `pg_connect()` z tym samym ciągiem połączenia zwraca
+**to samo połączenie**, dopóki nie poprosi się jawnie o
+`PGSQL_CONNECT_FORCE_NEW`. Dwa uchwyty w zmiennych `$a` i `$b` były jedną
+sesją PostgreSQL — a sesja nie blokuje samej siebie. Wszystko „przechodziło".
+
+To jest pułapka groźniejsza od pozostałych sześciu, bo zielony wynik wygląda
+wtedy jak dowód poprawności kodu, a jest dowodem tego, że nic nie zmierzono.
+
+**Zmierzone przy zakładaniu grupy `dwa-polaczenia` (D-105).** Ten sam
+scenariusz — dwie egzekucje kasowania konta na parze, która obserwuje się
+wzajemnie — przeciwko temu samemu ZEPSUTEMU kodowi (`EraseAccountData`
+cofnięte do kolejności ról, czyli stan sprzed D-093), w jednym przebiegu:
+
+| Wariant | Wynik |
+|---|---|
+| oba „połączenia" zepięte w jedno (uczestnicy po kolei, na jednym połączeniu) | **ZIELONY** — trzy razy pod rząd |
+| dwa naprawdę osobne połączenia (uczestnicy w osobnych procesach) | **CZERWONY**: `SQLSTATE[40P01] … deadlock detected … while deleting tuple (0,7) in relation "follows"` |
+
+Zepsuty kod, ten sam test, ta sama baza. Różnicę robi wyłącznie to, czy
+połączenia są naprawdę dwa.
+
+**Co robić:**
+
+1. **Nie ufaj temu, że masz dwa połączenia — ZMIERZ to.** Jedna asercja:
+   `SELECT pg_backend_pid()` z obu i `assertNotSame`. Jest w `setUp()` klasy
+   `Tests\Dwa\TestDwochPolaczen` i kosztuje jedno zapytanie.
+2. **Zmierz też, że konflikt JEST WIDZIANY** — bo różne backendy to za mało,
+   gdy test pyta o niewłaściwy zasób. Wzorzec: blokada doradcza założona na
+   pierwszym połączeniu i `pg_try_advisory_xact_lock()` na drugim, które musi
+   zwrócić `false`. Przy jednym połączeniu zwróciłoby `true`, bo blokady
+   doradcze są w obrębie sesji wznawialne — czyli kontrola oblewa się głośno
+   zamiast przepuścić fałszywą zieleń.
+3. **W PDO** nie ma `PGSQL_CONNECT_FORCE_NEW` i nie jest potrzebny: każde
+   `new PDO` to osobne połączenie — **o ile nie poprosisz o
+   `PDO::ATTR_PERSISTENT`**. To jedno ustawienie zamienia całą grupę
+   w atrapę, dlatego stoi w kodzie jawnie wyłączone, z komentarzem.
+4. **Uczestnik wyścigu w osobnym PROCESIE** spełnia tę zasadę
+   konstrukcyjnie — własne połączenie ma z definicji, nie z ustawienia, które
+   da się przypadkiem zgubić.
+
+---
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
@@ -163,6 +227,11 @@ były jednym rodzajem błędu: **inwariant sprawdzany, a potem wykonywany,
 zamiast wykonany atomowo.** Przy weryfikowaniu tych ośmiu poprawek wyszło
 sześć pułapek wyżej — i to one, nie same poprawki, są tu najtrwalszą
 wartością.
+
+Siódma dołączyła 11.09.2026, przy zakładaniu grupy `dwa-polaczenia` (D-105,
+issue #314): wyszła z pomiaru zrobionego po to, żeby sprawdzić, czy nowy
+szkielet w ogóle cokolwiek mierzy. Okazało się, że przy jednym połączeniu nie
+mierzy — i że wygląda przy tym dokładnie tak samo jak wtedy, gdy mierzy.
 
 Dwie zasady o kodzie, które z tego zostają (D-079, obowiązują szerzej niż
 miejsce zapisu):

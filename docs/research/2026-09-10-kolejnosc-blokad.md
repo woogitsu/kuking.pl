@@ -535,6 +535,31 @@ zadanie z własną decyzją** — nie doklejać do żadnej poprawki. I zacząć 
 `KasowanieKontaNieZakleszczaSieTest`, bo to jedyny z trójki, który jest dziś
 czerwony i pilnowałby naprawy, której jeszcze nie ma.
 
+### WYKONANE 11.09.2026 — D-105, issue #314
+
+Propozycja z tego rozdziału została zrealizowana w całości: katalog
+`tests/Dwa/`, grupa `dwa-polaczenia` wyłączona ze zwykłego przebiegu,
+`./scripts/testy-dwa-polaczenia.sh` i wszystkie trzy testy startowe. Sześć
+zasad wyżej jest w kodzie, każda ze swoim bezpiecznikiem; wycena („pół dnia
+szkieletu") okazała się trafna.
+
+Dwie rzeczy wyszły INACZEJ, niż pisze ten rozdział, i obie są warte
+zapisania:
+
+1. **Żaden z trzech testów nie był czerwony „z natury".** Zdanie „zacząć od
+   `KasowanieKontaNieZakleszczaSieTest`, bo to jedyny z trójki, który jest
+   dziś czerwony" zdezaktualizowało się tego samego wieczoru: Z-2 naprawiono
+   (D-093). Wszystkie trzy trzeba było pokazać czerwonymi przez SABOTAŻ kodu
+   — i wszystkie trzy oblały się tak, jak miały (tabela w D-105).
+2. **Zasada 5 okazała się mierzalna, a nie tylko deklarowana.** Zepięcie obu
+   „połączeń" w jedno zostało zmierzone przeciwko zepsutemu kodowi: jedno
+   połączenie → zielono, dwa → `deadlock detected`. Ten pomiar jest teraz
+   siódmą pułapką w `docs/PULAPKI_TESTOW.md`.
+
+Otwarte zostaje to, co ten rozdział wymienia jako zadanie dodatkowe: test na
+Z-3 (zużycie tokenu linku do logowania kontra `wymienToken()`). Szkielet
+stoi, więc jest to teraz godzina pracy, a nie pół dnia.
+
 ---
 
 ## 8. Weryfikacja ośmiu ustaleń przekazanych z zewnątrz
@@ -592,4 +617,5 @@ przeoczony błąd — repozytorium ma już taki przypadek w D-064.
 | Rywalizacja o dobowy budżet poczty | **otwarte**, wymaga pomiaru pod obciążeniem | Z-4 |
 | `strtolower()` w `ZamekPary` | **otwarte**, jedna linijka, bez zmierzonej potrzeby | Z-5 |
 | Asercja „budżet nie w transakcji" | **otwarte**, naprawa opisana | Z-7 |
-| Grupa testów na dwóch połączeniach | **otwarte**, propozycja z kosztem | rozdział 7 |
+| Grupa testów na dwóch połączeniach | **ZROBIONE** 11.09.2026 (D-105, #314) | rozdział 7 |
+| Test na Z-3 w grupie `dwa-polaczenia` | **otwarte**, szkielet już stoi | rozdział 7, #314 |
