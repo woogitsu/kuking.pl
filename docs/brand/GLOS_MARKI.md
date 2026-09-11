@@ -508,6 +508,12 @@ się właśnie dlatego, że przychody reklamowe przestały pokrywać koszty),
 a §6 rekomenduje „nic poza opcjonalnym linkiem do dobrowolnego wsparcia
 kosztów hostingu".
 
+Trzecie źródło jest po stronie odbiorcy i jest w tym samym badaniu:
+**„strach o pieniądze i oszustwa" to dominująca obawa tej grupy**, a zalecenie
+brzmi wprost — „w MVP nic nie kosztuje i produkt to mówi wprost"
+(`../research/AUDIENCE_50_PLUS.md` §3). Napis na przycisku nie jest więc
+ozdobą: odpowiada na pierwsze pytanie, które ta osoba sobie zadaje.
+
 **Granica obietnicy — bez niej zdanie zostanie odczytane za wąsko albo za
 szeroko:**
 
@@ -539,7 +545,7 @@ Reguła ogólna, która z tego wynika i obowiązuje każdy następny przycisk:
 | „brak odniesień do koloru i pozycji" | wdrożone wcześniej, PR #325; pilnuje test |
 | „nie oceniaj danych, podaj regułę" w walidacji | `COPY_STYLE.md` §6, wzór błędu |
 | lista słów alarmowych | §8, ale jako pomoc przy przeglądzie |
-| **„Nie musi być ładne" stoi w pięciu miejscach** | §7 niżej — to była prawda i została naprawiona |
+| **„Nie musi być ładne" stoi w pięciu miejscach** | punkt 4 niżej — to była prawda i została naprawiona |
 
 ### Odrzucamy
 
@@ -597,8 +603,10 @@ Osobne zdanie „Zdjęcie nie musi być ładne" przy formularzu „Ugotowałem"
 **Odrzucone — ekran 404 zostaje jak jest (decyzja właściciela B3).** Powód:
 `AGENTS.md` §5 wymaga, żeby błąd mówił, **co zrobić**, a skrócenie do samego
 faktu ten wymóg podkopuje. Do tego zdanie robi tu konkretną robotę u osoby,
-która z założenia podejrzewa, że zepsuła coś sama — a to jest zachowanie
-opisane w badaniu tej grupy, nie domysł.
+która z założenia podejrzewa, że zepsuła coś sama — a to nie jest domysł:
+**„lęk przed »zepsuciem« — jedno kliknięcie zepsuje coś na zawsze"** stoi
+w `../research/AUDIENCE_50_PLUS.md` §3 jako jedna z głównych barier wejścia
+tej grupy, z objawem „porzucenie formularza, brak pierwszego wpisu".
 
 **6. `COPY_STYLE_V2.md` jako dokument wiążący.** Odrzucone (decyzja
 właściciela B5). Części twarde są rozdzielone po tym dokumencie z
