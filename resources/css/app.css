@@ -761,21 +761,27 @@
     text-decoration: none;
   }
 
-  /* AKCENT NA „King" I NA „.pl" — obie części w kolorze marki.
+  /* AKCENT TYLKO NA „King" — „Ku" i „.pl" zostają w kolorze tekstu.
 
-     Historia tej reguły w trzech krokach, bo inaczej wygląda jak wahanie:
+     Historia tej reguły w czterech krokach, bo inaczej wygląda jak wahanie:
      najpierw akcentowane było „KING" w wersaliku „KUKING"; D-015 zmieniło
      logotyp na „KuKing.pl" i przeniosło akcent na „.pl"; 11 września
-     właściciel poprosił, żeby kolor wrócił także na „King", zostawiając
-     resztę logotypu bez zmian. Wersalik w środku pozostaje częścią znaku,
-     nie zasadą ortograficzną — do wersalikowego „KUKING" NIE wracamy.
+     właściciel poprosił, żeby kolor wrócił także na „King" — a po zobaczeniu
+     tego na ekranie, żeby „.pl" zgasło i było czarne jak „Ku". W znaku
+     zostaje jeden akcent, nie dwa. Wersalik w środku pozostaje częścią
+     znaku, nie zasadą ortograficzną — do wersalikowego „KUKING" NIE wracamy.
 
      Kontrast policzony, nie przyjęty na oko: #B3401F na białym pasku daje
      5,72:1, a w trybie ciemnym #F2986A na #2A241E daje 6,92:1. Oba
      przechodzą WCAG 2.2 AA dla tekstu (próg 4,5:1), więc kolor niesie
-     wyróżnienie, a nie samą dekorację. */
-  .wordmark-king,
-  .wordmark-tld { color: var(--color-brand); }
+     wyróżnienie, a nie samą dekorację.
+
+     `.wordmark-tld` zostaje w znaczniku, choć nie ma już własnego koloru:
+     trzyma „.pl" w jednym kawałku i pozwala wrócić do akcentu jedną
+     linijką. Kolor dziedziczy po `.wordmark` (`--color-ink`), więc
+     przestawia się razem z trybem ciemnym — nie wpisujemy tu czerni
+     wprost, bo w trybie ciemnym byłaby czernią na czarnym. */
+  .wordmark-king { color: var(--color-brand); }
 
   /* Znak dziedziczy kolor po logotypie i przez to sam się przestawia
      w trybie ciemnym. `flex: none` — inaczej flexbox ściska go przy

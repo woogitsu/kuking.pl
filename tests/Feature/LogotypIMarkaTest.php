@@ -66,6 +66,37 @@ class LogotypIMarkaTest extends TestCase
         );
     }
 
+    public function test_kropka_pl_nie_ma_koloru_marki_a_king_ma(): void
+    {
+        $css = $this->bezKomentarzy((string) file_get_contents(resource_path('css/app.css')));
+
+        /*
+         * PO CO TO PILNOWAĆ. Logotyp ma JEDEN akcent — „King". „Ku" i „.pl"
+         * są w kolorze tekstu. Przez jeden dzień kolor miały obie części
+         * i właściciel, zobaczywszy to na ekranie, poprosił o zgaszenie
+         * „.pl". To jest rozstrzygnięcie o znaku, nie sprzątanie kodu:
+         * bez testu wróci przy pierwszym „ujednolićmy akcenty w marce",
+         * bo klasa `wordmark-tld` dalej stoi w znaczniku i sama się prosi
+         * o kolor.
+         *
+         * Czytamy plik BEZ komentarzy, bo komentarz nad regułą cytuje całą
+         * tę historię razem z „.pl" i `--color-brand` w jednym akapicie.
+         */
+        $this->assertDoesNotMatchRegularExpression(
+            '~\.wordmark-tld[^{]*\{[^}]*--color-brand~s',
+            $css,
+            '„.pl" w logotypie znów dostało kolor marki — ma być czarne jak „Ku".',
+        );
+
+        // Druga połowa tej samej zasady: gdyby ktoś „zgasił" cały logotyp,
+        // pierwsza asercja dalej by przechodziła.
+        $this->assertMatchesRegularExpression(
+            '~\.wordmark-king[^{]*\{[^}]*--color-brand~s',
+            $css,
+            '„King" w logotypie stracił kolor marki — znak został bez akcentu.',
+        );
+    }
+
     public function test_stary_zapis_wersalikami_zniknal(): void
     {
         $html = $this->get(route('landing'))->assertOk()->getContent();
