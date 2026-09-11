@@ -11926,3 +11926,256 @@ czytania… po prawej stronie treści zostaje pusty pas". Po przywróceniu: `0`.
 📄 `resources/css/ekran-odkrywania.css` · `resources/views/pages/discover.blade.php` ·
 `tests/Feature/OdkrywanieUzywaKolumnySzynyTest.php` · `scripts/dostepnosc.mjs` ·
 D-139 · D-122 · issue #365
+
+---
+
+## D-156 · Autor w danych strukturalnych to konto, które treść opublikowało — pochodzenie idzie do `citation`
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #403 · Status: **obowiązuje** ·
+rozwinięcie D-153
+
+### Co było nieprawdą o danych
+
+Blok JSON-LD na stronie przepisu składał obiekt `Person` **z dwóch różnych
+encji**: `name` brał z `recipes.source_person`, a `url` z profilu konta
+publikującego. Autor dostawał imię jednej rzeczy i adres innej.
+
+Do tego `@type: Person` deklarował typ encji, **którego nikt nie zna** —
+`source_person` jest wolnym tekstem, a właściciel potwierdził, że wpisuje tam
+**nazwę grupy na Facebooku**. Widoczny tekst strony uznał to już przy D-153
+(wartość idzie dosłownie, bez doklejanego przyimka); dane wypuszczane do
+Google kłamały dalej, i to na dwa sposoby naraz.
+
+Widok był przy tym niezgodny z **własną specyfikacją projektu**:
+`docs/seo/SEO_TECHNICAL.md` §2.1 od początku mapuje `author.name` i
+`author.url` na `profiles.display_name` i `profiles.username` autora po
+`recipes.author_id`.
+
+### Decyzja
+
+`author` w każdym JSON-LD opisuje **konto, które treść opublikowało, i tylko
+je** — `name` i `url` z tego samego konta.
+
+**Pochodzenie treści nie jest autorem** i idzie do `citation` jako zwykły
+`Text`. Wybór sprawdzony na schema.org (V30.0), nie zgadnięty:
+
+| pole | co przyjmuje | ocena |
+|---|---|---|
+| `citation` | `CreativeWork`, **`Text`**; stoi na `CreativeWork` | **wybrane** |
+| `isBasedOn` | `CreativeWork`, `Product`, `URL` — bez `Text` | odrzucone: „od mamy" nie jest adresem |
+| `sourceOrganization` | wyłącznie `Organization` | odrzucone: ten sam fałsz z drugiej strony |
+| `recipeSource` | **w schema.org nie istnieje** (HTTP 404) | odrzucone: pole ze starego mikroformatu hRecipe |
+
+Dziedziczenie sprawdzone: `Thing > CreativeWork > HowTo > Recipe`, a `citation`
+jest wymienione na stronie `Recipe`.
+
+### Zasada ogólna, nie łatka na jedno pole
+
+> **Jeżeli o wartości nie wiemy, jakim typem encji jest, NIE WOLNO jej wkładać
+> do pola, które typ wymusza. Lepiej nie wypuścić jej do danych strukturalnych
+> wcale niż wypuścić z fałszywym `@type`.**
+
+Ryzykiem jest zaufanie do **wszystkich** danych strukturalnych domeny, nie do
+jednego pola.
+
+### Szczegół, który nie jest ozdobą
+
+`?:` przy `citation` jest konieczne: `array_filter` na końcu bloku odrzuca
+tylko `null` i `[]`, więc **pusty napis by przeszedł**. Osobna asercja tego
+pilnuje.
+
+### Strażnik
+
+`tests/Feature/AutorPrzepisuWDanychStrukturalnychTest.php` — wrogie dane
+(nazwa grupy na Facebooku, nazwa własna bez człowieka w środku, wzmianka
+o gazecie, „od mamy" i wartość, która sama jest imieniem), **oba stany ekranu**
+(publiczny ma blok, prywatny nie ma go wcale) i **rekurencyjny skan po całej
+stronie** za fałszywą encją nazwaną, a nie tylko po `author`.
+
+Pięć kontroli ujemnych, każda oblewa z osobna. Dwie z nich są tam z konkretnego
+powodu: sabotaż samego `author.name` oblewa **dwa** twierdzenia naraz, więc bez
+osobnej kontroli („`citation` poprawne, a obok dochodzi fałszywy `Person`") nie
+dałoby się pokazać, że rekurencyjny skan łapie się **sam**. Druga („bramka
+`isPublic` zawsze prawdziwa") dowodzi, że test przepisu prywatnego mierzy stan,
+w którym blok naprawdę nie istnieje — a nie pustkę z innego powodu (D-099, D-106).
+
+### Zauważone, nietknięte
+
+`source_url` przy `source_type = 'external'` nie idzie do JSON-LD wcale. Tam
+`isBasedOn` **byłoby** uczciwe, bo to prawdziwy URL — ale to poszerza zakres
+poza naprawiany błąd. Osobno: `docs/DATABASE.md` nie opisuje kolumn
+`source_person`, `source_note` ani `source_url` w ogóle.
+
+Bez zmiany schematu — nowa kolumna do tego nie jest potrzebna.
+
+📄 `resources/views/pages/recipes/show.blade.php` · `docs/seo/SEO_TECHNICAL.md` §2.1 ·
+`tests/Feature/AutorPrzepisuWDanychStrukturalnychTest.php` · D-153
+
+---
+
+## D-157 · Dokument, który cytuje regułę z kodu, jest sprawdzany testem — a wariant odrzucony zostaje w nim JAWNIE
+
+**Data:** 11 września 2026 · PR #404 (naprawa nieprawdy wniesionej przez #398) ·
+Status: **obowiązuje** · rozwinięcie D-119
+
+### Co stało w dokumencie obowiązującym
+
+`docs/brand/GLOS_MARKI.md` §2, punkt 3 podawał jako regułę zapisu nazwy:
+
+> „**`white-space: nowrap`.** Słowo nie łamie się między „ku" i „KING" — bez
+> tego przy 320 px i czcionce 200% jedyny nośnik tej gry rozpadałby się na dwa
+> wiersze."
+
+Arkusz w tej samej chwili deklarował `overflow-wrap: anywhere`, a komentarz nad
+tą regułą mówił wprost, że `nowrap` był **pierwszą wersją i OBLAŁ skan
+dostępności**: na `/register` przy oknie 320 px i czcionce przeglądarki 200%
+samo słowo brało **315 px** zaczynając od x = 32, czyli strona przewijała się
+w bok o **27 px** — naruszenie WCAG 2.2 AA (1.4.10 Reflow).
+
+### Dlaczego to groźniejsze niż zwykły nieaktualny akapit
+
+Dokument nie był po prostu stary. **Podawał jako obowiązującą dokładnie tę
+wersję, którą pomiar odrzucił, i podawał razem z nią jej uzasadnienie.**
+Następna osoba, porządkując arkusz „zgodnie z dokumentacją", przywróciłaby
+`nowrap` i zepsuła Reflow — nie z niedbalstwa, a **czytając wiążący dokument**.
+
+To trzeci przypadek tej klasy w tym repozytorium. Dwa pierwsze to numery
+decyzji, których nie napisano (stąd `NumeryDecyzjiMajaWpisyTest`); trzeci to
+wiersz tabeli stacku obiecujący Sentry'ego (D-104). Każdy raz ten sam
+mechanizm: **zapis wyglądał na odpowiedź, więc nikt nie szukał dalej — a
+szukając, znalazłby coś innego.**
+
+### Decyzja, trzy części
+
+1. **Kod jest stroną prawdziwą.** Przy rozjeździe dokumentu z arkuszem
+   poprawiamy dokument, a kod zostaje nietknięty — chyba że przegląd wykaże,
+   że to kod jest zły, i wtedy to osobna zmiana, nie „przy okazji".
+2. **Dokument, który cytuje regułę z kodu, ma test porównujący jedno
+   z drugim.** Nie „nie cytujmy reguł" — D-119 tego wymaga tam, gdzie plik
+   tylko odsyła, ale tu dokument **jest** miejscem uzasadnienia i musi podać,
+   czego uzasadnia. **Cytat bez testu starzeje się cicho; cytat z testem
+   starzeje się na czerwono.**
+3. **Odrzucony wariant zostaje w dokumencie**, jawnie, razem z pomiarem.
+   Usunięcie zostawiłoby regułę bez powodu, a reguła bez powodu jest następnym
+   kandydatem do „uproszczenia". Konsekwencja dla testu jest konkretna:
+   **zakaz nie idzie na wystąpienie napisu w dokumencie, tylko na to, co
+   dokument podaje jako REGUŁĘ** — inaczej strażnik kazałby usunąć zdanie,
+   które jest najcenniejsze w całym punkcie.
+
+### Strażnik pilnuje OBU stron, bo jedna nie wystarcza
+
+`tests/Feature/GlosMarkiOpisujeArkuszPrawdziwieTest.php` (3 testy): obietnica
+z dokumentu nie może być zakazem łamania, musi stać naprawdę w regule
+`.kuking-word`, a arkusz nie może zadeklarować `white-space: nowrap`,
+`word-break: keep-all` ani `overflow-wrap: normal`.
+
+Sprawdzenie samego dokumentu złapałoby połowę. **Druga połowa — cofnięcie
+ARKUSZA — zostawiłaby dokument prawdziwym, a produkt przewijający się w bok.**
+
+Dwa szczegóły, bez których ten test świeciłby na zielono z niewłaściwego
+powodu: arkusz czytany **po wycięciu komentarzy** (nazwa `.kuking-word` pada
+w nich wielokrotnie, a komentarz nad właściwą regułą cytuje w środku **oba**
+warianty — pułapka z `MinimalnyRozmiarTekstuTest`) oraz dopasowanie po **całym**
+selektorze (`.kuking-word strong` stoi w pliku wyżej, więc szukanie nazwy
+„gdzieś w liście selektorów" zwraca kolor zamiast łamania wyrazu).
+
+Kontrola ujemna w obie strony, każdy sabotaż **odczytany z pliku po nałożeniu**:
+`nowrap` w dokumencie → 2 z 3 czerwone; `nowrap` w arkuszu → 2 z 3;
+`word-break: keep-all` w dokumencie → 2 z 3; obietnica usunięta → 1 z 3
+(kontrola dodatnia parsera). **Dwa sabotaże nie nałożyły się za pierwszym razem
+i test wtedy przechodził** — złapane tylko dlatego, że każdy był czytany
+z pliku i porównywany przez md5, a nie zakładany. To ta trzecia z czterech
+przyczyn nieoblanej kontroli ujemnej: sabotaż się nie wykonał.
+
+### Zakres
+
+`docs/brand/COPY_STYLE.md` przeszukany pod tym samym kątem: **nie podaje żadnej
+reguły CSS**, a jego twierdzenie o `aria-label` na `<span>` zgadza się
+z komponentem. Jest jednak na liście skanowanych dokumentów, bo nosi **drugą
+kopię** sekcji o zapisie nazwy — a kopia jest miejscem, w którym taka nieprawda
+odrasta (README i tabela stacku, D-104).
+
+📄 `docs/brand/GLOS_MARKI.md` §2 ·
+`tests/Feature/GlosMarkiOpisujeArkuszPrawdziwieTest.php` ·
+`resources/css/app.css` (nietknięty, strona prawdziwa) · D-119 · D-104 · D-145
+
+---
+
+## D-158 · Odstęp pod zdjęciem karty wpisu należy do bloku POD zdjęciem i wisi na sąsiedztwie, nie na klasie
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #405 · Status: **obowiązuje** ·
+rozwinięcie D-154
+
+### Zgłoszenie
+
+> „«z przepisu» i «bigos z cukinii» jest zbyt blisko zdjęcia"
+
+### Co było zmierzone
+
+Chromium, `/home` po zalogowaniu, przerwa liczona **między treścią** bloków:
+
+| para bloków | 1512 px | 390 px |
+|---|---:|---:|
+| `post-card-head` → zdjęcie | 16 → 16 | 16 → 16 |
+| **zdjęcie → `post-card-recipe`** | **0 → 16** | **0 → 16** |
+| **karuzela → `post-card-zapisy`** | **0 → 16** | **0 → 16** |
+| `post-card-recipe` → `post-card-tagi` | 40 → 40 | 40 → 40 |
+| zdjęcie → `post-card-actions` | 17 → 17 | 17 → 17 |
+
+`diff` pomiarów przed i po: zmieniły się **dokładnie dwie pary**, w obu
+szerokościach. Zgłoszenie dotyczyło jednej z nich; druga miała tę samą wadę.
+
+### Przyczyna
+
+Cała karta trzyma rytm **dolnym wcięciem bloku wyżej** (`padding-bottom`),
+a blok zdjęć takiego wcięcia **nie ma i mieć nie może**: zdjęcie idzie od
+krawędzi do krawędzi, karta ma `overflow: hidden`. Para „zdjęcie → blok
+tekstu" była więc jedyną, której odstępu nie deklarowała żadna strona.
+
+Odstęp deklaruje strona **dolna**, jako `margin-top` — zgodnie z D-154.
+
+### Reguła wisi na SĄSIEDZTWIE, nie na klasie
+
+```css
+.post-card > :is(.photo-grid, .karuzela, .kolaz) + :is(.post-card-recipe, .post-card-zapisy) {
+  margin-top: var(--spacing-4);
+}
+```
+
+Pasek „Z przepisu" **nie zawsze stoi pod zdjęciem**: przy przepisie bez
+zdjęcia głównego stoi pod nagłówkiem, we wpisie „ugotowane z przepisu" pod
+treścią — i tam przerwa **jest**, zmierzone 16 px. Bezwarunkowy `margin-top`
+na klasie zrobiłby w tych stanach 32 px, czyli **poprawiłby jeden stan ekranu
+i zepsuł dwa** (D-099, D-106).
+
+### Konsekwencja dla testów, i to jest właściwa treść tego wpisu
+
+> **Odstęp oparty na `+` zależy od kolejności rodzeństwa w DOM-ie, więc test
+> musi sprawdzać SĄSIEDZTWO w wyrenderowanym dokumencie, nie tylko obecność
+> reguły w arkuszu.**
+
+Sabotaż „wstaw obcy element między zdjęcie a pasek" **wyłącza odstęp, nie
+ruszając ani jednej linii CSS-a**. Test, który tego nie łapie, pilnuje połowy
+reguły. Strażnik używa więc XPath `preceding-sibling::*[1]`.
+
+### Pomiar liczy przerwę między treścią, nie między krawędziami pudełek
+
+Odstępy tej karty siedzą w `padding`, a padding jest **wewnątrz** pudełka —
+różnica krawędzi pokazuje 0 px także tam, gdzie człowiek widzi 16 px.
+**Pierwsza wersja pomiaru meldowała zero dla ośmiu par i była fałszywa**;
+poprawiona, zanim cokolwiek zmieniono w arkuszu.
+
+Karta z paskiem „Z przepisu" **nie renderuje się w danych demo** (`DemoSeeder`
+nie ma ani jednego wpisu z `recipe_id`), więc skrypt pomiarowy sam dokłada taki
+wpis i **przerywa z błędem**, jeśli na zmierzonej stronie paska nie znalazł.
+
+### Świadomie nietknięte
+
+`.post-card-tagi` **nie ma wcięcia bocznego** — chipsy dochodzą do krawędzi
+karty. To usterka **pozioma**, nie ta zgłoszona. `.chipsy` (40 px)
+i `.post-card-actions` (17 px) zmierzone: nie ma tam zera, raczej nadmiar —
+wyrównywanie to zmiana wyglądu poza zgłoszeniem, na komponencie używanym też
+w wyszukiwaniu i na szynie profilu.
+
+📄 `resources/css/app.css` · `scripts/odstepy-karty-wpisu.mjs` ·
+`tests/Feature/OdstepPodZdjeciemNaKarcieWpisuTest.php` · D-154 · D-099 · D-106
