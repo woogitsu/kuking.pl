@@ -37,11 +37,58 @@
                 'name' => $recipe->title,
                 'description' => $recipe->summary,
                 'datePublished' => $recipe->published_at?->toDateString(),
+                /*
+                 * AUTOR TO KONTO, KTÓRE PRZEPIS OPUBLIKOWAŁO — I TYLKO ONO.
+                 *
+                 * Do 11 września 2026 `name` brało się z `source_person`,
+                 * a `url` prowadził do profilu konta. Jeden obiekt `Person`
+                 * dostawał więc imię jednej rzeczy i adres innej, a do tego
+                 * `@type: Person` deklarował typ encji, którego nikt nie zna:
+                 * w `source_person` stoi wolny tekst i bywa tam nazwa grupy
+                 * na Facebooku, bywa „od mamy", bywa „Nasze smaki".
+                 *
+                 * Google traktuje niezgodność danych strukturalnych
+                 * z rzeczywistością jako naruszenie wytycznych (`sd-policies`,
+                 * docs/seo/SEO_TECHNICAL.md sekcja 2). Mapowanie z sekcji 2.1
+                 * tego dokumentu mówi zresztą dokładnie to samo od początku:
+                 * `author.name` i `author.url` biorą się z
+                 * `profiles.display_name` i `profiles.username` autora
+                 * (`recipes.author_id`). Nazwa i adres z jednego konta.
+                 */
                 'author' => [
                     '@type' => 'Person',
-                    'name' => $recipe->source_person ?: $recipe->author->displayName(),
+                    'name' => $recipe->author->displayName(),
                     'url' => route('profile.show', $recipe->author->profile->username),
                 ],
+                /*
+                 * POCHODZENIE PRZEPISU IDZIE DO `citation`, NIE DO `author`.
+                 *
+                 * `citation` przyjmuje `Text` obok `CreativeWork` (schema.org
+                 * V30.0, sprawdzone na https://schema.org/citation) i stoi na
+                 * `CreativeWork`, po którym `Recipe` dziedziczy
+                 * (Thing > CreativeWork > HowTo > Recipe). Jako zwykły napis
+                 * NIE KAŻE NAM DEKLAROWAĆ TYPU ENCJI — a to jest dokładnie
+                 * ten błąd, który tu naprawiamy.
+                 *
+                 * Odrzucone świadomie:
+                 * - `sourceOrganization` — przyjmuje wyłącznie `Organization`,
+                 *   czyli ten sam fałsz co `Person`, tylko z drugiej strony;
+                 * - `isBasedOn` — przyjmuje `CreativeWork`, `Product` albo
+                 *   `URL`, nie `Text`; „od mamy" nie jest adresem;
+                 * - `recipeSource` — nie istnieje w schema.org
+                 *   (https://schema.org/recipeSource oddaje 404); to pole ze
+                 *   starego mikroformatu hRecipe.
+                 *
+                 * Wartość idzie DOSŁOWNIE, bez doklejanego przyimka i bez
+                 * zmiany wielkości liter — tak samo jak w podpisie nad tytułem
+                 * (`Recipe::attributionLine()`), więc dane strukturalne
+                 * pokazują to, co widzi człowiek.
+                 *
+                 * `?:` zamienia pusty napis na `null`, żeby `array_filter` na
+                 * końcu bloku wyrzucił to pole tak samo jak każde inne puste —
+                 * sam `array_filter` przepuszcza `''`.
+                 */
+                'citation' => $recipe->source_person ?: null,
                 'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
                 'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
