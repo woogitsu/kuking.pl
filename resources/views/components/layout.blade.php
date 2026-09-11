@@ -534,6 +534,44 @@
                              kreska „oddzielam się od tego, co wyżej" nie ma czego
                              oddzielać) bierze się z `[data-tryb-panelu]` na
                              `<nav>` wyżej — patrz app.css. --}}
+                        {{--
+                            POZA PANELEM MENU POKAZUJE JEDNO WEJŚCIE, NIE DZIEWIĘĆ
+                            POZYCJI (zgłoszenie właściciela: „po co w menu cały
+                            panel moderacji i pod spodem przycisk »Otwórz panel
+                            moderacji«?").
+
+                            Miał rację: to była ta sama rzecz powiedziana dwa razy.
+                            Dziewięć pozycji panelu stało w zwykłym menu obok
+                            „Profil" i „Powiadomienia", a pod nimi przycisk, który
+                            prowadził DOKŁADNIE tam, gdzie prowadziła pierwsza
+                            z nich. Menu serwisu rosło o dziewięć wierszy pracy,
+                            której się w tym miejscu nie wykonuje.
+
+                            Teraz: poza panelem jedno wejście, w panelu pełna lista.
+                            Kolejki wchodzi się przeglądać z panelu, nie z ekranu
+                            własnego profilu.
+
+                            LICZBA NIE ZNIKA — SUMUJE SIĘ. Plakietka przy wejściu
+                            pokazuje, ile rzeczy czeka we WSZYSTKICH pięciu
+                            kolejkach razem. Gdyby jej nie było, moderator
+                            straciłby jedyny sygnał „jest robota", jaki miał poza
+                            panelem, a to jest dokładnie ten rodzaj cichej straty,
+                            którego AGENTS.md zabrania. Rozbicie na kolejki czeka
+                            w panelu, jedno kliknięcie dalej.
+                        --}}
+                        @php
+                            // Suma, nie `array_sum($kolejki)` — nazwy kolejek
+                            // wypisane wprost, żeby nowy klucz w `KolejkiPanelu`
+                            // (np. licznik czegoś, co nie jest kolejką do
+                            // przejrzenia) nie doliczał się tu po cichu.
+                            $czekaWPanelu = ($kolejki['bez_odpowiedzi'] ?? 0)
+                                + ($kolejki['zgloszenia'] ?? 0)
+                                + ($kolejki['sygnaly'] ?? 0)
+                                + ($kolejki['odwolania'] ?? 0)
+                                + ($kolejki['wiadomosci'] ?? 0);
+                        @endphp
+
+                        @if($wTrybiePanelu)
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
                             <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
                             <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
@@ -600,12 +638,18 @@
                                 bieżącego ekranu, bo w trybie panelu w ogóle znika
                                 (a poza nim żaden ekran serwisu nim nie jest).
                             --}}
-                            @unless($wTrybiePanelu)
-                                <a class="side-nav-item side-nav-wejscie" href="{{ route('admin.reports') }}">
-                                    <x-ikona nazwa="shield" /> Otwórz panel moderacji
-                                </a>
-                            @endunless
                         </div>
+                        @else
+                            {{-- Bez `role="group"` i bez `<h2>`: grupa jednego
+                                 elementu nie jest grupą, a nagłówek „Panel
+                                 moderacji" nad odnośnikiem „Otwórz panel
+                                 moderacji" to ta sama nazwa dwa razy pod rząd —
+                                 czytnik ekranu przeczytałby ją obie. --}}
+                            <a class="side-nav-item side-nav-wejscie" href="{{ route('admin.reports') }}">
+                                <x-ikona nazwa="shield" /> Otwórz panel moderacji
+                                <x-licznik-kolejki :ile="$czekaWPanelu" />
+                            </a>
+                        @endif
                     @endif
 
                     {{--

@@ -180,9 +180,16 @@ class TrybPaneluWMenuTest extends TestCase
     }
 
     /**
-     * Poza panelem nic się nie zmienia: moderator ma normalne menu serwisu,
-     * a wejście w tryb panelu to OSOBNA, widoczna pozycja (nie ukryty gest
-     * ani odnośnik zrobiony z nagłówka sekcji).
+     * Poza panelem moderator ma normalne menu serwisu, a wejście w tryb panelu
+     * to OSOBNA, widoczna pozycja — nie ukryty gest i nie odnośnik zrobiony
+     * z nagłówka sekcji.
+     *
+     * Od 11 września jest to JEDYNA rzecz z panelu w zwykłym menu: spis
+     * dziewięciu ekranów moderacji stał tu wcześniej razem z przyciskiem, który
+     * prowadził dokładnie tam, gdzie jego pierwsza pozycja (zgłoszenie
+     * właściciela). Nagłówka grupy też już tu nie ma — nad jednym odnośnikiem
+     * „Otwórz panel moderacji" napis „Panel moderacji" to ta sama nazwa dwa
+     * razy pod rząd, a czytnik ekranu przeczytałby obie.
      */
     public function test_moderator_poza_panelem_ma_normalne_menu_i_wejscie_do_panelu(): void
     {
@@ -204,17 +211,19 @@ class TrybPaneluWMenuTest extends TestCase
             '~<a class="side-nav-item side-nav-wejscie" href="[^"]*'.preg_quote(
                 (string) parse_url(route('admin.reports'), PHP_URL_PATH),
                 '~',
-            ).'">\s*<svg.*?</svg>\s*Otwórz panel moderacji\s*</a>~s',
+            ).'">\s*<svg.*?</svg>\s*Otwórz panel moderacji\s*(<span class="badge licznik-kolejki">.*?</span>\s*)?</a>~s',
             $boczna,
             'Brak widocznego wejścia „Otwórz panel moderacji” w normalnym menu moderatora.',
         );
 
-        // Nagłówek sekcji zostaje NAGŁÓWKIEM, nie zamienia się w odnośnik:
-        // etykieta grupy dla czytnika ekranu i przycisk to dwie różne role
-        // i dwa różne teksty.
-        $this->assertStringContainsString(
-            '<h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>',
+        // Nagłówka grupy tu NIE MA — grupa jednego elementu nie jest grupą,
+        // a „Panel moderacji" nad „Otwórz panel moderacji" to jedna nazwa
+        // powiedziana dwa razy. Nagłówek zostaje nagłówkiem TAM, gdzie opisuje
+        // spis ekranów, czyli w panelu — pilnuje tego `PanelModeracjiWMenuTest`.
+        $this->assertStringNotContainsString(
+            'side-nav-moderacja-naglowek',
             $boczna,
+            'Nagłówek sekcji panelu wrócił do zwykłego menu.',
         );
 
         // Poza panelem wyjście nie ma czego robić w menu.
