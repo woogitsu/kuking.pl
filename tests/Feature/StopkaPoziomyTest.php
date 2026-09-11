@@ -29,10 +29,19 @@ class StopkaPoziomyTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Odnośniki, które stopka miała PRZED przebudową i ma mieć nadal — dla każdego. */
+    /**
+     * Odnośniki, które stopka miała PRZED przebudową i ma mieć nadal — dla każdego.
+     *
+     * „O Kuking" jest dziś „O kuKING" i NIE jest jednym napisem w HTML-u:
+     * dwukolorowy zapis nazwy (`docs/brand/GLOS_MARKI.md` §2) rozbija słowo na
+     * `ku` + `<strong>KING</strong>` plus wersję dla czytnika ekranu. Dlatego
+     * sprawdzamy tu część STAŁĄ etykiety razem z adresem, a samo słowo —
+     * osobnym testem niżej. Wpisanie tu „O kuKING" oblewałoby na czymś,
+     * czego w HTML-u nigdy nie ma.
+     */
     private const ODNOSNIKI_DLA_KAZDEGO = [
         'kontakt' => 'Napisz do nas',
-        'about' => 'O Kuking',
+        'about' => 'O ',
         'help' => 'Pomoc',
         'rules' => 'Zasady',
         'terms' => 'Regulamin',
@@ -71,12 +80,22 @@ class StopkaPoziomyTest extends TestCase
             ->assertSee('Twoje zgłoszenia');
     }
 
-    /** Hasło marki nie było odnośnikiem i nie miało nim zostać — sprawdzamy, że przeżyło przebudowę. */
+    /**
+     * Hasło marki nie było odnośnikiem i nie miało nim zostać — sprawdzamy,
+     * że przeżyło przebudowę.
+     *
+     * Nazwa w haśle jest zapisana dwukolorowo (GLOS_MARKI §2), więc w HTML-u
+     * stoi komponent, a nie napis „Kuking". Sprawdzamy trzy rzeczy osobno:
+     * że akapit hasła istnieje, że nazwa jest w nim komponentem (a nie
+     * zwykłym tekstem, który by ominął dwukolorowy zapis) i że resztę hasła
+     * człowiek przeczyta.
+     */
     public function test_stopka_ma_haslo_marki(): void
     {
-        $this->get(route('landing'))
-            ->assertOk()
-            ->assertSee('Kuking — gotujemy po swojemu.');
+        $odpowiedz = $this->get(route('landing'))->assertOk();
+
+        $odpowiedz->assertSee('<p class="site-footer-haslo"><span class="kuking-word">', false);
+        $odpowiedz->assertSeeText('gotujemy po swojemu.');
     }
 
     /**

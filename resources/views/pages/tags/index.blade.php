@@ -28,7 +28,7 @@
     title="Wszystkie tematy"
     description="Spis tematów w Kuking: dania, składniki, okazje i sposoby przygotowania. Przy każdym temacie liczba wpisów widocznych dla wszystkich.">
     <p class="meta mb-2">
-        <a href="{{ route('discover') }}">Świeżo z Kuking</a> · wszystkie tematy
+        <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> · wszystkie tematy
     </p>
 
     <h1 class="mt-0">Wszystkie tematy</h1>
@@ -43,7 +43,7 @@
 
     @if($polecane->isNotEmpty())
         <h2>Polecane tematy</h2>
-        <p class="meta">Wybór gospodarza Kuking.</p>
+        <p class="meta">Wybór gospodarza <x-kuking-word />.</p>
         <nav class="chipsy" aria-label="Polecane tematy">
             @foreach($polecane as $tag)
                 <a class="chip" href="{{ route('tags.show', $tag) }}">

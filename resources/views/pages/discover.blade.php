@@ -27,10 +27,9 @@
      `.przepis-uklad`). --}}
 <x-layout title="Świeżo z Kuking" description="Co ostatnio ugotowali ludzie w Kuking." :szynaWTresci="true">
     <div class="odkryj-uklad">
-        <h1>Świeżo z Kuking</h1>
+        <h1>Świeżo z <x-kuking-word /></h1>
         <p class="mb-6">
             Wszystko, co ludzie pokazali w ostatnich dniach — po kolei, od najnowszego.
-            Bez żadnego układania przez komputer.
         </p>
 
         {{-- Tablica dnia jest bezpośrednim dzieckiem siatki — inaczej

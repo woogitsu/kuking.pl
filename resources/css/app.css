@@ -2115,6 +2115,14 @@
   .lista-zdjec-akcje .btn { max-width: 100%; }
 
   .avatar {
+    /* Domyślne 48 px MUSZĄ tu stać, a nie tylko w komentarzu. Wariant ze
+       zdjęciem ratowały atrybuty `width`/`height` w HTML-u, ale wariant
+       z inicjałem (`<span>`, czyli każdy, kto nie ma jeszcze zdjęcia
+       profilowego) nie miał żadnego rozmiaru i zwijał się do wielkości
+       jednej litery. */
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
     border-radius: var(--radius-pill);
     background-color: var(--color-brand-tint);
     /* Inicjały na brand-tint — ta sama para co w nawigacji, ta sama usterka:
@@ -2986,6 +2994,31 @@
     letter-spacing: 0.01em;
   }
 
+  /* NAZWA NIE ŁAMIE SIĘ W ŚRODKU — DOPÓKI MA GDZIE STANĄĆ.
+     Od chwili, w której dwukolorowy zapis wszedł do tekstu bieżącego
+     (`docs/brand/GLOS_MARKI.md` §2), słowo stoi w akapitach o zwykłej
+     szerokości, a nie tylko w nagłówkach. Złamanie „ku" / „KINGiem" na dwa
+     wiersze rozbija jedyny nośnik tej gry — wersaliki w ŚRODKU wyrazu.
+
+     PIERWSZA WERSJA TEJ REGUŁY BYŁA `white-space: nowrap` I OBLAŁA SKAN
+     DOSTĘPNOŚCI. Uzasadniała się tak: „najdłuższa forma («kuKINGiem») ma
+     dziewięć znaków, czyli mniej niż «Ugotowałem», które i tak musi się
+     zmieścić w jednym wierszu". Rozumowanie porównywało znaki zamiast
+     pikseli — „Ugotowałem" stoi na przycisku, a „Zostań kuKINGiem" jest
+     nagłówkiem `<h1>`. Zmierzone przez CI na `/register` przy oknie 320 px
+     i czcionce przeglądarki 200%: samo słowo brało 315 px zaczynając od
+     x = 32, czyli strona przewijała się w bok o 27 px. Przewijanie w poziomie
+     to naruszenie WCAG 2.2 AA (1.4.10 Reflow) — gra słowem nie jest.
+
+     `overflow-wrap: anywhere` łamie wyraz WYŁĄCZNIE wtedy, gdy inaczej
+     wyszedłby poza wiersz: w zdaniu nie ma spacji, więc dopóki się mieści,
+     nic go nie dzieli. `nowrap` mówił „nigdy", a to jest o jedno słowo za
+     dużo. Wariantu `break-word` nie bierzemy, bo nie zmniejsza szerokości
+     minimalnej elementu — a to ona wypychała tu stronę. */
+  .kuking-word {
+    overflow-wrap: anywhere;
+  }
+
   /* MARKA NA MARCE NIE MA KONTRASTU.
      Gdy „Zostań kuKINGiem" wjechało do przycisku podstawowego na stronie
      powitalnej, skan dostępności oblał się w motywie ciemnym:
@@ -2995,7 +3028,8 @@
      Wewnątrz przycisku „KING" bierze więc kolor otoczenia — przycisk zna
      swoją parę tło/tekst i ma ją sprawdzoną. Wyróżnienie robią wersaliki,
      które i tak są tu nośnikiem, a nie kolor. */
-  .btn .kuking-word strong {
+  .btn .kuking-word strong,
+  .kuking-word--bez-koloru strong {
     color: inherit;
   }
 
@@ -4856,12 +4890,16 @@
 /* Rozmiary awatara. Selektor atrybutowy zamiast klasy na każdy rozmiar, bo
    `x-avatar` dostaje LICZBĘ w px i tak samo trafia do atrybutów `width`
    i `height` — jedna wartość, jedno miejsce. Rozmiar spoza listy zostaje przy
-   domyślnych 48 px z `.avatar`, więc nic nie znika. */
+   domyślnych 48 px z `.avatar`, więc nic nie znika.
+   Lista MUSI pokrywać każdy `:size` użyty w widokach — pilnuje tego
+   `tests/Feature/AwatarZnaKazdyRozmiarZWidokowTest.php`. */
+.avatar[data-rozmiar='32'] { width: 32px; height: 32px; font-size: 14px; }
 .avatar[data-rozmiar='40'] { width: 40px; height: 40px; font-size: 17px; }
 .avatar[data-rozmiar='44'] { width: 44px; height: 44px; font-size: 18px; }
 .avatar[data-rozmiar='48'] { width: 48px; height: 48px; font-size: 20px; }
 .avatar[data-rozmiar='52'] { width: 52px; height: 52px; font-size: 22px; }
 .avatar[data-rozmiar='56'] { width: 56px; height: 56px; font-size: 24px; }
+.avatar[data-rozmiar='64'] { width: 64px; height: 64px; font-size: 27px; }
 .avatar[data-rozmiar='88'] { width: 88px; height: 88px; font-size: 37px; }
 /* 120 px — osoba na tablicy „kuKINGi na dziś". Ta sama liczba, co zdjęcie
    dania w tej samej sekcji (`--tablica-zdjecie`): obie listy tablicy mają
