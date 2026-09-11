@@ -491,6 +491,102 @@ jobs:
         run: php artisan test
 
   # ===========================================================================
+  #  3b. Grupa `dwa-polaczenia` — testy na DWÓCH połączeniach (D-105, #314)
+  # ===========================================================================
+  #  Osobny job, nie krok w jobie `test`, i to jest cała treść decyzji D-105:
+  #  ta grupa nie używa `RefreshDatabase`, ZATWIERDZA dane naprawdę i zakłada
+  #  blokady na wierszach. Na tej samej bazie co zwykły przebieg zrzucałaby mu
+  #  schemat w trakcie działania (issue #66 z drugiej strony), więc ma własną
+  #  bazę `kuking_race` — zakłada ją `tests/Dwa/bin/przygotuj-baze.php`.
+  #
+  #  `continue-on-error: true` JEST TYMCZASOWE I MA WARUNEK ZDJĘCIA.
+  #  Lokalnie grupa przeszła 20 przebiegów z 20, ale na współdzielonym runnerze
+  #  i na PostgreSQL 18 (lokalnie: 16) nie ma jeszcze ani jednego pomiaru
+  #  stabilności. Migający test blokujący uczy ludzi ignorować czerwone, więc
+  #  do czasu zebrania tych danych job RAPORTUJE, ale nie blokuje scalenia.
+  #  Warunek zdjęcia flagi: dwadzieścia kolejnych przebiegów CI bez ani jednej
+  #  czerwieni tego joba. Co robić, gdy grupa zacznie migać: D-105, sekcja
+  #  „Gdy grupa zacznie migać".
+  # ===========================================================================
+  dwa-polaczenia:
+    name: Wyścigi na dwóch połączeniach (nie blokuje)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 15
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        # Port hosta dynamiczny z tego samego powodu co w jobie `test` —
+        # runnery dzielą jeden demon Dockera (komentarz przy tamtym jobie).
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      # DB_DATABASE świadomie NIE stoi tutaj: nazwę bazy wyścigów liczy
+      # `kuking_nazwa_bazy_wyscigow()` z `tests/bootstrap.php`, a wpisana tu
+      # wartość przesłoniłaby ją i grupa odmówiłaby startu (albo, gorzej,
+      # wystartowała na `kuking_test`).
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composera
+        uses: actions/cache@v6
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+
+      - name: Instalacja zależności
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Przygotowanie .env
+        run: cp .env.example .env
+
+      # Jedno polecenie robi wszystko: zakłada bazę `kuking_race`, migruje ją
+      # i uruchamia grupę. To samo polecenie, którego używa się lokalnie —
+      # żeby nie było w repozytorium dwóch różnych sposobów uruchomienia tej
+      # grupy, z których jeden nigdy nie jest sprawdzany.
+      - name: Wyścigi na dwóch połączeniach
+        run: ./scripts/testy-dwa-polaczenia.sh
+
+  # ===========================================================================
   #  4. Build assetów — Vite 7 + Tailwind 4
   # ===========================================================================
   #  Osobny job, bo build front-endu nie zależy od bazy ani od PHP.

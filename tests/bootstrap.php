@@ -149,6 +149,31 @@ function kuking_klasy_z_tego_katalogu(string $katalogRepo): void
 }
 
 /**
+ * Zwraca nazwę bazy dla grupy testów `dwa-polaczenia` (D-105): "kuking_race"
+ * dla głównego checkoutu, "kuking_race_<worktree>" dla `git worktree`.
+ *
+ * Ta grupa NIE MOŻE chodzić na `kuking_test*` i nie jest to ostrożność na
+ * wyrost. Testy na dwóch połączeniach zatwierdzają dane naprawdę (bez
+ * `RefreshDatabase`), więc żyją obok zwykłego przebiegu — a zwykły przebieg
+ * na tej samej bazie zrzuciłby im schemat w trakcie działania. To dokładnie
+ * issue #66, tylko z drugiej strony: tam kolidowały dwa zwykłe przebiegi,
+ * tutaj kolidowałby zwykły z wyścigowym.
+ *
+ * Sufiks liczy `kuking_nazwa_testowej_bazy()` — świadomie TA SAMA metoda,
+ * żeby nie było w repozytorium dwóch reguł nazywania baz, które mogą się
+ * rozjechać. Zmiana tamtej funkcji przenosi się tutaj sama.
+ *
+ * Ta funkcja NICZEGO nie ustawia w środowisku: `DB_DATABASE` dla zwykłego
+ * przebiegu liczy się wyżej i pozostaje nietknięte. Nazwę bazy wyścigów
+ * bierze `Tests\Dwa\TestDwochPolaczen::setUp()` oraz
+ * `scripts/testy-dwa-polaczenia.sh`.
+ */
+function kuking_nazwa_bazy_wyscigow(string $katalogRepo): string
+{
+    return 'kuking_race'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
+}
+
+/**
  * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
  * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
  */

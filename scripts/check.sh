@@ -11,6 +11,8 @@
 #                                   # oraz pomiar układu przy 320/360/414/768 px
 #   ./scripts/check.sh --wydajnosc  # dodatkowo Lighthouse (wydajność + SEO)
 #                                   # na 8 stronach publicznych (issue #26)
+#   ./scripts/check.sh --wyscigi    # dodatkowo grupa `dwa-polaczenia`: testy
+#                                   # na dwóch połączeniach (D-105)
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -18,6 +20,7 @@ cd "$(dirname "$0")/.." || exit 1
 SZYBKO=0
 SPRAWDZ_DOSTEPNOSC=0
 SPRAWDZ_WYDAJNOSC=0
+SPRAWDZ_WYSCIGI=0
 
 # Pętla, a nie `[ "$1" = ... ]`: flagi mają działać w dowolnej kolejności
 # i dowolnej liczbie. Poprzednia wersja czytała wyłącznie PIERWSZY argument,
@@ -27,6 +30,7 @@ for _arg in "$@"; do
         --szybko) SZYBKO=1 ;;
         --dostepnosc) SPRAWDZ_DOSTEPNOSC=1 ;;
         --wydajnosc) SPRAWDZ_WYDAJNOSC=1 ;;
+        --wyscigi) SPRAWDZ_WYSCIGI=1 ;;
         *) printf "Nieznana opcja: %s\n" "$_arg" >&2; exit 2 ;;
     esac
 done
@@ -165,6 +169,25 @@ if php artisan test >/dev/null 2>&1; then
     ok "Testy przechodzą"
 else
     zle "Testy nie przechodzą — uruchom: php artisan test"
+fi
+
+# --- 5b. Wyścigi na dwóch połączeniach (opcjonalne) ------------------------
+# Grupa `dwa-polaczenia` (D-105): jedyne testy w tym repozytorium, które chodzą
+# na DWÓCH połączeniach do PostgreSQL i widzą zakleszczenia. Zwykły `php artisan
+# test` ich nie uruchamia i tak ma zostać — nie używają `RefreshDatabase`,
+# zatwierdzają dane naprawdę i potrzebują własnej bazy `kuking_race_*`.
+#
+# DOMYŚLNIE POMIJANE, bo zakładają i migrują tę bazę, a `check.sh` chodzi przed
+# każdym commitem. Uruchamiaj przy zmianach w kolejności blokad — czyli wszędzie
+# tam, gdzie w grę wchodzi `ZamekPary`, `ZamekKonta`, `EraseAccountData` albo
+# nowy `lockForUpdate()`:  ./scripts/check.sh --wyscigi
+krok "Wyścigi na dwóch połączeniach"
+if [ "$SPRAWDZ_WYSCIGI" -ne 1 ]; then
+    printf "  Pominięte: uruchom './scripts/check.sh --wyscigi' przy zmianach w kolejności blokad\n"
+elif ./scripts/testy-dwa-polaczenia.sh >/dev/null 2>&1; then
+    ok "Grupa dwa-polaczenia przechodzi"
+else
+    zle "Grupa dwa-polaczenia oblewa — szczegóły: ./scripts/testy-dwa-polaczenia.sh"
 fi
 
 # --- 6. Odwracalność migracji --------------------------------------------
