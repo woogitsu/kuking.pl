@@ -253,6 +253,28 @@ class LimityTrasZapisujacychTest extends TestCase
             // test `test_trasa_zapisu_na_dysk_lokalny_odrzuca_zadanie_bez_podpisu`
             // zaraz pod tą regułą.
             'storage.local.upload',
+
+            /*
+             * POWIADOMIENIE O ODEBRANIU DOSTĘPU Z FACEBOOKA (issue #259).
+             *
+             * Woła to serwer Facebooka, nie człowiek — a limit liczy żądania
+             * po adresie IP. Ustawiony na tyle nisko, żeby cokolwiek chronił,
+             * zaczyna GUBIĆ PRAWDZIWE POWIADOMIENIA, gdy Facebook wyśle ich
+             * kilka naraz (jedna osoba usuwa kilka aplikacji, serwery Meta
+             * wychodzą z tej samej puli adresów). A Facebook nie ponawia
+             * w nieskończoność: zgubione powiadomienie znaczy, że człowiek
+             * odebrał nam dostęp, a my nadal pokazujemy mu „połączone".
+             *
+             * Co chroni tę trasę zamiast limitu: każde żądanie bez poprawnego
+             * podpisu `signed_request` kończy się odrzuceniem po JEDNYM
+             * `hash_hmac`, przed dotknięciem bazy. Bez sekretu aplikacji nie
+             * da się takiego podpisu wytworzyć, więc zalewanie tej trasy jest
+             * zalewaniem procesora, a nie drogą do zmiany czegokolwiek —
+             * i przed tym broni warstwa przed aplikacją (Cloudflare), a nie
+             * `throttle:`. Pilnują tego testy w `OdebranieDostepuFacebookaTest`,
+             * w szczególności `test_zly_podpis_niczego_nie_zmienia`.
+             */
+            'facebook.deauthorize',
         ];
 
         $bezLimitu = [];

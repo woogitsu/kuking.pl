@@ -50,7 +50,7 @@
                         </p>
 
                         <p style="margin:0 0 12px;font-size:18px;color:#5C5347;">
-                            <strong>Jeśli to byłeś Ty</strong> — nic złego się nie stało, po prostu
+                            <strong>Jeśli to Ty</strong> — nic złego się nie stało, po prostu
                             ta droga jeszcze u Ciebie nie działa. Zaloguj się tak jak zwykle:
                             hasłem albo przez wiadomość z przyciskiem do zalogowania. Potem wejdź
                             w Ustawienia → Bezpieczeństwo i kliknij „Połącz konto Facebooka".
@@ -71,7 +71,7 @@
                         </table>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
-                            <strong>Jeśli to nie byłeś Ty</strong> — Twoje konto jest bezpieczne
+                            <strong>Jeśli to nie Ty</strong> — Twoje konto jest bezpieczne
                             i nie musisz nic robić. Ktoś obcy mógł wpisać Twój adres w swoim
                             koncie na Facebooku; do Kuking go to nie wpuszcza. Gdyby taka
                             wiadomość przychodziła do Ciebie raz za razem, napisz do nas.

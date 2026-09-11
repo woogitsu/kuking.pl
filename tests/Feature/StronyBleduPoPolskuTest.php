@@ -207,6 +207,14 @@ final class StronyBleduPoPolskuTest extends TestCase
      *    jedną rzecz, wyłącznie na korzyść właściciela skrzynki: wyłącza
      *    wysyłkę. Droga POWROTNA (`podsumowanie/wracam/*`) świadomie tu nie
      *    wchodzi, bo klika ją człowiek na naszej stronie.
+     *  * `wejdz/facebook/odebranie-dostepu` — powiadomienie „ta osoba
+     *    odebrała nam dostęp" wysyła SERWER FACEBOOKA (pole `Deauthorize
+     *    callback URL` w panelu Meta): bez sesji, bez ciasteczka, bez
+     *    żadnego kontekstu przeglądarki, więc tokenu nie ma skąd wziąć.
+     *    Autentyczność potwierdza PODPIS `signed_request` liczony na
+     *    sekrecie aplikacji i porównywany przez `hash_equals` — czyli
+     *    dowód mocniejszy niż token z sesji, bo nie da się go wytworzyć
+     *    bez sekretu (issue #259, `FacebookDeauthorizeController`).
      */
     public function test_zadna_trasa_poza_wymienionymi_nie_jest_wyjeta_spod_csrf(): void
     {
@@ -222,7 +230,7 @@ final class StronyBleduPoPolskuTest extends TestCase
         $wyjatki = array_values(array_unique([...$wlasne, ...$globalne]));
 
         $this->assertSame(
-            ['_csp', 'podsumowanie/wypisz/*'],
+            ['_csp', 'podsumowanie/wypisz/*', 'wejdz/facebook/odebranie-dostepu'],
             $wyjatki,
             'Ktoś dopisał trasę do wyjątków od CSRF. Jeśli to świadoma decyzja, '
             .'dopisz ją do listy w komentarzu nad tym testem — razem z powodem, '

@@ -886,7 +886,11 @@ class LogowanieKontemGoogleTest extends TestCase
         }
 
         $this->assertSame(
-            ['connected_at', 'dostawca', 'id', 'identyfikator', 'user_id'],
+            // `dostep_odebrany_at` doszło 11 września (issue #259): NASZ znacznik
+            // o stanie powiązania („dostawca powiadomił nas, że ta osoba cofnęła
+            // zgodę"), a nie dana O CZŁOWIEKU wzięta od dostawcy. Pola na token
+            // nadal nie ma i nie wolno go dołożyć bez decyzji.
+            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id'],
             collect(Schema::getColumnListing('tozsamosci_zewnetrzne'))->sort()->values()->all(),
             'Zmiana zakresu danych o człowieku wymaga decyzji, nie refaktoru (AGENTS.md §6).',
         );
