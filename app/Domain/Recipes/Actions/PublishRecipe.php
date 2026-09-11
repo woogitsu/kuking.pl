@@ -73,6 +73,15 @@ final class PublishRecipe
 
     private const KOMUNIKAT_NIEZNANA_JEDNOSTKA = 'Nie znam tej jednostki miary. Zostaw ilość bez jednostki.';
 
+    /**
+     * Jedno zdanie na DWIE drogi dojścia do tego samego faktu: kontrolę
+     * wstępną (na modelu z zewnątrz) i rewalidację pod blokadą wiersza.
+     * Dwie kopie tego tekstu rozjechałyby się przy pierwszej korekcie —
+     * ta sama zasada co `JUZ_TRWA` w `DataSettingsController`.
+     */
+    private const PRZEPIS_ZAMROZONY_PRZEZ_MODERACJE = 'Ten przepis został ukryty przez moderację '
+        .'i nie można go teraz zmieniać. Jeśli uważasz, że to pomyłka, napisz do nas: ';
+
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
@@ -106,11 +115,14 @@ final class PublishRecipe
         // wejścia na adres, ale kreator Livewire i formularz bez JavaScriptu
         // kończą w TEJ akcji — więc reguła musi stać także tutaj, żeby nie dało
         // się jej obejść dodaniem drugiego endpointu (AGENTS.md §4).
+        //
+        // To jest kontrola WSTĘPNA, po to, żeby człowiek dostał zdanie po
+        // polsku zamiast ekranu błędu. Gwarancji nie daje — model przyszedł
+        // z zewnątrz, a między jego wczytaniem a zapisem moderator może
+        // przepis ukryć. Gwarancję daje ta sama kontrola powtórzona POD
+        // BLOKADĄ wiersza, w transakcji niżej (D-079 §2).
         if ($existing !== null && ! RecipeStatusTransitions::authorMayEdit($existing->status)) {
-            throw new BladDlaCzlowieka(
-                'Ten przepis został ukryty przez moderację i nie można go teraz zmieniać. '
-                .'Jeśli uważasz, że to pomyłka, napisz do nas: '.config('kuking.community.contact_email'),
-            );
+            throw new BladDlaCzlowieka(self::PRZEPIS_ZAMROZONY_PRZEZ_MODERACJE.$this->kontakt());
         }
 
         $cleanIngredients = $this->cleanIngredients($ingredients);
@@ -143,7 +155,7 @@ final class PublishRecipe
         }
 
         $recipe = DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $ip
         ): Recipe {
             /*
              * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
@@ -221,7 +233,63 @@ final class PublishRecipe
 
                 $recipe = Recipe::create($payload);
             } else {
-                $recipe = $existing;
+                /*
+                 * WIERSZ PRZEPISU POD BLOKADĄ, I DOPIERO POD NIĄ PYTAMY O STAN
+                 * (audyt A01; D-079 §2 i §3).
+                 *
+                 * Dwie rzeczy naraz, bo obie wynikają z tej jednej linijki.
+                 *
+                 * PIERWSZA — SERIALIZACJA NUMERU WERSJI. `SnapshotRecipeVersion`
+                 * liczy numer jako `max(version_number) + 1`. Przedtem snapshot
+                 * stał POZA tą transakcją, więc blokada wiersza, którą bierze
+                 * `UPDATE recipes`, była już zwolniona, kiedy numer się liczył —
+                 * dwie równoległe edycje odczytywały to samo `max()` i drugiej
+                 * odbijało `recipe_versions_recipe_id_version_number_unique`.
+                 * Zmierzone na dwóch połączeniach:
+                 * `tests/Dwa/NumerWersjiPrzepisuNieKolidujeTest.php`.
+                 *
+                 * TĘ CZĘŚĆ ZAŁATWIA SAMO WCIĄGNIĘCIE SNAPSHOTU DO TRANSAKCJI
+                 * i warto to napisać wprost, bo pierwsza wersja tego komentarza
+                 * twierdziła inaczej. `recipes` ma `timestampsTz()`, więc
+                 * `$recipe->update()` zawsze przesuwa `updated_at` — zawsze jest
+                 * więc pole brudne, zawsze leci `UPDATE` i zawsze bierze on
+                 * blokadę wiersza. Kontrola ujemna to potwierdziła: zdjęcie
+                 * `lockForUpdate()` niżej NIE oblało testu kolizji numerów.
+                 *
+                 * DRUGA — I TO JEST TA, KTÓREJ TA LINIJKA JEST POTRZEBNA:
+                 * REWALIDACJA. Blokada bez ponownego sprawdzenia stanu niczego
+                 * nie pilnuje (D-079 §2): serializuje, ale nie mówi żądaniu, że
+                 * świat zmienił się, gdy ono czekało. Bez `lockForUpdate()`
+                 * status czytalibyśmy PRZED wzięciem blokady — a wtedy zapis
+                 * autora, który stał w kolejce, nadpisuje decyzję moderatora
+                 * podjętą w trakcie tego czekania i PRZYWRACA ukryty przepis do
+                 * sieci. Zmierzone na dwóch połączeniach, osobnym testem
+                 * w tym samym pliku. Od tej chwili pracujemy na wierszu
+                 * odczytanym pod blokadą, nie na modelu podanym z zewnątrz
+                 * (D-079 §3).
+                 *
+                 * KOLEJNOŚĆ: `media` → `recipes`, czyli PO `zablokuj()`
+                 * i ani chwili wcześniej (D-103 §2). Sprzątacz osieroconych
+                 * zdjęć trzyma wiersz `media`, a kasując go, zeruje
+                 * `recipes.hero_media_id` przez `nullOnDelete()` — czyli sięga
+                 * po wiersz `recipes` JAKO DRUGI. Odwrócenie tego tutaj byłoby
+                 * drugą kolejnością blokad w repozytorium, a to jest ta sama
+                 * rodzina usterek, którą zamykały D-093 i D-103.
+                 */
+                $swiezy = Recipe::query()->whereKey($existing->getKey())->lockForUpdate()->first();
+
+                if ($swiezy === null) {
+                    throw new BladDlaCzlowieka(
+                        'Tego przepisu już nie ma — w tym czasie został usunięty. '
+                        .'Twój tekst jest jeszcze w formularzu, więc skopiuj go i zapisz jako nowy przepis.',
+                    );
+                }
+
+                if (! RecipeStatusTransitions::authorMayEdit($swiezy->status)) {
+                    throw new BladDlaCzlowieka(self::PRZEPIS_ZAMROZONY_PRZEZ_MODERACJE.$this->kontakt());
+                }
+
+                $recipe = $swiezy;
 
                 // Slug zmieniamy tylko dla szkicu. Po publikacji adres
                 // przepisu jest obietnicą — ludzie go zapisują i wysyłają.
@@ -251,22 +319,63 @@ final class PublishRecipe
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
 
-            return $recipe->refresh();
+            $recipe = $recipe->refresh();
+
+            /*
+             * HISTORIA POWSTAJE W TEJ SAMEJ TRANSAKCJI CO TREŚĆ (audyt A01, P1).
+             *
+             * Do 11.09.2026 te dwie linijki stały ZA `DB::transaction()`.
+             * Skutek zmierzony testem, nie wyobrażony
+             * (`tests/Feature/ZapisPrzepisuIHistoriiJestAtomowyTest.php`):
+             * awaria zapisu wersji zostawiała
+             *
+             *     przepis w bazie: 1   wersji w historii: 0   wpisów w audycie: 0
+             *
+             * czyli człowiek widział błąd, a treść zmieniała się PUBLICZNIE —
+             * i nie było wersji, z której dałoby się ją odtworzyć. Przy
+             * pierwszej publikacji zostawał opublikowany przepis z pustą
+             * historią; przy edycji — nowa treść bez śladu poprzedniej.
+             * A `recipe_versions` istnieje w tym projekcie od pierwszego dnia
+             * właśnie po to, żeby „przepis, który ktoś poprawił po trzech
+             * latach, nie zjadł wersji, z której 40 osób gotowało"
+             * (migracja `2026_09_05_000400_create_recipes_tables`).
+             *
+             * Wpis audytu idzie razem z nimi z tego samego powodu: zapis
+             * „ten przepis został wtedy opublikowany" jest bezwartościowy,
+             * jeśli może istnieć bez publikacji albo publikacja bez niego.
+             *
+             * Oba zapisy są BAZODANOWE, więc wejście do transakcji nic nie
+             * kosztuje i nie dokłada żadnej nowej blokady: `INSERT INTO
+             * recipe_versions` bierze na wierszu `users` tylko `FOR KEY SHARE`
+             * (klucz obcy `editor_id`) i brał ją także przedtem — jedyna
+             * różnica jest w tym, jak długo jest trzymana.
+             *
+             * CZEGO TU NIE MA I NIE MA BYĆ: rzeczy NIEODWRACALNYCH. Wysyłka
+             * listu, zapis pliku do R2 ani zadanie w kolejce nie mają prawa
+             * stanąć w transakcji, bo cofnięcie transakcji ich nie cofnie
+             * (D-083: „pliki znikają dopiero PO commicie").
+             */
+            if ($publish) {
+                $this->snapshots->handle($recipe, $author, $existing === null ? 'Pierwsza publikacja' : 'Aktualizacja przepisu');
+
+                AuditLogEntry::record(
+                    action: 'recipe.published',
+                    actor: $author,
+                    subject: $recipe,
+                    metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
+                    ip: $ip,
+                );
+            }
+
+            return $recipe;
         });
 
-        if ($publish) {
-            $this->snapshots->handle($recipe, $author, $existing === null ? 'Pierwsza publikacja' : 'Aktualizacja przepisu');
-
-            AuditLogEntry::record(
-                action: 'recipe.published',
-                actor: $author,
-                subject: $recipe,
-                metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
-                ip: $ip,
-            );
-        }
-
         return $recipe;
+    }
+
+    private function kontakt(): string
+    {
+        return (string) config('kuking.community.contact_email');
     }
 
     /**

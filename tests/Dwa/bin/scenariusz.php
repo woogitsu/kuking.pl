@@ -20,9 +20,11 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
@@ -92,6 +94,27 @@ try {
             );
 
             return true;
+        })(),
+
+        // Edycja OPUBLIKOWANEGO przepisu (A01). Prawdziwa akcja domenowa,
+        // bo mierzymy właśnie to, czy zapis treści i zapis historii idą
+        // razem — przepisany do testu SQL byłby zielony także po zmianie
+        // kolejności w `PublishRecipe`.
+        'edytuj-przepis' => (function () use ($argumenty): string {
+            $przepis = app(PublishRecipe::class)->handle(
+                author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                attributes: [
+                    'title' => $argumenty['tytul'],
+                    'visibility' => 'public',
+                    'source_type' => Recipe::SOURCE_OWN,
+                ],
+                ingredients: [['text' => $argumenty['skladnik']]],
+                steps: [['instruction' => 'Gotuj do miękkości.']],
+                publish: true,
+                existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+            );
+
+            return (string) $przepis->title;
         })(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
