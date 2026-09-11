@@ -120,37 +120,55 @@ class CofniecieZgloszenPrawnychOdmawiaTest extends TestCase
 
     public function test_cofniecie_odmawia_gdy_sa_zgloszenia_prawne(): void
     {
-        // PIĘĆ, a nie jedno, i to jest świadome. Komunikat wkleja liczbę
-        // w zdanie „jest {n} zgłoszeń" — przy jedynce brzmiałoby to błędnie
-        // („jest 1 zgłoszeń"), więc asercja na takiej frazie zamrażałaby
-        // w teście polszczyznę, której nikt nie chce utrwalać. Przy pięciu
-        // dopełniacz mnogi jest poprawny i pozostanie poprawny także wtedy,
-        // gdy ktoś kiedyś dołoży do migracji prawdziwą odmianę przez liczbę.
-        $zgloszenia = [];
-        foreach (['Barbara Nowak', 'Jan Kowalski', 'Anna Zielińska', 'Piotr Wójcik', 'Maria Lis'] as $numer => $imie) {
-            $zgloszenia[] = $this->zgloszeniePrawne($imie, 'zglaszajacy'.$numer.'@example.com');
-        }
+        // JEDEN WIERSZ, NIE PIĘĆ — i to jest cała treść tej zmiany.
+        // Komunikat wklejał dotąd liczbę w sztywną frazę („jest 1 zgłoszeń"),
+        // więc ten test zakładał pięć wierszy, żeby nie zamrażać w asercji
+        // błędnej polszczyzny. Skutek był taki, że przypadek NAJBARDZIEJ
+        // prawdopodobny na produkcji — jeden wiersz — był jedynym, którego
+        // nikt nie sprawdzał. Komunikat stawia teraz rzeczownik przed liczbą,
+        // więc jedynka jest zdaniem poprawnym i to ona jest tu mierzona.
+        $pierwsze = $this->zgloszeniePrawne('Barbara Nowak', 'barbara@example.com');
 
-        // Zgłoszenie społecznościowe leży w tej samej tabeli i NIE MA go
-        // w liczbie z komunikatu. Gdyby strażnik liczył wszystkie wiersze,
-        // napisałby „6" i asercja niżej by oblała.
+        // DWA ZGŁOSZENIA SPOŁECZNOŚCIOWE leżą w tej samej tabeli i NIE MA
+        // ich w liczbie z komunikatu. Zostają tu właśnie po to: gdyby
+        // strażnik liczył wszystkie wiersze, napisałby „3" i asercja niżej
+        // by oblała. Przy jednym wierszu w zakresie ta kontrola wąskości
+        // jest ważniejsza niż przy pięciu, bo różnica 1 kontra 3 jest
+        // jedynym, co odróżnia dobry licznik od złego.
+        $this->zgloszenieSpolecznosciowe();
         $this->zgloszenieSpolecznosciowe();
 
-        $pierwsze = $zgloszenia[0];
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        $odmowa = null;
 
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało dane zgłaszających z DSA art. 16.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć ILU rzeczy to dotyczy, CO ZROBIĆ
-            // ZAMIAST TEGO i jak powiedzieć wprost „wiem, co robię".
-            // Bez tych trzech rzeczy człowiek o drugiej w nocy zostaje
-            // z samym „nie da się" i szuka sposobu, żeby to obejść.
-            $this->assertStringContainsString('jest 5 zgłoszeń nielegalnej treści', $e->getMessage());
-            $this->assertStringContainsString('Zrób kopię tabeli, a potem uruchom ponownie', $e->getMessage());
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało dane zgłaszających z DSA art. 16.');
+
+        // Komunikat ma powiedzieć ILU rzeczy to dotyczy, CO ZROBIĆ
+        // ZAMIAST TEGO i jak powiedzieć wprost „wiem, co robię".
+        // Bez tych trzech rzeczy człowiek o drugiej w nocy zostaje
+        // z samym „nie da się" i szuka sposobu, żeby to obejść.
+        $this->assertStringContainsString(
+            'Liczba zgłoszeń nielegalnej treści (DSA art. 16) w tabeli `reports`: 1.',
+            $odmowa->getMessage(),
+            'Komunikat ma podać liczbę zgłoszeń PRAWNYCH (1), a nie wszystkich wierszy (3).',
+        );
+
+        // Stara, niegramatyczna fraza nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 zgłoszeń', $odmowa->getMessage());
+        $this->assertStringContainsString('Zrób kopię tabeli, a potem uruchom ponownie', $odmowa->getMessage());
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: dane NADAL SĄ. Odmowa, która zdążyła skasować, to
         // tylko ładniejszy komunikat o stracie.
@@ -165,7 +183,7 @@ class CofniecieZgloszenPrawnychOdmawiaTest extends TestCase
 
         $this->assertNotNull($wiersz, 'Zgłoszenie prawne zniknęło z tabeli mimo odmowy cofnięcia.');
         $this->assertSame('Barbara Nowak', $wiersz->notifier_name, 'Imię zgłaszającego przepadło mimo odmowy.');
-        $this->assertSame('zglaszajacy0@example.com', $wiersz->notifier_email, 'Adres zgłaszającego przepadł mimo odmowy.');
+        $this->assertSame('barbara@example.com', $wiersz->notifier_email, 'Adres zgłaszającego przepadł mimo odmowy.');
         $this->assertSame(
             'To jest mój tekst, przepisany bez zgody z mojej książki.',
             $wiersz->illegality_explanation,
@@ -173,9 +191,16 @@ class CofniecieZgloszenPrawnychOdmawiaTest extends TestCase
         );
 
         $this->assertSame(
-            5,
+            1,
             DB::table('reports')->where('source', Report::SOURCE_LEGAL_NOTICE)->count(),
-            'Po odmowie zniknęło któreś ze zgłoszeń prawnych.',
+            'Po odmowie zniknęło zgłoszenie prawne, którego strażnik miał bronić.',
+        );
+
+        // I dwa społecznościowe też leżą nietknięte — odmowa ma być WĄSKA.
+        $this->assertSame(
+            2,
+            DB::table('reports')->where('source', Report::SOURCE_COMMUNITY)->count(),
+            'Odmowa ruszyła zgłoszenia społecznościowe, których ta migracja nie dotyczy.',
         );
     }
 
@@ -277,13 +302,17 @@ class CofniecieZgloszenPrawnychOdmawiaTest extends TestCase
 
         putenv(self::ZGODA.'=true');
 
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło przy wartości `true`, choć komunikat mówi o wartości 1.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło przy wartości `true`, choć komunikat mówi o wartości 1.');
+
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         $this->assertTrue(Schema::hasColumn('reports', 'notifier_name'));
         $this->assertSame(

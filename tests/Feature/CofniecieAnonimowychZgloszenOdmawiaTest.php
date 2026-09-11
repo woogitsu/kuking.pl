@@ -50,15 +50,18 @@ class CofniecieAnonimowychZgloszenOdmawiaTest extends TestCase
     /**
      * Ile anonimowych zgłoszeń zakłada test odmowy.
      *
-     * Liczba NIE jest przypadkowa i nie jest to „im więcej, tym lepiej".
-     * Komunikat migracji ma szablon „W bazie jest N anonimowych zgłoszeń
-     * prawnych" — po polsku poprawny dopiero od pięciu w górę („jest 5
-     * zgłoszeń"), a przy jednym i przy dwóch brzmiący źle („jest 1
-     * anonimowych zgłoszeń"). Asercja na frazie z jedynką utrwaliłaby w
-     * teście błędną odmianę i broniłaby jej przy każdej przyszłej poprawce
-     * komunikatu.
+     * JEDEN, nie pięć — i ta zmiana jest treścią poprawki, nie kosmetyką.
+     * Komunikat migracji wklejał liczbę w szablon „W bazie jest N anonimowych
+     * zgłoszeń prawnych", po polsku poprawny dopiero od pięciu w górę. Test
+     * zakładał więc pięć wierszy, żeby nie zamrażać w asercji błędnej
+     * odmiany — a skutkiem było to, że przypadek najbardziej prawdopodobny
+     * na produkcji, czyli JEDEN wiersz, nie był sprawdzany nigdy.
+     *
+     * Komunikat stawia teraz rzeczownik przed liczbą („Liczba anonimowych
+     * zgłoszeń prawnych w bazie: 1."), więc jedynka jest zdaniem poprawnym
+     * i to ona jest tu mierzona.
      */
-    private const ANONIMOWYCH = 5;
+    private const ANONIMOWYCH = 1;
 
     private function migracja(): object
     {
@@ -157,50 +160,65 @@ class CofniecieAnonimowychZgloszenOdmawiaTest extends TestCase
             $anonimowe[] = $this->zgloszenieAnonimowe()->getKey();
         }
 
+        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
+        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
+        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
+        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
+        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
+        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
+        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
+        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło, choć w bazie są anonimowe zgłoszenia prawne.');
         } catch (RuntimeException $e) {
-            $komunikat = $e->getMessage();
-
-            // ILU wierszy to dotyczy. Bez liczby człowiek nie wie, czy ma
-            // przed sobą jedną sprawę do rozstrzygnięcia, czy tysiąc.
-            $this->assertStringContainsString(
-                'W bazie jest '.self::ANONIMOWYCH.' anonimowych zgłoszeń prawnych',
-                $komunikat,
-                'Komunikat odmowy musi podać, ILU zgłoszeń dotyczy.',
-            );
-
-            // CO ZROBIĆ ZAMIAST TEGO — i to wprost, jako polecenie dla
-            // człowieka, a nie jako samo „nie da się".
-            $this->assertStringContainsString(
-                'Zdecyduj świadomie i zrób to ręcznie, zanim cofniesz tę migrację.',
-                $komunikat,
-                'Komunikat odmowy musi powiedzieć, co zrobić zamiast cofania.',
-            );
-
-            // DLACZEGO — komunikat nazywa OBA złe wyjścia, nie jedno.
-            // Człowiek, który zna tylko jedno, wybierze drugie.
-            $this->assertStringContainsString(
-                'wpisania im wymyślonego nazwiska, albo ich skasowania',
-                $komunikat,
-                'Komunikat ma nazwać oba wyjścia, które kusiłyby zamiast odmowy.',
-            );
-            $this->assertStringContainsString(
-                'Pierwsze jest kłamstwem w kolumnie, drugie niszczy dowód w sprawie',
-                $komunikat,
-                'Komunikat ma powiedzieć, co złego jest w KAŻDYM z tych dwóch wyjść.',
-            );
-
-            // Podstawa prawna anonimowości — żeby nie wyglądało to na brak
-            // w naszych danych, tylko na sytuację przewidzianą przepisem.
-            $this->assertStringContainsString(
-                'art. 16 ust. 2 lit. c DSA',
-                $komunikat,
-                'Komunikat ma wskazać przepis, z którego ta anonimowość wynika.',
-            );
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło, choć w bazie są anonimowe zgłoszenia prawne.');
+
+        $komunikat = $odmowa->getMessage();
+
+        // ILU wierszy to dotyczy. Bez liczby człowiek nie wie, czy ma
+        // przed sobą jedną sprawę do rozstrzygnięcia, czy tysiąc.
+        $this->assertStringContainsString(
+            'Liczba anonimowych zgłoszeń prawnych w bazie: '.self::ANONIMOWYCH.'.',
+            $komunikat,
+            'Komunikat odmowy musi podać, ILU zgłoszeń dotyczy.',
+        );
+
+        // Stara, niegramatyczna fraza nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 anonimowych zgłoszeń', $komunikat);
+
+        // CO ZROBIĆ ZAMIAST TEGO — i to wprost, jako polecenie dla
+        // człowieka, a nie jako samo „nie da się".
+        $this->assertStringContainsString(
+            'Zdecyduj świadomie i zrób to ręcznie, zanim cofniesz tę migrację.',
+            $komunikat,
+            'Komunikat odmowy musi powiedzieć, co zrobić zamiast cofania.',
+        );
+
+        // DLACZEGO — komunikat nazywa OBA złe wyjścia, nie jedno.
+        // Człowiek, który zna tylko jedno, wybierze drugie.
+        $this->assertStringContainsString(
+            'wpisania im wymyślonego nazwiska, albo ich skasowania',
+            $komunikat,
+            'Komunikat ma nazwać oba wyjścia, które kusiłyby zamiast odmowy.',
+        );
+        $this->assertStringContainsString(
+            'Pierwsze jest kłamstwem w kolumnie, drugie niszczy dowód w sprawie',
+            $komunikat,
+            'Komunikat ma powiedzieć, co złego jest w KAŻDYM z tych dwóch wyjść.',
+        );
+
+        // Podstawa prawna anonimowości — żeby nie wyglądało to na brak
+        // w naszych danych, tylko na sytuację przewidzianą przepisem.
+        $this->assertStringContainsString(
+            'art. 16 ust. 2 lit. c DSA',
+            $komunikat,
+            'Komunikat ma wskazać przepis, z którego ta anonimowość wynika.',
+        );
 
         // NAJWAŻNIEJSZE: dane NADAL SĄ i nadal są anonimowe. Odmowa, która
         // zdążyła skasować wiersz albo dopisać mu wymyślone nazwisko, to
@@ -274,21 +292,25 @@ class CofniecieAnonimowychZgloszenOdmawiaTest extends TestCase
         $przedZNazwiskiem = DB::table('reports')->where('id', $zNazwiskiem)->first();
         $przedSpolecznosciowe = DB::table('reports')->where('id', $spolecznosciowe)->first();
 
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło, choć w bazie są anonimowe zgłoszenia prawne.');
         } catch (RuntimeException $e) {
-            // Odmowa jest tu oczekiwana; sprawdzamy jej SKUTKI UBOCZNE.
-            // Przy okazji: licznik w komunikacie liczy TYLKO anonimowe.
-            // Zgłoszenie z nazwiskiem i społecznościowe nie mają prawa się
-            // do niego wliczyć, bo ostrzejszy warunek przepuszcza je oba.
-            $this->assertStringContainsString(
-                'W bazie jest '.self::ANONIMOWYCH.' anonimowych zgłoszeń prawnych',
-                $e->getMessage(),
-                'Licznik w komunikacie policzył wiersze spoza zakresu odmowy.',
-            );
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło, choć w bazie są anonimowe zgłoszenia prawne.');
+
+        // Odmowa jest tu oczekiwana; sprawdzamy jej SKUTKI UBOCZNE.
+        // Przy okazji: licznik w komunikacie liczy TYLKO anonimowe.
+        // Zgłoszenie z nazwiskiem i społecznościowe nie mają prawa się
+        // do niego wliczyć, bo ostrzejszy warunek przepuszcza je oba.
+        $this->assertStringContainsString(
+            'Liczba anonimowych zgłoszeń prawnych w bazie: '.self::ANONIMOWYCH.'.',
+            $odmowa->getMessage(),
+            'Licznik w komunikacie policzył wiersze spoza zakresu odmowy.',
+        );
 
         $this->assertEquals(
             $przedZNazwiskiem,

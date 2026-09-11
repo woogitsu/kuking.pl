@@ -186,10 +186,16 @@ class CofniecieOdwolanZglaszajacychOdmawiaTest extends TestCase
 
     public function test_cofniecie_odmawia_i_zostawia_odwolania_zglaszajacych_nietkniete(): void
     {
+        // JEDNO ODWOŁANIE, NIE DWA. Komunikat wklejał dotąd liczbę w sztywną
+        // frazę („jest 1 odwołań"), więc test zakładał dwa wiersze, żeby nie
+        // zamrażać w asercji błędnej polszczyzny — a przypadek najbardziej
+        // prawdopodobny na produkcji, czyli jedno odwołanie, nie był
+        // sprawdzany. Komunikat stawia teraz rzeczownik przed liczbą, więc
+        // jedynka jest zdaniem poprawnym i to ona jest tu mierzona.
         $pierwsze = $this->odwolanieZglaszajacego();
-        $drugie = $this->odwolanieZglaszajacego();
+        $drugie = $pierwsze;
 
-        $ile = 2;
+        $ile = 1;
         $this->assertSame($ile, Appeal::where('appellant', Appeal::APPELLANT_REPORTER)->count());
 
         // `fail()` NIE MOŻE stać wewnątrz `try` z `catch (RuntimeException)`:
@@ -219,7 +225,7 @@ class CofniecieOdwolanZglaszajacychOdmawiaTest extends TestCase
         // Sama cyfra nie wystarczy — w komunikacie stoi jeszcze „art. 20
         // ust. 1", więc „2" i „1" złapałyby się tam przypadkiem.
         $this->assertStringContainsString(
-            "W bazie jest {$ile} odwołań złożonych przez zgłaszających",
+            "Liczba odwołań złożonych przez zgłaszających (appellant='reporter') w bazie: {$ile}.",
             $odmowa->getMessage(),
         );
 

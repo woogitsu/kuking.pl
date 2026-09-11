@@ -97,45 +97,65 @@ class CofniecieZaproszenOdmawiaTest extends TestCase
         // („jest 5 WAŻNYCH zaproszeń") i przy jednym wierszu ta sama fraza
         // brzmiałaby po polsku błędnie. Asercja ma pasować do zdania, które
         // operator naprawdę zobaczy.
-        $skroty = [];
-
-        foreach (['basia', 'jurek', 'ola', 'wojtek', 'hania'] as $kto) {
-            $skroty[] = $this->zaproszenie($kto.'@example.com');
-        }
+        // JEDNO WAŻNE ZAPROSZENIE, NIE PIĘĆ. Komunikat wklejał dotąd liczbę
+        // w sztywną frazę („jest 1 WAŻNYCH zaproszeń"), więc test zakładał
+        // pięć, żeby nie zamrażać w asercji błędnej polszczyzny — i przez to
+        // przypadek najbardziej prawdopodobny na produkcji, czyli jedna osoba
+        // czekająca na wiadomość, był jedynym nieprzetestowanym.
+        $skroty = [$this->zaproszenie('basia@example.com')];
 
         // Dwa wygasłe leżą w TEJ SAMEJ tabeli i nie mają się liczyć. Dzięki
-        // nim liczba w komunikacie (5) różni się od liczby wierszy (7), więc
+        // nim liczba w komunikacie (1) różni się od liczby wierszy (3), więc
         // asercja niżej dowodzi, że strażnik pyta o `expires_at > now()`,
-        // a nie o „czy cokolwiek tu jest".
+        // a nie o „czy cokolwiek tu jest". Przy jednym wierszu w zakresie ta
+        // kontrola waży więcej niż przy pięciu: różnica 1 kontra 3 jest
+        // jedynym, co odróżnia dobry licznik od złego.
         $this->zaproszenie('stary@example.com', wygasle: true);
         $this->zaproszenie('starszy@example.com', wygasle: true);
 
-        $this->assertSame(7, (int) DB::table('registration_invites')->count());
+        $this->assertSame(3, (int) DB::table('registration_invites')->count());
+
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        $odmowa = null;
 
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało zaproszenia, na które ktoś jeszcze czeka.');
         } catch (RuntimeException $e) {
-            $komunikat = $e->getMessage();
-
-            // ILU zaproszeń to dotyczy — i że policzone są tylko ważne.
-            $this->assertStringContainsString('jest 5 WAŻNYCH zaproszeń', $komunikat,
-                'Komunikat ma podać liczbę WAŻNYCH zaproszeń (5), a nie wszystkich wierszy (7).');
-
-            // DLACZEGO — bo po drugiej stronie jest człowiek, nie rekord.
-            $this->assertStringContainsString('ma w skrzynce wiadomość i jeszcze jej nie kliknął', $komunikat);
-
-            // CO ZROBIĆ ZAMIAST TEGO — dwa ponumerowane wyjścia. Komunikat
-            // bez nich zostawia operatora z samym „nie da się".
-            $this->assertStringContainsString('Masz dwa wyjścia:', $komunikat);
-            $this->assertStringContainsString('1. poczekać, aż zaproszenia wygasną', $komunikat);
-            $this->assertStringContainsString('2. `php artisan kuking:sprzataj-zaproszenia --wszystkie`', $komunikat);
-
-            // Obietnica sprawdzana osobno w
-            // `test_wygasle_zaproszenie_nie_wywoluje_odmowy`.
-            $this->assertStringContainsString('wygasłe wiersze odmowy nie wywołują', $komunikat);
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało zaproszenia, na które ktoś jeszcze czeka.');
+
+        $komunikat = $odmowa->getMessage();
+
+        // ILU zaproszeń to dotyczy — i że policzone są tylko ważne.
+        $this->assertStringContainsString(
+            'Liczba WAŻNYCH zaproszeń do założenia konta w `registration_invites`: 1.',
+            $komunikat,
+            'Komunikat ma podać liczbę WAŻNYCH zaproszeń (1), a nie wszystkich wierszy (3).',
+        );
+
+        // Stara, niegramatyczna fraza nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 WAŻNYCH zaproszeń', $komunikat);
+
+        // DLACZEGO — bo po drugiej stronie jest człowiek, nie rekord.
+        $this->assertStringContainsString('ma w skrzynce wiadomość i jeszcze jej nie kliknął', $komunikat);
+
+        // CO ZROBIĆ ZAMIAST TEGO — dwa ponumerowane wyjścia. Komunikat
+        // bez nich zostawia operatora z samym „nie da się".
+        $this->assertStringContainsString('Masz dwa wyjścia:', $komunikat);
+        $this->assertStringContainsString('1. poczekać, aż zaproszenia wygasną', $komunikat);
+        $this->assertStringContainsString('2. `php artisan kuking:sprzataj-zaproszenia --wszystkie`', $komunikat);
+
+        // Obietnica sprawdzana osobno w
+        // `test_wygasle_zaproszenie_nie_wywoluje_odmowy`.
+        $this->assertStringContainsString('wygasłe wiersze odmowy nie wywołują', $komunikat);
 
         // NAJWAŻNIEJSZE: po odmowie dane NADAL SĄ. Tabela stoi, a wiersze to
         // te same wiersze — poznajemy je po skrócie tokenu, bo to jedyna
@@ -144,7 +164,7 @@ class CofniecieZaproszenOdmawiaTest extends TestCase
         $this->assertTrue(Schema::hasTable('registration_invites'),
             'Odmowa, która zdążyła skasować tabelę, jest tylko ładniejszym komunikatem o stracie.');
 
-        $this->assertSame(7, (int) DB::table('registration_invites')->count());
+        $this->assertSame(3, (int) DB::table('registration_invites')->count());
 
         foreach ($skroty as $skrot) {
             $this->assertTrue(
