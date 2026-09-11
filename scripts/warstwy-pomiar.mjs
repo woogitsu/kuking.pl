@@ -69,8 +69,21 @@ const EKRANY = [
   { nazwa: 'ustawienia: czytelność', adres: '/ustawienia/czytelnosc' },
   { nazwa: 'ustawienia: adres e-mail', adres: '/ustawienia/e-mail' },
   { nazwa: 'dodaj', adres: '/dodaj' },
+  { nazwa: 'dodaj przepis (jedna strona)', adres: '/dodaj/przepis/jedna-strona' },
   { nazwa: 'strumień', adres: '/home' },
 ];
+
+/*
+ * DWA STANY TEGO SAMEGO ADRESU TO DWA EKRANY (D-099, D-106).
+ *
+ * `/ustawienia/e-mail` pokazuje formularz zmiany adresu tylko wtedy, gdy
+ * poczta DZIAŁA; przy `MAIL_MAILER=log` (tak stoi w kontenerze agenta) ta
+ * gałąź nie renderuje ani jednego pola i cały blok jest sekcją, nie panelem.
+ * Pomiar jednego z tych stanów opisuje więc połowę prawdy — i wygląda
+ * identycznie jak drugi, bo oba kończą się kodem 200.
+ *
+ *     MAIL_MAILER=smtp node scripts/warstwy-pomiar.mjs
+ */
 
 const POMIAR = () => {
   const main = document.querySelector('main');

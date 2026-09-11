@@ -417,6 +417,14 @@
      Mniejszy promień niż karta jest tu bezpieczny, bo ramka pomocnicza nigdy
      nie stoi w jednym RZĘDZIE z kartą ani z szyną — stoi nad nią albo pod nią.
      Klasa: `.ramka-pomocnicza`. */
+  /* JEDNA POLICZONA GRANICA TEJ WARSTWY: `--color-success` (#1E7B3E) na tym
+     tle daje 4.47:1, czyli o 0.03 PONIŻEJ progu 4.5:1. Zmierzone na 21
+     ekranach w obu motywach: dziś nie ma w serwisie ani jednego takiego
+     węzła — zieleń występuje wyłącznie jako `--color-success-tint-ink` na
+     własnej plakietce (6.95:1) i jako obwódka. Ale utility `.text-success`
+     JEST w zbudowanym arkuszu, więc dopisanie go do tekstu w ramce zepsułoby
+     kontrast od razu i po cichu. W ramce pomocniczej potwierdzenie pisze się
+     plakietką (`.flash`, `.notice`), nie samym kolorem tekstu. */
   --warstwa-pomocnicza-tlo: var(--color-surface-sunken);
   --warstwa-pomocnicza-obwodka: var(--color-border);
   --warstwa-pomocnicza-promien: var(--radius-lg);
@@ -712,6 +720,19 @@
      („pole jest inne niż to, na czym leży"), tylko odwrócony. Obwódka pola
      na tym tle: 4.16:1 (próg 3:1), tekst: 15.30:1. */
   .ramka-pomocnicza .field-input {
+    background-color: var(--color-surface-raised);
+  }
+
+  /* TA SAMA CHOROBA CO WYŻEJ, DRUGI SKŁADNIK: przycisk drugorzędny na hoverze.
+
+     `.btn-secondary:hover` bierze `--color-surface-sunken` — dokładnie tło
+     ramki pomocniczej. Przycisk „Zaloguj się kodem zapasowym" albo „Zmień
+     zdjęcie" znikał więc pod kursorem jako powierzchnia i zostawała po nim
+     sama obwódka. Skutek jest kosmetyczny, bo hover i tak nie ma prawa niczego
+     nieść (`AGENTS.md` §5) — ale to jest ta sama usterka, którą reguła wyżej
+     naprawia dla pola, więc naprawia się ją w tym samym miejscu, a nie przy
+     następnym zgłoszeniu. */
+  .ramka-pomocnicza .btn-secondary:hover:not(:disabled) {
     background-color: var(--color-surface-raised);
   }
 

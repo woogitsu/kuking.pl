@@ -43,7 +43,14 @@
             @endif
         </article>
     @elseif(! $decyzja->isAppealableByReporter())
-        <article class="ramka-pomocnicza mt-5">
+        {{-- SEKCJA, nie ramka pomocnicza: w tej gałęzi to jest CAŁA treść
+             ekranu i jedyna odpowiedź, jaką człowiek tu dostaje. Ramka jest
+             wgłębiona i znaczy „to jest obok głównej rzeczy" — a obok czego
+             miałoby to stać, skoro formularza odwołania tu nie ma. Sąsiednie
+             gałęzie tego samego `@if` mają `sekcja-strony` i
+             `panel-formularza`, więc akurat stan „termin minął" dostawał
+             najsłabszą warstwę ekranu. --}}
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest sześć miesięcy od decyzji.

@@ -1535,17 +1535,20 @@
      To jest ODNOŚNIK do strony dodawania, nie pole tekstowe udające formularz.
      Pole, które po kliknięciu nic nie robi bez JavaScriptu, byłoby dokładnie
      tą pułapką, przed którą ostrzega AGENTS.md §5. */
+  /* Od rozdzielenia ról ta zachęta jest KAFLEM AKCJI (warstwa 6), więc tło,
+     obwódkę, promień, cień, zdjęte podkreślenie, kolor tekstu i tło na
+     hoverze daje już `.kafel-akcji`. Zostaje tu tylko to, czym composer
+     RÓŻNI SIĘ od zwykłego kafla: układ w wiersz (awatar, tekst, ikona),
+     odstęp pod spodem i węższe wcięcie pionowe — bo to jest jeden wiersz,
+     a nie kafel z nagłówkiem i akapitem. `padding` zostaje jawny właśnie
+     dlatego, że jest odstępstwem od warstwy. */
   .composer {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-4) var(--spacing-5);
     margin-bottom: var(--spacing-6);
-    text-decoration: none;
-    color: var(--color-ink);
   }
-
-  .composer:hover { background-color: var(--color-surface-sunken); }
 
   .composer-copy { min-width: 0; flex: 1; }
 
@@ -1995,11 +1998,14 @@
     border-radius: var(--radius-xl);
   }
 
+  /* Bez `border-radius`: nadpisanie istniało po to, żeby wyrwać panel
+     z dawnych 16 px `.card`, a dziś `--warstwa-tresc-promien` to już
+     `--radius-xl`. Zostawione byłoby dokładnie tym rodzajem martwego
+     nadpisania, przez które `.card` zebrała 126 ról. */
   .przepis-panel {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-5);
-    border-radius: var(--radius-xl);
   }
 
   /* --- Kafle liczb: czas, porcje, poziom ---

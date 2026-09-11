@@ -135,15 +135,71 @@ Ekran, na którym `powierzchnie == największa grupa`, nie ma hierarchii.
 | `/zglos-nielegalna-tresc` (gość) | 3 / **1** / **3** | 3 / 2 / 2 | ten sam układ: dwie ramki, jeden panel |
 | `/logowanie` (gość) | 2 / **1** / **2** | 2 / 2 / **1** | żadne dwie powierzchnie nie wyglądają już tak samo: panel hasła i sekcja z logowaniem linkiem |
 | `/ustawienia/czytelnosc` | 3 / **1** / **3** | 3 / 2 / 2 | dwa formularze (rozmiar tekstu, kolory) zostały panelami, „Można jeszcze więcej" ramką |
-| `/ustawienia/e-mail` | 2 / **1** / **2** | 2 / 2 / **1** | panel danych („Twój adres") i panel zmiany adresu przestały być tym samym |
-| `/ustawienia/bezpieczenstwo` | 2 / 1 / 2 | 2 / 1 / 2 | **bez zmiany liczby — i to jest poprawne**: obie powierzchnie to równorzędne czynności (zmiana hasła, wylogowanie innych urządzeń), więc mają jedną rolę i jeden wygląd |
+| `/ustawienia/e-mail`, poczta działa | 2 / **1** / **2** | 2 / 2 / **1** | panel danych („Twój adres") i panel zmiany adresu przestały być tym samym |
+| `/ustawienia/e-mail`, poczta nie działa | 2 / 1 / 2 | 2 / 1 / 2 | **bez zmiany — i tak ma być**: w tym stanie formularza nie ma wcale, więc obie powierzchnie to sekcje; warstwę wybiera `@class` |
+| `/ustawienia/bezpieczenstwo` | 2 / 1 / 2 | 2 / 1 / 2 | **bez zmiany liczby**: obie powierzchnie to równorzędne czynności (zmiana hasła, wylogowanie innych urządzeń) — jedna rola, jeden wygląd |
 | `/dodaj` | 2 / 1 / 2 | 2 / 1 / 2 | **bez zmiany liczby**: dwa kafle akcji to dwie równorzędne decyzje; zmienił się wygląd obu (mocna obwódka kontrolki, WCAG 1.4.11) |
+| `/dodaj/przepis/jedna-strona` | 7 / 3 / 3 | 7 / 3 / 3 | **liczby stoją, hierarchia nie**: przed zmianą cztery sekcje formularza były białymi kartami z cieniem, nie do odróżnienia od wierszy składników w środku; teraz jest JEDEN panel (`<form>`), a w nim przezroczyste kreski działowe i wiersze — patrz niżej |
 | `/home` (strumień) | 30 / 4 / 13 | 30 / 4 / 13 | **liczby stoją, znaczenie nie**: przed zmianą zachęta „Co dziś ugotowałeś?" odróżniała się od kart wpisu PRZYPADKIEM (16 px promienia z `.card` kontra 24 px z nadpisania `.post-card`); teraz odróżnia się celowo, jako kafel akcji, a wszystkie karty treści mają jeden promień |
 
-Dwa ostatnie wiersze są tu specjalnie. Miara ma swoje granice: nie odróżnia
+Cztery ostatnie wiersze są tu specjalnie. Miara ma swoje granice: nie odróżnia
 „dwie powierzchnie wyglądają tak samo, bo ktoś nie rozdzielił ról" od „dwie
-powierzchnie wyglądają tak samo, bo mają tę samą rolę". Tę różnicę rozstrzyga
+powierzchnie wyglądają tak samo, bo mają tę samą rolę", i nie widzi, że
+identyczna liczba może opisywać zupełnie inny układ. Tę różnicę rozstrzyga
 człowiek, dlatego skrypt nie jest bramką i nie ma progu.
+
+### Ekran, na którym liczba niczego nie pokazała — a defekt był
+
+`/dodaj/przepis/jedna-strona` daje 7 / 3 / 3 przed i po. Sygnatury mówią, co
+naprawdę się stało:
+
+| | przed | po |
+|---|---|---|
+| `<form>` | brak powierzchni | **panel: biały, obwódka kontrolki `#8A7A63` 1 px, promień 24 px, cień** |
+| sekcja „1. O przepisie" | biała karta, **obwódka 0 px**, promień 16 px, cień | przezroczysta, sama kreska działowa |
+| sekcje 2–4 | białe karty, obwódka dekoracyjna 2 px, promień 16 px, cień | przezroczyste, same kreski działowe |
+| wiersze składników | białe, obwódka 2 px, promień 16 px | bez zmian |
+
+Dwie rzeczy widać dopiero w sygnaturach. Po pierwsze **cztery karty formularza
+były nie do odróżnienia od wierszy składników w środku** — ta sama biel, ten
+sam promień, ta sama obwódka; różnił je wyłącznie cień. Po drugie pierwsza
+sekcja miała `border: 0px` i wcięcie 0: `.form-section:first-of-type`
+(`app.css`) zerował `border-top` i `padding-top` regule `.card` z `tokens.css`,
+bo `app.css` stoi w kaskadzie później w tym samym `@layer components`. Ta usterka
+była w repozytorium PRZED tą zmianą i przeżyła pierwsze podejście do niej —
+`form-section panel-formularza` odziedziczył ją co do piksela (zmierzone:
+`border-top: 0px`, `padding-top: 0px` na pierwszej sekcji, obwódka dekoracyjna
+2 px zamiast kontrolki 1 px na pozostałych).
+
+Naprawa jest jedna dla obu rzeczy: **panel siedzi na `<form>`, nie na
+sekcjach.** To są części jednego formularza, więc jedna rola i jedna
+powierzchnia, a `.form-section` wraca do tego, do czego był pomyślany —
+rozdzielania kreską i nagłówkiem. To samo zrobiono w `pages/admin/daily-board`
+(gdzie obie sekcje mają jeszcze gałąź „lista pusta", czyli panel bez pól)
+i w kreatorze przepisu, gdzie `.form-section` nie miał czego rozdzielać,
+bo kroki są rozłączne.
+
+### Tryb ciemny — zmierzony osobno, 21 ekranów
+
+Cienie w motywie ciemnym są prawie niewidoczne, więc hierarchia musi tam
+wynikać z jasności powierzchni. Zmierzone przez `getComputedStyle` na 21
+ekranach (73 instancje warstw, 738 węzłów tekstowych na motyw):
+
+- `ramka-pomocnicza` = `#14110E`, **ciemniejsza** od tła strony `#1E1A16` —
+  11 z 11 instancji, ani jednej innej wartości;
+- karta, panel, sekcja, szyna i kafel = `#2A241E`, **jaśniejsze** od tła —
+  60 z 60 instancji;
+- rozpiętość ramka ↔ karta: 1,22:1, kierunek nigdzie się nie odwraca;
+- obwódka kontrolki `#8C7D68`: 4,32:1 wobec tła strony i 3,83:1 wobec
+  wypełnienia panelu (próg 3:1 z obu stron krawędzi);
+- **zero par tekst/tło poniżej progu** w obu motywach.
+
+Przy okazji sprawdzono mechanizm dwóch selektorów (`:root, .blok-ciemny`):
+wewnątrz `.blok-ciemny` na stronie powitalnej tokeny warstw rozwijają się
+z palety CIEMNEJ (`--warstwa-tresc-tlo` = `#2a241e`, `--warstwa-pomocnicza-tlo`
+= `#14110e`), a nie z jasnej. **Dziś w tym kontenerze nie ma ani jednej
+warstwy powierzchni**, więc mechanizm jest sprawny, ale nieużywany — chroni
+przed błędem, którego jeszcze nikt nie popełnił.
 
 ## Decyzje sporne — i co zostało rozstrzygnięte jak
 
@@ -158,13 +214,54 @@ człowiek, dlatego skrypt nie jest bramką i nie ma progu.
 | `pages/settings/data.blade.php` — „Pobierz swoje dane" | panel czy sekcja | **sekcja**, i ten ekran ma ZERO paneli. Jedyne pola siedzą w „Strefie zagrożenia"; nadanie „Pobierz" mocnej obwódki zrównałoby wizualnie akcję zwykłą z destrukcyjną, czyli osłabiło odsunięcie wymagane przez `AGENTS.md` §5. |
 | `admin/reports.blade.php`, `admin/sygnaly.blade.php`, `admin/bez-odpowiedzi.blade.php` | karta treści mimo formularza w środku | **karta treści**. Powierzchnia jest cudzą treścią, którą moderator ocenia; formularz decyzji jest dodatkiem do niej, nie jej rolą. Trzy pliki potraktowane jednakowo. |
 | `components/ustawienia-nawigacja.blade.php` | sekcja czy blok szyny | **sekcja**. Komponent stoi zawsze w `<x-slot:rail>`, ale nie nosił klasy `szyna-blok` — a warstwy 3 i 4 są wizualnie identyczne, więc spis wygląda tak, jak wyglądał, i traci tylko cień, który kazał mu konkurować z kolumną główną. |
+| `settings/security.blade.php` — wejście kontem Facebooka | ramka czy sekcja | **sekcja**. D-113: człowiek, który ma już konto, NIE wejdzie na nie kontem Facebooka, dopóki sam nie połączy kont z tego ekranu — a list kierujący go tutaj mówi wprost „połącz konta w Ustawienia → Bezpieczeństwo". Wgłębienie mówiłoby „to jest obok" o jedynej drodze do celu. |
+| `settings/data.blade.php` — „Co zniknie, a co zostanie" | ramka czy sekcja | **sekcja**. Trzy listy są MATERIAŁEM do wyboru zakresu usunięcia (D-022), nie przypisem obok niego. Na warstwie wgłębionej sąsiednie „Pobierz swoje dane" — akcja zwykła i odwracalna — stało wizualnie wyżej niż opis skutków, których cofnąć się nie da. |
+| `zgloszenia/szczegoly.blade.php` — pouczenie DSA art. 16 ust. 5 | ramka czy sekcja | **sekcja**. D-042 odbiera zgłaszającemu formularz skargi i stawia to pouczenie W JEGO MIEJSCE; to cały środek prawny, jaki mu zostaje. |
+| `appeals/create.blade.php`, `appeals/reporter.blade.php` — „termin minął" | ramka czy sekcja | **sekcja**. W tej gałęzi to CAŁA treść ekranu; sąsiednie gałęzie tego samego `@if` mają sekcję i panel, więc akurat stan „przegrałeś termin" dostawał najsłabszą warstwę. |
+| `settings/two_factor/enable.blade.php` — kod do ręcznego wpisania | ramka czy sekcja | **sekcja**. To druga droga do tego samego celu, równorzędna z kodem QR, który jest sekcją — nie wyjaśnienie obok niego. |
+| `settings/email.blade.php` — „Zmień adres e-mail" | panel zawsze czy warunkowo | **warunkowo (`@class`)**. Gdy poczta nie działa, gałąź zastępcza nie ma ani pola, ani przycisku. Dwa inne ekrany (`forgot-password`, `login-link`) trzymają cały panel w `@if(Poczta::dziala())`; tutaj tak nie można, bo gałąź zastępcza musi coś powiedzieć. |
+| `errors/419.blade.php`, `errors/429.blade.php` — odzyskany formularz | panel zawsze czy warunkowo | **warunkowo (`@class`)**. Wartości krótsze niż 60 znaków wracają jako pola UKRYTE, więc przy komentarzu „Wygląda pysznie!" bez zdjęcia cały blok to `@csrf`, pola ukryte i przycisk. Mocna obwódka obiecywałaby formularz, którego nie widać — a ekran mówi w tym samym czasie „Twój tekst jest na miejscu". Predykat: `OdzyskanyFormularz::maWidocznePola()`. |
+| `zgloszenia/lista.blade.php` kontra `zgloszenia/szczegoly.blade.php` | to samo zgłoszenie ma dwie warstwy | **tak ma być, i to jest reguła ogólna**: element listy jest kartą treści, ekran szczegółów tej samej rzeczy jest sekcją. Rolę nadaje MIEJSCE, nie obiekt: na liście karta oddziela jedną sprawę od dwudziestu innych, na ekranie szczegółów nie ma czego oddzielać, a kartą treści na tym ekranie jest odpowiedź, nie własny tekst czytelnika. |
 
-## Inwentarz — wszystkie 128 wystąpień
+
+## Czego ten dokument nie rozstrzyga
+
+- **`pages/cooked/celebrate.blade.php`** — cudze wykonanie „Ugotowałem"
+  (zdjęcie plus notatka) stoi na sekcji, choć warstwa 1 wymienia wykonanie
+  wprost. Argument za sekcją: to jest ekran POTWIERDZENIA, a rzeczą do
+  zrobienia jest podziękowanie, które dostało własny panel w środku. Argument
+  za kartą: „rzecz, po którą ktoś tu przyszedł". Zostawione jako sekcja, ale
+  to jest spór, nie fakt.
+- **`pages/admin/uzytkownicy.blade.php` i `pages/admin/wiadomosci.blade.php`** —
+  puste stany są tam zwykłym `<p class="sekcja-strony">`, a repozytorium ma na
+  to osobny komponent `<x-empty-state>` (użyty w `admin/tag-promotions`). Dwa
+  sąsiednie ekrany panelu robią to samo dwoma mechanizmami. Nie ruszone: to
+  zmiana struktury, nie warstwy.
+- **`pages/collections/index.blade.php`** — „Załóż nowy zeszyt" to
+  `<details class="panel-formularza">`. W stanie zwiniętym mocna obwódka
+  otacza sam przycisk. Nie jest to martwa obietnica (pola naprawdę są
+  w środku), ale przez większość czasu panel nie ma czego wypełniać.
+- **Automat dostępności nie wchodzi na trzy ekrany z ramkami**: dwa ekrany
+  panelu moderacji (403 na koncie demo) i drugi krok logowania (żadne konto
+  demo nie ma włączonej weryfikacji dwuetapowej). Ich warstwy sprawdzono
+  czytaniem kodu i testem, nie pomiarem w przeglądarce.
+
+## Inwentarz — wszystkie 126 wystąpień
 
 Wiersz na wystąpienie klasy warstwy w `resources/views/`. Wygenerowane ze
-stanu kodu po zmianie, nie przepisane z pamięci. Dwa wiersze opisują JEDEN
-element: `admin/wiadomosc.blade.php` wybiera warstwę warunkiem `@class`, bo
-w wariancie bez adresu e-mail nie ma tam czego wypełnić.
+stanu kodu po zmianie, nie przepisane z pamięci. Wiersze `@class([...])` opisują
+JEDNO miejsce, które wybiera warstwę warunkiem — bo w jednym ze stanów ekranu
+nie ma tam czego wypełnić (`admin/wiadomosc`, `settings/email`, `errors/419`,
+`errors/429`).
+
+| rola | ile |
+|---|---|
+| sekcja strony | 49 |
+| panel formularza | 42 |
+| karta treści | 20 |
+| ramka pomocnicza | 10 |
+| kafel akcji | 3 |
+| blok szyny | 2 |
 
 
 ### Wejście do serwisu — `auth/`, `components/wejscia-*`, `components/wejdz-*`
@@ -194,17 +291,19 @@ _17 wystąpień: sekcja strony — 8, panel formularza — 8, ramka pomocnicza �
 
 ### Ekrany błędów — `errors/`
 
-_2 wystąpień: panel formularza — 2._
+_4 wystąpień: panel formularza — 2, sekcja strony — 2._
 
 | plik:linia | klasa | rola |
 |---|---|---|
-| `errors/419.blade.php:84` | `panel-formularza` | panel formularza |
-| `errors/429.blade.php:69` | `panel-formularza` | panel formularza |
+| `errors/419.blade.php:92` | `@class([...]) — panel-formularza` | panel formularza |
+| `errors/419.blade.php:93` | `@class([...]) — sekcja-strony` | sekcja strony |
+| `errors/429.blade.php:77` | `@class([...]) — panel-formularza` | panel formularza |
+| `errors/429.blade.php:78` | `@class([...]) — sekcja-strony` | sekcja strony |
 
 
-### Treść: wpis, przepis, wykonanie, komentarz — `components/`, `pages/posts`, `pages/recipes`, `pages/cooked`
+### Treść: wpis, przepis, wykonanie, komentarz
 
-_27 wystąpień: panel formularza — 13, karta treści — 6, sekcja strony — 6, blok szyny — 2._
+_24 wystąpień: panel formularza — 10, karta treści — 6, sekcja strony — 6, blok szyny — 2._
 
 | plik:linia | klasa | rola |
 |---|---|---|
@@ -214,10 +313,10 @@ _27 wystąpień: panel formularza — 13, karta treści — 6, sekcja strony —
 | `components/kuking-board.blade.php:46` | `sekcja-strony kuking-board mb-6` | sekcja strony |
 | `components/post-card.blade.php:23` | `card post-card` | karta treści |
 | `components/recipe-card.blade.php:2` | `card` | karta treści |
-| `components/recipe-wizard.blade.php:995` | `form-section panel-formularza` | panel formularza |
-| `components/recipe-wizard.blade.php:1157` | `form-section panel-formularza` | panel formularza |
-| `components/recipe-wizard.blade.php:1229` | `form-section panel-formularza` | panel formularza |
-| `components/recipe-wizard.blade.php:1329` | `form-section sekcja-strony` | sekcja strony |
+| `components/recipe-wizard.blade.php:1007` | `panel-formularza` | panel formularza |
+| `components/recipe-wizard.blade.php:1169` | `panel-formularza` | panel formularza |
+| `components/recipe-wizard.blade.php:1241` | `panel-formularza` | panel formularza |
+| `components/recipe-wizard.blade.php:1341` | `sekcja-strony` | sekcja strony |
 | `components/szyna-blok.blade.php:6` | `card` | karta treści |
 | `components/szyna-blok.blade.php:23` | `card szyna-blok` | blok szyny |
 | `components/szyna-startowa.blade.php:23` | `card szyna-blok` | blok szyny |
@@ -228,10 +327,7 @@ _27 wystąpień: panel formularza — 13, karta treści — 6, sekcja strony —
 | `pages/posts/create.blade.php:7` | `panel-formularza` | panel formularza |
 | `pages/posts/edit.blade.php:17` | `panel-formularza` | panel formularza |
 | `pages/posts/zdjecia.blade.php:54` | `panel-formularza` | panel formularza |
-| `pages/recipes/create.blade.php:85` | `form-section panel-formularza` | panel formularza |
-| `pages/recipes/create.blade.php:162` | `form-section panel-formularza` | panel formularza |
-| `pages/recipes/create.blade.php:229` | `form-section panel-formularza` | panel formularza |
-| `pages/recipes/create.blade.php:309` | `form-section panel-formularza` | panel formularza |
+| `pages/recipes/create.blade.php:93` | `panel-formularza` | panel formularza |
 | `pages/recipes/show.blade.php:186` | `card przepis-panel` | karta treści |
 | `pages/recipes/show.blade.php:344` | `sekcja-strony` | sekcja strony |
 | `pages/recipes/show.blade.php:400` | `sekcja-strony` | sekcja strony |
@@ -239,7 +335,7 @@ _27 wystąpień: panel formularza — 13, karta treści — 6, sekcja strony —
 
 ### Ustawienia konta — `pages/settings/`
 
-_24 wystąpień: panel formularza — 9, ramka pomocnicza — 8, sekcja strony — 5, karta treści — 2._
+_24 wystąpień: sekcja strony — 10, panel formularza — 9, ramka pomocnicza — 3, karta treści — 2._
 
 | plik:linia | klasa | rola |
 |---|---|---|
@@ -248,37 +344,36 @@ _24 wystąpień: panel formularza — 9, ramka pomocnicza — 8, sekcja strony �
 | `pages/settings/accessibility.blade.php:96` | `ramka-pomocnicza mt-8` | ramka pomocnicza |
 | `pages/settings/avatar.blade.php:16` | `panel-formularza` | panel formularza |
 | `pages/settings/data.blade.php:10` | `sekcja-strony` | sekcja strony |
-| `pages/settings/data.blade.php:90` | `ramka-pomocnicza mt-4` | ramka pomocnicza |
+| `pages/settings/data.blade.php:96` | `sekcja-strony mt-4` | sekcja strony |
 | `pages/settings/email.blade.php:29` | `sekcja-strony` | sekcja strony |
-| `pages/settings/email.blade.php:67` | `ramka-pomocnicza mt-8` | ramka pomocnicza |
-| `pages/settings/email.blade.php:99` | `panel-formularza mt-8` | panel formularza |
+| `pages/settings/email.blade.php:71` | `sekcja-strony mt-8` | sekcja strony |
+| `pages/settings/email.blade.php:116` | `@class([...]) — panel-formularza` | panel formularza |
+| `pages/settings/email.blade.php:117` | `@class([...]) — sekcja-strony` | sekcja strony |
 | `pages/settings/privacy.blade.php:4` | `panel-formularza` | panel formularza |
 | `pages/settings/privacy.blade.php:46` | `card flex items-center gap-3 flex-wrap` | karta treści |
 | `pages/settings/profile.blade.php:7` | `panel-formularza` | panel formularza |
 | `pages/settings/profile.blade.php:36` | `ramka-pomocnicza zdjecie-profilowe-skrot` | ramka pomocnicza |
 | `pages/settings/security.blade.php:6` | `panel-formularza` | panel formularza |
 | `pages/settings/security.blade.php:37` | `panel-formularza mt-8` | panel formularza |
-| `pages/settings/security.blade.php:104` | `ramka-pomocnicza mt-8` | ramka pomocnicza |
+| `pages/settings/security.blade.php:110` | `sekcja-strony mt-8` | sekcja strony |
 | `pages/settings/two_factor/codes.blade.php:16` | `ramka-pomocnicza mb-5` | ramka pomocnicza |
 | `pages/settings/two_factor/codes.blade.php:27` | `card lista-naga kod-do-przepisania p-5` | karta treści |
 | `pages/settings/two_factor/enable.blade.php:16` | `sekcja-strony text-center` | sekcja strony |
-| `pages/settings/two_factor/enable.blade.php:30` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
-| `pages/settings/two_factor/enable.blade.php:43` | `panel-formularza mt-5` | panel formularza |
-| `pages/settings/two_factor/index.blade.php:10` | `ramka-pomocnicza mb-5` | ramka pomocnicza |
-| `pages/settings/two_factor/index.blade.php:14` | `sekcja-strony` | sekcja strony |
-| `pages/settings/two_factor/index.blade.php:65` | `sekcja-strony` | sekcja strony |
+| `pages/settings/two_factor/enable.blade.php:35` | `sekcja-strony mt-5` | sekcja strony |
+| `pages/settings/two_factor/enable.blade.php:48` | `panel-formularza mt-5` | panel formularza |
+| `pages/settings/two_factor/index.blade.php:23` | `sekcja-strony` | sekcja strony |
+| `pages/settings/two_factor/index.blade.php:74` | `sekcja-strony` | sekcja strony |
 
 
 ### Panel moderacji — `pages/admin/`
 
-_19 wystąpień: sekcja strony — 8, karta treści — 6, panel formularza — 5._
+_18 wystąpień: sekcja strony — 8, karta treści — 6, panel formularza — 4._
 
 | plik:linia | klasa | rola |
 |---|---|---|
 | `pages/admin/appeals.blade.php:56` | `card odwolanie` | karta treści |
 | `pages/admin/bez-odpowiedzi.blade.php:38` | `card czeka czeka-{{ $wpis->pilnosc }}` | karta treści |
-| `pages/admin/daily-board.blade.php:25` | `form-section panel-formularza` | panel formularza |
-| `pages/admin/daily-board.blade.php:61` | `form-section panel-formularza` | panel formularza |
+| `pages/admin/daily-board.blade.php:26` | `panel-formularza` | panel formularza |
 | `pages/admin/reports.blade.php:78` | `card mb-5` | karta treści |
 | `pages/admin/sygnaly.blade.php:34` | `card mb-5` | karta treści |
 | `pages/admin/tag-promotions.blade.php:27` | `panel-formularza mb-6` | panel formularza |
@@ -296,26 +391,26 @@ _19 wystąpień: sekcja strony — 8, karta treści — 6, panel formularza — 
 | `pages/admin/wiadomosci.blade.php:61` | `sekcja-strony` | sekcja strony |
 
 
-### Zgłoszenia i odwołania — `pages/zgloszenia/`, `pages/appeals/`
+### Zgłoszenia i odwołania
 
-_14 wystąpień: sekcja strony — 6, ramka pomocnicza — 4, panel formularza — 3, karta treści — 1._
+_14 wystąpień: sekcja strony — 10, panel formularza — 3, karta treści — 1._
 
 | plik:linia | klasa | rola |
 |---|---|---|
 | `pages/appeals/create.blade.php:16` | `sekcja-strony` | sekcja strony |
 | `pages/appeals/create.blade.php:33` | `sekcja-strony mt-5` | sekcja strony |
-| `pages/appeals/create.blade.php:53` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
-| `pages/appeals/create.blade.php:65` | `panel-formularza mt-5` | panel formularza |
+| `pages/appeals/create.blade.php:60` | `sekcja-strony mt-5` | sekcja strony |
+| `pages/appeals/create.blade.php:72` | `panel-formularza mt-5` | panel formularza |
 | `pages/appeals/guest.blade.php:21` | `panel-formularza` | panel formularza |
 | `pages/appeals/reporter.blade.php:16` | `sekcja-strony` | sekcja strony |
 | `pages/appeals/reporter.blade.php:26` | `sekcja-strony mt-5` | sekcja strony |
-| `pages/appeals/reporter.blade.php:46` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
-| `pages/appeals/reporter.blade.php:58` | `panel-formularza mt-5` | panel formularza |
+| `pages/appeals/reporter.blade.php:53` | `sekcja-strony mt-5` | sekcja strony |
+| `pages/appeals/reporter.blade.php:65` | `panel-formularza mt-5` | panel formularza |
 | `pages/zgloszenia/lista.blade.php:26` | `card mb-3` | karta treści |
 | `pages/zgloszenia/szczegoly.blade.php:23` | `sekcja-strony` | sekcja strony |
-| `pages/zgloszenia/szczegoly.blade.php:40` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
-| `pages/zgloszenia/szczegoly.blade.php:49` | `sekcja-strony mt-5` | sekcja strony |
-| `pages/zgloszenia/szczegoly.blade.php:78` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
+| `pages/zgloszenia/szczegoly.blade.php:44` | `sekcja-strony mt-5` | sekcja strony |
+| `pages/zgloszenia/szczegoly.blade.php:53` | `sekcja-strony mt-5` | sekcja strony |
+| `pages/zgloszenia/szczegoly.blade.php:87` | `sekcja-strony mt-5` | sekcja strony |
 
 
 ### Strony publiczne i pozostałe ekrany
@@ -343,7 +438,7 @@ _25 wystąpień: ramka pomocnicza — 6, panel formularza — 6, sekcja strony �
 | `pages/profile/connections.blade.php:43` | `card flex gap-3 items-center justify-between flex-wrap` | karta treści |
 | `pages/profile/show.blade.php:51` | `sekcja-strony mb-6` | sekcja strony |
 | `pages/report.blade.php:10` | `panel-formularza` | panel formularza |
-| `pages/search.blade.php:33` | `panel-formularza wyszukiwarka-formularz` | panel formularza |
+| `pages/search.blade.php:33` | `panel-formularza` | panel formularza |
 | `pages/search.blade.php:173` | `card flex gap-3 items-center` | karta treści |
 | `pages/zglos-nielegalna-tresc-potwierdzenie.blade.php:12` | `sekcja-strony` | sekcja strony |
 | `pages/zglos-nielegalna-tresc.blade.php:43` | `ramka-pomocnicza mb-5` | ramka pomocnicza |

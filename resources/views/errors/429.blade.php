@@ -66,7 +66,18 @@
             klikanie „odśwież” niczego nie przyspieszy.
         </p>
 
-        <form class="panel-formularza" method="POST" action="{{ $formularz->akcja }}"
+        {{-- WARSTWA ZALEŻY OD TEGO, CZY COŚ TU WIDAĆ. Krótkie wartości
+             wracają jako pola ukryte, więc przy komentarzu na kilkanaście
+             znaków i bez zdjęcia w tym bloku nie ma nic do wypełnienia —
+             tylko przycisk „Wyślij jeszcze raz". Mocna obwódka panelu
+             obiecywałaby wtedy formularz, którego nie widać, a ekran mówi
+             w tym samym czasie „Twój tekst jest na miejscu". Sekcja, a nie
+             ramka pomocnicza: blok nadal niesie akcję, tylko nie wypełnianie. --}}
+        <form @class([
+                  'panel-formularza' => $formularz->maWidocznePola(),
+                  'sekcja-strony' => ! $formularz->maWidocznePola(),
+              ])
+              method="POST" action="{{ $formularz->akcja }}"
               @if($formularz->maPliki()) enctype="multipart/form-data" @endif>
             {{-- Ochrona CSRF zostaje w mocy — ponowne wysłanie idzie normalną
                  drogą, przez ValidateCsrfToken, i normalnie przez limiter. --}}

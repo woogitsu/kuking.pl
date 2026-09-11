@@ -36,8 +36,12 @@
     </article>
 
     @if(! $zgloszenie->jestRozstrzygniete())
-        {{-- `ramka-pomocnicza`: ten blok nie niesie decyzji, tylko mówi, co dalej. --}}
-        <article class="ramka-pomocnicza mt-5">
+        {{-- TA SAMA WARSTWA CO „Nasza decyzja" NIŻEJ — obie gałęzie stoją
+             w tym samym miejscu ekranu i odpowiadają na to samo pytanie
+             („co z moją sprawą"), tylko w dwóch stanach. Różnica warstw
+             kazałaby ekranowi zmieniać wygląd zależnie od tego, czy sprawa
+             jest już rozstrzygnięta — a to nie jest różnica rangi. --}}
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Na czym stoi sprawa</h2>
             <p><strong>Sprawdzamy.</strong> Zgłoszenie trafiło do kolejki i przeczyta je człowiek.</p>
             <p>
@@ -75,7 +79,12 @@
             które idą listem przy zgłoszeniu prawnym, żeby obie drogi pouczały
             tak samo, a nie podobnie.
         --}}
-        <article class="ramka-pomocnicza mt-5">
+        {{-- SEKCJA, nie ramka pomocnicza. D-042 odbiera zgłaszającemu
+             formularz skargi i stawia to pouczenie W JEGO MIEJSCE — to jest
+             cały środek prawny, jaki mu zostaje, a nie przypis obok sprawy.
+             Wgłębienie mówiłoby „to jest obok głównej rzeczy" o jedynej
+             rzeczy, którą człowiek może jeszcze zrobić. --}}
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">{{ \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::NAGLOWEK_POUCZENIA }}</h2>
             @foreach(\App\Domain\Moderation\OdpowiedzDlaZglaszajacego::pouczenie($zgloszenie) as $zdanie)
                 <p>{{ $zdanie }}</p>

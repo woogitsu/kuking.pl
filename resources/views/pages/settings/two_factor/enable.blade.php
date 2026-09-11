@@ -27,7 +27,12 @@
         pierwszy, termin techniczny zostaje jako informacja drugorzędna dla
         kontaktu ze wsparciem. Test regresyjny: DwuetapowaKodKopiaTest.
     --}}
-    <section class="ramka-pomocnicza mt-5" id="sekcja-recznego-wpisania">
+    {{-- SEKCJA, nie ramka pomocnicza: to jest DRUGA DROGA do tego samego
+         celu, równorzędna z kodem QR wyżej, a nie wyjaśnienie obok niego.
+         Kod QR stoi na `sekcja-strony`, więc alternatywa dla osoby, która nie
+         ma jak zeskanować, ma stać na tej samej warstwie — inaczej ekran mówi
+         „ta droga jest gorsza" komuś, kto nie ma wyboru. --}}
+    <section class="sekcja-strony mt-5" id="sekcja-recznego-wpisania">
         <h2 class="mt-0">Nie możesz zeskanować kodu?</h2>
         <p>
             Wpisz w aplikacji ten kod do ręcznego wpisania (czasem nazywany „sekretem"

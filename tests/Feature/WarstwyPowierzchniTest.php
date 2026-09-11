@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -247,6 +248,106 @@ class WarstwyPowierzchniTest extends TestCase
             $this->ilePowierzchni($html, 'ramka-pomocnicza'),
             'Na ekranie logowania pojawiła się wgłębiona ramka pomocnicza — '.
             'sprawdź, czy to nie któraś z dróg wejścia (D-056).',
+        );
+    }
+
+    /**
+     * PANEL FORMULARZA NIE OBIECUJE PÓL, KTÓRYCH NIE MA.
+     *
+     * Mocna obwódka panelu to ta sama obwódka, którą mają pola — więc panel
+     * mówi „tu się coś wpisuje". Odzyskany formularz po odbiciu limitu (429)
+     * albo po wygaśnięciu sesji (419) bywa zbudowany z samych pól UKRYTYCH:
+     * krótkie wartości (poniżej 60 znaków, bez znaku nowej linii) wracają
+     * jako `<input type="hidden">`, bo człowiek nie ma czego w nich
+     * poprawiać. Wtedy blok jest sekcją, nie panelem.
+     *
+     * To jest ta sama zasada co zakaz martwego przycisku (D-053), tylko
+     * w warstwie powierzchni — i tym gorsza, że ekran mówi w tym samym
+     * czasie „Twój tekst jest na miejscu".
+     *
+     * Mierzymy przez PRAWDZIWE odbicie limitu, a nie przez konstruktor:
+     * `OdzyskanyFormularz::zZadania()` zgadza trasę po nazwie i poza trasami
+     * treści nie odkłada niczego, więc żądanie zbudowane w próżni dałoby
+     * pustkę i test przechodziłby, nie sprawdzając niczego.
+     */
+    #[Test]
+    public function test_odzyskany_formularz_bez_widocznych_pol_nie_jest_panelem(): void
+    {
+        // 16 znaków, bez nowej linii — czyli poniżej progu „długiego" pola.
+        $krotki = $this->odbityKomentarz('Wygląda pysznie!');
+
+        $this->assertSame(
+            0,
+            $this->ilePowierzchni($krotki, 'panel-formularza'),
+            'Krótki komentarz wraca jako pole UKRYTE, więc na ekranie 429 nie ma czego '.
+            'wypełnić — a blok ma mocną obwódkę panelu, czyli obiecuje formularz.',
+        );
+
+        $this->assertSame(
+            1,
+            $this->ilePowierzchni($krotki, 'sekcja-strony'),
+            'Blok z samym przyciskiem „Wyślij jeszcze raz" ma być sekcją.',
+        );
+
+        $dlugi = $this->odbityKomentarz(
+            'Robiłam to wczoraj z połową porcji rozmarynu i wyszło znacznie łagodniej.',
+        );
+
+        $this->assertSame(
+            1,
+            $this->ilePowierzchni($dlugi, 'panel-formularza'),
+            'Długi tekst wraca jako widoczne `<textarea>` — to jest panel formularza.',
+        );
+    }
+
+    /**
+     * Odbija limit komentarzy (10 na minutę, `config/kuking.php`) i zwraca
+     * HTML ekranu 429 z odzyskanym formularzem.
+     */
+    private function odbityKomentarz(string $tekst): string
+    {
+        $autor = $this->user();
+
+        $post = Post::factory()->create([
+            'author_id' => $autor->getKey(),
+            'status' => 'published',
+            'visibility' => 'public',
+            'published_at' => now(),
+        ]);
+
+        $odpowiedz = null;
+
+        for ($i = 0; $i <= 10; $i++) {
+            $odpowiedz = $this->actingAs($autor)
+                ->post(route('posts.comment', $post), ['body' => $tekst]);
+        }
+
+        $odpowiedz->assertStatus(429);
+
+        return $odpowiedz->getContent();
+    }
+
+    /**
+     * KOMUNIKAT ZWROTNY MA SWOJĄ WŁASNĄ ROLĘ I POKAZUJE SIĘ RAZ.
+     *
+     * `/ustawienia/2fa` wypisywało `session('status')` drugi raz, obok tego,
+     * które robi `x-layout`. Ten sam tekst pojawiał się dwa razy, a czytnik
+     * ekranu ogłaszał go dwukrotnie.
+     */
+    #[Test]
+    public function test_komunikat_zwrotny_w_ustawieniach_2fa_pokazuje_sie_raz(): void
+    {
+        $html = $this->actingAs($this->user())
+            ->withSession(['status' => 'Weryfikacja dwuetapowa jest wyłączona.'])
+            ->get(route('settings.two_factor.edit'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(
+            1,
+            mb_substr_count($html, 'Weryfikacja dwuetapowa jest wyłączona.'),
+            'Komunikat zwrotny pokazuje się na tym ekranie więcej niż raz. '.
+            'Wypisuje go `x-layout` jako `.flash` — widok nie ma go powtarzać.',
         );
     }
 

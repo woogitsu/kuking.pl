@@ -159,6 +159,34 @@ final class OdzyskanyFormularz
     }
 
     /**
+     * Czy na odzyskanym formularzu jest cokolwiek WIDAĆ.
+     *
+     * `maCoOdzyskac()` mówi „coś odłożyliśmy", ale krótkie wartości wracają
+     * jako `<input type="hidden">` — człowiek ich nie widzi i nie może ich
+     * poprawić. Przy komentarzu „Wygląda pysznie!" (16 znaków) i bez zdjęcia
+     * cały odzyskany formularz to ukryte pola plus jeden przycisk.
+     *
+     * Czyta to warstwa powierzchni w `errors/419` i `errors/429`: mocna
+     * obwódka panelu formularza znaczy „tu się coś wpisuje", więc na takim
+     * ekranie byłaby obietnicą bez pokrycia — ta sama klasa błędu co martwy
+     * przycisk (D-053). Wtedy blok jest sekcją, nie panelem.
+     *
+     * Próg „długiego" pola ustawia `zZadania()`: 60 znaków albo znak nowej
+     * linii. Pliki liczą się zawsze, bo `<input type="file">` jest widoczny
+     * (pusty, ale widoczny — wartości do niego wpisać się nie da).
+     */
+    public function maWidocznePola(): bool
+    {
+        foreach ($this->pola as $pole) {
+            if ($pole['dlugi'] === true) {
+                return true;
+            }
+        }
+
+        return $this->maPliki();
+    }
+
+    /**
      * Czy formularz musi iść jako `multipart/form-data`.
      *
      * Samych plików odzyskać się nie da — przeglądarka nie pozwala wpisać

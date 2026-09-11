@@ -101,7 +101,13 @@
         miejsce, o które pyta kontroler i rząd przycisków na logowaniu.
     --}}
     @if(\App\Support\Facebook::dziala())
-        <section class="ramka-pomocnicza mt-8">
+        {{-- SEKCJA, nie ramka pomocnicza — ta sama zasada co przy logowaniu
+             linkiem na `/login` (D-056). D-113 czyni ją tu mocniejszą: człowiek,
+             który ma już konto w Kuking, NIE wejdzie na nie kontem Facebooka,
+             dopóki sam nie połączy kont z tego ekranu, a list kierujący go
+             tutaj mówi wprost „połącz konta w Ustawienia → Bezpieczeństwo".
+             Wgłębienie mówiłoby „to jest obok" o jedynej drodze do celu. --}}
+        <section class="sekcja-strony mt-8">
             <h2 class="mt-0">Wejście kontem Facebooka</h2>
 
             {{--
