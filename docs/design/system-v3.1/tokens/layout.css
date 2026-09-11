@@ -16,17 +16,57 @@
   --container-sidenav: 15rem;   /* 240px */
   --container-rail: 22rem;      /* 352px */
 
-  /* Jedna szerokość strony dla trzech warstw. Trzecia kolumna istnieje ZAWSZE
-     od 80rem, także na ekranach bez szyny (D-102) — kolumna czytania ma wtedy
-     na każdej podstronie ten sam x i tę samą szerokość. */
-  --container-strona: calc(
+  /* Boczne wcięcie ramy. Jedna nazwa dla liczby, która stoi w trzech
+     warstwach naraz: rama strony, belka górna, stopka. Przyszło z kodu
+     (`resources/css/tokens.css`, issue #365) — patrz uwaga na końcu pliku. */
+  --container-margines: var(--spacing-6);   /* 24px */
+
+  /* Rama liczy się zawsze tak samo: min(sufit, 100% dostępnego obszaru).
+     Sufit stoi osobno, pod własną nazwą, żeby podniesienie go było zmianą
+     JEDNEJ liczby, a nie czterech wyrażeń calc(). Samo `min(…, 100%)` nie
+     zmienia dziś wyglądu ani o piksel — te warstwy mają `box-sizing:
+     border-box` i `width: 100%` — zyskiem jest MIEJSCE ograniczenia: jedno,
+     widoczne w wartości tokenu, a nie rozsypane po regułach. */
+  --sufit-strona: calc(
     var(--container-sidenav) + var(--spacing-8) + var(--container-content)
-    + 2 * var(--spacing-6)
-  );                              /* 1040px */
-  --container-strona-szeroka: calc(
-    var(--container-strona) + var(--spacing-8) + var(--container-rail)
-  );                              /* 1424px */
-  --container-strona-solo: calc(
-    var(--container-content) + 2 * var(--spacing-6)
-  );                              /* 768px — gość */
+    + 2 * var(--container-margines)
+  );                              /* 1040px — dwie kolumny */
+  --container-strona: min(var(--sufit-strona), 100%);
+
+  /* Trzecia kolumna istnieje ZAWSZE od 80rem, także na ekranach bez szyny
+     (D-102) — kolumna czytania ma wtedy na każdej podstronie ten sam x
+     i tę samą szerokość. */
+  --sufit-strona-z-szyna: calc(
+    var(--sufit-strona) + var(--spacing-8) + var(--container-rail)
+  );                              /* 1424px — trzy kolumny */
+  --container-strona-z-szyna: min(var(--sufit-strona-z-szyna), 100%);
+
+  /* Ta sama liczba pod nazwą z pierwszego wydania paczki. Reguły
+     w `components.css` mówią `--container-strona-szeroka` i nie przepisujemy
+     ich: rozjazd nazw w dwie strony jest gorszy niż jeden alias w jednym
+     miejscu. */
+  --container-strona-szeroka: var(--container-strona-z-szyna);
+
+  --sufit-strona-solo: calc(
+    var(--container-content) + 2 * var(--container-margines)
+  );                              /* 768px — gość na ekranie BEZ szyny */
+  --container-strona-solo: min(var(--sufit-strona-solo), 100%);
+
+  /* 1152px — gość na ekranie Z SZYNĄ. Gość nie ma nawigacji bocznej, więc
+     jego szeroki układ to dwie kolumny, nie trzy: treść + prawa szyna
+     (D-122). Paczka w pierwszym wydaniu znała tylko gościa jednokolumnowego. */
+  --sufit-strona-solo-z-szyna: calc(
+    var(--sufit-strona-solo) + var(--spacing-8) + var(--container-rail)
+  );
+  --container-strona-solo-z-szyna: min(var(--sufit-strona-solo-z-szyna), 100%);
+
+  /* POLA DO WPISYWANIA MAJĄ WŁASNE MINIMUM, I TO W PIKSELACH.
+     `--control-height-min` (3rem) zostaje minimum PRZYCISKU. Pole jest czym
+     innym: jego wysokość istnieje dla ekranu i dla palca, a te nie rosną,
+     gdy ktoś ustawi w przeglądarce czcionkę 200% — `3.5rem` zrobiłoby wtedy
+     112px na jedno pole i formularz rejestracji przestałby mieścić się na
+     telefonie. Pismo w polu zostaje typograficzne (`--text-body`).
+     D-082, D-107, issue #365. */
+  --pole-wysokosc-min: 64px;        /* jednowierszowe: 16px ponad przycisk */
+  --pole-wielowierszowe-min: 176px; /* „Napisz kilka słów" — ok. 5 wierszy */
 }
