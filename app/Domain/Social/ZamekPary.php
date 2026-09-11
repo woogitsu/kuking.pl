@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Social;
 
+use App\Domain\Users\ZamekKonta;
 use App\Models\User;
 use Closure;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * JEDNA KOLEJNOŚĆ BLOKAD DLA OPERACJI NA PARZE OSÓB
@@ -121,6 +123,48 @@ final class ZamekPary
      */
     public static function zablokuj(User $pierwsza, User $druga, Closure $co): mixed
     {
+        // ZAMEK PARY WEWNĄTRZ ZAMKA KONTA — ODMOWA, GŁOŚNO I OD RAZU.
+        //
+        // `ZamekKonta::zablokuj($a, …)` trzyma `users[$a] FOR UPDATE` przez
+        // całe wywołanie zwrotne. Gdyby z jego wnętrza zawołać ten zamek dla
+        // pary ($a, $b), proces miałby już JEDEN wiersz i dobierałby drugi
+        // w kolejności ustalonej przez dane — a to daje cykl dokładnie
+        // wtedy, gdy `$a` jest WIĘKSZYM identyfikatorem pary:
+        //
+        //   my:  users[a] (z ZamekKonta) → chcemy users[b] (mniejszy)
+        //   oni: users[b] (mniejszy, jako pierwszy) → chcą users[a]
+        //                            → CYKL → 40P01
+        //
+        // I to jest powód, dla którego odmawiamy ZAWSZE, a nie tylko przy
+        // `$a > $b`: bezpieczeństwo zależałoby wtedy od tego, które konto ma
+        // większy UUID, czyli od rzutu monetą przy każdej parze. Zakleszczenie
+        // sypałoby się raz na dwa przypadki, w produkcji, i nie dałoby się go
+        // powtórzyć na życzenie — najgorszy możliwy kształt usterki.
+        //
+        // Dziś ŻADNA droga w `app/` tego nie robi (audyt kolejności blokad
+        // z 11.09.2026, znalezisko Z-7: „hipoteza przyszłego regresu, nie
+        // aktualne znalezisko"). Ten strażnik istnieje, żeby ta hipoteza nie
+        // mogła się spełnić po cichu — bo interfejs obu klas tego nie
+        // zabraniał, a nic tego nie pilnowało.
+        //
+        // Kierunek odwrotny — `ZamekKonta` wewnątrz `ZamekPary` — jest
+        // bezpieczny i NIE jest zabroniony: bierze blokadę na wiersz, który
+        // ta transakcja już trzyma, więc nie dokłada ani jednej krawędzi
+        // do grafu oczekiwania.
+        if (ZamekKonta::trzymanyWTymProcesie()) {
+            throw new RuntimeException(
+                'ZamekPary::zablokuj() zawołany wewnątrz ZamekKonta::zablokuj(). '
+                .'To jest droga do zakleszczenia: zamek konta trzyma już jeden wiersz '
+                .'`users`, a zamek pary dobiera drugi w kolejności ustalonej przez dane — '
+                .'przy koncie o WIĘKSZYM identyfikatorze pary powstaje cykl z równoległym '
+                .'zwykłym ZamekPary (D-075, D-080). Odmowa jest bezwarunkowa, bo inaczej '
+                .'poprawność zależałaby od tego, które konto ma większy UUID. '
+                .'CO ZROBIĆ: wyjdź z zamka konta i zawołaj ZamekPary na zewnątrz, albo '
+                .'przenieś całą operację do jednego ZamekPary — on bierze OBA wiersze '
+                .'we właściwej kolejności i zamek konta staje się zbędny.',
+            );
+        }
+
         $klucz = [
             'pierwsza' => (string) $pierwsza->getKey(),
             'druga' => (string) $druga->getKey(),
