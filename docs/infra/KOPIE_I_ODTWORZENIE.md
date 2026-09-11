@@ -397,6 +397,20 @@ i `pg_restore`, a nie tę warstwę, której #193 dotyczy (szyfrowanie, bucket,
 klucz prywatny — czyli dokładnie te trzy rzeczy, które w prawdziwej awarii
 mogą zawieść).
 
+> ### Oba ćwiczenia są od 11 września 2026 JEDNĄ KOMENDĄ — patrz §8
+>
+> `scripts/kopia-lokalna.sh` robi kopię z §4B, a `scripts/proba-odtworzenia.sh`
+> wykonuje ćwiczenie (§4A albo §4B, zależnie od tego, czy podasz zrzut
+> zaszyfrowany) i **sprawdza wynik zamiast Ciebie**: liczbę tabel, liczby
+> wierszy w nazwanych tabelach, obecność wyzwalaczy i ograniczeń oraz — co
+> najważniejsze — czy wyzwalacze naprawdę **DZIAŁAJĄ**. Skrypt kończy się
+> niezerowym kodem, gdy którakolwiek z tych rzeczy nie wyszła, więc nie da
+> się odhaczyć ćwiczenia, które się nie udało.
+>
+> Komendy krok po kroku, razem z tym, czym potwierdzasz każdy krok: **§8**.
+> Sekcje §4A i §4B zostają tu jako wersja do wpisania z palca — na wypadek,
+> gdybyś odtwarzał bazę bez repozytorium pod ręką.
+
 ---
 
 ### §4A. Ćwiczenie na PRAWDZIWEJ kopii z bucketu
@@ -573,6 +587,7 @@ o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 | Data | Co uruchomiono | Wynik | Czego to NIE sprawdziło |
 |---|---|---|---|
 | 9 IX 2026 | `docker/kopia/kopia-bazy.sh` na lokalnej bazie po migracjach, z podstawionym bucketem na dysku, prawdziwym `openssl cms` i prawdziwą parą kluczy RSA | Zrzut 125 592 B, 42 tabele z danymi, szyfrogram 126 147 B. Odszyfrowanie **samym kluczem prywatnym** dało plik o identycznym `sha256`; `pg_restore` wczytał go do pustej bazy bez błędu (42 tabele) | Serwera PostgreSQL **18** (lokalnie 16), prawdziwej rozmowy z R2 (podpis SigV4 sprawdzony wektorami AWS, nie wobec Cloudflare), zbudowania obrazu (brak Dockera w środowisku), harmonogramu Railway |
+| 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 
 ---
 
@@ -604,7 +619,18 @@ specyficzne dla kopii i odtwarzania.
 
 **Co kwartał:**
 - **Powtórz pełne ćwiczenie z §4A** i dopisz wiersz do tabeli w §5. Backup,
-  którego nikt dawno nie przywrócił, jest ponownie tylko nadzieją.
+  którego nikt dawno nie przywrócił, jest ponownie tylko nadzieją. Od 11 września
+  2026 jest to jedna komenda, która **sama sprawdza wynik** i kończy się
+  niezerowym kodem, gdy odtworzenie nie wyszło:
+
+  ```bash
+  ./scripts/proba-odtworzenia.sh --zrzut <najnowszy z bucketu>.dump.cms \
+    --klucz kuking-kopie-PRYWATNY.pem \
+    --serwer "postgresql://<user>:<haslo>@127.0.0.1:5432/postgres"
+  ```
+
+  Czas odtworzenia, który wypisze, jest zmierzonym RTO — jedyną liczbą w tym
+  dokumencie, która nie jest oszacowaniem. Szczegóły: §8.5.
 - **Sprawdź, czy klucz prywatny kopii wciąż da się odczytać z OBU miejsc**
   (§7.1) — menedżer haseł i nośnik offline. Nośnik, którego nikt nie włożył
   do gniazda od roku, nie jest kopią klucza, tylko wspomnieniem o niej:
@@ -662,6 +688,9 @@ Dopóki ta warstwa nie chodzi na produkcji, liczba kopii bazy wynosi **zero**.
 | `app/Domain/Kopie/StanKopiiBazy.php` | czujka po stronie aplikacji: czy kopie NADAL powstają |
 | `app/Console/Commands/SprawdzKopieBazy.php` | `kuking:sprawdz-kopie` — ta czujka z ręki i z harmonogramu |
 | `tests/skrypty/kopia-bazy.sh` | testy skryptu: wektory AWS, treść alarmu, retencja, szyfrowanie w obie strony |
+| `scripts/kopia-lokalna.sh` | kopia na dysk właściciela, bez R2 i bez Railwaya — kopia numer jeden do zrobienia DZIŚ (§8.1) |
+| `scripts/proba-odtworzenia.sh` | próba odtworzenia: wlanie zrzutu do czystej bazy `proba_odtworzenia*` i **sprawdzenie wyniku** — tabele, wiersze, wyzwalacze, ograniczenia, zachowanie barier (§8.2) |
+| `tests/skrypty/proba-odtworzenia.sh` | testy obu skryptów na prawdziwym `pg_dump`/`pg_restore`, z fiksturami łamiącymi każdą kontrolę osobno |
 
 **Dlaczego osobny serwis, a nie harmonogram aplikacji:** `docker/php.ini`
 wyłącza `proc_open`, bez którego `pg_dump` z PHP nie wystartuje, a `AGENTS.md`
@@ -931,6 +960,226 @@ zrzut — numer stoi w `.meta` w polu `pg_dump`.
   stronie aplikacji (`kuking:sprawdz-kopie`) patrzy na to z drugiej strony,
   a §6 dokłada przegląd raz na tydzień. **Trzeciego niezależnego świadka nie
   ma** — jeśli padnie i serwis kopii, i aplikacja, milczenie będzie zupełne.
+
+---
+
+## 8. Karta czynności właściciela — od zera kopii do jednej odtworzonej
+
+**Dla kogo:** dla Ciebie, dziś, przy kawie. Nie jest to lektura: każdy wiersz
+ma komendę albo przycisk i sposób sprawdzenia, że się udało.
+
+> ### ILE KOPII BAZY KUKINGA ISTNIEJE DZISIAJ: **zero**
+>
+> Nie „jedna, tylko nieprzetestowana”, i nie „dwie warstwy Railwaya plus
+> trzecia w budowie”. **Zero.** Trzy niezależne powody, wszystkie sprawdzone,
+> nie przypuszczone:
+>
+> 1. Volume Backups i PITR to funkcje planu **Pro**, a Kuking jest na
+>    Free/Hobby — panel nawet nie pokazuje tej zakładki (D-043).
+> 2. Serwis `kopia-bazy` **ma kod** w `docker/kopia/` i **nie istnieje**
+>    w Railwayu: nie ma bucketu, tokenów, klucza ani samego serwisu (§7.3).
+> 3. Nikt nigdy nie zrobił ręcznego zrzutu — tabela w §5 jest pusta.
+>
+> Ta sekcja jest listą, po której tych zer nie będzie. Kroki 1-2 możesz zrobić
+> **w kwadrans, bez żadnego panelu**, i już po nich liczba kopii przestaje być
+> zerem.
+
+### 8.0 Co zmienia każdy krok — cała lista na jednym ekranie
+
+| Krok | Co robisz | Gdzie | Ile kopii PO tym kroku | Czego jeszcze nie ma |
+|---|---|---|---|---|
+| **1** | kopia na własny dysk, jedną komendą | u siebie, terminal | **1** (ręczna, jednorazowa) | automatu; kopia nie odnawia się sama |
+| **2** | **odtwarzasz tę kopię** i sprawdzasz wynik | u siebie, terminal | 1, ale od tej chwili **sprawdzona** | wszystkiego poniżej |
+| **3** | bucket na zrzuty | Cloudflare R2 | 1 | miejsca docelowego dla automatu |
+| **4** | dwa tokeny do tego bucketu | Cloudflare R2 | 1 | poświadczeń dla serwisu i czujki |
+| **5** | para kluczy; **prywatny NIE do Railwaya** | u siebie | 1 | szyfrowania zrzutów |
+| **6** | serwis `kopia-bazy` + pierwsze uruchomienie z ręki | Railway | **2** (ręczna + pierwsza automatyczna) | dowodu, że automat powtarza się nocą |
+| **7** | nazajutrz: czujka potwierdza świeżą kopię | jedna komenda | 2, i **rosną codziennie** | — |
+| **8** | odtworzenie z warstwy automatycznej (§4A) i wiersz w tabeli §5 | u siebie | 2+, **obie sprawdzone** | — to zamyka #9 i #193 |
+
+Kroki 1-2 nie zależą od niczego i nie wymagają żadnej decyzji. Kroki 3-8 są
+tą samą listą, co §7.3, z dopisanym sposobem sprawdzenia każdego z nich.
+
+---
+
+### 8.1 KROK 1 — kopia numer jeden, na Twoim dysku (15 minut)
+
+Potrzebujesz: `railway` CLI, `pg_dump` i `pg_restore` z klienta PostgreSQL
+**nie starszego niż serwer** (starszy `pg_dump` odmawia pracy — to nie
+ostrzeżenie, to brak kopii).
+
+```bash
+pg_dump --version        # sprawdź TERAZ, nie po otwarciu tunelu
+```
+
+**a) otwórz tunel do produkcyjnej bazy** i zostaw to okno otwarte:
+
+```bash
+railway link                            # projekt kuking, środowisko production
+railway connect postgres --tunnel-only  # wypisze host, port, użytkownika i hasło
+```
+
+**b) w drugim oknie** — jedna komenda robi całą kopię:
+
+```bash
+mkdir -p ~/kopie-kuking
+export KOPIA_ZRODLO="postgresql://postgres:<HASLO>@localhost:<PORT>/railway"
+./scripts/kopia-lokalna.sh --katalog ~/kopie-kuking
+```
+
+Hasło idzie przez zmienną, nie przez argument: argument widać w `ps`
+i zostaje w historii powłoki.
+
+**Czym potwierdzasz, że kopia istnieje** — skrypt kończy się kodem 0 i wypisuje:
+
+```text
+[kopia] ✓ zrzut: kuking-<znacznik>.dump, <rozmiar> B, <czas> s
+[kopia] ✓ w zrzucie 49 tabel z danymi        ← musi zgadzać się z docs/DATABASE.md
+KOPIA POWSTAŁA.  /home/…/kopie-kuking/kuking-<znacznik>.dump
+```
+
+**Czym potwierdzasz, że kopii NIE MA:** jakikolwiek inny kod wyjścia.
+Skrypt jest tak napisany, że **pusta kopia nie jest możliwa do przeoczenia**:
+zrzut mniejszy niż 20 000 B albo zawierający mniej niż 20 tabel zostaje
+**skasowany**, a skrypt kończy się kodem 40 albo 42 i mówi, co się stało.
+Kopia, która cicho zapisuje zero bajtów, jest gorsza od braku kopii, bo usypia.
+
+> **Ten plik to komplet danych osobowych wszystkich kont.** Bez klucza (krok 5)
+> jest **nieszyfrowany** — skrypt mówi o tym przy każdym przebiegu. Miejsce na
+> niego to nośnik, który zamykasz, albo katalog zaszyfrowany. Nie `Pobrane`,
+> nie Dysk Google, nie załącznik do maila. Gdy zrobisz krok 5, powtórz krok 1
+> z `--klucz-publiczny` i kopia będzie szyfrowana tak samo jak te z Railwaya.
+
+### 8.2 KROK 2 — odtwórz tę kopię (10 minut). Bez tego kroku krok 1 jest obietnicą
+
+Potrzebujesz **jakiegokolwiek** PostgreSQL-a poza produkcją: lokalnego,
+z Dockera, byle nie tego, który obsługuje serwis.
+
+```bash
+./scripts/proba-odtworzenia.sh \
+  --zrzut ~/kopie-kuking/kuking-<znacznik>.dump \
+  --serwer "postgresql://<user>:<haslo>@127.0.0.1:5432/postgres"
+```
+
+Skrypt zakłada bazę `proba_odtworzenia_<znacznik>`, wlewa do niej zrzut,
+sprawdza wynik i **kasuje ją po sobie** (chcesz obejrzeć? dodaj `--zostaw`).
+Do produkcji nie sięga w żadnym kroku i odmawia startu, gdyby miał —
+pilnują tego dwa niezależne bezpieczniki, opisane w nagłówku skryptu.
+
+**Czym potwierdzasz, że odtworzenie się udało** — kod wyjścia 0 i lista
+zaliczonych kontroli, w tej kolejności:
+
+```text
+✓ bezpiecznik 1: baza celu jest nazwą próbną, serwer nie jest produkcyjny
+✓ archiwum: 49 tabel z danymi, pg_dump 18, pg_restore 18
+✓ bezpiecznik 2: serwer potwierdza bazę "proba_odtworzenia_…", pustą (0 tabel)
+✓ pg_restore bez błędu, <czas> s
+✓ tabel w odtworzonej bazie: 49 (w archiwum: 49)
+✓ wierszy w "users": …  "posts": …  "recipes": …  "cooked_events": …
+✓ wyzwalacze: 3, wszystkie trzy nazwane obecne i włączone
+✓ ograniczenia: CHECK 87, UNIQUE 25, klucze obce 68
+✓ wyzwalacz follows: blokada ma pierwszeństwo przed obserwowaniem
+✓ wyzwalacz dziennik_zgod: dziennika zgód nie da się zmienić
+✓ CHECK follows_no_self_check: nie da się obserwować samego siebie
+✓ UNIQUE na adresie konta: dwa konta z tym samym adresem nie wejdą
+✓ kontrola dodatnia: zapis dozwolony PRZESZEDŁ
+PRÓBA ODTWORZENIA ZALICZONA.
+```
+
+Cztery przedostatnie wiersze są sednem tego ćwiczenia i nie da się ich dostać
+inaczej niż przez prawdziwe odtworzenie. **W tej bazie część gwarancji nie
+stoi w kodzie PHP, tylko w wyzwalaczach:** obserwowanie nie współistnieje
+z blokadą (D-080), a dziennika zgód nie da się zmienić ani skasować (D-072,
+dowód zgody RODO). Zrzut, który je gubi, wygląda w spisie treści identycznie
+jak dobry — te same tabele, te same liczby wierszy. Dlatego skrypt nie pyta,
+czy wyzwalacze SĄ, ale czy DZIAŁAJĄ: próbuje zapisu, który musi zostać
+odrzucony, i oblewa się, gdy zapis przechodzi.
+
+**Wpisz wynik do tabeli w §5** — datę, czas odtworzenia (to jest Twoje
+zmierzone RTO, nie oszacowanie) i wiek zrzutu (RPO). Ten jeden wiersz zamyka
+warunek „restore przetestowany” z bramki alfy.
+
+### 8.3 KROKI 3-6 — automat, żeby nie zależeć od tego, że pamiętasz
+
+Kopia z kroku 1 jest kopią **jednorazową**. Przy obsłudze jednoosobowej
+obietnica „będę to robić co tydzień” łamie się po trzech tygodniach i to nie
+jest zarzut wobec nikogo — to jest powód, dla którego istnieje krok 6.
+
+**Pełna treść tych czterech czynności jest w §7.3** i nie jest tu powtórzona,
+żeby nie rozjechały się dwie wersje tej samej listy. Tutaj tylko to, czego
+tam nie ma: **czym potwierdzasz każdą z nich.**
+
+| Krok | Robisz (szczegóły w §7.3) | Czym potwierdzasz, że się udało |
+|---|---|---|
+| **3** | bucket `kuking-kopie` w R2, bez domeny, `r2.dev` wyłączone | w panelu R2 bucket jest na liście, a w jego ustawieniach **Public access: disabled**. Otwarcie adresu `r2.dev` ma dać błąd, nie plik |
+| **4** | dwa tokeny do tego bucketu: zapis i odczyt | tokenem ODCZYTU nie da się nic wysłać. Jeśli nie masz pod ręką klienta S3 — wystarczy, że w panelu przy tokenie stoi „Object Read only” i **nazwa tylko tego jednego bucketu** |
+| **5** | para kluczy; do Railwaya wkleja się **wyłącznie** część publiczną | `head -1 kuking-kopie-publiczny.pem` musi dać `-----BEGIN CERTIFICATE-----`. Jeśli widzisz `PRIVATE KEY`, masz zły plik. Skrypt kopii **odmawia pracy** (kod 64), gdy w zmiennej znajdzie klucz prywatny — także sklejony i także w base64 |
+| **6** | serwis `kopia-bazy` + **Run Now**, nie czekanie na 02:17 | w logu serwisu stoi kolejno: `tabel z danymi w zrzucie: 49`, `szyfruję (odcisk klucza …)`, `potwierdzone: … B w buckecie`, `GOTOWE: baza/kuking-…`. Ostatni wiersz znaczy, że plik **naprawdę leży w buckecie** i ma ten rozmiar, co wysłany — to dwie różne rzeczy i skrypt sprawdza je osobno |
+
+> **To NIE jest mikroserwis i nie łamie §3 `AGENTS.md`.** Serwis `kopia-bazy`
+> nie obsługuje ani jednego żądania użytkownika, nie ma domeny, nie ma API,
+> nie ma stanu i nie jest częścią aplikacji — chodzi raz na dobę, robi zrzut
+> i gaśnie. Jest **narzędziem operacyjnym**, tak samo jak `cron` na serwerze.
+> Kuking pozostaje modularnym monolitem: jeden serwis aplikacyjny, jedna baza.
+> Powód, dla którego zrzut nie mógł zostać w kontenerze aplikacji, jest jeden
+> i techniczny: `docker/php.ini` wyłącza `proc_open`, bez którego `pg_dump`
+> z PHP nie wystartuje, a osłabienia tego hardeningu `AGENTS.md` zabrania
+> (D-043). Przeniesienie było jedynym wyjściem, które niczego nie osłabia.
+
+### 8.4 KROK 7 — nazajutrz sprawdź, że automat powtórzył się sam
+
+```bash
+railway ssh --service kuking.pl -- php artisan kuking:sprawdz-kopie
+```
+
+Zielone = w buckecie leży kopia z ostatnich 24 h. Czerwone = serwis przestał
+chodzić. **„Czujka jest WYŁĄCZONA” nie jest spokojem** — znaczy, że nie
+dopisano jeszcze zmiennych z §7.3 punkt 6, a wtedy cisza z powodu braku
+konfiguracji wygląda dokładnie tak samo jak cisza z powodu „wszystko
+w porządku”.
+
+### 8.5 KROK 8 — odtworzenie z warstwy automatycznej. To zamyka oba issues
+
+Kopia z bucketu jest zaszyfrowana, więc odtworzenie z niej sprawdza trzy
+rzeczy, których krok 2 sprawdzić nie mógł: że para kluczy pasuje, że plik
+w buckecie jest kompletny i że klucz prywatny wciąż da się odczytać z miejsca,
+w którym go trzymasz.
+
+```bash
+# 1. weź najnowszy zrzut z bucketu (dowolny klient S3 albo panel Cloudflare)
+# 2. jedna komenda robi resztę: odszyfrowanie, odtworzenie i sprawdzenie treści
+./scripts/proba-odtworzenia.sh \
+  --zrzut kuking-<znacznik>.dump.cms \
+  --klucz kuking-kopie-PRYWATNY.pem \
+  --serwer "postgresql://<user>:<haslo>@127.0.0.1:5432/postgres"
+```
+
+Skrypt odszyfrowuje osobnym, mierzonym krokiem i mówi, ile to zajęło —
+ta liczba też idzie do tabeli w §5. Ręczna wersja tej procedury, na wypadek
+gdybyś nie miał repozytorium pod ręką, została w §7.4: to te same komendy,
+tylko wpisywane z palca.
+
+**Klucz prywatny wraca po ćwiczeniu tam, skąd go wziąłeś, i znika z dysku
+komputera.** Jego utrata unieważnia wszystkie kopie naraz (§1.1).
+
+Po wpisaniu wiersza do §5 możesz zamknąć **#9** i **#193**. Nie wcześniej —
+i to nie jest formalizm: do tego momentu każde zdanie o kopiach w tym
+repozytorium jest zdaniem o kodzie, nie o kopii.
+
+### 8.6 Czego te dwa skrypty NIE zrobią za Ciebie
+
+- **Nie zrobią kopii zdjęć.** Zrzut to sama baza. Zdjęcia leżą dziś na
+  ulotnym dysku `local` w kontenerze i giną przy każdym wdrożeniu — patrz
+  ramka w §1.1. To jest osobna, pilniejsza sprawa niż wszystko powyżej.
+- **Nie przypomną się same.** Nie mają harmonogramu i mieć go nie będą:
+  przypominanie jest zadaniem kroku 6, a nie kroku 1.
+- **Nie zapisują wyniku do §5.** Wypisują liczby i mówią, gdzie je wpisać.
+  Tabela z wynikiem, którą wypełnia maszyna, przestaje być czyjąkolwiek
+  wiedzą o tym, czy ćwiczenie się odbyło.
+- **Nie dotkną produkcji.** Kopia tylko z niej **czyta** (`pg_dump` otwiera
+  migawkę, nie blokuje zapisów aplikacji), a próba odtworzenia odmawia
+  startu, gdy cel jest czymkolwiek innym niż baza `proba_odtworzenia*`
+  na serwerze niebędącym Railwayem.
 
 ---
 
