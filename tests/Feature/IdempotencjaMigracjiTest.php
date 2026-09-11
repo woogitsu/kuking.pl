@@ -77,17 +77,29 @@ class IdempotencjaMigracjiTest extends TestCase
     {
         $zglaszajacyId = $this->dwaOtwarteZgloszeniaTejSamejPary();
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Odmowa dotyczy `up()`, nie `down()` — to ta
+        // sama pułapka, bo decyduje kształt bloku, a nie kierunek migracji.
+        $odmowa = null;
+
         try {
             $this->migracjaZgloszen()->up();
-
-            $this->fail('Migracja przeszła, mimo że w bazie leżą dwie otwarte sprawy tej samej pary.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć, KTÓRA para jest sporna i CO ZROBIĆ.
-            // „Coś jest nie tak" nie pomaga o drugiej w nocy.
-            $this->assertStringContainsString($zglaszajacyId, $e->getMessage());
-            $this->assertStringContainsString('zamknij pozostałe', $e->getMessage());
-            $this->assertStringContainsString('DSA art. 16', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Migracja przeszła, mimo że w bazie leżą dwie otwarte sprawy tej samej pary.');
+
+        // Komunikat ma powiedzieć, KTÓRA para jest sporna i CO ZROBIĆ.
+        // „Coś jest nie tak" nie pomaga o drugiej w nocy.
+        $this->assertStringContainsString($zglaszajacyId, $odmowa->getMessage());
+        $this->assertStringContainsString('zamknij pozostałe', $odmowa->getMessage());
+        $this->assertStringContainsString('DSA art. 16', $odmowa->getMessage());
 
         // NIC nie zostało skasowane: to są sprawy moderacyjne z terminem
         // odpowiedzi, a nie śmieci do sprzątnięcia przez migrację.

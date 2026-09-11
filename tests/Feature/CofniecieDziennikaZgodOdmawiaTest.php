@@ -73,19 +73,31 @@ class CofniecieDziennikaZgodOdmawiaTest extends TestCase
     {
         $this->zapiszZgode();
 
+        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
+        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
+        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
+        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
+        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
+        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
+        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
+        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało dowód zgody.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć ILU zapisów to dotyczy, CO ZROBIĆ
-            // ZAMIAST TEGO i jak powiedzieć wprost „wiem, co robię".
-            // Komunikat bez tych trzech rzeczy zostawia człowieka z samym
-            // „nie da się".
-            $this->assertStringContainsString('które znikną: 1.', $e->getMessage());
-            $this->assertStringContainsString('copy dziennik_zgod', $e->getMessage());
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało dowód zgody.');
+
+        // Komunikat ma powiedzieć ILU zapisów to dotyczy, CO ZROBIĆ
+        // ZAMIAST TEGO i jak powiedzieć wprost „wiem, co robię".
+        // Komunikat bez tych trzech rzeczy zostawia człowieka z samym
+        // „nie da się".
+        $this->assertStringContainsString('które znikną: 1.', $odmowa->getMessage());
+        $this->assertStringContainsString('copy dziennik_zgod', $odmowa->getMessage());
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: dowód nadal jest. Odmowa, która zdążyła skasować
         // tabelę, byłaby tylko ładniejszym komunikatem o stracie.

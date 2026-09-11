@@ -86,9 +86,13 @@ return new class extends Migration
         $zapisane = (int) DB::table(self::TABELA)->whereNotNull(self::KOLUMNA)->count();
 
         if ($zapisane > 0 && ! $this->wolnoSkasowacZnaczniki()) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „że 1 osób
+            // odebrało" to nie polszczyzna, a jedna osoba jest stanem
+            // prawdopodobniejszym niż pięć. Mianownik przed dwukropkiem nie
+            // odmienia się wcale, więc zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                'Cofnięcie tej migracji skasowałoby informację, że '.$zapisane.' osób odebrało '
-                ."naszej aplikacji dostęp u dostawcy.\n\n"
+                'Cofnięcie tej migracji skasowałoby informację o tym, kto odebrał naszej '
+                .'aplikacji dostęp u dostawcy. Liczba osób, których to dotyczy: '.$zapisane.".\n\n"
                 ."CZYM TO GROZI\n"
                 .'Po ponownym `migrate` kolumna wróci pusta, więc serwis uzna te powiązania za '
                 .'żywe. Ekran „Ustawienia → Bezpieczeństwo" będzie tym osobom pokazywał '

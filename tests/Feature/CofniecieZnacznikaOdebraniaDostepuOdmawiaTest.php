@@ -102,49 +102,66 @@ class CofniecieZnacznikaOdebraniaDostepuOdmawiaTest extends TestCase
 
     public function test_cofniecie_odmawia_gdy_ktos_odebral_nam_dostep(): void
     {
-        // PIĘĆ osób, a nie jedna, i to jest wybór świadomy: komunikat sklejany
-        // jest z liczby i słowa „osób", a po polsku „1 osób odebrało" brzmi
-        // błędnie. Asercja zapięta na takiej frazie kazałaby ją zachować.
-        // Przy pięciu zdanie jest poprawne i asercja pilnuje tego, o co
-        // naprawdę chodzi: że człowiek dostaje LICZBĘ, a nie samo „nie da się".
-        foreach (range(1, 5) as $i) {
-            $this->powiazanie('102212345678900'.$i, odebrany: true);
-        }
+        // JEDNA OSOBA, NIE PIĘĆ. Komunikat sklejał dotąd liczbę ze słowem
+        // „osób" („1 osób odebrało"), więc test zakładał pięć, żeby nie
+        // zamrażać w asercji błędnej polszczyzny — a przypadek najbardziej
+        // prawdopodobny na produkcji, czyli jedna osoba, był jedynym
+        // nieprzetestowanym. Komunikat stawia teraz rzeczownik przed liczbą
+        // („Liczba osób, których to dotyczy: 1."), więc jedynka jest zdaniem
+        // poprawnym i to ona jest tu mierzona.
+        $this->powiazanie('10221234567890001', odebrany: true);
+
+        // DWA POWIĄZANIA BEZ ZNACZNIKA leżą w tej samej tabeli i nie mają
+        // się liczyć. Zostają tu po to, żeby różnica 1 kontra 3 dowodziła,
+        // że strażnik pyta o `whereNotNull`, a nie o „czy cokolwiek tu jest".
+        $this->powiazanie('10221234567890801', odebrany: false);
+        $this->powiazanie('10221234567890802', odebrany: false);
 
         $wartoscPrzed = DB::table(self::TABELA)
             ->whereNotNull(self::KOLUMNA)
             ->orderBy('id')
             ->value(self::KOLUMNA);
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
+        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
+        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
+        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
+        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
+        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało informację o odebraniu dostępu.');
         } catch (RuntimeException $e) {
-            // Trzy rzeczy, bez których komunikat zostawia człowieka z samym
-            // „nie da się": ILU osób to dotyczy, CZYM TO GROZI i jak
-            // powiedzieć wprost „wiem, co robię". Fragmenty dobrane tak, żeby
-            // żaden nie mógł trafić się przypadkiem w innym komunikacie tego
-            // repozytorium — nie „Cofnięcie tej migracji", które ma pięć
-            // innych strażników, tylko zdania osobliwe dla TEGO.
-            $this->assertStringContainsString(
-                'że 5 osób odebrało naszej aplikacji dostęp u dostawcy',
-                $e->getMessage(),
-                'Komunikat nie mówi, ilu osób dotyczy strata.',
-            );
-
-            $this->assertStringContainsString(
-                'kolumna wróci pusta, więc serwis uzna te powiązania za żywe',
-                $e->getMessage(),
-                'Komunikat nie mówi, czym grozi cofnięcie — a to jest cały powód odmowy.',
-            );
-
-            $this->assertStringContainsString(
-                self::ZGODA.'=true',
-                $e->getMessage(),
-                'Komunikat nie podaje sposobu, żeby powiedzieć wprost „wiem, co robię".',
-            );
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało informację o odebraniu dostępu.');
+
+        // Trzy rzeczy, bez których komunikat zostawia człowieka z samym
+        // „nie da się": ILU osób to dotyczy, CZYM TO GROZI i jak
+        // powiedzieć wprost „wiem, co robię". Fragmenty dobrane tak, żeby
+        // żaden nie mógł trafić się przypadkiem w innym komunikacie tego
+        // repozytorium — nie „Cofnięcie tej migracji", które ma pięć
+        // innych strażników, tylko zdania osobliwe dla TEGO.
+        $this->assertStringContainsString(
+            'Liczba osób, których to dotyczy: 1.',
+            $odmowa->getMessage(),
+            'Komunikat nie mówi, ilu osób dotyczy strata.',
+        );
+
+        $this->assertStringContainsString(
+            'kolumna wróci pusta, więc serwis uzna te powiązania za żywe',
+            $odmowa->getMessage(),
+            'Komunikat nie mówi, czym grozi cofnięcie — a to jest cały powód odmowy.',
+        );
+
+        $this->assertStringContainsString(
+            self::ZGODA.'=true',
+            $odmowa->getMessage(),
+            'Komunikat nie podaje sposobu, żeby powiedzieć wprost „wiem, co robię".',
+        );
 
         // NAJWAŻNIEJSZE: dane NADAL SĄ. Odmowa, która zdążyła skasować
         // kolumnę, byłaby tylko ładniejszym komunikatem o stracie.
@@ -153,7 +170,12 @@ class CofniecieZnacznikaOdebraniaDostepuOdmawiaTest extends TestCase
             'Odmowa zdążyła skasować kolumnę — czyli nie była odmową.',
         );
 
-        $this->assertSame(5, $this->znacznikow(), 'Po odmowie znaczniki mają zostać co do jednego.');
+        $this->assertSame(1, $this->znacznikow(), 'Po odmowie znacznik ma zostać na miejscu.');
+
+        // I dwa powiązania BEZ znacznika też leżą nietknięte — odmowa ma być
+        // wąska. Razem trzy wiersze, z czego strażnik policzył jeden.
+        $this->assertSame(3, (int) DB::table(self::TABELA)->count(),
+            'Odmowa ruszyła powiązania, których ta migracja w ogóle nie dotyczy.');
 
         $this->assertSame(
             $wartoscPrzed,
