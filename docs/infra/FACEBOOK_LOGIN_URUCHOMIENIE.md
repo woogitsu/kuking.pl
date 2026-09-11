@@ -325,13 +325,92 @@ sprawdzałem** — dokumentacja odsyła do Centrum pomocy Business Managera.
 
 ### 4.1. Gdzie to się wpisuje
 
-**App Dashboard → Products → Facebook Login → Settings → Client OAuth
-Settings → Valid OAuth Redirect URIs.** Dokumentacja podaje tę ścieżkę
-dosłownie: *„Under Products in the App Dashboard's left side navigation menu,
-click Facebook Login, then click Settings. Verify the Valid OAuth redirect
-URIs in the Client OAuth Settings section."*
+> ### ✅ Ścieżka sprawdzona w panelu 11.09.2026 — przez właściciela, na ekranie
+>
+> Do 11 września ten akapit prowadził przez **`Products → Facebook Login →
+> Settings`**, bo tak podaje dokumentacja Meta. Właściciel wszedł do panelu
+> i **menu `Products` tam nie było** — i to jest usterka TEGO dokumentu,
+> nie panelu. Ostrzega przed nią sam §1.1: przy aplikacji zakładanej „przez
+> przypadek użycia" Meta włącza produkty sama i nie pokazuje ich jako
+> osobnej gałęzi menu.
+>
+> **Prawdziwa ścieżka, odczytana z ekranu:**
+>
+> ```text
+> lewe menu: Use cases
+>   → przy „Facebook Login" kliknij Customize
+>     → lewe menu wewnątrz przypadku użycia: Settings
+>       → sekcja Client OAuth settings
+>         → pole Valid OAuth Redirect URIs
+> ```
+>
+> Poznasz, że jesteś w dobrym miejscu, po trzech rzeczach na ekranie:
+> okruszki u góry pokazują `Use cases > Customize`, nad lewym menu jest
+> **rozwijana lista z wybranym `Facebook Login`** (to przełącznik między
+> przypadkami użycia, nie przycisk), a w samym menu poza `Settings` są
+> jeszcze `Permissions and features`, `Quickstart` i `Webhooks`.
+>
+> **Pole jest listą, nie jednym napisem.** Wpisz pierwszy adres i naciśnij
+> **Enter** — zamieni się w kafelek i zwolni miejsce na następny; powtórz
+> dla drugiego i trzeciego, a na końcu **Save Changes** w prawym dolnym
+> rogu. Jeśli Enter nie robi kafelka, wklej trzy adresy po przecinku
+> i **po zapisaniu sprawdź, czy panel pokazuje trzy osobne wpisy, a nie
+> jeden długi** — jeden długi nie dopasuje się do niczego.
+>
+> **Nad polem jest `Redirect URI Validator` z przyciskiem `Check URI`.**
+> Wklej w niego każdy z trzech adresów z §4.2 po kolei — Meta odpowie, czy
+> ten konkretny adres przejdzie. To jedyny darmowy sposób sprawdzenia
+> dopasowania adresu **bez** przechodzenia całego logowania, a dopasowanie
+> jest znak w znak (patrz ostrzeżenie w §4.2).
+>
+> **Czego NIE sprawdziłem:** czy adres
+> `https://developers.facebook.com/apps/<APP_ID>/fb-login/settings/`
+> otwiera ten ekran na skróty. Wpisałem go tu 11.09 z pamięci, zanim
+> zobaczyłem ekran; **nikt go nie kliknął.** Ścieżka wyżej jest odczytana
+> z panelu i jej używaj.
+>
+> **Historyczna ścieżka, dla śladu:** App Dashboard → Products → Facebook
+> Login → Settings → Client OAuth Settings → Valid OAuth Redirect URIs.
+> Dokumentacja podaje ją dosłownie: *„Under Products in the App Dashboard's
+> left side navigation menu, click Facebook Login, then click Settings.
+> Verify the Valid OAuth redirect URIs in the Client OAuth Settings
+> section."* Cytat był prawdziwy dla starego kreatora.
 
 Osobno, w **Settings → Basic → App Domains**, wpisuje się same domeny.
+
+### 4.1.1. Przełączniki obok pola — stan odczytany z ekranu 11.09.2026
+
+Sekcja `Client OAuth settings` ma osiem przełączników. Właściciel pokazał
+ich stan; **dla naszego przepływu — wymiana kodu po stronie serwera, bez
+JavaScriptu (`AGENTS.md` §4: ważne funkcje działają bez JS) — wszystkie
+osiem są już ustawione dobrze i nie ruszaj ich:**
+
+| Przełącznik | Stan | Dlaczego taki ma być |
+| --- | --- | --- |
+| `Client OAuth login` | **Yes** | bez tego całe wejście kontem Facebooka jest wyłączone |
+| `Web OAuth login` | **Yes** | nasz przepływ to przekierowanie w przeglądarce |
+| `Enforce HTTPS` | **Yes** | wszystkie trzy nasze adresy są `https://` |
+| `Use Strict Mode for redirect URIs` | **Yes** | dopasowanie znak w znak; luźny tryb to znana dziura (cudzy adres podszywa się pod nasz prefiks) |
+| `Force Web OAuth reauthentication` | **No** | kazałoby wpisywać hasło Facebooka przy każdym wejściu — dla grupy 50+ to kara, nie zabezpieczenie |
+| `Embedded browser OAuth login` | **No** | nie mamy aplikacji mobilnej z wbudowaną przeglądarką |
+| `Login from devices` | **No** | to przepływ dla telewizorów i urządzeń bez klawiatury |
+| `Login with the JavaScript SDK` | **No** | nie wpuszczamy SDK Meta na stronę — i nasze CSP by go nie przepuściło (`ApplySecurityHeaders`) |
+
+Pola `Allowed Domains for the JavaScript SDK` i `Deauthorize callback URL`
+były puste i **takie zostają**: pierwsze ma sens tylko przy włączonym SDK,
+drugiego nie obsługujemy — nie ma kodu, który przyjąłby powiadomienie
+o odebraniu uprawnień.
+
+> **`Deauthorize callback URL` to dług, nie przeoczenie.** Gdy człowiek
+> odbierze naszej aplikacji dostęp w ustawieniach Facebooka, my się o tym
+> nie dowiemy — jego `TozsamoscZewnetrzna` zostanie w bazie i dopiero
+> nieudane logowanie to pokaże. Na MVP to akceptowalne (usunięcie konta
+> u nas idzie przez `/ustawienia/dane`), ale **nie jest to stan docelowy**
+> i nie udawajmy, że puste pole znaczy „nic tu nie trzeba".
+
+Webhooki w tym przypadku użycia były na wersji `v26.0` i wszystkie
+`Unsubscribed`. **Nie subskrybuj żadnego** — nie mamy odbiornika, a Meta
+liczy nieudane dostarczenia.
 
 ### 4.2. Konkretne wartości dla nas
 
@@ -1056,12 +1135,12 @@ czy czeka na coś innego.
 | ☐ | 4 | Wypełnij **Settings → Basic**: Privacy Policy URL, Terms of Service URL, App Icon 1024×1024, Business Use, App Category (§3.1) | Settings → Basic | **DZIŚ** |
 | ☐ | 5 | Wpisz **Data Deletion Instructions URL**: `https://kuking.pl/prywatnosc` (§9.2) | Settings → Basic | **DZIŚ** |
 | ☐ | 6 | Dodaj **App Domains**: `kuking.pl`, `staging.kuking.pl` (§4.2) | Settings → Basic | **DZIŚ** |
-| ☐ | 7 | Włącz produkt **Facebook Login** i wpisz **trzy adresy przekierowań** z §4.2, znak w znak | Products → Facebook Login → Settings | **DZIŚ** |
+| ☐ | 7 | Wpisz **trzy adresy przekierowań** z §4.2, znak w znak, i sprawdź każdy przyciskiem `Check URI` (§4.1). Przełączników obok **nie ruszaj** — są już dobre (§4.1.1) | Use cases → przy „Facebook Login" **Customize** → Settings → Client OAuth settings | **DZIŚ** |
 | ☐ | 8 | Dodaj siebie jako **testera** (i przyjmij zaproszenie), żeby dało się sprawdzić kod przed trybem publicznym (§5.2) | App Roles → Roles | **DZIŚ** |
-| ☐ | 9 | **Sprawdź przełącznik `email` na dostęp zaawansowany i przeczytaj, co panel powie** (§2.2, §3.5). Zapisz odpowiedź i **przekaż ją** — od niej zależy, czy jest tu jakakolwiek procedura z terminem | App Review → Permissions and Features | **DZIŚ** |
+| ☐ | 9 | **Sprawdź przełącznik `email` na dostęp zaawansowany i przeczytaj, co panel powie** (§2.2, §3.5). Zapisz odpowiedź i **przekaż ją** — od niej zależy, czy jest tu jakakolwiek procedura z terminem | Use cases → **Customize** → Permissions and features | **DZIŚ** |
 | ☐ | 10 | Przekaż `FACEBOOK_CLIENT_ID` i `FACEBOOK_CLIENT_SECRET` do zmiennych Railwaya (produkcja i staging osobno) — **nie wklejaj ich do issue, PR-a ani rozmowy z agentem** (§11) | Railway → Variables | **DZIŚ**, ale bez pośpiechu: bez kodu i tak nic nie robią |
 | ☐ | 11 | Jeśli punkt 9 poprosił o **weryfikację biznesową** — złóż ją. Dane spółki: KRS 0000901262, NIP 5423435334 (§3.5) | Business Settings → Security Center | **DZIŚ, tylko jeśli punkt 9 tego zażądał.** Jedyna czynność w tym dokumencie o nieznanym czasie trwania |
-| ☐ | 12 | Przestaw **`email` i `public_profile` na Advanced Access** | App Review → Permissions and Features | **PO** punkcie 9 (i 11, jeśli był) |
+| ☐ | 12 | Przestaw **`email` i `public_profile` na Advanced Access** | Use cases → **Customize** → Permissions and features | **PO** punkcie 9 (i 11, jeśli był) |
 | ☐ | 13 | Przestaw **App Mode → Live** | górny pasek panelu | **PO** punktach 4, 5 i 12 **oraz po wdrożeniu kodu na produkcję** — nie wcześniej |
 | ☐ | 14 | Sprawdź na żywo z telefonu: wejście kontem Facebooka na `staging.kuking.pl`, potem na `kuking.pl` | telefon, nie komputer | **PO** wdrożeniu |
 | ☐ | 15 | Zdecyduj o wpisie w `docs/DECISIONS.md` — numeru nikt Ci nie zabrał, jest wolny | repozytorium | **PO** przeczytaniu tego dokumentu |
