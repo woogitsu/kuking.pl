@@ -309,7 +309,7 @@ class RecipeWizardTest extends TestCase
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
             ->set('title', 'Pierogi ruskie')
-            ->set('source_person', 'po babci Zofii')
+            ->set('source_person', 'od babci Zofii')
             ->call('next')
             ->set('ingredients.0.text', 'mąka')
             ->set('ingredients.1.text', 'twaróg');
@@ -317,7 +317,7 @@ class RecipeWizardTest extends TestCase
         $recipe = Recipe::where('title', 'Pierogi ruskie')->firstOrFail();
 
         $this->assertSame(Recipe::STATUS_DRAFT, $recipe->status);
-        $this->assertSame('po babci Zofii', $recipe->source_person);
+        $this->assertSame('od babci Zofii', $recipe->source_person);
         $this->assertSame(['mąka', 'twaróg'], $recipe->ingredients->pluck('ingredient_text')->all());
     }
 

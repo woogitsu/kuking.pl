@@ -290,7 +290,7 @@ return [
         'cook_minutes' => 'czas gotowania',
         'difficulty' => 'poziom trudności',
         'source_type' => 'źródło przepisu',
-        'source_person' => 'osoba, od której masz przepis',
+        'source_person' => 'to, od kogo albo skąd masz przepis',
         'source_note' => 'historia przepisu',
         'source_url' => 'adres strony źródłowej',
         'family_since_year' => 'rok, od którego przepis jest w rodzinie',

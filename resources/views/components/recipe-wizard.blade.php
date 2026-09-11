@@ -606,7 +606,7 @@ new class extends Component
             'visibility.in' => 'Zaznacz, kto ma widzieć ten przepis.',
             'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
             'source_type.in' => 'Zaznacz, skąd jest ten przepis.',
-            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — samo imię wystarczy.',
+            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
             'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
             'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
             'family_since_year.integer' => 'Rok wpisz czterema cyframi, na przykład 1974.',
@@ -1131,7 +1131,7 @@ new class extends Component
                      twierdzenie o zachowaniu czytelników, którego nikt nigdy
                      nie zmierzył i którego nie ma czym pokryć. --}}
                 <p class="meta mb-4">
-                    Tu napiszesz, po kim jest ten przepis i skąd go znasz.
+                    Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże.
                 </p>
 
                 <fieldset class="border-0 p-0">
@@ -1147,9 +1147,11 @@ new class extends Component
                     @error('source_type')<span class="field-error">{{ $message }}</span>@enderror
                 </fieldset>
 
-                <x-field name="source_person" label="Po kim ten przepis" wire="source_person" :value="$source_person"
-                         placeholder="po mamie, Halinie"
-                         help="Zostanie podpisany nad tytułem: „przepis Haliny, spisany przez Ciebie”." />
+                {{-- PYTAMY O FRAZĘ, KTÓRA STOI SAMODZIELNIE — uzasadnienie
+                     przy tym samym polu w `pages/recipes/szczegoly.blade.php`. --}}
+                <x-field name="source_person" label="Od kogo albo skąd masz ten przepis" wire="source_person" :value="$source_person"
+                         placeholder="od mamy · z gazety · z bloga Nasze smaki"
+                         help="Napisz to tak, żeby dało się przeczytać samo: „od mamy”, „z gazety”, „od sąsiadki Haliny”. Pokażemy to przy przepisie dokładnie tak, jak wpiszesz." />
 
                 {{-- POMOC JEST PRAWDZIWA PRZY KAŻDEJ Z TRZECH WIDOCZNOŚCI.
 
@@ -1395,7 +1397,11 @@ new class extends Component
                     <section class="recipe-story">
                         <h4 class="mt-0 text-title-sm">Skąd ten przepis</h4>
                         @if(trim($source_person) !== '')
-                            <p><strong>Po {{ trim($source_person) }}.</strong></p>
+                            {{-- Podgląd pokazuje dokładnie to, co strona
+                                 przepisu — wartość dosłownie, bez doklejonego
+                                 „Po". Uzasadnienie stoi przy tym samym
+                                 miejscu w `pages/recipes/show.blade.php`. --}}
+                            <p><strong>{{ \Illuminate\Support\Str::ucfirst(trim($source_person)) }}</strong></p>
                         @endif
                         @if(trim($source_note) !== '')
                             <p class="whitespace-pre-line mb-0">{{ trim($source_note) }}</p>
