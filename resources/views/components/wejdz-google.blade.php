@@ -32,7 +32,7 @@
 @props(['naglowek' => 'Masz konto Google? Wejdź jednym kliknięciem'])
 
 @if(\App\Support\Google::dziala())
-    <div class="card mt-6">
+    <div class="sekcja-strony mt-6">
         <h2>{{ $naglowek }}</h2>
         <p>
             Nie musisz wymyślać ani pamiętać hasła. Przeniesiemy Cię na stronę Google,

@@ -1,7 +1,7 @@
 <x-layout title="Prywatność" :noindex="true">
     <h1>Prywatność</h1>
 
-    <form class="card" method="POST" action="{{ route('settings.privacy') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('settings.privacy') }}">
         @csrf @method('PUT')
         <label class="choice" for="f-digest">
             <input id="f-digest" type="checkbox" name="wants_weekly_digest" value="1" @checked(auth()->user()->wants_weekly_digest)>

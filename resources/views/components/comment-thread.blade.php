@@ -186,7 +186,7 @@
     @endforelse
 
     @auth
-        <form class="card" method="POST" action="{{ $action }}">
+        <form class="panel-formularza" method="POST" action="{{ $action }}">
             @csrf
             {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
                  „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie

@@ -388,14 +388,20 @@ class SzynaTablicaDniaUkladTest extends TestCase
      * EKRANACH DALEJ JEST (zgłoszenie właściciela).
      *
      * Na `/` hierarchię buduje tło PASA (`.pas` w `pages/landing.blade.php`),
-     * a tablica była tam jedyną sekcją z własną kartą w środku pasa, czyli
-     * kartą w karcie. W szynie i na `/odkryj` jest odwrotnie: tablica stoi
-     * obok „Mojego zeszytu" i obok kart wpisów, więc bez własnego tła nie
-     * wiadomo, gdzie się kończy.
+     * a tablica była tam jedyną sekcją z własną powierzchnią w środku pasa,
+     * czyli powierzchnią w powierzchni. W szynie i na `/odkryj` jest
+     * odwrotnie: tablica stoi obok „Mojego zeszytu" i obok kart wpisów, więc
+     * bez własnego tła nie wiadomo, gdzie się kończy.
+     *
+     * WARSTWĄ JEST `sekcja-strony`, NIE `card`. Tablica dnia to blok strony,
+     * a karty treści są dopiero w jej środku (docs/design/ROLE_KART.md,
+     * role 1 i 3). Do 11 września obie te rzeczy nosiły tę samą klasę i tak
+     * powstała „karta w karcie" o identycznym wyglądzie — test pilnuje
+     * OBECNOŚCI własnej powierzchni, a nie konkretnej nazwy sprzed podziału.
      *
      * DWIE POŁOWY W JEDNYM TEŚCIE, BO OSOBNO NIE ZNACZĄ NIC. Samo „nie ma
-     * `card` na `/`" przechodzi także wtedy, gdy ktoś zdejmie kartę wszędzie;
-     * samo „jest `card` na `/odkryj`" nie zauważy, że na `/` wróciła.
+     * powierzchni na `/`" przechodzi także wtedy, gdy ktoś zdejmie ją
+     * wszędzie; samo „jest na `/odkryj`" nie zauważy, że na `/` wróciła.
      */
     #[Test]
     public function test_tablica_jest_karta_wszedzie_poza_strona_powitalna(): void
@@ -405,20 +411,20 @@ class SzynaTablicaDniaUkladTest extends TestCase
         $powitalna = $this->sekcjaTablicy($this->tablicaZTrasy('landing'));
 
         $this->assertStringNotContainsString(
-            ' card ',
+            ' sekcja-strony ',
             $powitalna,
-            'Tablica na stronie powitalnej znów ma klasę `card`. W środku pasa (`.pas`) '.
-            'to jest karta w karcie — jedyna taka sekcja na tym ekranie.',
+            'Tablica na stronie powitalnej znów ma własną powierzchnię. W środku pasa '.
+            '(`.pas`) to jest powierzchnia w powierzchni — jedyna taka sekcja na tym ekranie.',
         );
 
         $odkryj = $this->sekcjaTablicy($this->tablicaZTrasy('discover'));
 
         $this->assertStringContainsString(
-            ' card ',
+            ' sekcja-strony ',
             $odkryj,
-            'Tablica na `/odkryj` straciła kartę. Stoi tam nad listą kart wpisów i bez '.
-            'własnego tła nie widać, gdzie się kończy — a to jest zmiana w drugą stronę, '.
-            'nie naprawa strony powitalnej.',
+            'Tablica na `/odkryj` straciła własną powierzchnię. Stoi tam nad listą kart '.
+            'wpisów i bez własnego tła nie widać, gdzie się kończy — a to jest zmiana '.
+            'w drugą stronę, nie naprawa strony powitalnej.',
         );
     }
 

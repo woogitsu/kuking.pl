@@ -58,7 +58,7 @@
             </p>
         </article>
     @empty
-        <p class="card">
+        <p class="sekcja-strony">
             @if($status === \App\Models\ContactMessage::STATUS_NOWA)
                 Nic nowego. Wszystko, co przyszło, jest już w robocie albo załatwione.
             @else

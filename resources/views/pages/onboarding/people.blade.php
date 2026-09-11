@@ -26,7 +26,14 @@
         Ta sama wyszukiwarka, co na `/szukaj` (`SearchQuery::people()`,
         wołane w `OnboardingController::people()`) — nie osobny mechanizm.
     --}}
-    <div class="card mb-6">
+    {{-- RAMKA POMOCNICZA, nie panel formularza — mimo że to jedyne pole
+         na ekranie. Akapit niżej mówi wprost: „to pomoc w odnalezieniu kogoś,
+         kogo już znasz, a nie kolejny obowiązkowy krok". Panel dałby temu
+         krokowi najmocniejszą warstwę ekranu, czyli wizualnie zaprzeczyłby
+         własnemu tekstowi; główną rzeczą jest lista osób do zaznaczenia
+         i przycisk dalej. Pole w ramce nie ginie: `.ramka-pomocnicza
+         .field-input` odwraca mu tło na podniesione (tokens.css). --}}
+    <div class="ramka-pomocnicza mb-6">
         <h2>Znasz już kogoś w Kuking?</h2>
         <p class="mb-4">
             Czasem ważniejsza od ośmiu nieznajomych jest jedna znajoma osoba.

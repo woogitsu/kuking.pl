@@ -54,7 +54,10 @@
     {{-- --------------------------------------------------------------------
          CO STOI DZIŚ NA STRONIE POWITALNEJ
          -------------------------------------------------------------------- --}}
-    <section class="form-section card">
+    {{-- `sekcja-strony`, nie panel: podgląd niczego nie wymaga, tylko pokazuje
+         stan. Panel z mocną obwódką zarezerwowany jest dla tego, co się
+         wypełnia (docs/design/ROLE_KART.md, role 2 i 3). --}}
+    <section class="sekcja-strony mb-6">
         <h2 class="form-section-title">Co widzi teraz gość</h2>
 
         @if($podglad->isEmpty())
@@ -108,11 +111,14 @@
     {{-- --------------------------------------------------------------------
          WYBÓR
          -------------------------------------------------------------------- --}}
-    <form method="POST" action="{{ route('admin.hero-kolaz') }}">
+    {{-- Panel na `<form>`, nie na sekcjach w środku — ten sam wzorzec co
+         `admin/daily-board`: cztery białe prostokąty jeden w drugim nie mówiły
+         nic poza tym, że są białe. --}}
+    <form class="panel-formularza" method="POST" action="{{ route('admin.hero-kolaz') }}">
         @csrf
         @method('PUT')
 
-        <section class="form-section card">
+        <section class="form-section">
             <h2 class="form-section-title">Zdjęcia do wyboru</h2>
             <p class="meta">
                 Wyłącznie zdjęcia przy wpisach publicznych i opublikowanych, od kont

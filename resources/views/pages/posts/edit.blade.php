@@ -14,7 +14,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('posts.update', $post) }}">
+    <form class="panel-formularza" method="POST" action="{{ route('posts.update', $post) }}">
         @csrf
         @method('PUT')
 

@@ -21,7 +21,7 @@
 
         <x-error-summary />
 
-        <form class="card" method="POST" action="{{ route('password.email') }}">
+        <form class="panel-formularza" method="POST" action="{{ route('password.email') }}">
             @csrf
             <x-field name="email" label="Twój adres e-mail" type="email" required autocomplete="email" />
             <x-turnstile miejsce="odzyskanie_hasla" />

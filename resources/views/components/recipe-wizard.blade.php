@@ -992,7 +992,19 @@ new class extends Component
         {{-- ==============================================================
              Krok 1 z 3 — o przepisie
         =============================================================== --}}
-        <section class="form-section card">
+        {{-- BEZ `form-section` — i to nie jest sprzątanie, tylko naprawa.
+             `.form-section` daje `border-top: 2px` obwódki DEKORACYJNEJ
+             i `padding-top`, a `.form-section:first-of-type` zeruje oba.
+             Obie reguły stoją w `app.css`, czyli PO `tokens.css` w tym samym
+             `@layer components`, więc przy równej wadze selektora wygrywały
+             z `.panel-formularza`: zmierzone w przeglądarce `border-top: 0px`
+             i `padding-top: 0px` na kroku 1, a na pozostałych obwódka
+             dekoracyjna 2 px zamiast obwódki kontrolki 1 px.
+
+             Zdjęcie klasy niczego nie kosztuje: kroki są rozłączne (`@if`
+             / `@elseif`), więc nie ma rodzeństwa, które `.form-section` miałby
+             rozdzielać, a odstęp od wskaźnika kroku daje `.stack` wyżej. --}}
+        <section class="panel-formularza">
             <h2 class="form-section-title">Krok 1 z {{ $this::STEPS }}: o przepisie</h2>
             {{-- JEDEN MODEL DZIAŁANIA NA JEDNYM EKRANIE.
 
@@ -1154,7 +1166,7 @@ new class extends Component
         {{-- ==============================================================
              Krok 2 z 3 — składniki
         =============================================================== --}}
-        <section class="form-section card">
+        <section class="panel-formularza">
             <h2 class="form-section-title">Krok 2 z {{ $this::STEPS }}: składniki</h2>
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
@@ -1226,7 +1238,7 @@ new class extends Component
         {{-- ==============================================================
              Krok 3 z 3 — przygotowanie
         =============================================================== --}}
-        <section class="form-section card">
+        <section class="panel-formularza">
             <h2 class="form-section-title">Krok 3 z {{ $this::STEPS }}: przygotowanie</h2>
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
@@ -1319,7 +1331,14 @@ new class extends Component
              Podgląd — dokładnie to, co zobaczy ten, kto ma prawo to zobaczyć.
              Nagłówek zależy od wybranej widoczności: patrz previewHeading().
         =============================================================== --}}
-        <section class="form-section card">
+        {{-- SEKCJA, NIE PANEL FORMULARZA — jedyny taki krok w kreatorze.
+             Mocna obwódka panelu jest tą samą, którą mają pola, więc obiecuje,
+             że w środku coś się wpisuje. W podglądzie nie ma ani jednego pola
+             (przyciski „Wstecz" i „Opublikuj przepis" stoją POZA tą sekcją,
+             w `.form-actions`). Kreator pokazuje jeden krok naraz, więc nie
+             powstaje ekran, na którym trzy kroki mają jedną warstwę, a czwarty
+             inną — zmiana warstwy jest tu sygnałem „tu już tylko czytasz". --}}
+        <section class="sekcja-strony">
             <h2 class="form-section-title">{{ $this->previewHeading() }}</h2>
             <p class="meta mb-4">
                 Sprawdź spokojnie. Jeśli coś jest nie tak, wróć przyciskiem „Wstecz” — nic nie zginie.

@@ -40,7 +40,7 @@
         Sprawdzimy zgłoszenie i odpiszemy Ci z decyzją.
     </p>
 
-    <div class="card mb-5">
+    <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o coś innego?</h2>
         <p>
             Jeśli treść nie łamie prawa, ale łamie zasady Kuking — jest spamem,
@@ -62,7 +62,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('zglos.nielegalna.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('zglos.nielegalna.store') }}">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR
@@ -129,7 +129,7 @@
         </div>
     </form>
 
-    <div class="card mt-5">
+    <div class="ramka-pomocnicza mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <ol class="lista-krokow">
             <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podasz adres.</li>

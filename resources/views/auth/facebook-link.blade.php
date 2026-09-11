@@ -24,7 +24,7 @@
 
         GET niczego nie zmienia. Powiązanie powstaje dopiero po POST poniżej.
     --}}
-    <div class="card">
+    <div class="sekcja-strony">
         <p>
             Jesteś na koncie <strong>{{ $displayName ?? 'to konto' }}</strong>.
             @if($imieZFacebooka !== '')

@@ -220,7 +220,11 @@ class KartaWpisuTest extends TestCase
     {
         $html = $this->actingAs($this->user('basia'))->get(route('home'))->assertOk()->getContent();
 
-        $start = strpos($html, 'class="card composer"');
+        // `kafel-akcji`, nie `card`: od rozdzielenia ról powierzchni zachęta
+        // jest KAFLEM AKCJI (cała powierzchnia to odnośnik), a nie kartą
+        // treści — `docs/design/ROLE_KART.md`. Test dalej pilnuje tego samego:
+        // że to jest `<a>`, a nie pole tekstowe.
+        $start = strpos($html, 'class="kafel-akcji composer"');
 
         $this->assertNotFalse($start, 'Na stronie głównej nie ma zachęty do dodania wpisu.');
 

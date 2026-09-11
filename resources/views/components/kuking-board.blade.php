@@ -78,9 +78,15 @@
     $wKarcie ??= ! request()->routeIs('landing');
 @endphp
 
-{{-- `card` i `mb-6` TYLKO tam, gdzie tablica stoi obok innych kart. W pasie
-     na stronie powitalnej tło i wcięcie daje sam pas — patrz `wKarcie` wyżej. --}}
-<section @class(['card' => $wKarcie, 'kuking-board', 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
+{{-- Warstwa powierzchni i `mb-6` TYLKO tam, gdzie tablica stoi obok innych
+     powierzchni. W pasie na stronie powitalnej tło i wcięcie daje sam pas —
+     patrz `wKarcie` wyżej.
+
+     `sekcja-strony`, nie `card`: tablica dnia jest blokiem strony, a nie
+     rzeczą, po którą człowiek tu przyszedł (docs/design/ROLE_KART.md, rola 3).
+     Karty treści są dopiero w środku — bez tego rozdzielenia mielibyśmy
+     kartę w karcie o tym samym wyglądzie. --}}
+<section @class(['sekcja-strony' => $wKarcie, 'kuking-board', 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
     <h2 @class(['mt-0', 'text-title-lg' => ! $wKarcie]) id="kuking-na-dzis">
         @if($graSlowem)
             <x-kuking-word forma="i" /> na dziś

@@ -75,14 +75,29 @@
 
     <x-error-summary />
 
-    <form method="POST" action="{{ $action }}" enctype="multipart/form-data">
+    {{-- PANEL JEST JEDEN I SIEDZI NA `<form>`, nie na czterech sekcjach.
+
+         Dwa powody, oba zmierzone. Po pierwsze kaskada: `.form-section`
+         (`app.css`) stoi PO `tokens.css` w tym samym `@layer components`, więc
+         przy równej wadze selektora zabierał panelowi obwódkę kontrolki
+         (2 px dekoracyjnej zamiast 1 px mocnej), a `:first-of-type` zerował
+         pierwszej sekcji górną obwódkę i wcięcie całkowicie.
+
+         Po drugie hierarchia: mocna obwódka znaczy „to jest do wypełnienia".
+         Cztery takie obwódki na jednym ekranie nie odróżniają już niczego —
+         `scripts/warstwy-pomiar.mjs` dawał tu 4 powierzchnie / 1 sygnaturę
+         / 4 w największej grupie, czyli dokładnie wzorzec ekranu bez
+         hierarchii z `docs/design/ROLE_KART.md`. To są cztery części JEDNEGO
+         formularza, więc jedna rola i jedna powierzchnia; rozdziela je
+         kreska i nagłówek z `.form-section`, tak jak było to pomyślane. --}}
+    <form class="panel-formularza" method="POST" action="{{ $action }}" enctype="multipart/form-data">
         @csrf
         @if($isEdit) @method('PUT') @endif
 
         {{-- ---------------------------------------------------------------
              1. O przepisie
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section">
             <h2 class="form-section-title">1. O przepisie</h2>
 
             <x-field name="title" label="Nazwa przepisu" required
@@ -159,7 +174,7 @@
         {{-- ---------------------------------------------------------------
              2. Skąd ten przepis — to jest serce Kuking, nie metadana
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section">
             <h2 class="form-section-title">2. Skąd ten przepis</h2>
             {{-- ZDANIE MÓWI, CO TU WPISAĆ, A NIE JAK CZĘSTO TO KTOŚ CZYTA.
                  Stało tu „To najczęściej czytana część przepisu" — twierdzenie
@@ -226,7 +241,7 @@
         {{-- ---------------------------------------------------------------
              3. Składniki
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section">
             <h2 class="form-section-title">3. Składniki</h2>
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
@@ -306,7 +321,7 @@
         {{-- ---------------------------------------------------------------
              4. Przygotowanie
         ---------------------------------------------------------------- --}}
-        <section class="form-section card" id="f-steps">
+        <section class="form-section" id="f-steps">
             <h2 class="form-section-title">4. Przygotowanie</h2>
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.

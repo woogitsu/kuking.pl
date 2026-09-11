@@ -9,7 +9,7 @@
     <h1>Przyjęliśmy Twoje zgłoszenie</h1>
 
     @if($numer)
-        <div class="card">
+        <div class="sekcja-strony">
             <p class="mt-0">Numer sprawy:</p>
             <p class="kod-do-przepisania">{{ $numer }}</p>
             <p class="mb-0">

@@ -4,7 +4,10 @@
         Wszystko, co tu masz, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
     </p>
 
-    <section class="card">
+    {{-- Sekcja strony, nie panel formularza: nie ma tu nic do wypełnienia,
+         a mocna obwódka zrównałaby pobieranie danych ze „Strefą zagrożenia"
+         niżej — akcja destrukcyjna ma zostać odsunięta (AGENTS.md §5). --}}
+    <section class="sekcja-strony">
         <h2 class="mt-0">Pobierz swoje dane</h2>
         <p>
             Przygotujemy paczkę ze wszystkimi Twoimi wpisami, przepisami, zdjęciami i komentarzami.
@@ -84,7 +87,13 @@
             zaznaczony. Każde z tych zdań musi być prawdziwe w kodzie —
             pilnuje tego `UsuwanieKontaZakresTest`.
         --}}
-        <div class="card mt-4">
+        {{-- SEKCJA, nie ramka pomocnicza. Te trzy listy są MATERIAŁEM do
+             wyboru zakresu usunięcia (D-022), a nie przypisem obok niego —
+             to jedyne miejsce, gdzie napisano, co dokładnie kasuje haczyk.
+             Na warstwie wgłębionej sąsiednie „Pobierz swoje dane" (akcja
+             zwykła, odwracalna) stało wizualnie WYŻEJ niż opis skutków,
+             których cofnąć się nie da. --}}
+        <div class="sekcja-strony mt-4">
             <h3 class="mt-0">Co zniknie, a co zostanie</h3>
 
             <p><strong>Znikną na stałe — zawsze:</strong></p>

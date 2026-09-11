@@ -1560,10 +1560,13 @@
      W kicie ta reguła jest poprawna, bo tam cała karta JEST jednym
      odnośnikiem. U nas nie jest — i to jest świadome odejście, bo dwie akcje
      na jednym celu dotknięcia są dla tej grupy gorsze niż jedna wielka. */
+  /* Promienia tu nie ma celowo: od rozdzielenia ról (sekcja 2.1 w tokens.css)
+     `--warstwa-tresc-promien` jest `--radius-xl` dla KAŻDEJ karty treści, więc
+     to nadpisanie było już tylko powtórzeniem. `overflow: hidden` zostaje —
+     bez niego zdjęcie wpisu wychodzi poza zaokrąglony róg. */
   .post-card {
     padding: 0;
     overflow: hidden;
-    border-radius: var(--radius-xl);
   }
 
   .post-card-head {
@@ -1645,17 +1648,20 @@
      To jest ODNOŚNIK do strony dodawania, nie pole tekstowe udające formularz.
      Pole, które po kliknięciu nic nie robi bez JavaScriptu, byłoby dokładnie
      tą pułapką, przed którą ostrzega AGENTS.md §5. */
+  /* Od rozdzielenia ról ta zachęta jest KAFLEM AKCJI (warstwa 6), więc tło,
+     obwódkę, promień, cień, zdjęte podkreślenie, kolor tekstu i tło na
+     hoverze daje już `.kafel-akcji`. Zostaje tu tylko to, czym composer
+     RÓŻNI SIĘ od zwykłego kafla: układ w wiersz (awatar, tekst, ikona),
+     odstęp pod spodem i węższe wcięcie pionowe — bo to jest jeden wiersz,
+     a nie kafel z nagłówkiem i akapitem. `padding` zostaje jawny właśnie
+     dlatego, że jest odstępstwem od warstwy. */
   .composer {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-4) var(--spacing-5);
     margin-bottom: var(--spacing-6);
-    text-decoration: none;
-    color: var(--color-ink);
   }
-
-  .composer:hover { background-color: var(--color-surface-sunken); }
 
   .composer-copy { min-width: 0; flex: 1; }
 
@@ -2105,11 +2111,14 @@
     border-radius: var(--radius-xl);
   }
 
+  /* Bez `border-radius`: nadpisanie istniało po to, żeby wyrwać panel
+     z dawnych 16 px `.card`, a dziś `--warstwa-tresc-promien` to już
+     `--radius-xl`. Zostawione byłoby dokładnie tym rodzajem martwego
+     nadpisania, przez które `.card` zebrała 126 ról. */
   .przepis-panel {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-5);
-    border-radius: var(--radius-xl);
   }
 
   /* --- Kafle liczb: czas, porcje, poziom ---
@@ -2220,10 +2229,6 @@
     .przepis-siatka {
       grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     }
-  }
-
-  .przepis-siatka > .card {
-    border-radius: var(--radius-xl);
   }
 
   .przepis-siatka h2 {
@@ -3800,13 +3805,21 @@
 
 /* --- Bloki w prawej szynie (UI kit v2, ekran 01) ------------------------- */
 
-/* Blok szyny. Wołany jako `class="card szyna-blok"`, więc bierze z `.card`
-   tło, obwódkę i wcięcie — a tutaj dostaje dwie rzeczy z `.szyna-modul`
-   systemu projektowego v3.1.
+/* Blok szyny — WARSTWA 4 z sekcji 2.1 w `tokens.css`. Wołany w widokach jako
+   `class="card szyna-blok"` (tak stoi w `x-szyna-blok`), ale opisuje się tu
+   SAM, wszystkimi pięcioma tokenami swojej warstwy. Wcześniej brał tło,
+   obwódkę i wcięcie z `.card` i nadpisywał tylko promień oraz cień — przez co
+   z pliku nie dało się odczytać, jak ta warstwa w ogóle wygląda, a trzy
+   z jej tokenów leżały nieużywane.
 
-   `--radius-xl` NIE JEST TU KOSMETYKĄ. Karta wpisu dostała je w poprzednim
-   commicie, a szyna stoi bezpośrednio obok strumienia: dwa różne promienie
+   `--warstwa-szyna-promien` NIE JEST TU KOSMETYKĄ i jest równy promieniowi
+   karty wpisu. Szyna stoi bezpośrednio obok strumienia: dwa różne promienie
    w jednym rzędzie czyta się jako niedokończone, a nie jako hierarchię.
+   Zewnętrzny audyt zalecał kiedyś zmniejszenie tego promienia — to jest
+   cofnięcie świadomej poprawki i nie wraca. Deklaracja zostaje jawna mimo
+   tego, że `.card` daje dziś tę samą wartość: równość tych dwóch promieni
+   jest DECYZJĄ, a decyzja ma być widoczna w pliku, a nie wynikać z tego,
+   że nikt jej nie rozdzielił.
 
    ZDJĘTY CIEŃ jest hierarchią, i to celową. System pisze o szynie: „szyna
    NIE powtarza kolumny głównej". Karta wpisu unosi się nad tłem, bo jest
@@ -3815,8 +3828,11 @@
    znikają — przestają tylko konkurować o pierwsze spojrzenie. */
 .szyna-blok {
   margin: 0;
-  border-radius: var(--radius-xl);
-  box-shadow: none;
+  background-color: var(--warstwa-szyna-tlo);
+  border: 1px solid var(--warstwa-szyna-obwodka);
+  border-radius: var(--warstwa-szyna-promien);
+  box-shadow: var(--warstwa-szyna-cien);
+  padding: var(--warstwa-szyna-wciecie);
 }
 
 .szyna-naglowek {
@@ -4159,8 +4175,8 @@
       przez to 3 px dalej w prawo niż w przeczytanym — lewa krawędź listy
       była poszarpana. Cień wewnętrzny nie wchodzi do modelu pudełka, więc
       wszystkie wiersze zaczynają się w tym samym miejscu, a kreska sama
-      układa się po zaokrągleniu `--radius-lg`. Grubość z tokenu
-      (`--spacing-1` = 4 px), dokładnie jak w systemie.
+      układa się po zaokrągleniu karty (`--warstwa-tresc-promien`). Grubość
+      z tokenu (`--spacing-1` = 4 px), dokładnie jak w systemie.
       `var(--shadow-card)` MUSI stać w tej samej deklaracji: `box-shadow`
       nie sumuje się między regułami i bez tego karta nieprzeczytana traciłaby
       swój cień.

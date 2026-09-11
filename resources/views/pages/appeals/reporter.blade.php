@@ -13,7 +13,7 @@
 
     <x-error-summary />
 
-    <article class="card">
+    <article class="sekcja-strony">
         <h2 class="mt-0 text-title-sm">Twoje zgłoszenie</h2>
         <p class="meta">
             Numer sprawy {{ $zgloszenie->numer_sprawy }} ·
@@ -23,7 +23,7 @@
     </article>
 
     @if($odwolanie !== null)
-        <article class="card mt-5">
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Twoje odwołanie</h2>
             <p class="meta">Złożone {{ \App\Support\Czas::data($odwolanie->created_at, 'j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
             <p class="whitespace-pre-line">{{ $odwolanie->body }}</p>
@@ -43,7 +43,14 @@
             @endif
         </article>
     @elseif(! $decyzja->isAppealableByReporter())
-        <article class="card mt-5">
+        {{-- SEKCJA, nie ramka pomocnicza: w tej gałęzi to jest CAŁA treść
+             ekranu i jedyna odpowiedź, jaką człowiek tu dostaje. Ramka jest
+             wgłębiona i znaczy „to jest obok głównej rzeczy" — a obok czego
+             miałoby to stać, skoro formularza odwołania tu nie ma. Sąsiednie
+             gałęzie tego samego `@if` mają `sekcja-strony` i
+             `panel-formularza`, więc akurat stan „termin minął" dostawał
+             najsłabszą warstwę ekranu. --}}
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest sześć miesięcy od decyzji.
@@ -55,7 +62,7 @@
             </p>
         </article>
     @else
-        <form class="card mt-5" method="POST" action="{{ url()->full() }}">
+        <form class="panel-formularza mt-5" method="POST" action="{{ url()->full() }}">
             @csrf
 
             <h2 class="mt-0 text-title-sm">Napisz, dlaczego się nie zgadzasz</h2>

@@ -53,7 +53,7 @@
     {{-- Po nieudanej walidacji formularz zostaje ROZWINIĘTY — inaczej człowiek
          wraca na stronę, na której nic się nie stało, a jego tekst jest
          schowany pod zwiniętym „Załóż nowy zeszyt”. --}}
-    <details class="card mt-8" {{ $errors->any() ? 'open' : '' }}>
+    <details class="panel-formularza mt-8" {{ $errors->any() ? 'open' : '' }}>
         <summary class="btn btn-secondary inline-flex">Załóż nowy zeszyt</summary>
         <form class="mt-4" method="POST" action="{{ route('collections.store') }}">
             @csrf

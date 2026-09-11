@@ -28,7 +28,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('register') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('register') }}">
         @csrf
 
         <x-field name="display_name" label="Jak mamy Cię nazywać?" required

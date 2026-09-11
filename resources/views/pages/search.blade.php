@@ -30,7 +30,7 @@
         pole, ZANIM w nie klikną. Ikona więc DOCHODZI do istniejącego pola,
         etykieta i tekst pomocy zostają bez zmian.
     --}}
-    <form class="card wyszukiwarka-formularz" method="GET" action="{{ route('search') }}">
+    <form class="panel-formularza" method="GET" action="{{ route('search') }}">
         <div class="field">
             <label for="f-q">Czego szukasz?</label>
             <span class="field-help" id="f-q-help">

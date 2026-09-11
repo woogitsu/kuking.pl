@@ -28,7 +28,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('login') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('login') }}">
         @csrf
 
         <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required
@@ -60,7 +60,14 @@
         zostawiamy nigdzie (D-053): jak nie ma drogi, nie ma i wejścia do niej.
     --}}
     @if(config('kuking.login_link.wlaczone'))
-        <div class="card mt-6">
+        {{-- SEKCJA, NIE RAMKA POMOCNICZA. Ramka jest wgłębiona i tym samym
+             mówi „to jest obok głównej rzeczy" — a D-056 rozstrzyga, że
+             logowanie linkiem jest drogą RÓWNORZĘDNĄ z hasłem, dla części
+             naszych ludzi podstawową. Wgłębienie byłoby cofnięciem tamtej
+             decyzji w warstwie wizualnej. Sekcja ma własne tło i obwódkę,
+             więc dalej odróżnia się od panelu z polami — traci tylko cień,
+             bo nie jest tym, co się na tym ekranie WYPEŁNIA. --}}
+        <div class="sekcja-strony mt-6">
             <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
             <p>
                 Wyślemy Ci wiadomość z jednym przyciskiem. Klikasz — i jesteś w środku.

@@ -13,7 +13,7 @@
     <h1>Zdjęcie profilowe</h1>
     <x-error-summary />
 
-    <div class="card">
+    <div class="panel-formularza">
         <div class="zdjecie-profilowe-stan">
             <x-avatar :user="$profile->user" :size="88" />
 
