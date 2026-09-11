@@ -73,7 +73,19 @@ BAZA_PORT="${DB_PORT:-5432}"
 BAZA_POLACZENIE="${BAZA_UZYTKOWNIK}:${BAZA_HASLO}@${BAZA_HOST}:${BAZA_PORT}"
 
 SERWER="postgresql://${BAZA_POLACZENIE}/postgres"
-PSQL=(psql -q -U kuking -h 127.0.0.1)
+# `psql` do przygotowania fikstur — TE SAME poświadczenia co wyżej.
+#
+# Stało tu `psql -q -U kuking -h 127.0.0.1`: twardy użytkownik, twardy host,
+# BEZ PORTU i BEZ HASŁA. Lokalnie działa, bo nasz Postgres ufa połączeniom
+# miejscowym. W CI nie ma prawa zadziałać — usługa jest wystawiona na innym
+# porcie i wymaga hasła. Po naprawie samych adresów DSN zostało 25 oblanych
+# sprawdzeń z 75 i wszystkie waliły w port 5432, podczas gdy udane szły na
+# port z `DB_PORT`. To była reszta tej samej usterki, nie nowa.
+#
+# `PGPASSWORD` eksportujemy, bo `psql` nie przyjmuje hasła w argumencie;
+# dziedziczą je też skrypty wołane niżej, i o to chodzi.
+export PGPASSWORD="${BAZA_HASLO}"
+PSQL=(psql -q -U "${BAZA_UZYTKOWNIK}" -h "${BAZA_HOST}" -p "${BAZA_PORT}")
 
 # Nazwy baz są UNIKALNE DLA WORKTREE, bo w tym kontenerze pracuje równolegle
 # kilku agentów i kilka przebiegów testów. Sufiks liczy ta sama funkcja, co
