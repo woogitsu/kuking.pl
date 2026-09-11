@@ -43,18 +43,40 @@
             <a href="https://rondel.pl/przepis,koniec-popularnego-serwisu-kulinarnego-durszlakpl-zeszyty-z-przepisami-przepadly.html"
                target="_blank" rel="noopener">informacja o zamknięciu Durszlak.pl</a>
         </p>
+        {{-- „a nie »kiedyś«" odpierało zarzut, którego nikt nie postawił
+             (audyt tekstów 11.09.2026). Sam fakt zostaje i jest sprawdzalny:
+             eksport stoi w `/ustawienia/twoje-dane` od pierwszego dnia. --}}
         <p>
             <x-kuking-word /> ma być miejscem, z którego da się wszystko zabrać ze sobą — łącznie
-            ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia,
-            a nie „kiedyś”.
+            ze zdjęciami. Dlatego eksport własnych danych działa od pierwszego dnia.
         </p>
 
+        {{-- TA STRONA MA PRAWO MÓWIĆ GŁOŚNO — jest jednym z dwóch miejsc,
+             obok strony powitalnej, gdzie charakter marki wolno pokazać
+             (COPY_STYLE.md §3). Nie wygładzamy jej więc do zera. Zdjęte
+             zostały dwa zdania, które ZAPRZECZAŁY ZARZUTOM, KTÓRYCH NIKT NIE
+             POSTAWIŁ:
+
+               - „Kuking to nie kolejna baza przepisów." — nikt nie oskarżył
+                 nas o bycie bazą przepisów, a zdanie i tak naciskało, że tu
+                 są ludzie. Naciskanie daje u czytelnika odwrotne odczucie.
+               - „Bez rankingów, bez wyścigu, bez liczników w twarz. Bez
+                 algorytmu, który układa Ci stronę główną." — cztery
+                 zaprzeczenia pod rząd, a „liczniki w twarz" to jeszcze
+                 nienaturalny idiom. Ten sam fakt da się powiedzieć wprost,
+                 a przy okazji prawdziwiej: jeden licznik w serwisie JEST
+                 („ile osób zapisało to u siebie w zeszycie", D-081), więc
+                 „bez liczników" było przesadą.
+
+             Sekcja „Czego tu nie ma i nie będzie" niżej zostaje: to są
+             zobowiązania produktowe (AGENTS.md §9 i §12), nie odpieranie
+             zarzutów. --}}
         <h2>Co jest tu najważniejsze</h2>
         <ul>
-            <li><strong>Ludzie przed przepisami.</strong> <x-kuking-word /> to nie kolejna baza przepisów — to ludzie, którzy gotują na co dzień.</li>
+            <li><strong>Ludzie, nie treści.</strong> Tu są ludzie, którzy gotują na co dzień — ich zdjęcia, ich przepisy, ich historie.</li>
             <li><strong>„Ugotowałem” zamiast lajka.</strong> Że komuś naprawdę wyszło z Twojego przepisu, znaczy więcej niż sto serduszek.</li>
             <li><strong>Przepisy po mamie i babci.</strong> Możesz podpisać, po kim jest przepis, dopisać jego historię i dodać zdjęcie starej kartki.</li>
-            <li><strong>Spokój.</strong> Bez rankingów i bez algorytmu, który układałby Ci stronę główną.</li>
+            <li><strong>Spokój.</strong> Wpisy osób, które obserwujesz, stoją w kolejności, w jakiej je dodały. Bez rankingu popularności.</li>
         </ul>
 
         <h2>Czego tu nie ma i nie będzie</h2>

@@ -57,10 +57,35 @@
 
 <x-layout :title="$isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami'" :noindex="true">
     <h1>{{ $isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami' }}</h1>
+    {{-- ZDANIE „NIE MUSISZ NIC PRZEWIJAĆ ANI SZUKAĆ" ZNIKŁO, BO BYŁO NIEPRAWDĄ.
+
+         Zmierzone 11 września 2026 Chromium 1243 na postawionej lokalnie
+         instancji, konto `ania`, ten ekran (`h1` = „Dopisz szczegóły"):
+
+         | stan | 360 px | 1280 px |
+         |---|---|---|
+         | sam tytuł (3 puste wiersze składników i kroków) | 10 249 px | 7 836 px |
+         | 8 składników i 6 kroków | 16 586 px | 13 065 px |
+
+         Przy oknie telefonu 640 px to jest od 16 do 26 ekranów przewijania,
+         na monitorze przy oknie 800 px — od 10 do 16. Kontrolek renderuje się
+         40 (stan pusty) do 70 (stan wypełniony); siedemnaście znaczników
+         `<input|<textarea|<select>` w tym pliku to tylko te wypisane z ręki,
+         resztę składają pętle i `<x-field>`.
+
+         Tego się nie da naprawić zdaniem — to jest najdłuższy formularz
+         w serwisie i przewijać na nim trzeba. Obietnica, że nie trzeba, u tej
+         grupy kosztuje zaufanie w pierwszej sekundzie, i to na ekranie, na
+         którym ktoś dopisuje szczegóły do przepisu po babci.
+
+         ZOSTAJE INFORMACJA, PO KTÓRĄ CZŁOWIEK TU PRZYSZEDŁ: że nic nie jest
+         obowiązkowe, że wypełnia tyle, ile chce, i że poprawnie wpisane dane
+         nie zginą (`old()` — AGENTS.md §5). Pilnuje tego
+         `tests/Feature/EkranSzczegolowNieObiecujeBrakuPrzewijaniaTest.php`
+         — razem z tym, że poprawka nie zjadła tej informacji. --}}
     <p class="mb-5">
-        Wszystko jest na jednej stronie — nie musisz nic przewijać ani szukać.
-        Nic tu nie jest obowiązkowe: wypełnij tyle, ile chcesz, i zapisz.
-        Poprawnie wpisane dane nie zginą.
+        Wszystko jest na jednej stronie. Nic tu nie jest obowiązkowe:
+        wypełnij tyle, ile chcesz, i zapisz. Poprawnie wpisane dane nie zginą.
     </p>
 
     @if($isEdit)
@@ -180,7 +205,7 @@
                  Stało tu „To najczęściej czytana część przepisu" — twierdzenie
                  o zachowaniu czytelników, którego nikt nigdy nie zmierzył. --}}
             <p class="meta mb-4">
-                Tu napiszesz, po kim jest ten przepis i skąd go znasz.
+                Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże.
             </p>
 
             <fieldset class="border-0 p-0">
@@ -197,9 +222,16 @@
                 @error('source_type')<span class="field-error">{{ $message }}</span>@enderror
             </fieldset>
 
-            <x-field name="source_person" label="Po kim ten przepis" :value="$isEdit ? $recipe->source_person : null"
-                     placeholder="po mamie, Halinie"
-                     help="Zostanie podpisany nad tytułem: „przepis Haliny, spisany przez Ciebie”." />
+            {{-- PYTAMY O FRAZĘ, KTÓRA STOI SAMODZIELNIE.
+                 Do 11 września 2026 pole nazywało się „Po kim ten przepis"
+                 i podpowiadało „po mamie, Halinie", a widok doklejał przed
+                 odpowiedź własne „Po" — z „Nasze smaki" robiło się „Po Nasze
+                 smaki.", a z „po mamie" „Po po mamie.". Odpowiedź na TO pytanie
+                 czyta się i sama („Od mamy."), i po słowie „przepis"
+                 („przepis od mamy"), więc nie trzeba jej odmieniać. --}}
+            <x-field name="source_person" label="Od kogo albo skąd masz ten przepis" :value="$isEdit ? $recipe->source_person : null"
+                     placeholder="od mamy · z gazety · z bloga Nasze smaki"
+                     help="Napisz to tak, żeby dało się przeczytać samo: „od mamy”, „z gazety”, „od sąsiadki Haliny”. Pokażemy to przy przepisie dokładnie tak, jak wpiszesz." />
 
             {{-- POMOC JEST PRAWDZIWA PRZY KAŻDEJ Z TRZECH WIDOCZNOŚCI.
                  Stało tu „To zostaje w rodzinie." — nieprawda przy przepisie

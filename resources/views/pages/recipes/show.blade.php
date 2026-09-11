@@ -97,8 +97,14 @@
                 <li><a href="{{ route('discover') }}">Przepisy</a></li>
             </ol>
 
-            <p class="meta mb-2">{{ $recipe->attributionLine() }}</p>
-            <h1 class="mt-0">{{ $recipe->title }}</h1>
+            {{-- Odstępy w nagłówku przepisu robi CSS (`.przepis-uklad > header`
+                 w app.css), a nie klasy `mb-2` / `mt-0` / `mb-4` stojące tu
+                 wcześniej. Utility leży w warstwie PO `components`, więc
+                 dopóki tu były, żadna reguła arkusza nie mogła ich poprawić
+                 — a rytm nagłówka jest własnością strony przepisu, nie
+                 trzech osobnych miejsc w szablonie. --}}
+            <p class="meta">{{ $recipe->attributionLine() }}</p>
+            <h1>{{ $recipe->title }}</h1>
 
             @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
                 {{--
@@ -117,7 +123,7 @@
                 <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
-            <div class="przepis-autor mb-4">
+            <div class="przepis-autor">
                 <x-avatar :user="$recipe->author" :size="44" />
                 <div class="min-w-0">
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
@@ -303,7 +309,21 @@
                 <section class="recipe-story">
                     <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
                     @if($recipe->source_person)
-                        <p><strong>Po {{ $recipe->source_person }}.</strong></p>
+                        {{-- WARTOŚĆ IDZIE DOSŁOWNIE, BEZ DOKLEJONEGO PRZYIMKA.
+                             Stało tu „Po {{ … }}." — przyimek wklejony na
+                             sztywno przed wolny tekst, więc „Nasze smaki"
+                             dawało „Po Nasze smaki.", a wpisane „po mamie"
+                             dawało „Po po mamie.". Nagłówek „Skąd ten przepis"
+                             wyżej niesie to znaczenie sam, a odmiany dowolnego
+                             ciągu znaków nie da się policzyć (patrz komentarz
+                             nad `Recipe::attributionLine()`).
+
+                             `Str::ucfirst()` jest wielobajtowe, więc wpisane
+                             małą literą „od mamy" wygląda jak zdanie także
+                             wtedy, gdy zaczyna się od „ó", „ż" albo „ś".
+                             Kropki nie dokładamy: przy wpisanej kropce
+                             wyszłyby dwie. --}}
+                        <p><strong>{{ \Illuminate\Support\Str::ucfirst($recipe->source_person) }}</strong></p>
                     @endif
                     @if($recipe->source_note)
                         <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>

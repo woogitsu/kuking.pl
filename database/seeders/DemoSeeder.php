@@ -175,7 +175,7 @@ class DemoSeeder extends Seeder
             'visibility' => 'public',
             'status' => Recipe::STATUS_PUBLISHED,
             'source_type' => Recipe::SOURCE_FAMILY,
-            'source_person' => 'babci Zofii',
+            'source_person' => 'od babci Zofii',
             'source_note' => 'Babcia mieszkała pod Rzeszowem i gotowała ten rosół w sobotę wieczorem, żeby w niedzielę tylko podgrzać. Mówiła, że rosół nie znosi pośpiechu i że nigdy nie wolno go zagotować na dużym ogniu, bo zrobi się mętny. Kartka z tym przepisem leżała w jej kredensie przez trzydzieści lat.',
             'family_since_year' => 1974,
             'published_at' => now()->subDays(10),

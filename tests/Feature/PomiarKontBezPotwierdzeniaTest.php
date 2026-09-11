@@ -11,7 +11,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
-use App\Notifications\UstawienieNowegoHasla;
+use App\Notifications\UstawienieHaslaZamiastLinku;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -231,14 +231,16 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
         Notification::fake();
 
         // DOTKNIĘTY — czyli po naprawie #317 ten, komu link zamienił się
-        // na list z ustawieniem hasła. Sprawdzamy OBIE strony tej zamiany
-        // osobno: samo „link nie poszedł" byłoby prawdą także wtedy, gdyby
-        // poczta nie działała w ogóle, a samo „poszedł list z hasłem" nie
-        // wykluczałoby, że link poszedł razem z nim.
+        // na wiadomość z ustawieniem hasła (`UstawienieHaslaZamiastLinku` —
+        // od 11 września 2026 z własną treścią tłumaczącą tę zamianę,
+        // a nie treścią z odzyskiwania hasła). Sprawdzamy OBIE strony tej
+        // zamiany osobno: samo „link nie poszedł" byłoby prawdą także wtedy,
+        // gdyby poczta nie działała w ogóle, a samo „poszła wiadomość
+        // z hasłem" nie wykluczałoby, że link poszedł razem z nią.
         $niepotwierdzony = User::factory()->unverified()->create(['email' => 'ofiara@example.com']);
         $this->wyslijFormularz('ofiara@example.com');
         Notification::assertNotSentTo($niepotwierdzony, LinkDoLogowania::class);
-        Notification::assertSentTo($niepotwierdzony, UstawienieNowegoHasla::class);
+        Notification::assertSentTo($niepotwierdzony, UstawienieHaslaZamiastLinku::class);
 
         // ODJĘTE KATEGORIE — każda osobno, bo każda wychodzi z INNEJ gałęzi
         // `wolnoWyslac()` i wspólna asercja nie odróżniłaby ich od siebie.
@@ -263,7 +265,7 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
             // zablokowane dostałoby list otwierający mu drogę z powrotem.
             // Samo `assertNotSentTo(LinkDoLogowania::class)` by tego nie
             // zauważyło, bo link faktycznie by nie poszedł.
-            Notification::assertNotSentTo($konto, UstawienieNowegoHasla::class);
+            Notification::assertNotSentTo($konto, UstawienieHaslaZamiastLinku::class);
         }
 
         // Konto zalążkowe odejmujemy z innego powodu niż pozostałe: poczta
@@ -282,7 +284,7 @@ class PomiarKontBezPotwierdzeniaTest extends TestCase
         $this->wyslijFormularz('zalazek@example.com');
 
         Notification::assertNotSentTo($zalazkowe, LinkDoLogowania::class);
-        Notification::assertSentTo($zalazkowe, UstawienieNowegoHasla::class);
+        Notification::assertSentTo($zalazkowe, UstawienieHaslaZamiastLinku::class);
 
         // A teraz to samo policzone pomiarem: jeden dotknięty (ofiara),
         // pięć odjętych ze statusu i roli, jedno zalążkowe.

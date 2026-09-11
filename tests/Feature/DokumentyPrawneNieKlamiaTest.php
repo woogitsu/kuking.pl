@@ -677,6 +677,12 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         $dobre = [
             // Zdania o STANIE USŁUGI. Mówią o braku, są niewygodne i zostają.
             'Nie podajemy tu liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą — podamy ją, gdy będzie potwierdzona.',
+            // UWAGA: to zdanie przechodzi tutaj i OBLEWA nowy skan
+            // samouzasadniania niżej — na ogonie „i mówimy to wprost,
+            // zamiast pisać, że mamy". Fakt („umów nie mamy podpisanych")
+            // jest chroniony w obu miejscach; oblewa retoryka dopisana za
+            // nim. To nie jest sprzeczność między testami, a granica: jeden
+            // pilnuje notatek o PISANIU dokumentu, drugi tonu.
             'Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych i mówimy to wprost, zamiast pisać, że mamy.',
             'Nie wyznaczyliśmy inspektora ochrony danych. Jeśli to się zmieni, podamy jego dane w tym miejscu.',
             'Jeśli w przyszłości dojdzie kolejny dostawca spoza EOG, dopiszemy go do tabeli wyżej.',
@@ -684,6 +690,9 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
             'Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać.',
             'Serwis prowadzi na razie jedna osoba, więc nie obiecujemy, że odwołanie rozpatrzy ktoś inny.',
             'Nie mamy dziś zewnętrznego narzędzia do zbierania błędów.',
+            // Jak wyżej: notatką o pisaniu dokumentu to nie jest, ale
+            // dokumentem mówiącym o sobie samym — tak, i dlatego stoi też
+            // na liście złych zdań w skanie samouzasadniania.
             'Do tego czasu ten akapit stoi tu dlatego, że opisuje stan faktyczny.',
             // Podstawy prawne w sekcji „Źródła" — to jest wartość dla
             // czytelnika, nie notatka.
@@ -703,6 +712,220 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
                 self::trafieniaNotatek($zdanie),
                 "Wzorce złapały poprawne zdanie: „{$zdanie}”. To jest zdanie o stanie "
                 .'usługi albo podstawa prawna — wzorzec jest za szeroki i trzeba go zwęzić.',
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Tok rozumowania autora podany czytelnikowi (D-???, 11 września 2026)
+    // ---------------------------------------------------------------
+
+    /**
+     * WZORCE STYLU, KTÓRY TŁUMACZY SIĘ ZAMIAST INFORMOWAĆ.
+     *
+     * REGUŁA, KTÓREJ TE WZORCE PILNUJĄ
+     * Użytkownikowi piszemy, CO SIĘ DZIEJE, CO TO DLA NIEGO ZNACZY i CO MA
+     * ZROBIĆ. Powód architektoniczny, historia decyzji, odrzucone warianty
+     * i dowód z naszego audytu zostają w repozytorium — w `docs/DECISIONS.md`
+     * i w komentarzach kodu, gdzie są zaletą.
+     *
+     * CO STAŁO NA ŻYWEJ STRONIE 11 WRZEŚNIA 2026
+     *
+     *   - „Sprawdziliśmy to, czytając ten skrypt linijka po linijce, a nie
+     *     wierząc na słowo…" — dziennik naszego audytu analityki w miejscu,
+     *     w którym czytelnik szuka odpowiedzi, czy coś zapisuje mu się na
+     *     telefonie;
+     *   - „Sprawdziliśmy to 9 września 2026 na prawdziwym liście doręczonym
+     *     do skrzynki, czytając jego surowe źródło…" — protokół debugowania
+     *     poczty w polityce prywatności;
+     *   - „Uważamy, że nie ma to prawa tak zostać, i mówimy dlaczego." wraz
+     *     z „Do tego czasu ten akapit stoi tu dlatego, że opisuje stan
+     *     faktyczny; zniknie razem z samym śledzeniem" — felieton i dokument
+     *     mówiący o sobie samym;
+     *   - „Szczegóły techniczne opisujemy w naszym wewnętrznym dokumencie
+     *     bezpieczeństwa." — odesłanie do dokumentu, którego czytelnik nie
+     *     ma; ta sama rodzina co usunięte w D-140 „patrz `COMPLIANCE.md`",
+     *     tylko bez nazwy pliku, więc wzorzec na nazwę pliku jej nie łapał;
+     *   - „nie podajemy tu liczby godzin, bo nie mamy dziś w serwisie nic,
+     *     co ten termin mierzy i pilnuje" — brak mechanizmu w NASZYM kodzie
+     *     podany jako odpowiedź na pytanie „kiedy odpowiecie".
+     *
+     * GRANICA, KTÓREJ TE WZORCE NIE PRZEKRACZAJĄ — I TO JEST TU RZECZ
+     * NAJWAŻNIEJSZA
+     * Zdanie o FAKCIE dotyczącym usługi zostaje, także niewygodne. Trzy
+     * zdania są chronione wprost i stoją niżej na liście zdań, które MUSZĄ
+     * przechodzić: „umów powierzenia jeszcze nie mamy podpisanych", „nie
+     * wyznaczyliśmy inspektora ochrony danych" i „nie podajemy tu liczby
+     * dni, bo nie ustaliliśmy jej jeszcze z dostawcą". Skasowanie
+     * któregokolwiek z nich zrobiłoby dokument MNIEJ prawdziwym, a nie
+     * mniej gadatliwym — i dlatego druga strona tego testu istnieje.
+     * Braki, o których te zdania mówią, są śledzone w
+     * `docs/legal/COMPLIANCE.md` §2.8 i §7.1.
+     *
+     * @var array<string, string>
+     */
+    private const WZORCE_SAMOUZASADNIANIA = [
+        // „czytając ten skrypt linijka po linijce".
+        'dziennik naszego audytu' => '/linijk[aęi]\s+po\s+linijce/ui',
+
+        // „a nie wierząc na słowo" — polemika z niewypowiedzianym zarzutem.
+        'polemika z niewypowiedzianym zarzutem' => '/nie wierząc na słowo/ui',
+
+        // „Sprawdziliśmy to 9 września 2026 na prawdziwym liście…",
+        // „Sprawdziliśmy to, czytając…", „i to sprawdziliśmy w jego treści".
+        'protokół naszego sprawdzenia' => '/\b(sprawdziliśmy|zmierzyliśmy|przeczytaliśmy)\b[^.\n]{0,80}(czytając|surowe źródło|w jego treści|w jej treści|linijk|\b20\d\d\b)/ui',
+
+        // „i mówimy dlaczego", „i mówimy to wprost", „mówimy o tym wprost".
+        // Zapowiedź tłumaczenia się albo podkreślanie własnej uczciwości.
+        'zapowiedź tłumaczenia się' => '/\bmówimy\s+(dlaczego|o tym wprost|to wprost)/ui',
+
+        // „Uczciwie o granicy tego pierwszego wariantu:".
+        'rama „uczciwie o…"' => '/\buczciwie\s+(o|mówiąc|wobec)\b/ui',
+
+        // „Uważamy, że nie ma to prawa tak zostać", „wbrew naszemu zamiarowi".
+        'ocena moralna własnej decyzji' => '/\b(uważamy, że|nie ma to prawa|naszym zdaniem|wbrew naszemu zamiarowi)\b/ui',
+
+        // „Do tego czasu ten akapit stoi tu dlatego, że…", „Opisujemy to, bo
+        // zachodzi" — dokument tłumaczący, po co sam siebie napisał.
+        'dokument mówi o sobie samym' => '/\b(ten (akapit|ustęp|punkt|wiersz) (stoi|jest tu|zniknie)|opisujemy to, bo|piszemy o tym, bo)/ui',
+
+        // „wewnętrzny dokument bezpieczeństwa" — odesłanie do papieru,
+        // którego czytelnik nie ma i nie może dostać.
+        // UWAGA NA ODMIANĘ: „w naszym wewnętrznym DOKUMENCIE" — rdzeń to
+        // `dokumen`, nie `dokument`, i pierwsza wersja tego wzorca
+        // (`dokument\p{L}*`) przepuszczała dokładnie to zdanie, które miała
+        // łapać. Złapała to dopiero kontrola wzorców niżej.
+        'odesłanie do naszego wewnętrznego dokumentu' => '/\b(wewnętrzn\p{L}*\s+(\p{L}+\s+)?dokumen\p{L}*|dokumen\p{L}*\s+wewnętrzn\p{L}*)/ui',
+
+        // „i to jest okres, który serwis naprawdę pilnuje: co noc usuwa…".
+        // Fakt (co noc usuwamy) zostaje, obrona liczby schodzi.
+        'obrona podanej liczby' => '/okres, który serwis naprawdę pilnuje/ui',
+
+        // „nie obiecujemy, że… — obiecujemy natomiast, że…" — retoryka
+        // w miejscu, w którym czytelnik pyta, co się stanie z jego sprawą.
+        'figura „nie obiecujemy — obiecujemy natomiast"' => '/nie obiecujemy[^.\n]{0,120}obiecujemy natomiast/ui',
+
+        // „bo nie mamy dziś w serwisie nic, co ten termin mierzy i pilnuje" —
+        // brak funkcji w naszym kodzie jako informacja dla czytelnika.
+        // WĄSKO, bo „bo nie ustaliliśmy jej jeszcze z dostawcą" (chronione)
+        // ma przechodzić: wzorzec wymaga i zaprzeczenia, i słowa o kodzie.
+        'brak w kodzie jako odpowiedź dla czytelnika' => '/\bbo\s+(nie mamy|nie ma|nic)\b[^.\n]{0,80}(w serwisie|w kodzie|w repozytorium|mierzy|pilnuje)/ui',
+    ];
+
+    /**
+     * @return array<int, string> opis wzorca → trafiony fragment
+     */
+    private static function trafieniaSamouzasadniania(string $tekst): array
+    {
+        $trafienia = [];
+
+        foreach (self::WZORCE_SAMOUZASADNIANIA as $opis => $wzorzec) {
+            if (preg_match($wzorzec, $tekst, $dopasowanie) === 1) {
+                $trafienia[] = $opis.' → „'.trim($dopasowanie[0]).'”';
+            }
+        }
+
+        return $trafienia;
+    }
+
+    /**
+     * WŁAŚCIWY POMIAR. Trzy dokumenty prawne bez toku rozumowania autora.
+     */
+    #[DataProvider('dokumenty')]
+    public function test_brak_samouzasadniania_w_dokumentach_prawnych(string $adres, string $plik): void
+    {
+        $trafienia = self::trafieniaSamouzasadniania($this->tresc($plik));
+
+        $this->assertSame(
+            [],
+            $trafienia,
+            "Dokument publikowany pod {$adres} tłumaczy sam siebie zamiast informować: \n  "
+            .implode("\n  ", $trafienia)."\n"
+            .'Czytelnikowi piszemy, co się dzieje, co to dla niego znaczy i co ma zrobić. '
+            .'Powód, historia decyzji i dowód z audytu zostają w docs/DECISIONS.md. '
+            .'UWAGA: poprawką jest SKRÓCENIE zdania do faktu, nigdy usunięcie faktu — '
+            .'jeśli zdanie mówi o braku po naszej stronie (brak umów powierzenia, brak IOD, '
+            .'nieustalony okres kopii zapasowych), fakt zostaje w dokumencie.',
+        );
+    }
+
+    /**
+     * KONTROLA WZORCÓW, w obie strony — wzór ten sam co przy notatkach
+     * wyżej i co w `TekstyNiePrzypisujaPlciTest::test_wzorce_lapia_to_co_
+     * wlasciciel_widzial_i_przepuszczaja_poprawne`.
+     *
+     * DRUGA POŁOWA TEJ METODY JEST WAŻNIEJSZA NIŻ PIERWSZA. Bez niej
+     * najprostszym sposobem na zielony skan jest skasowanie zdania „umów
+     * powierzenia nie mamy podpisanych" — i nikt by tego nie zauważył, bo
+     * test świeciłby wtedy jeszcze mocniej na zielono.
+     */
+    public function test_wzorce_samouzasadniania_lapia_felieton_i_przepuszczaja_fakty(): void
+    {
+        // Zdania wzięte DOSŁOWNIE z `resources/legal/` z 11 września 2026,
+        // przed tą poprawką.
+        $zle = [
+            'Sprawdziliśmy to, czytając ten skrypt linijka po linijce, a nie wierząc na słowo: nie ma w nim ani jednego odwołania do plików cookie ani do żadnej pamięci przeglądarki, więc nie ma czym Cię oznaczyć.',
+            'Sprawdziliśmy to 9 września 2026 na prawdziwym liście doręczonym do skrzynki, czytając jego surowe źródło, a nie wierząc na słowo.',
+            '**Uważamy, że nie ma to prawa tak zostać, i mówimy dlaczego.**',
+            'Do tego czasu ten akapit stoi tu dlatego, że opisuje stan faktyczny; zniknie razem z samym śledzeniem, a nie zamiast niego.',
+            'Szczegóły techniczne opisujemy w naszym wewnętrznym dokumencie bezpieczeństwa.',
+            'Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych i mówimy to wprost, zamiast pisać, że mamy.',
+            'Przy logowaniu kontem Google i kontem Facebooka jest inaczej i mówimy to wprost:',
+            'Wejście kontem Facebooka jest tu przypadkiem innym niż te trzy i mówimy o tym wprost:',
+            '**36 miesięcy od zamknięcia sprawy** — i to jest okres, który serwis naprawdę pilnuje: co noc usuwa zamknięte zgłoszenia starsze niż 36 miesięcy.',
+            'Uczciwie o granicy tego pierwszego wariantu: zdjęcie usuniętego podpisu nie czyni tekstu anonimowym.',
+            'Do tego — dziś, i wbrew naszemu zamiarowi — nasz dostawca poczty rejestruje otwarcie takiego listu.',
+            'My tych danych nie odczytujemy i do niczego nie używamy. Opisujemy to, bo zachodzi — i wyłączamy to u dostawcy, patrz sekcja 3.',
+            'Nie jest to ustawienie, które ktoś mógłby nam po cichu przestawić — ten skrypt po prostu nie umie nic zapisać, i to sprawdziliśmy w jego treści.',
+            'Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze — nie podajemy tu liczby godzin, bo nie mamy dziś w serwisie nic, co ten termin mierzy i pilnuje.',
+            'Serwis prowadzi jedna osoba, więc nie obiecujemy, że Twoje odwołanie rozpatrzy ktoś inny niż autor pierwszej decyzji — obiecujemy natomiast, że tej samej decyzji nie da się podtrzymać od razu.',
+        ];
+
+        foreach ($zle as $zdanie) {
+            $this->assertNotSame(
+                [],
+                self::trafieniaSamouzasadniania($zdanie),
+                "Wzorce przepuściły tok rozumowania autora: „{$zdanie}”. "
+                .'Któryś wzorzec w WZORCE_SAMOUZASADNIANIA przestał działać — napraw wzorzec, nie ten test.',
+            );
+        }
+
+        $dobre = [
+            // TRZY ZDANIA CHRONIONE WPROST. Mówią o braku po naszej stronie,
+            // są niewygodne i są jedyną informacją, jaką czytelnik ma o tej
+            // części przetwarzania. Wolno je skracać, nie wolno kasować.
+            'Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych.',
+            'Nie wyznaczyliśmy inspektora ochrony danych. Jeśli to się zmieni, podamy jego dane w tym miejscu.',
+            'Nie podajemy tu liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą — podamy ją, gdy będzie potwierdzona.',
+            // Fakty o usłudze, które zostały po skróceniu felietonu.
+            '**Tego liczenia otwarć nie da się wyłączyć z naszego kodu** — jest ustawieniem konta u dostawcy i wyłączamy je po jego stronie.',
+            'My tych danych nie odczytujemy i do niczego nie używamy — patrz sekcja 3.',
+            '**Nie zapisuje niczego na Twoim urządzeniu** — ani pliku cookie, ani nic w pamięci przeglądarki, więc nie ma czym Cię oznaczyć.',
+            'Co noc usuwamy wpisy starsze niż 12 miesięcy.',
+            'Serwis prowadzi jedna osoba, więc Twoje odwołanie rozpatrzy zwykle autor pierwszej decyzji.',
+            'Podtrzymać własną decyzję może najwcześniej po 24 godzinach od jej podjęcia — cofnąć ją może od razu.',
+            'Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze. Nie obiecujemy konkretnej liczby godzin.',
+            'Nie mamy dziś zewnętrznego narzędzia do zbierania błędów.',
+            'Dzienniki serwera żyją tyle, ile działająca instancja serwisu.',
+            'Ten dokument opisuje stan serwisu na 11 września 2026 i jest aktualizowany razem z nim.',
+            // „naprawdę" NIE JEST SŁOWEM ZAKAZANYM. Wzorzec łapie jedną
+            // frazę obronną, a nie samo słowo — inaczej padłoby zdanie
+            // otwierające zasady społeczności i hasło całego serwisu.
+            'Kuking to miejsce dla ludzi, którzy naprawdę gotują.',
+            'Kuking to serwis, w którym poznajesz innych, którzy naprawdę gotują.',
+            // Fakty o cudzych usługach i podstawy prawne.
+            'Cloudflare deklaruje, że danych z Turnstile nie używa do profilowania reklamowego.',
+            'Rozporządzenie Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO) — Art. 6, 8, 13–20, 28, 33–34',
+            'Ustawa Prawo komunikacji elektronicznej (2024) — przepisy o przechowywaniu informacji w urządzeniu końcowym (cookies)',
+        ];
+
+        foreach ($dobre as $zdanie) {
+            $this->assertSame(
+                [],
+                self::trafieniaSamouzasadniania($zdanie),
+                "Wzorce złapały poprawne zdanie: „{$zdanie}”. To jest FAKT o usłudze "
+                .'albo podstawa prawna — zwęź wzorzec. Jeśli to zdanie zniknęło z dokumentu, '
+                .'przywróć je: dokument bez niego jest mniej prawdziwy, nie mniej gadatliwy.',
             );
         }
     }

@@ -543,7 +543,7 @@ class RecipeController extends Controller
             'visibility.in' => 'Zaznacz, kto ma widzieć ten przepis: wszyscy, obserwujący czy tylko Ty.',
             'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
             'source_type.in' => 'Zaznacz, skąd jest ten przepis: Twój własny, rodzinny, adaptacja czy z zewnątrz.',
-            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — samo imię wystarczy.',
+            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
             'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
             'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
             // Te trzy komunikaty są celowo IDENTYCZNE jak w komponencie

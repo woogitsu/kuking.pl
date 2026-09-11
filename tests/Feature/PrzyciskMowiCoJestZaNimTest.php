@@ -116,7 +116,7 @@ class PrzyciskMowiCoJestZaNimTest extends TestCase
             'prep_minutes' => 20,
             'cook_minutes' => 180,
             'difficulty' => 'easy',
-            'source_person' => 'Babcia Zofia',
+            'source_person' => 'od babci Zofii',
             'source_note' => 'Przepisany z zeszytu w kratkę.',
             'source_url' => 'https://example.com/rosol',
             'family_since_year' => 1962,

@@ -15,10 +15,18 @@
     (issue #273: „nie wolno wgrać fałszywych wpisów, żeby wyglądały na
     żywe") — pusty temat prowadzi do tego samego pustego stanu, co strona
     pojedynczego tagu już dziś pokazuje.
+
+    OPIS DLA WYSZUKIWARKI MÓWI, CO NA TEJ STRONIE JEST (audyt tekstów
+    11.09.2026). Stało w nim „Bez rankingu — kolejność to wybór gospodarza
+    i alfabet.", czyli nasza polityka porządkowania treści. Człowiek
+    w wynikach wyszukiwania szuka spisu tematów, nie naszej filozofii
+    sortowania — a kto wejdzie, ten i tak czyta na stronie „Wybór gospodarza
+    Kuking." oraz „Wszystkie tematy od A do Z". Sama reguła kolejności
+    zostaje bez zmian; zniknął tylko jej opis w metadanych.
 --}}
 <x-layout
     title="Wszystkie tematy"
-    description="Spis tematów w Kuking: dania, składniki, okazje i sposoby przygotowania. Bez rankingu — kolejność to wybór gospodarza i alfabet.">
+    description="Spis tematów w Kuking: dania, składniki, okazje i sposoby przygotowania. Przy każdym temacie liczba wpisów widocznych dla wszystkich.">
     <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> · wszystkie tematy
     </p>

@@ -1,6 +1,6 @@
 # Regulamin Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.** Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać.
+> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
@@ -120,7 +120,7 @@ Zawsze, gdy to możliwe, **wyjaśnimy powód decyzji** i poinformujemy, jak się
 
 Jeśli nie zgadzasz się z naszą decyzją, masz **6 miesięcy** od otrzymania informacji o niej na złożenie odwołania — przyciskiem „Odwołaj się" przy powiadomieniu o decyzji albo pisząc na **kontakt@kuking.pl**. Ponownie przeanalizujemy sprawę i odpowiemy w ciągu 7 dni roboczych.
 
-Serwis prowadzi jedna osoba, więc nie obiecujemy, że Twoje odwołanie rozpatrzy ktoś inny niż autor pierwszej decyzji — obiecujemy natomiast, że tej samej decyzji nie da się podtrzymać od razu: przez pierwsze 24 godziny nie można potwierdzić własnego rozstrzygnięcia, żeby „podtrzymuję" nie było odruchem. Cofnięcie własnej decyzji działa natychmiast.
+Serwis prowadzi jedna osoba, więc Twoje odwołanie rozpatrzy zwykle autor pierwszej decyzji. Podtrzymać własną decyzję może najwcześniej **po 24 godzinach** od jej podjęcia — cofnąć ją może od razu.
 
 Możesz też zgłosić sprawę do organów nadzorujących zgodność z prawem: w sprawach danych osobowych — do Prezesa Urzędu Ochrony Danych Osobowych (UODO), w sprawach związanych z Rozporządzeniem o usługach cyfrowych — do Prezesa Urzędu Komunikacji Elektronicznej (Koordynator ds. Usług Cyfrowych).
 
