@@ -2441,8 +2441,13 @@
     }
   }
 
+  /* Nagłówek „Składniki" i „Przygotowanie". `margin-top: 0`, bo sekcja ma
+     własne wcięcie i drugi odstęp od góry byłby podwójny — ale margines
+     DOLNY jest potrzebny: reset Tailwinda zeruje oba, więc nagłówek stał na
+     pierwszym składniku i na pierwszym kroku bez przerwy (zmierzone: 0 px). */
   .przepis-siatka h2 {
     margin-top: 0;
+    margin-bottom: var(--spacing-4);
   }
 
   /* Sufit długości linii dla bloków z ciągłym tekstem na stronie szerokiej.
@@ -2494,6 +2499,155 @@
     padding: var(--spacing-4) 0;
     border-bottom: 1px solid var(--color-border);
     font-size: var(--text-body-lg);
+  }
+
+  /* =====================================================================
+     RYTM PIONOWY STRONY PRZEPISU (zgłoszenie właściciela, 11 września:
+     „a propos przepisw, trzeba naprawić te odstępy między tekstami
+     w przepisach")
+     =====================================================================
+
+     CO BYŁO ZMIERZONE (Chromium, `/przepisy/{slug}` pełnego przepisu:
+     zdjęcie, składniki, kroki, „Skąd ten przepis", komentarze; okno 1512 px,
+     okno 400 px i okno 1512 px przy czcionce przeglądarki 200 %):
+
+         tytuł `<h1>` → wiersz autora ......................  0 px  (0/0/0)
+         zdjęcie → plakietki („Ugotowane 3 ×") .............  0 px  (0/0/0)
+         „Skąd ten przepis" → pierwszy akapit ..............  0 px  (0/0/0)
+         „Składniki" → lista składników ....................  0 px  (0/0/0)
+         „Przygotowanie" → lista kroków ....................  0 px  (0/0/0)
+         okruszki → linia atrybucji ........................  8 px
+         linia atrybucji → tytuł ...........................  8 px
+         wiersz autora → zdjęcie ..........................  36 px na 1512 px,
+                                                              20 px na 400 px
+
+     Pięć par stało dosłownie na zero pikseli, a odstęp nagłówka od zdjęcia
+     był na desktopie i na telefonie INNY. Cztery przyczyny, każda inna:
+
+     1. RESET TAILWINDA ZERUJE MARGINESY NAGŁÓWKÓW, a `base` ich nie
+        odzyskuje. `.app-main > h1` (tokens.css) naprawia to na wszystkich
+        ~50 podstronach naraz — ale nie tutaj, bo `<h1>` przepisu siedzi
+        w `<article><header>`, nie bezpośrednio w `<main>`. Ten sam brak
+        dotyczy `<h2>` w „Składnikach", „Przygotowaniu" i „Skąd ten przepis".
+     2. `margin: 0` NA `.recipe-facts` ZJADAŁO RYTM `.stack`.
+        `.stack > * + *` i `.recipe-facts` mają tę samą swoistość (0,1,0),
+        a `.recipe-facts` stoi w pliku niżej — więc wygrywała i plakietki
+        przyklejały się do zdjęcia. Dlatego ten blok stoi TU, pod nią,
+        a nie przy `.przepis-uklad` wyżej.
+     3. MARGINESY ZJADANE PRZEZ ZLEWANIE — ale tylko w połowie stanów.
+        Poniżej 80rem `<article>` jest blokiem: `mb-4` wiersza autora zlewał
+        się z `margin-top` zdjęcia do 20 px. Od 80rem ten sam `<article>`
+        jest SIATKĄ, a marginesy elementów siatki się nie zlewają — więc
+        16 + 20 = 36 px. Ta sama strona miała dwa różne odstępy zależnie od
+        szerokości okna, czego nie widać, dopóki się nie zmierzy obu.
+     4. KLASY `mb-2` / `mt-0` / `mb-4` W SZABLONIE. Utility w Tailwindzie 4
+        leży w warstwie stojącej PO `components`, więc żadna reguła stąd by
+        ich nie przebiła. Zeszły z `show.blade.php` i ich wartości są teraz
+        tutaj — jedno miejsce zamiast trzech klas rozsypanych po nagłówku.
+
+     DLACZEGO TOKENY, A NIE PIKSELE. To są odstępy MIĘDZY BLOKAMI TEKSTU,
+     więc mają rosnąć razem z pismem: przy czcionce przeglądarki 200 %
+     `--spacing-6` to 48 px, nie dalej 24. To druga strona D-082/D-107 —
+     tamte minima są FIZYCZNE (palec nie rośnie od powiększenia czcionki),
+     ten odstęp jest typograficzny.
+
+     DLACZEGO `--spacing-6` MIĘDZY BLOKAMI ARTYKUŁU. Tę samą wartość kolumna
+     główna przyjęła w PR #387 dla dwóch sąsiadujących powierzchni
+     (`.app-main > :is(.card, …) + :is(…)` w tokens.css) i tę samą ma
+     `.app-main > h1`. TAMTEJ REGUŁY TU NIE DUPLIKUJEMY I NIE DA SIĘ:
+     celuje w bezpośrednie dzieci `<main>`, a strona przepisu ma tam
+     dokładnie jedno dziecko — `<article>`. Rytm WEWNĄTRZ artykułu jest
+     osobną rzeczą i jest robiony tu, jedną regułą, z tej samej liczby.
+
+     CO TA REGUŁA ROBI KAŻDEMU PRZEPISOWI, A NIE TYLKO TEMU ZE ZRZUTU:
+     odstępy wiszą na strukturze (`> header`, `> * + *`, `.recipe-story > p`),
+     nie na tym, że akurat jest zdjęcie, sekcja źródła albo komentarz.
+     Przepis bez zdjęcia i bez plakietek dostaje ten sam rytm — pusta lista
+     plakietek znika z układu (reguła niżej), żeby nie zostawiała po sobie
+     podwójnego odstępu.
+     ===================================================================== */
+
+  /* 1. Jeden rytm między blokami artykułu — ten sam w bloku i w siatce.
+        `margin-bottom: 0` na dzieciach jest częścią tej reguły, nie
+        ozdobą: bez niego dolny margines dziecka raz się zlewa (blok),
+        a raz sumuje (siatka od 80rem). */
+  .przepis-uklad > * {
+    margin-bottom: 0;
+  }
+
+  .przepis-uklad > * + * {
+    margin-top: var(--spacing-6);
+  }
+
+  /* WYJĄTEK: AKCJA DESTRUKCYJNA ZOSTAJE ODSUNIĘTA. `.danger-zone` ma własne
+     `margin-top: var(--spacing-8)` (tokens.css) i to nie jest rytm, tylko
+     wymóg z AGENTS.md §5 — „akcja destrukcyjna jest odsunięta od zwykłych
+     akcji". `tokens.css` jest importowany na początku `app.css`, więc reguła
+     wyżej (ta sama swoistość, dalsze miejsce w pliku) ścięłaby ten odstęp
+     z 32 px do 24. Powtarzamy tu wartość Z TEGO SAMEGO TOKENU, żeby „Usuń ten
+     przepis" nie przysunęło się do komentarzy. */
+  .przepis-uklad > .danger-zone {
+    margin-top: var(--spacing-8);
+  }
+
+  /* Pusta lista plakietek (przepis bez wykonań, bez ocen i bez roku
+     w rodzinie) nie ma czego pokazać, a jako element w ciągu brałaby własny
+     odstęp i zostawiała po sobie dziurę na dwa odstępy — zmierzone przy
+     `/przepisy/chleb-pszenno-zytni-na-zakwasie`: 24 px nad zerowej wysokości
+     listą i 24 px pod nią.
+
+     `:not(:has(li))`, NIE `:empty`. `:empty` tej listy nie łapie, bo Blade
+     zostawia w niej znaki nowej linii, a te są węzłami tekstowymi —
+     sprawdzone w Chromium: reguła z `:empty` nie zadziałała ani razu.
+     `:has()` pyta o to, co naprawdę decyduje: czy jest choć jedna
+     plakietka. */
+  .przepis-uklad > .recipe-facts:not(:has(li)) {
+    display: none;
+  }
+
+  /* 2. Nagłówek przepisu: okruszki → linia atrybucji → tytuł → wiersz
+        autora. Cztery wiersze tekstu, trzy różne odległości, bo to są trzy
+        różne relacje: okruszki i atrybucja są podpisami tytułu (`--spacing-3`),
+        wiersz autora jest już osobną informacją (`--spacing-4`), a odstęp od
+        nagłówka do treści należy do rytmu artykułu wyżej — dlatego ostatnie
+        dziecko nagłówka nie dokłada własnego marginesu.
+
+        POWIADOMIENIA („To jest szkic", „Ten przepis jest ukryty przez
+        moderację") ŚWIADOMIE NIE MA W TEJ LIŚCIE: `.notice` ma własne
+        `margin-bottom: var(--spacing-5)` wspólne dla całego serwisu, a nad
+        sobą bierze margines tytułu. Dopisanie go tutaj zmieniłoby odstęp
+        pod ramką z 20 px na 16 — czyli poprawiało rytm przepisu kosztem
+        komponentu, który wygląda tak samo na kilkunastu innych ekranach. */
+  .przepis-uklad > header .okruchy,
+  .przepis-uklad > header > .meta {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .przepis-uklad > header h1 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-4);
+  }
+
+  .przepis-uklad > header > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* 3. „Skąd ten przepis" — w środku stoją pod sobą dwa akapity (po kim
+        przepis i notatka autora), oba pismem `--text-body-lg`. Nagłówek
+        siedział na nich bez jednego piksela przerwy, a akapity dostawały
+        16 px przewidziane dla pisma podstawowego. Selektory są STRUKTURALNE
+        (`h2`, `> p`), nie `:nth-of-type` — treść tej sekcji zmienia się
+        w osobnej gałęzi i ten rytm ma ją przeżyć. */
+  .recipe-story h2 {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .recipe-story > p {
+    margin-bottom: var(--spacing-5);
+  }
+
+  .recipe-story > :last-child {
+    margin-bottom: 0;
   }
 
   .step-number {
