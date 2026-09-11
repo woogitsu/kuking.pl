@@ -1589,6 +1589,42 @@
     overflow-wrap: anywhere;
   }
 
+  /*
+   * „CZYTAJ DALEJ" POD SKRÓCONYM WPISEM (issue #354)
+   *
+   * Karta pokazuje początek długiego wpisu, a całość jest na stronie wpisu.
+   * O TYM, CZY TEN ODNOŚNIK W OGÓLE SIĘ POJAWI, decyduje szablon
+   * (`App\Support\ZapowiedzWpisu`), nie CSS — dlatego nie ma tu
+   * `-webkit-line-clamp`. Klamra przycięłaby tekst wizualnie, ale nie
+   * powiedziałaby szablonowi, czy przycięła, więc odnośnik stałby także pod
+   * wpisem dwuzdaniowym i po kliknięciu nie pokazywałby nic nowego. Martwy
+   * przycisk jest zakazany (D-053).
+   *
+   * WYSOKOŚĆ W PIKSELACH, NIE W `rem` — TO JEST CEL DLA PALCA.
+   * 48 px to minimum celu dotykowego z AGENTS.md §5. Palec nie rośnie, gdy
+   * ktoś powiększy czcionkę w przeglądarce albo podniesie „Rozmiar tekstu",
+   * a `rem` i `--control-height-touch` rosną razem z korzeniem — ta sama
+   * pomyłka zabrała kiedyś połowę telefonu dolnej belce (D-082/D-107).
+   * Pismo jest odwrotnie: `--text-body` to 18 px minimum produktowe i ROŚNIE
+   * z ustawieniem czytelnika, bo tekst jest typografią, nie celem dla palca.
+   *
+   * `inline-flex`, więc do trafienia jest cały prostokąt napisu razem
+   * z zapasem wysokości, a nie sama linijka liter.
+   */
+  .post-card-czytaj-dalej {
+    margin: 0;
+    padding: 0 var(--spacing-5) var(--spacing-4);
+  }
+
+  .post-card-czytaj-dalej a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    font-weight: 600;
+  }
+
   /* Odnośnik do przepisu, z którego powstał wpis. Osobna klasa zamiast
      stylu w atrybucie — inaczej odstępy karty żyją w dwóch miejscach. */
   .post-card-recipe {

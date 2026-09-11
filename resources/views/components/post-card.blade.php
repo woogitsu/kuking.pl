@@ -129,8 +129,54 @@
         @endauth
     </div>
 
+    {{--
+        DŁUGI WPIS POKAZUJE SIĘ NA KARCIE W SKRÓCIE (issue #354)
+
+        Jeden wpis z przepisem — lista składników i kroki — wypełniał na
+        telefonie cały ekran i wypychał wszystko poniżej. Pod nim nie było
+        widać ani dna karty, ani następnego wpisu; feed przestawał być feedem.
+
+        Skracamy NA SERWERZE i dajemy zwykły odnośnik do strony wpisu. Nie
+        rozwijamy treści w miejscu (`<details>`): rozwinięcie przesuwa
+        wszystko poniżej, a przy 50+ to realny koszt — człowiek gubi miejsce,
+        w którym czytał. Na stronie wpisu i tak są komentarze oraz całe
+        zdjęcie, więc to tam prowadzi „Czytaj dalej".
+
+        Próg (wiersze I znaki), powód rezygnacji z `-webkit-line-clamp`
+        i sposób cięcia po całych wyrazach: `App\Support\ZapowiedzWpisu`.
+
+        NA STRONIE SAMEGO WPISU NIE SKRACAMY — I TO NIE JEST DROBIAZG.
+        Ta sama karta stoi w feedzie i na `pages/posts/show.blade.php`.
+        Gdyby skracała także tam, całej treści nie dałoby się przeczytać
+        NIGDZIE, a „Czytaj dalej" prowadziłoby na stronę, na której człowiek
+        już stoi — czyli byłoby martwym przyciskiem (D-053). Warunek pyta
+        o trasę, a nie o dodatkowy parametr komponentu, bo dzięki temu
+        żaden z ośmiu widoków używających karty nie musi o niczym pamiętać.
+    --}}
     @if($post->body)
-        <div class="post-card-body">{{ $post->body }}</div>
+        @php
+            $wpisZTrasy = request()->route('post');
+            $naStronieTegoWpisu = request()->routeIs('posts.show')
+                && $wpisZTrasy instanceof \App\Models\Post
+                && $wpisZTrasy->is($post);
+
+            $skracamy = ! $naStronieTegoWpisu && \App\Support\ZapowiedzWpisu::czyZaDluga($post->body);
+        @endphp
+
+        <div class="post-card-body">{{ $skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body }}</div>
+
+        @if($skracamy)
+            {{-- Odnośnik, nie przycisk: czytnik ekranu ogłasza go jako
+                 odnośnik, klawiatura go łapie, a bez skryptu działa tak samo
+                 jak ze skryptem. `aria-label` zaczyna się od widocznego
+                 napisu (WCAG 2.2 AA 2.5.3), bo w feedzie tych odnośników
+                 jest tyle, ile skróconych wpisów — samo „Czytaj dalej" nie
+                 mówi, przy którym wpisie stoi. Ten sam wzorzec co przy
+                 menu „Więcej" wyżej. --}}
+            <p class="post-card-czytaj-dalej">
+                <a href="{{ $post->url() }}" aria-label="Czytaj dalej — cały wpis od {{ $author->displayName() }}">Czytaj dalej</a>
+            </p>
+        @endif
     @endif
 
     {{--
