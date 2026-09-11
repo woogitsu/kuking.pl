@@ -10574,3 +10574,423 @@ produkcyjnej bazy to nadal zero, a blocker UX był otwarty w dniu tej decyzji.
 z konfiguracji i pilnuje, że etap produktu **stoi** w metryczce — a nie że akurat
 dziś brzmi tak, a nie inaczej. Strażnik, który trzeba poprawiać przy każdym
 wydaniu, zostaje prędzej czy później poprawiony bezmyślnie.
+
+---
+
+## D-135 · Ekran dodawania przepisu pyta o SZEŚĆ rzeczy, a przepis wolno opublikować bez ani jednego składnika
+
+**Data:** 11 września 2026 · Issue #364 · Zgłosił i zgodził się właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„te dodawanie przepisów jest zbyt skomplikowane dla mnie, 32 latka który ogarnia
+programowanie itp a co dopiero dla seniora", a po obejrzeniu ekranu: „trzeba uprościć
+to i usunąć te tysiące pól, przycisków, informacji itp bo seniorzy dostaną oczopląsu".
+
+### Co było na ekranie
+
+Policzone, nie oszacowane: **98 kontrolek** na jednym ekranie dodawania przepisu.
+Pola porcji, czasów, trudności, pochodzenia, roku „w rodzinie od", skanu kartki,
+grup składników, jednostek, uwag przy składniku, czasów przy kroku — wszystko naraz,
+przed pierwszym zdjęciem.
+
+### Decyzja
+
+Ekran dodawania pyta o **sześć** rzeczy: zdjęcie, tytuł, składniki, przygotowanie,
+widoczność, przycisk publikacji. Reszta przechodzi na osobny ekran „Dopisz szczegóły",
+dostępny **po** opublikowaniu. Limit jest pilnowany testem
+(`DodawaniePrzepisuSzescKontrolekTest::LIMIT_KONTROLEK = 6`), a nie dobrą wolą —
+inaczej wróciłby po jednym polu naraz.
+
+### Przepis bez składników wolno opublikować — i to jest najtrudniejsza część tej decyzji
+
+Walidacja ma `ingredients` jako `nullable`, a `skladniki_tekst` może być puste.
+Test `test_przepis_z_samym_zdjeciem_tytulem_i_tekstem_da_sie_opublikowac` stwierdza
+wprost: zero składników, jeden krok, przepis opublikowany — i asercja
+„Przepis bez składników nie ma prawa ich sobie dorobić".
+
+Zgłosiłem to właścicielowi jako świadomy koszt: baza przepisów bez składników jest
+gorsza do wyszukiwania i do „co mam w lodówce". Odpowiedź brzmiała **„ok daję zgodę"**.
+
+Uzasadnienie, które za tym stoi: **przepis, którego ktoś nie opublikował, ma zero
+składników tak samo.** Ktoś, kto zna rosół z głowy, opisze go zdaniem i nie będzie
+rozpisywał gramatury — a jeśli wymusimy listę, nie opublikuje nic. Brakujące
+składniki da się dopisać później; nieopublikowany przepis nie wraca.
+
+### Zaproszenie do dopisania szczegółów istnieje tylko wtedy, gdy jest co dopisać
+
+`App\Domain\Recipes\CoMoznaDopisac` pyta o dziesięć pól, o zdjęcie główne oraz
+o to, czy przepis ma **ani jednego** składnika albo kroku. Komunikat po publikacji
+kieruje do „Edytuj" tylko wtedy, gdy odpowiedź brzmi „tak". Przepis wysłany
+z wypełnionym wszystkim dostałby inaczej przycisk prowadzący do formularza bez ani
+jednego pustego pola — czyli martwy przycisk z D-053.
+
+Reguła stoi w domenie, nie w widoku, bo pyta o nią więcej niż jedno miejsce
+i wszystkie muszą odpowiadać tak samo.
+
+---
+
+## D-136 · Składniki i kroki wpisuje się jako TEKST w jednym polu; baza dalej trzyma wiersze
+
+**Data:** 11 września 2026 · Issue #364 · Status: **obowiązuje**
+
+### Decyzja
+
+Formularz przyjmuje `skladniki_tekst` i `przygotowanie_tekst` — dwa zwykłe pola
+wielowierszowe. `App\Domain\Recipes\TekstNaWiersze` rozbija je na wiersze:
+składniki po liniach, kroki po pustej linii.
+
+**Schemat bazy się nie zmienia.** `recipe_ingredients` i `recipe_steps` zostają
+takie, jakie były. To jest zmiana wyłącznie po stronie wejścia — dlatego nie ma
+tu migracji ani wpisu w `docs/DATABASE.md`.
+
+### Dlaczego nie zostawić tablicy pól
+
+Lista składników jako osobne pola z jednostką, ilością, grupą i uwagą to przy
+dziesięciu składnikach czterdzieści kontrolek. Człowiek, który ma przepis
+przepisany na kartce albo w mailu, chce go **wkleić**. Rozbicie na wiersze
+robi za niego to, co i tak zrobiłby ręcznie, tylko czterdzieści razy.
+
+### Czego pilnują testy
+
+Że wklejona lista daje **tyle wierszy, ile niepustych linii** (a nie „jakieś"),
+że pusta linia rozdziela kroki, i że cztery składniki po dopisaniu szczegółów
+dalej są czterema **i w tej samej kolejności**. Ten ostatni jest tu najważniejszy:
+konwersja tekst → wiersze → tekst → wiersze to miejsce, w którym kolejność gubi
+się po cichu i nikt tego nie zauważa aż do skargi.
+
+---
+
+## D-137 · Każde wejście do dodawania pokazuje OBIE drogi, a nie tę, przez którą się weszło
+
+**Data:** 11 września 2026 · Issue #366 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„użytkownicy nie widzą że w »Dodaj« można wybrać »Zdjęcie i kilka słów« i »Cały
+przepis«… trzeba to ujednolicić".
+
+### Co było nie tak
+
+Drzwi do dodawania policzone: **osiem** prowadziło prosto do zdjęcia, **trzy**
+prosto do przepisu, **trzy** do ekranu wyboru. Czyli w jedenastu przypadkach na
+czternaście człowiek nie dowiadywał się, że druga droga w ogóle istnieje.
+
+To tłumaczy zjawisko, o które właściciel pytał osobno — „wszyscy dodają zdjęcie
+i kilka słów". Nie dlatego, że wybrali; dlatego, że nie mieli czego wybierać.
+
+### Decyzja
+
+Nad **każdym** formularzem dodawania stoi ten sam komponent
+`x-zakladki-dodawania` z dwiema zakładkami: „Zdjęcie i kilka słów" oraz
+„Cały przepis". Bieżąca jest oznaczona, druga jest odnośnikiem.
+
+Kontrast policzony **przed** wklejeniem, nie po: napis bieżącej 5,72:1 w jasnym
+i 4,72:1 w ciemnym (próg 4,5), obwódka niebieżącej 4,16:1 i 3,83:1 (próg 3 dla
+obwódki kontrolki, WCAG 1.4.11). Token `--color-border` dałby 1,40:1 i nie nadawał
+się tu w ogóle.
+
+---
+
+## D-138 · Panel moderacji bierze całą szerokość; reguła 45rem broni CZYTANIA, a nie tabeli
+
+**Data:** 11 września 2026 · Issue #365 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„dla admina i moderatora jest wąskie, przez co informacje trzeba przewijać, zrób
+dla admina i moderatora 100% szerokości".
+
+### Przyczyna miała DWIE warstwy i to jest sedno tego wpisu
+
+Pierwsza warstwa to sufit ramy. Druga to `max-width: var(--container-content)`
+na `.app-main`. **Samo podniesienie sufitu zostawiłoby tabelę przy 720 px** —
+czyli zmiana wyglądałaby na zrobioną, a zgłoszenie zostałoby otwarte.
+
+Zmierzone na `/admin/uzytkownicy`: przy 1920 px kontener 686 → 1566 px przy
+tabeli 1358 px — **przewijanie znika**. Przy 1280 px 686 → 926 px — **dalej
+przewija**, bo tabela potrzebuje 1358 px. Zgłoszenie jest więc zamknięte
+od 1600 px w górę, nie wszędzie, i tak to nazywam.
+
+### Dlaczego wolno było zdjąć 45rem akurat tutaj
+
+Reguła 45rem istnieje dla **wiersza tekstu** — oko gubi początek następnego
+wiersza przy zbyt długiej linii. Tabela kont to siedem kolumn porównywanych
+w poziomie; na zwężeniu nie zyskuje nic, a traci wszystko.
+
+Przy 320 px nic się nie zmienia: tabela dalej jeździ w **swoim** kontenerze.
+WCAG 2.2 AA 1.4.10 broni przed przewijaniem CAŁEJ strony, nie przed przewijaniem
+tabeli, która z natury jest szeroka.
+
+### Czego tu NIE zrobiono, mimo że brzmiało jak część tego samego
+
+Sufit ramy (1424 px) **nie został podniesiony**, a przepisanie go na procenty
+jest zmianą zapisu, nie pikseli — zmierzone 0 px różnicy. Powód: trzecia kolumna
+`.app-body` to sztywne `var(--container-rail)`. Przy szerszej ramie nadwyżka
+wpadłaby w kolumnę środkową, którą `.app-main` i tak przycina — pustka
+przeniosłaby się z prawej krawędzi na środek strony. Gorzej, nie lepiej.
+
+---
+
+## D-139 · Strona przepisu używa drugiej kolumny, ale NIE przez `<x-slot:rail>`
+
+**Data:** 11 września 2026 · Issue #365 · Status: **obowiązuje**
+
+### Sprawa
+
+Prawa strona ekranu przepisu marnowała się pusta, bo strona nie miała szyny
+w ogóle — a brak szyny zbijał ramę z 1424 px do ~1040 px. Naturalnym odruchem
+było przenieść panel akcji do `<x-slot:rail>`.
+
+### Dlaczego tego nie zrobiono
+
+Slot renderuje się w kodzie **za** całym `<main>`. Na telefonie szyna ląduje pod
+treścią — czyli „Ugotowałem", główna akcja produktu, zeszłoby pod składniki
+i komentarze. `EkranPrzepisuWedlugKituTest` wymaga, żeby „Ugotowałem" stało
+w kodzie PRZED „Składnikami", i ma rację.
+
+### Rozwiązanie
+
+`<main>` zajmuje obie kolumny, a panel przechodzi do drugiej siatką
+`.przepis-uklad`. Efekt dla oka jest ten z issue, mechanizm inny.
+
+Zmierzone, dane demo: gość przy 1920 px — wysokość strony 3872 → 3607 px,
+treść 720 → 1104 px; zalogowany przy 1280 px — 4634 → 4303 px, treść 576 → 960 px;
+„Ugotowałem" przy 1920 px przesuwa się z y=538 na **y=316**, i dalej jest pierwsze
+w pasku akcji oraz pierwsze w kodzie.
+
+Przy 200% czcionki wraca jedna kolumna, panel pod zdjęciem nad składnikami.
+
+### Reguła ogólna
+
+**Efekt wizualny nie jest powodem, żeby użyć konkretnego mechanizmu.** Slot
+i siatka dają tu ten sam obraz na szerokim ekranie i różny na telefonie —
+a telefon jest tym, na którym ta grupa czyta.
+
+---
+
+## D-140 · Dokumenty prawne nie mówią o sobie, że nie były sprawdzone przez prawnika
+
+**Data:** 11 września 2026 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„Usuń ze strony info że coś nie było weryfikowane przez prawnika… Przejrzyj wszystko".
+
+### Co usunięto
+
+Pięć wystąpień zdania „Dokument nie był weryfikowany przez prawnika"
+w `resources/legal/regulamin.md` i `resources/legal/polityka-prywatnosci.md`.
+
+### Dlaczego to nie jest ukrywanie prawdy
+
+Ta nota nie była informacją o **usłudze** — była informacją o **procesie jej
+powstawania**, adresowaną do nas samych. Czytelnikowi nie mówiła nic, co
+mógłby wykorzystać, a podważała dokument, który ma być wiążący: regulamin,
+który sam o sobie mówi, że nie wiadomo, czy jest poprawny, jest gorszy niż brak
+regulaminu.
+
+**Wszystkie zdania mówiące o faktach dotyczących usługi zostały nietknięte** —
+także te niewygodne. Usunięta została wyłącznie nota o tym, kto dokumentu nie
+czytał.
+
+---
+
+## D-141 · Wyścig o binarkę Composera usuwa własny katalog narzędzi per job, a nie kolejkowanie
+
+**Data:** 11 września 2026 · Issue #262 · Status: **obowiązuje**
+
+### Objaw
+
+Job „Testy (PostgreSQL 18)" oblewał z kodem **126** bez ani jednego oblanego
+testu: `…/setup-php/tools/composer: /usr/bin/env: bad interpreter: Text file busy`.
+Ten sam commit lokalnie — komplet testów zielony.
+
+### Diagnoza z samego issue była BŁĘDNA i warto to zapisać
+
+Issue mówiło: „gdy dwa joby z RÓŻNYCH gałęzi startują w tej samej sekundzie".
+Logi mówią co innego. `kuking-wsl-DOM-NEW-01`…`-03` to **trzy rejestracje na
+jednej maszynie** (jedno `/home/mateusz`, jedno `/usr/local/bin`), a siedem jobów
+tego workflow startuje równolegle. W przebiegu, na którym to złapano, pisał job
+„Dostępność" na runnerze `-02`, a wykonywał job „Testy" na `-03` — **ten sam
+przebieg i ta sama gałąź**.
+
+To zmienia rozwiązanie: skoro biją się joby JEDNEGO przebiegu, żadna grupa
+`concurrency` po `github.ref` ich nie rozdziela. Grupa wspólna dla wszystkich
+przebiegów też nie — a przy tym trzyma jeden bieg działający i jeden oczekujący,
+więc trzeci ANULUJE oczekującego. Zamieniłoby to losową czerwień na anulowane
+joby i dłuższą kolejkę.
+
+### Decyzja
+
+Każdy job dostaje **własny** katalog na binarki narzędzi
+(`$RUNNER_TEMP` + numer przebiegu + numer próby + nazwa joba). Nie ma już pliku,
+do którego jeden job pisze, a drugi go wykonuje. **Wyścig znika konstrukcyjnie,
+nie statystycznie.**
+
+Katalog zakładamy sami, a nie zostawiamy tego akcji: akcja robi `sudo mkdir -p`,
+więc katalog byłby rootowy, a rootowy katalog w `_temp` blokuje potem sprzątanie
+katalogu roboczego przez runnera.
+
+Koszt: Composer (~3 MB) pobiera się raz na job. Sekundy — i po nich CI przestaje
+zależeć od tego, czy sąsiedni job właśnie nie podmienia binarki.
+
+### Czego świadomie NIE zrobiono
+
+**Ponowienia kroku.** Retry ukrywa wyścig, nie usuwa go — i uczy, że czerwone CI
+się powtarza, a nie czyta. To jest ta sama zasada, którą trzymamy przy testach.
+
+### Node tego nie potrzebuje i to jest ZMIERZONE, nie założone
+
+`actions/setup-node` trzyma Node w `_work/_tool` **każdego runnera osobno**
+(„Found in cache @ …/actions-runner-kuking-03/_work/_tool/node/22.23.2/x64"
+w logu joba dostępności z 10 września), a jeden runner wykonuje jeden job naraz.
+Wspólnej ścieżki dla Node'a tu nie ma.
+
+---
+
+## D-142 · Bramka R2 sprawdza z serwera to, co się da; pusta lista publicznych adresów to NIEPRZEJŚCIE, nie zieleń
+
+**Data:** 11 września 2026 · Issue #120 · Status: **obowiązuje**
+
+### Sprawa
+
+Issue #120 zamknęło stronę aplikacyjną (własny sterownik `r2` bez ACL, osobne
+buckety, dysk oryginałów bez klucza `url`), ale zostawiło **dwanaście punktów
+do sprawdzenia ręcznie** na prawdziwym R2 — bo z PHP nie widać panelu Cloudflare.
+
+Dwanaście ręcznych punktów to bramka, której nikt nie przejdzie dwa razy:
+pierwszy raz z zapałem, drugi nigdy. A konfiguracja bucketu może się zmienić
+bez jednej linijki w tym repozytorium.
+
+### Decyzja
+
+Komenda `kuking:bramka-r2` robi z serwera wszystko, co się da: pyta prawdziwe R2
+prawdziwymi żądaniami i mówi po polsku, co z nich wyszło. Punkty, których
+z serwera sprawdzić **nie da się** (wgranie zdjęcia z telefonu, kasowanie
+z bazy), wypisuje na końcu jako pozostałe do zrobienia — zamiast udawać, że
+ich nie ma.
+
+### Najważniejsze: pusta lista adresów znaczy „NIE WIEMY", a nie „nic nie jest publiczne"
+
+Issue żąda dowodu, że oryginał nie wyjdzie „przez KAŻDĄ publiczną ścieżkę":
+własną domenę, `r2.dev` i endpoint konta. Z konfiguracji dawał się wyprowadzić
+**jeden** z tych adresów — endpoint — bo klucz `url` został z dysków mediów
+świadomie zdjęty, a domena i `r2.dev` żyją wyłącznie w panelu Cloudflare.
+
+Bramka pytała więc o adres, którym nikt nie chodzi, milczała o adresie, którym
+chodzi przeglądarka, i **świeciła na zielono**. Dokładnie ta klasa usterki,
+przed którą sama ostrzega: narzędzie melduje sukces, oglądając co innego, niż
+się wydaje.
+
+Dlatego publiczne adresy trzeba bramce **zadeklarować**
+(`KUKING_R2_PUBLICZNE_ADRESY`), razem z tymi, które mają być wyłączone.
+Wyłączenie `r2.dev` jest udowodnione dopiero wtedy, gdy spod adresu `pub-….r2.dev`
+przyszła odmowa. Pusta lista to nieprzejście.
+
+Odmową jest `403`/`404`. `301` na inny host nie jest odmową — jest przekierowaniem
+w miejsce, którego bramka nie sprawdziła.
+
+### Granice, które komenda trzyma
+
+Nie kasuje niczego i domyślnie nic nie zapisuje. `--zapis` dokłada JEDEN plik
+tekstowy w prefiksie `bramka/` i kasuje go po sprawdzeniu — i mówi o tym
+przed zrobieniem. Klucze API nigdy nie idą na wyjście, nawet fragmentami;
+adresów podpisanych też nie wypisujemy w całości, bo sygnatura w podpisanym
+adresie jest jednorazowym prawem dostępu do czyjegoś zdjęcia, a wyjście tej
+komendy trafia do zgłoszeń i do dokumentacji.
+
+---
+
+## D-143 · Odtworzenie kopii jest udane przy DWÓCH warunkach naraz, nie przy jednym
+
+**Data:** 11 września 2026 · Issue #9 · Status: **obowiązuje**
+
+### Pytanie, na które trzeba było odpowiedzieć
+
+„Po czym poznajemy, że kopia jest dobra, a odtworzenie się udało?" Bez odpowiedzi
+próba odtworzenia jest rytuałem: skrypt się wykonał, więc chyba dobrze.
+
+### Decyzja
+
+Odtworzenie jest zaliczone, gdy `psql` kończy się kodem 0 **i** w odtworzonej
+bazie stoi spodziewana lista obiektów. Sam kod wyjścia nie wystarcza.
+
+Symetrycznie po drugiej stronie: **sonda zachowania** — zapis, który MUSI zostać
+odrzucony — jest zaliczona, gdy `psql` kończy się **błędem** i w treści błędu
+jest spodziewany napis. Znowu dwa warunki: sam niezerowy kod wyjścia potwierdziłby
+także **literówkę w SQL-u samej sondy**, a taka „zielona" sonda dowodziłaby
+dokładnie niczego.
+
+To nie jest ostrożność na wyrost. Odtworzona baza może przyjąć wszystkie dane
+i zgubić po drodze ograniczenie, które ich pilnowało — a wtedy pierwszy warunek
+świeci na zielono, i dopiero drugi mówi prawdę.
+
+### Czego próba nie zostawia po sobie
+
+Każda sonda idzie w transakcji i kończy się `ROLLBACK`. Po sondzie w bazie
+próbnej nie zostaje ani jeden wiersz — i to jest sprawdzane osobnym testem
+(`tests/skrypty/proba-odtworzenia.sh`), a nie założone.
+
+### Stan faktyczny w dniu tej decyzji
+
+Produkcyjna baza ma **zero** kopii. Ten wpis mówi, po czym poznamy, że kopia jest
+dobra — nie mówi, że jakaś jest.
+
+---
+
+## D-144 · Panel moderacji wchodzi do pomiaru dostępności Z DANYMI; pusty stan przechodzi każdy audyt
+
+**Data:** 11 września 2026 · Issue #294 · Status: **obowiązuje** · rozwinięcie D-106
+
+### Co przeoczyliśmy przez pół roku
+
+Lista ekranów w `scripts/dostepnosc.mjs` miała `/zgloszenia` — czyli ekran
+**zgłaszającego**. Adres wygląda podobnie, a to inna strona, inny układ i inna
+rola. Przez to **najbardziej osobna warstwa układu w tym serwisie** — tryb panelu
+(`.side-nav[data-tryb-panelu]`, własne reguły poniżej 64rem, własny pasek dolny
+`.bottom-nav-panel`) — nie była mierzona **nigdy**: ani na przepełnienie
+w poziomie, ani przy powiększonej czcionce.
+
+### I drugi raz to samo, już wewnątrz poprawki
+
+Zmierzone 11 września na świeżo wysianej bazie demo, przy 900 px:
+
+| ekran | co stało na ekranie | węzłów w `<main>` |
+|---|---|---|
+| `/admin/uzytkownicy` | tabela czterech kont | 126 |
+| `/admin/zgloszenia` | „Nic tu nie ma" | 19 |
+| `/admin/sygnaly` | „Nic tu nie ma" | 18 |
+
+Dwie z trzech kolejek panelu były mierzone jako **pusty stan**. A cała rzecz,
+przez którą panel w ogóle wszedł do tego pomiaru — karta sprawy z formularzem
+decyzji (`choice-grid`, dwa zestawy pól wyboru, pole terminu, lista podstaw
+prawnych) i karta grupy automatu z paskiem podglądów — nie była na ekranie
+ani razu.
+
+`DemoSeeder` nie tworzy ani jednego zgłoszenia (sprawdzone: `grep -n 'Report::'`,
+zero wyników).
+
+### Decyzja
+
+Automat **zakłada dane** przed pomiarem panelu i **twardo sprawdza, że wszedł**:
+jeśli `/admin/uzytkownicy` nie odpowie `200` pod tym właśnie adresem, automat
+przerywa z błędem mówiącym, że ekrany panelu nie zostałyby zmierzone. Cichego
+„zmierzono ekran logowania" tu nie ma.
+
+Sesja moderatora jest **osobną funkcją**, nie parametrem zwykłego logowania:
+za formularzem stoją jeszcze dwa kroki, których nie ma żaden inny ekran w tym
+automacie — włączenie weryfikacji dwuetapowej i twarde sprawdzenie, że panel
+naprawdę się otworzył. 2FA moderatora **nie jest obchodzone** na potrzeby pomiaru.
+
+### Punkt 900 px, a nie cała macierz
+
+Między 768 a 1280 px była dziura, w którą wpada cała klasa urządzeń liczących
+układ INACZEJ niż oba brzegi: telefon składany rozłożony (zgłoszenie przyszło
+z Galaxy Fold), tablet postawiony poziomo i okno przeglądarki na pół ekranu
+laptopa. Wszystkie trzy są szersze niż telefon, a mimo to poniżej progu 64rem —
+czyli dostawały układ telefonu na szerokim ekranie, którego nikt nigdy nie
+zobaczył w pomiarze.
+
+Dołożony został **jeden** punkt, nie cała macierz: każdy punkt kosztuje czas
+każdego przebiegu CI, a 900 px pokrywa te trzy przypadki naraz.

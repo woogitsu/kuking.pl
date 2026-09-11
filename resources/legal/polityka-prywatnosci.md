@@ -1,6 +1,6 @@
 # Polityka Prywatności Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 10 września 2026 i jest aktualizowany razem z nim.** Nie zawiera okresów przechowywania, których serwis jeszcze nie egzekwuje — tam, gdzie czegoś nie robimy albo nie umiemy jeszcze robić, jest to napisane wprost. Dokument nie był weryfikowany przez prawnika.
+> **Ten dokument opisuje stan serwisu na 10 września 2026 i jest aktualizowany razem z nim.** Nie zawiera okresów przechowywania, których serwis jeszcze nie egzekwuje — tam, gdzie czegoś nie robimy albo nie umiemy jeszcze robić, jest to napisane wprost.
 
 ---
 
@@ -69,7 +69,7 @@ Część statystyk liczymy sami, w naszej własnej bazie — ile osób opublikow
 
 **Co robi EmailLabs i czego w tym nie chcemy.** Listy wysyła za nas EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce i to był powód wyboru tego dostawcy. Treść listu dostaje od nas dokładnie w tej postaci, w jakiej ją składamy: **bez ani jednego obrazka**. Ale przy wysyłce dokłada do niej **obrazek wielkości jednego punktu, po którym poznaje, że list został otwarty** — razem z momentem otwarcia, Twoim adresem IP i programem pocztowym. Sprawdziliśmy to 9 września 2026 na prawdziwym liście doręczonym do skrzynki, czytając jego surowe źródło, a nie wierząc na słowo.
 
-**Uważamy, że nie ma to prawa tak zostać, i mówimy dlaczego.** Przy liście, który jest częścią działania konta („potwierdź adres", „ustaw nowe hasło", wiadomości o zgłoszeniach), wiedza o tym, kto i kiedy go otworzył, nie jest nam do niczego potrzebna: nie prowadzimy wysyłek reklamowych, których skuteczność trzeba mierzyć. Danych, które nie służą niczemu, nie chcemy zbierać ani dawać zbierać komuś za nas. Tego przełącznika nie da się jednak wyłączyć z naszego kodu: jest ustawieniem konta u dostawcy i **wyłączamy je po jego stronie**. Do tego czasu ten akapit stoi tu dlatego, że opisuje stan faktyczny; zniknie razem z samym śledzeniem, a nie zamiast niego. Czy taki zapis w liście transakcyjnym wymaga od nas czegoś więcej niż rzetelnej informacji — **do potwierdzenia przez prawnika** (dokument nie był dotąd przez prawnika weryfikowany, patrz nota na początku).
+**Uważamy, że nie ma to prawa tak zostać, i mówimy dlaczego.** Przy liście, który jest częścią działania konta („potwierdź adres", „ustaw nowe hasło", wiadomości o zgłoszeniach), wiedza o tym, kto i kiedy go otworzył, nie jest nam do niczego potrzebna: nie prowadzimy wysyłek reklamowych, których skuteczność trzeba mierzyć. Danych, które nie służą niczemu, nie chcemy zbierać ani dawać zbierać komuś za nas. Tego przełącznika nie da się jednak wyłączyć z naszego kodu: jest ustawieniem konta u dostawcy i **wyłączamy je po jego stronie**. Do tego czasu ten akapit stoi tu dlatego, że opisuje stan faktyczny; zniknie razem z samym śledzeniem, a nie zamiast niego. Czy taki zapis w liście transakcyjnym wymaga od nas czegoś więcej niż rzetelnej informacji — **to zostaje do potwierdzenia**.
 
 **Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych** i mówimy to wprost, zamiast pisać, że mamy. Korzystamy z ich standardowych warunków usługi. Podpisanie umów powierzenia jest na naszej liście rzeczy do zrobienia przed otwarciem rejestracji dla wszystkich.
 
@@ -128,7 +128,7 @@ W sprawach dotyczących Twoich danych osobowych napisz do nas: **biuro@samsufi.p
 
 ---
 
-*Czego w tym dokumencie jeszcze nie ma, a będzie: dostawcy poczty oraz liczby dni, przez które dane żyją w kopiach zapasowych (dopiszemy ją, gdy ustalimy ją z dostawcą hostingu — nie wcześniej). Dokument nie był weryfikowany przez prawnika.*
+*Czego w tym dokumencie jeszcze nie ma, a będzie: dostawcy poczty oraz liczby dni, przez które dane żyją w kopiach zapasowych (dopiszemy ją, gdy ustalimy ją z dostawcą hostingu — nie wcześniej).*
 
 ## Źródła
 
