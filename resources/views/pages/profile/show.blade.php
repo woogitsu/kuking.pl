@@ -139,7 +139,7 @@
                     --}}
                     <p class="notice">
                         To konto jest przykładowe: nie ma za nim prawdziwej osoby.
-                        Treści dodała redakcja Kuking, żeby na początek było tu
+                        Treści dodała redakcja <x-kuking-word />, żeby na początek było tu
                         co poczytać.
                     </p>
                 @endif

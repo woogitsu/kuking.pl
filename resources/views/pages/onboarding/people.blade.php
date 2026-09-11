@@ -27,19 +27,21 @@
         wołane w `OnboardingController::people()`) — nie osobny mechanizm.
     --}}
     {{-- RAMKA POMOCNICZA, nie panel formularza — mimo że to jedyne pole
-         na ekranie. Akapit niżej mówi wprost: „to pomoc w odnalezieniu kogoś,
-         kogo już znasz, a nie kolejny obowiązkowy krok". Panel dałby temu
-         krokowi najmocniejszą warstwę ekranu, czyli wizualnie zaprzeczyłby
-         własnemu tekstowi; główną rzeczą jest lista osób do zaznaczenia
-         i przycisk dalej. Pole w ramce nie ginie: `.ramka-pomocnicza
-         .field-input` odwraca mu tło na podniesione (tokens.css). --}}
+         na ekranie. Panel dałby temu krokowi najmocniejszą warstwę ekranu,
+         czyli wizualnie zrobiłby z niego obowiązek; główną rzeczą jest lista
+         osób do zaznaczenia i przycisk dalej. Pole w ramce nie ginie:
+         `.ramka-pomocnicza .field-input` odwraca mu tło na podniesione
+         (tokens.css).
+
+         Akapit pod nagłówkiem mówił wcześniej „to pomoc w odnalezieniu kogoś,
+         kogo już znasz, a nie kolejny obowiązkowy krok". Zdjęte w grupie C4:
+         opcjonalność niesie przycisk „Pomiń ten krok" niżej, a nie zdanie
+         o tym, czym ten krok nie jest (`docs/brand/GLOS_MARKI.md` §5). --}}
     <div class="ramka-pomocnicza mb-6">
-        <h2>Znasz już kogoś w Kuking?</h2>
+        <h2>Znasz już kogoś w <x-kuking-word />?</h2>
         <p class="mb-4">
             Czasem ważniejsza od ośmiu nieznajomych jest jedna znajoma osoba.
-            Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć —
-            to pomoc w odnalezieniu kogoś, kogo już znasz, a nie kolejny
-            obowiązkowy krok.
+            Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć.
         </p>
         <form method="GET" action="{{ route('onboarding.people') }}">
             <div class="field">
@@ -116,7 +118,7 @@
 
         @if($people->isEmpty())
             <x-empty-state title="Nie mamy jeszcze kogo Ci pokazać">
-                Kuking dopiero się zaczyna. Za to Ty możesz być jedną z pierwszych osób,
+                <x-kuking-word /> dopiero się zaczyna. Za to Ty możesz być jedną z pierwszych osób,
                 które tu coś pokażą.
             </x-empty-state>
         @else

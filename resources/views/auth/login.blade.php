@@ -70,7 +70,7 @@
         <div class="sekcja-strony mt-6">
             <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
             <p>
-                Wyślemy Ci wiadomość z jednym przyciskiem. Klikasz — i jesteś w środku.
+                Wyślemy Ci wiadomość z jednym przyciskiem. Kliknij go, żeby wejść na konto.
                 Hasło zostaje takie, jakie było; możesz go używać dalej, kiedy zechcesz.
             </p>
             <p class="form-actions">

@@ -6,6 +6,13 @@ przyciski, nagłówki, puste stany, błędy, e-maile, powiadomienia.
 Jeśli piszesz cokolwiek, co przeczyta człowiek — piszesz według tego pliku.
 Słownik funkcji i lista słów zakazanych: `BRAND_EXTENDED.md`.
 
+> **Ten plik mówi, JAK napisać zdanie. Czym ten głos JEST i GDZIE mówi —
+> [`GLOS_MARKI.md`](GLOS_MARKI.md).** Tamten dokument rozstrzyga zasięg marki
+> (dwukolorowy zapis `kuKING` wszędzie poza pięcioma miejscami, hierarchia
+> tonu, kryterium „nie konkuruje z zadaniem" zamiast limitu na ekran) i zbiera
+> decyzje właściciela z 11 września 2026. Gdzie oba pliki mówią co innego:
+> brzmienie zdania rozstrzyga ten plik, zasięg marki — tamten.
+
 ---
 
 ## 1. Jeden akapit, który wystarczy zapamiętać
@@ -31,11 +38,13 @@ tłumaczący coś babci — do przepisania.
 > | zapis | gdzie | przykład |
 > |---|---|---|
 > | `KuKing.pl` | **tylko logotyp** — belka u góry, znak, materiały marki | — |
-> | `Kuking` | **tekst ciągły**, nagłówki, komunikaty | „Świeżo z Kuking" |
-> | `kuKING` | **o człowieku**, który tu gotuje | „Zostań kuKINGiem" |
+> | `kuKING` (dwukolorowo, komponentem `<x-kuking-word/>`) | **tekst ciągły, nagłówki, nawigacja, stopka i o człowieku** | „Świeżo z kuKING", „Zostań kuKINGiem" |
+> | `Kuking` | **tam, gdzie koloru nie ma** — `alt`, `title`, tytuł strony, temat listu, eksport — oraz w błędzie, moderacji i tekście prawnym | „Twój link do zalogowania w Kuking" |
 >
 > Wersalik w środku logotypu jest częścią znaku, a nie zasadą ortograficzną.
-> W zdaniu piszemy `Kuking` — `KuKing` w środku akapitu wygląda na literówkę.
+> Drugi wiersz tej tabeli to **zmiana z 11 września 2026** (decyzja właściciela
+> B2): wcześniej tekst ciągły pisał `Kuking`, a `kuKING` był zarezerwowany dla
+> człowieka. Uzasadnienie i pięć wyjątków: `GLOS_MARKI.md` §2.
 
 W słowie **Ku-KING** siedzi **KING**. To jest cała zabawa i trzeba ją rozegrać
 dokładnie w jeden sposób.
@@ -171,10 +180,13 @@ Pierwszą literę podnosi `\Illuminate\Support\Str::ucfirst()` (wielobajtowe),
 żeby wpisane małą literą „od mamy" wyglądało jak zdanie. Kropki na końcu nie
 dokładamy — przy wpisanej kropce wyszłyby dwie.
 
-### Dawkowanie: jeden żart na ekran
+### Dawkowanie: bez limitu na ekran, ale raz na akapit
 
-**Maksymalnie jedna gra słowem kuKING na ekran.** Dwa razy na jednej stronie
-zamieniają dowcip w nachalność.
+**Limitu „jedna gra słowem na ekran" już nie ma** (decyzja właściciela,
+11 września 2026 — `GLOS_MARKI.md` §2 i §4). Zapis dwukolorowy stoi wszędzie,
+także jako nazwa serwisu w tekście bieżącym. Została jedna reguła liczbowa:
+**w jednym akapicie, nagłówku albo punkcie listy nazwa pojawia się raz** —
+dwa dwukolorowe słowa w polu jednego spojrzenia migoczą.
 
 **kuKING nigdy nie pojawia się w:**
 
@@ -189,14 +201,18 @@ zamieniają dowcip w nachalność.
 
 Piszemy `kuKING` — małe „ku", wersaliki „KING". W kodzie:
 
-```html
-<span class="kuking-word" aria-label="kuking">ku<strong>KING</strong></span>
+```blade
+<x-kuking-word />             {{-- „kuKING" --}}
+<x-kuking-word forma="iem" /> {{-- „kuKINGiem" --}}
 ```
 
-Powód `aria-label`: część czytników ekranu literuje wersaliki wewnątrz wyrazu
-(„ku-ka-i-en-gie"), co dla osoby korzystającej z czytnika zamienia nazwę
-w bełkot. `aria-label` z zapisem małymi literami to naprawia.
-`[do potwierdzenia testem NVDA i VoiceOver]`
+Nie piszemy tego znacznikami z ręki. Powód, dla którego istnieje komponent:
+część czytników ekranu literuje wersaliki wewnątrz wyrazu („ku-ka-i-en-gie"),
+więc obok wersji wizualnej stoi zapis małymi literami czytany wyłącznie przez
+czytnik. **`aria-label` na `<span>` tego NIE robi** — specyfikacja „ARIA in
+HTML" zakazuje go na elementach o roli `generic`, więc czytniki ten atrybut
+ignorują. Wcześniejszy przykład w tym miejscu pokazywał właśnie taki
+`<span aria-label="kuking">` i był nieprawdziwy.
 
 W tekstach niesformatowanych (e-maile tekstowe, alt, tytuł strony) piszemy
 zwyczajnie: **Kuking**.
@@ -348,13 +364,13 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 |---|---|
 | hasło główne | Pokaż, co dziś ugotowałeś. |
 | hasło drugie | Gotujemy po swojemu. |
-| przycisk rejestracji | Zostań kuKINGiem — to darmowe |
+| przycisk rejestracji | Zostań kuKINGiem — bez opłat i bez reklam |
 | przycisk obok | Najpierw się rozejrzę |
 | nagłówek rejestracji | Zostań kuKINGiem |
 | pod nagłówkiem | Cztery pola i gotowe. Nie pytamy o numer telefonu ani o datę urodzenia. |
 | po rejestracji | Konto gotowe. Miło Cię widzieć. |
 | koniec onboardingu | Wszystko gotowe, {imię} |
-| pod tym | Możesz od razu pokazać, co dziś ugotowałeś — albo najpierw się rozejrzeć. Jedno i drugie jest w porządku. |
+| pod tym | Możesz od razu pokazać, co dziś ugotowałeś — albo najpierw się rozejrzeć. |
 | logowanie, podpowiedź | Możesz wpisać e-mail albo swoją nazwę — obojętnie które. |
 
 ### Publikacja
@@ -471,7 +487,7 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 
 - [ ] Da się to przeczytać na głos bez zażenowania?
 - [ ] Zero emoji, najwyżej jeden wykrzyknik?
-- [ ] Gra słowem kuKING występuje **co najwyżej raz** na tym ekranie?
+- [ ] Gra słowem kuKING występuje **najwyżej raz w tym akapicie** (na ekranie — bez limitu)?
 - [ ] Na pewno nie ma jej w błędzie, moderacji ani tekście prawnym?
 - [ ] Komunikat błędu mówi, **co zrobić**?
 - [ ] Nie ma słów z listy zakazanych (`BRAND_EXTENDED.md`)?
@@ -489,16 +505,17 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 
 ### Podjęte
 
-**Dawka: umiarkowana** (decyzja właściciela, 5 września 2026 — `../DECISIONS.md` D-009).
+**Dawka: bez limitu na ekran** (decyzja właściciela z 11 września 2026 zmienia
+D-009 w tej części; wcześniej obowiązywała „dawka umiarkowana" z 5 września).
 
-`kuKING` w 3-4 miejscach: rejestracja, tablica „kuKINGi na dziś", licznik
-społeczności, digest. Maksymalnie raz na ekran.
+`kuKING` stoi wszędzie, gdzie jest czytany jako nazwa — w tekście ciągłym też.
+Pełne uzasadnienie i granice: `GLOS_MARKI.md` §2 i §4.
 
 Odrzucone świadomie:
 
 | Odrzucone | Dlaczego |
 |---|---|
-| `kuKINGujesz` | nowy czasownik trzeba zrozumieć, a nasz odbiorca nie lubi zgadywać |
+| ~~`kuKINGujesz`~~ | **już nie obowiązuje** — 11 września 2026 właściciel dopuścił czasownik w haśle, nagłówku, digeście i zaproszeniu; dalej nie wolno go w nawigacji ani na jedynym przycisku akcji (`GLOS_MARKI.md` §1) |
 | `Mój kuKING` w nawigacji | nawigacja ma być przewidywalna, nie dowcipna |
 | forma żeńska | żadna nie brzmi po polsku dobrze |
 | dawka minimalna | „kuKINGi na dziś" to jedna z mocniejszych rzeczy w tym pomyśle, szkoda jej |
@@ -526,6 +543,7 @@ Rozstrzyga sprzeczność, która stała w produkcie: karta wpisu mówiła
 
 ## Referencje
 
+[`GLOS_MARKI.md`](GLOS_MARKI.md) (czym ten głos JEST i gdzie mówi) ·
 `BRAND_EXTENDED.md` (słownik i słowa zakazane) · `MASCOT_CONCEPT.md` (zakaz
 komplementowania koroną) · `../UX_50_PLUS.md` (wzorce błędów) ·
 `../product/SOUL.md` (mikro-copy pustych stanów) · `../research/AUDIENCE_50_PLUS.md`

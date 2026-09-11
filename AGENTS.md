@@ -544,9 +544,10 @@ do niepowiązanego PR-a.
   `/ustawienia`), z wyjątkiem `/home`, `/login`, `/register`.
 - Nazwy zdarzeń analitycznych: `snake_case` po angielsku.
 
-**Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md`.**
-To jest dokument wiążący, nie inspiracja — ma gotowe teksty do wklejenia
-dla większości ekranów.
+**Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md`
+i `docs/brand/GLOS_MARKI.md`.** Oba są wiążące, nie są inspiracją: pierwszy mówi,
+JAK napisać zdanie, i ma gotowe teksty do wklejenia; drugi mówi, czym ten głos
+JEST i gdzie marka mówi głośno, a gdzie milczy.
 
 W skrócie:
 
@@ -554,8 +555,17 @@ W skrócie:
 - nie mówimy „content”, „explore”, „engage”, „creator”, „tapnij”;
 - **`kuKING` to nazwa mieszkańca serwisu, nie komplement.** Wolno „Zostań
   kuKINGiem”, nie wolno „Jesteś prawdziwym kuKINGiem!” ani „Top kuKINGi tygodnia”;
-- gra słowem `kuKING` **maksymalnie raz na ekran** i **nigdy** w komunikacie
-  błędu, wiadomości moderacyjnej ani tekście prawnym;
+- **nazwę piszemy dwukolorowo, komponentem `<x-kuking-word/>`, wszędzie — także
+  jako nazwę serwisu w tekście bieżącym.** Limitu „raz na ekran” nie ma
+  (decyzja właściciela z 11 września 2026, odwraca tę część D-009 i D-015).
+  Obowiązuje kryterium: charakter marki wolno tam, gdzie **nie konkuruje
+  z zadaniem**, a w jednym akapicie, nagłówku albo punkcie listy nazwa
+  pojawia się raz;
+- **nigdy** w komunikacie błędu, wiadomości moderacyjnej, tekście prawnym,
+  na ekranie bezpieczeństwa, w liście technicznym, w powiadomieniu o cudzej
+  aktywności ani w polu formularza, który ktoś właśnie wypełnia;
+- **nigdy tam, gdzie koloru nie ma** — `alt`, `title`, `aria-label`, tytuł
+  strony, `meta`, temat listu, pliki eksportu. Tam piszemy zwyczajnie „Kuking”;
 - zero emoji w tekstach interfejsu, najwyżej jeden wykrzyknik na ekran;
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej

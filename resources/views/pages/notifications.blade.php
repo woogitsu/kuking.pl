@@ -173,7 +173,7 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
-                                Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
+                                Zacznij od zdjęcia tego, co dziś ugotowałeś.
                                 @break
                             @case(\App\Models\Notification::TYPE_REPORT_RECEIVED)
                                 {{-- POTWIERDZENIE PRZYJĘCIA ZGŁOSZENIA

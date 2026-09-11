@@ -13,7 +13,7 @@
     'tytul' => 'Przerwa techniczna',
     'naglowek' => 'Robimy przerwę techniczną',
     'akapity' => [
-        'Kuking jest teraz wyłączony na kilka minut, bo szykujemy coś, co ma działać lepiej. Wrócimy dziś — nic nie zostało zamknięte na stałe.',
+        'Kuking jest teraz wyłączony na kilka minut, bo szykujemy coś, co ma działać lepiej. Wrócimy dziś.',
         'Twoje wpisy, przepisy i zdjęcia czekają na miejscu. Zajrzyj tu za kwadrans.',
     ],
     'adresPowrotu' => '/',

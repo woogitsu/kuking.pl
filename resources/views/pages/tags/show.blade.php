@@ -31,7 +31,7 @@
 @endphp
 <x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)">
     <p class="meta mb-2">
-        <a href="{{ route('discover') }}">Świeżo z Kuking</a> ·
+        <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> ·
         <a href="{{ route('tags.index') }}">wszystkie tematy</a>
     </p>
 

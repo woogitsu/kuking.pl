@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Tests\TestCase;
 
 /**
@@ -24,8 +25,17 @@ use Tests\TestCase;
  *      (§2, „Dawkowanie"). To jest twardy zakaz, nie preferencja: człowiek
  *      z problemem albo z decyzją moderacyjną w ręku nie jest w nastroju
  *      na żart o nazwie serwisu.
- *   2. Gra słowem NAJWYŻEJ RAZ NA EKRAN (§2). Dwa razy na jednej stronie
- *      zamieniają dowcip w nachalność.
+ *   2. Nazwa NIE POWTARZA SIĘ W JEDNYM BLOKU TEKSTU (`GLOS_MARKI.md` §4).
+ *      Do 11 września 2026 stała tu reguła „najwyżej raz na ekran" i była
+ *      pilnowana testem. Właściciel ją odwrócił: dwukolorowy `kuKING` ma się
+ *      pojawiać wszędzie, także jako nazwa serwisu w tekście bieżącym. Sufitu
+ *      na ekran więc NIE MA — jest kryterium („nie konkuruje z zadaniem")
+ *      i jedna jego część, którą da się sprawdzić maszynowo: dwa razy
+ *      w JEDNYM akapicie, nagłówku albo punkcie listy. Tam dwukolorowy zapis
+ *      zaczyna migotać w polu jednego spojrzenia i to jest już koszt
+ *      czytania, nie charakter marki. Pomiar po wdrożeniu: najgęstsze ekrany
+ *      (`/` i `/o-kuking`) mają 6 wystąpień na stronę, z czego 2 w stopce,
+ *      i ANI JEDNEGO bloku z dwoma — czyli reguła opisuje stan, nie życzenie.
  *   3. ZERO EMOJI w tekstach interfejsu (§4). Emoji w nawigacji zniknęły już
  *      wcześniej (`components/ikona.blade.php`) — ta reguła pilnuje, żeby
  *      nie wróciły bocznymi drzwiami, na przykład w komunikacie flash.
@@ -35,15 +45,20 @@ use Tests\TestCase;
  *      przycisk" nie jest kwestią stylu, tylko WCAG 2.2 AA (1.4.1), do
  *      którego `AGENTS.md` §5 zobowiązuje się wprost — a w liście dochodzi
  *      klient pocztowy, który tło przycisku przemaluje po swojemu.
+ *   6. CZERWIEŃ, KTÓRĄ PISZEMY „KING", MA KONTRAST 4,5:1 na każdym tle,
+ *      na którym to słowo stoi, w obu motywach (WCAG 1.4.3). To jest tekst,
+ *      nie dekoracja: od chwili, w której nazwa weszła do tekstu bieżącego,
+ *      połowa wyrazu jest pisana kolorem i musi być czytelna.
+ *   7. NAZWA NIE TRAFIA TAM, GDZIE KOLORU NIE MA — `alt`, `title`,
+ *      `aria-label`, `<title>`, `meta`, temat listu, pliki eksportu.
+ *      Znacznik by tam przeszkadzał, a dwukolorowość i tak nie istnieje.
  *
  * CZEGO TEN PLIK ŚWIADOMIE NIE SPRAWDZA
- * Licznika społeczności w stopce („{n} kuKINGów", `App\Domain\Analytics\LiczbaKukingow`).
- * Stopka jest na KAŻDEJ stronie, więc gdyby liczyć ją jako „grę słowem na tym
- * ekranie", reguła „najwyżej raz" zabraniałaby licznika w ogóle — a §8 wymienia
- * go wprost jako jedno z trzech-czterech dozwolonych miejsc. Licznik jest
- * elementem obudowy strony, nie zdaniem komunikatu, i tak jest tu traktowany:
- * `bezStopki()` wycina go przed liczeniem. Gdyby właściciel zdecydował inaczej,
- * zmienia się `bezStopki()`, nie każdy widok z osobna.
+ * Liczby wystąpień nazwy na ekran. Sufit „najwyżej raz na ekran" był tu
+ * pilnowany do 11 września 2026 i został zdjęty razem z regułą, nie obok niej
+ * (patrz punkt 2 wyżej i `docs/brand/GLOS_MARKI.md` §4). Nie ma go w żadnej
+ * innej formie — także nie jako wyższy sufit, bo liczba nie była tym, co ta
+ * reguła chroniła.
  */
 class TekstyWedlugCopyStyleTest extends TestCase
 {
@@ -211,10 +226,35 @@ class TekstyWedlugCopyStyleTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // 2. Najwyżej jedna gra słowem na ekran
+    // 2. Nazwa nie powtarza się w JEDNYM bloku tekstu
     // ---------------------------------------------------------------
 
-    public function test_gra_slowem_wystepuje_najwyzej_raz_na_ekranie(): void
+    /**
+     * TEN TEST ZASTĄPIŁ `test_gra_slowem_wystepuje_najwyzej_raz_na_ekranie`.
+     *
+     * Tamten pilnował sufitu „najwyżej raz na ekran" z `AGENTS.md` §11
+     * i `COPY_STYLE.md` §2. Właściciel ten sufit zdjął (11 września 2026):
+     * dwukolorowy `kuKING` ma stać wszędzie, także jako nazwa serwisu
+     * w tekście bieżącym. Test nie został więc wyłączony ani podbity na
+     * wyższą liczbę — bo liczba nie była tym, co tamta reguła chroniła.
+     * Chroniła CZYTANIA, i dokładnie ta część zostaje tutaj:
+     *
+     *   dwa dwukolorowe słowa w JEDNYM akapicie, nagłówku albo punkcie listy
+     *   migoczą w polu jednego spojrzenia — a to jest koszt czytania,
+     *   nie charakter marki.
+     *
+     * Zmierzone po wdrożeniu B2 (stan z 11 września 2026): najgęstsze ekrany
+     * `/` i `/o-kuking` mają 6 wystąpień na stronę (2 z nich w stopce:
+     * hasło i licznik), `/odkryj` 4, `/pomoc` i `/tagi` po 3. W żadnym
+     * akapicie, nagłówku ani punkcie listy nie ma dwóch. Reguła opisuje więc
+     * stan faktyczny, a nie życzenie — i dlatego wolno jej pilnować testem.
+     *
+     * Liczymy bloki TEKSTU, nie cały dokument: `<p>`, `<li>`, `<h1>`–`<h3>`
+     * i `<blockquote>`. Zagnieżdżenia nie ma czego liczyć podwójnie, bo wzór
+     * jest niezachłanny i bierze najbliższy domykający znacznik tego samego
+     * rodzaju.
+     */
+    public function test_nazwa_nie_powtarza_sie_w_jednym_bloku_tekstu(): void
     {
         $ktos = $this->user('ktos');
         Post::factory()->create(['author_id' => $ktos->getKey(), 'body' => 'Rosol na niedziele']);
@@ -224,24 +264,108 @@ class TekstyWedlugCopyStyleTest extends TestCase
         $ekrany = [
             'strona powitalna' => fn () => $this->get('/'),
             'rejestracja' => fn () => $this->get(route('register')),
-            'Świeżo z Kuking' => fn () => $this->get(route('discover')),
+            'Świeżo z kuKING' => fn () => $this->get(route('discover')),
+            'pomoc' => fn () => $this->get(route('help')),
+            'tematy' => fn () => $this->get(route('tags.index')),
             'strona główna' => fn () => $this->actingAs($widz)->get(route('home')),
             'szukaj' => fn () => $this->actingAs($widz)->get(route('search')),
-            'o Kuking' => fn () => $this->get(route('about')),
+            'o kuKING' => fn () => $this->get(route('about')),
         ];
 
         foreach ($ekrany as $nazwa => $zadanie) {
-            $html = $this->bezStopki($zadanie()->assertOk()->getContent());
-            $ile = substr_count($html, 'class="kuking-word"');
+            $html = (string) $zadanie()->assertOk()->getContent();
 
-            $this->assertLessThanOrEqual(
-                1,
-                $ile,
-                "Ekran „{$nazwa}” używa gry słowem „kuKING” {$ile} razy. "
-                .'docs/brand/COPY_STYLE.md §2: najwyżej raz na ekran — „dwa razy na jednej '
-                .'stronie zamieniają dowcip w nachalność”.',
+            // KONTROLA POMIARU: ekran, na którym nazwy nie ma ani raz w samej
+            // TREŚCI, nie dowodzi niczego — a łatwo taki zrobić, psując
+            // selektor albo wypisując nazwę zwykłym tekstem.
+            //
+            // Liczymy BEZ STOPKI i to jest tu wszystko. Stopka ma nazwę na
+            // każdej stronie (hasło + licznik), więc kontrola licząca cały
+            // dokument nigdy nie spadnie do zera i przepuści ekran, z którego
+            // nazwa zniknęła co do jednego wystąpienia. Sprawdzone: przy
+            // liczeniu całego dokumentu ta kontrola przechodziła na stronie
+            // `/o-kuking` z wszystkimi czterema wystąpieniami zamienionymi
+            // z powrotem na napis „Kuking".
+            $this->assertGreaterThan(
+                0,
+                substr_count($this->bezStopki($html), 'class="kuking-word"'),
+                "Ekran „{$nazwa}” nie pokazuje nazwy ani razu poza stopką. Jeśli tak ma być, "
+                .'wyjmij go z listy w tym teście — inaczej pętla niżej sprawdza nic.',
             );
+
+            preg_match_all('~<(p|li|h1|h2|h3|blockquote)\b[^>]*>(.*?)</\1>~su', $html, $bloki, PREG_SET_ORDER);
+
+            foreach ($bloki as $blok) {
+                $ile = substr_count($blok[2], 'class="kuking-word"');
+
+                if ($ile < 2) {
+                    continue;
+                }
+
+                $tresc = trim((string) preg_replace('~\s+~', ' ', strip_tags($blok[2])));
+
+                $this->fail(
+                    "Ekran „{$nazwa}”: nazwa stoi {$ile} razy w jednym bloku <{$blok[1]}>:\n  "
+                    .mb_substr($tresc, 0, 160)."\n"
+                    .'docs/brand/GLOS_MARKI.md §4: w jednym akapicie, nagłówku albo punkcie '
+                    .'listy nazwa pojawia się raz. Sufitu NA EKRAN nie ma — rozdziel te dwa '
+                    .'wystąpienia na dwa zdania albo w drugim napisz „tu”, „u nas”, „serwis”.',
+                );
+            }
         }
+    }
+
+    // ---------------------------------------------------------------
+    // 2b. Napis przycisku na stronie powitalnej (decyzja właściciela, B1)
+    // ---------------------------------------------------------------
+
+    /**
+     * Napis brzmi „Zostań kuKINGiem — bez opłat i bez reklam" i jest JEDNYM
+     * elementem.
+     *
+     * Dwie rzeczy naraz, bo obie już raz się zepsuły:
+     *
+     *   1. BRZMIENIE. „to darmowe" brzmiało sprzedażowo, „za darmo, na
+     *      zawsze" obiecywałoby przyszłość bez gwarancji. Wybrane brzmienie
+     *      jest decyzją właściciela i ma pokrycie: „bez reklam" to
+     *      zobowiązanie, nie chwyt (`docs/brand/GLOS_MARKI.md` §6).
+     *   2. JEDEN ELEMENT (D-131, issue #353). `.btn` jest `inline-flex`, więc
+     *      każdy kawałek tekstu między elementami inline jest osobnym
+     *      elementem flex, a `overflow-wrap: anywhere` łamie każdy z nich
+     *      w ŚRODKU WYRAZU. Napis rozpadał się na pięć kawałków na telefonie.
+     *      Mechanizmu pilnuje `PrzyciskiNieRozbijajaNapisuTest` (liczy węzły
+     *      tekstowe w każdym `.btn`); tutaj sprawdzamy, że napis z tej
+     *      decyzji NADAL siedzi w `btn-napis`, bo to on jest najdłuższy
+     *      w serwisie i on pierwszy się rozsypie.
+     */
+    public function test_napis_przycisku_powitalnego_brzmi_jak_w_decyzji_i_jest_jednym_elementem(): void
+    {
+        $html = (string) $this->get('/')->assertOk()->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match(
+                '~<a class="btn btn-primary btn-duzy"[^>]*>\s*<span class="btn-napis">(.*?)</span>\s*</a>~su',
+                $html,
+                $trafienie,
+            ),
+            'Na stronie powitalnej nie ma przycisku podstawowego z napisem owiniętym '
+            .'w `<span class="btn-napis">`. Bez tego opakowania napis łamie się w środku '
+            .'wyrazu na telefonie — D-131.',
+        );
+
+        $napis = trim((string) preg_replace('~\s+~', ' ', strip_tags($trafienie[1])));
+
+        // Wersja dla czytnika ekranu stoi obok wizualnej, więc w samym
+        // tekście nazwa jest dwa razy pod rząd — to jest poprawne i celowe.
+        $this->assertSame('Zostań kuKINGiem kukingiem — bez opłat i bez reklam', $napis);
+
+        $this->assertStringContainsString(
+            '<span class="btn-napis">Zostań <span class="kuking-word">',
+            $html,
+            'Nazwa w napisie przycisku przestała być komponentem — dwukolorowy zapis '
+            .'zniknął, a razem z nim wersja dla czytnika ekranu.',
+        );
     }
 
     // ---------------------------------------------------------------
@@ -481,8 +605,316 @@ class TekstyWedlugCopyStyleTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // 7. Czerwień, którą piszemy „KING", jest czytelna
+    // ---------------------------------------------------------------
+
+    /**
+     * Tła, na których stoi dwukolorowa nazwa — wypisane WPROST, po roli.
+     *
+     * To nie jest lista wszystkich powierzchni w systemie, tylko tych, na
+     * których nazwa naprawdę leży dzisiaj: strona (`surface`), karta i stopka
+     * (`surface-raised`), ramka pomocnicza i pole (`surface-sunken`), ciepły
+     * pas na stronie powitalnej (`surface-brand-wash`) oraz podkład marki
+     * (`brand-tint`, np. bieżąca pozycja nawigacji). Dokładasz nazwę na nowe
+     * tło — dopisz je tutaj, a nie licz, że „pewnie wychodzi".
+     */
+    private const TLA_POD_NAZWA = [
+        '--color-surface',
+        '--color-surface-raised',
+        '--color-surface-sunken',
+        '--color-surface-brand-wash',
+        '--color-brand-tint',
+    ];
+
+    /**
+     * „KING" jest pisane kolorem marki, więc jest TEKSTEM, a nie dekoracją —
+     * i obowiązuje go WCAG 2.2 AA, kryterium 1.4.3: 4,5:1 wobec tła.
+     *
+     * DLACZEGO NA TOKENACH, A NIE W PRZEGLĄDARCE
+     * Tak samo jak `MinimalnyRozmiarTekstuTest` liczy rozmiary z arkusza:
+     * `scripts/dostepnosc.mjs` chodzi osobno i wolno, a ten test ma oblać
+     * w tej samej sekundzie, w której ktoś rozjaśni `--color-brand`
+     * „żeby było bardziej pomarańczowe".
+     *
+     * Zmierzone 11 września 2026 (motyw jasny → ciemny):
+     *   surface            5,31 → 7,80
+     *   surface-raised     5,72 → 6,92
+     *   surface-sunken     4,83 → 8,49
+     *   surface-brand-wash 4,83 → 7,03
+     *   brand-tint         4,64 → 6,55
+     * Najciaśniej jest w motywie JASNYM na `brand-tint` (4,64) — zapas do
+     * progu to 0,14. Rozjaśnienie `--color-brand` choćby o jeden krok
+     * zabiera ten zapas, i właśnie dlatego ten test istnieje.
+     *
+     * CZEGO TEN TEST NIE OBEJMUJE: tła W KOLORZE MARKI (przycisk
+     * podstawowy). Tam czerwień na czerwieni daje 1,00:1 i nie ma odcienia,
+     * który by to naprawił — dlatego „KING" bierze wtedy kolor otoczenia
+     * (`.btn .kuking-word strong` oraz `kuking-word--bez-koloru`), a nośnikiem
+     * zostają wersaliki. Osobna asercja niżej pilnuje, że ta reguła nie
+     * wyparuje przy sprzątaniu CSS-a.
+     */
+    public function test_czerwien_marki_ma_kontrast_na_kazdym_tle_w_obu_motywach(): void
+    {
+        $css = (string) preg_replace('#/\*.*?\*/#s', '', (string) file_get_contents(resource_path('css/tokens.css')));
+
+        $motywy = [
+            'jasny' => $this->blokTokenow($css, '@theme {'),
+            'ciemny' => $this->blokTokenow($css, ':root[data-theme="dark"],'),
+        ];
+
+        foreach ($motywy as $motyw => $blok) {
+            $czerwien = $this->token($blok, '--color-brand', $motyw);
+
+            foreach (self::TLA_POD_NAZWA as $tlo) {
+                $wartosc = $this->token($blok, $tlo, $motyw);
+                $kontrast = $this->kontrast($czerwien, $wartosc);
+
+                $this->assertGreaterThanOrEqual(
+                    4.5,
+                    $kontrast,
+                    sprintf(
+                        'Motyw %s: „KING" w kolorze %s na tle %s (%s) ma kontrast %.2f:1, '
+                        .'a WCAG 2.2 AA wymaga 4,5:1 dla tekstu. To jest połowa nazwy serwisu '
+                        .'pisana kolorem, nie ozdoba — przyciemnij --color-brand albo rozjaśnij tło, '
+                        .'nie obniżaj progu.',
+                        $motyw, $czerwien, $tlo, $wartosc, $kontrast,
+                    ),
+                );
+            }
+        }
+
+        // Tło W KOLORZE MARKI — jedyne, na którym czerwieni nie da się użyć.
+        $app = (string) file_get_contents(resource_path('css/app.css'));
+
+        $this->assertMatchesRegularExpression(
+            '~\.btn \.kuking-word strong,\s*\.kuking-word--bez-koloru strong \{\s*color: inherit;~',
+            $app,
+            'Zniknęła reguła, która na tle w kolorze marki zdejmuje z „KING" kolor marki. '
+            .'Bez niej przycisk podstawowy ma czerwień na czerwieni, czyli kontrast 1,00:1.',
+        );
+    }
+
+    /**
+     * KONTROLA POMIARU dla testu wyżej — w obie strony.
+     *
+     * Licznik kontrastu można zepsuć tak, że nadal zwraca liczby: pomylona
+     * kolejność kanałów, brak korekty gamma, dzielenie odwrotne. Każda z tych
+     * pomyłek daje wynik „jakiś", a test wyżej robi się wtedy zielony
+     * niezależnie od palety. Dlatego liczymy tu trzy pary o znanym wyniku.
+     */
+    public function test_licznik_kontrastu_daje_znane_wyniki(): void
+    {
+        $this->assertSame(21.0, round($this->kontrast('#000000', '#FFFFFF'), 2), 'Czerń na bieli to 21:1.');
+        $this->assertSame(1.0, round($this->kontrast('#B3401F', '#B3401F'), 2), 'Kolor sam na sobie to 1:1.');
+        $this->assertSame(
+            round($this->kontrast('#FFFFFF', '#B3401F'), 4),
+            round($this->kontrast('#B3401F', '#FFFFFF'), 4),
+            'Kontrast jest symetryczny — kolejność argumentów nie ma prawa go zmieniać.',
+        );
+
+        // Para, która MA oblewać: jasna czerwień motywu ciemnego wstawiona
+        // na jasne tło. Gdyby próg dało się przejść czymkolwiek, ten
+        // assert by o tym powiedział.
+        $this->assertLessThan(4.5, $this->kontrast('#F2986A', '#FAF6F0'));
+    }
+
+    /**
+     * Wyjście awaryjne z §2 punkt 5 DZIAŁA — bo inaczej byłoby udawaniem.
+     *
+     * `<x-kuking-word bez-koloru />` zdejmuje kolor, a NIE treść: zapis
+     * z wersalikami i wersja dla czytnika ekranu zostają identyczne.
+     * Bez tego testu parametr byłby obietnicą w komentarzu: literówka
+     * w nazwie propa nie wywołuje w Blade żadnego błędu, tylko po cichu
+     * nic nie robi.
+     */
+    public function test_komponent_nazwy_umie_zdjac_kolor_na_tle_marki(): void
+    {
+        $zwykly = (string) Blade::render('<x-kuking-word forma="iem" />');
+        $bezKoloru = (string) Blade::render('<x-kuking-word forma="iem" bez-koloru />');
+
+        $this->assertStringContainsString('class="kuking-word"', $zwykly);
+        $this->assertStringNotContainsString('bez-koloru', $zwykly);
+
+        $this->assertStringContainsString('class="kuking-word kuking-word--bez-koloru"', $bezKoloru);
+
+        foreach (['zwykły' => $zwykly, 'bez koloru' => $bezKoloru] as $wariant => $html) {
+            $this->assertStringContainsString('ku<strong>KING</strong>iem', $html, "Wariant {$wariant} zgubił zapis.");
+            $this->assertStringContainsString('<span class="visually-hidden">kukingiem</span>', $html, "Wariant {$wariant} zgubił wersję dla czytnika ekranu.");
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 8. Nazwa nie trafia tam, gdzie koloru nie ma
+    // ---------------------------------------------------------------
+
+    /**
+     * `alt`, `title`, `aria-label`, `<title>`, `meta`, temat listu, pliki
+     * eksportu — tam kolor nie istnieje, a znacznik by przeszkadzał.
+     *
+     * Dwie różne usterki naraz, obie ciche:
+     *
+     *   1. KOMPONENT W ATRYBUCIE. `<x-kuking-word/>` wewnątrz `title=""`
+     *      albo `alt=""` wypisze tam surowy HTML — czytnik ekranu przeczyta
+     *      znaczniki, a podpowiedź przeglądarki pokaże je dosłownie.
+     *   2. LITERAŁ `kuKING` W MIEJSCU BEZ FORMATOWANIA. W temacie listu,
+     *      w `<title>` i w paczce eksportu wersaliki w środku wyrazu nie
+     *      niosą już żadnej gry — niosą wrażenie literówki. Tam piszemy
+     *      „Kuking" (`COPY_STYLE.md` §2, koniec sekcji).
+     */
+    public function test_nazwa_nie_wchodzi_tam_gdzie_koloru_nie_ma(): void
+    {
+        $winowajcy = [];
+
+        // 1. Komponent albo klasa w atrybucie tekstowym.
+        $atrybuty = 'alt|title|aria-label|aria-description|placeholder|content|description';
+
+        foreach ($this->plikiBlade(resource_path('views')) as $plik) {
+            $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
+
+            foreach (explode("\n", $tresc) as $numer => $linia) {
+                if (preg_match('~(?:'.$atrybuty.')\s*=\s*"[^"]*(?:x-kuking-word|kuking-word)~i', $linia) === 1) {
+                    $winowajcy[] = $this->skrot($plik).':'.($numer + 1).' → komponent w atrybucie';
+                }
+            }
+        }
+
+        // 2. Literał z wersalikami w miejscach bez formatowania: <title>,
+        //    paczka eksportu, szablony listów.
+        $bezFormatowania = array_merge(
+            $this->plikiBlade(resource_path('views/exports')),
+            $this->plikiBlade(resource_path('views/mail')),
+        );
+
+        foreach ($bezFormatowania as $plik) {
+            $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
+
+            foreach (explode("\n", $tresc) as $numer => $linia) {
+                foreach (self::ZAPISY_GRY_SLOWEM as $zapis) {
+                    if (str_contains($linia, $zapis)) {
+                        $winowajcy[] = $this->skrot($plik).':'.($numer + 1).' → '.$zapis;
+                    }
+                }
+            }
+        }
+
+        foreach ($this->plikiBlade(resource_path('views')) as $plik) {
+            $tresc = $this->bezKomentarzyBlade((string) file_get_contents($plik));
+
+            foreach (explode("\n", $tresc) as $numer => $linia) {
+                if (preg_match('~<title[^>]*>[^<]*kuKING~', $linia) === 1) {
+                    $winowajcy[] = $this->skrot($plik).':'.($numer + 1).' → tytuł strony';
+                }
+            }
+        }
+
+        // 3. Tematy listów i ich nadawcy — składane w PHP poza `app/`,
+        //    które sprawdza już inny test w tym pliku.
+        foreach (['config/mail.php', 'config/kuking.php'] as $plik) {
+            $this->assertStringNotContainsString(
+                'kuKING',
+                (string) file_get_contents(base_path($plik)),
+                $plik.' zawiera zapis „kuKING". Temat i nadawca listu to czysty tekst — '
+                .'kolor tam nie istnieje, a wersaliki w środku wyrazu czytają się jak literówka.',
+            );
+        }
+
+        $this->assertSame(
+            [],
+            $winowajcy,
+            "Nazwa „kuKING” trafiła tam, gdzie koloru nie ma:\n".implode("\n", $winowajcy)."\n"
+            .'docs/brand/GLOS_MARKI.md §3: w `alt`, `title`, `aria-label`, tytule strony, '
+            .'temacie listu i plikach eksportu piszemy zwyczajnie „Kuking".',
+        );
+    }
+
+    /**
+     * KONTROLA POMIARU dla testu wyżej: wzór na atrybut ma łapać to, co ma
+     * łapać, i przepuszczać poprawne użycie w treści.
+     */
+    public function test_wzor_na_atrybut_lapie_to_co_ma_lapac(): void
+    {
+        $atrybuty = 'alt|title|aria-label|aria-description|placeholder|content|description';
+        $lapie = fn (string $linia): bool => preg_match(
+            '~(?:'.$atrybuty.')\s*=\s*"[^"]*(?:x-kuking-word|kuking-word)~i',
+            $linia,
+        ) === 1;
+
+        $this->assertTrue($lapie('<x-layout title="O <x-kuking-word />">'));
+        $this->assertTrue($lapie('<img alt="Logo <span class=\'kuking-word\'>" src="x">'));
+        $this->assertTrue($lapie('<x-empty-state title="<x-kuking-word /> dopiero się zaczyna">'));
+
+        // Poprawne: komponent w TREŚCI, a w atrybucie zwykły „Kuking".
+        $this->assertFalse($lapie('<h1>O <x-kuking-word /></h1>'));
+        $this->assertFalse($lapie('<x-layout title="O Kuking" description="Czym jest Kuking.">'));
+        $this->assertFalse($lapie('<p>Świeżo z <x-kuking-word /></p>'));
+    }
+
+    // ---------------------------------------------------------------
     // Narzędzia
     // ---------------------------------------------------------------
+
+    /**
+     * Ciało bloku tokenów — od podanego otwarcia do pierwszej klamry
+     * stojącej na początku linii.
+     *
+     * Deklaracje w tych blokach są wcięte, a klamra zamykająca nie jest, więc
+     * to wystarcza i nie wymaga liczenia zagnieżdżeń. Komentarze muszą być
+     * wycięte PRZED wywołaniem — w tym arkuszu jest ich więcej niż kodu
+     * i niektóre zawierają klamry.
+     */
+    private function blokTokenow(string $css, string $otwarcie): string
+    {
+        $start = strpos($css, $otwarcie);
+
+        $this->assertNotFalse(
+            $start,
+            "Nie znalazłem w tokens.css bloku otwieranego przez „{$otwarcie}”. ".
+            'Jeśli arkusz przebudowano, popraw kotwicę w tym teście — nie usuwaj go, '.
+            'bo wtedy kontrast czerwieni przestaje być pilnowany.',
+        );
+
+        $start += strlen($otwarcie);
+        $koniec = strpos($css, "\n}", $start);
+
+        return $koniec === false ? substr($css, $start) : substr($css, $start, $koniec - $start);
+    }
+
+    /** Wartość jednego tokenu koloru z ciała bloku, w zapisie `#RRGGBB`. */
+    private function token(string $blok, string $nazwa, string $motyw): string
+    {
+        $this->assertSame(
+            1,
+            preg_match('/'.preg_quote($nazwa, '/').':\s*(#[0-9A-Fa-f]{6})\s*;/', $blok, $trafienie),
+            "W motywie {$motyw} nie znalazłem tokenu {$nazwa} w zapisie #RRGGBB.",
+        );
+
+        return strtoupper($trafienie[1]);
+    }
+
+    /** Kontrast dwóch kolorów według WCAG 2.x (relative luminance). */
+    private function kontrast(string $a, string $b): float
+    {
+        $jasnosc = static function (string $hex): float {
+            $kanaly = array_map(
+                static function (string $kanal): float {
+                    $wartosc = hexdec($kanal) / 255;
+
+                    return $wartosc <= 0.03928
+                        ? $wartosc / 12.92
+                        : ((($wartosc + 0.055) / 1.055) ** 2.4);
+                },
+                str_split(ltrim($hex, '#'), 2),
+            );
+
+            return 0.2126 * $kanaly[0] + 0.7152 * $kanaly[1] + 0.0722 * $kanaly[2];
+        };
+
+        $pierwszy = $jasnosc($a);
+        $drugi = $jasnosc($b);
+
+        return ($pierwszy > $drugi ? $pierwszy + 0.05 : $drugi + 0.05)
+            / ($pierwszy > $drugi ? $drugi + 0.05 : $pierwszy + 0.05);
+    }
 
     /**
      * Stopka jest obudową strony, nie jej treścią — patrz komentarz klasy.
