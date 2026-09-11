@@ -24,7 +24,7 @@
 
     <x-error-summary />
 
-    <form class="card mb-6" method="POST" action="{{ route('admin.tag-promotions.store') }}">
+    <form class="panel-formularza mb-6" method="POST" action="{{ route('admin.tag-promotions.store') }}">
         @csrf
 
         <x-field
@@ -49,7 +49,9 @@
     @else
         <ol class="stack lista-naga">
             @foreach($promowane as $tag)
-                <li class="card">
+                {{-- `sekcja-strony`, nie `panel-formularza`, mimo pola w środku: notatka
+                     jest nieobowiązkowa, a wypełnienia wymaga formularz wyżej. --}}
+                <li class="sekcja-strony">
                     <div class="flex items-center justify-between gap-3">
                         <strong>{{ $tag->name }}</strong>
                         <a href="{{ route('tags.show', $tag) }}">Zobacz stronę tagu</a>

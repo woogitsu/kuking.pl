@@ -73,7 +73,7 @@
         tutaj. Bez tego jedna kolejka zapycha drugą, a zgłoszenie treści
         wpadałoby tam, gdzie nie ma decyzji, od której można się odwołać.
     --}}
-    <div class="card mb-5">
+    <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o czyjś wpis, przepis albo komentarz?</h2>
         <p>
             To jest inna droga i prowadzi do innej kolejki. Pod każdą treścią jest
@@ -90,7 +90,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('kontakt.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('kontakt.store') }}">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (D-027). Zwykłe ukryte pole,
@@ -143,7 +143,7 @@
         </div>
     </form>
 
-    <div class="card mt-5">
+    <div class="ramka-pomocnicza mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <p>
             Wiadomość zapisuje się w Kuking od razu — nawet gdyby akurat nie działała

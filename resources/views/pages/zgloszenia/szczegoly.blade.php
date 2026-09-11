@@ -20,7 +20,7 @@
 <x-layout title="Twoje zgłoszenie" :noindex="true">
     <h1>Twoje zgłoszenie</h1>
 
-    <article class="card">
+    <article class="sekcja-strony">
         <h2 class="mt-0 text-title-sm">Treść zgłoszenia</h2>
         <p class="meta">
             Numer sprawy {{ $zgloszenie->numer_sprawy }} ·
@@ -36,7 +36,8 @@
     </article>
 
     @if(! $zgloszenie->jestRozstrzygniete())
-        <article class="card mt-5">
+        {{-- `ramka-pomocnicza`: ten blok nie niesie decyzji, tylko mówi, co dalej. --}}
+        <article class="ramka-pomocnicza mt-5">
             <h2 class="mt-0 text-title-sm">Na czym stoi sprawa</h2>
             <p><strong>Sprawdzamy.</strong> Zgłoszenie trafiło do kolejki i przeczyta je człowiek.</p>
             <p>
@@ -45,7 +46,7 @@
             </p>
         </article>
     @else
-        <article class="card mt-5">
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Nasza decyzja</h2>
 
             @if($decyzja !== null)
@@ -74,7 +75,7 @@
             które idą listem przy zgłoszeniu prawnym, żeby obie drogi pouczały
             tak samo, a nie podobnie.
         --}}
-        <article class="card mt-5">
+        <article class="ramka-pomocnicza mt-5">
             <h2 class="mt-0 text-title-sm">{{ \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::NAGLOWEK_POUCZENIA }}</h2>
             @foreach(\App\Domain\Moderation\OdpowiedzDlaZglaszajacego::pouczenie($zgloszenie) as $zdanie)
                 <p>{{ $zdanie }}</p>

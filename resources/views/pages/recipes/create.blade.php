@@ -82,7 +82,7 @@
         {{-- ---------------------------------------------------------------
              1. O przepisie
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section panel-formularza">
             <h2 class="form-section-title">1. O przepisie</h2>
 
             <x-field name="title" label="Nazwa przepisu" required
@@ -159,7 +159,7 @@
         {{-- ---------------------------------------------------------------
              2. Skąd ten przepis — to jest serce Kuking, nie metadana
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section panel-formularza">
             <h2 class="form-section-title">2. Skąd ten przepis</h2>
             {{-- ZDANIE MÓWI, CO TU WPISAĆ, A NIE JAK CZĘSTO TO KTOŚ CZYTA.
                  Stało tu „To najczęściej czytana część przepisu" — twierdzenie
@@ -226,7 +226,7 @@
         {{-- ---------------------------------------------------------------
              3. Składniki
         ---------------------------------------------------------------- --}}
-        <section class="form-section card">
+        <section class="form-section panel-formularza">
             <h2 class="form-section-title">3. Składniki</h2>
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
@@ -306,7 +306,7 @@
         {{-- ---------------------------------------------------------------
              4. Przygotowanie
         ---------------------------------------------------------------- --}}
-        <section class="form-section card" id="f-steps">
+        <section class="form-section panel-formularza" id="f-steps">
             <h2 class="form-section-title">4. Przygotowanie</h2>
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.

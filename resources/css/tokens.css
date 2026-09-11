@@ -321,6 +321,121 @@
 }
 
 /* =============================================================================
+   2.1 WARSTWY POWIERZCHNI — sześć ról, nie jeden biały prostokąt
+   -----------------------------------------------------------------------------
+   Do 11 września 2026 klasa `.card` niosła 126 różnych ról naraz. Ta sama
+   powierzchnia — podniesione tło, obwódka, promień, cień — była jednocześnie
+   kartą wpisu, sekcją strony, blokiem prawej szyny, panelem formularza,
+   ramką z wyjaśnieniem i kaflem, w który się klika.
+
+   Skutek dawał się zobaczyć na ekranie „Napisz do nas": karta z wyjaśnieniem,
+   formularz i karta „Co się stanie dalej" miały ten sam kolor, ten sam cień
+   i ten sam promień, choć tylko jedna z tych trzech rzeczy wymagała od
+   człowieka czegokolwiek. Gdy wszystko na ekranie ma tę samą rangę, nic jej
+   nie ma — a najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa
+   tekst, bo skanowanie wzrokiem przestaje być skrótem.
+
+   ILE OSI DZIELI KTÓRĄ PARĘ — POLICZONE, NIE OBIECANE
+   Nie jest prawdą, że każda para warstw rozchodzi się na dwóch osiach naraz,
+   i nie ma być. Pełna macierz różnic stoi w `docs/design/ROLE_KART.md`; tu
+   trzy rzeczy, które z niej wynikają:
+
+   1. Warstwy 1, 3 i 4 mają IDENTYCZNY kolor i różni je wyłącznie cień.
+      To jest świadome i wcześniej rozstrzygnięte przy szynie: karta unosi się,
+      bo jest treścią, po którą ktoś przyszedł, a szyna i sekcja stoją płasko.
+      Warstwy 3 i 4 są wręcz identyczne — nazwy są różne, bo różne są role.
+   2. Największą odległość mają te warstwy, które NAPRAWDĘ stają obok siebie
+      na jednym ekranie: panel formularza i ramka pomocnicza rozchodzą się na
+      wszystkich pięciu osiach. To jest ta różnica, dla której cała ta zmiana
+      powstała.
+   3. Żadna z tych różnic NIE NIESIE INFORMACJI potrzebnej do obsługi ekranu.
+      Co jest formularzem, mówi nagłówek i etykieta pola; warstwa tylko
+      podkreśla. Dlatego zakaz „kolor jedynym nośnikiem informacji" jest tu
+      spełniony niezależnie od tego, ile osi dzieli daną parę.
+
+   Hierarchia musi działać także w motywie ciemnym, gdzie cienie są prawie
+   niewidoczne — tam różnicę między warstwą 1 a 3 widać przez samą jasność
+   powierzchni (`surface-raised` #2A241E na `surface` #1E1A16), a między
+   warstwą 5 a resztą przez wgłębienie (#14110E).
+
+   DLACZEGO TA REGUŁA MA DWA SELEKTORY, A NIE SAMO `:root`
+   Zmienna z `var()` jest podstawiana na elemencie, NA KTÓRYM STOI
+   DEKLARACJA — potomkowie dziedziczą już gotową wartość. Gdyby te tokeny
+   stały wyłącznie na `:root`, `--warstwa-tresc-tlo` zostałoby policzone
+   z jasnej palety i ciemny pas na stronie powitalnej (`.blok-ciemny`,
+   który przestawia paletę na własnym kontenerze, a nie na <html>) dostałby
+   w środku białe karty. Ta lista selektorów musi więc być TAKA SAMA jak przy
+   palecie ciemnej wyżej, i stać PO niej.
+   ========================================================================== */
+:root,
+.blok-ciemny {
+  /* --- 1. KARTA TREŚCI — wpis, przepis, wykonanie, komentarz ---
+     Jedyna warstwa, która unosi się nad stroną. To jest rzecz, po którą ktoś
+     tu przyszedł. Klasa: `.card`. */
+  --warstwa-tresc-tlo: var(--color-surface-raised);
+  --warstwa-tresc-obwodka: var(--color-border);
+  --warstwa-tresc-promien: var(--radius-xl);
+  --warstwa-tresc-cien: var(--shadow-card);
+  --warstwa-tresc-wciecie: var(--spacing-5);
+
+  /* --- 2. PANEL FORMULARZA — jedyna rzecz na ekranie do wypełnienia ---
+     Unosi się jak karta treści i dodatkowo ma MOCNĄ obwódkę — tę samą, którą
+     mają pola formularza, więc panel i jego wnętrze mówią jednym językiem.
+     Na ekranie formularza to jest cel wizyty, a wszystko wokół schodzi do
+     warstwy 5. Klasa: `.panel-formularza`. */
+  --warstwa-panel-tlo: var(--color-surface-raised);
+  --warstwa-panel-obwodka: var(--color-border-strong);
+  --warstwa-panel-promien: var(--radius-xl);
+  --warstwa-panel-cien: var(--shadow-card);
+  --warstwa-panel-wciecie: var(--spacing-6);
+
+  /* --- 3. SEKCJA STRONY — blok landingu, tablica dnia, ekran potwierdzenia ---
+     Ma własne tło i obwódkę, żeby było widać, gdzie się zaczyna i kończy, ale
+     nie unosi się: sekcja jest RAMĄ dla treści, nie treścią. Klasa:
+     `.sekcja-strony`. */
+  --warstwa-sekcja-tlo: var(--color-surface-raised);
+  --warstwa-sekcja-obwodka: var(--color-border);
+  --warstwa-sekcja-promien: var(--radius-xl);
+  --warstwa-sekcja-cien: none;
+  --warstwa-sekcja-wciecie: var(--spacing-5);
+
+  /* --- 4. BLOK PRAWEJ SZYNY ---
+     Rozstrzygnięte wcześniej i NIE do cofnięcia: promień TEN SAM co karta
+     wpisu (dwa różne promienie w jednym rzędzie czyta się jako
+     niedokończone), cień zdjęty, bo szyna nie powtarza kolumny głównej.
+     Tokeny nazywają ten stan, zamiast zostawiać go w jednej regule
+     `.szyna-blok` w app.css. */
+  --warstwa-szyna-tlo: var(--color-surface-raised);
+  --warstwa-szyna-obwodka: var(--color-border);
+  --warstwa-szyna-promien: var(--radius-xl);
+  --warstwa-szyna-cien: none;
+  --warstwa-szyna-wciecie: var(--spacing-5);
+
+  /* --- 5. RAMKA POMOCNICZA — wyjaśnienie, ostrzeżenie, „co dalej" ---
+     WGŁĘBIONA, nie podniesiona, i bez cienia. Odwraca kierunek względem
+     warstw 1–3: to jest tekst obok głównej rzeczy, a nie główna rzecz.
+     Mniejszy promień niż karta jest tu bezpieczny, bo ramka pomocnicza nigdy
+     nie stoi w jednym RZĘDZIE z kartą ani z szyną — stoi nad nią albo pod nią.
+     Klasa: `.ramka-pomocnicza`. */
+  --warstwa-pomocnicza-tlo: var(--color-surface-sunken);
+  --warstwa-pomocnicza-obwodka: var(--color-border);
+  --warstwa-pomocnicza-promien: var(--radius-lg);
+  --warstwa-pomocnicza-cien: none;
+  --warstwa-pomocnicza-wciecie: var(--spacing-5);
+
+  /* --- 6. KAFEL AKCJI — cała powierzchnia jest odnośnikiem ---
+     Wygląda jak karta treści, ale ma mocną obwódkę, bo to jest KONTROLKA:
+     obwódka kontrolki musi mieć 3:1 względem tła (WCAG 1.4.11), a
+     `--color-border` jest linią dekoracyjną i tego progu nie ma.
+     Klasa: `.kafel-akcji`. */
+  --warstwa-kafel-tlo: var(--color-surface-raised);
+  --warstwa-kafel-obwodka: var(--color-border-strong);
+  --warstwa-kafel-promien: var(--radius-xl);
+  --warstwa-kafel-cien: var(--shadow-card);
+  --warstwa-kafel-wciecie: var(--spacing-5);
+}
+
+/* =============================================================================
    3. WARSTWA BASE — reset typografii, skala tekstu użytkownika, focus, redukcja ruchu
    ========================================================================== */
 @layer base {
@@ -577,9 +692,36 @@
      „Ugotowałem", „Zapisz w zeszycie", akcje pod wpisem — czyli praktycznie
      wszystkich, po których ktoś chodzi klawiaturą. */
   .card .btn:focus-visible,
-  .post-card .btn:focus-visible {
+  .post-card .btn:focus-visible,
+  .panel-formularza .btn:focus-visible,
+  .sekcja-strony .btn:focus-visible,
+  .kafel-akcji .btn:focus-visible {
     box-shadow:
       0 0 0 2px var(--color-surface-raised),
+      0 0 0 5px var(--color-focus);
+  }
+
+  /* POLE FORMULARZA W RAMCE POMOCNICZEJ ODWRACA SIĘ.
+
+     `.field-input` ma tło `--color-surface-sunken` — dokładnie to samo, które
+     ma ramka pomocnicza. Pole w takiej ramce zniknęłoby więc jako powierzchnia
+     i zostałaby po nim sama obwódka. Dotyczy to realnego miejsca: kodu
+     zapasowego w `<details>` na ekranie drugiego kroku logowania.
+
+     Wgłębienie w ramce daje więc tło PODNIESIONE — kierunek ten sam
+     („pole jest inne niż to, na czym leży"), tylko odwrócony. Obwódka pola
+     na tym tle: 4.16:1 (próg 3:1), tekst: 15.30:1. */
+  .ramka-pomocnicza .field-input {
+    background-color: var(--color-surface-raised);
+  }
+
+  /* Ramka pomocnicza jest WGŁĘBIONA, więc jej halo jest trzecim kolorem —
+     ani tłem strony, ani tłem karty. Gdyby brała halo karty, przycisk
+     „Napisz do nas" w bloku wyjaśnienia dostałby wokół siebie białą obwódkę
+     na beżowym tle. Kontrast pierścienia na tym tle: 4.57:1 (próg 3:1). */
+  .ramka-pomocnicza .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-surface-sunken),
       0 0 0 5px var(--color-focus);
   }
 
@@ -767,13 +909,79 @@
     border-color: var(--color-danger);
   }
 
-  /* --- Karta --- */
+  /* --- Warstwy powierzchni: sześć klas, sześć ról (sekcja 2.1) -----------
+
+     Każda z nich bierze WSZYSTKO z tokenów `--warstwa-*`. Reguła projektu
+     brzmi „wszystko przez `var(--…)`" i tu ma konkretny powód: gdyby te
+     wartości stały w klasach, tryb ciemny i ciemny pas na stronie powitalnej
+     musiałyby mieć własne nadpisania każdej z sześciu klas.
+
+     Czego tu NIE MA i nie ma być: klasy pomocniczej „bez cienia" albo „tło
+     wgłębione". Rola jest nazwana w jednym miejscu — w nazwie klasy — więc
+     następna osoba wie, CZYM ta powierzchnia jest, a nie tylko jak wygląda. */
+
+  /* 1. Karta treści: wpis, przepis, wykonanie, komentarz.
+     `--radius-xl` zamiast dawnego `--radius-lg`: karta wpisu i blok szyny
+     miały je od dawna jako nadpisania, a plain `.card` obok nich 16px.
+     Trzy różne promienie w jednej kolumnie czytały się jako niedokończone. */
   .card {
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-card);
-    padding: var(--spacing-5);
+    background-color: var(--warstwa-tresc-tlo);
+    border: 1px solid var(--warstwa-tresc-obwodka);
+    border-radius: var(--warstwa-tresc-promien);
+    box-shadow: var(--warstwa-tresc-cien);
+    padding: var(--warstwa-tresc-wciecie);
+  }
+
+  /* 2. Panel formularza: jedyna rzecz na ekranie, którą trzeba wypełnić. */
+  .panel-formularza {
+    background-color: var(--warstwa-panel-tlo);
+    border: 1px solid var(--warstwa-panel-obwodka);
+    border-radius: var(--warstwa-panel-promien);
+    box-shadow: var(--warstwa-panel-cien);
+    padding: var(--warstwa-panel-wciecie);
+  }
+
+  /* 3. Sekcja strony: blok landingu, tablica dnia, ekran potwierdzenia. */
+  .sekcja-strony {
+    background-color: var(--warstwa-sekcja-tlo);
+    border: 1px solid var(--warstwa-sekcja-obwodka);
+    border-radius: var(--warstwa-sekcja-promien);
+    box-shadow: var(--warstwa-sekcja-cien);
+    padding: var(--warstwa-sekcja-wciecie);
+  }
+
+  /* 5. Ramka pomocnicza: wyjaśnienie, ostrzeżenie, „co się stanie dalej".
+     Warstwa 4 (blok szyny) mieszka w `app.css` razem z resztą szyny. */
+  .ramka-pomocnicza {
+    background-color: var(--warstwa-pomocnicza-tlo);
+    border: 1px solid var(--warstwa-pomocnicza-obwodka);
+    border-radius: var(--warstwa-pomocnicza-promien);
+    box-shadow: var(--warstwa-pomocnicza-cien);
+    padding: var(--warstwa-pomocnicza-wciecie);
+  }
+
+  /* 6. Kafel akcji: cała powierzchnia jest odnośnikiem.
+     `display: block` i zdjęte podkreślenie stoją TUTAJ, a nie w widoku jako
+     `block no-underline text-inherit`: kafel bez nich nie jest kaflem, więc
+     nie ma powodu, żeby trzy klasy pomocnicze jechały z nim przez wszystkie
+     widoki i żeby dało się jedną z nich zapomnieć. */
+  .kafel-akcji {
+    display: block;
+    background-color: var(--warstwa-kafel-tlo);
+    border: 1px solid var(--warstwa-kafel-obwodka);
+    border-radius: var(--warstwa-kafel-promien);
+    box-shadow: var(--warstwa-kafel-cien);
+    padding: var(--warstwa-kafel-wciecie);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Hover NIE jest tu jedynym sygnałem, że to odnośnik — jest nim mocna
+     obwódka i tytuł w środku. To jest dodatek dla myszy, zgodny z regułą
+     „żadna ważna funkcja nie wymaga hovera". */
+  .kafel-akcji:hover {
+    background-color: var(--color-surface-sunken);
+    box-shadow: var(--shadow-card-hover);
   }
 
   /* --- Pusty stan (system projektowy v3.1) ---------------------------

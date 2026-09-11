@@ -31,7 +31,7 @@
         <a class="btn btn-secondary" href="{{ route('home') }}">Na razie tylko pooglądam</a>
     </div>
 
-    <section class="card mt-8">
+    <section class="ramka-pomocnicza mt-8">
         <h2>Trzy rzeczy, które warto wiedzieć</h2>
         <ul class="pl-6">
             <li><strong>Tekst da się powiększyć.</strong> W <a href="{{ route('settings.accessibility') }}">Ustawieniach</a> możesz ustawić większy tekst — na stałe, na każdym urządzeniu.</li>

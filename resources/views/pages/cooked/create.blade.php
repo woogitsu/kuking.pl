@@ -7,7 +7,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR

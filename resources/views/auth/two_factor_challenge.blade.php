@@ -25,7 +25,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('login.two_factor.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('login.two_factor.store') }}">
         @csrf
 
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required
@@ -36,7 +36,10 @@
         </div>
     </form>
 
-    <details class="card mt-5">
+    {{-- Inna droga obok głównego formularza — ramka, choć w środku też jest
+         formularz. Gdyby i ona miała mocną obwódkę, kod z aplikacji i kod
+         zapasowy wyglądałyby na równorzędne. --}}
+    <details class="ramka-pomocnicza mt-5">
         <summary class="btn btn-secondary inline-flex">Nie mam dostępu do telefonu</summary>
         <div class="mt-4">
             <p>

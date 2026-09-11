@@ -20,7 +20,7 @@
         $podpisy = (array) config('kuking.text.scale_labels');
     @endphp
 
-    <form class="card" method="POST" action="{{ route('settings.accessibility') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('settings.accessibility') }}">
         @csrf @method('PUT')
 
         <fieldset class="border-0 p-0">
@@ -71,7 +71,7 @@
         się na Twoim koncie, tak samo jak rozmiar tekstu.
     </p>
 
-    <form class="card" method="POST" action="{{ route('theme.update') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('theme.update') }}">
         @csrf
         <fieldset class="border-0 p-0">
             <legend class="font-bold mb-3">Wygląd</legend>
@@ -93,7 +93,7 @@
         </div>
     </form>
 
-    <section class="card mt-8">
+    <section class="ramka-pomocnicza mt-8">
         <h2>Można jeszcze więcej</h2>
         <p class="mb-0">
             Jeśli to wciąż za mało, powiększ całą stronę w przeglądarce:

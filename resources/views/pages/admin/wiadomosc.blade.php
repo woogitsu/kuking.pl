@@ -42,7 +42,7 @@
         <p class="whitespace-pre-line mt-0 mb-0">{{ $wiadomosc->message }}</p>
     </article>
 
-    <div class="card mt-5">
+    <div class="sekcja-strony mt-5">
         <h2 class="mt-0">Skąd to przyszło</h2>
         <ul>
             <li>
@@ -82,7 +82,22 @@
          ODPOWIEDŹ DO CZŁOWIEKA (D-058)
         ═══════════════════════════════════════════════════════════════════
     --}}
-    <section class="card mt-5">
+    {{-- WARSTWA ZALEŻY OD TEGO, CZY JEST TU CO WYPEŁNIĆ.
+
+         `panel-formularza` ma mocną obwódkę — tę samą, którą mają pola — więc
+         obiecuje, że w środku coś się wpisuje. Gdy osoba nie zostawiła adresu,
+         w tym bloku nie ma ani jednego pola, tylko zdanie „Nie ma jak
+         odpisać". Obwódka obiecywałaby wtedy formularz, którego nie ma —
+         czyli to samo, przed czym broni zakaz martwego przycisku (D-053),
+         tylko w warstwie powierzchni. W tym wariancie blok jest sekcją.
+
+         Gdy adres jest, blok zostaje panelem mimo historii wysłanych
+         odpowiedzi w środku: po to się na ten ekran wchodzi (D-058). --}}
+    <section @class([
+        'mt-5',
+        'panel-formularza' => (bool) $wiadomosc->adresDoOdpowiedzi(),
+        'sekcja-strony' => ! $wiadomosc->adresDoOdpowiedzi(),
+    ])>
         <h2 class="mt-0">Odpowiedz tej osobie</h2>
 
         @if($wiadomosc->odpowiedzi->isNotEmpty())
@@ -195,7 +210,7 @@
         @endif
     </section>
 
-    <form class="card mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
+    <form class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
         @csrf
 
         <fieldset class="border-0 p-0">

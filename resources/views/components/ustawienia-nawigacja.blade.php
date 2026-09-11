@@ -66,7 +66,10 @@
     ];
 @endphp
 
-<nav class="card ustawienia-nawigacja" aria-label="Wszystkie ustawienia">
+{{-- Sekcja strony, nie karta: to nawigacja, nie treść. Warstwa 3 ma te same
+     wartości co warstwa 4 (blok szyny), więc spis wygląda dokładnie tak jak
+     dotąd — bez cienia, który konkurowałby z kolumną główną. --}}
+<nav class="sekcja-strony ustawienia-nawigacja" aria-label="Wszystkie ustawienia">
     <h2 class="ustawienia-nawigacja-tytul">Wszystkie ustawienia</h2>
 
     <ul class="ustawienia-nawigacja-lista">

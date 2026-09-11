@@ -21,7 +21,7 @@
         już w nim wpisany i potwierdzony, więc zostanie imię, nazwa użytkownika i hasło.
     </p>
 
-    <form class="card" method="POST" action="{{ route('zaproszenie.przyjmij') }}">
+    <form class="sekcja-strony" method="POST" action="{{ route('zaproszenie.przyjmij') }}">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
 

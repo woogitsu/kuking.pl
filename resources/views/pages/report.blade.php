@@ -7,7 +7,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
+    <form class="panel-formularza" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
         @csrf
 
         <fieldset class="border-0 p-0">

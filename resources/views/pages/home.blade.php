@@ -26,7 +26,7 @@
         odnośnik do strony dodawania — działa też z klawiatury i na czytniku
         ekranu.
     --}}
-    <a class="card composer" href="{{ route('posts.create') }}">
+    <a class="kafel-akcji composer" href="{{ route('posts.create') }}">
         <x-avatar :user="auth()->user()" :size="48" />
         <span class="composer-copy">
             <span class="composer-title">Dodaj zdjęcie tego, co ugotowałeś</span>

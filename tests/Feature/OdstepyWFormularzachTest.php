@@ -117,7 +117,12 @@ class OdstepyWFormularzachTest extends TestCase
         // Pole jest pierwszym dzieckiem formularza-karty: po `<form ...>`
         // (i po ukrytym `_token`, który nie ma pudełka) idzie `div.field`.
         $this->assertMatchesRegularExpression(
-            '/<form[^>]*class="[^"]*\bcard\b[^"]*"[^>]*>\s*(<input[^>]*type="hidden"[^>]*>\s*)*<div class="field/',
+            // `panel-formularza`, nie `card`: formularz komentarza jest od
+            // rozdzielenia ról powierzchni panelem formularza, a nie kartą
+            // treści (`docs/design/ROLE_KART.md`). Wzorzec pilnuje dalej tego
+            // samego — że pole jest PIERWSZYM dzieckiem powierzchni formularza,
+            // bo inaczej `.field:first-child` do niego nie trafia.
+            '/<form[^>]*class="[^"]*\bpanel-formularza\b[^"]*"[^>]*>\s*(<input[^>]*type="hidden"[^>]*>\s*)*<div class="field/',
             $formularz,
             'Pole komentarza nie jest pierwszym elementem z pudełkiem w karcie formularza, '.
             'więc `.field:first-child` do niego nie trafia i odstęp nad etykietą wraca.',
@@ -185,7 +190,13 @@ class OdstepyWFormularzachTest extends TestCase
     /** Wycina sam formularz dopisywania komentarza z całej strony wpisu. */
     private function formularzKomentarza(string $html): string
     {
-        $start = mb_strpos($html, '<form class="card" method="POST"');
+        // `panel-formularza` od rozdzielenia ról powierzchni: formularz
+        // komentarza jest jedyną rzeczą w wątku, która czegoś wymaga
+        // (`docs/design/ROLE_KART.md`). Zapasowe szukanie po `name="body"`
+        // niżej zostaje — ono ratowało ten test przy zmianie kolejności
+        // atrybutów i uratowałoby też przy tej zmianie, ale wtedy test
+        // pilnowałby czegoś innego, niż mówi jego pierwsza linijka.
+        $start = mb_strpos($html, '<form class="panel-formularza" method="POST"');
 
         if ($start === false) {
             // Formularz mógł dostać inną kolejność atrybutów — szukamy po

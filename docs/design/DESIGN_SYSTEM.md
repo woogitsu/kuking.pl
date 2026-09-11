@@ -237,6 +237,47 @@ W dark mode cienie są niemal niewidoczne na ciemnym tle — separacja kart odby
 --shadow-card-dark: 0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.35);
 ```
 
+### 3.5 Warstwy powierzchni — sześć ról, nie jeden biały prostokąt
+
+Do 11 września 2026 klasa `.card` niosła **126 różnych ról naraz**: była
+jednocześnie kartą wpisu, sekcją strony, blokiem prawej szyny, panelem
+formularza, ramką z wyjaśnieniem i kaflem, w który się klika. Skutek dawał się
+zobaczyć na `/napisz-do-nas`: wyjaśnienie, formularz i „Co się stanie dalej"
+miały ten sam kolor, cień i promień, choć tylko jedna z tych trzech rzeczy
+czegokolwiek wymagała.
+
+| # | Rola | Klasa | Tło | Obwódka | Promień | Cień |
+|---|---|---|---|---|---|---|
+| 1 | Karta treści | `.card` | podniesione | cienka | `--radius-xl` | tak |
+| 2 | Panel formularza | `.panel-formularza` | podniesione | **mocna** | `--radius-xl` | tak |
+| 3 | Sekcja strony | `.sekcja-strony` | podniesione | cienka | `--radius-xl` | **nie** |
+| 4 | Blok prawej szyny | `.card .szyna-blok` | podniesione | cienka | `--radius-xl` | **nie** |
+| 5 | Ramka pomocnicza | `.ramka-pomocnicza` | **wgłębione** | cienka | `--radius-lg` | **nie** |
+| 6 | Kafel akcji | `.kafel-akcji` | podniesione | **mocna** | `--radius-xl` | tak |
+
+Wartości stoją w tokenach `--warstwa-*` (`resources/css/tokens.css`, sekcja 2.1),
+nie w klasach — inaczej tryb ciemny i `.blok-ciemny` wymagałyby sześciu
+osobnych nadpisań każdej klasy.
+
+**Warstwy 3 i 4 są celowo identyczne wizualnie**, a warstwy 1, 3 i 4 różni
+wyłącznie cień — to jest wcześniejsze rozstrzygnięcie o szynie, nie
+przeoczenie. Największą odległość mają te warstwy, które naprawdę stają obok
+siebie na jednym ekranie: panel formularza i ramka pomocnicza rozchodzą się na
+wszystkich pięciu osiach. Pełna macierz różnic: [`ROLE_KART.md`](ROLE_KART.md).
+
+Żadna z tych różnic nie niesie informacji potrzebnej do obsługi ekranu — co
+jest formularzem, mówi nagłówek i etykieta pola — więc §8 punkt 9 („kolor nigdy
+jedynym nośnikiem informacji") jest spełniony niezależnie od tego, ile osi
+dzieli daną parę. W motywie ciemnym, gdzie cienie są prawie niewidoczne,
+różnicę niesie jasność powierzchni.
+
+Warstwa 1 zmieniła promień z `--radius-lg` na `--radius-xl`: karta wpisu i blok
+szyny miały go od dawna jako nadpisania, a zwykła `.card` obok nich 16 px —
+trzy różne promienie w jednej kolumnie czytały się jako niedokończone.
+
+Pełny inwentarz (co dostało którą warstwę i dlaczego) oraz pomiar „przed i po":
+[`ROLE_KART.md`](ROLE_KART.md). Miarę hierarchii liczy `scripts/warstwy-pomiar.mjs`.
+
 ### 3.4 Focus ring
 
 - Widoczny **zawsze** przy nawigacji klawiaturą (`:focus-visible`, nigdy `:focus` gołe — nie chcemy pierścienia przy kliknięciu myszą, ale MUSI się pojawić przy Tab).

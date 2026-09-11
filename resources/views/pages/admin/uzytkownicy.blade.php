@@ -131,7 +131,7 @@
     </p>
 
     @if($uzytkownicy->total() === 0)
-        <p class="card">
+        <p class="sekcja-strony">
             @if($filtry['szukaj'] !== '')
                 Nie znaleźliśmy konta pasującego do „{{ $filtry['szukaj'] }}”. Spróbuj krótszego fragmentu
                 nazwy albo adresu.

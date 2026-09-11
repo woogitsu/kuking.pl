@@ -3,7 +3,7 @@
 
     <x-error-summary />
 
-    <section class="card">
+    <section class="panel-formularza">
         <h2 class="mt-0">Zmień hasło</h2>
         <p>
             Zmień hasło, jeśli podejrzewasz, że ktoś inny je zna — na przykład je zgadł
@@ -34,7 +34,7 @@
         </form>
     </section>
 
-    <section class="card mt-8">
+    <section class="panel-formularza mt-8">
         <h2 class="mt-0">Wyloguj mnie z innych urządzeń</h2>
         <p>
             Użyj tego, jeśli konto zostało zalogowane na cudzym telefonie albo komputerze —
@@ -101,7 +101,7 @@
         miejsce, o które pyta kontroler i rząd przycisków na logowaniu.
     --}}
     @if(\App\Support\Facebook::dziala())
-        <section class="card mt-8">
+        <section class="ramka-pomocnicza mt-8">
             <h2 class="mt-0">Wejście kontem Facebooka</h2>
 
             {{--

@@ -4,7 +4,10 @@
         Wszystko, co tu masz, należy do Ciebie. W każdej chwili możesz to pobrać na swój komputer.
     </p>
 
-    <section class="card">
+    {{-- Sekcja strony, nie panel formularza: nie ma tu nic do wypełnienia,
+         a mocna obwódka zrównałaby pobieranie danych ze „Strefą zagrożenia"
+         niżej — akcja destrukcyjna ma zostać odsunięta (AGENTS.md §5). --}}
+    <section class="sekcja-strony">
         <h2 class="mt-0">Pobierz swoje dane</h2>
         <p>
             Przygotujemy paczkę ze wszystkimi Twoimi wpisami, przepisami, zdjęciami i komentarzami.
@@ -84,7 +87,7 @@
             zaznaczony. Każde z tych zdań musi być prawdziwe w kodzie —
             pilnuje tego `UsuwanieKontaZakresTest`.
         --}}
-        <div class="card mt-4">
+        <div class="ramka-pomocnicza mt-4">
             <h3 class="mt-0">Co zniknie, a co zostanie</h3>
 
             <p><strong>Znikną na stałe — zawsze:</strong></p>

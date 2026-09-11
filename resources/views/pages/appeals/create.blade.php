@@ -13,7 +13,7 @@
 
     <x-error-summary />
 
-    <article class="card">
+    <article class="sekcja-strony">
         <h2 class="mt-0 text-title-sm">Czego dotyczy sprawa</h2>
         <p class="meta">
             {{ $decyzja->label() }} ·
@@ -30,7 +30,7 @@
         {{-- Sprawa już u nas leży albo jest zamknięta. Człowiek ma zobaczyć,
              co napisał i co z tego wyszło — nie pusty formularz, który przy
              wysłaniu powie „już się odwoływałeś". --}}
-        <article class="card mt-5">
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Twoje odwołanie</h2>
             <p class="meta">Złożone {{ \App\Support\Czas::data($odwolanie->created_at, 'j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
             <p class="whitespace-pre-line">{{ $odwolanie->body }}</p>
@@ -50,7 +50,7 @@
             @endif
         </article>
     @elseif(! $decyzja->isAppealable())
-        <article class="card mt-5">
+        <article class="ramka-pomocnicza mt-5">
             <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest sześć miesięcy od decyzji.
@@ -62,7 +62,7 @@
             </p>
         </article>
     @else
-        <form class="card mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
+        <form class="panel-formularza mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
             @csrf
 
             <h2 class="mt-0 text-title-sm">Napisz, dlaczego to pomyłka</h2>

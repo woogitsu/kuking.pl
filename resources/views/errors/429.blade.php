@@ -66,7 +66,7 @@
             klikanie „odśwież” niczego nie przyspieszy.
         </p>
 
-        <form class="card" method="POST" action="{{ $formularz->akcja }}"
+        <form class="panel-formularza" method="POST" action="{{ $formularz->akcja }}"
               @if($formularz->maPliki()) enctype="multipart/form-data" @endif>
             {{-- Ochrona CSRF zostaje w mocy — ponowne wysłanie idzie normalną
                  drogą, przez ValidateCsrfToken, i normalnie przez limiter. --}}

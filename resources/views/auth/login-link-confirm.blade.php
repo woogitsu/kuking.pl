@@ -25,7 +25,9 @@
         ({{ $adresSkrot }}). Hasła nie trzeba wpisywać.
     </p>
 
-    <form class="card" method="POST" action="{{ route('login.link.store') }}">
+    {{-- Ekran potwierdzenia, nie panel formularza: nie ma tu czego wypełniać,
+         jest jeden przycisk zużywający token. --}}
+    <form class="sekcja-strony" method="POST" action="{{ route('login.link.store') }}">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
 

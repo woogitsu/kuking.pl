@@ -14,7 +14,7 @@
 <x-layout title="Wiadomość wysłana" :noindex="true">
     <h1>Mamy Twoją wiadomość</h1>
 
-    <div class="card">
+    <div class="sekcja-strony">
         <p class="mt-0">
             Zapisała się w Kuking — nie zginie, nawet gdyby akurat nie działała poczta.
         </p>

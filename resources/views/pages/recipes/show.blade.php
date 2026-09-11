@@ -336,7 +336,12 @@
             ekranie przepisu to zła ilość mąki.
         --}}
         <div class="przepis-siatka">
-            <section class="card">
+            {{-- Składniki i Przygotowanie to `sekcja-strony`, nie `card`: na tym
+                 ekranie przepis JEST stroną, a te dwa bloki są jego częściami,
+                 nie osobnymi kartami w strumieniu. Cień zostaje panelowi wyżej,
+                 bo tam stoi „Ugotowałem", i kartom cudzych wykonań i komentarzy
+                 niżej. --}}
+            <section class="sekcja-strony">
                 <h2>Składniki</h2>
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
@@ -392,7 +397,7 @@
                 @endif
             </section>
 
-            <section class="card">
+            <section class="sekcja-strony">
                 <h2>Przygotowanie</h2>
                 @if($recipe->steps->isEmpty())
                     <p class="meta">Autor jeszcze nie opisał przygotowania.</p>

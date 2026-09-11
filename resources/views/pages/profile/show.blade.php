@@ -46,7 +46,9 @@
             :stats="$stats" />
     </x-slot:rail>
 
-    <header class="card mb-6">
+    {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
+         wpisów, przepisów i wykonań, i to one mają się unosić. --}}
+    <header class="sekcja-strony mb-6">
         {{--
             UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem
             razem, LICZNIKI POD OPISEM — nie osobnym pełnoszerokim wierszem

@@ -7,11 +7,11 @@
     </p>
 
     @if(session('status'))
-        <p class="card mb-5" role="status">{{ session('status') }}</p>
+        <p class="ramka-pomocnicza mb-5" role="status">{{ session('status') }}</p>
     @endif
 
     @if($wlaczone)
-        <section class="card">
+        <section class="sekcja-strony">
             <h2 class="mt-0">Włączona</h2>
             <p>Przy logowaniu, oprócz hasła, poprosimy Cię o kod z aplikacji uwierzytelniającej.</p>
 
@@ -62,7 +62,7 @@
             </details>
         </section>
     @else
-        <section class="card">
+        <section class="sekcja-strony">
             <h2 class="mt-0">Wyłączona</h2>
             <p>Włączenie zajmuje mniej niż dwie minuty i wymaga aplikacji uwierzytelniającej w telefonie
                 (na przykład Google Authenticator, Aegis albo 1Password).</p>

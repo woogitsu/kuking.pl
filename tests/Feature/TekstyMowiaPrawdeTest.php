@@ -685,7 +685,9 @@ class TekstyMowiaPrawdeTest extends TestCase
         $karta = $this->elementZLinkiem(
             $this->actingAs($this->user('basia'))->get(route('add'))->assertOk()->getContent(),
             route('posts.create'),
-            'a[contains(@class, "card")]',
+            // Kafle na `/dodaj` noszą `kafel-akcji` od rozdzielenia ról
+            // powierzchni (`docs/design/ROLE_KART.md`).
+            'a[contains(@class, "kafel-akcji")]',
         );
 
         $this->assertStringContainsString(

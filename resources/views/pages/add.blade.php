@@ -59,7 +59,7 @@
     @endif
 
     <div class="stack">
-        <a class="card block no-underline text-inherit" href="{{ route('posts.create') }}">
+        <a class="kafel-akcji" href="{{ route('posts.create') }}">
             <h2 class="mt-0">Zdjęcie i kilka słów</h2>
             {{-- BEZ „Zajmuje niecałą minutę": obietnica z miarą, której nie
                  mierzymy. Zdanie przed nią i tak mówi to samo lepiej — wymienia
@@ -68,7 +68,7 @@
             <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe.</p>
         </a>
 
-        <a class="card block no-underline text-inherit" href="{{ route('recipes.create') }}">
+        <a class="kafel-akcji" href="{{ route('recipes.create') }}">
             <h2 class="mt-0">Cały przepis</h2>
             <p class="mb-0">Składniki i przygotowanie, żeby ktoś inny mógł to u siebie zrobić. Możesz zapisać szkic i wrócić później.</p>
         </a>

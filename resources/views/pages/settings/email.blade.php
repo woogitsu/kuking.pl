@@ -26,7 +26,7 @@
 
     <x-error-summary />
 
-    <section class="card">
+    <section class="sekcja-strony">
         <h2 class="mt-0">Twój adres</h2>
 
         {{-- Adres w całości i dużym drukiem. Człowiek ma tu zobaczyć własną
@@ -64,7 +64,7 @@
     </section>
 
     @if($oczekujaca)
-        <section class="card mt-8">
+        <section class="ramka-pomocnicza mt-8">
             <h2 class="mt-0">Zmiana adresu czeka na potwierdzenie</h2>
 
             <p>
@@ -96,7 +96,7 @@
         </section>
     @endif
 
-    <section class="card mt-8">
+    <section class="panel-formularza mt-8">
         <h2 class="mt-0">Zmień adres e-mail</h2>
 
         @if($pocztaDziala)

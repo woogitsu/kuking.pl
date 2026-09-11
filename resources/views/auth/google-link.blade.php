@@ -14,7 +14,7 @@
 
         GET niczego nie zmienia. Powiązanie powstaje dopiero po POST poniżej.
     --}}
-    <div class="card">
+    <div class="sekcja-strony">
         <p>
             Na adres <strong>{{ $email }}</strong> jest już konto w Kuking:
             <strong>{{ $displayName ?? 'to konto' }}</strong>.

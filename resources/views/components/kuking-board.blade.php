@@ -43,7 +43,7 @@
 
 @php $pusta = $people->isEmpty() && $posts->isEmpty(); @endphp
 
-<section class="card kuking-board mb-6" aria-labelledby="kuking-na-dzis">
+<section class="sekcja-strony kuking-board mb-6" aria-labelledby="kuking-na-dzis">
     <h2 class="mt-0" id="kuking-na-dzis">
         @if($graSlowem)
             <x-kuking-word forma="i" /> na dziś

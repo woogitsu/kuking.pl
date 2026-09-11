@@ -17,7 +17,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('google.finish.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('google.finish.store') }}">
         @csrf
 
         <x-field name="display_name" label="Jak mamy Cię nazywać?" required

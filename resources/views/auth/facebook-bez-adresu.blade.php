@@ -24,7 +24,7 @@
         i droga dalej (D-053: nigdzie martwego przycisku, ale też nigdzie
         pętli).
     --}}
-    <div class="card">
+    <div class="sekcja-strony">
         <p>
             Żeby założyć konto w Kuking, potrzebujemy Twojego adresu e-mail — to na niego
             wysyłamy wiadomość, gdy ktoś ugotuje Twój przepis, i tylko nim odzyskasz konto,
