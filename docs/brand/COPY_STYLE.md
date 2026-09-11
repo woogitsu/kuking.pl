@@ -144,6 +144,33 @@ listą czterech wyjątków. Wyjątkiem jest **fraza**, nie słowo — hasło gł
 („co dziś ugotowałeś") i nazwa przycisku („Ugotowałem") przechodzą, ale nowe
 zdanie z formą rodzajową oblewa, choćby użyło tego samego czasownika.
 
+### Nie doklejaj przyimka do cudzych słów (11 września 2026)
+
+> **Nigdy nie doklejaj przyimka ani słowa niosącego przypadek do tekstu
+> wpisanego przez człowieka ani do nazwy konta.** Polskiej odmiany nie da się
+> policzyć z dowolnego ciągu znaków, a każda próba kończy się zdaniem, które
+> wygląda na zepsute oprogramowanie.
+
+Właściciel zapytał: „czemu źródło przepisu ma «po» przed źródłem?". Widok
+doklejał „Po" przed wolny tekst z pola, więc wpisane „Nasze smaki" dawało
+**„Po Nasze smaki."**, a wpisane „po mamie" — **„Po po mamie."**. Podpis nad
+tytułem miał ten sam błąd dwa razy: „przepis **Nasze smaki**, spisany przez
+**Krzysztof**".
+
+Poprawka ma dwie części i obie są obowiązkowe przy każdym następnym takim polu:
+
+1. **Pytaj o frazę, która stoi samodzielnie** — „Od kogo albo skąd masz ten
+   przepis" zamiast „Po kim ten przepis". Odpowiedź czyta się wtedy i sama
+   („Od mamy."), i po innym słowie („przepis od mamy").
+2. **Pokazuj wartość dosłownie.** Znaczenie niesie nagłówek sekcji albo
+   etykieta z dwukropkiem („Skąd: Nasze smaki") — dwukropek zdejmuje wymaganie
+   przypadku. Nazwa konta stoi w mianowniku, w osobnym członie po „·", nigdy
+   po „przez".
+
+Pierwszą literę podnosi `\Illuminate\Support\Str::ucfirst()` (wielobajtowe),
+żeby wpisane małą literą „od mamy" wyglądało jak zdanie. Kropki na końcu nie
+dokładamy — przy wpisanej kropce wyszłyby dwie.
+
 ### Dawkowanie: jeden żart na ekran
 
 **Maksymalnie jedna gra słowem kuKING na ekran.** Dwa razy na jednej stronie
@@ -351,9 +378,10 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 | zachęta do zapisu szkicu (formularz na jednej stronie) | Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz. |
 | to samo w kreatorze, gdzie szkic zapisuje się sam | Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie: szkic zapisuje się sam po każdym kroku i po chwili przerwy w pisaniu, a przycisk „Zapisz szkic" robi to od razu. |
 | sekcja pochodzenia | Skąd ten przepis |
-| pod nagłówkiem sekcji | Tu napiszesz, po kim jest ten przepis i skąd go znasz. |
-| pole „po kim" | Po kim ten przepis |
-| podpowiedź | po mamie, Halinie |
+| pod nagłówkiem sekcji | Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże. |
+| pole „skąd" | Od kogo albo skąd masz ten przepis |
+| podpowiedź | od mamy · z gazety · z bloga Nasze smaki |
+| pomoc pod polem | Napisz to tak, żeby dało się przeczytać samo: „od mamy", „z gazety", „od sąsiadki Haliny". Pokażemy to przy przepisie dokładnie tak, jak wpiszesz. |
 | pole historii | Historia tego przepisu |
 | podpowiedź | Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis. |
 | skan kartki | Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie. |

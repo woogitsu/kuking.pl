@@ -268,7 +268,7 @@ class DodawaniePrzepisuSzescKontrolekTest extends TestCase
             'difficulty' => 'easy',
             'visibility' => 'public',
             'source_type' => 'family',
-            'source_person' => 'po babci Zofii',
+            'source_person' => 'od babci Zofii',
             'source_note' => 'Gotowała go w każdą niedzielę.',
             'source_url' => 'https://example.com/rosol',
             'family_since_year' => 1974,

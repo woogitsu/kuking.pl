@@ -205,7 +205,7 @@
                  Stało tu „To najczęściej czytana część przepisu" — twierdzenie
                  o zachowaniu czytelników, którego nikt nigdy nie zmierzył. --}}
             <p class="meta mb-4">
-                Tu napiszesz, po kim jest ten przepis i skąd go znasz.
+                Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże.
             </p>
 
             <fieldset class="border-0 p-0">
@@ -222,9 +222,16 @@
                 @error('source_type')<span class="field-error">{{ $message }}</span>@enderror
             </fieldset>
 
-            <x-field name="source_person" label="Po kim ten przepis" :value="$isEdit ? $recipe->source_person : null"
-                     placeholder="po mamie, Halinie"
-                     help="Zostanie podpisany nad tytułem: „przepis Haliny, spisany przez Ciebie”." />
+            {{-- PYTAMY O FRAZĘ, KTÓRA STOI SAMODZIELNIE.
+                 Do 11 września 2026 pole nazywało się „Po kim ten przepis"
+                 i podpowiadało „po mamie, Halinie", a widok doklejał przed
+                 odpowiedź własne „Po" — z „Nasze smaki" robiło się „Po Nasze
+                 smaki.", a z „po mamie" „Po po mamie.". Odpowiedź na TO pytanie
+                 czyta się i sama („Od mamy."), i po słowie „przepis"
+                 („przepis od mamy"), więc nie trzeba jej odmieniać. --}}
+            <x-field name="source_person" label="Od kogo albo skąd masz ten przepis" :value="$isEdit ? $recipe->source_person : null"
+                     placeholder="od mamy · z gazety · z bloga Nasze smaki"
+                     help="Napisz to tak, żeby dało się przeczytać samo: „od mamy”, „z gazety”, „od sąsiadki Haliny”. Pokażemy to przy przepisie dokładnie tak, jak wpiszesz." />
 
             {{-- POMOC JEST PRAWDZIWA PRZY KAŻDEJ Z TRZECH WIDOCZNOŚCI.
                  Stało tu „To zostaje w rodzinie." — nieprawda przy przepisie

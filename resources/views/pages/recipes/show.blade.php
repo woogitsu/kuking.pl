@@ -303,7 +303,21 @@
                 <section class="recipe-story">
                     <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
                     @if($recipe->source_person)
-                        <p><strong>Po {{ $recipe->source_person }}.</strong></p>
+                        {{-- WARTOŚĆ IDZIE DOSŁOWNIE, BEZ DOKLEJONEGO PRZYIMKA.
+                             Stało tu „Po {{ … }}." — przyimek wklejony na
+                             sztywno przed wolny tekst, więc „Nasze smaki"
+                             dawało „Po Nasze smaki.", a wpisane „po mamie"
+                             dawało „Po po mamie.". Nagłówek „Skąd ten przepis"
+                             wyżej niesie to znaczenie sam, a odmiany dowolnego
+                             ciągu znaków nie da się policzyć (patrz komentarz
+                             nad `Recipe::attributionLine()`).
+
+                             `Str::ucfirst()` jest wielobajtowe, więc wpisane
+                             małą literą „od mamy" wygląda jak zdanie także
+                             wtedy, gdy zaczyna się od „ó", „ż" albo „ś".
+                             Kropki nie dokładamy: przy wpisanej kropce
+                             wyszłyby dwie. --}}
+                        <p><strong>{{ \Illuminate\Support\Str::ucfirst($recipe->source_person) }}</strong></p>
                     @endif
                     @if($recipe->source_note)
                         <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>

@@ -147,9 +147,14 @@ class RecipeTest extends TestCase
     public function test_przepis_rodzinny_podpisuje_oryginalnego_autora(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
-        $recipe = Recipe::factory()->family('babci Zofii')->create(['author_id' => $basia->getKey()]);
+        $recipe = Recipe::factory()->family('od babci Zofii')->create(['author_id' => $basia->getKey()]);
 
-        $this->assertStringContainsString('babci Zofii', $recipe->attributionLine());
-        $this->assertStringContainsString('spisany przez', $recipe->attributionLine());
+        // Obie informacje zostają: skąd przepis i kto go tu zapisał. Zmieniła
+        // się konstrukcja — dawne „spisany przez Basia" odmieniało nazwę konta
+        // i przy „Żaneta" dawało zdanie niegramatyczne. Pełny dowód regresyjny
+        // dla wrogich wartości stoi w `ZrodloPrzepisuBezPrzyimkaTest`.
+        $this->assertStringContainsString('od babci Zofii', $recipe->attributionLine());
+        $this->assertStringContainsString('Basia', $recipe->attributionLine());
+        $this->assertStringNotContainsString('spisany przez', $recipe->attributionLine());
     }
 }
