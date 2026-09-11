@@ -128,6 +128,30 @@ class PasswordResetController extends Controller
                 // bez wyjątku.
                 $user->invalidateSessions();
 
+                // KLIKNIĘCIE W TEN LINK POTWIERDZA ADRES (issue #317).
+                //
+                // Kliknięcie jest dowodem dostępu do skrzynki — dokładnie
+                // tym samym, który `User::assignEmail()` przyjmuje jako
+                // podstawę do postawienia znacznika przy rejestracji
+                // z zaproszenia (D-085) i przy zmianie adresu (D-048).
+                // Trzymanie tu `NULL` po takim kliknięciu znaczyłoby, że
+                // uznajemy dowód za dobry w dwóch miejscach, a w trzecim nie.
+                //
+                // BEZ TEGO NAPRAWA #317 ZAMYKA PĘTLĘ NA CZŁOWIEKU. Konto
+                // z niepotwierdzonym adresem dostaje od teraz ten list
+                // ZAMIAST linku do logowania (`WyslijOdzyskanieKonta`);
+                // gdyby ustawienie hasła nie potwierdzało adresu, taka
+                // osoba nie odzyskałaby wygodnej drogi wejścia NIGDY —
+                // każda kolejna prośba o link kończyłaby się tym samym
+                // listem, i tak w kółko.
+                //
+                // Dla konta z adresem już potwierdzonym ta linijka nie
+                // zmienia nic: `markEmailAsVerified()` sprawdza znacznik
+                // sama i przy wypełnionym nie rusza wiersza.
+                if (! $user->hasVerifiedEmail()) {
+                    $user->markEmailAsVerified();
+                }
+
                 // ...I UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU E-MAIL (issue #195).
                 //
                 // Ten sam powód co przy zmianie hasła w ustawieniach:
