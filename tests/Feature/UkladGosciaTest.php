@@ -37,27 +37,49 @@ use Tests\TestCase;
  * klasa rozbieżności, którą ten projekt zbiera od tygodnia: obietnica
  * w komentarzu mocniejsza niż to, co sprawdza kod pod nią.
  *
- * Teraz klasy zwijające siatkę do jednej kolumny są ODCZYTYWANE Z ARKUSZA
- * STYLÓW — tak samo, jak `CaddySpojnyZNaglowkamiLaravelaTest` odczytuje
- * nagłówki z pliku konfiguracyjnego Caddy. Dodanie jutro trzeciego układu
- * jednokolumnowego nie wymaga ruszania tego testu; dodanie klasy, która
- * siatki NIE zwija, obleje go natychmiast.
+ * Teraz klasy, które nie rezerwują kolumny na nawigację, są ODCZYTYWANE
+ * Z ARKUSZA STYLÓW — tak samo, jak `CaddySpojnyZNaglowkamiLaravelaTest`
+ * odczytuje nagłówki z pliku konfiguracyjnego Caddy. Dodanie jutro czwartego
+ * układu bez nawigacji nie wymaga ruszania tego testu; dodanie klasy, która
+ * kolumnę na nawigację rezerwuje, obleje go natychmiast.
+ *
+ * ZMIANA Z 11 WRZEŚNIA 2026 (D-122): NIEZMIENNIK BRZMIAŁ „JEDNA KOLUMNA",
+ * A MIAŁ BRZMIEĆ „BEZ KOLUMNY NA NAWIGACJĘ".
+ * Do dziś test zbierał z arkusza klasy, w których `grid-template-columns`
+ * ZACZYNA SIĘ od `minmax(0, 1fr)`. Gdy gość dostał na ekranach z prawą szyną
+ * układ DWUKOLUMNOWY (`minmax(0, 1fr) var(--container-rail)`), ten wzorzec
+ * dalej się dopasowywał — czyli test uznawał dwie kolumny za jedną i nadal
+ * mówił „solo". Nic by się nie oblało, a pilnowany niezmiennik przestałby
+ * odpowiadać rzeczywistości: po raz drugi w tym pliku obietnica
+ * w komentarzu byłaby mocniejsza niż kod pod nią.
+ *
+ * Sprawdzana jest więc ta rzecz, o którą naprawdę chodzi: czy pierwsza
+ * kolumna siatki jest zarezerwowana na nawigację (`--container-sidenav`)
+ * dokładnie wtedy, gdy ta nawigacja jest w dokumencie. Ile kolumn ma strona
+ * poza nią, to osobna sprawa — pilnuje jej `SzynaGosciaTest`.
  */
 class UkladGosciaTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Klasy `app-body-*`, które w arkuszu stylów zwijają siatkę do JEDNEJ
-     * kolumny — czyli nie rezerwują miejsca na nawigację boczną.
+     * Klasy `app-body-*`, które w arkuszu stylów NIE rezerwują pierwszej
+     * kolumny na nawigację boczną — czyli takie, po których treść gościa
+     * zaczyna się przy lewej krawędzi siatki, a nie 15rem dalej.
      *
      * Czytane z pliku, nie wypisane tutaj: lista wypisana w teście rozjeżdża
      * się z arkuszem przy pierwszej zmianie i wtedy test zaczyna pilnować
      * swojej własnej kopii reguły zamiast reguły.
      *
+     * ROZSTRZYGA BRAK `--container-sidenav`, NIE LICZBA KOLUMN (D-122).
+     * `.app-body-solo-z-szyna` ma dwie kolumny (treść + szyna) i żadna z nich
+     * nie jest kolumną menu, więc należy tutaj. Gdyby ten test dalej pytał
+     * „czy jedna kolumna", musiałby albo zgłosić fałszywy błąd, albo — co
+     * gorsze — cicho uznać dwie kolumny za jedną.
+     *
      * @return list<string>
      */
-    private function klasyJednokolumnowe(): array
+    private function klasyBezKolumnyNawigacji(): array
     {
         $css = (string) file_get_contents(resource_path('css/app.css'));
 
@@ -66,7 +88,11 @@ class UkladGosciaTest extends TestCase
         $klasy = [];
 
         foreach ($trafienia as $trafienie) {
-            if (preg_match('/grid-template-columns:\s*minmax\(\s*0\s*,\s*1fr\s*\)/', $trafienie[2]) === 1) {
+            if (preg_match('/grid-template-columns:\s*([^;]+);/', $trafienie[2], $wartosc) !== 1) {
+                continue;
+            }
+
+            if (! str_contains($wartosc[1], '--container-sidenav')) {
                 $klasy[] = $trafienie[1];
             }
         }
@@ -88,19 +114,19 @@ class UkladGosciaTest extends TestCase
 
         $klasy = ' '.preg_replace('/\s+/', ' ', (string) $body->getAttribute('class')).' ';
 
-        $jednokolumnowe = $this->klasyJednokolumnowe();
+        $bezNawigacji = $this->klasyBezKolumnyNawigacji();
 
         $this->assertNotEmpty(
-            $jednokolumnowe,
-            'W `resources/css/app.css` nie ma ani jednej klasy `app-body-*` '
-            .'zwijającej siatkę do jednej kolumny. Albo arkusz zmienił kształt, '
-            .'albo ten test przestał cokolwiek sprawdzać — jedno i drugie '
-            .'wymaga poprawki tutaj.',
+            $bezNawigacji,
+            'W `resources/css/app.css` nie ma ani jednej klasy `app-body-*`, '
+            .'która nie rezerwuje kolumny na nawigację boczną. Albo arkusz '
+            .'zmienił kształt, albo ten test przestał cokolwiek sprawdzać — '
+            .'jedno i drugie wymaga poprawki tutaj.',
         );
 
         $solo = false;
 
-        foreach ($jednokolumnowe as $klasa) {
+        foreach ($bezNawigacji as $klasa) {
             if (str_contains($klasy, ' '.$klasa.' ')) {
                 $solo = true;
 
@@ -155,7 +181,11 @@ class UkladGosciaTest extends TestCase
      */
     public function test_kazda_strona_goscia_trzyma_ten_niezmiennik(): void
     {
-        foreach (['landing', 'login', 'register', 'discover'] as $trasa) {
+        // `kontakt` jest tu od D-122: to ekran gościa, który MA prawą szynę,
+        // czyli dwie kolumny — a pierwszej z nich dalej nie rezerwuje na
+        // nawigację, której nie ma. Niezmiennik obejmuje więc oba kształty
+        // układu gościa, nie tylko jednokolumnowy.
+        foreach (['landing', 'login', 'register', 'discover', 'kontakt'] as $trasa) {
             $odpowiedz = $this->get(route($trasa));
 
             $this->assertSame(200, $odpowiedz->getStatusCode(), "Trasa „{$trasa}” nie otwiera się dla gościa.");

@@ -41,10 +41,13 @@ use Tests\TestCase;
  *     dlatego reguły są sprawdzane wprost, razem z wykluczeniem układu
  *     gościa (`.app-body-solo`).
  *
- *  3. GOŚĆ NIE DOSTAJE DRUGIEGO EGZEMPLARZA. Gość ma jedną kolumnę na
- *     KAŻDEJ szerokości, więc szyna leci u niego pod treścią nawet przy
- *     1512 px. To jest ten przypadek, w którym „przeniesienie" liczb
- *     zepchnęłoby je na sam dół strony.
+ *  3. GOŚĆ NIE DOSTAJE DRUGIEGO EGZEMPLARZA — a od 11 września 2026 (D-122)
+ *     z innego powodu, niż tu stało. Było: „gość ma jedną kolumnę na KAŻDEJ
+ *     szerokości, więc szyna leci u niego pod treścią nawet przy 1512 px".
+ *     Dziś na profilu ma od 80rem dwie kolumny i szyna stoi obok treści.
+ *     Powód zostaje w mocy, tylko inny: liczby widzi w KARCIE, której mu nie
+ *     chowamy (reguła wyklucza układ gościa), więc blok w szynie byłby
+ *     DRUGIM, WIDOCZNYM egzemplarzem tych samych liczb na jednym ekranie.
  *
  *  4. WARTOŚCI, W TYM ZERA. Zero pokazujemy, nie chowamy — i oba egzemplarze
  *     mają pokazywać TĘ SAMĄ liczbę, bo biorą ją z jednej tablicy `stats`.
@@ -191,13 +194,14 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
         $karta = $this->wycinekKarty($html);
         $this->assertStringContainsString('<span class="stat-label">wpisy</span>', $karta);
 
-        // U gościa układ ma JEDNĄ kolumnę na każdej szerokości (`app-body-solo`),
-        // więc blok szyny byłby martwym drugim egzemplarzem na dole strony.
+        // Gość widzi liczby w karcie (reguła chowająca kartę wyklucza jego
+        // układ), więc blok w szynie byłby drugim, WIDOCZNYM egzemplarzem
+        // tych samych liczb — od D-122 jego szyna stoi obok treści.
         $this->assertStringNotContainsString(
             self::KLASA_SZYNY,
             $html,
-            'Gość nie dostaje bloku liczb w szynie: jego układ nie ma trzeciej '
-            .'kolumny na żadnej szerokości, więc blok wylądowałby pod całą treścią.',
+            'Gość nie dostaje bloku liczb w szynie: te same liczby zostają mu '
+            .'w karcie profilu, więc blok byłby ich drugim egzemplarzem.',
         );
 
         $this->assertSame(

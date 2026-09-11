@@ -1,25 +1,6 @@
 <x-layout title="Zaloguj się" :noindex="true">
     <h1>Zaloguj się</h1>
 
-    <x-error-summary />
-
-    <form class="panel-formularza" method="POST" action="{{ route('login') }}">
-        @csrf
-
-        <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required
-                 autocomplete="username"
-                 help="Możesz wpisać jedno albo drugie — obojętnie które." />
-
-        <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
-
-        <x-turnstile miejsce="logowanie" />
-
-        <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Zaloguj się</button>
-            <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
-        </div>
-    </form>
-
     {{--
         WEJŚCIE KONTEM GOOGLE (issue #258, D-069) — TRZECIA droga, dodatkowa.
 
@@ -39,6 +20,31 @@
         fb i google". Kolejność i uzasadnienie: `x-wejscia-zewnetrzne`.
     --}}
     <x-wejscia-zewnetrzne />
+
+    {{-- NAD FORMULARZEM, NIE POD NIM — zgłoszenie właściciela z 11.09.
+         Pod formularzem ten rząd widziała tylko osoba, która i tak wpisała
+         już hasło. Człowiek, dla którego to wejście powstało, odbijał się
+         wcześniej. --}}
+
+    <x-error-summary />
+
+    <form class="panel-formularza" method="POST" action="{{ route('login') }}">
+        @csrf
+
+        <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required
+                 autocomplete="username"
+                 help="Możesz wpisać jedno albo drugie — obojętnie które." />
+
+        <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
+
+        <x-turnstile miejsce="logowanie" />
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Zaloguj się</button>
+            <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
+        </div>
+    </form>
+
 
     {{--
         DRUGA, RÓWNORZĘDNA DROGA WEJŚCIA — LOGOWANIE LINKIEM (issue #25, D-056).

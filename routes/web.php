@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
+use App\Http\Controllers\Admin\HeroKolazController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
@@ -1016,6 +1017,25 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::post('/bez-odpowiedzi/{post}', [BezOdpowiedziController::class, 'odpowiedz'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.unanswered.reply');
+
+    /*
+     * Kolaż zdjęć w hero strony powitalnej — zgłoszenie właściciela:
+     * „dodaj funkcję w panelu admina by ustawiać te zdjęcia spośród
+     * wszystkich publicznych od użytkowników".
+     *
+     * Ta sama rodzina co `kuking-na-dzis` niżej i ten sam kształt tras:
+     * `GET` do obejrzenia, `PUT` do zapisania całego wyboru naraz, `DELETE`
+     * do wyczyszczenia. Oba zapisy z limitem `moderacja` z `config/kuking.php`.
+     *
+     * O prawie do wejścia rozstrzyga `UserPolicy::moderate` w kontrolerze,
+     * nie samo middleware grupy: w formularzu latają UUID-y cudzych zdjęć,
+     * a UUID nie jest autoryzacją (AGENTS.md §7).
+     */
+    Route::get('/kolaz-powitalny', [HeroKolazController::class, 'edit'])->name('admin.hero-kolaz');
+    Route::put('/kolaz-powitalny', [HeroKolazController::class, 'update'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja");
+    Route::delete('/kolaz-powitalny', [HeroKolazController::class, 'destroy'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja");
 
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update'])

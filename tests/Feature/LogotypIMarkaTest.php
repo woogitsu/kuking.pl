@@ -50,18 +50,45 @@ class LogotypIMarkaTest extends TestCase
     {
         $html = $this->get(route('landing'))->assertOk()->getContent();
 
-        // Rozbicie na dwa elementy jest częścią logotypu: „.pl" ma kolor marki.
-        $this->assertStringContainsString('KuKing<span class="wordmark-tld">.pl</span>', $html);
+        /*
+         * Rozbicie na TRZY elementy jest częścią logotypu: „King" i „.pl"
+         * mają kolor marki, „Ku" zostaje w kolorze tekstu.
+         *
+         * Akcent wędrował: najpierw był na „KING" w wersaliku „KUKING",
+         * D-015 przeniosło go na „.pl", a 11 września właściciel poprosił,
+         * żeby wrócił także na „King". Wersalik w środku nazwy jest przez
+         * cały ten czas ten sam — do „KUKING" nie wracamy i pilnuje tego
+         * test niżej.
+         */
+        $this->assertStringContainsString(
+            'Ku<span class="wordmark-king">King</span><span class="wordmark-tld">.pl</span>',
+            $html,
+        );
     }
 
     public function test_stary_zapis_wersalikami_zniknal(): void
     {
         $html = $this->get(route('landing'))->assertOk()->getContent();
 
-        // Pytamy o KONKRETNY element logotypu, nie o słowo „KUKING" gdziekolwiek
-        // na stronie — to drugie trafiałoby w teksty marketingowe i w tablicę
-        // „kuKINGi na dziś", która ma zostać (D-009).
-        $this->assertStringNotContainsString('wordmark-king', $html);
+        /*
+         * Pytamy o KONKRETNY kształt starego logotypu, nie o słowo „KUKING"
+         * gdziekolwiek na stronie — to drugie trafiałoby w teksty
+         * marketingowe i w tablicę „kuKINGi na dziś", która ma zostać
+         * (D-009).
+         *
+         * ZMIANA Z 11 WRZEŚNIA: `wordmark-king` przestało być zakazane, bo
+         * właściciel poprosił o powrót koloru na „King" — i klasa wróciła
+         * razem z nim. Zakazany zostaje sam WERSALIK, przez `KU<span`, czyli
+         * początek starego zapisu „KU|KING". Nowy znacznik ma „King" pisane
+         * normalnie, więc ten wzorzec go nie łapie, a stary łapie nadal.
+         *
+         * CZEGO TU CELOWO NIE MA, I DLACZEGO. Pierwsza wersja tej zmiany
+         * dokładała drugi wzorzec, `>KING<`, jako „drugą połowę" starego
+         * zapisu. Oblewała — bo `x-kuking-word` renderuje `ku<strong>KING
+         * </strong>`, czyli zapis o CZŁOWIEKU, który ma zostać (D-009).
+         * Strażnik trafiał dokładnie w to, przed czym ostrzega akapit wyżej:
+         * pytał o słowo gdziekolwiek na stronie zamiast o element logotypu.
+         */
         $this->assertStringNotContainsString('KU<span', $html);
     }
 

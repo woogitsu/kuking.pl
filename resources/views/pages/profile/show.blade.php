@@ -177,12 +177,15 @@
                     Od 80rem u zalogowanego znika, bo te same liczby stoją
                     wtedy w prawej szynie (`x-szyna-profilu`) — dzięki temu
                     karta jest o pięć wierszy krótsza i pierwszy wpis wjeżdża
-                    wyżej. Poniżej 80rem oraz u GOŚCIA (układ `app-body-solo`
-                    nie ma trzeciej kolumny na żadnej szerokości) widać
-                    dokładnie ten egzemplarz. Para reguł, która o tym
-                    decyduje, stoi przy `.profil-liczby-*` w
-                    `ekran-profilu.css`; dlaczego dwa egzemplarze zamiast
-                    jednego przestawianego — w `x-liczby-profilu`.
+                    wyżej. Poniżej 80rem oraz u GOŚCIA widać dokładnie ten
+                    egzemplarz. U gościa NIE dlatego, że nie ma prawej
+                    kolumny — od D-122 na tym ekranie ją ma — tylko dlatego,
+                    że bloku z liczbami w szynie w ogóle mu nie wysyłamy
+                    (`@auth` w `x-szyna-profilu`), więc nie ma czym zastąpić
+                    tego egzemplarza. Para reguł, która o tym decyduje, stoi
+                    przy `.profil-liczby-*` w `ekran-profilu.css`; dlaczego
+                    dwa egzemplarze zamiast jednego przestawianego —
+                    w `x-liczby-profilu`.
 
                     §12: to są liczby o WŁASNEJ treści tej osoby, bez
                     porównania z kimkolwiek. Nie ma tu miejsca w tabeli,

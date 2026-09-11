@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
+use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\TagFeed;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
@@ -42,6 +43,7 @@ class FeedController extends Controller
         private readonly TagFeed $tagFeed,
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
+        private readonly HeroKolaz $heroKolaz,
     ) {}
 
     /**
@@ -62,6 +64,18 @@ class FeedController extends Controller
         return view('pages.landing', [
             'posts' => $this->discoverFeed->paginate(null, 9),
             'board' => $board,
+
+            // Kolaż w hero (zgłoszenie właściciela: „na samej górze po prawej
+            // stronie … najładniejsze albo wybrane przez admina zdjęcia").
+            //
+            // TYLKO TUTAJ, TYLKO DLA GOŚCIA. `home()` niżej tego nie dostaje
+            // i nie ma dostać: po zalogowaniu górę ekranu zajmuje feed, a
+            // zachęta do rejestracji nie ma już kogo zachęcać.
+            //
+            // Pusta kolekcja jest normalnym wynikiem, nie awarią — znaczy
+            // „serwis nie ma jeszcze czterech publicznych zdjęć" i widok
+            // pomija wtedy kolaż w całości (patrz `HeroKolaz`).
+            'kolaz' => $this->heroKolaz->doKolazu(),
         ]);
     }
 

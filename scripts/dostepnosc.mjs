@@ -351,6 +351,21 @@ const EKRANY = [
   { nazwa: 'panel — sygnały automatu', adres: '/admin/sygnaly', moderator: true },
 
   /*
+   * KOLAŻ NA POWITANIE — czwarty ekran panelu na tej liście i pierwszy, który
+   * jest FORMULAREM WYBORU, a nie kolejką. Rząd pól wyboru z miniaturą, nazwą
+   * autora i fragmentem wpisu w jednej linii to dokładnie ten układ, który
+   * przy 320 px i tekście 140% ma najwięcej okazji, żeby wypchnąć stronę
+   * w bok — a tego nie mierzy żaden z trzech ekranów wyżej.
+   *
+   * Wchodzi tu razem z wpisem w `TRESC_PANELU` niżej, bo bez niego ten ekran
+   * ma dwa stany nie do odróżnienia w raporcie: lista zdjęć do wyboru i
+   * zdanie „Nie ma jeszcze ani jednego publicznego zdjęcia". Oba odpowiadają
+   * 200 pod tym samym adresem. Wymusza to
+   * `PomiarDostepnosciSprawdzaTrescPaneluTest` i bardzo dobrze.
+   */
+  { nazwa: 'panel — kolaż na powitanie', adres: '/admin/kolaz-powitalny', moderator: true },
+
+  /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
    * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
@@ -1776,6 +1791,16 @@ const TRESC_PANELU = [
     czego: 'ani jednego oznaczenia automatu',
     progWezlow: 40,
   },
+  {
+    nazwa: 'panel — kolaż na powitanie',
+    sciezka: '/admin/kolaz-powitalny',
+    // Pole wyboru przy konkretnym zdjęciu, nie sam formularz: nagłówki,
+    // zdanie o licencji i przycisk „Zapisz" stoją na ekranie także wtedy,
+    // gdy nie ma ani jednego publicznego zdjęcia do wskazania.
+    wybor: 'main input[name="zdjecia[]"]',
+    czego: 'ani jednego zdjęcia do wyboru',
+    progWezlow: 60,
+  },
 ];
 
 /**
@@ -2636,6 +2661,11 @@ const EKRANY_WYROWNANIA = [
   { nazwa: 'zeszyt (bez szyny)', adres: '/zeszyt', zalogowany: true },
   { nazwa: 'powiadomienia (bez szyny)', adres: '/powiadomienia', zalogowany: true },
   { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj' },
+  // Gość NA EKRANIE Z SZYNĄ (D-122). Od 80rem jego siatka jest szersza niż
+  // na ekranie bez szyny, a belka i stopka biorą tę szerokość z osobnej
+  // reguły (`.uklad-solo-z-szyna`) — czyli z drugiego miejsca, które może
+  // zostać w tyle. Ten wiersz pilnuje, żeby oba miejsca mówiły tę samą liczbę.
+  { nazwa: 'napisz do nas (gość, z szyną)', adres: '/napisz-do-nas' },
   // Strona powitalna ma OD 8 WRZEŚNIA układ pasów: `.app-body` idzie od
   // krawędzi do krawędzi okna, a szerokość treści wyznacza `.pas-wnetrze`.
   // To jest jedyny ekran o takim układzie i dlatego jedyny, który tę
@@ -3447,8 +3477,12 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
     - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
       poniżej 80rem ląduje pod całym archiwum wpisów).
 
-   Gość jest tu osobnym przypadkiem, nie powtórką: ma jedną kolumnę na każdej
-   szerokości (`app-body-solo`), więc przy 1512 px MUSI widzieć egzemplarz
+   Gość jest tu osobnym przypadkiem, nie powtórką — ale od 11 września 2026
+   (D-122) Z INNEGO POWODU, niż stało tu wcześniej. Nie „ma jedną kolumnę na
+   każdej szerokości": na profilu ma od 80rem dwie, a szyna stoi obok treści.
+   Powód jest taki, że bloku z liczbami w szynie gościowi w ogóle nie
+   wysyłamy (`@auth` w `x-szyna-profilu`), więc przy 1512 px MUSI widzieć
+   egzemplarz
    w karcie — inaczej liczby lądują u niego na samym dole strony.
    ========================================================================== */
 log('');
@@ -3569,6 +3603,162 @@ if (rozjazdyLiczb.length > 0) {
   }
 }
 
+/* ==========================================================================
+   SZYNA GOŚCIA STOI OBOK TREŚCI, NIE POD NIĄ (D-122)
+
+   DLACZEGO TO JEST POMIAR, A NIE TEST PHP
+   Testy sprawdzają, że dokument gościa dostaje klasę układu
+   (`SzynaGosciaTest`). Tego, czy szyna NAPRAWDĘ stoi obok treści, dokument
+   nie zdradza: to wynik trzech reguł w dwóch plikach (`app.css`, `tokens.css`)
+   i progu 80rem, a każda z nich może zniknąć osobno, nie ruszając HTML-a.
+
+   ZGŁOSZENIE WŁAŚCICIELA, KTÓRE TO ZAMYKA: „niektóre podstrony jak napisz do
+   nas jest bardzo wąskie, gdzie po prawej i lewej można coś dodać na kompie".
+   Zmierzone 11 września, okno 1920 px, GOŚĆ, PRZED poprawką: treść 720 px
+   w ramce 768 px, a pierwszy blok szyny („Nie możesz się zalogować") na
+   y = 1964 px, czyli dwa ekrany niżej. Po poprawce: y = 96 px, obok treści.
+
+   TRZY RZECZY NARAZ, BO KAŻDA PSUJE SIĘ OSOBNO:
+    1. ekran gościa Z SZYNĄ przy 1280+ ma ją OBOK treści i po jej PRAWEJ,
+    2. ten sam ekran na telefonie ma ją POD treścią (inaczej blok wjechałby
+       nad treść, po którą człowiek przyszedł),
+    3. ekran gościa BEZ SZYNY ma dokładnie JEDNĄ kolumnę i stoi na środku —
+       rezerwacja pustej kolumny to ta sama usterka, którą właściciel zgłosił
+       przy panelu moderacji („po prawej duży pusty obszar").
+   ========================================================================== */
+log('');
+log('Szyna gościa (D-122):');
+
+const EKRANY_SZYNY_GOSCIA = [
+  { nazwa: 'napisz do nas (gość)', adres: '/napisz-do-nas', zSzyna: true },
+  { nazwa: 'szukaj (gość)', adres: '/szukaj?q=zupa', zSzyna: true },
+  { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj', zSzyna: false },
+];
+
+// 360 to telefon (szyna MA być pod treścią), 1280 sam próg szyny, 1512 laptop
+// właściciela — czyli szerokość ze zgłoszenia.
+const SZEROKOSCI_SZYNY_GOSCIA = SZYBKO ? [360, 1512] : [360, 1280, 1512];
+
+const rozjazdySzynyGoscia = [];
+
+for (const szerokosc of SZEROKOSCI_SZYNY_GOSCIA) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: szerokosc, height: 900 },
+  });
+
+  for (const ekran of EKRANY_SZYNY_GOSCIA) {
+    const strona = await kontekst.newPage();
+    const odpowiedz = await strona.goto(`${adres}${ekran.adres}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+
+    if (kod !== 200) {
+      console.error(`BŁĄD: ekran „${ekran.nazwa}" (${ekran.adres}) odpowiedział kodem ${kod} `
+        + 'przy pomiarze szyny gościa.');
+      process.exitCode = 1;
+      await strona.close();
+      continue;
+    }
+
+    await poczekajNaFonty(strona);
+
+    const pomiar = await strona.evaluate(() => {
+      const body = document.querySelector('.app-body');
+      const main = document.querySelector('.app-main');
+      const rail = document.querySelector('.app-rail');
+
+      if (! body || ! main) return null;
+
+      const rb = body.getBoundingClientRect();
+      const rm = main.getBoundingClientRect();
+      const rr = rail ? rail.getBoundingClientRect() : null;
+      const kolumny = getComputedStyle(body).gridTemplateColumns;
+
+      return {
+        // `none` znaczy „siatka wyłączona" (poniżej 64rem) — jedna kolumna.
+        kolumn: kolumny === 'none' ? 1 : kolumny.trim().split(/\s+/).length,
+        maNawigacje: document.querySelector('.side-nav') !== null,
+        // Szyna z treścią, nie sam kontener: pusty `<aside>` ma zerową
+        // wysokość i „stoi obok" wszystkiego, czego się nie mierzy.
+        szynaZTrescia: rail !== null && rail.getClientRects().length > 0 && rr.height > 0,
+        szynaObokTresci: rr !== null ? rr.top < rm.bottom - 40 : null,
+        szynaPoPrawej: rr !== null ? Math.round(rr.left) >= Math.round(rm.right) : null,
+        trescSzerokosc: Math.round(rm.width),
+        szynaGora: rr !== null ? Math.round(rr.top) : null,
+        // Wyśrodkowanie siatki: tyle samo miejsca z lewej co z prawej.
+        marginesLewy: Math.round(rb.left),
+        marginesPrawy: Math.round(window.innerWidth - rb.right),
+      };
+    });
+
+    await strona.close();
+
+    if (! pomiar) {
+      console.error(`BŁĄD: na ekranie „${ekran.nazwa}" brakuje siatki (.app-body) albo kolumny treści (.app-main).`);
+      process.exitCode = 1;
+      continue;
+    }
+
+    const bledy = [];
+
+    if (pomiar.maNawigacje) {
+      bledy.push('gość dostał nawigację boczną — mierzony jest zły stan ekranu');
+    }
+
+    if (ekran.zSzyna && ! pomiar.szynaZTrescia) {
+      bledy.push('szyna jest pusta albo jej nie ma, a ten ekran ma ją mieć');
+    }
+
+    if (ekran.zSzyna && pomiar.szynaZTrescia && szerokosc >= 1280) {
+      if (pomiar.kolumn !== 2) {
+        bledy.push(`siatka ma ${pomiar.kolumn} kolumn zamiast dwóch (treść + szyna)`);
+      }
+
+      if (! pomiar.szynaObokTresci) {
+        bledy.push(`szyna zjechała pod treść (jej góra: ${pomiar.szynaGora} px)`);
+      }
+
+      if (! pomiar.szynaPoPrawej) {
+        bledy.push('szyna nie stoi po prawej stronie treści');
+      }
+    }
+
+    // Na telefonie szyna MA być pod treścią — patrz `.app-rail` w app.css.
+    if (ekran.zSzyna && pomiar.szynaZTrescia && szerokosc < 1280 && pomiar.szynaObokTresci) {
+      bledy.push('szyna stoi obok treści na wąskim ekranie — zepchnęła treść w bok');
+    }
+
+    if (! ekran.zSzyna && pomiar.kolumn !== 1) {
+      bledy.push(`ekran bez szyny ma ${pomiar.kolumn} kolumny — po prawej stoi pusta kolumna`);
+    }
+
+    if (! ekran.zSzyna && Math.abs(pomiar.marginesLewy - pomiar.marginesPrawy) > 1) {
+      bledy.push(`treść nie stoi na środku (${pomiar.marginesLewy} px z lewej, `
+        + `${pomiar.marginesPrawy} px z prawej)`);
+    }
+
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: kolumn ${pomiar.kolumn}, `
+      + `treść ${pomiar.trescSzerokosc} px, `
+      + `szyna ${pomiar.szynaZTrescia ? (pomiar.szynaObokTresci ? `obok (y=${pomiar.szynaGora})` : `pod treścią (y=${pomiar.szynaGora})`) : 'brak'}`);
+
+    if (bledy.length > 0) {
+      rozjazdySzynyGoscia.push({ ekran: ekran.nazwa, szerokosc, bledy });
+    }
+  }
+
+  await kontekst.close();
+}
+
+if (rozjazdySzynyGoscia.length > 0) {
+  log('');
+  log('Szyna gościa stoi w złym miejscu (D-122):');
+  for (const r of rozjazdySzynyGoscia) {
+    log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    for (const blad of r.bledy) {
+      log(`      ${blad}`);
+    }
+  }
+}
+
 await przegladarka.close();
 zamknij();
 
@@ -3641,6 +3831,13 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     rozjazdow: rozjazdyLiczb.length,
     rozjazdy: rozjazdyLiczb,
   },
+  /* Szyna gościa (D-122) — ta sama zasada co przy `liczbyProfilu` wyżej:
+     kod wyjścia to respektuje, więc artefakt musi umieć powiedzieć DLACZEGO. */
+  szynaGoscia: {
+    szerokosci: SZEROKOSCI_SZYNY_GOSCIA,
+    rozjazdow: rozjazdySzynyGoscia.length,
+    rozjazdy: rozjazdySzynyGoscia,
+  },
 }, null, 2));
 
 log('');
@@ -3652,7 +3849,8 @@ log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
   + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length}, `
   + `belka ponad ${Math.round(UDZIAL_BELKI_MAKS * 100)}% okna: ${zaWysokaBelka.length}, `
-  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length})`);
+  + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length}, `
+  + `szyny gościa w złym miejscu: ${rozjazdySzynyGoscia.length})`);
 // Liczby zbadanych ekranów W TYM SAMYM wierszu co wynik, a nie tylko w pliku:
 // „przepełnień: 0" znaczy coś innego przy 36 zmierzonych ekranach i przy 33.
 log(`Zbadane ekrany — axe: ${zbadanePrzezAxe.size}/${EKRANY.length}, `
@@ -3767,6 +3965,7 @@ if (
   || naruszeniaFocus.length > 0
   || rozjazdyTablicy.length > 0
   || rozjazdyLiczb.length > 0
+  || rozjazdySzynyGoscia.length > 0
   || zaWysokaBelka.length > 0
 ) {
   process.exit(1);

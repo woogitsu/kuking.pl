@@ -220,7 +220,15 @@
   --container-strona-szeroka: var(--container-strona-z-szyna);                           /* 1424px — trzy kolumny (od 80rem) */
   --container-strona-solo: calc(
     var(--container-content) + 2 * var(--spacing-6)
-  );                           /* 768px — gość: bez nawigacji i bez szyny */
+  );                           /* 768px — gość na ekranie BEZ szyny */
+
+  /* 1152px — gość na ekranie Z SZYNĄ (D-122). Gość nie ma nawigacji bocznej,
+     więc jego szeroki układ to dwie kolumny, nie trzy: treść + prawa szyna.
+     Liczone z tych samych składników co `--container-strona-z-szyna`, tylko
+     bez `--container-sidenav` i bez jednego odstępu — 720 + 32 + 352 + 2×24. */
+  --container-strona-solo-z-szyna: calc(
+    var(--container-strona-solo) + var(--spacing-8) + var(--container-rail)
+  );
 }
 
 /* =============================================================================

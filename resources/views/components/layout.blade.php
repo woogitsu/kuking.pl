@@ -159,6 +159,40 @@
     // zdjęcia doklejony do zapasowego logo 1200×630 i przycina kartę źle.
     // Stąd ten sam warunek `isReady()`, nie sam fakt, że `$image` istnieje.
     $ogImageGotowe = $image !== null && $image->isReady();
+
+    // ------------------------------------------------------------------
+    //  CZY TEN EKRAN MA PRAWĄ SZYNĘ (D-122)
+    //
+    //  Zgłoszenie właściciela: „niektóre podstrony jak napisz do nas jest
+    //  bardzo wąskie, gdzie po prawej i lewej można coś dodać na kompie".
+    //  Arkusz zwijał układ gościa do JEDNEJ kolumny 768 px na każdej
+    //  szerokości, a uzasadniał to zdaniem „gość nie ma nawigacji bocznej
+    //  ani szyny" — druga połowa była nieprawdą od 7 września 2026. Slot
+    //  `rail` podają trzy publiczne widoki: `/szukaj`, `/napisz-do-nas`
+    //  i `/@nazwa`. Skutek: osoba, która pisze „nie mogę się zalogować"
+    //  z komputera, czytała blok „Nie możesz się zalogować" POD CAŁYM
+    //  formularzem, na stronie wąskiej na 768 px przy monitorze 1920 px.
+    //
+    //  LICZY SIĘ TREŚĆ SLOTU, NIE SAM SLOT. `<x-slot:rail>` bywa podany
+    //  i pusty: `x-szyna-profilu` na CUDZYM profilu oglądanym przez gościa
+    //  nie wypisuje ani jednego bloku (blok z liczbami jest pod `@auth`,
+    //  a tagi i zeszyty mogą nie istnieć). Sam `isset($rail)` dałby wtedy
+    //  gościowi drugą kolumnę szeroką na 352 px, w której nic nie stoi —
+    //  a pusta kolumna wygląda na usterkę układu, nie na wybór.
+    //
+    //  TA ZMIENNA WYBIERA WYŁĄCZNIE KLASĘ UKŁADU. Samo `<aside class=
+    //  "app-rail">` renderuje się dalej pod `@isset($rail)`, czyli tak jak
+    //  przed tą zmianą: pusty slot daje pusty `<aside>` pod treścią, który
+    //  nic nie zajmuje i niczego nie przesuwa. Zwężenie tego warunku do
+    //  `$maSzyne` byłoby osobną zmianą (znikłby też pusty `<aside>` na
+    //  ekranach zalogowanego, np. `/zeszyt` bez ostatnio zapisanych) —
+    //  i jest tu świadomie NIEZROBIONE, bo dotyczy ekranów, których
+    //  zgłoszenie właściciela nie obejmowało.
+    //
+    //  Komentarze HTML wycinamy jak `ComponentSlot::hasActualContent()`
+    //  w Laravelu — slot złożony z samego komentarza jest pusty.
+    $maSzyne = isset($rail)
+        && trim((string) preg_replace('/<!--.*?-->/s', '', (string) $rail)) !== '';
 @endphp
 
 <!DOCTYPE html>
@@ -267,8 +301,13 @@
 {{-- `uklad-solo` steruje szerokością belki i stopki dla gościa — musi iść
      w parze z `app-body-solo` na siatce niżej. Jedna klasa na <body>, bo
      belka i stopka stoją POZA `.app-body` i inaczej nie mają skąd wiedzieć,
-     że ta strona nie ma ani nawigacji bocznej, ani szyny. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo' }} @endguest">
+     że ta strona nie ma nawigacji bocznej.
+
+     `uklad-solo-z-szyna` DOCHODZI do `uklad-solo`, nie zastępuje jej (D-122):
+     od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
+     z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
+     sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($maSzyne ? ' uklad-solo-z-szyna' : '') }} @endguest">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     <header class="topbar">
@@ -279,7 +318,7 @@
                 <x-kuking-mark :rozmiar="36" />
                 {{-- Logotyp rozbity na dwa elementy jest dla czytnika ekranu
                      dwoma osobnymi napisami. Podajemy mu jeden, całą nazwę. --}}
-                <span aria-hidden="true">KuKing<span class="wordmark-tld">.pl</span></span>
+                <span aria-hidden="true">Ku<span class="wordmark-king">King</span><span class="wordmark-tld">.pl</span></span>
                 <span class="visually-hidden">Kuking — strona główna</span>
             </a>
 
@@ -373,8 +412,13 @@
              niżej, jeden znacznik stanu czytany przez dwa selektory w CSS.
              Panel moderacji nie ma slotu `rail` i nigdy go mieć nie będzie,
              więc od 80rem nie rezerwujemy dla niego pustej trzeciej kolumny
-             (issue #294, punkt 2 — patrz uzasadnienie w app.css). --}}
-        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo' }} @endguest" @if($wTrybiePanelu) data-tryb-panelu @endif>
+             (issue #294, punkt 2 — patrz uzasadnienie w app.css).
+
+             `app-body-solo-z-szyna` DOCHODZI do `app-body-solo` na ekranie
+             gościa, który naprawdę ma czym wypełnić szynę (D-122). Obie klasy
+             stoją razem, bo `app-body-solo` znaczy „układ gościa, bez
+             nawigacji bocznej" i czyta to także `ekran-profilu.css`. --}}
+        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest" @if($wTrybiePanelu) data-tryb-panelu @endif>
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
@@ -508,6 +552,10 @@
                                 <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                                {{-- Kolaż na stronie powitalnej — ten sam rodzaj wyboru
+                                     redakcyjnego co tablica na dziś, ale ikona „image",
+                                     bo tu wybiera się ZDJĘCIA, nie osoby i wpisy. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.hero-kolaz') }}" @if(request()->routeIs('admin.hero-kolaz')) aria-current="page" @endif><x-ikona nazwa="image" /> Kolaż na powitanie</a></li>
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
