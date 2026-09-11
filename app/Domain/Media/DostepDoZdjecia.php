@@ -111,6 +111,7 @@ final class DostepDoZdjecia
         ['recipes', 'hero_media_id'],
         ['recipes', 'source_scan_media_id'],
         ['recipe_steps', 'media_id'],
+        ['hero_picks', 'media_id'],
     ];
 
     /**
@@ -136,6 +137,7 @@ final class DostepDoZdjecia
         'profiles' => ['avatar_media_id'],
         'recipes' => ['hero_media_id', 'source_scan_media_id'],
         'recipe_steps' => ['media_id'],
+        'hero_picks' => ['media_id'],
     ];
 
     /**
@@ -370,6 +372,31 @@ final class DostepDoZdjecia
                 ->all(),
 
             'recipe_steps' => RecipeStep::query()->where('media_id', $id)->get()->all(),
+
+            /*
+             * KOLAŻ W HERO — rodzicem jest WPIS, przy którym zdjęcie wisi,
+             * a nie wiersz `hero_picks`.
+             *
+             * I JEST TO ŚWIADOMIE ZERO NOWEGO DOSTĘPU. Wskazanie zdjęcia do
+             * kolażu nie jest zgodą na jego pokazanie i nie ma prawa być
+             * własną drogą wejścia: gdyby `HeroPick` dostał tu własną Policy
+             * mówiącą „to jest na stronie powitalnej, więc widzi to każdy",
+             * zdjęcie przełączone na prywatne wyciekałoby spod bezpośredniego
+             * adresu jeszcze długo po tym, jak zniknęłoby z kolażu.
+             *
+             * `hero_picks.post_id` wskazuje ten sam wpis, który dla tego
+             * zdjęcia oddaje już `post_media` wyżej — więc ta gałąź nie
+             * poszerza niczego, tylko domyka listę. Jest tu, bo obie listy
+             * odwołań muszą się zgadzać co do joty (pilnują tego
+             * `ZdjeciaChronioneNieWyciekajaTest` i
+             * `AutoryzacjaZdjeciaJednymPrzejsciemTest`), a tabela pominięta
+             * w jednej z nich znaczy zdjęcie bez rodzica — błąd cichy
+             * w obie strony.
+             */
+            'hero_picks' => Post::query()
+                ->whereIn('id', DB::table('hero_picks')->where('media_id', $id)->pluck('post_id'))
+                ->get()
+                ->all(),
         };
     }
 }

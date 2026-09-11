@@ -138,6 +138,30 @@ class DemoSeeder extends Seeder
             now()->subHours(6),
         );
 
+        /*
+         * TRZECI AUTOR ZE ZDJĘCIEM — INACZEJ KOLAŻ W HERO NIE MA CZEGO POKAZAĆ.
+         *
+         * Kolaż na stronie powitalnej (`App\Domain\Feed\HeroKolaz`) bierze
+         * najpierw po JEDNYM zdjęciu od osoby i dopiero potem po drugim, a
+         * renderuje się wyłącznie wtedy, gdy uzbiera cztery. Do 11 września
+         * zdjęcia w danych demo miały tylko DWIE osoby (`ania` i `basia`), więc
+         * `scripts/dostepnosc.mjs` mierzyłby stronę powitalną ZAWSZE w stanie
+         * „kolażu nie ma" — a ten stan odpowiada 200 i w raporcie wygląda
+         * identycznie jak stan pełny. Dokładnie pułapka 5 z
+         * `docs/PULAPKI_TESTOW.md`, ta sama, która przy issue #294 dała trzy
+         * ptaszki nad pustą kolejką moderatora.
+         *
+         * `marek` ma już wpis o chlebie bez zdjęć — to jest ten sam chleb,
+         * tylko pokazany.
+         */
+        $this->wpisZKilkomaZdjeciami(
+            $marek,
+            'Zakwas i bochenek — ten sam chleb, dwa zdjęcia.',
+            Post::DISPLAY_NORMAL,
+            ['Słoik zakwasu na parapecie', 'Bochenek chleba przekrojony na desce'],
+            now()->subHours(4),
+        );
+
         // Przepis rodzinny — pokazuje, po co jest sekcja „Skąd ten przepis”
         $rosol = Recipe::create([
             'author_id' => $basia->getKey(),

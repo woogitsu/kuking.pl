@@ -508,6 +508,10 @@
                                 <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
                                 <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                                {{-- Kolaż na stronie powitalnej — ten sam rodzaj wyboru
+                                     redakcyjnego co tablica na dziś, ale ikona „image",
+                                     bo tu wybiera się ZDJĘCIA, nie osoby i wpisy. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.hero-kolaz') }}" @if(request()->routeIs('admin.hero-kolaz')) aria-current="page" @endif><x-ikona nazwa="image" /> Kolaż na powitanie</a></li>
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
