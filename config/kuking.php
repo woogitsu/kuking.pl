@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Support\Facebook;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +53,46 @@ return [
                 ? 'r2_publiczne'
                 : env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
         ),
+
+        /*
+         * PUBLICZNE ADRESY BUCKETÓW — LISTA DO OSTRZELANIA, NIE DO UŻYWANIA.
+         *
+         * Ta lista nie służy do budowania adresów zdjęć. Żaden kod serwujący
+         * jej nie czyta — adresem zdjęcia jest trasa `media.show` (audyt
+         * W7-02). Służy WYŁĄCZNIE bramce `kuking:bramka-r2`, która pod każdy
+         * z tych adresów wysyła prawdziwe żądanie po prawdziwy oryginał
+         * i wymaga odmowy.
+         *
+         * PO CO TO ISTNIEJE. Issue #120 wymaga dowodu, że oryginał nie wyjdzie
+         * „przez KAŻDĄ publiczną ścieżkę". Bramka umiała wyprowadzić
+         * z konfiguracji tylko jedną z nich — endpoint konta S3 — bo
+         * pozostałe dwie nie są w tym repozytorium zapisane nigdzie: własna
+         * domena (`cdn.kuking.pl`) i `r2.dev` żyją w panelu Cloudflare,
+         * a klucz `url` został z dysków mediów świadomie zdjęty. Bramka
+         * MILCZAŁA więc o najgroźniejszej drodze — tej, którą naprawdę idzie
+         * przeglądarka — i świeciła na zielono, nie zapytawszy o nią ani razu.
+         *
+         * DLACZEGO WYPISUJE SIĘ TU TEŻ ADRESY, KTÓRE MAJĄ BYĆ WYŁĄCZONE.
+         * To jest cała istota tej listy i najłatwiejsza rzecz do zrozumienia
+         * na odwrót. Adres, którego nikt nie zadeklarował, nie zostanie
+         * zapytany — a niezapytany adres nie jest dowodem na nic. Żeby bramka
+         * udowodniła, że `r2.dev` jest wyłączone, MUSI dostać ten adres
+         * `pub-….r2.dev` i dostać spod niego odmowę. Puste to nie „nic nie
+         * jest publiczne", to „nie wiemy" — i bramka tak to właśnie liczy:
+         * jak nieprzejście.
+         *
+         * Format: adresy rozdzielone przecinkami, z protokołem, bez klucza
+         * na końcu — bramka dokleja klucz oryginału z bazy sama. Na przykład
+         * `https://cdn.kuking.pl,https://pub-abc123.r2.dev`.
+         *
+         * Domyślnie pusto, bo wartość jest inna dla każdego środowiska i nie
+         * ma sensownej wartości domyślnej. Pusto na dysku lokalnym nic nie
+         * psuje — tam bramka odmawia startu wcześniej, na sterowniku dysku.
+         */
+        'publiczne_adresy' => array_values(array_filter(
+            array_map('trim', explode(',', (string) env('KUKING_R2_PUBLICZNE_ADRESY', ''))),
+            static fn (string $adres): bool => $adres !== '',
+        )),
 
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
         //
@@ -235,9 +276,45 @@ return [
     ],
 
     'text' => [
-        // Skala tekstu ustawiana przez użytkownika w /settings/accessibility.
-        // Wartości w procentach; muszą mieścić się w CHECK z migracji (90–140).
-        'scales' => [100, 112, 125, 140],
+        /*
+         * Skala tekstu ustawiana przez użytkownika w /ustawienia/czytelnosc.
+         * Wartości w procentach; muszą mieścić się w CHECK z migracji
+         * (70–140 od `2026_09_11_600000_rozszerz_skale_tekstu_w_dol`).
+         *
+         * KOLEJNOŚĆ JEST KOLEJNOŚCIĄ NA EKRANIE — rosnąco, od najmniejszej.
+         * Domyślna (100) wypada w środku i to jest w porządku: lista
+         * uporządkowana według rozmiaru jest do przejrzenia jednym spojrzeniem,
+         * a lista zaczynająca się od domyślnej i skacząca w dwie strony nie.
+         *
+         * TRZY MNIEJSZE SĄ NOWE. Zasada „tekst ≥ 18 px" z AGENTS.md dotyczy
+         * DOMYŚLNEGO wyglądu — 100% nadal daje 18 px. Niżej schodzi wyłącznie
+         * ten, kto sam tak ustawi, i tylko na swoim koncie.
+         */
+        'scales' => [70, 80, 90, 100, 112, 125, 140],
+
+        /*
+         * PODPISY POD PODGLĄDEM — słowa, nie procenty.
+         *
+         * Człowiek wybierający rozmiar tekstu nie myśli w procentach i nie ma
+         * powodu, żeby zaczynał. Podgląd pokazuje zdanie w prawdziwym
+         * rozmiarze, a podpis nazywa je słowem.
+         *
+         * Stoją TUTAJ, obok `scales`, a nie w widoku, bo do 11 września 2026
+         * były łańcuchem `@if($scale === 100) … @elseif` w Blade — przy
+         * czterech rozmiarach dało się to przeczytać, przy siedmiu już nie,
+         * a rozmiar bez podpisu zniknąłby po cichu, zostawiając pusty wiersz.
+         * Test `SkalaTekstuDzialaTest` pilnuje, żeby każdy rozmiar miał podpis.
+         */
+        'scale_labels' => [
+            70 => 'Bardzo mały',
+            80 => 'Mały',
+            90 => 'Trochę mniejszy',
+            100 => 'Zwykły',
+            112 => 'Trochę większy',
+            125 => 'Duży',
+            140 => 'Bardzo duży',
+        ],
+
         'default_scale' => 100,
     ],
 
@@ -915,6 +992,92 @@ return [
         'waznosc_domkniecia_minut' => (int) env('GOOGLE_WAZNOSC_DOMKNIECIA', 30),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Wejście kontem Facebooka (issue #259, D-069, D-098)
+    |--------------------------------------------------------------------------
+    |
+    | DROGA DODATKOWA, NIGDY JEDYNA — dokładnie jak Google wyżej. Hasło i link
+    | e-mail zostają na ekranie logowania niezależnie od tego, co jest tutaj.
+    |
+    | PUSTE KLUCZE = TEJ FUNKCJI NIE MA. Przycisku nie ma na ekranie, trasy
+    | odsyłają na logowanie ze zdaniem po polsku, nic się nie psuje. To jest
+    | stan domyślny lokalnie, w CI, w testach ORAZ we wszystkich środowiskach
+    | preview — i w tym ostatnim przypadku nie jest to niedogodność, tylko
+    | jedyne możliwe zachowanie: adresy `*.up.railway.app` są losowe, a Meta
+    | dopasowuje adres powrotu znak w znak i nie przyjmuje `*`
+    | (docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md §4.4).
+    |
+    | CZYM TA DROGA RÓŻNI SIĘ OD GOOGLE — jednym zdaniem, bo to zdanie
+    | decyduje o bezpieczeństwie: Facebook NIE mówi, czy adres e-mail jest
+    | potwierdzony, więc adres z Facebooka nigdy nie łączy z istniejącym
+    | kontem i nigdy nie trafia do bazy jako potwierdzony (D-098).
+    |
+    | Sygnału `/health` o braku kluczy tu jeszcze nie ma — tak samo jak przy
+    | Google i z tego samego powodu (`HealthController` jest w rękach innego
+    | zlecenia). Gotowe zdanie dla właściciela czeka
+    | w `App\Support\Facebook::komunikatBrakuKluczy()`.
+    */
+    'facebook' => [
+        /*
+         * WYŁĄCZNIK CAŁEJ FUNKCJI — jedyna droga wycofania BEZ migracji.
+         *
+         * `false` znaczy: przycisk znika z ekranu logowania i rejestracji,
+         * a trasy odpowiadają „ta droga jest teraz zamknięta, zaloguj się
+         * hasłem". Powiązania w bazie zostają nietknięte.
+         *
+         * UWAGA, TU JEST RÓŻNICA WZGLĘDEM GOOGLE, O KTÓREJ TRZEBA WIEDZIEĆ
+         * PRZED WYŁĄCZENIEM: konto założone kontem Google ma adres
+         * POTWIERDZONY, więc po wyłączeniu tamtej drogi zostaje mu link
+         * e-mail. Konto założone kontem Facebooka ma adres niepotwierdzony,
+         * dopóki człowiek nie kliknie w naszą wiadomość — więc dla części
+         * tych kont wyłączenie tej drogi zostawia tylko „Nie pamiętam
+         * hasła" (które i tak wysyła list na ten adres, więc droga istnieje,
+         * ale jest dłuższa). Wyłączaj świadomie i uprzedź te osoby.
+         */
+        'wlaczone' => (bool) env('KUKING_WEJSCIE_FACEBOOK', true),
+
+        // W panelu Meta nazywają się **App ID** i **App Secret**
+        // (Settings → Basic). Nazwy zmiennych są symetryczne do Google
+        // i takie stoją w runbooku §11. Identyfikator jest publiczny
+        // (wchodzi do adresu, na który odsyłamy człowieka); sekret wychodzi
+        // wyłącznie w żądaniu serwer-serwer i w HMAC-u `appsecret_proof`.
+        'identyfikator_klienta' => (string) env('FACEBOOK_CLIENT_ID', ''),
+        'sekret_klienta' => (string) env('FACEBOOK_CLIENT_SECRET', ''),
+
+        /*
+         * WERSJA GRAPH API — JEDNA STAŁA, BO MA TERMIN WAŻNOŚCI.
+         *
+         * To jest ten obowiązek, którego droga Google nie miała wcale
+         * (runbook §7.3). Wersje Meta żyją „at least 2 years from release",
+         * a po wygaśnięciu wywołania NIE PADAJĄ — spadają cicho na starszą
+         * wersję. Dlatego numer stoi w jednym miejscu i da się go podnieść
+         * zmienną środowiskową, bez wdrożenia kodu; a do przeglądu
+         * kwartalnego (docs/infra/DEPLOYMENT_RUNBOOK.md) doszła pozycja
+         * „sprawdź, czy nasza wersja Graph API jeszcze żyje".
+         *
+         * Pusta wartość wraca do stałej w `App\Support\Facebook`, bo adres
+         * bez numeru wersji idzie u Meta na wersję NAJSTARSZĄ Z ŻYWYCH —
+         * czyli tę, która wygaśnie najszybciej.
+         */
+        'wersja_grafu' => (string) env('FACEBOOK_GRAPH_WERSJA', Facebook::WERSJA_GRAFU_DOMYSLNA),
+
+        /*
+         * Ile sekund czekamy na odpowiedź Facebooka. Ten sam wywód i ta sama
+         * liczba co przy Google — z tą różnicą, że tutaj wywołań jest DWA
+         * (token, potem tożsamość), więc w najgorszym razie człowiek czeka
+         * dwa razy tyle. Dlatego nie więcej.
+         */
+        'limit_czasu' => (int) env('FACEBOOK_LIMIT_CZASU', 6),
+
+        /*
+         * Ile minut wolno stać na ekranie domknięcia konta albo na ekranie
+         * „połącz konto z Facebookiem". Trzydzieści — ta sama liczba i ten
+         * sam wywód co przy Google i przy linku do logowania (D-056).
+         */
+        'waznosc_domkniecia_minut' => (int) env('FACEBOOK_WAZNOSC_DOMKNIECIA', 30),
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
@@ -975,6 +1138,23 @@ return [
          */
         'google_wejscie' => '20,10',
         'google_domkniecie' => '5,10',
+
+        /*
+         * WEJŚCIE KONTEM FACEBOOKA (issue #259) — dwa koszyki, ta sama
+         * konstrukcja i te same liczby co przy Google.
+         *
+         * OSOBNE od `google_*` świadomie: kliknięcia w jedną drogę nie mają
+         * prawa zjadać budżetu drugiej. Gdyby oba dostawcy dzielili koszyk,
+         * człowiek, który spróbował Google i się rozmyślił, zbliżałby się do
+         * limitu na Facebooku — a wyczerpany limit wygląda na ekranie jak
+         * awaria serwisu. Pilnuje tego
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+         *
+         * `facebook_domkniecie` liczy też POST-y „połącz konto", bo to jest
+         * druga trasa, która naprawdę dokłada drogę wejścia na konto.
+         */
+        'facebook_wejscie' => '20,10',
+        'facebook_domkniecie' => '5,10',
 
         /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).

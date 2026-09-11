@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\FacebookDeauthorizeController;
+use App\Http\Controllers\Auth\FacebookLoginController;
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLinkController;
@@ -411,6 +413,92 @@ Route::middleware('guest')->group(function () use ($limits): void {
 Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+// --------------------------------------------------------------------------
+// WEJŚCIE KONTEM FACEBOOKA (issue #259, D-069, D-098)
+// --------------------------------------------------------------------------
+//
+//   GET  /wejdz/facebook          — kliknięcie „Wejdź kontem Facebooka"
+//                                   albo „Połącz konto Facebooka". Zakłada
+//                                   w sesji `state` i odsyła do Facebooka.
+//   GET  /wejdz/facebook/wroc     — powrót z Facebooka. Sprawdza `state`,
+//                                   wymienia kod, ROZSTRZYGA co dalej.
+//                                   TEN ADRES JEST WPISANY W PANELU META,
+//                                   znak w znak (runbook §4.2) — zmiana tej
+//                                   ścieżki wymaga zmiany także tam.
+//   GET  /wejdz/facebook/domknij  — ekran domknięcia konta dla nowej osoby
+//                                   (imię, nazwa, dwa oświadczenia)
+//   POST /wejdz/facebook/domknij  — dopiero tu powstaje konto
+//   GET  /wejdz/facebook/polacz   — „połączyć to konto z Facebookiem?"
+//                                   dla osoby JUŻ ZALOGOWANEJ. NIC NIE ZMIENIA.
+//   POST /wejdz/facebook/polacz   — dopiero tu powstaje powiązanie
+//
+// TE TRASY NIE SĄ W GRUPIE `guest` — I TO JEST RÓŻNICA WZGLĘDEM GOOGLE,
+// KTÓRA MA UZASADNIENIE, A NIE JEST NIEDOPATRZENIEM.
+//
+// Facebook nie mówi, czy adres e-mail jest potwierdzony, więc adres
+// z Facebooka NIE MOŻE łączyć kont (D-098) — a to znaczy, że jedyna
+// bezpieczna droga powiązania istniejącego konta prowadzi przez człowieka,
+// który JUŻ JEST NA NIM ZALOGOWANY (hasłem albo linkiem e-mail) i klika
+// „Połącz konto Facebooka" w Ustawieniach → Bezpieczeństwo. Gdyby te trasy
+// stały w grupie `guest`, ta droga byłaby nieosiągalna, a odmowa „na ten
+// adres jest już konto" nie miałaby dokąd odesłać człowieka.
+//
+// Rozstrzyga więc `Auth::check()` w kontrolerze, w jednym miejscu i jawnie.
+// Grupa `guest` przekierowywałaby zalogowanego na `/home` i zabierałaby mu
+// tę możliwość bez słowa wyjaśnienia.
+//
+// ROZDZIAŁ „POKAŻ" OD „ZRÓB" JEST TU BEZPIECZEŃSTWEM, nie estetyką —
+// ten sam powód co przy Google i przy logowaniu linkiem: GET nie zmienia
+// stanu. Konta zakłada i powiązania tworzy wyłącznie POST z tokenem CSRF.
+//
+// DWA OSOBNE KOSZYKI LIMITÓW, osobne także od tych od Google
+// (`facebook_wejscie`, `facebook_domkniecie`) — uzasadnienie stoi przy nich
+// w `config/kuking.php`.
+//
+// BEZ KLUCZY FACEBOOKA te trasy odsyłają na `/login` ze zdaniem po polsku,
+// a przycisku nie ma nigdzie na ekranie: środowisko bez kluczy (CI, lokalnie,
+// każde środowisko preview) zachowuje się dokładnie jak przed tą zmianą.
+Route::get('/wejdz/facebook', [FacebookLoginController::class, 'start'])
+    ->middleware("throttle:{$limits['facebook_wejscie']},facebook_wejscie")
+    ->name('facebook.start');
+
+Route::get('/wejdz/facebook/wroc', [FacebookLoginController::class, 'callback'])
+    ->middleware("throttle:{$limits['facebook_wejscie']},facebook_wejscie")
+    ->name('facebook.callback');
+
+Route::get('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finishForm'])
+    ->name('facebook.finish');
+Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.finish.store');
+
+/*
+ * ODEBRANIE DOSTĘPU U FACEBOOKA (issue #259).
+ *
+ * Woła to POST-em serwer Facebooka, nie przeglądarka człowieka — więc trasa
+ * jest WYŁĄCZONA Z OCHRONY CSRF w `bootstrap/app.php`, a autentyczność
+ * potwierdza podpis `signed_request`, nie sesja. Pełne uzasadnienie stoi
+ * w `FacebookDeauthorizeController`.
+ *
+ * OGRANICZENIE PANELU META: pole `Deauthorize callback URL` jest jedno na
+ * aplikację, a jedna aplikacja obsługuje u nas produkcję i staging — więc
+ * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
+ * w kodzie.
+ *
+ * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
+ * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
+ * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
+ * w nieskończoność.
+ */
+Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->name('facebook.deauthorize');
+
+Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
+    ->name('facebook.link');
+Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.store');
 
 // --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)

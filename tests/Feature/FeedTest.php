@@ -76,7 +76,7 @@ class FeedTest extends TestCase
             ->assertOk()
             ->assertDontSee('Odkrywaj')
             ->assertSee('na dziś')
-            ->assertSee('Jutro będzie tu ktoś inny.');
+            ->assertSee('Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.');
 
         $this->assertMatchesRegularExpression(
             '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*Świeżo z Kuking\s*</a>~u',

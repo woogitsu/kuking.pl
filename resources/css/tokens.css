@@ -354,6 +354,9 @@
      koncie i NIE ROBIŁA NIC. Odwrotnie, 150 było martwe: CHECK w migracji
      `users` dopuszcza tylko 90–140, więc ta wartość nie miała jak powstać.
      100 nie ma reguły i mieć nie musi — to wartość domyślna `--user-text-scale`. */
+  :root[data-text-scale="70"] { --user-text-scale: 0.7; }
+  :root[data-text-scale="80"] { --user-text-scale: 0.8; }
+  :root[data-text-scale="90"] { --user-text-scale: 0.9; }
   :root[data-text-scale="112"] { --user-text-scale: 1.12; }
   :root[data-text-scale="125"] { --user-text-scale: 1.25; }
   :root[data-text-scale="140"] { --user-text-scale: 1.4; }

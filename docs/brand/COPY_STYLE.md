@@ -264,12 +264,20 @@ Nagłówek:        kuKINGi na dziś
 Podtytuł:        Kilka osób i kilka dań, które dziś warto zobaczyć.
 Przycisk osoby:  Obserwuj
 Przycisk wpisu:  Zobacz
-Stopka sekcji:   Jutro będzie tu ktoś inny.
+Stopka sekcji:   Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.
 Pusty stan:      Dziś jeszcze nikogo nie wybraliśmy. Zajrzyj do „Świeżo z Kuking”.
 ```
 
-Ostatnie zdanie stopki jest ważne: mówi wprost, że to się zmienia i nie jest
-tabelą wyników.
+Stopka jest ważna: mówi wprost, że to nie jest tabela wyników. Wolno ją
+zastąpić innym zdaniem robiącym to samo — nie wolno jej usunąć.
+
+> **Zmiana z 11 września 2026.** Stało tu „Jutro będzie tu ktoś inny." i było
+> to obiecywanie pewności, której produkt nie daje. Zmierzone przy plikach:
+> tablicę zmienia RĘCZNY wybór gospodarza w panelu `/kuking-na-dzis`
+> (`DailyBoardController::update()`), a gdy gospodarz nic nie wybierze, wchodzi
+> wariant zapasowy sortujący po dacie publikacji. Żaden automat tej tablicy nie
+> odświeża. W wolny dzień jutro stoją tam więc te same osoby co dziś — a przy
+> zimnym starcie (`docs/product/COLD_START.md`) to jest reguła, nie wyjątek.
 
 ### ⚠️ Zastrzeżenie do sprawdzenia na ludziach
 
@@ -340,13 +348,14 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 
 | Miejsce | Tekst |
 |---|---|
-| zachęta do zapisu szkicu | Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz. |
+| zachęta do zapisu szkicu (formularz na jednej stronie) | Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz. |
+| to samo w kreatorze, gdzie szkic zapisuje się sam | Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie: szkic zapisuje się sam po każdym kroku i po chwili przerwy w pisaniu, a przycisk „Zapisz szkic" robi to od razu. |
 | sekcja pochodzenia | Skąd ten przepis |
-| pod nagłówkiem sekcji | To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest. |
+| pod nagłówkiem sekcji | Tu napiszesz, po kim jest ten przepis i skąd go znasz. |
 | pole „po kim" | Po kim ten przepis |
 | podpowiedź | po mamie, Halinie |
 | pole historii | Historia tego przepisu |
-| podpowiedź | Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. To zostaje w rodzinie. |
+| podpowiedź | Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis. |
 | skan kartki | Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie. |
 | składniki, podpowiedź | Pisz tak, jak mówisz: „szklanka mąki", „2 duże cebule", „mleko — ile weźmie". Nie musisz nic przeliczać na gramy. |
 | kroki, podpowiedź | Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku. |
@@ -393,7 +402,7 @@ Wzór: **co się stało → dlaczego → co zrobić.**
 | zdjęcie za duże | To zdjęcie waży za dużo. Maksymalny rozmiar to 15 MB — wybierz mniejsze zdjęcie. |
 | nie jest obrazem | Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP. |
 | pusty wpis | Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować. |
-| hasło za krótkie | Hasło musi mieć co najmniej 10 znaków. Najprościej wpisać trzy słowa, na przykład: zielonapietruszkarano. |
+| hasło za krótkie | Hasło musi mieć co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu. |
 | hasło z wycieku | To hasło pojawiło się już w wyciekach danych z innych serwisów. Wybierz inne. |
 | zła nazwa użytkownika | Nazwa użytkownika może zawierać tylko litery bez polskich znaków, cyfry i podkreślnik. Na przykład: basia_z_podkarpacia. |
 | nazwa zajęta | Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu. |
@@ -441,6 +450,10 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 - [ ] Nie ma komplementu za publikację ani śladu rankingu?
 - [ ] Konstrukcja nie zakłada rodzaju tam, gdzie da się tego uniknąć?
 - [ ] Zdanie nie jest dłuższe niż trzeba? (Skreśl trzy słowa. Zwykle da się.)
+- [ ] **Czy to zdanie jest prawdziwe przy kodzie, który dziś stoi w repozytorium?**
+      Obietnica harmonogramu, liczby albo cudzego zachowania („jutro", „zajmie
+      minutę", „najczęściej czytana") wymaga mechanizmu albo pomiaru. Nie ma —
+      nie piszemy.
 
 ---
 

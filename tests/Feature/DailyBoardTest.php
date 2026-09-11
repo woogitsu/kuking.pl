@@ -220,9 +220,18 @@ class DailyBoardTest extends TestCase
 
         // Wycinamy sekcję tablicy i sprawdzamy, że nie ma w niej liczb
         // sugerujących ranking.
+        // Granicę wycinka wyznacza KLASA stopki, nie jej treść: samo zdanie
+        // stopki jest tekstem i już raz się zmieniło (11.09.2026, wyjęcie
+        // obietnicy „Jutro będzie tu ktoś inny"), a wtedy `strpos()` zwraca
+        // `false`, wycinek robi się pusty i test przechodzi, nie mierząc nic.
         $start = strpos($html, 'kuking-board');
-        $koniec = strpos($html, 'Jutro będzie tu ktoś inny');
+        $koniec = strpos($html, 'kuking-board-footer');
+
+        $this->assertIsInt($start, 'Nie znalazłem tablicy dnia w HTML-u.');
+        $this->assertIsInt($koniec, 'Nie znalazłem stopki tablicy — wycinek byłby pusty.');
+
         $sekcja = substr($html, $start, max(0, $koniec - $start));
+        $this->assertNotSame('', $sekcja, 'Wycinek tablicy jest pusty — nie ma czego sprawdzać.');
 
         $this->assertStringNotContainsString('obserwując', $sekcja);
         $this->assertStringNotContainsString('wpisów', $sekcja);

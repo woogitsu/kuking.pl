@@ -741,6 +741,55 @@ Na koniec przejdź ścieżkę użytkownika, nie komendy:
 Dopiero to jest dowód. Ekran „Nie pamiętam hasła” **sam się odblokuje**, gdy
 `MAIL_MAILER` przestanie być `log` — nie ma tam nic do przełączenia ręcznie.
 
+### Krok 6 — piksel śledzący otwarcia (issue #204)
+
+**Zmierzone 9 września 2026 na prawdziwym liście doręczonym na o2.pl**
+(potwierdzenie adresu): w treści HTML siedziały DWA znaczniki liczące
+otwarcie — `<img>` o rozmiarze 1×1 z adresem na `click.kuking.pl/track/o/…`
+oraz zapasowy `<div>` z tym samym adresem w `background:url()`, dla klientów,
+które blokują obrazki. Odnośniki nie były przepisane, czyli nasz nagłówek
+`X-TRACKING-OFF` działa — problem dotyczy **wyłącznie otwarć**.
+
+Piksel raportuje moment otwarcia, adres IP i klienta pocztowego odbiorcy.
+Przy liście transakcyjnym nie ma to żadnego zastosowania: nie mierzymy
+otwieralności kampanii, bo kampanii nie ma.
+
+**Tego nie naprawi żaden PR.** Specyfikacja API dostawcy mówi o nagłówku
+`X-TRACKING-OFF` dosłownie: „**Link** tracking is enabled by default" —
+samo śledzenie otwarć jest ustawieniem konta wysyłkowego w panelu i API nie
+ma pola, którym dałoby się je ani odczytać, ani zmienić.
+
+Kolejność jest więc taka:
+
+1. **panel EmailLabs → konto wysyłkowe `1.mkapica.smtp` → wyłącz śledzenie
+   otwarć.** Jeśli takiego przełącznika tam nie ma — napisz do wsparcia
+   Vercomu i **wklej tu ich odpowiedź razem z datą**;
+2. wyślij list jeszcze raz (`kuking:sprawdz-poczte`) i zapisz jego **surowe
+   źródło** ze skrzynki (Gmail „Pokaż oryginał", o2 i WP „Więcej" → „Pokaż
+   szczegóły") do pliku;
+3. sprawdź ten plik komendą:
+
+```bash
+php artisan kuking:sprawdz-piksel ~/list-z-kuking.eml
+```
+
+   Komenda **kończy się porażką**, gdy w liście stoi obcy obrazek albo
+   przepisany odnośnik, i mówi, który ślad znalazła. Kończy się porażką także
+   wtedy, gdy w pliku nie ma ANI JEDNEGO adresu http(s) — bo to znaczy „nic
+   nie zmierzyliśmy", a nie „list jest czysty";
+4. **wynik wpisz tutaj, z datą.** To jest konfiguracja poza repozytorium,
+   a dowód bez daty nie znaczy nic.
+
+**Czego ta komenda nie mówi, nawet gdy świeci na zielono:** że przełącznik
+w panelu jest wyłączony. Mówi o jednym konkretnym liście. Dowodem na
+ustawienie jest panel plus ten sam wynik na kilku listach z różnych
+powiadomień. W drugą stronę jest mocniej — jeden ślad wystarcza, żeby
+wiedzieć, że śledzenie otwarć wciąż działa.
+
+**Stan na 11 września 2026: NIE WYŁĄCZONE, do zrobienia po stronie
+właściciela.** Dopóki tak jest, polityka prywatności musi o tym mówić
+(sekcja 3, akapit o EmailLabs) — i mówi.
+
 ### `MAIL_FROM_NAME` zostaw NIEUSTAWIONE
 
 Tabele wariantów wyżej mówią „nie ustawiaj" i to nie jest przeoczenie.

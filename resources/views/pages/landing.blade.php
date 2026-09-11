@@ -199,7 +199,10 @@
     {{-- 7. ZAŁÓŻ KONTO -------------------------------------------------- --}}
     <section class="pas pas--kreska-gora">
         <div class="pas-wnetrze zacheta">
-            <h2 class="text-title-lg">Załóż konto. Zajmie minutę</h2>
+            {{-- BEZ „Zajmie minutę": to obietnica z miarą, której nie mierzymy.
+                 Zdanie pod spodem mówi to samo bez obietnicy — wymienia,
+                 z czego ta rejestracja się składa. --}}
+            <h2 class="text-title-lg">Załóż konto</h2>
             <p class="text-lead zacheta-tekst">
                 Cztery pola i dwa potwierdzenia: że masz ukończone
                 {{ config('kuking.account.min_age') }} lat i że znasz regulamin.

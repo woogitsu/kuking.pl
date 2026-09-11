@@ -23,7 +23,15 @@ use Tests\TestCase;
  * `cdn.kuking.pl` przed bucketem, mając na ekranie zielony napis.
  *
  * Dlatego każdy test niżej pyta o to samo z innej strony: czy komenda
- * oblewa, gdy powinna. Sukces sprawdzamy raz; porażkę siedem razy.
+ * oblewa, gdy powinna. Z dwudziestu przypadków przejście bramki sprawdza
+ * pięć, a nieprzejście piętnaście — bo fałszywa zieleń jest tu groźna,
+ * a fałszywa czerwień tylko kosztuje wieczór.
+ *
+ * JEDEN Z TYCH TESTÓW NIE PATRZY NA WYJŚCIE KOMENDY, a na to, co poszło
+ * w sieć (`test_bramka_pyta_kazdy_zadeklarowany_adres_o_prawdziwy_klucz`).
+ * Wszystkie pozostałe przeszłyby także wtedy, gdyby ktoś zamienił żądania
+ * HTTP na `return true` — to pułapka 5 z `docs/PULAPKI_TESTOW.md`:
+ * narzędzie potrafi zameldować sukces, nie robiąc nic.
  *
  * PUŁAPKA, KTÓRĄ TE TESTY PILNUJĄ NA WEJŚCIU: na dysku lokalnym każde
  * sprawdzenie tej komendy wychodzi ładnie. Nie ma bucketu, nie ma
@@ -39,6 +47,14 @@ class BramkaR2MowiPrawdeTest extends TestCase
 
     /** Endpoint z identyfikatorem konta — NIE MA prawa wyjść na ekran. */
     private const ENDPOINT = 'https://1a2b3c4d5e6f.r2.cloudflarestorage.com';
+
+    /**
+     * Zadeklarowane publiczne adresy — droga, którą naprawdę chodzi
+     * przeglądarka. Własna domena i `r2.dev` z panelu Cloudflare.
+     */
+    private const PUBLICZNA_DOMENA = 'https://cdn.test.kuking.pl';
+
+    private const PUBLICZNY_R2_DEV = 'https://pub-test123.r2.dev';
 
     #[Test]
     public function test_dysk_lokalny_nie_udaje_przejscia_bramki(): void
@@ -87,7 +103,13 @@ class BramkaR2MowiPrawdeTest extends TestCase
 
         $this->artisan('kuking:bramka-r2 --zapis')
             ->expectsOutputToContain('Część serwerowa bramki PRZESZŁA')
-            ->expectsOutputToContain('r2.dev` wyłączone')
+            // Dowód, a nie zapewnienie: kod odmowy spod obu zadeklarowanych
+            // publicznych adresów, wypisany dosłownie.
+            ->expectsOutputToContain('Każdy zadeklarowany adres odmówił.')
+            ->expectsOutputToContain('cdn.test.kuking.pl: HTTP 403')
+            ->expectsOutputToContain('pub-test123.r2.dev: HTTP 403')
+            // Nawet po przejściu bramka mówi, czego nie sprawdziła.
+            ->expectsOutputToContain('KOMPLETNĄ listę publicznych adresów')
             ->assertExitCode(0);
     }
 
@@ -128,6 +150,220 @@ class BramkaR2MowiPrawdeTest extends TestCase
         $this->artisan('kuking:bramka-r2 --zapis')
             ->expectsOutputToContain('ALARM: oryginał z pełnym EXIF-em')
             ->assertExitCode(1);
+    }
+
+    /**
+     * KONTROLA UJEMNA CAŁEGO ZADANIA: podstawione „publiczne" wiadro.
+     *
+     * Bucket oddaje oryginał pod własną domeną — tą, którą naprawdę chodzi
+     * przeglądarka. To jest dokładnie wypadek, przed którym stoi issue #120:
+     * w oryginale siedzi pełny EXIF ze współrzędnymi GPS kuchni, a adres
+     * wyprowadza się z publicznego adresu wariantu podmianą `media/`
+     * na `incoming/`.
+     *
+     * Bramka MA oblać i MA podać kod odpowiedzi dosłownie.
+     */
+    #[Test]
+    public function test_oryginal_oddawany_pod_wlasna_domena_to_alarm(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403, publicznyOryginal: 200);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: oryginał z pełnym EXIF-em (GPS kuchni) wychodzi publiczną drogą.')
+            ->expectsOutputToContain('cdn.test.kuking.pl: HTTP 200')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * `r2.dev` włączone na buckecie oryginałów — drugi adres z listy.
+     *
+     * Osobny test, nie parametr poprzedniego: pułapka 3b z
+     * `docs/PULAPKI_TESTOW.md` mówi, że dwa sprawdzenia trafiające w tę samą
+     * gałąź warunku dają jedno sprawdzenie i jedną atrapę. Tu każdy adres
+     * odpowiada INACZEJ — własna domena odmawia, `r2.dev` oddaje plik —
+     * więc test dowodzi, że bramka pyta KAŻDY adres z listy, a nie pierwszy
+     * i tyle.
+     */
+    #[Test]
+    public function test_jeden_otwarty_adres_z_dwoch_wystarcza_zeby_oblac(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+
+        Http::fake(function (Request $zadanie) {
+            $adres = $zadanie->url();
+
+            if (Str::startsWith($adres, self::PUBLICZNY_R2_DEV)) {
+                return Http::response('bajty oryginału', 200);
+            }
+
+            if (Str::startsWith($adres, self::PUBLICZNA_DOMENA)) {
+                return Http::response('', 403);
+            }
+
+            return Str::contains($adres, 'expiration=')
+                ? Http::response('bajty wariantu', 200)
+                : Http::response('', 403);
+        });
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: oryginał z pełnym EXIF-em (GPS kuchni) wychodzi publiczną drogą.')
+            ->expectsOutputToContain('cdn.test.kuking.pl: HTTP 403')
+            ->expectsOutputToContain('pub-test123.r2.dev: HTTP 200')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * PRZEKIEROWANIE NIE JEST ODMOWĄ.
+     *
+     * Issue #120 żąda dosłownie `403/404`. Gdyby bramka uznawała „cokolwiek
+     * poza 200" za odmowę, `301` na inny host przechodziłby ją na zielono —
+     * a `301` nie mówi „nie wolno", tylko „plik jest tam". Bramka chodzi
+     * z `withoutRedirecting()`, więc sama za tym wskazaniem nie idzie
+     * i bez tej gałęzi nie dowiedziałaby się, co leży na jego końcu.
+     */
+    #[Test]
+    public function test_przekierowanie_z_publicznego_adresu_nie_jest_odmowa(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403, publicznyOryginal: 301);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: oryginał z pełnym EXIF-em (GPS kuchni) wychodzi publiczną drogą.')
+            ->expectsOutputToContain('cdn.test.kuking.pl: HTTP 301')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * Wariant pod publiczną domeną to też alarm — po audycie W7-02.
+     *
+     * Issue #120 pisane było wtedy, gdy bucket wariantów miał mieć własną
+     * domenę i miał spod niej oddawać 200. W7-02 tę decyzję odwrócił:
+     * wariant przepisu prywatnego jest tak samo prywatny jak sam przepis,
+     * a `recipes.source_scan_media_id` to skan kartki z nazwiskami. Zdjęcie
+     * klucza `url` z konfiguracji NIE zdejmuje domeny z bucketu — dopóki
+     * `cdn.kuking.pl` tam wskazuje, stare adresy działają wiecznie i dla
+     * każdego. To sprawdzenie jest jedyną rzeczą w repozytorium, która
+     * potrafi to zmierzyć.
+     */
+    #[Test]
+    public function test_wariant_oddawany_pod_wlasna_domena_to_alarm(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403, publicznyWariant: 200);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: wariant wychodzi publiczną drogą')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * CISZA NIE JEST ZALICZENIEM: bez zadeklarowanych adresów nie ma dowodu.
+     *
+     * Tak właśnie zachowywała się bramka przed tą zmianą — nie pytała
+     * o własną domenę ani o `r2.dev`, bo nie miała ich skąd wziąć, i mimo
+     * to kończyła się zielono. Teraz brak deklaracji jest `NIE WIEMY`,
+     * a `NIE WIEMY` oblewa.
+     */
+    #[Test]
+    public function test_brak_zadeklarowanych_publicznych_adresow_oblewa(): void
+    {
+        $this->ustawR2();
+        config(['kuking.media.publiczne_adresy' => []]);
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('Nie zadeklarowano ANI JEDNEGO publicznego adresu')
+            ->expectsOutputToContain('Adres niezapytany nie jest dowodem na nic')
+            ->expectsOutputToContain('NIEPRZEJŚCIONA')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * Milczący host przy niedziałającym wyjściu na świat to `NIE WIEMY`.
+     *
+     * Gdyby bramka uznawała każdy brak odpowiedzi za dowód zamknięcia,
+     * kontener bez wyjścia na świat przechodziłby ją na zielono ZA KAŻDYM
+     * razem — odmawiałaby sieć, nie Cloudflare, a raport mówiłby to samo
+     * zdanie co przy prawdziwie zamkniętym buckecie.
+     */
+    #[Test]
+    public function test_milczacy_publiczny_adres_bez_dowodu_wyjscia_na_swiat_oblewa(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+
+        Http::fake(fn () => throw new ConnectionException('Could not resolve host'));
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('NIE UDAŁO SIĘ dojść do R2 nawet z podpisem')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * Milczący host przy DZIAŁAJĄCYM wyjściu na świat wolno uznać za zamknięty.
+     *
+     * Kontrola dodatnia do testu wyżej — bez niej „NIE WIEMY" mogłoby
+     * wypadać z powodu, którego nikt nie zmierzył, i cała para „cisza vs
+     * cisza z dowodem sieci" nie dowodziłaby, że bramka je rozróżnia.
+     * Domena, której nie ma w DNS-ie, nie wyda pliku nikomu — ale wolno tak
+     * powiedzieć tylko wtedy, gdy w tym samym przebiegu coś innego na świat
+     * wyszło.
+     */
+    #[Test]
+    public function test_milczacy_publiczny_adres_przy_dzialajacej_sieci_przechodzi(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+
+        Http::fake(function (Request $zadanie) {
+            if ($this->publicznyHost($zadanie->url())) {
+                throw new ConnectionException('Could not resolve host');
+            }
+
+            return Str::contains($zadanie->url(), 'expiration=')
+                ? Http::response('bajty wariantu', 200)
+                : Http::response('', 403);
+        });
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('część nie odpowiedziała wcale')
+            ->expectsOutputToContain('Część serwerowa bramki PRZESZŁA')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * BRAMKA NAPRAWDĘ WYSŁAŁA TE ŻĄDANIA, a nie tylko o nich napisała.
+     *
+     * Pułapka 5 z `docs/PULAPKI_TESTOW.md`: narzędzie potrafi zameldować
+     * sukces, nie robiąc nic. Wszystkie pozostałe testy patrzą na WYJŚCIE
+     * komendy, więc przeszłyby także wtedy, gdyby ktoś zamienił żądania na
+     * `return true`. Ten jeden patrzy na to, co poszło w sieć: pod każdym
+     * zadeklarowanym adresem musi być zapytanie o klucz PRAWDZIWEGO
+     * oryginału z bazy — nie o klucz wymyślony, bo 404 na nieistniejącym
+     * kluczu nie mówi nic o tym, czy bucket jest publiczny.
+     */
+    #[Test]
+    public function test_bramka_pyta_kazdy_zadeklarowany_adres_o_prawdziwy_klucz(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')->assertExitCode(0);
+
+        foreach ([self::PUBLICZNA_DOMENA, self::PUBLICZNY_R2_DEV] as $adres) {
+            Http::assertSent(
+                fn (Request $zadanie): bool => $zadanie->url() === $adres.'/'.self::KLUCZ_ORYGINALU
+                    && $zadanie->method() === 'GET'
+                    && $zadanie->header('Authorization') === [],
+            );
+        }
     }
 
     #[Test]
@@ -196,6 +432,10 @@ class BramkaR2MowiPrawdeTest extends TestCase
             ->doesntExpectOutputToContain(self::ENDPOINT)
             ->doesntExpectOutputToContain('1a2b3c4d5e6f')
             ->doesntExpectOutputToContain('expiration=')
+            // Pełna ścieżka do czyjegoś oryginału też nie ma prawa wyjść —
+            // wyjście tej komendy wkleja się do zgłoszeń i do
+            // `docs/infra/BRAMKA_R2.md`. Bramka wypisuje sam host i kod.
+            ->doesntExpectOutputToContain(self::KLUCZ_ORYGINALU)
             ->assertExitCode(0);
     }
 
@@ -220,6 +460,11 @@ class BramkaR2MowiPrawdeTest extends TestCase
             'filesystems.disks.r2_publiczne.endpoint' => self::ENDPOINT,
             'kuking.media.disk' => 'r2',
             'kuking.media.public_disk' => 'r2_publiczne',
+            // Bez tej listy bramka nie wie, o jakie adresy pytać, i mówi
+            // o tym `NIE WIEMY`. Domyślnie deklarujemy oba adresy, bo tak
+            // ma wyglądać poprawnie skonfigurowane środowisko; testy, które
+            // mierzą właśnie brak deklaracji, czyszczą ją same.
+            'kuking.media.publiczne_adresy' => [self::PUBLICZNA_DOMENA, self::PUBLICZNY_R2_DEV],
         ]);
 
         Storage::fake('r2');
@@ -258,11 +503,29 @@ class BramkaR2MowiPrawdeTest extends TestCase
      * Adres podpisany przez `Storage::fake()` niesie `?expiration=` —
      * po tym poznajemy podpis. Adres oryginału poznajemy po tym, że stoi
      * na endpoincie konta, a nie na adresie aplikacji.
+     *
+     * ROZDZIAŁ PO HOŚCIE JEST TU ISTOTNY I MUSI BYĆ PIERWSZY. Ostrzał
+     * publicznych adresów idzie po TYM SAMYM kluczu oryginału co
+     * sprawdzenie 6, więc atrapa dopasowująca najpierw klucz odpowiadałaby
+     * tak samo na żądanie do endpointu konta i na żądanie do
+     * `cdn.test.kuking.pl`. Dwa sprawdzenia zlałyby się w jedno i żadne
+     * z nich nie mierzyłoby tego, co obiecuje — to ta sama choroba, przed
+     * którą ostrzega sama bramka.
      */
-    private function odpowiedziR2(int $bezPodpisu, int $oryginal): void
-    {
-        Http::fake(function (Request $zadanie) use ($bezPodpisu, $oryginal) {
+    private function odpowiedziR2(
+        int $bezPodpisu,
+        int $oryginal,
+        int $publicznyOryginal = 403,
+        int $publicznyWariant = 403,
+    ): void {
+        Http::fake(function (Request $zadanie) use ($bezPodpisu, $oryginal, $publicznyOryginal, $publicznyWariant) {
             $adres = $zadanie->url();
+
+            if ($this->publicznyHost($adres)) {
+                return Str::contains($adres, self::KLUCZ_ORYGINALU)
+                    ? Http::response('bajty oryginału', $publicznyOryginal)
+                    : Http::response('bajty wariantu', $publicznyWariant);
+            }
 
             if (Str::contains($adres, self::KLUCZ_ORYGINALU)) {
                 return Http::response('bajty oryginału', $oryginal);
@@ -274,5 +537,11 @@ class BramkaR2MowiPrawdeTest extends TestCase
 
             return Http::response('', $bezPodpisu);
         });
+    }
+
+    /** Czy to żądanie idzie pod jeden z zadeklarowanych publicznych adresów. */
+    private function publicznyHost(string $adres): bool
+    {
+        return Str::startsWith($adres, [self::PUBLICZNA_DOMENA, self::PUBLICZNY_R2_DEV]);
     }
 }

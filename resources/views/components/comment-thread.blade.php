@@ -197,9 +197,13 @@
             <button class="btn btn-primary" type="submit">Wyślij komentarz</button>
         </form>
     @else
+        {{-- BEZ „Zajmuje to minutę": obietnica z miarą, której nie mierzymy,
+             a przy tym niejasna — stała po dwóch różnych drogach naraz
+             (logowanie istniejącym kontem i zakładanie nowego), więc nie było
+             wiadomo, o której mówi. Zostaje samo to, co jest do zrobienia. --}}
         <p class="notice">
             Żeby dodać komentarz, <a href="{{ route('login') }}">zaloguj się</a>
-            albo <a href="{{ route('register') }}">załóż konto</a>. Zajmuje to minutę.
+            albo <a href="{{ route('register') }}">załóż konto</a>.
         </p>
     @endauth
 

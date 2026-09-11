@@ -25,9 +25,25 @@ use Throwable;
  *
  * Ta komenda robi za człowieka wszystko, co da się zrobić Z SERWERA: pyta
  * prawdziwe R2 prawdziwymi żądaniami i mówi po polsku, co z nich wyszło.
- * Punkty, których z serwera sprawdzić NIE DA SIĘ (przełącznik `r2.dev`
- * w panelu, wgranie zdjęcia z telefonu, kasowanie z bazy), wypisuje na
- * końcu jako pozostałe do zrobienia — zamiast udawać, że ich nie ma.
+ * Punkty, których z serwera sprawdzić NIE DA SIĘ (wgranie zdjęcia
+ * z telefonu, kasowanie z bazy), wypisuje na końcu jako pozostałe do
+ * zrobienia — zamiast udawać, że ich nie ma.
+ *
+ * CZEGO TA KOMENDA NIE UMIAŁA, DOPÓKI NIE ISTNIAŁA LISTA `publiczne_adresy`
+ * Issue #120 żąda dowodu, że oryginał nie wyjdzie „przez KAŻDĄ publiczną
+ * ścieżkę": własną domenę (`cdn.kuking.pl`), `r2.dev` i endpoint konta.
+ * Z konfiguracji dawała się wyprowadzić JEDNA z nich — endpoint — bo klucz
+ * `url` został z dysków mediów świadomie zdjęty (audyt W7-02), a domena
+ * i `r2.dev` żyją wyłącznie w panelu Cloudflare. Bramka pytała więc o adres,
+ * którym nikt nie chodzi, milczała o adresie, którym chodzi przeglądarka,
+ * i świeciła na zielono. Dokładnie ta klasa usterki, przed którą sama
+ * ostrzega: narzędzie melduje sukces, oglądając co innego, niż się wydaje.
+ *
+ * Dlatego publiczne adresy trzeba tej bramce ZADEKLAROWAĆ
+ * (`KUKING_R2_PUBLICZNE_ADRESY`), razem z tymi, które mają być wyłączone —
+ * wyłączenie `r2.dev` jest udowodnione dopiero wtedy, gdy spod adresu
+ * `pub-….r2.dev` przyszła odmowa. Pusta lista to `NIE WIEMY`, czyli
+ * nieprzejście, a nie „nic nie jest publiczne".
  *
  * CZEGO TA KOMENDA NIE ROBI, I TO JEST ŚWIADOME
  * Nie kasuje niczego i domyślnie nic nie zapisuje. Sprawdzenie „skasowanie
@@ -86,11 +102,21 @@ class BramkaR2 extends Command
         $wariant = $this->wariantIstniejePrzezApi($media);
         $this->trzyWarianty($media);
 
+        // `siecDziala` niesie WYNIK KONTROLI DODATNIEJ próbnika: czy z tego
+        // kontenera wyszło choćby jedno żądanie, na które przyszła odpowiedź
+        // HTTP. Bez tego rozróżnienia „host nie odpowiedział" znaczyłoby raz
+        // „takiej domeny nie ma, więc nikt tym adresem nie wejdzie", a raz
+        // „ten serwer nie ma wyjścia na świat, więc ODMÓWIŁO WSZYSTKO i to
+        // nie jest zasługa Cloudflare". Patrz `ostrzelajAdresy()`.
+        $siecDziala = false;
+
         if ($wariant !== null) {
-            $this->podpisDzialaAAdresBezPodpisuNie($media, $wariant);
+            $siecDziala = $this->podpisDzialaAAdresBezPodpisuNie($media, $wariant);
         }
 
         $this->oryginalNiePodpisemNieDaSiePobrac($media);
+        $this->oryginalNieWyjdziePrzezZadeklarowaneAdresy($media, $siecDziala);
+        $this->wariantNieWyjdziePrzezZadeklarowaneAdresy($wariant, $siecDziala);
         $this->publicznyBucketBezOryginalow($dyskWariantow);
         $this->exifJestTylkoWOryginale($media, $wariant);
 
@@ -282,9 +308,15 @@ class BramkaR2 extends Command
      * To jest sedno bramki. Jeżeli adres bez sygnatury oddaje 200, bucket
      * jest publiczny i wystawia wszystko, co w nim leży.
      *
+     * ZWRACA KONTROLĘ DODATNIĄ PRÓBNIKA: `true`, gdy na żądanie z podpisem
+     * przyszła JAKAKOLWIEK odpowiedź HTTP. To nie musi być 200 — nawet 403
+     * dowodzi, że z tego kontenera da się dojść do R2, a tylko o to tu
+     * chodzi. Sprawdzenia 7 i 8 bez tego dowodu nie mają prawa uznać
+     * milczącego hosta za zamknięty.
+     *
      * @param  array{nazwa: string, klucz: string}  $wariant
      */
-    private function podpisDzialaAAdresBezPodpisuNie(Media $media, array $wariant): void
+    private function podpisDzialaAAdresBezPodpisuNie(Media $media, array $wariant): bool
     {
         $dysk = $this->dysk($media->variantsDisk());
 
@@ -292,7 +324,7 @@ class BramkaR2 extends Command
             $this->wiersz('4', 'Podpisany adres wariantu oddaje 200', null,
                 'Ten dysk nie umie podpisywać adresów — na R2 umie, więc to znaczy, że komenda chodzi nie na R2.');
 
-            return;
+            return false;
         }
 
         try {
@@ -301,7 +333,7 @@ class BramkaR2 extends Command
             $this->wiersz('4', 'Podpisany adres wariantu oddaje 200', null,
                 'Nie udało się podpisać adresu: '.$this->skrot($e->getMessage()));
 
-            return;
+            return false;
         }
 
         $kodZPodpisem = $this->kodOdpowiedzi($podpisany);
@@ -330,6 +362,8 @@ class BramkaR2 extends Command
                 : ($kodBezPodpisu === 200
                     ? 'ALARM: bucket wariantów oddaje pliki BEZ podpisu. Wyłącz `r2.dev` i publiczną domenę.'
                     : 'HTTP '.$kodBezPodpisu.' — bez sygnatury R2 nie oddaje nic.'));
+
+        return $kodZPodpisem !== null;
     }
 
     /**
@@ -382,6 +416,194 @@ class BramkaR2 extends Command
                     : 'Żadna droga nie oddała pliku ('.implode(' · ', $wyniki).').'));
     }
 
+    /**
+     * ORYGINAŁ POD KAŻDYM ZADEKLAROWANYM PUBLICZNYM ADRESEM — musi odmówić.
+     *
+     * TO JEST TEN DOWÓD, O KTÓRY PROSI ISSUE #120. Sprawdzenie 6 wyżej pyta
+     * endpoint konta S3 — adres, którym nikt z zewnątrz nie chodzi i który
+     * jest prywatny z definicji, bo bez podpisu nie oddaje nic. Przeglądarka
+     * chodzi własną domeną (`cdn.kuking.pl`) albo `r2.dev`, a tych dwóch
+     * adresów nie ma w tym repozytorium nigdzie: klucz `url` został z dysków
+     * mediów zdjęty (W7-02), a panel Cloudflare jest poza zasięgiem PHP.
+     *
+     * Sprawdzenie 6 bez tego było więc zielonym światłem za sprawdzenie
+     * czegoś, o co nikt nie pytał.
+     *
+     * Żądanie idzie zwykłym GET-em, BEZ PODPISU I BEZ NAGŁÓWKA AUTORYZACJI —
+     * dokładnie tak, jak zrobi to ktoś, kto podmienił w publicznym adresie
+     * wariantu `media/` na `incoming/`. Kod odpowiedzi wypisujemy dosłownie,
+     * bo to jest cała treść dowodu.
+     */
+    private function oryginalNieWyjdziePrzezZadeklarowaneAdresy(Media $media, bool $siecDziala): void
+    {
+        $this->rozstrzygnijOstrzal(
+            '7',
+            'Oryginał odmawia się pod KAŻDYM zadeklarowanym publicznym adresem',
+            (string) $media->object_key,
+            $siecDziala,
+            'ALARM: oryginał z pełnym EXIF-em (GPS kuchni) wychodzi publiczną drogą.',
+        );
+    }
+
+    /**
+     * Wariant pod publicznymi adresami — po W7-02 też ma odmawiać.
+     *
+     * Issue #120 pisane było wtedy, gdy bucket wariantów miał mieć własną
+     * domenę, i żądało spod niej odpowiedzi 200. Audyt W7-02 tę decyzję
+     * odwrócił: wariant przepisu prywatnego jest tak samo prywatny jak sam
+     * przepis, a `recipes.source_scan_media_id` to skan kartki z nazwiskami
+     * i adresami. Adresem zdjęcia jest dziś trasa `media.show`, która pyta
+     * Policy i przekierowuje na adres podpisany na kilka minut.
+     *
+     * Czyli: publiczny adres nie ma oddać ANI oryginału, ANI wariantu.
+     * To sprawdzenie zamyka pierwszą pozycję z listy „co pozostaje otwarte"
+     * w `docs/infra/BRAMKA_R2.md` — czy `cdn.kuking.pl` naprawdę zeszła
+     * z bucketu wariantów. Zdjęcie klucza `url` z konfiguracji tego nie
+     * robiło i nigdy nie robiło.
+     *
+     * @param  array{nazwa: string, klucz: string}|null  $wariant
+     */
+    private function wariantNieWyjdziePrzezZadeklarowaneAdresy(?array $wariant, bool $siecDziala): void
+    {
+        if ($wariant === null) {
+            $this->wiersz('8', 'Wariant odmawia się pod zadeklarowanymi publicznymi adresami', null,
+                'Nie ma sprawdzonego wariantu, więc nie ma czego szukać pod publicznym adresem.');
+
+            return;
+        }
+
+        $this->rozstrzygnijOstrzal(
+            '8',
+            'Wariant odmawia się pod zadeklarowanymi publicznymi adresami',
+            $wariant['klucz'],
+            $siecDziala,
+            'ALARM: wariant wychodzi publiczną drogą — `cdn.kuking.pl` albo `r2.dev` nadal stoi przed tym bucketem.',
+        );
+    }
+
+    /**
+     * Wspólne rozstrzygnięcie dla sprawdzeń 7 i 8.
+     *
+     * Wydzielone, bo różnią się wyłącznie kluczem i treścią alarmu, a cała
+     * logika „co znaczy brak odpowiedzi" musi być w JEDNYM miejscu. Gdyby
+     * była skopiowana, następna poprawka trafiłaby w jedną kopię i bramka
+     * mówiłaby dwie różne rzeczy o tej samej sytuacji.
+     */
+    private function rozstrzygnijOstrzal(string $numer, string $co, string $klucz, bool $siecDziala, string $alarm): void
+    {
+        $adresy = $this->zadeklarowanePubliczneAdresy();
+
+        if ($adresy === []) {
+            $this->wiersz($numer, $co, null,
+                'Nie zadeklarowano ANI JEDNEGO publicznego adresu, więc nikt o nic nie zapytał.',
+                [
+                    'Wypisz w `KUKING_R2_PUBLICZNE_ADRESY` publiczne adresy OBU bucketów — '
+                        .'własną domenę i `r2.dev`, razem z tymi, które mają być wyłączone.',
+                    'Adres niezapytany nie jest dowodem na nic.',
+                ]);
+
+            return;
+        }
+
+        if ($klucz === '') {
+            $this->wiersz($numer, $co, null, 'Brak klucza obiektu — nie ma czego doklejać do adresu.');
+
+            return;
+        }
+
+        $ostrzal = $this->ostrzelajAdresy($adresy, $klucz);
+
+        // Kolejność gałęzi jest tu istotna: 200 pod choćby jednym adresem to
+        // alarm NAWET wtedy, gdy inny adres milczał. Jeden otwarty adres
+        // wystarczy, żeby dane wyszły.
+        if ($ostrzal['wystawiony']) {
+            $this->wiersz($numer, $co, false, $alarm, $ostrzal['wyniki']);
+
+            return;
+        }
+
+        if ($ostrzal['bezOdpowiedzi'] && ! $siecDziala) {
+            $this->wiersz($numer, $co, null,
+                'Któryś adres nie odpowiedział, a w tym przebiegu NIE UDAŁO SIĘ dojść do R2 nawet '
+                .'z podpisem — czyli odmówiła prawdopodobnie sieć tego kontenera, nie Cloudflare.',
+                $ostrzal['wyniki']);
+
+            return;
+        }
+
+        $this->wiersz($numer, $co, true,
+            $ostrzal['bezOdpowiedzi']
+                ? 'Żaden adres nie oddał pliku; część nie odpowiedziała wcale, a wyjście na świat '
+                    .'z tego kontenera jest w tym samym przebiegu potwierdzone żądaniem z podpisem.'
+                : 'Każdy zadeklarowany adres odmówił.',
+            $ostrzal['wyniki']);
+    }
+
+    /**
+     * Jeden GET po tym samym kluczu pod każdym zadeklarowanym adresem.
+     *
+     * ODMOWĄ JEST TU KOD 400 ALBO WYŻSZY, nie „cokolwiek poza 200".
+     * Issue #120 żąda dosłownie `403/404`, i słusznie: `301` na inny host
+     * nie jest odmową, tylko wskazaniem, gdzie plik leży — a `Http` chodzi
+     * tu z `withoutRedirecting()`, więc bramka nie poszłaby za tym
+     * wskazaniem i uznałaby przekierowanie za sukces. To samo dotyczy `206`
+     * (fragment pliku) i `304`. Wszystko poniżej 400 liczy się więc jak
+     * wystawienie; który to dokładnie kod, widać w linii dowodowej.
+     *
+     * Na wyjście idzie SAM HOST i kod odpowiedzi, bez klucza obiektu
+     * i bez ścieżki. Wyjście tej komendy trafia do zgłoszeń i do
+     * `docs/infra/BRAMKA_R2.md`, a pełna ścieżka do czyjegoś oryginału jest
+     * dokładnie tym, czego ta bramka ma nie rozpowszechniać — nawet gdy
+     * właśnie udowodniła, że pod tym adresem nic nie wychodzi.
+     *
+     * @param  list<string>  $adresy
+     * @return array{wystawiony: bool, bezOdpowiedzi: bool, wyniki: list<string>}
+     */
+    private function ostrzelajAdresy(array $adresy, string $klucz): array
+    {
+        $wystawiony = false;
+        $bezOdpowiedzi = false;
+
+        /** @var list<string> $wyniki */
+        $wyniki = [];
+
+        foreach ($adresy as $adres) {
+            $kod = $this->kodOdpowiedzi(rtrim($adres, '/').'/'.ltrim($klucz, '/'));
+            $host = (string) parse_url($adres, PHP_URL_HOST);
+
+            $wyniki[] = ($host !== '' ? $host : $adres).': '.($kod === null ? 'brak odpowiedzi' : 'HTTP '.$kod);
+
+            if ($kod !== null && $kod < 400) {
+                $wystawiony = true;
+            }
+
+            if ($kod === null) {
+                $bezOdpowiedzi = true;
+            }
+        }
+
+        return [
+            'wystawiony' => $wystawiony,
+            'bezOdpowiedzi' => $bezOdpowiedzi,
+            'wyniki' => $wyniki,
+        ];
+    }
+
+    /** @return list<string> */
+    private function zadeklarowanePubliczneAdresy(): array
+    {
+        $adresy = config('kuking.media.publiczne_adresy');
+
+        if (! is_array($adresy)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $adres): string => is_string($adres) ? trim($adres) : '', $adresy),
+            static fn (string $adres): bool => $adres !== '',
+        ));
+    }
+
     private function publicznyBucketBezOryginalow(string $dyskWariantow): void
     {
         try {
@@ -392,7 +614,7 @@ class BramkaR2 extends Command
             // dokładnie na tym.
             $klucze = $this->dysk($dyskWariantow)->allFiles('incoming');
         } catch (Throwable $e) {
-            $this->wiersz('7', 'W publicznym buckecie nie ma kluczy `incoming/`', null,
+            $this->wiersz('9', 'W publicznym buckecie nie ma kluczy `incoming/`', null,
                 'Nie udało się wylistować bucketu: '.$this->skrot($e->getMessage()));
 
             return;
@@ -400,7 +622,7 @@ class BramkaR2 extends Command
 
         $ile = count($klucze);
 
-        $this->wiersz('7', 'W publicznym buckecie nie ma kluczy `incoming/`', $ile === 0,
+        $this->wiersz('9', 'W publicznym buckecie nie ma kluczy `incoming/`', $ile === 0,
             $ile === 0
                 ? 'Prefiks `incoming/` jest w tym buckecie pusty.'
                 : 'ALARM: leży tam '.$ile.' plik(ów) z prefiksu oryginałów. Przenieś je i skasuj z tego bucketu.');
@@ -417,7 +639,7 @@ class BramkaR2 extends Command
     private function exifJestTylkoWOryginale(Media $media, ?array $wariant): void
     {
         if ($wariant === null) {
-            $this->wiersz('8', 'Wariant nie niesie EXIF-u', null,
+            $this->wiersz('10', 'Wariant nie niesie EXIF-u', null,
                 'Nie ma sprawdzonego wariantu, więc nie ma czego przeszukać.');
 
             return;
@@ -426,7 +648,7 @@ class BramkaR2 extends Command
         try {
             $bajty = $this->poczatekPliku($media->variantsDisk(), $wariant['klucz']);
         } catch (Throwable $e) {
-            $this->wiersz('8', 'Wariant nie niesie EXIF-u', null,
+            $this->wiersz('10', 'Wariant nie niesie EXIF-u', null,
                 'Nie udało się odczytać wariantu: '.$this->skrot($e->getMessage()));
 
             return;
@@ -434,7 +656,7 @@ class BramkaR2 extends Command
 
         $maExif = $bajty !== null && (str_contains($bajty, "Exif\x00\x00") || str_contains($bajty, 'EXIF'));
 
-        $this->wiersz('8', 'Wariant nie niesie EXIF-u', $bajty === null ? null : ! $maExif,
+        $this->wiersz('10', 'Wariant nie niesie EXIF-u', $bajty === null ? null : ! $maExif,
             $bajty === null
                 ? 'Wariant odczytał się jako pusty — bez bajtów nie wolno uznać, że EXIF-u nie ma.'
                 : ($maExif
@@ -465,12 +687,12 @@ class BramkaR2 extends Command
 
             $odczytane = (string) $dysk->get($klucz);
 
-            $this->wiersz('9', 'PutObject przechodzi bez `x-amz-acl`', $odczytane === $tresc,
+            $this->wiersz('11', 'PutObject przechodzi bez `x-amz-acl`', $odczytane === $tresc,
                 $odczytane === $tresc
                     ? 'Zapis i odczyt bez ACL — własny sterownik `r2` działa na prawdziwym buckecie.'
                     : 'Plik zapisał się, ale wrócił inny — sprawdź, czy nic nie przepisuje treści po drodze.');
         } catch (Throwable $e) {
-            $this->wiersz('9', 'PutObject przechodzi bez `x-amz-acl`', false,
+            $this->wiersz('11', 'PutObject przechodzi bez `x-amz-acl`', false,
                 'Zapis odmówiony: '.$this->skrot($e->getMessage()));
         } finally {
             if ($zapisany) {
@@ -499,8 +721,11 @@ class BramkaR2 extends Command
         $this->info('Część serwerowa bramki PRZESZŁA w całości ('.now()->format('Y-m-d H:i').').');
         $this->newLine();
         $this->line('<options=bold>Zostaje do zrobienia przez człowieka</> (z serwera tego nie widać):');
-        $this->line('  · `r2.dev` wyłączone na buckecie oryginałów — panel R2 → bucket → Settings → Public access');
-        $this->line('  · żadnej publicznej domeny na buckecie oryginałów');
+        $this->line('  · <options=bold>odczytać z panelu KOMPLETNĄ listę publicznych adresów obu bucketów</>');
+        $this->line('    (panel R2 → bucket → Settings → Public access: własna domena i `r2.dev`)');
+        $this->line('    i wpisać ją w `KUKING_R2_PUBLICZNE_ADRESY` — sprawdzenia 7 i 8 pytają tylko o to,');
+        $this->line('    co jest w tej zmiennej, więc adres w niej pominięty nie został sprawdzony.');
+        $this->line('    Zadeklarowanych adresów było w tym przebiegu: '.count($this->zadeklarowanePubliczneAdresy()).'.');
         $this->line('  · wgranie zdjęcia ~14,9 MB przez formularz (limit `kuking.media.max_bytes`)');
         $this->line('  · po jednej PRAWDZIWEJ próbce JPEG, PNG, WebP i AVIF z aparatu, nie z generatora');
         $this->line('  · skasowanie wpisu zabiera oryginał i wszystkie warianty (na środowisku testowym!)');
@@ -512,8 +737,18 @@ class BramkaR2 extends Command
         return self::SUCCESS;
     }
 
-    /** Jeden wiersz wyniku. `null` znaczy „nie wiemy", nie „w porządku". */
-    private function wiersz(string $numer, string $co, ?bool $wynik, string $mowi): void
+    /**
+     * Jeden wiersz wyniku. `null` znaczy „nie wiemy", nie „w porządku".
+     *
+     * `$dowody` idą KAŻDY W OSOBNEJ LINII — nie z upodobania do formatowania,
+     * ale dlatego, że to jest treść dowodu: jeden zadeklarowany adres i jeden
+     * kod odpowiedzi, który spod niego przyszedł. Zlane w jedną linię po
+     * kilkanaście adresów nie daje się przeczytać, a właśnie te linie wkleja
+     * się potem do `docs/infra/BRAMKA_R2.md`.
+     *
+     * @param  list<string>  $dowody
+     */
+    private function wiersz(string $numer, string $co, ?bool $wynik, string $mowi, array $dowody = []): void
     {
         $etykieta = match ($wynik) {
             true => '<fg=green;options=bold>TAK</>',
@@ -531,6 +766,10 @@ class BramkaR2 extends Command
 
         $this->line("  [{$numer}] {$etykieta}  {$co}");
         $this->line("        {$mowi}");
+
+        foreach ($dowody as $dowod) {
+            $this->line("        · {$dowod}");
+        }
     }
 
     private function dysk(string $nazwa): Filesystem

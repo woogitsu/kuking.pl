@@ -60,14 +60,37 @@
                 </span>
             </div>
         @else
+            {{-- ADRES NIE SŁUŻY „TYLKO WTEDY, GDY ZAPOMNISZ HASŁA".
+
+                 Tak tu stało i było to nieprawdą na trzy sposoby naraz:
+                 adresem MOŻNA SIĘ LOGOWAĆ (pole na ekranie logowania nazywa
+                 się „Adres e-mail albo nazwa użytkownika"), na adres idzie
+                 link wpuszczający na konto bez hasła (D-056 — droga
+                 równorzędna z hasłem, nie awaryjna), a poza tym potwierdza
+                 zmianę samego adresu (issue #195) i odbiera tygodniowe
+                 podsumowanie, gdy ktoś je sobie włączy (D-057, domyślnie
+                 wyłączone).
+
+                 Nowe zdanie wymienia tylko te dwa zastosowania, które są
+                 prawdziwe ZAWSZE. Logowania linkiem świadomie nie wymieniam
+                 z nazwy: cała ta droga znika przy
+                 `KUKING_LOGOWANIE_LINKIEM=false` i wtedy zdanie o niej byłoby
+                 nową nieprawdą w miejscu starej. --}}
             <x-field name="email" label="Twój adres e-mail" type="email" required
                      autocomplete="email"
-                     help="Potrzebny tylko wtedy, gdy zapomnisz hasła. Nie pokażemy go nikomu." />
+                     help="Możesz się nim logować, a gdy zapomnisz hasła — wyślemy na niego link. Nie pokażemy go nikomu." />
         @endif
 
+        {{-- PRZYKŁAD HASŁA UCZY SPOSOBU, A NIE KONKRETNEGO HASŁA.
+
+             Stało tu „trzy słowa razem, na przykład: zielonapietruszkarano" —
+             jedno słowo bez separatorów, czyli wzorzec, który łamie się
+             słownikowo szybciej niż wygląda, a do tego jest gotowym hasłem
+             do przepisania. Myślniki rozdzielają słowa, a zdanie mówi wprost,
+             żeby wpisać swoje. --}}
         <x-field name="password" label="Hasło" type="password" required
                  autocomplete="new-password"
-                 help="Co najmniej 10 znaków. Najprościej wpisać trzy słowa razem, na przykład: zielonapietruszkarano." />
+                 help="Co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu." />
 
         <div class="field @error('age_confirmed') has-error @enderror mt-6">
             <label class="choice" for="f-age_confirmed">
@@ -128,8 +151,10 @@
         </form>
     @endif
 
-    {{-- Droga dodatkowa: konto Google (issue #258, D-069). Znika bez kluczy. --}}
-    <x-wejdz-google naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google" />
+    {{-- Drogi dodatkowe: konto Google (issue #258, D-069) i konto Facebooka
+         (issue #259, D-098). Przycisk dostawcy znika razem z jego kluczami,
+         a cały blok — gdy nie działa żaden. --}}
+    <x-wejscia-zewnetrzne naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google albo Facebooka" />
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

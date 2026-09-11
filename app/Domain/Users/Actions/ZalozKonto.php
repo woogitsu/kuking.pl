@@ -52,6 +52,10 @@ use Illuminate\Support\Str;
  *    e-mail. Hasło ustawi sobie przez „Nie pamiętam hasła", jeśli zechce.
  *    Wpisanie tam czegokolwiek przewidywalnego („google", pustego napisu,
  *    stałej) byłoby hasłem wspólnym dla wszystkich takich kont.
+ *  - **adres jest od razu potwierdzony WYŁĄCZNIE przy Google**, bo Google
+ *    mówi wprost `email_verified: true`. Przy Facebooku takiego pola nie ma
+ *    (D-098), więc konto z Facebooka powstaje z adresem NIEPOTWIERDZONYM
+ *    i dostaje naszą wiadomość „potwierdź adres" jak każde inne.
  *  - **adres jest od razu potwierdzony**, gdy Google potwierdziło, że
  *    należy do tego człowieka. Wysłanie mu jeszcze naszej wiadomości
  *    „potwierdź adres" byłoby proszeniem o to samo dwa razy — dokładnie ten
@@ -65,6 +69,7 @@ final class ZalozKonto
     /**
      * @param  string|null  $haslo  hasło jawne, albo `null` przy drodze bez hasła
      * @param  string|null  $googleSub  identyfikator konta Google, gdy konto powstaje tą drogą
+     * @param  string|null  $facebookId  identyfikator konta Facebooka, gdy konto powstaje tą drogą
      * @param  array<string, mixed>  $dziennik  dodatkowe pola do wpisu w dzienniku audytu
      * @param  (Closure(): string)|null  $dowodAdresu  dowód posiadania skrzynki zużywany W TEJ SAMEJ
      *                                                 transakcji, w której powstaje konto — patrz niżej
@@ -76,12 +81,13 @@ final class ZalozKonto
         ?string $haslo = null,
         bool $emailPotwierdzony = false,
         ?string $googleSub = null,
+        ?string $facebookId = null,
         ?string $ip = null,
         array $dziennik = [],
         ?Closure $dowodAdresu = null,
     ): User {
         $user = DB::transaction(function () use (
-            $email, $displayName, $username, $haslo, $emailPotwierdzony, $googleSub, $dowodAdresu
+            $email, $displayName, $username, $haslo, $emailPotwierdzony, $googleSub, $facebookId, $dowodAdresu
         ): User {
             /*
              * DOWÓD POSIADANIA SKRZYNKI ZUŻYWA SIĘ TUTAJ, W TEJ SAMEJ
@@ -125,6 +131,23 @@ final class ZalozKonto
             // (AGENTS.md §7, D-098).
             if ($googleSub !== null) {
                 $user->connectGoogle($googleSub);
+            }
+
+            /*
+             * DROGA PRZEZ FACEBOOKA WYGLĄDA TAK SAMO, ALE `$emailPotwierdzony`
+             * JEST PRZY NIEJ ZAWSZE `false` — i to jest jedyna, ale
+             * fundamentalna różnica (issue #259, D-098).
+             *
+             * Facebook nie oddaje `email_verified`, więc nie ma czego
+             * przeczytać: konto powstaje z adresem niepotwierdzonym
+             * i przechodzi naszą zwykłą ścieżkę potwierdzenia, dokładnie jak
+             * przy rejestracji hasłem. Pilnuje tego wywołanie w
+             * `FacebookLoginController::finish()`, a nie warunek tutaj —
+             * bo warunek tutaj byłby drugą kopią tej samej reguły i pierwsza
+             * osoba, która doda trzeciego dostawcę, musiałaby ją znaleźć.
+             */
+            if ($facebookId !== null) {
+                $user->connectFacebook($facebookId);
             }
 
             Profile::create([
