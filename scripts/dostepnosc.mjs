@@ -1431,6 +1431,132 @@ if (idZgloszenia === null) {
 }
 
 /*
+ * TRZY EKRANY PANELU MUSZĄ MIEĆ CO POKAZAĆ — INACZEJ MIERZYMY PUSTY STAN
+ * I ZAPISUJEMY „✓" (issue #294, ta sama reguła co D-106).
+ *
+ * ZMIERZONE 11 WRZEŚNIA, na świeżo wysianej bazie demo, przy 900 px:
+ *
+ *     ekran                 co stało na ekranie              węzłów w <main>
+ *     /admin/uzytkownicy    tabela czterech kont                        126
+ *     /admin/zgloszenia     „Nic tu nie ma"                              19
+ *     /admin/sygnaly        „Nic tu nie ma"                              18
+ *
+ * Dwie z trzech kolejek panelu były więc mierzone jako PUSTY STAN: nagłówek,
+ * rząd zakładek z zerami i komponent `x-empty-state`. A cała rzecz, przez
+ * którą panel wszedł do tego pomiaru — karta sprawy z formularzem decyzji
+ * (`choice-grid`, dwa zestawy pól wyboru, pole terminu, lista podstaw
+ * prawnych) i karta grupy automatu z paskiem podglądów — nie była na ekranie
+ * ani raz. Pusty stan przechodzi każdy audyt dostępności, nie sprawdzając
+ * niczego; to jest dokładnie ta pułapka, o której mówi nagłówek tego pliku
+ * i pułapka 5 z `docs/PULAPKI_TESTOW.md`.
+ *
+ * `DemoSeeder` nie tworzy ANI JEDNEGO zgłoszenia (sprawdzone:
+ * `grep -n 'Report::' database/seeders/DemoSeeder.php`, zero wyników),
+ * a jedyne zgłoszenie, jakie ten automat zakładał (`idZgloszenia` wyżej), ma
+ * status `rejected` i należy do konta zgłaszającego — kolejka moderatora
+ * pokazuje domyślnie sprawy OTWARTE i wyłącznie te od ludzi
+ * (`ModerationController::reports()`), więc go nie widzi. Kolejka automatu
+ * czyta tylko wiersze `source = 'automat'`, których nie tworzył nikt.
+ *
+ * Dane dokładamy TUTAJ, tym samym mechanizmem co `idOdwolania`,
+ * `idZgloszenia` i `tablicaDnia` wyżej — a nie w `DemoSeeder`, który jest
+ * czyjąś cudzą, trwającą pracą. Sprawdzenie „czy już jest" przed zapisem
+ * czyni to bezpiecznym także przy `ADRES=…`, czyli na serwerze postawionym
+ * wcześniej.
+ *
+ * CO DOKŁADAMY I DLACZEGO WŁAŚNIE TO
+ *  1. Sprawę OTWARTĄ ZE ŹRÓDŁA SPOŁECZNOŚCIOWEGO — jedyny stan, w którym
+ *     karta zgłoszenia rozwija PEŁNY formularz decyzji. Sprawa rozstrzygnięta
+ *     pokazuje sam wynik, czyli podzbiór tego układu.
+ *  2. Sprawę OTWARTĄ Z DROGI PRAWNEJ, anonimową (DSA art. 16 ust. 2 lit. c) —
+ *     inny kształt karty: zamiast nazwy zgłaszającego stoi tam ADRES
+ *     zgłoszonej treści w `.kod-do-przepisania`, czyli jeden długi łańcuch
+ *     bez spacji. To jest klasyczne źródło przepełnienia w poziomie przy
+ *     320 px (WCAG 1.4.10) i do dziś nie było mierzone nigdzie.
+ *  3. Trzy oznaczenia automatu w DWÓCH grupach, z czego jedna ma dwie
+ *     pozycje — bo `/admin/sygnaly` grupuje po autorze treści i przy jednej
+ *     pozycji w grupie nie pokazuje ani licznika w liczbie mnogiej, ani
+ *     drugiego wiersza listy.
+ *
+ * ZGŁOSZENIE OTWARTE NIE ZMIENIA ŻADNEGO INNEGO MIERZONEGO EKRANU. Wiersz
+ * w `reports` czytają wyłącznie dwa widoki panelu i ekran odwołań
+ * (sprawdzone: `grep -rln 'Report::\|->reports' resources/views/`), a
+ * oznaczenie automatu z definicji nie rusza treści, nie powiadamia autora
+ * i nie zmienia niczego, co widzi czytelnik (`Report::SOURCE_AUTOMAT`).
+ * Zgłaszającym jest przy tym konto INNE niż `KONTO_ZALOGOWANE`, więc lista
+ * „twoje zgłoszenia" mierzona wyżej zostaje bez zmian.
+ *
+ * Oznaczenia automatu zakładamy PRAWDZIWĄ AKCJĄ (`OznaczDoPrzegladu`), a nie
+ * `Report::create` — tą samą drogą, którą idzie wykrywacz sygnałów. Akcja
+ * sama pilnuje „jedno oznaczenie na treść" i sama zapisuje wpis do dziennika,
+ * więc drugie uruchomienie skryptu nie dokłada niczego, a mierzony ekran
+ * stoi na danych o tym samym kształcie co w produkcie.
+ */
+const kolejkiPanelu = (() => {
+  const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    + `$automat = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
+    + "if (! $m || ! $automat) { echo ''; exit; } "
+    // Zgłaszający INNY niż konto, którym loguje się ten automat — inaczej
+    // zmieniłaby się lista „twoje zgłoszenia", mierzona wyżej.
+    + "$zglaszajacy = App\\Models\\User::where('status','active')->whereKeyNot($automat)"
+    + "->whereKeyNot($m)->value('id'); "
+    + "$wpisy = App\\Models\\Post::publiclyVisible()->latest('published_at')->get(); "
+    + "if (! $zglaszajacy || $wpisy->count() < 2) { echo ''; exit; } "
+    // Sprawa społecznościowa, OTWARTA — pełny formularz decyzji.
+    + "$celA = $wpisy->first(fn ($p) => $p->author_id !== $zglaszajacy); "
+    + "if ($celA && ! App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_COMMUNITY)"
+    + "->where('status', App\\Models\\Report::STATUS_OPEN)->exists()) { "
+    + "App\\Models\\Report::create(['reporter_id'=>$zglaszajacy,'source'=>App\\Models\\Report::SOURCE_COMMUNITY,"
+    + "'target_type'=>'post','target_id'=>$celA->getKey(),'reason'=>'spam',"
+    + "'details'=>'Ten wpis to ogłoszenie sklepu z garnkami, wklejone po raz trzeci w tym tygodniu.',"
+    + "'status'=>App\\Models\\Report::STATUS_OPEN]); } "
+    // Sprawa z drogi prawnej, OTWARTA i anonimowa — druga postać karty,
+    // z adresem treści w jednym długim łańcuchu bez spacji.
+    + "$celB = $wpisy->last(); "
+    + "if ($celB && ! App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_LEGAL_NOTICE)"
+    + "->where('status', App\\Models\\Report::STATUS_OPEN)->exists()) { "
+    + "App\\Models\\Report::create(['reporter_id'=>null,'source'=>App\\Models\\Report::SOURCE_LEGAL_NOTICE,"
+    + "'target_type'=>'post','target_id'=>$celB->getKey(),'target_url'=>url('/wpisy/'.$celB->getKey()),"
+    + "'reason'=>'copyright','details'=>'Zdjęcie z tego wpisu pochodzi z mojej książki kucharskiej.',"
+    + "'illegality_explanation'=>'Zdjęcie jest moim utworem w rozumieniu prawa autorskiego i zostało "
+    + "opublikowane bez mojej zgody. Wnoszę o jego usunięcie.','good_faith_at'=>now(),"
+    + "'status'=>App\\Models\\Report::STATUS_OPEN]); } "
+    // Oznaczenia automatu: dwie pozycje jednego autora (grupa się zwija)
+    // i jedna innego, żeby na ekranie stały DWIE grupy.
+    + "$akcja = app(App\\Domain\\Moderation\\Actions\\OznaczDoPrzegladu::class); "
+    + "$poAutorach = $wpisy->groupBy('author_id')->sortByDesc(fn ($g) => $g->count()); "
+    + "$grupa = $poAutorach->first(); "
+    + "$inna = $poAutorach->skip(1)->first(); "
+    + "foreach ($grupa->take(2) as $p) { $akcja->handle($p, "
+    + "[new App\\Domain\\Moderation\\Sygnaly\\Sygnal('automat_wzorzec', "
+    + "'Treść pasuje do znanego wzorca ogłoszeń sklepowych: trzy odnośniki i słowo „promocja”.')]); } "
+    + "if ($inna) { foreach ($inna->take(1) as $p) { $akcja->handle($p, "
+    + "[new App\\Domain\\Moderation\\Sygnaly\\Sygnal('automat_model', "
+    + "'Model wskazał tę treść do przejrzenia w kategorii „nękanie”.')]); } } "
+    + "$ludzi = App\\Models\\Report::where('source','!=',App\\Models\\Report::SOURCE_AUTOMAT)"
+    + "->where('status', App\\Models\\Report::STATUS_OPEN)->count(); "
+    + "$grup = App\\Models\\Report::where('source', App\\Models\\Report::SOURCE_AUTOMAT)"
+    + "->whereIn('status',['open','triage','reviewing'])->distinct('autor_tresci_id')->count('autor_tresci_id'); "
+    + "echo $ludzi.'|'.$grup;",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return wynik === '' ? null : wynik;
+})();
+
+if (kolejkiPanelu === null) {
+  console.error('BŁĄD: nie udało się przygotować kolejek panelu moderacji — `/admin/zgloszenia` '
+    + 'i `/admin/sygnaly` byłyby mierzone jako PUSTY STAN, a raport zapisałby „✓" dla ekranów, '
+    + 'na których nic nie stało (brak konta moderatora, drugiego konta albo dwóch wpisów w bazie).');
+  zamknij();
+  process.exit(1);
+}
+
+log(`Kolejki panelu: ${kolejkiPanelu.split('|')[0]} otwarte sprawy od ludzi, `
+  + `${kolejkiPanelu.split('|')[1]} grupy w kolejce automatu.`);
+
+/*
  * TABLICA „kuKINGi na dziś" MUSI MIEĆ CO POKAZAĆ NA EKRANACH Z SZYNĄ
  * (issue #272).
  *
@@ -1578,6 +1704,155 @@ const stanModeratorem = await stanModeratora(przegladarka, adres);
 // KOLEJNOŚĆ JEST WYMAGANA, nie przypadkowa: 2FA na koncie moderatora włącza
 // dopiero linijka wyżej — patrz komentarz przy `stanPrzedKodem2FA()`.
 const stanPoHasle = await stanPrzedKodem2FA(przegladarka, adres);
+
+/*
+ * CO NAPRAWDĘ STOI NA TRZECH EKRANACH PANELU — SPRAWDZENIE, NIE ZAŁOŻENIE
+ * (issue #294, ta sama reguła co D-106 i ta sama co przy formularzach
+ * odzyskania hasła wyżej).
+ *
+ * PO CO TO JEST, SKORO PĘTLE NIŻEJ SPRAWDZAJĄ JUŻ KOD HTTP I ŚCIEŻKĘ
+ * Bo oba te sprawdzenia przechodzą nad PUSTYM STANEM. `/admin/zgloszenia`
+ * z zerem spraw odpowiada 200 pod własnym adresem i wygląda w raporcie
+ * dokładnie tak samo jak kolejka z kartą sprawy — a jest wtedy nagłówkiem,
+ * rzędem zakładek z zerami i komponentem `x-empty-state`. Dokładnie to
+ * pokazał pierwszy pomiar tego issue: 19 i 18 węzłów w `<main>` na dwóch
+ * z trzech ekranów panelu, przy 126 na trzecim.
+ *
+ * Poprzedni PR (#323) ustalił to samo jednym zdaniem, które zostaje tu jako
+ * reguła: samo dopisanie adresu do listy ekranów NIE WYSTARCZA — trzeba
+ * sprawdzić, że automat widzi ekran W TYM STANIE, o który chodzi, a nie
+ * wariant zapasowy.
+ *
+ * KAŻDY WARUNEK JEST TU DLATEGO, ŻE MIERZY CO INNEGO:
+ *  - `.empty-state` musi NIE być na ekranie — to jednoznaczny ślad pustej
+ *    kolejki i jedyna rzecz, której obecność sama w sobie unieważnia pomiar;
+ *  - selektor treści musi trafić co najmniej raz — pusty stan nie ma ani
+ *    wiersza tabeli, ani formularza decyzji, ani pozycji w grupie automatu;
+ *  - liczba węzłów w `<main>` musi przekroczyć próg — bo to jest jedyna
+ *    liczba, która łapie stan pośredni: ekran, który ma już coś poza pustym
+ *    stanem, ale nie ma na sobie tego układu, przez który tu jest.
+ *
+ * KAŻDY PRÓG STOI MIĘDZY DWIEMA ZMIERZONYMI LICZBAMI, a nie tuż pod tą
+ * dobrą. Liczby z 11 września, świeża baza demo, 900 px — kolumna „pusto" to
+ * ten sam ekran z opróżnioną kolejką (kontrola ujemna tego pomiaru):
+ *
+ *     ekran                 pełny   pusto   próg
+ *     /admin/uzytkownicy      126      —      60
+ *     /admin/zgloszenia       186     19      60
+ *     /admin/sygnaly           73     18      40
+ *
+ * Taki próg nie psuje się od dopisania kolumny w tabeli ani od innej liczby
+ * kont w demo i nie przepuszcza pustej kolejki. `/admin/uzytkownicy` nie ma
+ * kolumny „pusto", bo `DemoSeeder` zawsze sieje konta — pusta tabela kont
+ * znaczyłaby brak danych demo, co łapią pozycje wyżej w tym pliku.
+ *
+ * Niepowodzenie jest tu BŁĘDEM CAŁEGO PRZEBIEGU z nazwanym ekranem, a nie
+ * pominięciem jednej pozycji: pomiar w nieznanym stanie jest gorszy niż jego
+ * brak, bo wygląda identycznie jak pomiar udany.
+ */
+const TRESC_PANELU = [
+  {
+    nazwa: 'panel — użytkownicy',
+    sciezka: '/admin/uzytkownicy',
+    // Wiersz tabeli kont, nie sama tabela: `<thead>` stoi na ekranie także
+    // wtedy, gdy nie ma ani jednego konta do wypisania.
+    wybor: 'main table.tabela-kont tbody tr',
+    czego: 'ani jednego wiersza w tabeli kont',
+    progWezlow: 60,
+  },
+  {
+    nazwa: 'panel — zgłoszenia',
+    sciezka: '/admin/zgloszenia',
+    // Lista podstaw decyzji jest w formularzu, który rozwija się WYŁĄCZNIE
+    // przy sprawie otwartej — czyli w tym jednym stanie, o który tu chodzi.
+    wybor: 'main select[name="reason_code"]',
+    czego: 'ani jednej karty sprawy z formularzem decyzji',
+    progWezlow: 60,
+  },
+  {
+    nazwa: 'panel — sygnały automatu',
+    sciezka: '/admin/sygnaly',
+    wybor: 'main article.card ul.stack-tight li',
+    czego: 'ani jednego oznaczenia automatu',
+    progWezlow: 40,
+  },
+];
+
+/**
+ * Sprawdza wszystkie trzy ekrany panelu i zwraca opis pierwszej przeszkody
+ * albo `null`. Liczby wypisuje ZA KAŻDYM PRZEBIEGIEM, także udanym — bo
+ * „ile węzłów widzi automat" jest tym, co odróżnia zmierzony ekran od pustego
+ * stanu, i ma stać w logu, a nie w cudzej pamięci.
+ */
+async function przeszkodaWPanelu(przegladarka, adres, stan) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: 900, height: 900 },
+    storageState: stan,
+  });
+  const strona = await kontekst.newPage();
+
+  try {
+    for (const ekran of TRESC_PANELU) {
+      const odpowiedz = await strona.goto(`${adres}${ekran.sciezka}`, { waitUntil: 'domcontentloaded' });
+      const kod = odpowiedz?.status() ?? 0;
+      const sciezka = new URL(strona.url()).pathname;
+
+      if (kod !== 200 || sciezka !== ekran.sciezka) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) odpowiedział kodem ${kod} i wylądował `
+          + `na ${sciezka}. Automat nie jest w panelu — mierzyłby stronę logowania albo błędu, `
+          + 'która przechodzi każdy audyt, nie sprawdzając niczego.';
+      }
+
+      const stanEkranu = await strona.evaluate((wybor) => {
+        const main = document.querySelector('main');
+
+        return {
+          wezlow: main ? main.querySelectorAll('*').length : 0,
+          trafien: main ? main.querySelectorAll(wybor).length : 0,
+          pustych: main ? main.querySelectorAll('.empty-state').length : 0,
+        };
+      }, ekran.wybor);
+
+      log(`  ${ekran.nazwa}: ${stanEkranu.wezlow} węzłów w <main>, `
+        + `${stanEkranu.trafien} × „${ekran.wybor}"`);
+
+      if (stanEkranu.pustych > 0) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) pokazuje PUSTY STAN `
+          + `(${stanEkranu.wezlow} węzłów w <main>). Automat zmierzyłby nagłówek i rząd zakładek `
+          + 'z zerami, i zapisał „✓" dla kolejki, w której nic nie stało. Sprawdź `kolejkiPanelu` '
+          + 'wyżej w tym pliku — to on dokłada sprawy do obu kolejek.';
+      }
+
+      if (stanEkranu.trafien === 0) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) nie ma ${ekran.czego} `
+          + `(szukane: „${ekran.wybor}", ${stanEkranu.wezlow} węzłów w <main>). Mierzony byłby `
+          + 'inny stan tego ekranu niż ten, przez który wszedł do pomiaru.';
+      }
+
+      if (stanEkranu.wezlow < ekran.progWezlow) {
+        return `ekran „${ekran.nazwa}" (${ekran.sciezka}) ma ${stanEkranu.wezlow} węzłów `
+          + `w <main>, a układ, przez który tu jest, ma ich co najmniej ${ekran.progWezlow}. `
+          + 'Na ekranie stoi mniej, niż powinno — sprawdź, co zniknęło, zanim uwierzysz w „✓".';
+      }
+    }
+
+    return null;
+  } finally {
+    await kontekst.close();
+  }
+}
+
+log('Panel moderacji — co widzi automat:');
+
+const przeszkodaPanelu = await przeszkodaWPanelu(przegladarka, adres, stanModeratorem);
+
+if (przeszkodaPanelu !== null) {
+  console.error(`BŁĄD: ${przeszkodaPanelu}`);
+  zamknij();
+  process.exit(1);
+}
+
+log('');
 
 /*
  * KTÓRE EKRANY NAPRAWDĘ ZOSTAŁY ZBADANE — A NIE KTÓRE ZADEKLAROWALIŚMY
