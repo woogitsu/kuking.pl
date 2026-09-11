@@ -10148,3 +10148,429 @@ sam.
 
 Pomiar pokazałby, że na ekranie gościa szyna odciąga uwagę od treści, po którą
 przyszedł. Wtedy znika treść szyny na tych ekranach, a nie kolumna.
+
+---
+
+## D-123 · Wybór gospodarza na tablicy jest UZUPEŁNIANY automatem do sufitu, a nie zamyka tablicy na resztę serwisu
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„w »co się dziś gotuje« można zrobić dwie kolumny i dać więcej tych ludzi (chyba
+że za mało wpisów i temu tak pusto)". Właściciel zgadywał przyczynę i zgadywał
+źle — i to jest najciekawsze w tym wpisie.
+
+### Co było nie tak
+
+`DailyBoard::forViewer()` sprawdzał, czy na dziś istnieje choć jeden wybór
+redakcyjny, i jeśli tak — zwracał **wyłącznie** jego:
+
+```php
+if ($picks->isNotEmpty()) {
+    return $this->fromCuratedPicks($picks, $viewer);   // i koniec
+}
+```
+
+Właściciel zaznaczył w `/kuking-na-dzis` cztery pozycje i zobaczył na stronie
+powitalnej dwie osoby i dwa dania tam, gdzie mieści się dwa razy tyle. Pustka nie
+brała się ani z układu, ani z braku treści.
+
+### Decyzja
+
+Wybór gospodarza ma **wyróżniać** kilka rzeczy, a nie zamykać tablicę. Najpierw
+idzie to, co wskazał człowiek, potem dobór automatu do sufitu.
+
+Trzy rzeczy są częścią tej decyzji, nie szczegółem implementacji:
+
+**Kolejność.** Wybór człowieka stoi pierwszy. Inaczej wyróżnienie przestaje być
+wyróżnieniem — w teście osoba niewybrana publikuje później i bez tej reguły
+stałaby na pierwszym miejscu.
+
+**Dziura po pozycji schowanej też się zapełnia.** Brakujące miejsca liczymy z tego,
+co NAPRAWDĘ zostało po odsianiu pozycji niedostępnych dla tego widza (autor
+zablokowany, wpis schowany przez moderację już po wyborze), a nie z liczby
+zaznaczeń w panelu. Inaczej widz z jedną blokadą dostawałby tablicę krótszą od
+cudzej, bez żadnego powodu.
+
+**Dobór pomija AUTORÓW wybranych dań, nie same dania.** Reguła „najwyżej jedno
+danie od osoby" obowiązuje w całej tablicy, a nie osobno w części redakcyjnej
+i osobno w dobranej. Bez tego automat dołożyłby drugi wpis dokładnie tej osoby,
+którą gospodarz przed chwilą wyróżnił — czyli zrobiłby to, przed czym broni
+`docs/product/COLD_START.md`.
+
+### Co to NIE zmienia
+
+Zakaz rankingów (AGENTS.md §12) stoi bez zmian. Automat dobiera po tym, KIEDY ktoś
+ostatnio coś pokazał; żadna miara popularności nie wchodzi ani w wybór, ani
+w kolejność.
+
+### Szczegół, który łatwo zrobić źle
+
+Wykluczenia idą **parametrem do zapytania**, a nie odsiewaniem po pobraniu. Limit
+jest narzucany w SQL, więc odsianie „po fakcie" zwracałoby mniej pozycji niż
+proszono — i błąd wyglądałby dokładnie jak ten, który naprawiamy.
+
+---
+
+## D-124 · Sufit tablicy dnia to sześć pozycji — bo panel przyjmował sześć od początku, a automat stawał na czterech
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+### Rozjazd
+
+`Admin\DailyBoardController` przyjmował `max:6` osób i `max:6` dań. `DailyBoard`
+miał `PEOPLE = 4` i `POSTS = 4`. Gospodarz mógł wskazać więcej, niż tablica była
+w stanie pokazać — i nic o tym nie mówiło.
+
+### Decyzja
+
+Sufit to sześć. Sufit zmienia, ILE pozycji widać, a nie to, KTÓRE stoją wyżej —
+więc §12 pozostaje nietknięty. Limit gościa na landingu (3/3) zostaje bez zmian,
+bo to osobna decyzja z audytu 60+.
+
+### Dlaczego zmiana sufitu niczego nie przelicza
+
+Regułę „najwyżej jedna pozycja od osoby" trzyma `DISTINCT ON (posts.author_id)` —
+**struktura zapytania**, nie zgadywany zapas nad limitem. Przy poprzednim
+podejściu („pobierz `POSTS * 6` i odsiej") każda zmiana sufitu wymagałaby
+przeliczenia zapasu od nowa.
+
+### Zmierzone
+
+Liczba zapytań jest identyczna przed i po: `peopleToFollow()` 4 zapytania przy
+limicie 4 i 4 przy 6; całe `forViewer()` 10 i 10. Limit idzie w SQL, relacje przez
+`with()`/`withCount()`, więc liczba zapytań nie zależy od liczby wierszy.
+
+Pomiar `28,6 ms` kontra `12,9 ms` z komentarza przy `peopleToFollow` zostaje ważny:
+obie wersje płacą za agregację i sortowanie całości, a `LIMIT` obcina dopiero
+posortowany wynik. Koszt rośnie z liczbą kont i wpisów, nie z sufitem.
+
+---
+
+## D-125 · Klasa `.card` niosła 126 ról naraz — sześć warstw powierzchni zamiast jednej
+
+**Data:** 11 września 2026 · Status: **obowiązuje** · Inwentarz: `docs/design/ROLE_KART.md`
+
+### Co było nie tak
+
+Jedno tło, jedna obwódka, jeden promień i jeden cień były jednocześnie kartą wpisu,
+sekcją strony, blokiem prawej szyny, panelem formularza, ramką z wyjaśnieniem
+i kaflem, w który się klika.
+
+Widać to było na `/napisz-do-nas`: karta „Chodzi o czyjś wpis?", formularz i karta
+„Co się stanie dalej" wyglądały identycznie, choć tylko **jedna** z tych trzech
+rzeczy czegokolwiek od człowieka chciała.
+
+### Decyzja
+
+Sześć warstw: karta treści · panel formularza · sekcja strony · blok szyny · ramka
+pomocnicza · kafel akcji. Hierarchia bierze się z **uniesienia i mocy obwódki**,
+nie z koloru. Warstwy 1, 3 i 4 różni wyłącznie cień i tak ma być.
+
+**Obwódka mocna tam, gdzie czegoś od człowieka chcemy.** Panel formularza i kafel
+akcji dostają `--color-border-strong` — tę samą, którą mają pola formularza. To
+jedyne dwie warstwy, które czegoś WYMAGAJĄ, więc niosą obwódkę kontrolki, a nie
+linię dekoracyjną: obwódka kontrolki musi mieć 3:1 do tła (WCAG 1.4.11),
+a `--color-border` tego progu nie ma.
+
+### Miara, która pokazuje płaski ekran
+
+`scripts/warstwy-pomiar.mjs` podaje **powierzchnie / sygnatury / największą grupę
+jednakowych**. Gdy pierwsza liczba równa się trzeciej, ekran nie ma hierarchii.
+`/napisz-do-nas` szło z 3/1/3 na 3/2/2, `/logowanie` z 2/1/2 na 2/2/1.
+
+### Gdy wszystko ma tę samą rangę, nic jej nie ma
+
+Najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa tekst — bo
+skanowanie wzrokiem przestaje być skrótem.
+
+---
+
+## D-126 · Panel formularza nie pojawia się tam, gdzie w danym stanie ekranu nie ma czego wypełnić
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+Panel z mocną obwódką **obiecuje**, że jest co wypełnić. To ta sama zasada, co zakaz
+martwego przycisku (D-053), przeniesiona na warstwę powierzchni.
+
+Dlatego warstwę wybiera tam warunek, a nie stała: `errors/419`, `errors/429`, zmiana
+adresu e-mail (gdy poczta nie działa) i odpowiedź w panelu moderacji (gdy nie ma
+adresu do odpowiedzi) schodzą wtedy na sekcję.
+
+**Przypadek otwarty, świadomie:** `pages/collections/index.blade.php` ma
+`<details class="panel-formularza">` z podsumowaniem „Załóż nowy zeszyt". W stanie
+zwiniętym mocna obwódka otacza sam przycisk — pola są w środku, ale niewidoczne.
+To nie jest martwa obietnica, ale przez większość czasu panel nie ma czego
+wypełniać. Zostawione bez zmian i nazwane wprost, żeby nie udawać, że problemu nie
+ma.
+
+---
+
+## D-127 · Droga równorzędna nigdy nie schodzi na warstwę wgłębioną
+
+**Data:** 11 września 2026 · Rozstrzygnął właściciel · Status: **obowiązuje**
+
+Warstwa wgłębiona (`.ramka-pomocnicza`) mówi wizualnie **„to jest coś obok"**.
+Postawienie na niej drogi, która jest równorzędna, byłoby cofnięciem tamtej decyzji
+w warstwie wyglądu.
+
+Cofnięte na sekcję i objęte tą regułą: logowanie linkiem (D-056) · wejścia Google
+i Facebooka (D-113) · pouczenie DSA art. 16 ust. 5 (D-042) · opis skutków usunięcia
+konta (D-022) · oczekująca zmiana adresu (D-048) · kod do ręcznego wpisania
+przy włączaniu 2FA.
+
+### Rozstrzygnięcie z 11 września: kod zapasowy przy logowaniu 2FA
+
+`auth/two_factor_challenge.blade.php` trzymał **pełny, działający formularz
+logowania kodem zapasowym** („Nie mam dostępu do telefonu") w `<details>` na warstwie
+wgłębionej. Kod w tym miejscu uzasadniał to tym, że kod z aplikacji jest metodą
+podstawową, a zapasowy — ratunkową.
+
+Właściciel rozstrzygnął: **sekcja**. Człowiek, który stracił telefon, jest
+w najgorszym momencie kontaktu z serwisem, a wgłębiona ramka mówi mu „to jest coś
+obok". Strukturalnie to ta sama sytuacja, którą rozstrzyga D-056.
+
+---
+
+## D-128 · Rolę powierzchni nadaje MIEJSCE, a nie obiekt
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+To samo zgłoszenie jest **kartą treści** na liście zgłoszeń i **sekcją** na ekranie
+swoich szczegółów. Nie dlatego, że zmienia się obiekt, tylko dlatego, że zmienia się
+pytanie, które człowiek ma w głowie.
+
+### Rozstrzygnięcie z 11 września
+
+Na `/zgloszenia/{id}` trzy bloki miały jedną sygnaturę, w tym „Nasza decyzja".
+Właściciel rozstrzygnął, że **„Nasza decyzja" dostaje kartę treści**, a pozostałe
+dwa zostają sekcjami — bo decyzja jest tym, po co człowiek tam wszedł.
+
+---
+
+## D-129 · Menu poza panelem pokazuje JEDNO wejście do moderacji, a liczba z kolejek się sumuje
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„po co w menu cały panel moderacji i pod spodem przycisk otwórz panel moderacji?
+niech będzie tylko otwórz panel moderacji".
+
+### Co było nie tak
+
+Dziewięć ekranów moderacji stało w **zwykłym** menu, obok „Profil"
+i „Powiadomienia", a pod nimi przycisk prowadzący dokładnie tam, gdzie prowadziła
+ich pierwsza pozycja. Ta sama rzecz powiedziana dwa razy, kosztem dziewięciu wierszy
+menu z pracą, której się w tym miejscu nie wykonuje.
+
+### Decyzja
+
+Poza panelem — jedno wejście. W panelu — pełny spis, bo tam się tę pracę wykonuje.
+
+**Nagłówka grupy poza panelem też nie ma.** Grupa jednego elementu nie jest grupą,
+a napis „Panel moderacji" nad odnośnikiem „Otwórz panel moderacji" to jedna nazwa
+dwa razy pod rząd — czytnik ekranu przeczytałby obie.
+
+### Liczba nie znika, tylko się sumuje
+
+Plakietka przy pozycji „Bez odpowiedzi" była jedynym sygnałem „jest robota" poza
+panelem. Usunięcie listy bez niczego w zamian byłoby cichą stratą poprawnej
+informacji. Plakietka przenosi się więc na wejście i pokazuje sumę wszystkich pięciu
+kolejek; rozbicie zostaje w panelu, jedno kliknięcie dalej. Puste kolejki nie
+pokazują „0" — zero to sam hałas.
+
+Sumowanie wypisuje nazwy kolejek **wprost**, a nie `array_sum()`: nowy klucz
+w `KolejkiPanelu`, który nie jest kolejką do przejrzenia, nie doliczy się po cichu.
+
+---
+
+## D-130 · Długi wpis na karcie skraca się do „Czytaj dalej"; próg patrzy na WIERSZE i na znaki
+
+**Data:** 11 września 2026 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„Na głównej długie wpisy można skrócić dać czytaj dalej" — jeden przepis ze
+składnikami wypełniał na telefonie cały ekran i wypychał wszystko poniżej.
+
+### Dlaczego próg w samych znakach by nie działał
+
+`.post-card-body` ma `white-space: pre-line`, więc **każde przełamanie autora
+zostaje osobnym wierszem**. „500 g mąki / 350 ml wody / 7 g drożdży" ma mało znaków
+i dużo wierszy — a ekran zjadają wiersze. Skracamy, gdy przekroczony JEDEN z progów:
+osiem wierszy albo czterysta znaków.
+
+Cięcie po pełnych wierszach, potem po całych wyrazach (`Str::words()`, nie
+`Str::limit()`).
+
+### „Czytaj dalej" prowadzi na stronę wpisu, nie rozwija w miejscu
+
+Nic nie skacze pod palcem, działa bez JavaScriptu, a czytelnik ląduje tam, gdzie
+i tak są komentarze.
+
+### Dlaczego odpada `-webkit-line-clamp`
+
+Klamra nie potrafi powiedzieć szablonowi, **czy** przyciąć — odnośnik pokazałby się
+także pod wpisem dwuzdaniowym, czyli byłby martwym przyciskiem (D-053). Do tego
+wysokość klamry trzeba by podać w `rem`, a wtedy próg mierzyłby co innego u każdego
+czytelnika (D-082, D-107).
+
+### Wyjątek, bez którego byłby martwy przycisk
+
+Ta sama karta stoi też na stronie pojedynczego wpisu. Bez warunku „czy jestem na
+stronie TEGO wpisu" całej treści nie dałoby się przeczytać nigdzie, a „Czytaj dalej"
+prowadziłoby samo do siebie.
+
+### Progi są hipotezą, nie pomiarem
+
+400 znaków i 8 wierszy to liczby z rozumowania, nie ze zmierzenia na telefonie. Są
+publicznymi stałymi, żeby zmiana była jedną cyfrą.
+
+---
+
+## D-131 · Napis przycisku jest JEDNYM elementem — `inline-flex` rozbija tekst na osobne elementy flex
+
+**Data:** 11 września 2026 · Zgłosił właściciel · Status: **obowiązuje**
+
+### Objaw
+
+Na telefonie główny przycisk strony powitalnej wyglądał tak:
+
+```
+Zost    kuKINGi      — to
+ań        em      darmowe
+```
+
+### Przyczyna — nie „za długi napis"
+
+`.btn` jest `display: inline-flex`, a kontener flex robi z KAŻDEGO kawałka tekstu
+między elementami inline **osobny element flex**. Napis
+`Zostań <x-kuking-word/> — to darmowe` to trzy węzły, czyli trzy niezależnie
+zawijane elementy rozdzielone `gap`. Do tego `.btn` ma `overflow-wrap: anywhere`
+(obrona przed wypchnięciem strony przy 200% czcionki), więc każdy z nich łamał się
+w ŚRODKU WYRAZU, bo osobno był za wąski.
+
+### Zmierzone, ramka 320 px
+
+Bez owinięcia: 3 elementy flex, napis w pięciu kawałkach, przycisk 114 px wysokości.
+Z owinięciem: 1 element, dwa wiersze łamane na spacjach, 84 px.
+
+### Reguła
+
+Napis przycisku owinięty jednym elementem. **Przycisk z ikoną to POPRAWNE dwa
+elementy flex** — `gap` między ikoną a podpisem jest tam po to, żeby był, i tego się
+nie „naprawia".
+
+Strażnik pyta o wyrenderowany HTML: dla każdego `.btn` liczy bezpośrednie węzły
+tekstowe. Dwa lub więcej to błąd, bo dwa węzły tekstowe mogą być rozdzielone tylko
+elementem inline.
+
+---
+
+## D-132 · Strażnik `down()` bez testu wołającego ten `down()` nie jest strażnikiem
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+Pięć migracji miało poprawną obronę — `RuntimeException`, zgoda przez `getenv()`,
+opis zgodny z `docs/DATABASE.md` — i **ani jednego testu, który by ją wywołał**.
+`down()` nie chodzi w normalnym przebiegu testów, więc taka obrona może zniknąć przy
+pierwszym refaktorze i nikt tego nie zauważy.
+
+### Każda taka migracja dostaje trzy rzeczy
+
+1. **odmowę** plus asercję, że dane NADAL SĄ — odmowa, która zdążyła skasować, to
+   tylko ładniejszy komunikat o stracie;
+2. **kontrolę dodatnią** na pustym stanie — bez niej test przechodzi także dla
+   migracji, która nie cofa się NIGDY;
+3. **wąskość** — odmowa nie rusza niczego poza swoim zakresem.
+
+Migracja z furtką przez zmienną środowiskową dostaje czwartą: furtka opisana
+w komunikacie ma naprawdę działać.
+
+### Co pokazały sabotaże
+
+Bez strażnika odmawia sama baza — surowym `SQLSTATE[23514]` albo `SQLSTATE[23502]`
+zamiast zdaniem po polsku. To jest cała różnica między „nie da się" a „nie da się,
+oto ilu osób to dotyczy i co zrobić zamiast tego".
+
+### Komunikat nie odmienia rzeczownika przez liczbę
+
+„jest 1 zgłoszeń" i „że 1 osób odebrało" to formy błędne, a jeden wiersz jest stanem
+bardziej prawdopodobnym niż pięć. Liczbę podaje się w formie odpornej: „Liczba
+zapisów, które znikną: 1".
+
+---
+
+## D-133 · `$this->fail()` nie stoi wewnątrz `try` w teście łapiącym odmowę
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+`PHPUnit\Framework\AssertionFailedError` dziedziczy po `RuntimeException`. Test
+napisany tak:
+
+```php
+try {
+    $this->migracja()->down();
+    $this->fail('Cofnięcie przeszło.');
+} catch (RuntimeException) {
+    // ...
+}
+```
+
+**łapie własne `fail()` we własnym `catch`.** Przy teście wąskości, gdzie `catch`
+jest z natury pusty, taki test byłby zielony także wtedy, gdyby strażnika w ogóle
+nie było.
+
+Wzorzec: odłóż wyjątek do zmiennej, oceń **poza** blokiem.
+
+Znalezione przez agenta w cudzym pliku wzorcowym (`CofniecieDziennikaZgodOdmawiaTest`),
+gdzie ratowały to asercje w `catch` — czyli było bezpieczne **przez przypadek, nie
+z konstrukcji**.
+
+---
+
+## D-134 · Cyfra wersji rośnie przy każdej widocznej zmianie, a każde podbicie ma wpis w `CHANGELOG.md`
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„aktualna wersja to alfa 0.1, czemu tego nie zmieniasz? chyba dużo zmian zrobiliśmy
+od pierwszej alfy 0.1".
+
+### Co było nie tak z regułą
+
+Komentarz przy `kuking.wersja.etykieta` mówił, kiedy zmienia się **słowo** (Alfa →
+Beta → 1.0, przy kamieniach milowych z ROADMAP-y) — i ani słowa o tym, kiedy zmienia
+się **cyfra**. Przez to `0.1` nie ruszyło się ani razu od pierwszego dnia, mimo
+kilkunastu scaleń samego 11 września.
+
+**Numer, którego nikt nigdy nie podbija, nie niesie żadnej informacji.** Prawdę
+o tym, co działa, mówił w stopce wyłącznie skrót commita obok.
+
+### Decyzja
+
+Cyfra rośnie przy każdej zmianie, którą **człowiek zobaczy**: nowy ekran, zmieniony
+układ, nowa funkcja, inne zachowanie formularza. Poprawki bez śladu w interfejsie
+(testy, refaktor, dokumentacja) jej nie ruszają.
+
+Każde podbicie ma wpis w `CHANGELOG.md`, pisany **językiem użytkownika, nie
+commitów**. Jedno pilnuje drugiego: wersja bez wpisu jest numerem bez treści, a wpis
+bez wersji nie da się z niczym powiązać.
+
+Historii sprzed 11 września nie odtwarzamy wstecz — wpisy pisane z pamięci po fakcie
+są gorsze niż ich brak.
+
+### Etap zostaje „Alfa"
+
+Bramki zamkniętej alfy nie przeszliśmy: sześć kont przy wymaganych dwudziestu, kopia
+produkcyjnej bazy to nadal zero, a blocker UX był otwarty w dniu tej decyzji.
+
+### Test stopki nie zna wersji na pamięć
+
+`StopkaPoziomyTest` miał w regeksie wpisane `Alfa 0\.1`. Czyta teraz etykietę
+z konfiguracji i pilnuje, że etap produktu **stoi** w metryczce — a nie że akurat
+dziś brzmi tak, a nie inaczej. Strażnik, który trzeba poprawiać przy każdym
+wydaniu, zostaje prędzej czy później poprawiony bezmyślnie.
