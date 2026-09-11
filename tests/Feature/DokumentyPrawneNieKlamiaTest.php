@@ -474,4 +474,230 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
             );
         }
     }
+
+    // ---------------------------------------------------------------
+    // Notatki autora do samego siebie, podane czytelnikowi (D-140)
+    // ---------------------------------------------------------------
+
+    /**
+     * WZORCE NOTATKI ROBOCZEJ W DOKUMENCIE, KTÓRY CZYTA CZŁOWIEK.
+     *
+     * CO ZOBACZYŁ WŁAŚCICIEL 11 WRZEŚNIA 2026 na `/regulamin`, kursywą tuż
+     * pod paragrafem 12:
+     *
+     *     „Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości
+     *      i adresu osoby prowadzącej serwis."
+     *
+     * Polityka prywatności miała swój odpowiednik tej noty, a w sekcji
+     * „Źródła" stało jeszcze `[numer artykułu do potwierdzenia — patrz
+     * COMPLIANCE.md sekcja 5.1]` i „Zobacz pełną listę źródeł
+     * w `COMPLIANCE.md`" — czyli odesłanie czytelnika do pliku, który leży
+     * w repozytorium i którego nie ma jak otworzyć.
+     *
+     * DLACZEGO TO JEST BŁĄD, A NIE DROBIAZG
+     * Dokument, który sam o sobie mówi „tego tu jeszcze nie ma", czyta się
+     * jak brudnopis, a nie jak wiążąca umowa — a regulamin ma być czymś,
+     * na czym da się polegać. To jest ta sama rodzina usterek co placeholdery
+     * łapane wyżej (`[NAZWA OPERATORA]`, `[Wariant A …]`), tylko napisana
+     * pełnym, ładnym zdaniem, więc poprzednie wzorce ją przepuszczały.
+     *
+     * CZEGO TEN TEST NIE ROBI
+     * Nie rusza zdań o STANIE USŁUGI, także niewygodnych. „Nie podajemy tu
+     * liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą",
+     * „Umów powierzenia jeszcze nie mamy podpisanych" czy „Nie wyznaczyliśmy
+     * inspektora ochrony danych" to fakty o serwisie i mają prawo stać
+     * w dokumencie. Usterką jest wyłącznie notatka o PISANIU dokumentu.
+     * Granicę trzyma metoda kontrolna na końcu tego pliku — obie strony,
+     * łapie i przepuszcza, mają własną asercję.
+     *
+     * Luki, o których przypominały usunięte noty, są spisane
+     * w `docs/legal/COMPLIANCE.md` §7.1 — usunięcie noty nie wypełnia
+     * obowiązku prawnego, tylko przestaje o nim przypominać.
+     *
+     * @var array<string, string>
+     */
+    private const WZORCE_NOTATEK = [
+        // `COMPLIANCE.md`, `AGENTS.md` — plik repozytorium w dokumencie dla
+        // człowieka. Czytelnik strony nie ma do niego dostępu i nie wie,
+        // czym jest.
+        'nazwa pliku repozytorium' => '/(?<![\w\/])[A-Za-z][\w-]*\.md\b/u',
+
+        // `docs/legal/...`, `resources/legal/...` — to samo, ścieżką.
+        // Adresy widoczne dla człowieka (`/zasady`, `/prywatnosc`) zaczynają
+        // się od ukośnika i tu nie wpadają.
+        'ścieżka w repozytorium' => '/(?<![\w\/])(docs|resources|app|config|tests|database|routes)\/[a-z]/u',
+
+        // „Czego w tym dokumencie jeszcze nie ma, a będzie: …" — dokument
+        // mówiący o sobie, że jest niedokończony.
+        'dokument mówi o sobie, że jest niepełny' => '/czego[^.\n]{0,80}jeszcze nie ma/ui',
+
+        // „[numer artykułu do potwierdzenia]", „tożsamość do uzupełnienia",
+        // „projekt do weryfikacji przez prawnika".
+        'rzecz odłożona do potwierdzenia' => '/\bdo (potwierdzenia|uzupełnienia|ustalenia|dopisania|weryfikacji|rozstrzygnięcia)\b/ui',
+
+        'znacznik roboczy z kodu' => '/\b(TODO|FIXME|XXX)\b/u',
+
+        // Uwaga dla siebie w nawiasie kwadratowym. Odnośnik Markdown
+        // (`[tekst](adres)`) ma po nawiasie `(` i jest wyłączony — poprzedni
+        // wzorzec w tym pliku wymagał do tego WERSALIKÓW w środku, więc
+        // notatkę pisaną małymi literami przepuszczał.
+        'uwaga w nawiasie kwadratowym' => '/\[[^\]\n]{6,}\](?!\()/u',
+    ];
+
+    /**
+     * @return array<int, string> opis wzorca → trafiony fragment
+     */
+    private static function trafieniaNotatek(string $tekst): array
+    {
+        $trafienia = [];
+
+        foreach (self::WZORCE_NOTATEK as $opis => $wzorzec) {
+            if (preg_match($wzorzec, $tekst, $dopasowanie) === 1) {
+                $trafienia[] = $opis.' → „'.trim($dopasowanie[0]).'”';
+            }
+        }
+
+        return $trafienia;
+    }
+
+    /**
+     * WŁAŚCIWY POMIAR. Trzy dokumenty prawne bez notatek o ich pisaniu.
+     */
+    #[DataProvider('dokumenty')]
+    public function test_brak_notatek_roboczych_o_pisaniu_dokumentu(string $adres, string $plik): void
+    {
+        $trafienia = self::trafieniaNotatek($this->tresc($plik));
+
+        $this->assertSame(
+            [],
+            $trafienia,
+            "Dokument publikowany pod {$adres} zawiera notatkę roboczą autora: \n  "
+            .implode("\n  ", $trafienia)."\n"
+            .'Czytelnik ma przed sobą wiążącą umowę, a nie brudnopis. Jeśli chodzi '
+            .'o brak, który naprawdę jest — zapisz go w docs/legal/COMPLIANCE.md §7.1, '
+            .'a nie w dokumencie dla ludzi.',
+        );
+    }
+
+    /**
+     * To samo na stronach informacyjnych składanych w Blade, bo tam notatka
+     * też ma jak wejść — tyle że nie z Markdowna, a z widoku.
+     *
+     * Badany jest WYRENDEROWANY blok treści, nie plik: komentarze Blade
+     * (`{{-- … --}}`) są w tym repozytorium gęste, mówią wprost o plikach
+     * w `docs/` i nikt ich nigdy nie zobaczy. Test, który czytałby plik
+     * źródłowy, oblewałby na nich wszystkich naraz i zostałby wyłączony
+     * pierwszego dnia.
+     */
+    #[DataProvider('stronyInformacyjne')]
+    public function test_strony_informacyjne_bez_notatek_roboczych(string $adres, string $naglowek): void
+    {
+        $html = $this->get($adres)->assertOk()->getContent();
+
+        $this->assertSame(
+            1,
+            preg_match('/<article[^>]*>(.*)<\/article>/su', (string) $html, $blok),
+            "Na stronie {$adres} nie ma bloku <article> z treścią — jeśli widok "
+            .'przebudowano, popraw kotwicę w tym teście zamiast go kasować.',
+        );
+
+        $tekst = html_entity_decode(strip_tags($blok[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // KONTROLA METODY POMIARU: to naprawdę jest treść tej strony, a nie
+        // pusty string, w którym nic się nie znajdzie.
+        $this->assertStringContainsString(
+            $naglowek,
+            $tekst,
+            "Kontrola: treść strony {$adres} nie zawiera własnego nagłówka.",
+        );
+
+        $trafienia = self::trafieniaNotatek($tekst);
+
+        $this->assertSame(
+            [],
+            $trafienia,
+            "Strona {$adres} pokazuje człowiekowi notatkę roboczą: \n  "
+            .implode("\n  ", $trafienia),
+        );
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function stronyInformacyjne(): array
+    {
+        return [
+            'o Kuking' => ['/o-kuking', 'O Kuking'],
+            'pomoc' => ['/pomoc', 'Pomoc'],
+        ];
+    }
+
+    /**
+     * KONTROLA WZORCÓW, w obie strony — wzór wzięty z
+     * `TekstyNiePrzypisujaPlciTest::test_wzorce_lapia_to_co_wlasciciel_widzial_i_przepuszczaja_poprawne`.
+     *
+     * Skan bez tej metody jest zielony także wtedy, gdy wzorce przestaną
+     * cokolwiek łapać — a zepsuć je da się tak, że nadal się kompilują.
+     * Dlatego stoją tu PRAWDZIWE zdania: te, które właściciel widział na
+     * ekranie, i te poprawne, które muszą przechodzić.
+     */
+    public function test_wzorce_notatek_lapia_to_co_wlasciciel_widzial_i_przepuszczaja_poprawne(): void
+    {
+        $zle = [
+            // Dokładnie to, co było na `/regulamin` i `/prywatnosc`.
+            'Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu osoby prowadzącej serwis.',
+            'Czego w tym dokumencie jeszcze nie ma, a będzie: dostawcy poczty oraz liczby dni, przez które dane żyją w kopiach zapasowych.',
+            'Ustawa Prawo komunikacji elektronicznej (2024) [numer artykułu do potwierdzenia — patrz `COMPLIANCE.md` sekcja 5.1]',
+            'Zobacz pełną listę źródeł w `COMPLIANCE.md`',
+            'Czy taki zapis w liście transakcyjnym wymaga od nas czegoś więcej — to zostaje do potwierdzenia.',
+            // Ta sama klasa, inne brzmienie.
+            'Tożsamość operatora do uzupełnienia przed startem.',
+            'Okres przechowywania kopii zapasowych — do ustalenia z dostawcą.',
+            'Klauzula o kolażach jest projektem do weryfikacji przez prawnika.',
+            'TODO: dopisać adres spółki.',
+            'Szczegóły w docs/legal/COMPLIANCE.md sekcja 5.1.',
+            'Pełna analiza leży w AGENTS.md.',
+            '[Wariant A — jeśli wdrożony baner:] Używamy plików cookies do statystyk.',
+            '[do sprawdzenia, czy to nadal aktualne]',
+        ];
+
+        foreach ($zle as $zdanie) {
+            $this->assertNotSame(
+                [],
+                self::trafieniaNotatek($zdanie),
+                "Wzorce przepuściły notatkę roboczą: „{$zdanie}”. "
+                .'Któryś wzorzec w WZORCE_NOTATEK przestał działać — napraw wzorzec, nie ten test.',
+            );
+        }
+
+        $dobre = [
+            // Zdania o STANIE USŁUGI. Mówią o braku, są niewygodne i zostają.
+            'Nie podajemy tu liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą — podamy ją, gdy będzie potwierdzona.',
+            'Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy podpisanych i mówimy to wprost, zamiast pisać, że mamy.',
+            'Nie wyznaczyliśmy inspektora ochrony danych. Jeśli to się zmieni, podamy jego dane w tym miejscu.',
+            'Jeśli w przyszłości dojdzie kolejny dostawca spoza EOG, dopiszemy go do tabeli wyżej.',
+            'Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.',
+            'Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać.',
+            'Serwis prowadzi na razie jedna osoba, więc nie obiecujemy, że odwołanie rozpatrzy ktoś inny.',
+            'Nie mamy dziś zewnętrznego narzędzia do zbierania błędów.',
+            'Do tego czasu ten akapit stoi tu dlatego, że opisuje stan faktyczny.',
+            // Podstawy prawne w sekcji „Źródła" — to jest wartość dla
+            // czytelnika, nie notatka.
+            'Rozporządzenie Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO) — Art. 6, 8, 13–20, 28, 33–34',
+            'Ustawa z dnia 4 lutego 1994 r. o prawie autorskim i prawach pokrewnych — Art. 1, Art. 81',
+            'Ustawa Prawo komunikacji elektronicznej (2024) — przepisy o przechowywaniu informacji w urządzeniu końcowym (cookies)',
+            // Odnośnik Markdown i adresy widoczne dla człowieka.
+            'Co do niego wysyłamy — opisuje [polityka prywatności](/polityka-prywatnosci).',
+            'Zasady Kuking są dostępne pod `/zasady`, a polityka pod `/prywatnosc`.',
+            'Wejdź w Ustawienia → Twoje dane i kliknij „Przygotuj paczkę z moimi danymi”.',
+            'Garnek.pl przestał działać 25 listopada 2024 roku.',
+        ];
+
+        foreach ($dobre as $zdanie) {
+            $this->assertSame(
+                [],
+                self::trafieniaNotatek($zdanie),
+                "Wzorce złapały poprawne zdanie: „{$zdanie}”. To jest zdanie o stanie "
+                .'usługi albo podstawa prawna — wzorzec jest za szeroki i trzeba go zwęzić.',
+            );
+        }
+    }
 }

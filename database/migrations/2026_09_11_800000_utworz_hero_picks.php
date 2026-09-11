@@ -118,9 +118,14 @@ return new class extends Migration
         $wybranych = (int) DB::table(self::TABELA)->count();
 
         if ($wybranych > 0 && ! $this->wolnoSkasowacWybor()) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „1 zdjęć" to
+            // nie polszczyzna, a jedno zdjęcie jest stanem prawdopodobniejszym
+            // niż pięć. Mianownik przed dwukropkiem nie odmienia się wcale,
+            // więc zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                'Cofnięcie tej migracji skasowałoby wybór gospodarza: '.$wybranych.' zdjęć '
-                ."wskazanych ręcznie do kolażu na stronie powitalnej.\n\n"
+                'Cofnięcie tej migracji skasowałoby wybór gospodarza — zdjęcia wskazane '
+                .'ręcznie do kolażu na stronie powitalnej. '
+                .'Liczba zdjęć, których to dotyczy: '.$wybranych.".\n\n"
                 ."CZYM TO GROZI\n"
                 .'Po ponownym `migrate` tabela wróci pusta, a kolaż przejdzie w tryb '
                 .'automatyczny bez jednego komunikatu. Strona powitalna pokaże wtedy cztery '

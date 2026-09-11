@@ -115,9 +115,15 @@ return new class extends Migration
         // się w środowisku procesu, ale rozjazd konwencji między czterema
         // migracjami robiącymi to samo jest kosztem bez żadnej korzyści.
         if ($prawne > 0 && getenv('KUKING_ROLLBACK_KASUJE_NUMERY_SPRAW') !== '1') {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+            // zgłoszeń prawnych" to nie polszczyzna, a jedno zgłoszenie jest
+            // stanem prawdopodobniejszym niż pięć. Mianownik przed
+            // dwukropkiem nie odmienia się wcale, więc zdanie jest poprawne
+            // dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                'W `reports` jest '.$prawne.' zgłoszeń prawnych (DSA art. 16), a ich numery spraw są '
-                .'jedynym sposobem, w jaki zgłaszający bez konta rozpoznaje własną sprawę. '
+                'Liczba zgłoszeń prawnych (DSA art. 16) w `reports`: '.$prawne.'. '
+                .'Ich numery spraw są jedynym sposobem, w jaki zgłaszający bez konta '
+                .'rozpoznaje własną sprawę. '
                 .'Numery są losowe, więc po skasowaniu kolumny nie da się ich odtworzyć. '
                 .'Jeśli naprawdę chcesz je stracić: zrób kopię tabeli i uruchom ponownie '
                 .'z KUKING_ROLLBACK_KASUJE_NUMERY_SPRAW=1.',

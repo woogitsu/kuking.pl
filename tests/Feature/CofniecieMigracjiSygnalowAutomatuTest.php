@@ -63,13 +63,10 @@ class CofniecieMigracjiSygnalowAutomatuTest extends TestCase
         $otwarte = $this->oznaczenie(Report::STATUS_OPEN, (string) Str::uuid());
         $zamkniete = $this->oznaczenie(Report::STATUS_REJECTED, (string) Str::uuid());
 
-        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
-        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
-        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
-        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
-        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
-        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
-        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
         $odmowa = null;
 
         try {
@@ -80,8 +77,17 @@ class CofniecieMigracjiSygnalowAutomatuTest extends TestCase
 
         $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało rozstrzygnięte oznaczenia automatu.');
 
-        // Komunikat ma mówić ILE się straci i CO ZROBIĆ.
-        $this->assertStringContainsString('1 rozstrzygniętych oznaczeń automatu', $odmowa->getMessage());
+        // Komunikat ma mówić ILE się straci i CO ZROBIĆ. JEDNO oznaczenie,
+        // nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest zdaniem poprawnym po polsku.
+        $this->assertStringContainsString(
+            'Liczba rozstrzygniętych oznaczeń automatu w bazie: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 rozstrzygniętych', $odmowa->getMessage());
+
         $this->assertStringContainsString('kopię tabeli', $odmowa->getMessage());
         $this->assertStringContainsString(self::FURTKA, $odmowa->getMessage());
 

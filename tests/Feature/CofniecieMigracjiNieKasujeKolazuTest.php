@@ -62,7 +62,15 @@ class CofniecieMigracjiNieKasujeKolazuTest extends TestCase
 
         $wyjatek = $this->cofnijOczekujacOdmowy();
 
-        $this->assertStringContainsString('1 zdjęć', $wyjatek->getMessage());
+        // JEDNO zdjęcie, nie pięć: liczba stoi na końcu zdania, za
+        // rzeczownikiem w mianowniku, więc jedynka jest tu poprawna po polsku
+        // i wolno ją zamrozić w teście (D-132).
+        $this->assertStringContainsString('Liczba zdjęć, których to dotyczy: 1.', $wyjatek->getMessage());
+
+        // Stara, niegramatyczna forma („wybór gospodarza: 1 zdjęć") nie ma
+        // prawa wrócić.
+        $this->assertStringNotContainsString('1 zdjęć ', $wyjatek->getMessage());
+
         $this->assertStringContainsString('CO ZROBIĆ ZAMIAST TEGO', $wyjatek->getMessage());
 
         // NAJWAŻNIEJSZA ASERCJA: odmowa, która zdążyła już skasować tabelę,

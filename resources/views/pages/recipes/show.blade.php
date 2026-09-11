@@ -14,6 +14,12 @@
          czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
          który zbierają scrapery. --}}
     :image="$isPublic ? $recipe->heroMedia : null"
+    {{-- Ten ekran używa KOLUMNY SZYNY — nie przez `<x-slot:rail>`, tylko od
+         środka: `<main>` zajmuje kolumnę czytania razem z kolumną szyny,
+         a panel „Ugotowałem / Zapisuję / Gotuję" staje w tej drugiej
+         (`.przepis-uklad` w app.css, issue #365). Bez tego gość ma tu całą
+         stronę zwiniętą do 768 px, a zalogowany trzecią kolumnę pustą. --}}
+    :szynaWTresci="true"
     ogType="article">
 
     <x-slot:head>
@@ -72,7 +78,11 @@
         @endif
     </x-slot:head>
 
-    <article class="stack">
+    {{-- `przepis-uklad` DOCHODZI do `stack`, nie zastępuje go: `stack` robi
+         rytm pionowy marginesami na dzieciach i działa tak samo w siatce,
+         a `przepis-uklad` dokłada od 80rem drugą kolumnę na panel akcji.
+         Poniżej tego progu klasa nic nie robi i zostaje jeden ciąg. --}}
+    <article class="stack przepis-uklad">
         <header>
             {{--
                 OKRUSZKI (kit v2, ekrany 02 i 06).
@@ -169,137 +179,147 @@
 
             Kolejność w kodzie jest kolejnością na TELEFONIE i jest to
             kolejność z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis".
-            Desktop tylko przesuwa panel obok zdjęcia — nie przestawia go
-            w innym miejscu drzewa, więc czytnik ekranu i klawiatura chodzą
-            w obu układach tak samo.
+            Desktop tylko przesuwa panel W BOK — nie przestawia go w innym
+            miejscu drzewa, więc czytnik ekranu i klawiatura chodzą w obu
+            układach tak samo.
 
-            Bez zdjęcia panel bierze całą szerokość zamiast zostawiać po
-            lewej pustą połowę ekranu.
+            ZMIANA Z 11 WRZEŚNIA (issue #365): panel przeniósł się ze środka
+            kolumny czytania do KOLUMNY SZYNY — tej, która na tym ekranie
+            stała pusta (zmierzone przy 1920 px: 352 px pustki plus
+            marginesy). Robi to siatka `.przepis-uklad` na `<article>` wyżej,
+            a nie `<x-slot:rail>`: slot renderuje się w kodzie ZA całym
+            `<main>`, czyli za składnikami, krokami i komentarzami, a główna
+            akcja produktu ma stać przed składnikami (`EkranPrzepisuWedlugKituTest`).
+            Dlatego panel jest tu dalej bezpośrednim dzieckiem `<article>`,
+            dokładnie tam, gdzie był — zmienia się wyłącznie kolumna.
+
+            Zdjęcie zostaje w `.przepis-hero` i bierze teraz całą kolumnę
+            czytania zamiast dzielić ją z panelem.
         --}}
-        <div class="przepis-hero @if($recipe->heroMedia) przepis-hero-ze-zdjeciem @endif">
-            @if($recipe->heroMedia)
+        @if($recipe->heroMedia)
+            <div class="przepis-hero">
                 <div class="przepis-hero-zdjecie">
                     <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
                 </div>
+            </div>
+        @endif
+
+        <div class="card przepis-panel">
+            {{--
+                KAFLE LICZB: czas, porcje, poziom.
+
+                Pokazujemy TYLKO to, co autor podał. Kit rysuje zawsze trzy
+                kafle, ale kafel „—" nie jest informacją: mówi „nie wiemy",
+                zajmując tyle miejsca, co odpowiedź.
+            --}}
+            @if($total || $porcje || $recipe->difficultyLabel())
+                <ul class="przepis-liczby">
+                    @if($total)
+                        <li class="przepis-liczba">
+                            <x-ikona nazwa="clock" :rozmiar="26" />
+                            <div><strong>Około {{ $total }} min</strong><span>Czas</span></div>
+                        </li>
+                    @endif
+                    @if($porcje)
+                        <li class="przepis-liczba">
+                            <x-ikona nazwa="users" :rozmiar="26" />
+                            <div><strong>{{ $porcje }}</strong><span>Ilość</span></div>
+                        </li>
+                    @endif
+                    @if($recipe->difficultyLabel())
+                        <li class="przepis-liczba">
+                            <x-ikona nazwa="chef" :rozmiar="26" />
+                            <div><strong>{{ $recipe->difficultyLabel() }}</strong><span>Poziom</span></div>
+                        </li>
+                    @endif
+                </ul>
             @endif
 
-            <div class="card przepis-panel">
-                {{--
-                    KAFLE LICZB: czas, porcje, poziom.
+            {{--
+                GŁÓWNA AKCJA PRZEPISU. Nie „Lubię to", a „Ugotowałem".
 
-                    Pokazujemy TYLKO to, co autor podał. Kit rysuje zawsze trzy
-                    kafle, ale kafel „—" nie jest informacją: mówi „nie wiemy",
-                    zajmując tyle miejsca, co odpowiedź.
-                --}}
-                @if($total || $porcje || $recipe->difficultyLabel())
-                    <ul class="przepis-liczby">
-                        @if($total)
-                            <li class="przepis-liczba">
-                                <x-ikona nazwa="clock" :rozmiar="26" />
-                                <div><strong>Około {{ $total }} min</strong><span>Czas</span></div>
-                            </li>
-                        @endif
-                        @if($porcje)
-                            <li class="przepis-liczba">
-                                <x-ikona nazwa="users" :rozmiar="26" />
-                                <div><strong>{{ $porcje }}</strong><span>Ilość</span></div>
-                            </li>
-                        @endif
-                        @if($recipe->difficultyLabel())
-                            <li class="przepis-liczba">
-                                <x-ikona nazwa="chef" :rozmiar="26" />
-                                <div><strong>{{ $recipe->difficultyLabel() }}</strong><span>Poziom</span></div>
-                            </li>
-                        @endif
-                    </ul>
-                @endif
-
-                {{--
-                    GŁÓWNA AKCJA PRZEPISU. Nie „Lubię to", a „Ugotowałem".
-
-                    Do etapu C stała na samym dole strony, pod składnikami
-                    i krokami — czyli tam, gdzie trafiał tylko ten, kto
-                    przewinął cały przepis. Kit stawia ją w panelu obok
-                    zdjęcia i to jest właściwe miejsce: widać ją od razu,
-                    a wraca się do niej po ugotowaniu bez szukania.
-                --}}
-                <div class="przepis-akcje">
-                    @auth
-                        {{--
-                            BEZ ZNAKU „UŚMIECH" W TYM PRZYCISKU, wbrew kitowi.
-
-                            Kit wkleja go tutaj, ale znak rysuje garnek kolorem
-                            bieżącym, a uśmiech kolorem powierzchni. Na tle
-                            marki daje to biały garnek z uśmiechem w kolorze
-                            białego tła — czyli plamę bez uśmiechu. Znak,
-                            którego nie widać, jest gorszy niż jego brak.
-                        --}}
-                        <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
-                        @if($isSaved)
-                            <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
-                            </form>
-                        @else
-                            <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
-                                @csrf
-                                <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
-                            </form>
-                        @endif
-                    @else
-                        <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
-                    @endauth
-
+                Do etapu C stała na samym dole strony, pod składnikami
+                i krokami — czyli tam, gdzie trafiał tylko ten, kto
+                przewinął cały przepis. Kit stawia ją w panelu obok
+                zdjęcia i to jest właściwe miejsce: widać ją od razu,
+                a wraca się do niej po ugotowaniu bez szukania.
+            --}}
+            <div class="przepis-akcje">
+                @auth
                     {{--
-                        „Gotuję" — tryb pełnoekranowy (issue #24). Widoczny
-                        tylko, gdy przepis w ogóle ma kroki: bez nich nie
-                        miałby czego pokazać, a kontroler i tak zawraca
-                        z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
+                        BEZ ZNAKU „UŚMIECH" W TYM PRZYCISKU, wbrew kitowi.
+
+                        Kit wkleja go tutaj, ale znak rysuje garnek kolorem
+                        bieżącym, a uśmiech kolorem powierzchni. Na tle
+                        marki daje to biały garnek z uśmiechem w kolorze
+                        białego tła — czyli plamę bez uśmiechu. Znak,
+                        którego nie widać, jest gorszy niż jego brak.
                     --}}
-                    @if($recipe->steps->isNotEmpty())
-                        <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                    <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    @if($isSaved)
+                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
+                            @csrf @method('DELETE')
+                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
+                        </form>
                     @endif
-                </div>
+                @else
+                    <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
+                @endauth
 
-                {{-- „Podziel się" POD paskiem akcji, a nie w nim.
-
-                     W pasku stoją rzeczy, które robi się NA Kukingu:
-                     „Ugotowałem", „Zapisuję", „Gotuję". Wysłanie przepisu
-                     córce na WhatsAppie wyprowadza człowieka poza serwis
-                     i jest czynnością innego rodzaju — mieszanie ich w jednym
-                     rzędzie kosztowałoby „Ugotowałem" pierwszeństwo, a to
-                     jest najważniejszy sygnał w całym produkcie (AGENTS.md §1).
-
-                     Widoczne także dla gościa. Osoba bez konta, która trafiła
-                     tu z Google i chce wysłać przepis siostrze, jest naszym
-                     najtańszym kanałem dotarcia (docs/research/AUDIENCE_50_PLUS.md),
-                     a nie kimś, komu trzeba najpierw kazać się zarejestrować. --}}
-                <x-podziel-sie :tresc="$recipe" />
-
-                {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
-                     produktowa, nie kolejność przypadkowa. --}}
-                @if($recipe->source_note || $recipe->source_person)
-                    <section class="recipe-story">
-                        <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
-                        @if($recipe->source_person)
-                            <p><strong>Po {{ $recipe->source_person }}.</strong></p>
-                        @endif
-                        @if($recipe->source_note)
-                            <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>
-                        @endif
-                        @if($recipe->sourceScan)
-                            <div class="mt-4">
-                                <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
-                                <p class="meta">Kartka, z której jest ten przepis.</p>
-                            </div>
-                        @endif
-                    </section>
-                @endif
-
-                @if($recipe->source_type === 'external' && $recipe->source_url)
-                    <p class="meta m-0">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
+                {{--
+                    „Gotuję" — tryb pełnoekranowy (issue #24). Widoczny
+                    tylko, gdy przepis w ogóle ma kroki: bez nich nie
+                    miałby czego pokazać, a kontroler i tak zawraca
+                    z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
+                --}}
+                @if($recipe->steps->isNotEmpty())
+                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
                 @endif
             </div>
+
+            {{-- „Podziel się" POD paskiem akcji, a nie w nim.
+
+                 W pasku stoją rzeczy, które robi się NA Kukingu:
+                 „Ugotowałem", „Zapisuję", „Gotuję". Wysłanie przepisu
+                 córce na WhatsAppie wyprowadza człowieka poza serwis
+                 i jest czynnością innego rodzaju — mieszanie ich w jednym
+                 rzędzie kosztowałoby „Ugotowałem" pierwszeństwo, a to
+                 jest najważniejszy sygnał w całym produkcie (AGENTS.md §1).
+
+                 Widoczne także dla gościa. Osoba bez konta, która trafiła
+                 tu z Google i chce wysłać przepis siostrze, jest naszym
+                 najtańszym kanałem dotarcia (docs/research/AUDIENCE_50_PLUS.md),
+                 a nie kimś, komu trzeba najpierw kazać się zarejestrować. --}}
+            <x-podziel-sie :tresc="$recipe" />
+
+            {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
+                 produktowa, nie kolejność przypadkowa. --}}
+            @if($recipe->source_note || $recipe->source_person)
+                <section class="recipe-story">
+                    <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
+                    @if($recipe->source_person)
+                        <p><strong>Po {{ $recipe->source_person }}.</strong></p>
+                    @endif
+                    @if($recipe->source_note)
+                        <p class="whitespace-pre-line mb-0">{{ $recipe->source_note }}</p>
+                    @endif
+                    @if($recipe->sourceScan)
+                        <div class="mt-4">
+                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
+                            <p class="meta">Kartka, z której jest ten przepis.</p>
+                        </div>
+                    @endif
+                </section>
+            @endif
+
+            @if($recipe->source_type === 'external' && $recipe->source_url)
+                <p class="meta m-0">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
+            @endif
         </div>
 
         {{--
@@ -432,7 +452,33 @@
                      więc nie pokazujemy guzika prowadzącego do 403. --}}
                 @if(auth()->id() === $recipe->author_id)
                     @can('update', $recipe)
-                        <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Edytuj przepis</a>
+                        {{-- NAPIS MÓWI, CO JEST ZA PRZYCISKIEM, A NIE JAK NAZYWA
+                             SIĘ CZYNNOŚĆ (issue #364, D-135).
+
+                             Ekran po drugiej stronie ma nagłówek „Dopisz
+                             szczegóły", gdy jest co dopisać
+                             (`pages/recipes/szczegoly.blade.php`). Przycisk
+                             mówił do tej pory zawsze „Edytuj przepis" — a to
+                             dla autora, który właśnie opublikował przepis
+                             z samym zdjęciem i tytułem, brzmi jak poprawianie
+                             błędu, nie jak zaproszenie. Zaproszenie padało
+                             dotąd RAZ, w komunikacie po publikacji, i znikało
+                             razem z nim.
+
+                             Ta sama trasa i ta sama Policy — zmienia się
+                             wyłącznie napis, i zmienia się na prawdziwy.
+                             `CoMoznaDopisac` pyta o dziesięć pól, o zdjęcie
+                             główne oraz o to, czy przepis ma choć jeden
+                             składnik i choć jeden krok; przy wypełnionym
+                             wszystkim napis wraca do „Edytuj przepis", bo
+                             wtedy dopisywać nie ma czego i zaproszenie byłoby
+                             kłamstwem.
+
+                             Reguła stoi w domenie, a nie w tym widoku, bo
+                             odpowiada na nią też komunikat po publikacji
+                             (`RecipeController::store()`) — dwie odpowiedzi na
+                             to samo pytanie muszą być tą samą odpowiedzią. --}}
+                        <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}</a>
                     @endcan
                 @else
                     <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'recipe', 'id' => $recipe->slug]) }}">Zgłoś</a>

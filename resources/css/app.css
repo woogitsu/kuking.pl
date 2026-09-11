@@ -69,7 +69,10 @@
       width: 100%;
       max-width: var(--container-strona);
       margin: 0 auto;
-      padding: 0 var(--spacing-6);
+      /* Margines boczny ramy — ta sama nazwa liczby, co w belce i w stopce
+         (`--container-margines`, tokens.css). Rama to `min(sufit, 100%)`,
+         więc to wcięcie jest drugą połową zapisu „100% − margines". */
+      padding: 0 var(--container-margines);
     }
 
     .app-main {
@@ -207,6 +210,62 @@
       max-width: var(--container-strona-solo-z-szyna);
     }
 
+    /* --- EKRAN, KTÓRY UŻYWA KOLUMNY SZYNY OD ŚRODKA (issue #365) ---------
+
+       Zgłoszenie właściciela ze zrzutu strony przepisu: „w prawej kolumnie
+       która jest pusta, można dać to np" — i wskazany blok „Ugotowałem /
+       Zapisuję / Gotuję / Podziel się / Skąd ten przepis".
+
+       Zmierzone 11 września, `/przepisy/…`, Chromium: zalogowany przy oknie
+       1920 px miał ramę 1424 px, kolumnę czytania 720 px i TRZECIĄ KOLUMNĘ
+       PUSTĄ; gość miał całą stronę zwiniętą do 768 px, bo bez szyny bierze
+       `--container-strona-solo`. Panel akcji stał w tym czasie wciśnięty
+       obok zdjęcia, w kolumnie czytania.
+
+       DLACZEGO NIE `<x-slot:rail>`, SKORO TO JEST DOKŁADNIE TA KOLUMNA
+       Bo szyna renderuje się w kodzie ZA `<main>`, a na tym ekranie ten blok
+       MUSI stać przed składnikami: na telefonie kolumn nie ma i to kolejność
+       w kodzie decyduje, co człowiek czyta najpierw. Do etapu C „Ugotowałem"
+       leżało pod krokami i widział je tylko ten, kto przewinął cały przepis;
+       pilnuje tego dziś `tests/Feature/EkranPrzepisuWedlugKituTest.php`
+       („główna akcja stoi przed składnikami"). Przeniesienie bloku do slotu
+       `rail` cofnęłoby tamtą poprawkę, a `order` z CSS-a zmieniłby tylko to,
+       co widać — nie to, co czyta czytnik ekranu i klawiatura.
+
+       Dlatego `<main>` na tym ekranie ZAJMUJE OBIE KOLUMNY — czytania
+       i szyny — a o tym, co gdzie stoi, decyduje siatka samego ekranu
+       (`.przepis-uklad` niżej). Kod zostaje w kolejności telefonu, układ
+       dostaje dwie kolumny, pustka po prawej znika.
+
+       Rama, belka i stopka nie zmieniają ani piksela: zalogowany ma te same
+       1424 px co wszędzie (trzecia kolumna wreszcie nie jest pusta), a gość
+       bierze `--container-strona-solo-z-szyna` (1152 px) — tę samą liczbę,
+       co ekran gościa z prawdziwą szyną (D-122), więc belka i stopka mają
+       skąd wziąć swoją (klasa `uklad-solo-z-szyna` na `<body>`). */
+    .app-body-tresc-z-szyna .app-main {
+      /* Kolumna czytania + kolumna szyny. Sufit zdejmujemy TUTAJ, a nie
+         w `.przepis-uklad`: to `.app-main` przycina do 45rem, a tekst
+         przycina teraz siatka ekranu — patrz `.przepis-uklad`. */
+      grid-column: 2 / span 2;
+      max-width: none;
+    }
+
+    /* Wszystko, co `<main>` niesie POZA siatką ekranu (komunikat zwrotny,
+       plakietka zawieszenia konta), zostaje kolumną czytania. Bez tego
+       jedno zdanie „Zostałeś wylogowany" rozciągałoby się na 1104 px. */
+    .app-body-tresc-z-szyna .app-main > :not(.przepis-uklad) {
+      max-width: var(--container-content);
+    }
+
+    /* Gość: jedna kolumna, ale szeroka na treść RAZEM z szyną. */
+    .app-body-solo.app-body-tresc-z-szyna {
+      max-width: var(--container-strona-solo-z-szyna);
+    }
+
+    .app-body-solo.app-body-tresc-z-szyna .app-main {
+      grid-column: 1;
+    }
+
     /* Treść trzyma się LEWEJ krawędzi swojej kolumny, bo z tą krawędzią
        licuje logotyp w belce (pomiar „Wyrównanie belki do siatki treści").
 
@@ -252,7 +311,53 @@
      */
     .app-body[data-tryb-panelu] {
       grid-template-columns: var(--container-sidenav) minmax(0, 1fr);
-      max-width: var(--container-strona);
+      max-width: var(--container-panel);
+    }
+  }
+
+  /* --- PANEL MODERACJI BIERZE CAŁĄ SZEROKOŚĆ (zgłoszenie właściciela) -----
+
+     „patrz szerokość strony dla użytkownika a tą dla admina i moderatora,
+     dla admina i moderatora jest wąskie, przez co informacje trzeba
+     przewijać, zrób dla admina i moderatora 100% szerokości".
+
+     Zrzut pokazywał `/admin/uzytkownicy` z WIDOCZNYM poziomym paskiem
+     przewijania i uciętą w połowie słowa kolumną „Stan konta" — czyli tą
+     jedną rzeczą, po którą moderator na tę listę wchodzi.
+
+     PRZYCZYNA MA DWIE WARSTWY I OBIE TRZEBA ZDJĄĆ:
+       1. rama panelu miała sufit `--container-strona` (1040 px), bo panel
+          dziedziczył ramę ekranu do czytania;
+       2. `.app-main` ma `max-width: var(--container-content)` (720 px), więc
+          nawet po podniesieniu sufitu tabela dostałaby dalej 720 px.
+
+     DLACZEGO WOLNO, SKORO 45rem NA KOLUMNĘ TEKSTU JEST REGUŁĄ TWARDĄ.
+     Bo ta reguła broni CZYTANIA: wiersz dłuższy niż 55–75 znaków gubi się
+     przy przejściu do następnego (docs/UX_50_PLUS.md). Tabela kont nie jest
+     wierszem tekstu — jest siedmioma kolumnami, które porównuje się w poziomie
+     — i na zwężeniu nie zyskuje nic, tylko traci kolumny za krawędź.
+
+     CO ZOSTAJE NIETKNIĘTE: `overflow-x` na `.tabela-kont-przewijanie`
+     (`ekran-uzytkownikow.css`). Przy 320 px tabela dalej ma prawo jeździć
+     w bok W SWOIM kontenerze — to jest poprawne i chroni stronę przed
+     przewijaniem w bok CAŁĄ (WCAG 2.2 AA 1.4.10). Zmieniamy to, że jeździła
+     także na ekranie 1600 px.
+
+     PRÓG 64rem, nie 80rem: rama panelu ma dwie kolumny od 64rem i od tego
+     samego progu ma brać całą szerokość. Niżej (telefon, tablet) nic się nie
+     zmienia — tam `.app-body` nie jest siatką i nie ma żadnego sufitu.
+     ---------------------------------------------------------------------- */
+
+  @media (min-width: 64rem) {
+    .app-body[data-tryb-panelu] {
+      max-width: var(--container-panel);
+    }
+
+    /* Druga warstwa: kolumna treści panelu przestaje być kolumną CZYTANIA.
+       Bez tego sufit ramy urośnie, a tabela zostanie przy 720 px i pustka
+       przeniesie się tylko o kawałek w prawo. */
+    .app-body[data-tryb-panelu] .app-main {
+      max-width: none;
     }
   }
 
@@ -456,8 +561,8 @@
     .topbar-inner,
     .site-footer-inner {
       max-width: var(--container-strona);
-      padding-left: var(--spacing-6);
-      padding-right: var(--spacing-6);
+      padding-left: var(--container-margines);
+      padding-right: var(--container-margines);
     }
 
     /* Gość nie ma nawigacji bocznej, a MIĘDZY 64 A 80rem nikt nie ma szyny
@@ -2122,12 +2227,81 @@
     gap: var(--spacing-3);
   }
 
-  /* --- Hero: zdjęcie obok panelu (desktop), jedno pod drugim (telefon) ---
+  /* --- EKRAN PRZEPISU: KOLUMNA CZYTANIA I KOLUMNA SZYNY (issue #365) -----
+
+     Zgłoszenie właściciela ze zrzutu: „w prawej kolumnie która jest pusta,
+     można dać to np" — z ręką na panelu „Ugotowałem / Zapisuję / Gotuję /
+     Podziel się / Skąd ten przepis".
+
+     Panel stał dotąd w kolumnie czytania, obok zdjęcia, i dzielił z nim
+     720 px; kolumna szyny stała przez ten czas pusta (zmierzone przy 1920 px:
+     352 px pustki plus marginesy). Teraz `<main>` zajmuje obie kolumny
+     (`.app-body-tresc-z-szyna` wyżej), a ta siatka rozkłada je tak:
+
+         [ nagłówek, zdjęcie, składniki, kroki, komentarze ]  [ PANEL ]
+                        45rem — bez zmian                      22rem
+
+     KOD ZOSTAJE W KOLEJNOŚCI TELEFONU. Panel jest w drzewie tam, gdzie był:
+     po zdjęciu, PRZED składnikami. Siatka tylko przenosi go w bok, więc
+     czytnik ekranu i klawiatura chodzą tak samo jak przedtem, a „Ugotowałem"
+     dalej stoi przed „Składnikami" (`EkranPrzepisuWedlugKituTest`). To jest
+     powód, dla którego ten ekran NIE używa `<x-slot:rail>`: slot renderuje
+     się w kodzie za całym `<main>`, czyli za krokami i komentarzami.
+
+     KOLUMNA TEKSTU NIE ROŚNIE. `minmax(0, var(--container-content))` —
+     ta sama liczba, którą `.app-main` daje każdemu innemu ekranowi. Rośnie
+     rama i to, co OBOK; wiersz na 1400 px jest nieczytelny niezależnie od
+     wieku czytelnika (docs/UX_50_PLUS.md).
+
+     `grid-row: 1 / span 999`, A NIE `1 / -1`. `-1` wskazuje ostatnią linię
+     siatki JAWNEJ, a jawnych wierszy tu nie ma — panel zostałby w wierszu
+     pierwszym i rozepchnąłby go do swojej wysokości, zostawiając kilkaset
+     pikseli dziury pod nagłówkiem. Liczba jest umyślnie większa niż liczba
+     bloków, jaką może mieć przepis; wiersze bez treści mają zerową wysokość,
+     a `row-gap` jest zerem (rytm pionowy robi `.stack`), więc nadmiar nic
+     nie kosztuje.
+
+     TYLKO OD 80rem — czyli tam, gdzie kolumna szyny w ogóle istnieje.
+     Niżej (telefon, tablet) i przy czcionce przeglądarki podkręconej do 200%
+     (wtedy 80rem to 2560 px i próg się nie załapuje) zostaje jeden ciąg
+     w kolejności z kodu: nagłówek, zdjęcie, panel z „Ugotowałem", składniki.
+     ---------------------------------------------------------------------- */
+
+  @media (min-width: 80rem) {
+    .przepis-uklad {
+      display: grid;
+      grid-template-columns: minmax(0, var(--container-content)) var(--container-rail);
+      column-gap: var(--spacing-8);
+      row-gap: 0;
+      align-items: start;
+    }
+
+    .przepis-uklad > * {
+      grid-column: 1;
+    }
+
+    .przepis-uklad > .przepis-panel {
+      grid-column: 2;
+      grid-row: 1 / span 999;
+      align-self: start;
+      /* `.stack` daje każdemu kolejnemu dziecku margines od góry. Panel stoi
+         w drugiej kolumnie przy samej górze, więc ten margines zepchnąłby go
+         od nagłówka, z którym ma licować. */
+      margin-top: 0;
+    }
+  }
+
+  /* --- Hero: zdjęcie przepisu --------------------------------------------
 
      Kolejność w KODZIE jest kolejnością na telefonie i jest to kolejność
-     z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis". Desktop tylko
-     przesuwa panel obok zdjęcia. Dzięki temu czytnik ekranu i klawiatura
-     chodzą tak samo w obu układach. */
+     z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis".
+
+     SIATKA ZOSTAJE JEDNOKOLUMNOWA TAKŻE NA DESKTOPIE (issue #365). Do dziś
+     dzieliła 720 px między zdjęcie i panel — dlatego zdjęcie dania, czyli
+     rzecz, po którą człowiek tu przyszedł, miało ~390 px na monitorze
+     1920 px. Panel wyprowadził się do kolumny szyny (patrz `.przepis-uklad`
+     wyżej), więc zdjęcie bierze teraz całą kolumnę czytania.
+     `--container-content` pilnuje, żeby nie urosło ponad 720 px. */
 
   .przepis-hero {
     display: grid;
@@ -2141,12 +2315,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-5);
     align-items: start;
-  }
-
-  @media (min-width: 60rem) {
-    .przepis-hero-ze-zdjeciem {
-      grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
-    }
   }
 
   .przepis-hero-zdjecie img {
@@ -2624,6 +2792,105 @@
   .kuking-board {
     --tablica-zdjecie: 120px;
     --tablica-odstep: var(--spacing-4);
+
+    /* Tablica PYTA O SIEBIE, NIE O OKNO (issue #365) — patrz
+       `.kuking-board-kolumny` niżej. */
+    container-type: inline-size;
+    container-name: tablica;
+  }
+
+  /* --- OSOBY OBOK DAŃ (issue #365) ---------------------------------------
+
+     Zgłoszenie właściciela: „w »co się dziś gotuje« można zrobić dwie
+     kolumny". `docs/UX_50_PLUS.md` §Desktop pozwala na to wprost („maks.
+     2 główne kolumny"); zabrania ŚCIANY MAŁYCH KAFELKÓW — więc zdjęcie
+     zostaje na 120 px, miniatury na 72 px, a karta nie kurczy się po to,
+     żeby się zmieścić. Gdy nie ma dla niej miejsca, wraca jedna kolumna.
+
+     `@container`, NIE `@media`. Ta sama tablica stoi w trzech miejscach
+     o trzech różnych szerokościach — w szynie (wnętrze karty 310 px),
+     w kolumnie `/odkryj` (720 px) i w pasie strony powitalnej (992 px).
+     Pytanie o okno dałoby dwie kolumny także w szynie: karta osoby ma tam
+     310 px, a rząd „zdjęcie 120 + odstęp 16 + tekst min. 160" potrzebuje
+     296 px — po podziale na pół zostałoby 147 px na kolumnę i awatar spadłby
+     nad podpis. Pytamy więc o to, co naprawdę rozstrzyga: o szerokość samej
+     tablicy.
+
+     PRÓG 44rem = 2 × 22rem. Kolumna poniżej 22rem (352 px) nie mieści rzędu
+     trzech miniatur (3 × 72 + 2 × 8 = 232 px) razem z zapasem na wcięcia
+     karty, a to ten rząd jest jedynym uczciwym argumentem, żeby kogoś
+     zaobserwować.
+
+     PRÓG W `rem`, BO MA JECHAĆ RAZEM Z TEKSTEM — ta sama zasada, co przy
+     `flex-basis` karty niżej. Przy czcionce przeglądarki 200% `44rem` to
+     1408 px, czyli więcej niż najszersze miejsce, w którym ta tablica stoi
+     (992 px) — dwie kolumny same się wtedy wyłączają, zamiast ściskać podpis
+     do słupka kilku znaków na wiersz.
+
+     `row-gap` zostaje zerem: odstęp pionowy robią marginesy nagłówków
+     `.kuking-board-subtitle` i one mają zostać jedynym źródłem tego rytmu,
+     żeby obie kolumny zaczynały się na tej samej wysokości.
+     ---------------------------------------------------------------------- */
+
+  .kuking-board-kolumny {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--spacing-8);
+  }
+
+  /* --- „ŚWIEŻO Z KUKING" W DWÓCH KOLUMNACH (issue #365) -------------------
+
+     Zgłoszenie właściciela: „na głównej (…) »Świeżo z Kuking« też można
+     rozdzielić na dwie kolumny by było więcej treści a nie wydłużona strona".
+
+     TO JEST ŚWIADOME COFNIĘCIE POŁOWY POPRZEDNIEJ DECYZJI i mówimy to wprost.
+     `resources/css/strony-publiczne.css` opisuje przy `.landing-wpisy-kolumna`,
+     dlaczego 11 września rano wybrano jedną kolumnę — i podaje cenę, którą
+     wtedy przyjęto: „lista prawie dwa razy dłuższa (2697 → 4956 px), na
+     pierwszym ekranie jeden wpis zamiast dwóch". Właściciel wybrał teraz
+     drugą stronę tego rachunku. Cena wraca odwrócona: rząd jest tak wysoki
+     jak wyższa z dwóch kart, więc pod niższą zostaje pustka (zmierzone
+     wtedy: 388 px łącznie na dziewięciu kartach) — za 2259 px krótszą stronę.
+
+     CO Z TAMTEJ DECYZJI ZOSTAJE, BO NIE BYŁO PRZEDMIOTEM ZGŁOSZENIA:
+       * siatka W RZĘDACH, nie `columns: 2` — wielokolumnowy układ CSS
+         wypełnia kolumnę pierwszą do końca, więc piąty co do świeżości wpis
+         lądowałby na samej górze po prawej, nad starszymi od siebie;
+       * DUŻE ZDJĘCIE. Karta ma w dwóch kolumnach ~480 px przy pasie 992 px —
+         to nie jest „ściana miniaturowych kart", której zabrania
+         `docs/UX_50_PLUS.md` §Desktop, tylko dwie pełne karty obok siebie.
+         Wiersz tekstu w karcie to przy tym ~55 znaków, czyli dolna granica
+         przedziału 55–75 z tego samego dokumentu; przy jednej kolumnie
+         w całym pasie (992 px) byłoby ich ~100 i dlatego tamta szerokość
+         została odrzucona.
+
+     PRÓG 64rem NA OKNIE, nie na kontenerze: te karty stoją w JEDNYM miejscu
+     w serwisie — w pasie strony powitalnej — więc nie ma trzech szerokości
+     do rozróżnienia i zapytanie o kontener nie kupiłoby niczego poza jeszcze
+     jedną warstwą. Przy czcionce przeglądarki 200% `64rem` to 2048 px, więc
+     próg się nie załapuje i wraca jedna kolumna — wtedy karta ma całe
+     `--container-content` i wiersz zostaje czytelny.
+     ---------------------------------------------------------------------- */
+
+  @media (min-width: 64rem) {
+    .landing-wpisy-dwie {
+      /* Sufit `--container-content` z `.landing-wpisy-kolumna` opisuje
+         SZEROKOŚĆ KARTY, a tu opisuje już szerokość DWÓCH kart — zdejmujemy
+         go z siatki, a długości wiersza pilnuje szerokość kolumny. */
+      max-width: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--spacing-5) var(--spacing-8);
+      /* Karta niższa od sąsiadki nie rozciąga się do dołu rzędu — pustka pod
+         nią ma wyglądać na odstęp, a nie na pustą połowę karty. */
+      align-items: start;
+    }
+  }
+
+  @container tablica (min-width: 44rem) {
+    .kuking-board-kolumny {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
   }
 
   .kuking-board-subtitle {
@@ -4552,8 +4819,9 @@
 /* Adres jest dłuższy niż szerokość pola przy 390 px (zmierzone: urywał się
    na „http://…/przepi…"), a ma być CZYTELNY, nie tylko zaznaczalny — stąd
    pole wielowierszowe zamiast jednowierszowego. `min-height` z `.field-input`
-   dla `textarea` to 8 rem, czyli tyle, ile ma pole na przepis; tu wystarczą
-   dwa wiersze i mają rosnąć razem ze skalą tekstu. */
+   dla `textarea` to `--pole-wielowierszowe-min` (176 px), czyli tyle, ile ma
+   pole na przepis; tu wystarczą dwa wiersze i mają rosnąć razem ze skalą
+   tekstu. */
 .podziel-sie-adres {
   min-height: 0;
   resize: none;
@@ -4589,4 +4857,61 @@
 .podziel-sie-niedostepne {
   margin-top: var(--spacing-6);
   color: var(--color-ink-muted);
+}
+
+/* --- Zakładki dodawania („Zdjęcie i kilka słów" / „Cały przepis") ---------
+   issue #366. Dwa ZWYKŁE ODNOŚNIKI, nie przełącznik przebudowujący formularz:
+   strona zmieniająca się pod palcem to przy 50+ realny koszt, a odnośnik ma
+   adres, który da się wysłać rodzinie.
+
+   MINIMUM CELU JEST W PIKSELACH, NIE W `rem` (D-082, D-107). 48 px istnieje
+   dla palca, a palec nie rośnie, gdy ktoś powiększy czcionkę w przeglądarce —
+   `var(--control-height-min)` (3rem) podwoiłoby się razem z korzeniem.
+   Pismo ZOSTAJE typograficzne: `--text-body` ma rosnąć ze skalą tekstu.
+
+   KONTRAST ZMIERZONY PRZED WKLEJENIEM (WCAG 2.2 AA, issue #365):
+     * zakładka bieżąca — `--color-ink-inverse` na `--color-brand-solid`:
+       5,72:1 w motywie jasnym (#FFFFFF na #B3401F) i 4,72:1 w ciemnym
+       (#FFFFFF na #C1502A). Próg 4,5:1 dla tekstu — przechodzi w obu;
+     * obwódka zakładki niebieżącej — `--color-border-strong` do tła karty:
+       4,16:1 w jasnym (#8A7A63 do #FFFFFF) i 3,83:1 w ciemnym (#8C7D68 do
+       #2A241E). Próg 3:1 dla obwódki kontrolki (1.4.11) — przechodzi w obu.
+       `--color-border` miałby tu 1,40:1, czyli NIE przechodzi; wybór
+       `-strong` jest więc konieczny, nie estetyczny.
+   ------------------------------------------------------------------------ */
+
+.zakladki-dodawania {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin: 0 0 var(--spacing-5);
+}
+
+.zakladka-dodawania {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 48px;
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-raised);
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-ink);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Ikona nie chudnie, gdy napis zawija się na dwa wiersze. */
+.zakladka-dodawania .ikona { flex: none; }
+
+.zakladka-dodawania:hover { background-color: var(--color-surface-sunken); }
+
+.zakladka-dodawania[aria-current="page"] {
+  background-color: var(--color-brand-solid);
+  border-color: var(--color-brand-solid);
+  color: var(--color-ink-inverse);
 }

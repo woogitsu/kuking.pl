@@ -235,9 +235,15 @@ return new class extends Migration
             $nieodhaczone = DB::table('mail_failures')->whereNull('zauwazony_at')->count();
 
             if ($nieodhaczone > 0) {
+                // Rzeczownik PRZED liczbą, liczba na końcu zdania — „leży 1
+                // nieodhaczonych wierszy" to nie polszczyzna, a jeden wiersz
+                // jest stanem prawdopodobniejszym niż pięć. Mianownik przed
+                // dwukropkiem nie odmienia się wcale, więc zdanie jest
+                // poprawne dla 1, 2, 5 i 22.
                 throw new RuntimeException(
-                    'Odmawiam wycofania migracji: w `mail_failures` leży '.$nieodhaczone.' '
-                    .'nieodhaczonych wierszy, czyli tyle listów przepadło, a nikt tego nie potwierdził. '
+                    'Odmawiam wycofania migracji. Liczba nieodhaczonych wierszy '
+                    .'w `mail_failures`: '.$nieodhaczone.'. Tyle listów przepadło, '
+                    .'a nikt tego nie potwierdził. '
                     .'Skasowanie tej tabeli usunęłoby JEDYNY ślad tych awarii. '
                     .'Przeczytaj je (`php artisan kuking:nieudane-listy`), potwierdź '
                     .'(`php artisan kuking:nieudane-listy --odhacz`) i powtórz wycofanie.',

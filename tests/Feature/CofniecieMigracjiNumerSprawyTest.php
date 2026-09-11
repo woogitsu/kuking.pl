@@ -72,13 +72,10 @@ class CofniecieMigracjiNumerSprawyTest extends TestCase
 
         $this->assertNotNull($numer, 'Zgłoszenie nie dostało numeru — test sprawdzałby pustkę.');
 
-        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM — i to nie
-        // jest stylistyka. `$this->fail()` rzuca `AssertionFailedError`, a ta
-        // dziedziczy przez `PHPUnit\Framework\Exception` po `RuntimeException`,
-        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`. Tutaj
-        // wyłapują ją dziś asercje na treść komunikatu, ale przy `catch` bez
-        // asercji ten sam kształt daje test-atrapę: zielony także wtedy, gdyby
-        // strażnika nie było wcale. Poza blokiem odmowa jest sprawdzana wprost.
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
         $odmowa = null;
 
         try {
@@ -91,7 +88,19 @@ class CofniecieMigracjiNumerSprawyTest extends TestCase
 
         // Komunikat ma mówić ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
         // nie zatrzymuje nikogo o drugiej w nocy.
-        $this->assertStringContainsString('1 zgłoszeń prawnych', $odmowa->getMessage());
+        //
+        // JEDNO zgłoszenie, nie pięć — i to jest cały sens tej asercji.
+        // Liczba stoi na końcu zdania, za rzeczownikiem w mianowniku, więc
+        // jedynka jest tu zdaniem poprawnym po polsku i wolno ją zamrozić
+        // w teście (D-132).
+        $this->assertStringContainsString(
+            'Liczba zgłoszeń prawnych (DSA art. 16) w `reports`: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 zgłoszeń', $odmowa->getMessage());
+
         $this->assertStringContainsString('kopię tabeli', $odmowa->getMessage());
         $this->assertStringContainsString(self::FURTKA, $odmowa->getMessage());
 

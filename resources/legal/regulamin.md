@@ -145,10 +145,7 @@ Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe wed�
 
 ---
 
-*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu osoby prowadzącej serwis.*
-
 ## Źródła
 
 - Regulation (EU) 2022/2065 (Digital Services Act) — Art. 14 (Terms and conditions), Art. 16–18 (notice and action, statement of reasons)
 - Ustawa z dnia 4 lutego 1994 r. o prawie autorskim i prawach pokrewnych — Art. 1, Art. 81
-- Zobacz pełną listę źródeł w `COMPLIANCE.md`

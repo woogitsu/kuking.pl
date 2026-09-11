@@ -101,14 +101,10 @@ class CofniecieMigracjiFacebookaOdmawiaTest extends TestCase
         $basia = $this->user('basia');
         $basia->connectFacebook('10221234567890123');
 
-        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
-        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
-        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
-        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
-        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
-        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
-        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
-        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
         $odmowa = null;
 
         try {
@@ -122,7 +118,17 @@ class CofniecieMigracjiFacebookaOdmawiaTest extends TestCase
         // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
         // TEGO i jak powiedzieć wprost „wiem, co robię". „Ktoś coś
         // straci" nie zatrzymuje nikogo o drugiej w nocy.
-        $this->assertStringContainsString('1 kont', $odmowa->getMessage());
+        //
+        // JEDNO konto, nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest tu poprawna po polsku (D-132).
+        $this->assertStringContainsString(
+            'Liczba kont, których to dotyczy: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('dla 1 kont', $odmowa->getMessage());
+
         $this->assertStringContainsString('KUKING_WEJSCIE_FACEBOOK=false', $odmowa->getMessage());
         $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 

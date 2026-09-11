@@ -14,6 +14,90 @@ ich nie ma.
 
 ---
 
+## Alfa 0.5 — 11 września 2026
+
+### Dla wszystkich
+
+- **Prośba o link do zalogowania nie wpuszcza już na cudze konto.** Jeśli ktoś
+  założył konto na Twój adres, a ten adres nigdy nie został u nas
+  potwierdzony, formularz „Wyślij mi link do zalogowania" przysyła
+  teraz wiadomość z **ustawieniem nowego hasła**, a nie przycisk wchodzący
+  prosto na to konto. Po ustawieniu hasła stare hasło przestaje działać, a
+  wszystkie otwarte sesje na tym koncie zostają zamknięte — nawet jeśli ktoś
+  obcy z nich korzystał.
+- **Kliknięcie odnośnika z tej wiadomości potwierdza adres.** Od tej chwili
+  konto wraca do zwykłego logowania jednym przyciskiem.
+- Ekran po wysłaniu formularza wygląda **dokładnie tak samo** jak dotąd i
+  dokładnie tak samo dla adresu, który konta u nas nie ma — żeby nie dało się
+  z niego wyczytać, kto ma tu konto, a kto nie.
+
+---
+
+## Alfa 0.4 — 11 września 2026
+
+### Dla wszystkich
+
+- **Dodany przepis jest wreszcie widoczny tam, gdzie ludzie patrzą.** Do tej
+  pory opublikowany przepis stał wyłącznie na profilu autora i w wyszukiwarce
+  — czyli tam, gdzie trzeba go było już szukać. Teraz pokazuje się w „Świeżo
+  z Kuking", w feedzie osób, które autora obserwują, i na tablicy „kuKINGi na
+  dziś", z tytułem, zdjęciem i przyciskiem „Ugotowałem" od razu pod ręką.
+- **To nie jest kopia przepisu, tylko droga do niego.** Poprawiony tytuł albo
+  wymienione zdjęcie widać w strumieniu natychmiast, bez czekania i bez
+  drugiego kliknięcia.
+- **Przepis schowany, usunięty albo zawężony do obserwujących znika ze
+  strumieni razem z przepisem** — nie zostaje po nim żadna karta.
+- **Dwa kliknięcia „Opublikuj" dają jedną pozycję w strumieniu, nie dwie.**
+
+---
+
+## Alfa 0.3 — 11 września 2026
+
+### Dodawanie przepisu przestało odstraszać
+
+- **Ekran dodawania przepisu pyta o sześć rzeczy zamiast prawie stu.** Zdjęcie,
+  tytuł, składniki, przygotowanie, kto to zobaczy, „Opublikuj". Porcje, czasy,
+  trudność, pochodzenie przepisu i skan starej kartki przeniosły się na osobny
+  ekran „Dopisz szczegóły" — wypełniasz je **po** opublikowaniu albo wcale.
+- **Składniki i przygotowanie wpisuje się zwykłym tekstem.** Można wkleić listę
+  z kartki albo z maila — każdy wiersz stanie się składnikiem, a pusta linia
+  rozdzieli kroki. Nie trzeba już dodawać pól po jednym.
+- **Przepis bez listy składników też da się opublikować.** Jeśli znasz danie
+  z głowy i wolisz opisać je zdaniem, nic Cię nie zatrzyma. Składniki możesz
+  dopisać później.
+- **Zaproszenie „dopisz szczegóły" pojawia się tylko wtedy, gdy naprawdę jest
+  co dopisać.** Przepis wypełniony do końca go nie dostaje.
+- **Nad każdym formularzem dodawania widać obie drogi** — „Zdjęcie i kilka
+  słów" oraz „Cały przepis". Wcześniej w większości miejsc w ogóle nie było
+  widać, że istnieje ta druga.
+
+### Więcej treści na ekranie, mniej przewijania
+
+- **Strona przepisu ma drugą kolumnę.** „Ugotowałem", „Zapisuję", „Gotuję"
+  i „Podziel się" stoją obok treści, a nie nad nią — strona zrobiła się
+  o kilkaset pikseli krótsza, a „Ugotowałem" widać wyżej.
+- **„Świeżo z Kuking" i „Co się dziś gotuje" układają się w dwie kolumny**
+  tam, gdzie jest na nie miejsce. Lista skróciła się prawie o połowę.
+- **Pola do wpisywania są większe** — jednowierszowe 64 px zamiast 56,
+  wielowierszowe 176 px zamiast 128.
+
+Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
+
+### Dla moderatorów i administratorów
+
+- **Panel bierze całą szerokość okna.** Tabela kont na szerokim monitorze
+  (od około 1600 px) mieści się bez przewijania w bok. Na węższym ekranie
+  tabela dalej się przewija — ale w swoim polu, nie całą stroną.
+- **Puste kolejki mówią pełnym zdaniem**, zamiast jednej linijki tekstu.
+
+### Dokumenty
+
+- **Regulamin i polityka prywatności nie mówią już o sobie, że nie były
+  sprawdzone przez prawnika.** Wszystkie zdania o tym, jak działa serwis,
+  zostały bez zmian — zniknęła tylko uwaga o tym, kto tych dokumentów nie
+  czytał.
+---
+
 ## Alfa 0.2 — 11 września 2026
 
 ### Dla wszystkich

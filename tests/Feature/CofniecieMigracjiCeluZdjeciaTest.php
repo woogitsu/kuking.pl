@@ -85,14 +85,10 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
             'status' => Report::STATUS_OPEN,
         ]);
 
-        // `fail()` NIE STOI W `try` i to jest jedyny powód, dla którego ten
-        // blok wygląda tak, a nie krócej. `AssertionFailedError` dziedziczy
-        // `PHPUnit\Framework\Exception` → `RuntimeException` → `Exception`,
-        // więc `fail()` postawione wewnątrz `try` wpadłoby do `catch` poniżej —
-        // do tego samego, który ma złapać odmowę migracji. Przy takim kształcie
-        // `catch` bez asercji na treść komunikatu robi z testu atrapę: zielony
-        // także wtedy, gdy `down()` w ogóle nie odmawia. Wyjątek idzie więc do
-        // zmiennej, a ocena stoi poza blokiem, gdzie nic jej nie łapie.
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
         $odmowa = null;
 
         try {
@@ -108,7 +104,17 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
         }
 
         $this->assertNotNull($odmowa, 'Cofnięcie migracji przeszło, mimo że w tabeli leży oznaczenie zdjęcia.');
-        $this->assertStringContainsString('oznaczeń zdjęć', $odmowa->getMessage());
+
+        // JEDNO oznaczenie, nie pięć: liczba stoi na końcu zdania, za
+        // rzeczownikiem w mianowniku, więc jedynka jest tu poprawna po polsku
+        // i wolno ją zamrozić w teście (D-132).
+        $this->assertStringContainsString(
+            'Liczba oznaczeń zdjęć (`target_type = media`) w `reports`: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('leży 1 oznaczeń', $odmowa->getMessage());
 
         // Sprawa musi zostać nietknięta — także wtedy, gdy rollback odmówił.
         $this->assertSame(1, Report::query()->where('target_type', 'media')->count());
