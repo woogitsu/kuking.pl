@@ -46,7 +46,11 @@ class OnboardingZnajdzZnajomychTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Znasz już kogoś w Kuking?', $html);
+        // Nazwa serwisu w tym nagłówku jest zapisana dwukolorowo
+        // (`docs/brand/GLOS_MARKI.md` §2), więc w HTML-u nie ma napisu
+        // „Kuking" — jest komponent. Sprawdzamy część stałą nagłówka
+        // i to, że nazwa w nim jest komponentem, a nie zwykłym tekstem.
+        $this->assertStringContainsString('<h2>Znasz już kogoś w <span class="kuking-word">', $html);
         $this->assertStringContainsString('name="q"', $html);
         // Formularz szukania jest GET, nie POST — działa jako zwykły link
         // bez JavaScriptu (AGENTS.md §5).

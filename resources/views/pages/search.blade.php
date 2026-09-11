@@ -78,7 +78,7 @@
             stan to zaproszenie, nie ściana). Ten sam odnośnik używa już
             `kuking-board.blade.php` i `tags/show.blade.php` w tej samej roli.
         --}}
-        <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z Kuking</a>.</p>
+        <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a>.</p>
     @elseif($zaKrotka)
         {{--
             Osobny, uczciwy tekst — nie „Nic nie znaleźliśmy" (SearchController
@@ -122,7 +122,7 @@
                 @if($section !== 'ludzie')
                     <a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a>
                 @endif
-                <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z Kuking</a>
+                <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z <x-kuking-word /></a>
             </p>
         @endif
 

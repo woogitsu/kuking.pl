@@ -791,6 +791,11 @@
   .btn[aria-disabled="true"] {
     opacity: 0.55;
     cursor: not-allowed;
+    /* `.btn:active:not(:disabled)` wyklucza tylko `:disabled`, a `<span>`
+       z `aria-disabled` przechodzi tym selektorem — bez tej deklaracji
+       wyłączony przycisk drgał przy naciśnięciu jak działający i nie robił
+       nic. Martwy przycisk, który udaje żywy (AGENTS.md §5 punkt 3). */
+    transform: none;
   }
   /* Halo pod pierścieniem fokusu — patrz DESIGN_SYSTEM.md §1.4.
      Konieczne na przyciskach z kolorowym tłem (primary/danger), bo bezpośredni

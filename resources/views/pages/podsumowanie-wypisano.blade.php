@@ -16,8 +16,7 @@
 
     <div class="sekcja-strony">
         <p class="mt-0">
-            Tygodniowe podsumowanie jest wyłączone. Nic nie musisz robić dalej
-            i o nic nie zapytamy.
+            Tygodniowe podsumowanie jest wyłączone. O nic nie zapytamy.
         </p>
 
         <p class="mb-0">

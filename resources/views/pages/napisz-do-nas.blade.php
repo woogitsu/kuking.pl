@@ -51,16 +51,15 @@
                 ],
             ]))" />
 
-            <p class="mb-0">Jeśli tego tam nie ma — pisz. Lepiej dwa razy niż wcale.</p>
+            <p class="mb-0">Jeśli tego tam nie ma — pisz.</p>
         </x-szyna-blok>
     </x-slot:rail>
 
     <h1>Napisz do nas</h1>
 
     <p class="mb-5">
-        Po drugiej stronie jest człowiek, nie automat. Napisz, jeśli coś nie działa,
-        jeśli masz pomysł albo jeśli chcesz nam po prostu coś powiedzieć.
-        Nie musisz mieć konta w Kuking i nie musisz pisać ładnie —
+        Napisz, jeśli coś nie działa, jeśli masz pomysł albo jeśli chcesz nam coś
+        powiedzieć. Nie musisz mieć konta w Kuking i nie musisz pisać ładnie —
         wystarczy, żebyśmy zrozumieli, o co chodzi.
     </p>
 
@@ -76,9 +75,8 @@
     <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o czyjś wpis, przepis albo komentarz?</h2>
         <p>
-            To jest inna droga i prowadzi do innej kolejki. Pod każdą treścią jest
-            przycisk <strong>Zgłoś</strong> — użyj go, jeśli ktoś kogoś obraża,
-            wrzuca spam albo doradza coś niebezpiecznego.
+            Pod każdą treścią jest przycisk <strong>Zgłoś</strong> — użyj go,
+            jeśli ktoś kogoś obraża, wrzuca spam albo doradza coś niebezpiecznego.
         </p>
         <p class="mb-0">
             Jeśli treść Twoim zdaniem łamie prawo, wypełnij
@@ -150,10 +148,9 @@
             poczta, nie zginie.
         </p>
         <p class="mb-0">
-            Czyta je {{ config('kuking.community.host_name') }} i odpisuje po ludzku.
-            Kuking prowadzi na razie jedna osoba, więc nie mamy całodobowego dyżuru
-            i nie będziemy go udawać — czasem odpowiedź przyjdzie tego samego dnia,
-            czasem po weekendzie. Przeczytana zostanie każda.
+            Czyta je {{ config('kuking.community.host_name') }}. Kuking prowadzi na razie
+            jedna osoba, więc nie ma tu całodobowego dyżuru — czasem odpowiedź przyjdzie
+            tego samego dnia, czasem po weekendzie. Przeczytana zostanie każda.
         </p>
     </div>
 

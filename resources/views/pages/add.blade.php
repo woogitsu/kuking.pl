@@ -38,7 +38,7 @@
     </x-slot:rail>
 
     <h1>Co chcesz dodać?</h1>
-    <p class="mb-6">Nie musisz od razu pisać całego przepisu. Samo zdjęcie też jest w porządku.</p>
+    <p class="mb-6">Nie musisz od razu pisać całego przepisu — samo zdjęcie wystarczy.</p>
 
     @if($niedokonczoneSzkice->isNotEmpty())
         <div class="notice">

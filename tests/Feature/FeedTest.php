@@ -78,10 +78,15 @@ class FeedTest extends TestCase
             ->assertSee('na dziś')
             ->assertSee('Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.');
 
+        // Nazwa serwisu w etykiecie zakładki jest zapisana dwukolorowo
+        // (`docs/brand/GLOS_MARKI.md` §2), więc w HTML-u nie ma napisu
+        // „Kuking" — jest komponent `x-kuking-word`. Wzór pyta o zakładkę
+        // razem z tym komponentem: sam „Świeżo z" przechodziłby też wtedy,
+        // gdyby ktoś wyjął nazwę z etykiety.
         $this->assertMatchesRegularExpression(
-            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*Świeżo z Kuking\s*</a>~u',
+            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*Świeżo z <span class="kuking-word">~u',
             (string) $odpowiedz->getContent(),
-            'Zakładka prowadząca do „Świeżo z Kuking" zniknęła ze strony głównej.',
+            'Zakładka prowadząca do „Świeżo z kuKING" zniknęła ze strony głównej.',
         );
 
         // Propozycja osoby to KONKRETNY człowiek z odnośnikiem do profilu —
