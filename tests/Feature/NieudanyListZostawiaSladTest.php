@@ -407,12 +407,24 @@ class NieudanyListZostawiaSladTest extends TestCase
     {
         $this->slad([]);
 
+        // Wyjątek odkładamy do zmiennej i oceniamy POZA blokiem, bo
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy tak:
+        // AssertionFailedError → PHPUnit\Framework\Exception → RuntimeException
+        // → Exception. `catch (Throwable $e)` łapie więc również `fail()`
+        // stojące o linię wyżej, w tym samym `try`. Tutaj `catch` ma asercje,
+        // więc oblanie i tak wychodzi — ale ten sam kształt z `catch` BEZ
+        // asercji (albo z asercją przechodzącą na czymkolwiek) byłby testem-
+        // -atrapą: zielonym także wtedy, gdyby `down()` nie odmówiło w ogóle.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-            $this->fail('Wycofanie migracji miało odmówić — w tabeli leży nieodhaczony ślad.');
         } catch (Throwable $e) {
-            $this->assertStringContainsString('Odmawiam wycofania migracji', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Wycofanie migracji miało odmówić — w tabeli leży nieodhaczony ślad.');
+        $this->assertStringContainsString('Odmawiam wycofania migracji', $odmowa->getMessage());
 
         $this->assertTrue(Schema::hasTable('mail_failures'), 'Tabela miała zostać nietknięta.');
 
@@ -420,6 +432,40 @@ class NieudanyListZostawiaSladTest extends TestCase
 
         $this->migracja()->down();
         $this->assertFalse(Schema::hasTable('mail_failures'));
+    }
+
+    /**
+     * ŚWIEŻE WDROŻENIE: tabela PUSTA OD ZERA, `down()` przechodzi bez pytania.
+     *
+     * To jest osobny test od
+     * `test_rollback_odmawia_gdy_zniszczylby_nieodhaczony_slad`, a nie jego
+     * trzeci akapit, bo tamten NIGDY nie woła `down()` na tabeli pustej.
+     * Tamten przechodzi obie gałęzie warunku strażnika, ale w gałęzi
+     * „przepuść" tabela ma już wiersze — tyle że odhaczone. Gdyby ktoś
+     * zmienił warunek z „są NIEODHACZONE wiersze" na „są JAKIEKOLWIEK
+     * wiersze", tamten test nadal byłby zielony: wiersze tam są, więc obie
+     * jego gałęzie zachowałyby się tak samo jak dziś.
+     *
+     * Ten test tę zmianę OBLEWA — bo tu wierszy nie ma ani jednego, więc
+     * „jakiekolwiek wiersze" i „nieodhaczone wiersze" po raz pierwszy się
+     * rozjeżdżają. Mierzy przy okazji przypadek najczęstszy na produkcji:
+     * wycofanie migracji na świeżym wdrożeniu, na którym żaden list jeszcze
+     * nie przepadł, ma się udać i naprawdę skasować tabelę.
+     */
+    public function test_rollback_na_swiezym_wdrozeniu_kasuje_pusta_tabele(): void
+    {
+        // Bez tej asercji test byłby zielony także wtedy, gdyby `RefreshDatabase`
+        // zostawił w tabeli wiersze po innym teście — mierzylibyśmy wtedy
+        // przypadek „są odhaczone wiersze", czyli dokładnie ten, który jest
+        // już wyżej, i nie wiedzielibyśmy o tym.
+        $this->assertSame(0, MailFailure::query()->count(), 'Ten test mierzy PUSTĄ tabelę — inaczej mierzy co innego.');
+
+        $this->migracja()->down();
+
+        $this->assertFalse(
+            Schema::hasTable('mail_failures'),
+            'Na świeżym wdrożeniu nie ma czego chronić — strażnik ma przepuścić, a tabela ma zniknąć.',
+        );
     }
 
     /**
@@ -478,12 +524,15 @@ class NieudanyListZostawiaSladTest extends TestCase
      */
     private function oczekujOdmowy(callable $czynnosc): void
     {
+        $odmowa = null;
+
         try {
             $czynnosc();
-            $this->fail('Wysyłka miała się nie udać, a nie rzuciła niczym.');
         } catch (Throwable $e) {
-            $this->assertNotNull($e);
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Wysyłka miała się nie udać, a nie rzuciła niczym.');
     }
 
     /** @param array<string, mixed> $pola */
