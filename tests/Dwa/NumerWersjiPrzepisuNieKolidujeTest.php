@@ -34,35 +34,56 @@ use PHPUnit\Framework\Attributes\Group;
  * ZWOLNIONA przy commicie — a numer wersji liczy się DOPIERO POTEM, bez
  * żadnej blokady. Dwie edycje mogą więc odczytać to samo `max()`.
  *
- * ── PRZEPLOT, KTÓRY TO ROZSTRZYGA, I DLACZEGO BARIERA STOI NA `users` ──
+ * ── PRZEPLOT, KTÓRY TO ROZSTRZYGA, I DLACZEGO BARIERA NIE STOI NA `users` ──
  *
  * Bariera musi zatrzymać uczestnika POMIĘDZY odczytem `max(version_number)`
- * a `INSERT`-em do `recipe_versions` — bo to jest całe okno usterki. Wiersz
- * `users` autora nadaje się do tego jako jedyny:
+ * a `INSERT`-em do `recipe_versions` — bo to jest całe okno usterki.
  *
- *  * `SELECT max(version_number) …` nie dotyka `users` w ogóle, więc
- *    PRZECHODZI przez barierę;
- *  * `INSERT INTO recipe_versions` sprawdza klucz obcy `editor_id → users`,
- *    czyli bierze na tym wierszu `FOR KEY SHARE` — i CZEKA, bo bariera
- *    trzyma `FOR UPDATE`;
- *  * `UPDATE recipes` przez barierę przechodzi: `author_id` się nie zmienia,
- *    nie wchodzi więc nawet do klauzuli `SET`, a PostgreSQL pomija
- *    sprawdzenie klucza obcego, którego wartość została ta sama (to samo
- *    ustalenie, które D-103 zmierzyło dwiema sesjami `psql`).
+ * PIERWSZA WERSJA TEGO PLIKU STAWIAŁA BARIERĘ NA WIERSZU `users` i było to
+ * słuszne dokładnie tak długo, jak długo ta akcja nie dotykała `users` przed
+ * zapisem wersji: `SELECT max(…)` przechodził przez barierę, a `INSERT INTO
+ * recipe_versions` czekał na niej przez klucz obcy `editor_id` (`FOR KEY
+ * SHARE` kontra `FOR UPDATE`). Od naprawy zakleszczenia z egzekucją
+ * kasowania konta `PublishRecipe` bierze wiersz autora pod `FOR KEY SHARE`
+ * na WEJŚCIU do transakcji — czyli bariera na `users` zatrzymuje teraz oba
+ * zapisy PRZED oknem usterki, a nie w nim.
  *
- * Bariera na wierszu `recipes` byłaby tu bezużyteczna: zatrzymałaby oba
- * uczestników PRZED `UPDATE`, czyli przed oknem usterki, i test byłby
- * zielony niezależnie od kodu.
+ * To nie jest poprawka kosmetyczna i dlatego stoi tu wypisana: kontrola
+ * ujemna ze starą barierą po tamtej zmianie PRZESTAJE OBLEWAĆ. Trzy przebiegi
+ * z rozmontowaną atomowością (snapshot wyprowadzony za `DB::transaction()`)
+ * były zielone — czyli test przy starej barierze nie mierzyłby już niczego
+ * (`docs/PULAPKI_TESTOW.md` §4).
  *
- *   przed poprawką                        po poprawce
+ * ── DWA MIEJSCA, KTÓRE SIĘ TU NIE NADAJĄ, I TO ZMIERZONE ──
+ *
+ * `SELECT … FOR UPDATE` na wierszu `recipes` zatrzymuje oba zapisy PRZED
+ * `UPDATE`, czyli przed oknem usterki.
+ *
+ * Niezatwierdzony `INSERT INTO recipe_versions` z numerem 2 (bariera na
+ * unikalności) wygląda na strzał w dziesiątkę i NIM NIE JEST: ten `INSERT`
+ * sprawdza klucz obcy `recipe_id → recipes` i bierze na wierszu przepisu
+ * `FOR KEY SHARE`, więc oba zapisy stają na `SELECT … FOR UPDATE` na
+ * `recipes` — znowu przed oknem. Zmierzone: przy rozmontowanej atomowości
+ * `pg_stat_activity` pokazywał obu uczestników z `wait_event = tuple`
+ * i `transactionid` na zapytaniu `select * from "recipes" … for update`,
+ * a test był zielony.
+ *
+ * BARIERĄ JEST WIĘC BLOKADA CAŁEJ TABELI `recipe_versions` W TRYBIE
+ * `EXCLUSIVE`. Ten tryb jest w konflikcie z `ROW EXCLUSIVE`, czyli z
+ * `INSERT`-em, i NIE jest w konflikcie z `ACCESS SHARE`, czyli ze zwykłym
+ * `SELECT`-em. Odczyt `max(version_number)` przechodzi, zapis wersji czeka,
+ * a `recipes` i `users` pozostają nietknięte — bariera stoi dokładnie
+ * w oknie usterki i tylko tam.
+ *
+ *   z rozmontowaną atomowością            tak, jak jest
  *   ──────────────────────────────        ──────────────────────────────
  *   A: UPDATE recipes, COMMIT             A: recipes FOR UPDATE, UPDATE,
  *      (blokada wiersza ZWOLNIONA)           snapshot: max=1 → 2,
- *      snapshot: max=1 → 2,                  INSERT czeka na `users`
- *      INSERT czeka na `users`               (blokada wiersza TRZYMANA)
+ *      snapshot: max=1 → 2,                  INSERT czeka na tabeli
+ *      INSERT czeka na tabeli                (blokada wiersza TRZYMANA)
  *   B: UPDATE recipes (wiersz wolny),     B: recipes FOR UPDATE — czeka
  *      COMMIT, snapshot: max=1 → 2,          za A
- *      INSERT czeka na `users`
+ *      INSERT czeka na tabeli
  *   zwolnienie bariery:                   zwolnienie bariery:
  *   A wstawia wersję 2,                   A wstawia wersję 2 i commituje,
  *   B dostaje 23505 (unique) —            B dostaje wiersz, czyta max=2
@@ -164,12 +185,29 @@ final class NumerWersjiPrzepisuNieKolidujeTest extends TestDwochPolaczen
 
         $this->assertSame(1, RecipeVersion::query()->where('recipe_id', $przepis->getKey())->count());
 
-        // Bariera na wierszu autora. Uzasadnienie wyboru właśnie tego wiersza
-        // stoi w komentarzu klasy — to jest jedyne miejsce, które przepuszcza
-        // odczyt `max(version_number)`, a zatrzymuje zapis wersji.
-        $bariera = $this->bariera(
-            'SELECT 1 FROM users WHERE id = ? FOR UPDATE',
-            [(string) $autor->getKey()],
+        // Bariera na TABELI `recipe_versions` w trybie `EXCLUSIVE`.
+        // Uzasadnienie wyboru właśnie tego miejsca — i powód, dla którego
+        // dawna bariera na wierszu `users` przestała cokolwiek mierzyć —
+        // stoją w komentarzu klasy.
+        $bariera = $this->nowePolaczenie();
+        $bariera->beginTransaction();
+        $bariera->exec('LOCK TABLE recipe_versions IN EXCLUSIVE MODE');
+
+        // KONTROLA POZYTYWNA BARIERY. `bariera()` z klasy bazowej sprawdza,
+        // że `SELECT … FOR UPDATE` trafił w wiersz; `LOCK TABLE` nie zwraca
+        // wierszy, więc pytamy wprost katalog blokad. Bez tego pytania
+        // bariera, która by się nie założyła, dawałaby zielony wynik
+        // niezależnie od kodu — ta sama pułapka co „skan, który nie znalazł
+        // żadnego pliku" (`docs/PULAPKI_TESTOW.md` §2).
+        $zalozona = $bariera->query(
+            "SELECT count(*) FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
+             WHERE c.relname = 'recipe_versions' AND l.mode = 'ExclusiveLock' AND l.granted",
+        );
+
+        $this->assertGreaterThan(
+            0,
+            $zalozona === false ? 0 : (int) $zalozona->fetchColumn(),
+            'Bariera na tabeli `recipe_versions` się nie założyła — test mierzyłby przeplot, którego nie ma.',
         );
 
         // KOLEJNOŚĆ USTAWIANIA SIĘ W KOLEJCE JEST CZĘŚCIĄ TESTU: pierwsza

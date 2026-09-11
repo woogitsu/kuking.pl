@@ -228,3 +228,170 @@ jest zamiana jednego na drugie.
 | A12 | Świadoma decyzja D-105, warunek policzony wyżej. Brakuje jednego przebiegu |
 | A13, A14 | P3, dokumentacja i metadane. A14 wymaga JEDNEGO słowa od właściciela: `MIT` czy `proprietary`. Nie zgaduję licencji za niego |
 | A15 | Otwarty PR #334 |
+
+---
+---
+
+# DOMKNIĘCIE TRIAŻU — stan każdego znaleziska po naprawach
+
+**Data domknięcia:** 11 września 2026, wieczór
+**Domknięte na:** gałęzi `claude/audyt-0911-triaz` po wciągnięciu `origin/main`
+(`343029b`, czyli ze scalonymi #330 i #334 — o dwa commity dalej niż triaż wyżej).
+
+Cztery stany, użyte dosłownie:
+
+| Stan | Znaczenie |
+|---|---|
+| **ZAMKNIĘTE** | usterki nie ma w kodzie, a pilnuje tego wymieniony test regresyjny |
+| **CZĘŚCIOWE** | część usterki zamknięta i przetestowana, część nazwana i otwarta |
+| **OTWARTE** | usterka jest, nikt jej nie tknął w tym zleceniu; powód podany |
+| **PRZYJĘTE** | tak ma być — podana decyzja właściciela |
+
+„Commit mówi, że naprawione" nie było tu kryterium ani razu. Każde
+**ZAMKNIĘTE** ma test, a każdy test ma wykonaną kontrolę ujemną: zepsucie
+pilnowanej rzeczy i sprawdzenie, że test OBLEWA.
+
+## Tabela stanów
+
+| ID | Pr. | Stan | Powód w jednym zdaniu | Test regresyjny |
+|---|---|---|---|---|
+| A01 | P1 | **ZAMKNIĘTE** | Snapshot i wpis audytu wciągnięte do transakcji zapisu, a wiersz przepisu czytany pod `lockForUpdate()` z rewalidacją statusu pod blokadą (D-079 §2, §3) | `tests/Feature/ZapisPrzepisuIHistoriiJestAtomowyTest.php` · `tests/Dwa/NumerWersjiPrzepisuNieKolidujeTest.php` |
+| A02 | P1 | **ZAMKNIĘTE** | `GenerateUserExport::dispatch()` wchodzi do TEJ SAMEJ transakcji co rekord (kolejka bazodanowa = outbox bez nowej tabeli), a rekord porzucony w `queued` daje się ponowić | `tests/Feature/EksportNieUtykaMiedzyCommitemAWyslaniemTest.php` |
+| A03 | P2 | **OTWARTE** | Prawdziwe. Naprawa dotyka SZESNASTU zadań w `routes/console.php` i każde potrzebuje własnego testu — osobny PR, żeby dało się to uczciwie przejrzeć | — |
+| A04 | P2 | **OTWARTE** | Prawdziwe i osiągalne z HTTP, ale kontrakt „co znaczy zapis szkicu na przepisie opublikowanym" jest pytaniem do właściciela, nie do agenta | — |
+| A05 | P2 | **OTWARTE** | Prawdziwe co do `media_id` kroków, `hero_media_id`, `source_scan_media_id`, `source_url`, `visibility` i `no_amount`; zarzut „brak pochodzenia" jest nietrafiony (`source_type/person/note/family_since_year` SĄ w migawce). Wisi na rozstrzygnięciu A04 | — |
+| A06 | P2 | **PRZYJĘTE** | D-057: „Trasa działa na `GET` i to jest wybór, nie przeoczenie" | — |
+| A07 | P2 | **OTWARTE** | Prawdziwe (`powrotDla()` to `signedRoute` bez TTL, `wracam()` na `GET` bezwarunkowo włącza zgodę), ale czy ponowny zapis ma mieć TTL, to decyzja o ZGODZIE, nie o kodzie | — |
+| A08 | P2 | **OTWARTE** | Prawdziwe, trzy osobne rzeczy w `public/sw.js`. Plik nie jest w niczyim otwartym PR-ze, więc to najlepszy kandydat na następny PR | — |
+| A09 | P2 | **OTWARTE** | Prawdziwe: `replies` i `replies.author.profile.avatar` bez `limit`. Potrzebuje testu na dużych danych, czyli osobnej roboty pomiarowej | — |
+| A10 | P2 | **ZAMKNIĘTE** | Zamknięte przed tym zleceniem przez #329 (`5e7c253`): `rozstrzygnij()` buduje graf rodziców raz, 15 → 6 zapytań. **Druga połowa #286 — 49 unikalnych żądań HTTP o obrazki na `/home` — zostaje otwarta i audyt jej nie dotyka** | testy z #329 (`MEDIA-03`: pomiar w zestawie, 6 zapytań na zdjęcie) |
+| A11 | P2 | **OTWARTE** | Prawdziwe: po udanym czyszczeniu rekord zostaje `EXPIRED` z `expires_at < now()`, czyli w nieskończoność spełnia warunek tego samego zapytania. Skalowanie, osobny PR | — |
+| A12 | P2 | **PRZYJĘTE** | D-105. `continue-on-error` na grupie `dwa-polaczenia` jest ŚWIADOMY, a warunek zdjęcia flagi zapisany: 20 kolejnych zielonych przebiegów. Policzone: **19 zielonych, 0 czerwonych** — brakuje jednego. Nazwa joba i grupy z audytu (`race-regressions`, `--group race`) w tym repozytorium nie istnieje | — |
+| A13 | P3 | **OTWARTE** | Sprawdzone dziś na tej gałęzi: `README.md` nadal mówi „Dopóki ich nie ma [Actions]" i „72 testy" przy **2899**. Dokumentacja, P3 | — |
+| A14 | P3 | **OTWARTE** | Sprawdzone dziś: `composer.json` mówi `"license": "MIT"`, `LICENSE` mówi `PROPRIETARY PLACEHOLDER`. Wymaga JEDNEGO słowa od właściciela — nie zgaduję licencji za niego | — |
+| A15 | P3 | **CZĘŚCIOWE** | PR #334 jest już scalony (`343029b`, wciągnięty tutaj przez `git merge origin/main`) i schodzi z **23 ostrzeżeń do 13**. Sześć z pozostałych opisuje jako nazwany dług, bo ich zdjęcie wymaga odpięcia dolnej belki, czyli decyzji właściciela (D-082) | `tests/Feature/BelkaPrzyDuzymTekscieTest.php` |
+
+Podsumowanie: **3 ZAMKNIĘTE** (w tym A10 zamknięte przed tym zleceniem),
+**1 CZĘŚCIOWE**, **9 OTWARTYCH**, **2 PRZYJĘTE**.
+
+## Oba P1 były ROZUMOWANIEM — i przestały nim być
+
+`findings.json` tej paczki ma `full_local_application_tests_run: false`,
+a A01 i A02 mają w podstawie „analiza kodu; bez testu awarii w pełnej
+aplikacji". Zanim cokolwiek zostało naprawione, obie awarie zostały
+ODTWORZONE przeciw kodowi sprzed poprawki. Liczby, nie przymiotniki:
+
+| Co | Zmierzone przed poprawką | Zmierzone po |
+|---|---|---|
+| A01, awaria zapisu historii przy publikacji | przepis w bazie: **1**, wersji: **0**, wpisów w audycie: **0** | 0 / 0 / 0 — transakcja cofa wszystko |
+| A01, awaria zapisu historii przy edycji | publiczny tytuł ZMIENIONY, historia bez wpisu | tytuł wraca do stanu sprzed edycji |
+| A01, dwie równoległe edycje (dwa połączenia) | `SQLSTATE[23505] … recipe_versions_recipe_id_version_number_unique … (…, 2) already exists` | numery `[1, 2, 3]` |
+| A02, awaria zapisu do `jobs` | rekordów `data_exports`: **1**, zadań w kolejce: **0**, następne zgłoszenie: „Przygotowanie paczki […] już trwa." | 0 / 0, następne zgłoszenie przechodzi |
+
+Cztery testy z `ZapisPrzepisuIHistoriiJestAtomowyTest` na pięciu oblewają się
+przeciw kodowi sprzed poprawki; trzy z siedmiu w `EksportNieUtykaMiedzy…`.
+Pozostałe to kontrole dodatnie — bez nich cały plik przechodziłby także
+wtedy, gdyby publikacja nie działała nigdy.
+
+## Ustalenie, którego audyt nie zawiera: `lockForUpdate()` NIE serializuje numeru wersji
+
+Warto zapisać, bo pierwsza wersja komentarza w `PublishRecipe` twierdziła
+inaczej, a kontrola ujemna to obaliła. Zdjęcie jawnego `lockForUpdate()`
+**nie oblewa** testu kolizji numerów: `recipes` ma `timestampsTz()`, więc
+`$recipe->update()` zawsze przesuwa `updated_at`, zawsze wykonuje `UPDATE`
+i zawsze bierze blokadę wiersza. Serializację numeru daje więc samo
+wciągnięcie snapshotu do transakcji.
+
+Jawna blokada zarabia na siebie czym innym — tym, że status czytamy POD NIĄ,
+a nie przed nią (D-079 §2: „blokada bez rewalidacji pod nią nie pilnuje
+niczego"). Oblewa się po jej zdjęciu dopiero drugi test w tym samym pliku,
+`test_zapis_czekajacy_w_kolejce_nie_przywraca_przepisu_ukrytego_w_tym_czasie`.
+
+## N01 — zakleszczenie znalezione przy okazji, POZA listą A01–A15
+
+**Stan: ZAMKNIĘTE. To NIE jest znalezisko audytu** — wyszło przy pytaniu,
+czy poprawka A01 nie psuje kolejności blokad. Nie psuje: pomiar oblewa się
+identycznie na kodzie SPRZED niej, więc usterka jest starsza, a audyt jej
+nie widzi, bo widać ją wyłącznie na dwóch połączeniach.
+
+Dwie kolejności blokad na tej samej parze tabel:
+
+```text
+EraseAccountData::handle()          PublishRecipe::handle()  (przed naprawą)
+────────────────────────────        ────────────────────────────────────────
+1. users   FOR UPDATE               1. media   FOR UPDATE
+2. …                                2. recipes FOR UPDATE
+3. recipes (usunTresci)             3. users   FOR KEY SHARE
+                                       (klucz obcy recipe_versions.editor_id)
+```
+
+Zmierzone PRAWDZIWYMI akcjami w osobnych procesach, nie przepisanym SQL-em:
+
+```text
+SQLSTATE[40P01]: Deadlock detected … CONTEXT: while locking tuple in
+relation "users" … insert into "recipe_versions"
+```
+
+Ofiarą był zapis autora: człowiek dostawał ekran błędu przy zwykłym zapisie
+przepisu, a egzekucja kasowania konta szła dalej. Granica transakcji tego nie
+tłumaczy — `INSERT` wkłada wiersz do sterty PRZED sprawdzeniem klucza obcego,
+więc kasowanie i tak czekało na niezatwierdzony wiersz `recipe_versions`.
+
+**Naprawa:** `PublishRecipe` bierze wiersz autora pod `FOR KEY SHARE` zaraz po
+blokadzie zdjęć, czyli ZANIM sięgnie po wiersz przepisu. Kolejność jest teraz
+`media` → `users` → `recipes` i mieści się w obu regułach, które to
+repozytorium ma już zmierzone: `media` przed `users` (D-103, komentarz klasy
+`PrzypnijAwatar`) i `users` przed rzeczą zależną (D-079 §1). `ZamekKonta` się
+tu nie nadaje, bo wziąłby `users` PRZED `media` — byłoby zakleszczenie
+w drugą stronę.
+
+**Test:** `tests/Dwa/EdycjaPrzepisuNieZakleszczaSieZKasowaniemKontaTest.php`.
+Kontrola ujemna: zdjęcie tej jednej linijki daje `40P01` i oblewa dokładnie
+ten jeden test.
+
+### Skutek uboczny, który omal nie przeszedł niezauważony
+
+Ta naprawa **rozbroiła barierę** testu `NumerWersjiPrzepisuNieKolidujeTest`.
+Bariera stała na wierszu `users` i działała dokładnie tak długo, jak długo
+`PublishRecipe` nie dotykało `users` przed zapisem wersji. Po naprawie
+zatrzymywała oba zapisy PRZED oknem usterki — czyli test przechodził
+niezależnie od kodu. Zmierzone: **trzy przebiegi z rozmontowaną atomowością
+były zielone.**
+
+Bariera została przeniesiona na `LOCK TABLE recipe_versions IN EXCLUSIVE MODE`
+— tryb w konflikcie z `INSERT`-em (`ROW EXCLUSIVE`), a nie z odczytem
+(`ACCESS SHARE`), więc `SELECT max(version_number)` przechodzi, a zapis wersji
+czeka. Po przeniesieniu kontrola ujemna oblewa **3 przebiegi na 3**, z tym
+samym `23505` co przed poprawką A01.
+
+Po drodze odpadła jeszcze jedna bariera, która wyglądała na trafioną: niezatwierdzony
+`INSERT INTO recipe_versions` z numerem 2. Ten `INSERT` sprawdza klucz obcy
+`recipe_id → recipes` i bierze na wierszu przepisu `FOR KEY SHARE`, więc oba
+zapisy stawały na `SELECT … FOR UPDATE` na `recipes` — znowu przed oknem.
+`pg_stat_activity` pokazywał obu uczestników z `wait_event = tuple`
+i `transactionid` na zapytaniu o `recipes`, a test był zielony. To jest ta sama
+pułapka co „kontrola ujemna, która nie oblała": sabotaż BYŁ w pliku, a mimo to
+nic nie mierzył — bo **bariera nie stała tam, gdzie mówiła, że stoi**.
+
+## Wpisy do dziennika decyzji — do wklejenia przez właściciela
+
+`docs/DECISIONS.md` celowo NIE jest tu ruszony. Proponowane wpisy są w raporcie
+z tego zlecenia, z numerami `D-???`.
+
+## Czego to zlecenie NIE sprawdziło
+
+- **Nie uruchomiono automatu dostępności** (`scripts/dostepnosc.mjs`), więc
+  liczba „13 ostrzeżeń" przy A15 jest przepisana z opisu scalonego #334,
+  a nie zmierzona tutaj.
+- **Nie policzono na nowo przebiegów joba `dwa-polaczenia`** — liczba 19 jest
+  z triażu wyżej i mogła się od tego czasu zmienić o jeden lub dwa.
+- **Nie uruchomiono analizy statycznej** (Larastan): paczka `phpstan/phpstan`
+  nie jest w tym kontenerze podłożona do cache Composera, a jej podłożenie nie
+  mieściło się już w tym zleceniu. To jest brak czasu, nie „nie da się"
+  (`AGENTS.md` §10).
+- **N01 zmierzono na JEDNYM przeplocie.** Para `users` × `media` przy
+  egzekucji kasowania konta nie była badana wcale — to osobne pytanie
+  i osobny test.
+- Nie sprawdzono, czy A03–A11 dają się wywołać z HTTP inaczej, niż opisuje
+  audyt; przy każdym z nich potwierdzono wyłącznie, że kod na dzisiejszej
+  gałęzi nadal wygląda tak, jak audyt mówi.

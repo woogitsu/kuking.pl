@@ -208,6 +208,50 @@ final class PublishRecipe
                 $this->kandydaciDoPrzypiecia($attributes, $cleanSteps, $istniejaceKroki),
             );
 
+            /*
+             * WIERSZ AUTORA ZANIM WIERSZ PRZEPISU — INACZEJ JEST
+             * ZAKLESZCZENIE Z EGZEKUCJĄ KASOWANIA KONTA (zmierzone 11.09.2026).
+             *
+             * `EraseAccountData::handle()` trzyma `users FOR UPDATE` przez
+             * całą egzekucję i DOPIERO POTEM kasuje przepisy tej osoby
+             * (`usunTresci()`), czyli bierze `users` → `recipes`. Ta akcja
+             * szła odwrotnie: blokowała wiersz przepisu, a wiersz autora
+             * brała później i mimochodem — `INSERT INTO recipe_versions`
+             * sprawdza klucz obcy `editor_id` i zakłada na nim `FOR KEY
+             * SHARE`, a ta blokada jest w konflikcie z `FOR UPDATE`
+             * kasowania. Dwie kolejności w jednym repozytorium to
+             * zakleszczenie, nie zabezpieczenie (D-079 §1, D-093, D-103).
+             *
+             * Zmierzone na dwóch połączeniach, PRAWDZIWYMI akcjami, nie
+             * przepisanym SQL-em —
+             * `tests/Dwa/EdycjaPrzepisuNieZakleszczaSieZKasowaniemKontaTest.php`:
+             *
+             *     SQLSTATE[40P01]: Deadlock detected … CONTEXT: while locking
+             *     tuple in relation "users" … insert into "recipe_versions"
+             *
+             * Ofiarą był zapis autora: człowiek dostawał ekran błędu przy
+             * zwykłym zapisie przepisu. Usterka jest STARSZA niż wciągnięcie
+             * snapshotu do transakcji (audyt A01) — ten sam pomiar oblewa się
+             * tak samo na kodzie sprzed tamtej zmiany, bo `INSERT` wkłada
+             * wiersz do sterty PRZED sprawdzeniem klucza obcego, więc
+             * kasowanie i tak czekało na niezatwierdzony wiersz
+             * `recipe_versions`. To nie jest więc skutek A01, tylko rzecz
+             * przy nim znaleziona.
+             *
+             * `FOR KEY SHARE`, a nie `ZamekKonta` i nie `FOR UPDATE`, z dwóch
+             * powodów naraz. Po pierwsze `ZamekKonta` wziąłby `users` PRZED
+             * `media`, a kolejność `media` → `users` jest w tym repozytorium
+             * ustalona i zmierzona (D-103, komentarz klasy `PrzypnijAwatar`)
+             * — byłoby zakleszczenie w drugą stronę. Po drugie to jest
+             * DOKŁADNIE ta blokada, którą i tak za chwilę weźmie sprawdzenie
+             * klucza obcego przy zapisie wersji; bierzemy ją tylko WCZEŚNIEJ.
+             * Nie jest więc silniejsza od tej, którą ta transakcja i tak
+             * trzymała na końcu, i nie ustawia w kolejce ani dwóch
+             * równoległych edycji (`FOR KEY SHARE` nie jest w konflikcie sam
+             * ze sobą), ani czyjegoś „Obserwuj".
+             */
+            DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
+
             $payload = [
                 'author_id' => $author->getKey(),
                 'title' => $title,
