@@ -76,8 +76,8 @@ class DwieKolumnyTamGdzieSieMieszczaTest extends TestCase
             '/\.kuking-board\s*\{[^}]*container-type:\s*inline-size\s*;/s',
             $css,
             'Tablica nie jest kontenerem zapytania — nie ma jak zapytać o WŁASNĄ szerokość, '
-            .'a stoi w trzech miejscach o trzech różnych szerokościach (szyna 352, `/odkryj` 720, '
-            .'pas 992 px).',
+            .'a stoi w miejscach o różnych szerokościach (szyna 352 px — od 11 września także '
+            .'na `/odkryj`; pas strony powitalnej 992 px; jeden ciąg na telefonie).',
         );
 
         // Stan podstawowy: JEDNA kolumna. To jest kontrola ujemna wpisana

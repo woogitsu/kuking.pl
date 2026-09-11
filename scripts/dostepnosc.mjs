@@ -3629,10 +3629,20 @@ if (rozjazdyLiczb.length > 0) {
 log('');
 log('Szyna gościa (D-122):');
 
+/*
+ * `zSzyna` ZNACZY „MA `<aside class="app-rail">`", NIE „MA KOLUMNĘ SZYNY".
+ * To nie jest to samo od 11 września: „Świeżo z Kuking" używa kolumny szyny
+ * OD ŚRODKA `<main>` (`.odkryj-uklad`, zgłoszenie „prawa kolumna pusta
+ * wszystko na środku"), tak samo jak strona przepisu. Dla pomiaru wyżej to
+ * dalej ekran „bez szyny": ma mieć JEDNĄ kolumnę siatki i stać na środku —
+ * dwie kolumny `.app-body` znaczyłyby, że dostał do tego pustą kolumnę po
+ * prawej. Blok, który tę kolumnę zajmuje od środka, mierzy `szynaWTresci`
+ * niżej.
+ */
 const EKRANY_SZYNY_GOSCIA = [
   { nazwa: 'napisz do nas (gość)', adres: '/napisz-do-nas', zSzyna: true },
   { nazwa: 'szukaj (gość)', adres: '/szukaj?q=zupa', zSzyna: true },
-  { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj', zSzyna: false },
+  { nazwa: 'Świeżo z Kuking (gość)', adres: '/odkryj', zSzyna: false, szynaWTresci: '.odkryj-szyna' },
 ];
 
 // 360 to telefon (szyna MA być pod treścią), 1280 sam próg szyny, 1512 laptop
@@ -3661,12 +3671,26 @@ for (const szerokosc of SZEROKOSCI_SZYNY_GOSCIA) {
 
     await poczekajNaFonty(strona);
 
-    const pomiar = await strona.evaluate(() => {
+    const pomiar = await strona.evaluate((selektorWTresci) => {
       const body = document.querySelector('.app-body');
       const main = document.querySelector('.app-main');
       const rail = document.querySelector('.app-rail');
 
       if (! body || ! main) return null;
+
+      /*
+       * BLOK, KTÓRY ZAJMUJE KOLUMNĘ SZYNY OD ŚRODKA `<main>`.
+       *
+       * Mierzymy go WZGLĘDEM KOLUMNY CZYTANIA, a nie względem `<main>`:
+       * `<main>` obejmuje tu obie kolumny, więc „szyna po prawej stronie
+       * main" byłoby nieprawdą zawsze, a „szyna w main" prawdą zawsze.
+       * Kolumnę czytania reprezentuje pierwsza karta wpisu albo pusty stan —
+       * czyli to, co człowiek na tym ekranie czyta.
+       */
+      const wTresci = selektorWTresci ? document.querySelector(selektorWTresci) : null;
+      const czytanie = document.querySelector('.app-main .post-card, .app-main .empty-state');
+      const rw = (wTresci && wTresci.getClientRects().length > 0) ? wTresci.getBoundingClientRect() : null;
+      const rc = czytanie ? czytanie.getBoundingClientRect() : null;
 
       const rb = body.getBoundingClientRect();
       const rm = main.getBoundingClientRect();
@@ -3687,8 +3711,15 @@ for (const szerokosc of SZEROKOSCI_SZYNY_GOSCIA) {
         // Wyśrodkowanie siatki: tyle samo miejsca z lewej co z prawej.
         marginesLewy: Math.round(rb.left),
         marginesPrawy: Math.round(window.innerWidth - rb.right),
+
+        // Szyna od środka `<main>` — mierzona tylko na ekranie, który ją deklaruje.
+        wTresciJest: rw !== null,
+        wTresciOczekiwana: selektorWTresci !== undefined && selektorWTresci !== null,
+        wTresciObokCzytania: (rw && rc) ? Math.round(rw.left) >= Math.round(rc.right) : null,
+        wTresciNadCzytaniem: (rw && rc) ? Math.round(rw.top) <= Math.round(rc.top) : null,
+        wTresciGora: rw ? Math.round(rw.top) : null,
       };
-    });
+    }, ekran.szynaWTresci ?? null);
 
     await strona.close();
 
@@ -3736,9 +3767,30 @@ for (const szerokosc of SZEROKOSCI_SZYNY_GOSCIA) {
         + `${pomiar.marginesPrawy} px z prawej)`);
     }
 
+    /*
+     * SZYNA OD ŚRODKA `<main>` — ta sama reguła co dla `.app-rail`, tylko
+     * liczona względem kolumny czytania. Dokument tego nie zdradza (blok jest
+     * w drzewie tam, gdzie był na telefonie), rozstrzyga wyłącznie siatka.
+     */
+    if (pomiar.wTresciOczekiwana) {
+      if (! pomiar.wTresciJest) {
+        bledy.push(`nie ma bloku „${ekran.szynaWTresci}", który ma zajmować kolumnę szyny`);
+      } else if (pomiar.wTresciObokCzytania === null) {
+        bledy.push('nie ma czego zmierzyć w kolumnie czytania (ani karty wpisu, ani pustego stanu)');
+      } else if (szerokosc >= 1280 && ! pomiar.wTresciObokCzytania) {
+        bledy.push(`blok szyny został w kolumnie czytania (jego góra: ${pomiar.wTresciGora} px) `
+          + '— po prawej stronie treści zostaje pusty pas');
+      } else if (szerokosc < 1280 && ! pomiar.wTresciNadCzytaniem) {
+        bledy.push('na wąskim ekranie blok szyny zjechał pod wpisy — a w kodzie stoi przed nimi');
+      }
+    }
+
     log(`  ${ekran.nazwa} przy ${szerokosc} px: kolumn ${pomiar.kolumn}, `
       + `treść ${pomiar.trescSzerokosc} px, `
-      + `szyna ${pomiar.szynaZTrescia ? (pomiar.szynaObokTresci ? `obok (y=${pomiar.szynaGora})` : `pod treścią (y=${pomiar.szynaGora})`) : 'brak'}`);
+      + `szyna ${pomiar.szynaZTrescia ? (pomiar.szynaObokTresci ? `obok (y=${pomiar.szynaGora})` : `pod treścią (y=${pomiar.szynaGora})`) : 'brak'}`
+      + (pomiar.wTresciOczekiwana
+        ? `, szyna w treści ${pomiar.wTresciJest ? (pomiar.wTresciObokCzytania ? `obok czytania (y=${pomiar.wTresciGora})` : `nad czytaniem (y=${pomiar.wTresciGora})`) : 'BRAK'}`
+        : ''));
 
     if (bledy.length > 0) {
       rozjazdySzynyGoscia.push({ ekran: ekran.nazwa, szerokosc, bledy });

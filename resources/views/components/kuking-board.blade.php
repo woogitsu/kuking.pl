@@ -63,8 +63,8 @@
     i zostaje przy nazwie „kuKINGi na dziś".
 
     `wKarcie` — TABLICA JEST KARTĄ TYLKO TAM, GDZIE STOI OBOK INNYCH KART
-    W szynie (`szyna-startowa.blade.php`, `/szukaj`) i w głównej kolumnie
-    `/odkryj` karta jest na miejscu: tablica sąsiaduje tam z „Moim zeszytem"
+    W szynie (`szyna-startowa.blade.php`, `/szukaj`, a od 11 września także
+    `/odkryj`) karta jest na miejscu: tablica sąsiaduje tam z „Moim zeszytem"
     i z kartami wpisów, więc białe tło z obwódką mówi, gdzie się kończy.
     Na stronie powitalnej jest odwrotnie — hierarchię buduje tam tło PASA
     (`.pas`, `pages/landing.blade.php`), a tablica była JEDYNĄ sekcją z kartą
