@@ -834,6 +834,101 @@
      więc jedna ikona obsługuje motyw jasny, ciemny i stan „bieżąca pozycja". */
   .ikona { flex: none; }
 
+  /*
+   * PRZY BARDZO DUŻYM TEKŚCIE BELKA UKŁADA SIĘ POZIOMO, A JEJ MINIMA
+   * PRZESTAJĄ SIĘ PODWAJAĆ (issue #295).
+   *
+   * CO BYŁO ZMIERZONE. Telefon 320 × 740 px, czcionka przeglądarki 200%
+   * (korzeń 32 px), `/home` jako zalogowany, Chromium 153: belka ma
+   * 376,2 px, czyli 51% ekranu. Rezerwa `--rezerwa-pod-belka` (wyżej)
+   * wyprowadziła spod niej treść i zamknęła naruszenie 2.4.11, ale nie
+   * dotknęła tego, że nawigacja jest większa niż treść: na treść zostawało
+   * 364 px z 740.
+   *
+   * TO NIE JEST WYSOKOŚĆ TEKSTU. Pozycja belki ma tam 120 px wysokości,
+   * a jej zawartość — ikona 26 px, odstęp 2 px, wiersz podpisu 43,2 px —
+   * potrzebuje 71,2 px. Pozostałe 48,8 px na pozycję (146 px na trzech
+   * wierszach) to podwojone MINIMA, i to jest przyczyna:
+   *
+   *     `min-height: var(--control-height-touch)`  3,75rem →  120 px
+   *     `.bottom-nav-kolko` (kółko przy „Dodaj")     3rem  →   96 px
+   *
+   * Obie te liczby są FIZYCZNE, nie typograficzne. 60 px pozycji i 48 px
+   * kółka istnieją dla palca i dla ekranu, a palec nie rośnie, gdy ktoś
+   * powiększy czcionkę w przeglądarce — piksel CSS przy powiększeniu SAMEJ
+   * czcionki zostaje tej samej wielkości (to nie jest zoom strony, patrz
+   * `scripts/dostepnosc.mjs`, sekcja o `Page.setFontSizes`). Zapisane
+   * w `rem` podwajają się razem z korzeniem i zabierają połowę telefonu,
+   * nie dając w zamian ani jednego czytelnego piksela.
+   *
+   * DRUGA POŁOWA PRZYCZYNY: UKŁAD KOLUMNOWY. Podpis pod ikoną sumuje ikonę
+   * i wiersz tekstu w pionie, a ikona jest tu jedynym elementem, który
+   * w poziomie nic nie kosztuje (pozycja ma i tak 160 px szerokości, bo
+   * tyle dyktuje podpis). Ustawiony OBOK podpisu znika z wysokości: wiersz
+   * belki schodzi do wysokości jednej linijki tekstu.
+   *
+   * CZEGO TA POPRAWKA NIE ROBI — i to są zakazy z issue #295:
+   * pismo podpisu zostaje przy `--text-body` (36 px przy tym korzeniu,
+   * ani o piksel mniej), pięć pozycji zostaje pięcioma, każda ikona
+   * zostaje z podpisem, a `flex-wrap: wrap` zostaje włączone — pozycje
+   * nadal schodzą do następnego wiersza z całym słowem, zamiast wychodzić
+   * poza swoją kolumnę (issue #80).
+   *
+   * PRÓG `max-width: 15rem` to ten sam próg, co przy `--rezerwa-pod-belka`
+   * i przy odpięciu `.topbar` — pełne wyprowadzenie stoi tam. Mówi on
+   * „tekst jest duży w stosunku do ekranu", a nie „ekran jest wąski":
+   * telefon 320 px przy korzeniu 16 px to 20rem i próg go nie łapie, ten
+   * sam telefon przy czcionce 200% to 10rem i łapie. Dzięki temu zwykły
+   * telefon dostaje belkę bez zmian — 66,6 px, pięć pozycji w jednym
+   * wierszu, podpis pod ikoną — i to jest kontrola dodatnia tej poprawki
+   * wpisana w sam mechanizm, a nie dołożona obok.
+   *
+   * ZMIERZONE PO POPRAWCE (ten sam telefon i ta sama czcionka): belka
+   * 181 px, czyli 24,5% ekranu zamiast 50,8%; pięć pozycji w trzech
+   * wierszach 2 + 1 + 2, każdy podpis w całości. Treść dostaje 559 px
+   * z 740 zamiast 364.
+   */
+  @media (max-width: 15rem) {
+    .bottom-nav-item {
+      /* Ikona OBOK podpisu, nie nad nim. Podpis zostaje — zmienia się
+         tylko to, czy jego wysokość dodaje się do wysokości ikony. */
+      flex-direction: row;
+      /* 2px było odstępem między ikoną a podpisem stojącym POD nią, gdzie
+         wystarczy. Obok siebie te dwie rzeczy potrzebują normalnego
+         odstępu, inaczej ikona dotyka pierwszej litery. */
+      gap: var(--spacing-2);
+      /* 60 px, czyli DOKŁADNIE `--control-height-touch` przy korzeniu
+         16 px — nie mniej niż dotąd na zwykłym telefonie, tylko bez
+         podwajania. Pilnuje tego `tests/Feature/BelkaPrzyDuzymTekscieTest.php`,
+         żeby zmiana tokena nie rozjechała się z tą liczbą po cichu. */
+      min-height: 60px;
+    }
+
+    /*
+     * „DODAJ" DOSTAJE CAŁY WIERSZ — BO INACZEJ ŁAMIE SIĘ W ŚRODKU SŁOWA.
+     *
+     * Zmierzone przy 320 px i korzeniu 32 px: pozycja ma 160 px szerokości
+     * (dwie na wiersz), kółko zajmuje 48, odstęp 16, więc na podpis zostaje
+     * 96 px, a „Dodaj" potrzebuje 105. Reguła bazowa `overflow-wrap: anywhere`
+     * łamie wtedy słowo GDZIEKOLWIEK i na zrzucie stało „Doda / j". To jest
+     * gorsze niż wysoka belka i dotyczy głównej akcji produktu.
+     *
+     * Cały wiersz rozwiązuje to bez ruszania pisma i bez zdejmowania kółka:
+     * pięć pozycji układa się wtedy 2 + 1 + 2 (zmierzone 60 + 60 + 60 px),
+     * czyli tyle samo wierszy co przy dwóch na wiersz, a główna akcja stoi
+     * w środku belki, sama, z pełnym podpisem.
+     */
+    .bottom-nav-item-glowna {
+      flex-basis: 100%;
+    }
+  }
+
+  /* Drugą połowę tej poprawki — kółko przy „Dodaj" — trzeba było postawić
+     POZA tą warstwą, przy samej regule `.bottom-nav-kolko`. Powód jest
+     w kaskadzie, nie w stylu: tamta reguła stoi poza `@layer components`,
+     a warstwa zawsze przegrywa z regułą nieuwarstwioną, więc nadpisanie
+     napisane tutaj byłoby martwe. */
+
   @media (min-width: 64rem) {
     .bottom-nav { display: none; }
   }
@@ -3471,6 +3566,35 @@
      wysunięcie wychodzi poza pasek i przy zawinięciu pozycji do drugiego
      wiersza nachodzi na treść strony. */
   margin-top: -6px;
+}
+
+/*
+ * PRZY BARDZO DUŻYM TEKŚCIE KÓŁKO PRZESTAJE ROSNĄĆ (issue #295).
+ *
+ * Komentarz wyżej mówi, że kółko „nie rośnie ze skalą tekstu" — i to jest
+ * prawda o NASZYM ustawieniu z profilu (`--user-text-scale` mnoży tylko
+ * tokeny `--text-*`, korzenia nie rusza). Przy czcionce powiększonej
+ * w PRZEGLĄDARCE korzeń podwaja się realnie i `3rem` to zmierzone 96 px
+ * wokół ikony o 26 px — sama ta jedna ozdoba robi wtedy z wiersza „Dodaj"
+ * 135 px z 376,2 px całej belki.
+ *
+ * 48 px to minimum celu dla palca z `AGENTS.md` §5, a nie zmniejszenie
+ * przycisku poniżej tego minimum: cel kliknięcia to cała pozycja
+ * (zmierzone 160 × 60 px), bo odnośnikiem jest `.bottom-nav-item`, nie
+ * kółko. `margin-top` wraca do zera, bo wysunięcie o 6 px nad krawędź
+ * paska było liczone dla kółka stojącego NAD podpisem; przy ikonie obok
+ * podpisu przesuwałoby je tylko w poprzek wiersza.
+ *
+ * Próg jest ten sam co przy `.bottom-nav-item` wyżej — pełne uzasadnienie
+ * stoi tam. Reguła MUSI stać poza `@layer components`, bo reguła bazowa
+ * też tam stoi, a warstwa przegrywa z regułą nieuwarstwioną.
+ */
+@media (max-width: 15rem) {
+  .bottom-nav-kolko {
+    width: 48px;
+    height: 48px;
+    margin-top: 0;
+  }
 }
 
 .bottom-nav-item-glowna {
