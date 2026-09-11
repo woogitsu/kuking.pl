@@ -69,12 +69,18 @@
     innym niż liczby i dlatego niżej.
 
     TYLKO DLA ZALOGOWANEGO, I NIE JEST TO KWESTIA PRYWATNOŚCI.
-    Te liczby gość widzi w karcie, tak jak dotąd. Chodzi o UKŁAD: gość
-    dostaje `.app-body-solo`, czyli JEDNĄ kolumnę na każdej szerokości —
-    szyna leci u niego pod treścią nawet przy 1512 px. Wypisanie tego bloku
-    gościowi byłoby więc wypisaniem drugiego, martwego egzemplarza liczb na
-    samym dole strony. Arkusz i tak by go schował (`.app-body-solo` jest
-    wykluczone z reguły pokazującej), ale nie ma powodu tego wysyłać.
+    Te liczby gość widzi w karcie, tak jak dotąd, i to jest CAŁY powód.
+
+    SPROSTOWANIE, 11 WRZEŚNIA 2026 (D-122). Stało tu, że gość „dostaje
+    `.app-body-solo`, czyli JEDNĄ kolumnę na każdej szerokości — szyna leci
+    u niego pod treścią nawet przy 1512 px". Od dziś nieprawda: gość na
+    ekranie z szyną (profil jest takim ekranem) ma od 80rem dwie kolumny,
+    a szyna stoi obok treści. Wniosek zostaje ten sam, ale opiera się teraz
+    na czym innym: liczby już raz stoją w KARCIE, której gościowi nie
+    chowamy (reguła w `ekran-profilu.css` wyklucza układ gościa), więc
+    wypisanie tego bloku byłoby wypisaniem DRUGIEGO, widocznego egzemplarza
+    tych samych liczb na jednym ekranie — a nie, jak dawniej, martwego
+    egzemplarza na dole strony. Tym gorzej, nie lepiej.
 
     Egzemplarz w karcie chowa się od 80rem — para reguł przy
     `.profil-liczby-*` w `ekran-profilu.css`. Poniżej 80rem jest odwrotnie

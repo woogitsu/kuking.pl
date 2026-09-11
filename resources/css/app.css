@@ -90,7 +90,13 @@
        Usterka jest niewidoczna dla zalogowanego (nawigacja wypełnia pierwszą
        kolumnę) i niewidoczna na telefonie (siatka włącza się dopiero od
        64rem). Widzi ją wyłącznie nowa osoba na komputerze, czyli dokładnie
-       ten, kto ogląda Kuking pierwszy raz. */
+       ten, kto ogląda Kuking pierwszy raz.
+
+       `-solo` ZNACZY „BEZ NAWIGACJI BOCZNEJ", NIE „JEDNA KOLUMNA NA ZAWSZE".
+       Od 80rem gość na ekranie z prawą szyną dostaje DRUGĄ kolumnę
+       (`.app-body-solo-z-szyna`, D-122). Tutaj, między 64 a 80rem, szyny
+       jeszcze nie ma nikt — ani zalogowany, ani gość — bo trzecia kolumna
+       zaczyna się dopiero przy 80rem. */
     .app-body-solo {
       grid-template-columns: minmax(0, 1fr);
       max-width: var(--container-strona-solo);
@@ -141,12 +147,78 @@
       max-width: var(--container-strona-z-szyna);
     }
 
-    /* Gość dalej bez kolumn na nawigację i szynę — nie ma ani jednej, ani
-       drugiej, więc rezerwowanie na nie miejsca zepchnęłoby jego treść
-       w lewo, zamiast ją wyśrodkować. */
+    /* SPROSTOWANIE, 11 września 2026 (D-122). STAŁO TU ZDANIE NIEPRAWDZIWE.
+
+       Do dziś w tym miejscu było napisane: „Gość dalej bez kolumn na
+       nawigację i szynę — NIE MA ANI JEDNEJ, ANI DRUGIEJ". Pierwsza połowa
+       jest prawdą do dziś (nawigacja boczna stoi w layoucie pod `@auth`).
+       Druga była prawdą dokładnie jeden dzień: zdanie powstało 6 września
+       2026 (18a089ec), a 7 września `/szukaj` dostało `<x-slot:rail>`
+       (e7dba42) i przestało być prawdą. 10 września doszły `/napisz-do-nas`
+       i `/@nazwa` (#231, 62814a0). Komentarz nikogo za tym nie poszedł
+       i przez kolejne dni tłumaczył regułę, której już nie uzasadniał.
+
+       KOSZT TEJ POMYŁKI ZGŁOSIŁ WŁAŚCICIEL: „niektóre podstrony jak napisz
+       do nas jest bardzo wąskie, gdzie po prawej i lewej można coś dodać na
+       kompie". Osoba, która pisze „nie mogę się zalogować" z komputera,
+       czytała blok „Nie możesz się zalogować" POD CAŁYM FORMULARZEM, na
+       stronie zwiniętej do 768 px przy monitorze 1920 px — bo szyna gościa
+       leciała pod treść na każdej szerokości.
+
+       DZIŚ JEST TAK: gość na ekranie Z SZYNĄ dostaje od 80rem dwie kolumny
+       (treść + szyna), a na ekranie BEZ SZYNY zostaje przy jednej,
+       wyśrodkowanej. Klasę wybiera layout — patrz `$maSzyne`
+       w `resources/views/components/layout.blade.php`.
+
+       DLACZEGO GOŚĆ BEZ SZYNY NIE DOSTAJE PUSTEJ TRZECIEJ KOLUMNY, SKORO
+       ZALOGOWANY DOSTAJE (reguła `.app-body` wyżej, issue #294)
+       Bo powód tamtej rezerwacji u gościa nie istnieje. Zalogowanemu kolumna
+       stoi pusta po to, żeby NAWIGACJA BOCZNA miała na każdym ekranie ten sam
+       x — ma się nie przesuwać przy przejściu z `/home` na `/powiadomienia`.
+       Gość nawigacji bocznej nie ma, więc rezerwacja nie utrzymywałaby
+       niczego w miejscu: dołożyłaby tylko 384 px pustki po prawej i zepchnęła
+       jego treść w lewo. To jest dokładnie ta usterka, którą właściciel
+       zgłosił przy panelu moderacji („treść wciśnięta w lewe ~55% ekranu,
+       po prawej duży pusty obszar"), a pusta szyna wygląda na usterkę układu,
+       nie na wybór. Cena: strony gościa mają dwie różne szerokości (768
+       i 1152 px). Przyjmujemy ją świadomie — u gościa nie ma czego licować
+       między podstronami, a wąska kolumna czytania na stronie bez szyny jest
+       zaletą, nie brakiem. */
     .app-body-solo {
       grid-template-columns: minmax(0, 1fr);
       max-width: var(--container-strona-solo);
+    }
+
+    /* Gość NA EKRANIE Z SZYNĄ: dwie kolumny, nie trzy (D-122).
+
+       Klasa dochodzi DO `.app-body-solo`, nie zastępuje jej — obie stoją
+       w atrybucie razem. To nie jest niedbałość: `.app-body-solo` znaczy
+       w tym arkuszu „układ gościa, bez nawigacji bocznej" i czytają to także
+       reguły spoza tego pliku (`ekran-profilu.css`:
+       `:not(.app-body-solo):not(.app-body-powitalny)`, które trzyma liczby
+       o osobie w karcie profilu, bo bloku w szynie gościowi nie wysyłamy).
+       Zastąpienie klasy zabrałoby gościowi liczby z karty i nie dało nic
+       w zamian — czyli poprawka układu byłaby dla niego regresją (D-091).
+
+       Kolejność w pliku, nie waga selektora: obie reguły mają tę samą
+       specyficzność (0,1,0), więc ta MUSI stać niżej. */
+    .app-body-solo-z-szyna {
+      grid-template-columns: minmax(0, 1fr) var(--container-rail);
+      max-width: var(--container-strona-solo-z-szyna);
+    }
+
+    /* Treść trzyma się LEWEJ krawędzi swojej kolumny, bo z tą krawędzią
+       licuje logotyp w belce (pomiar „Wyrównanie belki do siatki treści").
+
+       DZIŚ TA REGUŁA NIE ZMIENIA ANI PIKSELA i mówimy to wprost, zamiast
+       udawać, że coś naprawia: pierwsza kolumna ma dokładnie 720 px, czyli
+       tyle co `--container-content`, więc `margin: 0 auto` z bloku 64rem
+       daje tu zero z obu stron. Zostaje jako zapis intencji na wypadek, gdy
+       kolumna urośnie — wtedy `auto` wyśrodkowałoby w niej treść i belka
+       rozjechałaby się z pierwszym słowem, a przyczyny szukałoby się w belce.
+       Zmierzone 11 września, okno 1920 px: treść 408–1128, belka 408–1512. */
+    .app-body-solo-z-szyna .app-main {
+      margin: 0;
     }
 
     .app-body-powitalny {
@@ -388,9 +460,17 @@
       padding-right: var(--spacing-6);
     }
 
-    /* Gość nie ma nawigacji bocznej ani szyny — jego `.app-body-solo` to jedna
-       kolumna. Belka szersza niż ta kolumna kładłaby logotyp na lewo od treści,
-       czyli dokładnie ten sam rozjazd, tylko w drugą stronę. */
+    /* Gość nie ma nawigacji bocznej, a MIĘDZY 64 A 80rem nikt nie ma szyny
+       obok treści (trzecia kolumna zaczyna się dopiero przy 80rem) — więc tu
+       jego treść to jedna kolumna. Belka szersza niż ta kolumna kładłaby
+       logotyp na lewo od treści, czyli dokładnie ten sam rozjazd, tylko
+       w drugą stronę.
+
+       SPROSTOWANIE, 11 września 2026 (D-122): do dziś stało tu „gość nie ma
+       nawigacji bocznej ANI SZYNY". Druga połowa była nieprawdą od
+       7 września — trzy publiczne widoki podają `<x-slot:rail>`. Od 80rem
+       belka i stopka gościa z szyną biorą szerszy token, patrz
+       `.uklad-solo-z-szyna` w bloku 80rem niżej. */
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
@@ -497,10 +577,19 @@
        reguły stoją PRZY samym polu, kilkaset linijek niżej — patrz komentarz
        „DLACZEGO TO STOI PRZY POLU". Tutaj byłyby martwe. */
 
-    /* Gość nie ma ani nawigacji bocznej, ani szyny, ani pola „Szukaj" w belce
-       — jego treść to jedna kolumna. Trzykolumnowa belka zostawiłaby mu
-       logotyp w słupku szerokim na 240 px, a „Załóż konto" w powietrzu nad
-       pustym miejscem. Wraca wiersz `flex` z `space-between`. */
+    /* Gość nie ma ani nawigacji bocznej, ani pola „Szukaj" w belce —
+       trzykolumnowa siatka belki zostawiłaby mu logotyp w słupku szerokim
+       na 240 px, a „Załóż konto" w powietrzu nad pustym miejscem. Wraca
+       wiersz `flex` z `space-between`.
+
+       SPROSTOWANIE, 11 września 2026 (D-122): stało tu „ani szyny". Gość ma
+       szynę na trzech publicznych ekranach i od dziś stoi ona OBOK treści,
+       a mimo to belka zostaje `flex` — i to jest wybór, nie przeoczenie.
+       Siatka belki istnieje po to, żeby pole „Szukaj" licowało z kolumną
+       czytania (pomiar „Wyrównanie belki do siatki treści"
+       w `scripts/dostepnosc.mjs`). Gość tego pola nie ma, więc nie ma czego
+       licować w środku; liczą się tylko krawędzie zewnętrzne, a te daje
+       `max-width` niżej. */
     .uklad-solo .topbar-inner,
     .uklad-powitalny .topbar-inner {
       display: flex;
@@ -517,6 +606,18 @@
     .uklad-solo .topbar-inner,
     .uklad-solo .site-footer-inner {
       max-width: var(--container-strona-solo);
+    }
+
+    /* Belka i stopka gościa NA EKRANIE Z SZYNĄ (D-122) — ta sama liczba, co
+       `.app-body-solo-z-szyna` wyżej. Dwie szerokości w dwóch warstwach to
+       ta sama usterka, którą naprawiał komentarz „BELKA I STOPKA STOJĄ W TEJ
+       SAMEJ SIATCE CO TREŚĆ": logotyp stanąłby 192 px na prawo od pierwszego
+       słowa, a przyciski nad środkiem szyny. Klasa dochodzi do `.uklad-solo`
+       (obie stoją na `<body>` razem), więc ta reguła musi stać NIŻEJ —
+       specyficzność mają tę samą. */
+    .uklad-solo-z-szyna .topbar-inner,
+    .uklad-solo-z-szyna .site-footer-inner {
+      max-width: var(--container-strona-solo-z-szyna);
     }
 
     /* Strona powitalna wraca tu do `--container-strona`, bo pas ma tę samą
