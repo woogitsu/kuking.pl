@@ -1,6 +1,6 @@
 # Regulamin Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.** Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać. Dokument nie był weryfikowany przez prawnika.
+> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.** Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać.
 
 ---
 
@@ -145,7 +145,7 @@ Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe wed�
 
 ---
 
-*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu osoby prowadzącej serwis. Dokument nie był weryfikowany przez prawnika.*
+*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu osoby prowadzącej serwis.*
 
 ## Źródła
 
