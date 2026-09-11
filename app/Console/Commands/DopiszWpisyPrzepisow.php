@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
+use App\Support\Odmiana;
 use Illuminate\Console\Command;
 
 /**
@@ -47,9 +48,15 @@ class DopiszWpisyPrzepisow extends Command
             return self::SUCCESS;
         }
 
+        // Liczebnik przez `Odmiana`, a nie „{$ile} wpisów" na sztywno.
+        // Właściciel uruchomił tę komendę na produkcji i zobaczył
+        // „Dopisano 1 wpisów" — a to jest jedyne zdanie, jakie ta komenda
+        // o sobie mówi.
+        $wpisy = Odmiana::rzeczownik($ile, 'wpis', 'wpisy', 'wpisów');
+
         $this->info($naSucho
-            ? "Do dopisania: {$ile} wpisów dla przepisów opublikowanych wcześniej. Nic nie zapisano."
-            : "Dopisano {$ile} wpisów dla przepisów opublikowanych wcześniej.");
+            ? "Do dopisania: {$ile} {$wpisy} dla przepisów opublikowanych wcześniej. Nic nie zapisano."
+            : "Dopisano {$ile} {$wpisy} dla przepisów opublikowanych wcześniej.");
 
         return self::SUCCESS;
     }

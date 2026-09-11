@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Compliance\PrzedawnioneSprawyModeracyjne;
+use App\Support\Odmiana;
 use Illuminate\Console\Command;
 
 /**
@@ -49,11 +50,12 @@ class SprzatajSprawyModeracyjne extends Command
         $this->line("{$czasownik} zgłoszeń (reports): {$raport->usunieteZgloszenia}.");
 
         $bledyLacznie = $raport->bledyOdwolan + $raport->bledyDecyzji + $raport->bledyZgloszen;
+        $wierszy = Odmiana::rzeczownik($bledyLacznie, 'wiersza', 'wierszy', 'wierszy');
 
         if ($bledyLacznie > 0) {
             // `warn`, nie `line`: to musi być widoczne w logu harmonogramu.
             $this->warn(
-                "Nie udało się skasować {$bledyLacznie} wierszy (odwołania: {$raport->bledyOdwolan}, "
+                "Nie udało się skasować {$bledyLacznie} {$wierszy} (odwołania: {$raport->bledyOdwolan}, "
                 ."decyzje: {$raport->bledyDecyzji}, zgłoszenia: {$raport->bledyZgloszen}) — szczegóły w logu, "
                 .'następny przebieg spróbuje ponownie.',
             );
