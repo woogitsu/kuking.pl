@@ -7,6 +7,22 @@ ten plik, żeby nie proponować rzeczy już rozstrzygniętych.
 Format: co, kiedy, kto zdecydował, dlaczego, i **co musiałoby się stać**,
 żeby decyzję zmienić.
 
+> ### Numeracja przeskakuje D-108 … D-112 — i to jest celowe
+>
+> System projektowy w `docs/design/system-v3.1/` ma **własny, niezależny
+> dziennik** z numerami `D-101 … D-112`. Pięć z nich (D-103 … D-107) zajmuje
+> już oba dzienniki naraz i cytat „D-105" znaczy co innego w jednym, a co
+> innego w drugim. Numery są darmowe, a odplątywanie takiej dwuznaczności
+> po fakcie nie jest — więc dziennik główny przechodzi z **D-107 od razu na
+> D-113**, czyli pierwszy numer wolny w obu miejscach.
+>
+> **Numery 108 – 112 w TYM pliku zostają na zawsze puste.** Nie są luką do
+> uzupełnienia; są odstępem od cudzej numeracji. Osobno i wcześniej puste
+> są **D-084, D-086 i D-094**.
+>
+> Decyzje systemu projektowego cytujemy z nazwą jego dziennika
+> („system-v3.1 D-111"), nigdy samym numerem.
+
 ---
 
 ## D-001 · Modularny monolit Laravel, bez mikroserwisów
@@ -9767,3 +9783,175 @@ przeglądarki 200% — i podania liczby, a nie zrzutu z domyślnej czcionki.
 
 📄 `resources/css/app.css` · `scripts/dostepnosc.mjs` ·
 `tests/Feature/BelkaPrzyDuzymTekscieTest.php` · D-082 · D-099 · D-051
+
+---
+
+## D-113 · Adres e-mail z Facebooka nigdy nie wchodzi na istniejące konto — a właściciel tego konta dostaje POWIADOMIENIE, nie klucz
+
+**Data:** 11 września 2026 · Rozstrzygnął właściciel · Ciąg dalszy **D-069**
+i **D-098** (issue #259) · Status: **obowiązuje**
+
+### Pytanie, które trzeba było rozstrzygnąć
+
+Reguła 1 z **D-069** brzmi: `email_verified` od Google jest WARUNKIEM wejścia,
+bez niego nie robimy nic. D-069 nazywa ten warunek najkrótszą znaną drogą
+przejęcia konta przy „zaloguj się przez…".
+
+**Facebook takiego pola nie ma.** Pełny opis pola `email` w Graph API to
+*„The User's primary email address listed on their profile. This field will not
+be returned if no valid email address is available."* — ani słowa
+o potwierdzeniu. Reguły 1 nie da się dla Facebooka spełnić, więc trzeba ją było
+czymś zastąpić, a to nie jest decyzja do podjęcia przy klawiaturze.
+
+### Co zostało rozstrzygnięte
+
+Słowami właściciela: *„trzeba i tak mu założyć to konto i ewentualnie wysłać
+maila żeby potwierdził email i tyle"*.
+
+1. **Nowa osoba** — konto powstaje, adres jest oznaczony jako
+   **niepotwierdzony**, wychodzi nasz własny list z potwierdzeniem. Dokładnie
+   tak jak przy rejestracji hasłem.
+2. **Adres pasuje do istniejącego konta Kuking** — wejście **odmawia**
+   i niczego nie łączy. Facebook nie dowiódł, że ta skrzynka należy do osoby
+   siedzącej przed ekranem; wystarczyłoby wpisać cudzy adres w swoim koncie
+   na Facebooku.
+3. Dochodzi **list do właściciela konta**, bo odmowę widział wyłącznie ten, kto
+   ją wywołał — właściciel nie dowiadywał się o próbie w ogóle.
+
+### Dlaczego ten list nie ma odnośnika „to ja, połącz konta"
+
+To jest najważniejsze zdanie tego wpisu. Taki odnośnik byłby wygodny i byłby
+dziurą, przez którą przechodzi dokładnie ten atak, przed którym stoi odmowa:
+obcy zakłada konto na Facebooku, wpisuje w nim cudzy adres, klika „Wejdź
+kontem Facebooka" — i wtedy **my** wysyłamy właścicielowi wiarygodny list,
+którym ten jednym kliknięciem oddaje obcemu wejście na swoje konto. Napastnik
+nie musiałby nawet mieć dostępu do skrzynki; wystarczyłoby, żeby właściciel
+kliknął.
+
+**Żaden list nie niesie u nas uprawnienia do zmiany stanu konta.** Ta sama
+granica co w `ZgloszonaZmianaAdresu` (issue #195), z tego samego powodu.
+List mówi więc: zaloguj się jak zwykle i połącz konta w `Ustawienia →
+Bezpieczeństwo`.
+
+### Cena, którą płacimy — wypisana, żeby nie wyglądała na przeoczenie
+
+Człowiek, który ma już konto w Kuking, **nie wejdzie na nie kontem Facebooka**,
+dopóki sam nie połączy kont z ustawień. Dostanie odmowę. Zdanie na ekranie musi
+więc mówić, CO ZROBIĆ — odmowa bez drogi wyjścia kończy się odejściem człowieka.
+
+Runbook (§7.1) stawiał to jako wybór „albo–albo": albo adres nigdy nie łączy,
+albo powiązanie powstaje wyłącznie z ustawień. **Kod robi jedno i drugie** —
+wejście zakłada nowe konto, a ścieżka z ustawień istnieje dla tych, którzy
+konto już mają. Dylemat był pozorny.
+
+### Ograniczenie jednego listu na godzinę na konto
+
+Bez niego ta funkcja jest zdalnym zalewaniem cudzej skrzynki: wystarczy
+w kółko wracać na adres powrotu. Ogranicznik trasy liczy żądania **napastnika**
+i jego nie boli — zalewana jest skrzynka **ofiary**, więc licznik stoi przy
+koncie odbiorcy. Pominięcie listu jest niewidoczne z zewnątrz; gdyby było
+widoczne, dałoby się nim sprawdzać, czy konto istnieje (**D-056**).
+
+### Co musiałoby się stać, żeby to zmienić
+
+Facebook musiałby zacząć oddawać potwierdzenie adresu — wtedy droga wraca do
+reguły 3 z D-069 i wygląda jak przy Google. Albo: pomiar pokazałby, że odmowa
+odbija ludzi masowo, a nie pojedynczo — wtedy szukamy trzeciej drogi, ale
+**nie** przez list z odnośnikiem łączącym.
+
+---
+
+## D-114 · Obietnica z miarą wymaga pomiaru — inaczej jej nie piszemy
+
+**Data:** 11 września 2026 · Audyt copy, `docs/research/audyt-copy-2026-09-11/`
+· Status: **obowiązuje**
+
+### Zasada
+
+„Zajmuje minutę", „to najczęściej czytana część", „teraz idzie najszybciej" to
+zdania o czasie, liczbie albo cudzym zachowaniu. **Wchodzą do interfejsu tylko
+wtedy, gdy w repozytorium stoi mechanizm albo pomiar, który je pokrywa.**
+
+### Dlaczego to nie jest czepianie się
+
+Człowiek, któremu obiecano minutę, a dodawanie zdjęcia zajęło pięć — bo zasięg
+był słaby — nie myśli „ładny copywriting". Myśli, że serwis nie mówi prawdy.
+Przy grupie 50+, która i tak podchodzi do nowego serwisu ostrożnie, **jedna
+niesprawdzalna obietnica kosztuje więcej niż dziesięć nudnych zdań.**
+
+Żadnej z sześciu obietnic „minuty" nikt nie zmierzył. Nie zostały uznane za
+fałszywe — zostały uznane za **niepokryte**, a to wystarczy, żeby ich nie pisać.
+
+### Czego ta zasada NIE obejmuje
+
+Liczb, które serwis naprawdę liczy: czasu gotowania z przepisu, okna na
+poprawienie komentarza, terminu odwołania. Te mają pokrycie w kodzie i wolno
+je pisać wprost.
+
+### Gdzie to stoi
+
+Pozycja listy kontrolnej w `docs/brand/COPY_STYLE.md` §7, pilnowana przez
+`tests/Feature/TekstyMowiaPrawdeTest.php` (dziesięć miejsc, A1–A10). Każdy test
+zawężony do elementu, bo słowo „minut" pada w serwisie także legalnie.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Ktoś zmierzyłby któryś z tych czasów na prawdziwych kontach i prawdziwych
+łączach. Wtedy obietnica wraca — z liczbą, która ma pokrycie.
+
+---
+
+## D-115 · Skala tekstu schodzi do 70% — bo ustawienie czytelności działające w jedną stronę jest ustawieniem połowicznym
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Zastępuje
+**system-v3.1 D-111** w zakresie dolnej granicy · Status: **obowiązuje**
+
+### Co się zmienia
+
+CHECK na `users.text_scale` przechodzi z `BETWEEN 90 AND 140` na
+`BETWEEN 70 AND 140`. Dochodzą trzy rozmiary: 90% „Trochę mniejszy" (16,2 px),
+80% „Mały" (14,4 px), 70% „Bardzo mały" (12,6 px).
+
+**Domyślna skala zostaje 100%, czyli `--text-body` = 18 px.** Nic jej nie rusza.
+
+### Dlaczego to nie łamie zasady „tekst ≥ 18 px"
+
+Zasada z `AGENTS.md` opisuje, **co człowiek widzi, zanim czegokolwiek dotknie**
+— czyli domyślny wygląd serwisu. Niżej schodzi wyłącznie ten, kto sam tak
+ustawi, i tylko na swoim koncie.
+
+Kuking jest robiony dla grupy 50+, ale „dla 50+" nie znaczy „nieczytelny dla
+reszty". Zgłosił to właściciel — trzydziestokilkulatek czytający własny
+produkt, dla którego 18 px jest za duże.
+
+### Stosunek do system-v3.1 D-111
+
+Tamten wpis mówi: *„`90%` istnieje dla osób, którym 18 px jest za duże na małym
+telefonie. Schodzi do 16.2 px, czyli nigdy poniżej progu, który dla tekstu
+podstawowego jest powszechnie przyjęty."* **To zostaje prawdą o 90% i przestaje
+być dolną granicą.** Decyzja właściciela jest późniejsza i wygrywa.
+
+Czego ta zmiana NIE rusza: górnej granicy ani tezy z system-v3.1 D-111, że
+układ trzymamy do 150%. Zmniejszanie tekstu nie zagraża układowi — zagraża mu
+powiększanie, a tam nic się nie zmieniło.
+
+### Cztery miejsca, które muszą się zgadzać
+
+`kuking.text.scales`, `resources/css/tokens.css`, `resources/css/app.css`
+(podgląd w ustawieniach) i CHECK w migracji. **Rozjazd między nimi już raz się
+zdarzył i milczał:** 8 września konfiguracja oferowała 140, arkusz znał 150,
+a CHECK nie pozwalał 150 powstać — skutkiem czego „Bardzo duży" zapisywał się
+na koncie i NIE ROBIŁ NIC. Pilnuje tego `SkalaTekstuDzialaTest`, od 11 września
+razem z podpisami (`kuking.text.scale_labels`).
+
+### Rollback odmawia (D-088)
+
+Zwężenie CHECK-a wymagałoby podniesienia skali kontom, które świadomie wybrały
+mniejszą. Po `down()` prawie zawsze idzie kolejny `migrate`, CHECK wraca i nie
+ma błędu do zauważenia — człowiek zobaczyłby większe litery i nie dowiedziałby
+się dlaczego.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Pomiar pokazałby, że ludzie ustawiają 70% przez pomyłkę i potem nie umieją
+wrócić. Wtedy znika najmniejszy stopień, a nie całe ustawienie.
