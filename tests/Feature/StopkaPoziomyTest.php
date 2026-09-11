@@ -92,10 +92,19 @@ class StopkaPoziomyTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('class="site-version"', $tresc);
+        // Etykieta czytana Z KONFIGURACJI, nie wpisana tu na pamięć. Ten test
+        // pilnuje, że etap produktu STOI w metryczce — a nie że akurat dziś
+        // brzmi „Alfa 0.1". Wersja z definicji się zmienia (cyfra rośnie przy
+        // każdej widocznej zmianie), a strażnik, który trzeba poprawiać przy
+        // każdym wydaniu, zostaje prędzej czy później poprawiony bezmyślnie.
+        $etap = (string) config('kuking.wersja.etykieta');
+
+        $this->assertNotSame('', $etap, 'Konfiguracja nie podaje etapu produktu.');
+
         $this->assertMatchesRegularExpression(
-            '/class="site-version-etap"[^>]*>Alfa 0\.1/',
+            '/class="site-version-etap"[^>]*>'.preg_quote($etap, '/').'/',
             $tresc,
-            'Etap produktu („Alfa 0.1") powinien stać w metryczce wersji.',
+            'Etap produktu („'.$etap.'”) powinien stać w metryczce wersji.',
         );
 
         $this->assertDoesNotMatchRegularExpression(
