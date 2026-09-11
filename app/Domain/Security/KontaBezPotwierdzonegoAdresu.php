@@ -9,7 +9,8 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 /**
  * Ile kont nie ma potwierdzonego adresu e-mail — i ilu ludzi naprawdę
- * dotknęłoby zamknięcie logowania linkiem dla takich kont (issue #317).
+ * dotyczy to, że takie konto wchodzi listem z ustawieniem hasła zamiast
+ * linkiem do logowania (issue #317).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  TO JEST POMIAR, NIE ZMIANA ZACHOWANIA
@@ -101,13 +102,14 @@ final class KontaBezPotwierdzonegoAdresu
     }
 
     /**
-     * Konta bez potwierdzenia, DO KTÓRYCH link dziś w ogóle dochodzi —
-     * czyli takie, których statusu nie odrzuca `wolnoWyslac()`.
+     * Konta bez potwierdzenia, DO KTÓRYCH poczta z formularza logowania
+     * w ogóle dochodzi — czyli takie, których statusu nie odrzuca
+     * `wolnoWyslac()`.
      *
      * `suspended` TU ZOSTAJE i nie jest to przeoczenie: zawieszenie nie jest
      * w `STATUSY_ZAMKNIETEGO_KONTA` (patrz komentarz tej stałej — „karą jest
-     * pisanie, nie wejście"), więc konto zawieszone link dostaje i naprawa
-     * odebrałaby mu go tak samo jak koncie aktywnemu.
+     * pisanie, nie wejście"), więc konto zawieszone pocztę dostaje i naprawa
+     * #317 dotyczy go tak samo jak konta aktywnego.
      *
      * @return Builder<User>
      */
@@ -118,8 +120,14 @@ final class KontaBezPotwierdzonegoAdresu
     }
 
     /**
-     * REALNY KOSZT NAPRAWY: konta, które dziś wchodzą linkiem, a po
-     * naprawie już nie wejdą.
+     * KOGO DOTYCZY NAPRAWA #317: konta, które przed naprawą wchodziły
+     * linkiem, a dziś dostają z tego samego formularza list z ustawieniem
+     * hasła (`WyslijOdzyskanieKonta`).
+     *
+     * ZBIÓR JEST TEN SAM CO PRZED NAPRAWĄ i zapytanie się nie zmieniło —
+     * zmieniło się to, co tym kontom wychodzi na skrzynkę. Gdyby liczyć
+     * je dziś od zera, wyszłoby dokładnie to samo zapytanie, więc nie ma
+     * czego poprawiać poza nazwą.
      *
      * @return Builder<User>
      */
