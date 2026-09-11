@@ -14,6 +14,25 @@ ich nie ma.
 
 ---
 
+## Alfa 0.3 — 11 września 2026
+
+### Dla wszystkich
+
+- **Prośba o link do zalogowania nie wpuszcza już na cudze konto.** Jeśli ktoś
+  założył konto na Twój adres, a Ty nigdy tego adresu u nas nie potwierdziłaś
+  ani nie potwierdziłeś, formularz „Wyślij mi link do zalogowania" przysyła
+  teraz wiadomość z **ustawieniem nowego hasła**, a nie przycisk wchodzący
+  prosto na to konto. Po ustawieniu hasła stare hasło przestaje działać, a
+  wszystkie otwarte sesje na tym koncie zostają zamknięte — nawet jeśli ktoś
+  obcy z nich korzystał.
+- **Kliknięcie odnośnika z tej wiadomości potwierdza adres.** Od tej chwili
+  konto wraca do zwykłego logowania jednym przyciskiem.
+- Ekran po wysłaniu formularza wygląda **dokładnie tak samo** jak dotąd i
+  dokładnie tak samo dla adresu, który konta u nas nie ma — żeby nie dało się
+  z niego wyczytać, kto ma tu konto, a kto nie.
+
+---
+
 ## Alfa 0.2 — 11 września 2026
 
 ### Dla wszystkich
