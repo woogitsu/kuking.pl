@@ -3452,8 +3452,12 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
     - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
       poniżej 80rem ląduje pod całym archiwum wpisów).
 
-   Gość jest tu osobnym przypadkiem, nie powtórką: ma jedną kolumnę na każdej
-   szerokości (`app-body-solo`), więc przy 1512 px MUSI widzieć egzemplarz
+   Gość jest tu osobnym przypadkiem, nie powtórką — ale od 11 września 2026
+   (D-122) Z INNEGO POWODU, niż stało tu wcześniej. Nie „ma jedną kolumnę na
+   każdej szerokości": na profilu ma od 80rem dwie, a szyna stoi obok treści.
+   Powód jest taki, że bloku z liczbami w szynie gościowi w ogóle nie
+   wysyłamy (`@auth` w `x-szyna-profilu`), więc przy 1512 px MUSI widzieć
+   egzemplarz
    w karcie — inaczej liczby lądują u niego na samym dole strony.
    ========================================================================== */
 log('');

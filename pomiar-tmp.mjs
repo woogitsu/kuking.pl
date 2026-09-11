@@ -2,16 +2,13 @@ import { chromium } from 'playwright';
 
 const ADRES = process.env.ADRES || 'http://127.0.0.1:8123';
 const EXE = '/opt/pw-browsers/chromium-1243/chrome-linux64/chrome';
-
-const SZEROKOSCI = [320, 360, 414, 768, 1024, 1280, 1512];
-
 const przegladarka = await chromium.launch({ executablePath: EXE, headless: true });
 
-async function zmierz({ szerokosc, wysokosc, skala, bezKolazu, wariantWpisow, czcionka }) {
-  const kontekst = await przegladarka.newContext({
-    viewport: { width: szerokosc, height: wysokosc },
-    deviceScaleFactor: 1,
-  });
+/* CSP (`style-src 'self' 'nonce-…'`) blokuje wstrzyknięcie <style>, więc
+   reguły dokładamy przez CSSOM do arkusza, który strona już załadowała —
+   tego CSP nie dotyczy. */
+async function zmierz({ szerokosc, wysokosc, skala, bezKolazu, reguly = [], czcionka }) {
+  const kontekst = await przegladarka.newContext({ viewport: { width: szerokosc, height: wysokosc }, deviceScaleFactor: 1 });
   const strona = await kontekst.newPage();
   await strona.goto(ADRES, { waitUntil: 'networkidle' });
 
@@ -23,67 +20,57 @@ async function zmierz({ szerokosc, wysokosc, skala, bezKolazu, wariantWpisow, cz
   }
   if (bezKolazu) {
     await strona.evaluate(() => {
-      const s = document.createElement('style');
-      s.textContent = '.hero-kolaz-blok{display:none !important}';
-      document.head.appendChild(s);
+      const el = document.querySelector('.hero-kolaz-blok');
+      if (el) el.style.setProperty('display', 'none', 'important');
     });
   }
-  if (wariantWpisow === 'jedna-kolumna') {
-    await strona.evaluate(() => {
-      const s = document.createElement('style');
-      s.textContent = '@media (min-width:64rem){.landing-wpisy{grid-template-columns:minmax(0,1fr) !important;max-width:44rem;margin-inline:auto}}';
-      document.head.appendChild(s);
-    });
-  }
-  if (wariantWpisow === 'kolumny-css') {
-    await strona.evaluate(() => {
-      const s = document.createElement('style');
-      s.textContent = '@media (min-width:64rem){.landing-wpisy{display:block !important;columns:2;column-gap:1.25rem}.landing-wpisy > *{break-inside:avoid;margin-bottom:1.25rem}}';
-      document.head.appendChild(s);
-    });
+  if (reguly.length) {
+    const ok = await strona.evaluate((r) => {
+      const ark = [...document.styleSheets].find((a) => { try { return a.cssRules.length > 0; } catch { return false; } });
+      if (!ark) return false;
+      r.forEach((regula) => ark.insertRule(regula, ark.cssRules.length));
+      return true;
+    }, reguly);
+    if (!ok) throw new Error('Nie udało się dołożyć reguł — pomiar byłby fałszywy.');
   }
 
   await strona.waitForTimeout(250);
 
   const wynik = await strona.evaluate(() => {
-    const przycisk = [...document.querySelectorAll('.hero-akcje .btn')]
-      .find((a) => a.textContent.includes('Zostań'));
+    const przycisk = [...document.querySelectorAll('.hero-akcje .btn')].find((a) => a.textContent.includes('Zostań'));
     const r = przycisk ? przycisk.getBoundingClientRect() : null;
 
-    const karty = [...document.querySelectorAll('.landing-wpisy > *')].map((k) => {
+    const siatka = document.querySelector('.landing-wpisy');
+    const karty = siatka ? [...siatka.children].map((k) => {
       const b = k.getBoundingClientRect();
       return { top: Math.round(b.top + window.scrollY), bottom: Math.round(b.bottom + window.scrollY), h: Math.round(b.height) };
+    }) : [];
+
+    let dziury = 0;
+    const rzedy = {};
+    karty.forEach((k) => { (rzedy[k.top] ||= []).push(k); });
+    Object.values(rzedy).forEach((rzad) => {
+      const max = Math.max(...rzad.map((k) => k.h));
+      rzad.forEach((k) => { dziury += max - k.h; });
     });
 
-    const sekcjaWpisow = document.querySelector('.landing-wpisy');
-    const sr = sekcjaWpisow ? sekcjaWpisow.getBoundingClientRect() : null;
-
-    // Puste pole w siatce: powierzchnia prostokąta siatki minus suma
-    // powierzchni kart (bez odstępów) — liczona tylko w pionie, per karta.
-    let dziury = 0;
-    if (sekcjaWpisow && karty.length) {
-      const rzedy = {};
-      karty.forEach((k) => { (rzedy[k.top] ||= []).push(k); });
-      Object.values(rzedy).forEach((rzad) => {
-        const max = Math.max(...rzad.map((k) => k.h));
-        rzad.forEach((k) => { dziury += max - k.h; });
-      });
-    }
+    const sr = siatka ? siatka.getBoundingClientRect() : null;
+    const gornaKrawedzSekcji = sr ? Math.round(sr.top + window.scrollY) : 0;
 
     return {
       przyciskDol: r ? Math.round(r.bottom + window.scrollY) : null,
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
-      kolazJest: !!document.querySelector('.hero-kolaz'),
       kolazWidoczny: (() => {
         const el = document.querySelector('.hero-kolaz-blok');
-        if (!el) return false;
-        return getComputedStyle(el).display !== 'none';
+        return el ? getComputedStyle(el).display !== 'none' : false;
       })(),
+      kolumny: siatka ? getComputedStyle(siatka).gridTemplateColumns : null,
       heroWysokosc: Math.round(document.querySelector('.hero').getBoundingClientRect().height),
-      wpisowNaEkranie: karty.filter((k) => k.bottom <= (sr ? sr.top + window.scrollY : 0) + 0 + window.innerHeight - 0 && k.top >= 0).length,
       wpisow: karty.length,
-      wysokoscSekcjiWpisow: sr ? Math.round(sr.height) : null,
+      // ile KART mieści się w całości na jednym ekranie liczonym od góry sekcji
+      wpisowNaEkran: karty.filter((k) => k.bottom - gornaKrawedzSekcji <= window.innerHeight).length,
+      wysokoscSiatki: sr ? Math.round(sr.height) : null,
       dziuryPx: dziury,
       dokumentWysokosc: document.documentElement.scrollHeight,
     };
@@ -93,49 +80,37 @@ async function zmierz({ szerokosc, wysokosc, skala, bezKolazu, wariantWpisow, cz
   return wynik;
 }
 
-const raport = {};
+const raport = { przycisk: [], uklad: [], wpisy: [] };
 
-// 1. Przycisk „Zostań kuKINGiem" na pierwszym ekranie telefonu.
-raport.przycisk = [];
 for (const [w, h] of [[320, 568], [360, 640], [360, 740], [414, 896]]) {
   for (const skala of [null, '140']) {
-    const zKolazem = await zmierz({ szerokosc: w, wysokosc: h, skala });
+    const z = await zmierz({ szerokosc: w, wysokosc: h, skala });
     const bez = await zmierz({ szerokosc: w, wysokosc: h, skala, bezKolazu: true });
     raport.przycisk.push({
       okno: `${w}x${h}`, skala: skala || '100',
-      dolPrzyciskuZKolazem: zKolazem.przyciskDol,
-      dolPrzyciskuBezKolazu: bez.przyciskDol,
-      mieciSieNaEkranie: zKolazem.przyciskDol <= h,
-      kolazWidoczny: zKolazem.kolazWidoczny,
+      dolZKolazem: z.przyciskDol, dolBezKolazu: bez.przyciskDol,
+      mieciSie: z.przyciskDol <= h, kolazWidoczny: z.kolazWidoczny, hero: z.heroWysokosc,
     });
   }
 }
 
-// 2. Przewijanie w bok.
-raport.uklad = [];
-for (const w of SZEROKOSCI) {
-  for (const [nazwaCzcionki, px] of [['100%', 16], ['200%', 32]]) {
+for (const w of [320, 360, 414, 768, 900, 1024, 1280, 1512]) {
+  for (const [nazwa, px] of [['100%', 16], ['200% (CSSOM)', 32]]) {
     const r = await zmierz({ szerokosc: w, wysokosc: 800, czcionka: px });
-    raport.uklad.push({
-      szerokosc: w, czcionka: nazwaCzcionki,
-      scrollWidth: r.scrollWidth, clientWidth: r.clientWidth,
-      przewijaWBok: r.scrollWidth > r.clientWidth + 1,
-      kolazWidoczny: r.kolazWidoczny,
-    });
+    raport.uklad.push({ szerokosc: w, czcionka: nazwa, scrollWidth: r.scrollWidth, clientWidth: r.clientWidth, przewijaWBok: r.scrollWidth > r.clientWidth + 1, kolazWidoczny: r.kolazWidoczny });
   }
 }
 
-// 3. „Świeżo z Kuking" — trzy warianty na typowym ekranie komputera.
-raport.wpisy = [];
-for (const wariant of [null, 'jedna-kolumna', 'kolumny-css']) {
-  const r = await zmierz({ szerokosc: 1280, wysokosc: 800, wariantWpisow: wariant });
-  raport.wpisy.push({
-    wariant: wariant || 'dzis (dwie kolumny, rzędy)',
-    wysokoscSekcji: r.wysokoscSekcjiWpisow,
-    dziuryPx: r.dziuryPx,
-    wpisow: r.wpisow,
-    dokumentWysokosc: r.dokumentWysokosc,
-  });
+const WARIANTY = {
+  'dzis — dwie kolumny, rzędy': [],
+  'jedna kolumna (pełna szerokość pasa)': ['@media (min-width:64rem){.landing-wpisy{grid-template-columns:minmax(0,1fr) !important}}'],
+  'jedna kolumna, węższa (44rem)': ['@media (min-width:64rem){.landing-wpisy{grid-template-columns:minmax(0,1fr) !important;max-width:44rem;margin-inline:auto}}'],
+  'dwie kolumny CSS (columns), niezależne': ['@media (min-width:64rem){.landing-wpisy{display:block !important;columns:2;column-gap:1.25rem}}', '@media (min-width:64rem){.landing-wpisy > *{break-inside:avoid;margin-bottom:1.25rem}}'],
+};
+
+for (const [nazwa, reguly] of Object.entries(WARIANTY)) {
+  const r = await zmierz({ szerokosc: 1280, wysokosc: 800, reguly });
+  raport.wpisy.push({ wariant: nazwa, kolumny: r.kolumny, wysokoscSiatki: r.wysokoscSiatki, dziuryPx: r.dziuryPx, wpisowNaEkran: r.wpisowNaEkran, wpisow: r.wpisow, dokument: r.dokumentWysokosc });
 }
 
 console.log(JSON.stringify(raport, null, 2));

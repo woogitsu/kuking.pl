@@ -400,7 +400,9 @@ class SzynaTablicaDniaUkladTest extends TestCase
     #[Test]
     public function test_tablica_jest_karta_wszedzie_poza_strona_powitalna(): void
     {
-        $powitalna = $this->sekcjaTablicy($this->tablicaNaStronieStartowej('landing'));
+        $this->wyborNaDzis();
+
+        $powitalna = $this->sekcjaTablicy($this->tablicaZTrasy('landing'));
 
         $this->assertStringNotContainsString(
             ' card ',
@@ -409,7 +411,7 @@ class SzynaTablicaDniaUkladTest extends TestCase
             'to jest karta w karcie — jedyna taka sekcja na tym ekranie.',
         );
 
-        $odkryj = $this->sekcjaTablicy($this->tablicaNaStronieStartowej('discover'));
+        $odkryj = $this->sekcjaTablicy($this->tablicaZTrasy('discover'));
 
         $this->assertStringContainsString(
             ' card ',
@@ -461,6 +463,30 @@ class SzynaTablicaDniaUkladTest extends TestCase
      */
     private function tablicaNaStronieStartowej(string $trasa = 'discover'): \DOMDocument
     {
+        $this->wyborNaDzis();
+
+        return $this->tablicaZTrasy($trasa);
+    }
+
+    /** Ten sam wybór redakcyjny, ale wsiewany DOKŁADNIE RAZ — patrz `wyborNaDzis()`. */
+    private function tablicaZTrasy(string $trasa): \DOMDocument
+    {
+        $html = $this->get(route($trasa))->assertOk()->getContent();
+
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+
+        return $dom;
+    }
+
+    /**
+     * Wybór redakcyjny na dziś. OSOBNO OD RENDEROWANIA, bo test porównujący
+     * dwa ekrany (`/` i `/odkryj`) musi wsiać te same dane raz: drugie
+     * wywołanie przewracało się na `profiles_username_unique`, czyli na
+     * własnych danych, a nie na sprawdzanej rzeczy.
+     */
+    private function wyborNaDzis(): void
+    {
         $gospodarz = $this->moderator();
         $kucharka = $this->user('kucharka', ['display_name' => 'Ewa Kapica']);
 
@@ -510,12 +536,5 @@ class SzynaTablicaDniaUkladTest extends TestCase
                 'curator_id' => $gospodarz->getKey(),
             ]);
         }
-
-        $html = $this->get(route($trasa))->assertOk()->getContent();
-
-        $dom = new \DOMDocument;
-        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
-
-        return $dom;
     }
 }

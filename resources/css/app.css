@@ -207,11 +207,16 @@
       max-width: var(--container-strona-solo-z-szyna);
     }
 
-    /* Kolumna treści wypełnia pierwszą kolumnę siatki i nie ucieka na jej
-       środek: `margin: 0 auto` z reguły 64rem wyżej zostawiałoby przy skali
-       tekstu innej niż 100% wąską treść pośrodku szerokiej kolumny, a szynę
-       przy prawej krawędzi — czyli rozjazd lewej krawędzi treści względem
-       logotypu w belce. */
+    /* Treść trzyma się LEWEJ krawędzi swojej kolumny, bo z tą krawędzią
+       licuje logotyp w belce (pomiar „Wyrównanie belki do siatki treści").
+
+       DZIŚ TA REGUŁA NIE ZMIENIA ANI PIKSELA i mówimy to wprost, zamiast
+       udawać, że coś naprawia: pierwsza kolumna ma dokładnie 720 px, czyli
+       tyle co `--container-content`, więc `margin: 0 auto` z bloku 64rem
+       daje tu zero z obu stron. Zostaje jako zapis intencji na wypadek, gdy
+       kolumna urośnie — wtedy `auto` wyśrodkowałoby w niej treść i belka
+       rozjechałaby się z pierwszym słowem, a przyczyny szukałoby się w belce.
+       Zmierzone 11 września, okno 1920 px: treść 408–1128, belka 408–1512. */
     .app-body-solo-z-szyna .app-main {
       margin: 0;
     }
