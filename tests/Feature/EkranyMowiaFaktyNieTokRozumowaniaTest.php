@@ -105,7 +105,7 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
         $opis = $this->wycinek($html, '<meta name="description"', '>');
 
         // Kontrola dodatnia: opis w ogóle jest i mówi, co to za strona.
-        $this->assertStringContainsString('Spis tematów w Kuking', $opis);
+        $this->assertStringContainsString('Spis tagów w Kuking', $opis);
         $this->assertStringContainsString('składniki', $opis);
 
         // Zdjęte: nasza polityka porządkowania treści.
@@ -119,7 +119,7 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
 
         // Informacja nie zniknęła — przeniosła się tam, gdzie jest dla
         // czytelnika, a nie dla wyszukiwarki.
-        $this->assertStringContainsString('Wszystkie tematy od A do Z', $html);
+        $this->assertStringContainsString('Wszystkie tagi od A do Z', $html);
     }
 
     /* ------------------------------------------------------------------

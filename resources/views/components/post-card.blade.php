@@ -276,7 +276,7 @@
         pokrycie od pierwszego dnia.
     --}}
     @if($post->relationLoaded('tags') && $post->tags->isNotEmpty())
-        <nav class="chipsy post-card-tagi" aria-label="Tematy tego wpisu">
+        <nav class="chipsy post-card-tagi" aria-label="Tagi tego wpisu">
             @foreach($post->tags as $tag)
                 <a class="chip" href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
             @endforeach

@@ -275,7 +275,7 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
         $this->assertContains(
             '/tagi',
             $this->mierzoneAdresy(),
-            'Spis wszystkich tematów (`/tagi`, D-087) wypadł z listy `EKRANY` w automacie '
+            'Spis wszystkich tagów (`/tagi`, D-087) wypadł z listy `EKRANY` w automacie '
             .'dostępności. To strona publiczna — gęste rzędy odnośników z licznikami, '
             .'czyli układ, który przy 320 px i tekście 140% najłatwiej wypycha stronę w bok.',
         );

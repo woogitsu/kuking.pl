@@ -153,7 +153,7 @@ class Post extends Model
      * — dotyczy relacji między dwiema osobami. Ten zakres odpowiada na inne
      * pytanie: „czy ta treść ma prawo być POLECANA nieznajomym". Pierwsze
      * obowiązuje wszędzie, drugie tylko tam, gdzie serwis sam podsuwa treść:
-     * „Świeżo z Kuking", wyszukiwarka, tablica na dziś, feed tematów.
+     * „Świeżo z Kuking", wyszukiwarka, tablica na dziś, feed tagów.
      *
      * Rozdzielenie ma konkretny skutek: zawieszony autor dalej widzi własne
      * wpisy i dalej działa bezpośredni link, ale serwis przestaje je
@@ -240,14 +240,14 @@ class Post extends Model
      *
      * DLACZEGO TO MUSI BYĆ ZAKRES NA MODELU, A NIE POMOCNIK W KONTROLERZE
      * `ProfileController` ma własny filtr widoczności, ale liczy go dla JEDNEGO
-     * właściciela profilu: „czy widz obserwuje TĘ osobę". Na stronie tematu
+     * właściciela profilu: „czy widz obserwuje TĘ osobę". Na stronie tagu
      * wpisy pochodzą od wielu autorów naraz, więc pytanie brzmi inaczej —
      * dla każdego wiersza osobno. Skopiowanie tamtego pomocnika dałoby filtr,
      * który przepuszcza wpisy „tylko dla obserwujących" od osób, których widz
      * nie obserwuje.
      *
      * Kolejność ma znaczenie: NAJPIERW blokada, bezwarunkowo i w obie strony.
-     * Blokada, która działa „w większości miejsc", nie działa — a temat jest
+     * Blokada, która działa „w większości miejsc", nie działa — a strona tagu jest
      * dokładnie tym miejscem, w którym ktoś odcięty wypłynąłby z powrotem.
      *
      * Wzorzec identyczny jak `Recipe::scopeWidoczneDla` (audyt A04). Dwie
