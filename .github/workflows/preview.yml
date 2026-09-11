@@ -1,23 +1,35 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
-#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
-#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#  SPROSTOWANIE, 11 września 2026: TEN WORKFLOW NIE JEST WYŁĄCZONY I NIGDY
+#  NIE BYŁ.
 #
-#  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
-#  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
+#  Do dziś stało tu, że workflow „jest wyłączony z automatycznego uruchamiania
+#  (`workflow_dispatch` = tylko ręcznie)" i że żeby go włączyć, trzeba
+#  „odkomentować blok `on:` poniżej". Nieprawda od 5 września 2026, czyli od
+#  pierwszego commita w tym repozytorium: blok `on:` niżej nie był zakomentowany
+#  ani przez chwilę.
 #
-#  Żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
-#  wybiera już żadna zmienna repozytorium — joby chodzą na własnej puli
-#  `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET:
+#  CZYM SIĘ NAPRAWDĘ URUCHAMIA: automatycznie na każdym `pull_request`
+#  (`opened`, `synchronize`, `reopened`) oraz ręcznie przez `workflow_dispatch`
+#  (ścieżka `manual-create` / `manual-delete`). Wyłącznikiem testu dymnego nie
+#  jest blok `on:`, tylko bramka wdrożeniowa na jobie `smoke`:
+#  `vars.KUKING_DEPLOY_ENABLED == 'true'` (issue #3). Bez tej zmiennej job jest
+#  POMIJANY — workflow rusza, minut nie zużywa i lampki nie zapala.
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  Repozytorium jest PRYWATNE, więc każda minuta Actions jest płatna — to się
+#  nie zmieniło i dlatego kontrolę robimy najpierw lokalnie, za darmo:
+#    ./scripts/check.sh           # pełna kontrola
+#    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  Etykiet, nie nazw: nazwa runnera w `runs-on` przypina job do jednej
-#  maszyny, więc jej awaria zatrzymuje CI. Etykiety `i5-10400f`
-#  i `nvidia-gtx1070` mają WYŁĄCZNIE nowe runnery — stare WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`,
-#  `X64`, `wsl2`, `woogitsu`, więc samo `self-hosted` wpuściłoby joby także
-#  na nie.
+#  RUNNERY — DRUGA NIEPRAWDA W TYM SAMYM NAGŁÓWKU. Stało tu, że „runnera nie
+#  wybiera już żadna zmienna repozytorium" i że joby chodzą na własnej puli
+#  wskazanej zestawem etykiet. Nieprawda od 8 września 2026 (wieczorem): KAŻDY
+#  `runs-on` w tym pliku to `${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}`
+#  — czyli dokładnie zmienna repozytorium, a bez niej runnery GitHuba. Zmienna
+#  jest dziś ustawiona na samo `self-hosted` (zmierzone 11 września na przebiegu
+#  CI nr 661: `labels: ["self-hosted"]`, runner `kuking-wsl-DOM-NEW-02`), więc
+#  joby trafiają na starą pulę WSL-ową, a nie na tę z sześcioma etykietami.
+#  Sposób powrotu na nową pulę stoi w bloku „RUNNERY" niżej i w D-028.
+#
 #  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
 # ---------------------------------------------------------------------------
 
