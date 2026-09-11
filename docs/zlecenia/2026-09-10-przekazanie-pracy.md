@@ -861,3 +861,123 @@ błędu** — skrypt się załaduje, zdarzenia pójdą, panel zostanie pusty.
 
 Nadal otwarte i niezamykalne kodem: Composer na `actions-runner-kuking-03`
 (13.6), śledzenie otwarć w EmailLabs (#204), bramka R2 (#120), kopia bazy (#193).
+
+---
+
+## 15. Noc z 10 na 11 września — co z sekcji 13 i 14 jest już nieaktualne
+
+**Ta sekcja jest najświeższa w całym dokumencie.** Przy sprzeczności wierz jej,
+a sekcje 13 i 14 czytaj jako zapis wieczora 10.09.
+
+**Sekcja 14.1 („Zacznij od tego") jest w całości wykonana.** Wszystkie trzy
+wymienione tam PR-y są scalone, a `main` jest zielony. Nie zaczynaj od niej.
+
+### 15.1. Dziewiętnaście PR-ów scalonych
+
+`#296` `#292` `#310` `#311` `#312` `#313` `#316` `#253` `#308` `#306` `#213`
+`#255` `#315` `#318` `#319` `#321` `#320` `#322` `#323`.
+
+Najważniejsze, żebyś nie odtwarzał wniosków:
+
+| PR | Rzecz |
+|---|---|
+| **#316** | **Czerwone 2.4.11 na `main` było usterką POMIARU, nie belki** — patrz 15.2 |
+| **#311, #312** | Z-3 i Z-2 z raportu blokad naprawione (D-093) |
+| **#322** | Grupa `dwa-polaczenia` — te dwie naprawy mają wreszcie POMIAR, nie rozumowanie (D-105) |
+| **#315** | Wejście kontem Google ożywione, powiązania w tabeli `tozsamosci_zewnetrzne` (D-069, D-098) |
+| **#308** | Analityka: **Cloudflare Web Analytics**, nie Plausible i nie PostHog (D-092) |
+| **#319** | Tabela stacku w `AGENTS.md` ma trzecią kolumnę „Gdzie to sprawdzić" i jest sprawdzana testem (D-104) |
+| **#323** | Siedem stron publicznych wchodzi do pomiaru, a formularz odzyskania hasła jest wreszcie mierzony **z formularzem** (D-106) |
+
+### 15.2. Sprostowanie do 14.3 — mitologia CI
+
+**14.3 twierdziło, że `main` jest czerwony przez prawdziwą usterkę 2.4.11
+o niedeterministycznym objawie. To nieprawda i kosztowało pół nocy.**
+
+Produkt wydaje `data-text-scale` na `<html>` **po stronie serwera**, więc strona
+człowieka jest ułożona dużym pismem od pierwszego ułożenia. Automat dokładał ten
+atrybut **po** wczytaniu i od razu zaczynał chodzić Tabem — mierzył stan
+mieszany: rezerwa pod belką już 179,2 px, a belka wciąż 66,6 px. Strona przy
+140% jest o jedną trzecią wyższa, więc element przewinięty nad belkę zjeżdżał
+z rosnącą stroną pod nią, a drugi raz nikt go nie przewijał. **Zmierzona
+kontrola dodatnia:** spóźnienie o 6 kroków Taba daje dokładnie elementy z CI,
+spóźnienie o 3 i o 10 — zero. Stąd cała „loteria", łącznie z zerami.
+
+Przy okazji: **Chromium 153 JEST w kontenerze** (`/opt/pw-browsers/chromium-1243`),
+ta sama, którą bierze CI. `znajdzChromium()` wolało ścieżkę z obrazu (141).
+Zdanie „lokalny przebieg nie jest dowodem" z 14.3 **przestało obowiązywać**.
+
+**Co z 14.3 zostaje prawdą:** push agenta czasem nie odpala przebiegu.
+**Ale rozwiązanie jest inne, niż tam napisano** — nie trzeba merge'ować `main`
+i pchać ze swojego konta. `ci.yml` ma `workflow_dispatch`, z komentarzem
+mówiącym wprost „pozwala puścić przebieg ręcznie bez pustego commita":
+
+```
+actions_run_trigger, method: run_workflow, workflow_id: ci.yml, ref: <gałąź>
+```
+
+### 15.3. Dług z 14.6 — spłacony poza jedną pozycją
+
+| Pozycja z 14.6 | Stan |
+|---|---|
+| Cztery drogi przypięcia zdjęcia bez blokady (MEDIA-01) | **spłacone** — #320, D-103 |
+| Żaden test nie chodzi na dwóch połączeniach | **spłacone** — #322, D-105 |
+| `/tagi` poza pomiarem dostępności | **spłacone** — #316 |
+| `dostepnosc.json` bez pomiaru liczb profilu | **spłacone** — #316 |
+| Brak testu pilnującego numerów decyzji | **spłacone** — #310 (i wrócił jako `D-066`, zanim test powstał) |
+| 23 ostrzeżenia „focus częściowo zasłonięty" | **zostaje** — to nie są naruszenia 2.4.11, nikt nie podnosił na nie progu i Ty też nie podnoś |
+
+**Nowy dług, nazwany:** dwa ekrany wejścia kontem Google (`wejdz/google/domknij`,
+`wejdz/google/polacz`) nie są mierzone — wymagają tożsamości Google w sesji.
+Właz pozwalający ją tam zapisać bez przejścia przez Google byłby przejęciem
+konta czekającym na pomyłkę w konfiguracji, więc **nie róbcie go**; potrzebna
+jest atrapa dostawcy tożsamości. Zapisane w teście kompletności.
+
+### 15.4. Pięć rzeczy zmierzonych tej nocy, które oszczędzą Ci godzinę
+
+1. **`git checkout --ours/--theirs` NIGDY na całym pliku.** Bierze CAŁĄ stronę
+   pliku i po cichu kasuje cudze zmiany gdzie indziej — zjadło wpis D-063.
+   Rozwiązuj hunk po hunku.
+2. **Bloki w `DECISIONS.md` bywają poprzedzone własnym separatorem `---`**, więc
+   sprawdzenie „zaczyna się od `## D-`" musi to dopuszczać. Plik **nie jest**
+   posortowany numerycznie — `main` ma pięć par poza kolejnością i to normalne.
+3. **Kontrola ujemna, która nie oblała, ma TRZY możliwe przyczyny, nie dwie:**
+   słaby sabotaż · test nic nie mierzy · **sabotaż się nie wykonał** (błąd
+   składni, `sed` nietrafiony we wzorzec). Trzecia złapała tej nocy trzy osoby.
+   Sprawdź w pliku, czy sabotaż się nałożył, ZANIM wyciągniesz wniosek.
+4. **Test zależny od kolejności migracji jest kruchy.** `migrate:rollback
+   --step 1` cofa migrację NAJPÓŹNIEJSZĄ, nie własną — oblało dopiero przy
+   scaleniu dwóch gałęzi z tym samym znacznikiem czasu. Wołaj `down()` wprost
+   na swojej migracji.
+5. **Ekran o dwóch stanach bywa mierzony w tym niewłaściwym.** `/nie-pamietam-hasla`
+   ma wariant z formularzem i zapasowy; `.env` i CI wydawały oba zapasowy, więc
+   **formularza odzyskania hasła nie widział ani jeden przebieg, nigdzie**,
+   a raport pisał „✓". Zmierzone: 6 węzłów i zero pól wobec 14 węzłów i jednego
+   pola. Pytaj, w którym stanie mierzysz.
+
+### 15.5. Numery decyzji
+
+Rozdane 10–11.09: **D-092 … D-106**. **Pierwszy wolny: D-107.**
+**D-084, D-086 i D-094 są świadomie puste — nie wypełniaj tych luk.**
+
+Na `main` chodzą teraz dwa testy pilnujące dokumentów: `NumeryDecyzjiMajaWpisyTest`
+(oblewa, gdy kod cytuje numer decyzji bez wpisu w dzienniku) i
+`TabelaStackuMowiPrawdeTest` (każdy wiersz tabeli stacku musi mówić, gdzie go
+sprawdzić, w jednym z czterech dozwolonych kształtów).
+
+### 15.6. Po stronie właściciela — stan na 11.09 rano
+
+Do listy z 14.7 zmiany:
+
+- **Analityka: token Cloudflare Web Analytics**, nie zmienne Plausible.
+  Do tego **wyłącz automatyczne wstrzykiwanie beacona** w panelu Cloudflare —
+  znacznik stawiamy sami, żeby podlegał naszym testom i CSP.
+- **Google Cloud Console** — `docs/infra/DEPLOYMENT_RUNBOOK.md` krok 8D. Bez
+  kluczy przycisku nie ma na ekranie logowania. Trzy zakresy, wszystkie
+  „non-sensitive", więc bez weryfikacji przez Google.
+- **Meta** — `docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md`. **App Review NIE jest
+  potrzebny** dla `public_profile` i `email`; wbrew temu, co zakładaliśmy.
+- **Kopia bazy — nadal cztery czynności i nadal ZERO kopii.** To jest jedyna
+  pozycja na tej liście, przy której utrata bazy jest bezpowrotna.
+- Bez zmian: #204 (piksel śledzący w EmailLabs), #120 (bramka R2), Composer na
+  `actions-runner-kuking-03`, zewnętrzny uptime (#33).
