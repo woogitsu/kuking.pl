@@ -452,7 +452,33 @@
                      więc nie pokazujemy guzika prowadzącego do 403. --}}
                 @if(auth()->id() === $recipe->author_id)
                     @can('update', $recipe)
-                        <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Edytuj przepis</a>
+                        {{-- NAPIS MÓWI, CO JEST ZA PRZYCISKIEM, A NIE JAK NAZYWA
+                             SIĘ CZYNNOŚĆ (issue #364, D-135).
+
+                             Ekran po drugiej stronie ma nagłówek „Dopisz
+                             szczegóły", gdy jest co dopisać
+                             (`pages/recipes/szczegoly.blade.php`). Przycisk
+                             mówił do tej pory zawsze „Edytuj przepis" — a to
+                             dla autora, który właśnie opublikował przepis
+                             z samym zdjęciem i tytułem, brzmi jak poprawianie
+                             błędu, nie jak zaproszenie. Zaproszenie padało
+                             dotąd RAZ, w komunikacie po publikacji, i znikało
+                             razem z nim.
+
+                             Ta sama trasa i ta sama Policy — zmienia się
+                             wyłącznie napis, i zmienia się na prawdziwy.
+                             `CoMoznaDopisac` pyta o dziesięć pól, o zdjęcie
+                             główne oraz o to, czy przepis ma choć jeden
+                             składnik i choć jeden krok; przy wypełnionym
+                             wszystkim napis wraca do „Edytuj przepis", bo
+                             wtedy dopisywać nie ma czego i zaproszenie byłoby
+                             kłamstwem.
+
+                             Reguła stoi w domenie, a nie w tym widoku, bo
+                             odpowiada na nią też komunikat po publikacji
+                             (`RecipeController::store()`) — dwie odpowiedzi na
+                             to samo pytanie muszą być tą samą odpowiedzią. --}}
+                        <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}</a>
                     @endcan
                 @else
                     <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'recipe', 'id' => $recipe->slug]) }}">Zgłoś</a>
