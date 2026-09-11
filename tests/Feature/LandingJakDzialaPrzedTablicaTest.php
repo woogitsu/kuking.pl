@@ -119,8 +119,12 @@ class LandingJakDzialaPrzedTablicaTest extends TestCase
         $gospodarz = $this->moderator();
         $widz = $this->user('widz');
 
-        $osoby = collect(range(1, 5))->map(fn (int $i) => $this->user('home_osoba_'.$i)->getKey());
-        $wpisy = collect(range(1, 5))->map(
+        // SZEŚĆ pozycji redakcyjnych, nie pięć — tyle, ile wynosi sufit tablicy
+        // (`DailyBoard::PEOPLE`/`POSTS`). Przy pięciu automat dobierałby szóstą
+        // i test mierzyłby uzupełnianie, a nie to, o co pyta: że zalogowany
+        // widzi wybór gospodarza W CAŁOŚCI, bez limitu gościa.
+        $osoby = collect(range(1, 6))->map(fn (int $i) => $this->user('home_osoba_'.$i)->getKey());
+        $wpisy = collect(range(1, 6))->map(
             fn (int $i) => Post::factory()->create(['author_id' => $this->user('home_autor_'.$i)->getKey()])->getKey(),
         );
 
@@ -158,8 +162,8 @@ class LandingJakDzialaPrzedTablicaTest extends TestCase
             $tablica['wpisy'],
             'Ekran po zalogowaniu został ograniczony limitem gościa — to jest dokładnie to, czego nie wolno.',
         );
-        $this->assertSame(5, $tablica['osoby']);
-        $this->assertSame(5, $tablica['wpisy']);
+        $this->assertSame(6, $tablica['osoby']);
+        $this->assertSame(6, $tablica['wpisy']);
     }
 
     /**
