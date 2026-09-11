@@ -97,8 +97,14 @@
                 <li><a href="{{ route('discover') }}">Przepisy</a></li>
             </ol>
 
-            <p class="meta mb-2">{{ $recipe->attributionLine() }}</p>
-            <h1 class="mt-0">{{ $recipe->title }}</h1>
+            {{-- Odstępy w nagłówku przepisu robi CSS (`.przepis-uklad > header`
+                 w app.css), a nie klasy `mb-2` / `mt-0` / `mb-4` stojące tu
+                 wcześniej. Utility leży w warstwie PO `components`, więc
+                 dopóki tu były, żadna reguła arkusza nie mogła ich poprawić
+                 — a rytm nagłówka jest własnością strony przepisu, nie
+                 trzech osobnych miejsc w szablonie. --}}
+            <p class="meta">{{ $recipe->attributionLine() }}</p>
+            <h1>{{ $recipe->title }}</h1>
 
             @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
                 {{--
@@ -117,7 +123,7 @@
                 <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
             @endif
 
-            <div class="przepis-autor mb-4">
+            <div class="przepis-autor">
                 <x-avatar :user="$recipe->author" :size="44" />
                 <div class="min-w-0">
                     <a class="author-name" href="{{ route('profile.show', $recipe->author->profile->username) }}">{{ $recipe->author->displayName() }}</a>
