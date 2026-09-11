@@ -170,7 +170,7 @@ final class DailyBoard
             ->whereIn('id', $picks->where('subject_type', DailyPick::TYPE_USER)->pluck('subject_id'))
             ->whereNotIn('id', $hidden)
             ->where('status', User::STATUS_ACTIVE)
-            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->latest('published_at')->limit(3)->with('media')])
+            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')])
             ->get();
 
         $posts = Post::query()
@@ -181,7 +181,20 @@ final class DailyBoard
             // stronie /odkryj co reszta feedu i redakcja mogła wybrać wpis
             // wcześniej, zanim autora zawieszono albo zbanowano.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
-            ->with(['author.profile.avatar', 'media'])
+            // Przepis schowany, usunięty albo zawężony PO wyborze gospodarza
+            // zabiera ze sobą wpis, który go wskazuje (issue #368) — tak samo
+            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej.
+            ->zWidocznymPrzepisem($viewer)
+            ->with([
+                'author.profile.avatar',
+                'media',
+                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
+                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
+                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
+                // pokazałby samo imię autora.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->get();
 
@@ -256,6 +269,26 @@ final class DailyBoard
             ->publiclyVisible()
             ->groupBy('author_id');
 
+        /*
+         * TU ŚWIADOMIE NIE MA `zWidocznymPrzepisem()` (issue #368), choć
+         * podgląd zdjęć niżej i cała reszta tej klasy go ma.
+         *
+         * Powód jest zmierzony, nie estetyczny. `zWidocznymPrzepisem()` to
+         * `EXISTS` na `recipes`, a ten agregat jest tu po to, żeby NIE
+         * liczyć niczego per konto — pilnuje tego
+         * `PropozycjeOsobDoObserwowaniaTest::test_zapytanie_nie_liczy_agregatu_dla_kazdego_konta_osobno`,
+         * czytając plan zapytania i oblewając na `SubPlan`. Dołożenie tu
+         * warunku wstawia do planu `hashed SubPlan` i ten test oblewa.
+         *
+         * Cena jest mała i policzona: ten agregat decyduje wyłącznie
+         * o KOLEJNOŚCI propozycji („kto ostatnio coś pokazał"), a nie o tym,
+         * co widać. Osoba, której jedyną publikacją jest wpis do przepisu
+         * schowanego przez moderację, może więc stanąć na liście propozycji
+         * z pustym paskiem podglądu — bo podgląd (`with('posts')` niżej) tę
+         * bramkę MA. Pokazuje to o jedno konto za dużo, nigdy o jedną treść
+         * za dużo.
+         */
+
         return User::query()
             ->select('users.*')
             ->where('users.status', User::STATUS_ACTIVE)
@@ -267,7 +300,7 @@ final class DailyBoard
             // ile ma obserwujących. Obserwowanie osoby, która nic nie wrzuca,
             // nie zapełnia feedu.
             ->orderByDesc('ostatnie.ostatnia_publikacja')
-            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->latest('published_at')->limit(3)->with('media')])
+            ->with(['profile.avatar', 'posts' => fn ($query) => $query->publiclyVisible()->zWidocznymPrzepisem($viewer)->latest('published_at')->limit(3)->with('media')])
             ->limit($limit)
             ->get();
     }
@@ -325,6 +358,11 @@ final class DailyBoard
             // DiscoverFeed::paginate(): to jest promowanie treści, więc próg
             // jest surowszy niż zwykłe wejście na adres wpisu.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
+            // Widoczność przepisu (issue #368) MUSI być w TYM podzapytaniu,
+            // a nie w zapytaniu po pełne modele niżej: `DISTINCT ON` wybiera
+            // jeden wpis na autora, więc wpis odsiany dopiero potem zabrałby
+            // ze sobą całe miejsce tego autora na tablicy.
+            ->zWidocznymPrzepisem($viewer)
             ->orderBy('posts.author_id')
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id');
@@ -345,7 +383,16 @@ final class DailyBoard
         // przebiegu, a kolejność i tak trzeba narzucić na zewnątrz.
         return Post::query()
             ->whereIn('id', $wybrane)
-            ->with(['author.profile.avatar', 'media'])
+            ->with([
+                'author.profile.avatar',
+                'media',
+                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
+                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
+                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
+                // pokazałby samo imię autora.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             ->orderByDesc('published_at')
             ->orderByDesc('id')

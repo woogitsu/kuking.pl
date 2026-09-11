@@ -14,6 +14,24 @@ ich nie ma.
 
 ---
 
+## Alfa 0.3 — 11 września 2026
+
+### Dla wszystkich
+
+- **Dodany przepis jest wreszcie widoczny tam, gdzie ludzie patrzą.** Do tej
+  pory opublikowany przepis stał wyłącznie na profilu autora i w wyszukiwarce
+  — czyli tam, gdzie trzeba go było już szukać. Teraz pokazuje się w „Świeżo
+  z Kuking", w feedzie osób, które autora obserwują, i na tablicy „kuKINGi na
+  dziś", z tytułem, zdjęciem i przyciskiem „Ugotowałem" od razu pod ręką.
+- **To nie jest kopia przepisu, tylko droga do niego.** Poprawiony tytuł albo
+  wymienione zdjęcie widać w strumieniu natychmiast, bez czekania i bez
+  drugiego kliknięcia.
+- **Przepis schowany, usunięty albo zawężony do obserwujących znika ze
+  strumieni razem z przepisem** — nie zostaje po nim żadna karta.
+- **Dwa kliknięcia „Opublikuj" dają jedną pozycję w strumieniu, nie dwie.**
+
+---
+
 ## Alfa 0.2 — 11 września 2026
 
 ### Dla wszystkich

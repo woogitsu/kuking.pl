@@ -195,7 +195,18 @@
             <ul class="kuking-board-posts">
                 @foreach($posts as $post)
                     <li class="kuking-board-post">
-                        @php $glowne = $post->media->first(fn ($media) => $media->isReady()); @endphp
+                        {{-- WPIS WSKAZUJĄCY PRZEPIS NIE MA WŁASNYCH ZDJĘĆ ANI
+                             TREŚCI (issue #368) — kafelek bierze jedno i drugie
+                             z relacji `$post->recipe`, zamiast trzymać kopię,
+                             która rozjechałaby się przy pierwszej edycji
+                             przepisu. Bez tego w tablicy dnia stałoby samo imię
+                             autora i pusty prostokąt po zdjęciu. --}}
+                        @php
+                            $glowne = $post->media->first(fn ($media) => $media->isReady())
+                                ?? $post->recipe?->heroMedia;
+                            $glowne = ($glowne && $glowne->isReady()) ? $glowne : null;
+                            $opis = $post->body ?: $post->recipe?->title;
+                        @endphp
 
                         {{-- CAŁY WIERSZ JEST JEDNYM ODNOŚNIKIEM, BEZ PRZYCISKU
                              „ZOBACZ" NA KOŃCU (zgłoszenie właściciela).
@@ -242,8 +253,8 @@
                             <span class="kuking-board-post-body">
                                 <span class="author-name">{{ $post->author->displayName() }}</span>
 
-                                @if($post->body)
-                                    <span class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($post->body, 90) }}</span>
+                                @if($opis)
+                                    <span class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($opis, 90) }}</span>
                                 @endif
 
                                 @if(isset($notes[$post->getKey()]))

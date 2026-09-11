@@ -51,10 +51,22 @@ final class DiscoverFeed
                 'author_id',
                 $this->hiddenAuthorIdsFor($viewer),
             ))
+            // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
+            // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
+            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
+            ->zWidocznymPrzepisem($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
-                'recipe:id,title,slug',
+                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
+                // doładowane (issue #368): karta wpisu wskazującego przepis
+                // bierze z relacji WSZYSTKO — tytuł, zdjęcie i plakietkę
+                // widoczności — bo wpis niczego z przepisu nie kopiuje.
+                // Kolumna pominięta w selekcie wróciłaby jako `null`, czyli
+                // karta po cichu napisałaby „publicznie" pod przepisem
+                // widocznym tylko dla obserwujących.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
                 // Patrz komentarz w FollowingFeed::paginate() — karta wpisu
                 // pokazuje tematy TYLKO wtedy, gdy relacja jest już
                 // doładowana, więc bez tego wpisy na „Świeżo z Kuking"
