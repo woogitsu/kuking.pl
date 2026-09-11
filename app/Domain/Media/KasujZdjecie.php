@@ -44,6 +44,11 @@ final class KasujZdjecie
         ['recipes', 'hero_media_id'],
         ['recipes', 'source_scan_media_id'],
         ['recipe_steps', 'media_id'],
+        // Kolaż w hero strony powitalnej. Zdjęcie wskazane do kolażu jest
+        // UŻYWANE, choć nie wisi przy żadnym własnym wpisie autora — bez tego
+        // wiersza sprzątacz osieroconych uznałby je za niczyje i skasował
+        // plik, a strona powitalna straciłaby kafel bez jednego komunikatu.
+        ['hero_picks', 'media_id'],
     ];
 
     /**

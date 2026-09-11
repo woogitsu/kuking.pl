@@ -351,6 +351,21 @@ const EKRANY = [
   { nazwa: 'panel — sygnały automatu', adres: '/admin/sygnaly', moderator: true },
 
   /*
+   * KOLAŻ NA POWITANIE — czwarty ekran panelu na tej liście i pierwszy, który
+   * jest FORMULAREM WYBORU, a nie kolejką. Rząd pól wyboru z miniaturą, nazwą
+   * autora i fragmentem wpisu w jednej linii to dokładnie ten układ, który
+   * przy 320 px i tekście 140% ma najwięcej okazji, żeby wypchnąć stronę
+   * w bok — a tego nie mierzy żaden z trzech ekranów wyżej.
+   *
+   * Wchodzi tu razem z wpisem w `TRESC_PANELU` niżej, bo bez niego ten ekran
+   * ma dwa stany nie do odróżnienia w raporcie: lista zdjęć do wyboru i
+   * zdanie „Nie ma jeszcze ani jednego publicznego zdjęcia". Oba odpowiadają
+   * 200 pod tym samym adresem. Wymusza to
+   * `PomiarDostepnosciSprawdzaTrescPaneluTest` i bardzo dobrze.
+   */
+  { nazwa: 'panel — kolaż na powitanie', adres: '/admin/kolaz-powitalny', moderator: true },
+
+  /*
    * Trzy dokumenty prawne, przepisane dziś w całości (prywatność, regulamin,
    * zasady). Długie strony z tabelami — dokładnie ten kształt treści, który
    * przy 320 px i przy tekście 140% ma największą szansę wypchnąć całą
@@ -1775,6 +1790,16 @@ const TRESC_PANELU = [
     wybor: 'main article.card ul.stack-tight li',
     czego: 'ani jednego oznaczenia automatu',
     progWezlow: 40,
+  },
+  {
+    nazwa: 'panel — kolaż na powitanie',
+    sciezka: '/admin/kolaz-powitalny',
+    // Pole wyboru przy konkretnym zdjęciu, nie sam formularz: nagłówki,
+    // zdanie o licencji i przycisk „Zapisz" stoją na ekranie także wtedy,
+    // gdy nie ma ani jednego publicznego zdjęcia do wskazania.
+    wybor: 'main input[name="zdjecia[]"]',
+    czego: 'ani jednego zdjęcia do wyboru',
+    progWezlow: 60,
   },
 ];
 

@@ -8,6 +8,7 @@ use App\Models\HeroPick;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -337,9 +338,9 @@ final class HeroKolaz
     /**
      * JEDYNA definicja „wpis, którego zdjęcie wolno pokazać nieznajomemu".
      *
-     * @return \Illuminate\Database\Eloquent\Builder<Post>
+     * @return Builder<Post>
      */
-    private function wpisyDoPokazania(): \Illuminate\Database\Eloquent\Builder
+    private function wpisyDoPokazania(): Builder
     {
         return Post::query()
             ->publiclyVisible()

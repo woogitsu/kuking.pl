@@ -267,10 +267,15 @@
                     </x-empty-state>
                 </div>
             @else
-                {{-- Tylko `landing-wpisy`, BEZ `stack`. `.stack` to margines na
-                     dzieciach, a nie flex — w siatce dodawałby się do `gap`
-                     i pierwsza karta w rzędzie miałaby inny odstęp niż druga. --}}
-                <div class="landing-wpisy odstep-nad">
+                {{-- `landing-wpisy-kolumna`, nie dawna `landing-wpisy` (siatka
+                     dwukolumnowa): zgłoszenie właściciela o wpisach „jedno pod
+                     drugim" i o zmarnowanej przestrzeni między nimi. Pomiar obu
+                     układów i uzasadnienie wyboru stoją przy tej klasie
+                     w `resources/css/strony-publiczne.css`.
+
+                     Bez `stack`. `.stack` to margines na dzieciach, a nie flex —
+                     w siatce dodawałby się do `gap`. --}}
+                <div class="landing-wpisy-kolumna odstep-nad">
                     @foreach($posts as $post)
                         <x-post-card :post="$post" />
                     @endforeach

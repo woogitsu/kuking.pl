@@ -146,23 +146,44 @@
      przecinają się z oknem, więc przeglądarka NIE POBIERA ich wcale. Telefon
      nie płaci za cztery pliki, których nie zobaczy.
 
-     Zmierzone (Chromium, `scripts/dostepnosc.mjs` mierzy te same szerokości):
-     na 360×640 px dolna krawędź przycisku „Zostań kuKINGiem" stoi tak samo
-     przed zmianą i po niej — kolaż nie dokłada ani jednego piksela.
+     ZMIERZONE (Chromium 153, te same szerokości, które mierzy
+     `scripts/dostepnosc.mjs`; „dół przycisku" to odległość dolnej krawędzi
+     przycisku „Zostań kuKINGiem" od góry dokumentu):
+
+       okno       skala tekstu   z kolażem   z kolażem wyłączonym
+       320×568    100%             677 px      677 px
+       320×568    140%             956 px      956 px
+       360×640    100%             563 px      563 px
+       360×640    140%             908 px      908 px
+       414×896    100%             537 px      537 px
+       414×896    140%             806 px      806 px
+
+     Różnica wynosi zero na każdej z tych szerokości — kolaż nie dokłada
+     ani jednego piksela nad przyciskiem ani pod nim. (Że przy skali 140%
+     przycisk i tak wychodzi poniżej 640 px, a przy 320×568 poniżej ekranu
+     także bez kolażu, to stan zastany tej strony i osobna sprawa; kolaż go
+     nie pogarsza.)
 
      Telefon nie zostaje przy tym bez zdjęć: dwie sekcje niżej stoi tablica
      „kuKINGi na dziś", a pod nią „Świeżo z Kuking". Kolaż wypełnia szerokość,
      której telefon po prostu nie ma.
 
-     PRZY CZCIONCE PRZEGLĄDARKI 200% KOLAŻU TEŻ NIE MA, I TAK MA BYĆ.
-     `64rem` w zapytaniu medialnym liczy się od czcionki bazowej przeglądarki,
-     więc przy 200% próg wynosi 2048 px i typowy laptop go nie przekracza.
-     Kto powiększa czcionkę dwukrotnie, dostaje jedną kolumnę tekstu — czyli
-     układ, w którym hasło i przycisk są na całą szerokość. Nasze własne
-     ustawienie czytelności (`data-text-scale`) działa inaczej: skaluje tokeny
-     tekstu, nie korzeń dokumentu, więc progu nie rusza i kolaż przy 140%
-     zostaje. To jest różnica zamierzona — tam rośnie sam tekst, tu rośnie
-     wszystko. */
+     O CZCIONCE PRZEGLĄDARKI 200% — ROZUMOWANIE, NIE POMIAR, I TAK TO TU
+     STOI. `64rem` w zapytaniu medialnym liczy się od czcionki bazowej
+     przeglądarki, więc przy jej podwojeniu próg wynosi 2048 px i typowy
+     laptop go nie przekracza: kolaż powinien wtedy zniknąć sam. NIE UDAŁO
+     SIĘ TEGO ZMIERZYĆ w kontenerze — podmiana `font-size` korzenia przez
+     CSSOM (jedyna droga, jaką ma tu Playwright, i ta sama, której używa
+     `scripts/dostepnosc.mjs`) podwaja tekst, ale progów zapytań medialnych
+     NIE RUSZA. Zmierzone jest natomiast to, co z tej drogi wychodzi: przy
+     podwojonym korzeniu i widocznym kolażu strona NIE przewija się w bok na
+     1024, 1280 ani 1512 px. Czyli nawet gdyby próg się nie przesunął, kolaż
+     tego nie psuje.
+
+     Nasze własne ustawienie czytelności (`data-text-scale`) działa inaczej:
+     skaluje tokeny tekstu, nie korzeń dokumentu, więc progu nie rusza
+     i kolaż przy 140% zostaje. To jest różnica zamierzona — tam rośnie sam
+     tekst, tu rośnie wszystko. */
   .hero-kolaz-blok {
     display: none;
     margin: 0;
@@ -361,6 +382,63 @@
   .rzecz-krok,
   .rzecz-tytul,
   .rzecz-opis { overflow-wrap: anywhere; }
+
+  /* --- „Świeżo z Kuking" na stronie powitalnej --------------------------
+
+     JEDEN WPIS POD DRUGIM. Zgłoszenie właściciela, dosłownie: „powinno być
+     jedno pod drugim nawet jak jedno jest dłuższe od drugiego, a nie jedna
+     linijka to nowy wpis i pomiędzy jednym a drugim może być taka
+     przestrzeń zmarnowana".
+
+     CO BYŁO. Siatka `grid` o dwóch kolumnach od 64rem (`.landing-wpisy`
+     w `app.css`, klasa zostaje tam martwa do usunięcia). Siatka układa
+     elementy w RZĘDY, a rząd jest tak wysoki jak najwyższa karta w rzędzie —
+     więc pod każdą niższą kartą zostaje puste pole aż do dołu rzędu.
+
+     ZMIERZONE (Chromium 153, okno 1280×800, pas o wnętrzu 992 px, dziewięć
+     kart z danych demo; „zmarnowane" to suma różnic między wysokością rzędu
+     a wysokością karty):
+
+       układ                                  wysokość   zmarnowane   kart
+                                               listy        w pionie  na 1. ekranie
+       dwie kolumny w rzędach (stan sprzed)      2697 px      388 px       2
+       dwie kolumny CSS `columns` (niezależne)   2576 px      358 px       1
+       jedna kolumna, szerokość pasa (992 px)    5710 px        0 px       1
+       jedna kolumna, 45rem (720 px)   ← WYBRANE 4956 px        0 px       1
+
+     DLACZEGO NIE `columns: 2`, SKORO JEST NAJKRÓTSZE
+     Bo to nie jest ten sam układ, tylko podobnie wyglądający. `columns`
+     wypełnia kolumnę PIERWSZĄ do końca, a potem drugą — czyli na liście
+     ułożonej chronologicznie piąty co do świeżości wpis ląduje na SAMEJ
+     GÓRZE po prawej, nad wpisami starszymi od siebie. Do tego zmierzone
+     wyżej: pustki i tak nie usuwa (358 px zamiast 388 px), bo przeglądarka
+     wyrównuje kolumny i ostatnia kończy się wyżej. Gorsza kolejność za
+     30 px — nie.
+
+     CENA JEDNEJ KOLUMNY, WYPISANA WPROST: lista jest prawie dwa razy
+     dłuższa (2697 → 4956 px), a na pierwszym ekranie komputera widać JEDEN
+     wpis zamiast dwóch. To jest świadome ustępstwo, nie przeoczenie:
+     pierwszy ekran strony powitalnej należy do hasła i przycisku, a nie do
+     tej sekcji — kto tu dociera, już przewija.
+
+     DLACZEGO 45REM, A NIE CAŁE 992 PX
+     `--container-content` to ta sama szerokość, którą ma jedna kolumna kart
+     na `/odkryj` — czyli na stronie, do której ta sekcja jest zajawką.
+     Po kliknięciu „Świeżo z Kuking" karta nie zmienia szerokości i nie ma
+     efektu przeskoku. Przy 992 px wiersz tekstu w karcie sięgałby ~100
+     znaków, czyli grubo poza przedział 55–75 z `docs/UX_50_PLUS.md`.
+
+     `margin-inline: auto` zamiast wyrównania do lewej: kolumna węższa niż
+     pas, dosunięta do jednej krawędzi, zostawiłaby po drugiej stronie pas
+     pustki — czyli dokładnie to, na co właściciel się skarżył, tylko
+     obrócone o 90 stopni. */
+  .landing-wpisy-kolumna {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-5);
+    max-width: var(--container-content);
+    margin-inline: auto;
+  }
 
   /* --- Pas ciemny: „Ugotowałem" ----------------------------------------
      `.blok-ciemny` przestawia paletę na kontenerze, więc wszystko w środku

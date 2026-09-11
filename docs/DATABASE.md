@@ -2970,6 +2970,73 @@ Wybór redakcyjny na tablicę „kuKINGi na dziś". Świadomie bez kolumny
 z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 (patrz `../AGENTS.md` §8).
 
+## `hero_picks`
+
+Zdjęcia wskazane ręcznie do **kolażu w hero strony powitalnej** (migracja
+`2026_09_11_800000_utworz_hero_picks`). Zgłoszenie właściciela: „na stronie
+głównej na samej górze po prawej stronie można zrobić kolaż w którym będą
+najładniejsze (albo wybrane przez admina) zdjęcia użytkowników".
+
+```sql
+CREATE TABLE hero_picks (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    media_id    uuid NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    post_id     uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    position    smallint NOT NULL DEFAULT 0,
+    curator_id  uuid REFERENCES users(id) ON DELETE SET NULL,
+    created_at  timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_media_id_unique UNIQUE (media_id);
+ALTER TABLE hero_picks ADD CONSTRAINT hero_picks_position_check CHECK (position >= 0);
+CREATE INDEX hero_picks_position_index ON hero_picks (position);
+```
+
+Kształt bliźniaczy do `daily_picks` i z tego samego powodu: **nie ma tu ani
+jednej kolumny z punktami, liczbą polubień ani wynikiem.** To nie jest tabela
+rankingowa (`../AGENTS.md` §12).
+
+**Dlaczego dwa klucze obce, a nie sam `media_id`.** O tym, czy zdjęcie wolno
+pokazać nieznajomemu, nie decyduje wiersz w `media`, tylko WPIS, przy którym
+ono wisi (`posts.visibility`, `posts.status`, stan konta autora). To samo
+zdjęcie bywa przypięte do kilku wpisów (`post_media` jest wiele-do-wielu),
+więc bez zapisania, którego wpisu dotyczy wskazanie, nie da się później
+sprawdzić, czy wciąż jest publiczny.
+
+**Kaskada nie jest zabezpieczeniem prywatności.** `ON DELETE CASCADE` sprząta
+wiersz po skasowanym wpisie albo zdjęciu — i tyle. Wpis przełączony na
+prywatny, schowany przez moderatora, autor zawieszony: to wszystko zostawia
+wiersz na miejscu. Filtr widoczności (`publiclyVisible()` +
+`tylkoOdAktywnychAutorow()` + `Media::isReady()`) stoi w
+`App\Domain\Feed\HeroKolaz` i liczy się **przy każdym wyświetleniu strony
+powitalnej**, nie przy zapisie. Sprawdza to
+`KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest`.
+
+**UNIQUE na `media_id`** pilnuje, żeby to samo zdjęcie nie weszło do kolażu
+dwa razy, i jest zarazem hamulcem na wyścig przy podwójnym kliknięciu
+„Zapisz" (`Admin\HeroKolazController` przechwytuje zderzenie i kończy cicho —
+ten sam wzorzec co `Admin\DailyBoardController`).
+
+**Rollback: `down()` ODMAWIA, gdy w tabeli jest wybór człowieka (D-088).**
+`DROP TABLE` kasuje cały wybór, a po `down()` prawie zawsze idzie kolejny
+`migrate` — tabela wraca pusta, kolaż po cichu przechodzi w tryb automatyczny
+i strona powitalna pokazuje cztery zdjęcia, których nikt nie oglądał. Błędu
+nie ma czego zauważyć. Odmowa jest **wąska**: pusta tabela i świeża baza
+przechodzą bez pytania. Świadome skasowanie:
+
+```bash
+KUKING_ROLLBACK_KASUJ_KOLAZ_POWITALNY=true php artisan migrate:rollback
+```
+
+Przed cofnięciem warto zapisać wybór:
+
+```sql
+\copy (SELECT media_id, post_id, position FROM hero_picks ORDER BY position)
+TO 'hero_picks.csv' CSV HEADER
+```
+
+Strażnika i obie kontrole dodatnie sprawdza
+`CofniecieMigracjiNieKasujeKolazuTest`.
+
 ## Normalizacja adresu e-mail
 
 `User::email` ma mutator wymuszający małe litery i przycięcie spacji.
