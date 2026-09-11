@@ -50,7 +50,29 @@ SKRYPT_PROBY="${KATALOG}/scripts/proba-odtworzenia.sh"
 SKRYPT_KOPII="${KATALOG}/scripts/kopia-lokalna.sh"
 
 export PGPASSWORD="${PGPASSWORD:-kuking}"
-SERWER="postgresql://kuking:kuking@127.0.0.1:5432/postgres"
+# ─────────────────────────────────────────────────────────────────────────────
+#  POŚWIADCZENIA BIERZEMY ZE ŚRODOWISKA, NIE Z PAMIĘCI
+#
+#  Do 11 września stało tu na sztywno `kuking:kuking`. Przechodziło lokalnie,
+#  bo tyle ma nasz kontener deweloperski — i OBLEWAŁO CAŁY ZESTAW w CI, gdzie
+#  usługa Postgresa startuje z `POSTGRES_PASSWORD: secret` (`ci.yml`). Objaw
+#  był mylący: 44 sprawdzenia na 75 czerwone, każde z innym komunikatem,
+#  a przyczyna jedna — `FATAL: password authentication failed for user
+#  "kuking"`. Wyglądało to na usterkę skryptów kopii, a było niemożnością
+#  zalogowania się do bazy.
+#
+#  Te same nazwy zmiennych czyta aplikacja (`config/database.php`), więc test
+#  łączy się dokładnie tam, gdzie ona. Wartości zapasowe są lokalne, żeby
+#  `bash tests/skrypty/proba-odtworzenia.sh` dalej działało bez ustawiania
+#  czegokolwiek.
+# ─────────────────────────────────────────────────────────────────────────────
+BAZA_UZYTKOWNIK="${DB_USERNAME:-kuking}"
+BAZA_HASLO="${DB_PASSWORD:-kuking}"
+BAZA_HOST="${DB_HOST:-127.0.0.1}"
+BAZA_PORT="${DB_PORT:-5432}"
+BAZA_POLACZENIE="${BAZA_UZYTKOWNIK}:${BAZA_HASLO}@${BAZA_HOST}:${BAZA_PORT}"
+
+SERWER="postgresql://${BAZA_POLACZENIE}/postgres"
 PSQL=(psql -q -U kuking -h 127.0.0.1)
 
 # Nazwy baz są UNIKALNE DLA WORKTREE, bo w tym kontenerze pracuje równolegle
@@ -134,7 +156,7 @@ echo "── Fikstura: schemat po migracjach ──"
 posprzataj
 "${PSQL[@]}" -d postgres -c "CREATE DATABASE ${BAZA_ZRODLOWA} OWNER kuking" >/dev/null 2>&1
 
-DSN_ZRODLA="postgresql://kuking:kuking@127.0.0.1:5432/${BAZA_ZRODLOWA}"
+DSN_ZRODLA="postgresql://${BAZA_POLACZENIE}/${BAZA_ZRODLOWA}"
 
 if ! (cd "${KATALOG}" && APP_BASE_PATH="${KATALOG}" DB_DATABASE="${BAZA_ZRODLOWA}" \
   php artisan migrate --force >/dev/null 2>&1); then
@@ -205,7 +227,7 @@ sprawdz "kopia zostawiła plik .meta" "tak" \
 KATALOG_KADLUBKA="$(mktemp -d "${TMPDIR:-/tmp}/kopia-kadlubek.XXXXXX")"
 
 wyjscie="$(bash "${SKRYPT_KOPII}" \
-  --zrodlo "postgresql://kuking:kuking@127.0.0.1:5432/nie_ma_takiej_bazy_kuking" \
+  --zrodlo "postgresql://${BAZA_POLACZENIE}/nie_ma_takiej_bazy_kuking" \
   --katalog "${KATALOG_KADLUBKA}" 2>&1)"
 kod=$?
 sprawdz "„pg_dump się nie udał” ma własny kod wyjścia (30)" "30" "${kod}"
@@ -400,7 +422,7 @@ sprawdz_zawiera "…mówiąc, że pusta kopia jest gorsza od jej braku" \
 
 # Zrzut PUSTEJ bazy: poprawne archiwum, czytelne, tylko bez niczyich danych.
 "${PSQL[@]}" -d postgres -c "CREATE DATABASE ${BAZA_PROBNA}_pusta OWNER kuking" >/dev/null 2>&1
-pg_dump "postgresql://kuking:kuking@127.0.0.1:5432/${BAZA_PROBNA}_pusta" \
+pg_dump "postgresql://${BAZA_POLACZENIE}/${BAZA_PROBNA}_pusta" \
   --format=custom --no-owner --file="${KATALOG_KOPII}/pusta-baza.dump" 2>/dev/null
 "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}_pusta WITH (FORCE)" >/dev/null 2>&1
 
@@ -545,7 +567,7 @@ echo "── KONTROLA DODATNIA SOND (pułapka 4 z PULAPKI_TESTOW.md) ──"
 pg_dump "${DSN_ZRODLA}" --format=custom --no-owner --file="${KATALOG_KOPII}/do-kontroli.dump"
 "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA} WITH (FORCE)" >/dev/null 2>&1
 "${PSQL[@]}" -d postgres -c "CREATE DATABASE ${BAZA_PROBNA} OWNER kuking" >/dev/null 2>&1
-DSN_PROBNEJ="postgresql://kuking:kuking@127.0.0.1:5432/${BAZA_PROBNA}"
+DSN_PROBNEJ="postgresql://${BAZA_POLACZENIE}/${BAZA_PROBNA}"
 pg_restore --dbname="${DSN_PROBNEJ}" --no-owner --no-privileges \
   "${KATALOG_KOPII}/do-kontroli.dump" >/dev/null 2>&1
 
