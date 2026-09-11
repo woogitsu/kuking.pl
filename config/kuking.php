@@ -53,6 +53,46 @@ return [
                 : env('KUKING_MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
         ),
 
+        /*
+         * PUBLICZNE ADRESY BUCKETÓW — LISTA DO OSTRZELANIA, NIE DO UŻYWANIA.
+         *
+         * Ta lista nie służy do budowania adresów zdjęć. Żaden kod serwujący
+         * jej nie czyta — adresem zdjęcia jest trasa `media.show` (audyt
+         * W7-02). Służy WYŁĄCZNIE bramce `kuking:bramka-r2`, która pod każdy
+         * z tych adresów wysyła prawdziwe żądanie po prawdziwy oryginał
+         * i wymaga odmowy.
+         *
+         * PO CO TO ISTNIEJE. Issue #120 wymaga dowodu, że oryginał nie wyjdzie
+         * „przez KAŻDĄ publiczną ścieżkę". Bramka umiała wyprowadzić
+         * z konfiguracji tylko jedną z nich — endpoint konta S3 — bo
+         * pozostałe dwie nie są w tym repozytorium zapisane nigdzie: własna
+         * domena (`cdn.kuking.pl`) i `r2.dev` żyją w panelu Cloudflare,
+         * a klucz `url` został z dysków mediów świadomie zdjęty. Bramka
+         * MILCZAŁA więc o najgroźniejszej drodze — tej, którą naprawdę idzie
+         * przeglądarka — i świeciła na zielono, nie zapytawszy o nią ani razu.
+         *
+         * DLACZEGO WYPISUJE SIĘ TU TEŻ ADRESY, KTÓRE MAJĄ BYĆ WYŁĄCZONE.
+         * To jest cała istota tej listy i najłatwiejsza rzecz do zrozumienia
+         * na odwrót. Adres, którego nikt nie zadeklarował, nie zostanie
+         * zapytany — a niezapytany adres nie jest dowodem na nic. Żeby bramka
+         * udowodniła, że `r2.dev` jest wyłączone, MUSI dostać ten adres
+         * `pub-….r2.dev` i dostać spod niego odmowę. Puste to nie „nic nie
+         * jest publiczne", to „nie wiemy" — i bramka tak to właśnie liczy:
+         * jak nieprzejście.
+         *
+         * Format: adresy rozdzielone przecinkami, z protokołem, bez klucza
+         * na końcu — bramka dokleja klucz oryginału z bazy sama. Na przykład
+         * `https://cdn.kuking.pl,https://pub-abc123.r2.dev`.
+         *
+         * Domyślnie pusto, bo wartość jest inna dla każdego środowiska i nie
+         * ma sensownej wartości domyślnej. Pusto na dysku lokalnym nic nie
+         * psuje — tam bramka odmawia startu wcześniej, na sterowniku dysku.
+         */
+        'publiczne_adresy' => array_values(array_filter(
+            array_map('trim', explode(',', (string) env('KUKING_R2_PUBLICZNE_ADRESY', ''))),
+            static fn (string $adres): bool => $adres !== '',
+        )),
+
         // 15 MB — tyle, żeby zdjęcie z telefonu przeszło bez kombinowania.
         //
         // UWAGA NA `docker/php.ini`: ta liczba, pomnożona przez
