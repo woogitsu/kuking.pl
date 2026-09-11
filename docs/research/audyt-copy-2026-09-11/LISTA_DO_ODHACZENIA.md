@@ -48,14 +48,30 @@ i przycisk kłamiący o tym, co robi, są usterkami niezależnie od gustu.
 | A4 | **„Podgląd: tak zobaczą to inni"** przy przepisie, który może być prywatny | `Recipe` ma kolumnę `visibility`; dla prywatnego przepisu zdanie jest nieprawdziwe | robię |
 | A5 | **„To zostaje w rodzinie"** przy przepisie, który może być publiczny | jw., odwrotny kierunek | robię |
 | A6 | **„Potrzebny tylko wtedy, gdy zapomnisz hasła"** o adresie e-mail | Nieprawda: jest logowanie linkiem (D-056), zmiana adresu i powiadomienia | robię |
-| A7 | **„To najczęściej czytana część przepisu"** | Twierdzenie analityczne, którego nikt nie zmierzył | robię |
-| A8 | **„Zajmie minutę"** | Mierzalna obietnica, której nie mierzymy | robię |
+| A7 | **„To najczęściej czytana część przepisu"** | Twierdzenie analityczne, którego nikt nie zmierzył. **Stoi w TRZECH miejscach**, audyt wymienia jedno | robię |
+| A8 | **„Zajmie minutę"** | Mierzalna obietnica, której nie mierzymy. **Stoi w SZEŚCIU miejscach**, audyt wymienia jedno — i te sześć nie mówi o tym samym (rejestracja to nie dołożenie drugiego zdjęcia), więc część może być prawdziwa | robię |
 | A9 | **Przykład hasła `zielonapietruszkarano`** | Uczy przewidywalnego wzorca bez separatorów. **Jest w TRZECH miejscach**, audyt wymienia jedno — trzecie to komunikat walidacji `password.min`, czyli ten, który człowiek widzi dokładnie wtedy, gdy hasło odrzucono | robię |
 | A10 | **„zapisz szkic" obok autozapisu** | Dwa modele działania na jednym ekranie — człowiek nie wie, który obowiązuje | robię |
 
 **Uwaga do A2:** stopki nie usuwam, tylko zastępuję. Komentarz w pliku mówi,
 że jest częścią funkcji — sygnalizuje, że tablica NIE jest tabelą wyników,
 co wprost służy zakazowi rankingów z §12. Usunięcie odsłoniłoby ten problem.
+
+**Uwaga do A7 i A8:** audyt wymienia po jednym adresie, a policzyłem grepem
+po trzy i po sześć. Naprawa jednego adresu zostawiłaby to samo zdanie
+na innym ekranie — czyli usterkę przykrytą, nie zdjętą. A8 dostaje przy tym
+rozstrzygnięcie, nie kasowanie hurtem: „liczba w tekście" nie jest usterką,
+usterką jest liczba, której nikt nie zmierzył. Jeśli któraś z tych sześciu
+obietnic jest prawdziwa, zostaje.
+
+**Zrobione poza listą, bo to nie gust, a zobowiązanie z §5 (`cel: WCAG 2.2 AA`):**
+„kliknij **zielony** przycisk" i „popraw to, co jest **zaznaczone na czerwono**"
+wskazywały element wyłącznie kolorem, czyli łamały kryterium 1.4.1. Pięć
+miejsc, PR #325 — piąte znalazł dopiero test, bo napis jest składany w PHP
+(`LoginLinkController`), a ręczne przejście po widokach go nie widziało.
+W tym jednym miejscu nazwy przycisku podać nie wolno, bo list dla konta
+i dla adresu bez konta ma inny przycisk, a D-056 zabrania zdradzać, kto ma
+konto — zostało „wiadomość z **jednym** przyciskiem".
 
 ---
 
@@ -85,10 +101,15 @@ Pogrupowane, żeby nie odhaczać dwudziestu pozycji osobno.
 | C6 | **Bezpieczeństwo: nie pisać *o* starszej osobie** | „u wnuka, w bibliotece albo u znajomych" → „na wspólnym albo cudzym urządzeniu" | ☐ TAK ☐ NIE |
 | C7 | **Przegląd 36 wystąpień „nic nie"** — każde z osobna, zostawić te, które niosą informację | „nic nie zginie" przy autozapisie niesie informację; „nic nie musisz" nie niesie nic | ☐ TAK ☐ NIE |
 
-**C3 zawiera jedną rzecz, która jest też dostępnością, nie tylko tonem:**
-„kliknij **zielony** przycisk" wiąże instrukcję z kolorem. `AGENTS.md` §5
-zakazuje, żeby cokolwiek ważnego zależało od koloru. Jeśli odhaczysz C3 na
-`NIE`, i tak poprawię samo to zdanie.
+**C3 zawierało jedną rzecz, która jest dostępnością, nie tonem — i ta jest
+już ZROBIONA, bez czekania na Twoje odhaczenie: PR #325.**
+„kliknij **zielony** przycisk" wiązało instrukcję z kolorem. Sprostowanie
+własnego uzasadnienia: §5 nie wymienia koloru w swojej liście — zobowiązanie
+bierze się z ostatniej linijki tej sekcji („cel: **WCAG 2.2 AA**") i z
+kryterium **1.4.1 „Użycie koloru"**, które mówi, że kolor nie może być
+jedyną drogą do elementu. Wyszło pięć miejsc, nie jedno, i piąte znalazł
+dopiero test, bo napis jest składany w PHP. Odhaczenie C3 na `NIE` nic tu
+już nie zmienia; resztą C3 (styl autora zamiast instrukcji) nie ruszałem.
 
 ---
 

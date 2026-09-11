@@ -22,8 +22,8 @@ nieaktualnych z tego powodu, nie z powodu błędu autora.
 | „zapisz szkic" obok autozapisu | **potwierdzony** | dwa modele działania na jednym ekranie |
 | „Potrzebny tylko wtedy, gdy zapomnisz hasła" o adresie | **potwierdzony** | `register.blade.php`; nieprawda, bo jest logowanie linkiem (D-056) i zmiana adresu |
 | Sprzeczność na 419 | **potwierdzony, i gorszy** | patrz niżej |
-| „To najczęściej czytana część przepisu" | **potwierdzony** | twierdzenie analityczne bez pomiaru |
-| „Zajmie minutę" | **potwierdzony** | `landing.blade.php` |
+| „To najczęściej czytana część przepisu" | **potwierdzony, w TRZECH miejscach** | `recipe-wizard.blade.php:1050`, `pages/recipes/create.blade.php:165`, `pages/cooked/create.blade.php:57` (skrócone: „To najczęściej czytana część.") — audyt wymienia jedno |
+| „Zajmie minutę" | **potwierdzony, w SZEŚCIU miejscach** | `landing.blade.php:202` (z audytu), `auth/login-link.blade.php:39`, `components/comment-thread.blade.php:202`, `components/szyna-profilu.blade.php:100`, `pages/add.blade.php:64`, `pages/posts/show.blade.php:87` |
 | „Jutro będzie tu ktoś inny" | **potwierdzony, ale z inną przyczyną** | patrz niżej |
 | Przykład hasła `zielonapietruszkarano` | **potwierdzony** | w TRZECH miejscach: `register.blade.php:70`, `settings/security.blade.php:21` i `RegisterController.php:167` (`password.min`) — audyt wymienia jedno |
 | „Obserwuj" dla gościa w `pages/search.blade.php` | **ZŁY PLIK** | patrz niżej |
