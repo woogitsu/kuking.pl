@@ -1111,6 +1111,54 @@ w bazie. Nic nie trzeba backfillować.
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+**`posts.recipe_id` — wpis WSKAZUJĄCY przepis** (issue #368). Kolumna istnieje
+od pierwszej migracji (`2026_09_05_000500_create_posts_tables`, `nullable`,
+`nullOnDelete`) i **nie zmienia się tą pracą ani o jeden bajt** — zmienia się
+to, kto ją wypełnia i co z niej wynika. Nie ma tu migracji, bo nie ma zmiany
+schematu.
+
+Od issue #368 publikacja przepisu tworzy dokładnie JEDEN wiersz `posts`
+z `recipe_id` wskazującym przepis, `body = null` i bez ani jednego wiersza
+w `post_media` (`App\Domain\Recipes\WpisWskazujacyPrzepis`). Bez tego
+opublikowany przepis nie trafiał do żadnego strumienia — wszystkie trzy pytają
+wyłącznie o `posts`.
+
+**Ten wiersz niczego z przepisu nie kopiuje.** Tytuł, zdjęcie i widoczność
+karta i zapytania biorą z relacji, a nie z kolumn wpisu:
+
+- tytuł i zdjęcie — `resources/views/components/post-card.blade.php`
+  z `$post->recipe` i `$post->recipe->heroMedia`;
+- widoczność — `Post::scopeZWidocznymPrzepisem()`, czyli
+  `Recipe::scopeWidoczneDla()` na wskazywanym przepisie.
+
+Dlatego usunięcie przepisu (także miękkie), ukrycie go przez moderację,
+zawężenie widoczności i zmiana tytułu **nie wymagają ani jednego zapisu
+na `posts`**. Wiersz zostaje w bazie nietknięty i po prostu przestaje
+wychodzić ze strumieni. Kopiowanie tych czterech rzeczy na wpis dałoby cztery
+niezależne miejsca do rozjechania się.
+
+`posts.visibility` takiego wiersza to zawsze `'public'` i **nie jest to kopia
+widoczności przepisu**, tylko brak własnego zawężenia: wpis nie niesie treści,
+której miałby strzec.
+
+**Brak `UNIQUE (recipe_id)` jest świadomy.** Jeden wpis na przepis pilnuje
+bramka w transakcji publikacji, idąca po blokadzie wiersza `recipes`. Twardy
+indeks unikalny zabroniłby czegoś, co jest dozwolone i pożądane osobno: wpisu
+„ugotowałem z tego przepisu", który TEŻ niesie `recipe_id` i ma własne zdjęcie
+(patrz `cooked_events` i `PublishPost`). Ograniczenie w bazie musiałoby
+odróżniać te dwa rodzaje wierszy, a do tego potrzebna byłaby kolumna, której
+świadomie nie dodajemy.
+
+**Przepisy opublikowane przed tą zmianą** uzupełnia komenda
+`kuking:dopisz-wpisy-przepisow` (idempotentna, z `--na-sucho`) — nie migracja,
+bo to zmiana danych, nie schematu.
+
+**Rollback:** brak migracji do cofnięcia. Wycofanie zachowania to usunięcie
+wywołania `WpisWskazujacyPrzepis::dopisz()` z `PublishRecipe`; wiersze, które
+już powstały, kasuje się wtedy ręcznie
+(`delete from posts where recipe_id is not null and body is null` — z uwagą, że
+wpisy „ugotowałem" mają `body` albo zdjęcia, a te są cudzą treścią i zostają).
+
 **`posts.display_mode` — jak autor chce pokazać kilka zdjęć** (issue #92,
 migracja `2026_09_06_120000_add_display_mode_to_posts`).
 

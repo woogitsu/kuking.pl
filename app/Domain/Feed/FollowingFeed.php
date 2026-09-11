@@ -62,10 +62,22 @@ final class FollowingFeed
             // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
             // zawieszonych) to osobna decyzja, nie poprawka luki.
             ->tylkoOdAktywnychAutorow()
+            // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
+            // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
+            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
+            ->zWidocznymPrzepisem($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
-                'recipe:id,title,slug',
+                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
+                // doładowane (issue #368): karta wpisu wskazującego przepis
+                // bierze z relacji WSZYSTKO — tytuł, zdjęcie i plakietkę
+                // widoczności — bo wpis niczego z przepisu nie kopiuje.
+                // Kolumna pominięta w selekcie wróciłaby jako `null`, czyli
+                // karta po cichu napisałaby „publicznie" pod przepisem
+                // widocznym tylko dla obserwujących.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
                 // Bez tego karta wpisu (post-card.blade.php) nie pokaże
                 // tematów tego wpisu — `relationLoaded()` tam celowo NIE
                 // dociąga ich sama, żeby nie odpalić zapytania per wpis.
@@ -106,6 +118,12 @@ final class FollowingFeed
             ->whereIn('author_id', $viewer->following()->pluck('users.id')->all())
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
             ->tylkoOdAktywnychAutorow()
+            // TEN SAM WARUNEK CO W `paginate()` (issue #368) i z tego samego
+            // powodu, dla którego stoi tu `tylkoOdAktywnychAutorow()`: te dwie
+            // metody MUSZĄ się zgadzać. Inaczej feed złożony wyłącznie
+            // z wpisów do przepisów schowanych przez moderację meldowałby
+            // „pusto" i jednocześnie coś pokazywał — albo odwrotnie.
+            ->zWidocznymPrzepisem($viewer)
             ->doesntExist();
     }
 }
