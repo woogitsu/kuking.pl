@@ -14,6 +14,68 @@ ich nie ma.
 
 ---
 
+## Alfa 0.6 — 11 września 2026
+
+### Dla wszystkich
+
+- **Nazwa serwisu wygląda wszędzie tak samo: kuKING, dwukolorowo.** Do tej pory
+  w zdaniach pisaliśmy „Kuking", a dwukolorowy zapis trzymaliśmy na jedno
+  miejsce na ekranie. Teraz nazwa jest pisana tak samo w nagłówkach, w tekście
+  i w stopce — bo to nazwa mieszkańca tego serwisu, nie żart, który trzeba
+  racjonować. Nazwa zostaje zwykłym „Kuking" tam, gdzie kolory nie działają
+  (tytuł okna, temat listu, opis zdjęcia) oraz w komunikatach o błędach,
+  w sprawach moderacyjnych i w dokumentach — tam nie ma miejsca na charakter.
+- **Przycisk na stronie powitalnej mówi teraz, co obiecujemy:** „Zostań
+  kuKINGiem — bez opłat i bez reklam". Zamiast „to darmowe", które brzmiało
+  jak sprzedaż.
+- **Podpowiedź pod komentarzem mówi, ILE wystarczy, a nie JAK pisać:**
+  „Choćby jedno zdanie. Pytanie do autora też jest w porządku."
+- **Mniej tłumaczenia się w tekstach.** Na stronie „Napisz do nas" cztery różne
+  miejsca zapewniały, że odpisuje człowiek, a nie automat — zostało jedno, to,
+  za którym stoi konkret. Powtarzane cztery razy budziło dokładnie to
+  podejrzenie, które miało uspokoić.
+- **Ekran „Dopisz szczegóły" przestał obiecywać, że nie trzeba przewijać.**
+  Stało tam „nie musisz nic przewijać ani szukać", a zmierzona wysokość tej
+  strony to od **10 249 px** (sam tytuł i puste wiersze) do **16 586 px**
+  (osiem składników i sześć kroków) — czyli od 16 do 26 ekranów telefonu. Cała
+  informacja została: wszystko jest na jednej stronie, nic nie jest
+  obowiązkowe, wypełnij tyle, ile chcesz, a poprawnie wpisane dane nie zginą.
+- **„Świeżo z Kuking" nie ma już pustej prawej kolumny.** U zalogowanych trzecia
+  kolumna była zarezerwowana i puściusieńka — **656 px pustki** przy szerokim
+  oknie, **452 px** przy węższym — a gość dostawał całą stronę zwiniętą do
+  wąskiej szpalty. Teraz stoi tam tablica „kuKINGi na dziś", ta sama, która na
+  tym ekranie już była, tylko niżej. Strona skróciła się z 10 557 do 8 898 px,
+  a kolumna z tekstem ma tyle samo miejsca co przedtem.
+- **Odstępy na stronie przepisu.** Pięć par bloków tekstu stało dosłownie na
+  zero pikseli — tytuł kleił się do wiersza z autorem, nagłówek „Składniki" do
+  listy, „Skąd ten przepis" do pierwszego akapitu. Teraz każda para ma odstęp,
+  ten sam na telefonie i na komputerze, i rośnie razem z tekstem, gdy ktoś
+  powiększy czcionkę w przeglądarce.
+- **Źródło przepisu pokazuje się dokładnie tak, jak je wpisałeś.** Widok
+  doklejał z przodu „Po", więc wpisane „Nasze smaki" wychodziło jako „Po Nasze
+  smaki.", a „po mamie" jako „Po po mamie.". Samo pytanie w formularzu też się
+  zmieniło — pyta teraz „od kogo albo skąd", bo o to właśnie chodzi.
+- **Regulamin i polityka prywatności mówią o usłudze, a nie o sobie.** Zniknęły
+  zdania o tym, jak dokument był pisany i co sobie o nim myślimy. **Wszystkie
+  niewygodne fakty zostały** — również te o braku podpisanych umów powierzenia,
+  braku inspektora ochrony danych i nieustalonym okresie życia danych
+  w kopiach zapasowych. Poprawił się przy tym błąd merytoryczny: §8 mówił
+  „przez pierwsze 24 godziny", a termin liczy się od pierwotnej decyzji.
+- **W logotypie kolor marki został tylko na „King".** „.pl" jest ciemne, tak jak
+  „ku" — jeden akcent w znaku zamiast dwóch.
+- **Awatar bez zdjęcia przestał się zwijać do rozmiaru litery.** Konto, które nie
+  dodało zdjęcia profilowego, pokazuje inicjał w kółku o właściwej wielkości.
+- **Wyłączony przycisk w karuzeli nie drga przy naciśnięciu**, a główne pole
+  wyszukiwania ma tę samą wysokość co pozostałe pola w serwisie.
+
+### Pod spodem (bez zmian na ekranie, ale warto wiedzieć)
+
+- **Komendy konsolowe odmieniają rzeczownik przez liczbę.** „Dopisano 1 wpisów"
+  zniknęło z czterech komend. Reguła odmiany była w projekcie od dawna — po
+  prostu nie była tam użyta.
+
+---
+
 ## Alfa 0.5 — 11 września 2026
 
 ### Dla wszystkich

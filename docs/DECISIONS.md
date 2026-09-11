@@ -162,7 +162,7 @@ Rozstrzyga to też pozorną sprzeczność z zakazem z `brand/MASCOT_CONCEPT.md`
 
 ## D-009 · Dawka gry słowem: umiarkowana
 
-**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+**Data:** 5 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-145** (limit „raz na ekran") **i D-147** (odrzucenie czasownika). Lista miejsc zakazanych zostaje w mocy.
 
 Wybrana spośród trzech przedstawionych wariantów (minimalna / umiarkowana / mocna).
 
@@ -391,7 +391,7 @@ powstanie nad istniejącymi Akcjami.
 
 ## D-015 · Logotyp brzmi „KuKing.pl", teksty dalej piszą „Kuking"
 
-**Data:** 6 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
+**Data:** 6 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-145** — tekst ciągły pisze dziś `kuKING` dwukolorowo, a akcent koloru w samym logotypie leży wyłącznie na „King" (PR #394). Rozróżnienie logotypu od zapisu w zdaniu zostaje w mocy.
 
 Wybrana spośród trzech wariantów zapisu w logotypie: `KUKING` (stan poprzedni),
 `KuKing.pl` (UI kit v2) i `Kuking.pl`.
@@ -7028,6 +7028,71 @@ użytkownika o jego danych albo o zgodzie". Jeśli produkt kiedyś uzna
 preferencję wyglądu albo prezentacji treści za wartą tej samej ochrony,
 to osobna decyzja, nie rozszerzenie tej.
 
+### Uzupełnienie z 11 września 2026: ten przegląd był NIEKOMPLETNY
+
+**Data uzupełnienia:** 11 września 2026 · PR #327 · zamyka #287
+
+Zdanie „żadne z tych trzech nie dotyczy zgody ani zakresu usunięcia danych"
+jest prawdziwe o tych trzech i **niekompletne jako przegląd**. Przegląd
+`database/migrations/` przy #287 przeoczył czwarty przypadek tej samej
+choroby — `2026_09_06_140000_add_memories_to_users_and_posts` — i nie
+wymienił go wcale, ani jako naprawionego, ani jako świadomie pominiętego.
+Migracja łamie regułę tego wpisu **w jej własnych słowach**, bo reguła
+nazywa **widoczność** wprost.
+
+Zmierzone na prawdziwej bazie cyklem `migrate:rollback` → `migrate`, czyli
+tym, co robi `migrate:refresh` w CI i awaryjny rollback wdrożenia:
+
+```text
+PRZED:    memories_enabled=false  hide_as_memory=true
+PO CYKLU: memories_enabled=true   hide_as_memory=false
+```
+
+Po ludzku: **wyłącznik, którym osoba w żałobie wyłączyła wspomnienia, włącza
+się sam, a schowany wpis z przepisem po mamie wraca na stronę główną.** Obie
+kolumny są `NOT NULL DEFAULT`, więc kolejny `migrate` odtwarza je jako
+**odwrotność** obu decyzji.
+
+Dlaczego to NIE jest ten sam przypadek co `theme` i `posts.display_mode`,
+pominięte wyżej świadomie i słusznie: to nie jest preferencja wygody.
+Własna migracja nazywa pokazanie takiego wpisu bez ostrzeżenia „okrutnym",
+`WspomnieniaTest` mówi o „zrobieniu komuś przykrości drugi raz, po tym jak
+poprosił, żeby przestać", a kolumna siedzi w ustawieniach **prywatności**
+(`PrivacySettingsController`), nie wyglądu.
+
+**Naprawione:** `down()` liczy osobno konta z wyłączonymi wspomnieniami
+i schowane wpisy **przed pierwszym `dropColumn`** i odmawia z instrukcją.
+Dwie gałęzie warunku mają **osobne** sabotaże w kontroli ujemnej, bo dwa
+liczniki nie są ozdobą: konto z włączonymi wspomnieniami i jednym schowanym
+wpisem nie ma nic w pierwszym liczniku, a ma co stracić. Sabotaż
+„strażnik za `dropColumn`" oblewa wszystkie cztery testy. Stan zakładany
+przez **prawdziwe trasy** (`settings.privacy`, `wspomnienia.ukryj`), nie
+ręcznym `UPDATE`.
+
+**Czego nie zrobiono i to jest decyzja, nie przeoczenie:** testu skanującego
+wszystkie migracje pod tym wzorcem. Heurystyka „`down()` kasuje kolumnę,
+którą `up()` nadaje z `DEFAULT`" trafia w każdą zwykłą kolumnę i wymagałaby
+ręcznie utrzymywanej listy wyjątków — czyli tego samego co reguła
+w `AGENTS.md` §6, tylko z pozorem automatu.
+
+**Wniosek szerszy od jednej migracji, i to jest właściwa treść tego
+uzupełnienia:** reguła żyła **tylko** w `docs/DECISIONS.md`, a jedno z jej
+złamań chodziło dalej po `main`. Dlatego reguła stoi od 11 września
+w `AGENTS.md` §6 — tam, gdzie miała trafić od początku — razem z tabelką
+trzech przypadków tej choroby. **Zapisanie reguły w dzienniku nie jest jej
+wdrożeniem.**
+
+Osobno, z tego samego PR-a: w komentarzu tamtego `down()` stało „Przy
+cofaniu na produkcji najpierw kopia obu kolumn". Zdanie prawdziwe
+i konkretne, a jako zabezpieczenie bezwartościowe — przenosiło całą ochronę
+na czyjąś pamięć w jedynym momencie, w którym nikt nie czyta komentarzy
+w migracjach. **Opis rollbacku nie jest strażnikiem rollbacku**;
+zabezpieczeniem jest `throw`.
+
+**Pliki:** `database/migrations/2026_09_06_140000_add_memories_to_users_and_posts.php` ·
+`tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php` · `AGENTS.md` §6 ·
+`docs/DATABASE.md`
+
 ### Naprawa
 
 `down()` liczy `delete_scope = 'everything'` w całej tabeli PRZED jakąkolwiek
@@ -10994,3 +11059,870 @@ zobaczył w pomiarze.
 
 Dołożony został **jeden** punkt, nie cała macierz: każdy punkt kosztuje czas
 każdego przebiegu CI, a 900 px pokrywa te trzy przypadki naraz.
+
+---
+
+## D-145 · Dwukolorowy zapis `kuKING` obowiązuje wszędzie, także jako nazwa serwisu w tekście bieżącym
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392, B2) · PR #398 ·
+Status: **obowiązuje** · zmienia D-009 i D-015
+
+### Co zostało odwrócone
+
+Dwie rzeczy zapisane wcześniej przestają obowiązywać w części o zapisie nazwy:
+
+1. **limit „maksymalnie raz na ekran"** (D-009, `AGENTS.md` §11, `COPY_STYLE.md` §2);
+2. **podział na rejestry z D-015** — do tej pory tekst ciągły pisał `Kuking`,
+   a `kuKING` był zarezerwowany dla człowieka.
+
+Od teraz `kuKING` w zapisie dwukolorowym — **„ku" w kolorze tekstu, „KING"
+w kolorze marki** — stoi wszędzie, gdzie nazwa jest czytana jako nazwa:
+w nagłówku, w tekście bieżącym, w nawigacji, w stopce, w zaproszeniu.
+
+**Co z D-015 zostaje w mocy:** logotyp `KuKing.pl` jest znakiem i rządzi się
+swoim prawem. Akcent koloru w logotypie leży dziś wyłącznie na „King" — „Ku"
+i „.pl" biorą kolor tekstu (PR #394).
+
+### Dlaczego limit „raz na ekran" nie został podniesiony, a usunięty
+
+Sufit był liczbą, a liczba nie jest tym, co ta reguła chroniła — chroniła
+**czytania**. Ekran z jednym żartem w komunikacie błędu jest gorszy niż ekran
+z trzema w dobrych miejscach. Podbicie sufitu z 1 na 6 byłoby udawaniem reguły,
+więc `test_gra_slowem_wystepuje_najwyzej_raz_na_ekranie` został **usunięty, nie
+wyłączony**, i zastąpiony przez `test_nazwa_nie_powtarza_sie_w_jednym_bloku_tekstu`.
+
+W miejsce limitu wchodzą **dwa kryteria**:
+
+> **Charakter marki wolno tam, gdzie nie konkuruje z zadaniem.** Konkuruje,
+> jeśli stoi między człowiekiem a przyciskiem, którego szuka; wydłuża zdanie,
+> które ma być wykonane, nie przeczytane; opisuje ton zamiast podać informację;
+> albo trzeba go zrozumieć, żeby pójść dalej.
+
+> **W jednym akapicie, nagłówku albo punkcie listy nazwa pojawia się raz.** Nie
+> dlatego, że dwa to „za dużo" — dlatego, że dwa dwukolorowe słowa w polu
+> jednego spojrzenia migoczą, a to jest już koszt czytania.
+
+### Pięć miejsc, w których nazwa zostaje zwykłym „Kuking"
+
+„Wszędzie" ma granicę i to nie jest cofanie decyzji. Cztery z pięciu wyjątków
+stały w D-009 i w `COPY_STYLE.md` §2 na długo przed tą decyzją i mówią o czymś
+innym niż zasięg nazwy — **ta część D-009 zostaje w mocy**. Piąty bierze się
+z tego, że dwukolorowości fizycznie tam nie ma.
+
+| # | Gdzie | Dlaczego |
+|---|---|---|
+| 1 | `alt`, `title`, `aria-label`, `<title>`, `meta`, JSON-LD, temat listu, pliki eksportu, tekst tylko dla czytnika | **koloru tam nie ma**, a znacznik w atrybucie wypisze się dosłownie; wersaliki w środku wyrazu bez koloru czytają się jak literówka |
+| 2 | błąd, moderacja, tekst prawny, ekran bezpieczeństwa, list techniczny | hierarchia tonu; zakaz jest bezwarunkowy i **starszy** niż ta decyzja — człowiek ma wtedy problem, nie ochotę na markę |
+| 3 | powiadomienie o cudzej aktywności | „Halina — ugotowane z Twojego przepisu" jest doskonałe; to zdanie należy do Haliny, nie do marki |
+| 4 | pole formularza, który ktoś właśnie wypełnia (etykieta, podpowiedź, walidacja) | tam marka konkuruje z zadaniem. Nagłówek **tego samego** ekranu wolno — „Zostań kuKINGiem" nad `/register` zostaje |
+| 5 | tło w kolorze marki (przycisk podstawowy) | czerwień na czerwieni ma kontrast **1,00:1** i nie ma odcienia, który to naprawia; „KING" bierze kolor otoczenia, a nośnikiem zostają wersaliki (`kuking-word--bez-koloru`) |
+
+### Kontrast — policzony, nie założony
+
+„KING" jest pisane kolorem, więc jest **tekstem**, nie dekoracją: obowiązuje go
+WCAG 2.2 AA, kryterium 1.4.3 (**4,50**). Zmierzone dla `--color-brand` =
+`#B3401F` (motyw jasny) i `#F2986A` (ciemny):
+
+| Tło | Jasny | Ciemny |
+|---|---:|---:|
+| `--color-surface` (strona) | 5,31 | 7,80 |
+| `--color-surface-raised` (karta, stopka) | 5,72 | 6,92 |
+| `--color-surface-sunken` (ramka, pole) | 4,83 | 8,49 |
+| `--color-surface-brand-wash` (ciepły pas) | 4,83 | 7,03 |
+| `--color-brand-tint` (podkład marki) | **4,64** | 6,55 |
+| tło w kolorze marki (przycisk podstawowy) | **1,00** | **1,00** |
+
+**Najciaśniej jest w motywie jasnym na `brand-tint`: 4,64 przy progu 4,50, czyli
+zapas 0,14.** Jedno rozjaśnienie `--color-brand` ten zapas zabiera — dlatego
+liczby stoją w teście, a nie tylko w dokumencie. Kontrola samego licznika
+kontrastu (21:1, 1:1, symetria, para, która ma oblać) jest w tym samym pliku.
+
+**Kolor nie jest jedynym nośnikiem znaczenia** (WCAG 1.4.1): słowo czyta się
+identycznie bez koloru, bo grę niosą wersaliki.
+
+### Gęstość po wdrożeniu — zmierzona, nie oszacowana
+
+| Ekran | na stronę | z tego w stopce | na 1000 znaków | maks. w jednym akapicie |
+|---|---:|---:|---:|---:|
+| `/` | 6 | 2 | 2,6 | **1** |
+| `/o-kuking` | 6 | 2 | 2,9 | **1** |
+| `/odkryj` | 4 | 2 | 5,4 | **1** |
+| `/home`, `/szukaj` | 4 | 2 | 3,4–4,0 | **1** |
+
+Ani jeden akapit nie ma dwóch. Uczciwe zastrzeżenie do kolumny „na 1000 znaków":
+licznik bierze też tekst dla czytnika ekranu — na stronie powitalnej 42 znaki
+z 2336, czyli **1,8%** zaniżenia. Na wniosek to nie wpływa.
+
+### Cena, wprost
+
+Na przycisku podstawowym dwukolorowości **nie widać i widać nie może** — dotyczy
+to także flagowego przycisku na stronie powitalnej. Jedyne wyjście, gdyby miała
+być widoczna, to przycisk na tle `surface` (5,72:1); **nierozstrzygnięte, do
+decyzji właściciela.**
+
+Drugi koszt został zmierzony i naprawiony po drodze: pierwsza wersja reguły
+łamania wyrazu użyła `white-space: nowrap` i **oblała skan dostępności** — na
+`/register` przy oknie 320 px i czcionce przeglądarki 200% samo słowo brało
+**315 px** zaczynając od x = 32, czyli strona przewijała się w bok o **27 px**
+(naruszenie 1.4.10 Reflow). Obowiązuje `overflow-wrap: anywhere`: łamie wyraz
+wyłącznie wtedy, gdy inaczej wyszedłby poza wiersz.
+
+### Gdzie to stoi
+
+Zapis żyje w jednym komponencie — `resources/views/components/kuking-word.blade.php`
+— i nigdzie indziej; odmiana idzie atrybutem `forma`, a wersja dla czytnika
+ekranu jest osobnym tekstem, bo `aria-label` na `<span>` czytniki **ignorują**
+(specyfikacja „ARIA in HTML" zakazuje go na roli `generic`).
+
+**Zmiana wymaga:** zmierzonej trudności w czytaniu u prawdziwych użytkowników
+(#15) albo liczby 2 w kolumnie „maks. w jednym akapicie" — ta druga nie jest
+decyzją do podjęcia w locie: test oblewa, a rozstrzyga właściciel.
+
+📄 `docs/brand/GLOS_MARKI.md` §2 i §4 · `docs/brand/COPY_STYLE.md` §2 ·
+`AGENTS.md` §11 · `tests/Feature/TekstyWedlugCopyStyleTest.php` · D-009 · D-015
+
+---
+
+## D-146 · Kuking nie ma reklam i nie pobiera opłat za korzystanie — na stałe
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392 §4, B1) · PR #398 ·
+Status: **obowiązuje**
+
+### Decyzja
+
+> „w przyszłości jak bd chciał zarabiać to bardziej założę patreon albo coś żeby
+> zbiórki robić na hosting"
+
+**Za korzystanie z Kuking nikt nigdy nie płaci i w serwisie nie ma reklam.**
+Przyszłe zarabianie: najwyżej dobrowolna zbiórka albo Patreon na koszty hostingu.
+
+### Granica tej obietnicy — bez niej zostanie odczytana za wąsko albo za szeroko
+
+„Bez opłat" znaczy „za korzystanie z Kuking nikt nigdy nie płaci", a nie „Kuking
+nigdy nie sprzeda niczego".
+
+| Zgodne z tą decyzją | Zakazane na stałe |
+|---|---|
+| dobrowolna zbiórka albo Patreon na koszty hostingu — nikomu nic nie odbiera | reklamy |
+| wydrukowana książka rodzinna (`docs/product/SOUL.md` §4.3) — to produkt, nie opłata za wejście | płatny dostęp do cudzych przepisów |
+| | funkcje odbierane za brak subskrypcji |
+
+### Dlaczego to nie jest obietnica bez pokrycia
+
+Zgadza się niezależnie z trzema rzeczami, które już są w repozytorium:
+
+- `docs/research/MONETYZACJA.md` §6 — „nic poza opcjonalnym linkiem do
+  dobrowolnego wsparcia kosztów hostingu… i to jest dopuszczalna, prawdopodobnie
+  właściwa odpowiedź na tym etapie";
+- ta sama analiza pokazuje, że reklama display żyje ze skali odsłon, której
+  Kuking nie ma i długo nie będzie miał;
+- po stronie odbiorcy: „strach o pieniądze i oszustwa" jest dominującą obawą tej
+  grupy (`docs/research/AUDIENCE_50_PLUS.md` §3), a zalecenie brzmi wprost —
+  „w MVP nic nie kosztuje i produkt to mówi wprost".
+
+### Reguła, która z tego wynika i obowiązuje każdy przycisk
+
+> **Na przycisku wolno napisać zobowiązanie, którego złamanie byłoby widoczne.
+> Nie wolno zalety, której nikt nie sprawdzi.**
+
+Dlatego przycisk na stronie powitalnej brzmi **„Zostań kuKINGiem — bez opłat
+i bez reklam"**. Trzy odrzucone warianty i powody:
+
+| Odrzucone | Dlaczego |
+|---|---|
+| „Zostań kuKINGiem — to darmowe" | brzmi sprzedażowo |
+| „Zostań kuKINGiem — za darmo, na zawsze" | obietnica na przyszłość bez gwarancji |
+| „Załóż darmowe konto" (propozycja audytu) | zdejmuje nazwę mieszkańca z jedynego miejsca, w którym się ona zaprasza |
+
+„Bez reklam" przechodzi ten test, bo reklama w serwisie byłaby widoczna
+następnego dnia. „To darmowe" go nie przechodzi — to ocena, nie zobowiązanie.
+
+**Zmiana wymaga:** jawnej decyzji właściciela. Ta decyzja nie jest kalkulacją,
+tylko granicą produktu — zmiany nie uzasadnia rachunek za hosting.
+
+📄 `docs/research/MONETYZACJA.md` §6 · `docs/brand/GLOS_MARKI.md` §5 ·
+`docs/brand/COPY_STYLE.md` §6 · D-131 · D-145
+
+---
+
+## D-147 · Czasownik od `kuKING` wolno użyć tylko tam, gdzie obok stoi zdanie, które go tłumaczy
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392) · PR #398 ·
+Status: **obowiązuje** · zmienia D-009 w części odrzucającej czasownik
+
+### Co się zmienia
+
+D-009 odrzuciło `kuKINGujesz` z uzasadnieniem „nowy czasownik wymaga
+zrozumienia, a nasz odbiorca nie lubi zgadywać". Właściciel tę część odwrócił:
+**czasownika wolno używać.** Odrzucony argument nie znika — przestaje być
+zakazem, a staje się warunkiem.
+
+| Gdzie | Czasownik | Dlaczego |
+|---|---|---|
+| hasło, nagłówek sekcji, digest, zaproszenie | ✅ „Dziś kuKINGujemy z resztek" | obok stoi zdanie, które tłumaczy; nic nie zależy od zrozumienia słowa |
+| nawigacja | ❌ | nawigacja ma być przewidywalna, nie dowcipna (D-009, ta część zostaje) |
+| jedyny przycisk realizujący akcję | ❌ „kuKINGuj to" zamiast „Opublikuj" | przycisk mówi, co robi — `AGENTS.md` §5 |
+| błąd, moderacja, prawo, bezpieczeństwo | ❌ | hierarchia tonu, zakaz bezwarunkowy |
+
+Warunek jest oparty na liczbie: **w grupie 65–74 lata tylko 12,3% osób ma według
+unijnej metodologii podstawowe umiejętności cyfrowe**
+(`docs/research/AUDIENCE_50_PLUS.md`). Taki czytelnik potrafi przejść ścieżkę
+wyuczoną, a nie poradzić sobie z nową — i nie ma zgadywać, co znaczy słowo
+stojące na **jedynej** drodze do celu.
+
+### Granica, która się nie rusza: żart jest o nazwie serwisu, nigdy o użytkowniku
+
+| | O czym jest zdanie | Ocena |
+|---|---|---|
+| „Zostań kuKINGiem" | o nazwie | ✅ |
+| „Witaj w gronie kuKINGów" | o przynależności | ✅ |
+| „2 431 kuKINGów" | o liczbie ludzi tutaj | ✅ |
+| „Jesteś prawdziwym kuKINGiem!" | o użytkowniku, komplementem | ❌ |
+| „Top kuKINGi tygodnia" | o hierarchii | ❌ |
+| „Zdobądź poziom kuKING" | o nagrodzie za coś | ❌ |
+
+### Powód trzech ostatnich jest produktowy, nie estetyczny — i jest zmierzony
+
+Własne zdjęcie lub film zamieściło w ostatnim miesiącu **17% internautów 55–64
+i 13% z 65+**, przy 70% i 61% rozmawiających przez komunikator
+(`docs/research/AUDIENCE_50_PLUS.md`). `COPY_STYLE.md` §2 dokłada, że **ponad
+połowa osób 50+ w mediach społecznościowych nigdy nic nie publikuje**.
+
+Ci ludzie zdjęcia **wysyłają**, tylko ich nie **publikują** — i to jest jedyny
+nawyk, który ten produkt ma zmienić. Stąd asymetria, o której cała ta decyzja:
+**komplement za publikację podnosi poprzeczkę u ludzi, którzy jej nie
+przeskakują. Nazwa przynależności ją obniża — wystarczy tu być.** „Top kuKINGi
+tygodnia" dokłada do tego ranking, którego `AGENTS.md` §12 zabrania, a nazwa
+przynależności użyta jako wyróżnienie dzieli ludzi na dwie klasy.
+
+Formy żeńskiej nie tworzymy i to się nie zmienia; zdanie wymagające formy,
+której nie używamy (`kuKINGowi`, `kuKINGu`, `kuKINGowie`), **przepisujemy**
+zamiast odmieniać słowo na siłę.
+
+**Zmiana wymaga:** reakcji prawdziwych użytkowników w testach (#15) — ten sam
+warunek, który postawiło D-009.
+
+📄 `docs/brand/GLOS_MARKI.md` §1 · `docs/brand/MASCOT_CONCEPT.md` ·
+`docs/brand/COPY_STYLE.md` §8 · D-009 · D-145
+
+---
+
+## D-148 · Rejestr tekstów zmienia się z tłumaczącego się na zapraszający — zdań nie wycinamy, przepisujemy
+
+**Data:** 11 września 2026 · **Decyzja właściciela** (issue #392, grupa C1–C7) ·
+PR #398 · Status: **obowiązuje**
+
+### Co audyt chciał zrobić, a co robimy
+
+Audyt copy (`docs/research/audyt-copy-2026-09-11/`) wskazał zdania uspokajające
+i chciał je **wycinać**. Rozstrzygnięcie jest inne: **zamieniamy rejestr**, bo
+problemem nie jest objętość tych zdań, tylko to, że tłumaczą się zamiast
+zapraszać.
+
+```text
+❌ Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
+✅ Wrzuć zdjęcie i kilka słów, a pokażesz je komuś, kto dziś też gotował.
+```
+
+Uwaga na drugą stronę tego samego kija: **zapraszający to nie sprzedażowy.**
+
+### Najmocniejszy przypadek: cztery zapewnienia, że odpisuje człowiek (C2)
+
+Na `/napisz-do-nas` to samo mówiły cztery miejsca naraz: prawa szyna („Lepiej
+dwa razy niż wcale"), pierwszy akapit („Po drugiej stronie jest człowiek, nie
+automat"), ramka o zgłaszaniu („To jest inna droga i prowadzi do innej kolejki")
+i dół strony („nie mamy całodobowego dyżuru i nie będziemy go udawać").
+
+Właściciel: *„nie ma co naciskać że to człowiek, bo wtedy ludzie będą mieć
+odwrotne odczucie"*.
+
+**Zapewnianie czterokrotnie, że po drugiej stronie jest człowiek, brzmi jak
+zaprzeczanie zarzutowi, którego nikt nie postawił** — i uruchamia dokładnie to
+podejrzenie, które miało uśpić. Ten sam mechanizm co w zdaniu „to naprawdę nie
+jest oszustwo": raz powiedziane jest ciepłe, cztery razy jest tłumaczeniem się.
+Zostaje **jedno** miejsce — to na dole, bo tam za zdaniem stoi konkret: jedna
+osoba, brak całodobowego dyżuru, odpowiedź czasem po weekendzie.
+
+To spostrzeżenie jest cenniejsze niż zarzut o powtórzenia, od którego audyt
+zaczynał: powtórzenie da się policzyć, a **efekt odwrotny do zamierzonego trzeba
+zrozumieć**.
+
+### C6 — piszemy o realnym życiu tej grupy, nie o abstrakcji
+
+```text
+❌ na wspólnym albo cudzym urządzeniu     abstrakcja, brzmi podejrzliwie
+✅ u rodziny czy znajomych                realny scenariusz tej grupy
+```
+
+**„Cudze urządzenie" to język regulaminu.** Rodzina jest głównym przewodnikiem
+po technologii w tej grupie (`docs/research/AUDIENCE_50_PLUS.md` §3 i §6) —
+nazwanie tego po imieniu nie jest protekcjonalne. Protekcjonalne jest pisanie
+*o* starszej osobie zamiast *do* niej.
+
+### Pozostałe pięć reguł
+
+- **C1 — zapraszaj, nie uspokajaj.** Marka nie jest kosztem do zmniejszenia.
+- **C3 — instrukcja zamiast stylu autora.** „Klikasz — i jesteś w środku" →
+  „Kliknij go, żeby wejść na konto". Sprzedaż wychodzi z tekstu szybciej, niż
+  się ją tam wkłada.
+- **C4 — nie tłumacz, czym ten krok NIE jest.** Jeśli krok jest opcjonalny,
+  **postaw „Pomiń"** — przycisk powie to lepiej niż zdanie o przycisku.
+  Konstrukcja „jedno i drugie jest w porządku" / „to też jest w porządku" stała
+  w serwisie **trzy razy** (`/pomoc`, `/dodaj`, koniec onboardingu); zostaje
+  w **jednym**, tym wskazanym przez właściciela jako wzór.
+- **C5 — mniej szczegółu, więcej luzu.** „po kolei, od najnowszego. Bez żadnego
+  układania przez komputer" → „po kolei, od najnowszego". Antytechnologiczny
+  wtręt tłumaczy technologię komuś, kto o nią nie pytał, i sugeruje, że gdzieś
+  indziej jest wróg.
+- **C7 — „nic nie" zostaje, jeśli niesie informację.** Audyt policzył
+  **36 wystąpień w 27 widokach ze 137** — to maniera, nie przypadek. Ale
+  kasowanie hurtem jest błędem w drugą stronę:
+
+| Zostaje | Idzie |
+|---|---|
+| „nic nie zginie" przy autozapisie — mówi, co robi mechanizm | „Nic nie musisz robić dalej" — nie mówi nic |
+| „jeśli nic nie zaznaczysz" — opisuje skutek wyboru | „nic nie zostało zamknięte na stałe" obok zdania, które to już powiedziało |
+| „nigdy nic nie napiszemy na Twojej tablicy" — konkretne zobowiązanie | „albo nic nie pisz, to też jest w porządku" — trzecia kopia tej samej konstrukcji |
+
+### Wzór, do którego się odwołujemy
+
+```text
+Choćby jedno zdanie. Pytanie do autora też jest w porządku.
+```
+
+Pierwsze zdanie zdejmuje presję **objętości**, drugie presję **treści**,
+i **żadne nie mówi, JAK pisać** — a poprzednia wersja („Napisz normalnie, po
+ludzku") mówiła, i powtarzała słowo z etykiety pola.
+
+```text
+❌ Napisz normalnie, po ludzku.        mówi, JAK pisać
+✅ Choćby jedno zdanie.                mówi, ILE wystarczy
+```
+
+📄 `docs/brand/GLOS_MARKI.md` §5 · `docs/research/audyt-copy-2026-09-11/` ·
+D-145 · D-149
+
+---
+
+## D-149 · Tekst dla człowieka nie uzasadnia własnego brzmienia — na ekranie tak samo jak w dokumencie prawnym
+
+**Data:** 11 września 2026 · Audyt copy, `docs/research/audyt-copy-2026-09-11/` ·
+PR #395 i #396 · Status: **obowiązuje** · rozwinięcie D-140
+
+### Zasada
+
+> **Zdanie o fakcie dotyczącym usługi zostaje — także niewygodne. Znika zdanie
+> o procesie pisania tego tekstu i o naszym toku rozumowania.**
+
+D-140 zdjęło z dokumentów prawnych notę o tym, kto dokumentu nie czytał:
+informację o **procesie powstawania**, adresowaną do nas samych. Ta sama choroba
+chodziła po całym interfejsie, tylko w innych słowach — i stąd rozszerzenie
+zasady na cały tekst, który czyta człowiek.
+
+### Co usunięto i z czego to zostało
+
+**W dokumentach prawnych** (`resources/legal/*`): zdania tłumaczące, skąd wiemy
+to, co piszemy, i dlaczego uważamy to za uczciwe.
+
+| było | jest |
+|---|---|
+| „Nie zapisuje niczego na Twoim urządzeniu… Sprawdziliśmy to, czytając ten skrypt **linijka po linijce, a nie wierząc na słowo**…" | „Nie zapisuje niczego na Twoim urządzeniu — ani pliku cookie, ani nic w pamięci przeglądarki, więc nie ma czym Cię oznaczyć." |
+| „**Uważamy, że nie ma to prawa tak zostać, i mówimy dlaczego.**…" | „**Tego liczenia otwarć nie da się wyłączyć z naszego kodu** — jest ustawieniem konta u dostawcy… Do tego czasu obrazek jedzie w każdym liście." |
+| „…nie podajemy tu liczby godzin, bo **nie mamy dziś w serwisie nic, co ten termin mierzy i pilnuje**." | „Odpowiadamy bez zbędnej zwłoki, a sprawy poważne bierzemy pierwsze. Nie obiecujemy konkretnej liczby godzin." |
+
+Zdjęte także: „i mówimy to **wprost**" (×3), „**Uczciwie** o granicy…",
+„Opisujemy to, bo zachodzi", odesłanie do „wewnętrznego dokumentu
+bezpieczeństwa", którego czytelnik nie ma, oraz to samo twierdzenie
+o Cloudflare powtórzone trzy razy w jednym dokumencie.
+
+**Na czterech ekranach** to samo w wersji produktowej: opis dla wyszukiwarki na
+spisie tematów mówi, co na stronie jest, zamiast **jak ją sortujemy** (reguła
+kolejności bez zmian i nadal widoczna na stronie); z `/o-kuking` zeszły trzy
+zaprzeczenia zarzutom, których nikt nie postawił; z potwierdzenia wysłanej
+wiadomości zeszło „nie zginie, nawet gdyby akurat nie działała poczta" — prawda
+o naszej architekturze, ale podsuwa myśl, że poczta bywa nieczynna.
+
+### Co zostało nietknięte — i to jest połowa tej zasady
+
+Wszystko niewygodne: brak podpisanych umów powierzenia, brak inspektora ochrony
+danych, nieustalony okres życia danych w kopiach zapasowych, sekcje „Źródła",
+„Tego nie da się odwrócić". Zostało też „ludzi, którzy **naprawdę** gotują" —
+to hasło serwisu, nie retoryka.
+
+### Jak to jest pilnowane, żeby nie zamieniło się w zakaz słowa
+
+Skan wzorców samouzasadniania (`DokumentyPrawneNieKlamiaTest`) ma kontrolę
+**dwustronną**: **15 zdań wziętych dosłownie z `main`, które muszą oblewać,
+i 18 zdań, które muszą przechodzić** — z trzema chronionymi zdaniami o brakach
+na czele oraz z „ludzi, którzy naprawdę gotują". Ta kontrola od razu się
+przydała: pierwsza wersja wzorca `wewnętrzn* dokument*` **przepuszczała zdanie,
+które miała łapać**, bo odmiana „dokumen**cie**" nie pasowała do rdzenia.
+
+Kontrola ujemna na całości: po cofnięciu `resources/legal/` — **3 padnięcia
+z 26**, każdy z trzech dokumentów oblewa z wypisanymi cytatami. Po przywróceniu:
+**26/26**.
+
+**Zmiana wymaga:** niczego. Ta zasada nie jest sądem o stylu — jest odpowiedzią
+na pytanie, po co czytelnik przyszedł.
+
+📄 `docs/brand/COPY_STYLE.md` · `docs/research/audyt-copy-2026-09-11/WZORCE_SAMOUZASADNIANIA` ·
+`tests/Feature/DokumentyPrawneNieKlamiaTest.php` · D-140 · D-150 · D-152
+
+---
+
+## D-150 · Dowód z audytu nie jest treścią dokumentu prawnego
+
+**Data:** 11 września 2026 · Audyt copy, `docs/research/audyt-copy-2026-09-11/` ·
+PR #395 · Status: **obowiązuje** · rozwinięcie D-149
+
+### Co stało w polityce prywatności
+
+> „Sprawdziliśmy to **9 września 2026** na prawdziwym liście doręczonym do
+> skrzynki, czytając jego **surowe źródło**, a nie wierząc na słowo."
+
+Zdanie prawdziwe, konkretne, z datą — i w dokumencie prawnym **nie na miejscu**.
+Zostało usunięte; zostało to, co dostawca rejestruje, czym to robi i że my tego
+nie odczytujemy.
+
+### Dlaczego to nie jest ukrywanie dowodu
+
+Dowód i dokument mają dwóch różnych czytelników. **Dowód z audytu jest
+adresowany do nas** — mówi, że sprawdzenie zostało wykonane, i chroni nas przed
+powtórzeniem pracy. **Dokument prawny jest adresowany do czytelnika** i ma mu
+powiedzieć, co się dzieje z jego danymi. Wpisany do dokumentu dowód robi trzy
+szkody naraz:
+
+1. czytelnik nie ma czym go zweryfikować, więc nie dostaje informacji, tylko
+   zapewnienie;
+2. **ma krótszy okres przydatności niż dokument** — data „9 września" starzeje
+   się, a akapit o danych nie; dokument zaczyna po cichu mówić nieprawdę o samym
+   sobie;
+3. sugeruje, że reszta dokumentu sprawdzona nie była, bo przy niej takiego
+   zdania nie ma.
+
+Punkt 2 nie jest teoretyczny: **dwie z trzech usuniętych not o lukach były już
+nieaktualne** — dane spółki weszły do regulaminu 8 września, EmailLabs do
+polityki 10 września, a noty stały dalej.
+
+### Gdzie dowód mieszka zamiast tego
+
+W opisie Pull Requesta, w `docs/research/`, w komentarzu przy kodzie i w teście.
+**Test jest lepszym dowodem niż zdanie w dokumencie**, bo starzeje się na
+czerwono, a zdanie starzeje się cicho.
+
+### Przy okazji, poprawka merytoryczna z tego samego przeglądu
+
+Regulamin §8 mówił „przez pierwsze 24 godziny nie można potwierdzić własnego
+rozstrzygnięcia", a kod (`ResolveAppeal::sprawdzKarencje()`,
+`kuking.moderation.appeal_self_uphold_hours`) liczy 24 h **od pierwotnej
+decyzji**, nie od złożenia odwołania. Zdanie mówi teraz to, co robi kod. Klasa
+usterki jest ta sama: dokument mówił o czymś, czego nie sprawdził przy kodzie.
+
+📄 `resources/legal/` · `docs/research/audyt-copy-2026-09-11/` · D-149 · D-140
+
+---
+
+## D-151 · Obietnica o układzie ekranu wymaga pomiaru dokładnie tak samo jak obietnica o czasie
+
+**Data:** 11 września 2026 · PR #396 · Status: **obowiązuje** · rozwinięcie D-114
+
+### Zdanie, które było nieprawdą
+
+`resources/views/pages/recipes/szczegoly.blade.php` mówił:
+
+> „Wszystko jest na jednej stronie — **nie musisz nic przewijać ani szukać**."
+
+### Ile naprawdę trzeba przewijać
+
+Zmierzone w Chromium wzorcem z `scripts/dostepnosc.mjs`, zalogowany przez
+prawdziwy formularz, adres `/przepisy/{slug}/edycja`. Skrypt sprawdza, że `h1`
+to faktycznie „Dopisz szczegóły" — żeby nie zmierzyć strony błędu:
+
+| stan przepisu | okno 360 px | okno 1280 px |
+|---|---:|---:|
+| sam tytuł, 3 puste wiersze składników i kroków | **10 249 px** = 16 ekranów | **7 836 px** = 9,8 ekranu |
+| 8 składników i 6 kroków | **16 586 px** = 25,9 ekranu | **13 065 px** = 16,3 ekranu |
+
+Kontrolek renderuje się **40** (stan pusty) do **70** (wypełniony).
+
+### Dlaczego to jest ta sama sprawa co D-114
+
+D-114 zabroniło pisać „zajmuje minutę" bez mechanizmu albo pomiaru, który to
+pokrywa. **Obietnica o układzie ekranu jest obietnicą z miarą — tylko miarą jest
+piksel, a nie sekunda.** „Nie musisz nic przewijać" mówi o wysokości strony
+i liczbie kontrolek; jedno i drugie da się zmierzyć w minutę, i jedno i drugie
+mówiło coś innego niż zdanie. To nie jest „AI voice" — to **zdanie
+nieprawdziwe**, w tej samej klasie co ekran logowania obiecujący temat
+wiadomości, której część ludzi nie dostanie.
+
+Człowiek, któremu obiecano brak przewijania, a przewija 26 ekranów, nie myśli
+„ładny copywriting". Myśli, że serwis nie mówi prawdy — i przy grupie 50+
+kosztuje to od razu.
+
+### Co zostało napisane zamiast
+
+> „Wszystko jest na jednej stronie. Nic tu nie jest obowiązkowe: wypełnij tyle,
+> ile chcesz, i zapisz. Poprawnie wpisane dane nie zginą."
+
+**Obietnica znikła, cała informacja została.** „Na jednej stronie" zostaje, bo to
+prawda i odróżnia ten ekran od kreatora w trzech krokach.
+
+### Gdzie stoją liczby
+
+W komentarzu Blade nad tym akapitem — żeby następna osoba, która chce dopisać to
+zdanie z powrotem, przeczytała najpierw pomiar. Strażniki: dwa nowe pliki,
+**13 testów**, wszystko na wyrenderowanym HTML-u; przy każdej asercji „czegoś
+nie ma" stoi kontrola dodatnia, żeby test nie przechodził dlatego, że strona się
+nie wyrenderowała.
+
+| sabotaż | wynik |
+|---|---|
+| przywrócone „nie musisz nic przewijać ani szukać" | **CZERWONE** — 2 testy, komunikat z liczbami z pomiaru |
+| usunięte przy okazji zdanie o nieobowiązkowości | **CZERWONE** — 2 testy: „Zniknęła informacja, że żadne pole nie jest wymagane" |
+
+Druga kontrola nie jest ozdobą: przy zdejmowaniu nieprawdziwej obietnicy
+najłatwiej zabrać razem z nią informację, którą ta obietnica niosła.
+
+**Zmiana wymaga:** ekranu, który naprawdę mieści się bez przewijania
+w zmierzonym stanie. Wtedy zdanie wraca — z pomiarem.
+
+📄 `docs/brand/COPY_STYLE.md` · `scripts/dostepnosc.mjs` · D-114 · D-099 · D-106
+
+---
+
+## D-152 · Powód naszej decyzji nie stoi przy kontrolce, której dotyczy
+
+**Data:** 11 września 2026 · PR #396 · Status: **obowiązuje**
+
+### Dwa zdania z ekranu „Twoje dane"
+
+Na ekranie usuwania konta, przy haczyku wybierającym zakres usunięcia, stało:
+
+> „Skasowanie tego zabrałoby coś ludziom, którzy o nic nie prosili."
+
+> „Tego nie da się odwrócić. **Dlatego haczyk jest domyślnie pusty** —
+> skasowanego tekstu nikt już nie przywróci."
+
+### Co z nimi było nie tak
+
+Pierwsze zdanie mówiło człowiekowi, **co byłoby nie w porządku, gdyby wybrał
+drugą opcję** — na ekranie, na którym ma właśnie wybrać. To nie jest informacja
+o skutku; to ocena wyboru przed jego dokonaniem.
+
+Drugie mówiło, **czemu tak zrobiliśmy**. Że haczyk jest pusty, człowiek widzi
+w formularzu dwa akapity niżej — a powód nie jest jego sprawą w tej sekundzie.
+
+### Zasada
+
+> **Uzasadnienie decyzji produktowej mieszka w `docs/DECISIONS.md`, nie przy
+> kontrolce.** Przy kontrolce stoi: co się stanie, czego nie da się odwrócić
+> i co zrobić, jeśli człowiek chce inaczej.
+
+Powód domyślnego zakresu usunięcia jest decyzją **D-022** i stoi tam, gdzie ma
+stać. Ekran ma wykonać wybór, nie obronić go.
+
+### Co zostało
+
+Wszystkie fakty: trzy listy mówiące, co dokładnie zostaje, a co znika; „Tego nie
+da się odwrócić"; „usuń je samodzielnie, zanim skasujesz konto: później nie
+będzie już jak, bo do usuniętego konta nie da się zalogować"; „warto najpierw
+pobrać swoje dane". Że przepis może być w cudzym zeszycie, mówi lista niżej —
+czyli ta sama informacja co w usuniętym kazaniu, tylko jako fakt.
+
+Usunięte zdania stoją w komentarzu Blade razem z powodem usunięcia, żeby nie
+wróciły jako „brakowało czegoś ciepłego".
+
+### Dlaczego to nie jest ta sama reguła co D-149
+
+D-149 dotyczy zdania mówiącego o **sobie** („napisaliśmy to tak, bo…"). Ta
+dotyczy zdania mówiącego o **naszej decyzji produktowej** w miejscu, w którym
+człowiek podejmuje **swoją**. Można złamać jedną, nie łamiąc drugiej, i dlatego
+stoją osobno.
+
+📄 `resources/views/pages/settings/data.blade.php` · D-022 · D-149
+
+---
+
+## D-153 · Nie doklejamy przyimka ani słowa niosącego przypadek do cudzego tekstu ani do nazwy konta
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #397 · Status: **obowiązuje**
+
+### Zgłoszenie
+
+> „czemu źródło przepisu ma «po» przed źródłem?"
+
+Na zrzucie: sekcja **„Skąd ten przepis"**, a pod nią zdanie **„Po Nasze smaki."**
+
+### Zasada
+
+> **Nigdy nie doklejaj przyimka ani słowa niosącego przypadek do tekstu
+> wpisanego przez człowieka ani do nazwy wyświetlanej konta.** Polskiej odmiany
+> nie da się policzyć z dowolnego ciągu znaków, a każda próba kończy się
+> zdaniem, które wygląda na zepsute oprogramowanie.
+
+### Co było zepsute — sprawdzone przy plikach, nie domyślone
+
+| Miejsce | Wejście | Co widział człowiek |
+|---|---|---|
+| `pages/recipes/show.blade.php` | `Nasze smaki` | **Po Nasze smaki.** |
+| `pages/recipes/show.blade.php` | `po mamie` | **Po po mamie.** |
+| `components/recipe-wizard.blade.php` (podgląd) | to samo | to samo |
+| `app/Models/Recipe.php` `attributionLine()` | `Nasze smaki` + konto `Krzysztof` | **przepis Nasze smaki, spisany przez Krzysztof** — dwa błędy odmiany naraz |
+| to samo, bez źródła | konto `Krzysztof` | **przepis Krzysztof** |
+| formularze | — | etykieta „Po kim ten przepis", podpowiedź `po mamie, Halinie` — **formularz prosił o formę, której widok i tak nie umiał użyć** |
+
+### Rozwiązanie idzie w PYTANIE, nie w mechanizm odmiany
+
+1. **Pole pyta o frazę, która stoi samodzielnie.** „Po kim ten przepis" →
+   **„Od kogo albo skąd masz ten przepis"**, podpowiedź
+   `od mamy · z gazety · z bloga Nasze smaki`. Odpowiedź na **to** pytanie
+   działa i sama („Od mamy."), i po słowie „przepis".
+2. **Widok pokazuje wartość dosłownie**, pod nagłówkiem „Skąd ten przepis" —
+   nagłówek niósł to znaczenie od początku, przyimek był powtórzeniem. Pierwsza
+   litera przez `Str::ucfirst()` (wielobajtowe), więc „od mamy" wygląda jak
+   zdanie także przy „ó", „ż", „ś". **Kropki nie doklejamy** — przy wpisanej
+   wyszłyby dwie.
+3. **Podpis nie odmienia niczego.** Autor zostaje w linii, ale **w mianowniku,
+   w osobnym członie po „·"**, nigdy po „przez":
+
+```text
+ze źródłem:  {nazwa konta} · skąd ten przepis: {wartość pola}
+bez źródła:  {nazwa konta}
+```
+
+Dwukropek zdejmuje wymaganie przypadku, więc „od mamy", „Nasze smaki" i
+„z gazety Przyjaciółka" działają jednakowo.
+
+### Czego świadomie nie zrobiono: migracji danych
+
+Kto wpisał „po mamie" pod starym pytaniem, zobaczy „Po mamie" — czyli
+poprawniej niż „Po po mamie." Kto wpisał samo imię, zobaczy „Halina" pod
+nagłówkiem „Skąd ten przepis" zamiast „Po Halina." **Żadna automatyczna zamiana
+wolnego tekstu nie jest bezpieczna — a to jest dokładnie ta sama pułapka,
+o którą chodzi w całej tej decyzji.**
+
+### Test na wrogich danych
+
+`tests/Feature/ZrodloPrzepisuBezPrzyimkaTest.php` — **5 testów, 135 asercji** —
+chodzi na `od mamy`, `Nasze smaki`, `z gazety Przyjaciółka`, `Halina` oraz na
+dwóch nazwach kont: `Krzysztof` i `Żaneta` (odmienia się inaczej niż męskie
+imię). Kontrola ujemna wykonana naprawdę: po przywróceniu starego kodu **4 z 5**
+testów czerwone; piąty (o pytaniu w formularzu) przy tym sabotażu przechodził,
+bo go nie dotyczył, więc dostał **własny** sabotaż — starą etykietę — i wtedy
+też oblał.
+
+📄 `app/Models/Recipe.php` · `docs/brand/COPY_STYLE.md` · `docs/product/SOUL.md` ·
+`tests/Feature/ZrodloPrzepisuBezPrzyimkaTest.php`
+
+---
+
+## D-154 · Odstęp między blokami należy do JEDNEJ strony pary — w rytmie artykułu do `margin-top`
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #400 · Status: **obowiązuje**
+
+### Zgłoszenie
+
+> „a propos przepisw, trzeba naprawić te odstępy między tekstami w przepisach"
+
+### Co było zmierzone
+
+Trzynaście par bloków na `/przepisy/{slug}`, w trzech stanach: okno
+**1512 px**, okno **400 px** i okno 1512 px przy czcionce przeglądarki **200%**.
+**Pięć par stało dosłownie na zero pikseli**, a dwie miały różny odstęp na
+telefonie i na desktopie:
+
+| Para bloków | 1512 px | 400 px | 1512 px + 200% |
+|---|---:|---:|---:|
+| `<h1>` → wiersz autora | **0** | **0** | **0** |
+| zdjęcie → plakietki | **0** | **0** | **0** |
+| „Skąd ten przepis" `<h2>` → 1. akapit | **0** | **0** | **0** |
+| „Składniki" `<h2>` → lista | **0** | **0** | **0** |
+| „Przygotowanie" `<h2>` → lista kroków | **0** | **0** | **0** |
+| wiersz autora → zdjęcie | 36 | 20 | 72 |
+| wstęp → siatka składniki/kroki | 36 | 20 | 72 |
+
+Po zmianie żadna para nie stoi na zerze, każda para bloków artykułu ma **tę samą
+liczbę w siatce i poza nią** (24 px przy 1512 i przy 400 px, 48 px przy 200%),
+a przepis ubogi — bez zdjęcia, bez plakietek, bez komentarzy — dostaje
+**24 / 24 / 24 / 24 / 24 px** bez dziury po pustej liście plakietek.
+
+### Cztery przyczyny, każda inna
+
+1. **Reset Tailwinda zeruje marginesy nagłówków**, a `.app-main > h1` naprawia to
+   na ~50 podstronach, ale nie tutaj, bo `<h1>` przepisu siedzi
+   w `<article><header>`, nie wprost w `<main>`.
+2. **`margin: 0` na `.recipe-facts` zjadało rytm `.stack`** — ta sama swoistość
+   (0,1,0), dalsze miejsce w pliku.
+3. **Marginesy raz się zlewają, a raz sumują.** Poniżej 80rem `<article>` jest
+   blokiem: `mb-4` wiersza autora zlewał się z `margin-top` zdjęcia do 20 px. Od
+   80rem ten sam `<article>` jest **siatką**, a marginesy elementów siatki się
+   nie zlewają — więc 16 + 20 = 36 px. **Ta sama strona miała dwa różne odstępy
+   zależnie od szerokości okna, czego nie widać, dopóki się nie zmierzy obu.**
+4. **Klasy `mb-2` / `mt-0` / `mb-4` w szablonie.** Utility w Tailwindzie 4 leży
+   w warstwie stojącej **po** `components`, więc dopóki tam były, żadna reguła
+   arkusza nie mogła ich poprawić.
+
+### Decyzja
+
+> **Odstęp między dwoma blokami należy do jednej strony pary. Druga strona jest
+> wyzerowana — jawnie, tą samą regułą.**
+
+W rytmie artykułu to `margin-top`:
+
+```css
+.przepis-uklad > *      { margin-bottom: 0; }
+.przepis-uklad > * + *  { margin-top: var(--spacing-6); }
+```
+
+`margin-bottom: 0` na dzieciach **jest częścią tej reguły, nie ozdobą**: bez
+niego dolny margines dziecka raz się zlewa (blok), a raz sumuje (siatka od
+80rem) — czyli wraca przyczyna nr 3.
+
+Wewnątrz jednego bloku odstęp należy do góry pary tak samo konsekwentnie, tylko
+realizuje go `margin-bottom` **z wyzerowanym ostatnim dzieckiem**
+(`.przepis-uklad > header > :last-child`, `.recipe-story > :last-child`) — bo
+tam odstęp od bloku do bloku należy już do rytmu artykułu wyżej. **Jedna para,
+jedna strona, zawsze zadeklarowana** — mieszanie stron w jednym zakresie jest
+tym, co dało pięć zer i dwie różne liczby na jednej stronie.
+
+### Odstępy z tokenów, a nie z pikseli
+
+To są odstępy **między blokami tekstu**, więc mają rosnąć razem z pismem: przy
+czcionce przeglądarki 200% `--spacing-6` to 48 px, nie dalej 24. To druga strona
+D-082 i D-107 — **tamte minima są fizyczne** (palec nie rośnie od powiększenia
+czcionki), **ten odstęp jest typograficzny.** Osobny test pilnuje, żeby
+`--spacing-3/4/5/6` zostały w `rem`: w pikselach asercje o tokenach dalej by
+przechodziły, sprawdzając nic.
+
+### Dwa jawne wyjątki i jeden cudzy obszar
+
+- **`.danger-zone` zachowuje `--spacing-8`** (32 px): `AGENTS.md` §5 wymaga, żeby
+  akcja destrukcyjna była odsunięta od zwykłych.
+- **`.notice` zostaje przy wspólnym `--spacing-5`**: dopisanie go tu poprawiłoby
+  rytm przepisu kosztem komponentu widocznego na kilkunastu innych ekranach.
+- **`.komu-wyszlo-naglowek` ma 4 px** między `<h2>` i paskiem liczb, gdy pasek
+  zejdzie pod nagłówek (zmierzone na 400 px). To też jest zlepione, ale to
+  świadoma decyzja z `karta-ugotowania.css` i cudzy obszar — **zgłoszone jako
+  obserwacja, nie zmienione przy okazji.**
+
+### Selektory strukturalne, nie pozycyjne
+
+`> header`, `> * + *`, `.recipe-story > p` — nie `:nth-of-type`. Pusta lista
+plakietek znika z układu przez `:not(:has(li))`, **nie `:empty`** — Blade
+zostawia w `<ul>` znaki nowej linii, a te są węzłami tekstowymi; sprawdzone
+w Chromium: reguła z `:empty` nie zadziałała ani razu.
+
+### Kontrola ujemna złapała dwie wady samego testu
+
+Wzorzec `<header>…</header>` trafiał w **belkę serwisu**, nie w nagłówek
+przepisu, więc test przechodził także z przywróconymi klasami utility.
+A `preg_match_all` zjada `}` razem z dopasowaniem, więc kotwica „reguła musi
+stać po `}`" łapała **co drugą regułę** (200 zamiast 407). Dopiero po obu
+poprawkach każdy z czterech sabotaży zaświecił na czerwono.
+
+📄 `resources/css/app.css` · `tests/Feature/RytmPionowyStronyPrzepisuTest.php` ·
+D-082 · D-107 · D-099 · D-106
+
+---
+
+## D-155 · `/odkryj` dostaje kolumnę szyny tym samym mechanizmem co strona przepisu
+
+**Data:** 11 września 2026 · Zgłosił właściciel · PR #401 · Status: **obowiązuje** ·
+rozwinięcie D-139
+
+### Zgłoszenie
+
+> „tu się zepsuło albo nie było naprawione, prawa kolumna pusta wszystko na środku"
+
+### Co było nie tak — i dla kogo inaczej
+
+`resources/views/pages/discover.blade.php` wołało `<x-layout>` **bez szyny**.
+Skutki były dwa i różne:
+
+- **zalogowany** dostawał trzecią kolumnę **zarezerwowaną i pustą**, bo
+  `.app-body` od 80rem robi trzy kolumny na każdym ekranie, żeby nawigacja
+  boczna nie przeskakiwała między podstronami;
+- **gość** dostawał całą stronę zwiniętą do **768 px**, bo ekran bez szyny
+  bierze `--container-strona-solo` (D-122).
+
+Tablica „kuKINGi na dziś" stała przez ten czas w kolumnie czytania. Czyli: ta
+sama tablica, w dwóch zakładkach jednej listy, raz **obok** tekstu (`/`), raz
+**nad** nim (`/odkryj`).
+
+### Pustka po prawej — zmierzona
+
+| okno | rola | pustka z prawej PRZED | PO |
+|---|---|---:|---:|
+| 1920 | zalogowany | **656 px** | 272 px |
+| 1512 | zalogowany | **452 px** | 68 px |
+| 1920 | gość (rama 768 px) | 600 px | 408 px (rama 1152) |
+| 1512 | gość (rama 768 px) | 396 px | 204 px (rama 1152) |
+| 400 | oba | 0 px | 0 px |
+| 1512 / czcionka 200% | oba | 36 px | 36 px |
+
+Po zmianie `/odkryj` ma te same liczby co `/` i co strona przepisu. Przy okazji
+strona zrobiła się krótsza, bo tablica przestała stać nad wpisami: przy 1512 px
+**10 557 → 8 898 px** (−1 659).
+
+**Dwie liczby, które nie miały się zmienić i się nie zmieniły:** kolumna tekstu
+**688 px przed i 688 px po** (`docs/UX_50_PLUS.md`: 55–75 znaków — rośnie rama
+i to, co OBOK, a nie długość wiersza) oraz rytm pionowy: `h1` [96, 131], wstęp
+[155, 210] przed i po, na każdej z trzech szerokości.
+
+### Dlaczego NIE `<x-slot:rail>` — dokładnie z powodu z D-139
+
+Slot renderuje się w kodzie **za całym `<main>`**. Tablica stoi dziś PRZED
+wpisami i to jest jej miejsce na telefonie — pod slotem zjechałaby pod wszystkie
+karty wpisów i przycisk „Pokaż więcej", czyli **zniknęłaby z ekranu komuś, kto
+wchodzi tu z telefonu.**
+
+Dlatego **kolejność w kodzie zostaje kolejnością z telefonu**, a w bok przesuwa
+blok dopiero siatka samego ekranu (`.odkryj-uklad` / `.odkryj-szyna`) — ten sam
+zabieg i z tego samego powodu co `.przepis-uklad`. Zmierzone: przy 360 px blok
+szyny stoi **nad** kolumną czytania (y = 327), przy 1280 i 1512 px **obok** niej
+(y = 96).
+
+**To jest już druga strona z tym wzorcem, więc wzorzec przestaje być wyjątkiem
+strony przepisu i staje się drogą domyślną dla ekranu, który ma blok do
+przeniesienia w bok, a nie treść do dołożenia.**
+
+### Co do szyny weszło i czego tam nie ma
+
+Do kolumny szyny weszła tablica dnia, **która już była na tym ekranie** — to
+przeprowadzka jednego bloku w bok, **nie wypełniacz**. Odrzucona droga: szersza
+kolumna czytania (1104 px na wpisy to wiersz, którego się nie czyta). Tablica
+zachowuje stopkę „Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.";
+nie dołożono niczego, co porządkuje ludzi (`AGENTS.md` §12).
+
+> **Reguła ogólna: pustą kolumnę zapełnia się tym, co na ekranie już jest — albo
+> wcale. Wypełniacz zostaje na zawsze, a pustkę ktoś w końcu naprawi.**
+
+### Koszt, którego nie było w zgłoszeniu
+
+Owijka siatki **zabrała nagłówkowi regułę `.app-main > h1`** z `tokens.css` —
+zmierzony odstęp spadał **24 → 0 px**, czyli wracała usterka zgłoszona
+9 września. Arkusz ekranu odtwarza go **tym samym tokenem**, a pilnuje tego
+osobna asercja.
+
+Drugi koszt jest jawny: `app.css` dostał jeden wyjątek
+`:not(.przepis-uklad):not(.odkryj-uklad)` — lista, która zestarzeje się przy
+trzecim takim ekranie. Napisane wprost w komentarzu przy regule.
+
+### Dwa komentarze i jedna lista przestały być prawdziwe
+
+Komentarze w `kuking-board.blade.php` i `DwieKolumnyTamGdzieSieMieszczaTest`
+mówiły „tablica stoi w głównej kolumnie `/odkryj`". `SzynaGosciaTest` trzymał
+`discover` na liście „ekran gościa BEZ szyny". **Lista, która zostaje po zmianie
+produktu, tłumaczy regułę, której już nie uzasadnia** — dokładnie jak komentarz
+naprostowany przez D-122.
+
+### Pomiar w automacie też ma kontrolę ujemną
+
+`scripts/dostepnosc.mjs` mierzy od tej zmiany także szynę zajmowaną **od środka
+`<main>`** (**progów nie ruszono**). Sprawdzone, że ten pomiar nie jest martwy:
+po zmianie `grid-column: 2` → `1` skrypt zgłasza „blok szyny został w kolumnie
+czytania… po prawej stronie treści zostaje pusty pas". Po przywróceniu: `0`.
+
+📄 `resources/css/ekran-odkrywania.css` · `resources/views/pages/discover.blade.php` ·
+`tests/Feature/OdkrywanieUzywaKolumnySzynyTest.php` · `scripts/dostepnosc.mjs` ·
+D-139 · D-122 · issue #365
