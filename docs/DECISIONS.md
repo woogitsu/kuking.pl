@@ -9955,3 +9955,196 @@ się dlaczego.
 
 Pomiar pokazałby, że ludzie ustawiają 70% przez pomyłkę i potem nie umieją
 wrócić. Wtedy znika najmniejszy stopień, a nie całe ustawienie.
+
+---
+
+## D-116 · Poczta na planie Hobby idzie wyłącznie przez API HTTPS — runbookowi nie wolno pokazywać SMTP jako drogi domyślnej
+
+**Data:** 11 września 2026 · Status: **obowiązuje** · Incydent z 9 września
+
+**Railway blokuje ruch SMTP na planach Free, Trial i Hobby.** Awaria jest CICHA:
+zadanie wisi w `RUNNING` bez końca, w logach zero błędu, rejestracja się udaje,
+a list nie dochodzi nigdzie.
+
+`DEPLOYMENT_RUNBOOK.md` uczył w **trzech** miejscach konfiguracji SMTP — na planie
+Hobby, który sam zaleca w KROK 0.2 i KROK 16. Zmiennych wariantu, który działa
+(`MAIL_MAILER=emaillabs` + `EMAILLABS_APP_KEY` / `EMAILLABS_SECRET_KEY` /
+`EMAILLABS_SMTP_ACCOUNT`), nie wymieniał wcale. Do tego `POCZTA_URUCHOMIENIE.md`
+§6 „Rekomendacja" przeczyło §2A tego samego pliku — a §6 jest ostatnim rozdziałem,
+więc czyta się go jak podsumowanie.
+
+**Skutek odwrócenia tej decyzji:** serwis, w którym rejestracja się udaje, a listy
+nie dochodzą. To nie jest hipoteza — to jest opis 9 września.
+
+Zmienne SMTP zostają uśpione w `railway.ts` jako droga na plan Pro. **Każde
+miejsce, które je wymienia, musi mówić, że na Hobby nie działają.**
+
+---
+
+## D-117 · Układ bucketów R2 rozstrzyga `config/filesystems.php`, nie dokument
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+Trzy dokumenty opisywały trzy różne układy: runbook jeden bucket `kuking-media`,
+`railway.ts` trzy, `BRAMKA_R2.md` dwa pod innymi nazwami. Nie dało się wykonać
+żadnego z nich do końca bez zgadywania.
+
+**Rozstrzyga kod.** Czyta cztery osobne buckety: `AWS_BUCKET` (oryginały z EXIF),
+`AWS_PUBLIC_BUCKET` (warianty), `AWS_EXPORTS_BUCKET` (eksporty RODO) i
+`AWS_KOPIE_BUCKET` (kopie bazy, z **osobnym poświadczeniem tylko do odczytu**),
+plus `AWS_LEGACY_BUCKET` na stan sprzed rozdziału.
+
+**Pułapka warta nazwania: brak `AWS_PUBLIC_BUCKET` CICHO cofa konfigurację do
+jednego bucketu** — `config/filesystems.php` ma tam zapas na `AWS_BUCKET`. Wtedy
+warianty lądują tam, gdzie oryginały ze współrzędnymi kuchni.
+
+Dokumenty podają **mapowanie zmienna → dysk → zawartość**. Nazwy bucketów są
+wartościami i same w sobie niczego nie dowodzą.
+
+---
+
+## D-118 · Bucket R2 istnieje — ryzyko z #120 jest BIEŻĄCE, nie przyszłe
+
+**Data:** 11 września 2026 · Potwierdził właściciel · Status: **obowiązuje**
+
+`KOPIE_I_ODTWORZENIE.md` twierdziło od 8 września: „Bucket R2 nie istnieje jeszcze.
+Potwierdzone wprost przez właściciela". **Zdanie zestarzało się w trzy dni** i przez
+ten czas kierowało czytelnika na ryzyko, którego nie ma (utrata zdjęć przy
+redeployu), odwracając uwagę od tego, które jest.
+
+Stan faktyczny: zdjęcia leżą na R2, a **bramka `kuking:bramka-r2` nie chodziła na
+produkcji ani razu** — więc publiczność bucketu oryginałów jest NIESPRAWDZONA.
+
+Osobno, i to nie znika razem z tym sprostowaniem: **bucketów ze zdjęciami nie
+kopiuje dziś nic**, a R2 nie ma wersjonowania obiektów ani kosza. Kopie z §7
+dotyczą wyłącznie bazy.
+
+**Wniosek metodyczny:** zdanie o stanie świata ma nosić datę pomiaru, a nie samo
+nazwisko osoby, która je potwierdziła.
+
+---
+
+## D-119 · Plik-wskaźnik nie powtarza reguły, tylko odsyła — a punkt bez nazwanego wyjątku jest rozjazdem tej samej wagi co punkt nieprawdziwy
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+`CLAUDE.md` sam o sobie pisze, że jest tylko wskaźnikiem na `AGENTS.md`, i sam
+ostrzega, że „rozjazd między plikami instrukcji jest gorszy niż brak instrukcji".
+**Był tym rozjazdem w czterech z siedemnastu punktów ściągi** — i jest to plik,
+który każdy agent czyta jako PIERWSZY.
+
+Rozjazdy były dwojakiego rodzaju i oba liczą się tak samo:
+
+1. **Wprost nieprawdziwe** — „ważne funkcje działają bez JavaScriptu" po tym, jak
+   D-053 tę zasadę zniósł; „przed PR-em `pint` i `test`", gdy `AGENTS.md` §10 mówi
+   `./scripts/check.sh`.
+2. **Prawdziwe, ale bez nazwanego wyjątku** — reguły UX 50+ bez wyjątku z D-051
+   i „migracja + rollback" bez tego, że przy wartościach semantycznych `down()` ma
+   ODMÓWIĆ (D-088). Agent czytający taki punkt „poprawia" decyzję właściciela,
+   będąc przekonanym, że egzekwuje zasadę.
+
+---
+
+## D-120 · Nagłówek workflow opisuje stan faktyczny wyzwalaczy; wyłącznikiem wdrożeń jest bramka na jobie, nie blok `on:`
+
+**Data:** 11 września 2026 · Status: **obowiązuje**
+
+`deploy.yml`, `preview.yml` i `railway-iac.yml` miały identyczny nagłówek: „ten
+workflow jest wyłączony z automatycznego uruchamiania […] żeby WŁĄCZYĆ, odkomentuj
+blok `on:` poniżej". **Bloki były aktywne od pierwszego commita** — sprawdzone
+w historii. Commit „Wyłączenie workflowów wdrożeniowych" bloków nie ruszył: wyłączył
+joby bramką `KUKING_DEPLOY_ENABLED`.
+
+Trzy dokumenty powtarzały to samo polecenie („odkomentuj blok `on:` w `ci.yml`"),
+a `ci.yml` ma w nagłówku „CI JEST WŁĄCZONE".
+
+**Nagłówek pliku wykonywalnego to nie jest miejsce na zamiar.** Ma opisywać, co ten
+plik robi teraz.
+
+---
+
+## D-121 · Runnera wybiera zmienna repozytorium `CI_RUNS_ON`, a dziś wskazuje starą pulę WSL
+
+**Data:** 11 września 2026 · Status: **obowiązuje** · Ciąg dalszy **D-028** · issue #342
+
+Wszystkie dziewięć jobów w `ci.yml` ma
+`runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}` — czyli **dokładnie**
+zmienną repozytorium, z zapasem w runnerach GitHuba. Nagłówek twierdził odwrotnie:
+że joby tej zmiennej nie biorą i zapasu nie mają.
+
+Zmierzone na żywym przebiegu (CI nr 661): `labels: ["self-hosted"]`,
+`runner_name: kuking-wsl-DOM-NEW-02`. Zmienna jest ustawiona na **samo**
+`self-hosted`, więc joby lądują na starej puli WSL-owej — tej, którą komplet sześciu
+etykiet miał wykluczać. Ten sam pomiar stał już w `SELF_HOSTED_RUNNER.md`, 160 linii
+niżej niż zdanie, któremu przeczy.
+
+**Zmienna żyje w ustawieniach repozytorium i żaden agent jej nie zmieni.** Wybór
+(komplet etykiet / usunięcie zmiennej / świadome zostawienie) należy do właściciela.
+
+---
+
+## D-122 · Gość dostaje prawą szynę obok treści, a nie pod nią — bo komentarz mówił, że gość szyny nie ma, i był nieprawdziwy od 7 września
+
+**Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„niektóre podstrony jak napisz do nas jest bardzo wąskie, gdzie po prawej i lewej
+można coś dodać na kompie". Audyt UI/UX niezależnie nazwał to §4 i było to jego
+jedyne P0.
+
+### Co było nieprawdą i od kiedy
+
+`resources/css/app.css` zwijał układ niezalogowanego do JEDNEJ kolumny 768 px na
+każdej szerokości, a uzasadniał to zdaniem „Gość nie ma nawigacji bocznej ANI
+SZYNY". Pierwsza połowa jest prawdą do dziś. **Druga była prawdą jeden dzień:**
+zdanie powstało 6 września, 7 września `/szukaj` dostało `<x-slot:rail>`,
+10 września doszły `/napisz-do-nas` i `/@nazwa` (#231). Komentarz został i przez
+kolejne dni tłumaczył regułę, której już nie uzasadniał.
+
+Zmierzone 11 września, okno 1920 px, gość na `/napisz-do-nas`: treść 720 px
+w ramce 768 px, a blok „Nie możesz się zalogować" — czyli odpowiedź, po którą ta
+osoba przyszła — na **y = 1964 px**, dwa ekrany niżej. Na `/@nazwa` szyna zaczynała
+się na y = 5573 px.
+
+### Decyzja
+
+Gość na ekranie Z SZYNĄ dostaje od 80rem dwie kolumny: treść 720 px + szyna 352 px,
+sufit `--container-strona-solo-z-szyna` = 1152 px. Trzech kolumn nie dostaje, bo
+nawigacji bocznej nie ma. Po zmianie blok szyny stoi na **y = 96 px** przy 1920
+i przy 1280 px.
+
+### Ekran gościa BEZ szyny zostaje jednokolumnowy i wyśrodkowany
+
+Zalogowany ma trzecią kolumnę zarezerwowaną NAWET bez szyny (#294), żeby nawigacja
+boczna stała na każdym ekranie w tym samym miejscu. U gościa ten powód nie istnieje
+— rezerwacja dołożyłaby 384 px pustki po prawej i zepchnęła treść w lewo, czyli
+powtórzyłaby zgłoszenie właściciela o panelu moderacji. Cena: strony gościa mają
+dwie szerokości, 768 i 1152 px. Przyjęta świadomie.
+
+### Liczy się TREŚĆ slotu, nie sam slot
+
+`<x-slot:rail>` bywa podany i pusty — cudzy profil bez tagów i bez publicznych
+zeszytów, oglądany przez gościa, nie wypisuje ani jednego bloku (blok z liczbami
+stoi pod `@auth`). Samo `isset($rail)` dałoby tam pustą kolumnę 352 px, a pusta
+kolumna wygląda na usterkę układu, nie na wybór.
+
+### `app-body-solo` znaczy „układ gościa", nie „jedna kolumna"
+
+Klasa `app-body-solo-z-szyna` **dochodzi** do `app-body-solo`, nie zastępuje jej.
+`ekran-profilu.css` czyta `:not(.app-body-solo)`, żeby zostawić gościowi liczby
+o osobie w karcie profilu — bloku w szynie gość nie dostaje (D-091), więc
+zastąpienie klasy zabrałoby mu te liczby całkiem.
+
+### Czego pilnują pomiary
+
+`SzynaGosciaTest` (klasy układu, publiczne ekrany z szyną, pusta szyna, kolejność
+reguł w arkuszu), `UkladGosciaTest` oraz sekcja „Szyna gościa (D-122)"
+w `scripts/dostepnosc.mjs`. Lista publicznych ekranów z szyną **nie jest wpisana
+z ręki** — test skanuje katalog widoków, więc czwarty taki ekran wejdzie do pomiaru
+sam.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Pomiar pokazałby, że na ekranie gościa szyna odciąga uwagę od treści, po którą
+przyszedł. Wtedy znika treść szyny na tych ekranach, a nie kolumna.
