@@ -636,11 +636,20 @@ function log(...args) {
  *                     trzy bloki wyjaśnień pod spodem;
  *   poczta nie działa → nagłówek, jeden akapit „napisz do nas" i dwa przyciski.
  *
- * Pomiar ekranu „Nie pamiętam hasła" w drugim stanie dał 6 węzłów w `<main>`
- * i 257 znaków tekstu, ZERO pól formularza. Wariant z formularzem ma ich
- * kilkakrotnie więcej — i to w nim siedzi wszystko, co może się zepsuć:
- * etykieta pola, opis pod polem, kontrast, rozmiar celu, zawijanie rzędu
- * przycisków przy 320 px.
+ * Zmierzone przy 320 px (Chromium 153) — liczy się OSTATNIA kolumna, nie
+ * wielkość różnicy:
+ *
+ *     ekran                  stan               węzłów  znaków  PÓL
+ *     /nie-pamietam-hasla    poczta działa          14     315    1
+ *     /nie-pamietam-hasla    poczta nie działa       6     257    0
+ *     /logowanie/link        poczta działa          21     891    1
+ *     /logowanie/link        poczta nie działa       6     271    0
+ *
+ * W stanie zapasowym NIE MA ANI JEDNEGO POLA FORMULARZA, więc cała klasa
+ * rzeczy, których ten automat pilnuje — etykieta pola, opis pod polem, nazwa
+ * dostępna przycisku wysyłki, kontrast, rozmiar celu, zawijanie rzędu
+ * przycisków przy 320 px — nie ma na czym zadziałać. Zielony wynik nad takim
+ * ekranem nie mówi nic o formularzu, bo formularza tam nie było.
  *
  * A to jest ekran, na który człowiek trafia DOPIERO WTEDY, GDY MU COŚ NIE
  * WYSZŁO. Mierzenie jego stanu zapasowego i zapisywanie „✓" jest dokładnie tą

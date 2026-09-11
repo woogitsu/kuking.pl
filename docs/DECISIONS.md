@@ -9510,13 +9510,28 @@ Dopisanie jej samo z siebie niczego jednak nie mierzyło. Ekran ma **dwa
 stany**, rozstrzygane przez `App\Support\Poczta::dziala()` — czyli przez to,
 czy Laravel w ogóle ma czym wysłać list:
 
-| stan | co jest na ekranie | węzłów w `<main>` | pól formularza |
-|---|---|---|---|
-| poczta działa | akapit + **karta z formularzem** (pole adresu z etykietą i podpowiedzią, Turnstile, dwa przyciski) + trzy bloki wyjaśnień | 40 | 1 |
-| poczta nie działa | nagłówek, jedno zdanie „napisz do nas" i dwa przyciski | **6** | **0** |
+Zmierzone 11 września przy 320 px, Chromium 153 — liczby są z pomiaru, nie
+z oka:
 
-Zmierzone 11 września przy 320 px: wariant zapasowy to 257 znaków tekstu
-i zero pól. `/logowanie/link` (D-056) ma dokładnie tę samą parę stanów.
+| ekran | stan | węzłów w `<main>` | znaków tekstu | pól formularza |
+|---|---|---|---|---|
+| `/nie-pamietam-hasla` | poczta działa | 14 | 315 | **1** |
+| `/nie-pamietam-hasla` | poczta nie działa | 6 | 257 | **0** |
+| `/logowanie/link` | poczta działa | 21 | 891 | **1** |
+| `/logowanie/link` | poczta nie działa | 6 | 271 | **0** |
+
+W stanie „poczta działa" jest akapit, **karta z formularzem** (pole adresu
+z etykietą i podpowiedzią, Turnstile, dwa przyciski) i bloki wyjaśnień pod
+spodem. W stanie zapasowym — nagłówek, jedno zdanie „napisz do nas" i dwa
+przyciski.
+
+**Różnica w samej liczbie węzłów nie jest tu pointą** (osiem i piętnaście
+węzłów to niewiele). Pointą jest ta ostatnia kolumna: w stanie zapasowym
+**nie ma ani jednego pola formularza**, więc cała klasa rzeczy, których ten
+automat pilnuje — etykieta pola, opis pod polem, nazwa dostępna przycisku
+wysyłki, kontrast pola, rozmiar celu, zawijanie rzędu przycisków przy 320 px
+— nie ma na czym zadziałać. Zielony wynik nad takim ekranem nie mówi nic
+o formularzu, bo formularza tam nie było.
 
 **I to właśnie wariant zapasowy widziałby każdy przebieg, wszędzie.** `.env`
 deweloperski ma `MAIL_MAILER=log`, a job `dostepnosc` w `ci.yml` —
