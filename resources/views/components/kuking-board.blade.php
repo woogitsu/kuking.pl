@@ -29,6 +29,29 @@
 
     Teksty: docs/brand/COPY_STYLE.md §5
 
+    ══════════════════════════════════════════════════════════════════════
+     UKŁAD: JEDNA KOLUMNA ZDJĘĆ NA OBIE LISTY (zgłoszenie właściciela,
+     „bez wyglądu, układu, żadnej symetrii")
+    ══════════════════════════════════════════════════════════════════════
+
+    Zmierzone przed poprawką na `/` przy oknie 1512 px (tablica szeroka na
+    992 px): osoba zaczynała tekst przy `x = 345`, danie ZE zdjęciem przy
+    `x = 389`, danie BEZ zdjęcia przy `x = 249`, pasek miniatur przy `x = 249`,
+    a „Załóż konto, żeby obserwować" wisiało przy prawej krawędzi, 600 px od
+    opisu, do którego należy. Cztery różne krawędzie w jednej sekcji.
+
+    Teraz obie listy mają ten sam kształt wiersza:
+
+        [ zdjęcie 120 px ] [ tekst ]
+        [ pasek miniatur — cała szerokość, przy lewej krawędzi ]
+        [ akcja — cała szerokość, przy lewej krawędzi ]
+
+    Awatar osoby i zdjęcie dania to ta sama kolumna (`--tablica-zdjecie`
+    w `app.css`), więc tekst w obu listach zaczyna się przy tym samym `x`,
+    a wszystko, co dostaje własny wiersz, licuje z lewą krawędzią karty.
+    Zdjęcie dania urosło przy okazji z 96 na 120 px — w serwisie, który stoi
+    na zdjęciach, danie było mniejsze od przycisku obok siebie.
+
     `graSlowem` — DAWKOWANIE, NIE OZDOBA (issue #38)
     `docs/brand/COPY_STYLE.md` §2 dopuszcza grę słowem „kuKING" NAJWYŻEJ RAZ
     NA EKRAN. Na stronie powitalnej pierwsze miejsce jest już zajęte przez
@@ -38,13 +61,30 @@
     słowa wcale, problem znika u źródła", D-013). Wszędzie indziej — /home,
     /odkryj, /szukaj — tablica jest jedynym takim miejscem na ekranie
     i zostaje przy nazwie „kuKINGi na dziś".
+
+    `wKarcie` — TABLICA JEST KARTĄ TYLKO TAM, GDZIE STOI OBOK INNYCH KART
+    W szynie (`szyna-startowa.blade.php`, `/szukaj`) i w głównej kolumnie
+    `/odkryj` karta jest na miejscu: tablica sąsiaduje tam z „Moim zeszytem"
+    i z kartami wpisów, więc białe tło z obwódką mówi, gdzie się kończy.
+    Na stronie powitalnej jest odwrotnie — hierarchię buduje tam tło PASA
+    (`.pas`, `pages/landing.blade.php`), a tablica była JEDYNĄ sekcją z kartą
+    w środku pasa, czyli kartą w karcie. Domyślnie pytamy więc o trasę, ale
+    wywołanie może to rozstrzygnąć wprost: `:wKarcie="false"`.
 --}}
-@props(['people', 'posts', 'notes' => [], 'graSlowem' => true])
+@props(['people', 'posts', 'notes' => [], 'graSlowem' => true, 'wKarcie' => null])
 
-@php $pusta = $people->isEmpty() && $posts->isEmpty(); @endphp
+@php
+    $pusta = $people->isEmpty() && $posts->isEmpty();
+    $wKarcie ??= ! request()->routeIs('landing');
+@endphp
 
-<section class="card kuking-board mb-6" aria-labelledby="kuking-na-dzis">
-    <h2 class="mt-0" id="kuking-na-dzis">
+<section @class([
+    'card' => $wKarcie,
+    'kuking-board',
+    'kuking-board-w-pasie' => ! $wKarcie,
+    'mb-6' => $wKarcie,
+]) aria-labelledby="kuking-na-dzis">
+    <h2 @class(['mt-0', 'text-title-lg' => ! $wKarcie]) id="kuking-na-dzis">
         @if($graSlowem)
             <x-kuking-word forma="i" /> na dziś
         @else
@@ -65,11 +105,11 @@
             <ul class="kuking-board-people">
                 @foreach($people as $person)
                     <li class="kuking-board-person">
-                        <a href="{{ route('profile.show', $person->profile->username) }}" tabindex="-1" aria-hidden="true">
-                            <x-avatar :user="$person" :size="52" />
+                        <a class="kuking-board-avatar" href="{{ route('profile.show', $person->profile->username) }}" tabindex="-1" aria-hidden="true">
+                            <x-avatar :user="$person" :size="120" />
                         </a>
 
-                        <div class="min-w-0 flex-1">
+                        <div class="kuking-board-person-body">
                             <a class="author-name" href="{{ route('profile.show', $person->profile->username) }}">{{ $person->displayName() }}</a>
                             <p class="meta m-0">
                                 {{ $person->profile->speciality ?? 'Gotuje w Kuking' }}
@@ -81,50 +121,34 @@
                             @endif
                         </div>
 
-                        @auth
-                            <form method="POST" action="{{ route('social.follow', $person->profile->username) }}">
-                                @csrf
-                                <button class="btn btn-secondary" type="submit">Obserwuj</button>
-                            </form>
-                        @else
-                            {{-- ETYKIETA MÓWI, CO SIĘ STANIE PO KLIKNIĘCIU.
-
-                                 Gość widział tu „Obserwuj" i trafiał na
-                                 rejestrację — przycisk obiecywał akcję, której
-                                 nie wykonywał. Tekst jest teraz ten sam co na
-                                 profilu (`pages/profile/show.blade.php`), żeby
-                                 to samo wyjście z serwisu nazywało się wszędzie
-                                 tak samo. --}}
-                            <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
-                        @endauth
-
                         {{-- Podgląd trzech ostatnich zdjęć. To jest jedyny
                              uczciwy argument, żeby kogoś zaobserwować.
 
-                             PASEK STOI JAKO BEZPOŚREDNIE DZIECKO `<li>`, ZA
-                             PRZYCISKIEM — i jedno, i drugie jest tu konieczne
-                             (issue #272).
-
-                             Bezpośrednie dziecko, bo `flex-basis: 100%`
+                             PASEK STOI JAKO BEZPOŚREDNIE DZIECKO `<li>`
+                             (issue #272), bo `flex-basis: 100%`
                              z `.kuking-board-preview` opisuje ten pasek jako
                              ELEMENT rzędu `.kuking-board-person`. Wewnątrz bloku
-                             tekstu (`.min-w-0.flex-1`) ta reguła była martwa:
-                             rodzicem był tam zwykły blok, nie kontener `flex`,
-                             więc pasek dostawał 105 px resztki po awatarze
-                             i przycisku, a rząd trzech miniatur (232 px) zawijał
-                             po jednej na wiersz. To jest dokładnie stan ze zrzutu
-                             właściciela.
+                             tekstu (`.kuking-board-person-body`) ta reguła była
+                             martwa: rodzicem był tam zwykły blok, nie kontener
+                             `flex`, więc pasek dostawał 105 px resztki po
+                             awatarze i przycisku, a rząd trzech miniatur
+                             (232 px) zawijał po jednej na wiersz. To jest
+                             dokładnie stan ze zrzutu właściciela.
 
-                             Za przyciskiem, bo `flex-basis: 100%` zawsze zaczyna
-                             nowy wiersz. Postawiony PRZED formularzem zepchnąłby
-                             „Obserwuj" do trzeciego wiersza, czyli pod zdjęcia.
-                             Kolejność czytania na tym nie traci: miniatury są
-                             ozdobne (`alt=""`) i nie da się na nie wejść klawiszem,
-                             a nazwa osoby i jej opis stoją nadal PRZED przyciskiem.
+                             KOLEJNOŚĆ: ZDJĘCIA, POTEM AKCJA. Do 11 września
+                             pasek stał ZA przyciskiem, bo przycisk siedział
+                             w tym samym wierszu co opis i wstawienie przed nim
+                             elementu na całą szerokość zepchnęłoby go pod
+                             zdjęcia. Dziś na własnym wierszu stoją OBA, więc
+                             o kolejności decyduje już tylko sens: najpierw
+                             dowód (co ta osoba ugotowała), potem decyzja
+                             (obserwuję albo nie). Miniatury są ozdobne
+                             (`alt=""`), nie da się na nie wejść klawiszem
+                             i nie wchodzą do kolejności czytania.
 
                              `tests/Feature/SzynaTablicaDniaUkladTest.php` pilnuje
-                             obu tych rzeczy — reguła w arkuszu bez tego miejsca
-                             w HTML-u nie robi nic. --}}
+                             miejsca paska w drzewie — reguła w arkuszu bez tego
+                             miejsca w HTML-u nie robi nic. --}}
                         @php
                             $podglad = $person->posts
                                 ->flatMap(fn ($post) => $post->media)
@@ -139,6 +163,25 @@
                                 @endforeach
                             </div>
                         @endif
+
+                        <div class="kuking-board-akcja">
+                            @auth
+                                <form method="POST" action="{{ route('social.follow', $person->profile->username) }}">
+                                    @csrf
+                                    <button class="btn btn-secondary" type="submit">Obserwuj</button>
+                                </form>
+                            @else
+                                {{-- ETYKIETA MÓWI, CO SIĘ STANIE PO KLIKNIĘCIU.
+
+                                     Gość widział tu „Obserwuj" i trafiał na
+                                     rejestrację — przycisk obiecywał akcję, której
+                                     nie wykonywał. Tekst jest teraz ten sam co na
+                                     profilu (`pages/profile/show.blade.php`), żeby
+                                     to samo wyjście z serwisu nazywało się wszędzie
+                                     tak samo. --}}
+                                <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
+                            @endauth
+                        </div>
                     </li>
                 @endforeach
             </ul>
@@ -151,41 +194,60 @@
                     <li class="kuking-board-post">
                         @php $glowne = $post->media->first(fn ($media) => $media->isReady()); @endphp
 
-                        {{-- CAŁY ODNOŚNIK ZE ZDJĘCIEM ZNIKA, GDY ZDJĘCIA NIE MA
-                             (issue #272). Wcześniej `@if` stał w środku, więc wpis
-                             bez gotowego zdjęcia zostawiał w rzędzie PUSTY element
-                             o zerowej szerokości — a element w kontenerze `flex`
-                             zabiera swój `gap` także wtedy, gdy nic nie zawiera.
-                             Zmierzone przy bazie 32 px: podpis takiego dania stał
-                             24 px w prawo od krawędzi wszystkich pozostałych kart
-                             w tablicy. Przy okazji ubywa z drzewa dostępności
-                             odnośnik, który nie prowadził do niczego widocznego. --}}
-                        @if($glowne)
-                            <a href="{{ $post->url() }}" class="kuking-board-post-photo" tabindex="-1" aria-hidden="true">
-                                <img src="{{ $glowne->url('thumb') }}" alt=""
-                                     width="96" height="96" loading="lazy" decoding="async">
-                            </a>
-                        @endif
+                        {{-- CAŁY WIERSZ JEST JEDNYM ODNOŚNIKIEM, BEZ PRZYCISKU
+                             „ZOBACZ" NA KOŃCU (zgłoszenie właściciela).
 
-                        {{-- `kuking-board-post-body` — to na tej klasie wisi próg
-                             dwóch kolumn (patrz `app.css`). Bez niej blok bierze
-                             rozmiar bazowy z treści i spada pod zdjęcie nawet
-                             w szynie, w której miejsce jest. --}}
-                        <div class="min-w-0 kuking-board-post-body">
-                            <p class="m-0 mb-1">
-                                <a class="author-name" href="{{ route('profile.show', $post->author->profile->username) }}">{{ $post->author->displayName() }}</a>
-                            </p>
+                             Do 11 września wiersz miał trzy cele kliknięcia
+                             prowadzące w dwa miejsca: zdjęcie (do wpisu), imię
+                             autora (do profilu) i przycisk „Zobacz" (do wpisu,
+                             ten sam adres co zdjęcie). Przycisk powtarzał się
+                             przy KAŻDYM daniu, choć nie robił nic ponad to, co
+                             zdjęcie obok — a stał raz z wcięciem, raz bez,
+                             w zależności od tego, czy danie miało zdjęcie.
 
-                            @if($post->body)
-                                <p class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($post->body, 90) }}</p>
+                             Teraz cel jest jeden i obejmuje cały wiersz: zdjęcie,
+                             imię i opis. Cel dotykowy rośnie ze 120 px przycisku
+                             do całej karty, czyli daleko ponad 48 px
+                             z `docs/UX_50_PLUS.md`. Nazwa dostępna odnośnika to
+                             widoczny tekst wiersza („Basia z Podkarpacia, Pierogi
+                             z niedzieli…"), więc mówi, dokąd prowadzi — inaczej
+                             niż dwadzieścia odnośników „Zobacz" na jednej liście.
+
+                             CO ZA TO ZNIKŁO: przejście do profilu autora wprost
+                             z karty dania (odnośnik w odnośniku nie istnieje
+                             w HTML-u). Nazwisko autora zostaje widoczne, a droga
+                             do profilu jest o jedno kliknięcie dalej — z otwartego
+                             wpisu — i na miejscu w liście „Osoby" wyżej. --}}
+                        <a class="kuking-board-post-link" href="{{ $post->url() }}">
+                            {{-- ZDJĘCIA NIE MA — NIE MA TEŻ PUSTEGO MIEJSCA PO NIM
+                                 (issue #272). Element o zerowej szerokości zabiera
+                                 w kontenerze `flex` swój `gap` także wtedy, gdy nic
+                                 nie zawiera. Zmierzone przy bazie 32 px: podpis
+                                 takiego dania stał 24 px w prawo od krawędzi
+                                 wszystkich pozostałych kart w tablicy. --}}
+                            @if($glowne)
+                                <span class="kuking-board-post-photo">
+                                    <img src="{{ $glowne->url('thumb') }}" alt=""
+                                         width="120" height="120" loading="lazy" decoding="async">
+                                </span>
                             @endif
 
-                            @if(isset($notes[$post->getKey()]))
-                                <p class="kuking-board-note">{{ $notes[$post->getKey()] }}</p>
-                            @endif
+                            {{-- `kuking-board-post-body` — to na tej klasie wisi próg
+                                 dwóch kolumn (patrz `app.css`). Bez niej blok bierze
+                                 rozmiar bazowy z treści i spada pod zdjęcie nawet
+                                 w szynie, w której miejsce jest. --}}
+                            <span class="kuking-board-post-body">
+                                <span class="author-name">{{ $post->author->displayName() }}</span>
 
-                            <a class="btn btn-quiet btn-quiet-bez-wciecia" href="{{ $post->url() }}">Zobacz</a>
-                        </div>
+                                @if($post->body)
+                                    <span class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($post->body, 90) }}</span>
+                                @endif
+
+                                @if(isset($notes[$post->getKey()]))
+                                    <span class="kuking-board-note">{{ $notes[$post->getKey()] }}</span>
+                                @endif
+                            </span>
+                        </a>
                     </li>
                 @endforeach
             </ul>

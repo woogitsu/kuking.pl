@@ -93,11 +93,27 @@
      tekst po lewej, tablica „kuKINGi na dziś" po prawej (`.hero-figura`,
      usunięta razem z tą tablicą — patrz `landing.blade.php`, sekcja 3).
      Audyt 60+ (`docs/research/AUDYT_60_PLUS.md`) każe tablicy stać PO
-     „Jak działa", nie obok hasła, więc hero zostaje z jednym dzieckiem
-     i nie ma już czego dzielić na dwie kolumny — została jedna, prosta
-     kolumna tekstu, taka sama jak w każdej innej sekcji pasa. */
+     „Jak działa", nie obok hasła, więc hero zostało z jednym dzieckiem
+     i z jedną kolumną tekstu.
+
+     11 WRZEŚNIA WRACAJĄ DWIE KOLUMNY — ALE Z INNĄ TREŚCIĄ PO PRAWEJ.
+     Zgłoszenie właściciela: „na samej górze po prawej stronie można zrobić
+     kolaż … żeby zachęcać od razu". Zmierzone przed zmianą: przy paśmie
+     1040 px kolumna tekstu zajmowała 544 px, więc około 500 px prawej strony
+     stało puste na serwisie o gotowaniu. Wraca więc podział, ale to, co
+     wróciło, NIE JEST tablicą: kolaż nie ma ani jednego odnośnika, ani
+     jednego przycisku i ani jednej liczby, czyli nie przywraca gęstości,
+     przed którą bronił audyt 60+. */
   .hero {
     display: grid;
+  }
+
+  @media (min-width: 64rem) {
+    .hero {
+      grid-template-columns: minmax(0, 34rem) minmax(0, 1fr);
+      gap: var(--spacing-10);
+      align-items: center;
+    }
   }
 
   /* `minmax(0, …)`, nigdy `1fr`: element siatki nie zejdzie poniżej swojej
@@ -115,6 +131,101 @@
      wartości, a nie jedna klasa robiąca dwie rzeczy. */
   .hero-tekst { max-width: 34rem; }
   .miara { max-width: 34rem; }
+
+  /* --- Kolaż zdjęć w hero -----------------------------------------------
+
+     PONIŻEJ 64REM KOLAŻU NIE MA W OGÓLE — I TO JEST CAŁE ZABEZPIECZENIE
+     PRZYCISKU „Zostań kuKINGiem".
+
+     Wymaganie brzmiało: kolaż nie może zepchnąć tego przycisku poniżej
+     pierwszego ekranu telefonu. Układ, w którym kolaż schodzi POD tekst,
+     też by ten wymóg spełnił (przycisk stoi nad nim w kolejności dokumentu),
+     ale `display: none` spełnia go w sposób, którego nie da się zepsuć
+     późniejszą zmianą kolejności w Blade — i przy okazji załatwia drugą
+     rzecz: obrazki z `loading="lazy"` w kontenerze `display: none` nigdy nie
+     przecinają się z oknem, więc przeglądarka NIE POBIERA ich wcale. Telefon
+     nie płaci za cztery pliki, których nie zobaczy.
+
+     Zmierzone (Chromium, `scripts/dostepnosc.mjs` mierzy te same szerokości):
+     na 360×640 px dolna krawędź przycisku „Zostań kuKINGiem" stoi tak samo
+     przed zmianą i po niej — kolaż nie dokłada ani jednego piksela.
+
+     Telefon nie zostaje przy tym bez zdjęć: dwie sekcje niżej stoi tablica
+     „kuKINGi na dziś", a pod nią „Świeżo z Kuking". Kolaż wypełnia szerokość,
+     której telefon po prostu nie ma.
+
+     PRZY CZCIONCE PRZEGLĄDARKI 200% KOLAŻU TEŻ NIE MA, I TAK MA BYĆ.
+     `64rem` w zapytaniu medialnym liczy się od czcionki bazowej przeglądarki,
+     więc przy 200% próg wynosi 2048 px i typowy laptop go nie przekracza.
+     Kto powiększa czcionkę dwukrotnie, dostaje jedną kolumnę tekstu — czyli
+     układ, w którym hasło i przycisk są na całą szerokość. Nasze własne
+     ustawienie czytelności (`data-text-scale`) działa inaczej: skaluje tokeny
+     tekstu, nie korzeń dokumentu, więc progu nie rusza i kolaż przy 140%
+     zostaje. To jest różnica zamierzona — tam rośnie sam tekst, tu rośnie
+     wszystko. */
+  .hero-kolaz-blok {
+    display: none;
+    margin: 0;
+  }
+
+  @media (min-width: 64rem) {
+    .hero-kolaz-blok {
+      display: block;
+    }
+  }
+
+  /* UKŁAD: WIATRACZEK, NIE SIATKA 2×2.
+
+     Cztery kafle w dwóch kolumnach i trzech rzędach, zazębione po przekątnej:
+     wysoki kafel lewy-górny i wysoki prawy-dolny trzymają się przeciwnych
+     narożników, a dwa niskie wypełniają to, co zostaje. Żadna pozioma ani
+     pionowa linia nie przechodzi przez cały kolaż, więc oko nie czyta tego
+     jako tabelki — a o to właśnie chodziło („kolaż ma wyglądać jak coś, co
+     ktoś ułożył").
+
+     Rzędy mają wysokości STAŁE (`rem`), a nie proporcje zdjęć: przy
+     `object-fit: cover` kształt kolażu nie zależy wtedy od tego, czy
+     gospodarz wybrał zdjęcia pionowe, czy poziome. Kolaż z jednego wyboru
+     ma wyglądać tak samo jak z drugiego.
+
+     Suma: 7.5 + 4.5 + 7.5 rem plus dwie przerwy = 21.5 rem ≈ 344 px. To
+     mniej niż wysokość kolumny tekstu w hero, więc kolaż nie dyktuje
+     wysokości pasa i nie spycha niczego pod spód nawet na szerokim ekranie. */
+  .hero-kolaz {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    grid-template-rows: 7.5rem 4.5rem 7.5rem;
+    gap: var(--spacing-3);
+  }
+
+  .hero-kolaz-kafel:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; rotate: -1.4deg; }
+  .hero-kolaz-kafel:nth-child(2) { grid-column: 2; grid-row: 1; rotate: 1.6deg; }
+  .hero-kolaz-kafel:nth-child(3) { grid-column: 2; grid-row: 2 / span 2; rotate: -1deg; }
+  .hero-kolaz-kafel:nth-child(4) { grid-column: 1; grid-row: 3; rotate: 1.2deg; }
+
+  /* Obwódka w kolorze podniesionej powierzchni udaje biały brzeg odbitki —
+     to ona sprawia, że cztery zdjęcia czytają się jako rozłożone fotografie,
+     a nie jako kafelki interfejsu. Obrót jest mały z rozmysłem: przy większym
+     kącie sąsiednie kafle zachodzą na siebie rogami, a przy `overflow`
+     obcinanym przez pas wychodziłyby poza jego wnętrze. */
+  .hero-kolaz-kafel {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-lg);
+    border: 4px solid var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+    background-color: var(--color-surface-sunken);
+  }
+
+  /* Podpis z nazwami autorów. `--text-body` (18 px), nie `--text-help`:
+     to jest zdanie do przeczytania, a nie metka — i obowiązuje je minimum
+     produktowe z `docs/UX_50_PLUS.md`. */
+  .hero-kolaz-podpis {
+    margin: var(--spacing-4) 0 0;
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
 
   /* Drugi claim marki stoi NAD hasłem głównym, mniejszy i w kolorze marki.
      Pod hasłem był czytany jak podpis pod zdjęciem i ginął. */
@@ -143,10 +254,29 @@
   }
 
   /* --- „Jak działa" (dawniej „Cztery rzeczy") ---------------------------
-     Dwie kolumny, nigdy więcej: przy większej liczbie kolumn zdanie
-     wyjaśniające ma przy skali 140% po dwa słowa w wierszu. Trzy kroki nie
-     dzielą się równo na dwie kolumny — trzeci kafel zostaje sam w drugim
-     rzędzie, i tak ma być, to nie jest błąd składu. */
+
+     TRZY KOLUMNY OD 64REM, DO TEGO PROGU JEDNA KOLUMNA POZIOMYCH KAFLI.
+
+     Do 11 września stało tu `repeat(2, …)` od 48rem z komentarzem „dwie
+     kolumny, nigdy więcej", a trzeci kafel zostawał sam w drugim rzędzie
+     („i tak ma być, to nie jest błąd składu"). Właściciel zgłosił dokładnie
+     to miejsce: „zbyt brzydkie, proste i niewizualne", a zmierzone ze zrzutu
+     — pod trzecim kaflem stało puste pole wielkości całej karty.
+
+     Tamten komentarz miał jednak prawdziwy argument, którego nie wolno
+     zgubić: przy większej liczbie kolumn zdanie wyjaśniające ma przy skali
+     tekstu 140% po dwa słowa w wierszu. Dlatego trzy kolumny wchodzą DOPIERO
+     od 64rem (1024 px), a nie od 48rem (768 px) — przy 1024 px kolumna ma
+     około 300 px, czyli przy 140% wciąż 4–5 słów w wierszu. Na 768 px
+     kolumny nie ma wcale i kafel układa się POZIOMO: znak po lewej, tekst
+     po prawej. Poziomy kafel nie marnuje szerokości i nie robi z sekcji
+     trzech ekranów przewijania na telefonie.
+
+     `flex-wrap: wrap` plus `flex-basis` na treści to cały mechanizm obrony
+     przy 320 px i czcionce przeglądarki 200%: gdy na tekst zostaje mniej
+     niż 12rem, treść zjeżdża pod znak sama, bez drugiego zapytania
+     medialnego. Przy 200% czcionki `12rem` to 384 px, czyli więcej niż cały
+     ekran — więc kafel na pewno się złoży. */
 
   .rzeczy {
     display: grid;
@@ -156,18 +286,61 @@
     padding: 0;
   }
 
-  @media (min-width: 48rem) {
+  @media (min-width: 64rem) {
     .rzeczy {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: var(--spacing-6);
     }
   }
 
   .rzecz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--spacing-4) var(--spacing-5);
     background-color: var(--color-surface-raised);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl);
     padding: var(--spacing-6);
+  }
+
+  @media (min-width: 64rem) {
+    .rzecz {
+      flex-direction: column;
+    }
+  }
+
+  .rzecz-tresc {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+
+  /* ZNAK KROKU — koło w kolorze podkładu marki z ikoną w środku.
+
+     Rozmiar w `rem`, nie w `px`: rośnie razem z czcionką przeglądarki, więc
+     przy 200% nie zostaje znaczkiem obok dwukrotnie większego napisu.
+     `flex: none`, bo domyślne `flex-shrink` zgniotłoby koło do elipsy,
+     gdy tekst obok jest długi — ta sama pułapka, którą `.ikona` ma
+     zamkniętą u siebie w `tokens.css`. */
+  .rzecz-znak {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface-brand-wash);
+    color: var(--color-brand);
+  }
+
+  /* Numer kroku — TEKST, nie ikona. Ikona jest `aria-hidden` i nie może być
+     jedynym nośnikiem kolejności; „Krok 2" musi dać się przeczytać na głos. */
+  .rzecz-krok {
+    margin: 0 0 var(--spacing-1);
+    font-size: var(--text-help);
+    font-weight: 700;
+    color: var(--color-brand);
   }
 
   .rzecz-tytul {
@@ -185,6 +358,7 @@
   /* Tytuł i opis kafla łamią długie słowo, zamiast rozpychać kafel.
      Zmierzone przy czcionce przeglądarki 200% i oknie 320 px: kafel miał
      404 px, z czego sam tytuł 274 px w jednym nierozerwalnym wyrazie. */
+  .rzecz-krok,
   .rzecz-tytul,
   .rzecz-opis { overflow-wrap: anywhere; }
 

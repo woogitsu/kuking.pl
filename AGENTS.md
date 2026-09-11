@@ -189,7 +189,7 @@ i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
 indziej w serwisie te reguły obowiązują bez zmian.
 
 Nawigacja mobilna ma **maksymalnie 5 pozycji**:
-`Start | Szukaj | Dodaj | Zeszyt | Profil`.
+`Start | Szukaj | Dodaj | Moje | Profil`.
 
 Paginacja to **przycisk „Pokaż więcej”**, nie infinite scroll.
 

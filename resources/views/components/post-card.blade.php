@@ -62,10 +62,34 @@
                 W środku siedzą rzeczy, po które NIE sięga się odruchowo —
                 dlatego zeszły z paska akcji pod spodem: tam zostają tylko
                 „Ugotowałem" i komentarze.
+
+                MA WIDOCZNY NAPIS, NIE SAME KROPKI (AGENTS.md:176).
+                Do 11 września 2026 całą treścią tego przycisku było
+                `<span aria-hidden="true">···</span>`, czyli trzy kropki
+                SCHOWANE przed czytnikiem ekranu, a nazwa dostępna istniała
+                wyłącznie w `aria-label`. Oko dostawało znak bez podpisu,
+                czytnik ekranu podpis bez znaku, i nikt nie dostawał obu.
+                Za tymi kropkami stoją „Edytuj wpis" i „Usuń wpis" — a
+                `docs/UX_50_PLUS.md`:27 nazywa dokładnie ten wzorzec
+                („`♡ ⋮ ↗` bez podpisów") słabym.
+
+                Napis „Więcej" jest teraz w treści przycisku, więc czyta go
+                i oko, i czytnik ekranu. `aria-label` ZOSTAJE, bo na liście
+                wpisów jest tych przycisków tyle, ile kart: „Więcej" samo
+                w sobie nie mówi, przy którym wpisie stoi. Zaczyna się od
+                widocznego napisu, więc spełnia WCAG 2.2 AA 2.5.3
+                (Label in Name) — czytnik mówi „Więcej przy tym wpisie",
+                a człowiek widzi „Więcej".
+
+                `<x-ikona nazwa="more">` zamiast trzech kropek wpisanych
+                z klawiatury: znak `···` jest tekstem, więc rósł i kurczył
+                się razem z czcionką inaczej niż napis obok i przy 200 %
+                rozjeżdżał się z nim w pionie.
             --}}
             <details class="post-card-menu">
                 <summary aria-label="Więcej przy tym wpisie">
-                    <span aria-hidden="true">···</span>
+                    <x-ikona nazwa="more" :rozmiar="24" class="post-card-menu-ikona" />
+                    <span class="post-card-menu-napis">Więcej</span>
                 </summary>
                 <div class="post-card-menu-tresc">
                     <a href="{{ $post->url() }}">Otwórz wpis</a>
