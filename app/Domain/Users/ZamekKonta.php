@@ -96,7 +96,35 @@ final class ZamekKonta
         return DB::transaction(static function () use ($user, $co) {
             $swiezy = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
-            return $co($swiezy);
+            self::$trzymanychBlokad++;
+
+            try {
+                return $co($swiezy);
+            } finally {
+                self::$trzymanychBlokad--;
+            }
         });
+    }
+
+    /**
+     * Ile blokad tej klasy jest trzymanych w TYM procesie, tu i teraz.
+     *
+     * Licznik, nie flaga, bo `ZamekKonta` wolno zagnieździć w sobie samym —
+     * to bierze blokadę na ten sam wiersz drugi raz w tej samej transakcji,
+     * czyli nic nie kosztuje i niczego nie psuje. Zmniejszenie idzie
+     * przez `finally`, więc wyjątek z wywołania zwrotnego nie zostawia
+     * licznika podniesionego na zawsze.
+     */
+    private static int $trzymanychBlokad = 0;
+
+    /**
+     * Czy w tej chwili trzymamy blokadę konta.
+     *
+     * Pyta o to `ZamekPary` — patrz komentarz przy jego strażniku. Metoda
+     * jest tu, a nie tam, bo licznik należy do tej klasy.
+     */
+    public static function trzymanyWTymProcesie(): bool
+    {
+        return self::$trzymanychBlokad > 0;
     }
 }
