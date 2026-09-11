@@ -129,19 +129,29 @@
                     <label class="pole-zdjecia" for="odzyskany-plik-{{ $loop->index }}">
                         <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                         <span class="pole-zdjecia-tytul" id="odzyskany-plik-{{ $loop->index }}-tytul">Wybierz zdjęcie jeszcze raz</span>
+                        {{-- TU NIE MÓWIMY NIC O TEKŚCIE.
+
+                             Stało tu „Tekst jest bezpieczny, brakuje tylko
+                             pliku." — czyli to samo bezwarunkowe zapewnienie,
+                             które wyżej zostało obwarowane warunkiem
+                             `$formularz->obciete`. Przy obciętym formularzu
+                             sprzeczność wracała więc niżej na tej samej
+                             stronie, tylko drobniejszym pismem. Co się stało
+                             z tekstem, mówi jedno miejsce: akapit na górze. --}}
                         <span class="field-help" id="odzyskany-plik-{{ $loop->index }}-help">
                             Zdjęcia nie da się odzyskać — przeglądarka na to nie pozwala.
-                            Tekst jest bezpieczny, brakuje tylko pliku.
+                            Trzeba je wybrać jeszcze raz.
                         </span>
                     </label>
                 </div>
             @endforeach
 
             @if($formularz->obciete)
-                <p class="field-help">
-                    Ten formularz był wyjątkowo duży i nie wszystko udało się przenieść.
-                    Sprawdź treść przed wysłaniem.
-                </p>
+                {{-- Przypomnienie przy samym przycisku, bez powtarzania
+                     wyjaśnienia z góry: powód („formularz był wyjątkowo duży")
+                     stoi w akapicie na górze i dwa razy na jednym ekranie
+                     nie musi. Zostaje to, co jest tu do zrobienia. --}}
+                <p class="field-help">Sprawdź treść przed wysłaniem.</p>
             @endif
 
             <div class="form-actions">

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -121,6 +122,86 @@ class TekstyMowiaPrawdeTest extends TestCase
             'nie wszystko udało się przenieść',
             $akapit,
             'Strona 419 straszy obcięciem przy formularzu, który wcale nie został obcięty.',
+        );
+    }
+
+    /**
+     * TA SAMA SPRZECZNOŚĆ, ALE NA CAŁEJ STRONIE — NIE TYLKO W PIERWSZYM
+     * AKAPICIE.
+     *
+     * Dwa testy wyżej patrzą wyłącznie na akapit na górze, i to zawężenie
+     * miało swój powód, ale też swój koszt: sprzeczność wróciła niżej, pomocą
+     * przy polu pliku („Tekst jest bezpieczny, brakuje tylko pliku."),
+     * drobniejszym pismem i poza zasięgiem tamtych asercji. Zawężony test
+     * przechodził, a strona dalej mówiła człowiekowi obie rzeczy naraz.
+     *
+     * Ten test patrzy więc na CAŁE `<main>`. Szuka zapewnień o tekście, nie
+     * o pliku — bo o pliku wolno i trzeba mówić, że przepadł.
+     */
+    public function test_419_z_obcietym_formularzem_nie_zapewnia_o_tekscie_NIGDZIE_na_stronie(): void
+    {
+        // PLIK JEST TU WARUNKIEM, ŻEBY TEST COKOLWIEK MIERZYŁ.
+        //
+        // Pomoc „Zdjęcia nie da się odzyskać" renderuje pętla po
+        // `$formularz->pliki`, a ta lista powstaje z `$request->allFiles()`
+        // (`OdzyskanyFormularz::zZadania()`). Bez wysłanego pliku pętla nie
+        // wykonuje ani jednego obiegu i sprawdzany fragment strony NIE
+        // ISTNIEJE — test przechodzi, nie oglądając niczego. Złapane kontrolą
+        // ujemną: po przywróceniu starego, sprzecznego zdania test nadal był
+        // zielony.
+        $html = $this->ekran419([
+            'body' => str_repeat('a', self::PONAD_LIMIT_ZNAKOW - 1_000),
+            'body_ciag_dalszy' => str_repeat('b', 2_000),
+            'zdjecia' => [UploadedFile::fake()->image('rosol.jpg')],
+        ]);
+
+        $strona = $this->xpath($html, '//main');
+
+        // Kontrola dodatnia numer dwa: pomoc przy polu pliku naprawdę stoi na
+        // stronie. Bez tej asercji zniknięcie całej pętli przeszłoby niezauważone.
+        $this->assertStringContainsString(
+            'Zdjęcia nie da się odzyskać',
+            $strona,
+            'Na stronie nie ma pomocy przy polu pliku — ten test znowu mierzy nieobecny fragment.',
+        );
+
+        // Kontrola dodatnia: naprawdę patrzymy na stronę obciętego formularza.
+        $this->assertStringContainsString(
+            'nie wszystko udało się przenieść',
+            $strona,
+            'Nie trafiłem w gałąź obciętego formularza — bez tego test nie mierzy niczego.',
+        );
+
+        foreach (['nic nie przepadło', 'nic z niego nie przepadło', 'Tekst jest bezpieczny'] as $zapewnienie) {
+            $this->assertStringNotContainsString(
+                $zapewnienie,
+                $strona,
+                'Strona 419 zapewnia o tekście („'.$zapewnienie.'"), choć część tekstu obcięła. '
+                .'Sprawdzane na całym `<main>`, bo poprzednio ta sprzeczność wróciła w pomocy przy polu pliku.',
+            );
+        }
+    }
+
+    /**
+     * KONTROLA DODATNIA: powód obcięcia stoi na stronie DOKŁADNIE RAZ.
+     *
+     * Rozdzielenie akapitu na dwie gałęzie postawiło zdanie „formularz był
+     * wyjątkowo duży i nie wszystko udało się przenieść" na górze, a takie samo
+     * stało już nad przyciskiem — i ta sama informacja mówiona dwa razy na
+     * jednym ekranie jest zarzutem, który audyt copy z 11.09 podniósł osobno.
+     */
+    public function test_419_mowi_o_obcieciu_dokladnie_raz(): void
+    {
+        $html = $this->ekran419([
+            'body' => str_repeat('a', self::PONAD_LIMIT_ZNAKOW - 1_000),
+            'body_ciag_dalszy' => str_repeat('b', 2_000),
+            'zdjecia' => [UploadedFile::fake()->image('rosol.jpg')],
+        ]);
+
+        $this->assertSame(
+            1,
+            substr_count($this->xpath($html, '//main'), 'nie wszystko udało się przenieść'),
+            'Powód obcięcia stoi na stronie 419 więcej niż raz — ta sama informacja dwa razy na jednym ekranie.',
         );
     }
 
@@ -503,8 +584,12 @@ class TekstyMowiaPrawdeTest extends TestCase
 
     /**
      * Pierwszy akapit strony 419 — ten, który mówi, co się stało z tekstem.
-     * Zawężenie jest tu wszystkim: niżej na tej samej stronie stoi pomoc przy
-     * polu pliku, która też mówi o tym, co przepadło, a co nie.
+     *
+     * To zawężenie ma powód (akapit jest tym miejscem, które O TEKŚCIE mówi),
+     * ale MIAŁO TEŻ KOSZT i trzeba go tu wpisać: dopóki testy patrzyły tylko
+     * tutaj, ta sama sprzeczność wróciła niżej pomocą przy polu pliku i żaden
+     * test tego nie widział. Dlatego obok stoi teraz test patrzący na całe
+     * `<main>`. Zawężenie zostaje — samo już nie wystarcza.
      */
     private function pierwszyAkapit(string $html): string
     {
