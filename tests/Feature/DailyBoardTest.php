@@ -24,7 +24,16 @@ class DailyBoardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_wybor_redakcyjny_ma_pierwszenstwo_przed_automatycznym(): void
+    /**
+     * Wybór gospodarza stoi PIERWSZY, a resztę miejsc dobiera automat
+     * (decyzja właściciela, 11.09.2026).
+     *
+     * Do 11 września zaznaczenie choćby jednej pozycji wyłączało automat
+     * całkowicie — tablica pokazywała dokładnie tyle, ile zaznaczono, i ani
+     * rzeczy więcej. Wybór gospodarza ma WYRÓŻNIAĆ kilka rzeczy, a nie
+     * zamykać tablicę na resztę serwisu.
+     */
+    public function test_wybor_redakcyjny_stoi_pierwszy_a_reszte_dobiera_automat(): void
     {
         $gospodarz = $this->moderator();
         $wybrany = $this->user('wybrany');
@@ -46,11 +55,62 @@ class DailyBoardTest extends TestCase
         $tablica = app(DailyBoard::class)->forViewer(null);
 
         $this->assertTrue($tablica['curated']);
-        $this->assertCount(1, $tablica['people']);
-        $this->assertSame($wybrany->getKey(), $tablica['people']->first()->getKey());
+
+        // KOLEJNOŚĆ JEST CZĘŚCIĄ DECYZJI. Gdyby automat wchodził przed
+        // wyborem gospodarza, wyróżnienie przestałoby być wyróżnieniem —
+        // a `inny` opublikował później i bez tej reguły stałby pierwszy.
+        $this->assertSame($wybrany->getKey(), $tablica['people']->first()->getKey(),
+            'Wybór gospodarza nie stoi na pierwszym miejscu.');
         $this->assertSame('Pierwszy raz pokazała swój chleb', $tablica['notes'][$wybrany->getKey()]);
-        $this->assertCount(0, $tablica['posts'], 'Wybór redakcyjny nie dobiera wpisów samodzielnie.');
-        $this->assertNotSame($wpis->getKey(), $tablica['posts']->first()?->getKey());
+
+        // Osoba wybrana NIE dubluje się w doborze automatu.
+        $this->assertSame(
+            $tablica['people']->modelKeys(),
+            array_values(array_unique($tablica['people']->modelKeys())),
+            'Ta sama osoba stoi na tablicy dwa razy.',
+        );
+
+        // A puste miejsca po daniach zapełnia automat — tego właśnie brakowało.
+        $this->assertTrue($tablica['posts']->contains('id', $wpis->getKey()),
+            'Automat nie dobrał ani jednego dania, choć wybór gospodarza ich nie zawierał.');
+    }
+
+    /**
+     * Dobór automatu nie dokłada DRUGIEGO dania osoby, którą gospodarz już
+     * wyróżnił. Reguła „najwyżej jedno danie od osoby" obowiązuje w całej
+     * tablicy, a nie osobno w części redakcyjnej i osobno w dobranej —
+     * bez tego jedna aktywna osoba zasłania cały serwis
+     * (docs/product/COLD_START.md).
+     */
+    public function test_automat_nie_doklada_drugiego_dania_wyroznionej_osoby(): void
+    {
+        $gospodarz = $this->moderator();
+        $ewa = $this->user('ewa');
+
+        $wybraneDanie = Post::factory()->create([
+            'author_id' => $ewa->getKey(),
+            'published_at' => now()->subDay(),
+        ]);
+        $drugieDanieEwy = Post::factory()->create([
+            'author_id' => $ewa->getKey(),
+            'published_at' => now(),
+        ]);
+
+        DailyPick::create([
+            'shown_on' => Czas::dzisiajData(),
+            'subject_type' => DailyPick::TYPE_POST,
+            'subject_id' => $wybraneDanie->getKey(),
+            'position' => 0,
+            'curator_id' => $gospodarz->getKey(),
+        ]);
+
+        $tablica = app(DailyBoard::class)->forViewer(null);
+
+        $this->assertTrue($tablica['posts']->contains('id', $wybraneDanie->getKey()));
+        $this->assertFalse(
+            $tablica['posts']->contains('id', $drugieDanieEwy->getKey()),
+            'Automat dołożył drugie danie osoby, którą gospodarz właśnie wyróżnił.',
+        );
     }
 
     public function test_bez_wyboru_redakcyjnego_tablica_dobiera_sama(): void

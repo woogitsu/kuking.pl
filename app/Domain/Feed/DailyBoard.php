@@ -42,16 +42,71 @@ final class DailyBoard
     {
         $picks = DailyPick::query()->forDate()->get();
 
-        if ($picks->isNotEmpty()) {
-            return $this->fromCuratedPicks($picks, $viewer);
+        if ($picks->isEmpty()) {
+            return [
+                'people' => $this->peopleToFollow($viewer, self::PEOPLE),
+                'posts' => $this->automaticPosts($viewer),
+                'curated' => false,
+                'notes' => [],
+            ];
         }
 
-        return [
-            'people' => $this->peopleToFollow($viewer, self::PEOPLE),
-            'posts' => $this->automaticPosts($viewer),
-            'curated' => false,
-            'notes' => [],
-        ];
+        return $this->uzupelnijDoSufitu($this->fromCuratedPicks($picks, $viewer), $viewer);
+    }
+
+    /**
+     * Wybór redakcyjny UZUPEŁNIONY automatem do sufitu (decyzja właściciela,
+     * 11.09.2026).
+     *
+     * DLACZEGO TO W OGÓLE POWSTAŁO. Do 11 września zaznaczenie w panelu choćby
+     * JEDNEJ pozycji wyłączało automat całkowicie: tablica pokazywała dokładnie
+     * tyle, ile zaznaczono, i ani rzeczy więcej. Właściciel zaznaczył cztery
+     * pozycje i zobaczył na stronie powitalnej dwie osoby i dwa dania tam,
+     * gdzie mieści się dwa razy tyle — przy 87 publicznych wpisach w bazie.
+     * Wybór gospodarza to miało być WYRÓŻNIENIE kilku rzeczy, a nie zamknięcie
+     * tablicy na resztę serwisu.
+     *
+     * KOLEJNOŚĆ JEST CZĘŚCIĄ DECYZJI: najpierw to, co wybrał człowiek, potem
+     * dobór automatu. Inaczej wyróżnienie przestaje być wyróżnieniem.
+     *
+     * DZIURA PO POZYCJI SCHOWANEJ TEŻ SIĘ ZAPEŁNIA. `fromCuratedPicks`
+     * odsiewa pozycje niedostępne dla tego widza (autor zablokowany, wpis
+     * schowany przez moderację po wyborze). Liczymy więc brakujące miejsca
+     * z tego, co NAPRAWDĘ zostało, a nie z liczby zaznaczeń w panelu — inaczej
+     * widz z jedną blokadą dostawałby tablicę krótszą od cudzej, bez żadnego
+     * powodu.
+     *
+     * TO NADAL NIE JEST RANKING (AGENTS.md §12). Automat dobiera po tym, KIEDY
+     * ktoś ostatnio coś pokazał, i najwyżej jedną pozycję od osoby — żadna
+     * miara popularności nie wchodzi tu ani w wybór, ani w kolejność.
+     *
+     * @param  array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}  $tablica
+     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     */
+    private function uzupelnijDoSufitu(array $tablica, ?User $viewer): array
+    {
+        $brakujeOsob = self::PEOPLE - $tablica['people']->count();
+
+        if ($brakujeOsob > 0) {
+            $tablica['people'] = $tablica['people']->concat(
+                $this->peopleToFollow($viewer, $brakujeOsob, $tablica['people']->modelKeys()),
+            );
+        }
+
+        $brakujeDan = self::POSTS - $tablica['posts']->count();
+
+        if ($brakujeDan > 0) {
+            // Pomijamy AUTORÓW wybranych dań, nie same dania. Reguła „najwyżej
+            // jedna pozycja od osoby" jest w tej tablicy najważniejsza
+            // (docs/product/COLD_START.md): bez niej jedna aktywna osoba
+            // zasłania cały serwis, a dobór automatu mógłby dołożyć drugi wpis
+            // dokładnie tej osoby, którą gospodarz właśnie wyróżnił.
+            $tablica['posts'] = $tablica['posts']->concat(
+                $this->automaticPosts($viewer, $brakujeDan, $tablica['posts']->pluck('author_id')->all()),
+            );
+        }
+
+        return $tablica;
     }
 
     /**
@@ -110,17 +165,23 @@ final class DailyBoard
      *
      * @return Collection<int, User>
      */
-    public function peopleToFollow(?User $viewer, int $limit = self::PEOPLE): Collection
+    public function peopleToFollow(?User $viewer, int $limit = self::PEOPLE, array $pomin = []): Collection
     {
-        $excluded = $this->hiddenAuthorIdsFor($viewer);
+        // `$pomin` — konta, które na tej tablicy już stoją z wyboru gospodarza.
+        // Parametr, a nie odsiewanie po pobraniu: limit jest narzucany w SQL,
+        // więc odsianie „po fakcie" zwracałoby MNIEJ pozycji niż proszono
+        // i dziura zostawałaby otwarta.
+        $excluded = [...$this->hiddenAuthorIdsFor($viewer), ...$pomin];
 
         if ($viewer !== null) {
-            $excluded = array_values(array_unique([
+            $excluded = [
                 ...$excluded,
                 $viewer->getKey(),
                 ...$viewer->following()->pluck('users.id')->all(),
-            ]));
+            ];
         }
+
+        $excluded = array_values(array_unique($excluded));
 
         // JEDNA AGREGACJA NA CAŁE `posts`, A NIE JEDNA NA KAŻDE KONTO.
         //
@@ -169,9 +230,13 @@ final class DailyBoard
      *
      * @return Collection<int, Post>
      */
-    private function automaticPosts(?User $viewer): Collection
+    private function automaticPosts(?User $viewer, int $limit = self::POSTS, array $pominAutorow = []): Collection
     {
-        $hidden = $this->hiddenAuthorIdsFor($viewer);
+        // `$pominAutorow` — autorzy, których danie już stoi na tablicy
+        // z wyboru gospodarza. Wykluczamy AUTORA, nie sam wpis, bo reguła
+        // „najwyżej jedno danie od osoby" obowiązuje w całej tablicy, a nie
+        // osobno w części redakcyjnej i osobno w dobranej.
+        $hidden = array_values(array_unique([...$this->hiddenAuthorIdsFor($viewer), ...$pominAutorow]));
 
         // DISTINCT ON (author_id), NIE „pobierz z zapasem i odsiej".
         //
@@ -213,7 +278,7 @@ final class DailyBoard
             ->fromSub($najnowszyKazdegoAutora, 'najnowsze')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->limit(self::POSTS)
+            ->limit($limit)
             ->pluck('id');
 
         if ($wybrane->isEmpty()) {
