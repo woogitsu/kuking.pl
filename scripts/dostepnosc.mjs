@@ -359,6 +359,77 @@ const EKRANY = [
   { nazwa: 'polityka prywatności', adres: '/prywatnosc' },
   { nazwa: 'regulamin', adres: '/regulamin' },
   { nazwa: 'zasady', adres: '/zasady' },
+
+  /* ===========================================================================
+   * SIEDEM STRON PUBLICZNYCH DOPISANYCH 11 WRZEŚNIA — SPŁATA DŁUGU Z D-099
+   * ===========================================================================
+   *
+   * Wypisał je sam skan `PomiarDostepnosciObejmujeStronyPubliczneTest` przy
+   * pierwszym uruchomieniu i przez jeden PR stały na tamtejszej liście
+   * `WYJATKI` jako **dług nazwany**: prawdziwe strony, których ten automat nie
+   * oglądał ani razu. Autor D-099 nie dokładał ich w PR-ze odblokowującym
+   * `main` z jednego powodu — „każdy nowy ekran może przynieść własne
+   * znaleziska, a wtedy trzeba je naprawić, nie odłożyć, i robi się to na
+   * zielonym CI, nie na czerwonym". `main` jest zielony, więc dług wraca tutaj.
+   *
+   * NAJWAŻNIEJSZA Z NICH JEST `/nie-pamietam-hasla`. To jest droga, którą
+   * człowiek wchodzi dopiero WTEDY, GDY MU COŚ NIE WYSZŁO — a więc ten ekran,
+   * na którym pole bez etykiety albo za mały przycisk kosztuje nie
+   * niewygodę, tylko konto. Do dziś nie był sprawdzony ani razu.
+   *
+   * Wszystkie siedem to strony GOŚCIA (sześć z nich stoi w grupie `guest`
+   * w `routes/web.php`, `/pomoc` i `/o-kuking` są całkiem otwarte), więc idą
+   * bez `zalogowany: true` — poza jednym wyjątkiem opisanym przy nim niżej.
+   */
+  { nazwa: 'o Kuking', adres: '/o-kuking' },
+  { nazwa: 'pomoc', adres: '/pomoc' },
+
+  /*
+   * ODWOŁANIE DLA GOŚCIA (#10, DSA art. 20) — INNY EKRAN NIŻ „odwołanie od
+   * decyzji" WYŻEJ, mimo podobnej nazwy.
+   *
+   * Tamten (`/odwolanie/{action}`) widzi osoba ZALOGOWANA, której decyzja
+   * dotyczy, i ma gotowy kontekst sprawy. Ten jest dla kogoś, komu zamknięto
+   * konto i kto do serwisu nie wejdzie — więc zamiast kontekstu ma pola
+   * „login" i „hasło" plus pole treści odwołania. Zmierzenie wariantu
+   * zalogowanego nic o tym układzie nie mówi.
+   */
+  { nazwa: 'odwołanie (gość)', adres: '/odwolanie' },
+
+  /*
+   * NIE PAMIĘTAM HASŁA — najważniejszy ekran z tej siódemki, patrz wyżej.
+   */
+  { nazwa: 'nie pamiętam hasła', adres: '/nie-pamietam-hasla' },
+
+  // Logowanie linkiem e-mail (#25, D-056) — dla naszej grupy droga
+  // PODSTAWOWA, nie awaryjna, więc tym bardziej ma być zmierzona.
+  { nazwa: 'logowanie linkiem', adres: '/logowanie/link' },
+
+  /*
+   * DRUGI KROK LOGOWANIA — KOD Z APLIKACJI (#12). JEDYNY Z SIÓDEMKI, KTÓRY
+   * WYMAGA WŁASNEGO STANU PRZEGLĄDARKI.
+   *
+   * `TwoFactorChallengeController::show()` odsyła na `/login`, jeśli w sesji
+   * nie ma `logowanie.2fa.user_id` — czyli śladu POPRAWNIE PODANEGO HASŁA.
+   * Wejście na ten adres wprost daje więc przekierowanie, a to w tym skrypcie
+   * jest BŁĘDEM (sprawdzenie ścieżki w pętli niżej), nie cichym pominięciem.
+   *
+   * Dlatego `przedKodem2FA: true`: ekran idzie w czwartym kontekście, którego
+   * ciasteczko pochodzi z `stanPrzedKodem2FA()` — pierwszego kroku logowania
+   * wykonanego naprawdę, formularzem. Niczego tu nie obchodzimy i nie
+   * osłabiamy: sesja jest w dokładnie tym stanie, w którym jest sesja
+   * człowieka trzymającego telefon z kodem.
+   */
+  { nazwa: 'logowanie kodem (2FA)', adres: '/logowanie/kod', przedKodem2FA: true },
+
+  /*
+   * COFNIĘCIE USUNIĘCIA KONTA (D-022) — ekran dla kogoś, kogo
+   * `EnsureAccountIsActive` już wylogowało, więc publiczny z konieczności.
+   * Jest to zarazem jedyna droga odwrotu z decyzji, której skutku po 30 dniach
+   * nie da się cofnąć niczym: strona, na której trzeba trafić w przycisk
+   * za pierwszym razem.
+   */
+  { nazwa: 'cofnij usunięcie konta', adres: '/cofnij-usuniecie-konta' },
 ];
 
 /*
@@ -551,6 +622,91 @@ function log(...args) {
   console.log(...args);
 }
 
+/*
+ * STEROWNIK POCZTY, KTÓRY DOSTARCZA — BO INACZEJ DWA EKRANY NIE MAJĄ
+ * FORMULARZA, A AUTOMAT MIERZY DWA AKAPITY I MELDUJE „✓" (D-106).
+ *
+ * ZMIERZONE 11 WRZEŚNIA, przy dopisywaniu siedmiu stron publicznych z D-099.
+ * `/nie-pamietam-hasla` i `/logowanie/link` mają PO DWA STANY, rozstrzygane
+ * przez `App\Support\Poczta::dziala()` (czyli przez to, czy Laravel w ogóle
+ * ma czym wysłać list):
+ *
+ *   poczta działa   → nagłówek, akapit, KARTA Z FORMULARZEM (pole adresu
+ *                     z etykietą i podpowiedzią, Turnstile, dwa przyciski),
+ *                     trzy bloki wyjaśnień pod spodem;
+ *   poczta nie działa → nagłówek, jeden akapit „napisz do nas" i dwa przyciski.
+ *
+ * Zmierzone przy 320 px (Chromium 153) — liczy się OSTATNIA kolumna, nie
+ * wielkość różnicy:
+ *
+ *     ekran                  stan               węzłów  znaków  PÓL
+ *     /nie-pamietam-hasla    poczta działa          14     315    1
+ *     /nie-pamietam-hasla    poczta nie działa       6     257    0
+ *     /logowanie/link        poczta działa          21     891    1
+ *     /logowanie/link        poczta nie działa       6     271    0
+ *
+ * W stanie zapasowym NIE MA ANI JEDNEGO POLA FORMULARZA, więc cała klasa
+ * rzeczy, których ten automat pilnuje — etykieta pola, opis pod polem, nazwa
+ * dostępna przycisku wysyłki, kontrast, rozmiar celu, zawijanie rzędu
+ * przycisków przy 320 px — nie ma na czym zadziałać. Zielony wynik nad takim
+ * ekranem nie mówi nic o formularzu, bo formularza tam nie było.
+ *
+ * A to jest ekran, na który człowiek trafia DOPIERO WTEDY, GDY MU COŚ NIE
+ * WYSZŁO. Mierzenie jego stanu zapasowego i zapisywanie „✓" jest dokładnie tą
+ * fałszywą zielenią, przed którą ostrzega nagłówek tego pliku: pusty ekran
+ * przechodzi każdy audyt, nie sprawdzając niczego.
+ *
+ * `.env` deweloperski ma `MAIL_MAILER=log`, a job `dostepnosc` w CI —
+ * `MAIL_MAILER=array`. OBA są dla `Poczta` niedostarczające, więc formularza
+ * odzyskania hasła nie widział dotąd ani jeden przebieg, nigdzie.
+ *
+ * Dlatego serwer pod pomiar wstaje ze sterownikiem `smtp`, celującym
+ * w `MAIL_HOST`/`MAIL_PORT` z konfiguracji. Nie jest to osłabienie niczego
+ * i nie wysyła ani jednego listu: ten automat wykonuje wyłącznie żądania GET
+ * oraz trzy formularze logowania i włączenie 2FA, a żadna z tych dróg poczty
+ * nie rusza. `EsmtpTransport` powstaje lokalnie i otwiera gniazdo dopiero
+ * przy pierwszym liście, którego tu nie ma.
+ *
+ * Ustawiamy to WYŁĄCZNIE dla serwera, który stawiamy sami. Przy `ADRES=…`
+ * mierzymy cudzą instancję w stanie, w jakim ją zastaliśmy, i nie mamy prawa
+ * jej przestawiać — dlatego niżej stoi sprawdzenie, a nie założenie.
+ */
+const STEROWNIK_POCZTY_DO_POMIARU = 'smtp';
+
+/*
+ * KONTROLA, ŻE STAN Z FORMULARZEM NAPRAWDĘ WSZEDŁ — NIE ZAŁOŻENIE.
+ *
+ * Bez niej zmiana `Poczta::dziala()`, inny sterownik w środowisku albo
+ * zapamiętana konfiguracja (`config:cache`) po cichu wracają do wariantu
+ * zapasowego, a raport dalej pokazuje dwa ✓ — czyli usterkę nie do odróżnienia
+ * od poprawnego wyniku. To ten sam wzorzec, co sprawdzenie przeliczonego
+ * układu przy skali tekstu (D-099) i sprawdzenie korzenia przy czcionce 200%:
+ * niepowodzenie jest BŁĘDEM, nie pominięciem, bo pomiar w nieznanym stanie
+ * jest gorszy niż jego brak.
+ */
+async function przeszkodaWFormularzachOdzyskania(adres) {
+  const doSprawdzenia = [
+    ['/nie-pamietam-hasla', 'formularz odzyskania hasła'],
+    ['/logowanie/link', 'formularz „wyślij mi link do zalogowania”'],
+  ];
+
+  for (const [sciezka, opis] of doSprawdzenia) {
+    const odpowiedz = await fetch(`${adres}${sciezka}`);
+    const html = await odpowiedz.text();
+
+    if (! html.includes('name="email"')) {
+      return `${opis} (${sciezka}) nie ma pola adresu — serwis wydał wariant BEZ formularza, `
+        + 'ten dla wyłączonej poczty. Automat zmierzyłby nagłówek i dwa przyciski, '
+        + 'i zapisał „✓" dla ekranu, na który człowiek trafia dopiero wtedy, gdy mu coś '
+        + 'nie wyszło. Sprawdź `App\\Support\\Poczta::dziala()` i sterownik poczty '
+        + `(automat stawia serwer z „${STEROWNIK_POCZTY_DO_POMIARU}"; przy ADRES=… decyduje `
+        + 'konfiguracja mierzonej instancji).';
+    }
+  }
+
+  return null;
+}
+
 async function podnies_serwer() {
   if (process.env.ADRES) {
     return { adres: process.env.ADRES, zamknij: () => {} };
@@ -574,7 +730,12 @@ async function podnies_serwer() {
 
     const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
+      env: {
+        ...process.env,
+        DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
+        MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
+      },
     });
 
     // Zbieramy wyjście serwera, żeby przy nieudanym starcie MIEĆ CO POKAZAĆ.
@@ -809,6 +970,68 @@ async function stanModeratora(przegladarka, adres) {
 }
 
 /*
+ * SESJA ZATRZYMANA MIĘDZY HASŁEM A KODEM — ŻEBY DAŁO SIĘ ZMIERZYĆ
+ * `/logowanie/kod` (#12).
+ *
+ * PO CO OSOBNA FUNKCJA. Ekran drugiego kroku istnieje TYLKO w tej jednej
+ * szczelinie: po poprawnym haśle, przed pełnym zalogowaniem. Jedynym śladem
+ * pierwszego kroku jest klucz `logowanie.2fa.user_id` w sesji; bez niego
+ * `TwoFactorChallengeController::show()` odsyła na `/login` — a ciasteczko
+ * gościa tego klucza nie ma, ciasteczko zalogowanego już go nie ma. Żaden
+ * z trzech istniejących stanów tego ekranu nie pokaże.
+ *
+ * CZEGO TU NIE MA — TA SAMA GRANICA CO PRZY `stanModeratora()` WYŻEJ.
+ * Nie ustawiamy klucza sesji z zewnątrz, nie wyłączamy middleware'u i nie
+ * podkładamy nic do bazy. Automat robi to, co człowiek: wysyła formularz
+ * logowania z prawidłowym hasłem konta, które ma potwierdzone 2FA, i zostaje
+ * tam, gdzie go serwis postawi. Gdyby kiedykolwiek dało się tu wejść inaczej,
+ * byłaby to usterka warta znalezienia, a nie skrót dla pomiaru.
+ *
+ * DLACZEGO KONTO MODERATORA. To jedyne konto demo z 2FA — i ma je dlatego, że
+ * `stanModeratora()` PRZED CHWILĄ je włączyło, przechodząc przez prawdziwy
+ * formularz. Stąd twarde wymaganie kolejności: ta funkcja musi być wołana PO
+ * tamtej. Gdyby kiedyś przestała, logowanie skończyłoby się na `/home`
+ * i dostaniemy o tym zdanie niżej, a nie cichy pomiar strony głównej.
+ *
+ * SESJA NIE JEST ZUŻYWANA: `GET /logowanie/kod` tylko pokazuje widok, więc
+ * ten sam stan obsłuży wszystkie warianty axe i wszystkie szerokości pomiaru
+ * układu. Logujemy się raz, nie kilkadziesiąt razy — z tego samego powodu, dla
+ * którego `stanZalogowanego()` oddaje ciasteczko zamiast logować się wszędzie
+ * od nowa (koszyk `login_limits.para` to pięć prób na minutę).
+ */
+async function stanPrzedKodem2FA(przegladarka, adres) {
+  const kontekst = await przegladarka.newContext();
+  const strona = await kontekst.newPage();
+
+  await strona.goto(`${adres}/login`);
+  await strona.fill('input[name="login"]', KONTO_MODERATORA);
+  await strona.fill('input[name="password"]', 'haslo-testowe-123');
+  await Promise.all([
+    strona.waitForURL((u) => ! u.pathname.endsWith('/login'), { timeout: 15000 }),
+    // Po napisie, nie po `button[type="submit"]` — uzasadnienie przy
+    // `stanModeratora()` wyżej.
+    strona.getByRole('button', { name: 'Zaloguj się' }).first().click(),
+  ]);
+
+  const sciezka = new URL(strona.url()).pathname;
+
+  if (sciezka !== '/logowanie/kod') {
+    throw new Error(
+      `Automat nie zatrzymał się na drugim kroku logowania: po haśle wylądował na ${sciezka} `
+      + `zamiast na /logowanie/kod. Znaczy to, że konto „${KONTO_MODERATORA}" nie ma `
+      + 'potwierdzonego 2FA — a więc `stanModeratora()` albo się nie wykonało, albo '
+      + 'przestało je włączać. Ekran drugiego kroku nie zostałby zmierzony. '
+      + 'NIE ustawiaj klucza `logowanie.2fa.user_id` z zewnątrz, żeby to obejść.',
+    );
+  }
+
+  const stan = await kontekst.storageState();
+  await kontekst.close();
+
+  return stan;
+}
+
+/*
  * CZEKAMY, AŻ PRZEGLĄDARKA SKOŃCZY PODMIENIAĆ FONT — INACZEJ MIERZYMY
  * UKŁAD, KTÓREGO NIKT NIGDY NIE ZOBACZY.
  *
@@ -988,6 +1211,17 @@ async function zmierzUklad(strona) {
 }
 
 const { adres, zamknij } = await podnies_serwer();
+
+// Dwa ekrany odzyskania dostępu muszą mieć formularz, a nie wariant zapasowy
+// „poczta nie działa" — pełne uzasadnienie przy tej funkcji wyżej.
+const przeszkodaOdzyskania = await przeszkodaWFormularzachOdzyskania(adres);
+
+if (przeszkodaOdzyskania !== null) {
+  console.error(`BŁĄD: ${przeszkodaOdzyskania}`);
+  zamknij();
+  process.exit(1);
+}
+
 const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
 
 /*
@@ -1341,6 +1575,9 @@ const przepelnienia = [];
 
 const stanZalogowany = await stanZalogowanego(przegladarka, adres);
 const stanModeratorem = await stanModeratora(przegladarka, adres);
+// KOLEJNOŚĆ JEST WYMAGANA, nie przypadkowa: 2FA na koncie moderatora włącza
+// dopiero linijka wyżej — patrz komentarz przy `stanPrzedKodem2FA()`.
+const stanPoHasle = await stanPrzedKodem2FA(przegladarka, adres);
 
 /*
  * KTÓRE EKRANY NAPRAWDĘ ZOSTAŁY ZBADANE — A NIE KTÓRE ZADEKLAROWALIŚMY
@@ -1417,14 +1654,26 @@ for (const wariant of WARIANTY) {
     storageState: stanModeratorem,
   });
 
+  /* CZWARTY KONTEKST — SESJA MIĘDZY HASŁEM A KODEM (#12). Osobny, bo jest to
+     jedyny stan, w którym istnieje ekran `/logowanie/kod`: gość dostaje tam
+     przekierowanie na `/login`, a zalogowany nie ma już po co tam wracać.
+     Powód i granica są przy `stanPrzedKodem2FA()` wyżej. */
+  const kontekstPoHasleAxe = await przegladarka.newContext({
+    ...ustawienia,
+    storageState: stanPoHasle,
+  });
+
   const stronaGoscia = await kontekstGosciaAxe.newPage();
   const stronaZalogowanego = await kontekstZalogowanegoAxe.newPage();
   const stronaModeratora = await kontekstModeratoraAxe.newPage();
+  const stronaPoHasle = await kontekstPoHasleAxe.newPage();
 
   for (const ekran of EKRANY) {
-    const strona = ekran.moderator
-      ? stronaModeratora
-      : (ekran.zalogowany ? stronaZalogowanego : stronaGoscia);
+    const strona = ekran.przedKodem2FA
+      ? stronaPoHasle
+      : (ekran.moderator
+        ? stronaModeratora
+        : (ekran.zalogowany ? stronaZalogowanego : stronaGoscia));
     const sciezka = sciezkaEkranu(ekran);
 
     if (! sciezka) {
@@ -1606,6 +1855,7 @@ for (const wariant of WARIANTY) {
   await kontekstGosciaAxe.close();
   await kontekstZalogowanegoAxe.close();
   await kontekstModeratoraAxe.close();
+  await kontekstPoHasleAxe.close();
 }
 
 /* Ekran zadeklarowany, a nigdy niezbadany — patrz komentarz przy
@@ -1654,6 +1904,12 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
       viewport: { width: szerokosc, height: 740 },
       storageState: stanModeratorem,
     });
+    // Czwarty kontekst — sesja między hasłem a kodem (#12). Powód osobnego
+    // stoi przy `kontekstPoHasleAxe` wyżej i przy `stanPrzedKodem2FA()`.
+    const kontekstPoHasle = await przegladarka.newContext({
+      viewport: { width: szerokosc, height: 740 },
+      storageState: stanPoHasle,
+    });
 
     let zlych = 0;
 
@@ -1666,9 +1922,11 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         continue;
       }
 
-      const kontekst = ekran.moderator
-        ? kontekstModeratora
-        : (ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia);
+      const kontekst = ekran.przedKodem2FA
+        ? kontekstPoHasle
+        : (ekran.moderator
+          ? kontekstModeratora
+          : (ekran.zalogowany ? kontekstZalogowanego : kontekstGoscia));
       const strona = await kontekst.newPage();
 
       if (skala === PRZEGLADARKA_200) {
@@ -1765,6 +2023,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
     await kontekstGoscia.close();
     await kontekstZalogowanego.close();
     await kontekstModeratora.close();
+    await kontekstPoHasle.close();
 
     log(`  ${zlych === 0 ? '✓' : '✗'} ${opis}${zlych ? ` — ${zlych} z ${EKRANY_UKLADU.length} ekranów` : ''}`);
   }
