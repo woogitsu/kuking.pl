@@ -59,9 +59,14 @@ return new class extends Migration
             $ilePrzypisanychWpisow = DB::table('posts')->whereNotNull('topic_id')->count();
 
             if ($ileObserwacji > 0 || $ilePrzypisanychWpisow > 0) {
+                // Rzeczownik PRZED liczbą, liczba na końcu zdania — „ma 1
+                // wierszy" to nie polszczyzna, a jeden wiersz jest tu stanem
+                // znacznie prawdopodobniejszym niż pięć. Mianownik przed
+                // dwukropkiem nie odmienia się wcale, więc zdanie jest
+                // poprawne dla 1, 2, 5 i 22.
                 throw new RuntimeException(
-                    'Migracja przerwana: `topic_follows` ma '.$ileObserwacji.' '
-                    .'wierszy, a `posts.topic_id` ma '.$ilePrzypisanychWpisow.' niepustych wartości. '
+                    'Migracja przerwana. Liczba wierszy w `topic_follows`: '.$ileObserwacji.'. '
+                    .'Liczba niepustych wartości w `posts.topic_id`: '.$ilePrzypisanychWpisow.'. '
                     .'D-021 (docs/DECISIONS.md) wymaga, żeby właściciel potwierdził stan PRODUKCJI '
                     .'przed usunięciem Tematów — to nie jest zmiana samego schematu, tylko rozmowa '
                     .'z ludźmi, którym coś zniknie z profilu. Żadne dane nie zostały skasowane.',

@@ -81,9 +81,14 @@ return new class extends Migration
         $dotkniete = $this->ileKontPonizejProgu();
 
         if ($dotkniete > 0 && ! $this->wolnoPodniescSkale()) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „na 1
+            // kontach" to nie polszczyzna, a jedno konto jest stanem
+            // prawdopodobniejszym niż pięć. Mianownik przed dwukropkiem nie
+            // odmienia się wcale, więc zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                'Cofnięcie tej migracji musiałoby podnieść rozmiar tekstu na '
-                .$dotkniete.' kontach, które świadomie ustawiły sobie mniejszy niż 90%. '
+                'Cofnięcie tej migracji musiałoby podnieść rozmiar tekstu na kontach, '
+                .'które świadomie ustawiły sobie mniejszy niż 90%. '
+                .'Liczba kont, których to dotyczy: '.$dotkniete.'. '
                 ."Zobaczyliby nagle większe litery i nie dowiedzieliby się dlaczego.\n\n"
                 ."CO ZROBIĆ ZAMIAST TEGO\n"
                 .'Usuń trzy mniejsze rozmiary z `config/kuking.php` (klucz `kuking.text.scales`) '

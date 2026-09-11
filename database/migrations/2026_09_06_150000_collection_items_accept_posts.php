@@ -121,8 +121,13 @@ return new class extends Migration
             return;
         }
 
+        // Rzeczownik PRZED liczbą, liczba na końcu zdania — „skasuje 1
+        // zapisanych wpisów" to nie polszczyzna, a jeden wiersz jest stanem
+        // prawdopodobniejszym niż pięć. Mianownik przed dwukropkiem nie
+        // odmienia się wcale, więc zdanie jest poprawne dla 1, 2, 5 i 22.
         $instrukcja = <<<TEKST
-            Cofnięcie tej migracji skasuje {$ile} zapisanych wpisów z zeszytów — bezpowrotnie.
+            Cofnięcie tej migracji skasuje zapisane wpisy z zeszytów — bezpowrotnie.
+            Liczba wpisów, które znikną: {$ile}.
             Stary klucz główny nie dopuszcza NULL w `recipe_id`, więc te wiersze nie mają jak przetrwać.
 
             Zanim cofniesz:

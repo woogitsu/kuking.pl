@@ -109,10 +109,15 @@ return new class extends Migration
         $zeSchowanymi = DB::table('posts')->where('hide_as_memory', true)->count();
 
         if ($zWylaczonymi > 0 || $zeSchowanymi > 0) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „1 kont ma
+            // wyłączone" i „1 wpisów jest schowanych" to nie polszczyzna,
+            // a jeden wiersz jest stanem prawdopodobniejszym niż pięć.
+            // Mianownik przed dwukropkiem nie odmienia się wcale, więc oba
+            // zdania są poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                "Cofnięcie odmówione: {$zWylaczonymi} kont ma wyłączone wspomnienia ".
-                "(memories_enabled = false), a {$zeSchowanymi} wpisów jest schowanych ".
-                '(hide_as_memory = true). Obie te wartości są decyzją człowieka o tym, czego '.
+                'Cofnięcie odmówione. Liczba kont z wyłączonymi wspomnieniami '.
+                '(memories_enabled = false): '.$zWylaczonymi.'. Liczba schowanych wpisów '.
+                '(hide_as_memory = true): '.$zeSchowanymi.'. Obie te wartości są decyzją człowieka o tym, czego '.
                 'NIE chce widzieć — a nie ustawieniem wygody. Stary schemat (sprzed tej migracji) '.
                 'nie ma tych kolumn wcale: gdyby cofnięcie przeszło, kolejny `migrate` odtworzyłby '.
                 'je z `DEFAULT`, czyli jako `memories_enabled = true` i `hide_as_memory = false` — '.
