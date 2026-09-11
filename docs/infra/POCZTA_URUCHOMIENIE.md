@@ -666,7 +666,7 @@ reputację u każdego dostawcy, przy komplecie zielonych rekordów.
 
 | Plik | Zmiana | Warianty |
 |---|---|---|
-| — | **żadna** — `MAIL_MAILER: "emaillabs"` jest już w `.railway/railway.ts`; wystarczą trzy Shared Variables w panelu Railway | **EmailLabs po API** (rekomendowane, §2A) |
+| — | **żadna w repozytorium** — `MAIL_MAILER: "emaillabs"` jest już w `.railway/railway.ts`. W panelu Railway: trzy klucze `EMAILLABS_*` **oraz `MAIL_MAILER=emaillabs` wpisane ręcznie**, bo `railway config apply` nie zostało uruchomione ani razu (§2A krok 4) | **EmailLabs po API** (rekomendowane, §2A) |
 | `.railway/railway.ts` | `MAIL_MAILER` z powrotem na `smtp`; cztery Shared Variables SMTP | EmailLabs/Brevo po SMTP — **tylko od planu Pro** |
 | `.railway/railway.ts` | `MAIL_MAILER` na `postmark` / `ses` / `resend`; usunąć zmienne SMTP i EmailLabs | Postmark, SES, Resend |
 | `composer.json` | `symfony/postmark-mailer` | Postmark |
@@ -774,21 +774,40 @@ Kontekst: dziś zero użytkowników, docelowo pierwsza fala ~20 osób,
 kilkadziesiąt listów transakcyjnych miesięcznie, jedna osoba utrzymująca
 całość, grupa odbiorców 50+ w polskich skrzynkach.
 
-**Wybierz EmailLabs.** W trzech zdaniach: to jedyny z pięciu opisanych
-wariantów, przy którym umowa powierzenia jest po polsku, na polskim prawie,
-a dane nie opuszczają UE — przy grupie 50+, gdzie zaufanie jest walutą, to
-waży więcej niż różnica w cenie. Darmowy pakiet STARTUP (300 wiadomości/dobę,
-9 000/miesiąc, **bez karty płatniczej**) pokrywa pierwszą falę ~20 osób
-z dużym zapasem, a przy wzroście Essential (99–129 zł/mies. do 100 tys.) nadal
-jest tańszy albo porównywalny z resztą listy. I korzysta z gotowego sterownika
-`smtp` — zero nowego kodu, zero nowej paczki Composera, tylko cztery Shared
-Variables w Railway (§2A, §4).
+> ### ⚠️ SPROSTOWANIE, 11 września 2026 — ten rozdział przeczył §2A
+>
+> Stało tu, że EmailLabs „korzysta z gotowego sterownika `smtp` — zero nowego
+> kodu (…), tylko cztery Shared Variables", a Brevo jest planem zapasowym na
+> „podmianę czterech wartości". **Obie rzeczy są nieprawdą na dzisiejszym
+> planie Railway** i przeczą §2A oraz §7 tego samego pliku: Railway wyłącza
+> ruch SMTP na Free, Trial i Hobby, a wysyłka wtedy nie pada, tylko wisi.
+> Kto czytał sam ten rozdział — a jest ostatnim, więc czyta się go jak
+> podsumowanie — konfigurował wariant, który na produkcji milczy.
+>
+> Poprawiona wersja niżej. Jeśli kiedyś projekt przejdzie na plan Pro, to nie
+> zdanie „zero kodu" wróci, tylko §2A-SMTP — wraz z ponownym wdrożeniem
+> serwisu, którego SMTP na Railway wymaga.
+
+**Wybierz EmailLabs — przez API HTTPS (`MAIL_MAILER=emaillabs`, §2A).**
+W trzech zdaniach: to jedyny z opisanych wariantów, przy którym umowa
+powierzenia jest po polsku, na polskim prawie, a dane nie opuszczają UE — przy
+grupie 50+, gdzie zaufanie jest walutą, to waży więcej niż różnica w cenie.
+Darmowy pakiet STARTUP (300 wiadomości/dobę, 9 000/miesiąc, **bez karty
+płatniczej**) pokrywa pierwszą falę ~20 osób z dużym zapasem, a przy wzroście
+Essential (99–129 zł/mies. do 100 tys.) nadal jest tańszy albo porównywalny
+z resztą listy. Kod jest już napisany i wmergowany
+(`App\Poczta\TransportEmailLabs`, D-047) — **zero nowej paczki Composera,
+ale też zero SMTP**: zostają trzy klucze `EMAILLABS_*` plus `MAIL_MAILER`
+w Shared Variables (§2A krok 4, §4).
 
 **Zapasowo, gdyby EmailLabs odmówił rejestracji** nowej spółce (kontrola
-antyfraudowa, brak historii NIP-u) — **Brevo**: ten sam mechanizm (`smtp`,
-zero kodu), też serwery w UE (Francja, Niemcy, GCP Belgia), też bez karty.
-Zamiana jednego na drugi to podmiana czterech wartości w Railway (§2B), nie
-nowy Pull Request.
+antyfraudowa, brak historii NIP-u) — **Brevo**: też serwery w UE (Francja,
+Niemcy, GCP Belgia), też bez karty. Ale **nie jest to podmiana czterech
+wartości**: wariant Brevo opisany w §2B idzie przez SMTP, więc na Free i Hobby
+nie zadziała. Na dzisiejszym planie Brevo wymaga najpierw napisania transportu
+po API (`POST https://api.brevo.com/v3/smtp/email`) na wzór
+`App\Poczta\TransportEmailLabs` — czyli nowego Pull Requesta, nie zmiany
+w panelu. Podmianą czterech wartości staje się dopiero po przejściu na plan Pro.
 
 Pełne, źródłowane porównanie sześciu dostawców — w tym dlaczego Postmark
 i Resend odpadają nie z powodu ceny, tylko rezydencji danych w USA — jest

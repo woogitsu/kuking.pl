@@ -138,9 +138,26 @@ sprawdziwszy niczego, jest gorsza od jej braku.
 
 ## 3. Część panelowa — do wykonania po stronie właściciela
 
-**Gdzie:** panel Cloudflare R2 (buckety `kuking-oryginaly` i `kuking-media`,
-`r2.dev`, domena `cdn.kuking.pl`) plus jeden przebieg zapisu i odczytu na
+**Gdzie:** panel Cloudflare R2 plus jeden przebieg zapisu i odczytu na
 środowisku staging podłączonym do prawdziwego R2.
+
+**Które buckety** — nazwy są wartościami, więc rozstrzyga to, do której
+zmiennej trafia która nazwa (`config/filesystems.php`):
+
+| Bucket | Zmienna czytana przez kod | Zmienna w panelu Railway | Dysk | Czego dotyczy poniżej |
+|---|---|---|---|---|
+| `kuking-oryginaly` | `AWS_BUCKET` | `R2_BUCKET` | `r2` | punkty 2, 3, 4, 10, 11 |
+| `kuking-media` | `AWS_PUBLIC_BUCKET` | `R2_PUBLIC_BUCKET` | `r2_publiczne` | punkty 1, 5, 9, 10, 11 |
+| `kuking-eksporty` | `AWS_EXPORTS_BUCKET` | `R2_EXPORTS_BUCKET` | `r2_eksporty` | poza tą bramką — paczki RODO, ale ten sam wymóg: żadnej domeny, `r2.dev` wyłączone |
+
+> **Ta tabela jest tu, bo trzy dokumenty opisywały trzy różne układy bucketów.**
+> `DEPLOYMENT_RUNBOOK.md` §2.1 kazał utworzyć **jeden** bucket `kuking-media`,
+> `.railway/railway.ts` podawał **trzy** zmienne, a ten plik wymieniał **dwa**
+> pod jeszcze innymi nazwami. Żadnego z tych opisów nie dało się wykonać do
+> końca bez zgadywania. Rozstrzyga kod: `config/filesystems.php` czyta
+> `AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET` (plus `AWS_LEGACY_BUCKET`
+> dla starego, jednego bucketu i `AWS_KOPIE_BUCKET` dla kopii bazy — ten ostatni
+> z **osobnym poświadczeniem tylko do odczytu**).
 
 **Czego potrzebujesz:** dostępu do konta Cloudflare, klucza API S3 do R2
 (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) i `railway ssh` do serwisu.
