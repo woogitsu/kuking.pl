@@ -34,6 +34,26 @@
     // obrazka na ślepo.
     'image' => null,
     'ogType' => 'website',
+    /*
+     * `szynaWTresci` — TEN EKRAN UŻYWA KOLUMNY SZYNY OD ŚRODKA (issue #365).
+     *
+     * Zwykły ekran z szyną podaje `<x-slot:rail>` i dostaje osobny
+     * `<aside class="app-rail">` ZA `<main>`. Strona przepisu nie może tego
+     * zrobić: jej blok „Ugotowałem / Zapisuję / Gotuję" musi stać w kodzie
+     * PRZED składnikami, bo na telefonie kolumn nie ma i to kolejność w kodzie
+     * decyduje, co człowiek czyta najpierw. Slot renderuje się za całym
+     * `<main>`, czyli za krokami i komentarzami — a tam ta akcja już raz
+     * leżała i została stamtąd wyciągnięta (`EkranPrzepisuWedlugKituTest`).
+     *
+     * Dlatego ten ekran zostawia blok w `<main>`, a `<main>` dostaje OBIE
+     * kolumny: czytania i szyny. Rozkłada je siatka samego ekranu
+     * (`.przepis-uklad` w app.css). Layout robi tu dwie rzeczy i tylko te:
+     * dokłada klasę `app-body-tresc-z-szyna` na ramę i — u gościa — liczy tę
+     * ramę, belkę oraz stopkę z szerszego tokenu, tak samo jak dla ekranu
+     * z prawdziwą szyną (D-122). Bez tego gość ogląda przepis na stronie
+     * zwiniętej do 768 px przy monitorze 1920 px.
+     */
+    'szynaWTresci' => false,
 ])
 
 @php
@@ -193,6 +213,20 @@
     //  w Laravelu — slot złożony z samego komentarza jest pusty.
     $maSzyne = isset($rail)
         && trim((string) preg_replace('/<!--.*?-->/s', '', (string) $rail)) !== '';
+
+    //  SZEROKA RAMA GOŚCIA: ZA SZYNĘ LICZY SIĘ TAKŻE SZYNA OD ŚRODKA (#365).
+    //
+    //  Belka, stopka i rama biorą u gościa szerszy token wtedy, gdy obok
+    //  treści NAPRAWDĘ coś stoi — wszystko jedno, czy jest to `<aside>` ze
+    //  slotu `rail`, czy kolumna szyny zajęta przez sam ekran
+    //  (`szynaWTresci`, dziś: strona przepisu). Dwie liczby na jedną krawędź
+    //  to rozjazd, którego potem nikt nie umie wytłumaczyć — stąd JEDEN
+    //  warunek na trzy warstwy.
+    //
+    //  Rama SIATKI dostaje osobną klasę, bo to dwa różne układy:
+    //  `app-body-solo-z-szyna` robi drugą kolumnę dla `<aside>`,
+    //  a `app-body-tresc-z-szyna` oddaje obie kolumny `<main>`.
+    $szerokaRama = $maSzyne || $szynaWTresci;
 @endphp
 
 <!DOCTYPE html>
@@ -307,7 +341,7 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($maSzyne ? ' uklad-solo-z-szyna' : '') }} @endguest">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     <header class="topbar">
@@ -417,8 +451,14 @@
              `app-body-solo-z-szyna` DOCHODZI do `app-body-solo` na ekranie
              gościa, który naprawdę ma czym wypełnić szynę (D-122). Obie klasy
              stoją razem, bo `app-body-solo` znaczy „układ gościa, bez
-             nawigacji bocznej" i czyta to także `ekran-profilu.css`. --}}
-        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest" @if($wTrybiePanelu) data-tryb-panelu @endif>
+             nawigacji bocznej" i czyta to także `ekran-profilu.css`.
+
+             `app-body-tresc-z-szyna` idzie POZA `@guest`, bo dotyczy obu:
+             zalogowanemu oddaje trzecią kolumnę (dotąd pustą), gościowi —
+             drugą. Ekran, który ją podaje, nie ma `<aside class="app-rail">`
+             i mieć nie będzie; kolumnę szyny zajmuje jego własna siatka
+             (`szynaWTresci` wyżej, issue #365). --}}
+        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest @if($szynaWTresci) app-body-tresc-z-szyna @endif" @if($wTrybiePanelu) data-tryb-panelu @endif>
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
