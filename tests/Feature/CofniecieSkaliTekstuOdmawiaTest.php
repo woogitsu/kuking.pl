@@ -92,17 +92,35 @@ class CofniecieSkaliTekstuOdmawiaTest extends TestCase
         $basia = User::factory()->create();
         DB::table('users')->where('id', $basia->getKey())->update(['text_scale' => 80]);
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i podniosło komuś rozmiar tekstu.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
-            // TEGO i jak powiedzieć wprost „wiem, co robię".
-            $this->assertStringContainsString('1 kontach', $e->getMessage());
-            $this->assertStringContainsString('config/kuking.php', $e->getMessage());
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i podniosło komuś rozmiar tekstu.');
+
+        // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
+        // TEGO i jak powiedzieć wprost „wiem, co robię".
+        //
+        // JEDNO konto, nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest tu poprawna po polsku (D-132).
+        $this->assertStringContainsString(
+            'Liczba kont, których to dotyczy: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('na 1 kontach', $odmowa->getMessage());
+
+        $this->assertStringContainsString('config/kuking.php', $odmowa->getMessage());
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: ustawienie nadal jest takie, jakie człowiek wybrał.
         // Odmowa, która i tak zdążyła je zmienić, byłaby tylko ładniejszym

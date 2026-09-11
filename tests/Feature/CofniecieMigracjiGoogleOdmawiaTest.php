@@ -60,18 +60,36 @@ class CofniecieMigracjiGoogleOdmawiaTest extends TestCase
         $basia = $this->user('basia');
         $basia->connectGoogle('109876543210987654321');
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało powiązanie z kontem Google.');
         } catch (RuntimeException $e) {
-            // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
-            // TEGO i jak powiedzieć wprost „wiem, co robię". „Ktoś coś
-            // straci" nie zatrzymuje nikogo o drugiej w nocy.
-            $this->assertStringContainsString('1 kont', $e->getMessage());
-            $this->assertStringContainsString('KUKING_WEJSCIE_GOOGLE=false', $e->getMessage());
-            $this->assertStringContainsString(self::ZGODA, $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało powiązanie z kontem Google.');
+
+        // Komunikat ma powiedzieć, ILU osób to dotyczy, CO ZROBIĆ ZAMIAST
+        // TEGO i jak powiedzieć wprost „wiem, co robię". „Ktoś coś
+        // straci" nie zatrzymuje nikogo o drugiej w nocy.
+        //
+        // JEDNO konto, nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest tu poprawna po polsku (D-132).
+        $this->assertStringContainsString(
+            'Liczba kont, których to dotyczy: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('dla 1 kont', $odmowa->getMessage());
+
+        $this->assertStringContainsString('KUKING_WEJSCIE_GOOGLE=false', $odmowa->getMessage());
+        $this->assertStringContainsString(self::ZGODA, $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: powiązanie nadal jest. Odmowa, która i tak zdążyła
         // skasować dane, byłaby tylko ładniejszym komunikatem o stracie.

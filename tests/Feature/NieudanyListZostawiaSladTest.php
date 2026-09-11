@@ -407,12 +407,31 @@ class NieudanyListZostawiaSladTest extends TestCase
     {
         $this->slad([]);
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta jest `Throwable`,
+        // więc postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-            $this->fail('Wycofanie migracji miało odmówić — w tabeli leży nieodhaczony ślad.');
         } catch (Throwable $e) {
-            $this->assertStringContainsString('Odmawiam wycofania migracji', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Wycofanie migracji miało odmówić — w tabeli leży nieodhaczony ślad.');
+
+        $this->assertStringContainsString('Odmawiam wycofania migracji', $odmowa->getMessage());
+
+        // JEDEN wiersz, nie pięć: liczba stoi na końcu zdania, za
+        // rzeczownikiem w mianowniku, więc jedynka jest tu poprawna po polsku
+        // i wolno ją zamrozić w teście (D-132).
+        $this->assertStringContainsString(
+            'Liczba nieodhaczonych wierszy w `mail_failures`: 1.',
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('leży 1 nieodhaczonych', $odmowa->getMessage());
 
         $this->assertTrue(Schema::hasTable('mail_failures'), 'Tabela miała zostać nietknięta.');
 

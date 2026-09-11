@@ -133,10 +133,14 @@ return new class extends Migration
         $powiazane = $this->ilePowiazanych();
 
         if ($powiazane > 0 && ! $this->wolnoKasowacPowiazania()) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „dla 1 kont"
+            // to nie polszczyzna, a jedno konto jest stanem
+            // prawdopodobniejszym niż pięć. Mianownik przed dwukropkiem nie
+            // odmienia się wcale, więc zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                'Cofnięcie tej migracji skasowałoby powiązania z kontami u dostawców zewnętrznych dla '
-                .$powiazane.' kont — dla części z nich to jedyna droga wejścia, jaką znają '
-                ."(hasła nigdy nie ustawiały).\n\n"
+                'Cofnięcie tej migracji skasowałoby powiązania z kontami u dostawców '
+                .'zewnętrznych. Liczba kont, których to dotyczy: '.$powiazane.'. '
+                ."Dla części z nich to jedyna droga wejścia, jaką znają (hasła nigdy nie ustawiały).\n\n"
                 ."CO ZROBIĆ ZAMIAST TEGO\n"
                 .'Wyłącz funkcję bez migracji: KUKING_WEJSCIE_GOOGLE=false i restart serwisu. '
                 ."Przycisk znika, konta działają dalej, powiązania zostają nietknięte.\n\n"
