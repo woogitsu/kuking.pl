@@ -154,10 +154,24 @@ class PolitykaBezpieczenstwaTest extends TestCase
         );
     }
 
+    /**
+     * KREATOR STOI OD 11 WRZEŚNIA POD „Dopisz szczegóły", NIE POD „Dodaj przepis".
+     *
+     * `recipes.create` to od #364 prosty formularz sześciu kontrolek — zwykły
+     * POST, bez Livewire i bez ani jednego `<script>`. Ten test szukał tam
+     * skryptów i gdyby zostawić go bez zmian, zgłaszałby brak podpisu w miejscu,
+     * w którym nie ma czego podpisywać, a PRAWDZIWY kreator przestałby być
+     * pilnowany w ogóle.
+     *
+     * Sprawdzamy więc `recipes.details` — tam mieszka dziś Livewire.
+     */
     public function test_kreator_przepisu_dostaje_skrypty_livewire_z_podpisem(): void
     {
-        $odpowiedz = $this->actingAs($this->user('piekarz'))
-            ->get(route('recipes.create'))
+        $piekarz = $this->user('piekarz');
+        $przepis = \App\Models\Recipe::factory()->create(['author_id' => $piekarz->getKey()]);
+
+        $odpowiedz = $this->actingAs($piekarz)
+            ->get(route('recipes.details', $przepis))
             ->assertOk();
 
         $podpis = $this->podpisZNaglowka((string) $odpowiedz->headers->get('Content-Security-Policy'));
