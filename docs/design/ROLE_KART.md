@@ -137,6 +137,45 @@ w jednym miejscu — w nazwie klasy — więc następna osoba czyta z widoku, CZ
 ta powierzchnia jest, a nie tylko jak wygląda. Klasa opisująca wygląd wróciłaby
 dokładnie tam, skąd wyszliśmy: jedna nazwa na sześć znaczeń.
 
+## Odstęp: dwie powierzchnie w kolumnie głównej nie stykają się
+
+Hierarchia z tabeli wyżej mówi, CZYM jest dany prostokąt. Nie mówiła, ile ma
+być między jednym a drugim — i to się mściło tam, gdzie dwie powierzchnie stoją
+jedna nad drugą bez żadnego marginesu w widoku.
+
+Zgłoszenie właściciela z 11 września: „trzeba zrobić miejsce pomiędzy
+logowaniem Google fb a normalnym". Zmierzone w Chromium na `/register`
+i `/login` (odległość dolnej krawędzi karty wejść od górnej krawędzi panelu
+formularza):
+
+| ekran | 360 px | 1280 px | czcionka przeglądarki 200% |
+|---|---|---|---|
+| `/register` | 0 → **24 px** | 0 → **24 px** | 0 → **48 px** |
+| `/login` | 0 → **24 px** | 0 → **24 px** | 0 → **48 px** |
+
+Reguła stoi w `resources/css/tokens.css` (sekcja warstw powierzchni), nie
+w widoku: dwie sąsiadujące powierzchnie — sześć warstw z tabeli plus
+`.error-summary` — stojące **bezpośrednio** w `main.app-main` dostają
+`margin-top: var(--spacing-6)`.
+
+- **Nie `.stack`.** `.stack > * + *` (`app.css`) jest rytmem listy WEWNĄTRZ
+  komponentu i wymaga klasy na kontenerze. Kolumna główna kontenera nie ma —
+  `{{ $slot }}` stoi wprost w `<main>` — więc użycie `.stack` znaczyłoby
+  owinięcie każdego widoku z osobna i zmianę odstępów wszystkich pozostałych
+  dzieci `<main>`, nie tylko dwóch kart.
+- **Token, nie piksel.** `--spacing-6` to `1.5rem`, więc odstęp rośnie razem
+  z powiększoną czcionką przeglądarki. Odwrotnie niż minima dotykowe z D-082
+  i D-107, które są fizyczne i rosnąć nie mają.
+- **Utility dalej wygrywa.** `@layer utilities` stoi po `components`, więc
+  widok, który świadomie prosi o inny odstęp (`mt-8` w ustawieniach, `mt-5`
+  w „Napisz do nas"), dostaje swój. Reguła jest wartością domyślną kolumny,
+  nie sufitem.
+
+Pomiar wszystkich par sąsiadujących powierzchni pokazał przy okazji trzecie
+miejsce z tą samą usterką: `/ustawienia/profil`, gdzie panel formularza stykał
+się ze skrótem o zdjęciu profilowym (0 → 24 px). Reguła naprawia je razem
+z dwoma ze zgłoszenia — bo usterka nie była własnością tamtych dwóch kart.
+
 ## Rzeczy rozstrzygnięte wcześniej, których ten dokument NIE cofa
 
 - **Blok prawej szyny ma TEN SAM promień co karta wpisu** i celowo nie ma
