@@ -35,12 +35,34 @@
     <h1>Ta strona była otwarta zbyt długo</h1>
 
     @if($formularz->maCoOdzyskac())
-        <p class="mb-5">
-            Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
-            a ten był otwarty dłużej. <strong>Twój tekst jest na miejscu</strong> —
-            nic nie przepadło. Kliknij „Wyślij jeszcze raz”, a wpis pójdzie tam,
-            gdzie miał iść.
-        </p>
+        {{-- ZDANIE O TEKŚCIE ZALEŻY OD TEGO, CZY TEKST NAPRAWDĘ JEST CAŁY.
+
+             Wcześniej stało tu bezwarunkowe „nic nie przepadło”, a ostrzeżenie
+             „nie wszystko udało się przenieść” wisiało niżej, pod warunkiem
+             `$formularz->obciete`. Przy obciętym formularzu strona mówiła
+             więc jednocześnie obie rzeczy — w chwili, gdy człowiek ma za moment
+             wysłać coś, co właśnie napisał. To ta sama usterka co G06
+             w `docs/AUDYT_GPT_2026-09.md`: nie wolno obiecywać, że nic nie
+             przepadło, gdy serwer części treści nie zachował.
+
+             „Nic z niego nie przepadło” mówi o TEKŚCIE, nie o całym formularzu:
+             zdjęcia odzyskać się nie da (przeglądarka na to nie pozwala) i mówi
+             o tym wprost pomoc przy polu pliku niżej. --}}
+        @if($formularz->obciete)
+            <p class="mb-5">
+                Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
+                a ten był otwarty dłużej. <strong>Część Twojego tekstu jest niżej</strong>,
+                ale formularz był wyjątkowo duży i nie wszystko udało się przenieść.
+                Przeczytaj treść, uzupełnij, czego brakuje, i kliknij „Wyślij jeszcze raz”.
+            </p>
+        @else
+            <p class="mb-5">
+                Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
+                a ten był otwarty dłużej. <strong>Twój tekst jest na miejscu</strong> —
+                nic z niego nie przepadło. Kliknij „Wyślij jeszcze raz”, a wpis pójdzie tam,
+                gdzie miał iść.
+            </p>
+        @endif
 
         @if(auth()->guest() && ! $formularzGoscia)
             {{-- Sesja wygasła, więc razem z tokenem przepadło też zalogowanie.

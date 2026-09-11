@@ -164,7 +164,11 @@ class RegisterController extends Controller
             'email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
             'email.unique' => 'Na ten adres jest już założone konto. Możesz się zalogować albo odzyskać hasło.',
             'password.required' => 'Wpisz hasło.',
-            'password.min' => 'Hasło musi mieć co najmniej 10 znaków. Najprościej wpisać trzy słowa, na przykład: zielonapietruszkarano.',
+            // Ten sam przykład co w pomocy przy polu (`auth/register.blade.php`):
+            // słowa rozdzielone myślnikami i wprost powiedziane, żeby wpisać
+            // swoje. Przykład bez separatorów uczył wzorca, który łamie się
+            // słownikowo, a przy okazji był gotowym hasłem do przepisania.
+            'password.min' => 'Hasło musi mieć co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu.',
             'password.uncompromised' => 'To hasło pojawiło się już w wyciekach danych z innych serwisów. Wybierz inne.',
             'age_confirmed.accepted' => "Kuking jest dla osób od {$minAge} lat. Potwierdź, że masz tyle lat.",
             'terms_accepted.accepted' => 'Zaznacz, że znasz zasady Kuking.',

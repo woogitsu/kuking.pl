@@ -161,8 +161,11 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section card">
             <h2 class="form-section-title">2. Skąd ten przepis</h2>
+            {{-- ZDANIE MÓWI, CO TU WPISAĆ, A NIE JAK CZĘSTO TO KTOŚ CZYTA.
+                 Stało tu „To najczęściej czytana część przepisu" — twierdzenie
+                 o zachowaniu czytelników, którego nikt nigdy nie zmierzył. --}}
             <p class="meta mb-4">
-                To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.
+                Tu napiszesz, po kim jest ten przepis i skąd go znasz.
             </p>
 
             <fieldset class="border-0 p-0">
@@ -183,9 +186,14 @@
                      placeholder="po mamie, Halinie"
                      help="Zostanie podpisany nad tytułem: „przepis Haliny, spisany przez Ciebie”." />
 
+            {{-- POMOC JEST PRAWDZIWA PRZY KAŻDEJ Z TRZECH WIDOCZNOŚCI.
+                 Stało tu „To zostaje w rodzinie." — nieprawda przy przepisie
+                 publicznym, a taki jest tu domyślny (radio „Wszyscy" wyżej).
+                 Ten formularz idzie zwykłym POST-em, więc zdanie zależne od
+                 widoczności i tak nie zmieniłoby się przed wysłaniem. --}}
             <x-field name="source_note" label="Historia tego przepisu" type="textarea" :rows="4"
                      :value="$isEdit ? $recipe->source_note : null"
-                     help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. To zostaje w rodzinie." />
+                     help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis." />
 
             <x-field name="family_since_year" label="W rodzinie od roku" type="number" inputmode="numeric"
                      :value="$isEdit ? $recipe->family_since_year : null" :min="1850" :max="2100"

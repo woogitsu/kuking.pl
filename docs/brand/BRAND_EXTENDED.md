@@ -129,7 +129,7 @@ Dodatkowo:
 | Kontekst | Dobrze | Źle | Dlaczego źle |
 |---|---|---|---|
 | Ekran główny | **Co dziś ugotowałeś?** | „Odkryj tysiące inspiracji kulinarnych" | Obietnica bazy danych, nie rozmowy. Kuking nie jest bazą. |
-| Rejestracja | **Załóż konto. Zajmie minutę.** | „Dołącz do społeczności pasjonatów gotowania!" | Wykrzyknik, „pasjonaci" wyklucza tych, którzy po prostu gotują obiad. |
+| Rejestracja | **Załóż konto.** | „Dołącz do społeczności pasjonatów gotowania!" | Wykrzyknik, „pasjonaci" wyklucza tych, którzy po prostu gotują obiad. Dopisek „Zajmie minutę" wyjęty 11.09.2026: obietnica z miarą, której nie mierzymy. |
 | Pierwszy wpis | **Wystarczy zdjęcie i kilka słów.** | „Stwórz swój pierwszy content!" | Żargon + presja tworzenia. |
 | Zeszyt | **Twój zeszyt z przepisami.** | „Zarządzaj swoją biblioteką treści" | Zarządzanie to praca, nie kuchnia. |
 | Ugotowałem | **Ktoś to naprawdę ugotował.** | „Zobacz oceny i recenzje użytkowników" | „Recenzja" i „użytkownik" to język serwisu zakupowego. |

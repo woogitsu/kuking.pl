@@ -5,8 +5,27 @@
     nigdzie nie pokazujemy liczby obserwujących ani niczego, co wygląda
     na miarę popularności.
 
-    Stopka „Jutro będzie tu ktoś inny." jest częścią funkcji, nie ozdobą:
-    mówi wprost, że to się zmienia i nie jest tabelą wyników.
+    Stopka jest częścią funkcji, nie ozdobą: mówi wprost, że to nie jest
+    tabela wyników. Dlatego wolno ją ZASTĄPIĆ, ale nie wolno jej usunąć —
+    bez niej krótka lista osób i dań zaczyna wyglądać jak ranking, czyli
+    dokładnie to, czego zabrania AGENTS.md §12.
+
+    DO 11 WRZEŚNIA 2026 STAŁO TU „Jutro będzie tu ktoś inny." — I TO ZDANIE
+    OBIECYWAŁO PEWNOŚĆ, KTÓREJ NIE MA.
+
+    Mechanizm zmiany ISTNIEJE, ale jest ręczny: gospodarz układa tablicę na
+    dziś w panelu `/kuking-na-dzis` (`routes/web.php`, trasy `admin.daily-board`),
+    a wiersze `daily_picks` powstają w `DailyBoardController::update()`. Nie ma
+    natomiast żadnego automatu, który by tę tablicę odświeżał — ani zadania
+    w `routes/console.php`, ani komendy w `app/Console/Commands/`. Gdy
+    gospodarz nic nie wybierze, wchodzi wariant zapasowy
+    (`DailyBoard::automaticPosts()` i `DailyBoard::peopleToFollow()`), a ten
+    sortuje po dacie publikacji malejąco — więc w wolny dzień jutro stoją tu
+    dokładnie te same osoby co dziś. Przy starcie opisanym
+    w `docs/product/COLD_START.md` to jest reguła, nie wyjątek.
+
+    Nowe zdanie robi tę samą robotę (to nie jest tabela wyników) i nie
+    obiecuje niczego o jutrze.
 
     Teksty: docs/brand/COPY_STYLE.md §5
 
@@ -68,7 +87,15 @@
                                 <button class="btn btn-secondary" type="submit">Obserwuj</button>
                             </form>
                         @else
-                            <a class="btn btn-secondary" href="{{ route('register') }}">Obserwuj</a>
+                            {{-- ETYKIETA MÓWI, CO SIĘ STANIE PO KLIKNIĘCIU.
+
+                                 Gość widział tu „Obserwuj" i trafiał na
+                                 rejestrację — przycisk obiecywał akcję, której
+                                 nie wykonywał. Tekst jest teraz ten sam co na
+                                 profilu (`pages/profile/show.blade.php`), żeby
+                                 to samo wyjście z serwisu nazywało się wszędzie
+                                 tak samo. --}}
+                            <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
                         @endauth
 
                         {{-- Podgląd trzech ostatnich zdjęć. To jest jedyny
@@ -164,6 +191,6 @@
             </ul>
         @endif
 
-        <p class="meta kuking-board-footer">Jutro będzie tu ktoś inny.</p>
+        <p class="meta kuking-board-footer">Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.</p>
     @endif
 </section>
