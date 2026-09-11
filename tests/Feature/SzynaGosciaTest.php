@@ -208,10 +208,18 @@ class SzynaGosciaTest extends TestCase
      * bocznej nie ma, więc rezerwacja nie trzymałaby niczego w miejscu —
      * dołożyłaby tylko pustą kolumnę szeroką na 352 px, a pusta kolumna
      * wygląda na usterkę układu.
+     *
+     * `discover` WYPISAŁO SIĘ Z TEJ LISTY 11 WRZEŚNIA i to nie jest luka
+     * w pokryciu. „Świeżo z Kuking" używa dziś kolumny szyny — nie przez
+     * `<x-slot:rail>`, tylko od środka `<main>`, tak samo jak strona przepisu
+     * (`OdkrywanieUzywaKolumnySzynyTest`, `.odkryj-uklad`). Zdanie „ten ekran
+     * nie ma szyny" przestało więc być o nim prawdziwe, a lista, która
+     * zostaje po zmianie produktu, tłumaczy regułę, której już nie uzasadnia
+     * — dokładnie tak jak komentarz naprostowany przez D-122 wyżej.
      */
     public function test_ekran_goscia_bez_szyny_zostaje_przy_jednej_kolumnie(): void
     {
-        foreach (['login', 'register', 'discover', 'help'] as $trasa) {
+        foreach (['login', 'register', 'help'] as $trasa) {
             $html = (string) $this->get(route($trasa))->assertOk()->getContent();
 
             $klasy = $this->klasyUkladu($html);

@@ -27,6 +27,7 @@
 @import "./strony-publiczne.css";
 @import "./ekran-uzytkownikow.css";
 @import "./ekran-odwolan.css";
+@import "./ekran-odkrywania.css";
 /* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
    Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
 @import "./wpis-nawigacja-sasiedzi.css";
@@ -252,8 +253,18 @@
 
     /* Wszystko, co `<main>` niesie POZA siatką ekranu (komunikat zwrotny,
        plakietka zawieszenia konta), zostaje kolumną czytania. Bez tego
-       jedno zdanie „Zostałeś wylogowany" rozciągałoby się na 1104 px. */
-    .app-body-tresc-z-szyna .app-main > :not(.przepis-uklad) {
+       jedno zdanie „Zostałeś wylogowany" rozciągałoby się na 1104 px.
+
+       WYJĄTKI WYPISANE Z NAZWY, BO KAŻDY Z NICH JEST SIATKĄ SAMEGO EKRANU
+       i sam dzieli te dwie kolumny między swoje bloki: `.przepis-uklad`
+       (strona przepisu, issue #365) i `.odkryj-uklad` („Świeżo z Kuking",
+       zgłoszenie „prawa kolumna pusta wszystko na środku"). Przycięcie ich
+       do 45rem zostawiłoby kolumnę szyny pustą — czyli dokładnie ten stan,
+       z którego obie te poprawki wyszły. Ekran, który dopisze się tu jako
+       trzeci, musi dopisać też swoją nazwę; wspólnej klasy świadomie nie
+       wprowadzamy, bo to jedyne miejsce, w którym ta lista jest potrzebna,
+       a klasa-znacznik w HTML-u niczego by nie tłumaczyła. */
+    .app-body-tresc-z-szyna .app-main > :not(.przepis-uklad):not(.odkryj-uklad) {
       max-width: var(--container-content);
     }
 
