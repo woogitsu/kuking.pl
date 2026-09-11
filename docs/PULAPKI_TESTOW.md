@@ -300,6 +300,30 @@ To jest siostra pułapki 8 z drugiej strony: tam czerwień była prawdziwa, ale
 z niewłaściwego pliku; tu jest prawdziwa, ale z niewłaściwej warstwy. W obu
 razach **czerwień bez przeczytanej przyczyny nie jest informacją.**
 
+## 8c. …a `git stash` jest WSPÓLNY dla wszystkich worktree'ów
+
+**Złapała: 11.09.2026, dwóch agentów naraz — jeden odłożył swoją pracę,
+a `git stash pop` zwrócił mu SZEŚĆ PLIKÓW drugiego, z całkiem innego zadania.**
+
+Agent pracujący nad migracjami zrobił `git stash`, a po chwili `git stash pop`
+— i dostał pliki bramki R2, nad którą pracował ktoś inny, w innym worktree.
+Uratowało to tylko tyle, że zauważył obce nazwy plików; obie prace dało się
+odzyskać.
+
+Przyczyna jest konstrukcyjna i warto ją znać dokładnie. `git worktree`
+izoluje **katalog roboczy, indeks i `HEAD`** — i na tym kończy izolacja.
+Schowek (`refs/stash`), wszystkie refy i cały katalog `.git` są **wspólne**.
+Agent, który myśli „mam swój worktree, więc mam swój schowek", zabiera cudzą
+pracę bez jednego ostrzeżenia.
+
+**Co robić:** w tym repozytorium **nie używaj `git stash` w ogóle.** Jak
+w pułapce 8: zacommituj albo odłóż kopie plików (`cp`). Jedno i drugie jest
+Twoje i tylko Twoje.
+
+To jest trzecia rzecz z tej samej rodziny co pułapki 8 i 8b: **polecenie
+gita, które w pojedynczej pracy jest bezpieczne, przy kilku agentach naraz
+kasuje robotę** — a wygląda przy tym dokładnie tak, jakby zadziałało.
+
 ---
 
 ## Skąd ta lista
@@ -316,13 +340,16 @@ issue #314): wyszła z pomiaru zrobionego po to, żeby sprawdzić, czy nowy
 szkielet w ogóle cokolwiek mierzy. Okazało się, że przy jednym połączeniu nie
 mierzy — i że wygląda przy tym dokładnie tak samo jak wtedy, gdy mierzy.
 
-Ósma dołączyła 11.09.2026 (razem z dopiskiem 8b, z tego samego dnia i tej
-samej sesji kilkunastu agentów) i jest jedyną na tej liście, która nie dotyczy
-kodu testu, tylko **czytania wyniku: własnej kontroli ujemnej i cudzej
-czerwieni**: wyszła z serii trzech
-kontroli, które oblały się trzy razy z tego samego, cofniętego wraz z naprawą
-powodu. Zostaje tu, bo lista pilnuje nie tylko tego, żeby test mierzył, ale
-i tego, żeby pomiar testu był uczciwy.
+Ósma dołączyła 11.09.2026 razem z dopiskami 8b i 8c — z tego samego dnia
+i tej samej sesji kilkunastu agentów pracujących równolegle. Cała trójka jest
+jedyną częścią tej listy, która nie dotyczy kodu testu, tylko **obsługi
+pomiaru: czytania własnej kontroli ujemnej, czytania cudzej czerwieni
+i narzędzi, które przy kilku agentach naraz zachowują się inaczej, niż
+podpowiada intuicja o izolacji**. Ósma wyszła z serii trzech kontroli
+ujemnych, które oblały się trzy razy z tego samego, cofniętego wraz z naprawą
+powodu. Ta trójka zostaje na liście, bo lista pilnuje nie tylko tego, żeby
+test mierzył, ale i tego, żeby jego pomiar był uczciwy — a pomiar czytany
+źle albo skasowany przez własne narzędzie nie jest uczciwy.
 
 Dwie zasady o kodzie, które z tego zostają (D-079, obowiązują szerzej niż
 miejsce zapisu):
