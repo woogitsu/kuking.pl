@@ -208,6 +208,7 @@ który nie powstaje, i nic by się nie zdeployowało (`DECISIONS.md` D-010).
 | „permission denied" przy Dockerze | Użytkownik runnera nie jest w grupie `docker`: `sudo usermod -aG docker $USER`, potem restart usługi |
 | Job trwa bardzo długo za pierwszym razem | Normalne — Composer i npm budują cache. Kolejne przebiegi są znacznie szybsze |
 | „Failed to install browsers → exit 100" w jobie dostępności | `apt-get update` na tej maszynie kończy się niezerowo, bo w liście źródeł siedzi PPA `ppa.setup-php.com/ondrej/php`, które od 9 września 2026 zwraca 404 na plik Release dla Ubuntu „resolute". CI już apta nie woła (patrz niżej), ale każde ręczne `sudo apt update` na tej maszynie też będzie krzyczeć. Usuń martwe źródło: `sudo rm /etc/apt/sources.list.d/*setup-php*` (albo `ondrej-*`) i sprawdź `sudo apt update` |
+| Job pada z kodem **126** na `composer install`, bez ani jednego wyniku testu, a w logu jest `composer: /usr/bin/env: bad interpreter: Text file busy` | Dwa joby naraz na tej samej maszynie: jeden nadpisuje binarkę Composera, drugi ją w tej chwili wykonuje. Pełny opis, sposób rozpoznania i co z tym zrobiono — sekcja „Text file busy" niżej (issue #262) |
 
 ---
 
@@ -224,6 +225,163 @@ raz, ręcznie.** Dziś są zainstalowane. Jeśli po aktualizacji systemu która�
 zniknie, Playwright powie to wprost przy starcie przeglądarki i wymieni pakiety
 do doinstalowania — wtedy jedno `sudo npx playwright install-deps chromium`
 na maszynie, nie zmiana w CI.
+
+---
+
+## „composer: bad interpreter: Text file busy" — wyścig o jedną binarkę (issue #262)
+
+### Objaw
+
+Job pada z kodem **126** na kroku `composer install`, **przed** uruchomieniem
+czegokolwiek — w raporcie nie ma ani jednego oblanego testu, bo nie ma ani
+jednego uruchomionego:
+
+```text
+…/_work/_temp/b904f771….sh: …/_work/_tool/setup-php/tools/composer:
+  /usr/bin/env: bad interpreter: Text file busy
+```
+
+Ten sam commit lokalnie przechodzi w całości. Objaw jest **losowy**: pokazuje
+się tylko wtedy, gdy dwa joby trafią na siebie w tej samej sekundzie.
+
+### Przyczyna
+
+`Text file busy` (ETXTBSY) to odpowiedź jądra na `execve()` pliku, który
+**w tej samej chwili ktoś inny trzyma otwarty do zapisu**. Nie jest to usterka
+Composera ani żadnego PR-a — to wyścig o jeden plik na współdzielonej maszynie:
+
+1. `shivammathur/setup-php` zapisuje binarkę narzędzia **w miejsce, z którego
+   się ją potem wykonuje**, i domyślnie jest to ścieżka wspólna dla całej
+   maszyny — `/usr/local/bin` (funkcja `read_env` w `src/scripts/unix.sh`
+   akcji: `tool_path_dir="${setup_php_tools_dir:-${SETUP_PHP_TOOLS_DIR:-/usr/local/bin}}"`).
+2. Nadpisanie jest robione w miejscu: `sudo cp -a` z cache albo `sudo curl -o`
+   wprost na ten plik (`add_tool()` w `src/scripts/tools/add_tools.sh`).
+3. Ścieżka z komunikatu, `…/_work/_tool/setup-php/tools/composer`, jest tylko
+   **dowiązaniem** do tamtego pliku (`ln -sfn` w tej samej funkcji). Dlatego
+   komunikat wskazuje katalog konkretnego runnera, a zajęty jest plik wspólny.
+4. Blokada, którą akcja ma u siebie (`/tmp/sp-lck-…` w funkcji `get()`),
+   serializuje tylko **piszących**. Nie wie nic o jobie, który ten plik w tej
+   samej sekundzie **wykonuje**.
+
+Nasza pula to **rejestracje na jednej maszynie**, nie osobne maszyny
+(`kuking-wsl-DOM-NEW-01`–`-03` to `/home/mateusz/actions-runner-kuking-0N`
+na jednym systemie; to samo stwierdzono dla `woogitsu-linux-01`–`-02`
+w `WYMAGANIA_RUNNERA.md`, sekcja 1). Siedem jobów jednego przebiegu startuje
+równolegle, więc dzielą jedno `/usr/local/bin`.
+
+**Zmierzone na przebiegu [34473498102](https://github.com/woogitsu/kuking.pl/actions/runs/34473498102)
+(10.09.2026, gałąź `claude/kolejne-zdjecie-autora`):** o 11:53:47,54 padł job
+„Testy (PostgreSQL 18)" na runnerze `-03`, a w tej samej sekundzie krok
+„Konfiguracja PHP" wykonywał job „Dostępność" na runnerze `-02` (11:53:46→47).
+**Oba joby były z tego samego przebiegu i tej samej gałęzi** — to ważne, bo
+przesądza, że żadna grupa `concurrency` po gałęzi tego nie rozdzieli.
+
+### Po czym rozpoznać, że to znowu to
+
+1. **kod wyjścia 126** (nie 1) i **zero wyników testów** w raporcie;
+2. w logu `Text file busy` przy pliku z katalogu `setup-php/tools/`;
+3. w Actions, w czasach kroków: inny job — z tego samego albo z sąsiedniego
+   przebiegu — miał krok „Konfiguracja PHP" w tej samej sekundzie.
+
+Jeśli punkt 3 się nie zgadza, to jest coś innego i szukaj dalej. Sam komunikat
+„Text file busy" mówi tylko, że plik był zajęty, nie kto go zajął.
+
+### Co zrobiono w repozytorium (11.09.2026)
+
+Każdy job, który stawia PHP, dostaje **własny katalog na binarki narzędzi** —
+`$RUNNER_TEMP/kuking-narzedzia/<numer przebiegu>-<próba>-<nazwa joba>` — przez
+dwie zmienne czytane przez akcję: `SETUP_PHP_TOOLS_DIR`
+i `SETUP_PHP_TOOL_CACHE_DIR`. Nie ma już pliku, do którego jeden job pisze,
+a drugi go w tej chwili wykonuje: wyścig znika konstrukcyjnie, nie
+statystycznie. Krok stoi tuż **przed** „Konfiguracja PHP" (po nim zmienne nie
+mają już na co wpłynąć) i pilnuje go
+`tests/Feature/CiDajeKazdemuJobowiWlasneNarzedziaTest.php`.
+
+Katalog zakłada nasz krok, a nie `sudo mkdir` z akcji — katalog rootowy
+w `_temp` blokuje potem sprzątanie katalogu roboczego przez runnera, który
+chodzi jako zwykły użytkownik.
+
+**Czego świadomie NIE zrobiono:** wspólnej grupy `concurrency` (biją się joby
+JEDNEGO przebiegu, a grupa wspólna dla wszystkich przebiegów trzyma jeden bieg
+i jeden oczekujący — trzeci anuluje oczekującego) ani ponowienia kroku (retry
+ukrywa wyścig i uczy, że czerwone CI się powtarza, a nie czyta).
+
+### Co zostaje po stronie maszyny
+
+- **Wstępnie zainstalowane PHP 8.4 z dziesięcioma rozszerzeniami.** `setup-php`
+  nadal konfiguruje **jedną, systemową** instalację PHP; gdy wersja i
+  rozszerzenia są już na miejscu, krok kończy się w sekundę i niczego nie
+  podmienia. To jest ta sama rekomendacja co w `WYMAGANIA_RUNNERA.md` §4 —
+  teraz ma drugie uzasadnienie.
+- **Nie ustawiaj `RUNNER_TOOL_CACHE` ani `AGENT_TOOLSDIRECTORY` na katalog
+  wspólny dla kilku rejestracji.** Dziś każdy runner ma własny `_work/_tool`
+  i dlatego Node jest bezpieczny: w logu joba dostępności z 10.09 stoi
+  `Found in cache @ /home/mateusz/actions-runner-kuking-03/_work/_tool/node/22.23.2/x64`,
+  a jeden runner wykonuje jeden job naraz. Wspólny toolcache przeniósłby ten
+  sam wyścig na binarkę Node'a.
+- **Zmierzone przy okazji, do decyzji właściciela:** joby proszą dziś
+  o **jedną etykietę** — `runs-on` widziane w API to `["self-hosted"]`, czyli
+  zmienna repozytorium `CI_RUNS_ON` jest ustawiona na `self-hosted`, a nie na
+  komplet sześciu etykiet z `ci.yml`. Skutek jest taki, że przebiegi trafiają
+  na starą pulę WSL-ową (`kuking-wsl-DOM-NEW-01`–`-03`) — trzy rejestracje na
+  jednej maszynie — dokładnie tak, jak ostrzega nagłówek `ci.yml`. Poprawka
+  z #262 działa na obu pulach, ale rozrzedzenie jobów na więcej maszyn wymaga
+  właśnie tej zmiennej.
+
+### Co jeszcze na tej maszynie jest wspólne
+
+Trzy rejestracje chodzą jako JEDEN użytkownik, więc mają jeden katalog domowy.
+Wspólne są między innymi:
+
+| Ścieżka | Kto pisze | Czy to grozi tym samym |
+|---|---|---|
+| `/usr/local/bin` | `setup-php` (`tools:`) | **TAK — to była przyczyna #262.** Od 11.09 joby tam nie piszą |
+| jedna systemowa instalacja PHP i `php.ini` | `setup-php` (wersja i rozszerzenia) | Nie ETXTBSY, ale ta sama rodzina: ostatni job ustawia stan dla pozostałych. Dlatego wszystkie joby mają w `ci.yml` IDENTYCZNĄ listę rozszerzeń, a na maszynie ma stać gotowe PHP 8.4 |
+| `~/.npm` (cache npm) i `~/.cache/composer` | `npm ci`, `composer install`, `actions/cache` | Nie widzieliśmy z tego awarii. Oba narzędzia zapisują przez plik tymczasowy i podmianę nazwy, więc nie ma tu pliku wykonywanego w trakcie zapisu. **To jest brak obserwacji, nie dowód bezpieczeństwa** |
+| `~/.cache/ms-playwright` (przeglądarki) | `npx playwright install` | Tak — i dlatego ten krok chodzi pod `flock` (patrz `ci.yml`, krok „Przeglądarka") |
+| jeden demon Dockera i jeden dysk | usługi `postgres`, buildx, obrazy | Nie ETXTBSY. Port Postgresa jest już dynamiczny; zostaje miejsce na dysku — `docker system prune -af` i pilnowanie `_work` |
+
+### To NIE to samo co ciasny dysk — ta sama klasa, inny mechanizm
+
+Na tej samej maszynie zdarza się drugi objaw z tej rodziny: kilka przebiegów
+naraz zapełnia dysk i narzędzie melduje **skutek, nie przyczynę** (np. „Brak
+pliku źródłowego w storage." zamiast „nie było miejsca na zapis").
+
+Rozpoznanie jest jednoznaczne i nie trzeba tu zgadywać:
+
+| Co widzisz | Co to jest |
+|---|---|
+| `Text file busy` przy pliku wykonywalnym, kod 126 | wyścig `execve()` z zapisem — sprawa opisana wyżej. Miejsce na dysku nie ma z tym nic wspólnego: jądro odmawia, bo plik jest otwarty do zapisu |
+| `No space left on device`, „cannot execute binary file", plik krótszy niż powinien, zapisy padające w losowych miejscach | ciasny dysk. `df -h`, `docker system prune -af`, czyszczenie `_work` |
+
+**Hipoteza, nie pomiar:** obciążony dysk wydłuża każdy zapis, więc okno, w którym
+binarka jest otwarta do zapisu, robi się szersze i w wyścig łatwiej trafić.
+Zmierzone tego nie potwierdza ani nie podważa — odtworzenie ETXTBSY niżej
+wychodzi przy 14 GB wolnego miejsca (zmierzone `df -h` w chwili odtworzenia),
+czyli **brak miejsca nie jest do tego objawu potrzebny.**
+
+### Jak potwierdzić jednym przebiegiem
+
+Wyścig widać tylko przy równoległości, więc pomiar jest taki:
+
+1. **Actions → CI → Run workflow** na pięciu gałęziach w tej samej minucie
+   (`ci.yml` ma `workflow_dispatch`, więc bez pustych commitów).
+2. Warunek zaliczenia: **żaden job nie kończy się kodem 126** i w żadnym logu
+   nie ma `Text file busy`.
+3. Kontrola, że pomiar cokolwiek mierzy: w logu kroku „Konfiguracja PHP" każdy
+   job ma **inną** ścieżkę narzędzi — `…/_temp/kuking-narzedzia/<numer>-1-<job>`.
+   Jeśli ścieżki są identyczne albo wskazują `/usr/local/bin`, zmienne nie
+   doszły i przebieg niczego nie dowodzi.
+
+Odtworzenie samego mechanizmu (bez runnerów, na dowolnej maszynie) — proces
+trzyma plik wykonywalny otwarty do zapisu, drugi próbuje go uruchomić:
+
+```bash
+printf '#!/usr/bin/env php\n' > composer && chmod 755 composer
+python3 -c "import time; f=open('composer','r+b'); time.sleep(3)" &
+sleep 0.5 && ./composer --version
+# bash: ./composer: /usr/bin/env: bad interpreter: Text file busy   (kod 126)
+```
 
 ---
 

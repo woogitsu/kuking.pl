@@ -1195,9 +1195,37 @@ Kolumna siedzi na `posts`, a nie w tabeli `(user_id, post_id)`, bo wspomnienie
 to zawsze **własny** wpis oglądającego — właściciel i osoba ukrywająca to ta
 sama osoba, więc druga kolumna zawsze wynikałaby z pierwszej.
 
-**Rollback:** `down()` zdejmuje obie kolumny i traci przy tym listę ukrytych
-wspomnień — po cofnięciu człowiek zobaczy z powrotem to, co świadomie schował.
-Na produkcji: najpierw kopia obu kolumn.
+**Rollback — poprawiony po #287 (D-088).** `down()` zdejmuje obie kolumny,
+**ale najpierw ODMAWIA**, jeśli ktokolwiek ma wartość inną od domyślnej: choć
+jedno konto z `memories_enabled = false` albo choć jeden wpis
+z `hide_as_memory = true`.
+
+Wcześniej stało tu „`down()` zdejmuje obie kolumny i traci przy tym listę
+ukrytych wspomnień […] Na produkcji: najpierw kopia obu kolumn". Opis był
+prawdziwy i bezwartościowy jako zabezpieczenie — przenosił ochronę na czyjąś
+pamięć w trakcie awaryjnego wdrożenia. Obie kolumny są `NOT NULL DEFAULT`, więc
+cykl `migrate:rollback` → `migrate` (czyli `migrate:refresh` w CI oraz rollback
+WDROŻENIA, nie tylko bazy) nadpisuje decyzję wartością domyślną, **odwrotną do
+wybranej**. Zmierzone na prawdziwej bazie testowej:
+
+```text
+PRZED:    memories_enabled=false  hide_as_memory=true
+PO CYKLU: memories_enabled=true   hide_as_memory=false
+```
+
+Po ludzku: wyłącznik, którym osoba w żałobie wyłączyła wspomnienia, włącza się
+sam, a wpis z przepisem po mamie, który świadomie schowała, wraca na stronę
+główną — bez błędu, z poprawnymi kolumnami i poprawnymi wartościami `boolean`.
+**Ta sama choroba co MIG-01** (`users.delete_scope`, wyżej) i co DB2; przegląd
+migracji przy #287 wymienił trzy inne pliki do pominięcia i ten PRZEOCZYŁ,
+mimo że reguła D-088 nazywa widoczność wprost.
+
+Naprawa: dwa liczniki PRZED pierwszym `dropColumn` (osobne, bo to dwie różne
+decyzje i każda ginie osobno) i `RuntimeException` z instrukcją, co zrobić
+ręcznie. Na wartościach domyślnych i na świeżej bazie rollback przechodzi bez
+pytania — test `tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`
+sprawdza obie gałęzie odmowy osobno i obie kontrole dodatnie. Skutek udanego
+rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
 
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
