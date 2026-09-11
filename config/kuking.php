@@ -2452,14 +2452,31 @@ return [
     ],
 
     'wersja' => [
-        // ETAP PRODUKTU — podbijany RĘCZNIE, przy kamieniach milowych
-        // z docs/ROADMAP.md. Trzymany w repo, nie w zmiennej środowiskowej,
-        // żeby zmiana wersji przechodziła przez recenzję jak każda inna.
+        // ETAP PRODUKTU — podbijany RĘCZNIE. Trzymany w repo, nie w zmiennej
+        // środowiskowej, żeby zmiana wersji przechodziła przez recenzję jak
+        // każda inna.
         //
-        // Numeracja: „Alfa 0.N" do czasu zamkniętej alfy (D-012), potem
-        // „Beta 0.N", potem 1.0. Bez SemVera — nie wydajemy biblioteki,
-        // której ktoś pilnuje zgodności API, tylko serwis dla ludzi.
-        'etykieta' => 'Alfa 0.1',
+        // SŁOWO zmienia się przy kamieniach milowych z docs/ROADMAP.md:
+        // „Alfa 0.N" do czasu zamkniętej alfy (D-012), potem „Beta 0.N",
+        // potem 1.0. Bez SemVera — nie wydajemy biblioteki, której ktoś
+        // pilnuje zgodności API, tylko serwis dla ludzi.
+        //
+        // CYFRA ROŚNIE PRZY KAŻDEJ ZMIANIE, KTÓRĄ CZŁOWIEK ZOBACZY: nowy
+        // ekran, zmieniony układ, nowa funkcja, inne zachowanie formularza.
+        // Poprawki bez śladu w interfejsie (testy, refaktor, dokumentacja)
+        // jej NIE ruszają.
+        //
+        // DLACZEGO TA REGUŁA W OGÓLE TU STOI. Do 11 września 2026 reguła
+        // mówiła tylko, kiedy zmienia się SŁOWO — i przez to cyfra nie
+        // ruszyła się ani razu od pierwszego dnia, mimo kilkunastu scaleń
+        // dziennie. Numer, którego nikt nigdy nie podbija, nie niesie żadnej
+        // informacji: prawdę o tym, co działa, mówił wyłącznie skrót commita
+        // obok. Zgłoszenie właściciela, decyzja właściciela.
+        //
+        // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
+        // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
+        // wersji nie da się z niczym powiązać.
+        'etykieta' => 'Alfa 0.2',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

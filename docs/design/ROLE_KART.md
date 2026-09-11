@@ -33,6 +33,42 @@ Gdy wszystko na ekranie ma tę samą rangę, nic jej nie ma — a najbardziej tr
 na tym ktoś, kto czyta wolniej albo powiększa tekst, bo skanowanie wzrokiem
 przestaje być skrótem.
 
+### Ta komenda ma DRUGĄ pułapkę, i wpadł w nią ten dokument
+
+`grep` czyta plik jako tekst, więc **nie odróżnia markupu od komentarza
+Blade**. `{{-- … --}}` bywa w tym repozytorium długie i opisowe, a opis
+warstwy naturalnie cytuje klasę, o której mówi — na przykład
+„DLACZEGO KOMPONENT, A NIE SKOPIOWANY `<section class="card">`"
+(`components/szyna-blok.blade.php`). Takie zdanie liczy się do sumy
+dokładnie tak samo jak prawdziwy `<section>`.
+
+Nie jest to hipoteza: **dwa wystąpienia z inwentarza niżej były duchami** —
+`components/szyna-blok.blade.php:6` i `pages/notifications.blade.php:32`.
+Oba siedzą w komentarzu, oba opisują sąsiedni, prawdziwy znacznik kilkanaście
+linii dalej, obu w przeglądarce nie ma.
+
+**Metoda, która to odsiewa** (i którą należy powtórzyć przy następnym
+pomiarze): wyciąć komentarze, ZANIM policzy się klasy. Jedna linijka:
+
+```bash
+php -r '$n=0; foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator("resources/views", FilesystemIterator::SKIP_DOTS)) as $f) {
+  if (!$f->isFile()) continue;
+  $t = preg_replace("/\{\{--.*?--\}\}/s", "", file_get_contents($f->getPathname()));
+  $n += preg_match_all("/class=\"([^\"]* )?card( [^\"]*)?\"/", $t);
+} echo $n, PHP_EOL;'                                                 # 20
+```
+
+`SKIP_DOTS` nie jest ozdobą — bez niego iterator wchodzi w `.` i nigdy
+nie kończy.
+
+Ta sama poprawka dotyczy liczb wyżej. Powtórzony pomiar surową komendą na
+stanie sprzed rozdzielenia warstw (`4751a69~1`) daje dziś **127 trafień, z tego
+2 w komentarzach, czyli 125 żywych** — a nie 126. Jednego trafienia różnicy nie
+da się przypisać po fakcie; pomiar w nagłówku tego rozdziału zrobiono w trakcie
+pracy, na innym stanie drzewa. Wniosek zostaje ten sam i to on jest tu ważny:
+**każda liczba policzona surowym `grep`-em po `class="…"` jest górną granicą,
+nie wynikiem.**
+
 ## Sześć ról
 
 | # | Rola | Klasa | Tło | Obwódka | Promień | Cień | Wcięcie |
@@ -249,19 +285,29 @@ przed błędem, którego jeszcze nikt nie popełnił.
 ## Inwentarz — wszystkie 126 wystąpień
 
 Wiersz na wystąpienie klasy warstwy w `resources/views/`. Wygenerowane ze
-stanu kodu po zmianie, nie przepisane z pamięci. Wiersze `@class([...])` opisują
+stanu kodu, nie przepisane z pamięci. Wiersze `@class([...])` opisują
 JEDNO miejsce, które wybiera warstwę warunkiem — bo w jednym ze stanów ekranu
 nie ma tam czego wypełnić (`admin/wiadomosc`, `settings/email`, `errors/419`,
-`errors/429`).
+`errors/429`) albo bo warstwy nie ma tam wcale (`components/kuking-board`
+w pasie strony powitalnej).
 
 | rola | ile |
 |---|---|
-| sekcja strony | 49 |
-| panel formularza | 42 |
-| karta treści | 20 |
+| sekcja strony | 50 |
+| panel formularza | 43 |
+| karta treści | 18 |
 | ramka pomocnicza | 10 |
 | kafel akcji | 3 |
 | blok szyny | 2 |
+
+**Suma 126 stała tu wcześniej PRZYPADKIEM i trzeba to powiedzieć wprost**,
+bo inaczej następna osoba uzna, że skoro liczba się nie zmieniła, to spis był
+sprawdzony. Poprzednia wersja liczyła dwa duchy z komentarzy Blade
+(`components/szyna-blok.blade.php:6`, `pages/notifications.blade.php:32` —
+oba jako „karta treści") i **nie miała dwóch prawdziwych wystąpień** z ekranu
+`pages/admin/kolaz-powitalny.blade.php`, który powstał po napisaniu tego
+dokumentu. Minus dwa i plus dwa dało tę samą sumę przy trzech błędnych
+wierszach tabeli ról. Dziś 126 jest wynikiem, a nie zbiegiem okoliczności.
 
 
 ### Wejście do serwisu — `auth/`, `components/wejscia-*`, `components/wejdz-*`
@@ -278,9 +324,9 @@ _17 wystąpień: sekcja strony — 8, panel formularza — 8, ramka pomocnicza �
 | `auth/google-link.blade.php:17` | `sekcja-strony` | sekcja strony |
 | `auth/login-link-confirm.blade.php:30` | `sekcja-strony` | sekcja strony |
 | `auth/login-link.blade.php:48` | `panel-formularza` | panel formularza |
-| `auth/login.blade.php:6` | `panel-formularza` | panel formularza |
-| `auth/login.blade.php:64` | `sekcja-strony mt-6` | sekcja strony |
-| `auth/register.blade.php:17` | `panel-formularza` | panel formularza |
+| `auth/login.blade.php:31` | `panel-formularza` | panel formularza |
+| `auth/login.blade.php:70` | `sekcja-strony mt-6` | sekcja strony |
+| `auth/register.blade.php:31` | `panel-formularza` | panel formularza |
 | `auth/reset-password.blade.php:6` | `panel-formularza` | panel formularza |
 | `auth/two_factor_challenge.blade.php:28` | `panel-formularza` | panel formularza |
 | `auth/two_factor_challenge.blade.php:42` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
@@ -303,21 +349,27 @@ _4 wystąpień: panel formularza — 2, sekcja strony — 2._
 
 ### Treść: wpis, przepis, wykonanie, komentarz
 
-_24 wystąpień: panel formularza — 10, karta treści — 6, sekcja strony — 6, blok szyny — 2._
+_23 wystąpienia: panel formularza — 10, karta treści — 5, sekcja strony — 6, blok szyny — 2._
+
+Dwie uwagi do tej tabeli. `components/kuking-board.blade.php` nosi warstwę
+WARUNKOWO (`@class`), bo w ciemnym pasie strony powitalnej tło i wcięcie daje
+sam pas — rola się nie zmieniła, zmienił się sposób jej nadania.
+A `components/szyna-blok.blade.php:6` **wypadł ze spisu**: to był duch
+z komentarza Blade, prawdziwy blok szyny stoi w tym pliku w linii 23 i jest
+w tabeli niżej.
 
 | plik:linia | klasa | rola |
 |---|---|---|
 | `components/comment-thread.blade.php:26` | `card` | karta treści |
 | `components/comment-thread.blade.php:189` | `panel-formularza` | panel formularza |
 | `components/cooked-card.blade.php:8` | `card` | karta treści |
-| `components/kuking-board.blade.php:46` | `sekcja-strony kuking-board mb-6` | sekcja strony |
+| `components/kuking-board.blade.php:89` | `@class([...]) — sekcja-strony` | sekcja strony |
 | `components/post-card.blade.php:23` | `card post-card` | karta treści |
 | `components/recipe-card.blade.php:2` | `card` | karta treści |
 | `components/recipe-wizard.blade.php:1007` | `panel-formularza` | panel formularza |
 | `components/recipe-wizard.blade.php:1169` | `panel-formularza` | panel formularza |
 | `components/recipe-wizard.blade.php:1241` | `panel-formularza` | panel formularza |
 | `components/recipe-wizard.blade.php:1341` | `sekcja-strony` | sekcja strony |
-| `components/szyna-blok.blade.php:6` | `card` | karta treści |
 | `components/szyna-blok.blade.php:23` | `card szyna-blok` | blok szyny |
 | `components/szyna-startowa.blade.php:23` | `card szyna-blok` | blok szyny |
 | `components/ustawienia-nawigacja.blade.php:72` | `sekcja-strony ustawienia-nawigacja` | sekcja strony |
@@ -367,13 +419,23 @@ _24 wystąpień: sekcja strony — 10, panel formularza — 9, ramka pomocnicza 
 
 ### Panel moderacji — `pages/admin/`
 
-_18 wystąpień: sekcja strony — 8, karta treści — 6, panel formularza — 4._
+_20 wystąpień: sekcja strony — 9, karta treści — 6, panel formularza — 5._
+
+`pages/admin/kolaz-powitalny.blade.php` powstał PO napisaniu tego dokumentu
+i trafił do inwentarza dopiero teraz. Nie było czego rozstrzygać: ekran
+od pierwszego commita stosuje wzorzec panel/sekcja tak, jak opisują go
+role 2 i 3 — podgląd „Co widzi teraz gość" jest sekcją, bo niczego nie
+wymaga, a panel siedzi na `<form>`, nie na sekcjach w środku, jak
+w `admin/daily-board`. Wpisanie go tutaj jest uzupełnieniem spisu,
+nie decyzją o roli.
 
 | plik:linia | klasa | rola |
 |---|---|---|
 | `pages/admin/appeals.blade.php:56` | `card odwolanie` | karta treści |
 | `pages/admin/bez-odpowiedzi.blade.php:38` | `card czeka czeka-{{ $wpis->pilnosc }}` | karta treści |
 | `pages/admin/daily-board.blade.php:26` | `panel-formularza` | panel formularza |
+| `pages/admin/kolaz-powitalny.blade.php:60` | `sekcja-strony mb-6` | sekcja strony |
+| `pages/admin/kolaz-powitalny.blade.php:117` | `panel-formularza` | panel formularza |
 | `pages/admin/reports.blade.php:78` | `card mb-5` | karta treści |
 | `pages/admin/sygnaly.blade.php:34` | `card mb-5` | karta treści |
 | `pages/admin/tag-promotions.blade.php:27` | `panel-formularza mb-6` | panel formularza |
@@ -415,7 +477,11 @@ _14 wystąpień: sekcja strony — 10, panel formularza — 3, karta treści —
 
 ### Strony publiczne i pozostałe ekrany
 
-_25 wystąpień: ramka pomocnicza — 6, panel formularza — 6, sekcja strony — 5, karta treści — 5, kafel akcji — 3._
+_24 wystąpienia: ramka pomocnicza — 6, panel formularza — 6, sekcja strony — 5, karta treści — 4, kafel akcji — 3._
+
+`pages/notifications.blade.php:32` **wypadł ze spisu** — drugi duch
+z komentarza Blade. Prawdziwa karta powiadomienia stoi w linii 82 i jest
+w tabeli niżej.
 
 | plik:linia | klasa | rola |
 |---|---|---|
@@ -429,7 +495,6 @@ _25 wystąpień: ramka pomocnicza — 6, panel formularza — 6, sekcja strony �
 | `pages/napisz-do-nas.blade.php:76` | `ramka-pomocnicza mb-5` | ramka pomocnicza |
 | `pages/napisz-do-nas.blade.php:93` | `panel-formularza` | panel formularza |
 | `pages/napisz-do-nas.blade.php:146` | `ramka-pomocnicza mt-5` | ramka pomocnicza |
-| `pages/notifications.blade.php:32` | `card` | karta treści |
 | `pages/notifications.blade.php:82` | `card mb-3 @if($notification->isUnread()) notification-nieprzeczytane @endif` | karta treści |
 | `pages/onboarding/done.blade.php:34` | `ramka-pomocnicza mt-8` | ramka pomocnicza |
 | `pages/onboarding/people.blade.php:36` | `ramka-pomocnicza mb-6` | ramka pomocnicza |

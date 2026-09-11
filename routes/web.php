@@ -626,16 +626,27 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('comments.destroy');
 
-    // Dwie drogi do tego samego przepisu i obie są prawdziwe:
-    // /dodaj/przepis to kreator w krokach (Livewire, wymaga JS),
-    // /dodaj/przepis/jedna-strona to ten sam formularz zwykłym POST-em,
-    // bez JavaScriptu. Druga trasa nie jest zaszłością — bez niej słaby
-    // zasięg zostawia użytkownika z martwym formularzem.
+    /*
+     * DODAWANIE ≠ DOPISYWANIE SZCZEGÓŁÓW (issue #364).
+     *
+     * /dodaj/przepis                — sześć rzeczy i „Opublikuj". Zwykły POST,
+     *                                 bez JavaScriptu. `?szkic={uuid}` wraca
+     *                                 do niedokończonego szkicu w kreatorze.
+     * /przepisy/{slug}/szczegoly    — „Dopisz szczegóły" w trzech krokach
+     *                                 (Livewire, wymaga JS).
+     * /przepisy/{slug}/edycja       — te same szczegóły na jednej stronie,
+     *                                 zwykłym POST-em. Bez niej słaby zasięg
+     *                                 zostawia człowieka z martwym kreatorem.
+     * /dodaj/przepis/jedna-strona   — pełny formularz dodawania. Zostaje dla
+     *                                 adresów, które ludzie mają zapisane;
+     *                                 nic już do niego nie linkuje.
+     */
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     Route::post('/dodaj/przepis', [RecipeController::class, 'store'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.store');
+    Route::get('/przepisy/{recipe}/szczegoly', [RecipeController::class, 'details'])->name('recipes.details');
     Route::get('/przepisy/{recipe}/edycja', [RecipeController::class, 'edit'])->name('recipes.edit');
     // Ten sam limit co przy publikacji i ten sam powód co przy `posts.update`:
     // każdy zapis przepisu tworzy nową wersję (`recipe_versions`), czyli jest
