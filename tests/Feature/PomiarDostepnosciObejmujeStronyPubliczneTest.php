@@ -50,26 +50,27 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
         'napisz-do-nas/dziekujemy' => 'ekran potwierdzenia — bez wysłanego formularza nie ma czego pokazać, a pusty ekran przechodzi każdy audyt',
         'zglos-nielegalna-tresc/przyjete' => 'ekran potwierdzenia — jak wyżej',
         /*
-         * DŁUG NAZWANY, NIE UKRYTY.
+         * SIEDEM POZYCJI, KTÓRE TU STAŁY, JEST OD 11 WRZEŚNIA W `EKRANY`.
          *
-         * Te siedem pozycji to prawdziwe strony i powinny być mierzone —
-         * skan wypisał je sam, przy pierwszym uruchomieniu tego testu, i to
-         * jest jego pierwsze znalezisko. Nie dokładam ich do automatu w tym
-         * samym PR-ze, który ma odblokować `main`: każdy nowy ekran może
-         * przynieść własne znaleziska, a wtedy trzeba je naprawić, nie
-         * odłożyć — i robi się to na zielonym CI, nie na czerwonym.
+         * `o-kuking`, `pomoc`, `odwolanie` (gość), `nie-pamietam-hasla`,
+         * `logowanie/link`, `logowanie/kod` i `cofnij-usuniecie-konta` były
+         * wpisane tutaj jako DŁUG NAZWANY: prawdziwe strony publiczne, których
+         * automat nie oglądał ani razu. Wypisał je sam ten skan, przy pierwszym
+         * uruchomieniu — i to było jego pierwsze znalezisko. Spłatę widać
+         * w `scripts/dostepnosc.mjs`: każda z siódemki ma tam własny wpis
+         * z powodem, a `logowanie/kod` dodatkowo czwarty stan przeglądarki
+         * (sesja po haśle, przed kodem — `stanPrzedKodem2FA()`), bo w żadnym
+         * z trzech istniejących ten ekran nie istnieje. Dwa ekrany odzyskania
+         * dostępu wymagały przy okazji rozstrzygnięcia, w KTÓRYM ze swoich
+         * dwóch stanów mają być mierzone — patrz **D-106**.
          *
-         * Wpisanie ich TUTAJ, zamiast rozszerzenia filtra wyżej, jest
-         * świadome: filtr ukryłby je bezterminowo i bez śladu, a ta lista
-         * jest widoczna przy każdym czytaniu pliku i kłuje w oczy.
+         * Po tych siedmiu zostaje ten akapit, a nie czysta luka. Powód jest
+         * ten sam, dla którego w ogóle powstał ten test: wypadnięcie strony
+         * z `EKRANY` jest jedyną zmianą, która NIE zostawia śladu w raporcie
+         * automatu — ten świeci wtedy zielono nad niepełną listą. Ślad ma więc
+         * zostać w pliku, żeby następne czytanie zaczynało się od pytania
+         * „czy te siedem nadal tam jest", a nie od pustego miejsca.
          */
-        'o-kuking' => 'DŁUG: strona publiczna dotąd niemierzona — do dopisania osobnym PR-em',
-        'pomoc' => 'DŁUG: strona publiczna dotąd niemierzona — do dopisania osobnym PR-em',
-        'odwolanie' => 'DŁUG: odwołanie dla gościa dotąd niemierzone — wariant zalogowanego jest mierzony',
-        'nie-pamietam-hasla' => 'DŁUG: formularz odzyskania hasła dotąd niemierzony — to najważniejszy z tej czwórki',
-        'logowanie/link' => 'DŁUG: logowanie linkiem dotąd niemierzone',
-        'logowanie/kod' => 'DŁUG: logowanie kodem dotąd niemierzone',
-        'cofnij-usuniecie-konta' => 'DŁUG: cofnięcie usunięcia konta dotąd niemierzone',
 
         /*
          * WEJŚCIE KONTEM GOOGLE (D-069) — dwie różne przyczyny, nie jedna.
@@ -79,12 +80,32 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
          * Nie jest to dług — tam po prostu NIE MA strony do zmierzenia.
          *
          * `domknij` i `polacz` to prawdziwe ekrany i powinny być mierzone.
-         * Automat ich dziś nie otworzy, bo oba wymagają tożsamości z Google
-         * w sesji, a tej nie da się założyć bez przejścia przez Google.
-         * Zmierzenie ich wymaga podstawienia tożsamości w sesji przed
-         * wejściem — do zrobienia, ale nie w tym PR-ze. To jest dług
-         * dokładnie tej samej klasy co siedem pozycji wyżej i ma tu stać
-         * widocznie, a nie zniknąć w filtrze.
+         * Automat ich nie otworzy, bo oba czytają tożsamość z Google z sesji
+         * (`GoogleLoginController::tozsamoscZSesji()`, klucz zakładany
+         * WYŁĄCZNIE przez `callback()` po udanej wymianie kodu u Google);
+         * bez niej oba odsyłają na `/login`.
+         *
+         * SPRAWDZONE 11 WRZEŚNIA, przy spłacie długu siedmiu stron wyżej —
+         * i dlatego ta pozycja zostaje, a tamte nie. Droga na skróty
+         * musiałaby być jedną z dwóch, i obie są zamknięte:
+         *
+         *  1. Podstawienie klucza sesji z zewnątrz. Wymaga trasy, komendy albo
+         *     middleware'u, który pozwala zapisać do sesji „tożsamość
+         *     potwierdzoną przez Google" bez przejścia przez Google. Wiersz
+         *     w `tozsamosci_zewnetrzne` JEST drogą wejścia na konto (D-098),
+         *     więc taki właz jest przejęciem konta czekającym na pomyłkę
+         *     w konfiguracji — i zostałby w repozytorium na zawsze, pokazując
+         *     następnej osobie, że tak wolno. To ta sama granica, której nie
+         *     przekracza `stanModeratora()` przy 2FA.
+         *  2. Podstawienie odpowiedzi Google. Wymiana kodu na token idzie
+         *     Z SERWERA (`KlientGoogle`), a nie z przeglądarki, więc
+         *     Playwright nie ma czego przechwycić — jego `route()` widzi
+         *     wyłącznie ruch karty.
+         *
+         * Zostaje to więc długiem, ale długiem o innym powodzie niż tamte
+         * siedem: nie „nikt się nie zabrał", tylko „zmierzenie tego wymaga
+         * najpierw atrapy dostawcy tożsamości". To jest osobna praca i osobna
+         * decyzja, a nie linijka w automacie.
          */
         'wejdz/google' => 'przekierowanie do Google — `start()` zwraca RedirectResponse, nie ma strony',
         'wejdz/google/wroc' => 'powrót z Google — `callback()` zwraca RedirectResponse, nie ma strony',
