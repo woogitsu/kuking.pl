@@ -676,6 +676,38 @@
       transform var(--czas-szybki) ease-out;
   }
 
+  /* NAPIS PRZYCISKU OWINIĘTY JEDNYM ELEMENTEM — TEN `<span>` NIE JEST PUSTY.
+
+     Nie kasuj go przy sprzątaniu „niepotrzebnych" opakowań. Reguła niżej
+     wygląda na nic nierobiącą (`min-width: 0` to wartość, którą element flex
+     i tak dostaje w kolumnie), ale jej zadaniem jest UNIEŚĆ NAZWĘ KLASY —
+     ta nazwa jest tu jedynym śladem, po co ten `<span>` w ogóle stoi
+     w `landing.blade.php`, i jedynym miejscem, gdzie wolno dopisać dalsze
+     właściwości napisu, gdy będą potrzebne.
+
+     DLACZEGO (issue #353). `.btn` wyżej jest `inline-flex`, więc KAŻDY kawałek
+     tekstu między elementami inline staje się osobnym elementem flex.
+     `Zostań <x-kuking-word/> — to darmowe` to trzy węzły, czyli trzy niezależne
+     elementy flex rozdzielone `gap`, a `overflow-wrap: anywhere` (kilka linijek
+     wyżej — obrona przed wypchnięciem strony w bok) łamie każdy z nich
+     w ŚRODKU WYRAZU, bo każdy z osobna jest za wąski.
+
+     Zmierzone w Chromium, przycisk w ramce 320 px, `font-size: 24px`:
+       bez `<span>`: 3 elementy flex, napis rozrzucony na 5 kawałków w 5
+                     wierszach („ — to " / „ZoskuKIN" / „darmow" / „tań Giem"
+                     / „e"), wysokość przycisku 114 px;
+       ze `<span>`:  1 element flex, 2 wiersze łamane na spacjach
+                     („Zostań kuKINGiem" / „ — to darmowe"), wysokość 84 px.
+
+     Przycisk z ikoną (`<x-ikona/> Ugotowałem`) to POPRAWNE dwa elementy flex —
+     ikona i podpis mają stać obok siebie z `gap`. Tam `btn-napis` nie wchodzi.
+
+     Strażnikiem jest `tests/Feature/PrzyciskiNieRozbijajaNapisuTest.php`:
+     liczy bezpośrednie węzły tekstowe w każdym `.btn` w wyrenderowanym HTML-u. */
+  .btn-napis {
+    min-width: 0;
+  }
+
   /* Wciśnięty. Jeden piksel w dół — tyle wystarczy, żeby palec dostał
      potwierdzenie, i za mało, żeby układ drgnął. Przy `prefers-reduced-motion`
      przejście i tak jest wyłączone w warstwie base. */

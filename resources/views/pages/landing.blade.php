@@ -52,7 +52,12 @@
                     z tego, co jest. Wrzucasz zdjęcie i kilka słów. Nic więcej nie musisz.
                 </p>
                 <div class="hero-akcje">
-                    <a class="btn btn-primary btn-duzy" href="{{ route('register') }}">Zostań <x-kuking-word forma="iem" /> — to darmowe</a>
+                    {{-- `btn-napis` NIE JEST OZDOBNIKIEM — patrz issue #353 i komentarz
+                         przy `.btn-napis` w `resources/css/tokens.css`. `.btn` jest
+                         `inline-flex`, więc bez tego `<span>` napis to trzy elementy
+                         flex („Zostań ", nazwa, „ — to darmowe"), każdy zawijany osobno
+                         i łamany w środku wyrazu. --}}
+                    <a class="btn btn-primary btn-duzy" href="{{ route('register') }}"><span class="btn-napis">Zostań <x-kuking-word forma="iem" /> — to darmowe</span></a>
                     <a class="btn btn-secondary" href="{{ route('discover') }}">Najpierw się rozejrzę</a>
                 </div>
             </div>
