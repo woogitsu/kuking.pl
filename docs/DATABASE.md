@@ -1986,18 +1986,30 @@ rośnie wolniej niż `product_signals`. Docelowy okres należy dopisać do
 `docs/decyzje/ADR_RETENCJE.md` razem z resztą dowodów zgód, przy przeglądzie
 prawnym (issue #8).
 
-**Rollback:** `php artisan migrate:rollback --step=1`. `down()` kasuje tabelę
-razem z wyzwalaczami i funkcją. Bezpieczny dla DZIAŁANIA serwisu — wysyłka nie
-czyta tej tabeli ani razu, więc nic nie przestanie chodzić. **Nie jest
-bezpieczny dowodowo:** razem z tabelą znika jedyny zapis o tym, kto i kiedy
-wyraził zgodę, a boolean na `users` tego nie odtworzy. Rollback wykonuje się
-więc albo na wdrożeniu, gdzie tabela jest jeszcze pusta, albo po wyjęciu jej
-zawartości poza bazę
-(`\copy dziennik_zgod to 'dziennik_zgod.csv' csv header`).
+**Rollback:** `php artisan migrate:rollback --step=1`. `down()` **ODMAWIA**,
+gdy w dzienniku jest choć jeden zapis (D-088) — bo razem z tabelą znika jedyny
+dowód na to, kto i kiedy wyraził zgodę, a boolean na `users` tego nie odtworzy.
+Dla DZIAŁANIA serwisu skasowanie tej tabeli jest niegroźne (wysyłka nie czyta
+jej ani razu) i właśnie dlatego było groźne dowodowo: po `down()` prawie zawsze
+idzie kolejny `migrate`, tabela wraca pusta, serwis chodzi i **nie ma błędu do
+zauważenia**.
+
+Odmowa podaje liczbę zapisów, które by znikły, i drogę wyjścia — eksport poza
+bazę (`\copy dziennik_zgod to 'dziennik_zgod.csv' csv header`). Na pustym
+dzienniku, czyli na świeżym wdrożeniu, cofnięcie przechodzi bez pytania.
+Skasowanie mimo wszystko wymaga wypowiedzenia tego wprost:
+
+```
+KUKING_ROLLBACK_KASUJ_DZIENNIK_ZGOD=true php artisan migrate:rollback --step=1
+```
+
+> Do 11 września ten akapit **ostrzegał**, a `down()` robił `dropIfExists` bez
+> słowa. Ostrzeżenie w dokumencie nie jest zabezpieczeniem (issue #341).
 
 Pilnuje tego `DowodZgodyNaDigestTest` (udzielenie, wycofanie, ciąg
 włącz → wyłącz → włącz, trzy źródła, brak PII, append-only w modelu i w bazie,
-usunięcie konta).
+usunięcie konta) oraz `CofniecieDziennikaZgodOdmawiaTest` (odmowa, kontrola
+dodatnia na pustym dzienniku, zgoda wypowiedziana wprost, wąskość skutków).
 
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,
