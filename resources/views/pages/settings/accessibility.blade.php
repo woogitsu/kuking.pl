@@ -7,6 +7,19 @@
         będzie takie samo na telefonie, tablecie i komputerze.
     </p>
 
+    @php
+        /*
+         * Podpisy idą z konfiguracji (`kuking.text.scale_labels`), a nie
+         * z łańcucha `@if` w Blade. Przy siedmiu rozmiarach ten łańcuch był
+         * nie do przeczytania, a dyrektywa Blade przyklejona do tekstu bez
+         * odstępu w ogóle się nie kompiluje — pułapka, na której już raz
+         * stanęliśmy. Zapasowe `?? $scale.'%'` jest po to, żeby brak podpisu
+         * pokazał się jako liczba, a nie jako pusty wiersz; testu to nie
+         * zastępuje, bo procent w tym miejscu to usterka, tylko widoczna.
+         */
+        $podpisy = (array) config('kuking.text.scale_labels');
+    @endphp
+
     <form class="card" method="POST" action="{{ route('settings.accessibility') }}">
         @csrf @method('PUT')
 
@@ -23,7 +36,7 @@
                                 Rosół na niedzielę wyszedł złoty.
                             </span>
                             <span class="choice-help">
-                                @if($scale === 100) Zwykły @elseif($scale === 112) Trochę większy @elseif($scale === 125) Duży @else Bardzo duży @endif
+                                {{ $podpisy[$scale] ?? $scale.'%' }}
                             </span>
                         </span>
                     </label>

@@ -235,9 +235,45 @@ return [
     ],
 
     'text' => [
-        // Skala tekstu ustawiana przez użytkownika w /settings/accessibility.
-        // Wartości w procentach; muszą mieścić się w CHECK z migracji (90–140).
-        'scales' => [100, 112, 125, 140],
+        /*
+         * Skala tekstu ustawiana przez użytkownika w /ustawienia/czytelnosc.
+         * Wartości w procentach; muszą mieścić się w CHECK z migracji
+         * (70–140 od `2026_09_11_600000_rozszerz_skale_tekstu_w_dol`).
+         *
+         * KOLEJNOŚĆ JEST KOLEJNOŚCIĄ NA EKRANIE — rosnąco, od najmniejszej.
+         * Domyślna (100) wypada w środku i to jest w porządku: lista
+         * uporządkowana według rozmiaru jest do przejrzenia jednym spojrzeniem,
+         * a lista zaczynająca się od domyślnej i skacząca w dwie strony nie.
+         *
+         * TRZY MNIEJSZE SĄ NOWE. Zasada „tekst ≥ 18 px" z AGENTS.md dotyczy
+         * DOMYŚLNEGO wyglądu — 100% nadal daje 18 px. Niżej schodzi wyłącznie
+         * ten, kto sam tak ustawi, i tylko na swoim koncie.
+         */
+        'scales' => [70, 80, 90, 100, 112, 125, 140],
+
+        /*
+         * PODPISY POD PODGLĄDEM — słowa, nie procenty.
+         *
+         * Człowiek wybierający rozmiar tekstu nie myśli w procentach i nie ma
+         * powodu, żeby zaczynał. Podgląd pokazuje zdanie w prawdziwym
+         * rozmiarze, a podpis nazywa je słowem.
+         *
+         * Stoją TUTAJ, obok `scales`, a nie w widoku, bo do 11 września 2026
+         * były łańcuchem `@if($scale === 100) … @elseif` w Blade — przy
+         * czterech rozmiarach dało się to przeczytać, przy siedmiu już nie,
+         * a rozmiar bez podpisu zniknąłby po cichu, zostawiając pusty wiersz.
+         * Test `SkalaTekstuDzialaTest` pilnuje, żeby każdy rozmiar miał podpis.
+         */
+        'scale_labels' => [
+            70 => 'Bardzo mały',
+            80 => 'Mały',
+            90 => 'Trochę mniejszy',
+            100 => 'Zwykły',
+            112 => 'Trochę większy',
+            125 => 'Duży',
+            140 => 'Bardzo duży',
+        ],
+
         'default_scale' => 100,
     ],
 

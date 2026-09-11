@@ -4045,6 +4045,9 @@
 /* Podgląd rozmiaru tekstu w ustawieniach dostępności. Wartości są zamknięte
    w `config/kuking.php` (`kuking.text.scales`), więc wystarczą trzy reguły —
    nieznana wartość zostaje przy 100% i nic się nie psuje. */
+.choice-label[data-skala='70'] { font-size: 70%; }
+.choice-label[data-skala='80'] { font-size: 80%; }
+.choice-label[data-skala='90'] { font-size: 90%; }
 .choice-label[data-skala='112'] { font-size: 112%; }
 .choice-label[data-skala='125'] { font-size: 125%; }
 .choice-label[data-skala='140'] { font-size: 140%; }
