@@ -2514,9 +2514,11 @@
   /* ---------------------------------------------------------------------
      Tablica „kuKINGi na dziś"
 
-     Świadomie NIE jest to siatka kafelków. Karta na osobę, w jednym rzędzie
-     z avatarem i przyciskiem — czytelne przy powiększonym tekście i na 320 px,
-     gdzie ściana miniaturek się rozsypuje (docs/UX_50_PLUS.md).
+     Świadomie NIE jest to siatka kafelków. Wiersz na osobę i wiersz na danie,
+     w obu to samo: zdjęcie z lewej, tekst obok, akcja i pasek miniatur na
+     własnych wierszach przy lewej krawędzi. Czytelne przy powiększonym
+     tekście i na 320 px, gdzie ściana miniaturek się rozsypuje
+     (docs/UX_50_PLUS.md).
      --------------------------------------------------------------------- */
 
   /* Wersaliki w środku wyrazu. Sam <strong> wystarcza — nie zmieniamy
@@ -2540,6 +2542,31 @@
     color: inherit;
   }
 
+  /* JEDNA KOLUMNA ZDJĘĆ NA OBIE LISTY — STĄD CAŁA SYMETRIA TEJ SEKCJI.
+     ---------------------------------------------------------------------
+     Zgłoszenie właściciela: „bez wyglądu, układu, żadnej symetrii, byle jak".
+     Zmierzone przed poprawką na `/` przy oknie 1512 px (tablica 992 px):
+     tekst osoby zaczynał się przy `x = 345`, podpis dania ZE zdjęciem przy
+     `x = 389`, podpis dania BEZ zdjęcia przy `x = 249`, pasek miniatur przy
+     `x = 249`. Cztery krawędzie w jednej sekcji, każda z innego powodu.
+
+     Awatar osoby i zdjęcie dania są teraz jedną i tą samą kolumną, więc obie
+     listy zaczynają tekst w tym samym miejscu, a wszystko, co dostaje własny
+     wiersz (pasek miniatur, przycisk), licuje z lewą krawędzią karty.
+
+     DLACZEGO 120 px I DLACZEGO W PIKSELACH. Zdjęcie dania miało 96 px, czyli
+     mniej niż przycisk stojący obok niego — w serwisie, który stoi na
+     zdjęciach. 120 px to ta sama liczba, którą ma już miniatura przepisu na
+     liście (`.recipe-card-miniatura`), więc nie wprowadza nowej. W pikselach,
+     nie w `rem`, bo przy czcionce przeglądarki 200 % `7.5rem` zrobiłoby
+     240 px i samo zdjęcie nie zmieściłoby się na ekranie 320 px (D-082,
+     D-107). W szynie: 120 + 16 odstępu + 160 progu tekstu = 296 px przy
+     wnętrzu karty 310 px — dwie kolumny mieszczą się z zapasem 14 px. */
+  .kuking-board {
+    --tablica-zdjecie: 120px;
+    --tablica-odstep: var(--spacing-4);
+  }
+
   .kuking-board-subtitle {
     /* To jest <h3>, nagłówek sekcji stojący samodzielnie nad listą — nagłówek
        mniejszy od tekstu, który zapowiada, czyta się jak drobny druk (#110). */
@@ -2558,19 +2585,96 @@
     margin: 0;
   }
 
+  /* RYTM PIONOWY — JEDEN DLA OBU LIST.
+     Wcięcie i kreska siedzą na `<li>`, a nie na wierszu w środku: karta dania
+     ma w środku odnośnik obejmujący cały wiersz i to on jest kontenerem
+     `flex`, nie `<li>`. Rozdzielenie tych dwóch rzeczy jest jedyną różnicą
+     między listami i nie widać jej w układzie. */
   .kuking-board-person,
   .kuking-board-post {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-3);
     padding: var(--spacing-4) 0;
     border-bottom: 1px solid var(--color-border);
-    flex-wrap: wrap;
   }
 
   .kuking-board-person:last-child,
   .kuking-board-post:last-child {
     border-bottom: 0;
+  }
+
+  /* Wiersz: zdjęcie z lewej, tekst obok, reszta na własnych wierszach. */
+  .kuking-board-person,
+  .kuking-board-post-link {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tablica-odstep);
+    flex-wrap: wrap;
+  }
+
+  /* Kolumna zdjęcia. `flex: none` na ELEMENCIE wiersza, nie tylko na `<img>`
+     w środku — to `<a>`/`<span>` jest tu elementem `flex`, a `flex: none` na
+     obrazku niżej nic o nim nie mówi. Bez tego domyślne `flex-shrink` zgniata
+     zdjęcie przy długim opisie. */
+  .kuking-board-avatar,
+  .kuking-board-post-photo {
+    flex: none;
+    width: var(--tablica-zdjecie);
+    line-height: 0;
+  }
+
+  .kuking-board-post-photo img {
+    width: var(--tablica-zdjecie);
+    height: var(--tablica-zdjecie);
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    flex: none;
+  }
+
+  /* DWIE KOLUMNY W SZYNIE, PION NA WĄSKIM EKRANIE — TEN SAM PRÓG W OBU
+     LISTACH (issue #272, rozszerzone o listę osób).
+     ---------------------------------------------------------------------
+     Zgłoszenie z #272: zdjęcie dania wisiało samo, dociśnięte do lewej,
+     a podpis leżał POD nim, nie obok. Nie był to wybór układu — było to
+     przypadkowe zawinięcie. Blok tekstu miał samo `min-w-0`, bez żadnego
+     `flex`, więc jego rozmiar bazowy liczył się z TREŚCI: skrócony wpis
+     (90 znaków) chciał kilkuset pikseli, nie mieścił się w 310 px szyny
+     i cały blok spadał do drugiego wiersza. Zmierzone przed poprawką przy
+     oknie 1440 px: zdjęcie w wierszu `y = 1253`, tekst `y = 1361`.
+
+     To `flex-basis` decyduje, kiedy dwie kolumny przechodzą w pion. `10rem`
+     przy czcionce 16 px daje 120 + 16 + 160 = 296 px, czyli mieści się we
+     wnętrzu karty w szynie (310 px, zmierzone), a tekst dostaje realne
+     174 px. Gdy wnętrze jest węższe — 246 px przy oknie 320 px — próg nie
+     jest spełniony, blok idzie do własnego wiersza i staje przy tej samej
+     krawędzi co zdjęcie.
+
+     DLACZEGO PRÓG W `rem`, A NIE W PIKSELACH. Bo ma jechać razem z tekstem.
+     Przy czcionce przeglądarki podkręconej do 200 % `10rem` to 320 px, więc
+     dwie kolumny same się wyłączają — a nie ściskają podpisu do słupka kilku
+     znaków na wiersz. Tekst 50+ jest tu ważniejszy niż zachowanie
+     ładniejszego układu za wszelką cenę (docs/UX_50_PLUS.md).
+
+     `max-width` z drugiej strony: w głównej kolumnie na `/` tablica ma 992 px
+     i bez tego ograniczenia opis dania rozciągał się na 800 px, czyli grubo
+     ponad 55–75 znaków w wierszu z `docs/UX_50_PLUS.md`. Maksimum w `rem`,
+     bo to jest długość WIERSZA TEKSTU i ma rosnąć razem z nim.
+
+     `flex-grow: 1` zostaje, żeby blok po zmieszczeniu się dobrał resztę
+     wiersza aż do tego maksimum. */
+  .kuking-board-person-body,
+  .kuking-board-post-body {
+    flex: 1 1 10rem;
+    min-width: 0;
+    max-width: 34rem;
+  }
+
+  /* Podpis dania jest `<span>`, nie `<div>` — leży w środku odnośnika
+     obejmującego cały wiersz, a `<a>` nie ma prawa zawierać bloków. Układ
+     robi `display: flex`, nie domyślne wyświetlanie znacznika. */
+  .kuking-board-post-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
   }
 
   /* PASEK MINIATUR MA WŁASNY WIERSZ W KARCIE OSOBY (issue #272).
@@ -2579,37 +2683,31 @@
      miniatury stały JEDNA POD DRUGĄ, choć w szynie było miejsce na rząd.
 
      Przyczyna nie leżała w tej regule, a w tym, GDZIE ten pasek stał.
-     Siedział wewnątrz bloku tekstu karty osoby (`.min-w-0.flex-1`), czyli
-     dostawał nie szerokość szyny, a resztkę po awatarze i przycisku
-     „Obserwuj". Zmierzone w Chromium przy oknie 1440 px, przed poprawką:
-     szyna 352 px → wnętrze karty 310 px → awatar 52 + odstęp 12 + blok
-     tekstu 105 + odstęp 12 + przycisk 129. Pasek miał 105 px, a rząd trzech
-     miniatur potrzebuje 3 × 72 + 2 × 8 = 232 px. Zawijał więc po jednej
-     na wiersz — nie z braku miejsca w szynie, tylko z braku miejsca w tym
-     jednym zduszonym bloku.
+     Siedział wewnątrz bloku tekstu karty osoby, czyli dostawał nie szerokość
+     szyny, a resztkę po awatarze i przycisku „Obserwuj". Zmierzone
+     w Chromium przy oknie 1440 px, przed poprawką: szyna 352 px → wnętrze
+     karty 310 px → awatar 52 + odstęp 12 + blok tekstu 105 + odstęp 12 +
+     przycisk 129. Pasek miał 105 px, a rząd trzech miniatur potrzebuje
+     3 × 72 + 2 × 8 = 232 px. Zawijał więc po jednej na wiersz — nie z braku
+     miejsca w szynie, tylko z braku miejsca w tym jednym zduszonym bloku.
 
-     Naprawą jest więc przede wszystkim PRZENIESIENIE paska w HTML-u: stoi
-     teraz jako bezpośrednie dziecko rzędu, za przyciskiem (patrz komentarz
-     w `kuking-board.blade.php`). Zmierzone po poprawce: trzy miniatury o tej
-     samej górnej krawędzi, `x` 1077/1157/1237.
+     Naprawą jest więc przede wszystkim MIEJSCE paska w HTML-u: stoi jako
+     bezpośrednie dziecko rzędu (patrz komentarz w `kuking-board.blade.php`).
 
      `flex-basis: 100%` ROBI DRUGĄ, OSOBNĄ RZECZ — i nie jest ozdobą, choć
      sam rząd stanąłby też bez niej. Bez tej deklaracji rozmiar bazowy paska
      liczy się z jego treści (232 px przy trzech miniaturach), więc o tym, czy
-     pasek trafi na własny wiersz, decyduje suma szerokości awatara, opisu
-     i przycisku „Obserwuj" — czyli przypadek, ten sam, który zepsuł tę kartę
-     za pierwszym razem. Zmierzone bez `flex-basis`, okno 1280 px, czcionka
-     przeglądarki 200 %: pasek lądował W TYM SAMYM wierszu, na prawo od
-     „Obserwuj" (`x` 959 zamiast 73, czyli zamiast krawędzi karty). Z nią
-     pasek ma zawsze cały wiersz i zawsze zaczyna się przy tej samej
-     krawędzi co reszta karty.
+     pasek trafi na własny wiersz, decyduje suma szerokości awatara i opisu —
+     czyli przypadek, ten sam, który zepsuł tę kartę za pierwszym razem.
+     Zmierzone bez `flex-basis`, okno 1280 px, czcionka przeglądarki 200 %:
+     pasek lądował W TYM SAMYM wierszu, na prawo od „Obserwuj" (`x` 959
+     zamiast 73, czyli zamiast krawędzi karty).
 
      Pilnują tego dwa pomiary w `scripts/dostepnosc.mjs`, sekcja „Tablica
      dnia": jednej krawędzi miniatur (rząd) i szerokości paska równej
      szerokości karty (własny wiersz).
 
-     Odstęp nad paskiem robi teraz `gap` rzędu (`--spacing-3`, ta sama
-     wartość co dawne `margin-top`), więc własnego marginesu tu nie ma:
+     Odstęp nad paskiem robi `gap` rzędu, więc własnego marginesu tu nie ma:
      na własnym wierszu doliczyłby się do odstępu między wierszami.
 
      UWAGA NA DWA RÓŻNE `flex` W TEJ JEDNEJ REGULE. `flex-basis` opisuje ten
@@ -2649,64 +2747,44 @@
     flex: none;
   }
 
-  /* Zdjęcie dania nie kurczy się i nie rośnie — 96 px to 96 px. Zapisane
-     na samym elemencie, nie tylko na `<img>` w środku: to `<a>` jest tu
-     elementem rzędu, a `flex: none` na obrazku niżej nic o nim nie mówi. */
-  .kuking-board-post-photo {
-    flex: none;
+  /* AKCJA NA WŁASNYM WIERSZU, PRZY LEWEJ KRAWĘDZI.
+     Przycisk stał dotąd jako trzeci element wiersza, więc w głównej kolumnie
+     na `/` (992 px) odjeżdżał do prawej krawędzi — 600 px od opisu osoby,
+     do której należy (zmierzone: „Załóż konto, żeby obserwować" przy
+     `x = 657` przy tekście kończącym się na `x = 486`). Własny wiersz daje mu
+     tę samą krawędź co paskowi miniatur i co zdjęciu, a przy okazji zdejmuje
+     z niego walkę o szerokość z opisem w szynie.
+
+     `flex-basis: 100%` daje wiersz KONTENEROWI, nie przyciskowi: przycisk
+     zostaje przy swojej naturalnej szerokości i nie rozciąga się na 992 px. */
+  .kuking-board-akcja {
+    flex-basis: 100%;
   }
 
-  .kuking-board-post-photo img {
-    width: 96px;
-    height: 96px;
-    object-fit: cover;
-    border-radius: var(--radius-md);
-    background-color: var(--color-surface-sunken);
-    flex: none;
+  /* CAŁY WIERSZ DANIA JEST ODNOŚNIKIEM — bez przycisku „Zobacz" na końcu.
+     Cel dotykowy to cała karta (zmierzone: 992 × 152 px w głównej kolumnie,
+     310 × 190 px w szynie) zamiast przycisku 120 × 48 px, a nazwa dostępna
+     bierze się z widocznego tekstu wiersza, więc mówi, dokąd prowadzi.
+     Podkreślenie pojawia się na imieniu autora przy najechaniu i przy
+     wejściu klawiszem — to jest DODATEK, nie jedyna wskazówka: sam podpis
+     ma kolor i wagę odnośnika (`.author-name`) niezależnie od stanu. */
+  .kuking-board-post-link {
+    text-decoration: none;
+    color: inherit;
   }
 
-  /* DWIE KOLUMNY W KARCIE DANIA, ZAMIERZONE — I PRÓG, PRZY KTÓRYM SIĘ KOŃCZĄ
-     (issue #272).
-     ---------------------------------------------------------------------
-     Drugie zgłoszenie ze zrzutu: zdjęcie dania wisiało samo, dociśnięte do
-     lewej, a podpis („Ewa Kapica", „Pyszne jagodzianki z mascarpone",
-     „Zobacz") leżał POD nim, nie obok. Nie był to wybór układu — było to
-     przypadkowe zawinięcie. Blok tekstu miał samo `min-w-0`, bez żadnego
-     `flex`, więc jego rozmiar bazowy liczył się z TREŚCI: skrócony wpis
-     (90 znaków) chciał kilkuset pikseli, 96 + 12 + to nie mieściło się
-     w 310 px szyny, i cały blok spadał do drugiego wiersza. Zmierzone przed
-     poprawką przy oknie 1440 px: zdjęcie w wierszu `y = 1253`, tekst
-     w wierszu `y = 1361`, oba przy `x = 1077`.
-
-     WYBÓR: DWIE KOLUMNY W SZYNIE, PION NA WĄSKIM EKRANIE — i to `flex-basis`
-     decyduje, kiedy jedno przechodzi w drugie. `11rem` nie jest liczbą
-     z powietrza: przy czcionce 16 px daje 96 + 12 + 176 = 284 px, czyli
-     mieści się we wnętrzu karty w szynie (310 px, zmierzone) i tekst dostaje
-     realne 202 px. Gdy wnętrze jest węższe — 246 px przy oknie 320 px —
-     próg nie jest spełniony, blok idzie do własnego wiersza i staje przy tej
-     samej krawędzi co zdjęcie i co reszta karty.
-
-     DLACZEGO PRÓG W `rem`, A NIE W PIKSELACH. Bo ma jechać razem z tekstem.
-     Przy czcionce przeglądarki podkręconej do 200 % `11rem` to 352 px, więc
-     dwie kolumny same się wyłączają — a nie ściskają podpisu do słupka
-     kilku znaków na wiersz. Tekst 50+ jest tu ważniejszy niż zachowanie
-     ładniejszego układu za wszelką cenę (docs/UX_50_PLUS.md).
-
-     `flex-grow: 1` zostaje, żeby blok po zmieszczeniu się dobrał całą resztę
-     wiersza — inaczej podpis kończyłby się w połowie szyny, a przycisk
-     „Zobacz" wisiał w powietrzu z prawej pustką. */
-  .kuking-board-post-body {
-    flex: 1 1 11rem;
+  .kuking-board-post-link:hover .author-name,
+  .kuking-board-post-link:focus-visible .author-name {
+    text-decoration: underline;
   }
 
   .kuking-board-excerpt {
-    margin: 0 0 var(--spacing-2);
     overflow-wrap: anywhere;
   }
 
   /* Jedno zdanie od gospodarza — dlaczego właśnie to. */
   .kuking-board-note {
-    margin: var(--spacing-2) 0 0;
+    margin: var(--spacing-1) 0 0;
     padding-left: var(--spacing-3);
     border-left: 3px solid var(--color-accent);
     font-size: var(--text-help);
@@ -3843,17 +3921,45 @@
   margin-left: auto;
 }
 
+/* PRZYCISK MENU MA NAPIS, NIE TYLKO KROPKI (AGENTS.md:176,
+   docs/UX_50_PLUS.md:27).
+
+   Kształt: pigułka z obwódką, ikona i napis „Więcej" obok siebie. Obwódka
+   dochodzi razem z napisem, bo sam tekst w kolorze wyciszonym, bez tła
+   i bez ramki, nie wygląda na rzecz, którą się naciska — a to jedyne
+   wejście do „Edytuj wpis" i „Usuń wpis".
+
+   `padding` mimo `min-height`: przy skali tekstu 140 % napis zawija się
+   i bez wcięcia dotykałby krawędzi (ta sama poprawka co w `.chip`).
+
+   `white-space: nowrap` — „Więcej" to jedno słowo i ma zostać w jednym
+   wierszu z ikoną; bez tego przy 320 px przycisk potrafi je złamać
+   na „Wię-/cej". */
 .post-card-menu > summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--spacing-2);
   min-width: var(--control-height-min);
   min-height: var(--control-height-min);
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
-  color: var(--color-ink-muted);
-  font-size: var(--text-body-lg);
+  background-color: transparent;
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   list-style: none;
+}
+
+/* `flex: none` NA IKONIE — bez tego domyślne `flex-shrink` zgniata `<svg>`
+   z 24 px do kilku, gdy w wierszu nagłówka karty zabraknie miejsca (długa
+   nazwa autora przy 320 px). Ikona nie jest tu jedynym opisem akcji, ale
+   zgnieciona w kreskę wygląda na usterkę. */
+.post-card-menu-ikona {
+  flex: none;
 }
 
 .post-card-menu > summary::-webkit-details-marker { display: none; }
@@ -4163,6 +4269,12 @@
 .avatar[data-rozmiar='52'] { width: 52px; height: 52px; font-size: 22px; }
 .avatar[data-rozmiar='56'] { width: 56px; height: 56px; font-size: 24px; }
 .avatar[data-rozmiar='88'] { width: 88px; height: 88px; font-size: 37px; }
+/* 120 px — osoba na tablicy „kuKINGi na dziś". Ta sama liczba, co zdjęcie
+   dania w tej samej sekcji (`--tablica-zdjecie`): obie listy tablicy mają
+   jedną kolumnę zdjęć, więc tekst zaczyna się w nich przy tym samym `x`.
+   Rozmiar spoza tej listy cicho spada do 48 px z `.avatar`, czyli awatar
+   osoby byłby mniejszy od zdjęcia dania i cała symetria by przepadła. */
+.avatar[data-rozmiar='120'] { width: 120px; height: 120px; font-size: 50px; }
 /* 128 px — awatar w nagłówku profilu. Na tej jednej stronie awatar nie jest
    znaczkiem przy cudzej treści, tylko zdjęciem osoby, o której jest cała
    strona; kolumna i tak musi pomieścić przycisk „Zmień zdjęcie profilowe"
@@ -4196,12 +4308,6 @@
 .recipe-card-miniatura {
   flex: none;
   width: 120px;
-}
-
-/* Cichy przycisk wyrównany do lewej krawędzi karty. Domyślne wcięcie
-   `.btn-quiet` wysuwałoby go względem tekstu nad nim. */
-.btn-quiet-bez-wciecia {
-  padding-left: 0;
 }
 
 /* Lista kroków w instrukcji („Otwórz aplikację…", „Dodaj konto…"). Wcięcie
