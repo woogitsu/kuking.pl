@@ -168,7 +168,7 @@ class PolitykaBezpieczenstwaTest extends TestCase
     public function test_kreator_przepisu_dostaje_skrypty_livewire_z_podpisem(): void
     {
         $piekarz = $this->user('piekarz');
-        $przepis = \App\Models\Recipe::factory()->create(['author_id' => $piekarz->getKey()]);
+        $przepis = Recipe::factory()->create(['author_id' => $piekarz->getKey()]);
 
         $odpowiedz = $this->actingAs($piekarz)
             ->get(route('recipes.details', $przepis))
