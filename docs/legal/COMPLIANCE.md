@@ -303,10 +303,40 @@ Priorytety: **P0 = blokujące start**, **P1 = zrobić w pierwszych tygodniach**,
 | P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | Nie |
 | P1 | Weryfikacja aktualnego statusu ustawy krajowej wdrażającej DSA i roli UKE jako koordynatora (może się zmienić między wrześniem a datą startu) | **Tak** |
 | P1 | Uproszczony wewnętrzny system odwołań od decyzji moderacyjnych (dobrowolnie, mimo zwolnienia z Art. 20 DSA) | Nie |
+| P1 | Rozstrzygnąć, czy obrazek liczący otwarcia listów, który dokłada dostawca poczty (EmailLabs), wymaga od nas czegoś więcej niż rzetelnej informacji w polityce — i wyłączyć go po stronie dostawcy (patrz 7.1) | **Tak** |
 | P2 | Ocena, czy skanowanie zdjęć pod kątem CSAM (hash-matching) rodzi dodatkowe obowiązki RODO/DPIA | **Tak, przed wdrożeniem takiego skanowania** |
 | P2 | Test WCAG 2.1 AA na kluczowych ekranach (rejestracja, publikacja, profil) | Nie |
 | P2 | Polityka wobec zdjęć z rozpoznawalnymi osobami trzecimi w tle (wizerunek) w regulaminie | Zalecane skonsultować |
 | P2 | Rejestr podprocesorów (transparency) utrzymywany na bieżąco | Nie |
+
+### 7.1 Luki, które zniknęły z dokumentów widocznych dla ludzi (11 września 2026)
+
+Regulamin i polityka prywatności nosiły pod ostatnim paragrafem notatkę autora
+do samego siebie — *„Czego w tym dokumencie jeszcze nie ma, a będzie: …"* —
+a w sekcji „Źródła" odsyłacz do tego pliku i nawias `[numer artykułu do
+potwierdzenia]`. Właściciel kazał je usunąć: dokument, który sam o sobie mówi
+„tego tu jeszcze nie ma", czyta się jak brudnopis, a nie jak wiążąca umowa.
+
+**Usunięcie noty nie wypełnia obowiązku, tylko przestaje o nim przypominać.**
+Dlatego to, czego noty dotyczyły, jest spisane tutaj — razem z tym, co przy
+okazji okazało się już nieaktualne.
+
+| Czego dotyczyła nota | Podstawa prawna | Stan na dziś | Gdzie ta sprawa żyje teraz |
+|---|---|---|---|
+| Tożsamość i adres podmiotu prowadzącego serwis (regulamin) | DSA Art. 11–12; art. 5 ustawy o świadczeniu usług drogą elektroniczną; RODO Art. 13 ust. 1 lit. a | **To nie jest już luka.** Dane spółki, KRS, NIP, REGON i adres stoją w §1 regulaminu i w §1 polityki od 8 września 2026 — nota była nieaktualna | `config/kuking.php` (`kuking.podmiot`), pilnuje tego `DokumentyPrawneNieKlamiaTest::test_tozsamosc_administratora_zgadza_sie_z_konfiguracja` |
+| Dostawca poczty (polityka) | RODO Art. 13 ust. 1 lit. e — kategorie odbiorców | **To nie jest już luka.** EmailLabs (Vercom S.A.) stoi w tabeli dostawców w §3 polityki razem z miejscem przechowywania danych — nota była nieaktualna | Tabela w §3 polityki, pilnuje jej `PolitykaPrywatnosciWymieniaKazdaUslugeTest` |
+| Liczba dni, przez które usunięte dane żyją w kopiach zapasowych | RODO Art. 13 ust. 2 lit. a — okres przechowywania | **Luka otwarta.** Okres nie jest ustalony z dostawcą hostingu | Opisane wyżej: sekcja 2.8 i wiersz P1 w checkliście („Ustalenie i udokumentowanie polityki retencji backupów"). Sama polityka mówi o tym dalej wprost w §7 pkt 4 — to zdanie o stanie usługi, nie notatka, i zostaje |
+| Dokładny numer artykułu PKE odpowiadającego dawnemu Art. 173 Prawa telekomunikacyjnego | Ustawa Prawo komunikacji elektronicznej (2024) | **Luka otwarta.** Polityka wymienia teraz samą ustawę i przedmiot regulacji, bez numeru artykułu — numeru nie zgadujemy | Opisane wyżej: sekcja 5.1 |
+| Czy obrazek liczący otwarcia listów, dokładany przez dostawcę poczty, wymaga od nas czegoś więcej niż rzetelnej informacji | Art. 5 ust. 3 dyrektywy 2002/58/WE i odpowiadające przepisy PKE (dostęp do informacji w urządzeniu końcowym); RODO Art. 6 | **Luka otwarta.** Do 11 września 2026 pytanie stało wyłącznie w polityce, w zdaniu „to zostaje do potwierdzenia" — nigdzie indziej nie było zapisane | Nowy wiersz P1 w checkliście wyżej. Sam fakt — że dostawca to robi i że wyłączamy to po jego stronie — zostaje w §3 polityki |
+
+Odsyłacz *„Zobacz pełną listę źródeł w `COMPLIANCE.md`"* zniknął z obu
+dokumentów bez zamiennika: ten plik jest w repozytorium, a nie na stronie, więc
+czytelnik regulaminu nie ma jak go otworzyć i nie wie, czym jest. Same sekcje
+„Źródła" zostają — podstawa prawna podana w dokumencie jest dla czytelnika
+wartością, a nie notatką redakcyjną.
+
+Powrotu notatek roboczych do dokumentów widocznych dla ludzi pilnuje
+`DokumentyPrawneNieKlamiaTest::test_brak_notatek_roboczych_o_pisaniu_dokumentu`.
 
 ### Rzeczy, które wymagają prawnika przed publikacją — podsumowanie
 1. Finalna treść regulaminu i polityki prywatności (licencja treści to najczęściej kwestionowany zapis).
