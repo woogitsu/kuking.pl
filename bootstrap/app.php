@@ -182,7 +182,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // Droga POWROTNA (`podsumowanie/wracam/*`) tu NIE JEST wymieniona
         // i nie ma być: klika ją człowiek na naszej stronie, więc token ma,
         // a bez ochrony CSRF byłaby drogą do ZAPISANIA kogoś z powrotem.
-        $middleware->validateCsrfTokens(except: ['_csp', 'podsumowanie/wypisz/*']);
+        /*
+         * `wejdz/facebook/odebranie-dostepu` — woła to serwer Facebooka,
+         * nie przeglądarka człowieka: nie ma sesji, nie ma ciasteczka, nie ma
+         * skąd wziąć tokenu. Autentyczność potwierdza PODPIS `signed_request`
+         * sprawdzany na sekrecie aplikacji przez `hash_equals`, a nie sesja —
+         * uzasadnienie w `FacebookDeauthorizeController` (issue #259).
+         */
+        $middleware->validateCsrfTokens(except: [
+            '_csp',
+            'podsumowanie/wypisz/*',
+            'wejdz/facebook/odebranie-dostepu',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

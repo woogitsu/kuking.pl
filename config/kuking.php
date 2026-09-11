@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Support\Facebook;
 
 /*
 |--------------------------------------------------------------------------
@@ -955,6 +956,92 @@ return [
         'waznosc_domkniecia_minut' => (int) env('GOOGLE_WAZNOSC_DOMKNIECIA', 30),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Wejście kontem Facebooka (issue #259, D-069, D-098)
+    |--------------------------------------------------------------------------
+    |
+    | DROGA DODATKOWA, NIGDY JEDYNA — dokładnie jak Google wyżej. Hasło i link
+    | e-mail zostają na ekranie logowania niezależnie od tego, co jest tutaj.
+    |
+    | PUSTE KLUCZE = TEJ FUNKCJI NIE MA. Przycisku nie ma na ekranie, trasy
+    | odsyłają na logowanie ze zdaniem po polsku, nic się nie psuje. To jest
+    | stan domyślny lokalnie, w CI, w testach ORAZ we wszystkich środowiskach
+    | preview — i w tym ostatnim przypadku nie jest to niedogodność, tylko
+    | jedyne możliwe zachowanie: adresy `*.up.railway.app` są losowe, a Meta
+    | dopasowuje adres powrotu znak w znak i nie przyjmuje `*`
+    | (docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md §4.4).
+    |
+    | CZYM TA DROGA RÓŻNI SIĘ OD GOOGLE — jednym zdaniem, bo to zdanie
+    | decyduje o bezpieczeństwie: Facebook NIE mówi, czy adres e-mail jest
+    | potwierdzony, więc adres z Facebooka nigdy nie łączy z istniejącym
+    | kontem i nigdy nie trafia do bazy jako potwierdzony (D-098).
+    |
+    | Sygnału `/health` o braku kluczy tu jeszcze nie ma — tak samo jak przy
+    | Google i z tego samego powodu (`HealthController` jest w rękach innego
+    | zlecenia). Gotowe zdanie dla właściciela czeka
+    | w `App\Support\Facebook::komunikatBrakuKluczy()`.
+    */
+    'facebook' => [
+        /*
+         * WYŁĄCZNIK CAŁEJ FUNKCJI — jedyna droga wycofania BEZ migracji.
+         *
+         * `false` znaczy: przycisk znika z ekranu logowania i rejestracji,
+         * a trasy odpowiadają „ta droga jest teraz zamknięta, zaloguj się
+         * hasłem". Powiązania w bazie zostają nietknięte.
+         *
+         * UWAGA, TU JEST RÓŻNICA WZGLĘDEM GOOGLE, O KTÓREJ TRZEBA WIEDZIEĆ
+         * PRZED WYŁĄCZENIEM: konto założone kontem Google ma adres
+         * POTWIERDZONY, więc po wyłączeniu tamtej drogi zostaje mu link
+         * e-mail. Konto założone kontem Facebooka ma adres niepotwierdzony,
+         * dopóki człowiek nie kliknie w naszą wiadomość — więc dla części
+         * tych kont wyłączenie tej drogi zostawia tylko „Nie pamiętam
+         * hasła" (które i tak wysyła list na ten adres, więc droga istnieje,
+         * ale jest dłuższa). Wyłączaj świadomie i uprzedź te osoby.
+         */
+        'wlaczone' => (bool) env('KUKING_WEJSCIE_FACEBOOK', true),
+
+        // W panelu Meta nazywają się **App ID** i **App Secret**
+        // (Settings → Basic). Nazwy zmiennych są symetryczne do Google
+        // i takie stoją w runbooku §11. Identyfikator jest publiczny
+        // (wchodzi do adresu, na który odsyłamy człowieka); sekret wychodzi
+        // wyłącznie w żądaniu serwer-serwer i w HMAC-u `appsecret_proof`.
+        'identyfikator_klienta' => (string) env('FACEBOOK_CLIENT_ID', ''),
+        'sekret_klienta' => (string) env('FACEBOOK_CLIENT_SECRET', ''),
+
+        /*
+         * WERSJA GRAPH API — JEDNA STAŁA, BO MA TERMIN WAŻNOŚCI.
+         *
+         * To jest ten obowiązek, którego droga Google nie miała wcale
+         * (runbook §7.3). Wersje Meta żyją „at least 2 years from release",
+         * a po wygaśnięciu wywołania NIE PADAJĄ — spadają cicho na starszą
+         * wersję. Dlatego numer stoi w jednym miejscu i da się go podnieść
+         * zmienną środowiskową, bez wdrożenia kodu; a do przeglądu
+         * kwartalnego (docs/infra/DEPLOYMENT_RUNBOOK.md) doszła pozycja
+         * „sprawdź, czy nasza wersja Graph API jeszcze żyje".
+         *
+         * Pusta wartość wraca do stałej w `App\Support\Facebook`, bo adres
+         * bez numeru wersji idzie u Meta na wersję NAJSTARSZĄ Z ŻYWYCH —
+         * czyli tę, która wygaśnie najszybciej.
+         */
+        'wersja_grafu' => (string) env('FACEBOOK_GRAPH_WERSJA', Facebook::WERSJA_GRAFU_DOMYSLNA),
+
+        /*
+         * Ile sekund czekamy na odpowiedź Facebooka. Ten sam wywód i ta sama
+         * liczba co przy Google — z tą różnicą, że tutaj wywołań jest DWA
+         * (token, potem tożsamość), więc w najgorszym razie człowiek czeka
+         * dwa razy tyle. Dlatego nie więcej.
+         */
+        'limit_czasu' => (int) env('FACEBOOK_LIMIT_CZASU', 6),
+
+        /*
+         * Ile minut wolno stać na ekranie domknięcia konta albo na ekranie
+         * „połącz konto z Facebookiem". Trzydzieści — ta sama liczba i ten
+         * sam wywód co przy Google i przy linku do logowania (D-056).
+         */
+        'waznosc_domkniecia_minut' => (int) env('FACEBOOK_WAZNOSC_DOMKNIECIA', 30),
+    ],
+
     'limits' => [
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
@@ -1015,6 +1102,23 @@ return [
          */
         'google_wejscie' => '20,10',
         'google_domkniecie' => '5,10',
+
+        /*
+         * WEJŚCIE KONTEM FACEBOOKA (issue #259) — dwa koszyki, ta sama
+         * konstrukcja i te same liczby co przy Google.
+         *
+         * OSOBNE od `google_*` świadomie: kliknięcia w jedną drogę nie mają
+         * prawa zjadać budżetu drugiej. Gdyby oba dostawcy dzielili koszyk,
+         * człowiek, który spróbował Google i się rozmyślił, zbliżałby się do
+         * limitu na Facebooku — a wyczerpany limit wygląda na ekranie jak
+         * awaria serwisu. Pilnuje tego
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`.
+         *
+         * `facebook_domkniecie` liczy też POST-y „połącz konto", bo to jest
+         * druga trasa, która naprawdę dokłada drogę wejścia na konto.
+         */
+        'facebook_wejscie' => '20,10',
+        'facebook_domkniecie' => '5,10',
 
         /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
