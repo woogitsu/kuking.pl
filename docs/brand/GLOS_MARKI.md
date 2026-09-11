@@ -206,9 +206,19 @@ ze swoją klasą w arkuszu robi trzy rzeczy, o których łatwo zapomnieć:
    literami. `aria-label` na `<span>` tego NIE robi — specyfikacja „ARIA in
    HTML" zakazuje go na elementach o roli `generic`, więc czytniki go ignorują;
 2. **odmiana przez atrybut**, żeby formy nie rozjechały się po widokach;
-3. **`white-space: nowrap`.** Słowo nie łamie się między „ku" i „KING" —
-   bez tego przy 320 px i czcionce 200% jedyny nośnik tej gry (wersaliki
-   w ŚRODKU wyrazu) rozpadałby się na dwa wiersze.
+3. **`.kuking-word { overflow-wrap: anywhere }`.** Słowo łamie się między „ku"
+   i „KING" **wyłącznie wtedy, gdy inaczej wyszłoby poza wiersz**: w zdaniu nie
+   ma spacji, więc dopóki się mieści, nic go nie dzieli i nośnik tej gry
+   (wersaliki w ŚRODKU wyrazu) zostaje cały.
+
+   Zakaz łamania na zawsze — `white-space: nowrap` — był tu **pierwszą wersją
+   i został odrzucony po pomiarze**: na `/register` przy oknie 320 px
+   i czcionce przeglądarki 200% samo słowo brało 315 px zaczynając od x = 32,
+   czyli strona przewijała się w bok o 27 px. Przewijanie w poziomie jest
+   naruszeniem WCAG 2.2 AA (1.4.10 Reflow), a gra słowem nie jest. Pełne
+   uzasadnienie stoi przy regule w `resources/css/app.css`; zgodność tego
+   punktu z arkuszem pilnuje
+   `tests/Feature/GlosMarkiOpisujeArkuszPrawdziwieTest.php`.
 
 ### Pięć miejsc, w których nazwa zostaje zwykłym „Kuking"
 
