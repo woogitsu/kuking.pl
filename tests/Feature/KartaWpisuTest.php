@@ -307,6 +307,71 @@ class KartaWpisuTest extends TestCase
         );
     }
 
+    /**
+     * MENU WPISU MA WIDOCZNY NAPIS, NIE SAME TRZY KROPKI (AGENTS.md:176,
+     * docs/UX_50_PLUS.md:27).
+     *
+     * Do 11 września 2026 całą treścią tego przycisku było
+     * `<span aria-hidden="true">···</span>`: znak SCHOWANY przed czytnikiem
+     * ekranu, a nazwa dostępna wyłącznie w `aria-label`. Oko dostawało znak
+     * bez podpisu, czytnik ekranu podpis bez znaku. Za tymi kropkami stoją
+     * „Edytuj wpis" i „Usuń wpis", czyli dwie z trzech rzeczy, jakie człowiek
+     * może zrobić z własnym wpisem — `docs/UX_50_PLUS.md`:27 nazywa dokładnie
+     * ten wzorzec („`♡ ⋮ ↗` bez podpisów") słabym.
+     *
+     * TEST SPRAWDZA TRZY RZECZY NARAZ, bo każda osobno przechodzi w złym
+     * stanie:
+     *   1. napis JEST w treści przycisku — inaczej wracamy do samego znaku;
+     *   2. napis NIE jest schowany przed czytnikiem (`aria-hidden` w środku
+     *      `<summary>` obejmuje tylko ikonę, nie tekst);
+     *   3. nazwa dostępna zaczyna się od widocznego napisu — WCAG 2.2 AA
+     *      2.5.3 (Label in Name). `aria-label` zostaje, bo tych przycisków
+     *      jest na liście tyle, ile kart, a samo „Więcej" nie mówi, przy
+     *      którym wpisie stoi.
+     */
+    public function test_menu_karty_ma_widoczny_napis_a_nie_same_kropki(): void
+    {
+        $autor = $this->user('autor');
+        Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $html = (string) $this->actingAs($autor)->get(route('home'))->assertOk()->getContent();
+
+        $trafil = preg_match('~<summary\b([^>]*)>(.*?)</summary>~s', $html, $summary);
+
+        $this->assertSame(1, $trafil, 'Na karcie wpisu nie ma menu `<summary>` — nie ma czego sprawdzać.');
+
+        $atrybuty = $summary[1];
+        $wnetrze = $summary[2];
+
+        $this->assertStringContainsString(
+            '>Więcej<',
+            $wnetrze,
+            'Przycisk menu wpisu nie ma widocznego napisu. Sam znak „···" jest dla oka '.
+            'zagadką, a za menu stoją „Edytuj wpis" i „Usuń wpis" (AGENTS.md:176).',
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '~<span[^>]*aria-hidden="true"[^>]*>\s*Więcej~',
+            $wnetrze,
+            'Widoczny napis „Więcej" jest schowany przed czytnikiem ekranu. `aria-hidden` '.
+            'obejmuje w tym przycisku wyłącznie ikonę.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '~aria-label="Więcej~',
+            $atrybuty,
+            'Nazwa dostępna przycisku nie zaczyna się od widocznego napisu „Więcej" — '.
+            'to jest naruszenie WCAG 2.2 AA 2.5.3 (Label in Name): człowiek mówi do '.
+            'sterowania głosem to, co widzi.',
+        );
+
+        $this->assertStringNotContainsString(
+            '<span aria-hidden="true">···</span>',
+            $html,
+            'Wrócił przycisk zbudowany z samych kropek schowanych przed czytnikiem ekranu.',
+        );
+    }
+
     public function test_autor_nie_zglasza_sam_siebie(): void
     {
         // Zgłoszenie własnego wpisu nie ma sensu i nie może się pojawić —
