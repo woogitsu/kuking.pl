@@ -931,6 +931,22 @@ dostaje list z linkiem do wejścia.
 > o wejściu Facebookiem — **nie wcześniej**, bo polityka prywatności opisuje
 > stan serwisu, a nie plany.
 
+> **WKLEJONE 11 września 2026 — ta sekcja jest już historią, nie zadaniem.**
+> Logowanie Facebookiem działało wtedy na produkcji, a polityka prywatności
+> nie wymieniała ani Facebooka, ani Mety ani razu. Teksty niżej trafiły do
+> `resources/legal/polityka-prywatnosci.md` §3 w trzech miejscach (wiersz
+> tabeli, akapit „Co dostajemy od Facebooka", zdanie w akapicie o EOG) —
+> z dwiema zmianami wobec tego, co tu stoi, obiema wymuszonymi przez kod:
+> dopisane jest, że **Facebook nie zawsze oddaje adres e-mail** i że adres
+> z Facebooka jest u nas **zawsze niepotwierdzony**, więc nigdy sam nie łączy
+> się z istniejącym kontem (D-098), a także że powiadomienie o odebraniu
+> dostępu z Facebooka **nie kasuje konta w Kuking**
+> (`FacebookDeauthorizeController`, kolumna `dostep_odebrany_at` — czego ten
+> runbook nie opisuje wcale). Uwaga z §10.3 o tym, że Meta nie jest
+> „podmiotem przetwarzającym", była już na `main` rozwiązana dla Google
+> i została rozciągnięta na Facebooka tym samym zdaniem.
+> `docs/legal/COMPLIANCE.md` pozostał nietknięty.
+
 ### 10.1. Rozstrzygnięcie: który podmiot Meta jest administratorem dla EOG
 
 **Administratorem dla osób z Europejskiego Obszaru Gospodarczego jest
