@@ -318,7 +318,7 @@
                 <x-kuking-mark :rozmiar="36" />
                 {{-- Logotyp rozbity na dwa elementy jest dla czytnika ekranu
                      dwoma osobnymi napisami. Podajemy mu jeden, całą nazwę. --}}
-                <span aria-hidden="true">KuKing<span class="wordmark-tld">.pl</span></span>
+                <span aria-hidden="true">Ku<span class="wordmark-king">King</span><span class="wordmark-tld">.pl</span></span>
                 <span class="visually-hidden">Kuking — strona główna</span>
             </a>
 
