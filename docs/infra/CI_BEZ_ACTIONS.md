@@ -4,6 +4,14 @@
 > Ten dokument opisuje, dlaczego przez pewien czas go nie było, i zostaje
 > w repozytorium jako **plan awaryjny** — opcje A-D niżej są nadal aktualne
 > i przydadzą się, gdyby limit organizacji się wyczerpał.
+>
+> **Sprostowanie, 11 września 2026.** W trzech miejscach stało tu polecenie
+> „odkomentuj blok `on:` w `ci.yml`" (opcja A, opcja B krok 3, checklista).
+> Nieprawda od 5 września: `ci.yml` ma aktywny `on:` z `push`/`pull_request`
+> na `[main, staging]` i `workflow_dispatch` obok — nie ma tam zakomentowanego
+> bloku. Nieprawdą było też „workflowy nie czytają już żadnej zmiennej":
+> od 8 września (wieczorem) `runs-on` czyta `CI_RUNS_ON`. Oba zgłosił audyt
+> z 8 września (`docs/AUDYT_2026-09.md`, wiersz 7 tabeli dokumentów).
 
 ## Sytuacja pierwotna
 
@@ -111,8 +119,9 @@ potrzebna** — są tu na wypadek, gdyby 2 000 minut przestało wystarczać.
 ### A. Repozytorium publiczne — 0 zł, CI bez limitu
 
 Jeśli kod może być otwarty, to jest najprostsze rozwiązanie: publiczne
-repozytorium ma darmowe i nielimitowane standardowe runnery. Wtedy wystarczy
-odkomentować blok `on:` w `.github/workflows/ci.yml`.
+repozytorium ma darmowe i nielimitowane standardowe runnery. W workflow-ach
+nie trzeba wtedy zmieniać niczego — wyzwalacze w `ci.yml` są aktywne od
+5 września; zmienia się tylko to, że przebiegi przestają zjadać minuty.
 
 **Zanim to zrobisz**, sprawdź:
 
@@ -130,15 +139,20 @@ i tak stoi włączony.
 
 Kroki:
 
-1. Nic nie ustawiaj — workflowy nie czytają już żadnej zmiennej. Każdy job ma
-   wpisany zestaw etykiet:
-   `runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]`.
+1. Ustaw zmienną repozytorium `CI_RUNS_ON` (Settings → Secrets and variables
+   → Actions → Variables) na zestaw etykiet w JSON-ie:
+   `["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]`.
+   To ją czyta `runs-on` we wszystkich czterech workflow-ach; skasowanie
+   zmiennej wraca na `ubuntu-latest`. (Poprzednia wersja tego kroku mówiła
+   „nic nie ustawiaj, workflowy nie czytają już żadnej zmiennej" — nieprawda
+   od 8 września 2026, wieczorem; patrz D-028.)
 2. Zarejestruj runnera: Settings → Actions → Runners → New self-hosted runner.
    Przy `./config.sh` podaj WSZYSTKIE sześć etykiet — brak jednej wystarcza,
    żeby job nigdy nie wystartował. Dodatkowe `i5-10400f` i `nvidia-gtx1070`
    są tam po to, żeby joby nie trafiały na starą pulę WSL-ową
    (`woogitsu-wsl-DOM-NEW-01`–`04`), która ich nie ma.
-3. Odkomentuj blok `on:` w `ci.yml`.
+3. W `ci.yml` nie ma nic do odkomentowania — wyzwalacze są aktywne od
+   5 września 2026 i tak zostaje.
 4. Ustaw `KUKING_WAIT_FOR_CI=true` przy `railway config apply`, żeby przywrócić
    bramkę „Wait for CI”.
 
@@ -191,17 +205,24 @@ Warto na niego zerknąć po pierwszym miesiącu, żeby zweryfikować szacunek
 
 ## Checklista włączenia CI
 
-- [x] Odkomentowany blok `on:` w `.github/workflows/ci.yml`
+- [x] `on:` w `.github/workflows/ci.yml` wyzwala CI na `push`
+      i `pull_request` do `main` i `staging`, a `workflow_dispatch` stoi obok
+      celowo. Do 11 września stało tu „odkomentowany blok `on:`" — ten blok
+      nie był zakomentowany nigdy, więc ptaszek opisywał czynność, której
+      nikt nie wykonał
 - [x] Krok PHPStana warunkowy — bez `phpstan.neon` job kończy się zielony
       z adnotacją, zamiast zapalać lampkę, której nie da się naprawić kodem.
       Zacznie blokować sam, gdy #32 doda konfigurację — **nic nie trzeba
       wtedy zmieniać w workflow**
 - [ ] Runnery `woogitsu-linux-01`–`woogitsu-linux-10` są **Idle** w panelu
-      i mają wszystkie sześć etykiet z `runs-on`. Zmienna `CI_RUNNER` nie jest
-      już przez nic czytana i można ją usunąć. **Joby nie mają zapasu
-      w runnerach GitHuba** — gdy cała pula jest offline, przebiegi wiszą
-      w kolejce w nieskończoność, a razem z nimi wdrożenie (Railway ma
-      „Wait for CI")
+      i mają wszystkie sześć etykiet. **Sprostowanie z 11 września 2026:**
+      stało tu, że `CI_RUNNER` nie jest przez nic czytana (prawda — została
+      usunięta) i że „joby nie mają zapasu w runnerach GitHuba" (nieprawda
+      od 8 września, wieczorem). `runs-on` czyta dziś zmienną `CI_RUNS_ON`,
+      a bez niej stoi `ubuntu-latest`, czyli zapas w runnerach GitHuba JEST —
+      pod warunkiem, że zmienna nie jest ustawiona. Dziś jest: 11 września
+      przebieg CI nr 661 pokazał `labels: ["self-hosted"]` i runnera
+      `kuking-wsl-DOM-NEW-02`, czyli samo `self-hosted` i stara pula WSL-owa
 - [ ] Uprawnienia Actions w organizacji pozwalają uruchamiać workflowy
       (Settings → Actions → General)
 - [x] Workflowy wdrożeniowe (`preview.yml`, `railway-iac.yml`) zablokowane

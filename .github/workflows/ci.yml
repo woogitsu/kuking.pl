@@ -10,21 +10,30 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  GDZIE TO CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`,
-#  wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie zmienną repozytorium:
+#  GDZIE TO CHODZI — SPROSTOWANIE, 11 września 2026.
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  Stało tu, że joby chodzą „na własnej puli `woogitsu-linux-01`–
+#  `woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie
+#  zmienną repozytorium", z przykładem `runs-on: [self-hosted, Linux, X64,
+#  woogitsu, i5-10400f, nvidia-gtx1070]`, a pod spodem stał koszt tej decyzji:
+#  „te joby NIE mają już zapasu w runnerach GitHuba". Nieprawda od 8 września
+#  2026 (wieczorem), zgłoszona w audycie z 8 września (`docs/AUDYT_2026-09.md`,
+#  wiersz 7 tabeli dokumentów) i do dziś nieposprzątana. Wszystkie DZIEWIĘĆ
+#  jobów w tym pliku ma dokładnie jedno, wspólne:
 #
-#  Dlaczego etykiety, a nie nazwa: nazwa przypina job do JEDNEJ maszyny, więc
-#  jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe: `i5-10400f`
-#  i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
-#  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
-#  KOSZT TEJ DECYZJI, ŻEBY BYŁ ZAPISANY: te joby NIE mają już zapasu
-#  w runnerach GitHuba. Gdy cała pula jest offline, przebiegi stoją w kolejce
-#  bez końca — a CI jest bramką deployu (Railway ma „Wait for CI"), więc stoi
-#  wtedy także wdrożenie. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
+#  czyli ZMIENNĄ REPOZYTORIUM, z zapasem w `ubuntu-latest`, gdy zmiennej nie ma.
+#  Zestawu sześciu etykiet nie ma w tym pliku ani razu poza komentarzami.
+#
+#  A GDZIE CHODZI NAPRAWDĘ, dziś: zmienna `CI_RUNS_ON` jest ustawiona na samo
+#  `self-hosted`. Zmierzone 11 września na przebiegu CI nr 661 (job „Zakres
+#  zmiany"): `labels: ["self-hosted"]`, `runner_name: kuking-wsl-DOM-NEW-02`.
+#  Czyli joby trafiają na STARĄ pulę WSL-ową — tę, którą sześć etykiet miało
+#  wykluczać. To samo zmierzył wcześniej docs/infra/SELF_HOSTED_RUNNER.md.
+#  Zmiana wartości tej zmiennej nie wymaga PR-a; sposób powrotu na nową pulę
+#  i powód całej zmiany: blok „RUNNERY" niżej oraz D-028 w docs/DECISIONS.md.
+#  Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================

@@ -140,30 +140,56 @@ W panelu GitHuba runner powinien pokazać się jako **Idle**.
 
 ## Włączenie CI w repozytorium
 
-### Krok 1 — nic do ustawiania
+### Krok 1 — jedna zmienna repozytorium
 
-Runnera **nie wybiera już żadna zmienna repozytorium.** Każdy job ma wpisany
-zestaw etykiet:
+> **Sprostowanie, 11 września 2026.** Ten krok nazywał się „nic do ustawiania"
+> i mówił, że „runnera nie wybiera już żadna zmienna repozytorium", bo każdy
+> job ma wpisany zestaw sześciu etykiet. **Nieprawda od 8 września 2026
+> (wieczorem)** — wtedy etykiety wyszły z jobów do zmiennej. Kto się tym
+> kierował, rejestrował runnera i czekał na joby, które nigdy nie przychodziły.
+> Zgłoszone w audycie z 8 września (`docs/AUDYT_2026-09.md`, wiersz 7 tabeli
+> dokumentów).
+
+Wszystkie joby we wszystkich czterech workflow-ach mają dziś to samo:
 
 ```yaml
-runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+```
+
+Runnera wybiera więc **zmienna repozytorium `CI_RUNS_ON`** (Settings → Secrets
+and variables → Actions → Variables), a bez niej joby idą na `ubuntu-latest`.
+Żeby chodziły na tej puli, ustaw ją na:
+
+```json
+["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
 ```
 
 Etykiety, nie nazwa runnera: nazwa przypięłaby job do jednej maszyny, więc
-jej awaria zatrzymywałaby całe CI. Zmienna `CI_RUNNER` nie jest już przez nic
-czytana — jeśli gdzieś jeszcze istnieje, można ją usunąć.
+jej awaria zatrzymywałaby całe CI. Starsza zmienna `CI_RUNNER` nie jest już
+przez nic czytana — jeśli gdzieś jeszcze istnieje, można ją usunąć.
 
-**Skutek, który trzeba znać:** te joby nie mają już zapasu w runnerach
-GitHuba. Gdy cała pula `woogitsu-linux-01`–`woogitsu-linux-10` jest offline,
+**Skutek, który trzeba znać:** dopóki `CI_RUNS_ON` jest ustawiona, te joby nie
+mają zapasu w runnerach GitHuba. Gdy pula wskazana etykietami jest offline,
 przebiegi stoją w kolejce bez końca, a CI jest bramką deployu (Railway ma
-„Wait for CI") — stoi wtedy także wdrożenie.
+„Wait for CI") — stoi wtedy także wdrożenie. Skasowanie zmiennej jest
+awaryjnym powrotem na runnery GitHuba i nie wymaga PR-a (D-028).
 
-### Krok 2 — odkomentowanie wyzwalaczy
+### Krok 2 — wyzwalacze są już aktywne, nie ma czego odkomentowywać
 
-W `.github/workflows/ci.yml` na górze pliku jest zakomentowany blok `on:`
-i tymczasowe `on: workflow_dispatch:`. Zamień je: odkomentuj oryginalny blok,
-usuń `workflow_dispatch`. To samo w `deploy.yml` i `preview.yml`, gdy dojdzie
-do wdrożenia.
+> **Sprostowanie, 11 września 2026.** Stało tu: „W `.github/workflows/ci.yml`
+> na górze pliku jest zakomentowany blok `on:` i tymczasowe
+> `on: workflow_dispatch:`. Zamień je […] To samo w `deploy.yml`
+> i `preview.yml`". **Nieprawda od 5 września 2026**, czyli od pierwszego
+> commita: żaden z tych czterech plików nie miał zakomentowanego `on:`
+> ani przez chwilę.
+
+`ci.yml` wyzwala CI na `push` i `pull_request` do `main` i `staging`,
+a `workflow_dispatch` stoi **obok nich celowo** — pozwala puścić przebieg
+ręcznie, bez pustego commita. `deploy.yml` chodzi na `deployment_status`
+(plus ręcznie), `preview.yml` na `pull_request`, `railway-iac.yml` na
+`pull_request` ograniczonym do `.railway/**`. Wyłącznikiem workflowów
+wdrożeniowych nie jest blok `on:`, tylko bramka `KUKING_DEPLOY_ENABLED`
+na jobach (issue #3).
 
 ### Krok 3 — pierwszy przebieg
 
