@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -138,7 +139,7 @@ class TekstyMowiaPrawdeTest extends TestCase
      * Ten test patrzy więc na CAŁE `<main>`. Szuka zapewnień o tekście, nie
      * o pliku — bo o pliku wolno i trzeba mówić, że przepadł.
      */
-    public function test_419_z_obcietym_formularzem_nie_zapewnia_o_tekscie_NIGDZIE_na_stronie(): void
+    public function test_419_z_obcietym_formularzem_nie_zapewnia_o_tekscie_nigdzie_na_stronie(): void
     {
         // PLIK JEST TU WARUNKIEM, ŻEBY TEST COKOLWIEK MIERZYŁ.
         //
@@ -543,6 +544,197 @@ class TekstyMowiaPrawdeTest extends TestCase
     }
 
     // =================================================================
+    // A7 — trzecie miejsce: formularz „Ugotowałem"
+    // =================================================================
+
+    /**
+     * „To najczęściej czytana część." stało w TRZECH miejscach, a audyt
+     * wymieniał jedno. Dwa pierwsze (kreator przepisu i formularz na jednej
+     * stronie) pilnują testy wyżej; to jest trzecie i ostatnie.
+     *
+     * Tutaj to zdanie było nieprawdziwe podwójnie: nikt nie mierzył, co
+     * w cudzym wykonaniu czyta się najczęściej, a samo słowo „część" znaczyło
+     * na tym ekranie raz część przepisu, raz część formularza.
+     */
+    public function test_formularz_ugotowalem_nie_twierdzi_ktora_czesc_czyta_sie_najczesciej(): void
+    {
+        $przepis = Recipe::factory()->for($this->user('autorka'), 'author')->create([
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => 'public',
+        ]);
+
+        $html = $this->actingAs($this->user('kucharz'))
+            ->get(route('cooked.create', $przepis->slug))
+            ->assertOk()
+            ->getContent();
+
+        $pomoc = $this->pomocPola($html, 'changes_note');
+
+        // Kontrola dodatnia: pole naprawdę się wyrenderowało i ma pomoc.
+        // Bez tego „nie ma tego zdania" przechodziłoby także na pustej stronie.
+        $this->assertNotSame('', $pomoc, 'Nie znalazłem pomocy przy polu „Coś po swojemu?".');
+        $this->assertStringContainsString(
+            'Po swojemu',
+            $pomoc,
+            'Pomoc przestała mówić, gdzie ta notatka trafi — a to jest to, co zastąpiło niezmierzone twierdzenie.',
+        );
+
+        $this->assertStringNotContainsString(
+            'najczęściej czytana',
+            $pomoc,
+            'Formularz „Ugotowałem" znowu twierdzi, którą część czyta się najczęściej. Nikt tego nie zmierzył.',
+        );
+    }
+
+    // =================================================================
+    // A8 — pięć pozostałych miejsc, w których obiecywaliśmy minutę
+    // =================================================================
+
+    /**
+     * Te pięć ekranów mówiło o różnych rzeczach („załóż konto", „dodaj
+     * zdjęcie", „dodaj kolejne zdjęcie"), więc każde z tych zdań trzeba było
+     * rozstrzygnąć osobno — i żadne się nie obroniło. Rejestracji nikt nie
+     * chronometrował, a przy wpisie ze zdjęciem czas zależy od tego, jak
+     * szybko zdjęcie pójdzie z telefonu; przy słabym zasięgu to nie jest
+     * minuta i nie jest to nasza do obiecania.
+     *
+     * Szósty ekran (strona powitalna) ma własny test wyżej.
+     *
+     * Każdy z tych testów jest ZAWĘŻONY DO ELEMENTU i ma kontrolę dodatnią:
+     * słowo „minut" pada w tym serwisie także zupełnie legalnie — jako czas
+     * gotowania i jako okno na poprawienie komentarza — więc asercja na całym
+     * HTML-u byłaby testem o czymś innym (`docs/PULAPKI_TESTOW.md` §1).
+     */
+    public function test_ekran_logowania_linkiem_nie_obiecuje_minuty(): void
+    {
+        // W testach `MAIL_MAILER=array`, a `App\Support\Poczta::dziala()`
+        // uznaje to za brak wysyłki — cały ten ekran renderuje wtedy zupełnie
+        // inną gałąź i sprawdzanego akapitu NIE MA na stronie wcale. Bez tej
+        // linijki test byłby zielony, nie oglądając niczego.
+        config(['mail.default' => 'smtp']);
+
+        $zachetaDoRejestracji = $this->elementZLinkiem(
+            $this->get(route('login.link'))->assertOk()->getContent(),
+            route('register'),
+            'p[contains(@class, "notice")]',
+        );
+
+        $this->assertStringContainsString(
+            'to inny formularz',
+            $zachetaDoRejestracji,
+            'Zniknęła informacja, po co ten link tu stoi — że rejestracja to nie jest ten formularz, w którym człowiek właśnie jest.',
+        );
+
+        $this->assertStringNotContainsString(
+            'minut',
+            $zachetaDoRejestracji,
+            'Ekran logowania linkiem znów obiecuje, że rejestracja zajmie minutę. Nikt tego czasu nie mierzy.',
+        );
+    }
+
+    public function test_zacheta_pod_komentarzami_nie_obiecuje_minuty(): void
+    {
+        $wpis = Post::factory()->create(['author_id' => $this->user('piszaca')->getKey()]);
+
+        $zacheta = $this->elementZLinkiem(
+            $this->get(route('posts.show', $wpis))->assertOk()->getContent(),
+            route('register'),
+            'p[contains(@class, "notice")]',
+        );
+
+        $this->assertStringContainsString(
+            'Żeby dodać komentarz',
+            $zacheta,
+            'Gość stracił spod komentarzy zdanie mówiące, co zrobić, żeby móc skomentować.',
+        );
+
+        $this->assertStringNotContainsString(
+            'minut',
+            $zacheta,
+            'Zachęta pod komentarzami znów obiecuje minutę — i to naraz dla logowania i dla zakładania konta.',
+        );
+    }
+
+    public function test_skroty_na_profilu_nie_obiecuja_minuty(): void
+    {
+        $ja = $this->user('gospodyni');
+
+        // `x-szyna-blok` kładzie `id` na NAGŁÓWKU, a sekcję wiąże z nim
+        // przez `aria-labelledby` — więc szukanie po `id` dałoby sam tytuł
+        // bloku, bez listy skrótów.
+        $skroty = $this->elementPoEtykiecie(
+            $this->actingAs($ja)->get(route('profile.show', 'gospodyni'))->assertOk()->getContent(),
+            'szyna-skroty',
+        );
+
+        $this->assertStringContainsString(
+            'Dodaj zdjęcie i kilka słów',
+            $skroty,
+            'W skrótach na profilu nie ma pierwszego skrótu — bez niego ten test nie mierzy niczego.',
+        );
+
+        $this->assertStringNotContainsString(
+            'minut',
+            $skroty,
+            'Skróty na profilu znów obiecują, że wpis zajmie niecałą minutę.',
+        );
+    }
+
+    public function test_ekran_dodawania_nie_obiecuje_minuty(): void
+    {
+        $karta = $this->elementZLinkiem(
+            $this->actingAs($this->user('basia'))->get(route('add'))->assertOk()->getContent(),
+            route('posts.create'),
+            'a[contains(@class, "card")]',
+        );
+
+        $this->assertStringContainsString(
+            'Wybierasz zdjęcie, piszesz jedno zdanie i gotowe',
+            $karta,
+            'Karta „Zdjęcie i kilka słów" przestała mówić, z czego ten wpis się składa.',
+        );
+
+        $this->assertStringNotContainsString(
+            'minut',
+            $karta,
+            'Ekran „Dodaj" znów obiecuje, że wpis zajmie niecałą minutę.',
+        );
+    }
+
+    /**
+     * Zachęta po opublikowaniu wpisu. Testujemy gałąź `@else`, czyli tę dla
+     * kogoś, kto ma już więcej niż jeden wpis — przy pierwszym wpisie stoi
+     * tam inne zdanie (`toPierwszyWpis` w `PostController`). Stąd dwa wpisy
+     * tej samej osoby.
+     */
+    public function test_zacheta_po_publikacji_nie_obiecuje_minuty(): void
+    {
+        $autor = $this->user('kucharka');
+        Post::factory()->create(['author_id' => $autor->getKey()]);
+        $drugi = Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $zacheta = $this->elementZLinkiem(
+            $this->actingAs($autor)->get(route('posts.show', $drugi))->assertOk()->getContent(),
+            route('posts.create'),
+            'div[contains(@class, "notice")]',
+        );
+
+        // Kontrola dodatnia: trafiliśmy w gałąź dla kolejnego wpisu, a nie
+        // w tę dla pierwszego — inaczej test nie oglądałby zmienionego zdania.
+        $this->assertStringContainsString(
+            'Gotujesz dziś coś jeszcze?',
+            $zacheta,
+            'Nie trafiłem w zachętę dla kolejnego wpisu — bez niej ten test nie mierzy niczego.',
+        );
+
+        $this->assertStringNotContainsString(
+            'minut',
+            $zacheta,
+            'Zachęta po opublikowaniu wpisu znów obiecuje, że kolejne zdjęcie zajmie mniej niż minutę.',
+        );
+    }
+
+    // =================================================================
     // Narzędzia
     // =================================================================
 
@@ -609,6 +801,33 @@ class TekstyMowiaPrawdeTest extends TestCase
     private function elementPoKlasie(string $html, string $klasa): string
     {
         return $this->xpath($html, $this->wyrazeniePoKlasie($klasa));
+    }
+
+    private function elementPoEtykiecie(string $html, string $id): string
+    {
+        return $this->xpath($html, '//*[@aria-labelledby="'.$id.'"]');
+    }
+
+    /**
+     * Fragment wskazanego kształtu (`p`, `div`, `a`…) zawierający link pod
+     * wskazany adres — albo sam nim będący.
+     *
+     * Zawężamy PO LINKU, a nie po samej klasie, bo `notice` i `card` stoi na
+     * tych stronach po kilka i pierwszy z brzegu bywa zupełnie inny — wtedy
+     * test mierzyłby nie ten fragment i nie powiedziałby o tym ani słowa
+     * (`docs/PULAPKI_TESTOW.md` §1). Kształt podajemy jawnie z tego samego
+     * powodu: przy zachęcie po publikacji najbliższym `p` jest akapit z samym
+     * przyciskiem, w którym sprawdzanego zdania nie ma wcale.
+     */
+    private function elementZLinkiem(string $html, string $adres, string $ksztalt): string
+    {
+        $sciezka = parse_url($adres, PHP_URL_PATH) ?: $adres;
+        $warunek = '@href="'.$adres.'" or @href="'.$sciezka.'"';
+
+        return $this->xpath(
+            $html,
+            '(//'.$ksztalt.'[self::a['.$warunek.'] or .//a['.$warunek.']])[1]',
+        );
     }
 
     /**

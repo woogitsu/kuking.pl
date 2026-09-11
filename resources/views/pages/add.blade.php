@@ -61,7 +61,11 @@
     <div class="stack">
         <a class="card block no-underline text-inherit" href="{{ route('posts.create') }}">
             <h2 class="mt-0">Zdjęcie i kilka słów</h2>
-            <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe. Zajmuje niecałą minutę.</p>
+            {{-- BEZ „Zajmuje niecałą minutę": obietnica z miarą, której nie
+                 mierzymy. Zdanie przed nią i tak mówi to samo lepiej — wymienia
+                 kroki zamiast obiecywać czas, który zależy od tego, jak szybko
+                 pójdzie zdjęcie z telefonu. --}}
+            <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe.</p>
         </a>
 
         <a class="card block no-underline text-inherit" href="{{ route('recipes.create') }}">

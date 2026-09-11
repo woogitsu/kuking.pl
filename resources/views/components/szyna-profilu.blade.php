@@ -92,12 +92,16 @@
 @endauth
 
 @if($isOwner)
+    {{-- BEZ „Zajmuje niecałą minutę" przy pierwszym skrócie: obietnica
+         z miarą, której nie mierzymy, a czas zależy od tego, jak szybko pójdzie
+         zdjęcie z telefonu. Podpis mówi teraz, z czego ten wpis się składa —
+         to samo zdanie co w `AGENTS.md` §1. --}}
     <x-szyna-blok tytul="Twoje skróty" id="szyna-skroty" ikona="plus">
         <x-szyna-linki :pozycje="[
             [
                 'href' => route('posts.create'),
                 'nazwa' => 'Dodaj zdjęcie i kilka słów',
-                'podpis' => 'Najprostsza rzecz. Zajmuje niecałą minutę.',
+                'podpis' => 'Najprostsza rzecz. Wystarczy zdjęcie i kilka słów.',
             ],
             [
                 'href' => route('recipes.create'),
