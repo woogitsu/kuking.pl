@@ -2883,6 +2883,76 @@ const PROG_CALKOWITEGO_PRZYKRYCIA = 0.99;
 const naruszeniaFocus = [];
 const ostrzezeniaFocus = [];
 
+/* =============================================================================
+   ILE EKRANU ZABIERA DOLNA BELKA (issue #295)
+
+   DLACZEGO TO JEST OSOBNA LICZBA, A NIE SKUTEK UBOCZNY POMIARU FOKUSU
+   Sprawdzenie „focus not obscured" wyżej pilnuje tego, GDZIE LĄDUJE FOKUS,
+   i po rezerwie `--rezerwa-pod-belka` (PR #269) jest zielone także wtedy, gdy
+   przypięta belka zajmuje połowę telefonu: treść da się wyprowadzić spod niej
+   przewijaniem, więc kryterium 2.4.11 jest spełnione. Zmierzone przed
+   poprawką issue #295 na `/home`, okno 320 × 740 px, czcionka przeglądarki
+   200%: belka 376,2 px, czyli 51% ekranu — i ani jednego naruszenia.
+
+   Czyli: usterka, której ŻADEN pomiar w tym pliku nie umiał zobaczyć, bo
+   wszystkie pytały o naruszenia WCAG, a to jest usterka produktowa —
+   nawigacja większa niż treść. Stąd ta liczba: wysokość belki dzielona przez
+   wysokość okna, w tym samym stanie przeglądarki, w którym mierzymy fokus.
+
+   PRÓG 1/3 OKNA. Zmierzone po poprawce, trzy szerokości i trzy skale: 9%
+   bez powiększania, 14,3% przy naszym „tekst 140%", 24,5% przy czcionce
+   przeglądarki 200%. Próg 33,3% leży nad najgorszym zmierzonym wynikiem
+   z zapasem 65 px na dalszy wzrost tekstu i grubo pod stanem sprzed
+   poprawki (50,8%), więc oblewa dokładnie wtedy, gdy belka wraca do
+   zabierania ekranu. To NIE jest tolerancja dla naruszenia 2.4.11 — tamto
+   ma swój własny, twardy próg wyżej i ten pomiar go nie dotyka.
+
+   POZYCJI MUSI BYĆ PIĘĆ — to jest kontrola dodatnia wpisana w pomiar.
+   Najprostszy sposób obniżenia belki to wyrzucenie z niej pozycji, a wtedy
+   liczba wyżej spadnie i wyglądałoby to na naprawę. Nawigacja mobilna ma
+   pięć pozycji (`AGENTS.md` §5) i ten pomiar tego pilnuje, więc „naprawa"
+   przez okrojenie nawigacji oblewa przebieg zamiast go zazielenić.
+   ========================================================================== */
+const UDZIAL_BELKI_MAKS = 1 / 3;
+const POZYCJI_W_BELCE = 5;
+const wysokosciBelki = [];
+const zaWysokaBelka = [];
+
+/**
+ * Wysokość dolnej belki i jej udział w oknie. `null` znaczy „nie ma takiego
+ * elementu" i jest BŁĘDEM u zalogowanego — nie cichym pominięciem.
+ */
+async function zmierzBelke(strona) {
+  return strona.evaluate(() => {
+    const belka = document.querySelector('.bottom-nav');
+
+    if (! belka) return null;
+
+    const styl = getComputedStyle(belka);
+
+    if (styl.display === 'none' || styl.visibility === 'hidden') {
+      return { ukryta: true };
+    }
+
+    const ramka = belka.getBoundingClientRect();
+    const pozycje = [...belka.querySelectorAll('.bottom-nav-item')];
+
+    return {
+      wysokosc: Math.round(ramka.height * 10) / 10,
+      okno: innerHeight,
+      udzial: ramka.height / innerHeight,
+      pozycji: pozycje.length,
+      // Ile WIERSZY zajmują pozycje — po unikalnych współrzędnych górnej
+      // krawędzi. To ta liczba tłumaczy wysokość: 51% ekranu brało się
+      // z trzech wierszy po 120 px, nie z wielkości pisma.
+      wierszy: new Set(pozycje.map((p) => Math.round(p.getBoundingClientRect().top))).size,
+      pismoPodpisu: pozycje[0]
+        ? Number.parseFloat(getComputedStyle(pozycje[0]).fontSize)
+        : null,
+    };
+  });
+}
+
 /**
  * Naciska Tab aż do naturalnego końca albo pętli i dla każdej odwiedzonej
  * kontrolki mierzy realne pokrycie przez `.topbar` i `.bottom-nav`
@@ -3089,6 +3159,45 @@ for (const szerokosc of SZEROKOSCI_FOCUS) {
           process.exitCode = 1;
           await strona.close();
           continue;
+        }
+      }
+
+      /*
+       * Belkę mierzymy TU, przed chodzeniem Tabem: strona stoi dokładnie
+       * w tym stanie, w którym stanęła u człowieka (czcionka przeglądarki
+       * ustawiona przed nawigacją, nasza skala potwierdzona na ułożonym
+       * dokumencie wyżej), a Tab jeszcze niczego nie przewinął.
+       */
+      const belka = await zmierzBelke(strona);
+
+      if (belka === null) {
+        console.error(
+          `BŁĄD: na ekranie „${ekran.nazwa}" (${opis}) nie ma elementu `
+          + '`.bottom-nav`. Wszystkie ekrany tego pomiaru są ekranami '
+          + 'zalogowanego, więc belka MUSI tam być — jej brak znaczy, że '
+          + 'mierzymy stronę gościa albo stronę błędu.',
+        );
+        process.exitCode = 1;
+      } else if (! belka.ukryta) {
+        // `skala` w zapisie, nie tylko w opisie: grupowanie po napisie
+        // wariantu łapało wszystko dla wariantu „bez powiększania", bo jego
+        // etykieta jest pustym napisem, a `endsWith('')` jest zawsze prawdą.
+        wysokosciBelki.push({ ekran: ekran.nazwa, wariant: opis, skala: String(skala), ...belka });
+
+        /* Liczone OSOBNO od `zlych`, bo `zlych` opisuje naruszenia 2.4.11
+           w wierszu logu wyżej — a za wysoka belka naruszeniem WCAG nie
+           jest i podpisanie jej tak byłoby nieprawdą w raporcie. */
+        if (belka.udzial > UDZIAL_BELKI_MAKS) {
+          zaWysokaBelka.push({ ekran: ekran.nazwa, wariant: opis, ...belka });
+        }
+
+        if (belka.pozycji !== POZYCJI_W_BELCE) {
+          console.error(
+            `BŁĄD: belka na ekranie „${ekran.nazwa}" (${opis}) ma `
+            + `${belka.pozycji} pozycji zamiast ${POZYCJI_W_BELCE}. Niska belka `
+            + 'okupiona wyrzuceniem pozycji nie jest naprawą (AGENTS.md §5).',
+          );
+          process.exitCode = 1;
         }
       }
 
@@ -3500,6 +3609,19 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     ostrzezen: ostrzezeniaFocus.length,
     ostrzezenia: ostrzezeniaFocus,
   },
+  /* Ile ekranu zabiera dolna belka (issue #295). Pełna lista pomiarów, nie
+     tylko przekroczenia: bez niej nie da się po przebiegu odpowiedzieć na
+     pytanie „a ile ta belka ma teraz", czyli na to jedno pytanie, po które
+     się tu przychodzi. */
+  wysokoscBelki: {
+    szerokosci: SZEROKOSCI_FOCUS,
+    skale: SKALE_UKLADU,
+    prog: UDZIAL_BELKI_MAKS,
+    zmierzonych: wysokosciBelki.length,
+    przekroczen: zaWysokaBelka.length,
+    przekroczenia: zaWysokaBelka,
+    pomiary: wysokosciBelki,
+  },
   tablicaDnia: {
     szerokosci: SZEROKOSCI_TABLICY,
     rozjazdow: rozjazdyTablicy.length,
@@ -3529,6 +3651,7 @@ log(`Wynik zapisany: storage/dostepnosc.json (naruszeń: ${wyniki.length}, `
   + `rozjazdów tablicy dnia: ${rozjazdyTablicy.length}, `
   + `focus zasłonięty w 100%: ${naruszeniaFocus.length}, `
   + `focus częściowo zasłonięty: ${ostrzezeniaFocus.length}, `
+  + `belka ponad ${Math.round(UDZIAL_BELKI_MAKS * 100)}% okna: ${zaWysokaBelka.length}, `
   + `liczb o osobie w złym miejscu: ${rozjazdyLiczb.length})`);
 // Liczby zbadanych ekranów W TYM SAMYM wierszu co wynik, a nie tylko w pliku:
 // „przepełnień: 0" znaczy coś innego przy 36 zmierzonych ekranach i przy 33.
@@ -3548,6 +3671,38 @@ if (ostrzezeniaFocus.length > 0) {
   log('Focus częściowo zasłonięty (ostrzeżenie produktowe — nie jest to naruszenie WCAG):');
   for (const o of ostrzezeniaFocus) {
     log(`  ${o.ekran} / ${o.wariant}: ${o.kontrolka} pod ${o.nakladka} (${Math.round(o.pokrycie * 100)}%)`);
+  }
+}
+
+/* Najwyższa zmierzona belka W KAŻDYM wariancie skali, także gdy wszystkie są
+   pod progiem. „Zero przekroczeń" nie mówi, czy belka ma 25% ekranu, czy 33% —
+   a to jest ta liczba, która w issue #295 była całą treścią zgłoszenia. */
+if (wysokosciBelki.length > 0) {
+  log('');
+  log(`Dolna belka — najwyższa zmierzona w każdej skali (próg: ${Math.round(UDZIAL_BELKI_MAKS * 100)}% okna):`);
+
+  for (const skala of SKALE_UKLADU) {
+    const etykieta = etykietaSkali(skala) || ' / bez powiększania';
+    const najwyzsza = wysokosciBelki
+      .filter((b) => b.skala === String(skala))
+      .sort((a, b) => b.udzial - a.udzial)[0];
+
+    if (! najwyzsza) continue;
+
+    log(`  ${najwyzsza.udzial > UDZIAL_BELKI_MAKS ? '✗' : '✓'}${etykieta}: `
+      + `${najwyzsza.wysokosc} px z ${najwyzsza.okno} px okna `
+      + `(${Math.round(najwyzsza.udzial * 1000) / 10}%), `
+      + `${najwyzsza.pozycji} pozycji w ${najwyzsza.wierszy} wierszach, `
+      + `podpis ${najwyzsza.pismoPodpisu} px — ${najwyzsza.ekran} / ${najwyzsza.wariant}`);
+  }
+}
+
+if (zaWysokaBelka.length > 0) {
+  log('');
+  log('Dolna belka zabiera za dużo ekranu (issue #295 — nie jest to naruszenie WCAG):');
+  for (const b of zaWysokaBelka) {
+    log(`  ${b.ekran} / ${b.wariant}: ${b.wysokosc} px z ${b.okno} px okna `
+      + `(${Math.round(b.udzial * 1000) / 10}%), ${b.pozycji} pozycji w ${b.wierszy} wierszach`);
   }
 }
 
@@ -3612,6 +3767,7 @@ if (
   || naruszeniaFocus.length > 0
   || rozjazdyTablicy.length > 0
   || rozjazdyLiczb.length > 0
+  || zaWysokaBelka.length > 0
 ) {
   process.exit(1);
 }

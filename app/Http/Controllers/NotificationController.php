@@ -134,13 +134,54 @@ class NotificationController extends Controller
             ->whereKey($notification)
             ->firstOrFail();
 
-        // Tylko gdy nieprzeczytane. Powtórne kliknięcie nie ma prawa
-        // przesuwać znacznika w przód — od `read_at` zależy retencja
-        // (`PrzedawnionePowiadomienia`), więc przesuwanie go przedłużałoby
-        // życie danych przy każdym zajrzeniu.
-        if ($powiadomienie->isUnread()) {
-            $powiadomienie->forceFill(['read_at' => now()])->save();
-        }
+        // TYLKO GDY NIEPRZECZYTANE — I ROZSTRZYGA TO BAZA, NIE PHP (D-079).
+        //
+        // Powtórne kliknięcie nie ma prawa przesuwać znacznika w przód: od
+        // `read_at` liczy się retencja (`PrzedawnionePowiadomienia`, trzy
+        // miesiące), więc każde odświeżenie znacznika przedłużałoby życie
+        // danych, których polityka prywatności obiecuje ludziom nie trzymać.
+        //
+        // CO BYŁO ZŁAMANE (issue #276, druga warstwa — nie sama dziura
+        // w widoku). Stało tu `if ($powiadomienie->isUnread()) { save(); }`,
+        // czyli SPRAWDZENIE W PHP na wierszu odczytanym zapytaniem wyżej,
+        // a potem osobny zapis `update … where id = ?`. Między odczytem
+        // a zapisem jest okno, w którym stan tego wiersza może się zmienić —
+        // i zmienia się realnie, bo to jest przycisk, w który człowiek klika
+        // dwa razy pod rząd, kiedy strona myśli (zgłoszenie z 8 września
+        // brzmiało wprost: „Znowu wchodzę, patrzę i nic"). Przeplot:
+        //
+        //   1. żądanie A czyta wiersz — `read_at` puste;
+        //   2. żądanie B (drugie kliknięcie, „oznacz wszystkie" w innej
+        //      karcie, `markAllRead()`) ustawia `read_at` na swój czas;
+        //   3. żądanie A widzi w PAMIĘCI dalej puste `read_at`, więc zapisuje
+        //      `now()` — i przesuwa znacznik w przód, czyli robi dokładnie
+        //      to, czego ten warunek miał zabronić.
+        //
+        // `docs/PULAPKI_TESTOW.md` nazywa to jednym rodzajem błędu ze
+        // wszystkich ośmiu P1 z audytu: „inwariant sprawdzany, a potem
+        // wykonywany, zamiast wykonany atomowo". D-079 rozstrzyga to wprost —
+        // gwarancję daje ograniczenie albo blokada, nie `exists()` w PHP.
+        //
+        // DLACZEGO JEDNO ZDANIE SQL, A NIE `lockForUpdate()` W TRANSAKCJI.
+        // Blokada służy tam, gdzie pod nią trzeba PODJĄĆ DECYZJĘ i dopisać
+        // więcej niż jeden wiersz (`ZamekKonta`, `ModerationController::decide()`).
+        // Tutaj decyzja jest jednym warunkiem na jednej kolumnie jednego
+        // wiersza, więc warunek wchodzi do `WHERE` samego zapisu: PostgreSQL
+        // bierze wtedy blokadę wiersza sam i sam ponownie sprawdza warunek po
+        // jej zwolnieniu (`read_at IS NULL` przestaje pasować). Spóźnione
+        // żądanie trafia na zero zmienionych wierszy i nie ma czego przesunąć.
+        // Rewalidacji „pod blokadą" nie da się tu więc pominąć — ona JEST tym
+        // zapisem, a nie osobnym krokiem, który da się kiedyś skasować.
+        //
+        // WŁAŚCICIELSTWO STOI W TYM SAMYM ZDANIU. Zapis idzie przez relację
+        // `notifications()`, czyli `WHERE user_id = <ta osoba>` — cudzy wiersz
+        // nie wejdzie do `UPDATE`, nawet gdyby ktoś kiedyś rozluźnił `firstOrFail()`
+        // wyżej. AGENTS.md §7: UUID w adresie to nie autoryzacja.
+        $request->user()
+            ->notifications()
+            ->whereKey($powiadomienie->getKey())
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
 
         $cel = $powiadomienie->adresDocelowy();
 

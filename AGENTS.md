@@ -243,6 +243,46 @@ Zasady modelu:
 Ta sama osoba może gotować ten sam przepis dziesiątki razy przez lata
 i każde takie wykonanie jest osobnym, wartościowym wydarzeniem.
 
+### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
+
+> **`down()` nie ma prawa przywracać stanu groźnego ani zmieniać znaczenia
+> decyzji człowieka.** Przy wartościach semantycznych — zgoda, zakres
+> usunięcia danych, widoczność, prywatność zeszytu — rollback ma **odmówić**
+> z komunikatem mówiącym, co zrobić ręcznie. Zgadywanie cichą wartością
+> domyślną jest najgorszą z opcji, bo nie zostawia śladu błędu.
+
+Powód jest jeden i nie jest teoretyczny: **`down()` prawie nigdy nie
+występuje sam.** Po nim idzie kolejny `migrate` — `migrate:refresh` w CI albo
+awaryjny rollback WDROŻENIA, który pociąga bazę za sobą. Kolumna wraca, CHECK-i
+wracają, żaden wiersz nie ginie, więc nie ma błędu do zauważenia — a wartość
+jest już ta, którą umie nadać `DEFAULT` albo backfill z `up()`, czyli zwykle
+ODWROTNOŚĆ tego, co człowiek wybrał.
+
+Trzy przypadki tej jednej choroby, złapane w tym repozytorium:
+
+| Gdzie | Co się cicho odwracało |
+|---|---|
+| `..._default_weekly_digest_to_off` (DB2) | `DEFAULT true` wracał, czyli nowe konta znów zapisywane na mailing bez zgody |
+| `..._add_erased_status_and_delete_scope_to_users` (#287, MIG-01) | „usuń wszystkie moje treści" wracało jako „usuń minimum" |
+| `..._add_memories_to_users_and_posts` (#287, przeoczone przy MIG-01) | wyłącznik wspomnień osoby w żałobie włączał się sam, schowany wpis wracał na stronę główną |
+
+**Napisanie w komentarzu migracji „przy cofaniu na produkcji najpierw kopia
+kolumny" NIE jest zabezpieczeniem.** Trzeci wiersz tabeli wyżej miał dokładnie
+takie zdanie — prawdziwe, konkretne i bezwartościowe, bo przenosiło ochronę na
+czyjąś pamięć w jedynym momencie, w którym nikt nie czyta komentarzy
+w migracjach. Zabezpieczeniem jest `throw` w `down()`.
+
+**Odmowa musi być WĄSKA.** Rollback blokuje się tylko wtedy, gdy w bazie
+naprawdę jest wartość, której `up()` nie odtworzy — na wartościach domyślnych
+i na świeżej bazie przechodzi bez pytania. Zablokowanie rollbacku na zawsze
+jest błędem tej samej wagi w drugą stronę, więc każdy taki strażnik ma test
+odmowy **i** kontrolę dodatnią (wzorce:
+`tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php`,
+`tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`).
+
+Preferencja WYGLĄDU to nie wartość semantyczna: `theme` i `posts.display_mode`
+zostają świadomie bez strażnika (uzasadnienie w D-088).
+
 **Nigdy nie wykonuj destrukcyjnych operacji na produkcyjnej bazie
 bez jawnej zgody właściciela.**
 
