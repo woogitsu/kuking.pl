@@ -1147,6 +1147,73 @@
     box-shadow: var(--shadow-card-hover);
   }
 
+  /* --- RYTM PIONOWY: DWIE POWIERZCHNIE W KOLUMNIE GŁÓWNEJ NIE STYKAJĄ SIĘ ---
+
+     ZGŁOSZENIE WŁAŚCICIELA: „trzeba zrobić miejsce pomiędzy logowaniem Google
+     fb a normalnym". Na `/register` karta „Nie chcesz wymyślać hasła?"
+     kończyła się, a karta formularza zaczynała się dokładnie w tym samym
+     miejscu — zmierzone w Chromium: 0 px, przy 360 i przy 1280 px, także
+     przy czcionce przeglądarki 200%. Dwie osobne drogi wejścia wyglądały jak
+     jeden zlepiony blok. To samo było na `/login` (ten sam komponent
+     `x-wejscia-zewnetrzne` nad tym samym panelem) i — czego zgłoszenie nie
+     wymieniało, a pomiar pokazał — na `/ustawienia/profil`, gdzie panel
+     formularza stykał się ze skrótem o zdjęciu profilowym.
+
+     DLACZEGO `.stack` TU NIE ZADZIAŁAŁ, CHOĆ ISTNIEJE
+     Rytm pionowy w tym projekcie JEST: `.stack > * + *` (`app.css`) daje
+     `--spacing-5` każdemu kolejnemu dziecku. Tylko że `.stack` trzeba
+     NAŁOŻYĆ na kontener, a kolumna główna żadnego kontenera nie ma —
+     `{{ $slot }}` stoi wprost w `<main class="app-main">`
+     (`components/layout.blade.php`), więc karty na `/register` i `/login` są
+     bezpośrednimi dziećmi `<main>`. Dopisanie `.stack` do tych ekranów
+     znaczyłoby owinięcie każdego widoku z osobna nowym `<div>`-em, czyli
+     poprawkę w jednym widoku po drugim — a przy okazji zmieniłoby odstępy
+     WSZYSTKICH pozostałych dzieci `<main>` (nagłówka, akapitów, przycisków),
+     nie tylko dwóch kart. `.stack` zostaje tym, czym jest: rytmem LISTY
+     wewnątrz komponentu.
+
+     CO TA REGUŁA MÓWI
+     Dwie sąsiadujące POWIERZCHNIE — sześć warstw z sekcji 2.1 plus
+     podsumowanie błędów, które też jest blokiem z własnym tłem i obwódką —
+     stojące bezpośrednio w kolumnie głównej dostają między siebie odstęp.
+     Nie „karta Google i formularz rejestracji", tylko każda taka para: bo
+     usterka nie była własnością tych dwóch kart, tylko brakiem reguły.
+
+     DLACZEGO `--spacing-6`, A NIE LICZBA Z PALCA
+     1. To jest rytm, którym ta kolumna już mówi: `.app-main > h1` ma
+        `margin-bottom: var(--spacing-6)`, a sama karta wejść Google
+        i Facebooka ma nad sobą `mt-6`. Odstęp pod nią jest teraz taki sam
+        jak nad nią.
+     2. Na `/login` obie drogi równorzędne wobec hasła — wejście kontem
+        (D-113) nad formularzem i logowanie linkiem (D-056) pod nim — stoją
+        po tej zmianie w JEDNAKOWEJ odległości od panelu. Równorzędność
+        z D-127 widać wtedy także w odstępie, nie tylko w warstwie.
+     3. Token, nie piksel: `--spacing-6` to `1.5rem`, więc przy czcionce
+        przeglądarki 200% odstęp rośnie do 48 px razem z pismem. To jest
+        druga strona D-082/D-107: tam minima były FIZYCZNE (palec nie rośnie
+        od powiększenia czcionki), tu odstęp jest TYPOGRAFICZNY — oddziela
+        bloki tekstu, więc ma rosnąć razem z tekstem.
+
+     CZEGO TA REGUŁA NIE ROBI
+     Nie dotyka wyglądu żadnej karty — ani tła, ani obwódki, ani cienia, ani
+     promienia. Rozdziela wyłącznie ODSTĘPEM.
+
+     UTILITY DALEJ WYGRYWA I TAK MA BYĆ. `mt-8` na ekranach ustawień (32 px)
+     i `mt-5` w „Napisz do nas" leżą w `@layer utilities`, która
+     w Tailwindzie 4 stoi PO `components` — więc widok, który świadomie prosi
+     o inny odstęp, dostaje swój. Ta reguła jest wartością domyślną kolumny,
+     nie sufitem.
+
+     MARGINESY SIĘ ZLEWAJĄ I TO JEST POTRZEBNE. `.error-summary` ma własne
+     `margin-bottom: var(--spacing-8)`; gdy stoi między kartą wejść
+     a formularzem (stan po nieudanej walidacji), sąsiadujące marginesy
+     zlewają się do większego z nich, a nie sumują. */
+  .app-main
+    > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)
+    + :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary) {
+    margin-top: var(--spacing-6);
+  }
+
   /* --- Pusty stan (system projektowy v3.1) ---------------------------
      PRZED: sam tekst na tle strony, cały w kolorze stonowanym.
      PO:    karta — tło podniesione, obwódka, `--radius-xl`, tekst w pełnym
