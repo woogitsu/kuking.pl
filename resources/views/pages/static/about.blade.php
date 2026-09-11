@@ -68,9 +68,9 @@
                  („ile osób zapisało to u siebie w zeszycie", D-081), więc
                  „bez liczników" było przesadą.
 
-             Sekcja „Czego tu nie ma i nie będzie" niżej zostaje: to są
-             zobowiązania produktowe (AGENTS.md §9 i §12), nie odpieranie
-             zarzutów. --}}
+             Sekcja z zobowiązaniami niżej ZOSTAJE — to są zobowiązania
+             produktowe (AGENTS.md §9 i §12), nie odpieranie zarzutów.
+             Zmieniła się jej FORMA, nie treść: patrz komentarz przy niej. --}}
         <h2>Co jest tu najważniejsze</h2>
         <ul>
             <li><strong>Ludzie, nie treści.</strong> Tu są ludzie, którzy gotują na co dzień — ich zdjęcia, ich przepisy, ich historie.</li>
@@ -79,11 +79,58 @@
             <li><strong>Spokój.</strong> Wpisy osób, które obserwujesz, stoją w kolejności, w jakiej je dodały. Bez rankingu popularności.</li>
         </ul>
 
-        <h2>Czego tu nie ma i nie będzie</h2>
+        {{-- SEKCJA PRZEPISANA NA FORMĘ TWIERDZĄCĄ — decyzja właściciela.
+
+             Stał tu tytuł „Czego tu nie ma i nie będzie" i pod nim trzy zdania
+             zaczynające się od „Nie". TREŚĆ OBIETNIC SIĘ NIE ZMIENIŁA — zmieniła
+             się forma. Zaprzeczenie każe czytelnikowi najpierw wyobrazić sobie
+             to, czego nie ma, i dopiero potem to odjąć; twierdzenie mówi od razu,
+             co dostaje.
+
+             ODWZOROWANIE STAREGO NA NOWE — żadne zobowiązanie nie znika:
+               „nie generujemy przepisów sztuczną inteligencją"
+                   → „Wszystko tutaj napisali ludzie, którzy to gotują"
+               „nie kupujemy ruchu"
+                   → „Rośniemy z polecenia"
+               „nie importujemy masowo cudzych przepisów"
+                   → „Każdy przepis wpisał tu jego właściciel — jeden po drugim"
+               „nie robimy rankingów najpopularniejszych użytkowników"
+                   → „Wszystkie konta są tu równe"
+
+             DWA ZOBOWIĄZANIA DOŁOŻONE NA WYRAŹNĄ DECYZJĘ WŁAŚCICIELA: „bez opłat"
+             i „bez reklam". Nigdy reklamy, nigdy płatny dostęp — przyszłe
+             zarabianie to najwyżej dobrowolne wsparcie na hosting
+             (`docs/MONETIZATION.md`: reklama „wykluczona, nie odłożona",
+             zbiórka na hosting „dopuszczalna", „co darmowe, zostaje darmowe").
+
+             DLACZEGO WOLNO TU OBIECYWAĆ PRZYSZŁOŚĆ, choć COPY_STYLE §7 każe
+             mierzyć każde zdanie kodem, który dziś stoi w repozytorium: to nie
+             jest obietnica cudzego zachowania ani harmonogramu, którego nie mamy.
+             To zobowiązanie co do WŁASNEGO postępowania, a jego złamanie
+             byłoby widoczne z ekranu w sekundę — reklama albo ściana płatności
+             nie dadzą się ukryć. Takie zdanie wolno napisać.
+
+             `<x-kuking-word />` STOI TU RAZ. Zapis dwukolorowy niesie kolor,
+             więc ma sens tylko w treści widocznej — nigdy w `alt`, `title`,
+             `aria-label`, `<title>`, `meta` ani w JSON-LD. Raz, bo marka nie ma
+             konkurować z zadaniem czytelnika, a `TekstyWedlugCopyStyleTest`
+             liczy wystąpienia na ekranie.
+
+             Czego tu ŚWIADOMIE NIE MA: zdania tłumaczącego, dlaczego ta sekcja
+             jest napisana twierdzeniami. Rodzina D-140 — tekst dla człowieka nie
+             uzasadnia własnego brzmienia. Uzasadnienie jest w tym komentarzu
+             i tu zostaje. --}}
+        <h2>Na co możesz liczyć</h2>
+        <p>
+            Pod każdym z tych zdań <x-kuking-word /> się podpisuje.
+        </p>
         <ul>
-            <li>Nie kupujemy ruchu i nie generujemy przepisów sztuczną inteligencją, żeby wypełnić serwis treścią.</li>
-            <li>Nie importujemy masowo cudzych przepisów.</li>
-            <li>Nie robimy rankingów najpopularniejszych użytkowników.</li>
+            <li><strong>Zawsze za darmo.</strong> Konto, przepisy, zdjęcia i pobranie własnych danych są darmowe i mają darmowe zostać. Gdyby kiedyś zabrakło pieniędzy na serwery, poprosimy o wsparcie wprost — a dorzucenie się będzie Twoim wyborem.</li>
+            <li><strong>Cały ekran należy do gotowania.</strong> Miejsce, w którym inne serwisy stawiają reklamy, u nas zajmuje czyjeś danie.</li>
+            <li><strong>Wszystko tutaj napisali ludzie, którzy to gotują.</strong> Każdy przepis i każdy wpis wyszedł z czyjejś kuchni.</li>
+            <li><strong>Każdy przepis wpisał tu jego właściciel.</strong> Ze swojego zeszytu, ze swojej głowy albo po mamie — jeden po drugim, ręcznie.</li>
+            <li><strong>Rośniemy z polecenia.</strong> Ludzie trafiają tu dlatego, że ktoś im o tym miejscu powiedział.</li>
+            <li><strong>Wszystkie konta są tu równe.</strong> Jedyna kolejność w tym serwisie to ta, w jakiej ludzie dodają wpisy.</li>
         </ul>
 
         <h2>Kontakt</h2>

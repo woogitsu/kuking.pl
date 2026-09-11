@@ -147,7 +147,11 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
         $this->assertStringContainsString('Garnek.pl', $html);
         $this->assertStringContainsString('Durszlak.pl', $html);
         $this->assertStringContainsString('eksport własnych danych działa od pierwszego dnia', $html);
-        $this->assertStringContainsString('Czego tu nie ma i nie będzie', $html);
+        // Sekcja zobowiązań ma tu zostać — zmienił się tylko jej TYTUŁ, bo
+        // właściciel kazał przepisać całą sekcję z zaprzeczenia na twierdzenie.
+        // Czego pilnuje treść tej sekcji, pilnuje
+        // `ZobowiazaniaNaOKukingSaTwierdzeniamiTest`.
+        $this->assertStringContainsString('Na co możesz liczyć', $html);
         $this->assertStringContainsString('Ludzie, nie treści', $html);
         $this->assertStringContainsString('Bez rankingu popularności', $html);
     }
