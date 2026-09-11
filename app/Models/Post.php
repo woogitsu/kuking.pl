@@ -180,6 +180,62 @@ class Post extends Model
     }
 
     /**
+     * Wpisy, których PRZEPIS wolno dziś pokazać temu widzowi — czyli wpisy
+     * bez przepisu (zwykłe „co dziś ugotowałem") ORAZ wpisy wskazujące
+     * przepis, który jest opublikowany, nieusunięty i widoczny dla widza.
+     *
+     * PO CO TO JEST (issue #368)
+     * Opublikowany przepis dostaje od `PublishRecipe` wpis wskazujący go
+     * przez `posts.recipe_id` — z `body = null` i BEZ własnych zdjęć. Wpis
+     * niczego z przepisu NIE KOPIUJE: tytuł i zdjęcie karta bierze z relacji
+     * `$post->recipe`. Gdyby kopiował, usunięcie przepisu, ukrycie go przez
+     * moderację, zmiana widoczności i zmiana tytułu byłyby CZTEREMA
+     * miejscami do rozjechania się i czterema hakami „przenieś zmianę
+     * na wpis".
+     *
+     * Ten zakres jest ceną za tę decyzję i jednocześnie całą jej obsługą:
+     * jeden warunek w zapytaniu załatwia usunięcie (także miękkie), ukrycie
+     * przez moderację ORAZ zawężenie widoczności naraz. Wiersz `posts`
+     * zostaje w bazie nietknięty — po prostu przestaje wychodzić ze
+     * strumienia, dokładnie tak, jak przestaje być widoczny przepis.
+     *
+     * DLACZEGO `whereHas`, A NIE `whereExists` NA SUROWYM `recipes`
+     * Relacja `recipe()` prowadzi do modelu z `SoftDeletes`, więc zapytanie
+     * relacji samo dokłada `recipes.deleted_at is null`. Ręczny `whereExists`
+     * na tabeli wymagałby pamiętania o tym warunku — a to jest dokładnie ten
+     * rodzaj rzeczy, który się zapomina przy drugiej kopii.
+     *
+     * DLACZEGO NIE REUŻYWAMY `Notification::wierszTresciWidoczny()`
+     * Tamten pomocnik odpowiada na to samo pytanie, ale jest prywatny,
+     * zbudowany na surowym `Query\Builder` z aliasem tabeli i wymaga
+     * NIEPUSTEGO widza — a strumienie („Świeżo z Kuking", tablica dnia,
+     * strona powitalna) pytają także za gościa, czyli z `?User = null`.
+     * Kanonicznym odpowiednikiem w warstwie Eloquenta jest
+     * `Recipe::scopeWidoczneDla()` — ta sama tabela prawdy, przypięta
+     * testami `Tests\Feature\Visibility\WidocznoscTestCase` — i to jej
+     * używamy, zamiast zakładać trzecią kopię tej samej reguły.
+     *
+     * JEDEN ŚWIADOMY WYJĄTEK: AUTOR WIDZI SWOJE. `widoczneDla()` przepuszcza
+     * autorowi własną treść niezależnie od widoczności („poprawne dane nigdy
+     * nie znikają", AGENTS.md §5), więc autor zobaczy w swoim feedzie wpis
+     * do własnego przepisu „tylko dla obserwujących", a nawet „tylko dla
+     * mnie". Nikt inny go nie zobaczy. Wybór jest świadomy: własna kopia
+     * reguły widoczności bez tej furtki byłaby czwartym miejscem, w którym
+     * ta sama tabela prawdy może się rozjechać.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWidocznymPrzepisem(Builder $query, ?User $widz): void
+    {
+        $query->where(function (Builder $w) use ($widz): void {
+            $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe', function ($przepis) use ($widz): void {
+                    $przepis->published()->widoczneDla($widz);
+                });
+        });
+    }
+
+    /**
      * Wpisy, które MOŻE zobaczyć konkretna osoba — licząc per autor wiersza.
      *
      * DLACZEGO TO MUSI BYĆ ZAKRES NA MODELU, A NIE POMOCNIK W KONTROLERZE

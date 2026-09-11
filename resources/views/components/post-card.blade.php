@@ -35,9 +35,22 @@
                      temu · publicznie"). Także dla wpisu publicznego: autor ma
                      wiedzieć jednym spojrzeniem, kto to widzi, a nie dopiero
                      po wejściu w edycję. --}}
-                @if($post->visibility === 'followers')
+                {{-- WPIS WSKAZUJĄCY PRZEPIS PYTA O WIDOCZNOŚĆ PRZEPISU
+                     (issue #368). Taki wpis ma `visibility = 'public'` na
+                     stałe i to nie jest jego widoczność, tylko brak własnego
+                     zawężenia — bramką jest przepis
+                     (`Post::scopeZWidocznymPrzepisem()`). Bez tego pytania
+                     karta napisałaby autorowi „publicznie" pod przepisem,
+                     który widzą wyłącznie jego obserwujący.
+
+                     `?->` i `??`: ekrany, które doładowują sam
+                     `recipe:id,title,slug` bez kolumny `visibility`,
+                     dostałyby `null` — wtedy zostaje widoczność wpisu, czyli
+                     zachowanie sprzed tej zmiany. --}}
+                @php $widocznosc = $post->recipe?->visibility ?? $post->visibility; @endphp
+                @if($widocznosc === 'followers')
                     · <span class="badge">Tylko dla obserwujących</span>
-                @elseif($post->visibility === 'private')
+                @elseif($widocznosc === 'private')
                     · <span class="badge">Tylko dla mnie</span>
                 @else
                     · <span>publicznie</span>
@@ -196,7 +209,25 @@
         domyślnej w bazie, więc trafia w tę samą gałąź co zawsze i wygląda
         dokładnie jak wczoraj — bez migracji danych.
     --}}
-    @if($post->media->isNotEmpty())
+    {{-- ZDJĘCIE WPISU WSKAZUJĄCEGO PRZEPIS JEST ZDJĘCIEM PRZEPISU
+         (issue #368). Taki wpis powstaje bez `body` i bez ani jednego
+         własnego zdjęcia — świadomie, bo wpis ma PROWADZIĆ do przepisu,
+         a nie go duplikować. Gdyby zdjęcie było kopiowane przy publikacji,
+         wymiana zdjęcia głównego w przepisie zostawiłaby w strumieniu stare.
+         Tu nie ma czego synchronizować: karta czyta relację.
+
+         Warunek `media->isEmpty()`, a nie „czy jest przepis": wpis „ugotowane
+         z przepisu" ma i przepis, i WŁASNE zdjęcie dania — i to własne
+         zdjęcie ma wygrać, bo pokazuje, co ugotował TEN człowiek. --}}
+    @if($post->media->isEmpty() && $post->recipe?->heroMedia)
+        <div class="photo-grid">
+            <a href="{{ route('recipes.show', $post->recipe->slug) }}">
+                <x-photo :media="$post->recipe->heroMedia"
+                         :zoom="false"
+                         :alt="$post->recipe->heroMedia->alt_text ?: 'Zdjęcie do przepisu: '.$post->recipe->title" />
+            </a>
+        </div>
+    @elseif($post->media->isNotEmpty())
         @switch($post->trybWyswietlaniaZdjec())
             @case(\App\Models\Post::DISPLAY_CAROUSEL)
                 <x-karuzela-zdjec :post="$post" />

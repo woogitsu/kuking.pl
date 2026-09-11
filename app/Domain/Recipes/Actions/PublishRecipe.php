@@ -8,6 +8,7 @@ use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
+use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Ingredient;
@@ -268,6 +269,22 @@ final class PublishRecipe
 
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
+
+            /*
+             * OPUBLIKOWANY PRZEPIS WCHODZI DO STRUMIENI (issue #368).
+             *
+             * Wpis WSKAZUJE przepis przez `posts.recipe_id` — nie kopiuje
+             * z niego ani tytułu, ani zdjęcia, ani widoczności. Cała reguła
+             * (co zapisujemy, dlaczego nie dwa razy, dlaczego pod blokadą)
+             * mieszka w `WpisWskazujacyPrzepis`, bo woła ją także komenda
+             * uzupełniająca stare przepisy.
+             *
+             * STOI W TEJ SAMEJ TRANSAKCJI co zapis przepisu i to jest
+             * warunek poprawności, nie estetyka: bramka „czy wpis już jest"
+             * idzie po blokadzie wiersza `recipes`, a poza transakcją nie
+             * byłoby czego blokować.
+             */
+            WpisWskazujacyPrzepis::dopisz($recipe);
 
             return $recipe->refresh();
         });
