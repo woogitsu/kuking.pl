@@ -12,6 +12,25 @@
         i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
     </p>
 
+    {{--
+        DROGA BEZ HASŁA STOI NAD FORMULARZEM, NIE POD NIM (zgłoszenie
+        właściciela z 11.09: „działa, ale jest słabo widoczne, na samym dole").
+
+        Do 11.09 ten blok stał na samym końcu strony, PO formularzu i po
+        przycisku „Chcę konto na inny adres e-mail". Człowiek, który nie chce
+        wymyślać hasła, musiał najpierw przeczytać cztery pola o wymyślaniu
+        hasła, żeby się dowiedzieć, że nie musi.
+
+        DLACZEGO NAD FORMULARZEM, A NIE ZAMIAST NIEGO. Formularz zostaje
+        pierwszą pełnoprawną drogą i nie schodzi niżej ani o piksel: część
+        naszych ludzi ma adresy @wp.pl, @o2.pl i @interia.pl, gdzie konta
+        Google nie ma (runbook wejścia Google, D-069). Dlatego nagłówek tego
+        bloku jest PYTANIEM — „Nie chcesz wymyślać hasła?" — a nie
+        poleceniem: kto ma odpowiedzieć „nie, chcę", ma iść dalej w dół bez
+        poczucia, że pomija właściwą drogę.
+    --}}
+    <x-wejscia-zewnetrzne naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google" />
+
     <x-error-summary />
 
     <form class="card" method="POST" action="{{ route('register') }}">
@@ -127,9 +146,6 @@
             <button class="btn btn-quiet" type="submit">Chcę konto na inny adres e-mail</button>
         </form>
     @endif
-
-    {{-- Droga dodatkowa: konto Google (issue #258, D-069). Znika bez kluczy. --}}
-    <x-wejdz-google naglowek="Nie chcesz wymyślać hasła? Załóż konto przez Google" />
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
 </x-layout>

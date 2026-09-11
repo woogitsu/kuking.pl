@@ -33,7 +33,7 @@
         Cały blok znika bez kluczy Google — patrz komponent. Martwego
         przycisku nie zostawiamy nigdzie (D-053).
     --}}
-    <x-wejdz-google />
+    <x-wejscia-zewnetrzne />
 
     {{--
         DRUGA, RÓWNORZĘDNA DROGA WEJŚCIA — LOGOWANIE LINKIEM (issue #25, D-056).
