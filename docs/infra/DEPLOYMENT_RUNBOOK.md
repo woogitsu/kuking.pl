@@ -900,6 +900,16 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 
 ## KROK 8D. Wejście kontem Google — dwa klucze z Google Cloud Console
 
+> ## ✅ WYKONANE — potwierdzone 12 września 2026
+>
+> `curl -s https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
+> a `/login` zawiera przycisk „Wejdź kontem Google". Klucze doszły do
+> aplikacji. Sprawdzone na żywej produkcji przy okazji domykania 8E.
+>
+> Zostaje to samo co przy 8E: przejście ścieżki z konta spoza listy
+> testerów i umowa powierzenia (#8).
+
+
 **Kiedy:** po kroku 8, przed kampanią startową.
 **Ile zajmuje:** pięć minut w Google Cloud Console, dwie zmienne w Railway.
 **Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
@@ -1079,6 +1089,38 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 
 ## KROK 8E. Wejście kontem Facebooka — dwa klucze z panelu Meta
 
+> ## ✅ WYKONANE — 12 września 2026
+>
+> **Właściciel zgłosił:** aplikacja w panelu Meta **przeszła przegląd
+> (review), jest opublikowana (Live)** i wejście kontem Facebooka działa.
+>
+> **Sprawdzone niezależnie tego samego dnia**, poleceniami z 8E.3 poniżej —
+> nie na podstawie zgłoszenia, tylko na żywej produkcji:
+>
+> | co | polecenie | wynik |
+> |---|---|---|
+> | klucze doszły do aplikacji | `curl -s https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
+> | przycisk jest na ekranie logowania | `curl -s https://kuking.pl/login \| grep -c 'wejdz/facebook'` | `1` |
+> | kolejność przycisków | odczyt napisów z `/login` | „Wejdź kontem Google", potem „Wejdź kontem Facebooka" — zgodnie z wymogiem 8E.3 („obok przycisku Google i **nie przed nim**") |
+>
+> **Czego to sprawdzenie NIE obejmuje** i co zostaje po stronie właściciela:
+> przejście całej ścieżki **z konta, które nie jest na liście testerów**
+> (punkt 12 listy z 8E.1) — to jedyne sprawdzenie odróżniające „działa
+> Tobie" od „działa ludziom", a z tego kontenera nie da się go wykonać.
+> Oraz **umowa powierzenia z Meta** (#8), która jest ryzykiem formalnym,
+> nie technicznym, i nie blokuje działania funkcji.
+>
+> ⛔ **Punkt 7 listy z 8E.1 jest BŁĘDNY i został sprostowany.** Mówi, że
+> „App Review NIE jest potrzebny — to przełącznik". **Był potrzebny:**
+> właściciel złożył wniosek, Meta go zatwierdziła, dopiero potem aplikacja
+> poszła na Live. To samo przewidywanie stoi w `FACEBOOK_LOGIN_URUCHOMIENIE.md`
+> §2 i §6.1 — tam też jest sprostowane.
+>
+> **Planując kolejne wdrożenie, przewiduj czas na przegląd aplikacji**, nawet
+> przy samych uprawnieniach podstawowych (`public_profile`, `email`). Ile on
+> trwa — nie wiemy; nasz przypadek to jedna obserwacja, nie SLA.
+
+
 **Kiedy:** po kroku 8D, przed kampanią startową.
 **Ile zajmuje:** kilkanaście czynności w panelu Meta (pełna lista jest
 w osobnym runbooku, niżej), dwie zmienne w Railway.
@@ -1149,11 +1191,18 @@ tamtego pliku, do odhaczania:
 6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
    zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
 7. **App Review → Permissions and Features**: `public_profile` i `email` na
-   **Advanced Access**. **Wniosku App Review tu NIE MA** — oba uprawnienia
-   mają dostęp zaawansowany z automatu, zostaje przełącznik. Jeśli panel
-   poprosi o **weryfikację biznesową**, złóż ją (KRS 0000901262,
-   NIP 5423435334) — to jedyna procedura w tym kroku o nieznanym czasie
-   trwania.
+   **Advanced Access**.
+
+   > ⛔ **SPROSTOWANIE 12.09.2026.** Stało tu: „Wniosku App Review tu NIE MA
+   > — oba uprawnienia mają dostęp zaawansowany z automatu, zostaje
+   > przełącznik". **To było nieprawdą.** Przy wdrożeniu 12.09 właściciel
+   > złożył wniosek o App Review i Meta go zatwierdziła; dopiero potem
+   > aplikacja poszła na Live. **Przewiduj czas na przegląd**, nawet przy
+   > samych uprawnieniach podstawowych. Ile trwa — nie wiemy, jedna
+   > obserwacja to nie SLA.
+
+   Jeśli panel poprosi o **weryfikację biznesową**, złóż ją (KRS 0000901262,
+   NIP 5423435334).
 8. **Settings → Basic → App ID** i **App Secret** („Show") — to są dwie
    wartości do Railway z 8E.2. **App Secret jest sekretem**: nie wysyłaj go
    pocztą, nie wklejaj do issue na GitHubie ani do rozmowy z agentem.
@@ -1941,8 +1990,8 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 22 | `POSTHOG_KEY` | PostHog | 5 |
 | 23 | `RAILWAY_TOKEN_PRODUCTION` | Railway Project Tokens | 11.1 |
 | 24 | `RAILWAY_TOKEN_STAGING` | Railway Project Tokens | 11.1 |
-| 25 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
-| 26 | `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Cały panel krok po kroku: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) §12 | 8E |
+| 25 | ✅ `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
+| 26 | ✅ `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Cały panel krok po kroku: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) §12 | 8E |
 
 ### Zmiany w kodzie aplikacji (przed pierwszym deployem)
 
