@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Media\DostepDoZdjecia;
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -560,18 +561,171 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
         $this->get($adres)->assertNotFound();
     }
 
-    public function test_zdjecie_w_trakcie_przetwarzania_nie_jest_serwowane(): void
+    /**
+     * REGUŁA ZMIENIŁA SIĘ 12 WRZEŚNIA 2026 (issue #430) I TE TRZY TESTY
+     * PILNUJĄ NOWEJ, WĘŻSZEJ WERSJI.
+     *
+     * Stało tu wcześniej „zdjęcie w trakcie przetwarzania nie jest serwowane
+     * nikomu", z uzasadnieniem: w EXIF-ie siedzi jeszcze GPS kuchni. Zdanie
+     * o EXIF-ie jest dalej prawdziwe — ale mówi o ORYGINALE, a bramką było
+     * `isReady()`, czyli ETYKIETA STANU, nie odpowiedź na pytanie, co
+     * naprawdę pójdzie do przeglądarki.
+     *
+     * Dziś pytamy wprost: czy istnieje WARIANT, czyli plik, który wyszedł
+     * z naszego kodera. Skutek jest taki, że `podglad` zrobiony przy wgraniu
+     * serwuje się mimo statusu `pending` (i o to chodziło w #430), a oryginał
+     * nie serwuje się NIGDY, w żadnym statusie — czego stara reguła wcale nie
+     * sprawdzała, bo pilnowała statusu zamiast klucza.
+     */
+    public function test_zdjecie_bez_zadnego_wariantu_nie_jest_serwowane_nikomu(): void
     {
-        // Dopóki `ProcessUploadedImage` nie przekodował pliku, w EXIF-ie siedzi
-        // pełna lokalizacja GPS kuchni (AGENTS.md §7). Wyjątku nie ma nawet dla
-        // właściciela: byłby pierwszym krokiem do serwowania oryginałów tą trasą.
-        $zdjecie = $this->zdjecie();
-        $adres = $zdjecie->url('feed');
+        // Stan sprzed zrobienia czegokolwiek: plik leży w prywatnym
+        // `incoming/`, wariantu nie ma żadnego. Jedyne, co można by tu oddać,
+        // to oryginał — więc odmowa jest dla KAŻDEGO, łącznie z właścicielką
+        // i moderatorem.
+        $zdjecie = $this->zdjecieBezWariantow();
 
-        $zdjecie->update(['status' => Media::STATUS_PROCESSING]);
+        $adres = route('media.show', ['media' => $zdjecie->getKey(), 'wariant' => 'feed']);
 
         $this->actingAs($this->autor)->get($adres)->assertNotFound();
         $this->actingAs($this->moderator())->get($adres)->assertNotFound();
+
+        Auth::logout();
+        $this->get($adres)->assertNotFound();
+    }
+
+    public function test_podglad_zrobiony_przy_wgraniu_serwuje_sie_mimo_statusu_pending(): void
+    {
+        // To jest usterka #430 zapisana jako test. Wgranie zdjęcia
+        // i opublikowanie wpisu to JEDNO żądanie, więc w chwili pierwszego
+        // renderu strony zadanie w tle nie zdążyło policzyć niczego —
+        // a autorka ma zobaczyć swoje zdjęcie, nie zdanie o nim.
+        $zdjecie = $this->zdjecieBezWariantow();
+
+        $kluczPodgladu = Media::kluczPublicznegoWariantu($zdjecie->object_key, 'podglad');
+        Storage::disk('public')->put($kluczPodgladu, 'udawany-podglad');
+
+        $zdjecie->update(['metadata' => ['variants' => [
+            'podglad' => ['key' => $kluczPodgladu, 'width' => 640, 'height' => 480],
+        ]]]);
+
+        $wpis = Post::factory()->create([
+            'author_id' => $this->autor->getKey(),
+            'visibility' => Post::VISIBILITY_PUBLIC,
+        ]);
+        $wpis->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+        $zdjecie->refresh();
+        $this->assertSame(Media::STATUS_PENDING, $zdjecie->status, 'Test nie odtwarza stanu, który miał sprawdzić.');
+
+        $odpowiedz = $this->actingAs($this->autor)
+            ->get(route('media.show', ['media' => $zdjecie->getKey(), 'wariant' => 'feed']))
+            ->assertStatus(302);
+
+        // I TO JEST TU NAJWAŻNIEJSZA ASERCJA: poszedł PODGLĄD, nie oryginał.
+        // Samo 302 by nie wystarczyło — przekierowanie na `incoming/….jpg`
+        // wyglądałoby identycznie, a byłoby wyciekiem pliku z EXIF-em.
+        $cel = (string) $odpowiedz->headers->get('Location');
+
+        $this->assertStringContainsString($kluczPodgladu, $cel);
+        $this->assertStringNotContainsString(
+            $zdjecie->object_key,
+            $cel,
+            'Trasa zdjęcia wyprowadziła ORYGINAŁ — plik z nietkniętym EXIF-em.',
+        );
+    }
+
+    public function test_zadna_nazwa_wariantu_nie_wyprowadza_oryginalu(): void
+    {
+        // Nazwa wariantu przychodzi z adresu, czyli od klienta. Gdyby dała
+        // się nagiąć do oddania `object_key`, cała ochrona EXIF-u kończyłaby
+        // się na zgadnięciu jednego słowa w URL-u.
+        //
+        // Broni tego BIAŁA LISTA W TRASIE (`whereIn` w routes/web.php), więc
+        // ten test sprawdza obie strony tej listy: że to, czego na niej nie
+        // ma, nie dochodzi nawet do kontrolera, i że to, co na niej jest,
+        // oddaje wariant, a nigdy oryginał.
+        $zdjecie = $this->zdjecie();
+
+        $kluczeWariantow = array_column((array) $zdjecie->metadata['variants'], 'key');
+        $this->assertNotEmpty($kluczeWariantow, 'Test nie odtwarza stanu, który miał sprawdzić: zdjęcie nie ma wariantów.');
+
+        // Adresy budowane RĘCZNIE, nie przez `route()`: nazwy spoza białej
+        // listy `route()` w ogóle odmawia zbudowania, a sprawdzamy tu, co się
+        // stanie, gdy ktoś wpisze taki adres sam.
+        foreach (['oryginal', 'original', 'incoming', 'feed.jpg', '.%2E'] as $nazwa) {
+            $this->actingAs($this->autor)
+                ->get('/zdjecia/'.$zdjecie->getKey().'/'.$nazwa)
+                ->assertNotFound();
+        }
+
+        // Druga strona: KAŻDA nazwa z białej listy oddaje przekierowanie na
+        // wariant. `podglad` jest tu razem z resztą, bo od #430 wychodzi
+        // w adresach tak samo jak `feed` — i tak samo nie wolno mu wyprowadzić
+        // oryginału.
+        foreach ([PodgladOdRazu::NAZWA, ...array_keys((array) config('kuking.media.variants'))] as $nazwa) {
+            $odpowiedz = $this->actingAs($this->autor)->get(
+                route('media.show', ['media' => $zdjecie->getKey(), 'wariant' => $nazwa]),
+            );
+
+            // ASERCJA DODATNIA NAJPIERW, ŻEBY TEN TEST NIE MÓGŁ PRZEJŚĆ PUSTO.
+            // Samo „w `Location` nie ma oryginału" byłoby prawdą także dla
+            // 404, w którym `Location` jest pusty — czyli test świeciłby na
+            // zielono, nie sprawdziwszy niczego.
+            $odpowiedz->assertStatus(302);
+
+            $cel = (string) $odpowiedz->headers->get('Location');
+
+            $trafiony = array_filter(
+                $kluczeWariantow,
+                static fn (string $klucz): bool => str_contains($cel, $klucz),
+            );
+
+            $this->assertNotEmpty(
+                $trafiony,
+                "Nazwa wariantu `{$nazwa}` nie trafiła w ŻADEN znany wariant — a coś oddała.",
+            );
+
+            $this->assertStringNotContainsString(
+                $zdjecie->object_key,
+                $cel,
+                "Nazwa wariantu `{$nazwa}` wyprowadziła oryginał spod trasy zdjęcia.",
+            );
+        }
+    }
+
+    public function test_zdjecie_w_trakcie_kasowania_nie_jest_serwowane_mimo_kompletu_wariantow(): void
+    {
+        // `deleted` znaczy „kasowanie trwa" (D-083), nie „skasowane": pliki
+        // dopiero znikają, a wiersz jest uchwytem do ponowienia. Serwis
+        // powiedział już komuś „skasowane" i od tej chwili tych bajtów nie
+        // wolno pokazać ani razu więcej — nawet że warianty jeszcze leżą
+        // w buckecie i nawet właścicielce.
+        $zdjecie = $this->zdjecie();
+        $adres = $zdjecie->url('feed');
+
+        $zdjecie->update(['status' => Media::STATUS_DELETED]);
+
+        $this->actingAs($this->autor)->get($adres)->assertNotFound();
+        $this->actingAs($this->moderator())->get($adres)->assertNotFound();
+    }
+
+    /**
+     * Zdjęcie tuż po wgraniu: oryginał w prywatnym `incoming/`, ani jednego
+     * wariantu. Świadomie NIE przez `Media::factory()->pending()`, żeby ten
+     * plik trzymał własny, jawny stan — to jest test wycieków, a nie test
+     * fabryki.
+     */
+    private function zdjecieBezWariantow(): Media
+    {
+        return Media::factory()->create([
+            'owner_id' => $this->autor->getKey(),
+            'disk' => 'public',
+            'variants_disk' => 'public',
+            'object_key' => 'incoming/'.Str::uuid()->toString().'.jpg',
+            'status' => Media::STATUS_PENDING,
+            'metadata' => ['variants' => []],
+        ]);
     }
 
     // =================================================================

@@ -64,11 +64,8 @@ document.addEventListener('change', (event) => {
     if (! pojemnik) {
         pojemnik = document.createElement('div');
         pojemnik.id = pojemnikId;
+        pojemnik.className = 'podglad-wyboru';
         pojemnik.setAttribute('aria-live', 'polite');
-        pojemnik.style.marginTop = '12px';
-        pojemnik.style.display = 'grid';
-        pojemnik.style.gap = '8px';
-        pojemnik.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
         kotwicaPodPolem(input).insertAdjacentElement('afterend', pojemnik);
     }
 
@@ -80,10 +77,23 @@ document.addEventListener('change', (event) => {
         return;
     }
 
+    /*
+     * LICZBA ZDJĘĆ STERUJE UKŁADEM Z ARKUSZA, nie stylami wpisywanymi tutaj.
+     *
+     * Dopóki siatka była ustawiana w skrypcie na `repeat(auto-fill,
+     * minmax(120px, 1fr))`, JEDNO wybrane zdjęcie dostawało jedną kolumnę
+     * z dwóch — ZMIERZONE: 150 px z 390 px okna. Człowiek, który właśnie
+     * wybrał zdjęcie swojego obiadu, widział znaczek mniejszy niż połowa
+     * ekranu. To ta sama usterka, którą właściciel zgłosił przy bloku
+     * zastępczym w kolażu (#432), tylko o jeden ekran wcześniej.
+     *
+     * Wartości idą teraz z `ekran-dodawania.css`, przez `[data-ile]` — czyli
+     * z jednego miejsca, w którym odstępy i promienie są tokenami.
+     */
+    pojemnik.dataset.ile = String(pliki.length);
+
     const info = document.createElement('p');
-    info.style.gridColumn = '1 / -1';
-    info.style.margin = '0';
-    info.style.fontWeight = '700';
+    info.className = 'podglad-wyboru-info';
     info.textContent = pliki.length === 1
         ? 'Wybrano 1 zdjęcie.'
         : `Wybrano ${pliki.length} zdjęcia.`;
@@ -96,9 +106,7 @@ document.addEventListener('change', (event) => {
 
         const img = document.createElement('img');
         img.alt = '';
-        img.style.width = '100%';
-        img.style.height = 'auto';
-        img.style.borderRadius = '12px';
+        img.className = 'podglad-wyboru-zdjecie';
         img.src = URL.createObjectURL(plik);
         img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
         pojemnik.appendChild(img);

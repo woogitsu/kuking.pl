@@ -89,12 +89,69 @@ Usuwać:
 
 ## Warianty
 
-Propozycja:
+W tle (`ProcessUploadedImage`, lista w `config/kuking.php`,
+`kuking.media.variants`):
 - thumb 320 px;
 - feed 960 px;
 - large 1600 px.
 
 WebP/AVIF, z fallbackiem zgodnym z support matrix.
+
+### `podglad` — 640 px, robiony SYNCHRONICZNIE (issue #430)
+
+Wgranie zdjęcia i publikacja wpisu to **jedno żądanie**, więc w chwili
+pierwszego renderu strony wpisu wariantów z kolejki nie ma jeszcze żadnych —
+nie z przeciążenia, tylko z kolejności. Autorka widziała przez to napis
+„Twoje zdjęcie się jeszcze przygotowuje" zamiast swojego obiadu, i to nie
+w rzadkim przypadku, tylko zawsze.
+
+`App\Domain\Media\PodgladOdRazu` robi więc jeden wariant 640 px jeszcze
+w `StoreUploadedImage`, zanim powstanie wiersz `media`. Trafia do
+`metadata.variants.podglad` i do **publicznego** bucketu wariantów, tak samo
+jak każdy inny wariant — czyli przekodowany do WebP, a więc bez EXIF-u.
+
+**Nie pokazujemy oryginału i nie ma takiego planu.** Zmierzone 12.09.2026 dla
+zdjęcia 4032×3024 (12,2 Mpx) z telefonu:
+
+| co                | rozmiar     |
+|-------------------|-------------|
+| oryginał          | 6 438 105 B |
+| wariant `podglad` |    62 974 B |
+| wariant `feed`    |   177 404 B |
+
+Oryginał waży 102 razy więcej od podglądu i niesie EXIF. Przeglądarka na
+stronie wpisu pobiera tuż po publikacji **66,8 kB** łącznie (zmierzone
+w Chromium, 320–414 px).
+
+**Górny próg megapikseli** (`kuking.media.podglad.max_megapixels`, domyślnie
+25) nie jest ostrożnością na zapas, tylko granicą pamięci kontenera web.
+Zmierzone szczyty RSS procesu przy robieniu podglądu: 12,2 Mpx → 101 MB,
+24,5 Mpx → 154 MB, 49,9 Mpx → 239 MB. libgd alokuje bitmapę **poza**
+licznikiem PHP, więc `memory_limit` tego nie zatrzyma — proces znika zabity
+przez OOM kontenera, bez wyjątku i bez śladu w dzienniku (patrz
+`docker/php.ini`). Kontener web ma 1 GB na wszystkie procesy PHP-FPM naraz.
+Powyżej progu podglądu nie ma i zdjęcie czeka na workera, który ma własną
+pamięć (`QUEUE_MEMORY`).
+
+Ustawienie progu na 0 wyłącza podgląd w całości, bez wdrożenia — serwis
+zachowuje się wtedy tak jak przed #430.
+
+`ProcessUploadedImage` **zachowuje** `podglad` przy zapisie swoich wariantów.
+Nie jest to uprzejmość: `KasujZdjecie` chodzi po `metadata.variants` i nie ma
+innego uchwytu do tego pliku, więc zgubienie wpisu zostawiłoby w publicznym
+buckecie sierotę, której nie kasuje ani usunięcie wpisu, ani wymazanie konta.
+Po przetworzeniu podgląd zostaje w `srcset` jako kandydat między `thumb`
+(320) a `feed` (960) — zmierzone: telefon 320 px pobiera dzięki temu 66,8 kB
+zamiast 178,6 kB.
+
+### Co wolno pokazać
+
+Bramką widoków **nie jest status wiersza**, tylko istnienie wariantu:
+`Media::maWariantDoPokazania()`. Reguła brzmi: pokazujemy wyłącznie to, co
+wyszło z naszego kodera. Oryginał nie jest wariantem, `Media::url()` go nie
+zna, `MediaController` serwuje wyłącznie klucze z `wariantDoSerwowania()`,
+a trasa `media.show` przyjmuje wyłącznie nazwy z białej listy. Status
+`deleted` nie przechodzi nigdy, nawet z kompletem wariantów.
 
 ## Oryginał
 
