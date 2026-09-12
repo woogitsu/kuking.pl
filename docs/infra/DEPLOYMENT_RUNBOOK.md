@@ -551,6 +551,7 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `GOOGLE_CLIENT_SECRET` | z kroku 8D | **TAK** | Client secret OAuth (wejście kontem Google, D-069) |
 | `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
 | `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania usunięcia danych od Meta |
+| `CLOUDFLARE_ANALYTICS_TOKEN` | z kroku 8F | nie | Token serwisu Cloudflare Web Analytics — stoi w HTML-u każdej strony, nie jest sekretem (D-092). **Tylko `production`.** Brak tej zmiennej przy obietnicy w polityce prywatności = `/health` oddaje `analityka_bez_tokenu` |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -1333,6 +1334,177 @@ ma wcale — to jest cena tej drogi, nie przeoczenie.
 
 ---
 
+## KROK 8F. Analityka odwiedzin — Cloudflare Web Analytics
+
+**Kiedy:** po kroku 8E, najlepiej przed kampanią startową — bo od tego kroku
+zaczyna się liczyć, ile osób w ogóle do nas trafia.
+**Ile zajmuje:** dwie czynności w panelu Cloudflare, jedna zmienna w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — i to jest
+w tym kroku najniebezpieczniejsze. Strona wygląda normalnie, w dzienniku
+serwera nie ma nic, przeglądarka niczego nie zgłasza, a panel Cloudflare
+świeci zerami, bo **beacona nie ma w HTML-u wcale**.
+
+> ⚠️ **Ten krok jest inny niż 8A, 8D i 8E: tutaj obietnica stoi w DOKUMENCIE
+> PRAWNYM.** `resources/legal/polityka-prywatnosci.md` mówi czytelnikowi
+> w czasie teraźniejszym, że statystykę odwiedzin prowadzi **Cloudflare Web
+> Analytics**, a w sekcji o przekazywaniu danych poza EOG podaje nawet datę
+> („od 10 września 2026"). Dopóki tokenu nie ma, ten dokument opisuje
+> przetwarzanie, którego nie ma. Brak przycisku „Wejdź kontem Google" widać
+> okiem na `/login`; braku analityki nie widać **nigdzie**.
+
+> ✅ **`/health` o tym POWIE.** Produkcja, w której polityka prywatności
+> obiecuje analitykę, a tokenu nie ma, oddaje `status: degraded` z powodem
+> `analityka_bez_tokenu` — ta sama zasada co przy `google_bez_kluczy`
+> i `facebook_bez_kluczy` (D-167), tylko warunkiem jest tu treść dokumentu
+> prawnego, a nie przełącznik w konfiguracji. **Świadomego wyłącznika nie
+> ma i nie będzie:** przełącznik „nie krzycz" znaczyłby tyle, co „niech
+> polityka dalej mówi nieprawdę, tylko po cichu". Wycofanie analityki robi
+> się wykreśleniem obietnicy z polityki (8F.5), nie zmienną.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-092](../DECISIONS.md).
+
+### 8F.1 Co kliknąć w panelu Cloudflare — DWIE rzeczy, nie jedna
+
+To jest **praca właściciela**, nie agenta:
+
+1. **Załóż serwis.** Cloudflare → **Web Analytics** → **Add a site** →
+   `kuking.pl`. Cloudflare pokaże gotowy znacznik `<script>` z atrybutem
+   `data-cf-beacon='{"token":"..."}'`. **Potrzebna jest sama wartość pola
+   `token`**, bez cudzysłowów — reszta znacznika jest już w naszym layoucie.
+   Znacznik z panelu **nie wklejaj nigdzie**: stawiamy go sami
+   (`resources/views/components/layout.blade.php`), świadomie i pod recenzją.
+
+2. **Sprawdź wariant zbierania danych — to jest druga, niezależna przyczyna
+   pustego panelu.** W ustawieniach serwisu Cloudflare pozwala wybrać wariant
+   **wykluczający dane odwiedzających z Unii Europejskiej**
+   („excluding visitor data in the EU" / „EU visitor data excluded" —
+   nazewnictwo w panelu bywa zmieniane). **Nasz ruch jest niemal w całości
+   unijny**: przy tym wariancie beacon działa poprawnie, zdarzenia wychodzą,
+   CSP je przepuszcza, `/health` milczy — a panel **i tak zostaje pusty**,
+   bo Cloudflare odrzuca je u siebie. Z naszej strony nie da się tego wykryć
+   ani jednym pomiarem, dlatego musisz to sprawdzić okiem **teraz**.
+   Wybierz wariant zbierający dane z UE.
+
+   To nie jest powrót do banera zgody: polityka prywatności opiera tę
+   analitykę na uzasadnionym interesie (RODO art. 6 ust. 1 lit. f), a beacon
+   nie zapisuje niczego na urządzeniu — zmierzone przez odczytanie
+   `beacon.min.js` (D-092, `docs/legal/COMPLIANCE.md` §5.5). Zgody wymaga
+   zapis na urządzeniu, a nie sam fakt liczenia.
+
+3. **Wyłącz automatyczne wstrzykiwanie beacona** (Web Analytics → ustawienia
+   serwisu). Cloudflare umie wstrzyknąć ten sam skrypt w locie, na ruchu
+   przechodzącym przez proxy. **Skutek pomyłki jest cichy:** znacznik mamy
+   w layoucie, więc przy włączonym wstrzykiwaniu strona dostaje **dwa**
+   beacony — każda odsłona liczy się dwa razy, a wstrzyknięta wersja podaje
+   pole `version`, czyli wysyła zdarzenia na **inny adres** niż ten, który
+   dopuszczamy w `connect-src`. Sprawdzenie z 8F.3 punkt 2 to łapie.
+
+Cloudflare Web Analytics jest **darmowe** i nie wymaga żadnej zmiany planu.
+
+### 8F.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` sięga po nią przez `ctx.shared`, więc musi istnieć pod dokładnie
+tą nazwą):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `CLOUDFLARE_ANALYTICS_TOKEN` | wartość pola `token` z 8F.1 pkt 1 | **nie** — token stoi w HTML-u każdej strony i nie jest sekretem |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz zmienną
+wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie, a na produkcji jest ona zbuforowana.
+
+Na `staging` tej zmiennej **nie ustawiaj**: mieszałaby ruch testowy z ruchem
+ludzi w jednym panelu. Poza produkcją pusty token jest stanem normalnym
+i `/health` o niego nie pyta.
+
+> **Jeśli chodzisz bez IaC, i tak przeczytaj to zdanie.** Do 12 września 2026
+> `.railway/railway.ts` **nie przepuszczał `CLOUDFLARE_ANALYTICS_TOKEN` do
+> serwisu** — zmienna wpisana w Shared Variables stała tam i nie docierała do
+> aplikacji, dokładnie tak jak wcześniej `FACEBOOK_*` (issue #259). Dziś ta
+> linia jest w pliku; pilnuje tego test
+> `tests/Feature/WdrozenieAnalitykiOdwiedzinTest.php`.
+
+### 8F.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wpisaniem tokenu: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.analityka'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Beacon jest w HTML-u DOKŁADNIE RAZ (dwa = włączone wstrzykiwanie z 8F.1 pkt 3)
+curl -s https://kuking.pl/ | grep -c 'static.cloudflareinsights.com/beacon.min.js'
+# oczekiwane: 1
+
+# 3. Polityka bezpieczeństwa przepuszcza OBA hosty — a to są DWA RÓŻNE hosty
+curl -sI https://kuking.pl/ | grep -io 'content-security-policy:.*' | tr ' ;' '\n\n' \
+  | grep -i cloudflareinsights | sort -u
+# oczekiwane DWIE linie:
+#   https://cloudflareinsights.com          (connect-src — tam lecą zdarzenia)
+#   https://static.cloudflareinsights.com   (script-src  — stamtąd pobiera się plik)
+```
+
+Punkty 1–3 mówią tylko, że **my** zrobiliśmy swoje. Czy dane **naprawdę
+dochodzą**, widać wyłącznie po drugiej stronie i sprawdza się to tak:
+
+1. Otwórz `https://kuking.pl/` **w przeglądarce, nie curlem** — beacon jest
+   JavaScriptem, a `curl` skryptów nie wykonuje, więc żadne z poleceń wyżej
+   nie wysyła ani jednego zdarzenia. Wejdź na trzy różne podstrony (start,
+   dowolny przepis, `/pomoc`).
+2. Cloudflare → **Web Analytics** → serwis `kuking.pl` → zakres
+   **Last 30 minutes**.
+3. **Oczekiwany wynik: `Page views` co najmniej 3, a na liście `Top pages`
+   te trzy ścieżki, które przed chwilą otworzyłeś.**
+
+**Jeśli punkty 1–3 przechodzą, a panel po 30 minutach nadal pokazuje zero** —
+przyczyny są dokładnie dwie i obie siedzą w panelu Cloudflare, nie w naszym
+kodzie:
+
+- wybrany jest wariant **wykluczający dane z Unii Europejskiej** (8F.1 pkt 2)
+  — to jest przyczyna najczęstsza, bo nasz ruch jest niemal w całości unijny;
+- token należy do **innego serwisu** w tym samym koncie (literówka przy
+  kopiowaniu). Cloudflare przyjmuje zdarzenie z nieznanym tokenem i **po cichu
+  je odrzuca** — nie ma po tym ani błędu w przeglądarce, ani śladu u nas.
+
+### 8F.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **To nie jest Google Analytics i nie pokaże ścieżek ani lejków.**
+  Odpowiada na dwa pytania: skąd ludzie przychodzą i które strony oglądają.
+  Na pytanie „ile osób ugotowało w tym tygodniu" odpowiada nasza własna
+  analityka serwerowa (`php artisan kuking:wac`) i to się nie zmienia.
+- **Nie pokaże, kto to był.** Beacon nie stawia ciasteczka, nie zapisuje nic
+  na urządzeniu i nie ma po czym rozpoznać tej samej osoby jutro ani nawet na
+  następnej podstronie (D-092).
+- **Nie licz na dane wsteczne.** Panel pokazuje ruch od chwili wpisania
+  tokenu — nic sprzed tego dnia nie istnieje.
+- **Zerowy ruch nocą to nie awaria.** Zanim uznasz, że coś nie działa, zrób
+  sprawdzenie z 8F.3 własną przeglądarką.
+- **Adblock i tryb prywatny część odsłon zjedzą** i tak zostanie. To jest
+  statystyka kierunkowa, nie księgowość.
+
+### 8F.5 Jak to wycofać — i dlaczego to nie jest jedna zmienna
+
+Wyczyszczenie `CLOUDFLARE_ANALYTICS_TOKEN` + restart serwisu zatrzymuje
+zbieranie **od razu**: beacon znika z HTML-u, hosty Cloudflare wypadają
+z nagłówka CSP, panel przestaje przybywać.
+
+**Ale to jest dopiero połowa roboty.** Dopóki polityka prywatności obiecuje
+analitykę, `/health` będzie oddawał `degraded` z powodem
+`analityka_bez_tokenu` — i będzie miał rację, bo dokument prawny opisywałby
+wtedy przetwarzanie, którego nie ma. Wycofanie analityki oznacza więc **dwie
+czynności**:
+
+1. wyczyścić zmienną i zrestartować serwis;
+2. wykreślić analitykę z `resources/legal/polityka-prywatnosci.md` (tabela
+   dostawców w sekcji 3, akapit „Co robi analityka Cloudflare", akapit
+   o przekazywaniu poza EOG i uwaga o banerze w sekcji 5) oraz z
+   `docs/legal/COMPLIANCE.md` §5.5 — normalnym PR-em, z testami.
+
+Do czasu wykonania punktu 2 sygnał `/health` ma świecić i nie jest to usterka.
+
+---
+
 ## KROK 9. Zastosowanie infrastruktury (`railway.ts`)
 
 > ⚠️ **SPROSTOWANIE, 9 września 2026 — przeczytaj przed uruchomieniem czegokolwiek
@@ -2003,6 +2175,17 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 30 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
 | 31 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
 
+### Wartości do pobrania z paneli, które NIE są sekretami
+
+> Stoją osobno **celowo**. Wrzucenie ich do tabeli sekretów wyżej uczyłoby, że
+> wyciek każdej z nich jest incydentem — a nie jest, bo te wartości i tak stoją
+> w HTML-u strony. Odhaczyć trzeba je tak samo, tylko bez menedżera haseł
+> i bez zaznaczania „Sealed" w Railwayu.
+
+| # | Wartość | Skąd | Krok |
+|---|---|---|---|
+| 32 | `CLOUDFLARE_ANALYTICS_TOKEN` | Cloudflare → Web Analytics → serwis `kuking.pl` → pole `token` ze znacznika (D-092). **W tym samym panelu ustaw wariant zbierania danych obejmujący Unię Europejską i wyłącz automatyczne wstrzykiwanie beacona** — bez tego sam token nic nie da | 8F |
+
 ---
 
 ## Szybka pomoc — najczęstsze problemy
@@ -2021,6 +2204,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | **Podwójne maile do użytkowników** | scheduler w 2 replikach | ustaw `numReplicas: 1` |
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
+| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
 
 ## Kontakty awaryjne
 

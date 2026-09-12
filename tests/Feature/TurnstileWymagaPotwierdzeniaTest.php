@@ -775,11 +775,23 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
      * drogi świadomie — tym samym przełącznikiem, którym wyłącza się je na
      * produkcji.
      */
+    /**
+     * Ucisza sprawdzenia `/health`, które na produkcji zapalają się z WŁASNYCH
+     * powodów, niezwiązanych z Turnstile: dwie dodatkowe drogi wejścia
+     * (issue #258/#259) i analityka odwiedzin (D-092). Bez tego testy niżej
+     * mierzyłyby cudzą awarię.
+     *
+     * Analityka nie ma przełącznika „wyłącz" i mieć go nie ma (obietnica stoi
+     * w polityce prywatności, nie w konfiguracji — patrz
+     * `HealthController::sprawdzAnalityke()`), więc uciszamy ją jedyną
+     * uczciwą drogą: udawanym tokenem.
+     */
     private function wejsciaZewnetrzneWylaczone(): void
     {
         config([
             'kuking.google.wlaczone' => false,
             'kuking.facebook.wlaczone' => false,
+            'kuking.analytics.cloudflare.token' => 'udawany-token-analityki',
         ]);
     }
 
