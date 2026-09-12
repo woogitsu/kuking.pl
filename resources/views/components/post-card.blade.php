@@ -91,36 +91,58 @@
                 dlatego zeszły z paska akcji pod spodem: tam zostają tylko
                 „Ugotowałem" i komentarze.
 
-                MA WIDOCZNY NAPIS, NIE SAME KROPKI (AGENTS.md:176).
-                Do 11 września 2026 całą treścią tego przycisku było
-                `<span aria-hidden="true">···</span>`, czyli trzy kropki
-                SCHOWANE przed czytnikiem ekranu, a nazwa dostępna istniała
-                wyłącznie w `aria-label`. Oko dostawało znak bez podpisu,
-                czytnik ekranu podpis bez znaku, i nikt nie dostawał obu.
-                Za tymi kropkami stoją „Edytuj wpis" i „Usuń wpis" — a
-                `docs/UX_50_PLUS.md`:27 nazywa dokładnie ten wzorzec
-                („`♡ ⋮ ↗` bez podpisów") słabym.
+                SAME KROPKI — NAZWANY WYJĄTEK OD „IKONA NIGDY SAMA"
+                (decyzja właściciela z 12 września 2026, `AGENTS.md` §5,
+                `docs/UX_50_PLUS.md`). To jest ODWRÓCENIE decyzji z 11
+                września i odwracamy je świadomie, z zapisanym ryzykiem.
 
-                Napis „Więcej" jest teraz w treści przycisku, więc czyta go
-                i oko, i czytnik ekranu. `aria-label` ZOSTAJE, bo na liście
-                wpisów jest tych przycisków tyle, ile kart: „Więcej" samo
-                w sobie nie mówi, przy którym wpisie stoi. Zaczyna się od
-                widocznego napisu, więc spełnia WCAG 2.2 AA 2.5.3
-                (Label in Name) — czytnik mówi „Więcej przy tym wpisie",
-                a człowiek widzi „Więcej".
+                CO BYŁO PRZEDTEM I DLACZEGO SIĘ ZMIENIŁO. 11 września
+                dołożyliśmy tu widoczny napis „Więcej", bo `AGENTS.md` §5
+                żąda, żeby ikona nie była jedynym opisem ważnej akcji,
+                a `docs/UX_50_PLUS.md` wymienia wzorzec „`♡ ⋮ ↗` bez
+                podpisów" jako słaby. Argument był i jest prawdziwy: za tymi
+                kropkami stoją „Edytuj wpis" i „Usuń wpis".
 
-                `<x-ikona nazwa="more">` zamiast trzech kropek wpisanych
-                z klawiatury. Ten kształt jest w `components/ikona.blade.php`
-                od dawna, pod nazwą `more`, i nie był tu używany. Ikona
-                z komponentu ma rozmiar podany w pikselach, `aria-hidden`
-                i `focusable="false"` z jednego miejsca — znak `···` zależał
-                od tego, jak rysuje go czcionka, i był w treści przycisku
-                jedyną rzeczą do przeczytania.
+                Właściciel dostał to ryzyko wprost i wybrał kropki, z powodem,
+                który nie jest estetyczny: **to jest utrwalony wzorzec
+                z Facebooka**, a nasza grupa spędziła tam lata. Dla niej same
+                kropki w rogu wpisu nie są zagadką do rozwiązania, tylko
+                znakiem, który już zna. Reguła ogólna zostaje — zmienia się
+                o jeden nazwany wyjątek, opisany w `AGENTS.md` §5
+                i w `docs/UX_50_PLUS.md`. Wyjątek dotyczy WYŁĄCZNIE tego
+                jednego menu i nie znosi zasady nigdzie indziej.
+
+                CO SIĘ NIE ZMIENIA, I TO JEST CAŁA RÓŻNICA MIĘDZY TĄ ZMIANĄ
+                A STANEM SPRZED 11 WRZEŚNIA:
+
+                1. `aria-label` ZOSTAJE — czytnik ekranu dalej mówi „Więcej
+                   przy tym wpisie". Nic nie ginie osobie, która nie widzi
+                   kropek. WCAG 2.2 AA 2.5.3 (Label in Name) mówi o nazwie
+                   dostępnej WOBEC widocznego napisu; tutaj widocznego napisu
+                   nie ma w ogóle, więc kryterium nie ma czego naruszyć —
+                   inaczej niż wtedy, gdyby napis był i się rozjeżdżał.
+                2. Ikona idzie z `components/ikona.blade.php` (`more`), a nie
+                   ze znaku `···` wpisanego z klawiatury. Kształt jest wtedy
+                   nasz, a nie czcionki systemu, i ma `aria-hidden`
+                   oraz `focusable="false"` z jednego miejsca.
+                3. Cel dotknięcia zostaje 48 × 48 px — patrz
+                   `.post-card-menu > summary` w `resources/css/app.css`.
+                   ZNIKA NAPIS, NIE PRZYCISK. Obwódka też zostaje: bez niej
+                   trzy kropki wyglądają na ozdobę, a nie na rzecz, którą się
+                   naciska.
+                4. Menu dalej jest `<details>`, więc otwiera się bez
+                   JavaScriptu (AGENTS.md §5).
+
+                CO TO REALNIE ODDAJE GŁÓWCE KARTY (zmierzone, Chromium 1194,
+                własny profil autora, trzy długości nazwy): przycisk schodzi
+                ze 125,6 px do 48 px przy czcionce 100% i z 225,1 px do 96 px
+                przy czcionce przeglądarki 200%. Przy 200% kolumna z nazwą
+                i datą miała DO TEJ ZMIANY szerokość 0 px na każdej mierzonej
+                szerokości okna (320–414 px) — sam ten przycisk zjadał kartę.
             --}}
             <details class="post-card-menu">
                 <summary aria-label="Więcej przy tym wpisie">
                     <x-ikona nazwa="more" :rozmiar="24" class="post-card-menu-ikona" />
-                    <span>Więcej</span>
                 </summary>
                 <div class="post-card-menu-tresc">
                     <a href="{{ $post->url() }}">Otwórz wpis</a>

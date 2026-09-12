@@ -188,6 +188,33 @@ i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
 `docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
 indziej w serwisie te reguły obowiązują bez zmian.
 
+**Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji" ma jeden nazwany
+wyjątek: menu „więcej" na karcie wpisu** (`components/post-card.blade.php`,
+`<details class="post-card-menu">`). Ten jeden przycisk to same trzy kropki,
+bez widocznego napisu.
+
+- **Powód.** To jest utrwalony wzorzec z Facebooka, a nasza grupa spędziła
+  tam lata. Trzy kropki w rogu wpisu nie są dla niej ikoną do rozszyfrowania,
+  tylko znakiem, który już zna. Decyzja właściciela z 12 września 2026,
+  podjęta ze znajomością ryzyka — odwraca decyzję z 11 września, która
+  dokładała tam napis „Więcej".
+- **Granica.** Wyjątek dotyczy **wyłącznie tego jednego menu**. Nie obejmuje
+  paska akcji pod wpisem, pasków nawigacji, przycisku zamykania, akcji
+  moderacyjnych ani niczego innego — tam reguła obowiązuje bez zmian
+  i pilnują jej osobne testy.
+- **Co wyjątek zabiera, a czego nie.** Zabiera **widoczny napis**. Nie
+  zabiera niczego czytnikowi ekranu: `aria-label` („Więcej przy tym wpisie")
+  zostaje i jest wtedy jedyną nazwą dostępną tego przycisku. Nie zabiera też
+  celu dotknięcia — przycisk dalej ma 48 × 48 px.
+- **Czym to się różni od stanu sprzed 11 września.** Wtedy przyciskiem były
+  trzy kropki wpisane z klawiatury, schowane przed czytnikiem ekranu — oko
+  dostawało znak bez podpisu, czytnik podpis bez znaku. Teraz kropki rysuje
+  komponent ikony, `aria-label` niesie pełną nazwę, a `AGENTS.md`
+  i `docs/UX_50_PLUS.md` mówią o tym wprost, zamiast milczeć.
+- **Pilnuje tego test** `KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`.
+  Rozszerzenie wyjątku na kolejny przycisk wymaga decyzji właściciela
+  i wpisu w `docs/DECISIONS.md`, a nie dopisania klasy CSS.
+
 Nawigacja mobilna ma **maksymalnie 5 pozycji**:
 `Start | Szukaj | Dodaj | Moje | Profil`.
 
