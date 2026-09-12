@@ -89,7 +89,7 @@ Jedna wiadomość na błąd, mniej więcej tak:
 ````
 [Kuking/production] RuntimeException
 app/Domain/Media/Actions/ProcessUploadedImage.php:88
-POST /wpisy/{post}/zdjecie
+POST /wpisy/{post}/zdjecia
 odcisk: 7f1a3c92
 
 Treść komunikatu zostaje w logu serwera — na webhook nie wychodzi.
@@ -245,7 +245,7 @@ wybranych pól wyjątku. W treści **nigdy** nie ma:
 - adresu IP,
 - identyfikatora ani nazwy konta,
 - **rzeczywistego adresu URL** — tylko wzorzec trasy z nazwami parametrów
-  (`/wpisy/{post}/zdjecie`, nie `/wpisy/9f1c.../zdjecie`), dokładnie ta sama
+  (`/wpisy/{post}/zdjecia`, nie `/wpisy/9f1c.../zdjecia`), dokładnie ta sama
   zasada, którą stosuje log limitu zapytań w `bootstrap/app.php`,
 - **argumentów wywołań ze stosu.** To jest najbardziej podstępne miejsce na
   wyciek: `$wyjątek->getTrace()` w PHP potrafi zawierać dokładne wartości

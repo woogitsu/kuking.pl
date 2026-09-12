@@ -316,7 +316,7 @@ zastąpić innym zdaniem robiącym to samo — nie wolno jej usunąć.
 
 > **Zmiana z 11 września 2026.** Stało tu „Jutro będzie tu ktoś inny." i było
 > to obiecywanie pewności, której produkt nie daje. Zmierzone przy plikach:
-> tablicę zmienia RĘCZNY wybór gospodarza w panelu `/kuking-na-dzis`
+> tablicę zmienia RĘCZNY wybór gospodarza w panelu `/admin/kuking-na-dzis`
 > (`DailyBoardController::update()`), a gdy gospodarz nic nie wybierze, wchodzi
 > wariant zapasowy sortujący po dacie publikacji. Żaden automat tej tablicy nie
 > odświeża. W wolny dzień jutro stoją tam więc te same osoby co dziś — a przy
