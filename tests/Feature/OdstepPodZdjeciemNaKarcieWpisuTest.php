@@ -180,10 +180,15 @@ class OdstepPodZdjeciemNaKarcieWpisuTest extends TestCase
         ]);
 
         // STRUMIEŃ OBSERWOWANYCH, NIE STRONA WPISU — i to nie jest drobiazg
-        // (D-099, D-106). `PostController::show()` doładowuje przepis bez
-        // kolumny `hero_media_id`, więc na stronie samego wpisu zdjęcia
-        // przepisu NIE MA i pasek „Z przepisu" stoi tam pod nagłówkiem.
-        // Sprawdzana para bloków renderuje się w feedzie, który ładuje
+        // (D-099, D-106).
+        //
+        // POWÓD SIĘ ZMIENIŁ 12 WRZEŚNIA 2026 (#447). Było nim to, że
+        // `PostController::show()` doładowywał przepis bez kolumny
+        // `hero_media_id`, więc na stronie samego wpisu zdjęcia przepisu NIE
+        // BYŁO. Tamto jest naprawione — teraz powód jest inny i mocniejszy:
+        // wpis bez własnej treści i bez komentarzy W OGÓLE NIE MA swojej
+        // strony, tylko przekierowuje na przepis (`Post::jestSamymPrzepisem`).
+        // Sprawdzana para bloków renderuje się więc w feedzie, który ładuje
         // `recipe.heroMedia` (`App\Domain\Feed\FollowingFeed`).
         $html = $this->actingAs($czytelniczka)
             ->get(route('home'))
