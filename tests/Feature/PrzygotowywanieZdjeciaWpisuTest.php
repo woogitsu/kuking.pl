@@ -284,6 +284,89 @@ class PrzygotowywanieZdjeciaWpisuTest extends TestCase
         $this->assertStringNotContainsString('Twoje zdjęcie', $tresc);
     }
 
+    public function test_wymiary_znacznika_opisuja_wariant_ktory_idzie_do_przegladarki_a_nie_oryginal(): void
+    {
+        // SKOK UKŁADU, NIE DROBIAZG. Kolumny `width`/`height` opisują plik
+        // PRZED obrotem z EXIF-u, a wariant jest już obrócony. Zdjęcie
+        // z telefonu trzymanego pionowo (`Orientation` 6 albo 8) miałoby więc
+        // w atrybutach 4032×3024, będąc w rzeczywistości 3024×4032 — karta
+        // skakałaby o pół ekranu w chwili, w której zdjęcie się wczyta.
+        // Przy powiększonym tekście na telefonie to jest skok na cały ekran.
+        $basia = $this->user('basia');
+
+        $zdjecie = Media::factory()->zSamymPodgladem()->create([
+            'owner_id' => $basia->getKey(),
+            // Oryginał POZIOMY, wariant PIONOWY — dokładnie to, co robi obrót.
+            'width' => 4032,
+            'height' => 3024,
+        ]);
+
+        $zdjecie->update(['metadata' => ['variants' => [
+            'podglad' => ['key' => (string) $zdjecie->wariant('podglad')['key'], 'width' => 480, 'height' => 640],
+        ]]]);
+        $zdjecie->refresh();
+
+        // Żądamy `feed`, którego nie ma — odpowiedź ma opisywać to, co
+        // NAPRAWDĘ pójdzie do przeglądarki, czyli podgląd.
+        $this->assertSame(480, $zdjecie->width('feed'));
+        $this->assertSame(640, $zdjecie->height('feed'));
+
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
+
+        $tresc = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+
+        $this->assertStringContainsString('width="480"', $tresc);
+        $this->assertStringContainsString('height="640"', $tresc);
+        $this->assertStringNotContainsString('width="4032"', $tresc, 'Znacznik opisuje wymiary ORYGINAŁU, nie serwowanego wariantu — karta skoczy przy wczytaniu zdjęcia.');
+    }
+
+    public function test_blok_zastepczy_nie_ma_wlasnego_wezszego_ograniczenia_niz_zdjecie(): void
+    {
+        // Kryterium z #432: „blok zastępczy jest dzieckiem tego samego
+        // kontenera co zdjęcie i nie ma własnego, węższego ograniczenia".
+        // Pilnujemy tego na ZNACZNIKACH, bo szerokość mierzy się w
+        // przeglądarce, a tu można sprawdzić warunek, który ją umożliwia:
+        // ten sam kontener (klasa `post-photo`) i żadnej klasy kształtu,
+        // która narzucałaby proporcje zdjęcia, którego nie ma.
+        Queue::fake();
+        config(['kuking.media.podglad.max_megapixels' => 1]);
+
+        $basia = $this->user('basia');
+
+        $zdjecie = app(StoreUploadedImage::class)->handle(
+            $basia,
+            UploadedFile::fake()->image('wielkie.jpg', 2000, 1500),
+        );
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
+
+        $tresc = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+
+        $this->assertStringContainsString('class="post-photo photo-placeholder"', $tresc);
+
+        foreach (['photo-placeholder-kwadrat', 'photo-placeholder-pion', 'photo-placeholder-panorama'] as $klasaKsztaltu) {
+            $this->assertStringNotContainsString(
+                $klasaKsztaltu,
+                $tresc,
+                'Blok zastępczy znów udaje wysokość zdjęcia, którego nie ma (#432).',
+            );
+        }
+
+        // KAŻDE ZDANIE OSOBNO — to jest naprawa osieroconej kropki. Znak
+        // interpunkcyjny nie ma jak zostać sam na początku wiersza, jeśli
+        // kończy zdanie, które mieści się w jednym wierszu.
+        preg_match_all('/<p class="photo-placeholder-zdanie">\s*(.+?)\s*<\/p>/s', $tresc, $trafienia);
+
+        $this->assertCount(2, $trafienia[1], 'Komunikat autora ma być rozbity na dwa krótkie zdania.');
+
+        foreach ($trafienia[1] as $zdanie) {
+            $this->assertStringEndsWith('.', trim($zdanie), "Zdanie „{$zdanie}” nie kończy się kropką — kropka została w innym wierszu.");
+        }
+    }
+
     public function test_trwale_nieudane_przetworzenie_mowi_o_tym_zamiast_wiecznej_pustki(): void
     {
         $basia = $this->user('basia');
