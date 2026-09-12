@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -173,9 +174,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * `email_verified_at` z tego samego powodu: potwierdzenie adresu ma
      * pochodzić z kliknięcia w link, nie z pola w formularzu.
      * Pilnuje tego `AdresEmailPozaMasowymPrzypisaniemTest`.
+     *
+     * `password` WYSZŁO STĄD Z TEGO SAMEGO POWODU, co `email`.
+     *
+     * Stało tu do 12 września 2026 — jako jedyna kolumna poświadczenia
+     * w całym repozytorium, która dawała się ustawić masowym przypisaniem.
+     * Argument, który wyprowadził stąd adres (issue #195), stosuje się do
+     * hasła bez jednej zmiany, i to MOCNIEJ: przestawiony adres daje
+     * przejęcie konta dopiero po „nie pamiętam hasła", a przestawione hasło
+     * daje je od razu. Cztery z pięciu miejsc, które hasło zapisują, i tak
+     * nie korzystały z masowego przypisania (`forceFill`), więc na liście
+     * stało ono wyłącznie dla dwóch miejsc ZAKŁADAJĄCYCH konto.
+     *
+     * Hasło zapisują teraz wyłącznie jawne, nazwane drogi:
+     *  - `assignPassword()` niżej (rejestracja, zmiana hasła, reset),
+     *  - `App\Domain\Users\Actions\EraseAccountData` (anonimizacja, D-022)
+     *    — jednym `forceFill()` razem z resztą kasowanych pól, bo to jest
+     *    jedna, atomowa operacja na koncie, a nie ustawianie hasła.
+     *
+     * Pilnuje tego `WrazliweKolumnyPozaMasowymPrzypisaniemTest` (kategoria
+     * „poświadczenia" jest tam NIETYKALNA — żaden wpis w rejestrze jej nie
+     * odblokuje).
      */
     protected $fillable = [
-        'password',
         'locale',
         'text_scale',
         'theme',
@@ -850,6 +871,31 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'email' => $email,
             'email_verified_at' => $potwierdzony ? now() : null,
         ]);
+    }
+
+    /**
+     * Ustawienie hasła — JEDYNA droga, którą hasło trafia na wiersz `users`
+     * poza anonimizacją konta.
+     *
+     * `password` jest poza `$fillable` (patrz komentarz przy tablicy), więc
+     * `create()`, `update()` i `firstOrCreate()` po prostu go nie widzą.
+     * Ta metoda robi to jawnie i pod nazwą, którą widać w code review —
+     * dokładnie tak, jak `assignEmail()` robi to z adresem, a `suspend()`,
+     * `ban()` i `markForDeletion()` ze statusem.
+     *
+     * PRZYJMUJE HASŁO JAWNE, NIE SKRÓT. Gdyby przyjmowała skrót, każde
+     * wywołanie musiałoby pamiętać o `Hash::make()` — a wywołanie, które
+     * zapomni, zapisuje hasło jawnym tekstem i wygląda przy tym identycznie.
+     * Skrót liczy `Hash::make()` tutaj, w jednym miejscu.
+     *
+     * NIE ZAPISUJE — tak samo jak `assignEmail()`. Rejestracja składa cały
+     * nowy wiersz naraz (kolumna jest NOT NULL, więc hasło musi być przy
+     * pierwszym `save()`), a zmiana hasła zapisuje je razem z wygaszeniem
+     * pozostałych sesji, w jednej transakcji.
+     */
+    public function assignPassword(string $hasloJawne): static
+    {
+        return $this->forceFill(['password' => Hash::make($hasloJawne)]);
     }
 
     /**

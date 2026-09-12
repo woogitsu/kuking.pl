@@ -13,7 +13,6 @@ use App\Models\User;
 use Closure;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -114,13 +113,17 @@ final class ZalozKonto
             // `email` NIE JEST w `$fillable` (issue #195, ten sam powód co
             // `status` i `role`), więc adres wchodzi jawnie, przez
             // `assignEmail()`.
+            // `password` NIE JEST w `$fillable` (ta sama zasada co `email`,
+            // `status` i `role`), więc hasło wchodzi jawnie, przez
+            // `assignPassword()` — które samo liczy skrót.
             $user = (new User([
-                // BRAK HASŁA TO NIE PUSTE HASŁO — patrz komentarz klasy.
-                'password' => Hash::make($haslo ?? Str::random(64)),
                 'locale' => 'pl',
                 'text_scale' => config('kuking.text.default_scale'),
                 'age_confirmed_at' => now(),
-            ]))->assignEmail($email, $emailPotwierdzony);
+            ]))
+                ->assignEmail($email, $emailPotwierdzony)
+                // BRAK HASŁA TO NIE PUSTE HASŁO — patrz komentarz klasy.
+                ->assignPassword($haslo ?? Str::random(64));
 
             $user->save();
 

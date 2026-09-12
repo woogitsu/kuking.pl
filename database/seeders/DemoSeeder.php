@@ -477,11 +477,14 @@ class DemoSeeder extends Seeder
 
         if ($user === null) {
             $user = (new User([
-                'password' => Hash::make('haslo-testowe-123'),
                 'locale' => 'pl',
                 'text_scale' => 100,
                 'age_confirmed_at' => now(),
-            ]))->assignEmail($email, potwierdzony: true);
+            ]))
+                ->assignEmail($email, potwierdzony: true)
+                // `password` jest poza `$fillable` tak samo jak `email`
+                // — obie wartości wchodzą jawną, nazwaną metodą.
+                ->assignPassword('haslo-testowe-123');
 
             $user->forceFill([
                 'status' => User::STATUS_ACTIVE,
