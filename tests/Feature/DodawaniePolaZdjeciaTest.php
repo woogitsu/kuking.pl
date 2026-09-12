@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -34,6 +35,7 @@ use Tests\TestCase;
 class DodawaniePolaZdjeciaTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     protected function setUp(): void
     {
@@ -48,7 +50,14 @@ class DodawaniePolaZdjeciaTest extends TestCase
             ->get(route('posts.create'))
             ->assertOk();
 
-        $strona->assertSee('Dodaj zdjęcie');
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): „Dodaj
+        // zdjęcie" jest też `<title>` tej strony, więc asercja na całej
+        // odpowiedzi przechodziła po skasowaniu i nagłówka, i podpisu obszaru
+        // wyboru pliku.
+        $this->assertStringContainsString(
+            'Dodaj zdjęcie',
+            $this->trescEkranu((string) $strona->getContent()),
+        );
 
         // KONTROLNA: nadal ten sam, jedyny plikowy input tego formularza —
         // atrybuty się nie zmieniły, zmienił się tylko wygląd wokół niego.

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\ContactMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -27,6 +28,7 @@ use Tests\TestCase;
 class NapiszDoNasTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private function poprawneDane(array $nadpisz = []): array
     {
@@ -39,10 +41,17 @@ class NapiszDoNasTest extends TestCase
 
     public function test_gosc_bez_konta_otwiera_formularz(): void
     {
-        $this->get(route('kontakt'))
-            ->assertOk()
-            ->assertSee('Napisz do nas')
-            ->assertSee('action="'.route('kontakt.store').'"', false);
+        $odpowiedz = $this->get(route('kontakt'))->assertOk();
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1).
+        // „Napisz do nas" stoi na tej stronie także w `<title>`, w czterech
+        // `<meta>` i w odnośniku STOPKI — a stopka jest na każdym ekranie.
+        // Zmierzone: po skasowaniu nagłówka `<h1>` asercja na całej odpowiedzi
+        // dalej przechodziła.
+        $tresc = $this->trescEkranu((string) $odpowiedz->getContent());
+
+        $this->assertStringContainsString('Napisz do nas', $tresc);
+        $this->assertStringContainsString('action="'.route('kontakt.store').'"', $tresc);
     }
 
     /**

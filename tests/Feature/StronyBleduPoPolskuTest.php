@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use ReflectionClass;
 use RuntimeException;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 final class StronyBleduPoPolskuTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private const TEKST_WPISU = 'Rosół na niedzielę, z kaczki od sąsiada. Gotował się cztery godziny i wyszedł złoty.';
 
@@ -39,7 +41,13 @@ final class StronyBleduPoPolskuTest extends TestCase
         // Najpierw dowód, że cokolwiek się wyrenderowało.
         $this->assertGreaterThan(500, mb_strlen($odpowiedz->getContent() ?: ''));
 
-        $odpowiedz->assertSee('Nie znaleźliśmy tej strony');
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): to zdanie jest
+        // też `<title>` i `<meta>` tej strony, więc asercja na całej odpowiedzi
+        // przechodziła również po skasowaniu nagłówka widocznego dla człowieka.
+        $this->assertStringContainsString(
+            'Nie znaleźliśmy tej strony',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         // Belka Kuking i droga powrotu — czyli layout serwisu, nie goła strona.
         $odpowiedz->assertSee('Przejdź do treści');
         $odpowiedz->assertSee('Strona główna');
