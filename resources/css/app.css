@@ -4538,6 +4538,36 @@
 
 .zdjecie-profilowe-opis {
     margin: 0;
+
+    /* WYJEŻDŻANIE W BOK PRZY CZCIONCE PRZEGLĄDARKI 200% (#344).
+
+       Zmierzone `scripts/dostepnosc.mjs`, `/ustawienia/zdjecie` w stanie
+       „to jest Twoje zdjęcie", okno 320 px:
+
+           bez powiększania           scrollWidth 320   bez przepełnienia
+           tekst 140%                 scrollWidth 320   bez przepełnienia
+           czcionka przeglądarki 200% scrollWidth 333   PRZEPEŁNIENIE (13 px)
+
+       Ten akapit jest elementem flex przy `align-items: flex-start`, więc
+       jego szerokość to `fit-content` — a `fit-content` nie schodzi poniżej
+       szerokości MINIMALNEJ, czyli poniżej najdłuższego słowa. Przy 32 px
+       pisma „komentarzach." ma 252 px i to ono dyktuje szerokość, nie kolumna.
+
+       `overflow-wrap: anywhere` jest tu jedyną regułą, która to zdejmuje:
+       jako jedyna z trójki (`normal`, `break-word`, `anywhere`) WPŁYWA NA
+       SZEROKOŚĆ MINIMALNĄ — globalne `break-word` z `tokens.css` łamie już
+       ułożony wiersz, ale szerokości minimalnej nie zmniejsza i dlatego samo
+       nie wystarcza (pomiar: patrz `.szyna-tytul` niżej, ta sama różnica).
+       Łamanie w środku słowa włącza się dopiero wtedy, gdy wiersz inaczej
+       nie mieści się w kolumnie — przy zwykłej czcionce nie włącza się wcale.
+
+       PRÓBKA MA ZNACZENIE. Ten sam ekran w stanie „nie masz jeszcze swojego
+       zdjęcia" ma tu inne zdanie (najdłuższe słowo „pokazujemy" zamiast
+       „komentarzach.") i zmierzony `scrollWidth` 320 px, czyli NIE przepełnia
+       — a to właśnie w tym stanie ekran byłby mierzony, gdyby dane demo nie
+       dawały kontu automatu zdjęcia. Pilnuje tego
+       `tests/Feature/EkranZdjeciaProfilowegoWPomiarzeTest.php`. */
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
