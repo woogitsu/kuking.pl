@@ -24,7 +24,11 @@ Konto:
   (patrz niżej);
 - `delete_scope` — ZAKRES usunięcia wybrany przez człowieka: `minimum`
   (domyślny — teksty zostają zanonimizowane) albo `everything` (patrz niżej);
-- locale;
+- `locale` — język konta, `varchar(10) NOT NULL DEFAULT 'pl'`. Dziś
+  **zawsze `pl`** (`ZalozKonto` wpisuje `'pl'` na sztywno, innego wyboru nie
+  ma nigdzie w interfejsie); kolumna stoi, bo eksport danych ją oddaje
+  (`jezyk`), a dołożenie języka po fakcie do tabeli z prawdziwymi kontami
+  kosztuje więcej niż jedna kolumna dzisiaj;
 - text_scale;
 - theme (patrz niżej);
 - `wants_weekly_digest` — zgoda na cotygodniowy przegląd, stan BIEŻĄCY (patrz
@@ -1030,6 +1034,28 @@ Tylko metadata, nie binary:
 - perceptual hash;
 - metadata.
 
+Trzy z tych kolumn nie mówią o sobie samą nazwą:
+
+- **`mime_type varchar(120) NULL`** — typ pliku **odczytany z jego zawartości**
+  przez `getimagesize()` w `StoreUploadedImage`, a NIE nagłówek `Content-Type`
+  przysłany przez przeglądarkę: tamten deklaruje nadawca, a plik udający
+  obrazek deklaruje cokolwiek. Wpisywany razem z wierszem, więc `NULL` na
+  produkcji się nie zdarza — kolumna dopuszcza go dla wierszy z fabryk
+  i seederów.
+- **`alt_text varchar(500) NULL`** — opis alternatywny, **wolny tekst od
+  człowieka**. Dla dostępności bezcenny, ale **nigdy wymagany**: wymóg opisu
+  zabiłby publikację „zdjęcie + kilka słów", czyli główną akcję serwisu.
+  `NULL` i pusty opis są stanem normalnym, a nie brakiem do uzupełnienia.
+- **`perceptual_hash varchar(128) NULL`** — miejsce na skrót percepcyjny
+  obrazu, czyli wartość rozpoznającą to samo zdjęcie mimo innej kompresji
+  (do moderacji: zdjęcie wstawiane ponownie po decyzji). Coś innego niż
+  `checksum_sha256`, który jest dokładnym skrótem bajtów i łapie wyłącznie
+  identyczny plik. **Uwaga: dziś NIC tej kolumny nie wypełnia ani nie czyta** —
+  jest w `$fillable` modelu `Media` i w migracji, i na tym koniec. Każdy wiersz
+  ma `NULL` i tak zostanie, dopóki liczenia skrótu nie będzie. Kolumna weszła
+  z pierwszą migracją mediów razem z cyklem życia z D-003; zostaje, bo jest
+  pusta i nic nie kosztuje, ale **nie wolno na niej niczego opierać**.
+
 **Dwie kolumny dysku, bo to dwie różne kategorie danych** (migracja
 `2026_09_06_170000_add_variants_disk_to_media`, audyt G-01).
 
@@ -1232,13 +1258,115 @@ niesie wyłącznie identyfikator wysłania wygenerowany przez serwer, ani jedneg
 słowa napisanego przez człowieka.
 
 ### recipes
-Aktualny stan.
+Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
+
+- `id`, `author_id`, `title`, `slug` (`UNIQUE`, 220 znaków);
+- `summary` — patrz niżej;
+- `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
+  (CHECK: `easy` \| `medium` \| `hard`);
+- `visibility` (`public` \| `followers` \| `private`),
+  `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
+- pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
+  `family_since_year`, `source_scan_media_id` — patrz niżej;
+- `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
+- `title_search`, `summary_search` — patrz „Kolumny `*_search`".
+
+**`summary varchar(2000) NULL`** — „Krótko o przepisie", zdanie albo dwa nad
+składnikami. Idzie też do `<meta name="description">` (przycięte do 155 znaków)
+i do `description` w JSON-LD, więc jest tekstem, który człowiek zobaczy
+w wynikach wyszukiwania. `NULL` jest stanem normalnym — przepis bez opisu
+publikuje się tak samo.
+
+#### Pochodzenie przepisu: `source_type`, `source_person`, `source_note`, `source_url`
+
+Cztery kolumny z pierwszej migracji przepisów
+(`2026_09_05_000400_create_recipes_tables`). To nie jest metadana — „skąd znam
+ten przepis" odróżnia Kuking od bazy receptur, a przy prawach autorskich jest
+deklaracją pochodzenia (`docs/MODERATION.md`).
+
+| Kolumna | Typ | Co w niej naprawdę jest |
+|---|---|---|
+| `source_type` | `varchar(20) NOT NULL DEFAULT 'own'` | Zamknięta lista, CHECK `recipes_source_type_check`: `own` \| `family` \| `adaptation` \| `external`. Etykiety dla człowieka trzyma `Recipe::SOURCE_LABELS`. |
+| `source_person` | `varchar(120) NULL` | **Wolny tekst od człowieka.** Patrz niżej — to nie jest osoba. |
+| `source_note` | `varchar(2000) NULL` | Historia przepisu, wspomnienie. Pokazywane pod nagłówkiem „Skąd ten przepis", PRZED składnikami, z zachowaniem łamań wierszy (`whitespace-pre-line`). |
+| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**, jako `rel="nofollow noopener"`. W bazie bez limitu długości; formularz przyjmuje najwyżej 2000 znaków i wymaga poprawnego adresu (`'url'` w regułach `RecipeController`). |
+
+Puste i złożone z samych spacji wartości `PublishRecipe` zamienia na `NULL`
+**przed** zapisem (`nullIfBlank`), więc „pole wyczyszczone" i „pole nigdy nie
+wypełnione" to w bazie ten sam stan. Wszystkie cztery idą do snapshotu wersji
+(`SnapshotRecipeVersion`) i do eksportu danych (`CollectUserExportData`:
+`skad_przepis`, `zrodlo_adres`, `od_kogo`, `notatka_o_zrodle`).
+
+**`source_person` NIE JEST OSOBĄ — i to jest fakt o danych, nie ostrożność**
+(D-156, PR #403). Nazwa kolumny obiecuje człowieka, a pole pyta **„Od kogo albo
+skąd masz ten przepis"** z podpowiedzią `od mamy · z gazety · z bloga Nasze
+smaki`. Właściciel potwierdził, że wpisuje tam **nazwę grupy na Facebooku**.
+W jednej kolumnie `varchar(120)` leżą więc obok siebie: nazwa grupy, tytuł
+gazety, imię babci i zdanie „od mamy" — i **z wiersza nie da się rozpoznać,
+który to przypadek**.
+
+Wynikają z tego dwie twarde reguły, obie już wdrożone:
+
+1. **Widok pokazuje tę wartość DOSŁOWNIE** — bez doklejonego przyimka i bez
+   kropki (D-153, PR #397). Nagłówek „Skąd ten przepis" niesie całe znaczenie;
+   doklejane „Po " dawało „Po po mamie." i „Po Nasze smaki.". Pierwsza litera
+   idzie przez `Str::ucfirst()` (wielobajtowe). Podpis przepisu składa się
+   z członów rozdzielonych „·" (`Recipe::attributionLine()`), nigdy z formy
+   wymagającej przypadka.
+2. **Ta wartość nie trafia do pola, które wymusza typ encji** (D-156). W JSON-LD
+   `author` opisuje wyłącznie konto publikujące, a `source_person` idzie do
+   `citation` jako zwykły `Text`. `@type: Person` z tą wartością deklarowałby
+   typ, którego nikt nie zna.
+
+**Czego świadomie nie zrobiono: migracji danych.** Wartości wpisane pod starym
+pytaniem („po mamie") zostają w bazie takie, jakie są — automatyczna zamiana
+cudzego tekstu byłaby zgadywaniem (D-153).
+
+`family_since_year smallint NULL` (CHECK `1850..2100`) — sam rok, bez daty
+dziennej; więcej nie zbieramy. `source_scan_media_id uuid NULL` → `media`
+(`ON DELETE SET NULL`) — zdjęcie kartki z zeszytu albo wycinka, bez OCR.
+To zdjęcie bywa skanem odręcznej kartki z nazwiskami, więc dostęp do niego
+idzie tą samą drogą co do każdego innego zdjęcia przepisu
+(`App\Domain\Media\DostepDoZdjecia`).
 
 ### recipe_versions
 Snapshot po istotnych zmianach.
 
+- `recipe_id`, `editor_id` (`ON DELETE RESTRICT` — wersji nie wolno osierocić
+  przez skasowanie konta edytora);
+- `version_number integer` (CHECK `> 0`, `UNIQUE(recipe_id, version_number)`) —
+  numer kolejny w obrębie jednego przepisu, nie w całym serwisie;
+- `snapshot jsonb NOT NULL` — pełna treść przepisu w chwili zapisu, składana
+  przez `App\Domain\Recipes\Actions\SnapshotRecipeVersion` (tytuł, opis,
+  czasy, wszystkie cztery kolumny pochodzenia, składniki, kroki);
+- `change_note varchar(500) NULL` — **wolny tekst od człowieka**: czym ta
+  wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
+  stanem normalnym;
+- `created_at`.
+
 ### ingredients + units
 Podstawa search i późniejszego planera.
+
+`ingredients` — słownik składników **wspólny dla serwisu**, budowany
+z tego, co ludzie wpisują:
+
+- `canonical_name varchar(160)` — nazwa w pisowni, którą pokazujemy
+  („cebula czerwona"). To jest tekst pochodzący od człowieka, nie z żadnej
+  zewnętrznej bazy;
+- `normalized_name varchar(160) UNIQUE` — ta sama nazwa po `kuking_normalize()`,
+  czyli klucz dopasowania; indeks `gin_trgm_ops` pod wyszukiwarkę.
+
+`units` — jednostki miary. Tabela słownikowa, którą wypełnia seeder, a nie
+człowiek przy przepisie:
+
+- `code varchar(30) UNIQUE` — identyfikator maszynowy (`g`, `ml`, `lyzka`);
+- `name varchar(80)` i `name_plural varchar(80) NULL` — forma pojedyncza
+  i mnoga do pokazania („łyżka" / „łyżki"). Kolumna dopuszcza `NULL`, ale
+  `UnitSeeder` wypełnia ją przy każdej z 15 jednostek;
+- `unit_type varchar(30) NULL` — rodzaj jednostki. Seeder wpisuje `waga`,
+  `objetosc` albo `ilosc`, ale **w bazie nie ma CHECK-a** i nie ma zamkniętej
+  listy w kodzie. Dopóki przeliczania jednostek nie ma (V2), ta kolumna
+  niczego nie rozstrzyga — i dlatego nie zamykamy jej przedwcześnie.
 
 ### recipe_ingredients
 Musi mieć `ingredient_text`, nawet jeśli normalizacja nie rozpozna składnika.
@@ -1369,6 +1497,14 @@ rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
 ### recipe_steps
 Pozycja + instruction + opcjonalny timer/media.
 
+**`instruction text NOT NULL`** — treść jednego kroku, **wolny tekst od
+człowieka**, bez górnego limitu w bazie. Zapisywana dosłownie: nic jej nie
+skraca, nie numeruje i nie przepisuje — numer kroku bierze się z `position`
+(`UNIQUE(recipe_id, position)`, CHECK `>= 0`), a nie z tego, co autor napisał
+na początku zdania. Pusty krok nie jest zapisywany: `PublishRecipe::cleanSteps()`
+odrzuca wiersze bez treści, zanim dojdą do bazy, więc `NOT NULL` nie ma szansy
+zamienić się w błąd 500 na publikacji.
+
 `timer_seconds` i `media_id` ustawia od migracji poza schematem — czyli od
 issue #21 — **formularz przepisu**, obiema drogami: `/dodaj/przepis/jedna-strona`
 (zwykły POST) i kreator Livewire. Wcześniej obie kolumny czytał tryb gotowania,
@@ -1425,6 +1561,22 @@ a pokazanie treści łamie ustawienie autora.
 ### cooked_events
 Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 
+- `user_id`, `recipe_id` — kto i co gotował. **Klucza do `posts` tu nie ma**:
+  wpis ze zdjęciem jest osobną encją, a gotowanie da się zgłosić bez wpisu;
+- `note varchar(2000) NULL` — „Jak wyszło?", czyli **wolny tekst od
+  człowieka** o tym jednym gotowaniu;
+- `would_make_again boolean NULL` — „zrobię jeszcze raz". `NULL` znaczy
+  „nie odpowiedział" i jest czymś innym niż `false`;
+- `perceived_difficulty varchar(12) NULL` (CHECK: `easy` \| `medium` \| `hard`)
+  — trudność **odczuta przez gotującego**, osobna od `recipes.difficulty`
+  deklarowanej przez autora przepisu;
+- `actual_minutes integer NULL` (CHECK `>= 0`) — ile to naprawdę zajęło;
+- **`changes_note varchar(1000) NULL`** — „co zmieniłem po swojemu". **Wolny
+  tekst od człowieka** i najczęściej czytana część komentarza pod przepisem;
+  pierwszy krok do „Mojej wersji" (V1);
+- `cooked_at timestamptz NOT NULL DEFAULT now()` — kiedy gotowano. Osobne od
+  `created_at`, bo wpis o niedzielnym obiedzie bywa pisany we wtorek;
+- `klucz_wyslania` — patrz niżej.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden wiersz** (D-027,
 migracja `2026_09_07_900100_add_klucz_wyslania_to_cooked_events`).
@@ -1532,6 +1684,16 @@ kończyłoby się błędem 500.
 
 ### notifications
 In-app.
+
+**`type varchar(80) NOT NULL`** — rodzaj powiadomienia (`cooked_event.created`,
+`comment.created`, `follow.created`, `moderation.decision`…). **Bez CHECK-a
+w bazie**: zamknięta lista stoi stałymi `TYPE_*` w `App\Models\Notification`,
+a nowy typ dochodzi razem z kodem, który go wysyła i tłumaczy na zdanie po
+polsku — CHECK kazałby do tego dokładać migrację i nie chroniłby przed jedyną
+realną pomyłką, czyli typem bez tłumaczenia. Ta kolumna **rozstrzyga o retencji**: typy z
+`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` żyją do terminu
+odwołania, a nie 3 miesiące (patrz niżej). `data jsonb` niesie resztę —
+identyfikatory treści i to, co trzeba pokazać w zdaniu.
 
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
@@ -1667,6 +1829,19 @@ Konsekwencja w kodzie: `ModeratedContent::znajdz()` zwraca `null` dla typu
 moderator może taką sprawę zamknąć i odpowiedzieć, ale nie ukryje treści,
 której mu nie wskazano.
 
+#### Zamknięcie zgłoszenia: `resolution_note`, `resolved_by`, `resolved_at`
+
+**`resolution_note varchar(2000) NULL`** — notatka moderatora, **widoczna
+wyłącznie wewnętrznie**. Nie jest tym samym co `moderation_actions.user_message`
+(zdanie wysyłane człowiekowi) ani co `moderation_actions.note`: tamte dwie
+należą do DECYZJI o treści, ta należy do ZGŁOSZENIA i tłumaczy, dlaczego
+kolejka je zamknęła — także wtedy, gdy żadna decyzja nie zapadła
+(`status = 'rejected'`). Wolny tekst, bez CHECK-a.
+
+`resolved_by uuid NULL` → `users` (`ON DELETE SET NULL`) i `resolved_at
+timestamptz NULL` — kto i kiedy zamknął. `SET NULL` jest tu świadome: konto
+moderatora bywa anonimizowane, a zgłoszenie ma zostać zamknięte dalej.
+
 #### Pozostałe ograniczenia i indeksy
 
 | Nazwa | Co pilnuje |
@@ -1787,6 +1962,24 @@ rozstrzyga człowiek.
 
 ### moderation_actions
 Decyzje moderatorów.
+
+**`action varchar(40) NOT NULL`** — co moderator zrobił: `no_action`, `hide`,
+`unhide`, `remove`, `warn`, `suspend`, `ban`. **Bez CHECK-a w bazie**, bo
+dopuszczalna wartość zależy od `target_type` (konta nie da się „ukryć",
+zdjęcia nie da się „usunąć" osobno od wpisu) — macierz `target_type` →
+dozwolone działania trzyma `App\Models\ModerationAction::DOZWOLONE`, a CHECK
+na samej kolumnie przepuszczałby i tak każdą złą parę.
+
+Trzy kolumny tekstowe wokół tej decyzji to **trzy różne adresaty**, nie
+warianty tego samego pola:
+
+| Kolumna | Kto to czyta |
+|---|---|
+| `reason_code varchar(80) NOT NULL` | Kod podstawy decyzji, nie zdanie. Formularz oferuje **zamkniętą listę** `App\Domain\Moderation\PodstawaDecyzji`, ale reguła walidacji jest świadomie miękka (`string`, nie `in:`) — w bazie leżą decyzje sprzed tej listy, a `RestoreContent` zapisuje tu `appeal_overturned`. Kod spoza listy nie dostaje numeru punktu zasad i tyle. |
+| `note varchar(2000) NULL` | Tylko moderatorzy. Notatka wewnętrzna, nie wychodzi poza panel. |
+| `user_message varchar(2000) NULL` | **Człowiek, którego decyzja dotyczy** — zdanie doklejane do powiadomienia. Wszystko, co tu stoi, zostanie mu pokazane. |
+
+`moderator_id uuid` → `users`.
 
 Od migracji `2026_09_06_100000_add_context_to_moderation_actions` (issues #65 i #10)
 wiersz zapisuje dwie rzeczy więcej:
@@ -1915,6 +2108,27 @@ przed cofnięciem na produkcji zrób `COPY appeals TO ...`, inaczej tracisz dow�
 
 ### audit_log
 Wysokiego znaczenia zmiany.
+
+- `actor_id uuid NULL` → `users` (`ON DELETE SET NULL`) — kto to zrobił.
+  `NULL` znaczy „nie zalogowany człowiek": komenda z powłoki albo konto już
+  zanonimizowane;
+- **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
+  konwencji `obszar.co_się_stało` (`account.data_erased`,
+  `user.role_changed`, `admin.user_viewed`). **Bez CHECK-a w bazie** i to jest
+  wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
+  zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
+  Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
+  niżej;
+- **`subject_type varchar(80) NULL`** + `subject_id uuid NULL` — czego
+  zdarzenie dotyczyło, para „typ + identyfikator" bez klucza obcego (wiersz
+  ma przeżyć skasowanie tego, co opisuje). `NULL` znaczy „zdarzenie nie
+  dotyczy pojedynczej encji";
+- **`ip_hash varchar(128) NULL`** — adres IP **wyłącznie jako skrót**, nigdy
+  jawnie. Do wykrywania nadużyć skrót wystarcza, a danych osobowych nie
+  trzymamy dłużej, niż to konieczne. `NULL` znaczy „zdarzenie nie przyszło
+  z żądania HTTP" (komenda, harmonogram);
+- `metadata jsonb NOT NULL DEFAULT '{}'` — reszta kontekstu;
+- `created_at`.
 
 **Retencja:** `config('kuking.audit_log.retention_months')` — **12 miesięcy**
 od `created_at`. (Stało tu „24 miesiące"; pierwsza wersja tego automatu
@@ -2593,7 +2807,12 @@ z panelu ma autora, scalenie z seedera nie ma go wcale.
 
 `tag_aliases`: `id` **bigserial**, nie `uuid` — wiersz nigdy nie jest
 adresowany z zewnątrz (ten sam wybór co `product_signals`/`audit_log`).
-`normalized_alias` `UNIQUE` w całej tabeli. `source`: `seed` \| `admin` \|
+**`alias varchar(30)`** — wariant nazwy w pisowni, w jakiej ktoś go naprawdę
+wpisał albo zaimportował („serniki" przy kanonicznym „sernik"); to ta kolumna
+niesie tekst od człowieka i tylko ona nadaje się do pokazania.
+`normalized_alias` to ten sam napis po `kuking_normalize()` i to on ma
+`UNIQUE` w całej tabeli — **nie `alias`**, bo „Serniki" i „serniki" mają być
+jednym aliasem, a nie dwoma. `source`: `seed` \| `admin` \|
 `ai_suggestion`, CHECK w bazie. Wejście na alias przekierowuje na tag
 kanoniczny (`Tag::tagKanoniczny()`) — bez osobnej tabeli przekierowań, bo
 scalony tag zostaje w `tags` ze swoim slugiem.
