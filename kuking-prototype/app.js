@@ -56,6 +56,7 @@ function showView(name) {
     link.classList.toggle('is-active', active);
     if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   });
+  document.body.classList.toggle('guest-mode', ['powitanie', 'logowanie', 'rejestracja', 'onboarding'].includes(name));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -196,6 +197,35 @@ document.querySelector('[data-setting="dark"]')?.addEventListener('change', (eve
 document.querySelector('[data-setting="contrast"]')?.addEventListener('change', (event) => {
   if (event.target.checked) document.documentElement.dataset.contrast = 'high'; else delete document.documentElement.dataset.contrast;
   showToast(event.target.checked ? 'Włączono mocniejszy kontrast.' : 'Przywrócono zwykły kontrast.');
+});
+
+document.querySelectorAll('[data-auth]').forEach((form) => {
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const destination = form.dataset.auth === 'register' ? 'onboarding' : 'start';
+    showToast(form.dataset.auth === 'register' ? 'Konto zostało utworzone.' : 'Zalogowano pomyślnie.');
+    history.pushState(null, '', `#${destination}`);
+    showView(destination);
+  });
+});
+
+document.querySelectorAll('.interest-grid button').forEach((button) => {
+  button.addEventListener('click', () => {
+    const selected = button.getAttribute('aria-pressed') === 'true';
+    button.setAttribute('aria-pressed', String(!selected));
+  });
+});
+document.querySelector('[data-onboarding="next"]')?.addEventListener('click', () => {
+  const selected = document.querySelectorAll('.interest-grid button[aria-pressed="true"]').length;
+  if (!selected) { showToast('Wybierz przynajmniej jeden temat albo kliknij „Na razie tylko pooglądam”.'); return; }
+  showToast('Gotowe — strona główna została dopasowana.');
+  history.pushState(null, '', '#start');
+  showView('start');
+});
+document.querySelector('[data-onboarding="skip"]')?.addEventListener('click', () => {
+  history.pushState(null, '', '#start');
+  showView('start');
 });
 
 document.querySelectorAll('.people-list button').forEach((button) => {
