@@ -26,8 +26,11 @@ utworzonego zeszytu domyślnego. Kontrole dodatnie sprawdzają docelowy
 wiersz `collection_items`, a nie tylko przekierowanie.
 
 W środowisku przygotowania poprawki nie było PHP, Composera ani
-PostgreSQL. Testy i kontrole ujemne poniżej wymagają wykonania na pełnym
-checkoutcie z bazą testową; nie są raportem przeprowadzonego pomiaru.
+PostgreSQL. Następnie testy wykonano w CI: 14 przypadków / 102 asercje,
+wraz z kontrolami negatywnymi UUID, własności i komunikatu. Wyniki i md5
+są w `docs/design/WERYFIKACJA_ALFA_08.md`. Test przenosi rzeczywiste
+ciasteczko sesji między POST a GET; nie wstrzykuje błędu do sesji.
+Poniżej pozostaje procedura ręcznego odtworzenia.
 
 1. Uruchom `php artisan test --filter=WyborZeszytuMaWalidacjeTest`.
 2. Zachowaj kopię zmienionego kontrolera poza repozytorium. W kopii roboczej
