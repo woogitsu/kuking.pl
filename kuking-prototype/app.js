@@ -13,6 +13,7 @@ document.addEventListener('click', (event) => {
   if (!control) return;
 
   const action = control.dataset.action;
+  if (['share', 'share-close', 'share-copy', 'share-whatsapp', 'share-email', 'share-facebook', 'follow', 'clear-search'].includes(action)) return;
   const messages = {
     search: 'W pełnej aplikacji otworzy się wyszukiwarka osób, dań i składników.',
     'add-photo': 'Tutaj otworzy się prosty formularz: zdjęcie, kilka słów i widoczność.',
@@ -28,6 +29,8 @@ document.addEventListener('click', (event) => {
     'notification-open': 'Otwieram wskazaną treść.'
     , 'wake-lock': 'Ekran pozostanie włączony podczas gotowania.'
     , reply: 'Odpowiedź pojawi się pod tym komentarzem.'
+    , 'profile-more': 'Tutaj znajdziesz opcje zgłoszenia lub zablokowania użytkownika.'
+    , 'rename-folder': 'Tutaj zmienisz nazwę folderu.'
   };
 
   if (action === 'save') {
@@ -74,7 +77,38 @@ showView(location.hash.slice(1) || 'start');
 document.querySelector('.search-panel')?.addEventListener('submit', (event) => {
   event.preventDefault();
   const phrase = document.querySelector('#search-input').value.trim();
-  showToast(phrase ? `Wyniki dla: „${phrase}”.` : 'Wpisz nazwę dania albo składnik.');
+  if (!phrase) { showToast('Wpisz nazwę dania albo składnik.'); return; }
+  document.querySelector('.search-results').hidden = false;
+  document.querySelector('.discover-grid').hidden = true;
+  document.querySelector('.search-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast(`Wyniki dla: „${phrase}”.`);
+});
+
+document.querySelector('[data-action="clear-search"]')?.addEventListener('click', () => {
+  document.querySelector('.search-results').hidden = true;
+  document.querySelector('.discover-grid').hidden = false;
+  document.querySelector('#search-input').value = '';
+  document.querySelector('#search-input').focus();
+});
+
+document.querySelector('[data-action="follow"]')?.addEventListener('click', (event) => {
+  const button = event.currentTarget;
+  const active = button.getAttribute('aria-pressed') === 'true';
+  button.setAttribute('aria-pressed', String(!active));
+  button.textContent = active ? '＋ Obserwuj' : '✓ Obserwujesz';
+  showToast(active ? 'Przestajesz obserwować Halinę.' : 'Wpisy Haliny pojawią się na Twojej stronie głównej.');
+});
+
+const shareDialog = document.querySelector('.share-dialog');
+document.querySelector('[data-action="share"]')?.addEventListener('click', () => shareDialog.showModal());
+document.querySelector('[data-action="share-close"]')?.addEventListener('click', () => shareDialog.close());
+shareDialog?.addEventListener('click', (event) => { if (event.target === shareDialog) shareDialog.close(); });
+document.querySelectorAll('[data-action^="share-"]:not([data-action="share-close"])').forEach((button) => {
+  button.addEventListener('click', () => {
+    const messages = { 'share-copy': 'Adres przepisu został skopiowany.', 'share-whatsapp': 'Otwieram WhatsApp.', 'share-email': 'Otwieram nową wiadomość e-mail.', 'share-facebook': 'Otwieram okno udostępniania na Facebooku.' };
+    showToast(messages[button.dataset.action]);
+    shareDialog.close();
+  });
 });
 
 document.querySelectorAll('.filter-chips button').forEach((button) => {
