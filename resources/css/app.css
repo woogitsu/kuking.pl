@@ -1785,6 +1785,56 @@
   }
 
   /* =====================================================================
+     WCIĘCIE BOCZNE CHIPSÓW Z TAGAMI WPISU
+     =====================================================================
+
+     USTERKA POZIOMA, ZNALEZIONA PRZY NAPRAWIE PIONOWEJ (PR #405) i wtedy
+     świadomie pominięta jako inny problem: chipsy z tagami dochodziły do
+     samej krawędzi karty, kiedy każdy inny blok tej karty stoi 20 px od niej.
+
+     ZMIERZONE (Chromium 1194, `scripts/wciecia-boczne-karty-wpisu.mjs`,
+     `/home` i `/tag/{slug}` po zalogowaniu; odległość od krawędzi karty do
+     pierwszego piksela treści bloku):
+
+         blok                     z lewej   z prawej
+         post-card-head              20 px      20 px
+         post-card-body              20 px      20 px
+         post-card-recipe            20 px      20 px
+         post-card-tagi               0 px       0 px   <-- usterka
+         post-card-actions           20 px      20 px
+
+     Liczby były te same na 1512 px i na 390 px, więc to nie jest efekt
+     wąskiego ekranu — bloku po prostu nikt nigdy nie wciął.
+
+     SKĄD SIĘ TO WZIĘŁO. Widok bierze gotowe `.chipsy`/`.chip`
+     (`components/post-card.blade.php`, świadomie: „żadnego nowego CSS").
+     `.chipsy` powstało dla chipsów zakresu wyszukiwania, które stoją
+     BEZPOŚREDNIO w kolumnie strony — a ta kolumna ma własne wcięcie. W karcie
+     wpisu takiego wcięcia nie ma (`.post-card { padding: 0 }`, bo zdjęcie
+     idzie od krawędzi do krawędzi), więc wcięcie musi nieść sam blok, tak jak
+     niosą je wszystkie pozostałe bloki tej karty.
+
+     WCIĘCIE NA `.post-card-tagi`, NIE NA `.chipsy` — bo `.chipsy` stoi też na
+     ekranie wyszukiwania i na szynie profilu, gdzie 20 px z obu stron byłoby
+     dodane DO wcięcia kolumny i chipsy uciekłyby do środka.
+
+     TYLKO POZIOM (`padding-inline`), NIE SKRÓT `padding`. Rytm PIONOWY tego
+     bloku jest już zadeklarowany w `.chipsy` (`margin: var(--spacing-6) 0
+     var(--spacing-5)`) i został zmierzony przy PR #405 jako poprawny; skrót
+     `padding: 0 var(--spacing-5)` wyzerowałby wcięcie pionowe, którego ten
+     blok i tak nie ma, ale przede wszystkim wpuściłby dwie decyzje w jedną
+     deklarację. Odstęp należy do jednej strony pary (D-154) — tu chodzi
+     o wcięcie, nie o parę, więc deklarujemy wyłącznie to, o co chodzi.
+
+     TOKEN, NIE PIKSELE: `--spacing-5` to ta sama wartość, którą ma cała
+     reszta karty, i ma rosnąć razem z pismem przy czcionce przeglądarki
+     200 % (druga strona D-082/D-107).
+     ===================================================================== */
+  .post-card-tagi {
+    padding-inline: var(--spacing-5);
+  }
+
+  /* =====================================================================
      ODSTĘP POD ZDJĘCIEM WPISU (zgłoszenie właściciela, 11 września:
      „«z przepisu» i «bigos z cukinii» jest zbyt blisko zdjęcia")
      =====================================================================
@@ -1799,8 +1849,8 @@
          nagłówek → zdjęcie ...............................  16 px (1512 i 390)
          zdjęcie → pasek „Z przepisu · …" .................   0 px (1512 i 390)
          karuzela → „N osób zapisało to u siebie" .........   0 px (1512 i 390)
-         pasek „Z przepisu" → tematy wpisu ................  40 px
-         tematy wpisu → pasek akcji .......................  37 px
+         pasek „Z przepisu" → tagi wpisu ................  40 px
+         tagi wpisu → pasek akcji .......................  37 px
 
      Cała karta trzyma odstęp 16 px i robi to DOLNYM WCIĘCIEM bloku wyżej
      (`.post-card-head`, `.post-card-body`, `.post-card-recipe` i
@@ -1824,7 +1874,7 @@
      bloku wyżej. Bezwarunkowy `margin-top` zrobiłby tam 32 px, czyli
      poprawiłby jeden stan ekranu i zepsuł dwa inne (D-099, D-106: ten sam
      adres w dwóch stanach to dwa ekrany). Tak samo `.post-card-zapisy`:
-     pod paskiem przepisu ma już 16 px, pod tematami 37 px, a pod zdjęciem
+     pod paskiem przepisu ma już 16 px, pod tagami 37 px, a pod zdjęciem
      miało zero.
 
      `--spacing-4`, BO TYLE MA CAŁA RESZTA KARTY. Token, nie piksele: ten
@@ -4955,39 +5005,6 @@
 .notatka-wyrozniona {
   font-size: var(--text-lead);
   font-weight: 600;
-}
-
-/* Siatka wpisów pod nagłówkiem „Świeżo z Kuking". Karta wpisu niesie
-   zdjęcie i kilka zdań, więc dwie kolumny są dla niej wygodne — jedna
-   kolumna na tak szerokim ekranie zostawiałaby pustkę, o którą zgłosił
-   się właściciel.
-
-   PRZELICZONE PO WEJŚCIU PASÓW (8 września 2026). Wcześniej ta siatka
-   stała w kolumnie szerokiej na 1424 px i karta miała ~690 px. Teraz stoi
-   w pasie, którego wnętrze ma 992 px, więc karta ma ~484 px — mniej więcej
-   tyle, ile miałaby wtedy trzecia kolumna, i dlatego trzeciej dalej NIE MA.
-   To jest świadome ustępstwo: strona powitalna pokazuje sześć wpisów naraz
-   zamiast dwóch, a kto chce je obejrzeć w pełnej szerokości, wchodzi
-   w „Świeżo z Kuking" (/odkryj), gdzie karty stoją w jednej kolumnie
-   szerokiej na --container-content.
-
-   SIATKA OD RAZU, NIE `.stack` PLUS SIATKA OD 64REM. Pierwsza wersja tego
-   kodu miała na tym elemencie obie klasy naraz, a `.stack` to
-   `> * + * { margin-top }`, nie flex. W siatce ten margines DODAJE się do
-   `gap`, więc pierwsza karta w każdym rzędzie miałaby inny odstęp od góry
-   niż druga — rozjazd widoczny tylko na szerokim ekranie i tylko w drugim
-   rzędzie, czyli dokładnie taki, jakiego nikt nie zauważa przed wdrożeniem. */
-.landing-wpisy {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--spacing-5);
-  align-items: start;
-}
-
-@media (min-width: 64rem) {
-  .landing-wpisy {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* ---------------------------------------------------------------------------
