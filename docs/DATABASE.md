@@ -1061,10 +1061,9 @@ Tylko metadata, nie binary:
 - width/height;
 - status;
 - checksum;
-- perceptual hash;
 - metadata.
 
-Trzy z tych kolumn nie mówią o sobie samą nazwą:
+Dwie z tych kolumn nie mówią o sobie samą nazwą:
 
 - **`mime_type varchar(120) NULL`** — typ pliku **odczytany z jego zawartości**
   przez `getimagesize()` w `StoreUploadedImage`, a NIE nagłówek `Content-Type`
@@ -1076,15 +1075,26 @@ Trzy z tych kolumn nie mówią o sobie samą nazwą:
   człowieka**. Dla dostępności bezcenny, ale **nigdy wymagany**: wymóg opisu
   zabiłby publikację „zdjęcie + kilka słów", czyli główną akcję serwisu.
   `NULL` i pusty opis są stanem normalnym, a nie brakiem do uzupełnienia.
-- **`perceptual_hash varchar(128) NULL`** — miejsce na skrót percepcyjny
-  obrazu, czyli wartość rozpoznającą to samo zdjęcie mimo innej kompresji
-  (do moderacji: zdjęcie wstawiane ponownie po decyzji). Coś innego niż
-  `checksum_sha256`, który jest dokładnym skrótem bajtów i łapie wyłącznie
-  identyczny plik. **Uwaga: dziś NIC tej kolumny nie wypełnia ani nie czyta** —
-  jest w `$fillable` modelu `Media` i w migracji, i na tym koniec. Każdy wiersz
-  ma `NULL` i tak zostanie, dopóki liczenia skrótu nie będzie. Kolumna weszła
-  z pierwszą migracją mediów razem z cyklem życia z D-003; zostaje, bo jest
-  pusta i nic nie kosztuje, ale **nie wolno na niej niczego opierać**.
+
+**Kolumny `media.perceptual_hash` JUŻ NIE MA** (migracja
+`2026_09_12_100000_usun_martwa_kolumne_perceptual_hash`). Było to miejsce na
+skrót percepcyjny obrazu — wartość rozpoznającą to samo zdjęcie mimo innej
+kompresji, przydatną moderacji przy zdjęciu wstawianym ponownie po decyzji.
+Coś innego niż `checksum_sha256`, który jest dokładnym skrótem bajtów i łapie
+wyłącznie identyczny plik.
+
+Kolumna stała w schemacie od pierwszej migracji mediów i **przez cały ten czas
+nic jej nie wypełniało ani nie czytało**: jedynym wystąpieniem w kodzie był
+`$fillable` modelu `Media`, a każdy wiersz miał `NULL`. Pusta kolumna nie jest
+darmowa — czytający schemat widzi pole, które wygląda na działający mechanizm
+wykrywania duplikatów, i planuje na nim pracę (tak stało się dwa razy
+w `docs/legal/MODERATION_PLAYBOOK.md`). Usunięcie jest wykonaniem zauważenia
+z D-166.
+
+**Jeśli wykrywanie duplikatów zdjęć kiedyś powstanie**, kolumna wróci razem
+z kodem, który ją liczy — a nie przed nim. Skrót percepcyjny jest wartością
+WYLICZANĄ z pliku, więc odtworzenie go dla istniejących zdjęć jest przeliczeniem,
+nie odzyskiwaniem utraconych danych.
 
 **Dwie kolumny dysku, bo to dwie różne kategorie danych** (migracja
 `2026_09_06_170000_add_variants_disk_to_media`, audyt G-01).
