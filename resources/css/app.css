@@ -2219,6 +2219,28 @@
     object-fit: contain;
   }
 
+  /* POLE Z KOMUNIKATEM ZAMIAST ZDJĘCIA IDZIE NA CAŁĄ SZEROKOŚĆ (issue #432).
+     ZMIERZONE 12.09.2026, kolaż z trzema zdjęciami bez wariantów: przy 600 px
+     blok zastępczy miał 282 px z 568 px karty (50%) i komunikat łamał się na
+     15 wierszy; przy 768 px — 342 px z 688 px i 12 wierszy. To jest dokładnie
+     to, co widać na zrzucie właściciela: „mniej niż połowa szerokości karty,
+     a po prawej pusty biały obszar".
+
+     Kwadratowe pół karty jest dobrą miarą dla ZDJĘCIA i złą dla ZDANIA.
+     `grid-column: 1 / -1` daje temu jednemu polu obie kolumny, a
+     `aspect-ratio: auto` zdejmuje z niego kwadrat — komunikat jest wysoki na
+     tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
+
+     `:has()` NIE JEST TU RYZYKIEM. Przeglądarka, która go nie zna, pomija
+     całą regułę i dostaje układ sprzed tej zmiany — czyli gorszy, ale
+     działający. To jest ulepszenie stopniowe, nie warunek czytelności:
+     samą szerokość bloku w jego polu załatwia `width: 100%` na
+     `.photo-placeholder`, bez żadnego `:has()`. */
+  .kolaz-pole:has(.photo-placeholder) {
+    grid-column: 1 / -1;
+    aspect-ratio: auto;
+  }
+
   /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
      dokładnie to samo, co widok „zwykły". Kwadratowe pole i `contain` mają
      sens dopiero wtedy, gdy pole jest na tyle duże, żeby coś w nim było
@@ -5408,29 +5430,61 @@
 }
 
 /* Miejsce po zdjęciu, którego jeszcze nie ma (albo już nie będzie).
-   Proporcje idą z klasy, nie z dokładnych wymiarów pliku — patrz komentarz
-   w `components/photo.blade.php`. */
+   Kiedy ten blok w ogóle się pokazuje — patrz komentarz w
+   `components/photo.blade.php`; po #430 jest to wyjątek, nie reguła.
+
+   NA CAŁĄ SZEROKOŚĆ, I TO JEST SEDNO POPRAWKI #432.
+   Wcześniej stało tu `display: flex` i akapit stawał się elementem
+   elastycznym, który kurczy się do swojej treści. Blok miał przez to mniej
+   niż połowę szerokości karty, zdanie łamało się przy ~390 px na osiem
+   wierszy, a kropka po „przygotowuje" wypadała na początku wiersza.
+   `display: block` oddaje akapitowi całą dostępną szerokość — a że to
+   komunikat, a nie zdjęcie, `aspect-ratio` tu nie ma: blok jest wysoki na
+   tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
+
+   `box-sizing` i `width` jawnie, mimo że `.post-photo` daje jedno i drugie:
+   ten sam blok dostaje czasem inną klasę (`$class` w komponencie), a wtedy
+   szerokość nie miałaby skąd przyjść. */
 .photo-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
   padding: var(--spacing-4);
   border-radius: var(--radius-md);
-  aspect-ratio: 4 / 3;
+  background-color: var(--color-surface-sunken);
+  text-align: center;
 }
 
-.photo-placeholder-kwadrat { aspect-ratio: 1 / 1; }
-.photo-placeholder-pion { aspect-ratio: 3 / 4; }
-.photo-placeholder-panorama { aspect-ratio: 16 / 9; }
+/* 18 px jawnie — to jest minimum produktowe (docs/UX_50_PLUS.md), a ten
+   akapit stoi w karcie, gdzie dziedziczenie potrafi go zmniejszyć.
 
-.photo-placeholder p {
+   `text-wrap: pretty` prosi przeglądarkę, żeby nie zostawiała w ostatnim
+   wierszu jednego sierotnego słowa. Jest to PODPOWIEDŹ, nie gwarancja, i
+   starsze przeglądarki jej nie znają — dlatego właściwa naprawa osieroconej
+   kropki stoi w treści (dwa krótkie zdania zamiast jednego długiego), a nie
+   tutaj. To jest warstwa druga, nie jedyna.
+
+   `overflow-wrap: break-word` ratuje układ przed jednym bardzo długim
+   słowem przy 320 px i powiększeniu 200% — bez tego rozpychałoby kartę
+   w poziomie (WCAG 2.2 AA, 1.4.10 Reflow). */
+.photo-placeholder-zdanie {
   margin: 0;
+  font-size: var(--text-body);
   font-weight: 700;
   color: var(--color-ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
 }
 
-.photo-placeholder-blad p {
+/* Zdanie drugie jest wyjaśnieniem, nie nagłówkiem — stąd zwykła grubość
+   pisma. Cały komunikat złożony grubym pismem czyta się jak krzyk, a ma
+   uspokajać. */
+.photo-placeholder-zdanie + .photo-placeholder-zdanie {
+  margin-top: var(--spacing-2);
+  font-weight: 400;
+}
+
+.photo-placeholder-blad .photo-placeholder-zdanie {
   color: var(--color-danger-tint-ink);
 }
 

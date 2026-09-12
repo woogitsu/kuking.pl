@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Domain\Media\OrientacjaZdjecia;
+use App\Domain\Media\PodgladOdRazu;
 use App\Models\Media;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -100,7 +102,7 @@ class ProcessUploadedImage implements ShouldQueue
             // Intervention ma własny dekoder, który EXIF CZYTA, i domyślnie
             // orientuje obraz sam (`Config::$autoOrientation = true`,
             // `Drivers/Gd/Decoders/BinaryImageDecoder.php`). Nasze
-            // `applyOrientation()` obracało go wtedy po raz drugi.
+            // `OrientacjaZdjecia` obracała go wtedy po raz drugi.
             //
             // WYŁĄCZAMY BIBLIOTEKĘ, A NIE USUWAMY WŁASNEGO OBROTU, i to
             // jest świadomy wybór między dwiema poprawkami:
@@ -117,14 +119,33 @@ class ProcessUploadedImage implements ShouldQueue
             // która wrzuci danie do góry nogami, nie zgłosi błędu — po
             // prostu przestanie wrzucać zdjęcia.
             $manager = ImageManager::gd(autoOrientation: false);
-            $variants = [];
+
+            // ZACZYNAMY OD PODGLĄDU, KTÓRY JUŻ JEST (issue #430).
+            //
+            // `metadata.variants` jest niżej NADPISYWANE w całości, więc bez
+            // tej linii wariant `podglad` — zrobiony synchronicznie przy
+            // wgraniu — wypadłby z metadanych, a jego plik ZOSTAŁBY
+            // w publicznym buckecie na zawsze: `KasujZdjecie` chodzi właśnie
+            // po `metadata.variants` i nie ma innego sposobu, żeby się o nim
+            // dowiedzieć. Byłaby to sierota, której nie kasuje ani usunięcie
+            // wpisu, ani wymazanie konta (RODO).
+            //
+            // Podgląd zostaje też dlatego, że jest uczciwym kandydatem
+            // w `srcset`: 640 px między `thumb` (320) a `feed` (960).
+            //
+            // Stoi PIERWSZY w tablicy i to też ma znaczenie: gdy zadanie
+            // padnie w połowie, `Media::url()` bierze „pierwszy lepszy
+            // wygenerowany wariant", czyli właśnie jego.
+            $variants = array_filter([
+                PodgladOdRazu::NAZWA => $media->wariant(PodgladOdRazu::NAZWA),
+            ]);
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
 
             foreach (config('kuking.media.variants') as $name => $maxEdge) {
                 $image = $manager->read($original);
 
-                $this->applyOrientation($image, $orientation);
+                OrientacjaZdjecia::zastosuj($image, $orientation);
 
                 // scaleDown nigdy nie powiększa — małe zdjęcie zostaje małe,
                 // zamiast być rozmyte na siłę.
@@ -133,14 +154,11 @@ class ProcessUploadedImage implements ShouldQueue
                 $encoded = $image->toWebp(quality: 82);
 
                 // Wariant idzie do PUBLICZNEGO prefiksu `media/`, oryginał
-                // został w prywatnym `incoming/`. Sama zamiana prefiksu, nie
-                // przepisywanie ścieżki — dzięki temu stare wiersze, zapisane
-                // jeszcze pod `media/`, przetwarzają się bez zmian.
-                $publicznyKlucz = str_starts_with($media->object_key, 'incoming/')
-                    ? 'media/'.substr($media->object_key, strlen('incoming/'))
-                    : $media->object_key;
-
-                $variantKey = preg_replace('/\.[^.]+$/', '', $publicznyKlucz)."_{$name}.webp";
+                // został w prywatnym `incoming/`. Liczy to `Media`, bo to
+                // samo liczy `PodgladOdRazu` — dwie własne kopie tej
+                // ścieżki dałyby pliki-sieroty w buckecie, bez żadnego
+                // czerwonego testu (patrz `Media::kluczPublicznegoWariantu`).
+                $variantKey = Media::kluczPublicznegoWariantu($media->object_key, $name);
                 // BEZ `'public'`. Na R2 `x-amz-acl: public-read` jest wprost
                 // nieobsługiwany dla `PutObject` — publiczność bierze się
                 // z własnej domeny bucketu, a nie z ACL na obiekcie. Ten
@@ -220,31 +238,5 @@ class ProcessUploadedImage implements ShouldQueue
                     : 'processing_failed_or_timeout',
             ]),
         ]);
-    }
-
-    /**
-     * Ustawia zdjęcie tak, jak trzymano telefon.
-     *
-     * Znacznik EXIF Orientation ma osiem wartości i cztery z nich to odbicia
-     * lustrzane, nie same obroty. Pomijanie ich dawałoby zdjęcia poprawnie
-     * obrócone, ale odbite — co przy zdjęciu kartki z przepisem oznacza tekst
-     * czytany od tyłu.
-     */
-    private function applyOrientation(object $image, ?int $orientation): void
-    {
-        if ($orientation === null || $orientation === 1) {
-            return;
-        }
-
-        match ($orientation) {
-            2 => $image->flop(),
-            3 => $image->rotate(180),
-            4 => $image->flip(),
-            5 => $image->rotate(-90)->flop(),
-            6 => $image->rotate(-90),
-            7 => $image->rotate(90)->flop(),
-            8 => $image->rotate(90),
-            default => null,
-        };
     }
 }
