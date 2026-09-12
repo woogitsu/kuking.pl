@@ -14,6 +14,79 @@ ich nie ma.
 
 ---
 
+## Alfa 0.7 — 12 września 2026
+
+### Zdjęcia
+
+- **Po dodaniu zdjęcia widać zdjęcie, a nie napis o nim.** Do dziś po
+  opublikowaniu wpisu każdy — zawsze, nie od czasu do czasu — dostawał zdanie
+  „Twoje zdjęcie się jeszcze przygotowuje". Przyczyna nie leżała w obciążeniu,
+  tylko w kolejności: wgranie zdjęcia i publikacja wpisu to jedno żądanie, więc
+  w chwili rysowania strony nie było jeszcze ani jednej gotowej wersji zdjęcia.
+  Teraz jedna powstaje od razu. Waży **61,5 kB zamiast 6,14 MB** oryginału
+  i zostaje potem w serwisie, więc telefon pobiera 66,8 kB tam, gdzie wcześniej
+  178,6 kB.
+- **Zdjęcie widać już w trakcie wysyłania**, jeszcze zanim dojedzie na serwer —
+  prosto z pamięci telefonu. Wcześniej pokazywało się jako znaczek zajmujący
+  **niecałą połowę** szerokości; teraz bierze całą.
+- **Wpis z kilkoma zdjęciami, z których część się jeszcze przygotowuje, nie
+  rozjeżdża się już w bok.** Blok z komunikatem brał pół szerokości karty
+  i pięć wierszy — teraz całą i dwa.
+
+### Karta wpisu i strumień
+
+- **Menu przy wpisie to trzy kropki, bez podpisu.** Tak samo jak w miejscach,
+  które nasi ludzie znają od lat. Sam przycisk zszedł ze **125 px na 48 px**,
+  a główka karty na wąskim telefonie z osiemnastu wierszy na osiem.
+- **Data przy wpisie z tego roku nie powtarza roku** — „12 września, 10:04"
+  zamiast „12 września 2026, 10:04". Przy starszych wpisach rok zostaje, bo
+  bez niego data przestaje być prawdą.
+- **Wpis, który jest tylko wskazaniem przepisu, prowadzi wprost do przepisu.**
+  Wcześniej otwierał pustą stronę — bez zdjęcia i bez przepisu — z której
+  trzeba było kliknąć jeszcze raz. Przy okazji: taka strona pokazywała
+  „publicznie" także pod przepisem widocznym wyłącznie dla obserwujących.
+- **Zakładka „Świeżo z kuKING" odzyskała zjedzoną spację**, a awatary przy
+  wpisach przestały być ściskane w owal.
+
+### Komentarze
+
+- **„Odpowiedz" i „Popraw" stoją obok siebie**, a nie jedno pod drugim — blok
+  akcji zszedł ze 196 px na 138 px. Przy najwęższych telefonach nadal się
+  zawijają, bo naprawdę się nie mieszczą.
+- **Zniknęła pustka nad „Napisz komentarz"**, a między podpisem pola a samym
+  polem pojawił się odstęp, którego tam nie było wcale.
+
+### Profil i ustawienia
+
+- **`@nazwa` stoi obok imienia**, a nie w osobnym wierszu. Rząd przycisków
+  profilu wjechał dzięki temu **nad zgięcie ekranu** — na telefonie pierwszy
+  raz widać go bez przewijania.
+- **„Ustawienia" prowadzą na stronę o nazwie „Ustawienia".** Do dziś ten napis
+  otwierał ekran zatytułowany „Czytelność". Nowa strona jest spisem wszystkich
+  dziewięciu ekranów ustawień.
+- **Menu konta przy awatarze** — „Mój profil", „Ustawienia", „Wyloguj się" —
+  i „Powiadomienia" w pasku górnym na telefonie. Wcześniej własny profil był
+  jedyną drogą do obsługi konta z telefonu.
+
+### Strona główna
+
+- **Powitanie przestało zmyślać porę dnia.** „Dobry wieczór" witało od 15:00,
+  a godzinę serwis liczył w strefie serwera — latem o 11:50 uważał, że jest
+  9:50, a po 23:00 mówił „Dzień dobry". Teraz wita „Witaj" i pyta, co dziś
+  gotujesz; to jest prawdą o każdej porze i w każdym kraju.
+
+### Pod spodem (bez zmian na ekranie, ale warto wiedzieć)
+
+- Komenda pokazująca, do kogo nie doszedł list z serwisu — bez pokazywania
+  żetonu z takiego listu.
+- Dziennik decyzji urósł o dziesięć wpisów (D-172 … D-181), w tym o trzy
+  REGUŁY, a nie pojedyncze poprawki: o tym, że czerwień w testach nie musi
+  pochodzić ze zmiany, którą właśnie oglądasz; o tym, że reguła CSS oparta na
+  „pierwszym elemencie" nie trafia w żadne widoczne pole formularza; i o tym,
+  że skrócenie listy kolumn w zapytaniu potrafi po cichu zgasić zdjęcie.
+
+---
+
 ## Alfa 0.6 — 11 września 2026
 
 ### Dla wszystkich
