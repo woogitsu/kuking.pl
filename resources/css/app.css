@@ -2224,6 +2224,90 @@
 
   .composer .ikona { color: var(--color-brand); }
 
+  /*
+   * KAFEL DODAWANIA PRZY BARDZO DUŻYM TEKŚCIE — TEKST DOSTAJE WŁASNY WIERSZ
+   * I PRZESTAJE SIĘ ŁAMAĆ W ŚRODKU SŁOWA.
+   *
+   * CO BYŁO ZMIERZONE (`scripts/kafel-dodawania.mjs`, Chromium 141,
+   * okno 740 px, zalogowany, `/home`, czcionka przeglądarki 200%):
+   *
+   *     okno     wysokość kafla   kolumna tekstu   tytuł    podpis
+   *     320 px       2087,1 px            50 px   19 wierszy  17 wierszy
+   *     360 px       1070,3 px            90 px    9 wierszy   9 wierszy
+   *     390 px        896,8 px           120 px    7 wierszy   8 wierszy
+   *     414 px        735,6 px           144 px    6 wierszy   6 wierszy
+   *     768 px        289,2 px           498 px    2 wiersze   2 wiersze
+   *
+   * `scripts/dostepnosc.mjs` meldował z tego dwa ostrzeżenia „focus
+   * częściowo zasłonięty" — przy 320 i 360 px, czyli DOKŁADNIE tam, gdzie
+   * kafel jest wyższy niż okno. Kontrolki wyższej niż okno nie wyprowadzi
+   * spod belki żadne przewijanie: nie ma takiego położenia strony, w którym
+   * widać ją w całości, więc `--rezerwa-pod-belka` (wyżej w tym pliku) tego
+   * nie naprawia i nie ma prawa naprawiać.
+   *
+   * TO NIE JEST WYSOKOŚĆ TEKSTU, TYLKO SZEROKOŚĆ JEGO KOLUMNY. Przy 320 px
+   * i korzeniu 32 px cały kafel ma 256 px. Odchodzi od tego obwódka (2 px)
+   * i wcięcie boczne 2 × `--spacing-5` (2 × 40 px), zostaje 174 px na rząd.
+   * W rzędzie stoją awatar (48 px), ikona (28 px) i dwa odstępy
+   * 2 × `--spacing-3` (2 × 24 px) — razem 124 px. Na kolumnę z tytułem
+   * i podpisem zostaje 50 px, przy piśmie tytułu 40 px. Reguła bazowa
+   * `overflow-wrap: break-word` (`tokens.css`) łamie wtedy wyraz w środku,
+   * bo inaczej wyszedłby poza ekran, i tytuł rozkłada się na 19 wierszy.
+   * Komentarz przy tamtej regule mówi wprost, jak się takie miejsce
+   * naprawia: „szerokością TAMTEJ kolumny, nie zdejmowaniem tej reguły".
+   *
+   * CO ROBI TA REGUŁA
+   * 1. Tekst dostaje CAŁY WIERSZ (`flex-basis: 100%`) — ten sam zabieg
+   *    i z tego samego powodu co `.bottom-nav-item-glowna` wyżej: awatar
+   *    i ikona przestają odbierać kolumnie tekstu 124 z jej 174 px.
+   * 2. Wcięcie boczne przestaje się podwajać razem z czcionką przeglądarki.
+   *    20 px to DOKŁADNIE `--spacing-5` przy korzeniu 16 px, więc zwykły
+   *    telefon nie traci ani piksela — ta liczba nie zmniejsza wcięcia,
+   *    tylko nie pozwala mu urosnąć. To ta sama zasada, co przy
+   *    `min-height: 60px` w belce (D-107): szerokość ekranu nie rośnie od
+   *    powiększenia czcionki, więc wcięcie liczone od tej szerokości też
+   *    nie ma powodu rosnąć. Wcięcie PIONOWE zostaje w tokenie — ono
+   *    oddziela wiersze tekstu, więc jest typograficzne (D-160).
+   * 3. Ikona schodzi z układu. Nie dlatego, że przeszkadza wysokością —
+   *    w rzędzie z awatarem (48 px) jej 28 px nic nie kosztuje — tylko
+   *    dlatego, że elementy flexa układają się PO KOLEI: tekst z własnym
+   *    wierszem zepchnąłby ją do trzeciego wiersza, samą, za 28 px
+   *    wysokości plus odstęp. Jest to ikona ozdobna (`aria-hidden="true"`,
+   *    komponent `x-ikona` jest z założenia niemy dla czytnika ekranu),
+   *    więc jej zniknięcie nie zabiera nikomu ani jednego słowa; reguła
+   *    „ikona nigdy nie jest jedynym opisem ważnej akcji" (AGENTS.md §5)
+   *    nie ma tu czego bronić, bo opisem jest tytuł kafla.
+   *
+   * CZEGO TA POPRAWKA NIE ROBI — i to są zakazy z tego zadania:
+   * pismo tytułu zostaje przy `--text-body-lg` (40 px przy tym korzeniu),
+   * pismo podpisu przy `--text-help`, ani jedno słowo nie znika, a cel
+   * dotknięcia zostaje całym kaflem (zmierzone 256 × … px, czyli grubo
+   * ponad 48 × 48 px z `docs/UX_50_PLUS.md`).
+   *
+   * PRÓG `max-width: 15rem` to ten sam próg, co przy `--rezerwa-pod-belka`
+   * i przy odpięciu `.topbar` — pełne wyprowadzenie stoi tam. Mówi on
+   * „tekst jest duży w stosunku do ekranu", a nie „ekran jest wąski":
+   * telefon 320 px przy korzeniu 16 px to 20rem i próg go nie łapie, ten
+   * sam telefon przy czcionce przeglądarki 200% to 10rem i łapie. Zwykły
+   * telefon i nasze `data-text-scale="140"` (korzenia nie ruszają) dostają
+   * kafel bez jednej zmiany — i to jest kontrola dodatnia tej poprawki
+   * wpisana w sam mechanizm, a nie dołożona obok.
+   */
+  @media (max-width: 15rem) {
+    .composer {
+      flex-wrap: wrap;
+      padding-inline: 20px;
+    }
+
+    .composer > .ikona {
+      display: none;
+    }
+
+    .composer-copy {
+      flex-basis: 100%;
+    }
+  }
+
   .post-photo {
     display: block;
     width: 100%;
