@@ -220,7 +220,7 @@ Uzasadnienie: **D-062 §3**.
 ### Dlaczego to nie ma własnego numeru decyzji
 
 Bo nie jest nową decyzją, tylko wykonaniem czterech już podjętych: **D-041**
-wybrało ten kanał zamiast Sentry, **D-042** zapisało, że `failed_jobs` nie
+wybrało ten kanał zamiast Sentry, **D-057 §4** zapisało, że `failed_jobs` nie
 widzi nikt, **D-050** że brak kluczy Turnstile musi być widoczny z zewnątrz,
 a **D-062** że przepadły list zapala `/health`. Brakowało jednego połączenia:
 `/health` wiedział o tych awariach i nie mówił o nich nikomu, kto sam nie
