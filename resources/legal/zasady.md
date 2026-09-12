@@ -15,7 +15,7 @@ Kuking to miejsce dla ludzi, którzy naprawdę gotują. Chcemy, żeby było tu m
 11. **Możesz się odwołać.** Jeśli usunęliśmy Twoją treść albo zawiesiliśmy konto, a uważasz, że to pomyłka — napisz do nas. Sprawdzimy to jeszcze raz.
 12. **Nie inwigilujemy, ale sprawdzamy treści maszynowo.** Nie czytamy Twoich treści po to, żeby Cię oceniać. Mamy dwa narzędzia, które oglądają to, co publikujesz:
     - pierwsze wychwytuje typowe znaki ogłoszeń i spamu — tę samą treść wysłaną kilka razy pod rząd, obcy odnośnik w pierwszych wpisach nowego konta, numer telefonu podany do kontaktu;
-    - drugie to zewnętrzny model (OpenAI), który ocenia tekst i zdjęcia pod kątem przemocy, mowy nienawiści, treści seksualnych i samookaleczenia. Co do niego wysyłamy, a czego nie — opisuje [polityka prywatności](/polityka-prywatnosci).
+    - drugie to zewnętrzny model (OpenAI), który ocenia tekst i zdjęcia pod kątem przemocy, mowy nienawiści, treści seksualnych i samookaleczenia. Co do niego wysyłamy, a czego nie — opisuje [polityka prywatności](/prywatnosc).
 
     Oba **tylko pokazują treść człowiekowi do przeczytania**. **Żadne z nich niczego samo nie ukrywa, nie usuwa, nie blokuje ani nie ogranicza zasięgu.** Jeśli się pomylą, nie dowiesz się o tym, bo z Twoją treścią nic się nie dzieje. Jeśli po przeczytaniu człowiek podejmie decyzję, napiszemy Ci o niej i powiemy, że treść wskazało narzędzie, a nie zgłoszenie.
 

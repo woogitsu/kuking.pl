@@ -1962,6 +1962,49 @@ W środowisku `staging`: **Serverless ON** dla `web`.
 **Wykonaj teraz** (na pustej bazie jest szybko) i potem **raz na kwartał**.
 Backup, którego nigdy nie przywróciłeś, jest niesprawdzony.
 
+### 13.0 Najpierw poćwicz lokalnie — jedną komendą
+
+Zanim pójdziesz do produkcji przez tunel, przejdź całą pętlę na własnej
+maszynie. To ta sama droga, tylko na bazie, której zepsucie nic nie kosztuje:
+
+```bash
+scripts/proba-odtworzenia.sh --petla-lokalna
+```
+
+Jedna komenda robi cztery rzeczy po kolei:
+
+1. **kopię** lokalnej bazy — tym samym `scripts/kopia-lokalna.sh`, którym
+   robi się kopię naprawdę, a nie zrzutem zrobionym obok innymi flagami;
+2. **odtworzenie** do świeżej, osobnej bazy `proba_odtworzenia_*`
+   (produkcji nie dotyka w żadnym trybie — pilnują tego dwa bezpieczniki);
+3. **porównanie liczby wierszy w KAŻDEJ tabeli**, co do jednego. Rozjazd
+   choćby jednej kończy przebieg kodem 63;
+4. **`php artisan migrate:status`** na odtworzonej bazie — bo komplet
+   wierszy w schemacie sprzed trzech migracji to nie jest działająca baza.
+   Migracja czekająca albo zgubiona tabela `migrations` to kod 64.
+
+Kończy się liczbami, nie ptaszkiem. Zmierzone 12 września 2026 na bazie
+deweloperskiej z danymi demo:
+
+| Co | Ile |
+|---|---|
+| tabel w archiwum / w odtworzonej bazie | 50 / 50 |
+| tabel porównanych co do jednego wiersza | 50 |
+| wierszy w odtworzonej bazie / w źródle | 159 / 159 |
+| migracji wykonanych / czekających | 75 / 0 |
+| czas odtworzenia (RTO tej warstwy) | 1 s |
+
+**Czego ta pętla NIE dowodzi.** Że kuking.pl ma kopię. Nie ma: liczba kopii
+produkcyjnej bazy wynosi dziś **zero** i zmienią to wyłącznie czynności
+właściciela z [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md) §8. Zielony
+przebieg znaczy „mechanizm kopii i odtworzenia działa", a nie „dane są
+bezpieczne".
+
+**Że ta pętla naprawdę porównuje**, a nie melduje sukces nie robiąc nic,
+sprawdza kontrola ujemna w `tests/skrypty/proba-odtworzenia.sh`: kilka
+wierszy skasowanych w odtworzonej bazie przed porównaniem ma ją **oblać**
+— i oblewa, kodem 63.
+
 ```bash
 # 1. Tunel do bazy — baza NIE jest wystawiana publicznie
 railway link --environment production
