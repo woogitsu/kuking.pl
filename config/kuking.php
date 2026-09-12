@@ -16,6 +16,42 @@ use App\Support\Facebook;
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Profil
+    |--------------------------------------------------------------------------
+    */
+    'profil' => [
+        /*
+         * ILE ZNAKÓW MOŻE MIEĆ NAZWA POKAZYWANA (`display_name`).
+         *
+         * DLACZEGO TO JEST LICZBA O UKŁADZIE, A NIE O UPRZEJMOŚCI.
+         * Nazwa autora w karcie wpisu jest ODNOŚNIKIEM, a odnośnik jest
+         * kontrolką, którą przeglądarka po Tab przewija w widok. Kontrolki
+         * WYŻSZEJ NIŻ OKNO nie da się pokazać w całości żadnym przewijaniem
+         * — ani rezerwą nad paskiem (D-184), ani niczym innym.
+         *
+         * ZMIERZONE (`scripts/glowka-karty-wpisu.mjs`, okno 320 px, czcionka
+         * przeglądarki 200%, wysokość odnośnika nazwy; wiersz ma tam 55,8 px):
+         *
+         *     10 zn.  →  99,8 px       57 zn.  →  490,38 px
+         *     20 zn.  →  211,39 px     69 zn.  →  601,97 px
+         *     40 zn.  →  378,78 px     83 zn.  →  713,56 px
+         *     47 zn.  →  434,58 px     99 zn.  →  825,16 px
+         *
+         * Przy dawnym limicie 100 znaków sama nazwa brała 825 px, czyli
+         * WIĘCEJ niż okno, w którym mierzy automat dostępności (740 px).
+         *
+         * LICZBA JEST TU, A NIE W CZTERECH KONTROLERACH, bo w czterech
+         * miejscach rozjedzie się przy pierwszej zmianie — a rozjazd znaczy
+         * tutaj „przez rejestrację wejdzie nazwa, której ustawienia już nie
+         * przyjmą". Kolumna w bazie zostaje przy 100 znakach ŚWIADOMIE: baza
+         * ma pomieścić to, co już w niej leży, a bramką jest walidacja.
+         * Pilnuje tego `DlugoscNazwyProfiluTest`.
+         */
+        'dlugosc_nazwy' => 40,
+    ],
+
     'media' => [
         // Dysk Laravel Filesystem, na którym żyją zdjęcia. Dzięki temu przejście
         // z dysku lokalnego na Cloudflare R2 jest zmianą konfiguracji, nie kodu.

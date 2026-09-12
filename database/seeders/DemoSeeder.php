@@ -64,15 +64,22 @@ class DemoSeeder extends Seeder
         ]);
 
         /*
-         * KONTO Z NAZWĄ NA PEŁNE 100 ZNAKÓW — NAJTRUDNIEJSZY WARIANT PROFILU
-         * (issue #440)
+         * KONTO Z NAZWĄ NA PEŁNY LIMIT — NAJTRUDNIEJSZY WARIANT PROFILU
+         * (issue #440, potem #467)
          *
-         * `display_name` ma w walidacji `max:100` (RegisterController,
-         * ProfileSettingsController, oba loginy zewnętrzne) i ani jednego
-         * ograniczenia na długość pojedynczego SŁOWA. Nazwa niżej ma
-         * dokładnie 100 znaków, a najdłuższy nieprzerwany ciąg w niej — 55.
-         * Jest więc poprawnym wejściem, jakie człowiek może wpisać dziś,
-         * bez żadnej sztuczki.
+         * `display_name` ma w walidacji `max:` z `config('kuking.profil.dlugosc_nazwy')`
+         * (RegisterController, ProfileSettingsController, oba loginy
+         * zewnętrzne) i ani jednego ograniczenia na długość pojedynczego
+         * SŁOWA. Nazwa niżej ma dokładnie tyle znaków, ile wynosi limit,
+         * a najdłuższy nieprzerwany ciąg w niej — 29. Jest więc poprawnym
+         * wejściem, jakie człowiek może wpisać dziś, bez żadnej sztuczki.
+         *
+         * DO 12 WRZEŚNIA LIMIT WYNOSIŁ 100 ZNAKÓW i ta nazwa też tyle miała.
+         * Zmierzone wtedy: sam odnośnik nazwy w karcie wpisu brał 825,16 px
+         * przy oknie 320 px i czcionce przeglądarki 200%, czyli więcej niż
+         * okno, w którym mierzy automat dostępności (740 px). Liczba w tym
+         * seederze ma iść ZA limitem, nie obok niego — inaczej automat
+         * przestanie widzieć najtrudniejszy wariant, który produkt dopuszcza.
          *
          * DO 12 WRZEŚNIA TAKIEGO KONTA W DANYCH DEMO NIE BYŁO. Najdłuższa
          * nazwa profilu miała 16 znaków („Moderacja Kuking"), a dwie
@@ -89,7 +96,7 @@ class DemoSeeder extends Seeder
         $zofia = $this->createUser(
             'zofia@example.test',
             'zofia_z_bieszczad',
-            'Małgorzata Konstantynopolitańczykowianeczka-Brzęczyszczykiewiczowa z Kamiennej Góry na Dolnym Śląsku',
+            'Małgorzata Konstantynopolitańczykowianka',
             [
                 'bio' => 'Gotuję dla wnuków, kiedy przyjeżdżają na wakacje. Najchętniej pierogi i kompot z rabarbaru.',
                 'region' => 'Dolny Śląsk',

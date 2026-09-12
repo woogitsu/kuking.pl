@@ -17,10 +17,10 @@ use Tests\TestCase;
  * CO BYŁO NIE TAK
  * ---------------
  * `scripts/dostepnosc.mjs` mierzył profil na dwóch kontach demo: „Basia"
- * (5 znaków) i „Ania" (4). `display_name` ma w walidacji `max:100`
- * i ani jednego ograniczenia na długość pojedynczego SŁOWA, więc sto znaków
- * w jednym kawałku jest poprawnym wejściem — a automat nie widział go
- * ani razu.
+ * (5 znaków) i „Ania" (4). `display_name` ma w walidacji maksimum z konfiguracji
+ * (`kuking.profil.dlugosc_nazwy`) i ani jednego ograniczenia na długość
+ * pojedynczego SŁOWA, więc pełny limit w jednym kawałku jest poprawnym
+ * wejściem — a automat nie widział go ani razu.
  *
  * Skutek: zdanie „nic nie wyjeżdża w bok na profilu" dotyczyło ekranu,
  * którego najtrudniejszego wariantu nikt nie sprawdził. To jest pułapka 5
@@ -44,30 +44,63 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
     use RefreshDatabase;
     use WycinaObudoweEkranu;
 
-    /** Maksimum z walidacji `display_name` — to ono definiuje „najtrudniejszy". */
-    private const MAKSIMUM = 100;
+    /**
+     * Maksimum z walidacji `display_name` — to ono definiuje „najtrudniejszy".
+     *
+     * CZYTANE Z KONFIGURACJI, NIE WPISANE. Poprzednia wersja tego pliku miała
+     * tu stałą `100` i komentarz „jeśli maksimum jest inne, popraw stałą
+     * w tym teście ORAZ nazwę w DemoSeederze". Przy zmianie limitu (#467)
+     * okazało się, że tych miejsc jest sześć, nie dwa. Liczba przepisana
+     * w drugie miejsce rozjeżdża się przy pierwszej zmianie, a rozjazd znaczy
+     * tutaj „próbka przestaje być najtrudniejszym wariantem, nie przestając
+     * nim wyglądać" — czyli dokładnie to, przed czym ten plik ma bronić.
+     */
+    private function maksimum(): int
+    {
+        return (int) config('kuking.profil.dlugosc_nazwy');
+    }
 
     #[Test]
-    public function test_walidacja_nadal_dopuszcza_sto_znakow_bez_limitu_dlugosci_slowa(): void
+    public function test_walidacja_bierze_limit_z_konfiguracji_i_nie_ogranicza_dlugosci_slowa(): void
     {
-        // Gdyby maksimum kiedyś spadło albo doszłoby ograniczenie długości
-        // słowa, „najtrudniejszy wariant" znaczyłby co innego — i cały ten
-        // plik pilnowałby nieaktualnej liczby, nie wiedząc o tym.
-        $kontroler = (string) file_get_contents(
-            base_path('app/Http/Controllers/Auth/RegisterController.php'),
-        );
+        /*
+         * Pytamy o to, czy kontroler CZYTA limit z konfiguracji, a nie o samą
+         * liczbę. Liczba wpisana w kontrolerze przeszłaby ten test dokładnie
+         * raz — w dniu, w którym akurat równa się konfiguracji.
+         *
+         * Wszystkie cztery miejsca, bo `display_name` wchodzi czterema
+         * drzwiami: rejestracja, ustawienia i dwa logowania zewnętrzne.
+         * Rozjazd między nimi znaczy „przez rejestrację wejdzie nazwa,
+         * której ustawienia już nie przyjmą".
+         */
+        $drzwi = [
+            'app/Http/Controllers/Auth/RegisterController.php',
+            'app/Http/Controllers/Settings/ProfileSettingsController.php',
+            'app/Http/Controllers/Auth/GoogleLoginController.php',
+            'app/Http/Controllers/Auth/FacebookLoginController.php',
+        ];
 
-        $this->assertStringContainsString(
-            "'display_name' => ['required', 'string', 'min:2', 'max:".self::MAKSIMUM."']",
-            $kontroler,
-            'Zmieniły się reguły `display_name`. Jeśli maksimum jest inne, popraw '.
-            'stałą w tym teście ORAZ nazwę w DemoSeederze — inaczej próbka automatu '.
-            'przestaje być najtrudniejszym wariantem, nie przestając nim wyglądać.',
+        foreach ($drzwi as $sciezka) {
+            $this->assertStringContainsString(
+                "'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')]",
+                (string) file_get_contents(base_path($sciezka)),
+                $sciezka.' nie bierze limitu nazwy z konfiguracji. Liczba wpisana wprost '.
+                'rozjedzie się z pozostałymi trzema drzwiami przy pierwszej zmianie.',
+            );
+        }
+
+        // Ograniczenia długości pojedynczego SŁOWA nadal nie ma — i to ono,
+        // nie suma znaków, wypycha stronę w bok.
+        $this->assertStringNotContainsString(
+            'regex:/^\\S{1,',
+            (string) file_get_contents(base_path($drzwi[0])),
+            'Doszło ograniczenie długości słowa. „Najtrudniejszy wariant" znaczy '.
+            'wtedy co innego i cały ten plik pilnuje nieaktualnego założenia.',
         );
     }
 
     #[Test]
-    public function test_dane_demo_maja_profil_z_nazwa_na_pelne_sto_znakow(): void
+    public function test_dane_demo_maja_profil_z_nazwa_na_pelny_limit(): void
     {
         $this->seed(DemoSeeder::class);
 
@@ -86,25 +119,34 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
         $najdluzsza = $nazwy->map(fn (string $n): int => mb_strlen($n))->max();
 
         $this->assertSame(
-            self::MAKSIMUM,
+            $this->maksimum(),
             $najdluzsza,
-            'W danych demo nie ma profilu z nazwą na pełne '.self::MAKSIMUM.' znaków. '.
+            'W danych demo nie ma profilu z nazwą na pełne '.$this->maksimum().' znaków. '.
             'Bez niego automat dostępności mierzy profil wyłącznie z nazwą krótką, '.
             'a o najtrudniejszym wariancie tego ekranu nie mówi nic.',
         );
 
         // I najdłuższe pojedyncze SŁOWO — bo to ono, nie suma znaków,
         // wypycha stronę w bok. Nazwa złożona z samych krótkich wyrazów
-        // miałaby 100 znaków i nie byłaby trudna.
-        $zNajdluzsza = $nazwy->first(fn (string $n): bool => mb_strlen($n) === self::MAKSIMUM);
+        // miałaby pełną długość i nie byłaby trudna.
+        $zNajdluzsza = $nazwy->first(fn (string $n): bool => mb_strlen($n) === $this->maksimum());
         $najdluzszeSlowo = max(array_map('mb_strlen', preg_split('/\s+/u', (string) $zNajdluzsza) ?: []));
 
+        /*
+         * PRÓG JEST UŁAMKIEM LIMITU, NIE LICZBĄ. Przy limicie 100 znaków
+         * wymagaliśmy słowa na co najmniej 40 — czyli 40% nazwy w jednym
+         * nieprzerwanym ciągu. Wpisana na sztywno czterdziestka przy limicie
+         * 40 znaków znaczyłaby „cała nazwa musi być jednym słowem", co jest
+         * wymaganiem nie do spełnienia dla nazwy wyglądającej jak nazwa.
+         */
+        $prog = (int) ceil(0.4 * $this->maksimum());
+
         $this->assertGreaterThanOrEqual(
-            40,
+            $prog,
             $najdluzszeSlowo,
-            'Nazwa ma sto znaków, ale same krótkie wyrazy — a stronę w bok wypycha '.
-            'najdłuższy nieprzerwany ciąg, nie suma. Taka próbka wygląda na trudną '.
-            'i nie jest.',
+            'Nazwa ma pełne '.$this->maksimum().' znaków, ale same krótkie wyrazy — '.
+            'a stronę w bok wypycha najdłuższy nieprzerwany ciąg, nie suma. '.
+            'Taka próbka wygląda na trudną i nie jest.',
         );
     }
 
@@ -115,9 +157,9 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
 
         $profil = Profile::query()
             ->get()
-            ->first(fn (Profile $p): bool => mb_strlen((string) $p->display_name) === self::MAKSIMUM);
+            ->first(fn (Profile $p): bool => mb_strlen((string) $p->display_name) === $this->maksimum());
 
-        $this->assertNotNull($profil, 'Brak profilu o nazwie na sto znaków.');
+        $this->assertNotNull($profil, 'Brak profilu o nazwie na pełny limit.');
 
         $odpowiedz = $this->get('/@'.$profil->username);
         $odpowiedz->assertOk();
@@ -149,16 +191,16 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
         $this->assertStringContainsString(
             "const KONTO_DLUGA_NAZWA = 'zofia_z_bieszczad';",
             $skrypt,
-            'Z automatu zniknęła stała z nazwą konta o stuznakowym profilu.',
+            'Z automatu zniknęła stała z nazwą konta o najdłuższej dopuszczalnej nazwie.',
         );
 
         // Pozycja na liście EKRANY — czyli w tej jednej pętli, która przechodzi
         // przez komplet szerokości i skal tekstu. Sama stała nie wystarcza:
         // nieużyta byłaby martwym kodem, a raport dalej wyglądałby na kompletny.
         $this->assertMatchesRegularExpression(
-            '/\{\s*nazwa:\s*\x27profil \(nazwa na 100 znaków\)\x27,\s*adres:\s*`\/@\$\{KONTO_DLUGA_NAZWA\}`/u',
+            '/\{\s*nazwa:\s*\x27profil \(najdłuższa dopuszczalna nazwa\)\x27,\s*adres:\s*`\/@\$\{KONTO_DLUGA_NAZWA\}`/u',
             $skrypt,
-            'Profil ze stuznakową nazwą nie jest pozycją listy EKRANY. Bez tego '.
+            'Profil z najdłuższą dopuszczalną nazwą nie jest pozycją listy EKRANY. Bez tego '.
             'automat go nie otwiera — a brak ekranu na liście niczego nie psuje: '.
             'raport wygląda na kompletny i świeci na zielono.',
         );
@@ -170,7 +212,7 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
         /*
          * REGRESJA ZNALEZIONA TĄ WŁAŚNIE PRÓBKĄ (issue #440).
          *
-         * Po dopisaniu profilu ze stuznakową nazwą `scripts/dostepnosc.mjs`
+         * Po dopisaniu profilu z najdłuższą dopuszczalną nazwą `scripts/dostepnosc.mjs`
          * pokazał trzy naruszenia WCAG 2.2 AA 2.4.11 (Focus Not Obscured),
          * których przedtem nie było ANI JEDNEGO. Wszystkie na tym samym
          * elemencie: menu „Więcej przy tym wpisie" na karcie wpisu autora
@@ -274,7 +316,10 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
          * reguły i zdjęcie jednej zostawia drugą.
          *
          * Zmierzone na `/@zofia_z_bieszczad` przy 320 px, profil z nazwą
-         * na 100 znaków (najdłuższy nieprzerwany ciąg: 55):
+         * na 100 znaków (najdłuższy nieprzerwany ciąg: 55). Tyle wynosił
+         * wtedy limit; od #467 wynosi tyle, ile mówi `kuking.profil.dlugosc_nazwy`.
+         * Liczby niżej zostają takie, jakie były w dniu pomiaru — pomiar
+         * przepisany pod nowy stan przestaje być pomiarem:
          *
          *   obie reguły                          scrollWidth 320  bez przepełnienia
          *   bez `.profil-tozsamosc > *`          scrollWidth 320  bez przepełnienia
