@@ -13,33 +13,57 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
- * Zdjęcie wpisu tuż po publikacji (audyt A2).
+ * Zdjęcie wpisu tuż po publikacji (audyt A2, potem issue #430).
  *
- * CO SIĘ DZIAŁO
- * `StoreUploadedImage` wrzuca przetwarzanie zdjęcia do kolejki i wraca
- * natychmiast. `PostController::store()` od razu przekierowuje na stronę
- * wpisu. Między publikacją a końcem zadania w tle jest okno — realne, kilka
- * sekund na produkcji — w którym `Media` ma status `pending`, a
- * `<x-photo>` (docs/UX_50_PLUS.md, AGENTS.md §7: „widoki nie pokazują
- * zdjęcia w stanie innym niż ready”) renderowało w tym miejscu KOMPLETNIE
- * NIC. Autor, który właśnie kliknął „Opublikuj”, widział swoje imię,
- * dzisiejszą datę i pustkę zamiast jedzenia — dokładnie w momencie, w którym
- * miał poczuć, że mu się udało.
+ * CO SIĘ DZIAŁO — I DLACZEGO PIERWSZA NAPRAWA BYŁA ZA SŁABA
  *
- * DLACZEGO TEN TEST NIE UFA KOLEJCE
- * `phpunit.xml` ustawia `QUEUE_CONNECTION=sync` (patrz komentarz przy tym
- * ustawieniu) — zadanie kończy się, zanim kontroler zdąży odpowiedzieć,
- * więc okno „zdjęcie jeszcze nie gotowe” w ogóle nie istnieje w domyślnym
- * przebiegu testów. Każdy test tutaj używa `Queue::fake()`, żeby zamrozić
- * `Media` w stanie `pending` DOKŁADNIE tak, jak wygląda to na produkcji
- * w pierwszych sekundach po publikacji.
+ * `StoreUploadedImage` wrzuca przetwarzanie do kolejki i wraca natychmiast,
+ * a `PostController::store()` od razu przekierowuje na stronę wpisu. Między
+ * publikacją a końcem zadania w tle jest okno, w którym `Media` ma status
+ * `pending`. Audyt A2 kazał wypełnić to okno KOMUNIKATEM, żeby w miejscu
+ * zdjęcia nie było pustki — i tak też było zrobione.
+ *
+ * Właściciel serwisu odrzucił to rozwiązanie (#430) i miał rację:
+ *
+ *   „trzeba jakoś od razu im pokazywać zdjęcie które dodali, a nie napis że
+ *    jest przetwarzane. (…) Starzy ludzie nie czytają i będzie panika co się
+ *    stało..."
+ *
+ * Okno nie jest tu bowiem przypadkiem ani skutkiem obciążenia — wgranie
+ * zdjęcia i publikacja wpisu to JEDNO żądanie, więc w chwili pierwszego
+ * renderu strony zadanie w tle nie mogło było policzyć niczego. Komunikat nie
+ * był więc rzadkim widokiem na wypadek opóźnienia, tylko TYM, co po
+ * opublikowaniu wpisu widziała każda osoba, zawsze.
+ *
+ * DZIŚ: `StoreUploadedImage` robi wariant `podglad` synchronicznie
+ * (`App\Domain\Media\PodgladOdRazu`), więc pierwszy render ma już co pokazać.
+ * Komunikat zostaje dla sytuacji, w których wariantu naprawdę nie ma —
+ * i te też mają tu swoje testy, bo inaczej ten plik byłby zielony nad
+ * usterką, którą opisuje #432.
+ *
+ * DLACZEGO TE TESTY NIE UFAJĄ KOLEJCE
+ * `phpunit.xml` ustawia `QUEUE_CONNECTION=sync` — zadanie skończyłoby się,
+ * zanim kontroler zdąży odpowiedzieć, więc okno „warianty jeszcze nie
+ * policzone" w ogóle by nie istniało. Każdy test niżej używa `Queue::fake()`,
+ * żeby zamrozić `Media` dokładnie w stanie z produkcji.
  */
 class PrzygotowywanieZdjeciaWpisuTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
+
+    /**
+     * Jedyny sposób odróżnienia „prawdziwe zdjęcie" od „miejsce na zdjęcie".
+     *
+     * Strona ZAWSZE zawiera jakiś `<img>` — choćby pusty podgląd w nakładce
+     * powiększenia (`layout.blade.php`, `#powiekszenie`) — a blok zastępczy
+     * też dostaje klasę `post-photo`, żeby zajmować to samo miejsce.
+     */
+    private const ZNACZNIK_ZDJECIA = '<img class="post-photo"';
 
     protected function setUp(): void
     {
@@ -47,69 +71,84 @@ class PrzygotowywanieZdjeciaWpisuTest extends TestCase
         Storage::fake('public');
     }
 
-    public function test_autor_widzi_ze_zdjecie_sie_przygotowuje_zamiast_pustego_miejsca(): void
+    public function test_autor_widzi_swoje_zdjecie_od_razu_po_publikacji_a_nie_napis_o_nim(): void
     {
+        // To jest issue #430 zapisane jako test.
         Queue::fake();
 
         $basia = $this->user('basia');
 
-        $response = $this->actingAs($basia)->post(route('posts.store'), [
+        $this->actingAs($basia)->post(route('posts.store'), [
             'photos' => [UploadedFile::fake()->image('obiad.jpg', 1200, 900)],
             'visibility' => 'public',
         ]);
 
         $post = Post::firstOrFail();
-        $this->assertSame(Media::STATUS_PENDING, $post->media->first()->status, 'Test nie odtwarza stanu, który miał sprawdzić: zdjęcie jest już gotowe.');
+        $zdjecie = $post->media->first();
 
-        $html = $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent();
+        // Stan odtworzony NAPRAWDĘ, nie udawany: zadanie w tle nie ruszyło,
+        // więc wariantów z `kuking.media.variants` nie ma ani jednego.
+        $this->assertSame(Media::STATUS_PENDING, $zdjecie->status, 'Test nie odtwarza stanu, który miał sprawdzić: zdjęcie jest już gotowe.');
+        $this->assertFalse($zdjecie->maWariant('feed'), 'Test nie odtwarza stanu, który miał sprawdzić: zadanie w tle zdążyło policzyć warianty.');
 
-        // Komunikat, nie pusta ramka i nie sam spinner: autor ma wiedzieć
-        // CO się dzieje i że nic nie zginęło.
-        $this->assertStringContainsString('przygotowuje', $html);
-        $this->assertStringContainsString('Nic nie zginęło', $html);
+        $tresc = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+
+        $this->assertStringContainsString(
+            self::ZNACZNIK_ZDJECIA,
+            $tresc,
+            'Autorka nie widzi swojego zdjęcia zaraz po publikacji — dokładnie usterka #430.',
+        );
+        $this->assertStringNotContainsString('przygotowuje', $tresc);
     }
 
-    public function test_odswiezenie_strony_pokazuje_gotowe_zdjecie_bez_javascriptu(): void
+    public function test_zdjecie_widoczne_od_razu_jest_wariantem_a_nie_oryginalem(): void
     {
-        Storage::fake('public');
-        $basia = $this->user('basia');
-
-        // Kolejka udaje OD RAZU, przed wgraniem — inaczej `QUEUE_CONNECTION=sync`
-        // z phpunit.xml przetworzyłby zdjęcie natychmiast, w środku `handle()`,
-        // i test nie odtworzyłby stanu, który ma sprawdzić.
+        // WARUNEK TWARDSZY NIŻ SAMA WIDOCZNOŚĆ ZDJĘCIA. Oryginał niesie EXIF
+        // (aparat, data, a w wierszach sprzed D-023 także GPS kuchni).
+        // „Pokazujemy od razu" nie ma prawa znaczyć „pokazujemy plik
+        // przysłany przez użytkownika".
         Queue::fake();
 
-        $media = app(StoreUploadedImage::class)->handle(
+        $basia = $this->user('basia');
+
+        $zdjecie = app(StoreUploadedImage::class)->handle(
             $basia,
             UploadedFile::fake()->image('obiad.jpg', 1200, 900),
         );
 
-        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$media->getKey()], visibility: 'public');
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
 
-        // Uwaga: strona ZAWSZE zawiera jeden `<img>` — pusty podgląd w modalu
-        // powiększenia (layout.blade.php, `#powiekszenie`) — a placeholder
-        // niżej też dostaje klasę `post-photo` (żeby zajmować to samo
-        // miejsce w siatce). Sprawdzamy więc konkretnie ZNACZNIK `<img
-        // class="post-photo"`, jedyny sposób odróżnienia „prawdziwe zdjęcie”
-        // od „miejsce na zdjęcie”.
-        $znacznikGotowegoZdjecia = '<img class="post-photo"';
+        $tresc = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
 
-        $htmlPrzed = $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent();
-        $this->assertStringContainsString('przygotowuje', $htmlPrzed);
-        $this->assertStringNotContainsString($znacznikGotowegoZdjecia, $htmlPrzed, 'Zdjęcie nie powinno renderować się, zanim jest ready.');
+        $this->assertStringContainsString(self::ZNACZNIK_ZDJECIA, $tresc);
 
-        // To, co na produkcji robi zadanie w tle, wołamy tu wprost — bez
-        // żadnego JavaScriptu po stronie klienta, samo odświeżenie strony
-        // (kolejny GET) ma pokazać gotowe zdjęcie.
-        (new ProcessUploadedImage($media->getKey()))->handle();
+        // Klucz oryginału nie pada na stronie ani razu — ani jako adres, ani
+        // w `srcset`. Adresem jest trasa aplikacji, a ta zna wyłącznie nazwy
+        // wariantów (biała lista w `routes/web.php`).
+        $this->assertStringNotContainsString(
+            $zdjecie->object_key,
+            $tresc,
+            'Na stronie wpisu pojawił się klucz ORYGINAŁU — pliku z nietkniętym EXIF-em.',
+        );
 
-        $htmlPo = $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent();
-        $this->assertStringContainsString($znacznikGotowegoZdjecia, $htmlPo, 'Po przetworzeniu zdjęcie ma się pokazać po zwykłym odświeżeniu strony.');
-        $this->assertStringNotContainsString('przygotowuje', $htmlPo);
+        // A to, co widać, przeszło przez nasz koder: `podglad` jest jedynym
+        // wariantem, jaki na tym etapie istnieje.
+        $zdjecie->refresh();
+        $this->assertTrue($zdjecie->maWariant('podglad'));
+        $this->assertSame('image/webp', Storage::disk('public')->mimeType(
+            (string) $zdjecie->wariant('podglad')['key'],
+        ));
     }
 
-    public function test_inni_widzowie_widza_ogolny_komunikat_bez_zwracania_sie_do_nich_jak_do_autora(): void
+    public function test_inni_widzowie_tez_widza_zdjecie_a_nie_komunikat(): void
     {
+        // Podgląd nie jest prywatnym udogodnieniem autorki: to zwykły wariant,
+        // więc wpis od pierwszej sekundy wygląda tak samo dla wszystkich,
+        // którzy mają prawo go widzieć.
         Queue::fake();
 
         $basia = $this->user('basia');
@@ -121,29 +160,147 @@ class PrzygotowywanieZdjeciaWpisuTest extends TestCase
         ]);
         $post = Post::firstOrFail();
 
-        $html = $this->actingAs($ktos)->get(route('posts.show', $post))->assertOk()->getContent();
+        $tresc = $this->trescEkranu(
+            $this->actingAs($ktos)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
 
-        // Osoba, która nie jest autorem, i tak dostaje wyjaśnienie zamiast
-        // pustki — ale bez zwrotu „Twoje zdjęcie”, bo to nie jej zdjęcie.
-        $this->assertStringContainsString('przygotowuje', $html);
-        $this->assertStringNotContainsString('Twoje zdjęcie', $html);
+        $this->assertStringContainsString(self::ZNACZNIK_ZDJECIA, $tresc);
+        $this->assertStringNotContainsString('przygotowuje', $tresc);
+    }
+
+    public function test_odswiezenie_strony_podmienia_podglad_na_pelne_warianty_bez_javascriptu(): void
+    {
+        Queue::fake();
+
+        $basia = $this->user('basia');
+
+        $zdjecie = app(StoreUploadedImage::class)->handle(
+            $basia,
+            UploadedFile::fake()->image('obiad.jpg', 1200, 900),
+        );
+
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
+
+        $przed = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+        $this->assertStringContainsString(self::ZNACZNIK_ZDJECIA, $przed);
+        $this->assertStringNotContainsString('_feed.webp', $przed, 'Test nie odtwarza stanu: wariant `feed` już istnieje przed przetworzeniem.');
+
+        // To, co na produkcji robi zadanie w tle — wołane wprost. Bez linijki
+        // JavaScriptu po stronie klienta: samo odświeżenie strony (kolejny GET).
+        (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+
+        $po = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+
+        $this->assertStringContainsString(self::ZNACZNIK_ZDJECIA, $po);
+        $this->assertStringContainsString('feed', $po, 'Po przetworzeniu strona ma sięgać po prawdziwe warianty, nie zostać przy podglądzie.');
+        $this->assertStringNotContainsString('przygotowuje', $po);
+    }
+
+    public function test_podglad_zostaje_w_metadanych_po_przetworzeniu_zeby_jego_plik_dalo_sie_skasowac(): void
+    {
+        // `KasujZdjecie` chodzi po `metadata.variants` i nie ma innego sposobu,
+        // żeby dowiedzieć się o pliku w buckecie. Gdyby zadanie w tle
+        // nadpisało warianty w całości, plik podglądu zostałby tam na zawsze —
+        // sierota, której nie usuwa ani skasowanie wpisu, ani wymazanie konta.
+        Queue::fake();
+
+        $basia = $this->user('basia');
+
+        $zdjecie = app(StoreUploadedImage::class)->handle(
+            $basia,
+            UploadedFile::fake()->image('obiad.jpg', 1200, 900),
+        );
+
+        $kluczPodgladu = (string) $zdjecie->wariant('podglad')['key'];
+
+        (new ProcessUploadedImage($zdjecie->getKey()))->handle();
+
+        $zdjecie->refresh();
+
+        $this->assertSame(Media::STATUS_READY, $zdjecie->status);
+        $this->assertSame(
+            $kluczPodgladu,
+            $zdjecie->wariant('podglad')['key'] ?? null,
+            'Zadanie w tle zgubiło wariant `podglad` — jego plik został w buckecie bez żadnego uchwytu w bazie.',
+        );
+        $this->assertTrue($zdjecie->maWariant('feed'));
+    }
+
+    public function test_gdy_podgladu_nie_da_sie_zrobic_autor_dostaje_czytelny_komunikat_zamiast_pustki(): void
+    {
+        // STAN „WARIANTU NAPRAWDĘ NIE MA" — zbudowany naprawdę, nie udawany:
+        // próg megapikseli ustawiony poniżej rozmiaru zdjęcia, czyli dokładnie
+        // ta gałąź `PodgladOdRazu`, która chroni pamięć kontenera przed
+        // dekodowaniem wielkiego pliku w żądaniu webowym.
+        //
+        // Bez tego testu cały ten plik byłby zielony nad usterką #432, bo
+        // komunikat zastępczy nie renderowałby się już nigdzie.
+        Queue::fake();
+        config(['kuking.media.podglad.max_megapixels' => 1]);
+
+        $basia = $this->user('basia');
+
+        $zdjecie = app(StoreUploadedImage::class)->handle(
+            $basia,
+            UploadedFile::fake()->image('wielkie.jpg', 2000, 1500),
+        );
+
+        $this->assertFalse($zdjecie->maWariant('podglad'), 'Test nie odtwarza stanu, który miał sprawdzić: podgląd jednak powstał.');
+
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
+
+        $tresc = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+
+        $this->assertStringNotContainsString(self::ZNACZNIK_ZDJECIA, $tresc);
+        $this->assertStringContainsString('przygotowuje', $tresc);
+        $this->assertStringContainsString('Nic nie zginęło', $tresc);
+    }
+
+    public function test_obcy_widz_dostaje_komunikat_bez_zwracania_sie_do_niego_jak_do_autora(): void
+    {
+        Queue::fake();
+        config(['kuking.media.podglad.max_megapixels' => 1]);
+
+        $basia = $this->user('basia');
+        $ktos = $this->user('ktos');
+
+        $zdjecie = app(StoreUploadedImage::class)->handle(
+            $basia,
+            UploadedFile::fake()->image('wielkie.jpg', 2000, 1500),
+        );
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
+
+        $tresc = $this->trescEkranu(
+            $this->actingAs($ktos)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
+
+        $this->assertStringContainsString('przygotowuje', $tresc);
+        $this->assertStringNotContainsString('Twoje zdjęcie', $tresc);
     }
 
     public function test_trwale_nieudane_przetworzenie_mowi_o_tym_zamiast_wiecznej_pustki(): void
     {
         $basia = $this->user('basia');
 
-        $media = Media::factory()->create([
+        $zdjecie = Media::factory()->pending()->create([
             'owner_id' => $basia->getKey(),
             'status' => Media::STATUS_REJECTED,
-            'metadata' => ['failure_reason' => 'processing_failed'],
+            'metadata' => ['variants' => [], 'failure_reason' => 'processing_failed'],
         ]);
 
-        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$media->getKey()], visibility: 'public');
+        $post = app(PublishPost::class)->handle(author: $basia, body: null, mediaIds: [$zdjecie->getKey()], visibility: 'public');
 
-        $html = $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent();
+        $tresc = $this->trescEkranu(
+            $this->actingAs($basia)->get(route('posts.show', $post))->assertOk()->getContent(),
+        );
 
-        $this->assertStringContainsString('Nie udało się przygotować', $html);
-        $this->assertStringNotContainsString('przygotowuje', $html, 'Zdjęcie, które padło na dobre, nie powinno dalej udawać, że "się przygotowuje".');
+        $this->assertStringContainsString('Nie udało się przygotować', $tresc);
+        $this->assertStringNotContainsString('przygotowuje.', $tresc, 'Zdjęcie, które padło na dobre, nie powinno dalej udawać, że „się przygotowuje".');
     }
 }

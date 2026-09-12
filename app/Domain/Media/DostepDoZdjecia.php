@@ -218,16 +218,30 @@ final class DostepDoZdjecia
     }
 
     /**
-     * STAN INNY NIŻ `ready` TO ODMOWA DLA KAŻDEGO, RÓWNIEŻ DLA WŁAŚCICIELA
-     * (AGENTS.md §7). Nie chodzi o autoryzację, tylko o to, co leży pod
-     * spodem: dopóki `ProcessUploadedImage` nie przekodował pliku, w EXIF-ie
-     * siedzi jeszcze pełna lokalizacja GPS kuchni. Wyjątek dla właściciela
-     * wyglądałby niewinnie i byłby pierwszym krokiem do serwowania
-     * oryginałów tą trasą.
+     * ODMOWA, DOPÓKI NIE MA CZEGO SERWOWAĆ — DLA KAŻDEGO, RÓWNIEŻ DLA
+     * WŁAŚCICIELA. Nie chodzi o autoryzację, tylko o to, co leży pod spodem.
+     *
+     * DO 12 WRZEŚNIA 2026 STAŁO TU `isReady()` (issue #430). Uzasadnienie
+     * brzmiało: „dopóki `ProcessUploadedImage` nie przekodował pliku,
+     * w EXIF-ie siedzi jeszcze pełna lokalizacja GPS kuchni". Zdanie o EXIF-ie
+     * jest dalej prawdziwe i dalej obowiązuje — ale mówi o ORYGINALE, a tą
+     * trasą oryginał nie wychodzi NIGDY i nie ma jak wyjść: `MediaController`
+     * serwuje wyłącznie klucze z `Media::wariantDoSerwowania()`, czyli
+     * wyłącznie to, co zapisano w `metadata.variants`, a tam trafia tylko
+     * wynik naszego kodera.
+     *
+     * `isReady()` było więc skrótem na „istnieje już przekodowany plik"
+     * i przestało być prawdziwe, odkąd `PodgladOdRazu` robi wariant `podglad`
+     * synchronicznie, przy wgraniu: plik bezpieczny (bez EXIF-u) istnieje,
+     * a wiersz stoi jeszcze na `pending`. Ta bramka odmawiałaby wtedy dostępu
+     * do zdjęcia autorce, której zdjęcie to jest — czyli usterka #430.
+     *
+     * Pytamy dziś WPROST o to, o co chodziło od początku: czy jest już
+     * wariant. Wyjątku dla właściciela jak nie było, tak nie ma.
      */
     private function gotoweDoSerwowania(Media $zdjecie): bool
     {
-        return $zdjecie->isReady();
+        return $zdjecie->maWariantDoPokazania();
     }
 
     /**
