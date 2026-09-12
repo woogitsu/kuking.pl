@@ -90,7 +90,7 @@
 
         <div class="post__actions" aria-label="Działania przy wpisie">
           <button class="button button--cook" type="button" data-action="cooked"><span aria-hidden="true">✓</span> Ugotowałem</button>
-          <button class="button button--quiet" type="button" data-action="comment"><span aria-hidden="true">□</span> Komentarze (8)</button>
+          <a class="button button--quiet" href="#komentarze" data-route="komentarze"><span aria-hidden="true">□</span> Komentarze (8)</a>
           <button class="button button--quiet" type="button" data-action="save" aria-pressed="false"><span aria-hidden="true">▱</span> Do zeszytu</button>
         </div>
       </article>
@@ -176,7 +176,7 @@
       <div class="recipe-actions"><button class="button button--cook" type="button" data-action="cooked">✓ Ugotowałem</button><button class="button button--secondary" type="button" data-action="save" aria-pressed="false">▱ Do zeszytu</button></div>
       <div class="recipe-columns">
         <section><h2>Składniki</h2><ul class="ingredient-list"><li><span>ziemniaki</span><strong>1 kg</strong></li><li><span>cebula</span><strong>1 sztuka</strong></li><li><span>jajka</span><strong>2 sztuki</strong></li><li><span>mąka pszenna</span><strong>2 łyżki</strong></li><li><span>podgrzybki</span><strong>300 g</strong></li></ul></section>
-        <section><h2>Przygotowanie</h2><ol class="steps-list"><li><span>1</span><p>Zetrzyj ziemniaki i cebulę. Odciśnij nadmiar wody.</p></li><li><span>2</span><p>Dodaj jajka, mąkę, sól i odrobinę majeranku. Wymieszaj.</p></li><li><span>3</span><p>Smaż niewielkie placki z obu stron na złoty kolor.</p></li><li><span>4</span><p>Grzyby podsmaż, dodaj śmietanę i duś 10 minut.</p></li></ol><button class="button button--primary button--full" type="button" data-action="cook-mode">Włącz tryb gotowania</button></section>
+        <section><h2>Przygotowanie</h2><ol class="steps-list"><li><span>1</span><p>Zetrzyj ziemniaki i cebulę. Odciśnij nadmiar wody.</p></li><li><span>2</span><p>Dodaj jajka, mąkę, sól i odrobinę majeranku. Wymieszaj.</p></li><li><span>3</span><p>Smaż niewielkie placki z obu stron na złoty kolor.</p></li><li><span>4</span><p>Grzyby podsmaż, dodaj śmietanę i duś 10 minut.</p></li></ol><a class="button button--primary button--full" href="#gotuj" data-route="gotuj">Włącz tryb gotowania</a></section>
       </div>
     </article>
   </section>
@@ -190,7 +190,8 @@
   <section class="content-view view" data-view="profil" hidden aria-labelledby="profile-title">
     <header class="profile-hero"><span class="profile-avatar" aria-hidden="true">B</span><div><p class="eyebrow">Twój profil</p><h1 id="profile-title">Basia Kowalska</h1><p>@basiawgarach · Warszawa</p><p>Gotuję prosto, po domowemu i zawsze z dużą ilością koperku.</p><button class="button button--secondary" type="button" data-action="edit-profile">Zmień swój profil</button></div></header>
     <dl class="profile-stats"><div><dt>Wpisy</dt><dd>38</dd></div><div><dt>Przepisy</dt><dd>5</dd></div><div><dt>Ugotowane</dt><dd>21</dd></div><div><dt>Obserwujący</dt><dd>124</dd></div></dl>
-    <section class="profile-content"><div><h2>Ostatnio u Ciebie</h2><p class="profile-note">Jeszcze nic dziś nie dodałaś.</p></div><button class="button button--primary" type="button" data-action="add-photo">＋ Dodaj dzisiejsze danie</button></section>
+    <section class="profile-content"><div><h2>Ostatnio u Ciebie</h2><p class="profile-note">Jeszcze nic dziś nie dodałaś.</p></div><a class="button button--primary" href="#dodaj" data-route="dodaj">＋ Dodaj dzisiejsze danie</a></section>
+    <section class="settings-teaser"><div><p class="eyebrow">Wygląd i wygoda</p><h2>Dostosuj Kuking do siebie</h2><p>Większy tekst, ciemny wygląd i mocniejszy kontrast.</p></div><a class="button button--secondary" href="#ustawienia" data-route="ustawienia">Otwórz ustawienia</a></section>
   </section>
 
   <section class="content-view content-view--narrow view" data-view="dodaj" hidden aria-labelledby="add-title">
@@ -219,6 +220,25 @@
   <section class="content-view content-view--narrow view" data-view="powiadomienia" hidden aria-labelledby="notifications-title">
     <header class="view-header"><p class="eyebrow">3 nowe</p><h1 id="notifications-title">Powiadomienia</h1><p>Odpowiedzi i ugotowania Twoich przepisów.</p></header>
     <div class="notifications-list"><article class="is-new"><span class="notification-icon notification-icon--cook" aria-hidden="true">✓</span><div><h2>Halina ugotowała Twój rosół</h2><p>„Wyszedł dokładnie jak pamiętam z dzieciństwa.”</p><time>12 minut temu</time></div><button type="button" data-action="notification-open">Zobacz</button></article><article class="is-new"><span class="notification-icon" aria-hidden="true">□</span><div><h2>Marek odpowiedział na Twój komentarz</h2><p>Pod przepisem „Chleb na zakwasie”.</p><time>2 godziny temu</time></div><button type="button" data-action="notification-open">Zobacz</button></article><article><span class="notification-icon" aria-hidden="true">＋</span><div><h2>Anna zaczęła Cię obserwować</h2><p>Zobaczy teraz Twoje publiczne wpisy.</p><time>Wczoraj</time></div><button type="button" data-action="notification-open">Profil Anny</button></article></div>
+  </section>
+
+  <section class="content-view cooking-view view" data-view="gotuj" hidden aria-labelledby="cooking-title">
+    <header class="cooking-top"><a class="back-link" href="#przepis" data-route="przepis">← Zakończ gotowanie</a><p>Krok <strong data-cook-current>1</strong> z 4</p><button class="button button--secondary" type="button" data-action="wake-lock">☀ Ekran nie zgaśnie</button></header>
+    <div class="cooking-card"><p class="eyebrow">Placki ziemniaczane</p><h1 id="cooking-title" data-cook-title>Przygotuj ziemniaki</h1><p class="cooking-instruction" data-cook-instruction>Zetrzyj ziemniaki i cebulę na drobnych oczkach. Przełóż na sito i dokładnie odciśnij nadmiar wody.</p><div class="cooking-tip" data-cook-tip><strong>Wskazówka</strong><p>Im mniej wody zostanie w ziemniakach, tym bardziej chrupiące będą placki.</p></div><div class="cooking-controls"><button class="button button--secondary" type="button" data-cook="prev" disabled>← Poprzedni krok</button><button class="button button--primary" type="button" data-cook="next">Gotowe, następny krok →</button></div></div>
+    <div class="cook-progress" aria-label="Postęp gotowania"><i></i><i></i><i></i><i></i></div>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="komentarze" hidden aria-labelledby="comments-title">
+    <a class="back-link" href="#start" data-route="start">← Wróć do wpisu</a>
+    <header class="view-header"><p class="eyebrow">Rozmowa pod wpisem</p><h1 id="comments-title">Komentarze</h1><p>Placki ziemniaczane Haliny</p></header>
+    <div class="conversation"><article><span class="avatar avatar--blue" aria-hidden="true">J</span><div><header><strong>Jan K.</strong><time>45 minut temu</time></header><p>Czy ziemniaki po starciu zostawiasz na chwilę, żeby skrobia opadła?</p><button type="button" data-action="reply">Odpowiedz</button></div></article><article class="reply"><span class="avatar avatar--photo" aria-hidden="true">H</span><div><header><strong>Halina Nowak</strong><time>32 minuty temu</time></header><p>Tak, na około 5 minut. Wodę wylewam, ale skrobię z dna dodaję z powrotem.</p><button type="button" data-action="reply">Odpowiedz</button></div></article><article><span class="avatar avatar--green" aria-hidden="true">A</span><div><header><strong>Anna Gotuje</strong><time>18 minut temu</time></header><p>Majeranek to świetny pomysł. Spróbuję przy następnej porcji!</p><button type="button" data-action="reply">Odpowiedz</button></div></article></div>
+    <form class="comment-form"><label for="comment-text">Napisz komentarz</label><textarea id="comment-text" rows="4" placeholder="Napisz, co myślisz albo o co chcesz zapytać"></textarea><div><small>Rozmawiajmy tak, jak przy wspólnym stole.</small><button class="button button--primary" type="submit">Dodaj komentarz</button></div></form>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="ustawienia" hidden aria-labelledby="settings-title">
+    <a class="back-link" href="#profil" data-route="profil">← Wróć do profilu</a>
+    <header class="view-header"><p class="eyebrow">Wygląd i wygoda</p><h1 id="settings-title">Dostosuj Kuking</h1><p>Zmiany zobaczysz od razu. Możesz je cofnąć w każdej chwili.</p></header>
+    <div class="settings-panel"><fieldset><legend>Wielkość tekstu</legend><div class="segmented"><button type="button" data-text-size="100" aria-pressed="true">Zwykły</button><button type="button" data-text-size="112">Większy</button><button type="button" data-text-size="125">Największy</button></div><p class="setting-example">Tak będzie wyglądał tekst przepisu i komentarzy.</p></fieldset><fieldset><legend>Wygląd strony</legend><label class="setting-switch"><span><strong>Ciemny wygląd</strong><small>Jasny tekst na ciemnym tle</small></span><input type="checkbox" data-setting="dark"><i aria-hidden="true"></i></label><label class="setting-switch"><span><strong>Mocniejszy kontrast</strong><small>Wyraźniejsze linie i przyciski</small></span><input type="checkbox" data-setting="contrast"><i aria-hidden="true"></i></label></fieldset><p class="settings-saved" role="status">Ustawienia zapisują się automatycznie.</p></div>
   </section>
   </main>
 

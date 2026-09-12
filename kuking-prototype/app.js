@@ -26,6 +26,8 @@ document.addEventListener('click', (event) => {
     'edit-profile': 'Tutaj zmienisz zdjęcie, nazwę i opis profilu.',
     'add-ingredient': 'Dodano miejsce na kolejny składnik.',
     'notification-open': 'Otwieram wskazaną treść.'
+    , 'wake-lock': 'Ekran pozostanie włączony podczas gotowania.'
+    , reply: 'Odpowiedź pojawi się pod tym komentarzem.'
   };
 
   if (action === 'save') {
@@ -135,6 +137,65 @@ document.querySelector('.upload-zone')?.addEventListener('keydown', (event) => {
     event.preventDefault();
     showToast('Tutaj otworzy się wybór zdjęcia z urządzenia.');
   }
+});
+
+const cookSteps = [
+  ['Przygotuj ziemniaki', 'Zetrzyj ziemniaki i cebulę na drobnych oczkach. Przełóż na sito i dokładnie odciśnij nadmiar wody.', 'Im mniej wody zostanie w ziemniakach, tym bardziej chrupiące będą placki.'],
+  ['Wymieszaj ciasto', 'Dodaj jajka, mąkę, sól i odrobinę majeranku. Wymieszaj tylko do połączenia składników.', 'Nie dosypuj zbyt dużo mąki — placki zrobią się ciężkie.'],
+  ['Usmaż placki', 'Nakładaj niewielkie porcje na dobrze rozgrzany olej. Smaż z obu stron na mocno złoty kolor.', 'Gotowe placki odkładaj na papier, żeby pozbyć się nadmiaru tłuszczu.'],
+  ['Zrób sos', 'Podsmaż grzyby z cebulą, dodaj śmietanę i duś około 10 minut. Dopraw solą i pieprzem.', 'Sos powinien lekko zgęstnieć, ale nadal łatwo spływać z łyżki.']
+];
+let cookStep = 0;
+function updateCookStep() {
+  document.querySelector('[data-cook-current]').textContent = cookStep + 1;
+  document.querySelector('[data-cook-title]').textContent = cookSteps[cookStep][0];
+  document.querySelector('[data-cook-instruction]').textContent = cookSteps[cookStep][1];
+  document.querySelector('[data-cook-tip] p').textContent = cookSteps[cookStep][2];
+  const prev = document.querySelector('[data-cook="prev"]');
+  const next = document.querySelector('[data-cook="next"]');
+  prev.disabled = cookStep === 0;
+  next.textContent = cookStep === cookSteps.length - 1 ? 'Gotowe — pokaż efekt' : 'Gotowe, następny krok →';
+  document.querySelectorAll('.cook-progress i').forEach((bar, index) => {
+    bar.classList.toggle('is-active', index === cookStep);
+    bar.classList.toggle('is-complete', index < cookStep);
+  });
+}
+document.querySelector('.cooking-view')?.addEventListener('click', (event) => {
+  const control = event.target.closest('[data-cook]');
+  if (!control) return;
+  if (control.dataset.cook === 'prev') cookStep = Math.max(0, cookStep - 1);
+  if (control.dataset.cook === 'next' && cookStep < cookSteps.length - 1) cookStep += 1;
+  else if (control.dataset.cook === 'next' && cookStep === cookSteps.length - 1) {
+    showToast('Świetnie! Teraz możesz dodać zdjęcie i oznaczyć „Ugotowałem”.');
+    history.pushState(null, '', '#przepis');
+    showView('przepis');
+  }
+  updateCookStep();
+});
+updateCookStep();
+
+document.querySelector('.comment-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const field = document.querySelector('#comment-text');
+  if (!field.value.trim()) { showToast('Napisz komentarz przed wysłaniem.'); field.focus(); return; }
+  showToast('Komentarz został dodany.');
+  field.value = '';
+});
+
+document.querySelectorAll('[data-text-size]').forEach((button) => {
+  button.addEventListener('click', () => {
+    document.documentElement.dataset.textSize = button.dataset.textSize;
+    document.querySelectorAll('[data-text-size]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+    showToast('Wielkość tekstu została zmieniona.');
+  });
+});
+document.querySelector('[data-setting="dark"]')?.addEventListener('change', (event) => {
+  if (event.target.checked) document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme;
+  showToast(event.target.checked ? 'Włączono ciemny wygląd.' : 'Włączono jasny wygląd.');
+});
+document.querySelector('[data-setting="contrast"]')?.addEventListener('change', (event) => {
+  if (event.target.checked) document.documentElement.dataset.contrast = 'high'; else delete document.documentElement.dataset.contrast;
+  showToast(event.target.checked ? 'Włączono mocniejszy kontrast.' : 'Przywrócono zwykły kontrast.');
 });
 
 document.querySelectorAll('.people-list button').forEach((button) => {
