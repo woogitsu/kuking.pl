@@ -871,7 +871,9 @@
                 </div>
                 {{-- Zapis do zeszytu wraca także na strumień bez formularza.
                      Sam worek walidacji nie pokazuje tam błędu (issue #473). --}}
-                @php($collectionError = session('errors')?->first('collection_id'))
+                @php
+                    $collectionError = session('errors')?->first('collection_id');
+                @endphp
                 @if($collectionError)
                     <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
                 @endif
