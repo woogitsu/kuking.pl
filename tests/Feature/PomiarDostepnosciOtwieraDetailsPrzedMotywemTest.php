@@ -144,11 +144,22 @@ class PomiarDostepnosciOtwieraDetailsPrzedMotywemTest extends TestCase
             'To jedyne miejsce, w którym automat rozwija zwinięte sekcje.',
         );
 
-        $skala = strpos($zrodlo, 'await wlaczSkaleTekstu(');
-
-        $this->assertNotFalse($skala);
-
-        $miedzy = substr($zrodlo, $details, (int) $skala - $details);
+        /*
+         * OKNO O STAŁEJ DŁUGOŚCI, A NIE „DO NASTĘPNEJ KOTWICY".
+         *
+         * Pierwsza wersja tego testu brała wycinek od otwarcia `<details>`
+         * do `wlaczSkaleTekstu`. Przy sabotażu przenoszącym otwarcie z
+         * powrotem na koniec pętli ta druga kotwica stoi WCZEŚNIEJ, długość
+         * wychodzi ujemna, a `substr` zwraca wtedy kawałek liczony od końca
+         * pliku — i test przechodził, mierząc nie to miejsce (pułapka 3b
+         * w `docs/PULAPKI_TESTOW.md`). Okno liczone w przód od samego
+         * otwarcia nie ma jak się odwrócić.
+         *
+         * 400 znaków to dokładnie tyle, żeby zmieścić blok otwierający i
+         * czekanie zaraz po nim, a za mało, żeby złapać jakikolwiek inny
+         * `requestAnimationFrame` w tym pliku.
+         */
+        $miedzy = substr($zrodlo, $details, 400);
 
         /*
          * Dwa zagnieżdżone `requestAnimationFrame`: pierwszy kończy
