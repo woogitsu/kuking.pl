@@ -419,7 +419,11 @@ main() {
   if [[ -n "${KLUCZ_PUBLICZNY}" ]]; then
     printf ' \\\n    --klucz <klucz PRYWATNY>' >&2
   fi
-  printf '\n\nProcedura krok po kroku: docs/infra/KOPIE_I_ODTWORZENIE.md §8\n' >&2
+  printf '\n' >&2
+  printf '\nĆwiczysz lokalnie? Całą pętlę (kopia → odtworzenie → porównanie każdej\n' >&2
+  printf 'tabeli → migrate:status) robi jedna komenda:\n' >&2
+  printf '  scripts/proba-odtworzenia.sh --petla-lokalna\n' >&2
+  printf '\nProcedura krok po kroku: docs/infra/KOPIE_I_ODTWORZENIE.md §8\n' >&2
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
