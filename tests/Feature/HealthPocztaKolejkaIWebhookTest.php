@@ -21,7 +21,7 @@ use Tests\TestCase;
  * DLACZEGO TE TRZY RAZEM
  * Audyt #33 zapytał wprost, czy `/health` mówi prawdę o poczcie i o kolejce,
  * i czy `failed_jobs` w ogóle ktokolwiek widzi. Odpowiedź brzmiała „nie" na
- * oba pytania (D-042, `docs/DECISIONS.md`: „Jedyne miejsce, które w ogóle
+ * oba pytania (D-057 §4, `docs/DECISIONS.md`: „Jedyne miejsce, które w ogóle
  * liczy `failed_jobs`, to `kuking:sprawdz-poczte`, uruchamiane ręcznie") —
  * i to samo dotyczyło Turnstile: `check()` woła `Log::error`, ale na
  * produkcji `LOG_CHANNEL=stderr` (`.railway/railway.ts`), więc `Log::error`
@@ -137,7 +137,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
     }
 
     /**
-     * D-042: dziś ISTNIEJE realny sposób stracenia listu po cichu (limit
+     * D-057 §4: dziś ISTNIEJE realny sposób stracenia listu po cichu (limit
      * dobowy EmailLabs padający w środku wysyłki), a jedynym miejscem, które
      * w ogóle patrzy na `failed_jobs`, jest komenda uruchamiana ręcznie.
      * Ten test dowodzi, że `/health` — a więc i zewnętrzny monitoring —
@@ -186,7 +186,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             'queue' => 'default',
             // Treść jak w prawdziwym `failed_jobs.exception` — pełny ślad
             // stosu z adresem e-mail w środku (dokładnie ten kształt, który
-            // D-042 opisuje jako ginący bez śladu). Testy niżej dowodzą, że
+            // D-057 §4 opisuje jako ginący bez śladu). Testy niżej dowodzą, że
             // TA TREŚĆ nigdzie z `/health` ani z webhooka nie wychodzi.
             'exception' => "Illuminate\\Mail\\... adres: przepadly-list@example.com\nStack trace:\n#0 ...",
             'payload' => '{}',
