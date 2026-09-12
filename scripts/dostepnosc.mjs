@@ -2237,6 +2237,82 @@ for (const wariant of WARIANTY) {
       continue;
     }
 
+    /*
+     * OTWIERAMY KAŻDY `<details>` — I ROBIMY TO PRZED ZMIANĄ MOTYWU I SKALI,
+     * A NIE PO NIEJ.
+     *
+     * PO CO W OGÓLE OTWIERAĆ. Treść zamkniętego `<details>` nie ma
+     * `display: none` w arkuszu stylów — ale przeglądarka i tak traktuje ją
+     * jak niewidoczną (`checkVisibility()` zwraca `false`), bo tak każe robić
+     * specyfikacja HTML z zamkniętym `<details>`. Axe pomija to, co
+     * niewidoczne, tak samo jak pomija tekst `sr-only` odwrócony
+     * transformacją. Zmierzone wprost na ekranie „twoje dane": axe analizuje
+     * 8 węzłów wewnątrz zamkniętego `<details>` (sam `<summary>`), a 34, gdy
+     * jest otwarty — różnica to dokładnie hasło, oba haczyki i przycisk
+     * „Usuń moje konto" formularza usunięcia konta (D-022). Bez tego
+     * otwarcia automat NIGDY nie sprawdziłby etykiet ani kontrastu
+     * w najważniejszym nieodwracalnym formularzu serwisu — zielony wynik na
+     * tym ekranie nic by nie znaczył.
+     *
+     * DLACZEGO PRZED, A NIE PO — TO JEST TRZECIE MIGOTANIE KONTRASTU W TYM
+     * PLIKU I MA INNĄ PRZYCZYNĘ NIŻ DWA POPRZEDNIE (#454).
+     *
+     * Objaw: automat meldował „[serious] color-contrast —
+     * label[for=\"f-password\"]" na ekranie usuwania konta RAZ NA KILKASET
+     * przebiegów, przy nietkniętej palecie. Zmierzone liczby z takiego
+     * przebiegu (wariant „ciemny", 1280 px):
+     *
+     *     tekst  #2b241d   ← `--color-ink` z motywu JASNEGO
+     *     tło    #1e1a16   ← `--color-surface` z motywu CIEMNEGO
+     *     kontrast 1.13:1  przy wymaganym 4.5:1
+     *
+     * Te dwie wartości nie występują razem w żadnym motywie: pomiar
+     * zestawiał tekst sprzed przełączenia z tłem po przełączeniu. Tak samo
+     * wyglądały trzy pozostałe węzły tego naruszenia (`.meta`,
+     * `#f-password-help`, akapit `.mt-3`) — WSZYSTKIE wewnątrz `<details>`
+     * i ani jeden poza nim.
+     *
+     * Przyczyna: zamknięty `<details>` jest w Chromium poddrzewem
+     * pominiętym w przeliczaniu stylu. Zmiana `data-theme` na `<html>`
+     * NIE przelicza go — przeliczy się dopiero przy pierwszym pełnym obiegu
+     * klatki po otwarciu. `getComputedStyle` tego nie wymusza, więc dopóki
+     * otwarcie stało tu, tuż przed `analyze()`, axe potrafił przeczytać
+     * z tego poddrzewa kolory sprzed przełączenia motywu.
+     *
+     * DOWÓD, nie uzasadnienie — trzy pomiary na tym ekranie:
+     *
+     *   A. otwarcie i odczyt w JEDNYM zadaniu (klatka nie ma jak wejść
+     *      pomiędzy): `getComputedStyle(label).color` = `rgb(43, 36, 29)`,
+     *      czyli #2b241d, przy `body` już ciemnym — 100 razy na 100.
+     *      Po dwóch obiegach klatki ta sama etykieta ma `rgb(245, 239, 230)`,
+     *      czyli poprawne #f5efe6.
+     *   B. ten sam odczyt, ale `<details>` otwarty PRZED włączeniem motywu:
+     *      `rgb(245, 239, 230)` od razu — poddrzewo bierze udział w zwykłym
+     *      przeliczeniu i nie ma czemu być nieaktualnym.
+     *   C. motyw jasny, ta sama kolejność co w A: żadnego rozjazdu, bo nie
+     *      ma zmiany, którą można by przegapić.
+     *
+     * Czyli winna jest KOLEJNOŚĆ, nie paleta i nie szybkość maszyny.
+     * Dlatego otwarcie stoi teraz przed `data-text-scale` i `data-theme`:
+     * gdy te atrybuty się zmieniają, całe drzewo jest już widoczne i
+     * przelicza się razem. To samo chroni pomiar wielkości pisma w wariancie
+     * „tekst 140%" — nieaktualna wielkość przestawiałaby próg kontrastu
+     * z 4.5:1 na 3:1 i tym razem CICHO PRZEPUSZCZAŁA naruszenie.
+     *
+     * Dwa obiegi klatki po otwarciu: pierwszy kończy przeliczanie stylu
+     * poddrzewa, drugi daje pewność, że przemalowanie już się odbyło — ten
+     * sam mechanizm i ten sam powód co po zmianie motywu niżej.
+     */
+    await strona.evaluate(() => {
+      for (const el of document.querySelectorAll('details:not([open])')) {
+        el.open = true;
+      }
+    });
+
+    await strona.evaluate(() => new Promise((gotowe) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
+    }));
+
     if (wariant.skalaTekstu) {
       // Czekamy na PRZELICZONY układ, nie na sam atrybut — uzasadnienie
       // stoi przy `wlaczSkaleTekstu` wyżej.
@@ -2300,27 +2376,6 @@ for (const wariant of WARIANTY) {
         requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
       }));
     }
-
-    /*
-     * OTWIERAMY KAŻDY `<details>` PRZED POMIAREM.
-     *
-     * Treść zamkniętego `<details>` nie ma `display: none` w arkuszu stylów
-     * — ale przeglądarka i tak traktuje ją jak niewidoczną (`checkVisibility()`
-     * zwraca `false`), bo tak każe robić specyfikacja HTML z zamkniętym
-     * `<details>`. Axe pomija to, co niewidoczne, tak samo jak pomija tekst
-     * `sr-only` odwrócony transformacją. Zmierzone wprost na ekranie „twoje
-     * dane": axe analizuje 8 węzłów wewnątrz zamkniętego `<details>` (sam
-     * `<summary>`), a 34, gdy jest otwarty — różnica to dokładnie hasło,
-     * oba haczyki i przycisk „Usuń moje konto" formularza usunięcia konta
-     * (D-022). Bez tego otwarcia automat NIGDY nie sprawdziłby etykiet ani
-     * kontrastu w najważniejszym nieodwracalnym formularzu serwisu — zielony
-     * wynik na tym ekranie nic by nie znaczył.
-     */
-    await strona.evaluate(() => {
-      for (const el of document.querySelectorAll('details:not([open])')) {
-        el.open = true;
-      }
-    });
 
     const wynik = await new AxeBuilder({ page: strona })
       // Reguły WCAG 2.2 AA — cel produktowy z docs/design/DESIGN_SYSTEM.md.
