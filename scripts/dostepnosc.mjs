@@ -258,6 +258,32 @@ const EKRANY = [
    */
   { nazwa: 'ustawienia (rozdroże)', adres: '/ustawienia', zalogowany: true },
   { nazwa: 'czytelność', adres: '/ustawienia/czytelnosc', zalogowany: true },
+
+  /*
+   * ZDJĘCIE PROFILOWE (#344) — EKRAN, KTÓRY PĘKAŁ, A NIE BYŁ MIERZONY.
+   *
+   * 12 września wyszło, że przy 320 px i czcionce przeglądarki 200% ta strona
+   * wyjeżdża w bok: `scrollWidth` 333 px w oknie 320 px. Automat nie mógł
+   * tego złapać, bo tego adresu w tym pliku nie było — czyli znowu to samo,
+   * co przy D-099 i przy `/ustawienia` wyżej: brak ekranu na liście niczego
+   * nie psuje, raport wygląda na kompletny i świeci na zielono.
+   *
+   * DOPISANIE SAMEGO ADRESU NIC BY NIE DAŁO i dlatego idzie w parze ze
+   * zmianą w `DemoSeeder`. Ekran ma trzy stany („to jest Twoje zdjęcie",
+   * „zdjęcie się przygotowuje", „nie masz jeszcze zdjęcia") i różnią się nie
+   * zdaniem, tylko układem: przy gotowym zdjęciu dochodzi obrazek 88 px obok
+   * akapitu i CAŁA sekcja „Usunięcie zdjęcia" z przyciskiem potwierdzenia.
+   * Dane demo nie dawały kontu `ania` żadnego zdjęcia, więc mierzony byłby
+   * jedyny stan, w którym tego wszystkiego NIE MA — jedyny z trzech, który
+   * nie przepełniał. Strażnik pilnujący nie tej rzeczy (pułapki 2 i 4
+   * z `docs/PULAPKI_TESTOW.md`); dlatego `DemoSeeder` sieje temu kontu
+   * PRAWDZIWY plik z wariantem `thumb`, a nie sam wiersz w `media`.
+   *
+   * Że ekran naprawdę stoi w stanie „to jest Twoje zdjęcie", a nie w stanie
+   * zapasowym, sprawdza `stanEkranuZdjecia()` niżej — tym samym mechanizmem
+   * co `TRESC_PANELU`.
+   */
+  { nazwa: 'zdjęcie profilowe', adres: '/ustawienia/zdjecie', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
   /*
    * EKRANY TAGÓW (D-021). Publiczna strona tagu jest jednym z niewielu
@@ -1454,6 +1480,37 @@ log(`Chromium ${wersjaPrzegladarki}`
   + (CHROMIUM ? ` (${CHROMIUM})` : ' (z paczki `playwright`)'));
 log('');
 
+/* =============================================================================
+ * JEDNOZNACZNY WYBÓR PRÓBKI — KAŻDY PRZEBIEG MA MIERZYĆ TEN SAM OBIEKT
+ * =============================================================================
+ *
+ * Wszystko niżej, co wybiera z bazy JEDEN przepis, JEDEN wpis albo JEDNO
+ * konto do zmierzenia, kończy się na `->orderBy('id')` — a tam, gdzie
+ * porządek ma znaczyć „najnowsze", na `->orderByDesc('published_at')
+ * ->orderByDesc('id')`, czyli dokładnie tak, jak sortuje feed (AGENTS.md §8).
+ *
+ * DLACZEGO TO NIE JEST PORZĄDKOWANIE KODU. `SELECT … LIMIT 1` bez `ORDER BY`
+ * nie obiecuje w PostgreSQL NICZEGO o tym, który wiersz wróci. Wynik zależy
+ * od planu zapytania, a plan zmienia się od liczby wierszy, od `VACUUM`,
+ * od kolejności zapisu — czyli od rzeczy, których nie ma w tym repozytorium.
+ * Ten sam kod, ta sama baza, inny dzień: inny mierzony wpis.
+ *
+ * Groźne jest to, jak taki przebieg WYGLĄDA. Raport nazywa ekran, nie próbkę,
+ * więc czerwień na „wpis — kolaż" czyta się jako skutek czyjejś zmiany, choć
+ * bywa skutkiem tego, że kolaż wylosował się dziś inny. Ktoś szuka pół dnia,
+ * co zepsuł, i nie zepsuł nic. Odwrotnie jest gorzej: prawdziwa regresja
+ * chowa się wtedy za zdaniem „a, to pewnie ta zmienność".
+ *
+ * PORZĄDKUJEMY PO `id`, NIE PO `created_at`. `id` jest UUID-em v7 (`HasUuids`),
+ * czyli kluczem głównym: unikalnym z definicji i niezmiennym. `created_at`
+ * ma rozdzielczość, w której dwa wiersze zasiane w tej samej sekundzie są
+ * nierozróżnialne — a seeder właśnie tak je zapisuje.
+ *
+ * NIE DOTYCZY to zapytań po `username` (`profiles.username` ma UNIQUE, więc
+ * wiersz jest co najwyżej jeden) ani `.first()` z Playwrighta, które chodzi
+ * po kolejności dokumentu, nie po kolejności bazy.
+ * ========================================================================== */
+
 /*
  * Adres przepisu bierzemy z BAZY, nie ze strony.
  *
@@ -1462,10 +1519,15 @@ log('');
  * ekran przepisu po cichu WYPADAŁ ze sprawdzania, a raport wyglądał
  * na kompletny. Zapytanie do bazy nie zależy od tego, która strona akurat
  * linkuje do przepisów.
+ *
+ * `->orderBy('id')` — patrz `JEDNOZNACZNY WYBÓR PRÓBKI` wyżej. Bez tego
+ * PostgreSQL wolno oddać dowolny z przepisów demo, a raport wyglądałby
+ * tak samo przy każdym z nich.
  */
 const adresPrzepisu = (() => {
   const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
-    "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')->first())->slug;",
+    "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')"
+    + "->orderBy('id')->first())->slug;",
   ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString().trim();
 
@@ -1498,7 +1560,7 @@ const wpisyPoTrybie = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
     "foreach (['normal','carousel','collage'] as $t) { "
     + "$w = App\\Models\\Post::where('display_mode', $t)->where('status','published')"
-    + "->where('visibility','public')->has('media', '>=', 2)->first(); "
+    + "->where('visibility','public')->has('media', '>=', 2)->orderBy('id')->first(); "
     + "echo $t.'='.($w?->getKey() ?? '').PHP_EOL; }",
   ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
     .toString();
@@ -1515,6 +1577,46 @@ const wpisyPoTrybie = (() => {
 
   return mapa;
 })();
+
+/*
+ * WPIS AUTORA O STUZNAKOWEJ NAZWIE — PRZYPIĘTY PO AUTORZE, NIE PO KOLEJNOŚCI.
+ *
+ * ZNALEZISKO Z 12 WRZEŚNIA, i jest to Sprawa 1 w czystej postaci. Karta wpisu
+ * Zofii (`KONTO_DLUGA_NAZWA`) wchodziła do pomiaru fokusu BOCZNYMI DRZWIAMI:
+ * na `EKRANY_FOCUS` nie ma jej ani razu, a mierzona była dlatego, że pozycja
+ * „wpis (przykładowy)" rozwiązuje się przez `znajdz: 'wpis:normal'`, a wpis
+ * Zofii był akurat tym, który oddawał `SELECT … LIMIT 1` bez `ORDER BY`.
+ *
+ * Dopisanie nowszego wpisu `DISPLAY_NORMAL` do `DemoSeeder` wystarczyłoby,
+ * żeby ta próbka przestała pilnować WCAG 2.4.11 — i nie oblałby się przy tym
+ * ani jeden test. Trzy naruszenia, które ta próbka znalazła (#440), po prostu
+ * przestałyby być mierzone, a raport wyglądałby tak samo.
+ *
+ * Samo `->orderBy('id')` w `wpisyPoTrybie` wyżej czyni ten wybór POWTARZALNYM,
+ * ale nie czyni go TRUDNYM: ustala tylko, że zawsze wchodzi ten sam wpis,
+ * niezależnie od tego, czy jest to wpis o coś wart mierzenia. Dlatego karta
+ * z długą nazwą dostaje własną pozycję i własne zapytanie, pytające o AUTORA
+ * — a to jest cecha, której dopisanie wpisu nie zmienia.
+ */
+const wpisDlugiejNazwy = (() => {
+  const id = execFileSync('php', ['artisan', 'tinker', '--execute',
+    `$a = App\\Models\\Profile::where('username','${KONTO_DLUGA_NAZWA}')->value('user_id'); `
+    + "if (! $a) { echo ''; exit; } "
+    + "echo App\\Models\\Post::where('author_id',$a)->publiclyVisible()"
+    + "->orderBy('id')->value('id') ?? '';",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return id === '' ? null : id;
+})();
+
+if (wpisDlugiejNazwy === null) {
+  console.error(`BŁĄD: konto „${KONTO_DLUGA_NAZWA}" nie ma publicznego wpisu — karta wpisu `
+    + 'autora o stuznakowej nazwie wypadłaby z pomiaru fokusu (WCAG 2.2 AA 2.4.11), '
+    + 'a raport wyglądałby tak samo jak przy pełnej próbce.');
+  zamknij();
+  process.exit(1);
+}
 
 /*
  * Decyzja moderacyjna, od której może się odwołać konto, którym ten automat
@@ -1559,16 +1661,16 @@ const wpisyPoTrybie = (() => {
  */
 const idOdwolania = (() => {
   const id = execFileSync('php', ['artisan', 'tinker', '--execute',
-    "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    "$m = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     // `username` mieszka na `Profile` (klucz główny `user_id`), nie na
     // `User` — patrz komentarz w App\Models\User o danych publicznych.
     + `$b = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
     + "if (!$m || !$b) { echo ''; exit; } "
     + "$a = App\\Models\\ModerationAction::where('subject_user_id',$b)"
-    + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->first(); "
+    + "->whereIn('action', App\\Models\\ModerationAction::ODWOLYWALNE)->orderBy('id')->first(); "
     + "if (!$a) { "
-    + "$przepis = App\\Models\\Recipe::where('author_id',$b)->value('id'); "
-    + "$wpis = $przepis ? null : App\\Models\\Post::where('author_id',$b)->value('id'); "
+    + "$przepis = App\\Models\\Recipe::where('author_id',$b)->orderBy('id')->value('id'); "
+    + "$wpis = $przepis ? null : App\\Models\\Post::where('author_id',$b)->orderBy('id')->value('id'); "
     + "$cel = $przepis ?? $wpis ?? $b; "
     + "$typ = $przepis ? 'recipe' : ($wpis ? 'post' : 'user'); "
     + "$a = App\\Models\\ModerationAction::create(['moderator_id'=>$m,'target_type'=>$typ,"
@@ -1616,11 +1718,11 @@ if (idOdwolania === null) {
 const idZgloszenia = (() => {
   const id = execFileSync('php', ['artisan', 'tinker', '--execute',
     `$b = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
-    + "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "$m = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     + "if (!$b || !$m) { echo ''; exit; } "
-    + "$z = App\\Models\\Report::where('reporter_id',$b)->first(); "
+    + "$z = App\\Models\\Report::where('reporter_id',$b)->orderBy('id')->first(); "
     + "if (!$z) { "
-    + "$cel = App\\Models\\Post::where('author_id','!=',$b)->value('id'); "
+    + "$cel = App\\Models\\Post::where('author_id','!=',$b)->orderBy('id')->value('id'); "
     + "if (!$cel) { echo ''; exit; } "
     + "$z = App\\Models\\Report::create(['reporter_id'=>$b,'target_type'=>'post','target_id'=>$cel,"
     + "'reason'=>'harassment','details'=>'Ten wpis wyśmiewa konkretną osobę z nazwiska.',"
@@ -1709,14 +1811,15 @@ if (idZgloszenia === null) {
  */
 const kolejkiPanelu = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
-    "$m = App\\Models\\User::where('role','moderator')->value('id'); "
+    "$m = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     + `$automat = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
     + "if (! $m || ! $automat) { echo ''; exit; } "
     // Zgłaszający INNY niż konto, którym loguje się ten automat — inaczej
     // zmieniłaby się lista „twoje zgłoszenia", mierzona wyżej.
     + "$zglaszajacy = App\\Models\\User::where('status','active')->whereKeyNot($automat)"
-    + "->whereKeyNot($m)->value('id'); "
-    + "$wpisy = App\\Models\\Post::publiclyVisible()->latest('published_at')->get(); "
+    + "->whereKeyNot($m)->orderBy('id')->value('id'); "
+    + "$wpisy = App\\Models\\Post::publiclyVisible()"
+    + "->orderByDesc('published_at')->orderByDesc('id')->get(); "
     + "if (! $zglaszajacy || $wpisy->count() < 2) { echo ''; exit; } "
     // Sprawa społecznościowa, OTWARTA — pełny formularz decyzji.
     + "$celA = $wpisy->first(fn ($p) => $p->author_id !== $zglaszajacy); "
@@ -1814,20 +1917,20 @@ log(`Kolejki panelu: ${kolejkiPanelu.split('|')[0]} otwarte sprawy od ludzi, `
 const tablicaDnia = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
     `$konto = App\\Models\\Profile::where('username','${KONTO_ZALOGOWANE}')->value('user_id'); `
-    + "$mod = App\\Models\\User::where('role','moderator')->value('id'); "
+    + "$mod = App\\Models\\User::where('role','moderator')->orderBy('id')->value('id'); "
     + "if (! $konto) { echo ''; exit; } "
     // Osoba z paskiem miniatur. Liczymy tak samo, jak liczy widok:
     // zdjęcia gotowe z TRZECH ostatnich publicznych wpisów (kuking-board.blade.php).
     + "$osoba = null; "
-    + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->get() as $u) { "
+    + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->orderBy('id')->get() as $u) { "
     + "$ile = 0; "
     + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
-    + "->latest('published_at')->limit(3)->get() as $p) { "
+    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get() as $p) { "
     + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
     + "if ($ile >= 3) { $osoba = $u; break; } } "
     // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.
     + "$wpisy = App\\Models\\Post::publiclyVisible()->where('author_id','!=',$konto)"
-    + "->latest('published_at')->with('media')->get(); "
+    + "->orderByDesc('published_at')->orderByDesc('id')->with('media')->get(); "
     + "$zeZdjeciem = $wpisy->first(fn ($p) => $p->media->contains(fn ($m) => $m->isReady())); "
     + "$bezZdjecia = $wpisy->first(fn ($p) => ! $p->media->contains(fn ($m) => $m->isReady())); "
     + "if (! $osoba || ! $zeZdjeciem) { echo ''; exit; } "
@@ -1871,7 +1974,8 @@ if (tablicaDnia === null) {
  * `znajdz: 'wpis:carousel:zdjecia'` → ekran kolejności i wyglądu tego wpisu,
  * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla konta,
  *                        którym automat się loguje (`KONTO_ZALOGOWANE`),
- * `znajdz: 'zgloszenie'` → karta sprawy zgłoszenia złożonego przez to konto.
+ * `znajdz: 'zgloszenie'` → karta sprawy zgłoszenia złożonego przez to konto,
+ * `znajdz: 'wpis-dluga-nazwa'` → wpis autora o nazwie na 100 znaków.
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
@@ -1896,6 +2000,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'zgloszenie') {
     return `/zgloszenia/${idZgloszenia}`;
+  }
+
+  if (ekran.znajdz === 'wpis-dluga-nazwa') {
+    return `/wpisy/${wpisDlugiejNazwy}`;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');
@@ -2073,6 +2181,106 @@ const przeszkodaPanelu = await przeszkodaWPanelu(przegladarka, adres, stanModera
 
 if (przeszkodaPanelu !== null) {
   console.error(`BŁĄD: ${przeszkodaPanelu}`);
+  zamknij();
+  process.exit(1);
+}
+
+log('');
+
+/*
+ * `/ustawienia/zdjecie` MUSI STAĆ W STANIE „TO JEST TWOJE ZDJĘCIE" (#344).
+ *
+ * Ta sama reguła co przy `TRESC_PANELU` wyżej i ten sam powód: kod 200 i ten
+ * sam adres dostaje się także w stanie „nie masz jeszcze swojego zdjęcia",
+ * a tamten stan jest o dwie rzeczy UBOŻSZY — nie ma obrazka 88 px obok
+ * akapitu i nie ma całej sekcji „Usunięcie zdjęcia". Właśnie tych dwóch
+ * rzeczy dotyczyło przepełnienie z 12 września, więc pomiar bez nich
+ * meldowałby „✓" o ekranie, którego trudnej połowy nie widział.
+ *
+ * DWA WARUNKI, BO MIERZĄ CO INNEGO:
+ *  - `img.avatar` w bloku stanu — dowód, że zdjęcie jest GOTOWE. Przy zdjęciu
+ *    bez wariantu albo w przetwarzaniu widok stawia tam `<span class="avatar">`
+ *    z inicjałem, czyli element o tej samej klasie i innym wpływie na układ;
+ *  - `.danger-zone` — sekcja, która istnieje wyłącznie wtedy, gdy zdjęcie
+ *    w ogóle jest.
+ *
+ * Próg węzłów stoi MIĘDZY DWIEMA ZMIERZONYMI LICZBAMI, a nie tuż pod tą
+ * dobrą (ta sama zasada co przy progach `TRESC_PANELU`). Zmierzone 12 września,
+ * świeża baza demo, 900 px — kolumna „bez zdjęcia" to ten sam ekran po
+ * wyzerowaniu `profiles.avatar_media_id`, czyli kontrola ujemna tego progu:
+ *
+ *     stan ekranu                węzłów w <main>
+ *     „to jest Twoje zdjęcie"          33
+ *     „nie masz jeszcze zdjęcia"       22
+ *
+ * Próg 28 nie przepuszcza stanu pustego i nie psuje się od dopisania jednego
+ * zdania do pełnego.
+ */
+const EKRAN_ZDJECIA = {
+  nazwa: 'zdjęcie profilowe',
+  sciezka: '/ustawienia/zdjecie',
+  progWezlow: 28,
+};
+
+async function przeszkodaNaEkranieZdjecia(przegladarka, adres, stan) {
+  const kontekst = await przegladarka.newContext({
+    viewport: { width: 900, height: 900 },
+    storageState: stan,
+  });
+  const strona = await kontekst.newPage();
+
+  try {
+    const odpowiedz = await strona.goto(`${adres}${EKRAN_ZDJECIA.sciezka}`, { waitUntil: 'domcontentloaded' });
+    const kod = odpowiedz?.status() ?? 0;
+    const sciezka = new URL(strona.url()).pathname;
+
+    if (kod !== 200 || sciezka !== EKRAN_ZDJECIA.sciezka) {
+      return `ekran „${EKRAN_ZDJECIA.nazwa}" (${EKRAN_ZDJECIA.sciezka}) odpowiedział kodem ${kod} `
+        + `i wylądował na ${sciezka}. Automat mierzyłby stronę logowania albo błędu, `
+        + 'która przechodzi każdy audyt, nie sprawdzając niczego.';
+    }
+
+    const stanEkranu = await strona.evaluate(() => {
+      const main = document.querySelector('main');
+
+      return {
+        wezlow: main ? main.querySelectorAll('*').length : 0,
+        zdjec: main ? main.querySelectorAll('.zdjecie-profilowe-stan img.avatar').length : 0,
+        usuniec: main ? main.querySelectorAll('.danger-zone').length : 0,
+      };
+    });
+
+    log(`  ${EKRAN_ZDJECIA.nazwa}: ${stanEkranu.wezlow} węzłów w <main>, `
+      + `${stanEkranu.zdjec} × gotowe zdjęcie, ${stanEkranu.usuniec} × sekcja usunięcia`);
+
+    if (stanEkranu.zdjec === 0 || stanEkranu.usuniec === 0) {
+      return `ekran „${EKRAN_ZDJECIA.nazwa}" (${EKRAN_ZDJECIA.sciezka}) stoi w stanie BEZ `
+        + `gotowego zdjęcia (${stanEkranu.zdjec} × „.zdjecie-profilowe-stan img.avatar", `
+        + `${stanEkranu.usuniec} × „.danger-zone", ${stanEkranu.wezlow} węzłów w <main>). `
+        + 'To jedyny z trzech stanów tego ekranu, który NIE przepełniał — mierzenie go '
+        + 'byłoby pilnowaniem nie tej rzeczy. Sprawdź `nadajZdjecieProfilowe()` '
+        + 'w `database/seeders/DemoSeeder.php`.';
+    }
+
+    if (stanEkranu.wezlow < EKRAN_ZDJECIA.progWezlow) {
+      return `ekran „${EKRAN_ZDJECIA.nazwa}" (${EKRAN_ZDJECIA.sciezka}) ma ${stanEkranu.wezlow} `
+        + `węzłów w <main>, a stan „to jest Twoje zdjęcie" ma ich co najmniej `
+        + `${EKRAN_ZDJECIA.progWezlow}. Na ekranie stoi mniej, niż powinno — sprawdź, `
+        + 'co zniknęło, zanim uwierzysz w „✓".';
+    }
+
+    return null;
+  } finally {
+    await kontekst.close();
+  }
+}
+
+log('Zdjęcie profilowe — co widzi automat:');
+
+const przeszkodaZdjecia = await przeszkodaNaEkranieZdjecia(przegladarka, adres, stanZalogowany);
+
+if (przeszkodaZdjecia !== null) {
+  console.error(`BŁĄD: ${przeszkodaZdjecia}`);
   zamknij();
   process.exit(1);
 }
@@ -3153,6 +3361,21 @@ const EKRANY_FOCUS = [
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
   { nazwa: 'wpis (przykładowy)', adres: null, znajdz: 'wpis:normal', zalogowany: true },
+  /*
+   * KARTA WPISU AUTORA O STUZNAKOWEJ NAZWIE — PRZYPIĘTA JAWNIE (#440).
+   *
+   * Pozycja wyżej bierze „jakiś wpis w trybie zwykłym" i dopóki tym wpisem
+   * był akurat wpis Zofii, ta próbka pilnowała najtrudniejszego wariantu
+   * przez przypadek. Zmierzone przy #440, dojściem Tabem, 320 px / tekst 140%:
+   *
+   *     autor „Basia" (5 znaków)   menu „Więcej" na 314 px     0% zakryte
+   *     autor o 100 znakach        menu „Więcej" na   1 px   100% ZAKRYTE
+   *
+   * Różnicę robi wyłącznie długość nazwy autora, więc ta karta musi wchodzić
+   * do pomiaru z NAZWY, a nie z kolejności wierszy. Uzasadnienie i sposób
+   * wyboru: `wpisDlugiejNazwy` wyżej w tym pliku.
+   */
+  { nazwa: 'wpis (autor o nazwie na 100 znaków)', adres: null, znajdz: 'wpis-dluga-nazwa', zalogowany: true },
   { nazwa: 'ustawienia profilu', adres: '/ustawienia/profil', zalogowany: true },
 ];
 

@@ -21,6 +21,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -99,6 +100,30 @@ class DemoSeeder extends Seeder
         $moderator = $this->createUser('moderacja@example.test', 'moderacja', 'Moderacja Kuking', [
             'bio' => 'Konto zespołu Kuking.',
         ], role: User::ROLE_MODERATOR);
+
+        /*
+         * ZDJĘCIE PROFILOWE DLA KONTA, KTÓRYM LOGUJE SIĘ AUTOMAT DOSTĘPNOŚCI
+         * (`ania` — patrz `KONTO_ZALOGOWANE` w `scripts/dostepnosc.mjs`).
+         *
+         * PO CO TO JEST. Ekran `/ustawienia/zdjecie` ma TRZY stany: „to jest
+         * Twoje zdjęcie", „zdjęcie się przygotowuje" i „nie masz jeszcze
+         * zdjęcia". Różnią się nie jednym zdaniem, tylko układem: przy
+         * gotowym zdjęciu dochodzi obrazek 88 px obok akapitu, zmienia się
+         * napis na polu pliku i pojawia się CAŁA sekcja „Usunięcie zdjęcia"
+         * z przyciskiem potwierdzenia. Do 12 września dane demo nie dawały
+         * temu kontu żadnego zdjęcia, więc automat mierzyłby jedyny z tych
+         * trzech stanów, w którym tego wszystkiego NIE MA — i wpisałby „✓"
+         * dla ekranu, którego trudnej połowy nie widział ani razu
+         * (pułapki 2 i 4 z `docs/PULAPKI_TESTOW.md`).
+         *
+         * PRAWDZIWY PLIK, NIE SAM WIERSZ W BAZIE. Zdjęcia demonstracyjne
+         * wpisów mają `metadata.variants` puste, bo do ich układu to
+         * wystarcza. Tutaj nie wystarcza: bez wariantu `Media::url()` oddaje
+         * `icons/kuking-mark.svg`, czyli znak Kuking o `viewBox 0 0 64 64`.
+         * Mierzyłoby się wtedy kwadrat 64 × 64 podstawiony za zdjęcie —
+         * dane, które wyglądają na prawdziwe i nie są.
+         */
+        $this->nadajZdjecieProfilowe($ania);
 
         // Graf społeczny
         $ania->following()->syncWithoutDetaching([$basia->getKey() => ['created_at' => now()], $marek->getKey() => ['created_at' => now()]]);
@@ -465,6 +490,70 @@ class DemoSeeder extends Seeder
         }
 
         return $user->refresh();
+    }
+
+    /**
+     * Gotowe zdjęcie profilowe z PRAWDZIWEGO pliku (issue #26, #80).
+     *
+     * Plik źródłowy leży w repozytorium (`database/seeders/zdjecia`), ma
+     * 320 × 320 px — dokładnie tyle, ile `config('kuking.media.variants.thumb')`
+     * — i jest kopiowany pod klucz wariantu `thumb`, czyli pod ten sam, który
+     * wylicza `Media::kluczPublicznegoWariantu()`. Dzięki temu
+     * `MediaController` naprawdę ma co oddać na dysku lokalnym, a wymiary
+     * w bazie są wymiarami pliku, nie liczbami wpisanymi z ręki.
+     *
+     * ORYGINAŁU NIE PODKŁADAMY I TO JEST CELOWE. Na stronę trafia wyłącznie
+     * to, co wyszło z naszego kodera (`Media::maWariantDoPokazania()`),
+     * a `url()` oryginału nie zna. Plik pod `object_key` byłby więc bajtami,
+     * których nikt nigdy nie serwuje.
+     */
+    private function nadajZdjecieProfilowe(User $user): void
+    {
+        $zrodlo = database_path('seeders/zdjecia/awatar-demo.webp');
+
+        // Bez pliku nie ma czego nadawać, a cicha zgoda na brak zdjęcia jest
+        // tu najgorszą z opcji: automat mierzyłby wtedy stan „nie masz
+        // jeszcze zdjęcia", nie wiedząc o tym.
+        if (! is_file($zrodlo)) {
+            $this->command?->warn('Brak pliku '.$zrodlo.' — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
+
+            return;
+        }
+
+        $wymiary = getimagesize($zrodlo);
+
+        if ($wymiary === false) {
+            $this->command?->warn('Plik '.$zrodlo.' nie jest obrazem — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
+
+            return;
+        }
+
+        [$szerokosc, $wysokosc] = $wymiary;
+
+        $objectKey = 'media/demo/'.Str::uuid()->toString().'.webp';
+        $kluczThumb = Media::kluczPublicznegoWariantu($objectKey, 'thumb');
+
+        Storage::disk('public')->put($kluczThumb, (string) file_get_contents($zrodlo));
+
+        $zdjecie = Media::create([
+            'owner_id' => $user->getKey(),
+            'disk' => 'public',
+            'object_key' => $objectKey,
+            'mime_type' => 'image/webp',
+            'bytes' => (int) filesize($zrodlo),
+            'width' => $szerokosc,
+            'height' => $wysokosc,
+            'status' => Media::STATUS_READY,
+            // `alt` awatara jest pusty z założenia (`components/avatar.blade.php`:
+            // imię stoi obok, więc czytnik ekranu nie ma powtarzać go drugi raz).
+            // Tekst zostaje mimo to, bo opisuje plik, a nie miejsce jego użycia.
+            'alt_text' => 'Zdjęcie profilowe konta demonstracyjnego',
+            'metadata' => ['variants' => [
+                'thumb' => ['key' => $kluczThumb, 'width' => $szerokosc, 'height' => $wysokosc],
+            ]],
+        ]);
+
+        $user->profile->update(['avatar_media_id' => $zdjecie->getKey()]);
     }
 
     /**
