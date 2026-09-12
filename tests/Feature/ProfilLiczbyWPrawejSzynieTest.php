@@ -325,7 +325,17 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
         $this->assertStringNotContainsString('Twoje liczby', $szynaCudza);
         // Rząd przycisków cudzego profilu też zostaje nietknięty.
         $this->assertStringContainsString('Obserwuj', $cudzy);
-        $this->assertStringContainsString('Zgłoś', $cudzy);
+        // „Zgłoś" W GŁÓWCE PROFILU, a nie gdziekolwiek w dokumencie
+        // (pułapka 1): to samo słowo stoi w stopce KAŻDEJ strony („Zgłoś
+        // nielegalną treść") i w menu każdej karty wpisu („Zgłoś ten wpis").
+        // Zmierzone 12.09.2026 — po skasowaniu przycisku z rzędu akcji
+        // asercja na całym HTML-u nadal przechodziła. Pytamy więc o odnośnik
+        // o DOKŁADNIE takim napisie i tylko w główce.
+        $this->assertSame(
+            1,
+            $this->odnosnikiWGlowce($cudzy, 'Zgłoś'),
+            'W główce cudzego profilu nie ma przycisku „Zgłoś".',
+        );
         $this->assertStringContainsString('Zablokuj', $cudzy);
         $this->assertStringNotContainsString('Zmień swój profil', $cudzy);
     }
@@ -423,6 +433,35 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
         );
 
         return (string) $wezel->ownerDocument?->saveHTML($wezel);
+    }
+
+    /**
+     * Ile odnośników o DOKŁADNIE takim widocznym napisie stoi w główce profilu.
+     *
+     * Główka to `<header>` wewnątrz `<main>` — poza nią zostaje i stopka,
+     * i belka, i karty wpisów, a wszystkie trzy niosą słowo „Zgłoś"
+     * w dłuższych napisach (pułapka 1 z `docs/PULAPKI_TESTOW.md`).
+     */
+    private function odnosnikiWGlowce(string $html, string $napis): int
+    {
+        $dokument = new DOMDocument;
+        $poprzednie = libxml_use_internal_errors(true);
+        $dokument->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($poprzednie);
+
+        $xpath = new DOMXPath($dokument);
+        $glowka = $xpath->query('//main//header')->item(0);
+
+        $this->assertInstanceOf(
+            DOMElement::class,
+            $glowka,
+            'Strona profilu nie ma główki — bez niej asercja niżej nic nie mierzy.',
+        );
+
+        $wynik = $xpath->query(sprintf('.//a[normalize-space(.)="%s"]', $napis), $glowka);
+
+        return $wynik === false ? 0 : $wynik->length;
     }
 
     private function wezelPoKlasie(string $html, string $znacznik, string $klasa): ?DOMElement

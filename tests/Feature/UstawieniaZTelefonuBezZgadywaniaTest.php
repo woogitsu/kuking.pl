@@ -9,6 +9,7 @@ use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CzytaWidoczneNapisy;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -53,6 +54,7 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
 {
     use CzytaWidoczneNapisy;
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     public function test_wlasny_profil_ma_widoczne_wejscie_do_ustawien_przy_wylogowaniu(): void
     {
@@ -152,7 +154,19 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
 
         // I nie jest ślepym zaułkiem — niesie spis pozostałych ekranów,
         // w tym te, których z telefonu nie dało się dotąd zobaczyć wcale.
-        $ekran->assertSee('Prywatność');
+        //
+        // „Prywatność" NA TREŚCI EKRANU, a nie na całym dokumencie: ten sam
+        // napis stoi w stopce serwisu, na KAŻDEJ stronie (`layout.blade.php`
+        // → odnośnik do polityki prywatności). Zmierzone 12.09.2026 —
+        // po wyrzuceniu pozycji „Prywatność" ze spisu asercja na całej
+        // odpowiedzi nadal przechodziła, czyli pilnowała stopki, nie spisu
+        // (pułapka 1 z `docs/PULAPKI_TESTOW.md`). Pozostałych dwóch napisów
+        // nie ma nigdzie poza spisem — sabotaż każdego z nich oblewa test
+        // i tu zawężać nie ma czego.
+        $this->assertStringContainsString(
+            'Prywatność',
+            $this->trescEkranu((string) $ekran->getContent()),
+        );
         $ekran->assertSee('Bezpieczeństwo');
         $ekran->assertSee('Twoje dane');
     }

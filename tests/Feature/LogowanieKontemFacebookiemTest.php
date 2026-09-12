@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -51,6 +52,7 @@ use Tests\TestCase;
 class LogowanieKontemFacebookiemTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private const APP_ID = '1234567890123456';
 
@@ -403,7 +405,14 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         // Ekran mówi, CO ZROBIĆ, a nie „wystąpił błąd" i nie pokazuje
         // angielskiego komunikatu od dostawcy.
-        $this->assertStringContainsString('Facebook nie podał nam adresu e-mail', $html);
+        // NA TREŚCI EKRANU (pułapka 1b): to zdanie jest też `<title>` tej
+        // strony, więc asercja na całej odpowiedzi przechodziła także po
+        // skasowaniu nagłówka — a wtedy człowiek nie widzi na ekranie nic
+        // o adresie e-mail. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Facebook nie podał nam adresu e-mail',
+            $this->trescEkranu($html),
+        );
         $this->assertStringContainsString(route('register'), $html);
         $this->assertStringNotContainsString('Exception', $html);
 
