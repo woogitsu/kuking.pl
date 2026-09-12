@@ -194,7 +194,11 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
     {
         $bloki = [];
         $n = count($linie);
-        $ostatniWpis = 'D-000';
+        // Wartość początkowa dla bloku referencji stojącego przed pierwszym
+        // nagłówkiem wpisu. Celowo nie jest to numer decyzji: każdy literał
+        // w formacie numeru NumeryDecyzjiMajaWpisyTest policzy jako cytat,
+        // a cytat bez wpisu w dzienniku to martwy odnośnik.
+        $ostatniWpis = '(przed pierwszym wpisem)';
         $i = 0;
 
         while ($i < $n) {
