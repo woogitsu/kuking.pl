@@ -62,6 +62,40 @@ class DemoSeeder extends Seeder
             'speciality' => 'szybkie obiady',
         ]);
 
+        /*
+         * KONTO Z NAZWĄ NA PEŁNE 100 ZNAKÓW — NAJTRUDNIEJSZY WARIANT PROFILU
+         * (issue #440)
+         *
+         * `display_name` ma w walidacji `max:100` (RegisterController,
+         * ProfileSettingsController, oba loginy zewnętrzne) i ani jednego
+         * ograniczenia na długość pojedynczego SŁOWA. Nazwa niżej ma
+         * dokładnie 100 znaków, a najdłuższy nieprzerwany ciąg w niej — 55.
+         * Jest więc poprawnym wejściem, jakie człowiek może wpisać dziś,
+         * bez żadnej sztuczki.
+         *
+         * DO 12 WRZEŚNIA TAKIEGO KONTA W DANYCH DEMO NIE BYŁO. Najdłuższa
+         * nazwa profilu miała 16 znaków („Moderacja Kuking"), a dwie
+         * mierzone przez automat — po cztery i pięć („Ania", „Basia").
+         * `scripts/dostepnosc.mjs` meldował więc „nic nie wyjeżdża w bok na
+         * profilu" o ekranie, którego najtrudniejszego wariantu nie widział
+         * ani razu. To jest pułapka 5 z `docs/PULAPKI_TESTOW.md` widziana od
+         * strony DANYCH: narzędzie melduje sukces, bo nie dostało tego,
+         * o co chodzi — i wygląda przy tym dokładnie tak, jak gdyby dostało.
+         *
+         * Zofia ma własny wpis ze zdjęciem: profil bez ani jednej treści to
+         * pusty ekran, a pusty ekran przechodzi każdy pomiar układu.
+         */
+        $zofia = $this->createUser(
+            'zofia@example.test',
+            'zofia_z_bieszczad',
+            'Małgorzata Konstantynopolitańczykowianeczka-Brzęczyszczykiewiczowa z Kamiennej Góry na Dolnym Śląsku',
+            [
+                'bio' => 'Gotuję dla wnuków, kiedy przyjeżdżają na wakacje. Najchętniej pierogi i kompot z rabarbaru.',
+                'region' => 'Dolny Śląsk',
+                'speciality' => 'pierogi i kompoty',
+            ],
+        );
+
         $moderator = $this->createUser('moderacja@example.test', 'moderacja', 'Moderacja Kuking', [
             'bio' => 'Konto zespołu Kuking.',
         ], role: User::ROLE_MODERATOR);
@@ -160,6 +194,19 @@ class DemoSeeder extends Seeder
             Post::DISPLAY_NORMAL,
             ['Słoik zakwasu na parapecie', 'Bochenek chleba przekrojony na desce'],
             now()->subHours(4),
+        );
+
+        /*
+         * Wpis Zofii — żeby jej profil miał co pokazać. Bez ani jednej treści
+         * profil jest pustym ekranem, a pusty ekran przechodzi każdy pomiar
+         * układu, nie sprawdzając niczego.
+         */
+        $this->wpisZKilkomaZdjeciami(
+            $zofia,
+            'Pierogi ruskie na niedzielę, tak jak robiła je moja mama.',
+            Post::DISPLAY_NORMAL,
+            ['Pierogi ruskie na talerzu', 'Farsz z ziemniaków i twarogu w misce'],
+            now()->subHours(3),
         );
 
         // Przepis rodzinny — pokazuje, po co jest sekcja „Skąd ten przepis”
