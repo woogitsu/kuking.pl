@@ -576,9 +576,9 @@ zaletą (§6), a napis jest jednym elementem, więc nie rozpada się na telefoni
 
 **3. Złagodzenie „Przepis jest dobry wtedy, kiedy ktoś go ugotował".**
 Odrzucone. To zdanie niesie **całą tezę produktu** — „Ugotowałem" jest
-ważniejsze niż lajk (`AGENTS.md` §1, D-004). Zarzut audytu („logicznie zbyt
-absolutne") dotyczy hasła, a od hasła absolutność się oczekuje. Grupa D
-potwierdzona przez właściciela: tego zdania, „Pokaż, co dziś ugotowałeś"
+ważniejsze niż lajk (`AGENTS.md` §1, hierarchia priorytetów). Zarzut audytu
+(„logicznie zbyt absolutne") dotyczy hasła, a od hasła absolutność się
+oczekuje. Grupa D potwierdzona przez właściciela: tego zdania, „Pokaż, co dziś ugotowałeś"
 i „Ugotowałem" **nie rusza nikt**.
 
 **4. Usunięcie „Nie musi być ładne — ma być prawdziwe".** Odrzucone, bo to

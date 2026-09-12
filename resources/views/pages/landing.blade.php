@@ -11,7 +11,9 @@
       2. „Jak działa" — trzy krótkie kroki,
       3. tablica „kuKINGi na dziś" — dowód, że tu naprawdę ktoś gotuje,
       4. „Ugotowałem" na ciemnym — jedna rzecz, której nie ma nigdzie indziej
-         (`docs/DECISIONS.md`, D-004: ugotowanie jest ważniejsze niż lajk),
+         (`AGENTS.md` §1: realne ugotowanie jest ważniejsze niż lajk — hierarchia
+         priorytetów produktu; osobnego wpisu w `docs/DECISIONS.md` ta zasada
+         nie ma),
       5. „Świeżo z Kuking" — dopiero teraz cudze wpisy, bo dopiero teraz
          wiadomo, na co się patrzy,
       6. dane i prywatność — co się dzieje z tym, co dodasz,

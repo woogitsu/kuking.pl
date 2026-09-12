@@ -58,7 +58,24 @@ final class TagFeed
             ->with([
                 'author.profile.avatar',
                 'media',
-                'recipe:id,title,slug',
+                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
+                // doładowane — dokładnie jak w `FollowingFeed`, `DiscoverFeed`
+                // i `DailyBoard` (issue #368). Ten feed jako jedyny z czterech
+                // został przy samym `recipe:id,title,slug`, a karta wpisu
+                // (`post-card.blade.php`) czyta z tej relacji OBIE brakujące
+                // kolumny: `visibility` na plakietkę widoczności i
+                // `hero_media_id` na zdjęcie przepisu.
+                //
+                // Kolumna pominięta w selekcie NIE JEST BŁĘDEM — wraca `null`.
+                // Skutek był więc podwójnie cichy: `heroMedia` bez klucza
+                // obcego oddawało `null`, czyli wpis wskazujący przepis stał
+                // w strumieniu bez zdjęcia, a `visibility` jako `null` schodziło
+                // przez `?? $post->visibility` do widoczności WPISU — a ta przy
+                // wpisie wskazującym przepis jest na stałe `public`. Karta
+                // pisała więc autorowi „publicznie" pod przepisem widocznym
+                // tylko dla obserwujących.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
                 'tags:id,slug,name',
             ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])

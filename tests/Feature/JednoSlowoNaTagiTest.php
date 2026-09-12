@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use App\Models\TagPromotion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -43,6 +44,7 @@ use Tests\TestCase;
 class JednoSlowoNaTagiTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     /**
      * DOPASOWANIE NA GRANICACH WYRAZU, NIE PODCIĄGIEM.
@@ -90,7 +92,14 @@ class JednoSlowoNaTagiTest extends TestCase
         // Kontrola dodatnia: strona naprawdę się wyrenderowała i to jest
         // spis tagów, a nie ekran błędu. Bez tego asercja „czegoś nie ma"
         // przechodziłaby także na pustej odpowiedzi (docs/PULAPKI_TESTOW.md).
-        $this->assertStringContainsString('Wszystkie tagi', $html);
+        //
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1b): `<title>`
+        // tej strony to dokładnie „Wszystkie tagi", więc kontrola dodatnia
+        // przechodziła także wtedy, gdy w `<main>` nie było ani nagłówka,
+        // ani spisu — czyli nie kontrolowała niczego. Zmierzone 12.09.2026.
+        $tresc = $this->trescEkranu((string) $html);
+
+        $this->assertStringContainsString('Wszystkie tagi', $tresc);
         $this->assertStringContainsString('Pierogi', $html);
 
         $this->assertSame(
