@@ -1004,6 +1004,78 @@
     scroll-padding-bottom: var(--rezerwa-pod-belka);
   }
 
+  /* ---------------------------------------------------------------------
+     TO SAMO OD GÓRY (issue #440, WCAG 2.2 AA — 2.4.11 Focus Not Obscured)
+
+     Rezerwa wyżej chroni przed DOLNĄ belką. Górna miała dokładnie tę samą
+     dziurę i nie miała odpowiednika: `position: sticky` trzyma ją na wierzchu,
+     a przewijanie fokusu w widok, które przeglądarka robi sama po Tab, liczy
+     się do krawędzi OKNA i nie wie, że w tym miejscu coś stoi na wierzchu.
+     Kontrolka ląduje wtedy pod belką — widoczna dla kodu, niewidoczna dla
+     człowieka.
+
+     ZNALEZIONE PRÓBKĄ, NIE PRZECZUCIEM. Automat dostępności mierzył profile
+     o nazwach czteroznakowych; po dołożeniu profilu z nazwą na pełne 100
+     znaków (`DemoSeeder`, issue #440) wyszły trzy naruszenia 2.4.11, wszystkie
+     na tym samym elemencie: menu „Więcej przy tym wpisie" na karcie wpisu
+     autora o długiej nazwie. Zmierzone przy 320 px i tekście 140%, dojściem
+     Tabem jak w automacie:
+
+         autor „Basia" (5 znaków)   menu na 314 px, dół belki 195 px   0% zakryte
+         autor o 100 znakach        menu na   1 px, dół belki 195 px 100% ZAKRYTE
+
+     Różnicę robi wysokość główki karty: długa nazwa zawija się na kilka
+     wierszy, więc menu stoi wyżej względem treści i przeglądarka dowija je
+     pod samą krawędź okna.
+
+     DLACZEGO `scroll-padding-top` NA KORZENIU, A NIE `scroll-margin-top` NA
+     TYM JEDNYM MENU. Bo to nie jest usterka tego menu. Każda kontrolka
+     w serwisie może po Tab wylądować pod przypiętą belką — długa nazwa tylko
+     ustawiła jedną z nich dokładnie tam, gdzie to widać. Poprawka na jednym
+     elemencie zostawiłaby resztę i kazała czekać, aż następna próbka trafi
+     w kolejny.
+
+     LICZBY BIORĄ SIĘ Z POMIARU WYSOKOŚCI BELKI (Chromium, `/home`,
+     zalogowany):
+
+         szerokość        bez skali     tekst 140%
+           320 px          170,7 px      194,6 px
+           360 / 414 px    112,7 px      194,6 px
+           768 px i więcej  75,5 px       84,5 px
+
+     13rem (208 px) pokrywa najgorszy przypadek telefonu z zapasem 13,4 px,
+     6rem (96 px) — tablet i desktop z zapasem 11,5 px. `rem`, nie
+     `--user-text-scale`: to ustawienie mnoży tokeny `--text-*`, korzenia nie
+     rusza, a belka rośnie od niego tylko o 14% (170,7 → 194,6 px), nie o 40%.
+     Wiązanie rezerwy z mnożnikiem dawałoby przy 140% zapas 74 px, czyli
+     odsuwałoby fokus od belki bez powodu.
+
+     PRZY CZCIONCE PRZEGLĄDARKI 200% REZERWA SCHODZI DO ZERA, bo belka
+     przestaje tam być przypięta (reguła `@media (max-width: 15rem)` przy
+     `.topbar`) — nie ma już czego omijać, a 13rem znaczyłoby wtedy 416 px
+     i samo spychałoby fokus poza ekran. Ten sam próg i to samo kryterium
+     co tam: okno porównane z korzeniem, nie z pikselami.
+     --------------------------------------------------------------------- */
+  :root {
+    --rezerwa-nad-trescia: 13rem;
+  }
+
+  @media (min-width: 48rem) {
+    :root {
+      --rezerwa-nad-trescia: 6rem;
+    }
+  }
+
+  @media (max-width: 15rem) {
+    :root {
+      --rezerwa-nad-trescia: 0rem;
+    }
+  }
+
+  :root {
+    scroll-padding-top: var(--rezerwa-nad-trescia);
+  }
+
   .bottom-nav {
     position: fixed;
     bottom: 0;
