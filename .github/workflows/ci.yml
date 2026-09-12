@@ -10,21 +10,34 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  GDZIE TO CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`,
-#  wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie zmienną repozytorium:
+#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
+#  Wszystkie dziewięć jobów ma dokładnie to samo:
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
-#  Dlaczego etykiety, a nie nazwa: nazwa przypina job do JEDNEJ maszyny, więc
-#  jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe: `i5-10400f`
-#  i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
+#  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
+#  JEST i jest wartością domyślną. Żeby wysłać joby na własną pulę
+#  `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia w Settings →
+#  Secrets and variables → Actions → Variables:
+#
+#      CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#
+#  Dlaczego KOMPLET ETYKIET, a nie nazwa runnera: nazwa przypina job do JEDNEJ
+#  maszyny, więc jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe:
+#  `i5-10400f` i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
 #  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
 #  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
 #
-#  KOSZT TEJ DECYZJI, ŻEBY BYŁ ZAPISANY: te joby NIE mają już zapasu
-#  w runnerach GitHuba. Gdy cała pula jest offline, przebiegi stoją w kolejce
-#  bez końca — a CI jest bramką deployu (Railway ma „Wait for CI"), więc stoi
-#  wtedy także wdrożenie. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
+#  KOSZT, ŻEBY BYŁ ZAPISANY: kiedy zmienna wskazuje własną pulę, a cała pula
+#  jest offline, przebiegi stoją w kolejce bez końca — a CI jest bramką deployu
+#  (Railway ma „Wait for CI"), więc stoi wtedy także wdrożenie. Ratunkiem jest
+#  wtedy SKASOWANIE zmiennej (powrót na `ubuntu-latest`), nie PR.
+#
+#  STAN ZMIERZONY 11.09.2026 (D-121, przebieg CI nr 661): `labels: ["self-hosted"]`,
+#  `runner_name: kuking-wsl-DOM-NEW-02`. Zmienna jest dziś ustawiona na SAMO
+#  `self-hosted`, więc joby lądują na starej puli WSL-owej — tej, którą komplet
+#  sześciu etykiet miał wykluczać. Zmiana tej wartości należy do właściciela
+#  repozytorium, nie do kodu. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -44,8 +57,8 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-#  RUNNERY: TYMCZASOWO `ubuntu-latest`, NIE WŁASNA PULA — decyzja właściciela
-#  z 8 września 2026, wieczorem.
+#  RUNNERY: WYBIERA JE ZMIENNA REPOZYTORIUM `CI_RUNS_ON`, A BEZ NIEJ STOI
+#  `ubuntu-latest` — decyzja właściciela z 8 września 2026, wieczorem (D-121).
 #
 #  D-028 mówi: „CI wraca na własne runnery, wybierane etykietami, nie nazwą"
 #  — i ta decyzja NIE JEST odwołana. Powodem zmiany jest sytuacja, nie zwrot
@@ -55,8 +68,9 @@
 #  „Wait for CI" — nie wdrażał niczego na produkcję.
 #
 #  Właściciel ma ~2000 niewykorzystanych minut Actions i kazał ich użyć.
-#  Repozytorium jest PRYWATNE, więc minuty są płatne: pełny przebieg to
-#  siedem jobów, orientacyjnie 25-35 minut maszynowych.
+#  Repozytorium jest PRYWATNE, więc minuty są płatne — ale płacą się tylko
+#  wtedy, gdy przebieg idzie na runnery GitHuba. Pełny przebieg to dziewięć
+#  jobów, orientacyjnie 25-35 minut maszynowych.
 #
 #  JAK WRÓCIĆ NA WŁASNĄ PULĘ — BEZ ZMIANY W KODZIE (od 8 września, wieczór).
 #  `runs-on` czyta zmienną repozytorium `CI_RUNS_ON`. Bez niej stoi
@@ -80,6 +94,11 @@
 #  Nic poza `runs-on` nie wymagało zmiany: usługa `postgres` i odczyt
 #  zmapowanego portu przez `job.services.postgres.ports[5432]` działają tak
 #  samo na obu rodzajach runnerów.
+#
+#  CZEGO TEN KOMENTARZ NIE MÓWI, BO NIE MOŻE: jaka jest DZIŚ wartość zmiennej.
+#  Zmienna żyje w ustawieniach repozytorium i z kodu jej nie widać — ostatni
+#  pomiar stoi wyżej (D-121). Zgodność tego opisu z tym, co naprawdę stoi
+#  w `runs-on:`, pilnuje `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
 # ---------------------------------------------------------------------------
 
 name: CI
