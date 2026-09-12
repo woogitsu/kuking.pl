@@ -34,6 +34,13 @@ Konto:
   ma nigdzie w interfejsie); kolumna stoi, bo eksport danych ją oddaje
   (`jezyk`), a dołożenie języka po fakcie do tabeli z prawdziwymi kontami
   kosztuje więcej niż jedna kolumna dzisiaj;
+- `age_confirmed_at timestamptz NULL` — kiedy padło oświadczenie o wieku.
+  Wymóg prawny, nie preferencja użytkownika. Wpisuje ją `ZalozKonto`
+  wartością `now()` na OBU drogach zakładania konta (hasłem i przez Google),
+  a eksport danych oddaje ją jako `wiek_potwierdzony`. Kolumna jest
+  `NULL`-owalna dla wierszy z fabryk i seederów — **`NULL` nie znaczy
+  „ktoś odmówił"**: odmowa nie zakłada konta wcale, więc taki wiersz by nie
+  powstał;
 - text_scale;
 - theme (patrz niżej);
 - `wants_weekly_digest` — zgoda na cotygodniowy przegląd, stan BIEŻĄCY (patrz
@@ -1048,7 +1055,9 @@ pod blokadą wierszy.
 
 ### media
 Tylko metadata, nie binary:
-- owner;
+- `owner_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — właściciel
+  pliku. To on, a nie wpis czy przepis, decyduje o dostępie do zdjęcia
+  (`DostepDoZdjecia`);
 - `disk` (ORYGINAŁ — patrz niżej);
 - `variants_disk` (PUBLICZNE WARIANTY — patrz niżej);
 - **`media.object_key varchar(700) UNIQUE`** — ścieżka pliku w buckecie.
@@ -1058,7 +1067,12 @@ Tylko metadata, nie binary:
   znaczyłyby, że skasowanie jednego zdjęcia zabiera plik drugiemu;
 - MIME;
 - bytes;
-- width/height;
+- `width integer NULL` i `height integer NULL` — wymiary **oryginału**
+  w pikselach, odczytane z ZAWARTOŚCI pliku przez `getimagesize()`
+  w `StoreUploadedImage`, tak samo jak `mime_type`. Wymiary poszczególnych
+  wariantów (`thumb`, `feed`, `large`) leżą osobno, w `metadata.variants` —
+  `Media::width()` bierze najpierw wariant, a do tych dwóch kolumn schodzi
+  dopiero, gdy wariantu nie ma. `NULL` to wiersz z fabryki albo z seedera;
 - status;
 - checksum;
 - metadata.
@@ -1465,6 +1479,30 @@ człowiek przy przepisie:
 ### recipe_ingredients
 Musi mieć `ingredient_text`, nawet jeśli normalizacja nie rozpozna składnika.
 
+**Wiersz niesie DWIE postacie tego samego składnika i to jest celowe:**
+
+- `ingredient_text varchar(240) NOT NULL` — to, co naprawdę napisał autor
+  („mąka pszenna typ 500"). Zapisywane dosłownie i tylko to jest pokazywane
+  człowiekowi. Kolumna generowana `ingredient_text_search` trzyma obok wersję
+  znormalizowaną dla wyszukiwarki (patrz „Kolumny `*_search`" niżej);
+- `ingredient_id uuid NULL` → `ingredients` (`ON DELETE SET NULL`) — ten sam
+  składnik jako hasło słownikowe. Wpisuje je `PublishRecipe::syncIngredients()`
+  przez `Ingredient::findOrCreateByName()`, czyli **wiersz publikowany dziś
+  ma to pole zawsze wypełnione** — hasła, którego nie ma, słownik się
+  dorabia. `NULL` zostaje w schemacie dla wierszy z fabryk i seederów oraz
+  jako skutek `ON DELETE SET NULL`. `SET NULL`, a nie `CASCADE`, bo usunięcie
+  hasła ze słownika nie ma prawa zabrać komuś linijki z przepisu — zabiera
+  wyłącznie dopasowanie. Normalizacja jest DODATKIEM do tekstu autora i nigdy
+  go nie nadpisuje (`App\Models\RecipeIngredient`);
+
+**Ilość jest rozbita na liczbę i jednostkę, obie opcjonalne:**
+`quantity numeric(12,4) NULL` (CHECK `quantity IS NULL OR quantity >= 0`)
+i `unit_id uuid NULL` → `units` (`ON DELETE SET NULL`). `numeric`, a nie
+`float`, bo „1/3 szklanki" ma się zapisać i odczytać tak samo po skalowaniu
+porcji (V2); cztery miejsca po przecinku wystarczają na ułamki z kuchni.
+`NULL` w obu znaczy „ilości nie podano" i jest czymś innym niż `no_amount`
+niżej, które znaczy „ilości NIE MA".
+
 **`recipe_ingredients.note varchar(300) NULL`** — dopisek przy JEDNYM
 składniku („najlepiej wiejskie", „albo margaryna"), **wolny tekst od
 człowieka**. Coś innego niż `ingredient_text`, który jest samym składnikiem
@@ -1716,6 +1754,61 @@ migracji — dlatego jest w konfiguracji.
 klucz_wyslania`. Bezstratnie i dlatego `down()` niczego nie odmawia: kolumna
 niesie wyłącznie identyfikator wysłania wygenerowany przez serwer, ani jednego
 słowa napisanego przez człowieka.
+
+### cooked_event_media
+Zdjęcia z JEDNEGO gotowania. Tabela łącząca `cooked_events` z `media`,
+bliźniacza do `post_media` i z tego samego powodu: jedno wykonanie bywa
+udokumentowane kilkoma zdjęciami, a to samo zdjęcie nie należy do wykonania
+„na własność" — należy do właściciela, a wykonanie je tylko przypina.
+
+```sql
+CREATE TABLE cooked_event_media (
+    cooked_event_id uuid NOT NULL REFERENCES cooked_events(id) ON DELETE CASCADE,
+    media_id        uuid NOT NULL REFERENCES media(id)          ON DELETE CASCADE,
+    position        smallint NOT NULL DEFAULT 0,
+    PRIMARY KEY (cooked_event_id, media_id)
+);
+ALTER TABLE cooked_event_media
+    ADD CONSTRAINT cooked_event_media_cooked_event_id_position_unique
+    UNIQUE (cooked_event_id, position);
+ALTER TABLE cooked_event_media
+    ADD CONSTRAINT cooked_event_media_position_check CHECK (position >= 0);
+```
+
+- **Nie ma tu kolumny `id`** i jest to ta sama decyzja co przy `follows`:
+  przypięcie jest tożsamością pary, nie osobnym bytem. Klucz główny
+  `(cooked_event_id, media_id)` załatwia przy okazji „to samo zdjęcie dwa razy
+  przy jednym gotowaniu";
+- `position smallint NOT NULL DEFAULT 0` (CHECK `>= 0`) — kolejność zdjęć
+  ustawiona przez człowieka. `UNIQUE (cooked_event_id, position)` mówi, że
+  w obrębie jednego wykonania dwa zdjęcia nie stoją na tym samym miejscu;
+  przestawianie kolejności wymaga więc zapisu przenoszącego całą serię, a nie
+  podmiany jednej liczby. Kolejność czyta relacja `CookedEvent::media()`
+  (`orderBy('cooked_event_media.position')`), nie kolejność wierszy;
+- **oba klucze obce są `ON DELETE CASCADE`, i każdy kasuje co innego.**
+  Kasowanie wykonania zabiera przypięcia i zostawia zdjęcia — plik dalej
+  należy do właściciela i może wisieć gdzie indziej. Kasowanie wiersza `media`
+  zabiera przypięcie, ale nie wykonanie: opis „jak wyszło" zostaje bez
+  zdjęcia, zamiast zniknąć razem z nim.
+
+**Ta tabela jest na obu listach odwołań do `media`** —
+`App\Domain\Media\KasujZdjecie::ODWOLANIA`
+i `App\Domain\Media\DostepDoZdjecia::ODWOLANIA`. Pierwsza pilnuje, żeby
+sprzątacz osieroconych zdjęć nie skasował pliku przypiętego do gotowania;
+druga, żeby takie zdjęcie miało rodzica przy pytaniu o dostęp. Wypadnięcie
+stąd z którejkolwiek z nich jest cichą awarią i pilnują tego osobne testy
+(`ZdjeciaChronioneNieWyciekajaTest`, `AutoryzacjaZdjeciaJednymPrzejsciemTest`).
+
+**Zdjęcia przypina się pod blokadą, w tej samej transakcji co wiersz
+`cooked_events`** (`RecordCookedEvent`, issue #285, D-083). Powód jest
+zapisany przy tamtej akcji: przy wyborze zdjęć poza transakcją sprzątacz
+osieroconych mieścił się w środku, a `cooked_event_media.media_id` kasuje się
+kaskadowo — więc wykonanie zostawało bez zdjęcia i bez pliku.
+
+**Rollback:** tabela powstaje i znika razem z `cooked_events`
+(`2026_09_05_000600_create_cooked_events_tables`). Osobnego `down()` nie ma
+i nie potrzebuje strażnika z D-088: nie leży tu ani jedna wartość semantyczna —
+tylko dwa identyfikatory i liczba porządkowa.
 
 ### comments
 Komentarz dotyczy dokładnie jednego:
@@ -3497,6 +3590,69 @@ TO 'hero_picks.csv' CSV HEADER
 Strażnika i obie kontrole dodatnie sprawdza
 `CofniecieMigracjiNieKasujeKolazuTest`.
 
+## Dwie reguły, które obowiązują CAŁY schemat
+
+Wszystko wyżej opisuje tabele po kolei. Te dwie rzeczy nie należą do
+żadnej z nich z osobna — obowiązują wszystkie i dlatego stoją tu razem,
+z asercją w `tests/Feature/SchematBazyTrzymaSieDokumentuTest.php`.
+
+### 1. Każdy klucz obcy ma ZAPISANE zachowanie przy kasowaniu
+
+Klucz obcy bez klauzuli `ON DELETE` nie jest kluczem bez zachowania — dostaje
+`NO ACTION` z definicji SQL-a. Różnica jest cała w tym, czy ktoś tę odmowę
+WYBRAŁ, czy tylko jej nie napisał; jedno i drugie wygląda w `\d` tabeli
+identycznie, a pierwszy raz widać je dopiero przy kasowaniu konta na produkcji.
+
+Zmierzone 12 września 2026 na pełnym schemacie (`pg_constraint`, `contype='f'`):
+**71 kluczy obcych**, z tego 44 × `ON DELETE CASCADE`, 23 × `ON DELETE SET NULL`,
+3 × `ON DELETE RESTRICT` i **jeden bez klauzuli**.
+
+Trzy `RESTRICT` to nie przeoczenie, tylko ślad, którego nie wolno zgubić:
+`dziennik_zgod.user_id`, `moderation_actions.moderator_id`
+i `recipe_versions.editor_id`. Baza odmawia skasowania wiersza `users`,
+dopóki wisi na nim zgoda, decyzja moderacyjna albo autorstwo wersji przepisu —
+kasowanie konta idzie więc przez anonimizację (`data_erased_at`), a nie przez
+`DELETE FROM users`.
+
+Jeden klucz bez klauzuli też jest wyborem, jedynym takim w schemacie:
+`tags.merged_into_tag_id` → `tags`. Domyślne `NO ACTION` blokuje skasowanie
+tagu kanonicznego, dopóki są do niego przypięte tagi scalone (opis przy tabeli
+`tags` wyżej, uzasadnienie w migracji `2026_09_07_100000_create_tags_tables`).
+Test zna ten jeden wyjątek z nazwy i **sam pilnuje, żeby wyjątek nie zgnił**:
+gdy kiedyś dostanie jawne `ON DELETE`, test każe wykreślić go z listy.
+
+Nowy klucz obcy bez `ON DELETE` oblewa test i jest to pytanie, nie zakaz:
+„co ma się stać z tym wierszem, gdy zniknie rodzic". Odpowiedzią bywa
+`NO ACTION` — ale wpisaną tutaj, nie milczeniem.
+
+### 2. E-mail i nazwa użytkownika są unikalne BEZ WZGLĘDU NA WIELKOŚĆ LITER
+
+Zwykły `UNIQUE (email)` tego nie daje: PostgreSQL porównuje teksty co do
+znaku, więc `Jan@example.com` i `jan@example.com` to dla niego dwa różne
+adresy. Dla człowieka to jeden adres — a dla klawiatury telefonu, która
+kapitalizuje pierwszą literę, to jest zachowanie domyślne, nie wyjątek.
+
+Regułę trzymają dwa **funkcyjne** indeksy unikalne, nie mutatory w PHP:
+
+```sql
+CREATE UNIQUE INDEX users_email_lower_unique       ON users    (lower(email));
+CREATE UNIQUE INDEX profiles_username_lower_unique ON profiles (lower(username));
+```
+
+Mutator `User::email` i `NazwaUzytkownika` dalej normalizują wejście i dalej
+są potrzebne — ale jako sposób na ŁADNY komunikat, nie jako gwarancja
+(AGENTS.md §6: „walidacja w PHP jest dodatkiem, nie zamiennikiem"; D-079:
+„gwarancję daje constraint albo blokada, nie `exists()` w PHP"). Zwykłe
+`users_email_unique` i `profiles_username_unique` zostają obok, bo są tańsze
+przy wyszukiwaniu po dokładnej wartości. Reguły nie osłabiają: każdy duplikat,
+który przeszedłby przez nie, zatrzymuje indeks funkcyjny. **Same z siebie nie
+wystarczają** i to jest cały powód, dla którego te dwa funkcyjne istnieją.
+
+Dlaczego akurat te dwie kolumny, a nie „każda kolumna tekstowa z UNIQUE":
+to są jedyne dwie, po których człowiek **wraca do własnego konta**. Duplikat
+tutaj nie jest brzydkim wierszem w tabeli, tylko drugim kontem tej samej
+osoby albo cudzym profilem pod adresem, który ktoś rozdał znajomym.
+
 ## Normalizacja adresu e-mail
 
 `User::email` ma mutator wymuszający małe litery i przycięcie spacji.
@@ -3507,4 +3663,28 @@ telefonów kapitalizują pierwszą literę — bez tego konto założone jako
 Sama reguła stoi jednak w bazie, nie w mutatorze: unikalny indeks funkcyjny
 `users_email_lower_unique` — szczegóły i uzasadnienie przy tabeli `users` wyżej.
 
-Pełny referencyjny DDL jest w `database/reference/schema_mvp.sql`.
+## `database/reference/schema_mvp.sql` NIE jest stanem bazy
+
+Do 12 września 2026 stało tu zdanie „Pełny referencyjny DDL jest
+w `database/reference/schema_mvp.sql`". Słowo **pełny** było nieprawdą i jest
+to dokładnie ta nieprawda, przed którą ostrzega `AGENTS.md` §3 przy tabeli
+stacku: wpis opisujący ZAMIAR, czytany jako opis STANU.
+
+Zmierzone tego dnia: ten plik ma **22 wyrażenia `CREATE TABLE`**, a schemat
+po migracjach ma **50 tabel** (42 nasze i 8 frameworka). Brakuje w nim 28,
+z czego **20 naszych** — wszystkie pięć tabel tagów, `dziennik_zgod`,
+`appeals`, `pending_email_changes`, `login_link_tokens`,
+`registration_invites`, `data_exports`, `product_signals`,
+`contact_messages`, `contact_message_replies`, `mail_failures`,
+`weekly_digest_sends`, `tozsamosci_zewnetrzne`, `daily_picks`, `hero_picks`
+i `recipe_slug_redirects`. Te, które są, też bywają nieaktualne —
+`users.text_scale` ma tam `CHECK (BETWEEN 90 AND 140)`, a w bazie jest
+`>= 70 AND <= 140` od migracji `2026_09_11_600000_rozszerz_skale_tekstu_w_dol`.
+
+Czym ten plik jest naprawdę: **szkicem MVP z pierwszych dni projektu**,
+przydatnym do czytania kształtu, bezużytecznym do sprawdzania faktu. Nic go
+nie generuje i nic go nie pilnuje.
+
+**Prawdą o schemacie jest żywa baza po `php artisan migrate`.** Ten dokument
+opisuje ją zdaniami, a `SchematBazyTrzymaSieDokumentuTest` pilnuje, żeby żadna
+tabela nie została w nim pominięta ani nie została opisana po skasowaniu.
