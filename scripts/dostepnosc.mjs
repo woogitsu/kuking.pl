@@ -160,6 +160,28 @@ const KONTO_ZALOGOWANE = 'ania';
  */
 const KONTO_MODERATORA = 'moderacja';
 
+/*
+ * KONTO Z NAZWĄ NA PEŁNE 100 ZNAKÓW — issue #440.
+ *
+ * `display_name` ma w walidacji `max:100` i ani jednego ograniczenia na
+ * długość pojedynczego SŁOWA. Ten automat mierzył dotąd profile o nazwach
+ * „Basia" (5 znaków) i „Ania" (4) — czyli NAJŁATWIEJSZE warianty tego ekranu.
+ * Zdanie „nic nie wyjeżdża w bok na profilu" dotyczyło więc czegoś, czego
+ * ten skrypt nie sprawdził: najdłuższa nazwa, jaką człowiek może dziś wpisać,
+ * nie weszła do próbki ani razu.
+ *
+ * To jest pułapka 5 z `docs/PULAPKI_TESTOW.md` od strony danych — narzędzie
+ * melduje sukces, bo nie dostało tego, o co chodzi. Od pułapki 5 w zwykłej
+ * postaci różni się tym, że tu nawet nie było pustego ekranu, po którym dałoby
+ * się coś poznać: ekran był pełny, poprawny i łatwy.
+ *
+ * Konto zakłada `DemoSeeder` (nazwa ma tam dokładnie 100 znaków, najdłuższy
+ * nieprzerwany ciąg — 55). Stała stoi tutaj, a nie w adresie wpisanym z ręki,
+ * z tego samego powodu co `KONTO_ZALOGOWANE`: rozjazd nazwy dałby 404,
+ * a strona błędu przechodzi każdy audyt dostępności, nie sprawdzając niczego.
+ */
+const KONTO_DLUGA_NAZWA = 'zofia_z_bieszczad';
+
 const EKRANY = [
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
@@ -201,6 +223,24 @@ const EKRANY = [
    * składamy ze stałej, a nie wpisujemy go tu drugi raz z ręki.
    */
   { nazwa: 'profil (własny)', adres: `/@${KONTO_ZALOGOWANE}`, zalogowany: true },
+  /*
+   * TRZECI PROFIL: NAZWA NA PEŁNE 100 ZNAKÓW (issue #440).
+   *
+   * Dwie pozycje wyżej mierzą ten ekran z nazwą na cztery i pięć znaków.
+   * Ta mierzy go z najdłuższą, jaką dopuszcza walidacja — i robi to przez
+   * ten sam komplet szerokości (320/360/414/768/900/1280) i skal tekstu
+   * (bez skali, 140%, czcionka przeglądarki 200%) co każdy inny ekran na
+   * tej liście, bo lista jest jedna i pętla jest jedna.
+   *
+   * Mierzymy jako GOŚĆ, tak jak profil `basia` wyżej: główka profilu jest
+   * dla gościa i dla zalogowanego ta sama, a nazwa stoi właśnie w niej.
+   *
+   * CO TRZYMA TEN EKRAN W RYZACH: `overflow-wrap: anywhere` na dzieciach
+   * `.profil-tozsamosc` w `resources/css/ekran-profilu.css`. Zdjęcie tej
+   * jednej deklaracji ma ten pomiar WYWALIĆ — jeśli nie wywala, próbka nie
+   * mierzy tego, o co chodzi, i poprawiać należy próbkę, nie próg.
+   */
+  { nazwa: 'profil (nazwa na 100 znaków)', adres: `/@${KONTO_DLUGA_NAZWA}` },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },

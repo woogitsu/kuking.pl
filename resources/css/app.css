@@ -1091,6 +1091,39 @@
    * mieściłaby się w całości. Przy czcionce przeglądarki 200% takie właśnie
    * zostają na tablicy (zmierzone 2087 px, 1070 px i 783 px przy oknie
    * 740 px) i jest to usterka UKŁADU KARTY WPISU, nie przewijania.
+   *
+   * DWIE GAŁĘZIE NAPRAWIŁY TO SAMO TEGO SAMEGO DNIA — TO JEST TA, KTÓRA
+   * ZOSTAŁA. 12 września 2026 dziurę 2.4.11 przy górnym pasku naprawiono
+   * niezależnie dwa razy, w tym samym pliku: tutaj oraz w #440
+   * (`--rezerwa-nad-trescia` — stałe 13rem na telefonie, 6rem od 48rem,
+   * 0rem przy odpiętym pasku). Przy scalaniu została JEDNA implementacja,
+   * ta; drugiej nie ma już w arkuszu i nie ma czego szukać.
+   *
+   * Powody są dwa i oba stoją wyżej w tym komentarzu. Pierwszy: ta wersja
+   * liczy się z NASZYM ustawieniem wielkości tekstu (`--user-text-scale`),
+   * nie tylko z czcionką przeglądarki — a to jest ustawienie, którego nasza
+   * grupa naprawdę używa, i przy nim pasek rośnie ze 170,7 px na 194,6 px.
+   * Stała w `rem` tego nie widzi. Drugi, ważniejszy: ta wersja ma ZMIERZONY
+   * SUFIT (244,5 px przy 320 px i tekście 140%). Powyżej niego przeglądarka
+   * przestaje równać kontrolkę dołem do dolnej krawędzi pasa i zaczyna
+   * równać górą, więc każdy następny piksel rezerwy U GÓRY wpycha jej dół
+   * POD DOLNĄ belkę. Rezerwa bez sufitu zaczyna wtedy szkodzić i wygląda
+   * przy tym dokładnie jak naprawa — 13rem przy czcionce przeglądarki 200%
+   * to 416 px, czyli grubo nad sufitem, gdyby ten wariant nie był tam
+   * zerowany.
+   *
+   * PRÓBKA Z #440 ZOSTAJE i to ona pilnuje tej reguły od strony pomiaru:
+   * profil `zofia_z_bieszczad` z nazwą na pełne 100 znaków (`DemoSeeder`
+   * i `scripts/dostepnosc.mjs`). Zmierzone na scalonym drzewie:
+   *
+   *     scroll-padding-top: auto   3 × „focus zasłonięty w 100%" — wszystkie
+   *     (stan sprzed obu poprawek) na menu „Więcej przy tym wpisie" pod
+   *                                `.topbar`, 320/360/414 px, tekst 140%
+   *     ta rezerwa                 0 × „focus zasłonięty w 100%"
+   *
+   * Czyli: formuła, która została, zdejmuje dokładnie te trzy naruszenia,
+   * które znalazła tamta próbka. Nie jest to wniosek z podobieństwa obu
+   * poprawek, tylko pomiar zrobiony po scaleniu.
    */
   :root {
     --rezerwa-nad-belka: calc(7rem + 5rem * var(--user-text-scale, 1));
@@ -2109,10 +2142,71 @@
     background-color: var(--color-surface-sunken);
   }
 
+  /* ---------------------------------------------------------------------
+     GALERIA „ZWYKLE" PRZY MIESZANYCH ORIENTACJACH (issue #431)
+
+     ZGŁOSZENIE. „Jedno zdjęcie pionowe, drugie poziome, przez to jest
+     rozjazd i bierze całą wysokość najwyższego zdjęcia nawet jak nie jest
+     wyświetlane."
+
+     CO SIĘ DZIAŁO. Dwie kolumny w jednym wierszu siatki mają wspólną
+     wysokość — wysokość NAJWYŻSZEGO zdjęcia. Zdjęcie poziome zajmowało
+     w tym wierszu mniej niż połowę tego, co pionowe, a reszta pola
+     zostawała pusta. ZMIERZONE (scripts/galeria-orientacje.mjs, zdjęcia
+     1200×1600 i 1600×900, motyw jasny):
+
+         szerokość   zdjęcie poziome   martwe pod nim
+            320 px        79,9 px          109,5 px
+            360 px        91,1 px          124,9 px
+            390 px        99,5 px          136,4 px
+            414 px       106,3 px          145,7 px
+
+     Martwego miejsca było WIĘCEJ niż samego zdjęcia. Przy czcionce
+     przeglądarki 200% wychodziło 97–133 px, czyli tak samo źle.
+
+     DLACZEGO JEDNA KOLUMNA, A NIE WYRÓWNANIE W WIERSZU. Bo przy 320 px
+     kolumna ma 142 px, a zdjęcie poziome mieści się w niej na 80 px
+     wysokości. Ośmiu centymetrów jedzenia nie da się obejrzeć — a
+     oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
+     To jest dokładnie ten sam argument i ten sam próg, na który właściciel
+     zgodził się już przy kolażu (patrz komentarz przy `.kolaz` niżej):
+     poniżej 30rem siatka schodzi do jednej kolumny, a każde zdjęcie dostaje
+     tyle wysokości, ile samo potrzebuje. Martwe pole znika wtedy nie
+     dlatego, że je czymś zasłoniliśmy, tylko dlatego, że przestaje istnieć.
+
+     `gap` rośnie z 2 px do odstępu tekstowego: dwa zdjęcia JEDNO POD DRUGIM
+     w odległości 2 px czytają się jak jedno rozcięte zdjęcie. W wierszu
+     obok siebie 2 px było w porządku i tam zostaje.
+
+     OD 30rem W GÓRĘ SIATKA ZOSTAJE DWUKOLUMNOWA I WIERSZ DALEJ MA WYSOKOŚĆ
+     NAJWYŻSZEGO ZDJĘCIA. To jest świadomie NIE naprawione: tam kolumna ma
+     już ponad 300 px, zdjęcie poziome jest widoczne, a zabranie drugiej
+     kolumny byłoby zmianą wyglądu całego serwisu na desktopie, o którą
+     nikt nie prosił. Zgłoszenie przyszło z telefonu.
+     --------------------------------------------------------------------- */
   .photo-grid {
     display: grid;
     gap: 2px;
     grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
+    /*
+     * POLE NIE ROZCIĄGA SIĘ DO WYSOKOŚCI WIERSZA.
+     *
+     * Samo zdjęcie nigdy się nie rozciągało — `<img>` ma proporcję własną,
+     * więc `align-items: normal` zachowuje się dla niego jak `start`
+     * (zmierzone zniekształcenie: 0,0–0,4%, czyli zaokrąglenia). Rozciągał
+     * się natomiast ODNOŚNIK `.photo-zoom`, który zdjęcie owija — i przez
+     * to obszar „powiększ zdjęcie" sięgał przez całe martwe pole pod
+     * zdjęciem poziomym. Kliknięcie w puste miejsce otwierało powiększenie
+     * zdjęcia, którego tam nie było widać.
+     */
+    align-items: start;
+  }
+
+  @media (max-width: 30rem) {
+    .photo-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -2154,6 +2248,110 @@
        w pionie, a bez tego zdjęcie chowa się pod belką. */
     scroll-margin-top: 5rem;
   }
+
+  /* ---------------------------------------------------------------------
+     WSZYSTKIE SLAJDY TEJ SAMEJ WYSOKOŚCI (issue #431)
+
+     TU SIEDZI DRUGA POŁOWA ZGŁOSZENIA, I TA DOSŁOWNIE: „bierze całą
+     wysokość najwyższego zdjęcia nawet jak nie jest wyświetlane".
+
+     Taśma jest jednym rzędem elastycznym, więc jej wysokość to wysokość
+     NAJWYŻSZEGO slajdu — także wtedy, gdy na ekranie stoi całkiem inny.
+     Przy zdjęciu pionowym i poziomym w jednym wpisie oglądanie tego
+     poziomego wyglądało tak: zdjęcie, pasek z licznikiem, a pod nimi pusta
+     karta do końca. ZMIERZONE (scripts/galeria-orientacje.mjs, 1200×1600
+     i 1600×900):
+
+         szerokość   wysokość taśmy   slajd poziomy potrzebował   martwe
+            320 px       554,2 px            333,7 px            220,5 px
+            360 px       607,5 px            356,2 px            251,3 px
+            390 px       656,6 px            382,2 px            274,4 px
+            414 px       697,7 px            404,8 px            292,9 px
+
+     Przy czcionce przeglądarki 200% było to 196–268 px.
+
+     CZEGO SIĘ NIE DA ZROBIĆ. Sprawić, żeby taśma miała wysokość AKTUALNIE
+     WIDOCZNEGO slajdu. Przewijany rząd ma jedną wysokość dla wszystkich
+     i żaden selektor nie wie, który slajd jest teraz na ekranie. Bez
+     JavaScriptu tego nie ma, a karuzela ma działać bez skryptu (AGENTS.md §5)
+     — więc „wysokość zależna od widocznego zdjęcia" nie jest opcją, którą
+     odrzuciliśmy. Jej po prostu nie ma.
+
+     CO SIĘ DA. Sprawić, żeby WSZYSTKIE slajdy były tej samej wysokości —
+     wtedy żaden nie pożycza wysokości od sąsiada i martwe pole znika.
+     Pole ma stałą proporcję, a zdjęcie mieści się w nim W CAŁOŚCI
+     (`object-fit: contain`, nie `cover`).
+
+     CENA JEST WIDOCZNA I ŚWIADOMA. Zdjęcie pionowe jest niższe niż było,
+     a obok niego zostają puste marginesy na tle `--color-surface-sunken`.
+     To jest dokładnie ten sam wybór i to samo uzasadnienie, na które
+     właściciel zgodził się przy kolażu: pusty margines da się zignorować,
+     uciętego jedzenia nie da się odzyskać. Kadrowanie do pola
+     (`object-fit: cover`) zabrałoby po kawałku każdego zdjęcia — i akurat
+     przy jedzeniu zabrałoby to, co człowiek chciał pokazać.
+
+     KWADRAT, BO TAKI JEST JUŻ KOLAŻ — i bo traktuje obie orientacje tak
+     samo. Zmierzone przy 320 px, na tej samej parze zdjęć:
+
+         wariant        wysokość taśmy   martwe pod poziomym   zdjęcie pionowe
+         przed              554,2 px           220,5 px         286 × 381,3 px
+         pole 1/1           458,9 px           125,1 px         214,8 × 286 px
+         pole 4/3           387,4 px            53,6 px         161,1 × 214,5 px
+
+     Pole 4/3 zostawia najmniej pustego miejsca i dlatego było tu pierwsze.
+     Przegrało na cenie: zabiera zdjęciu pionowemu 44% wysokości, a zdjęcie
+     pionowe to najczęstszy kształt tego, co ktoś robi telefonem nad
+     garnkiem. Kwadrat zabiera mu 25% i nie wyróżnia żadnej orientacji.
+
+     ZOSTAJĄCE 125 px TO CO INNEGO NIŻ 220 px SPRZED POPRAWKI — i to jest
+     sedno. Tamte 220 px stały POD zdjęciem, do końca karty, i brały się
+     z sąsiada, którego nie było widać: karta wyglądała, jakby się nie
+     skończyła. Te 125 px to dwa równe pasy NAD i POD zdjęciem, bo
+     `object-fit: contain` centruje obraz w polu — czyli rama, a nie dziura.
+     Żaden slajd nie pożycza już wysokości od żadnego innego.
+     --------------------------------------------------------------------- */
+  .karuzela-slajd .photo-zoom,
+  .karuzela-slajd > .post-photo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-color: var(--color-surface-sunken);
+    /*
+     * `min-height: 0` NIE JEST OZDOBĄ — bez niego ta proporcja działa
+     * TYLKO NA ZDJĘCIACH POZIOMYCH, a na pionowych jest ignorowana.
+     *
+     * Slajd jest kolumną elastyczną (niżej), więc pole ze zdjęciem jest
+     * elementem elastycznym, a taki ma `min-height: auto`, czyli minimum
+     * równe swojej treści. Treścią jest `<img>` o wysokości 100% liczonej
+     * od rodzica o wysokości jeszcze nieustalonej — czyli w praktyce
+     * o wysokości WŁASNEJ zdjęcia. Dla zdjęcia poziomego ta wysokość jest
+     * MNIEJSZA niż 3/4 szerokości i proporcja wygrywa; dla pionowego jest
+     * WIĘKSZA i to ona wypycha pole.
+     *
+     * ZMIERZONE przy 320 px, zanim ta linijka tu stanęła: pole zdjęcia
+     * poziomego 214,5 px (proporcja zadziałała), pole pionowego 381,3 px
+     * (proporcja zignorowana) — czyli slajdy dalej miały różną wysokość
+     * i taśma dalej brała wysokość najwyższego. Poprawka, która poprawia
+     * połowę przypadków, wygląda w pomiarze prawie jak poprawka.
+     */
+    min-height: 0;
+  }
+
+  .karuzela-slajd .post-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Pasek z licznikiem i przyciskami trzyma się DOŁU slajdu. Bez tego przy
+     slajdach różnej wysokości (gdyby proporcja kiedyś przestała być stała)
+     paski skakałyby w pionie przy każdym przewinięciu. */
+  .karuzela-slajd {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .karuzela-slajd .karuzela-pasek { margin-top: auto; }
 
   .karuzela-pasek {
     display: flex;
