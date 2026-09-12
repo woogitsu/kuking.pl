@@ -404,10 +404,27 @@ jest sekcją z przyciskiem w środku.
 
 ## Czego ten dokument nadal nie rozstrzyga
 
-- **Automat dostępności nie wchodzi na trzy ekrany z ramkami**: dwa ekrany
-  panelu moderacji (403 na koncie demo) i drugi krok logowania (żadne konto
-  demo nie ma włączonej weryfikacji dwuetapowej). Ich warstwy sprawdzono
-  czytaniem kodu i testem, nie pomiarem w przeglądarce.
+Nic z rzeczy, które tu stały. Ostatnia pozycja została spłacona i ten akapit
+zostaje zamiast czystej luki — bo zniknięcie ograniczenia bez śladu wygląda
+dokładnie tak samo jak ograniczenie, o którym nikt nie pamiętał.
+
+**Spłacone 12 września 2026:** „automat dostępności nie wchodzi na trzy ekrany
+z ramkami — dwa ekrany panelu moderacji (403 na koncie demo) i drugi krok
+logowania (żadne konto demo nie ma włączonej weryfikacji dwuetapowej); ich
+warstwy sprawdzono czytaniem kodu i testem, nie pomiarem w przeglądarce".
+
+To zdanie **przestało być prawdą** i przez jakiś czas mówiło ludziom, żeby nie
+szukali pomiaru tam, gdzie on już jest. `scripts/dostepnosc.mjs` mierzy dziś
+wszystkie te ekrany naprawdę:
+
+| ekran | jak automat tam wchodzi |
+|---|---|
+| `/admin/uzytkownicy`, `/admin/zgloszenia`, `/admin/sygnaly`, `/admin/kolaz-powitalny` | `moderator: true` — `stanModeratora()` loguje się kontem z rolą moderatora **i przechodzi przez włączenie 2FA formularzem**. Middleware `moderator.2fa` nie jest osłabiane ani omijane. |
+| `/logowanie/kod` | `przedKodem2FA: true` — czwarty kontekst przeglądarki, którego ciasteczko pochodzi ze `stanPrzedKodem2FA()`, czyli z pierwszego kroku logowania wykonanego naprawdę. Sesja jest w dokładnie tym stanie, w którym jest sesja człowieka trzymającego telefon z kodem. |
+
+Warstwy tych ekranów są więc dziś **zmierzone w przeglądarce**, nie tylko
+przeczytane. Pilnuje tego `tests/Feature/WyjatkiRolKartTest.php`: ten akapit
+nie może nazwać ekranu, który stoi na liście `EKRANY` automatu (D-165).
 
 ## Inwentarz — wszystkie 126 wystąpień
 
