@@ -179,6 +179,15 @@ const ZALAZKI_GOSC = [
   '/logowanie/link',
   '/odwolanie',
   '/cofnij-usuniecie-konta',
+  /*
+   * EKRANY POTWIERDZENIA — dopisane z tego samego powodu co onboarding wyżej.
+   * Stoi na nich po jednym przycisku „wracam do serwisu" i widzi go człowiek,
+   * który właśnie coś wysłał; nie prowadzi do nich żaden odnośnik, bo
+   * wchodzi się tam przez przekierowanie po `POST`, którego ten skrypt
+   * świadomie nie wysyła (granica 1).
+   */
+  '/napisz-do-nas/dziekujemy',
+  '/zglos-nielegalna-tresc/przyjete',
   `/@${KONTO}`,
 ];
 
@@ -202,10 +211,26 @@ const ZALAZKI_ZALOGOWANY = [
   '/ustawienia/bezpieczenstwo',
   '/ustawienia/e-mail',
   '/ustawienia/2fa',
+  '/ustawienia/2fa/kody-zapasowe',
   '/zgloszenia',
   '/szukaj?q=rosol',
+  '/szukaj?q=czegotunieznajdziesz',
   '/tagi',
   '/napisz-do-nas',
+  /*
+   * ONBOARDING I POTWIERDZENIE ADRESU — DOPISANE, BO SKAN SAM TAM NIE WCHODZIŁ.
+   *
+   * Te cztery ekrany widzi KAŻDY nowo założony człowiek, zanim zobaczy
+   * cokolwiek innego. Nie prowadzi do nich jednak żaden odnośnik z serwisu:
+   * `/witaj/*` pokazuje się raz, po rejestracji, a `/potwierdz-email` — po
+   * kliknięciu w liście. Skan chodzący po odnośnikach nie miał jak ich
+   * odwiedzić, więc cała ścieżka pierwszego dnia była w tym audycie
+   * milczącym pominięciem.
+   */
+  '/witaj/zainteresowania',
+  '/witaj/ludzie',
+  '/witaj/gotowe',
+  '/potwierdz-email',
   `/@${KONTO}`,
   '/@basia',
   '/@marek',
