@@ -119,6 +119,11 @@ Naprawa: wysyłka przez **API HTTPS** tego samego dostawcy (§2A, D-047). Ta
 warstwa jest już naprawiona w kodzie; do zrobienia zostaje wygenerowanie
 kluczy w panelu EmailLabs i wpisanie trzech zmiennych w Railway.
 
+**Ta warstwa zostawiła po sobie ludzi, nie tylko wpis w dzienniku.** Cztery
+listy „Ustaw nowe hasło” z 9 września nie doszły do nikogo i nadal stoją
+w `failed_jobs`. Kto to był, co z tym zrobić i dlaczego `queue:retry` wyśle
+im **martwy link**: [`ZDARZENIE_2026-09-09_NIEWYSLANE_HASLA.md`](ZDARZENIE_2026-09-09_NIEWYSLANE_HASLA.md).
+
 ---
 
 ## 1. Sześć rzeczy do zrobienia niezależnie od dostawcy
