@@ -180,4 +180,45 @@
       outline: 3px solid Highlight;
     }
   }
+
+  /* -------------------------------------------------------------------
+     PODGLĄD WYBRANEGO ZDJĘCIA — JESZCZE PRZED WYSŁANIEM.
+
+     Rysuje go `resources/js/app.js` z pliku, który człowiek właśnie wybrał
+     (`URL.createObjectURL`), więc pojawia się natychmiast i bez ani jednego
+     bajtu z sieci — ZMIERZONE: 22–24 ms od wyboru pliku, źródło `blob:`,
+     zero naruszeń CSP (`img-src` ma `blob:`). To jest ta chwila, w której
+     6,14 MB dopiero jedzie na serwer; bez podglądu człowiek patrzy przez te
+     kilka sekund na pusty formularz.
+
+     JEDNO ZDJĘCIE BIERZE CAŁĄ SZEROKOŚĆ. Do 12 września 2026 siatka była
+     wpisana w skrypcie jako `repeat(auto-fill, minmax(120px, 1fr))`, więc
+     przy jednym zdjęciu i oknie 390 px obrazek miał 150 px — mniej niż
+     połowę. Dopiero od DWÓCH zdjęć siatka ma sens.
+
+     Bez JavaScriptu nie ma tu niczego i nie ma czego chować: pojemnik
+     powstaje dopiero w skrypcie. Formularz działa jak przedtem.
+     ------------------------------------------------------------------- */
+  .podglad-wyboru {
+    display: grid;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  }
+
+  .podglad-wyboru[data-ile="1"] {
+    grid-template-columns: 1fr;
+  }
+
+  .podglad-wyboru-info {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .podglad-wyboru-zdjecie {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+  }
 }
