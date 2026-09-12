@@ -1004,6 +1004,108 @@
     scroll-padding-bottom: var(--rezerwa-pod-belka);
   }
 
+  /*
+   * REZERWA NAD PASKIEM GÓRNYM — DRUGA POŁOWA TEGO SAMEGO MECHANIZMU.
+   *
+   * CO BYŁO ZMIERZONE. `scripts/dostepnosc.mjs` meldował w linii podsumowania
+   * „focus częściowo zasłonięty: 27". Dwadzieścia jeden z tych dwudziestu
+   * siedmiu ostrzeżeń mówiło o `.topbar`, a przyczyna była jedna: przy dolnej
+   * belce stoi `scroll-padding-bottom` (wyżej), a przy górnym pasku nie stało
+   * NIC — `scroll-padding-top` miał wartość `auto` na każdej szerokości
+   * i w każdej skali. Przewinięcie fokusu w widok, które przeglądarka robi
+   * sama po Tab, liczy się wtedy do krawędzi okna, a na tej krawędzi siedzi
+   * przypięty pasek. Obwódka fokusu wjeżdżała pod niego i osoba chodząca po
+   * serwisie Tabem przestawała widzieć, gdzie jest.
+   *
+   * ZMIERZONE WYSOKOŚCI PASKA (Chromium 141, okno 740 px, zalogowany,
+   * `/home`, `/szukaj` i `/ustawienia/profil` — wszystkie trzy dawały tę samą
+   * liczbę):
+   *
+   *     szerokość   bez powiększania   tekst 140%   czcionka przeglądarki 200%
+   *     320 px      170,7 px           194,6 px     pasek ODPIĘTY
+   *     360 px      112,7 px           194,6 px     pasek ODPIĘTY
+   *     414 px      112,7 px           194,6 px     pasek ODPIĘTY
+   *     768 px       75,5 px            84,5 px     pasek ODPIĘTY
+   *    1280 px       75,5 px            84,5 px     146 px
+   *
+   * DLACZEGO `calc(A + B × skala)`, A NIE SAMO `B × skala` JAK PRZY DOLNEJ
+   * BELCE. Bo pasek górny prawie nie jest typografią. Przy 320 px urósł ze
+   * 170,7 px na 194,6 px, czyli o 14%, gdy tekst urósł o 40% — reszta jego
+   * wysokości to minima przycisków i wypełnienia zapisane w `rem`, które idą
+   * za KORZENIEM, nie za `--user-text-scale` (ta sama obserwacja, co przy
+   * `.bottom-nav-item` niżej: te liczby są fizyczne, nie typograficzne).
+   * Czysty mnożnik musiałby pokryć 170,7 px przy skali 1, czyli mieć co
+   * najmniej 10,67rem — a wtedy przy skali 1,4 dawałby ponad 239 px, czyli
+   * więcej, niż wolno (patrz sufit niżej). Rozbicie na część stałą i część
+   * skalowaną mieści się w obu warunkach naraz.
+   *
+   * WYBRANE 7rem + 5rem × skala, CZYLI 192 px PRZY SKALI 1 I 224 px PRZY 1,4.
+   * Zapas nad zmierzonym paskiem: 21,3 px i 29,4 px. Nachylenie rezerwy
+   * (5rem) jest WIĘKSZE od nachylenia paska (zmierzone ~3,7rem), więc zapas
+   * rośnie razem z tekstem, zamiast się zjadać.
+   *
+   * TA REZERWA MA SUFIT — I TO ON, A NIE PASEK, JEST TU TRUDNY. Gdy kontrolka
+   * nie mieści się w pasie między rezerwami, przeglądarka przestaje równać ją
+   * DOŁEM do dolnej krawędzi pasa i zaczyna równać GÓRĄ do górnej. Od tej
+   * chwili każdy piksel rezerwy nad paskiem spycha jej dół pod belkę dolną.
+   * Najwyższa kontrolka zmierzona przy 320 px i tekście 140% ma 390 px
+   * (odnośnik „Dodaj zdjęcie tego, co ugotowałeś" na tablicy), a dolna belka
+   * ma tam 105,5 px — więc rezerwa nad paskiem nie może przekroczyć
+   * 740 − 105,5 − 390 = 244,5 px. Nasze 224 px leży pod tym sufitem z zapasem
+   * 20,5 px. Zmierzone: rezerwa 14rem × skala (313,6 px przy 140%) zbijała
+   * ostrzeżenia z 27 na 7 i DOKŁADAŁA jedno nowe — ten sam odnośnik lądował
+   * wtedy pod belką dolną. Sufit jest realny, nie teoretyczny.
+   *
+   * GDZIE REZERWY NIE MA. Tam, gdzie pasek nie jest przypięty — bo wtedy
+   * wyjeżdża do góry razem z treścią i nie ma czego omijać. Oba progi są
+   * PRZEPISANE Z REGUŁ ODPINAJĄCYCH PASEK (`max-width: 15rem` przy `.topbar`
+   * wyżej oraz `max-width: 30rem` z `max-height: 25rem` przy `.topbar` niżej,
+   * D-107) i muszą z nimi zostać zgodne: rezerwa nad odpiętym paskiem to
+   * czysta strata ekranu, a przy czcionce przeglądarki 200% jeszcze gorzej —
+   * 12rem to tam 384 px, które razem z 480 px rezerwy dolnej nie zostawiłyby
+   * z okna 740 px żadnego pasa na kontrolkę. Zgodności progów pilnuje
+   * `tests/Feature/RezerwaNadPaskiemTest.php`.
+   *
+   * OD 64rem PASEK NIE ZAWIJA SIĘ NA KILKA WIERSZY i ma zmierzone 75,5 /
+   * 84,5 px, więc rezerwa schodzi do 4rem + 2rem × skala (96 / 108,8 px,
+   * zapas 20,5 / 24,3 px). Bez tego stopnia komputer płaciłby 224 px za pasek
+   * o wysokości 84,5 px. Reguła stoi PO progach odpięcia z tego samego
+   * powodu, co przy `--rezerwa-pod-belka` wyżej.
+   *
+   * CZEGO TA REZERWA NIE NAPRAWIA. Kontrolki WYŻSZEJ NIŻ OKNO nie wyprowadzi
+   * spod belki żadne przewijanie — nie ma takiego położenia strony, w którym
+   * mieściłaby się w całości. Przy czcionce przeglądarki 200% takie właśnie
+   * zostają na tablicy (zmierzone 2087 px, 1070 px i 783 px przy oknie
+   * 740 px) i jest to usterka UKŁADU KARTY WPISU, nie przewijania.
+   */
+  :root {
+    --rezerwa-nad-belka: calc(7rem + 5rem * var(--user-text-scale, 1));
+  }
+
+  @media (max-width: 15rem) {
+    :root {
+      --rezerwa-nad-belka: 0rem;
+    }
+  }
+
+  @media (max-width: 30rem) and (max-height: 25rem) {
+    :root {
+      --rezerwa-nad-belka: 0rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --rezerwa-nad-belka: calc(4rem + 2rem * var(--user-text-scale, 1));
+    }
+  }
+
+  /* Ta sama zasada co przy `scroll-padding-bottom` wyżej: nic nie rysuje,
+     działa wyłącznie przy celowanym przewijaniu. */
+  :root {
+    scroll-padding-top: var(--rezerwa-nad-belka);
+  }
+
   .bottom-nav {
     position: fixed;
     bottom: 0;
