@@ -89,6 +89,43 @@
                  * sam `array_filter` przepuszcza `''`.
                  */
                 'citation' => $recipe->source_person ?: null,
+                /*
+                 * ADRES STRONY, Z KTÓREJ PRZEPIS POCHODZI, IDZIE DO `isBasedOn`.
+                 *
+                 * To jest drugie pół tej samej sprawy co `citation` wyżej,
+                 * tylko z odwrotnym rozstrzygnięciem — i z tego samego powodu.
+                 * Zasada z D-156 brzmi: wartości, o której NIE WIEMY, jakim
+                 * typem encji jest, nie wolno wkładać do pola, które typ
+                 * wymusza. Tutaj typ jest ZNANY: `recipes.source_url` jest
+                 * adresem strony i niczym innym — obie drogi zapisu walidują
+                 * go regułą `url` (`RecipeController::rules()`,
+                 * `components/recipe-wizard.blade.php`), a widok pokazuje tę
+                 * wartość człowiekowi jako link (niżej na tej stronie).
+                 *
+                 * `isBasedOn` przyjmuje `CreativeWork`, `Product` albo `URL`
+                 * i stoi na `CreativeWork`, po którym `Recipe` dziedziczy
+                 * (Thing > CreativeWork > HowTo > Recipe) — sprawdzone na
+                 * https://schema.org/isBasedOn, V30.0. Jako `URL` wartość
+                 * idzie zwykłym napisem, więc NIE deklarujemy żadnego
+                 * `@type`: goły adres nie udaje ani osoby, ani organizacji.
+                 * `isBasedOnUrl` odrzucone: schema.org oznacza je jako
+                 * zastąpione przez `isBasedOn` („SupersededBy”).
+                 *
+                 * BRAMKA `source_type` JEST KONIECZNA, nie ozdobna. Adres
+                 * bywa wypełniony także przy przepisie własnym czy rodzinnym
+                 * (formularz nie ukrywa tego pola), a wtedy widoczna treść
+                 * strony NIE pokazuje go wcale. Dane strukturalne muszą
+                 * odzwierciedlać widoczną treść (`sd-policies`,
+                 * docs/seo/SEO_TECHNICAL.md sekcja 2), więc warunek jest tu
+                 * DOKŁADNIE ten sam co przy widocznym zdaniu „Przepis
+                 * pochodzi ze strony".
+                 *
+                 * `?:` jak przy `citation`: `array_filter` na końcu bloku
+                 * odrzuca `null` i `[]`, ale PUSTY NAPIS BY PRZEPUŚCIŁ.
+                 */
+                'isBasedOn' => $recipe->source_type === \App\Models\Recipe::SOURCE_EXTERNAL
+                    ? ($recipe->source_url ?: null)
+                    : null,
                 'image' => $recipe->heroMedia?->isReady() ? [$recipe->heroMedia->url('large')] : null,
                 'recipeYield' => $porcje,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
