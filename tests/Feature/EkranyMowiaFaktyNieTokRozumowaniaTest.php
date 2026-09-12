@@ -130,7 +130,19 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
     {
         $html = $this->get(route('about'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('O Kuking', $html);
+        // KOTWICA W TREŚCI STRONY, NIE W NAGŁÓWKU DOKUMENTU (pułapka 1).
+        //
+        // Do 12.09.2026 stało tu `assertStringContainsString('O Kuking', $html)`
+        // na CAŁYM dokumencie. Zmierzone: po D-145 napis „O Kuking" nie pada na
+        // tej stronie ani razu w treści — jest wyłącznie w `<title>` i w dwóch
+        // `<meta>`, bo nagłówek brzmi „O kuKING" i nazwa jest rozbita na
+        // znaczniki. Asercja przechodziła więc z powodu nagłówka DOKUMENTU
+        // i nie umiała się zaświecić na czerwono (D-132).
+        $tresc = $this->wycinek($html, '<main', '</main>');
+
+        // Kontrola dodatnia: to na pewno ten ekran — i to jego własny nagłówek,
+        // w dwukolorowym zapisie nazwy z D-145.
+        $this->assertStringContainsString('<h1>O <span class="kuking-word">', $tresc);
 
         $this->assertStringNotContainsString('nie kolejna baza przepisów', $html);
         $this->assertStringNotContainsString('a nie „kiedyś', $html);

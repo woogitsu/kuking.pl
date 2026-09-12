@@ -9,6 +9,7 @@ use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 class CookingModeTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     /** Przepis z ponumerowanymi krokami „Krok numer N.” i jednym składnikiem. */
     private function przepisZKrokami(User $autor, int $liczbaKrokow = 3, ?int $minutnikNaPierwszym = null): Recipe
@@ -128,9 +130,20 @@ class CookingModeTest extends TestCase
     {
         $recipe = $this->przepisZKrokami($this->user('autorka6'), 1);
 
-        $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
-            ->assertSee('Załóż konto')
-            ->assertDontSee('Ugotowałem');
+        $odpowiedz = $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))->assertOk();
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): belka dla
+        // gościa ma własny przycisk „Załóż konto" na KAŻDYM ekranie, więc
+        // asercja na całej odpowiedzi przechodziła także po skasowaniu zachęty
+        // z ostatniego kroku — czyli dokładnie tego, czego miała pilnować.
+        $this->assertStringContainsString(
+            'Załóż konto',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
+
+        // Asercja „czegoś nie ma" zostaje na CAŁYM dokumencie — tu szersze
+        // spojrzenie jest bezpieczniejsze, nie słabsze.
+        $odpowiedz->assertDontSee('Ugotowałem');
     }
 
     public function test_krok_spoza_zakresu_jest_przycinany_do_najblizszego_istniejacego(): void

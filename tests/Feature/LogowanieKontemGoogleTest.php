@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -48,6 +49,7 @@ use Tests\TestCase;
 class LogowanieKontemGoogleTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private const KLIENT = 'klient-testowy.apps.googleusercontent.com';
 
@@ -804,9 +806,15 @@ class LogowanieKontemGoogleTest extends TestCase
             'Angielski kod od dostawcy nie mówi człowiekowi niczego.');
 
         // Hasło i wiadomość z linkiem zostają widoczne — nie ma martwego ekranu.
-        $ekran = $this->get(route('login'))->assertOk();
-        $ekran->assertSee('Zaloguj się');
-        $ekran->assertSee('Wyślij mi link do zalogowania');
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): „Zaloguj się"
+        // jest na `/logowanie` także `<title>`, `<meta>` i przyciskiem belki dla
+        // gościa. Zmierzone: po skasowaniu nagłówka i przycisku formularza
+        // asercja na całej odpowiedzi dalej przechodziła, więc nie pilnowała
+        // tego, że ekran logowania hasłem w ogóle jest.
+        $tresc = $this->trescEkranu((string) $this->get(route('login'))->assertOk()->getContent());
+
+        $this->assertStringContainsString('Zaloguj się', $tresc);
+        $this->assertStringContainsString('Wyślij mi link do zalogowania', $tresc);
     }
 
     #[Test]
