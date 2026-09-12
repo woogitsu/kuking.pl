@@ -44,7 +44,7 @@
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
             <p class="meta m-0">
                 <a href="{{ $post->url() }}" class="link-jak-tekst">
-                    <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
+                    <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($post->published_at) }}</time>
                 </a>
                 {{-- Widoczność przy dacie, tak jak w kicie (ekran 01: „2 godz.
                      temu · publicznie"). Także dla wpisu publicznego: autor ma
