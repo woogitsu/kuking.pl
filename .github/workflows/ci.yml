@@ -25,7 +25,8 @@
 #  Dlaczego KOMPLET ETYKIET, a nie nazwa runnera: nazwa przypina job do JEDNEJ
 #  maszyny, więc jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe:
 #  `i5-10400f` i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  (`kuking-wsl-DOM-NEW-01`–`-03` — trzy rejestracje JEDNEJ maszyny, nazwa
+#  potwierdzona przez właściciela 12.09.2026) noszą tylko `self-hosted`, `Linux`, `X64`,
 #  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
 #
 #  KOSZT, ŻEBY BYŁ ZAPISANY: kiedy zmienna wskazuje własną pulę, a cała pula
