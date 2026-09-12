@@ -454,7 +454,21 @@
    * 86% widoku. Zmierzony skutek: 91 kontrolek na czterech ekranach ląduje
    * po Tab w CAŁOŚCI pod tym paskiem.
    *
-   * DLACZEGO NIE `scroll-padding-top`. To normalny mechanizm na przypiętą
+   * DLACZEGO NIE `scroll-padding-top` — ALE TYLKO TUTAJ, CZYLI PRZY TEJ
+   * WIELKOŚCI TEKSTU. Od 12 września `scroll-padding-top` W SERWISIE JEST
+   * (`--rezerwa-nad-belka`, niżej w tym pliku, przy `scroll-padding-bottom`)
+   * i zbija zmierzone ostrzeżenia o fokusie z 27 na 6. Akapit niżej NIE jest
+   * z tym sprzeczny i nie wolno go czytać jako zakazu tego mechanizmu
+   * w ogóle: mówi o stanie, w którym pasek ma 263 px, a ten stan jest
+   * dokładnie tym, w którym pasek zostaje ODPIĘTY regułą poniżej — więc
+   * rezerwa jest tam wyzerowana na tych samych dwóch progach i nie ma jej
+   * kto płacić. Te dwa rozwiązania dzielą się rolami po wielkości tekstu:
+   * dopóki pasek jest przypięty, fokus omija go rezerwą; gdy urośnie tak, że
+   * rezerwa przestałaby się mieścić, pasek przestaje być przypięty. Zgodności
+   * obu progów pilnuje `tests/Feature/RezerwaNadPaskiemTest.php` — rozjazd
+   * między nimi jest cichy i dlatego ma własny test.
+   *
+   * To normalny mechanizm na przypiętą
    * belkę i tutaj NIE MA CZEGO NAPRAWIĆ TYM MECHANIZMEM. `scroll-padding`
    * przesuwa tylko fokus z pod belki; belka i tak zostaje na ekranie.
    * Żeby fokus wyjechał z pod OBU, suma obu wartości musiałaby pokryć
