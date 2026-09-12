@@ -153,6 +153,8 @@ posprzataj() {
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_ZRODLOWA} WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA} WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}_zajeta WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}por WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}pelny WITH (FORCE)" >/dev/null 2>&1
   [[ -n "${KATALOG_KOPII}" && -d "${KATALOG_KOPII}" ]] && rm -rf "${KATALOG_KOPII}"
   return 0
 }
@@ -621,6 +623,186 @@ sprawdz_zawiera "…i mówi, że sondy wtedy niczego nie dowodzą" \
 
 "${PSQL[@]}" -d postgres -c \
   "ALTER DATABASE ${BAZA_PROBNA} RESET default_transaction_read_only" >/dev/null 2>&1
+
+# =============================================================================
+echo
+echo "── Porównanie liczby wierszy w KAŻDEJ tabeli i migrate:status (#193) ──"
+# =============================================================================
+#
+#  TO JEST NAJWAŻNIEJSZA KONTROLA UJEMNA W TYM PLIKU.
+#
+#  Krok 6 skryptu liczy wiersze w czterech tabelach WYBRANYCH Z NAZWY.
+#  Zrzut, który zgubił piątą, przechodzi go bez jednego ostrzeżenia — bo
+#  krok 6 o piątą nie pyta. Krok 6B pyta o wszystkie, a poniższe przypadki
+#  sprawdzają, czy naprawdę pyta: kasujemy wiersze w ODTWORZONEJ bazie
+#  i żądamy, żeby porównanie OBLAŁO.
+#
+#  Bez tej pary (dodatniej i ujemnej) krok 6B byłby zielony także wtedy,
+#  gdyby nie porównywał niczego — czyli byłby pułapką 5 z
+#  `docs/PULAPKI_TESTOW.md`: narzędziem, które melduje sukces, nie
+#  zrobiwszy nic.
+#
+#  Funkcje wołamy WPROST (`source` + podpowłoka), a nie przez pełny przebieg
+#  skryptu. Powód jest jeden i ten sam co przy `kontrola_dodatnia_zapisu()`:
+#  tylko tak da się wejść MIĘDZY odtworzenie a porównanie i popsuć bazę
+#  dokładnie w tym jednym momencie, o który chodzi.
+
+# --- 0. NAJPIERW: czy `main` W OGÓLE WOŁA te dwa kroki ----------------------
+#
+#  Wszystkie przypadki niżej wołają funkcje WPROST — inaczej nie dałoby się
+#  wejść między odtworzenie a porównanie. Cena jest taka, że wycięcie wywołania
+#  z `main` nie oblałoby żadnego z nich: funkcje dalej by istniały i dalej by
+#  działały, tylko nikt by ich nie wołał. To jest ta sama klasa pomyłki co
+#  pułapka 2 — test zielony nad martwym kodem.
+#
+#  Dlatego jeden przypadek idzie PEŁNYM przebiegiem, z `--zrodlo`, i żąda,
+#  żeby oba kroki zameldowały się w wyjściu.
+#
+#  WŁASNA baza próbna, nie `${BAZA_PROBNA}`: tamtą zostawia z tabelą w środku
+#  przypadek „odmawia odtwarzania do bazy, która NIE jest pusta" — i słusznie
+#  jej nie kasuje. Ten przebieg dostałby wtedy kod 23 z całkiem innego powodu
+#  niż ten, o który pytamy.
+BAZA_PELNEGO="${BAZA_PROBNA}pelny"
+"${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PELNEGO} WITH (FORCE)" >/dev/null 2>&1
+
+wyjscie="$(bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+  --baza "${BAZA_PELNEGO}" --tabele users,follows --zrodlo "${DSN_ZRODLA}" --scisle 2>&1)"
+kod=$?
+sprawdz "pełny przebieg z --zrodlo --scisle przechodzi (kod 0)" "0" "${kod}"
+# Bez odwrotnych apostrofów w opisie: w łańcuchu w cudzysłowach bash wykonuje
+# to, co w nich stoi. Opis „woła `main`" uruchamiał funkcję main.
+sprawdz_zawiera "…a main NAPRAWDĘ woła porównanie wszystkich tabel" \
+  "co do jednego wiersza" "${wyjscie}"
+sprawdz_zawiera "…i NAPRAWDĘ woła migrate:status" \
+  "migrate:status na odtworzonej bazie" "${wyjscie}"
+sprawdz_zawiera "…a podsumowanie kończy się LICZBAMI, nie ptaszkiem" \
+  "tabel porównanych:" "${wyjscie}"
+sprawdz_zawiera "…w tym sumą wierszy po obu stronach" "wierszy w źródle:" "${wyjscie}"
+
+# `main` nie ruszy przy `source` — pilnuje tego `BASH_SOURCE[0] == 0`
+# na końcu skryptu próby.
+# shellcheck disable=SC1090
+source "${SKRYPT_PROBY}"
+
+BAZA_POROWNANIA="${BAZA_PROBNA}por"
+
+przygotuj_baze_porownania() {
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_POROWNANIA} WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "CREATE DATABASE ${BAZA_POROWNANIA} OWNER kuking" >/dev/null 2>&1
+  pg_restore --dbname "postgresql://${BAZA_POLACZENIE}/${BAZA_POROWNANIA}" \
+    --no-owner --no-privileges "${ZRZUT_DOBRY}" >/dev/null 2>&1
+}
+
+# Ustawiamy globalne, które czytają obie sprawdzane funkcje.
+DSN_PROBNY="postgresql://${BAZA_POLACZENIE}/${BAZA_POROWNANIA}"
+DSN_ZRODLA="postgresql://${BAZA_POLACZENIE}/${BAZA_ZRODLOWA}"
+KATALOG_ROBOCZY="${KATALOG_KOPII}"
+SCISLE=1
+
+# --- 1. Kontrola DODATNIA: wierna kopia przechodzi --------------------------
+przygotuj_baze_porownania
+wynik="$( (porownaj_wszystkie_tabele) 2>&1; echo "KOD=$?" )"
+sprawdz "wierna kopia przechodzi porównanie wszystkich tabel (kod 0)" \
+  "KOD=0" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…i MÓWI, ile tabel porównał (a nie tylko że zaliczone)" \
+  "co do jednego wiersza" "${wynik}"
+sprawdz_zawiera "…i podaje sumę wierszy po obu stronach" \
+  "wierszy razem:" "${wynik}"
+
+# Liczba porównanych tabel MUSI być liczbą schematu Kukinga. Bez tej asercji
+# „porównano 0 tabel" przeszłoby jako sukces — to jest pułapka 2: skan, który
+# nie znajduje niczego, uznaje to za zaliczone.
+#
+# Liczbę czytamy z WYJŚCIA, nie ze zmiennej `TABEL_POROWNANYCH`. Funkcja
+# chodzi w podpowłoce (`( … )`), bo tylko tak da się złapać jej `exit`
+# z `padnij` — a przypisanie zrobione w podpowłoce nie wraca do rodzica
+# i zostawiłoby tu zawsze zero. Zero wyglądałoby przy tym jak prawdziwy
+# wynik pomiaru, a nie jak jego brak.
+ile_tabel="$(sed -n -E 's/.*porównano ([0-9]+) tabel.*/\1/p' <<<"${wynik}" | head -n 1)"
+sprawdz "…na PEŁNYM schemacie, nie na wycinku (≥40 tabel)" "tak" \
+  "$(((${ile_tabel:-0} >= 40)) && echo tak || echo "nie (${ile_tabel:-0})")"
+
+# --- 2. KONTROLA UJEMNA: skasowane wiersze mają OBLAĆ -----------------------
+przygotuj_baze_porownania
+"${PSQL[@]}" -d "${BAZA_POROWNANIA}" -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+DELETE FROM follows;
+DELETE FROM users WHERE email = 'fikstura-2@example.invalid';
+SQL
+
+wynik="$( (porownaj_wszystkie_tabele) 2>&1; echo "KOD=$?" )"
+sprawdz "skasowane wiersze w odtworzonej bazie OBLEWAJĄ porównanie (kod 63)" \
+  "KOD=63" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…i mówi, KTÓRA tabela się rozjechała" "users:" "${wynik}"
+sprawdz_zawiera "…wymieniając obie rozjechane, nie tylko pierwszą" "follows:" "${wynik}"
+sprawdz_zawiera "…i podaje obie liczby, żeby dało się to przeczytać" \
+  "w źródle" "${wynik}"
+
+# --- 3. KONTROLA UJEMNA: brakująca TABELA ma OBLAĆ --------------------------
+#
+#  Najcichsza z możliwych strat: liczniki wszystkich pozostałych tabel
+#  zgadzają się co do jednego, bo tej jednej po prostu nikt nie liczy.
+przygotuj_baze_porownania
+"${PSQL[@]}" -d "${BAZA_POROWNANIA}" -c "DROP TABLE follows CASCADE" >/dev/null 2>&1
+
+wynik="$( (porownaj_wszystkie_tabele) 2>&1; echo "KOD=$?" )"
+sprawdz "brakująca TABELA oblewa porównanie (kod 63)" \
+  "KOD=63" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…i nazywa ją po imieniu" "follows" "${wynik}"
+sprawdz_zawiera "…tłumacząc, że liczby pozostałych mogły się zgadzać" \
+  "mogą się" "${wynik}"
+
+# --- 4. migrate:status ------------------------------------------------------
+przygotuj_baze_porownania
+wynik="$( (sprawdz_migracje) 2>&1; echo "KOD=$?" )"
+sprawdz "odtworzona baza przechodzi migrate:status (kod 0)" \
+  "KOD=0" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…i podaje LICZBĘ wykonanych migracji" "wykonanych, 0 czekających" "${wynik}"
+
+# KONTROLA UJEMNA: zrzut sprzed migracji. Kasujemy ostatni wpis z tabeli
+# `migrations`, więc plik migracji jest w repozytorium, a baza o nim nie wie
+# — czyli dokładnie stan „kopia starsza niż kod".
+przygotuj_baze_porownania
+"${PSQL[@]}" -d "${BAZA_POROWNANIA}" -c \
+  "DELETE FROM migrations WHERE id = (SELECT max(id) FROM migrations)" >/dev/null 2>&1
+
+wynik="$( (sprawdz_migracje) 2>&1; echo "KOD=$?" )"
+sprawdz "baza sprzed migracji OBLEWA migrate:status (kod 64)" \
+  "KOD=64" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…i mówi, ile migracji czeka" "migracji CZEKAJĄCYCH" "${wynik}"
+
+# KONTROLA UJEMNA: zgubiona tabela `migrations`. Dane mogą być komplet,
+# a baza i tak nie wie, w jakim jest schemacie.
+przygotuj_baze_porownania
+"${PSQL[@]}" -d "${BAZA_POROWNANIA}" -c "TRUNCATE migrations" >/dev/null 2>&1
+
+wynik="$( (sprawdz_migracje) 2>&1; echo "KOD=$?" )"
+sprawdz "pusta tabela migrations OBLEWA migrate:status (kod 64)" \
+  "KOD=64" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…nazywając rzecz po imieniu" "NIE MA ANI JEDNEJ" "${wynik}"
+
+# Dowód, że kontrola ujemna 4 nie przeszła przypadkiem: nazwa migracji
+# `create_pending_email_changes_table` zawiera słowo „pending" i przy
+# dopasowaniu do całego wiersza (a nie do kolumny stanu) meldowała jedną
+# migrację czekającą na bazie, w której wszystkie były wykonane. To jest
+# pułapka 1 z docs/PULAPKI_TESTOW.md, złapana na tym kroku 12.09.2026.
+przygotuj_baze_porownania
+
+# Najpierw: czy pułapka w ogóle stoi w tej fiksturze. Asercja bez tego
+# sprawdzenia byłaby zielona także na bazie, w której żadna migracja nie ma
+# tego słowa w nazwie — czyli nie dowodziłaby niczego (pułapka 2).
+z_pending="$("${PSQL[@]}" -d "${BAZA_POROWNANIA}" -Atc \
+  "SELECT count(*) FROM migrations WHERE migration LIKE '%pending%'")"
+sprawdz "fikstura NAPRAWDĘ zawiera migrację ze słowem pending w nazwie" "tak" \
+  "$(((z_pending > 0)) && echo tak || echo "nie (${z_pending})")"
+
+# I dopiero teraz: mimo tej nazwy przebieg jest czysty.
+wynik="$( (sprawdz_migracje) 2>&1; echo "KOD=$?" )"
+sprawdz "…a mimo to migrate:status melduje ZERO czekających (kod 0)" \
+  "KOD=0" "$(grep -o 'KOD=[0-9]*' <<<"${wynik}")"
+sprawdz_zawiera "…bo liczona jest kolumna stanu, nie cały wiersz" \
+  "0 czekających" "${wynik}"
+
+"${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_POROWNANIA} WITH (FORCE)" >/dev/null 2>&1
 
 # =============================================================================
 echo

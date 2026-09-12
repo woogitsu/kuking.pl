@@ -69,7 +69,7 @@ use Throwable;
  *
  *  - `poczta` — „czy wysyłka ma w ogóle czym ruszyć" (`MAIL_MAILER` na
  *    produkcji, `App\Support\Poczta`). Awaria SPRZED pierwszego listu;
- *  - `kolejka` — „czy w `failed_jobs` cokolwiek leży" (D-042). Dotyczy
+ *  - `kolejka` — „czy w `failed_jobs` cokolwiek leży" (D-057 §4). Dotyczy
  *    WSZYSTKICH zadań: zdjęć, eksportów, listów;
  *  - `listy` — „czy komuś nie doszedł LIST, o którym jeszcze nie wiesz"
  *    (issue #234, D-062, tabela `mail_failures`).
@@ -203,7 +203,7 @@ class HealthController extends Controller
      */
     private const POWOD_POCZTA_NIE_WYSYLA = 'poczta_nie_wysyla';
 
-    /** W `failed_jobs` leżą nieudane zadania kolejki, a nikt sam z siebie się o tym nie dowiaduje (D-042). */
+    /** W `failed_jobs` leżą nieudane zadania kolejki, a nikt sam z siebie się o tym nie dowiaduje (D-057 §4). */
     private const POWOD_ZADANIA_NIEUDANE = 'zadania_nieudane';
 
     /**
@@ -593,7 +593,7 @@ class HealthController extends Controller
      * Czy w `failed_jobs` leżą nieudane zadania kolejki, o których dziś nie
      * dowiaduje się nikt sam z siebie.
      *
-     * D-042 (`docs/DECISIONS.md`) ustaliło to WPROST przy okazji sufitu
+     * D-057 §4 (`docs/DECISIONS.md`) ustaliło to WPROST przy okazji sufitu
      * tygodniowego podsumowania: „Jedyne miejsce, które w ogóle liczy
      * `failed_jobs`, to `kuking:sprawdz-poczte`, uruchamiane ręcznie."
      * Zdanie było prawdziwe do tego sprawdzenia — teraz przynajmniej
@@ -607,6 +607,16 @@ class HealthController extends Controller
      * daje `php artisan queue:failed` z powłoki serwera, nie trasa publiczna.
      * To sprawdzenie ma jedno zadanie: powiedzieć „coś tam leży, zajrzyj" —
      * publiczna odpowiedź niesie tylko kod, nigdy liczbę ani treść.
+     *
+     * DOKĄD ODESŁAĆ CZŁOWIEKA, KTÓRY TO ZOBACZY
+     * `queue:failed` mówi, ŻE coś padło, i nic więcej — a najczęstszy odruch
+     * po jego przeczytaniu, czyli `queue:retry`, jest przy liście z żetonem
+     * ODPOWIEDZIĄ ZŁĄ: żeton resetu hasła żyje `config/auth.php` → `expire`
+     * minut od WYSTAWIENIA, więc ponowienie po dniach wysyła człowiekowi
+     * martwy link. Dlatego komunikat niżej (widoczny w dzienniku serwera,
+     * nie w publicznej odpowiedzi) prowadzi do `kuking:martwe-zadania`, która
+     * rozdziela żetony żywe od martwych i bez jawnego przełącznika niczego
+     * nie kasuje.
      *
      * DLACZEGO CZYTAMY TABELĘ, A NIE RUSZAMY KOLEJKI
      * Wyłącznie `SELECT COUNT(*)` — bez `queue:retry`, bez kasowania, bez
@@ -632,7 +642,10 @@ class HealthController extends Controller
 
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_ZADANIA_NIEUDANE,
-            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. Sprawdź `php artisan queue:failed`.",
+            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. "
+                .'Co to jest i kogo dotyczy: `php artisan kuking:martwe-zadania` '
+                .'(niczego nie kasuje bez `--skasuj`). Do kogo nie doszedł list: '
+                .'`php artisan kuking:kto-nie-dostal-listu`.',
         );
     }
 
@@ -782,11 +795,12 @@ class HealthController extends Controller
      * `/health` odpytuje zewnętrzny monitoring co kilka minut z założenia
      * (`docs/infra/INFRA_DECISION.md`) — bez ograniczenia trwająca dobę
      * awaria wysłałaby setki identycznych wiadomości, aż ktoś wyciszyłby
-     * cały kanał (ta sama krzywda, przed którą Sentry broni grupowaniem,
-     * D-040). `Cache::add()` zwraca `true` tylko za pierwszym razem w oknie
-     * `WEBHOOK_ODSTEP_MINUT` — każde kolejne wywołanie w tym oknie jest
-     * ciche. Klucz jest per NAZWA kontroli, nie per treść: dwie różne awarie
-     * tej samej kontroli w krótkim odstępie nadal liczą się jako jedna.
+     * cały kanał (ta sama krzywda, przed którą Sentry broni grupowaniem —
+     * a Sentry'ego w tym projekcie nie ma, D-041). `Cache::add()` zwraca
+     * `true` tylko za pierwszym razem w oknie `WEBHOOK_ODSTEP_MINUT` — każde
+     * kolejne wywołanie w tym oknie jest ciche. Klucz jest per NAZWA kontroli,
+     * nie per treść: dwie różne awarie tej samej kontroli w krótkim odstępie
+     * nadal liczą się jako jedna.
      *
      * DLACZEGO BEZPIECZNIE MILCZY BEZ SKONFIGUROWANEGO ADRESU
      * Ten sam warunek co w `bootstrap/app.php` — bez `LOG_BLAD_WEBHOOK_URL`

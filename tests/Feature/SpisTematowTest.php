@@ -12,6 +12,7 @@ use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -28,6 +29,7 @@ use Tests\TestCase;
 class SpisTematowTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private function tag(string $slug, string $nazwa): Tag
     {
@@ -87,7 +89,10 @@ class SpisTematowTest extends TestCase
 
         $html = (string) $this->get(route('tags.index'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Wszystkie tagi', $html);
+        // NA TREŚCI EKRANU (pułapka 1b): „Wszystkie tagi" jest też `<title>`
+        // tej strony, więc asercja na całej odpowiedzi przechodziła po
+        // skasowaniu nagłówka i spisu z `<main>`. Zmierzone 12.09.2026.
+        $this->assertStringContainsString('Wszystkie tagi', $this->trescEkranu($html));
         $this->assertContains('Zupy (1 wpis)', $this->chipyWSekcji($html, 'Wszystkie tagi, alfabetycznie'));
     }
 
