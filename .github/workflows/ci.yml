@@ -38,6 +38,17 @@
 #  `self-hosted`, więc joby lądują na starej puli WSL-owej — tej, którą komplet
 #  sześciu etykiet miał wykluczać. Zmiana tej wartości należy do właściciela
 #  repozytorium, nie do kodu. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
+#
+#  TO JEST WYBÓR, NIE PRZEOCZENIE — decyzja właściciela z 12.09.2026.
+#  Z trzech dróg (komplet sześciu etykiet / skasowanie zmiennej / zostawienie
+#  jak jest) właściciel wybrał TRZECIĄ, znając koszt: przebiegi chodzą na starej
+#  puli WSL, czyli na TRZECH REJESTRACJACH JEDNEJ MASZYNY — tej samej, która
+#  dała wyścig o binarkę Composera z #262. Kto tu trafia po czerwonym CI: stan
+#  „stara pula" nie jest tu usterką do naprawienia i nie szukaj przyczyny
+#  w `runs-on:`. Przyjęty koszt w całości, dokładna wartość do przełączenia
+#  na nową pulę, skutek skasowania zmiennej i SYGNAŁ, po którym tę decyzję
+#  odwracamy, stoją w docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja
+#  właściciela z 12 września 2026: zmienna ZOSTAJE na samym `self-hosted`".
 # ---------------------------------------------------------------------------
 
 # =============================================================================
