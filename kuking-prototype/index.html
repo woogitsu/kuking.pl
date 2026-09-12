@@ -12,7 +12,7 @@
 
   <header class="topbar">
     <div class="topbar__inner">
-      <a class="brand" href="#" aria-label="Kuking.pl — strona główna">
+      <a class="brand" href="#start" data-route="start" aria-label="Kuking.pl — strona główna">
         <span class="brand__mark" aria-hidden="true">K</span>
         <span>kuking<small>.pl</small></span>
       </a>
@@ -27,10 +27,11 @@
         <button class="icon-text-button" type="button" data-action="search">
           <span aria-hidden="true">⌕</span> Szukaj
         </button>
-        <button class="profile-button" type="button" aria-label="Otwórz profil Basi">
+        <a class="notification-button" href="#powiadomienia" data-route="powiadomienia" aria-label="Powiadomienia, 3 nowe"><span aria-hidden="true">♢</span><b>3</b></a>
+        <a class="profile-button" href="#profil" data-route="profil" aria-label="Otwórz profil Basi">
           <span class="avatar avatar--small" aria-hidden="true">B</span>
           <span class="profile-button__label">Basia</span>
-        </button>
+        </a>
       </div>
     </div>
   </header>
@@ -55,12 +56,12 @@
           </div>
         </div>
         <div class="composer__actions">
-          <button class="button button--primary" type="button" data-action="add-photo">
+          <a class="button button--primary" href="#dodaj" data-route="dodaj">
             <span aria-hidden="true">＋</span> Dodaj zdjęcie
-          </button>
-          <button class="button button--secondary" type="button" data-action="add-recipe">
+          </a>
+          <a class="button button--secondary" href="#dodaj-przepis" data-route="dodaj-przepis">
             <span aria-hidden="true">▤</span> Dodaj przepis
-          </button>
+          </a>
         </div>
       </section>
 
@@ -191,12 +192,40 @@
     <dl class="profile-stats"><div><dt>Wpisy</dt><dd>38</dd></div><div><dt>Przepisy</dt><dd>5</dd></div><div><dt>Ugotowane</dt><dd>21</dd></div><div><dt>Obserwujący</dt><dd>124</dd></div></dl>
     <section class="profile-content"><div><h2>Ostatnio u Ciebie</h2><p class="profile-note">Jeszcze nic dziś nie dodałaś.</p></div><button class="button button--primary" type="button" data-action="add-photo">＋ Dodaj dzisiejsze danie</button></section>
   </section>
+
+  <section class="content-view content-view--narrow view" data-view="dodaj" hidden aria-labelledby="add-title">
+    <a class="back-link" href="#start" data-route="start">← Wróć na stronę główną</a>
+    <header class="view-header"><p class="eyebrow">Nowy wpis</p><h1 id="add-title">Pokaż, co ugotowałaś</h1><p>Nie musi być idealnie. Zdjęcie i jedno zdanie wystarczą.</p></header>
+    <form class="publish-form" data-form="post">
+      <section class="upload-zone" tabindex="0" role="button" aria-label="Wybierz zdjęcie dania"><span aria-hidden="true">＋</span><strong>Wybierz zdjęcie</strong><small>Z telefonu albo komputera · JPG, PNG lub WEBP</small></section>
+      <div class="form-field"><label for="post-text">Napisz kilka słów</label><textarea id="post-text" rows="5" placeholder="Np. Pierwszy raz zrobiłam ten sos z podgrzybków…"></textarea><small>Możesz napisać, co to jest, z czego i jak wyszło.</small></div>
+      <fieldset><legend>Kto może zobaczyć ten wpis?</legend><label class="choice"><input type="radio" name="visibility" value="public" checked><span><strong>Wszyscy</strong><small>Także osoby bez konta</small></span></label><label class="choice"><input type="radio" name="visibility" value="followers"><span><strong>Obserwujący</strong><small>Tylko osoby, które Cię obserwują</small></span></label><label class="choice"><input type="radio" name="visibility" value="private"><span><strong>Tylko ja</strong><small>Wpis zostanie w Twoim archiwum</small></span></label></fieldset>
+      <div class="form-footer"><span class="draft-state" role="status">Szkic zapisany</span><button class="button button--primary" type="submit">Opublikuj wpis</button></div>
+    </form>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="dodaj-przepis" hidden aria-labelledby="wizard-title">
+    <a class="back-link" href="#start" data-route="start">← Wróć na stronę główną</a>
+    <header class="view-header"><p class="eyebrow">Nowy przepis</p><h1 id="wizard-title">Dodaj swój przepis</h1><p>Przejdziemy przez trzy krótkie kroki.</p></header>
+    <form class="publish-form recipe-wizard" data-form="recipe">
+      <div class="wizard-progress"><p><strong>Krok <span data-step-number>1</span> z 3</strong> · <span data-step-name>O przepisie</span></p><div><i></i><i></i><i></i></div></div>
+      <section class="wizard-step is-active" data-step="1"><div class="form-field"><label for="recipe-name">Nazwa przepisu</label><input id="recipe-name" type="text" placeholder="Np. Sernik mamy"><small>Nazwa powinna mówić od razu, co ugotujemy.</small></div><div class="form-grid"><div class="form-field"><label for="recipe-time">Czas razem</label><input id="recipe-time" type="text" placeholder="Np. 45 minut"></div><div class="form-field"><label for="recipe-portions">Liczba porcji</label><input id="recipe-portions" type="number" min="1" value="4"></div></div></section>
+      <section class="wizard-step" data-step="2" hidden><div class="form-field"><label for="ingredients">Składniki</label><textarea id="ingredients" rows="8" placeholder="Każdy składnik wpisz w nowej linii"></textarea><small>Przykład: 1 kg ziemniaków</small></div><button class="button button--secondary" type="button" data-action="add-ingredient">＋ Dodaj kolejny składnik</button></section>
+      <section class="wizard-step" data-step="3" hidden><div class="form-field"><label for="preparation">Sposób przygotowania</label><textarea id="preparation" rows="9" placeholder="Opisz po kolei, co trzeba zrobić"></textarea><small>Pisz prostymi krokami. Podział na osobne kroki zrobimy automatycznie.</small></div></section>
+      <div class="form-footer wizard-footer"><button class="button button--secondary" type="button" data-wizard="prev" disabled>Wstecz</button><span class="draft-state" role="status">Szkic zapisany</span><button class="button button--primary" type="button" data-wizard="next">Dalej</button></div>
+    </form>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="powiadomienia" hidden aria-labelledby="notifications-title">
+    <header class="view-header"><p class="eyebrow">3 nowe</p><h1 id="notifications-title">Powiadomienia</h1><p>Odpowiedzi i ugotowania Twoich przepisów.</p></header>
+    <div class="notifications-list"><article class="is-new"><span class="notification-icon notification-icon--cook" aria-hidden="true">✓</span><div><h2>Halina ugotowała Twój rosół</h2><p>„Wyszedł dokładnie jak pamiętam z dzieciństwa.”</p><time>12 minut temu</time></div><button type="button" data-action="notification-open">Zobacz</button></article><article class="is-new"><span class="notification-icon" aria-hidden="true">□</span><div><h2>Marek odpowiedział na Twój komentarz</h2><p>Pod przepisem „Chleb na zakwasie”.</p><time>2 godziny temu</time></div><button type="button" data-action="notification-open">Zobacz</button></article><article><span class="notification-icon" aria-hidden="true">＋</span><div><h2>Anna zaczęła Cię obserwować</h2><p>Zobaczy teraz Twoje publiczne wpisy.</p><time>Wczoraj</time></div><button type="button" data-action="notification-open">Profil Anny</button></article></div>
+  </section>
   </main>
 
   <nav class="bottom-nav" aria-label="Dolna nawigacja">
     <a class="is-active" href="#start" data-route="start" aria-current="page"><span aria-hidden="true">⌂</span>Start</a>
     <a href="#odkrywaj" data-route="odkrywaj"><span aria-hidden="true">⌕</span>Szukaj</a>
-    <a class="bottom-nav__add" href="#dodaj"><span aria-hidden="true">＋</span>Dodaj</a>
+    <a class="bottom-nav__add" href="#dodaj" data-route="dodaj"><span aria-hidden="true">＋</span>Dodaj</a>
     <a href="#zeszyt" data-route="zeszyt"><span aria-hidden="true">▤</span>Moje</a>
     <a href="#profil" data-route="profil"><span aria-hidden="true">○</span>Profil</a>
   </nav>

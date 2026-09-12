@@ -23,7 +23,9 @@ document.addEventListener('click', (event) => {
     'load-more': 'W pełnej aplikacji pojawi się kolejna porcja wpisów.',
     'cook-mode': 'Tryb gotowania pokaże po jednym dużym kroku i uruchomi minutnik.',
     'new-folder': 'Tutaj wpiszesz nazwę nowego folderu.',
-    'edit-profile': 'Tutaj zmienisz zdjęcie, nazwę i opis profilu.'
+    'edit-profile': 'Tutaj zmienisz zdjęcie, nazwę i opis profilu.',
+    'add-ingredient': 'Dodano miejsce na kolejny składnik.',
+    'notification-open': 'Otwieram wskazaną treść.'
   };
 
   if (action === 'save') {
@@ -78,6 +80,61 @@ document.querySelectorAll('.filter-chips button').forEach((button) => {
     button.setAttribute('aria-pressed', 'true');
     showToast(`Wybrano: ${button.textContent}.`);
   });
+});
+
+document.querySelector('[data-form="post"]')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const text = document.querySelector('#post-text').value.trim();
+  if (!text) {
+    showToast('Napisz kilka słów o daniu, żeby opublikować wpis.');
+    document.querySelector('#post-text').focus();
+    return;
+  }
+  showToast('Wpis został opublikowany.');
+  history.pushState(null, '', '#start');
+  showView('start');
+});
+
+const wizard = document.querySelector('.recipe-wizard');
+let wizardStep = 1;
+function updateWizard() {
+  wizard?.querySelectorAll('.wizard-step').forEach((step) => {
+    const active = Number(step.dataset.step) === wizardStep;
+    step.hidden = !active;
+    step.classList.toggle('is-active', active);
+  });
+  const names = ['O przepisie', 'Składniki', 'Przygotowanie'];
+  wizard.querySelector('[data-step-number]').textContent = wizardStep;
+  wizard.querySelector('[data-step-name]').textContent = names[wizardStep - 1];
+  wizard.querySelectorAll('.wizard-progress i').forEach((bar, index) => {
+    bar.classList.toggle('is-active', index + 1 === wizardStep);
+    bar.classList.toggle('is-complete', index + 1 < wizardStep);
+  });
+  const previous = wizard.querySelector('[data-wizard="prev"]');
+  const next = wizard.querySelector('[data-wizard="next"]');
+  previous.disabled = wizardStep === 1;
+  next.textContent = wizardStep === 3 ? 'Opublikuj przepis' : 'Dalej';
+}
+wizard?.addEventListener('click', (event) => {
+  const control = event.target.closest('[data-wizard]');
+  if (!control) return;
+  if (control.dataset.wizard === 'prev') wizardStep = Math.max(1, wizardStep - 1);
+  if (control.dataset.wizard === 'next' && wizardStep < 3) wizardStep += 1;
+  else if (control.dataset.wizard === 'next' && wizardStep === 3) {
+    showToast('Przepis został opublikowany.');
+    history.pushState(null, '', '#profil');
+    showView('profil');
+  }
+  updateWizard();
+});
+updateWizard();
+
+document.querySelector('.upload-zone')?.addEventListener('click', () => showToast('Tutaj otworzy się wybór zdjęcia z urządzenia.'));
+document.querySelector('.upload-zone')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    showToast('Tutaj otworzy się wybór zdjęcia z urządzenia.');
+  }
 });
 
 document.querySelectorAll('.people-list button').forEach((button) => {
