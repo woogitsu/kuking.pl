@@ -13612,3 +13612,577 @@ robi `scripts/podglad-przed-wyslaniem.mjs`.
 
 📄 `resources/js/app.js` · `resources/css/ekran-dodawania.css` ·
 `scripts/podglad-przed-wyslaniem.mjs` · `PodgladWybranegoZdjeciaTest` · D-180 · D-035
+
+---
+
+## D-182 · Odstęp pod podpisem należy się podpisowi, nie jego podpowiedzi
+
+**Data:** 12 września 2026 · PR #460 · issue #445 · Status: **obowiązuje**
+
+### Co było nie tak
+
+Odstęp między podpisem pola a ramką pola dostawała w praktyce **podpowiedź**: 12 px
+deklarowała reguła `.field-help + .field-input` (D-133), a pole bez podpowiedzi nie
+dostawało nic własnego — zostawało mu 8 px z `label { margin-bottom }` w warstwie base.
+Czyli **dokładnie tyle, ile dzieli podpis od jego własnego wyjaśnienia**. Rzecz
+powiązana i rzecz odrębna stały w tej samej odległości, a pole bez podpowiedzi miało
+odstęp **mniejszy** niż pole z podpowiedzią.
+
+### Decyzja
+
+Odstęp należy się **podpisowi** i jest ten sam niezależnie od tego, czy ktoś podpowiedź
+dopisał. Deklaruje go blok dolny, jako `margin-top` (D-154), a warunkiem jest
+sąsiedztwo (D-158): jedna deklaracja, dwa selektory — podpis albo podpowiedź stojąca
+zaraz nad polem.
+
+Pole z podpisem **i** podpowiedzią nie dostaje obu odstępów naraz, i wynika to
+z kształtu reguły, nie z ostrożności autora widoku: bezpośrednim sąsiadem pola jest
+albo podpowiedź, albo etykieta, nigdy oboje. Rytm pola z podpowiedzią zostaje 8 / 12 px.
+
+Podpis schowany przed okiem nie dostaje nic (`:not(.visually-hidden)`). Na
+`/admin/kuking-na-dzis` pole notatki jest podpisane wyłącznie dla czytnika ekranu,
+a 12 px pustki pod napisem, którego nie widać, zsumowałoby się w liście wierszy
+w ekran przewijania.
+
+### Zmierzone
+
+Chromium, „dół etykiety → góra ramki pola", pola **bez** podpowiedzi, na `/login`,
+`/register`, `/ustawienia/profil`, `/ustawienia/bezpieczenstwo`, `/dodaj/zdjecie`
+i `/dodaj/przepis`, przy 320 / 360 / 390 / 414 px — wszystkie ekrany i wszystkie
+szerokości tak samo: **8 → 12 px**, a przy czcionce przeglądarki 200% **16 → 24 px**.
+Pola **z** podpowiedzią: 8 / 12 px przed i po.
+
+### Sprostowanie, bo liczba w komentarzu nie była prawdziwa
+
+W kodzie stało „zmierzone 0 px, np. «Nowe hasło» na /ustawienia". Zmierzone jest 8 px,
+nie 0, a „Nowe hasło" **ma** podpowiedź, więc było akurat jednym z pól z odstępem
+12 px. Usterka jest realna, tylko dotyczy innych pól tego ekranu: „Obecne hasło"
+i „Powtórz nowe hasło". Zła liczba w uzasadnieniu jest gorsza niż brak liczby —
+wygląda jak pomiar i zatrzymuje sprawdzanie.
+
+📄 `resources/css/app.css` · `OdstepPodPodpisemPolaTest` · D-133 · D-154 · D-158
+
+---
+
+## D-183 · Martwe zadanie z kolejki kasuje się po wygaśnięciu żetonu, nie ponawia
+
+**Data:** 12 września 2026 · PR #460 · Status: **obowiązuje**
+
+### Kontekst
+
+`/health` stoi w `degraded` przez cztery zadania `UstawienieNowegoHasla` z 9 września
+2026, czyli z awarii SMTP naprawionej przez D-047.
+
+### Dlaczego `queue:retry` jest tu odpowiedzią złą
+
+`config/auth.php` daje żetonowi resetu hasła **60 minut od wystawienia**. Ponowienie po
+dniach wysłałoby ludziom list o zmianie hasła z linkiem, który już nie działa. Człowiek,
+który o nic dziś nie prosił, klika i widzi „link wygasł". Odruch „ponów, co padło" jest
+tu gorszy niż nicnierobienie.
+
+### Decyzja
+
+`kuking:martwe-zadania` rozdziela dwa przypadki, których `queue:retry` i `queue:flush`
+nie rozdzielają:
+
+- pokazuje, co stoi w `failed_jobs` — kiedy, jaka klasa i **ilu ludzi** to dotyczy
+  (różne konta, nie wiersze: jedna osoba klikała zwykle kilka razy);
+- kasuje **wyłącznie** zadania, których żeton już nie żyje, a próg czyta z konfiguracji
+  osobno dla każdej klasy (60 min z `config/auth.php`, 30 min z `config/kuking.php`);
+- trybem domyślnym jest `--na-sucho`, a przy `--skasuj --na-sucho` naraz wygrywa ta
+  intencja, **którą da się cofnąć**;
+- zadania spoza listy żetonów i te z żetonem jeszcze żywym zostają nietknięte.
+
+### Żeton nie wychodzi na ekran w żadnej gałęzi
+
+Także w tej, w której komenda nie umie odczytać wiersza. Surowego `payload` ani
+`exception` nie drukujemy nigdzie, a `unserialize()` dostaje listę dozwolonych klas,
+na której klas powiadomień nie ma. Pilnuje tego osobny test z **kontrolą dodatnią**
+(asercją, że żeton naprawdę leży w ładunku) — bez niej asercja „żetonu nie widać"
+przechodziłaby też wtedy, gdyby żetonu tam w ogóle nie było.
+
+📄 `app/Console/Commands/MartweZadania.php` · `app/Http/Controllers/HealthController.php` ·
+`MartweZadaniaTest` · D-047 · D-057
+
+---
+
+## D-184 · Rezerwa nad przypiętym paskiem jest liczona ze zmierzonej wysokości i ma sufit
+
+**Data:** 12 września 2026 · PR #460 · issue #26 · Status: **obowiązuje**
+
+### Co było nie tak
+
+`scripts/dostepnosc.mjs` meldował „focus częściowo zasłonięty: 27". Dwadzieścia jeden
+z tych ostrzeżeń mówiło o `.topbar` i miało jedną przyczynę: przy dolnej belce stało
+`scroll-padding-bottom`, a przy górnym pasku nie stało nic. Przewinięcie fokusu w widok,
+które przeglądarka robi sama po Tab, liczy się wtedy do krawędzi okna — a na tej
+krawędzi siedzi przypięty pasek. Osoba chodząca po serwisie klawiszem Tab przestawała
+widzieć, gdzie jest.
+
+### Decyzja
+
+Rezerwa jest liczona od **zmierzonej** wysokości paska, nie z palca: 170,7 px bez
+powiększania i 194,6 px przy tekście 140% (320/360/414 px), 75,5 / 84,5 px od 768 px.
+Stąd `calc(7rem + 5rem * var(--user-text-scale, 1))` i osobny, niższy stopień od 64rem.
+
+Część stała jest konieczna, bo pasek prawie nie jest typografią: urósł o 14%, gdy tekst
+urósł o 40%. Reszta jego wysokości to minima przycisków i wypełnienia w `rem`.
+
+### Rezerwa ma sufit i to on, a nie pasek, jest tu trudny
+
+Gdy kontrolka nie mieści się w pasie między rezerwami, przeglądarka równa ją górą
+i **każdy piksel rezerwy spycha jej dół pod belkę dolną**. Zmierzone przy 320 px
+i tekście 140%: sufit **244,5 px**, a wariant 14rem × skala (313,6 px) dokładał nowe
+ostrzeżenie zamiast zbijać stare. Więcej rezerwy nie jest tu lepiej.
+
+Rezerwa znika dokładnie na obu progach, na których pasek przestaje być przypięty
+(D-107) — nad odpiętym paskiem byłaby czystą stratą ekranu.
+
+### Zmierzone
+
+Tym samym skryptem, baza `kuking_a11y_c`, axe 42/42, układ 47/47: „focus częściowo
+zasłonięty" **27 → 6**, pozostałe liczniki bez zmian. Kontrola ujemna: samo zdjęcie
+reguły `scroll-padding-top` przywraca 27.
+
+Sześć ostrzeżeń zostaje i nie da się ich zdjąć przewijaniem — to kontrolki **wyższe niż
+okno** przy czcionce przeglądarki 200% (2087, 1070 i 783 px przy oknie 740 px).
+
+📄 `resources/css/app.css` · `RezerwaNadPaskiemTest` · `scripts/dostepnosc.mjs` · D-107
+
+---
+
+## D-185 · Asercję podejrzaną o atrapę się mierzy, a nie przepisuje
+
+**Data:** 12 września 2026 · PR #460 · Status: **obowiązuje**
+
+### Kontekst
+
+Pułapka 1 i 1b z `docs/PULAPKI_TESTOW.md`: `assertSee('X')` na całej odpowiedzi łapie X
+z tytułu karty przeglądarki, z `<meta>`, ze stopki i z menu — czyli przechodzi, choć
+mierzonej rzeczy na ekranie nie ma.
+
+### Decyzja
+
+Asercja **podejrzana** nie jest asercją **złą**. Każdą poddajemy pomiarowi: usunięcie
+mierzonej rzeczy z widoku, przebieg testu, a po naprawie ten sam sabotaż jeszcze raz.
+Dopiero czerwień albo jej brak rozstrzyga.
+
+Sabotowane widoki wracają z kopii spoza repozytorium (pułapka 8), nie przez
+`git checkout` — i w diffie zostaje wyłącznie `tests/`.
+
+### Dlaczego to nie jest formalność
+
+Poddane pomiarowi **22** asercje. Atrapami okazało się **17**, dobrych było **5**:
+„Wrócimy dziś" na 503, „Bezpieczeństwo" i „Twoje dane" w spisie ustawień oraz
+„Obserwuj" i „Zablokuj" w główce profilu. Gdyby przepisać wszystkie 22 „na wszelki
+wypadek", pięć zmian byłoby ruchem bez powodu, a to w tym pliku nie do odróżnienia od
+ruchu z powodu.
+
+Naprawy używają wzorców z tabeli w §1, bez wymyślania piątego. Asercje „czegoś nie ma"
+zostają na całym dokumencie — tam szersze spojrzenie jest **ostrożniejsze**, nie słabsze.
+
+📄 `docs/PULAPKI_TESTOW.md` · `StronyBleduPoPolskuTest` · `UstawieniaNawigacjaTest` ·
+`SpisTematowTest` · D-132
+
+---
+
+## D-186 · Pomiar zmienia stan DOM-u przed motywem, nie po nim
+
+**Data:** 12 września 2026 · PR #461 · issue #454 · Status: **obowiązuje**
+
+### Objaw
+
+Automat dostępności meldował raz na kilkaset przebiegów `[serious] color-contrast`
+na ekranie usuwania konta, przy **nietkniętej palecie**. Ze złapanego wystąpienia
+(wariant ciemny, 1280 px):
+
+    tekst  #2b241d   ← --color-ink z motywu JASNEGO
+    tło    #1e1a16   ← --color-surface z motywu CIEMNEGO
+    kontrast 1.13:1  przy wymaganym 4.5:1
+
+Ta para nie występuje w żadnym motywie. Pomiar zestawiał tekst sprzed przełączenia
+z tłem po przełączeniu. Wszystkie cztery węzły tego naruszenia leżały wewnątrz
+`<details>`, ani jeden poza nim.
+
+### Przyczyna
+
+Zamknięty `<details>` jest w Chromium poddrzewem pominiętym w przeliczaniu stylu.
+Zmiana `data-theme` na `<html>` go nie dotyka, a `getComputedStyle` nie wymusza
+przeliczenia. Dopóki otwarcie `<details>` stało tuż przed `analyze()`, axe czytał
+z tego poddrzewa kolory sprzed przełączenia motywu.
+
+### Decyzja
+
+Każda zmiana stanu DOM-u, która odsłania poddrzewo, idzie **przed** `data-text-scale`
+i `data-theme`, a po niej automat czeka na pełny obieg klatki. Palety nie ruszamy —
+poprawka jest w kolejności, nie w kolorach.
+
+Zmierzone, 100 powtórzeń na `/ustawienia/twoje-dane`: motyw, potem `<details>` —
+rozjazd pary tekst/tło **100 na 100**; `<details>`, potem motyw — **0 na 100**.
+
+### Wyścig szedł też w drugą stronę
+
+Migotanie widać było jako fałszywą czerwień, więc rzucało się w oczy. Ta sama kolejność
+po cichu **przepuszczała** naruszenia: przeczytany kolor sprzed przełączenia bywa
+zgodny, choć po przełączeniu zgodny nie jest. Fałszywa zieleń nie melduje o sobie nigdy.
+
+### Kontrola ujemna złapała błąd w drugim teście
+
+Test „czeka na obieg klatki po otwarciu `<details>`" brał wycinek źródła od otwarcia do
+`wlaczSkaleTekstu`. Przy sabotażu przenoszącym otwarcie na koniec pętli ta druga kotwica
+stoi **wcześniej**, długość wychodzi ujemna, a `substr` zwraca wtedy kawałek liczony od
+końca pliku — test przechodził, mierząc nie to miejsce (pułapka 3b).
+
+📄 `scripts/dostepnosc.mjs` · `PomiarDostepnosciOtwieraDetailsPrzedMotywemTest` ·
+`docs/PULAPKI_TESTOW.md` · D-132
+
+---
+
+## D-187 · Cytat numeru decyzji wskazuje tę decyzję, a brakującego numeru się nie wymyśla
+
+**Data:** 12 września 2026 · PR #458 · Status: **obowiązuje**
+
+### Kontekst
+
+Audyt znalazł w `HealthController` cytat „D-042" przy sprawdzeniu kolejki, a pod tym
+numerem stoi decyzja o czymś zupełnie innym. `NumeryDecyzjiMajaWpisyTest` pilnował
+tylko tego, że numer **ma wpis** — nie tego, że wpis mówi o tym samym, co kod obok.
+
+To jest klasa błędu, nie jeden przypadek: numer decyzji czyta się jak uzasadnienie
+i **zatrzymuje szukanie**. Zły numer jest gorszy niż brak numeru, bo wygląda na
+sprawdzony.
+
+### Zmierzone
+
+Przejrzane **3701** wystąpień `D-NNN` w **651** plikach, każde sprawdzone wobec treści
+wpisu o tym numerze. Błędnych: **11 wystąpień w 6 plikach**, czyli cztery pomyłki.
+
+### Decyzja
+
+Gdy cytowana decyzja istnieje pod innym numerem — przepinamy odnośnik. Gdy decyzji
+w dzienniku **nie ma** — numeru nie wymyślamy: cytat znika, a zostaje odesłanie do
+dokumentu, który tę zasadę naprawdę niesie.
+
+Tak rozstrzygnięte zostało „D-004" przy zdaniu „ugotowanie jest ważniejsze niż lajk"
+na stronie powitalnej i w `GLOS_MARKI.md`. D-004 dotyczy wyszukiwarki na PostgreSQL,
+a decyzji o hierarchii „ugotowałem" ponad lajkiem w dzienniku po prostu nie było —
+patrz D-194, który tę lukę zamyka.
+
+📄 `app/Http/Controllers/HealthController.php` · `NumeryDecyzjiMajaWpisyTest` ·
+`docs/infra/MONITORING_BLEDOW.md` · D-029 · D-041 · D-057 · D-194
+
+---
+
+## D-188 · Linia 📄 ma strażnika, a martwy odnośnik znika, zamiast zgadywać cel
+
+**Data:** 12 września 2026 · PR #459 · Status: **obowiązuje**
+
+### Kontekst
+
+Linia `📄` na końcu każdego wpisu jest **jedyną** drogą od decyzji do kodu, który ją
+realizuje. Pliki się przenoszą, klasy testowe zmieniają nazwy — a dziennik nie miał
+żadnego automatu, który by to zauważył. Przy 181 wpisach nikt nigdy nie przeszedł tych
+referencji ręcznie.
+
+Zmierzone: **112** bloków referencji, ok. **780** pojedynczych referencji, martwe trzy.
+
+### Decyzja
+
+`OdnosnikiDziennikaDecyzjiIstniejaTest` chodzi po tych liniach przy każdym przebiegu.
+Lista znanych wyjątków jest **pusta i ma taka zostać** — pierwszy dopisany wyjątek
+zamienia strażnika w formalność, bo następny martwy odnośnik trafi tam odruchowo.
+
+Martwy odnośnik, którego celu nie da się ustalić, **usuwamy**. D-149 wskazywał plik
+`…/WZORCE_SAMOUZASADNIANIA`, którego nigdy nie było pod żadną ścieżką. Kusiło, żeby
+wskazać sąsiedni dokument z tego samego katalogu — ale w żadnym pliku tamtego katalogu
+nie ma słowa „samouzasadnianie", więc byłoby to zgadnięcie podane jako referencja.
+Zgadnięty odnośnik jest dokładnie tym samym błędem co zły numer decyzji (D-187), tylko
+o jedną warstwę niżej.
+
+### Próg minimalnej liczby sprawdzonych pozycji
+
+Skan, który nic nie znalazł, wygląda identycznie jak skan, który znalazł wszystko
+i wszystko było w porządku (pułapka 2). Dlatego test oblewa także wtedy, gdy bloków
+albo sprawdzonych celów jest mniej, niż być powinno.
+
+📄 `docs/DECISIONS.md` · `OdnosnikiDziennikaDecyzjiIstniejaTest` ·
+`docs/PULAPKI_TESTOW.md` · D-187
+
+---
+
+## D-189 · Trasy w dokumentach sprawdza `Route::getRoutes()`, nie nazwa pliku
+
+**Data:** 12 września 2026 · PR #462 · Status: **obowiązuje**
+
+### Kontekst
+
+Audyt wszystkich **241** plików `.md`: odnośniki markdown do plików i kotwic, ścieżki
+w backtickach, wzmianki tras serwisu.
+
+Jeden z martwych odnośników nie był tylko dokumentacją. `resources/legal/zasady.md`
+prowadziło **z żywej strony** do `/polityka-prywatnosci`, którego nie ma; właściwy
+adres to `/prywatnosc`. Dokumentacja i treść serwisu leżą w tym repozytorium obok
+siebie, więc „to tylko dokument" nie jest tu bezpiecznym założeniem.
+
+### Decyzja
+
+Prawdziwość trasy rozstrzyga `Route::getRoutes()`, a nie podobieństwo do nazwy pliku
+ani angielski odpowiednik. Cała „Mapa ekranów MVP" w `FLOWS_AND_SCREENS.md` to było
+**29** adresów, które nigdy nie istniały — dokument opisywał serwis, którego nie
+zbudowaliśmy, i wyglądał przy tym zupełnie wiarygodnie.
+
+Świadomym wyjątkiem zostają `/login`, `/register` i `/wyloguj` → `/logout`: to jedyne
+angielskie trasy w serwisie i jest to wyjątek zapisany w `AGENTS.md` §11, nie
+przeoczenie.
+
+Dokument opisujący **projekt** API, a nie kod z repozytorium, ma to napisać u siebie.
+`COMPONENTS_BLADE.md` miał 8 z 12 sekcji w tym stanie od dawna; złapał to audyt
+z września i nigdy nie trafiło to do samego dokumentu.
+
+### Co jest wyłączone z testu i dlaczego
+
+Historyczne audyty, zlecenia i dziennik decyzji. Te dokumenty **opisują stan z dnia
+zapisu** — poprawianie w nich adresu znaczyłoby przepisywanie historii, a nie naprawę.
+
+📄 `tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php` · `resources/legal/zasady.md` ·
+`docs/FLOWS_AND_SCREENS.md` · `AGENTS.md` · D-188
+
+---
+
+## D-190 · Próbka pomiaru jest powtarzalna, a powtarzalność nie może zabrać zasięgu
+
+**Data:** 12 września 2026 · PR #463 · issue #440 · Status: **obowiązuje**
+
+### Co było nie tak
+
+`scripts/dostepnosc.mjs` wybierał przykładowy przepis, wpis i konta przez
+`->first()`/`->value()` **bez `ORDER BY`**. PostgreSQL nie obiecuje przy takim zapytaniu
+żadnej kolejności — który obiekt zostanie zmierzony, potrafi się zmienić od samego
+dołożenia wierszy. Pomiar, którego nie da się powtórzyć, nie jest dowodem, a na nim
+stoją progi bramki dostępności.
+
+Poprawionych **16** zapytań: `->orderBy('id')` (UUID v7, klucz główny), a tam, gdzie
+kolejność ma znaczyć „najnowsze", `->orderByDesc('published_at')->orderByDesc('id')`,
+czyli tak, jak sortuje feed (AGENTS.md §8). `created_at` świadomie nie rozstrzyga tu
+remisu: seeder zapisuje wiersze w jednej sekundzie.
+
+### Rzecz, której nie dało się przewidzieć
+
+**Samo uczynienie wyboru powtarzalnym odebrałoby próbkę.** Karta wpisu autora
+o stuznakowej nazwie wchodziła do pomiaru fokusu bocznymi drzwiami: na `EKRANY_FOCUS`
+nie ma jej ani razu, a mierzona była dlatego, że „wpis (przykładowy)" rozwiązywał się
+przez zapytanie bez `ORDER BY` i to jej wpis wypadał pierwszy. Po `orderBy('id')` wybór
+ląduje na innym koncie, a trzy naruszenia WCAG 2.2 AA 2.4.11 przestają być mierzone —
+**bez jednego oblanego testu**.
+
+### Decyzja
+
+Każda próbka, która ma być mierzona, ma **własną pozycję na liście ekranów i własne
+zapytanie**, pytające o to, co ją czyni ciekawą (tu: o autora), a nie o kolejność.
+To, co wpada do pomiaru przypadkiem, wypadnie z niego równie cicho.
+
+Przy okazji dopisany `/ustawienia/zdjecie`, którego na liście nie było, a który pękał:
+przy czcionce przeglądarki 200% i oknie 320 px `scrollWidth` **333 px** — przepełnienie
+13 px. Winowajcą jest akapit opisu: element flex przy `align-items: flex-start` ma
+szerokość `fit-content`, a ta nie schodzi poniżej najdłuższego słowa (252 px przy piśmie
+32 px). Zamyka to `overflow-wrap: anywhere`; globalne `break-word` z `tokens.css` nie
+wystarcza.
+
+📄 `scripts/dostepnosc.mjs` · `ProfilZNajdluzszaNazwaWchodziDoPomiaruTest` ·
+`resources/css/ekran-profilu.css` · D-107 · D-184
+
+---
+
+## D-191 · Zdjęcie pionowe obok poziomego: jedna kolumna na wąskim ekranie, kwadrat w karuzeli
+
+**Data:** 12 września 2026 · PR #455 · issue #431 · Status: **obowiązuje**
+
+### Zgłoszenie
+
+„Jedno zdjęcie pionowe, drugie poziome, przez to jest rozjazd i bierze całą wysokość
+najwyższego zdjęcia nawet jak nie jest wyświetlane."
+
+### Dane demo nie miały czego pokazać — i to jest połowa tego zgłoszenia
+
+`DemoSeeder` tworzy każde zdjęcie jako 1600×1200, a te zdjęcia nie mają wygenerowanych
+wariantów, więc podstawia się znak serwisu o `viewBox="0 0 64 64"`, czyli **kwadrat**.
+Pomiar na samym demo mierzyłby galerię, w której zgłoszonej usterki **nie da się
+zrobić**, i meldował „w porządku". Dlatego `scripts/galeria-orientacje.mjs` sam dokłada
+wpisy z prawdziwymi plikami 1200×1600 i 1600×900 i **zatrzymuje się z błędem**, jeśli na
+mierzonej stronie nie stanęły obok siebie zdjęcie pionowe i poziome.
+
+### Decyzja
+
+`.photo-grid` poniżej 30rem schodzi do **jednej kolumny** — ten sam próg i ten sam
+argument co przy kolażu: przy 320 px kolumna miała 142 px, a zdjęcie poziome mieściło
+się w niej na 80 px wysokości. Martwe pole nie zostaje zasłonięte, tylko przestaje
+istnieć. Dochodzi `align-items: start`, bo rozciągał się **odnośnik** „powiększ
+zdjęcie": kliknięcie w puste miejsce pod zdjęciem otwierało powiększenie.
+
+Slajdy karuzeli dostają pole o proporcji **1/1** z `object-fit: contain`. Wysokości
+taśmy zależnej od widocznego slajdu nie da się zrobić bez JavaScriptu, a karuzela ma
+działać bez skryptu (AGENTS.md §5) — to nie jest opcja odrzucona, tylko nieistniejąca.
+
+### Cena, wprost
+
+Zdjęcie pionowe przy 320 px ma teraz 214,8 × 286 px zamiast 286 × 381,3 px. Pole 4/3
+zbijało martwe piksele mocniej, ale zabierało zdjęciu pionowemu **44%** wysokości —
+a to najczęstszy kształt tego, co ktoś robi telefonem nad garnkiem. Kwadrat zabiera 25%
+i nie wyróżnia żadnej orientacji.
+
+Zostające w karuzeli ~125 px to co innego niż 220 px sprzed poprawki: tamte brały się
+z sąsiada, którego nie było widać, te są dwoma równymi pasami nad i pod zdjęciem —
+**ramą, nie dziurą**.
+
+### Zmierzone: martwe piksele pod zdjęciem poziomym
+
+`.photo-grid`: 320 px 109,5 → 0,0 · 360 px 124,9 → 0,0 · 390 px 136,4 → 0,0 ·
+414 px 145,7 → 0,0 (przy czcionce 200% analogicznie, wszystkie → 0,0).
+Karuzela: 320 px 220,5 → 125,1 · 414 px 292,9 → 167,1.
+
+`min-height: 0` na polu slajdu nie jest ozdobą: bez niego proporcja działa tylko na
+zdjęciach poziomych, czyli poprawka poprawiałaby połowę przypadków i **wyglądała
+w pomiarze prawie jak poprawka**.
+
+📄 `resources/css/app.css` · `scripts/galeria-orientacje.mjs` ·
+`GaleriaMieszanychOrientacjiTest` · D-092
+
+---
+
+## D-192 · Próba odtworzenia kopii kończy się liczbami i nie dowodzi, że kopia istnieje
+
+**Data:** 12 września 2026 · PR #455 · issue #193 · Status: **obowiązuje**
+
+### Czego brakowało
+
+Liczba kopii produkcyjnej bazy wynosi **zero** i z repozytorium zmienić się nie może.
+Brakowało czego innego: **dowodu, że z kopii da się mieć bazę z powrotem**. Sygnał
+„dawno nie było kopii" istniał i miał testy; ćwiczenie odtworzenia było rozpisane na
+siedem komend do przepisania z dokumentu — czyli było ćwiczeniem, którego nikt nie zrobi.
+
+### Decyzja
+
+`scripts/proba-odtworzenia.sh --petla-lokalna` robi całość **jedną komendą**: kopia tym
+samym skryptem, którym robi się kopię naprawdę (nie zrzutem zrobionym obok, innymi
+flagami) → odtworzenie do świeżej bazy → porównanie liczby wierszy w **każdej** tabeli →
+`migrate:status` na odtworzonej bazie.
+
+Dwa kroki są nowe, bo dwa pytania zostawały bez odpowiedzi:
+
+- **wszystkie tabele, nie cztery wybrane z nazwy.** Zrzut, który zgubił piątą,
+  przechodził bez ostrzeżenia — bo o piątą nikt nie pytał.
+- **`migrate:status`.** Komplet wierszy w schemacie sprzed trzech migracji to nie jest
+  działająca baza.
+
+Przebieg kończy się **liczbami, nie ptaszkiem**. Zmierzone 12.09.2026: 50 tabel po obu
+stronach, 50 porównanych co do jednego wiersza, 159 wierszy, 75 migracji wykonanych,
+0 czekających, odtworzenie 1 s.
+
+### Czego to nie dowodzi
+
+Że kuking.pl ma kopię. **Nie ma.** Produkcji ten skrypt nie dotyka w żadnym trybie
+i pilnują tego dwa bezpieczniki. Zielony przebieg znaczy „mechanizm kopii i odtworzenia
+działa", nie „dane są bezpieczne". Pierwsza prawdziwa kopia produkcyjna i ćwiczenie
+odtworzenia zostają po stronie właściciela i są bramką alfy.
+
+### Przy okazji złapana pułapka 1
+
+Pierwsza wersja kroku `migrate:status` meldowała migrację czekającą na bazie, w której
+wszystkie były wykonane: `grep -i 'Pending'` trafiał w **nazwę pliku**
+`create_pending_email_changes_table`. Ta pomyłka wypadła w stronę fałszywej **czerwieni**
+— gdyby wypadła w drugą, nikt by jej nie zauważył.
+
+📄 `scripts/proba-odtworzenia.sh` · `tests/skrypty/proba-odtworzenia.sh` ·
+`PetlaOdtworzeniaJestJednaKomendaTest` · `docs/PULAPKI_TESTOW.md`
+
+---
+
+## D-193 · Obserwowanie tagu nie jest obejściem widoczności przepisu
+
+**Data:** 12 września 2026 · PR #465 · issue #464 · Status: **obowiązuje**
+
+### Co było nie tak
+
+`TagFeed` filtrował wpisy przez `widoczneDla($viewer)` i robił to poprawnie. Ale
+zapowiedź przepisu (issue #368) jest na stałe `public` — widoczność ma trzymać
+**przepis**, nie jego zapowiedź. Filtr po widoczności **wpisu** przepuszczał więc
+zapowiedź przepisu, którego widz zobaczyć nie miał prawa.
+
+`FollowingFeed`, `DiscoverFeed` i `DailyBoard` mają na to `zWidocznymPrzepisem()`
+od issue #368. `TagFeed` był jedynym z czterech bez tej bramki — i jednocześnie jedynym,
+do którego wpisy trafiają **bez żadnej relacji między widzem a autorem**. Wystarczyło
+obserwować ten sam tag.
+
+### Co wyciekało
+
+Nie sam przepis — w niego nie dało się wejść, `RecipePolicy` trzyma. Wyciekał **tytuł**
+i **zdjęcie główne**, czyli to, co karta rysuje bez pytania o zgodę. Dla przepisu „tylko
+dla obserwujących" to cała treść widoczna z zewnątrz.
+
+Zmierzone na `/home` oczami osoby, która autora nie obserwuje: pełna karta ze zdjęciem,
+tytułem, przyciskiem „Ugotowałem" — i plakietką **„Tylko dla obserwujących"** pod
+spodem. Karta uczciwie pisała, że to treść dla obserwujących, pokazując ją komuś, kto
+nie obserwuje.
+
+### Decyzja
+
+Widoczność treści wskazywanej przez wpis jest **osobną bramką** i musi stać w każdym
+zapytaniu, które taki wpis wydaje. Filtr po widoczności samego wpisu jej nie zastępuje
+i nigdy nie zastępował — po prostu w trzech strumieniach z czterech stały obok siebie.
+
+`maTresci()` dostaje ten sam warunek co `paginate()`. Gdyby pytała szerzej,
+odpowiadałaby „jest co pokazać" o treści, której `paginate()` i tak nie odda, a widz
+dostałby pusty strumień zamiast ekranu pustego stanu, który mówi, co zrobić dalej.
+
+### Czego ta decyzja nie zmienia
+
+Świadomy wyjątek w `DailyBoard` (bramka pominięta w agregacie „kto ostatnio
+publikował", ze zmierzonym powodem w komentarzu) stoi dalej. Dotyczy wyłącznie
+**kolejności** propozycji, nie tego, co widać — pokazuje o jedno konto za dużo, nigdy
+o jedną treść za dużo.
+
+📄 `app/Domain/Feed/TagFeed.php` · `FeedTagowNiePokazujeCudzegoPrzepisuTest` ·
+`FeedTagowNieGubiKolumnPrzepisuTest` · `app/Models/Post.php`
+
+---
+
+## D-194 · „Ugotowałem" jest ważniejsze niż lajk
+
+**Data:** 12 września 2026 · PR #466 · Status: **obowiązuje**
+
+### Dlaczego ten wpis powstaje dopiero teraz
+
+Ta zasada działa w Kuking od początku: niesie ją `AGENTS.md` §1 i `CLAUDE.md`, stoi
+w tekście strony powitalnej i w `GLOS_MARKI.md`, i wynikła z niej niejedna decyzja
+w tym dzienniku. **Wpisu o niej nie było.** Kod odsyłał w dwóch miejscach do „D-004",
+a D-004 dotyczy wyszukiwarki na PostgreSQL (D-187).
+
+Zdjęcie złego numeru zostawiło zdanie bez odnośnika. Ten wpis zamyka lukę, zamiast
+kazać następnej osobie wyprowadzać tę zasadę z czterech dokumentów naraz.
+
+### Zasada
+
+Kuking to **społeczność ludzi, którzy gotują**, a nie baza przepisów. Najmocniejszym
+sygnałem w serwisie jest **„ugotowałem"** — bo kosztuje wieczór przy garnku, a nie
+jedno dotknięcie ekranu. Dlatego:
+
+- „ugotowałem" **zawsze** powiadamia autora przepisu, a lajk nie ma takiej mocy;
+- liczba ugotowań stoi wyżej niż jakakolwiek liczba polubień i to ona jest widoczna
+  na karcie;
+- feed obserwowanych jest **chronologiczny**, bez algorytmu: ranking zamienia dzielenie
+  się jedzeniem w konkurs, a w konkursie przegrywa ten, kto gotuje zwyczajnie.
+
+### Co z tej zasady wynika w praktyce
+
+Każda funkcja, która podnosi widoczność treści za coś tańszego niż ugotowanie, wymaga
+osobnego uzasadnienia — nie odwrotnie. Domyślną odpowiedzią na „dodajmy licznik
+polubień na widoczne miejsce" jest **nie**.
+
+### Czego ten wpis nie rozstrzyga
+
+Czy lajk w serwisie **jest**. Jest i zostaje — ludzie potrzebują taniego sposobu, żeby
+powiedzieć „widzę cię". Rozstrzygnięta jest wyłącznie **hierarchia** tych dwóch
+sygnałów wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
+
+📄 `AGENTS.md` · `CLAUDE.md` · `docs/brand/GLOS_MARKI.md` ·
+`resources/views/pages/landing.blade.php` · D-187
