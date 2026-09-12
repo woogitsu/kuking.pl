@@ -187,28 +187,77 @@ class ProfilZNajdluzszaNazwaWchodziDoPomiaruTest extends TestCase
          * Dlatego poprawka jest na korzeniu (`scroll-padding-top`), a nie na
          * tym jednym elemencie — i dlatego ten test pilnuje korzenia.
          *
+         * TEN TEST ZMIENIŁ TOKEN PRZY SCALANIU, I TO JEST CAŁA ZMIANA.
+         * Tę samą dziurę naprawiono 12 września 2026 dwa razy niezależnie,
+         * w tym samym pliku: tutaj przez `--rezerwa-nad-trescia` (stałe 13rem
+         * / 6rem / 0rem) i na drugiej gałęzi przez `--rezerwa-nad-belka`
+         * (`calc(7rem + 5rem * var(--user-text-scale, 1))`). Została JEDNA,
+         * ta druga — bo liczy się z naszym ustawieniem wielkości tekstu,
+         * a nie tylko z czcionką przeglądarki, i bo ma zmierzony SUFIT:
+         * powyżej 244,5 px (320 px, tekst 140%) przeglądarka przestaje równać
+         * kontrolkę dołem do pasa i zaczyna równać górą, czyli każdy następny
+         * piksel rezerwy u góry wpycha jej dół pod DOLNĄ belkę. Wyprowadzenie
+         * obu liczb stoi w komentarzu przy samej regule w `app.css`.
+         *
+         * ZMIERZONE PO SCALENIU, tą właśnie próbką (`node scripts/dostepnosc.mjs`):
+         *
+         *     scroll-padding-top: auto (stan sprzed obu poprawek)   3 × 100%
+         *     scroll-padding-top: var(--rezerwa-nad-belka)          0 × 100%
+         *
+         * Czyli formuła, która została, zdejmuje dokładnie te trzy naruszenia,
+         * które znalazła ta próbka. Nie jest to wniosek z podobieństwa obu
+         * poprawek, tylko osobny pomiar.
+         *
+         * CO PILNUJE CZEGO. Ten test pilnuje JEDNEGO: że rezerwa nad paskiem
+         * dalej istnieje i dalej jest wpięta w `scroll-padding-top` — bo to
+         * jest regresja znaleziona tą próbką i tu jest jej miejsce.
+         * Kształtu samej rezerwy (wiązanie ze skalą tekstu, zgodność progów
+         * zerowania z progami odpięcia `.topbar` z D-107) pilnuje
+         * `RezerwaNadPaskiemTest`, żeby te same asercje nie stały w dwóch
+         * plikach i nie rozjechały się po cichu.
+         *
          * Projekt miał już bliźniaczą rezerwę od DOLNEJ belki
          * (`scroll-padding-bottom`); brakowało wyłącznie odpowiednika od góry.
+         *
+         * KOMENTARZE PRECZ PRZED ASERCJĄ (`docs/PULAPKI_TESTOW.md`, pułapka 1):
+         * komentarz przy tej regule cytuje dosłownie odrzucony wariant
+         * (`--rezerwa-nad-trescia`, „13rem"), więc asercja na surowym pliku
+         * mogłaby trafić we własne uzasadnienie zamiast w kod.
          */
-        $arkusz = (string) file_get_contents(base_path('resources/css/app.css'));
-
-        $this->assertMatchesRegularExpression(
-            '/scroll-padding-top:\s*var\(--rezerwa-nad-trescia\)\s*;/u',
-            $arkusz,
-            'Zniknęła rezerwa nad treścią. Bez niej kontrolka, do której Tab '.
-            'przewinie stronę, ląduje pod przypiętą górną belką — widoczna dla '.
-            'kodu, niewidoczna dla człowieka (WCAG 2.2 AA, 2.4.11).',
+        $arkusz = (string) preg_replace(
+            '~/\*.*?\*/~s',
+            '',
+            (string) file_get_contents(base_path('resources/css/app.css')),
         );
 
-        // Rezerwa MUSI schodzić do zera tam, gdzie belka przestaje być
-        // przypięta — inaczej sama spycha fokus poza ekran. Bez tej asercji
-        // „poprawka" przechodziłaby też w wariancie, w którym szkodzi.
+        $this->assertNotSame(
+            '',
+            trim($arkusz),
+            'Arkusz app.css po zdjęciu komentarzy jest pusty — test sprawdzałby pustkę.',
+        );
+
         $this->assertMatchesRegularExpression(
-            '/@media\s*\(max-width:\s*15rem\)\s*\{\s*:root\s*\{\s*--rezerwa-nad-trescia:\s*0rem/u',
+            '/scroll-padding-top:\s*var\(--rezerwa-nad-belka\)\s*;/u',
             $arkusz,
-            'Rezerwa nad treścią nie schodzi do zera przy czcionce przeglądarki '.
-            '200%, gdzie belka nie jest już przypięta. 13rem znaczy tam 416 px '.
-            'i samo wypycha fokus poza ekran.',
+            'Zniknęła rezerwa nad przypiętym paskiem górnym. Bez niej kontrolka, '.
+            'do której Tab przewinie stronę, ląduje pod paskiem — widoczna dla '.
+            'kodu, niewidoczna dla człowieka (WCAG 2.2 AA, 2.4.11). Zmierzone '.
+            'tą próbką: trzy naruszenia na menu „Więcej przy tym wpisie".',
+        );
+
+        // Rezerwa MUSI schodzić do zera tam, gdzie pasek przestaje być
+        // przypięty — inaczej sama spycha fokus poza ekran. Bez tej asercji
+        // „poprawka" przechodziłaby też w wariancie, w którym szkodzi.
+        // Zgodności WSZYSTKICH progów zerowania z progami odpięcia `.topbar`
+        // (D-107) pilnuje `RezerwaNadPaskiemTest`; tutaj sprawdzamy ten jeden,
+        // przy którym ta próbka była mierzona.
+        $this->assertMatchesRegularExpression(
+            '/@media\s*\(max-width:\s*15rem\)\s*\{\s*:root\s*\{\s*--rezerwa-nad-belka:\s*0rem/u',
+            $arkusz,
+            'Rezerwa nad paskiem nie schodzi do zera przy czcionce przeglądarki '.
+            '200%, gdzie pasek nie jest już przypięty. Rezerwa nad paskiem, '.
+            'który wyjeżdża razem z treścią, to czysta strata ekranu — i przy '.
+            'dolnej rezerwie nie zostaje z okna żaden pas na kontrolkę.',
         );
     }
 

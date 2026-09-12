@@ -1124,11 +1124,52 @@
      przeglądarki 200% rośnie do 24 px razem z pismem — to odstęp
      typograficzny, nie fizyczne minimum dla palca (D-082, D-107).
 
-     ZGŁOSZONE, NIETKNIĘTE: pole BEZ podpowiedzi dalej ma etykietę dosłownie
-     na sobie (zmierzone 0 px, np. „Nowe hasło" na `/ustawienia`). To ta sama
-     klasa usterki, ale inny stan ekranu i inne zgłoszenie — rozsuwanie
-     wszystkich pól serwisu przy okazji poprawki komentarzy byłoby zmianą
-     wyglądu kilkudziesięciu ekranów bez pomiaru żadnego z nich. */
+     ODSTĘP NALEŻY SIĘ PODPISOWI, NIE PODPOWIEDZI (#445).
+     ─────────────────────────────────────────────────────────────────────
+     Do 12 września stało w tym miejscu zdanie „ZGŁOSZONE, NIETKNIĘTE: pole
+     BEZ podpowiedzi dalej ma etykietę dosłownie na sobie (zmierzone 0 px,
+     np. «Nowe hasło» na /ustawienia)". Dwie rzeczy w nim były nieprawdziwe
+     i obie zostają tu zapisane, bo obie łatwo powtórzyć:
+
+     * NIE BYŁO 0 px, tylko 8 px. Odstęp brał się z `label { margin-bottom:
+       var(--spacing-2) }` w warstwie base — z reguły, która nie wie, co pod
+       etykietą stoi, więc daje to samo 8 px podpowiedzi i polu.
+     * „Nowe hasło" na `/ustawienia/bezpieczenstwo` MA podpowiedź, czyli
+       było akurat jednym z pól z odstępem 12 px. Pola bez podpowiedzi to na
+       tym ekranie „Obecne hasło" i „Powtórz nowe hasło".
+
+     Usterka jest za to prawdziwa i jest dokładnie tą, którą nazywa #445.
+     Przy 8 px podpis stał od pola dokładnie tak daleko, jak od własnego
+     wyjaśnienia — rzecz odrębna i rzecz powiązana w tej samej odległości —
+     a pole BEZ podpowiedzi dostawało odstęp MNIEJSZY (8 px) niż pole
+     z podpowiedzią (12 px pod nią). Odstęp przed polem nie zależy od tego,
+     czy ktoś dopisał podpowiedź; należy się podpisowi i jest ten sam.
+
+     ZMIERZONE w Chromium, „dół etykiety → góra ramki pola", pola bez
+     podpowiedzi, przy 320 / 360 / 390 / 414 px (wszystkie cztery tak samo):
+
+         czcionka zwykła                8 → 12 px
+         czcionka przeglądarki 200%    16 → 24 px
+
+     POLE Z PODPISEM I PODPOWIEDZIĄ NIE DOSTAJE OBU ODSTĘPÓW NARAZ — i to
+     jest warunek tej poprawki, nie jej skutek uboczny. Obie reguły wiszą na
+     SĄSIEDZTWIE (D-158), a bezpośrednim sąsiadem pola jest albo podpowiedź,
+     albo etykieta, nigdy oboje; wartość jest przy tym JEDNA, w jednej
+     deklaracji, więc nie ma czego zsumować. Zmierzone po zmianie: pole
+     z podpowiedzią ma dalej rytm 8 / 12 px, nie 12 / 12 i nie 24.
+
+     DOLNY MARGINES ETYKIETY (8 px z warstwy base) ZLEWA SIĘ Z TYM
+     MARGINESEM, nie sumuje: `.field` jest zwykłym blokiem, więc marginesy
+     stykających się sąsiadów schodzą do większego z dwóch. Zmierzone po
+     zmianie: 12 px, nie 20 px.
+
+     ETYKIETA SCHOWANA PRZED OKIEM NIE DOSTAJE NIC — `:not(.visually-hidden)`.
+     Na `/admin/kuking-na-dzis` podpis pola notatki istnieje wyłącznie dla
+     czytnika ekranu i jest wyjęty z układu; 12 px pustki w każdym wierszu
+     listy byłoby odstępem pod napisem, którego nie widać. `:not()` z JEDNĄ
+     klasą, czyli z poziomu 3 — selektor złożony w środku jest z poziomu 4
+     i na starszym Safari unieważniłby całą regułę razem z nią. */
+  .field > label:not(.visually-hidden) + .field-input,
   .field-help + .field-input {
     margin-top: var(--spacing-3);
   }

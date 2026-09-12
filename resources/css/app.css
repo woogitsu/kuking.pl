@@ -454,7 +454,21 @@
    * 86% widoku. Zmierzony skutek: 91 kontrolek na czterech ekranach ląduje
    * po Tab w CAŁOŚCI pod tym paskiem.
    *
-   * DLACZEGO NIE `scroll-padding-top`. To normalny mechanizm na przypiętą
+   * DLACZEGO NIE `scroll-padding-top` — ALE TYLKO TUTAJ, CZYLI PRZY TEJ
+   * WIELKOŚCI TEKSTU. Od 12 września `scroll-padding-top` W SERWISIE JEST
+   * (`--rezerwa-nad-belka`, niżej w tym pliku, przy `scroll-padding-bottom`)
+   * i zbija zmierzone ostrzeżenia o fokusie z 27 na 6. Akapit niżej NIE jest
+   * z tym sprzeczny i nie wolno go czytać jako zakazu tego mechanizmu
+   * w ogóle: mówi o stanie, w którym pasek ma 263 px, a ten stan jest
+   * dokładnie tym, w którym pasek zostaje ODPIĘTY regułą poniżej — więc
+   * rezerwa jest tam wyzerowana na tych samych dwóch progach i nie ma jej
+   * kto płacić. Te dwa rozwiązania dzielą się rolami po wielkości tekstu:
+   * dopóki pasek jest przypięty, fokus omija go rezerwą; gdy urośnie tak, że
+   * rezerwa przestałaby się mieścić, pasek przestaje być przypięty. Zgodności
+   * obu progów pilnuje `tests/Feature/RezerwaNadPaskiemTest.php` — rozjazd
+   * między nimi jest cichy i dlatego ma własny test.
+   *
+   * To normalny mechanizm na przypiętą
    * belkę i tutaj NIE MA CZEGO NAPRAWIĆ TYM MECHANIZMEM. `scroll-padding`
    * przesuwa tylko fokus z pod belki; belka i tak zostaje na ekranie.
    * Żeby fokus wyjechał z pod OBU, suma obu wartości musiałaby pokryć
@@ -1004,76 +1018,139 @@
     scroll-padding-bottom: var(--rezerwa-pod-belka);
   }
 
-  /* ---------------------------------------------------------------------
-     TO SAMO OD GÓRY (issue #440, WCAG 2.2 AA — 2.4.11 Focus Not Obscured)
-
-     Rezerwa wyżej chroni przed DOLNĄ belką. Górna miała dokładnie tę samą
-     dziurę i nie miała odpowiednika: `position: sticky` trzyma ją na wierzchu,
-     a przewijanie fokusu w widok, które przeglądarka robi sama po Tab, liczy
-     się do krawędzi OKNA i nie wie, że w tym miejscu coś stoi na wierzchu.
-     Kontrolka ląduje wtedy pod belką — widoczna dla kodu, niewidoczna dla
-     człowieka.
-
-     ZNALEZIONE PRÓBKĄ, NIE PRZECZUCIEM. Automat dostępności mierzył profile
-     o nazwach czteroznakowych; po dołożeniu profilu z nazwą na pełne 100
-     znaków (`DemoSeeder`, issue #440) wyszły trzy naruszenia 2.4.11, wszystkie
-     na tym samym elemencie: menu „Więcej przy tym wpisie" na karcie wpisu
-     autora o długiej nazwie. Zmierzone przy 320 px i tekście 140%, dojściem
-     Tabem jak w automacie:
-
-         autor „Basia" (5 znaków)   menu na 314 px, dół belki 195 px   0% zakryte
-         autor o 100 znakach        menu na   1 px, dół belki 195 px 100% ZAKRYTE
-
-     Różnicę robi wysokość główki karty: długa nazwa zawija się na kilka
-     wierszy, więc menu stoi wyżej względem treści i przeglądarka dowija je
-     pod samą krawędź okna.
-
-     DLACZEGO `scroll-padding-top` NA KORZENIU, A NIE `scroll-margin-top` NA
-     TYM JEDNYM MENU. Bo to nie jest usterka tego menu. Każda kontrolka
-     w serwisie może po Tab wylądować pod przypiętą belką — długa nazwa tylko
-     ustawiła jedną z nich dokładnie tam, gdzie to widać. Poprawka na jednym
-     elemencie zostawiłaby resztę i kazała czekać, aż następna próbka trafi
-     w kolejny.
-
-     LICZBY BIORĄ SIĘ Z POMIARU WYSOKOŚCI BELKI (Chromium, `/home`,
-     zalogowany):
-
-         szerokość        bez skali     tekst 140%
-           320 px          170,7 px      194,6 px
-           360 / 414 px    112,7 px      194,6 px
-           768 px i więcej  75,5 px       84,5 px
-
-     13rem (208 px) pokrywa najgorszy przypadek telefonu z zapasem 13,4 px,
-     6rem (96 px) — tablet i desktop z zapasem 11,5 px. `rem`, nie
-     `--user-text-scale`: to ustawienie mnoży tokeny `--text-*`, korzenia nie
-     rusza, a belka rośnie od niego tylko o 14% (170,7 → 194,6 px), nie o 40%.
-     Wiązanie rezerwy z mnożnikiem dawałoby przy 140% zapas 74 px, czyli
-     odsuwałoby fokus od belki bez powodu.
-
-     PRZY CZCIONCE PRZEGLĄDARKI 200% REZERWA SCHODZI DO ZERA, bo belka
-     przestaje tam być przypięta (reguła `@media (max-width: 15rem)` przy
-     `.topbar`) — nie ma już czego omijać, a 13rem znaczyłoby wtedy 416 px
-     i samo spychałoby fokus poza ekran. Ten sam próg i to samo kryterium
-     co tam: okno porównane z korzeniem, nie z pikselami.
-     --------------------------------------------------------------------- */
+  /*
+   * REZERWA NAD PASKIEM GÓRNYM — DRUGA POŁOWA TEGO SAMEGO MECHANIZMU.
+   *
+   * CO BYŁO ZMIERZONE. `scripts/dostepnosc.mjs` meldował w linii podsumowania
+   * „focus częściowo zasłonięty: 27". Dwadzieścia jeden z tych dwudziestu
+   * siedmiu ostrzeżeń mówiło o `.topbar`, a przyczyna była jedna: przy dolnej
+   * belce stoi `scroll-padding-bottom` (wyżej), a przy górnym pasku nie stało
+   * NIC — `scroll-padding-top` miał wartość `auto` na każdej szerokości
+   * i w każdej skali. Przewinięcie fokusu w widok, które przeglądarka robi
+   * sama po Tab, liczy się wtedy do krawędzi okna, a na tej krawędzi siedzi
+   * przypięty pasek. Obwódka fokusu wjeżdżała pod niego i osoba chodząca po
+   * serwisie Tabem przestawała widzieć, gdzie jest.
+   *
+   * ZMIERZONE WYSOKOŚCI PASKA (Chromium 141, okno 740 px, zalogowany,
+   * `/home`, `/szukaj` i `/ustawienia/profil` — wszystkie trzy dawały tę samą
+   * liczbę):
+   *
+   *     szerokość   bez powiększania   tekst 140%   czcionka przeglądarki 200%
+   *     320 px      170,7 px           194,6 px     pasek ODPIĘTY
+   *     360 px      112,7 px           194,6 px     pasek ODPIĘTY
+   *     414 px      112,7 px           194,6 px     pasek ODPIĘTY
+   *     768 px       75,5 px            84,5 px     pasek ODPIĘTY
+   *    1280 px       75,5 px            84,5 px     146 px
+   *
+   * DLACZEGO `calc(A + B × skala)`, A NIE SAMO `B × skala` JAK PRZY DOLNEJ
+   * BELCE. Bo pasek górny prawie nie jest typografią. Przy 320 px urósł ze
+   * 170,7 px na 194,6 px, czyli o 14%, gdy tekst urósł o 40% — reszta jego
+   * wysokości to minima przycisków i wypełnienia zapisane w `rem`, które idą
+   * za KORZENIEM, nie za `--user-text-scale` (ta sama obserwacja, co przy
+   * `.bottom-nav-item` niżej: te liczby są fizyczne, nie typograficzne).
+   * Czysty mnożnik musiałby pokryć 170,7 px przy skali 1, czyli mieć co
+   * najmniej 10,67rem — a wtedy przy skali 1,4 dawałby ponad 239 px, czyli
+   * więcej, niż wolno (patrz sufit niżej). Rozbicie na część stałą i część
+   * skalowaną mieści się w obu warunkach naraz.
+   *
+   * WYBRANE 7rem + 5rem × skala, CZYLI 192 px PRZY SKALI 1 I 224 px PRZY 1,4.
+   * Zapas nad zmierzonym paskiem: 21,3 px i 29,4 px. Nachylenie rezerwy
+   * (5rem) jest WIĘKSZE od nachylenia paska (zmierzone ~3,7rem), więc zapas
+   * rośnie razem z tekstem, zamiast się zjadać.
+   *
+   * TA REZERWA MA SUFIT — I TO ON, A NIE PASEK, JEST TU TRUDNY. Gdy kontrolka
+   * nie mieści się w pasie między rezerwami, przeglądarka przestaje równać ją
+   * DOŁEM do dolnej krawędzi pasa i zaczyna równać GÓRĄ do górnej. Od tej
+   * chwili każdy piksel rezerwy nad paskiem spycha jej dół pod belkę dolną.
+   * Najwyższa kontrolka zmierzona przy 320 px i tekście 140% ma 390 px
+   * (odnośnik „Dodaj zdjęcie tego, co ugotowałeś" na tablicy), a dolna belka
+   * ma tam 105,5 px — więc rezerwa nad paskiem nie może przekroczyć
+   * 740 − 105,5 − 390 = 244,5 px. Nasze 224 px leży pod tym sufitem z zapasem
+   * 20,5 px. Zmierzone: rezerwa 14rem × skala (313,6 px przy 140%) zbijała
+   * ostrzeżenia z 27 na 7 i DOKŁADAŁA jedno nowe — ten sam odnośnik lądował
+   * wtedy pod belką dolną. Sufit jest realny, nie teoretyczny.
+   *
+   * GDZIE REZERWY NIE MA. Tam, gdzie pasek nie jest przypięty — bo wtedy
+   * wyjeżdża do góry razem z treścią i nie ma czego omijać. Oba progi są
+   * PRZEPISANE Z REGUŁ ODPINAJĄCYCH PASEK (`max-width: 15rem` przy `.topbar`
+   * wyżej oraz `max-width: 30rem` z `max-height: 25rem` przy `.topbar` niżej,
+   * D-107) i muszą z nimi zostać zgodne: rezerwa nad odpiętym paskiem to
+   * czysta strata ekranu, a przy czcionce przeglądarki 200% jeszcze gorzej —
+   * 12rem to tam 384 px, które razem z 480 px rezerwy dolnej nie zostawiłyby
+   * z okna 740 px żadnego pasa na kontrolkę. Zgodności progów pilnuje
+   * `tests/Feature/RezerwaNadPaskiemTest.php`.
+   *
+   * OD 64rem PASEK NIE ZAWIJA SIĘ NA KILKA WIERSZY i ma zmierzone 75,5 /
+   * 84,5 px, więc rezerwa schodzi do 4rem + 2rem × skala (96 / 108,8 px,
+   * zapas 20,5 / 24,3 px). Bez tego stopnia komputer płaciłby 224 px za pasek
+   * o wysokości 84,5 px. Reguła stoi PO progach odpięcia z tego samego
+   * powodu, co przy `--rezerwa-pod-belka` wyżej.
+   *
+   * CZEGO TA REZERWA NIE NAPRAWIA. Kontrolki WYŻSZEJ NIŻ OKNO nie wyprowadzi
+   * spod belki żadne przewijanie — nie ma takiego położenia strony, w którym
+   * mieściłaby się w całości. Przy czcionce przeglądarki 200% takie właśnie
+   * zostają na tablicy (zmierzone 2087 px, 1070 px i 783 px przy oknie
+   * 740 px) i jest to usterka UKŁADU KARTY WPISU, nie przewijania.
+   *
+   * DWIE GAŁĘZIE NAPRAWIŁY TO SAMO TEGO SAMEGO DNIA — TO JEST TA, KTÓRA
+   * ZOSTAŁA. 12 września 2026 dziurę 2.4.11 przy górnym pasku naprawiono
+   * niezależnie dwa razy, w tym samym pliku: tutaj oraz w #440
+   * (`--rezerwa-nad-trescia` — stałe 13rem na telefonie, 6rem od 48rem,
+   * 0rem przy odpiętym pasku). Przy scalaniu została JEDNA implementacja,
+   * ta; drugiej nie ma już w arkuszu i nie ma czego szukać.
+   *
+   * Powody są dwa i oba stoją wyżej w tym komentarzu. Pierwszy: ta wersja
+   * liczy się z NASZYM ustawieniem wielkości tekstu (`--user-text-scale`),
+   * nie tylko z czcionką przeglądarki — a to jest ustawienie, którego nasza
+   * grupa naprawdę używa, i przy nim pasek rośnie ze 170,7 px na 194,6 px.
+   * Stała w `rem` tego nie widzi. Drugi, ważniejszy: ta wersja ma ZMIERZONY
+   * SUFIT (244,5 px przy 320 px i tekście 140%). Powyżej niego przeglądarka
+   * przestaje równać kontrolkę dołem do dolnej krawędzi pasa i zaczyna
+   * równać górą, więc każdy następny piksel rezerwy U GÓRY wpycha jej dół
+   * POD DOLNĄ belkę. Rezerwa bez sufitu zaczyna wtedy szkodzić i wygląda
+   * przy tym dokładnie jak naprawa — 13rem przy czcionce przeglądarki 200%
+   * to 416 px, czyli grubo nad sufitem, gdyby ten wariant nie był tam
+   * zerowany.
+   *
+   * PRÓBKA Z #440 ZOSTAJE i to ona pilnuje tej reguły od strony pomiaru:
+   * profil `zofia_z_bieszczad` z nazwą na pełne 100 znaków (`DemoSeeder`
+   * i `scripts/dostepnosc.mjs`). Zmierzone na scalonym drzewie:
+   *
+   *     scroll-padding-top: auto   3 × „focus zasłonięty w 100%" — wszystkie
+   *     (stan sprzed obu poprawek) na menu „Więcej przy tym wpisie" pod
+   *                                `.topbar`, 320/360/414 px, tekst 140%
+   *     ta rezerwa                 0 × „focus zasłonięty w 100%"
+   *
+   * Czyli: formuła, która została, zdejmuje dokładnie te trzy naruszenia,
+   * które znalazła tamta próbka. Nie jest to wniosek z podobieństwa obu
+   * poprawek, tylko pomiar zrobiony po scaleniu.
+   */
   :root {
-    --rezerwa-nad-trescia: 13rem;
-  }
-
-  @media (min-width: 48rem) {
-    :root {
-      --rezerwa-nad-trescia: 6rem;
-    }
+    --rezerwa-nad-belka: calc(7rem + 5rem * var(--user-text-scale, 1));
   }
 
   @media (max-width: 15rem) {
     :root {
-      --rezerwa-nad-trescia: 0rem;
+      --rezerwa-nad-belka: 0rem;
     }
   }
 
+  @media (max-width: 30rem) and (max-height: 25rem) {
+    :root {
+      --rezerwa-nad-belka: 0rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --rezerwa-nad-belka: calc(4rem + 2rem * var(--user-text-scale, 1));
+    }
+  }
+
+  /* Ta sama zasada co przy `scroll-padding-bottom` wyżej: nic nie rysuje,
+     działa wyłącznie przy celowanym przewijaniu. */
   :root {
-    scroll-padding-top: var(--rezerwa-nad-trescia);
+    scroll-padding-top: var(--rezerwa-nad-belka);
   }
 
   .bottom-nav {

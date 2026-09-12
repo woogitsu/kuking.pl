@@ -62,7 +62,15 @@ final class StronyBleduPoPolskuTest extends TestCase
         $odpowiedz = $this->get('/_test/403');
 
         $odpowiedz->assertStatus(403);
-        $odpowiedz->assertSee('Ta strona nie jest dla Ciebie');
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1b) — dokładnie
+        // z tego samego powodu co przy 404 wyżej: zdanie z nagłówka jest też
+        // `<title>` tej strony, więc asercja na całej odpowiedzi przechodziła
+        // po skasowaniu `<h1>`. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Ta strona nie jest dla Ciebie',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         $this->assertBezAngielskiego($odpowiedz);
     }
 
@@ -73,7 +81,14 @@ final class StronyBleduPoPolskuTest extends TestCase
         $odpowiedz = $this->get('/_test/429');
 
         $odpowiedz->assertStatus(429);
-        $odpowiedz->assertSee('Za dużo prób');
+
+        // Na treści ekranu — „Za dużo prób" jest też `<title>` tej strony
+        // (pułapka 1b, zmierzone 12.09.2026: po skasowaniu `<h1>` asercja
+        // na całej odpowiedzi nadal przechodziła).
+        $this->assertStringContainsString(
+            'Za dużo prób',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         $this->assertBezAngielskiego($odpowiedz);
     }
 
@@ -87,7 +102,18 @@ final class StronyBleduPoPolskuTest extends TestCase
         $odpowiedz = $this->get('/_test/500');
 
         $odpowiedz->assertStatus(500);
-        $odpowiedz->assertSee('Coś się u nas zepsuło');
+
+        // Na treści ekranu — tytuł karty przeglądarki tej strony brzmi tak
+        // samo jak nagłówek (`errors/500.blade.php` podaje jedno i drugie
+        // do `errors/_prosty`), więc asercja na całej odpowiedzi przechodziła
+        // po podmianie samego nagłówka. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Coś się u nas zepsuło',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
+
+        // „Czegoś nie ma" zostaje na CAŁYM dokumencie — komunikat wyjątku ma
+        // nie wyjść nigdzie, także w `<title>` czy w `<meta>` (pułapka 1b).
         $odpowiedz->assertDontSee('awaria testowa');
         $this->assertBezAngielskiego($odpowiedz);
     }
@@ -125,7 +151,13 @@ final class StronyBleduPoPolskuTest extends TestCase
 
         $this->assertGreaterThan(500, mb_strlen($odpowiedz->getContent() ?: ''));
 
-        $odpowiedz->assertSee('Ta strona była otwarta zbyt długo');
+        // Na treści ekranu — nagłówek 419 jest też `<title>` tej strony
+        // (pułapka 1b, zmierzone 12.09.2026: po podmianie `<h1>` asercja na
+        // całej odpowiedzi nadal przechodziła).
+        $this->assertStringContainsString(
+            'Ta strona była otwarta zbyt długo',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         $odpowiedz->assertSee('Twój tekst jest na miejscu');
         $odpowiedz->assertSee('Wyślij jeszcze raz');
 
