@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Report;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -227,21 +228,15 @@ class AccountStatusTest extends TestCase
 
     public function test_zawieszony_widzi_date_konca_kary_po_polsku(): void
     {
-        // ZEGAR ZATRZYMANY, BO INACZEJ TEN TEST JEST BOMBĄ Z OPÓŹNIONYM
-        // ZAPŁONEM. Data końca kary stała tu na sztywno („2026-09-12 10:00"),
-        // a asercja niżej sprawdza jej polski zapis — więc daty nie da się
-        // po prostu policzyć od `now()`, bo wtedy oczekiwany tekst liczyłby
-        // się z tego samego źródła i test nie sprawdzałby już niczego.
-        //
-        // Termin w przeszłości znaczy karę WYGASŁĄ: strona główna nie ma
-        // wtedy o czym informować i test padał — po raz pierwszy 12 września
-        // 2026 po godzinie 10:00, czyli w dniu, do którego był napisany.
-        // Zatrzymanie zegara zostawia literalną asercję i odbiera jej termin
-        // ważności.
-        $this->travelTo('2026-09-01 08:00:00');
+        // Zegar przymrożony. Bez tego test przechodził tylko dopóki 12 września
+        // 2026 był w przyszłości — od godziny 10:00 tego dnia middleware zdejmuje
+        // karę (`punishmentHasExpired`), ekran słusznie nie pokazuje już nic
+        // i test padał na sprawnym kodzie. Data w teście ma być stała, bo
+        // sprawdzamy FORMAT („12 września 2026”, nie ISO), a nie upływ czasu.
+        $this->travelTo(Carbon::parse('2026-09-10 08:00:00', 'UTC'));
 
         $basia = $this->user('basia');
-        $basia->suspend(now()->parse('2026-09-12 10:00:00'));
+        $basia->suspend(Carbon::parse('2026-09-12 10:00:00', 'UTC'));
 
         $this->actingAs($basia)
             ->get(route('home'))

@@ -680,3 +680,49 @@ for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
         nazwa.value = zImienia(imie.value);
     });
 })();
+
+// --- Menu konta w pasku górnym: Esc i kliknięcie obok ----------------------
+
+/*
+ * WSZYSTKO PONIŻEJ JEST DODATKIEM, NIE WARUNKIEM (issue #344, D-053).
+ *
+ * Menu przy awatarze to `<details>` (`components/layout.blade.php`), więc
+ * przychodzi z serwera KOMPLETNE: otwiera je kliknięcie albo dotknięcie
+ * w przycisk, zamyka drugie kliknięcie w ten sam przycisk, a klawiatura
+ * obsługuje je jak każdy inny `<summary>`. Przy wyłączonym albo
+ * niedociągniętym skrypcie działa to bez zmian i nie zostaje tu ani jeden
+ * martwy przycisk.
+ *
+ * Dokładamy dokładnie dwie rzeczy, których `<details>` sam nie robi, a które
+ * człowiek zna z każdego innego menu:
+ *
+ *  1. Esc zamyka otwarte menu i wraca fokusem na przycisk. Bez tego jedyną
+ *     drogą powrotu jest przejście Tabem przez trzy pozycje.
+ *  2. Kliknięcie albo dotknięcie POZA menu zamyka je. Bez tego otwarte menu
+ *     zostaje na ekranie i przykrywa róg strony — a przy mniej pewnej ręce
+ *     „trafić z powrotem dokładnie w ten sam przycisk" jest dokładnie tym
+ *     wysiłkiem, którego chcemy oszczędzić.
+ *
+ * Hover świadomie NIE otwiera menu (AGENTS.md §5): drżenie ręki zamyka je
+ * w trakcie celowania, a na dotyku hover nie istnieje w ogóle.
+ */
+for (const menu of document.querySelectorAll('details.topbar-konto')) {
+    const przycisk = menu.querySelector('summary');
+
+    document.addEventListener('keydown', (zdarzenie) => {
+        if (zdarzenie.key !== 'Escape' || !menu.open) {
+            return;
+        }
+
+        menu.open = false;
+        // Fokus wraca na przycisk, a nie na początek strony — inaczej
+        // zamknięcie menu klawiaturą gubi miejsce, w którym się było.
+        przycisk?.focus();
+    });
+
+    document.addEventListener('click', (zdarzenie) => {
+        if (menu.open && !menu.contains(zdarzenie.target)) {
+            menu.open = false;
+        }
+    });
+}
