@@ -12749,6 +12749,28 @@ ręcznie.
 
 ### Przy okazji zauważone, NIETKNIĘTE
 
+> ## ⛔ SPROSTOWANIE z 12 września 2026 — ta sekcja była w DWÓCH punktach nieprawdziwa
+>
+> Powstała z przeglądu, który tych twierdzeń **nie zmierzył**, tylko je
+> zauważył. Przy próbie ich wykonania okazało się, że:
+>
+> | twierdzenie poniżej | jak jest naprawdę |
+> |---|---|
+> | `collection_items.note` — nic nie zapisuje ani nie czyta | **żywa**: zapisują `SavePostToCollection.php:41,49` i `SaveRecipeToCollection.php:50,58`, a **wychodzi w eksporcie danych osobowych** jako `moja_notatka` (`Users/Exports/CollectUserExportData.php:335,347`, `DataExportTest.php:188`) |
+> | `daily_picks.note` — nic nie czyta | **żywa i widoczna dla człowieka**: `DailyBoardController.php:188`, `DailyBoard.php:161-165`, wyświetlana w `kuking-board.blade.php:138,278` (`DailyBoardTest.php:65,317`) |
+> | `users.role` nie ma CHECK-a | **ma**: `users_role_check` istnieje od pierwszej migracji (`0001_01_01_000001_create_users_table.php:58`) i ma własny test (`NadanieRoliTest.php:167`) |
+>
+> Prawdziwy okazał się jeden punkt: `media.perceptual_hash` była martwa
+> i została usunięta. Próbne skasowanie dwóch pozostałych kolumn **oblewa pięć
+> testów**.
+>
+> **Dlaczego zdania niżej zostają zamiast poprawki.** Sekcja „przy okazji
+> zauważone" w cudzym przeglądzie jest **hipotezą, nie ustaleniem** — a ta
+> podała hipotezę tonem ustalenia. Gdyby ktoś jej zaufał, z eksportu danych
+> osobowych zniknęłaby treść napisana przez człowieka. Ostrzeżenie jest warte
+> więcej niż czysty wpis; zdania niżej czytaj **jako przykład błędu**, nie jako
+> opis stanu.
+
 `media.perceptual_hash`, `collection_items.note` i `daily_picks.note` to kolumny,
 których dziś **nic nie zapisuje ani nie czyta**. Zostają, ale dokument mówi to
 wprost — opis obiecujący działające pole byłby tą samą klasą nieprawdy.

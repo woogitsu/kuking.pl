@@ -466,6 +466,28 @@ się spodziewało.
 
 ### 6.1. Ile trwa — nie wiem i nie zgaduję
 
+> ## ⛔ 12 września 2026: TO PRZEWIDYWANIE BYŁO BŁĘDNE — przegląd był
+>
+> **Właściciel złożył wniosek o App Review i Meta go zatwierdziła.** Aplikacja
+> jest opublikowana (Live), a wejście kontem Facebooka działa — potwierdza to
+> niezależnie produkcja (`/health` → `checks.facebook.ok = true`, przycisk na
+> `/login`).
+>
+> Rozdział niżej twierdzi coś przeciwnego: „przeglądu nie składamy, bo nie
+> prosimy o żadne uprawnienie, które go wymaga” — to samo stoi w §2 i w punkcie 7
+> listy w `DEPLOYMENT_RUNBOOK.md` KROK 8E.1. **Przewidywanie się nie
+> sprawdziło.** Nie wiemy, czy Meta zażądała przeglądu dla samego
+> `public_profile` i `email`, czy wymusił go nowy kreator aplikacji — wiemy
+> tylko, że **odbył się i był potrzebny**.
+>
+> **Co z tego wynika dla następnego wdrożenia:** przewiduj czas na przegląd
+> aplikacji, nawet jeśli prosisz wyłącznie o uprawnienia podstawowe. Ile on
+> trwa — dalej nie wiemy; nasz przypadek to **jedna obserwacja, nie SLA**.
+>
+> Zdania niżej zostają **jako zapis tego, co przewidywano**, żeby widać było,
+> gdzie rozumowanie rozjechało się z rzeczywistością. Nie planuj według nich.
+
+
 **Meta nie podaje w dokumentacji żadnego terminu ani SLA dla przeglądu
 aplikacji.** Jedyna liczba, na którą trafiłem, dotyczyła przeglądu dla
 dostawców rozwiązań WhatsApp i do naszego przypadku się nie stosuje.
@@ -1090,12 +1112,28 @@ minutę.
 
 ## 13. Czego w tym dokumencie NIE zweryfikowano
 
+> **Aktualizacja z 12 września 2026.** Wdrożenie się odbyło, więc część tej
+> listy przestała być otwarta — ale **nie przez sprawdzenie dokumentacji,
+> tylko przez przejście procedury**. Zapisuję to osobno, żeby było jasne,
+> skąd wiadomo:
+>
+> | pozycja z tabeli niżej | co rozstrzygnęło wdrożenie |
+> |---|---|
+> | Czas trwania przeglądu aplikacji | **przegląd był i został zatwierdzony** — założenie „przeglądu nie składamy” z §2 i §6.1 było BŁĘDNE. Ile trwał, dalej nie wiemy: jedna obserwacja to nie SLA. Patrz nota w §6.1 |
+> | Czy weryfikacja biznesowa dotyczy nas | aplikacja jest opublikowana, więc przeszła wszystko, czego Meta wymagała — **czy weryfikacja biznesowa była jednym z tych kroków, wie tylko właściciel** |
+> | Czy Meta przyjmie `/prywatnosc` jako adres instrukcji usuwania danych | **przyjęła** — aplikacja jest Live, a ten adres był wpisany |
+> | Dzisiejszy wygląd kreatora i pełna lista przypadków użycia | właściciel przeszedł przez kreator; jeśli nazwy przycisków się różniły, warto to dopisać |
+>
+> Pozostałe pozycje (adresy `localhost`, dosłowny wymóg HTTPS, aktualność
+> `v25.0`) **zostają otwarte** — wdrożenie ich nie dotknęło.
+
+
 Zebrane w jednym miejscu, żeby nikt nie wziął tego za sprawdzone. Powtórzenie
 listy z góry, bo tam łatwo ją przeczytać i zapomnieć.
 
 | Co | Dlaczego nie i co z tym zrobić |
 |---|---|
-| **Czas trwania przeglądu aplikacji** | Meta nie podaje SLA w dokumentacji. Jedyna znaleziona liczba dotyczyła innego programu. **W naszym przypadku pytanie bez treści — przeglądu nie składamy** (§6.1) |
+| **Czas trwania przeglądu aplikacji** | Meta nie podaje SLA w dokumentacji. **Nieaktualne od 12.09.2026: przegląd był i został zatwierdzony** (nota w §6.1). Czasu trwania dalej nie znamy |
 | **Czy weryfikacja biznesowa dotyczy nas** | Dokumentacja mówi dwie rzeczy, które się nie składają (§3.5). **Rozstrzyga punkt 9 z tabeli, w minutę** |
 | **Dokumenty i czas weryfikacji biznesowej** | Dokumentacja odsyła do Centrum pomocy Business Managera, którego nie czytałem |
 | **Czy `localhost` wolno dopisać do adresów przekierowań** | Dokumentacja Meta milczy; twierdzenia pochodzą z forów (§4.4) |

@@ -59,7 +59,6 @@ class Media extends Model
         'status',
         'alt_text',
         'checksum_sha256',
-        'perceptual_hash',
         'metadata',
     ];
 
