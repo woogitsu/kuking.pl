@@ -170,3 +170,147 @@ h3 { margin: 0; font-size: 19px; line-height: 1.3; }
 @media (forced-colors: active) {
   .button, .post, .side-card, .more-button { border: 2px solid ButtonText; }
 }
+
+/* -------------------------------------------------------------------------
+   Kierunek 02 — nowoczesny produkt społecznościowy
+   ------------------------------------------------------------------------- */
+:root {
+  --paper: #ffffff;
+  --canvas: #f3f4f1;
+  --ink: #151714;
+  --muted: #686b65;
+  --line: #e2e4df;
+  --line-strong: #b7bbb3;
+  --brand: #ef3f2f;
+  --brand-dark: #c92e22;
+  --brand-pale: #fff0ed;
+  --green: #286248;
+  --radius: 24px;
+  --shadow: 0 1px 2px rgb(20 23 19 / 4%), 0 18px 50px rgb(20 23 19 / 6%);
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% 4%, rgb(239 63 47 / 7%), transparent 24rem),
+    var(--canvas);
+  letter-spacing: -.01em;
+}
+
+.topbar {
+  top: 14px;
+  width: min(1220px, calc(100% - 28px));
+  margin: 14px auto 0;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 20px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 10px 35px rgb(20 23 19 / 8%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+.topbar__inner { width: calc(100% - 28px); min-height: 68px; }
+.brand { font-size: 26px; letter-spacing: -1.4px; }
+.brand__mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: var(--ink);
+  font: 850 23px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  transform: rotate(-3deg);
+}
+.desktop-nav { gap: 6px; align-self: center; }
+.desktop-nav a {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--muted);
+}
+.desktop-nav a:hover, .desktop-nav a.is-active { color: var(--ink); border: 0; background: var(--canvas); }
+
+.page-shell { width: min(1120px, calc(100% - 40px)); margin-top: 58px; grid-template-columns: minmax(0, 730px) 330px; gap: 54px; }
+.eyebrow { color: var(--brand); font-size: 14px; letter-spacing: .09em; }
+h1 { font: 780 clamp(36px, 4vw, 52px)/1.04 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.055em; }
+h2 { font-size: 24px; letter-spacing: -.035em; }
+h3 { letter-spacing: -.025em; }
+.live-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 5px rgb(239 63 47 / 10%); }
+.weather-note { display: flex; align-items: center; justify-content: flex-end; }
+
+.composer {
+  position: relative;
+  padding: 28px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 26px;
+  background: var(--ink);
+  box-shadow: 0 22px 54px rgb(20 23 19 / 16%);
+  overflow: hidden;
+}
+.composer::after {
+  content: "";
+  position: absolute;
+  right: -65px;
+  top: -85px;
+  width: 190px;
+  height: 190px;
+  border: 42px solid rgb(239 63 47 / 36%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.composer__intro, .composer__actions { position: relative; z-index: 1; }
+.composer h2 { font-size: 27px; letter-spacing: -.035em; }
+.composer .avatar { background: var(--brand); color: white; }
+.composer__actions { max-width: 500px; }
+.composer .button--secondary { border-color: rgb(255 255 255 / 24%); background: rgb(255 255 255 / 8%); color: white; }
+.composer .button--secondary:hover { border-color: white; background: rgb(255 255 255 / 14%); }
+
+.feed-heading { margin-top: 48px; }
+.post { border: 0; border-radius: 26px; box-shadow: var(--shadow); }
+.post__header { padding: 25px 26px 0; }
+.post__text { margin: 20px 26px 24px; font-size: 19px; }
+.more-button { border: 0; border-radius: 12px; background: var(--canvas); }
+.more-button:hover { background: var(--line); }
+.post__photo-wrap { margin: 0 12px; }
+.post__photo { border-radius: 18px; }
+.post__photo-wrap figcaption { padding: 11px 12px 0; border: 0; }
+.post__proof { margin: 14px 26px 0; padding: 12px 14px; border-radius: 12px; background: #edf6f0; }
+.post__actions { padding: 18px 26px 26px; }
+.button { min-height: 52px; border-radius: 14px; }
+.button--cook, .button--primary { box-shadow: 0 8px 22px rgb(239 63 47 / 22%); }
+.button--quiet { border-color: transparent; background: var(--canvas); }
+.button--quiet:hover { border-color: transparent; background: #e9ebe6; }
+.button--load { border: 0; background: white; box-shadow: var(--shadow); }
+.tags a { background: var(--brand-pale); color: var(--brand-dark); text-decoration: none; }
+
+.side-column { top: 110px; gap: 16px; }
+.side-card { padding: 24px; border: 0; border-radius: 22px; box-shadow: var(--shadow); }
+.side-card--accent { color: white; background: var(--ink); }
+.side-card--accent .eyebrow { color: #ff7669; }
+.side-card--accent .big-number { color: white; }
+.side-card--accent .underlined-link { color: white; }
+.side-card--plain { background: rgb(255 255 255 / 40%); border: 1px solid var(--line); border-style: solid; box-shadow: none; }
+.big-number { font: 800 62px/1 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.07em; }
+.people-list button { border: 0; background: var(--canvas); }
+.people-list button[aria-pressed="true"] { background: #edf6f0; color: var(--green); }
+.toast { border-radius: 16px; box-shadow: 0 18px 54px rgb(0 0 0 / 25%); }
+
+@media (max-width: 880px) {
+  .topbar { top: 8px; margin-top: 8px; }
+  .page-shell { margin-top: 38px; }
+}
+
+@media (max-width: 640px) {
+  body { background: var(--canvas); }
+  .topbar { width: calc(100% - 16px); border-radius: 16px; }
+  .topbar__inner { width: calc(100% - 20px); }
+  .page-shell { width: calc(100% - 20px); margin-top: 34px; }
+  h1 { font-size: 38px; }
+  .composer { padding: 22px; }
+  .composer::after { right: -105px; top: -105px; }
+  .post { border-radius: 22px; }
+  .post__header { padding: 20px 18px 0; }
+  .post__text { margin-inline: 18px; }
+  .post__photo-wrap { margin-inline: 7px; }
+  .post__proof { margin-inline: 18px; }
+  .post__actions { padding-inline: 18px; }
+  .bottom-nav { inset: auto 8px 8px; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 12px 36px rgb(20 23 19 / 14%); overflow: visible; }
+  .bottom-nav__add span { background: var(--ink); box-shadow: 0 8px 20px rgb(20 23 19 / 25%); }
+}
