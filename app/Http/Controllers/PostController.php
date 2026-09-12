@@ -450,18 +450,73 @@ class PostController extends Controller
         return $wszystkie;
     }
 
-    public function show(Request $request, Post $post): View
+    public function show(Request $request, Post $post): View|RedirectResponse
     {
         $this->authorize('view', $post);
 
         $post->load([
             'author.profile.avatar',
             'media',
-            'recipe:id,title,slug',
+            /*
+             * KOLUMNY, KTÓRYCH WIDOK NAPRAWDĘ UŻYWA — a nie te trzy, które
+             * wyglądają na wystarczające (issue #447).
+             *
+             * Było `recipe:id,title,slug`. Zawężenie do trzech kolumn gubiło
+             * dwie, których widok potrzebuje, i żadna z nich nie zgłaszała się
+             * błędem:
+             *
+             *   `hero_media_id` — bez niej relacja `heroMedia` nie ma po czym
+             *   trafić w wiersz i zwraca `null`. Karta pyta
+             *   `$post->recipe?->heroMedia` i po cichu nie rysuje zdjęcia.
+             *   Wpis z przepisu NIE MA własnych zdjęć z założenia (#368), więc
+             *   tracił jedyne, jakie miał: strona wpisu „Bigos z cukinii”
+             *   miała na produkcji ZERO obrazków, przy zdjęciu widocznym na tej
+             *   samej karcie w strumieniu.
+             *
+             *   `visibility` — bez niej karta bierze widoczność WPISU, a ta
+             *   dla wpisu z przepisu jest zawsze `public` (bramką jest przepis,
+             *   `Post::scopeZWidocznymPrzepisem()`). Strona pisała więc
+             *   autorowi „· publicznie” także pod przepisem, który widzą
+             *   wyłącznie jego obserwujący. Przed tym ostrzega komentarz przy
+             *   `post-card.blade.php:60` — karta była zabezpieczona, ten
+             *   kontroler nie.
+             *
+             * Reguła na przyszłość: zawężenie kolumn musi obejmować KLUCZE OBCE
+             * relacji, które będą dociągane dalej. Brak klucza nie jest błędem
+             * — jest cichym `null`.
+             */
+            'recipe:id,title,slug,hero_media_id,visibility',
+            'recipe.heroMedia',
             // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
             // treści bez górnej granicy, więc idą osobnym, paginowanym
             // zapytaniem. `->load()` wciągał je wszystkie naraz.
         ]);
+
+        /*
+         * WPIS, KTÓRY JEST SAMYM WSKAZANIEM PRZEPISU, NIE MA WŁASNEJ STRONY.
+         *
+         * Zgłoszenie właściciela z 12 września: „klikam na bigos z cukinii,
+         * przekierowuje mnie na to okno gdzie jest info Ula bigos napisz
+         * komentarz itp a nie ma przepisu ani zdjęcia. Muszę szukać i klikać
+         * w bigos z cukinii żeby przejść do przepisu… To nie ma sensu”.
+         *
+         * Taki wpis zakłada `kuking:dopisz-wpisy-przepisow` (#368) po to, żeby
+         * przepis w ogóle wszedł do strumienia. Własnej treści nie ma żadnej,
+         * a wszystko, co ta strona potrafiła pokazać — zdjęcie i komentarze —
+         * stoi na stronie przepisu, i to lepiej: ze składnikami i krokami.
+         *
+         * PRZEKIEROWANIE, A NIE 404 I NIE USUNIĘCIE TRASY: adres wpisu mógł już
+         * ktoś komuś wysłać (karta ma przycisk „Podziel się”). Ma działać
+         * dalej — tylko prowadzić tam, gdzie jest danie.
+         *
+         * WPIS Z KOMENTARZEM NIE JEST „SAMYM PRZEPISEM” (`jestSamymPrzepisem`)
+         * i tu nie wchodzi: ma już coś własnego — rozmowę ludzi — więc
+         * zostaje przy swojej stronie. Ta strona pokazuje mu teraz zdjęcie
+         * przepisu i jego prawdziwą widoczność (poprawka w `load()` wyżej).
+         */
+        if ($post->jestSamymPrzepisem() && $post->recipe !== null) {
+            return redirect()->route('recipes.show', $post->recipe->slug);
+        }
 
         // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
         //
