@@ -754,6 +754,18 @@
     .topbar-desktop-only { display: inline-flex; }
   }
 
+  /* Odwrotność powyższej: pozycja belki, która znika tam, gdzie POJAWIA SIĘ
+     nawigacja boczna — bo `.side-nav` niesie dokładnie ją, z tym samym
+     napisem i tym samym licznikiem (`side-nav-dol`). Próg 64rem jest ten sam
+     co przy `.side-nav`; gdyby się rozjechały, pozycja zniknęłaby z obu
+     miejsc naraz albo stała w obu. Pełne uzasadnienie — przy
+     „Powiadomieniach" w `components/layout.blade.php`. */
+  .topbar-mobile-only { display: inline-flex; }
+
+  @media (min-width: 64rem) {
+    .topbar-mobile-only { display: none; }
+  }
+
   .wordmark {
     display: inline-flex;
     align-items: center;
@@ -4210,8 +4222,17 @@
 .ustawienia-nawigacja-pozycja > a,
 .ustawienia-nawigacja-pozycja > strong {
     font-size: var(--text-body-lg);
-    /* Cel dotknięcia ≥ 48 px także wtedy, gdy sama nazwa jest krótka. */
-    min-height: 2.5rem;
+    /* Cel dotknięcia ≥ 48 px także wtedy, gdy sama nazwa jest krótka.
+
+       Do 12 września 2026 stało tu `2.5rem`, czyli 40 px — komentarz mówił
+       „≥ 48 px", a kod dawał o 8 px mniej (zmierzone w Chromium: odnośnik
+       „Tagi" 316 × 40 px). Dopóki ten spis stał wyłącznie w prawej szynie
+       obok formularza, był dodatkiem; od issue #344 jest CAŁĄ treścią
+       ekranu-rozdroża `/ustawienia`, czyli główną nawigacją po ustawieniach
+       na telefonie. Wartość idzie teraz z `--control-height-min`, tego
+       samego tokenu co przyciski i pozycje obu pasków — jednej liczby nie da
+       się rozjechać z komentarzem. */
+    min-height: var(--control-height-min);
     display: inline-flex;
     align-items: center;
 }
@@ -4354,11 +4375,256 @@
     outline: none;
   }
 
-  .topbar-awatar {
-    display: inline-flex;
-    align-items: center;
-    border-radius: var(--radius-pill);
+}
+
+/* --- Menu konta przy awatarze (issue #344) -------------------------------
+   `<details>`, więc otwiera się bez JavaScriptu — ten sam wzorzec co menu
+   „Więcej" nad wpisem (`.post-card-menu` niżej w tym pliku).
+
+   Reguły stoją TU, poza `@media (min-width: 64rem)`, a nie tam, gdzie stała
+   dawna `.topbar-awatar`: menu jest widoczne na KAŻDEJ szerokości. Na
+   telefonie to jedyne wejście do Ustawień i do wylogowania, bo `.side-nav`
+   ma tam `display: none`, a pasek dolny jest pełny (AGENTS.md §5).
+   ------------------------------------------------------------------------ */
+
+/* `min-width: 0` i `max-width: 100%`, a NIE `flex: none` jak przy
+   `.post-card-menu`.
+
+   ZMIERZONE, NIE ZAŁOŻONE. Pierwsza wersja miała tu `flex: none` (czyli
+   `flex-shrink: 0`) przepisane z menu nad wpisem. Przy oknie 320 px
+   i czcionce przeglądarki 200% przycisk nie miał prawa się zwęzić i cała
+   strona przewijała się w bok: `scrollWidth` 367 przy `clientWidth` 320 —
+   na KAŻDYM ekranie serwisu, bo pasek górny jest wszędzie. Przed tą zmianą
+   te same pomiary dawały równe 320. */
+.topbar-konto {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* PRZYCISK MA AWATAR, NAPIS I STRZAŁKĘ — nigdy samego awatara (AGENTS.md §5).
+
+   Sam obrazek nie mówi ani dokąd prowadzi, ani że cokolwiek się pod nim
+   kryje; przy koncie bez zdjęcia jest w ogóle samą literą. Napis „Moje
+   konto" jest więc treścią przycisku, a nie podpowiedzią po najechaniu
+   myszą — hover na telefonie nie istnieje.
+
+   `min-height` z `--control-height-min` (48 px): awatar ma 40 px, więc bez
+   tego cel dotknięcia byłby o 8 px za niski. */
+.topbar-konto > summary {
+  display: inline-flex;
+  align-items: center;
+  /* Zawijanie i `max-width` z tego samego pomiaru co `min-width: 0` wyżej:
+     przy czcionce 200% awatar, napis i strzałka nie mieszczą się w jednym
+     wierszu w 320 px. Wolno im stanąć jeden pod drugim — nie wolno im
+     wypchnąć strony. */
+  flex-wrap: wrap;
+  max-width: 100%;
+  /* Odstępy i wcięcie są tu CIAŚNIEJSZE niż w `.post-card-menu` i to jest
+     pomiar: w belce telefonu 390 px zostaje 358 px na logotyp (159),
+     „Powiadomienia" (176) i ten przycisk. Każde 8 px wcięcia decyduje o tym,
+     czy przycisk zmieści się obok „Powiadomień", czy zrzuci belkę
+     o cały wiersz w dół — a belka jest przypięta, więc jej wiersz znika
+     z widoku treści na stałe. Wysokość celu dotknięcia trzyma
+     `min-height`, nie `padding`, więc ciaśniejsze wcięcie niczego nie
+     zmniejsza pod palcem. */
+  gap: var(--spacing-1);
+  min-height: var(--control-height-min);
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background-color: transparent;
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.topbar-konto > summary::-webkit-details-marker { display: none; }
+
+/* Napis może się złamać, gdy zabraknie miejsca — nie może wypchnąć paska
+   w bok. „Moje konto" to dwa słowa, więc łamie się naturalnie między nimi. */
+.topbar-konto-napis {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Strzałka pokazuje, że to się ROZWIJA, a nie prowadzi na inną stronę.
+   Kształt `chevron` jest w zestawie skierowany w prawo — obracamy go
+   w dół, a po otwarciu w górę, zamiast dokładać drugi rysunek. */
+.topbar-konto-strzalka {
+  flex: none;
+  transform: rotate(90deg);
+}
+
+.topbar-konto[open] > summary > .topbar-konto-strzalka {
+  transform: rotate(-90deg);
+}
+
+/* TREŚĆ MENU WYPADA Z BIEGU STRONY (`position: absolute`), bo inaczej
+   otwarcie menu przesuwałoby całą stronę pod palcem.
+
+   `right: 0` — menu wyrasta w lewo od przycisku, który stoi przy prawej
+   krawędzi. `max-width` liczony od szerokości okna trzyma je w ekranie przy
+   320 px i przy czcionce przeglądarki 200%. */
+.topbar-konto-tresc {
+  position: absolute;
+  right: 0;
+  z-index: 30;
+  /*
+     `min-width` W `min()`, NIE GOŁE `14rem`.
+
+     ZMIERZONE: przy czcionce przeglądarki 200% korzeń ma 32 px, więc gołe
+     `14rem` to 448 px — w oknie 390 px menu wystawało lewą krawędzią poza
+     ekran (zmierzone `x` od −90 do 358) i pierwsze litery pozycji były nie
+     do przeczytania. `min-width` bije `max-width`, więc samo ograniczenie
+     górne tego nie ratowało.
+  */
+  /*
+     SZEROKOŚĆ MENU = SZEROKOŚĆ PRZYCISKU, KTÓRY JE OTWIERA.
+
+     ZMIERZONE: przy `min-width: 14rem` i oknie 320 px menu wystawało lewą
+     krawędzią poza ekran (`x` od −10), bo przycisk stoi wtedy przy LEWEJ
+     krawędzi zawiniętego paska akcji, a menu rośnie od niego w lewo.
+     Ograniczenia liczone od `100vw` tego nie ratują: menu było węższe niż
+     okno, tylko stało w złym miejscu.
+
+     Reguła „tyle, ile przycisk" nie ma tej wady z definicji — przycisk jest
+     w całości na ekranie (pasek górny się nie przewija w bok, pilnuje tego
+     `scripts/dostepnosc.mjs`), więc menu o jego szerokości też jest. Przy
+     tym przycisk niesie awatar, napis „Moje konto" i strzałkę, więc nie
+     jest wąski: zmierzone 198,4 px przy tekście domyślnym.
+  */
+  min-width: 100%;
+  max-width: 100%;
+  /*
+     MENU MA SIĘ ROZMINĄĆ Z DOLNĄ BELKĄ (issue #344, D-107).
+
+     ZMIERZONE przed tym ograniczeniem, telefon 390 × 844 przy czcionce
+     przeglądarki 200%: menu sięgało do `y = 718`, a belka dolna zaczyna się
+     tam na `y = 663` i ma 181 px wysokości — menu przykrywało „Start",
+     „Szukaj" i „Dodaj", czyli pozycje, w które człowiek celuje kciukiem.
+
+     Rezerwa NIE jest tu nową liczbą: `--rezerwa-pod-belka` to ta sama
+     wartość, którą cała strona zostawia pod treścią na tę belkę (patrz jej
+     wyprowadzenie wyżej w tym pliku). Rośnie razem ze skalą tekstu i schodzi
+     do zera tam, gdzie belki nie ma. Menu wyższe niż to, co zostaje,
+     przewija się w środku — treść nie znika, tylko czeka.
+  */
+  max-height: calc(100dvh - var(--rezerwa-pod-belka) - var(--spacing-8));
+  overflow-y: auto;
+  /* Przewijanie menu nie ma przenosić się na stronę pod nim. */
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin: var(--spacing-2) 0 0;
+  padding: var(--spacing-2);
+  list-style: none;
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+}
+
+/*
+   PRZY BARDZO DUŻYM TEKŚCIE MENU PRZESTAJE BYĆ WARSTWĄ NAD TREŚCIĄ.
+
+   To ten sam próg i ta sama decyzja co przy `.topbar` wyżej (D-107): przy
+   `max-width: 15rem` okno mieści mniej niż piętnaście wysokości tekstu, pasek
+   górny przestaje być przypięty, a rezerwa pod belką rośnie do 15rem. Menu
+   rozwijane jako warstwa nie ma się wtedy gdzie zmieścić: ZMIERZONE na
+   telefonie 390 × 844 przy czcionce przeglądarki 200% — nawet po ograniczeniu
+   wysokości menu kończyło się na `y = 680`, a belka dolna zaczyna się tam na
+   `y = 663`. Przykrywało „Start", „Szukaj" i „Dodaj", czyli pozycje, w które
+   celuje kciuk.
+
+   Samym `max-height` się tego nie da: ograniczenie liczy się od GÓRY okna,
+   a menu zaczyna się dopiero pod paskiem, którego wysokości CSS nie zna.
+   Odjęcie jej „na oko" albo zjada całą wysokość menu, albo nie wystarcza —
+   to zakład, nie poprawka (tak samo jak przy `scroll-padding` w D-107).
+
+   Dlatego przy tej skali menu wchodzi w bieg strony: rozwija się POD
+   przyciskiem, w pasku, i spycha treść niżej zamiast ją przykrywać. Strona
+   przewija się normalnie, belka dolna zostaje wolna (ma `z-index: 30`, pasek
+   górny 20 — więc to ona jest na wierzchu, nie menu), a wszystkie trzy
+   pozycje da się doczytać przewinięciem, bo przy tym progu pasek górny nie
+   jest już przypięty (D-107) i wyjeżdża do góry razem z treścią.
+
+   DRUGI WARUNEK — okno WĄSKIE I NISKIE w przeliczeniu na wysokość tekstu
+   (`30rem × 25rem`) — łapie to samo z drugiej strony: zmierzone 768 × 600 px
+   przy czcionce 200%, czyli 24rem × 18,75rem. Sama szerokość tego nie widzi:
+   768 px jest powyżej pierwszego progu, a menu jako warstwa i tak nie miało
+   się tam gdzie zmieścić — kończyło się 27 px pod górną krawędzią belki.
+   Warunek jest podwójny, żeby nie łapać szerokiego, niskiego okna na
+   komputerze (1280 × 800 przy czcionce 200% to 40rem × 25rem), gdzie pasek
+   górny nie zawija się na kilka wierszy i problemu nie ma.
+*/
+@media (max-width: 15rem), (max-width: 30rem) and (max-height: 25rem) {
+  .topbar-konto-tresc {
+    position: static;
+    min-width: 0;
+    max-width: 100%;
+    max-height: none;
+    overflow-y: visible;
   }
+}
+
+/*
+   W WĄSKIM I NISKIM OKNIE PASEK GÓRNY PRZESTAJE BYĆ PRZYPIĘTY.
+
+   To jest dokładnie ta sama decyzja co przy `.topbar` wyżej (D-107, próg
+   `max-width: 15rem`), tylko widziana od strony WYSOKOŚCI okna, i tak samo
+   nie zależy od tego menu — pasek zabiera za dużo ekranu także wtedy, gdy
+   nikt menu nie otwiera.
+
+   ZMIERZONE, 768 × 600 px przy czcionce przeglądarki 200%: pasek górny
+   z rozwiniętym menu ma 573 px wysokości przy oknie 600 px, czyli 95% ekranu,
+   i jako przypięty ZOSTAJE tam przy każdym przewinięciu. Pozycja „Wyloguj
+   się" leżała wtedy na `y = 435…531`, a belka dolna zaczyna się na `y = 464`
+   — przy pełnym przewinięciu strony nadal pod belką, czyli nieosiągalna.
+   Po odpięciu pasek wyjeżdża do góry razem z treścią i wszystkie trzy
+   pozycje da się doczytać.
+
+   Próg jest tu podwójny (wąskie ORAZ niskie) z tego samego powodu co przy
+   menu wyżej: szerokie, niskie okno na komputerze nie ma tego problemu.
+*/
+@media (max-width: 30rem) and (max-height: 25rem) {
+  .topbar {
+    position: relative;
+  }
+}
+
+/* Każda pozycja jest pełnowymiarowym celem dotknięcia, nie słowem w wierszu:
+   48 px wysokości i 18 px tekstu, tak jak pozycje nawigacji bocznej. */
+.topbar-konto-tresc a,
+.topbar-konto-tresc .topbar-konto-wyjscie {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height-min);
+  padding: 0 var(--spacing-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.topbar-konto-tresc a:hover,
+.topbar-konto-tresc .topbar-konto-wyjscie:hover {
+  background-color: var(--color-surface-sunken);
+}
+
+/* Formularz wylogowania nie może dokładać własnego wiersza ani własnego
+   odstępu — w menu ma wyglądać jak pozostałe dwie pozycje. */
+.topbar-konto-wyjscie-formularz {
+  margin: 0;
 }
 
 /* --- Dolna grupa nawigacji bocznej ---------------------------------------
@@ -4625,35 +4891,48 @@
   margin-left: auto;
 }
 
-/* PRZYCISK MENU MA NAPIS, NIE TYLKO KROPKI (AGENTS.md:176,
-   docs/UX_50_PLUS.md:27).
+/* PRZYCISK MENU TO SAME KROPKI — NAZWANY WYJĄTEK OD „IKONA NIGDY SAMA"
+   (decyzja właściciela z 12 września 2026; `AGENTS.md` §5,
+   `docs/UX_50_PLUS.md`, sekcja „Jeden nazwany wyjątek").
 
-   Kształt: pigułka z obwódką, ikona i napis „Więcej" obok siebie. Obwódka
-   dochodzi razem z napisem, bo sam tekst w kolorze wyciszonym, bez tła
-   i bez ramki, nie wygląda na rzecz, którą się naciska — a to jedyne
-   wejście do „Edytuj wpis" i „Usuń wpis".
+   Do 12 września stał tu napis „Więcej" obok ikony i była to świadoma
+   decyzja z 11 września. Właściciel ją odwrócił, znając ryzyko: trzy kropki
+   w rogu wpisu są dla naszej grupy utrwalonym wzorcem z Facebooka, czyli
+   znakiem już rozpoznawanym, a nie zagadką. Uzasadnienie i granica wyjątku
+   siedzą w komentarzu przy `<details class="post-card-menu">`
+   w `components/post-card.blade.php` — tam, gdzie stoi `aria-label`.
 
-   `padding` mimo `min-height`: przy skali tekstu 140 % napis zawija się
-   i bez wcięcia dotykałby krawędzi (ta sama poprawka co w `.chip`).
+   ZNIKA NAPIS, NIE PRZYCISK. `min-width` i `min-height` dalej biorą
+   `--control-height-min` (3rem = 48 px), więc cel dotknięcia zostaje
+   48 × 48 px — a to jest ta liczba, która dla mniej pewnej ręki decyduje
+   o trafieniu (docs/UX_50_PLUS.md). `padding: 0` zamiast wcięcia na tekst:
+   przy kwadracie 48 px ikona 24 px ma dookoła 12 px i nie ma czego zawijać.
 
-   `white-space: nowrap` — „Więcej" to jedno słowo i ma zostać w jednym
-   wierszu z ikoną; bez tego przy 320 px przycisk potrafi je złamać
-   na „Wię-/cej". */
+   OBWÓDKA ZOSTAJE, choć Facebook jej nie ma. Sama ikona w kolorze tekstu,
+   bez tła i bez ramki, wygląda w karcie na ozdobę — a to jedyne wejście do
+   „Edytuj wpis" i „Usuń wpis". Obwódka nic nie kosztuje w miejscu (rysuje
+   się na krawędzi celu, który i tak musi mieć 48 px), a mówi „to się
+   naciska".
+
+   `border-radius: var(--radius-pill)` na kwadracie 48 × 48 daje koło —
+   ten sam kształt, co ma ten przycisk w serwisach, z których nasi
+   użytkownicy przyszli.
+
+   CO ZNIKŁO RAZEM Z NAPISEM: `gap` (nie ma czego rozdzielać), `font-size`,
+   `font-weight` i `white-space` (nie ma tekstu). Zostawione byłyby
+   martwymi deklaracjami, po których ktoś kiedyś wnioskowałby, że napis tu
+   bywa. */
 .post-card-menu > summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-2);
   min-width: var(--control-height-min);
   min-height: var(--control-height-min);
-  padding: var(--spacing-2) var(--spacing-4);
+  padding: 0;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   background-color: transparent;
   color: var(--color-ink);
-  font-size: var(--text-body);
-  font-weight: 600;
-  white-space: nowrap;
   cursor: pointer;
   list-style: none;
 }

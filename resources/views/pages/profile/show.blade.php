@@ -221,22 +221,24 @@
                     Człowiek, który szuka „Ustawień", szuka napisu
                     „Ustawienia". Zgadywanie jest tu kosztem, a nie krokiem.
 
-                    DLACZEGO WŁAŚNIE `settings.accessibility`
+                    DLACZEGO WŁAŚNIE `settings.index`
                     Bo pod tym samym napisem stoi to samo miejsce na
                     komputerze: pozycja „Ustawienia" w nawigacji bocznej
-                    prowadzi na `route('settings.accessibility')`
-                    (`components/layout.blade.php:723`). Ekran ustawień
-                    rozdroża (`/ustawienia`) w serwisie NIE ISTNIEJE —
-                    dorobienie go to nowa trasa, nowy ekran i decyzja o tym,
-                    co jest kanoniczną stroną ustawień, czyli nie jest to
-                    najmniejsza zmiana usuwająca ślepy zaułek. Dwa różne cele
-                    dla jednego napisu byłyby gorsze niż jeden cel dziwny.
+                    prowadzi na `route('settings.index')`
+                    (`components/layout.blade.php`). Do 12 września 2026
+                    oba te miejsca celowały w `settings.accessibility`, czyli
+                    w ekran o nagłówku „Czytelność" — D-168 zapisało to jako
+                    koszt przyjęty świadomie, bo rozdroża `/ustawienia`
+                    w serwisie nie było, a dwa różne cele dla jednego napisu
+                    byłyby gorsze niż jeden cel dziwny. Rozdroże powstało
+                    (issue #344), więc napis i nagłówek ekranu wreszcie mówią
+                    to samo słowo.
 
                     NIE JEST TO MARTWY PRZYCISK (D-053): trasa istnieje, jest
                     w tej samej grupie `auth` co reszta ustawień, a ekran, na
-                    który prowadzi, ma spis pozostałych ośmiu.
+                    który prowadzi, jest spisem wszystkich dziewięciu.
                 --}}
-                <a class="btn btn-secondary" href="{{ route('settings.accessibility') }}">Ustawienia</a>
+                <a class="btn btn-secondary" href="{{ route('settings.index') }}">Ustawienia</a>
                 {{-- Ten sam składnik co w nawigacji bocznej — POST z tokenem
                      CSRF, nigdy odnośnik GET. --}}
                 <x-wyloguj />

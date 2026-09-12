@@ -367,6 +367,37 @@ To jest trzecia rzecz z tej samej rodziny co pułapki 8 i 8b: **polecenie
 gita, które w pojedynczej pracy jest bezpieczne, przy kilku agentach naraz
 kasuje robotę** — a wygląda przy tym dokładnie tak, jakby zadziałało.
 
+## 9. Test z datą wpisaną na sztywno przechodzi tylko do tej daty
+
+**Złapała: 12.09.2026 o 10:00 UTC — `main` zrobił się czerwony bez ani jednego
+commita. Zegar wybił godzinę wpisaną w teście pół tygodnia wcześniej.**
+
+`AccountStatusTest::test_zawieszony_widzi_date_konca_kary_po_polsku` zawieszał
+konto do `2026-09-12 10:00:00` i sprawdzał, czy na ekranie widać
+„12 września 2026”. Gdy test powstawał, ta data była w przyszłości, więc
+`isSuspended()` zwracało prawdę i komunikat się renderował. Tego dnia o 10:00
+termin minął: `EnsureAccountIsActive` zdjął karę przy pierwszym żądaniu
+(`User::punishmentHasExpired`), ekran słusznie przestał cokolwiek pokazywać
+— i test zaczął padać na **sprawnym** kodzie.
+
+Najgorsze jest to, jak taka czerwień wygląda: pada w środku dnia, na gałęzi,
+która nie tknęła ani moderacji, ani layoutu, i pierwszy odruch to szukać
+winnego wśród świeżo scalonych PR-ów. Sprawdzenie, które kończy poszukiwania
+w pół minuty: **uruchom ten jeden test na czystym `main`.** Jeśli pada i tam,
+to nie jest niczyja zmiana.
+
+**Co robić:** jeśli test sprawdza FORMAT albo TREŚĆ zależną od daty
+— przymroż zegar (`$this->travelTo(Carbon::parse('…', 'UTC'))`) i podaj datę
+jawnie. Jeśli sprawdza UPŁYW czasu — licz względem `now()`
+(`now()->addDays(7)`, `now()->subMinute()`) i nie wpisuj żadnej daty.
+Jedno i drugie w jednym teście to właśnie ta pułapka.
+
+Krótko: **w teście albo data jest stała i zegar też, albo obie są względne.
+Stała data przy idącym zegarze to bomba z opóźnionym zapłonem**, która
+tyka dokładnie tyle, ile wynosi różnica między dniem napisania a wpisaną datą.
+
+---
+
 ---
 
 ## Skąd ta lista
@@ -393,6 +424,11 @@ ujemnych, które oblały się trzy razy z tego samego, cofniętego wraz z napraw
 powodu. Ta trójka zostaje na liście, bo lista pilnuje nie tylko tego, żeby
 test mierzył, ale i tego, żeby jego pomiar był uczciwy — a pomiar czytany
 źle albo skasowany przez własne narzędzie nie jest uczciwy.
+
+Dziewiąta dołączyła 12.09.2026 — jedyna na tej liście, która zapaliła się
+sama, bez czyjegokolwiek commita, o godzinie wpisanej w test kilka dni
+wcześniej. Zostaje tu, bo należy do tej samej rodziny co 8b: **czerwień, którą
+czytasz, nie musi pochodzić ze zmiany, którą właśnie oglądasz.**
 
 Dwie zasady o kodzie, które z tego zostają (D-079, obowiązują szerzej niż
 miejsce zapisu):

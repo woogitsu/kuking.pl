@@ -8,6 +8,7 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CzytaWidoczneNapisy;
 use Tests\TestCase;
 
 /**
@@ -50,6 +51,7 @@ use Tests\TestCase;
  */
 class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
 {
+    use CzytaWidoczneNapisy;
     use RefreshDatabase;
 
     public function test_wlasny_profil_ma_widoczne_wejscie_do_ustawien_przy_wylogowaniu(): void
@@ -93,10 +95,13 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
         $wejscie = $wejscia[0];
 
         $this->assertSame(
-            route('settings.accessibility'),
+            route('settings.index'),
             $wejscie->getAttribute('href'),
             'Napis „Ustawienia" ma prowadzić tam, gdzie prowadzi ten sam napis '
-            .'w nawigacji bocznej na komputerze (`components/layout.blade.php`).',
+            .'w nawigacji bocznej na komputerze (`components/layout.blade.php`) '
+            .'— od issue #344 jest to ekran-rozdroże `/ustawienia`, a nie '
+            .'„Czytelność". Jeden napis, jeden cel, i ten cel nazywa się tak '
+            .'samo jak napis.',
         );
 
         // Cel dotykowy: ta sama klasa przycisku co sąsiedzi, czyli 48 px
@@ -139,6 +144,11 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
 
         // KONTROLA DODATNIA: to jest ekran ustawień, a nie cokolwiek z 200.
         $ekran->assertSee('Wszystkie ustawienia');
+
+        // …i nazywa się tak samo jak napis, w który człowiek nacisnął. To jest
+        // cała rzecz, którą zdejmuje issue #344: do 12 września 2026 nagłówek
+        // brzmiał tu „Czytelność" (koszt przyjęty świadomie w D-168).
+        $ekran->assertSee('<h1>Ustawienia</h1>', false);
 
         // I nie jest ślepym zaułkiem — niesie spis pozostałych ekranów,
         // w tym te, których z telefonu nie dało się dotąd zobaczyć wcale.
@@ -225,7 +235,10 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
         // w pasku górnym stoi zaproszenie do logowania, a nie awatar konta.
         $this->assertSame('Otwarta Kuchnia', trim($xpath->query('.//h1', $glowka)->item(0)?->textContent ?? ''));
         $this->assertStringContainsString('Zaloguj się', $html);
-        $this->assertStringNotContainsString('topbar-awatar', $html);
+        // `topbar-konto` to menu przy awatarze (issue #344). Do 12 września
+        // 2026 stało tu `topbar-awatar` — klasa, której w serwisie już nie ma,
+        // więc asercja byłaby spełniona zawsze i niczego by nie pilnowała.
+        $this->assertStringNotContainsString('topbar-konto', $html);
 
         $this->assertSame(
             0,
@@ -235,50 +248,6 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
         // U gościa nie ma nawet nawigacji bocznej z wylogowaniem, więc tu
         // wolno zapytać o cały dokument.
         $this->assertStringNotContainsString('/logout', $html);
-    }
-
-    /**
-     * Odnośniki w wycinku, których WIDOCZNY napis jest dokładnie taki jak
-     * podany.
-     *
-     * Dlaczego nie zwykłe `normalize-space(.)`: `textContent` zlicza także
-     * tekst schowany klasą `visually-hidden`, więc zapis „zębatka plus
-     * podpis dla czytnika ekranu" — czyli dokładnie to, czego AGENTS.md §5
-     * zakazuje — przechodziłby jako poprawny. Sprawdzone kontrolą ujemną:
-     * wersja z `normalize-space(.)` NIE oblewała przy podmianie napisu na
-     * `<x-ikona>` + `<span class="visually-hidden">`.
-     *
-     * @return list<DOMElement>
-     */
-    private function odnosnikiPoWidocznymNapisie(DOMXPath $xpath, DOMElement $wycinek, string $napis): array
-    {
-        $znalezione = [];
-
-        foreach ($xpath->query('.//a', $wycinek) as $odnosnik) {
-            if ($odnosnik instanceof DOMElement && $this->widocznyNapis($odnosnik) === $napis) {
-                $znalezione[] = $odnosnik;
-            }
-        }
-
-        return $znalezione;
-    }
-
-    /**
-     * Tekst elementu bez tego, co widzi wyłącznie czytnik ekranu.
-     */
-    private function widocznyNapis(DOMElement $element): string
-    {
-        $dom = new DOMDocument;
-        $dom->appendChild($dom->importNode($element->cloneNode(true), true));
-
-        $xpath = new DOMXPath($dom);
-        $schowane = $xpath->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' visually-hidden ')]");
-
-        foreach (iterator_to_array($schowane) as $wezel) {
-            $wezel->parentNode?->removeChild($wezel);
-        }
-
-        return trim((string) preg_replace('/\s+/u', ' ', $dom->textContent));
     }
 
     /**
