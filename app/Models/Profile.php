@@ -79,13 +79,12 @@ class Profile extends Model
      * naprawdę chodzi: czy z naszego kodera wyszedł PLIK, który da się podać
      * przeglądarce.
      *
-     * ORYGINAŁ NIE JEST WARIANTEM I NIE MA PRAWA TU WEJŚĆ. Rozstrzyga o tym
-     * `Media::wariantDoSerwowania()` — jedyne miejsce w serwisie, które wie,
-     * który plik idzie do przeglądarki (patrz jego docblock). Ta metoda
-     * niczego z tamtej reguły nie powtarza, tylko ją woła: druga kopia
-     * rozjechałaby się przy pierwszej zmianie listy wariantów, a rozjazd
-     * znaczyłby tutaj „wystawiliśmy plik wgrany przez człowieka, z GPS-em
-     * kuchni w EXIF-ie".
+     * TA METODA NIE POWTARZA REGUŁY, TYLKO JĄ WOŁA. Rozstrzyga
+     * `Media::maWariantDoPokazania()` — ta sama, jedna bramka, której używa
+     * `DostepDoZdjecia` i widok zdjęcia wpisu (#430). Druga kopia rozjechałaby
+     * się przy pierwszej zmianie listy wariantów, a rozjazd znaczyłby tutaj
+     * „wystawiliśmy plik wgrany przez człowieka, z GPS-em kuchni w EXIF-ie":
+     * oryginał nie jest wariantem i tą drogą nie przechodzi.
      *
      * STATUS `deleted` NIE PRZECHODZI NIGDY — i to jest ZWĘŻENIE reguły,
      * nie jej rozszerzenie. `KasujZdjecie` oznacza tak wiersz PRZED
@@ -93,33 +92,34 @@ class Profile extends Model
      * do sprzątania. Gdyby pytanie brzmiało wyłącznie „czy jest wariant",
      * zdjęcie przejęte do skasowania wracałoby na ekran — a przy wymazaniu
      * konta i przy decyzji moderacyjnej to jest dokładnie ten wiersz, który
-     * ma zniknąć.
+     * ma zniknąć. Zwężenia pilnuje `Media::maWariantDoPokazania()` i osobny
+     * test tego pasa; tutaj nie ma go po raz drugi.
      *
-     * CZEGO TA METODA NIE ZAŁATWIA — ZMIERZONE, NIE ZGADNIĘTE (#448 × #430)
-     * Widok pyta o wariant, ale BAJTY wydaje trasa `media.show`, a ona pyta
-     * dalej o status wiersza (`App\Domain\Media\DostepDoZdjecia::
-     * gotoweDoSerwowania()` → `Media::isReady()`). Pomiar w przeglądarce
-     * (`scripts/zdjecie-profilowe.mjs`, 12 września 2026) dla wiersza
-     * `pending` z gotowym wariantem: `<img class="avatar">` stoi na stronie,
-     * a trasa zdjęcia odpowiada **404 na 16 z 16 odsłon** — czyli pusta ramka
-     * zamiast twarzy.
+     * DLACZEGO `thumb`, SKORO PO WGRANIU ISTNIEJE TYLKO `podglad`
+     * Bo `Media::wariantDoSerwowania()` przy braku żądanego wariantu bierze
+     * pierwszy istniejący. Awatar dostaje więc `podglad` w pierwszej chwili
+     * po wgraniu, a `thumb` — właściwy rozmiar — gdy tylko przetwarzanie
+     * w tle je policzy. Nazwa wariantu mówi, czego CHCEMY, nie na co czekamy.
      *
-     * DZIŚ TO NIKOMU NIE SZKODZI, bo stanu „`pending` i wariant już jest"
-     * w tym repozytorium nie da się osiągnąć: `ProcessUploadedImage` zapisuje
-     * warianty i `status = ready` JEDNYM `update()`. Stan ten pojawia się
-     * dopiero z `PodgladOdRazu` (#430) — i wtedy TA SAMA ZMIANA musi rozluźnić
-     * `DostepDoZdjecia`, inaczej awatary zamienią się w puste ramki. Kto
-     * wprowadza podgląd od razu, wprowadza go w obu miejscach.
+     * CZĘŚĆ DROGI, KTÓRA NALEŻY DO #430. Widok pyta o wariant, ale BAJTY
+     * wydaje trasa `media.show`. Pomiar z 12 września 2026
+     * (`scripts/zdjecie-profilowe.mjs`) na gałęzi SPRZED scalenia #430:
+     * dla wiersza `pending` z gotowym wariantem `<img class="avatar">` stał
+     * na stronie, a trasa zdjęcia odpowiadała **404 na 16 z 16 odsłon** —
+     * pusta ramka zamiast twarzy, bo `DostepDoZdjecia` pytało tam jeszcze
+     * o `isReady()`. #430 zdjęło ten warunek i obie strony pytają dziś o to
+     * samo. Ta liczba zostaje tu jako ostrzeżenie: rozdzielenie bramki widoku
+     * od bramki serwowania daje pustą ramkę, a nie czerwony test.
      */
     public function zdjecieDoPokazania(): ?Media
     {
         $zdjecie = $this->avatar;
 
-        if ($zdjecie === null || $zdjecie->status === Media::STATUS_DELETED) {
+        if ($zdjecie === null) {
             return null;
         }
 
-        return $zdjecie->wariantDoSerwowania('thumb') === null ? null : $zdjecie;
+        return $zdjecie->maWariantDoPokazania('thumb') ? $zdjecie : null;
     }
 
     /**

@@ -14,7 +14,7 @@
         sprawdza, czy „to działa".
 
         Rozstrzyga `Profile::zdjecieDoPokazania()`, a pod nim
-        `Media::wariantDoSerwowania()` — jedno miejsce w serwisie, które wie,
+        `Media::maWariantDoPokazania()` — jedno miejsce w serwisie, które wie,
         który PLIK idzie do przeglądarki. Oryginał wgrany przez człowieka nie
         jest wariantem i tą drogą nie przejdzie; w jego EXIF-ie siedzi
         lokalizacja kuchni.
