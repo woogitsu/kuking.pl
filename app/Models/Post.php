@@ -348,4 +348,58 @@ class Post extends Model
     {
         return route('posts.show', ['post' => $this->getKey()]);
     }
+
+    /**
+     * Czy ten wpis nie ma NIC własnego — jest wyłącznie wskazaniem przepisu.
+     *
+     * Takie wpisy zakłada `kuking:dopisz-wpisy-przepisow` (#368), żeby przepis
+     * w ogóle pojawił się w strumieniu: bez treści, bez własnych zdjęć,
+     * ze zdjęciem branym z przepisu. Ich strona (`posts.show`) to nagłówek,
+     * pasek „Z przepisu” i komentarze — czyli ekran, na którym nie ma nic,
+     * czego nie ma na stronie przepisu, a strona przepisu ma WŁASNE komentarze
+     * (`recipes.comment`).
+     *
+     * KOMENTARZE SĄ CZĘŚCIĄ WARUNKU, I TO NIE JEST DROBIAZG.
+     * Wpis bez treści, ale Z komentarzem, ma już coś własnego — rozmowę ludzi.
+     * Gdyby warunek jej nie pytał, przekierowanie zostawiłoby tę rozmowę pod
+     * adresem, do którego nic nie prowadzi. Dlatego wpis z komentarzem
+     * zachowuje swoją stronę — i dlatego ta strona musi umieć pokazać
+     * zdjęcie przepisu (issue #447).
+     *
+     * `comments_count` jest używane, GDY JEST POLICZONE. Strumień liczy je
+     * w jednym zapytaniu (`withCount`), więc karta nie dokłada zapytań na
+     * sztukę; pojedynczy ekran wpisu może sobie pozwolić na jedno.
+     */
+    public function jestSamymPrzepisem(): bool
+    {
+        if ($this->recipe === null || filled($this->body) || $this->media->isNotEmpty()) {
+            return false;
+        }
+
+        $komentarzy = $this->comments_count ?? $this->comments()->count();
+
+        return (int) $komentarzy === 0;
+    }
+
+    /**
+     * Adres, pod którym stoi TREŚĆ tego wpisu — dla karty w strumieniu.
+     *
+     * Dla zwykłego wpisu to jego własna strona. Dla wpisu, który jest samym
+     * wskazaniem przepisu — strona przepisu, bo tam jest wszystko: zdjęcie,
+     * składniki, kroki i komentarze. Zgłoszenie właściciela z 12 września:
+     * „Muszę szukać i klikać w bigos z cukinii żeby przejść do przepisu…
+     * To nie ma sensu”.
+     *
+     * TO NIE JEST TO SAMO CO `url()` I NIE WOLNO ICH ZAMIENIĆ. `url()` zostaje
+     * KANONICZNYM adresem wpisu — tym, który idzie do udostępniania, do
+     * `<link rel="canonical">` i do danych strukturalnych. Adres wysłany
+     * komuś w wiadomości ma działać po latach, także wtedy, gdy wpis
+     * przestał być „samym przepisem”.
+     */
+    public function adresTresci(): string
+    {
+        return $this->jestSamymPrzepisem() && $this->recipe !== null
+            ? route('recipes.show', $this->recipe->slug)
+            : $this->url();
+    }
 }

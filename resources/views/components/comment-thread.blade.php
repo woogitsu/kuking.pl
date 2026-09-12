@@ -10,6 +10,12 @@
     (Popraw / Usuń / Zgłoś) jest powtórzony dla komentarza głównego i dla
     odpowiedzi — w tym komponencie nie ma wygodnego miejsca na współdzielony
     podkomponent bez zakładania nowego pliku.
+
+    UKŁAD AKCJI (issue #433). Akcje zwykłe — „Odpowiedz", „Popraw", „Zgłoś" —
+    stoją w JEDNYM rzędzie `.akcje-komentarza`, który się zawija. „Usuń"
+    zostaje osobno, pod kreską `.danger-zone`. Podział przebiega po
+    ODWRACALNOŚCI, nie po tym, kto jest autorem: dlatego „Zgłoś" wróciło do
+    rzędu zwykłych akcji, choć dotąd renderowało się za kreską.
 --}}
 {{--
     `ile` to LICZBA WSZYSTKICH wątków, nie tylko tych na stronie. Bez tego
@@ -69,25 +75,49 @@
                             @php($replyRemainingMinutes = 15 - (int) $reply->created_at->diffInMinutes(now()))
                             @php($replyContentOwnerRemovingOthers = auth()->id() !== $reply->author_id && auth()->id() === $reply->notifiableUserId())
 
-                            @can('update', $reply)
-                                @if($replyRemainingMinutes > 0)
-                                    <details class="mt-2">
-                                        <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                        {{-- `Odmiana::rzeczownik`, nie `Str::plural` (issue #38): drugi jest
-                                             inflektorem ANGIELSKIM i przy „minutę" dokładał „s" — „Możesz
-                                             poprawić jeszcze przez 3 minutęs". Polski ma trzy formy odmiany,
-                                             nie dwie, i wyjątek na nastki (12-14), którego `Str::plural`
-                                             nie zna wcale. --}}
-                                        <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
-                                        <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
-                                            @csrf
-                                            @method('PUT')
-                                            <x-field name="body" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
-                                            <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
-                                        </form>
-                                    </details>
+                            {{-- Akcje ZWYKŁE w jednym rzędzie, który się zawija —
+                                 „Usuń" zostaje niżej, za kreską (`.danger-zone`).
+                                 Uzasadnienie układu i zmierzone liczby stoją przy
+                                 `.akcje-komentarza` w `resources/css/app.css`.
+
+                                 Rząd bywa PUSTY: własna odpowiedź po piętnastu
+                                 minutach nie ma ani „Popraw", ani „Zgłoś". Pusty
+                                 nie zostawia po sobie odstępu — pilnuje tego
+                                 reguła `:not(:has(> *))` w arkuszu, bo Blade
+                                 zostawia w środku białe znaki i `:empty` nie
+                                 trafiłoby. --}}
+                            <div class="akcje-komentarza">
+                                @can('update', $reply)
+                                    @if($replyRemainingMinutes > 0)
+                                        <details>
+                                            <summary class="btn btn-quiet inline-flex">Popraw</summary>
+                                            {{-- `Odmiana::rzeczownik`, nie `Str::plural` (issue #38): drugi jest
+                                                 inflektorem ANGIELSKIM i przy „minutę" dokładał „s" — „Możesz
+                                                 poprawić jeszcze przez 3 minutęs". Polski ma trzy formy odmiany,
+                                                 nie dwie, i wyjątek na nastki (12-14), którego `Str::plural`
+                                                 nie zna wcale. --}}
+                                            <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
+                                            <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <x-field name="body" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
+                                                <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
+                                            </form>
+                                        </details>
+                                    @endif
+                                @endcan
+
+                                {{-- „Zgłoś" jest akcją ZWYKŁĄ, więc stoi w tym
+                                     rzędzie, a nie pod kreską „Usuń". Dotąd
+                                     renderowało się PO `.danger-zone`, czyli po
+                                     stronie akcji nieodwracalnej — w jedynym
+                                     stanie, w którym obie są naraz (autor treści
+                                     ogląda cudzą odpowiedź), kreska przestawała
+                                     cokolwiek oddzielać. --}}
+                                @if(auth()->id() !== $reply->author_id)
+                                    <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $reply->getKey()]) }}">Zgłoś</a>
                                 @endif
-                            @endcan
+                            </div>
 
                             @can('delete', $reply)
                                 <div class="danger-zone mt-2 pt-3">
@@ -110,49 +140,72 @@
                                     @endif
                                 </div>
                             @endcan
-
-                            @if(auth()->id() !== $reply->author_id)
-                                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $reply->getKey()]) }}">Zgłoś</a>
-                            @endif
                         @endauth
                     @endif
                 </div>
             @endforeach
 
             @auth
-                <details class="mt-3">
-                    <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
-                    <form class="mt-3" method="POST" action="{{ $action }}">
-                        @csrf
-                        <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
-                        <x-field name="body" label="Twoja odpowiedź" type="textarea" :rows="3" required />
-                        <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
-                    </form>
-                </details>
+                @php($commentRemainingMinutes = 15 - (int) $comment->created_at->diffInMinutes(now()))
+                @php($commentContentOwnerRemovingOthers = auth()->id() !== $comment->author_id && auth()->id() === $comment->notifiableUserId())
+
+                {{-- JEDEN RZĄD AKCJI ZWYKŁYCH, NIE TRZY WIERSZE (issue #433).
+
+                     „Odpowiedz", „Popraw" i „Zgłoś" stoją obok siebie i zawijają
+                     się, gdy zabraknie miejsca — zmierzone szerokości i to,
+                     przy której szerokości okna która para przestaje się mieścić,
+                     są wypisane przy `.akcje-komentarza` w `resources/css/app.css`.
+
+                     „Usuń" ZOSTAJE POZA TYM RZĘDEM, pod kreską `.danger-zone`.
+                     Akcja nieodwracalna nie ma prawa stanąć ramię w ramię ze
+                     zwykłą (AGENTS.md §5) — a potwierdzenie dalej idzie przez
+                     `<x-confirm-button>`, czyli przez `<details>`, bez linijki
+                     JavaScriptu.
+
+                     `@php` z minutami i z rolą właściciela treści przeniesione
+                     TUTAJ, przed `@unless`: te same dwie zmienne czyta i rząd
+                     akcji, i blok „Usuń" niżej, a liczenie ich w dwóch miejscach
+                     byłoby dwoma miejscami do poprawienia. --}}
+                <div class="akcje-komentarza">
+                    <details>
+                        <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
+                        <form class="mt-3" method="POST" action="{{ $action }}">
+                            @csrf
+                            <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
+                            <x-field name="body" label="Twoja odpowiedź" type="textarea" :rows="3" required />
+                            <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
+                        </form>
+                    </details>
+
+                    @unless($commentIsRemoved)
+                        @can('update', $comment)
+                            @if($commentRemainingMinutes > 0)
+                                <details>
+                                    <summary class="btn btn-quiet inline-flex">Popraw</summary>
+                                    {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
+                                         angielski, więc pisał „3 minutęs". --}}
+                                    <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
+                                    <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
+                                        @csrf
+                                        @method('PUT')
+                                        <x-field name="body" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
+                                        <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
+                                    </form>
+                                </details>
+                            @endif
+                        @endcan
+
+                        {{-- „Zgłoś" jest akcją zwykłą — to samo, co przy
+                             odpowiedzi wyżej: dotąd stało PO `.danger-zone`. --}}
+                        @if(auth()->id() !== $comment->author_id)
+                            <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $comment->getKey()]) }}">Zgłoś</a>
+                        @endif
+                    @endunless
+                </div>
             @endauth
 
             @unless($commentIsRemoved)
                 @auth
-                    @php($commentRemainingMinutes = 15 - (int) $comment->created_at->diffInMinutes(now()))
-                    @php($commentContentOwnerRemovingOthers = auth()->id() !== $comment->author_id && auth()->id() === $comment->notifiableUserId())
-
-                    @can('update', $comment)
-                        @if($commentRemainingMinutes > 0)
-                            <details class="mt-2">
-                                <summary class="btn btn-quiet inline-flex">Popraw</summary>
-                                {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
-                                     angielski, więc pisał „3 minutęs". --}}
-                                <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
-                                <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
-                                    @csrf
-                                    @method('PUT')
-                                    <x-field name="body" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
-                                    <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
-                                </form>
-                            </details>
-                        @endif
-                    @endcan
-
                     @can('delete', $comment)
                         <div class="danger-zone mt-2 pt-3">
                             @if($commentContentOwnerRemovingOthers)
@@ -174,10 +227,6 @@
                             @endif
                         </div>
                     @endcan
-
-                    @if(auth()->id() !== $comment->author_id)
-                        <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'comment', 'id' => $comment->getKey()]) }}">Zgłoś</a>
-                    @endif
                 @endauth
             @endunless
         </article>

@@ -377,8 +377,8 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 
 | Miejsce | Tekst |
 |---|---|
-| pytanie dnia, rano | Dzień dobry, {imię}. Co dziś gotujesz? |
-| pytanie dnia, wieczór | Dobry wieczór, {imię}. Pokaż, co dziś wyszło. |
+| pytanie dnia | Witaj, {imię}. Co dziś gotujesz? |
+| pytanie dnia, konto bez imienia | Co dziś gotujesz? |
 | przycisk główny | Dodaj zdjęcie tego, co ugotowałeś |
 | pole tekstowe | Napisz kilka słów |
 | podpowiedź pod polem | Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty." |
@@ -386,6 +386,26 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 | po pierwszym wpisie | Gotowe. To Twój pierwszy wpis — od teraz masz swoje archiwum. |
 | po kolejnym | Opublikowane. Dziękujemy. |
 | autosave szkicu | Szkic zapisany. |
+
+**Pytanie dnia nie ma wariantu porannego i wieczornego** — i to jest decyzja,
+nie przeoczenie. Stały tu dwa wiersze („Dzień dobry…" / „Dobry wieczór…"),
+a w kodzie cztery warianty wybierane po godzinie. Wyszło z tego zdanie
+nieprawdziwe przez pół doby: „Dobry wieczór" witało od 15:00, a godzinę brał
+`now()`, czyli `config('app.timezone')` — w tym repozytorium `UTC` i takie
+zostanie (issue #87 i komentarz w `config/app.php`: strefą ekranu jest
+`kuking.strefa`, nie strefa, w której aplikacja liczy). Latem znaczyło to dwie
+godziny w tył, więc po 23:00 czasu polskiego serwis mówił „Dzień dobry".
+
+Głębszy powód jest jednak inny: **pory dnia CZYTELNIKA nie znamy.** Serwis
+nie pyta o strefę czasową tak samo, jak nie pyta o płeć, a kuKINGi mieszkają
+też poza Polską. Napis o porze dnia jest więc twierdzeniem o człowieku, którego
+nie mamy skąd wiedzieć — ta sama klasa błędu co „będziesz mogła" z §2
+i co obietnica z miarą bez pomiaru (D-114). „Witaj" jest prawdziwe o każdej
+godzinie; „Hej", „Cześć" i „Siema" zostają zakazane (`MASCOT_CONCEPT.md`).
+
+Zwrot po imieniu znika, gdy imienia nie ma — zostaje samo pytanie. Podstawianie
+nazwy zastępczej („Witaj, Użytkownik Kuking") udaje zwrot po imieniu i jest
+gorsze niż jego brak. Pilnuje tego `tests/Feature/PytanieDniaTest.php`.
 
 ### Przepis
 

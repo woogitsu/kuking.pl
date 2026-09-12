@@ -2354,6 +2354,28 @@
     object-fit: contain;
   }
 
+  /* POLE Z KOMUNIKATEM ZAMIAST ZDJĘCIA IDZIE NA CAŁĄ SZEROKOŚĆ (issue #432).
+     ZMIERZONE 12.09.2026, kolaż z trzema zdjęciami bez wariantów: przy 600 px
+     blok zastępczy miał 282 px z 568 px karty (50%) i komunikat łamał się na
+     15 wierszy; przy 768 px — 342 px z 688 px i 12 wierszy. To jest dokładnie
+     to, co widać na zrzucie właściciela: „mniej niż połowa szerokości karty,
+     a po prawej pusty biały obszar".
+
+     Kwadratowe pół karty jest dobrą miarą dla ZDJĘCIA i złą dla ZDANIA.
+     `grid-column: 1 / -1` daje temu jednemu polu obie kolumny, a
+     `aspect-ratio: auto` zdejmuje z niego kwadrat — komunikat jest wysoki na
+     tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
+
+     `:has()` NIE JEST TU RYZYKIEM. Przeglądarka, która go nie zna, pomija
+     całą regułę i dostaje układ sprzed tej zmiany — czyli gorszy, ale
+     działający. To jest ulepszenie stopniowe, nie warunek czytelności:
+     samą szerokość bloku w jego polu załatwia `width: 100%` na
+     `.photo-placeholder`, bez żadnego `:has()`. */
+  .kolaz-pole:has(.photo-placeholder) {
+    grid-column: 1 / -1;
+    aspect-ratio: auto;
+  }
+
   /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
      dokładnie to samo, co widok „zwykły". Kwadratowe pole i `contain` mają
      sens dopiero wtedy, gdy pole jest na tyle duże, żeby coś w nim było
@@ -5292,6 +5314,79 @@
   border-left: 3px solid var(--color-border);
 }
 
+/* AKCJE POD KOMENTARZEM: JEDEN RZĄD, KTÓRY SIĘ ZAWIJA (issue #433).
+   ─────────────────────────────────────────────────────────────────────
+   Zgłoszenie właściciela ze zrzutu z telefonu: „odpowiedz i popraw jest jedno
+   pod drugim, gdzie jest jednak miejsce by dać obok siebie". Każda akcja była
+   osobnym elementem blokowym (`<details class="mt-2">`, `<a class="btn">`),
+   więc każda brała cały wiersz — także wtedy, gdy dwie mieściły się w jednym
+   z zapasem.
+
+   ZMIERZONE, Chromium, komentarz o jednym zdaniu („Pysznie wygląda"),
+   przerwa liczona od ostatniego piksela treści do ostatniego piksela
+   ostatniej akcji. Liczby i skrypt: `scripts/uklad-komentarzy.mjs`.
+
+   | okno   | wnętrze karty | własny: przed → po | cudzy: przed → po |
+   |--------|--------------:|-------------------:|------------------:|
+   | 320 px |        246 px |   196,5 → 196,5 px |     117 → 117 px  |
+   | 360 px |        286 px |   196,5 → 138 px   |     117 → 66,5 px |
+   | 390 px |        316 px |   196,5 → 138 px   |     117 → 66,5 px |
+   | 414 px |        340 px |   196,5 → 138 px   |     117 → 66,5 px |
+
+   PRZY 320 px AKCJE SIĘ ZAWIJAJĄ I TAK MA BYĆ. Zmierzone szerokości celów
+   dotykowych przy czcionce zwykłej: „Odpowiedz" 142,88 px, „Popraw"
+   110,09 px, „Zgłoś" 92,56 px. Para „Odpowiedz + Popraw" to 252,97 px plus
+   odstęp — a wnętrze karty przy oknie 320 px ma 246 px. Nie mieści się
+   i zmieścić się nie może bez zwężenia przycisków, czego issue zabrania
+   wprost: „mają się zawijać, a nie kurczyć". Przy 320 px układ więc ani się
+   nie pogarsza, ani nie poprawia — i to jest wynik, nie przeoczenie.
+
+   ODSTĘP W POZIOMIE I W PIONIE JEST RÓŻNY, CELOWO. `column-gap` to
+   `--spacing-3` (12 px): tyle mają między sobą przyciski w `.form-actions`,
+   czyli w rzędzie akcji formularza, i nie ma powodu, żeby komentarz miał
+   własną liczbę. `row-gap` to `--spacing-2` (8 px) — dokładnie tyle, ile
+   dawało dotychczasowe `mt-2` między akcjami stojącymi jedna pod drugą.
+   Gdyby `row-gap` też wynosił 12 px, to przy 320 px, gdzie akcje i tak się
+   zawijają, blok byłby o 4 px WYŻSZY niż przed poprawką — czyli zgłoszenie
+   o zmarnowanym miejscu zostałoby załatwione dołożeniem miejsca.
+
+   `<details>` ROZWINIĘTY BIERZE CAŁY WIERSZ. Bez tego formularz odpowiedzi
+   albo poprawki układałby się w kolumnie szerokiej na tyle, na ile szeroki
+   jest jego `<summary>` — czyli pole do pisania miałoby przy 390 px około
+   140 px zamiast całej szerokości karty. `flex-basis: 100%` przenosi
+   rozwinięty blok na własny wiersz, a `min-width: 0` pozwala mu zejść poniżej
+   szerokości własnej treści, zamiast rozpychać kartę w bok.
+
+   RZĄD BYWA PUSTY i wtedy nie ma prawa zostawić po sobie odstępu: własna
+   odpowiedź po piętnastu minutach nie ma ani „Popraw", ani „Zgłoś".
+   `:empty` tu nie zadziała, bo Blade zostawia w środku białe znaki — stąd
+   `:not(:has(> *))`. To jest czysty CSS, więc działa bez JavaScriptu;
+   przeglądarka bez `:has()` pokaże jedynie 16 px pustki, a nie usterkę.
+
+   CZEGO TA REGUŁA NIE ROBI: nie dotyka `.danger-zone`. „Usuń" stoi poza tym
+   rzędem, za kreską, i tak ma zostać (AGENTS.md §5). */
+.akcje-komentarza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: var(--spacing-3);
+  row-gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
+}
+
+.akcje-komentarza:not(:has(> *)) {
+  display: none;
+}
+
+.akcje-komentarza > * {
+  max-width: 100%;
+}
+
+.akcje-komentarza > details[open] {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
 /* Dwa pola obok siebie na szerokim ekranie, jedno pod drugim na telefonie.
    `auto-fit` + `minmax` zamiast media query: pola układają się według miejsca,
    które naprawdę mają, a nie według szerokości okna — komponent bywa w wąskiej
@@ -5470,29 +5565,61 @@
 }
 
 /* Miejsce po zdjęciu, którego jeszcze nie ma (albo już nie będzie).
-   Proporcje idą z klasy, nie z dokładnych wymiarów pliku — patrz komentarz
-   w `components/photo.blade.php`. */
+   Kiedy ten blok w ogóle się pokazuje — patrz komentarz w
+   `components/photo.blade.php`; po #430 jest to wyjątek, nie reguła.
+
+   NA CAŁĄ SZEROKOŚĆ, I TO JEST SEDNO POPRAWKI #432.
+   Wcześniej stało tu `display: flex` i akapit stawał się elementem
+   elastycznym, który kurczy się do swojej treści. Blok miał przez to mniej
+   niż połowę szerokości karty, zdanie łamało się przy ~390 px na osiem
+   wierszy, a kropka po „przygotowuje" wypadała na początku wiersza.
+   `display: block` oddaje akapitowi całą dostępną szerokość — a że to
+   komunikat, a nie zdjęcie, `aspect-ratio` tu nie ma: blok jest wysoki na
+   tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
+
+   `box-sizing` i `width` jawnie, mimo że `.post-photo` daje jedno i drugie:
+   ten sam blok dostaje czasem inną klasę (`$class` w komponencie), a wtedy
+   szerokość nie miałaby skąd przyjść. */
 .photo-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
   padding: var(--spacing-4);
   border-radius: var(--radius-md);
-  aspect-ratio: 4 / 3;
+  background-color: var(--color-surface-sunken);
+  text-align: center;
 }
 
-.photo-placeholder-kwadrat { aspect-ratio: 1 / 1; }
-.photo-placeholder-pion { aspect-ratio: 3 / 4; }
-.photo-placeholder-panorama { aspect-ratio: 16 / 9; }
+/* 18 px jawnie — to jest minimum produktowe (docs/UX_50_PLUS.md), a ten
+   akapit stoi w karcie, gdzie dziedziczenie potrafi go zmniejszyć.
 
-.photo-placeholder p {
+   `text-wrap: pretty` prosi przeglądarkę, żeby nie zostawiała w ostatnim
+   wierszu jednego sierotnego słowa. Jest to PODPOWIEDŹ, nie gwarancja, i
+   starsze przeglądarki jej nie znają — dlatego właściwa naprawa osieroconej
+   kropki stoi w treści (dwa krótkie zdania zamiast jednego długiego), a nie
+   tutaj. To jest warstwa druga, nie jedyna.
+
+   `overflow-wrap: break-word` ratuje układ przed jednym bardzo długim
+   słowem przy 320 px i powiększeniu 200% — bez tego rozpychałoby kartę
+   w poziomie (WCAG 2.2 AA, 1.4.10 Reflow). */
+.photo-placeholder-zdanie {
   margin: 0;
+  font-size: var(--text-body);
   font-weight: 700;
   color: var(--color-ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
 }
 
-.photo-placeholder-blad p {
+/* Zdanie drugie jest wyjaśnieniem, nie nagłówkiem — stąd zwykła grubość
+   pisma. Cały komunikat złożony grubym pismem czyta się jak krzyk, a ma
+   uspokajać. */
+.photo-placeholder-zdanie + .photo-placeholder-zdanie {
+  margin-top: var(--spacing-2);
+  font-weight: 400;
+}
+
+.photo-placeholder-blad .photo-placeholder-zdanie {
   color: var(--color-danger-tint-ink);
 }
 

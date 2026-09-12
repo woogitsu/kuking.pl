@@ -13101,3 +13101,512 @@ Drzewo bez zbudowanego frontu daje **mylący komunikat o poczcie**, bo każda st
 zwraca 500 (`ViteManifestNotFoundException`). Wart osobnego zgłoszenia.
 
 📄 `scripts/dostepnosc.mjs` · D-098 · D-106 · D-132 · issue #345 · issue #278
+
+---
+
+## D-172 · Menu „więcej" na karcie wpisu to same trzy kropki — nazwany wyjątek od „ikona nigdy sama"
+
+**Data:** 12 września 2026 · PR #441 · Status: **obowiązuje**
+
+### Kontekst
+
+11 września do przycisku menu na karcie wpisu dołożyliśmy widoczny napis „Więcej",
+bo `AGENTS.md` §5 mówi: **ikona nigdy sama**. Dzień później właściciel poprosił
+o odwrotne: „Jak jest wpis to te «… Więcej» można skrócić do samych trzech kropek?
+Seniorzy są przyzwyczajeni do tego na fb itp".
+
+### Decyzja
+
+Przycisk `<details class="post-card-menu">` nie ma widocznego napisu. **To nie jest
+cofnięcie poprzedniej decyzji przez zapomnienie — to zmiana reguły, zapisana
+w `AGENTS.md` §5 i w `docs/UX_50_PLUS.md` jako nazwany wyjątek.**
+
+### Powód
+
+Nie estetyka, tylko **rozpoznawalność**. Reguła ogólna mówi o ikonie, której trzeba
+się **domyślić**. Nasi ludzie przyszli z Facebooka i spędzili tam lata; trzy kropki
+w rogu wpisu są dla nich znakiem już znanym. Domyślania tu nie ma.
+
+### Ryzyko przyjęte świadomie
+
+Za tym menu stoją „Edytuj wpis" i „Usuń wpis". `docs/UX_50_PLUS.md` wymienia wzorzec
+„`♡ ⋮ ↗` bez podpisów" jako słaby i **ten argument pozostaje prawdziwy**. Właściciel
+dostał go wprost przed decyzją i zdecydował inaczej.
+
+### Granica
+
+Wyjątek dotyczy **wyłącznie tego jednego menu**. Nie obejmuje paska akcji pod wpisem,
+pasków nawigacji, przycisków zamykania ani akcji moderacyjnych. Rozszerzenie wymaga
+osobnej decyzji i osobnego wpisu, nie dopisania klasy CSS.
+
+### Czego wyjątek nie zabiera
+
+`aria-label="Więcej przy tym wpisie"` zostaje i jest jedyną nazwą dostępną tego
+przycisku. Cel dotknięcia zostaje 48 × 48 px. Menu dalej otwiera się bez
+JavaScriptu (`<details>`). Kropki rysuje komponent ikony, a **nie znak `···`
+z klawiatury** — to jest różnica wobec stanu sprzed 11 września, gdy kropki były
+schowane przed czytnikiem ekranu i nikt nie dostawał ani znaku z podpisem, ani
+podpisu ze znakiem.
+
+### Zmierzony skutek uboczny
+
+Przycisk: **125,6 → 48 px** (czcionka 100%) i **225,1 → 96 px** (czcionka
+przeglądarki 200%). Główka karty w najgorszym z dziewięciu przypadków: przy 320 px
+**18 → 8 wierszy**, przy 414 px **8 → 5**. Przy 200% kolumna z nazwą i datą miała
+przed zmianą **0 px szerokości** — jednakowo na 320, 360, 390 i 414 px, bo ten jeden
+przycisk zjadał całą kartę.
+
+📄 `resources/views/components/post-card.blade.php` · `AGENTS.md` §5 ·
+`docs/UX_50_PLUS.md` · `KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`
+
+---
+
+## D-173 · Data wpisu w strumieniu gubi rok — ale tylko wtedy, gdy wolno
+
+**Data:** 12 września 2026 · PR #443 · Status: **obowiązuje**
+
+### Kontekst
+
+Po pomiarze główki karty wpisu (D-172) zostały dwa warianty skrócenia daty. Pomiar
+pokazał, że **oba dokładają 0–1 wiersza** ponad to, co dało skrócenie przycisku,
+i są między sobą nie do odróżnienia. Właściciel wybrał krótką datę.
+
+### Decyzja
+
+`Czas::dataWpisu()`, używane **wyłącznie na karcie wpisu**. Wpis z bieżącego roku:
+„12 września, 10:04". Starszy: „12 września 2025, 10:04".
+
+### Dlaczego nie „3 godziny temu"
+
+Bo to jest **archiwum, do którego ludzie wracają** — „2 lata temu" nie mówi, kiedy.
+Zysk wobec krótkiej daty: 0–1 wiersza, czyli żaden.
+
+### Gdzie tego nie używamy
+
+Ekrany moderacji, odwołań, wiadomości i eksportu danych. Tam data jest **dowodem
+w sprawie albo terminem, po którym coś się kończy** — pełny rok kosztuje jedno słowo
+i zostaje.
+
+### Próg roku liczony w strefie człowieka, nie w UTC
+
+To nie jest drobiazg i ma własny test. 31 grudnia 23:30 UTC to w Polsce już
+1 stycznia, 00:30. Wpis sprzed godziny jest wtedy z **poprzedniego** roku człowieka,
+a z **bieżącego** roku UTC — próg liczony w UTC gubiłby rok przy wpisach z sylwestra
+przez pierwsze dwie godziny polskiej doby (jedną zimą).
+
+📄 `app/Support/Czas.php` · `DataWpisuGubiRokTylkoWTymRokuTest` · D-172 · issue #87
+
+---
+
+## D-174 · `/ustawienia` jest kanoniczną stroną ustawień, a menu konta stoi na `<details>`
+
+**Data:** 12 września 2026 · PR #439 · issue #344 · Status: **obowiązuje**
+
+### Kontekst
+
+Napis „Ustawienia" prowadził na ekran o nagłówku **„Czytelność"**. **D-168** przyjęło
+to świadomie jako koszt — bo rozdroża `/ustawienia` w serwisie nie było, a dorobienie
+go to była nowa trasa, nowy ekran i decyzja o tym, co jest kanoniczną stroną ustawień.
+
+### Decyzja
+
+Rozdroże **istnieje** (`SettingsIndexController`, trasa w grupie `auth`) i jest spisem
+wszystkich dziewięciu ekranów ustawień. Napis „Ustawienia" wszędzie — w nawigacji
+bocznej, na profilu i w menu konta — celuje w `settings.index`. **Napis i nagłówek
+ekranu, na który prowadzi, mówią wreszcie to samo słowo.**
+
+### Menu konta przy awatarze stoi na `<details>`, nie na skrypcie
+
+Działa **bez JavaScriptu** (`AGENTS.md` §5). `resources/js/app.js` dokłada tylko
+zamykanie kliknięciem obok i klawiszem `Esc` — czyli wygodę, nie działanie.
+
+### „Powiadomienia" w pasku górnym na telefonie
+
+`.side-nav` poniżej 64rem nie ma wcale, a dolny pasek niesie pięć pozycji i szóstej
+mieć nie może. Własny profil przestał być jedynym ekranem, z którego człowiek
+z telefonem dochodzi do obsługi konta.
+
+📄 `app/Http/Controllers/Settings/SettingsIndexController.php` ·
+`resources/views/pages/settings/index.blade.php` · `MenuKontaPrzyAwatarzeTest` ·
+`RozdrozeUstawienTest` · D-168 · D-053
+
+---
+
+## D-175 · 48 px celu dotknięcia należy się rzeczom, w które da się kliknąć — nie każdemu wierszowi tekstu
+
+**Data:** 12 września 2026 · PR #442 · issue #435 · Status: **obowiązuje**
+
+### Kontekst
+
+Zgłoszenie właściciela brzmiało: „Mój profil jest miejsce by dać @woogitsu obok
+Mateusz". Za tym jednym zdaniem stała rzecz mierzalna: główka własnego profilu przy
+390 px miała **952 px** wysokości, więc rząd akcji stał na `y ≈ 851` przy oknie
+844 px — **pod pierwszym ekranem**. Do tej samej główki doszło wcześniej **D-168**,
+od zupełnie innej strony.
+
+Rozbiórka na klocki pokazała, skąd ta wysokość: **liczniki 269 px**, kolumna awatara
+213 px, bio 84 px.
+
+### Decyzja
+
+`min-height: 3rem` (48 px) dostają **tylko te liczniki, które są odnośnikami** — dwa
+z pięciu prowadzą do listy osób. Trzy pozostałe to zwykły tekst.
+
+Reguła z `AGENTS.md` §5 mówi o **celu dotknięcia**, a nie o wysokości każdego wiersza.
+Zastosowana do tekstu, w który nie da się kliknąć, kosztuje 33 px na wiersz i nie
+kupuje niczego.
+
+### Przy okazji: `@nazwa` wchodzi do wiersza z nazwą
+
+`.profil-tozsamosc` (flex z `flex-wrap` i `align-items: baseline`). Przy długiej nazwie
+(`display_name` ma `max:100`) i przy czcionce 200% `@nazwa` **schodzi pod spód** —
+schodzi, a nie wypycha strony w bok.
+
+### Zmierzone
+
+Rząd akcji, czcionka 100%: 390 px **850,77 → 767,03 px** (po raz pierwszy nad
+zgięciem przy oknie 844 px), 414 px 822,88 → 739,14, 320 px 887,95 → 826,72,
+768 px 593,88 → 532,64, 1280 px 380,66 → 351,86. Przy czcionce 200%: 768 px
+1562,58 → 1395,16, 1280 px 1506,78 → 1339,36.
+
+### Czego świadomie nie zrobiono
+
+**Liczniki zostają po jednym w wierszu.** Dwie kolumny były już raz próbowane
+i zmierzone jako gorsze: kolumna treści ma 229–373 px w całym zakresie okien, po
+podziale zostaje ~112 px i wyrazy łamią się w środku („obserwując / ych").
+
+### Przy okazji zapisana pułapka kaskady
+
+Pierwsza wersja tej poprawki postawiła `@media` z progiem **przed** regułą bazową.
+Obie mają tę samą specyficzność, więc wygrała ta niżej w pliku i **próg przestał
+działać także przy 1280 px**. Wyglądało to na zmianę ograniczoną do telefonów, a nie
+było nią — złapał to dopiero pomiar. Stąd osobny test na **kolejność reguł w pliku**.
+
+📄 `resources/css/ekran-profilu.css` · `scripts/glowka-profilu.mjs` ·
+`GlowkaProfiluScalaNazweZNazwaUzytkownikaTest` · D-168 · issue #440
+
+---
+
+## D-176 · W teście albo data jest stała i zegar przymrożony, albo obie są względne
+
+**Data:** 12 września 2026 · PR #438 · Status: **obowiązuje**
+
+### Kontekst
+
+12 września o **10:00 UTC `main` zrobił się czerwony bez ani jednego commita.**
+`AccountStatusTest::test_zawieszony_widzi_date_konca_kary_po_polsku` zawieszał konto
+do `2026-09-12 10:00:00` i sprawdzał jej polski zapis. Gdy test powstawał, data była
+w przyszłości. Tego dnia o 10:00 termin minął, `EnsureAccountIsActive` zdjął karę przy
+pierwszym żądaniu, ekran **słusznie** przestał cokolwiek pokazywać — i test zaczął
+padać **na sprawnym kodzie**.
+
+### Decyzja
+
+Test sprawdzający **format** albo **treść zależną od daty** przymraża zegar
+(`travelTo`) i podaje datę jawnie. Test sprawdzający **upływ czasu** liczy względem
+`now()` i nie wpisuje żadnej daty. **Jedno i drugie w jednym teście to bomba
+z opóźnionym zapłonem**, tykająca dokładnie tyle, ile wynosi różnica między dniem
+napisania a wpisaną datą.
+
+### Sprawdzenie, które kończy poszukiwania w pół minuty
+
+Taka czerwień wygląda nie tak, jak jest: pada w środku dnia, na gałęzi, która nie
+tknęła ani moderacji, ani layoutu, i pierwszy odruch to szukać winnego wśród świeżo
+scalonych PR-ów. **Uruchom ten jeden test na czystym `main`.** Jeśli pada i tam, to
+nie jest niczyja zmiana.
+
+Zapisane jako **pułapka 9** w `docs/PULAPKI_TESTOW.md`. Należy do tej samej rodziny co
+pułapka 8b: czerwień, którą czytasz, nie musi pochodzić ze zmiany, którą oglądasz.
+
+📄 `docs/PULAPKI_TESTOW.md` §9 · `tests/Feature/AccountStatusTest.php` · `AGENTS.md`
+
+---
+
+## D-177 · Rząd akcji zawija się dopiero, gdy naprawdę nie ma miejsca — a `.field:first-child` nie trafia w formularzu POST
+
+**Data:** 12 września 2026 · PR #446 · issue #433 · Status: **obowiązuje**
+
+### Kontekst
+
+Dwa zgłoszenia właściciela ze zrzutów: „Odpowiedz i popraw jest jedno pod drugim,
+gdzie jest jednak miejsce by dać obok siebie" oraz „patrz ile miejsca nad «napisz
+komentarz» à żadnego między «też jest w porządku» polem do pisania".
+
+### Trzy rzeczy warte zapamiętania
+
+**1. `.field:first-child` nie trafia w formularzu POST.** `@csrf` i `@method()`
+renderują **ukryte pola**, a ukryte pole jest elementem. Każda reguła oparta na
+`:first-child` wewnątrz formularza pilnuje czegoś, czego tam nie ma — sprawdzone
+pomiarem na ~50 formularzach serwisu. Naprawiona jest **przyczyna w `tokens.css`**,
+nie objaw w komentarzach: kopia reguły byłaby drugim źródłem prawdy o tej samej rzeczy.
+
+**2. Selektor sąsiedztwa naprawiający jeden układ potrafi zepsuć inny.**
+`input[type="hidden"] + .field` jest poprawne wszędzie **poza** ekranami odtwarzającymi
+cudzy formularz w pętli (419, 429), gdzie ukryte pole rozdziela dwa widoczne. Reguła
+z `+` potrzebuje więc pary z `~`, która odwraca ją tam, gdzie pole nie jest pierwsze.
+
+**3. Podział akcji idzie po odwracalności, nie po autorstwie.** „Zgłoś" wróciło do
+rzędu akcji zwykłych: renderowało się **po** `.danger-zone`, więc w jedynym stanie,
+w którym obie akcje są naraz (autor treści ogląda cudzy komentarz), kreska nie
+oddzielała już niczego.
+
+### Zmierzone
+
+Blok akcji pod komentarzem: 360 / 390 / 414 px **196,5 → 138 px** (3 → 2 wiersze),
+cudzy komentarz 117 → 66,5 px (2 → 1 wiersz). Pustka nad „Napisz komentarz"
+**24 → 0 px**, odstęp podpis → pole **0 → 12 px**.
+
+### Czego świadomie nie zrobiono
+
+**Przy 320 px akcje muszą się zawijać** — „Odpowiedz" + „Popraw" = 252,97 px przy
+wnętrzu karty 246 px. Zmieszczenie ich wymagałoby zwężenia przycisków, czego
+zgłoszenie zabrania wprost. **Parytet, nie poprawa — i to jest wynik, nie przeoczenie.**
+
+**„Wyślij komentarz" zostaje po lewej.** Pomiar jest lustrem: przesunięcie w prawo
+zyskuje na prawej dokładnie tyle, ile traci na lewej. Przy czcionce 200% różnica
+wynosi **0 px**, bo przycisk wypełnia panel.
+
+`row-gap` 8 px przy `column-gap` 12 px: gdyby oba były 12 px, blok przy 320 px byłby
+o 4 px **wyższy** niż przed poprawką — zgłoszenie o zmarnowanym miejscu załatwione
+dołożeniem miejsca.
+
+📄 `resources/css/tokens.css` · `resources/views/components/comment-thread.blade.php` ·
+`scripts/uklad-komentarzy.mjs` · `AkcjeKomentarzaWJednymRzedzieTest` ·
+`RytmFormularzaKomentarzaTest` · D-154 · D-158 · issue #444 · issue #445
+
+---
+
+## D-178 · Zawężenie kolumn musi obejmować klucze obce relacji dociąganych dalej
+
+**Data:** 12 września 2026 · PR #449 · issue #447 · Status: **obowiązuje**
+
+### Kontekst
+
+Zgłoszenie właściciela: „klikam na bigos z cukinii, przekierowuje mnie na to okno
+gdzie jest info Ula bigos napisz komentarz itp a **nie ma przepisu ani zdjęcia**".
+
+Odtworzone na produkcji: strona wpisu zwracała 200, a w całym `<main>` było **zero
+obrazków** — przy zdjęciu widocznym na tej samej karcie w strumieniu. Dwa ekrany
+rysowały ten sam komponent i **nie zgadzały się, czy wpis ma zdjęcie**.
+
+### Przyczyna
+
+`PostController::show()` doładowywał `recipe:id,title,slug`. Zawężenie gubiło dwie
+kolumny i **żadna nie zgłaszała się błędem**:
+
+* **`hero_media_id`** — bez niej relacja `heroMedia` nie ma po czym trafić w wiersz
+  i zwraca `null`. Wpis z przepisu nie ma własnych zdjęć z założenia (#368), więc
+  tracił jedyne, jakie miał.
+* **`visibility`** — bez niej karta bierze widoczność **wpisu**, a ta dla wpisu
+  z przepisu jest zawsze `public` (bramką jest przepis). Strona pisała więc autorowi
+  **„· publicznie"** także pod przepisem, który widzą wyłącznie jego obserwujący.
+
+### Reguła
+
+**Zawężenie kolumn (`with('rel:a,b,c')`, `load(...)`) musi obejmować klucze obce
+relacji, które będą dociągane dalej.** Brak klucza nie jest błędem — jest **cichym
+`null`**. To jest klasa błędu, nie jeden przypadek: nie daje żadnego sygnału ani
+w logu, ani w testach, które nie patrzą na obecność treści.
+
+### Druga decyzja tego samego PR-a: wpis bez własnej treści nie ma własnej strony
+
+`Post::jestSamymPrzepisem()` i `Post::adresTresci()`. Karta prowadzi wprost do
+przepisu, a `posts.show` takiego wpisu przekierowuje.
+
+* **Przekierowanie, a nie 404 i nie skasowana trasa:** adres wpisu mógł już ktoś komuś
+  wysłać („Podziel się"). Ma działać dalej, tylko prowadzić tam, gdzie jest danie.
+* **`url()` zostaje kanonicznym adresem wpisu** i nie wolno go zamienić
+  z `adresTresci()` — kanoniczny idzie do udostępniania, `<link rel="canonical">`
+  i danych strukturalnych.
+* **Wpis z komentarzem nie jest „samym przepisem"** i zostaje przy swojej stronie: ma
+  już coś własnego — rozmowę ludzi. Gdyby warunek o to nie pytał, przekierowanie
+  zostawiłoby ją pod adresem, do którego nic nie prowadzi.
+
+### Zauważone przy okazji
+
+W `OdstepPodZdjeciemNaKarcieWpisuTest` stał komentarz **opisujący tę usterkę jako stan
+normalny**: „`PostController::show()` doładowuje przepis bez kolumny `hero_media_id`,
+więc na stronie samego wpisu zdjęcia przepisu NIE MA". Ktoś to zauważył, obszedł
+w teście i pojechał dalej. Komentarz przepisany.
+
+📄 `app/Http/Controllers/PostController.php` · `app/Models/Post.php` ·
+`WpisZPrzepisuProwadziDoPrzepisuTest` · issue #368
+
+---
+
+## D-179 · Powitanie na stronie głównej nie zależy od godziny serwera
+
+**Data:** 12 września 2026 · PR #450 · issue #38 · Status: **obowiązuje**
+
+### Stan zastany był inny, niż mówiło issue
+
+**Pytanie dnia na `/home` już było.** `git grep 'Co dziś gotujesz' -- resources/`
+wracał pusto tylko dlatego, że napis składa się w PHP (`FeedController::greeting()`),
+a widok renderuje gotowy tekst. Nie brakowało funkcji — brakowało **prawdy w tekście**
+i jakiegokolwiek testu.
+
+### Co było nieprawdziwe
+
+Cztery warianty po godzinie, a w nich dwa błędy naraz: **„Dobry wieczór" witało od
+15:00**, a godzinę brał `now()`, czyli **UTC** (issue #87). Latem o **11:50 czasu
+polskiego serwis liczył 9:50**, a po 23:00 witał „Dzień dobry".
+
+### Decyzja
+
+Jedno zdanie, które nie kłamie o żadnej godzinie: **„Witaj, {imię}. Co dziś
+gotujesz?"**.
+
+Naprawa progów dałaby cztery gałęzie do utrzymania i dalej mówiłaby o porze dnia
+**czytelnika**, której nie znamy: o strefę czasową nie pytamy tak samo, jak nie pytamy
+o płeć, a kuKINGi mieszkają też poza Polską.
+
+### Gdy imienia nie ma, zostaje samo pytanie
+
+`User::displayName()` podstawia „Użytkownik Kuking" — dobre wszędzie, gdzie trzeba
+kogoś **nazwać**, złe w powitaniu, bo udaje zwrot po imieniu, którego nie mamy.
+Powitanie czyta `profile?->display_name` wprost.
+
+### Zmierzone
+
+Pole dodawania na `/home`: 390 px `top` 189,5 → 189,5 px, 1512 px 154,5 → 154,5 px.
+„Witaj, {imię}." jest o sześć znaków krótsze, więc przy żadnym imieniu nie wypada
+gorzej: dla „Halina z Podlasia" nagłówek zszedł ze **105 px na 70 px**, a pole
+dodawania podniosło się z **225 px na 190 px**.
+
+### Dwa sabotaże znalazły dziury w samym teście
+
+Zwrot z pustym imieniem („Dzień dobry, . Co dziś gotujesz?") **przechodził**, bo
+asercja szła po fragmencie zamiast po całym nagłówku. Podmiana źródła imienia na
+`displayName()` **przechodziła** przy nazwie z samych spacji — `"   "` jest w PHP
+prawdziwe i `?:` jej nie podmienia.
+
+📄 `app/Http/Controllers/FeedController.php` · `PytanieDniaTest` ·
+`docs/brand/COPY_STYLE.md` · issue #87
+
+---
+
+## D-180 · Widoki pokazują wariant, nie status — i nigdy oryginału
+
+**Data:** 12 września 2026 · PR #451 · issues #430, #432 · Status: **obowiązuje**
+
+### Kontekst
+
+Zgłoszenie właściciela: „pisałem że trzeba jakoś od razu im pokazywać zdjęcie które
+dodali, a nie napis że jest przetwarzane. […] Starzy ludzie nie czytają i będzie
+panika co się stało".
+
+Przyczyna nie była w wydajności, tylko **w kolejności**: wgranie zdjęcia i publikacja
+wpisu to **jedno żądanie**, więc w chwili pierwszego renderu strony zadanie w tle nie
+mogło policzyć ani jednego wariantu. Komunikat „Twoje zdjęcie się jeszcze
+przygotowuje" nie był rzadkim widokiem na wypadek opóźnienia — **był tym, co po
+opublikowaniu wpisu widziała każda osoba, zawsze**.
+
+### Co obowiązywało do tego dnia
+
+„Widoki nigdy nie pokazują zdjęcia, które nie jest `ready`". Reguła była zapisana
+przez **stan wiersza**, a chroniła **bajty**: żeby na stronę nie trafił plik przysłany
+przez użytkownika, z nietkniętym EXIF-em. `ready` było skrótem na „ten plik przeszedł
+już przez nasz koder".
+
+### Dlaczego skrót przestał być prawdziwy
+
+Odkąd `StoreUploadedImage` robi wariant `podglad` synchronicznie, istnieje plik bez
+EXIF-u, a wiersz stoi na `pending`. Reguła po staremu kazała ukryć plik, który **jest
+bezpieczny**.
+
+### Decyzja
+
+Pokazujemy wyłącznie to, co wyszło z **naszego kodera** — czyli wariant zapisany
+w `metadata.variants`. **Oryginał nie jest wariantem** i nie ma drogi, którą mógłby
+tam trafić: `url()` go nie zna, trasa `media.show` ma białą listę nazw, status
+`deleted` nie przechodzi nigdy. Reguła jest **węższa** od poprzedniej — mówi
+o bajtach, nie o etykiecie — i nie ma w niej wyjątku dla właściciela.
+
+### Dlaczego nie pokazujemy oryginału, nawet za bramką dostępu
+
+Bramka odpowiada na pytanie **kto patrzy**, a problemem jest **co dostaje**. Oryginał
+niesie EXIF (aparat, data, a w wierszach sprzed D-023 także GPS) i **6 438 105 B**.
+Wariant rozbraja oba zarzuty naraz i waży **62 974 B** — **102× mniej**.
+
+### Cena, przyjęta świadomie
+
+**~450 ms w żądaniu publikacji** (zmierzone end-to-end: 400–471 ms wobec 19–29 ms bez
+podglądu) i **próg 25 Mpx**, powyżej którego podglądu nie robimy. Próg to granica
+pamięci kontenera web, nie ostrożność: libgd alokuje bitmapę **poza** licznikiem PHP,
+więc `memory_limit` jej nie zatrzyma — proces znika zabity przez OOM, bez wyjątku
+i bez śladu w dzienniku. Zmierzone: 12,2 Mpx → 101 MB, 24,5 Mpx → 154 MB,
+49,9 Mpx → 239 MB, przy 1 GB na wszystkie procesy PHP-FPM naraz.
+
+**Te 450 ms porównuje się do złej rzeczy, jeśli zestawić je z 19 ms.** Zanim serwer
+cokolwiek zrobi, 6,14 MB musi do niego dojechać — to 51,5 megabita. Żeby sam transfer
+zmieścił się w 400 ms, trzeba by **~130 Mbps w górę**; przy typowym LTE trwa on
+kilka sekund.
+
+### Skutek uboczny na korzyść
+
+Po przetworzeniu `podglad` zostaje w `srcset`, więc telefon 320 px pobiera
+**66,8 kB zamiast 178,6 kB**.
+
+📄 `app/Domain/Media/PodgladOdRazu.php` · `app/Models/Media.php` ·
+`docs/MEDIA_PIPELINE.md` · `PrzygotowywanieZdjeciaWpisuTest` · D-023 · issue #448
+
+---
+
+## D-181 · Podgląd przed wysłaniem idzie z pamięci przeglądarki, a jego układ mieszka w arkuszu
+
+**Data:** 12 września 2026 · PR #451 · issue #430 · Status: **obowiązuje**
+
+### Kontekst
+
+Pytanie właściciela: „Nie można zrobić coś by z cache przeglądarki pokazywało chwilowo
+a nie z serwera?".
+
+Odpowiedź ma dwie części. **Cache przeglądarki tego zdjęcia nie ma** — cache trzyma to,
+co przeglądarka **pobrała**, a zdjęcie poszło w drugą stronę, w ciele żądania POST.
+To, co istnieje, to **plik wybrany przez człowieka**, żyjący w pamięci strony do
+przejścia dalej. I tego właśnie używa `resources/js/app.js` (`URL.createObjectURL`) —
+**od dawna, jeszcze przed tym pytaniem**.
+
+### Dlaczego to nie zastępuje pracy po stronie serwera
+
+Publikacja wpisu to POST → przekierowanie → **nowy dokument**, a adres `blob:`
+poprzedniego dokumentu jest wtedy martwy — czyli znika dokładnie w tym momencie,
+w którym zaczyna się problem z D-180. Przetrwanie wymagałoby IndexedDB, JavaScriptu na
+dwóch ekranach i drugiego źródła prawdy o tym, jak wygląda to zdjęcie — a pomagałoby
+**wyłącznie osobie wgrywającej, na tym jednym urządzeniu**.
+
+**Obie połowy zostają i nie kolidują:** przed wysłaniem — z pamięci przeglądarki, po
+opublikowaniu — wariant z serwera.
+
+### Co było zepsute po stronie podglądu
+
+Siatka była wpisana **w skrypcie** jako `repeat(auto-fill, minmax(120px, 1fr))`, więc
+**jedno** zdjęcie dostawało jedną kolumnę z dwóch. Zmierzone: **150 px z 308 px** przy
+oknie 390 px, czyli 49%. Człowiek, który właśnie wybrał zdjęcie swojego obiadu, widział
+znaczek mniejszy niż połowa ekranu. To ta sama usterka, którą właściciel zgłosił przy
+bloku zastępczym w kolażu (#432), tylko o jeden ekran wcześniej.
+
+### Decyzja
+
+Skrypt mówi **ile** jest zdjęć (`data-ile`), a **układ jest w arkuszu**, na tokenach.
+Dopóki `gridTemplateColumns`, `borderRadius` i `marginTop` były przypisywane przez
+`element.style`, istniały **dwa źródła prawdy** o wyglądzie tego bloku — a to
+w skrypcie wygrywało z arkuszem i nie znało żadnego tokenu.
+
+### Zmierzone (obrazek / szerokość pojemnika)
+
+320 px: 238/238 (100%) → bez zmian · 360 px: 135/278 (49%) → **278/278 (100%)** ·
+390 px: 150/308 (49%) → **308/308 (100%)** · 414 px: 162/332 (49%) → **332/332 (100%)**.
+Źródło `blob:`, **63–103 ms** od wyboru pliku, zero naruszeń CSP (`img-src` ma `blob:`),
+zero wyjazdu w bok.
+
+### Czego pilnuje test, skoro wszystko dzieje się w przeglądarce
+
+PHPUnit widzi HTML **sprzed** wykonania skryptu, więc o tym ekranie nie powie nic.
+Pilnuje trzech rzeczy, które cicho cofają tę poprawkę: reguły dla jednego zdjęcia,
+tego że skrypt mówi arkuszowi liczbę zdjęć zamiast wpisywać style, i tego że **bez
+JavaScriptu nie zostaje na ekranie pusty `aria-live`**. Pomiar strony przeglądarkowej
+robi `scripts/podglad-przed-wyslaniem.mjs`.
+
+📄 `resources/js/app.js` · `resources/css/ekran-dodawania.css` ·
+`scripts/podglad-przed-wyslaniem.mjs` · `PodgladWybranegoZdjeciaTest` · D-180 · D-035

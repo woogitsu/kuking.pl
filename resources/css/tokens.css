@@ -969,6 +969,51 @@
     margin-top: 0;
   }
 
+  /* ...ALE „PIERWSZE DZIECKO" FORMULARZA PRAWIE NIGDY NIE JEST POLEM (#433).
+     ─────────────────────────────────────────────────────────────────────
+     Reguła wyżej miała zdjąć pustkę nad pierwszą etykietą i nie zdejmowała
+     jej w formularzu, czyli dokładnie tam, gdzie było zgłoszenie. Powód:
+     `@csrf` renderuje `<input type="hidden" name="_token">`, a `@method()`
+     drugie takie pole. Ukryte pole JEST elementem, więc `:first-child` trafia
+     w nie, nie w `.field` — i 24 px marginesu dalej doklejało się do wcięcia
+     panelu.
+
+     ZMIERZONE w Chromium na `/przepisy/{slug}`, formularz „Napisz komentarz":
+     od pierwszego piksela wnętrza panelu do pierwszego piksela etykiety było
+     24 px (i 48 px przy czcionce przeglądarki 200%) PONAD wcięciem panelu,
+     które samo ma 24 px — czyli nad napisem „Napisz komentarz" stało 48 px
+     pustki przy czcionce zwykłej. Po tej regule: 0 px ponad wcięciem.
+
+     JEST JEDEN UKŁAD, W KTÓRYM UKRYTE POLE ROZDZIELA DWA WIDOCZNE — i dlatego
+     reguła nie jest jedna, tylko dwie.
+
+     W większości formularzy (`auth/reset-password`, `admin/uzytkownicy`,
+     `admin/sygnaly`, formularz odpowiedzi w komentarzach) `.field` stojące
+     zaraz po ukrytym polu jest PIERWSZYM widocznym elementem formularza
+     i zdjęcie mu marginesu jest poprawne. Ale ekrany `errors/419`
+     i `errors/429` odtwarzają CUDZY formularz w pętli: pole długie wychodzi
+     jako `<div class="field">`, każde inne jako `<input type="hidden">`, oba
+     na tym samym poziomie. Formularz o dwóch polach długich przedzielonych
+     krótkim renderuje więc `.field`, ukryte, `.field` — i sama reguła z `+`
+     zdjęłaby DRUGIEMU polu odstęp, który ma tam być. To nie jest hipoteza
+     o przyszłości: tak wygląda dziś odbicie z formularza przepisu.
+
+     Druga reguła oddaje te 24 px z powrotem. `.field ~` znaczy „gdzieś
+     wcześniej wśród rodzeństwa stało już pole", czyli dokładnie „to nie jest
+     pierwsze pole formularza". Świadomie zwykłym `~` i `+`, a nie przez
+     `:not()` z selektorem złożonym: ten drugi jest z poziomu 4 i na starszym
+     Safari unieważniłby całą regułę razem z nią.
+
+     Ten sam warunek co przy `:first-child`: MIĘDZY polami dalej jest 24 px.
+     Znika wyłącznie odstęp wyciekający na krawędź kontenera. */
+  input[type="hidden"] + .field {
+    margin-top: 0;
+  }
+
+  .field ~ input[type="hidden"] + .field {
+    margin-top: var(--spacing-6);
+  }
+
   /* Przycisk zaraz po polu dostaje ten sam odstęp, jaki pola mają między
      sobą.
 
@@ -1050,6 +1095,42 @@
   .field-input::placeholder {
     color: var(--color-ink-muted);
     opacity: 1;
+  }
+  /* PODPOWIEDŹ NALEŻY DO ETYKIETY, A ODSTĘP POD NIĄ NALEŻY DO POLA (#433).
+     ─────────────────────────────────────────────────────────────────────
+     Zgłoszenie właściciela ze zrzutu z telefonu: „żadnego [miejsca] między
+     «też jest w porządku» a polem do pisania". Zmierzone w Chromium na
+     formularzu „Napisz komentarz": etykieta → podpowiedź 8 px, podpowiedź →
+     pole **0 px**. Odstęp stał więc tam, gdzie oddziela rzeczy powiązane
+     (etykietę od jej własnego wyjaśnienia), a znikał tam, gdzie miał
+     oddzielać — podpis dotykał obwódki pola grubej na 2 px w mocnym kolorze.
+
+     STRONĘ PARY WYBIERA D-154: odstęp deklaruje blok DOLNY, jako
+     `margin-top`. Górna strona (`.field-help`) zostaje z własnym marginesem
+     do etykiety i niczego nie deklaruje pod sobą.
+
+     REGUŁA WISI NA SĄSIEDZTWIE, NIE NA KLASIE — dokładnie jak w D-158.
+     `.field-input { margin-top: … }` bez warunku rozsunęłoby etykietę i pole
+     w KAŻDYM polu serwisu, także w kilkudziesięciu, które podpowiedzi nie
+     mają i o które nikt się nie zgłaszał. Odstęp istnieje po to, żeby pole
+     odkleiło się od PODPOWIEDZI, więc warunkiem jest podpowiedź stojąca
+     bezpośrednio nad nim.
+
+     WARTOŚĆ Z TOKENU, POŁOWA ODSTĘPU MIĘDZY POLAMI. `--spacing-3` to 12 px,
+     a między polami jest 24 px — dzięki temu pole razem z etykietą
+     i podpowiedzią dalej czyta się jako JEDEN blok, a nie jako trzy osobne.
+     Rytm w środku pola: 8 px (etykieta → podpowiedź), 12 px (podpowiedź →
+     pole), 24 px do następnego pola. Token, nie piksel, więc przy czcionce
+     przeglądarki 200% rośnie do 24 px razem z pismem — to odstęp
+     typograficzny, nie fizyczne minimum dla palca (D-082, D-107).
+
+     ZGŁOSZONE, NIETKNIĘTE: pole BEZ podpowiedzi dalej ma etykietę dosłownie
+     na sobie (zmierzone 0 px, np. „Nowe hasło" na `/ustawienia`). To ta sama
+     klasa usterki, ale inny stan ekranu i inne zgłoszenie — rozsuwanie
+     wszystkich pól serwisu przy okazji poprawki komentarzy byłoby zmianą
+     wyglądu kilkudziesięciu ekranów bez pomiaru żadnego z nich. */
+  .field-help + .field-input {
+    margin-top: var(--spacing-3);
   }
   .field-help {
     display: block;
