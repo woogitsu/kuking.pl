@@ -1300,7 +1300,8 @@ słowa napisanego przez człowieka.
 ### recipes
 Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 
-- `id`, `author_id`, `title`, `slug` (`UNIQUE`, 220 znaków);
+- `id`, `author_id`, `klucz_wyslania` (patrz niżej), `title`, `slug`
+  (`UNIQUE`, 220 znaków);
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`);
@@ -1310,6 +1311,46 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   `family_since_year`, `source_scan_media_id` — patrz niżej;
 - `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
+
+**`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
+migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN klucz_wyslania uuid NULL;
+CREATE UNIQUE INDEX recipes_one_per_klucz_wyslania
+    ON recipes (author_id, klucz_wyslania)
+    WHERE klucz_wyslania IS NOT NULL;
+```
+
+Zmierzone przed tą migracją (audyt podwójnego wysłania, 12 września 2026):
+dwa razy `POST /dodaj/przepis` z identycznym ciałem dawały **dwa** wiersze
+w `recipes`, drugi pod adresem z doklejoną dwójką (`…-2`), razem z drugim
+kompletem składników i kroków, drugą wersją w `recipe_versions`, drugim
+wpisem `recipe.published` w dzienniku audytowym i drugim wpisem w strumieniu
+obserwujących. Po migracji: **jeden** wiersz, a drugie kliknięcie odsyła pod
+ten sam adres.
+
+Klucz jest w indeksie razem z `author_id`, nie sam — dokładnie jak w `posts`
+i `cooked_events`: klucz wygenerowany w cudzej przeglądarce nie ma prawa
+wskazywać na przepis innej osoby.
+
+**Kolumnę wypełnia wyłącznie ZAŁOŻENIE przepisu.** `recipes.update` nie
+przysyła klucza i go nie nadpisuje — inaczej pierwsze dopisanie szczegółów
+zdejmowałoby ochronę po cichu.
+
+**Kolumna jest `NULL`-owalna i nie ma backfillu.** Przepisy sprzed tej
+migracji, z seederów i z fabryk mają `NULL`, a indeks częściowy
+(`WHERE klucz_wyslania IS NOT NULL`) ich nie obejmuje.
+
+**Wyłącznik:** `kuking.formularze.klucz_wyslania_wlaczony` (`false` →
+formularz nie renderuje ukrytego pola, kolumna dostaje `NULL`, indeks
+przestaje cokolwiek odbijać).
+
+**Rollback:** `DROP INDEX IF EXISTS recipes_one_per_klucz_wyslania`, potem
+`DROP COLUMN klucz_wyslania`. Bezstratnie i dlatego `down()` niczego nie
+odmawia (D-088 dotyczy wartości semantycznych): kolumna niesie wyłącznie
+identyfikator wysłania wygenerowany przez serwer, ani jednego słowa
+napisanego przez człowieka i ani jednej decyzji, którą ktoś podjął.
 
 **`summary varchar(2000) NULL`** — „Krótko o przepisie", zdanie albo dwa nad
 składnikami. Idzie też do `<meta name="description">` (przycięte do 155 znaków)
@@ -1693,6 +1734,26 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 `NULL` znaczy „komentarz pierwszego poziomu". Kasowanie jest miękkie
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
+
+**Podwójne kliknięcie „Wyślij" NIE jest tu pilnowane przez schemat —
+i to jest świadome.** Zmierzone przed poprawką (audyt podwójnego wysłania,
+12 września 2026): dwa identyczne `POST /wpisy/{post}/komentarz` dawały
+**dwa** wiersze i **dwa** powiadomienia u autora wpisu; po poprawce jeden
+i jedno. Ochrona stoi w akcji domenowej `PublishComment` i jest BLOKADĄ
+W BAZIE z rewalidacją pod nią (`pg_advisory_xact_lock` na tożsamości
+wysłania: autor + miejsce + wątek + treść), a nie ograniczeniem w tabeli.
+
+Powód, dla którego nie ma tu `klucz_wyslania` jak w `posts`, `recipes`,
+`cooked_events` i `reports`: klucz musi przyjechać z formularza, a formularz
+komentarza jest **jeden dla trzech ekranów**
+(`resources/views/components/comment-thread.blade.php`) i nie ma w nim
+miejsca na własne pole bez zmiany tego komponentu.
+
+Powód, dla którego nie ma tu `UNIQUE` na treści: to samo zdanie pod tym samym
+wpisem po tygodniu jest **nową reakcją, nie duplikatem**, a zakaz bez okna
+czasowego wyciszałby rozmowę. Okno stoi
+w `kuking.formularze.okno_powtorzenia_komentarza_sekund` (domyślnie 60 s,
+`0` wyłącza mechanizm).
 
 ### collections + collection_items
 Osobisty zeszyt.

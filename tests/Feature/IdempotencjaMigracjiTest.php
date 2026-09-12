@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\Report;
 use App\Support\NumerSprawy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +37,11 @@ class IdempotencjaMigracjiTest extends TestCase
     private function migracjaWpisow(): object
     {
         return require database_path('migrations/2026_09_07_900200_add_klucz_wyslania_to_posts.php');
+    }
+
+    private function migracjaPrzepisow(): object
+    {
+        return require database_path('migrations/2026_09_12_600000_add_klucz_wyslania_to_recipes.php');
     }
 
     private function dwaOtwarteZgloszeniaTejSamejPary(): string
@@ -144,6 +150,60 @@ class IdempotencjaMigracjiTest extends TestCase
                 ->where('column_name', 'klucz_wyslania')
                 ->count(),
         );
+    }
+
+    public function test_cofniecie_migracji_przepisow_nie_kasuje_ani_jednego_przepisu(): void
+    {
+        // Plan wycofania z `docs/DATABASE.md`: `DROP INDEX`, potem
+        // `DROP COLUMN`. `down()` nie ma tu czego odmawiać (D-088 dotyczy
+        // wartości SEMANTYCZNYCH) i to jest teza tego testu: w kolumnie nie
+        // ma ani jednego słowa napisanego przez człowieka ani jednej jego
+        // decyzji, więc cofnięcie zabiera ochronę, a nie treść.
+        $osoba = $this->user('cofajacaprzepis');
+
+        $przepis = Recipe::factory()->for($osoba, 'author')->create([
+            'title' => 'Rosół, którego nie wolno stracić przy cofaniu schematu',
+            'klucz_wyslania' => (string) Str::uuid7(),
+        ]);
+
+        $this->migracjaPrzepisow()->down();
+
+        $this->assertSame(0, $this->ileIndeksow('recipes_one_per_klucz_wyslania'));
+        $this->assertSame(
+            'Rosół, którego nie wolno stracić przy cofaniu schematu',
+            DB::table('recipes')->where('id', $przepis->getKey())->value('title'),
+        );
+        $this->assertSame(
+            0,
+            DB::table('information_schema.columns')
+                ->where('table_name', 'recipes')
+                ->where('column_name', 'klucz_wyslania')
+                ->count(),
+        );
+    }
+
+    public function test_migracja_przepisow_zaklada_sie_od_nowa_po_cofnieciu(): void
+    {
+        // KONTROLA DODATNIA do testu wyżej: migracja, której nie da się
+        // założyć ponownie, jest równie zła co taka, której nie da się
+        // cofnąć — tylko w drugą stronę. Po `down()` i `up()` kolumna
+        // i indeks wracają, a przepis dalej jest.
+        $osoba = $this->user('odtwarzajacaprzepis');
+        $przepis = Recipe::factory()->for($osoba, 'author')->create();
+
+        $migracja = $this->migracjaPrzepisow();
+        $migracja->down();
+        $migracja->up();
+
+        $this->assertSame(1, $this->ileIndeksow('recipes_one_per_klucz_wyslania'));
+        $this->assertSame(
+            1,
+            DB::table('information_schema.columns')
+                ->where('table_name', 'recipes')
+                ->where('column_name', 'klucz_wyslania')
+                ->count(),
+        );
+        $this->assertSame(1, DB::table('recipes')->where('id', $przepis->getKey())->count());
     }
 
     private function ileIndeksow(string $nazwa): int

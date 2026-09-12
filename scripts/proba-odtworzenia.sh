@@ -53,9 +53,28 @@
 #
 #  URUCHOMIENIE
 #  ------------
+#    scripts/proba-odtworzenia.sh --petla-lokalna          <-- JEDNA KOMENDA
 #    scripts/proba-odtworzenia.sh --zrzut kuking-20260911-021700Z.dump
 #    scripts/proba-odtworzenia.sh --zrzut kopia.dump.cms --klucz PRYWATNY.pem
 #    scripts/proba-odtworzenia.sh --zrzut k.dump --zrodlo "$DSN_ZRODLA"
+#
+#  PĘTLA LOKALNA (--petla-lokalna) — całe ćwiczenie jedną komendą
+#  --------------------------------------------------------------
+#  kopia lokalnej bazy (`scripts/kopia-lokalna.sh`, ten sam skrypt, którym
+#  robi się kopię naprawdę) → odtworzenie do ŚWIEŻEJ, osobnej bazy →
+#  porównanie liczby wierszy W KAŻDEJ TABELI, co do jednego →
+#  `php artisan migrate:status` na odtworzonej bazie.
+#
+#  Rozjazd choćby jednej tabeli kończy się kodem 63. Brakująca albo czekająca
+#  migracja — kodem 64. Adres bazy źródłowej bierze się z `.env` tego
+#  repozytorium (albo ze zmiennej `PROBA_ZRODLO`), a serwerem, na którym
+#  staje baza próbna, jest ten sam serwer — bo obie są lokalne.
+#
+#  DLACZEGO PĘTLA WOŁA `kopia-lokalna.sh`, A NIE `pg_dump` WPROST
+#  Bo ćwiczeniem ma być ODTWORZENIE TEJ KOPII, którą się naprawdę robi,
+#  a nie zrzutu zrobionego obok, innymi przełącznikami. Zrzut z własnego
+#  `pg_dump` w tym skrypcie dowodziłby tylko tego, że ten skrypt umie
+#  rozmawiać sam ze sobą.
 #
 #  Adres serwera, na którym wolno założyć bazę próbną, bierze się z `--serwer`
 #  albo ze zmiennej `PROBA_SERWER`. To MA BYĆ inny serwer niż produkcyjny —
@@ -91,6 +110,8 @@
 #    74  za mało kluczy obcych
 #    75  ograniczenie CHECK nie działa
 #    76  ograniczenie UNIQUE nie działa
+#    64  migracje w odtworzonej bazie nie zgadzają się z repozytorium
+#    65  PĘTLA LOKALNA: nie udało się zrobić kopii (scripts/kopia-lokalna.sh)
 # =============================================================================
 
 set -Eeuo pipefail
@@ -120,11 +141,24 @@ TABELE_DO_POLICZENIA="${PROBA_TABELE:-users,posts,recipes,cooked_events}"
 WYZWALACZE_WYMAGANE='follows_blokada_ma_pierwszenstwo_trg dziennik_zgod_bez_zmian dziennik_zgod_bez_czyszczenia'
 
 SERWER="${PROBA_SERWER:-}"
+# Katalog repozytorium — stąd bierze się `.env` (adres lokalnej bazy),
+# `scripts/kopia-lokalna.sh` i `artisan`. Liczony od położenia TEGO pliku,
+# nie od katalogu roboczego: ćwiczenie wolno uruchomić skądkolwiek.
+KATALOG_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 BAZA=''
 PLIK_ZRZUTU=''
 PLIK_KLUCZA=''
 DSN_ZRODLA=''
 ZOSTAW=0
+PETLA_LOKALNA=0
+# Porównanie ŚCISŁE: każda tabela co do jednego wiersza. Włącza je pętla
+# lokalna, bo tam baza źródłowa stoi w miejscu i nie ma prawa się rozjechać.
+SCISLE=0
+# Liczby, którymi kończy się przebieg — zbierane po drodze, wypisywane na końcu.
+TABEL_POROWNANYCH=0
+WIERSZY_W_ZRODLE=0
+WIERSZY_W_PROBIE=0
+MIGRACJI_WYKONANYCH=0
 
 ZIELONY=$'\033[0;32m'
 CZERWONY=$'\033[0;31m'
@@ -168,10 +202,64 @@ Próba odtworzenia bazy Kuking z zrzutu (restore drill).
                     porównać liczby wierszy co do jednego
   --tabele a,b,c    które tabele policzyć po nazwie
   --zostaw          nie kasuj bazy próbnej po ćwiczeniu (do obejrzenia)
+  --petla-lokalna   CAŁE ĆWICZENIE JEDNĄ KOMENDĄ: kopia lokalnej bazy →
+                    odtworzenie do świeżej bazy → porównanie liczby wierszy
+                    w KAŻDEJ tabeli → migrate:status. Adres bazy bierze
+                    z `.env` (albo ze zmiennej PROBA_ZRODLO)
+  --scisle          liczby wierszy muszą zgadzać się CO DO JEDNEGO
+                    (w --petla-lokalna włączone samo)
   -h, --help        ta pomoc
 
 Pełna procedura dla człowieka: docs/infra/KOPIE_I_ODTWORZENIE.md §8
 POMOC
+}
+
+# =============================================================================
+#  ADRES LOKALNEJ BAZY — składany z `.env`, a nie zgadywany
+#
+#  Pętla lokalna ma być JEDNĄ komendą, więc nie może wymagać, żeby człowiek
+#  przepisywał DSN z `.env` do wiersza polecenia. Czytamy stamtąd cztery
+#  wartości i składamy adres. Hasło przechodzi przez kodowanie procentowe,
+#  bo `@` albo `/` w haśle rozbiłoby adres na części w złych miejscach.
+# =============================================================================
+zakoduj_url() {
+  local surowy="$1" wynik='' znak
+  local i
+  for ((i = 0; i < ${#surowy}; i++)); do
+    znak="${surowy:i:1}"
+    case "${znak}" in
+      [a-zA-Z0-9.~_-]) wynik+="${znak}" ;;
+      *) wynik+="$(printf '%%%02X' "'${znak}")" ;;
+    esac
+  done
+  printf '%s' "${wynik}"
+}
+
+z_env() {
+  local klucz="$1" plik="${KATALOG_REPO}/.env"
+  [[ -f "${plik}" ]] || return 0
+  sed -n -E "s/^[[:space:]]*${klucz}[[:space:]]*=[[:space:]]*//p" "${plik}" \
+    | tail -n 1 | sed -E 's/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/' | tr -d '\r'
+}
+
+dsn_z_env() {
+  local host port uzytkownik haslo baza
+  host="$(z_env DB_HOST)"; port="$(z_env DB_PORT)"
+  uzytkownik="$(z_env DB_USERNAME)"; haslo="$(z_env DB_PASSWORD)"
+  baza="$(z_env DB_DATABASE)"
+
+  [[ -n "${host}" && -n "${uzytkownik}" && -n "${baza}" ]] || return 0
+
+  printf 'postgresql://%s:%s@%s:%s/%s' \
+    "$(zakoduj_url "${uzytkownik}")" "$(zakoduj_url "${haslo}")" \
+    "${host}" "${port:-5432}" "${baza}"
+}
+
+# Ten sam adres, inna baza na końcu. Używane dwa razy: do adresu bazy
+# utrzymaniowej (`postgres`) i do adresu bazy próbnej.
+podmien_baze_w_dsn() {
+  local dsn="$1" nowa="$2"
+  printf '%s' "${dsn%/*}/${nowa}"
 }
 
 # Argumenty przetwarza FUNKCJA, a nie kod na poziomie pliku — żeby ten plik
@@ -210,6 +298,15 @@ przetworz_argumenty() {
         ZOSTAW=1
         shift
         ;;
+      --petla-lokalna)
+        PETLA_LOKALNA=1
+        SCISLE=1
+        shift
+        ;;
+      --scisle)
+        SCISLE=1
+        shift
+        ;;
       -h | --help)
         pomoc
         exit 0
@@ -221,10 +318,32 @@ przetworz_argumenty() {
     esac
   done
 
-  [[ -n "${PLIK_ZRZUTU}" ]] || {
-    pomoc >&2
-    padnij 2 'Brak --zrzut: nie ma czego odtwarzać.'
-  }
+  # W pętli lokalnej zrzutu jeszcze NIE MA — powstaje za chwilę, z lokalnej
+  # bazy. Poza pętlą brak `--zrzut` znaczy, że nie ma czego odtwarzać.
+  if ((PETLA_LOKALNA == 0)); then
+    [[ -n "${PLIK_ZRZUTU}" ]] || {
+      pomoc >&2
+      padnij 2 'Brak --zrzut: nie ma czego odtwarzać.'
+    }
+  else
+    [[ -z "${PLIK_ZRZUTU}" ]] || padnij 2 \
+      '--petla-lokalna sama robi kopię, więc --zrzut nie ma tu sensu.' \
+      'Chcesz odtworzyć GOTOWY plik? Wtedy bez --petla-lokalna.'
+
+    # Źródłem jest lokalna baza tego repozytorium. `PROBA_ZRODLO` pozwala
+    # wskazać inną — ale nadal LOKALNĄ: produkcji ten skrypt nie dotyka
+    # w żadnym trybie i pilnuje tego `bezpiecznik_serwera` niżej.
+    [[ -n "${DSN_ZRODLA}" ]] || DSN_ZRODLA="${PROBA_ZRODLO:-$(dsn_z_env)}"
+
+    [[ -n "${DSN_ZRODLA}" ]] || padnij 2 \
+      'Nie umiem złożyć adresu lokalnej bazy.' \
+      'Podaj go przez --zrodlo albo przez zmienną PROBA_ZRODLO, albo uzupełnij' \
+      'DB_* w pliku .env tego repozytorium.'
+
+    # Baza próbna staje na TYM SAMYM serwerze co źródło — obie są lokalne.
+    # Adres bazy utrzymaniowej składamy, podmieniając samą nazwę bazy.
+    [[ -n "${SERWER}" ]] || SERWER="$(podmien_baze_w_dsn "${DSN_ZRODLA}" postgres)"
+  fi
 
   [[ -n "${SERWER}" ]] || padnij 2 \
     'Brak --serwer (ani zmiennej PROBA_SERWER).' \
@@ -697,6 +816,204 @@ sprawdz_wiersze() {
 }
 
 # =============================================================================
+#  KROK 6B — LICZBA WIERSZY W KAŻDEJ TABELI, CO DO JEDNEGO
+#
+#  DLACZEGO TO NIE JEST TO SAMO, CO KROK 6
+#  Krok 6 liczy wiersze w CZTERECH tabelach wybranych z nazwy i porównuje je
+#  ze źródłem z tolerancją „źródło może mieć więcej". To dobra bramka dla
+#  zrzutu z produkcji, która pisze w trakcie zrzucania — i za słaba dla
+#  ćwiczenia, którego celem jest DOWÓD, że nic nie zginęło.
+#
+#  Tabela, o której nikt nie pomyślał, jest dokładnie tą, którą zrzut gubi
+#  po cichu: `dziennik_zgod`, `recipe_versions`, `notifications`. Zrzut bez
+#  jednej z nich przechodzi krok 6 bez jednego ostrzeżenia, bo krok 6 o nią
+#  nie pyta.
+#
+#  Dlatego tutaj pytamy o WSZYSTKIE tabele schematu `public` — najpierw
+#  w odtworzonej bazie, potem w źródle — i porównujemy pary. Przy `--scisle`
+#  (czyli zawsze w pętli lokalnej) różnica choćby jednego wiersza kończy
+#  przebieg kodem 63.
+#
+#  Kontrola ujemna tego kroku jest w `tests/skrypty/proba-odtworzenia.sh`:
+#  kilka wierszy skasowanych w odtworzonej bazie PRZED porównaniem ma ten
+#  skrypt OBLAĆ. Skrypt, który melduje sukces nie robiąc nic, to pułapka 5
+#  z `docs/PULAPKI_TESTOW.md`.
+# =============================================================================
+spis_tabel() {
+  psql "$1" --no-password --quiet --no-align --tuples-only --command "
+    SELECT table_name FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+     ORDER BY table_name" 2>/dev/null | tr -d '\r' | sed '/^$/d'
+}
+
+# Liczba wierszy we WSZYSTKICH tabelach naraz, jednym zapytaniem. Pętla po
+# tabelach z osobnym `psql` na każdą kosztowała przy 49 tabelach 49 połączeń
+# i trwała dłużej niż samo odtworzenie.
+liczniki_tabel() {
+  local dsn="$1" zapytanie='' tabela pierwsza=1
+
+  while IFS= read -r tabela; do
+    [[ -n "${tabela}" ]] || continue
+    ((pierwsza == 1)) || zapytanie+=" UNION ALL "
+    pierwsza=0
+    zapytanie+="SELECT '${tabela}' AS t, count(*) AS n FROM \"${tabela}\""
+  done <<<"$2"
+
+  [[ -n "${zapytanie}" ]] || return 0
+
+  psql "${dsn}" --no-password --quiet --no-align --tuples-only --field-separator='|' \
+    --command "SELECT t, n FROM (${zapytanie}) w ORDER BY t" 2>/dev/null | tr -d '\r' | sed '/^$/d'
+}
+
+porownaj_wszystkie_tabele() {
+  if [[ -z "${DSN_ZRODLA}" ]]; then
+    log 'bez --zrodlo nie ma z czym porównywać liczby wierszy tabela po tabeli — pomijam krok 6B.'
+    return 0
+  fi
+
+  local tabele_w_probie tabele_w_zrodle
+  tabele_w_probie="$(spis_tabel "${DSN_PROBNY}")"
+  tabele_w_zrodle="$(spis_tabel "${DSN_ZRODLA}")"
+
+  # Pułapka 2 z docs/PULAPKI_TESTOW.md: skan, który nie znalazł ŻADNEJ tabeli,
+  # przeszedłby ten krok bez jednej różnicy — czyli zameldowałby sukces,
+  # nie porównawszy niczego.
+  local ile_probie ile_zrodle
+  ile_probie="$(grep -c . <<<"${tabele_w_probie}" || true)"
+  ile_zrodle="$(grep -c . <<<"${tabele_w_zrodle}" || true)"
+
+  if ((ile_probie < MIN_TABEL)) || ((ile_zrodle < MIN_TABEL)); then
+    padnij 63 \
+      "Spis tabel jest za krótki: ${ile_probie} w próbie, ${ile_zrodle} w źródle (minimum ${MIN_TABEL})." \
+      'Porównanie na tak krótkiej liście nie dowodziłoby niczego — brak różnic' \
+      'znaczyłby wtedy „nie było czego porównać", a nie „wszystko się zgadza".'
+  fi
+
+  # Tabela, która JEST w źródle, a której NIE MA w odtworzonej bazie, to
+  # najcichsza z możliwych strat: liczniki pozostałych zgadzają się co do
+  # jednego, bo tej po prostu nikt nie liczy.
+  local brakujace=''
+  local tabela
+  while IFS= read -r tabela; do
+    [[ -n "${tabela}" ]] || continue
+    grep -qxF "${tabela}" <<<"${tabele_w_probie}" || brakujace+=" ${tabela}"
+  done <<<"${tabele_w_zrodle}"
+
+  if [[ -n "${brakujace}" ]]; then
+    padnij 63 \
+      "W odtworzonej bazie NIE MA tabel, które są w źródle:${brakujace}" \
+      'Zrzut zgubił je po drodze. Liczby wierszy w pozostałych tabelach mogą się' \
+      'przy tym zgadzać co do jednego — i właśnie dlatego ten krok pyta o spis,' \
+      'a nie tylko o liczby.'
+  fi
+
+  local liczniki_probie liczniki_zrodle
+  liczniki_probie="$(liczniki_tabel "${DSN_PROBNY}" "${tabele_w_probie}")"
+  liczniki_zrodle="$(liczniki_tabel "${DSN_ZRODLA}" "${tabele_w_zrodle}")"
+
+  local rozjazdy='' linia nazwa w_probie w_zrodle
+  TABEL_POROWNANYCH=0
+  WIERSZY_W_PROBIE=0
+  WIERSZY_W_ZRODLE=0
+
+  while IFS='|' read -r nazwa w_probie; do
+    [[ -n "${nazwa}" ]] || continue
+
+    w_zrodle="$(sed -n -E "s/^${nazwa}\|//p" <<<"${liczniki_zrodle}" | head -n 1)"
+    [[ -n "${w_zrodle}" ]] || w_zrodle='brak'
+
+    TABEL_POROWNANYCH=$((TABEL_POROWNANYCH + 1))
+    WIERSZY_W_PROBIE=$((WIERSZY_W_PROBIE + w_probie))
+    [[ "${w_zrodle}" == 'brak' ]] || WIERSZY_W_ZRODLE=$((WIERSZY_W_ZRODLE + w_zrodle))
+
+    if [[ "${w_zrodle}" == 'brak' ]]; then
+      rozjazdy+=$'\n'"    ${nazwa}: w próbie ${w_probie}, w źródle NIE MA TEJ TABELI"
+    elif ((SCISLE == 1)); then
+      ((w_probie == w_zrodle)) || rozjazdy+=$'\n'"    ${nazwa}: w próbie ${w_probie}, w źródle ${w_zrodle}"
+    else
+      ((w_probie <= w_zrodle)) || rozjazdy+=$'\n'"    ${nazwa}: w próbie ${w_probie}, w źródle ${w_zrodle} (próba ma WIĘCEJ)"
+    fi
+  done <<<"${liczniki_probie}"
+
+  if [[ -n "${rozjazdy}" ]]; then
+    padnij 63 \
+      'Liczba wierszy NIE ZGADZA SIĘ ze źródłem:'"${rozjazdy}" \
+      '' \
+      'Rozjazd choćby jednej tabeli znaczy, że z tej kopii NIE MA się bazy' \
+      'Kukinga z powrotem — ma się jej część. Przy zrzucie z bazy, do której' \
+      'ktoś pisze w trakcie, uruchom bez --scisle.'
+  fi
+
+  ok "porównano ${TABEL_POROWNANYCH} tabel co do jednego wiersza"
+  ok "wierszy razem: ${WIERSZY_W_PROBIE} w odtworzonej bazie, ${WIERSZY_W_ZRODLE} w źródle"
+}
+
+# =============================================================================
+#  KROK 6C — `php artisan migrate:status` NA ODTWORZONEJ BAZIE
+#
+#  Liczby wierszy mówią o DANYCH. Ten krok pyta o coś innego: czy odtworzona
+#  baza jest tą bazą, do której pasuje dzisiejszy kod. Zrzut sprzed trzech
+#  migracji odda komplet wierszy i przejdzie każdy poprzedni krok — a
+#  aplikacja postawiona na nim wywróci się na pierwszej kolumnie, której
+#  w nim nie ma.
+#
+#  Pytamy o WYNIK, nie o kod wyjścia: `migrate:status` kończy się zerem także
+#  wtedy, gdy wypisze same „Pending". To pułapka 5 — narzędzie melduje sukces,
+#  nie robiąc tego, po co je wołano.
+# =============================================================================
+sprawdz_migracje() {
+  if [[ ! -f "${KATALOG_REPO}/artisan" ]]; then
+    log 'nie widzę artisana — pomijam migrate:status (to ćwiczenie chodzi poza repozytorium?).'
+    return 0
+  fi
+
+  local wyjscie
+  # DB_URL przebija DB_HOST/DB_DATABASE w `config/database.php`, więc jednym
+  # przestawieniem kierujemy artisana na bazę PRÓBNĄ i tylko na nią.
+  if ! wyjscie="$(cd "${KATALOG_REPO}" && DB_URL="${DSN_PROBNY}" DB_DATABASE='' \
+    php artisan migrate:status --no-ansi 2>&1)"; then
+    padnij 64 \
+      'php artisan migrate:status nie wykonał się na odtworzonej bazie.' \
+      'Wyjście:' "${wyjscie}"
+  fi
+
+  # LICZYMY KOLUMNĘ STANU, NIE CAŁEGO WIERSZA — i to jest poprawka błędu,
+  # który ten krok miał przy pierwszym uruchomieniu.
+  #
+  # `grep -c -i 'Pending'` meldował jedną migrację czekającą na bazie, w której
+  # wszystkie były wykonane. Trafiał w NAZWĘ pliku:
+  # `2026_09_09_300000_create_pending_email_changes_table .. [1] Ran`.
+  # To jest pułapka 1 z docs/PULAPKI_TESTOW.md w czystej postaci — dopasowanie
+  # do całego wiersza łapie to samo słowo skądinąd — tylko że tutaj wypadła
+  # w drugą stronę niż zwykle: dała FAŁSZYWĄ CZERWIEŃ zamiast fałszywej
+  # zieleni. Gdyby wypadła w tamtą, nikt by jej nie zauważył.
+  #
+  # `migrate:status` kończy każdy wiersz stanem: `[N] Ran` albo `Pending`.
+  # Kotwiczymy na końcu wiersza i tylko tam.
+  local wykonane czekajace
+  wykonane="$(grep -cE '\[[0-9]+\][[:space:]]+Ran[[:space:]]*$' <<<"${wyjscie}" || true)"
+  czekajace="$(grep -cE '(^|[^A-Za-z_])Pending[[:space:]]*$' <<<"${wyjscie}" || true)"
+
+  if ((wykonane == 0)); then
+    padnij 64 \
+      'W odtworzonej bazie NIE MA ANI JEDNEJ wykonanej migracji.' \
+      'Zrzut zgubił tabelę `migrations` — dane mogą być komplet, a baza i tak' \
+      'nie wie, w jakim jest schemacie. Wyjście:' "${wyjscie}"
+  fi
+
+  if ((czekajace > 0)); then
+    padnij 64 \
+      "Odtworzona baza ma ${czekajace} migracji CZEKAJĄCYCH." \
+      'To znaczy, że zrzut jest starszy niż kod w tym repozytorium: dane wrócą,' \
+      'ale aplikacja postawiona na nich nie ruszy bez `php artisan migrate`.' \
+      'Wyjście:' "${wyjscie}"
+  fi
+
+  MIGRACJI_WYKONANYCH="${wykonane}"
+  ok "migrate:status na odtworzonej bazie: ${wykonane} wykonanych, 0 czekających"
+}
+
+# =============================================================================
 #  KROK 7 — WYZWALACZE I OGRANICZENIA: NAJPIERW ŻE SĄ
 # =============================================================================
 sprawdz_wyzwalacze() {
@@ -949,6 +1266,50 @@ sprzataj() {
   return "${kod}"
 }
 
+# =============================================================================
+#  KROK 0 (TYLKO W PĘTLI LOKALNEJ) — ZRÓB KOPIĘ TYM SKRYPTEM, KTÓRYM SIĘ ROBI
+#
+#  Woła `scripts/kopia-lokalna.sh`, a nie własny `pg_dump`. To jest cała
+#  wartość tego kroku: ćwiczymy odtworzenie TEJ kopii, którą naprawdę się
+#  robi, razem ze wszystkimi jej przełącznikami. Zrzut zrobiony tutaj obok,
+#  własnymi flagami, dowodziłby tylko tego, że ten skrypt umie rozmawiać
+#  sam ze sobą.
+#
+#  Kopia ląduje w katalogu roboczym, który ginie razem z ćwiczeniem (`sprzataj`)
+#  — bo zrzut to komplet danych osobowych i nie ma prawa zostać na dysku po
+#  przebiegu, o którym nikt już nie pamięta.
+# =============================================================================
+zrob_kopie_lokalna() {
+  local skrypt="${KATALOG_REPO}/scripts/kopia-lokalna.sh"
+
+  [[ -x "${skrypt}" ]] || padnij 65 \
+    "Nie ma ${skrypt} albo nie jest wykonywalny." \
+    'Pętla lokalna robi kopię TYM skryptem — bez niego nie ma czego odtwarzać.'
+
+  local katalog_kopii="${KATALOG_ROBOCZY}/kopia"
+  mkdir -p "${katalog_kopii}"
+
+  log "kopia lokalnej bazy przez scripts/kopia-lokalna.sh …"
+
+  local wyjscie
+  if ! wyjscie="$("${skrypt}" --zrodlo "${DSN_ZRODLA}" --katalog "${katalog_kopii}" 2>&1)"; then
+    printf '%s\n' "${wyjscie}" | sed 's/^/  kopia-lokalna: /' >&2
+    padnij 65 \
+      'scripts/kopia-lokalna.sh zakończył się błędem — KOPII NIE MA.' \
+      'Wyjście jest wyżej; kody wyjścia tamtego skryptu opisuje jego nagłówek.'
+  fi
+
+  # Nazwę pliku bierzemy z katalogu, nie z parsowania cudzego komunikatu:
+  # komunikat wolno zmienić bez uprzedzenia, plik na dysku jest faktem.
+  PLIK_ZRZUTU="$(find "${katalog_kopii}" -maxdepth 1 -type f -name 'kuking-*.dump' | sort | tail -n 1)"
+
+  [[ -n "${PLIK_ZRZUTU}" && -f "${PLIK_ZRZUTU}" ]] || padnij 65 \
+    'kopia-lokalna.sh zakończył się zerem, a pliku zrzutu w katalogu NIE MA.' \
+    "Szukałem w ${katalog_kopii}. Wyjście tamtego skryptu:" "${wyjscie}"
+
+  ok "kopia: ${PLIK_ZRZUTU##*/} ($(stat -c %s "${PLIK_ZRZUTU}") B)"
+}
+
 main() {
   przetworz_argumenty "$@"
 
@@ -958,7 +1319,16 @@ main() {
   log "start; baza próbna: ${BAZA}; serwer: $(bez_hasla "${SERWER}")"
 
   sprawdz_narzedzia
-  bezpiecznik_nazwy
+
+  # Kopia powstaje PO bezpieczniku nazwy, ale przed czymkolwiek innym —
+  # w pętli lokalnej to ona jest przedmiotem ćwiczenia.
+  if ((PETLA_LOKALNA == 1)); then
+    bezpiecznik_nazwy
+    zrob_kopie_lokalna
+  else
+    bezpiecznik_nazwy
+  fi
+
   przygotuj_zrzut
   przeczytaj_spis
   zaloz_baze_probna
@@ -966,6 +1336,8 @@ main() {
   odtworz
   sprawdz_tabele
   sprawdz_wiersze
+  porownaj_wszystkie_tabele
+  sprawdz_migracje
   sprawdz_wyzwalacze
   sprawdz_ograniczenia
   sprawdz_zachowanie
@@ -977,6 +1349,23 @@ main() {
   printf '  czas odszyfrowania: %s s\n' "${CZAS_ODSZYFROWANIA}" >&2
   printf '  czas odtworzenia:   %s s   %s← to jest zmierzone RTO tej warstwy%s\n' \
     "${CZAS_ODTWORZENIA}" "${ZOLTY}" "${RESET}" >&2
+
+  # LICZBY, A NIE PTASZKI. Przebieg, który kończy się samym „zaliczone",
+  # wygląda identycznie wtedy, gdy porównał 49 tabel, i wtedy, gdy nie
+  # porównał żadnej (pułapka 5 z docs/PULAPKI_TESTOW.md).
+  if ((TABEL_POROWNANYCH > 0)); then
+    printf '  tabel porównanych:  %s   %s\n' "${TABEL_POROWNANYCH}" \
+      "$( ((SCISLE == 1)) && printf 'co do jednego wiersza' || printf 'z tolerancją na zapisy w trakcie zrzutu')" >&2
+    printf '  wierszy w próbie:   %s\n' "${WIERSZY_W_PROBIE}" >&2
+    printf '  wierszy w źródle:   %s\n' "${WIERSZY_W_ZRODLE}" >&2
+  else
+    printf '  tabel porównanych:  0   %s← bez --zrodlo nie było z czym porównywać%s\n' \
+      "${ZOLTY}" "${RESET}" >&2
+  fi
+
+  if ((MIGRACJI_WYKONANYCH > 0)); then
+    printf '  migracji wykonanych:%s, czekających: 0\n' " ${MIGRACJI_WYKONANYCH}" >&2
+  fi
   printf '\nWpisz te liczby do tabeli w docs/infra/KOPIE_I_ODTWORZENIE.md §5.\n' >&2
   printf 'Zrzut, którego nikt nie odtworzył, jest obietnicą — ten właśnie przestał nią być.\n' >&2
 }
