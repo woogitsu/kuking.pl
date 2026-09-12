@@ -14314,3 +14314,68 @@ Pomiar obejmuje także szkice, puste stany, moderację, błędy i podpisane adre
 Uzupełnienie dziennika po scaleniu PR #481; opisuje pracę już obecną na `main`.
 
 📄 `tests/Feature/ObchodEkranowNieZostawiaMartwegoPrzyciskuTest.php`
+
+---
+
+## D-203 · Nowy styl korzysta z tokenów i zachowuje czytelność
+
+**Data:** 12 września 2026 · PR #483 · Status: **obowiązuje**
+
+### Decyzja
+
+Nowa paleta jasna i grafitowa ciemna działa w istniejących komponentach aplikacji.
+Znak pozostaje garnkiem z pokrywką w formie korony i uśmiechem. Podpis kafla
+dodawania ma bazowo 18 px; rozmiar pisma nie jest ceną za zmieszczenie układu.
+Zmiana zamyka kwestię podpisu z issue #478, pozostawioną w D-200.
+Konstytucja marki zachowuje społecznościowy charakter, „Ugotowałem” ponad lajkiem
+i brak fikcyjnej aktywności. Plan przepisów redakcyjnych nie oznacza ich publikacji.
+
+### Dowód
+
+Pomiar obu motywów, kafla oraz granice wyniku zapisano po scaleniu kodu.
+Nie przenosimy statycznego prototypu w miejsce Laravel.
+
+📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/NOWY_STYL.md` ·
+`docs/design/WERYFIKACJA_ALFA_08.md` · `resources/css/tokens.css`
+
+---
+
+## D-204 · Zły wybór zeszytu daje widoczny komunikat bez ujawniania własności
+
+**Data:** 12 września 2026 · PR #483 · Status: **obowiązuje**
+
+### Decyzja
+
+Oba endpointy zapisu sprawdzają UUID przed zapytaniem do PostgreSQL oraz istnienie
+zeszytu w obrębie właściciela. Cudzy i nieistniejący zeszyt mają ten sam komunikat.
+Autoryzacja treści pozostaje pierwsza, a pobranie modelu nadal ogranicza właściciel.
+Błąd jest dostępny po powrocie na strumień, nie tylko w sesji walidacji.
+Puste pole lub brak wyboru zachowuje zapis do zeszytu domyślnego.
+
+### Dowód
+
+Czternaście przypadków HTTP, rzeczywiste ciasteczko sesji przy powrocie oraz
+oddzielne kontrole usunięcia UUID, własności i komunikatu.
+Usunięcie zeszytu pomiędzy walidacją a pobraniem może nadal dać 404; ta zmiana
+nie przebudowuje transakcji.
+
+📄 `app/Http/Controllers/CollectionController.php` ·
+`tests/Feature/WyborZeszytuMaWalidacjeTest.php` ·
+`docs/product/WALIDACJA_WYBORU_ZESZYTU.md`
+
+---
+
+## D-205 · Przyrząd kontroli ma sprawdzać źródło i udowadniać wykrycie regresji
+
+**Data:** 12 września 2026 · PR #483 · Status: **obowiązuje**
+
+### Decyzja
+
+Pomiar kontrastu czyta produkcyjne tokeny i jest częścią builda Vite oraz Docker.
+Nie zastępuje pomiaru kaskady ani reflow. Kontrole negatywne w izolowanym CI
+najpierw wymagają dodatniego testu, potem rzeczywistej porażki po mutacji,
+przywrócenia z kopii poza repo i zgodności md5. Pełna suita idzie na przywróconym kodzie.
+Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisano w #484.
+
+📄 `scripts/kontrast-marki.mjs` · `scripts/kontrole-negatywne-alfa08.py` ·
+`docs/design/WERYFIKACJA_ALFA_08.md`

@@ -50,9 +50,10 @@ Obliczenie par kolorów wykonano z wynikiem pozytywnym. Kontrola ujemna
 i stan pozostałych bramek są zapisane w opisie PR. W tej sesji nie ma PHP,
 Composera, PostgreSQL ani binarki przeglądarki. Próba `apt-get update`
 zakończyła się błędami zmiany uprawnień; połączenie z repozytorium Ubuntu
-zakończyło się błędem proxy. Pełny test aplikacji i pomiar nowej wysokości
-kafla pozostają wymagane. Historyczne wymiary z PR #479 nie są wynikami
-tego pakietu.
+zakończyło się błędem proxy. Następnie pełne testy aplikacji, kontrole
+negatywne i pomiar nowej wysokości kafla zaliczono w CI. Wyniki są
+w `docs/design/WERYFIKACJA_ALFA_08.md`. Historyczne wymiary z PR #479
+nie są wynikami tego pakietu.
 
 ## Wycofanie
 
