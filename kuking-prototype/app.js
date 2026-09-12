@@ -20,7 +20,10 @@ document.addEventListener('click', (event) => {
     'feed-info': 'Wpisy są ułożone chronologicznie — od najnowszych, bez ukrytego rankingu.',
     cooked: 'Formularz „Ugotowałem” pozwoli dodać zdjęcie i krótką uwagę.',
     comment: 'Tutaj otworzy się rozmowa pod wpisem.',
-    'load-more': 'W pełnej aplikacji pojawi się kolejna porcja wpisów.'
+    'load-more': 'W pełnej aplikacji pojawi się kolejna porcja wpisów.',
+    'cook-mode': 'Tryb gotowania pokaże po jednym dużym kroku i uruchomi minutnik.',
+    'new-folder': 'Tutaj wpiszesz nazwę nowego folderu.',
+    'edit-profile': 'Tutaj zmienisz zdjęcie, nazwę i opis profilu.'
   };
 
   if (action === 'save') {
@@ -34,6 +37,47 @@ document.addEventListener('click', (event) => {
   }
 
   showToast(messages[action] || 'Ta funkcja zostanie podłączona do aplikacji Laravel.');
+});
+
+function showView(name) {
+  const target = document.querySelector(`[data-view="${name}"]`);
+  if (!target) return;
+  document.querySelectorAll('[data-view]').forEach((view) => {
+    const active = view === target;
+    view.hidden = !active;
+    view.classList.toggle('is-visible', active);
+  });
+  document.querySelectorAll('[data-route]').forEach((link) => {
+    const active = link.dataset.route === name || (name === 'przepis' && link.dataset.route === 'odkrywaj');
+    link.classList.toggle('is-active', active);
+    if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.addEventListener('click', (event) => {
+  const route = event.target.closest('[data-route]');
+  if (!route) return;
+  event.preventDefault();
+  history.pushState(null, '', route.getAttribute('href'));
+  showView(route.dataset.route);
+});
+
+window.addEventListener('popstate', () => showView(location.hash.slice(1) || 'start'));
+showView(location.hash.slice(1) || 'start');
+
+document.querySelector('.search-panel')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const phrase = document.querySelector('#search-input').value.trim();
+  showToast(phrase ? `Wyniki dla: „${phrase}”.` : 'Wpisz nazwę dania albo składnik.');
+});
+
+document.querySelectorAll('.filter-chips button').forEach((button) => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chips button').forEach((item) => item.setAttribute('aria-pressed', 'false'));
+    button.setAttribute('aria-pressed', 'true');
+    showToast(`Wybrano: ${button.textContent}.`);
+  });
 });
 
 document.querySelectorAll('.people-list button').forEach((button) => {

@@ -18,9 +18,9 @@
       </a>
 
       <nav class="desktop-nav" aria-label="Główna nawigacja">
-        <a class="is-active" href="#feed" aria-current="page">Start</a>
-        <a href="#odkrywaj">Odkrywaj</a>
-        <a href="#zeszyt">Mój zeszyt</a>
+        <a class="is-active" href="#start" data-route="start" aria-current="page">Start</a>
+        <a href="#odkrywaj" data-route="odkrywaj">Odkrywaj</a>
+        <a href="#zeszyt" data-route="zeszyt">Mój zeszyt</a>
       </nav>
 
       <div class="topbar__actions">
@@ -35,7 +35,8 @@
     </div>
   </header>
 
-  <main id="tresc" class="page-shell">
+  <main id="tresc">
+  <section class="page-shell view is-visible" data-view="start">
     <section class="feed-column" id="feed" aria-labelledby="feed-title">
       <div class="welcome-line">
         <div>
@@ -139,14 +140,65 @@
         <a class="button button--secondary button--full" href="#zeszyt">Otwórz mój zeszyt</a>
       </section>
     </aside>
+  </section>
+
+  <section class="content-view view" data-view="odkrywaj" hidden aria-labelledby="discover-title">
+    <header class="view-header">
+      <p class="eyebrow">Znajdź coś dobrego</p>
+      <h1 id="discover-title">Odkrywaj</h1>
+      <p>Przepisy i dania od ludzi, którzy naprawdę je ugotowali.</p>
+    </header>
+    <form class="search-panel" action="#odkrywaj" role="search">
+      <label for="search-input">Czego szukasz?</label>
+      <div class="search-row"><input id="search-input" type="search" placeholder="Np. szybki obiad albo sernik"><button class="button button--primary" type="submit">Szukaj</button></div>
+    </form>
+    <nav class="filter-chips" aria-label="Popularne kategorie">
+      <button type="button" aria-pressed="true">Dla Ciebie</button><button type="button">Obiad</button><button type="button">Zupy</button><button type="button">Ciasta</button><button type="button">Przetwory</button>
+    </nav>
+    <div class="discover-grid">
+      <article class="dish-card dish-card--wide">
+        <img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane z sosem grzybowym" width="1536" height="1152">
+        <div><p class="eyebrow">Ugotowane 12 razy</p><h2>Placki z sosem grzybowym</h2><p>Halina Nowak · 45 minut</p><a href="#przepis" data-route="przepis">Zobacz przepis</a></div>
+      </article>
+      <article class="topic-card topic-card--green"><span aria-hidden="true">♨</span><h2>Zupy na chłodniejszy dzień</h2><p>18 sprawdzonych przepisów</p><a href="#odkrywaj">Zobacz zupy</a></article>
+      <article class="topic-card topic-card--yellow"><span aria-hidden="true">✦</span><h2>Domowe wypieki</h2><p>Od chleba po szarlotkę</p><a href="#odkrywaj">Zobacz wypieki</a></article>
+    </div>
+  </section>
+
+  <section class="content-view view" data-view="przepis" hidden aria-labelledby="recipe-title">
+    <a class="back-link" href="#odkrywaj" data-route="odkrywaj">← Wróć do odkrywania</a>
+    <article class="recipe-view">
+      <header class="recipe-hero">
+        <div class="recipe-hero__copy"><p class="eyebrow">Przepis Haliny Nowak</p><h1 id="recipe-title">Placki ziemniaczane z sosem grzybowym</h1><p>Chrupiące na brzegach, miękkie w środku. Prosty obiad z produktów, które zwykle są w domu.</p><div class="recipe-meta"><span><strong>45 min</strong> razem</span><span><strong>4</strong> porcje</span><span><strong>Łatwy</strong> poziom</span></div></div>
+        <img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane z sosem grzybowym" width="1536" height="1152">
+      </header>
+      <div class="recipe-actions"><button class="button button--cook" type="button" data-action="cooked">✓ Ugotowałem</button><button class="button button--secondary" type="button" data-action="save" aria-pressed="false">▱ Do zeszytu</button></div>
+      <div class="recipe-columns">
+        <section><h2>Składniki</h2><ul class="ingredient-list"><li><span>ziemniaki</span><strong>1 kg</strong></li><li><span>cebula</span><strong>1 sztuka</strong></li><li><span>jajka</span><strong>2 sztuki</strong></li><li><span>mąka pszenna</span><strong>2 łyżki</strong></li><li><span>podgrzybki</span><strong>300 g</strong></li></ul></section>
+        <section><h2>Przygotowanie</h2><ol class="steps-list"><li><span>1</span><p>Zetrzyj ziemniaki i cebulę. Odciśnij nadmiar wody.</p></li><li><span>2</span><p>Dodaj jajka, mąkę, sól i odrobinę majeranku. Wymieszaj.</p></li><li><span>3</span><p>Smaż niewielkie placki z obu stron na złoty kolor.</p></li><li><span>4</span><p>Grzyby podsmaż, dodaj śmietanę i duś 10 minut.</p></li></ol><button class="button button--primary button--full" type="button" data-action="cook-mode">Włącz tryb gotowania</button></section>
+      </div>
+    </article>
+  </section>
+
+  <section class="content-view view" data-view="zeszyt" hidden aria-labelledby="notebook-title">
+    <header class="view-header"><p class="eyebrow">Twoje zapisane rzeczy</p><h1 id="notebook-title">Mój zeszyt</h1><p>Wszystko, do czego chcesz wrócić — bez szukania od nowa.</p></header>
+    <nav class="notebook-tabs" aria-label="Zawartość zeszytu"><button class="is-active" type="button">Przepisy <span>24</span></button><button type="button">Inspiracje <span>7</span></button><button type="button">Moje przepisy <span>5</span></button></nav>
+    <div class="notebook-list"><article><img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane" width="320" height="240"><div><p class="eyebrow">Obiad · 45 min</p><h2>Placki ziemniaczane z sosem</h2><p>Halina Nowak</p><a href="#przepis" data-route="przepis">Otwórz przepis</a></div></article><div class="empty-prompt"><span aria-hidden="true">＋</span><div><h2>Utwórz własny folder</h2><p>Na przykład „Na niedzielę” albo „Do wypróbowania”.</p></div><button class="button button--secondary" type="button" data-action="new-folder">Nowy folder</button></div></div>
+  </section>
+
+  <section class="content-view view" data-view="profil" hidden aria-labelledby="profile-title">
+    <header class="profile-hero"><span class="profile-avatar" aria-hidden="true">B</span><div><p class="eyebrow">Twój profil</p><h1 id="profile-title">Basia Kowalska</h1><p>@basiawgarach · Warszawa</p><p>Gotuję prosto, po domowemu i zawsze z dużą ilością koperku.</p><button class="button button--secondary" type="button" data-action="edit-profile">Zmień swój profil</button></div></header>
+    <dl class="profile-stats"><div><dt>Wpisy</dt><dd>38</dd></div><div><dt>Przepisy</dt><dd>5</dd></div><div><dt>Ugotowane</dt><dd>21</dd></div><div><dt>Obserwujący</dt><dd>124</dd></div></dl>
+    <section class="profile-content"><div><h2>Ostatnio u Ciebie</h2><p class="profile-note">Jeszcze nic dziś nie dodałaś.</p></div><button class="button button--primary" type="button" data-action="add-photo">＋ Dodaj dzisiejsze danie</button></section>
+  </section>
   </main>
 
   <nav class="bottom-nav" aria-label="Dolna nawigacja">
-    <a class="is-active" href="#feed" aria-current="page"><span aria-hidden="true">⌂</span>Start</a>
-    <a href="#szukaj"><span aria-hidden="true">⌕</span>Szukaj</a>
+    <a class="is-active" href="#start" data-route="start" aria-current="page"><span aria-hidden="true">⌂</span>Start</a>
+    <a href="#odkrywaj" data-route="odkrywaj"><span aria-hidden="true">⌕</span>Szukaj</a>
     <a class="bottom-nav__add" href="#dodaj"><span aria-hidden="true">＋</span>Dodaj</a>
-    <a href="#zeszyt"><span aria-hidden="true">▤</span>Moje</a>
-    <a href="#profil"><span aria-hidden="true">○</span>Profil</a>
+    <a href="#zeszyt" data-route="zeszyt"><span aria-hidden="true">▤</span>Moje</a>
+    <a href="#profil" data-route="profil"><span aria-hidden="true">○</span>Profil</a>
   </nav>
 
   <div class="toast" role="status" aria-live="polite" hidden></div>
