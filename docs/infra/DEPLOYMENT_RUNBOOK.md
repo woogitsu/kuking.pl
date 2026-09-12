@@ -1110,13 +1110,15 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 > Oraz **umowa powierzenia z Meta** (#8), która jest ryzykiem formalnym,
 > nie technicznym, i nie blokuje działania funkcji.
 >
-> ⚠️ **Jedna rzecz w dokumentacji się nie zgadza z rzeczywistością.**
-> `FACEBOOK_LOGIN_URUCHOMIENIE.md` §6.1 i punkt 7 listy z 8E.1 mówią, że
-> **przeglądu nie składamy**, bo nie prosimy o uprawnienie, które go wymaga.
-> Właściciel mówi, że przegląd był i został zatwierdzony. Jedno z dwojga jest
-> nieaktualne — patrz nota w §6.1 tamtego dokumentu. **Do rozstrzygnięcia
-> jednym zdaniem od właściciela**, zanim ktoś zaplanuje kolejne wdrożenie
-> według przewidywania, które się nie sprawdziło.
+> ⛔ **Punkt 7 listy z 8E.1 jest BŁĘDNY i został sprostowany.** Mówi, że
+> „App Review NIE jest potrzebny — to przełącznik". **Był potrzebny:**
+> właściciel złożył wniosek, Meta go zatwierdziła, dopiero potem aplikacja
+> poszła na Live. To samo przewidywanie stoi w `FACEBOOK_LOGIN_URUCHOMIENIE.md`
+> §2 i §6.1 — tam też jest sprostowane.
+>
+> **Planując kolejne wdrożenie, przewiduj czas na przegląd aplikacji**, nawet
+> przy samych uprawnieniach podstawowych (`public_profile`, `email`). Ile on
+> trwa — nie wiemy; nasz przypadek to jedna obserwacja, nie SLA.
 
 
 **Kiedy:** po kroku 8D, przed kampanią startową.
@@ -1189,11 +1191,18 @@ tamtego pliku, do odhaczania:
 6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
    zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
 7. **App Review → Permissions and Features**: `public_profile` i `email` na
-   **Advanced Access**. **Wniosku App Review tu NIE MA** — oba uprawnienia
-   mają dostęp zaawansowany z automatu, zostaje przełącznik. Jeśli panel
-   poprosi o **weryfikację biznesową**, złóż ją (KRS 0000901262,
-   NIP 5423435334) — to jedyna procedura w tym kroku o nieznanym czasie
-   trwania.
+   **Advanced Access**.
+
+   > ⛔ **SPROSTOWANIE 12.09.2026.** Stało tu: „Wniosku App Review tu NIE MA
+   > — oba uprawnienia mają dostęp zaawansowany z automatu, zostaje
+   > przełącznik". **To było nieprawdą.** Przy wdrożeniu 12.09 właściciel
+   > złożył wniosek o App Review i Meta go zatwierdziła; dopiero potem
+   > aplikacja poszła na Live. **Przewiduj czas na przegląd**, nawet przy
+   > samych uprawnieniach podstawowych. Ile trwa — nie wiemy, jedna
+   > obserwacja to nie SLA.
+
+   Jeśli panel poprosi o **weryfikację biznesową**, złóż ją (KRS 0000901262,
+   NIP 5423435334).
 8. **Settings → Basic → App ID** i **App Secret** („Show") — to są dwie
    wartości do Railway z 8E.2. **App Secret jest sekretem**: nie wysyłaj go
    pocztą, nie wklejaj do issue na GitHubie ani do rozmowy z agentem.

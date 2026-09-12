@@ -466,27 +466,26 @@ się spodziewało.
 
 ### 6.1. Ile trwa — nie wiem i nie zgaduję
 
-> ## ⚠️ 12 września 2026: rzeczywistość nie potwierdziła tego przewidywania
+> ## ⛔ 12 września 2026: TO PRZEWIDYWANIE BYŁO BŁĘDNE — przegląd był
 >
-> Ten rozdział mówi, że **przeglądu nie składamy**. Właściciel zgłosił, że
-> aplikacja **przeszła przegląd, został on zatwierdzony**, a aplikacja jest
-> opublikowana (Live) i wejście kontem Facebooka działa — co niezależnie
-> potwierdza produkcja (`/health` → `checks.facebook.ok = true`, przycisk na
+> **Właściciel złożył wniosek o App Review i Meta go zatwierdziła.** Aplikacja
+> jest opublikowana (Live), a wejście kontem Facebooka działa — potwierdza to
+> niezależnie produkcja (`/health` → `checks.facebook.ok = true`, przycisk na
 > `/login`).
 >
-> **Nie przepisuję poniższego tekstu, bo nie wiem, które z dwojga jest
-> prawdą**, a zgadywanie w runbooku jest gorsze niż jawna rozbieżność:
+> Rozdział niżej twierdzi coś przeciwnego: „przeglądu nie składamy, bo nie
+> prosimy o żadne uprawnienie, które go wymaga” — to samo stoi w §2 i w punkcie 7
+> listy w `DEPLOYMENT_RUNBOOK.md` KROK 8E.1. **Przewidywanie się nie
+> sprawdziło.** Nie wiemy, czy Meta zażądała przeglądu dla samego
+> `public_profile` i `email`, czy wymusił go nowy kreator aplikacji — wiemy
+> tylko, że **odbył się i był potrzebny**.
 >
-> 1. przegląd był naprawdę potrzebny — wtedy §2 i §6.1 są błędne i trzeba je
->    poprawić razem z listą w `DEPLOYMENT_RUNBOOK.md` KROK 8E.1 punkt 7;
-> 2. albo „review" w relacji właściciela znaczy coś innego niż App Review —
->    np. przyznanie **Advanced Access** dla `public_profile` i `email` albo
->    samo przestawienie aplikacji na **Live** — a wtedy §6.1 zostaje w mocy
->    i wystarczy dopisać, że nowy kreator nazywa ten krok inaczej.
+> **Co z tego wynika dla następnego wdrożenia:** przewiduj czas na przegląd
+> aplikacji, nawet jeśli prosisz wyłącznie o uprawnienia podstawowe. Ile on
+> trwa — dalej nie wiemy; nasz przypadek to **jedna obserwacja, nie SLA**.
 >
-> **Rozstrzyga jedno zdanie od właściciela.** Do tego czasu nikt nie powinien
-> planować kolejnego wdrożenia w oparciu o zdanie „przeglądu nie składamy" —
-> ani go kasować.
+> Zdania niżej zostają **jako zapis tego, co przewidywano**, żeby widać było,
+> gdzie rozumowanie rozjechało się z rzeczywistością. Nie planuj według nich.
 
 
 **Meta nie podaje w dokumentacji żadnego terminu ani SLA dla przeglądu
@@ -1120,7 +1119,7 @@ minutę.
 >
 > | pozycja z tabeli niżej | co rozstrzygnęło wdrożenie |
 > |---|---|
-> | Czas trwania przeglądu aplikacji | przegląd **był i został zatwierdzony** (relacja właściciela) — czyli założenie „przeglądu nie składamy" z §6.1 nie sprawdziło się albo znaczy co innego; patrz nota w §6.1 |
+> | Czas trwania przeglądu aplikacji | **przegląd był i został zatwierdzony** — założenie „przeglądu nie składamy” z §2 i §6.1 było BŁĘDNE. Ile trwał, dalej nie wiemy: jedna obserwacja to nie SLA. Patrz nota w §6.1 |
 > | Czy weryfikacja biznesowa dotyczy nas | aplikacja jest opublikowana, więc przeszła wszystko, czego Meta wymagała — **czy weryfikacja biznesowa była jednym z tych kroków, wie tylko właściciel** |
 > | Czy Meta przyjmie `/prywatnosc` jako adres instrukcji usuwania danych | **przyjęła** — aplikacja jest Live, a ten adres był wpisany |
 > | Dzisiejszy wygląd kreatora i pełna lista przypadków użycia | właściciel przeszedł przez kreator; jeśli nazwy przycisków się różniły, warto to dopisać |
@@ -1134,7 +1133,7 @@ listy z góry, bo tam łatwo ją przeczytać i zapomnieć.
 
 | Co | Dlaczego nie i co z tym zrobić |
 |---|---|
-| **Czas trwania przeglądu aplikacji** | Meta nie podaje SLA w dokumentacji. Jedyna znaleziona liczba dotyczyła innego programu. **W naszym przypadku pytanie bez treści — przeglądu nie składamy** (§6.1) |
+| **Czas trwania przeglądu aplikacji** | Meta nie podaje SLA w dokumentacji. **Nieaktualne od 12.09.2026: przegląd był i został zatwierdzony** (nota w §6.1). Czasu trwania dalej nie znamy |
 | **Czy weryfikacja biznesowa dotyczy nas** | Dokumentacja mówi dwie rzeczy, które się nie składają (§3.5). **Rozstrzyga punkt 9 z tabeli, w minutę** |
 | **Dokumenty i czas weryfikacji biznesowej** | Dokumentacja odsyła do Centrum pomocy Business Managera, którego nie czytałem |
 | **Czy `localhost` wolno dopisać do adresów przekierowań** | Dokumentacja Meta milczy; twierdzenia pochodzą z forów (§4.4) |
