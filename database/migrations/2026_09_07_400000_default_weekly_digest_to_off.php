@@ -74,6 +74,22 @@ use Illuminate\Support\Facades\DB;
  */
 return new class extends Migration
 {
+    /**
+     * ŚWIADOMIE PUSTY `down()` — deklaracja, nie przeoczenie.
+     *
+     * Uzasadnienie w całości stoi w sekcji „PLAN COFNIĘCIA" w nagłówku; tutaj
+     * jest jego skrót w formie, którą czyta MASZYNA:
+     * `tests/Feature/KazdaMigracjaMaWycofanieTest.php` oblewa każdy pusty
+     * `down()`, który tej stałej nie ma. Bez niej nowa migracja bez wycofania
+     * przemknęłaby przez CI pod pretekstem „przecież tamta też jest pusta" —
+     * a tamta jest pusta z powodu, który ktoś musiał wypisać.
+     */
+    public const WYCOFANIE_NIC_NIE_ROBI = 'Wierny rollback przywróciłby `DEFAULT true` na '
+        .'`users.wants_weekly_digest`, czyli zapisywałby nowe konta na prawdziwy mailing bez ani '
+        .'jednego kliknięcia — formularz rejestracji o tę zgodę nie pyta (D-072, audyt DB2). '
+        .'Listu wysłanego bez zgody nie da się odwołać, więc bezpieczny rollback bije tu wierny: '
+        .'`DEFAULT false` zostaje, a kto naprawdę chce opt-outu, robi jawny ALTER TABLE z ręki.';
+
     public function up(): void
     {
         // Sam `DEFAULT` — dla każdej drogi tworzenia konta, nie tylko

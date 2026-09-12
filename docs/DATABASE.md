@@ -10,6 +10,22 @@
 - JSONB tylko dla półstrukturalnych danych;
 - recipe versions od początku.
 
+## Czym się sprawdza, że wycofania naprawdę działają
+
+`AGENTS.md` §6 wymaga przy każdej zmianie schematu opisu rollbacku. Opis to
+za mało — rollback trzeba URUCHOMIĆ, i robią to dwie różne rzeczy:
+
+| Narzędzie | Co mierzy | Ile trwa |
+|---|---|---|
+| `./scripts/proba-wycofania.sh` | podnosi 76 migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej z 76 głębokości z osobna | kilka minut |
+| `tests/Feature/KazdaMigracjaMaWycofanieTest.php` | że każda migracja MA własny, niepusty `down()`; świadoma pustka musi być zadeklarowana stałą `WYCOFANIE_NIC_NIE_ROBI` z uzasadnieniem | ułamek sekundy, w każdym `php artisan test` |
+
+Skrypt schodzi do zera na PUSTEJ bazie, więc nie mierzy zachowania `down()`
+przy danych — tego pilnują osobne testy odmowy (`CofniecieMigracji*Test`),
+po jednym na strażnika z D-088. Stan zmierzony 12 września 2026: 76 z 76
+migracji wycofuje się i wraca, a schemat po cyklu jest identyczny ze wzorcem
+na każdej głębokości.
+
 ## Tabele MVP
 
 ### users
@@ -291,10 +307,34 @@ a zdecydowana większość kont ma tu `NULL`.
 2. middleware `EnsureAccountIsActive` — natychmiast, gdy karany wejdzie na
    stronę po terminie (żeby nie czekał na crona w dniu końca kary).
 
-**Rollback:** `down()` zdejmuje CHECK, indeks i kolumnę. Tracimy terminy
-aktywnych zawieszeń — wraca więc problem sprzed migracji — ale żadne konto nie
-zmienia statusu i nikt nie traci dostępu. Konta zawieszone zostają zawieszone
-do ręcznej decyzji moderatora.
+**Rollback ODMAWIA** (D-088, poprawka z 12 września 2026), gdy choć jedno
+konto ma zapisany termin końca kary. Do tego dnia stało tu, że rollback jest
+bezpieczny, bo „żadne konto nie zmienia statusu i nikt nie traci dostępu" —
+prawda o wierszu, nieprawda o człowieku. Zmierzone na prawdziwej bazie cyklem
+`migrate:rollback` → `migrate` (czyli tym, co robi `migrate:refresh` w CI
+i awaryjny rollback wdrożenia):
+
+```text
+PRZED:    status=suspended  status_expires_at=2026-09-19
+PO CYKLU: status=suspended  status_expires_at=NULL
+```
+
+Kolumna wraca pusta, status zostaje — **zawieszenie na siedem dni zamienia się
+w zawieszenie na zawsze**. `punishmentHasExpired()` nie ma czego porównać,
+`kuking:zdejmij-wygasle-kary` tych kont nie widzi (pyta o niepusty termin),
+a ekran zawieszenia przestaje pisać człowiekowi, kiedy wróci.
+
+Odmowa jest WĄSKA: zawieszenia bezterminowe, bany i konta zdrowe jej nie
+wywołują, więc na świeżej bazie i na stagingu rollback przechodzi bez pytania.
+Kary, które już minęły, zdejmuje `php artisan kuking:zdejmij-wygasle-kary` —
+razem z terminem, więc odmowa znika sama. Świadome wyjście:
+
+```bash
+KUKING_ROLLBACK_KASUJ_TERMINY_KAR=true php artisan migrate:rollback
+```
+
+Pilnuje tego `CofniecieMigracjiNieRobiKaryBezterminowejTest` (odmowa + dwie
+kontrole dodatnie).
 
 #### `data_erased_at` — egzekucja karencji po zgłoszeniu usunięcia konta
 
@@ -345,10 +385,36 @@ Indeks częściowy `users_pending_erase_idx` obejmuje wyłącznie konta
 `pending_delete` bez wykonanej jeszcze anonimizacji — dokładnie to, o co pyta
 `kuking:usun-wygasle-konta`.
 
-**Rollback:** `down()` zdejmuje CHECK, indeks i kolumnę. Kontom, którym dane
-już wymazano, ten rollback NIE przywraca e-maila ani hasła — tych danych po
-prostu już nie ma, to nie jest strata spowodowana cofnięciem migracji. Same
-konta nie zmieniają zachowania: nadal się nie logują.
+**Rollback ODMAWIA** (D-088, poprawka z 12 września 2026), gdy choć jedno
+konto ma wykonane wymazanie. Do tego dnia stało tu, że rollback nie przywraca
+e-maila ani hasła, „to nie jest strata spowodowana cofnięciem migracji" —
+prawda, i właśnie dlatego reszta była fałszem: dane zostają wymazane, ale
+ŚLAD po tym ginie razem z kolumną. Zmierzone na prawdziwej bazie cyklem
+`migrate:rollback` → `migrate`:
+
+```text
+PRZED:    status=erased          data_erased_at=2026-09-11
+PO CYKLU: status=pending_delete  data_erased_at=NULL
+```
+
+**Konto, którego dane skasowano bezpowrotnie, wraca do stanu „czeka
+w karencji".** `CancelAccountDeletion` odmawia wyłącznie przy
+`data_erased_at !== null || isErased()`, więc po cyklu wskrzesi pustą powłokę;
+`kuking:usun-wygasle-konta` weźmie je do anonimizacji po raz drugi (pierwsza
+kolejka pyta o `whereNull('data_erased_at')`); a migracja
+`2026_09_07_500000` przenosi na `erased` tylko konta z niepustym znacznikiem —
+więc zanonimizowany tekst tych osób znów zniknie z serwisu (odwrócenie D-022).
+
+Odmowa jest WĄSKA: konta zdrowe i te, które dopiero czekają w karencji, jej
+nie wywołują. Furtka istnieje, bo tego znacznika — inaczej niż terminu kary —
+nie da się „przeczekać":
+
+```bash
+KUKING_ROLLBACK_KASUJ_ZNACZNIKI_WYMAZANIA=true php artisan migrate:rollback
+```
+
+Pilnuje tego `CofniecieMigracjiNieZapominaWymazaniaTest` (odmowa + dwie
+kontrole dodatnie).
 
 #### `status = 'erased'` i `delete_scope` — stan końcowy konta oraz zakres usunięcia
 

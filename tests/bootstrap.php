@@ -174,6 +174,27 @@ function kuking_nazwa_bazy_wyscigow(string $katalogRepo): string
 }
 
 /**
+ * Zwraca nazwę bazy POMIAROWEJ dla próby wycofania migracji
+ * (`scripts/proba-wycofania.sh`): "proba_wycofania" w głównym checkoucie,
+ * "proba_wycofania_<worktree>" w `git worktree`.
+ *
+ * Prefiks jest inny niż `kuking_*` i to jest jego jedyne zadanie. Skrypt
+ * próby wycofania KASUJE swoją bazę i zrzuca w niej schemat do zera — czyli
+ * robi dokładnie to, czego nie wolno zrobić nigdzie indziej. Jego bezpiecznik
+ * przepuszcza wyłącznie nazwy pasujące do `proba_wycofania*`, więc `kuking`,
+ * `kuking_test*`, `kuking_race*` ani `railway` nie wpadną do niego nawet
+ * przy literówce: to nie jest różnica jednego znaku.
+ *
+ * Sufiks liczy `kuking_nazwa_testowej_bazy()` — świadomie TA SAMA metoda, co
+ * przy bazie testowej i wyścigowej, żeby nie było w repozytorium trzech reguł
+ * nazywania baz, które rozjadą się przy pierwszej zmianie.
+ */
+function kuking_nazwa_bazy_wycofania(string $katalogRepo): string
+{
+    return 'proba_wycofania'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
+}
+
+/**
  * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
  * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
  */
