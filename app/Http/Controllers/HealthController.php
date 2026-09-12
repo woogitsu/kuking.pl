@@ -8,6 +8,8 @@ use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
 use App\Poczta\PowodOdmowy;
+use App\Support\Facebook;
+use App\Support\Google;
 use App\Support\Poczta;
 use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +44,13 @@ use Throwable;
  * inne pytanie niż pozostałe dwa: nie „czy coś padło", a „czy konfiguracja
  * nie kłamie" (D-050). Brak kluczy Turnstile nic nie psuje — i właśnie
  * dlatego bez tego sygnału nikt by go nie zauważył.
+ *
+ * `google` i `facebook` zadają DOKŁADNIE TO SAMO pytanie o dwie dodatkowe
+ * drogi wejścia (issue #258 i #259): funkcja włączona w konfiguracji plus
+ * brak kluczy = przycisku nie ma na ekranie i wygląda to identycznie jak
+ * poprawne wdrożenie bez tej drogi. Cicha, nieistniejąca droga wejścia jest
+ * gorsza niż wyłączona — dlatego oba sygnały są osobne, po jednym na
+ * dostawcę, bo naprawa każdego z nich to inny panel i inna czynność.
  *
  * `poczta`, `kolejka` i `listy` są tu z tego samego, NIEKRYTYCZNEGO powodu
  * i pytają o trzy RÓŻNE rzeczy — kolejność jest od najwcześniejszej:
@@ -107,6 +116,8 @@ class HealthController extends Controller
         self::POWOD_BRAK_DROGI_PUBLICZNEJ,
         self::POWOD_DROGA_GDZIE_INDZIEJ,
         self::POWOD_TURNSTILE_BEZ_KLUCZY,
+        self::POWOD_GOOGLE_BEZ_KLUCZY,
+        self::POWOD_FACEBOOK_BEZ_KLUCZY,
         self::POWOD_POCZTA_NIE_WYSYLA,
         self::POWOD_ZADANIA_NIEUDANE,
         self::POWOD_LISTY_PRZEPADAJA,
@@ -142,6 +153,22 @@ class HealthController extends Controller
      * jest publiczna.
      */
     private const POWOD_TURNSTILE_BEZ_KLUCZY = 'turnstile_bez_kluczy';
+
+    /**
+     * Wejście kontem Google jest włączone w konfiguracji, ale nie ma kluczy —
+     * na produkcji to znaczy, że obiecanej drogi wejścia NIE MA, a nikt się
+     * o tym nie dowie (D-069, issue #258). Kod bez nazwy zmiennej i bez
+     * fragmentu klucza: ta odpowiedź jest publiczna.
+     */
+    private const POWOD_GOOGLE_BEZ_KLUCZY = 'google_bez_kluczy';
+
+    /**
+     * To samo dla Facebooka (issue #259). Osobny kod, bo osobna czynność
+     * człowieka i osobny panel: Google Cloud Console to nie jest panel Meta,
+     * a jeden wspólny powód „oauth_bez_kluczy" kazałby operatorowi zgadywać,
+     * którego z dwóch dostawców szukać.
+     */
+    private const POWOD_FACEBOOK_BEZ_KLUCZY = 'facebook_bez_kluczy';
 
     /**
      * `MAIL_MAILER` na produkcji to `log`/`array`/pusty, albo Laravel nie
@@ -204,6 +231,8 @@ class HealthController extends Controller
             }),
             'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
+            'google' => $this->check('google', self::POWOD_GOOGLE_BEZ_KLUCZY, fn () => $this->sprawdzWejscieGoogle()),
+            'facebook' => $this->check('facebook', self::POWOD_FACEBOOK_BEZ_KLUCZY, fn () => $this->sprawdzWejscieFacebooka()),
             'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
@@ -332,6 +361,96 @@ class HealthController extends Controller
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_TURNSTILE_BEZ_KLUCZY,
             Turnstile::komunikatBrakuKluczy(),
+        );
+    }
+
+    /**
+     * Wejście kontem Google: czy droga, którą konfiguracja właśnie obiecała,
+     * ma czym działać (D-069, issue #258).
+     *
+     * PO CO TO TU JEST, SKORO BRAK KLUCZY NICZEGO NIE PSUJE
+     * Dokładnie ten sam wywód co przy Turnstile wyżej i to samo zdanie
+     * z runbooka: **cicha, nieistniejąca droga wejścia jest gorsza niż
+     * wyłączona**. Bez kluczy przycisku „Wejdź kontem Google" po prostu nie
+     * ma na ekranie — a to wygląda identycznie jak poprawne wdrożenie, na
+     * którym właściciel świadomie tej drogi nie chciał. Jedyną różnicą jest
+     * to, czy konfiguracja nadal ją obiecuje. Dlatego pytamy o obietnicę,
+     * nie o obecność kluczy samą w sobie.
+     *
+     * SKĄD SIĘ WZIĄŁ TEN SYGNAŁ
+     * Był zaplanowany w D-069 i świadomie odłożony („`HealthController`
+     * przerabia równolegle inne zlecenie"), a potem stał w issue #258 i #259
+     * jako jedyna luka w kodzie obu tych funkcji. Do chwili jego dołożenia
+     * jedynym sprawdzeniem było „wejdź na /login i zobacz, czy jest
+     * przycisk" — czyli czynność, której nikt nie robi co pięć minut.
+     *
+     * DLACZEGO `degraded`, A NIE 503
+     * Bo `google` NIE JEST na liście `KRYTYCZNE`. Serwis bez jednej
+     * z trzech dróg wejścia działa (hasło i link e-mail stoją tam, gdzie
+     * stały); serwis w pętli restartów nie działa wcale.
+     *
+     * DLACZEGO TYLKO NA PRODUKCJI I TYLKO GDY FUNKCJA JEST WŁĄCZONA
+     * Lokalnie, w CI i w testach kluczy nie ma i mieć nie musi — to jest
+     * stan domyślny opisany w `.env.example`. A `KUKING_WEJSCIE_GOOGLE=false`
+     * znaczy „nie chcę tej drogi": konfiguracja wtedy nie kłamie i nie ma
+     * o czym krzyczeć. Ta sama lekcja co przy Turnstile: stały `degraded`
+     * uczy ignorować to pole.
+     */
+    private function sprawdzWejscieGoogle(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if (! (bool) config('kuking.google.wlaczone', true)) {
+            return;
+        }
+
+        if (Google::skonfigurowany()) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_GOOGLE_BEZ_KLUCZY,
+            Google::komunikatBrakuKluczy(),
+        );
+    }
+
+    /**
+     * Wejście kontem Facebooka — ten sam wywód co przy Google wyżej
+     * (issue #259), z jedną różnicą, przez którą ten sygnał jest tu bardziej
+     * potrzebny niż tam.
+     *
+     * RÓŻNICA: DROGA DO KLUCZY JEST DŁUŻSZA, WIĘC ŁATWIEJ JĄ ZOSTAWIĆ
+     * NIEDOKOŃCZONĄ. Google to pięć minut w jednym panelu. U Meta właściciel
+     * przechodzi kilkanaście czynności w trzech miejscach panelu
+     * (`docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md` §12), a ostatnia z nich —
+     * przestawienie aplikacji w tryb **Live** — ma się wydarzyć DOPIERO po
+     * wdrożeniu kodu. Między jednym a drugim jest okno, w którym wdrożenie
+     * wygląda na zdrowe, a droga wejścia nie istnieje. To okno jest dokładnie
+     * tym, co ten sygnał ma oświetlić.
+     *
+     * Zdanie dla właściciela (z nazwami zmiennych i odnośnikiem do runbooka
+     * Meta) idzie WYŁĄCZNIE do logu — patrz `check()`. Na zewnątrz wychodzi
+     * sam kod `facebook_bez_kluczy`, bo ta odpowiedź jest publiczna.
+     */
+    private function sprawdzWejscieFacebooka(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if (! (bool) config('kuking.facebook.wlaczone', true)) {
+            return;
+        }
+
+        if (Facebook::skonfigurowany()) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_FACEBOOK_BEZ_KLUCZY,
+            Facebook::komunikatBrakuKluczy(),
         );
     }
 
@@ -526,8 +645,8 @@ class HealthController extends Controller
             // razu, zamiast czekać do końca okna z poprzedniego incydentu.
             // Warunek pomija zapis do cache'a na NAJCZĘSTSZEJ ścieżce (zdrowy
             // serwis, kanał wyłączony) — każde wywołanie `/health` sprawdza
-            // sześć kontroli, a bez tego warunku każda zdrowa odpowiedź
-            // dokładałaby sześć zbędnych zapisów do tabeli `cache`.
+            // dziewięć kontroli, a bez tego warunku każda zdrowa odpowiedź
+            // dokładałaby dziewięć zbędnych zapisów do tabeli `cache`.
             if (filled(config('logging.channels.blad_webhook.url'))) {
                 Cache::forget($this->kluczOdstepuWebhooka($nazwa));
             }

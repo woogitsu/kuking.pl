@@ -188,10 +188,13 @@ final class Facebook
      * Zdanie DLA WŁAŚCICIELA (dziennik, runbook) o tym, czego brakuje.
      * Użytkownika to nie dotyczy — on po prostu nie widzi przycisku.
      *
-     * Sygnału w `/health` tu jeszcze nie ma, dokładnie tak jak przy Google
-     * i z tego samego powodu (`HealthController` jest w rękach innego
-     * zlecenia). Do tego czasu sprawdza się to okiem: wejdź na `/login`
-     * i zobacz, czy jest przycisk „Wejdź kontem Facebooka".
+     * To zdanie idzie też na `/health` — od 12 września 2026, dokładnie tak
+     * jak przy Google: produkcja z funkcją włączoną i bez kluczy oddaje
+     * `status: degraded` z powodem `facebook_bez_kluczy`
+     * (`HealthController::sprawdzWejscieFacebooka()`). Publicznie widać sam
+     * kod; to zdanie trafia wyłącznie do serwerowego logu. Sprawdzenie okiem
+     * (wejdź na `/login` i zobacz, czy jest przycisk „Wejdź kontem
+     * Facebooka") zostaje jako druga droga, nie jako jedyna.
      */
     public static function komunikatBrakuKluczy(): string
     {

@@ -98,6 +98,15 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             // powód i `status` byłby `degraded` niezależnie od poczty.
             'kuking.turnstile.klucz_publiczny' => 'test-klucz-publiczny',
             'kuking.turnstile.sekret' => 'test-sekret',
+            // `/health` sprawdza teraz także dwie dodatkowe drogi wejścia
+            // (`google`, `facebook`, issue #258/#259): na produkcji, z funkcją
+            // włączoną i bez kluczy, każda z nich zgłasza WŁASNY powód
+            // i `status` byłby `degraded` niezależnie od tego, co ten test
+            // mierzy. Kluczy w testach nie ma i mieć nie musi, więc wyłączamy
+            // je świadomie — dokładnie tym przełącznikiem, którym wyłącza się
+            // je na produkcji.
+            'kuking.google.wlaczone' => false,
+            'kuking.facebook.wlaczone' => false,
         ]);
         $this->app->detectEnvironment(static fn (): string => 'production');
 
