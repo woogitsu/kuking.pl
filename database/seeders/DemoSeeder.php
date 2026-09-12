@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Media;
-use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
@@ -64,15 +63,22 @@ class DemoSeeder extends Seeder
         ]);
 
         /*
-         * KONTO Z NAZWĄ NA PEŁNE 100 ZNAKÓW — NAJTRUDNIEJSZY WARIANT PROFILU
-         * (issue #440)
+         * KONTO Z NAZWĄ NA PEŁNY LIMIT — NAJTRUDNIEJSZY WARIANT PROFILU
+         * (issue #440, potem #467)
          *
-         * `display_name` ma w walidacji `max:100` (RegisterController,
-         * ProfileSettingsController, oba loginy zewnętrzne) i ani jednego
-         * ograniczenia na długość pojedynczego SŁOWA. Nazwa niżej ma
-         * dokładnie 100 znaków, a najdłuższy nieprzerwany ciąg w niej — 55.
-         * Jest więc poprawnym wejściem, jakie człowiek może wpisać dziś,
-         * bez żadnej sztuczki.
+         * `display_name` ma w walidacji `max:` z `config('kuking.profil.dlugosc_nazwy')`
+         * (RegisterController, ProfileSettingsController, oba loginy
+         * zewnętrzne) i ani jednego ograniczenia na długość pojedynczego
+         * SŁOWA. Nazwa niżej ma dokładnie tyle znaków, ile wynosi limit,
+         * a najdłuższy nieprzerwany ciąg w niej — 29. Jest więc poprawnym
+         * wejściem, jakie człowiek może wpisać dziś, bez żadnej sztuczki.
+         *
+         * DO 12 WRZEŚNIA LIMIT WYNOSIŁ 100 ZNAKÓW i ta nazwa też tyle miała.
+         * Zmierzone wtedy: sam odnośnik nazwy w karcie wpisu brał 825,16 px
+         * przy oknie 320 px i czcionce przeglądarki 200%, czyli więcej niż
+         * okno, w którym mierzy automat dostępności (740 px). Liczba w tym
+         * seederze ma iść ZA limitem, nie obok niego — inaczej automat
+         * przestanie widzieć najtrudniejszy wariant, który produkt dopuszcza.
          *
          * DO 12 WRZEŚNIA TAKIEGO KONTA W DANYCH DEMO NIE BYŁO. Najdłuższa
          * nazwa profilu miała 16 znaków („Moderacja Kuking"), a dwie
@@ -89,7 +95,7 @@ class DemoSeeder extends Seeder
         $zofia = $this->createUser(
             'zofia@example.test',
             'zofia_z_bieszczad',
-            'Małgorzata Konstantynopolitańczykowianeczka-Brzęczyszczykiewiczowa z Kamiennej Góry na Dolnym Śląsku',
+            'Małgorzata Konstantynopolitańczykowianka',
             [
                 'bio' => 'Gotuję dla wnuków, kiedy przyjeżdżają na wakacje. Najchętniej pierogi i kompot z rabarbaru.',
                 'region' => 'Dolny Śląsk',
@@ -311,37 +317,46 @@ class DemoSeeder extends Seeder
 
         app(SnapshotRecipeVersion::class)->handle($chleb, $marek, 'Pierwsza publikacja');
 
-        // „Ugotowałem” — najważniejsze zdarzenie w produkcie
-        $notify = app(NotifyUser::class);
+        /*
+         * „Ugotowałem” — najważniejsze zdarzenie w produkcie, i dlatego idzie
+         * TĄ SAMĄ AKCJĄ DOMENOWĄ co formularz, a nie gołym
+         * `CookedEvent::create()`.
+         *
+         * ZMIERZONE PRZED ZMIANĄ (12 września 2026): seeder zapisywał dwa
+         * wykonania, a `NotifyUser` wołał przy JEDNYM z nich. Wykonanie Marka
+         * nie powiadamiało Basi w ogóle. Obietnica z `AGENTS.md` §1
+         * („«Ugotowałem» ZAWSZE powiadamia autora przepisu”) była więc
+         * w danych demonstracyjnych prawdziwa w połowie przypadków — a to są
+         * dane, na których chodzi automat dostępności i na których wygląd
+         * serwisu ogląda każdy, kto pracuje lokalnie.
+         *
+         * Powtórzone obok zapisu powiadomienie jest jedną linijką do
+         * zapomnienia i dokładnie tak zostało zapomniane. `RecordCookedEvent`
+         * trzyma zapis i powiadomienie w JEDNEJ transakcji, więc rozdzielić
+         * ich przez przeoczenie się nie da — a reguła domenowa zostaje
+         * w `app/Domain` (`AGENTS.md` §4) zamiast mieć tutaj drugą,
+         * uproszczoną kopię.
+         */
+        $ugotowalem = app(RecordCookedEvent::class);
 
-        $wykonanie = CookedEvent::create([
-            'user_id' => $ania->getKey(),
-            'recipe_id' => $rosol->getKey(),
-            'note' => 'Zrobiłam w sobotę, żeby w niedzielę tylko podgrzać. Rzeczywiście wyszedł klarowny.',
-            'changes_note' => 'Dałam pół selera zamiast całego, bo dzieci nie lubią.',
-            'would_make_again' => true,
-            'perceived_difficulty' => 'easy',
-            'actual_minutes' => 260,
-            'cooked_at' => now()->subDays(2),
-        ]);
+        $this->przesunWykonanie($ugotowalem->handle(
+            cook: $ania,
+            recipe: $rosol,
+            note: 'Zrobiłam w sobotę, żeby w niedzielę tylko podgrzać. Rzeczywiście wyszedł klarowny.',
+            wouldMakeAgain: true,
+            perceivedDifficulty: 'easy',
+            actualMinutes: 260,
+            changesNote: 'Dałam pół selera zamiast całego, bo dzieci nie lubią.',
+        ), now()->subDays(2));
 
-        $notify->handle($basia, Notification::TYPE_COOKED, $ania, [
-            'recipe_id' => $rosol->getKey(),
-            'recipe_title' => $rosol->title,
-            'recipe_slug' => $rosol->slug,
-            'cooked_event_id' => $wykonanie->getKey(),
-            'has_photo' => false,
-        ]);
-
-        CookedEvent::create([
-            'user_id' => $marek->getKey(),
-            'recipe_id' => $rosol->getKey(),
-            'note' => 'Klasyka. Zrobiłem dokładnie tak, jak napisane, i nie ma o czym dyskutować.',
-            'would_make_again' => true,
-            'perceived_difficulty' => 'easy',
-            'actual_minutes' => 250,
-            'cooked_at' => now()->subDay(),
-        ]);
+        $this->przesunWykonanie($ugotowalem->handle(
+            cook: $marek,
+            recipe: $rosol,
+            note: 'Klasyka. Zrobiłem dokładnie tak, jak napisane, i nie ma o czym dyskutować.',
+            wouldMakeAgain: true,
+            perceivedDifficulty: 'easy',
+            actualMinutes: 250,
+        ), now()->subDay());
 
         Comment::create([
             'author_id' => $ania->getKey(),
@@ -351,6 +366,23 @@ class DemoSeeder extends Seeder
         ]);
 
         $this->komunikatKoncowy($moderator->email);
+    }
+
+    /**
+     * Cofa datę wykonania, żeby dane demonstracyjne wyglądały na rozłożone
+     * w czasie, a nie zapisane wszystkie w jednej sekundzie.
+     *
+     * To JEDYNE, czego `RecordCookedEvent` nie przyjmuje: akcja stempluje
+     * `cooked_at` chwilą zapisu, i słusznie — w produkcie nie ma miejsca,
+     * w którym człowiek podaje datę ugotowania z ręki. Dlatego data wraca tu
+     * osobnym zapisem PO wykonaniu akcji, zamiast otwierać w akcji parametr
+     * potrzebny wyłącznie seederowi.
+     */
+    private function przesunWykonanie(CookedEvent $wykonanie, \DateTimeInterface $kiedy): CookedEvent
+    {
+        $wykonanie->forceFill(['cooked_at' => $kiedy])->save();
+
+        return $wykonanie;
     }
 
     /** @param  array<string, mixed>  $profile */

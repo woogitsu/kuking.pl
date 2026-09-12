@@ -22,7 +22,7 @@
  *  z każdej strony, a awatar zostaje przy 52 px — i na kolumnę z nazwą nie
  *  zostaje nic. Dlatego każda szerokość idzie przy 100% i przy 200%, a do tego
  *  w trzech długościach nazwy autora: przy krótkiej („Ala") kolumna zwęża się
- *  inaczej niż przy nazwie na pełne 100 znaków, które `display_name` dopuszcza.
+ *  inaczej niż przy nazwie na pełny limit, który `display_name` dopuszcza.
  *
  *  4 szerokości × 2 rozmiary pisma × 3 długości nazwy = 24 pomiary.
  *
@@ -57,6 +57,22 @@ const SZEROKOSCI = [
   { nazwa: '360 px', szerokosc: 360, wysokosc: 800 },
   { nazwa: '390 px', szerokosc: 390, wysokosc: 844 },
   { nazwa: '414 px', szerokosc: 414, wysokosc: 896 },
+
+  /* SZEROKOŚCI POWYŻEJ PROGU 16em — dołożone przy issue #467.
+     Pierwsza wersja tego skryptu kończyła się na 414 px, bo usterka z #440
+     była telefonowa. To zostawiło w pomiarze DZIURĘ: przy czcionce
+     przeglądarki 200% próg `@media (max-width: 16em)` to 512 px, więc
+     wszystkie cztery szerokości wyżej są POD progiem i kolumna dostaje tam
+     cały rząd. Stan, w którym reguła progowa NIE działa, a broni sama siatka
+     bezpieczeństwa (`flex: 1 1 96px`), nie był mierzony ani razu.
+
+     `dostepnosc.mjs` zgłosił stamtąd odnośnik daty o wysokości 783 px przy
+     oknie wysokim na 740 px. Te trzy szerokości to te same, których używa
+     tamten skrypt. Wysokość okna 740 px jest wspólna, żeby „wyższy niż okno"
+     znaczyło w obu skryptach to samo. */
+  { nazwa: '768 px', szerokosc: 768, wysokosc: 740 },
+  { nazwa: '900 px', szerokosc: 900, wysokosc: 740 },
+  { nazwa: '1280 px', szerokosc: 1280, wysokosc: 740 },
 ];
 
 /* `display_name` ma dziś `max:100` — wariant „bardzo długa" wykorzystuje to
@@ -205,6 +221,14 @@ const POMIAR = () => {
   const kolumna = [...glowka.children].find((el) => el !== awatar && el !== menu) ?? null;
   const nazwa = glowka.querySelector('.author-name');
 
+  /* ODNOŚNIK DATY (issue #467). Szukamy przez `<time>`, nie po klasie
+     `link-jak-tekst`: klasa jest ozdobą i może się zmienić, a data jest
+     w karcie zawsze i zawsze jest w `<time>`. Bierzemy jego przodka `<a>`,
+     bo to ON jest kontrolką, którą przeglądarka przewija w widok po Tab —
+     i to jego wysokość zgłosił `dostepnosc.mjs`. */
+  const czas = kolumna?.querySelector('time') ?? null;
+  const odnosnikDaty = czas?.closest('a') ?? czas;
+
   const prostokat = (el) => {
     if (! el) return null;
     const p = el.getBoundingClientRect();
@@ -269,6 +293,9 @@ const POMIAR = () => {
     menu: prostokat(przyciskMenu),
     awatar: prostokat(awatar),
     nazwa: prostokat(nazwa),
+    odnosnikDaty: prostokat(odnosnikDaty),
+    tekstDaty: (czas?.textContent ?? '').trim(),
+    wysokoscOkna: window.innerHeight,
     rzedyGlowki: rzedy.length,
 
     /* KTO wystaje, nie tylko o ile — bez tego wiadomo, że główka się rozpada,
@@ -385,8 +412,8 @@ try {
 
 const kol = (x, n) => String(x).padStart(n);
 
-console.log('\nnazwa autora   okno     czc.  karta   kolumna nazwy   wys. główki   cel menu   rzędy  poza kartą  przewijanie');
-console.log('-'.repeat(116));
+console.log('\nnazwa autora   okno      czc.  karta   kolumna nazwy   wys. główki   cel menu   rzędy  data (szer.×wys.)  wys. nazwy  poza kartą  przewijanie');
+console.log('-'.repeat(140));
 
 for (const w of wiersze) {
   const poza = (w.wystajeWPrawo > 0.5 || w.wystajeWLewo > 0.5)
@@ -398,23 +425,33 @@ for (const w of wiersze) {
 
   console.log(
     w.etykietaNazwy.padEnd(15)
-    + w.widok.padEnd(9)
+    + w.widok.padEnd(10)
     + w.czcionka.padEnd(6)
     + kol(w.karta.szerokosc, 6) + '  '
     + kol(w.kolumna?.szerokosc ?? '—', 12) + ' px  '
     + kol(w.glowka?.wysokosc ?? '—', 10) + ' px  '
     + kol(`${w.menu?.szerokosc ?? '—'}×${w.menu?.wysokosc ?? '—'}`, 8) + '  '
     + kol(w.rzedyGlowki, 5) + '  '
+    + kol(`${w.odnosnikDaty?.szerokosc ?? '—'}×${w.odnosnikDaty?.wysokosc ?? '—'}`, 17) + '  '
+    + kol(`${w.nazwa?.wysokosc ?? '—'}`, 9) + ' px  '
     + poza.padEnd(12)
     + przewijanie,
   );
 }
 
 /* --- BRAMKI POMIARU ------------------------------------------------------
-   Tabela sama w sobie niczego nie przesądza; te trzy warunki przesądzają. */
+   Tabela sama w sobie niczego nie przesądza; te cztery warunki przesądzają. */
 const zerowe = wiersze.filter((w) => (w.kolumna?.szerokosc ?? 0) < 1);
 const zaMaleCele = wiersze.filter((w) => (w.menu?.szerokosc ?? 0) < 48 || (w.menu?.wysokosc ?? 0) < 48);
 const wyjazdy = wiersze.filter((w) => w.wystajeWPrawo > 0.5 || w.wystajeWLewo > 0.5 || w.szerokoscDokumentu > w.szerokoscOkna);
+
+/* CZWARTA BRAMKA (issue #467): kontrolka wyższa niż okno.
+   Przeglądarka po Tab przewija kontrolkę w widok — ale kontrolki, która się
+   w oknie NIE MIEŚCI, nie da się pokazać całej żadnym przewijaniem. Żadna
+   rezerwa (D-184) tego nie naprawi. Mierzymy odnośnik daty, bo to on wypadł
+   w pomiarze dostępności; próg jest bezwzględny, nie procentowy: albo się
+   mieści, albo nie. */
+const wyzszeNizOkno = wiersze.filter((w) => (w.odnosnikDaty?.wysokosc ?? 0) > w.wysokoscOkna);
 
 const wystajace = wiersze.filter((w) => w.wystajeWPrawo > 0.5);
 
@@ -430,6 +467,16 @@ console.log('');
 console.log(`Kolumna z nazwą i datą węższa niż 1 px:  ${zerowe.length} z ${wiersze.length}`);
 console.log(`Cel dotknięcia menu poniżej 48 × 48 px: ${zaMaleCele.length} z ${wiersze.length}`);
 console.log(`Wyjazd poza kartę albo przewijanie w bok: ${wyjazdy.length} z ${wiersze.length}`);
+console.log(`Odnośnik daty wyższy niż okno:          ${wyzszeNizOkno.length} z ${wiersze.length}`);
+
+if (wyzszeNizOkno.length > 0) {
+  console.log('\nODNOŚNIK DATY WYŻSZY NIŻ OKNO (po Tab nie da się go pokazać całego):');
+  for (const w of wyzszeNizOkno) {
+    console.log(`  ${w.etykietaNazwy.padEnd(15)}${w.widok.padEnd(10)}${w.czcionka.padEnd(6)}`
+      + `${String(w.odnosnikDaty.wysokosc).padStart(8)} px  przy oknie ${w.wysokoscOkna} px`
+      + `   (szerokość odnośnika ${w.odnosnikDaty.szerokosc} px, data „${w.tekstDaty}")`);
+  }
+}
 
 if (wiersze.length !== SZEROKOSCI.length * NAZWY.length * 2) {
   console.error(`\nBŁĄD: zebrano ${wiersze.length} pomiarów zamiast ${SZEROKOSCI.length * NAZWY.length * 2}.`);

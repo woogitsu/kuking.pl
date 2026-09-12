@@ -26,6 +26,32 @@ use Illuminate\Support\Facades\Gate;
  *  - nie wymagamy zdjęcia ani żadnego pola — wystarczy sam fakt ugotowania;
  *  - ta sama osoba może zrobić to dowolnie wiele razy dla tego samego przepisu.
  *
+ * TRZY PRZYPADKI, W KTÓRYCH POWIADOMIENIE MIMO TO NIE POWSTAJE — WYPISANE,
+ * BO SŁOWO „ZAWSZE" BEZ WYPISANYCH GRANIC JEST NIESPRAWDZALNE
+ * ---------------------------------------------------------------------
+ * Wszystkie trzy odcina `NotifyUser`, żeby nie trzeba było o nich pamiętać
+ * w dwunastu miejscach, i wszystkie trzy są zmierzone w
+ * `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`, każdy z kontrolą
+ * dodatnią obok:
+ *
+ *  1. AUTOR UGOTOWAŁ WŁASNY PRZEPIS. `RecipePolicy::cook()` na to pozwala
+ *     (ludzie gotują swoje przepisy i chcą mieć ślad), ale wiadomość o
+ *     własnej akcji nie niesie żadnej informacji.
+ *  2. KONTO AUTORA JEST ZAMKNIĘTE — `banned`, `pending_delete` albo `erased`
+ *     (`User::mozeCzytac()`). Przy dwóch pierwszych wykonanie i tak nie
+ *     powstaje, bo przepis takiego konta jest niewidoczny; przy `erased`
+ *     powstaje i ZOSTAJE (to dorobek kucharza), a powiadomienia nie ma, bo
+ *     nie ma komu go przeczytać. ZAWIESZENIE TU NIE WCHODZI: zawieszony
+ *     autor powiadomienie dostaje.
+ *  3. MIĘDZY AUTOREM A KUCHARZEM JEST BLOKADA, w którąkolwiek stronę — ale
+ *     wtedy `Gate::denies('cook')` wyżej i tak nie dopuszcza wykonania, więc
+ *     ten warunek w `NotifyUser` jest dla tej ścieżki drugą linią, nie
+ *     pierwszą.
+ *
+ * Czego na tej liście NIE MA i mieć nie ma: ustawienia użytkownika. Jedyna
+ * zgoda, jaką człowiek tu przestawia, dotyczy TYGODNIOWEGO LISTU
+ * (`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka.
+ *
  * JEDNO WYSŁANIE FORMULARZA TO JEDNO WYKONANIE I JEDNO POWIADOMIENIE (ADR
  * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`, wariant A3).
  *

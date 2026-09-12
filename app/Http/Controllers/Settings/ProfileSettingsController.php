@@ -79,7 +79,7 @@ class ProfileSettingsController extends Controller
         $usernameRules[] = new UsernameNotTaken($user->getKey());
 
         $data = $request->validate([
-            'display_name' => ['required', 'string', 'min:2', 'max:100'],
+            'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
             'username' => $usernameRules,
             'bio' => ['nullable', 'string', 'max:500'],
             'region' => ['nullable', 'string', 'max:80'],
