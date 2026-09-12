@@ -12289,3 +12289,248 @@ pociągnąć za sobą panel gospodarza.
 📄 `resources/views/pages/tags/` · `resources/views/pages/settings/tags.blade.php` ·
 `resources/views/components/post-card.blade.php` ·
 `tests/Feature/JednoSlowoNaTagiTest.php` · D-021 · D-157 · issue #18 · issue #22
+
+---
+
+## D-160 · Wcięcie boczne karty wpisu niesie każdy blok osobno, a klasa współdzielona z innym ekranem go nie dostaje
+
+**Data:** 12 września 2026 · PR #412 · Status: **obowiązuje**
+
+Karta wpisu nie ma własnego `padding` (`.post-card { padding: 0 }`), bo zdjęcie
+idzie od krawędzi do krawędzi. Wcięcie 20 px (`--spacing-5`) deklaruje więc
+**każdy blok karty u siebie**. Blok tagów był jedynym wyjątkiem: widok wziął dla
+niego gotowe `.chipsy` — świadomie, pod hasłem „żadnego nowego CSS" — a `.chipsy`
+powstało dla chipsów stojących wprost w kolumnie strony, czyli tam, gdzie wcięcie
+daje kolumna.
+
+**Zmierzone** (`scripts/wciecia-boczne-karty-wpisu.mjs`, Chromium,
+`getBoundingClientRect()`): 0 px z lewej i 0 px z prawej, przy 1512 px i przy
+390 px, podczas gdy każdy inny blok tej samej karty miał 20 px. Po poprawce
+20 px na obu krawędziach, na obu szerokościach.
+
+### Reguła
+
+**Klasa używana na więcej niż jednym ekranie nie dostaje odstępów kontekstu,
+w którym akurat stoi.** Odstęp idzie na klasę kontekstową (`.post-card-tagi`),
+nie na współdzieloną (`.chipsy`) — inaczej naprawa jednego ekranu psuje dwa
+inne. Tu konkretnie: wyszukiwanie i szyna profilu, gdzie 20 px doszłoby **do**
+wcięcia kolumny.
+
+Wartość zawsze z tokenu `--spacing-*`, nigdy liczbą: wcięcie ma rosnąć razem
+z pismem przy czcionce przeglądarki 200% (druga strona D-082 i D-107). Pilnuje
+tego osobna asercja w `tests/Feature/PorzadkiWArkuszuKartyTest.php`.
+
+### Druga połowa tego wpisu: martwy kod wychodzi RAZEM ze swoim komentarzem
+
+`.landing-wpisy` przeżyła przejście strony powitalnej na jedną kolumnę,
+a komentarz nad nią opisywał ją jak żywą siatkę — czyli **martwy kod bronił się
+własną dokumentacją**. Komentarz historyczny (ten, który tłumaczy, co było
+i dlaczego tego już nie ma) zostaje tam, gdzie stoi decyzja — u nas
+w `strony-publiczne.css` przy `.landing-wpisy-kolumna`.
+
+Użycie klasy sprawdza się **po tokenach w atrybucie `class`, nigdy po podciągu**:
+`landing-wpisy` „znajduje się" w `landing-wpisy-kolumna` i martwy kod zostałby
+w arkuszu na zawsze, broniony przez własną nazwę. Strażnik ma na to własny test
+kontrolny (`test_szukanie_uzyc_liczy_tokeny_a_nie_podciagi`).
+
+📄 `resources/css/app.css` · `tests/Feature/PorzadkiWArkuszuKartyTest.php` ·
+`scripts/wciecia-boczne-karty-wpisu.mjs` · D-082 · D-107 · D-132 · D-158
+
+---
+
+## D-161 · Adres strony źródłowej idzie do `isBasedOn` — bo tu typ encji jest znany
+
+**Data:** 12 września 2026 · PR #413 · Status: **obowiązuje** · domknięcie D-156
+
+### Co zostało otwarte
+
+D-156 rozstrzygnęło, że `author` w JSON-LD opisuje wyłącznie konto publikujące,
+a pochodzenie przepisu (`recipes.source_person`) idzie do `citation` jako zwykły
+`Text`. Ta sama decyzja zostawiła jawnie drugą połowę sprawy:
+
+> `source_url` przy `source_type = 'external'` nie idzie do JSON-LD wcale.
+> Tam `isBasedOn` **byłoby** uczciwe, bo to prawdziwy URL.
+
+Przepis przepisany z cudzej strony miał jej adres w bazie, pokazywał go
+człowiekowi na ekranie — a dane strukturalne o nim milczały.
+
+### Decyzja
+
+Blok `Recipe` dostaje `isBasedOn` z `recipes.source_url`, ale **tylko przy
+`source_type = 'external'`**.
+
+**To nie jest wyjątek od zasady z D-156, tylko jej druga strona.** Zasada mówi:
+wartości, o której nie wiemy, jakim typem encji jest, nie wolno wkładać do pola,
+które typ wymusza. `source_person` jest wolnym tekstem („od mamy", nazwa grupy
+na Facebooku) i dlatego poszedł do `citation`. `source_url` jest adresem strony
+i niczym innym — obie drogi zapisu walidują go regułą `url`, a widok pokazuje go
+człowiekowi jako link. **Typ jest znany, więc pole jest uczciwe.**
+
+Wybór sprawdzony u źródła (schema.org V30.0, 19 marca 2026), nie zgadnięty:
+
+| pole | co przyjmuje | ocena |
+|---|---|---|
+| `isBasedOn` | `CreativeWork`, `Product`, **`URL`**; stoi na `CreativeWork` | **wybrane** |
+| `isBasedOnUrl` | to samo, ale schema.org oznacza je „SupersededBy: `isBasedOn`" | odrzucone: zastąpione |
+| `citation` | `CreativeWork`, `Text` | zajęte przez D-156 na `source_person` — nietknięte |
+
+Dziedziczenie sprawdzone: `Thing > CreativeWork > HowTo > Recipe`, a `isBasedOn`
+jest wymienione na stronie `Recipe`. `URL` w schema.org to **goły napis**, więc
+nie deklarujemy żadnego `@type`: adres nie udaje ani osoby, ani organizacji.
+
+### Dwa szczegóły, które nie są ozdobą
+
+1. **Bramka `source_type` jest konieczna.** Formularz nie ukrywa pola adresu przy
+   pozostałych trzech odpowiedziach, więc adres bywa wpisany także przy przepisie
+   własnym czy rodzinnym — a wtedy widoczna treść strony nie pokazuje go wcale.
+   Google traktuje niezgodność danych strukturalnych z widoczną treścią jako
+   naruszenie wytycznych (`docs/seo/SEO_TECHNICAL.md` §2), więc warunek w JSON-LD
+   jest **dokładnie ten sam** co przy widocznym zdaniu „Przepis pochodzi ze strony".
+2. **`?:` przed `null`**, tak samo jak przy `citation`: `array_filter` na końcu
+   bloku odrzuca `null` i `[]`, ale **pusty napis by przepuścił**.
+
+### Zauważone, nietknięte
+
+Widoczny link w `show.blade.php` wstawia `source_url` do `href` bez sprawdzania
+schematu, a walidacja `url` przepuszcza też schematy inne niż `http`/`https`.
+To sprawa bezpieczeństwa widoku, nie danych strukturalnych — osobno. Dalej
+aktualne z D-156: `docs/DATABASE.md` nie opisuje kolumn `source_person`,
+`source_note` ani `source_url`.
+
+Bez zmiany schematu.
+
+📄 `resources/views/pages/recipes/show.blade.php` ·
+`tests/Feature/ZrodloZewnetrzneWDanychStrukturalnychTest.php` ·
+`docs/seo/SEO_TECHNICAL.md` §2 · D-156 · D-153 · D-099 · D-106
+
+---
+
+## D-162 · Manifest PWA nie deklaruje orientacji w ogóle, zamiast deklarować „any"
+
+**Data:** 12 września 2026 · PR #414 · Status: **obowiązuje** ·
+kontekst: SEO/PWA-01 z audytu 10 września 2026, zależność issue #278
+
+### Decyzja
+
+`public/manifest.webmanifest` traci klucz `orientation` w całości. Nie zostaje
+zastąpiony wartością `"any"`, choć audyt dopuszczał oba warianty.
+
+### Dlaczego w ogóle
+
+`"orientation": "portrait-primary"` wymuszało jedną orientację zainstalowanej
+aplikacji, co narusza **WCAG 2.2 §1.3.4 Orientation (AA)** — treść nie może być
+ograniczona do jednej orientacji, o ile konkretna nie jest niezbędna. W Kuking
+niezbędna nie jest: tryb gotowania przy blacie to typowo telefon albo tablet
+położony poziomo, więc blokada uderzała dokładnie w to użycie, **dla którego ten
+ekran powstał**.
+
+### Dlaczego usunięcie, a nie „any"
+
+Rozstrzygnięte tekstem W3C Web Application Manifest, nie z pamięci:
+
+- **bez klucza** przetwarzanie manifestu kończy się na „If json\[„orientation"\]
+  doesn't exist […] return" — aplikacja nie deklaruje niczego i zostaje
+  zachowanie systemu, **łącznie z blokadą obrotu włączoną przez samego
+  człowieka**;
+- **`"any"`** staje się „default screen orientation for the life of the web
+  application", a przeglądarka „MUST return the orientation to the default screen
+  orientation any time the orientation is unlocked" — to deklaracja **czynna**.
+
+Oba spełniają 1.3.4. Wybrany jest ten, który zostawia decyzję przy ustawieniu
+telefonu: dla grupy 50+ blokada obrotu bywa włączona świadomie i ma być nadrzędna
+wobec życzeń strony.
+
+### Co zmierzono przed zdjęciem blokady
+
+Chromium, osobna baza, 15 ekranów × 844×390 i 932×430 (390×844 jako odniesienie):
+nadmiar w poziomie **0 px na każdym ekranie**; dolna belka zostaje widoczna
+(`position: fixed`, 67 px), bo progi układu są **wyłącznie szerokościowe**, a
+844 px = 52,75rem, poniżej progu 64rem; najmniejszy cel dotykowy w belce 66 px;
+**zero kontrolek całkiem zasłoniętych** przez belkę po przewinięciu na dół;
+przyciski trybu gotowania 560×72, 608×72 i 216×60 px. Miejsce na treść między
+belkami: 247 px (844×390) i 287 px (932×430) wobec 701 px w pionie — widok jest
+niższy, ale nic się nie rozjeżdża.
+
+**Drugiej blokady w CSS nie ma**: w całym `resources/` nie występuje ani jedno
+`@media (orientation: …)` ani zapytanie o wysokość okna.
+
+### Strażnik
+
+`tests/Feature/ManifestNieWymuszaOrientacjiTest.php` czyta **plik**, bo
+`orientation` działa dopiero w zainstalowanej aplikacji i żaden test strony ani
+`scripts/dostepnosc.mjs` nie miał jak tej blokady zobaczyć. Przechodzi wyłącznie
+brak klucza albo `"any"` — **lista dozwolonych, nie zakazanych**, więc łapie
+także `portrait`, `landscape`, `landscape-primary` i `natural`. Drugi test w tym
+pliku jest kontrolą dodatnią (poprawny JSON + komplet pól), bez której strażnik
+byłby zielony także nad pustym plikiem.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie mówi, czy i jak promować instalację PWA — to jest issue #278 i osobna
+decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
+
+📄 `public/manifest.webmanifest` ·
+`tests/Feature/ManifestNieWymuszaOrientacjiTest.php` ·
+`docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` · issue #278
+
+---
+
+## D-163 · Dział pytań nazywa się „Poradźcie", a osobnego miejsca na rozmowy nie o gotowaniu nie budujemy
+
+**Data:** 12 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+dotyczy issue #372
+
+### Nazwa
+
+Dział, w którym można poprosić innych o radę, nazywa się **„Poradźcie"** —
+w menu i w nagłówku strony. Brzmienie ekranu zatwierdzone co do słowa:
+
+```
+MENU:  Poradźcie
+
+STRONA:
+  # Poradźcie
+  Ktoś to już robił i chętnie powie, jak.
+  Pytanie do innych jest w porządku.
+
+  [Zapytaj innych]
+
+  Czeka na odpowiedź (3)
+```
+
+### Ryzyko przedstawione właścicielowi i przez niego przyjęte
+
+„Poradźcie" to **czasownik w trybie rozkazującym**, więc w menu — bez kontekstu,
+obok rzeczowników „Start", „Szukaj", „Dodaj" — część osób może nie wiedzieć, czy
+to **ona ma radzić**, czy **jej poradzą**. To jest odstępstwo od testu czasownika
+z `docs/brand/BRAND_EXTENDED.md` §3, świadome, i ma precedens: **„Ugotowałem"**
+też jest formą czasownikową użytą jako nazwa własna funkcji.
+
+Dlatego zdanie pod nagłówkiem — **„Ktoś to już robił i chętnie powie, jak."** —
+**nie jest ozdobą, tylko warunkiem z D-147**: charakter wolno tam, gdzie obok
+stoi zdanie, które tłumaczy. Jeśli ktoś usunie to zdanie przy porządkowaniu
+tekstów, nazwa przestaje spełniać warunek, na którym została zatwierdzona.
+Strażnik na to (asercja: nagłówek „Poradźcie" **i** zdanie wyjaśniające na tej
+samej stronie) powstaje razem z ekranem — dziś ekranu nie ma.
+
+Adres strony i nazwa parametru zostają techniczne (`/pytania`,
+`bez-odpowiedzi`) — patrz otwarte pytania w #372.
+
+### Brak działu off-topic
+
+**Osobnego miejsca na rozmowy nie o gotowaniu nie budujemy.**
+
+Powód: kącik o niczym trzeba moderować **tak samo** jak resztę serwisu — te same
+zgłoszenia, te same decyzje, ten sam czas człowieka — a nie przybliża nikogo do
+ugotowania czegokolwiek. Przy jednej osobie prowadzącej moderację to koszt
+realny, nie teoretyczny.
+
+To nie jest „nigdy": **wracamy do tego, jeśli ludzie sami zaczną tak pisać** —
+czyli jeśli w pytaniach i komentarzach pojawi się rozmowa niekulinarna, której
+nie da się nigdzie odłożyć. Wtedy będzie to odpowiedź na zachowanie, a nie zakład.
+
+Konsekwencja dla pracy nad #372: zabieramy z forum **pytanie i odpowiedź**, nie
+strukturę „forum → działy → wątki → off-topic".
+
+📄 issue #372 · issue #370 · `docs/research/tematy-i-pytania-2026-09-11/` §3.5 ·
+`docs/brand/BRAND_EXTENDED.md` §1.1, §3 · D-147 · D-159
