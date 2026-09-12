@@ -506,6 +506,36 @@ export default defineRailway((ctx) => {
     FACEBOOK_CLIENT_ID: ctx.shared.FACEBOOK_CLIENT_ID,
     FACEBOOK_CLIENT_SECRET: ctx.shared.FACEBOOK_CLIENT_SECRET,
 
+    // --- Analityka odwiedzin: Cloudflare Web Analytics (D-092) ----------------
+    // Statystyka „skąd ludzie przychodzą i które strony oglądają". Token
+    // powstaje w panelu Cloudflare (Web Analytics → Add a site → kuking.pl),
+    // więc idzie przez `ctx.shared`, a nie jako wartość wpisana w tym pliku.
+    //
+    // BEZ TEJ LINII TOKEN NIE DOCHODZI DO APLIKACJI, choćby stał w Shared
+    // Variables — dokładnie ta sama luka, która przy FACEBOOK_* kosztowała
+    // osobne issue (#259). Tu jest gorsza, bo jej skutku NIE WIDAĆ na żadnym
+    // ekranie: bez tokenu `AnalitykaCloudflare::wlaczona()` oddaje `false`,
+    // w HTML-u nie ma nawet komentarza, strona wygląda normalnie, a panel
+    // Cloudflare świeci zerami.
+    //
+    // TOKEN NIE JEST SEKRETEM — stoi w HTML-u każdej strony w atrybucie
+    // `data-cf-beacon` i tak ma być; nie daje dostępu do panelu ani do
+    // danych. W Railwayu NIE zaznaczaj „Sealed" (zaznaczenie nic nie zepsuje,
+    // ale sugerowałoby, że wyciek tej wartości jest incydentem — nie jest).
+    //
+    // PUSTE = ANALITYKI NIE MA i nic się nie psuje. Na produkcji `/health`
+    // oddaje wtedy `status: degraded` z powodem `analityka_bez_tokenu`, ale
+    // TYLKO dopóki polityka prywatności obiecuje tę analitykę czytelnikom —
+    // bo wtedy dokument prawny opisuje przetwarzanie, którego nie ma.
+    // Świadome wycofanie analityki to wykreślenie obietnicy z polityki,
+    // nie przełącznik (`HealthController::sprawdzAnalityke()`).
+    //
+    // SAM TOKEN NIE WYSTARCZY: w panelu Cloudflare wariant zbierania danych
+    // musi obejmować Unię Europejską, inaczej beacon działa, a panel i tak
+    // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
+    // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
+    CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
+
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
     // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,

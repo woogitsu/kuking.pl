@@ -107,6 +107,12 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             // je na produkcji.
             'kuking.google.wlaczone' => false,
             'kuking.facebook.wlaczone' => false,
+            // Analityka odwiedzin (D-092) zapala się na produkcji z trzeciego,
+            // własnego powodu: polityka prywatności ją obiecuje, a tokenu
+            // w testach nie ma. Przełącznika „wyłącz" tu nie ma i mieć nie ma
+            // (obietnica stoi w dokumencie prawnym, nie w konfiguracji), więc
+            // uciszamy ją jedyną uczciwą drogą — udawanym tokenem.
+            'kuking.analytics.cloudflare.token' => 'udawany-token-analityki',
         ]);
         $this->app->detectEnvironment(static fn (): string => 'production');
 
