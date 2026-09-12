@@ -80,11 +80,16 @@ class EkranZdjeciaProfilowegoWPomiarzeTest extends TestCase
             'jedynym z trzech, który NIE przepełniał.',
         );
 
-        $this->assertTrue(
-            $zdjecie->isReady(),
-            'Zdjęcie konta automatu nie jest gotowe. Widok stawia wtedy zdanie '.
-            '„Twoje nowe zdjęcie się przygotowuje" i inicjał zamiast obrazka — czyli '.
-            'znowu inny układ niż ten, o który chodzi.',
+        // PYTAMY TYM SAMYM PYTANIEM CO WIDOK (#448). Od tamtej zmiany o stan
+        // ekranu rozstrzyga `Profile::zdjecieDoPokazania()`, a nie status
+        // wiersza — asercja na `isReady()` mogłaby więc przejść przy ekranie
+        // stojącym w innym stanie, niż mówi.
+        $this->assertNotNull(
+            $profil->zdjecieDoPokazania(),
+            'Widok nie ma czego pokazać w miejscu zdjęcia konta automatu. Ekran stawia '.
+            'wtedy zdanie „Twoje nowe zdjęcie się przygotowuje" albo „Nie masz jeszcze '.
+            'swojego zdjęcia" i inicjał zamiast obrazka — czyli inny układ niż ten, '.
+            'o który chodzi.',
         );
 
         // PRAWDZIWY PLIK, NIE SAM WIERSZ. Bez wariantu `Media::url()` oddaje
