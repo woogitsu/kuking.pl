@@ -119,6 +119,15 @@
         @csrf
         @if($isEdit) @method('PUT') @endif
 
+        {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).
+             Tylko przy DODAWANIU: edycja pracuje na przepisie, który już
+             istnieje, i klucza nie przysyła — kontroler edycji nie wstawia tu
+             żadnej wartości. Zwykłe ukryte pole, bez JavaScriptu; nazwa bez
+             fragmentu „token", inaczej pole ginie na ekranie 419 (ADR §1.4.4). --}}
+        @if(($kluczWyslania ?? null) !== null)
+            <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
+        @endif
+
         {{-- ---------------------------------------------------------------
              1. O przepisie
         ---------------------------------------------------------------- --}}

@@ -20,9 +20,11 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\Post;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
@@ -93,6 +95,16 @@ try {
 
             return true;
         })(),
+
+        // Komentarz pod wpisem (audyt podwójnego wysłania, 12.09.2026).
+        // Dwa procesy z IDENTYCZNĄ treścią odtwarzają podwójne kliknięcie,
+        // w którym oba żądania trafiły na serwer naprawdę jednocześnie —
+        // czyli to, czego test w `tests/Feature/` nie umie zmierzyć.
+        'komentarz' => (string) app(PublishComment::class)->handle(
+            author: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            subject: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            body: $argumenty['tresc'],
+        )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

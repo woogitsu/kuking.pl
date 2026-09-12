@@ -85,7 +85,50 @@ class RecipeController extends Controller
             return $this->wizard($request, $draft);
         }
 
-        return view('pages.recipes.create');
+        return view('pages.recipes.create', [
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+        ]);
+    }
+
+    /**
+     * Klucz wysłania dla świeżo renderowanego formularza przepisu.
+     *
+     * `old()` pierwsze: po nieudanej walidacji (za długi tytuł, za duże
+     * zdjęcie) formularz wystawia się od nowa i klucz musi zostać ten sam —
+     * inaczej ochrona znika po pierwszym błędzie, czyli dokładnie tam, gdzie
+     * człowiek klika „Opublikuj" drugi raz.
+     */
+    private function kluczDlaFormularza(): ?string
+    {
+        // Wyłącznik awaryjny mechanizmu — `config/kuking.php`, sekcja
+        // `formularze` (tam stoi całe uzasadnienie i skutek wyłączenia).
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
+        $stary = old('klucz_wyslania');
+
+        return is_string($stary) && Str::isUuid($stary) ? $stary : (string) Str::uuid7();
+    }
+
+    /**
+     * Klucz wysłania z żądania. Wartość niebędąca UUID-em schodzi do `null`,
+     * czyli do „zapisz normalnie" — zawodzimy otwarcie, nie zamknięcie
+     * (ADR §4.3).
+     */
+    private function kluczZZadania(Request $request): ?string
+    {
+        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu
+        // formularza. Bez niej wyłącznik działa tylko w połowie: karta
+        // otwarta PRZED przełączeniem nadal niesie klucz w DOM-ie i odsyła
+        // go, więc częściowy indeks dalej obowiązuje.
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
+        $klucz = $request->input('klucz_wyslania');
+
+        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
     }
 
     /**
@@ -114,6 +157,7 @@ class RecipeController extends Controller
         return view('pages.recipes.szczegoly', [
             'units' => Unit::orderBy('name')->get(),
             'recipe' => null,
+            'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
     }
 
@@ -159,9 +203,25 @@ class RecipeController extends Controller
                 steps: $this->withStepPhotos($request, $user, $data['steps']),
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
+                kluczWyslania: $this->kluczZZadania($request),
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+        }
+
+        /*
+         * DRUGIE KLIKNIĘCIE „OPUBLIKUJ" — to jest TEN SAM przepis, nie nowy.
+         *
+         * `wasRecentlyCreated` jest fałszem, gdy `PublishRecipe` odbiło się
+         * o `recipes_one_per_klucz_wyslania` i oddało przepis z pierwszego
+         * wysłania. Komunikat mówi to wprost, bo człowiek, który kliknął
+         * dwa razy, niepokoi się właśnie o to, czy nie ma teraz dwóch
+         * przepisów — i wcześniej naprawdę miał.
+         */
+        if (! $recipe->wasRecentlyCreated) {
+            return redirect()
+                ->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
+                ->with('status', 'Ten przepis już zapisaliśmy — to jest on. Drugie kliknięcie nie założyło drugiego przepisu.');
         }
 
         if (! $recipe->isPublished()) {
