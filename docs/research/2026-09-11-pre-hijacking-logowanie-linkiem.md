@@ -33,7 +33,7 @@ Wypisuję je w §1.2, bo to one, a nie sama droga, decydują o wyborze wariantu.
 
 | # | Co się dzieje | Gdzie to jest w kodzie |
 |---|---|---|
-| 1 | Napastnik wchodzi na `/rejestracja`. Rejestracja jest otwarta domyślnie (`KUKING_REGISTRATION_OPEN`, domyślnie `true`) | `config/kuking.php:264`, `RegisterController.php:40,50` |
+| 1 | Napastnik wchodzi na `/register`. Rejestracja jest otwarta domyślnie (`KUKING_REGISTRATION_OPEN`, domyślnie `true`) | `config/kuking.php:264`, `RegisterController.php:40,50` |
 | 2 | Wpisuje **adres ofiary** i **swoje** hasło. Walidacja przepuszcza, bo na tym adresie konta jeszcze nie ma (`Rule::unique('users','email')`) | `RegisterController.php:130` |
 | 3 | `RegisterController` woła `ZalozKonto::handle()` **bez** argumentu `emailPotwierdzony` i **bez** `dowodAdresu` (bo napastnik nie przyszedł z zaproszenia) | `RegisterController.php:191-210` |
 | 4 | Wartość domyślna parametru to `false`, więc adres wchodzi przez `assignEmail($email, false)` | `ZalozKonto.php:77`, `ZalozKonto.php:117` |
@@ -95,7 +95,7 @@ zdaniem, najważniejszą rzeczą do wykorzystania w naprawie (patrz Wariant B)
 i w issue jej nie ma.
 
 **D. Jedno zawężenie wobec issue — droga wymaga OTWARTEJ rejestracji.**
-Krok pierwszy idzie przez `/rejestracja`, a ta trasa odpowiada 503 przy
+Krok pierwszy idzie przez `/register`, a ta trasa odpowiada 503 przy
 `KUKING_REGISTRATION_OPEN=false` (`RegisterController.php:40,50`). Druga droga
 do założenia konta — z zaproszenia (D-085) — **tworzy konto z adresem już
 potwierdzonym** (`ZalozKonto.php:103-107`: adres bierze się z wiersza w bazie,
@@ -385,7 +385,7 @@ zostaje nietknięte.
 
 **Co trzeba napisać.** Zmianę w `RegisterController` (dziś w rękach innego
 agenta — koordynacja obowiązkowa), rozszerzenie zaproszeń o wejście
-z `/rejestracja`, teksty dwuekranowej rejestracji, migracja nie jest
+z `/register`, teksty dwuekranowej rejestracji, migracja nie jest
 potrzebna.
 
 **Co się stanie z kontami bez potwierdzonego adresu.** **Nic** — i to jest

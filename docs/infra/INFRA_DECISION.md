@@ -50,7 +50,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 ║                        CLOUDFLARE  (plan Free)                             ║
 ║                                                                            ║
 ║   DNS (strefa kuking.pl)  •  TLS na krawędzi  •  HSTS  •  Brotli           ║
-║   WAF Managed Rules       •  Rate limiting /logowanie, /rejestracja        ║
+║   WAF Managed Rules       •  Rate limiting /login, /register               ║
 ║                                                                            ║
 ║   ┌────────────────────────────────┐   ┌────────────────────────────────┐  ║
 ║   │  CACHE RULES (aplikacja)       │   │  CACHE RULES (media) WYCOFANE  │  ║
@@ -642,7 +642,7 @@ nowy build to nowa nazwa.
 Gdy którykolwiek warunek:
     starts_with(http.request.uri.path, "/livewire/")
  or starts_with(http.request.uri.path, "/api/")
- or http.request.uri.path in {"/logowanie" "/rejestracja" "/wyloguj"}
+ or http.request.uri.path in {"/login" "/register" "/logout"}
  or starts_with(http.request.uri.path, "/konto/")
  or starts_with(http.request.uri.path, "/ustawienia/")
  or http.cookie contains "kuking_session"
@@ -664,7 +664,7 @@ cache'owane.
 ### WAF i rate limiting
 
 - **Cloudflare Managed Ruleset** — ON (plan Free).
-- **Rate limiting** na `/logowanie` i `/rejestracja`: np. 10 żądań / 10 min / IP.
+- **Rate limiting** na `/login` i `/register`: np. 10 żądań / 10 min / IP.
   Plan Free daje ograniczoną liczbę reguł — jeśli mieści się tylko jedna, ustaw ją
   na logowanie (ochrona przed credential stuffing).
 - **Bot Fight Mode** — ON, ale **sprawdź, czy nie blokuje uploadu** na `cdn.kuking.pl`.

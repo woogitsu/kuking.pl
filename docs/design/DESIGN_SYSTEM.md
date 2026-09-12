@@ -191,7 +191,7 @@ Uzasadnienie:
 
 ### 2.3 Skala tekstu użytkownika (`text_scale`: 100/112/125/150%)
 
-Mechanizm: atrybut na `<html>`, ustawiany w `/settings/accessibility` i zapisywany po stronie użytkownika (cookie/DB), niezależny od zoomu przeglądarki.
+Mechanizm: atrybut na `<html>`, ustawiany w `/ustawienia/czytelnosc` i zapisywany po stronie użytkownika (cookie/DB), niezależny od zoomu przeglądarki.
 
 ```html
 <html lang="pl" data-text-scale="125">

@@ -1,5 +1,20 @@
 # Komponenty Blade — Kuking.pl
 
+> **Uwaga, 12 września 2026 (`docs/AUDYT_2026-09.md`, B3 #8).** Osiem z dwunastu
+> sekcji niżej — `Button`, `Alert`/`Toast`, `AutosaveBadge`, `WizardSteps`,
+> `PhotoPicker`, `FollowButton`, `ConfirmDialog`, `Pagination` — to **projekt
+> API komponentu, nie kod z tego repozytorium**: żadnego z tych plików nie ma
+> w `resources/views/components/`, a żaden widok nie używa tagów `<x-button>`,
+> `<x-toast>`, `<x-alert>`, `<x-autosave-badge>`, `<x-wizard-steps>`,
+> `<x-photo-picker>`, `<x-follow-button>`, `<x-confirm-dialog>` ani
+> `<x-pagination>`. Realne odpowiedniki tego, co te sekcje opisują, żyją pod
+> innymi nazwami: `confirm-button.blade.php` (zamiast `ConfirmDialog`),
+> `show-more.blade.php` (zamiast `Pagination` — „Pokaż więcej", zgodnie
+> z `AGENTS.md` §5, bez infinite scroll), `recipe-wizard.blade.php` (zamiast
+> `WizardSteps`) i klasa `.pole-zdjecia` w arkuszu (zamiast `PhotoPicker`).
+> Pozostałe cztery sekcje — `Field`, `ErrorSummary`, `PostCard`, `Avatar` —
+> opisują pliki, które w repozytorium naprawdę są.
+
 Gotowe do wklejenia komponenty Laravel 13 / Blade (anonymous + class-based components), zgodne z tokenami z `tokens.css` i zasadami z `DESIGN_SYSTEM.md`. Wszystkie teksty po polsku, a11y wbudowane (nie doklejane później).
 
 Założenia:

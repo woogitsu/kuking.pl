@@ -56,11 +56,11 @@ te asercje **przeszły**):
 | Ekran | Asercja | Skąd naprawdę przechodziła |
 |---|---|---|
 | `/o-kuking` | `assertStringContainsString('O Kuking', $html)` | tylko `<title>` i `<meta>` — po D-145 nagłówek brzmi „O kuKING" i tego napisu nie ma w treści **ani razu** |
-| `/logowanie` | `assertSee('Zaloguj się')` | `<title>` + `<meta>` + przycisk belki dla gościa |
+| `/login` | `assertSee('Zaloguj się')` | `<title>` + `<meta>` + przycisk belki dla gościa |
 | `/napisz-do-nas` | `assertSee('Napisz do nas')` | `<title>` + 4 × `<meta>` + odnośnik stopki (na każdym ekranie) |
 | 404 | `assertSee('Nie znaleźliśmy tej strony')` | `<title>` + `<meta>` |
 | `/` (gość) | `assertSee('Pokaż, co dziś ugotowałeś')` | `<title>` + `<meta>` |
-| `/wpis/nowy` | `assertSee('Dodaj zdjęcie')` | `<title>` |
+| `/dodaj/zdjecie` | `assertSee('Dodaj zdjęcie')` | `<title>` |
 | tryb gotowania (gość) | `assertSee('Załóż konto')` | przycisk belki dla gościa |
 | ekran zaproszenia | `assertSee('Załóż konto')` | `<title>` + przycisk belki |
 | `/@ja` (główka) | `assertSee('Dodaj zdjęcie profilowe')` | skrót w prawej szynie |
