@@ -42,13 +42,28 @@
 #  Uczciwie: 12 września 2026, przy zakładaniu tego skryptu, faza czwarta NIE
 #  znalazła ani jednej usterki — wszystkie 76 migracji wróciły na każdej
 #  głębokości ze schematem identycznym co do znaku. To nie czyni jej zbędną,
-#  tylko każe pokazać, że cokolwiek mierzy. Zmierzone kontrolą ujemną: `down()`
-#  ostatniej migracji podmieniony z `dropColumn('klucz_wyslania')` na
-#  `Schema::dropIfExists('recipes')` (klasyczne „kasuje za dużo") przechodzi
-#  fazy 2 i 3 NA ZIELONO — do zera schodzi bez błędu, a `migrate` od zera
-#  odtwarza schemat co do znaku. Dopiero faza czwarta oblewa się na
-#  głębokości 1, bo `up()` tej jednej migracji nie ma czego dotknąć. Trzy
-#  fazy dają tu trzy różne odpowiedzi i tylko jedna z nich jest prawdziwa.
+#  tylko każe pokazać, że cokolwiek mierzy. ZMIERZONE kontrolą ujemną, dwoma
+#  sabotażami tej samej migracji (`..._add_klucz_wyslania_to_recipes`):
+#
+#      sabotaż                                       fazy 1-3    faza 4
+#      `down()` kasuje CAŁĄ tabelę `recipes`         kod 50      —
+#      `down()` zdejmuje CUDZY indeks                kod 0 (!)   kod 72
+#      (`recipes_title_trgm_idx`, założony przez
+#       migrację 2026_09_09_100000)
+#
+#  Drugi wiersz jest całym powodem istnienia fazy czwartej. Fazy 1-3 kończą
+#  się na nim komunikatem „wycofanie migracji działa" i kodem 0: do zera
+#  schodzi bez błędu (indeks i tak by zszedł), a `migrate` od zera odtwarza
+#  schemat co do znaku (bo zakłada go migracja, która przecież się wykonuje).
+#  Dopiero wycofanie CZĘŚCIOWE — jedna migracja w dół, jedna w górę — pokazuje,
+#  że indeksu już nie ma; faza czwarta oblewa się na głębokości 1 i wypisuje
+#  brakującą linijkę zrzutu z nazwy.
+#
+#  Pierwszy wiersz jest przy okazji przestrogą z `docs/PULAPKI_TESTOW.md` §3:
+#  ten sabotaż miał pokazać to samo, a trafił w inną gałąź, bo `DROP TABLE`
+#  bez CASCADE przewraca się o klucze obce z sześciu innych tabel. Sabotaż,
+#  który oblewa się nie tam, gdzie się spodziewasz, nie dowodzi tego, co
+#  miał dowieść.
 #
 #  CO JEST WZORCEM
 #  ---------------
