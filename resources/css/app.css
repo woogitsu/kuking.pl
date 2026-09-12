@@ -2199,6 +2199,19 @@
      odstęp pod spodem i węższe wcięcie pionowe — bo to jest jeden wiersz,
      a nie kafel z nagłówkiem i akapitem. `padding` zostaje jawny właśnie
      dlatego, że jest odstępstwem od warstwy. */
+  .start-powitanie {
+    margin-bottom: var(--spacing-6);
+    min-width: 0;
+    margin-top: var(--spacing-2);
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  .start-nadtytul {
+    color: var(--color-brand);
+    font-size: var(--text-body);
+  }
+
   .composer {
     display: flex;
     align-items: center;
@@ -2218,7 +2231,7 @@
 
   .composer-help {
     display: block;
-    font-size: var(--text-help);
+    font-size: var(--text-body);
     color: var(--color-ink-muted);
   }
 
@@ -2280,7 +2293,9 @@
    *
    * CZEGO TA POPRAWKA NIE ROBI — i to są zakazy z tego zadania:
    * pismo tytułu zostaje przy `--text-body-lg` (40 px przy tym korzeniu),
-   * pismo podpisu przy `--text-help`, ani jedno słowo nie znika, a cel
+   * Historycznie podpis używał `--text-help`; issue #478 podnosi go do
+   * `--text-body`. Powyższe wymiary pochodzą ze starszego pomiaru. Żadne
+   * słowo nie znika, a cel
    * dotknięcia zostaje całym kaflem (zmierzone 256 × … px, czyli grubo
    * ponad 48 × 48 px z `docs/UX_50_PLUS.md`).
    *
@@ -6170,3 +6185,4 @@
   border-color: var(--color-brand-solid);
   color: var(--color-ink-inverse);
 }
+

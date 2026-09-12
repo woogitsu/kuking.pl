@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -290,11 +291,7 @@ class CollectionController extends Controller
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('view', $model);
 
-        $collection = null;
-
-        if ($request->filled('collection_id')) {
-            $collection = $request->user()->collections()->findOrFail($request->input('collection_id'));
-        }
+        $collection = $this->selectedCollection($request);
 
         $target = $this->save->handle($request->user(), $model, $collection);
 
@@ -321,15 +318,33 @@ class CollectionController extends Controller
     {
         $this->authorize('view', $post);
 
-        $collection = null;
-
-        if ($request->filled('collection_id')) {
-            $collection = $request->user()->collections()->findOrFail($request->input('collection_id'));
-        }
+        $collection = $this->selectedCollection($request);
 
         $target = $this->savePost->handle($request->user(), $post, $collection);
 
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
+    }
+
+    /**
+     * Nieistniejący i cudzy zeszyt dają ten sam komunikat (issue #473).
+     * „bail” zatrzymuje walidację przed zapytaniem do kolumny UUID, gdy
+     * wejście nie ma poprawnego formatu. Brak wyboru oznacza zeszyt domyślny.
+     */
+    private function selectedCollection(Request $request): ?Collection
+    {
+        $data = $request->validate([
+            'collection_id' => [
+                'bail', 'nullable', 'uuid',
+                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
+            ],
+        ], [
+            'collection_id.uuid' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
+            'collection_id.exists' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
+        ]);
+
+        return isset($data['collection_id'])
+            ? $request->user()->collections()->findOrFail($data['collection_id'])
+            : null;
     }
 
     public function removePost(Request $request, Post $post): RedirectResponse

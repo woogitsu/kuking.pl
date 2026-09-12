@@ -1,5 +1,11 @@
 # System designu Kuking.pl
 
+> Aktualna integracja palety: [NOWY_STYL.md](NOWY_STYL.md). Tabele kolorów,
+> obliczenia kontrastu i opis wyboru fontu poniżej są historyczne. Bieżące
+> wartości czyta `scripts/kontrast-marki.mjs` z `resources/css/tokens.css`;
+> aplikacja używa lokalnego Inter z systemowym stosem zastępczym.
+> Zasady komponentów należy czytać razem z aktualnym AGENTS.md.
+
 Wersja robocza — Laravel 13 + Blade + Livewire 4 + Alpine.js + Tailwind CSS 4 (CSS-first, `@theme`).
 Zgodność z `docs/UX_50_PLUS.md`, `docs/BRAND.md`, `docs/PRODUCT.md`, `docs/FLOWS_AND_SCREENS.md` i prototypem w `prototype/`.
 
@@ -459,3 +465,4 @@ Niepodlegające dyskusji w review kodu i designu:
 - Docelowa treść tekstu przy `disabled` dla każdego konkretnego formularza (np. dokładne brzmienie „Dodaj zdjęcie, żeby opublikować” vs inne warianty) — copywriting per-ekran.
 - Czy `CookedCard` w widoku przepisu ma limit wyświetlanych wpisów domyślnie (np. 5 + „Pokaż więcej”) — wpływa na wydajność i długość strony przy popularnych przepisach.
 - Polityka soft-delete dla `ConfirmDialog` usuwania wpisu/konta (okres na cofnięcie) — wspomniana w `UX_50_PLUS.md` jako „preferować”, nie doprecyzowana liczbowo.
+

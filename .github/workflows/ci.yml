@@ -349,7 +349,7 @@ jobs:
       # --test = tylko raportuj, nie modyfikuj plików.
       # Naprawa lokalnie: `vendor/bin/pint`
       - name: Pint
-        run: vendor/bin/pint --test
+        run: vendor/bin/pint --test -v
 
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
@@ -619,6 +619,11 @@ jobs:
       # wszystkie tabele, nie uruchamiając down().
       - name: Kontrola odwracalności migracji
         run: php artisan migrate:refresh --force --no-interaction
+
+      # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
+      # przywraca kopię i ponawia test. Pełny zestaw idzie na końcu.
+      - name: Kontrole negatywne regresji Alfa 0.8
+        run: python3 scripts/kontrole-negatywne-alfa08.py
 
       - name: Testy
         run: php artisan test
@@ -1025,6 +1030,10 @@ jobs:
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
+      - name: Pomiar kafla dodawania (15 wariantów)
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/kafel-dodawania.mjs
+
       - name: axe-core (27 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs

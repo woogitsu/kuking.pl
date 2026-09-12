@@ -869,6 +869,14 @@
                         <p class="flash">{{ session('status') }}</p>
                     @endif
                 </div>
+                {{-- Zapis do zeszytu wraca także na strumień bez formularza.
+                     Sam worek walidacji nie pokazuje tam błędu (issue #473). --}}
+                @php
+                    $collectionError = session('errors')?->first('collection_id');
+                @endphp
+                @if($collectionError)
+                    <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
+                @endif
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
@@ -1267,3 +1275,4 @@
     @endif
 </body>
 </html>
+
