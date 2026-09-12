@@ -869,6 +869,11 @@
                         <p class="flash">{{ session('status') }}</p>
                     @endif
                 </div>
+                {{-- Zapis do zeszytu wraca także na strumień bez formularza.
+                     Sam worek walidacji nie pokazuje tam błędu (issue #473). --}}
+                @error('collection_id')
+                    <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $message }}</p>
+                @enderror
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
@@ -1267,3 +1272,4 @@
     @endif
 </body>
 </html>
+

@@ -8,6 +8,10 @@ zeszytu ani informacji o jego właścicielu:
 
 > Odśwież stronę i ponownie wybierz zeszyt do zapisania.
 
+Komunikat jest renderowany w obudowie ekranu także po powrocie na strumień,
+który nie ma własnego podsumowania walidacji. Test sprawdza jego treść
+w konkretnym elemencie po przekierowaniu.
+
 Brak pola lub pusta wartość nadal oznaczają zeszyt domyślny. Autoryzacja
 oglądania zapisywanej treści pozostaje przed walidacją. Walidacja nie
 zastępuje ograniczenia zapytania pobierającego zeszyt do jego właściciela.

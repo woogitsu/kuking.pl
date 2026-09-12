@@ -2666,4 +2666,3 @@ return [
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
     ],
 ];
-

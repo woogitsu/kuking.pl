@@ -22,7 +22,12 @@ class WyborZeszytuMaWalidacjeTest extends TestCase
 
         foreach (['recipe', 'post'] as $kind) {
             foreach (['text', 'array', 'missing', 'foreign'] as $selection) {
-                $cases[$kind.' '.$selection] = [$kind, $selection];
+                $cases[($kind === 'recipe' ? 'przepis' : 'wpis').' '.match ($selection) {
+                    'text' => 'tekst',
+                    'array' => 'tablica',
+                    'missing' => 'nieistniejący',
+                    'foreign' => 'cudzy',
+                }] = [$kind, $selection];
             }
         }
 
@@ -52,6 +57,14 @@ class WyborZeszytuMaWalidacjeTest extends TestCase
                 'collection_id' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
             ]);
 
+        $html = $this->get('/home')->assertOk()->getContent();
+        preg_match('~<p id="blad-wyboru-zeszytu"[^>]*>(.*?)</p>~s', $html, $notice);
+        $this->assertNotEmpty($notice, 'Po powrocie na stronę główną błąd musi być widoczny.');
+        $this->assertSame(
+            'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
+            trim(strip_tags($notice[1])),
+        );
+
         $this->assertDatabaseCount('collection_items', 0);
         $this->assertSame(0, $user->collections()->count(), 'Odmowa nie może tworzyć zeszytu domyślnego.');
     }
@@ -59,12 +72,12 @@ class WyborZeszytuMaWalidacjeTest extends TestCase
     public static function validSelections(): array
     {
         return [
-            'recipe own' => ['recipe', 'own'],
-            'post own' => ['post', 'own'],
-            'recipe omitted' => ['recipe', 'omitted'],
-            'post omitted' => ['post', 'omitted'],
-            'recipe empty' => ['recipe', 'empty'],
-            'post empty' => ['post', 'empty'],
+            'przepis własny' => ['recipe', 'own'],
+            'wpis własny' => ['post', 'own'],
+            'przepis brak pola' => ['recipe', 'omitted'],
+            'wpis brak pola' => ['post', 'omitted'],
+            'przepis puste pole' => ['recipe', 'empty'],
+            'wpis puste pole' => ['post', 'empty'],
         ];
     }
 

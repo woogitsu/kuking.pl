@@ -425,4 +425,3 @@ class KafelDodawaniaPrzyDuzymTekscieTest extends TestCase
         );
     }
 }
-

@@ -11,10 +11,8 @@
         <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
     </x-slot:rail>
 
-    <header class="start-powitanie">
-        <p class="nadtytul">Gotujemy po swojemu.</p>
-        <h1>{{ $greeting }}</h1>
-    </header>
+    <p class="nadtytul start-nadtytul">Gotujemy po swojemu.</p>
+    <h1 class="start-powitanie">{{ $greeting }}</h1>
 
     {{--
         Zachęta do dodania wpisu (UI kit v2, ekrany 01 i 05).

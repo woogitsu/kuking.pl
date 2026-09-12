@@ -349,7 +349,7 @@ jobs:
       # --test = tylko raportuj, nie modyfikuj plików.
       # Naprawa lokalnie: `vendor/bin/pint`
       - name: Pint
-        run: vendor/bin/pint --test
+        run: vendor/bin/pint --test -v
 
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)

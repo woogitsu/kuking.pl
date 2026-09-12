@@ -367,4 +367,3 @@ class CollectionController extends Controller
         return redirect()->route('collections.index')->with('status', 'Zeszyt usunięty.');
     }
 }
-
