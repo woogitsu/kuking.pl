@@ -52,7 +52,16 @@
 
     {{-- Po nieudanej walidacji formularz zostaje ROZWINIĘTY — inaczej człowiek
          wraca na stronę, na której nic się nie stało, a jego tekst jest
-         schowany pod zwiniętym „Załóż nowy zeszyt”. --}}
+         schowany pod zwiniętym „Załóż nowy zeszyt”.
+
+         KLASA ZOSTAJE JEDNA, A WARSTWY SĄ DWIE — i to nie jest przeoczenie.
+         Mocna obwódka panelu obiecuje pola do wypełnienia (D-126), a w stanie
+         zwiniętym otacza sam przycisk. `@class([...])`, którym tę warstwę
+         wybiera się na czterech innych ekranach, tutaj nie zadziała: o tym,
+         czy pola widać, decyduje atrybut `open`, przestawiany kliknięciem już
+         po wyjściu odpowiedzi z serwera. Robi to więc arkusz —
+         `details.panel-formularza:not([open])` w `tokens.css` — bo tylko on
+         czyta ten stan na żywo i bez JavaScriptu. --}}
     <details class="panel-formularza mt-8" {{ $errors->any() ? 'open' : '' }}>
         <summary class="btn btn-secondary inline-flex">Załóż nowy zeszyt</summary>
         <form class="mt-4" method="POST" action="{{ route('collections.store') }}">
