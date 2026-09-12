@@ -57,7 +57,8 @@ class SecuritySettingsController extends Controller
             return back()->withErrors(['current_password' => 'To hasło jest nieprawidłowe.']);
         }
 
-        $user->forceFill(['password' => Hash::make($data['password'])])->save();
+        // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
+        $user->assignPassword($data['password'])->save();
 
         // Rotacja sesji (issue #12): stare sesje — te, w których mogła siedzieć
         // osoba, przez którą hasło było zmieniane — przestają działać od razu.
