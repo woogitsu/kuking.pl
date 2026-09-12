@@ -119,4 +119,97 @@ final class AnalitykaCloudflare
             JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
         );
     }
+
+    /**
+     * Czy DOKUMENT PRAWNY nadal obiecuje czytelnikowi tę analitykę.
+     *
+     * PO CO W OGÓLE PYTAĆ O TO KOD, SKORO TO TYLKO TEKST
+     * Bo to jest jedyne pytanie, które odróżnia „właściciel nie chce
+     * analityki" od „analityki nie ma, a polityka prywatności mówi, że jest".
+     * Pierwsze jest poprawnym stanem serwisu. Drugie jest nieprawdą w
+     * dokumencie, na który człowiek nie ma jak spojrzeć od środka: przycisku
+     * Google widać brak na ekranie logowania, a braku beacona nie widać
+     * NIGDZIE — ani odwiedzającemu, ani właścicielowi, który przecież
+     * przeczytał w panelu Cloudflare, że serwis istnieje.
+     *
+     * Odpowiedzi używa `HealthController::sprawdzAnalityke()`. Zapala sygnał
+     * TYLKO przy rozjeździe: dokument obiecuje, a tokenu nie ma.
+     *
+     * DLACZEGO ZWYKŁY `str_contains`, A NIE PARSOWANIE DOKUMENTU
+     * Bo pytanie brzmi „czy nazwa usługi pada w tym dokumencie", a nie „czy
+     * zdanie jest twierdzące". Sprytniejszy test treści prawnej oblewałby
+     * przy każdej poprawce stylistycznej i skończyłby wyciszony
+     * (`docs/PULAPKI_TESTOW.md`). Od strony gramatyki pilnuje tego dokumentu
+     * `DokumentyPrawneNieKlamiaTest`, który chodzi po każdym wystąpieniu
+     * nazwy w jego własnym zdaniu (D-092).
+     *
+     * BRAK PLIKU ODDAJE `false`, CZYLI CISZĘ — świadomie. Nieczytelny albo
+     * nieistniejący dokument prawny to awaria o własnej, znacznie głośniejszej
+     * sygnalizacji: `StaticPageController::markdown()` rzuca wtedy wyjątkiem
+     * na trasie `/prywatnosc`, czyli 500 na żywej stronie i dzwonek na
+     * `blad_webhook`. Udawanie tutaj, że obietnica stoi, dołożyłoby do tego
+     * mylący powód w `/health` („brak tokenu") do sprawy, która z tokenem nie
+     * ma nic wspólnego.
+     *
+     * CZYTAMY PLIK PRZY KAŻDYM WYWOŁANIU, BEZ BUFOROWANIA. To jest kilkadziesiąt
+     * kilobajtów z dysku raz na odpytanie `/health` — mniej niż robi sonda
+     * zdjęć w tym samym żądaniu (ta ZAPISUJE plik próbny i czyta go z powrotem).
+     * Bufor w statycznym polu przeżyłby podmianę konfiguracji w teście i dałby
+     * strażnika, który mierzy stan sprzed poprzedniej asercji.
+     */
+    public static function obiecanaWDokumencie(): bool
+    {
+        $sciezka = resource_path(self::dokumentObietnicy());
+
+        if (! is_file($sciezka)) {
+            return false;
+        }
+
+        $tresc = @file_get_contents($sciezka);
+
+        if ($tresc === false) {
+            return false;
+        }
+
+        return str_contains($tresc, self::frazaObietnicy());
+    }
+
+    /** Dokument prawny, w którym stoi obietnica — ścieżka względem `resource_path()`. */
+    public static function dokumentObietnicy(): string
+    {
+        return trim((string) config('kuking.analytics.cloudflare.obietnica.dokument'));
+    }
+
+    /** Fraza, której obecność w tym dokumencie czytamy jako obietnicę. */
+    public static function frazaObietnicy(): string
+    {
+        return trim((string) config('kuking.analytics.cloudflare.obietnica.fraza'));
+    }
+
+    /**
+     * Zdanie DLA WŁAŚCICIELA o tym, czego brakuje — do serwerowego logu,
+     * nigdy do publicznej odpowiedzi `/health` (tam idzie sam kod
+     * `analityka_bez_tokenu`).
+     *
+     * Mówi o DWÓCH czynnościach, nie o jednej, i to jest tu najważniejsze.
+     * Token bez przestawienia wariantu zbierania danych w panelu Cloudflare
+     * daje stan najgorszy z możliwych: skrypt na stronie jest, CSP go
+     * przepuszcza, `/health` milczy, polityka prywatności mówi prawdę —
+     * a panel dalej świeci zerami, bo wariant „excluding visitor data in the
+     * EU" odrzuca ruch z Unii Europejskiej, czyli praktycznie cały nasz.
+     * Zmierzyć tego z naszej strony nie da się wcale (Cloudflare przyjmuje
+     * zdarzenie i odrzuca je u siebie), więc jedyne, co możemy zrobić, to
+     * powiedzieć o tym w tym samym zdaniu, w którym mówimy o tokenie.
+     */
+    public static function komunikatBrakuTokenu(): string
+    {
+        return 'Polityka prywatności ('.self::dokumentObietnicy().') obiecuje analitykę '
+            .'„'.self::frazaObietnicy().'", ale nie ma tokenu: ustaw CLOUDFLARE_ANALYTICS_TOKEN '
+            .'(Cloudflare → Web Analytics → serwis kuking.pl → wartość pola `token` ze znacznika). '
+            .'Do tego czasu beacona nie ma w HTML-u, panel jest pusty, a dokument prawny opisuje '
+            .'przetwarzanie, którego nie ma. W panelu Cloudflare sprawdź przy okazji DWIE rzeczy, '
+            .'bez których sam token nic nie da: wariant zbierania danych musi obejmować Unię '
+            .'Europejską, a automatyczne wstrzykiwanie beacona ma być wyłączone. '
+            .'Krok po kroku: docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.';
+    }
 }
