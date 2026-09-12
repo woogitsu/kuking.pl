@@ -389,13 +389,40 @@
 
             <div class="topbar-actions">
                 @auth
-                    {{-- Powiadomienia zostają TEKSTEM, choć kit ma tu samą
-                         ikonę dzwonka. „Ikona nigdy sama" jest twardą zasadą
-                         tego produktu (AGENTS.md §5), a dzwonek bez podpisu
-                         jest dla części naszych odbiorców po prostu nieczytelny.
-                         Na desktopie ta sama pozycja stoi jeszcze raz na dole
-                         nawigacji bocznej, tak jak w kicie. --}}
-                    <a class="btn btn-quiet" href="{{ route('notifications.index') }}">
+                    {{--
+                        Powiadomienia zostają TEKSTEM, choć kit ma tu samą
+                        ikonę dzwonka. „Ikona nigdy sama" jest twardą zasadą
+                        tego produktu (AGENTS.md §5), a dzwonek bez podpisu
+                        jest dla części naszych odbiorców po prostu nieczytelny.
+
+                        `topbar-mobile-only` — POZYCJA ZNIKA Z BELKI TAM, GDZIE
+                        WIDAĆ NAWIGACJĘ BOCZNĄ, I TYLKO TAM.
+
+                        Od 64rem `.side-nav` niesie DOKŁADNIE tę samą pozycję:
+                        ten sam napis, ten sam adres i ten sam licznik
+                        nieprzeczytanych (`side-nav-dol` niżej w tym pliku).
+                        Na desktopie „Powiadomienia" były więc na ekranie
+                        dwa razy. Nic nie ubywa: poniżej 64rem, gdzie
+                        `.side-nav` ma `display: none`, ten egzemplarz zostaje
+                        jedynym i pokazuje się bez zmian.
+
+                        DLACZEGO TO JEST KONIECZNE, A NIE KOSMETYCZNE
+                        Od 80rem belka stoi w tej samej trzykolumnowej siatce
+                        co treść, a jej trzecia kolumna ma zmierzone 352 px
+                        i jest zapełniona co do piksela: „Powiadomienia" 176 +
+                        „Dodaj" 95 + dawny awatar 40 + odstępy = 352. Menu
+                        konta z widocznym napisem (issue #344) potrzebuje tam
+                        138 px zamiast 40 — kolumna rosła kosztem kolumny
+                        środkowej i pole „Szukaj" przestawało stać nad tekstem,
+                        który przeszukuje (zmierzone: 739 zamiast 872 przy
+                        1280 px, czyli 133 px za wąsko; `scripts/dostepnosc.mjs`,
+                        „Wyrównanie belki do siatki treści"). Sprawdzone: nawet
+                        sam awatar ze strzałką i BEZ napisu przekraczał tę
+                        kolumnę o 19 px. Czegokolwiek się tam nie dołoży,
+                        miejsce musi się wziąć z rzeczy, która stoi obok
+                        drugi raz.
+                    --}}
+                    <a class="btn btn-quiet topbar-mobile-only" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
                             <span class="badge badge-cooked">{{ $unread }}</span>
@@ -419,15 +446,78 @@
                     --}}
                     <a class="btn btn-primary topbar-desktop-only" href="{{ route('add') }}">Dodaj</a>
 
-                    {{-- Awatar prowadzi na własny profil. W kicie jest tu menu
-                         rozwijane; menu, które bez skryptu nie otwiera się
-                         wcale, byłoby ozdobą udającą przycisk, więc na razie
-                         jest to zwykły odnośnik. Podpis dla czytnika ekranu,
-                         bo sam obrazek nie mówi, dokąd prowadzi. --}}
-                    <a class="topbar-awatar topbar-desktop-only" href="{{ route('profile.show', $user->profile->username) }}">
-                        <x-avatar :user="$user" :size="40" />
-                        <span class="visually-hidden">Mój profil</span>
-                    </a>
+                    {{--
+                        MENU KONTA PRZY AWATARZE (issue #344).
+
+                        CO BYŁO WCZEŚNIEJ I DLACZEGO TO NIE WYSTARCZAŁO
+                        Zwykły odnośnik na własny profil, z klasą
+                        `topbar-desktop-only` i podpisem schowanym w
+                        `visually-hidden`. Komentarz w tym miejscu mówił, że
+                        menu „bez skryptu nie otwiera się wcale" — i to była
+                        pomyłka co do faktów: `<details>` otwiera się bez
+                        jednej linijki JavaScriptu i ten sam wzorzec stoi
+                        w tym repozytorium od dawna przy karcie wpisu
+                        (`components/post-card.blade.php`). Idziemy dokładnie
+                        tą samą drogą.
+
+                        AWATAR PRZESTAJE BYĆ `topbar-desktop-only`
+                        Na telefonie `.side-nav` ma `display: none`
+                        (`resources/css/app.css:1173`), a pasek dolny niesie
+                        pięć pozycji i szóstej mieć nie może (AGENTS.md §5).
+                        Bez tego menu jedyną drogą do Ustawień i do wylogowania
+                        był własny profil — czyli trzeba było wiedzieć, że
+                        obsługa konta stoi pod cudzą nazwą (D-168). Teraz
+                        wejście jest tam, gdzie człowiek go szuka: przy swoim
+                        zdjęciu, na każdym ekranie.
+
+                        IKONA NIGDY NIE JEST SAMA (AGENTS.md §5)
+                        W `<summary>` stoi awatar, WIDOCZNY napis „Moje konto"
+                        i strzałka. Sam awatar — nawet z podpisem dla czytnika
+                        ekranu — byłby obrazkiem, po którym nie widać, że coś
+                        się pod nim kryje. `aria-label` powtarza widoczny napis
+                        i dokłada rolę (WCAG 2.5.3: nazwa dostępna musi
+                        zawierać to, co widać).
+
+                        BEZ HOVERA I BEZ SKRYPTU
+                        Menu otwiera kliknięcie albo dotknięcie, nigdy
+                        najechanie myszą: przy mniej pewnej ręce hover zamyka
+                        menu w trakcie celowania, a na dotyku nie istnieje
+                        w ogóle. Zamykanie klawiszem Esc i kliknięciem obok
+                        dokłada `resources/js/app.js` — jako DODATEK. Bez
+                        skryptu menu nadal otwiera się i zamyka tym samym
+                        przyciskiem, więc nie ma tu martwego przycisku (D-053).
+
+                        WYLOGOWANIE ZOSTAJE POST-em Z TOKENEM CSRF
+                        Ten sam składnik co w nawigacji bocznej i na własnym
+                        profilu (`components/wyloguj.blade.php`). Odnośnik GET
+                        wylogowywałby człowieka z podglądu linku albo
+                        z prefetchu przeglądarki — także wewnątrz menu.
+                    --}}
+                    <details class="topbar-konto">
+                        {{-- NAPIS BRZMI „Konto", A NIE „Moje konto" — i to jest
+                             pomiar, nie skrót myślowy. Na telefonie 390 px
+                             w belce zostaje 358 px na logotyp (159),
+                             „Powiadomienia" (176) i ten przycisk. „Moje konto"
+                             ze strzałką ma 194 px i zrzuca przycisk do
+                             TRZECIEGO wiersza belki, spychając kafelek
+                             dodawania — główną akcję serwisu — o 59 px niżej.
+                             „Konto" ma 138 px i mieści się obok „Powiadomień"
+                             w jednym wierszu. Przy własnym zdjęciu i strzałce
+                             jedno słowo mówi to samo. --}}
+                        <summary class="topbar-konto-przycisk" aria-label="Konto — menu: profil, ustawienia, wylogowanie">
+                            <x-avatar :user="$user" :size="40" />
+                            <span class="topbar-konto-napis">Konto</span>
+                            <x-ikona nazwa="chevron" :rozmiar="20" class="topbar-konto-strzalka" />
+                        </summary>
+                        {{-- Lista, nie zbiór `<div>`-ów: czytnik ekranu zapowiada
+                             „3 pozycje", więc człowiek wie, ile ich jest, zanim
+                             zacznie je przechodzić. --}}
+                        <ul class="topbar-konto-tresc">
+                            <li><a href="{{ route('profile.show', $user->profile->username) }}">Mój profil</a></li>
+                            <li><a href="{{ route('settings.index') }}">Ustawienia</a></li>
+                            <li><x-wyloguj class="topbar-konto-wyjscie" formClass="topbar-konto-wyjscie-formularz">Wyloguj się</x-wyloguj></li>
+                        </ul>
+                    </details>
                 @else
                     <a class="btn btn-quiet" href="{{ route('login') }}">Zaloguj się</a>
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto</a>
@@ -720,7 +810,21 @@
                                 <span class="visually-hidden">nieprzeczytanych</span>
                             @endif
                         </a></li>
-                        <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
+                        {{-- Napis „Ustawienia" prowadzi na EKRAN O TYM TYTULE
+                             (`settings.index`), a nie na „Czytelność".
+
+                             Do 12 września 2026 stało tu `settings.accessibility`,
+                             bo rozdroża nie było — i D-168 przyjęło to jako
+                             koszt świadomy, mniejszy niż jeden napis o dwóch
+                             różnych celach. Rozdroże powstało (issue #344),
+                             więc koszt znika: to samo słowo, ten sam ekran,
+                             tu i w rzędzie akcji własnego profilu.
+
+                             `routeIs('settings.*')` zostaje bez zmian —
+                             `settings.index` też wpada w ten wzorzec, więc
+                             pozycja jest podświetlona na każdym ekranie
+                             ustawień, łącznie z samym rozdrożem. --}}
+                        <li><a class="side-nav-item" href="{{ route('settings.index') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
                         {{-- „Napisz do nas" także tutaj, nie tylko w stopce.
                              Osoba, która się gubi, gubi się na górze ekranu,
                              a nie na jego dole — a stopka na desktopie bywa
