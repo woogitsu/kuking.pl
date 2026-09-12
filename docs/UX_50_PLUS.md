@@ -27,6 +27,38 @@ Dobre:
 Słabe:
 `♡  ⋮  ↗` bez podpisów.
 
+### Jeden nazwany wyjątek: menu „więcej" na karcie wpisu
+
+Powyższe „słabe" ma **jeden** wyjątek i jest nim menu „więcej" na karcie wpisu
+(`components/post-card.blade.php`, `<details class="post-card-menu">`). Ten
+przycisk to same trzy kropki, bez widocznego napisu — na świadomą decyzję
+właściciela z 12 września 2026, odwracającą decyzję z 11 września.
+
+**Dlaczego akurat ten jeden.** To nie jest ustępstwo estetyczne, tylko
+rachunek rozpoznawalności. Nasi użytkownicy przyszli z Facebooka i spędzili
+tam lata; trzy kropki w rogu wpisu są dla nich znakiem już znanym, a nie
+ikoną do rozszyfrowania. Reguła ogólna mówi o ikonie, której trzeba się
+**domyślić** — tutaj domyślania nie ma.
+
+**Gdzie ten wyjątek się kończy.** Na tym jednym przycisku. Pasek akcji pod
+wpisem („Ugotowałem", „Napisz komentarz", „Zapisuję"), paski nawigacji,
+przyciski zamykania, akcje moderacyjne i wszystko inne w serwisie dalej mają
+tekst przy ikonie. Wyjątek nie jest wzorcem do naśladowania i nie rozciąga
+się przez podobieństwo („to też jest menu").
+
+**Czego wyjątek NIE zmienia:**
+
+| | |
+|---|---|
+| nazwa dostępna | zostaje — `aria-label="Więcej przy tym wpisie"`, jedyne, co ma czytnik ekranu |
+| cel dotknięcia | zostaje 48 × 48 px — znikł napis, nie przycisk |
+| bez JavaScriptu | zostaje — menu to `<details>`, otwiera się bez skryptu |
+| kształt kropek | rysuje komponent `<x-ikona nazwa="more">`, nie znak `···` z klawiatury |
+
+Pilnuje tego test
+`KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`.
+Pełne uzasadnienie i granica: `AGENTS.md` §5.
+
 ## Nawigacja mobile
 
 Maks. 5 głównych pozycji:
