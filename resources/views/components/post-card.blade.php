@@ -40,7 +40,22 @@
         <a class="post-card-awatar" href="{{ route('profile.show', $author->profile->username) }}" aria-hidden="true" tabindex="-1">
             <x-avatar :user="$author" :size="52" />
         </a>
-        <div class="min-w-0">
+        {{-- KOLUMNA Z NAZWĄ AUTORA I DATĄ — WŁASNA KLASA, NIE NARZUTKA `min-w-0`.
+
+             `min-w-0` mówiło tylko tyle, że tę kolumnę wolno ścisnąć — i przy
+             czcionce przeglądarki 200% ściskała się do ZERA: awatar (52 px
+             z widoku), odstępy i przycisk menu (96 px, bo `--control-height-min`
+             to 3rem) nie mieszczą się wtedy w karcie szerokiej na 256 px, a
+             jedynym elementem, który wolno zwęzić, była właśnie ta kolumna.
+             Nazwa i data rozsypywały się na słup pojedynczych liter — główka
+             wysoka na 5588 px zamiast 330 px (zmierzone,
+             `scripts/glowka-karty-wpisu.mjs`).
+
+             Klasa niesie teraz obie połowy zdania naraz: „wolno Cię ścisnąć"
+             ORAZ „liczysz się w tym rzędzie za 96 px, a przy bardzo dużej
+             czcionce bierzesz cały rząd". Reguła i pomiary siedzą przy
+             `.post-card-tozsamosc` w `resources/css/app.css`. --}}
+        <div class="post-card-tozsamosc">
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
             <p class="meta m-0">
                 {{-- `adresTresci()`, nie `url()`: wpis, który jest samym
