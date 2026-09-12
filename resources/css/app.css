@@ -1785,11 +1785,11 @@
   }
 
   /* =====================================================================
-     WCIĘCIE BOCZNE CHIPSÓW Z TEMATAMI WPISU
+     WCIĘCIE BOCZNE CHIPSÓW Z TAGAMI WPISU
      =====================================================================
 
      USTERKA POZIOMA, ZNALEZIONA PRZY NAPRAWIE PIONOWEJ (PR #405) i wtedy
-     świadomie pominięta jako inny problem: chipsy z tematami dochodziły do
+     świadomie pominięta jako inny problem: chipsy z tagami dochodziły do
      samej krawędzi karty, kiedy każdy inny blok tej karty stoi 20 px od niej.
 
      ZMIERZONE (Chromium 1194, `scripts/wciecia-boczne-karty-wpisu.mjs`,
@@ -1849,8 +1849,8 @@
          nagłówek → zdjęcie ...............................  16 px (1512 i 390)
          zdjęcie → pasek „Z przepisu · …" .................   0 px (1512 i 390)
          karuzela → „N osób zapisało to u siebie" .........   0 px (1512 i 390)
-         pasek „Z przepisu" → tematy wpisu ................  40 px
-         tematy wpisu → pasek akcji .......................  37 px
+         pasek „Z przepisu" → tagi wpisu ................  40 px
+         tagi wpisu → pasek akcji .......................  37 px
 
      Cała karta trzyma odstęp 16 px i robi to DOLNYM WCIĘCIEM bloku wyżej
      (`.post-card-head`, `.post-card-body`, `.post-card-recipe` i
@@ -1874,7 +1874,7 @@
      bloku wyżej. Bezwarunkowy `margin-top` zrobiłby tam 32 px, czyli
      poprawiłby jeden stan ekranu i zepsuł dwa inne (D-099, D-106: ten sam
      adres w dwóch stanach to dwa ekrany). Tak samo `.post-card-zapisy`:
-     pod paskiem przepisu ma już 16 px, pod tematami 37 px, a pod zdjęciem
+     pod paskiem przepisu ma już 16 px, pod tagami 37 px, a pod zdjęciem
      miało zero.
 
      `--spacing-4`, BO TYLE MA CAŁA RESZTA KARTY. Token, nie piksele: ten

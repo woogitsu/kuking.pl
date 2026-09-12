@@ -20,7 +20,7 @@ use Tests\TestCase;
  *    stara siatka stała w arkuszu dalej — z komentarzem opisującym ją jak
  *    żywą, więc przy następnym czytaniu wyglądała na kod w użyciu.
  *
- * B. CHIPSY Z TEMATAMI BEZ WCIĘCIA BOCZNEGO.
+ * B. CHIPSY Z TAGAMI BEZ WCIĘCIA BOCZNEGO.
  *    Zmierzone przed poprawką (Chromium 1194,
  *    `scripts/wciecia-boczne-karty-wpisu.mjs`, `/home` i `/tag/{slug}`,
  *    okna 1512 px i 390 px; odległość od krawędzi karty do pierwszego piksela
@@ -196,15 +196,15 @@ class PorzadkiWArkuszuKartyTest extends TestCase
         );
     }
 
-    // === B. Wcięcie boczne chipsów z tematami =============================
+    // === B. Wcięcie boczne chipsów z tagami =============================
 
-    public function test_chipsy_z_tematami_maja_zadeklarowane_wciecie_boczne(): void
+    public function test_chipsy_z_tagami_maja_zadeklarowane_wciecie_boczne(): void
     {
         $reguly = $this->regulyDlaKlasy('post-card-tagi');
 
         $this->assertNotEmpty(
             $reguly,
-            'W arkuszu nie ma ani jednej reguły dla `.post-card-tagi`. Widok bierze dla tematów '.
+            'W arkuszu nie ma ani jednej reguły dla `.post-card-tagi`. Widok bierze dla tagów '.
             'gotowe `.chipsy`, a `.chipsy` nie ma wcięcia bocznego — powstało dla chipsów '.
             'stojących wprost w kolumnie strony, która wcięcie ma sama. Karta wpisu go nie ma '.
             '(`.post-card { padding: 0 }`, bo zdjęcie idzie od krawędzi do krawędzi), więc bez '.
@@ -243,7 +243,7 @@ class PorzadkiWArkuszuKartyTest extends TestCase
                     'var(--spacing-0)',
                     $wartosc,
                     'Wcięcie boczne `.post-card-tagi` jest ustawione na zero. To jest dokładnie ten '.
-                    'stan, przez który zgłoszono usterkę: chipsy z tematami dotykały krawędzi karty.',
+                    'stan, przez który zgłoszono usterkę: chipsy z tagami dotykały krawędzi karty.',
                 );
 
                 $maWciecie = true;
@@ -258,10 +258,10 @@ class PorzadkiWArkuszuKartyTest extends TestCase
         );
     }
 
-    public function test_blok_tematow_stoi_na_karcie_wpisu_jako_jej_wlasne_dziecko(): void
+    public function test_blok_tagow_stoi_na_karcie_wpisu_jako_jej_wlasne_dziecko(): void
     {
         // CHIPSY RENDERUJĄ SIĘ WARUNKOWO (D-099, D-106): `post-card.blade.php`
-        // pokazuje tematy tylko tam, gdzie relacja tagów jest DOŁADOWANA
+        // pokazuje tagi tylko tam, gdzie relacja tagów jest DOŁADOWANA
         // (`$post->relationLoaded('tags')`). Strona tagu ją ładuje
         // (`TagController::show`), strona pojedynczego wpisu — nie. Dlatego
         // mierzony ekran to `/tag/{slug}`, a nie pierwszy lepszy adres z kartą.
@@ -320,7 +320,7 @@ class PorzadkiWArkuszuKartyTest extends TestCase
         $this->assertContains(
             'chipsy',
             preg_split('/\s+/', trim($blok->getAttribute('class'))) ?: [],
-            'Blok tematów stracił klasę `chipsy`. To ona daje układ i odstępy między chipami; '.
+            'Blok tagów stracił klasę `chipsy`. To ona daje układ i odstępy między chipami; '.
             '`post-card-tagi` niesie WYŁĄCZNIE wcięcie boczne karty i sama niczego nie układa.',
         );
     }

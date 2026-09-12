@@ -6,7 +6,7 @@
  *  PO CO TO JEST
  *  `scripts/odstepy-karty-wpisu.mjs` (PR #405) mierzył przerwy PIONOWE między
  *  blokami karty. Przy okazji tamtej naprawy widać było drugą usterkę, wtedy
- *  świadomie pominiętą jako inny problem: chipsy z tematami wpisu
+ *  świadomie pominiętą jako inny problem: chipsy z tagami wpisu
  *  (`.post-card-tagi`) dochodzą do samej krawędzi karty, a każdy inny blok tej
  *  karty ma 20 px wcięcia z obu stron. Ten skrypt zamienia „dochodzą do
  *  krawędzi" na liczby.
@@ -24,11 +24,11 @@
  *  zamierzone (`.post-card { padding: 0; overflow: hidden }`).
  *
  *  STAN EKRANU: CHIPSY RENDERUJĄ SIĘ WARUNKOWO (D-099, D-106)
- *  `components/post-card.blade.php` pokazuje tematy tylko wtedy, gdy relacja
+ *  `components/post-card.blade.php` pokazuje tagi tylko wtedy, gdy relacja
  *  tagów jest DOŁADOWANA (`$post->relationLoaded('tags')`). `DemoSeeder` nie
  *  dokłada wpisowi tagów, więc pomiar samego demo opisywałby kartę, na której
  *  mierzonego bloku NIE MA, i meldowałby, że wszystko w porządku. Dlatego
- *  skrypt sam dokłada wpis z tematami (tinkerem, nie zmianą cudzego seedera)
+ *  skrypt sam dokłada wpis z tagami (tinkerem, nie zmianą cudzego seedera)
  *  i ZATRZYMUJE SIĘ Z BŁĘDEM, jeśli na zmierzonej stronie nie zobaczył ani
  *  jednego bloku `.post-card-tagi`.
  *
@@ -73,17 +73,17 @@ function env() {
 }
 
 /*
- * WPIS Z TEMATAMI, ZE ZDJĘCIEM I Z SĄSIADAMI DO PORÓWNANIA.
+ * WPIS Z TAGAMI, ZE ZDJĘCIEM I Z SĄSIADAMI DO PORÓWNANIA.
  *
  * Karta ma pokazać naraz: nagłówek, treść, zdjęcie, pasek „Z przepisu",
- * chipsy z tematami i pasek akcji — dopiero wtedy widać, że jeden blok wypada
+ * chipsy z tagami i pasek akcji — dopiero wtedy widać, że jeden blok wypada
  * z rytmu bocznego, a nie że cała karta ma inne wcięcie.
  *
- * Zwracamy slug pierwszego tematu: strona tagu (`/tag/{slug}`) to drugi ekran,
+ * Zwracamy slug pierwszego tagu: strona tagu (`/tag/{slug}`) to drugi ekran,
  * na którym chipsy się renderują (`TagController::show` ładuje `tags:id,…`),
  * i chcemy zmierzyć oba, żeby liczby nie zależały od jednego szablonu.
  */
-function przygotujWpisZTematami() {
+function przygotujWpisZTagami() {
   const php = `
     $przepis = App\\Models\\Recipe::where('status','published')->orderBy('created_at')->first();
     if (! $przepis) { echo 'BRAK-PRZEPISU'; exit; }
@@ -117,7 +117,7 @@ function przygotujWpisZTematami() {
     }
 
     /* Pozycja w pivocie jest OBOWIĄZKOWA — tabela post_tags ma unikat na parze
-       (post_id, position), a kolejność tematów jest wyborem autora. */
+       (post_id, position), a kolejność tagów jest wyborem autora. */
     $pozycje = [];
     $tagi = App\\Models\\Tag::limit(3)->get();
     foreach ($tagi->pluck('id')->all() as $i => $id) {
@@ -133,7 +133,7 @@ function przygotujWpisZTematami() {
 
   if (wynik === '' || wynik.includes('BRAK-')) {
     throw new Error(
-      'Nie udało się przygotować wpisu z tematami. Bez niego chipsy `.post-card-tagi` '
+      'Nie udało się przygotować wpisu z tagami. Bez niego chipsy `.post-card-tagi` '
       + 'w ogóle się nie renderują, a pomiar opisywałby inną kartę.\n'
       + `Wyjście tinkera: ${wynik}`,
     );
@@ -158,7 +158,7 @@ async function wolnyPort() {
 
 async function podniesSerwer() {
   if (process.env.ADRES) {
-    return { adres: process.env.ADRES, slug: przygotujWpisZTematami(), zamknij: () => {} };
+    return { adres: process.env.ADRES, slug: przygotujWpisZTagami(), zamknij: () => {} };
   }
 
   console.log('Czyszczę zapamiętaną konfigurację...');
@@ -177,7 +177,7 @@ async function podniesSerwer() {
     env: env(),
   });
 
-  const slug = przygotujWpisZTematami();
+  const slug = przygotujWpisZTagami();
   const bledy = [];
 
   for (let podejscie = 1; podejscie <= 3; podejscie++) {
@@ -267,7 +267,7 @@ const POMIAR = () => {
     }
 
     karty.push({
-      maTematy: karta.querySelector('.post-card-tagi') !== null,
+      maTagi: karta.querySelector('.post-card-tagi') !== null,
       szerokosc: zaokr(pudelkoKarty.width),
       bloki,
     });
@@ -280,10 +280,10 @@ const CHROMIUM = znajdzChromium();
 const { adres, slug, zamknij } = await podniesSerwer();
 
 console.log(`Serwer: ${adres}`);
-console.log(`Temat do strony tagu: ${slug}`);
+console.log(`Slug do strony tagu: ${slug}`);
 
 const przegladarka = await chromium.launch({ executablePath: CHROMIUM });
-let znalazlemTematy = false;
+let znalazlemTagi = false;
 
 try {
   for (const widok of SZEROKOSCI) {
@@ -304,19 +304,19 @@ try {
       await strona.goto(`${adres}${sciezka}`);
       await strona.waitForSelector('article.post-card');
 
-      const karty = (await strona.evaluate(POMIAR)).filter((k) => k.maTematy);
+      const karty = (await strona.evaluate(POMIAR)).filter((k) => k.maTagi);
 
       console.log(`\n=== ${widok.nazwa} · ${sciezka} ===`);
 
       if (karty.length === 0) {
-        console.log('  (na tym ekranie nie ma karty z tematami)');
+        console.log('  (na tym ekranie nie ma karty z tagami)');
         continue;
       }
 
-      znalazlemTematy = true;
+      znalazlemTagi = true;
 
       for (const karta of karty) {
-        console.log(`\n  KARTA Z TEMATAMI (szerokość karty ${karta.szerokosc} px)`);
+        console.log(`\n  KARTA Z TAGAMI (szerokość karty ${karta.szerokosc} px)`);
         console.log(`    ${'blok'.padEnd(24)} ${'z lewej'.padStart(9)} ${'z prawej'.padStart(9)}`);
 
         for (const blok of karta.bloki) {
@@ -340,7 +340,7 @@ try {
  * zmierzonych stronach znaczy, że mierzyliśmy NIE TĘ kartę, o którą chodzi —
  * i wtedy żadna z wypisanych liczb nie mówi niczego (D-099, D-106).
  */
-if (! znalazlemTematy) {
+if (! znalazlemTagi) {
   console.error('\nBŁĄD: na żadnej zmierzonej karcie nie było bloku `.post-card-tagi` — '
     + 'a to jest blok, o który poszło zgłoszenie. Pomiar nic nie znaczy.');
   process.exit(1);
