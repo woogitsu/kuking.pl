@@ -70,6 +70,13 @@ class Recipe extends Model
 
     protected $fillable = [
         'author_id',
+        // Tożsamość JEDNEGO wysłania formularza „Opublikuj" — nie treść
+        // i nie stan przepisu. Częściowy indeks UNIQUE
+        // `recipes_one_per_klucz_wyslania` na parze (autor, klucz) sprawia,
+        // że drugie kliknięcie nie zakłada drugiego przepisu (ADR
+        // `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`). Wypełniane tylko
+        // przy ZAKŁADANIU przepisu; edycja tej kolumny nie dotyka.
+        'klucz_wyslania',
         'title',
         'slug',
         'summary',

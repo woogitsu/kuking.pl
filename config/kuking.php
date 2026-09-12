@@ -848,6 +848,36 @@ return [
         // zgłoszenie na parę zgłaszający–treść) — nie zależy od niczego, co
         // wysyła formularz, więc jego wycofanie to osobna migracja (ADR §8.4).
         'klucz_wyslania_wlaczony' => (bool) env('KUKING_KLUCZ_WYSLANIA', true),
+
+        /*
+         * OKNO, W KTÓRYM DRUGI IDENTYCZNY KOMENTARZ JEST TYM SAMYM
+         * KOMENTARZEM (audyt podwójnego wysłania, 12 września 2026).
+         *
+         * DLACZEGO KOMENTARZ NIE MA KLUCZA WYSŁANIA. Formularz komentarza
+         * stoi w jednym, wspólnym komponencie (`components/comment-thread`)
+         * używanym przez trzy ekrany, a ukrytego pola nie da się do niego
+         * dołożyć bez zmiany pliku, który w tej sesji należy do kogoś innego.
+         * Zamiast tego `PublishComment` bierze BLOKADĘ W BAZIE na tożsamości
+         * wysłania (autor + treść + miejsce + wątek) i POD NIĄ sprawdza, czy
+         * taki komentarz już powstał — constraint albo blokada z rewalidacją,
+         * nigdy samo `exists()` (D-079).
+         *
+         * DLACZEGO OKNO, A NIE UNIKALNOŚĆ NA ZAWSZE. „Pyszne!" pod dwoma
+         * różnymi zdjęciami tej samej osoby to dwie różne rozmowy, a to samo
+         * słowo pod tym samym zdjęciem za miesiąc to nowa reakcja, nie
+         * duplikat. Zakaz bez okna wyciszałby rozmowę — czyli robiłby to,
+         * czego `NotifyUser` w tym repozytorium wprost odmawia.
+         *
+         * SKĄD MINUTA. Podwójne kliknięcie na wolnym łączu mieści się
+         * w sekundach; „kliknąłem, nic się nie stało, kliknąłem jeszcze raz"
+         * — w kilkunastu. Minuta obejmuje jedno i drugie z zapasem, a wpisanie
+         * ŚWIADOMIE tego samego zdania pod tym samym wpisem w ciągu minuty
+         * nie jest zachowaniem, które ten serwis musi obsłużyć.
+         *
+         * `0` WYŁĄCZA MECHANIZM: blokada nie jest zakładana, powtórki wracają.
+         * To jest wyjście awaryjne tej samej klasy co wyłącznik wyżej.
+         */
+        'okno_powtorzenia_komentarza_sekund' => (int) env('KUKING_OKNO_POWTORZENIA_KOMENTARZA', 60),
     ],
 
     /*
