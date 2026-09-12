@@ -466,6 +466,29 @@ się spodziewało.
 
 ### 6.1. Ile trwa — nie wiem i nie zgaduję
 
+> ## ⚠️ 12 września 2026: rzeczywistość nie potwierdziła tego przewidywania
+>
+> Ten rozdział mówi, że **przeglądu nie składamy**. Właściciel zgłosił, że
+> aplikacja **przeszła przegląd, został on zatwierdzony**, a aplikacja jest
+> opublikowana (Live) i wejście kontem Facebooka działa — co niezależnie
+> potwierdza produkcja (`/health` → `checks.facebook.ok = true`, przycisk na
+> `/login`).
+>
+> **Nie przepisuję poniższego tekstu, bo nie wiem, które z dwojga jest
+> prawdą**, a zgadywanie w runbooku jest gorsze niż jawna rozbieżność:
+>
+> 1. przegląd był naprawdę potrzebny — wtedy §2 i §6.1 są błędne i trzeba je
+>    poprawić razem z listą w `DEPLOYMENT_RUNBOOK.md` KROK 8E.1 punkt 7;
+> 2. albo „review" w relacji właściciela znaczy coś innego niż App Review —
+>    np. przyznanie **Advanced Access** dla `public_profile` i `email` albo
+>    samo przestawienie aplikacji na **Live** — a wtedy §6.1 zostaje w mocy
+>    i wystarczy dopisać, że nowy kreator nazywa ten krok inaczej.
+>
+> **Rozstrzyga jedno zdanie od właściciela.** Do tego czasu nikt nie powinien
+> planować kolejnego wdrożenia w oparciu o zdanie „przeglądu nie składamy" —
+> ani go kasować.
+
+
 **Meta nie podaje w dokumentacji żadnego terminu ani SLA dla przeglądu
 aplikacji.** Jedyna liczba, na którą trafiłem, dotyczyła przeglądu dla
 dostawców rozwiązań WhatsApp i do naszego przypadku się nie stosuje.
@@ -1089,6 +1112,22 @@ minutę.
 ---
 
 ## 13. Czego w tym dokumencie NIE zweryfikowano
+
+> **Aktualizacja z 12 września 2026.** Wdrożenie się odbyło, więc część tej
+> listy przestała być otwarta — ale **nie przez sprawdzenie dokumentacji,
+> tylko przez przejście procedury**. Zapisuję to osobno, żeby było jasne,
+> skąd wiadomo:
+>
+> | pozycja z tabeli niżej | co rozstrzygnęło wdrożenie |
+> |---|---|
+> | Czas trwania przeglądu aplikacji | przegląd **był i został zatwierdzony** (relacja właściciela) — czyli założenie „przeglądu nie składamy" z §6.1 nie sprawdziło się albo znaczy co innego; patrz nota w §6.1 |
+> | Czy weryfikacja biznesowa dotyczy nas | aplikacja jest opublikowana, więc przeszła wszystko, czego Meta wymagała — **czy weryfikacja biznesowa była jednym z tych kroków, wie tylko właściciel** |
+> | Czy Meta przyjmie `/prywatnosc` jako adres instrukcji usuwania danych | **przyjęła** — aplikacja jest Live, a ten adres był wpisany |
+> | Dzisiejszy wygląd kreatora i pełna lista przypadków użycia | właściciel przeszedł przez kreator; jeśli nazwy przycisków się różniły, warto to dopisać |
+>
+> Pozostałe pozycje (adresy `localhost`, dosłowny wymóg HTTPS, aktualność
+> `v25.0`) **zostają otwarte** — wdrożenie ich nie dotknęło.
+
 
 Zebrane w jednym miejscu, żeby nikt nie wziął tego za sprawdzone. Powtórzenie
 listy z góry, bo tam łatwo ją przeczytać i zapomnieć.
