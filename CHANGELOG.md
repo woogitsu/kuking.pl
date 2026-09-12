@@ -14,6 +14,28 @@ ich nie ma.
 
 ---
 
+## Alfa 0.8 — 12 września 2026
+
+### Wygląd i strona główna
+
+- Jasne neutralne tło, białe karty i grafitowe pismo. Czerwone akcenty mają
+  osobne odcienie do jasnego i ciemnego motywu.
+- Powitanie na stronie głównej dostało wyraźniejszą oprawę.
+- Podpis przy dodawaniu zdjęcia ma teraz 18 px zamiast 16 px przy domyślnym
+  rozmiarze tekstu. Przy dużej czcionce opis nadal przechodzi do własnego wiersza.
+
+### Formularze i zeszyt
+
+- Błędy formularzy mówią, co poprawić, i prowadzą do odpowiedniego pola.
+- Nieprawidłowy wybór zeszytu daje komunikat z prośbą o odświeżenie strony
+  i ponowny wybór, zamiast błędu serwera.
+
+### Wpisy
+
+- Szkic ma podpis „Szkic — jeszcze nieopublikowany” zamiast pustego odnośnika daty.
+
+---
+
 ## Alfa 0.7 — 12 września 2026
 
 ### Zdjęcia
@@ -289,3 +311,4 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
 Wersja, od której zaczęliśmy. Historia sprzed 11 września 2026 jest
 w historii repozytorium — ten plik zakładamy dziś i nie odtwarzamy go wstecz,
 bo wpisy pisane z pamięci po fakcie są gorsze niż ich brak.
+

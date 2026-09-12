@@ -11,7 +11,10 @@
         <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
     </x-slot:rail>
 
-    <h1>{{ $greeting }}</h1>
+    <header class="start-powitanie">
+        <p class="nadtytul">Gotujemy po swojemu.</p>
+        <h1>{{ $greeting }}</h1>
+    </header>
 
     {{--
         Zachęta do dodania wpisu (UI kit v2, ekrany 01 i 05).
@@ -21,8 +24,8 @@
         a nie jak jeden z wielu guzików na stronie.
 
         Świadomie NIE jest to pole tekstowe udające formularz: takie pole
-        bez JavaScriptu nie robi po kliknięciu nic, a rejestracja, publikacja
-        i komentarz mają działać bez skryptu (AGENTS.md §5). To jest zwykły
+        bez JavaScriptu nie robi po kliknięciu nic. AGENTS.md §5 wymaga
+        obsłużonej drogi lub konkretnej instrukcji. To jest zwykły
         odnośnik do strony dodawania — działa też z klawiatury i na czytniku
         ekranu.
     --}}
@@ -161,3 +164,4 @@
         <x-show-more :paginator="$posts" />
     @endif
 </x-layout>
+

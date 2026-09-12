@@ -36,7 +36,9 @@ use Tests\TestCase;
  * bazowa `overflow-wrap: break-word` (`tokens.css`) łamie wyraz w środku,
  * bo inaczej wyszedłby poza ekran.
  *
- * ZMIERZONE PO POPRAWCE (ten sam skrypt, te same warianty):
+ * POMIAR HISTORYCZNY PR #479 — przy podpisie 16 px. Issue #478 podnosi
+ * podpis do 18 px; podane dalej wysokości nie są wynikiem nowego wariantu.
+ * ZMIERZONE PO TAMTEJ POPRAWCE (ten sam skrypt, te same warianty):
  *
  *     okno     przed        po          kolumna tekstu
  *     320 px   2087,1 px    646,4 px    50 px  →  214 px
@@ -349,9 +351,9 @@ class KafelDodawaniaPrzyDuzymTekscieTest extends TestCase
         );
 
         $this->assertSame(
-            'var(--text-help)',
+            'var(--text-body)',
             $this->wartosc($this->regulaBazowa('.composer-help {'), 'font-size'),
-            'Podpis kafla zszedł z `--text-help`. Zmniejszanie pisma jest drugą zakazaną '
+            'Podpis kafla zszedł z minimum 18 px (`--text-body`, issue #478). Zmniejszanie pisma jest zakazaną '
             .'drogą do niskiego kafla — ta poprawka ma być zapłacona układem.',
         );
 
@@ -423,3 +425,4 @@ class KafelDodawaniaPrzyDuzymTekscieTest extends TestCase
         );
     }
 }
+

@@ -3,8 +3,9 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "dev": "vite"
+        "build": "node scripts/kontrast-marki.mjs && vite build",
+        "dev": "vite",
+        "sprawdz:marke": "node scripts/kontrast-marki.mjs"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.13.0",
