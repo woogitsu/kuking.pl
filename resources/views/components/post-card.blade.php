@@ -22,7 +22,22 @@
 @php $author = $post->author; @endphp
 <article class="card post-card">
     <div class="post-card-head">
-        <a href="{{ route('profile.show', $author->profile->username) }}" aria-hidden="true" tabindex="-1">
+        {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
+
+             `.post-card-head` jest `display: flex`, więc elementem flex tego
+             rzędu jest TEN `<a>`, a nie `<x-avatar>` w nim. `.avatar` ma
+             własne `flex: none` (`app.css`), ale to zdanie o awatarze, nie
+             o jego opakowaniu — bez klasy niżej `<a>` dostaje domyślne
+             `flex-shrink: 1` i kurczy się przy długiej nazwie autorki,
+             plakietce i przycisku „Więcej" w jednym wierszu. Wtedy
+             `max-width: 100%` (preflight Tailwinda) dociska SZEROKOŚĆ zdjęcia
+             do zwężonego `<a>`, a `height: 52px` zostaje — i twarz jest
+             ściśnięta w poziomie. Dotyczy to wariantu ze zdjęciem (`<img>`);
+             wariant z inicjałem (`<span>`) nie ma `max-width` i się nie zgniata.
+
+             Ta sama choroba i to samo lekarstwo co przy
+             `.kuking-board-avatar` (`app.css`) — tam stoi ten sam komentarz. --}}
+        <a class="post-card-awatar" href="{{ route('profile.show', $author->profile->username) }}" aria-hidden="true" tabindex="-1">
             <x-avatar :user="$author" :size="52" />
         </a>
         <div class="min-w-0">

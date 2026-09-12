@@ -85,8 +85,17 @@ class FeedTest extends TestCase
         // „Kuking" — jest komponent `x-kuking-word`. Wzór pyta o zakładkę
         // razem z tym komponentem: sam „Świeżo z" przechodziłby też wtedy,
         // gdyby ktoś wyjął nazwę z etykiety.
+        //
+        // `<span class="tab-napis">` jest w tym wzorze OPCJONALNY. Etykieta
+        // musi być owinięta jednym elementem, bo inaczej flex przycina spację
+        // przed nazwą i człowiek czyta „Świeżo zkuKING" — ale pilnuje tego
+        // `ZakladkaNieGubiSpacjiPrzedNazwaTest`, i to jest jego jedyne
+        // zadanie. Ten test pyta o co innego: czy zakładka w ogóle jest
+        // i czy prowadzi do właściwego ekranu. Gdyby wymagał tu konkretnego
+        // opakowania, oblewałby przy każdej zmianie kształtu etykiety
+        // i podawałby przy tym mylny powód.
         $this->assertMatchesRegularExpression(
-            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*Świeżo z <span class="kuking-word">~u',
+            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*(?:<span class="tab-napis">)?Świeżo z <span class="kuking-word">~u',
             (string) $odpowiedz->getContent(),
             'Zakładka prowadząca do „Świeżo z kuKING" zniknęła ze strony głównej.',
         );
