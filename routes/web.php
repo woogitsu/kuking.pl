@@ -49,6 +49,7 @@ use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
@@ -763,6 +764,31 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('notifications.open');
 
     // Ustawienia
+
+    /*
+     * ROZDROŻE — `/ustawienia` (issue #344, koszt zapisany w D-168).
+     *
+     * Do dziś ten adres NIE ISTNIAŁ, a napis „Ustawienia" w obu miejscach
+     * serwisu (nawigacja boczna na komputerze, rząd akcji własnego profilu)
+     * prowadził na `settings.accessibility`, czyli na ekran o nagłówku
+     * „Czytelność". D-168 przyjęło to świadomie jako koszt mniejszy niż jeden
+     * napis o dwóch różnych celach — i zapisało, że zdjęcie tego kosztu
+     * wymaga osobnej decyzji. Ta decyzja zapadła 12 września 2026.
+     *
+     * TRASA JEST PIERWSZA W BLOKU, bo jest wejściem do pozostałych — kolejność
+     * w tym pliku ma odpowiadać kolejności, w jakiej się po nich chodzi.
+     *
+     * BEZ IDENTYFIKATORA W ADRESIE i bez Policy: ekran pokazuje wyłącznie
+     * nazwy ekranów ustawień, identyczne dla każdego zalogowanego. Nie ma tu
+     * cudzego zasobu, który dałoby się podmienić w adresie — uzasadnienie
+     * pełne w `SettingsIndexController`.
+     *
+     * BEZ LIMITU `throttle`: to zwykły GET bez zapisu, jak `settings.profile`
+     * niżej. Limity w tej grupie wiszą wyłącznie na czasownikach zapisujących
+     * (pilnuje tego `LimityTrasZapisujacychTest`).
+     */
+    Route::get('/ustawienia', SettingsIndexController::class)->name('settings.index');
+
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");

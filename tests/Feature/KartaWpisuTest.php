@@ -340,7 +340,19 @@ class KartaWpisuTest extends TestCase
 
         $html = (string) $this->actingAs($autor)->get(route('home'))->assertOk()->getContent();
 
-        $trafil = preg_match('~<summary\b([^>]*)>(.*?)</summary>~s', $html, $summary);
+        /*
+         * Wzorzec zaczyna się od `<details class="post-card-menu">`, a nie od
+         * samego `<summary>`. Od issue #344 PIERWSZYM `<summary>` w dokumencie
+         * jest menu konta w pasku górnym — gołe `~<summary~` łapało więc
+         * przycisk „Moje konto" i pytało o napis „Więcej" w cudzym elemencie.
+         * To jest pułapka 1 z `docs/PULAPKI_TESTOW.md` w czystej postaci:
+         * asercja mierzy coś innego, niż myśli.
+         */
+        $trafil = preg_match(
+            '~<details class="post-card-menu">\s*<summary\b([^>]*)>(.*?)</summary>~s',
+            $html,
+            $summary,
+        );
 
         $this->assertSame(1, $trafil, 'Na karcie wpisu nie ma menu `<summary>` — nie ma czego sprawdzać.');
 

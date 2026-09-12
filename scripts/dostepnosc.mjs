@@ -204,6 +204,19 @@ const EKRANY = [
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
+  /*
+   * ROZDROŻE USTAWIEŃ (#344) — ekran, na który od teraz prowadzi KAŻDY napis
+   * „Ustawienia" w serwisie: pozycja nawigacji bocznej, przycisk w rzędzie
+   * akcji własnego profilu i nowa pozycja w menu przy awatarze.
+   *
+   * Jest tu z tego samego powodu, dla którego D-171 kazało dopisywać nowe
+   * ekrany od razu: ekran spoza tej listy niczego nie psuje — raport wygląda
+   * na kompletny i świeci na zielono. Kształt treści jest przy tym dokładnie
+   * tym ryzykownym: dziewięć pozycji, każda z nazwą i zdaniem opisu, czyli
+   * gęsty ciąg tekstu, który przy 320 px i czcionce 200% najłatwiej wypycha
+   * stronę w bok (issue #80).
+   */
+  { nazwa: 'ustawienia (rozdroże)', adres: '/ustawienia', zalogowany: true },
   { nazwa: 'czytelność', adres: '/ustawienia/czytelnosc', zalogowany: true },
   { nazwa: 'szukaj', adres: '/szukaj?q=rosol', zalogowany: true },
   /*
