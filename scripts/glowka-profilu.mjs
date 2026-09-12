@@ -25,7 +25,7 @@
  *  nazwy, musi się z tego umieć wycofać — inaczej przy długiej nazwie albo
  *  wypycha stronę w bok, albo nachodzi jedno na drugie. Dlatego każdy
  *  pomiar idzie w dwóch wariantach: nazwa krótka („Ania") i nazwa na pełne
- *  100 znaków.
+ *  pełną dopuszczalną długość.
  *
  *  URUCHOMIENIE (z katalogu projektu — inaczej `playwright` się nie znajdzie)
  *      node scripts/glowka-profilu.mjs

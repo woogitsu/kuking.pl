@@ -175,7 +175,8 @@ const KONTO_MODERATORA = 'moderacja';
  * postaci różni się tym, że tu nawet nie było pustego ekranu, po którym dałoby
  * się coś poznać: ekran był pełny, poprawny i łatwy.
  *
- * Konto zakłada `DemoSeeder` (nazwa ma tam dokładnie 100 znaków, najdłuższy
+ * Konto zakłada `DemoSeeder` (nazwa ma tam dokładnie tyle znaków, ile wynosi
+ * limit z `kuking.profil.dlugosc_nazwy` — od #467 jest to 40; najdłuższy
  * nieprzerwany ciąg — 55). Stała stoi tutaj, a nie w adresie wpisanym z ręki,
  * z tego samego powodu co `KONTO_ZALOGOWANE`: rozjazd nazwy dałby 404,
  * a strona błędu przechodzi każdy audyt dostępności, nie sprawdzając niczego.
@@ -240,7 +241,7 @@ const EKRANY = [
    * jednej deklaracji ma ten pomiar WYWALIĆ — jeśli nie wywala, próbka nie
    * mierzy tego, o co chodzi, i poprawiać należy próbkę, nie próg.
    */
-  { nazwa: 'profil (nazwa na 100 znaków)', adres: `/@${KONTO_DLUGA_NAZWA}` },
+  { nazwa: 'profil (najdłuższa dopuszczalna nazwa)', adres: `/@${KONTO_DLUGA_NAZWA}` },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
@@ -1612,7 +1613,7 @@ const wpisDlugiejNazwy = (() => {
 
 if (wpisDlugiejNazwy === null) {
   console.error(`BŁĄD: konto „${KONTO_DLUGA_NAZWA}" nie ma publicznego wpisu — karta wpisu `
-    + 'autora o stuznakowej nazwie wypadłaby z pomiaru fokusu (WCAG 2.2 AA 2.4.11), '
+    + 'autora o najdłuższej dopuszczalnej nazwie wypadłaby z pomiaru fokusu (WCAG 2.2 AA 2.4.11), '
     + 'a raport wyglądałby tak samo jak przy pełnej próbce.');
   zamknij();
   process.exit(1);
@@ -1975,7 +1976,7 @@ if (tablicaDnia === null) {
  * `znajdz: 'odwolanie'` → decyzja moderacyjna przygotowana wyżej dla konta,
  *                        którym automat się loguje (`KONTO_ZALOGOWANE`),
  * `znajdz: 'zgloszenie'` → karta sprawy zgłoszenia złożonego przez to konto,
- * `znajdz: 'wpis-dluga-nazwa'` → wpis autora o nazwie na 100 znaków.
+ * `znajdz: 'wpis-dluga-nazwa'` → wpis autora o najdłuższej dopuszczalnej nazwie.
  *
  * Zwrócenie `null` jest tu BŁĘDEM, nie pominięciem: obie pętle niżej wypisują
  * wtedy komunikat i ustawiają kod wyjścia. Ekran, który po cichu wypada
@@ -3375,7 +3376,7 @@ const EKRANY_FOCUS = [
    * do pomiaru z NAZWY, a nie z kolejności wierszy. Uzasadnienie i sposób
    * wyboru: `wpisDlugiejNazwy` wyżej w tym pliku.
    */
-  { nazwa: 'wpis (autor o nazwie na 100 znaków)', adres: null, znajdz: 'wpis-dluga-nazwa', zalogowany: true },
+  { nazwa: 'wpis (autor o najdłuższej dopuszczalnej nazwie)', adres: null, znajdz: 'wpis-dluga-nazwa', zalogowany: true },
   { nazwa: 'ustawienia profilu', adres: '/ustawienia/profil', zalogowany: true },
 ];
 
