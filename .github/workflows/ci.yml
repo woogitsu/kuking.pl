@@ -623,6 +623,9 @@ jobs:
       - name: Testy
         run: php artisan test
 
+      - name: Kontrole negatywne regresji Alfa 0.8
+        run: python3 scripts/kontrole-negatywne-alfa08.py
+
   # ===========================================================================
   #  3b. Grupa `dwa-polaczenia` — testy na DWÓCH połączeniach (D-105, #314)
   # ===========================================================================
@@ -1025,6 +1028,10 @@ jobs:
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
+      - name: Pomiar kafla dodawania (15 wariantów)
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/kafel-dodawania.mjs
+
       - name: axe-core (27 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs
