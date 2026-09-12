@@ -199,11 +199,46 @@
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
-                {{-- WYLOGOWANIE NA TELEFONIE MA TYLKO TĘ DROGĘ.
-                     `.side-nav` ma `display: none` poniżej 64rem, a pasek
-                     dolny nie ma pozycji „Ustawienia" — własny profil jest
-                     więc jedynym ekranem z obsługą konta w zasięgu kciuka.
-                     Ten sam składnik co w nawigacji bocznej. --}}
+                {{--
+                    USTAWIENIA I WYLOGOWANIE: NA TELEFONIE TO JEDYNA DROGA
+                    (issue #344).
+
+                    `.side-nav` ma `display: none` poniżej 64rem
+                    (`resources/css/app.css:1173`), a pasek dolny niesie pięć
+                    pozycji — Start, Szukaj, Dodaj, Moje, Profil — i szóstej
+                    mieć nie może (AGENTS.md §5). Awatar w pasku górnym jest
+                    `topbar-desktop-only`. Własny profil jest więc jedynym
+                    ekranem, z którego człowiek z telefonem dochodzi do
+                    obsługi konta.
+
+                    DLACZEGO OSOBNY NAPIS „Ustawienia", SKORO OBOK JEST JUŻ
+                    „Zmień swój profil"
+                    Bo to nie jest to samo słowo. `/ustawienia/profil` NIESIE
+                    spis wszystkich ekranów ustawień (`x-ustawienia-nawigacja`),
+                    więc technicznie dało się tam dojść i wcześniej — ale
+                    tylko wtedy, gdy ktoś ZGADŁ, że pod „Zmień swój profil"
+                    stoi też czytelność, prywatność, hasło i usunięcie konta.
+                    Człowiek, który szuka „Ustawień", szuka napisu
+                    „Ustawienia". Zgadywanie jest tu kosztem, a nie krokiem.
+
+                    DLACZEGO WŁAŚNIE `settings.accessibility`
+                    Bo pod tym samym napisem stoi to samo miejsce na
+                    komputerze: pozycja „Ustawienia" w nawigacji bocznej
+                    prowadzi na `route('settings.accessibility')`
+                    (`components/layout.blade.php:723`). Ekran ustawień
+                    rozdroża (`/ustawienia`) w serwisie NIE ISTNIEJE —
+                    dorobienie go to nowa trasa, nowy ekran i decyzja o tym,
+                    co jest kanoniczną stroną ustawień, czyli nie jest to
+                    najmniejsza zmiana usuwająca ślepy zaułek. Dwa różne cele
+                    dla jednego napisu byłyby gorsze niż jeden cel dziwny.
+
+                    NIE JEST TO MARTWY PRZYCISK (D-053): trasa istnieje, jest
+                    w tej samej grupie `auth` co reszta ustawień, a ekran, na
+                    który prowadzi, ma spis pozostałych ośmiu.
+                --}}
+                <a class="btn btn-secondary" href="{{ route('settings.accessibility') }}">Ustawienia</a>
+                {{-- Ten sam składnik co w nawigacji bocznej — POST z tokenem
+                     CSRF, nigdy odnośnik GET. --}}
                 <x-wyloguj />
             {{--
                 KONTO WYMAZANE (`erased`, D-022) NIE PRZYJMUJE ŻADNEJ AKCJI.
