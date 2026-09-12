@@ -35,7 +35,7 @@
          który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
          wszystkie i na ostatniej stronie dałby pustą listę w ramce. --}}
     @if($notifications->count() > 0)
-    <ul class="lista-naga">
+    <ul class="lista-naga marka-powiadomienia">
         @foreach($notifications as $notification)
         @php
             $actor = $notification->actor;

@@ -1,0 +1,175 @@
+/* Port zatwierdzonego projektu: wspólna rama, nawigacja i tablica.
+   Osobny zakres chroni eksporty i pocztę przed stylami aplikacji. */
+[data-marka] {
+  --marka-promien: 26px;
+  --marka-cien: 0 12px 36px rgb(21 23 20 / 7%);
+}
+[data-marka] .marka-topbar {
+  width: min(1220px, calc(100% - 24px));
+  margin: 14px auto 0;
+  top: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow: var(--marka-cien);
+  background: var(--color-surface-raised);
+}
+[data-marka] .topbar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: none;
+  min-height: 76px;
+  padding: 12px 20px;
+  gap: 12px 20px;
+}
+[data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)); letter-spacing: -.055em; }
+[data-marka] .wordmark .kuking-mark { width: 48px; height: 48px; }
+[data-marka] .topbar-actions { margin-left: auto; flex-wrap: wrap; gap: 8px; }
+[data-marka] .topbar-actions .topbar-desktop-only { display: none; }
+[data-marka] .marka-powiadomienia-link { display: inline-flex; }
+[data-marka] .topbar-szukaj { display: none; }
+[data-marka] .marka-nawigacja { display: none; }
+[data-marka] .marka-rama:not([data-tryb-panelu]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  width: min(1120px, calc(100% - 24px));
+  max-width: none;
+  margin: 36px auto 0;
+  padding: 0;
+  align-items: start;
+}
+[data-marka] .marka-rama:not([data-tryb-panelu]) > .side-nav { display: none; }
+[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main {
+  grid-column: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  padding: 0 0 24px;
+}
+[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-rail {
+  min-width: 0;
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  padding: 0;
+}
+[data-marka] .marka-rama.app-body-powitalny > .app-main,
+[data-marka] .marka-rama.app-body-tresc-z-szyna > .app-main { max-width: none; }
+[data-marka] .app-main > h1,
+[data-marka] .start-powitanie {
+  font-size: calc(clamp(2.125rem, 3.6vw, 3.25rem) * var(--user-text-scale, 1));
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -.045em;
+  margin-bottom: var(--spacing-6);
+}
+[data-marka] .start-nadtytul { font-weight: 750; margin-bottom: 12px; }
+[data-marka] .marka-publikacja {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--marka-promien);
+  background: #151714;
+  color: #fff;
+  padding: 24px;
+  margin-bottom: 28px;
+  box-shadow: var(--marka-cien);
+}
+[data-marka] .marka-publikacja::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 140px;
+  height: 140px;
+  right: -70px;
+  top: -75px;
+  background: var(--color-brand-solid);
+  border-radius: 50%;
+  pointer-events: none;
+}
+[data-marka] .marka-publikacja .composer {
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  color: #fff;
+  padding: 0;
+  margin: 0 0 24px;
+  min-width: 0;
+}
+[data-marka] .marka-publikacja .composer-title { color: #fff; }
+[data-marka] .marka-publikacja .composer-help { color: #CBD0C6; }
+[data-marka] .marka-publikacja-akcje {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+[data-marka] .marka-publikacja-akcje .btn { width: 100%; min-width: 0; white-space: normal; }
+[data-marka] .feed-tabs { padding: 6px; gap: 6px; border: 0; border-radius: 16px; background: var(--color-surface-sunken); }
+[data-marka] .feed-tabs .tab { border: 0; border-radius: 12px; padding: 12px 16px; }
+[data-marka] .feed-tabs .tab[aria-current="page"] { background: var(--color-surface-raised); color: var(--color-brand); box-shadow: 0 2px 8px rgb(21 23 20 / 5%); }
+[data-marka] .post-card { border: 1px solid var(--color-border); border-radius: var(--marka-promien); box-shadow: var(--marka-cien); }
+[data-marka] .post-card-head { padding: 22px 24px 16px; }
+[data-marka] .post-card-body { padding-inline: 24px; font-size: calc(1.1875rem * var(--user-text-scale, 1)); line-height: 1.65; }
+[data-marka] .post-card > :is(.photo-grid, .karuzela, .kolaz) { margin-inline: 12px; width: auto; border-radius: 18px; overflow: hidden; }
+[data-marka] .post-card > .post-photo { width: calc(100% - 24px); margin-inline: 12px; border-radius: 18px; }
+[data-marka] .post-card-actions { gap: 10px; margin-inline: 24px; padding-block: 18px; }
+[data-marka] .post-card-actions .btn { border-radius: 12px; }
+[data-marka] .szyna-blok { border-radius: 24px; box-shadow: var(--marka-cien); }
+[data-marka] .marka-start-pomoc { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--color-border); }
+[data-marka] .marka-start-pomoc h2 { font-size: var(--text-title-lg); line-height: 1.15; letter-spacing: -.035em; }
+[data-marka] .marka-start-kroki { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin-top: 24px; }
+[data-marka] .marka-start-kroki article { min-width: 0; }
+[data-marka] .marka-start-kroki article > span { display: block; color: var(--color-brand); font-weight: 800; margin-bottom: 12px; }
+[data-marka] .marka-start-kroki p { color: var(--color-ink-muted); }
+[data-marka] .marka-start-kroki a,
+[data-marka] .marka-start-zaufanie a { display: inline-flex; min-height: 48px; align-items: center; }
+[data-marka] .marka-start-zaufanie { margin-top: 32px; padding: 24px; background: var(--color-surface-raised); border-radius: 20px; }
+[data-marka] .site-footer { margin-top: 48px; padding-bottom: calc(var(--rezerwa-pod-belka) + 24px); }
+[data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
+[data-marka] .bottom-nav {
+  left: 8px;
+  right: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgb(21 23 20 / 16%);
+}
+[data-marka] .bottom-nav-item { flex-basis: calc(3.3rem * var(--user-text-scale, 1)); min-height: 68px; padding: 4px 0; }
+[data-marka] .bottom-nav-item[aria-current="page"] { box-shadow: none; font-weight: 800; }
+[data-marka] .bottom-nav-kolko { background: #151714; color: #fff; width: 48px; height: 48px; margin: 0; }
+@media (min-width: 48rem) {
+  [data-marka] .marka-publikacja-akcje { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-marka] .marka-start-kroki { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 64rem) {
+  [data-marka] .marka-nawigacja { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  [data-marka] .marka-nawigacja a { display: inline-flex; align-items: center; justify-content: center; padding: 12px; min-height: 48px; border-radius: 12px; font-weight: 700; text-decoration: none; }
+  [data-marka] .marka-nawigacja a[aria-current="page"] { background: var(--color-surface-sunken); color: var(--color-brand); }
+}
+@media (min-width: 80rem) {
+  [data-marka] .marka-rama.marka-rama-z-szyna:not([data-tryb-panelu]) { grid-template-columns: minmax(0, 1fr) 330px; gap: 40px; }
+  [data-marka] .marka-rama.app-body-tresc-z-szyna:not([data-tryb-panelu]) { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 30rem) {
+  [data-marka] .topbar-inner { padding: 12px; gap: 8px; }
+  [data-marka] .topbar-actions { width: 100%; justify-content: space-between; margin: 0; }
+  [data-marka] .marka-publikacja { padding: 20px; }
+  [data-marka] .composer > :is(.avatar, .ikona) { display: none; }
+  [data-marka] .composer-copy { flex-basis: 100%; }
+  [data-marka] .post-card-head { padding-inline: 16px; }
+  [data-marka] .post-card-body { padding-inline: 16px; }
+  [data-marka] .post-card-actions { margin-inline: 16px; }
+}
+@media (max-width: 15rem) {
+  [data-marka] .marka-topbar { position: relative; top: 0; }
+  [data-marka] .marka-rama:not([data-tryb-panelu]) { width: calc(100% - 16px); }
+  [data-marka] .bottom-nav-item { flex-basis: 40%; min-height: 60px; }
+  [data-marka] .bottom-nav-item-glowna { flex-basis: 100%; }
+  [data-marka] .marka-publikacja { padding: 16px; }
+}
+/* Obrys pozostaje wewnątrz zaokrąglonej grupy zdjęć. */
+[data-marka] .post-card > :is(.photo-grid, .karuzela, .kolaz) :focus-visible { outline-offset: -4px; }

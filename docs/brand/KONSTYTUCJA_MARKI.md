@@ -1,7 +1,8 @@
 # Konstytucja marki Kuking
 
-Wersja 1.1, 12 września 2026. Kierunek zaakceptowany przez właściciela;
-integracja z aplikacją jest przedmiotem tego pakietu zmian.
+Wersja 1.2, 12 września 2026. Kierunek pełnego portu zaakceptowany przez
+właściciela. Status wykonania: implementacja, weryfikacja w toku. Ten dokument
+opisuje standard marki, nie potwierdza zakończonego wdrożenia.
 
 ## Rdzeń
 
@@ -52,21 +53,78 @@ komponent `resources/views/components/kuking-mark.blade.php`. Korona jest
 grą z nazwą, nie rangą użytkownika. Nie zamieniamy znaku na literę K.
 Przy logotypie znak jest dekoracyjny dla czytnika; samodzielnie dostaje nazwę.
 
-## Obraz i układ
+## System wizualny
 
 Neutralne jasne tło, białe powierzchnie, grafitowe pismo i czerwony akcent.
-Ciemny motyw jest świadomym wyborem, a nie automatycznym odwróceniem kolorów.
-Dokładne role i sposób sprawdzania opisuje [NOWY_STYL.md](../design/NOWY_STYL.md).
+Kolory mają role: czerwień wyróżnia czynność lub wybór, nie zastępuje opisu
+błędu ani fokusu. Ciemny motyw jest świadomym wyborem użytkownika. Ciemny
+kafel publikacji w jasnym motywie jest elementem kompozycji, nie zmianą motywu.
+Wartości palety pozostają w `resources/css/tokens.css`; ich opis i sposób
+pomiaru są w [NOWY_STYL.md](../design/NOWY_STYL.md).
 
-Inter pozostaje lokalnym fontem z systemowym stosem zastępczym. Nie dokładamy
-drugiej rodziny fontów. Tekst podstawowy i pola mają minimum 18 px przy
-domyślnej skali; główne kontrolki co najmniej 48 px. Ustawienia czytelności
-i świadome wyjątki z AGENTS.md pozostają w mocy.
+### Rama i nawigacja
 
-Na telefonie treść ma szeroką, pojedynczą kolumnę. Przy powiększaniu tekstu
-układ rośnie w dół. Nie maskujemy przepełnienia przez obcięcie strony.
-Nawigacja: Start, Szukaj, Dodaj, Moje, Profil. Ważna czynność ma widoczny opis;
-wyjątki pozostają wyłącznie tymi nazwanymi w AGENTS.md.
+Nagłówek jest odrębną, zaokrągloną powierzchnią odsuniętą od krawędzi okna.
+Na komputerze mieści znak, nawigację i dostęp do konta. Zwykły użytkownik
+nie ma dodatkowego lewego paska menu. Treść ma wyraźną oś czytania;
+opcjonalna prawa kolumna mieści istniejące informacje pomocnicze.
+Panel moderacji zachowuje osobny tryb nawigacji i kontrolę uprawnień.
+
+Na telefonie treść przechodzi do jednej szerokiej kolumny. Dolna nawigacja
+jest pływającą, zaokrągloną powierzchnią z pozycjami **Start, Szukaj, Dodaj,
+Moje, Profil**. Dodaj wyróżnia ciemny znak plus z widocznym podpisem.
+Aktywna pozycja pozostaje rozpoznawalna także bez koloru. Nagłówek i pasek
+nie mogą zasłaniać treści ani elementu z fokusem; odstęp uwzględnia ich
+rzeczywistą wysokość oraz bezpieczny obszar urządzenia. Przy dużym tekście
+pierwszeństwo ma dostęp do całej treści, nawet kosztem przyklejenia paska.
+
+### Powierzchnie i komponenty
+
+| Rodzina | Standard |
+|---|---|
+| Kafel publikacji na Start | Grafitowa powierzchnia, jasny tekst, wyraźna czynność publikacji; zachowany pomocniczy tekst i cała powierzchnia klikalna |
+| Nagłówek profilu | Grafitowa powierzchnia, prawdziwy awatar, czytelna nazwa i opis; czynności zgodne z uprawnieniami |
+| Karty wpisów i przepisów | Jasne w jasnym motywie, z miękkim cieniem i oddechem; promień głównych powierzchni około 24–26 px przy skali domyślnej |
+| Zdjęcia | Dominują w karcie, z łagodnie zaokrąglonymi narożnikami; kadrowanie respektuje istniejący tryb zdjęcia |
+| Formularze i zeszyty | Spójne powierzchnie i nagłówki, wyraźnie obrysowane pola, etykiety nad polem |
+| Przyciski | Zaokrąglenie około 14 px, wyraźny stan interakcji i widoczny opis; akcja główna odróżniona od pomocniczej |
+| Stany puste i komunikaty | Ta sama rama i rytm, konkretna informacja oraz działająca droga dalej |
+
+Cień oddziela powierzchnie; nie zastępuje wymaganego kontrastu obramowania
+kontrolki. W ciemnym motywie karty korzystają z odpowiednich tokenów.
+Zaokrąglenia nie mogą obcinać menu, podpisów, fokusu ani powiększonego tekstu.
+
+### Typografia i czytelność
+
+Inter pozostaje lokalnym fontem z systemowym stosem zastępczym. Nagłówki,
+przyciski, metadane i treść używają jednej rodziny; nie przenosimy historycznej
+propozycji szeryfu z prototypu. Nagłówek ma wyraźną skalę i mocną wagę,
+a wielkość dostosowuje się do szerokości. Długie zdania zachowują spokojny
+rytm, z wysokością linii około 1,55–1,65.
+
+Tekst podstawowy i pola mają minimum **18 px**, ważne kontrolki minimum
+**48 px**. Ustawienia czytelności i jawne wyjątki z AGENTS.md pozostają w mocy.
+Nie uzyskujemy podobieństwa do szkicu przez zmniejszenie tekstu, ograniczenie
+zoomu ani ukrycie nazw. Ważna czynność ma widoczny opis; wyjątek trzech kropek
+na karcie wpisu nie rozszerza się na pozostałe przyciski.
+
+Układ pozostaje używalny przy **320 px** szerokości oraz tekście przeglądarki
+powiększonym do **200%**. Przy powiększaniu rośnie w dół, a długie nazwy
+zawijają się w dostępnej szerokości. Kolumna treści nie może kurczyć się do
+pionowego ciągu liter. Nie maskujemy błędu siatki przez obcięcie całej strony.
+
+## Zakres przeniesienia
+
+Pełny port obejmuje wspólną ramę oraz wszystkie rodziny ekranów aplikacji:
+wejście, społeczność, szukanie, publikację, przepisy, zeszyty, profile,
+powiadomienia, ustawienia, pomoc, bezpieczeństwo i moderację. Plan pokrycia
+oraz kryteria odbioru są w [PORT_PROJEKTU.md](../design/PORT_PROJEKTU.md).
+Sama zmiana tokenów i powitania nie stanowi wykonania tego zakresu.
+
+Przenosimy język wizualny do istniejących komponentów Blade. Trasy,
+autoryzacja, widoczność treści, formularze, powiadomienia i dane zachowują
+swoje znaczenie. Statyczne akcje, przykładowe osoby i liczniki ze szkicu nie
+stają się funkcjami produkcyjnymi przez skopiowanie HTML.
 
 ## Fotografia i zaufanie
 
@@ -83,7 +141,8 @@ Kuking pozostaje bez reklam i opłat za korzystanie, zgodnie z D-146.
 
 AGENTS.md pozostaje źródłem zasad projektu. Konstytucja opisuje kierunek
 marki; COPY_STYLE i GLOS_MARKI rozstrzygają wykonanie tekstów. Aktualny kod
-tokenów oraz NOWY_STYL opisują przenoszoną paletę. Historyczne prototypy
+tokenów oraz NOWY_STYL opisują paletę; PORT_PROJEKTU opisuje pełny zakres
+przeniesienia układu i komponentów. Historyczne prototypy
 nie są specyfikacją backendu ani dowodem działania funkcji.
 
 Przed scaleniem wymagane są testy aplikacji, pomiar dostępności oraz kontrola

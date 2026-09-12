@@ -1030,6 +1030,18 @@ jobs:
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
+      - name: Port projektu — układ i kontrola ujemna
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/port-projektu.mjs
+
+      - name: Zrzuty portu projektu
+        if: always() && steps.zmiany.outputs.warto == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: port-projektu-${{ github.sha }}
+          path: storage/port-projektu
+          retention-days: 14
+
       - name: Pomiar kafla dodawania (15 wariantów)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/kafel-dodawania.mjs

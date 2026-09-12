@@ -48,7 +48,7 @@
 
     {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
          wpisów, przepisów i wykonań, i to one mają się unosić. --}}
-    <header class="sekcja-strony mb-6">
+    <header class="sekcja-strony mb-6 marka-profil {{ $isOwner ? 'blok-ciemny' : '' }}">
         {{--
             UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem
             razem, LICZNIKI POD OPISEM — nie osobnym pełnoszerokim wierszem
