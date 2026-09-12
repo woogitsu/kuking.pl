@@ -43,7 +43,12 @@
         <div class="min-w-0">
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
             <p class="meta m-0">
-                <a href="{{ $post->url() }}" class="link-jak-tekst">
+                {{-- `adresTresci()`, nie `url()`: wpis, który jest samym
+                     wskazaniem przepisu, nie ma własnej treści — jego strona to
+                     nagłówek i pusto. Data prowadzi więc tam, gdzie jest danie
+                     (#447). Kanoniczny adres wpisu zostaje `url()` i idzie do
+                     udostępniania. --}}
+                <a href="{{ $post->adresTresci() }}" class="link-jak-tekst">
                     <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($post->published_at) }}</time>
                 </a>
                 {{-- Widoczność przy dacie, tak jak w kicie (ekran 01: „2 godz.
@@ -359,7 +364,10 @@
             @endif
         @endauth
 
-        <a class="btn btn-secondary" href="{{ $post->url() }}">
+        {{-- Ten sam powód co przy dacie: komentarze wpisu, który jest samym
+             przepisem, stoją na stronie przepisu (`recipes.comment`), a nie
+             pod pustym wpisem. --}}
+        <a class="btn btn-secondary" href="{{ $post->adresTresci() }}">
             <x-ikona nazwa="chat" :rozmiar="22" />
             @if(($post->comments_count ?? 0) > 0)
                 Komentarze ({{ $post->comments_count }})
