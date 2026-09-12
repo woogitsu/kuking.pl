@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Alternatywny minimalistyczny szablon portalu społecznościowego Kuking.pl.">
+  <title>Kuking.pl — co dziś ugotowałeś?</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#tresc">Przejdź do treści</a>
+
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="#start" data-route="start" aria-label="Kuking.pl — strona główna">
+        <span class="brand__mark" aria-hidden="true">K</span>
+        <span class="brand__word"><span>Ku</span><b>King</b><small>.pl</small></span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Główna nawigacja">
+        <a class="is-active" href="#start" data-route="start" aria-current="page">Start</a>
+        <a href="#odkrywaj" data-route="odkrywaj">Odkrywaj</a>
+        <a href="#zeszyt" data-route="zeszyt">Mój zeszyt</a>
+      </nav>
+
+      <div class="topbar__actions">
+        <button class="icon-text-button" type="button" data-action="search">
+          <span aria-hidden="true">⌕</span> Szukaj
+        </button>
+        <a class="notification-button" href="#powiadomienia" data-route="powiadomienia" aria-label="Powiadomienia, 3 nowe"><span aria-hidden="true">♢</span><b>3</b></a>
+        <a class="profile-button" href="#profil" data-route="profil" aria-label="Otwórz profil Basi">
+          <span class="avatar avatar--small" aria-hidden="true">B</span>
+          <span class="profile-button__label">Basia</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="tresc">
+  <section class="page-shell view is-visible" data-view="start">
+    <section class="feed-column" id="feed" aria-labelledby="feed-title">
+      <div class="welcome-line">
+        <div>
+          <p class="eyebrow">Sobota, 12 września</p>
+          <h1 id="feed-title">Dzień dobry, Basiu</h1>
+        </div>
+        <p class="weather-note"><span class="live-dot" aria-hidden="true"></span> 148 osób gotuje dzisiaj</p>
+      </div>
+
+      <section class="composer" aria-labelledby="composer-title">
+        <div class="composer__intro">
+          <span class="avatar" aria-hidden="true">B</span>
+          <div>
+            <h2 id="composer-title">Co dziś ugotowałaś?</h2>
+            <p>Zdjęcie i kilka słów wystarczą.</p>
+          </div>
+        </div>
+        <div class="composer__actions">
+          <a class="button button--primary" href="#dodaj" data-route="dodaj">
+            <span aria-hidden="true">＋</span> Dodaj zdjęcie
+          </a>
+          <a class="button button--secondary" href="#dodaj-przepis" data-route="dodaj-przepis">
+            <span aria-hidden="true">▤</span> Dodaj przepis
+          </a>
+        </div>
+      </section>
+
+      <div class="feed-heading">
+        <h2>Najnowsze od obserwowanych</h2>
+        <button class="text-button" type="button" data-action="feed-info">Jak działa kolejność?</button>
+      </div>
+
+      <article class="post" aria-labelledby="post-title-1">
+        <header class="post__header">
+          <span class="avatar avatar--photo" aria-hidden="true">H</span>
+          <div class="post__author">
+            <h3 id="post-title-1">Halina Nowak</h3>
+            <p>Dzisiaj o 11:42 · Warszawa</p>
+          </div>
+          <button class="more-button" type="button" aria-label="Więcej przy tym wpisie">•••</button>
+        </header>
+
+        <p class="post__text">Placki ziemniaczane jak u mamy. Dodałam do ciasta odrobinę majeranku, a sos zrobiłam ze świeżych podgrzybków.</p>
+        <figure class="post__photo-wrap">
+          <img class="post__photo" src="placki-ziemniaczane.webp" alt="Złociste placki ziemniaczane z sosem grzybowym na jasnym talerzu" width="1536" height="1152">
+          <figcaption>Placki ziemniaczane z sosem grzybowym</figcaption>
+        </figure>
+
+        <div class="post__proof"><strong>12 osób ugotowało</strong> · 10 zrobiłoby ponownie</div>
+
+        <div class="post__actions" aria-label="Działania przy wpisie">
+          <button class="button button--cook" type="button" data-action="cooked"><span aria-hidden="true">✓</span> Ugotowałem</button>
+          <a class="button button--quiet" href="#komentarze" data-route="komentarze"><span aria-hidden="true">□</span> Komentarze (8)</a>
+          <button class="button button--quiet" type="button" data-action="save" aria-pressed="false"><span aria-hidden="true">▱</span> Do zeszytu</button>
+        </div>
+      </article>
+
+      <article class="post post--text" aria-labelledby="post-title-2">
+        <header class="post__header">
+          <span class="avatar avatar--green" aria-hidden="true">M</span>
+          <div class="post__author">
+            <h3 id="post-title-2">Marek od chleba</h3>
+            <p>Dzisiaj o 9:18 · Poznań</p>
+          </div>
+          <button class="more-button" type="button" aria-label="Więcej przy tym wpisie">•••</button>
+        </header>
+        <p class="post__text">Mój zakwas ma dziś pięć lat. Z tej okazji nastawiłem żytni z prażoną cebulą. Wieczorem pokażę, jak wyrósł.</p>
+        <nav class="tags" aria-label="Tematy wpisu"><a href="#">#domowychleb</a><a href="#">#zakwas</a></nav>
+        <div class="post__actions" aria-label="Działania przy wpisie">
+          <button class="button button--quiet" type="button" data-action="comment"><span aria-hidden="true">□</span> Napisz komentarz</button>
+          <button class="button button--quiet" type="button" data-action="save" aria-pressed="false"><span aria-hidden="true">▱</span> Do zeszytu</button>
+        </div>
+      </article>
+
+      <button class="button button--load" type="button" data-action="load-more">Pokaż więcej wpisów</button>
+    </section>
+
+    <aside class="side-column" aria-label="Dodatkowe informacje">
+      <section class="side-card side-card--accent">
+          <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> Na żywo</p>
+        <p class="big-number">148</p>
+        <p>osób pokazało już, co ugotowało.</p>
+        <a class="underlined-link" href="#odkrywaj">Zobacz dzisiejsze dania</a>
+      </section>
+
+      <section class="side-card">
+        <div class="side-card__heading">
+          <h2>Może ich znasz?</h2>
+          <a href="#">Zobacz więcej</a>
+        </div>
+        <ul class="people-list">
+          <li><span class="avatar avatar--green" aria-hidden="true">A</span><div><strong>Anna Gotuje</strong><small>Zupy i kuchnia domowa</small></div><button type="button">Obserwuj</button></li>
+          <li><span class="avatar avatar--blue" aria-hidden="true">J</span><div><strong>Jan K.</strong><small>Ryby i przetwory</small></div><button type="button">Obserwuj</button></li>
+          <li><span class="avatar avatar--gold" aria-hidden="true">E</span><div><strong>Ela S.</strong><small>Ciasta bez pośpiechu</small></div><button type="button">Obserwuj</button></li>
+        </ul>
+      </section>
+
+      <section class="side-card side-card--plain">
+        <h2>Twój zeszyt</h2>
+        <p>Masz zapisanych <strong>24 przepisy</strong> i <strong>7 inspiracji</strong>.</p>
+        <a class="button button--secondary button--full" href="#zeszyt">Otwórz mój zeszyt</a>
+      </section>
+    </aside>
+  </section>
+
+  <section class="content-view view" data-view="odkrywaj" hidden aria-labelledby="discover-title">
+    <header class="view-header">
+      <p class="eyebrow">Znajdź coś dobrego</p>
+      <h1 id="discover-title">Odkrywaj</h1>
+      <p>Przepisy i dania od ludzi, którzy naprawdę je ugotowali.</p>
+    </header>
+    <form class="search-panel" action="#odkrywaj" role="search">
+      <label for="search-input">Czego szukasz?</label>
+      <div class="search-row"><input id="search-input" type="search" placeholder="Np. szybki obiad albo sernik"><button class="button button--primary" type="submit">Szukaj</button></div>
+    </form>
+    <nav class="filter-chips" aria-label="Popularne kategorie">
+      <button type="button" aria-pressed="true">Dla Ciebie</button><button type="button">Obiad</button><button type="button">Zupy</button><button type="button">Ciasta</button><button type="button">Przetwory</button>
+    </nav>
+    <div class="discover-grid">
+      <article class="dish-card dish-card--wide">
+        <img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane z sosem grzybowym" width="1536" height="1152">
+        <div><p class="eyebrow">Ugotowane 12 razy</p><h2>Placki z sosem grzybowym</h2><p>Halina Nowak · 45 minut</p><a href="#przepis" data-route="przepis">Zobacz przepis</a></div>
+      </article>
+      <article class="topic-card topic-card--green"><span aria-hidden="true">♨</span><h2>Zupy na chłodniejszy dzień</h2><p>18 sprawdzonych przepisów</p><a href="#odkrywaj">Zobacz zupy</a></article>
+      <article class="topic-card topic-card--yellow"><span aria-hidden="true">✦</span><h2>Domowe wypieki</h2><p>Od chleba po szarlotkę</p><a href="#odkrywaj">Zobacz wypieki</a></article>
+    </div>
+    <section class="search-results" hidden aria-live="polite"><div class="results-heading"><div><p class="eyebrow">Wyniki wyszukiwania</p><h2>Najlepsze dopasowania</h2></div><button class="text-button" type="button" data-action="clear-search">Wyczyść wyniki</button></div><div class="result-list"><article><img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane z sosem" width="320" height="240"><div><span class="result-type">Przepis</span><h3>Placki ziemniaczane z sosem grzybowym</h3><p>Halina Nowak · ugotowane 12 razy</p><a href="#przepis" data-route="przepis">Zobacz przepis</a></div></article><article class="person-result"><span class="profile-avatar profile-avatar--small" aria-hidden="true">H</span><div><span class="result-type">Osoba</span><h3>Halina Nowak</h3><p>Kuchnia domowa · Warszawa · 214 obserwujących</p><a href="#halina" data-route="halina">Zobacz profil</a></div></article></div></section>
+  </section>
+
+  <section class="content-view view" data-view="przepis" hidden aria-labelledby="recipe-title">
+    <a class="back-link" href="#odkrywaj" data-route="odkrywaj">← Wróć do odkrywania</a>
+    <article class="recipe-view">
+      <header class="recipe-hero">
+        <div class="recipe-hero__copy"><p class="eyebrow">Przepis Haliny Nowak</p><h1 id="recipe-title">Placki ziemniaczane z sosem grzybowym</h1><p>Chrupiące na brzegach, miękkie w środku. Prosty obiad z produktów, które zwykle są w domu.</p><div class="recipe-meta"><span><strong>45 min</strong> razem</span><span><strong>4</strong> porcje</span><span><strong>Łatwy</strong> poziom</span></div></div>
+        <img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane z sosem grzybowym" width="1536" height="1152">
+      </header>
+      <div class="recipe-actions"><button class="button button--cook" type="button" data-action="cooked">✓ Ugotowałem</button><button class="button button--secondary" type="button" data-action="save" aria-pressed="false">▱ Do zeszytu</button><button class="button button--secondary" type="button" data-action="share">↗ Podziel się</button></div>
+      <div class="recipe-columns">
+        <section><h2>Składniki</h2><ul class="ingredient-list"><li><span>ziemniaki</span><strong>1 kg</strong></li><li><span>cebula</span><strong>1 sztuka</strong></li><li><span>jajka</span><strong>2 sztuki</strong></li><li><span>mąka pszenna</span><strong>2 łyżki</strong></li><li><span>podgrzybki</span><strong>300 g</strong></li></ul></section>
+        <section><h2>Przygotowanie</h2><ol class="steps-list"><li><span>1</span><p>Zetrzyj ziemniaki i cebulę. Odciśnij nadmiar wody.</p></li><li><span>2</span><p>Dodaj jajka, mąkę, sól i odrobinę majeranku. Wymieszaj.</p></li><li><span>3</span><p>Smaż niewielkie placki z obu stron na złoty kolor.</p></li><li><span>4</span><p>Grzyby podsmaż, dodaj śmietanę i duś 10 minut.</p></li></ol><a class="button button--primary button--full" href="#gotuj" data-route="gotuj">Włącz tryb gotowania</a></section>
+      </div>
+    </article>
+  </section>
+
+  <section class="content-view view" data-view="zeszyt" hidden aria-labelledby="notebook-title">
+    <header class="view-header"><p class="eyebrow">Twoje zapisane rzeczy</p><h1 id="notebook-title">Mój zeszyt</h1><p>Wszystko, do czego chcesz wrócić — bez szukania od nowa.</p></header>
+    <nav class="notebook-tabs" aria-label="Zawartość zeszytu"><button class="is-active" type="button">Przepisy <span>24</span></button><button type="button">Inspiracje <span>7</span></button><button type="button">Moje przepisy <span>5</span></button></nav>
+    <div class="folder-row"><a class="folder-card" href="#folder" data-route="folder"><span aria-hidden="true">▤</span><div><strong>Na niedzielę</strong><small>8 zapisanych rzeczy</small></div><b>→</b></a><a class="folder-card" href="#folder" data-route="folder"><span aria-hidden="true">▤</span><div><strong>Do wypróbowania</strong><small>12 zapisanych rzeczy</small></div><b>→</b></a></div>
+    <div class="notebook-list"><article><img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane" width="320" height="240"><div><p class="eyebrow">Obiad · 45 min</p><h2>Placki ziemniaczane z sosem</h2><p>Halina Nowak</p><a href="#przepis" data-route="przepis">Otwórz przepis</a></div></article><div class="empty-prompt"><span aria-hidden="true">＋</span><div><h2>Utwórz własny folder</h2><p>Na przykład „Na niedzielę” albo „Do wypróbowania”.</p></div><button class="button button--secondary" type="button" data-action="new-folder">Nowy folder</button></div></div>
+  </section>
+
+  <section class="content-view view" data-view="profil" hidden aria-labelledby="profile-title">
+    <header class="profile-hero"><span class="profile-avatar" aria-hidden="true">B</span><div><p class="eyebrow">Twój profil</p><h1 id="profile-title">Basia Kowalska</h1><p>@basiawgarach · Warszawa</p><p>Gotuję prosto, po domowemu i zawsze z dużą ilością koperku.</p><button class="button button--secondary" type="button" data-action="edit-profile">Zmień swój profil</button></div></header>
+    <dl class="profile-stats"><div><dt>Wpisy</dt><dd>38</dd></div><div><dt>Przepisy</dt><dd>5</dd></div><div><dt>Ugotowane</dt><dd>21</dd></div><div><dt>Obserwujący</dt><dd>124</dd></div></dl>
+    <section class="profile-content"><div><h2>Ostatnio u Ciebie</h2><p class="profile-note">Jeszcze nic dziś nie dodałaś.</p></div><a class="button button--primary" href="#dodaj" data-route="dodaj">＋ Dodaj dzisiejsze danie</a></section>
+    <section class="settings-teaser"><div><p class="eyebrow">Twoje konto</p><h2>Ustawienia i prywatność</h2><p>Wygląd, bezpieczeństwo, powiadomienia oraz kopia Twoich danych.</p></div><div class="teaser-actions"><a class="button button--secondary" href="#konto" data-route="konto">Zarządzaj kontem</a><a class="text-button" href="#powitanie" data-route="powitanie">Zobacz stronę dla gościa</a></div></section>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="dodaj" hidden aria-labelledby="add-title">
+    <a class="back-link" href="#start" data-route="start">← Wróć na stronę główną</a>
+    <header class="view-header"><p class="eyebrow">Nowy wpis</p><h1 id="add-title">Pokaż, co ugotowałaś</h1><p>Nie musi być idealnie. Zdjęcie i jedno zdanie wystarczą.</p></header>
+    <form class="publish-form" data-form="post">
+      <section class="upload-zone" tabindex="0" role="button" aria-label="Wybierz zdjęcie dania"><span aria-hidden="true">＋</span><strong>Wybierz zdjęcie</strong><small>Z telefonu albo komputera · JPG, PNG lub WEBP</small></section>
+      <div class="form-field"><label for="post-text">Napisz kilka słów</label><textarea id="post-text" rows="5" placeholder="Np. Pierwszy raz zrobiłam ten sos z podgrzybków…"></textarea><small>Możesz napisać, co to jest, z czego i jak wyszło.</small></div>
+      <fieldset><legend>Kto może zobaczyć ten wpis?</legend><label class="choice"><input type="radio" name="visibility" value="public" checked><span><strong>Wszyscy</strong><small>Także osoby bez konta</small></span></label><label class="choice"><input type="radio" name="visibility" value="followers"><span><strong>Obserwujący</strong><small>Tylko osoby, które Cię obserwują</small></span></label><label class="choice"><input type="radio" name="visibility" value="private"><span><strong>Tylko ja</strong><small>Wpis zostanie w Twoim archiwum</small></span></label></fieldset>
+      <div class="form-footer"><span class="draft-state" role="status">Szkic zapisany</span><button class="button button--primary" type="submit">Opublikuj wpis</button></div>
+    </form>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="dodaj-przepis" hidden aria-labelledby="wizard-title">
+    <a class="back-link" href="#start" data-route="start">← Wróć na stronę główną</a>
+    <header class="view-header"><p class="eyebrow">Nowy przepis</p><h1 id="wizard-title">Dodaj swój przepis</h1><p>Przejdziemy przez trzy krótkie kroki.</p></header>
+    <form class="publish-form recipe-wizard" data-form="recipe">
+      <div class="wizard-progress"><p><strong>Krok <span data-step-number>1</span> z 3</strong> · <span data-step-name>O przepisie</span></p><div><i></i><i></i><i></i></div></div>
+      <section class="wizard-step is-active" data-step="1"><div class="form-field"><label for="recipe-name">Nazwa przepisu</label><input id="recipe-name" type="text" placeholder="Np. Sernik mamy"><small>Nazwa powinna mówić od razu, co ugotujemy.</small></div><div class="form-grid"><div class="form-field"><label for="recipe-time">Czas razem</label><input id="recipe-time" type="text" placeholder="Np. 45 minut"></div><div class="form-field"><label for="recipe-portions">Liczba porcji</label><input id="recipe-portions" type="number" min="1" value="4"></div></div></section>
+      <section class="wizard-step" data-step="2" hidden><div class="form-field"><label for="ingredients">Składniki</label><textarea id="ingredients" rows="8" placeholder="Każdy składnik wpisz w nowej linii"></textarea><small>Przykład: 1 kg ziemniaków</small></div><button class="button button--secondary" type="button" data-action="add-ingredient">＋ Dodaj kolejny składnik</button></section>
+      <section class="wizard-step" data-step="3" hidden><div class="form-field"><label for="preparation">Sposób przygotowania</label><textarea id="preparation" rows="9" placeholder="Opisz po kolei, co trzeba zrobić"></textarea><small>Pisz prostymi krokami. Podział na osobne kroki zrobimy automatycznie.</small></div></section>
+      <div class="form-footer wizard-footer"><button class="button button--secondary" type="button" data-wizard="prev" disabled>Wstecz</button><span class="draft-state" role="status">Szkic zapisany</span><button class="button button--primary" type="button" data-wizard="next">Dalej</button></div>
+    </form>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="powiadomienia" hidden aria-labelledby="notifications-title">
+    <header class="view-header"><p class="eyebrow">3 nowe</p><h1 id="notifications-title">Powiadomienia</h1><p>Odpowiedzi i ugotowania Twoich przepisów.</p></header>
+    <div class="notifications-list"><article class="is-new"><span class="notification-icon notification-icon--cook" aria-hidden="true">✓</span><div><h2>Halina ugotowała Twój rosół</h2><p>„Wyszedł dokładnie jak pamiętam z dzieciństwa.”</p><time>12 minut temu</time></div><button type="button" data-action="notification-open">Zobacz</button></article><article class="is-new"><span class="notification-icon" aria-hidden="true">□</span><div><h2>Marek odpowiedział na Twój komentarz</h2><p>Pod przepisem „Chleb na zakwasie”.</p><time>2 godziny temu</time></div><button type="button" data-action="notification-open">Zobacz</button></article><article><span class="notification-icon" aria-hidden="true">＋</span><div><h2>Anna zaczęła Cię obserwować</h2><p>Zobaczy teraz Twoje publiczne wpisy.</p><time>Wczoraj</time></div><button type="button" data-action="notification-open">Profil Anny</button></article></div>
+  </section>
+
+  <section class="content-view cooking-view view" data-view="gotuj" hidden aria-labelledby="cooking-title">
+    <header class="cooking-top"><a class="back-link" href="#przepis" data-route="przepis">← Zakończ gotowanie</a><p>Krok <strong data-cook-current>1</strong> z 4</p><button class="button button--secondary" type="button" data-action="wake-lock">☀ Ekran nie zgaśnie</button></header>
+    <div class="cooking-card"><p class="eyebrow">Placki ziemniaczane</p><h1 id="cooking-title" data-cook-title>Przygotuj ziemniaki</h1><p class="cooking-instruction" data-cook-instruction>Zetrzyj ziemniaki i cebulę na drobnych oczkach. Przełóż na sito i dokładnie odciśnij nadmiar wody.</p><div class="cooking-tip" data-cook-tip><strong>Wskazówka</strong><p>Im mniej wody zostanie w ziemniakach, tym bardziej chrupiące będą placki.</p></div><div class="cooking-controls"><button class="button button--secondary" type="button" data-cook="prev" disabled>← Poprzedni krok</button><button class="button button--primary" type="button" data-cook="next">Gotowe, następny krok →</button></div></div>
+    <div class="cook-progress" aria-label="Postęp gotowania"><i></i><i></i><i></i><i></i></div>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="komentarze" hidden aria-labelledby="comments-title">
+    <a class="back-link" href="#start" data-route="start">← Wróć do wpisu</a>
+    <header class="view-header"><p class="eyebrow">Rozmowa pod wpisem</p><h1 id="comments-title">Komentarze</h1><p>Placki ziemniaczane Haliny</p></header>
+    <div class="conversation"><article><span class="avatar avatar--blue" aria-hidden="true">J</span><div><header><strong>Jan K.</strong><time>45 minut temu</time></header><p>Czy ziemniaki po starciu zostawiasz na chwilę, żeby skrobia opadła?</p><button type="button" data-action="reply">Odpowiedz</button></div></article><article class="reply"><span class="avatar avatar--photo" aria-hidden="true">H</span><div><header><strong>Halina Nowak</strong><time>32 minuty temu</time></header><p>Tak, na około 5 minut. Wodę wylewam, ale skrobię z dna dodaję z powrotem.</p><button type="button" data-action="reply">Odpowiedz</button></div></article><article><span class="avatar avatar--green" aria-hidden="true">A</span><div><header><strong>Anna Gotuje</strong><time>18 minut temu</time></header><p>Majeranek to świetny pomysł. Spróbuję przy następnej porcji!</p><button type="button" data-action="reply">Odpowiedz</button></div></article></div>
+    <form class="comment-form"><label for="comment-text">Napisz komentarz</label><textarea id="comment-text" rows="4" placeholder="Napisz, co myślisz albo o co chcesz zapytać"></textarea><div><small>Rozmawiajmy tak, jak przy wspólnym stole.</small><button class="button button--primary" type="submit">Dodaj komentarz</button></div></form>
+  </section>
+
+  <section class="content-view content-view--narrow view" data-view="ustawienia" hidden aria-labelledby="settings-title">
+    <a class="back-link" href="#profil" data-route="profil">← Wróć do profilu</a>
+    <header class="view-header"><p class="eyebrow">Wygląd i wygoda</p><h1 id="settings-title">Dostosuj Kuking</h1><p>Zmiany zobaczysz od razu. Możesz je cofnąć w każdej chwili.</p></header>
+    <div class="settings-panel"><fieldset><legend>Wielkość tekstu</legend><div class="segmented"><button type="button" data-text-size="100" aria-pressed="true">Zwykły</button><button type="button" data-text-size="112">Większy</button><button type="button" data-text-size="125">Największy</button></div><p class="setting-example">Tak będzie wyglądał tekst przepisu i komentarzy.</p></fieldset><fieldset><legend>Wygląd strony</legend><label class="setting-switch"><span><strong>Ciemny wygląd</strong><small>Jasny tekst na ciemnym tle</small></span><input type="checkbox" data-setting="dark"><i aria-hidden="true"></i></label><label class="setting-switch"><span><strong>Mocniejszy kontrast</strong><small>Wyraźniejsze linie i przyciski</small></span><input type="checkbox" data-setting="contrast"><i aria-hidden="true"></i></label></fieldset><p class="settings-saved" role="status">Ustawienia zapisują się automatycznie.</p></div>
+  </section>
+
+  <section class="content-view view" data-view="halina" hidden aria-labelledby="person-title">
+    <a class="back-link" href="#odkrywaj" data-route="odkrywaj">← Wróć do odkrywania</a>
+    <header class="person-profile"><span class="profile-avatar" aria-hidden="true">H</span><div class="person-profile__copy"><p class="eyebrow">Profil publiczny</p><h1 id="person-title">Halina Nowak</h1><p>@halinagotuje · Warszawa</p><p>Gotuję po domowemu i spisuję przepisy, które pamiętam z rodzinnej kuchni.</p><div class="person-actions"><button class="button button--primary" type="button" data-action="follow" aria-pressed="false">＋ Obserwuj</button><button class="button button--secondary" type="button" data-action="profile-more">Więcej opcji</button></div></div></header>
+    <dl class="profile-stats"><div><dt>Wpisy</dt><dd>86</dd></div><div><dt>Przepisy</dt><dd>24</dd></div><div><dt>Ugotowane</dt><dd>47</dd></div><div><dt>Obserwujący</dt><dd>214</dd></div></dl>
+    <section class="person-specialties"><h2>Najczęściej gotuje</h2><div class="filter-chips"><button type="button">Kuchnia domowa</button><button type="button">Zupy</button><button type="button">Przetwory</button></div></section>
+    <section class="profile-feed"><div class="feed-heading"><h2>Ostatnie od Haliny</h2></div><article class="post"><header class="post__header"><span class="avatar avatar--photo" aria-hidden="true">H</span><div class="post__author"><h3>Halina Nowak</h3><p>Dzisiaj o 11:42</p></div></header><p class="post__text">Placki ziemniaczane jak u mamy. Dodałam odrobinę majeranku.</p><figure class="post__photo-wrap"><img class="post__photo" src="placki-ziemniaczane.webp" alt="Placki ziemniaczane z sosem grzybowym" width="1536" height="1152"></figure><div class="post__actions"><a class="button button--cook" href="#przepis" data-route="przepis">Zobacz przepis</a><button class="button button--quiet" type="button" data-action="save" aria-pressed="false">▱ Do zeszytu</button></div></article></section>
+  </section>
+
+  <section class="content-view view" data-view="folder" hidden aria-labelledby="folder-title"><a class="back-link" href="#zeszyt" data-route="zeszyt">← Wróć do zeszytu</a><header class="folder-header"><div><p class="eyebrow">Twój folder</p><h1 id="folder-title">Na niedzielę</h1><p>8 zapisanych przepisów i inspiracji.</p></div><button class="button button--secondary" type="button" data-action="rename-folder">Zmień nazwę folderu</button></header><div class="folder-grid"><article><img src="placki-ziemniaczane.webp" alt="Placki ziemniaczane" width="640" height="480"><div><p class="eyebrow">Przepis</p><h2>Placki ziemniaczane z sosem</h2><p>Halina Nowak · 45 min</p><a href="#przepis" data-route="przepis">Otwórz przepis</a></div></article><article class="folder-placeholder"><span aria-hidden="true">＋</span><h2>Dodaj coś do tego folderu</h2><p>Przy wpisie lub przepisie wybierz „Do zeszytu”, a potem ten folder.</p><a class="button button--secondary" href="#odkrywaj" data-route="odkrywaj">Znajdź inspirację</a></article></div></section>
+
+  <section class="content-view view" data-view="konto" hidden aria-labelledby="account-title">
+    <a class="back-link" href="#profil" data-route="profil">← Wróć do profilu</a>
+    <header class="view-header"><p class="eyebrow">Centrum konta</p><h1 id="account-title">Ustawienia</h1><p>Wszystko, co dotyczy Twojego profilu, prywatności i danych.</p></header>
+    <div class="account-layout"><nav class="account-nav" aria-label="Sekcje ustawień"><button class="is-active" type="button" data-account-tab="privacy">Prywatność</button><button type="button" data-account-tab="notifications">Powiadomienia</button><button type="button" data-account-tab="security">Bezpieczeństwo</button><button type="button" data-account-tab="data">Twoje dane</button><a href="#ustawienia" data-route="ustawienia">Wygląd i tekst</a><a href="#marka" data-route="marka">Konstytucja marki</a></nav><div class="account-content">
+      <section data-account-panel="privacy"><p class="eyebrow">Prywatność</p><h2>Kto widzi Twoją aktywność</h2><label class="setting-switch"><span><strong>Pokazuj region na profilu</strong><small>Na przykład „Warszawa”, bez dokładnego adresu</small></span><input type="checkbox" checked><i aria-hidden="true"></i></label><label class="setting-switch"><span><strong>Wspomnienia sprzed lat</strong><small>Pokazuj Ci własne wpisy z tego samego dnia</small></span><input type="checkbox" checked><i aria-hidden="true"></i></label><div class="account-note"><strong>Przy każdym wpisie wybierasz osobno:</strong><p>wszyscy, tylko obserwujący albo tylko Ty.</p></div></section>
+      <section data-account-panel="notifications" hidden><p class="eyebrow">Powiadomienia</p><h2>O czym mamy Ci przypominać?</h2><label class="setting-switch"><span><strong>Ktoś ugotował Twój przepis</strong><small>Najważniejsze powiadomienie w Kuking</small></span><input type="checkbox" checked><i aria-hidden="true"></i></label><label class="setting-switch"><span><strong>Nowy komentarz lub odpowiedź</strong><small>Rozmowy pod Twoimi treściami</small></span><input type="checkbox" checked><i aria-hidden="true"></i></label><label class="setting-switch"><span><strong>Cotygodniowe podsumowanie e-mailem</strong><small>Jeden e-mail tygodniowo, nigdy częściej</small></span><input type="checkbox"><i aria-hidden="true"></i></label></section>
+      <section data-account-panel="security" hidden><p class="eyebrow">Bezpieczeństwo</p><h2>Logowanie i ochrona konta</h2><div class="setting-row"><div><strong>Hasło</strong><small>Ostatnia zmiana: 3 miesiące temu</small></div><button class="button button--secondary" type="button" data-action="change-password">Zmień hasło</button></div><div class="setting-row"><div><strong>Weryfikacja dwuetapowa</strong><small>Dodatkowy kod przy logowaniu na nowym urządzeniu</small></div><button class="button button--primary" type="button" data-action="enable-2fa">Włącz ochronę</button></div><div class="account-note"><strong>Ostatnie logowanie</strong><p>Dzisiaj o 12:42 · Samsung Galaxy · Belgia</p></div></section>
+      <section data-account-panel="data" hidden><p class="eyebrow">Twoje dane</p><h2>Zabierzesz wszystko, co dodałaś</h2><p>Przygotujemy paczkę ze zdjęciami, wpisami, przepisami i komentarzami. Dostaniesz wiadomość, gdy będzie gotowa.</p><button class="button button--secondary" type="button" data-action="export-data">Przygotuj kopię moich danych</button><div class="danger-panel"><h3>Usunięcie konta</h3><p>Najpierw pokażemy dokładnie, co zostanie usunięte i czego nie będzie można odzyskać.</p><button class="button button--danger" type="button" data-action="delete-account">Przejdź do usuwania konta</button></div></section>
+    </div></div>
+  </section>
+
+  <section class="brand-book view" data-view="marka" hidden aria-labelledby="brand-book-title">
+    <header class="brand-book__hero">
+      <a class="back-link" href="#konto" data-route="konto">← Wróć do ustawień</a>
+      <p class="eyebrow">Konstytucja marki · wersja 1.0</p>
+      <div class="brand-book__logo" aria-label="KuKing.pl"><span>Ku</span><b>King</b><small>.pl</small></div>
+      <h1 id="brand-book-title">Tu się gotuje.</h1>
+      <p>Kuking.pl łączy ludzi przez to, co naprawdę gotują. Przepis jest początkiem — potem ktoś go przygotowuje, pokazuje rezultat i zaczyna rozmowę.</p>
+    </header>
+
+    <div class="brand-book__grid">
+      <article class="brand-principle brand-principle--dark"><span>01</span><h2>Prawdziwe gotowanie</h2><p>Domowe dania i rzeczywiste wykonania. „Ugotowałem” znaczy więcej niż polubienie.</p></article>
+      <article class="brand-principle"><span>02</span><h2>Jasność</h2><p>Proste wybory, konkretne nazwy i pełna informacja bez technologicznego żargonu.</p></article>
+      <article class="brand-principle"><span>03</span><h2>Szacunek</h2><p>Nie oceniamy wieku, umiejętności, sprzętu ani wyglądu potrawy.</p></article>
+      <article class="brand-principle brand-principle--tomato"><span>04</span><h2>Wzajemna pomoc</h2><p>Pytania, zamienniki i własne sposoby budują wartość przepisu.</p></article>
+    </div>
+
+    <section class="brand-book__section">
+      <p class="eyebrow">System wizualny</p><h2>Spokojna rama. Apetyczne wnętrze.</h2>
+      <p>Interfejs pozostaje jasny i przewidywalny. Jeden wyrazisty kolor prowadzi do działania, a większość barw wnoszą prawdziwe zdjęcia jedzenia.</p>
+      <div class="brand-swatches" aria-label="Paleta marki">
+        <div style="--swatch:#151714"><i></i><strong>Ink</strong><small>#151714</small></div>
+        <div style="--swatch:#f3f4f1"><i></i><strong>Canvas</strong><small>#F3F4F1</small></div>
+        <div style="--swatch:#e43d30"><i></i><strong>Tomato</strong><small>#E43D30</small></div>
+        <div style="--swatch:#286248"><i></i><strong>Sage</strong><small>#286248</small></div>
+      </div>
+    </section>
+
+    <section class="brand-book__section brand-book__voice">
+      <div><p class="eyebrow">Jak mówimy</p><h2>Życzliwie i konkretnie</h2><p>Najpierw mówimy, co można zrobić. Krótkie zdania, codzienna polszczyzna i przycisk, który opisuje rzeczywisty skutek.</p></div>
+      <div class="voice-examples"><p><span>Dobrze</span><strong>Nie udało się zapisać zmian.</strong> Spróbuj ponownie.</p><p><span>Nie tak</span><strong>Wystąpił błąd 422.</strong> Operacja zakończona niepowodzeniem.</p></div>
+    </section>
+
+    <section class="brand-book__section">
+      <p class="eyebrow">Nienaruszalne</p>
+      <div class="brand-quotes"><blockquote>„Pokaż, co dziś ugotowałeś.”</blockquote><blockquote>„Ugotowałem.”</blockquote><blockquote>„Przepis jest dobry wtedy, kiedy ktoś go ugotował.”</blockquote></div>
+    </section>
+
+    <footer class="brand-book__footer"><strong>Test każdej decyzji</strong><p>Czy pomaga komuś ugotować, zachować, pokazać albo omówić danie?</p><a class="button button--primary" href="#powitanie" data-route="powitanie">Zobacz markę w działaniu</a></footer>
+  </section>
+
+  <dialog class="share-dialog" aria-labelledby="share-title"><button class="dialog-close" type="button" data-action="share-close" aria-label="Zamknij okno udostępniania">×</button><p class="eyebrow">Wyślij komuś przepis</p><h2 id="share-title">Podziel się przepisem</h2><p>Każda osoba może go otworzyć, nawet bez konta.</p><div class="share-options"><button type="button" data-action="share-copy">Kopiuj adres przepisu</button><button type="button" data-action="share-whatsapp">Wyślij przez WhatsApp</button><button type="button" data-action="share-email">Wyślij e-mailem</button><button type="button" data-action="share-facebook">Udostępnij na Facebooku</button></div></dialog>
+
+  <section class="guest-view view" data-view="powitanie" hidden aria-labelledby="landing-title">
+    <header class="guest-nav"><a class="brand" href="#powitanie" data-route="powitanie"><span class="brand__mark" aria-hidden="true">K</span><span class="brand__word"><span>Ku</span><b>King</b><small>.pl</small></span></a><nav aria-label="Nawigacja dla gościa"><a href="#odkrywaj" data-route="odkrywaj">Zobacz, co gotują</a><a href="#logowanie" data-route="logowanie">Zaloguj się</a><a class="button button--primary" href="#rejestracja" data-route="rejestracja">Załóż konto</a></nav></header>
+    <section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Polska społeczność kulinarna</p><h1 id="landing-title">Pokaż, co dziś ugotowałaś</h1><p class="landing-lead">Miejsce dla ludzi, którzy gotują codziennie — w swojej kuchni, z tego, co jest. Zdjęcie i kilka słów wystarczą.</p><div class="landing-actions"><a class="button button--primary" href="#rejestracja" data-route="rejestracja">Zostań kuKINGiem — bez opłat i bez reklam</a><a class="button button--secondary" href="#odkrywaj" data-route="odkrywaj">Najpierw się rozejrzę</a></div><ul class="trust-list"><li>Bez reklam</li><li>Bez rankingów popularności</li><li>Twoje dane możesz pobrać</li></ul></div><figure class="landing-photo"><img src="placki-ziemniaczane.webp" alt="Domowe placki ziemniaczane z sosem grzybowym" width="1536" height="1152"><figcaption><span class="avatar avatar--photo" aria-hidden="true">H</span><span><strong>Placki Haliny</strong><small>Ugotowane przez 12 osób</small></span></figcaption></figure></section>
+    <section class="landing-how"><header><p class="eyebrow">Prościej się nie da</p><h2>Od garnka do rozmowy</h2></header><ol><li><span>01</span><h3>Robisz zdjęcie</h3><p>Telefonem, bez układania i poprawiania.</p></li><li><span>02</span><h3>Piszesz kilka słów</h3><p>Co to jest i jak wyszło. Tyle wystarczy.</p></li><li><span>03</span><h3>Ktoś naprawdę gotuje</h3><p>„Ugotowałem” jest ważniejsze niż polubienie.</p></li></ol></section>
+    <section class="landing-quote"><blockquote>„Wreszcie mam zdjęcia i przepisy w jednym miejscu, a nie między zeszytem, telefonem i Facebookiem.”</blockquote><p>— Basia, gotuje dla rodziny od 35 lat</p><a class="button button--primary" href="#rejestracja" data-route="rejestracja">Załóż swoje konto</a></section>
+  </section>
+
+  <section class="auth-view view" data-view="logowanie" hidden aria-labelledby="login-title"><div class="auth-brand"><a class="brand" href="#powitanie" data-route="powitanie"><span class="brand__mark" aria-hidden="true">K</span><span class="brand__word"><span>Ku</span><b>King</b><small>.pl</small></span></a><p>Twoja kuchnia, przepisy i ludzie, którzy naprawdę gotują.</p></div><form class="auth-card" data-auth="login"><p class="eyebrow">Witaj ponownie</p><h1 id="login-title">Zaloguj się</h1><div class="form-field"><label for="login-email">Adres e-mail</label><input id="login-email" type="email" autocomplete="email" required></div><div class="form-field"><label for="login-password">Hasło</label><input id="login-password" type="password" autocomplete="current-password" required></div><a class="forgot-link" href="#">Nie pamiętam hasła</a><button class="button button--primary button--full" type="submit">Zaloguj się</button><p class="auth-switch">Nie masz jeszcze konta? <a href="#rejestracja" data-route="rejestracja">Załóż konto</a></p></form></section>
+
+  <section class="auth-view view" data-view="rejestracja" hidden aria-labelledby="register-title"><div class="auth-brand"><a class="brand" href="#powitanie" data-route="powitanie"><span class="brand__mark" aria-hidden="true">K</span><span class="brand__word"><span>Ku</span><b>King</b><small>.pl</small></span></a><p>Zachowaj swoje potrawy i rodzinne przepisy.</p></div><form class="auth-card" data-auth="register"><p class="eyebrow">Dołącz do społeczności</p><h1 id="register-title">Załóż konto</h1><div class="form-field"><label for="register-name">Jak mamy się do Ciebie zwracać?</label><input id="register-name" type="text" autocomplete="name" placeholder="Np. Basia" required></div><div class="form-field"><label for="register-email">Adres e-mail</label><input id="register-email" type="email" autocomplete="email" required></div><div class="form-field"><label for="register-password">Utwórz hasło</label><input id="register-password" type="password" autocomplete="new-password" minlength="8" required><small>Minimum 8 znaków.</small></div><label class="choice auth-consent"><input type="checkbox" required><span><strong>Mam ukończone 16 lat i akceptuję regulamin</strong><small>Regulamin i polityka prywatności otworzą się w nowej karcie.</small></span></label><button class="button button--primary button--full" type="submit">Załóż konto</button><p class="auth-switch">Masz już konto? <a href="#logowanie" data-route="logowanie">Zaloguj się</a></p></form></section>
+
+  <section class="onboarding-view view" data-view="onboarding" hidden aria-labelledby="onboarding-title"><header><a class="brand" href="#powitanie" data-route="powitanie"><span class="brand__mark" aria-hidden="true">K</span><span class="brand__word"><span>Ku</span><b>King</b><small>.pl</small></span></a><p>Krok 1 z 2</p></header><main><p class="eyebrow">Dopasuj swój start</p><h1 id="onboarding-title">Co lubisz gotować?</h1><p class="landing-lead">Wybierz kilka tematów. Pokażemy Ci na początek właściwe osoby i przepisy.</p><div class="interest-grid"><button type="button" aria-pressed="false"><span aria-hidden="true">♨</span>Zupy</button><button type="button" aria-pressed="false"><span aria-hidden="true">◉</span>Domowe obiady</button><button type="button" aria-pressed="false"><span aria-hidden="true">✦</span>Ciasta</button><button type="button" aria-pressed="false"><span aria-hidden="true">▱</span>Chleb i wypieki</button><button type="button" aria-pressed="false"><span aria-hidden="true">◇</span>Przetwory</button><button type="button" aria-pressed="false"><span aria-hidden="true">○</span>Kuchnia lekka</button></div><div class="onboarding-actions"><button class="button button--secondary" type="button" data-onboarding="skip">Na razie tylko pooglądam</button><button class="button button--primary" type="button" data-onboarding="next">Dalej</button></div></main></section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Dolna nawigacja">
+    <a class="is-active" href="#start" data-route="start" aria-current="page"><span aria-hidden="true">⌂</span>Start</a>
+    <a href="#odkrywaj" data-route="odkrywaj"><span aria-hidden="true">⌕</span>Szukaj</a>
+    <a class="bottom-nav__add" href="#dodaj" data-route="dodaj"><span aria-hidden="true">＋</span>Dodaj</a>
+    <a href="#zeszyt" data-route="zeszyt"><span aria-hidden="true">▤</span>Moje</a>
+    <a href="#profil" data-route="profil"><span aria-hidden="true">○</span>Profil</a>
+  </nav>
+
+  <div class="toast" role="status" aria-live="polite" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
