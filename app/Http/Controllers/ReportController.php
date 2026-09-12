@@ -61,6 +61,11 @@ class ReportController extends Controller
             'details' => ['nullable', 'string', 'max:2000'],
         ], [
             'reason.required' => 'Wybierz, co jest nie tak z tą treścią.',
+            // Bez tego wypadał szablon ogólny: „Pole «szczegóły zgłoszenia»
+            // jest za długie — może mieć najwyżej 2000 znaków." Na ekranie
+            // nie ma niczego o nazwie „szczegóły zgłoszenia" — jest pytanie
+            // „Chcesz coś dopisać?" — a zdanie nie mówiło, co zrobić.
+            'details.max' => 'To jest za długie. Zmieść się w 2000 znakach — napisz samo to, co najważniejsze.',
         ]);
 
         try {

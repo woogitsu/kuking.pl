@@ -68,18 +68,32 @@
             @csrf
             <x-field name="name" label="Nazwa zeszytu" required placeholder="Na święta" />
             <x-field name="description" label="Krótki opis" type="textarea" :rows="2" />
-            <fieldset class="border-0 p-0 mt-4">
+            {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
+                 ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+            <fieldset class="border-0 p-0 mt-4" id="f-visibility"
+                      @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
                 <legend class="font-bold mb-3">Kto ma widzieć ten zeszyt?</legend>
                 <div class="choice-grid">
+                    {{-- `old()` ZAMIAST `checked` NA SZTYWNO.
+
+                         Reguła UX 50+ „poprawnie wpisane dane nigdy nie znikają"
+                         pękała tu w jedną stronę i tylko tu: `checked` stało
+                         wpisane przy „Tylko ja", więc kto wybrał „Wszyscy"
+                         i pomylił się w nazwie zeszytu, dostawał formularz
+                         z powrotem z zaznaczonym „Tylko ja". Zmiana widoczności
+                         bez zamiaru jest groźniejsza niż utrata tekstu, bo cichsza. --}}
                     <label class="choice">
-                        <input type="radio" name="visibility" value="private" checked>
+                        <input type="radio" name="visibility" value="private"
+                               @checked(old('visibility', 'private') === 'private')>
                         <span class="choice-label">Tylko ja</span>
                     </label>
                     <label class="choice">
-                        <input type="radio" name="visibility" value="public">
+                        <input type="radio" name="visibility" value="public"
+                               @checked(old('visibility') === 'public')>
                         <span class="choice-label">Wszyscy</span>
                     </label>
                 </div>
+                <x-blad-grupy name="visibility" />
             </fieldset>
             <button class="btn btn-primary mt-4" type="submit">Załóż zeszyt</button>
         </form>

@@ -112,7 +112,10 @@
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-visibility"
+                  @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
             <legend class="font-bold mb-3">Kto ma to widzieć?</legend>
 
             <div class="choice-grid">
@@ -140,7 +143,7 @@
                     </span>
                 </label>
             </div>
-            @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="visibility" />
         </fieldset>
 
         <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />

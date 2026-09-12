@@ -125,10 +125,30 @@ class CookedEventController extends Controller
             'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
+            'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — to pole renderuje się jako
             // trzy przyciski, więc zdanie wymienia dokładnie te trzy.
             'perceived_difficulty.in' => 'Wybierz, jak trudny był ten przepis: łatwy, średni albo trudny.',
+            /*
+             * TRZY KOMUNIKATY DOPISANE PRZY PRZEGLĄDZIE KOMUNIKATÓW.
+             *
+             * `would_make_again` bez własnego zdania dostawał szablon ogólny
+             * reguły `boolean` z nazwą pola z `attributes` — a ta nazwa sama
+             * zawierała cudzysłów drukarski, więc na ekran szło zdanie
+             * z cudzysłowem w cudzysłowie: „Pole «odpowiedź «zrobię jeszcze
+             * raz»» przyjmuje tylko wartość tak/nie." Zmierzone prawdziwym
+             * żądaniem. Nie mówiło też, co zrobić — a na ekranie stoją dwa
+             * przyciski z konkretnymi napisami i to je wymienia nowe zdanie.
+             *
+             * `actual_minutes` mówił „musi być nie mniejsze niż 0" i nazywał
+             * pole „rzeczywisty czas gotowania", choć etykieta na ekranie
+             * brzmi „Ile Ci to zajęło (w minutach)".
+             */
+            'would_make_again.boolean' => 'Zaznacz jedną z odpowiedzi: „Tak, zrobię ponownie” albo „Raczej nie powtórzę”.',
+            'actual_minutes.integer' => 'Wpisz sam czas w minutach, samymi cyframi — na przykład 90.',
+            'actual_minutes.min' => 'Czas nie może być ujemny. Wpisz liczbę minut, na przykład 90.',
+            'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
         ]);
 
         $user = $request->user();

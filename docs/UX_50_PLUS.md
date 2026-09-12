@@ -106,6 +106,37 @@ Tak:
 
 Błąd przy polu + podsumowanie. Poprawne dane nie znikają.
 
+### Pięć kryteriów, które musi spełnić KAŻDY komunikat walidacji
+
+Zdanie „po polsku" to za mało. Sama treść komunikatu przechodzi, gdy spełnia
+wszystkie trzy warunki naraz:
+
+1. **jest po polsku** — żadnego „The :attribute field is required" ani surowego
+   klucza tłumaczenia w rodzaju `validation.min.numeric`;
+2. **nazywa pole słowem, które człowiek WIDZI na ekranie** — nie nazwą kolumny
+   (`display_name`, `hero_media_id`) i nie nazwą wymyśloną na potrzeby pliku
+   językowego. Jeśli legenda brzmi „Kto ma to widzieć?", komunikat nie ma prawa
+   mówić o polu „widoczność";
+3. **mówi, CO ZROBIĆ** — „Pole «tytuł» jest wymagane" i „To pole nie może być
+   puste" mówią tylko, co jest źle. „Wpisz nazwę dania — choćby «obiad»" mówi,
+   co zrobić.
+
+Do tego dwie rzeczy wokół samego zdania:
+
+4. **błąd wskazuje POLE, którego dotyczy** — `aria-invalid` i `aria-describedby`
+   na polu albo na grupie wyboru, a odnośnik z podsumowania prowadzi do
+   ISTNIEJĄCEJ kotwicy `#f-<nazwa pola>`. Pola z `x-field` dostają to same;
+   grupy `radio`/`checkbox` i pola plikowe trzeba opisać ręcznie — wzorzec
+   i uzasadnienie w `resources/views/components/blad-grupy.blade.php`;
+5. **poprawne dane nie znikają** — także w grupach wyboru. `checked` wpisane
+   na sztywno zamiast `old()` cicho zmieniało widoczność zakładanego zeszytu
+   z „Wszyscy" na „Tylko ja" po każdej nieudanej walidacji.
+
+Wszystkich pięciu punktów pilnuje `tests/Feature/BledyMowiaCoZrobicTest.php`
+— i pilnuje ich na komunikatach WYZWOLONYCH prawdziwym żądaniem, nie na treści
+plików w `lang/`. Komunikat, który leży w pliku językowym, ale nigdy nie wypada
+na ekran, nie jest komunikatem produktu.
+
 ### Strony błędów
 
 `resources/views/errors/` — po polsku, w layoucie serwisu, każda mówi **co zrobić**

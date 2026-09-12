@@ -172,7 +172,10 @@
                          :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
             </div>
 
-            <fieldset class="border-0 p-0 mt-6">
+            {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
+                 ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+            <fieldset class="border-0 p-0 mt-6" id="f-difficulty"
+                      @error('difficulty') tabindex="-1" aria-invalid="true" aria-describedby="f-difficulty-error" @enderror>
                 <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
@@ -183,9 +186,13 @@
                         </label>
                     @endforeach
                 </div>
+                <x-blad-grupy name="difficulty" />
             </fieldset>
 
-            <fieldset class="border-0 p-0 mt-6">
+            {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
+                 ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+            <fieldset class="border-0 p-0 mt-6" id="f-visibility"
+                      @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
                 <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
                 <div class="choice-grid">
                     <label class="choice">
@@ -201,7 +208,7 @@
                         <span><span class="choice-label">Tylko ja</span><span class="choice-help">Twój prywatny zeszyt.</span></span>
                     </label>
                 </div>
-                @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+                <x-blad-grupy name="visibility" />
             </fieldset>
         </section>
 
@@ -217,7 +224,10 @@
                 Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże.
             </p>
 
-            <fieldset class="border-0 p-0">
+            {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
+                 ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+            <fieldset class="border-0 p-0" id="f-source_type"
+                      @error('source_type') tabindex="-1" aria-invalid="true" aria-describedby="f-source_type-error" @enderror>
                 <legend class="font-bold mb-3">Ten przepis jest…</legend>
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
@@ -228,7 +238,7 @@
                         </label>
                     @endforeach
                 </div>
-                @error('source_type')<span class="field-error">{{ $message }}</span>@enderror
+                <x-blad-grupy name="source_type" />
             </fieldset>
 
             {{-- PYTAMY O FRAZĘ, KTÓRA STOI SAMODZIELNIE.

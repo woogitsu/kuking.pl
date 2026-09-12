@@ -106,7 +106,10 @@
             <input type="hidden" name="page_path" value="{{ $sciezka }}">
         @endif
 
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-kind"
+                  @error('kind') tabindex="-1" aria-invalid="true" aria-describedby="f-kind-error" @enderror>
             <legend class="font-bold mb-3">Czego dotyczy?</legend>
             <div class="stack-tight">
                 @foreach($rodzaje as $wartosc => $etykieta)
@@ -116,7 +119,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('kind')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="kind" />
         </fieldset>
 
         <x-field name="message" label="Co chcesz nam powiedzieć?"

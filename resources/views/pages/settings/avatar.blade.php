@@ -63,7 +63,9 @@
                 <input class="visually-hidden pole-zdjecia-input" id="f-avatar" type="file" name="avatar"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-avatar-etykieta f-avatar-tytul"
-                       aria-describedby="f-avatar-help">
+                       {{-- Przy błędzie opis pola rośnie o TREŚĆ BŁĘDU, żeby
+                            czytnik ekranu przeczytał ją razem z etykietą. --}}
+                       @error('avatar') aria-invalid="true" aria-describedby="f-avatar-help f-avatar-error" @else aria-describedby="f-avatar-help" @enderror>
                 <label class="pole-zdjecia" for="f-avatar">
                     <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                     <span class="pole-zdjecia-tytul" id="f-avatar-tytul">
