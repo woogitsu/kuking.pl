@@ -12534,3 +12534,548 @@ strukturę „forum → działy → wątki → off-topic".
 
 📄 issue #372 · issue #370 · `docs/research/tematy-i-pytania-2026-09-11/` §3.5 ·
 `docs/brand/BRAND_EXTENDED.md` §1.1, §3 · D-147 · D-159
+
+---
+
+## D-164 · Asercja dodatnia na tekście ekranu idzie po `<main>`, nie po całym dokumencie
+
+**Data:** 12 września 2026 · PR #415 · Status: **obowiązuje** · rozwinięcie D-132
+
+### Reguła
+
+Asercja „człowiek widzi na tym ekranie napis X" (`assertSee`,
+`assertStringContainsString`) sprawdza się na **wyciętej treści** ekranu
+(`Tests\Support\WycinaObudoweEkranu::trescEkranu()`), nie na całej odpowiedzi.
+Asercje „X nie ma" **zostają na całym dokumencie** — szersze spojrzenie jest tam
+ostrożniejsze, nie słabsze.
+
+### Dlaczego
+
+`<title>` ekranu jest zwykle tym samym zdaniem co jego `<h1>` i powtarza się
+w `<meta>` (description, og:title, og:image:alt). Stopka niesie „Napisz do nas",
+„O kuKING" i licznik „{n} kuKINGów" na **każdym** ekranie; belka gościa niesie
+„Zaloguj się" i „Załóż konto" na każdym ekranie. Jedno zdanie stoi więc
+w dokumencie 2–5 razy, zanim ktokolwiek spojrzy na treść.
+
+**Zmierzone:** dziesięć asercji w dziesięciu plikach przechodziło po skasowaniu
+tego, czego pilnowały. Skrajny przypadek — `/o-kuking`, gdzie po D-145 napisu
+„O Kuking" **nie ma w treści ani razu** (nagłówek brzmi „O kuKING", nazwa jest
+rozbita na znaczniki), a asercja i tak była zielona z `<title>` i dwóch `<meta>`.
+
+Metoda szukania reszty: 47 wyrenderowanych ekranów (gość i zalogowany), z każdego
+wycięty `<main>`, z reszty zbudowany korpus obudowy, potem triaż 106 trafień po
+DOM-owej lokalizacji każdego napisu na jego własnej stronie.
+
+### Granica
+
+Gdy ten sam napis stoi w treści **i** w prawej szynie (np. „Dodaj zdjęcie
+profilowe"), `<main>` nie wystarcza — plik musi wybrać stronę, o którą mu chodzi.
+Dwa pliki mierzyły tam nie to, o czym są.
+
+**`bezStopki()` nie jest zamiennikiem:** zdejmuje stopkę i tylko stopkę. Po jego
+zastosowaniu na `/o-kuking` napis „O Kuking" nadal jest w dokumencie trzy razy.
+Pułapka 1 w `docs/PULAPKI_TESTOW.md` ostrzegała przed stopką i belką — dopisany
+**§1b** mówi, że najczęstszym winowajcą jest `<head>`.
+
+### Zgłoszone, nietknięte
+
+`SpisTematowTest:90` i `JednoSlowoNaTagiTest:93` sprawdzają „Wszystkie tagi" na
+całym dokumencie. Napis stoi też trzy razy w treści, więc dowód sabotażem
+wymagałby usunięcia `aria-label`, co wywala **inną** asercję w tym samym pliku —
+czerwień pochodziłaby nie z tego, co się mierzy. Te dwie asercje pełnią dziś rolę
+„strona się wyrenderowała, to nie ekran błędu" i tę rolę pełnią poprawnie.
+
+### Koszt cofnięcia
+
+Cofnięcie przywraca dziesięć zielonych testów, które nie umieją zaświecić się
+na czerwono.
+
+📄 `tests/Support/WycinaObudoweEkranu.php` · `docs/PULAPKI_TESTOW.md` §1b ·
+D-132 · D-145
+
+---
+
+## D-165 · Komentarz w pliku wykonywalnym jest dokumentem i podlega tej samej regule co dokument
+
+**Data:** 12 września 2026 · PR #416 · issue #342 · Status: **obowiązuje** ·
+rozwinięcie D-157, ciąg dalszy D-121
+
+### Co stało w pliku obowiązującym
+
+Nagłówek `.github/workflows/ci.yml` (linie 13-14) mówił:
+
+> „GDZIE TO CHODZI: na własnej puli (…), wskazanej ZESTAWEM ETYKIET,
+> nie nazwą runnera i **nie zmienną repozytorium**"
+
+i cytował `runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]`.
+Wszystkie dziewięć jobów **tego samego pliku** miało
+`runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}`. Ten sam nagłówek
+zapisywał jako koszt, że joby „NIE mają już zapasu w runnerach GitHuba" — a
+`|| '"ubuntu-latest"'` jest tym zapasem i jest wartością **domyślną**.
+`docs/infra/SELF_HOSTED_RUNNER.md` powtarzał obie nieprawdy, **160 linii nad
+własnym pomiarem**, który mówił coś przeciwnego (D-121).
+
+### Dlaczego to nie był „nieaktualny akapit"
+
+**Ta nieprawda miała kierunek.** Kto czytał „nie zmienną repozytorium", ten nie
+sprawdzał wartości `CI_RUNS_ON` — a to właśnie ta wartość, ustawiona na samo
+`self-hosted`, wysyłała przebiegi na starą pulę WSL, czyli tam, gdzie komplet
+sześciu etykiet miał ich **nie wpuścić**, i na tę samą maszynę, która dała wyścig
+o binarkę Composera z #262. Dokument nie tylko mylił — kierował uwagę z dala od
+jedynego miejsca, w którym leżała przyczyna.
+
+Drugi ładunek niósł „Krok 2": kazał odkomentować blok `on:` (aktywny od dawna)
+i usunąć `workflow_dispatch` (zostawiony celowo). Instrukcja, która każe zrobić
+rzecz zrobioną, uczy pomijania instrukcji — a przy okazji kazałaby zabrać jedyny
+ręczny wyzwalacz bramki deployu.
+
+### Decyzja
+
+1. **Komentarz w `ci.yml` jest dokumentem.** Obowiązuje go D-157 w całości: przy
+   rozjeździe z kodem poprawiamy komentarz, nie kod. Zmiana mechanizmu wyboru
+   runnera jest osobną decyzją (D-121), nie skutkiem ubocznym porządkowania opisu.
+2. **Komentarz cytujący linię kodu ma test porównujący jedno z drugim.** Cytat bez
+   testu starzeje się cicho; cytat z testem starzeje się na czerwono.
+3. **Uzasadnienie niewybranego wariantu zostaje jawnie.** Powód, dla którego pulę
+   wskazuje się kompletem sześciu etykiet, a nie nazwą runnera, jest najcenniejszą
+   treścią tego nagłówka i nie znika razem z nieprawdą o mechanizmie. Zakaz idzie
+   na to, co komentarz podaje jako **obowiązujący** `runs-on:`, nie na wystąpienie
+   słowa „etykiety".
+4. **Plik wykonywalny CI zmieniamy wyłącznie w liniach `#`**, a po zmianie
+   sprawdzamy, że YAML dalej się parsuje. `ci.yml` jest bramką deployu Railway
+   („Wait for CI"): zepsuty parser zatrzymuje wdrożenie.
+
+### Strażnik pilnuje OBU stron, bo jedna nie wystarcza
+
+`tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php` odczytuje mechanizm
+**z jobów** i od niego uzależnia zakazy: gdy `runs-on:` czyta `vars.*`, zakazane
+są zdania odmawiające zmiennej tej roli; **gdyby ktoś wpisał etykiety na sztywno,
+zakazane stają się zdania oddające zmiennej wybór** — dokument ma wtedy przestać
+o niej mówić. Sprawdzenie samego dokumentu złapałoby połowę; cofnięcie **kodu**
+zostawiłoby dokument prawdziwym w literze, a czytelnika w złym miejscu.
+
+Zdania porównywane po normalizacji (sklejenie linii, `**`, backticki, wielkość
+liter): feralne zdanie było złamane **między liniami 13 a 14** i każdy wzorzec
+jednoliniowy by je przepuścił. `ci.yml` jest czytany dwa razy i rozdzielnie —
+linie `#` jako twierdzenia, `runs-on:` spoza komentarzy jako kod.
+
+### Kontrola ujemna, i co w niej wyszło
+
+„nie zmienną repozytorium" w `ci.yml` → 1 z 5 czerwone · stary cytat etykiet →
+1 z 5 · joby przepisane na sztywne etykiety → 3 z 5 · „nie wybiera już żadna
+zmienna" w dokumencie → 2 z 5 · wskrzeszony „Krok 2" → 1 z 5 · zepsuty wykrywacz
+`runs-on:` → 4 z 5 (kontrola pustego skanu).
+
+**Jeden sabotaż nie nałożył się za pierwszym razem i test wtedy przechodził na
+zielono** — wzorzec podmiany łapał także linię komentarza, więc licznik się nie
+zgodził i podmiana nie wykonała się wcale. Złapane wyłącznie dlatego, że md5 było
+**porównane, a nie założone**. To ta sama, trzecia z czterech przyczyn nieoblanej
+kontroli ujemnej co w D-157.
+
+### Czego ten strażnik świadomie nie pilnuje
+
+Wartości zmiennej `CI_RUNS_ON` — żyje w ustawieniach repozytorium i z kodu jej nie
+widać; jej wybór należy do właściciela (D-121). Oraz nagłówków `deploy.yml`,
+`preview.yml` i `railway-iac.yml`: niosą **dokładnie tę samą nieprawdę** przy
+identycznym `runs-on:`, ale ich poprawka jest poza zakresem #342. Kopia jest
+miejscem, w którym taka nieprawda odrasta (D-104), więc to jest dług, nie
+zamknięta sprawa — dopisanie trzech ścieżek do listy `DOKUMENTY` to jedna linia.
+
+📄 `.github/workflows/ci.yml` (linie wykonywalne nietknięte) ·
+`docs/infra/SELF_HOSTED_RUNNER.md` ·
+`tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php` ·
+D-104 · D-121 · D-132 · D-157 · issue #342
+
+---
+
+## D-166 · `docs/DATABASE.md` nazywa każdą kolumnę TEKSTOWĄ, a pilnuje tego test
+
+**Data:** 12 września 2026 · PR #417 · Status: **obowiązuje** ·
+rozwinięcie D-104, wykonanie zauważenia z D-156
+
+### Co było nieprawdą o dokumencie
+
+`AGENTS.md` stawia regułę „zmiana schematu = migracja + test + `docs/DATABASE.md`
++ rollback" od pierwszego dnia. Przegląd rzeczywistego schematu (migracje
+wykonane, odczyt z `information_schema` — **49 tabel, 401 kolumn**) wobec
+dokumentu znalazł **22 kolumny tekstowe w 13 tabelach**, o których dokument nie
+pisał ani razu; sekcja `### recipes` składała się z dwóch słów („Aktualny stan."),
+więc nie było tam ani `source_person`, ani `source_note`, ani `source_url`. Drugi
+przebieg znalazł jeszcze **12 kolumn w 9 tabelach** opisanych wyłącznie na
+zbieżności nazw.
+
+**Koszt jest zmierzony, nie hipotetyczny:** `source_person` nazywa się „person",
+jest `varchar(120)` i nie ma w sobie człowieka. Zanim ktoś zapytał właściciela, ta
+sama nieprawda została zbudowana **dwa razy** — raz na ekranie („Po Nasze smaki.",
+D-153), raz w danych strukturalnych dla Google (`@type: Person`, D-156). Obie
+naprawy kosztowały cudzą pracę.
+
+### Zasada
+
+> **Dokument modelu danych ma nazywać każdą kolumnę TEKSTOWĄ, a przy kolumnie
+> niosącej treść od człowieka — powiedzieć, co w niej NAPRAWDĘ leży, i czym jest
+> `NULL`. Nazwa kolumny nie jest opisem.**
+
+### Zakres obowiązku i dlaczego akurat taki
+
+Strażnik żądający opisu KAŻDEJ kolumny oblewałby przy każdej migracji dokładającej
+`position` albo `cos_id` — i zostałby wyłączony w tydzień. **Strażnik, którego się
+wyłącza, nie jest strażnikiem.** Obowiązek obejmuje więc kolumny
+`text`/`varchar`/`char` poza ośmioma tabelami frameworka (dziś 129 kolumn w 41
+tabelach), bo kolumna tekstowa to jedyny rodzaj kolumny, której zawartości **nie
+da się odczytać z nazwy i typu**: `family_since_year smallint` mówi o sobie
+wszystko, `source_person varchar(120)` mówi nieprawdę.
+
+Lista tabel jest listą **wykluczeń**, nie objętych — nowa tabela wchodzi pod
+obowiązek sama.
+
+### Strażnik
+
+`tests/Feature/DokumentacjaBazyOpisujeSchematTest.php`. Schemat czytany
+z `information_schema` **żywej** bazy po migracjach, nie z plików migracji:
+migracje bywają wielokrotne (`posts.topic_id`), a liczy się stan końcowy. Progi
+`MIN_*` (30 tabel / 100 kolumn / 50 000 znaków dokumentu) są zamkiem na skanie
+pustego zbioru i na wytrychu „wpisz nasze tabele do wykluczeń". Osobny test
+kontroluje sam wykrywacz: musi umieć odpowiedzieć **przecząco**.
+
+### Czego ten strażnik świadomie nie pilnuje
+
+Czy opis jest **prawdziwy** — ze schematu tego wyprowadzić się nie da;
+`source_person` był `varchar(120) NULL` także wtedy, gdy wszyscy myśleli, że to
+człowiek. Ani **gdzie** w dokumencie kolumna jest nazwana — wymaganie sekcji
+oblewałoby przy każdym przestawieniu dokumentu, czyli byłoby tą kruchością, przez
+którą strażników się wyłącza. Cena tej granicy jest jawna i została raz zapłacona
+ręcznie.
+
+### Przy okazji zauważone, NIETKNIĘTE
+
+`media.perceptual_hash`, `collection_items.note` i `daily_picks.note` to kolumny,
+których dziś **nic nie zapisuje ani nie czyta**. Zostają, ale dokument mówi to
+wprost — opis obiecujący działające pole byłby tą samą klasą nieprawdy.
+`recipes.source_url` jest `text` bez limitu w bazie przy walidacji tnącej na 2000
+znaków. `users.role` i `units.unit_type` nie mają CHECK-a.
+
+📄 `docs/DATABASE.md` · `tests/Feature/DokumentacjaBazyOpisujeSchematTest.php` ·
+D-104 · D-132 · D-153 · D-156
+
+---
+
+## D-167 · `/health` mówi, gdy obiecana droga wejścia nie istnieje
+
+**Data:** 12 września 2026 · PR #418 · issues #258, #259 · Status: **obowiązuje** ·
+wykonanie D-069 i D-113
+
+### Problem
+
+Wejście kontem Google (D-069) i kontem Facebooka (D-113) były w `main` w całości —
+z kodem, ekranami, polityką prywatności i 86 testami. I żadnego z nich nie dało
+się wdrożyć, bo wdrożenie nie kończyło się niczym, co by sprawdziło, czy funkcja
+naprawdę stanęła:
+
+1. `DEPLOYMENT_RUNBOOK.md` nie miał kroku dla Facebooka (Google miał 8D);
+2. `.railway/railway.ts` nie przepuszczał `FACEBOOK_*` do serwisu, więc klucze
+   wpisane w Shared Variables nie docierały do aplikacji;
+3. `/health` nie znał **żadnego** z dwóch dostawców.
+
+**Trzecia jest najgorsza i ona nazywa klasę błędu.** Bez kluczy przycisku po
+prostu nie ma na ekranie — czyli wdrożenie, w którym obiecana droga wejścia **nie
+istnieje**, wygląda identycznie jak wdrożenie, na którym właściciel świadomie jej
+nie chciał. Dwie pierwsze luki odkrywa się, próbując wdrożyć. Trzeciej nie
+odkrywa nikt.
+
+### Rozstrzygnięcie
+
+**1. `/health` oddaje `degraded` z powodem `google_bez_kluczy` albo
+`facebook_bez_kluczy`**, gdy `APP_ENV=production`, funkcja jest włączona
+w `config/kuking.php`, a kluczy nie ma. Pytamy o **rozjazd między obietnicą
+a rzeczywistością**, nie o sam brak kluczy: `KUKING_WEJSCIE_*=false` znaczy „nie
+chcę tej drogi" i nie jest awarią. Inaczej jedynym sposobem uciszenia sygnału
+byłoby wpisanie byle czego w klucze — czyli nauczenie właściciela kłamania
+konfiguracji.
+
+**2. HTTP 200, nie 503.** Żadna z tych kontroli nie jest `KRYTYCZNE`. Healthcheck
+oddający 503 już raz położył ten serwis; serwis bez jednej z trzech dróg wejścia
+działa, serwis w pętli restartów nie działa wcale. Monitoring pilnuje **treści**
+odpowiedzi.
+
+**3. Osobny powód na dostawcę**, nie wspólne `oauth_bez_kluczy`. Naprawa każdego
+z nich to inny panel i inna czynność człowieka — Google Cloud Console to nie jest
+panel Meta.
+
+**4. Publicznie wychodzi sam kod.** Trasa `/health` nie ma `auth` i mieć nie może.
+Zdanie dla właściciela (z nazwami zmiennych i odnośnikiem do runbooka) idzie
+wyłącznie do serwerowego logu, jak przy każdym innym powodzie.
+
+**5. Poza produkcją cisza.** Brak kluczy jest tam stanem normalnym — tak stoi
+w `.env.example`, tak chodzi CI, tak chodzą **wszystkie** środowiska preview (Meta
+nie przyjmuje wieloznaczników w adresach powrotu). Stały `degraded` byłby szumem,
+który uczy ignorować to pole.
+
+### To jest D-053 widziane z drugiej strony
+
+D-053 zabrania martwych przycisków. Tu przycisku nie ma wcale, a obietnica
+została — i to jest ta sama krzywda, tylko cichsza: człowiek, któremu powiedziano
+„wejdziesz kontem Facebooka", nie ma gdzie tego zobaczyć, a my nie mamy skąd się
+dowiedzieć, że tak jest.
+
+### Dowód
+
+`tests/Feature/WdrozenieWejsciaFacebookiemTest.php` (13 testów) pilnuje trzech
+twierdzeń naraz: runbook opisuje krok Facebooka **i mówi, jak sprawdzić, że
+działa**; `railway.ts` przepuszcza te zmienne; `/health` mówi prawdę o ich braku.
+Nazwy zmiennych czytane z `config/kuking.php`, żeby runbook i `railway.ts` nie
+mogły zacząć mówić o nazwie, której aplikacja nie czyta.
+
+### Dług, świadomie zostawiony
+
+`config/kuking.php:937–945` nadal twierdzi, że sygnału `google_bez_kluczy`
+„jeszcze nie ma". Od tego wpisu to zdanie jest nieprawdziwe — do poprawienia przy
+najbliższym dotknięciu tego pliku.
+
+📄 `app/Http/Controllers/HealthController.php` ·
+`docs/infra/DEPLOYMENT_RUNBOOK.md` KROK 8E · `.railway/railway.ts` ·
+`tests/Feature/WdrozenieWejsciaFacebookiemTest.php` ·
+D-053 · D-069 · D-104 · D-113 · issues #258, #259
+
+---
+
+## D-168 · Wejście do Ustawień z telefonu stoi na ekranie profilu, przy „Wyloguj się"
+
+**Data:** 12 września 2026 · PR #419 · issue #344 (część) · Status: **obowiązuje**
+
+### Co było
+
+Na telefonie `.side-nav` jest schowana (`app.css:1173`), awatar w pasku górnym
+jest `topbar-desktop-only` i **nie ma pod nim żadnego menu**, a dolny pasek ma
+pięć pozycji i szóstej mieć nie może (`AGENTS.md` §5).
+
+**Zmierzone** (Chromium, 390 px, konto zalogowane, pięć ekranów telefonu): słowo
+„Ustawienia" jest w DOM każdego z nich, ale `widoczny: false` na **wszystkich
+pięciu**.
+
+**Sprostowanie do zgłoszenia:** ekrany ustawień **były** osiągalne — przez „Zmień
+swój profil", bo `/ustawienia/profil` niesie `<x-ustawienia-nawigacja>` ze spisem
+wszystkich dziewięciu ekranów. Problemem nie była liczba dotknięć (2 → 2), tylko
+**brak napisu, którego człowiek szuka**.
+
+### Decyzja
+
+Jeden odnośnik „Ustawienia" w rzędzie akcji własnego profilu, prowadzący na
+`settings.accessibility` — tam, gdzie ten sam napis w nawigacji bocznej na
+komputerze. Cel dotykowy **141,8 × 50,5 px**, tekst 18 px, bez przewijania w bok
+przy 320 px i przy czcionce 200%, działa bez JavaScriptu.
+
+### Koszt przyjęty świadomie
+
+Napis „Ustawienia" prowadzi na ekran o nagłówku **„Czytelność"**. Ekran-rozdroże
+`/ustawienia` nie istnieje, a ten sam napis o dwóch celach byłby gorszy niż jeden
+cel dziwny. Ratuje to spis „Wszystkie ustawienia" na tym ekranie. Na komputerze
+tak jest od dawna; ujednolicenie wymaga rozdroża, czyli osobnej decyzji.
+
+### Czego ta decyzja NIE rozstrzyga
+
+Czy awatar przestaje być `topbar-desktop-only` · czy powstaje ekran-rozdroże
+`/ustawienia` · czy rząd akcji na profilu ma wjechać wyżej (zmierzone: stoi na
+`y ≈ 913` przy oknie 844 px, więc wymaga przewinięcia — ale to stan **zastany**,
+sąsiedni „Zmień swój profil" stał tam już wcześniej) · przełącznik motywu
+i licznik powiadomień. Każda to decyzja produktowa, a żadna nie jest potrzebna,
+żeby usunąć ślepy zaułek. Dlatego **#344 zostaje otwarte**.
+
+### Co wyszło w kontroli ujemnej i jest warte zapamiętania
+
+Sabotaż „napis schowany pod `<span class="visually-hidden">`" **początkowo nie
+oblał testu**. Przyczyna to druga z czterech: *test nic nie mierzył w tym
+aspekcie* — szukał odnośnika przez `normalize-space(.)`, a `textContent` zlicza
+także tekst schowany dla oka. Czyli test przepuszczał dokładnie to, czego zakazuje
+„ikona nigdy sama". Po poprawce odnośnik jest szukany po **widocznym** napisie.
+
+Druga pułapka: `.side-nav` renderuje się w HTML-u **zawsze**, także na telefonie —
+chowa ją wyłącznie CSS. Razem z nią w dokumencie jest pozycja „Ustawienia" i
+formularz wylogowania, więc asercja po całym dokumencie przechodziłaby nawet nad
+cudzym profilem (D-164).
+
+📄 `resources/views/pages/profile/show.blade.php` ·
+`tests/Feature/UstawieniaZTelefonuBezZgadywaniaTest.php` ·
+D-053 · D-082 · D-107 · D-164 · issue #344
+
+---
+
+## D-169 · Gdy o stanie ekranu decyduje kliknięcie, a nie serwer, warstwę wybiera arkusz
+
+**Data:** 12 września 2026 · PR #420 · issue #343 · Status: **obowiązuje** ·
+rozszerzenie D-126
+
+### Decyzja
+
+D-126 każe panelowi formularza znikać tam, gdzie nie ma czego wypełnić, i na
+czterech ekranach robi to `@class([...])` — bo tam stan zna **serwer** w chwili
+renderowania. `<details>` przełącza się już **po** wyjściu odpowiedzi, więc Blade
+nie ma czego wybrać. Wtedy warstwę wybiera selektor stanu w arkuszu
+(`details.panel-formularza:not([open])`), i to jest **rozszerzenie D-126, nie
+wyjątek od niej**.
+
+Dwa warunki: wartości biorą się w całości z tokenów istniejącej warstwy (żadnych
+połowicznych sygnatur), a reguła działa **bez JavaScriptu**.
+
+**Zmierzony koszt** na `/zeszyt`, identycznie przy 390 i 1512 px: obwódka
+`rgb(138,122,99)` → `rgb(228,218,203)`, cień → `none`, wcięcie 24 → 20 px,
+wysokość 100,5 → 92,5 px. Przy rozwinięciu przycisk przesuwa się w dół o **4 px**;
+jego własna wysokość zostaje 50,5 px, powyżej progu 48.
+
+### Drugi werdykt: rolę nadaje MIEJSCE, nie obiekt
+
+Ekran „Komuś wyszło" (`pages/cooked/celebrate.blade.php`) zostaje **sekcją**.
+Zapisany argument za kartą brzmiał „warstwa 1 wymienia wykonanie wprost" — to
+argument z **obiektu**, a D-128 mówi, że rolę nadaje **miejsce**. Oba miejsca
+istnieją w kodzie obok siebie: stały dom wykonania `/ugotowane/{id}` → karta
+treści; jednorazowe potwierdzenie `/ugotowane/{id}/wyszlo` → sekcja (drugie
+wejście przekierowuje). To ten sam układ, który D-128 rozstrzygnął dla zgłoszeń,
+więc **nie wymagał nowej decyzji** — tylko zastosowania istniejącej.
+
+### Liczba z tytułu issue była nieaktualna
+
+`.card` niesie dziś **22** żywe wystąpienia, nie 130: 35 trafień komendą z issue,
+24 po odsianiu nazw z myślnikiem (`post-card-head`), 22 po wycięciu komentarzy
+Blade. Trzeci wyjątek (puste stany panelu) był już domknięty w `e57b2c9` (#367) —
+nieaktualny był **dokument**, nie kod.
+
+### Zostaje otwarte
+
+Czwarte ograniczenie z tej samej sekcji `ROLE_KART.md`: automat dostępności nie
+wchodzi na trzy ekrany z ramkami (403 na koncie demo, brak 2FA na koncie demo).
+To nie jest wyjątek warstwy, tylko **luka w pokryciu pomiarem** — osobna sprawa.
+
+📄 `resources/css/tokens.css` · `docs/brand/ROLE_KART.md` ·
+`tests/Feature/WyjatkiRolKartTest.php` · D-053 · D-125 · D-126 · D-128 ·
+issue #343
+
+---
+
+## D-170 · Dokumenty w `docs/brand/` podlegają własnym regułom tam, gdzie podają tekst do wklejenia
+
+**Data:** 12 września 2026 · PR #421 · issue #38 (część) · Status: **obowiązuje**
+
+### Co było
+
+§6 `docs/brand/COPY_STYLE.md` przez pół roku **zalecał** frazy, które ten sam
+dokument uznaje za błąd — bo żaden test nie czytał `docs/`.
+`TekstyWedlugCopyStyleTest` skanuje `resources/views`, `resources/legal/*.md`,
+`lang/` i PHP. Przewodnik był jedynym miejscem w repozytorium, gdzie własne zasady
+wolno było łamać bezkarnie, i to akurat tam, **skąd ludzie kopiują**.
+
+Zgłoszono dwie frazy. Skan wzorów do wklejenia w całym `docs/brand/` dał
+**jedenaście trafień w czterech plikach** — pięć w §6 `COPY_STYLE.md`, dwa
+w `BRAND_EXTENDED.md`, trzy w `MASCOT_CONCEPT.md` §6.4 (sekcja, która sama nazywa
+swoje teksty „gotowymi do wklejenia").
+
+Dwa z nich są szczególnie wymowne: `mail/data-export-ready.blade.php:34` ma nad
+sobą komentarz „Gotowy napis z COPY_STYLE.md §6. Nie zmieniamy go" — a napis od
+dawna różnił się od §6. `BRAND_EXTENDED.md:137` przeczył **słowniczkowi w tym
+samym pliku** (`:46`) i produktowi.
+
+### Zasada
+
+> Gotowy napis w przewodniku jest traktowany jak napis w produkcie.
+
+**Granicą jest znacznik w samym dokumencie:** wiersz `❌`, komórka skreślona
+i cała proza zostają wolne — o błędach trzeba móc pisać. Obie zgłoszone frazy
+dalej stoją w dokumencie jako cytaty odrzucone i strażnik ich nie rusza; że je
+odróżnia, jest **zmierzone**, nie założone (sabotaż samego rozróżnienia oblewa
+cztery testy).
+
+**Gdy napis żyje już na ekranie, wiążące jest brzmienie z kodu** — dokument idzie
+za produktem, nie odwrotnie.
+
+Wszystkie poprawki to **przebudowa zdania**, nigdy dopisanie drugiej formy.
+
+### Dlaczego osobny plik, a nie rozszerzenie istniejącego testu
+
+`TekstyWedlugCopyStyleTest` bierze **powierzchnię produktu** i dokument jest tam
+**źródłem reguły**, nie przedmiotem badania. Dołożenie `docs/brand/` wymagałoby
+wniesienia do niego całego mechanizmu „wzór kontra cytat odrzucony" — wiedzy
+o tym, co znaczy `❌` w bloku ```text — której tamten plik nie ma powodu mieć.
+
+Jedno wspólne zostało uwspólnione **naprawdę**: wzorce rodzaju mieszkają
+w `tests/Support/WzorceRodzaju.php` i używają ich oba testy, więc poprawka wzorca
+nie może uczynić jednego z nich ślepym.
+
+### Co wyszło w kontroli ujemnej
+
+Przy cofnięciu całej poprawki wyszła słabość **samej frazy kontrolnej**: „Możesz
+być pierwsza albo pierwszy" stała przed poprawką jednocześnie jako `❌` **i** jako
+wzór, więc czerwień nie mówiłaby, czy zepsuty jest parser, czy dokument. Fraza
+podmieniona na występującą wyłącznie jako cytat odrzucony, kontrola powtórzona.
+
+Reguły „wykrzyknik" i „nazwa w rejestrze poważnym" nie mają dziś w przewodniku ani
+jednego trafienia — dlatego mają **własną kontrolę na podstawionych usterkach**,
+inaczej byłyby zielone bez znaczenia.
+
+📄 `docs/brand/COPY_STYLE.md` §6 · `docs/brand/BRAND_EXTENDED.md` ·
+`docs/brand/MASCOT_CONCEPT.md` §6.4 ·
+`tests/Feature/PrzewodnikTrzymaSieWlasnychZasadTest.php` ·
+`tests/Support/WzorceRodzaju.php` · D-104 · D-132 · issue #38
+
+---
+
+## D-171 · Automat dostępności mierzy ekrany wejścia z atrapami kluczy dostawców, ale nie z atrapą dostawcy
+
+**Data:** 12 września 2026 · PR #422 · issue #345 · Status: **obowiązuje**
+
+### Kontekst
+
+Blok „Wejdź kontem Google / Facebooka" renderuje się pod warunkiem
+`Google::dziala()` / `Facebook::dziala()`. Środowiska pomiaru (`.env`
+deweloperski, job `dostepnosc` w CI) mają klucze **puste**, więc axe nie zobaczył
+tych przycisków **ani razu** — mimo że `/login` i `/register` były na liście
+`EKRANY` od początku.
+
+**Zmierzone** (320 px, `<main>`): `/login` z kluczami 40 węzłów i 2 znaki marki,
+bez kluczy 25 węzłów i **zero**; `/register` odpowiednio 58 i 43. To ta sama klasa
+fałszywej zieleni co D-106.
+
+Do tego `/ustawienia/bezpieczenstwo` — jedyne miejsce z „Połącz konto Facebooka"
+(D-098) — **nie był mierzony wcale**, ani przez axe, ani przez układ; stoi za
+`auth`, więc `PomiarDostepnosciObejmujeStronyPubliczneTest` z założenia go nie
+widzi.
+
+### Rozstrzygnięcie
+
+Automat stawia swój serwer z **atrapami czterech kluczy**
+(`KLUCZE_DOSTAWCOW_DO_POMIARU`) i **twardo sprawdza, że rząd przycisków naprawdę
+wyszedł**; niepowodzenie kończy przebieg. Wartość klucza nie wchodzi do HTML-a
+(widok pyta tylko *czy* klucze są), więc renderowany kod jest co do znaku ten sam
+co na produkcji i nie wychodzi z tego ani jedno żądanie do dostawcy. Do listy
+dochodzi `/ustawienia/bezpieczenstwo`.
+
+Progów **nie ruszano**. Skan: 40/40 → **41/41** axe, 45/45 → **46/46** układ,
+zero naruszeń przed i po. Naprawiać nie było czego.
+
+### Czego to nie zmienia
+
+Ekrany za zgodą dostawcy (`/wejdz/{google,facebook}/{domknij,polacz}` oraz
+`auth.facebook-bez-adresu`) zostają **niezmierzone** i zostają wypisane jako dług
+nazwany w `WYJATKI`. Czytają z sesji tożsamość, którą zakłada wyłącznie
+`callback()` po wymianie kodu u dostawcy, a adres wymiany jest **stałą w kodzie**,
+idzie z serwera i nie da się go wskazać konfiguracją — zmierzone: przy ustawionych
+atrapach kluczy wszystkie cztery dalej oddają 302 na `/login`.
+
+**Trzy drogi rozważone i odrzucone:**
+* zapis klucza sesji z zewnątrz (choćby przez `tinker`) — **właz obchodzący
+  D-098**, granica, której nie przekracza ani `stanModeratora()`, ani
+  `stanPrzedKodem2FA()`;
+* nadpisanie adresu punktu tokenu konfiguracją — wywraca model bezpieczeństwa
+  opisany w `KlientGoogle` („nie sprawdzamy podpisu, bo token odbieramy wprost
+  z punktu Google po TLS") i robi ze zmiennej środowiskowej drogę do podstawienia
+  tożsamości oraz wycieku sekretu klienta;
+* serwer-atrapa za proxy z podłożonym CA — wymaga zaufanego CA w procesie
+  aplikacji, co jest gorsze niż to, co naprawia.
+
+Atrapa **całego dostawcy** zostaje osobną pracą z #345 i osobną decyzją; **dług to
+pięć ekranów, nie cztery.**
+
+### Zauważone o środowisku
+
+Drzewo bez zbudowanego frontu daje **mylący komunikat o poczcie**, bo każda strona
+zwraca 500 (`ViteManifestNotFoundException`). Wart osobnego zgłoszenia.
+
+📄 `scripts/dostepnosc.mjs` · D-098 · D-106 · D-132 · issue #345 · issue #278
