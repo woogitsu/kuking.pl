@@ -515,6 +515,12 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
             // Google ma własny sygnał od tej samej zmiany — tam, gdzie test
             // pyta o Facebooka, Google ma milczeć.
             'kuking.google.wlaczone' => false,
+            // Analityka odwiedzin (D-092) ma na produkcji własny sygnał
+            // `analityka_bez_tokenu`: polityka prywatności ją obiecuje, a tokenu
+            // w testach nie ma. Uciszamy ją udawanym tokenem — przełącznika
+            // „wyłącz" tam świadomie nie ma, bo obietnica stoi w dokumencie
+            // prawnym, nie w konfiguracji.
+            'kuking.analytics.cloudflare.token' => 'udawany-token-analityki',
         ]);
 
         $this->app->detectEnvironment(static fn (): string => 'production');
