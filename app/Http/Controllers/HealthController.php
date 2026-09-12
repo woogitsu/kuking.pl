@@ -608,6 +608,16 @@ class HealthController extends Controller
      * To sprawdzenie ma jedno zadanie: powiedzieć „coś tam leży, zajrzyj" —
      * publiczna odpowiedź niesie tylko kod, nigdy liczbę ani treść.
      *
+     * DOKĄD ODESŁAĆ CZŁOWIEKA, KTÓRY TO ZOBACZY
+     * `queue:failed` mówi, ŻE coś padło, i nic więcej — a najczęstszy odruch
+     * po jego przeczytaniu, czyli `queue:retry`, jest przy liście z żetonem
+     * ODPOWIEDZIĄ ZŁĄ: żeton resetu hasła żyje `config/auth.php` → `expire`
+     * minut od WYSTAWIENIA, więc ponowienie po dniach wysyła człowiekowi
+     * martwy link. Dlatego komunikat niżej (widoczny w dzienniku serwera,
+     * nie w publicznej odpowiedzi) prowadzi do `kuking:martwe-zadania`, która
+     * rozdziela żetony żywe od martwych i bez jawnego przełącznika niczego
+     * nie kasuje.
+     *
      * DLACZEGO CZYTAMY TABELĘ, A NIE RUSZAMY KOLEJKI
      * Wyłącznie `SELECT COUNT(*)` — bez `queue:retry`, bez kasowania, bez
      * dotykania `app/Jobs` ani `app/Mail`. Naprawa cichej utraty listów to
@@ -632,7 +642,10 @@ class HealthController extends Controller
 
         throw new KontrolaZdrowiaNieprzeszla(
             self::POWOD_ZADANIA_NIEUDANE,
-            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. Sprawdź `php artisan queue:failed`.",
+            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. "
+                .'Co to jest i kogo dotyczy: `php artisan kuking:martwe-zadania` '
+                .'(niczego nie kasuje bez `--skasuj`). Do kogo nie doszedł list: '
+                .'`php artisan kuking:kto-nie-dostal-listu`.',
         );
     }
 
