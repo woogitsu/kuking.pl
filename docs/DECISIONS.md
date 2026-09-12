@@ -1627,7 +1627,9 @@ skalowania nie ma — a nie zaprzeczać schematowi.
 **Zmiana wymaga:** nowej decyzji właściciela; ta jest świeża i nie ma jeszcze
 kodu, który mogłaby unieważnić.
 
-📄 `database/migrations/…_recipe_ingredients_*` · issue #44 · D-017 ·
+📄 `database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php` ·
+`database/migrations/2026_09_08_100000_add_group_name_check_to_recipe_ingredients.php` ·
+issue #44 · D-017 ·
 `docs/ROADMAP.md`
 
 ---
@@ -11465,7 +11467,7 @@ z 26**, każdy z trzech dokumentów oblewa z wypisanymi cytatami. Po przywrócen
 **Zmiana wymaga:** niczego. Ta zasada nie jest sądem o stylu — jest odpowiedzią
 na pytanie, po co czytelnik przyszedł.
 
-📄 `docs/brand/COPY_STYLE.md` · `docs/research/audyt-copy-2026-09-11/WZORCE_SAMOUZASADNIANIA` ·
+📄 `docs/brand/COPY_STYLE.md` ·
 `tests/Feature/DokumentyPrawneNieKlamiaTest.php` · D-140 · D-150 · D-152
 
 ---
@@ -12967,7 +12969,7 @@ Czwarte ograniczenie z tej samej sekcji `ROLE_KART.md`: automat dostępności ni
 wchodzi na trzy ekrany z ramkami (403 na koncie demo, brak 2FA na koncie demo).
 To nie jest wyjątek warstwy, tylko **luka w pokryciu pomiarem** — osobna sprawa.
 
-📄 `resources/css/tokens.css` · `docs/brand/ROLE_KART.md` ·
+📄 `resources/css/tokens.css` · `docs/design/ROLE_KART.md` ·
 `tests/Feature/WyjatkiRolKartTest.php` · D-053 · D-125 · D-126 · D-128 ·
 issue #343
 
