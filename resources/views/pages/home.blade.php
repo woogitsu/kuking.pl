@@ -105,8 +105,33 @@
 
              Nowa etykieta nie jest wymyślona: to nazwa, którą ten feed nosi
              wszędzie indziej — na własnym ekranie (`pages/discover.blade.php`),
-             w pustej tablicy dnia, w wyszukiwarce i w `AGENTS.md` §8. --}}
-        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Świeżo z <x-kuking-word /></a>
+             w pustej tablicy dnia, w wyszukiwarce i w `AGENTS.md` §8.
+
+             CAŁA ETYKIETA W JEDNYM `<span class="tab-napis">` — TEN `<span>`
+             NIE JEST OZDOBĄ I NIE WOLNO GO SKASOWAĆ PRZY SPRZĄTANIU.
+
+             `.tab` jest `display: inline-flex`, więc „Świeżo z " staje się
+             ANONIMOWYM elementem flex, a anonimowemu elementowi flex przycina
+             się białe znaki na końcu. Spacja stoi w tym pliku, jest
+             w wysłanym HTML-u i mimo to nie zostaje narysowana — na telefonie
+             właściciela napis czytał się „Świeżo zkuKING". `.tab` nie ma
+             `gap`, więc nie ma tu czego tę spację zastąpić.
+
+             To ta sama choroba i to samo lekarstwo co `btn-napis` (issue #353,
+             `resources/css/tokens.css`): jeden `<span>` zamienia dwa elementy
+             flex w jeden, a w środku `<span>`-a obowiązuje zwykły skład
+             tekstu, w którym spacja przed elementem inline zostaje.
+
+             ZMIERZONE w Chromium na `/home`, szerokość 390 px i 320 px:
+             przed poprawką końcowa spacja węzła „Świeżo z " miała 0,00 px,
+             po poprawce 4,27 px. Wysokość rzędu zakładek bez zmian.
+
+             CZEGO TU NIE ROBIMY: `white-space: nowrap` jest w `.tab` ODRZUCONE
+             po nieudanym skanie dostępności (issue #294, komentarz
+             w `app.css`), a twarda spacja `&nbsp;` to ten sam pomysł
+             w przebraniu — obie sklejają „z kuKING" w jeden nieprzełamywalny
+             napis i wracają pod ten sam skan. --}}
+        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif><span class="tab-napis">Świeżo z <x-kuking-word /></span></a>
     </nav>
 
     @if($showingDiscover)

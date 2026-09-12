@@ -1704,6 +1704,27 @@
     padding: var(--spacing-4) var(--spacing-5);
   }
 
+  /* Kolumna awatara. `flex: none` na ELEMENCIE wiersza, nie tylko na `.avatar`
+     w środku — to `<a>` jest tu elementem `flex`, a `flex: none` na awatarze
+     niżej nic o nim nie mówi. Bez tego domyślne `flex-shrink` zgniata awatar
+     przy długiej nazwie autorki, plakietce „Tylko dla obserwujących"
+     i przycisku „Więcej" w jednym rzędzie: `<a>` się zwęża, `max-width: 100%`
+     z preflightu Tailwinda dociska do niego SZEROKOŚĆ `<img>`, a `height`
+     zostaje przy 52 px — twarz wychodzi ściśnięta w poziomie.
+
+     ZMIERZONE w Chromium na `/home`, konto ze zdjęciem, długą nazwą
+     i plakietką: przed poprawką 18,91 × 52 px przy szerokości okna 390 px
+     i 10,95 × 52 px przy 320 px; po poprawce 52 × 52 px przy obu. Na zwykłych
+     kontach demo było 26,4 × 52 px — czyli zgniatało KAŻDĄ kartę wpisu ze
+     zdjęciem profilowym, nie tylko tę z długą nazwą.
+
+     Ta sama choroba wyleczona tak samo przy `.kuking-board-avatar`
+     i `.post-card-menu-ikona` w tym arkuszu.
+     Strażnikiem jest `tests/Feature/AwatarWKarcieWpisuJestKwadratowyTest.php`. */
+  .post-card-awatar {
+    flex: none;
+  }
+
   /* Treść wpisu — to, co człowiek naprawdę napisał — idzie po
      `--text-body-lg` (20 px), nie po `--text-body` (18 px). Tak ma to system
      projektowy v3.1 (`.karta-tresc`) i jest po co: kilka zdań pod zdjęciem
@@ -3524,6 +3545,38 @@
      * rozpychać zakładkę.
      */
     overflow-wrap: anywhere;
+  }
+
+  /* ETYKIETA ZAKŁADKI OWINIĘTA JEDNYM ELEMENTEM — TEN `<span>` NIE JEST PUSTY.
+
+     Nie kasuj go przy sprzątaniu „niepotrzebnych" opakowań. Reguła niżej
+     wygląda na nic nierobiącą, ale jej zadaniem jest UNIEŚĆ NAZWĘ KLASY — ta
+     nazwa jest jedynym śladem, po co ten `<span>` stoi
+     w `resources/views/pages/home.blade.php`, i jedynym miejscem, w którym
+     wolno dopisać dalsze właściwości etykiety, gdy będą potrzebne.
+
+     DLACZEGO. `.tab` wyżej jest `inline-flex`, więc tekst leżący obok elementu
+     inline staje się ANONIMOWYM elementem flex — a anonimowemu elementowi flex
+     przycina się białe znaki na końcu. Zakładka „Świeżo z <x-kuking-word/>"
+     miała spację w źródle i w wysłanym HTML-u, a mimo to czytała się na
+     telefonie „Świeżo zkuKING". W `.btn` tego nie widać tylko dlatego, że
+     `.btn` ma `gap` i ten `gap` wchodzi w miejsce zjedzonej spacji; `.tab`
+     `gap`-u nie ma.
+
+     ZMIERZONE w Chromium na `/home`, szerokość 390 px i 320 px: końcowa spacja
+     węzła tekstowego „Świeżo z " miała 0,00 px przed poprawką i 4,27 px po
+     owinięciu etykiety tym `<span>`-em. Wysokość zakładki bez zmian (48 px,
+     `--control-height-min`), zawijanie do dwóch wierszy bez zmian.
+
+     `min-width: 0` — żeby etykieta jako element flex mogła zejść poniżej
+     szerokości swojej treści i zawinąć się zgodnie z `overflow-wrap: anywhere`
+     wyżej, zamiast rozpychać zakładkę w bok (issue #294, WCAG 1.4.10 Reflow).
+
+     Siostrzana reguła i pełne uzasadnienie tego wzorca: `.btn-napis`
+     w `resources/css/tokens.css` (issue #353).
+     Strażnikiem jest `tests/Feature/ZakladkaNieGubiSpacjiPrzedNazwaTest.php`. */
+  .tab-napis {
+    min-width: 0;
   }
 
   /*
