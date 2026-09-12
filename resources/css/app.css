@@ -4572,35 +4572,48 @@
   margin-left: auto;
 }
 
-/* PRZYCISK MENU MA NAPIS, NIE TYLKO KROPKI (AGENTS.md:176,
-   docs/UX_50_PLUS.md:27).
+/* PRZYCISK MENU TO SAME KROPKI — NAZWANY WYJĄTEK OD „IKONA NIGDY SAMA"
+   (decyzja właściciela z 12 września 2026; `AGENTS.md` §5,
+   `docs/UX_50_PLUS.md`, sekcja „Jeden nazwany wyjątek").
 
-   Kształt: pigułka z obwódką, ikona i napis „Więcej" obok siebie. Obwódka
-   dochodzi razem z napisem, bo sam tekst w kolorze wyciszonym, bez tła
-   i bez ramki, nie wygląda na rzecz, którą się naciska — a to jedyne
-   wejście do „Edytuj wpis" i „Usuń wpis".
+   Do 12 września stał tu napis „Więcej" obok ikony i była to świadoma
+   decyzja z 11 września. Właściciel ją odwrócił, znając ryzyko: trzy kropki
+   w rogu wpisu są dla naszej grupy utrwalonym wzorcem z Facebooka, czyli
+   znakiem już rozpoznawanym, a nie zagadką. Uzasadnienie i granica wyjątku
+   siedzą w komentarzu przy `<details class="post-card-menu">`
+   w `components/post-card.blade.php` — tam, gdzie stoi `aria-label`.
 
-   `padding` mimo `min-height`: przy skali tekstu 140 % napis zawija się
-   i bez wcięcia dotykałby krawędzi (ta sama poprawka co w `.chip`).
+   ZNIKA NAPIS, NIE PRZYCISK. `min-width` i `min-height` dalej biorą
+   `--control-height-min` (3rem = 48 px), więc cel dotknięcia zostaje
+   48 × 48 px — a to jest ta liczba, która dla mniej pewnej ręki decyduje
+   o trafieniu (docs/UX_50_PLUS.md). `padding: 0` zamiast wcięcia na tekst:
+   przy kwadracie 48 px ikona 24 px ma dookoła 12 px i nie ma czego zawijać.
 
-   `white-space: nowrap` — „Więcej" to jedno słowo i ma zostać w jednym
-   wierszu z ikoną; bez tego przy 320 px przycisk potrafi je złamać
-   na „Wię-/cej". */
+   OBWÓDKA ZOSTAJE, choć Facebook jej nie ma. Sama ikona w kolorze tekstu,
+   bez tła i bez ramki, wygląda w karcie na ozdobę — a to jedyne wejście do
+   „Edytuj wpis" i „Usuń wpis". Obwódka nic nie kosztuje w miejscu (rysuje
+   się na krawędzi celu, który i tak musi mieć 48 px), a mówi „to się
+   naciska".
+
+   `border-radius: var(--radius-pill)` na kwadracie 48 × 48 daje koło —
+   ten sam kształt, co ma ten przycisk w serwisach, z których nasi
+   użytkownicy przyszli.
+
+   CO ZNIKŁO RAZEM Z NAPISEM: `gap` (nie ma czego rozdzielać), `font-size`,
+   `font-weight` i `white-space` (nie ma tekstu). Zostawione byłyby
+   martwymi deklaracjami, po których ktoś kiedyś wnioskowałby, że napis tu
+   bywa. */
 .post-card-menu > summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-2);
   min-width: var(--control-height-min);
   min-height: var(--control-height-min);
-  padding: var(--spacing-2) var(--spacing-4);
+  padding: 0;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   background-color: transparent;
   color: var(--color-ink);
-  font-size: var(--text-body);
-  font-weight: 600;
-  white-space: nowrap;
   cursor: pointer;
   list-style: none;
 }
