@@ -40,6 +40,15 @@
  *  Obie bramki są sprawdzane przy starcie i obie odmawiają uruchomienia
  *  pomiaru, gdy nie wyjdą.
  *
+ *  DWIE FAZY, BO SERWIS MA DWA RÓŻNE KSZTAŁTY
+ *  FAZA 1 — 16 ścieżek produktu w konfiguracji, w jakiej chodzi kontener
+ *  agenta i CI (bez kluczy Turnstile). FAZA 2 — siedem formularzy chronionych
+ *  captchą w kształcie PRODUKCYJNYM (klucze podstawione, poczta dostarczająca):
+ *  tam brak tokenu ODRZUCA wysłanie (D-050) i pytanie brzmi już nie „czy
+ *  przejdzie", tylko „czy człowiek dostaje zdanie mówiące, co zrobić".
+ *  Bez fazy 2 raport twierdziłby „rejestracja bez JavaScriptu: TAK" o stanie,
+ *  którego na produkcji nie ma.
+ *
  *  WŁASNA BAZA, WŁASNY SERWER
  *  Skrypt robi `migrate:fresh --seed`, więc chodzi na własnej bazie
  *  (`kuking_bez_javascriptu`). Wskazanie `kuking` albo `kuking_test`
