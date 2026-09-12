@@ -11,6 +11,7 @@ use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\TagFeed;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -157,7 +158,7 @@ class FeedController extends Controller
             ->get();
 
         return view('pages.home', [
-            'greeting' => $this->greeting($user->displayName()),
+            'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
@@ -182,19 +183,62 @@ class FeedController extends Controller
     }
 
     /**
-     * Powitanie zależne od pory dnia. Drobiazg, ale to jest pierwsza rzecz,
-     * którą użytkownik czyta, i decyduje o tym, czy produkt sprawia
-     * wrażenie żywego miejsca, czy panelu administracyjnego.
+     * PYTANIE DNIA — pierwsze zdanie, które człowiek czyta po wejściu
+     * (issue #38 punkt 2, `docs/brand/COPY_STYLE.md` §6 „Publikacja").
+     *
+     * Stoi nad polem dodawania i NIE zastępuje jego napisu: „Dodaj zdjęcie
+     * tego, co ugotowałeś" jest jedyną nazwą głównej akcji, a kafel bez nazwy
+     * zostawiłby przy niej samą ikonę — tego zakazuje `docs/UX_50_PLUS.md`.
+     * Pytanie zaprasza, przycisk mówi, co się stanie po kliknięciu; to są dwie
+     * różne role i obie są potrzebne.
+     *
+     * DLACZEGO POWITANIE NIE ZALEŻY OD PORY DNIA
+     * Zależało — cztery warianty po godzinie serwera („Dzień dobry" do 10,
+     * „Co dziś na obiad?" do 15, „Dobry wieczór" od 15). Dwie rzeczy w tym
+     * były nieprawdziwe naraz:
+     *
+     *   1. „Dobry wieczór" witało od godziny 15:00, czyli w środku popołudnia;
+     *   2. godzina szła z `now()`, a `config('app.timezone')` w tym repozytorium
+     *      jest i musi zostać `UTC` (issue #87, komentarz w `config/app.php`).
+     *      Latem znaczyło to dwie godziny w tył: o 11:50 czasu polskiego serwis
+     *      liczył 9:50 i pisał „Co dziś gotujesz?" zamiast pytać o obiad,
+     *      a po 23:00 witał „Dzień dobry". Strefą EKRANU jest `kuking.strefa`
+     *      (`App\Support\Czas`) — tamta metoda jej nie znała.
+     *
+     * Pierwszą usterkę widać w kodzie, drugą trzeba zmierzyć — i żadnej nie
+     * pilnował ani jeden test. Naprawa przez `Czas::lokalnie()` i przesunięcie
+     * progów dałaby cztery gałęzie do utrzymania i dalej mówiłaby o porze dnia
+     * CZYTELNIKA, której nie znamy: serwis nie pyta o strefę czasową tak samo,
+     * jak nie pyta o płeć, a kuKINGi mieszkają też poza Polską. To jest ta sama
+     * klasa błędu co „będziesz mogła" — twierdzenie o człowieku, którego nie
+     * mamy skąd wiedzieć (D-114: obietnica z miarą wymaga pomiaru).
+     *
+     * „Witaj" jest prawdziwe o każdej porze i o żadnej nie kłamie. Rejestr
+     * zgadza się z marką: `COPY_STYLE.md` dopuszcza „Witaj w gronie kuKINGów",
+     * a zakazane są „Hej", „Cześć" i „Siema" (`docs/brand/MASCOT_CONCEPT.md`).
+     *
+     * ZMIERZONE, NIE ZAŁOŻONE (Chromium, `getBoundingClientRect()`, 390 px)
+     * Powitanie stoi NAD główną akcją, więc każdy dodatkowy wiersz nagłówka
+     * spycha ją w dół. „Witaj, {imię}." jest krótsze od „Dzień dobry, {imię}."
+     * o sześć znaków i dzięki temu przy żadnym imieniu nie wypada gorzej niż
+     * dotąd: dla „Halina z Podlasia" nagłówek zszedł ze 105 px na 70 px, a pole
+     * dodawania podniosło się z 225 px na 190 px. Dla imion krótszych pozycja
+     * jest ta sama co przed zmianą (190 px), a gdy imienia nie ma — 155 px.
+     *
+     * GDY IMIENIA NIE MA, ZOSTAJE SAMO PYTANIE
+     * `User::displayName()` podstawia w takim wypadku „Użytkownik Kuking" i to
+     * jest dobre wszędzie tam, gdzie trzeba KOGOŚ nazwać (podpis pod wpisem,
+     * powiadomienie). W powitaniu byłoby odwrotnie: „Witaj, Użytkownik Kuking"
+     * udaje, że zwracamy się do człowieka po imieniu, którego nie mamy. Zwrot
+     * bez imienia nie ma sensu („Witaj." samo w sobie jest pustym gestem),
+     * więc zostaje samo pytanie dnia — krótsze i prawdziwe.
      */
-    private function greeting(string $name): string
+    private function pytanieDnia(User $user): string
     {
-        $hour = (int) now()->format('G');
+        $imie = trim((string) $user->profile?->display_name);
 
-        return match (true) {
-            $hour < 10 => "Dzień dobry, {$name}. Co dziś gotujesz?",
-            $hour < 15 => "Dzień dobry, {$name}. Co dziś na obiad?",
-            $hour < 21 => "Dobry wieczór, {$name}. Co dziś wyszło?",
-            default => "Dobry wieczór, {$name}. Pokaż, co dziś wyszło.",
-        };
+        return $imie === ''
+            ? 'Co dziś gotujesz?'
+            : "Witaj, {$imie}. Co dziś gotujesz?";
     }
 }
