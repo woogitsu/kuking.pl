@@ -445,6 +445,43 @@ const EKRANY = [
    * za pierwszym razem.
    */
   { nazwa: 'cofnij usunięcie konta', adres: '/cofnij-usuniecie-konta' },
+
+  /* ===========================================================================
+   * BEZPIECZEŃSTWO KONTA — TRZECI EKRAN WEJŚCIA KONTEM ZEWNĘTRZNYM (#345)
+   * ===========================================================================
+   *
+   * Ekran, na którym stoi „Połącz konto Facebooka" — czyli JEDYNA bezpieczna
+   * droga powiązania istniejącego konta z Facebookiem (D-098: adres
+   * z Facebooka nie łączy kont, więc powiązanie musi zrobić ktoś, kto JUŻ
+   * jest zalogowany). Nie był mierzony przez ten automat ani razu: nie ma go
+   * ani w tej liście, ani w `EKRANY_UKLADU`, a test pilnujący kompletności
+   * (`PomiarDostepnosciObejmujeStronyPubliczneTest`) pomija z założenia trasy
+   * za `auth`, więc nie miał go jak wypisać. Milczące pominięcie, dokładnie
+   * to, przed którym tamten test ostrzega — tylko po drugiej stronie
+   * logowania.
+   *
+   * Kształt treści jest tu ryzykiem sam w sobie: rzędy „coś jest włączone"
+   * plus przycisk obok tekstu, sekcja hasła, sekcja 2FA i — od #259 — sekcja
+   * Facebooka ze znakiem marki w przycisku. Przy 320 px i tekście 140% to ten
+   * układ, który najłatwiej wypycha stronę w bok (issue #80).
+   *
+   * `zalogowany: true`, bo dla gościa ten ekran nie istnieje. Sekcja
+   * Facebooka pokazuje się dopiero, gdy droga działa — dlatego automat stawia
+   * serwer z atrapami kluczy (`KLUCZE_DOSTAWCOW_DO_POMIARU`), a to, że sekcja
+   * naprawdę wyszła, sprawdza `przeszkodaWWejsciachZewnetrznych()`.
+   *
+   * CZTERECH EKRANÓW ZA ZGODĄ DOSTAWCY TU NIE MA I NIE JEST TO PRZEOCZENIE.
+   * `/wejdz/google/domknij`, `/wejdz/google/polacz` i odpowiedniki Facebooka
+   * czytają z sesji tożsamość, którą zakłada WYŁĄCZNIE `callback()` po udanej
+   * wymianie kodu u dostawcy — a adres wymiany jest stałą w kodzie
+   * (`App\Support\Google::ADRES_TOKENU`), idzie z serwera i nie da się go
+   * wskazać konfiguracją. Atrapa klucza otwiera przycisk; tamte ekrany
+   * wymagają atrapy CAŁEGO DOSTAWCY, czyli osobnej pracy — issue #345
+   * i stała `WYJATKI` w `PomiarDostepnosciObejmujeStronyPubliczneTest`.
+   * Dopisanie ich tutaj bez tej atrapy dałoby przekierowanie na `/login`,
+   * czyli pomiar ekranu logowania pod cudzą nazwą.
+   */
+  { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
 ];
 
 /*
@@ -722,6 +759,103 @@ async function przeszkodaWFormularzachOdzyskania(adres) {
   return null;
 }
 
+/*
+ * ATRAPY KLUCZY DOSTAWCÓW TOŻSAMOŚCI — BO BEZ NICH RZĄD „WEJDŹ KONTEM
+ * GOOGLE / FACEBOOKA" NIE ISTNIEJE NA ŻADNYM MIERZONYM EKRANIE (#345).
+ *
+ * ZMIERZONE 12 WRZEŚNIA. `components/wejscia-zewnetrzne.blade.php` pyta
+ * `App\Support\Google::dziala()` i `App\Support\Facebook::dziala()`, a te
+ * odpowiadają „nie", gdy nie ma kluczy — i wtedy NIE RENDERUJE SIĘ CAŁY
+ * BLOK: nagłówek, zdanie „przeniesiemy Cię na stronę…", dwa przyciski
+ * ze znakiem marki i zdanie o tym, czego nie bierzemy. `.env` deweloperski
+ * ma te cztery zmienne puste, job `dostepnosc` w CI też — więc axe nie
+ * widział tych przycisków ANI RAZU, na żadnym ekranie, nigdy.
+ *
+ * Liczby przy 320 px (Chromium 141), `<main>`:
+ *
+ *     ekran                        stan          węzłów  znaków  odnośników  SVG
+ *     /login                       klucze są         40     923           6    2
+ *     /login                       kluczy brak       25     499           4    0
+ *     /register                    klucze są         58    1368           5    2
+ *     /register                    kluczy brak       43     936           3    0
+ *     /ustawienia/bezpieczenstwo   klucze są         48    1350           1    1
+ *     /ustawienia/bezpieczenstwo   kluczy brak       38     908           0    0
+ *
+ * Liczy się ostatnia kolumna. Bez kluczy na tych ekranach nie ma ANI JEDNEGO
+ * znaku marki — a znak marki w przycisku to dokładnie ta klasa rzeczy, której
+ * axe pilnuje (nazwa dostępna przycisku, `aria-hidden` na ozdobie, kontrast
+ * obrysu) i której nie sprawdzi nic innego. Zielony wynik nad `/login` nie
+ * mówił więc nic o rzędzie wejść zewnętrznych, bo tego rzędu tam nie było.
+ * To ten sam rodzaj fałszywej zieleni co wariant „poczta nie działa" wyżej
+ * (D-106) — tyle że dotyczy ekranu, na który człowiek trafia PIERWSZY.
+ *
+ * DLACZEGO TO NIE JEST OBCHODZENIE NICZEGO. Wartość klucza nie wchodzi do
+ * HTML-a: widok pyta wyłącznie o to, CZY klucze są, a adres przycisku to
+ * `route('google.start')` na naszej własnej domenie. Renderowany kod jest
+ * więc co do znaku ten sam, co na produkcji. Żadne żądanie do Google ani
+ * do Meta z tego nie wychodzi: automat wykonuje na tych ekranach wyłącznie
+ * GET-y i nie klika w te przyciski — a gdyby kliknął, dostałby
+ * przekierowanie na ekran zgody dostawcy, czyli poza mierzony serwis.
+ *
+ * CZEGO TO NIE ZAŁATWIA — i nie udaje, że załatwia. Cztery ekrany ZA zgodą
+ * dostawcy (`/wejdz/google/domknij`, `/wejdz/google/polacz` i odpowiedniki
+ * Facebooka) dalej nie są mierzone: atrapa klucza otwiera przycisk, ale nie
+ * zakłada w sesji potwierdzonej tożsamości, którą te ekrany czytają. Powód
+ * i granica stoją w `tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php`
+ * (stała `WYJATKI`) oraz w issue #345 — to osobna praca: atrapa DOSTAWCY,
+ * nie atrapa klucza.
+ *
+ * Ustawiamy to WYŁĄCZNIE dla serwera, który stawiamy sami — tak samo jak
+ * sterownik poczty wyżej. Przy `ADRES=…` mierzymy cudzą instancję w stanie,
+ * w jakim ją zastaliśmy, i nie mamy prawa jej przestawiać; dlatego niżej
+ * stoi sprawdzenie, a nie założenie.
+ */
+const KLUCZE_DOSTAWCOW_DO_POMIARU = {
+  GOOGLE_CLIENT_ID: 'atrapa-do-pomiaru-dostepnosci',
+  GOOGLE_CLIENT_SECRET: 'atrapa-do-pomiaru-dostepnosci',
+  FACEBOOK_CLIENT_ID: 'atrapa-do-pomiaru-dostepnosci',
+  FACEBOOK_CLIENT_SECRET: 'atrapa-do-pomiaru-dostepnosci',
+};
+
+/*
+ * KONTROLA, ŻE RZĄD WEJŚĆ ZEWNĘTRZNYCH NAPRAWDĘ SIĘ WYRENDEROWAŁ — NIE
+ * ZAŁOŻENIE. Ten sam wzorzec i ten sam powód co przy formularzach
+ * odzyskania wyżej: wyłącznik `KUKING_WEJSCIE_GOOGLE`, zapamiętana
+ * konfiguracja (`config:cache`) albo zmiana w `dziala()` po cichu wracają
+ * do wariantu BEZ przycisków, a raport dalej pokazuje ✓ nad ekranem,
+ * na którym tych przycisków nie było.
+ *
+ * Szukamy NAPISU, nie klasy CSS: napis jest tym, co czyta człowiek, i tym,
+ * czego pilnuje reguła „ikona nigdy sama" (AGENTS.md §5). Gdyby ktoś
+ * zostawił sam znak marki bez tekstu, to sprawdzenie ma zapalić się jako
+ * pierwsze.
+ */
+async function przeszkodaWWejsciachZewnetrznych(adres) {
+  const doSprawdzenia = [
+    ['/login', 'ekran logowania'],
+    ['/register', 'ekran rejestracji'],
+  ];
+
+  for (const [sciezka, opis] of doSprawdzenia) {
+    const odpowiedz = await fetch(`${adres}${sciezka}`);
+    const html = await odpowiedz.text();
+
+    const brakujace = ['Wejdź kontem Google', 'Wejdź kontem Facebooka']
+      .filter((napis) => ! html.includes(napis));
+
+    if (brakujace.length > 0) {
+      return `${opis} (${sciezka}) nie ma przycisków: ${brakujace.join(', ')} — serwis wydał `
+        + 'wariant BEZ rzędu wejść kontem zewnętrznym. Automat zmierzyłby sam formularz hasła '
+        + 'i zapisał „✓" dla ekranu, na który człowiek trafia pierwszy, nie sprawdzając '
+        + 'przycisków, którymi wchodzi większość. Sprawdź `App\\Support\\Google::dziala()` '
+        + 'i `App\\Support\\Facebook::dziala()` oraz klucze dostawców (automat stawia serwer '
+        + 'z atrapami kluczy; przy ADRES=… decyduje konfiguracja mierzonej instancji).';
+    }
+  }
+
+  return null;
+}
+
 async function podnies_serwer() {
   if (process.env.ADRES) {
     return { adres: process.env.ADRES, zamknij: () => {} };
@@ -750,6 +884,8 @@ async function podnies_serwer() {
         DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
         MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
+        // Uzasadnienie i kontrola — przy `KLUCZE_DOSTAWCOW_DO_POMIARU` wyżej.
+        ...KLUCZE_DOSTAWCOW_DO_POMIARU,
       },
     });
 
@@ -1233,6 +1369,17 @@ const przeszkodaOdzyskania = await przeszkodaWFormularzachOdzyskania(adres);
 
 if (przeszkodaOdzyskania !== null) {
   console.error(`BŁĄD: ${przeszkodaOdzyskania}`);
+  zamknij();
+  process.exit(1);
+}
+
+// Ekrany logowania i rejestracji muszą mieć rząd „Wejdź kontem Google /
+// Facebooka", a nie wariant bez kluczy — pełne uzasadnienie przy tej funkcji
+// wyżej (#345).
+const przeszkodaWejsc = await przeszkodaWWejsciachZewnetrznych(adres);
+
+if (przeszkodaWejsc !== null) {
+  console.error(`BŁĄD: ${przeszkodaWejsc}`);
   zamknij();
   process.exit(1);
 }

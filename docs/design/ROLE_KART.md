@@ -69,6 +69,35 @@ pracy, na innym stanie drzewa. Wniosek zostaje ten sam i to on jest tu ważny:
 **każda liczba policzona surowym `grep`-em po `class="…"` jest górną granicą,
 nie wynikiem.**
 
+### Przeliczone jeszcze raz — 12 września 2026
+
+Trzema komendami na tym samym stanie drzewa, żeby było widać, ile ubywa na
+każdym kroku:
+
+```bash
+# A. surowa komenda z issue #343 — górna granica
+grep -rno 'class="[^"]*\bcard\b[^"]*"' resources/views/ | wc -l              # 35
+
+# B. tylko klasa `card` (bez `post-card-head` i spółki), ale z komentarzami
+grep -rno 'class="[^"]*"' resources/views/ \
+  | grep -cE 'class="([^"]* )?card( [^"]*)?"'                                # 24
+
+# C. jak B, ale komentarze Blade wycięte PRZED liczeniem — wynik
+php -r '$n=0;$p=0; foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator("resources/views", FilesystemIterator::SKIP_DOTS)) as $f) {
+  if (!$f->isFile()) continue; $p++;
+  $t = preg_replace("/\{\{--.*?--\}\}/s", "", file_get_contents($f->getPathname()));
+  $n += preg_match_all("/class=\"([^\"]* )?card( [^\"]*)?\"/", $t);
+} echo "plikow: $p, zywych .card: $n", PHP_EOL;'   # plikow: 147, zywych .card: 22
+```
+
+**35 → 24 → 22.** Jedenaście trafień odpada na nazwach z myślnikiem, dwa
+kolejne na komentarzach Blade. Liczba 130 z tytułu issue #343 jest nieaktualna
+o cały rząd wielkości; wynikiem jest **22**.
+
+`plikow: 147` w komendzie C nie jest ozdobą — to kontrola, że skan w ogóle
+czyta pliki. Skan, który nie znajduje żadnego, też zwraca zero
+(`docs/PULAPKI_TESTOW.md`, pułapka 2).
+
 ## Sześć ról
 
 | # | Rola | Klasa | Tło | Obwódka | Promień | Cień | Wcięcie |
@@ -299,23 +328,82 @@ przed błędem, którego jeszcze nikt nie popełnił.
 | `zgloszenia/lista.blade.php` kontra `zgloszenia/szczegoly.blade.php` | to samo zgłoszenie ma dwie warstwy | **tak ma być, i to jest reguła ogólna**: element listy jest kartą treści, ekran szczegółów tej samej rzeczy jest sekcją. Rolę nadaje MIEJSCE, nie obiekt: na liście karta oddziela jedną sprawę od dwudziestu innych, na ekranie szczegółów nie ma czego oddzielać, a kartą treści na tym ekranie jest odpowiedź, nie własny tekst czytelnika. |
 
 
-## Czego ten dokument nie rozstrzyga
+## Trzy wyjątki — domknięte 12 września 2026
 
-- **`pages/cooked/celebrate.blade.php`** — cudze wykonanie „Ugotowałem"
-  (zdjęcie plus notatka) stoi na sekcji, choć warstwa 1 wymienia wykonanie
-  wprost. Argument za sekcją: to jest ekran POTWIERDZENIA, a rzeczą do
-  zrobienia jest podziękowanie, które dostało własny panel w środku. Argument
-  za kartą: „rzecz, po którą ktoś tu przyszedł". Zostawione jako sekcja, ale
-  to jest spór, nie fakt.
-- **`pages/admin/uzytkownicy.blade.php` i `pages/admin/wiadomosci.blade.php`** —
-  puste stany są tam zwykłym `<p class="sekcja-strony">`, a repozytorium ma na
-  to osobny komponent `<x-empty-state>` (użyty w `admin/tag-promotions`). Dwa
-  sąsiednie ekrany panelu robią to samo dwoma mechanizmami. Nie ruszone: to
-  zmiana struktury, nie warstwy.
-- **`pages/collections/index.blade.php`** — „Załóż nowy zeszyt" to
-  `<details class="panel-formularza">`. W stanie zwiniętym mocna obwódka
-  otacza sam przycisk. Nie jest to martwa obietnica (pola naprawdę są
-  w środku), ale przez większość czasu panel nie ma czego wypełniać.
+Ten rozdział nazywał się wcześniej „Czego ten dokument nie rozstrzyga" i miał
+trzy pozycje. Każda z nich jest niżej zamknięta razem z dowodem `plik:linia`.
+Pilnuje ich `tests/Feature/WyjatkiRolKartTest.php`.
+
+### 1. `pages/cooked/celebrate.blade.php` — sekcja zostaje, i to nie jest już spór
+
+Spór brzmiał: cudze wykonanie „Ugotowałem" stoi na sekcji
+(`celebrate.blade.php:18`), choć warstwa 1 wymienia wykonanie wprost.
+
+**Rozstrzyga to D-128 i rozstrzyga na korzyść sekcji.** „Warstwa 1 wymienia
+wykonanie" jest argumentem z OBIEKTU, a D-128 mówi, że rolę powierzchni nadaje
+MIEJSCE. Te same dwa miejsca stoją tu obok siebie i widać je w kodzie:
+
+| miejsce | plik | warstwa |
+|---|---|---|
+| stały dom wykonania — `/ugotowane/{id}` | `components/cooked-card.blade.php:8` (przez `pages/cooked/show.blade.php:10`) | **karta treści** |
+| jednorazowe potwierdzenie — `/ugotowane/{id}/wyszlo` | `pages/cooked/celebrate.blade.php:18` | **sekcja** |
+
+To jest DOKŁADNIE ten sam układ, który D-128 rozstrzygnął dla zgłoszeń
+(karta na liście, sekcja na ekranie szczegółów) — więc nie wymaga nowej
+decyzji, tylko zastosowania istniejącej.
+
+Że celebracja jest jednorazowa, nie jest wrażeniem: drugie wejście pod ten
+sam adres przekierowuje na `cooked.show`
+(`app/Http/Controllers/CookedEventController.php:241-243`). Ekran, który
+pokazuje się raz w życiu obiektu, nie jest jego domem.
+
+### 2. Puste stany w panelu — to było już zrobione
+
+Zapis o `<p class="sekcja-strony">` w `pages/admin/uzytkownicy.blade.php`
+i `pages/admin/wiadomosci.blade.php` **był nieaktualny w chwili pisania tego
+akapitu**. Oba ekrany idą przez komponent: `uzytkownicy.blade.php:144`
+i `wiadomosci.blade.php:65`, od commita `e57b2c9` (rozstrzygnięcie właściciela,
+issue #367). Ani w jednym, ani w drugim pliku nie ma dziś słowa
+`sekcja-strony`.
+
+Oba wołania są **bez `action`** i to jest część rozstrzygnięcia, nie brak:
+pusta kolejka moderacji nie ma sensownej akcji, a martwy przycisk jest
+zakazany (D-053).
+
+### 3. `pages/collections/index.blade.php` — warstwę wybiera arkusz, bo Blade tego stanu nie widzi
+
+D-126 nazwał ten przypadek otwartym, bo mechanizm, którym wybiera się warstwę
+na czterech innych ekranach — `@class([...])` — tutaj nie działa: o tym, czy
+pola widać, decyduje atrybut `open`, przestawiany kliknięciem już po wyjściu
+odpowiedzi z serwera.
+
+**Robi to więc arkusz:** `details.panel-formularza:not([open])` w
+`resources/css/tokens.css` schodzi na komplet tokenów warstwy 3. Reguła czyta
+stan na żywo i bez JavaScriptu — `<details>` przełącza się sam.
+
+Zmierzone w Chromium (`npm run build` + `php artisan serve`), przy 390 i przy
+1512 px:
+
+| stan | przed | po |
+|---|---|---|
+| zwinięty — obwódka | `rgb(138, 122, 99)` (mocna) | `rgb(228, 218, 203)` (cienka) |
+| zwinięty — cień | cień karty | `none` |
+| zwinięty — wcięcie | 24 px | 20 px |
+| zwinięty — wysokość bloku | 100,5 px | 92,5 px |
+| rozwinięty | bez zmian: mocna obwódka, cień karty, 24 px | |
+
+Koszt, zmierzony i przyjęty: przy rozwinięciu przycisk „Załóż nowy zeszyt"
+przesuwa się w dół o **4 px** (różnica wcięć), tak samo przy obu szerokościach.
+Wysokość samego przycisku nie zmienia się i zostaje 50,5 px, czyli powyżej
+progu 48 px.
+
+Dlaczego komplet tokenów warstwy 3, a nie „panel bez mocnej obwódki": siódma,
+połowiczna sygnatura byłaby tym, przed czym broni reguła z `tokens.css` —
+„czego tu NIE MA i nie ma być: klasy pomocniczej »bez cienia«". Zwinięty blok
+jest sekcją z przyciskiem w środku.
+
+## Czego ten dokument nadal nie rozstrzyga
+
 - **Automat dostępności nie wchodzi na trzy ekrany z ramkami**: dwa ekrany
   panelu moderacji (403 na koncie demo) i drugi krok logowania (żadne konto
   demo nie ma włączonej weryfikacji dwuetapowej). Ich warstwy sprawdzono

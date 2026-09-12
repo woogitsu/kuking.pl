@@ -1109,6 +1109,40 @@
     padding: var(--warstwa-panel-wciecie);
   }
 
+  /* 2a. ZWINIĘTY `<details>` NIE JEST PANELEM — D-126 w stanie, którego Blade
+     nie widzi.
+
+     D-126 mówi: panel formularza nie pojawia się tam, gdzie w danym stanie
+     ekranu nie ma czego wypełnić. Na czterech ekranach (`errors/419`,
+     `errors/429`, zmiana adresu e-mail, odpowiedź w panelu moderacji) warstwę
+     wybiera `@class([...])` — bo tam stan zna SERWER w chwili renderowania.
+
+     Na `/zeszyt` tak się nie da i dlatego ten przypadek został w D-126
+     nazwany otwartym: „Załóż nowy zeszyt" to `<details class="panel-formularza">`,
+     a o tym, czy pola są widoczne, decyduje atrybut `open`, który człowiek
+     przestawia KLIKNIĘCIEM, już po wyjściu odpowiedzi z serwera. Zmierzone
+     w Chromium przed tą regułą: zwinięty i rozwinięty blok miały tę samą
+     obwódkę `#8A7A63`, ten sam cień i to samo wcięcie 24 px — czyli mocna
+     obwódka kontrolki otaczała sam przycisk, przez większość czasu życia
+     ekranu.
+
+     Warstwę wybiera więc ARKUSZ, bo tylko on czyta stan `[open]` na żywo
+     i robi to bez JavaScriptu — `<details>` przełącza się sam, a reguła
+     idzie za nim w tej samej klatce.
+
+     Wartości biorą się w całości z tokenów warstwy 3, a nie z „panelu bez
+     obwódki": siódma, połowiczna sygnatura (wcięcie panelu plus obwódka
+     sekcji) byłaby dokładnie tym, przed czym broni komentarz nad tym blokiem
+     — „czego tu NIE MA i nie ma być: klasy pomocniczej »bez cienia«". Zwinięty
+     blok jest sekcją z przyciskiem w środku i tak wygląda. */
+  details.panel-formularza:not([open]) {
+    background-color: var(--warstwa-sekcja-tlo);
+    border-color: var(--warstwa-sekcja-obwodka);
+    border-radius: var(--warstwa-sekcja-promien);
+    box-shadow: var(--warstwa-sekcja-cien);
+    padding: var(--warstwa-sekcja-wciecie);
+  }
+
   /* 3. Sekcja strony: blok landingu, tablica dnia, ekran potwierdzenia. */
   .sekcja-strony {
     background-color: var(--warstwa-sekcja-tlo);

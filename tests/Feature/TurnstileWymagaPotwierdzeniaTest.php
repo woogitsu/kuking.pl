@@ -660,6 +660,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // Turnstile awarię i ten test sprawdzałby coś innego, niż mówi jego
         // nazwa.
         $this->pocztaDziala();
+        $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
 
         $this->get('/health')
@@ -704,6 +705,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // domyślny `MAIL_MAILER=array` testów zepsułby ten test powodem
         // niezwiązanym z Turnstile.
         $this->pocztaDziala();
+        $this->wejsciaZewnetrzneWylaczone();
         $this->app->detectEnvironment(static fn (): string => 'production');
 
         $this->get('/health')
@@ -761,6 +763,24 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
     private function pocztaDziala(): void
     {
         config(['mail.default' => 'smtp']);
+    }
+
+    /**
+     * `/health` sprawdza od 12 września 2026 także dwie dodatkowe drogi
+     * wejścia — `google` i `facebook` (issue #258/#259). Ten sam wywód co przy
+     * `pocztaDziala()` wyżej: na produkcji, z funkcją włączoną i bez kluczy,
+     * każda z nich zgłasza WŁASNY powód, więc `status` byłby `degraded`
+     * niezależnie od Turnstile i ten test sprawdzałby coś innego, niż mówi
+     * jego nazwa. Kluczy w testach nie ma i mieć nie musi, więc wyłączamy obie
+     * drogi świadomie — tym samym przełącznikiem, którym wyłącza się je na
+     * produkcji.
+     */
+    private function wejsciaZewnetrzneWylaczone(): void
+    {
+        config([
+            'kuking.google.wlaczone' => false,
+            'kuking.facebook.wlaczone' => false,
+        ]);
     }
 
     private function wylaczTurnstile(): void

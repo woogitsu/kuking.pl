@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\ViewException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -59,6 +60,7 @@ use Tests\TestCase;
 class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     /**
      * Oczekiwane podpisy dla każdego licznika i każdej liczby z listy.
@@ -247,7 +249,14 @@ class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
         // Asercja kontrolna.
         $swoj->assertSee('Właścicielka Karty');
 
-        $swoj->assertSee('Dodaj zdjęcie profilowe');
+        // W GŁÓWCE PROFILU, NIE W CAŁYM DOKUMENCIE (pułapka 1): ten sam napis
+        // niesie skrót w prawej szynie, więc asercja na całej odpowiedzi
+        // przechodziła także po skasowaniu podpisu pod awatarem — czyli tego
+        // jedynego, czego ten plik pilnuje.
+        $this->assertStringContainsString(
+            'Dodaj zdjęcie profilowe',
+            $this->trescEkranu((string) $swoj->getContent()),
+        );
         $swoj->assertSee('Zmień swój profil');
         // Awatar właściciela jest odnośnikiem do ekranu zdjęcia (D-054),
         // a podpis pod nim wygląda teraz jak akcja, nie jak podpis zdjęcia.

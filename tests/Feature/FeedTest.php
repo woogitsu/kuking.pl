@@ -8,11 +8,13 @@ use App\Domain\Feed\FollowingFeed;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 class FeedTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     public function test_feed_pokazuje_wpisy_obserwowanych_chronologicznie(): void
     {
@@ -151,10 +153,16 @@ class FeedTest extends TestCase
         $ktos = $this->user('ktos');
         Post::factory()->create(['author_id' => $ktos->getKey(), 'body' => 'Rosol na niedziele']);
 
-        $this->get('/')
-            ->assertOk()
-            ->assertSee('Pokaż, co dziś ugotowałeś')
-            ->assertSee('Rosol na niedziele');
+        $strona = $this->get('/')->assertOk();
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): hasło strony
+        // powitalnej jest jednocześnie jej `<title>` i `<meta>`, więc asercja
+        // na całej odpowiedzi przechodziła też po skasowaniu nagłówka z pasa
+        // powitalnego.
+        $tresc = $this->trescEkranu((string) $strona->getContent());
+
+        $this->assertStringContainsString('Pokaż, co dziś ugotowałeś', $tresc);
+        $this->assertStringContainsString('Rosol na niedziele', $tresc);
     }
 
     public function test_wpisy_prywatne_nie_wychodza_w_odkrywaniu(): void

@@ -36,6 +36,49 @@ trzy gotowe wzorce — użyj któregoś, nie wymyślaj czwartego:
 | `wycinek($html, $od, $do)` | `tests/Feature/OnboardingZnajdzZnajomychTest.php` |
 | `DOMXPath` z zakresem sekcji | `tests/Feature/LandingJakDzialaPrzedTablicaTest.php` |
 | wycinanie pasa/sekcji po identyfikatorze | `tests/Feature/StronaPowitalnaPasyTest.php`, `tests/Feature/OdkrywaniePustyStanTest.php` |
+| `trescEkranu()` — sama zawartość `<main>` | `tests/Support/WycinaObudoweEkranu.php` |
+
+## 1b. …a najczęstszym cudzym źródłem tego słowa jest `<title>` STRONY
+
+**Złapała: dziesięć asercji naraz, w dziesięciu plikach, przy przeglądzie
+12.09.2026.**
+
+Pułapka 1 mówi o nawigacji, szynie i stopce. W praktyce najczęstszym
+źródłem fałszywego trafienia okazał się `<head>` — bo **tytuł karty
+przeglądarki jest zwykle tym samym zdaniem, co nagłówek ekranu**, a do tego
+powtarza się w `<meta name="description">`, `og:title` i `og:image:alt`.
+Jedno zdanie stoi więc w dokumencie cztery razy, zanim ktokolwiek spojrzy
+na treść.
+
+Zmierzone (sabotaż: skasowany nagłówek ekranu, `<head>` nietknięty — wszystkie
+te asercje **przeszły**):
+
+| Ekran | Asercja | Skąd naprawdę przechodziła |
+|---|---|---|
+| `/o-kuking` | `assertStringContainsString('O Kuking', $html)` | tylko `<title>` i `<meta>` — po D-145 nagłówek brzmi „O kuKING" i tego napisu nie ma w treści **ani razu** |
+| `/logowanie` | `assertSee('Zaloguj się')` | `<title>` + `<meta>` + przycisk belki dla gościa |
+| `/napisz-do-nas` | `assertSee('Napisz do nas')` | `<title>` + 4 × `<meta>` + odnośnik stopki (na każdym ekranie) |
+| 404 | `assertSee('Nie znaleźliśmy tej strony')` | `<title>` + `<meta>` |
+| `/` (gość) | `assertSee('Pokaż, co dziś ugotowałeś')` | `<title>` + `<meta>` |
+| `/wpis/nowy` | `assertSee('Dodaj zdjęcie')` | `<title>` |
+| tryb gotowania (gość) | `assertSee('Załóż konto')` | przycisk belki dla gościa |
+| ekran zaproszenia | `assertSee('Załóż konto')` | `<title>` + przycisk belki |
+| `/@ja` (główka) | `assertSee('Dodaj zdjęcie profilowe')` | skrót w prawej szynie |
+| `/@ja` (szyna) | `assertStringContainsString('Dodaj zdjęcie profilowe', $html)` | podpis pod awatarem w główce |
+
+**Co robić:** przy asercji „widać X na tym ekranie" wycinaj `<main>`
+(`trescEkranu()`). Dwa ostatnie wiersze pokazują, że to nie wystarcza, gdy
+ten sam napis stoi w treści **i** w szynie: wtedy trzeba wybrać stronę,
+o którą chodzi w danym pliku (`trescEkranu()` albo `SzynaKolejneEkranyTest::szyna()`),
+bo inaczej test pilnuje „gdziekolwiek", a nie tego jednego miejsca.
+
+**Czego NIE zwężać:** asercji „X nie ma". Te zostają na całym dokumencie —
+szersze spojrzenie jest tam ostrożniejsze, nie słabsze.
+
+**Uwaga o `bezStopki()`:** ten wzorzec zdejmuje stopkę i tylko stopkę.
+Na trafienia z `<title>` i z belki **nie wystarcza** — sprawdzone na
+`/o-kuking`, gdzie po zdjęciu stopki napis „O Kuking" nadal był w dokumencie
+trzy razy.
 
 ---
 
