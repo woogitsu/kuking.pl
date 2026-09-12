@@ -374,6 +374,27 @@ if (wycieki.length > 0) {
   bylBlad = true;
 }
 
+/* PRZEWIJANIE W POZIOMIE TO NARUSZENIE, A NIE STATYSTYKA (WCAG 1.4.10).
+
+   Kolumna „wyjazd" była dotąd samym napisem w tabeli: pierwszy przebieg po
+   scaleniu #430 pokazał `333 > 320` na `/ustawienia/zdjecie` przy czcionce
+   200%, a skrypt mimo to skończył się kodem 0. Liczba, której nikt nie musi
+   przeczytać, żeby pomiar „przeszedł", jest liczbą do przeoczenia — tym
+   bardziej że tego ekranu nie ma w `scripts/dostepnosc.mjs`, więc bramka
+   przed PR-em też go nie mierzy. Od teraz wyjazd oblewa. */
+const wyjazdy = wiersze.filter((w) => w.szerokoscDokumentu > w.szerokoscOkna);
+
+console.log(`Wyjazd strony w bok: ${wyjazdy.length} z ${wiersze.length} odsłon`);
+
+if (wyjazdy.length > 0) {
+  console.error('BŁĄD: strona przewija się w poziomie — WCAG 2.2 AA, 1.4.10 (Reflow).');
+  for (const w of wyjazdy) {
+    console.error(`  ${w.stan} / ${w.widok} / ${w.czcionka} / ${w.ekran}: `
+      + `${w.szerokoscDokumentu} > ${w.szerokoscOkna}`);
+  }
+  bylBlad = true;
+}
+
 /* Pusty ekran przechodzi każdy pomiar (pułapka 2). Gdyby awatara nie było
    w ogóle, wszystkie wiersze mówiłyby „brak" i wyglądałoby to jak wynik. */
 if (wiersze.every((w) => w.tresc?.ksztalt === 'brak')) {

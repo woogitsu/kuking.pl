@@ -4390,6 +4390,30 @@
 
 .zdjecie-profilowe-opis {
     margin: 0;
+
+    /* NAJDŁUŻSZE SŁOWO TEGO ZDANIA WYPYCHAŁO STRONĘ W BOK (#448, WCAG 1.4.10).
+
+       Zmierzone `scripts/zdjecie-profilowe.mjs` przy oknie 320 px i czcionce
+       przeglądarki 200%: `scrollWidth` dokumentu 333 px przy oknie 320 px,
+       na ekranie `/ustawienia/zdjecie` w stanach `pending` i `ready`.
+
+       Winowajcą nie był układ, tylko szerokość MINIMALNA akapitu. Poniżej
+       640 px awatar i zdanie idą jeden pod drugim, a `panel-formularza` ma
+       przy tej czcionce 48 px wyściółki z każdej strony — na tekst zostaje
+       158 px. Zdanie „…przy Twoich wpisach, przepisach i komentarzach."
+       ma w sobie wyraz, który przy 36 px bierze 252 px i nie ma się gdzie
+       złamać, bo `align-items: flex-start` daje akapitowi szerokość
+       `fit-content`, a ta nigdy nie schodzi poniżej min-content.
+
+       Stan `deleted` nie przepełniał, bo jego zdanie ma krótsze wyrazy —
+       czyli usterka zależała od TREŚCI, nie od układu, i pierwsze dłuższe
+       słowo w którymkolwiek z tych trzech zdań przywróciłoby ją.
+
+       `overflow-wrap: anywhere`, nie `break-word`: tylko ten wariant obniża
+       szerokość minimalną elementu, a to ona wypychała stronę — ta sama
+       droga i to samo uzasadnienie co przy `.kuking-word` wyżej. Wyraz łamie
+       się WYŁĄCZNIE wtedy, gdy inaczej wyszedłby poza wiersz. */
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
