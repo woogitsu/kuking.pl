@@ -270,8 +270,15 @@ class ZapisDoR2BezAclTest extends TestCase
             fn (array $wpis): bool => $wpis['polecenie'] === 'PutObject',
         ));
 
-        // Oryginał plus trzy warianty (`kuking.media.variants`).
-        $this->assertCount(1 + count((array) config('kuking.media.variants')), $zapisy);
+        // Oryginał, `podglad` robiony od razu przy wgraniu (issue #430)
+        // i trzy warianty z zadania w tle (`kuking.media.variants`).
+        //
+        // Podgląd liczy się TU, a nie jest z tego testu wyłączony, i to jest
+        // cały sens: to jest czwarty zapis do R2 na tej samej drodze, robiony
+        // z innego miejsca w kodzie (`PodgladOdRazu`, nie `ProcessUploadedImage`).
+        // Gdyby to on wysyłał `x-amz-acl`, pętla niżej by go nie zobaczyła,
+        // bo w ogóle by go tu nie było.
+        $this->assertCount(2 + count((array) config('kuking.media.variants')), $zapisy);
 
         foreach ($zapisy as $wpis) {
             $this->assertFalse(

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Media\PodgladOdRazu;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
@@ -211,7 +212,24 @@ Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->
  */
 Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
     ->whereUuid('media')
-    ->whereIn('wariant', array_keys((array) config('kuking.media.variants')))
+    /*
+     * LISTA NAZW JEST BIAŁĄ LISTĄ I TO JEST JEJ ROBOTA: nazwa wariantu
+     * przychodzi z adresu, czyli od klienta. Cokolwiek spoza tej listy
+     * dostaje 404 jeszcze przed kontrolerem — a więc zanim ktokolwiek
+     * spróbuje zamienić ją na klucz w buckecie.
+     *
+     * `podglad` DOPISANY OSOBNO (issue #430) i to nie jest niedopatrzenie
+     * konfiguracji. `kuking.media.variants` mówi, co liczy zadanie w tle;
+     * podgląd powstaje wcześniej i gdzie indziej (`PodgladOdRazu`), więc
+     * w tamtej liście go nie ma i być nie powinno. W adresie wystąpi —
+     * `Media::url()` oddaje jego nazwę, dopóki nie ma prawdziwych wariantów.
+     * Bez tej linii cała naprawa #430 kończyłaby się na 404 i nikt nie
+     * zobaczyłby swojego zdjęcia ani o sekundę wcześniej.
+     */
+    ->whereIn('wariant', [
+        PodgladOdRazu::NAZWA,
+        ...array_keys((array) config('kuking.media.variants')),
+    ])
     ->middleware("throttle:{$limits['zdjecie']},zdjecie")
     ->name('media.show');
 

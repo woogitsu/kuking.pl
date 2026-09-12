@@ -162,10 +162,55 @@ return [
         ],
 
         // Warianty generowane w tle (docs/MEDIA_PIPELINE.md).
+        //
+        // NIE MA TU `podglad` I TO JEST CELOWE. Ta lista mówi, co liczy
+        // `ProcessUploadedImage`; podgląd powstaje wcześniej i gdzie indziej
+        // (`PodgladOdRazu`, w żądaniu wgrywającym). Dopisanie go tutaj
+        // kazałoby zadaniu w tle policzyć drugi raz plik, który już leży
+        // w buckecie — koszt bez żadnego zysku.
         'variants' => [
             'thumb' => 320,
             'feed' => 960,
             'large' => 1600,
+        ],
+
+        /*
+         * PODGLĄD OD RAZU (issue #430).
+         *
+         * Wgranie zdjęcia i publikacja wpisu to jedno żądanie, więc w chwili
+         * renderowania strony wpisu wariantów z kolejki nie ma jeszcze
+         * ŻADNYCH — nie z przeciążenia, tylko z kolejności. `PodgladOdRazu`
+         * robi jeden mały wariant synchronicznie, żeby autorka zobaczyła
+         * swoje zdjęcie, a nie zdanie o nim.
+         *
+         * `krawedz` = 640 px. Zmierzone dla zdjęcia 4032×3024 (12,2 Mpx):
+         * podgląd waży 61,5 kB przy 6,14 MB oryginału (102× mniej) i 173,2 kB
+         * wariantu `feed`. 640 px wystarcza na pełną szerokość karty na
+         * telefonie (320–414 px) także przy dwukrotnej gęstości pikseli,
+         * a po przyjściu prawdziwych wariantów zostaje w `srcset` jako
+         * uczciwy kandydat między `thumb` (320) a `feed` (960).
+         *
+         * `max_megapixels` = 25. TO NIE JEST OSTROŻNOŚĆ NA ZAPAS, tylko
+         * granica pamięci kontenera web. Zmierzone szczyty RSS procesu przy
+         * robieniu podglądu: 12,2 Mpx → 101 MB, 24,5 Mpx → 154 MB,
+         * 49,9 Mpx → 239 MB. libgd alokuje bitmapę POZA licznikiem PHP, więc
+         * `memory_limit` tego nie zatrzyma — proces znika zabity przez OOM
+         * kontenera, bez wyjątku i bez śladu w dzienniku (patrz
+         * `docker/php.ini`). Kontener web ma 1 GB na wszystkie procesy
+         * PHP-FPM naraz.
+         *
+         * 25 Mpx przepuszcza każdy realny telefon: standardowe 12 Mpx
+         * i 24 Mpx, które daje iPhone z matrycą 48 Mpx. Powyżej progu
+         * podglądu nie ma i zdjęcie pokazuje się dopiero po przetworzeniu
+         * w tle, gdzie worker ma własną pamięć (`QUEUE_MEMORY`).
+         *
+         * Zero albo wartość ujemna wyłącza podgląd w całości — przydaje się,
+         * gdyby kiedyś trzeba było odciążyć web jednym ustawieniem, bez
+         * wdrożenia. Serwis działa wtedy tak jak przed #430.
+         */
+        'podglad' => [
+            'krawedz' => (int) env('KUKING_MEDIA_PODGLAD_KRAWEDZ', 640),
+            'max_megapixels' => (int) env('KUKING_MEDIA_PODGLAD_MAX_MEGAPIXELS', 25),
         ],
 
         /*
@@ -2547,7 +2592,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.6',
+        'etykieta' => 'Alfa 0.7',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
