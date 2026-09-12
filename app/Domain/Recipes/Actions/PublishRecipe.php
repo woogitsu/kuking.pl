@@ -18,6 +18,7 @@ use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\Unit;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -87,6 +88,8 @@ final class PublishRecipe
      * `timer_minutes` to MINUTY — dokładnie to, co wpisał człowiek, bez
      * przeliczania po drodze. Zamiana na sekundy `recipe_steps.timer_seconds`
      * należy do `StepTimer` i dzieje się TU, raz, dla obu dróg zapisu.
+     * @param  string|null  $kluczWyslania  tożsamość TEGO wysłania formularza; `null` znaczy
+     *                                      „nie wiemy, zapisuj normalnie" (ADR §4.3)
      */
     public function handle(
         User $author,
@@ -96,6 +99,7 @@ final class PublishRecipe
         bool $publish = false,
         ?Recipe $existing = null,
         ?string $ip = null,
+        ?string $kluczWyslania = null,
     ): Recipe {
         $title = trim((string) ($attributes['title'] ?? ''));
 
@@ -161,8 +165,18 @@ final class PublishRecipe
             }
         }
 
-        $recipe = DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing
+        /*
+         * KLUCZ DOTYCZY ZAKŁADANIA PRZEPISU, NIE JEGO EDYCJI.
+         *
+         * `recipes.update` pracuje na wierszu, który już istnieje, i nie
+         * przysyła klucza. Gdyby edycja kolumnę nadpisywała, pierwsze
+         * zapisanie szczegółów zdejmowałoby ochronę z tego przepisu — a przy
+         * pustej wartości robiłoby to po cichu.
+         */
+        $klucz = $existing === null ? $kluczWyslania : null;
+
+        $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz
         ): Recipe {
             /*
              * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
@@ -234,6 +248,7 @@ final class PublishRecipe
             ];
 
             if ($existing === null) {
+                $payload['klucz_wyslania'] = $klucz;
                 $payload['slug'] = $this->slugs->handle($title);
                 $payload['status'] = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;
                 $payload['published_at'] = $publish ? now() : null;
@@ -289,6 +304,33 @@ final class PublishRecipe
             return $recipe->refresh();
         });
 
+        try {
+            $recipe = $zapisz($klucz);
+        } catch (UniqueConstraintViolationException $e) {
+            if ($klucz === null) {
+                // Bez klucza nie ma jak odbić się o
+                // `recipes_one_per_klucz_wyslania` — to inne ograniczenie
+                // (np. `recipes.slug`) i nie wolno go tu wyciszyć.
+                throw $e;
+            }
+
+            // Indeks `recipes_one_per_klucz_wyslania` odbił wiersz: to
+            // wysłanie już raz założyło przepis. Oddajemy TEN przepis i nie
+            // robimy drugiej wersji w `recipe_versions` ani drugiego wpisu
+            // w dzienniku audytowym — jedno i drugie stoi PO transakcji,
+            // więc pierwsze wysłanie zdążyło je już zapisać.
+            $istniejacy = $this->przepisZTegoWyslania($author, $klucz);
+
+            if ($istniejacy !== null) {
+                return $istniejacy;
+            }
+
+            // Klucz zajęty, a przepisu nie widać (np. został w tym czasie
+            // usunięty). Nie odmawiamy — zapisujemy bez klucza, z ryzykiem
+            // duplikatu (ADR §4.3).
+            $recipe = $zapisz(null);
+        }
+
         if ($publish) {
             $this->snapshots->handle($recipe, $author, $existing === null ? 'Pierwsza publikacja' : 'Aktualizacja przepisu');
 
@@ -302,6 +344,22 @@ final class PublishRecipe
         }
 
         return $recipe;
+    }
+
+    /**
+     * Przepis założony z TEGO wysłania formularza — jeśli został założony.
+     *
+     * Zawężone do autora, a nie zadane samemu kluczowi: `klucz_wyslania`
+     * przychodzi z żądania, a UUID w żądaniu nie jest autoryzacją
+     * (`AGENTS.md` §7). Bez `author_id` w zapytaniu klucz podstawiony
+     * z cudzej przeglądarki odsyłałby człowieka pod cudzy przepis.
+     */
+    private function przepisZTegoWyslania(User $author, string $kluczWyslania): ?Recipe
+    {
+        return Recipe::query()
+            ->where('author_id', $author->getKey())
+            ->where('klucz_wyslania', $kluczWyslania)
+            ->first();
     }
 
     /**

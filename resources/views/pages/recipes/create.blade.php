@@ -48,6 +48,16 @@
           action="{{ route('recipes.store') }}" enctype="multipart/form-data">
         @csrf
 
+        {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).
+             Dwa kliknięcia „Opublikuj" na wolnym łączu mają dać JEDEN przepis,
+             a nie drugi pod adresem z doklejoną dwójką.
+
+             Zwykłe ukryte pole, bez JavaScriptu. Nazwa bez fragmentu „token",
+             inaczej pole ginie na ekranie 419 (ADR §1.4.4). --}}
+        @if(($kluczWyslania ?? null) !== null)
+            <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
+        @endif
+
         {{-- 1. ZDJĘCIE.
              Natywne pole pliku jest schowane dla oka (D-035) — rysowało
              angielskie „Choose File / No file chosen" w polskim formularzu.

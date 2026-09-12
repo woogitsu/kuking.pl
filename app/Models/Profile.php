@@ -67,4 +67,77 @@ class Profile extends Model
     {
         return route('profile.show', ['username' => $this->username]);
     }
+
+    /**
+     * Zdjęcie profilowe, które NAPRAWDĘ wolno pokazać — albo `null`.
+     *
+     * REGUŁA ZMIENIŁA SIĘ Z „STATUS WIERSZA" NA „ISTNIEJĄCY WARIANT" (#448).
+     * Widoki pytały dotąd o `Media::isReady()`, czyli o STAN WIERSZA. Po
+     * wgraniu zdjęcia profilowego wiersz jest jeszcze `pending`, więc człowiek
+     * dostawał w miejscu swojej twarzy napis o przygotowywaniu — także wtedy,
+     * gdy plik nadający się do pokazania już istniał. Pytamy więc o to, o co
+     * naprawdę chodzi: czy z naszego kodera wyszedł PLIK, który da się podać
+     * przeglądarce.
+     *
+     * TA METODA NIE POWTARZA REGUŁY, TYLKO JĄ WOŁA. Rozstrzyga
+     * `Media::maWariantDoPokazania()` — ta sama, jedna bramka, której używa
+     * `DostepDoZdjecia` i widok zdjęcia wpisu (#430). Druga kopia rozjechałaby
+     * się przy pierwszej zmianie listy wariantów, a rozjazd znaczyłby tutaj
+     * „wystawiliśmy plik wgrany przez człowieka, z GPS-em kuchni w EXIF-ie":
+     * oryginał nie jest wariantem i tą drogą nie przechodzi.
+     *
+     * STATUS `deleted` NIE PRZECHODZI NIGDY — i to jest ZWĘŻENIE reguły,
+     * nie jej rozszerzenie. `KasujZdjecie` oznacza tak wiersz PRZED
+     * skasowaniem plików i zostawia w `metadata.variants` klucze potrzebne
+     * do sprzątania. Gdyby pytanie brzmiało wyłącznie „czy jest wariant",
+     * zdjęcie przejęte do skasowania wracałoby na ekran — a przy wymazaniu
+     * konta i przy decyzji moderacyjnej to jest dokładnie ten wiersz, który
+     * ma zniknąć. Zwężenia pilnuje `Media::maWariantDoPokazania()` i osobny
+     * test tego pasa; tutaj nie ma go po raz drugi.
+     *
+     * DLACZEGO `thumb`, SKORO PO WGRANIU ISTNIEJE TYLKO `podglad`
+     * Bo `Media::wariantDoSerwowania()` przy braku żądanego wariantu bierze
+     * pierwszy istniejący. Awatar dostaje więc `podglad` w pierwszej chwili
+     * po wgraniu, a `thumb` — właściwy rozmiar — gdy tylko przetwarzanie
+     * w tle je policzy. Nazwa wariantu mówi, czego CHCEMY, nie na co czekamy.
+     *
+     * CZĘŚĆ DROGI, KTÓRA NALEŻY DO #430. Widok pyta o wariant, ale BAJTY
+     * wydaje trasa `media.show`. Pomiar z 12 września 2026
+     * (`scripts/zdjecie-profilowe.mjs`) na gałęzi SPRZED scalenia #430:
+     * dla wiersza `pending` z gotowym wariantem `<img class="avatar">` stał
+     * na stronie, a trasa zdjęcia odpowiadała **404 na 16 z 16 odsłon** —
+     * pusta ramka zamiast twarzy, bo `DostepDoZdjecia` pytało tam jeszcze
+     * o `isReady()`. #430 zdjęło ten warunek i obie strony pytają dziś o to
+     * samo. Ta liczba zostaje tu jako ostrzeżenie: rozdzielenie bramki widoku
+     * od bramki serwowania daje pustą ramkę, a nie czerwony test.
+     */
+    public function zdjecieDoPokazania(): ?Media
+    {
+        $zdjecie = $this->avatar;
+
+        if ($zdjecie === null) {
+            return null;
+        }
+
+        return $zdjecie->maWariantDoPokazania('thumb') ? $zdjecie : null;
+    }
+
+    /**
+     * Czy człowiek ma zdjęcie, którego jeszcze nie da się pokazać.
+     *
+     * Ekran `/ustawienia/zdjecie` mówi trzy różne zdania i musi je rozróżnić:
+     * „to jest Twoje zdjęcie", „Twoje zdjęcie się przygotowuje" i „nie masz
+     * jeszcze zdjęcia". Ta metoda stoi obok `zdjecieDoPokazania()`, żeby obie
+     * odpowiedzi brały `deleted` pod uwagę w ten sam sposób — wiersz przejęty
+     * do skasowania nie przygotowuje się do niczego i człowiek nie ma na co
+     * czekać.
+     */
+    public function zdjecieSieJeszczePrzygotowuje(): bool
+    {
+        $zdjecie = $this->avatar;
+
+        return $zdjecie !== null
+            && $zdjecie->status !== Media::STATUS_DELETED
+            && $this->zdjecieDoPokazania() === null;
+    }
 }

@@ -1,13 +1,22 @@
 @php
-    $zdjecie = $profile->avatar;
+    /*
+        TEN SAM WARUNEK CO W `x-avatar`, I TO JEST CAŁY SENS (#448).
 
-    // Ten sam warunek co w `x-avatar`: dla człowieka „mam zdjęcie" znaczy
-    // „widzę je na stronie". Zdjęcie w trakcie przetwarzania jeszcze się nie
-    // pokazuje (AGENTS.md §7 — dopóki `ProcessUploadedImage` nie przekoduje
-    // pliku, w EXIF-ie siedzi lokalizacja kuchni), więc ma tu osobne zdanie,
-    // a nie ciszę.
-    $gotowe = $zdjecie !== null && $zdjecie->isReady();
-    $wPrzygotowaniu = $zdjecie !== null && ! $zdjecie->isReady();
+        Dla człowieka „mam zdjęcie" znaczy „widzę je na stronie", więc to
+        zdanie i obrazek obok muszą wychodzić z JEDNEJ odpowiedzi. Stało tu
+        `$zdjecie->isReady()`, czyli pytanie o STAN WIERSZA — a obrazek obok
+        pokazuje PLIK. Po wgraniu zdjęcia wiersz jest jeszcze `pending`, więc
+        ekran pisał „przygotowuje się" nawet wtedy, gdy plik do pokazania już
+        był.
+
+        Pytanie zadaje teraz `Profile` i robi to raz: `zdjecieDoPokazania()`
+        mówi, czy jest co pokazać, `zdjecieSieJeszczePrzygotowuje()` — czy
+        jest jeszcze na co czekać. Dwie kopie tej reguły rozjechałyby się
+        przy pierwszej zmianie listy wariantów, a rozjazd znaczy tutaj:
+        obrazek pokazuje twarz, a podpis pod nim twierdzi, że jej nie ma.
+    */
+    $gotowe = $profile->zdjecieDoPokazania() !== null;
+    $wPrzygotowaniu = $profile->zdjecieSieJeszczePrzygotowuje();
 @endphp
 <x-layout title="Zdjęcie profilowe" :noindex="true">
     <h1>Zdjęcie profilowe</h1>
@@ -76,7 +85,12 @@
         </form>
     </div>
 
-    @if($zdjecie !== null)
+    {{-- `$gotowe || $wPrzygotowaniu`, a nie samo istnienie wiersza: wiersz
+         przejęty do skasowania (`deleted`) nie jest już zdjęciem tej osoby,
+         a ekran mówi wtedy wprost „nie masz jeszcze swojego zdjęcia".
+         Przycisk „Usuń zdjęcie" pod takim zdaniem przeczyłby mu w tej samej
+         chwili (#448). --}}
+    @if($gotowe || $wPrzygotowaniu)
         {{-- Usunięcie ODSUNIĘTE od zwykłych akcji i z potwierdzeniem
              (AGENTS.md §5). `x-confirm-button` robi to bez JavaScriptu,
              na `<details>`. --}}
