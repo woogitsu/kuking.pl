@@ -44,8 +44,8 @@ def replace_once(source, old, new):
 
 
 def remove_notice(source):
-    start = source.index("@error('collection_id')")
-    end = source.index("@enderror", start) + len("@enderror")
+    start = source.index("@if($collectionError)")
+    end = source.index("@endif", start) + len("@endif")
     return source[:start] + source[end:]
 
 

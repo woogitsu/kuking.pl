@@ -871,9 +871,10 @@
                 </div>
                 {{-- Zapis do zeszytu wraca także na strumień bez formularza.
                      Sam worek walidacji nie pokazuje tam błędu (issue #473). --}}
-                @error('collection_id')
-                    <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $message }}</p>
-                @enderror
+                @php($collectionError = session('errors')?->first('collection_id'))
+                @if($collectionError)
+                    <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
+                @endif
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
