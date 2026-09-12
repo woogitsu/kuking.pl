@@ -1781,11 +1781,100 @@
     overflow: hidden;
   }
 
+  /*
+   * GŁÓWKA ZAWIJA SIĘ DO DWÓCH RZĘDÓW, ZAMIAST ZGNIATAĆ NAZWĘ AUTORA DO ZERA
+   *
+   * USTERKA. Przy czcionce przeglądarki 200% i wąskim oknie kolumna z nazwą
+   * autora i datą miała ZERO pikseli szerokości, a jej treść rozsypywała się
+   * na słup pojedynczych liter. Zmierzone (Chromium 1194,
+   * `scripts/glowka-karty-wpisu.mjs`, `/home`, trzy długości nazwy):
+   *
+   *     okno    czcionka   kolumna nazwy   wysokość główki
+   *     320 px    100%        122 px         134–330 px
+   *     320 px    200%          0 px       1570–5588 px   <-- usterka
+   *     360 px    200%         18 px       1521–5538 px   <-- usterka
+   *     390 px    200%         48 px        771–2891 px   <-- usterka
+   *     414 px    200%         72 px        566–2073 px   <-- usterka
+   *
+   * PRZYCZYNA NIE JEST W SZEROKOŚCI OKNA, TYLKO W TYM, CO ROŚNIE, A CO NIE.
+   * Przy podwojonej czcionce bazowej `rem` robi się dwa razy większy, więc
+   * wcięcie główki idzie z 20 na 40 px z każdej strony, odstęp z 12 na 24 px,
+   * a przycisk menu z 48 na 96 px (`--control-height-min`, 3rem). Awatar ma
+   * 52 px podane z widoku i zostaje przy 52 px. Na oknie 320 px daje to
+   * 52 + 24 + 24 + 96 = 196 px rzeczy nieściśliwych w rzędzie szerokim na
+   * 176 px — a jedynym elementem, który wolno ścisnąć, jest kolumna z nazwą.
+   * Ściskała się do zera i znikała.
+   *
+   * DLACZEGO ZAWINIĘCIE, A NIE ŚCIĘCIE PRZYCISKU. Najkrótsza droga byłoby
+   * przykręcić menu na sztywne 48 × 48 px także przy 200%. To odzyskuje
+   * 48 px i NIE WYSTARCZA (zostaje 148 px nieściśliwych na 176 px rzędu,
+   * czyli 28 px na nazwę), a przy okazji zabiera cel dotknięcia człowiekowi,
+   * który powiększył czcionkę właśnie dlatego, że gorzej widzi i mniej
+   * pewnie trafia. Cel dotknięcia zostaje więc bez zmian — patrz
+   * `.post-card-menu > summary` niżej w tym arkuszu.
+   *
+   * DWIE WARSTWY, KAŻDA O CZYM INNYM:
+   *
+   * 1. `flex-wrap: wrap` + `flex: 1 1 96px` na kolumnie z nazwą — SIATKA
+   *    BEZPIECZEŃSTWA, działa zawsze i wszędzie, bez progu. Rząd mieści
+   *    awatar, 96 px nazwy i przycisk albo nie mieści; jeśli nie mieści,
+   *    przycisk schodzi do drugiego rzędu, zamiast wypychać nazwę do zera.
+   *    Karta stoi na ośmiu ekranach i bywa w wąskiej kolumnie także przy
+   *    zwykłej czcionce — to jest ta reguła, która pilnuje tamtych miejsc.
+   *
+   * 2. Przy oknie węższym niż 16em (niżej) nazwa dostaje CAŁY rząd.
+   *
+   * KOLEJNOŚĆ W KODZIE ZOSTAJE. Nazwa i data stoją w dokumencie przed menu
+   * i tak je czyta czytnik ekranu; `order` dotyczy wyłącznie miejsca na
+   * ekranie w zawiniętym układzie i nie zmienia nazwy dostępnej przycisku
+   * („Więcej przy tym wpisie"), która sama mówi, czego dotyczy.
+   */
   .post-card-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-3);
     padding: var(--spacing-4) var(--spacing-5);
+  }
+
+  /* Kolumna z nazwą autora i datą — jedyny ściśliwy element główki.
+     `min-width: 0` (dawniej narzutka `.min-w-0` w widoku) pozwala jej zejść
+     poniżej szerokości własnej treści; bez tego długa nazwa rozpycha rząd.
+     `flex: 1 1 96px` mówi dwie rzeczy naraz: bierz całą wolną przestrzeń
+     (`grow: 1`) i licz się w rzędzie za 96 px (`basis`), nawet jeśli wolno
+     Cię ścisnąć. Ta druga część jest całą poprawką — przy `basis: 0` albo
+     `basis: auto` kolumna nie ma w rzędzie żadnej wagi i to ona przegrywa
+     z przyciskiem. Liczba jest w pikselach ŚWIADOMIE: to próg o UKŁADZIE
+     („czy jest sens trzymać to obok siebie"), a nie rozmiar pisma — gdyby
+     szedł w `rem`, rósłby razem z tym, przed czym ma bronić. */
+  .post-card-tozsamosc {
+    flex: 1 1 96px;
+    min-width: 0;
+  }
+
+  /*
+   * PRZY OKNIE WĘŻSZYM NIŻ 16em NAZWA I DATA BIORĄ CAŁY RZĄD
+   *
+   * `em` W ZAPYTANIU MEDIALNYM TO CZCIONKA BAZOWA PRZEGLĄDARKI, nie nasz
+   * `rem` i nie 16 px na sztywno. To jest dokładnie ta wielkość, której
+   * dotyczy usterka, więc próg mierzy właściwą rzecz: 16em to 256 px przy
+   * ustawieniu domyślnym i 512 px przy czcionce 200%. Zmierzone szerokości
+   * okien w tej mierze — 320–414 px to 20–25,9em przy 100% i 10–12,9em przy
+   * 200% — leżą po dwóch stronach tego progu i żadna nie jest go bliżej niż
+   * o 3em. Próg podany w pikselach nie zauważyłby czcionki w ogóle, a to ona
+   * psuje główkę: ten sam telefon jest raz w porządku, a raz nie.
+   *
+   * CO SIĘ WTEDY DZIEJE: przycisk menu zostaje w prawym górnym rogu karty,
+   * czyli TAM, GDZIE BYŁ przy zwykłej czcionce — nie wędruje pod wpis —
+   * a nazwa i data schodzą pod niego i dostają pełną szerokość karty.
+   * Zmierzone po zmianie: kolumna 174–268 px zamiast 0–72 px, główka
+   * 339–1108 px zamiast 566–5588 px.
+   */
+  @media (max-width: 16em) {
+    .post-card-tozsamosc {
+      order: 1;
+      flex-basis: 100%;
+    }
   }
 
   /* Kolumna awatara. `flex: none` na ELEMENCIE wiersza, nie tylko na `.avatar`
@@ -4538,6 +4627,30 @@
 
 .zdjecie-profilowe-opis {
     margin: 0;
+
+    /* NAJDŁUŻSZE SŁOWO TEGO ZDANIA WYPYCHAŁO STRONĘ W BOK (#448, WCAG 1.4.10).
+
+       Zmierzone `scripts/zdjecie-profilowe.mjs` przy oknie 320 px i czcionce
+       przeglądarki 200%: `scrollWidth` dokumentu 333 px przy oknie 320 px,
+       na ekranie `/ustawienia/zdjecie` w stanach `pending` i `ready`.
+
+       Winowajcą nie był układ, tylko szerokość MINIMALNA akapitu. Poniżej
+       640 px awatar i zdanie idą jeden pod drugim, a `panel-formularza` ma
+       przy tej czcionce 48 px wyściółki z każdej strony — na tekst zostaje
+       158 px. Zdanie „…przy Twoich wpisach, przepisach i komentarzach."
+       ma w sobie wyraz, który przy 36 px bierze 252 px i nie ma się gdzie
+       złamać, bo `align-items: flex-start` daje akapitowi szerokość
+       `fit-content`, a ta nigdy nie schodzi poniżej min-content.
+
+       Stan `deleted` nie przepełniał, bo jego zdanie ma krótsze wyrazy —
+       czyli usterka zależała od TREŚCI, nie od układu, i pierwsze dłuższe
+       słowo w którymkolwiek z tych trzech zdań przywróciłoby ją.
+
+       `overflow-wrap: anywhere`, nie `break-word`: tylko ten wariant obniża
+       szerokość minimalną elementu, a to ona wypychała stronę — ta sama
+       droga i to samo uzasadnienie co przy `.kuking-word` wyżej. Wyraz łamie
+       się WYŁĄCZNIE wtedy, gdy inaczej wyszedłby poza wiersz. */
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
