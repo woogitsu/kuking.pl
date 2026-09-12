@@ -662,3 +662,32 @@ html[data-theme="dark"] .result-list article, html[data-theme="dark"] .person-pr
   .profile-avatar--small { width: 78px; height: 78px; border-radius: 22px; font-size: 34px; }
   .person-actions { display: grid; }
 }
+
+.account-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; }
+.account-nav { position: sticky; top: 110px; display: grid; gap: 5px; padding: 8px; border-radius: 18px; background: white; box-shadow: var(--shadow); }
+.account-nav button, .account-nav a { min-height: 50px; display: flex; align-items: center; padding: 10px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--ink); font: inherit; font-weight: 750; text-align: left; text-decoration: none; cursor: pointer; }
+.account-nav button.is-active { background: var(--ink); color: white; }
+.account-content { min-height: 520px; padding: 32px; border-radius: 24px; background: white; box-shadow: var(--shadow); }
+.account-content > section[hidden] { display: none; }
+.account-content h2 { margin-bottom: 20px; font-size: 30px; }
+.account-note { margin-top: 22px; padding: 18px; border-radius: 15px; background: var(--canvas); }
+.account-note p { margin: 4px 0 0; color: var(--muted); }
+.setting-row { min-height: 92px; display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.setting-row strong, .setting-row small { display: block; }
+.setting-row small { color: var(--muted); }
+.danger-panel { margin-top: 38px; padding: 22px; border: 1px solid #d99892; border-radius: 17px; background: #fff2f0; }
+.danger-panel h3 { color: #8b201a; }
+.danger-panel p { color: #66403c; }
+.button--danger { background: #a52a22; color: white; }
+.button--danger:hover { background: #821d17; }
+html[data-theme="dark"] .account-nav, html[data-theme="dark"] .account-content { background: var(--paper); }
+html[data-theme="dark"] .danger-panel { background: #421d1a; border-color: #a45e58; }
+html[data-theme="dark"] .danger-panel h3, html[data-theme="dark"] .danger-panel p { color: #ffd9d4; }
+
+@media (max-width: 760px) {
+  .account-layout { grid-template-columns: 1fr; }
+  .account-nav { position: static; display: flex; overflow-x: auto; }
+  .account-nav button, .account-nav a { flex: 0 0 auto; white-space: nowrap; }
+  .account-content { padding: 24px 20px; }
+  .setting-row { align-items: stretch; flex-direction: column; }
+}
