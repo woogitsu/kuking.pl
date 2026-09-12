@@ -258,7 +258,30 @@ final class SearchQuery
         ProgPodobienstwa::ustaw();
 
         return Profile::query()
-            ->with(['user', 'avatar'])
+            // `user.profile.avatar`, A NIE SAMO `user` — I NIE JEST TO
+            // POWTÓRNE ŁADOWANIE TEGO SAMEGO WIERSZA DLA OZDOBY.
+            //
+            // Oba ekrany korzystające z tej metody (`/szukaj`, zakładka
+            // „Ludzie", i krok onboardingu „znasz już kogoś tutaj?") rysują
+            // zdjęcie komponentem `<x-avatar :user="$profil->user" />`.
+            // Komponent przyjmuje KONTO i sam wraca po profil
+            // (`$user?->profile`, potem `zdjecieDoPokazania()` → `avatar`),
+            // a wynikiem tej metody są PROFILE — więc doładowany tu `avatar`
+            // siedzi na innej instancji niż ta, po którą sięga komponent,
+            // i nie oszczędza ani jednego zapytania.
+            //
+            // Zmierzone przed poprawką (`WynikiSzukaniaLudziBezWachlarzaZapytanTest`):
+            // 16 zapytań przy 2 osobach i 34 przy 20 — dokładnie jedno
+            // `select * from profiles where user_id = ?` na każdą wypisaną
+            // osobę. Przy kontach ze zdjęciem profilowym dochodziło drugie,
+            // po wiersz `media`.
+            //
+            // `avatar` na profilu-korzeniu ZOSTAJE: to jest kod domenowy,
+            // a nie widok, i nie ma prawa zakładać, że każdy przyszły
+            // odbiorca sięgnie po zdjęcie okrężną drogą przez konto.
+            // Kosztuje to jedno zapytanie na CAŁĄ stronę wyników, nie jedno
+            // na osobę.
+            ->with(['user.profile.avatar', 'avatar'])
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
             ->where(function ($query) use ($needle): void {
