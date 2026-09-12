@@ -1708,12 +1708,21 @@ Osobisty zeszyt.
   publikacją;
 - `is_default boolean NOT NULL DEFAULT false` — zeszyt zakładany kontu
   automatycznie, ten, do którego trafia „Zapisz" bez wyboru;
-- **`collection_items.note varchar(500) NULL`** — miejsce na dopisek
-  właściciela przy zapisanej rzeczy („na urodziny taty"). **Dziś nic go nie
-  zapisuje ani nie pokazuje**: kolumna jest w migracji, a `CollectionItem`,
-  `CollectionController` i widoki zeszytu jej nie dotykają. Każdy wiersz ma
-  `NULL`. Zostaje, bo jest pusta i nic nie kosztuje — ale nie wolno na niej
-  niczego opierać.
+- **`collection_items.note varchar(500) NULL`** — dopisek właściciela przy
+  zapisanej rzeczy („na urodziny taty"). **Kolumna jest ŻYWA.** Zapisują ją
+  `SavePostToCollection.php:41,49` i `SaveRecipeToCollection.php:50,58` (przy
+  zapisie i przy ponownym zapisie tej samej rzeczy), a **wychodzi w eksporcie
+  danych osobowych** jako `moja_notatka` —
+  `app/Domain/Users/Exports/CollectUserExportData.php:335,347`, pilnuje tego
+  `tests/Feature/DataExportTest.php:188`. `NULL` jest stanem normalnym: dopisek
+  jest nieobowiązkowy.
+
+  > **Sprostowanie z 12 września 2026.** Do tego dnia stało tu, że „dziś nic
+  > go nie zapisuje ani nie pokazuje" i że kolumna jest pusta. **To była
+  > nieprawda** — pochodziła z sekcji „przy okazji zauważone" w D-166, czyli
+  > z hipotezy podanej bez pomiaru. Próbne skasowanie tej kolumny oblewa
+  > testy. Gdyby ktoś zaufał tamtemu zdaniu i usunął kolumnę, z eksportu RODO
+  > zniknęłaby treść napisana przez człowieka.
 
 **`collection_items` NIE MA DZIŚ KLUCZA GŁÓWNEGO** i to jest stan zamierzony.
 Migracja zakładająca tabelę (`2026_09_05_000800_create_collections_tables`)
@@ -3347,10 +3356,17 @@ z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 - `position smallint NOT NULL DEFAULT 0` (CHECK `>= 0`) — kolejność na
   tablicy, ustawiana ręcznie przez gospodarza;
 - `curator_id uuid NULL` → `users` (`ON DELETE SET NULL`) — kto wskazał;
-- `daily_picks.note varchar(300) NULL` — miejsce na zdanie gospodarza przy
-  wskazaniu. **Dziś nic tej kolumny nie czyta**: jest w `$fillable` modelu
-  `DailyPick` i na tym koniec, a `DailyBoard` jej nie pobiera. Nie opieraj na
-  niej niczego, dopóki tablica nie zacznie jej pokazywać;
+- `daily_picks.note varchar(300) NULL` — zdanie gospodarza przy wskazaniu.
+  **Kolumna jest ŻYWA i widoczna dla człowieka.** Zapisuje ją formularz panelu
+  (`DailyBoardController.php:188`, odczyt do formularza w `:40`), pobiera
+  `DailyBoard.php:161-165`, a **wyświetla tablica dnia** —
+  `components/kuking-board.blade.php:138` (przy koncie) i `:278` (przy wpisie).
+  Asercje: `DailyBoardTest.php:65,317`. `NULL` jest stanem normalnym: gospodarz
+  nie musi nic dopisywać;
+
+  > **Sprostowanie z 12 września 2026.** Do tego dnia stało tu „dziś nic tej
+  > kolumny nie czyta". **Nieprawda**, z tego samego źródła co przy
+  > `collection_items.note` — patrz sprostowanie tam;
 - `created_at`.
 
 ## `hero_picks`
