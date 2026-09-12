@@ -25,7 +25,7 @@ use Tests\TestCase;
  * prawdziwa regresja chowa się za zdaniem „a, to pewnie ta zmienność".
  *
  * ZMIERZONE, NIE ZAŁOŻONE (12 września 2026). Karta wpisu autora o nazwie na
- * 100 znaków (`zofia_z_bieszczad`, #440) wchodziła do pomiaru fokusu BOCZNYMI
+ * najdłuższej dopuszczalnej nazwie (`zofia_z_bieszczad`, #440) wchodziła do pomiaru fokusu BOCZNYMI
  * DRZWIAMI: na `EKRANY_FOCUS` nie ma jej ani razu, a mierzona była dlatego,
  * że pozycja „wpis (przykładowy)" rozwiązuje się przez `znajdz: 'wpis:normal'`
  * i to właśnie jej wpis oddawał `SELECT … LIMIT 1` bez `ORDER BY`. Dopisanie
@@ -92,17 +92,17 @@ class PomiarDostepnosciWybieraPowtarzalnieTest extends TestCase
         $this->assertMatchesRegularExpression(
             '/Profile::where\(\x27username\x27,\x27\$\{KONTO_DLUGA_NAZWA\}\x27\)/u',
             $skrypt,
-            'Automat nie szuka wpisu autora o stuznakowej nazwie po nazwie konta. '.
+            'Automat nie szuka wpisu autora o najdłuższej dopuszczalnej nazwie po nazwie konta. '.
             'Bez tego karta z długą nazwą wchodzi do pomiaru tylko wtedy, gdy akurat '.
             'wypadnie na nią wybór „jakiś wpis w trybie zwykłym" — czyli dopóki nikt '.
             'nie doda nowszego wpisu.',
         );
 
         $this->assertMatchesRegularExpression(
-            '/\{\s*nazwa:\s*\x27wpis \(autor o nazwie na 100 znaków\)\x27,\s*adres:\s*null,\s*'.
+            '/\{\s*nazwa:\s*\x27wpis \(autor o najdłuższej dopuszczalnej nazwie\)\x27,\s*adres:\s*null,\s*'.
             'znajdz:\s*\x27wpis-dluga-nazwa\x27/u',
             $skrypt,
-            'Na liście EKRANY_FOCUS nie ma karty wpisu autora o stuznakowej nazwie. '.
+            'Na liście EKRANY_FOCUS nie ma karty wpisu autora o najdłuższej dopuszczalnej nazwie. '.
             'To właśnie ta próbka znalazła trzy naruszenia WCAG 2.2 AA 2.4.11 przy #440 '.
             '— i do 12 września wchodziła do pomiaru wyłącznie przez przypadek.',
         );

@@ -110,7 +110,7 @@ class RegisterController extends Controller
         ]);
 
         $data = $request->validate([
-            'display_name' => ['required', 'string', 'min:2', 'max:100'],
+            'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
             'username' => [
                 'required', 'string', 'min:3', 'max:40',
                 'regex:/^[a-zA-Z0-9_]+$/',

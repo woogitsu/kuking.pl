@@ -22,7 +22,7 @@
  *  z każdej strony, a awatar zostaje przy 52 px — i na kolumnę z nazwą nie
  *  zostaje nic. Dlatego każda szerokość idzie przy 100% i przy 200%, a do tego
  *  w trzech długościach nazwy autora: przy krótkiej („Ala") kolumna zwęża się
- *  inaczej niż przy nazwie na pełne 100 znaków, które `display_name` dopuszcza.
+ *  inaczej niż przy nazwie na pełny limit, który `display_name` dopuszcza.
  *
  *  4 szerokości × 2 rozmiary pisma × 3 długości nazwy = 24 pomiary.
  *
