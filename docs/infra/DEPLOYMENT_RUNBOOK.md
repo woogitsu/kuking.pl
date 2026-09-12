@@ -549,6 +549,8 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `TURNSTILE_SECRET_KEY` | z kroku 8A | **TAK** | Secret Key widgetu Turnstile |
 | `GOOGLE_CLIENT_ID` | z kroku 8D | nie | Client ID OAuth — wchodzi do adresu przekierowania, nie jest sekretem |
 | `GOOGLE_CLIENT_SECRET` | z kroku 8D | **TAK** | Client secret OAuth (wejście kontem Google, D-069) |
+| `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
+| `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania usunięcia danych od Meta |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -904,14 +906,12 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 „Wejdź kontem Google" po prostu nie będzie na ekranie, a hasło i wiadomość
 z linkiem działają jak dziś.
 
-> ⚠️ **`/health` o tym NA RAZIE NIE POWIE.** Zamierzone jest, żeby produkcja
-> z funkcją włączoną i bez kluczy oddawała `status: degraded` z powodem
-> `google_bez_kluczy` — cicha, nieistniejąca droga wejścia jest gorsza niż
-> jej jawny brak. Sygnał został jednak **świadomie odłożony**:
-> `HealthController` przerabia równolegle inne zlecenie (#253/#255).
-> Do czasu jego dołożenia **sprawdź to okiem po wdrożeniu**: wejdź na
-> `/login` i zobacz, czy przycisk „Wejdź kontem Google" jest na ekranie.
-> Nie ma go = kluczy nie widać.
+> ✅ **`/health` o tym POWIE** — od 12 września 2026. Produkcja z funkcją
+> włączoną i bez kluczy oddaje `status: degraded` z powodem
+> `google_bez_kluczy`, bo cicha, nieistniejąca droga wejścia jest gorsza niż
+> jej jawny brak. Do tego dnia sygnał był tylko zapowiedziany i sprawdzało
+> się to okiem; sprawdzenie okiem (czy przycisk „Wejdź kontem Google" jest
+> na `/login`) zostaje jako druga droga, nie jako jedyna.
 
 Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-069](../DECISIONS.md), issue #258.
 
@@ -1074,6 +1074,213 @@ obiecuje tę drogę.
 skasowałby powiązania — a dla części osób to jedyna droga wejścia, jaką znają
 (hasła nigdy nie ustawiały). Dlatego to cofnięcie **samo odmawia**, dopóki
 nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
+
+---
+
+## KROK 8E. Wejście kontem Facebooka — dwa klucze z panelu Meta
+
+**Kiedy:** po kroku 8D, przed kampanią startową.
+**Ile zajmuje:** kilkanaście czynności w panelu Meta (pełna lista jest
+w osobnym runbooku, niżej), dwie zmienne w Railway.
+**Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
+„Wejdź kontem Facebooka" po prostu nie będzie na ekranie, a hasło, wiadomość
+z linkiem i wejście kontem Google działają jak dziś.
+
+> ✅ **`/health` o tym POWIE.** Produkcja z funkcją włączoną i bez kluczy
+> oddaje `status: degraded` z powodem `facebook_bez_kluczy` — dokładnie tak
+> samo jak przy Google w 8D i z tego samego powodu: cicha, nieistniejąca
+> droga wejścia jest gorsza niż jej jawny brak.
+
+> ⚠️ **Ten krok jest DŁUŻSZY niż 8D i łatwiej go zostawić niedokończonym.**
+> Google to jeden panel i pięć minut. U Meta czynności jest kilkanaście,
+> w trzech różnych miejscach panelu, a **ostatnia z nich — przestawienie
+> aplikacji w tryb Live — ma się wydarzyć DOPIERO po wdrożeniu kodu.** Między
+> jednym a drugim jest okno, w którym wdrożenie wygląda na zdrowe, a droga
+> wejścia nie istnieje. Dlatego sprawdzenie z 8E.3 jest tu obowiązkowe, a nie
+> „jak będzie czas".
+
+**Cały panel Meta krok po kroku stoi w osobnym pliku:**
+[`docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md)
+— tabela czynności właściciela jest tam w §12, adresy przekierowań w §4.2,
+usuwanie danych w §9. Ten krok **go nie powtarza**: streszcza to, co dotyczy
+wdrożenia, i mówi, jak sprawdzić, że działa.
+
+Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-113](../DECISIONS.md), issue #259.
+
+### 8E.1 Co założyć w panelu Meta
+
+To jest **praca właściciela**, nie agenta — poniższa lista jest skrótem §12
+tamtego pliku, do odhaczania:
+
+1. **Aplikacja**: [developers.facebook.com](https://developers.facebook.com)
+   → **My Apps** → **Create App**. Przypadek użycia: **„Authenticate and
+   request data from users with Facebook Login"**. Nazwa: **`Kuking`** — to
+   jest nazwa, którą człowiek zobaczy na ekranie zgody. Adres kontaktowy:
+   `kontakt@kuking.pl`.
+2. **Portfolio firmowe** na **SAMSUFI sp. z o.o.** (krok „Business"
+   w kreatorze).
+3. **Settings → Basic** — komplet pól, bez nich nie ma trybu publicznego:
+   - **Privacy Policy URL:** `https://kuking.pl/prywatnosc`;
+   - **Terms of Service URL:** `https://kuking.pl/regulamin`;
+   - **App Icon** 1024×1024;
+   - **App Category** i **Business Use**;
+   - **App Domains:** `kuking.pl`, `staging.kuking.pl`.
+4. **Data Deletion Instructions URL:** `https://kuking.pl/prywatnosc`
+   (Settings → Basic). **Nie** callback — wybór i uzasadnienie w §9.2 tamtego
+   pliku.
+5. **Products → Facebook Login → Settings → Valid OAuth Redirect URIs** —
+   **wpisz wszystkie trzy, co do znaku** (bez ukośnika na końcu, z `https`):
+
+   ```text
+   https://kuking.pl/wejdz/facebook/wroc
+   https://www.kuking.pl/wejdz/facebook/wroc
+   https://staging.kuking.pl/wejdz/facebook/wroc
+   ```
+
+   **To jest jedyne miejsce w całym kroku, w którym literówka objawia się
+   dopiero u człowieka:** Meta dopasowuje adres **znak w znak** i pokazuje
+   wtedy po angielsku „URL Blocked" zamiast logowania. Skopiuj te adresy
+   stąd, nie przepisuj.
+
+   **Środowisk preview (jedno na każdy PR) na tej liście NIE BĘDZIE** i nie
+   ma sensu tego obchodzić: adresy `*.up.railway.app` są losowe, a Meta nie
+   przyjmuje `*`. Bez kluczy przycisku tam po prostu nie ma i to jest
+   zachowanie poprawne (§4.4).
+6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
+   zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
+7. **App Review → Permissions and Features**: `public_profile` i `email` na
+   **Advanced Access**. **Wniosku App Review tu NIE MA** — oba uprawnienia
+   mają dostęp zaawansowany z automatu, zostaje przełącznik. Jeśli panel
+   poprosi o **weryfikację biznesową**, złóż ją (KRS 0000901262,
+   NIP 5423435334) — to jedyna procedura w tym kroku o nieznanym czasie
+   trwania.
+8. **Settings → Basic → App ID** i **App Secret** („Show") — to są dwie
+   wartości do Railway z 8E.2. **App Secret jest sekretem**: nie wysyłaj go
+   pocztą, nie wklejaj do issue na GitHubie ani do rozmowy z agentem.
+   Rotacja jest u Meta jednym przyciskiem („Reset"), więc w razie
+   wątpliwości rotuj bez wahania.
+9. **App Mode → Live** — górny pasek panelu. **DOPIERO PO wdrożeniu kodu
+   i po 8E.3.** Wcześniej wejdziesz tylko Ty i osoby z listy testerów.
+
+Wejście kontem Facebooka jest darmowe i bez limitu — Meta nie każe za nie
+płacić.
+
+### 8E.2 Co wpisać w Railway
+
+Environment `production` → **Variables** → **Shared Variables**
+(`railway.ts` odwołuje się do nich przez `ctx.shared`, więc muszą istnieć
+pod dokładnie tymi nazwami):
+
+| Zmienna | Wartość | Sealed? |
+|---|---|---|
+| `FACEBOOK_CLIENT_ID` | **App ID** z 8E.1 pkt 8 | nie |
+| `FACEBOOK_CLIENT_SECRET` | **App Secret** z 8E.1 pkt 8 | **TAK — zaznacz „Sealed"** |
+
+Potem `railway config apply` (albo, jeśli chodzisz bez IaC, wpisz obie
+zmienne wprost w serwisie `kuking.pl`) i **restart serwisu** — Laravel czyta
+konfigurację przy starcie.
+
+Dla środowiska `staging` załóż te same dwie zmienne osobno; adres staginu
+jest już na liście z 8E.1 pkt 5.
+
+> **Jeśli chodzisz bez IaC, i tak przeczytaj to zdanie.** Do 12 września 2026
+> `.railway/railway.ts` **nie przepuszczał zmiennych `FACEBOOK_*` do
+> serwisu** — stały w Shared Variables i nie docierały do aplikacji, więc
+> `railway config apply` po wykonaniu całego panelu Meta dawał ekran bez
+> przycisku i bez żadnej wskazówki dlaczego (issue #259). Dziś obie linie są
+> w pliku; pilnuje tego test
+> `tests/Feature/WdrozenieWejsciaFacebookiemTest.php`.
+
+### 8E.3 Sprawdzenie, że naprawdę działa
+
+```bash
+# 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
+curl -s https://kuking.pl/health | jq '.status, .checks.facebook'
+# oczekiwane: "ok"  oraz  { "ok": true }
+
+# 2. Przycisk jest na ekranie logowania i rejestracji
+curl -s https://kuking.pl/login | grep -c 'wejdz/facebook'
+# oczekiwane: liczba większa od zera
+```
+
+Potem otwórz `https://kuking.pl/login` **na telefonie, nie na komputerze** —
+tak wchodzi większość naszych ludzi i tak wygląda ekran zgody Meta. Pod
+formularzem hasła ma być przycisk **„Wejdź kontem Facebooka"**, obok
+przycisku Google i **nie przed nim**. Kliknij go **kontem, które NIE ma
+jeszcze konta w Kuking**: powinieneś zobaczyć ekran zgody Facebooka z nazwą
+**Kuking** i **dwoma** pozycjami (profil publiczny i adres e-mail), a po
+powrocie nasz ekran domknięcia z podpowiedzianą nazwą i **dwoma
+niezaznaczonymi haczykami**. Konto powstaje dopiero po ich zaznaczeniu —
+i dostaje **naszą** wiadomość „potwierdź adres", bo adres z Facebooka jest
+u nas niepotwierdzony (D-113).
+
+**Po przestawieniu na Live powtórz punkt 2 z konta, które NIE JEST na liście
+testerów** — to jedyne sprawdzenie, które odróżnia „działa Tobie" od „działa
+ludziom".
+
+### 8E.4 Czego się NIE spodziewać (i o co nie prosić)
+
+- **Osoba, która ma już u nas konto na ten sam adres e-mail, tą drogą NIE
+  wejdzie** — zobaczy odmowę, a właściciel konta dostanie od nas list
+  o próbie wejścia. **Tak ma być, to nie usterka.** Facebook nie mówi nam,
+  czy ten adres jest potwierdzony, więc wystarczyłoby wpisać cudzy adres
+  w swoim koncie na Facebooku (D-113). Powiązanie istniejącego konta robi
+  się w **Ustawieniach → Bezpieczeństwo**, będąc na nim zalogowanym.
+- **Ten list NIE MA odnośnika „to ja, połącz konta"** i nigdy mieć nie
+  będzie — byłby dziurą, przez którą przechodzi dokładnie ten atak, przed
+  którym stoi odmowa.
+- **Facebook może w ogóle nie podać adresu e-mail.** Wtedy człowiek widzi
+  osobny ekran po polsku i wraca na hasło albo link — bez pętli dopraszania.
+- **Konto założone tą drogą ma adres NIEPOTWIERDZONY**, dopóki człowiek nie
+  kliknie w naszą wiadomość. To jedyna różnica wobec Google, o której trzeba
+  pamiętać przy wyłączaniu funkcji (8E.5).
+- **Moderator i administrator tą drogą nie wejdą wcale** — tam obowiązuje
+  hasło i kod z aplikacji.
+- **Żadnego skryptu ani piksela Facebooka na stronach Kuking nie ma i nie
+  będzie.** Cała droga to przekierowanie po stronie serwera.
+- **Awaria Facebooka nie zamyka drzwi**: człowiek wraca na ekran logowania
+  ze zdaniem po polsku, a hasło i „Wyślij mi link do zalogowania" stoją tam,
+  gdzie stały.
+- **Tokenu Facebooka nigdzie nie zapisujemy** i po zalogowaniu nie wołamy
+  już żadnego API.
+
+### 8E.5 Jak to wyłączyć w minutę
+
+```bash
+KUKING_WEJSCIE_FACEBOOK=false   # + restart serwisu
+```
+
+Przycisk znika z ekranu logowania i rejestracji, trasy odsyłają na logowanie
+ze zdaniem po polsku, **powiązania w bazie zostają nietknięte**.
+
+**Wyłączaj to świadomiej niż Google.** Konto z Google ma adres potwierdzony,
+więc zostaje mu wiadomość z linkiem do zalogowania. Konto z Facebooka ma
+adres niepotwierdzony, dopóki człowiek nie kliknie w naszą wiadomość — dla
+części tych osób zostaje więc „Nie pamiętam hasła", czyli droga dłuższa.
+**Uprzedź je**, zanim wyłączysz.
+
+Drugi sposób (mocniejszy): wyczyść `FACEBOOK_CLIENT_ID`
+i `FACEBOOK_CLIENT_SECRET`. Wtedy ustaw też `KUKING_WEJSCIE_FACEBOOK=false`,
+żeby `/health` nie zgłaszał `degraded` — brak kluczy jest błędem tylko
+wtedy, gdy konfiguracja nadal obiecuje tę drogę.
+
+**Migracji do cofania NIE MA i nie cofaj jej dla wyłączenia funkcji** — ta
+sama zasada i ten sam bezpiecznik co przy Google w 8D.5.
+
+### 8E.6 Jedna rzecz, o której trzeba pamiętać co kwartał
+
+Wersje Graph API u Mety żyją „co najmniej dwa lata od wydania", a po
+wygaśnięciu wywołania **nie padają — spadają cicho na starszą wersję**.
+Czyli działa do dnia, w którym przestanie, i nikt nie wie którego. Numer da
+się podnieść **jedną zmienną, bez wdrożenia kodu**:
+
+```bash
+FACEBOOK_GRAPH_WERSJA=v26.0   # + restart serwisu
+```
+
+Pozycja „sprawdź, czy nasza wersja Graph API jeszcze żyje" stoi
+w **przeglądzie kwartalnym (KROK 15)**. Droga Google takiego obowiązku nie
+ma wcale — to jest cena tej drogi, nie przeoczenie.
 
 ---
 
@@ -1654,6 +1861,13 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 ### Co kwartał (2 h)
 
 - [ ] **Restore drill** (krok 13) — zapisz RTO i RPO
+- [ ] **Sprawdź, czy nasza wersja Graph API Facebooka jeszcze żyje** —
+      [Graph API Changelog](https://developers.facebook.com/docs/graph-api/changelog)
+      wobec `FACEBOOK_GRAPH_WERSJA` (pusto = `App\Support\Facebook::WERSJA_GRAFU_DOMYSLNA`).
+      **Ta pozycja nie jest ozdobna:** po wygaśnięciu wersji wywołania nie
+      padają, tylko cicho spadają na starszą — czyli działa do dnia, w którym
+      przestanie, i nikt nie wie którego. Podniesienie to jedna zmienna
+      i restart, bez wdrożenia kodu (krok 8E.6)
 - [ ] Przegląd Cache Rules i reguł WAF
 - [ ] Przegląd uprawnień: kto ma dostęp do GitHuba, Railway, Cloudflare
 - [ ] Test przywrócenia PITR do konkretnego znacznika czasu
@@ -1727,16 +1941,18 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 22 | `POSTHOG_KEY` | PostHog | 5 |
 | 23 | `RAILWAY_TOKEN_PRODUCTION` | Railway Project Tokens | 11.1 |
 | 24 | `RAILWAY_TOKEN_STAGING` | Railway Project Tokens | 11.1 |
+| 25 | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
+| 26 | `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Cały panel krok po kroku: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) §12 | 8E |
 
 ### Zmiany w kodzie aplikacji (przed pierwszym deployem)
 
 | # | Co | Gdzie | Krok |
 |---|---|---|---|
-| 25 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
-| 26 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
-| 27 | Dysk `r2` | `config/filesystems.php` | 1 |
-| 28 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
-| 29 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
+| 27 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
+| 28 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
+| 29 | Dysk `r2` | `config/filesystems.php` | 1 |
+| 30 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
+| 31 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
 
 ---
 

@@ -467,16 +467,44 @@ export default defineRailway((ctx) => {
     // przypięte do adresów powrotu, czyli różnią się między środowiskami.
     //
     // PUSTE = TEJ DROGI NIE MA i nic się nie psuje: przycisku nie ma na
-    // ekranie, hasło i link działają jak dziś. `/health` na razie o tym NIE
-    // POWIE — sygnał `google_bez_kluczy` jest zaplanowany (D-069), ale
-    // odłożony do PR-a, który przerabia `HealthController` (#253/#255).
-    // Do tego czasu sprawdzenie jest ręczne: czy na /login jest przycisk.
+    // ekranie, hasło i link działają jak dziś. Na produkcji `/health` oddaje
+    // wtedy `status: degraded` z powodem `google_bez_kluczy` — tak samo jak
+    // przy Turnstile wyżej, żeby nieistniejąca droga wejścia nie wyglądała
+    // jak zdrowe wdrożenie. Świadome wyłączenie: KUKING_WEJSCIE_GOOGLE=false
+    // (wtedy konfiguracja niczego nie obiecuje i sygnału nie ma).
     //
     // GOOGLE_CLIENT_ID nie jest sekretem (wchodzi do adresu przekierowania),
     // GOOGLE_CLIENT_SECRET jest — w panelu Railway zaznacz „Sealed".
     // Krok po kroku: docs/infra/DEPLOYMENT_RUNBOOK.md, krok 8D.
     GOOGLE_CLIENT_ID: ctx.shared.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET,
+
+    // --- Wejście kontem Facebooka (D-113, issue #259) -------------------------
+    // Trzecia droga wejścia, obok hasła, linku e-mail i Google. Oba klucze
+    // idą przez `ctx.shared`, bo powstają w panelu Meta i są przypięte do
+    // adresów powrotu, czyli różnią się między środowiskami.
+    //
+    // BEZ TYCH DWÓCH LINII KLUCZE NIE DOCHODZĄ DO APLIKACJI, choćby stały
+    // w Shared Variables — i to była realna luka do 12 września 2026
+    // (issue #259): właściciel wykonałby kilkanaście czynności w panelu
+    // Meta, a przycisku i tak by nie było, bez żadnej wskazówki dlaczego.
+    //
+    // PUSTE = TEJ DROGI NIE MA i nic się nie psuje. Tak zachowują się też
+    // WSZYSTKIE środowiska preview i to jest poprawne: Meta dopasowuje adres
+    // powrotu znak w znak i nie przyjmuje `*`, a adresy `*.up.railway.app`
+    // są losowe (FACEBOOK_LOGIN_URUCHOMIENIE.md §4.4). Na produkcji `/health`
+    // oddaje wtedy `status: degraded` z powodem `facebook_bez_kluczy`.
+    // Świadome wyłączenie: KUKING_WEJSCIE_FACEBOOK=false.
+    //
+    // FACEBOOK_CLIENT_ID to w panelu Meta **App ID** i nie jest sekretem
+    // (wchodzi do adresu przekierowania). FACEBOOK_CLIENT_SECRET to
+    // **App Secret** i JEST sekretem — w panelu Railway zaznacz „Sealed".
+    // Tym samym sekretem weryfikuje się podpis żądania usunięcia danych od
+    // Meta, więc jego wyciek to nie tylko cudze logowanie.
+    // Krok po kroku: docs/infra/DEPLOYMENT_RUNBOOK.md, krok 8E
+    // (panel Meta w całości: docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md).
+    FACEBOOK_CLIENT_ID: ctx.shared.FACEBOOK_CLIENT_ID,
+    FACEBOOK_CLIENT_SECRET: ctx.shared.FACEBOOK_CLIENT_SECRET,
 
     // --- Runtime kontenera ----------------------------------------------------
     // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
