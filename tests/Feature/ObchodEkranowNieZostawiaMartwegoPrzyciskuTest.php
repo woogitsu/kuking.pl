@@ -93,14 +93,14 @@ class ObchodEkranowNieZostawiaMartwegoPrzyciskuTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    //  Kontrola dodatnia PRZYRZĄDU — sześć rodzajów na jednym ekranie
+    //  Kontrola dodatnia PRZYRZĄDU — osiem usterek na jednym ekranie
     // ------------------------------------------------------------------
 
     /**
      * OBCHÓD, KTÓRY NICZEGO NIE ZNAJDUJE, WYGLĄDA TAK SAMO JAK OBCHÓD,
      * KTÓRY NIE DZIAŁA (docs/PULAPKI_TESTOW.md, pułapki 2 i 4).
      *
-     * Osiem metod wyżej kończy się zdaniem „nie znalazłem nic" i to jest
+     * Osiem obchodów w tym pliku kończy się zdaniem „nie znalazłem nic", i to jest
      * dobra wiadomość wyłącznie wtedy, gdy przyrząd naprawdę umie coś
      * znaleźć. Ten test stawia ekran ZEPSUTY NA OSIEM SPOSOBÓW i wymaga,
      * żeby każdy z nich został zameldowany — z nazwą ekranu, na którym stoi.
