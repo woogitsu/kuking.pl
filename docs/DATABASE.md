@@ -18,6 +18,11 @@ Konto:
 - email;
 - password;
 - status;
+- `role varchar(20) NOT NULL DEFAULT 'user'` — `user` \| `moderator` \|
+  `admin`. **Bez CHECK-a w bazie**: wartości pilnuje `App\Models\User`
+  (stałe `ROLE_*`) i jedyna droga nadania roli, komenda `kuking:nadaj-role`,
+  która zapisuje zmianę do `audit_log` (`user.role_changed`, D-039).
+  **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
 - `data_erased_at` — kiedy karencja się WYKONAŁA, dane zostały zanonimizowane
@@ -744,11 +749,32 @@ odmowa przy powiązanych kontach ORAZ przejście na świeżym środowisku, bo
 migracja, która nie cofa się nigdy, jest równie zła).
 
 ### profiles
-- user_id;
-- username;
-- display_name;
-- bio;
-- avatar.
+Wszystko, co człowiek pokazuje o sobie. `user_id` jest kluczem głównym —
+jedno konto ma dokładnie jeden profil.
+
+- `username varchar(40) NOT NULL` — nazwa w adresie `/@nazwa`. CHECK
+  `^[a-zA-Z0-9_]{3,40}$`, unikalność bez rozróżniania wielkości liter
+  (patrz niżej);
+- **`display_name varchar(100) NOT NULL`** — „Jak mamy Cię nazywać?".
+  **Wolny tekst**, pokazywany dosłownie. Nigdy nie doklejamy do niego
+  przyimka ani słowa niosącego przypadek (D-153): „przez Krzysztof" jest
+  formą błędną, a odmiany dowolnego ciągu znaków policzyć się nie da;
+- **`bio varchar(500) NULL`** — „Kilka słów o sobie". Wolny tekst;
+- `avatar_media_id uuid NULL` → `media` (`ON DELETE SET NULL`);
+- **`region varchar(80) NULL`** — „Skąd jesteś", czyli REGION, nie adres
+  (podpowiedź „Podkarpacie", pomoc mówi wprost: „Nie podawaj dokładnego
+  adresu"). To jest wolny tekst, więc ludzie wpiszą tu, co zechcą — pole nie
+  jest słownikiem województw i nie nadaje się do filtrowania ani do liczenia
+  statystyk „skąd są nasi ludzie";
+- **`speciality varchar(120) NULL`** — „Na czym się znasz" („zupy i
+  kiszonki"). Wolny tekst, ten sam zastrzeżony status co przy `region`:
+  nie jest tagiem ani kategorią;
+- `display_name_search`, `username_search`, `speciality_search` — patrz
+  „Kolumny `*_search`".
+
+Wszystkie cztery pola opisowe (`display_name`, `bio`, `region`,
+`speciality`) idą do anonimizacji przy wykonaniu żądania z art. 17 RODO —
+patrz `data_erased_at` wyżej.
 
 **Nazwy zastrzeżone** (`admin`, `moderacja`, `pomoc`, `platnosci`…) są
 pilnowane w warstwie aplikacji: lista mieszka w `config/kuking.php`
@@ -1023,9 +1049,13 @@ pod blokadą wierszy.
 ### media
 Tylko metadata, nie binary:
 - owner;
-- disk (ORYGINAŁ — patrz niżej);
-- variants_disk (PUBLICZNE WARIANTY — patrz niżej);
-- object key;
+- `disk` (ORYGINAŁ — patrz niżej);
+- `variants_disk` (PUBLICZNE WARIANTY — patrz niżej);
+- **`media.object_key varchar(700) UNIQUE`** — ścieżka pliku w buckecie.
+  **Generujemy ją sami**; nazwa pliku od człowieka nigdy do niej nie trafia
+  (`StoreUploadedImage`) — to zamyka drogę do path traversal i do plików
+  udających skrypty. `UNIQUE`, bo dwa wiersze wskazujące ten sam obiekt
+  znaczyłyby, że skasowanie jednego zdjęcia zabiera plik drugiemu;
 - MIME;
 - bytes;
 - width/height;
@@ -1329,6 +1359,19 @@ To zdjęcie bywa skanem odręcznej kartki z nazwiskami, więc dostęp do niego
 idzie tą samą drogą co do każdego innego zdjęcia przepisu
 (`App\Domain\Media\DostepDoZdjecia`).
 
+### recipe_slug_redirects
+Stary adres przepisu nadal działa po zmianie tytułu — link wysłany córce
+SMS-em nie może umrzeć, bo autor poprawił literówkę
+(`docs/seo/SEO_TECHNICAL.md`).
+
+- **`recipe_slug_redirects.slug varchar(220) PRIMARY KEY`** — porzucony slug.
+  Klucz główny jest tu SAMYM SLUGIEM, nie osobnym `id`: wiersz jest
+  odwzorowaniem „adres → przepis" i pytamy o niego wyłącznie po adresie,
+  a PK na sluggu z urzędu zabrania dwóch przepisów pod jednym starym adresem;
+- `recipe_id uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) — dokąd
+  przekierować;
+- `created_at`.
+
 ### recipe_versions
 Snapshot po istotnych zmianach.
 
@@ -1370,6 +1413,12 @@ człowiek przy przepisie:
 
 ### recipe_ingredients
 Musi mieć `ingredient_text`, nawet jeśli normalizacja nie rozpozna składnika.
+
+**`recipe_ingredients.note varchar(300) NULL`** — dopisek przy JEDNYM
+składniku („najlepiej wiejskie", „albo margaryna"), **wolny tekst od
+człowieka**. Coś innego niż `ingredient_text`, który jest samym składnikiem
+w postaci wpisanej przez autora: dopisek da się pominąć przy liście zakupów,
+składnika nie. `NULL` jest stanem normalnym.
 
 **`no_amount boolean NOT NULL DEFAULT false`** (migracja
 `2026_09_06_130000_add_no_amount_to_recipe_ingredients`, issue #44) —
@@ -1623,8 +1672,38 @@ Komentarz dotyczy dokładnie jednego:
 - recipe;
 - cooked event.
 
+Pilnuje tego CHECK `comments_single_target_check`:
+`num_nonnulls(post_id, recipe_id, cooked_event_id) = 1`.
+
+**`comments.body varchar(4000) NOT NULL`** — treść komentarza, **wolny tekst
+od człowieka**, zapisywana dosłownie. 4000 znaków to nie jest limit
+„dla porządku": pod przepisem pisze się przepis po swojemu, a ucięcie
+takiego komentarza w połowie zdania byłoby zabraniem komuś głosu bez
+uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
+`NULL` znaczy „komentarz pierwszego poziomu". Kasowanie jest miękkie
+(`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
+decyzję moderacji osobno od skasowania przez autora.
+
 ### collections + collection_items
 Osobisty zeszyt.
+
+- **`collections.name varchar(120) NOT NULL`** — nazwa zeszytu nadana przez
+  właściciela, **wolny tekst**. Unikalna w obrębie JEDNEGO konta i bez
+  rozróżniania wielkości liter — szczegóły i powód niżej, przy indeksie
+  `collections_owner_name_lower_unique`;
+- **`collections.description varchar(500) NULL`** — zdanie o tym, co właściciel
+  w tym zeszycie zbiera. `NULL` jest stanem normalnym;
+- `visibility varchar(20) NOT NULL DEFAULT 'private'` (CHECK: `public` \|
+  `private`) — **domyślnie prywatny**, bo zeszyt jest notatnikiem, a nie
+  publikacją;
+- `is_default boolean NOT NULL DEFAULT false` — zeszyt zakładany kontu
+  automatycznie, ten, do którego trafia „Zapisz" bez wyboru;
+- **`collection_items.note varchar(500) NULL`** — miejsce na dopisek
+  właściciela przy zapisanej rzeczy („na urodziny taty"). **Dziś nic go nie
+  zapisuje ani nie pokazuje**: kolumna jest w migracji, a `CollectionItem`,
+  `CollectionController` i widoki zeszytu jej nie dotykają. Każdy wiersz ma
+  `NULL`. Zostaje, bo jest pusta i nic nie kosztuje — ale nie wolno na niej
+  niczego opierać.
 
 **`collection_items` NIE MA DZIŚ KLUCZA GŁÓWNEGO** i to jest stan zamierzony.
 Migracja zakładająca tabelę (`2026_09_05_000800_create_collections_tables`)
@@ -3248,6 +3327,21 @@ Sprawdza to `KolumnySzukaniaTest::test_cofniecie_migracji_odtwarza_indeksy_na_wy
 Wybór redakcyjny na tablicę „kuKINGi na dziś". Świadomie bez kolumny
 z punktami, liczbą polubień ani wynikiem — to nie jest tabela rankingowa
 (patrz `../AGENTS.md` §8).
+
+- `shown_on date NOT NULL` — DZIEŃ, na który wskazanie obowiązuje, a nie
+  data wpisania. Wybór na jutro da się przygotować dziś;
+- `daily_picks.subject_type varchar(20) NOT NULL` (CHECK: `user` \| `post`)
+  + `subject_id uuid NOT NULL` — para „typ + identyfikator" bez klucza obcego,
+  bo tablica pokazuje dwie różne rzeczy: konto i wpis (`DailyPick::TYPE_USER`,
+  `TYPE_POST`);
+- `position smallint NOT NULL DEFAULT 0` (CHECK `>= 0`) — kolejność na
+  tablicy, ustawiana ręcznie przez gospodarza;
+- `curator_id uuid NULL` → `users` (`ON DELETE SET NULL`) — kto wskazał;
+- `daily_picks.note varchar(300) NULL` — miejsce na zdanie gospodarza przy
+  wskazaniu. **Dziś nic tej kolumny nie czyta**: jest w `$fillable` modelu
+  `DailyPick` i na tym koniec, a `DailyBoard` jej nie pobiera. Nie opieraj na
+  niej niczego, dopóki tablica nie zacznie jej pokazywać;
+- `created_at`.
 
 ## `hero_picks`
 
