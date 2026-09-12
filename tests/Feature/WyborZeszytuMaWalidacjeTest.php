@@ -57,7 +57,11 @@ class WyborZeszytuMaWalidacjeTest extends TestCase
                 'collection_id' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
             ]);
 
-        $html = $this->get('/home')->assertOk()->getContent();
+        // Klient testowy nie przenosi Set-Cookie automatycznie jak przeglądarka.
+        // Zachowujemy rzeczywistą sesję odpowiedzi POST, bez wstrzykiwania błędów.
+        $sessionId = session()->getId();
+        $html = $this->withCookie((string) config('session.cookie'), $sessionId)
+            ->get('/home')->assertOk()->getContent();
         preg_match('~<p id="blad-wyboru-zeszytu"[^>]*>(.*?)</p>~s', $html, $notice);
         $this->assertNotEmpty($notice, 'Po powrocie na stronę główną błąd musi być widoczny.');
         $this->assertSame(
