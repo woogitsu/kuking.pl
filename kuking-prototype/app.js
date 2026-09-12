@@ -31,6 +31,10 @@ document.addEventListener('click', (event) => {
     , reply: 'Odpowiedź pojawi się pod tym komentarzem.'
     , 'profile-more': 'Tutaj znajdziesz opcje zgłoszenia lub zablokowania użytkownika.'
     , 'rename-folder': 'Tutaj zmienisz nazwę folderu.'
+    , 'change-password': 'Wyślemy bezpieczny link do zmiany hasła na Twój adres e-mail.'
+    , 'enable-2fa': 'Rozpoczynam konfigurację weryfikacji dwuetapowej.'
+    , 'export-data': 'Rozpoczęliśmy przygotowywanie kopii Twoich danych.'
+    , 'delete-account': 'Przed usunięciem pokażemy osobny ekran potwierdzenia i zakres danych.'
   };
 
   if (action === 'save') {
@@ -108,6 +112,14 @@ document.querySelectorAll('[data-action^="share-"]:not([data-action="share-close
     const messages = { 'share-copy': 'Adres przepisu został skopiowany.', 'share-whatsapp': 'Otwieram WhatsApp.', 'share-email': 'Otwieram nową wiadomość e-mail.', 'share-facebook': 'Otwieram okno udostępniania na Facebooku.' };
     showToast(messages[button.dataset.action]);
     shareDialog.close();
+  });
+});
+
+document.querySelectorAll('[data-account-tab]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const name = button.dataset.accountTab;
+    document.querySelectorAll('[data-account-tab]').forEach((item) => item.classList.toggle('is-active', item === button));
+    document.querySelectorAll('[data-account-panel]').forEach((panel) => { panel.hidden = panel.dataset.accountPanel !== name; });
   });
 });
 
