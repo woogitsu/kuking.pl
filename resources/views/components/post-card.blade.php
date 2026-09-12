@@ -63,9 +63,27 @@
                      nagłówek i pusto. Data prowadzi więc tam, gdzie jest danie
                      (#447). Kanoniczny adres wpisu zostaje `url()` i idzie do
                      udostępniania. --}}
-                <a href="{{ $post->adresTresci() }}" class="link-jak-tekst">
-                    <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($post->published_at) }}</time>
-                </a>
+                {{-- SZKIC NIE MA DATY PUBLIKACJI — I NIE MA PRAWA MIEĆ TU
+                     ODNOŚNIKA BEZ NAPISU (D-053).
+
+                     `published_at` szkicu jest `null`, a `Czas::dataWpisu(null)`
+                     zwraca pusty łańcuch. Do tej poprawki karta renderowała
+                     wtedy `<a href="…"><time datetime=""></time></a>` — odnośnik
+                     z zerową treścią: oko widzi w tym wierszu dziurę, a czytnik
+                     ekranu ogłasza „odnośnik" i nie umie powiedzieć, dokąd.
+                     Zmierzone przez `ObchodEkranowNieZostawiaMartwegoPrzyciskuTest`
+                     na własnym szkicu autora (`/wpisy/{szkic}`).
+
+                     Zamiast pustego przycisku stoi tu zdanie, które mówi, co to
+                     jest — bo to jedyna informacja, jakiej człowiek w tym
+                     miejscu potrzebuje: ten wpis jeszcze nie wyszedł. --}}
+                @if($post->published_at === null)
+                    <span class="badge">Szkic — jeszcze nieopublikowany</span>
+                @else
+                    <a href="{{ $post->adresTresci() }}" class="link-jak-tekst">
+                        <time datetime="{{ $post->published_at->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($post->published_at) }}</time>
+                    </a>
+                @endif
                 {{-- Widoczność przy dacie, tak jak w kicie (ekran 01: „2 godz.
                      temu · publicznie"). Także dla wpisu publicznego: autor ma
                      wiedzieć jednym spojrzeniem, kto to widzi, a nie dopiero

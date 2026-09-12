@@ -41,6 +41,15 @@ use Tests\TestCase;
  * ASERCJA NA LICZBĘ ZNALEZIONYCH ODNOŚNIKÓW (pułapka 2)
  * Bez niej ten test przechodzi także wtedy, gdy wyrażenie przestaje cokolwiek
  * łapać — a wtedy zero odnośników jest dla niego sukcesem.
+ *
+ * GDZIE SZUKAĆ SZEROKIEGO OBCHODU — I DLACZEGO TEN PLIK ZOSTAJE
+ * Ten test pilnuje PIĘCIU ekranów gościa i ŹRÓDEŁ MARKDOWN dokumentów
+ * prawnych, czyli jedynego miejsca w serwisie, gdzie adres wpisuje się z ręki.
+ * Całą resztę — 144 ekrany w ośmiu przebiegach, sześć rodzajów martwego
+ * przycisku, stany puste, ekrany błędu i ekrany procesu — obchodzi
+ * `ObchodEkranowNieZostawiaMartwegoPrzyciskuTest`. Zanim dopiszesz tu kolejny
+ * ekran, sprawdź, czy nie należy on tam: drugi skan tego samego to drugie
+ * miejsce do poprawienia przy zmianie układu.
  */
 class OdnosnikiNaEkranachProwadzaDoIstniejacychStronTest extends TestCase
 {
