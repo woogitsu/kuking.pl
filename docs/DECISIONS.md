@@ -14186,3 +14186,131 @@ sygnałów wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
 📄 `AGENTS.md` · `CLAUDE.md` · `docs/brand/GLOS_MARKI.md` ·
 `resources/views/pages/landing.blade.php` · D-187
+
+---
+
+## D-195 · Trasy z identyfikatorem sprawdzamy żądaniem, również poza wiązaniem modelu
+
+**Data:** 12 września 2026 · PR #471 · Status: **obowiązuje**
+
+### Decyzja
+
+Skan sygnatur kontrolerów nie obejmuje wszystkich sposobów wczytania obiektu. Obchód musi uwzględniać gościa, właściciela, obcą osobę i blokadę oraz jawnie rozliczać każdą nową trasę z parametrem. Podpisane adresy i prywatne pliki wymagają osobnych przypadków. Wyniki pomiarów są w opisie PR; ten wpis ich nie przedstawia jako ponownego pomiaru.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #471; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/KazdaTrasaZIdentyfikatoremPodPolicyTest.php`
+
+---
+
+## D-196 · Koszt zapytań mierzymy przy rosnącej liczbie rzeczy na ekranie
+
+**Data:** 12 września 2026 · PR #474 · Status: **obowiązuje**
+
+### Decyzja
+
+Doładowanie relacji ma obejmować ścieżkę rzeczywiście czytaną przez komponent, również gdy komponent zaczyna od innego modelu. Sprawdzamy wzrost zapytań wraz z liczbą wyników, a kontrola dodatnia potwierdza obecność treści. Sam płaski wynik dla pustej strony nie jest dowodem.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #474; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/WynikiSzukaniaLudziBezWachlarzaZapytanTest.php`
+
+---
+
+## D-197 · Komunikat walidacji mierzymy przez wywołanie błędu
+
+**Data:** 12 września 2026 · PR #475 · Status: **obowiązuje**
+
+### Decyzja
+
+Komunikat nazywa pole tak jak ekran i mówi, co zrobić. Podsumowanie prowadzi do istniejącego pola, pole wskazuje swój błąd, a poprawne wartości zostają. Test wyzwala walidację żądaniem HTTP; samo znalezienie tekstu w pliku językowym nie wystarcza.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #475; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/BledyMowiaCoZrobicTest.php`
+
+---
+
+## D-198 · Brak skryptów sprawdzamy na rzeczywistych drogach użytkownika
+
+**Data:** 12 września 2026 · PR #476 · Status: **obowiązuje**
+
+### Decyzja
+
+Obowiązuje D-053: formularze chronione przez Turnstile mogą wymagać JavaScriptu. Brak skryptu ma dawać konkretną instrukcję, a nie martwą kontrolkę. Sprawdzenie drogi bez skryptów nie oznacza wyłączenia ochrony ani powrotu do dawnego obowiązku działania każdego formularza bez JavaScriptu.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #476; opisuje pracę już obecną na `main`.
+
+📄 `AGENTS.md`
+
+---
+
+## D-199 · Wycofanie migracji nie może wymazać znaczenia ustawienia
+
+**Data:** 12 września 2026 · PR #477 · Status: **obowiązuje**
+
+### Decyzja
+
+Obchód migracji obejmuje wycofanie i ponowne zastosowanie. Przy danych, których znaczenia nie da się odtworzyć, wycofanie odmawia wąsko i z instrukcją. Przypadek domyślny ma nadal przechodzić. To rozwinięcie D-088, nie zgoda na bezwarunkowe blokowanie rollbacku.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #477; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/KazdaMigracjaMaWycofanieTest.php`
+
+---
+
+## D-200 · Duży tekst dostaje szerokość zamiast mniejszej czcionki
+
+**Data:** 12 września 2026 · PR #479 · Status: **obowiązuje**
+
+### Decyzja
+
+Kafel dodawania przy dużym tekście oddaje opisowi osobny wiersz, ogranicza wzrost wcięć i chowa ozdobną ikonę. Tytuł i podpis zostają. Pomiar wysokości należy do przeglądarki; test kształtu reguły CSS nie zastępuje pomiaru. Osobny problem rozmiaru podpisu pozostaje zgłoszony w issue #478.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #479; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/KafelDodawaniaPrzyDuzymTekscieTest.php`
+
+---
+
+## D-201 · Dokumentację tabel porównujemy ze schematem w obie strony
+
+**Data:** 12 września 2026 · PR #480 · Status: **obowiązuje**
+
+### Decyzja
+
+Strażnik wykrywa zarówno tabelę pominiętą w opisie, jak i opis tabeli nieistniejącej. Dokument historycznego schematu nie może być nazywany pełnym aktualnym DDL. Liczba sprawdzonych pozycji jest częścią kontroli, bo pusty odczyt nie dowodzi zgodności.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #480; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/SchematBazyTrzymaSieDokumentuTest.php`
+
+---
+
+## D-202 · Obchód odnośników obejmuje stany i drogi bez wejścia z menu
+
+**Data:** 12 września 2026 · PR #481 · Status: **obowiązuje**
+
+### Decyzja
+
+Pomiar obejmuje także szkice, puste stany, moderację, błędy i podpisane adresy. Odnośnik musi mieć nazwę, formularz cel, a przycisk obsługę. Kontrola ujemna sprawdza również sam przyrząd. Szkic pokazuje tekst zamiast pustego odnośnika daty; pytanie o opis przyszłej widoczności jest osobną sprawą.
+
+### Stan zapisu
+
+Uzupełnienie dziennika po scaleniu PR #481; opisuje pracę już obecną na `main`.
+
+📄 `tests/Feature/ObchodEkranowNieZostawiaMartwegoPrzyciskuTest.php`
