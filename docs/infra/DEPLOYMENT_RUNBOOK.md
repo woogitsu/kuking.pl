@@ -349,6 +349,32 @@ Dodaj też **DMARC** (nie każdy dostawca o to poprosi, ale bez tego trafisz do 
 
 ### 3.2 Dane dostępowe `[POTRZEBNE OD WŁAŚCICIELA — zapisz]`
 
+> ### ⛔ NA PLANIE HOBBY SMTP NIE DZIAŁA — i nie zgłasza tego błędem
+>
+> **Railway blokuje ruch SMTP na planach Free, Trial i Hobby** — czyli na
+> planie, który ten runbook zaleca w KROKU 0.2. Awaria jest **cicha**: zadanie
+> wisi w `RUNNING` bez końca, w logach zero błędu, rejestracja się udaje,
+> a list nie dochodzi nigdzie. To nie jest hipoteza — to opis 9 września
+> 2026 (**D-116**).
+>
+> Poniżej stoi najpierw wariant, który **działa**. Zmienne SMTP są uśpione
+> w `railway.ts` jako droga na plan Pro.
+
+**Wariant domyślny — EmailLabs przez API HTTPS (działa na Hobby):**
+
+```text
+MAIL_MAILER            = emaillabs
+EMAILLABS_APP_KEY      = ................
+EMAILLABS_SECRET_KEY   = ................       ← sekret
+EMAILLABS_SMTP_ACCOUNT = ................
+```
+
+Pełna instrukcja zakładania konta i weryfikacji domeny:
+`POCZTA_URUCHOMIENIE.md` §2A.
+
+<details>
+<summary><strong>Wariant SMTP — dopiero po przejściu na plan Pro</strong></summary>
+
 Przy dostawcy po SMTP (Brevo, EmailLabs, Mailgun — sterownik `smtp` jest już
 skonfigurowany, zero zmian w kodzie):
 
@@ -359,8 +385,13 @@ MAIL_USERNAME  = ................
 MAIL_PASSWORD  = ................       ← sekret
 ```
 
-Przy dostawcy po API (Postmark, Resend, SES) zmienne są inne, a `railway.ts`
-wymaga zmiany `MAIL_MAILER` — komplet w `POCZTA_URUCHOMIENIE.md` §2.
+**Na Free, Trial i Hobby te zmienne nie zadziałają** — pakiety idą w próżnię.
+
+</details>
+
+Przy innym dostawcy po API (Postmark, Resend, SES) zmienne są inne, a
+`railway.ts` wymaga zmiany `MAIL_MAILER` — komplet w
+`POCZTA_URUCHOMIENIE.md` §2.
 
 **Sprawdź, że działa:** w panelu dostawcy poczekaj na status „Verified"
 przy domenie, a po pierwszym deployu wyślij prawdziwą wiadomość:
@@ -504,10 +535,14 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `R2_BUCKET` | `kuking-media` | nie | Nazwa bucketa |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2 |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
-| `MAIL_HOST` | np. `smtp.emaillabs.net.pl` (EmailLabs) | nie | Serwer SMTP |
-| `MAIL_PORT` | `587` | nie | Port SMTP (STARTTLS) |
-| `MAIL_USERNAME` | z kroku 3.2 | nie | Login SMTP |
-| `MAIL_PASSWORD` | z kroku 3.2 | **TAK** | Hasło / klucz API SMTP |
+| `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116). `smtp` dopiero na planie Pro. |
+| `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs (API HTTPS) |
+| `EMAILLABS_SECRET_KEY` | z kroku 3.2 | **TAK** | Secret Key EmailLabs |
+| `EMAILLABS_SMTP_ACCOUNT` | z kroku 3.2 | nie | Nazwa konta nadawczego w EmailLabs |
+| ~~`MAIL_HOST`~~ | — | — | **NIE USTAWIAJ na Hobby.** Railway blokuje SMTP na Free, Trial i Hobby, a awaria jest cicha (D-116). Droga na plan Pro. |
+| ~~`MAIL_PORT`~~ | — | — | jw. |
+| ~~`MAIL_USERNAME`~~ | — | — | jw. |
+| ~~`MAIL_PASSWORD`~~ | — | — | jw. |
 | `SENTRY_LARAVEL_DSN` | z kroku 4 | nie | DSN projektu Sentry |
 | `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
 | `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
@@ -625,7 +660,7 @@ na zawsze w stanie `PENDING`**, a kary czasowe nigdy nie wygasają.
 > | zmienna | skutek | kiedy zmienić |
 > |---|---|---|
 > | `FILESYSTEM_DISK=local` | zdjęcia **znikają przy każdym redeployu** | gdy będzie bucket R2 → `r2` |
-> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `smtp`, `postmark`, `resend` albo `ses` |
+> | `MAIL_MAILER=log` | **nikt nie dostanie ani linku aktywacyjnego, ani linku do zmiany hasła** — a wysyłka zgłasza sukces | gdy będzie dostawca → `emaillabs` (jedyny działający na Hobby, D-116). `smtp` dopiero na planie Pro; `postmark`, `resend`, `ses` wymagają zmian w `railway.ts` |
 >
 > Obie są w porządku na pierwszy zielony deploy i **nie do przyjęcia**, gdy
 > wpuszczasz prawdziwych ludzi.
@@ -1686,7 +1721,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token | 2.2 |
 | 17 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (staging) | R2 API token | 2.2 |
 | 18 | `R2_ENDPOINT` (zawiera Account ID) | panel R2 | 2.2 |
-| 19 | `MAIL_USERNAME` + `MAIL_PASSWORD` | dostawca poczty | 3.2 |
+| 19 | `EMAILLABS_APP_KEY` + `EMAILLABS_SECRET_KEY` + `EMAILLABS_SMTP_ACCOUNT` | EmailLabs (API HTTPS — jedyny wariant działający na planie **Hobby**, D-116; `MAIL_USERNAME`/`MAIL_PASSWORD` dopiero na Pro) | 3.2 |
 | 20 | `SENTRY_LARAVEL_DSN` | Sentry | 4 |
 | 21 | `SENTRY_AUTH_TOKEN` | Sentry, zakres `project:releases` | 4 |
 | 22 | `POSTHOG_KEY` | PostHog | 5 |
