@@ -250,9 +250,24 @@ class CollectionController extends Controller
             'visibility' => ['required', 'in:public,private'],
         ], [
             'name.required' => 'Podaj nazwę zeszytu — na przykład „Na święta”.',
+            'name.min' => 'Nazwa zeszytu musi mieć co najmniej 2 znaki. Dopisz kilka liter.',
+            // Bez tego wypadał szablon ogólny: „Pole «nazwa zeszytu» jest za
+            // długie — może mieć najwyżej 120 znaków." Mówił, co jest źle,
+            // ale nie mówił, co zrobić.
+            'name.max' => 'Ta nazwa jest za długa. Zmieść się w 120 znakach — wystarczy krótka nazwa, na przykład „Na święta”.',
+            'description.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
             // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — dwie opcje z ekranu, wprost.
             'visibility.in' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
+            /*
+             * `required` BEZ WŁASNEGO ZDANIA wypadał jako szablon ogólny:
+             * „Pole «widoczność» jest wymagane. Uzupełnij je, żeby wysłać
+             * formularz." Na ekranie nie ma niczego o nazwie „widoczność" —
+             * jest pytanie „Kto ma widzieć ten zeszyt?" i dwa przyciski
+             * wyboru. Dla człowieka brak zaznaczenia i zaznaczenie czegoś
+             * spoza listy to ta sama sytuacja, więc zdanie jest to samo.
+             */
+            'visibility.required' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
         ]);
 
         try {

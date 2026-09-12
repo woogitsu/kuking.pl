@@ -148,6 +148,12 @@ class RegisterController extends Controller
             Turnstile::POLE => TurnstileJestPotwierdzony::reguly('rejestracja'),
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
+            // Bez tych dwóch wypadał szablon ogólny („Pole «imię, którym mamy
+            // Cię nazywać» jest za krótkie — potrzeba co najmniej 2 znaki"),
+            // który nazywał pole inaczej niż etykieta na ekranie („Jak mamy
+            // Cię nazywać?") i nie mówił, co zrobić.
+            'display_name.min' => 'To imię jest za krótkie. Wpisz co najmniej dwie litery — na przykład „Basia”.',
+            'display_name.max' => 'To imię jest za długie. Zmieść się w 100 znakach.',
             /*
              * KOMUNIKATY PO NORMALIZACJI, WIĘC MÓWIĄ O CZYMŚ INNYM NIŻ WCZEŚNIEJ.
              *

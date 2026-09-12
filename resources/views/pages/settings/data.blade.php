@@ -195,9 +195,14 @@
                 </p>
 
                 <label class="choice mt-4" for="f-confirm">
-                    <input id="f-confirm" type="checkbox" name="confirm" value="1">
+                    <input id="f-confirm" type="checkbox" name="confirm" value="1"
+                           @error('confirm') aria-invalid="true" aria-describedby="f-confirm-error" @enderror>
                     <span class="choice-label">Rozumiem, że po {{ $graceDays }} dniach moje dane i wszystkie moje zdjęcia zostaną usunięte na stałe i że tego nie da się cofnąć</span>
                 </label>
+                {{-- Bez tego błąd „Zaznacz, że rozumiesz, co się stanie" stał
+                     WYŁĄCZNIE w podsumowaniu na górze formularza — przy samym
+                     haczyku nie było go wcale. --}}
+                <x-blad-grupy name="confirm" />
 
                 <button class="btn btn-danger mt-5" type="submit">Usuń moje konto</button>
             </form>

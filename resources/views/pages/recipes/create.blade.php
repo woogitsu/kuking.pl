@@ -104,7 +104,10 @@
              została, ale na ekranie „Dopisz szczegóły": przy pierwszej
              publikacji rozstrzyga się „pokazać czy schować", a nie komu
              dokładnie. --}}
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-visibility"
+                  @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
             <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
             <div class="choice-grid">
                 <label class="choice">
@@ -116,7 +119,7 @@
                     <span><span class="choice-label">Tylko ja</span><span class="choice-help">Twój prywatny zeszyt. Zmienisz to, kiedy zechcesz.</span></span>
                 </label>
             </div>
-            @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="visibility" />
         </fieldset>
 
         {{-- 6. OPUBLIKUJ. Jeden przycisk, bo jedna decyzja.

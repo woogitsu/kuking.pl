@@ -97,9 +97,28 @@ class PasswordResetController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', PasswordRule::min(10)->uncompromised()],
         ], [
-            'password.confirmed' => 'Oba hasła muszą być takie same.',
-            'password.min' => 'Hasło musi mieć co najmniej 10 znaków.',
-            'password.uncompromised' => 'To hasło pojawiło się w wyciekach danych. Wybierz inne.',
+            /*
+             * TRZY PIERWSZE KOMUNIKATY DOPISANE PRZY PRZEGLĄDZIE KOMUNIKATÓW.
+             *
+             * Wcześniej `token`, `email` i `password` nie miały tu własnego
+             * zdania, więc wypadał szablon ogólny z `lang/pl/validation.php`:
+             * „Pole «link do ustawienia hasła» jest wymagane. Uzupełnij je,
+             * żeby wysłać formularz." — zmierzone prawdziwym żądaniem, nie
+             * odczytane z pliku.
+             *
+             * Przy `token` było to wręcz mylące: tego pola NIE MA na ekranie
+             * (jest ukryte, wartość przychodzi z odnośnika w liście), więc
+             * człowiek dostawał polecenie uzupełnienia czegoś, czego nie
+             * widzi. Prawdziwa przyczyna to obcięty albo zużyty odnośnik —
+             * i o tym mówi nowe zdanie.
+             */
+            'token.required' => 'Ten odnośnik jest niepełny — mógł się obciąć przy kopiowaniu z listu. Otwórz go w liście jeszcze raz albo poproś o nowy na stronie „Nie pamiętam hasła”.',
+            'email.required' => 'Wpisz adres e-mail, na który założone jest konto.',
+            'email.email' => 'Ten adres wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
+            'password.required' => 'Wpisz nowe hasło w polu „Nowe hasło”.',
+            'password.confirmed' => 'Oba hasła muszą być takie same. Wpisz jeszcze raz to samo w obu polach.',
+            'password.min' => 'Hasło musi mieć co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu.',
+            'password.uncompromised' => 'To hasło pojawiło się już w wyciekach danych z innych serwisów. Wybierz inne.',
         ]);
 
         // Ten sam powód co przy wysyłce linku: token jest przypisany do adresu

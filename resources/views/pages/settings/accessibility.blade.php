@@ -23,7 +23,10 @@
     <form class="panel-formularza" method="POST" action="{{ route('settings.accessibility') }}">
         @csrf @method('PUT')
 
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-text_scale"
+                  @error('text_scale') tabindex="-1" aria-invalid="true" aria-describedby="f-text_scale-error" @enderror>
             <legend class="font-bold mb-3">Rozmiar tekstu</legend>
             <div class="stack-tight">
                 @foreach($scales as $scale)
@@ -42,7 +45,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('text_scale')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="text_scale" />
         </fieldset>
 
         <div class="form-actions">
@@ -73,7 +76,10 @@
 
     <form class="panel-formularza" method="POST" action="{{ route('theme.update') }}">
         @csrf
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-theme"
+                  @error('theme') tabindex="-1" aria-invalid="true" aria-describedby="f-theme-error" @enderror>
             <legend class="font-bold mb-3">Wygląd</legend>
             <div class="stack-tight">
                 @foreach($themeOptions as $option)
@@ -85,7 +91,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('theme')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="theme" />
         </fieldset>
 
         <div class="form-actions">

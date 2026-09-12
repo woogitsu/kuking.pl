@@ -73,7 +73,10 @@
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-would_make_again"
+                  @error('would_make_again') tabindex="-1" aria-invalid="true" aria-describedby="f-would_make_again-error" @enderror>
             <legend class="font-bold mb-3">Zrobisz to jeszcze raz?</legend>
             <div class="choice-grid">
                 <label class="choice">
@@ -85,9 +88,13 @@
                     <span class="choice-label">Raczej nie powtórzę</span>
                 </label>
             </div>
+            <x-blad-grupy name="would_make_again" />
         </fieldset>
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-perceived_difficulty"
+                  @error('perceived_difficulty') tabindex="-1" aria-invalid="true" aria-describedby="f-perceived_difficulty-error" @enderror>
             <legend class="font-bold mb-3">Jak trudne to było dla Ciebie?</legend>
             <div class="choice-grid">
                 @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
@@ -97,6 +104,7 @@
                     </label>
                 @endforeach
             </div>
+            <x-blad-grupy name="perceived_difficulty" />
         </fieldset>
 
         <div class="form-actions">
