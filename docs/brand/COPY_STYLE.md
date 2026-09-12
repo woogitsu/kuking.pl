@@ -410,12 +410,12 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 | Miejsce | Tekst |
 |---|---|
 | przycisk na przepisie | Ugotowałem |
-| nagłówek sekcji | Ugotowałeś z tego przepisu? |
+| nagłówek sekcji | Gotujesz z tego przepisu? |
 | pod nagłówkiem | {autor} naprawdę chce o tym wiedzieć. Wystarczy jedno kliknięcie. |
 | formularz, uspokojenie | Nie musisz wypełniać żadnego pola — wystarczy, że klikniesz „Wyślij". |
 | zdjęcie efektu | To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne. |
 | pole uwagi | Jak wyszło? |
-| pole zmian | Zrobiłem coś po swojemu? |
+| pole zmian | Coś po swojemu? |
 | po wysłaniu | Zapisane. {autor} dowie się, że ktoś ugotował z tego przepisu. |
 | powiadomienie autora | {imię} ugotowała Twój rosół. |
 | sekcja pod przepisem | Komu wyszło |
@@ -430,12 +430,12 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 | pusty zeszyt | Zeszyt jest jeszcze pusty |
 | + wyjaśnienie | Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję". Trafi tutaj i zawsze go znajdziesz. |
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
-| + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok będziesz mogła tu wrócić i zobaczyć, co wtedy gotowałaś. |
+| + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |
 | + wyjaśnienie | Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
-| brak komentarzy | Jeszcze nikt tu nic nie napisał. Możesz być pierwsza albo pierwszy. |
+| brak komentarzy | Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz. |
 
 ### Błędy — poziom „poważny", zero żartów
 
@@ -479,7 +479,30 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 | nadawca | imię gospodarza, nigdy „Zespół Kuking" |
 | stopka wypisania | Nie chcesz tych wiadomości? Wyłącz je jednym kliknięciem. Bez pytań. |
 | eksport gotowy | Twoje dane są gotowe do pobrania |
-| + treść | Przygotowaliśmy paczkę ze wszystkim, co tu wrzuciłaś. Otworzysz ją na swoim komputerze, także wtedy, gdyby Kuking kiedyś przestał istnieć. |
+| + treść | Przygotowaliśmy paczkę ze wszystkim, co tu masz. Otworzysz ją na swoim komputerze, także wtedy, gdyby Kuking kiedyś przestał istnieć. |
+
+### Przegląd tej sekcji: 12 września 2026 (issue #38)
+
+Pięć wierszy wyżej uczyło tekstów, które produkt odrzucił przy #274, a które
+ten sam dokument zakazuje w §2 — i stały tu jako wzór do skopiowania:
+
+| Było | Jest | Skąd nowe brzmienie |
+|---|---|---|
+| ❌ Ugotowałeś z tego przepisu? | Gotujesz z tego przepisu? | konstrukcja bez rodzaju z §2 |
+| ❌ Zrobiłem coś po swojemu? | Coś po swojemu? | `pages/cooked/create.blade.php` |
+| ❌ Za rok będziesz mogła tu wrócić i zobaczyć, co wtedy gotowałaś. | Za rok zobaczysz tu, co gotujesz dzisiaj. | `pages/profile/show.blade.php` |
+| ❌ Możesz być pierwsza albo pierwszy. | Napisz pierwszy komentarz. | `components/comment-thread.blade.php` |
+| ❌ …co tu wrzuciłaś. | …co tu masz. | `mail/data-export-ready.blade.php` |
+
+Każdy z nich jest **przebudowany**, nie uzupełniony o drugą formę — §2 zakazuje
+i jednego, i drugiego. Tam, gdzie napis żyje już na ekranie, przepisane jest
+brzmienie **z kodu**: dokument idzie za produktem, nie odwrotnie.
+
+Od tego przeglądu pilnuje tego test
+`tests/Feature/PrzewodnikTrzymaSieWlasnychZasadTest.php`. Skanuje gotowe teksty
+do wklejenia w całym `docs/brand/` i oblewa, gdy wzór łamie regułę z tego samego
+dokumentu. **Cytatu oznaczonego „❌" i prozy nie rusza** — o błędach trzeba móc
+pisać, a tabela wyżej jest tego najlepszym przykładem.
 
 ---
 
