@@ -8,6 +8,7 @@ use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
 use App\Poczta\PowodOdmowy;
+use App\Support\AnalitykaCloudflare;
 use App\Support\Facebook;
 use App\Support\Google;
 use App\Support\Poczta;
@@ -51,6 +52,17 @@ use Throwable;
  * poprawne wdrożenie bez tej drogi. Cicha, nieistniejąca droga wejścia jest
  * gorsza niż wyłączona — dlatego oba sygnały są osobne, po jednym na
  * dostawcę, bo naprawa każdego z nich to inny panel i inna czynność.
+ *
+ * `analityka` pyta o to samo co te dwie wyżej, tylko o rzecz, której NIE DA
+ * SIĘ zobaczyć okiem na żadnym ekranie — i o rozjazd z dokumentem PRAWNYM,
+ * nie z konfiguracją. Polityka prywatności mówi czytelnikowi w czasie
+ * teraźniejszym, że statystykę odwiedzin prowadzi Cloudflare Web Analytics;
+ * bez `CLOUDFLARE_ANALYTICS_TOKEN` beacona nie ma w HTML-u wcale, panel
+ * Cloudflare świeci zerami, a dokument opisuje przetwarzanie, którego nie ma.
+ * Brak przycisku Google widać na `/login`; tego nie widać nigdzie i dlatego
+ * ten sygnał jest tu potrzebny bardziej niż tamte. Uciszają go dwie uczciwe
+ * czynności — wpisanie tokenu albo wykreślenie obietnicy z polityki —
+ * i świadomie nie ma trzeciej (patrz `sprawdzAnalityke()`).
  *
  * `poczta`, `kolejka` i `listy` są tu z tego samego, NIEKRYTYCZNEGO powodu
  * i pytają o trzy RÓŻNE rzeczy — kolejność jest od najwcześniejszej:
@@ -118,6 +130,7 @@ class HealthController extends Controller
         self::POWOD_TURNSTILE_BEZ_KLUCZY,
         self::POWOD_GOOGLE_BEZ_KLUCZY,
         self::POWOD_FACEBOOK_BEZ_KLUCZY,
+        self::POWOD_ANALITYKA_BEZ_TOKENU,
         self::POWOD_POCZTA_NIE_WYSYLA,
         self::POWOD_ZADANIA_NIEUDANE,
         self::POWOD_LISTY_PRZEPADAJA,
@@ -169,6 +182,16 @@ class HealthController extends Controller
      * którego z dwóch dostawców szukać.
      */
     private const POWOD_FACEBOOK_BEZ_KLUCZY = 'facebook_bez_kluczy';
+
+    /**
+     * Polityka prywatności obiecuje analitykę odwiedzin, a tokenu nie ma —
+     * czyli dokument PRAWNY opisuje przetwarzanie, którego nie ma (D-092).
+     * Kod bez nazwy zmiennej i bez fragmentu tokenu: ta odpowiedź jest
+     * publiczna. Sam token nie jest sekretem (stoi w HTML-u każdej strony),
+     * ale nazwa zmiennej i odnośnik do runbooka to wskazówka dla kogoś, kto
+     * szuka, po czym uderzyć — zostają w logu.
+     */
+    private const POWOD_ANALITYKA_BEZ_TOKENU = 'analityka_bez_tokenu';
 
     /**
      * `MAIL_MAILER` na produkcji to `log`/`array`/pusty, albo Laravel nie
@@ -233,6 +256,7 @@ class HealthController extends Controller
             'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
             'google' => $this->check('google', self::POWOD_GOOGLE_BEZ_KLUCZY, fn () => $this->sprawdzWejscieGoogle()),
             'facebook' => $this->check('facebook', self::POWOD_FACEBOOK_BEZ_KLUCZY, fn () => $this->sprawdzWejscieFacebooka()),
+            'analityka' => $this->check('analityka', self::POWOD_ANALITYKA_BEZ_TOKENU, fn () => $this->sprawdzAnalityke()),
             'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
@@ -455,6 +479,78 @@ class HealthController extends Controller
     }
 
     /**
+     * Analityka odwiedzin: czy rzecz, którą właśnie obiecaliśmy w DOKUMENCIE
+     * PRAWNYM, ma czym działać (D-092).
+     *
+     * TEN SAM WYWÓD CO PRZY GOOGLE I FACEBOOKU, Z JEDNĄ RÓŻNICĄ, KTÓRA
+     * PRZEWAŻA. Tamte dwie obietnice stoją w konfiguracji i widać je okiem:
+     * przycisku „Wejdź kontem Google" albo nie ma na `/login`, i ktoś kiedyś
+     * to zauważy. Tę obietnicę złożyliśmy w polityce prywatności — zdaniem
+     * w czasie teraźniejszym, z datą — a jej niespełnienia NIE WIDAĆ NIGDZIE:
+     * strona wygląda normalnie, w dzienniku serwera nie ma nic, przeglądarka
+     * nie zgłasza usterki, bo skryptu po prostu nie ma w HTML-u. Właściciel,
+     * który raz założył serwis w panelu Cloudflare, ma wszelkie powody sądzić,
+     * że analityka działa. Do 12 września 2026 nie było ani jednego miejsca,
+     * z którego dałoby się dowiedzieć, że nie działa.
+     *
+     * PYTAMY O ROZJAZD, NIE O BRAK TOKENU. Pusty token sam w sobie jest
+     * poprawnym stanem: tak chodzi CI, tak chodzą testy, tak chodzi każde
+     * środowisko preview i tak może chodzić produkcja, jeśli właściciel
+     * analityki nie chce. Awarią jest dopiero para: dokument prawny obiecuje
+     * + tokenu nie ma. Dlatego warunkiem jest treść polityki prywatności
+     * (`AnalitykaCloudflare::obiecanaWDokumencie()`), a nie osobny przełącznik.
+     *
+     * I DLATEGO ŚWIADOMIE NIE MA TU WYŁĄCZNIKA W RODZAJU `KUKING_ANALITYKA=false`.
+     * Przy Google i Facebooku wyłącznik znaczy „nie chcę tej drogi wejścia"
+     * i nikogo nie okłamuje — dokument prawny o nich wtedy nie mówi. Tutaj
+     * wyłącznik znaczyłby „niech polityka prywatności dalej opisuje
+     * przetwarzanie, którego nie ma, tylko niech przestanie o tym mówić
+     * healthcheck", czyli uczyłby uciszania sygnału zamiast prostowania
+     * dokumentu. Uciszyć ten sygnał wolno DWOMA sposobami i oba są uczciwe:
+     * wpisać token albo wykreślić obietnicę z polityki (wtedy trzeba też
+     * usunąć beacon z layoutu — pilnuje tego `DokumentyPrawneNieKlamiaTest`
+     * z drugiej strony).
+     *
+     * DLACZEGO `degraded`, A NIE 503. Bo `analityka` NIE JEST na liście
+     * `KRYTYCZNE` i być nie może: serwis bez statystyki odwiedzin działa
+     * w całości, a healthcheck oddający 503 już raz położył ten serwis.
+     * Monitoring pilnuje TREŚCI odpowiedzi.
+     *
+     * DLACZEGO TYLKO NA PRODUKCJI. Lokalnie, w testach, w CI i na preview
+     * pusty token jest stanem domyślnym i opisanym w `.env.example` — stały
+     * `degraded` byłby tam szumem, który uczy ignorować to pole. To ta sama
+     * lekcja co przy Turnstile.
+     *
+     * CZEGO TEN SYGNAŁ NIE ZŁAPIE — I TO JEST GRANICA, NIE PRZEOCZENIE.
+     * Nie powie, czy token jest PRAWDZIWY (Cloudflare po cichu odrzuca
+     * zdarzenia z nieznanym tokenem) ani czy w panelu wybrano wariant
+     * zbierania danych obejmujący Unię Europejską. Obie te rzeczy dzieją się
+     * w cudzym panelu i z kontenera nie da się ich zmierzyć — dlatego mówi
+     * o nich zdanie z `AnalitykaCloudflare::komunikatBrakuTokenu()`
+     * i sprawdzenie w KROKU 8F runbooka, które patrzy na realne liczby
+     * w panelu, a nie na stan naszej konfiguracji.
+     */
+    private function sprawdzAnalityke(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if (! AnalitykaCloudflare::obiecanaWDokumencie()) {
+            return;
+        }
+
+        if (AnalitykaCloudflare::wlaczona()) {
+            return;
+        }
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_ANALITYKA_BEZ_TOKENU,
+            AnalitykaCloudflare::komunikatBrakuTokenu(),
+        );
+    }
+
+    /**
      * Czy wysyłka poczty ma w ogóle czym ruszyć — `App\Support\Poczta` jest
      * TU JEDYNYM źródłem prawdy (ta sama klasa decyduje na ekranie „Nie
      * pamiętam hasła" i w `kuking:sprawdz-poczte`), żeby te trzy miejsca nie
@@ -645,8 +741,8 @@ class HealthController extends Controller
             // razu, zamiast czekać do końca okna z poprzedniego incydentu.
             // Warunek pomija zapis do cache'a na NAJCZĘSTSZEJ ścieżce (zdrowy
             // serwis, kanał wyłączony) — każde wywołanie `/health` sprawdza
-            // dziewięć kontroli, a bez tego warunku każda zdrowa odpowiedź
-            // dokładałaby dziewięć zbędnych zapisów do tabeli `cache`.
+            // dziesięć kontroli, a bez tego warunku każda zdrowa odpowiedź
+            // dokładałaby dziesięć zbędnych zapisów do tabeli `cache`.
             if (filled(config('logging.channels.blad_webhook.url'))) {
                 Cache::forget($this->kluczOdstepuWebhooka($nazwa));
             }

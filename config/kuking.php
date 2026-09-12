@@ -2017,6 +2017,47 @@ return [
              */
             'host_skryptu' => 'https://static.cloudflareinsights.com',
             'host_zdarzen' => 'https://cloudflareinsights.com',
+
+            /*
+             * GDZIE STOI OBIETNICA, KTÓREJ PILNUJE `/health`.
+             *
+             * Analityka jest jedyną rzeczą w tym serwisie, o której zdanie
+             * w oznajmującym czasie teraźniejszym stoi w DOKUMENCIE PRAWNYM:
+             * polityka prywatności mówi czytelnikowi wprost, że statystykę
+             * odwiedzin prowadzi Cloudflare Web Analytics, i mówi nawet od
+             * kiedy. Turnstile widać po formularzu, przycisk Google i
+             * Facebooka widać albo nie widać na ekranie logowania; tego nie
+             * widać nigdzie. Pusty `CLOUDFLARE_ANALYTICS_TOKEN` na produkcji
+             * znaczy więc dokładnie tyle, że dokument prawny opisuje
+             * przetwarzanie, którego nie ma — i nie ma ani jednego miejsca,
+             * w którym ktokolwiek by to zauważył.
+             *
+             * Dlatego `HealthController::sprawdzAnalityke()` pyta o ROZJAZD,
+             * a nie o sam brak tokenu: sygnał zapala się wtedy i tylko wtedy,
+             * gdy poniższy dokument nadal obiecuje analitykę, a tokenu nie ma.
+             * Uciszyć go można DWOMA uczciwymi sposobami — wpisać token albo
+             * wykreślić obietnicę z polityki. Trzeciego (przełącznika „nie
+             * krzycz") świadomie nie ma: przy Google i Facebooku wyłącznik
+             * znaczy „nie chcę tej drogi" i nikogo nie okłamuje, a tutaj
+             * znaczyłby „niech dokument prawny dalej mówi nieprawdę, tylko
+             * po cichu".
+             *
+             * DLACZEGO ŚCIEŻKA I FRAZA SIEDZĄ W KONFIGURACJI, A NIE W KODZIE
+             * Bo to są dwie rzeczy, które trzeba móc podmienić w teście —
+             * inaczej nie da się sprawdzić gałęzi „dokument już nic nie
+             * obiecuje, więc `/health` milczy", a niesprawdzona gałąź
+             * strażnika jest gałęzią, o której nie wiadomo, czy działa.
+             *
+             * Fraza jest ta sama, której w polityce szuka
+             * `PolitykaPrywatnosciWymieniaKazdaUslugeTest` — PEŁNA nazwa
+             * usługi, nie samo „Cloudflare", które stoi w tym dokumencie od
+             * Turnstile'a i od R2.
+             */
+            'obietnica' => [
+                // Ścieżka względem `resource_path()`.
+                'dokument' => 'legal/polityka-prywatnosci.md',
+                'fraza' => 'Cloudflare Web Analytics',
+            ],
         ],
     ],
 

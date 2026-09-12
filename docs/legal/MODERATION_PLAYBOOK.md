@@ -313,7 +313,7 @@ Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta oso
 - Konto założone <24h **i** publikujące link zewnętrzny w pierwszym poście → automatyczne oznaczenie do przeglądu (nie automatyczne usunięcie — unikać false positives dla nowych, prawdziwych użytkowników).
 - >3 identyczne lub niemal identyczne komentarze w ciągu 10 minut → automatyczne ograniczenie (throttle) konta + oznaczenie do przeglądu.
 - Nowe konto z linkiem w bio do domeny niezwiązanej z gotowaniem (sklep, kurs, "zarabianie") → wyższy priorytet. Uwaga: **kolejki triage dziś nie ma.** Statusy `triage` i `reviewing` istnieją w bazie, ale żaden kod ich nie nadaje — zgłoszenie idzie z `open` prosto do `resolved` albo `rejected`, a zakładka „W trakcie" w panelu jest z tego powodu zawsze pusta.
-- Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. Kolumna `media.perceptual_hash` jest w schemacie od pierwszej migracji, ale **nic jej dziś nie wypełnia** — pipeline zdjęć jej nie liczy. To jest więc pełne zadanie do zrobienia, nie „włączenie" czegoś gotowego.
+- Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. **W bazie nie ma dziś na to ani jednej kolumny.** `media.perceptual_hash` stała w schemacie od pierwszej migracji mediów, nikt jej nigdy nie wypełniał i została usunięta jako martwa (migracja `2026_09_12_100000_usun_martwa_kolumne_perceptual_hash`, `docs/DATABASE.md`). To jest więc pełne zadanie do zrobienia — liczenie skrótu w potoku zdjęć, kolumna i zapytanie — a nie „włączenie" czegoś gotowego.
 
 ### Rate limity — co jest ustawione, a co dopiero postulujemy
 
@@ -385,7 +385,7 @@ Przy 1–2 osobach moderacja treści wrażliwych (zwłaszcza zdjęć i opisów) 
   - filtrowanie oczywistego spamu (linki afiliacyjne wg listy domen) — automatyczne ukrycie do przeglądu, nie wymaga pełnej analizy człowieka za każdym razem,
   - proste rate-limity (sekcja 5) — działają bez udziału moderatora,
   - szablony odpowiedzi (sekcja 4) — nie pisać za każdym razem od nowa.
-  **Z tej listy działa dziś jedno: rate-limity** (`config/kuking.php` → `kuking.limits`) i szablony, które właśnie czytasz. Wykrywania duplikatów zdjęć nie ma (`media.perceptual_hash` nikt nie wypełnia), listy domen spamerskich ani automatycznego ukrywania do przeglądu nie ma wcale — całą kolejkę przegląda dziś człowiek, sztuka po sztuce.
+  **Z tej listy działa dziś jedno: rate-limity** (`config/kuking.php` → `kuking.limits`) i szablony, które właśnie czytasz. Wykrywania duplikatów zdjęć nie ma (kolumnę `media.perceptual_hash` usunięto jako nigdy niewypełnianą — patrz sekcja wyżej), listy domen spamerskich ani automatycznego ukrywania do przeglądu nie ma wcale — całą kolejkę przegląda dziś człowiek, sztuka po sztuce.
 - **Co NIE powinno nigdy trafiać do pełnej automatyzacji bez człowieka:** decyzje o blokadzie trwałej konta, każda sprawa P0 (CSAM/zagrożenie życia — wymaga świadomej decyzji człowieka o zgłoszeniu do organów), odwołania.
 - **Wsparcie:** jeśli moderator natrafi na szczególnie ciężką treść (CSAM, przemoc), **nie zostawiaj tego bez rozmowy** — nawet krótka wymiana z drugą osobą w zespole po fakcie pomaga. To nie jest slabość, to standard branżowy w trust & safety.
 

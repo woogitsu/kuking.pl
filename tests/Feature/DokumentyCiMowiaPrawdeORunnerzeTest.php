@@ -63,13 +63,34 @@ use Tests\TestCase;
  *    (Settings → Secrets and variables → Actions → Variables) i z repozytorium
  *    jej nie widać. Ostatni pomiar jest zapisany w `ci.yml` i w dokumencie;
  *    zmiana wartości należy do właściciela, nie do kodu (D-121).
- *  - **`deploy.yml`, `preview.yml`, `railway-iac.yml`.** Mają `runs-on:`
- *    taki sam jak `ci.yml`, ale ich nagłówki niosą jeszcze starą nieprawdę
- *    („Runnera nie wybiera już żadna zmienna repozytorium"). Poprawka tych
- *    trzech plików jest poza zakresem issue #342 i celowo NIE jest tu wymuszana
- *    — dopisanie ich do `DOKUMENTY` to jedna linia, gdy tamta zmiana wejdzie.
+ *  - **Czy wartość `CI_RUNS_ON` jest dobrze wybrana.** Że stoi dziś na samym
+ *    `self-hosted`, jest decyzją właściciela z 12.09.2026 (koszt i sygnał do
+ *    odwrócenia: `docs/infra/SELF_HOSTED_RUNNER.md`, „Krok 1"). Ten test pilnuje
+ *    zgodności zdań z kodem, nie tego, czy decyzja jest słuszna.
  *  - **Czy `workflow_dispatch` jest potrzebny.** Rozstrzyga komentarz przy nim
  *    w `ci.yml`. Tu sprawdzamy tylko, czy dokument nie każe go usuwać, skoro stoi.
+ *
+ * DŁUG Z D-165 SPŁACONY 12.09.2026 — I DLACZEGO NIE BYŁA TO „JEDNA LINIA"
+ * D-165 zostawiło jawnie nazwany dług: `deploy.yml`, `preview.yml`
+ * i `railway-iac.yml` niosły w nagłówkach dokładnie tę samą nieprawdę co
+ * poprawiony `ci.yml`, przy identycznym `runs-on:`. Dopisanie ich do `DOKUMENTY`
+ * rzeczywiście jest jedną linią — ale sama ta linia NICZEGO by nie złapała.
+ *
+ * Zmierzone przed zmianą: skan po surowej treści tych plików **nie znajdował**
+ * zdania „nie wybiera już żadna zmienna repozytorium", bo w YAML-u jest ono
+ * złamane między liniami i w środku stoi znacznik `#`
+ * („Runnera nie\n#  wybiera już żadna zmienna repozytorium") — normalizacja
+ * skleja linie, ale `#` zostaje w środku zdania. Dopiero zdjęcie znacznika
+ * komentarza, czyli ta sama droga, którą od początku szedł `ci.yml`, daje
+ * trafienie. Dlatego komentarze wycina się teraz z KAŻDEGO pliku workflow
+ * (`WORKFLOWY`), a nie z jednego.
+ *
+ * Przy okazji wyszło drugie: nagłówki tych trzech plików kazały „odkomentować
+ * blok `on:`" i twierdziły, że workflow jest wyłączony z automatu — a bloki
+ * `on:` są w nich AKTYWNE (`deployment_status`, `pull_request`). To ta sama
+ * martwa instrukcja, którą D-165 złapało w „Kroku 2" `SELF_HOSTED_RUNNER.md`,
+ * tyle że w trzech kopiach (D-104). Pilnuje jej
+ * `test_dokumenty_nie_kaza_wlaczac_workflowow_ktore_chodza_same`.
  */
 class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
 {
@@ -85,8 +106,23 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
      * jeden plik przeczył sam sobie.
      */
     private const DOKUMENTY = [
-        self::WORKFLOW,
+        ...self::WORKFLOWY,
         'docs/infra/SELF_HOSTED_RUNNER.md',
+    ];
+
+    /**
+     * Pliki wykonywalne, których KOMENTARZE są dokumentem (D-165).
+     *
+     * Z każdego z nich czytamy wyłącznie linie `#`, i to po zdjęciu znacznika:
+     * bez tego zdanie złamane w YAML-u („Runnera nie\n#  wybiera już…") ucieka
+     * przed każdym wzorcem — zmierzone na tych trzech plikach 12.09.2026.
+     * Kodem, czyli stroną prawdziwą, jest tu wyłącznie `ci.yml` (`WORKFLOW`).
+     */
+    private const WORKFLOWY = [
+        self::WORKFLOW,
+        '.github/workflows/deploy.yml',
+        '.github/workflows/preview.yml',
+        '.github/workflows/railway-iac.yml',
     ];
 
     /**
@@ -97,13 +133,21 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
      * regexp, który przestał łapać `runs-on:`, ma tu OBLAĆ z komunikatem
      * mówiącym, że zepsuł się TEST, a nie `ci.yml`.
      *
-     * Zmierzone 12.09.2026: 9 jobów z `runs-on:`, 643 linie komentarza
-     * w `ci.yml`, po jednym zacytowanym `runs-on:` w każdym z dwóch dokumentów.
-     * Progi stoją z zapasem, żeby nie ruszać ich przy zwykłej pracy.
+     * Zmierzone 12.09.2026 (po dopisaniu trzech workflow-ów): 9 jobów
+     * z `runs-on:` w `ci.yml`; linie komentarza — `ci.yml` 654, `deploy.yml` 293,
+     * `preview.yml` 129, `railway-iac.yml` 123; po jednym zacytowanym `runs-on:`
+     * w każdym z pięciu dokumentów. Progi stoją z zapasem, żeby nie ruszać ich
+     * przy zwykłej pracy.
      */
     private const MIN_JOBOW = 7;
 
-    private const MIN_LINII_KOMENTARZA = 200;
+    /** Próg linii komentarza dla każdego pliku workflow z osobna. */
+    private const MIN_LINII_KOMENTARZA = [
+        self::WORKFLOW => 200,
+        '.github/workflows/deploy.yml' => 150,
+        '.github/workflows/preview.yml' => 60,
+        '.github/workflows/railway-iac.yml' => 60,
+    ];
 
     /** Zdania, które WPROST odmawiają zmiennej repozytorium roli wybierającej. */
     private const ZAPRZECZENIA_ZMIENNEJ = [
@@ -139,9 +183,10 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
     /**
      * Stare polecenia z „Kroku 2", nieprawdziwe od chwili, gdy blok `on:` ożył.
      *
-     * Zakaz jest wąski i dosłowny, bo dotyczy JEDNEGO pliku: `ci.yml`. Dokument
-     * ma pełne prawo kazać odkomentować `on:` w `deploy.yml`, `preview.yml`
-     * i `railway-iac.yml` — tam blok naprawdę jest zakomentowany.
+     * Zakaz jest wąski i dosłowny, bo dotyczy JEDNEGO pliku: `ci.yml` — te zdania
+     * wskazują go z nazwy. Instrukcji włączania pozostałych workflow-ów pilnuje
+     * osobno `MARTWE_INSTRUKCJE_WLACZANIA`, bo tam warunek jest inny: zależy od
+     * bloku `on:` każdego z tych plików z osobna.
      */
     private const MARTWE_INSTRUKCJE_WYZWALACZY = [
         'usuń workflow_dispatch',
@@ -149,6 +194,23 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
         'zamień je: odkomentuj oryginalny blok',
         'na górze pliku jest zakomentowany blok on:',
         'tymczasowe on: workflow_dispatch',
+    ];
+
+    /**
+     * Zdania każące WŁĄCZYĆ workflow, który już chodzi sam.
+     *
+     * Zakazane tylko wtedy, gdy każdy plik z `WORKFLOWY` ma w swoim bloku `on:`
+     * wyzwalacz inny niż `workflow_dispatch` — czyli gdy naprawdę nie ma czego
+     * odkomentowywać. Gdyby ktoś kiedyś świadomie zakomentował `on:` w którymś
+     * z tych plików, zakaz sam się wyłącza, a zdanie robi się z powrotem
+     * prawdziwe. Warunek czytamy z plików, nie zakładamy go.
+     */
+    private const MARTWE_INSTRUKCJE_WLACZANIA = [
+        'odkomentuj blok on: poniżej',
+        'żeby włączyć ten workflow: odkomentuj',
+        'wyłączony z automatycznego uruchamiania',
+        'blok on: jest nadal zakomentowany',
+        'odkomentowania wymagają',
     ];
 
     // ---------------------------------------------------------------
@@ -294,8 +356,50 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
             .'`workflow_dispatch` pozwala puścić przebieg ręcznie bez pustego commita; powód '
             ."stoi przy nim w komentarzu.\n"
             .'Instrukcja, która każe zrobić rzecz zrobioną, uczy pomijania instrukcji — a przy '
-            .'okazji kazałaby zabrać jedyny ręczny wyzwalacz bramki deployu. Odkomentowania '
-            .'wymagają `deploy.yml`, `preview.yml` i `railway-iac.yml` i o nich pisać wolno.',
+            .'okazji kazałaby zabrać jedyny ręczny wyzwalacz bramki deployu. Pozostałe trzy '
+            .'workflow-y też chodzą same (zmierzone 12.09.2026), więc i o nich nie wolno '
+            .'napisać, że czekają na odkomentowanie — pilnuje tego '
+            .'test_dokumenty_nie_kaza_wlaczac_workflowow_ktore_chodza_same.',
+        );
+    }
+
+    public function test_dokumenty_nie_kaza_wlaczac_workflowow_ktore_chodza_same(): void
+    {
+        $samoczynne = [];
+
+        foreach (self::WORKFLOWY as $plik) {
+            $wyzwalacze = $this->wyzwalaczeSamoczynne($plik);
+
+            if ($wyzwalacze !== []) {
+                $samoczynne[$plik] = implode(', ', $wyzwalacze);
+            }
+        }
+
+        $opis = (string) json_encode($samoczynne, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $this->assertCount(
+            count(self::WORKFLOWY),
+            $samoczynne,
+            'Któryś z workflow-ów nie ma dziś ani jednego wyzwalacza poza '
+            ."`workflow_dispatch`. Zastane:\n".$opis."\n"
+            .'Albo blok `on:` naprawdę został gdzieś zakomentowany — wtedy zdanie „odkomentuj" '
+            .'jest znowu prawdziwe i zakaz niżej ma prawo się wyłączyć, ale sprawdź, czy '
+            ."Railway nie czeka przez to na check suite, który nie powstaje (D-010) —\n"
+            .'albo zepsuł się odczyt bloku `on:` w tym teście. Bez tego odczytu zakaz niżej '
+            .'skanuje zdania, nie wiedząc, czy są prawdziwe.',
+        );
+
+        $this->assertSame(
+            [],
+            $this->trafienia(self::MARTWE_INSTRUKCJE_WLACZANIA),
+            'Dokument każe WŁĄCZYĆ workflow, który już chodzi sam, albo mówi, że jest '
+            ."wyłączony z automatu. Zastane wyzwalacze poza `workflow_dispatch`:\n".$opis."\n"
+            .'Zakomentowanego bloku `on:` nie ma dziś w żadnym z tych plików, więc nie ma tam '
+            ."czego odkomentowywać.\n"
+            .'To ta sama usterka co „Krok 2" z D-165, tylko w kopiach: instrukcja każąca zrobić '
+            .'rzecz, której nie ma do zrobienia, uczy pomijania instrukcji, a przy okazji mówi, '
+            .'że deploy i preview nie chodzą, choć chodzą. Kopia jest miejscem, w którym '
+            .'nieprawda odrasta (D-104).',
         );
     }
 
@@ -373,12 +477,12 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
      * najwyższego poziomu tam stoi, więc `workflow_dispatch:` z wnętrza `jobs:`
      * (gdyby kiedyś powstał) nie zostanie wzięty za wyzwalacz.
      */
-    private function blokWyzwalaczy(): string
+    private function blokWyzwalaczy(string $plik = self::WORKFLOW): string
     {
         $wBloku = false;
         $blok = [];
 
-        foreach ($this->linie(self::WORKFLOW) as $linia) {
+        foreach ($this->linie($plik) as $linia) {
             if (! $wBloku) {
                 if (preg_match('/^on:\s*$/', $linia) === 1) {
                     $wBloku = true;
@@ -396,6 +500,33 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
         }
 
         return trim(implode("\n", $blok));
+    }
+
+    /**
+     * Wyzwalacze danego workflow-a INNE niż `workflow_dispatch`.
+     *
+     * Czyli te, przez które plik uruchamia się sam. Klucze wyzwalaczy stoją
+     * w bloku `on:` na dwóch spacjach (pierwsza linia bloku przychodzi tu bez
+     * wcięcia, bo blok jest przycięty), a ich ustawienia — `types:`, `branches:`,
+     * `paths:`, `inputs:` — głębiej, więc się nie łapią.
+     *
+     * @return list<string>
+     */
+    private function wyzwalaczeSamoczynne(string $plik): array
+    {
+        $wyzwalacze = [];
+
+        foreach (explode("\n", $this->blokWyzwalaczy($plik)) as $linia) {
+            if (preg_match('/^ {0,2}([a-z_]+):/', $linia, $trafienie) !== 1) {
+                continue;
+            }
+
+            if ($trafienie[1] !== 'workflow_dispatch') {
+                $wyzwalacze[] = $trafienie[1];
+            }
+        }
+
+        return $wyzwalacze;
     }
 
     // ---------------------------------------------------------------
@@ -430,12 +561,15 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
     /**
      * Treść dokumentu do skanu zdaniami.
      *
-     * Z `ci.yml` bierzemy WYŁĄCZNIE linie komentarza — reszta pliku to kod,
-     * a kod jest tu stroną prawdziwą, nie badanym twierdzeniem.
+     * Z pliku workflow bierzemy WYŁĄCZNIE linie komentarza, i to bez znacznika
+     * `#` — reszta pliku to kod, a kod jest tu stroną prawdziwą, nie badanym
+     * twierdzeniem. Zdjęcie znacznika nie jest kosmetyką: zdanie złamane
+     * w YAML-u ma `#` w środku i bez tego kroku nie trafia w żaden wzorzec
+     * (zmierzone na `deploy.yml` 12.09.2026 — patrz docblock klasy).
      */
     private function trescDokumentu(string $plik): string
     {
-        if ($plik !== self::WORKFLOW) {
+        if (! in_array($plik, self::WORKFLOWY, true)) {
             return implode("\n", $this->linie($plik));
         }
 
@@ -445,10 +579,10 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
         ));
 
         $this->assertGreaterThanOrEqual(
-            self::MIN_LINII_KOMENTARZA,
+            self::MIN_LINII_KOMENTARZA[$plik],
             count($komentarze),
-            'W '.self::WORKFLOW.' widać tylko '.count($komentarze).' linii komentarza, '
-            .'a spodziewamy się co najmniej '.self::MIN_LINII_KOMENTARZA.'. Ten plik jest '
+            'W '.$plik.' widać tylko '.count($komentarze).' linii komentarza, '
+            .'a spodziewamy się co najmniej '.self::MIN_LINII_KOMENTARZA[$plik].'. Ten plik jest '
             .'gęsto skomentowany i się z tego nie rozbiera — to usterka TEGO TESTU: '
             .'sprawdź wykrywanie linii `#`. Skan pustego zbioru zdań nie znajdzie żadnego '
             .'zakazanego zdania i przejdzie.',

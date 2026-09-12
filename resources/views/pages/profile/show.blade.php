@@ -121,7 +121,33 @@
                 <x-avatar :user="$owner" :size="128" />
             @endif
             <div class="min-w-0">
-                <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
+                {{--
+                    NAZWA I `@nazwa` W JEDNYM WIERSZU, DOPÓKI SIĘ MIESZCZĄ.
+
+                    Zgłoszenie właściciela (#435) brzmiało dosłownie: „Mój profil
+                    jest miejsce by dać @woogitsu obok Mateusz”. Do tej zmiany
+                    `@nazwa` stała osobnym akapitem pod nazwą — czyli brała cały
+                    wiersz główki po to, żeby powiedzieć kilkanaście znaków,
+                    a główka na telefonie i tak nie mieści się na ekranie.
+
+                    `flex-wrap` w `.profil-tozsamosc`, a nie sztywny wiersz:
+                    `display_name` ma `max:100`, a `username` swoje 30 — przy
+                    długiej nazwie albo przy czcionce przeglądarki 200% `@nazwa`
+                    ma prawo zejść pod spod i schodzi. Wspólna linia pisma robi
+                    `align-items: baseline`.
+
+                    PLAKIETKA KONTA PRZYKŁADOWEGO SCHODZI POD TĘ PARĘ, a nie
+                    stoi między nazwą a `@nazwą`: inaczej nie da się ich
+                    złożyć w jeden wiersz. Kolejność czytania zostaje
+                    sensowna — najpierw kto to jest, potem czym to konto jest.
+                --}}
+                <div class="profil-tozsamosc">
+                    <h1 class="m-0">{{ $p->display_name }}</h1>
+                    <p class="meta m-0">
+                        &#64;{{ $p->username }}
+                        @if($p->region) · {{ $p->region }} @endif
+                    </p>
+                </div>
                 @if($owner->isSeeded())
                     {{-- `waga="glosna"`: profil jest JEDYNYM miejscem, gdzie
                          ta plakietka wolno stoi głośno — wszędzie indziej
@@ -143,10 +169,6 @@
                         co poczytać.
                     </p>
                 @endif
-                <p class="meta m-0 mb-3">
-                    &#64;{{ $p->username }}
-                    @if($p->region) · {{ $p->region }} @endif
-                </p>
                 @if($p->speciality)
                     <p class="m-0 mb-3"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
                 @endif
@@ -221,22 +243,24 @@
                     Człowiek, który szuka „Ustawień", szuka napisu
                     „Ustawienia". Zgadywanie jest tu kosztem, a nie krokiem.
 
-                    DLACZEGO WŁAŚNIE `settings.accessibility`
+                    DLACZEGO WŁAŚNIE `settings.index`
                     Bo pod tym samym napisem stoi to samo miejsce na
                     komputerze: pozycja „Ustawienia" w nawigacji bocznej
-                    prowadzi na `route('settings.accessibility')`
-                    (`components/layout.blade.php:723`). Ekran ustawień
-                    rozdroża (`/ustawienia`) w serwisie NIE ISTNIEJE —
-                    dorobienie go to nowa trasa, nowy ekran i decyzja o tym,
-                    co jest kanoniczną stroną ustawień, czyli nie jest to
-                    najmniejsza zmiana usuwająca ślepy zaułek. Dwa różne cele
-                    dla jednego napisu byłyby gorsze niż jeden cel dziwny.
+                    prowadzi na `route('settings.index')`
+                    (`components/layout.blade.php`). Do 12 września 2026
+                    oba te miejsca celowały w `settings.accessibility`, czyli
+                    w ekran o nagłówku „Czytelność" — D-168 zapisało to jako
+                    koszt przyjęty świadomie, bo rozdroża `/ustawienia`
+                    w serwisie nie było, a dwa różne cele dla jednego napisu
+                    byłyby gorsze niż jeden cel dziwny. Rozdroże powstało
+                    (issue #344), więc napis i nagłówek ekranu wreszcie mówią
+                    to samo słowo.
 
                     NIE JEST TO MARTWY PRZYCISK (D-053): trasa istnieje, jest
                     w tej samej grupie `auth` co reszta ustawień, a ekran, na
-                    który prowadzi, ma spis pozostałych ośmiu.
+                    który prowadzi, jest spisem wszystkich dziewięciu.
                 --}}
-                <a class="btn btn-secondary" href="{{ route('settings.accessibility') }}">Ustawienia</a>
+                <a class="btn btn-secondary" href="{{ route('settings.index') }}">Ustawienia</a>
                 {{-- Ten sam składnik co w nawigacji bocznej — POST z tokenem
                      CSRF, nigdy odnośnik GET. --}}
                 <x-wyloguj />
