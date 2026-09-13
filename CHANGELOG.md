@@ -6,6 +6,8 @@
 - Na szerokim ekranie tytuł, opis i dane przepisu stoją obok zdjęcia; wszystkie akcje są pod nimi.
 - Profil ma większy awatar oraz jeden zestaw czytelnych statystyk pod ciemnym nagłówkiem.
 - Strona publiczna wyjaśnia zeszyty, widoczność i pobieranie własnych treści w trzech kartach.
+- Przy jednoczesnym dużym powiększeniu pisma i tekstu aplikacji wąski nagłówek mieści znak garnka bez poziomego przewijania.
+- Obrys zaznaczonej klawiaturą zakładki mieści się w jej ramie także przy powiększeniu strony.
 
 ## Alfa 0.17 — publiczna strona zgodna z wizualizacją
 

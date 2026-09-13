@@ -63,13 +63,13 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
     if (r.scroll > r.width + 1) throw new Error('K509_OVERFLOW ' + path + ' ' + JSON.stringify(r));
     if (path === '/login' || path === '/register') {
       if (!r.auth || !r.brand || !r.form) throw new Error('K509_WEJSCIE brak kompozycji');
-      if (r.desktop && (r.form.x < r.brand.right || r.form.width < 480)) throw new Error('K509_WEJSCIE kolumny ' + JSON.stringify(r));
+      if (r.desktop && (r.form.x < r.brand.right || r.form.width < 480)) throw new Error('K509_WEJSCIE_KOLUMNY kolumny ' + JSON.stringify(r));
       if (!r.desktop && r.form.y < r.brand.bottom - 1) throw new Error('K509_WEJSCIE kolejność');
       if (r.formInner.shadow !== 'none') throw new Error('K509_WEJSCIE zagnieżdżona karta');
     }
     if (path === '/') {
       if (r.ownership.length !== 3 || r.ownership.some(c => c.width < Math.min(200, r.width - 24))) throw new Error('K509_WLASNOSC brak trzech czytelnych kart');
-      if (r.desktop && r.ownership.some(c => Math.abs(c.y - r.ownership[0].y) > 1)) throw new Error('K509_WLASNOSC kolumny');
+      if (r.desktop && r.ownership.some(c => Math.abs(c.y - r.ownership[0].y) > 1)) throw new Error('K509_WLASNOSC_KOLUMNY kolumny');
     }
     if (path === bezZdjecia) {
       if (!r.hero || !r.text || r.photo || r.text.width < r.hero.width - 2) throw new Error('K509_BEZ_ZDJECIA pusta kolumna');
@@ -78,18 +78,18 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
       if (!r.hero || !r.photo || !r.text || !r.actions) throw new Error('K509_PRZEPIS brak pełnego hero do pomiaru');
       if (!r.imageReady) throw new Error('K509_PRZEPIS zdjęcie niewidoczne lub niewczytane');
       if (wariant?.scale === 100 && wariant.zalogowany && r.recipeDesktop) {
-        if (r.actionBoxes.length < 2 || r.actionBoxes.some(a => !a.visible) || Math.abs(r.actionBoxes[0].y - r.actionBoxes[1].y) > 1 || r.actionBoxes[1].x < r.actionBoxes[0].right - 1) throw new Error('K509_PRZEPIS akcje nie stoją obok siebie ' + JSON.stringify(r.actionBoxes));
+        if (r.actionBoxes.length < 2 || r.actionBoxes.some(a => !a.visible) || Math.abs(r.actionBoxes[0].y - r.actionBoxes[1].y) > 1 || r.actionBoxes[1].x < r.actionBoxes[0].right - 1) throw new Error('K509_PRZEPIS_AKCJE akcje nie stoją obok siebie ' + JSON.stringify(r.actionBoxes));
       }
-      if (r.recipeDesktop && (r.photo.x < r.text.right - 1 || Math.abs(r.photo.width - r.text.width) > 2)) throw new Error('K509_PRZEPIS kolumny');
+      if (r.recipeDesktop && (r.photo.x < r.text.right - 1 || Math.abs(r.photo.width - r.text.width) > 2)) throw new Error('K509_PRZEPIS_KOLUMNY kolumny');
       if (!r.recipeDesktop && r.photo.y < r.text.bottom - 1) throw new Error('K509_PRZEPIS kolejność');
       if (r.actions.y < r.hero.bottom - 1 || r.actions.width < r.hero.width - 2) throw new Error('K509_PRZEPIS akcje nadal w szynie');
     }
     if (path.startsWith('/@')) {
       if (!r.profile || !r.stats || r.stats.y < r.profile.bottom - 1 || r.counters !== 1) throw new Error('K509_PROFIL liczniki');
       if (r.statsVisible.length === 0 || r.statsVisible.some(v => !v)) throw new Error('K509_PROFIL niewidoczne liczby lub podpisy');
-      if (r.avatar.width < 169 || r.avatar.height < 169) throw new Error('K509_PROFIL awatar');
+      if (r.avatar.width < 169 || r.avatar.height < 169) throw new Error('K509_PROFIL_AWATAR awatar');
       if (r.profileGrid.width >= 36 * r.rootFont && r.identity.x < r.avatar.right) throw new Error('K509_PROFIL kolumny');
-      if (r.width === 1440 && wariant?.scale === 100 && (r.profile.width < 1100 || r.counterBoxes.length !== 5 || r.counterBoxes.some(b => Math.abs(b.y-r.counterBoxes[0].y)>1))) throw new Error('K509_PROFIL szeroka główka i pięć pól');
+      if (r.width === 1440 && wariant?.scale === 100 && (r.profile.width < 1100 || r.counterBoxes.length !== 5 || r.counterBoxes.some(b => Math.abs(b.y-r.counterBoxes[0].y)>1))) throw new Error('K509_PROFIL_PAS szeroka główka i pięć pól');
     }
     return r;
   }
@@ -125,34 +125,51 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
 
   // Każda mutacja dotyczy rzeczywistego arkusza, po niej odbudowa Vite,
   // oczekiwany błąd, odtworzenie bajtów/mtime i ponowny poprawny pomiar.
-  for (const [file, css, path, code, logged] of [
-    ['marka-wejscie.css', '.marka-wejscie { grid-template-columns: 1fr !important; }', '/login', 'K509_WEJSCIE', false],
-    ['marka-wlasnosc.css', '.marka-wlasnosc-karty { grid-template-columns: 1fr !important; }', '/', 'K509_WLASNOSC', false],
-    ['marka-przepis.css', '.marka-przepis > .marka-przepis-hero { grid-template-columns: 1fr !important; }', przepis, 'K509_PRZEPIS', true],
-    ['marka-profil.css', '.marka-profil-kompozycja .avatar { width: 80px !important; height: 80px !important; }', '/@ania', 'K509_PROFIL', true],
+  for (const [file, css, path, code, logged, width = 1440, scale = 100] of [
+    ['marka-wejscie.css', '.marka-wejscie { grid-template-columns: 1fr !important; }', '/login', 'K509_WEJSCIE_KOLUMNY', false],
+    ['marka-wlasnosc.css', '.marka-wlasnosc-karty { grid-template-columns: 1fr !important; }', '/', 'K509_WLASNOSC_KOLUMNY', false],
+    ['marka-przepis.css', '.marka-przepis > .marka-przepis-hero { grid-template-columns: 1fr !important; }', przepis, 'K509_PRZEPIS_KOLUMNY', true],
+    ['marka-profil.css', '.marka-profil-kompozycja .avatar { width: 80px !important; height: 80px !important; }', '/@ania', 'K509_PROFIL_AWATAR', true],
+    ['marka-profil.css', '.marka-profil-kompozycja { max-width: 720px !important; }', '/@ania', 'K509_PROFIL_PAS', true],
+    ['marka-profil.css', '.marka-profil-statystyki .profil-liczby-karta { grid-template-columns: 1fr !important; }', '/@ania', 'K509_PROFIL_PAS', true],
+    ['marka-przepis.css', '.marka-przepis .przepis-akcje .btn { width: 100% !important; }', przepis, 'K509_PRZEPIS_AKCJE', true],
+    ['marka-rama.css', '[data-marka] .wordmark > span[aria-hidden] { display: inline !important; }', '/login', 'K509_OVERFLOW', false, 390, 'font-200+140'],
   ]) {
+    const wariant = { dark: false, scale, zalogowany: logged };
+    const newPage = async context => {
+      const page = await context.newPage();
+      if (String(scale).startsWith('font-200')) await (await context.newCDPSession(page)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+      await page.addInitScript(({ scale }) => document.addEventListener('DOMContentLoaded', () => {
+        document.documentElement.dataset.theme = 'light';
+        document.documentElement.dataset.textScale = String(scale === 140 || scale === 'font-200+140' ? 140 : 100);
+      }), wariant);
+      return page;
+    };
+    const options = { storageState: logged ? sesja : undefined, viewport: { width, height: 900 }, reducedMotion: 'reduce' };
     const source = 'resources/css/' + file;
     const copy = mkdtempSync(tmpdir() + '/kuking509-') + '/' + file;
     const hash = () => createHash('md5').update(readFileSync(source)).digest('hex');
     const before = hash();
     execFileSync('cp', ['-p', source, copy]);
-    const context = await browser.newContext({ storageState: logged ? sesja : undefined, viewport: { width: 1440, height: 900 } });
+    const context = await browser.newContext(options);
     try {
+      // Punkt odniesienia musi przejść w dokładnie tym samym wariancie.
+      await pomiar(await newPage(context), path, wariant);
       appendFileSync(source, '\n' + css + '\n');
       execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
       let detected = false;
-      try { await pomiar(await context.newPage(), path); }
-      catch (e) { if (!e.message.startsWith(code)) throw e; detected = true; }
+      try { await pomiar(await newPage(context), path, wariant); }
+      catch (e) { if (e.message.split(' ')[0] !== code) throw e; detected = true; }
       if (!detected) throw new Error('Niewykryta kontrola ujemna ' + code);
       console.log('K509_UJEMNA ' + code + ' przed=' + before + ' zmieniony=' + hash());
     } finally {
       execFileSync('cp', ['-p', copy, source]);
-      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
       if (hash() !== before) throw new Error('Nie odtworzono ' + source);
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
       await context.close();
     }
-    const restored = await browser.newContext({ storageState: logged ? sesja : undefined, viewport: { width: 1440, height: 900 } });
-    try { await pomiar(await restored.newPage(), path); } finally { await restored.close(); }
+    const restored = await browser.newContext(options);
+    try { await pomiar(await newPage(restored), path, wariant); } finally { await restored.close(); }
     console.log('K509_PRZYWROCONO ' + file + ' MD5=' + hash());
   }
   console.log('K509_OK ' + wyniki.length + ' wariantów');

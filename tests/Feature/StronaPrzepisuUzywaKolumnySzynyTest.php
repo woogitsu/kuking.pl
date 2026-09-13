@@ -190,6 +190,7 @@ class StronaPrzepisuUzywaKolumnySzynyTest extends TestCase
         $this->assertMatchesRegularExpression('/\.marka-przepis\s*\{[^}]*display:\s*block;/s', $css);
         $this->assertMatchesRegularExpression('/\.marka-przepis\s*>\s*\.przepis-panel\s*\{[^}]*grid-column:\s*auto;/s', $css);
     }
+
     /**
      * PUNKT 3 ZGŁOSZENIA: ROŚNIE RAMA, NIE DŁUGOŚĆ WIERSZA.
      *
