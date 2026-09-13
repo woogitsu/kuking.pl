@@ -68,6 +68,9 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
     private const WYKLUCZONE_Z_TRAS_PLIKI = [
         'docs/AUDYT_2026-09.md',
         'docs/AUDYT_GPT_2026-09.md',
+        // Audyt z 13 września: sondy celowo wołają adresy, których nie ma
+        // (`/nie-ma-takiej-strony`), i cytuje adresy z produkcji (`/zdjecia/…`).
+        'docs/AUDYT_2026-09-13.md',
         'R1-tagi-kopia.md',
         // Dziennik decyzji: zapisuje też decyzje POŹNIEJ zmienione albo
         // adresy z etapu, zanim je zbudowano — z definicji historyczny.

@@ -11,6 +11,14 @@ są w [`decyzje/`](./decyzje/).
 
 Ten plik jest indeksem reszty.
 
+## Audyty
+
+| Dokument | O czym |
+|---|---|
+| [`AUDYT_2026-09-13.md`](./AUDYT_2026-09-13.md) | audyt wielodyscyplinarny z 13 września 2026: bezpieczeństwo, baza, język, dokumentacja, kod, SEO/infra, UX 50+; status znalezisk z 8 września |
+| [`AUDYT_GPT_2026-09.md`](./AUDYT_GPT_2026-09.md) | audyt wielodyscyplinarny GPT z 8 września 2026 (G01–G17) |
+| [`AUDYT_2026-09.md`](./AUDYT_2026-09.md) | audyt niespójności repozytorium z 8 września 2026 |
+
 ## Produkt
 
 | Dokument | O czym |
