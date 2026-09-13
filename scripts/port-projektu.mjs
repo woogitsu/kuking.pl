@@ -4,6 +4,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { sprawdzKompozycje } from './kompozycje-marki.mjs';
 import { sprawdzZoomMarki } from './zoom-marki.mjs';
+import { sprawdzKompozycje513 } from './zainteresowania-powiadomienia-marki.mjs';
 import { sprawdzZeszyty } from './zeszyty-marki.mjs';
 
 const KONTO = 'ania';
@@ -112,7 +113,8 @@ async function podniesSerwer() {
 
     const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: env(),
+      // Ochrona przekierowań porównuje host z app.url, także w lokalnym pomiarze.
+      env: { ...env(), APP_URL: adres },
     });
 
     proces.stdout.on('data', (b) => dziennik.push(String(b)));
@@ -361,7 +363,9 @@ try {
   await sprawdzKompozycje({ browser: przegladarka, adres, sesja, ...kompozycje });
   const zeszyty = JSON.parse(execFileSync('php', ['scripts/fixtures/zeszyty-marki.php'], { env: env() }).toString());
   await sprawdzZeszyty({ browser: przegladarka, adres, sesja, ...zeszyty });
-  await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty });
+  const paczka513 = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-513.php'], { env: env() }).toString());
+  await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
+  await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513 });
 
   // Kontrola ujemna zmienia źródło CSS, nie wynik pomiaru ani atrapę DOM.
   const source = 'resources/css/marka-rama.css';

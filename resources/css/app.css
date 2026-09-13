@@ -22,6 +22,8 @@
 @import "./marka-przepis.css";
 @import "./marka-profil.css";
 @import "./marka-zeszyt.css";
+@import "./marka-onboarding.css";
+@import "./marka-powiadomienia.css";
 
 /* Arkusze pojedynczych obszarów ekranów (UI kit v2, etap D). Osobne pliki,
    bo etap D wdrażało kilka równoległych zleceń — wspólny plik znaczyłby, że

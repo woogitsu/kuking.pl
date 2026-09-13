@@ -81,8 +81,8 @@
 #
 #  Właściciel ma ~2000 niewykorzystanych minut Actions i kazał ich użyć.
 #  Repozytorium jest PRYWATNE, więc minuty są płatne — ale płacą się tylko
-#  wtedy, gdy przebieg idzie na runnery GitHuba. Pełny przebieg to dziewięć
-#  jobów, orientacyjnie 25-35 minut maszynowych.
+#  wtedy, gdy przebieg idzie na runnery GitHuba. Pełny przebieg ma dziesięć
+#  jobów po wydzieleniu portu marki. Czas zależy od zakresu i kolejki runnerów.
 #
 #  JAK WRÓCIĆ NA WŁASNĄ PULĘ — BEZ ZMIANY W KODZIE (od 8 września, wieczór).
 #  `runs-on` czyta zmienną repozytorium `CI_RUNS_ON`. Bez niej stoi
@@ -841,6 +841,146 @@ jobs:
   #  w tym repozytorium. Progi (70 / 85) są z pomiaru lokalnego, nie
   #  z głowy — uzasadnienie liczb w nagłówku `scripts/wydajnosc.mjs`.
   # ===========================================================================
+  # Pełny port ma osobny budżet czasu i własną bazę. Nie pomija żadnego
+  # dotychczasowego pomiaru; nowe konfiguracje #513 nie konkurują o limit
+  # czasu z axe i Lighthouse (PR #517: wspólny job trwał 18 min 34 s).
+  port_marki:
+    name: Port marki (kompozycje, zoom i kontrole ujemne)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
+
+      - name: Czy zmieniła się warstwa widoku
+        id: zmiany
+        run: |
+          set -euo pipefail
+          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
+
+          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
+            echo "warto=1" >> "$GITHUB_OUTPUT"
+            echo "Brak punktu odniesienia — sprawdzam."
+            exit 0
+          fi
+
+          zmienione="$(git diff --name-only "$baza" HEAD)"
+          echo "Zmienione pliki:"; echo "$zmienione"
+
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+            echo "warto=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "warto=0" >> "$GITHUB_OUTPUT"
+            echo "Warstwa widoku nietknięta — pomijam."
+          fi
+
+      - name: Własny katalog narzędzi PHP (issue #262)
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          set -euo pipefail
+          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+
+      - name: Konfiguracja PHP
+        if: steps.zmiany.outputs.warto == '1'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Konfiguracja Node
+        if: steps.zmiany.outputs.warto == '1'
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalacja zależności
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+
+      - name: Przeglądarka
+        if: steps.zmiany.outputs.warto == '1'
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+
+      - name: Przygotowanie
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          cp .env.example .env
+          php artisan storage:link
+          npm run build
+
+          php artisan migrate:fresh --seed --force --no-interaction
+
+      - name: Port projektu — układ i kontrola ujemna
+        if: steps.zmiany.outputs.warto == '1'
+        env:
+          DB_DATABASE: kuking_port_pomiar
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/port-projektu.mjs
+
+      - name: Trzy kroki kreatora przy dużym tekście
+        if: steps.zmiany.outputs.warto == '1'
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/kroki-kreatora.mjs
+
+      - name: Zrzuty portu marki
+        if: always() && steps.zmiany.outputs.warto == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: port-marki-${{ github.sha }}
+          path: |
+            storage/port-projektu
+            storage/kroki-kreatora
+          retention-days: 14
+
   dostepnosc:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
@@ -931,7 +1071,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1083,19 +1223,6 @@ jobs:
           trap - EXIT
           php artisan test --compact --filter=SpojnoscWiadomosciMarkiTest
 
-      - name: Port projektu — układ i kontrola ujemna
-        if: steps.zmiany.outputs.warto == '1'
-        env:
-          DB_DATABASE: kuking_port_pomiar
-          PGPORT: ${{ job.services.postgres.ports[5432] }}
-        run: node scripts/port-projektu.mjs
-
-      - name: Trzy kroki kreatora przy dużym tekście
-        if: steps.zmiany.outputs.warto == '1'
-        env:
-          DB_DATABASE: kuking_port_pomiar
-        run: node scripts/kroki-kreatora.mjs
-
       - name: Aktualizacja aplikacji ze starym workerem
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/service-worker-aktualizacja.mjs
@@ -1115,16 +1242,6 @@ jobs:
       - name: axe-core (27 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs
-
-      - name: Zrzuty portu projektu
-        if: always() && steps.zmiany.outputs.warto == '1'
-        uses: actions/upload-artifact@v7
-        with:
-          name: port-projektu-${{ github.sha }}
-          path: |
-            storage/port-projektu
-            storage/kroki-kreatora
-          retention-days: 14
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.

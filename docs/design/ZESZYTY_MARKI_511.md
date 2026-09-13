@@ -119,6 +119,17 @@ przepisu w raporcie #509, którego test tras dokumentacji nie rozpoznaje.
 Zastąpiono go pełnym, zweryfikowanym odnośnikiem produkcyjnym. Nie dodano
 wyjątku w teście ani nie osłabiono kontroli odnośników.
 
-CI, PR oraz wdrożenie są jeszcze niepotwierdzone.
+PR #517 scalono do main `34b4b61109ebd1e1c808066191609672cd5ae332`.
+CI PR `34780301310`: wszystkie dziewięć zadań success, w tym PHP
+3707 testów / 74853 asercje. Następnie potwierdzono wdrożenie tego SHA:
+Railway `6426180376`, main CI `34781348552` i Deploy `34782396483`
+zakończyły się sukcesem. Metryczka produkcji oraz zalogowana przeglądarka
+pokazują Alfa 0.19 / `34b4b61`. Szczegóły i ograniczenia oglądu:
+`docs/design/ODBIOR_PRODUKCJI_ALFA_019.md`.
+
+Dodatkowo odebrano lokalnie 20 wariantów pustych stanów, otwartego
+formularza, rzeczywistej walidacji oraz kolekcji samych wpisów.
+Zakres i ograniczenia: `docs/design/ODBIOR_STANOW_ZESZYTU_511.md`.
+Nie rozszerza to wcześniejszych 64 rzeczywistych zoomów na puste stany.
 Tego dokumentu nie należy traktować jako odbioru
 całej marki ani dowodu wersji produkcyjnej.
