@@ -96,7 +96,59 @@ To odrębny dowód od wykonania testów i oglądu zrzutów. Bramka skryptu
 `kafel-dodawania-bramka.test.mjs` została również uruchomiona lokalnie:
 sukces, sześć kategorii i kontrole ujemne skryptu.
 
-## Produkcja przed tym pakietem
+## Uzupełnienie lokalnego odbioru PR #512
+
+Na kodzie `ec93196` Lighthouse zakończył się sukcesem dla 8/8 stron:
+wynik wydajności 92–99, SEO 100 poza logowaniem z celowym `noindex`.
+Pełny skrypt dostępności wykonał axe dla 44 ekranów bez naruszeń oraz
+49 pomiarów układu bez przepełnień. Cały skrypt zakończył się jednak
+**exit 1**: cztery historyczne asercje wymagały liczb profilu w prawej
+szynie przy 1280 i 1512 px, wbrew nowej kompozycji D-210. Nie jest to
+zielony wynik całego skryptu. Kontrolę zaktualizowano do pojedynczego
+pasa pod nagłówkiem, z zachowaniem wykrywania braków i duplikacji.
+Wąska regresja `scripts/regresja-liczb-profilu.mjs` wykonała te same funkcje
+pomiaru: 9/9 konfiguracji (360/1280/1512 px, gość i dwa zalogowane profile)
+oraz trzy rzeczywiste mutacje widoku: przeniesienie pasa do nagłówka,
+usunięcie i podwojenie. Każda została wykryta właściwym kodem błędu;
+po każdym przywróceniu ponownie przeszło 9/9. Kopia poza repo i `cp -p`
+odtworzyły MD5 `b70f7ab19d379cd0baca07e4c84d6ebe` oraz czas modyfikacji.
+Ten pomiar położenia jest jawnie w motywie jasnym; oba motywy sprawdzają
+osobno pomiary kompozycji i zoomu opisane powyżej.
+
+Po aktualizacji wykonano ponownie **cały** `scripts/dostepnosc.mjs`:
+exit 0, axe 44/44 i układ 49/49, zero naruszeń oraz zero rozjazdów liczb
+profilu. To lokalny odbiór poprawionego skryptu; ponowny CI i wdrożenie
+pozostają osobnymi krokami. Niezależny przegląd zmian testów nie znalazł
+blokującego osłabienia kontroli.
+
+CI `34774367667`, zadanie PHP `103769656178`, zakończyło się wynikiem
+3702 zaliczone / 1 błąd. Test onboardingu wymagał konkretnej osoby spośród
+dziesięciu równie pasujących wyników, choć ekran pokazuje pięć i nie
+gwarantuje kolejności remisów. Poprawiono kontrolę dodatnią w
+`WynikiSzukaniaLudziBezWachlarzaZapytanTest`: dokładnie 2, potem 5 unikalnych
+osób w sekcji wyników, z prawidłowymi nazwami i polami wyboru. Kolejność
+wyszukiwania w aplikacji i wymóg stałej liczby zapytań pozostają bez zmian.
+
+Lokalnie przeszły 3 testy / 43 asercje. Rzeczywista zamiana eagerload
+`user.profile.avatar` na `user` w `SearchQuery.php` wywołała błąd wszystkich
+trzech pomiarów, w onboardingu 14 → 20 zapytań. Kopia poza repo,
+przywrócenie `cp -p`, MD5 `0077704b90c9ee671056eb63c2350ef4` i czasu
+modyfikacji oraz ponowne 3/43 potwierdzają, że kontrola N+1 nadal działa.
+
+W tym samym CI zadanie `103769656194` potwierdziło przejście portu:
+432 warianty kompozycji i 48 rzeczywistego zoomu. Przeszły także kreator
+24/24, aktualizacja Service Workera, kafel 15/15 z bramką oraz fokus
+36 wariantów z trzema kontrolami ujemnymi i kliknięciami trzech obszarów.
+Następnie skrypt dostępności zgłosił te same cztery stare asercje liczników,
+bez naruszeń axe i układu. Zadanie zakończyło się błędem, nie timeoutem;
+Lighthouse w tym CI został pominięty. Jego wynik 8/8 powyżej jest lokalny.
+
+Niezależne porównanie źródeł wskazało również kompozycję wyboru
+zainteresowań i zwykłych powiadomień do dalszego oglądu:
+[issue #513](https://github.com/woogitsu/kuking.pl/issues/513).
+To rozpoznanie kodu i prototypu, nie wykonany odbiór w przeglądarce.
+
+## Produkcja przed tym pakietem — dowody
 
 13 września odczytano GitHub main `d0cf7b9a51dd7b3ecc1cba6233110b8bfe9ef4cf`,
 CI `34770672855` i Deploy `34771075299`: sukces. Railway deployment

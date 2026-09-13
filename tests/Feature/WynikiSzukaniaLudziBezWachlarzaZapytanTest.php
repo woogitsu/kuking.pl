@@ -182,6 +182,10 @@ class WynikiSzukaniaLudziBezWachlarzaZapytanTest extends TestCase
         $nowy = $this->user('nowa_osoba');
 
         $this->ludzie(2);
+        $this->sprawdzWynikiOnboardingu(
+            $this->actingAs($nowy)->get(route('onboarding.people', ['q' => 'pierogarz']))->assertOk()->getContent(),
+            2,
+        );
         $maloZapytan = $this->policzZapytania(
             fn () => $this->actingAs($nowy)->get(route('onboarding.people', ['q' => 'pierogarz']))->assertOk(),
         );
@@ -194,7 +198,9 @@ class WynikiSzukaniaLudziBezWachlarzaZapytanTest extends TestCase
         $this->ludzie(8, od: 3);
 
         $odpowiedz = $this->actingAs($nowy)->get(route('onboarding.people', ['q' => 'pierogarz']))->assertOk();
-        $this->assertStringContainsString('Pierogarz numer 1', $odpowiedz->getContent());
+        // Remisy podobieństwa nie gwarantują obecności konkretnej osoby.
+        // Sprawdzamy pełne wyniki, bez mieszania ich z polecanymi kontami.
+        $this->sprawdzWynikiOnboardingu($odpowiedz->getContent(), 5);
 
         $duzoZapytan = $this->policzZapytania(
             fn () => $this->actingAs($nowy)->get(route('onboarding.people', ['q' => 'pierogarz']))->assertOk(),
@@ -205,6 +211,29 @@ class WynikiSzukaniaLudziBezWachlarzaZapytanTest extends TestCase
             $duzoZapytan,
             "Krok onboardingu: {$maloZapytan} zapytań przy 2 znalezionych osobach, {$duzoZapytan} przy pięciu (pełna strona tego kroku).",
         );
+    }
+
+    private function sprawdzWynikiOnboardingu(string $html, int $oczekiwane): void
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new \DOMXPath($dom);
+        $sekcja = '//form[@method="POST" and @action="'.route('onboarding.people').'"]'
+            .'/h2[normalize-space(.)="Wyniki wyszukiwania"]/following-sibling::*[1][self::div]';
+        $this->assertSame(1, $xpath->query($sekcja)->length);
+        $wiersze = $xpath->query($sekcja.'/label');
+        $this->assertSame($oczekiwane, $wiersze->length);
+        $nazwy = [];
+        foreach ($wiersze as $wiersz) {
+            $pola = $xpath->query('./input[@type="checkbox" and @name="follow[]"]', $wiersz);
+            $this->assertSame(1, $pola->length);
+            $nazwa = $pola->item(0)->getAttribute('value');
+            $this->assertMatchesRegularExpression('/^pierogarz([1-9]|10)$/', $nazwa);
+            $etykieta = $xpath->evaluate('string(.//span[contains(concat(" ", normalize-space(@class), " "), " choice-label ")])', $wiersz);
+            $this->assertSame('Pierogarz numer '.substr($nazwa, strlen('pierogarz')), trim($etykieta));
+            $nazwy[] = $nazwa;
+        }
+        $this->assertCount($oczekiwane, array_unique($nazwy));
     }
 
     /** Przepisy pasujące do frazy „pierog", każdy ze zdjęciem głównym. */
