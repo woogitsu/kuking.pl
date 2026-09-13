@@ -225,31 +225,11 @@
                                 $opis = $post->body ?: $post->recipe?->title;
                             @endphp
 
-                            {{-- CAŁY WIERSZ JEST JEDNYM ODNOŚNIKIEM, BEZ PRZYCISKU
-                                 „ZOBACZ" NA KOŃCU (zgłoszenie właściciela).
-
-                                 Do 11 września wiersz miał trzy cele kliknięcia
-                                 prowadzące w dwa miejsca: zdjęcie (do wpisu), imię
-                                 autora (do profilu) i przycisk „Zobacz" (do wpisu,
-                                 ten sam adres co zdjęcie). Przycisk powtarzał się
-                                 przy KAŻDYM daniu, choć nie robił nic ponad to, co
-                                 zdjęcie obok — a stał raz z wcięciem, raz bez,
-                                 w zależności od tego, czy danie miało zdjęcie.
-
-                                 Teraz cel jest jeden i obejmuje cały wiersz: zdjęcie,
-                                 imię i opis. Cel dotykowy rośnie ze 120 px przycisku
-                                 do całej karty, czyli daleko ponad 48 px
-                                 z `docs/UX_50_PLUS.md`. Nazwa dostępna odnośnika to
-                                 widoczny tekst wiersza („Basia z Podkarpacia, Pierogi
-                                 z niedzieli…"), więc mówi, dokąd prowadzi — inaczej
-                                 niż dwadzieścia odnośników „Zobacz" na jednej liście.
-
-                                 CO ZA TO ZNIKŁO: przejście do profilu autora wprost
-                                 z karty dania (odnośnik w odnośniku nie istnieje
-                                 w HTML-u). Nazwisko autora zostaje widoczne, a droga
-                                 do profilu jest o jedno kliknięcie dalej — z otwartego
-                                 wpisu — i na miejscu w liście „Osoby" wyżej. --}}
-                            <a class="kuking-board-post-link" href="{{ $post->url() }}">
+                            {{-- Jeden odnośnik prowadzi do wpisu, a pseudoelement rozciąga
+                                 jego kliknięcie na cały wiersz. Fokus pozostaje na pełnej
+                                 nazwie: opis i notatka mogą być wyższe niż ekran przy 200%.
+                                 Nazwa dostępna zachowuje kontekst dania. --}}
+                            <div class="kuking-board-post-row">
                                 {{-- ZDJĘCIA NIE MA — NIE MA TEŻ PUSTEGO MIEJSCA PO NIM
                                      (issue #272). Element o zerowej szerokości zabiera
                                      w kontenerze `flex` swój `gap` także wtedy, gdy nic
@@ -268,7 +248,8 @@
                                      rozmiar bazowy z treści i spada pod zdjęcie nawet
                                      w szynie, w której miejsce jest. --}}
                                 <span class="kuking-board-post-body">
-                                    <span class="author-name">{{ $post->author->displayName() }}</span>
+                                    <a class="author-name kuking-board-post-link" href="{{ $post->url() }}"
+                                       aria-label="{{ $post->author->displayName().($opis ? ' — '.\Illuminate\Support\Str::limit($opis, 90) : '') }}">{{ $post->author->displayName() }}</a>
 
                                     @if($opis)
                                         <span class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($opis, 90) }}</span>
@@ -278,7 +259,7 @@
                                         <span class="kuking-board-note">{{ $notes[$post->getKey()] }}</span>
                                     @endif
                                 </span>
-                            </a>
+                            </div>
                         </li>
                     @endforeach
                 </ul>

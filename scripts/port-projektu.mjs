@@ -170,6 +170,12 @@ const { mkdirSync, readFileSync, appendFileSync, mkdtempSync } = await import('n
 const { createHash } = await import('node:crypto');
 const { tmpdir } = await import('node:os');
 mkdirSync('storage/port-projektu', { recursive: true });
+const slugPrzepisu = execFileSync('php', ['artisan', 'tinker', '--execute',
+  "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')->orderBy('id')->first())->slug;",
+], { env: env() }).toString().trim();
+if (!slugPrzepisu) throw new Error('Brak przepisu do pomiaru marki');
+const przepis = '/przepisy/' + slugPrzepisu;
+const ekranyMarki = ['/home', '/szukaj', '/zeszyt', '/@ania', '/@zofia_z_bieszczad', przepis, '/dodaj', '/ustawienia', '/ustawienia/czytelnosc', '/powiadomienia'];
 const wyniki = [];
 const pomiar = async (page, width, path) => {
   const response = await page.goto(`${adres}${path}`, { waitUntil: 'networkidle' });
@@ -183,13 +189,24 @@ const pomiar = async (page, width, path) => {
       main: main.width, radius: getComputedStyle(top).borderTopLeftRadius,
       navigation: nav ? getComputedStyle(nav).display : null,
       brand: document.body.dataset.marka,
-      heading: document.querySelector('h1')?.textContent.trim() };
+      heading: document.querySelector('h1')?.textContent.trim(),
+      profil: document.querySelector('.marka-profil') ? getComputedStyle(document.querySelector('.marka-profil')).backgroundColor : null,
+      przepisFont: document.querySelector('.przepis-uklad > header h1') ? parseFloat(getComputedStyle(document.querySelector('.przepis-uklad > header h1')).fontSize) : null,
+      rootFont: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      bodyFont: parseFloat(getComputedStyle(document.body).fontSize),
+      opisy: [...document.querySelectorAll('.ustawienia-nawigacja-tu, .ustawienia-nawigacja-opis')].map(el => parseFloat(getComputedStyle(el).fontSize)),
+      wybory: [...document.querySelectorAll('.panel-formularza .choice-help')].map(el => parseFloat(getComputedStyle(el).fontSize)),
+    };
   });
   if (result.brand !== 'kuking-2026') throw new Error('Brak portu marki');
   if (result.scroll > width + 1) throw new Error(`${path}: poziome przewijanie ${JSON.stringify(result)}`);
   if (result.main < Math.min(width - 60, 500)) throw new Error(`WASKA_KOLUMNA: ${JSON.stringify(result)}`);
   if (result.radius !== '20px') throw new Error('Nagłówek nie używa nowego projektu');
   if (width === 1440 && result.navigation === 'none') throw new Error('Brak menu desktop');
+  if (path.startsWith('/@') && result.profil !== 'rgb(21, 23, 20)') throw new Error('MARKA_PROFIL: ' + JSON.stringify(result));
+  if (path === przepis && (!result.przepisFont || result.przepisFont < result.rootFont * 2.125 - 0.5)) throw new Error('MARKA_TYTUL: ' + JSON.stringify(result));
+  if (path.startsWith('/ustawienia') && (!result.opisy.length || result.opisy.some(size => size < result.bodyFont - 0.5))) throw new Error('MARKA_OPISY: ' + JSON.stringify(result));
+  if (path === '/ustawienia/czytelnosc' && (!result.wybory.length || result.wybory.some(size => size < result.bodyFont - 0.5))) throw new Error('MARKA_WYBORY: ' + JSON.stringify(result));
   return result;
 };
 try {
@@ -198,10 +215,10 @@ try {
       const context = await przegladarka.newContext({ storageState: sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
       const page = await context.newPage();
       await page.addInitScript((dark) => { if (dark) document.addEventListener('DOMContentLoaded', () => document.documentElement.dataset.theme = 'dark'); }, dark);
-      for (const path of ['/home', '/szukaj', '/zeszyt', '/@ania', '/dodaj', '/ustawienia', '/powiadomienia']) {
+      for (const path of ekranyMarki) {
         const result = await pomiar(page, width, path);
         wyniki.push({ path, dark, ...result });
-        if (!dark && ((width === 390 && ['/home', '/@ania', '/szukaj'].includes(path)) || (width === 1440 && path === '/home'))) {
+        if (!dark && ((width === 390 && ['/home', '/@ania', '/szukaj', '/@zofia_z_bieszczad', przepis, '/ustawienia/czytelnosc'].includes(path)) || (width === 1440 && path === '/home'))) {
           const name = `${width}-${path.replaceAll('/', '').replace('@', '')}`;
           const buffer = await page.screenshot({ path: `storage/port-projektu/${name}.jpg`, type: 'jpeg', quality: 65 });
           console.log(`PORT_SCREEN_${name} ${buffer.toString('base64')}`);
@@ -227,7 +244,7 @@ try {
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
-  for (const path of ['/home', '/szukaj', '/zeszyt', '/@ania', '/dodaj', '/ustawienia', '/powiadomienia']) {
+  for (const path of ekranyMarki) {
     wyniki.push({ largeText: true, path, ...await pomiar(page, 320, path) });
   }
   await context.close();
@@ -258,6 +275,42 @@ try {
   const restored = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
   await pomiar(await restored.newPage(), 390, '/home');
   await restored.close();
+  // Każda regresja dotyczy rzeczywistego arkusza; jeden build, cztery różne ekrany.
+  execFileSync('cp', [source, copy]);
+  try {
+    appendFileSync(source, '\n[data-marka] .marka-profil.blok-ciemny { background-color: #fff; }\n[data-marka] .przepis-uklad > header h1 { font-size: 12px; }\n[data-marka] .ustawienia-nawigacja-opis { font-size: 12px; }\n[data-marka] .panel-formularza .choice-help { font-size: 12px; }\n');
+    console.log('MARKA_UJEMNA przed=' + before + ' zmieniony=' + hash());
+    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    for (const [path, kod] of [['/@zofia_z_bieszczad', 'MARKA_PROFIL'], [przepis, 'MARKA_TYTUL'], ['/ustawienia', 'MARKA_OPISY']]) {
+      const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
+      let wykryto = false;
+      try { await pomiar(await context.newPage(), 390, path); }
+      catch (error) { if (error.message.startsWith(kod)) wykryto = true; else throw error; }
+      finally { await context.close(); }
+      if (!wykryto) throw new Error('Kontrola ujemna nie wykryła ' + kod);
+      console.log('MARKA_UJEMNA wykryto=' + kod);
+    }
+    // Opisy ustawień nie mogą zamaskować osobnego sprawdzenia opisów wyboru.
+    execFileSync('cp', [copy, source]);
+    appendFileSync(source, '\n[data-marka] .panel-formularza .choice-help { font-size: 12px; }\n');
+    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
+    let wykryto = false;
+    try { await pomiar(await context.newPage(), 390, '/ustawienia/czytelnosc'); }
+    catch (error) { if (error.message.startsWith('MARKA_WYBORY')) wykryto = true; else throw error; }
+    finally { await context.close(); }
+    if (!wykryto) throw new Error('Kontrola ujemna nie wykryła MARKA_WYBORY');
+    console.log('MARKA_UJEMNA wykryto=MARKA_WYBORY');
+  } finally {
+    execFileSync('cp', [copy, source]);
+    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    if (hash() !== before) throw new Error('Źródło marki nie zostało odtworzone');
+    console.log('MARKA_UJEMNA przywrocony=' + hash());
+  }
+  const kontekstPrzywrocony = await przegladarka.newContext({ storageState: sesja, viewport: { width: 390, height: 900 } });
+  const stronaPrzywrocona = await kontekstPrzywrocony.newPage();
+  for (const path of ['/@zofia_z_bieszczad', przepis, '/ustawienia', '/ustawienia/czytelnosc']) await pomiar(stronaPrzywrocona, 390, path);
+  await kontekstPrzywrocony.close();
   console.log(`PORT_OK ${JSON.stringify(wyniki)}`);
 } finally {
   await przegladarka.close();

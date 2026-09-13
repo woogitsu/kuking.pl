@@ -931,7 +931,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu)\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|fokus-karty-dania)\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1030,6 +1030,59 @@ jobs:
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
+      - name: Kontrola ujemna wiadomości marki
+        if: steps.zmiany.outputs.warto == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file=resources/views/mail/link-do-logowania.blade.php
+          backup_dir=$(mktemp -d)
+          cp "$source_file" "$backup_dir/wiadomosc.blade.php"
+          before_hash=$(md5sum "$source_file" | cut -d' ' -f1)
+          restore_mail() {
+            cp "$backup_dir/wiadomosc.blade.php" "$source_file"
+            php artisan view:clear >/dev/null
+            after_hash=$(md5sum "$source_file" | cut -d' ' -f1)
+            test "$before_hash" = "$after_hash"
+            echo "MAIL_UJEMNA przywrocony=$after_hash"
+            rm -rf "$backup_dir"
+          }
+          trap restore_mail EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('resources/views/mail/link-do-logowania.blade.php')
+          s = p.read_text()
+          assert '#F3F4F1' in s
+          p.write_text(s.replace('#F3F4F1', '#FAF6F0'))
+          PY
+          echo "MAIL_UJEMNA przed=$before_hash zmieniony=$(md5sum "$source_file" | cut -d' ' -f1)"
+          php artisan view:clear
+          if php artisan test --compact --filter=SpojnoscWiadomosciMarkiTest > "$backup_dir/wynik.txt" 2>&1; then
+            echo "BŁĄD: stara paleta nie została wykryta"
+            exit 1
+          fi
+          cat "$backup_dir/wynik.txt"
+          grep -q "F3F4F1" "$backup_dir/wynik.txt"
+          cp "$backup_dir/wiadomosc.blade.php" "$source_file"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('resources/views/mail/link-do-logowania.blade.php')
+          s = p.read_text()
+          assert 'ten link niedługo przestanie działać.' in s
+          p.write_text(s.replace('ten link niedługo przestanie działać.', 'ten link niedługo przestanie działać. Nikt bez dostępu do tej skrzynki nie wejdzie na Twoje konto.'))
+          PY
+          php artisan view:clear
+          echo "MAIL_UJEMNA obietnica=$(md5sum "$source_file" | cut -d' ' -f1)"
+          if php artisan test --compact --filter=test_listy_logowania_nie_obiecuja_wylacznego_dostepu_przez_skrzynke > "$backup_dir/wynik.txt" 2>&1; then
+            echo "BŁĄD: fałszywa obietnica nie została wykryta"
+            exit 1
+          fi
+          cat "$backup_dir/wynik.txt"
+          grep -q "Nikt bez" "$backup_dir/wynik.txt"
+          restore_mail
+          trap - EXIT
+          php artisan test --compact --filter=SpojnoscWiadomosciMarkiTest
+
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/port-projektu.mjs
@@ -1041,6 +1094,10 @@ jobs:
       - name: Pomiar kafla dodawania (15 wariantów)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/kafel-dodawania.mjs
+
+      - name: Fokus i kliknięcia kart dania (#485)
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/fokus-karty-dania.mjs
 
       - name: axe-core (27 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
