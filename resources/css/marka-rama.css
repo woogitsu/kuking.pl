@@ -167,9 +167,33 @@
 @media (max-width: 15rem) {
   [data-marka] .marka-topbar { position: relative; top: 0; }
   [data-marka] .marka-rama:not([data-tryb-panelu]) { width: calc(100% - 16px); }
-  [data-marka] .bottom-nav-item { flex-basis: 40%; min-height: 60px; }
+  [data-marka] .bottom-nav-item { flex-basis: 40%; min-height: 60px; gap: 8px; }
   [data-marka] .bottom-nav-item-glowna { flex-basis: 100%; }
   [data-marka] .marka-publikacja { padding: 16px; }
 }
 /* Obrys pozostaje wewnątrz zaokrąglonej grupy zdjęć. */
 [data-marka] .post-card > :is(.photo-grid, .karuzela, .kolaz) :focus-visible { outline-offset: -4px; }
+
+/* Rezerwy przewijania uwzględniają pływające belki i wielkość tekstu. */
+:root:has(body[data-marka]) {
+  --rezerwa-pod-belka: calc(11rem * var(--user-text-scale, 1));
+  --rezerwa-nad-belka: calc(9rem + 6rem * var(--user-text-scale, 1));
+}
+@media (max-width: 15rem) {
+  :root:has(body[data-marka]) { --rezerwa-nad-belka: 0rem; }
+}
+@media (min-width: 64rem) {
+  :root:has(body[data-marka]) {
+    --rezerwa-pod-belka: 0rem;
+    --rezerwa-nad-belka: calc(6rem + 2rem * var(--user-text-scale, 1));
+  }
+}
+[data-marka] :is(.card, .panel-formularza, .empty-state) {
+  border-radius: 24px;
+  box-shadow: var(--marka-cien);
+}
+[data-marka] .post-card .meta,
+[data-marka] .szyna-podpis { font-size: var(--text-body); }
+[data-marka] .app-rail .kuking-board { --tablica-zdjecie: 72px; }
+[data-marka] .app-rail .kuking-board-avatar .avatar { width: 72px; height: 72px; }
+[data-marka] a.author-name { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }

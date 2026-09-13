@@ -341,7 +341,7 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body data-marka="kuking-2026" class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     <header class="topbar marka-topbar">
@@ -528,7 +528,6 @@
                         <ul class="topbar-konto-tresc">
                             <li><a href="{{ route('profile.show', $user->profile->username) }}">Mój profil</a></li>
                             <li><a href="{{ route('settings.index') }}">Ustawienia</a></li>
-                            <li><a href="{{ route('kontakt') }}">Napisz do nas</a></li>
                             @if($user->isModerator())
                                 <li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>
                             @endif

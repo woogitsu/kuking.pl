@@ -198,7 +198,7 @@ try {
       const context = await przegladarka.newContext({ storageState: sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
       const page = await context.newPage();
       await page.addInitScript((dark) => { if (dark) document.addEventListener('DOMContentLoaded', () => document.documentElement.dataset.theme = 'dark'); }, dark);
-      for (const path of ['/home', '/szukaj', '/zeszyt', '/@ania', '/dodaj', '/ustawienia']) {
+      for (const path of ['/home', '/szukaj', '/zeszyt', '/@ania', '/dodaj', '/ustawienia', '/powiadomienia']) {
         const result = await pomiar(page, width, path);
         wyniki.push({ path, dark, ...result });
         if (!dark && ((width === 390 && ['/home', '/@ania', '/szukaj'].includes(path)) || (width === 1440 && path === '/home'))) {
@@ -210,11 +210,24 @@ try {
       await context.close();
     }
   }
+
+  for (const width of [320, 1440]) {
+    const guest = await przegladarka.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+    const guestPage = await guest.newPage();
+    for (const path of ['/', '/login', '/register', '/o-kuking']) {
+      const response = await guestPage.goto(adres + path, { waitUntil: 'networkidle' });
+      if (response.status() !== 200) throw new Error(path + ': HTTP ' + response.status());
+      const scroll = await guestPage.evaluate(() => document.documentElement.scrollWidth);
+      if (scroll > width + 1) throw new Error(path + ': poziome przewijanie gościa ' + scroll);
+      wyniki.push({ guest: true, path, width, scroll });
+    }
+    await guest.close();
+  }
   const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 320, height: 740 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
-  for (const path of ['/home', '/szukaj', '/zeszyt', '/@ania', '/dodaj', '/ustawienia']) {
+  for (const path of ['/home', '/szukaj', '/zeszyt', '/@ania', '/dodaj', '/ustawienia', '/powiadomienia']) {
     wyniki.push({ largeText: true, path, ...await pomiar(page, 320, path) });
   }
   await context.close();
