@@ -1034,6 +1034,10 @@ jobs:
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/port-projektu.mjs
 
+      - name: Regresja bramki kafla dodawania (#484)
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/kafel-dodawania-bramka.test.mjs
+
       - name: Pomiar kafla dodawania (15 wariantów)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/kafel-dodawania.mjs
