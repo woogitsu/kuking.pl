@@ -6,6 +6,13 @@ przyciski, nagłówki, puste stany, błędy, e-maile, powiadomienia.
 Jeśli piszesz cokolwiek, co przeczyta człowiek — piszesz według tego pliku.
 Słownik funkcji i lista słów zakazanych: `BRAND_EXTENDED.md`.
 
+Aktualizacja D-208, publiczna strona powitalna: „Od Twojej kuchni do
+wspólnego stołu”, „Zdjęcie. Kilka słów. I rozmowa przy okazji.” oraz
+„Twój przepis. Czyjś dobry obiad.” są brzmieniem wskazanego przez
+właściciela wzorca. Kroki pozostają konkretnymi czynnościami: „Robisz
+zdjęcie”, „Piszesz kilka słów”, „Ktoś odpowiada”. Podpis publicznej
+fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
+
 > **Ten plik mówi, JAK napisać zdanie. Czym ten głos JEST i GDZIE mówi —
 > [`GLOS_MARKI.md`](GLOS_MARKI.md).** Tamten dokument rozstrzyga zasięg marki
 > (dwukolorowy zapis `kuKING` wszędzie poza pięcioma miejscami, hierarchia

@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.17 — publiczna strona zgodna z wizualizacją
+
+- Trzy otwarte, numerowane kroki z odnośnikami zastępują białe kafle „Jak działa”.
+- Duży blok „Twój przepis. Czyjś dobry obiad.” stoi bezpośrednio pod krokami, z publicznym zdjęciem i podpisem autora.
+- Tablica osób, dania i najnowsze wpisy pozostają dostępne niżej.
+
 ## Alfa 0.16 — spójne karty osób
 
 - Karty proponowanych osób na Odkrywaj i w wyszukiwaniu mają te same proporcje co na Start.
