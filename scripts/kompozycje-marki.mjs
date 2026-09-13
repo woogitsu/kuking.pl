@@ -5,14 +5,23 @@ import { appendFileSync, readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 
-export async function sprawdzKompozycje({ browser, adres, sesja, przepis }) {
-  const paths = ['/login', '/register', '/', przepis, '/@ania', '/@zofia_z_bieszczad'];
+export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdjecia }) {
+  const paths = ['/login', '/register', '/', przepis, bezZdjecia, '/@ania', '/@zofia_z_bieszczad'];
   const wyniki = [];
-  async function pomiar(page, path) {
+  async function pomiar(page, path, wariant = null) {
     const response = await page.goto(adres + path, { waitUntil: 'networkidle' });
     if (response.status() !== 200) throw new Error('K509_HTTP ' + path + ' ' + response.status());
     await page.evaluate(async () => { await document.fonts.ready; for (let i = 0; i < 30; i++) await new Promise(requestAnimationFrame); });
     const r = await page.evaluate(() => {
+      const visible = el => {
+        if (!el || el.getBoundingClientRect().width <= 0 || el.getBoundingClientRect().height <= 0) return false;
+        for (let node = el; node instanceof Element; node = node.parentElement) {
+          const css = getComputedStyle(node);
+          if (css.display === 'none' || css.visibility !== 'visible' || Number(css.opacity) < 0.99 || css.contentVisibility === 'hidden') return false;
+        }
+        return true;
+      };
+      const image = document.querySelector('.marka-przepis-zdjecie img');
       const box = selector => {
         const el = document.querySelector(selector);
         if (!el) return null;
@@ -21,6 +30,12 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis }) {
       };
       return {
         width: innerWidth, scroll: document.documentElement.scrollWidth,
+        rootFont: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        bodyFont: parseFloat(getComputedStyle(document.body).fontSize),
+        bodyColor: getComputedStyle(document.body).color,
+        imageReady: image && image.complete && image.naturalWidth > 0 && visible(image),
+        statsVisible: [...document.querySelectorAll('.marka-profil-statystyki .stat-value, .marka-profil-statystyki .stat-label')].map(visible),
+        actionBoxes: [...document.querySelectorAll('.przepis-akcje > a, .przepis-akcje > form button')].map(el => { const b = el.getBoundingClientRect(); return { x: b.x, right: b.right, y: b.y, width: b.width, visible: visible(el) }; }),
         desktop: matchMedia('(min-width: 901px)').matches,
         recipeDesktop: matchMedia('(min-width: 60rem)').matches,
         auth: box('.marka-wejscie'), brand: box('.marka-wejscie-zaproszenie'), form: box('.marka-wejscie-karta'),
@@ -32,6 +47,13 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis }) {
         counters: document.querySelectorAll('.profil-liczby-karta').length,
       };
     });
+    if (wariant) {
+      const largeFont = String(wariant.scale).startsWith('font-200');
+      const largeText = wariant.scale === 140 || wariant.scale === 'font-200+140';
+      const expectedFont = 18 * (largeFont ? 2 : 1) * (largeText ? 1.4 : 1);
+      if (Math.abs(r.bodyFont - expectedFont) > 0.15 || Math.abs(r.rootFont - (largeFont ? 32 : 16)) > 0.1) throw new Error('K509_SKALA ' + JSON.stringify({ wariant, root: r.rootFont, body: r.bodyFont, expectedFont }));
+      if (r.bodyColor !== (wariant.dark ? 'rgb(244, 245, 241)' : 'rgb(21, 23, 20)')) throw new Error('K509_MOTYW ' + JSON.stringify({ wariant, color: r.bodyColor }));
+    }
     if (r.scroll > r.width + 1) throw new Error('K509_OVERFLOW ' + path + ' ' + JSON.stringify(r));
     if (path === '/login' || path === '/register') {
       if (!r.auth || !r.brand || !r.form) throw new Error('K509_WEJSCIE brak kompozycji');
@@ -43,33 +65,51 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis }) {
       if (r.ownership.length !== 3 || r.ownership.some(c => c.width < Math.min(200, r.width - 24))) throw new Error('K509_WLASNOSC brak trzech czytelnych kart');
       if (r.desktop && r.ownership.some(c => Math.abs(c.y - r.ownership[0].y) > 1)) throw new Error('K509_WLASNOSC kolumny');
     }
+    if (path === bezZdjecia) {
+      if (!r.hero || !r.text || r.photo || r.text.width < r.hero.width - 2) throw new Error('K509_BEZ_ZDJECIA pusta kolumna');
+    }
     if (path === przepis) {
       if (!r.hero || !r.photo || !r.text || !r.actions) throw new Error('K509_PRZEPIS brak pełnego hero do pomiaru');
+      if (!r.imageReady) throw new Error('K509_PRZEPIS zdjęcie niewidoczne lub niewczytane');
+      if (wariant?.scale === 100 && wariant.zalogowany && r.recipeDesktop) {
+        if (r.actionBoxes.length < 2 || r.actionBoxes.some(a => !a.visible) || Math.abs(r.actionBoxes[0].y - r.actionBoxes[1].y) > 1 || r.actionBoxes[1].x < r.actionBoxes[0].right - 1) throw new Error('K509_PRZEPIS akcje nie stoją obok siebie ' + JSON.stringify(r.actionBoxes));
+      }
       if (r.recipeDesktop && (r.photo.x < r.text.right - 1 || Math.abs(r.photo.width - r.text.width) > 2)) throw new Error('K509_PRZEPIS kolumny');
       if (!r.recipeDesktop && r.photo.y < r.text.bottom - 1) throw new Error('K509_PRZEPIS kolejność');
       if (r.actions.y < r.hero.bottom - 1 || r.actions.width < r.hero.width - 2) throw new Error('K509_PRZEPIS akcje nadal w szynie');
     }
     if (path.startsWith('/@')) {
       if (!r.profile || !r.stats || r.stats.y < r.profile.bottom - 1 || r.counters !== 1) throw new Error('K509_PROFIL liczniki');
+      if (r.statsVisible.length === 0 || r.statsVisible.some(v => !v)) throw new Error('K509_PROFIL niewidoczne liczby lub podpisy');
       if (r.avatar.width < 169 || r.avatar.height < 169) throw new Error('K509_PROFIL awatar');
       if (r.profileGrid.width >= 576 && r.identity.x < r.avatar.right) throw new Error('K509_PROFIL kolumny');
     }
     return r;
   }
-  for (const width of [320, 360, 390, 414, 768, 1440]) for (const dark of [false, true]) for (const scale of [100, 140, 'font-200']) {
+  for (const width of [320, 360, 390, 414, 768, 1440]) for (const dark of [false, true]) for (const scale of [100, 140, 'font-200', 'font-200+140']) {
     for (const zalogowany of [false, true]) {
       const context = await browser.newContext({ storageState: zalogowany ? sesja : undefined, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
       try {
         const page = await context.newPage();
-        if (scale === 'font-200') await (await context.newCDPSession(page)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+        if (String(scale).startsWith('font-200')) await (await context.newCDPSession(page)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
         await page.addInitScript(({ dark, scale }) => document.addEventListener('DOMContentLoaded', () => {
           document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-          document.documentElement.dataset.textScale = String(scale === 140 ? 140 : 100);
+          document.documentElement.dataset.textScale = String(scale === 140 || scale === 'font-200+140' ? 140 : 100);
         }), { dark, scale });
-        for (const path of paths.filter(p => zalogowany ? p.startsWith('/@') || p === przepis : !p.startsWith('/@') && p !== przepis)) {
-          wyniki.push({ path, dark, scale, ...await pomiar(page, path) });
+        for (const path of paths.filter(p => zalogowany ? p.startsWith('/@') || p === przepis || p === bezZdjecia : !p.startsWith('/@'))) {
+          wyniki.push({ path, dark, scale, zalogowany, ...await pomiar(page, path, { dark, scale, zalogowany }) });
+          if (path === przepis && ((width === 1440 && scale === 100) || (width === 320 && scale === 'font-200+140'))) {
+            const link = page.locator('.marka-przepis-zdjecie a[data-powieksz]');
+            await link.focus();
+            await page.keyboard.press('Enter');
+            await page.locator('#powiekszenie[open]').waitFor({ state: 'visible' });
+            await page.waitForFunction(() => { const img = document.querySelector('#powiekszenie .lightbox-obraz'); return img?.complete && img.naturalWidth > 0; });
+            await page.keyboard.press('Escape');
+            await page.locator('#powiekszenie').waitFor({ state: 'hidden' });
+            if (page.url() !== adres + path) throw new Error('K509_PRZEPIS powiększenie opuściło przepis');
+          }
           if ((width === 1440 && scale === 100) || (width === 320 && scale === 140)) {
-            await page.screenshot({ path: `storage/port-projektu/kompozycja509-${path.replaceAll('/', '').replace('@', '') || 'publiczna'}-${width}-${dark}.png`, fullPage: true });
+            await page.screenshot({ path: `storage/port-projektu/kompozycja509-${path.replaceAll('/', '').replace('@', '') || 'publiczna'}-${width}-${dark}-${zalogowany}.png`, fullPage: true });
           }
         }
       } finally { await context.close(); }

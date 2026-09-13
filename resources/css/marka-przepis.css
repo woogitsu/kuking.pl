@@ -51,6 +51,9 @@
   max-width: 100%;
 }
 @media (min-width: 60rem) {
+  [data-marka] .marka-przepis .przepis-akcje .btn {
+    width: auto;
+  }
   [data-marka] .marka-przepis > .marka-przepis-hero:has(.marka-przepis-zdjecie) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
