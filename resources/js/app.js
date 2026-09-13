@@ -13,13 +13,7 @@
 
 // --- Service worker (PWA) -------------------------------------------------
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-            // Brak service workera nie może niczego zepsuć — aplikacja działa dalej.
-        });
-    });
-}
+import './service-worker.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 

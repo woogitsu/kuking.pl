@@ -4,7 +4,7 @@ Status sprawdzony 13 września 2026: pakiet scalony w PR #494 (PR #493 zamknięt
 
 Railway: deployment `ba872757-91a9-4850-97bb-1e9dceaba112`, środowisko production, status SUCCESS. Domena kuking.pl odpowiada HTTP 200 i pokazuje Alfa 0.11 / dbd1cb9. To dowód wdrożenia niezależny od wyniku CI.
 
-CI #928, przebieg `34749126034`, w próbie 2 pokazuje dziewięć sukcesów. Ponowiono tylko wyścigi: job `103704702033`, 5 testów / 44 asercje. Pierwotny job `103702460527` pozostaje niewyjaśniony: brak kroków i nazwy runnera, log 404 BlobNotFound. Zielona powtórka nie ustala przyczyny historycznej awarii. Nie zmieniono zasad D-105.
+CI #928, przebieg `34749126034`, w próbie 2 pokazuje dziewięć sukcesów. Ponowiono tylko wyścigi: job `103704702033`, 5 testów / 44 asercje. Pierwotny job `103702460527` miał brak kroków i nazwy runnera, a log odpowiadał 404 BlobNotFound. Późniejszy odczyt adnotacji w interfejsie GitHuba potwierdził, że zadanie nie wystartowało po pięciu nieudanych próbach pobrania do wykonania. Głębsza przyczyna przydzielania pozostaje nieustalona; szczegółowy dowód w `AUDYT_SPOJNOSCI_ALFA_012.md`. Nie zmieniono zasad D-105.
 
 Audyt #492 potwierdził różnice poza wspólną ramą: biały nagłówek cudzych profili, bazową skalę tytułu przepisu, 16-pikselowe opisy ustawień i wyborów oraz stare fonty i kolory w 11 własnych szablonach HTML e-maili. Poprawki nie zmieniają tras ani uprawnień.
 
