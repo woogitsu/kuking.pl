@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.19 — zeszyty zgodne z wizualizacją
+
+- Zeszyty mają ciemne karty, a ostatnie zapisy znajdują się pod nimi w głównej części strony.
+- Przepisy w zeszycie mają większe zdjęcia nad pełnymi tytułami i układają się w siatkę dopasowaną do dostępnego miejsca.
+- Klawiatura zaznacza krótkie „Zobacz przepis”, dzięki czemu długi tytuł nie wypycha fokusu pod nawigację.
+- Instrukcja pustego zeszytu wyjaśnia zapisywanie bez obietnicy stałego dostępu do każdej treści.
+
 ## Alfa 0.18 — kolejne ekrany zgodne z wizualizacją
 
 - Logowanie i rejestracja mają osobną kartę formularza obok zaproszenia.

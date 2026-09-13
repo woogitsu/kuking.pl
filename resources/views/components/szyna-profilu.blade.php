@@ -80,7 +80,7 @@
              jest — ten sam „oracle istnienia", który `ProfileController`
              naprawił już przy licznikach obserwujących. Nazwa zeszytu wystarczy
              do tego, po co ta lista jest: żeby do niego wejść. --}}
-        <x-szyna-linki :pozycje="$zeszyty->map(fn ($zeszyt) => [
+        <x-szyna-linki akcja="Otwórz zeszyt" :pozycje="$zeszyty->map(fn ($zeszyt) => [
             'href' => route('collections.show', $zeszyt),
             'nazwa' => $zeszyt->name,
             'podpis' => $zeszyt->description,
