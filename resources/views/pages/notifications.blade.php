@@ -149,11 +149,10 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
-                                     (issue #6). Pierwszy wpis to jedyna okazja,
-                                     żeby ktoś poczuł, że jest tu ktoś po drugiej
-                                     stronie — i mamy na to dobę. --}}
+                                     (issue #6). Zachęca do odpowiedzi nowej osobie,
+                                     bez obietnicy terminu ani tezy o retencji. --}}
                                 <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
-                                Odpowiedz jak najszybciej — pierwszy wpis bez reakcji zwykle bywa ostatnim.
+                                To pierwszy wpis tej osoby. Warto odpowiedzieć szybko.
                                 @break
                             @case(\App\Models\Notification::TYPE_APPEAL_FILED)
                                 {{-- Zawiadomienie dla ADMINISTRATORA: ktoś złożył

@@ -3,6 +3,15 @@
 Poniższy tekst jest promptem do przekazania kolejnemu modelowi. Statusy są
 zapisem sesji, nie gwarancją aktualnego stanu. Najpierw sprawdź GitHub.
 
+## Późniejsza aktualizacja — 14 września 2026
+
+PR #519 dokończony i scalony: head `dcd1c5958c4cf23ef2a7fb6194f1aa37fc3e855d`,
+merge `ce82638dc6a69be3f73dbc0094db7cb7cede6e97`. Końcowy CI
+34786368175: wszystkie dziesięć zadań success, PHP 3712 / 74919.
+Rozpoczęto #514 na gałęzi `fix/514-precyzja-komunikatow`; szczegóły
+w `PRECYZJA_KOMUNIKATOW_514.md`. Przed dalszym działaniem sprawdź
+bieżący GitHub i status odbioru produkcji, nie starszy opis draft poniżej.
+
 ## Aktualizacja po wznowieniu
 
 Push commita `9b6bf6aa04b01587e17ae0fe49b2e7a7a5a9262d` zakończył się

@@ -139,3 +139,14 @@ macierzy nie są zamykane przez ten raport. Nie potwierdzono tu wszystkich
 typów powiadomień, wszystkich stanów moderacji ani realnych klientów poczty.
 
 Końcowy lokalny `dostepnosc.mjs`: kod 0, axe **44/44 ekranów**, układ **49/49**; zero naruszeń, poziomego overflow, niespójności układu i zasłoniętego fokusu. Końcowy ciemny desktop powiadomień z fallbackiem „Ktoś” został ponownie obejrzany.
+
+
+## Scalenie — 14 września 2026
+
+Końcowy head `dcd1c5958c4cf23ef2a7fb6194f1aa37fc3e855d` przeszedł
+[CI 34786368175](https://github.com/woogitsu/kuking.pl/actions/runs/34786368175):
+wszystkie dziesięć zadań success, PHP 3712 testów / 74919 asercji,
+wyścigi 5 testów / 44 asercje. PR #519 scalono zwykłą drogą jako
+`ce82638dc6a69be3f73dbc0094db7cb7cede6e97`.
+Wcześniejsze zapisy o oczekiwaniu na CI są historyczne. Scalenie samo
+nie stanowi odbioru produkcji; osobny wynik zostanie zapisany po deployu.

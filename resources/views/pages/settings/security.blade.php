@@ -150,7 +150,7 @@
             @elseif(auth()->user()->hasFacebookConnected())
                 <p>
                     To konto jest <strong>połączone z Twoim kontem Facebooka</strong> —
-                    możesz wchodzić jednym kliknięciem, przyciskiem „Wejdź kontem Facebooka"
+                    możesz logować się przyciskiem „Wejdź kontem Facebooka"
                     na stronie logowania. Twoje hasło działa dalej tak samo.
                 </p>
                 <p>
@@ -162,7 +162,7 @@
             @else
                 <p>
                     Jeśli połączysz to konto ze swoim kontem Facebooka, następnym razem
-                    wejdziesz tu <strong>jednym kliknięciem</strong>, bez wpisywania hasła.
+                    możesz logować się przyciskiem „Wejdź kontem Facebooka”, bez wpisywania hasła do Kuking.
                     Hasło zostanie takie, jakie jest, i nadal będzie działać.
                 </p>
                 <p>

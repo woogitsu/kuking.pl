@@ -285,7 +285,7 @@ class FacebookLoginController extends Controller
             // To samo konto — nie ma nic do zrobienia i nie ma o co krzyczeć.
             if ($powiazane->getKey() === $user->getKey()) {
                 return redirect()->route('settings.security')->with('status',
-                    'To konto jest już połączone z Twoim kontem Facebooka. Możesz wchodzić jednym kliknięciem.',
+                    'To konto jest już połączone z Twoim kontem Facebooka. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
                 );
             }
 
@@ -366,7 +366,7 @@ class FacebookLoginController extends Controller
                 .'inaczej ktoś mógłby wpisać cudzy adres w swoim koncie na Facebooku i wejść na cudze konto. '
                 .'Wejdź na swoje konto tak jak zwykle: hasłem albo poproś o wiadomość z przyciskiem do zalogowania. '
                 .'Potem w Ustawieniach → Bezpieczeństwo kliknij „Połącz konto Facebooka" — i od następnego razu '
-                .'będziesz wchodzić jednym kliknięciem.',
+                .'możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
             );
         }
 
@@ -605,7 +605,7 @@ class FacebookLoginController extends Controller
         }
 
         return redirect()->route('settings.security')->with('status',
-            'Gotowe — od teraz wejdziesz na to konto jednym kliknięciem, przyciskiem „Wejdź kontem Facebooka". '
+            'Gotowe — możesz logować się na to konto przyciskiem „Wejdź kontem Facebooka". '
             .'Twoje hasło działa dalej tak samo jak wcześniej.',
         );
     }

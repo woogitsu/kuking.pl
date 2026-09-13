@@ -480,6 +480,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // Zdanie na ekranie mówi, CO ZROBIĆ — inaczej prawdziwa Basia
         // odbija się od odmowy i odchodzi. (Odczytane wyżej, patrz komentarz.)
         $this->assertStringContainsString('jest już konto', $status);
+        $this->assertStringNotContainsString('jednym kliknięciem', $status);
+        $this->assertStringContainsString('Wejdź kontem Facebooka', $status);
         $this->assertStringContainsString('hasłem', $status);
         $this->assertStringContainsString('Połącz konto Facebooka', $status);
     }
@@ -811,6 +813,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         // Dopiero POST tworzy powiązanie.
         $this->post(route('facebook.link.store'))->assertRedirect(route('settings.security'));
+        $this->assertStringNotContainsString('jednym kliknięciem', (string) session('status'));
+        $this->assertStringContainsString('Wejdź kontem Facebooka', (string) session('status'));
 
         $this->assertSame(self::FB_ID, $this->identyfikatorFacebooka($basia->refresh()));
         $this->assertDatabaseHas('audit_log', ['action' => 'account.facebook_connected']);
@@ -932,6 +936,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         $this->assertDatabaseCount('tozsamosci_zewnetrzne', 1);
         $this->assertStringContainsString('już połączone', (string) session('status'));
+        $this->assertStringNotContainsString('jednym kliknięciem', (string) session('status'));
+        $this->assertStringContainsString('Wejdź kontem Facebooka', (string) session('status'));
     }
 
     // ─────────────────── co pilnuje BAZA, a nie PHP (D-098) ───────────────────

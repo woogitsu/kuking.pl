@@ -42,8 +42,7 @@
             <strong>Załóż konto adresem e-mail</strong> — zajmie to chwilę i wymaga tylko
             adresu oraz hasła. Potem, już na swoim koncie, wejdziesz w
             <strong>Ustawienia → Bezpieczeństwo</strong> i klikniesz „Połącz konto
-            Facebooka". Od tej pory będziesz wchodzić jednym kliknięciem — czyli tak, jak
-            miało być teraz.
+            Facebooka". Po połączeniu kont możesz logować się przyciskiem „Wejdź kontem Facebooka”.
         </p>
 
         <div class="form-actions">

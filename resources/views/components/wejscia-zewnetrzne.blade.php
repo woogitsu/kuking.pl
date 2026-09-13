@@ -59,7 +59,7 @@
     i kontrolerowi — więc nie da się dojść do stanu „przycisk jest, droga
     nie działa".
 --}}
-@props(['naglowek' => 'Masz konto Google albo Facebooka? Wejdź jednym kliknięciem'])
+@props(['naglowek' => 'Masz konto Google albo Facebooka? Zaloguj się przez nie'])
 
 @php
     /**
