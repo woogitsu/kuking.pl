@@ -88,7 +88,12 @@ Przeczytaj w tej kolejności:
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
 9. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
 
-Jeśli pracujesz nad wyglądem: `docs/design/DESIGN_SYSTEM.md`.
+Jeśli pracujesz nad marką lub wyglądem: najpierw
+[`docs/brand/KONSTYTUCJA_MARKI.md`](docs/brand/KONSTYTUCJA_MARKI.md), potem
+`docs/brand/COPY_STYLE.md`, `docs/brand/GLOS_MARKI.md` oraz
+`docs/design/DESIGN_SYSTEM.md`. Konstytucja wyznacza kierunek marki;
+nie zastępuje nadrzędnych zasad tego pliku ani jawnych decyzji właściciela
+w `docs/DECISIONS.md`. Historyczna makieta nie unieważnia tych zasad.
 Jeśli nad moderacją lub prawem: `docs/legal/`.
 Jeśli nad wdrożeniem: `docs/infra/`.
 

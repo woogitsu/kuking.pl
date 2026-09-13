@@ -2,8 +2,8 @@
 
 13 września 2026, issue #506, D-208. Baza kodu:
 `94a7b436180d64480bb46feca9bc150af8ca116c`.
-Stan: poprawka przygotowana do przekazania na prośbę właściciela z powodu
-kończącego się limitu sesji. Nie jest to potwierdzenie wdrożenia.
+Stan: poprawka scalona i wdrożona, odbiór publicznego fragmentu wykonany
+13 września 2026. Granice odbioru są opisane poniżej.
 
 ## Źródło i różnice
 
@@ -55,6 +55,42 @@ Pełny niezależny `dostepnosc.mjs` został przerwany przy przekazaniu:
 część axe bez zgłoszeń, pomiary układu dotarły do 414 px / 140%.
 Nie jest to pełny wynik pozytywny. Log lokalny: `output/landing506-a11y.log`.
 Wcześniejszy przebieg ze starym buildem nie jest dowodem odbioru.
-CI i Railway wymagają dalszego sprawdzenia po przekazaniu.
+Przerwany pomiar lokalny nie jest wynikiem CI: późniejszy pełny przebieg
+CI wykonał skaner do końca, z wynikami podanymi niżej.
 Podwojenie bazowej czcionki nie jest rzeczywistym zoomem przeglądarki.
 Nie utożsamiamy tej poprawki z pełnym odbiorem wszystkich stanów portalu.
+
+## Potwierdzony odbiór CI i produkcji
+
+- [PR #507](https://github.com/woogitsu/kuking.pl/pull/507), SHA
+  `8e40a3249783c35491cc8d6e769b94ac63f278eb`, scalony jako
+  `b8b3092d1111acb2aa24890361d6355b46661e87` po dziewięciu poprawnych
+  zadaniach [CI](https://github.com/woogitsu/kuking.pl/actions/runs/34767396074).
+- Odczytane logi tego CI: **3696 testów PHP / 74689 asercji**, wyścigi
+  **5 / 44**, dostępność **axe44/44 i układ49/49**, zero naruszeń oraz
+  zasłonięć fokusu. Czerwone próby wewnątrz logów są kontrolami ujemnymi,
+  po których źródła przywrócono i wykonano poprawne próby.
+- [CI main](https://github.com/woogitsu/kuking.pl/actions/runs/34769081844)
+  i [Deploy](https://github.com/woogitsu/kuking.pl/actions/runs/34769667966)
+  zakończyły się sukcesem. Pominiętego Deploy nie zaliczamy jako wdrożenia.
+- Railway: deployment `7b03a02a-78be-4604-b668-12689a915398`, potwierdzony
+  w panelu produkcji; odpowiadające zgłoszenie GitHub deployment
+  `6423844736` ma SHA `b8b3092d1111acb2aa24890361d6355b46661e87` i status
+  **success** z 13 września, **16:48:07 UTC**.
+- Żywa anonimowa strona pokazuje **Alfa0.17 / b8b3092**. Sprawdzono
+  **24 warianty**: 320/360/390/414/768/1440 px, oba motywy oraz tekst
+  100/140%. Wszystkie HTTP200, trzy kroki, bez poziomego przepełnienia.
+  Motyw i skala były ustawiane wyłącznie dla pomiaru renderu w sesji gościa;
+  nie jest to test zapisu preferencji konta.
+- Zdjęcie publicznego wpisu wczytane (naturalna szerokość większa od zera),
+  podpis „Zdjęcie: Ewa Kapica.”. Obejrzano rzeczywiste zrzuty kroków oraz
+  ciemnego bloku ze zdjęciem na komputerze i ciemnego wariantu mobilnego.
+  Przy 320px/140% treść jest długa i zawija się; nie obcinano jej.
+- CSS `app-BgCJc3rw.css` pobrany z produkcji ma SHA-256
+  `e6fadd975a313e443ef113b92af193baeb1717499b0f56ce42c057d3715516dc`,
+  identyczny z buildem w kontekście Docker. Inter jest lokalnym fontem,
+  odczytane rozmiary tekstu:18px oraz25,2px.
+
+Odbiór dotyczy wdrożenia aplikacji z PR507. Późniejsze zapisanie tego raportu
+jest osobnym commitem dokumentacji. Pełna identyfikacja nadal ma luki
+w innych kompozycjach: [audyt paczki](AUDYT_PACZKI_MARKI_508.md).
