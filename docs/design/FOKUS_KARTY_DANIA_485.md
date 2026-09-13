@@ -1,5 +1,15 @@
 # Fokus karty dania — #485
 
+## Ponowna weryfikacja — 13 września 2026
+
+W audycie Alfa 0.14 wykonano lokalnie 36 wariantów, rzeczywiste przejście
+Tab oraz kliknięcia zdjęcia, opisu i wolnego obszaru karty. Trzy kontrole
+ujemne źródłowego CSS wykryto; przywrócenie MD5 potwierdzono. Test przeszedł
+również w [CI PR #499](https://github.com/woogitsu/kuking.pl/actions/runs/34759245908).
+Zakres i ograniczenia odbioru opisuje
+[raport Alfa 0.14](AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md).
+Emulacji powiększonego fontu nie zaliczamy jako rzeczywistego zoomu przeglądarki.
+
 ## Przyczyna potwierdzona w przeglądarce
 
 CI 34742989087, job 103685908785: /home i /szukaj przy 320 px.
