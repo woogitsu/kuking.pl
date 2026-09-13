@@ -86,14 +86,23 @@
      rzeczą, po którą człowiek tu przyszedł (docs/design/ROLE_KART.md, rola 3).
      Karty treści są dopiero w środku — bez tego rozdzielenia mielibyśmy
      kartę w karcie o tym samym wyglądzie. --}}
-<section @class(['sekcja-strony' => $wKarcie, 'kuking-board', 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
+<section @class(['sekcja-strony' => $wKarcie, 'kuking-board', 'marka-tablica' => $wKarcie, 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
+    <div @class(['marka-tablica-wstep' => $wKarcie])>
+    @if($wKarcie)<p class="nadtytul">Z innych kuchni</p>@endif
     <h2 @class(['mt-0', 'text-title-lg' => ! $wKarcie]) id="kuking-na-dzis">
-        @if($graSlowem)
+        @if($wKarcie)
+            Co dobrego u innych?
+        @elseif($graSlowem)
             <x-kuking-word forma="i" /> na dziś
         @else
             Co się dziś gotuje
         @endif
     </h2>
+    @if($wKarcie)
+        <p>Zdjęcia obiadów, rodzinne przepisy i kilka słów z codziennego gotowania.</p>
+        <a href="{{ route('discover') }}">Zobacz dania i przepisy</a>
+    @endif
+    </div>
 
     @if($pusta)
         <p class="meta mb-0">
@@ -101,7 +110,7 @@
             Zajrzyj do <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a>.
         </p>
     @else
-        <p class="meta">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>
+        @unless($wKarcie)<p class="meta">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>@endunless
 
         {{-- OSOBY OBOK DAŃ TAM, GDZIE SIĘ MIESZCZĄ (issue #365).
 
@@ -119,7 +128,10 @@
         <div class="kuking-board-kolumny">
         @if($people->isNotEmpty())
             <div class="kuking-board-kolumna">
-                <h3 class="kuking-board-subtitle">Osoby</h3>
+                <div class="marka-tablica-naglowek">
+                    <h3 class="kuking-board-subtitle">{{ $wKarcie ? 'Może ich znasz?' : 'Osoby' }}</h3>
+                    @if($wKarcie)<a href="{{ route('search', ['sekcja' => 'ludzie']) }}" aria-label="Szukaj osób">Szukaj</a>@endif
+                </div>
                 <ul class="kuking-board-people">
                     @foreach($people as $person)
                         <li class="kuking-board-person">

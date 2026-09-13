@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.3, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.4, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -81,6 +81,23 @@ Aktywna pozycja pozostaje rozpoznawalna także bez koloru. Nagłówek i pasek
 nie mogą zasłaniać treści ani elementu z fokusem; odstęp uwzględnia ich
 rzeczywistą wysokość oraz bezpieczny obszar urządzenia. Przy dużym tekście
 pierwszeństwo ma dostęp do całej treści, nawet kosztem przyklejenia paska.
+
+### Wzorzec kompozycji — D-207
+
+Właściciel wskazał wizualizację „Dzień dobry, Basiu” jako wzorzec do
+odtworzenia. Dotychczasowy port zachował zbyt wiele starej kompozycji.
+Na komputerze menu brzmi **Start / Odkrywaj / Mój zeszyt**, a Szukaj jest
+osobną akcją po prawej. Powitanie jest krótkie; pytanie i dwa przyciski
+stoją w ciemnym kaflu z dużym pierścieniem. Prawą kolumnę zaczyna ciemny
+wstęp, następnie osobne powierzchnie osób i dań. Nie kopiujemy fikcyjnych
+kont, danych ani znaku K. Zachowujemy garnek i istniejące funkcje.
+
+Przy szerokim oknie punkt odniesienia to treść 1120 px: 750 + 40 + 330 px.
+Kafel ma tytuł 28 px i grupę akcji do 500 px, nagłówki sekcji 24 px;
+wartości tekstowe rosną z ustawieniem użytkownika. Dłuższe nazwy i opisy
+zawijają się. Wzorzec nie upoważnia do zmniejszania tekstu dla pozornego
+dopasowania ani ukrywania funkcji; pozostają przełącznik strumienia,
+podglądy prawdziwych dań i widoczny podpis Powiadomienia.
 
 ### Powierzchnie i komponenty
 

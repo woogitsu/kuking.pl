@@ -3,12 +3,13 @@
 [data-marka] {
   --marka-promien: 26px;
   --marka-cien: 0 12px 36px rgb(21 23 20 / 7%);
+  background-image: radial-gradient(ellipse at 10% 10%, rgb(190 48 37 / 4%), transparent 35%);
 }
 [data-marka] .marka-topbar {
   width: min(1220px, calc(100% - 24px));
-  margin: 14px auto 0;
-  top: 14px;
-  border: 1px solid var(--color-border);
+  margin: 8px auto 0;
+  top: 8px;
+  border: 0;
   border-radius: 20px;
   box-shadow: var(--marka-cien);
   background: var(--color-surface-raised);
@@ -18,8 +19,8 @@
   flex-wrap: wrap;
   width: 100%;
   max-width: none;
-  min-height: 76px;
-  padding: 12px 20px;
+  min-height: 70px;
+  padding: 10px 20px;
   gap: 12px 20px;
 }
 [data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)); letter-spacing: -.055em; }
@@ -29,13 +30,14 @@
 [data-marka] .marka-powiadomienia-link { display: inline-flex; }
 [data-marka] .topbar-szukaj { display: none; }
 [data-marka] .marka-nawigacja { display: none; }
+[data-marka] .marka-szukaj-link { display: none; }
 [data-marka] .marka-rama:not([data-tryb-panelu]) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 32px;
   width: min(1120px, calc(100% - 24px));
   max-width: none;
-  margin: 36px auto 0;
+  margin: 56px auto 0;
   padding: 0;
   align-items: start;
 }
@@ -65,9 +67,12 @@
   font-weight: 800;
   letter-spacing: -.045em;
 }
-[data-marka] .app-main > h1,
-[data-marka] .start-powitanie { margin-bottom: var(--spacing-6); }
-[data-marka] .start-nadtytul { font-weight: 750; margin-bottom: 12px; }
+[data-marka] .app-main > h1 { margin-bottom: var(--spacing-6); }
+[data-marka] .start-powitanie { margin-bottom: 0; }
+[data-marka] .start-nadtytul { font-size: var(--text-help); font-weight: 800; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .08em; }
+[data-marka] .start-naglowek { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 26px; }
+[data-marka] .start-naglowek > div { min-width: 0; }
+[data-marka] .start-naglowek > a { display: inline-flex; align-items: center; min-height: 48px; }
 [data-marka] .marka-publikacja {
   position: relative;
   isolation: isolate;
@@ -75,7 +80,7 @@
   border-radius: var(--marka-promien);
   background: #151714;
   color: #fff;
-  padding: 24px;
+  padding: 28px;
   margin-bottom: 28px;
   box-shadow: var(--marka-cien);
 }
@@ -83,11 +88,11 @@
   content: "";
   position: absolute;
   z-index: -1;
-  width: 140px;
-  height: 140px;
-  right: -70px;
-  top: -75px;
-  background: var(--color-brand-solid);
+  width: 260px;
+  height: 260px;
+  right: -50px;
+  top: -70px;
+  border: 42px solid rgb(190 48 37 / 43%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -101,24 +106,28 @@
   margin: 0 0 24px;
   min-width: 0;
 }
-[data-marka] .marka-publikacja .composer-title { color: #fff; }
+[data-marka] .marka-publikacja .composer-title { color: #fff; font-size: calc(1.75rem * var(--user-text-scale, 1)); line-height: 1.2; letter-spacing: -.035em; }
 [data-marka] .marka-publikacja .composer-help { color: #CBD0C6; }
 [data-marka] .marka-publikacja-akcje {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  max-width: 500px;
 }
 [data-marka] .marka-publikacja-akcje .btn { width: 100%; min-width: 0; white-space: normal; }
+[data-marka] .marka-publikacja-akcje .btn-secondary { background: #262924; border: 1px solid #737A70; }
 [data-marka] .feed-tabs { padding: 6px; gap: 6px; border: 0; border-radius: 16px; background: var(--color-surface-sunken); }
 [data-marka] .feed-tabs .tab { border: 0; border-radius: 12px; padding: 12px 16px; }
 [data-marka] .feed-tabs .tab[aria-current="page"] { background: var(--color-surface-raised); color: var(--color-brand); box-shadow: 0 2px 8px rgb(21 23 20 / 5%); }
-[data-marka] .post-card { border: 1px solid var(--color-border); border-radius: var(--marka-promien); box-shadow: var(--marka-cien); }
+[data-marka] .post-card { border: 1px solid transparent; border-radius: var(--marka-promien); box-shadow: var(--marka-cien); }
 [data-marka] .post-card-head { padding: 22px 24px 16px; }
 [data-marka] .post-card-body { padding-inline: 24px; font-size: calc(1.1875rem * var(--user-text-scale, 1)); line-height: 1.65; }
 [data-marka] .post-card > :is(.photo-grid, .karuzela, .kolaz) { margin-inline: 12px; width: auto; border-radius: 18px; overflow: hidden; }
 [data-marka] .post-card > .post-photo { width: calc(100% - 24px); margin-inline: 12px; border-radius: 18px; }
 [data-marka] .post-card-actions { gap: 10px; margin-inline: 24px; padding-block: 18px; }
 [data-marka] .post-card-actions .btn { border-radius: 12px; }
+[data-marka] .post-card-menu > summary { border: 0; border-radius: 12px; background: var(--color-surface-sunken); }
+[data-marka] .topbar-konto > summary { border: 0; }
 [data-marka] .szyna-blok { border-radius: 24px; box-shadow: var(--marka-cien); }
 [data-marka] .marka-start-pomoc { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--color-border); }
 [data-marka] .marka-start-pomoc h2 { font-size: var(--text-title-lg); line-height: 1.15; letter-spacing: -.035em; }
@@ -149,8 +158,9 @@
 }
 @media (min-width: 64rem) {
   [data-marka] .marka-nawigacja { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-  [data-marka] .marka-nawigacja a { display: inline-flex; align-items: center; justify-content: center; padding: 12px; min-height: 48px; border-radius: 12px; font-weight: 700; text-decoration: none; }
-  [data-marka] .marka-nawigacja a[aria-current="page"] { background: var(--color-surface-sunken); color: var(--color-brand); }
+  [data-marka] .marka-szukaj-link { display: inline-flex; }
+  [data-marka] .marka-nawigacja a { display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; min-height: 48px; border-radius: 12px; font-weight: 700; text-decoration: none; color: var(--color-ink-muted); }
+  [data-marka] .marka-nawigacja a[aria-current="page"] { background: var(--color-surface-sunken); color: var(--color-ink); }
 }
 @media (min-width: 80rem) {
   [data-marka] .marka-rama.marka-rama-z-szyna:not([data-tryb-panelu]) { grid-template-columns: minmax(0, 1fr) 330px; gap: 40px; }
@@ -203,3 +213,34 @@
 /* Opisy ustawień są instrukcją, także w pomocniczej kolumnie. */
 [data-marka] .ustawienia-nawigacja-tu,
 [data-marka] .ustawienia-nawigacja-opis { font-size: var(--text-body); }
+
+/* D-207: kompozycja wzorca, z prawdziwymi danymi tablicy i wyborem strumienia. */
+[data-marka] .start-feed-naglowek { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; margin-top: 44px; }
+[data-marka] .start-feed-naglowek h2 { min-width: 0; overflow-wrap: anywhere; font-size: calc(1.5rem * var(--user-text-scale, 1)); letter-spacing: -.035em; margin: 0; }
+[data-marka] .start-feed-naglowek > a { display: inline-flex; align-items: center; min-height: 48px; }
+[data-marka] .start-feed-wybor { background: transparent; padding: 0; margin-block: 0 16px; }
+[data-marka] .start-feed-wybor .tab { padding: 8px 12px; min-height: 48px; color: var(--color-ink-muted); }
+[data-marka] .start-feed-wybor .tab[aria-current="page"] { background: transparent; box-shadow: none; color: var(--color-ink); text-decoration: underline; text-underline-offset: 6px; }
+[data-marka] .marka-tablica { padding: 0; background: transparent; border: 0; }
+[data-marka] .marka-tablica-wstep { background: #151714; color: #fff; padding: 24px; border-radius: 24px; margin-bottom: 16px; }
+[data-marka] .marka-tablica-wstep .nadtytul { color: #FF9586; font-size: var(--text-help); text-transform: uppercase; letter-spacing: .08em; font-weight: 800; margin-bottom: 8px; }
+[data-marka] .marka-tablica-wstep h2 { color: #fff; font-size: calc(1.5rem * var(--user-text-scale, 1)); line-height: 1.2; letter-spacing: -.035em; margin-bottom: 18px; }
+[data-marka] .marka-tablica-wstep p:not(.nadtytul) { font-size: var(--text-body); line-height: 1.65; margin-bottom: 8px; }
+[data-marka] .marka-tablica-wstep a { display: inline-flex; align-items: center; min-height: 48px; color: #fff; font-weight: 800; }
+[data-marka] .marka-tablica .kuking-board-kolumna { padding: 24px; border-radius: 26px; background: var(--color-surface-raised); box-shadow: var(--marka-cien); min-width: 0; }
+[data-marka] .marka-tablica .kuking-board-kolumny { gap: 16px; }
+[data-marka] .marka-tablica-naglowek { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+[data-marka] .marka-tablica .kuking-board-subtitle { font-size: calc(1.5rem * var(--user-text-scale, 1)); color: var(--color-ink); letter-spacing: -.035em; text-transform: none; margin: 0; }
+[data-marka] .marka-tablica-naglowek > a { display: inline-flex; align-items: center; min-height: 48px; font-size: var(--text-body); }
+[data-marka] .marka-tablica .kuking-board-person { border: 0; gap: 10px 12px; }
+[data-marka] .app-rail .marka-tablica .kuking-board-avatar,
+[data-marka] .app-rail .marka-tablica .kuking-board-avatar .avatar { width: 52px; height: 52px; }
+[data-marka] .app-rail .marka-tablica .kuking-board-avatar .avatar { font-size: var(--text-body); }
+[data-marka] .marka-tablica .kuking-board-akcja .btn { background: var(--color-surface-sunken); color: var(--color-ink); border-color: transparent; border-radius: 12px; }
+@media (min-width: 30rem) {
+  [data-marka] .marka-tablica .kuking-board-akcja { padding-left: 64px; }
+}
+@media (max-width: 48rem) {
+  [data-marka] .marka-rama:not([data-tryb-panelu]) { margin-top: 28px; }
+  [data-marka] .marka-tablica .kuking-board-kolumna { padding: 20px; }
+}

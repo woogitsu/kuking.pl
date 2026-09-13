@@ -175,7 +175,7 @@ const slugPrzepisu = execFileSync('php', ['artisan', 'tinker', '--execute',
 ], { env: env() }).toString().trim();
 if (!slugPrzepisu) throw new Error('Brak przepisu do pomiaru marki');
 const przepis = '/przepisy/' + slugPrzepisu;
-const ekranyMarki = ['/home', '/szukaj', '/zeszyt', '/@ania', '/@zofia_z_bieszczad', przepis, '/dodaj', '/ustawienia', '/ustawienia/czytelnosc', '/powiadomienia'];
+const ekranyMarki = ['/home', '/', '/szukaj', '/zeszyt', '/@ania', '/@zofia_z_bieszczad', przepis, '/dodaj', '/ustawienia', '/ustawienia/czytelnosc', '/powiadomienia'];
 const wyniki = [];
 const pomiar = async (page, width, path) => {
   const response = await page.goto(`${adres}${path}`, { waitUntil: 'networkidle' });
@@ -196,6 +196,24 @@ const pomiar = async (page, width, path) => {
       bodyFont: parseFloat(getComputedStyle(document.body).fontSize),
       opisy: [...document.querySelectorAll('.ustawienia-nawigacja-tu, .ustawienia-nawigacja-opis')].map(el => parseFloat(getComputedStyle(el).fontSize)),
       wybory: [...document.querySelectorAll('.panel-formularza .choice-help')].map(el => parseFloat(getComputedStyle(el).fontSize)),
+      wzor: document.querySelector('.start-naglowek') ? (() => {
+        const composer = document.querySelector('.marka-publikacja');
+        const intro = document.querySelector('.marka-tablica-wstep');
+        const people = document.querySelector('.marka-tablica .kuking-board-kolumna');
+        const ring = getComputedStyle(composer, '::after');
+        return {
+          tytul: parseFloat(getComputedStyle(composer.querySelector('.composer-title')).fontSize),
+          pierscien: [parseFloat(ring.width), parseFloat(ring.borderTopWidth)],
+          wstep: intro && getComputedStyle(intro).backgroundColor,
+          kartaOsob: people && getComputedStyle(people).backgroundColor,
+          powierzchnia: getComputedStyle(top).backgroundColor,
+          menu: [...nav.querySelectorAll('a')].map(a => a.textContent.trim()),
+          szerokosc: composer.getBoundingClientRect().width,
+          akcje: composer.querySelector('.marka-publikacja-akcje').getBoundingClientRect().width,
+          szynaX: intro?.getBoundingClientRect().x,
+          glownaPrawa: composer.getBoundingClientRect().right,
+        };
+      })() : null,
     };
   });
   if (result.brand !== 'kuking-2026') throw new Error('Brak portu marki');
@@ -207,10 +225,25 @@ const pomiar = async (page, width, path) => {
   if (path === przepis && (!result.przepisFont || result.przepisFont < result.rootFont * 2.125 - 0.5)) throw new Error('MARKA_TYTUL: ' + JSON.stringify(result));
   if (path.startsWith('/ustawienia') && (!result.opisy.length || result.opisy.some(size => size < result.bodyFont - 0.5))) throw new Error('MARKA_OPISY: ' + JSON.stringify(result));
   if (path === '/ustawienia/czytelnosc' && (!result.wybory.length || result.wybory.some(size => size < result.bodyFont - 0.5))) throw new Error('MARKA_WYBORY: ' + JSON.stringify(result));
+  if (path === '/home' || path === '/') {
+    const w = result.wzor;
+    const braki = [];
+    if (!w) throw new Error('KOMPOZYCJA: brak nagłówka startu');
+    if (w.tytul < result.bodyFont * 28 / 18 - 0.5) braki.push('TYTUL_KAFLA');
+    if (w.pierscien[0] < 200 || w.pierscien[1] < 30) braki.push('PIERSCIEN');
+    if (w.wstep !== 'rgb(21, 23, 20)') braki.push('CIEMNY_WSTEP');
+    if (w.kartaOsob !== w.powierzchnia) braki.push('KARTA_OSOB');
+    if (w.menu.join('|') !== 'Start|Odkrywaj|Mój zeszyt') braki.push('MENU');
+    if (width >= 1280 && result.rootFont <= 16) {
+      if (w.szerokosc < 740 || w.szerokosc > 760 || w.szynaX - w.glownaPrawa < 39) braki.push('KOLUMNY');
+      if (w.akcje > 501) braki.push('SZEROKOSC_AKCJI');
+    }
+    if (braki.length) throw new Error('KOMPOZYCJA: ' + braki.join(', '));
+  }
   return result;
 };
 try {
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 360, 390, 414, 768, 1440]) {
     for (const dark of [false, true]) {
       const context = await przegladarka.newContext({ storageState: sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
       const page = await context.newPage();
@@ -228,6 +261,18 @@ try {
     }
   }
 
+  for (const width of [320, 360, 390, 414, 768, 1440]) {
+    for (const dark of [false, true]) {
+      const context = await przegladarka.newContext({ storageState: sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+      const page = await context.newPage();
+      await page.addInitScript((dark) => document.addEventListener('DOMContentLoaded', () => {
+        document.documentElement.dataset.textScale = '140';
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      }), dark);
+      for (const path of ['/home', '/']) wyniki.push({ text140: true, dark, path, ...await pomiar(page, width, path) });
+      await context.close();
+    }
+  }
   for (const width of [320, 1440]) {
     const guest = await przegladarka.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
     const guestPage = await guest.newPage();
@@ -311,6 +356,32 @@ try {
   const stronaPrzywrocona = await kontekstPrzywrocony.newPage();
   for (const path of ['/@zofia_z_bieszczad', przepis, '/ustawienia', '/ustawienia/czytelnosc']) await pomiar(stronaPrzywrocona, 390, path);
   await kontekstPrzywrocony.close();
+
+  // Wzorzec właściciela: sabotaż czterech niezależnych cech rzeczywistego CSS.
+  // Pomiar zbiera wszystkie braki, więc pierwszy nie maskuje pozostałych.
+  execFileSync('cp', [source, copy]);
+  try {
+    appendFileSync(source, '\n[data-marka] .marka-publikacja .composer-title { font-size: 14px; }\n[data-marka] .marka-publikacja::after { border-width: 0; }\n[data-marka] .marka-tablica-wstep { background: #fff; }\n[data-marka] .marka-tablica .kuking-board-kolumna { background: transparent; }\n');
+    console.log('KOMPOZYCJA_UJEMNA przed=' + before + ' zmieniony=' + hash());
+    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
+    let blad = '';
+    try { await pomiar(await context.newPage(), 1440, '/home'); }
+    catch (error) { blad = error.message; }
+    finally { await context.close(); }
+    for (const kod of ['TYTUL_KAFLA', 'PIERSCIEN', 'CIEMNY_WSTEP', 'KARTA_OSOB']) {
+      if (!blad.startsWith('KOMPOZYCJA:') || !blad.includes(kod)) throw new Error('Niewykryty sabotaż ' + kod + ': ' + blad);
+      console.log('KOMPOZYCJA_UJEMNA wykryto=' + kod);
+    }
+  } finally {
+    execFileSync('cp', [copy, source]);
+    execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+    if (hash() !== before) throw new Error('Nie odtworzono CSS po kontroli kompozycji');
+    console.log('KOMPOZYCJA_UJEMNA przywrocony=' + hash());
+  }
+  const odbior = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
+  await pomiar(await odbior.newPage(), 1440, '/home');
+  await odbior.close();
   console.log(`PORT_OK ${JSON.stringify(wyniki)}`);
 } finally {
   await przegladarka.close();

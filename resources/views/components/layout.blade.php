@@ -402,17 +402,16 @@
             @auth
                 @unless($wTrybiePanelu)
                     <nav class="marka-nawigacja" aria-label="Nawigacja główna — komputer">
-                        <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>Start</a>
-                        <a href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif>Szukaj</a>
-                        <a href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif>Dodaj</a>
-                        <a href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>Moje</a>
-                        <a href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>Profil</a>
+                        <a href="{{ route('home') }}" @if(request()->routeIs('home', 'landing')) aria-current="page" @endif>Start</a>
+                        <a href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif>Odkrywaj</a>
+                        <a href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>Mój zeszyt</a>
                     </nav>
                 @endunless
             @endauth
 
             <div class="topbar-actions">
                 @auth
+                    <a class="btn btn-quiet marka-szukaj-link" href="{{ route('search') }}"><x-ikona nazwa="search" :rozmiar="20" /> Szukaj</a>
                     {{--
                         Powiadomienia zostają TEKSTEM, choć kit ma tu samą
                         ikonę dzwonka. „Ikona nigdy sama" jest twardą zasadą

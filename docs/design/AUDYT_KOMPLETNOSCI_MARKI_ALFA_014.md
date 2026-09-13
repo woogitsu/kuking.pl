@@ -3,6 +3,10 @@
 Data: 13 września 2026. Zakres: issue #498. **Status pełnego odbioru: CZĘŚCIOWO.**
 Nie jest to deklaracja sprawdzenia każdej kombinacji danych i stanów. Raport oddziela odczyt kodu, pomiary, oglądanie zrzutów i rzeczywiste wdrożenie.
 
+Późniejsze porównanie właściciela z wizualizacją „Dzień dobry, Basiu”
+ujawniło brak zgodności kompozycji. Ten audyt nie dowiódł takiej zgodności.
+Odtworzenie wzorca i jego osobny odbiór opisuje [raport #501](KOMPOZYCJA_STARTU_501.md).
+
 ## Źródło prawdy
 
 Punkt wyjścia zweryfikowany po pobraniu z GitHuba: `651def47122a3bd07896c165c32d2706d2462a3d`, Alfa 0.13. Historyczny PR #494 jest scalony, #493 nie wymaga ponownego scalenia. Otwarty PR #456 jest osobną historyczną pracą; audyt go nie zmienia.

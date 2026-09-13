@@ -253,8 +253,7 @@ class DailyBoardTest extends TestCase
      * Najwyżej raz na ekran. Na stronie powitalnej to jedno miejsce zajmuje
      * przycisk „Zostań kuKINGiem", który §8 przypisuje tam wprost — więc
      * tablica ma tam nagłówek zapasowy „Co się dziś gotuje" (§5, D-013).
-     * Na `/odkryj` i `/home` tablica jest jedynym takim miejscem i zostaje
-     * przy nazwie własnej.
+     * Na `/odkryj` i `/home` D-207 wprowadza nagłówek „Co dobrego u innych?”.
      */
     public function test_tablica_ustepuje_z_nazwy_tam_gdzie_gra_slowem_jest_juz_zajeta(): void
     {
@@ -266,7 +265,7 @@ class DailyBoardTest extends TestCase
             ->assertSee('Zostań <span class="kuking-word">', false);
 
         $this->get(route('discover'))->assertOk()
-            ->assertSee('na dziś')
+            ->assertSee('Co dobrego u innych?')
             ->assertDontSee('Co się dziś gotuje');
     }
 
