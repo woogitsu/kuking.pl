@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.13 — aktualizacja zainstalowanej aplikacji
+
+Poprawiliśmy pobieranie aktualizacji w aplikacji zapisanej na telefonie, aby nowy ekran braku połączenia docierał także do osób korzystających ze starszej wersji. Aktualizacja nie przeładowuje otwartego formularza.
+
 ## Alfa 0.12 — spójny wygląd także poza głównymi ekranami
 
 - Ekrany awarii i braku internetu oraz pobrane dane mają nową oprawę i czytelny krój pisma.

@@ -1,6 +1,47 @@
 # Dalszy odbiór marki — Alfa 0.12
 
-13 września 2026. Status: poprawki sprawdzone lokalnie; oczekują CI i wdrożenia.
+13 września 2026. Status: PR #495 wdrożony i sprawdzony na produkcji; wykryto opóźnioną aktualizację istniejącej instalacji PWA, poprawianą osobno w Alfa 0.13.
+
+## Odbiór wydania
+
+PR [#495](https://github.com/woogitsu/kuking.pl/pull/495), źródło
+`ce93a141a536c36fdf83a2d5684f6a3d9d336b89`, scalony jako
+`e4f9c21b57ccffa7f6c7a28f668239fbe7612323`.
+CI [#929](https://github.com/woogitsu/kuking.pl/actions/runs/34752403608):
+wszystkie dziewięć zadań success. Odczyt logów potwierdził:
+
+- PHP: 3674 testy / 74019 asercji, runner `kuking-wsl-DOM-NEW-02`;
+- wyścigi: 5 / 44, runner `kuking-wsl-DOM-NEW-03`;
+- port: 98 wariantów i kontrole ujemne, kreator: 24/24;
+- axe: zero naruszeń, przepełnień poziomych i zasłonięć fokusu;
+- Lighthouse, Pint, Larastan, audyt zależności oraz buildy Vite i Docker: success.
+
+Lighthouse zaliczył 8/8 ekranów: wydajność 92–99. SEO wyniosło 100
+na liczonych stronach; logowanie ma celowy noindex (wynik 58 niewliczany
+zgodnie z istniejącym skryptem). Nie zmieniano progów ani tego wyjątku.
+
+CI main [#930](https://github.com/woogitsu/kuking.pl/actions/runs/34752861494)
+również ma dziewięć sukcesów; log pełnych testów: 3674 / 74019.
+Workflow [Deploy #610](https://github.com/woogitsu/kuking.pl/actions/runs/34753336933)
+zakończył się success. Railway deployment `ca152aaf-c03c-4e02-9c04-f1510d7ec3fb`
+ma SUCCESS od 11:01:04 UTC dla `e4f9c21b57ccffa7f6c7a28f668239fbe7612323`.
+Domena pokazuje Alfa 0.12 i e4f9c21. Ponowny obchód tych samych 16 publicznych
+dróg dał 96/96 odpowiedzi 200, bez przewijania poziomego, ze zgodnym motywem
+i lokalnym Inter. Wszystkie 30 wariantów z widgetem miało compact, właściwy
+motyw i załadowaną ramkę Cloudflare. Obejrzano m.in. zrzut logowania 320 px.
+
+Zachowana sesja początkowo nadal miała cache `kuking-v1`, mimo tych nawigacji.
+Odpowiedź `/sw.js` zawierała nowy kod, lecz nagłówek przez Cloudflare wynosił
+`Cache-Control: public, max-age=14400`; Caddy w źródle przyznawał mu 3600 s.
+Jawne `registration.update()` zainstalowało `kuking-alfa-012` i usunęło stary
+cache. Po odłączeniu sieci wyłącznie w przeglądarce wyświetlił się właściwy
+polski ekran offline z systemowym fontem i tłem `rgb(243, 244, 241)`, bez
+przewijania poziomego; po przywróceniu sieci wróciła Alfa 0.12.
+To dowód działania nowego workera po aktualizacji, nie dowód niezawodnej
+automatycznej aktualizacji. Uszczelnienie tej drogi jest zakresem Alfa 0.13.
+
+`/health` po wdrożeniu nadal zwraca degraded wyłącznie z powodu nieudanych
+zadań kolejki. Nie ukryto tego stanu zmianą healthchecku.
 
 ## Potwierdzona baza i produkcja
 
@@ -14,10 +55,16 @@ CI #928 (`34749126034`) ma dziewięć sukcesów w najnowszym zestawie.
 Powtórzono wyłącznie wyścigi: job `103704702033`, runner
 `kuking-wsl-DOM-NEW-02`, 5 testów / 44 asercje, PostgreSQL 18.6.
 Pierwsza próba joba `103702460527` miała failure, brak kroków i runnera,
-a log odpowiadał 404 BlobNotFound. Nie udało się odczytać adnotacji.
-W lokalnych dziennikach trzech runnerów nie znaleziono jego startu
-w przedziale 09:15–09:21 UTC. To poszlaki problemu uruchomienia,
-nie ustalona przyczyna. D-105 i continue-on-error pozostają bez zmian.
+a log odpowiadał 404 BlobNotFound. API nie udostępniło adnotacji, ale później
+odczytano ją w zalogowanej przeglądarce Chrome, po rozwinięciu
+[Open job annotations](https://github.com/woogitsu/kuking.pl/actions/runs/34749126034/job/103702460527):
+„The job was not started because it repeatedly failed to be acquired (5 attempts).”
+To potwierdza, że testy w pierwszym zadaniu nie wystartowały. Nie jest to
+czerwień asercji aplikacji. Nie ustalono głębszej przyczyny pięciu nieudanych
+prób przydzielenia zadania. Brak startu w lokalnych dziennikach runnerów
+w przedziale 09:15–09:21 UTC jest zgodny z adnotacją. D-105 i
+continue-on-error pozostają bez zmian; nie ma dowodu dwudziestu kolejnych
+zielonych przebiegów wymaganych do zmiany tej decyzji.
 
 `/health` zgłasza degraded przez cztery nieudane zadania kolejki.
 Logi poprzedniego wdrożenia `79e3a9d1-a5ef-446d-9f2e-18a01c6a98d3`
@@ -135,7 +182,7 @@ w czasie mutacji odrzucono; końcowe kontrole wykonuje się na przywróconym źr
 Powtórzony pełny port zakończył się `PORT_OK`: 98 pomiarów dodatnich,
 wykrycie zwężenia kolumny i czterech regresji marki, odtworzenie źródła
 z tym samym MD5 oraz końcowe pomiary po przywróceniu. Oddzielne axe-core
-i Lighthouse pozostają do potwierdzenia w CI tego wydania.
+i Lighthouse zostały następnie potwierdzone w CI #929 opisanym wyżej.
 
 ## Granice i wycofanie
 
@@ -145,5 +192,6 @@ nie zawiera prywatnego HTML. Cofnięcie do starego workera przywróci też
 jego stare zasady przechowywania ikon.
 
 Nie potwierdzono pełnego przejścia zalogowanego użytkownika na produkcji,
-testu czytnikiem ekranu, wszystkich klientów poczty ani przyczyny pierwszej
-czerwieni wyścigów. Konta demonstracyjne i modele testowe były lokalne.
+testu czytnikiem ekranu, wszystkich klientów poczty ani przyczyny problemu
+przydzielania pierwszego zadania wyścigów. Konta demonstracyjne i modele
+testowe były lokalne.
