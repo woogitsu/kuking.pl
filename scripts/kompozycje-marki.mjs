@@ -1,0 +1,113 @@
+/* Odbiór #509 na prawdziwych stronach. Wywołuje go port-projektu.mjs,
+   który przygotowuje izolowaną bazę i sesję. */
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, readFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
+
+export async function sprawdzKompozycje({ browser, adres, sesja, przepis }) {
+  const paths = ['/login', '/register', '/', przepis, '/@ania', '/@zofia_z_bieszczad'];
+  const wyniki = [];
+  async function pomiar(page, path) {
+    const response = await page.goto(adres + path, { waitUntil: 'networkidle' });
+    if (response.status() !== 200) throw new Error('K509_HTTP ' + path + ' ' + response.status());
+    await page.evaluate(async () => { await document.fonts.ready; for (let i = 0; i < 30; i++) await new Promise(requestAnimationFrame); });
+    const r = await page.evaluate(() => {
+      const box = selector => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const b = el.getBoundingClientRect();
+        return { x: b.x, y: b.y, right: b.right, bottom: b.bottom, width: b.width, height: b.height, background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow };
+      };
+      return {
+        width: innerWidth, scroll: document.documentElement.scrollWidth,
+        desktop: matchMedia('(min-width: 901px)').matches,
+        recipeDesktop: matchMedia('(min-width: 60rem)').matches,
+        auth: box('.marka-wejscie'), brand: box('.marka-wejscie-zaproszenie'), form: box('.marka-wejscie-karta'),
+        formInner: box('.marka-wejscie-karta .panel-formularza'),
+        ownership: [...document.querySelectorAll('.marka-wlasnosc-karty > article')].map(el => ({ y: el.getBoundingClientRect().y, width: el.getBoundingClientRect().width })),
+        hero: box('.marka-przepis-hero'), text: box('.marka-przepis-tekst'), photo: box('.marka-przepis-zdjecie'), actions: box('.marka-przepis > .przepis-panel'),
+        profile: box('.marka-profil-kompozycja'), identity: box('.marka-profil-kompozycja .profil-tozsamosc'), avatar: box('.marka-profil-kompozycja .avatar'),
+        profileGrid: box('.marka-profil-kompozycja .profil-glowka-tresc'), stats: box('.marka-profil-statystyki'),
+        counters: document.querySelectorAll('.profil-liczby-karta').length,
+      };
+    });
+    if (r.scroll > r.width + 1) throw new Error('K509_OVERFLOW ' + path + ' ' + JSON.stringify(r));
+    if (path === '/login' || path === '/register') {
+      if (!r.auth || !r.brand || !r.form) throw new Error('K509_WEJSCIE brak kompozycji');
+      if (r.desktop && (r.form.x < r.brand.right || r.form.width < 480)) throw new Error('K509_WEJSCIE kolumny ' + JSON.stringify(r));
+      if (!r.desktop && r.form.y < r.brand.bottom - 1) throw new Error('K509_WEJSCIE kolejność');
+      if (r.formInner.shadow !== 'none') throw new Error('K509_WEJSCIE zagnieżdżona karta');
+    }
+    if (path === '/') {
+      if (r.ownership.length !== 3 || r.ownership.some(c => c.width < Math.min(200, r.width - 24))) throw new Error('K509_WLASNOSC brak trzech czytelnych kart');
+      if (r.desktop && r.ownership.some(c => Math.abs(c.y - r.ownership[0].y) > 1)) throw new Error('K509_WLASNOSC kolumny');
+    }
+    if (path === przepis) {
+      if (!r.hero || !r.photo || !r.text || !r.actions) throw new Error('K509_PRZEPIS brak pełnego hero do pomiaru');
+      if (r.recipeDesktop && (r.photo.x < r.text.right - 1 || Math.abs(r.photo.width - r.text.width) > 2)) throw new Error('K509_PRZEPIS kolumny');
+      if (!r.recipeDesktop && r.photo.y < r.text.bottom - 1) throw new Error('K509_PRZEPIS kolejność');
+      if (r.actions.y < r.hero.bottom - 1 || r.actions.width < r.hero.width - 2) throw new Error('K509_PRZEPIS akcje nadal w szynie');
+    }
+    if (path.startsWith('/@')) {
+      if (!r.profile || !r.stats || r.stats.y < r.profile.bottom - 1 || r.counters !== 1) throw new Error('K509_PROFIL liczniki');
+      if (r.avatar.width < 169 || r.avatar.height < 169) throw new Error('K509_PROFIL awatar');
+      if (r.profileGrid.width >= 576 && r.identity.x < r.avatar.right) throw new Error('K509_PROFIL kolumny');
+    }
+    return r;
+  }
+  for (const width of [320, 360, 390, 414, 768, 1440]) for (const dark of [false, true]) for (const scale of [100, 140, 'font-200']) {
+    for (const zalogowany of [false, true]) {
+      const context = await browser.newContext({ storageState: zalogowany ? sesja : undefined, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+      try {
+        const page = await context.newPage();
+        if (scale === 'font-200') await (await context.newCDPSession(page)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+        await page.addInitScript(({ dark, scale }) => document.addEventListener('DOMContentLoaded', () => {
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+          document.documentElement.dataset.textScale = String(scale === 140 ? 140 : 100);
+        }), { dark, scale });
+        for (const path of paths.filter(p => zalogowany ? p.startsWith('/@') || p === przepis : !p.startsWith('/@') && p !== przepis)) {
+          wyniki.push({ path, dark, scale, ...await pomiar(page, path) });
+          if ((width === 1440 && scale === 100) || (width === 320 && scale === 140)) {
+            await page.screenshot({ path: `storage/port-projektu/kompozycja509-${path.replaceAll('/', '').replace('@', '') || 'publiczna'}-${width}-${dark}.png`, fullPage: true });
+          }
+        }
+      } finally { await context.close(); }
+    }
+  }
+
+  // Każda mutacja dotyczy rzeczywistego arkusza, po niej odbudowa Vite,
+  // oczekiwany błąd, odtworzenie bajtów/mtime i ponowny poprawny pomiar.
+  for (const [file, css, path, code, logged] of [
+    ['marka-wejscie.css', '.marka-wejscie { grid-template-columns: 1fr !important; }', '/login', 'K509_WEJSCIE', false],
+    ['marka-wlasnosc.css', '.marka-wlasnosc-karty { grid-template-columns: 1fr !important; }', '/', 'K509_WLASNOSC', false],
+    ['marka-przepis.css', '.marka-przepis > .marka-przepis-hero { grid-template-columns: 1fr !important; }', przepis, 'K509_PRZEPIS', true],
+    ['marka-profil.css', '.marka-profil-kompozycja .avatar { width: 80px !important; height: 80px !important; }', '/@ania', 'K509_PROFIL', true],
+  ]) {
+    const source = 'resources/css/' + file;
+    const copy = mkdtempSync(tmpdir() + '/kuking509-') + '/' + file;
+    const hash = () => createHash('md5').update(readFileSync(source)).digest('hex');
+    const before = hash();
+    execFileSync('cp', ['-p', source, copy]);
+    const context = await browser.newContext({ storageState: logged ? sesja : undefined, viewport: { width: 1440, height: 900 } });
+    try {
+      appendFileSync(source, '\n' + css + '\n');
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      let detected = false;
+      try { await pomiar(await context.newPage(), path); }
+      catch (e) { if (!e.message.startsWith(code)) throw e; detected = true; }
+      if (!detected) throw new Error('Niewykryta kontrola ujemna ' + code);
+      console.log('K509_UJEMNA ' + code + ' przed=' + before + ' zmieniony=' + hash());
+    } finally {
+      execFileSync('cp', ['-p', copy, source]);
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      if (hash() !== before) throw new Error('Nie odtworzono ' + source);
+      await context.close();
+    }
+    const restored = await browser.newContext({ storageState: logged ? sesja : undefined, viewport: { width: 1440, height: 900 } });
+    try { await pomiar(await restored.newPage(), path); } finally { await restored.close(); }
+    console.log('K509_PRZYWROCONO ' + file + ' MD5=' + hash());
+  }
+  console.log('K509_OK ' + wyniki.length + ' wariantów');
+  return wyniki;
+}

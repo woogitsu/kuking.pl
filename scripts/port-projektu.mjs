@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { sprawdzKompozycje } from './kompozycje-marki.mjs';
 
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
@@ -352,6 +353,8 @@ try {
     wyniki.push({ largeText: true, path, ...await pomiar(page, 320, path) });
   }
   await context.close();
+
+  await sprawdzKompozycje({ browser: przegladarka, adres, sesja, przepis });
 
   // Kontrola ujemna zmienia źródło CSS, nie wynik pomiaru ani atrapę DOM.
   const source = 'resources/css/marka-rama.css';

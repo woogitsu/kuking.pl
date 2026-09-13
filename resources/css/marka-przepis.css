@@ -1,0 +1,57 @@
+/* Szczegół przepisu: tekst i zdjęcie tworzą wspólne hero, akcje stoją pod nim. */
+[data-marka] .marka-przepis {
+  display: block;
+  min-width: 0;
+}
+[data-marka] .marka-przepis > .przepis-panel {
+  grid-column: auto;
+  grid-row: auto;
+  position: static;
+}
+[data-marka] .marka-przepis > .marka-przepis-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--marka-promien);
+  box-shadow: var(--marka-cien);
+  min-width: 0;
+}
+[data-marka] .marka-przepis-tekst {
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 2.75rem);
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+[data-marka] .marka-przepis-tekst .text-lead {
+  margin-block: var(--spacing-5);
+}
+[data-marka] .marka-przepis-tekst .przepis-liczby {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  margin-bottom: 0;
+}
+[data-marka] .marka-przepis-tekst .przepis-liczba {
+  min-width: 0;
+  max-width: 100%;
+}
+[data-marka] .marka-przepis-zdjecie {
+  min-width: 0;
+  padding: var(--spacing-2);
+  box-shadow: none;
+  align-self: center;
+}
+[data-marka] .marka-przepis .przepis-akcje {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+[data-marka] .marka-przepis .przepis-akcje > * {
+  min-width: 0;
+  max-width: 100%;
+}
+@media (min-width: 60rem) {
+  [data-marka] .marka-przepis > .marka-przepis-hero:has(.marka-przepis-zdjecie) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

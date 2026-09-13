@@ -182,43 +182,14 @@ class StronaPrzepisuUzywaKolumnySzynyTest extends TestCase
 
     // --- ARKUSZ ----------------------------------------------------------
 
-    public function test_arkusz_daje_ekranowi_przepisu_dwie_kolumny(): void
+    public function test_nowy_arkusz_przenosi_dwie_kolumny_do_hero(): void
     {
-        $css = $this->arkusz();
-
-        $this->assertSame(
-            1,
-            preg_match('/\.przepis-uklad\s*\{([^}]*)\}/', $css, $siatka),
-            'W `app.css` nie ma reguły `.przepis-uklad` — klasa w HTML-u jest samym napisem.',
-        );
-
-        $this->assertMatchesRegularExpression(
-            '/grid-template-columns:\s*minmax\(\s*0\s*,\s*var\(--container-content\)\s*\)\s+var\(--container-rail\)\s*;/',
-            $siatka[1],
-            'Siatka ekranu przepisu nie ma dwóch kolumn: kolumny czytania (`--container-content`) '
-            .'i kolumny szyny (`--container-rail`).',
-        );
-
-        $this->assertSame(
-            1,
-            preg_match('/\.przepis-uklad\s*>\s*\.przepis-panel\s*\{([^}]*)\}/', $css, $panel),
-            'Brak reguły przenoszącej panel do drugiej kolumny — siatka jest, ale nic w nią nie wchodzi.',
-        );
-
-        $this->assertMatchesRegularExpression(
-            '/grid-column:\s*2\s*;/',
-            $panel[1],
-            'Panel nie trafia do kolumny szyny.',
-        );
-
-        $this->assertMatchesRegularExpression(
-            '/grid-row:\s*1\s*\/\s*span\s+\d\d+\s*;/',
-            $panel[1],
-            'Panel nie rozciąga się na wiersze siatki. Zostałby w wierszu pierwszym i rozepchnął go '
-            .'do swojej wysokości — pod nagłówkiem zrobiłaby się dziura na kilkaset pikseli.',
-        );
+        // Geometrię po buildzie mierzy Chromium; tutaj pilnujemy obecności portu.
+        $css = (string) file_get_contents(resource_path('css/marka-przepis.css'));
+        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr))', $css);
+        $this->assertMatchesRegularExpression('/\.marka-przepis\s*\{[^}]*display:\s*block;/s', $css);
+        $this->assertMatchesRegularExpression('/\.marka-przepis\s*>\s*\.przepis-panel\s*\{[^}]*grid-column:\s*auto;/s', $css);
     }
-
     /**
      * PUNKT 3 ZGŁOSZENIA: ROŚNIE RAMA, NIE DŁUGOŚĆ WIERSZA.
      *

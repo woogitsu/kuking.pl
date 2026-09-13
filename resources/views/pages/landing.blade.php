@@ -222,32 +222,40 @@
     </section>
 
     {{-- 6. TWOJE DANE --------------------------------------------------- --}}
-    <section class="pas pas--cieply">
+    <section class="pas marka-wlasnosc" aria-labelledby="wlasne-tresci-tytul">
         <div class="pas-wnetrze">
-            <h2 class="text-title-lg">Zabierzesz stąd wszystko, co dodasz</h2>
-
-            <div class="dwie-kolumny odstep-nad">
-                <div>
+            <header class="marka-wlasnosc-naglowek">
+                <p class="start-nadtytul">Twoja kuchnia. Twoje decyzje.</p>
+                <h2 id="wlasne-tresci-tytul">Przepisy zostają Twoje.</h2>
+                <p>Od zapisania rodzinnej receptury po zabranie własnych treści ze sobą.</p>
+            </header>
+            <div class="marka-wlasnosc-karty">
+                <article>
+                    <p class="marka-wlasnosc-etykieta">Mój zeszyt</p>
+                    <h3>Na następny obiad</h3>
+                    <p>Zbieraj przepisy i inspiracje w jednym miejscu. Układaj je w zeszyty, do których łatwo wrócisz.</p>
+                    <a href="{{ route('collections.index') }}">Zajrzyj do zeszytu</a>
+                </article>
+                <article>
+                    <p class="marka-wlasnosc-etykieta">Widoczność wpisu</p>
+                    <h3>Ty wybierasz, kto zobaczy</h3>
+                    <p>Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.</p>
+                    <a href="{{ route('posts.create') }}">Zobacz wybór widoczności</a>
+                </article>
+                <article>
+                    <p class="marka-wlasnosc-etykieta">Własne treści</p>
+                    <h3>Możesz je zabrać ze sobą</h3>
                     <p>
                         W każdej chwili możesz zamówić paczkę ze swoimi zdjęciami, wpisami
                         i przepisami — przygotujemy ją i damy znać, kiedy będzie do pobrania.
                         Otworzysz ją na swoim komputerze, także wtedy, gdyby <x-kuking-word />
                         kiedyś przestał istnieć.
                     </p>
-                    {{-- „sam decydujesz" przypisywało czytelnikowi rodzaj męski
-                         (issue #38, COPY_STYLE.md §2) — „sam" nie wnosi tu
-                         informacji. --}}
-                    <p>
-                        Przy każdym wpisie decydujesz, kto go widzi: wszyscy, tylko obserwujący albo tylko Ty.
-                    </p>
-                </div>
-                <div>
-                    <p><strong>Prowadzimy to na własną rękę.</strong></p>
-                    <p>
-                        Bez reklam i bez opłat za korzystanie — jest strona, konto
-                        i przepisy.
-                    </p>
-                </div>
+                </article>
+            </div>
+            <div class="marka-wlasnosc-zasady">
+                <h3>Bez opłat i bez reklam.</h3>
+                <p>Prowadzimy to na własną rękę. Przeglądaj dania, pokazuj własne i rozmawiaj z innymi. Bez rankingu użytkowników i bez presji, żeby zaglądać codziennie.</p>
             </div>
         </div>
     </section>

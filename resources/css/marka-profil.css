@@ -1,0 +1,78 @@
+/* Kompozycja profilu z oryginalnej wizualizacji. Dane liczy kontroler;
+   tutaj wybieramy jedno widoczne miejsce wspólnych liczników. */
+@layer marka {
+  .marka-profil-kompozycja {
+    container-type: inline-size;
+    padding: clamp(20px, 3vw, 40px);
+    border-radius: 26px;
+  }
+
+  .marka-profil-kompozycja .profil-glowka-tresc {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    align-items: center;
+  }
+
+  .marka-profil-kompozycja .avatar[data-rozmiar="170"] {
+    width: 170px;
+    height: 170px;
+    max-width: 100%;
+    border-radius: 32px;
+    font-size: calc(3rem * var(--user-text-scale, 1));
+    object-fit: cover;
+  }
+
+  .marka-profil-kompozycja .profil-awatar-zmiana {
+    width: 100%;
+    max-width: 220px;
+  }
+
+  @container (min-width: 36rem) {
+    .marka-profil-kompozycja .profil-glowka-tresc {
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 34px;
+    }
+  }
+
+  .marka-profil-statystyki {
+    margin-block: 24px;
+  }
+
+  .marka-profil-statystyki .profil-liczby-karta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    gap: 16px;
+    border: 0;
+    padding: 0;
+  }
+
+  .marka-profil-statystyki .profil-licznik {
+    border-radius: 18px;
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-card);
+  }
+
+  .marka-profil-statystyki .profil-licznik-pole {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    min-height: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .marka-profil-statystyki .stat-value {
+    font-size: calc(2rem * var(--user-text-scale, 1));
+    line-height: 1.1;
+    font-weight: 800;
+  }
+
+  .marka-profil-statystyki .stat-label {
+    font-size: var(--text-body);
+  }
+
+}

@@ -48,15 +48,8 @@
 
     {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
          wpisów, przepisów i wykonań, i to one mają się unosić. --}}
-    <header class="sekcja-strony mb-6 marka-profil blok-ciemny">
-        {{--
-            UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem
-            razem, LICZNIKI POD OPISEM — nie osobnym pełnoszerokim wierszem
-            pod całym nagłówkiem, jak dawniej. `.profil-glowka-tresc`
-            w ekran-profilu.css robi z tego siatkę (awatar | treść) i wraca
-            do jednej kolumny poniżej `--breakpoint-md`, żeby przy 320 px
-            awatar nie ściskał opisu do wąskiego paska tekstu.
-        --}}
+    <header class="sekcja-strony mb-6 marka-profil marka-profil-kompozycja blok-ciemny">
+        
         <div class="profil-glowka-tresc">
             {{--
                 WŁASNY AWATAR JEST ODNOŚNIKIEM DO USTAWIENIA ZDJĘCIA.
@@ -80,16 +73,10 @@
                 zdjęciem potrawy. Dwa podobnie brzmiące „dodaj zdjęcie" jeden
                 pod drugim byłyby gorsze niż dłuższa nazwa.
 
-                ROZMIAR 128 px, NIE 88: na profilu awatar jest zdjęciem
-                CZŁOWIEKA, o którym jest cała strona, a nie znaczkiem przy
-                cudzym wpisie — i miejsce na niego jest, bo kolumna awatara
-                i tak musi pomieścić przycisk pod nim. Prośba właściciela
-                brzmiała dosłownie: „zdjęcie profilowe może brać więcej
-                miejsca, bo jest na to miejsce".
             --}}
             @if($isOwner)
                 <a class="profil-awatar-zmiana" href="{{ route('settings.avatar') }}">
-                    <x-avatar :user="$owner" :size="128" />
+                    <x-avatar :user="$owner" :size="170" />
                     {{--
                         PODPIS WYGLĄDA JAK AKCJA, BO JEST AKCJĄ.
 
@@ -118,7 +105,7 @@
                     </span>
                 </a>
             @else
-                <x-avatar :user="$owner" :size="128" />
+                <x-avatar :user="$owner" :size="170" />
             @endif
             <div class="min-w-0">
                 {{--
@@ -176,44 +163,8 @@
                     <p class="whitespace-pre-line mb-4">{{ $p->bio }}</p>
                 @endif
 
-                {{--
-                    LICZNIKI: PIĘĆ RÓWNYCH WIERSZY, NIE RZĄD ZAWIJANY DO
-                    KOŃCA WIERSZA.
+                
 
-                    Do tej zmiany było tu pięć pozycji w kontenerze
-                    `flex-wrap`, więc szerokość każdej brała się z długości
-                    podpisu, a wiersze wychodziły „3 + 2" albo „2 + 3"
-                    zależnie od okna i skali tekstu. Właściciel nazwał to
-                    wprost: nieczytelne i niesymetryczne.
-
-                    Teraz każdy licznik to jeden wiersz „liczba + odmieniony
-                    podpis" („2 wpisy"), wszystkie zaczynają się w tej samej
-                    linii i mają tę samą wysokość. Dlaczego JEDNA kolumna,
-                    a nie dwie — z pomiarem szerokości tej karty: komentarz
-                    przy `.profil-liczniki` w `ekran-profilu.css`.
-
-                    Kolejność w HTML zostaje ta sama co dawniej, bo to ona
-                    decyduje o kolejności czytania i `Tab`.
-
-                    TEN EGZEMPLARZ JEST WERSJĄ WĄSKIEGO EKRANU (D-091).
-                    Od 80rem u zalogowanego znika, bo te same liczby stoją
-                    wtedy w prawej szynie (`x-szyna-profilu`) — dzięki temu
-                    karta jest o pięć wierszy krótsza i pierwszy wpis wjeżdża
-                    wyżej. Poniżej 80rem oraz u GOŚCIA widać dokładnie ten
-                    egzemplarz. U gościa NIE dlatego, że nie ma prawej
-                    kolumny — od D-122 na tym ekranie ją ma — tylko dlatego,
-                    że bloku z liczbami w szynie w ogóle mu nie wysyłamy
-                    (`@auth` w `x-szyna-profilu`), więc nie ma czym zastąpić
-                    tego egzemplarza. Para reguł, która o tym decyduje, stoi
-                    przy `.profil-liczby-*` w `ekran-profilu.css`; dlaczego
-                    dwa egzemplarze zamiast jednego przestawianego —
-                    w `x-liczby-profilu`.
-
-                    §12: to są liczby o WŁASNEJ treści tej osoby, bez
-                    porównania z kimkolwiek. Nie ma tu miejsca w tabeli,
-                    nie ma „więcej niż 80% kuKINGów" i nie będzie.
-                --}}
-                <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
             </div>
         </div>
 
@@ -318,6 +269,10 @@
             @endif
         </div>
     </header>
+
+    <div class="marka-profil-statystyki">
+        <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
+    </div>
 
     <nav class="tabs" aria-label="Zakładki profilu">
         <a class="tab" href="{{ route('profile.show', $p->username) }}" @if($tab === 'wszystko') aria-current="page" @endif>Wszystko</a>

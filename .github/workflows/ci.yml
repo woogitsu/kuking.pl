@@ -931,7 +931,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"

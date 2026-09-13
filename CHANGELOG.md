@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.18 — kolejne ekrany zgodne z wizualizacją
+
+- Logowanie i rejestracja mają osobną kartę formularza obok zaproszenia.
+- Na szerokim ekranie tytuł, opis i dane przepisu stoją obok zdjęcia; wszystkie akcje są pod nimi.
+- Profil ma większy awatar oraz jeden zestaw czytelnych statystyk pod ciemnym nagłówkiem.
+- Strona publiczna wyjaśnia zeszyty, widoczność i pobieranie własnych treści w trzech kartach.
+
 ## Alfa 0.17 — publiczna strona zgodna z wizualizacją
 
 - Trzy otwarte, numerowane kroki z odnośnikami zastępują białe kafle „Jak działa”.
