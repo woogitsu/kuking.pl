@@ -1,6 +1,7 @@
 # Odtworzenie kompozycji Startu — Alfa 0.15
 
-13 września 2026. Issue #501, D-207. Kontrole lokalne i CI PR zakończone.
+13 września 2026. Issue #501 i #503, D-207. Poprawki kompozycji oraz
+proporcji tablicy wdrożone i odczytane na produkcji jako Alfa 0.16.
 Odbiór wdrożenia aplikacji opisano osobno poniżej; zapis raportu nie zmienia
 źródeł aplikacji.
 
@@ -141,6 +142,43 @@ axe 44/44, układ 49/49**, zero naruszeń. Zewnętrzny serwer lokalny
 z wyłączoną pocztą został prawidłowo odrzucony przez warunek wstępny;
 zaliczony przebieg użył własnego serwera skanera z pełnymi formularzami.
 
+### Kontrole PR Alfa 0.16
+
+[PR #504](https://github.com/woogitsu/kuking.pl/pull/504) scalono po
+dziewięciu poprawnych zadaniach [CI #941](https://github.com/woogitsu/kuking.pl/actions/runs/34764577793).
+SHA PR `ee4bb4a095bed687ecec56f1d9950646d4d748a2`, commit scalenia
+`51b3c481866b8c4d1b8151dde2bdc458fcf8537c`. Odczytany log potwierdza
+**3694 testy PHP / 74 656 asercji**, oba nowe negatywy tablicy z przywróceniem
+MD5, **axe 44/44, układ 49/49** bez naruszeń i Lighthouse **8/8**.
+Końcowa lokalna kontrola przed wysłaniem także przeszła, włącznie z pełnymi
+testami PHP, Pint, PHPStan i odwracalnością migracji.
+
+### Odbiór produkcji Alfa 0.16
+
+- [CI main #942](https://github.com/woogitsu/kuking.pl/actions/runs/34765121142)
+  i [Deploy #622](https://github.com/woogitsu/kuking.pl/actions/runs/34765719884)
+  poprawne. Pominięty Deploy #621 nie jest dowodem.
+- Railway: deployment `acd0ba5d-acc5-45ee-8f4f-e2e138596b92`, production,
+  **SUCCESS**, SHA `51b3c481866b8c4d1b8151dde2bdc458fcf8537c`,
+  zakończenie **13 września 2026, 15:28:40 UTC**.
+- Zalogowane `/home`, `/`, `/odkryj`, `/szukaj` przy 1654 × 904:
+  awatar 52 px, brak poziomego overflow; na Odkrywaj i w wyszukiwaniu
+  trzy mierzone zdjęcia dań po 72 px. Stopka **Alfa 0.16 / 51b3c48**.
+  Obejrzano Odkrywaj po wczytaniu zdjęć, potwierdzając poprawione proporcje.
+  Preferencja konta 90% pozostała zachowana.
+- Publiczne `/`, `/odkryj`, `/szukaj`, `/login` przy 320/1440:
+  osiem odpowiedzi HTTP 200, bez overflow, oba podzbiory lokalnego Inter
+  załadowane, tekst podstawowy 18 px.
+- CSS `app-Om5B58v0.css`: SHA-256
+  `ad8ef2427c31e29510c114803a32cb3d919b2b0fca02ad7a237ebab700f8da76`,
+  identyczny z buildem w kontekście Dockerfile. Zgodność nie opiera się
+  wyłącznie na nazwie pliku ani zielonym CI.
+
+Status zgłoszonych rozbieżności kompozycji: **naprawione i wdrożone**.
+Status pełnego odbioru wszystkich stanów portalu: **CZĘŚCIOWO** — granice
+poniżej nadal obowiązują. Ten dokument zapisuje dowody już zakończonego
+wdrożenia aplikacji; późniejszy commit dokumentacji nie zmienia tych źródeł.
+
 ## Granice dowodu
 
 Wyniki `Page.setFontSizes` oznaczają podwojenie bazowego pisma, nie
@@ -149,6 +187,9 @@ nie dała okna z lokalną stroną do bezpiecznego wskazania; nie uznajemy
 jej za zaliczony test zoomu. Nie sprawdzono fizycznej klawiatury ekranowej.
 
 To naprawa konkretnego rozjazdu ze wzorcem. Nie oznacza pełnego odbioru
-wszystkich ekranów i historycznych tekstów całego portalu. Konstytucja 1.4,
+wszystkich ekranów i historycznych tekstów całego portalu. Szersza
+[macierz audytu Alfa 0.14](AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md) zachowuje
+własne daty, dowody i ograniczenia; nie przypisujemy jej automatycznie
+ponownego wykonania po każdej zmianie. Konstytucja 1.4,
 COPY_STYLE i GLOS_MARKI opisują D-207; wcześniejszy audyt Alfa 0.14 nie był
 dowodem zgodności kompozycji z tym obrazem.
