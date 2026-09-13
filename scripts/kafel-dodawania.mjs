@@ -20,9 +20,8 @@
  *      że kolumna tekstu została ściśnięta do kilkudziesięciu pikseli
  *      i każde słowo dostało własny wiersz,
  *    • cel dotknięcia całego kafla (ma trzymać 48 × 48 px w każdym wariancie),
- *    • wielkość pisma tytułu i podpisu (minimum produktowe 18 px — a podpis
- *      idzie z `--text-help`, czyli 16 px bazowo, i to jest świadomy stan
- *      sprzed tej poprawki; pomiar go RAPORTUJE, żeby nie dało się go zgubić),
+ *    • wielkość pisma tytułu i podpisu (minimum produktowe 18 px dla obu;
+ *      naruszenie kończy pomiar niezerowym kodem, jak pozostałe kategorie),
  *    • czy strona ma przewijanie w poziomie.
  *
  *  DLACZEGO TYLE WARIANTÓW
@@ -628,6 +627,12 @@ if (niemieszczace.length > 0) {
       + `(kolumna tekstu ${w.kolumna?.szerokosc} px, tytuł w ${w.wierszyTytulu} wierszach, `
       + `podpis w ${w.wierszyPodpisu})`);
   }
+}
+
+/* Każda raportowana kategoria jest bramką; zachowujemy wcześniejsze błędy. */
+if ([niemieszczace, zaslonione, zaMaleCele, zaMalyTytul, zaMalyPodpis, przewijanie]
+  .some((naruszenia) => naruszenia.length > 0)) {
+  bylBlad = true;
 }
 
 if (wiersze.length !== SZEROKOSCI.length * WARIANTY_PISMA.length) {

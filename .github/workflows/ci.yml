@@ -931,7 +931,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/dostepnosc\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu)\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1033,6 +1033,10 @@ jobs:
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/port-projektu.mjs
+
+      - name: Regresja bramki kafla dodawania (#484)
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/kafel-dodawania-bramka.test.mjs
 
       - name: Pomiar kafla dodawania (15 wariantów)
         if: steps.zmiany.outputs.warto == '1'
