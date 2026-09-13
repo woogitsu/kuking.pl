@@ -20,6 +20,11 @@ Larastan: sukces. Pint po poprawieniu formatowania dwóch testów: 992 pliki,
 sukces. Wykonanie: natywna kopia WSL, izolowana baza PostgreSQL
 `kuking_final_20260913`, port 55439; nie baza produkcyjna.
 
+Pełny `scripts/port-projektu.mjs` zakończył się lokalnie `PORT_OK`, exit 0:
+nowe pomiary kompozycji i zoomu przeszły w jednym wykonaniu wraz z wcześniejszymi
+pomiarami oraz kontrolami ujemnymi ramy, tablicy i publicznej strony.
+Skrypt przygotował oddzielną bazę `kuking_port509` i sam zamknął swój serwer.
+
 Pełny pomiar kompozycji przeszedł **432 warianty i osiem rzeczywistych
 kontroli ujemnych CSS** z odtworzeniem MD5. Po niezależnym przeglądzie
 negatywy wymagają konkretnych kodów oraz jawnego wariantu także w pomiarze
@@ -79,6 +84,17 @@ trafiają do artefaktu CI, nie zastępują oglądu produkcji.
 Pełny audyt marki nadal obejmuje ograniczenia z AUDYT_PACZKI_MARKI_508.md.
 Odkrywanie i zeszyty wymagają osobnego porównania gęstości na rzeczywistych
 treściach. Nie zastępujemy strumienia statyczną siatką z fikcyjnymi przepisami.
+Porównanie źródeł wskazało kolejny konkretny zakres:
+[kompozycja zeszytów i siatka przepisów kolekcji, #511](https://github.com/woogitsu/kuking.pl/issues/511).
+Rozdzielenie Odkrywania i Szukaj oraz pełne karty zapisanych wpisów zachowują
+rzeczywiste funkcje. Symulowane kategorie, liczniki i przekrojowe filtry
+prototypu nie stają się wymaganiem dodania fikcyjnych kontrolek.
+
+Niezależny przegląd źródła `d0cf7b9 → 8d4bb05` nie znalazł blokujących
+regresji w akcjach, filtrach prywatności, licznikach ani formularzach.
+To odrębny dowód od wykonania testów i oglądu zrzutów. Bramka skryptu
+`kafel-dodawania-bramka.test.mjs` została również uruchomiona lokalnie:
+sukces, sześć kategorii i kontrole ujemne skryptu.
 
 ## Produkcja przed tym pakietem
 
