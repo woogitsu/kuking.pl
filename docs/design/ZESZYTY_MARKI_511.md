@@ -114,6 +114,11 @@ Pozostałe wykonane kontrole lokalne:
   Pierwsze uruchomienie nie znalazło binarki Chromium; po podaniu
   właściwej zmiennej `CHROME_PATH` rzeczywisty pomiar przeszedł.
 
+Ponowienie pełnego PHP przed wysłaniem wykryło zapis konkretnego sluga
+przepisu w raporcie #509, którego test tras dokumentacji nie rozpoznaje.
+Zastąpiono go pełnym, zweryfikowanym odnośnikiem produkcyjnym. Nie dodano
+wyjątku w teście ani nie osłabiono kontroli odnośników.
+
 CI, PR oraz wdrożenie są jeszcze niepotwierdzone.
 Tego dokumentu nie należy traktować jako odbioru
 całej marki ani dowodu wersji produkcyjnej.

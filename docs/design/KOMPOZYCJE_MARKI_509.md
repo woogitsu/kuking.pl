@@ -184,7 +184,7 @@ typ `font/woff2`.
 
 Obejrzano na produkcji własny i cudzy profil: duży ciemny nagłówek oraz
 jeden pas pięciu statystyk poniżej. Obejrzano rzeczywisty przepis
-`/przepisy/bigos-z-cukinii`: tekst i wczytane zdjęcie obok siebie, akcje
+[Bigos z cukinii](https://kuking.pl/przepisy/bigos-z-cukinii): tekst i wczytane zdjęcie obok siebie, akcje
 poniżej. Pierwszy kadr zawierał jeszcze placeholder ładowania; następny
 potwierdził fotografię. Niczego nie publikowano ani nie zmieniano w danych.
 Nie oznacza to sprawdzenia wszystkich produkcyjnych kombinacji treści.
