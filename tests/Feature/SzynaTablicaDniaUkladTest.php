@@ -214,9 +214,9 @@ class SzynaTablicaDniaUkladTest extends TestCase
 
             $this->assertInstanceOf(\DOMElement::class, $rodzic);
             $this->assertStringContainsString(
-                'kuking-board-post-link',
+                'kuking-board-post-row',
                 (string) $rodzic->getAttribute('class'),
-                'Blok podpisu dania nie jest bezpośrednim dzieckiem `.kuking-board-post-link`, '.
+                'Blok podpisu dania nie jest bezpośrednim dzieckiem `.kuking-board-post-row`, '.
                 'więc `flex: 1 1 10rem` na nim nic nie robi i podpis wraca pod zdjęcie.',
             );
 
@@ -226,8 +226,8 @@ class SzynaTablicaDniaUkladTest extends TestCase
             $this->assertStringContainsString(
                 'kuking-board-post',
                 (string) $wiersz->getAttribute('class'),
-                'Odnośnik wiersza dania nie stoi bezpośrednio w `<li class="kuking-board-post">`. '.
-                'Wcięcie i kreska siedzą na `<li>`, a układ na odnośniku — rozdzielenie ich '.
+                'Kontener wiersza dania nie stoi bezpośrednio w `<li class="kuking-board-post">`. '.
+                'Wcięcie i kreska siedzą na `<li>`, a układ na wierszu — rozdzielenie ich '.
                 'czymkolwiek pośrodku rozjeżdża rytm obu list.',
             );
         }
