@@ -1,7 +1,7 @@
 /* Nowy kierunek marki na istniejących ekranach Laravel.
    Warstwa marka następuje po components. Układ ramy i karta wpisu
    pozostają w swoich plikach; tutaj nie zmieniamy kolejności treści.
-   Własny profil dostaje w Blade istniejącą klasę `blok-ciemny`, dzięki
+   Każdy profil dostaje w Blade istniejącą klasę `blok-ciemny`, dzięki
    czemu korzysta z kompletnej palety ciemnej, bez drugiej kopii kolorów. */
 @layer marka {
   .marka-profil {
@@ -202,6 +202,7 @@
 
   .pole-zdjecia .pomoc,
   .panel-formularza .field-help,
+  .panel-formularza .choice-help,
   .panel-formularza .field-error {
     font-size: var(--text-body);
   }

@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.10 — spójne podstrony i wiadomości
+
+- Nagłówek każdego profilu ma tę samą grafitową oprawę. Tytuły przepisów korzystają z nowej typografii.
+- Opisy w ustawieniach i przy wyborach formularza są czytelniejsze.
+- Wiadomości e-mail otrzymały nową paletę, prosty krój pisma i spójne przyciski.
+- Instrukcje logowania i pomocy są krótsze i precyzyjniejsze.
+
 ## Alfa 0.9 — pełny układ nowej marki
 
 Pływająca nawigacja, ciemny blok publikacji, nowe karty i typografia. Spójny wygląd profilu, zeszytów, wyszukiwarki, przepisów i formularzy. Funkcje korzystają z dotychczasowych danych i ustawień konta.

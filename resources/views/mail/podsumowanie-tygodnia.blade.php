@@ -25,11 +25,11 @@
 --}}
 @php
     /** @var \App\Domain\Digest\TrescDigestu $tresc */
-    $czcionka = "font-family:Georgia,'Times New Roman',serif;";
+    $czcionka = "font-family:Arial,Helvetica,sans-serif;";
     $sekcja = 'margin:32px 0 12px;font-size:15px;line-height:1.4;font-weight:bold;'
-        ."letter-spacing:0.06em;text-transform:uppercase;color:#5C5347;font-family:Arial,Helvetica,sans-serif;";
-    $pozycja = 'margin:0 0 18px;font-size:19px;line-height:1.6;color:#2B241D;';
-    $cichy = 'margin:0 0 20px;font-size:17px;line-height:1.6;color:#5C5347;';
+        ."letter-spacing:0.06em;text-transform:uppercase;color:#555E53;font-family:Arial,Helvetica,sans-serif;";
+    $pozycja = 'margin:0 0 18px;font-size:19px;line-height:1.6;color:#151714;';
+    $cichy = 'margin:0 0 20px;font-size:17px;line-height:1.6;color:#555E53;';
 @endphp
 <!DOCTYPE html>
 <html lang="pl">
@@ -38,14 +38,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Podsumowanie tygodnia w Kuking</title>
 </head>
-<body style="margin:0;padding:0;background:#FAF6F0;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FAF6F0;">
+<body style="margin:0;padding:0;background:#F3F4F1;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F3F4F1;">
     <tr>
         <td align="center" style="padding:24px 12px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                   style="max-width:600px;background:#FFFFFF;border:1px solid #E4DACB;border-radius:12px;">
+                   style="max-width:600px;background:#FFFFFF;border:1px solid #DDE0D8;border-radius:24px;">
                 <tr>
-                    <td style="padding:32px 28px;{{ $czcionka }}font-size:19px;line-height:1.6;color:#2B241D;">
+                    <td style="padding:32px 28px;{{ $czcionka }}font-size:19px;line-height:1.6;color:#151714;">
 
                         <p style="margin:0 0 24px;font-size:19px;">Dzień dobry, {{ $imie }},</p>
 
@@ -66,13 +66,13 @@
                                     &mdash; {{ $wykonanie->recipe?->title }}.
                                     @if(filled($wykonanie->note))
                                         <br>
-                                        <span style="color:#5C5347;">„{{ \Illuminate\Support\Str::limit($wykonanie->note, 180) }}”</span>
+                                        <span style="color:#555E53;">„{{ \Illuminate\Support\Str::limit($wykonanie->note, 180) }}”</span>
                                     @endif
                                 </p>
 
                                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
                                     <tr>
-                                        <td align="center" bgcolor="#B3401F" style="border-radius:8px;">
+                                        <td align="center" bgcolor="#BE3025" style="border-radius:14px;">
                                             {{--
                                                 „Podziękuj" — dokładnie ta sama nazwa co przycisk
                                                 na ekranie „Komuś wyszło" (docs/product/RETENTION_LOOPS.md
@@ -120,7 +120,7 @@
                                     @endif
                                     <br>
                                     <a href="{{ route('posts.show', ['post' => $wpis->getKey()]) }}"
-                                       style="color:#B3401F;">Zobacz</a>
+                                       style="color:#BE3025;">Zobacz</a>
                                 </p>
                             @endforeach
                         @endif
@@ -143,7 +143,7 @@
                             {{ $gospodarz }}
                         </p>
 
-                        <hr style="border:0;border-top:1px solid #E4DACB;margin:28px 0;">
+                        <hr style="border:0;border-top:1px solid #DDE0D8;margin:28px 0;">
 
                         <p style="{{ $cichy }}">
                             Piszę raz w tygodniu i tylko wtedy, gdy jest o czym.
@@ -158,14 +158,14 @@
                             bo część klientów pocztowych blokuje odnośniki, a wtedy jedyną
                             drogą wyjścia jest przepisanie adresu do przeglądarki.
                         --}}
-                        <p style="margin:0 0 12px;font-size:17px;line-height:1.6;color:#5C5347;">
+                        <p style="margin:0 0 12px;font-size:17px;line-height:1.6;color:#555E53;">
                             Nie chcesz tych wiadomości?
-                            <a href="{{ $wypisz }}" style="color:#B3401F;font-weight:bold;">Wyłącz je jednym kliknięciem</a>.
+                            <a href="{{ $wypisz }}" style="color:#BE3025;font-weight:bold;">Wyłącz je jednym kliknięciem</a>.
                             Bez pytań.
                         </p>
 
                         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;
-                                  line-height:1.5;color:#5C5347;word-break:break-all;">
+                                  line-height:1.5;color:#555E53;word-break:break-all;">
                             {{ $wypisz }}
                         </p>
 
@@ -174,7 +174,7 @@
             </table>
 
             <p style="max-width:600px;margin:20px auto 0;font-family:Arial,Helvetica,sans-serif;
-                      font-size:15px;line-height:1.5;color:#5C5347;">
+                      font-size:15px;line-height:1.5;color:#555E53;">
                 Kuking.pl &mdash; pokaż, co dziś ugotowałeś.
             </p>
         </td>

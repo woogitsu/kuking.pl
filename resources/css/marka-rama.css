@@ -58,13 +58,15 @@
 [data-marka] .marka-rama.app-body-powitalny > .app-main,
 [data-marka] .marka-rama.app-body-tresc-z-szyna > .app-main { max-width: none; }
 [data-marka] .app-main > h1,
-[data-marka] .start-powitanie {
+[data-marka] .start-powitanie,
+[data-marka] .przepis-uklad > header h1 {
   font-size: calc(clamp(2.125rem, 3.6vw, 3.25rem) * var(--user-text-scale, 1));
   line-height: 1.15;
   font-weight: 800;
   letter-spacing: -.045em;
-  margin-bottom: var(--spacing-6);
 }
+[data-marka] .app-main > h1,
+[data-marka] .start-powitanie { margin-bottom: var(--spacing-6); }
 [data-marka] .start-nadtytul { font-weight: 750; margin-bottom: 12px; }
 [data-marka] .marka-publikacja {
   position: relative;
@@ -197,3 +199,7 @@
 [data-marka] .app-rail .kuking-board { --tablica-zdjecie: 72px; }
 [data-marka] .app-rail .kuking-board-avatar .avatar { width: 72px; height: 72px; }
 [data-marka] a.author-name { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+
+/* Opisy ustawień są instrukcją, także w pomocniczej kolumnie. */
+[data-marka] .ustawienia-nawigacja-tu,
+[data-marka] .ustawienia-nawigacja-opis { font-size: var(--text-body); }
