@@ -128,6 +128,16 @@
         ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby()
         : [];
 
+    // Suma, nie `array_sum($kolejki)` — nazwy kolejek
+    // wypisane wprost, żeby nowy klucz w `KolejkiPanelu`
+    // (np. licznik czegoś, co nie jest kolejką do
+    // przejrzenia) nie doliczał się tu po cichu.
+    $czekaWPanelu = ($kolejki['bez_odpowiedzi'] ?? 0)
+        + ($kolejki['zgloszenia'] ?? 0)
+        + ($kolejki['sygnaly'] ?? 0)
+        + ($kolejki['odwolania'] ?? 0)
+        + ($kolejki['wiadomosci'] ?? 0);
+
     // ------------------------------------------------------------------
     //  KARTA DO WYSŁANIA RODZINIE (issue #14)
     //
@@ -275,7 +285,7 @@
     <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
     <link rel="canonical" href="{{ url()->current() }}">
-    <meta name="theme-color" content="#B3401F">
+    <meta name="theme-color" content="#151714">
 
     <link rel="icon" href="{{ asset('icons/kuking-mark.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ asset('icons/kuking-icon-192.png') }}">
@@ -341,10 +351,10 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
-    <header class="topbar">
+    <header class="topbar marka-topbar">
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 {{-- Znak wklejony wprost, nie przez <img> — inaczej nie
@@ -387,6 +397,19 @@
                 </form>
             @endauth
 
+
+            @auth
+                @unless($wTrybiePanelu)
+                    <nav class="marka-nawigacja" aria-label="Nawigacja główna — komputer">
+                        <a href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif>Start</a>
+                        <a href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif>Szukaj</a>
+                        <a href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif>Dodaj</a>
+                        <a href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>Moje</a>
+                        <a href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>Profil</a>
+                    </nav>
+                @endunless
+            @endauth
+
             <div class="topbar-actions">
                 @auth
                     {{--
@@ -422,7 +445,7 @@
                         miejsce musi się wziąć z rzeczy, która stoi obok
                         drugi raz.
                     --}}
-                    <a class="btn btn-quiet topbar-mobile-only" href="{{ route('notifications.index') }}">
+                    <a class="btn btn-quiet topbar-mobile-only marka-powiadomienia-link" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
                             <span class="badge badge-cooked">{{ $unread }}</span>
@@ -515,6 +538,9 @@
                         <ul class="topbar-konto-tresc">
                             <li><a href="{{ route('profile.show', $user->profile->username) }}">Mój profil</a></li>
                             <li><a href="{{ route('settings.index') }}">Ustawienia</a></li>
+                            @if($user->isModerator() && ! $wTrybiePanelu)
+                                <li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>
+                            @endif
                             <li><x-wyloguj class="topbar-konto-wyjscie" formClass="topbar-konto-wyjscie-formularz">Wyloguj się</x-wyloguj></li>
                         </ul>
                     </details>
@@ -548,7 +574,7 @@
              drugą. Ekran, który ją podaje, nie ma `<aside class="app-rail">`
              i mieć nie będzie; kolumnę szyny zajmuje jego własna siatka
              (`szynaWTresci` wyżej, issue #365). --}}
-        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest @if($szynaWTresci) app-body-tresc-z-szyna @endif" @if($wTrybiePanelu) data-tryb-panelu @endif>
+        <div class="app-body marka-rama @if($maSzyne) marka-rama-z-szyna @endif @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest @if($szynaWTresci) app-body-tresc-z-szyna @endif" @if($wTrybiePanelu) data-tryb-panelu @endif>
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
@@ -689,17 +715,7 @@
                             którego AGENTS.md zabrania. Rozbicie na kolejki czeka
                             w panelu, jedno kliknięcie dalej.
                         --}}
-                        @php
-                            // Suma, nie `array_sum($kolejki)` — nazwy kolejek
-                            // wypisane wprost, żeby nowy klucz w `KolejkiPanelu`
-                            // (np. licznik czegoś, co nie jest kolejką do
-                            // przejrzenia) nie doliczał się tu po cichu.
-                            $czekaWPanelu = ($kolejki['bez_odpowiedzi'] ?? 0)
-                                + ($kolejki['zgloszenia'] ?? 0)
-                                + ($kolejki['sygnaly'] ?? 0)
-                                + ($kolejki['odwolania'] ?? 0)
-                                + ($kolejki['wiadomosci'] ?? 0);
-                        @endphp
+
 
                         @if($wTrybiePanelu)
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
@@ -1275,4 +1291,3 @@
     @endif
 </body>
 </html>
-

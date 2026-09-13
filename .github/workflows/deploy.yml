@@ -314,6 +314,31 @@ jobs:
             echo "OK    strona błędu nie ujawnia szczegółów"
           fi
 
+
+          # Potwierdzenie portu w HTML i faktycznie serwowanym arkuszu.
+          # Sam HTTP 200 nie wykrywa pozostawienia starego wyglądu.
+          echo "--- Wersja interfejsu i zasoby marki ---"
+          html_marki=$(curl -fsS --max-time 30 --retry 3 "${BASE_URL}/") || fail=1
+          if [[ "${html_marki:-}" != *'data-marka="kuking-2026"'* ]]; then
+            echo "BLAD  serwowany HTML nie zawiera nowej ramy marki"
+            fail=1
+          else
+            echo "OK    HTML używa kuking-2026"
+          fi
+          css_marki=$(python3 -c 'import re,sys; from urllib.parse import urljoin; html=sys.stdin.read(); links=re.findall(r"<link\b[^>]*href=\"([^\"]+)\"[^>]*>",html); print(next((urljoin(sys.argv[1],x) for x in links if "/build/assets/app-" in x and x.endswith(".css")),""))' "$BASE_URL/" <<< "${html_marki:-}")
+          if [ -z "$css_marki" ]; then
+            echo "BLAD  brak adresu zbudowanego arkusza aplikacji"
+            fail=1
+          else
+            arkusz_marki=$(curl -fsS --max-time 30 --retry 3 "$css_marki") || fail=1
+            if [[ "${arkusz_marki:-}" == *".marka-topbar"* && "${arkusz_marki:-}" == *".marka-rama"* ]]; then
+              echo "OK    serwowany CSS zawiera pływający nagłówek i nowy układ"
+            else
+              echo "BLAD  serwowany CSS nie zawiera portu marki"
+              fail=1
+            fi
+          fi
+
           exit $fail
 
       # -----------------------------------------------------------------------

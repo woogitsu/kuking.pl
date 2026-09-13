@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kontrole regresji Alfa 0.8, wyłącznie w izolowanym zadaniu testowym CI."""
+"""Kontrole regresji Alfa 0.8 i portu marki, wyłącznie w izolowanym zadaniu testowym CI."""
 
 import hashlib
 import os
@@ -63,6 +63,8 @@ checks = [
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
+     lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -87,4 +89,4 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
             if restored != before:
                 raise RuntimeError("Przywrócone źródło różni się od oryginału.")
         run_test(test, True)
-print("Cztery kontrole negatywne wykryły regresje; źródła przywrócone.")
+print("Pięć kontroli negatywnych wykryły regresje; źródła przywrócone.")

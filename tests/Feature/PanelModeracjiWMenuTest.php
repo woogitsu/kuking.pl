@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +53,18 @@ class PanelModeracjiWMenuTest extends TestCase
         $this->assertNotFalse($koniec, 'Nawigacja boczna nie jest domknięta.');
 
         return substr($html, $start, $koniec - $start);
+    }
+
+    /** Menu widoczne także wtedy, gdy zwykła nawigacja boczna jest ukryta. */
+    private function wytnijMenuKonta(string $html): string
+    {
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $menu = $xpath->query("//header//details[contains(concat(' ', normalize-space(@class), ' '), ' topbar-konto ')]")->item(0);
+        $this->assertInstanceOf(DOMElement::class, $menu, 'Brak menu konta w nagłówku.');
+
+        return (string) $dom->saveHTML($menu);
     }
 
     /**
@@ -159,7 +174,7 @@ class PanelModeracjiWMenuTest extends TestCase
             'wiadomosci' => 3,
         ]);
 
-        $boczna = $this->wytnijBoczna(
+        $boczna = $this->wytnijMenuKonta(
             (string) $this->actingAs($moderator)->get('/home')->assertOk()->getContent(),
         );
 
@@ -182,7 +197,7 @@ class PanelModeracjiWMenuTest extends TestCase
             'wiadomosci' => 0,
         ]);
 
-        $pusta = $this->wytnijBoczna(
+        $pusta = $this->wytnijMenuKonta(
             (string) $this->actingAs($moderator)->get('/home')->assertOk()->getContent(),
         );
 

@@ -622,7 +622,7 @@ jobs:
 
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
       # przywraca kopię i ponawia test. Pełny zestaw idzie na końcu.
-      - name: Kontrole negatywne regresji Alfa 0.8
+      - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         run: python3 scripts/kontrole-negatywne-alfa08.py
 
       - name: Testy
@@ -1030,6 +1030,10 @@ jobs:
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
+      - name: Port projektu — układ i kontrola ujemna
+        if: steps.zmiany.outputs.warto == '1'
+        run: node scripts/port-projektu.mjs
+
       - name: Pomiar kafla dodawania (15 wariantów)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/kafel-dodawania.mjs
@@ -1037,6 +1041,14 @@ jobs:
       - name: axe-core (27 ekranów × 4 warianty)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs
+
+      - name: Zrzuty portu projektu
+        if: always() && steps.zmiany.outputs.warto == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: port-projektu-${{ github.sha }}
+          path: storage/port-projektu
+          retention-days: 14
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.

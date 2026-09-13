@@ -2611,6 +2611,20 @@ for (const wariant of WARIANTY) {
       });
     }
 
+
+    // Zapisujemy ten sam wyrenderowany ekran, który bada axe.
+    // Artefakt pozwala odebrać wizualnie wszystkie rodziny, także panel i błędy.
+    if (wariant.nazwa === 'jasny' || wariant.nazwa === '320 px') {
+      mkdirSync('storage/port-projektu/ekrany', { recursive: true });
+      const nazwaPliku = String(EKRANY.indexOf(ekran)).padStart(2, '0') + '-' + wariant.szerokosc;
+      const zrzut = await strona.screenshot({
+        path: 'storage/port-projektu/ekrany/' + nazwaPliku + '.jpg',
+        type: 'jpeg', quality: 60,
+      });
+      if (wariant.nazwa === '320 px' && ['strona powitalna', 'przepis', 'dodaj przepis', 'logowanie', 'czytelność'].includes(ekran.nazwa)) {
+        log('PORT_SCREEN_' + nazwaPliku + ' ' + zrzut.toString('base64'));
+      }
+    }
     const ile = wynik.violations.length;
     zbadanePrzezAxe.add(ekran.nazwa);
     log(`  ${ile === 0 ? '✓' : '✗'} ${ekran.nazwa} (${wariant.nazwa})${ile ? ` — ${ile}` : ''}`);
@@ -3145,6 +3159,51 @@ const EKRANY_WYROWNANIA = [
 // poprawką szedł raz w lewo, raz w prawo.
 const SZEROKOSCI_WYROWNANIA = SZYBKO ? [1512] : [1024, 1280, 1512];
 
+
+/* Nowy projekt ma niezależną, szerszą belkę. Sprawdzamy jej geometrię,
+   padding i zawartość oraz wspólną ramę stron — z tolerancją 1 px. */
+function zmierzRameMarki() {
+  if (!document.body.hasAttribute('data-marka')) return null;
+  const bledy = [];
+  const near = (nazwa, actual, expected) => {
+    if (Math.abs(actual - expected) > 1) bledy.push(nazwa + ': ' + actual + ' zamiast ' + expected);
+  };
+  const belka = document.querySelector('.marka-topbar');
+  const wnetrze = document.querySelector('.topbar-inner');
+  const rama = document.querySelector('.marka-rama');
+  const stopka = document.querySelector('.site-footer-inner');
+  const logo = document.querySelector('.wordmark');
+  const akcje = document.querySelector('.topbar-actions');
+  if (![belka, wnetrze, rama, stopka, logo, akcje].every(Boolean)) {
+    return { marka: true, bledy: ['Brak elementu ramy marki'], oczekiwanaLewa: null, oczekiwanaPrawa: null };
+  }
+  const b = belka.getBoundingClientRect();
+  const w = wnetrze.getBoundingClientRect();
+  const r = rama.getBoundingClientRect();
+  const f = stopka.getBoundingClientRect();
+  const ws = getComputedStyle(wnetrze);
+  const fs = getComputedStyle(stopka);
+  near('szerokość belki', b.width, Math.min(1220, innerWidth - 24));
+  near('wyśrodkowanie belki', (b.left + b.right) / 2, innerWidth / 2);
+  near('padding belki lewy', parseFloat(ws.paddingLeft), 20);
+  near('padding belki prawy', parseFloat(ws.paddingRight), 20);
+  near('lewa krawędź logo', logo.getBoundingClientRect().left, w.left + 20);
+  near('prawa krawędź akcji', akcje.getBoundingClientRect().right, w.right - 20);
+  near('szerokość ramy', r.width, Math.min(1120, innerWidth - 24));
+  near('wyśrodkowanie ramy', (r.left + r.right) / 2, innerWidth / 2);
+  near('szerokość stopki', f.width, Math.min(1120, innerWidth - 32));
+  near('wyśrodkowanie stopki', (f.left + f.right) / 2, innerWidth / 2);
+  near('padding stopki lewy', parseFloat(fs.paddingLeft), 24);
+  near('padding stopki prawy', parseFloat(fs.paddingRight), 24);
+  for (const element of [...wnetrze.children, ...wnetrze.querySelectorAll('.marka-nawigacja > a')]) {
+    const e = element.getBoundingClientRect();
+    if (!e.width || !e.height || getComputedStyle(element).visibility === 'hidden') continue;
+    if (e.left < w.left + 19 || e.right > w.right - 19) bledy.push('Zawartość wystaje z belki: ' + element.className);
+  }
+  return { marka: true, bledy, oczekiwanaLewa: r.left, oczekiwanaPrawa: r.right };
+}
+let sprawdzonoUjemnieRameMarki = false;
+
 const rozjazdyBelki = [];
 
 /** Krawędzie siatki pierwszego zmierzonego ekranu zalogowanego, per szerokość. */
@@ -3170,7 +3229,7 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
 
     await poczekajNaFonty(strona);
 
-    const pomiar = await strona.evaluate(() => {
+    let pomiar = await strona.evaluate(() => {
       // Kolumna treści: wnętrze pierwszego pasa, a gdy strona nie stoi na
       // pasach — siatka ekranu. Patrz „CZYM JEST KOLUMNA TREŚCI" wyżej.
       const body = document.querySelector('.pas-wnetrze') ?? document.querySelector('.app-body');
@@ -3215,6 +3274,40 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       };
     });
 
+
+    const marka = await strona.evaluate(zmierzRameMarki);
+    if (marka) {
+      pomiar = marka;
+      if (!sprawdzonoUjemnieRameMarki) {
+        for (const [css, oczekiwanyBlad] of [
+          ['[data-marka] .marka-topbar { width: 80px !important; }', 'szerokość belki'],
+          ['[data-marka] .marka-topbar { transform: translateX(20px) !important; }', 'wyśrodkowanie belki'],
+          ['[data-marka] .topbar-inner { padding-left: 0 !important; }', 'padding belki lewy'],
+          ['[data-marka] .site-footer-inner { width: 80px !important; }', 'szerokość stopki'],
+        ]) {
+          const styl = await strona.evaluateHandle((tresc) => {
+            const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+            if (!nonce) throw new Error('Brak nonce do kontroli ujemnej CSS');
+            const element = document.createElement('style');
+            element.nonce = nonce;
+            element.textContent = tresc;
+            document.head.append(element);
+            return element;
+          }, css);
+          try {
+            const ujemny = await strona.evaluate(zmierzRameMarki);
+            if (!ujemny.bledy.some((blad) => blad.startsWith(oczekiwanyBlad))) {
+              throw new Error('Kontrola ujemna ramy nie wykryła: ' + oczekiwanyBlad);
+            }
+            log('  Kontrola ujemna ramy: wykryto ' + oczekiwanyBlad);
+          } finally {
+            await styl.evaluate((element) => element.remove());
+          }
+        }
+        sprawdzonoUjemnieRameMarki = true;
+        pomiar = await strona.evaluate(zmierzRameMarki);
+      }
+    }
     await strona.close();
 
     if (! pomiar) {
@@ -3223,6 +3316,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
       continue;
     }
 
+    if (pomiar.marka) {
+      if (pomiar.bledy.length) rozjazdyBelki.push({ ekran: ekran.nazwa, szerokosc, ...pomiar });
+    } else {
     // Jeden piksel tolerancji na zaokrąglenie — układ liczy się w ułamkach.
     const bladLewej = Math.abs(pomiar.lewa - pomiar.oczekiwanaLewa);
     const bladPrawej = Math.abs(pomiar.prawa - pomiar.oczekiwanaPrawa);
@@ -3244,6 +3340,8 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         ekran: ekran.nazwa, szerokosc, ...pomiar,
         bladLewej, bladPrawej, bladStopkiL, bladStopkiP, bladSzukajL, bladSzukajP,
       });
+    }
+
     }
 
     // DRUGA, OSOBNA REGUŁA: siatka ma stać w TYM SAMYM MIEJSCU na wszystkich
@@ -4457,6 +4555,10 @@ if (rozjazdyBelki.length > 0) {
   log('Belka nie licuje z siatką treści:');
   for (const r of rozjazdyBelki) {
     log(`  ${r.ekran} przy ${r.szerokosc} px:`);
+    if (r.marka) {
+      for (const blad of r.bledy) log('      ' + blad);
+      continue;
+    }
     log(`      logotyp ${r.lewa} zamiast ${r.oczekiwanaLewa} (o ${r.bladLewej} px)`);
     log(`      akcje   ${r.prawa} zamiast ${r.oczekiwanaPrawa} (o ${r.bladPrawej} px)`);
     log(`      stopka  ${r.stopkaLewa}…${r.stopkaPrawa} zamiast `

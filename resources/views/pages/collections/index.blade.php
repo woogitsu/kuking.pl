@@ -27,7 +27,7 @@
             kliknij przy nim „Zapisuję”. Trafi tutaj i zawsze do niego wrócisz.
         </x-empty-state>
     @else
-        <div class="stack">
+        <div class="marka-zeszyty">
             @foreach($collections as $collection)
                 <article class="card">
                     <h2 class="mt-0">

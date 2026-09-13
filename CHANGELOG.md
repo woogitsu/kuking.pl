@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.9 — pełny układ nowej marki
+
+Pływająca nawigacja, ciemny blok publikacji, nowe karty i typografia. Spójny wygląd profilu, zeszytów, wyszukiwarki, przepisów i formularzy. Funkcje korzystają z dotychczasowych danych i ustawień konta.
+
 Ten plik jest dla **ludzi**, nie dla programistów. Piszemy tu, co widać
 na ekranie — nie jak się nazywa klasa, którą przy okazji przeniesiono.
 

@@ -27,15 +27,20 @@
         odnośnik do strony dodawania — działa też z klawiatury i na czytniku
         ekranu.
     --}}
-    <a class="kafel-akcji composer" href="{{ route('posts.create') }}">
-        <x-avatar :user="auth()->user()" :size="48" />
-        <span class="composer-copy">
-            <span class="composer-title">Dodaj zdjęcie tego, co ugotowałeś</span>
-            <span class="composer-help">Nie musi być ładne — ma być prawdziwe.</span>
-        </span>
-        <x-ikona nazwa="image" :rozmiar="28" />
-    </a>
-
+    <section class="marka-publikacja blok-ciemny" aria-label="Pokaż swoje gotowanie">
+        <a class="kafel-akcji composer" href="{{ route('posts.create') }}">
+            <x-avatar :user="auth()->user()" :size="48" />
+            <span class="composer-copy">
+                <span class="composer-title">Dodaj zdjęcie tego, co ugotowałeś</span>
+                <span class="composer-help">Nie musi być ładne — ma być prawdziwe.</span>
+            </span>
+            <x-ikona nazwa="image" :rozmiar="28" />
+        </a>
+        <div class="marka-publikacja-akcje">
+            <a class="btn btn-primary" href="{{ route('posts.create') }}"><x-ikona nazwa="image" /> Dodaj zdjęcie</a>
+            <a class="btn btn-secondary" href="{{ route('recipes.create') }}"><x-ikona nazwa="book" /> Dodaj przepis</a>
+        </div>
+    </section>
 
     @if($wspomnienie ?? null)
         {{--
@@ -161,5 +166,14 @@
 
         <x-show-more :paginator="$posts" />
     @endif
+    <section class="marka-start-pomoc" aria-labelledby="start-jak-dziala">
+        <p class="nadtytul">Gotowanie łączy</p>
+        <h2 id="start-jak-dziala">Pomysł to dopiero początek.</h2>
+        <div class="marka-start-kroki">
+            <article><span aria-hidden="true">01</span><h3>Znajdź coś na dziś</h3><p>Wpisz nazwę dania lub składnik. Zobacz przepisy i poznaj osoby, które je przygotowują.</p><a href="{{ route('search') }}">Szukaj pomysłu</a></article>
+            <article><span aria-hidden="true">02</span><h3>Zachowaj po swojemu</h3><p>Przepisy i wpisy odkładaj do własnych zeszytów. Wrócisz do nich, gdy przyjdzie ochota.</p><a href="{{ route('collections.index') }}">Otwórz moje zeszyty</a></article>
+            <article><span aria-hidden="true">03</span><h3>Pokaż, jak wyszło</h3><p>Zdjęcie i kilka słów wystarczą. Przy przepisie zaznacz „Ugotowałem” — autor dowie się o Twoim wykonaniu.</p><a href="{{ route('posts.create') }}">Dodaj swoje danie</a></article>
+        </div>
+        <p class="marka-start-zaufanie">Twoje gotowanie, Twoje zasady. Wybierasz widoczność treści i możesz pobrać swoje dane. <a href="{{ route('settings.index') }}">Ustawienia konta</a></p>
+    </section>
 </x-layout>
-
