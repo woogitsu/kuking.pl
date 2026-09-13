@@ -148,6 +148,57 @@ zainteresowań i zwykłych powiadomień do dalszego oglądu:
 [issue #513](https://github.com/woogitsu/kuking.pl/issues/513).
 To rozpoznanie kodu i prototypu, nie wykonany odbiór w przeglądarce.
 
+## Uzupełnienie odbioru CI i scalenia
+
+PR [#512](https://github.com/woogitsu/kuking.pl/pull/512) został scalony
+13 września 2026. Końcowy kod PR: `f23a70dcdff4bb7353f177eb3f3e204dc431cb97`;
+commit scalenia: `d17bfd3bed824967cbfe05a6c582f1a2577ac14a`.
+CI [34775555715](https://github.com/woogitsu/kuking.pl/actions/runs/34775555715)
+zakończył wszystkie dziewięć zadań sukcesem. Logi potwierdzają 3703 testy
+PHP / 74788 asercji, axe 44/44, układ 49/49 oraz 48 wariantów rzeczywistego
+zoomu 200%. Lighthouse zaliczył 8/8 stron: wydajność 92–94, SEO 100 poza
+celowo niewliczanym logowaniem z `noindex`.
+
+To zastępuje wcześniejszy status oczekiwania na ponowny CI. Po scaleniu
+CI main [34776317365](https://github.com/woogitsu/kuking.pl/actions/runs/34776317365)
+również zaliczył dziewięć zadań, w tym testy na dwóch połączeniach.
+Jego log PHP potwierdza 3703 testy / 74788 asercji.
+
+## Potwierdzone wdrożenie Alfa 0.18
+
+Railway deployment `6425234896`, produkcja, pełny SHA
+`d17bfd3bed824967cbfe05a6c582f1a2577ac14a`: **success**, 19:17:17 UTC
+13 września 2026. Panel Railway pokazuje aktywne wydanie z PR #512
+(`680c09a2-9dbf-49f8-b412-cc6a857fba3b`). Workflow
+[Deploy 34777229746](https://github.com/woogitsu/kuking.pl/actions/runs/34777229746)
+zakończył się sukcesem. Początkowe pominięcie Deploy przy statusie
+`in_progress` nie było błędem wdrożenia; uruchamia go zdarzenie sukcesu.
+
+Odpowiedź produkcyjna HTTP 200 i odświeżona przeglądarka podają Alfa 0.18,
+metryczkę `d17bfd3`, wydanie 21:16 czasu polskiego. Pobierany CSS
+`app-Btni094N.css` ma SHA256
+`f5c0c2a5e0923ce95011a3c05dd1b6902900ddb9a532c7ab739dde63b272bb14`
+i zawiera cztery nowe rodziny kompozycji. JavaScript `app-DXNAnudp.js`
+oraz oba WOFF2 Inter (latin, latin-ext) zwracają 200; fonty mają właściwy
+typ `font/woff2`.
+
+Obejrzano na produkcji własny i cudzy profil: duży ciemny nagłówek oraz
+jeden pas pięciu statystyk poniżej. Obejrzano rzeczywisty przepis
+`/przepisy/bigos-z-cukinii`: tekst i wczytane zdjęcie obok siebie, akcje
+poniżej. Pierwszy kadr zawierał jeszcze placeholder ładowania; następny
+potwierdził fotografię. Niczego nie publikowano ani nie zmieniano w danych.
+Nie oznacza to sprawdzenia wszystkich produkcyjnych kombinacji treści.
+
+Niezależny anonimowy Chromium sprawdził `/`, `/login` i `/register` na
+produkcji: 1440 i 320 px, dwa motywy, łącznie 12 wariantów. Wszystkie
+odpowiedzi 200, Alfa 0.18 / `d17bfd3`, tekst bazowy 18 px, brak poziomego
+overflow i niewczytanych obrazów po rzeczywistym przewinięciu sekcji.
+Obejrzano zrzuty: zaproszenie obok karty formularza na komputerze, układ
+pionowy na telefonie; publiczne kroki, ciemny blok wykonania i trzy karty
+własności. Nie wysyłano formularzy ani nie przechodzono OAuth/Turnstile.
+Ten odbiór produkcji nie obejmuje powiększenia 200% ani tekstu 140%; ich
+wyniki wyżej pochodzą z lokalnych testów i CI, nie z produkcji.
+
 ## Produkcja przed tym pakietem — dowody
 
 13 września odczytano GitHub main `d0cf7b9a51dd7b3ecc1cba6233110b8bfe9ef4cf`,

@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.6, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.7, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -116,6 +116,12 @@ o zeszytach, widoczności i eksporcie tworzą trzy karty. Przy małej dostępnej
 szerokości elementy przechodzą do jednej kolumny. Układ nie usuwa dróg
 logowania, stanów formularza, akcji przepisu ani reguł widoczności liczb.
 Stan odbioru: [kompozycje #509](../design/KOMPOZYCJE_MARKI_509.md).
+
+D-211 przenosi kompozycję zeszytów: ciemne karty folderów, ostatnie zapisy
+w głównej kolumnie oraz zdjęcia nad pełnymi tytułami przepisów w folderze.
+Układ dostosowuje liczbę kolumn do miejsca i powiększenia tekstu. Pokazuje
+rzeczywiste zapisy i opisy, zachowując filtry widoczności i paginację.
+Stan odbioru: [zeszyty #511](../design/ZESZYTY_MARKI_511.md).
 
 | Rodzina | Standard |
 |---|---|

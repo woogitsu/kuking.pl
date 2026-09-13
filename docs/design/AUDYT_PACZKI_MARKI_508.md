@@ -101,10 +101,25 @@ wykracza poza makietę: [INWENTARZ_EKRANOW_MARKI_014.md](INWENTARZ_EKRANOW_MARKI
 
 ## Granice i dalszy port
 
+**Aktualizacja po scaleniach:** cztery kompozycje z #509 są już w main
+`d17bfd3` przez PR #512, z dziewięcioma zaliczonymi zadaniami CI. Szczegóły
+i osobny stan wdrożenia: [odbiór #509](KOMPOZYCJE_MARKI_509.md).
+Historyczna macierz powyżej opisuje moment audytu paczki, nie stan tego
+nowszego kodu. Następne rozpoznane braki to zeszyty (#511), zainteresowania
+i zwykłe powiadomienia (#513), niepotwierdzone obietnice w komunikatach
+i wiadomościach (#514), tematyczne kafle w pustym Szukaj (#515) oraz
+nieaktualne instrukcje środowiska i skróty zasad modeli (#516).
+Brak tych kafli był już odnotowany
+w macierzy; D-207 nie zakazuje pokazania prawdziwych promowanych tematów.
+Rzeczywisty zoom kompozycji #509 został sprawdzony w 48 wariantach;
+dawny status „niezakończony” poniżej dotyczy
+momentu sporządzenia pierwotnego audytu, nie późniejszego wyniku CI.
+
 Nie ma podstaw do odpowiedzi „wszystko z ZIP jest już w aplikacji”.
-Najbardziej konkretne pozostałe kompozycje to: wejście/login/rejestracja,
+W chwili pierwszego audytu najbardziej konkretne braki obejmowały wejście/login/rejestrację,
 hero przepisu, profil oraz dolna sekcja własności na stronie publicznej.
-Zapisano je do dalszej implementacji w [issue #509](https://github.com/woogitsu/kuking.pl/issues/509).
+Zapisano je w [issue #509](https://github.com/woogitsu/kuking.pl/issues/509),
+następnie naprawiono i wdrożono przez #512 zgodnie z odbiorem wskazanym wyżej.
 Trzeba je przenosić z zachowaniem istniejących funkcji i osobną regresją,
 a nie przepisać konstytucję tak, żeby uznać obecną różnicę za zgodność.
 Tematyczna strona odkrywania i gęstość zeszytów wymagają porównania
@@ -116,5 +131,6 @@ poczty. Są sprzeczne z późniejszymi zasadami lub symulują backend.
 
 Ogląd lokalny odbywa się na danych demonstracyjnych. Nie testowano nowych
 wysyłek poczty, urządzeń fizycznych, klawiatury ekranowej ani wszystkich
-skrajnych treści produkcyjnych. Rzeczywisty zoom200% pozostaje osobnym
-niezakończonym odbiorem. Nie uznajemy archiwalnych zrzutów za obecną produkcję.
+skrajnych treści produkcyjnych. Rzeczywisty zoom 200% był w chwili pierwszego
+audytu niezakończony; późniejsze wyniki zapisano wyżej i w raportach zmian.
+Nie uznajemy archiwalnych zrzutów za obecną produkcję.

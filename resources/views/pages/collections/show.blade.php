@@ -18,7 +18,7 @@
                 id="szyna-inne-zeszyty"
                 ikona="book"
                 :wiecej="auth()->id() === $collection->owner_id ? route('collections.index') : null">
-                <x-szyna-linki :pozycje="$inneZeszyty->map(fn ($zeszyt) => [
+                <x-szyna-linki akcja="Otwórz zeszyt" :pozycje="$inneZeszyty->map(fn ($zeszyt) => [
                     'href' => route('collections.show', $zeszyt),
                     'nazwa' => $zeszyt->name,
                     'podpis' => $zeszyt->description,
@@ -27,6 +27,7 @@
         </x-slot:rail>
     @endif
 
+    <div class="marka-zeszyt">
     <h1>{{ $collection->name }}</h1>
     @if($collection->description)
         <p>{{ $collection->description }}</p>
@@ -40,9 +41,9 @@
     @else
         @if($recipes->count() > 0)
             <h2>Przepisy</h2>
-            <div class="stack">
+            <div class="marka-zeszyt-przepisy">
                 @foreach($recipes as $recipe)
-                    <x-recipe-card :recipe="$recipe" />
+                    <x-recipe-card :recipe="$recipe" uklad="kafel" />
                 @endforeach
             </div>
             <x-show-more :paginator="$recipes" czego="przepisów" />
@@ -89,4 +90,5 @@
                 question="Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu." />
         </div>
     @endif
+    </div>
 </x-layout>

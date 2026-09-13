@@ -1,0 +1,164 @@
+/* Zeszyty i zapisane treści we wspólnej kompozycji (D-211).
+   Selektory są ograniczone do tego ekranu i wariantu karty przepisu.
+   Reguły bez warstwy nadpisują dawną, również niewarstwową miniaturę. */
+.app-body-tresc-z-szyna .app-main > .marka-zeszyt {
+  width: 100%;
+  max-width: 56.25rem;
+  margin-inline: auto;
+  container-type: inline-size;
+}
+
+.marka-zeszyt .marka-zeszyty {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(22rem * var(--user-text-scale, 1))), 1fr));
+  gap: var(--spacing-5);
+}
+
+.marka-zeszyty > .marka-zeszyt-karta {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+}
+
+.marka-zeszyt-karta h2 {
+  font-size: var(--text-title-sm);
+}
+
+.marka-zeszyt-ostatnie {
+  margin-top: var(--spacing-8);
+}
+
+.marka-zeszyt-zapisy {
+  display: grid;
+  gap: var(--spacing-5);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.marka-zeszyt-zapis {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-5);
+  padding: var(--spacing-5);
+  min-width: 0;
+}
+
+.marka-zeszyt-miniatura {
+  min-width: 0;
+  align-self: start;
+}
+
+.marka-zeszyt-miniatura img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+}
+
+.marka-zeszyt-zapis h3 {
+  font-size: var(--text-title-sm);
+  line-height: var(--leading-title-wiele);
+  overflow-wrap: anywhere;
+}
+
+.marka-zeszyt-zapis-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: var(--spacing-3);
+  color: var(--color-ink);
+  text-underline-offset: 0.2em;
+}
+
+.marka-zeszyt-zapis-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+}
+
+@container (min-width: 38rem) {
+  .marka-zeszyt-zapis {
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: center;
+  }
+}
+
+.marka-zeszyt-przepisy {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(19rem * var(--user-text-scale, 1))), 1fr));
+  gap: var(--spacing-5);
+}
+
+.recipe-card-kafel {
+  position: relative;
+  align-self: start;
+  min-width: 0;
+  padding: var(--spacing-4);
+}
+
+.recipe-card-kafel .recipe-card-uklad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spacing-4);
+}
+
+.recipe-card-kafel .recipe-card-miniatura {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.recipe-card-kafel .post-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+}
+
+.recipe-card-kafel h3 {
+  font-size: var(--text-title-sm);
+  line-height: var(--leading-title-wiele);
+  overflow-wrap: anywhere;
+}
+
+.recipe-card-otworz {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: var(--spacing-3);
+  font-weight: var(--font-weight-bold);
+}
+
+.recipe-card-otworz::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+}
+
+.marka-zeszyt-zapis:not(:has(.marka-zeszyt-miniatura)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.szyna-pozycja-krotka {
+  position: relative;
+  padding: var(--spacing-2);
+}
+
+.szyna-otworz {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: var(--spacing-2);
+}
+
+.szyna-otworz::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}

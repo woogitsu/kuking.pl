@@ -5,7 +5,7 @@
 > wartości czyta `scripts/kontrast-marki.mjs` z `resources/css/tokens.css`;
 > aplikacja używa lokalnego Inter z systemowym stosem zastępczym.
 > Kierunek marki: [KONSTYTUCJA_MARKI.md](../brand/KONSTYTUCJA_MARKI.md).
-> Nadrzędne pozostają AGENTS.md i jawne decyzje właściciela; D-206–D-208
+> Nadrzędne pozostają AGENTS.md i jawne decyzje właściciela; D-206–D-211
 > rozstrzygają port kompozycji. Makieta nie jest specyfikacją funkcji backendu.
 > Historyczne liczby kontrastu w §1 i uzasadnienie dawnego fontu w §2.2
 > nie są wynikiem pomiaru obecnej aplikacji.
