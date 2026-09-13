@@ -1,5 +1,14 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.12 — spójny wygląd także poza głównymi ekranami
+
+- Ekrany awarii i braku internetu oraz pobrane dane mają nową oprawę i czytelny krój pisma.
+- Pozostałe wiadomości systemowe mają spójny wygląd. Długie adresy nie rozpychają wiadomości na telefonie.
+- Zainstalowana aplikacja odświeża ikony po zmianie marki i zachowuje dostępny ekran bez internetu.
+- Komunikaty awarii podają, co zrobić, bez niepotwierdzonych zapewnień o stanie danych lub terminie powrotu.
+- Sprawdzenie antyspamowe mieści się na wąskim telefonie i korzysta z wybranego jasnego lub ciemnego wyglądu.
+- Podpowiedzi składników i przygotowania mają poprawne nowe linie. Wskaźnik kroków przepisu mieści się także przy dużym tekście na wąskim ekranie.
+
 ## Alfa 0.11 — klawiatura i duży tekst
 
 Karty dań można nadal otwierać po kliknięciu zdjęcia lub opisu. Przy poruszaniu się klawiaturą fokus obejmuje czytelną nazwę, dzięki czemu wysoka karta nie chowa go pod nawigacją.
@@ -326,4 +335,3 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
 Wersja, od której zaczęliśmy. Historia sprzed 11 września 2026 jest
 w historii repozytorium — ten plik zakładamy dziś i nie odtwarzamy go wstecz,
 bo wpisy pisane z pamięci po fakcie są gorsze niż ich brak.
-

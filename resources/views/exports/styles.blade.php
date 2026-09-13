@@ -10,12 +10,12 @@
 --}}
 <style>
     :root {
-        --tlo: #FAF6F0;
+        --tlo: #F3F4F1;
         --karta: #FFFFFF;
-        --tekst: #2B241D;
-        --tekst-jasny: #5C5347;
-        --ramka: #E4DACB;
-        --marka: #B3401F;
+        --tekst: #151714;
+        --tekst-jasny: #555E53;
+        --ramka: #DDE0D8;
+        --marka: #BE3025;
     }
 
     * { box-sizing: border-box; }
@@ -25,14 +25,15 @@
         padding: 24px 16px 64px;
         background: var(--tlo);
         color: var(--tekst);
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 20px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+        font-size: 1.25rem;
         line-height: 1.65;
     }
 
     .strona {
         max-width: 44rem;
         margin: 0 auto;
+        overflow-wrap: anywhere;
     }
 
     h1 {
@@ -62,21 +63,28 @@
     }
 
     .naglowek {
-        border-bottom: 4px solid var(--marka);
-        padding-bottom: 20px;
+        background: var(--tekst);
+        color: #FFFFFF;
+        border-radius: 24px;
+        padding: 24px;
         margin-bottom: 28px;
     }
 
+    .naglowek .podpis { color: #CBD0C6; }
+
+    a:focus-visible { outline: 3px solid #155EEF; outline-offset: 4px; }
+    .spis a, .powrot a { display: inline-block; min-height: 48px; padding-block: 8px; }
+
     .podpis {
         color: var(--tekst-jasny);
-        font-size: 17px;
+        font-size: 1.125rem;
         margin: 0;
     }
 
     .karta {
         background: var(--karta);
         border: 1px solid var(--ramka);
-        border-radius: 10px;
+        border-radius: 24px;
         padding: 20px 24px;
         margin: 0 0 20px;
     }
@@ -99,13 +107,13 @@
         display: block;
         max-width: 100%;
         height: auto;
-        border-radius: 10px;
+        border-radius: 24px;
         border: 1px solid var(--ramka);
         margin: 0 0 12px;
     }
 
     .fakty { color: var(--tekst-jasny); font-size: 18px; margin: 0 0 20px; }
-    .fakty span { margin-right: 18px; white-space: nowrap; }
+    .fakty span { margin-right: 18px; white-space: normal; }
 
     /* Ostrzeżenie o niekompletnej paczce. Osobne od `.karta`, bo ma się
        RZUCAĆ W OCZY — człowiek czyta ten plik raz i musi zauważyć, że czegoś
@@ -116,7 +124,7 @@
         background: #FCEACB;
         border: 1px solid #7A5C10;
         border-left: 8px solid #7A5C10;
-        border-radius: 10px;
+        border-radius: 24px;
         padding: 20px 24px;
         margin: 0 0 20px;
         color: #4A3607;
@@ -131,7 +139,7 @@
         border: 1px solid #7A5C10;
         border-radius: 6px;
         padding: 2px 10px;
-        font-size: 16px;
+        font-size: 1.125rem;
         font-family: Arial, Helvetica, sans-serif;
     }
 
@@ -140,13 +148,15 @@
         padding-top: 20px;
         border-top: 2px solid var(--ramka);
         color: var(--tekst-jasny);
-        font-size: 17px;
+        font-size: 1.125rem;
     }
 
-    .powrot { font-size: 20px; }
+    .powrot { font-size: 1.25rem; }
 
     @media print {
         body { background: #FFFFFF; font-size: 12pt; }
         .karta { border: none; padding: 0; }
+        .naglowek { background: #FFFFFF; color: #151714; padding: 0 0 20px; }
+        .naglowek .podpis { color: #555E53; }
     }
 </style>

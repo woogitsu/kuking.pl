@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.2, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.3, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -121,6 +121,16 @@ wejście, społeczność, szukanie, publikację, przepisy, zeszyty, profile,
 powiadomienia, ustawienia, pomoc, bezpieczeństwo i moderację. Plan pokrycia
 oraz kryteria odbioru są w [PORT_PROJEKTU.md](../design/PORT_PROJEKTU.md).
 Sama zmiana tokenów i powitania nie stanowi wykonania tego zakresu.
+
+Zakres obejmuje także własne listy HTML, standardowe wiadomości Laravel,
+samodzielne ekrany awarii, stronę bez internetu i pobraną paczkę danych.
+Ekran awarii nie może zależeć od bazy, manifestu Vite ani dostępności fontu;
+paczka danych musi otwierać się bez sieci. W tych miejscach używamy
+samodzielnych stylów z paletą marki i systemowego kroju bezszeryfowego.
+W poczcie pozostają tabele, style inline i Arial/Helvetica. Te wyjątki
+techniczne nie usprawiedliwiają starej palety ani nieczytelnego pisma.
+Aktualizacja zasobów aplikacji musi docierać także do istniejącej instalacji
+PWA. Stan odbioru opisuje [audyt Alfa 0.12](../design/AUDYT_SPOJNOSCI_ALFA_012.md).
 
 Przenosimy język wizualny do istniejących komponentów Blade. Trasy,
 autoryzacja, widoczność treści, formularze, powiadomienia i dane zachowują
