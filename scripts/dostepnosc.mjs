@@ -3285,7 +3285,15 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
           ['[data-marka] .topbar-inner { padding-left: 0 !important; }', 'padding belki lewy'],
           ['[data-marka] .site-footer-inner { width: 80px !important; }', 'szerokość stopki'],
         ]) {
-          const styl = await strona.addStyleTag({ content: css });
+          const styl = await strona.evaluateHandle((tresc) => {
+            const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+            if (!nonce) throw new Error('Brak nonce do kontroli ujemnej CSS');
+            const element = document.createElement('style');
+            element.nonce = nonce;
+            element.textContent = tresc;
+            document.head.append(element);
+            return element;
+          }, css);
           try {
             const ujemny = await strona.evaluate(zmierzRameMarki);
             if (!ujemny.bledy.some((blad) => blad.startsWith(oczekiwanyBlad))) {

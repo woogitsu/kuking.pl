@@ -538,7 +538,7 @@
                         <ul class="topbar-konto-tresc">
                             <li><a href="{{ route('profile.show', $user->profile->username) }}">Mój profil</a></li>
                             <li><a href="{{ route('settings.index') }}">Ustawienia</a></li>
-                            @if($user->isModerator())
+                            @if($user->isModerator() && ! $wTrybiePanelu)
                                 <li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>
                             @endif
                             <li><x-wyloguj class="topbar-konto-wyjscie" formClass="topbar-konto-wyjscie-formularz">Wyloguj się</x-wyloguj></li>

@@ -144,6 +144,10 @@
     box-shadow: var(--shadow-card);
   }
 
+  .przepis-liczby {
+    grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  }
+
   .przepis-liczba {
     border-radius: var(--radius-lg);
     padding: var(--spacing-4);
