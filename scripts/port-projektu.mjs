@@ -175,7 +175,7 @@ const slugPrzepisu = execFileSync('php', ['artisan', 'tinker', '--execute',
 ], { env: env() }).toString().trim();
 if (!slugPrzepisu) throw new Error('Brak przepisu do pomiaru marki');
 const przepis = '/przepisy/' + slugPrzepisu;
-const ekranyMarki = ['/home', '/', '/szukaj', '/zeszyt', '/@ania', '/@zofia_z_bieszczad', przepis, '/dodaj', '/ustawienia', '/ustawienia/czytelnosc', '/powiadomienia'];
+const ekranyMarki = ['/home', '/', '/odkryj', '/szukaj', '/zeszyt', '/@ania', '/@zofia_z_bieszczad', przepis, '/dodaj', '/ustawienia', '/ustawienia/czytelnosc', '/powiadomienia'];
 const wyniki = [];
 const pomiar = async (page, width, path) => {
   const response = await page.goto(`${adres}${path}`, { waitUntil: 'networkidle' });
@@ -194,6 +194,17 @@ const pomiar = async (page, width, path) => {
       przepisFont: document.querySelector('.przepis-uklad > header h1') ? parseFloat(getComputedStyle(document.querySelector('.przepis-uklad > header h1')).fontSize) : null,
       rootFont: parseFloat(getComputedStyle(document.documentElement).fontSize),
       bodyFont: parseFloat(getComputedStyle(document.body).fontSize),
+      tablica: (() => {
+        const rozmiary = selector => [...document.querySelectorAll(selector)].map(el => {
+          const box = el.getBoundingClientRect();
+          return { width: box.width, height: box.height, font: parseFloat(getComputedStyle(el).fontSize) };
+        });
+        return {
+          wrappers: rozmiary('.marka-tablica .kuking-board-avatar'),
+          avatars: rozmiary('.marka-tablica .kuking-board-avatar .avatar'),
+          photos: rozmiary('.marka-tablica .kuking-board-post-photo img'),
+        };
+      })(),
       opisy: [...document.querySelectorAll('.ustawienia-nawigacja-tu, .ustawienia-nawigacja-opis')].map(el => parseFloat(getComputedStyle(el).fontSize)),
       wybory: [...document.querySelectorAll('.panel-formularza .choice-help')].map(el => parseFloat(getComputedStyle(el).fontSize)),
       wzor: document.querySelector('.start-naglowek') ? (() => {
@@ -217,6 +228,13 @@ const pomiar = async (page, width, path) => {
     };
   });
   if (result.brand !== 'kuking-2026') throw new Error('Brak portu marki');
+  if (['/home', '/', '/odkryj', '/szukaj'].includes(path)) {
+    const t = result.tablica;
+    const zlyRozmiar = (el, size) => Math.abs(el.width - size) > 0.5 || Math.abs(el.height - size) > 0.5;
+    if (!t.wrappers.length || !t.avatars.length || !t.photos.length) throw new Error('TABLICA_DANE: brak osób lub zdjęć do pomiaru ' + path);
+    if (t.wrappers.some(el => zlyRozmiar(el, 52)) || t.avatars.some(el => zlyRozmiar(el, 52) || Math.abs(el.font - result.bodyFont) > 0.5)) throw new Error('TABLICA_AWATAR: ' + path + ' ' + JSON.stringify(t));
+    if (t.photos.some(el => zlyRozmiar(el, 72))) throw new Error('TABLICA_ZDJECIE: ' + path + ' ' + JSON.stringify(t));
+  }
   if (result.scroll > width + 1) throw new Error(`${path}: poziome przewijanie ${JSON.stringify(result)}`);
   if (result.main < Math.min(width - 60, 500)) throw new Error(`WASKA_KOLUMNA: ${JSON.stringify(result)}`);
   if (result.radius !== '20px') throw new Error('Nagłówek nie używa nowego projektu');
@@ -382,6 +400,34 @@ try {
   const odbior = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
   await pomiar(await odbior.newPage(), 1440, '/home');
   await odbior.close();
+  // Issue #503: regresja selektora szyny nie może przejść tylko dlatego,
+  // że /home ma poprawny rozmiar. Mutujemy prawdziwy CSS i mierzymy /odkryj.
+  for (const [selector, declaration, kod] of [
+    ['.marka-tablica .kuking-board-avatar, [data-marka] .marka-tablica .kuking-board-avatar .avatar', 'width: 120px; height: 120px;', 'TABLICA_AWATAR'],
+    ['.marka-tablica .kuking-board-post-photo img', 'width: 120px; height: 120px;', 'TABLICA_ZDJECIE'],
+  ]) {
+    execFileSync('cp', ['-p', source, copy]);
+    try {
+      appendFileSync(source, `\n[data-marka] ${selector} { ${declaration} }\n`);
+      console.log('TABLICA_UJEMNA przed=' + before + ' zmieniony=' + hash());
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      const context = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
+      let wykryto = false;
+      try { await pomiar(await context.newPage(), 1440, '/odkryj'); }
+      catch (error) { if (error.message.startsWith(kod)) wykryto = true; else throw error; }
+      finally { await context.close(); }
+      if (!wykryto) throw new Error('Niewykryty sabotaż ' + kod);
+      console.log('TABLICA_UJEMNA wykryto=' + kod);
+    } finally {
+      execFileSync('cp', ['-p', copy, source]);
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      if (hash() !== before) throw new Error('Nie odtworzono CSS po kontroli tablicy');
+      console.log('TABLICA_UJEMNA przywrocony=' + hash());
+    }
+  }
+  const tablicaOdbior = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
+  for (const path of ['/home', '/', '/odkryj', '/szukaj']) await pomiar(await tablicaOdbior.newPage(), 1440, path);
+  await tablicaOdbior.close();
   console.log(`PORT_OK ${JSON.stringify(wyniki)}`);
 } finally {
   await przegladarka.close();
