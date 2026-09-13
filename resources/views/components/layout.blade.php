@@ -47,7 +47,9 @@
      *
      * Dlatego ten ekran zostawia blok w `<main>`, a `<main>` dostaje OBIE
      * kolumny: czytania i szyny. Rozkłada je siatka samego ekranu
-     * (`.przepis-uklad` w app.css). Layout robi tu dwie rzeczy i tylko te:
+     * (od D-210 własna kompozycja przepisu i profilu). Profil wykorzystuje
+     * pełną szerokość dla nagłówka i liczb, a szynę ma obok archiwum poniżej.
+     * Layout robi tu dwie rzeczy i tylko te:
      * dokłada klasę `app-body-tresc-z-szyna` na ramę i — u gościa — liczy tę
      * ramę, belkę oraz stopkę z szerszego tokenu, tak samo jak dla ekranu
      * z prawdziwą szyną (D-122). Bez tego gość ogląda przepis na stronie
@@ -198,13 +200,14 @@
     //  Arkusz zwijał układ gościa do JEDNEJ kolumny 768 px na każdej
     //  szerokości, a uzasadniał to zdaniem „gość nie ma nawigacji bocznej
     //  ani szyny" — druga połowa była nieprawdą od 7 września 2026. Slot
-    //  `rail` podają trzy publiczne widoki: `/szukaj`, `/napisz-do-nas`
-    //  i `/@nazwa`. Skutek: osoba, która pisze „nie mogę się zalogować"
+    //  `rail` podawały m.in. `/szukaj`, `/napisz-do-nas` i `/@nazwa`.
+    //  Od D-210 profil ma szynę wewnętrzną poniżej szerokiego nagłówka.
+    //  Skutek dawnego układu: osoba, która pisze „nie mogę się zalogować"
     //  z komputera, czytała blok „Nie możesz się zalogować" POD CAŁYM
     //  formularzem, na stronie wąskiej na 768 px przy monitorze 1920 px.
     //
     //  LICZY SIĘ TREŚĆ SLOTU, NIE SAM SLOT. `<x-slot:rail>` bywa podany
-    //  i pusty: `x-szyna-profilu` na CUDZYM profilu oglądanym przez gościa
+    //  i pusty: dawniej `x-szyna-profilu` na CUDZYM profilu oglądanym przez gościa
     //  nie wypisuje ani jednego bloku (blok z liczbami jest pod `@auth`,
     //  a tagi i zeszyty mogą nie istnieć). Sam `isset($rail)` dałby wtedy
     //  gościowi drugą kolumnę szeroką na 352 px, w której nic nie stoi —
@@ -229,7 +232,7 @@
     //  Belka, stopka i rama biorą u gościa szerszy token wtedy, gdy obok
     //  treści NAPRAWDĘ coś stoi — wszystko jedno, czy jest to `<aside>` ze
     //  slotu `rail`, czy kolumna szyny zajęta przez sam ekran
-    //  (`szynaWTresci`, dziś: strona przepisu). Dwie liczby na jedną krawędź
+    //  (`szynaWTresci`: przepis oraz profil). Dwie liczby na jedną krawędź
     //  to rozjazd, którego potem nikt nie umie wytłumaczyć — stąd JEDEN
     //  warunek na trzy warstwy.
     //

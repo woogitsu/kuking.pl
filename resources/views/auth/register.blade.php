@@ -1,4 +1,5 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
+    <x-marka-wejscie opis="Zachowaj swoje potrawy i rodzinne przepisy.">
     <h1>Zostań <x-kuking-word forma="iem" /></h1>
     {{--
         Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking
@@ -168,4 +169,5 @@
     @endif
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+    </x-marka-wejscie>
 </x-layout>

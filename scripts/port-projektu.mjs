@@ -2,6 +2,8 @@
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { sprawdzKompozycje } from './kompozycje-marki.mjs';
+import { sprawdzZoomMarki } from './zoom-marki.mjs';
 
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
@@ -352,6 +354,11 @@ try {
     wyniki.push({ largeText: true, path, ...await pomiar(page, 320, path) });
   }
   await context.close();
+
+  if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
+  const kompozycje = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-marki.php'], { env: env() }).toString());
+  await sprawdzKompozycje({ browser: przegladarka, adres, sesja, ...kompozycje });
+  await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis });
 
   // Kontrola ujemna zmienia źródło CSS, nie wynik pomiaru ani atrapę DOM.
   const source = 'resources/css/marka-rama.css';

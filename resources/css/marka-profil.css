@@ -1,0 +1,124 @@
+/* Kompozycja profilu z oryginalnej wizualizacji. Dane liczy kontroler;
+   tutaj wybieramy jedno widoczne miejsce wspólnych liczników. */
+@layer marka {
+  /* Ogólny limit dzieci szerokiego main chroni tekst przepisu. Profil
+     potrzebuje pełnej ramy dla nagłówka, liczb i własnego układu z szyną. */
+  .app-body-tresc-z-szyna .app-main > :is(.marka-profil-kompozycja, .marka-profil-statystyki, .marka-profil-dol) {
+    width: 100%;
+    max-width: none;
+  }
+
+  .marka-profil-kompozycja {
+    container-type: inline-size;
+    padding: clamp(20px, 3vw, 40px);
+    border-radius: 26px;
+  }
+
+  .marka-profil-kompozycja .profil-glowka-tresc {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    align-items: center;
+  }
+
+  .marka-profil-kompozycja .avatar[data-rozmiar="170"] {
+    width: 170px;
+    height: 170px;
+    max-width: 100%;
+    border-radius: 32px;
+    font-size: calc(3rem * var(--user-text-scale, 1));
+    object-fit: cover;
+  }
+
+  .marka-profil-kompozycja .profil-awatar-zmiana {
+    width: 100%;
+    max-width: 220px;
+  }
+
+  @container (min-width: 36rem) {
+    .marka-profil-kompozycja .profil-glowka-tresc {
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 34px;
+    }
+  }
+
+  .marka-profil-statystyki {
+    margin-block: 24px;
+  }
+
+  .marka-profil-statystyki .profil-liczby-karta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(11rem * var(--user-text-scale, 1))), 1fr));
+    gap: 16px;
+    border: 0;
+    padding: 0;
+  }
+
+  .marka-profil-statystyki .profil-licznik {
+    border-radius: 18px;
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-card);
+  }
+
+  .marka-profil-statystyki .profil-licznik-pole {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 12px;
+    min-height: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .marka-profil-statystyki .stat-value {
+    font-size: calc(2rem * var(--user-text-scale, 1));
+    line-height: 1.1;
+    font-weight: 800;
+  }
+
+  .marka-profil-statystyki .stat-label {
+    font-size: var(--text-body);
+    /* Zwykłe słowa pozostają całe, dopóki mieszczą się w oknie.
+       Przy skrajnym powiększeniu awaryjne łamanie chroni dostęp do treści. */
+    overflow-wrap: break-word;
+    word-break: normal;
+    max-width: 100%;
+  }
+
+  .marka-profil-dol {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .marka-profil-archiwum,
+  .marka-profil-szyna {
+    min-width: 0;
+  }
+
+  .marka-profil-archiwum {
+    width: 100%;
+    max-width: 750px;
+  }
+
+  .marka-profil-szyna {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    align-content: start;
+  }
+
+  .marka-profil-szyna > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  @media (min-width: 80rem) {
+    .marka-profil-dol-z-szyna {
+      grid-template-columns: minmax(0, 1fr) 330px;
+    }
+  }
+
+}

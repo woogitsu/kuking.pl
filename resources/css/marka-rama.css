@@ -25,6 +25,11 @@
 }
 [data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)); letter-spacing: -.055em; }
 [data-marka] .wordmark .kuking-mark { width: 48px; height: 48px; }
+/* Łączne powiększenie fontu przeglądarki i tekstu konta: poszerzamy
+   istniejący wariant samego garnka, zachowując nazwę dostępną odnośnika. */
+@media (max-width: 16rem) {
+  html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .wordmark > span[aria-hidden] { display: none; }
+}
 [data-marka] .topbar-actions { margin-left: auto; flex-wrap: wrap; gap: 8px; }
 [data-marka] .topbar-actions .topbar-desktop-only { display: none; }
 [data-marka] .marka-powiadomienia-link { display: inline-flex; }

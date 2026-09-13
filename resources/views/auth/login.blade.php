@@ -1,4 +1,5 @@
 <x-layout title="Zaloguj się" :noindex="true">
+    <x-marka-wejscie opis="Twoja kuchnia, przepisy i ludzie, którzy naprawdę gotują.">
     <h1>Zaloguj się</h1>
 
     {{--
@@ -93,4 +94,5 @@
     --}}
     <p>Twoje konto zostało zablokowane albo zawieszone i uważasz, że to pomyłka?
         <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
+    </x-marka-wejscie>
 </x-layout>

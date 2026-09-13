@@ -14,11 +14,7 @@
          czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
          który zbierają scrapery. --}}
     :image="$isPublic ? $recipe->heroMedia : null"
-    {{-- Ten ekran używa KOLUMNY SZYNY — nie przez `<x-slot:rail>`, tylko od
-         środka: `<main>` zajmuje kolumnę czytania razem z kolumną szyny,
-         a panel „Ugotowałem / Zapisuję / Gotuję" staje w tej drugiej
-         (`.przepis-uklad` w app.css, issue #365). Bez tego gość ma tu całą
-         stronę zwiniętą do 768 px, a zalogowany trzecią kolumnę pustą. --}}
+    {{-- Treść wykorzystuje szerokość ramy: tekst i zdjęcie w hero, akcje poniżej. --}}
     :szynaWTresci="true"
     ogType="article">
 
@@ -162,12 +158,10 @@
         @endif
     </x-slot:head>
 
-    {{-- `przepis-uklad` DOCHODZI do `stack`, nie zastępuje go: `stack` robi
-         rytm pionowy marginesami na dzieciach i działa tak samo w siatce,
-         a `przepis-uklad` dokłada od 80rem drugą kolumnę na panel akcji.
-         Poniżej tego progu klasa nic nie robi i zostaje jeden ciąg. --}}
-    <article class="stack przepis-uklad">
-        <header>
+    {{-- Bezpośredni header zachowuje semantykę i pomiar typografii portu. --}}
+    <article class="stack przepis-uklad marka-przepis">
+        <header class="marka-przepis-hero">
+            <div class="marka-przepis-tekst">
             {{--
                 OKRUSZKI (kit v2, ekrany 02 i 06).
 
@@ -262,46 +256,10 @@
                     @endif
                 @endauth
             </div>
-        </header>
-
-        {{--
-            HERO WEDŁUG KITU (ekran 02): zdjęcie po lewej, panel po prawej.
-
-            Kolejność w kodzie jest kolejnością na TELEFONIE i jest to
-            kolejność z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis".
-            Desktop tylko przesuwa panel W BOK — nie przestawia go w innym
-            miejscu drzewa, więc czytnik ekranu i klawiatura chodzą w obu
-            układach tak samo.
-
-            ZMIANA Z 11 WRZEŚNIA (issue #365): panel przeniósł się ze środka
-            kolumny czytania do KOLUMNY SZYNY — tej, która na tym ekranie
-            stała pusta (zmierzone przy 1920 px: 352 px pustki plus
-            marginesy). Robi to siatka `.przepis-uklad` na `<article>` wyżej,
-            a nie `<x-slot:rail>`: slot renderuje się w kodzie ZA całym
-            `<main>`, czyli za składnikami, krokami i komentarzami, a główna
-            akcja produktu ma stać przed składnikami (`EkranPrzepisuWedlugKituTest`).
-            Dlatego panel jest tu dalej bezpośrednim dzieckiem `<article>`,
-            dokładnie tam, gdzie był — zmienia się wyłącznie kolumna.
-
-            Zdjęcie zostaje w `.przepis-hero` i bierze teraz całą kolumnę
-            czytania zamiast dzielić ją z panelem.
-        --}}
-        @if($recipe->heroMedia)
-            <div class="przepis-hero">
-                <div class="przepis-hero-zdjecie">
-                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
-                </div>
-            </div>
+                {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
+        @if($recipe->summary)
+            <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
         @endif
-
-        <div class="card przepis-panel">
-            {{--
-                KAFLE LICZB: czas, porcje, poziom.
-
-                Pokazujemy TYLKO to, co autor podał. Kit rysuje zawsze trzy
-                kafle, ale kafel „—" nie jest informacją: mówi „nie wiemy",
-                zajmując tyle miejsca, co odpowiedź.
-            --}}
             @if($total || $porcje || $recipe->difficultyLabel())
                 <ul class="przepis-liczby">
                     @if($total)
@@ -324,6 +282,16 @@
                     @endif
                 </ul>
             @endif
+
+
+            </div>
+            @if($recipe->heroMedia)
+                <div class="przepis-hero-zdjecie marka-przepis-zdjecie">
+                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                </div>
+            @endif
+        </header>
+        <div class="card przepis-panel">
 
             {{--
                 GŁÓWNA AKCJA PRZEPISU. Nie „Lubię to", a „Ugotowałem".
@@ -443,9 +411,7 @@
             @if($recipe->family_since_year)<li><span class="badge badge-cooked">W rodzinie od {{ $recipe->family_since_year }}</span></li>@endif
         </ul>
 
-        @if($recipe->summary)
-            <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
-        @endif
+
 
         {{--
             SKŁADNIKI OBOK KROKÓW (kit, ekran 02).

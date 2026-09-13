@@ -4053,31 +4053,59 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
   await kontekst.close();
 }
 
-/* ==========================================================================
-   LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
-
-   Pięć liczb profilu („4 wpisy", „0 przepisów", „1 obserwujący"…) stoi
-   w dokumencie DWA razy: w karcie profilu i w prawej szynie. Który z nich
-   widać, decyduje para reguł w `ekran-profilu.css` — a to jest dokładnie ta
-   klasa zmiany, którą testy PHP przepuszczą: HTML jest poprawny w obu
-   przypadkach, psuje się wyłącznie obraz na ekranie.
-
-   Dwie usterki, których ten pomiar pilnuje, obie widziane wyłącznie
-   w przeglądarce:
-    - liczby DWA RAZY przy 1512 px (skasowana reguła chowająca kartę),
-    - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
-      poniżej 80rem ląduje pod całym archiwum wpisów).
-
-   Gość jest tu osobnym przypadkiem, nie powtórką — ale od 11 września 2026
-   (D-122) Z INNEGO POWODU, niż stało tu wcześniej. Nie „ma jedną kolumnę na
-   każdej szerokości": na profilu ma od 80rem dwie, a szyna stoi obok treści.
-   Powód jest taki, że bloku z liczbami w szynie gościowi w ogóle nie
-   wysyłamy (`@auth` w `x-szyna-profilu`), więc przy 1512 px MUSI widzieć
-   egzemplarz
-   w karcie — inaczej liczby lądują u niego na samym dole strony.
-   ========================================================================== */
+/* D-210: jeden zestaw pięciu rzeczywistych liczników pod ciemnym nagłówkiem,
+   poza nagłówkiem i szyną, na każdej mierzonej szerokości. */
 log('');
-log('Liczby o osobie (karta czy prawa szyna):');
+log('Liczby profilu: pojedynczy pas pod nagłówkiem (D-210):');
+
+// BEGIN POMIAR_LICZB_PROFILU — te same funkcje wykonuje wąska regresja źródła.
+function pomiarLiczbProfilu() {
+  const visible = el => {
+    if (!el || !el.getClientRects().length) return false;
+    for (let p = el; p; p = p.parentElement) {
+      const css = getComputedStyle(p);
+      if (css.visibility !== 'visible' || Number(css.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const lists = [...document.querySelectorAll('.profil-liczniki')];
+  const list = lists[0];
+  const band = document.querySelector('.marka-profil-statystyki');
+  const header = document.querySelector('.marka-profil-kompozycja');
+  const archive = document.querySelector('.marka-profil-dol');
+  const fields = [...(list?.querySelectorAll('.profil-licznik-pole') ?? [])];
+  return {
+    copies: lists.length,
+    visible: visible(list) && visible(band),
+    placement: !!list && !!band && !!header && !!archive && band.contains(list)
+      && !list.closest('.marka-profil-kompozycja, .app-rail, .marka-profil-szyna')
+      && header.nextElementSibling === band && band.nextElementSibling === archive,
+    geometry: !!band && !!header && !!archive
+      && band.getBoundingClientRect().top >= header.getBoundingClientRect().bottom - 1
+      && archive.getBoundingClientRect().top >= band.getBoundingClientRect().bottom - 1,
+    fields: fields.map(el => ({
+      visible: visible(el) && visible(el.querySelector('.stat-value')) && visible(el.querySelector('.stat-label')),
+      value: el.querySelector('.stat-value')?.textContent.trim() ?? '',
+      label: el.querySelector('.stat-label')?.textContent.trim() ?? '',
+      href: el.getAttribute('href'),
+      background: getComputedStyle(el.closest('.profil-licznik')).backgroundColor,
+    })),
+    path: location.pathname,
+    headerBackground: header ? getComputedStyle(header).backgroundColor : null,
+  };
+}
+function bledyLiczbProfilu(p) {
+  const errors = [];
+  if (p.copies !== 1) errors.push('PROFILE_COUNTER_COPIES ' + p.copies);
+  if (!p.visible) errors.push('PROFILE_COUNTER_HIDDEN');
+  if (!p.placement || !p.geometry) errors.push('PROFILE_COUNTER_POSITION');
+  const labels = [/^wpis/, /^przepis/, /Ugotowa\u0142em/, /^obserwuj/, /^obserwowan/];
+  if (p.fields.length !== 5 || p.fields.some((f, i) => !f.visible || !/^\d+$/.test(f.value) || !labels[i]?.test(f.label))) errors.push('PROFILE_COUNTER_CONTENT');
+  if (p.fields.slice(3).some((f, i) => !f.href || new URL(f.href, 'http://localhost').pathname !== p.path + ['/obserwujacy', '/obserwowani'][i])) errors.push('PROFILE_COUNTER_LINKS');
+  if (p.fields.some(f => f.background !== 'rgb(255, 255, 255)') || p.headerBackground === 'rgb(255, 255, 255)') errors.push('PROFILE_COUNTER_SURFACE');
+  return errors;
+}
+// END POMIAR_LICZB_PROFILU
 
 const EKRANY_LICZB = [
   { nazwa: 'profil cudzy (gość)', adres: '/@basia', zalogowany: false },
@@ -4111,68 +4139,11 @@ for (const szerokosc of SZEROKOSCI_LICZB) {
       continue;
     }
 
-    const pomiar = await strona.evaluate(() => {
-      // `getClientRects().length` zamiast `offsetParent`: łapie także element
-      // schowany przez `display: none` NA PRZODKU, a to jest właśnie ten
-      // przypadek (chowamy opakowanie bloku, nie samą listę).
-      const widoczny = (el) => el !== null && el.getClientRects().length > 0;
-
-      const karta = document.querySelector('.profil-liczby-karta');
-      const szyna = document.querySelector('.profil-liczby-szyna');
-
-      return {
-        maKarte: karta !== null,
-        kartaWidoczna: widoczny(karta),
-        szynaWSzynie: szyna !== null ? szyna.closest('.app-rail') !== null : null,
-        szynaWidoczna: widoczny(szyna),
-        // Ile razy podpis „obserwujących"/„obserwujący" jest naprawdę
-        // widoczny — najprostsze sprawdzenie „czy liczba stoi dwa razy".
-        widocznychPodpisow: [...document.querySelectorAll('.profil-licznik-pole .stat-label')]
-          .filter((el) => el.getClientRects().length > 0 && el.textContent.includes('obserwuj'))
-          .length,
-        // Pierwszy wpis archiwum — po to była cała zmiana. Zapisujemy
-        // pozycję, żeby dało się zobaczyć, czy wjechał wyżej.
-        goraPierwszegoWpisu: (() => {
-          const wpis = document.querySelector('.app-main .post-card');
-          return wpis === null ? null : Math.round(wpis.getBoundingClientRect().top);
-        })(),
-      };
-    });
-
-    const bledy = [];
-
-    if (!pomiar.maKarte) {
-      bledy.push('nie ma w ogóle listy liczb w karcie profilu');
-    }
-
-    if (pomiar.kartaWidoczna === pomiar.szynaWidoczna) {
-      bledy.push(pomiar.kartaWidoczna
-        ? 'te same liczby widać JEDNOCZEŚNIE w karcie i w szynie'
-        : 'liczb nie widać ANI w karcie, ANI w szynie');
-    }
-
-    if (pomiar.widocznychPodpisow !== 1) {
-      bledy.push(`podpis „obserwujący" jest widoczny ${pomiar.widocznychPodpisow} razy, ma być raz`);
-    }
-
-    if (pomiar.szynaWSzynie === false) {
-      bledy.push('blok liczb nie leży w `.app-rail`');
-    }
-
-    // Szeroko i po zalogowaniu liczby MAJĄ być w szynie — inaczej cała ta
-    // zmiana nic nie dała i karta jest tak samo długa jak przed nią.
-    if (szerokosc >= 1280 && ekran.zalogowany && !pomiar.szynaWidoczna) {
-      bledy.push('przy szerokim oknie liczby dalej stoją w karcie');
-    }
-
-    // Na telefonie i u gościa MAJĄ być w karcie.
-    if ((szerokosc < 1280 || !ekran.zalogowany) && !pomiar.kartaWidoczna) {
-      bledy.push('liczby zniknęły z karty tam, gdzie nie ma prawej kolumny');
-    }
-
-    log(`  ${ekran.nazwa} przy ${szerokosc} px: karta ${pomiar.kartaWidoczna ? 'widoczna' : 'schowana'}, `
-      + `szyna ${pomiar.szynaWidoczna ? 'widoczna' : 'schowana'}, `
-      + `pierwszy wpis od góry: ${pomiar.goraPierwszegoWpisu ?? '(brak wpisu)'} px`);
+    await strona.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+    const pomiar = await strona.evaluate(pomiarLiczbProfilu);
+    const bledy = bledyLiczbProfilu(pomiar);
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: kopii ${pomiar.copies}, pól ${pomiar.fields.length}, `
+      + `pas ${pomiar.visible ? 'widoczny' : 'niewidoczny'}, pozycja ${pomiar.placement && pomiar.geometry ? 'poprawna' : 'błędna'}`);
 
     if (bledy.length > 0) {
       rozjazdyLiczb.push({ ekran: ekran.nazwa, szerokosc, bledy });
@@ -4185,7 +4156,7 @@ for (const szerokosc of SZEROKOSCI_LICZB) {
 
 if (rozjazdyLiczb.length > 0) {
   log('');
-  log('Liczby o osobie stoją w złym miejscu (D-091):');
+  log('Liczby o osobie: niezgodność z D-210:');
   for (const r of rozjazdyLiczb) {
     log(`  ${r.ekran} przy ${r.szerokosc} px:`);
     for (const blad of r.bledy) {
@@ -4461,7 +4432,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     rozjazdy: rozjazdyTablicy,
   },
   /*
-   * LICZBY O OSOBIE (D-091) — kontrola, którą kod wyjścia respektował od
+   * LICZBY O OSOBIE (D-210, wcześniej D-091) — kontrola, którą kod wyjścia respektował od
    * początku, a artefakt przemilczał. Brakowało jej dokładnie tutaj, czyli
    * w trzecim z trzech miejsc zbiorczych tego pliku (sekcja 14.5
    * przekazania). Skutek nie był groźny — CI oblewało poprawnie — ale

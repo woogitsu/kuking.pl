@@ -278,30 +278,19 @@ class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
         $cudzy->assertSee('Obserwuj');
     }
 
-    public function test_awatar_naglowka_ma_128_px_i_regule_w_arkuszu(): void
+    public function test_awatar_naglowka_ma_170_px_i_regule_w_arkuszu(): void
     {
-        $autor = $this->user('awatar_naglowek', ['display_name' => 'Awatar Testowy']);
-
-        $odpowiedz = $this->get(route('profile.show', 'awatar_naglowek'))->assertOk();
-
-        // Asercja kontrolna.
-        $odpowiedz->assertSee('Awatar Testowy');
-        $odpowiedz->assertSee('data-rozmiar="128"', false);
-
-        // Bez reguły w arkuszu awatar cicho zostaje przy 48 px z `.avatar`
-        // (komentarz w `x-avatar`), czyli powiększenie byłoby widoczne
-        // wyłącznie w kodzie HTML.
-        $this->assertMatchesRegularExpression(
-            "/\.avatar\[data-rozmiar='128'\]\s*\{[^}]*width:\s*128px/",
-            (string) file_get_contents(resource_path('css/app.css')),
-            'Awatar profilu prosi o 128 px, a `app.css` nie ma dla tego rozmiaru reguły — '.
-            'na ekranie zostanie 48 px z `.avatar`.',
-        );
+        $this->user('awatar_naglowek', ['display_name' => 'Awatar Testowy']);
+        $this->get(route('profile.show', 'awatar_naglowek'))->assertOk()->assertSee('Awatar Testowy')->assertSee('data-rozmiar="170"', false);
+        $css = (string) file_get_contents(resource_path('css/marka-profil.css'));
+        $this->assertMatchesRegularExpression('/\.avatar\[data-rozmiar="170"\]\s*\{[^}]*width:\s*170px/', $css);
     }
 
     public function test_liczniki_stoja_w_siatce_o_rownych_kolumnach(): void
     {
         $css = (string) file_get_contents(resource_path('css/ekran-profilu.css'));
+        $marka = (string) file_get_contents(resource_path('css/marka-profil.css'));
+        $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, calc(11rem * var(--user-text-scale, 1))), 1fr))', $marka);
 
         // Asercja kontrolna: czytamy naprawdę arkusz profilu.
         $this->assertStringContainsString('.profil-glowka-tresc', $css);
@@ -311,17 +300,6 @@ class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
             $css,
             'Liczniki mają stać w siatce. Kontener `flex-wrap` układał je '
             .'„3 + 2" o różnych szerokościach — to jest usterka z tego zgłoszenia.',
-        );
-
-        // JEDNA kolumna, `minmax(0, 1fr)` — nie `auto` i nie dwie kolumny.
-        // Pomiar: kolumna treści tej karty ma 229–373 px (przy 1280 px
-        // dochodzi prawa szyna), więc druga kolumna zaczynała łamać wyrazy
-        // w środku. Pełne uzasadnienie: komentarz w arkuszu.
-        $this->assertMatchesRegularExpression(
-            '/\.profil-liczniki\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/',
-            $css,
-            'Liczniki mają stać w JEDNEJ kolumnie o pełnej szerokości '
-            .'(`minmax(0, 1fr)`), a nie w kolumnach o szerokości podpisu.',
         );
 
         $this->assertDoesNotMatchRegularExpression(

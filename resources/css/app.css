@@ -17,6 +17,10 @@
 @import "./fonts.css";
 @import "./marka-rama.css";
 @import "./marka-ekrany.css";
+@import "./marka-wejscie.css";
+@import "./marka-wlasnosc.css";
+@import "./marka-przepis.css";
+@import "./marka-profil.css";
 
 /* Arkusze pojedynczych obszarów ekranów (UI kit v2, etap D). Osobne pliki,
    bo etap D wdrażało kilka równoległych zleceń — wspólny plik znaczyłby, że
@@ -4134,6 +4138,13 @@
     min-width: 0;
   }
 
+  /* Przewijalna rama zakładek obcina zewnętrzny obrys pierwszej pozycji.
+     Pierścień pozostaje w całości wewnątrz celu; zachowujemy awaryjne
+     przewijanie oraz pełną wysokość kontrolki (odbiór zoomu, #509). */
+  .tabs .tab:focus-visible {
+    outline-offset: -3px;
+  }
+
   /*
    * Bieżąca zakładka: `--color-brand-dark` na TLE STRONY (nie na tincie)
    * dawało w trybie ciemnym 2.76. Tu właściwym tokenem jest `--color-brand`,
@@ -5968,6 +5979,7 @@
    drugi rozmiar „na telefon" znaczyłby dwie wartości do utrzymania i inny
    wygląd tej samej karty na dwóch urządzeniach. */
 .avatar[data-rozmiar='128'] { width: 128px; height: 128px; font-size: 54px; }
+.avatar[data-rozmiar='170'] { width: 170px; height: 170px; font-size: 72px; }
 
 /* Nagłówek przepisu w podglądzie kreatora. `margin: 0`, bo stoi jako pierwszy
    element karty i własny odstęp odsuwałby go od jej krawędzi. */
@@ -6204,4 +6216,3 @@
   border-color: var(--color-brand-solid);
   color: var(--color-ink-inverse);
 }
-

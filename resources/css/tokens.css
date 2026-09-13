@@ -1369,6 +1369,9 @@
      `margin-bottom: var(--spacing-8)`; gdy stoi między kartą wejść
      a formularzem (stan po nieudanej walidacji), sąsiadujące marginesy
      zlewają się do większego z nich, a nie sumują. */
+  .app-main .marka-wejscie-karta
+    > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)
+    + :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary),
   .app-main
     > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)
     + :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary) {
@@ -1540,4 +1543,3 @@
     font-size: clamp(var(--text-title), 6vw + 0.5rem, var(--text-title-xl));
   }
 }
-
