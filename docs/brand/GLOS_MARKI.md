@@ -241,6 +241,13 @@ Punkty 1, 2 i 5 pilnuje `tests/Feature/TekstyWedlugCopyStyleTest.php`.
 
 ### Kontrast: policzone, nie założone
 
+Poniższa tabela jest historycznym pomiarem z 11 września 2026, sprzed palety
+przyjętej w D-206. Nie opisuje obecnych tokenów ani ich bieżącego zapasu
+kontrastu. Aktualne wartości są w `resources/css/tokens.css` i
+[NOWY_STYL.md](../design/NOWY_STYL.md); `scripts/kontrast-marki.mjs` czyta
+rzeczywiste źródło i sprawdza 72 pary kolorów. Ten pomiar przeszedł ponownie
+w CI PR #499 (Alfa 0.14). Zasada czytelności tekstu marki pozostaje w mocy.
+
 „KING" jest pisane kolorem, więc jest **tekstem**, nie dekoracją — obowiązuje
 go WCAG 2.2 AA, kryterium **1.4.3 (4,5:1)**. Zmierzone 11 września 2026 dla
 `--color-brand` (`#B3401F` w motywie jasnym, `#F2986A` w ciemnym):

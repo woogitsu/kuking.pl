@@ -1,5 +1,11 @@
 # Bramka pomiaru kafla dodawania — regresja #484
 
+Ponowna weryfikacja 13 września 2026: lokalny pomiar 15 wariantów bez
+naruszeń oraz test bramki z sześcioma kontrolami ujemnymi zakończyły się
+poprawnie. Bieżący [CI PR #499](https://github.com/woogitsu/kuking.pl/actions/runs/34759245908)
+również przeszedł. Pełny zakres odbioru i ograniczenia są w
+[raporcie Alfa 0.14](AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md).
+
 Pomiar przeglądarkowy w `scripts/kafel-dodawania.mjs` sprawdza 15 wariantów.
 Dotychczas raportował sześć kategorii naruszeń, ale nie ustawiał dla nich
 błędu procesu. Zielony wynik CI nie gwarantował więc poprawnego kafla.
