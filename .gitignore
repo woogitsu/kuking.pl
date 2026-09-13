@@ -25,6 +25,8 @@
 /storage/wydajnosc.json
 # I dla audytu martwych przycisków (D-053) — pełna lista adresów z kodami.
 /storage/martwe-przyciski.json
+# I dla zrzutów portu układu (scripts/port-projektu.mjs) — zdjęcia ekranów, nie kod.
+/storage/port-projektu/
 /storage/pail
 /vendor
 _ide_helper.php
