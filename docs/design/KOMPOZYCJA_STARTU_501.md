@@ -1,7 +1,8 @@
 # Odtworzenie kompozycji Startu — Alfa 0.15
 
-13 września 2026. Issue #501, D-207. Stan dokumentu: kontrole lokalne
-ukończone poza końcową kontrolą PHP; wynik CI i produkcji zostanie dopisany po ich odczycie.
+13 września 2026. Issue #501, D-207. Kontrole lokalne i CI PR zakończone.
+Odbiór wdrożenia aplikacji opisano osobno poniżej; zapis raportu nie zmienia
+źródeł aplikacji.
 
 ## Wzorzec i zakres
 
@@ -78,8 +79,67 @@ rzeczywistą sekcję docelową dla „Jak działa kolejność?”.
   Negatywy wykryły brak kart na zalogowanym `/`, błędny cel kafla i zerowy
   odstęp nagłówka; źródła odtworzone z MD5 i mtime.
 
-Końcowe PHP, CI i wdrożenie: do uzupełnienia po zakończeniu.
-Nie przenosimy tu liczb z poprzedniej wersji.
+Końcowa kontrola lokalna przed wysłaniem przeszła: Pint, składnia PHP
+i skryptów, PHPStan, pełne testy PHP i odwracalność migracji. Build Vite
+przeszedł także w kontekście plików kopiowanych przez Dockerfile.
+Końcowe oglądanie po zmianie odnośnika osób na „Szukaj” objęło 28 wariantów
+Startu (siedem szerokości do 1654 px, oba motywy, 100/140%): bez overflow.
+
+## Odbiór PR i wdrożenia Alfa 0.15
+
+- [PR #502](https://github.com/woogitsu/kuking.pl/pull/502) scalono po
+  dziewięciu poprawnych zadaniach [CI #939](https://github.com/woogitsu/kuking.pl/actions/runs/34762630619).
+  Sprawdzony SHA PR: `7b8b772a346626763bdf63e7c8ee8f7d3598a357`;
+  commit scalenia: `74a930fd00d72dc0cb2a773d6bb7ca3ad2452e6c`.
+- Z odczytanego logu tego przebiegu: **3694 testy PHP / 74 656 asercji**;
+  wyścigi **5 testów / 44 asercje**; dostępność **axe 44/44, układ 49/49**,
+  zero naruszeń i zasłoniętych fokusów; Lighthouse **8/8**, bez
+  niezaliczonych ekranów. Vite, obrazy, Pint, Larastan i audyt zależności
+  także poprawne. Nie są to liczby przeniesione z Alfa 0.14.
+- [CI main #940](https://github.com/woogitsu/kuking.pl/actions/runs/34763151966)
+  i [Deploy #620](https://github.com/woogitsu/kuking.pl/actions/runs/34763762181)
+  zakończyły się sukcesem. Deploy #619 był pominięty i nie stanowi dowodu.
+- Railway: deployment `abe43197-de8c-4504-a8a0-86c37b138d90`, production,
+  **SUCCESS**, SHA `74a930fd00d72dc0cb2a773d6bb7ca3ad2452e6c`,
+  zakończenie **13 września 2026, 14:49:00 UTC**.
+- Zalogowana produkcja `/home` i `/` pokazała **Alfa 0.15 / 74a930f**
+  i „Dzień dobry, Mateusz”. Obejrzano nowy Start przy rzeczywistym oknie
+  1654 × 904, po wczytaniu zdjęć. Zachowano preferencję konta 90%.
+  Odkrywaj oraz wyszukiwanie mają nową nawigację i ciemny wstęp tablicy;
+  nie stwierdzono poziomego overflow.
+- Produkcyjny CSS `app-02Am5wsb.css` ma SHA-256
+  `f47aa0613248a3427f79bad4ba408baf86b8164afe9961d25366042aba5b5a92`,
+  zgodny bajt w bajt z lokalnym buildem w kontekście Dockerfile.
+- Publiczny odbiór `/`, `/odkryj`, `/szukaj` i `/login`: osiem pomiarów
+  przy 320/1440, wszystkie HTTP 200, bez poziomego overflow; oba lokalne
+  podzbiory Inter załadowane, tekst podstawowy 18 px. Początkowe oczekiwanie
+  na całkowity bezruch sieci wygasło na loginie; ponowny pomiar czekał na
+  dokument i fonty, nie na zakończenie ruchu zewnętrznego widżetu.
+
+## Uzupełnienie odbioru: proporcje tablicy (#503)
+
+Oglądanie produkcyjnego Odkrywaj ujawniło brak, którego wcześniejszy
+pomiar overflow nie wykrywał: awatar osoby miał nadal 120 px, podczas
+gdy Start i wyszukiwanie miały 52 px. Ograniczenie reguł do `.app-rail`
+pomijało inny kontener Odkrywaj. Podobnie miniatury dań miały 120 zamiast
+72 px. Dlatego Alfa 0.15 nie jest oznaczana jako pełne domknięcie zgodności.
+Brak zapisano w [issue #503](https://github.com/woogitsu/kuking.pl/issues/503).
+
+Poprawka Alfa 0.16 przypisuje geometrię do `.marka-tablica`: awatar 52 × 52 px,
+zdjęcie dania 72 × 72 px, inicjał wielkości tekstu podstawowego. Nie zmienia
+pełnej tablicy publicznej strony powitalnej ani awatarów profili i wpisów.
+Rozszerzony port obejmuje `/odkryj` i wymaga niepustej próbki osób i zdjęć
+na czterech wejściach. Wynik lokalny niezależnego subagenta: **188 pomiarów**,
+w tym 76 pomiarów tablic z poprawnymi 76 awatarami i 228 zdjęciami.
+Dwa sabotaże prawdziwego CSS wykryły osobno błędny awatar i zdjęcie;
+kopia poza repo, przywrócony MD5 `22c58f925ad2823d63ff06f632a0910e`,
+ponowny odbiór czterech tras zielony. Pięć istniejących klas testów szyn:
+**38 testów / 207 asercji**, poprawne. Obejrzano końcowy Odkrywaj przy
+320/1440, oba motywy, tekst 140%; awatar 52 px i brak overflow.
+Pełny niezmieniony skaner dostępności po tej poprawce: **exit 0,
+axe 44/44, układ 49/49**, zero naruszeń. Zewnętrzny serwer lokalny
+z wyłączoną pocztą został prawidłowo odrzucony przez warunek wstępny;
+zaliczony przebieg użył własnego serwera skanera z pełnymi formularzami.
 
 ## Granice dowodu
 

@@ -206,8 +206,7 @@
 }
 [data-marka] .post-card .meta,
 [data-marka] .szyna-podpis { font-size: var(--text-body); }
-[data-marka] .app-rail .kuking-board { --tablica-zdjecie: 72px; }
-[data-marka] .app-rail .kuking-board-avatar .avatar { width: 72px; height: 72px; }
+[data-marka] .marka-tablica { --tablica-zdjecie: 72px; }
 [data-marka] a.author-name { display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
 
 /* Opisy ustawień są instrukcją, także w pomocniczej kolumnie. */
@@ -233,9 +232,9 @@
 [data-marka] .marka-tablica .kuking-board-subtitle { font-size: calc(1.5rem * var(--user-text-scale, 1)); color: var(--color-ink); letter-spacing: -.035em; text-transform: none; margin: 0; }
 [data-marka] .marka-tablica-naglowek > a { display: inline-flex; align-items: center; min-height: 48px; font-size: var(--text-body); }
 [data-marka] .marka-tablica .kuking-board-person { border: 0; gap: 10px 12px; }
-[data-marka] .app-rail .marka-tablica .kuking-board-avatar,
-[data-marka] .app-rail .marka-tablica .kuking-board-avatar .avatar { width: 52px; height: 52px; }
-[data-marka] .app-rail .marka-tablica .kuking-board-avatar .avatar { font-size: var(--text-body); }
+[data-marka] .marka-tablica .kuking-board-avatar,
+[data-marka] .marka-tablica .kuking-board-avatar .avatar { width: 52px; height: 52px; }
+[data-marka] .marka-tablica .kuking-board-avatar .avatar { font-size: var(--text-body); }
 [data-marka] .marka-tablica .kuking-board-akcja .btn { background: var(--color-surface-sunken); color: var(--color-ink); border-color: transparent; border-radius: 12px; }
 @media (min-width: 30rem) {
   [data-marka] .marka-tablica .kuking-board-akcja { padding-left: 64px; }

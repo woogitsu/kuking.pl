@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.16 — spójne karty osób
+
+- Karty proponowanych osób na Odkrywaj i w wyszukiwaniu mają te same proporcje co na Start.
+
 ## Alfa 0.15 — kompozycja strony głównej zgodna z wizualizacją
 
 - Krótkie powitanie, odrębny nagłówek aktualności i duży tytuł w ciemnym kaflu dodawania z pierścieniem.
