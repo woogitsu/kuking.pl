@@ -1,43 +1,7 @@
-{{--
-    STRONA POWITALNA — układ pasów (system projektowy v3.1, `site.css` §1).
-
-    Pas to sekcja na całą szerokość okna z własnym tłem; szerokość treści
-    pilnuje `.pas-wnetrze`. Zmiana tła między pasami mówi „to nowa myśl" bez
-    ani jednego słowa — i działa też wtedy, gdy ktoś przewija stronę szybko
-    albo ogląda ją z odległości wyciągniętej ręki.
-
-    KOLEJNOŚĆ PASÓW JEST ARGUMENTEM, NIE OZDOBĄ
-      1. hasło i dwa przyciski — co to jest i co można zrobić teraz,
-      2. „Jak działa" — trzy krótkie kroki,
-      3. tablica „kuKINGi na dziś" — dowód, że tu naprawdę ktoś gotuje,
-      4. „Ugotowałem" na ciemnym — jedna rzecz, której nie ma nigdzie indziej
-         (`AGENTS.md` §1: realne ugotowanie jest ważniejsze niż lajk — hierarchia
-         priorytetów produktu; osobnego wpisu w `docs/DECISIONS.md` ta zasada
-         nie ma),
-      5. „Świeżo z Kuking" — dopiero teraz cudze wpisy, bo dopiero teraz
-         wiadomo, na co się patrzy,
-      6. dane i prywatność — co się dzieje z tym, co dodasz,
-      7. załóż konto.
-
-    ZMIANA WOBEC POPRZEDNIEJ WERSJI (audyt 60+, `docs/research/AUDYT_60_PLUS.md`)
-    Tablica stała w sekcji 1, obok hasła — czyli najgęstsza, interaktywna
-    część ekranu (osoby do zaobserwowania, miniatury, przyciski) pojawiała
-    się PRZED jakimkolwiek prostym wyjaśnieniem, co tu w ogóle można robić.
-    Nowa osoba musiała odfiltrować to wszystko, zanim zbudowała sobie model
-    „co tu robię i jaki jest mój następny krok". Właściciel wybrał obie drogi
-    naprawy naraz: „Jak działa" (dawne „Cztery rzeczy i nic więcej", skrócone
-    do trzech zdań) stoi teraz PRZED tablicą, a sama tablica pokazuje gościowi
-    mniej kart niż wcześniej (`FeedController::GUEST_BOARD_PEOPLE`/`_POSTS`).
-    Po zalogowaniu tablica jest nietknięta — ten limit dotyczy wyłącznie tego
-    kontrolera i tego widoku.
-
-    Każde zdanie ma pokrycie w kodzie. „Pobierzesz paczkę" — eksport danych
-    (`DataSettingsController`). „Sam decydujesz, kto widzi wpis" — trzy
-    poziomy widoczności w `Post` (public / followers / private). „Nie pytamy
-    o numer telefonu ani o datę urodzenia" — formularz rejestracji ma cztery
-    pola i dwa potwierdzenia. Obietnica bez pokrycia na tej stronie kosztuje
-    więcej niż brak obietnicy.
---}}
+{{-- D-208: kompozycja strony publicznej ze wzorca właściciela.
+     Kroki → Ugotowałem → prawdziwa tablica → wpisy → dane → rejestracja.
+     Zdjęcie w bloku Ugotowałem jest ilustracją z publicznego kolażu,
+     nie deklaracją wykonania konkretnego przepisu. Filtry i autorstwo zostają. --}}
 <x-layout
     :powitalny="true"
     title="Pokaż, co dziś ugotowałeś"
@@ -155,122 +119,61 @@
         </div>
     </section>
 
-    {{-- 2. JAK DZIAŁA ------------------------------------------------------
-         Dawne „Cztery rzeczy i nic więcej", skrócone do trzech zdań (audyt
-         60+ — patrz komentarz na górze pliku). Stoi PRZED tablicą specjalnie:
-         to ma być pierwsza rzecz, która buduje prosty model „co tu robię",
-         zanim człowiek zobaczy gęstą, interaktywną listę osób i dań.
-
-         PRZEBUDOWANE 11 WRZEŚNIA — zgłoszenie właściciela, dosłownie: „zbyt
-         brzydkie, proste i niewizualne". Zmierzone przed zmianą: trzy kafle
-         w dwóch kolumnach od 48rem, czyli układ 2+1 z PUSTYM POLEM wielkości
-         całej karty pod trzecim kaflem. Kafel był białym prostokątem
-         z pogrubionym napisem „Krok 1" i jednym zdaniem — zero rytmu i zero
-         obrazu w sekcji, która ma wytłumaczyć, po co tu w ogóle jesteśmy.
-
-         CO SIĘ ZMIENIŁO I DLACZEGO TYLE
-           * TRZY KOLUMNY OD 64REM, nie dwie od 48rem. Trzy kroki to trzy
-             rzeczy równorzędne i układ ma to pokazywać; 2+1 mówił oku, że
-             dwa pierwsze są parą, a trzeci dokładką — i zostawiał tę dziurę.
-           * PONIŻEJ 64REM KAFEL JEST POZIOMY: znak po lewej, tekst po prawej.
-             Jedna kolumna wysokich kafli byłaby na telefonie trzema ekranami
-             przewijania przed tablicą.
-           * ZNAK (koło z ikoną) zamiast samego napisu „Krok 1". To jest cała
-             „wizualność", o którą prosił właściciel, i jest tania: kształty
-             są z istniejącego zestawu (`components/ikona.blade.php`), więc
-             nie dokładamy ani jednego pliku graficznego do pobrania.
-           * NUMER KROKU ZOSTAJE TEKSTEM, nie przechodzi do ikony. Ikona jest
-             `aria-hidden` z założenia (patrz docblock komponentu) i nie może
-             być jedynym nośnikiem kolejności — „Krok 2" musi dać się
-             przeczytać na głos.
-
-         Kolejność treści w kaflu: numer → co robisz → jak to wygląda.
-         Nagłówek mówi teraz CZYNNOŚĆ („Robisz zdjęcie"), a nie pozycję na
-         liście — samo „Krok 1" nie było tytułem, tylko etykietą. --}}
-    <section class="pas pas--wglebiony" id="jak-dziala">
+    <section class="pas landing-opowiesc" id="jak-dziala" aria-label="Jak działa">
         <div class="pas-wnetrze">
-            <h2 class="text-title-lg">Jak działa</h2>
-
-            <ol class="rzeczy odstep-nad">
-                <li class="rzecz">
-                    <span class="rzecz-znak"><x-ikona nazwa="image" :rozmiar="30" /></span>
-                    <div class="rzecz-tresc">
-                        <p class="rzecz-krok">Krok 1</p>
-                        <p class="rzecz-tytul">Robisz zdjęcie</p>
-                        <p class="rzecz-opis">Telefonem, prosto z garnka. Nie musi być z okładki.</p>
-                    </div>
+            <p class="nadtytul">Od Twojej kuchni do wspólnego stołu</p>
+            <h2 class="landing-opowiesc-tytul">Zdjęcie. Kilka słów. <span>I rozmowa przy okazji.</span></h2>
+            <ol class="landing-kroki">
+                <li>
+                    <p class="landing-krok-numer" aria-label="Krok 1">01</p>
+                    <h3>Robisz zdjęcie</h3>
+                    <p>Telefonem, prosto z garnka. Nie musi być z okładki.</p>
+                    <a href="{{ route('posts.create') }}">Dodaj zdjęcie dania</a>
                 </li>
-                <li class="rzecz">
-                    <span class="rzecz-znak"><x-ikona nazwa="book" :rozmiar="30" /></span>
-                    <div class="rzecz-tresc">
-                        <p class="rzecz-krok">Krok 2</p>
-                        <p class="rzecz-tytul">Piszesz kilka słów</p>
-                        <p class="rzecz-opis">Co to jest i z czego. Tyle wystarczy.</p>
-                    </div>
+                <li>
+                    <p class="landing-krok-numer" aria-label="Krok 2">02</p>
+                    <h3>Piszesz kilka słów</h3>
+                    <p>Co to jest i z czego. A jeśli chcesz przekazać cały przepis — jest na niego miejsce.</p>
+                    <a href="{{ route('recipes.create') }}">Zobacz dodawanie przepisu</a>
                 </li>
-                <li class="rzecz">
-                    <span class="rzecz-znak"><x-ikona nazwa="chat" :rozmiar="30" /></span>
-                    <div class="rzecz-tresc">
-                        <p class="rzecz-krok">Krok 3</p>
-                        <p class="rzecz-tytul">Ktoś odpowiada</p>
-                        <p class="rzecz-opis">Komentarzem albo „Ugotowałem” — czyli zdjęciem tego samego dania ze swojej kuchni.</p>
-                    </div>
+                <li>
+                    <p class="landing-krok-numer" aria-label="Krok 3">03</p>
+                    <h3>Ktoś odpowiada</h3>
+                    <p>Pyta, dzieli się swoim sposobem albo pokazuje, jak wyszło u niego.</p>
+                    <a href="{{ route('discover') }}">Zobacz, co gotują inni</a>
                 </li>
             </ol>
         </div>
     </section>
 
-    {{-- 3. TABLICA „KUKINGI NA DZIŚ" ---------------------------------------
-         Tablica dnia zamiast zdjęcia z systemu projektowego. System stawia
-         tu fotografię potrawy; my mamy w tym miejscu coś lepszego niż
-         zdjęcie poglądowe — prawdziwych ludzi, wpisy i notatki z dzisiaj.
-
-         Do tej sekcji `$board['people']`/`$board['posts']` przychodzą już
-         obcięte przez `FeedController::landing()` do liczby ustalonej TYLKO
-         dla gościa — `App\Http\Controllers\FeedController::GUEST_BOARD_PEOPLE`/
-         `GUEST_BOARD_POSTS`. Ten sam komponent na `/home`, `/odkryj`
-         i `/szukaj` dostaje pełną tablicę z `DailyBoard` bez tego obcięcia. --}}
-    <section class="pas pas--kreska-gora">
+    <section class="pas landing-wykonanie" id="ugotowalem">
         <div class="pas-wnetrze">
-            {{-- `:graSlowem="false"` — na tym ekranie gra słowem „kuKING" jest już
-                 zużyta przez przycisk „Zostań kuKINGiem" wyżej, a
-                 `docs/brand/COPY_STYLE.md` §2 dopuszcza ją najwyżej raz na ekran.
-                 Tablica dostaje więc nagłówek zapasowy z §5. --}}
-            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :graSlowem="false" />
+            @php($zdjecieUgotowalem = $kolaz->first())
+            <div @class(['landing-wykonanie-karta', 'blok-ciemny', 'landing-wykonanie-bez-zdjecia' => $zdjecieUgotowalem === null])>
+                <div class="landing-wykonanie-tekst">
+                    <p class="nadtytul">Ugotowałem</p>
+                    <h2>Twój przepis. <span>Czyjś dobry obiad.</span></h2>
+                    <p>Pod każdym przepisem jest przycisk „Ugotowałem”. Dodajesz zdjęcie wykonania, a autor dowiaduje się, że przepis trafił do kolejnej kuchni.</p>
+                    <p>Przy przepisie można zobaczyć zdjęcia od osób, które go przygotowały.</p>
+                    <a href="{{ route('search', ['sekcja' => 'przepisy']) }}">Znajdź przepis dla siebie</a>
+                </div>
+                @if($zdjecieUgotowalem !== null)
+                    <figure class="landing-wykonanie-zdjecie">
+                        <img src="{{ $zdjecieUgotowalem['media']->url('feed') }}" alt=""
+                             width="{{ $zdjecieUgotowalem['media']->width('feed') ?? 960 }}"
+                             height="{{ $zdjecieUgotowalem['media']->height('feed') ?? 960 }}"
+                             loading="lazy" decoding="async">
+                        <figcaption>Zdjęcie: {{ $zdjecieUgotowalem['autor']->displayName() }}.</figcaption>
+                    </figure>
+                @endif
+            </div>
         </div>
     </section>
 
-    {{-- 4. „UGOTOWAŁEM" ------------------------------------------------- --}}
-    <section class="pas blok-ciemny">
-        <div class="pas-wnetrze pas-ciemny-uklad">
-            <div class="pas-ciemny-tekst">
-                <h2 class="text-title-lg">Przepis jest dobry wtedy, kiedy ktoś go ugotował</h2>
-                <p class="text-lead">
-                    Pod każdym przepisem jest przycisk „Ugotowałem". Kiedy go naciśniesz i dodasz zdjęcie,
-                    autor przepisu dowie się, że ktoś naprawdę zrobił to u siebie w kuchni.
-                </p>
-                <p>
-                    Dlatego przy przepisie widać nie liczbę serduszek, tylko zdjęcia od ludzi, którym wyszedł.
-                    Nie ma tu rankingów. Nie ma kogo wyprzedzać.
-                </p>
-            </div>
-
-            {{-- Brzmienie WZIĘTE Z KODU, nie wymyślone: tak renderuje je
-                 `pages/notifications.blade.php` dla `Notification::TYPE_COOKED`.
-                 Wcześniej stała tu parafraza („Halina ugotowała Twój rosół")
-                 podpisana „tak wygląda powiadomienie" — czyli obietnica
-                 o jedno słowo mocniejsza niż kod pod nią.
-
-                 Cytat zmienił się razem z powiadomieniem (issue #38): tamto
-                 zdanie miało w środku „ugotowała/ugotował", czego nie da się
-                 przeczytać na głos, więc `COPY_STYLE.md` §2 każe zmienić
-                 konstrukcję zamiast wybierać rodzaj. Kopia tu ma się nie
-                 rozjechać z oryginałem — pilnuje tego
-                 `TekstyWedlugCopyStyleTest::test_cytat_na_stronie_powitalnej_zgadza_sie_z_powiadomieniem`. --}}
-            <blockquote class="cytat-ugotowalem">
-                Halina — ugotowane z Twojego przepisu „Rosół babci".
-                <span class="cytat-zrodlo">Powiadomienie, które dostaje autor przepisu.</span>
-            </blockquote>
+    {{-- Prawdziwe osoby i dania pozostają po wprowadzeniu do funkcji. --}}
+    <section class="pas pas--kreska-gora">
+        <div class="pas-wnetrze">
+            <x-kuking-board :people="$board['people']" :posts="$board['posts']" :notes="$board['notes']" :graSlowem="false" />
         </div>
     </section>
 

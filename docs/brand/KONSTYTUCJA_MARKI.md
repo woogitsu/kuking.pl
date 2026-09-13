@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.4, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.5, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -9,6 +9,13 @@ produkcji zawiera [audyt kompletności Alfa 0.14](../design/AUDYT_KOMPLETNOSCI_M
 Wdrożenie kierunku nie jest równoznaczne z pełnym odbiorem wszystkich stanów.
 
 ## Rdzeń
+
+Publiczny fragment wskazany przez właściciela w D-208 ma otwarte trzy
+kolumny 01–03, duży nagłówek „Zdjęcie. Kilka słów. I rozmowa przy okazji.”
+i bezpośrednio po nich ciemny, zaokrąglony blok „Ugotowałem / Twój przepis.
+Czyjś dobry obiad.” z publiczną fotografią i autorstwem. Białe kafle kroków
+nie są równoważnym portem tej kompozycji. Przy braku dopuszczonego zdjęcia
+blok pozostaje tekstowy; tablica i prawdziwe wpisy nie znikają.
 
 Kuking łączy ludzi przez to, co gotują. Zdjęcie i kilka słów są pełnoprawnym
 wpisem. Nie trzeba przygotować przepisu, żeby uczestniczyć. Przepis, zeszyt

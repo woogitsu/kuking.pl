@@ -177,6 +177,32 @@ if (!slugPrzepisu) throw new Error('Brak przepisu do pomiaru marki');
 const przepis = '/przepisy/' + slugPrzepisu;
 const ekranyMarki = ['/home', '/', '/odkryj', '/szukaj', '/zeszyt', '/@ania', '/@zofia_z_bieszczad', przepis, '/dodaj', '/ustawienia', '/ustawienia/czytelnosc', '/powiadomienia'];
 const wyniki = [];
+const pomiarLanding = async (page, width) => {
+  const response = await page.goto(adres + '/', { waitUntil: 'networkidle' });
+  if (response.status() !== 200) throw new Error('LANDING_HTTP: ' + response.status());
+  await page.evaluate(async () => { await document.fonts.ready; for (let i = 0; i < 30; i++) await new Promise(requestAnimationFrame); });
+  const result = await page.evaluate(() => {
+    const title = document.querySelector('.landing-opowiesc-tytul');
+    const card = document.querySelector('.landing-wykonanie-karta');
+    const steps = [...document.querySelectorAll('.landing-kroki > li')];
+    const ratio = parseFloat(getComputedStyle(document.body).fontSize) / 18;
+    return {
+      scroll: document.documentElement.scrollWidth, ratio,
+      title: title ? parseFloat(getComputedStyle(title).fontSize) : 0,
+      card: card ? { background: getComputedStyle(card).backgroundColor, radius: parseFloat(getComputedStyle(card).borderTopLeftRadius) } : null,
+      steps: steps.map(el => ({ background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow, radius: parseFloat(getComputedStyle(el).borderRadius), border: parseFloat(getComputedStyle(el).borderTopWidth), y: el.getBoundingClientRect().y })),
+      columns: matchMedia('(min-width: 48rem)').matches,
+      photo: document.querySelector('.landing-wykonanie-zdjecie img')?.getBoundingClientRect().width || 0,
+    };
+  });
+  if (result.scroll > width + 1) throw new Error('LANDING_OVERFLOW: ' + JSON.stringify(result));
+  if (result.title < 32 * result.ratio - 1) throw new Error('LANDING_TYTUL: ' + JSON.stringify(result));
+  if (result.steps.length !== 3 || result.steps.some(s => s.background !== 'rgba(0, 0, 0, 0)' || s.shadow !== 'none' || s.radius !== 0 || s.border < 1)) throw new Error('LANDING_KROKI: ' + JSON.stringify(result));
+  if (result.columns && result.steps.some(s => Math.abs(s.y - result.steps[0].y) > 1)) throw new Error('LANDING_KOLUMNY: ' + JSON.stringify(result));
+  if (!result.card || result.card.background !== 'rgb(21, 23, 20)' || result.card.radius < 28) throw new Error('LANDING_BLOK: ' + JSON.stringify(result));
+  if (result.photo < 100) throw new Error('LANDING_ZDJECIE: brak fotografii do pomiaru');
+  return result;
+};
 const pomiar = async (page, width, path) => {
   const response = await page.goto(`${adres}${path}`, { waitUntil: 'networkidle' });
   if (response.status() !== 200) throw new Error(`${path}: HTTP ${response.status()}`);
@@ -300,6 +326,21 @@ try {
       const scroll = await guestPage.evaluate(() => document.documentElement.scrollWidth);
       if (scroll > width + 1) throw new Error(path + ': poziome przewijanie gościa ' + scroll);
       wyniki.push({ guest: true, path, width, scroll });
+    }
+    await guest.close();
+  }
+  for (const width of [320, 360, 390, 414, 768, 1440]) for (const dark of [false, true]) for (const scale of [100, 140, PRZEGLADARKA_200]) {
+    const guest = await przegladarka.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+    const page = await guest.newPage();
+    if (scale === PRZEGLADARKA_200) await (await guest.newCDPSession(page)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+    await page.addInitScript(({ dark, scale }) => document.addEventListener('DOMContentLoaded', () => {
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.documentElement.dataset.textScale = String(scale === 140 ? 140 : 100);
+    }), { dark, scale });
+    wyniki.push({ landing: true, width, dark, scale, ...await pomiarLanding(page, width) });
+    if ((width === 1440 && scale === 100) || (width === 320 && scale === 140)) {
+      await page.locator('#jak-dziala').screenshot({ path: `storage/port-projektu/landing-kroki-${width}-${dark}.png` });
+      await page.locator('#ugotowalem').screenshot({ path: `storage/port-projektu/landing-wykonanie-${width}-${dark}.png` });
     }
     await guest.close();
   }
@@ -428,6 +469,33 @@ try {
   const tablicaOdbior = await przegladarka.newContext({ storageState: sesja, viewport: { width: 1440, height: 900 } });
   for (const path of ['/home', '/', '/odkryj', '/szukaj']) await pomiar(await tablicaOdbior.newPage(), 1440, path);
   await tablicaOdbior.close();
+  // D-208: rzeczywista kompozycja strony publicznej, nie sam brak overflow.
+  for (const [selector, declaration, kod] of [
+    ['.landing-opowiesc-tytul', 'font-size: 18px;', 'LANDING_TYTUL'],
+    ['.landing-kroki > li', 'background: white; border-radius: 24px;', 'LANDING_KROKI'],
+    ['.landing-wykonanie-karta', 'background: white;', 'LANDING_BLOK'],
+  ]) {
+    execFileSync('cp', ['-p', source, copy]);
+    try {
+      appendFileSync(source, `\n[data-marka] ${selector} { ${declaration} }\n`);
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      const guest = await przegladarka.newContext({ viewport: { width: 1440, height: 900 } });
+      let wykryto = false;
+      try { await pomiarLanding(await guest.newPage(), 1440); }
+      catch (error) { if (error.message.startsWith(kod)) wykryto = true; else throw error; }
+      finally { await guest.close(); }
+      if (!wykryto) throw new Error('Niewykryty sabotaż ' + kod);
+      console.log('LANDING_UJEMNA wykryto=' + kod + ' przed=' + before + ' zmieniony=' + hash());
+    } finally {
+      execFileSync('cp', ['-p', copy, source]);
+      execFileSync('npm', ['run', 'build'], { stdio: 'ignore' });
+      if (hash() !== before) throw new Error('Nie odtworzono CSS landingu');
+      console.log('LANDING_UJEMNA przywrocony=' + hash());
+    }
+  }
+  const landingOdbior = await przegladarka.newContext({ viewport: { width: 1440, height: 900 } });
+  await pomiarLanding(await landingOdbior.newPage(), 1440);
+  await landingOdbior.close();
   console.log(`PORT_OK ${JSON.stringify(wyniki)}`);
 } finally {
   await przegladarka.close();

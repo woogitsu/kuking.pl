@@ -593,6 +593,11 @@ zaletą (§6), a napis jest jednym elementem, więc nie rozpada się na telefoni
 (D-131).
 
 **3. Złagodzenie „Przepis jest dobry wtedy, kiedy ktoś go ugotował".**
+Aktualizacja D-208 (13 września 2026): na publicznym bloku właściciel
+wskazał nowy wzorzec z tytułem „Twój przepis. Czyjś dobry obiad.”.
+Ta decyzja zastępuje poniższy historyczny zakaz zmiany tego jednego
+nagłówka; nie zmienia znaczenia „Ugotowałem” ani tytułu hero.
+
 Odrzucone. To zdanie niesie **całą tezę produktu** — „Ugotowałem" jest
 ważniejsze niż lajk (`AGENTS.md` §1, hierarchia priorytetów). Zarzut audytu
 („logicznie zbyt absolutne") dotyczy hasła, a od hasła absolutność się

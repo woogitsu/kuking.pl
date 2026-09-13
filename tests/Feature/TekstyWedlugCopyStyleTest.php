@@ -559,16 +559,14 @@ class TekstyWedlugCopyStyleTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // 6. Cytat na stronie powitalnej mówi to, co mówi kod
+    // 6. Powiadomienie zostaje prawdziwą wiadomością, nie dekoracją landingu
     // ---------------------------------------------------------------
 
     /**
-     * Strona powitalna cytuje powiadomienie „ktoś ugotował z Twojego przepisu"
-     * i podpisuje ten cytat jako prawdziwe brzmienie z serwisu. Kopia i oryginał
-     * mają się nie rozjechać — to jest obietnica wobec kogoś, kto konta jeszcze
-     * nie ma i sprawdzić tego nie może.
+     * D-208 usuwa przykładowy cytat z publicznej kompozycji. Rzeczywiste
+     * powiadomienie po ugotowaniu nadal zachowuje swoją treść i odbiorcę.
      */
-    public function test_cytat_na_stronie_powitalnej_zgadza_sie_z_powiadomieniem(): void
+    public function test_powiadomienie_o_ugotowaniu_nie_jest_fikcyjnym_cytatem_na_landingu(): void
     {
         $autor = $this->user('autorka');
         $kucharz = $this->user('kucharka', ['display_name' => 'Halina']);
@@ -595,12 +593,10 @@ class TekstyWedlugCopyStyleTest extends TestCase
         $zdanie = '— ugotowane z Twojego przepisu';
 
         $this->assertStringContainsString($zdanie, $powiadomienia, 'Powiadomienie o ugotowaniu zmieniło brzmienie.');
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             $zdanie,
             $powitalna,
-            'Cytat na stronie powitalnej rozjechał się z powiadomieniem, które cytuje. '
-            .'Zmieniając jedno, zmień drugie — patrz komentarz przy `blockquote` '
-            .'w resources/views/pages/landing.blade.php.',
+            'Landing nie przedstawia przykładowego powiadomienia jako aktywności społeczności.',
         );
     }
 

@@ -236,6 +236,39 @@
 [data-marka] .marka-tablica .kuking-board-avatar .avatar { width: 52px; height: 52px; }
 [data-marka] .marka-tablica .kuking-board-avatar .avatar { font-size: var(--text-body); }
 [data-marka] .marka-tablica .kuking-board-akcja .btn { background: var(--color-surface-sunken); color: var(--color-ink); border-color: transparent; border-radius: 12px; }
+
+/* D-208: otwarte kroki i duży blok wykonania na stronie publicznej. */
+[data-marka] .landing-opowiesc .nadtytul,
+[data-marka] .landing-wykonanie .nadtytul { text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
+[data-marka] .landing-opowiesc-tytul,
+[data-marka] .landing-wykonanie h2 { font-size: calc(clamp(2rem, 4vw, 3.5rem) * var(--user-text-scale, 1)); line-height: 1.08; letter-spacing: -.045em; overflow-wrap: anywhere; }
+[data-marka] .landing-opowiesc-tytul { margin: 12px 0 30px; }
+[data-marka] .landing-opowiesc-tytul span,
+[data-marka] .landing-wykonanie h2 span { display: block; }
+[data-marka] .landing-kroki { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px 24px; list-style: none; margin: 0; padding: 0; }
+[data-marka] .landing-kroki > li { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; border-top: 1px solid var(--color-border); padding-top: 28px; background: transparent; box-shadow: none; border-radius: 0; }
+[data-marka] .landing-krok-numer { color: var(--color-brand); font-size: calc(1.5rem * var(--user-text-scale, 1)); font-weight: 800; line-height: 1; margin-bottom: 28px; }
+[data-marka] .landing-kroki h3 { font-size: var(--text-body); line-height: 1.4; margin: 0 0 18px; }
+[data-marka] .landing-kroki li > p:not(.landing-krok-numer) { color: var(--color-ink-muted); font-size: var(--text-body); line-height: 1.65; margin-bottom: 20px; }
+[data-marka] .landing-kroki a,
+[data-marka] .landing-wykonanie-tekst > a { display: inline-flex; align-items: center; min-height: 48px; font-size: var(--text-body); font-weight: 700; overflow-wrap: anywhere; }
+[data-marka] .landing-kroki a { margin-top: auto; }
+[data-marka] .landing-wykonanie { padding-top: 32px; }
+[data-marka] .landing-wykonanie-karta { display: grid; grid-template-columns: minmax(0, 1fr); border-radius: 30px; background: #151714; color: #fff; }
+[data-marka] .landing-wykonanie-tekst { min-width: 0; padding: 28px; }
+[data-marka] .landing-wykonanie .nadtytul { color: #FF9586; }
+[data-marka] .landing-wykonanie h2 { color: #fff; margin: 28px 0; }
+[data-marka] .landing-wykonanie-tekst > p:not(.nadtytul) { font-size: var(--text-body); line-height: 1.65; color: #fff; }
+[data-marka] .landing-wykonanie-tekst > a { color: #fff; }
+[data-marka] .landing-wykonanie-zdjecie { min-width: 0; margin: 0; display: flex; flex-direction: column; }
+[data-marka] .landing-wykonanie-zdjecie img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
+[data-marka] .landing-wykonanie-zdjecie figcaption { font-size: var(--text-body); line-height: 1.5; padding: 16px 24px; overflow-wrap: anywhere; }
+@media (min-width: 48rem) {
+  [data-marka] .landing-kroki { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  [data-marka] .landing-wykonanie-karta:not(.landing-wykonanie-bez-zdjecia) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-marka] .landing-wykonanie-tekst { padding: 52px; }
+  [data-marka] .landing-wykonanie-zdjecie img { flex: 1; height: 0; min-height: 320px; aspect-ratio: auto; border-top-right-radius: 30px; }
+}
 @media (min-width: 30rem) {
   [data-marka] .marka-tablica .kuking-board-akcja { padding-left: 64px; }
 }
