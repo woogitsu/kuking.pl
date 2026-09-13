@@ -240,6 +240,6 @@ class OdebranieDostepuFacebookaTest extends TestCase
         $this->assertStringContainsString(route('facebook.start'), (string) $html);
 
         // I nie może jednocześnie twierdzić, że wszystko jest w porządku.
-        $this->assertStringNotContainsString('możesz wchodzić jednym kliknięciem', (string) $html);
+        $this->assertStringNotContainsString('możesz logować się przyciskiem „Wejdź kontem Facebooka', (string) $html);
     }
 }

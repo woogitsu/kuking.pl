@@ -29,7 +29,7 @@
     NIE potrzebuje skryptu (Turnstile go potrzebuje, D-050) — i to jest
     argument za nią, nie przeciw.
 --}}
-@props(['naglowek' => 'Masz konto Google? Wejdź jednym kliknięciem'])
+@props(['naglowek' => 'Masz konto Google? Zaloguj się przez nie'])
 
 @if(\App\Support\Google::dziala())
     <div class="sekcja-strony mt-6">

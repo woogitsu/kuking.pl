@@ -53,7 +53,7 @@
                             ta droga jeszcze u Ciebie nie działa. Zaloguj się tak jak zwykle:
                             hasłem albo przez wiadomość z przyciskiem do zalogowania. Potem wejdź
                             w Ustawienia → Bezpieczeństwo i kliknij „Połącz konto Facebooka".
-                            Od następnego razu wejdziesz jednym kliknięciem.
+                            Po połączeniu kont możesz logować się przyciskiem „Wejdź kontem Facebooka”.
                         </p>
 
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 28px;">

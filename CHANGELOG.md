@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.21 — precyzyjne komunikaty
+
+- Instrukcje logowania przez Google i Facebooka opisują sposób wejścia bez obietnicy liczby kliknięć.
+- Powiadomienie o pierwszym wpisie zachęca do odpowiedzi bez nieudokumentowanego twierdzenia o zachowaniu nowych osób.
+- Podsumowanie automatu podaje rzeczywisty okres oznaczeń i nie obiecuje aktualnej widoczności treści po działaniach moderatorów.
+
 ## Alfa 0.20 — zainteresowania i powiadomienia
 
 - Wybór zainteresowań ma większe kafle rzeczywistych tematów; wszystkie trzy kroki pozostają opcjonalne.

@@ -22,6 +22,16 @@ fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
 
 ---
 
+## Precyzja opisu działania
+
+Instrukcja opisuje kroki, które aplikacja rzeczywiście zapewnia. Przy logowaniu
+przez Google lub Facebooka podajemy nazwę przycisku i uprzedzamy o przekierowaniu;
+nie gwarantujemy jednego kliknięcia, bo dostawca może wymagać potwierdzenia.
+Podsumowanie podaje okres odpowiadający liczonym zdarzeniom. Nie wywodzimy
+z działania automatu aktualnej widoczności treści ani wiedzy jej autora.
+Zachęta do odpowiedzi na pierwszy wpis nie potrzebuje twierdzenia o retencji.
+Przykłady i regresja: `../design/PRECYZJA_KOMUNIKATOW_514.md`.
+
 ## 1. Jeden akapit, który wystarczy zapamiętać
 
 Kuking mówi jak **sąsiadka, która dobrze gotuje i nie ma potrzeby się popisywać**.
