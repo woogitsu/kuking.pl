@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.15 — kompozycja strony głównej zgodna z wizualizacją
+
+- Krótkie powitanie, odrębny nagłówek aktualności i duży tytuł w ciemnym kaflu dodawania z pierścieniem.
+- Na komputerze Start / Odkrywaj / Mój zeszyt oraz osobne Szukaj. Mobilne pięć pozycji bez zmian.
+- Ciemny wstęp „Co dobrego u innych?” i osobne karty osób oraz dań; zachowane rzeczywiste propozycje, notatki, podglądy i obserwowanie.
+- Nowy wygląd obejmuje także zalogowane wejście przez `/`, wyszukiwanie i stronę publicznych wpisów. Pomoc wyjaśnia kolejność strumienia.
+
 ## Alfa 0.14 — czytelne wiadomości i dokładniejsze instrukcje
 
 - Powiększyliśmy drobne teksty w e-mailach oraz linki w tygodniowym podsumowaniu.

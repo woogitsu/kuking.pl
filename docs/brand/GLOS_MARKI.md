@@ -14,6 +14,12 @@
 
 ## 0. Po co ten dokument istnieje
 
+Aktualna kompozycja Startu wynika z D-207 i wizualizacji wskazanej przez
+właściciela. Krótkie powitanie i pytanie w kaflu zastępują długie hasło.
+Teksty „Z innych kuchni” i „Co dobrego u innych?” wprowadzają prawdziwe
+treści społeczności; nie są obietnicą codziennej redakcyjnej selekcji.
+Brzmienie powitania i nazwy wejść opisuje aktualny `COPY_STYLE.md`.
+
 `COPY_STYLE.md` jest dobrym dokumentem i zostaje w mocy. Ma jednak jedną
 dziurę, przez którą dało się przejść: **jest listą zakazów.** Lista
 kontrolna w §7 ma dziesięć pozycji i siedem z nich pyta, czego w zdaniu

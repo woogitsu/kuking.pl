@@ -2,6 +2,12 @@
     <article class="prose">
         <h1>Pomoc</h1>
 
+        <h2 id="kolejnosc-wpisow">Jak działa kolejność wpisów?</h2>
+        <p>Na stronie Start wpisy obserwowanych osób pojawiają się od najnowszych.
+            Jeśli nie ma jeszcze takich wpisów, pokazujemy treści z obserwowanych tagów,
+            a gdy i tam jest pusto — najnowsze publiczne wpisy innych osób.
+            Przełącznik „Świeżo z <x-kuking-word />” prowadzi do tej publicznej listy.</p>
+
         <h2>Jak dodać zdjęcie swojego dania?</h2>
         <ol>
             <li>Kliknij <strong>Dodaj</strong> — na telefonie znajdziesz ten przycisk na dole ekranu, pośrodku.</li>

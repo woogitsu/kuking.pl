@@ -8,39 +8,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
-/**
- * Zgłoszenie właściciela, 9 września: nagłówek strony (`<h1>`) prawie stykał
- * się z tym, co pod nim — „Twój profil” tuż nad kartą profilu
- * (`/ustawienia/profil`), „Dobry wieczór, Mateusz…” tuż nad kartą na stronie
- * głównej, „Szukaj” tuż nad polem wyszukiwania (`/szukaj`). Wszędzie, nie na
- * jednej stronie.
- *
- * PRZYCZYNA
- * Reset Tailwinda zeruje `margin` na wszystkich nagłówkach, a warstwa `base`
- * w `tokens.css` (reguła `h1, h2, h3 { ... }`) nigdy nie oddawała `h1`
- * żadnego `margin-bottom` — więc `<h1>` stał dosłownie `margin-bottom: 0`,
- * a odstęp, jaki było widać, to wyłącznie interlinia.
- *
- * NAPRAWIONE W JEDNYM MIEJSCU, NIE NA KAŻDEJ PODSTRONIE
- * Repozytorium nie ma osobnego komponentu „nagłówek strony” — każdy z ok. 50
- * widoków w `resources/views/pages/**` pisze `<h1>` sam, wprost w slocie
- * `x-layout`. Ten `<h1>` renderuje się jednak ZAWSZE jako bezpośrednie
- * dziecko `<main class="app-main">` (patrz `components/layout.blade.php`:
- * `{{ $slot }}` stoi wprost w `<main>`), więc jedna reguła CSS ze
- * selektorem `.app-main > h1` naprawia wszystkie te widoki naraz — bez
- * dotykania jednego z nich.
- *
- * Test ma dwie części: CZY reguła CSS istnieje (arkusz, bez przeglądarki) i
- * CZY na trzech konkretnych stronach z raportu `<h1>` naprawdę jest
- * bezpośrednim dzieckiem `.app-main` — inaczej ta jedna reguła CSS niczego
- * by tam nie robiła, mimo że test arkusza świeciłby na zielono.
- *
- * Test przechodzi PO poprawce i celowo NIE PRZECHODZIŁ przed nią (sprawdzone
- * ręcznie: cofnięcie `resources/css/tokens.css` do wersji sprzed tej zmiany
- * obala `test_naglowek_strony_ma_odstep_w_arkuszu_stylow`; zmierzony w
- * Chromium odstęp między `<h1>` a kartą pod spodem spadał wtedy do 0 px na
- * wszystkich trzech stronach niżej).
- */
+/** Odstep naglowkow: zwykle strony maja h1 pod main, Start ma wlasny header.
+ * Strukture sprawdzamy w renderze, deklaracje odstepu w realnym arkuszu.
+ * Pomiar kaskady i geometrii nalezy do przegladarki. */
 class OdstepPodNaglowkiemStronyTest extends TestCase
 {
     use RefreshDatabase;
@@ -113,6 +83,18 @@ class OdstepPodNaglowkiemStronyTest extends TestCase
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
+
+        if ($trasa === 'home') {
+            $headers = $xpath->query("//main[contains(concat(' ', normalize-space(@class), ' '), ' app-main ')]/header[contains(concat(' ', normalize-space(@class), ' '), ' start-naglowek ')]");
+            $this->assertSame(1, $headers->length);
+            $this->assertSame(1, $xpath->query('.//h1', $headers->item(0))->length);
+            $css = (string) file_get_contents(resource_path('css/marka-rama.css'));
+            $this->assertSame(1, preg_match('/\.start-naglowek\s*\{([^}]*)\}/', $css, $rule));
+            $this->assertSame(1, preg_match('/margin-bottom:\s*([\d.]+)px/', $rule[1], $margin));
+            $this->assertGreaterThanOrEqual(24, (float) $margin[1], 'Nagłówek Start musi zachować odstęp od kafla.');
+
+            return;
+        }
 
         $bezposrednieH1 = $xpath->query(
             "//main[contains(concat(' ', normalize-space(@class), ' '), ' app-main ')]/h1",

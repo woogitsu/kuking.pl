@@ -347,7 +347,7 @@ Decyzja i uzasadnienie: `../DECISIONS.md` D-013.
 |---|---|
 | Top kuKINGi | ranking — wprost zakazany |
 | Polecane dla Ciebie | brzmi jak algorytm, którego nie mamy |
-| Odkrywaj | „Explore" po polsku, na liście słów zakazanych |
+| Odkrywaj | D-207 dopuszcza tę etykietę w nawigacji komputerowej do publicznego strumienia; wyszukiwarka nadal nazywa się Szukaj |
 | Trendy w Kuking | korpo-mowa, obca tej grupie |
 | Gwiazdy Kuking | tworzy influencerów, czego świadomie nie chcemy |
 | Warto zobaczyć | poprawne, ale nudne — a nazwa jest jednym z niewielu miejsc, gdzie wolno nam być zabawnymi |
@@ -377,9 +377,11 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 
 | Miejsce | Tekst |
 |---|---|
-| pytanie dnia | Witaj, {imię}. Co dziś gotujesz? |
-| pytanie dnia, konto bez imienia | Co dziś gotujesz? |
-| przycisk główny | Dodaj zdjęcie tego, co ugotowałeś |
+| powitanie na Start | Dzień dobry, {nazwa z profilu} |
+| powitanie bez nazwy | Dzień dobry |
+| tytuł kafla dodawania | Co dziś gotujesz? |
+| opis kafla dodawania | Zdjęcie i kilka słów wystarczą. |
+| przycisk główny na Start | Dodaj zdjęcie |
 | pole tekstowe | Napisz kilka słów |
 | podpowiedź pod polem | Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty." |
 | wybór zdjęcia | Na telefonie kliknij tutaj, a potem wybierz „Galeria" albo „Zrób zdjęcie". |
@@ -387,25 +389,14 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 | po kolejnym | Opublikowane. Dziękujemy. |
 | autosave szkicu | Szkic zapisany. |
 
-**Pytanie dnia nie ma wariantu porannego i wieczornego** — i to jest decyzja,
-nie przeoczenie. Stały tu dwa wiersze („Dzień dobry…" / „Dobry wieczór…"),
-a w kodzie cztery warianty wybierane po godzinie. Wyszło z tego zdanie
-nieprawdziwe przez pół doby: „Dobry wieczór" witało od 15:00, a godzinę brał
-`now()`, czyli `config('app.timezone')` — w tym repozytorium `UTC` i takie
-zostanie (issue #87 i komentarz w `config/app.php`: strefą ekranu jest
-`kuking.strefa`, nie strefa, w której aplikacja liczy). Latem znaczyło to dwie
-godziny w tył, więc po 23:00 czasu polskiego serwis mówił „Dzień dobry".
-
-Głębszy powód jest jednak inny: **pory dnia CZYTELNIKA nie znamy.** Serwis
-nie pyta o strefę czasową tak samo, jak nie pyta o płeć, a kuKINGi mieszkają
-też poza Polską. Napis o porze dnia jest więc twierdzeniem o człowieku, którego
-nie mamy skąd wiedzieć — ta sama klasa błędu co „będziesz mogła" z §2
-i co obietnica z miarą bez pomiaru (D-114). „Witaj" jest prawdziwe o każdej
-godzinie; „Hej", „Cześć" i „Siema" zostają zakazane (`MASCOT_CONCEPT.md`).
-
-Zwrot po imieniu znika, gdy imienia nie ma — zostaje samo pytanie. Podstawianie
-nazwy zastępczej („Witaj, Użytkownik Kuking") udaje zwrot po imieniu i jest
-gorsze niż jego brak. Pilnuje tego `tests/Feature/PytanieDniaTest.php`.
+**D-207, wzorzec wskazany przez właściciela 13 września 2026:** krótkie
+„Dzień dobry” jest stałym zwrotem grzecznościowym. Nie dobieramy powitania
+według zegara serwera ani nie zakładamy strefy czasowej lub płci odbiorcy.
+Pokazujemy nazwę z profilu bez automatycznego zgadywania wołacza; przy pustej
+nazwie nie podstawiamy „Użytkownika Kuking”. Pytanie „Co dziś gotujesz?”
+stoi w kaflu, a przyciski nazywają działania. Zastępuje to poprzednie
+„Witaj, {imię}. Co dziś gotujesz?” i rozdziela powitanie od publikacji.
+Regresja: `tests/Feature/PytanieDniaTest.php`.
 
 ### Przepis
 
