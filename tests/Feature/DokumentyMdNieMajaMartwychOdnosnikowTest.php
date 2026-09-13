@@ -93,7 +93,6 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         '/przepisy' => 'przykład stylu adresu (AGENTS.md, SKILL.md) — prawdziwa trasa ma parametr',
         '/przepisy/' => 'przykład stylu adresu — prawdziwa trasa ma parametr',
         '/pytania' => 'dział jawnie opisany jako jeszcze niezbudowany, issue #372 (BRAND_EXTENDED.md)',
-        '/robots' => '„/robots.txt" urwane na kropce przez wzorzec trasy — prawdziwa trasa istnieje',
         '/tag' => 'nieformalne odwołanie do prefiksu tras tagów',
         '/tag/zupa' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/tag/zupy' => 'realny wzorzec tag/{tag} z przykładową wartością',
@@ -102,7 +101,12 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         '/wpisy/9f1c' => 'fikcyjne ID w przykładzie logu (MONITORING_BLEDOW.md)',
         '/zglos' => 'nieformalny skrót realnej trasy zglos/{type}/{id}',
         '/zglos/' => 'nieformalny skrót realnej trasy zglos/{type}/{id}',
-        '/zgloszenie/' => '„zgloszenie/{report}/odwolanie" urwane przez „ł" w nazwie parametru — trasa istnieje',
+        '/linux.sh' => 'nazwa skryptu runnera w HANDOVER.md',
+        '/woogitsu-run-NN/' => 'szablon nazwy katalogu runnera w HANDOVER.md',
+        '/{user-id}/permissions' => 'endpoint zewnętrznego Graph API Facebooka',
+        '/zglos/...' => 'jawny skrót wzorca zgłoszenia w MODERATION.md',
+        '/przepisy/...' => 'jawny skrót adresu przepisu w polityce prywatności',
+        '/wpisy/9f1c.../zdjecia' => 'jawnie skrócone przykładowe ID w logu MONITORING_BLEDOW.md',
         '/zipball/' => 'termin narzędziowy (artefakt API GitHuba), nie trasa',
     ];
 
@@ -119,6 +123,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'node_modules', 'vendor', 'build', 'workspace', 'scratchpad', 'app',
         'public', 'assets', 'fonts', 'icons', 'media', 'database', 'resources',
         'scripts', 'docs', 'decyzje', 'config', 'tests', 'research',
+        '_work', '_temp', '.npm', '.cache', 'actions-runner-kuking-03',
         'setup-php', 'linux', 'livewire', 'favicon', 'manifest', 'incoming',
         // polecenia/skille Claude Code, cytowane w dokumentacji jak trasy
         'code-review', 'simplify', 'security-review', 'fewer-permission-prompts',
@@ -307,7 +312,6 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         );
 
         $wzorzecBacktick = '/`([^`\n]+)`/';
-        $wzorzecTrasy = '#(?<![\w/.\-])(/[a-z0-9][a-z0-9\-_]*(?:/(?:[a-z0-9][a-z0-9\-_]*|\{[a-zA-Z_]+\}))*/?)(?![\w])#';
 
         $sprawdzone = 0;
         $martwe = [];
@@ -323,9 +327,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
             preg_match_all($wzorzecBacktick, $tresc, $backtickTrafienia);
 
             foreach ($backtickTrafienia[1] as $zawartosc) {
-                preg_match_all($wzorzecTrasy, $zawartosc, $trasyTrafienia);
-
-                foreach ($trasyTrafienia[1] as $trasa) {
+                foreach ($this->trasyZFragmentu($zawartosc) as $trasa) {
                     if ($this->wygladaNaCosInnegoNizTrase($trasa)) {
                         continue;
                     }
@@ -350,6 +352,43 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         );
 
         $this->assertSame([], $martwe, "Martwe trasy wspomniane w dokumentach:\n".implode("\n", $martwe));
+    }
+
+    /** @return list<string> */
+    private function trasyZFragmentu(string $fragment): array
+    {
+        // Nie zaczynaj od sufiksu po @parametrze ani nie urywaj na rozszerzeniu.
+        preg_match_all('#(?<![\w/.@{}\-])(/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+(?:/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+)*/?)(?![\w/@{}\-])#u', $fragment, $trafienia);
+
+        return $trafienia[1];
+    }
+
+    #[Test]
+    public function test_parser_zachowuje_parametry_rozszerzenia_i_odrzuca_falszywe_trasy(): void
+    {
+        $realne = $this->realneTrasyZnormalizowane();
+        foreach ([
+            '/@{username}', '/@{nazwa}/obserwowani', '/@{username}/obserwujacy',
+            '/robots.txt', '/sitemap.xml', '/zgloszenie/{zgłoszenie}/odwolanie',
+            '/livewire-01234567/css/{component}.css',
+            '/livewire-89abcdef/css/{component}.global.css',
+            '/livewire-01234567/js/{component}.js',
+            '/livewire-01234567/livewire.csp.min.js.map',
+        ] as $trasa) {
+            $this->assertSame([$trasa], $this->trasyZFragmentu('GET '.$trasa), $trasa);
+            $this->assertArrayHasKey($this->znormalizujTrase($trasa), $realne, $trasa);
+        }
+
+        foreach ([
+            '/@{username}/nieistniejaca-trasa', '/sitemap.nieistnieje', '/robots',
+            '/livewire-01234567/css/{component}.nieistnieje',
+            '/livewire-01234567/nieistniejaca-trasa',
+            '/livewire-niehash/livewire.js', '/livewire-012345678/livewire.js',
+            '/inny-01234567/livewire.js',
+        ] as $trasa) {
+            $this->assertSame([$trasa], $this->trasyZFragmentu($trasa), $trasa);
+            $this->assertArrayNotHasKey($this->znormalizujTrase($trasa), $realne, $trasa);
+        }
     }
 
     private function wygladaNaCosInnegoNizTrase(string $trasa): bool
@@ -397,23 +436,30 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
             $wynik[$this->znormalizujTrase('/'.$trasa->uri())] = true;
         }
 
+        // Zasoby publiczne obsługiwane przez serwer, bez wpisu w routerze.
+        foreach (['sw.js', 'favicon.ico', 'manifest.webmanifest'] as $plik) {
+            if (is_file(public_path($plik))) {
+                $wynik[$plik] = true;
+            }
+        }
+
         return $wynik;
     }
 
     private function znormalizujTrase(string $trasa): string
     {
         $trasa = trim($trasa, '/');
+        $trasa = preg_replace('#^@[^/{]+(?=/|$)#', '@{username}', $trasa) ?? $trasa;
 
         if ($trasa === '') {
             return '';
         }
 
-        $segmenty = array_map(
-            static fn (string $s): string => preg_match('/^\{[^}]+\}$/', $s) ? '{}' : $s,
-            explode('/', $trasa),
-        );
+        // EndpointResolver: pierwsze 8 cyfr hex SHA-256(app.key + livewire-endpoint).
+        // Zmienny jest tylko prefiks instalacji; cały dalszy adres nadal musi istnieć.
+        $trasa = preg_replace('#^livewire-[a-f0-9]{8}/#', 'livewire-{instalacja}/', $trasa) ?? $trasa;
 
-        return implode('/', $segmenty);
+        return preg_replace('/\{[^}]+\}/u', '{}', $trasa) ?? $trasa;
     }
 
     private function znormalizujSciezke(string $sciezka): string

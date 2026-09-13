@@ -153,6 +153,22 @@
 
     .powrot { font-size: 1.25rem; }
 
+    /* Paczka działa poza portalem, więc korzysta z wyboru systemowego.
+       Ograniczenie do screen zachowuje jasne kolory wydruku. */
+    @media screen and (prefers-color-scheme: dark) {
+        :root {
+            --tlo: #151714;
+            --karta: #222620;
+            --tekst: #F4F5F1;
+            --tekst-jasny: #CBD0C6;
+            --ramka: #373D34;
+            --marka: #FF9586;
+        }
+        .naglowek { background: #222620; color: #F4F5F1; }
+        .naglowek .podpis { color: #CBD0C6; }
+        a:focus-visible { outline-color: #6EA8FF; }
+    }
+
     @media print {
         body { background: #FFFFFF; font-size: 12pt; }
         .karta { border: none; padding: 0; }

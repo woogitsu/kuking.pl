@@ -427,8 +427,13 @@ całodobowego dyżuru, odpowiedź czasem po weekendzie.
 
 ```text
 ❌ Wyślemy Ci wiadomość z jednym przyciskiem. Klikasz — i jesteś w środku.
-✅ Wyślemy Ci wiadomość z jednym przyciskiem. Kliknij go, żeby wejść na konto.
+✅ Wyślemy Ci wiadomość z linkiem. Otwórz go, a na stronie kliknij „Zaloguj mnie”.
 ```
+
+Przykład instrukcji uaktualniono w audycie Alfa 0.14: D-056 wymaga jeszcze
+potwierdzenia na stronie. To korekta opisu działania, a nie zmiana zasady
+prostego tonu. Niepotwierdzony adres konta ma osobną drogę ustawienia hasła;
+pełna instrukcja formularza uwzględnia ten wyjątek.
 
 To jest też powód odrzucenia „to darmowe" z przycisku na stronie powitalnej
 (§6): sprzedaż wychodzi z tekstu szybciej, niż się ją tam wkłada.

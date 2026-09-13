@@ -55,7 +55,7 @@
 
                         <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
                             @if($expiresAt)
-                                Link działa do <strong>{{ \App\Support\Czas::data($expiresAt, 'j F Y') }}</strong>.
+                                Link działa do <strong>{{ \App\Support\Czas::data($expiresAt, 'j F Y, H:i') }}</strong>.
                                 Potem paczka zostanie usunięta z naszych serwerów —
                                 nie trzymamy kopii Twojego konta bez końca.
                                 Jeśli nie zdążysz, po prostu poproś o nową paczkę w ustawieniach.
@@ -85,7 +85,7 @@
             </table>
 
             <p style="max-width:600px;margin:20px auto 0;font-family:Arial,Helvetica,sans-serif;
-                      font-size:15px;line-height:1.5;color:#555E53;">
+                      font-size:18px;line-height:1.5;color:#555E53;">
                 Kuking.pl — pokaż, co dziś ugotowałeś.
             </p>
         </td>

@@ -26,10 +26,10 @@
 @php
     /** @var \App\Domain\Digest\TrescDigestu $tresc */
     $czcionka = "font-family:Arial,Helvetica,sans-serif;";
-    $sekcja = 'margin:32px 0 12px;font-size:15px;line-height:1.4;font-weight:bold;'
+    $sekcja = 'margin:32px 0 12px;font-size:18px;line-height:1.4;font-weight:bold;'
         ."letter-spacing:0.06em;text-transform:uppercase;color:#555E53;font-family:Arial,Helvetica,sans-serif;";
     $pozycja = 'margin:0 0 18px;font-size:19px;line-height:1.6;color:#151714;';
-    $cichy = 'margin:0 0 20px;font-size:17px;line-height:1.6;color:#555E53;';
+    $cichy = 'margin:0 0 20px;font-size:18px;line-height:1.6;color:#555E53;';
 @endphp
 <!DOCTYPE html>
 <html lang="pl">
@@ -120,7 +120,7 @@
                                     @endif
                                     <br>
                                     <a href="{{ route('posts.show', ['post' => $wpis->getKey()]) }}"
-                                       style="color:#BE3025;">Zobacz</a>
+                                       style="display:inline-block;padding:10px 0;min-height:48px;box-sizing:border-box;color:#BE3025;">Zobacz</a>
                                 </p>
                             @endforeach
                         @endif
@@ -158,13 +158,13 @@
                             bo część klientów pocztowych blokuje odnośniki, a wtedy jedyną
                             drogą wyjścia jest przepisanie adresu do przeglądarki.
                         --}}
-                        <p style="margin:0 0 12px;font-size:17px;line-height:1.6;color:#555E53;">
+                        <p style="margin:0 0 12px;font-size:18px;line-height:1.6;color:#555E53;">
                             Nie chcesz tych wiadomości?
-                            <a href="{{ $wypisz }}" style="color:#BE3025;font-weight:bold;">Wyłącz je jednym kliknięciem</a>.
+                            <a href="{{ $wypisz }}" style="display:inline-block;padding:10px 0;min-height:48px;box-sizing:border-box;color:#BE3025;font-weight:bold;">Wyłącz je jednym kliknięciem.</a>
                             Bez pytań.
                         </p>
 
-                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;
+                        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:18px;
                                   line-height:1.5;color:#555E53;word-break:break-all;">
                             {{ $wypisz }}
                         </p>
@@ -174,7 +174,7 @@
             </table>
 
             <p style="max-width:600px;margin:20px auto 0;font-family:Arial,Helvetica,sans-serif;
-                      font-size:15px;line-height:1.5;color:#555E53;">
+                      font-size:18px;line-height:1.5;color:#555E53;">
                 Kuking.pl &mdash; pokaż, co dziś ugotowałeś.
             </p>
         </td>

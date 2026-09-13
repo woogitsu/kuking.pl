@@ -78,13 +78,13 @@
          grupy kosztuje zaufanie w pierwszej sekundzie, i to na ekranie, na
          którym ktoś dopisuje szczegóły do przepisu po babci.
 
-         ZOSTAJE INFORMACJA, PO KTÓRĄ CZŁOWIEK TU PRZYSZEDŁ: że nic nie jest
+         ZOSTAJE INFORMACJA, PO KTÓRĄ CZŁOWIEK TU PRZYSZEDŁ: że dodatkowe szczegóły nie są
          obowiązkowe, że wypełnia tyle, ile chce, i że poprawnie wpisane dane
          nie zginą (`old()` — AGENTS.md §5). Pilnuje tego
          `tests/Feature/EkranSzczegolowNieObiecujeBrakuPrzewijaniaTest.php`
          — razem z tym, że poprawka nie zjadła tej informacji. --}}
     <p class="mb-5">
-        Wszystko jest na jednej stronie. Nic tu nie jest obowiązkowe:
+        Wszystko jest na jednej stronie. Nazwa przepisu jest wymagana. Do publikacji i zapisu opublikowanego przepisu potrzebny jest też co najmniej jeden krok przygotowania. Pozostałe szczegóły są opcjonalne:
         wypełnij tyle, ile chcesz, i zapisz. Poprawnie wpisane dane nie zginą.
     </p>
 
