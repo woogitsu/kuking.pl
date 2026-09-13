@@ -1,5 +1,14 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.14 — czytelne wiadomości i dokładniejsze instrukcje
+
+- Powiększyliśmy drobne teksty w e-mailach oraz linki w tygodniowym podsumowaniu.
+- Wiadomość o pobraniu danych podaje także godzinę wygaśnięcia linku.
+- Instrukcje logowania opisują dodatkowe potwierdzenie na stronie. Ustawienia adresu e-mail nie sugerują już wysyłania hasła pocztą.
+- Instrukcje zabezpieczenia konta i edycji przepisu dokładniej opisują wymagane kroki.
+- Przy edycji opublikowanego przepisu komunikaty mówią o zapisanych zmianach, a nie o szkicu.
+- Pobrana paczka danych obsługuje ciemny wygląd systemu. Ostrzeżenie o przygotowywanych zdjęciach nie obiecuje już terminu ich gotowości.
+
 ## Alfa 0.13 — aktualizacja zainstalowanej aplikacji
 
 Poprawiliśmy pobieranie aktualizacji w aplikacji zapisanej na telefonie, aby nowy ekran braku połączenia docierał także do osób korzystających ze starszej wersji. Aktualizacja nie przeładowuje otwartego formularza.

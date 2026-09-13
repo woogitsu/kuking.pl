@@ -98,7 +98,7 @@ sól do smaku"
                  help="Każdy składnik w osobnej linijce. Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”. Nie musisz nic przeliczać na gramy. To pole możesz zostawić puste i dopisać składniki później." />
 
         {{-- 4. PRZYGOTOWANIE — jedno pole, pusta linia rozdziela kroki. --}}
-        <x-field name="przygotowanie_tekst" label="Przygotowanie" type="textarea" :rows="10"
+        <x-field name="przygotowanie_tekst" label="Przygotowanie" type="textarea" :rows="10" required
                  placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.
 
 Wrzuć warzywa i gotuj na małym ogniu trzy godziny.

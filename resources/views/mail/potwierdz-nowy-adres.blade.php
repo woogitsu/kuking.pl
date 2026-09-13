@@ -62,7 +62,7 @@
                             Jeśli przycisk nie działa, skopiuj ten adres i wklej go w pasku przeglądarki:
                         </p>
 
-                        <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:16px;
+                        <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:18px;
                                   line-height:1.5;color:#555E53;word-break:break-all;">
                             {{ $linkUrl }}
                         </p>
@@ -78,7 +78,7 @@
             </table>
 
             <p style="max-width:600px;margin:20px auto 0;font-family:Arial,Helvetica,sans-serif;
-                      font-size:15px;line-height:1.5;color:#555E53;">
+                      font-size:18px;line-height:1.5;color:#555E53;">
                 Kuking.pl — pokaż, co dziś ugotowałeś.
             </p>
         </td>

@@ -57,7 +57,7 @@ zdjecia/
 
     UWAGA: {{ $ile }} {{ $zdjecia }} nie {{ $zmiescilo }} się w tej paczce.
     W chwili jej budowania {{ $sie }} się jeszcze do pokazania w serwisie.
-    Nic nie zginęło. Poproś o nową paczkę za kilka minut — będzie w niej komplet.
+    Poproś o nową paczkę, gdy przygotowywanie zdjęć się zakończy. Przed usunięciem konta sprawdź, czy zawiera wszystkie Twoje zdjęcia.
 @endif
 
 dane.json

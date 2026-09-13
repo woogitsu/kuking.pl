@@ -337,7 +337,7 @@ new class extends Component
             // Bez nazwy nie da się utworzyć przepisu (PublishRecipe tego pilnuje),
             // więc mówimy wprost, czego brakuje — zamiast cicho nie zapisywać.
             $this->saveState = 'waiting';
-            $this->saveMessage = 'Szkic zapisze się, kiedy podasz nazwę przepisu.';
+            $this->saveMessage = $this->juzOpublikowany ? 'Podaj nazwę przepisu, żeby zapisać zmiany.' : 'Szkic zapisze się, kiedy podasz nazwę przepisu.';
 
             return false;
         }
@@ -346,14 +346,14 @@ new class extends Component
             $this->persist(publish: false);
         } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
-            $this->saveMessage = 'Nie udało się zapisać szkicu: '.$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
+            $this->saveMessage = ($this->juzOpublikowany ? 'Nie udało się zapisać zmian: ' : 'Nie udało się zapisać szkicu: ').$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
 
             return false;
         }
 
         $this->savedThisRequest = true;
         $this->saveState = 'saved';
-        $this->saveMessage = 'Szkic zapisany.';
+        $this->saveMessage = $this->juzOpublikowany ? 'Zmiany zapisane.' : 'Szkic zapisany.';
 
         return true;
     }
@@ -399,7 +399,7 @@ new class extends Component
          */
         if ($this->cleanSteps() === []) {
             $this->step = 3;
-            $this->addError('steps', 'Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
+            $this->addError('steps', $this->juzOpublikowany ? 'Opisz przynajmniej jeden krok przygotowania, żeby zapisać zmiany. Tekst jest dalej w formularzu.' : 'Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
             $this->saveDraft();
 
             return;
@@ -968,7 +968,9 @@ new class extends Component
     <div aria-live="polite">
         <p class="autosave-badge" data-state="{{ $saveState }}"
            wire:loading.remove wire:target="saveDraft, next, back, publish, addIngredient, addStep, removeIngredient, removeStep">
-            @if($saveMessage === '')
+            @if($saveMessage === '' && $juzOpublikowany)
+                Zmiany zapisują się po drodze.
+            @elseif($saveMessage === '')
                 {{-- STAN POCZĄTKOWY MÓWI O WARUNKU, A NIE O SAMEJ AUTOMATYCE.
 
                      Stało tu bezwarunkowe „Szkic zapisuje się sam" i było to
@@ -1041,9 +1043,13 @@ new class extends Component
                  Dlatego PRZYCISK „Zapisz szkic" ZOSTAJE, a znika obietnica
                  automatu bez warunku — nie odwrotnie. --}}
             <p class="meta mb-4">
-                Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie:
-                szkic zapisuje się sam po każdym kroku i po chwili przerwy w pisaniu,
-                a przycisk „Zapisz szkic” robi to od razu.
+                @if($juzOpublikowany)
+                    Zachowaj nazwę i co najmniej jeden krok przygotowania, żeby zapisać zmiany.
+                @else
+                    Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie:
+                @endif
+                {{ $juzOpublikowany ? 'Zmiany zapisują się same' : 'szkic zapisuje się sam' }} po każdym kroku i po chwili przerwy w pisaniu,
+                a przycisk „{{ $juzOpublikowany ? 'Zapisz zmiany' : 'Zapisz szkic' }}” robi to od razu.
             </p>
 
             <x-field name="title" label="Nazwa przepisu" required wire="title"
@@ -1179,7 +1185,7 @@ new class extends Component
                 <p class="field-help">
                     Zdjęcie starej kartki albo zeszytu dodasz na
                     <a href="{{ route('recipes.create.simple') }}">formularzu na jednej stronie</a>,
-                    a przy zapisanym szkicu — w jego edycji.
+                    a przy {{ $juzOpublikowany ? 'opublikowanym przepisie' : 'zapisanym szkicu' }} — w jego edycji.
                 </p>
             </div>
         </section>
@@ -1484,7 +1490,7 @@ new class extends Component
             <button class="btn btn-primary" type="button" wire:click="next">Dalej</button>
         @endif
 
-        <button class="btn btn-secondary" type="button" wire:click="saveDraft">Zapisz szkic</button>
+        <button class="btn btn-secondary" type="button" wire:click="saveDraft">{{ $juzOpublikowany ? 'Zapisz zmiany' : 'Zapisz szkic' }}</button>
         <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
     </div>
 
@@ -1493,7 +1499,11 @@ new class extends Component
     @endif
 
     <p class="field-help">
-        Możesz w każdej chwili zamknąć tę stronę. Szkic zostaje na Twoim koncie
-        i wrócisz do niego ze strony <a href="{{ route('add') }}">Dodaj</a>.
+        @if($juzOpublikowany)
+            Zapisane zmiany widać od razu w przepisie. Do edycji wrócisz ze strony przepisu.
+        @else
+            Możesz w każdej chwili zamknąć tę stronę. Szkic zostaje na Twoim koncie
+            i wrócisz do niego ze strony <a href="{{ route('add') }}">Dodaj</a>.
+        @endif
     </p>
 </div>

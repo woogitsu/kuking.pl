@@ -49,11 +49,11 @@
         @if($opublikowany)
             Przepis jest już opublikowany — tu dopisujesz to, co chcesz dodać:
             porcje, czasy, po kim jest ten przepis, zdjęcia do kroków.
-            <strong>Nic tu nie jest obowiązkowe.</strong>
+            <strong>Nazwa przepisu jest wymagana. Do publikacji i zapisu opublikowanego przepisu potrzebny jest też co najmniej jeden krok przygotowania. Pozostałe szczegóły są opcjonalne.</strong>
             Przechodzimy przez to w trzech krokach, a zmiany zapisują się po drodze.
         @else
             Przechodzimy przez to w trzech krokach: najpierw o przepisie, potem składniki,
-            potem przygotowanie. Na końcu zobaczysz podgląd.
+            potem przygotowanie. Na końcu zobaczysz podgląd. Do zapisania szkicu wystarczy nazwa; do publikacji potrzebny jest też co najmniej jeden krok przygotowania. Pozostałe szczegóły są opcjonalne.
             <strong>Szkic zapisuje się sam</strong> — możesz przerwać w każdej chwili i wrócić później.
         @endif
     </p>

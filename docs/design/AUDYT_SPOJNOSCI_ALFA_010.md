@@ -1,5 +1,9 @@
 # Spójność podstron i wiadomości — Alfa 0.10
 
+To zapis odbioru historycznego pakietu. Niezależny [audyt kompletności Alfa 0.14](AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md)
+wykrył dalsze braki rozmiaru tekstu własnych maili i instrukcji logowania.
+Poniższy sukces testu palety nie oznaczał sprawdzenia tych cech.
+
 Status sprawdzony 13 września 2026: pakiet scalony w PR #494 (PR #493 zamknięty bez osobnego scalenia), obecny na produkcji jako Alfa 0.11, commit `dbd1cb920f872233f8cc8f240f94273f26f634e8`.
 
 Railway: deployment `ba872757-91a9-4850-97bb-1e9dceaba112`, środowisko production, status SUCCESS. Domena kuking.pl odpowiada HTTP 200 i pokazuje Alfa 0.11 / dbd1cb9. To dowód wdrożenia niezależny od wyniku CI.

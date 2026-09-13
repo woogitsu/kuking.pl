@@ -27,7 +27,7 @@ use Tests\TestCase;
  * CZEGO TEN TEST PILNUJE — DWÓCH RZECZY NARAZ, I TO JEST CAŁY SENS.
  *
  *  1. obietnicy o nieprzewijaniu na tym ekranie NIE MA;
- *  2. informacja, po którą człowiek tu przyszedł, ZOSTAŁA: że nic nie jest
+ *  2. informacja, po którą człowiek tu przyszedł, ZOSTAŁA: że dodatkowe szczegóły nie są
  *     obowiązkowe, wypełnia tyle, ile chce, i że poprawnie wpisane dane
  *     nie zginą.
  *
@@ -103,7 +103,7 @@ class EkranSzczegolowNieObiecujeBrakuPrzewijaniaTest extends TestCase
         $this->assertStringNotContainsStringIgnoringCase('nie musisz nic szukać', $wstep);
     }
 
-    public function test_dopisz_szczegoly_nadal_mowi_ze_nic_nie_jest_obowiazkowe(): void
+    public function test_dopisz_szczegoly_nadal_mowi_ze_szczegoly_sa_opcjonalne(): void
     {
         [$autor, $przepis] = $this->autorZPrzepisem();
 
@@ -117,9 +117,9 @@ class EkranSzczegolowNieObiecujeBrakuPrzewijaniaTest extends TestCase
         // Druga połowa poprawki: usunięcie obietnicy nie miało prawa zabrać
         // informacji, po którą człowiek na ten ekran przyszedł.
         $this->assertStringContainsString(
-            'Nic tu nie jest obowiązkowe',
+            'Pozostałe szczegóły są opcjonalne',
             $wstep,
-            'Zniknęła informacja, że żadne pole nie jest wymagane — a to jest '
+            'Zniknęła informacja, że dodatkowe szczegóły nie są wymagane — a to jest '
             .'jedyny powód, dla którego ktoś ten długi formularz w ogóle zaczyna.',
         );
         $this->assertStringContainsString('wypełnij tyle, ile chcesz', $wstep);
@@ -148,7 +148,7 @@ class EkranSzczegolowNieObiecujeBrakuPrzewijaniaTest extends TestCase
 
         $this->assertStringContainsString('Dodaj przepis ze szczegółami', $wstep);
         $this->assertStringNotContainsStringIgnoringCase('przewij', $wstep);
-        $this->assertStringContainsString('Nic tu nie jest obowiązkowe', $wstep);
+        $this->assertStringContainsString('Pozostałe szczegóły są opcjonalne', $wstep);
     }
 
     /**
