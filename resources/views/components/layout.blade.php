@@ -128,6 +128,16 @@
         ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby()
         : [];
 
+    // Suma, nie `array_sum($kolejki)` — nazwy kolejek
+    // wypisane wprost, żeby nowy klucz w `KolejkiPanelu`
+    // (np. licznik czegoś, co nie jest kolejką do
+    // przejrzenia) nie doliczał się tu po cichu.
+    $czekaWPanelu = ($kolejki['bez_odpowiedzi'] ?? 0)
+        + ($kolejki['zgloszenia'] ?? 0)
+        + ($kolejki['sygnaly'] ?? 0)
+        + ($kolejki['odwolania'] ?? 0)
+        + ($kolejki['wiadomosci'] ?? 0);
+
     // ------------------------------------------------------------------
     //  KARTA DO WYSŁANIA RODZINIE (issue #14)
     //
@@ -529,7 +539,7 @@
                             <li><a href="{{ route('profile.show', $user->profile->username) }}">Mój profil</a></li>
                             <li><a href="{{ route('settings.index') }}">Ustawienia</a></li>
                             @if($user->isModerator())
-                                <li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>
+                                <li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>
                             @endif
                             <li><x-wyloguj class="topbar-konto-wyjscie" formClass="topbar-konto-wyjscie-formularz">Wyloguj się</x-wyloguj></li>
                         </ul>
@@ -705,17 +715,7 @@
                             którego AGENTS.md zabrania. Rozbicie na kolejki czeka
                             w panelu, jedno kliknięcie dalej.
                         --}}
-                        @php
-                            // Suma, nie `array_sum($kolejki)` — nazwy kolejek
-                            // wypisane wprost, żeby nowy klucz w `KolejkiPanelu`
-                            // (np. licznik czegoś, co nie jest kolejką do
-                            // przejrzenia) nie doliczał się tu po cichu.
-                            $czekaWPanelu = ($kolejki['bez_odpowiedzi'] ?? 0)
-                                + ($kolejki['zgloszenia'] ?? 0)
-                                + ($kolejki['sygnaly'] ?? 0)
-                                + ($kolejki['odwolania'] ?? 0)
-                                + ($kolejki['wiadomosci'] ?? 0);
-                        @endphp
+
 
                         @if($wTrybiePanelu)
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">

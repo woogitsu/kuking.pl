@@ -2611,6 +2611,20 @@ for (const wariant of WARIANTY) {
       });
     }
 
+
+    // Zapisujemy ten sam wyrenderowany ekran, który bada axe.
+    // Artefakt pozwala odebrać wizualnie wszystkie rodziny, także panel i błędy.
+    if (wariant.nazwa === 'jasny' || wariant.nazwa === '320 px') {
+      mkdirSync('storage/port-projektu/ekrany', { recursive: true });
+      const nazwaPliku = String(EKRANY.indexOf(ekran)).padStart(2, '0') + '-' + wariant.szerokosc;
+      const zrzut = await strona.screenshot({
+        path: 'storage/port-projektu/ekrany/' + nazwaPliku + '.jpg',
+        type: 'jpeg', quality: 60,
+      });
+      if (wariant.nazwa === '320 px' && ['strona powitalna', 'przepis', 'dodaj przepis', 'logowanie', 'czytelność'].includes(ekran.nazwa)) {
+        log('PORT_SCREEN_' + nazwaPliku + ' ' + zrzut.toString('base64'));
+      }
+    }
     const ile = wynik.violations.length;
     zbadanePrzezAxe.add(ekran.nazwa);
     log(`  ${ile === 0 ? '✓' : '✗'} ${ekran.nazwa} (${wariant.nazwa})${ile ? ` — ${ile}` : ''}`);
