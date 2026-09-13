@@ -30,8 +30,10 @@ Pomiar obejmuje 320/360/414 px, tekst 100%/140% i czcionkę przeglądarki
 linków i całej kontrolki w oknie bez pokrycia przez belki. Oddzielne
 rzeczywiste kliknięcia zdjęcia, opisu i wolnego miejsca muszą otworzyć wpis.
 
-Dwie kontrole ujemne zmieniają źródło CSS: kontrolka o wysokości 900 px
-oraz wyłączenie rozciągnięcia kliknięcia. Wymagają porażki właściwego
+Trzy kontrole ujemne zmieniają źródło CSS: kontrolka o wysokości 900 px,
+wyłączenie rozciągnięcia kliknięcia i ukrycie jednej z kart. Zbiór
+odwiedzonych odnośników musi odpowiadać wszystkim oczekiwanym kartom,
+w tym fixture z najdłuższą nazwą. Wymagają porażki właściwego
 pomiaru i sukcesu po przywróceniu przez cp, rebuild i porównaniu MD5.
 Testy DOM nadal wymagają jednego linku i poprawnego rodzicielstwa kolumn.
 

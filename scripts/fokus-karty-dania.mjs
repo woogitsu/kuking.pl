@@ -311,9 +311,17 @@ async function fokus(width, scale, path, dark = false) {
       await document.fonts.ready;
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     }, { scale, dark });
-    const bodyFont = await page.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize));
     const expected = scale === 200 ? 36 : 18 * scale / 100;
-    if (Math.abs(bodyFont - expected) > 0.5) throw new Error('Nie zastosowano skali tekstu');
+    // Przeliczenie układu może nastąpić później niż sam zapis atrybutu.
+    const bodyFont = await page.evaluate(async expected => {
+      for (let proba = 0; proba < 30; proba++) {
+        const size = parseFloat(getComputedStyle(document.body).fontSize);
+        if (Math.abs(size - expected) < 0.5) return size;
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      return parseFloat(getComputedStyle(document.body).fontSize);
+    }, expected);
+    if (Math.abs(bodyFont - expected) > 0.5) throw new Error('Nie zastosowano skali tekstu: ' + JSON.stringify({ scale, expected, bodyFont }));
     const oczekiwane = await page.locator('.kuking-board-post-link').evaluateAll(els => els.map(el => ({
       href: el.getAttribute('href'), nazwa: el.textContent.trim(),
       widoczny: getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().width > 0,
