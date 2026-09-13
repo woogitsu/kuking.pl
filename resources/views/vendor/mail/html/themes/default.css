@@ -1,0 +1,76 @@
+/* Wspólny motyw wiadomości MailMessage. Laravel zamienia te reguły na style
+   inline; treść, linki i wersję tekstową nadal składa framework. */
+body, body *:not(html):not(style):not(br):not(tr):not(code) {
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+body {
+    background-color: #F3F4F1;
+    color: #151714;
+    font-size: 19px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+p, ul, ol, blockquote { font-size: 19px; line-height: 1.6; text-align: left; overflow-wrap: anywhere; }
+p { margin: 0 0 20px; }
+a { color: #BE3025; text-decoration: underline; }
+a img { border: none; }
+img { max-width: 100%; }
+h1 { color: #151714; font-size: 28px; line-height: 1.3; margin: 0 0 20px; }
+h2 { color: #151714; font-size: 24px; line-height: 1.3; margin: 0 0 20px; }
+h3 { color: #151714; font-size: 22px; line-height: 1.3; margin: 0 0 20px; }
+.wrapper, .content, .body, .action {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+.wrapper, .body { background-color: #F3F4F1; }
+.header { padding: 28px 16px; text-align: center; }
+.header a { color: #151714; font-size: 28px; font-weight: bold; text-decoration: none; }
+.header .marka-king { color: #BE3025; }
+.inner-body, .footer {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 570px;
+    margin: 0 auto;
+    padding: 0;
+    width: 570px;
+}
+.inner-body { background-color: #FFFFFF; border: 1px solid #DDE0D8; border-radius: 24px; }
+.content-cell { padding: 32px 28px; }
+.inner-body a, .break-all { overflow-wrap: anywhere; word-break: break-word; }
+.subcopy { border-top: 1px solid #DDE0D8; margin-top: 24px; padding-top: 24px; }
+.subcopy p, p.sub { color: #555E53; font-size: 18px; }
+.footer { text-align: center; }
+.footer p, .footer a { color: #555E53; font-size: 18px; text-align: center; }
+.action { margin: 28px auto; text-align: center; }
+.button {
+    display: inline-block;
+    min-height: 48px;
+    border-radius: 14px;
+    color: #FFFFFF;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 1.6;
+    text-decoration: none;
+    white-space: normal;
+}
+.button-primary, .button-blue, .button-success, .button-green, .button-error, .button-red {
+    background-color: #BE3025;
+    border-top: 12px solid #BE3025;
+    border-bottom: 12px solid #BE3025;
+    border-left: 20px solid #BE3025;
+    border-right: 20px solid #BE3025;
+}
+.table table { width: 100%; margin: 24px auto; }
+.table th { border-bottom: 1px solid #DDE0D8; padding-bottom: 8px; text-align: left; }
+.table td { color: #151714; font-size: 19px; line-height: 1.6; padding: 12px 0; }
+.panel { border-left: 4px solid #BE3025; margin: 24px 0; }
+.panel-content { background-color: #F3F4F1; color: #151714; padding: 16px; }
+.panel-item { padding: 0; }
+.panel-item p:last-of-type { margin-bottom: 0; }

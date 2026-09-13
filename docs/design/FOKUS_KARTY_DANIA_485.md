@@ -23,7 +23,12 @@ kontekst dania. Podgląd i notatka nadal są widoczne i dostępne.
 
 ## Odbiór
 
-Status: poprawka przygotowana, wyniki końcowego CI w toku.
+Status sprawdzony 13 września 2026: scalone w PR #494 i wdrożone jako
+Alfa 0.11, commit `dbd1cb920f872233f8cc8f240f94273f26f634e8`.
+CI #928 (`34749126034`) zakończył się sukcesem; test fokusu przeszedł.
+Railway deployment `ba872757-91a9-4850-97bb-1e9dceaba112` ma status SUCCESS,
+a produkcyjna stopka pokazuje Alfa 0.11 / dbd1cb9. Nie oznacza to ręcznego
+sprawdzenia wszystkich danych produkcyjnych.
 
 Pomiar obejmuje 320/360/414 px, tekst 100%/140% i czcionkę przeglądarki
 200%, oba motywy, /home i /szukaj. Wymaga pełnego przejścia Tab, znalezienia

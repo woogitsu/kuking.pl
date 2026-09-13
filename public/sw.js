@@ -10,11 +10,13 @@
  *
  * Strategia:
  *  - nawigacja (HTML): sieć, a przy jej braku strona offline;
- *  - zasoby z /build/ i /icons/: cache-first, bo są wersjonowane przez Vite;
+ *  - zasoby z /build/: cache-first, bo są wersjonowane przez Vite;
+ *  - ikony i manifest: sieć, a przy jej braku ostatnia zapisana odpowiedź;
  *  - wszystko inne: przepuszczamy do sieci bez dotykania.
  */
 
-const WERSJA = 'kuking-v1';
+// Zmieniaj przy zmianie zasobów startowych, w tym strony offline.
+const WERSJA = 'kuking-alfa-012';
 const OFFLINE_URL = '/offline.html';
 
 const ZASOBY_STARTOWE = [
@@ -66,6 +68,26 @@ self.addEventListener('fetch', (event) => {
         || url.pathname === '/manifest.webmanifest';
 
     if (! cacheowalne) {
+        return;
+    }
+
+    // Ikony i manifest mają stałe adresy, bez skrótu Vite. Cache-first
+    // utrzymywał stary znak nawet po wdrożeniu nowej identyfikacji.
+    if (! url.pathname.startsWith('/build/')) {
+        event.respondWith(
+            fetch(request).then(async (odpowiedz) => {
+                if (odpowiedz.ok && odpowiedz.type === 'basic') {
+                    try {
+                        const cache = await caches.open(WERSJA);
+                        await cache.put(request, odpowiedz.clone());
+                    } catch {
+                        // Pełny magazyn nie unieważnia odpowiedzi z sieci.
+                    }
+                }
+
+                return odpowiedz;
+            }).catch(() => caches.match(request))
+        );
         return;
     }
 

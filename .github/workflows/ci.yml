@@ -931,7 +931,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|fokus-karty-dania)\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|fokus-karty-dania|kroki-kreatora)\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1085,7 +1085,16 @@ jobs:
 
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
+        env:
+          DB_DATABASE: kuking_port_pomiar
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/port-projektu.mjs
+
+      - name: Trzy kroki kreatora przy dużym tekście
+        if: steps.zmiany.outputs.warto == '1'
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/kroki-kreatora.mjs
 
       - name: Regresja bramki kafla dodawania (#484)
         if: steps.zmiany.outputs.warto == '1'
@@ -1108,7 +1117,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: port-projektu-${{ github.sha }}
-          path: storage/port-projektu
+          path: |
+            storage/port-projektu
+            storage/kroki-kreatora
           retention-days: 14
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
