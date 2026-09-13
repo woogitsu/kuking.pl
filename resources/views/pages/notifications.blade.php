@@ -26,10 +26,9 @@
         człowiek na czytniku ekranu usłyszał „lista, 30 pozycji" zamiast
         trzydziestu niepowiązanych bloków.
 
-        Bierzemy z tego SEMANTYKĘ, nie kształt: `.lista-naga` (klasa aplikacji)
-        zdejmuje kropki i wcięcie, a karty zostają kartami. Kształt wiersza
-        (`.lista-wierszy` + `.wiersz`) to osobna decyzja — patrz komentarz przy
-        `<article class="card">` niżej.
+        `.lista-naga` zachowuje tę semantykę. D-212 przenosi kompozycję
+        zwykłych zdarzeń z prototypu: awatar, treść i akcja obok siebie,
+        gdy jest na to miejsce. Pełne decyzje zachowują własny układ.
     --}}
     {{-- `count()` to liczba pozycji NA TEJ STRONIE — dokładnie ten sam warunek,
          który miał wcześniej `@forelse`. `total()` z przycisku wyżej liczy
@@ -40,6 +39,13 @@
         @php
             $actor = $notification->actor;
             $data = $notification->data ?? [];
+            $zwykleZdarzenie = in_array($notification->type, [
+                \App\Models\Notification::TYPE_COOKED,
+                \App\Models\Notification::TYPE_COMMENT,
+                \App\Models\Notification::TYPE_REPLY,
+                \App\Models\Notification::TYPE_FOLLOW,
+                \App\Models\Notification::TYPE_SAVED,
+            ], true);
 
             /*
              * UZASADNIENIE DECYZJI MODERACYJNEJ (DSA art. 17 ust. 3).
@@ -64,27 +70,18 @@
                 : \App\Domain\Moderation\UzasadnienieDecyzji::zdania($decyzjaModeracyjna);
         @endphp
         {{--
-            KSZTAŁT KARTY ZOSTAJE — wygrywa aplikacja, wbrew §13 systemu.
-
-            System chce tu `.wiersz` w `.lista-wierszy`, bo „to krótkie,
-            jednorodne pozycje, a karta w tym miejscu udaje treść, której nie
-            ma". U nas ta przesłanka jest nieprawdziwa: powiadomienie od
-            moderacji niesie uzasadnienie decyzji z DSA art. 17 (kilka
-            akapitów) i do dwóch przycisków — „Zobacz" oraz „Odwołanie od tej
-            decyzji". Ten sam system zabrania wiersza z dwiema akcjami i chce,
-            żeby cały wiersz był jednym linkiem; to jest zmiana ZACHOWANIA,
-            nie wyglądu, więc nie rozstrzygam jej sam (pytanie do właściciela
-            w raporcie).
-
-            Zdjęte: martwa klasa `style-unread`. Nie ma dla niej reguły
-            w żadnym arkuszu ani w żadnym teście od pierwszego commita.
+            D-212: tylko pięć nazwanych zwykłych zdarzeń dostaje akcję obok
+            treści. Decyzje moderacyjne, zgłoszenia i pozostałe typy zachowują
+            pełne akapity oraz wszystkie działania. Nowy typ nie dziedziczy
+            wąskiego układu automatycznie. Karta nie staje się linkiem:
+            odczyt nadal zapisuje prawdziwy formularz POST.
         --}}
-        <li><article class="card mb-3 @if($notification->isUnread()) notification-nieprzeczytane @endif">
-            <div class="flex gap-3 items-start">
+        <li><article @class(['card mb-3', 'notification-nieprzeczytane' => $notification->isUnread(), 'marka-powiadomienie-zwykle' => $zwykleZdarzenie])>
+            <div class="flex gap-3 items-start powiadomienie-wiersz">
                 @if($actor)
-                    <x-avatar :user="$actor" :size="44" />
+                    <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
                 @endif
-                <div class="min-w-0">
+                <div class="min-w-0 powiadomienie-tresc">
                     <p class="m-0 mb-1">
                         {{--
                             NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę

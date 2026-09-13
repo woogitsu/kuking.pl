@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.20 — zainteresowania i powiadomienia
+
+- Wybór zainteresowań ma większe kafle rzeczywistych tematów; wszystkie trzy kroki pozostają opcjonalne.
+- Instrukcja nie obiecuje wypełnienia strony głównej przy braku treści.
+- Zwykłe powiadomienia ustawiają akcję obok treści na szerokim ekranie; pełne decyzje moderacyjne zachowują dotychczasową strukturę.
+
 ## Alfa 0.19 — zeszyty zgodne z wizualizacją
 
 - Zeszyty mają ciemne karty, a ostatnie zapisy znajdują się pod nimi w głównej części strony.
