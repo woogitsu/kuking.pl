@@ -59,7 +59,7 @@ class SpojnoscWiadomosciMarkiTest extends TestCase
             'sizeText' => '2 MB',
             'waznoscTekst' => '15 minut',
             'waznyDo' => now()->addDay(),
-            'napisanaKiedy' => '13 września 2026',
+            'napisanaKiedy' => now(),
             'rodzaj' => 'Pomysł',
             'tresc' => 'Dziękujemy za wiadomość.',
             'adresKontaktowy' => 'kontakt@kuking.test',
