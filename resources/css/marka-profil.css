@@ -1,6 +1,13 @@
 /* Kompozycja profilu z oryginalnej wizualizacji. Dane liczy kontroler;
    tutaj wybieramy jedno widoczne miejsce wspólnych liczników. */
 @layer marka {
+  /* Ogólny limit dzieci szerokiego main chroni tekst przepisu. Profil
+     potrzebuje pełnej ramy dla nagłówka, liczb i własnego układu z szyną. */
+  .app-body-tresc-z-szyna .app-main > :is(.marka-profil-kompozycja, .marka-profil-statystyki, .marka-profil-dol) {
+    width: 100%;
+    max-width: none;
+  }
+
   .marka-profil-kompozycja {
     container-type: inline-size;
     padding: clamp(20px, 3vw, 40px);
@@ -91,10 +98,21 @@
     min-width: 0;
   }
 
+  .marka-profil-archiwum {
+    width: 100%;
+    max-width: 750px;
+  }
+
   .marka-profil-szyna {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
     align-content: start;
+  }
+
+  .marka-profil-szyna > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
   @media (min-width: 80rem) {

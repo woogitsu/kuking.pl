@@ -9,9 +9,14 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
   const paths = ['/login', '/register', '/', przepis, bezZdjecia, '/@ania', '/@zofia_z_bieszczad'];
   const wyniki = [];
   async function pomiar(page, path, wariant = null) {
-    const response = await page.goto(adres + path, { waitUntil: 'networkidle' });
+    const response = await page.goto(adres + path, { waitUntil: 'load' });
     if (response.status() !== 200) throw new Error('K509_HTTP ' + path + ' ' + response.status());
-    await page.evaluate(async () => { await document.fonts.ready; for (let i = 0; i < 30; i++) await new Promise(requestAnimationFrame); });
+    await page.evaluate(() => document.fonts.ready);
+    if (wariant) {
+      const expected = 18 * (String(wariant.scale).startsWith('font-200') ? 2 : 1) * (wariant.scale === 140 || wariant.scale === 'font-200+140' ? 1.4 : 1);
+      await page.waitForFunction(({value, dark}) => Math.abs(parseFloat(getComputedStyle(document.body).fontSize) - value) < .15 && getComputedStyle(document.body).color === (dark ? 'rgb(244, 245, 241)' : 'rgb(21, 23, 20)'), {value:expected,dark:wariant.dark});
+    }
+    await page.evaluate(async () => { for (let i = 0; i < 2; i++) await new Promise(requestAnimationFrame); });
     const r = await page.evaluate(() => {
       const visible = el => {
         if (!el || el.getBoundingClientRect().width <= 0 || el.getBoundingClientRect().height <= 0) return false;
