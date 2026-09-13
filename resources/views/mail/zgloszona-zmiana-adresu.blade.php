@@ -80,8 +80,8 @@
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#555E53;">
-                            Nie pamiętasz hasła albo coś tu wygląda niepokojąco? Napisz do nas na
-                            {{ config('kuking.community.contact_email') }}. Odpisuje człowiek.
+                            Jeśli nie pamiętasz hasła albo nie rozpoznajesz tej prośby, napisz do nas na
+                            {{ config('kuking.community.contact_email') }}.
                         </p>
 
                     </td>

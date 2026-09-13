@@ -45,8 +45,7 @@
                             <strong>Nikt nie wszedł i nic się nie zmieniło.</strong> Ktoś kliknął
                             „Wejdź kontem Facebooka", a adres e-mail z tamtego konta na Facebooku
                             jest taki sam jak adres Twojego konta w Kuking. Nie wpuściliśmy go —
-                            Facebook nie mówi nam, czy ta skrzynka naprawdę należy do osoby
-                            siedzącej przed ekranem, a my nie zgadujemy przy wejściu na konto.
+                            Facebook nie potwierdza nam, czy ta skrzynka należy do osoby próbującej się zalogować.
                         </p>
 
                         <p style="margin:0 0 12px;font-size:18px;color:#555E53;">
@@ -87,8 +86,8 @@
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#555E53;">
-                            Masz pytanie albo coś tu wygląda niepokojąco? Napisz do nas na
-                            {{ config('kuking.community.contact_email') }}. Odpisuje człowiek.
+                            Jeśli masz pytanie dotyczące tej próby logowania, napisz do nas na
+                            {{ config('kuking.community.contact_email') }}.
                         </p>
 
                     </td>

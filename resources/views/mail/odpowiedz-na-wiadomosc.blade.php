@@ -58,9 +58,8 @@
                         </table>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
-                            Jeśli to nie wyjaśnia sprawy, odpisz na tę wiadomość —
-                            odpowiedź trafi do nas na
-                            <strong>{{ $adresKontaktowy }}</strong> i przeczyta ją człowiek.
+                            Jeśli to nie wyjaśnia sprawy, odpisz na tę wiadomość. Odpowiedź trafi do nas na
+                            <strong>{{ $adresKontaktowy }}</strong>.
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#555E53;">

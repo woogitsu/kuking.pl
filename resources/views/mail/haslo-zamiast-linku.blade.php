@@ -98,8 +98,8 @@
                         </p>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
-                            Następnym razem będzie już zwyczajnie. To kliknięcie potwierdza adres, więc
-                            kolejna prośba o link do zalogowania zadziała tak, jak się tego spodziewasz.
+                            Ustawienie hasła potwierdzi adres e-mail. Przy kolejnym logowaniu możesz
+                            poprosić o link do wejścia na konto.
                         </p>
 
                         <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
@@ -117,9 +117,8 @@
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#555E53;">
-                            Konto na tym adresie powstało bez Twojej wiedzy albo cokolwiek tu nie gra?
-                            Napisz do nas na {{ config('kuking.community.contact_email') }} —
-                            odpisuje człowiek.
+                            Jeśli konto na tym adresie powstało bez Twojej wiedzy albo nie możesz ustawić hasła,
+                            napisz do nas na {{ config('kuking.community.contact_email') }}.
                         </p>
 
                     </td>

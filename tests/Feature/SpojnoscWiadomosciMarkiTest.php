@@ -28,6 +28,8 @@ class SpojnoscWiadomosciMarkiTest extends TestCase
             $this->assertStringContainsString('<body', $html, $widok);
             $this->assertStringContainsString('#F3F4F1', $html, $widok);
             $this->assertStringContainsString('Arial,Helvetica,sans-serif', $html, $widok);
+            $this->assertStringNotContainsString('odpisuje człowiek', mb_strtolower(strip_tags($html)), $widok);
+            $this->assertStringNotContainsString('przeczyta ją człowiek', mb_strtolower(strip_tags($html)), $widok);
             foreach (['#FAF6F0', '#E4DACB', '#2B241D', '#5C5347', '#B3401F', '#2F6B3A', 'Georgia'] as $staryStyl) {
                 $this->assertStringNotContainsString($staryStyl, $html, $widok);
             }

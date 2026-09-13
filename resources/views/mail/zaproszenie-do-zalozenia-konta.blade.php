@@ -94,8 +94,7 @@
                         </p>
 
                         <p style="margin:0;font-size:18px;color:#555E53;">
-                            Coś tu nie gra? Napisz do nas na {{ config('kuking.community.contact_email') }} —
-                            odpisuje człowiek.
+                            Jeśli nie możesz założyć konta, napisz do nas na {{ config('kuking.community.contact_email') }}.
                         </p>
 
                     </td>
