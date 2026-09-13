@@ -324,7 +324,7 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
         for ($rodzic = $wezel?->parentNode; $rodzic !== null; $rodzic = $rodzic->parentNode) {
             if ($rodzic instanceof DOMElement
                 && $rodzic->tagName === 'aside'
-                && str_contains($rodzic->getAttribute('class'), 'app-rail')) {
+                && str_contains($rodzic->getAttribute('class'), 'marka-profil-szyna')) {
                 return true;
             }
         }

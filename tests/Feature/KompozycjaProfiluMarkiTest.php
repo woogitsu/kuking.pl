@@ -23,6 +23,7 @@ class KompozycjaProfiluMarkiTest extends TestCase
         $html = $this->actingAs($owner)->get(route('profile.show', 'profilkompozycja'))
             ->assertOk()->getContent();
         $xpath = $this->sprawdzKompozycje($html, 2);
+        $this->assertSame(1, $xpath->query('//aside[@aria-label="Skróty i podpowiedzi profilu"]')->length);
         $header = '//header[contains(@class,"marka-profil-kompozycja")]';
         foreach (['settings.avatar', 'settings.profile', 'settings.index', 'posts.create'] as $route) {
             $this->assertSame(1, $xpath->query($header.'//a[@href="'.route($route).'"]')->length, $route);
@@ -52,6 +53,7 @@ class KompozycjaProfiluMarkiTest extends TestCase
         $this->user('profilkompozycja');
         $html = $this->get(route('profile.show', 'profilkompozycja'))->assertOk()->getContent();
         $xpath = $this->sprawdzKompozycje($html, 0);
+        $this->assertSame(0, $xpath->query('//aside[@aria-label="Skróty i podpowiedzi profilu"]')->length);
         $header = '//header[contains(@class,"marka-profil-kompozycja")]';
         $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('register').'"]')->length);
         $this->assertSame(0, $xpath->query($header.'//form')->length);
@@ -76,7 +78,9 @@ class KompozycjaProfiluMarkiTest extends TestCase
         foreach (['social.followers', 'social.following'] as $route) {
             $this->assertSame(1, $xpath->query($stats.'//a[@href="'.route($route, 'profilkompozycja').'"]')->length);
         }
-        $this->assertSame(1, $xpath->query($stats.'/following-sibling::*[1][@aria-label="Zakładki profilu"]')->length);
+        $dol = $stats.'/following-sibling::*[1][contains(@class,"marka-profil-dol")]';
+        $this->assertSame(1, $xpath->query($dol.'//*[@aria-label="Zakładki profilu"]')->length);
+        $this->assertSame(1, $xpath->query('//*[contains(@class,"app-body-tresc-z-szyna")]')->length);
 
         return $xpath;
     }

@@ -1,5 +1,6 @@
 @php $p = $profile; @endphp
 <x-layout
+    :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
     :description="$p->bio ?: $p->display_name.' gotuje w Kuking.'"
     :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0"
@@ -28,28 +29,10 @@
         @endif
     </x-slot:head>
 
-    {{--
-        PRAWA SZYNA (issue #205). Treść i uzasadnienie: `szyna-profilu`.
-
-        Slot stoi TUTAJ, na górze pliku, a mimo to w gotowym dokumencie
-        `<aside class="app-rail">` renderuje się PO `<main>` — Blade wstawia
-        zawartość slotu tam, gdzie ten slot stoi w LAYOUCIE. Kolejność `Tab`
-        i czytnika ekranu się więc nie zmienia (ten sam mechanizm co przy
-        spisie ustawień, #209), i dlatego nie ma tu żadnego CSS-owego `order`.
-    --}}
-    <x-slot:rail>
-        <x-szyna-profilu
-            :profile="$p"
-            :isOwner="$isOwner"
-            :zeszyty="$zeszytySzyny"
-            :tagi="$tagiSzyny"
-            :stats="$stats" />
-    </x-slot:rail>
-
     {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
          wpisów, przepisów i wykonań, i to one mają się unosić. --}}
     <header class="sekcja-strony mb-6 marka-profil marka-profil-kompozycja blok-ciemny">
-        
+
         <div class="profil-glowka-tresc">
             {{--
                 WŁASNY AWATAR JEST ODNOŚNIKIEM DO USTAWIENIA ZDJĘCIA.
@@ -163,7 +146,7 @@
                     <p class="whitespace-pre-line mb-4">{{ $p->bio }}</p>
                 @endif
 
-                
+
 
             </div>
         </div>
@@ -274,6 +257,9 @@
         <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
     </div>
 
+    @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty(); @endphp
+    <div class="marka-profil-dol {{ $maSzyneProfilu ? 'marka-profil-dol-z-szyna' : '' }}">
+    <div class="marka-profil-archiwum">
     <nav class="tabs" aria-label="Zakładki profilu">
         <a class="tab" href="{{ route('profile.show', $p->username) }}" @if($tab === 'wszystko') aria-current="page" @endif>Wszystko</a>
         <a class="tab" href="{{ route('profile.show', ['username' => $p->username, 'zakladka' => 'przepisy']) }}" @if($tab === 'przepisy') aria-current="page" @endif>Przepisy</a>
@@ -359,4 +345,12 @@
             <x-show-more :paginator="$cookedEvents" czego="wykonań" />
         @endif
     @endif
+    </div>
+    @if($maSzyneProfilu)
+        <aside class="marka-profil-szyna" aria-label="Skróty i podpowiedzi profilu">
+            <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny"
+                :tagi="$tagiSzyny" :stats="$stats" />
+        </aside>
+    @endif
+    </div>
 </x-layout>

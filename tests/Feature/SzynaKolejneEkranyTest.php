@@ -43,7 +43,8 @@ class SzynaKolejneEkranyTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
 
-        $szyna = $xpath->query("//aside[contains(concat(' ', normalize-space(@class), ' '), ' app-rail ')]")->item(0);
+        $klasaSzyny = str_contains(parse_url($url, PHP_URL_PATH) ?: '', '/@') ? 'marka-profil-szyna' : 'app-rail';
+        $szyna = $xpath->query("//aside[contains(concat(' ', normalize-space(@class), ' '), ' {$klasaSzyny} ')]")->item(0);
 
         $this->assertNotNull($szyna, "Ekran {$url}: brak <aside class=\"app-rail\"> — szyna nie ma gdzie stanąć.");
 
@@ -283,7 +284,8 @@ class SzynaKolejneEkranyTest extends TestCase
             $html = $this->strona($url, $ja);
 
             $tresc = strpos($html, 'id="tresc"');
-            $szyna = strpos($html, 'class="app-rail"');
+            $klasaSzyny = str_contains(parse_url($url, PHP_URL_PATH) ?: '', '/@') ? 'marka-profil-szyna' : 'app-rail';
+            $szyna = strpos($html, 'class="'.$klasaSzyny.'"');
 
             $this->assertIsInt($tresc, "Ekran {$url}: brak <main id=\"tresc\">.");
             $this->assertIsInt($szyna, "Ekran {$url}: brak <aside class=\"app-rail\">.");

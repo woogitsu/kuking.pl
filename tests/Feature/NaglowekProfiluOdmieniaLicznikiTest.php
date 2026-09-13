@@ -290,7 +290,7 @@ class NaglowekProfiluOdmieniaLicznikiTest extends TestCase
     {
         $css = (string) file_get_contents(resource_path('css/ekran-profilu.css'));
         $marka = (string) file_get_contents(resource_path('css/marka-profil.css'));
-        $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, 9rem), 1fr))', $marka);
+        $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, calc(11rem * var(--user-text-scale, 1))), 1fr))', $marka);
 
         // Asercja kontrolna: czytamy naprawdę arkusz profilu.
         $this->assertStringContainsString('.profil-glowka-tresc', $css);

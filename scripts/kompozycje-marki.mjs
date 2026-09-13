@@ -45,6 +45,7 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
         profile: box('.marka-profil-kompozycja'), identity: box('.marka-profil-kompozycja .profil-tozsamosc'), avatar: box('.marka-profil-kompozycja .avatar'),
         profileGrid: box('.marka-profil-kompozycja .profil-glowka-tresc'), stats: box('.marka-profil-statystyki'),
         counters: document.querySelectorAll('.profil-liczby-karta').length,
+        counterBoxes: [...document.querySelectorAll('.marka-profil-statystyki .profil-licznik')].map(el => ({y:el.getBoundingClientRect().y,width:el.getBoundingClientRect().width})),
       };
     });
     if (wariant) {
@@ -82,7 +83,8 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
       if (!r.profile || !r.stats || r.stats.y < r.profile.bottom - 1 || r.counters !== 1) throw new Error('K509_PROFIL liczniki');
       if (r.statsVisible.length === 0 || r.statsVisible.some(v => !v)) throw new Error('K509_PROFIL niewidoczne liczby lub podpisy');
       if (r.avatar.width < 169 || r.avatar.height < 169) throw new Error('K509_PROFIL awatar');
-      if (r.profileGrid.width >= 576 && r.identity.x < r.avatar.right) throw new Error('K509_PROFIL kolumny');
+      if (r.profileGrid.width >= 36 * r.rootFont && r.identity.x < r.avatar.right) throw new Error('K509_PROFIL kolumny');
+      if (r.width === 1440 && wariant?.scale === 100 && (r.profile.width < 1100 || r.counterBoxes.length !== 5 || r.counterBoxes.some(b => Math.abs(b.y-r.counterBoxes[0].y)>1))) throw new Error('K509_PROFIL szeroka główka i pięć pól');
     }
     return r;
   }
