@@ -3,6 +3,28 @@
 Poniższy tekst jest promptem do przekazania kolejnemu modelowi. Statusy są
 zapisem sesji, nie gwarancją aktualnego stanu. Najpierw sprawdź GitHub.
 
+## Aktualizacja po wznowieniu
+
+Push commita `9b6bf6aa04b01587e17ae0fe49b2e7a7a5a9262d` zakończył się
+sukcesem po pełnym wymaganym hooku. Robocze zmiany zapisano jako
+**draft PR #519**. Po wznowieniu dokończono regresję #513: pełny port
+przeszedł 432 wcześniejsze konfiguracje, 96 zeszytów, 96 nowych ekranów,
+80 rzeczywistych zoomów i kontrole ujemne. Kreator: 24/24. Nowe PHP
+ma rzeczywiste negatywy; końcowy niezależny review nie zgłosił blokad.
+Bieżący raport: `docs/design/ZAINTERESOWANIA_POWIADOMIENIA_513.md`.
+Przed scaleniem pozostają potwierdzenie końcowego hooka oraz CI nowego
+commita, potem osobny odbiór produkcji. Nie przypisuj im starego wyniku CI.
+
+Użytkownik potwierdził: na Alfa 0.19 nie widzi już ramki tytułów #518.
+Nie dodano spekulacyjnego blur ani usunięcia fokusu. Zgłoszenie ma
+aktualizację obserwacji w `docs/design/DIAGNOZA_RAMKI_TYTULU.md`.
+
+Alfa 0.19 została potwierdzona na produkcji: Railway deployment
+`6426180376` success, main CI `34781348552` success, Deploy
+`34782396483` success. Publiczne HTTP i zalogowany Chrome pokazują
+`34b4b61`. Szczegóły: `docs/design/ODBIOR_PRODUKCJI_ALFA_019.md`.
+Poniższe wcześniejsze wzmianki o oczekiwaniu opisują stan historyczny.
+
 ## Zadanie i uprawnienia
 
 Przejmujesz rozpoczętą pracę w repozytorium

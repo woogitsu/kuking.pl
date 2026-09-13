@@ -128,23 +128,23 @@
                         --}}
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
-                                <strong>{{ $actor?->displayName() }} — ugotowane z Twojego przepisu</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — ugotowane z Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
                                 @if($data['has_photo'] ?? false) Jest zdjęcie. @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
-                                <strong>{{ $actor?->displayName() }} — nowy komentarz.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — nowy komentarz.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)
-                                <strong>{{ $actor?->displayName() }} — nowa odpowiedź.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — nowa odpowiedź.</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
-                                <strong>{{ $actor?->displayName() }} zaczyna Cię obserwować.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_SAVED)
-                                <strong>{{ $actor?->displayName() }} ma Twój przepis</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} ma Twój przepis</strong>
                                 „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)

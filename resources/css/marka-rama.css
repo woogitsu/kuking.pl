@@ -65,6 +65,7 @@
 [data-marka] .marka-rama.app-body-powitalny > .app-main,
 [data-marka] .marka-rama.app-body-tresc-z-szyna > .app-main { max-width: none; }
 [data-marka] .app-main > h1,
+[data-marka] .marka-onboarding > h1,
 [data-marka] .start-powitanie,
 [data-marka] .przepis-uklad > header h1 {
   font-size: calc(clamp(2.125rem, 3.6vw, 3.25rem) * var(--user-text-scale, 1));
@@ -72,7 +73,8 @@
   font-weight: 800;
   letter-spacing: -.045em;
 }
-[data-marka] .app-main > h1 { margin-bottom: var(--spacing-6); }
+[data-marka] .app-main > h1,
+[data-marka] .marka-onboarding > h1 { margin-bottom: var(--spacing-6); }
 [data-marka] .start-powitanie { margin-bottom: 0; }
 [data-marka] .start-nadtytul { font-size: var(--text-help); font-weight: 800; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .08em; }
 [data-marka] .start-naglowek { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 26px; }

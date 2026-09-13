@@ -78,3 +78,18 @@ PR #517 scalono do main `34b4b61109ebd1e1c808066191609672cd5ae332`.
 CI PR `34780301310`: wszystkie dziewięć zadań success; PHP 3707 testów
 i 74853 asercje. To aktualizuje status CI, nie rozszerza zakresu wizualnego
 powyższej macierzy. Stan produkcji należy odczytać osobno w przekazaniu.
+
+## Aktualizacja #513 — odbiór lokalny, przed scaleniem
+
+Raport [zainteresowań i powiadomień](ZAINTERESOWANIA_POWIADOMIENIA_513.md)
+rozszerza dwa wiersze macierzy o 96 konfiguracji, 16 nowych wariantów
+rzeczywistego zoomu, pełne decyzje moderacyjne i rzeczywiste lokalne POST.
+Obejrzano reprezentatywne zrzuty 320/140 oraz desktop 1440 w obu motywach. Końcowy pełny port przeszedł z 80 rzeczywistymi zoomami dziesięciu tras i sześcioma negatywami zoomu; nie rozszerza to wyniku na inne trasy. Dodatkowe osiem
+pustych stron i cztery przejścia paginacji mają tylko dowód HTTP, treści
+i braku poziomego overflow; nie dziedziczą pełnych skal ani Tab.
+
+Produkcja Alfa 0.19 jest potwierdzona dla `34b4b61`: [osobny odbiór](ODBIOR_PRODUKCJI_ALFA_019.md).
+Zmiany Alfa 0.20 pozostają w draft PR #519, przed końcowym CI i wdrożeniem.
+Status pełnego portu marki pozostaje **CZĘŚCIOWO**. Ta aktualizacja nie
+rozszerza odbioru na wszystkie typy wiadomości, klientów poczty, panele
+moderatora ani pozostałe zakresy #514–516.

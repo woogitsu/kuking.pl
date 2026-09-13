@@ -121,8 +121,11 @@ wyjątku w teście ani nie osłabiono kontroli odnośników.
 
 PR #517 scalono do main `34b4b61109ebd1e1c808066191609672cd5ae332`.
 CI PR `34780301310`: wszystkie dziewięć zadań success, w tym PHP
-3707 testów / 74853 asercje. W chwili aktualizacji wdrożenie tego SHA
-pozostaje w toku; nie jest potwierdzone samym CI.
+3707 testów / 74853 asercje. Następnie potwierdzono wdrożenie tego SHA:
+Railway `6426180376`, main CI `34781348552` i Deploy `34782396483`
+zakończyły się sukcesem. Metryczka produkcji oraz zalogowana przeglądarka
+pokazują Alfa 0.19 / `34b4b61`. Szczegóły i ograniczenia oglądu:
+`docs/design/ODBIOR_PRODUKCJI_ALFA_019.md`.
 
 Dodatkowo odebrano lokalnie 20 wariantów pustych stanów, otwartego
 formularza, rzeczywistej walidacji oraz kolekcji samych wpisów.

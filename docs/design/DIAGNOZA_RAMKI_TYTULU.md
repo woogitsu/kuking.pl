@@ -2,6 +2,17 @@
 
 Status: brak potwierdzonej reprodukcji. Root nie odtworzył problemu po odświeżeniu produkcyjnego zeszytu; użytkownik nie wskazał jeszcze konkretnej strony. Poniższe ustalenia pochodzą z odczytu kodu, nie z reprodukcji w przeglądarce. Nie zmieniono źródeł aplikacji ani nie uruchomiono pełnych testów.
 
+## Aktualizacja po wdrożeniu Alfa 0.19
+
+Użytkownik potwierdził, że na Alfa 0.19 już nie widzi objawu. Próby
+wejścia i odświeżenia produkcyjnego zeszytu oraz powiadomień również
+nie odtworzyły ramki. Odczyt h1 powiadomień wykazał brak focus-visible,
+border 0 px i outline-style none; aktywnym elementem był BODY.
+
+Nie ustalono przyczyny historycznego objawu. Nie przypisujemy jego
+zniknięcia konkretnej zmianie bez dowodu i nie wprowadzamy dodatkowego
+wyłączania obrysu ani blur. Wcześniejsza diagnoza pozostaje poniżej.
+
 ## Potwierdzone w kodzie
 
 - resources/css/tokens.css:678–685: globalne :focus usuwa outline, natomiast :focus-visible rysuje obrys3px kolorem --color-focus, offset2px, mały promień. To może wyglądać jak ramka wokół tekstu linku. Kliknięcie poza element przenosi fokus i usuwa obrys.
