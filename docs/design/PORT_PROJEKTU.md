@@ -1,10 +1,11 @@
 # Pełny port projektu Kuking do aplikacji
 
-12 września 2026. **Status: implementacja, weryfikacja w toku.**
+13 września 2026. **Status: scalono, zweryfikowano i wdrożono Alfa 0.9.**
 
-Ten dokument określa zakres i kryteria odbioru. Wiersze tabeli nie oznaczają
-zaliczonych testów ani zakończonego wdrożenia. Wyniki Alfa 0.8 dotyczą
-wcześniejszej integracji palety i nie potwierdzają tego portu.
+Ten dokument określa zakres i kryteria odbioru. Wyniki i ograniczenia
+zapisano w [raporcie Alfa 0.9](WERYFIKACJA_ALFA_09.md). Wiersze tabeli
+opisują zakres, nie indywidualne testy. Wyniki Alfa 0.8 dotyczą wcześniejszej
+integracji palety i nie są dowodem odbioru tego portu.
 
 ## Cel i źródło
 
@@ -90,11 +91,15 @@ Weryfikację tego widoku należy odnotować oddzielnie, z zakresem i ograniczeni
 
 ## Stan dowodów
 
-Na etapie sporządzenia dokumentu trwa implementacja i weryfikacja. Nie
-przypisujemy temu portowi wyników wcześniejszej Alfa 0.8 ani zrzutów samego
-prototypu. Raport odbioru powinien podać commit, adres przebiegu CI, listę
-sprawdzonych ekranów, wyniki i otwarte ograniczenia. Dopiero na tej podstawie
-można zmienić status na zweryfikowany oraz wdrożony.
+Kod scalono w PR #488 jako `66980acc83ea8298b76771682e4bda96264a6484`.
+CI gałęzi i main zakończyły się sukcesem. Railway potwierdził produkcję
+13 września 2026 o 03:29 UTC; test dymny sprawdził również nową ramę
+w serwowanym HTML oraz zbudowanym CSS.
+
+[Raport odbioru](WERYFIKACJA_ALFA_09.md) podaje przebiegi, zakres oglądanych
+zrzutów i ograniczenia, w tym sześć ostrzeżeń częściowego zasłonięcia
+fokusu długiej nazwy przy powiększeniu. Nie przeprowadzono badania 50+
+ani logowania na prywatne konto produkcyjne w celu odbioru wizualnego.
 
 ## Dokumentacja i wycofanie
 
