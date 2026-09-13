@@ -1,8 +1,9 @@
 # Konstytucja marki Kuking
 
-Wersja 1.2, 12 września 2026. Kierunek pełnego portu zaakceptowany przez
-właściciela. Status wykonania: implementacja, weryfikacja w toku. Ten dokument
-opisuje standard marki, nie potwierdza zakończonego wdrożenia.
+Wersja 1.2, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
+Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
+odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
 
 ## Rdzeń
 
