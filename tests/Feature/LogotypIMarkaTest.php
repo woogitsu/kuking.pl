@@ -198,7 +198,7 @@ class LogotypIMarkaTest extends TestCase
         // wszędzie tam SVG jest osobnym dokumentem i `currentColor` znaczy
         // czerń. Kolory MUSZĄ tu być wpisane wprost. To jest odwrotna zasada
         // niż w komponencie i łatwo je pomylić.
-        $this->assertStringContainsString('#B3401F', $svg);
+        $this->assertStringContainsString('#BE3025', $svg);
         $this->assertStringNotContainsString('currentColor', $svg);
 
         // Favicon w ciemnym motywie ma brać jaśniejszy odcień — `prefers-color-scheme`
@@ -242,7 +242,7 @@ class LogotypIMarkaTest extends TestCase
         // Ten plik idzie do programów graficznych i na drukarkę, gdzie kolor
         // ustawia człowiek. Łatwo pomylić te dwie zasady, stąd osobny test.
         $this->assertStringContainsString('currentColor', $mono);
-        $this->assertStringNotContainsString('#B3401F', $mono);
+        $this->assertStringNotContainsString('#BE3025', $mono);
 
         // Bez połysku i uśmiechu: przy jednym kolorze te linie zlewają się
         // z tłem garnka i znak robi się plamą. Naklejka ma 20 mm.
