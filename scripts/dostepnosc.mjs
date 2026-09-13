@@ -3655,6 +3655,17 @@ async function przejdzTabemIZmierzFocus(strona) {
         return zaslonietych / (SIATKA * SIATKA);
       }
 
+      const prostokat = (element) => element ? element.getBoundingClientRect().toJSON() : null;
+      const geometria = {
+        klasa: el.className,
+        rodzic: el.parentElement?.className,
+        ramka: prostokat(el),
+        topbar: prostokat(document.querySelector('.topbar')),
+        bottomNav: prostokat(document.querySelector('.bottom-nav')),
+        scrollPaddingTop: getComputedStyle(document.documentElement).scrollPaddingTop,
+        scrollPaddingBottom: getComputedStyle(document.documentElement).scrollPaddingBottom,
+      };
+
       const opis = `${el.tagName.toLowerCase()}`
         + (el.id ? `#${el.id}` : '')
         + (el.getAttribute('aria-label') ? ` [aria-label="${el.getAttribute('aria-label')}"]` : '')
@@ -3662,6 +3673,7 @@ async function przejdzTabemIZmierzFocus(strona) {
 
       return {
         opis,
+        geometria,
         pokrycieTopbar: pokrycieNakladki('.topbar'),
         pokrycieBottomNav: pokrycieNakladki('.bottom-nav'),
       };
@@ -3831,6 +3843,8 @@ for (const szerokosc of SZEROKOSCI_FOCUS) {
           ['.bottom-nav', krok.pokrycieBottomNav],
         ]) {
           if (pokrycie === null || pokrycie === 0) continue;
+
+          console.log('FOCUS_GEOMETRIA ' + JSON.stringify({ ekran: ekran.nazwa, wariant: opis, nakladka, pokrycie, ...krok.geometria }));
 
           if (pokrycie >= PROG_CALKOWITEGO_PRZYKRYCIA) {
             zlych++;

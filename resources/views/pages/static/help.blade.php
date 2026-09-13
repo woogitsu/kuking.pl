@@ -63,9 +63,8 @@
 
         <h2>Nadal nie wiem, co kliknąć</h2>
         <p>
-            <a href="{{ route('kontakt') }}">Napisz do nas</a> albo wyślij zwykłego e-maila na
+            <a href="{{ route('kontakt') }}">Napisz do nas</a> albo wyślij e-mail na
             <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>.
-            Odpisujemy po ludzku i naprawdę czytamy każdą wiadomość.
         </p>
     </article>
 </x-layout>

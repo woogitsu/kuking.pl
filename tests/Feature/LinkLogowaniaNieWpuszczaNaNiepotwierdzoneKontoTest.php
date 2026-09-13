@@ -310,9 +310,11 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
         $this->assertStringContainsString('przestaje', $tresc,
             'Wiadomość nie mówi, że poprzednie hasło przestaje działać.');
 
-        // 4. Następnym razem będzie zwyczajnie.
-        $this->assertStringContainsString('Następnym razem będzie już zwyczajnie', $tresc,
-            'Wiadomość zostawia człowieka z wrażeniem, że ta droga jest zepsuta na stałe.');
+        // 4. Po ustawieniu hasła adres jest potwierdzony i można użyć linku.
+        $this->assertStringContainsString('Ustawienie hasła potwierdzi adres e-mail', $tresc,
+            'Wiadomość nie wyjaśnia, kiedy adres zostanie potwierdzony.');
+        $this->assertStringContainsString('poprosić o link do wejścia na konto', $tresc,
+            'Wiadomość nie mówi, jak zalogować się następnym razem.');
 
         // 5. Adres, pod którym odpowiada człowiek.
         $this->assertStringContainsString((string) config('kuking.community.contact_email'), $tresc,

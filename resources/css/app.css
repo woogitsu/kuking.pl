@@ -3803,7 +3803,7 @@
 
   /* Wiersz: zdjęcie z lewej, tekst obok, reszta na własnych wierszach. */
   .kuking-board-person,
-  .kuking-board-post-link {
+  .kuking-board-post-row {
     display: flex;
     align-items: flex-start;
     gap: var(--tablica-odstep);
@@ -3868,9 +3868,7 @@
     max-width: 34rem;
   }
 
-  /* Podpis dania jest `<span>`, nie `<div>` — leży w środku odnośnika
-     obejmującego cały wiersz, a `<a>` nie ma prawa zawierać bloków. Układ
-     robi `display: flex`, nie domyślne wyświetlanie znacznika. */
+  /* Kolumna zawiera pojedynczy odnośnik oraz pełny podgląd i notatkę. */
   .kuking-board-post-body {
     display: flex;
     flex-direction: column;
@@ -3968,13 +3966,31 @@
      Podkreślenie pojawia się na imieniu autora przy najechaniu i przy
      wejściu klawiszem — to jest DODATEK, nie jedyna wskazówka: sam podpis
      ma kolor i wagę odnośnika (`.author-name`) niezależnie od stanu. */
+  .kuking-board-post-row {
+    position: relative;
+    isolation: isolate;
+  }
+
   .kuking-board-post-link {
+    display: inline-block;
+    min-height: 48px;
+    min-width: 48px;
+    max-width: 100%;
     text-decoration: none;
     color: inherit;
   }
 
-  .kuking-board-post-link:hover .author-name,
-  .kuking-board-post-link:focus-visible .author-name {
+  /* Kliknięcie zdjęcia, opisu i wolnego miejsca otwiera ten sam wpis.
+     Brak position: relative na linku jest celowy: obszarem jest wiersz. */
+  .kuking-board-post-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .kuking-board-post-link:hover,
+  .kuking-board-post-link:focus-visible {
     text-decoration: underline;
   }
 
