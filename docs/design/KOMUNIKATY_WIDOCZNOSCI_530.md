@@ -4,7 +4,7 @@
 
 Zgłoszenie: https://github.com/woogitsu/kuking.pl/issues/530. Baza pracy: `a28703e3b86535fbffd35474b49287226a86d86d`; gałąź `fix/530-komunikaty-widocznosci`.
 
-Podczas lokalnego odbioru zwykłego formularza powstał prywatny przepis `/przepisy/lokalny-odbior-zapisu-skladnika-526`. Potwierdzenie mówiło „Przepis opublikowany. Teraz ktoś może z niego ugotować.”, a instrukcja udostępniania — „Ten przepis widzą tylko wybrane osoby”. Odbiór przeglądarkowy zgłosiło zadanie główne; ta poprawka odtwarza problem niezależnymi żądaniami HTTP oraz aktualizacjami Livewire.
+Podczas lokalnego odbioru zwykłego formularza powstał prywatny przepis ze slugiem `lokalny-odbior-zapisu-skladnika-526`. Potwierdzenie mówiło „Przepis opublikowany. Teraz ktoś może z niego ugotować.”, a instrukcja udostępniania — „Ten przepis widzą tylko wybrane osoby”. Odbiór przeglądarkowy zgłosiło zadanie główne; ta poprawka odtwarza problem niezależnymi żądaniami HTTP oraz aktualizacjami Livewire.
 
 `RecipePolicy::view()` dopuszcza dla opublikowanego `private` wyłącznie autora. Sam stan `published` jest prawidłowy: prywatność i stan publikacji to różne pola. Błąd dotyczył obietnicy innych odbiorców. Dla `followers` stary opis pustej strony był także nieprawdziwy: obserwujący autora może otworzyć link.
 
