@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.26 — czytelne przyciski w podpowiedziach
+
+- Przyciski dodania kolejnego zdjęcia, zmiany kolejności zdjęć i dokończenia szkicu zachowują czytelny napis również wewnątrz podpowiedzi, w obu motywach (#534).
+- Zwykłe linki w podpowiedziach zachowują kolor dobrany do ich tła.
+
 ## Alfa 0.25 — poprawny zapis i jasne komunikaty przepisów
 
 - Składnik o nazwie do 240 znaków zapisuje się w całości przy tworzeniu i edycji przepisu (#526).

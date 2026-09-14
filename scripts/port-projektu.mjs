@@ -6,6 +6,7 @@ import { sprawdzKompozycje } from './kompozycje-marki.mjs';
 import { sprawdzZoomMarki } from './zoom-marki.mjs';
 import { sprawdzKompozycje513 } from './zainteresowania-powiadomienia-marki.mjs';
 import { sprawdzZeszyty } from './zeszyty-marki.mjs';
+import { sprawdzPodpowiedzi } from './kontrast-notice.mjs';
 import { sprawdzTagi } from './tagi-marki.mjs';
 
 const KONTO = 'ania';
@@ -366,6 +367,7 @@ try {
   await sprawdzZeszyty({ browser: przegladarka, adres, sesja, ...zeszyty });
   const paczka513 = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-513.php'], { env: env() }).toString());
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
+  await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
 
