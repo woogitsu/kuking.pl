@@ -40,7 +40,7 @@
     a „Załóż konto, żeby obserwować" wisiało przy prawej krawędzi, 600 px od
     opisu, do którego należy. Cztery różne krawędzie w jednej sekcji.
 
-    Teraz obie listy mają ten sam kształt wiersza:
+    Historyczny układ list (nadal używany poza stroną powitalną) ma kształt:
 
         [ zdjęcie 120 px ] [ tekst ]
         [ pasek miniatur — cała szerokość, przy lewej krawędzi ]
@@ -52,15 +52,9 @@
     Zdjęcie dania urosło przy okazji z 96 na 120 px — w serwisie, który stoi
     na zdjęciach, danie było mniejsze od przycisku obok siebie.
 
-    `graSlowem` — DAWKOWANIE, NIE OZDOBA (issue #38)
-    `docs/brand/COPY_STYLE.md` §2 dopuszcza grę słowem „kuKING" NAJWYŻEJ RAZ
-    NA EKRAN. Na stronie powitalnej pierwsze miejsce jest już zajęte przez
-    przycisk „Zostań kuKINGiem", który §8 przypisuje tam wprost — więc tablica
-    dostaje na tym jednym ekranie nagłówek zapasowy „Co się dziś gotuje".
-    To nie jest nowy tekst: §5 podaje go jako gotową alternatywę („nie odmienia
-    słowa wcale, problem znika u źródła", D-013). Wszędzie indziej — /home,
-    /odkryj, /szukaj — tablica jest jedynym takim miejscem na ekranie
-    i zostaje przy nazwie „kuKINGi na dziś".
+    `graSlowem` wybiera nazwę sekcji. Na stronie powitalnej pozostaje
+    „Co się dziś gotuje”. Historyczny limit jednej gry słownej na ekran
+    został odwołany przez właściciela; aktualną zasadę określa AGENTS.md §11.
 
     `wKarcie` — TABLICA JEST KARTĄ TYLKO TAM, GDZIE STOI OBOK INNYCH KART
     W szynie (`szyna-startowa.blade.php`, `/szukaj`, a od 11 września także
@@ -76,6 +70,7 @@
 @php
     $pusta = $people->isEmpty() && $posts->isEmpty();
     $wKarcie ??= ! request()->routeIs('landing');
+    $naPowitalnej = request()->routeIs('landing') && ! $wKarcie;
 @endphp
 
 {{-- Warstwa powierzchni i `mb-6` TYLKO tam, gdzie tablica stoi obok innych
@@ -86,9 +81,9 @@
      rzeczą, po którą człowiek tu przyszedł (docs/design/ROLE_KART.md, rola 3).
      Karty treści są dopiero w środku — bez tego rozdzielenia mielibyśmy
      kartę w karcie o tym samym wyglądzie. --}}
-<section @class(['sekcja-strony' => $wKarcie, 'kuking-board', 'marka-tablica' => $wKarcie, 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
+<section @class(['sekcja-strony' => $wKarcie, 'kuking-board', 'landing-tablica' => $naPowitalnej, 'marka-tablica' => $wKarcie, 'mb-6' => $wKarcie]) aria-labelledby="kuking-na-dzis">
     <div @class(['marka-tablica-wstep' => $wKarcie])>
-    @if($wKarcie)<p class="nadtytul">Z innych kuchni</p>@endif
+    @if($wKarcie || $naPowitalnej)<p class="nadtytul">Z innych kuchni</p>@endif
     <h2 @class(['mt-0', 'text-title-lg' => ! $wKarcie]) id="kuking-na-dzis">
         @if($wKarcie)
             Co dobrego u innych?
@@ -110,10 +105,11 @@
             Zajrzyj do <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a>.
         </p>
     @else
-        @unless($wKarcie)<p class="meta">Kilka osób i kilka dań, które dziś warto zobaczyć.</p>@endunless
+        @unless($wKarcie)<p class="meta">{{ $naPowitalnej ? 'Codzienne gotowanie, zdjęcia i pomysły z domowych kuchni.' : 'Kilka osób i kilka dań, które dziś warto zobaczyć.' }}</p>@endunless
 
         {{-- OSOBY OBOK DAŃ TAM, GDZIE SIĘ MIESZCZĄ (issue #365).
 
+             Historia #365; nowy wariant powitalny #557 rozdziela te listy.
              Zgłoszenie właściciela: „w »co się dziś gotuje« można zrobić dwie
              kolumny". `docs/UX_50_PLUS.md` §Desktop dopuszcza to wprost
              („maks. 2 główne kolumny"); zakazana jest ŚCIANA MAŁYCH KAFELKÓW,
@@ -126,156 +122,14 @@
              o to, co naprawdę rozstrzyga; zapytanie o okno dałoby dwie kolumny
              także w szynie, w której jedna karta ma 310 px. --}}
         <div class="kuking-board-kolumny">
-        @if($people->isNotEmpty())
-            <div class="kuking-board-kolumna">
-                <div class="marka-tablica-naglowek">
-                    <h3 class="kuking-board-subtitle">{{ $wKarcie ? 'Może ich znasz?' : 'Osoby' }}</h3>
-                    @if($wKarcie)<a href="{{ route('search', ['sekcja' => 'ludzie']) }}" aria-label="Szukaj osób">Szukaj</a>@endif
-                </div>
-                <ul class="kuking-board-people">
-                    @foreach($people as $person)
-                        <li class="kuking-board-person">
-                            <a class="kuking-board-avatar" href="{{ route('profile.show', $person->profile->username) }}" tabindex="-1" aria-hidden="true">
-                                <x-avatar :user="$person" :size="120" />
-                            </a>
-
-                            <div class="kuking-board-person-body">
-                                <a class="author-name" href="{{ route('profile.show', $person->profile->username) }}">{{ $person->displayName() }}</a>
-                                <p class="meta m-0">
-                                    {{ $person->profile->speciality ?? 'Gotuje w Kuking' }}
-                                    @if($person->profile->region) · {{ $person->profile->region }} @endif
-                                </p>
-
-                                @if(isset($notes[$person->getKey()]))
-                                    <p class="kuking-board-note">{{ $notes[$person->getKey()] }}</p>
-                                @endif
-                            </div>
-
-                            {{-- Podgląd trzech ostatnich zdjęć. To jest jedyny
-                                 uczciwy argument, żeby kogoś zaobserwować.
-
-                                 PASEK STOI JAKO BEZPOŚREDNIE DZIECKO `<li>`
-                                 (issue #272), bo `flex-basis: 100%`
-                                 z `.kuking-board-preview` opisuje ten pasek jako
-                                 ELEMENT rzędu `.kuking-board-person`. Wewnątrz bloku
-                                 tekstu (`.kuking-board-person-body`) ta reguła była
-                                 martwa: rodzicem był tam zwykły blok, nie kontener
-                                 `flex`, więc pasek dostawał 105 px resztki po
-                                 awatarze i przycisku, a rząd trzech miniatur
-                                 (232 px) zawijał po jednej na wiersz. To jest
-                                 dokładnie stan ze zrzutu właściciela.
-
-                                 KOLEJNOŚĆ: ZDJĘCIA, POTEM AKCJA. Do 11 września
-                                 pasek stał ZA przyciskiem, bo przycisk siedział
-                                 w tym samym wierszu co opis i wstawienie przed nim
-                                 elementu na całą szerokość zepchnęłoby go pod
-                                 zdjęcia. Dziś na własnym wierszu stoją OBA, więc
-                                 o kolejności decyduje już tylko sens: najpierw
-                                 dowód (co ta osoba ugotowała), potem decyzja
-                                 (obserwuję albo nie). Miniatury są ozdobne
-                                 (`alt=""`), nie da się na nie wejść klawiszem
-                                 i nie wchodzą do kolejności czytania.
-
-                                 `tests/Feature/SzynaTablicaDniaUkladTest.php` pilnuje
-                                 miejsca paska w drzewie — reguła w arkuszu bez tego
-                                 miejsca w HTML-u nie robi nic. --}}
-                            @php
-                                $podglad = $person->posts
-                                    ->flatMap(fn ($post) => $post->media)
-                                    ->filter(fn ($media) => $media->isReady())
-                                    ->take(3);
-                            @endphp
-                            @if($podglad->isNotEmpty())
-                                <div class="kuking-board-preview">
-                                    @foreach($podglad as $media)
-                                        <img src="{{ $media->url('thumb') }}" alt=""
-                                             width="72" height="72" loading="lazy" decoding="async">
-                                    @endforeach
-                                </div>
-                            @endif
-
-                            <div class="kuking-board-akcja">
-                                @auth
-                                    <form method="POST" action="{{ route('social.follow', $person->profile->username) }}">
-                                        @csrf
-                                        <button class="btn btn-secondary" type="submit">Obserwuj</button>
-                                    </form>
-                                @else
-                                    {{-- ETYKIETA MÓWI, CO SIĘ STANIE PO KLIKNIĘCIU.
-
-                                         Gość widział tu „Obserwuj" i trafiał na
-                                         rejestrację — przycisk obiecywał akcję, której
-                                         nie wykonywał. Tekst jest teraz ten sam co na
-                                         profilu (`pages/profile/show.blade.php`), żeby
-                                         to samo wyjście z serwisu nazywało się wszędzie
-                                         tak samo. --}}
-                                    <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
-                                @endauth
-                            </div>
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        @if($posts->isNotEmpty())
-            <div class="kuking-board-kolumna">
-                <h3 class="kuking-board-subtitle">Dania</h3>
-                <ul class="kuking-board-posts">
-                    @foreach($posts as $post)
-                        <li class="kuking-board-post">
-                            {{-- WPIS WSKAZUJĄCY PRZEPIS NIE MA WŁASNYCH ZDJĘĆ ANI
-                                 TREŚCI (issue #368) — kafelek bierze jedno i drugie
-                                 z relacji `$post->recipe`, zamiast trzymać kopię,
-                                 która rozjechałaby się przy pierwszej edycji
-                                 przepisu. Bez tego w tablicy dnia stałoby samo imię
-                                 autora i pusty prostokąt po zdjęciu. --}}
-                            @php
-                                $glowne = $post->media->first(fn ($media) => $media->isReady())
-                                    ?? $post->recipe?->heroMedia;
-                                $glowne = ($glowne && $glowne->isReady()) ? $glowne : null;
-                                $opis = $post->body ?: $post->recipe?->title;
-                            @endphp
-
-                            {{-- Jeden odnośnik prowadzi do wpisu, a pseudoelement rozciąga
-                                 jego kliknięcie na cały wiersz. Fokus pozostaje na pełnej
-                                 nazwie: opis i notatka mogą być wyższe niż ekran przy 200%.
-                                 Nazwa dostępna zachowuje kontekst dania. --}}
-                            <div class="kuking-board-post-row">
-                                {{-- ZDJĘCIA NIE MA — NIE MA TEŻ PUSTEGO MIEJSCA PO NIM
-                                     (issue #272). Element o zerowej szerokości zabiera
-                                     w kontenerze `flex` swój `gap` także wtedy, gdy nic
-                                     nie zawiera. Zmierzone przy bazie 32 px: podpis
-                                     takiego dania stał 24 px w prawo od krawędzi
-                                     wszystkich pozostałych kart w tablicy. --}}
-                                @if($glowne)
-                                    <span class="kuking-board-post-photo">
-                                        <img src="{{ $glowne->url('thumb') }}" alt=""
-                                             width="120" height="120" loading="lazy" decoding="async">
-                                    </span>
-                                @endif
-
-                                {{-- `kuking-board-post-body` — to na tej klasie wisi próg
-                                     dwóch kolumn (patrz `app.css`). Bez niej blok bierze
-                                     rozmiar bazowy z treści i spada pod zdjęcie nawet
-                                     w szynie, w której miejsce jest. --}}
-                                <span class="kuking-board-post-body">
-                                    <a class="author-name kuking-board-post-link" href="{{ $post->url() }}"
-                                       aria-label="{{ $post->author->displayName().($opis ? ' — '.\Illuminate\Support\Str::limit($opis, 90) : '') }}">{{ $post->author->displayName() }}</a>
-
-                                    @if($opis)
-                                        <span class="kuking-board-excerpt">{{ \Illuminate\Support\Str::limit($opis, 90) }}</span>
-                                    @endif
-
-                                    @if(isset($notes[$post->getKey()]))
-                                        <span class="kuking-board-note">{{ $notes[$post->getKey()] }}</span>
-                                    @endif
-                                </span>
-                            </div>
-                        </li>
-                    @endforeach
-                </ul>
-            </div>
+        {{-- Na powitalnej najpierw zdjęcia dań, potem ich autorzy. To kolejność DOM,
+             nie wizualne przestawienie odnośników przez CSS (#557). --}}
+        @if($naPowitalnej)
+            @include('components.kuking-board.posts')
+            @include('components.kuking-board.people')
+        @else
+            @include('components.kuking-board.people')
+            @include('components.kuking-board.posts')
         @endif
         </div>
 

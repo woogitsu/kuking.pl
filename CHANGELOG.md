@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.32 — fotografie na stronie powitalnej
+
+- Sekcja „Co się dziś gotuje” pokazuje najpierw duże fotografie dań, potem zwarte wizytówki osób. Gość dostaje jedno wspólne zaproszenie do założenia konta. Boczne tablice zachowują dotychczasowy układ, a dobór treści i zasady widoczności pozostają bez zmian (#557).
+
 ## Alfa 0.31 — szersze menu konta
 
 - Menu „Konto” ma więcej miejsca na nazwy pozycji, w tym panel moderacji i wylogowanie. Przy zawijaniu belki pozostaje przy prawej krawędzi, a w wąskim i niskim oknie rozwija się w dostępnym miejscu pod przyciskiem (#555).
