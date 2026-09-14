@@ -1,6 +1,11 @@
 # Poprawki zgłoszeń — Alfa 0.27
 
-Stan: praca lokalna, przed CI i wdrożeniem. Baza:
+## Aktualizacja odbioru — 14 września 2026
+
+Pakiet PR #540 jest scalony i wdrożony jako `4c537b2`. CI PR i main: 10/10 success; Railway 6439273567 i Deploy 34859662013: success. [Potwierdzony odbiór produkcji Alfa 0.27](ODBIOR_PRODUKCJI_ALFA_027.md) rozdziela ogląd produkcji od lokalnych prób oraz opisuje ograniczenia. Poniższe informacje o przygotowaniu i pierwszym CI są historią prac, nie bieżącym statusem.
+
+
+Stan w chwili rozpoczęcia prac: praca lokalna, przed CI i wdrożeniem. Baza:
 `595f41fa8a4c21642f21a566c27946c5811125a9`. Pełny port marki nadal
 **CZĘŚCIOWO**. Ten raport nie zastępuje odbioru wszystkich stron.
 

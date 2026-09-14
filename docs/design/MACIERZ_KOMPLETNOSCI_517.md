@@ -1,5 +1,10 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Potwierdzony pakiet Alfa 0.27 — 14 września 2026
+
+[Potwierdzony odbiór produkcji Alfa 0.27](ODBIOR_PRODUKCJI_ALFA_027.md): kod `4c537b2`, Railway6439273567 success, CI PR i main 10/10. Obejrzano produkcyjne Start320×500 i390×844 oraz fokus podpowiedzi w obu motywach. Dodatkowe stany i powiększenia mają odrębne dowody lokalne/CI. Pełny port pozostaje **CZĘŚCIOWO**. Historyczne statusy przed wdrożeniem poniżej nie są aktualnym stanem pakietu.
+
+
 ## Uzupełniony ogląd wiadomości — 14 września 2026
 
 [Odbiór 18 wiadomości](ODBIOR_WIADOMOSCI_027.md) uzupełnia historyczne
@@ -9,7 +14,7 @@ błędu układu w tych wariantach. To lokalny Chromium na źródłach 595f41f,
 bez wysyłki, nie dowód zgodności z Gmail/Outlook/Apple Mail. Nie sprawdzono
 każdego wariantu treści, trybu ciemnego klienta ani obsługi odpowiedzi.
 
-## Lokalne poprawki zgłoszeń — Alfa 0.27, przed wdrożeniem
+## Historia przygotowania — lokalne poprawki Alfa 0.27 przed wdrożeniem
 
 [Raport poprawek](POPRAWKI_ISSUES_ALFA_027.md) opisuje #538 (komunikat
 rzeczywistego limitu imienia) i #444 (systemowy odstęp przed usuwaniem
