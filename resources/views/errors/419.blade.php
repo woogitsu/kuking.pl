@@ -21,14 +21,11 @@
     // variable" człowiek dostaje tę samą stronę, tyle że bez odzyskanej treści.
     $formularz ??= \App\Exceptions\OdzyskanyFormularz::zZadania(request());
 
-    // Na formularzach przeznaczonych dla gościa (logowanie, rejestracja,
-    // odzyskiwanie hasła) podpowiedź „najpierw się zaloguj" byłaby absurdem.
-    $sciezka = trim((string) parse_url($formularz->akcja, PHP_URL_PATH), '/');
-    $formularzGoscia = in_array(
-        $sciezka,
-        ['login', 'register', 'nie-pamietam-hasla', 'nowe-haslo'],
-        strict: true,
-    );
+    // Publiczne zgłoszenia i odwołania też nie wymagają konta. Warunek
+    // pochodzi z istniejącej trasy, nie z niepełnej listy adresów formularzy.
+    $wymagaLogowania = collect(request()->route()?->gatherMiddleware() ?? [])
+        ->contains(fn ($middleware) => is_string($middleware)
+            && ($middleware === 'auth' || str_starts_with($middleware, 'auth:')));
 @endphp
 
 <x-layout title="Ta strona była otwarta zbyt długo" :noindex="true">
@@ -64,7 +61,7 @@
             </p>
         @endif
 
-        @if(auth()->guest() && ! $formularzGoscia)
+        @if(auth()->guest() && $wymagaLogowania)
             {{-- Sesja wygasła, więc razem z tokenem przepadło też zalogowanie.
                  Mówimy o tym wprost i ZANIM ktoś kliknie, bo po kliknięciu
                  trafi na ekran logowania i drugi raz zobaczy pusty formularz.
@@ -173,8 +170,18 @@
     @else
         <p class="mb-5">
             Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
-            a ten był otwarty dłużej. Nie było w nim jednak nic do zapisania —
-            wystarczy otworzyć stronę od nowa i zrobić to jeszcze raz.
+            a ten był otwarty dłużej.
+            @if($formularz->obciete)
+                <strong>Nie udało się odzyskać tekstu</strong>, bo formularz był wyjątkowo duży.
+                Wróć do poprzedniej strony. Jeśli przeglądarka zachowała wpisaną treść,
+                skopiuj ją przed ponowną próbą wysłania.
+            @else
+                Nie odzyskaliśmy treści tego formularza. Otwórz formularz od nowa
+                i uzupełnij potrzebne pola jeszcze raz.
+            @endif
+            @if($formularz->maPliki())
+                Zdjęcie trzeba wybrać jeszcze raz — przeglądarka nie pozwala go odzyskać.
+            @endif
         </p>
 
         <p>

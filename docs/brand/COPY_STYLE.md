@@ -24,6 +24,11 @@ fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
 
 ## Precyzja opisu działania
 
+Przy odzyskiwaniu formularza rozróżniamy zachowanie całego tekstu, części pól
+i brak odzyskanej treści. Brak odzyskanych pól nie dowodzi, że formularz był
+pusty. Zapewnienie o tekście nie obejmuje zdjęcia, które trzeba wybrać ponownie.
+Nie obiecujemy zachowania danych przez przycisk „wstecz” przeglądarki (#523).
+
 Instrukcja opisuje kroki, które aplikacja rzeczywiście zapewnia. Przy logowaniu
 przez Google lub Facebooka podajemy nazwę przycisku i uprzedzamy o przekierowaniu;
 nie gwarantujemy jednego kliknięcia, bo dostawca może wymagać potwierdzenia.

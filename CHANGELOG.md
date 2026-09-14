@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.23 — uczciwe informacje o odzyskiwaniu formularza
+
+- Ekran limitu zapytań rozróżnia pełne i częściowe odzyskanie tekstu; pomoc zdjęcia nie obiecuje zachowania brakujących pól (#523).
+- Ekrany wygaśniętej sesji i limitu informują, gdy zbyt duży formularz uniemożliwił odzyskanie tekstu. Nie uznają tego za pusty formularz.
+- Publiczny formularz zgłoszenia treści po odmowie CSRF nie nakazuje zakładania konta ani ponownego logowania.
+
 ## Alfa 0.22 — polecane tagi w wyszukiwaniu
 
 - Przed wpisaniem zapytania wyszukiwarka pokazuje kafle rzeczywistych polecanych tagów, z ich opisami i odnośnikami.

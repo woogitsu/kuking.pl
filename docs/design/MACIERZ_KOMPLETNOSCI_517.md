@@ -1,5 +1,15 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Uzupełnienie lokalne #523 — 419 i 429
+
+[Odbiór odzyskiwania formularzy](ODZYSKIWANIE_FORMULARZA_523.md) uzupełnia
+historyczny wiersz 419/429: rzeczywiste odpowiedzi middleware, trzy stany,
+144 konfiguracje układu, osiem prawdziwych zoomów częściowego odzyskania
+i reprezentatywny ogląd. Usuwa potwierdzone sprzeczności komunikatów oraz
+nakaz logowania na publicznej trasie. Zakres nie obejmuje wszystkich
+formularzy, naturalnego wygaśnięcia sesji ani klawiatury ekranowej.
+Wdrożenie Alfy 0.23 wymaga osobnego potwierdzenia; pełna marka: CZĘŚCIOWO.
+
 ## Aktualny stan — 14 września 2026, po scaleniu PR #521
 
 Pakiet #515–516 jest scalony: PR #521, head
