@@ -18,7 +18,7 @@ nie wyłączono globalnego fokusu. `DIAGNOZA_RAMKI_TYTULU.md` pozostaje
 obserwacją, nie deklaracją naprawy na podstawie przypuszczenia.
 
 Dalszy pakiet jest na `fix/515-tematy-i-zasady`, przygotowany w osobnym
-worktree `C:/Users/matma/Documents/Codex/kuking-marki515`. Obejmuje Alfę0.22,
+worktree `C:\Users\matma\Documents\Codex\kuking-marki515`. Obejmuje Alfę0.22,
 rzeczywiste kafle promowanych tagów, drogę do wszystkich tagów, D-213,
 konstytucję1.9, wskaźniki modeli i sprostowania dokumentów marki (#516).
 Szczegóły i stan kontroli: `POLECANE_TAGI_515.md`,

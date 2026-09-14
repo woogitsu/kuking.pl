@@ -183,3 +183,12 @@ instrukcji i kodów zakończenia fixture: **5 testów / 41 asercji PASS**.
 Root obejrzał końcowy zrzut pełnej wyszukiwarki desktopowej z nowym
 odnośnikiem i metryczką Alfa 0.22. Wysyłka, hook i CI wymagają jeszcze
 osobnego potwierdzenia.
+
+
+Pierwszy obowiązkowy hook zatrzymał wysyłkę commita f6b600c: kontrola
+odnośników uznała zapis dwóch lokalnych ścieżek Windows w nowych notatkach
+za trasy serwisu. Zapis ścieżek poprawiono bez zmiany walidatora. Trzy testy
+dokumentów / 41 asercji przeszły, a dwa rzeczywiste powroty błędnego zapisu
+zostały wykryte. Źródła przywrócono z MD5 i mtime; logi poza repo:
+`/tmp/docpaths515-kpqa7eze`. Nie był to wynik pozytywny pełnego hooka;
+powtórna normalna wysyłka wymaga jego ponownego przejścia.
