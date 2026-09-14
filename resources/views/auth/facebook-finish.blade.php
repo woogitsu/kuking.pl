@@ -83,7 +83,7 @@
         @if($errors->any())
             <p class="field-error mb-4">
                 Formularz nie został wysłany —
-                <a href="#tresc">na górze jest napisane, czego jeszcze brakuje</a>.
+                <a href="#tresc">na górze jest napisane, co trzeba poprawić</a>.
             </p>
         @endif
 

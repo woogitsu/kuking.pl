@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.24 — pełny tekst po odrzuceniu formularza
+
+- Odzyskiwanie po wygaśnięciu sesji lub przekroczeniu limitu zapytań mieści długie przepisy dopuszczone przez formularz. Ponowienie utworzenia i edycji zachowuje wszystkie kroki (#524).
+- Podsumowanie walidacji mówi „Sprawdź formularz” również przy zbyt długiej lub nieprawidłowej wartości. Instrukcje rejestracji nie nazywają każdego błędu brakiem danych (#527).
+- Zdjęcia nadal trzeba wybrać ponownie; ograniczenia rozmiaru odzyskiwania i ochrona danych wrażliwych pozostają.
+
 ## Alfa 0.23 — uczciwe informacje o odzyskiwaniu formularza
 
 - Ekran limitu zapytań rozróżnia pełne i częściowe odzyskanie tekstu; pomoc zdjęcia nie obiecuje zachowania brakujących pól (#523).

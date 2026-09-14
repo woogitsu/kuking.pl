@@ -60,11 +60,7 @@
     @if($errors->any())
         <div class="error-summary" role="alert" tabindex="-1">
             <p class="error-summary-title">
-                @if($errors->count() === 1)
-                    Jednej rzeczy jeszcze brakuje
-                @else
-                    Kilku rzeczy jeszcze brakuje
-                @endif
+                Sprawdź formularz
             </p>
             <ul>
                 @foreach($errors->all() as $blad)

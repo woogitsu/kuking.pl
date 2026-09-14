@@ -21,11 +21,13 @@ class OdzyskanyTekstBezSprzecznychObietnicTest extends TestCase
     #[DataProvider('odpowiedzi')]
     public function test_czesciowe_odzyskanie_nie_obiecuje_calosci_takze_przy_zdjeciu(int $status): void
     {
-        $dane = ['title' => 'Przepis zachowany w części', 'steps' => array_fill(0, 51, ['instruction' => str_repeat('a', 4000)]), 'hero_photo' => UploadedFile::fake()->image('obiad.jpg')];
+        // 51 poprawnych kroków nie jest już nadmiarem (#524). Obcięcie
+        // wymuszamy polem większym od jawnego bezpiecznika pojedynczej wartości.
+        $dane = ['title' => 'Przepis zachowany w części', 'steps' => [['instruction' => str_repeat('a', 4000)], ['instruction' => str_repeat('b', 200001)]], 'hero_photo' => UploadedFile::fake()->image('obiad.jpg')];
         $html = $this->odpowiedz($status, $dane);
         $this->assertStringContainsString('Przepis zachowany w części', $html);
         $this->assertStringContainsString('name="steps[0][instruction]"', $html);
-        $this->assertStringNotContainsString('name="steps[50][instruction]"', $html);
+        $this->assertStringNotContainsString('name="steps[1][instruction]"', $html);
         $this->assertStringContainsString('nie wszystko udało się przenieść', $html);
         $this->assertStringContainsString('Wybierz zdjęcie jeszcze raz', $html);
         $this->assertStringContainsString('name="_token"', $html);

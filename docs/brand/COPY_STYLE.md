@@ -484,10 +484,15 @@ Wzór: **co się stało → dlaczego → co zrobić.**
 | nazwa zajęta | Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu. |
 | błąd logowania | Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła". |
 | za dużo prób | Za dużo prób logowania. Spróbuj ponownie za {n} min. |
-| podsumowanie, 1 błąd | Jednej rzeczy jeszcze brakuje |
-| podsumowanie, więcej | Kilku rzeczy jeszcze brakuje |
+| podsumowanie błędów | Sprawdź formularz |
 | brak internetu | Nie ma teraz połączenia z internetem |
 | + wyjaśnienie | Kuking potrzebuje internetu, żeby pokazać nowe wpisy. Sprawdź Wi-Fi albo dane w telefonie i spróbuj jeszcze raz. |
+
+Nagłówek podsumowania nie zgaduje przyczyny błędu. Wpisana wartość może być
+za długa, nieprawidłowa albo już zajęta; nie każda walidacja oznacza brak
+danych. Konkretna przyczyna i sposób poprawy pozostają przy polu oraz w
+podsumowaniu. Odnośnik pod formularzem mówi „co trzeba poprawić”, nie
+„czego jeszcze brakuje”. Dotyczy też kreatora i panelu moderacji (#527).
 
 ### Rzeczy nieodwracalne
 
