@@ -12,13 +12,15 @@ PR #546, head `8e4da2f2ff51178df57d7dd118978e441b8c5130`, scalony jako `443da38c
 
 MainCI34891635127 zakończone10/10success, PHP3807/76412 potwierdzone w osobnym logu. Railway6445551937 success20:45:52UTC i Deploy34894880938success. HTTP oraz zalogowany Chrome potwierdziły Alfa0.29/443da38 i poprawioną podpowiedź pierwszego wpisu. Pełny odbiór: ODBIOR_PRODUKCJI_ALFA_029.md. Gałąź dokumentacji docs/492-odbior-alfa029 zbiera końcowe raporty; po wysyłce odczytać aktualny PR i SHA, nie dublować push.
 
+Późniejszy stan dostarczenia: raporty scalono przez PR #550 jako `3f415a44d8ce917f688ec313bd9ec9bcde0a5298`. CI dokumentacji i main zakończone success w zakresie dokumentacyjnym. Panel Railway potwierdził aktywne udane wdrożenie `3b103797-1543-49b4-a803-15426ba45944`; HTTP pokazało Alfa0.29/3f415a4. [Dowód odbioru](https://github.com/woogitsu/kuking.pl/pull/550#issuecomment-5670773483). Nie ponawiać wysyłki gałęzi #550. [Audyt zapisów względem kodu](AUDYT_ZAPISOW_A_KOD_2026_09_14.md) rozdziela istniejące funkcje od brakujących odbiorów.
+
 Ukończone dodatkowe odbiory: ODBIOR_GOTOWANIA_UZUPELNIENIE_492.md (składnik, zdjęcie, fokus, minutnik); ODBIOR_EDYCJI_WYSZLO_492.md (edycja, przywrócenie wartości,37Tab,radio,3TabWyszło,10wyborówpliku). Zmiana UUID kroku przy zwykłym zapisie wynika z istniejącego syncSteps delete/create; nie przywracać go ręcznie. Dokumenty jawnie ograniczają brak pełnego logu HTTP walidacji, brak podziękowania i fizycznego sprzętu.
 
 ## Następne małe pakiety
 
 1. #548 i #549 (wyjaśnienie419 nie może zawsze zgadywać upływu czasu). #548: poprawić odmianę „na1minuta” w istniejącym minutniku, bez nowej funkcji. Uwzględnić RecipeStep::timerLabel, Blade, JS, istniejące testy i eksport; nie zmieniać jednostek ani odliczania. timerLabel jest też używany jako samodzielna etykieta w kreatorze, więc nie zamieniać bezwarunkowo wszystkich etykiet na biernik. Fizyczne negatywy, wersja/changelog, lokalny ogląd i zwykła ścieżka dostarczenia.
 2. ODBIOR_ZDJEC_492.md zamyka tekst udający JPG i dwa obrazy z zapisem kolejności/karuzeli. Pozostają inne błędne pliki/tryby zdjęć oraz pełny fokus po aktywacji karuzeli. Nie ma funkcji podmiany pliku wpisu.
-3. Podziękowanie z Wyszło, trwały log walidacji edycji oraz odzyskiwanie419/429 w izolowanym środowisku. Nie nazywać wcześniejszego błędnego założenia skryptu potwierdzoną usterką429.
+3. Podziękowanie z Wyszło i trwały log HTTP walidacji edycji. Ograniczony odbiór store419/429 jest już zakończony w ODBIOR_ODZYSKIWANIA_492.md; pozostają update/PUT, media, maksymalne dane oraz pełny fokus. Nie powtarzać zakończonego store ani nazywać wcześniejszego błędnego założenia skryptu potwierdzoną usterką429.
 4. Odnajdywanie: zapis/ponowne znalezienie, wyniki/filtry, paginacja zeszytu/niedostępna treść, listy obserwujących. Korzystać z późniejszych raportów #512/#515/#517/#519 zamiast audytu od zera; szczegóły w KOLEJKA_ODNAJDYWANIA_492.md.
 5. Scenariusze #15: docs/product/SCENARIUSZE_UZUPELNIAJACE_15.md. To plan do rzeczywistych sesji, nie badanie modelu ani zgoda na kontakt z uczestnikami.
 
