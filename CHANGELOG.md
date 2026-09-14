@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.31 — szersze menu konta
+
+- Menu „Konto” ma więcej miejsca na nazwy pozycji, w tym panel moderacji i wylogowanie. Przy zawijaniu belki pozostaje przy prawej krawędzi, a w wąskim i niskim oknie rozwija się w dostępnym miejscu pod przyciskiem (#555).
+
 ## Alfa 0.30 — zdjęcia w pustej kolumnie profilu
 
 - Na cudzym profilu bez tagów i zeszytów pokazujemy trzy ostatnie widoczne wpisy ze zdjęciami. Zdjęcie i data prowadzą do wpisu; treści prywatne pozostają chronione (#551).
