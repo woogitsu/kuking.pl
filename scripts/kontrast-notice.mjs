@@ -89,6 +89,42 @@ export async function sprawdzKontrastNotice(page, wymagane = []) {
     return rows;
 }
 
+/** Pomiar obydwu krawędzi pierścienia po prawdziwym Tab i najechaniu. */
+export async function sprawdzFokusNotice(page, kind) {
+    await page.evaluate(async () => {
+        await Promise.all(document.activeElement.getAnimations().map(a => a.finished));
+    });
+    const result = await page.evaluate((kind) => {
+        const el = document.activeElement;
+        if (!el?.matches('.notice .btn-' + kind) || !el.matches(':focus-visible') || !el.matches(':hover')) {
+            throw Error('NOTICE_FOKUS_BRAK_STANU ' + kind);
+        }
+        const css = getComputedStyle(el);
+        const rgb = value => {
+            const channels = value.match(/[\d.]+/g).map(Number);
+            if (channels.length === 4 && channels[3] !== 1) throw Error('NOTICE_FOKUS_PRZEZROCZYSTOSC ' + value);
+            return channels.slice(0, 3);
+        };
+        for (let p = el; p; p = p.parentElement) {
+            if (Number(getComputedStyle(p).opacity) !== 1) throw Error('NOTICE_FOKUS_PRZEZROCZYSTOSC');
+        }
+        const lum = color => color.map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)
+            .reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+        const ratio = (a, b) => (Math.max(lum(a), lum(b)) + .05) / (Math.min(lum(a), lum(b)) + .05);
+        const shadows = [...css.boxShadow.matchAll(/(rgba?\([^)]+\))\s+0px\s+0px\s+0px\s+([\d.]+)px/g)]
+            .map(m => ({ color: rgb(m[1]), spread: Number(m[2]) })).sort((a, b) => a.spread - b.spread);
+        if (shadows.length !== 2 || shadows[0].spread < 2 || shadows[1].spread - shadows[0].spread < 3) {
+            throw Error('NOTICE_FOKUS_BRAK_PIERSCIENIA ' + css.boxShadow);
+        }
+        const [halo, ring] = shadows;
+        const background = rgb(getComputedStyle(el.closest('.notice')).backgroundColor);
+        return { kind, halo, ring, background, button: rgb(css.backgroundColor),
+            inside: ratio(ring.color, halo.color), outside: ratio(ring.color, background) };
+    }, kind);
+    if (result.inside < 3 || result.outside < 3) throw Error('NOTICE_FOKUS_KONTRAST ' + JSON.stringify(result));
+    return result;
+}
+
 export async function sprawdzPodpowiedzi({
     browser,
     adres,
@@ -175,6 +211,17 @@ export async function sprawdzPodpowiedzi({
                 kind,
                 pomiar: await sprawdzKontrastNotice(page, [kind]),
             });
+            if (kind !== "plain") {
+                // Cofnięcie i powrót klawiszem uruchamiają heurystykę :focus-visible;
+                // programowe focus() powyżej nie jest dowodem tego stanu.
+                await page.keyboard.press("Shift+Tab");
+                await page.keyboard.press("Tab");
+                await target.hover();
+                wyniki.push({
+                    stan: "najechanie-i-fokus-klawiatury", width, dark, scale, kind,
+                    pomiar: await sprawdzFokusNotice(page, kind),
+                });
+            }
             if (screenshot)
                 await page.screenshot({
                     path: `storage/port-projektu/notice/${kind}-${width}-${dark}-${scale}.png`,
@@ -193,6 +240,7 @@ export async function sprawdzPodpowiedzi({
                         count++;
                     }
         if (negatywy) {
+            const mainRows = wyniki.length;
             const source = "resources/css/app.css",
                 dir = mkdtempSync(tmpdir() + "/kuking-notice-");
             const selector = ".notice a:not(.btn-primary):not(.btn-secondary)";
@@ -215,6 +263,10 @@ export async function sprawdzPodpowiedzi({
                         text +
                         "\n.notice a.btn-secondary { color: var(--color-accent-tint-ink); }\n",
                 ],
+                ...["primary", "secondary"].map(kind => [
+                    "stary-fokus-" + kind, kind,
+                    text => text.replace(".notice .btn:focus-visible {", ".nieistniejaca-notice .btn:focus-visible {"),
+                ]),
             ]) {
                 const original = readFileSync(source, "utf8"),
                     mtime = statSync(source).mtimeMs;
@@ -244,12 +296,16 @@ export async function sprawdzPodpowiedzi({
                     execFileSync("npm", ["run", "build"], { stdio: "pipe" });
                 }
                 await measure(320, true, 100, kind);
-                if (!error?.message.startsWith("NOTICE_KONTRAST "))
+                // JSON macierzy opisuje 24 właściwe konfiguracje, nie częściowe
+                // wiersze przerwanych negatywów i ich dodatkowe kontrole dodatnie.
+                wyniki.splice(mainRows);
+                const expected = name.startsWith("stary-fokus-") ? "NOTICE_FOKUS_KONTRAST " : "NOTICE_KONTRAST ";
+                if (!error?.message.startsWith(expected))
                     throw Error(
                         "NOTICE_NEGATYW " + name + " " + error?.message,
                     );
                 console.log(
-                    `NOTICE_NEGATIVE_OK ${name} MD5=${before} mtime=${mtime} restored; ${error.message}`,
+                    `NOTICE_NEGATIVE_OK ${name} backup=${backup} MD5=${before} mtime=${mtime} restored; ${error.message}`,
                 );
             }
         }
@@ -258,7 +314,7 @@ export async function sprawdzPodpowiedzi({
             JSON.stringify(wyniki, null, 2),
         );
         console.log(
-            `NOTICE_OK ${count} konfiguracje normal/hover/focus czas_ms=${Date.now() - started}`,
+            `NOTICE_OK ${count} konfiguracje normal/hover/focus; primary/secondary także hover+Tab czas_ms=${Date.now() - started}`,
         );
     } finally {
         fixture("sprzataj", data.draft);

@@ -1,5 +1,25 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Uzupełniony ogląd wiadomości — 14 września 2026
+
+[Odbiór 18 wiadomości](ODBIOR_WIADOMOSCI_027.md) uzupełnia historyczne
+wiersze poczty poniżej: obejrzano każdy z 11 własnych szablonów i siedmiu
+Laravel MailMessage przy 320 oraz 640 px, razem 36 zrzutów. Nie znaleziono
+błędu układu w tych wariantach. To lokalny Chromium na źródłach 595f41f,
+bez wysyłki, nie dowód zgodności z Gmail/Outlook/Apple Mail. Nie sprawdzono
+każdego wariantu treści, trybu ciemnego klienta ani obsługi odpowiedzi.
+
+## Lokalne poprawki zgłoszeń — Alfa 0.27, przed wdrożeniem
+
+[Raport poprawek](POPRAWKI_ISSUES_ALFA_027.md) opisuje #538 (komunikat
+rzeczywistego limitu imienia) i #444 (systemowy odstęp przed usuwaniem
+komentarza i odpowiedzi), ich regresje oraz fizyczne kontrole ujemne.
+[Nawigacja przy małej wysokości](NAWIGACJA_NISKI_WIDOK_492.md) uzupełnia
+wcześniejsze ograniczenie zasłaniania treści; [mieszana karuzela](KARUZELA_MIESZANA_431.md)
+dodaje kontrolowaną próbkę obu orientacji do automatu.
+Zamknięcie historycznych #440/#445/#448 i nieodtwarzalnego #518 nie
+oznacza ponownego odbioru całego portalu. Pełny port: **CZĘŚCIOWO**.
+
 ## Potwierdzone wdrożenie Alfy 0.26 — 14 września 2026
 
 [Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_026.md): PR #535 scalony jako
@@ -267,3 +287,7 @@ przejścia bez JS do wszystkich tagów i 112 wariantów prawdziwego zoomu
 pełne nazwy/opisy, widoczny fokus i rzeczywiste negatywy. Ogląd obejmuje
 reprezentatywne zrzuty, nie każdy wariant. Ten odbiór nie rozszerza
 pokrycia wszystkich filtrów i wyników ani innych tras z wspólnego wiersza.
+
+## Uzupełnienie odbioru #539
+
+Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przycisk podpowiedzi. Regresja: 88 wierszy pomiarów, pięć kontroli ujemnych rzeczywistego CSS i cztery próby prawdziwego zoomu. Niezależny końcowy odbiór po integracji z nawigacją: ciemny motyw, zoom 200%, tekst 140%, Tab 14/14 PASS wraz z hover + focus-visible. Wcześniejszego nieudanego przebiegu nie traktujemy jako pozytywnego. Szczegóły: [FOKUS_PODPOWIEDZI_539.md](FOKUS_PODPOWIEDZI_539.md). Wdrożenie pakietu wymaga osobnego potwierdzenia.

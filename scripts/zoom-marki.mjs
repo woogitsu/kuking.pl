@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
-export async function sprawdzTab(page, path) {
+export async function sprawdzTab(page, path, { bezJs = false } = {}) {
   const expected = await page.evaluate(() => {
     const elements = [...document.querySelectorAll('main a[href], main button, main input, main select, main textarea, main summary, main [tabindex]')]
       .filter(el => el.tabIndex >= 0 && !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility === 'visible')
@@ -26,15 +26,22 @@ export async function sprawdzTab(page, path) {
   const seen = new Set();
   for (let i = 0; i < expected + 80 && seen.size < expected; i++) {
     await page.keyboard.press('Tab');
-    const r = await page.evaluate(async () => {
-      await new Promise(requestAnimationFrame);
-      // Pierwsza klatka może zawierać dopiero początek transition (halo 0px).
-      // Czekamy na skończenie krótkiej animacji, nie obniżamy progu kontrastu.
-      await Promise.race([
-        Promise.all(document.activeElement?.getAnimations().map(a => a.finished.catch(() => {})) ?? []),
-        new Promise(resolve => setTimeout(resolve, 500)),
-      ]);
-      await new Promise(requestAnimationFrame);
+    // Bez JS oczekiwanie odbywa się w Node; aplikacja nadal ma wyłączone skrypty.
+    if (bezJs) {
+      const duration = await page.evaluate(() => Math.max(0, ...document.activeElement.getAnimations().map(a => Math.min(500, a.effect.getComputedTiming().endTime || 0))));
+      await page.waitForTimeout(duration + 34);
+    }
+    const r = await page.evaluate(async ({ bezJs }) => {
+      if (!bezJs) {
+        await new Promise(requestAnimationFrame);
+        // Pierwsza klatka może zawierać dopiero początek transition (halo 0px).
+        // Czekamy na skończenie krótkiej animacji, nie obniżamy progu kontrastu.
+        await Promise.race([
+          Promise.all(document.activeElement?.getAnimations().map(a => a.finished.catch(() => {})) ?? []),
+          new Promise(resolve => setTimeout(resolve, 500)),
+        ]);
+        await new Promise(requestAnimationFrame);
+      }
       const el = document.activeElement;
       if (!el?.hasAttribute('data-pomiar-tab')) return null;
       const fragments = [...el.getClientRects()].filter(r => r.width > 0 && r.height > 0);
@@ -131,7 +138,7 @@ export async function sprawdzTab(page, path) {
         visible: fragments.length > 0 && fragments.every(b => b.y >= 0 && b.bottom <= innerHeight && b.x >= 0 && b.right <= innerWidth),
         centerVisible: centersVisible, occluded, contrast, color: css.outlineColor,
         ring: ring?.kind ?? null, paint: ring?.paint, ambiguousPoints };
-    });
+    }, { bezJs });
     if (!r) continue;
     if (r.hidden || r.opacity <= .01) throw new Error('ZOOM_FOCUS_HIDDEN ' + path + ' ' + JSON.stringify(r));
     if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
@@ -141,10 +148,19 @@ export async function sprawdzTab(page, path) {
       let shot;
       try { shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: false }); }
       finally { await cdp.detach(); }
-      const paintedEdges = await page.evaluate(async ({ data, points, paint }) => {
-        const img = new Image();
-        img.src = 'data:image/png;base64,' + data;
-        await img.decode();
+      if (bezJs) {
+        await page.evaluate(data => { window.__kukingRasterFokusu = new Image(); window.__kukingRasterFokusu.src = 'data:image/png;base64,' + data; }, shot.data);
+        let decoded = false;
+        for (let attempt = 0; attempt < 100 && !decoded; attempt++) {
+          decoded = await page.evaluate(() => window.__kukingRasterFokusu.complete && window.__kukingRasterFokusu.naturalWidth > 0);
+          if (!decoded) await page.waitForTimeout(20);
+        }
+        if (!decoded) throw new Error('ZOOM_RASTER_DECODE');
+      }
+      const paintedEdges = await page.evaluate(async ({ data, points, paint, bezJs }) => {
+        const img = bezJs ? window.__kukingRasterFokusu : new Image();
+        if (!bezJs) { img.src = 'data:image/png;base64,' + data; await img.decode(); }
+        if (bezJs) delete window.__kukingRasterFokusu;
         const canvas = document.createElement('canvas');
         canvas.width = img.width; canvas.height = img.height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -155,7 +171,7 @@ export async function sprawdzTab(page, path) {
           // Sample the middle of the ring, allowing only minor raster rounding.
           return { x, y, actual, visible: actual.every((v, i) => Math.abs(v - paint[i]) <= 24) };
         });
-      }, { data: shot.data, points: r.ambiguousPoints, paint: r.paint });
+      }, { data: shot.data, points: r.ambiguousPoints, paint: r.paint, bezJs });
       if (paintedEdges.some(edge => !edge.visible)) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify({ ...r, paintedEdges }));
     }
     seen.add(r.id);

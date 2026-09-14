@@ -1,0 +1,35 @@
+{
+  "sources": {
+    "/tmp/kuking-report431-7hOmzb/scripts/dostepnosc.mjs": {
+      "backup": "/tmp/kuking-report431-backup-tf_7cjsh/dostepnosc.mjs",
+      "md5": "98c1384e51bf290cd596cb33ae90fdb1",
+      "mtime_ns": 1789393902408100900,
+      "restored_md5": "98c1384e51bf290cd596cb33ae90fdb1",
+      "restored_mtime_ns": 1789393902408100900
+    },
+    "/tmp/kuking-report431-7hOmzb/scripts/fixtures/karuzela-mieszana.mjs": {
+      "backup": "/tmp/kuking-report431-backup-tf_7cjsh/karuzela-mieszana.mjs",
+      "md5": "4fb1dc33dee50c3ec49d6aa71f5b8ed1",
+      "mtime_ns": 1789393902408100900,
+      "restored_md5": "4fb1dc33dee50c3ec49d6aa71f5b8ed1",
+      "restored_mtime_ns": 1789393902408100900
+    }
+  },
+  "results": [
+    {
+      "name": "ci86ff08d",
+      "exit": 1,
+      "expected": "karuzelaBezJs is not defined"
+    },
+    {
+      "name": "pusty-json",
+      "exit": 1,
+      "expected": "not ok"
+    },
+    {
+      "name": "brak-przebiegu",
+      "exit": 1,
+      "expected": "not ok"
+    }
+  ]
+}

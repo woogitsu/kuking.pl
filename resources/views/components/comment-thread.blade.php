@@ -120,7 +120,7 @@
                             </div>
 
                             @can('delete', $reply)
-                                <div class="danger-zone mt-2 pt-3">
+                                <div class="danger-zone">
                                     @if($replyContentOwnerRemovingOthers)
                                         <details>
                                             <summary class="btn btn-quiet inline-flex">Usuń</summary>
@@ -207,7 +207,7 @@
             @unless($commentIsRemoved)
                 @auth
                     @can('delete', $comment)
-                        <div class="danger-zone mt-2 pt-3">
+                        <div class="danger-zone">
                             @if($commentContentOwnerRemovingOthers)
                                 <details>
                                     <summary class="btn btn-quiet inline-flex">Usuń</summary>

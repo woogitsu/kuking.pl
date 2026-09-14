@@ -91,18 +91,19 @@ class RezerwaPodDolnaBelkaTest extends TestCase
         return substr($css, $start, $koniec - $start);
     }
 
-    public function test_dolna_belka_zostaje_poza_przeplywem_dokumentu(): void
+    public function test_bazowa_regula_dolnej_belki_zostaje_poza_przeplywem_dokumentu(): void
     {
         $belka = $this->regula($this->css(), '.bottom-nav {');
 
         $this->assertStringContainsString(
             'position: fixed',
             $belka,
-            'Dolna belka nie jest już `position: fixed`. Jeśli powodem jest '
-            .'2.4.11 (Focus Not Obscured) — to nie jest droga: belka w przepływie '
-            .'przestaje być dla axe nakładką i zaczyna przycinać pole kliknięcia '
-            .'sąsiadów, czyli łamie 2.5.8 (Target Size). Rezerwę liczy '
-            .'`--rezerwa-pod-belka`.',
+            'Bazowa reguła dolnej belki nie jest już `position: fixed`. '
+            .'Warunkowe odpięcie przy braku miejsca jest osobnym wyjątkiem '
+            .'w marka-rama.css; jego geometrię i Tab sprawdza '
+            .'nawigacja-niski-widok.mjs, a cele dotykowe także pełny pomiar axe. '
+            .'Historyczna próba sticky przycinała pola kliknięcia sąsiadów '
+            .'i nie jest dowodem przeciw każdemu układowi w przepływie.',
         );
 
         $this->assertStringNotContainsString(

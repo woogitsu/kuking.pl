@@ -24,6 +24,10 @@ fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
 
 ## Precyzja opisu działania
 
+Komunikat przekroczenia limitu podaje wartość z rzeczywistej reguły
+walidacji, np. `:max`, zamiast liczby wpisanej osobno w zdaniu. Zmiana
+limitu nie może pozostawić sprzecznej instrukcji przy polu (#538).
+
 Potwierdzenie zapisu przepisu nazywa faktycznie zapisaną widoczność: prywatny,
 dla obserwujących lub publiczny. Nie sugerujemy odbiorców prywatnej treści.
 Instrukcja dalszego działania używa widocznej nazwy przycisku, np. „Dopisz

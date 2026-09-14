@@ -1,0 +1,1518 @@
+[
+  {
+    "javaScriptEnabled": true,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 204.6875,
+        "width": 296,
+        "height": 196.6875
+      },
+      "bottom": {
+        "top": 634.40625,
+        "bottom": 732,
+        "width": 304,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 740,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 140.796875,
+        "bottom": 188.796875,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 204.6875,
+        "width": 296,
+        "height": 196.6875
+      },
+      "bottom": {
+        "top": 634.40625,
+        "bottom": 732,
+        "width": 304,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 740,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 140.796875,
+        "bottom": 188.796875,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": false,
+    "variant": {
+      "width": 390,
+      "height": 844,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 144.796875,
+        "width": 366,
+        "height": 136.796875
+      },
+      "bottom": {
+        "top": 738.40625,
+        "bottom": 836,
+        "width": 374,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 844,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 78.453125,
+        "bottom": 126.453125,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 390,
+      "scroll": 390
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": true,
+    "variant": {
+      "width": 390,
+      "height": 844,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 144.796875,
+        "width": 366,
+        "height": 136.796875
+      },
+      "bottom": {
+        "top": 738.40625,
+        "bottom": 836,
+        "width": 374,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 844,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 78.453125,
+        "bottom": 126.453125,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 390,
+      "scroll": 390
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 228.4375,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 12631.625,
+        "bottom": 12805.8671875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": 88.7578125,
+        "bottom": 153.875,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": 161.875,
+        "bottom": 209.875,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 11.328125,
+          "bottom": 58.828125,
+          "left": 32,
+          "right": 165.7265625
+        },
+        {
+          "top": 58.3671875,
+          "bottom": 105.8671875,
+          "left": 32,
+          "right": 211.421875
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 228.4375,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 12631.625,
+        "bottom": 12805.8671875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": 88.7578125,
+        "bottom": 153.875,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": 161.875,
+        "bottom": 209.875,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 11.328125,
+          "bottom": 58.828125,
+          "left": 32,
+          "right": 165.7265625
+        },
+        {
+          "top": 58.3671875,
+          "bottom": 105.8671875,
+          "left": 32,
+          "right": 211.421875
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 32,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 433,
+        "width": 296,
+        "height": 425
+      },
+      "bottom": {
+        "top": 37623.953125,
+        "bottom": 37968.375,
+        "width": 304,
+        "height": 344.421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 16,
+      "font": 32,
+      "height": 740,
+      "position": "relative",
+      "padding": 16,
+      "notification": {
+        "top": 76,
+        "bottom": 317,
+        "width": 272,
+        "height": 241
+      },
+      "account": {
+        "top": 325,
+        "bottom": 421,
+        "width": 226.9375,
+        "height": 96
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 740,
+      "fragments": [
+        {
+          "top": 10.921875,
+          "bottom": 105.921875,
+          "left": 24,
+          "right": 291.453125
+        },
+        {
+          "top": 105,
+          "bottom": 200,
+          "left": 24,
+          "right": 255.1875
+        },
+        {
+          "top": 199.078125,
+          "bottom": 294.078125,
+          "left": 24,
+          "right": 151.65625
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 32,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 433,
+        "width": 296,
+        "height": 425
+      },
+      "bottom": {
+        "top": 37623.953125,
+        "bottom": 37968.375,
+        "width": 304,
+        "height": 344.421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 16,
+      "font": 32,
+      "height": 740,
+      "position": "relative",
+      "padding": 16,
+      "notification": {
+        "top": 76,
+        "bottom": 317,
+        "width": 272,
+        "height": 241
+      },
+      "account": {
+        "top": 325,
+        "bottom": 421,
+        "width": 226.9375,
+        "height": 96
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 740,
+      "fragments": [
+        {
+          "top": 10.921875,
+          "bottom": 105.921875,
+          "left": 24,
+          "right": 291.453125
+        },
+        {
+          "top": 105,
+          "bottom": 200,
+          "left": 24,
+          "right": 255.1875
+        },
+        {
+          "top": 199.078125,
+          "bottom": 294.078125,
+          "left": 24,
+          "right": 151.65625
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/odwolanie/01a0a008-d5ca-7068-8bb7-99db5fd57261",
+    "frame": {
+      "header": {
+        "top": 6,
+        "bottom": 226.4375,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 4000.8125,
+        "bottom": 4175.0546875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": 86.7578125,
+        "bottom": 151.875,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": 159.875,
+        "bottom": 207.875,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "message": {
+      "text": "Napisz trochę więcej — kilka zdań wystarczy, ale jedno słowo nam nie pomoże.",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        },
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": true,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/odwolanie/01a0a008-d5ca-7068-8bb7-99db5fd57261",
+    "frame": {
+      "header": {
+        "top": -1831,
+        "bottom": -1610.5625,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 2163.8125,
+        "bottom": 2338.0546875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": -1750.2421875,
+        "bottom": -1685.125,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": -1677.125,
+        "bottom": -1629.125,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "message": {
+      "text": "Napisz trochę więcej — kilka zdań wystarczy, ale jedno słowo nam nie pomoże.",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        },
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 204.6875,
+        "width": 296,
+        "height": 196.6875
+      },
+      "bottom": {
+        "top": 634.40625,
+        "bottom": 732,
+        "width": 304,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 740,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 140.796875,
+        "bottom": 188.796875,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 204.6875,
+        "width": 296,
+        "height": 196.6875
+      },
+      "bottom": {
+        "top": 634.40625,
+        "bottom": 732,
+        "width": 304,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 740,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 140.796875,
+        "bottom": 188.796875,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": false,
+    "variant": {
+      "width": 390,
+      "height": 844,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 144.796875,
+        "width": 366,
+        "height": 136.796875
+      },
+      "bottom": {
+        "top": 738.40625,
+        "bottom": 836,
+        "width": 374,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 844,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 78.453125,
+        "bottom": 126.453125,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 390,
+      "scroll": 390
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": true,
+    "variant": {
+      "width": 390,
+      "height": 844,
+      "zoom": 1,
+      "font": 16,
+      "scale": 100,
+      "release": false
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 144.796875,
+        "width": 366,
+        "height": 136.796875
+      },
+      "bottom": {
+        "top": 738.40625,
+        "bottom": 836,
+        "width": 374,
+        "height": 97.59375
+      },
+      "bottomPosition": "fixed",
+      "bottomPadding": 176,
+      "font": 16,
+      "height": 844,
+      "position": "sticky",
+      "padding": 240,
+      "notification": {
+        "top": 76,
+        "bottom": 132.796875,
+        "width": 178.21875,
+        "height": 56.796875
+      },
+      "account": {
+        "top": 78.453125,
+        "bottom": 126.453125,
+        "width": 127.0625,
+        "height": 48
+      },
+      "width": 390,
+      "scroll": 390
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": null
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 228.4375,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 12631.625,
+        "bottom": 12805.8671875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": 88.7578125,
+        "bottom": 153.875,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": 161.875,
+        "bottom": 209.875,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 11.328125,
+          "bottom": 58.828125,
+          "left": 32,
+          "right": 165.7265625
+        },
+        {
+          "top": 58.3671875,
+          "bottom": 105.8671875,
+          "left": 32,
+          "right": 211.421875
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 228.4375,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 12631.625,
+        "bottom": 12805.8671875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": 88.7578125,
+        "bottom": 153.875,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": 161.875,
+        "bottom": 209.875,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 11.328125,
+          "bottom": 58.828125,
+          "left": 32,
+          "right": 165.7265625
+        },
+        {
+          "top": 58.3671875,
+          "bottom": 105.8671875,
+          "left": 32,
+          "right": 211.421875
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 32,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 433,
+        "width": 296,
+        "height": 425
+      },
+      "bottom": {
+        "top": 37623.953125,
+        "bottom": 37968.375,
+        "width": 304,
+        "height": 344.421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 16,
+      "font": 32,
+      "height": 740,
+      "position": "relative",
+      "padding": 16,
+      "notification": {
+        "top": 76,
+        "bottom": 317,
+        "width": 272,
+        "height": 241
+      },
+      "account": {
+        "top": 325,
+        "bottom": 421,
+        "width": 226.9375,
+        "height": 96
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 740,
+      "fragments": [
+        {
+          "top": 10.921875,
+          "bottom": 105.921875,
+          "left": 24,
+          "right": 291.453125
+        },
+        {
+          "top": 105,
+          "bottom": 200,
+          "left": 24,
+          "right": 255.1875
+        },
+        {
+          "top": 199.078125,
+          "bottom": 294.078125,
+          "left": 24,
+          "right": 151.65625
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 740,
+      "zoom": 1,
+      "font": 32,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/home",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 433,
+        "width": 296,
+        "height": 425
+      },
+      "bottom": {
+        "top": 37623.953125,
+        "bottom": 37968.375,
+        "width": 304,
+        "height": 344.421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 16,
+      "font": 32,
+      "height": 740,
+      "position": "relative",
+      "padding": 16,
+      "notification": {
+        "top": 76,
+        "bottom": 317,
+        "width": 272,
+        "height": 241
+      },
+      "account": {
+        "top": 325,
+        "bottom": 421,
+        "width": 226.9375,
+        "height": 96
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "bottomLinks": [
+      "http://127.0.0.1:8037/home",
+      "http://127.0.0.1:8037/szukaj",
+      "http://127.0.0.1:8037/dodaj",
+      "http://127.0.0.1:8037/zeszyt",
+      "http://127.0.0.1:8037/@ania"
+    ],
+    "heading": {
+      "text": "Co dziś gotujesz?",
+      "top": 0,
+      "bottom": 740,
+      "fragments": [
+        {
+          "top": 10.921875,
+          "bottom": 105.921875,
+          "left": 24,
+          "right": 291.453125
+        },
+        {
+          "top": 105,
+          "bottom": 200,
+          "left": 24,
+          "right": 255.1875
+        },
+        {
+          "top": 199.078125,
+          "bottom": 294.078125,
+          "left": 24,
+          "right": 151.65625
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": false,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/odwolanie/01a0a008-d5ca-7068-8bb7-99db5fd57261",
+    "frame": {
+      "header": {
+        "top": 8,
+        "bottom": 228.4375,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 4002.8125,
+        "bottom": 4177.0546875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": 88.7578125,
+        "bottom": 153.875,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": 161.875,
+        "bottom": 209.875,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "message": {
+      "text": "Napisz trochę więcej — kilka zdań wystarczy, ale jedno słowo nam nie pomoże.",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        },
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        }
+      ],
+      "complete": true
+    }
+  },
+  {
+    "javaScriptEnabled": false,
+    "dark": true,
+    "variant": {
+      "width": 320,
+      "height": 500,
+      "zoom": 2,
+      "font": 16,
+      "scale": 140,
+      "release": true
+    },
+    "path": "/odwolanie/01a0a008-d5ca-7068-8bb7-99db5fd57261",
+    "frame": {
+      "header": {
+        "top": -1831,
+        "bottom": -1610.5625,
+        "width": 296,
+        "height": 220.4375
+      },
+      "bottom": {
+        "top": 2163.8125,
+        "bottom": 2338.0546875,
+        "width": 304,
+        "height": 174.2421875
+      },
+      "bottomPosition": "relative",
+      "bottomPadding": 8,
+      "font": 16,
+      "height": 500,
+      "position": "relative",
+      "padding": 8,
+      "notification": {
+        "top": -1750.2421875,
+        "bottom": -1685.125,
+        "width": 235.0625,
+        "height": 65.1171875
+      },
+      "account": {
+        "top": -1677.125,
+        "bottom": -1629.125,
+        "width": 147.46875,
+        "height": 48
+      },
+      "width": 320,
+      "scroll": 320
+    },
+    "message": {
+      "text": "Napisz trochę więcej — kilka zdań wystarczy, ale jedno słowo nam nie pomoże.",
+      "top": 0,
+      "bottom": 500,
+      "fragments": [
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        },
+        {
+          "top": 16.0625,
+          "bottom": 46.5625,
+          "left": 59,
+          "right": 229.890625
+        },
+        {
+          "top": 55.125,
+          "bottom": 85.625,
+          "left": 59,
+          "right": 233.5625
+        },
+        {
+          "top": 94.1875,
+          "bottom": 124.6875,
+          "left": 59,
+          "right": 260.7734375
+        },
+        {
+          "top": 133.25,
+          "bottom": 163.75,
+          "left": 59,
+          "right": 248.8359375
+        },
+        {
+          "top": 172.3125,
+          "bottom": 202.8125,
+          "left": 59,
+          "right": 269.3984375
+        }
+      ],
+      "complete": true
+    }
+  }
+]

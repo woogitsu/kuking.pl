@@ -176,6 +176,9 @@
 @media (max-width: 30rem) {
   [data-marka] .topbar-inner { padding: 12px; gap: 8px; }
   [data-marka] .topbar-actions { width: 100%; justify-content: space-between; margin: 0; }
+  /* Licznik i Konto mieszczą się obok przy 390 px, bez zmniejszania pisma i celów. */
+  [data-marka] .marka-powiadomienia-link,
+  [data-marka] .topbar-konto > summary { padding-inline: 4px; }
   [data-marka] .marka-publikacja { padding: 20px; }
   [data-marka] .composer > :is(.avatar, .ikona) { display: none; }
   [data-marka] .composer-copy { flex-basis: 100%; }
@@ -190,6 +193,11 @@
   [data-marka] .bottom-nav-item-glowna { flex-basis: 100%; }
   [data-marka] .marka-publikacja { padding: 16px; }
 }
+/* Przy niskim telefonie dostęp do treści ma pierwszeństwo przed przypięciem.
+   Prawdziwy zoom 200% daje 320×500 CSS, więc sam próg szerokości 15rem nie wystarcza. */
+@media (max-width: 30rem) and (max-height: 40rem) {
+  [data-marka] .marka-topbar { position: relative; top: 0; }
+}
 /* Obrys pozostaje wewnątrz zaokrąglonej grupy zdjęć. */
 [data-marka] .post-card > :is(.photo-grid, .karuzela, .kolaz) :focus-visible { outline-offset: -4px; }
 
@@ -198,8 +206,14 @@
   --rezerwa-pod-belka: calc(11rem * var(--user-text-scale, 1));
   --rezerwa-nad-belka: calc(9rem + 6rem * var(--user-text-scale, 1));
 }
-@media (max-width: 15rem) {
-  :root:has(body[data-marka]) { --rezerwa-nad-belka: 0rem; }
+@media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
+  /* Zostaje tylko miejsce na pierścień fokusu, nie wysokość przewiniętego nagłówka. */
+  :root:has(body[data-marka]) { --rezerwa-nad-belka: .5rem; }
+}
+/* W niskim widoku i przy dużej czcionce także dolna nawigacja przewija się ze stroną. */
+@media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
+  [data-marka] .bottom-nav { position: relative; inset: auto; margin: 8px; margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  :root:has(body[data-marka]) { --rezerwa-pod-belka: 0rem; scroll-padding-bottom: .5rem; }
 }
 @media (min-width: 64rem) {
   :root:has(body[data-marka]) {

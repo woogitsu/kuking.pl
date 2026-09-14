@@ -1,5 +1,14 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.27 — czytelność na małych ekranach
+
+- Na wąskim, niskim ekranie i przy bardzo dużej czcionce obie belki nawigacji przewijają się ze stroną, aby nie zasłaniać formularzy ani zaznaczenia klawiatury (#434, #492).
+- Na telefonie o szerokości 390 px powiadomienia z licznikiem i dostęp do konta mieszczą się w jednym rzędzie bez zmniejszania tekstu.
+- Komunikat zbyt długiego imienia podaje rzeczywisty limit w rejestracji i ustawieniach profilu (#538).
+- Usuwanie komentarza i odpowiedzi ma systemowy odstęp od zwykłych działań (#444).
+
+- Fokus klawiatury na przyciskach w podpowiedziach pozostaje czytelny również przy najechaniu w ciemnym motywie (#539).
+
 ## Alfa 0.26 — czytelne przyciski w podpowiedziach
 
 - Przyciski dodania kolejnego zdjęcia, zmiany kolejności zdjęć i dokończenia szkicu zachowują czytelny napis również wewnątrz podpowiedzi, w obu motywach (#534).

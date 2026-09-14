@@ -8,6 +8,7 @@ use App\Models\Profile;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -166,6 +167,57 @@ class DlugoscNazwyProfiluTest extends TestCase
             'trudniejszy niż ten, który produkt dopuszcza — a to jest tak samo '.
             'mylące jak wariant łatwiejszy.',
         );
+    }
+
+    /** @return array<string, array{int}> */
+    public static function limityKomunikatu(): array
+    {
+        return ['obecny limit' => [40], 'zmieniony limit' => [46]];
+    }
+
+    #[DataProvider('limityKomunikatu')]
+    public function test_komunikat_rejestracji_podaje_faktyczny_limit(int $limit): void
+    {
+        config(['kuking.profil.dlugosc_nazwy' => $limit]);
+        $nazwa = str_repeat('ą', $limit + 1);
+        $komunikat = "To imię jest za długie. Zmieść się w {$limit} znakach.";
+
+        $ekran = $this->followingRedirects()->from('/register')
+            ->post('/register', $this->dane($nazwa, 'zadluga'))->assertOk();
+        $this->sprawdzBladNazwy($ekran->getContent(), $komunikat, $nazwa);
+
+        $this->assertDatabaseMissing('profiles', ['username' => 'zadluga']);
+    }
+
+    #[DataProvider('limityKomunikatu')]
+    public function test_komunikat_ustawien_podaje_faktyczny_limit(int $limit): void
+    {
+        config(['kuking.profil.dlugosc_nazwy' => $limit]);
+        $osoba = $this->user('basia');
+        $nazwaPrzed = $osoba->profile->display_name;
+        $nazwa = str_repeat('ą', $limit + 1);
+        $komunikat = "To imię jest za długie. Zmieść się w {$limit} znakach.";
+
+        $ekran = $this->actingAs($osoba)->followingRedirects()->from('/ustawienia/profil')
+            ->put('/ustawienia/profil', $this->daneProfilu($nazwa))
+            ->assertOk();
+        $this->sprawdzBladNazwy($ekran->getContent(), $komunikat, $nazwa);
+
+        $this->assertSame($nazwaPrzed, $osoba->profile->fresh()->display_name);
+    }
+
+    private function sprawdzBladNazwy(string $html, string $komunikat, string $nazwa): void
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $bledy = $xpath->query('//*[@id="f-display_name-error"]');
+        $this->assertCount(1, $bledy);
+        $this->assertSame($komunikat, trim($bledy->item(0)->textContent));
+
+        $pole = $xpath->query('//input[@id="f-display_name"]')->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $pole);
+        $this->assertSame($nazwa, $pole->getAttribute('value'));
     }
 
     /** @return array<string, string> */
