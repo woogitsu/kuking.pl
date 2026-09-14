@@ -1,5 +1,11 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Odbiór produkcji Alfy 0.23 i dalsze poprawki
+
+Railway deployment 6432286380 dla `6db1b8978f8d7e2229a77e8dd4701ffd510a1b6a`: success 14 września 2026 o 07:43:37 UTC. CI main 34817233565: completed/success. Rzeczywisty odczyt produkcji pokazał Alfę 0.23 i `6db1b89`; CSS, JS i oba lokalne pliki Inter zwróciły 200. Nie oznacza to odbioru wszystkich zalogowanych stanów produkcji.
+
+[Składniki #526](SLOWNIK_SKLADNIKOW_526.md) i [autozapis #528](AUTOZAPIS_KREATORA_528.md) mają lokalną regresję po integracji i odbiór przeglądarkowy opisany w raportach. Alfa 0.25 jest przygotowywana, bez potwierdzenia wdrożenia. Pełny port nadal **CZĘŚCIOWO**.
+
 ## Uzupełnienie lokalne #524 i #527
 
 [Pełny przepis po 419/429](ODZYSKIWANIE_PELNEGO_PRZEPISU_524.md):

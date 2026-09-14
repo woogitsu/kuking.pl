@@ -226,7 +226,15 @@ new class extends Component
             return;
         }
 
-        $this->saveDraft();
+        if (! $this->saveDraft()) {
+            if (! $this->validateAboutStep()) {
+                $this->step = 1;
+            } else {
+                $this->validateRows();
+            }
+
+            return;
+        }
 
         $this->step = min($this->step + 1, self::STEP_PREVIEW);
     }
@@ -322,6 +330,7 @@ new class extends Component
             return;
         }
 
+        $this->resetErrorBag($property);
         $this->saveDraft();
     }
 
@@ -338,6 +347,19 @@ new class extends Component
             // więc mówimy wprost, czego brakuje — zamiast cicho nie zapisywać.
             $this->saveState = 'waiting';
             $this->saveMessage = $this->juzOpublikowany ? 'Podaj nazwę przepisu, żeby zapisać zmiany.' : 'Szkic zapisze się, kiedy podasz nazwę przepisu.';
+
+            return false;
+        }
+
+        // Autozapis przechodzi te same granice co ręczna publikacja (#528).
+        // Sprawdzamy SUROWE pola przed persist()/clean*(), inaczej długi
+        // tytuł kończy się SQL 22001, a wiersz bywa po cichu przycięty.
+        // Błąd nie nadpisuje wcześniejszego dobrego szkicu ani tekstu w UI.
+        $aboutValid = $this->validateAboutStep();
+        $rowsValid = $this->validateRows(changeStep: false);
+        if (! $aboutValid || ! $rowsValid) {
+            $this->saveState = 'error';
+            $this->saveMessage = 'Nie zapisaliśmy tych zmian. Popraw zaznaczone pola. Cały tekst jest nadal w formularzu.';
 
             return false;
         }
@@ -614,8 +636,15 @@ new class extends Component
             'family_since_year.max' => 'Ten rok jest za późny. Wpisz rok do 2100.',
         ]);
 
+        // Ponowna walidacja usuwa stare błędy tylko tych pól. Nie kasuje
+        // komunikatu zdjęcia ani innego etapu; poprawka pola odblokowuje zapis.
+        $this->resetErrorBag(array_keys($validator->getData()));
         if ($validator->fails()) {
-            $this->setErrorBag($validator->errors());
+            foreach ($validator->errors()->messages() as $key => $messages) {
+                foreach ($messages as $message) {
+                    $this->addError($key, $message);
+                }
+            }
 
             return false;
         }
@@ -623,8 +652,9 @@ new class extends Component
         return true;
     }
 
-    private function validateRows(): bool
+    private function validateRows(bool $changeStep = true): bool
     {
+        $this->resetErrorBag(['ingredients.*.text', 'ingredients.*.group_name', 'ingredients.*.note', 'steps.*.instruction', 'steps.*.timer_minutes']);
         $badIngredient = false;
         $badStep = false;
 
@@ -663,9 +693,9 @@ new class extends Component
             }
         }
 
-        if ($badIngredient) {
+        if ($changeStep && $badIngredient) {
             $this->step = 2;
-        } elseif ($badStep) {
+        } elseif ($changeStep && $badStep) {
             $this->step = 3;
         }
 
