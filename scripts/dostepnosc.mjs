@@ -50,6 +50,10 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 
+// Szybka regresja końcowego zapisu działa także przez check.sh i w CI,
+// zanim kosztowny pomiar uruchomi przeglądarkę i przygotuje bazę.
+execFileSync(process.execPath, ['--test', 'scripts/fixtures/karuzela-raport.test.mjs'], { stdio: 'inherit' });
+
 const SZYBKO = process.argv.includes('--szybko');
 
 /*
@@ -2851,12 +2855,19 @@ if (pominieteWUkladzie.length > 0) {
 log('');
 log('Karuzela bez JavaScriptu:');
 
+const karuzelaBezJs = { wyniki: [], blad: null };
 try {
-  const wynikiKaruzeli = await zmierzKaruzele({
+  await zmierzKaruzele({
     browser: przegladarka, adres, path: mieszanaKaruzela.path, executablePath: CHROMIUM,
+    wyniki: karuzelaBezJs.wyniki,
   });
+  const wynikiKaruzeli = karuzelaBezJs.wyniki;
+  if (wynikiKaruzeli.length !== 8 || wynikiKaruzeli.some(w => w.status !== 'ok')) {
+    throw new Error('Karuzela431: niepełny raport pomiaru');
+  }
   log(`  ✓ mieszana próbka: ${wynikiKaruzeli.length} wariantów, kliknięcia i Tab/Enter, ramka D-191, kontrolki 48px`);
 } catch (error) {
+  karuzelaBezJs.blad = error?.message ?? String(error);
   console.error(error);
   process.exitCode = 1;
 }

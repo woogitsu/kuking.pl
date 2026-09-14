@@ -90,3 +90,9 @@ To wynik wybranych testów, nie pełnego zestawu ani CI.
 ## Uzupełnienie odbioru #539
 
 Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przycisk podpowiedzi. Regresja: 88 wierszy pomiarów, pięć kontroli ujemnych rzeczywistego CSS i cztery próby prawdziwego zoomu. Niezależny końcowy odbiór po integracji z nawigacją: ciemny motyw, zoom 200%, tekst 140%, Tab 14/14 PASS wraz z hover + focus-visible. Wcześniejszego nieudanego przebiegu nie traktujemy jako pozytywnego. Szczegóły: [FOKUS_PODPOWIEDZI_539.md](FOKUS_PODPOWIEDZI_539.md). Wdrożenie pakietu wymaga osobnego potwierdzenia.
+
+## Uzupełnienie po pierwszym CI PR #540
+
+Commit 86ff08d: obowiązkowy lokalny hook przeszedł. W CI 34850145604 PHP: 3799 testów / 76314 asercji PASS. Zadanie dostępności zatrzymało się przy końcowym zapisie JSON po ośmiu dodatnich wariantach karuzeli: ReferenceError karuzelaBezJs. Błąd integracji naprawiono wraz z czterema regresjami i trzema fizycznymi kontrolami ujemnymi. Szczegóły: [raportowanie karuzeli](RAPORTOWANIE_KARUZELI_431.md). Wymagany jest nowy dodatni CI całego PR.
+
+Uzupełniono też bezpośrednie pomiary wszystkich historycznie wskazanych rozmiarów awatarów i pozycji kafla: [odbiór #434](ODBIOR_434_UZUPELNIENIE.md). Rozmiary niewystępujące na trasach są oznaczone jako próbki komponentu; delta kafla wynosi 59,89 px przy 390 px/100%, a zero w pozostałych badanych konfiguracjach.

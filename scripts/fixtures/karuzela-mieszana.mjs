@@ -21,10 +21,9 @@ function wymagaj(warunek, opis, dane) {
 }
 
 /** Ten sam przebieg obsługuje kliknięcia, Tab i geometrię. Nie uruchamia drugiego audytu axe. */
-export async function zmierzKaruzele({ browser, adres, path, executablePath, output = 'output/playwright/karuzela431' }) {
+export async function zmierzKaruzele({ browser, adres, path, executablePath, output = 'output/playwright/karuzela431', wyniki = [] }) {
   wymagaj(path?.startsWith('/wpisy/'), 'brak adresu próbki', path);
   mkdirSync(output, { recursive: true });
-  const wyniki = [];
   const temp = mkdtempSync(join(tmpdir(), 'kuking431-zoom-'));
   let zoomContext;
   try {
@@ -36,6 +35,10 @@ export async function zmierzKaruzele({ browser, adres, path, executablePath, out
     writeFileSync(join(extension, 'worker.js'), 'chrome.runtime.onInstalled.addListener(() => {});');
     for (const width of [320, 390]) {
       for (const mode of ['zwykly', 'tekst140', 'font200', 'zoom200']) {
+        // Wspólny bufor zachowuje także rozpoczęty wariant, gdy przeglądarka
+        // albo asercja przerwie pomiar przed zwróceniem ośmiu wyników.
+        const wynik = { width, mode, status: 'w-trakcie', steps: [] };
+        wyniki.push(wynik);
         let context;
         let worker;
         if (mode === 'zoom200') {
@@ -86,7 +89,7 @@ export async function zmierzKaruzele({ browser, adres, path, executablePath, out
           const sample = await slides.locator('img').evaluateAll(images => images.map(img => ({ width: img.naturalWidth, height: img.naturalHeight, src: img.currentSrc })));
           wymagaj(sample.length === 2 && sample.some(i => i.height > i.width) && sample.some(i => i.width > i.height)
             && sample.every(i => i.src.includes('/zdjecia/')), 'brak prawdziwej mieszanej próbki', sample);
-          const steps = [];
+          const steps = wynik.steps;
           const snapshot = async (expected, action) => {
             const state = await page.evaluate(() => {
               const track = document.querySelector('.karuzela-tasma');
@@ -162,7 +165,7 @@ export async function zmierzKaruzele({ browser, adres, path, executablePath, out
           if (mode === 'font200') wymagaj(geometry.rootFont === '32px', 'font200 nie został ustawiony', geometry);
           await slides.nth(0).scrollIntoViewIfNeeded();
           await screenshot('');
-          wyniki.push({ width, mode, ...geometry, sample, tabForward, tabBack, steps });
+          Object.assign(wynik, { ...geometry, sample, tabForward, tabBack, status: 'ok' });
         } finally {
           await page.close();
           if (mode !== 'zoom200') await context.close();
@@ -172,6 +175,10 @@ export async function zmierzKaruzele({ browser, adres, path, executablePath, out
     writeFileSync(`${output}/wyniki.json`, JSON.stringify(wyniki, null, 2));
     wymagaj(wyniki.length === 8, 'niepełna macierz', wyniki.length);
     return wyniki;
+  } catch (error) {
+    const ostatni = wyniki.at(-1);
+    if (ostatni) Object.assign(ostatni, { status: 'blad', blad: error?.message ?? String(error) });
+    throw error;
   } finally {
     await zoomContext?.close();
     rmSync(temp, { recursive: true, force: true });
