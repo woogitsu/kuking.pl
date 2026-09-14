@@ -1,5 +1,13 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Regresja gotowości strony w teście fokusu #536
+
+[Diagnoza i kontrole ujemne](FOKUS_ZDJECIA_BEZ_JS_536.md) wyjaśniają
+czerwone zadanie pierwszego CI PR #535: pomiar bez JS zaczynał przed
+załadowaniem CSS. Dodano kontrolowane opóźnienie arkusza i oczekiwanie
+na zasoby, zachowując Tab i obrys. To poprawka testu, nie usunięcie
+fokusu w aplikacji. Nowy head wymaga pełnych kontroli.
+
 ## Lokalna poprawka kontrastu #534 — Alfa 0.26 w przygotowaniu
 
 Potwierdzono, że szeroki selektor `.notice a` nadpisywał kolory przycisków.

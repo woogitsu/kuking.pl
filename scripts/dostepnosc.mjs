@@ -2982,8 +2982,17 @@ const wyborZdjeciaBezJs = await (async () => {
     storageState: stanZalogowany,
   });
 
+  // Bez JS DOMContentLoaded nie czeka na CSS. Opóźnienie arkusza odtwarza
+  // wyścig z CI; Tab wolno zacząć dopiero po załadowaniu dokumentu i zasobów.
+  const oczekiwaniaNaCss = [];
+  await kontekst.route('**/build/assets/*.css', (route) => {
+    const oczekiwanie = new Promise((resolve) => setTimeout(resolve, 3000))
+      .then(() => route.continue());
+    oczekiwaniaNaCss.push(oczekiwanie);
+    return oczekiwanie;
+  });
   const strona = await kontekst.newPage();
-  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
+  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'load' });
   const kod = odpowiedz?.status() ?? 0;
 
   await poczekajNaFonty(strona);
@@ -2994,6 +3003,7 @@ const wyborZdjeciaBezJs = await (async () => {
   if (kod !== 200) {
     console.error(`BŁĄD: „/dodaj/zdjecie" odpowiedziało kodem ${kod} — wybór zdjęcia nie został sprawdzony.`);
     process.exitCode = 1;
+    await Promise.all(oczekiwaniaNaCss);
     await kontekst.close();
 
     return null;
@@ -3038,9 +3048,11 @@ const wyborZdjeciaBezJs = await (async () => {
     })
     : null;
 
+  await Promise.all(oczekiwaniaNaCss);
   await kontekst.close();
 
   return {
+    opoznionychArkuszy: oczekiwaniaNaCss.length,
     krokowTabem: krokow,
     doszloTabem,
     etykiet: pomiar?.etykiet ?? 0,
@@ -3057,13 +3069,15 @@ const wyborZdjeciaBezJs = await (async () => {
 })();
 
 if (wyborZdjeciaBezJs) {
-  const dobrze = wyborZdjeciaBezJs.doszloTabem
+  const dobrze = wyborZdjeciaBezJs.opoznionychArkuszy > 0
+    && wyborZdjeciaBezJs.doszloTabem
     && wyborZdjeciaBezJs.zostajeWDrzewie
     && wyborZdjeciaBezJs.jednaEtykieta
     && wyborZdjeciaBezJs.widocznyFokusNaObszarze;
 
   log(`  ${dobrze ? '✓' : '✗'} Tab dochodzi do pola po ${wyborZdjeciaBezJs.krokowTabem} krokach`
     + ` (${wyborZdjeciaBezJs.doszloTabem ? 'tak' : 'NIE'})`
+    + `, opóźnionych arkuszy CSS: ${wyborZdjeciaBezJs.opoznionychArkuszy}`
     + `, etykiet: ${wyborZdjeciaBezJs.etykiet}`
     + `, pole display: ${wyborZdjeciaBezJs.display} / visibility: ${wyborZdjeciaBezJs.visibility}`
     + `, obrys na obszarze: ${wyborZdjeciaBezJs.obrys} ${wyborZdjeciaBezJs.gruboscObrysu} px`);
