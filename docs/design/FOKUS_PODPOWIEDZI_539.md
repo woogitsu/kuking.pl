@@ -1,6 +1,11 @@
 # Fokus przycisków w podpowiedziach — #539
 
-Status: poprawka i odbiór lokalny zakończone; CI i wdrożenie tego pakietu jeszcze niepotwierdzone.
+## Aktualizacja odbioru — 14 września 2026
+
+Pakiet PR #540 jest scalony i wdrożony jako `4c537b2`. CI PR i main: 10/10 success; Railway 6439273567 i Deploy 34859662013: success. [Potwierdzony odbiór produkcji Alfa 0.27](ODBIOR_PRODUKCJI_ALFA_027.md) rozdziela ogląd produkcji od lokalnych prób oraz opisuje ograniczenia. Poniższe informacje o przygotowaniu i pierwszym CI są historią prac, nie bieżącym statusem.
+
+
+Stan przed pierwszym CI: poprawka i odbiór lokalny zakończone; wdrożenie nie było jeszcze potwierdzone.
 
 W ciemnym motywie jednoczesne najechanie i fokus klawiatury ujawniły kontrast halo 2,622924:1 oraz zewnętrznego pierścienia 1,239146:1. Sam Tab bez najechania nie odtwarzał całego objawu. Nie zmieniono progów pomiaru.
 

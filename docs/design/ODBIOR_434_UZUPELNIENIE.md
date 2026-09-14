@@ -1,5 +1,10 @@
 ﻿# Uzupełniający odbiór #434 — awatary, spacja i pozycja kafla
 
+## Aktualizacja odbioru — 14 września 2026
+
+Pakiet PR #540 jest scalony i wdrożony jako `4c537b2`. CI PR i main: 10/10 success; Railway 6439273567 i Deploy 34859662013: success. [Potwierdzony odbiór produkcji Alfa 0.27](ODBIOR_PRODUKCJI_ALFA_027.md) rozdziela ogląd produkcji od lokalnych prób oraz opisuje ograniczenia. Poniższe informacje o przygotowaniu i pierwszym CI są historią prac, nie bieżącym statusem.
+
+
 Wykonano lokalnie, na Chromium153.0.8010.12, w kopii wykonawczej kuking-moderacja-537 i własnej bazie kuking_port_nav492_final (127.0.0.1:55439). Mailer array. Bez kont produkcyjnych, bez zapisów produkcji, bez zmian canonical, runnerów ani CI. Źródła obejmują końcową nawigację #492 oraz app.css #539. Nie uruchamiano pełnego PHP ani całego portu.
 
 ## Wynik awatarów
@@ -71,3 +76,5 @@ Próbka HTML ma teraz losową, zapisaną w stanie nazwę i powstaje przez wyłą
 Celowane kontrole zakończone sukcesem: wymuszony błąd zapisu snapshotu (brak katalogu), odmowa istniejącego snapshotu, udane utworzenie i odtworzenie pełnego rekordu profilu (łącznie z updated_at), liczby wpisów/powiadomień/komentarzy oraz usunięcie własnego HTML. Osobno wykonano prawdziwy końcowy blok JS z symulowanym błędem browser.close: cleanup został wywołany. W trakcie kontroli wykryto i poprawiono użycie klucza profiles.id na rzeczywisty profiles.user_id; następnie przywrócono pozostawioną próbkę i powtórzono cały celowany zestaw z sukcesem.
 
 Nie powtarzano pomiarów geometrii, nie uruchamiano przeglądarki ani pełnego PHP. Te kontrole dotyczą sprzątania, nie awarii procesu SIGKILL. Finalne dwa pliki znajdują się także w scripts/awatar-kafel434.mjs i scripts/fixtures/awatar-kafel434.php własnego worktree; przeznaczone do ręcznego odbioru, bez podpięcia CI.
+
+W repo zachowano ręczny automat `scripts/awatar-kafel434.mjs` oraz fixture `scripts/fixtures/awatar-kafel434.php`. Końcowy JSON i porównawcze zrzuty znajdują się w `docs/design/evidence/434/`. Pełne logi lokalne nie są odbiorem CI.
