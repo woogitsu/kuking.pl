@@ -1,5 +1,7 @@
 # Przekazanie OAuth i porządkowania issues — 14 września 2026
 
+> Aktualizacja po wznowieniu: PR #543 scalony po pełnym CI i końcowym odbiorze ostatniego tekstu. Ten plik zachowuje historyczny stan przekazania. Aktualne dowody: [EKRANY_OAUTH_345.md](EKRANY_OAUTH_345.md) i [ODBIOR_PRODUKCJI_ALFA_028.md](ODBIOR_PRODUKCJI_ALFA_028.md).
+
 ## Instrukcja dla kolejnego modelu
 
 Kontynuuj istniejącą pracę nad `woogitsu/kuking.pl`. Nie zaczynaj audytu marki od zera. Przeczytaj aktualne AGENTS.md i wskazane dokumenty. Użytkownik zlecił kilka dalszych prac, następnie poprosił o bezpieczne zakończenie, wysłanie wszystkiego na GitHub i przekazanie. Ten plik dokumentuje stan przed końcowym commitem/push; późniejsza wiadomość przekazania ma pierwszeństwo w kwestii SHA, PR i wyniku wysyłki.
