@@ -1,5 +1,22 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Aktualny stan — 14 września 2026, po scaleniu PR #521
+
+Pakiet #515–516 jest scalony: PR #521, head
+`1cb2ab5f485a0130a992b1cd4e5ba8db2a02b672`, merge
+`a3cb64df819351b18450603c1dcabe775aa748f0`.
+Obowiązkowy lokalny hook i zwykły push zakończyły się sukcesem.
+CI PR `34792102646`: **10 zadań success**, PHP **3726 testów / 75240 asercji**.
+Port marki job `103818145082` zakończył się sukcesem po 17 min 54 s;
+moduł tagów zaliczył 192 konfiguracje, cztery przejścia bez JS oraz
+sześć rzeczywistych negatywów CSS z przywróceniem końcowego źródła.
+Wyniki wcześniejszych prób poniżej pozostają zapisem historycznym.
+
+Potwierdzenie wdrożenia i granice odbioru opisuje
+[odbiór Alfa 0.22](ODBIOR_PRODUKCJI_ALFA_022.md).
+Pełny port marki nadal ma status **CZĘŚCIOWO**; pozytywny CI nie oznacza
+osobistego oglądu każdej strony, stanu i klienta poczty.
+
 13.09.2026. Źródło przekazane do przeglądu: `667ace890492f02b1221e259a73977cac0897ee3`, PR #517 / #511. CI `34780301310` trwało przy rozpoczęciu tej notki; ta notka nie weryfikuje jego zakończenia ani wdrożenia. Inwentaryzacja opiera się na `routes/web.php`, istniejących raportach i przyrządach, uzupełnionych aktualnym spisem tras oraz oddzielnym lokalnym odbiorem 20 wariantów stanów #511 opisanym poniżej. Aktualizacja tej notki nie uruchamia kolejnych testów ani nie mutuje źródeł.
 
 **Pełna kompozycja wszystkich ekranów i stanów nie ma kompletnego odbioru.** Zielony pełny suite nie oznacza obejrzenia każdego stanu. Historyczne wyniki są oznaczone datą/raportem; późniejsza poprawka wspólnego CSS nie aktualizuje automatycznie ich zrzutów.
@@ -17,7 +34,7 @@
 
 `docs/design/INWENTARZ_EKRANOW_MARKI_014.md` pozostaje historycznym inwentarzem. Aktualny `output/routes-517.json` wygenerowano rzeczywistym `php artisan route:list --json` w kopii native po synchronizacji gałęzi roboczej opartej na main `34b4b61` (trasy niezmienione względem PR #517): **192 wpisy**, w tym **100 GET|HEAD**, **3 GET|POST|HEAD**, 63 POST, 14 DELETE i 12 PUT. Zatem 103 wpisy obsługują GET; ani100, ani103 nie jest liczbą ekranów lub obejrzanych stanów. Spis obejmuje też pliki, przekierowania i endpointy systemowe. Bieżący `routes/web.php` stanowi źródło rodzin poniżej. Prefiksy Livewire zależą od instalacji i nie są ekranami. Wspólny kod wzorca poza 19 makietami to `layout.blade.php`, `tokens.css`, `marka-rama.css`, dokumenty marki i komponenty formularzy; brak oddzielnego widoku w ZIP nie zwalnia z tych zasad.
 
-## Ekran/stan → źródło → dowód
+## Historyczna macierz odbioru #511 — późniejsze uzupełnienia poniżej
 
 Ścieżki widoków poniżej są względem `resources/views/`. Nazwa testu oznacza konkretny przyrząd lub rodzinę regresji; wyniku indywidualnego testu nie dopisujemy z samego faktu jego istnienia.
 
@@ -25,7 +42,7 @@
 |---|---|---|---|---|---|
 | Publiczna `/`: kroki, wykonanie, własność | `pages/landing`, `marka-wlasnosc.css`; D208/D210 | V w odbiorach506/R509; R511 zachowuje port landingu | M6 R509, Z R509/R511 | `port-projektu`, `kompozycje-marki`, `zoom-marki`, `KompozycjaWejsciaMarkiTest` | Nie każda kombinacja brakującego kolażu, tablicy i wspomnienia ma osobny V |
 | Zalogowane `/` i `/home`: strumień, composer, tablica | `pages/home`, composer, kuking-board; D207 | P/V R014 i odbiór501 | Historyczne mobile/tekst, port; nie przypisywać Z publicznego `/` zalogowanemu `/home` | Port/kafel/fokus; wcześniejszy kontrakt GET home/root | Sam Z publicznego Startu nie sprawdza zalogowanego strumienia |
-| `/odkryj`, `/szukaj`: wyniki/bez wyników; `/tagi`, `/tag/{tag}` | `FeedController`, `SearchController`, `TagController`; rama/listy | P/L R012/R014, wybrane V wyszukiwarki i R508 | Historyczne 320–1440 i font; brak Z w zestawie ośmiu tras R511 | Szeroka macierz i dostępność | Kafle tematyczne pozostają #515; wszystkie kombinacje filtrów nieobejrzane |
+| `/odkryj`, `/szukaj`: wyniki/bez wyników; `/tagi`, `/tag/{tag}` | `FeedController`, `SearchController`, `TagController`; rama/listy | P/L R012/R014, wybrane V wyszukiwarki i R508 | Historyczne 320–1440 i font; brak Z w zestawie ośmiu tras R511 | Szeroka macierz i dostępność | Kafle były zakresem #515 — zakończonym w PR #521; wszystkie kombinacje filtrów nadal nieobejrzane |
 | `/@{username}` własny/cudzy, długie nazwy i rzeczywiste liczby | `pages/profile/show`, `marka-profil.css`; D210 | V R509; `output/final511/zoom200-ania-false.png`, `…true.png` | M6, Z; nowa fixture ujawniła i naprawiła obrys szyny | 432 konfiguracje, `KompozycjaProfiluMarkiTest`, pomiar pasa, Z64 i negatyw szyny | Nie wszystkie stany relacji/blokad kont mają indywidualny ogląd |
 | `/@{username}/obserwowani`, `/@{username}/obserwujacy` | `pages/profile/connections` | L R014; brak wskazanego osobnego aktualnego V | Historyczna macierz, bez bieżącego Z | Dostępność i polityki | Pusta lista vs wielostronicowa nie mają osobno przypisanego V |
 | `/login`, `/register` formularz podstawowy | `components/marka-wejscie`; D210 | V R509 | M6; Z obu motywów; Tab7/7 i10/10 w fixture | `KompozycjaWejsciaMarkiTest`, kompozycje, zoom | Sukces pełnej rejestracji i realne zewnętrzne uwierzytelnienie nie wynikają z GET |
@@ -60,17 +77,17 @@
 | 7 standardowych Laravel MailMessage | vendor/mail/html/theme+header, notifications | R012: render 7 klas, Chromium320/640; R014: render CI; brak dowodu V każdej klasy | R012CTA183×56 i zawijanie długiegoURL; nie Z | `StandardoweWiadomosciMarkiTest`, treści powiadomień | Brak lokalnego vendor/notifications/email nie jest luką: nadpisanymotyw działa przezLaravel. Bez Outlook/Gmail/AppleMail; teksty automatu #514 |
 | Pliki/callbacki/system | zdjęcia, robots,sitemap,health, eksportdownload, Livewire, OAuth | K; aktualny spis `output/routes-517.json`; pojedyncze odczyty nie są ekranami | Nie stosować metryki geometrii ekranów doJSON/pliku/przekierowania | Testyautoryzacji/tras | Wchodzą do192 wpisów tras, ale nie zwiększają liczby „obejrzanych ekranów” |
 
-## Co nadal jest luką dowodu, a nie nowym zgłoszonym błędem
+## Luki dowodu zapisane po #511 — stan historyczny
 
 1. **Puste/błędne/sukcesowe stany nie dziedziczą wyników happy-path.** S511 domknął ograniczony odbiór pustego indeksu, otwartego formularza, rzeczywistej walidacji, pustej kolekcji i samych wpisów:20wariantów bez poziomego overflow, z reprezentatywnym V. Nie rozszerza to wyniku96wariantów ani rzeczywistego zoomu200 na te stany. Druga strona, ograniczona widoczność i sukces utworzenia nadal nie mają tu osobnego V.
-2. **Z dotyczy ośmiu wybranych tras, nie całego serwisu.** Nie ma podstaw do pozytywnego wyniku Z dla ustawień, kreatora, gotowania, administratora, poczty i błędów. Historyczne font200 pozostaje osobnym dowodem, nawet po udanym Z509/511.
+2. **Ówczesny Z dotyczył ośmiu wybranych tras, nie całego serwisu.** Późniejszy zintegrowany port #521 obejmuje jedenaście tras; szczegółowe zakresy #513 i #515 opisano poniżej. Nie ma podstaw do pozytywnego wyniku Z dla ustawień, kreatora, gotowania, administratora, poczty i błędów. Historyczne font200 pozostaje osobnym dowodem, nawet po udanym Z509/511.
 3. **Moderacja:** puste kolejki i bramka2FA są faktycznymi stanami, lecz nie dowodzą skomplikowanej wypełnionej karty, szczegółów wiadomości/użytkownika ani wyniku akcji. Pełny PHP sprawdza zachowanie, nie wygląd wszystkich takich stanów.
 4. **PocztaLaravel:** istnieje port motywu i realny render; nie ma dowodu zgodności wszystkich klientów. Nie należy zgłaszać „brak portu standardowych maili” wyłącznie na podstawie braku jednego pliku vendor. Raport012 zawiera pozytywny, ale historyczny pomiar.
 5. **Awaria:** render419/429 podHTTP200 nie jest end-to-end sesji/limitera; ekran500 nie dowodzi poprawnego działania podczas każdej awarii zależności. Brak takiego ćwiczenia nie jest potwierdzonym błędem aplikacji.
 
-## Nowe konkretne luki poza #511 i #513–516
+## Zgłoszenia na etapie #511 — stan historyczny
 
-**Nie potwierdzono nowego błędu kompozycji ani nowej sprzeczności funkcjonalnej w odczycie pokrycia i dodatkowym odbiorze S511.** Podejrzenie zasłonięcia wielowierszowego linku błędu wyjaśniono osobną analizą czterech rzeczywistych fragmentów i zrzutem fokusu w jasnym motywie; wspólny prostokąt obejmował puste miejsca między wierszami. Szczegółowe ograniczenia tej diagnozy zawiera S511. Nie tworzymy usterek z samego braku pomiaru. Otwarte rodziny: #513 onboarding/zwykłe powiadomienia, #514 precyzja komunikatów, #515 tematy, #516 instrukcje modeli — pozostają odrębnymi zakresami i nie są tu ponownie zgłaszane. Powyższych ograniczeń nie wolno natomiast usuwać z końcowego twierdzenia o kompletności.
+**Nie potwierdzono nowego błędu kompozycji ani nowej sprzeczności funkcjonalnej w odczycie pokrycia i dodatkowym odbiorze S511.** Podejrzenie zasłonięcia wielowierszowego linku błędu wyjaśniono osobną analizą czterech rzeczywistych fragmentów i zrzutem fokusu w jasnym motywie; wspólny prostokąt obejmował puste miejsca między wierszami. Szczegółowe ograniczenia tej diagnozy zawiera S511. Nie tworzymy usterek z samego braku pomiaru. Ówcześnie otwarte rodziny #513–516 zostały następnie zakończone w PR #519–521; aktualizacje poniżej rozdzielają ich zakresy i dowody. Powyższych ograniczeń nie wolno natomiast usuwać z końcowego twierdzenia o kompletności.
 
 ## Aktualizacja po scaleniu
 

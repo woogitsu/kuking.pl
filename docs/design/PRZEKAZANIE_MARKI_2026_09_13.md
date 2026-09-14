@@ -1,5 +1,75 @@
 # Przekazanie rozwoju marki KuKing.pl — 13 września 2026
 
+## Najnowsze przekazanie — po scaleniu Alfy 0.22
+
+**Ta sekcja i odbiór Alfa 0.22 mają pierwszeństwo przed historycznymi
+instrukcjami poniżej. Nie rozpoczynaj ponownie #513–516.**
+
+PR #519, #520 i #521 są scalone. Ostatni pakiet kodu to PR #521:
+head `1cb2ab5f485a0130a992b1cd4e5ba8db2a02b672`, merge
+`a3cb64df819351b18450603c1dcabe775aa748f0`. CI PR `34792102646` ma
+10 sukcesów, w tym 3726 testów PHP / 75240 asercji i pełny port marki.
+Pierwsza nieudana wysyłka f6b600c była zatrzymana przez test ścieżek w
+Markdown. Poprawiono zapis, zachowując test. Kolejny zwykły push 1cb2ab5
+przeszedł obowiązkowy hook. Nie ma niezakończonej sesji push #513.
+
+Wdrożenie, assety i rzeczywisty ogląd są opisane osobno:
+[odbiór produkcji Alfa 0.22](ODBIOR_PRODUKCJI_ALFA_022.md).
+Nie wyprowadzaj wersji produkcji z samego numeru PR ani zielonego CI.
+Potwierdzona produkcja: Alfa 0.22 / a3cb64d, Railway6428309650 success,
+Deploy34811540912 success, odczyt HTTP i zalogowanego Chrome. Nowy CSS
+app-BZTD7N58.css. Produkcja pokazała puste tagi; nie twórz fikcyjnej zawartości.
+Przed nową pracą odczytaj świeży main, PR-y, stan lokalny i Railway.
+Kanoniczne repo pozostaje `C:\Users\matma\Documents\Codex\kuking.pl`.
+Worktree `kuking-marki515` jest historyczne, odłączone na f6b600c;
+nie kopiuj go jako aktualnego źródła. Kopia native pozostaje wykonawcza,
+wymaga porównania aktualnych bajtów przed każdym testem.
+
+Zakończone zakresy:
+
+- #513: zainteresowania oraz zwykłe i decyzyjne powiadomienia — PR #519,
+  Alfa 0.20, raport ZAINTERESOWANIA_POWIADOMIENIA_513.md.
+- #514: komunikaty zgodne z działaniem, automat i instrukcje logowania —
+  PR #520, Alfa 0.21, PRECYZJA_KOMUNIKATOW_514.md.
+- #515: rzeczywiste promowane tagi, pełne nazwy/opisy, pusty stan i link
+  do wszystkich tagów. Bez nowego modelu tematów i bez fikcyjnych danych.
+- #516: nadrzędne i cienkie instrukcje modeli, bezpieczna izolacja
+  środowiska, D-053, ikony, precyzyjne rozróżnienie zoomu i skal tekstu.
+  Konstytucja 1.9, D-213, źródłowy ZIP zachowany bez zmian.
+
+Użytkownik potwierdził brak ramki od Alfy 0.19. Na zalogowanym Starcie
+Alfa 0.21 nie odtworzono jej po wejściu i reload. Historyczna przyczyna
+#518 pozostaje nieustalona. **Nie usuwaj globalnego fokusu ani nie dodawaj
+blur bez reprodukcji.** Nowe zgłoszenie powinno zawierać adres i sposób
+wejścia; aktualne potwierdzenie użytkownika jest już zapisane.
+
+Pełna identyfikacja ma nadal status **CZĘŚCIOWO**. Kontynuuj od konkretnych
+luk w MACIERZ_KOMPLETNOSCI_517.md, a nie od ponownego grepowania palety:
+pełne kolejki i szczegóły moderacji, wybrane stany błędów/sukcesu/uploadu,
+pozostałe trasy z rzeczywistym zoomem, klawiatura ekranowa oraz rzeczywiści
+klienci poczty. Brak dowodu nie oznacza automatycznie błędu. Każdą potwierdzoną
+usterkę napraw z regresją i rzeczywistymi negatywami według AGENTS.md.
+Nie przypisuj osobistego oglądu wszystkim konfiguracjom pomiarowym.
+
+Środowisko nadal: PHP `/opt/kuking-php-8.4-avif/bin/php`, PostgreSQL
+**55439**, pełny PHP `kuking_final_20260913`, port przeglądarkowy
+`kuking_port_pomiar`; osobne fixture używają nazw `kuking_port*`.
+Nie używaj5432 ani nie uruchamiaj pełnego PHP równolegle z lokalnym
+odbiorem mediów demonstracyjnych. Nie cofaj manifestów, cudzych plików
+ani metadanych .git z native do repo Windows.
+
+### Uwaga po ponownym uruchomieniu środowiska
+
+Po nocnym wyłączeniu /tmp nie zawierał już native, baz ani dawnych logów.
+Kopię odtworzono; raporty historyczne nie gwarantują dalszego istnienia
+ich lokalnych ścieżek dowodowych. Dowody CI pozostają przypisane do
+konkretnych jobów. Środowisko WSL wymaga aktywnego podtrzymania: same
+usługi systemd nie utrzymują go przy życiu. Odczytaj sekcję infrastruktury
+w ODBIOR_PRODUKCJI_ALFA_022.md przed kolejnym rerun. Nie restartuj wspólnych
+usług ani nie zakładaj, że samo online runnera oznacza trwałą gotowość.
+
+## Historyczne przekazania i wcześniejsze etapy
+
 Poniższy tekst jest promptem do przekazania kolejnemu modelowi. Statusy są
 zapisem sesji, nie gwarancją aktualnego stanu. Najpierw sprawdź GitHub.
 

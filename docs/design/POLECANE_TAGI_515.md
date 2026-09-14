@@ -1,5 +1,22 @@
 # Polecane tagi w wyszukiwaniu — odbiór #515
 
+## Aktualny stan — 14 września 2026, po scaleniu PR #521
+
+Pakiet #515–516 jest scalony: PR #521, head
+`1cb2ab5f485a0130a992b1cd4e5ba8db2a02b672`, merge
+`a3cb64df819351b18450603c1dcabe775aa748f0`.
+Obowiązkowy lokalny hook i zwykły push zakończyły się sukcesem.
+CI PR `34792102646`: **10 zadań success**, PHP **3726 testów / 75240 asercji**.
+Port marki job `103818145082` zakończył się sukcesem po 17 min 54 s;
+moduł tagów zaliczył 192 konfiguracje, cztery przejścia bez JS oraz
+sześć rzeczywistych negatywów CSS z przywróceniem końcowego źródła.
+Wyniki wcześniejszych prób poniżej pozostają zapisem historycznym.
+
+Potwierdzenie wdrożenia i granice odbioru opisuje
+[odbiór Alfa 0.22](ODBIOR_PRODUKCJI_ALFA_022.md).
+Pełny port marki nadal ma status **CZĘŚCIOWO**; pozytywny CI nie oznacza
+osobistego oglądu każdej strony, stanu i klienta poczty.
+
 14.09.2026. Praca w osobnym worktree `fix/515-tematy-i-zasady`, baza
 `c2a05d0`, następnie bez zmiany drzewa przesunięta na scalone `ae6b519`.
 Pełna integracja pakietu #515/#516 i konfiguracji Alfa0.22: **w toku**.
@@ -191,4 +208,6 @@ za trasy serwisu. Zapis ścieżek poprawiono bez zmiany walidatora. Trzy testy
 dokumentów / 41 asercji przeszły, a dwa rzeczywiste powroty błędnego zapisu
 zostały wykryte. Źródła przywrócono z MD5 i mtime; logi poza repo:
 `/tmp/docpaths515-kpqa7eze`. Nie był to wynik pozytywny pełnego hooka;
-powtórna normalna wysyłka wymaga jego ponownego przejścia.
+powtórna normalna wysyłka wymagała jego ponownego przejścia.
+Późniejszy zwykły push 1cb2ab5 przeszedł pełny hook; wynik CI i scalenia
+opisano w aktualizacji na początku dokumentu.
