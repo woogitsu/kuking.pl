@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Tag;
@@ -59,6 +60,18 @@ class ProfileController extends Controller
         $rok = (int) $request->query('rok', 0);
         $rok = $rok >= 1990 && $rok <= 2999 ? $rok : null;
 
+        $zeszytySzyny = $this->zeszytyDoSzyny($owner, $viewer, $isOwner);
+        $tagiSzyny = $isOwner ? collect() : $this->tagiDoSzyny($owner, $viewer, $isOwner);
+        // Zdjęcia uzupełniają wyłącznie pustą szynę cudzego profilu. Ten sam
+        // filtr co archiwum chroni treści prywatne i dla obserwujących.
+        $zdjeciaSzyny = ! $isOwner && $zeszytySzyny->isEmpty() && $tagiSzyny->isEmpty()
+            ? $owner->posts()->published()
+                ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+                ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
+                ->with(['media' => fn ($query) => $query->where('status', Media::STATUS_READY)])
+                ->latest('published_at')->latest('id')->limit(3)->get()
+            : collect();
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -76,8 +89,9 @@ class ProfileController extends Controller
             // TUTAJ, nie w widoku. Filtr widoczności jest regułą domenową
             // i musi stać w jednym miejscu z filtrem list wyżej; przeniesiony
             // do Blade byłby drugą implementacją tej samej granicy.
-            'zeszytySzyny' => $this->zeszytyDoSzyny($owner, $viewer, $isOwner),
-            'tagiSzyny' => $isOwner ? collect() : $this->tagiDoSzyny($owner, $viewer, $isOwner),
+            'zeszytySzyny' => $zeszytySzyny,
+            'tagiSzyny' => $tagiSzyny,
+            'zdjeciaSzyny' => $zdjeciaSzyny,
             'recipes' => $tab === 'przepisy'
                 ? $owner->recipes()
                     ->published()

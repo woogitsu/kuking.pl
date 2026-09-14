@@ -1,0 +1,242 @@
+[
+  {
+    "role": "logged",
+    "width": 320,
+    "zoom": 1,
+    "theme": "light",
+    "scale": 140,
+    "scroll": 320,
+    "font": "25.2px",
+    "x": 12,
+    "right": 308,
+    "archiveRight": 308,
+    "imgs": [
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      }
+    ],
+    "links": [
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd"
+    ],
+    "focus": [
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "enter": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+    "imageClicks": 3,
+    "axe": []
+  },
+  {
+    "role": "logged",
+    "width": 320,
+    "zoom": 1,
+    "theme": "dark",
+    "scale": 140,
+    "scroll": 320,
+    "font": "25.2px",
+    "x": 12,
+    "right": 308,
+    "archiveRight": 308,
+    "imgs": [
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      }
+    ],
+    "links": [
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd"
+    ],
+    "focus": [
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "enter": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+    "imageClicks": 3,
+    "axe": []
+  },
+  {
+    "role": "logged",
+    "width": 320,
+    "zoom": 2,
+    "theme": "light",
+    "scale": 140,
+    "scroll": 320,
+    "font": "25.2px",
+    "x": 12,
+    "right": 308,
+    "archiveRight": 308,
+    "imgs": [
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      }
+    ],
+    "links": [
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd"
+    ],
+    "focus": [
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "enter": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+    "imageClicks": 3,
+    "axe": []
+  },
+  {
+    "role": "logged",
+    "width": 320,
+    "zoom": 2,
+    "theme": "dark",
+    "scale": 140,
+    "scroll": 320,
+    "font": "25.2px",
+    "x": 12,
+    "right": 308,
+    "archiveRight": 308,
+    "imgs": [
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      },
+      {
+        "width": 320,
+        "complete": true
+      }
+    ],
+    "links": [
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+      "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd"
+    ],
+    "focus": [
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2b-7180-bb43-84eb55dddd11",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "href": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+        "visible": true,
+        "width": 150,
+        "height": 117.1875,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "enter": "http://127.0.0.1:8033/wpisy/01a0a1c8-4e2d-7218-a50c-7bff7992e2cd",
+    "imageClicks": 3,
+    "axe": []
+  }
+]
