@@ -1,5 +1,50 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Potwierdzone wdrożenie Alfy 0.25
+
+[Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_025.md) potwierdza Railway
+`6433957176` success o 09:34:16 UTC, zielone main CI i Deploy oraz
+rzeczywistą stopkę **0.25 / b4d5d8e**. Na istniejącym prywatnym wpisie
+obejrzano poprawiony komunikat widoczności. Nie wykonywano zapisów danych
+produkcyjnych. Ogląd ujawnił podejrzenie słabego kontrastu przycisku w
+podpowiedzi `.notice`, wymagające osobnej diagnozy. Pełny port nadal
+**CZĘŚCIOWO**, z ograniczeniami opisanymi w raporcie.
+
+## Aktualny stan po scaleniu PR #531 — 14 września 2026
+
+PR #531 scalono jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`.
+CI `34822658081`: wszystkie dziesięć zadań success, w tym port marki.
+PHP z logu joba `103908931994`: **3793 testy / 76259 asercji**.
+To potwierdza scalenie Alfy 0.25, ale jeszcze nie jej wdrożenie.
+
+Ostatnia potwierdzona produkcja to **Alfa 0.24**,
+`b0712cf8df4a3508ec76e9fada31b4f839c99169`: Railway `6433191800` success
+14 września o 08:44:33 UTC, Deploy `34824265942` success, main CI
+`34822427307` success. Rzeczywisty HTTP ponownie zwrócił stopkę 0.24 /
+`b0712cf`; CSS, JS i oba lokalne fonty Inter odpowiadają 200. Odczyt wersji
+i zasobów nie jest pełnym oglądem wszystkich stanów produkcyjnych.
+
+Poniższe etapy i wyniki pozostają zapisem historycznym. Aktualizacja nie
+przypisuje ich automatycznie nowszym wydaniom. Pełny port: **CZĘŚCIOWO**.
+
+## Dodatkowy odbiór lokalny — 14 września 2026, kod 24afa9e
+
+[Tryb gotowania](ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md) uzupełnia historyczny
+wiersz tej trasy: 48 konfiguracji, w tym rzeczywisty zoom 200%, długa
+instrukcja 4000 znaków, faktyczne przejścia, Tab/Enter i zachowanie
+odhaczenia. Reprezentatywne zrzuty obejrzano; nie testowano fizycznego
+telefonu, Wake Lock ani wysłania wykonania.
+
+[Fokus szczegółów przepisu](ODBIOR_FOKUSU_SZCZEGOLY_530.md): cztery
+przebiegi po 25 elementów przy prawdziwym zoomie. Nie odtworzono całkowitego
+zasłonięcia fokusu, ale przy tekście 140% pozostaje tylko 101,5 px między
+nawigacjami, a napis etykiety zdjęcia wymaga przewinięcia. Ten pomiar nie
+obejmuje błędów walidacji. Pełny port nadal **CZĘŚCIOWO**.
+
+[Sprostowanie indeksów #532](ZRODLO_STYLU_532.md) usuwa kierowanie modeli
+do historycznego kitu jako bieżącej identyfikacji. Nie zmienia oryginalnych
+paczek ani wyglądu aplikacji.
+
 ## Odbiór produkcji Alfy 0.23 i dalsze poprawki
 
 Railway deployment 6432286380 dla `6db1b8978f8d7e2229a77e8dd4701ffd510a1b6a`: success 14 września 2026 o 07:43:37 UTC. CI main 34817233565: completed/success. Rzeczywisty odczyt produkcji pokazał Alfę 0.23 i `6db1b89`; CSS, JS i oba lokalne pliki Inter zwróciły 200. W zalogowanej przeglądarce Chrome po odświeżeniu wyszukiwarki również odczytano Alfę 0.23 i `6db1b89`. Obejrzano produkcyjne `/szukaj` (puste pole i brak polecanych tagów) oraz `/home` (rzeczywisty strumień, ciemna karta dodawania i boczne sekcje). To ogląd bieżącego widoku desktopowego, nie pełna macierz skal i stanów produkcji.
