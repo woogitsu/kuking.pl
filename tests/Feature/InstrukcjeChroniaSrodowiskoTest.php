@@ -54,4 +54,24 @@ class InstrukcjeChroniaSrodowiskoTest extends TestCase
         $this->assertStringNotContainsString('createdb kuking_test', $cursor, 'IZOLACJA_BAZY');
         $this->assertStringContainsString('jawny host i port', $cursor, 'IZOLACJA_BAZY');
     }
+
+    public function test_indeksy_stylu_wskazuja_aktualna_konstytucje_przed_archiwami(): void
+    {
+        foreach (['docs/design/README.md', 'docs/design/system-v3.1/CZYTAJ-NAJPIERW.md'] as $file) {
+            $text = file_get_contents(dirname(__DIR__, 2).'/'.$file);
+            $currentPosition = strpos($text, '## Aktualne źródło stylu');
+            $historyPosition = strpos($text, '## Materiały historyczne');
+            $this->assertNotFalse($currentPosition, 'ZRODLO_STYLU_SEKCJA '.$file);
+            $this->assertNotFalse($historyPosition, 'ZRODLO_STYLU_ARCHIWUM '.$file);
+            $this->assertLessThan($historyPosition, $currentPosition, 'ZRODLO_STYLU_KOLEJNOSC '.$file);
+            $current = explode('## Materiały historyczne', explode('## Aktualne źródło stylu', $text, 2)[1] ?? '', 2)[0];
+            $this->assertNotSame('', trim($current), 'ZRODLO_STYLU_SEKCJA '.$file);
+            $this->assertStringContainsString('AGENTS.md', $current, 'ZRODLO_STYLU_AGENTS '.$file);
+            $this->assertStringContainsString('brand/KONSTYTUCJA_MARKI.md', $current, 'ZRODLO_STYLU_KONSTYTUCJA '.$file);
+            $this->assertStringContainsString('DECISIONS.md', $current, 'ZRODLO_STYLU_DECYZJE '.$file);
+            $this->assertStringContainsString('AUDYT_PACZKI_MARKI_508.md', $current, 'ZRODLO_STYLU_PACZKA '.$file);
+            $this->assertStringNotContainsString('TO JEST OBOWIĄZUJĄCY WYGLĄD', $text, 'ZRODLO_STYLU_STARY_KIT '.$file);
+            $this->assertStringNotContainsString('oryginał, rozstrzygający przy każdej wątpliwości', $text, 'ZRODLO_STYLU_STARE_UPLOADS '.$file);
+        }
+    }
 }

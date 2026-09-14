@@ -1,5 +1,23 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Dodatkowy odbiór lokalny — 14 września 2026, kod 24afa9e
+
+[Tryb gotowania](ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md) uzupełnia historyczny
+wiersz tej trasy: 48 konfiguracji, w tym rzeczywisty zoom 200%, długa
+instrukcja 4000 znaków, faktyczne przejścia, Tab/Enter i zachowanie
+odhaczenia. Reprezentatywne zrzuty obejrzano; nie testowano fizycznego
+telefonu, Wake Lock ani wysłania wykonania.
+
+[Fokus szczegółów przepisu](ODBIOR_FOKUSU_SZCZEGOLY_530.md): cztery
+przebiegi po 25 elementów przy prawdziwym zoomie. Nie odtworzono całkowitego
+zasłonięcia fokusu, ale przy tekście 140% pozostaje tylko 101,5 px między
+nawigacjami, a napis etykiety zdjęcia wymaga przewinięcia. Ten pomiar nie
+obejmuje błędów walidacji. Pełny port nadal **CZĘŚCIOWO**.
+
+[Sprostowanie indeksów #532](ZRODLO_STYLU_532.md) usuwa kierowanie modeli
+do historycznego kitu jako bieżącej identyfikacji. Nie zmienia oryginalnych
+paczek ani wyglądu aplikacji.
+
 ## Odbiór produkcji Alfy 0.23 i dalsze poprawki
 
 Railway deployment 6432286380 dla `6db1b8978f8d7e2229a77e8dd4701ffd510a1b6a`: success 14 września 2026 o 07:43:37 UTC. CI main 34817233565: completed/success. Rzeczywisty odczyt produkcji pokazał Alfę 0.23 i `6db1b89`; CSS, JS i oba lokalne pliki Inter zwróciły 200. W zalogowanej przeglądarce Chrome po odświeżeniu wyszukiwarki również odczytano Alfę 0.23 i `6db1b89`. Obejrzano produkcyjne `/szukaj` (puste pole i brak polecanych tagów) oraz `/home` (rzeczywisty strumień, ciemna karta dodawania i boczne sekcje). To ogląd bieżącego widoku desktopowego, nie pełna macierz skal i stanów produkcji.
