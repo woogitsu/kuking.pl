@@ -51,3 +51,5 @@ Końcowy zestaw po integracji z #526/#528 i poprawieniu nazwy przycisku: **104 t
 W lokalnej przeglądarce utworzono prywatny przepis prawdziwym formularzem. Potwierdzenie oraz opis udostępniania mówiły „tylko Ty”, a instrukcja wskazywała „Dopisz szczegóły”. Cztery konfiguracje 320/1440 px, oba motywy i tekst 140%: brak poziomego przewijania. Obejrzano zrzuty jasnego motywu na obu szerokościach. Pozostałe widoczności sprawdzono w HTTP/Livewire, nie w tej serii zrzutów. Nie tworzono treści na produkcji.
 
 Niezależne review kodu nie wykazało blokera; sprawdzono również warunek kompletności i zachowanie edycji już opublikowanego przepisu. Wersja i changelog są częścią wspólnego, jeszcze niewdrożonego pakietu Alfy 0.25.
+
+Wiążący COPY_STYLE również rozróżnia trzy potwierdzenia widoczności. Usunięto bezwarunkowe „Nic nie zginie” z przykładu zapisu szkicu i doprecyzowano granicę automatycznego zapisu. Standard nie kieruje kolejnego modelu z powrotem do naprawionych komunikatów.

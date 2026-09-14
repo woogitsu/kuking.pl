@@ -2,7 +2,7 @@
 
 ## Odbiór produkcji Alfy 0.23 i dalsze poprawki
 
-Railway deployment 6432286380 dla `6db1b8978f8d7e2229a77e8dd4701ffd510a1b6a`: success 14 września 2026 o 07:43:37 UTC. CI main 34817233565: completed/success. Rzeczywisty odczyt produkcji pokazał Alfę 0.23 i `6db1b89`; CSS, JS i oba lokalne pliki Inter zwróciły 200. Nie oznacza to odbioru wszystkich zalogowanych stanów produkcji.
+Railway deployment 6432286380 dla `6db1b8978f8d7e2229a77e8dd4701ffd510a1b6a`: success 14 września 2026 o 07:43:37 UTC. CI main 34817233565: completed/success. Rzeczywisty odczyt produkcji pokazał Alfę 0.23 i `6db1b89`; CSS, JS i oba lokalne pliki Inter zwróciły 200. W zalogowanej przeglądarce Chrome po odświeżeniu wyszukiwarki również odczytano Alfę 0.23 i `6db1b89`. Obejrzano produkcyjne `/szukaj` (puste pole i brak polecanych tagów) oraz `/home` (rzeczywisty strumień, ciemna karta dodawania i boczne sekcje). To ogląd bieżącego widoku desktopowego, nie pełna macierz skal i stanów produkcji.
 
 [Składniki #526](SLOWNIK_SKLADNIKOW_526.md) i [autozapis #528](AUTOZAPIS_KREATORA_528.md) mają lokalną regresję po integracji i odbiór przeglądarkowy opisany w raportach. [Komunikaty widoczności #530](KOMUNIKATY_WIDOCZNOSCI_530.md) uzupełniają ten pakiet. Końcowy zakres lokalny: 104/1194, 16 kontroli ujemnych, opisane odbiory przeglądarkowe. Alfa 0.25 jest przygotowywana, bez potwierdzenia wdrożenia. Pełny port nadal **CZĘŚCIOWO**.
 
