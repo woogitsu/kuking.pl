@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.29 — konkretna zachęta po publikacji
+
+- Po pierwszym wpisie wskazujemy formularz kolejnego zdjęcia, bez niezmierzonej obietnicy szybszego dodawania (#545).
+
 ## Alfa 0.28 — sprawdzone ekrany wejścia
 
 - Łączenie konta z Facebookiem opisuje przycisk wejścia i możliwe potwierdzenie u dostawcy, bez obietnicy jednego kliknięcia (#542).

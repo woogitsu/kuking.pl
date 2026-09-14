@@ -68,10 +68,8 @@
         {{--
             Zachęta do kolejnego zdjęcia (COLD_START.md).
 
-            „Po publikacji od razu proponujemy dodanie następnego — człowiek
-            ma w telefonie czterdzieści zdjęć obiadów i jest w trybie »już
-            wiem, jak to działa«". To jest jedyny moment, w którym opór przed
-            publikacją jest zerowy, bo właśnie się udało.
+            D-114: opisujemy drogę do formularza, bez założeń o zawartości
+            telefonu i bez niezmierzonej obietnicy szybszego dodawania.
 
             Stoi NAD strefą usuwania i wygląda inaczej niż ona: pierwszą
             rzeczą, którą autor widzi po publikacji, nie może być przycisk
@@ -79,9 +77,8 @@
         --}}
         <div class="notice">
             @if($toPierwszyWpis ?? false)
-                <strong>To Twój pierwszy wpis. Gratulacje.</strong>
-                Masz pewnie w telefonie więcej zdjęć — teraz idzie najszybciej,
-                bo już wiesz, jak to działa.
+                <strong>To Twój pierwszy wpis.</strong>
+                Kolejne zdjęcie dodasz przez ten sam formularz.
             @else
                 {{-- BEZ „zajmuje mniej niż minutę": obietnica z miarą, której
                      nie mierzymy. Zostaje to, co jest prawdą niezależnie od

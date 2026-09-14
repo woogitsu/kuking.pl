@@ -24,6 +24,10 @@ fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
 
 ## Precyzja opisu działania
 
+Zachęta po pierwszym wpisie wskazuje formularz kolejnego zdjęcia. Nie zakłada
+zawartości telefonu ani nie obiecuje, że następna publikacja pójdzie szybciej
+(D-114, #545). Pierwszy i kolejny wpis są osobnymi stanami odbioru tekstu.
+
 Komunikat przekroczenia limitu podaje wartość z rzeczywistej reguły
 walidacji, np. `:max`, zamiast liczby wpisanej osobno w zdaniu. Zmiana
 limitu nie może pozostawić sprzecznej instrukcji przy polu (#538).
